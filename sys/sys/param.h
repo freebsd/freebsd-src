@@ -148,20 +148,29 @@
 /*
  * File system parameters and macros.
  *
- * The file system is made out of blocks of at most MAXBSIZE units, with
- * smaller units (fragments) only in the last direct block.  MAXBSIZE
- * primarily determines the size of buffers in the buffer pool.  It may be
- * made larger without any effect on existing file systems; however making
- * it smaller make make some file systems unmountable.  Also, MAXBSIZE
- * must be less than MAXPHYS!!!  DFLTBSIZE is the average amount of
- * memory allocated by vfs_bio per nbuf.  BKVASIZE is the average amount
- * of kernel virtual space allocated per nbuf.  BKVASIZE should be >=
- * DFLTBSIZE.  If it is significantly bigger than DFLTBSIZE, then
- * kva fragmentation causes fewer performance problems.
+ * MAXBSIZE -	Filesystems are made out of blocks of at most MAXBSIZE bytes
+ *		per block.  MAXBSIZE may be made larger without effecting
+ *		any existing filesystems as long as it does not exceed MAXPHYS,
+ *		and may be made smaller at the risk of not being able to use
+ *		filesystems which require a block size exceeding MAXBSIZE.
+ *
+ * BKVASIZE -	Nominal buffer space per buffer, in bytes.  BKVASIZE is the
+ *		minimum KVM memory reservation the kernel is willing to make.
+ *		Filesystems can of course request smaller chunks.  Actual 
+ *		backing memory uses a chunk size of a page (PAGE_SIZE).
+ *
+ *		If you make BKVASIZE too small you risk seriously fragmenting
+ *		the buffer KVM map which may slow things down a bit.  If you
+ *		make it too big the kernel will not be able to optimally use 
+ *		the KVM memory reserved for the buffer cache and will wind 
+ *		up with too-few buffers.
+ *
+ *		The default is 16384, roughly 2x the block size used by a
+ *		normal UFS filesystem.
  */
-#define	MAXBSIZE	65536
-#define BKVASIZE	8192
-#define DFLTBSIZE	4096
+#define MAXBSIZE	65536	/* must be power of 2 */
+#define BKVASIZE	16384	/* must be power of 2 */
+#define BKVAMASK	(BKVASIZE-1)
 #define MAXFRAG 	8
 
 /*
