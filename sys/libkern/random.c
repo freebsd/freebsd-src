@@ -38,9 +38,9 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/libkern.h>
 
-#define NSHUFF 100      /* to drop part of seed -> 1st value correlation */
+#define NSHUFF 50       /* to drop some "seed -> 1st value" linearity */
 
-static u_long randseed = 892053144; /* after srandom(1), NSHUFF counted */
+static u_long randseed = 937186357; /* after srandom(1), NSHUFF counted */
 
 void
 srandom(seed)
