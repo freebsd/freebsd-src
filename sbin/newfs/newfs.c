@@ -187,7 +187,11 @@ main(int argc, char *argv[])
 			break;
 		case 'b':
 			if ((bsize = atoi(optarg)) < MINBSIZE)
-				errx(1, "%s: bad block size", optarg);
+				errx(1, "%s: block size too small, min is %d",
+				    optarg, MINBSIZE);
+			if (bsize > MAXBSIZE)
+				errx(1, "%s: block size too large, max is %d",
+				    optarg, MAXBSIZE);
 			break;
 		case 'c':
 			if ((maxblkspercg = atoi(optarg)) <= 0)
