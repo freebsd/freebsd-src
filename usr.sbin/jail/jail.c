@@ -49,9 +49,9 @@ extern char	**environ;
 int
 main(int argc, char **argv)
 {
-	login_cap_t *lcap;
+	login_cap_t *lcap = NULL;
 	struct jail j;
-	struct passwd *pwd;
+	struct passwd *pwd = NULL;
 	struct in_addr in;
 	gid_t groups[NGROUPS];
 	int ch, i, iflag, lflag, ngroups, uflag, Uflag;
