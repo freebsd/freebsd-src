@@ -28,6 +28,9 @@
  **********************************************************************
  * HISTORY
  * $Log: scan.c,v $
+ * Revision 1.2  1995/12/26 05:02:48  peter
+ * Apply ports/net/sup/patches/patch-aa...
+ *
  * Revision 1.1.1.1  1995/12/26 04:54:47  peter
  * Import the unmodified version of the sup that we are using.
  * The heritage of this version is not clear.  It appears to be NetBSD
@@ -188,7 +191,7 @@ static listdir();
 static omitanyone();
 static anyglob();
 static int getscanfile();
-static chkscanfile();
+static int chkscanfile();
 static makescanfile();
 static recordone();
 static recordexec();
@@ -327,13 +330,15 @@ char *release;
 	return (TRUE);
 }
 
-makescanlists ()
+makescanlists (releases)
+	char **releases;
 {
 	TREELIST *tl;
 	char buf[STRINGLENGTH];
 	char *p,*q;
 	FILE *f;
 	char *saveprefix = prefix;
+	char **rel_index;
 	int count = 0;
 
 	(void) sprintf (buf,FILERELEASES,collname);
@@ -352,14 +357,26 @@ makescanlists ()
 					goaway ("Can't chdir to %s",prefix);
 				(void) chdir (basedir);
 			}
-			makescan (tl->TLlist,tl->TLscan);
+			if (releases)
+			{
+				rel_index = releases;
+				while (*rel_index) {
+					if (!strcmp (*rel_index, tl->TLname)) {
+						makescan (tl->TLlist,tl->TLscan);
+						break;
+					}
+					rel_index++;
+				}
+			}
+			else
+				makescan (tl->TLlist,tl->TLscan);
 			free ((char *)tl);
 			count++;
 		}
 		(void) fclose (f);
 	}
 	if (count == 0)
-		makescan ((char *)NULL,(char *)NULL);
+		makescan ((char *)NULL,FILESCANDEF);
 }
 
 static
@@ -405,10 +422,11 @@ makescan (listfile,scanfile)
 char *listfile,*scanfile;
 {
 	listT = NULL;
-	chkscanfile (scanfile);		/* can we can write a scan file? */
-	doscan (listfile);		/* read list file and scan disk */
-	makescanfile (scanfile);	/* record names in scan file */
-	Tfree (&listT);			/* free file list tree */
+	if(chkscanfile (scanfile)) {	/* can we can write a scan file? */
+		doscan (listfile);	/* read list file and scan disk */
+		makescanfile (scanfile);/* record names in scan file */
+		Tfree (&listT);		/* free file list tree */
+	}
 }
 
 static
@@ -821,7 +839,7 @@ char *scanfile;
 	register TREELIST *tl;
 
 	if (scanfile == NULL)
-		scanfile = FILESCANDEF;
+		return(FALSE);
 	(void) sprintf (buf,FILESCAN,collname,scanfile);
 	if (stat(buf,&sbuf) < 0)
 		return (FALSE);
@@ -929,7 +947,7 @@ char *scanfile;
 	FILE *f;
 
 	if (scanfile == NULL)
-		scanfile = FILESCANDEF;
+		return(FALSE);
 	(void) sprintf (fname,FILESCAN,collname,scanfile);
 	(void) sprintf (tname,"%s.temp",fname);
 	if (NULL == (f = fopen (tname, "w")))
@@ -938,6 +956,7 @@ char *scanfile;
 		(void) unlink (tname);
 		(void) fclose (f);
 	}
+	return(TRUE);
 }
 
 static makescanfile (scanfile)
@@ -948,8 +967,6 @@ char *scanfile;
 	FILE *scanF;			/* output file for scanned file list */
 	int recordone ();
 
-	if (scanfile == NULL)
-		scanfile = FILESCANDEF;
 	(void) sprintf (fname,FILESCAN,collname,scanfile);
 	(void) sprintf (tname,"%s.temp",fname);
 	scanF = fopen (tname,"w");
