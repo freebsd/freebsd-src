@@ -635,7 +635,7 @@ cbb_attach(device_t brdev)
 	sc->chipset = cbb_chipset(pci_get_devid(brdev), NULL);
 	sc->dev = brdev;
 	sc->cbdev = NULL;
-	sc->pccarddev = NULL;
+	sc->exca.pccarddev = NULL;
 	sc->secbus = pci_read_config(brdev, PCIR_SECBUS_2, 1);
 	sc->subbus = pci_read_config(brdev, PCIR_SUBBUS_2, 1);
 	SLIST_INIT(&sc->rl);
@@ -713,12 +713,12 @@ cbb_attach(device_t brdev)
 		sc->cbdev = NULL;
 	}
 
-	sc->pccarddev = device_add_child(brdev, "pccard", -1);
-	if (sc->pccarddev == NULL)
+	sc->exca.pccarddev = device_add_child(brdev, "pccard", -1);
+	if (sc->exca.pccarddev == NULL)
 		DEVPRINTF((brdev, "WARNING: cannot add pccard bus.\n"));
-	else if (device_probe_and_attach(sc->pccarddev) != 0) {
+	else if (device_probe_and_attach(sc->exca.pccarddev) != 0) {
 		DEVPRINTF((brdev, "WARNING: cannot attach pccard bus.\n"));
-		sc->pccarddev = NULL;
+		sc->exca.pccarddev = NULL;
 	}
 
 	/* Map and establish the interrupt. */
@@ -921,7 +921,7 @@ cbb_child_detached(device_t brdev, device_t child)
 {
 	struct cbb_softc *sc = device_get_softc(brdev);
 
-	if (child != sc->cbdev && child != sc->pccarddev)
+	if (child != sc->cbdev && child != sc->exca.pccarddev)
 		device_printf(brdev, "Unknown child detached: %s\n",
 		    device_get_nameunit(child));
 }
@@ -995,16 +995,9 @@ cbb_insert(struct cbb_softc *sc)
 	    sockevent, sockstate));
 
 	if (sockstate & CBB_SOCKET_STAT_16BIT) {
-		if (sc->pccarddev != NULL) {
-			sc->flags |= CBB_16BIT_CARD;
-			sc->flags |= CBB_CARD_OK;
-			if (CARD_ATTACH_CARD(sc->pccarddev) != 0)
-				device_printf(sc->dev,
-				    "PC Card card activation failed\n");
-		} else {
-			device_printf(sc->dev,
-			    "PC Card inserted, but no pccard bus.\n");
-		}
+		if (sc->exca.pccarddev)
+			sc->flags |= CBB_16BIT_CARD | CBB_CARD_OK;
+		exca_insert(&sc->exca);
 	} else if (sockstate & CBB_SOCKET_STAT_CB) {
 		if (sc->cbdev != NULL) {
 			sc->flags &= ~CBB_16BIT_CARD;
@@ -1029,8 +1022,7 @@ static void
 cbb_removal(struct cbb_softc *sc)
 {
 	if (sc->flags & CBB_16BIT_CARD) {
-		if (sc->pccarddev != NULL)
-			CARD_DETACH_CARD(sc->pccarddev);
+		exca_removal(&sc->exca);
 	} else {
 		if (sc->cbdev != NULL)
 			CARD_DETACH_CARD(sc->cbdev);
@@ -1640,30 +1632,13 @@ cbb_power_disable_socket(device_t brdev, device_t child)
 	else
 		cbb_cardbus_power_disable_socket(brdev, child);
 }
+
 static int
 cbb_pcic_activate_resource(device_t brdev, device_t child, int type, int rid,
     struct resource *res)
 {
-	int err;
 	struct cbb_softc *sc = device_get_softc(brdev);
-	if (!(rman_get_flags(res) & RF_ACTIVE)) { /* not already activated */
-		switch (type) {
-		case SYS_RES_IOPORT:
-			err = exca_io_map(&sc->exca, 0, res);
-			break;
-		case SYS_RES_MEMORY:
-			err = exca_mem_map(&sc->exca, 0, res);
-			break;
-		default:
-			err = 0;
-			break;
-		}
-		if (err)
-			return (err);
-
-	}
-	return (BUS_ACTIVATE_RESOURCE(device_get_parent(brdev), child,
-	    type, rid, res));
+	return (exca_activate_resource(&sc->exca, child, type, rid, res));
 }
 
 static int
@@ -1671,21 +1646,7 @@ cbb_pcic_deactivate_resource(device_t brdev, device_t child, int type,
     int rid, struct resource *res)
 {
 	struct cbb_softc *sc = device_get_softc(brdev);
-
-	if (rman_get_flags(res) & RF_ACTIVE) { /* if activated */
-		switch (type) {
-		case SYS_RES_IOPORT:
-			if (exca_io_unmap_res(&sc->exca, res))
-				return (ENOENT);
-			break;
-		case SYS_RES_MEMORY:
-			if (exca_mem_unmap_res(&sc->exca, res))
-				return (ENOENT);
-			break;
-		}
-	}
-	return (BUS_DEACTIVATE_RESOURCE(device_get_parent(brdev), child,
-	    type, rid, res));
+	return (exca_deactivate_resource(&sc->exca, child, type, rid, res));
 }
 
 static struct resource *
