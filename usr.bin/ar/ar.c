@@ -51,6 +51,7 @@ static const char sccsid[] = "@(#)ar.c	8.3 (Berkeley) 4/2/94";
 #include <ar.h>
 #include <dirent.h>
 #include <err.h>
+#include <libgen.h>
 #include <paths.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -178,7 +179,7 @@ main(argc, argv)
 			warnx("no position operand specified");
 			usage();
 		}
-		posname = rname(posarg);
+		posname = basename(posarg);
 	}
 	/* -d only valid with -Tv. */
 	if (options & AR_D && options & ~(AR_D|AR_TR|AR_V))
