@@ -15,7 +15,6 @@ SUBDIR=	adjkerntz \
 	devd \
 	devfs \
 	dhclient \
-	disklabel \
 	dmesg \
 	dump \
 	dumpfs \
@@ -91,6 +90,7 @@ SUBDIR+=ipf \
 SUBDIR+=cxconfig \
 	mount_nwfs \
 	mount_smbfs
+SUBDIR+=disklabel
 .if ${MACHINE} == "pc98"
 SUBDIR+=fdisk_pc98
 .else
@@ -102,6 +102,10 @@ SUBDIR+=fdisk
 SUBDIR+=fdisk \
 	gpt \
 	mca
+.endif
+
+.if ${MACHINE_ARCH} == "alpha"
+SUBDIR+=disklabel
 .endif
 
 .include <bsd.subdir.mk>
