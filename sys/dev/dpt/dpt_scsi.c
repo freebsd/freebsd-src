@@ -27,6 +27,7 @@
  * SUCH DAMAGE.
  */
 
+#ident "$FreeBSD$"
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -45,8 +46,6 @@ __FBSDID("$FreeBSD$");
  *	       NiceTry, M$-Doze, Win-Dog, Slowlaris, etc., in recognizing RAID
  *	       arrays that span controllers (Wow!).
  */
-
-#ident "$FreeBSD$"
 
 #define _DPT_C_
 
