@@ -275,6 +275,8 @@ gv_plex_start(struct bio *bp)
 				    boff);
 
 			if (err) {
+				if (p->org == GV_PLEX_RAID5)
+					gv_free_raid5_packet(wp);
 				bp->bio_completed += bcount;
 				if (bp->bio_error == 0)
 					bp->bio_error = err;
