@@ -1258,6 +1258,7 @@ sbpnp_probe(device_t dev)
     	case 0x31008c0e: /* CTL0031 */
     	case 0x41008c0e: /* CTL0041 */
     	case 0x42008c0e: /* CTL0042 */
+    	case 0x44008c0e: /* CTL0044 */
     	case 0x45008c0e: /* CTL0045 */
 		s = "SB16 PnP";
 		break;
