@@ -164,11 +164,11 @@ Hash_DeleteTable(Hash_Table *t)
  *---------------------------------------------------------
  */
 Hash_Entry *
-Hash_FindEntry(Hash_Table *t, char *key)
+Hash_FindEntry(const Hash_Table *t, const char *key)
 {
 	Hash_Entry *e;
 	unsigned h;
-	char *p;
+	const char *p;
 
 	for (h = 0, p = key; *p;)
 		h = (h << 5) - h + *p++;
@@ -198,11 +198,11 @@ Hash_FindEntry(Hash_Table *t, char *key)
  *---------------------------------------------------------
  */
 Hash_Entry *
-Hash_CreateEntry(Hash_Table *t, char *key, Boolean *newPtr)
+Hash_CreateEntry(Hash_Table *t, const char *key, Boolean *newPtr)
 {
 	Hash_Entry *e;
 	unsigned int h;
-	char *p;
+	const char *p;
 	int keylen;
 	struct Hash_Entry **hp;
 
