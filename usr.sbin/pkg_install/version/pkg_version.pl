@@ -148,7 +148,18 @@ sub CompareNumbers {
 	    else {
 		$c1 =~ s/\d+//;
 		$c2 =~ s/\d+//;
-		return &CompareNumbers($c1, $c2);
+		if ($c1 eq $c2) {
+		    return 0;
+		}
+		elsif ($c1 eq "") {
+		    return -1;
+		}
+		elsif ($c2 eq "") {
+		    return 1;
+		}
+		else {
+		    return &CompareNumbers($c1, $c2);
+		}
 	    }
 	}
     }
