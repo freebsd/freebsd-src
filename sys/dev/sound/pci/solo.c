@@ -756,7 +756,7 @@ ess_dmasetup(struct ess_info *sc, int ch, u_int32_t base, u_int16_t cnt, int dir
 static int
 ess_dmapos(struct ess_info *sc, int ch)
 {
-	int p = 0;
+	int p = 0, i = 0, j = 0;
 	u_long flags;
 
 	KASSERT(ch == 1 || ch == 2, ("bad ch"));
@@ -766,11 +766,20 @@ ess_dmapos(struct ess_info *sc, int ch)
 /*
  * During recording, this register is known to give back
  * garbage if it's not quiescent while being read. That's
- * why we spl, stop the DMA, wait, and be vewy, vewy quiet
+ * why we spl, stop the DMA, and try over and over until
+ * adjacent reads are "close", in the right order and not
+ * bigger than is otherwise possible.
  */
 		ess_dmatrigger(sc, ch, 0);
-    		DELAY(20);
-		p = port_rd(sc->vc, 0x4, 2) + 1;
+		DELAY(20);
+		do {
+			DELAY(10);
+			if (j > 1)
+				printf("DMA count reg bogus: %04x & %04x\n",
+					i, p);
+			i = port_rd(sc->vc, 0x4, 2) + 1;
+			p = port_rd(sc->vc, 0x4, 2) + 1;
+		} while ((p > sc->dmasz[ch -1 ] || i < p || (p - i) > 0x8) && j++ < 1000);
 		ess_dmatrigger(sc, ch, 1);
 	}
 	else if (ch == 2)
