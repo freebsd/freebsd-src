@@ -563,7 +563,7 @@ fw_ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, fw_proc *td)
 		bcopy(fp, (void *)&xfer->send.hdr, tinfo->hdr_len);
 		if (pay_len > 0)
 			bcopy((char *)fp + tinfo->hdr_len,
-			    (void *)&xfer->send.payload, pay_len);
+			    (void *)xfer->send.payload, pay_len);
 		xfer->send.spd = asyreq->req.sped;
 		xfer->act.hand = fw_asy_callback;
 
