@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.92 1996/04/29 19:34:25 jkh Exp $
+ * $Id: install.c,v 1.93 1996/04/29 21:15:42 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -379,7 +379,7 @@ installNovice(dialogMenuItem *self)
 	msgConfirm("Congradulations!  You now have FreeBSD installed on your system.\n\n"
 		   "We will now move on to the final configuration questions.\n"
 		   "For any option you do not wish to configure, simply select\n"
-		   "Cancel.\n\n"
+		   "No.\n\n"
 		   "If you wish to re-enter this utility after the system is up, you\n"
 		   "may do so by typing: /stand/sysinstall.");
     variable_set2(SYSTEM_STATE, DITEM_STATUS(i) == DITEM_FAILURE ? "error-install" : "full-install");
