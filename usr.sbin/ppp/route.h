@@ -69,4 +69,5 @@ extern void route_ShowSticky(struct prompt *, struct sticky_route *,
 extern void route_ParseHdr(struct rt_msghdr *, struct sockaddr *[RTAX_MAX]);
 extern int rt_Set(struct bundle *, int, const struct ncprange *,
                   const struct ncpaddr *, int, int);
-extern void rt_Update(struct bundle *, const struct ncprange *);
+extern void rt_Update(struct bundle *, const struct sockaddr *,
+                      const struct sockaddr *, const struct sockaddr *);

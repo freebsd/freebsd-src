@@ -115,7 +115,13 @@ ipcp_SetIPv6address(struct ipv6cp *ipv6cp, u_int32_t mytok, u_int32_t histok)
 {
   struct bundle *bundle = ipv6cp->fsm.bundle;
   struct in6_addr myaddr, hisaddr;
-  struct ncprange myrange, dst;
+  struct ncprange myrange;
+  struct sockaddr_storage ssdst, ssgw, ssmask;
+  struct sockaddr *sadst, *sagw, *samask;
+
+  sadst = (struct sockaddr *)&ssdst;
+  sagw = (struct sockaddr *)&ssgw;
+  samask = (struct sockaddr *)&ssmask;
 
   memset(&myaddr, '\0', sizeof myaddr);
   memset(&hisaddr, '\0', sizeof hisaddr);
@@ -141,8 +147,12 @@ ipcp_SetIPv6address(struct ipv6cp *ipv6cp, u_int32_t mytok, u_int32_t histok)
                 IFACE_CLEAR_ALIASES|IFACE_SYSTEM);
 
   if (bundle->ncp.cfg.sendpipe > 0 || bundle->ncp.cfg.recvpipe > 0) {
-    ncprange_sethost(&dst, &ipv6cp->hisaddr);
-    rt_Update(bundle, &dst);
+    ncprange_getsa(&myrange, &ssgw, &ssmask);
+    if (ncpaddr_isset(&ipv6cp->hisaddr))
+      ncpaddr_getsa(&ipv6cp->hisaddr, &ssdst);
+    else
+      sadst = NULL;
+    rt_Update(bundle, sadst, sagw, samask);
   }
 
   if (Enabled(bundle, OPT_SROUTES))
