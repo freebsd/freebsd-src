@@ -130,7 +130,7 @@ static int isp_scan_loop(struct ispsoftc *);
 static int isp_scan_fabric(struct ispsoftc *);
 static void isp_register_fc4_type(struct ispsoftc *);
 static void isp_fw_state(struct ispsoftc *);
-static void isp_mboxcmd_qnw(struct ispsoftc *, mbreg_t *);
+static void isp_mboxcmd_qnw(struct ispsoftc *, mbreg_t *, int);
 static void isp_mboxcmd(struct ispsoftc *, mbreg_t *, int);
 
 static void isp_update(struct ispsoftc *);
@@ -1140,7 +1140,7 @@ isp_fibre_init(struct ispsoftc *isp)
 		return;
 	}
 
-	loopid = DEFAULT_LOOPID(isp);
+	loopid = fcp->isp_loopid;
 	MEMZERO(icbp, sizeof (*icbp));
 	icbp->icb_version = ICB_VERSION1;
 
@@ -4108,6 +4108,24 @@ isp_parse_status(struct ispsoftc *isp, ispstatusreq_t *sp, XS_T *xs)
 		 */
 		isp_prt(isp, ISP_LOGINFO,
 		    "port logout for target %d", XS_TGT(xs));
+		/*
+		 * If we're on a local loop, force a LIP (which is overkill)
+		 * to force a re-login of this unit.
+		 */
+		if (FCPARAM(isp)->isp_topo == TOPO_NL_PORT ||
+		    FCPARAM(isp)->isp_topo == TOPO_FL_PORT) {
+			mbreg_t mbs;
+			mbs.param[0] = MBOX_INIT_LIP;
+			isp_mboxcmd_qnw(isp, &mbs, 1);
+		}
+
+		/*
+		 * Probably overkill.
+		 */
+		isp->isp_sendmarker = 1;
+		FCPARAM(isp)->isp_loopstate = LOOP_PDB_RCVD;
+		isp_mark_getpdb_all(isp);
+		isp_async(isp, ISPASYNC_CHANGE_NOTIFY, ISPASYNC_CHANGE_OTHER);
 		if (XS_NOERR(xs)) {
 			XS_SETERR(xs, HBA_SELTIMEOUT);
 		}
@@ -4216,7 +4234,7 @@ isp_mbox_continue(struct ispsoftc *isp)
 	isp->isp_mbxworkp = ptr;
 	mbs.param[0] = isp->isp_lastmbxcmd;
 	isp->isp_mbxwrk0 -= 1;
-	isp_mboxcmd_qnw(isp, &mbs);
+	isp_mboxcmd_qnw(isp, &mbs, 0);
 	return (0);
 }
 
@@ -4690,7 +4708,7 @@ static char *fc_mbcmd_names[] = {
 #endif
 
 static void
-isp_mboxcmd_qnw(struct ispsoftc *isp, mbreg_t *mbp)
+isp_mboxcmd_qnw(struct ispsoftc *isp, mbreg_t *mbp, int nodelay)
 {
 	unsigned int lim, ibits, obits, box, opcode;
 	u_int16_t *mcp;
@@ -4709,12 +4727,24 @@ isp_mboxcmd_qnw(struct ispsoftc *isp, mbreg_t *mbp)
 		if (ibits & (1 << box)) {
 			ISP_WRITE(isp, MBOX_OFF(box), mbp->param[box]);
 		}
-		isp->isp_mboxtmp[box] = mbp->param[box] = 0;
+		if (nodelay == 0) {
+			isp->isp_mboxtmp[box] = mbp->param[box] = 0;
+		}
 	}
-	isp->isp_lastmbxcmd = opcode;
-	isp->isp_obits = obits;
-	isp->isp_mboxbsy = 1;
+	if (nodelay == 0) {
+		isp->isp_lastmbxcmd = opcode;
+		isp->isp_obits = obits;
+		isp->isp_mboxbsy = 1;
+	}
 	ISP_WRITE(isp, HCCR, HCCR_CMD_SET_HOST_INT);
+	/*
+	 * Oddly enough, if we're not delaying for an answer,
+	 * delay a bit to give the f/w a chance to pick up the
+	 * command.
+	 */
+	if (nodelay) {
+		USEC_DELAY(1000);
+	}
 }
 
 static void
