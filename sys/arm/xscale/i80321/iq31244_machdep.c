@@ -198,7 +198,6 @@ void *
 initarm(void *arg, void *arg2)
 {
 	struct pv_addr  kernel_l1pt;
-	struct pv_addr	proc0_uarea;
 	int loop;
 	u_int kerneldatasize, symbolsize;
 	u_int l1pagetable;
@@ -298,9 +297,6 @@ initarm(void *arg, void *arg2)
 	 * this to work (which is supposed to be the case).
 	 */
 
-	/* Allocate pages for process 0 kernel stack and uarea */
-	valloc_pages(proc0_uarea, UAREA_PAGES);
-	
 	/*
 	 * Now we start construction of the L1 page table
 	 * We start by mapping the L2 page tables into the L1.
@@ -333,8 +329,6 @@ initarm(void *arg, void *arg2)
 	    UND_STACK_SIZE * PAGE_SIZE, VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
 	pmap_map_chunk(l1pagetable, kernelstack.pv_va, kernelstack.pv_pa,
 	    KSTACK_PAGES * PAGE_SIZE, VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
-	pmap_map_chunk(l1pagetable, proc0_uarea.pv_va, proc0_uarea.pv_pa,
-	    UAREA_PAGES * PAGE_SIZE, VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
 	pmap_map_chunk(l1pagetable, msgbufpv.pv_va, msgbufpv.pv_pa,
 	    MSGBUF_SIZE, VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
 
@@ -405,7 +399,6 @@ initarm(void *arg, void *arg2)
 	undefined_init();
 				
 	proc_linkup(&proc0, &ksegrp0, &thread0);
-	proc0.p_uarea = (struct user *) proc0_uarea.pv_va;
 	thread0.td_kstack = kernelstack.pv_va;
 	thread0.td_pcb = (struct pcb *)
 		(thread0.td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;

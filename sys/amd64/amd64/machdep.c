@@ -1114,9 +1114,6 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 #error "have you forgotten the isa device?";
 #endif
 
-	proc0.p_uarea = (struct user *)(physfree + KERNBASE);
-	bzero(proc0.p_uarea, UAREA_PAGES * PAGE_SIZE);
-	physfree += UAREA_PAGES * PAGE_SIZE;
 	thread0.td_kstack = physfree + KERNBASE;
 	bzero((void *)thread0.td_kstack, KSTACK_PAGES * PAGE_SIZE);
 	physfree += KSTACK_PAGES * PAGE_SIZE;
