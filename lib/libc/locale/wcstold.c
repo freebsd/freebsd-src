@@ -38,9 +38,9 @@ long double
 wcstold(const wchar_t * __restrict nptr, wchar_t ** __restrict endptr)
 {
 	long double val;
-	char *buf, *end, *p;
+	char *buf, *end;
 	const wchar_t *wcp;
-	size_t clen, len;
+	size_t len;
 
 	while (iswspace(*nptr))
 		nptr++;
