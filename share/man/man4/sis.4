@@ -35,16 +35,16 @@
 .Os
 .Sh NAME
 .Nm sis
-.Nd "SiS 900, SiS 7016 and NS DP83815 fast ethernet device driver"
+.Nd "SiS 900, SiS 7016 and NS DP83815 Fast Ethernet device driver"
 .Sh SYNOPSIS
 .Cd "device miibus"
 .Cd "device sis"
 .Sh DESCRIPTION
 The
 .Nm
-driver provides support for PCI ethernet adapters and embedded
+driver provides support for PCI Ethernet adapters and embedded
 controllers based on the Silicon Integrated Systems SiS 900
-and SiS 7016 fast ethernet controller chips, including:
+and SiS 7016 Fast Ethernet controller chips, including:
 .Pp
 .Bl -bullet -compact -offset indent
 .It
@@ -57,7 +57,7 @@ SiS 630, 635, and 735 motherboard chipsets
 .Pp
 This driver also supports
 adapters based on the National Semiconductor DP83815 (MacPhyter)
-PCI ethernet controller chip, such as:
+PCI Ethernet controller chip, such as:
 .Pp
 .Bl -bullet -compact -offset indent
 .It
@@ -66,7 +66,7 @@ Netgear FA311-TX
 Netgear FA312-TX
 .El
 .Pp
-The SiS 900 is a 100Mbps ethernet MAC and MII-compliant transceiver
+The SiS 900 is a 100Mbps Ethernet MAC and MII-compliant transceiver
 in a single package.
 It uses a bus master DMA and a scatter/gather
 descriptor scheme.
@@ -76,7 +76,7 @@ to be attached to its MII interface.
 The SiS 900 and SiS 7016 both have a 128-bit multicast hash filter
 and a single perfect filter entry for the station address.
 .Pp
-The NS DP83815 is also a 100Mbps ethernet MAC with integrated PHY.
+The NS DP83815 is also a 100Mbps Ethernet MAC with integrated PHY.
 The NatSemi chip and the SiS 900 share many of the same features and
 a fairly similar programming interface, hence both chips are supported
 by the same driver.
@@ -102,7 +102,7 @@ or
 .Sq half-duplex
 modes.
 .It 100baseTX
-Set 100Mbps (fast ethernet) operation.
+Set 100Mbps (Fast Ethernet) operation.
 The
 .Xr ifconfig 8
 .Cm mediaopt
