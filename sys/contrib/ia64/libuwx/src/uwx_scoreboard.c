@@ -63,8 +63,8 @@ struct uwx_scoreboard *uwx_alloc_scoreboard(struct uwx_env *env)
 	sb->rstate[i] = UWX_DISP_NONE;
     sb->rstate[SBREG_RP] = UWX_DISP_REG(UWX_REG_BR(0));
     sb->rstate[SBREG_PSP] = UWX_DISP_SPPLUS(0);
-    sb->rstate[SBREG_PFS] = UWX_DISP_REG(UWX_REG_PFS);
-    sb->rstate[SBREG_PRIUNAT] = UWX_DISP_REG(UWX_REG_UNAT);
+    sb->rstate[SBREG_PFS] = UWX_DISP_REG(UWX_REG_AR_PFS);
+    sb->rstate[SBREG_PRIUNAT] = UWX_DISP_REG(UWX_REG_AR_UNAT);
     sb->label = 0;
     return sb;
 }
