@@ -58,6 +58,10 @@ struct pcib_softc
     u_int8_t	seclat;		/* secondary bus latency timer */
 };
 
+typedef u_int32_t pci_read_config_fn(int b, int s, int f, int reg, int width);
+
+int		host_pcib_get_busno(pci_read_config_fn read_config, int bus,
+    int slot, int func, u_int8_t *busnum);
 int		pcib_attach(device_t dev);
 void		pcib_attach_common(device_t dev);
 int		pcib_read_ivar(device_t dev, device_t child, int which, uintptr_t *result);
