@@ -361,7 +361,7 @@ cpu_pcpu_init(struct pcpu *pcpu, int cpuid, size_t size)
 	KASSERT(size >= pcpusz + sizeof(struct pcb),
 	    ("%s: too small an allocation for pcpu", __func__));
 	pcpu->pc_pcb = (struct pcb *)((char*)pcpu + pcpusz);
-	pcpu->pc_acpi_id = 0xffffffff;
+	pcpu->pc_acpi_id = cpuid;
 }
 
 void
