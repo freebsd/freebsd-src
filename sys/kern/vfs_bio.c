@@ -319,19 +319,73 @@ bd_speedup(void)
 }
 
 /*
- * Initialize buffer headers and related structures. 
+ * Calculating buffer cache scaling values and reserve space for buffer
+ * headers.  This is called during low level kernel initialization and
+ * may be called more then once.  We CANNOT write to the memory area
+ * being reserved at this time.
  */
-
 caddr_t
-bufhashinit(caddr_t vaddr)
+kern_vfs_bio_buffer_alloc(caddr_t v, int physmem_est)
 {
-	/* first, make a null hash table */
+	/*
+	 * The nominal buffer size (and minimum KVA allocation) is BKVASIZE.
+	 * For the first 64MB of ram nominally allocate sufficient buffers to
+	 * cover 1/4 of our ram.  Beyond the first 64MB allocate additional
+	 * buffers to cover 1/20 of our ram over 64MB.  When auto-sizing
+	 * the buffer cache we limit the eventual kva reservation to
+	 * maxbcache bytes.
+	 *
+	 * factor represents the 1/4 x ram conversion.
+	 */
+	if (nbuf == 0) {
+		int factor = 4 * BKVASIZE / PAGE_SIZE;
+
+		nbuf = 50;
+		if (physmem_est > 1024)
+			nbuf += min((physmem_est - 1024) / factor,
+			    16384 / factor);
+		if (physmem_est > 16384)
+			nbuf += (physmem_est - 16384) * 2 / (factor * 5);
+
+		if (maxbcache && nbuf > maxbcache / BKVASIZE)
+			nbuf = maxbcache / BKVASIZE;
+	}
+
+	/*
+	 * Do not allow the buffer_map to be more then 1/2 the size of the
+	 * kernel_map.
+	 */
+	if (nbuf > (kernel_map->max_offset - kernel_map->min_offset) / 
+	    (BKVASIZE * 2)) {
+		nbuf = (kernel_map->max_offset - kernel_map->min_offset) / 
+		    (BKVASIZE * 2);
+		printf("Warning: nbufs capped at %d\n", nbuf);
+	}
+
+	/*
+	 * swbufs are used as temporary holders for I/O, such as paging I/O.
+	 * We have no less then 16 and no more then 256.
+	 */
+	nswbuf = max(min(nbuf/4, 256), 16);
+
+	/*
+	 * Reserve space for the buffer cache buffers
+	 */
+	swbuf = (void *)v;
+	v = (caddr_t)(swbuf + nswbuf);
+	buf = (void *)v;
+	v = (caddr_t)(buf + nbuf);
+
+	/*
+	 * Calculate the hash table size and reserve space
+	 */
 	for (bufhashmask = 8; bufhashmask < nbuf / 4; bufhashmask <<= 1)
 		;
-	bufhashtbl = (void *)vaddr;
-	vaddr = vaddr + sizeof(*bufhashtbl) * bufhashmask;
+	bufhashtbl = (void *)v;
+	v = (caddr_t)(bufhashtbl + bufhashmask);
 	--bufhashmask;
-	return(vaddr);
+
+	return(v);
 }
 
 void

@@ -62,6 +62,55 @@ struct mtx callout_lock;
 static struct callout *nextsoftcheck;	/* Next callout to be checked. */
 
 /*
+ * kern_timeout_callwheel_alloc() - kernel low level callwheel initialization 
+ *
+ *	This code is called very early in the kernel initialization sequence,
+ *	and may be called more then once.
+ */
+caddr_t
+kern_timeout_callwheel_alloc(caddr_t v)
+{
+	/*
+	 * Calculate callout wheel size
+	 */
+	for (callwheelsize = 1, callwheelbits = 0;
+	     callwheelsize < ncallout;
+	     callwheelsize <<= 1, ++callwheelbits)
+		;
+	callwheelmask = callwheelsize - 1;
+
+	callout = (struct callout *)v;
+	v = (caddr_t)(callout + ncallout);
+	callwheel = (struct callout_tailq *)v;
+	v = (caddr_t)(callwheel + callwheelsize);
+	return(v);
+}
+
+/*
+ * kern_timeout_callwheel_init() - initialize previously reserved callwheel
+ *				   space.
+ *
+ *	This code is called just once, after the space reserved for the
+ *	callout wheel has been finalized.
+ */
+void
+kern_timeout_callwheel_init(void)
+{
+	int i;
+
+	SLIST_INIT(&callfree);
+	for (i = 0; i < ncallout; i++) {
+		callout_init(&callout[i], 0);
+		callout[i].c_flags = CALLOUT_LOCAL_ALLOC;
+		SLIST_INSERT_HEAD(&callfree, &callout[i], c_links.sle);
+	}
+	for (i = 0; i < callwheelsize; i++) {
+		TAILQ_INIT(&callwheel[i]);
+	}
+	mtx_init(&callout_lock, "callout", MTX_SPIN | MTX_RECURSE);
+}
+
+/*
  * The callout mechanism is based on the work of Adam M. Costello and 
  * George Varghese, published in a technical report entitled "Redesigning
  * the BSD Callout and Timer Facilities" and modified slightly for inclusion

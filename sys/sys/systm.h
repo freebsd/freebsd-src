@@ -208,6 +208,8 @@ typedef void timeout_t __P((void *));	/* timeout function type */
 void	callout_handle_init __P((struct callout_handle *));
 struct	callout_handle timeout __P((timeout_t *, void *, int));
 void	untimeout __P((timeout_t *, void *, struct callout_handle));
+caddr_t	kern_timeout_callwheel_alloc __P((caddr_t v));
+void	kern_timeout_callwheel_init __P((void));
 
 /* Stubs for obsolete functions that used to be for interrupt  management */
 static __inline void		spl0(void)		{ return; }
