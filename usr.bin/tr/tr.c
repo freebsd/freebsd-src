@@ -214,12 +214,14 @@ main(int argc, char **argv)
 		usage();
 
 	s1.str = argv[0];
-	if ((s2.str = strdup(argv[1])) == NULL)
-		errx(2, "strdup(argv[1])");
+	if (cflag || Cflag) {
+		if ((s2.str = strdup(argv[1])) == NULL)
+			errx(1, "strdup(argv[1])");
 
-	if (cflag || Cflag)
 		for (cnt = NCHARS, p = string1; cnt--;)
 			*p++ = OOBCH;
+	} else
+		s2.str = argv[1];
 
 	if (!next(&s2))
 		errx(1, "empty string2");
