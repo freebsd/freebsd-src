@@ -47,7 +47,8 @@ ofw_getdev(void **vdev, const char *devspec, const char **path)
      * device, go with the current device.
      */
     if ((devspec == NULL) || 
-	(strchr(devspec, '@') == NULL)) {
+	((strchr(devspec, '@') == NULL) &&
+	(strchr(devspec, ':') == NULL))) {
 
 	if (((rv = ofw_parsedev(dev, getenv("currdev"), NULL)) == 0) &&
 	    (path != NULL))
@@ -112,7 +113,7 @@ found:
 }
 
 int
-ofw_setcurrdev(struct env_var *ev, int flags, void *value)
+ofw_setcurrdev(struct env_var *ev, int flags, const void *value)
 {
     struct ofw_devdesc	*ncurr;
     int			rv;
