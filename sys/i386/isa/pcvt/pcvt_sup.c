@@ -66,6 +66,8 @@
 
 #include <i386/isa/pcvt/pcvt_hdr.h>	/* global include */
 
+#include <sys/resource.h>
+
 static void vid_cursor ( struct cursorshape *data );
 static void vgasetfontattr ( struct vgafontattr *data );
 static void vgagetfontattr ( struct vgafontattr *data );

@@ -13,7 +13,7 @@
  * bad that happens because of using this software isn't the responsibility
  * of the author.  This software is distributed AS-IS.
  *
- * $Id: vfs_aio.c,v 1.23 1998/02/09 06:09:28 eivind Exp $
+ * $Id: vfs_aio.c,v 1.24 1998/02/25 06:30:15 bde Exp $
  */
 
 /*
@@ -49,6 +49,7 @@
 #include <sys/user.h>
 
 #include <machine/cpu.h>
+#include <machine/limits.h>
 
 static	int jobrefid;
 

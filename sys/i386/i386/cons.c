@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cons.c	7.2 (Berkeley) 5/9/91
- *	$Id: cons.c,v 1.55 1997/09/14 03:19:01 peter Exp $
+ *	$Id: cons.c,v 1.56 1998/01/24 02:54:12 eivind Exp $
  */
 
 #include "opt_devfs.h"
@@ -52,6 +52,7 @@
 #include <sys/sysctl.h>
 #include <sys/proc.h>
 #include <sys/tty.h>
+#include <sys/uio.h>
 
 #include <machine/cpu.h>
 #include <machine/cons.h>

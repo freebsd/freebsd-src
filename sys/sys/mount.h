@@ -31,15 +31,13 @@
  * SUCH DAMAGE.
  *
  *	@(#)mount.h	8.21 (Berkeley) 5/20/95
- *	$Id: mount.h,v 1.57 1998/03/01 22:46:36 msmith Exp $
+ *	$Id: mount.h,v 1.58 1998/03/08 09:58:29 julian Exp $
  */
 
 #ifndef _SYS_MOUNT_H_
 #define _SYS_MOUNT_H_
 
-#ifndef KERNEL
 #include <sys/ucred.h>
-#endif
 #include <sys/queue.h>
 #include <sys/lock.h>
 #include <net/radix.h>

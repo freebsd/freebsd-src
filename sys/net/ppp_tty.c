@@ -70,7 +70,7 @@
  * Paul Mackerras (paulus@cs.anu.edu.au).
  */
 
-/* $Id: ppp_tty.c,v 1.29 1997/12/06 13:24:37 bde Exp $ */
+/* $Id: ppp_tty.c,v 1.30 1998/02/13 12:46:15 phk Exp $ */
 
 #include "ppp.h"
 #if NPPP > 0
@@ -88,7 +88,7 @@
 #include <sys/fcntl.h>
 #include <sys/tty.h>
 #include <sys/conf.h>
-
+#include <sys/uio.h>
 
 /*
  * XXX stop <sys/vnode.h> from including <vnode_if.h>.  <vnode_if.h> doesn't

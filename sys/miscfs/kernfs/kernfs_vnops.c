@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernfs_vnops.c	8.15 (Berkeley) 5/21/95
- * $Id: kernfs_vnops.c,v 1.28 1997/10/27 13:33:40 bde Exp $
+ * $Id: kernfs_vnops.c,v 1.29 1998/03/26 20:52:21 phk Exp $
  */
 
 /*
@@ -52,6 +52,8 @@
 #include <sys/mount.h>
 #include <sys/namei.h>
 #include <sys/dirent.h>
+#include <sys/resource.h>
+
 #include <miscfs/kernfs/kernfs.h>
 
 #define KSTRING	256		/* Largest I/O available via this filesystem */

@@ -31,13 +31,14 @@
  * SUCH DAMAGE.
  *
  *	@(#)namei.h	8.5 (Berkeley) 1/9/95
- * $Id: namei.h,v 1.18 1998/01/06 05:22:51 dyson Exp $
+ * $Id: namei.h,v 1.19 1998/01/12 19:10:43 phk Exp $
  */
 
 #ifndef _SYS_NAMEI_H_
 #define	_SYS_NAMEI_H_
 
 #include <sys/queue.h>
+#include <sys/uio.h>
 
 /*
  * Encapsulation of namei parameters.

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_subr.c	8.5 (Berkeley) 3/21/95
- * $Id: ffs_subr.c,v 1.19 1998/02/13 00:20:36 bde Exp $
+ * $Id: ffs_subr.c,v 1.20 1998/03/08 09:58:59 julian Exp $
  */
 
 #include <sys/param.h>
@@ -46,6 +46,8 @@
 #include <sys/lock.h>
 #include <sys/vnode.h>
 #include <sys/buf.h>
+#include <sys/ucred.h>
+
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>
 #include <ufs/ffs/ffs_extern.h>
