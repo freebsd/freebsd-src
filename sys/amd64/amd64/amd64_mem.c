@@ -40,10 +40,10 @@ __FBSDID("$FreeBSD$");
 #include <machine/specialreg.h>
 
 /*
- * i686 memory range operations
+ * amd64 memory range operations
  *
  * This code will probably be impenetrable without reference to the
- * Intel Pentium Pro documentation.
+ * Intel Pentium Pro documentation or x86-64 programmers manual vol 2.
  */
 
 static char *mem_owner_bios = "BIOS";
@@ -66,18 +66,18 @@ static char *mem_owner_bios = "BIOS";
 static int			mtrrs_disabled;
 TUNABLE_INT("machdep.disable_mtrrs", &mtrrs_disabled);
 SYSCTL_INT(_machdep, OID_AUTO, disable_mtrrs, CTLFLAG_RD,
-	&mtrrs_disabled, 0, "Disable i686 MTRRs.");
+	&mtrrs_disabled, 0, "Disable amd64 MTRRs.");
 
-static void			i686_mrinit(struct mem_range_softc *sc);
-static int			i686_mrset(struct mem_range_softc *sc,
+static void			amd64_mrinit(struct mem_range_softc *sc);
+static int			amd64_mrset(struct mem_range_softc *sc,
 					   struct mem_range_desc *mrd,
 					   int *arg);
-static void			i686_mrAPinit(struct mem_range_softc *sc);
+static void			amd64_mrAPinit(struct mem_range_softc *sc);
 
-static struct mem_range_ops i686_mrops = {
-    i686_mrinit,
-    i686_mrset,
-    i686_mrAPinit
+static struct mem_range_ops amd64_mrops = {
+	amd64_mrinit,
+	amd64_mrset,
+	amd64_mrAPinit
 };
 
 /* XXX for AP startup hook */
@@ -85,23 +85,23 @@ static u_int64_t		mtrrcap, mtrrdef;
 
 static struct mem_range_desc	*mem_range_match(struct mem_range_softc *sc,
 						 struct mem_range_desc *mrd);
-static void			i686_mrfetch(struct mem_range_softc *sc);
-static int			i686_mtrrtype(int flags);
-static int			i686_mrt2mtrr(int flags, int oldval);
-static int			i686_mtrrconflict(int flag1, int flag2);
-static void			i686_mrstore(struct mem_range_softc *sc);
-static void			i686_mrstoreone(void *arg);
-static struct mem_range_desc	*i686_mtrrfixsearch(struct mem_range_softc *sc,
+static void			amd64_mrfetch(struct mem_range_softc *sc);
+static int			amd64_mtrrtype(int flags);
+static int			amd64_mrt2mtrr(int flags, int oldval);
+static int			amd64_mtrrconflict(int flag1, int flag2);
+static void			amd64_mrstore(struct mem_range_softc *sc);
+static void			amd64_mrstoreone(void *arg);
+static struct mem_range_desc	*amd64_mtrrfixsearch(struct mem_range_softc *sc,
 						    u_int64_t addr);
-static int			i686_mrsetlow(struct mem_range_softc *sc,
+static int			amd64_mrsetlow(struct mem_range_softc *sc,
 					      struct mem_range_desc *mrd,
 					      int *arg);
-static int			i686_mrsetvariable(struct mem_range_softc *sc,
+static int			amd64_mrsetvariable(struct mem_range_softc *sc,
 						   struct mem_range_desc *mrd,
 						   int *arg);
 
-/* i686 MTRR type to memory range type conversion */
-static int i686_mtrrtomrt[] = {
+/* amd64 MTRR type to memory range type conversion */
+static int amd64_mtrrtomrt[] = {
     MDF_UNCACHEABLE,
     MDF_WRITECOMBINE,
     MDF_UNKNOWN,
@@ -111,22 +111,26 @@ static int i686_mtrrtomrt[] = {
     MDF_WRITEBACK
 };
 
-#define MTRRTOMRTLEN (sizeof(i686_mtrrtomrt) / sizeof(i686_mtrrtomrt[0]))
+#define MTRRTOMRTLEN (sizeof(amd64_mtrrtomrt) / sizeof(amd64_mtrrtomrt[0]))
 
 static int
-i686_mtrr2mrt(int val) {
+amd64_mtrr2mrt(int val)
+{
 	if (val < 0 || val >= MTRRTOMRTLEN)
 		return MDF_UNKNOWN;
-	return i686_mtrrtomrt[val];
+	return amd64_mtrrtomrt[val];
 }
 
 /* 
- * i686 MTRR conflicts. Writeback and uncachable may overlap.
+ * amd64 MTRR conflicts. Writeback and uncachable may overlap.
  */
 static int
-i686_mtrrconflict(int flag1, int flag2) {
+amd64_mtrrconflict(int flag1, int flag2)
+{
 	flag1 &= MDF_ATTRMASK;
 	flag2 &= MDF_ATTRMASK;
+	if ((flag1 & MDF_UNKNOWN) || (flag2 & MDF_UNKNOWN))
+		return 1;
 	if (flag1 == flag2 ||
 	    (flag1 == MDF_WRITEBACK && flag2 == MDF_UNCACHEABLE) ||
 	    (flag2 == MDF_WRITEBACK && flag1 == MDF_UNCACHEABLE))
@@ -156,7 +160,7 @@ mem_range_match(struct mem_range_softc *sc, struct mem_range_desc *mrd)
  * that MTRRs are enabled, and we may or may not have fixed MTRRs.
  */
 static void
-i686_mrfetch(struct mem_range_softc *sc)
+amd64_mrfetch(struct mem_range_softc *sc)
 {
     struct mem_range_desc	*mrd;
     u_int64_t			msrv;
@@ -171,7 +175,7 @@ i686_mrfetch(struct mem_range_softc *sc)
 	    msrv = rdmsr(msr);
 	    for (j = 0; j < 8; j++, mrd++) {
 		mrd->mr_flags = (mrd->mr_flags & ~MDF_ATTRMASK) |
-		    i686_mtrr2mrt(msrv & 0xff) |
+		    amd64_mtrr2mrt(msrv & 0xff) |
 		    MDF_ACTIVE;
 		if (mrd->mr_owner[0] == 0)
 		    strcpy(mrd->mr_owner, mem_owner_bios);
@@ -183,7 +187,7 @@ i686_mrfetch(struct mem_range_softc *sc)
 	    msrv = rdmsr(msr);
 	    for (j = 0; j < 8; j++, mrd++) {
 		mrd->mr_flags = (mrd->mr_flags & ~MDF_ATTRMASK) |
-		    i686_mtrr2mrt(msrv & 0xff) |
+		    amd64_mtrr2mrt(msrv & 0xff) |
 		    MDF_ACTIVE;
 		if (mrd->mr_owner[0] == 0)
 		    strcpy(mrd->mr_owner, mem_owner_bios);
@@ -195,7 +199,7 @@ i686_mrfetch(struct mem_range_softc *sc)
 	    msrv = rdmsr(msr);
 	    for (j = 0; j < 8; j++, mrd++) {
 		mrd->mr_flags = (mrd->mr_flags & ~MDF_ATTRMASK) |
-		    i686_mtrr2mrt(msrv & 0xff) |
+		    amd64_mtrr2mrt(msrv & 0xff) |
 		    MDF_ACTIVE;
 		if (mrd->mr_owner[0] == 0)
 		    strcpy(mrd->mr_owner, mem_owner_bios);
@@ -209,14 +213,14 @@ i686_mrfetch(struct mem_range_softc *sc)
     for (; (mrd - sc->mr_desc) < sc->mr_ndesc; msr += 2, mrd++) {
 	msrv = rdmsr(msr);
 	mrd->mr_flags = (mrd->mr_flags & ~MDF_ATTRMASK) |
-	    i686_mtrr2mrt(msrv & 0xff);
-	mrd->mr_base = msrv & 0x0000000ffffff000LL;
+	    amd64_mtrr2mrt(msrv & 0xff);
+	mrd->mr_base = msrv & 0x000ffffffffff000L;
 	msrv = rdmsr(msr + 1);
 	mrd->mr_flags = (msrv & 0x800) ? 
 	    (mrd->mr_flags | MDF_ACTIVE) :
 	    (mrd->mr_flags & ~MDF_ACTIVE);
 	/* Compute the range from the mask. Ick. */
-	mrd->mr_len = (~(msrv & 0x0000000ffffff000LL) & 0x0000000fffffffffLL) + 1;
+	mrd->mr_len = (~(msrv & 0x000ffffffffff000L) & 0x000fffffffffffffL) + 1;
 	if (!mrvalid(mrd->mr_base, mrd->mr_len))
 	    mrd->mr_flags |= MDF_BOGUS;
 	/* If unclaimed and active, must be the BIOS */
@@ -229,27 +233,27 @@ i686_mrfetch(struct mem_range_softc *sc)
  * Return the MTRR memory type matching a region's flags
  */
 static int
-i686_mtrrtype(int flags)
+amd64_mtrrtype(int flags)
 {
     int		i;
 
     flags &= MDF_ATTRMASK;
 
     for (i = 0; i < MTRRTOMRTLEN; i++) {
-	if (i686_mtrrtomrt[i] == MDF_UNKNOWN)
+	if (amd64_mtrrtomrt[i] == MDF_UNKNOWN)
 	    continue;
-	if (flags == i686_mtrrtomrt[i])
+	if (flags == amd64_mtrrtomrt[i])
 	    return(i);
     }
     return(-1);
 }
 
 static int
-i686_mrt2mtrr(int flags, int oldval)
+amd64_mrt2mtrr(int flags, int oldval)
 {
 	int val;
 
-	if ((val = i686_mtrrtype(flags)) == -1)
+	if ((val = amd64_mtrrtype(flags)) == -1)
 		return oldval & 0xff;
 	return val & 0xff;
 }
@@ -261,7 +265,7 @@ i686_mrt2mtrr(int flags, int oldval)
  * XXX Must be called with interrupts enabled.
  */
 static void
-i686_mrstore(struct mem_range_softc *sc)
+amd64_mrstore(struct mem_range_softc *sc)
 {
 #ifdef SMP
     /*
@@ -270,10 +274,10 @@ i686_mrstore(struct mem_range_softc *sc)
      * The "proper" solution involves a generalised locking gate
      * implementation, not ready yet.
      */
-    smp_rendezvous(NULL, i686_mrstoreone, NULL, (void *)sc);
+    smp_rendezvous(NULL, amd64_mrstoreone, NULL, (void *)sc);
 #else
     disable_intr();				/* disable interrupts */
-    i686_mrstoreone((void *)sc);
+    amd64_mrstoreone((void *)sc);
     enable_intr();
 #endif
 }
@@ -284,7 +288,7 @@ i686_mrstore(struct mem_range_softc *sc)
  * just stuffing one entry; this is simpler (but slower, of course).
  */
 static void
-i686_mrstoreone(void *arg)
+amd64_mrstoreone(void *arg)
 {
     struct mem_range_softc 	*sc = (struct mem_range_softc *)arg;
     struct mem_range_desc	*mrd;
@@ -309,7 +313,7 @@ i686_mrstoreone(void *arg)
 	    omsrv = rdmsr(msr);
 	    for (j = 7; j >= 0; j--) {
 		msrv = msrv << 8;
-		msrv |= i686_mrt2mtrr((mrd + j)->mr_flags, omsrv >> (j*8));
+		msrv |= amd64_mrt2mtrr((mrd + j)->mr_flags, omsrv >> (j*8));
 	    }
 	    wrmsr(msr, msrv);
 	    mrd += 8;
@@ -320,7 +324,7 @@ i686_mrstoreone(void *arg)
 	    omsrv = rdmsr(msr);
 	    for (j = 7; j >= 0; j--) {
 		msrv = msrv << 8;
-		msrv |= i686_mrt2mtrr((mrd + j)->mr_flags, omsrv >> (j*8));
+		msrv |= amd64_mrt2mtrr((mrd + j)->mr_flags, omsrv >> (j*8));
 	    }
 	    wrmsr(msr, msrv);
 	    mrd += 8;
@@ -331,7 +335,7 @@ i686_mrstoreone(void *arg)
 	    omsrv = rdmsr(msr);
 	    for (j = 7; j >= 0; j--) {
 		msrv = msrv << 8;
-		msrv |= i686_mrt2mtrr((mrd + j)->mr_flags, omsrv >> (j*8));
+		msrv |= amd64_mrt2mtrr((mrd + j)->mr_flags, omsrv >> (j*8));
 	    }
 	    wrmsr(msr, msrv);
 	    mrd += 8;
@@ -344,8 +348,8 @@ i686_mrstoreone(void *arg)
 	/* base/type register */
 	omsrv = rdmsr(msr);
 	if (mrd->mr_flags & MDF_ACTIVE) {
-	    msrv = mrd->mr_base & 0x0000000ffffff000LL;
-	    msrv |= i686_mrt2mtrr(mrd->mr_flags, omsrv);
+	    msrv = mrd->mr_base & 0x000ffffffffff000L;
+	    msrv |= amd64_mrt2mtrr(mrd->mr_flags, omsrv);
 	} else {
 	    msrv = 0;
 	}
@@ -353,7 +357,7 @@ i686_mrstoreone(void *arg)
 	    
 	/* mask/active register */
 	if (mrd->mr_flags & MDF_ACTIVE) {
-	    msrv = 0x800 | (~(mrd->mr_len - 1) & 0x0000000ffffff000LL);
+	    msrv = 0x800 | (~(mrd->mr_len - 1) & 0x000ffffffffff000L);
 	} else {
 	    msrv = 0;
 	}
@@ -369,7 +373,7 @@ i686_mrstoreone(void *arg)
  * Hunt for the fixed MTRR referencing (addr)
  */
 static struct mem_range_desc *
-i686_mtrrfixsearch(struct mem_range_softc *sc, u_int64_t addr)
+amd64_mtrrfixsearch(struct mem_range_softc *sc, u_int64_t addr)
 {
     struct mem_range_desc *mrd;
     int			i;
@@ -391,13 +395,13 @@ i686_mtrrfixsearch(struct mem_range_softc *sc, u_int64_t addr)
  * XXX note that this will have to be updated when we start supporting "busy" ranges.
  */
 static int
-i686_mrsetlow(struct mem_range_softc *sc, struct mem_range_desc *mrd, int *arg)
+amd64_mrsetlow(struct mem_range_softc *sc, struct mem_range_desc *mrd, int *arg)
 {
     struct mem_range_desc	*first_md, *last_md, *curr_md;
 
     /* range check */
-    if (((first_md = i686_mtrrfixsearch(sc, mrd->mr_base)) == NULL) ||
-	((last_md = i686_mtrrfixsearch(sc, mrd->mr_base + mrd->mr_len - 1)) == NULL))
+    if (((first_md = amd64_mtrrfixsearch(sc, mrd->mr_base)) == NULL) ||
+	((last_md = amd64_mtrrfixsearch(sc, mrd->mr_base + mrd->mr_len - 1)) == NULL))
 	return(EINVAL);
 
     /* check we aren't doing something risky */
@@ -423,7 +427,7 @@ i686_mrsetlow(struct mem_range_softc *sc, struct mem_range_desc *mrd, int *arg)
  * XXX needs to be updated to properly support "busy" ranges.
  */
 static int
-i686_mrsetvariable(struct mem_range_softc *sc, struct mem_range_desc *mrd, int *arg)
+amd64_mrsetvariable(struct mem_range_softc *sc, struct mem_range_desc *mrd, int *arg)
 {
     struct mem_range_desc	*curr_md, *free_md;
     int				i;
@@ -457,7 +461,7 @@ i686_mrsetvariable(struct mem_range_softc *sc, struct mem_range_desc *mrd, int *
 	    /* non-exact overlap ? */
 	    if (mroverlap(curr_md, mrd)) {
 		/* between conflicting region types? */
-		if (i686_mtrrconflict(curr_md->mr_flags, mrd->mr_flags))
+		if (amd64_mtrrconflict(curr_md->mr_flags, mrd->mr_flags))
 		    return(EINVAL);
 	    }
 	} else if (free_md == NULL) {
@@ -481,7 +485,7 @@ i686_mrsetvariable(struct mem_range_softc *sc, struct mem_range_desc *mrd, int *
  *
  */
 static int
-i686_mrset(struct mem_range_softc *sc, struct mem_range_desc *mrd, int *arg)
+amd64_mrset(struct mem_range_softc *sc, struct mem_range_desc *mrd, int *arg)
 {
     struct mem_range_desc	*targ;
     int				error = 0;
@@ -490,7 +494,7 @@ i686_mrset(struct mem_range_softc *sc, struct mem_range_desc *mrd, int *arg)
     case MEMRANGE_SET_UPDATE:
 	/* make sure that what's being asked for is even possible at all */
 	if (!mrvalid(mrd->mr_base, mrd->mr_len) ||
-	    i686_mtrrtype(mrd->mr_flags) == -1)
+	    amd64_mtrrtype(mrd->mr_flags) == -1)
 	    return(EINVAL);
 
 #define FIXTOP	((MTRR_N64K * 0x10000) + (MTRR_N16K * 0x4000) + (MTRR_N4K * 0x1000))
@@ -498,11 +502,11 @@ i686_mrset(struct mem_range_softc *sc, struct mem_range_desc *mrd, int *arg)
 	/* are the "low memory" conditions applicable? */
 	if ((sc->mr_cap & MR686_FIXMTRR) &&
 	    ((mrd->mr_base + mrd->mr_len) <= FIXTOP)) {
-	    if ((error = i686_mrsetlow(sc, mrd, arg)) != 0)
+	    if ((error = amd64_mrsetlow(sc, mrd, arg)) != 0)
 		return(error);
 	} else {
 	    /* it's time to play with variable MTRRs */
-	    if ((error = i686_mrsetvariable(sc, mrd, arg)) != 0)
+	    if ((error = amd64_mrsetvariable(sc, mrd, arg)) != 0)
 		return(error);
 	}
 	break;
@@ -523,8 +527,8 @@ i686_mrset(struct mem_range_softc *sc, struct mem_range_desc *mrd, int *arg)
     }
 
     /* update the hardware */
-    i686_mrstore(sc);
-    i686_mrfetch(sc);	/* refetch to see where we're at */
+    amd64_mrstore(sc);
+    amd64_mrfetch(sc);	/* refetch to see where we're at */
     return(0);
 }
 
@@ -533,7 +537,7 @@ i686_mrset(struct mem_range_softc *sc, struct mem_range_desc *mrd, int *arg)
  * fetch the initial settings.
  */
 static void
-i686_mrinit(struct mem_range_softc *sc)
+amd64_mrinit(struct mem_range_softc *sc)
 {
     struct mem_range_desc	*mrd;
     int				nmdesc = 0;
@@ -587,7 +591,7 @@ i686_mrinit(struct mem_range_softc *sc)
      * Get current settings, anything set now is considered to have 
      * been set by the firmware. (XXX has something already played here?)
      */
-    i686_mrfetch(sc);
+    amd64_mrfetch(sc);
     mrd = sc->mr_desc;
     for (i = 0; i < sc->mr_ndesc; i++, mrd++) {
 	if (mrd->mr_flags & MDF_ACTIVE)
@@ -599,24 +603,25 @@ i686_mrinit(struct mem_range_softc *sc)
  * Initialise MTRRs on an AP after the BSP has run the init code.
  */
 static void
-i686_mrAPinit(struct mem_range_softc *sc)
+amd64_mrAPinit(struct mem_range_softc *sc)
 {
-    i686_mrstoreone((void *)sc);	/* set MTRRs to match BSP */
+    amd64_mrstoreone((void *)sc);	/* set MTRRs to match BSP */
     wrmsr(MSR_MTRRdefType, mtrrdef);	/* set MTRR behaviour to match BSP */
 }
 
 static void
-i686_mem_drvinit(void *unused)
+amd64_mem_drvinit(void *unused)
 {
-    /* Try for i686 MTRRs */
-    if (!mtrrs_disabled && (cpu_feature & CPUID_MTRR) &&
-	((cpu_id & 0xf00) == 0x600 || (cpu_id & 0xf00) == 0xf00) &&
-	((strcmp(cpu_vendor, "GenuineIntel") == 0) ||
-	(strcmp(cpu_vendor, "AuthenticAMD") == 0))) {
-	mem_range_softc.mr_op = &i686_mrops;
-    }
+	if (mtrrs_disabled)
+		return;
+	if (!(cpu_feature & CPUID_MTRR))
+		return;
+	if ((cpu_id & 0xf00) != 0x600 && (cpu_id & 0xf00) != 0xf00)
+		return;
+	if ((strcmp(cpu_vendor, "GenuineIntel") != 0) &&
+	    (strcmp(cpu_vendor, "AuthenticAMD") != 0))
+		return;
+	mem_range_softc.mr_op = &amd64_mrops;
 }
 
-SYSINIT(i686memdev,SI_SUB_DRIVERS,SI_ORDER_FIRST,i686_mem_drvinit,NULL)
-
-	
+SYSINIT(amd64memdev,SI_SUB_DRIVERS,SI_ORDER_FIRST,amd64_mem_drvinit,NULL)
