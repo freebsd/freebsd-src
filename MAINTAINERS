@@ -8,6 +8,8 @@ binutils	obrien	Insists to keep BU blocked from other's unapproved
 libc/posix1e	rwatson	Pre-commit review requested.
 POSIX.1e ACLs	rwatson	Pre-commit review requested.
 UFS EAs		rwatson	Pre-commit review requested.
+MAC Framework	rwatson	Pre-commit review requested.
+MAC Modules	rwatson	Pre-commit review requested.
 ATA/IDE		sos	Pre-commit review requested.
 ahc(4)		gibbs	Pre-commit review requested.
 NEWCARD		imp	Pre-commit review requested.
