@@ -29,6 +29,7 @@
 
 #include <stddef.h>
 #include <stdlib.h>
+
 #include "libc_private.h"
 #include "crtbrand.c"
 
@@ -50,9 +51,9 @@ extern int _DYNAMIC;
 
 #ifdef __i386__
 #define get_rtld_cleanup()				\
-    ({ fptr __value;					\
-       __asm__("movl %%edx,%0" : "=rm"(__value));	\
-       __value; })
+	({ fptr __value;				\
+	    __asm__("movl %%edx,%0" : "=rm"(__value));	\
+	    __value; })
 #else
 #error "This file only supports the i386 architecture"
 #endif
@@ -63,36 +64,36 @@ const char *__progname = "";
 void
 _start(char *arguments, ...)
 {
-    fptr rtld_cleanup;
-    int argc;
-    char **argv;
-    char **env;
-    const char *s;
+	fptr rtld_cleanup;
+	int argc;
+	char **argv;
+	char **env;
+	const char *s;
 
-    rtld_cleanup = get_rtld_cleanup();
-    argv = &arguments;
-    argc = * (int *) (argv - 1);
-    env = argv + argc + 1;
-    environ = env;
-    if (argc > 0 && argv[0] != NULL) {
-	__progname = argv[0];
-	for (s = __progname; *s != '\0'; s++)
-	    if (*s == '/')
-		__progname = s + 1;
-    }
+	rtld_cleanup = get_rtld_cleanup();
+	argv = &arguments;
+	argc = * (int *) (argv - 1);
+	env = argv + argc + 1;
+	environ = env;
+	if (argc > 0 && argv[0] != NULL) {
+		__progname = argv[0];
+		for (s = __progname; *s != '\0'; s++)
+			if (*s == '/')
+				__progname = s + 1;
+	}
 
-    if (&_DYNAMIC != NULL)
-	atexit(rtld_cleanup);
+	if (&_DYNAMIC != NULL)
+		atexit(rtld_cleanup);
 
 #ifdef GCRT
-    atexit(_mcleanup);
+	atexit(_mcleanup);
 #endif
-    atexit(_fini);
+	atexit(_fini);
 #ifdef GCRT
-    monstartup(&eprol, &etext);
+	monstartup(&eprol, &etext);
 #endif
-    _init();
-    exit( main(argc, argv, env) );
+	_init();
+	exit( main(argc, argv, env) );
 }
 
 #ifdef GCRT
