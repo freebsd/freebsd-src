@@ -1,7 +1,7 @@
 #	From: @(#)Makefile	8.1 (Berkeley) 6/8/93
-#	$Id: Makefile,v 1.6.2.2 1997/04/02 15:43:12 jdp Exp $
+#	$Id: Makefile,v 1.6.2.3 1998/03/07 10:13:06 jkh Exp $
 
-FILES=	airport ascii birthtoken bsd-family-tree eqnchar flowers inter.phone \
+FILES=	ascii birthtoken bsd-family-tree eqnchar flowers inter.phone \
 	iso3166 man.template mdoc.template na.phone operator scsi_modes
 NOOBJ=	noobj
 
