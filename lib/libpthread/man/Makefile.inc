@@ -88,6 +88,7 @@ MLINKS+= \
 	pthread_schedparam.3 pthread_setschedparam.3 \
 	pthread_testcancel.3 pthread_getcancelstate.3 \
 	pthread_testcancel.3 pthread_setcancelstate.3 \
+	pthread_testcancel.3 pthread_setcanceltype.3 \
 	sem_open.3 sem_close.3 \
 	sem_open.3 sem_unlink.3 \
 	sem_wait.3 sem_trywait.3
