@@ -291,6 +291,7 @@ void	cumain(int argc, char *argv[]);
 void	daemon_uid(void);
 void	disconnect(char *reason);
 void	execute(char *s);
+char	*interp(char *s);
 void	logent(char *group, const char *num, const char *acu, const char *message);
 void	loginit(void);
 void	prtime(char *s, time_t a);
