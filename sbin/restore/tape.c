@@ -1085,6 +1085,10 @@ gethead(struct s_spcl *buf)
 		break;
 
 	case TS_TAPE:
+		if (buf->c_magic == NFS_MAGIC) {
+			buf->c_date = _time32_to_time(buf->c_old_date);
+			buf->c_ddate = _time32_to_time(buf->c_old_ddate);
+		}
 	case TS_END:
 		buf->c_inumber = 0;
 		break;
