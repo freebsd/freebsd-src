@@ -1340,6 +1340,7 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 	if (pmap->pm_stats.resident_count == 0)
 		return;
 
+	vm_page_lock_queues();
 	oldpmap = pmap_install(pmap);
 
 	/*
@@ -1349,8 +1350,7 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 	 */
 	if (sva + PAGE_SIZE == eva) {
 		pmap_remove_page(pmap, sva);
-		pmap_install(oldpmap);
-		return;
+		goto out;
 	}
 
 	if (pmap->pm_stats.resident_count < ((eva - sva) >> PAGE_SHIFT)) {
@@ -1374,7 +1374,9 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 		}
 	}
 
+out:
 	pmap_install(oldpmap);
+	vm_page_unlock_queues();
 }
 
 /*
@@ -1452,13 +1454,13 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 	if (prot & VM_PROT_WRITE)
 		return;
 
-	oldpmap = pmap_install(pmap);
-
 	newprot = pte_prot(pmap, prot);
 
 	if ((sva & PAGE_MASK) || (eva & PAGE_MASK))
 		panic("pmap_protect: unaligned addresses");
 
+	vm_page_lock_queues();
+	oldpmap = pmap_install(pmap);
 	while (sva < eva) {
 		/* 
 		 * If page is invalid, skip this page
@@ -1491,6 +1493,7 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 		sva += PAGE_SIZE;
 	}
 	pmap_install(oldpmap);
+	vm_page_unlock_queues();
 }
 
 /*

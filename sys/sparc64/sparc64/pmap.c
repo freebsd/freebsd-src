@@ -1125,11 +1125,11 @@ pmap_remove(pmap_t pm, vm_offset_t start, vm_offset_t end)
 	struct tte *tp;
 	vm_offset_t va;
 
-	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	CTR3(KTR_PMAP, "pmap_remove: ctx=%#lx start=%#lx end=%#lx",
 	    pm->pm_context[PCPU_GET(cpuid)], start, end);
 	if (PMAP_REMOVE_DONE(pm))
 		return;
+	vm_page_lock_queues();
 	if (end - start > PMAP_TSB_THRESH) {
 		tsb_foreach(pm, NULL, start, end, pmap_remove_tte);
 		tlb_context_demap(pm);
@@ -1142,6 +1142,7 @@ pmap_remove(pmap_t pm, vm_offset_t start, vm_offset_t end)
 		}
 		tlb_range_demap(pm, start, end - 1);
 	}
+	vm_page_unlock_queues();
 }
 
 void
@@ -1214,6 +1215,7 @@ pmap_protect(pmap_t pm, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 	if (prot & VM_PROT_WRITE)
 		return;
 
+	vm_page_lock_queues();
 	if (eva - sva > PMAP_TSB_THRESH) {
 		tsb_foreach(pm, NULL, sva, eva, pmap_protect_tte);
 		tlb_context_demap(pm);
@@ -1224,6 +1226,7 @@ pmap_protect(pmap_t pm, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 		}
 		tlb_range_demap(pm, sva, eva - 1);
 	}
+	vm_page_unlock_queues();
 }
 
 /*
