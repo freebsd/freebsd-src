@@ -37,7 +37,7 @@
  * Author: Julian Elisher <julian@whistle.com>
  *
  * $FreeBSD$
- * $Whistle: ng_echo.c,v 1.11 1999/01/28 23:54:53 julian Exp $
+ * $Whistle: ng_echo.c,v 1.13 1999/11/01 09:24:51 julian Exp $
  */
 
 /*
@@ -58,10 +58,9 @@
 #include <netgraph/ng_echo.h>
 
 /* Netgraph methods */
-static int	nge_rcvmsg(node_p node, struct ng_mesg *msg,
-		    const char *retaddr, struct ng_mesg ** resp);
-static int	nge_rcvdata(hook_p hook, struct mbuf *m, meta_p meta);
-static int	nge_disconnect(hook_p hook);
+static ng_rcvmsg_t	nge_rcvmsg;
+static ng_rcvdata_t	nge_rcvdata;
+static ng_disconnect_t	nge_disconnect;
 
 /* Netgraph type */
 static struct ng_type typestruct = {

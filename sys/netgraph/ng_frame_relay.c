@@ -37,7 +37,7 @@
  * Author: Julian Elisher <julian@whistle.com>
  *
  * $FreeBSD$
- * $Whistle: ng_frame_relay.c,v 1.16 1999/01/28 23:54:53 julian Exp $
+ * $Whistle: ng_frame_relay.c,v 1.20 1999/11/01 09:24:51 julian Exp $
  */
 
 /*
@@ -126,11 +126,11 @@ static struct segment {
 	}
 
 /* Netgraph methods */
-static int ngfrm_constructor(node_p *nodep);
-static int ngfrm_rmnode(node_p node);
-static int ngfrm_newhook(node_p node, hook_p hook, const char *name);
-static int ngfrm_rcvdata(hook_p hook, struct mbuf *m, meta_p meta);
-static int ngfrm_disconnect(hook_p hook);
+static ng_constructor_t	ngfrm_constructor;
+static ng_shutdown_t	ngfrm_rmnode;
+static ng_newhook_t	ngfrm_newhook;
+static ng_rcvdata_t	ngfrm_rcvdata;
+static ng_disconnect_t	ngfrm_disconnect;
 
 /* Other internal functions */
 static int ngfrm_decode(node_p node, struct mbuf * m, meta_p meta);

@@ -37,7 +37,7 @@
  * Author: Julian Elischer <julian@whistle.com>
  *
  * $FreeBSD$
- * $Whistle: ng_socket.c,v 1.25 1999/01/28 23:54:54 julian Exp $
+ * $Whistle: ng_socket.c,v 1.28 1999/11/01 09:24:52 julian Exp $
  */
 
 /*
@@ -98,12 +98,11 @@
  */
 
 /* Netgraph node methods */
-static int	ngs_constructor(node_p *nodep);
-static int	ngs_rcvmsg(node_p node, struct ng_mesg *msg,
-			const char *retaddr, struct ng_mesg **resp);
-static int	ngs_rmnode(node_p node);
-static int	ngs_newhook(node_p node, hook_p hook, const char *name);
-static int	ngs_rcvdata(hook_p hook, struct mbuf *m, meta_p meta);
+static ng_constructor_t	ngs_constructor;
+static ng_rcvmsg_t	ngs_rcvmsg;
+static ng_shutdown_t	ngs_rmnode;
+static ng_newhook_t	ngs_newhook;
+static ng_rcvdata_t	ngs_rcvdata;
 
 /* Internal methods */
 static int	ng_attach_data(struct socket *so);

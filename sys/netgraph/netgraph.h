@@ -37,7 +37,7 @@
  * Author: Julian Elischer <julian@whistle.com>
  *
  * $FreeBSD$
- * $Whistle: netgraph.h,v 1.24 1999/01/28 23:54:52 julian Exp $
+ * $Whistle: netgraph.h,v 1.29 1999/11/01 07:56:13 julian Exp $
  */
 
 #ifndef _NETGRAPH_NETGRAPH_H_
@@ -129,37 +129,36 @@ typedef struct ng_meta *meta_p;
 #define NGMF_TEST	0x01	/* discard at the last moment before sending */
 #define NGMF_TRACE	0x02	/* trace when handing this data to a node */
 
+/* node method definitions */
+typedef	int	ng_constructor_t(node_p *node);
+typedef	int	ng_rcvmsg_t(node_p node, struct ng_mesg *msg,
+				const char *retaddr, struct ng_mesg **resp);
+typedef	int	ng_shutdown_t(node_p node);
+typedef	int	ng_newhook_t(node_p node, hook_p hook, const char *name);
+typedef	hook_p	ng_findhook_t(node_p node, const char *name);
+typedef	int	ng_connect_t(hook_p hook);
+typedef	int	ng_rcvdata_t(hook_p hook, struct mbuf *m, meta_p meta);
+typedef	int	ng_disconnect_t(hook_p hook);
+
 /*
  * Structure of a node type
  */
 struct ng_type {
 
-	/* Netgraph version number (must equal NG_VERSION) */
-	u_int32_t version;
+	u_int32_t version; 		/* must equal NG_VERSION */
+	const	char *name;		/* Unique type name */
+	modeventhand_t	mod_event;	/* Module event handler (optional) */
+	ng_constructor_t *constructor;	/* Node constructor */
+	ng_rcvmsg_t	*rcvmsg;	/* control messages come here */
+	ng_shutdown_t	*shutdown;	/* reset, and free resources */
+	ng_newhook_t	*newhook;	/* first notification of new hook */
+	ng_findhook_t	*findhook;	/* only if you have 23000 hooks */
+	ng_connect_t	*connect;	/* final notification of new hook */
+	ng_rcvdata_t	*rcvdata;	/* date comes here */
+	ng_rcvdata_t	*rcvdataq;	/* or here if been queued */
+	ng_disconnect_t	*disconnect;	/* notify on disconnect */
 
-	/* Unique type name */
-	const	char *name;
-
-	/* Module event handler (optional) */
-	modeventhand_t	mod_event;
-
-	/* Node constructor */
-	int	(*constructor)(node_p *node);
-
-	/* Calls using the node */
-	int	(*rcvmsg)(node_p node, struct ng_mesg *msg,
-				const char *retaddr, struct ng_mesg **resp);
-	int	(*shutdown)(node_p node);
-	int	(*newhook)(node_p node, hook_p hook, const char *name);
-	hook_p	(*findhook)(node_p node, const char *name);
-
-	/* Calls using the hook */
-	int	(*connect)(hook_p hook);	/* already linked in */
-	int	(*rcvdata)(hook_p hook, struct mbuf *m, meta_p meta);
-	int	(*rcvdataq)(hook_p hook, struct mbuf *m, meta_p meta);
-	int	(*disconnect)(hook_p hook);	/* notify on disconnect */
-
-	/* These are private to the base netgraph code */
+	/* R/W data  private to the base netgraph code DON'T TOUCH!*/
 	LIST_ENTRY(ng_type) types;		/* linked list of all types */
 	int		    refs;		/* number of instances */
 };

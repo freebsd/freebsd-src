@@ -37,7 +37,7 @@
  * Author: Julian Elischer <julian@whistle.com>
  *
  * $FreeBSD$
- * $Whistle: ng_rfc1490.c,v 1.19 1999/01/28 23:54:53 julian Exp $
+ * $Whistle: ng_rfc1490.c,v 1.22 1999/11/01 09:24:52 julian Exp $
  */
 
 /*
@@ -89,13 +89,12 @@ struct private {
 typedef struct private *priv_p;
 
 /* Netgraph node methods */
-static int	ng_rfc1490_constructor(node_p * nodep);
-static int	ng_rfc1490_rcvmsg(node_p node, struct ng_mesg * msg,
-		    const char *retaddr, struct ng_mesg **resp);
-static int	ng_rfc1490_rmnode(node_p node);
-static int	ng_rfc1490_newhook(node_p node, hook_p hook, const char *name);
-static int	ng_rfc1490_rcvdata(hook_p hook, struct mbuf *m, meta_p meta);
-static int	ng_rfc1490_disconnect(hook_p hook);
+static ng_constructor_t	ng_rfc1490_constructor;
+static ng_rcvmsg_t	ng_rfc1490_rcvmsg;
+static ng_shutdown_t	ng_rfc1490_rmnode;
+static ng_newhook_t	ng_rfc1490_newhook;
+static ng_rcvdata_t	ng_rfc1490_rcvdata;
+static ng_disconnect_t	ng_rfc1490_disconnect;
 
 /* Node type descriptor */
 static struct ng_type typestruct = {
