@@ -1,11 +1,11 @@
 #	from: @(#)Makefile	5.8 (Berkeley) 7/28/90
-#	$Id: Makefile,v 1.3 1995/04/02 01:10:08 wpaul Exp $
+#	$Id: Makefile,v 1.5 1995/04/02 20:01:48 wpaul Exp $
 
 PROG=	yppush
 SRCS=	yp_clnt.c yppush.c
 
 MAN8=	yppush.8
-CLEANFILES= yp_svc.c yp_clnt.c yp.h yp.x
+CLEANFILES= yp_clnt.c yp.h yp.x
 
 yp_clnt.c: yp.h
 	rm -f yp.x
