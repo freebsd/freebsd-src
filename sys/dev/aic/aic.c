@@ -490,6 +490,7 @@ aic_reconnect(struct aic_softc *aic, int tag)
 	CAM_DEBUG_PRINT(CAM_DEBUG_TRACE, ("aic_reconnect\n"));
 
 	/* Find the nexus */
+	scb = NULL;
 	TAILQ_FOREACH(ccb_h, &aic->nexus_ccbs, sim_links.tqe) {
 		scb = (struct aic_scb *)ccb_h->ccb_scb_ptr;
 		if (scb->target == aic->target && scb->lun == aic->lun &&
