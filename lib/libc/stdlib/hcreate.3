@@ -170,12 +170,12 @@ main(void)
 	while (scanf("%s", item.key) != EOF) {
 		if ((found_item = hsearch(item, FIND)) != NULL) {
 			/* If item is in the table. */
-			(void)printf("found %s, age = %d, room = %d\n",
+			(void)printf("found %s, age = %d, room = %d\en",
 			    found_item->key,
 			    ((struct info *)found_item->data)->age,
 			    ((struct info *)found_item->data)->room);
 		} else
-			(void)printf("no such employee %s\n", name_to_find);
+			(void)printf("no such employee %s\en", name_to_find);
 	}
 	return 0;
 }
