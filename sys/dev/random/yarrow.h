@@ -31,7 +31,7 @@
  *					an enum in sys/random.h
  */
 
-#define ENTROPYBIN	256	/* buckets to harvest entropy events  */
+#define HARVEST_RING_SIZE	1024	/* harvest ring buffer size */
 #define TIMEBIN		16	/* max value for Pt/t */
 
 #define HARVESTSIZE	16	/* max size of each harvested entropy unit */
