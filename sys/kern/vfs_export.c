@@ -129,7 +129,7 @@ vfs_hang_addrlist(mp, nep, argp)
 	if (saddr->sa_len > argp->ex_addrlen)
 		saddr->sa_len = argp->ex_addrlen;
 	if (argp->ex_masklen) {
-		smask = (struct sockaddr *) (saddr + argp->ex_addrlen);
+		smask = (struct sockaddr *)((caddr_t)saddr + argp->ex_addrlen);
 		error = copyin(argp->ex_mask, smask, argp->ex_masklen);
 		if (error)
 			goto out;
