@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)savemail.c	8.110 (Berkeley) 4/7/97";
+static char sccsid[] = "@(#)savemail.c	8.114 (Berkeley) 8/2/97";
 #endif /* not lint */
 
 # include "sendmail.h"
@@ -69,10 +69,6 @@ static char sccsid[] = "@(#)savemail.c	8.110 (Berkeley) 4/7/97";
 # define ESM_USRTMP	5	/* save in /usr/tmp/dead.letter */
 # define ESM_PANIC	6	/* leave the locked queue/transcript files */
 # define ESM_DONE	7	/* the message is successfully delivered */
-
-# ifndef _PATH_VARTMP
-#  define _PATH_VARTMP	"/usr/tmp/"
-# endif
 
 
 void
@@ -301,7 +297,8 @@ savemail(e, sendbody)
 			*/
 
 			q = NULL;
-			if (sendtolist(DoubleBounceAddr, NULL, &q, 0, e) <= 0)
+			if (sendtolist(DoubleBounceAddr,
+				NULLADDR, &q, 0, e) <= 0)
 			{
 				syserr("553 cannot parse %s!", DoubleBounceAddr);
 				ExitStat = EX_SOFTWARE;
@@ -375,17 +372,16 @@ savemail(e, sendbody)
 				break;
 			}
 
-			if (SafeFileEnv != NULL && SafeFileEnv[0] != '\0')
+			if ((SafeFileEnv != NULL && SafeFileEnv[0] != '\0') ||
+			    DeadLetterDrop == NULL || DeadLetterDrop[0] == '\0')
 			{
 				state = ESM_PANIC;
 				break;
 			}
 
-			snprintf(buf, sizeof buf, "%sdead.letter", _PATH_VARTMP);
-
 			flags = SFF_NOLINK|SFF_CREAT|SFF_REGONLY|SFF_OPENASROOT|SFF_MUSTOWN;
-			if (!writable(buf, NULL, flags) ||
-			    (fp = safefopen(buf, O_WRONLY|O_CREAT|O_APPEND,
+			if (!writable(DeadLetterDrop, NULL, flags) ||
+			    (fp = safefopen(DeadLetterDrop, O_WRONLY|O_APPEND,
 					    FileMode, flags)) == NULL)
 			{
 				state = ESM_PANIC;
@@ -410,15 +406,15 @@ savemail(e, sendbody)
 				int oldverb = Verbose;
 
 				Verbose = 1;
-				message("Saved message in %s", buf);
+				message("Saved message in %s", DeadLetterDrop);
 				Verbose = oldverb;
 				if (LogLevel > 3)
 					sm_syslog(LOG_NOTICE, e->e_id,
 						"Saved message in %s",
-						buf);
+						DeadLetterDrop);
 				state = ESM_DONE;
 			}
-			(void) xfclose(fp, "savemail", buf);
+			(void) xfclose(fp, "savemail", DeadLetterDrop);
 			break;
 
 		  default:
@@ -758,8 +754,11 @@ errbody(mci, e, separator)
 	{
 		if (*ErrMsgFile == '/')
 		{
-			xfile = safefopen(ErrMsgFile, O_RDONLY, 0444,
-					  SFF_ROOTOK|SFF_REGONLY);
+			int sff = SFF_ROOTOK|SFF_REGONLY;
+
+			if (DontLockReadFiles)
+				sff |= SFF_NOLOCK;
+			xfile = safefopen(ErrMsgFile, O_RDONLY, 0444, sff);
 			if (xfile != NULL)
 			{
 				while (fgets(buf, sizeof buf, xfile) != NULL)

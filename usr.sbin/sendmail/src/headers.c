@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)headers.c	8.110 (Berkeley) 6/14/97";
+static char sccsid[] = "@(#)headers.c	8.111 (Berkeley) 7/9/97";
 #endif /* not lint */
 
 # include <errno.h>
@@ -192,7 +192,8 @@ chompheader(line, def, hdrp, e)
 			printf("no header flags match\n");
 		else
 			printf("header match, flags=%x, ruleset=%s\n", 
-				hi->hi_flags, hi->hi_ruleset);
+				hi->hi_flags,
+				hi->hi_ruleset == NULL ? "<NULL>" : hi->hi_ruleset);
 	}
 
 	/* see if this is a resent message */
