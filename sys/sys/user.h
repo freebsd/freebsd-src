@@ -74,8 +74,15 @@
  */
 #ifdef	__alpha__
 #define	KINFO_PROC_SIZE	912		/* the correct size for kinfo_proc */
-#else
+#endif
+#ifdef	__ia64__
+#define KINFO_PROC_SIZE 888
+#endif
+#ifdef	__i386__
 #define	KINFO_PROC_SIZE	648		/* the correct size for kinfo_proc */
+#endif
+#ifndef	KINFO_PROC_SIZE
+#error	"Unknown architecture"
 #endif
 #define	WMESGLEN	8		/* size of returned wchan message */
 #define	MTXNAMELEN	8		/* size of returned mutex name */
