@@ -1,4 +1,4 @@
-#	$Id: options,v 1.76 1998/06/05 22:39:49 julian Exp $
+#	$Id: options,v 1.77 1998/06/07 17:09:26 dfr Exp $
 #
 #        On the handling of kernel options   
 # 
@@ -38,6 +38,8 @@ COMPILING_LINT	opt_lint.h
 DDB
 DDB_UNATTENDED	opt_ddb.h
 GDB_REMOTE_CHAT	opt_ddb.h
+DB_KLD_SYMBOLS	opt_ddb.h
+DB_ELF_SYMBOLS	opt_ddb.h
 DEVFS
 SLICE		opt_devfs.h
 FAILSAFE
