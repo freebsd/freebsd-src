@@ -1811,6 +1811,21 @@ zfree_start:
 
 zfree_internal:
 
+#ifdef INVARIANTS
+	/*
+	 * If we need to skip the dtor and the uma_dbg_free in uma_zfree_internal
+	 * because we've already called the dtor above, but we ended up here, then
+	 * we need to make sure that we take care of the uma_dbg_free immediately.
+	 */
+	if (skip) {
+		ZONE_LOCK(zone);
+		if (zone->uz_flags & UMA_ZFLAG_MALLOC)
+			uma_dbg_free(zone, udata, item);
+		else
+			uma_dbg_free(zone, NULL, item);
+		ZONE_UNLOCK(zone);
+	}
+#endif
 	uma_zfree_internal(zone, item, udata, skip);
 
 	return;
