@@ -626,7 +626,7 @@ Stone steps lead down to the beach +.\n" },
 	{ "You are on the coast road.",
 	198, 106, 163, 199, 73, 0, 0, 0,
 "The forest is dense on either side.  The trees seem to be actually squeezing\n\
-together to keep us from passing.  A feeling of emnity is in the air.**\n\
+together to keep us from passing.  A feeling of enmity is in the air.**\n\
 The road continues - and -.\n" },
 	{ "You are in the forest.",
 	116, 107, 91, 106, 73, 0, 0, 0,
@@ -1038,7 +1038,7 @@ strong rope. ****\n" },
 "The road goes -* and *-.\n" },
 	{ "You are in a low passage.",
 	247, 160, 0, 0, 0, 0, 0, 0,
-"The ceiling here sparkles with iridiscent gems and minerals. Colorful starfish\n\
+"The ceiling here sparkles with iridescent gems and minerals. Colorful starfish\n\
 and sea anemones cling to the slippery walls and floor.  The passage continues\n\
 +.***\n" },
 	{ "The walls are very close together here.",
