@@ -385,7 +385,7 @@ mdstart_vnode(struct md_s *sc)
 		auio.uio_resid = bp->bio_bcount;
 		auio.uio_procp = curproc;
 		if (VOP_ISLOCKED(sc->vnode, NULL))
-			vprint("unexpected vn driver lock", sc->vnode);
+			vprint("unexpected md driver lock", sc->vnode);
 		if (bp->bio_cmd == BIO_READ) {
 			vn_lock(sc->vnode, LK_EXCLUSIVE | LK_RETRY, curproc);
 			error = VOP_READ(sc->vnode, &auio, 0, sc->cred);
