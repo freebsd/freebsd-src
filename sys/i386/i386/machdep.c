@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.95 1994/11/27 01:49:39 phk Exp $
+ *	$Id: machdep.c,v 1.96 1994/12/11 02:28:36 davidg Exp $
  */
 
 #include "npx.h"
@@ -1332,7 +1332,9 @@ init386(first)
 	/*
 	 * Do simple memory test over range of extended memory that BIOS
 	 *	indicates exists. Adjust Maxmem to the highest page of
-	 *	good memory.
+	 *	good memory. Don't kill the last page of memory - it's
+	 *	where the message buffer lives and should be preserved
+	 *	after reboot.
 	 */
 	printf("Testing memory (%dMB)...", ptoa(Maxmem)/1024/1024);
 
