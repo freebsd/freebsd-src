@@ -67,9 +67,9 @@ CTASSERT(APIC_TIMER_INT < APIC_LOCAL_INTS);
 CTASSERT(APIC_LOCAL_INTS == 240);
 CTASSERT(IPI_STOP < APIC_SPURIOUS_INT);
 
-#define	LAPIC_TIMER_HZ_DIVIDER		3
-#define	LAPIC_TIMER_STATHZ_DIVIDER	23
-#define	LAPIC_TIMER_PROFHZ_DIVIDER	2
+#define	LAPIC_TIMER_HZ_DIVIDER		2
+#define	LAPIC_TIMER_STATHZ_DIVIDER	15
+#define	LAPIC_TIMER_PROFHZ_DIVIDER	3
 
 /*
  * Support for local APICs.  Local APICs manage interrupts on each
@@ -131,8 +131,6 @@ static u_int32_t lapic_timer_divisors[] = {
 
 volatile lapic_t *lapic;
 static u_long lapic_timer_divisor, lapic_timer_period, lapic_timer_hz;
-static u_long *lapic_virtual_hardclock, *lapic_virtual_statclock,
-	*lapic_virtual_profclock;
 
 static void	lapic_enable(void);
 static void	lapic_timer_enable_intr(void);
@@ -370,9 +368,6 @@ lapic_setup_clock(void)
 	stathz = lapic_timer_hz / LAPIC_TIMER_STATHZ_DIVIDER;
 	profhz = lapic_timer_hz / LAPIC_TIMER_PROFHZ_DIVIDER;
 	lapic_timer_period = value / lapic_timer_hz;
-	intrcnt_add("lapic: hardclock", &lapic_virtual_hardclock);
-	intrcnt_add("lapic: statclock", &lapic_virtual_statclock);
-	intrcnt_add("lapic: profclock", &lapic_virtual_profclock);
 
 	/*
 	 * Start up the timer on the BSP.  The APs will kick off their
@@ -627,10 +622,9 @@ lapic_handle_timer(struct clockframe frame)
 	la->la_hard_ticks += hz;
 	if (la->la_hard_ticks >= lapic_timer_hz) {
 		la->la_hard_ticks -= lapic_timer_hz;
-		if (PCPU_GET(cpuid) == 0) {
-			(*lapic_virtual_hardclock)++;
+		if (PCPU_GET(cpuid) == 0)
 			hardclock(&frame);
-		} else
+		else
 			hardclock_process(&frame);
 	}
 
@@ -638,8 +632,6 @@ lapic_handle_timer(struct clockframe frame)
 	la->la_stat_ticks += stathz;
 	if (la->la_stat_ticks >= lapic_timer_hz) {
 		la->la_stat_ticks -= lapic_timer_hz;
-		if (PCPU_GET(cpuid) == 0)
-			(*lapic_virtual_statclock)++;
 		statclock(&frame);
 	}
 
@@ -647,8 +639,6 @@ lapic_handle_timer(struct clockframe frame)
 	la->la_prof_ticks += profhz;
 	if (la->la_prof_ticks >= lapic_timer_hz) {
 		la->la_prof_ticks -= lapic_timer_hz;
-		if (PCPU_GET(cpuid) == 0)
-			(*lapic_virtual_profclock)++;
 		if (profprocs != 0)
 			profclock(&frame);
 	}
