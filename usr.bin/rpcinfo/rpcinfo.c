@@ -321,22 +321,24 @@ main(int argc, char **argv)
 static CLIENT *
 local_rpcb(u_long prog, u_long vers)
 {
-	struct netbuf nbuf;
-	struct sockaddr_un sun;
-	int sock;
+	void *localhandle;
+	struct netconfig *nconf;
+	CLIENT *clnt;
 
-	memset(&sun, 0, sizeof sun);
-	sock = socket(AF_LOCAL, SOCK_STREAM, 0);
-	if (sock < 0)
-		return NULL;
+	localhandle = setnetconfig();
+	while ((nconf = getnetconfig(localhandle)) != NULL) {
+		if (nconf->nc_protofmly != NULL &&
+		    strcmp(nconf->nc_protofmly, NC_LOOPBACK) == 0)
+			break;
+	}
+	if (nconf == NULL) {
+		warnx("getnetconfig: %s", nc_sperror());
+		return (NULL);
+	}
 
-	sun.sun_family = AF_LOCAL;
-	strcpy(sun.sun_path, _PATH_RPCBINDSOCK);
-	nbuf.len = sun.sun_len = SUN_LEN(&sun);
-	nbuf.maxlen = sizeof (struct sockaddr_un);
-	nbuf.buf = &sun;
-
-	return clnt_vc_create(sock, &nbuf, prog, vers, 0, 0);
+	clnt = clnt_tp_create(NULL, prog, vers, nconf);
+	endnetconfig(localhandle);
+	return clnt;
 }
 
 #ifdef PORTMAP
