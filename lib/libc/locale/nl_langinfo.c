@@ -133,18 +133,24 @@ nl_langinfo(nl_item item) {
 		ret = "";
 		cs = (char*) __get_current_monetary_locale()->currency_symbol;
 		if (*cs != '\0') {
-			char psn = '\0';
 			char pos = localeconv()->p_cs_precedes;
 
-			if (pos < CHAR_MAX && pos == localeconv()->n_cs_precedes)
-				psn = pos ? '-' : '+';   /* can't sense '.' */
-			if (psn != '\0') {
-				int clen = strlen(cs);
+			if (pos == localeconv()->n_cs_precedes) {
+				char psn = '\0';
 
-				if ((csym = reallocf(csym, clen + 2)) != NULL) {
-					*csym = psn;
-					strcpy(csym + 1, cs);
-					ret = csym;
+				if (pos == CHAR_MAX) {
+					if (strcmp(cs, __get_current_monetary_locale()->mon_decimal_point) == 0)
+						psn = '.';
+				} else
+					psn = pos ? '-' : '+';
+				if (psn != '\0') {
+					int clen = strlen(cs);
+
+					if ((csym = reallocf(csym, clen + 2)) != NULL) {
+						*csym = psn;
+						strcpy(csym + 1, cs);
+						ret = csym;
+					}
 				}
 			}
 		}
