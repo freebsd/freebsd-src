@@ -2572,6 +2572,11 @@ mac_check_pipe_ioctl(struct ucred *cred, struct pipe *pipe, unsigned long cmd,
 {
 	int error;
 
+	PIPE_LOCK_ASSERT(pipe, MA_OWNED);
+
+	if (!mac_enforce_pipe)
+		return (0);
+
 	MAC_CHECK(check_pipe_ioctl, cred, pipe, pipe->pipe_label, cmd, data);
 
 	return (error);
@@ -2582,6 +2587,11 @@ mac_check_pipe_poll(struct ucred *cred, struct pipe *pipe)
 {
 	int error;
 
+	PIPE_LOCK_ASSERT(pipe, MA_OWNED);
+
+	if (!mac_enforce_pipe)
+		return (0);
+
 	MAC_CHECK(check_pipe_poll, cred, pipe, pipe->pipe_label);
 
 	return (error);
@@ -2591,6 +2601,11 @@ int
 mac_check_pipe_read(struct ucred *cred, struct pipe *pipe)
 {
 	int error;
+
+	PIPE_LOCK_ASSERT(pipe, MA_OWNED);
+
+	if (!mac_enforce_pipe)
+		return (0);
 
 	MAC_CHECK(check_pipe_read, cred, pipe, pipe->pipe_label);
 
@@ -2603,6 +2618,11 @@ mac_check_pipe_relabel(struct ucred *cred, struct pipe *pipe,
 {
 	int error;
 
+	PIPE_LOCK_ASSERT(pipe, MA_OWNED);
+
+	if (!mac_enforce_pipe)
+		return (0);
+
 	MAC_CHECK(check_pipe_relabel, cred, pipe, pipe->pipe_label, newlabel);
 
 	return (error);
@@ -2613,6 +2633,11 @@ mac_check_pipe_stat(struct ucred *cred, struct pipe *pipe)
 {
 	int error;
 
+	PIPE_LOCK_ASSERT(pipe, MA_OWNED);
+
+	if (!mac_enforce_pipe)
+		return (0);
+
 	MAC_CHECK(check_pipe_stat, cred, pipe, pipe->pipe_label);
 
 	return (error);
@@ -2622,6 +2647,11 @@ int
 mac_check_pipe_write(struct ucred *cred, struct pipe *pipe)
 {
 	int error;
+
+	PIPE_LOCK_ASSERT(pipe, MA_OWNED);
+
+	if (!mac_enforce_pipe)
+		return (0);
 
 	MAC_CHECK(check_pipe_write, cred, pipe, pipe->pipe_label);
 
@@ -2888,6 +2918,8 @@ int
 mac_pipe_label_set(struct ucred *cred, struct pipe *pipe, struct label *label)
 {
 	int error;
+
+	PIPE_LOCK_ASSERT(pipe, MA_OWNED);
 
 	error = mac_check_pipe_relabel(cred, pipe, label);
 	if (error)
@@ -3192,7 +3224,9 @@ __mac_set_fd(struct thread *td, struct __mac_set_fd_args *uap)
 		break;
 	case DTYPE_PIPE:
 		pipe = (struct pipe *)fp->f_data;
+		PIPE_LOCK(pipe);
 		error = mac_pipe_label_set(td->td_ucred, pipe, &intlabel);
+		PIPE_UNLOCK(pipe);
 		break;
 	default:
 		error = EINVAL;
