@@ -448,6 +448,7 @@ wait_for_pids()
 #
 run_rc_command()
 {
+	_return=0
 	rc_arg=$1
 	if [ -z "$name" ]; then
 		err 3 'run_rc_command: $name is not set.'
@@ -535,22 +536,28 @@ run_rc_command()
 					# if the precmd failed and force
 					# isn't set, exit
 					#
-			[ -n "$_precmd" ] &&
-			    debug "run_rc_command: evaluating ${_precmd}()."
-			if ! eval $_precmd && [ -z "$rc_force" ]; then
-				return 1
+			if [ -n "$_precmd" ]; then
+				debug "run_rc_command: evaluating ${_precmd}()."
+				eval $_precmd
+				_return=$?
+				[ $_return -ne 0 ] && [ -z "$rc_force" ] &&
+				    return 1
 			fi
 
-			[ -n "$_cmd" ] &&
-			    debug "run_rc_command: evaluating ${_cmd}()."
-			if ! eval $_cmd && [ -z "$rc_force" ]; then
-				return 1
+			if [ -n "$_cmd" ]; then
+				debug "run_rc_command: evaluating ${_cmd}()."
+				eval $_cmd
+				_return=$?
+				[ $_return -ne 0 ] && [ -z "$rc_force" ] &&
+				    return 1
 			fi
 
-			[ -n "$_postcmd" ] &&
-			    debug "run_rc_command: evaluating ${_postcmd}()."
-			eval $_postcmd
-			return 0
+			if [ -n "$_postcmd" ]; then
+				debug "run_rc_command: evaluating ${_postcmd}()."
+				 eval $_postcmd
+				_return=$?
+			fi
+			return $_return
 		fi
 
 		case "$rc_arg" in	# default operations...
@@ -606,10 +613,12 @@ run_rc_command()
 					# if the precmd failed and force
 					# isn't set, exit
 					#
-			[ -n "${_precmd}" ] &&
-			    debug "run_rc_command: evaluating ${_precmd}()."
-			if ! eval $_precmd && [ -z "$rc_force" ]; then
-				return 1
+			if [ -n "${_precmd}" ]; then
+				debug "run_rc_command: evaluating ${_precmd}()."
+				eval $_precmd
+				_return=$?
+				[ $_return -ne 0 ] && [ -z "$rc_force" ] &&
+				    return 1
 			fi
 
 					# setup the command to run, and run it
@@ -634,15 +643,16 @@ $command $rc_flags $command_args"
 					# isn't set, exit
 					#
 			debug "run_rc_command: _doit: $_doit"
-			if ! eval $_doit && [ -z "$rc_force" ]; then
-				return 1
-			fi
+			eval $_doit
+			_return=$?
+			[ $_return -ne 0 ] && [ -z "$rc_force" ] && return 1
 
 					# finally, run postcmd
 					#
-			[ -n "${_postcmd}" ] &&
-			    debug "run_rc_command: evaluating ${_postcmd}()."
-			eval $_postcmd
+			if [ -n "${_postcmd}" ]; then
+				debug "run_rc_command: evaluating ${_postcmd}()."
+				eval $_postcmd
+			fi
 			;;
 
 		stop)
@@ -659,8 +669,11 @@ $command $rc_flags $command_args"
 					# if the precmd failed and force
 					# isn't set, exit
 					#
-			if ! eval $_precmd && [ -z "$rc_force" ]; then
-				return 1
+			if [ -n $_precmd ]; then
+				eval $_precmd
+				_return=$?
+				[ $_return -ne 0 ] && [ -z "$rc_force" ] &&
+				    return 1
 			fi
 
 					# send the signal to stop
@@ -674,14 +687,17 @@ $command $rc_flags $command_args"
 					# if the stop cmd failed and force
 					# isn't set, exit
 					#
-			if ! eval $_doit && [ -z "$rc_force" ]; then
-				return 1
-			fi
+			eval $_doit
+			_return=$?
+			[ $_return -ne 0 ] && [ -z "$rc_force" ] && return 1
 
 					# wait for the command to exit,
 					# and run postcmd.
 			wait_for_pids $rc_pid
-			eval $_postcmd
+			if [ -n "$_postcmd" ]; then
+				eval $_postcmd
+				_return=$?
+			fi
 			;;
 
 		reload)
@@ -695,22 +711,31 @@ $command $rc_flags $command_args"
 				exit 1
 			fi
 			echo "Reloading ${name} config files."
-			if ! eval $_precmd && [ -z "$rc_force" ]; then
-				return 1
+			if [ -n "$_precmd" ]; then
+				eval $_precmd
+				_return=$?
+				[ $_return -ne 0 ] && [ -z "$rc_force" ] &&
+				    return 1
 			fi
 			_doit="kill -${sig_reload:-HUP} $rc_pid"
 			if [ -n "$_user" ]; then
 				_doit="su -m $_user -c 'sh -c \"$_doit\"'"
 			fi
-			if ! eval $_doit && [ -z "$rc_force" ]; then
-				return 1
+			eval $_doit
+			_return=$?
+			[ $_return -ne 0 ] && [ -z "$rc_force" ] && return 1
+			if [ -n "$_postcmd" ]; then
+				eval $_postcmd
+				_return=$?
 			fi
-			eval $_postcmd
 			;;
 
 		restart)
-			if ! eval $_precmd && [ -z "$rc_force" ]; then
-				return 1
+			if [ -n "$_precmd" ]; then
+				eval $_precmd
+				_return=$?
+				[ $_return -ne 0 ] && [ -z "$rc_force" ] &&
+				    return 1
 			fi
 					# prevent restart being called more
 					# than once by any given script
@@ -723,7 +748,10 @@ $command $rc_flags $command_args"
 			( $0 ${rc_force:+force}stop )
 			$0 ${rc_force:+force}start
 
-			eval $_postcmd
+			if [ -n "$_postcmd" ]; then
+				eval $_postcmd
+				_return=$?
+			fi
 			;;
 
 		poll)
@@ -748,7 +776,7 @@ $command $rc_flags $command_args"
 			;;
 
 		esac
-		return 0
+		return $_return
 	done
 
 	echo 1>&2 "$0: unknown directive '$rc_arg'."
