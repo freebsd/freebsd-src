@@ -60,6 +60,7 @@ trlld.o				optional	oltr			\
 contrib/dev/oltr/trlldbm.c	optional	oltr
 contrib/dev/oltr/trlldhm.c	optional	oltr
 contrib/dev/oltr/trlldmac.c	optional	oltr
+dev/advansys/adv_isa.c		optional	adv isa
 dev/aic/aic_isa.c		optional	aic isa
 dev/ata/ata-all.c		optional	ata 
 dev/ata/ata-dma.c		optional	ata 

@@ -66,6 +66,9 @@
 
 #include <machine/bus_pio.h>
 #include <machine/bus.h>
+#include <machine/resource.h>
+#include <sys/bus.h>
+#include <sys/rman.h>
 
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
@@ -84,8 +87,8 @@
 #define ADV_PCI_MAX_DMA_ADDR    (0xFFFFFFFFL)
 #define ADV_PCI_MAX_DMA_COUNT   (0xFFFFFFFFL)
 
-static const char* advpciprobe(pcici_t tag, pcidi_t type);
-static void advpciattach(pcici_t config_id, int unit);
+static int adv_pci_probe(device_t);
+static int adv_pci_attach(device_t);
 
 /* 
  * The overrun buffer shared amongst all PCI adapters.
@@ -95,55 +98,53 @@ static	bus_dma_tag_t	overrun_dmat;
 static	bus_dmamap_t	overrun_dmamap;
 static	bus_addr_t	overrun_physbase;
 
-static struct  pci_device adv_pci_driver = {
-	"adv",
-        advpciprobe,
-        advpciattach,
-        &adv_unit,
-	NULL
-};
-
-COMPAT_PCI_DRIVER (adv_pci, adv_pci_driver);
-
-static const char*
-advpciprobe(pcici_t tag, pcidi_t type)
+static int
+adv_pci_probe(device_t dev)
 {
-	int rev;
+	int	rev = pci_get_revid(dev);
 
-	rev = pci_conf_read(tag, PCI_CLASS_REG) & PCI_REVISION_MASK;
-	switch (type) {
+	switch (pci_get_devid(dev)) {
 	case PCI_DEVICE_ID_ADVANSYS_1200A:
-		return ("AdvanSys ASC1200A SCSI controller");
+		device_set_desc(dev, "AdvanSys ASC1200A SCSI controller");
+		return 0;
 	case PCI_DEVICE_ID_ADVANSYS_1200B:
-		return ("AdvanSys ASC1200B SCSI controller");
+		device_set_desc(dev, "AdvanSys ASC1200B SCSI controller");
+		return 0;
 	case PCI_DEVICE_ID_ADVANSYS_3000:
-		if (rev == PCI_DEVICE_REV_ADVANSYS_3150)
-			return ("AdvanSys ASC3150 SCSI controller");
-		else if (rev == PCI_DEVICE_REV_ADVANSYS_3050)
-			return ("AdvanSys ASC3030/50 SCSI controller");
-		else if (rev >= PCI_DEVICE_REV_ADVANSYS_3150)
-			return ("Unknown AdvanSys controller");
+		if (rev == PCI_DEVICE_REV_ADVANSYS_3150) {
+			device_set_desc(dev,
+					"AdvanSys ASC3150 SCSI controller");
+			return 0;
+		} else if (rev == PCI_DEVICE_REV_ADVANSYS_3050) {
+			device_set_desc(dev,
+					"AdvanSys ASC3030/50 SCSI controller");
+			return 0;
+		} else if (rev >= PCI_DEVICE_REV_ADVANSYS_3150) {
+			device_set_desc(dev, "Unknown AdvanSys controller");
+			return 0;
+		}
 		break;
 	default:
 		break;
 	}
-	return (NULL);
+	return ENXIO;
 }
 
-static void
-advpciattach(pcici_t config_id, int unit)
+static int
+adv_pci_attach(device_t dev)
 {
-	u_int16_t	io_port;
 	struct		adv_softc *adv;
 	u_int32_t	id;
 	u_int32_t	command;
-	int		error;
- 
+	int		error, rid;
+	void		*ih;
+	struct resource	*iores, *irqres;
+
 	/*
 	 * Determine the chip version.
 	 */
-	id = pci_cfgread(config_id, PCI_ID_REG, /*bytes*/4);
-	command = pci_cfgread(config_id, PCIR_COMMAND, /*bytes*/1);
+	id = pci_read_config(dev, PCI_ID_REG, /*bytes*/4);
+	command = pci_read_config(dev, PCIR_COMMAND, /*bytes*/1);
 
 	/*
 	 * These cards do not allow memory mapped accesses, so we must
@@ -153,7 +154,7 @@ advpciattach(pcici_t config_id, int unit)
 	if ((command & (PCIM_CMD_PORTEN|PCIM_CMD_BUSMASTEREN))
 	 != (PCIM_CMD_PORTEN|PCIM_CMD_BUSMASTEREN)) {
 		command |= PCIM_CMD_PORTEN|PCIM_CMD_BUSMASTEREN;
-		pci_cfgwrite(config_id, PCIR_COMMAND, command, /*bytes*/1);
+		pci_write_config(dev, PCIR_COMMAND, command, /*bytes*/1);
 	}
 
 	/*
@@ -161,19 +162,26 @@ advpciattach(pcici_t config_id, int unit)
 	 */
 	if (id == PCI_DEVICE_ID_ADVANSYS_1200A
 	 || id == PCI_DEVICE_ID_ADVANSYS_1200B) {
-		pci_cfgwrite(config_id, PCIR_LATTIMER, /*value*/0, /*bytes*/1);
+		pci_write_config(dev, PCIR_LATTIMER, /*value*/0, /*bytes*/1);
 	}
 
+	rid = PCI_BASEADR0;
+	iores = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0, 1,
+				   RF_ACTIVE);
+	if (iores == NULL)
+		return ENXIO;
 
-	if (pci_map_port(config_id, PCI_BASEADR0, &io_port) == 0)
-		return;
+	if (adv_find_signature(rman_get_bustag(iores),
+			       rman_get_bushandle(iores)) == 0) {
+		bus_release_resource(dev, SYS_RES_IOPORT, 0, iores);
+		return ENXIO;
+	}
 
-	if (adv_find_signature(I386_BUS_SPACE_IO, io_port) == 0)
-		return;
-
-	adv = adv_alloc(unit, I386_BUS_SPACE_IO, io_port);
-	if (adv == NULL)
-		return;
+	adv = adv_alloc(dev, rman_get_bustag(iores), rman_get_bushandle(iores));
+	if (adv == NULL) {
+		bus_release_resource(dev, SYS_RES_IOPORT, 0, iores);
+		return ENXIO;
+	}
 
 	/* Allocate a dmatag for our transfer DMA maps */
 	/* XXX Should be a child of the PCI bus dma tag */
@@ -192,7 +200,8 @@ advpciattach(pcici_t config_id, int unit)
 		printf("%s: Could not allocate DMA tag - error %d\n",
 		       adv_name(adv), error);
 		adv_free(adv);
-		return;
+		bus_release_resource(dev, SYS_RES_IOPORT, 0, iores);
+		return ENXIO;
 	}
 
 	adv->init_level++;
@@ -208,7 +217,8 @@ advpciattach(pcici_t config_id, int unit)
 				       &overrun_dmat) != 0) {
 			bus_dma_tag_destroy(adv->parent_dmat);
 			adv_free(adv);
-			return;
+			bus_release_resource(dev, SYS_RES_IOPORT, 0, iores);
+			return ENXIO;
        		}
 		if (bus_dmamem_alloc(overrun_dmat,
 				     (void **)&overrun_buf,
@@ -217,7 +227,8 @@ advpciattach(pcici_t config_id, int unit)
 			bus_dma_tag_destroy(overrun_dmat);
 			bus_dma_tag_destroy(adv->parent_dmat);
 			adv_free(adv);
-			return;
+			bus_release_resource(dev, SYS_RES_IOPORT, 0, iores);
+			return ENXIO;
 		}
 		/* And permanently map it in */  
 		bus_dmamap_load(overrun_dmat, overrun_dmamap,
@@ -254,7 +265,8 @@ advpciattach(pcici_t config_id, int unit)
 
 	if (adv_init(adv) != 0) {
 		adv_free(adv);
-		return;
+		bus_release_resource(dev, SYS_RES_IOPORT, 0, iores);
+		return ENXIO;
 	}
 
 	adv->max_dma_count = ADV_PCI_MAX_DMA_COUNT;
@@ -277,10 +289,30 @@ advpciattach(pcici_t config_id, int unit)
 		adv->fix_asyn_xfer = ~0;
 	}
 
-	if ((pci_map_int(config_id, adv_intr, (void *)adv, &cam_imask)) == 0) {
+	rid = 0;
+	irqres = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
+				    RF_SHAREABLE | RF_ACTIVE);
+	if (irqres == NULL ||
+	    bus_setup_intr(dev, irqres, INTR_TYPE_CAM, adv_intr, adv, &ih)) {
 		adv_free(adv);
-		return;
+		bus_release_resource(dev, SYS_RES_IOPORT, 0, iores);
+		return ENXIO;
 	}
-	
+
 	adv_attach(adv);
+	return 0;
 }
+
+static device_method_t adv_pci_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		adv_pci_probe),
+	DEVMETHOD(device_attach,	adv_pci_attach),
+	{ 0, 0 }
+};
+
+static driver_t adv_pci_driver = {
+	"adv", adv_pci_methods, sizeof(struct adv_softc)
+};
+
+static devclass_t adv_pci_devclass;
+DRIVER_MODULE(adv, pci, adv_pci_driver, adv_pci_devclass, 0, 0);

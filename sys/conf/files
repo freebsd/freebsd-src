@@ -96,7 +96,6 @@ ddb/db_variables.c	optional ddb
 ddb/db_watch.c		optional ddb
 ddb/db_write_cmd.c	optional ddb
 dev/advansys/adv_eisa.c	optional adv eisa
-dev/advansys/adv_isa.c	optional adv isa
 dev/advansys/adv_pci.c	optional adv pci
 dev/advansys/advansys.c	optional adv
 dev/advansys/advlib.c	optional adv

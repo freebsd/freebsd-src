@@ -492,8 +492,8 @@ struct adv_target_transinfo {
 	struct adv_transinfo user;
 };
 
-struct adv_softc
-{
+struct adv_softc {
+	device_t		dev;
 	bus_space_tag_t		 tag;
 	bus_space_handle_t	 bsh;
 	struct cam_sim		*sim;
