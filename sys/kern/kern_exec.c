@@ -328,6 +328,10 @@ interpret:
 				vrele(vtmp);
 			}
 		}
+		/* Make sure file descriptors 0..2 are in use. */
+		error = fdcheckstd(p);
+		if (error != 0)
+			goto exec_fail_dealloc;
 		/*
 		 * Set the new credentials.
 		 */
