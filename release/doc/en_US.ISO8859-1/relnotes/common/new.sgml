@@ -178,6 +178,10 @@
     <para arch="i386">The loran (Loran-C receiver) driver has been removed due to
       breakage and lack of maintainership.</para>
 
+    <para>The raid(4), RAIDframe disk driver from NetBSD has been removed.
+      This is currently non-functional, and would require some amount of work
+      to make it work under the &man.geom.4; API in 5-CURRENT.</para>
+
     <para>The &man.ubser.4; device driver has been added to support
       BWCT console management serial adapters.</para>
 
