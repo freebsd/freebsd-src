@@ -512,7 +512,7 @@ pthread_cond_signal(pthread_cond_t * cond)
         * If the condition variable is statically initialized, perform dynamic
         * initialization.
         */
-	else if (*cond != NULL || (rval = pthread_cond_init(cond, NULL) == 0)) {
+	else if (*cond != NULL || (rval = pthread_cond_init(cond, NULL)) == 0) {
 		/*
 		 * Defer signals to protect the scheduling queues
 		 * from access by the signal handler:
@@ -580,7 +580,7 @@ pthread_cond_broadcast(pthread_cond_t * cond)
         * If the condition variable is statically initialized, perform dynamic
         * initialization.
         */
-	else if (*cond != NULL || (rval = pthread_cond_init(cond, NULL) == 0)) {
+	else if (*cond != NULL || (rval = pthread_cond_init(cond, NULL)) == 0) {
 		/*
 		 * Defer signals to protect the scheduling queues
 		 * from access by the signal handler:
