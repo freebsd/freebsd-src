@@ -335,6 +335,7 @@ std)
 	mknod tty	c 1 0;			chmod 666 tty
 	mknod klog	c 7 0;			chmod 600 klog
 	mknod pci	c 78 0; 		chmod 644 pci
+	mknod mdctl	c 95 0xffff00ff;	chmod 600 mdctl
 	mkdir -p fd
 	(cd fd && i=0 &&
 		while [ $i -lt 64 ]; do
