@@ -5,7 +5,7 @@
  *
  * Obtained from:
  *
- * Copyright (c) 1995-1997 Advanced System Products, Inc.
+ * Copyright (c) 1995-1999 Advanced System Products, Inc.
  * All Rights Reserved.
  *   
  * Redistribution and use in source and binary forms, with or without

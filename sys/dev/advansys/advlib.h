@@ -2,7 +2,7 @@
  * Definitions for low level routines and data structures
  * for the Advanced Systems Inc. SCSI controllers chips.
  *
- * Copyright (c) 1996-1997 Justin T. Gibbs.
+ * Copyright (c) 1996-1997, 1999-2000 Justin T. Gibbs.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -74,20 +74,25 @@ typedef enum {
 } adv_btype;
 
 typedef enum {
-	ADV_STATE_NONE			= 0x00
+	ADV_STATE_NONE			= 0x00,
+	ADV_RESOURCE_SHORTAGE		= 0x01,
+	ADV_IN_TIMEOUT			= 0x02,
+	ADV_BUSDMA_BLOCK		= 0x04,
+	ADV_BUSDMA_BLOCK_CLEARED	= 0x08
+	
 } adv_state;
 
 typedef enum {
 	ACCB_FREE		= 0x00,
 	ACCB_ACTIVE		= 0x01,
 	ACCB_ABORT_QUEUED	= 0x02,
-	ACCB_RECOVERY_CCB	= 0x04,
-	ACCB_RELEASE_SIMQ	= 0x08
+	ACCB_RECOVERY_CCB	= 0x04
 } adv_ccb_state;
 
 struct adv_ccb_info {
 	adv_ccb_state	state;
 	bus_dmamap_t	dmamap;
+	union ccb*	ccb;
 	SLIST_ENTRY(adv_ccb_info) links;
 };
 
@@ -292,7 +297,6 @@ struct adv_eeprom_config {
 #define		EEPROM_SET_SCSIID(ep, id)			\
 		(ep).scsi_id_dma_speed &= ~EEPROM_SCSI_ID_MASK; \
 		(ep).scsi_id_dma_speed |= ((id) & EEPROM_SCSI_ID_MASK)
-	/* XXX What about wide controllers??? */
 	u_int8_t	sdtr_data[8];
 	u_int8_t	adapter_info[6];
 
@@ -379,7 +383,7 @@ struct adv_eeprom_config {
 #define	ADV_SCSIQ_D_DATA_CNT		12
 #define	ADV_SCSIQ_B_SENSE_LEN		20
 #define	ADV_SCSIQ_DONE_INFO_BEG		22
-#define	ADV_SCSIQ_D_CCBPTR		22
+#define	ADV_SCSIQ_D_CINFO_IDX		22
 #define	ADV_SCSIQ_B_TARGET_IX		26
 #define	ADV_SCSIQ_B_CDB_LEN		28
 #define	ADV_SCSIQ_B_TAG_CODE		29
@@ -388,9 +392,10 @@ struct adv_eeprom_config {
 #define	ADV_SCSIQ_HOST_STATUS		33
 #define	ADV_SCSIQ_SCSI_STATUS		34
 #define	ADV_SCSIQ_CDB_BEG		36
+#define ADV_SCSIQ_B_FIRST_SG_QK_QP	48
 #define	ADV_SCSIQ_B_SG_WK_QP		49
 #define	ADV_SCSIQ_B_SG_WK_IX		50
-#define	ADV_SCSIQ_W_REQ_COUNT		52
+#define	ADV_SCSIQ_W_ALT_DC1		52
 #define	ADV_SCSIQ_DW_REMAIN_XFER_ADDR	56
 #define	ADV_SCSIQ_DW_REMAIN_XFER_CNT	60
 
@@ -430,6 +435,7 @@ struct adv_eeprom_config {
 #define		ADV_HALT_DISABLE_ASYN_USE_SYN_FIX	0x8300
 #define		ADV_HALT_ENABLE_ASYN_USE_SYN_FIX	0x8400
 #define		ADV_HALT_SDTR_REJECTED			0x4000
+#define		ADV_HALT_HOST_COPY_SG_LIST_TO_RISC	0x2000
 
 #define ADVV_CHKSUM_W			0x0042
 #define ADVV_MC_DATE_W			0x0044
@@ -488,24 +494,28 @@ struct adv_target_transinfo {
 
 struct adv_softc
 {
-	bus_space_tag_t		tag;
-	bus_space_handle_t	bsh;
-	bus_dma_tag_t		parent_dmat;
-	bus_dma_tag_t		buffer_dmat;
-	bus_dma_tag_t		sense_dmat;
-	bus_dmamap_t		sense_dmamap;
+	bus_space_tag_t		 tag;
+	bus_space_handle_t	 bsh;
+	struct cam_sim		*sim;
+	LIST_HEAD(, ccb_hdr)	 pending_ccbs;
+	struct adv_ccb_info	*ccb_infos;
+	SLIST_HEAD(, adv_ccb_info) free_ccb_infos;
+	bus_dma_tag_t		 parent_dmat;
+	bus_dma_tag_t		 buffer_dmat;
+	bus_dma_tag_t		 sense_dmat;
+	bus_dmamap_t		 sense_dmamap;
 	struct scsi_sense_data	*sense_buffers;
-	bus_addr_t		sense_physbase;
-	bus_addr_t		overrun_physbase;
-	adv_btype		type;
-	struct			adv_target_transinfo tinfo[8];
-	target_bit_vector	fix_asyn_xfer;
-	target_bit_vector	fix_asyn_xfer_always;
-	target_bit_vector	disc_enable;
-	target_bit_vector	user_disc_enable;
-	target_bit_vector	cmd_qng_enabled;
-	target_bit_vector	user_cmd_qng_enabled;
-	u_int16_t		control;
+	bus_addr_t		 sense_physbase;
+	bus_addr_t		 overrun_physbase;
+	adv_btype		 type;
+	struct			 adv_target_transinfo tinfo[8];
+	target_bit_vector	 fix_asyn_xfer;
+	target_bit_vector	 fix_asyn_xfer_always;
+	target_bit_vector	 disc_enable;
+	target_bit_vector	 user_disc_enable;
+	target_bit_vector	 cmd_qng_enabled;
+	target_bit_vector	 user_cmd_qng_enabled;
+	u_int16_t		 control;
 #define		ADV_CNTL_INITIATOR		0x0001
 #define		ADV_CNTL_BIOS_GT_1GB		0x0002
 #define		ADV_CNTL_BIOS_GT_2_DISK		0x0004
@@ -521,29 +531,27 @@ struct adv_softc
 #define		ADV_CNTL_BURST_MODE		0x2000
 #define		ADV_CNTL_SDTR_ENABLE_ULTRA	0x4000
 	
-	u_int16_t		bug_fix_control;
+	u_int16_t		 bug_fix_control;
 #define		ADV_BUG_FIX_IF_NOT_DWB		0x0001
 #define		ADV_BUG_FIX_ASYN_USE_SYN	0x0002
 	
-	adv_state		state;
+	adv_state		 state;
 	struct cam_path		*path;
-	int			unit;
-	int			init_level;
-	u_int32_t		max_dma_addr;
-	u_int32_t		max_dma_count;
-	u_int8_t		isa_dma_speed;
-	u_int8_t		isa_dma_channel;
-	u_int8_t		scsi_id;
-	u_int8_t		chip_version;
-	u_int8_t		max_tags_per_target;
-	u_int8_t		max_openings;
-	u_int8_t		cur_active;
-	u_int8_t		openings_needed;
+	int			 unit;
+	int			 init_level;
+	u_int32_t		 max_dma_addr;
+	u_int32_t		 max_dma_count;
+	u_int8_t		 isa_dma_speed;
+	u_int8_t		 isa_dma_channel;
+	u_int8_t		 scsi_id;
+	u_int8_t		 chip_version;
+	u_int8_t		 max_tags_per_target;
+	u_int8_t		 max_openings;
+	u_int8_t		 cur_active;
+	u_int8_t		 openings_needed;
+	u_int8_t		 ccb_infos_allocated;
 	u_int8_t		*sdtr_period_tbl;
-	u_int8_t		sdtr_period_tbl_size;
-	struct cam_sim		*sim;
-	LIST_HEAD(, ccb_hdr)	pending_ccbs;
-	SLIST_HEAD(, adv_ccb_info) free_ccb_infos;
+	u_int8_t		 sdtr_period_tbl_size;
 };
 
 /*
@@ -597,7 +605,7 @@ struct adv_scsiq_1 {
 };
 
 struct adv_scsiq_2 {
-	u_int32_t		ccb_ptr;	/* Pointer to our CCB */
+	u_int32_t		ccb_index;	/* Index to our CCB Info */
 	u_int8_t		target_ix;      /* Combined TID and LUN */
 
 	u_int8_t		flag;
@@ -790,7 +798,7 @@ u_int16_t adv_get_eeprom_config(struct adv_softc *adv,
 				struct adv_eeprom_config *eeprom_config);
 int	  adv_set_eeprom_config(struct adv_softc *adv,
 				struct adv_eeprom_config *eeprom_config);
-int	  adv_reset_chip_and_scsi_bus(struct adv_softc *adv);
+int	  adv_reset_chip(struct adv_softc *adv, int reset_bus);
 int	  adv_test_external_lram(struct adv_softc* adv);
 int	  adv_init_lram_and_mcode(struct adv_softc *adv);
 u_int8_t  adv_get_chip_irq(struct adv_softc *adv);
@@ -808,6 +816,7 @@ u_int8_t  adv_copy_lram_doneq(struct adv_softc *adv, u_int16_t q_addr,
 int	  adv_start_chip(struct adv_softc *adv);
 void	  adv_start_execution(struct adv_softc *adv);
 int	  adv_stop_execution(struct adv_softc *adv);
+int	  adv_stop_chip(struct adv_softc *adv);
 int	  adv_is_chip_halted(struct adv_softc *adv);
 
 /* Interrupt processing */
@@ -828,7 +837,7 @@ u_int8_t  adv_period_offset_to_sdtr(struct adv_softc *adv, u_int *period,
 union ccb;
 int	  adv_abort_ccb(struct adv_softc *adv, int target, int lun,
 			union ccb *ccb, u_int32_t status, int queued_only);
-int	  adv_reset_bus(struct adv_softc *adv);
+int	  adv_reset_bus(struct adv_softc *adv, int initiate_reset);
 
 /* Async event callback */
 void	advasync(void *callback_arg, u_int32_t code,
