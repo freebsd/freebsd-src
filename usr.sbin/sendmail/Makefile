@@ -44,13 +44,6 @@ LIBSMUTIL:=	${LIBSMUTILDIR}/libsmutil.a
 DPADD+=	${LIBSMUTIL}
 LDADD+=	${LIBSMUTIL}
 
-.if !defined(NOCRYPT) && !defined(NO_OPENSSL)
-# STARTTLS support
-CFLAGS+=-DSTARTTLS -D_FFR_TLS_O_T -D_FFR_TLS_1 -D_FFR_TLS_TOREK
-LDADD+=	-lssl -lcrypto
-DPADD+=	${LIBSSL} ${LIBCRYPTO}
-.endif
-
 # User customizations to the sendmail build environment
 CFLAGS+=${SENDMAIL_CFLAGS}
 DPADD+=${SENDMAIL_DPADD}
