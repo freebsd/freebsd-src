@@ -222,7 +222,7 @@ svc_fd_create(fd, sendsize, recvsize)
 	}
 	memcpy(ret->xp_rtaddr.buf, &ss, (size_t)ss.ss_len);
 #ifdef PORTMAP
-	if (ss.ss_family == AF_INET) {
+	if (ss.ss_family == AF_INET || ss.ss_family == AF_LOCAL) {
 		ret->xp_raddr = *(struct sockaddr_in *)ret->xp_rtaddr.buf;
 		ret->xp_addrlen = sizeof (struct sockaddr_in);
 	}
