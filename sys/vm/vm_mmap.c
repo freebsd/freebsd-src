@@ -38,12 +38,14 @@
  * from: Utah $Hdr: vm_mmap.c 1.6 91/10/21$
  *
  *	@(#)vm_mmap.c	8.4 (Berkeley) 1/12/94
- * $FreeBSD$
  */
 
 /*
  * Mapped file (mmap) interface to VM
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "opt_compat.h"
 #include "opt_mac.h"

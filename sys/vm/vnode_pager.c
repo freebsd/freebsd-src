@@ -38,7 +38,6 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vnode_pager.c	7.5 (Berkeley) 4/20/91
- * $FreeBSD$
  */
 
 /*
@@ -50,6 +49,9 @@
  *	Implement VOP_GETPAGES/PUTPAGES interface for filesystems. Will
  *	greatly re-simplify the vnode_pager.
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
