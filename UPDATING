@@ -19,7 +19,7 @@ build and install as described in the COMMON ITEMS section.
 20010822:	p13
 	Fix command line argument overflow probelm in sendmail.
 
-20010813:	p12
+20010813:	p12	FreeBSD-SA-01:55
 	procfs permission tightening.
 
 20010810:	p11
