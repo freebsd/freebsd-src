@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip.h	8.2 (Berkeley) 6/1/94
- *	$Id: ip.h,v 1.8 1996/03/14 16:59:20 fenner Exp $
+ *	$Id: ip.h,v 1.9 1996/04/18 15:42:50 wollman Exp $
  */
 
 #ifndef _NETINET_IP_H_
@@ -64,9 +64,9 @@ struct ip {
 #endif
 #endif /* not _IP_VHL */
 	u_char	ip_tos;			/* type of service */
-	short	ip_len;			/* total length */
+	u_short	ip_len;			/* total length */
 	u_short	ip_id;			/* identification */
-	short	ip_off;			/* fragment offset field */
+	u_short	ip_off;			/* fragment offset field */
 #define	IP_DF 0x4000			/* dont fragment flag */
 #define	IP_MF 0x2000			/* more fragments flag */
 #define	IP_OFFMASK 0x1fff		/* mask for fragmenting bits */
