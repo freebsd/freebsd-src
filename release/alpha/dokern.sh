@@ -17,8 +17,6 @@ sed	\
 	-e '/MSDOSFS/d' \
 	-e '/PSEUDOFS/d' \
 	-e '/PROCFS/d' \
-	-e '/UFS_DIRHASH/d' \
-	-e '/MSDOSFS/d' \
 	-e '/CD9660/d' \
 	-e '/KTRACE/d' \
 	-e '/SYSV/d' \
@@ -81,18 +79,7 @@ sed	\
 	-e '/maxusers/d' \
 	-e '/ahc/d' \
 	-e '/mpt.*MPT/d' \
-	-e '/txp/d' \
-	-e '/dc.*21143/d' \
-	-e '/de.*Tulip/d' \
-	-e '/fxp/d' \
-	-e '/rl.*Real/d' \
-	-e '/tl.*Texas/d' \
-	-e '/vr.*VIA/d' \
-	-e '/xl.*Boom/d' \
-	-e '/tun.*unnel/d' \
-	-e '/vx.*Vort/d' \
 	-e '/ch.*media/d' \
-	-e '/miibus/d' \
 	-e 's/ident.*GENERIC/ident		BOOTMFS/g'
 
 # reset maxusers to something lower
@@ -100,4 +87,3 @@ echo "maxusers	2"
 
 echo "options  SCSI_NO_OP_STRINGS" 
 echo "options  SCSI_NO_SENSE_STRINGS"
-echo "makeoptions NO_MODULES=1"
