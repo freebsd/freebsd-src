@@ -27,7 +27,9 @@
  */
 
 #include <sys/types.h>
-#include <machine/elf.h>
+#define	__ELF_WORD_SIZE	32
+#include <sys/elf32.h>
+#include <sys/elf_generic.h>
 #include "kgz.h"
 
 /* Section header indices */
