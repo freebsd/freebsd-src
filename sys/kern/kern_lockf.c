@@ -123,7 +123,7 @@ lf_advlock(ap, head, size)
 		break;
 
 	case SEEK_END:
-		/* size always >= 0 */
+		/* 'size' is always >= 0 */
 		if (fl->l_start > 0 && size > OFF_MAX - fl->l_start)
 			return (EOVERFLOW);
 		start = size + fl->l_start;
@@ -139,7 +139,7 @@ lf_advlock(ap, head, size)
 	else {
 		off_t oadd = fl->l_len - 1;
 
-		/* fl->l_len & start are non-negative */
+		/* 'oadd' and 'start' are >= 0 */
 		if (oadd > OFF_MAX - start)
 			return (EOVERFLOW);
 		end = start + oadd;
