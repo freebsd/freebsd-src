@@ -131,10 +131,10 @@ to 8.2.3 (see security advisory FreeBSD-SA-01:18).
 A bug in ICMP that could cause an attacker to disrupt TCP and UDP
 "sessions" has been corrected.
 
-A bug in timed(8), which caused it to crash if send certain malformed
+A bug in timed(8), which caused it to crash if sent certain malformed
 packets, has been corrected (see security advisory FreeBSD-SA-01:28).
 
-A bug in rwhod(8), which caused it to crash if send certain malformed
+A bug in rwhod(8), which caused it to crash if sent certain malformed
 packets, has been corrected (see security advisory FreeBSD-SA-01:29).
 
 A security hole in FreeBSD's FFS and EXT2FS implementations, which
