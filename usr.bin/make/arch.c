@@ -516,10 +516,12 @@ ArchFindMember(const char *archive, const char *member, struct ar_hdr *arhPtr,
 			 * prefixes. Names are space-padded to the right, so if
 			 * the character in 'name' at the end of the matched
 			 * string is anything but a space, this isn't the
-			 * member we sought.
+			 * member we sought. Additionally there may be a
+			 * slash at the end of the name (System 5 style).
 			 */
 			if (tlen != sizeof(arhPtr->ar_name) &&
-			    arhPtr->ar_name[tlen] != ' '){
+			    arhPtr->ar_name[tlen] != ' ' &&
+			    arhPtr->ar_name[tlen] != '/') {
 				goto skip;
 			}
 			/*
