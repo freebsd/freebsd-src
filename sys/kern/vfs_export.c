@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.101 1997/09/07 16:20:46 bde Exp $
+ * $Id: vfs_subr.c,v 1.102 1997/09/13 15:02:28 peter Exp $
  */
 
 /*
@@ -54,6 +54,7 @@
 #include <sys/stat.h>
 #include <sys/buf.h>
 #include <sys/malloc.h>
+#include <sys/poll.h>
 #include <sys/domain.h>
 #include <sys/dirent.h>
 
@@ -1624,6 +1625,25 @@ loop:
 	}
 	simple_unlock(&spechash_slock);
 	return (count);
+}
+
+/*
+ * Return true for select/poll.
+ */
+int
+vop_nopoll(ap)
+	struct vop_poll_args /* {
+		struct vnode *a_vp;
+		int  a_events;
+		struct ucred *a_cred;
+		struct proc *a_p;
+	} */ *ap;
+{
+
+	/*
+	 * Just return what we were asked for.
+	 */
+	return (ap->a_events & (POLLIN | POLLOUT | POLLRDNORM | POLLWRNORM));
 }
 
 /*
