@@ -248,6 +248,7 @@ sub tinderbox($$$) {
 	}
 	push(@lines, $_);
     }
+    close(RPIPE);
     if ($error) {
 	$summary .= join('', @lines);
 	print(BRIEF join('', @lines));
