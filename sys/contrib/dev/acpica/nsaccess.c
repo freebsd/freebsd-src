@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: nsaccess - Top-level functions for accessing ACPI namespace
- *              $Revision: 133 $
+ *              $Revision: 135 $
  *
  ******************************************************************************/
 
@@ -287,6 +287,10 @@ AcpiNsRootInitialize (void)
             /* Store pointer to value descriptor in the Node */
 
             AcpiNsAttachObject (NewNode, ObjDesc, ObjDesc->Common.Type);
+
+            /* Remove local reference to the object */
+
+            AcpiUtRemoveReference (ObjDesc);
         }
     }
 
@@ -554,7 +558,7 @@ AcpiNsLookup (
 
         for (i = 0; i < NumSegments; i++)
         {
-            ACPI_DEBUG_PRINT_RAW ((ACPI_DB_NAMES, "%4.4s/", &Pathname[i * 4]));
+            ACPI_DEBUG_PRINT_RAW ((ACPI_DB_NAMES, "%4.4s/", (char*)&Pathname[i * 4]));
         }
         ACPI_DEBUG_PRINT_RAW ((ACPI_DB_NAMES, "]\n"));
 #endif
@@ -598,8 +602,8 @@ AcpiNsLookup (
                 /* Name not found in ACPI namespace  */
 
                 ACPI_DEBUG_PRINT ((ACPI_DB_NAMES,
-                    "Name [%4.4s] not found in scope %X\n",
-                    &SimpleName, CurrentNode));
+                    "Name [%4.4s] not found in scope %p\n",
+                    (char*)&SimpleName, CurrentNode));
             }
 
             return_ACPI_STATUS (Status);
@@ -632,7 +636,7 @@ AcpiNsLookup (
 
             REPORT_WARNING (
                 ("NsLookup: %4.4s, type %X, checking for type %X\n",
-                &SimpleName, ThisNode->Type, TypeToCheckFor));
+                (char*)&SimpleName, ThisNode->Type, TypeToCheckFor));
         }
 
         /*
@@ -652,7 +656,7 @@ AcpiNsLookup (
              * More segments or the type implies enclosed scope,
              * and the next scope has not been allocated.
              */
-            ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "Load mode=%X  ThisNode=%X\n",
+            ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "Load mode=%X  ThisNode=%p\n",
                 InterpreterMode, ThisNode));
         }
 

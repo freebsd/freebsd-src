@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: utmath - Integer math support routines
- *              $Revision: 5 $
+ *              $Revision: 7 $
  *
  ******************************************************************************/
 
@@ -167,6 +167,7 @@ AcpiUtShortDivide (
 
     if (Divisor == 0)
     {
+        REPORT_ERROR (("AcpiUtShortDivide: Divide by zero\n"));
         return_ACPI_STATUS (AE_AML_DIVIDE_BY_ZERO);
     }
 
@@ -234,6 +235,7 @@ AcpiUtDivide (
 
     if (*InDivisor == 0)
     {
+        REPORT_ERROR (("AcpiUtDivide: Divide by zero\n"));
         return_ACPI_STATUS (AE_AML_DIVIDE_BY_ZERO);
     }
 
@@ -370,6 +372,7 @@ AcpiUtShortDivide (
 
     if (Divisor == 0)
     {
+        REPORT_ERROR (("AcpiUtShortDivide: Divide by zero\n"));
         return_ACPI_STATUS (AE_AML_DIVIDE_BY_ZERO);
     }
 
@@ -401,6 +404,7 @@ AcpiUtDivide (
 
     if (*InDivisor == 0)
     {
+        REPORT_ERROR (("AcpiUtDivide: Divide by zero\n"));
         return_ACPI_STATUS (AE_AML_DIVIDE_BY_ZERO);
     }
 
@@ -416,7 +420,7 @@ AcpiUtDivide (
         *OutRemainder = *InDividend % *InDivisor;
     }
 
-    return_ACPI_STATUS (AE_OK)
+    return_ACPI_STATUS (AE_OK);
 }
 
 #endif

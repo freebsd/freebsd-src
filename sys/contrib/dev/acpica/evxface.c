@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: evxface - External interfaces for ACPI events
- *              $Revision: 114 $
+ *              $Revision: 116 $
  *
  *****************************************************************************/
 
@@ -174,7 +174,7 @@ AcpiInstallFixedEventHandler (
     }
 
 
-    /* Install the handler before enabling the event - just in case... */
+    /* Install the handler before enabling the event */
 
     AcpiGbl_FixedEventHandlers[Event].Handler = Handler;
     AcpiGbl_FixedEventHandlers[Event].Context = Context;
@@ -236,7 +236,7 @@ AcpiRemoveFixedEventHandler (
 
     AcpiUtAcquireMutex (ACPI_MTX_EVENTS);
 
-    /* Disable the event before removing the handler - just in case... */
+    /* Disable the event before removing the handler */
 
     Status = AcpiDisableEvent(Event, ACPI_EVENT_FIXED, 0);
 
@@ -245,13 +245,11 @@ AcpiRemoveFixedEventHandler (
     AcpiGbl_FixedEventHandlers[Event].Handler = NULL;
     AcpiGbl_FixedEventHandlers[Event].Context = NULL;
 
-
-    if (!ACPI_SUCCESS(Status))
+    if (!ACPI_SUCCESS (Status))
     {
         ACPI_DEBUG_PRINT ((ACPI_DB_WARN,
             "Could not write to fixed event enable register.\n"));
     }
-
     else
     {
         ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "Disabled fixed event %X.\n", Event));
@@ -307,7 +305,7 @@ AcpiInstallNotifyHandler (
 
     /* Convert and validate the device handle */
 
-    DeviceNode = AcpiNsConvertHandleToEntry (Device);
+    DeviceNode = AcpiNsMapHandleToNode (Device);
     if (!DeviceNode)
     {
         Status = AE_BAD_PARAMETER;
@@ -316,7 +314,6 @@ AcpiInstallNotifyHandler (
 
     /*
      * Root Object:
-     * ------------
      * Registering a notify handler on the root object indicates that the
      * caller wishes to receive notifications for all objects.  Note that
      * only one <external> global handler can be regsitered (per notify type).
@@ -351,12 +348,12 @@ AcpiInstallNotifyHandler (
     }
 
     /*
-     * Other Objects:
-     * --------------
+     * All Other Objects:
      * Caller will only receive notifications specific to the target object.
      * Note that only certain object types can receive notifications.
      */
-    else {
+    else 
+    {
         /*
          * These are the ONLY objects that can receive ACPI notifications
          */
@@ -432,6 +429,7 @@ AcpiInstallNotifyHandler (
         }
     }
 
+
 UnlockAndExit:
     AcpiUtReleaseMutex (ACPI_MTX_NAMESPACE);
     return_ACPI_STATUS (Status);
@@ -480,7 +478,7 @@ AcpiRemoveNotifyHandler (
 
     /* Convert and validate the device handle */
 
-    DeviceNode = AcpiNsConvertHandleToEntry (Device);
+    DeviceNode = AcpiNsMapHandleToNode (Device);
     if (!DeviceNode)
     {
         Status = AE_BAD_PARAMETER;
@@ -488,11 +486,10 @@ AcpiRemoveNotifyHandler (
     }
 
     /*
-     * Root Object:
-     * ------------
+     * Root Object
      */
-    if (Device == ACPI_ROOT_OBJECT) {
-
+    if (Device == ACPI_ROOT_OBJECT) 
+    {
         ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "Removing notify handler for ROOT object.\n"));
 
         if (((HandlerType == ACPI_SYSTEM_NOTIFY) &&
@@ -504,23 +501,25 @@ AcpiRemoveNotifyHandler (
             goto UnlockAndExit;
         }
 
-        if (HandlerType == ACPI_SYSTEM_NOTIFY) {
-            AcpiGbl_SysNotify.Node = NULL;
+        if (HandlerType == ACPI_SYSTEM_NOTIFY) 
+        {
+            AcpiGbl_SysNotify.Node    = NULL;
             AcpiGbl_SysNotify.Handler = NULL;
             AcpiGbl_SysNotify.Context = NULL;
         }
-        else {
-            AcpiGbl_DrvNotify.Node = NULL;
+        else 
+        {
+            AcpiGbl_DrvNotify.Node    = NULL;
             AcpiGbl_DrvNotify.Handler = NULL;
             AcpiGbl_DrvNotify.Context = NULL;
         }
     }
 
     /*
-     * Other Objects:
-     * --------------
+     * All Other Objects
      */
-    else {
+    else 
+    {
         /*
          * These are the ONLY objects that can receive ACPI notifications
          */
@@ -646,6 +645,7 @@ AcpiInstallGpeHandler (
     AcpiHwClearGpe (GpeNumber);
     AcpiHwEnableGpe (GpeNumber);
 
+
 Cleanup:
     AcpiUtReleaseMutex (ACPI_MTX_EVENTS);
     return_ACPI_STATUS (Status);
@@ -710,6 +710,7 @@ AcpiRemoveGpeHandler (
     AcpiGbl_GpeInfo[GpeNumber].Handler = NULL;
     AcpiGbl_GpeInfo[GpeNumber].Context = NULL;
 
+
 Cleanup:
     AcpiUtReleaseMutex (ACPI_MTX_EVENTS);
     return_ACPI_STATUS (Status);
@@ -728,6 +729,7 @@ Cleanup:
  * DESCRIPTION: Acquire the ACPI Global Lock
  *
  ******************************************************************************/
+
 ACPI_STATUS
 AcpiAcquireGlobalLock (
     void)
@@ -768,6 +770,7 @@ ACPI_STATUS
 AcpiReleaseGlobalLock (
     void)
 {
+
     AcpiEvReleaseGlobalLock ();
     return (AE_OK);
 }

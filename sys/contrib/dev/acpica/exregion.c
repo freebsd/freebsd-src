@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exregion - ACPI default OpRegion (address space) handlers
- *              $Revision: 59 $
+ *              $Revision: 61 $
  *
  *****************************************************************************/
 
@@ -240,7 +240,7 @@ AcpiExSystemMemorySpaceHandler (
                     ((ACPI_INTEGER) Address - (ACPI_INTEGER) MemInfo->MappedPhysicalAddress);
 
     ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
-        "IO %d (%d width) Address=%8.8lX%8.8lX\n", Function, BitWidth,
+        "SystemMemory %d (%d width) Address=%8.8X%8.8X\n", Function, BitWidth,
         HIDWORD (Address), LODWORD (Address)));
 
    /* Perform the memory read or write */
@@ -331,7 +331,7 @@ AcpiExSystemIoSpaceHandler (
 
 
     ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
-        "IO %d (%d width) Address=%8.8lX%8.8lX\n", Function, BitWidth,
+        "SystemIO %d (%d width) Address=%8.8X%8.8X\n", Function, BitWidth,
         HIDWORD (Address), LODWORD (Address)));
 
     /* Decode the function parameter */
@@ -412,7 +412,7 @@ AcpiExPciConfigSpaceHandler (
     PciRegister = (UINT16) Address;
 
     ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
-        "IO %d (%d) Seg(%04x) Bus(%04x) Dev(%04x) Func(%04x) Reg(%04x)\n",
+        "PciConfig %d (%d) Seg(%04x) Bus(%04x) Dev(%04x) Func(%04x) Reg(%04x)\n",
         Function, BitWidth, PciId->Segment, PciId->Bus, PciId->Device,
         PciId->Function, PciRegister));
 

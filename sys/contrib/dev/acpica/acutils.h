@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acutils.h -- prototypes for the common (subsystem-wide) procedures
- *       $Revision: 115 $
+ *       $Revision: 117 $
  *
  *****************************************************************************/
 
@@ -435,7 +435,7 @@ AcpiUtDebugPrint (
     UINT32                  LineNumber,
     ACPI_DEBUG_PRINT_INFO   *DbgInfo,
     char                    *Format,
-    ...);
+    ...) ACPI_PRINTF_LIKE_FUNC;
 
 void
 AcpiUtDebugPrintRaw (
@@ -443,7 +443,7 @@ AcpiUtDebugPrintRaw (
     UINT32                  LineNumber,
     ACPI_DEBUG_PRINT_INFO   *DbgInfo,
     char                    *Format,
-    ...);
+    ...) ACPI_PRINTF_LIKE_FUNC;
 
 
 /*
@@ -480,6 +480,7 @@ AcpiUtDeleteInternalObjectList (
 #define METHOD_NAME__REG        "_REG"
 #define METHOD_NAME__SEG        "_SEG"
 #define METHOD_NAME__BBN        "_BBN"
+#define METHOD_NAME__PRT        "_PRT"
 
 
 ACPI_STATUS

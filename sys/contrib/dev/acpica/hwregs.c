@@ -3,7 +3,7 @@
  *
  * Module Name: hwregs - Read/write access functions for the various ACPI
  *                       control and status registers.
- *              $Revision: 109 $
+ *              $Revision: 110 $
  *
  ******************************************************************************/
 
@@ -569,8 +569,9 @@ AcpiHwRegisterBitAccess (
 
         RegisterValue = AcpiHwRegisterRead (ACPI_MTX_DO_NOT_LOCK, PM2_CONTROL);
 
-        ACPI_DEBUG_PRINT ((ACPI_DB_IO, "PM2 control: Read %X from %p\n",
-            RegisterValue, ACPI_GET_ADDRESS (AcpiGbl_FADT->XPm2CntBlk.Address)));
+        ACPI_DEBUG_PRINT ((ACPI_DB_IO, "PM2 control: Read %X from %8.8X%8.8X\n",
+            RegisterValue, HIDWORD(AcpiGbl_FADT->XPm2CntBlk.Address),
+            LODWORD(AcpiGbl_FADT->XPm2CntBlk.Address)));
 
         if (ReadWrite == ACPI_WRITE)
         {
@@ -579,8 +580,10 @@ AcpiHwRegisterBitAccess (
             Value          &= Mask;
             RegisterValue  |= Value;
 
-            ACPI_DEBUG_PRINT ((ACPI_DB_IO, "About to write %04X to %p\n", RegisterValue,
-                AcpiGbl_FADT->XPm2CntBlk.Address));
+            ACPI_DEBUG_PRINT ((ACPI_DB_IO, "About to write %04X to %8.8X%8.8X\n",
+                RegisterValue,
+                HIDWORD(AcpiGbl_FADT->XPm2CntBlk.Address),
+                LODWORD(AcpiGbl_FADT->XPm2CntBlk.Address)));
 
             AcpiHwRegisterWrite (ACPI_MTX_DO_NOT_LOCK,
                                 PM2_CONTROL, (UINT8) (RegisterValue));
@@ -593,8 +596,10 @@ AcpiHwRegisterBitAccess (
         Mask = TMR_VAL_MASK;
         RegisterValue = AcpiHwRegisterRead (ACPI_MTX_DO_NOT_LOCK,
                                             PM_TIMER);
-        ACPI_DEBUG_PRINT ((ACPI_DB_IO, "PM_TIMER: Read %X from %p\n",
-            RegisterValue, ACPI_GET_ADDRESS (AcpiGbl_FADT->XPmTmrBlk.Address)));
+        ACPI_DEBUG_PRINT ((ACPI_DB_IO, "PM_TIMER: Read %X from %8.8X%8.8X\n",
+            RegisterValue,
+            HIDWORD(AcpiGbl_FADT->XPmTmrBlk.Address),
+            LODWORD(AcpiGbl_FADT->XPmTmrBlk.Address)));
 
         break;
 

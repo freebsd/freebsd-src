@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: nsnames - Name manipulation and search
- *              $Revision: 63 $
+ *              $Revision: 64 $
  *
  ******************************************************************************/
 
@@ -304,7 +304,7 @@ AcpiNsHandleToPathname (
         return_ACPI_STATUS (AE_NO_NAMESPACE);
     }
 
-    Node = AcpiNsConvertHandleToEntry (TargetHandle);
+    Node = AcpiNsMapHandleToNode (TargetHandle);
     if (!Node)
     {
         return_ACPI_STATUS (AE_BAD_PARAMETER);

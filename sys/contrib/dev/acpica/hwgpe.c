@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: hwgpe - Low level GPE enable/disable/clear functions
- *              $Revision: 34 $
+ *              $Revision: 35 $
  *
  *****************************************************************************/
 
@@ -442,7 +442,7 @@ AcpiHwDisableNonWakeupGpes (
         /*
          * Disable all GPEs but wakeup GPEs.
          */
-	AcpiOsWritePort(AcpiGbl_GpeRegisters[i].EnableAddr,
+        AcpiOsWritePort(AcpiGbl_GpeRegisters[i].EnableAddr,
                 AcpiGbl_GpeRegisters[i].WakeEnable, 8);
     }
 }
@@ -473,7 +473,7 @@ AcpiHwEnableNonWakeupGpes (
          * We previously stored the enabled status of all GPEs.
          * Blast them back in.
          */
-	AcpiOsWritePort(AcpiGbl_GpeRegisters[i].EnableAddr,
+        AcpiOsWritePort(AcpiGbl_GpeRegisters[i].EnableAddr,
                 AcpiGbl_GpeRegisters[i].Enable, 8);
     }
 }

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: aclocal.h - Internal data types used across the ACPI subsystem
- *       $Revision: 134 $
+ *       $Revision: 138 $
  *
  *****************************************************************************/
 
@@ -280,7 +280,7 @@ typedef struct acpi_node
     UINT32                  Name;           /* ACPI Name, always 4 chars per ACPI spec */
 
 
-    void                    *Object;        /* Pointer to attached ACPI object (optional) */
+    union acpi_operand_obj  *Object;        /* Pointer to attached ACPI object (optional) */
     struct acpi_node        *Child;         /* first child */
     struct acpi_node        *Peer;          /* Next peer*/
     UINT16                  ReferenceCount; /* Current count of references and children */
@@ -374,6 +374,33 @@ typedef struct acpi_namestring_info
     BOOLEAN                 FullyQualified;
 
 } ACPI_NAMESTRING_INFO;
+
+
+/* Field creation info */
+
+typedef struct
+{
+    ACPI_NAMESPACE_NODE     *RegionNode;
+    ACPI_NAMESPACE_NODE     *FieldNode;
+    ACPI_NAMESPACE_NODE     *RegisterNode;
+    ACPI_NAMESPACE_NODE     *DataRegisterNode;
+    UINT32                  BankValue;
+    UINT32                  FieldBitPosition;
+    UINT32                  FieldBitLength;
+    UINT8                   FieldFlags;
+    UINT8                   FieldType;
+
+} ACPI_CREATE_FIELD_INFO;
+
+/*
+ * Field flags: Bits 00 - 03 : AccessType (AnyAcc, ByteAcc, etc.)
+ *                   04      : LockRule (1 == Lock)
+ *                   05 - 06 : UpdateRule
+ */
+
+#define FIELD_ACCESS_TYPE_MASK      0x0F
+#define FIELD_LOCK_RULE_MASK        0x10
+#define FIELD_UPDATE_RULE_MASK      0x60
 
 
 /*****************************************************************************
@@ -616,40 +643,23 @@ typedef union acpi_gen_state
 } ACPI_GENERIC_STATE;
 
 
+
+/*****************************************************************************
+ *
+ * Interpreter typedefs and structs
+ *
+ ****************************************************************************/
+
+typedef
+ACPI_STATUS (*ACPI_EXECUTE_OP) (
+    struct acpi_walk_state  *WalkState);
+
+
 /*****************************************************************************
  *
  * Parser typedefs and structs
  *
  ****************************************************************************/
-
-#define ACPI_OP_CLASS_MASK              0x1F
-#define ACPI_OP_ARGS_MASK               0x20
-#define ACPI_OP_TYPE_MASK               0xC0
-
-#define ACPI_OP_TYPE_OPCODE             0x00
-#define ACPI_OP_TYPE_ASCII              0x40
-#define ACPI_OP_TYPE_PREFIX             0x80
-#define ACPI_OP_TYPE_UNKNOWN            0xC0
-
-#define ACPI_GET_OP_CLASS(a)            ((a)->Flags & ACPI_OP_CLASS_MASK)
-#define ACPI_GET_OP_ARGS(a)             ((a)->Flags & ACPI_OP_ARGS_MASK)
-#define ACPI_GET_OP_TYPE(a)             ((a)->Flags & ACPI_OP_TYPE_MASK)
-
-/*
- * Flags byte: 0-4 (5 bits) = Opcode Class  (0x001F
- *             5   (1 bit)  = Has arguments flag
- *             6-7 (2 bits) = Reserved
- */
-#define AML_NO_ARGS         0
-#define AML_HAS_ARGS        0x0020
-#define AML_NSOBJECT        0x0100
-#define AML_NSOPCODE        0x0200
-#define AML_NSNODE          0x0400
-#define AML_NAMED           0x0800
-#define AML_DEFER           0x1000
-#define AML_FIELD           0x2000
-#define AML_CREATE          0x4000
-
 
 /*
  * AML opcode, name, and argument layout
@@ -658,7 +668,9 @@ typedef struct acpi_opcode_info
 {
     UINT32                  ParseArgs;      /* Grammar/Parse time arguments */
     UINT32                  RuntimeArgs;    /* Interpret time arguments */
-    UINT16                  Flags;          /* Opcode type, HasArgs flag */
+    UINT16                  Flags;          /* Misc flags */
+    UINT8                   Class;          /* Opcode class */
+    UINT8                   Type;           /* Opcode type */
 
 #ifdef _OPCODE_NAMES
     NATIVE_CHAR             *Name;          /* op name (debug only) */
