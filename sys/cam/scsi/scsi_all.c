@@ -2009,10 +2009,8 @@ scsi_sense_sbuf(struct cam_device *device, struct ccb_scsiio *csio,
 			}
 		}
 
-		if (asc || ascq) {
-			sbuf_printf(sb, " asc:%x,%x\n%s%s", asc, ascq, 
-				    path_str, asc_desc);
-		}
+		sbuf_printf(sb, " asc:%x,%x\n%s%s", asc, ascq, 
+			    path_str, asc_desc);
 
 		if (sense->extra_len >= 7 && sense->fru) {
 			sbuf_printf(sb, " field replaceable unit: %x", 
