@@ -772,8 +772,10 @@ _http_request(struct url *URL, char *op, struct url_stat *us, char *flags)
     
     for (url = URL, i = 0; i < n; ++i) {
 	new = NULL;
-	us->size = -1;
-	us->atime = us->mtime = 0;
+	if (us) {
+	    us->size = -1;
+	    us->atime = us->mtime = 0;
+	}
 	chunked = 0;
 	need_auth = 0;
 	offset = 0;
@@ -883,13 +885,15 @@ _http_request(struct url *URL, char *op, struct url_stat *us, char *flags)
 		_http_seterr(HTTP_PROTOCOL_ERROR);
 		goto ouch;
 	    case hdr_content_length:
-		us->size = _http_parse_length(p);
+		if (us)
+		    us->size = _http_parse_length(p);
 		break;
 	    case hdr_content_range:
 		offset = _http_parse_range(p);
 		break;
 	    case hdr_last_modified:
-		us->atime = us->mtime = _http_parse_mtime(p);
+		if (us)
+		    us->atime = us->mtime = _http_parse_mtime(p);
 		break;
 	    case hdr_location:
 		if (!HTTP_REDIRECT(code))
@@ -978,16 +982,26 @@ _http_request(struct url *URL, char *op, struct url_stat *us, char *flags)
  */
 
 /*
+ * Retrieve and stat a file by HTTP
+ */
+FILE *
+fetchXGetHTTP(struct url *URL, struct url_stat *us, char *flags)
+{
+    return _http_request(URL, "GET", us, flags);
+}
+
+/*
  * Retrieve a file by HTTP
  */
 FILE *
 fetchGetHTTP(struct url *URL, char *flags)
 {
-    struct url_stat us;
-    
-    return _http_request(URL, "GET", &us, flags);
+    return fetchXGetHTTP(URL, NULL, flags);
 }
 
+/*
+ * Store a file by HTTP
+ */
 FILE *
 fetchPutHTTP(struct url *URL, char *flags)
 {
