@@ -27,6 +27,8 @@ o Add a new flexible bandwidth limiter/delay emulator called
 o Add support for bridging on multiple interfaces (10 and 100 Mbit/s).
   See bridge(4).
 
+o NFS client accelerator added.  See 'nfs_access_cache' in rc.conf(5).
+
 
 Userland features:
 ------------------
@@ -117,7 +119,8 @@ The following CD-ROM type systems are supported at this time:
 (matcd) Matsushita/Panasonic (Creative SoundBlaster) proprietary
         interface (562/563 models)
 (scd)   Sony proprietary interface (all models)
-(wcd)   ATAPI IDE interface
+(wcd)   ATAPI CDROM interface
+(acd)	ATAPI CD-R interface (alternative to 'wcd')
 
 
 Unmaintained drivers, they might or might not work for your hardware:
