@@ -36,7 +36,6 @@ SUBDIR= adventure \
 	sail \
 	snake \
 	trek \
-	wargames \
 	worm \
 	worms \
 	wump
