@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)print.c	8.6 (Berkeley) 4/16/94";
 #endif
 static const char rcsid[] =
-	"$Id: print.c,v 1.30 1998/06/28 18:26:18 bde Exp $";
+	"$Id: print.c,v 1.31 1998/06/28 21:05:48 bde Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -400,8 +400,8 @@ wchan(k, ve)
 			(void)printf("%-*.*s", v->width, v->width,
 				      KI_EPROC(k)->e_wmesg);
 		else
-			(void)printf("%-*x", v->width,
-			    (int)KI_PROC(k)->p_wchan &~ KERNBASE);
+			(void)printf("%-*lx", v->width,
+			    (long)KI_PROC(k)->p_wchan &~ KERNBASE);
 	} else
 		(void)printf("%-*s", v->width, "-");
 }
@@ -654,6 +654,12 @@ printval(bp, v)
 		break;
 	case USHORT:
 		(void)printf(ofmt, v->width, *(u_short *)bp);
+		break;
+	case INT:
+		(void)printf(ofmt, v->width, *(int *)bp);
+		break;
+	case UINT:
+		(void)printf(ofmt, v->width, *(u_int *)bp);
 		break;
 	case LONG:
 		(void)printf(ofmt, v->width, *(long *)bp);
