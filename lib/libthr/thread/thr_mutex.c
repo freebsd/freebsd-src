@@ -1406,8 +1406,8 @@ get_mcontested(pthread_mutex_t mutexp)
 	 * threads are concerned) setting of the thread state with
 	 * it's status on the mutex queue.
 	 */
+	mutex_queue_enq(mutexp, curthread);
 	do {
-		mutex_queue_enq(mutexp, curthread);
 		PTHREAD_SET_STATE(curthread, PS_MUTEX_WAIT);
 		curthread->data.mutex = mutexp;
 		_thread_critical_exit(curthread);
