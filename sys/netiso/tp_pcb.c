@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tp_pcb.c	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: tp_pcb.c,v 1.2 1994/08/02 07:51:20 davidg Exp $
  */
 
 /***********************************************************
@@ -63,7 +63,7 @@ SOFTWARE.
 /* 
  * ARGO TP
  *
- * $Header: /home/ncvs/src/sys/netiso/tp_pcb.c,v 1.1.1.1 1994/05/24 10:06:49 rgrimes Exp $
+ * $Header: /home/ncvs/src/sys/netiso/tp_pcb.c,v 1.2 1994/08/02 07:51:20 davidg Exp $
  * $Source: /home/ncvs/src/sys/netiso/tp_pcb.c,v $
  *
  *
@@ -262,8 +262,11 @@ int 	in_recycle_tsuffix();
 int 	tpip_mtu(); 
 int 	in_pcbbind(); 
 int 	in_pcbconnect(); 
+#if 0
+/* XXX these are now declared as returning void in <netinet/in_pcb.h>. */
 int 	in_pcbdisconnect(); 
 int 	in_pcbdetach(); 
+#endif
 int 	in_pcballoc(); 
 int 	tpip_output(); 
 int 	tpip_output_dg(); 
