@@ -727,7 +727,7 @@ static int sis_attach(dev)
 	    sis_intr, sc, &sc->sis_intrhand);
 
 	if (error) {
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->sis_res);
+		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->sis_irq);
 		bus_release_resource(dev, SIS_RES, SIS_RID, sc->sis_res);
 		printf("sis%d: couldn't set up irq\n", unit);
 		goto fail;
