@@ -901,7 +901,7 @@ get_mcontested(pthread_mutex_t mutexp, const struct timespec *abstime)
 		_thread_critical_exit(curthread);
 		_SPINUNLOCK(&mutexp->lock);
 		error = _thread_suspend(curthread, abstime);
-		if (error != 0 && error != EAGAIN && error != EINTR)
+		if (error != 0 && error != ETIMEDOUT && error != EINTR)
 			PANIC("Cannot suspend on mutex.");
 		_SPINLOCK(&mutexp->lock);
 		_thread_critical_enter(curthread);
