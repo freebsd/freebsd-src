@@ -27,7 +27,7 @@
  */
 /*-
  * Copyright (c) 2002 Eric Moore
- * Copyright (c) 2002 LSI Logic Corporation
+ * Copyright (c) 2002, 2004 LSI Logic Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -463,8 +463,12 @@ amr_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int32_t flag, d_thread_t *
     dp = NULL;
     ac = NULL;
 
+    /* Logical Drive not supported by the driver */
+    if (au_cmd[0] == 0xa4 && au_cmd[1] == 0x1c)
+	return (ENOIOCTL);
+
     /* handle inbound data buffer */
-    if (au_length != 0) {
+    if (au_length != 0 && au_cmd[0] != 0x06) {
 	if ((dp = malloc(au_length, M_DEVBUF, M_WAITOK)) == NULL)
 	    return(ENOMEM);
 
@@ -1049,7 +1053,7 @@ amr_quartz_poll_command1(struct amr_softc *sc, struct amr_command *ac)
 {
     int count, error;
 
-    if ((sc->amr_state & AMR_STATE_CRASHDUMP) == 0) {
+    if ((sc->amr_state & AMR_STATE_INTEN) == 0) {
 	count=0;
 	while (sc->amr_busyslots) {
 	    msleep(sc, &sc->amr_io_lock, PRIBIO | PCATCH, "amrpoll", hz);
@@ -1924,7 +1928,7 @@ amr_dump_blocks(struct amr_softc *sc, int unit, u_int32_t lba, void *data, int b
 
     debug_called(1);
 
-    sc->amr_state |= AMR_STATE_CRASHDUMP;
+    sc->amr_state |= AMR_STATE_INTEN;
 
     /* get ourselves a command buffer */
     if ((ac = amr_alloccmd(sc)) == NULL)
@@ -1951,7 +1955,7 @@ amr_dump_blocks(struct amr_softc *sc, int unit, u_int32_t lba, void *data, int b
     if (ac != NULL)
 	amr_releasecmd(ac);
 
-    sc->amr_state &= ~AMR_STATE_CRASHDUMP;
+    sc->amr_state &= ~AMR_STATE_INTEN;
     return (error);
 }
 
