@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: pc98.c,v 1.10.2.9 1997/11/04 03:06:48 kato Exp $
+ *	$Id: pc98.c,v 1.10.2.10 1997/11/04 03:09:03 kato Exp $
  */
 
 /*
@@ -567,6 +567,7 @@ static u_int	dma_bouncebufsize[8];
 static u_int8_t	dma_bounced = 0;
 static u_int8_t	dma_busy = 0;		/* Used in isa_dmastart() */
 static u_int8_t	dma_inuse = 0;		/* User for acquire/release */
+static u_int8_t	dma_auto_mode = 0;
 
 #ifdef PC98
 #define VALID_DMA_MASK (3)
@@ -636,6 +637,7 @@ isa_dma_acquire(chan)
 		return (EBUSY);
 	}
 	dma_inuse |= (1 << chan);
+	dma_auto_mode &= ~(1 << chan);
 
 	return (0);
 }
@@ -667,6 +669,7 @@ isa_dma_release(chan)
 	}
 
 	dma_inuse &= ~(1 << chan);
+	dma_auto_mode &= ~(1 << chan);
 }
 
 #ifndef PC98
@@ -694,6 +697,94 @@ void isa_dmacascade(chan)
 #endif
 
 /*
+ * Query the progress of a transfer on a DMA channel.
+ *
+ * To avoid having to interrupt a transfer in progress, we sample
+ * each of the high and low databytes twice, and apply the following
+ * logic to determine the correct count.
+ *
+ * Reads are performed with interrupts disabled, thus it is to be
+ * expected that the time between reads is very small.  At most
+ * one rollover in the low count byte can be expected within the
+ * four reads that are performed.
+ *
+ * There are three gaps in which a rollover can occur :
+ *
+ * - read low1 
+ *              gap1
+ * - read high1
+ *              gap2
+ * - read low2
+ *              gap3
+ * - read high2
+ *
+ * If a rollover occurs in gap1 or gap2, the low2 value will be
+ * greater than the low1 value.  In this case, low2 and high2 are a
+ * corresponding pair.
+ *     
+ * In any other case, low1 and high1 can be considered to be correct.
+ *             
+ * The function returns the number of bytes remaining in the transfer,
+ * or -1 if the channel requested is not active.
+ *
+ */    
+int
+isa_dmastatus(int chan) 
+{      
+         u_long  cnt = 0;
+        int     ffport, waport, s;
+         u_long  low, high, low2, high2;
+ 
+         /* channel active? */
+         if ((dma_inuse & (1 << chan)) == 0) {
+                 printf("isa_dmastatus: channel %d not in use\n", chan);
+                 return(-1);
+         }
+  
+         /* 
+         * do not print an error message if the chan is not busy,
+         * it might just be a race condition.
+         */
+         if ( !(dma_busy & (1 << chan)) && !(dma_auto_mode & (1<<chan)) )
+                 return(0); 
+#ifdef PC98
+         ffport = DMA1_FFC;
+         waport = DMA1_CHN(chan) + 2;
+#else
+         if (chan < 4) {                 /* low DMA controller */
+                 ffport = DMA1_FFC; 
+                 waport = DMA1_CHN(chan) + 1;
+         } else {                        /* high DMA controller */
+                 ffport = DMA2_FFC;
+                 waport = DMA2_CHN(chan - 4) + 2;
+         }       
+#endif  
+         disable_intr();                  /* no interrupts Mr Jones! */
+         outb(ffport, 0);                /* clear register LSB flipflop */
+         low = inb(waport);
+         high = inb(waport);
+         outb(ffport, 0);                /* clear again (paranoia? */
+         low2 = inb(waport);
+         high2 = inb(waport);
+         enable_intr();
+                
+         /* now decide if a wrap has tried to skew our results */
+         if (low >= low2)
+                 cnt = low + (high << 8) ;
+         else
+                 cnt = low2 + (high2 << 8) ;
+ 
+        cnt = (cnt + 1) & 0xffff ;
+  
+#ifndef	PC98
+        if (chan >=4)   /* 16-bit chans transfer words */
+                cnt *= 2 ;
+#endif
+         return(cnt);
+}
+
+
+/*
  * isa_dmastart(): program 8237 DMA controller channel, avoid page alignment
  * problems by using a bounce buffer.
  */
@@ -710,11 +801,11 @@ void isa_dmastart(int flags, caddr_t addr, u_int nbytes, int chan)
 	if ((chan < 4 && nbytes > (1<<16))
 	    || (chan >= 4 && (nbytes > (1<<17) || (u_int)addr & 1)))
 		panic("isa_dmastart: impossible request");
-
+#endif
 	if ((dma_inuse & (1 << chan)) == 0)
 		printf("isa_dmastart: channel %d not acquired\n", chan);
-#endif
 
+    if (!(flags & B_RAW))
 	if (dma_busy & (1 << chan))
 		printf("isa_dmastart: channel %d busy\n", chan);
 
@@ -735,6 +826,12 @@ void isa_dmastart(int flags, caddr_t addr, u_int nbytes, int chan)
 
 	/* translate to physical */
 	phys = pmap_extract(pmap_kernel(), (vm_offset_t)addr);
+
+        if (flags & B_RAW) 
+                dma_auto_mode |= (1 << chan);
+        else
+                dma_auto_mode &= ~(1 << chan);
+
 
 	if (need_pre_dma_flush)
 		wbinvd();		/* wbinvd (WB cache flush) */
@@ -814,6 +911,26 @@ void isa_dmastart(int flags, caddr_t addr, u_int nbytes, int chan)
 #endif
 }
 
+/*
+ * this stops the dma channel and returns the residual count
+ * derived calling isa_dmastatus
+ */    
+int isa_dmastop(int chan)
+{
+     if ( !(dma_inuse & (1 << chan)) )
+        printf("isa_dmastop: channel %d not acquired\n", chan);
+     if ( ! (dma_busy & (1 << chan))  &&
+         ! (dma_auto_mode & (1 << chan)) )
+        printf("isa_dmastop: channel %d not active\n", chan);
+#ifndef	PC98
+     if ( chan & 4 )
+        outb(DMA2_SMSK, (chan & 3) | 4 /* disable mask */);
+     else   
+#endif
+        outb(DMA1_SMSK, (chan & 3) | 4 /* disable mask */);
+     return isa_dmastatus(chan);
+}      
+
 void isa_dmadone(int flags, caddr_t addr, int nbytes, int chan)
 {
 	if (flags & B_READ) {
@@ -830,15 +947,9 @@ void isa_dmadone(int flags, caddr_t addr, int nbytes, int chan)
 		printf("isa_dmadone: channel %d not acquired\n", chan);
 #endif
 
-#if 0
-	/*
-	 * XXX This should be checked, but drivers like ad1848 only call
-	 * isa_dmastart() once because they use Auto DMA mode.  If we
-	 * leave this in, drivers that do this will print this continuously.
-	 */
-	if (dma_busy & (1 << chan) == 0)
-		printf("isa_dmadone: channel %d not busy\n", chan);
-#endif
+        if ( ! (dma_busy & (1 << chan))  &&
+             ! (dma_auto_mode & (1 << chan)) )
+                printf("isa_dmadone: channel %d not active\n", chan);
 
 	if (dma_bounced & (1 << chan)) {
 		/* copy bounce buffer on read */
