@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: atapi-cd.c,v 1.6 1999/04/27 11:13:54 phk Exp $
+ *	$Id: atapi-cd.c,v 1.7 1999/05/07 07:03:13 phk Exp $
  */
 
 #include "ata.h"
@@ -1008,7 +1008,7 @@ acd_start(struct acd_softc *cdp)
     devstat_start_transaction(cdp->stats);
 
     atapi_queue_cmd(cdp->atp, ccb, bp->b_data, bp->b_bcount,
-                    (bp->b_flags&B_READ)?A_READ : 0, acd_done, cdp, (void *)bp);
+                    (bp->b_flags&B_READ)?A_READ : 0, acd_done, cdp, bp);
 }
 
 static void 
@@ -1017,7 +1017,7 @@ acd_done(struct atapi_request *request)
     struct buf *bp = request->bp;
     struct acd_softc *cdp = request->driver;
     
-    devstat_end_transaction(cdp->stats, bp->b_bcount-request->bytecount,
+    devstat_end_transaction(cdp->stats, request->donecount,
                             DEVSTAT_TAG_NONE,
                             (bp->b_flags&B_READ) ? DEVSTAT_READ:DEVSTAT_WRITE);  
     if (request->result) {

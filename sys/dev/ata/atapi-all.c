@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: atapi-all.c,v 1.6 1999/04/10 18:53:35 sos Exp $
+ *	$Id: atapi-all.c,v 1.7 1999/04/16 21:21:53 peter Exp $
  */
 
 #include "ata.h"
@@ -176,6 +176,7 @@ atapi_queue_cmd(struct atapi_softc *atp, int8_t *ccb, void *data,
     request->device = atp;
     request->data = data;
     request->bytecount = count;
+    request->donecount = 0;
     request->flags = flags;
     if (callback) {
     	request->callback = callback;
@@ -319,6 +320,7 @@ printf("atapi_interrupt: length=%d reason=0x%02x\n", length, reason);
                   (void *)((uintptr_t)request->data), length / sizeof(int16_t));
 	}
 	request->bytecount -= length;
+	request->donecount += length;
 	request->data += length;
 	return ATA_OP_CONTINUES;
 	
@@ -340,6 +342,7 @@ printf("atapi_interrupt: length=%d reason=0x%02x\n", length, reason);
                   (void *)((uintptr_t)request->data), length / sizeof(int16_t));
         }
 	request->bytecount -= length;
+	request->donecount += length;
 	request->data += length;
         return ATA_OP_CONTINUES;
 

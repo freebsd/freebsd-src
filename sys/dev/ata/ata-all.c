@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: ata-all.c,v 1.11 1999/04/22 08:07:44 sos Exp $
+ *  $Id: ata-all.c,v 1.12 1999/05/08 21:58:58 dfr Exp $
  */
 
 #include "ata.h"
@@ -54,8 +54,10 @@
 #include <machine/smp.h>
 #include <i386/isa/intr_machdep.h>
 #endif
+#if NPCI > 0
 #include <pci/pcivar.h>
 #include <pci/pcireg.h>
+#endif
 #include <isa/isavar.h>
 #include <isa/isareg.h>
 #include <dev/ata/ata-all.h>
@@ -223,7 +225,7 @@ ata_pciattach(device_t dev)
     u_int8_t class, subclass;
     u_int32_t cmd;
     int32_t iobase_1, iobase_2, altiobase_1, altiobase_2; 
-    int32_t bmaddr_1 = 0, bmaddr_2 = 0, sysctrl = 0, irq1, irq2;
+    int32_t bmaddr_1 = 0, bmaddr_2 = 0, irq1, irq2;
     int32_t lun;
 
     /* set up vendor-specific stuff */
@@ -246,7 +248,6 @@ ata_pciattach(device_t dev)
 	irq1 = irq2 = pci_read_config(dev, PCI_INTERRUPT_REG, 4) & 0xff;
     	bmaddr_1 = pci_read_config(dev, 0x20, 4) & 0xfffc;
 	bmaddr_2 = bmaddr_1 + ATA_BM_OFFSET1;
-	sysctrl = (pci_read_config(dev, 0x20, 4) & 0xfffc) + 0x1c;
 	outb(bmaddr_1 + 0x1f, inb(bmaddr_1 + 0x1f) | 0x01);
 	printf("ata-pci%d: Busmastering DMA supported\n", unit);
     }
@@ -311,13 +312,15 @@ ata_pciattach(device_t dev)
 	    int rid = 0;
 	    void *ih;
 
-	    irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0,1,RF_ACTIVE);
-	    if (sysctrl)
-		bus_setup_intr(dev, irq, INTR_TYPE_BIO,
-			       promise_intr, scp, &ih);
+	    irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
+				     RF_SHAREABLE | RF_ACTIVE);
+	    if (!irq)
+		printf("ata_pciattach: Unable to alloc interrupt\n");
+
+    	    if (type == 0x4d33105a)
+		bus_setup_intr(dev, irq, INTR_TYPE_BIO, promise_intr, scp, &ih);
 	    else
-		bus_setup_intr(dev, irq, INTR_TYPE_BIO,
-			       ataintr, scp, &ih);
+		bus_setup_intr(dev, irq, INTR_TYPE_BIO, ataintr, scp, &ih);
 	}
 	printf("ata%d at 0x%04x irq %d on ata-pci%d\n",
 	       lun, iobase_1, isa_apic_irq(irq1), unit);
@@ -338,9 +341,14 @@ ata_pciattach(device_t dev)
 	    int rid = 0;
 	    void *ih;
 
-	    irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0,1,RF_ACTIVE);
-	    if (!sysctrl)
+    	    if (type != 0x4d33105a) {
+	        irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
+					 RF_SHAREABLE | RF_ACTIVE);
+	        if (!irq)
+		    printf("ata_pciattach: Unable to alloc interrupt\n");
+
 		bus_setup_intr(dev, irq, INTR_TYPE_BIO, ataintr, scp, &ih);
+	    }
 	}
 	printf("ata%d at 0x%04x irq %d on ata-pci%d\n",
 	       lun, iobase_2, isa_apic_irq(irq2), unit);
@@ -544,10 +552,8 @@ ataintr(void *data)
     struct buf *ata_request; 
     u_int8_t status;
     static int32_t intr_count = 0;
-    int unit;
 
     scp = (struct ata_softc *)data;
-    unit = scp->unit;
 
     /* find & call the responsible driver to process this interrupt */
     switch (scp->active) {
@@ -576,7 +582,7 @@ ataintr(void *data)
         status = inb(scp->ioaddr + ATA_STATUS);
 	if (intr_count++ < 10)
 	    printf("ata%d: unwanted interrupt %d status = %02x\n", 
-		   unit, intr_count, status);
+		   scp->lun, intr_count, status);
 	return;
     }
     scp->active = ATA_IDLE;
