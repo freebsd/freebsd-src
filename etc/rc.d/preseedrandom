@@ -30,7 +30,7 @@ if [ -n "${soft_random_generator}" ] ; then
 	# First pass at reseeding /dev/random.
 	#
 	if [ -w /dev/random ]; then
-		feed_dev_random ${entropy_file}
+		feed_dev_random "/entropy"
 	fi
 
 	echo -n ' kickstart'
