@@ -60,7 +60,7 @@ static char sccsid[] = "@(#)tcopy.c	8.2 (Berkeley) 4/17/94";
 #define	NOCOUNT	(-2)
 
 int	filen, guesslen, maxblk = MAXREC;
-long	lastrec, record, size, tsize;
+u_long	lastrec, record, size, tsize;
 FILE	*msg = stdout;
 
 void	*getspace __P((int));
@@ -205,7 +205,7 @@ r1:		guesslen = 0;
 				break;
 			}
 			fprintf(msg,
-			    "file %d: eof after %ld records: %ld bytes\n",
+			    "file %d: eof after %lu records: %lu bytes\n",
 			    filen, record, size);
 			needeof = 1;
 			filen++;
@@ -215,7 +215,7 @@ r1:		guesslen = 0;
 		}
 		lastnread = nread;
 	}
-	fprintf(msg, "total length: %ld bytes\n", tsize);
+	fprintf(msg, "total length: %lu bytes\n", tsize);
 	(void)signal(SIGINT, oldsig);
 	if (op == COPY || op == COPYVERIFY) {
 		writeop(outp, MTWEOF);
