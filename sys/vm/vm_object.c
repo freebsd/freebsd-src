@@ -1465,9 +1465,6 @@ vm_object_backing_scan(vm_object_t object, int op)
 			 * If the page was mapped to a process, it can remain 
 			 * mapped through the rename.
 			 */
-			if ((p->queue - p->pc) == PQ_CACHE)
-				vm_page_deactivate(p);
-
 			vm_page_rename(p, object, new_pindex);
 			/* page automatically made dirty by rename */
 		}
