@@ -4,7 +4,7 @@
 # This was perl 5.00502's installperl, very thoroughly hacked to only
 # install the perl libraries.
 #
-# $Id: install_perl_libs,v 1.1 1998/09/09 07:20:26 markm Exp $
+# $Id: install_perl_libs,v 1.2 1998/09/23 06:05:28 markm Exp $
 #
 
 BEGIN {
@@ -57,7 +57,7 @@ my $installprivlib = $destdir . $Config{installprivlib};
 my $installarchlib = $destdir . $Config{installarchlib};
 my $man1dir = $destdir . $Config{man1dir};
 my $man1ext = $Config{man1ext};
-my $man3dir = $destdir . $Config{man3dir};
+my $man3dir = $destdir . '/usr/share/perl/man/man3';
 my $man3ext = $Config{man3ext};
 my $libperl = $Config{libperl};
 # Shared library and dynamic loading suffixes.
