@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $Id: init_main.c,v 1.8 1994/09/01 05:12:37 davidg Exp $
+ * $Id: init_main.c,v 1.9 1994/09/01 11:20:11 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -238,6 +238,21 @@ main(framep)
 
 	/* Initialize clists. */
 	clist_init();
+
+#ifdef SYSVSHM
+	/* Initialize System V style shared memory. */
+	shminit();
+#endif
+
+#ifdef SYSVSEM
+	/* Initialize System V style semaphores. */
+	seminit();
+#endif
+
+#ifdef SYSVMSG
+	/* Initialize System V style message queues. */
+	msginit();
+#endif
 
 	/*
 	 * Attach pseudo-devices.

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)param.c	8.2 (Berkeley) 1/21/94
- * $Id$
+ * $Id: param.c,v 1.3 1994/08/02 07:38:30 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -55,6 +55,12 @@
 #ifdef SYSVSHM
 #include <machine/vmparam.h>
 #include <sys/shm.h>
+#endif
+#ifdef SYSVSEM
+#include "sys/sem.h"
+#endif
+#ifdef SYSVMSG
+#include "sys/msg.h"
 #endif
 
 /*
@@ -102,6 +108,43 @@ struct	shminfo shminfo = {
 	SHMMNI,
 	SHMSEG,
 	SHMALL
+};
+#endif
+
+/*
+ * Values in support of System V compatible semaphores.
+ */
+
+#ifdef SYSVSEM
+
+struct seminfo seminfo = {
+                SEMMAP,         /* # of entries in semaphore map */
+                SEMMNI,         /* # of semaphore identifiers */
+                SEMMNS,         /* # of semaphores in system */
+                SEMMNU,         /* # of undo structures in system */
+                SEMMSL,         /* max # of semaphores per id */
+                SEMOPM,         /* max # of operations per semop call */
+                SEMUME,         /* max # of undo entries per process */
+                SEMUSZ,         /* size in bytes of undo structure */
+                SEMVMX,         /* semaphore maximum value */
+                SEMAEM          /* adjust on exit max value */
+};
+#endif
+
+/*
+ * Values in support of System V compatible messages.
+ */
+
+#ifdef SYSVMSG
+
+struct msginfo msginfo = {
+                MSGMAX,         /* max chars in a message */
+                MSGMNI,         /* # of message queue identifiers */
+                MSGMNB,         /* max chars in a queue */
+                MSGTQL,         /* max messages in system */
+                MSGSSZ,         /* size of a message segment */
+                		/* (must be small power of 2 greater than 4) */
+                MSGSEG          /* number of message segments */
 };
 #endif
 
