@@ -470,7 +470,7 @@ smbfs_getpages(ap)
 		printf("smbfs_getpages: error %d\n",error);
 		for (i = 0; i < npages; i++) {
 			if (ap->a_reqpage != i)
-				vnode_pager_freepage(pages[i]);
+				vm_page_free(pages[i]);
 		}
 		return VM_PAGER_ERROR;
 	}
@@ -512,7 +512,7 @@ smbfs_getpages(ap)
 					vm_page_deactivate(m);
 				vm_page_wakeup(m);
 			} else {
-				vnode_pager_freepage(m);
+				vm_page_free(m);
 			}
 		}
 	}
