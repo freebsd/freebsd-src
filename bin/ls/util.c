@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)util.c	8.3 (Berkeley) 4/2/94";
 #else
 static const char rcsid[] =
-	"$Id: util.c,v 1.16 1998/04/25 00:10:24 ache Exp $";
+	"$Id: util.c,v 1.17 1998/04/25 00:12:32 ache Exp $";
 #endif
 #endif /* not lint */
 
@@ -137,8 +137,8 @@ prn_octal(s)
 				break;
  		        default:
 		                putchar('0' + (ch >> 6));
-		                putchar('0' + ((ch >> 3) & 3));
-		                putchar('0' + (ch & 3));
+		                putchar('0' + ((ch >> 3) & 7));
+		                putchar('0' + (ch & 7));
 		                len += 2;
 			        break;
 		        }
@@ -147,8 +147,8 @@ prn_octal(s)
 		else {
 			putchar('\\');
 	                putchar('0' + (ch >> 6));
-	                putchar('0' + ((ch >> 3) & 3));
-	                putchar('0' + (ch & 3));
+	                putchar('0' + ((ch >> 3) & 7));
+	                putchar('0' + (ch & 7));
 	                len += 4;
 		}
 	}
