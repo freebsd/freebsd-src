@@ -300,8 +300,6 @@ acpi_attach(device_t dev)
     bzero(sc, sizeof(*sc));
     sc->acpi_dev = dev;
 
-    acpi_install_wakeup_handler(sc);
-
 #ifdef ENABLE_DEBUGGER
     if (debugpoint && !strcmp(debugpoint, "spaces"))
 	acpi_EnterDebugger();
@@ -375,6 +373,12 @@ acpi_attach(device_t dev)
     SYSCTL_ADD_PROC(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
 	OID_AUTO, "lid_switch_state", CTLTYPE_STRING | CTLFLAG_RW,
 	&sc->acpi_lid_switch_sx, 0, acpi_sleep_state_sysctl, "A", "");
+    SYSCTL_ADD_PROC(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
+	OID_AUTO, "standby_state", CTLTYPE_STRING | CTLFLAG_RW,
+	&sc->acpi_standby_sx, 0, acpi_sleep_state_sysctl, "A", "");
+    SYSCTL_ADD_PROC(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
+	OID_AUTO, "suspend_state", CTLTYPE_STRING | CTLFLAG_RW,
+	&sc->acpi_suspend_sx, 0, acpi_sleep_state_sysctl, "A", "");
     
     /*
      * Dispatch the default sleep state to devices.
@@ -383,6 +387,8 @@ acpi_attach(device_t dev)
     sc->acpi_power_button_sx = ACPI_POWER_BUTTON_DEFAULT_SX;
     sc->acpi_sleep_button_sx = ACPI_SLEEP_BUTTON_DEFAULT_SX;
     sc->acpi_lid_switch_sx = ACPI_LID_SWITCH_DEFAULT_SX;
+    sc->acpi_standby_sx = ACPI_STATE_S1;
+    sc->acpi_suspend_sx = ACPI_STATE_S3;
 
     acpi_enable_fixed_events(sc);
 
@@ -425,6 +431,11 @@ acpi_attach(device_t dev)
     if (debugpoint && !strcmp(debugpoint, "running"))
 	acpi_EnterDebugger();
 #endif
+
+    if ((error = acpi_machdep_init(dev))) {
+	goto out;
+    }
+
     error = 0;
 
  out:

@@ -57,6 +57,9 @@ struct acpi_softc {
     int			acpi_sleep_button_sx;
     int			acpi_lid_switch_sx;
 
+    int			acpi_standby_sx;
+    int			acpi_suspend_sx;
+
     bus_dma_tag_t	acpi_waketag;
     bus_dmamap_t	acpi_wakemap;
     vm_offset_t		acpi_wakeaddr;
@@ -303,6 +306,7 @@ extern char	*acpi_name(ACPI_HANDLE handle);
 extern int	acpi_avoid(ACPI_HANDLE handle);
 extern int	acpi_disabled(char *subsys);
 
+extern int	acpi_machdep_init(device_t dev);
 extern void	acpi_install_wakeup_handler(struct acpi_softc *sc);
 extern int	acpi_sleep_machdep(struct acpi_softc *sc, int state);
 
@@ -310,9 +314,20 @@ extern int	acpi_sleep_machdep(struct acpi_softc *sc, int state);
  * Battery Abstruction.
  */
 struct acpi_battinfo;
+struct acpi_battdesc;
 
 extern int	acpi_battery_register(int, int);
+extern int	acpi_battery_get_battinfo(int, struct acpi_battinfo *);
+extern int	acpi_battery_get_units(void);
+extern int	acpi_battery_get_battdesc(int, struct acpi_battdesc *);
+
 extern int	acpi_cmbat_get_battinfo(int, struct acpi_battinfo *);
+
+/*
+ * AC adapter interface.
+ */
+
+extern int	acpi_acad_get_acline(int *);
 
 /*
  * System power API.
