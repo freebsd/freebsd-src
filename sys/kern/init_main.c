@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $Id: init_main.c,v 1.16 1994/11/06 05:01:58 davidg Exp $
+ * $Id: init_main.c,v 1.17 1994/11/25 07:58:16 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -392,7 +392,7 @@ start_init(p, framep)
 	 * Need just enough stack to hold the faked-up "execve()" arguments.
 	 */
 	addr = trunc_page(VM_MAXUSER_ADDRESS - PAGE_SIZE);
-	if (vm_allocate(&p->p_vmspace->vm_map, &addr, PAGE_SIZE, FALSE) != 0)
+	if (vm_map_find(&p->p_vmspace->vm_map, NULL, 0, &addr, PAGE_SIZE, FALSE) != 0)
 		panic("init: couldn't allocate argument space");
 	p->p_vmspace->vm_maxsaddr = (caddr_t)addr;
 	p->p_vmspace->vm_ssize = 1;

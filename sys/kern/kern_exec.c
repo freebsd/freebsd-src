@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_exec.c,v 1.11 1995/01/09 16:04:49 davidg Exp $
+ *	$Id: kern_exec.c,v 1.12 1995/02/14 19:22:28 sos Exp $
  */
 
 #include <sys/param.h>
@@ -98,8 +98,9 @@ execve(p, uap, retval)
 	 * Allocate temporary demand zeroed space for argument and
 	 *	environment strings
 	 */
-	error = vm_allocate(exec_map, (vm_offset_t *)&iparams->stringbase, 
-			    ARG_MAX, TRUE);
+	iparams->stringbase = (char *)vm_map_min(exec_map);
+	error = vm_map_find(exec_map, NULL, 0, (vm_offset_t *)&iparams->stringbase,
+	    ARG_MAX, TRUE);
 	if (error) {
 		log(LOG_WARNING, "execve: failed to allocate string space\n");
 		return (error);
@@ -128,8 +129,8 @@ interpret:
 
 	error = namei(ndp);
 	if (error) {
-		vm_deallocate(exec_map, (vm_offset_t)iparams->stringbase, 
-			      ARG_MAX);
+		vm_map_remove(exec_map, (vm_offset_t)iparams->stringbase,
+		    (vm_offset_t)iparams->stringbase + ARG_MAX);
 		goto exec_fail;	
 	}
 
@@ -187,8 +188,8 @@ interpret:
 			/* free old vnode and name buffer */
 			vput(ndp->ni_vp);
 			FREE(ndp->ni_cnd.cn_pnbuf, M_NAMEI);
-			if (vm_deallocate(kernel_map, 
-					  (vm_offset_t)image_header, PAGE_SIZE))
+			if (vm_map_remove(kernel_map, (vm_offset_t)image_header,
+			    (vm_offset_t)image_header + PAGE_SIZE))
 				panic("execve: header dealloc failed (1)");
 
 			/* set new name to that of the interpreter */
@@ -302,9 +303,11 @@ interpret:
 	/*
 	 * free various allocated resources
 	 */
-	if (vm_deallocate(exec_map, (vm_offset_t)iparams->stringbase, ARG_MAX))
+	if (vm_map_remove(exec_map, (vm_offset_t)iparams->stringbase,
+	    (vm_offset_t)iparams->stringbase + ARG_MAX))
 		panic("execve: string buffer dealloc failed (1)");
-	if (vm_deallocate(kernel_map, (vm_offset_t)image_header, PAGE_SIZE))
+	if (vm_map_remove(kernel_map, (vm_offset_t)image_header,
+	    (vm_offset_t)image_header + PAGE_SIZE))
 		panic("execve: header dealloc failed (2)");
 	vput(ndp->ni_vp);
 	FREE(ndp->ni_cnd.cn_pnbuf, M_NAMEI);
@@ -313,12 +316,12 @@ interpret:
 
 exec_fail_dealloc:
 	if (iparams->stringbase && iparams->stringbase != (char *)-1)
-		if (vm_deallocate(exec_map, (vm_offset_t)iparams->stringbase,
-				  ARG_MAX))
+		if (vm_map_remove(exec_map, (vm_offset_t)iparams->stringbase,
+		    (vm_offset_t)iparams->stringbase + ARG_MAX))
 			panic("execve: string buffer dealloc failed (2)");
 	if (iparams->image_header && iparams->image_header != (char *)-1)
-		if (vm_deallocate(kernel_map, 
-				  (vm_offset_t)iparams->image_header, PAGE_SIZE))
+		if (vm_map_remove(kernel_map, (vm_offset_t)image_header,
+		    (vm_offset_t)image_header + PAGE_SIZE))
 			panic("execve: header dealloc failed (3)");
 	vput(ndp->ni_vp);
 	FREE(ndp->ni_cnd.cn_pnbuf, M_NAMEI);
@@ -326,9 +329,6 @@ exec_fail_dealloc:
 exec_fail:
 	if (iparams->vmspace_destroyed) {
 		/* sorry, no more process anymore. exit gracefully */
-#if 0	/* XXX */
-		vm_deallocate(&vs->vm_map, USRSTACK - MAXSSIZ, MAXSSIZ);
-#endif
 		exit1(p, W_EXITCODE(0, SIGABRT));
 		/* NOT REACHED */
 		return(0);
@@ -357,11 +357,11 @@ exec_new_vmspace(iparams)
 	if (vmspace->vm_shm)
 		shmexit(iparams->proc);
 #endif
-	vm_deallocate(&vmspace->vm_map, 0, USRSTACK);
+	vm_map_remove(&vmspace->vm_map, 0, USRSTACK);
 
 	/* Allocate a new stack */
-	error = vm_allocate(&vmspace->vm_map, (vm_offset_t *)&stack_addr,
-			    SGROWSIZ, FALSE);
+	error = vm_map_find(&vmspace->vm_map, NULL, 0, (vm_offset_t *)&stack_addr,
+	    SGROWSIZ, FALSE);
 	if (error)
 		return(error);
 
