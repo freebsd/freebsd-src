@@ -77,8 +77,8 @@ int	 More __P((int *));
 int	 Pclose __P((FILE *));
 int	 Respond __P((int *));
 int	 Type __P((int *));
-int	 _Respond __P((int []));
-int	 _respond __P((int *));
+int	 doRespond __P((int []));
+int	 dorespond __P((int *));
 void	 alter __P((char *));
 int	 alternates __P((char **));
 void	 announce __P((void));
@@ -162,7 +162,7 @@ void	 load __P((char *));
 struct var *
 	 lookup __P((char []));
 int	 mail __P((struct name *,
-	    struct name *, struct name *, struct name *, char *));
+	    struct name *, struct name *, struct name *, char *, char *));
 void	 mail1 __P((struct header *, int));
 void	 makemessage __P((FILE *));
 void	 mark __P((int));

@@ -58,7 +58,7 @@ next(msgvec)
 	register int *ip, *ip2;
 	int list[2], mdot;
 
-	if (*msgvec != NULL) {
+	if (*msgvec != 0) {
 
 		/*
 		 * If some messages were supplied, find the
@@ -73,10 +73,10 @@ next(msgvec)
 		 * message list which follows dot.
 		 */
 
-		for (ip = msgvec; *ip != NULL; ip++)
+		for (ip = msgvec; *ip != 0; ip++)
 			if (*ip > mdot)
 				break;
-		if (*ip == NULL)
+		if (*ip == 0)
 			ip = msgvec;
 		ip2 = ip;
 		do {
@@ -85,9 +85,9 @@ next(msgvec)
 				dot = mp;
 				goto hitit;
 			}
-			if (*ip2 != NULL)
+			if (*ip2 != 0)
 				ip2++;
-			if (*ip2 == NULL)
+			if (*ip2 == 0)
 				ip2 = msgvec;
 		} while (ip2 != ip);
 		printf("No messages applicable\n");
@@ -121,7 +121,7 @@ hitit:
 	 */
 
 	list[0] = dot - &message[0] + 1;
-	list[1] = NULL;
+	list[1] = 0;
 	return(type(list));
 }
 
@@ -170,11 +170,11 @@ save1(str, mark, cmd, ignore)
 		return(1);
 	if (!f) {
 		*msgvec = first(0, MMNORM);
-		if (*msgvec == NULL) {
+		if (*msgvec == 0) {
 			printf("No messages to %s.\n", cmd);
 			return(1);
 		}
-		msgvec[1] = NULL;
+		msgvec[1] = 0;
 	}
 	if (f && getmsglist(str, msgvec, 0) < 0)
 		return(1);
@@ -291,7 +291,7 @@ deltype(msgvec)
 		list[0] = dot - &message[0] + 1;
 		if (list[0] > lastdot) {
 			touch(dot);
-			list[1] = NULL;
+			list[1] = 0;
 			return(type(list));
 		}
 		printf("At EOF\n");
@@ -313,18 +313,18 @@ delm(msgvec)
 	register *ip;
 	int last;
 
-	last = NULL;
-	for (ip = msgvec; *ip != NULL; ip++) {
+	last = 0;
+	for (ip = msgvec; *ip != 0; ip++) {
 		mp = &message[*ip - 1];
 		touch(mp);
 		mp->m_flag |= MDELETED|MTOUCH;
 		mp->m_flag &= ~(MPRESERVE|MSAVED|MBOX);
 		last = *ip;
 	}
-	if (last != NULL) {
+	if (last != 0) {
 		dot = &message[last-1];
 		last = first(0, MDELETED);
-		if (last != NULL) {
+		if (last != 0) {
 			dot = &message[last-1];
 			return(0);
 		}

@@ -152,7 +152,7 @@ from(msgvec)
 {
 	register int *ip;
 
-	for (ip = msgvec; *ip != NULL; ip++)
+	for (ip = msgvec; *ip != 0; ip++)
 		printhead(*ip);
 	if (--ip >= msgvec)
 		dot = &message[*ip - 1];
