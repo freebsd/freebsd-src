@@ -71,13 +71,19 @@ int status;			/* Status file descriptor */
 int tw523;			/* tw523 controller */
 int sock;			/* socket for user */
 jmp_buf mainloop;		/* longjmp point after SIGHUP */
-void onhup();			/* SIGHUP handler */
-void onterm();			/* SIGTERM handler */
-void onpipe();			/* SIGPIPE handler */
+volatile sig_atomic_t hup_flag;		/* received SIGHUP flag */
+volatile sig_atomic_t term_flag;	/* received SIGTERM flag */
+volatile sig_atomic_t pipe_flag;	/* received SIGPIPE flag */
 
 void checkpoint_status __P((void));
+void dohup __P((void));
+void dopipe __P((void));
+void doterm __P((void));
 void initstatus __P((void));
 void logpacket __P((unsigned char *));
+void onhup __P((void));
+void onpipe __P((void));
+void onterm __P((void));
 void processpacket __P((unsigned char *));
 int user_command __P((void));
 
@@ -86,8 +92,8 @@ main(argc, argv)
 int argc;
 char *argv[];
 {
-  char *twpath = TWPATH;
-  char *sockpath = SOCKPATH;
+  const char *twpath = TWPATH;
+  const char *sockpath = SOCKPATH;
   char logpath[MAXPATHLEN+1];
   char statpath[MAXPATHLEN+1];
   struct sockaddr_un sa;
@@ -223,9 +229,12 @@ char *argv[];
    * Return here on SIGHUP after closing and reopening log file.
    * Also on SIGPIPE after closing user connection.
    */
-  signal(SIGTERM, onterm);
-  signal(SIGHUP, onhup);
-  signal(SIGPIPE, onpipe);
+  term_flag = 0;
+  hup_flag = 0;
+  pipe_flag = 0;  
+  signal(SIGTERM, (sig_t)onterm);
+  signal(SIGHUP, (sig_t)onhup);
+  signal(SIGPIPE, (sig_t)onpipe);
   setjmp(mainloop);
 
   /*
@@ -239,6 +248,13 @@ char *argv[];
     int sel, h, k;
     STATUS *s;
 
+    if (hup_flag)
+      dohup();
+    if (term_flag)
+      doterm();
+    if (pipe_flag)
+      dopipe(); 
+    
     FD_ZERO(&fs);
     FD_SET(tw523, &fs);
     if(User != NULL) FD_SET(user, &fs);
@@ -309,7 +325,7 @@ char *argv[];
   /* Not reached */
 }
 
-char *thedate()
+char *thedate(void)
 {
   char *cp, *cp1;
   time_t tod;
@@ -321,11 +337,29 @@ char *thedate()
   return(cp);
 }
 
+void onhup(void)
+{
+
+  hup_flag = 1;
+}
+
+void onterm(void)
+{
+
+  term_flag = 1;
+}
+
+void onpipe(void)
+{
+
+ pipe_flag = 1;
+}
+
 /*
  * When SIGHUP received, close and reopen the Log file
  */
 
-void onhup()
+void dohup(void)
 {
   char logpath[MAXPATHLEN+1];
 
@@ -336,6 +370,7 @@ void onhup()
   strcat(logpath, X10LOGNAME);
   if((Log = fopen(logpath, "a")) == NULL)
     errx(1, "can't open log file '%s'", logpath);
+  hup_flag = 0;
   longjmp(mainloop, 1);
   /* No return */
 }
@@ -344,10 +379,11 @@ void onhup()
  * When SIGTERM received, just exit normally
  */
 
-void onterm()
+void doterm(void)
 {
   fprintf(Log, "%s:  SIGTERM received, shutting down\n", thedate());
   fclose(Log);
+  term_flag = 0;
   exit(0);
 }
 
@@ -355,7 +391,7 @@ void onterm()
  * When SIGPIPE received, reset user connection
  */
 
-void onpipe()
+void dopipe(void)
 {
   fprintf(Log, "%s:  SIGPIPE received, resetting user connection\n",
 	  thedate());
@@ -363,6 +399,7 @@ void onpipe()
     fclose(User);
     User = NULL;
   }
+  pipe_flag = 0;
   longjmp(mainloop, 1);
   /* No return */
 }
