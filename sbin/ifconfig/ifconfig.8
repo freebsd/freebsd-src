@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
-.\"	$Id$
+.\"	$Id: ifconfig.8,v 1.12 1997/02/22 14:32:32 peter Exp $
 .\"
 .Dd February 13, 1996
 .Dt IFCONFIG 8
@@ -47,27 +47,32 @@
 .Oc
 .Op Ar parameters
 .Nm ifconfig
+.Op Fl m
 .Ar interface
 .Op Ar protocol_family
 .Nm ifconfig
-.Ar -a
+.Fl a
+.Op Fl m
+.Op Fl d
+.Op Fl u
+.Op Ar protocol_family
 .Nm ifconfig
-.Ar -au
-.Nm ifconfig
-.Ar -ad
+.Fl l
+.Op Fl d
+.Op Fl u
 .Sh DESCRIPTION
-.Nm Ifconfig
+.Nm
 is used to assign an address
 to a network interface and/or configure
 network interface parameters.
-.Nm Ifconfig
+.Nm
 must be used at boot time to define the network address
 of each interface present on a machine; it may also be used at
 a later time to redefine an interface's address
 or other operating parameters.
 .Pp
 Available operands for
-.Nm ifconfig:
+.Nm ifconfig :
 .Bl -tag -width Ds
 .It Ar Address
 For the
@@ -175,6 +180,28 @@ This action does not automatically disable routes using the interface.
 .\" IP encapsulation of
 .\" .Tn CLNP
 .\" packets is done differently.
+.It Cm media Ar type
+Set the media type of the interface to
+.Ar type .
+Some interfaces support the mutually exclusive use of one of several
+different physical media connectors.  For example, a 10Mb/s Ethernet
+interface might support the use of either
+.Tn AUI
+or twisted pair connectors.  Setting the media type to
+.Dq 10base5/AUI
+would change the currently active connector to the AUI port.
+Setting it to
+.Dq 10baseT/UTP
+would activate twisted pair.  Refer to the interfaces' driver
+specific man page for a complete list of the available types.
+.It Cm mediaopt Ar opts
+Set the specified media options on the interface.
+.Ar opts
+is a comma delimited list of options to apply to the interface.
+Refer to the interfaces' driver specific man page for a complete
+list of available options.
+.It Fl mediaopt Ar opts
+Disable the specified media options on the interface.
 .It Cm metric Ar n
 Set the routing metric of the interface to
 .Ar n ,
@@ -248,7 +275,9 @@ Appletalk network attached to the interface. Values of 1 or 2 are permitted.
 Enable special processing of the link level of the interface.
 These three options are interface specific in actual effect, however,
 they are in general used to select special modes of operation. An example
-of this is to enable SLIP compression.
+of this is to enable SLIP compression, or to select the connector type
+for some ethernet cards.  Refer to the man page for the specific driver
+for more information.
 .It Fl link[0-2]
 Disable special processing at the link level with the specified interface.
 .It Cm up
@@ -259,33 +288,38 @@ If the interface was reset when previously marked down,
 the hardware will be re-initialized.
 .El
 .Pp
-.Pp
-The
-.Nm ifconfig
-.Fl a
-command
-displays information on all interfaces.  When followed by a configuration
-parameter, it will also set the configuration on all interfaces.
-.Pp
-.Nm Ifconfig
-.Fl au
-is similar to
-.Nm ifconfig
-.Fl a ,
-except it only affects interfaces that are currently marked as up.
-Similarly,
-.Nm ifconfig
-.Fl ad
-affects only interfaces that are marked down.
-.Pp
-The
 .Nm
-program
 displays the current configuration for a network interface
 when no optional parameters are supplied.
 If a protocol family is specified,
-.Nm ifconfig
-will report only the details specific to that protocol family.
+Ifconfig will report only the details specific to that protocol family.
+.Pp
+If the
+.Fl m
+flag is passed before an interface name,
+.Nm
+will display all of the supported media for the specified interface.
+.Pp
+Optionally, the
+.Fl a
+flag may be used instead of an interface name.  This flag instructs
+.Nm
+to display information about all interfaces in the system.
+.Fl d
+limits this to interfaces that are down, and
+.Fl u
+limits this to interfaces that are up.
+.Pp
+The
+.Fl l
+flag may be used to list all available interfaces on the system, with
+no other additional information.  Use of this flag is mutually exclusive
+with all other flags and commands, except for
+.Fl d
+(only list interfaces that are down)
+and
+.Fl u 
+(only list interfaces that are up).
 .Pp
 Only the super-user may modify the configuration of a network interface.
 .Sh DIAGNOSTICS
