@@ -1085,8 +1085,15 @@ prelist_update(new, dr, m)
 #define TWOHOUR		(120*60)
 		lt6_tmp = ifa6->ia6_lifetime;
 
-		storedlifetime = IFA6_IS_INVALID(ifa6) ? 0 :
-			(lt6_tmp.ia6t_expire - time_second);
+		if (lt6_tmp.ia6t_vltime == ND6_INFINITE_LIFETIME)
+			storedlifetime = ND6_INFINITE_LIFETIME;
+		else if (IFA6_IS_INVALID(ifa6))
+			storedlifetime = 0;
+		else
+			storedlifetime = lt6_tmp.ia6t_expire - time_second;
+
+		/* when not updating, keep the current stored lifetime. */
+		lt6_tmp.ia6t_vltime = storedlifetime;
 
 		if (TWOHOUR < new->ndpr_vltime ||
 		    storedlifetime < new->ndpr_vltime) {
@@ -1857,7 +1864,6 @@ in6_init_prefix_ltimes(struct nd_prefix *ndpr)
 static void
 in6_init_address_ltimes(struct nd_prefix *new, struct in6_addrlifetime *lt6)
 {
-	/* Valid lifetime must not be updated unless explicitly specified. */
 	/* init ia6t_expire */
 	if (lt6->ia6t_vltime == ND6_INFINITE_LIFETIME)
 		lt6->ia6t_expire = 0;
