@@ -62,10 +62,12 @@ static int	umap_bwrite __P((struct vop_bwrite_args *ap));
 static int	umap_bypass __P((struct vop_generic_args *ap));
 static int	umap_getattr __P((struct vop_getattr_args *ap));
 static int	umap_inactive __P((struct vop_inactive_args *ap));
+static int	umap_lock __P((struct vop_lock_args *ap));
 static int	umap_print __P((struct vop_print_args *ap));
 static int	umap_reclaim __P((struct vop_reclaim_args *ap));
 static int	umap_rename __P((struct vop_rename_args *ap));
 static int	umap_strategy __P((struct vop_strategy_args *ap));
+static int	umap_unlock __P((struct vop_unlock_args *ap));
 
 /*
  * This is the 10-Apr-92 bypass routine.
@@ -341,7 +343,7 @@ umap_getattr(ap)
  * interlock flag as it applies only to our vnode, not the
  * vnodes below us on the stack.
  */
-int
+static int
 umap_lock(ap)
 	struct vop_lock_args /* {
 		struct vnode *a_vp;
