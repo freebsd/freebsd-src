@@ -778,9 +778,10 @@ restart:
 					brelse(bp);
 					anyfreed = 1;
 				}
-				if (nbp && (((nbp->b_xflags & B_VNCLEAN) == 0)||
-					 (nbp->b_vp != vp) ||
-					 (nbp->b_flags & B_DELWRI))) {
+				if (nbp &&
+				    (((nbp->b_xflags & BX_VNCLEAN) == 0) ||
+				    (nbp->b_vp != vp) ||
+				    (nbp->b_flags & B_DELWRI))) {
 					goto restart;
 				}
 			}
@@ -799,9 +800,10 @@ restart:
 					brelse(bp);
 					anyfreed = 1;
 				}
-				if (nbp && (((nbp->b_xflags & B_VNDIRTY) == 0)||
-					 (nbp->b_vp != vp) ||
-					 (nbp->b_flags & B_DELWRI) == 0)) {
+				if (nbp &&
+				    (((nbp->b_xflags & BX_VNDIRTY) == 0) ||
+				    (nbp->b_vp != vp) ||
+				    (nbp->b_flags & B_DELWRI) == 0)) {
 					goto restart;
 				}
 			}
@@ -862,8 +864,8 @@ bgetvp(vp, bp)
 	 * Insert onto list for new vnode.
 	 */
 	s = splbio();
-	bp->b_xflags |= B_VNCLEAN;
-	bp->b_xflags &= ~B_VNDIRTY;
+	bp->b_xflags |= BX_VNCLEAN;
+	bp->b_xflags &= ~BX_VNDIRTY;
 	TAILQ_INSERT_TAIL(&vp->v_cleanblkhd, bp, b_vnbufs);
 	splx(s);
 }
@@ -886,13 +888,13 @@ brelvp(bp)
 	 */
 	vp = bp->b_vp;
 	s = splbio();
-	if (bp->b_xflags & (B_VNDIRTY|B_VNCLEAN)) {
-		if (bp->b_xflags & B_VNDIRTY)
+	if (bp->b_xflags & (BX_VNDIRTY | BX_VNCLEAN)) {
+		if (bp->b_xflags & BX_VNDIRTY)
 			listheadp = &vp->v_dirtyblkhd;
 		else 
 			listheadp = &vp->v_cleanblkhd;
 		TAILQ_REMOVE(listheadp, bp, b_vnbufs);
-		bp->b_xflags &= ~(B_VNDIRTY|B_VNCLEAN);
+		bp->b_xflags &= ~(BX_VNDIRTY | BX_VNCLEAN);
 	}
 	if ((vp->v_flag & VONWORKLST) && TAILQ_EMPTY(&vp->v_dirtyblkhd)) {
 		vp->v_flag &= ~VONWORKLST;
@@ -1165,13 +1167,13 @@ reassignbuf(bp, newvp)
 	/*
 	 * Delete from old vnode list, if on one.
 	 */
-	if (bp->b_xflags & (B_VNDIRTY|B_VNCLEAN)) {
-		if (bp->b_xflags & B_VNDIRTY)
+	if (bp->b_xflags & (BX_VNDIRTY | BX_VNCLEAN)) {
+		if (bp->b_xflags & BX_VNDIRTY)
 			listheadp = &bp->b_vp->v_dirtyblkhd;
 		else 
 			listheadp = &bp->b_vp->v_cleanblkhd;
 		TAILQ_REMOVE(listheadp, bp, b_vnbufs);
-		bp->b_xflags &= ~(B_VNDIRTY|B_VNCLEAN);
+		bp->b_xflags &= ~(BX_VNDIRTY | BX_VNCLEAN);
 		if (bp->b_vp != newvp) {
 			vdrop(bp->b_vp);
 			bp->b_vp = NULL;	/* for clarification */
@@ -1202,7 +1204,7 @@ reassignbuf(bp, newvp)
 			}
 			vn_syncer_add_to_worklist(newvp, delay);
 		}
-		bp->b_xflags |= B_VNDIRTY;
+		bp->b_xflags |= BX_VNDIRTY;
 		tbp = TAILQ_FIRST(listheadp);
 		if (tbp == NULL ||
 		    bp->b_lblkno == 0 ||
@@ -1218,7 +1220,7 @@ reassignbuf(bp, newvp)
 			 * otherwise guess.
 			 */
 			if ((tbp = gbincore(newvp, bp->b_lblkno - 1)) != NULL &&
-			    (tbp->b_xflags & B_VNDIRTY)) {
+			    (tbp->b_xflags & BX_VNDIRTY)) {
 				TAILQ_INSERT_AFTER(listheadp, tbp, bp, b_vnbufs);
 				++reassignbufsortgood;
 			} else {
@@ -1238,7 +1240,7 @@ reassignbuf(bp, newvp)
 			TAILQ_INSERT_AFTER(listheadp, tbp, bp, b_vnbufs);
 		}
 	} else {
-		bp->b_xflags |= B_VNCLEAN;
+		bp->b_xflags |= BX_VNCLEAN;
 		TAILQ_INSERT_TAIL(&newvp->v_cleanblkhd, bp, b_vnbufs);
 		if ((newvp->v_flag & VONWORKLST) &&
 		    TAILQ_EMPTY(&newvp->v_dirtyblkhd)) {
