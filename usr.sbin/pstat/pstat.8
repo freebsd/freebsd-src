@@ -160,32 +160,58 @@ open
 outq has been flushed during DMA
 .It C
 carrier is on
+.It c
+connection open
 .It B
 busy doing output
 .It A
-process is awaiting output
+process is waiting for space in output queue
+.It a
+process is waiting for output to complete
 .It X
 open for exclusive use
 .It S
-output stopped
-.It H
-hangup on close
+output stopped (ixon flow control)
+.It m
+output stopped (carrier flow control)
+.It o
+output stopped (CTS flow control)
+.It d
+output stopped (DSR flow control)
+.It K
+input stopped
+.It Y
+send SIGIO for input events
+.It l
+block mode input routine in use
+.It s
+i/o being snooped
+.It Z
+connection lost
 .El
 .It PGRP
 Process group for which this is controlling terminal.
 .It DISC
-Line discipline; blank is old tty
-OTTYDISC
+Line discipline;
+.Ql term
+for
+TTYDISC
 or
-.Ql new tty
+.Ql ntty
 for
 NTTYDISC
 or
-.Ql net
+.Ql tab
 for
-NETLDISC
-(see
-.Xr bk 4 ) .
+TABLDISC
+or
+.Ql slip
+for
+SLIPDISC
+or
+.Ql ppp
+for
+PPPDISC.
 .El
 .It Fl v
 Print the active vnodes.  Each group of vnodes corresponding
