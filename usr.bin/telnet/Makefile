@@ -35,14 +35,14 @@
 
 PROG=	telnet
 
-CFLAGS+=-DTERMCAP -DKLUDGELINEMODE -DUSE_TERMIO -DAUTHENTICATION -DENCRYPTION
+CFLAGS+=-DTERMCAP -DKLUDGELINEMODE -DUSE_TERMIO #-DAUTHENTICATION -DENCRYPTION
 CFLAGS+=-DENV_HACK
 CFLAGS+=-I${.CURDIR}/../../lib
 
-CFLAGS+= -DKRB4
+#CFLAGS+= -DKRB4
 
 LDADD=	-ltermcap -ltelnet
-LDADD+=	-lkrb -ldes
+#LDADD+=	-lkrb -ldes
 DPADD=	${LIBTERMCAP}
 
 SRCS=	authenc.c commands.c main.c network.c ring.c sys_bsd.c telnet.c \
