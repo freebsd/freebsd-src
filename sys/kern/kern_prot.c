@@ -372,7 +372,7 @@ setpgid(curp, uap)
 
 /*
  * Use the clause in B.4.2.2 that allows setuid/setgid to be 4.2/4.3BSD
- * compatable.  It says that setting the uid/gid to euid/egid is a special
+ * compatible.  It says that setting the uid/gid to euid/egid is a special
  * case of "appropriate privilege".  Once the rules are expanded out, this
  * basically means that setuid(nnn) sets all three id's, in all permitted
  * cases unless _POSIX_SAVED_IDS is enabled.  In that case, setuid(getuid())
@@ -402,7 +402,7 @@ setuid(p, uap)
 	 *
 	 * Note that setuid(geteuid()) is a special case of 
 	 * "appropriate privileges" in appendix B.4.2.2.  We need
-	 * to use this clause to be compatable with traditional BSD
+	 * to use this clause to be compatible with traditional BSD
 	 * semantics.  Basically, it means that "setuid(xx)" sets all
 	 * three id's (assuming you have privs).
 	 *
@@ -519,7 +519,7 @@ setgid(p, uap)
 	 *
 	 * Note that setgid(getegid()) is a special case of
 	 * "appropriate privileges" in appendix B.4.2.2.  We need
-	 * to use this clause to be compatable with traditional BSD
+	 * to use this clause to be compatible with traditional BSD
 	 * semantics.  Basically, it means that "setgid(xx)" sets all
 	 * three id's (assuming you have privs).
 	 *

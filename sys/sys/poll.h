@@ -32,7 +32,7 @@
 #define	_SYS_POLL_H_
 
 /*
- * This file is intended to be compatable with the traditional poll.h.
+ * This file is intended to be compatible with the traditional poll.h.
  */
 
 /*

@@ -300,7 +300,7 @@ int main(argc, argv)
 
     while (argc > 0) {
       if (strcmp(*argv, "-c") == 0)
-	; /* Just for compatability with gzip */
+	; /* Just for compatibility with gzip */
       else if (strcmp(*argv, "-d") == 0)
 	uncompr = 1;
       else if (strcmp(*argv, "-f") == 0)

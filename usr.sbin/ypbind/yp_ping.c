@@ -98,7 +98,7 @@ static const char rcsid[] =
 
 #ifndef timeradd
 #ifndef _KERNEL		/* use timevaladd/timevalsub in kernel */
-/* NetBSD/OpenBSD compatable interfaces */
+/* NetBSD/OpenBSD compatible interfaces */
 #define timeradd(tvp, uvp, vvp)						\
 	do {								\
 		(vvp)->tv_sec = (tvp)->tv_sec + (uvp)->tv_sec;		\
