@@ -32,7 +32,7 @@
  *
  * $FreeBSD$
  *
- *      last edit-date: [Tue Mar 26 14:37:50 2002]
+ *      last edit-date: [Sun Aug 11 12:27:28 2002]
  *
  *---------------------------------------------------------------------------*/
 
@@ -79,6 +79,7 @@ int		controllercount = -1;
 %token		ANSWERPROG
 %token		B1PROTOCOL
 %token		BEEPCONNECT
+%token		BCAP
 %token		BUDGETCALLOUTPERIOD
 %token		BUDGETCALLOUTNCALLS
 %token		BUDGETCALLOUTSFILE
@@ -426,6 +427,7 @@ filekeyword:	  BUDGETCALLBACKSFILE	{ $$ = BUDGETCALLBACKSFILE; }
 
 strkeyword:	  ANSWERPROG		{ $$ = ANSWERPROG; }
 		| B1PROTOCOL		{ $$ = B1PROTOCOL; }
+		| BCAP			{ $$ = BCAP; }
 		| CONNECTPROG		{ $$ = CONNECTPROG; }
 		| DIALOUTTYPE		{ $$ = DIALOUTTYPE; }
 		| DIRECTION		{ $$ = DIRECTION; }
