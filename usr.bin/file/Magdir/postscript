@@ -15,3 +15,6 @@
 >>12	string	1.0			at level %s
 >>12	string	2.0			at level %s
 >>12	string	3.0			at level %s
+0	string		%PDF		Adobe Acrobat document
+>5	string		x		at level %s
+
