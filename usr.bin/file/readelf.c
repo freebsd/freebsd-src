@@ -1,12 +1,14 @@
 
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
+
 #ifdef BUILTIN_ELF
-#include <sys/types.h>
-#include <string.h>
-#include <stdio.h>
 #include <ctype.h>
-#include <stdlib.h>
-#include <unistd.h>
+#include <err.h>
 #include <errno.h>
+#include <unistd.h>
 
 #include "readelf.h"
 #include "file.h"
@@ -34,11 +36,11 @@ doshn(fd, off, num, size, buf)
 	Elf32_Shdr *sh = (Elf32_Shdr *) buf;
 
 	if (lseek(fd, off, SEEK_SET) == -1)
-		error("lseek failed (%s).\n", strerror(errno));
+		err(1, "lseek failed");
 
 	for ( ; num; num--) {
 		if (read(fd, buf, size) == -1)
-			error("read failed (%s).\n", strerror(errno));
+			err(1, "read failed");
 		if (sh->sh_type == SHT_SYMTAB) {
 			(void) printf (", not stripped");
 			return;
@@ -64,11 +66,11 @@ dophn_exec(fd, off, num, size, buf)
 	Elf32_Phdr *ph = (Elf32_Phdr *) buf;
 
 	if (lseek(fd, off, SEEK_SET) == -1)
-		error("lseek failed (%s).\n", strerror(errno));
+		err(1, "lseek failed");
 
   	for ( ; num; num--) {
   		if (read(fd, buf, size) == -1)
-  			error("read failed (%s).\n", strerror(errno));
+  			err(1, "read failed");
 		if (ph->p_type == PT_INTERP) {
 			/*
 			 * Has an interpreter - must be a dynamically-linked
@@ -125,17 +127,17 @@ dophn_core(fd, off, num, size, buf)
 
 	for ( ; num; num--) {
 		if (lseek(fd, off, SEEK_SET) == -1)
-			error("lseek failed (%s).\n", strerror(errno));
+			err(1, "lseek failed");
 		if (read(fd, buf, size) == -1)
-			error("read failed (%s).\n", strerror(errno));
+			err(1, "read failed");
 		off += size;
 		if (ph->p_type != PT_NOTE)
 			continue;
 		if (lseek(fd, ph->p_offset, SEEK_SET) == -1)
-			error("lseek failed (%s).\n", strerror(errno));
+			err(1, "lseek failed");
 		bufsize = read(fd, nbuf, BUFSIZ);
 		if (bufsize == -1)
-			error("read failed (%s).\n", strerror(errno));
+			err(1, "read failed");
 		offset = 0;
 		for (;;) {
 			if (offset >= bufsize)

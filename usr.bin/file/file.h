@@ -1,6 +1,6 @@
 /*
  * file.h - definitions for file(1) program
- * @(#)$Id: file.h,v 1.1.1.3 1997/03/18 17:58:51 mpp Exp $
+ * @(#)$Id: file.h,v 1.7 1997/03/18 19:37:18 mpp Exp $
  *
  * Copyright (c) Ian F. Darwin, 1987.
  * Written by Ian F. Darwin.
@@ -106,13 +106,11 @@ extern int   tryit		__P((unsigned char *, int, int));
 extern int   zmagic		__P((unsigned char *, int));
 extern void  ckfprintf		__P((FILE *, const char *, ...));
 extern uint32 signextend	__P((struct magic *, unsigned int32));
-extern int internatmagic	__P((unsigned char *, int));
 extern void tryelf		__P((int, char *, int));
 
 
 extern int errno;		/* Some unixes don't define this..	*/
 
-extern char *progname;		/* the program name 			*/
 extern char *magicfile;		/* name of the magic file		*/
 extern int lineno;		/* current line number in magic file	*/
 
@@ -123,9 +121,6 @@ extern int nmagic;		/* number of valid magic[]s 		*/
 extern int debug;		/* enable debugging?			*/
 extern int zflag;		/* process compressed files?		*/
 extern int lflag;		/* follow symbolic links?		*/
-
-extern int optind;		/* From getopt(3)			*/
-extern char *optarg;
 
 #if defined(sun) || defined(__sun__) || defined (__sun)
 # if defined(__svr4) || defined (__SVR4) || defined(__svr4__)

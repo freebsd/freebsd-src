@@ -25,12 +25,15 @@
  * 4. This notice may not be removed or altered.
  */
 
-#include <stdio.h>
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
+
+#include <err.h>
 #include <string.h>
-#include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
-#include <stdlib.h>
 #ifndef major
 # if defined(__SVR4) || defined(_SVR4_SOURCE)
 #  include <sys/mkdev.h>
@@ -48,11 +51,6 @@
 #endif	/*major*/
 
 #include "file.h"
-
-#ifndef	lint
-static char *moduleid = 
-	"@(#)$Id: fsmagic.c,v 1.1.1.3 1997/03/18 17:58:44 mpp Exp $";
-#endif	/* lint */
 
 int
 fsmagic(fn, sb)
@@ -76,7 +74,7 @@ struct stat *sb;
 		ckfprintf(stdout,
 			/* Yes, I do mean stdout. */
 			/* No \n, caller will provide. */
-			"can't stat `%s' (%s).", fn, strerror(errno));
+			"can't stat `%s': %s.", fn, strerror(errno));
 		return 1;
 	}
 
@@ -110,7 +108,7 @@ struct stat *sb;
 			struct stat tstatbuf;
 
 			if ((nch = readlink(fn, buf, BUFSIZ-1)) <= 0) {
-				ckfprintf(stdout, "unreadable symlink (%s).",
+				ckfprintf(stdout, "unreadable symlink: %s.",
 				      strerror(errno));
 				return 1;
 			}
@@ -165,7 +163,7 @@ struct stat *sb;
 	case S_IFREG:
 		break;
 	default:
-		error("invalid mode 0%o.\n", sb->st_mode);
+		err(1, "invalid mode 0%o", sb->st_mode);
 		/*NOTREACHED*/
 	}
 
@@ -178,4 +176,3 @@ struct stat *sb;
 	}
 	return 0;
 }
-
