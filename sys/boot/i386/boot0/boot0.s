@@ -176,7 +176,7 @@ main.6: 	addb $'0'|0x80,%al		# Save next
 		callw putx			#  item
 #
 # Now that we've printed the drive (if we needed to), display a prompt.
-# Get ready for the input byte noting the time.
+# Get ready for the input by noting the time.
 #
 main.7: 	movw $prompt,%si		# Display
 		callw putstr			#  prompt
