@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: attr.c,v 1.4 1995/12/07 10:33:30 peter Exp $
+ * $Id: attr.c,v 1.5 1996/04/13 13:31:22 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -47,7 +47,6 @@ attr_parse_file(Attribs *attr, char *file)
     int fd;
 
     if ((fd = open(file, O_RDONLY)) == -1) {
-	dialog_clear();
 	msgConfirm("Cannot open the information file `%s': %s (%d)", file, strerror(errno), errno);
 	return DITEM_FAILURE;
     }

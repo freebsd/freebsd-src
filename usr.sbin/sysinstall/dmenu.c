@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: dmenu.c,v 1.15 1996/04/07 03:52:23 jkh Exp $
+ * $Id: dmenu.c,v 1.16 1996/04/13 13:31:31 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -45,45 +45,39 @@ int
 dmenuDisplayFile(dialogMenuItem *tmp)
 {
     systemDisplayHelp((char *)tmp->data);
-    return DITEM_SUCCESS;
+    return DITEM_SUCCESS | DITEM_RESTORE;
 }
 
 int
 dmenuSubmenu(dialogMenuItem *tmp)
 {
-    WINDOW *w;
+    int i;
 
-    w = savescr();
-    dialog_clear();
-    (void)dmenuOpenSimple((DMenu *)tmp->data);
-    restorescr(w);
-    return DITEM_SUCCESS;
+    i = dmenuOpenSimple((DMenu *)tmp->data) ? DITEM_SUCCESS : DITEM_FAILURE;
+    return i | DITEM_RESTORE;
 }
 
 int
-dmenuSystemCommand(dialogMenuItem *tmp)
+dmenuSystemCommand(dialogMenuItem *self)
 {
-    WINDOW *w;
+    WINDOW *w = NULL;	/* Keep lint happy */
 
-    w = savescr();
-    systemExecute((char *)tmp->data);
-    dialog_clear();
-    restorescr(w);
+    /* If aux is set, the command is known not to produce any screen-spoiling output */
+    if (!self->aux)
+	w = savescr();
+    systemExecute((char *)self->data);
+    if (!self->aux)
+	restorescr(w);
     return DITEM_SUCCESS;
 }
 
 int
 dmenuSystemCommandBox(dialogMenuItem *tmp)
 {
-    WINDOW *w;
-
-    w = savescr();
     use_helpfile(NULL);
     use_helpline("Select OK to dismiss this dialog");
     dialog_prgbox(tmp->title, (char *)tmp->data, 22, 76, 1, 1);
-    dialog_clear();
-    restorescr(w);
-    return DITEM_SUCCESS;
+    return DITEM_SUCCESS | DITEM_RESTORE;
 }
 
 int
@@ -97,7 +91,6 @@ int
 dmenuSetVariable(dialogMenuItem *tmp)
 {
     variable_set((char *)tmp->data);
-    msgInfo("Set %s", tmp->data);
     return DITEM_SUCCESS;
 }
 
@@ -125,7 +118,6 @@ dmenuOpenSimple(DMenu *menu)
     int choice, scroll, curr, max;
 
     choice = scroll = curr = max = 0;
-    dialog_clear();
     return dmenuOpen(menu, &choice, &scroll, &curr, &max);
 }
 
@@ -195,6 +187,7 @@ dmenuOpen(DMenu *menu, int *choice, int *scroll, int *curr, int *max)
 	use_helpfile(systemHelpFile(menu->helpfile, buf));
 
 	/* Pop up that dialog! */
+	dialog_clear();
 	if (menu->type & DMENU_NORMAL_TYPE)
 	    rval = dialog_menu((u_char *)menu->title, (u_char *)menu->prompt, -1, -1,
 			       menu_height(menu, n), -n, menu->items, NULL, choice, scroll);
@@ -209,11 +202,9 @@ dmenuOpen(DMenu *menu, int *choice, int *scroll, int *curr, int *max)
 	else
 	    msgFatal("Menu: `%s' is of an unknown type\n", menu->title);
 
-	/* This seems to be the only technique that works for getting the display to look right */
-	dialog_clear();
-	if (rval || menu->type & (DMENU_SELECTION_RETURNS | DMENU_RADIO_TYPE | DMENU_CHECKLIST_TYPE))
+	if (rval)
 	    return FALSE;
-	else if (cancelled) {
+	else if (cancelled || (menu->type & (DMENU_SELECTION_RETURNS | DMENU_RADIO_TYPE | DMENU_CHECKLIST_TYPE))) {
 	    cancelled = FALSE;
 	    return TRUE;
 	}

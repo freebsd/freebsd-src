@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: label.c,v 1.41 1996/04/07 03:52:30 jkh Exp $
+ * $Id: label.c,v 1.42 1996/04/13 13:31:45 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -86,7 +86,6 @@ diskLabelEditor(dialogMenuItem *self)
     devs = deviceFind(cp, DEVICE_TYPE_DISK);
     cnt = deviceCount(devs);
     if (!cnt) {
-	dialog_clear();
 	msgConfirm("No disks found!  Please verify that your disk controller is being\n"
 		   "properly probed at boot time.  See the Hardware Guide on the\n"
 		   "Documentation menu for clues on diagnosing this type of problem.");
@@ -119,7 +118,6 @@ diskLabelCommit(dialogMenuItem *self)
 	i = DITEM_SUCCESS;
     }
     else if (!cp) {
-	dialog_clear();
 	msgConfirm("You must assign disk labels before this option can be used.");
 	i = DITEM_FAILURE;
     }
@@ -465,10 +463,10 @@ diskLabel(char *str)
     PartInfo *p, *oldp;
     PartType type;
     Device **devs;
+    WINDOW *w;
 
     devs = deviceFind(NULL, DEVICE_TYPE_DISK);
     if (!devs) {
-	dialog_clear();
 	msgConfirm("No disks found!");
 	return DITEM_FAILURE;
     }
@@ -477,6 +475,7 @@ diskLabel(char *str)
     keypad(stdscr, TRUE);
     record_label_chunks(devs);
 
+    w = savescr();
     dialog_clear(); clear();
     while (labeling) {
 	clear();
@@ -540,7 +539,6 @@ diskLabel(char *str)
 		if (label_chunk_info[i++].type != PART_SLICE)
 		    cnt++;
 	    if (cnt == (CHUNK_COLUMN_MAX * 2) + 4) {
-		dialog_clear();
 		msgConfirm("Sorry, I can't fit any more partitions on the screen!  You can get around\n"
 			   "this limitation by partitioning your disks individually rather than all\n"
 			   "at once.  This will be fixed just as soon as we get a scrolling partition\n"
@@ -567,7 +565,6 @@ diskLabel(char *str)
 				    CHUNK_IS_ROOT);
 	    
 	    if (!tmp) {
-		dialog_clear();
 		msgConfirm("Unable to create the root partition. Too big?");
 		break;
 	    }
@@ -590,7 +587,6 @@ diskLabel(char *str)
 				    swsize,
 				    part, FS_SWAP, 0);
 	    if (!tmp) {
-		dialog_clear();
 		msgConfirm("Unable to create the swap partition. Too big?");
 		break;
 	    }
@@ -604,7 +600,6 @@ diskLabel(char *str)
 				    label_chunk_info[here].c,
 				    (cp ? atoi(cp) : VAR_MIN_SIZE) * ONE_MEG, part, FS_BSDFFS, 0);
 	    if (!tmp) {
-		dialog_clear();
 		msgConfirm("Less than %dMB free for /var - you will need to\n"
 			   "partition your disk manually with a custom install!", (cp ? atoi(cp) : VAR_MIN_SIZE));
 		break;
@@ -619,7 +614,6 @@ diskLabel(char *str)
 	    else
 		sz = space_free(label_chunk_info[here].c);
 	    if (!sz || sz < (USR_MIN_SIZE * ONE_MEG)) {
-		dialog_clear();
 		msgConfirm("Less than %dMB free for /usr - you will need to\n"
 			   "partition your disk manually with a custom install!", USR_MIN_SIZE);
 		break;
@@ -629,7 +623,6 @@ diskLabel(char *str)
 				    label_chunk_info[here].c,
 				    sz, part, FS_BSDFFS, 0);
 	    if (!tmp) {
-		dialog_clear();
 		msgConfirm("Unable to create the /usr partition.  Not enough space?\n"
 			   "You will need to partition your disk manually with a custom install!");
 		break;
@@ -640,7 +633,7 @@ diskLabel(char *str)
 	    tmp->private_free = safe_free;
 	    record_label_chunks(devs);
 	}
-	    break;
+	break;
 	    
 	case 'C':
 	    if (label_chunk_info[here].type != PART_SLICE) {
@@ -655,7 +648,6 @@ diskLabel(char *str)
 		    if (label_chunk_info[i++].type != PART_SLICE)
 			cnt++;
 		if (cnt == (CHUNK_COLUMN_MAX * 2)) {
-		    dialog_clear();
 		    msgConfirm("Sorry, I can't fit any more partitions on the screen!  You can get around\n"
 			       "this limitation by partitioning your disks individually rather than all\n"
 			       "at once.  This will be fixed just as soon as we get a scrolling partition\n"
@@ -742,9 +734,9 @@ diskLabel(char *str)
 		    tmp->private_data = new_part(p->mountpoint, p->newfs, tmp->size);
 		    tmp->private_free = safe_free;
 		    safe_free(p);
-		} else {
-		    tmp->private_data = p;
 		}
+		else
+		    tmp->private_data = p;
 		tmp->private_free = safe_free;
 		variable_set2(DISK_LABELLED, "yes");
 		record_label_chunks(devs);
@@ -811,7 +803,8 @@ diskLabel(char *str)
 	case 'T':	/* Toggle newfs state */
 	    if (label_chunk_info[here].type == PART_FILESYSTEM) {
 		    PartInfo *pi = ((PartInfo *)label_chunk_info[here].c->private_data);
-		    label_chunk_info[here].c->private_data = new_part(pi ? pi->mountpoint : NULL, pi ? !pi->newfs : TRUE, label_chunk_info[here].c->size);
+		    label_chunk_info[here].c->private_data =
+			new_part(pi ? pi->mountpoint : NULL, pi ? !pi->newfs : TRUE, label_chunk_info[here].c->size);
 		    safe_free(pi);
 		    label_chunk_info[here].c->private_free = safe_free;
 		    variable_set2(DISK_LABELLED, "yes");
@@ -864,7 +857,6 @@ diskLabel(char *str)
 		DialogActive = FALSE;
 		devs = deviceFind(NULL, DEVICE_TYPE_DISK);
 		if (!devs) {
-		    dialog_clear();
 		    msgConfirm("Can't find any disk devices!");
 		    break;
 		}
@@ -891,6 +883,6 @@ diskLabel(char *str)
 	    break;
 	}
     }
-    dialog_clear();
+    restorescr(w);
     return DITEM_SUCCESS;
 }

@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: floppy.c,v 1.9 1996/03/02 07:31:52 jkh Exp $
+ * $Id: floppy.c,v 1.10 1996/04/13 13:31:34 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -81,13 +81,11 @@ getRootFloppy(void)
 	devs = deviceFind(NULL, DEVICE_TYPE_FLOPPY);
 	cnt = deviceCount(devs);
 	if (!cnt) {
-	    dialog_clear();
 	    msgConfirm("No floppy devices found!  Something is seriously wrong!");
 	    return -1;
 	}
 	else if (cnt == 1) {
 	    floppyDev = devs[0];
-	    dialog_clear();
 	    msgConfirm("Please insert the ROOT floppy in %s and press [ENTER]", floppyDev->description);
 	}
 	else  {
@@ -117,19 +115,14 @@ mediaInitFloppy(Device *dev)
 	return TRUE;
 
     if (Mkdir("/dist", NULL)) {
-	dialog_clear();
 	msgConfirm("Unable to make directory mountpoint for %s!", dev->devname);
 	return FALSE;
     }
     msgDebug("Init floppy called for %s distribution.\n", distWanted ? distWanted : "some");
-    if (!distWanted) {
-	dialog_clear();
+    if (!distWanted)
     	msgConfirm("Please insert next floppy into %s", dev->description);
-    }
-    else {
-	dialog_clear();
+    else
 	msgConfirm("Please insert floppy containing %s into %s", distWanted, dev->description);
-    }
 
     memset(&dosargs, 0, sizeof dosargs);
     dosargs.fspec = dev->devname;
@@ -141,7 +134,6 @@ mediaInitFloppy(Device *dev)
 
     if (mount(MOUNT_MSDOS, "/dist", MNT_RDONLY, (caddr_t)&dosargs) == -1) {
 	if (mount(MOUNT_UFS, "/dist", MNT_RDONLY, (caddr_t)&u_args) == -1) {
-	    dialog_clear();
 	    msgConfirm("Error mounting floppy %s (%s) on /dist : %s", dev->name, dev->devname, strerror(errno));
 	    return FALSE;
 	}
@@ -168,7 +160,6 @@ mediaGetFloppy(Device *dev, char *file, Boolean probe)
 	else {
 	    while (!file_readable(buf)) {
 		if (!--nretries) {
-		    dialog_clear();
 		    msgConfirm("GetFloppy: Failed to get %s after retries;\ngiving up.", buf);
 		    return -1;
 		}
@@ -192,7 +183,6 @@ mediaShutdownFloppy(Device *dev)
 	else {
 	    floppyMounted = FALSE;
 	    msgDebug("Floppy unmounted successfully.\n");
-	    dialog_clear();
 	    msgConfirm("You may remove the floppy from %s", dev->description);
 	}
     }

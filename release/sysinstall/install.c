@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.82 1996/04/07 03:52:25 jkh Exp $
+ * $Id: install.c,v 1.83 1996/04/13 13:31:41 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -79,7 +79,6 @@ checkLabels(Chunk **rdev, Chunk **sdev, Chunk **udev)
 		    if (c2->type == part && c2->subtype != FS_SWAP && c2->private_data) {
 			if (c2->flags & CHUNK_IS_ROOT) {
 			    if (rootdev) {
-				dialog_clear();
 				msgConfirm("WARNING:  You have more than one root device set?!\n"
 					   "Using the first one found.");
 				continue;
@@ -90,7 +89,6 @@ checkLabels(Chunk **rdev, Chunk **sdev, Chunk **udev)
 			}
 			else if (!strcmp(((PartInfo *)c2->private_data)->mountpoint, "/usr")) {
 			    if (usrdev) {
-				dialog_clear();
 				msgConfirm("WARNING:  You have more than one /usr filesystem.\n"
 					   "Using the first one found.");
 				continue;
@@ -130,7 +128,6 @@ checkLabels(Chunk **rdev, Chunk **sdev, Chunk **udev)
 
     *rdev = rootdev;
     if (!rootdev) {
-	dialog_clear();
 	msgConfirm("No root device found - you must label a partition as /\n"
 		   "in the label editor.");
 	status = FALSE;
@@ -138,7 +135,6 @@ checkLabels(Chunk **rdev, Chunk **sdev, Chunk **udev)
 
     *sdev = swapdev;
     if (!swapdev) {
-	dialog_clear();
 	msgConfirm("No swap devices found - you must create at least one\n"
 		   "swap partition.");
 	status = FALSE;
@@ -146,7 +142,6 @@ checkLabels(Chunk **rdev, Chunk **sdev, Chunk **udev)
 
     *udev = usrdev;
     if (!usrdev) {
-	dialog_clear();
 	msgConfirm("WARNING:  No /usr filesystem found.  This is not technically\n"
 		   "an error if your root filesystem is big enough (or you later\n"
 		   "intend to mount your /usr filesystem over NFS), but it may otherwise\n"
@@ -164,7 +159,6 @@ installInitial(void)
 	return DITEM_SUCCESS;
 
     if (!variable_get(DISK_LABELLED)) {
-	dialog_clear();
 	msgConfirm("You need to assign disk labels before you can proceed with\nthe installation.");
 	return DITEM_FAILURE;
     }
@@ -173,7 +167,6 @@ installInitial(void)
 	variable_set2(DISK_PARTITIONED, "yes");
 
     /* If we refuse to proceed, bail. */
-    dialog_clear();
     if (msgYesNo("Last Chance!  Are you SURE you want continue the installation?\n\n"
 		 "If you're running this on a disk with data you wish to save\n"
 		 "then WE STRONGLY ENCOURAGE YOU TO MAKE PROPER BACKUPS before\n"
@@ -182,20 +175,17 @@ installInitial(void)
 	return DITEM_FAILURE;
 
     if (diskLabelCommit(NULL) != DITEM_SUCCESS) {
-	dialog_clear();
 	msgConfirm("Couldn't make filesystems properly.  Aborting.");
 	return DITEM_FAILURE;
     }
 
     if (!copySelf()) {
-	dialog_clear();
 	msgConfirm("Couldn't clone the boot floppy onto the root file system.\n"
 		   "Aborting.");
 	return DITEM_FAILURE;
     }
 
     if (chroot("/mnt") == -1) {
-	dialog_clear();
 	msgConfirm("Unable to chroot to /mnt - this is bad!");
 	return DITEM_FAILURE;
     }
@@ -203,7 +193,6 @@ installInitial(void)
     chdir("/");
     variable_set2(RUNNING_ON_ROOT, "yes");
 
-    dialog_clear();
     /* stick a helpful shell over on the 4th VTY */
     systemCreateHoloshell();
 
@@ -230,11 +219,9 @@ installFixitFloppy(dialogMenuItem *self)
     Mkdir("/mnt2", NULL);
 
     while (1) {
-	dialog_clear();
 	msgConfirm("Please insert a writable fixit floppy and press return");
 	if (mount(MOUNT_UFS, "/mnt2", 0, (caddr_t)&args) != -1)
 	    break;
-	dialog_clear();
 	if (msgYesNo("Unable to mount the fixit floppy - do you want to try again?"))
 	    return DITEM_FAILURE;
     }
@@ -246,23 +233,16 @@ installFixitFloppy(dialogMenuItem *self)
 	(void)symlink("/mnt2/tmp", "/tmp");
     if (!directory_exists("/var/tmp/vi.recover")) {
 	if (Mkdir("/var/tmp/vi.recover", NULL) != DITEM_SUCCESS) {
-	    dialog_clear();
 	    msgConfirm("Warning:  Was unable to create a /var/tmp/vi.recover directory.\n"
 		       "vi will kvetch and moan about it as a result but should still\n"
 		       "be essentially usable.");
 	}
     }
     /* Link the spwd.db file */
-    if (Mkdir("/etc", NULL) != DITEM_SUCCESS) {
-	dialog_clear();
+    if (Mkdir("/etc", NULL) != DITEM_SUCCESS)
 	msgConfirm("Unable to create an /etc directory!  Things are weird on this floppy..");
-    }
-    else {
-	if (symlink("/mnt2/etc/spwd.db", "/etc/spwd.db") == -1) {
-	    dialog_clear();
-	    msgConfirm("Couldn't symlink the /etc/spwd.db file!  I'm not sure I like this..");
-	}
-    }
+    else if (symlink("/mnt2/etc/spwd.db", "/etc/spwd.db") == -1)
+	msgConfirm("Couldn't symlink the /etc/spwd.db file!  I'm not sure I like this..");
     if (!file_readable(TERMCAP_FILE))
 	create_termcap();
     if (!(child = fork())) {
@@ -291,7 +271,6 @@ installFixitFloppy(dialogMenuItem *self)
     dialog_clear();
     dialog_update();
     unmount("/mnt2", MNT_FORCE);
-    dialog_clear();
     msgConfirm("Please remove the fixit floppy now.");
     return DITEM_SUCCESS;
 }
@@ -327,7 +306,6 @@ int
 installNovice(dialogMenuItem *self)
 {
     variable_set2(SYSTEM_STATE, "novice");
-    dialog_clear();
     msgConfirm("In the next menu, you will need to set up a DOS-style (\"fdisk\") partitioning\n"
 	       "scheme for your hard disk.  If you simply wish to devote all disk space\n"
 	       "to FreeBSD (overwritting anything else that might be on the disk(s) selected)\n"
@@ -338,7 +316,6 @@ installNovice(dialogMenuItem *self)
     if (diskPartitionEditor(self) == DITEM_FAILURE)
 	return DITEM_FAILURE;
     
-    dialog_clear();
     msgConfirm("Next, you need to create BSD partitions inside of the fdisk partition(s)\n"
 	       "just created.  If you have a reasonable amount of disk space (200MB or more)\n"
 	       "and don't have any special requirements, simply use the (A)uto command to\n"
@@ -349,7 +326,6 @@ installNovice(dialogMenuItem *self)
     if (diskLabelEditor(self) == DITEM_FAILURE)
 	return DITEM_FAILURE;
 
-    dialog_clear();
     msgConfirm("Now it is time to select an installation subset.  There are a number of\n"
 	       "canned distribution sets, ranging from minimal installation sets to full\n"
 	       "X11 developer oriented configurations.  You can also select a custom set\n"
@@ -363,7 +339,6 @@ installNovice(dialogMenuItem *self)
     }
 
     if (!mediaDevice) {
-	dialog_clear();
 	msgConfirm("Finally, you must specify an installation medium.");
 	if (!dmenuOpenSimple(&MenuMedia) || !mediaDevice)
 	    return DITEM_FAILURE;
@@ -401,7 +376,6 @@ installCommit(dialogMenuItem *self)
 	if (configFstab() == DITEM_FAILURE)
 	    return DITEM_FAILURE;
 	if (!rootExtract()) {
-	    dialog_clear();
 	    msgConfirm("Failed to load the ROOT distribution.  Please correct\n"
 		       "this problem and try again.");
 	    return DITEM_FAILURE;
@@ -415,13 +389,11 @@ installCommit(dialogMenuItem *self)
 	i = DITEM_FAILURE;
 
     if (i != DITEM_FAILURE && !strcmp(str, "novice")) {
-	dialog_clear();
 	msgConfirm("Since you're running the novice installation, a few post-configuration\n"
 		   "questions will be asked at this point.  For any option you do not wish\n"
 		   "to configure, select Cancel.");
 
 	if (mediaDevice->type != DEVICE_TYPE_FTP && mediaDevice->type != DEVICE_TYPE_NFS) {
-	    dialog_clear();
 	    if (!msgYesNo("Would you like to configure this machine's network interfaces?")) {
 		Device *save = mediaDevice;
 
@@ -431,53 +403,47 @@ installCommit(dialogMenuItem *self)
 	    }
 	}
 
-	dialog_clear();
 	if (!msgYesNo("Would you like to configure Samba for connecting NETBUI clients to this\n"
 		      "machine?  Windows 95, Windows NT and Windows for Workgroups\n"
 		      "machines can use NETBUI transport for disk and printer sharing."))
 	    configSamba(self);
 
-	dialog_clear();
 	if (!msgYesNo("Will this machine be an IP gateway (e.g. will it forward packets\n"
 		      "between interfaces)?"))
 	    variable_set2("gateway", "YES");
 
-	dialog_clear();
 	if (!msgYesNo("Do you want to allow anonymous FTP connections to this machine?"))
 	    configAnonFTP(self);
 
-	dialog_clear();
 	if (!msgYesNo("Do you want to configure this machine as an NFS server?"))
 	    configNFSServer(self);
 
-	dialog_clear();
 	if (!msgYesNo("Do you want to configure this machine as an NFS client?"))
 	    variable_set2("nfs_client", "YES");
 
-	dialog_clear();
 	if (!msgYesNo("Do you want to configure this machine as a WEB server?"))
 	    configApache(self);
 
-	dialog_clear();
 	if (!msgYesNo("Would you like to customize your system console settings?"))
 	    dmenuOpenSimple(&MenuSyscons);
 
-	dialog_clear();
-	if (!msgYesNo("Would you like to set this machine's time zone now?"))
-	    systemExecute("rm -f /etc/wall_cmos_clock /etc/localtime; tzsetup");
+	if (!msgYesNo("Would you like to set this machine's time zone now?")) {
+	    WINDOW *w = savescr();
 
-	dialog_clear();
+	    dialog_clear();
+	    systemExecute("rm -f /etc/wall_cmos_clock /etc/localtime; tzsetup");
+	    restorescr(w);
+	}
+
 	if (!msgYesNo("Does this system have a mouse attached to it?"))
 	    dmenuOpenSimple(&MenuMouse);
 
 	if (directory_exists("/usr/X11R6")) {
-	    dialog_clear();
 	    if (!msgYesNo("Would you like to configure your X server at this time?"))
-		systemExecute("/usr/X11R6/bin/xf86config");
+		configXFree86(self);
 	}
 
 	if (cdromMounted) {
-	    dialog_clear();
 	    if (!msgYesNo("Would you like to link to the ports tree on your CDROM?\n\n"
 			  "This will require that you have your FreeBSD CD in the CDROM\n"
 			  "drive to use the ports collection, but at a substantial savings\n"
@@ -486,7 +452,6 @@ installCommit(dialogMenuItem *self)
 		configPorts(self);
 	}
 
-	dialog_clear();
 	if (!msgYesNo("The FreeBSD package collection is a collection of over 300 ready-to-run\n"
 		      "applications, from text editors to games to WEB servers.  Would you like\n"
 		      "to browse the collection now?"))
@@ -497,7 +462,6 @@ installCommit(dialogMenuItem *self)
     }
 
     /* Final menu of last resort */
-    dialog_clear();
     if (!msgYesNo("Would you like to go to the general configuration menu for a chance to set\n"
 		  "any last configuration options?"))
 	dmenuOpenSimple(&MenuConfigure);
@@ -508,22 +472,17 @@ installCommit(dialogMenuItem *self)
 
     /* Don't print this if we're express or novice installing */
     if (strcmp(str, "express") && strcmp(str, "novice")) {
-	if (Dists || i == DITEM_FAILURE) {
-	    dialog_clear();
+	if (Dists || i == DITEM_FAILURE)
 	    msgConfirm("Installation completed with some errors.  You may wish to\n"
 		       "scroll through the debugging messages on VTY1 with the\n"
 		       "scroll-lock feature.");
-	}
-	else {
-	    dialog_clear();
+	else
 	    msgConfirm("Installation completed successfully.\n\n"
 		       "If you have any network devices you have not yet configured,\n"
 		       "see the Interfaces configuration item on the Configuration menu.");
-	}
     }
     else if (!strcmp(str, "novice")) {
 	if (Dists || i == DITEM_FAILURE) {
-	    dialog_clear();
 	    msgConfirm("Installation completed with some errors.  You may wish to\n"
 		       "scroll through the debugging messages on VTY1 with the\n"
 		       "scroll-lock feature.  You can also chose \"No\" at the next\n"
@@ -531,7 +490,6 @@ installCommit(dialogMenuItem *self)
 		       "whichever operations have failed.");
 	}
 	else {
-	    dialog_clear();
 	    msgConfirm("Congradulations!  You now have FreeBSD installed on your system.\n"
 		       "At this stage, there shouldn't be much left to do from this\n"
 		       "installation utility so if you wish to come up from the hard disk\n"
@@ -554,13 +512,11 @@ installFixup(dialogMenuItem *self)
     if (!file_readable("/kernel")) {
 	if (file_readable("/kernel.GENERIC")) {
 	    if (vsystem("cp -p /kernel.GENERIC /kernel")) {
-		dialog_clear();
 		msgConfirm("Unable to link /kernel into place!");
 		return DITEM_FAILURE;
 	    }
 	}
 	else {
-	    dialog_clear();
 	    msgConfirm("Can't find a kernel image to link to on the root file system!\n"
 		       "You're going to have a hard time getting this system to\n"
 		       "boot from the hard disk, I'm afraid!");
@@ -571,7 +527,6 @@ installFixup(dialogMenuItem *self)
     if (RunningAsInit) {
 	msgNotify("Remaking all devices.. Please wait!");
 	if (vsystem("cd /dev; sh MAKEDEV all")) {
-	    dialog_clear();
 	    msgConfirm("MAKEDEV returned non-zero status");
 	    return DITEM_FAILURE;
 	}
@@ -594,7 +549,6 @@ installFixup(dialogMenuItem *self)
 		if (c1->type == freebsd) {
 		    msgNotify("Making slice entries for %s", c1->name);
 		    if (vsystem("cd /dev; sh MAKEDEV %sh", c1->name)) {
-			dialog_clear();
 			msgConfirm("Unable to make slice entries for %s!", c1->name);
 			return DITEM_FAILURE;
 		    }
@@ -649,7 +603,6 @@ installFilesystems(dialogMenuItem *self)
     /* As the very first thing, try to get ourselves some swap space */
     sprintf(dname, "/dev/%s", swapdev->name);
     if (!MakeDevChunk(swapdev, "/dev") || !file_readable(dname)) {
-	dialog_clear();
 	msgConfirm("Unable to make device node for %s in /dev!\n"
 		   "The creation of filesystems will be aborted.", dname);
 	return DITEM_FAILURE;
@@ -664,16 +617,13 @@ installFilesystems(dialogMenuItem *self)
     /* Next, create and/or mount the root device */
     sprintf(dname, "/dev/r%sa", rootdev->disk->name);
     if (!MakeDevChunk(rootdev, "/dev") || !file_readable(dname)) {
-	dialog_clear();
 	msgConfirm("Unable to make device node for %s in /dev!\n"
 		   "The creation of filesystems will be aborted.", dname);
 	return DITEM_FAILURE;
     }
 
-    if (strcmp(root->mountpoint, "/")) {
-	dialog_clear();
+    if (strcmp(root->mountpoint, "/"))
 	msgConfirm("Warning: %s is marked as a root partition but is mounted on %s", rootdev->name, root->mountpoint);
-    }
 
     if (root->newfs) {
 	int i;
@@ -681,7 +631,6 @@ installFilesystems(dialogMenuItem *self)
 	msgNotify("Making a new root filesystem on %s", dname);
 	i = vsystem("%s %s", root->newfs_cmd, dname);
 	if (i) {
-	    dialog_clear();
 	    msgConfirm("Unable to make new root filesystem on %s!\n"
 		       "Command returned status %d", dname, i);
 	    return DITEM_FAILURE;
@@ -689,22 +638,18 @@ installFilesystems(dialogMenuItem *self)
     }
     else {
 	if (!upgrade) {
-	    dialog_clear();
 	    msgConfirm("Warning:  Root device is selected read-only.  It will be assumed\n"
 		       "that you have the appropriate device entries already in /dev.");
 	}
 	msgNotify("Checking integrity of existing %s filesystem.", dname);
 	i = vsystem("fsck -y %s", dname);
-	if (i) {
-	    dialog_clear();
+	if (i)
 	    msgConfirm("Warning: fsck returned status of %d for %s.\n"
 		       "This partition may be unsafe to use.", i, dname);
-	}
     }
     /* Switch to block device */
     sprintf(dname, "/dev/%sa", rootdev->disk->name);
     if (Mount("/mnt", dname)) {
-	dialog_clear();
 	msgConfirm("Unable to mount the root file system on %s!  Giving up.", dname);
 	return DITEM_FAILURE;
     }
@@ -717,7 +662,6 @@ installFilesystems(dialogMenuItem *self)
 
 	disk = (Disk *)devs[i]->private;
 	if (!disk->chunks) {
-	    dialog_clear();
 	    msgConfirm("No chunk list found for %s!", disk->name);
 	    return DITEM_FAILURE;
 	}
@@ -752,10 +696,8 @@ installFilesystems(dialogMenuItem *self)
 			i = swapon(fname);
 			if (!i)
 			    msgNotify("Added %s as an additional swap device", fname);
-			else {
-			    dialog_clear();
+			else
 			    msgConfirm("Unable to add %s as a swap device: %s", fname, strerror(errno));
-			}
 		    }
 		}
 	    }
@@ -771,7 +713,6 @@ installFilesystems(dialogMenuItem *self)
     msgNotify("Copying initial device files..");
     /* Copy the boot floppy's dev files */
     if ((root->newfs || upgrade) && vsystem("find -x /dev | cpio -pdumv /mnt")) {
-	dialog_clear();
 	msgConfirm("Couldn't clone the /dev files!");
 	return DITEM_FAILURE;
     }
@@ -813,14 +754,12 @@ copySelf(void)
     msgWeHaveOutput("Copying the boot floppy to /stand on root filesystem");
     i = vsystem("find -x /stand | cpio -pdumv /mnt");
     if (i) {
-	dialog_clear();
 	msgConfirm("Copy returned error status of %d!", i);
 	return FALSE;
     }
 
     /* Copy the /etc files into their rightful place */
     if (vsystem("cd /mnt/stand; find etc | cpio -pdumv /mnt")) {
-	dialog_clear();
 	msgConfirm("Couldn't copy up the /etc files!");
 	return TRUE;
     }
@@ -852,7 +791,6 @@ rootExtract(void)
 		break;
 	    fd = mediaDevice->get(mediaDevice, "floppies/root.flp", FALSE);
 	    if (fd < 0) {
-		dialog_clear();
 		msgConfirm("Couldn't get root image from %s!\n"
 			   "Will try to get it from floppy.", mediaDevice->name);
 		mediaDevice->shutdown(mediaDevice);
@@ -904,7 +842,6 @@ create_termcap(void)
 	Mkdir("/usr/share/misc", NULL);
 	fp = fopen(TERMCAP_FILE, "w");
 	if (!fp) {
-	    dialog_clear();
 	    msgConfirm("Unable to initialize termcap file. Some screen-oriented\nutilities may not work.");
 	    return;
 	}

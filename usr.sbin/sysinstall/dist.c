@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.40 1996/04/07 03:52:22 jkh Exp $
+ * $Id: dist.c,v 1.41 1996/04/13 13:31:30 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -165,7 +165,15 @@ distReset(dialogMenuItem *self)
     XF86Dists = 0;
     XF86ServerDists = 0;
     XF86FontDists = 0;
-    return DITEM_SUCCESS;
+    return DITEM_SUCCESS | DITEM_REDRAW;
+}
+
+int
+distSrcReset(dialogMenuItem *self)
+{
+    Dists &= ~DIST_SRC;
+    SrcDists = 0;
+    return DITEM_SUCCESS | DITEM_REDRAW;
 }
 
 int
@@ -174,7 +182,7 @@ distSetDeveloper(dialogMenuItem *self)
     distReset(NULL);
     Dists = _DIST_DEVELOPER;
     SrcDists = DIST_SRC_ALL;
-    return DITEM_SUCCESS;
+    return DITEM_SUCCESS | DITEM_REDRAW;
 }
 
 int
@@ -186,8 +194,7 @@ distSetXDeveloper(dialogMenuItem *self)
     XF86Dists = DIST_XF86_BIN | DIST_XF86_LIB | DIST_XF86_PROG | DIST_XF86_MAN | DIST_XF86_SERVER | DIST_XF86_FONTS;
     XF86ServerDists = DIST_XF86_SERVER_SVGA;
     XF86FontDists = DIST_XF86_FONTS_MISC;
-    distSetXF86(NULL);
-    return DITEM_SUCCESS;
+    return distSetXF86(NULL);
 }
 
 int
@@ -196,7 +203,7 @@ distSetKernDeveloper(dialogMenuItem *self)
     distReset(NULL);
     Dists = _DIST_DEVELOPER;
     SrcDists = DIST_SRC_SYS;
-    return DITEM_SUCCESS;
+    return DITEM_SUCCESS | DITEM_REDRAW;
 }
 
 int
@@ -204,7 +211,7 @@ distSetUser(dialogMenuItem *self)
 {
     distReset(NULL);
     Dists = _DIST_USER;
-    return DITEM_SUCCESS;
+    return DITEM_SUCCESS | DITEM_REDRAW;
 }
 
 int
@@ -215,8 +222,7 @@ distSetXUser(dialogMenuItem *self)
     XF86Dists = DIST_XF86_BIN | DIST_XF86_LIB | DIST_XF86_MAN | DIST_XF86_SERVER | DIST_XF86_FONTS;
     XF86ServerDists = DIST_XF86_SERVER_SVGA;
     XF86FontDists = DIST_XF86_FONTS_MISC;
-    distSetXF86(NULL);
-    return DITEM_SUCCESS;
+    return distSetXF86(NULL);
 }
 
 int
@@ -224,7 +230,7 @@ distSetMinimum(dialogMenuItem *self)
 {
     distReset(NULL);
     Dists = DIST_BIN;
-    return DITEM_SUCCESS;
+    return DITEM_SUCCESS | DITEM_REDRAW;
 }
 
 int
@@ -235,56 +241,59 @@ distSetEverything(dialogMenuItem *self)
     XF86Dists = DIST_XF86_ALL;
     XF86ServerDists = DIST_XF86_SERVER_ALL;
     XF86FontDists = DIST_XF86_FONTS_ALL;
-    return DITEM_SUCCESS;
+    return DITEM_SUCCESS | DITEM_REDRAW;
 }
 
 int
 distSetDES(dialogMenuItem *self)
 {
-    WINDOW *w;
-
-    w = savescr();
-    dmenuOpenSimple(&MenuDESDistributions);
-    if (DESDists) {
-	if (DESDists & DIST_DES_KERBEROS)
-	    DESDists |= DIST_DES_DES;
-	Dists |= DIST_DES;
+    int i = DITEM_SUCCESS;
+ 
+    if (dmenuOpenSimple(&MenuDESDistributions)) {
+	if (DESDists) {
+	    if (DESDists & DIST_DES_KERBEROS)
+		DESDists |= DIST_DES_DES;
+	    Dists |= DIST_DES;
+	}
     }
-    restorescr(w);
-    return DITEM_SUCCESS;
+    else
+	i = DITEM_FAILURE;
+    return i | DITEM_RESTORE;
 }
 
 int
 distSetSrc(dialogMenuItem *self)
 {
-    WINDOW *w;
+    int i = DITEM_SUCCESS;
 
-    w = savescr();
-    dmenuOpenSimple(&MenuSrcDistributions);
-    if (SrcDists)
-	Dists |= DIST_SRC;
-    restorescr(w);
-    return DITEM_SUCCESS;
+    if (dmenuOpenSimple(&MenuSrcDistributions)) {
+	if (SrcDists)
+	    Dists |= DIST_SRC;
+    }
+    else
+	i = DITEM_FAILURE;
+    return i | DITEM_RESTORE;
 }
 
 int
 distSetXF86(dialogMenuItem *self)
 {
-    WINDOW *w;
+    int i = DITEM_SUCCESS;
 
-    w = savescr();
-    dmenuOpenSimple(&MenuXF86Select);
-    if (XF86ServerDists)
-	XF86Dists |= DIST_XF86_SERVER;
-    if (XF86FontDists)
-	XF86Dists |= DIST_XF86_FONTS;
-    if (XF86Dists)
-	Dists |= DIST_XF86;
-    if (isDebug())
-	msgDebug("SetXF86 Masks: Server: %0x, Fonts: %0x, XDists: %0x, Dists: %0x\n",
-		 XF86ServerDists, XF86FontDists, XF86Dists, Dists);
-    restorescr(w);
-    return DITEM_SUCCESS;
+    if (dmenuOpenSimple(&MenuXF86Select)) {
+	if (XF86ServerDists)
+	    XF86Dists |= DIST_XF86_SERVER;
+	if (XF86FontDists)
+	    XF86Dists |= DIST_XF86_FONTS;
+	if (XF86Dists)
+	    Dists |= DIST_XF86;
+	if (isDebug())
+	    msgDebug("SetXF86 Masks: Server: %0x, Fonts: %0x, XDists: %0x, Dists: %0x\n",
+		     XF86ServerDists, XF86FontDists, XF86Dists, Dists);
+    }
+    else
+	i = DITEM_FAILURE;
+    return i | DITEM_RESTORE;
 }
 
 static Boolean
@@ -350,11 +359,9 @@ distExtract(char *parent, Distribution *me)
 	    if (isDebug())
 		msgDebug("Parsing attributes file for distribution %s\n", dist);
 	    dist_attr = safe_malloc(sizeof(Attribs) * MAX_ATTRIBS);
-	    if (attr_parse_file(dist_attr, buf) == DITEM_FAILURE) {
-		dialog_clear();
+	    if (attr_parse_file(dist_attr, buf) == DITEM_FAILURE)
 		msgConfirm("Cannot load information file for %s distribution!\n"
 			   "Please verify that your media is valid and try again.", dist);
-	    }
 	    else {
 		if (isDebug())
 		    msgDebug("Looking for attribute `pieces'\n");
@@ -373,7 +380,6 @@ distExtract(char *parent, Distribution *me)
 
 	/* We have one or more chunks, go pick them up */
 	mediaExtractDistBegin(me[i].my_dir, &fd2, &zpid, &cpid);
-	dialog_clear();
 	for (chunk = 0; chunk < numchunks; chunk++) {
 	    int n, retval;
 	    char prompt[80];
@@ -383,7 +389,6 @@ distExtract(char *parent, Distribution *me)
 		msgDebug("trying for piece %d of %d: %s\n", chunk + 1, numchunks, buf);
 	    fd = mediaDevice->get(mediaDevice, buf, FALSE);
 	    if (fd < 0) {
-		dialog_clear();
 		msgConfirm("failed to retreive piece file %s!\nAborting the transfer", buf);
 		goto punt;
 	    }
@@ -416,7 +421,6 @@ distExtract(char *parent, Distribution *me)
 		status = TRUE;
 	    else {
 		if (me[i].my_dist) {
-		    dialog_clear();
 		    msgConfirm("Unable to transfer all components of the %s distribution.\n"
 			       "If this is a CDROM install, it may be because export restrictions prohibit\n"
 			       "DES code from being shipped from the U.S.  Try to get this code from a\n"
@@ -424,7 +428,6 @@ distExtract(char *parent, Distribution *me)
 		    status = TRUE;
 		}
 		else {
-		    dialog_clear();
 		    status = msgYesNo("Unable to transfer the %s distribution from %s.\n"
 				      "Do you want to try to retrieve it again?",
 				      me[i].my_name, mediaDevice->name);
@@ -486,7 +489,6 @@ distExtractAll(dialogMenuItem *self)
 
     if (Dists) {
 	printSelected(buf, Dists, DistTable);
-	dialog_clear();
 	msgConfirm("Couldn't extract all of the distributions.  This may\n"
 		   "be because the following distributions are not available on the\n"
 		   "installation media you've chosen:\n\n\t%s", buf);

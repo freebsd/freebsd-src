@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.49 1996/04/07 03:52:33 jkh Exp $
+ * $Id: menus.c,v 1.50 1996/04/13 13:31:58 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -53,16 +53,16 @@ first character of the option name you're interested in.  Invoke an\n\
 option by pressing [ENTER].",				/* prompt */
     "Press F1 for usage instructions",			/* help line */
     "usage",						/* help file */
-{ { "Usage",	"Quick start - How to use this menu system",		NULL, dmenuDisplayFile, NULL, "usage" },
-  { "Doc",	"More detailed documentation on FreeBSD",		NULL, dmenuSubmenu, NULL, &MenuDocumentation },
-  { "Options",	"Go to options editor",					NULL, optionsEditor },
-  { "Novice",	"Begin a novice installation (for beginners)",		NULL, installNovice },
-  { "Express",	"Begin a quick installation (for the impatient)",	NULL, installExpress },
-  { "Custom",	"Begin a custom installation (for experts)",		NULL, dmenuSubmenu, NULL, &MenuInstallCustom },
-  { "Fixit",	"Go into repair mode with CDROM or floppy",		NULL, dmenuSubmenu, NULL, &MenuFixit },
-  { "Upgrade",	"Upgrade an existing 2.0.5 system",			NULL, installUpgrade },
-  { "Configure","Do post-install configuration of FreeBSD",		NULL, dmenuSubmenu, NULL, &MenuConfigure },
-  { "Quit",	"Exit this menu (and the installation)",		NULL },
+{ { "1 Usage",	"Quick start - How to use this menu system",		NULL, dmenuDisplayFile, NULL, "usage" },
+  { "2 Doc",	"More detailed documentation on FreeBSD",		NULL, dmenuSubmenu, NULL, &MenuDocumentation },
+  { "3 Options","Go to options editor",					NULL, optionsEditor },
+  { "4 Novice",	"Begin a novice installation (for beginners)",		NULL, installNovice },
+  { "5 Express","Begin a quick installation (for the impatient)",	NULL, installExpress },
+  { "6 Custom",	"Begin a custom installation (for experts)",		NULL, dmenuSubmenu, NULL, &MenuInstallCustom },
+  { "7 Fixit",	"Go into repair mode with CDROM or floppy",		NULL, dmenuSubmenu, NULL, &MenuFixit },
+  { "8 Upgrade","Upgrade an existing 2.0.5 system",			NULL, installUpgrade },
+  { "9 Configure","Do post-install configuration of FreeBSD",		NULL, dmenuSubmenu, NULL, &MenuConfigure },
+  { "0 Exit",	"Exit this menu (and the installation)",		NULL },
   { NULL } },
 };
 
@@ -78,8 +78,8 @@ floppy has only a minimal subset of commands which we deemed most useful\n\
 for fixing a system in trouble.",
     "Press F1 for more detailed repair instructions",
     "fixit",
-{ { "CDROM",	"Use the 2nd \"live\" CDROM from the distribution",	NULL, installFixitCDROM },
-  { "Floppy",	"Use a floppy generated from the fixit image",		NULL, installFixitFloppy },
+{ { "1 CDROM",	"Use the 2nd \"live\" CDROM from the distribution",	NULL, installFixitCDROM },
+  { "2 Floppy",	"Use a floppy generated from the fixit image",		NULL, installFixitFloppy },
   { NULL } },
 };
 
@@ -95,18 +95,42 @@ a step-by-step tutorial on installing FreeBSD.  For general information,\n\
 consult the README file.",
     "Confused?  Press F1 for help.",
     "usage",
-{ { "README",	"A general description of FreeBSD.  Read this!",	NULL, dmenuDisplayFile, NULL, "readme" },
-  { "Hardware",	"The FreeBSD survival guide for PC hardware.",		NULL, dmenuDisplayFile,	NULL, "hardware" },
-  { "Install",	"A step-by-step guide to installing FreeBSD.",		NULL, dmenuDisplayFile,	NULL, "install" },
-  { "Copyright","The FreeBSD Copyright notices.",			NULL, dmenuDisplayFile,	NULL, "COPYRIGHT" },
-  { "Release",	"The release notes for this version of FreeBSD.",	NULL, dmenuDisplayFile, NULL, "relnotes" },
-  { "HTML Docs","Go to the HTML documentation menu (post-install).",	NULL, docBrowser },
-  { "Exit",	"Exit this menu (returning to previous)",		NULL, dmenuCancel },
+{ { "1 README",	"A general description of FreeBSD.  Read this!",	NULL, dmenuDisplayFile, NULL, "readme" },
+  { "2 Hardware","The FreeBSD survival guide for PC hardware.",		NULL, dmenuDisplayFile,	NULL, "hardware" },
+  { "3 Install","A step-by-step guide to installing FreeBSD.",		NULL, dmenuDisplayFile,	NULL, "install" },
+  { "4 Copyright","The FreeBSD Copyright notices.",			NULL, dmenuDisplayFile,	NULL, "COPYRIGHT" },
+  { "5 Release","The release notes for this version of FreeBSD.",	NULL, dmenuDisplayFile, NULL, "relnotes" },
+  { "6 HTML Docs","Go to the HTML documentation menu (post-install).",	NULL, docBrowser },
+  { "0 Exit",	"Exit this menu (returning to previous)",		NULL, dmenuCancel },
   { NULL } },
 };
 
+static int
+whichMouse(dialogMenuItem *self)
+{
+    char buf[BUFSIZ];
+
+    if (!file_readable("/dev/mouse"))
+	return FALSE;
+    if (readlink("/dev/mouse", buf, BUFSIZ) == -1)
+	return FALSE;
+    if (!strcmp(self->prompt, "COM1"))
+	return !strcmp(buf, "/dev/cuaa0");
+    else if (!strcmp(self->prompt, "COM2"))
+	return !strcmp(buf, "/dev/cuaa1");
+    if (!strcmp(self->prompt, "COM3"))
+	return !strcmp(buf, "/dev/cuaa2");
+    if (!strcmp(self->prompt, "COM4"))
+	return !strcmp(buf, "/dev/cuaa3");
+    if (!strcmp(self->prompt, "BusMouse"))
+	return !strcmp(buf, "/dev/msg0");
+    if (!strcmp(self->prompt, "PS/2"))
+	return !strcmp(buf, "/dev/psm0");
+    return FALSE;
+}
+
 DMenu MenuMouse = {
-    DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
+    DMENU_RADIO_TYPE,
     "Please select your mouse type from the following menu",
     "There are many different types of mice currently on the market,\n\
 but this configuration menu should at least narrow down the choices\n\
@@ -117,12 +141,18 @@ a kernel recompile is also required!  See the handbook for more details\n\
 on building a kernel.",
     "For more information, visit the Documentation menu",
     NULL,
-{ { "COM1",	"Serial mouse on COM1",	NULL, dmenuSystemCommand, NULL,	"ln -fs /dev/cuaa0 /dev/mouse" },
-  { "COM2",	"Serial mouse on COM2", NULL, dmenuSystemCommand, NULL,	"ln -fs /dev/cuaa1 /dev/mouse" },
-  { "COM3",	"Serial mouse on COM3", NULL, dmenuSystemCommand, NULL,	"ln -fs /dev/cuaa2 /dev/mouse" },
-  { "COM4",	"Serial mouse on COM4", NULL, dmenuSystemCommand, NULL,	"ln -fs /dev/cuaa3 /dev/mouse" },
-  { "BusMouse",	"Logitech or ATI bus mouse", NULL, dmenuSystemCommand, NULL, "ln -fs /dev/mse0 /dev/mouse" },
-  { "PS/2",	"PS/2 style mouse (requires kernel rebuild)", NULL, dmenuSystemCommand, NULL, "ln -fs /dev/psm0 /dev/mouse" },
+{ { "COM1",	"Serial mouse on COM1",	whichMouse, dmenuSystemCommand, NULL,
+    "ln -fs /dev/cuaa0 /dev/mouse", '(', '*', ')', 1 },
+  { "COM2",	"Serial mouse on COM2", whichMouse, dmenuSystemCommand, NULL,
+    "ln -fs /dev/cuaa1 /dev/mouse", '(', '*', ')', 1 },
+  { "COM3",	"Serial mouse on COM3", whichMouse, dmenuSystemCommand, NULL,
+    "ln -fs /dev/cuaa2 /dev/mouse", '(', '*', ')', 1 },
+  { "COM4",	"Serial mouse on COM4", whichMouse, dmenuSystemCommand, NULL,
+    "ln -fs /dev/cuaa3 /dev/mouse", '(', '*', ')', 1 },
+  { "BusMouse",	"Logitech or ATI bus mouse", whichMouse, dmenuSystemCommand, NULL,
+    "ln -fs /dev/mse0 /dev/mouse", '(', '*', ')', 1 },
+  { "PS/2",	"PS/2 style mouse (requires kernel rebuild)", whichMouse, dmenuSystemCommand, NULL,
+    "ln -fs /dev/psm0 /dev/mouse", '(', '*', ')', 1 },
   { NULL } },
 };
 
@@ -317,6 +347,32 @@ for an ethernet installation.",
     { { NULL } },
 };
 
+static int
+whichMedia(dialogMenuItem *self)
+{
+    if (!mediaDevice)
+	return FALSE;
+    if (!strcmp(self->prompt, "1 CDROM") && mediaDevice->type == DEVICE_TYPE_CDROM)
+	return TRUE;
+    else if (!strcmp(self->prompt, "2 DOS") && mediaDevice->type == DEVICE_TYPE_DOS)
+	return TRUE;
+    else if (!strcmp(self->prompt, "3 File System") && mediaDevice->type == DEVICE_TYPE_UFS)
+	return TRUE;
+    else if (!strcmp(self->prompt, "4 Floppy") && mediaDevice->type == DEVICE_TYPE_FLOPPY)
+	return TRUE;
+    else if (!strcmp(self->prompt, "5 FTP") && mediaDevice->type == DEVICE_TYPE_FTP &&
+	     !strcmp(variable_get(VAR_FTP_STATE), "active"))
+	return TRUE;
+    else if (!strcmp(self->prompt, "6 FTP Passive") && mediaDevice->type == DEVICE_TYPE_FTP &&
+	     !strcmp(variable_get(VAR_FTP_STATE), "passive"))
+	return TRUE;
+    else if (!strcmp(self->prompt, "7 NFS") && mediaDevice->type == DEVICE_TYPE_NFS)
+	return TRUE;
+    else if (!strcmp(self->prompt, "8 Tape") && mediaDevice->type == DEVICE_TYPE_TAPE)
+	return TRUE;
+    return FALSE;
+}
+
 /* The media selection menu */
 DMenu MenuMedia = {
     DMENU_RADIO_TYPE,
@@ -328,14 +384,22 @@ the best media to use if you have no overriding reason for using other\n\
 media.",
     "Press F1 for more information on the various media types",
     "media",
-{ { "CDROM",	"Install from a FreeBSD CDROM",			NULL, mediaSetCDROM },
-  { "DOS",	"Install from a DOS partition",			NULL, mediaSetDOS },
-  { "File System", "Install from an existing filesystem",	NULL, mediaSetUFS },
-  { "Floppy",	"Install from a floppy disk set",		NULL, mediaSetFloppy },
-  { "FTP",	"Install from an FTP server",			NULL, mediaSetFTPActive },
-  { "FTP Passive", "Install from an FTP server through a firewall", NULL, mediaSetFTPPassive },
-  { "NFS",	"Install over NFS",				NULL, mediaSetNFS },
-  { "Tape",	"Install from SCSI or QIC tape",		NULL, mediaSetTape },
+{ { "1 CDROM",		"Install from a FreeBSD CDROM",
+    whichMedia, mediaSetCDROM },
+  { "2 DOS",		"Install from a DOS partition",
+    whichMedia, mediaSetDOS },
+  { "3 File System",	"Install from an existing filesystem",
+    whichMedia, mediaSetUFS },
+  { "4 Floppy",		"Install from a floppy disk set",
+    whichMedia, mediaSetFloppy },
+  { "5 FTP",		"Install from an FTP server",
+    whichMedia, mediaSetFTPActive },
+  { "6 FTP Passive",	"Install from an FTP server through a firewall",
+    whichMedia, mediaSetFTPPassive },
+  { "7 NFS",		"Install over NFS",
+    whichMedia, mediaSetNFS },
+  { "8 Tape",		"Install from SCSI or QIC tape",
+    whichMedia, mediaSetTape },
   { NULL } },
 };
 
@@ -347,28 +411,30 @@ DMenu MenuDistributions = {
 These select what we consider to be the most reasonable defaults for the\n\
 type of system in question.  If you would prefer to pick and choose the\n\
 list of distributions yourself, simply select \"Custom\".  You can also\n\
-add distribution sets together by picking more than one, fine-tuning the\n\
-final results with the Custom item.  When you are finished, select Cancel",
+pick a canned distribution set and then fine-tune it with the Custom item.\n\
+When you are finished, select Cancel or chose Exit.",
     "Press F1 for more information on these options.",
     "distributions",
-{ { "Developer",	"Full sources, binaries and doc but no games [180MB]",
+{ { "1 Developer",	"Full sources, binaries and doc but no games [180MB]",
     NULL, distSetDeveloper },
-  { "X-Developer",	"Same as above, but includes XFree86 [201MB]",
+  { "2 X-Developer",	"Same as above, but includes XFree86 [201MB]",
     NULL, distSetXDeveloper },
-  { "Kern-Developer",	"Full binaries and doc, kernel sources only [70MB]",
+  { "3 Kern-Developer",	"Full binaries and doc, kernel sources only [70MB]",
     NULL, distSetKernDeveloper },
-  { "User",		"Average user - binaries and doc but no sources [52MB]",
+  { "4 User",		"Average user - binaries and doc but no sources [52MB]",
     NULL, distSetUser },
-  { "X-User",		"Same as above, but includes XFree86 [52MB]",
+  { "5 X-User",		"Same as above, but includes XFree86 [52MB]",
     NULL, distSetXUser },
-  { "Minimal",		"The smallest configuration possible [44MB]",
+  { "6 Minimal",	"The smallest configuration possible [44MB]",
     NULL, distSetMinimum },
-  { "Everything",	"All sources, binaries and XFree86 binaries [700MB]",
+  { "7 Everything",	"All sources, binaries and XFree86 binaries [700MB]",
     NULL, distSetEverything	},
-  { "Custom",		"Specify your own distribution set [?]",
+  { "8 Custom",		"Specify your own distribution set [?]",
     NULL, dmenuSubmenu, NULL, &MenuSubDistributions },
-  { "Clear",		"Reset selected distribution list to None",
+  { "9 Clear",		"Reset selected distribution list to None",
     NULL, distReset },
+  { "0 Exit",		"Exit this menu (returning to previous)",
+    NULL, dmenuCancel },
   { NULL } },
 };
 
@@ -428,6 +494,10 @@ DES distribution out of the U.S.!  It is for U.S. customers only.",
     x11FlagCheck, distSetXF86 },
   { "xperimnt",		"Experimental work in progress!",
     dmenuFlagCheck, dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_EXPERIMENTAL },
+  { "Clear",		"Reset selected distribution list to None",
+    NULL, distReset, NULL, NULL, ' ', ' ', ' ' },
+  { "Exit",	"Exit this menu (returning to previous)",
+    NULL, dmenuCancel, NULL, NULL, ' ', ' ', ' ' },
   { NULL } },
 };
 
@@ -449,6 +519,8 @@ software, please consult the release notes.",
     dmenuFlagCheck, dmenuSetFlag, NULL, &DESDists, '[', 'X', ']', DIST_DES_SEBONES },
   { "ssecure",	"Sources for DES [1MB]",
     dmenuFlagCheck, dmenuSetFlag, NULL, &DESDists, '[', 'X', ']', DIST_DES_SSECURE },
+  { "Exit",	"Exit this menu (returning to previous)",
+    NULL, dmenuCancel, NULL, NULL, ' ', ' ', ' ' },
   { NULL } },
 };
 
@@ -491,6 +563,10 @@ you wish to install.",
     dmenuFlagCheck, dmenuSetFlag, NULL, &SrcDists, '[', 'X', ']', DIST_SRC_USBIN },
   { "smailcf",	"/usr/src/usr.sbin (sendmail config macros) [341K]",
     dmenuFlagCheck, dmenuSetFlag, NULL, &SrcDists, '[', 'X', ']', DIST_SRC_SMAILCF },
+  { "Clear",	"Reset selected source distribution list to None",
+    NULL, distSrcReset, NULL, NULL, ' ', ' ', ' ' },
+  { "Exit",	"Exit this menu (returning to previous)",
+    NULL, dmenuCancel, NULL, NULL, ' ', ' ', ' ' },
   { NULL } },
 };
 
@@ -501,7 +577,15 @@ clearx11(dialogMenuItem *self)
     XF86ServerDists = 0;
     XF86FontDists = 0;
     Dists &= ~DIST_XF86;
-    return DITEM_REDRAW;
+    return DITEM_SUCCESS | DITEM_REDRAW;
+}
+
+static int
+clearx11Servers(dialogMenuItem *self)
+{
+    XF86Dists &= ~DIST_XF86_SERVER;
+    XF86ServerDists = 0;
+    return DITEM_SUCCESS | DITEM_REDRAW;
 }
 
 static int
@@ -538,7 +622,9 @@ component set and at least one entry from the Server and Font set menus.",
   { "Fonts",	"Font set menu",
     checkx11Fonts, dmenuSubmenu, NULL, &MenuXF86SelectFonts },
   { "Clear",	"Reset XFree86 distribution list",
-    NULL, clearx11 },
+    NULL, clearx11, NULL, NULL, ' ', ' ', ' ' },
+  { "Exit",	"Exit this menu (returning to previous)",
+    NULL, dmenuCancel, NULL, NULL, ' ', ' ', ' ' },
   { NULL } },
 };
 
@@ -575,6 +661,10 @@ Bin, lib, xicf, and xdcf are recommended for a minimum installaion.",
     dmenuFlagCheck, dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_PEX },
   { "sources",	"XFree86 3.1.2-S standard + contrib sources [200MB]",
     dmenuFlagCheck, dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_SRC },
+  { "Clear",	"Reset XFree86 distribution list",
+    NULL, clearx11, NULL, NULL, ' ', ' ', ' ' },
+  { "Exit",	"Exit this menu (returning to previous)",
+    NULL, dmenuCancel, NULL, NULL, ' ', ' ', ' ' },
   { NULL } },
 };
 
@@ -599,6 +689,8 @@ install.  At the minimum, you should install the standard\n\
     dmenuFlagCheck, dmenuSetFlag, NULL, &XF86FontDists, '[', 'X', ']', DIST_XF86_FONTS_NON },
   { "server",	"Font server [0.3MB]",
     dmenuFlagCheck, dmenuSetFlag, NULL, &XF86FontDists, '[', 'X', ']', DIST_XF86_FONTS_SERVER },
+  { "Exit",	"Exit this menu (returning to previous)",
+    NULL, dmenuCancel, NULL, NULL, ' ', ' ', ' ' },
   { NULL } },
 };
 
@@ -635,6 +727,10 @@ Mono servers are particularly well-suited to most LCD displays).",
     dmenuFlagCheck, dmenuSetFlag, NULL, &XF86ServerDists, '[', 'X', ']', DIST_XF86_SERVER_W32 },
   { "nest",	"A nested server for testing purposes [1.8MB]",
     dmenuFlagCheck, dmenuSetFlag, NULL, &XF86ServerDists, '[', 'X', ']', DIST_XF86_SERVER_NEST },
+  { "Clear",	"Reset XFree86 server list",
+    NULL, clearx11Servers, NULL, NULL, ' ', ' ', ' ' },
+  { "Exit",	"Exit this menu (returning to previous)",
+    NULL, dmenuCancel, NULL, NULL, ' ', ' ', ' ' },
   { NULL } },
 };
 
@@ -677,14 +773,14 @@ details on the type of distribution you wish to have, where you wish\n\
 to install it from and how you wish to allocate disk storage to FreeBSD.",
     "Press F1 to read the installation guide",
     "install",
-{ { "Options",		"Go to Options editor",			NULL, optionsEditor },
-  { "Partition",	"Allocate disk space for FreeBSD",	NULL, diskPartitionEditor },
-  { "Label",		"Label allocated disk partitions",	NULL, diskLabelEditor },
-  { "Distributions",	"Select distribution(s) to extract",	NULL, dmenuSubmenu, NULL, &MenuDistributions },
-  { "Media",		"Choose the installation media type",	NULL, dmenuSubmenu, NULL, &MenuMedia },
-  { "Commit",		"Perform any pending Partition/Label/Extract actions", NULL, installCommit },
-  { "Extract",		"Just do distribution extract step",	NULL, distExtractAll },
-  { "Exit",		"Exit this menu (returning to previous)", NULL, dmenuCancel },
+{ { "1 Options",	"Go to Options editor",			NULL, optionsEditor },
+  { "2 Partition",	"Allocate disk space for FreeBSD",	NULL, diskPartitionEditor },
+  { "3 Label",		"Label allocated disk partitions",	NULL, diskLabelEditor },
+  { "4 Distributions",	"Select distribution(s) to extract",	NULL, dmenuSubmenu, NULL, &MenuDistributions },
+  { "5 Media",		"Choose the installation media type",	NULL, dmenuSubmenu, NULL, &MenuMedia },
+  { "6 Commit",		"Perform any pending Partition/Label/Extract actions", NULL, installCommit },
+  { "7 Extract",	"Just do distribution extract step",	NULL, distExtractAll },
+  { "0 Exit",		"Exit this menu (returning to previous)", NULL, dmenuCancel },
   { NULL } },
 };
 
@@ -722,31 +818,31 @@ you can use the Packages utility to load extra \"3rd party\"\n\
 software not provided in the base distributions.",
     "Press F1 for more information on these options",
     "configure",
-{ { "Add User",		"Add users to the system",
+{ { "1 Add User",	"Add users to the system",
     NULL, dmenuSystemCommand, NULL, "adduser -config_create ; adduser -s" },
-  { "Console",		"Customize system console behavior",
+  { "2 Console",	"Customize system console behavior",
     NULL, dmenuSubmenu, NULL, &MenuSyscons },
-  { "Time Zone",	"Set which time zone you're in",
+  { "3 Time Zone",	"Set which time zone you're in",
     NULL, dmenuSystemCommand, NULL, "rm -f /etc/wall_cmos_clock /etc/localtime; tzsetup" },
-  { "Media",		"Change the installation media type",
+  { "4 Media",		"Change the installation media type",
     NULL, dmenuSubmenu, NULL, &MenuMedia	},
-  { "Mouse",		"Select the type of mouse you have",
+  { "5 Mouse",		"Select the type of mouse you have",
     NULL, dmenuSubmenu, NULL, &MenuMouse, NULL },
-  { "Networking",	"Configure additional network services",
+  { "6 Networking",	"Configure additional network services",
     NULL, dmenuSubmenu, NULL, &MenuNetworking },
-  { "Options",		"Go to options editor",
+  { "7 Options",	"Go to options editor",
     NULL, optionsEditor },
-  { "Packages",		"Install pre-packaged software for FreeBSD",
+  { "8 Packages",	"Install pre-packaged software for FreeBSD",
     NULL, configPackages },
-  { "Ports",		"Link to FreeBSD Ports Collection on CD/NFS",
+  { "9 Ports",		"Link to FreeBSD Ports Collection on CD/NFS",
     NULL, configPorts },
-  { "Root Password",	"Set the system manager's password",
+  { "A Root Password",	"Set the system manager's password",
     NULL, dmenuSystemCommand, NULL, "passwd root" },
-  { "HTML Docs",	"Go to the HTML documentation menu (post-install)",
+  { "B HTML Docs",	"Go to the HTML documentation menu (post-install)",
     NULL, docBrowser },
-  { "XFree86",		"Configure XFree86",
+  { "C XFree86",	"Configure XFree86",
     NULL, configXFree86 },
-  { "Exit",		"Exit this menu (returning to previous)",
+  { "0 Exit",		"Exit this menu (returning to previous)",
     NULL, dmenuCancel },
   { NULL } },
 };
@@ -784,6 +880,8 @@ aspects of your system's network configuration.",
     NULL, configSamba },
   { "PCNFSD",		"Run authentication server for clients with PC-NFS.",
     NULL, configPCNFSD },
+  { "Exit",	"Exit this menu (returning to previous)",
+    NULL, dmenuCancel, NULL, NULL, ' ', ' ', ' ' },
   { NULL } },
 };
 
@@ -868,6 +966,7 @@ the other keymaps below.",
   { "French ISO", "French ISO keymap", dmenuVarCheck, dmenuSetVariable, NULL, "keymap=fr.iso" },
   { "German CP850", "German Code Page 850 keymap", dmenuVarCheck, dmenuSetVariable, NULL, "keymap=german.cp850"	},
   { "German ISO", "German ISO keymap", dmenuVarCheck, dmenuSetVariable, NULL, "keymap=german.iso" },
+  { "Italian", "Italian ISO keymap", dmenuVarCheck, dmenuSetVariable, NULL, "keymap=it.iso" },
   { "Japanese 106", "Japanese 106 keymap",  dmenuVarCheck, dmenuSetVariable, NULL, "keymap=jp.106" },
   { "Russian CP866", "Russian Code Page 866 keymap", dmenuVarCheck, dmenuSetVariable, NULL, "keymap=ru.cp866" },
   { "Russian KOI8", "Russian koi8 keymap", dmenuVarCheck, dmenuSetVariable, NULL, "keymap=ru.koi8-r" },

@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: network.c,v 1.9 1995/12/07 10:34:10 peter Exp $
+ * $Id: network.c,v 1.10 1996/04/13 13:32:03 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -66,11 +66,9 @@ mediaInitNetwork(Device *dev)
 	dev->private = NULL;
     }
     if (!strncmp("cuaa", dev->name, 4)) {
-	dialog_clear();
 	if (!msgYesNo("You have selected a serial-line network interface.\n"
 		      "Do you want to use PPP with it?")) {
 	    if (!(dev->private = (void *)startPPP(dev))) {
-		dialog_clear();
 		msgConfirm("Unable to start PPP!  This installation method cannot be used.");
 		return FALSE;
 	    }
@@ -97,7 +95,6 @@ mediaInitNetwork(Device *dev)
 	    else
 		strcpy(attach, val);
 	    if (vsystem(attach)) {
-		dialog_clear();
 		msgConfirm("slattach returned a bad status!  Please verify that\n"
 			   "the command is correct and try again.");
 		return FALSE;
@@ -111,7 +108,6 @@ mediaInitNetwork(Device *dev)
     snprintf(ifconfig, 255, "%s%s", VAR_IFCONFIG, dev->name);
     cp = variable_get(ifconfig);
     if (!cp) {
-	dialog_clear();
 	msgConfirm("The %s device is not configured.  You will need to do so\n"
 		   "in the Networking configuration menu before proceeding.", ifname);
 	return FALSE;
@@ -119,7 +115,6 @@ mediaInitNetwork(Device *dev)
     msgNotify("Configuring network device %s.", ifname);
     i = vsystem("ifconfig %s %s", ifname, cp);
     if (i) {
-	dialog_clear();
 	msgConfirm("Unable to configure the %s interface!\n"
 		   "This installation method cannot be used.", ifname);
 	return FALSE;
@@ -127,7 +122,6 @@ mediaInitNetwork(Device *dev)
 
     rp = variable_get(VAR_GATEWAY);
     if (!rp || *rp == '0') {
-	dialog_clear();
 	msgConfirm("No gateway has been set. You may be unable to access hosts\n"
 		   "not on your local network");
     }
@@ -159,10 +153,8 @@ mediaShutdownNetwork(Device *dev)
 	    return;
 	msgNotify("Shutting interface %s down.", dev->name);
 	i = vsystem("ifconfig %s down", dev->name);
-	if (i) {
-	    dialog_clear();
+	if (i)
 	    msgConfirm("Warning: Unable to down the %s interface properly", dev->name);
-	}
 	cp = variable_get(VAR_GATEWAY);
 	if (cp) {
 	    msgNotify("Deleting default route.");
@@ -228,7 +220,6 @@ startPPP(Device *devp)
     }
     fp = fopen("/etc/ppp/ppp.conf", "w");
     if (!fp) {
-	dialog_clear();
 	msgConfirm("Couldn't open /etc/ppp/ppp.conf file!  This isn't going to work");
 	return 0;
     }
@@ -239,7 +230,6 @@ startPPP(Device *devp)
     fclose(fp);
 
     if (!file_readable("/dev/tun0") && mknod("/dev/tun0", 0600 | S_IFCHR, makedev(52, 0))) {
-	dialog_clear();
 	msgConfirm("Warning:  No /dev/tun0 device.  PPP will not work!");
 	return 0;
     }
@@ -271,7 +261,6 @@ startPPP(Device *devp)
 	exit(1);
     }
     else {
-	dialog_clear();
 	msgConfirm("The PPP command is now started on VTY3 (type ALT-F3 to\n"
 		   "interact with it, ALT-F1 to switch back here). The only command\n"
 		   "you'll probably want or need to use is the \"term\" command\n"

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: apache.c,v 1.17 1996/04/07 03:52:16 jkh Exp $
+ * $Id: apache.c,v 1.18 1996/04/13 13:31:21 jkh Exp $
  *
  * Copyright (c) 1995
  *	Coranth Gryphon.  All rights reserved.
@@ -185,7 +185,7 @@ static Layout layout[] = {
 };
 
 /* This is it - how to get Apache setup values */
-int
+static int
 apacheOpenDialog(void)
 {
     WINDOW              *ds_win;
@@ -403,12 +403,10 @@ configApache(dialogMenuItem *self)
     /* Be optimistic */
     i = DITEM_SUCCESS;
     
-    dialog_clear();
     msgConfirm("Since you elected to install the WEB server, we'll now add the\n"
 	       "Apache HTTPD package and set up a few configuration files.");
     i = package_add(APACHE_PACKAGE);
     if (i != DITEM_SUCCESS) {
-	dialog_clear();
 	msgConfirm("Hmmmmm.  Looks like we weren't able to fetch the Apache WEB server\n"
 		   "package.  You may wish to fetch and configure it by hand by looking\n"
 		   "in /usr/ports/net/apache (in the ports collection) or looking for the\n"
@@ -416,12 +414,12 @@ configApache(dialogMenuItem *self)
         return DITEM_FAILURE;
     }
 
+    dialog_clear();
     i = apacheOpenDialog();
     if (i != DITEM_SUCCESS) {
-	dialog_clear();
 	msgConfirm("Configuration of the Apache WEB server was cancelled per\n"
 		   "user request.");
-	return DITEM_FAILURE;
+	return DITEM_FAILURE | DITEM_RESTORE;
     }
     /*** Fix defaults for invalid value ***/
     if (! tconf.logdir[0])
@@ -457,9 +455,7 @@ configApache(dialogMenuItem *self)
     if (directory_exists(tconf.docroot)) {
 	sprintf(file,"%s/%s", tconf.docroot, tconf.welcome);
 	if (!file_readable(file)) {
-	    dialog_clear();
-	    tptr = msgGetInput(NULL,
-			       "What is your company name?");
+	    tptr = msgGetInput(NULL, "What is your company name?");
 	    if (tptr && tptr[0])
 		strcpy(company, tptr);
 	    else
@@ -497,7 +493,6 @@ configApache(dialogMenuItem *self)
 	}
     }
     else {
-	dialog_clear();
 	msgConfirm("Unable to create Document Root Directory.");
 	i = DITEM_FAILURE;
     }
@@ -523,7 +518,6 @@ configApache(dialogMenuItem *self)
 	fclose(fptr);
     }
     else {
-	dialog_clear();
 	msgConfirm("Could not create %s",file);
 	i = DITEM_FAILURE;
     }
@@ -560,7 +554,6 @@ configApache(dialogMenuItem *self)
 	fclose(fptr);
     }
     else {
-	dialog_clear();
 	msgConfirm("Could not create %s",file);
 	i = DITEM_FAILURE;
     }
@@ -570,52 +563,50 @@ configApache(dialogMenuItem *self)
 	vsystem("mv -f %s %s.ORIG", file, file);
     fptr = fopen(file,"w");
     if (fptr) {
-	fprintf(fptr,"FancyIndexing on\n");
-	fprintf(fptr,"DefaultType text/plain\n");
-	fprintf(fptr,"IndexIgnore */.??* *~ *# */HEADER* */README* */RCS\n");
-	fprintf(fptr,"HeaderName HEADER\n");
-	fprintf(fptr,"ReadmeName README\n");
-	fprintf(fptr,"AccessFileName .htaccess\n");
-	fprintf(fptr,"\n");
-	fprintf(fptr,"AddEncoding x-compress Z\n");
-	fprintf(fptr,"AddEncoding x-gzip gz\n");
-	fprintf(fptr,"DefaultIcon /icons/unknown.gif\n");
-	fprintf(fptr,"\n");
-	fprintf(fptr,
-		"AddIconByEncoding (CMP,/icons/compressed.gif) x-compress x-gzip\n");
-	fprintf(fptr,"AddIconByType (TXT,/icons/text.gif) text/*\n");
-	fprintf(fptr,"AddIconByType (IMG,/icons/image2.gif) image/*\n");
-	fprintf(fptr,"AddIconByType (SND,/icons/sound2.gif) audio/*\n");
-	fprintf(fptr,"AddIconByType (VID,/icons/movie.gif) video/*\n");
-	fprintf(fptr,"\n");
+	fprintf(fptr, "FancyIndexing on\n");
+	fprintf(fptr, "DefaultType text/plain\n");
+	fprintf(fptr, "IndexIgnore */.??* *~ *# */HEADER* */README* */RCS\n");
+	fprintf(fptr, "HeaderName HEADER\n");
+	fprintf(fptr, "ReadmeName README\n");
+	fprintf(fptr, "AccessFileName .htaccess\n");
+	fprintf(fptr, "\n");
+	fprintf(fptr, "AddEncoding x-compress Z\n");
+	fprintf(fptr, "AddEncoding x-gzip gz\n");
+	fprintf(fptr, "DefaultIcon /icons/unknown.gif\n");
+	fprintf(fptr, "\n");
+	fprintf(fptr, "AddIconByEncoding (CMP,/icons/compressed.gif) x-compress x-gzip\n");
+	fprintf(fptr, "AddIconByType (TXT,/icons/text.gif) text/*\n");
+	fprintf(fptr, "AddIconByType (IMG,/icons/image2.gif) image/*\n");
+	fprintf(fptr, "AddIconByType (SND,/icons/sound2.gif) audio/*\n");
+	fprintf(fptr, "AddIconByType (VID,/icons/movie.gif) video/*\n");
+	fprintf(fptr, "\n");
 	
-	fprintf(fptr,"AddIcon /icons/text.gif .ps .shtml\n");
-	fprintf(fptr,"AddIcon /icons/movie.gif .mpg .qt\n");
-	fprintf(fptr,"AddIcon /icons/binary.gif .bin\n");
-	fprintf(fptr,"AddIcon /icons/burst.gif .wrl\n");
-	fprintf(fptr,"AddIcon /icons/binhex.gif .hqx .sit\n");
-	fprintf(fptr,"AddIcon /icons/uu.gif .uu\n");
-	fprintf(fptr,"AddIcon /icons/tar.gif .tar\n");
-	fprintf(fptr,"AddIcon /icons/back.gif ..\n");
-	fprintf(fptr,"AddIcon /icons/dir.gif ^^DIRECTORY^^\n");
-	fprintf(fptr,"AddIcon /icons/blank.gif ^^BLANKICON^^\n");
-	fprintf(fptr,"\n");
+	fprintf(fptr, "AddIcon /icons/text.gif .ps .shtml\n");
+	fprintf(fptr, "AddIcon /icons/movie.gif .mpg .qt\n");
+	fprintf(fptr, "AddIcon /icons/binary.gif .bin\n");
+	fprintf(fptr, "AddIcon /icons/burst.gif .wrl\n");
+	fprintf(fptr, "AddIcon /icons/binhex.gif .hqx .sit\n");
+	fprintf(fptr, "AddIcon /icons/uu.gif .uu\n");
+	fprintf(fptr, "AddIcon /icons/tar.gif .tar\n");
+	fprintf(fptr, "AddIcon /icons/back.gif ..\n");
+	fprintf(fptr, "AddIcon /icons/dir.gif ^^DIRECTORY^^\n");
+	fprintf(fptr, "AddIcon /icons/blank.gif ^^BLANKICON^^\n");
+	fprintf(fptr, "\n");
 	
-	fprintf(fptr,"ScriptAlias /cgi_bin/ %s/cgi_bin/\n",APACHE_BASE);
-	fprintf(fptr,"Alias /icons/ %s/icons/\n",APACHE_BASE);
-	fprintf(fptr,"DocumentRoot %s\n",tconf.docroot);
-	fprintf(fptr,"UserDir %s\n", tconf.userdir);
-	fprintf(fptr,"DirectoryIndex %s\n", tconf.welcome);
-	fprintf(fptr,"\n");
+	fprintf(fptr, "ScriptAlias /cgi_bin/ %s/cgi_bin/\n",APACHE_BASE);
+	fprintf(fptr, "Alias /icons/ %s/icons/\n",APACHE_BASE);
+	fprintf(fptr, "DocumentRoot %s\n",tconf.docroot);
+	fprintf(fptr, "UserDir %s\n", tconf.userdir);
+	fprintf(fptr, "DirectoryIndex %s\n", tconf.welcome);
+	fprintf(fptr, "\n");
 	
 	fclose(fptr);
     }
     else {
-	dialog_clear();
 	msgConfirm("Could not create %s",file);
 	i = DITEM_FAILURE;
     }
     if (i != DITEM_FAILURE)
 	variable_set2("apache_httpd", "YES");
-    return i;
+    return i | DITEM_RESTORE;
 }
