@@ -214,6 +214,7 @@ device		xe		# Xircom pccard ethernet
 #device		le
 
 # Wireless NIC cards
+device		wlan		# 802.11 support
 device		an		# Aironet 4500/4800 802.11 wireless NICs. 
 device		awi		# BayStack 660 and others
 device		wi		# WaveLAN/Intersil/Symbol 802.11 wireless NICs.
