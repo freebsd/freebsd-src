@@ -549,7 +549,7 @@ END(tl0_sfsr_trap)
 	.macro	intr_vector
 	ldxa	[%g0] ASI_INTR_RECEIVE, %g1
 	andcc	%g1, IRSR_BUSY, %g0
-	bnz,a,pt %xcc, intr_enqueue
+	bnz,a,pt %xcc, intr_vector
 	 nop
 	sir
 	.align	32

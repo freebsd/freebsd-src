@@ -65,7 +65,7 @@
  *	%g5 - argument, as above for %g4
  *	%g6 - softint priority
  */
-ENTRY(intr_enqueue)
+ENTRY(intr_vector)
 	/*
 	 * Load the interrupt packet from the hardware.
 	 */
@@ -146,9 +146,9 @@ ENTRY(intr_enqueue)
 	 * Done, retry the instruction.
 	 */
 	retry
-END(intr_enqueue)
+END(intr_vector)
 
-ENTRY(intr_dequeue)
+ENTRY(intr_fast)
 	save	%sp, -CCFSZ, %sp
 
 1:	ldx	[PCPU(IRHEAD)], %l0
@@ -180,4 +180,4 @@ ENTRY(intr_dequeue)
 	 mov	%o1, %o0
 	ba,a	%xcc, 1b
 	 nop
-END(intr_dequeue)
+END(intr_fast)
