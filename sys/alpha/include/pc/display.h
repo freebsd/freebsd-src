@@ -2,6 +2,7 @@
  * IBM PC display definitions
  *
  *	$Id$
+ *	from: i386/include/pc display.h,v 1.4
  */
 
 /* Color attributes for foreground text */

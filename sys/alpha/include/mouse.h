@@ -20,7 +20,8 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: mouse.h,v 1.9 1997/12/07 08:08:50 yokota Exp $
+ *	$Id$
+ *	from: i386/include mouse.h,v 1.10
  */
 
 #ifndef _MACHINE_MOUSE_H_
