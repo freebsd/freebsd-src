@@ -1994,4 +1994,4 @@ static struct pci_device al_device = {
 	&al_count,
 	NULL
 };
-COMPAT_PCI_DRIVER(al, al_device);
+DATA_SET(pcidevice_set, al_device);

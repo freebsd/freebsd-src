@@ -73,6 +73,9 @@ WaveLAN/IEEE Turbo 802.11 wireless networking adapters (PCMCIA
 and ISA versions) and workalikes (NCR WaveLAN/IEEE, Cabletron
 RoamAbout 802.11 DS).
 
+Driver support has been added for PCI fast ethernet cards based
+on the ADMtek Inc. AL981 Comet chipset.
+
 1.2. SECURITY FIXES
 -------------------
 Descriptor leak bug which was potentially open to a denial of service attack
@@ -285,6 +288,8 @@ Texas Instruments ThunderLAN PCI NICs, including the following:
   Olicom OC-2135/2138, OC-2325, OC-2326 10/100 TX UTP
   Racore 8165 10/100baseTX
   Racore 8148 10baseT/100baseTX/100baseFX multi-personality
+
+ADMtek Inc. AL981-based PCI fast ethernet NICs
 
 ASIX Electronics AX88140A PCI NICs, including the following:
   Alfa Inc. GFC2204
