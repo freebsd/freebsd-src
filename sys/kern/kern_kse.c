@@ -747,7 +747,9 @@ thread_getcontext(struct thread *td, ucontext_t *uc)
 #ifdef __i386__
 	get_mcontext(td, &uc->uc_mcontext);
 #endif
+	PROC_LOCK(td->td_proc);
 	uc->uc_sigmask = td->td_sigmask;
+	PROC_UNLOCK(td->td_proc);
 }
 
 /*
