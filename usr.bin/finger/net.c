@@ -60,6 +60,7 @@ __FBSDID("$FreeBSD$");
 
 extern int lflag;		/* XXX finger.h? */
 extern int Tflag;		/* XXX finger.h? */
+extern sa_family_t family;
 
 static void cleanup(int sig);;
 static int do_protocol(const char *name, const struct addrinfo *ai);
@@ -82,7 +83,7 @@ netfinger(name)
 	alarm(TIME_LIMIT);
 
 	hint.ai_flags = AI_CANONNAME;
-	hint.ai_family = PF_UNSPEC;
+	hint.ai_family = family;
 	hint.ai_socktype = SOCK_STREAM;
 
 	error = getaddrinfo(host, "finger", &hint, &ai0);
