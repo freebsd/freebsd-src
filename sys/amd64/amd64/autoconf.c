@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.112 1999/04/15 14:52:24 bde Exp $
+ *	$Id: autoconf.c,v 1.113 1999/04/16 21:22:11 peter Exp $
  */
 
 /*
@@ -231,10 +231,6 @@ configure(dummy)
 	enable_intr();
 	INTREN(IRQ_SLAVE);
 #endif /* APIC_IO */
-
-#if NEISA > 0
-	eisa_configure();
-#endif
 
 #if NPNP > 0
 	pnp_configure();

@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.96 1999/04/16 21:22:52 peter Exp $
+**  $Id: pcisupport.c,v 1.97 1999/04/17 19:48:45 dfr Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -891,6 +891,19 @@ static devclass_t pcib_devclass;
 DRIVER_MODULE(pcib, pci, pcib_driver, pcib_devclass, 0, 0);
 
 static const char *
+eisab_match(device_t dev)
+{
+	switch (pci_get_devid(dev)) {
+	case 0x04828086:
+		/* Recognize this specifically, it has PCI-HOST class (!) */
+		return ("Intel 82375EB PCI-EISA bridge");
+	}
+
+
+	return NULL;
+}
+
+static const char *
 isab_match(device_t dev)
 {
 	unsigned	rev;
@@ -901,8 +914,6 @@ isab_match(device_t dev)
 		if (rev == 3)
 		    return ("Intel 82378ZB PCI to ISA bridge");
 		return ("Intel 82378IB PCI to ISA bridge");
-	case 0x04828086:
-		return ("Intel 82375EB PCI-EISA bridge");
 	case 0x122e8086:
 		return ("Intel 82371FB PCI to ISA bridge");
 	case 0x70008086:
@@ -947,10 +958,26 @@ static int
 isab_probe(device_t dev)
 {
 	const char *desc;
+	int	is_eisa;
 
-	desc = isab_match(dev);
+	is_eisa = 0;
+	desc = eisab_match(dev);
+	if (desc)
+		is_eisa = 1;
+	else
+		desc = isab_match(dev);
 	if (desc) {
 		device_set_desc_copy(dev, desc);
+
+		/* In case of a generic EISA bridge */
+		if (pci_get_subclass(dev) == PCIS_BRIDGE_EISA)
+			is_eisa = 1;
+
+		/* For PCI-EISA bridge, add both eisa and isa */
+		/* Don't bother adding more than one EISA bus */
+		if (is_eisa && !devclass_get_device(devclass_find("isa"), 0))
+			device_add_child(dev, "eisa", -1, 0);
+
 		/* Don't bother adding more than one ISA bus */
 		if (!devclass_get_device(devclass_find("isa"), 0))
 			device_add_child(dev, "isa", -1, 0);
