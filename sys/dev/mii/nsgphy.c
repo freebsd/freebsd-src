@@ -95,9 +95,8 @@ static driver_t nsgphy_driver = {
 
 DRIVER_MODULE(nsgphy, miibus, nsgphy_driver, nsgphy_devclass, 0, 0);
 
-int	nsgphy_service __P((struct mii_softc *, struct mii_data *, int));
-void	nsgphy_status __P((struct mii_softc *));
-
+static int	nsgphy_service __P((struct mii_softc *, struct mii_data *,int));
+static void	nsgphy_status __P((struct mii_softc *));
 static int	nsgphy_mii_phy_auto __P((struct mii_softc *, int));
 extern void	mii_phy_auto_timeout __P((void *));
 
@@ -301,16 +300,23 @@ nsgphy_service(sc, mii, cmd)
 			return (0);
 
 		/*
-		 * Only used for autonegotiation.
-		 */
-		if (IFM_SUBTYPE(ife->ifm_media) != IFM_AUTO)
-			return (0);
-
-		/*
 		 * Is the interface even up?
 		 */
 		if ((mii->mii_ifp->if_flags & IFF_UP) == 0)
 			return (0);
+
+		/*
+		 * Only used for autonegotiation.
+		 */
+		if (IFM_SUBTYPE(ife->ifm_media) != IFM_AUTO)
+			break;
+
+		/*
+		 * Check to see if we have link.
+		 */
+		reg = PHY_READ(sc, NSGPHY_MII_PHYSUP);
+		if (reg & NSGPHY_PHYSUP_LNKSTS)
+			break;
 
 		/*
 		 * Only retry autonegotiation every 5 seconds.
@@ -323,13 +329,6 @@ nsgphy_service(sc, mii, cmd)
 		
 		sc->mii_ticks = 0;
 
-		/*
-		 * Check to see if we have link.
-		 */
-		reg = PHY_READ(sc, NSGPHY_MII_PHYSUP);
-		if (reg & NSGPHY_PHYSUP_LNKSTS)
-			break;
-
 		mii_phy_reset(sc);
 		if (nsgphy_mii_phy_auto(sc, 0) == EJUSTRETURN)
 			return(0);
@@ -340,14 +339,11 @@ nsgphy_service(sc, mii, cmd)
 	nsgphy_status(sc);
 
 	/* Callback if something changed. */
-	if (sc->mii_active != mii->mii_media_active || cmd == MII_MEDIACHG) {
-		MIIBUS_STATCHG(sc->mii_dev);
-		sc->mii_active = mii->mii_media_active;
-	}
+	mii_phy_update(sc, cmd);
 	return (0);
 }
 
-void
+static void
 nsgphy_status(sc)
 	struct mii_softc *sc;
 {

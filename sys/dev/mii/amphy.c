@@ -83,8 +83,8 @@ static driver_t amphy_driver = {
 
 DRIVER_MODULE(amphy, miibus, amphy_driver, amphy_devclass, 0, 0);
 
-int	amphy_service __P((struct mii_softc *, struct mii_data *, int));
-void	amphy_status __P((struct mii_softc *));
+static int	amphy_service __P((struct mii_softc *, struct mii_data *, int));
+static void	amphy_status __P((struct mii_softc *));
 
 static int amphy_probe(dev)
 	device_t		dev;
@@ -167,7 +167,8 @@ static int amphy_detach(dev)
 
 	return(0);
 }
-int
+
+static int
 amphy_service(sc, mii, cmd)
 	struct mii_softc *sc;
 	struct mii_data *mii;
@@ -232,40 +233,8 @@ amphy_service(sc, mii, cmd)
 		 */
 		if (IFM_INST(ife->ifm_media) != sc->mii_inst)
 			return (0);
-
-		/*
-		 * Only used for autonegotiation.
-		 */
-		if (IFM_SUBTYPE(ife->ifm_media) != IFM_AUTO)
+		if (mii_phy_tick(sc) == EJUSTRETURN)
 			return (0);
-
-		/*
-		 * Is the interface even up?
-		 */
-		if ((mii->mii_ifp->if_flags & IFF_UP) == 0)
-			return (0);
-
-		/*
-		 * Only retry autonegotiation every 5 seconds.
-		 */
-		if (++sc->mii_ticks != 5)
-			return (0);
-		
-		sc->mii_ticks = 0;
-
-		/*
-		 * Check to see if we have link.  If we do, we don't
-		 * need to restart the autonegotiation process.  Read
-		 * the BMSR twice in case it's latched.
-		 */
-		reg = PHY_READ(sc, MII_BMSR) |
-		    PHY_READ(sc, MII_BMSR);
-		if (reg & BMSR_LINK)
-			break;
-
-		mii_phy_reset(sc);
-		if (mii_phy_auto(sc, 0) == EJUSTRETURN)
-			return(0);
 		break;
 	}
 
@@ -273,14 +242,11 @@ amphy_service(sc, mii, cmd)
 	amphy_status(sc);
 
 	/* Callback if something changed. */
-	if (sc->mii_active != mii->mii_media_active || cmd == MII_MEDIACHG) {
-		MIIBUS_STATCHG(sc->mii_dev);
-		sc->mii_active = mii->mii_media_active;
-	}
+	mii_phy_update(sc, cmd);
 	return (0);
 }
 
-void
+static void
 amphy_status(sc)
 	struct mii_softc *sc;
 {
