@@ -8,7 +8,7 @@
 # IRQ == 0 means "allocate free IRQ from IRQ pool"
 # IRQ == 16 means "do not use IRQ (e.g. PIO mode)"
 #
-# $Id: pccard.conf.sample,v 1.4.2.4 1997/12/17 01:57:57 pst Exp $
+# $Id: pccard.conf.sample,v 1.4.2.5 1998/02/10 01:02:06 msmith Exp $
 
 # Generally available IO ports
 io	0x240-0x360
@@ -125,6 +125,21 @@ card "DANPEX" "EN-6200P2"
 	insert /etc/pccard_ether ed0
 	remove /sbin/ifconfig ed0 delete
  
+# Telecom Device SuperSocket RE450T
+# Note: There are several revisions of the cardon the market.
+#	Type A needs no "ether" line.
+#	Type B needs "ether 0x110" line.
+#	Type C needs "ether 0xff0" line.
+#	Yet more revisions exist, reportedly.
+#	If you see strange MAC address shown by ifconfig command,
+#	try other config.
+card "Ethernet" "Adapter"
+	config	0x2 "ed0" ?
+#	ether	0x110 00:e0:98
+#	ether	0xff0 00:e0:98
+	insert	/etc/pccard_ether ed0
+	remove	/sbin/ifconfig ed0 delete
+
 # AIWA PV-JF288
 card "AIWA CO.,LTD." "PV-JF288  "
 	config  0x23 "sio2" 10
@@ -243,6 +258,13 @@ card "USRobotics" "PCMCIA 28800 Data/F"
 	insert  echo USRobotics PCMCIA Modem inserted
 	remove  echo USRobotics PCMCIA Modem removed
 
+# Xircom CreditCard Modem
+card "Xircom" "CreditCard Modem CM-56T"
+	config 0x17 "sio1" ?
+	reset   100
+	insert  echo Xircom CreditCard Modem CM-56T inserted
+	remove  echo Xircom CreditCard Modem CM-56T removed
+
 # Xircom CreditCard Ethernet+Modem (Modem only !!!)
 card "Xircom" "CreditCard Ethernet"
 	config  0x23 "sio2" 3
@@ -268,6 +290,18 @@ card "PCMCIA  " "33.6K Fax/Modem  "
 	config 23 "sio2" 5
 	insert echo Eiger 33.6K modem inserted
 	remove echo Eiger 33.6K modem removed
+
+# NTT ThunderCard Modem
+card "NTT-IT CO., LTD" "ThunderCard AVF288, V.34"
+	config	0x22 "sio2" 10
+	insert echo NTT ThunderCard inserted
+	remove echo NTT ThunderCard removed
+
+# U.S. Robotics XJ1560J
+card "U.S. Robotics" "XJ/CC1560J"
+	config	0x22 "sio2" 10
+	insert	echo U.S. Robotics XJ1560J inserted
+	remove	echo U.S. Robotics XJ1560J removed
 
 # BUG Linkboy D64K (ISDN)
 card "BUG Inc." "Linkboy D64K"
@@ -324,7 +358,7 @@ card "New Media" "SCSI"
 	remove	echo New Media Bus Toaster removed
 
 # REX5535AC, REX5535X SCSI
-card "PCMCIA SCSI MBH1040" "01"
-	config	0x3a "spc0" 11
-	insert	echo REX-5535 SCSI card inserted
-	remove	echo REX-5535 SCSI card removed
+#card "PCMCIA SCSI MBH1040" "01"
+#	config	0x3a "spc0" 11
+#	insert	echo REX-5535 SCSI card inserted
+#	remove	echo REX-5535 SCSI card removed

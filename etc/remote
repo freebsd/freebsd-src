@@ -46,5 +46,5 @@ dial1200|1200 Baud Hayes attributes:\
 	:dv=/dev/cuaa0:br#1200:cu=/dev/cuaa0:at=hayes:du:
 
 # Hardwired line
-cuaa0b|cua0b:dv=/dev/cuaa0:br#2400
-cuaa0c|cua0c:dv=/dev/cuaa0:br#9600
+cuaa0b|cua0b:dv=/dev/cuaa0:br#2400:pa=none:
+cuaa0c|cua0c:dv=/dev/cuaa0:br#9600:pa=none:

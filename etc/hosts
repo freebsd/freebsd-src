@@ -1,4 +1,4 @@
-# $Id: hosts,v 1.5 1995/04/09 09:54:39 rgrimes Exp $
+# $Id: hosts,v 1.6 1996/03/20 15:29:10 adam Exp $
 #
 # Host Database
 # This file should contain the addresses and aliases
@@ -7,7 +7,7 @@
 # not be consulted at all; see /etc/host.conf for the resolution order.
 #
 #
-127.0.0.1		localhost localhost.my.domain
+127.0.0.1		localhost localhost.my.domain myname.my.domain
 #
 # Imaginary network.
 #10.0.0.2		myname.my.domain myname
