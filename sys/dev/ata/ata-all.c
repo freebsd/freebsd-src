@@ -312,7 +312,7 @@ ata_pci_match(device_t dev)
     default:
 	if (pci_get_class(dev) == PCIC_STORAGE &&
 	    (pci_get_subclass(dev) == PCIS_STORAGE_IDE))
-	    return "Unknown PCI ATA controller (generic mode)";
+	    return "Generic PCI ATA controller";
     }
     return NULL;
 }
