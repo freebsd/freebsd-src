@@ -109,6 +109,7 @@ static int use_poll = 1;	/* adapt to poll() syscall availability */
 static int s = -1;		/* socket used for communications */
 static int connected = 0;	/* is the socket connected */
 static int vc = 0;		/* is the socket a virtual circuit? */
+static int af = 0;		/* address family of socket */
 static res_send_qhook Qhook = NULL;
 static res_send_rhook Rhook = NULL;
 
@@ -126,21 +127,29 @@ static res_send_rhook Rhook = NULL;
 			fprintf args;\
 			__fp_nquery(query, size, stdout);\
 		} else {}
+static char abuf[NI_MAXHOST];
+static char pbuf[NI_MAXSERV];
+static void Aerror __P((FILE *, char *, int, struct sockaddr *));
+static void Perror __P((FILE *, char *, int));
+
     static void
     Aerror(file, string, error, address)
 	FILE *file;
 	char *string;
 	int error;
-	struct sockaddr_in address;
+	struct sockaddr *address;
     {
 	int save = errno;
 
 	if (_res.options & RES_DEBUG) {
-		fprintf(file, "res_send: %s ([%s].%u): %s\n",
-			string,
-			inet_ntoa(address.sin_addr),
-			ntohs(address.sin_port),
-			strerror(error));
+		if (getnameinfo(address, address->sa_len, abuf, sizeof(abuf),
+		    pbuf, sizeof(pbuf),
+		    NI_NUMERICHOST|NI_NUMERICSERV|NI_WITHSCOPEID) != 0) {
+			strncpy(abuf, "?", sizeof(abuf));
+			strncpy(pbuf, "?", sizeof(pbuf));
+		}
+		fprintf(file, "res_send: %s ([%s].%s): %s\n",
+			string, abuf, pbuf, strerror(error));
 	}
 	errno = save;
     }
@@ -176,6 +185,33 @@ res_send_setrhook(hook)
 	Rhook = hook;
 }
 
+static struct sockaddr * get_nsaddr __P((size_t));
+
+/*
+ * pick appropriate nsaddr_list for use.  see res_init() for initialization.
+ */
+static struct sockaddr *
+get_nsaddr(n)
+	size_t n;
+{
+
+	if (!_res.nsaddr_list[n].sin_family) {
+		/*
+		 * - _res_ext.nsaddr_list[n] holds an address that is larger
+		 *   than struct sockaddr, and
+		 * - user code did not update _res.nsaddr_list[n].
+		 */
+		return (struct sockaddr *)&_res_ext.nsaddr_list[n];
+	} else {
+		/*
+		 * - user code updated _res.nsaddr_list[n], or
+		 * - _res.nsaddr_list[n] has the same content as
+		 *   _res_ext.nsaddr_list[n].
+		 */
+		return (struct sockaddr *)&_res.nsaddr_list[n];
+	}
+}
+
 /* int
  * res_isourserver(ina)
  *	looks up "ina" in _res.ns_addr_list[]
@@ -189,21 +225,39 @@ int
 res_isourserver(inp)
 	const struct sockaddr_in *inp;
 {
-	struct sockaddr_in ina;
+	const struct sockaddr_in6 *in6p = (const struct sockaddr_in6 *)inp;
+	const struct sockaddr_in6 *srv6;
+	const struct sockaddr_in *srv;
 	int ns, ret;
 
-	ina = *inp;
 	ret = 0;
-	for (ns = 0;  ns < _res.nscount;  ns++) {
-		const struct sockaddr_in *srv = &_res.nsaddr_list[ns];
-
-		if (srv->sin_family == ina.sin_family &&
-		    srv->sin_port == ina.sin_port &&
-		    (srv->sin_addr.s_addr == INADDR_ANY ||
-		     srv->sin_addr.s_addr == ina.sin_addr.s_addr)) {
-			ret++;
-			break;
+	switch (inp->sin_family) {
+	case AF_INET6:
+		for (ns = 0; ns < _res.nscount; ns++) {
+			srv6 = (struct sockaddr_in6 *)get_nsaddr(ns);
+			if (srv6->sin6_family == in6p->sin6_family &&
+			    srv6->sin6_port == in6p->sin6_port &&
+			    srv6->sin6_scope_id == in6p->sin6_scope_id &&
+			    (IN6_IS_ADDR_UNSPECIFIED(&srv6->sin6_addr) ||
+			     IN6_ARE_ADDR_EQUAL(&srv6->sin6_addr,
+			         &in6p->sin6_addr))) {
+				ret++;
+				break;
+			}
 		}
+		break;
+	case AF_INET:
+		for (ns = 0; ns < _res.nscount; ns++) {
+			srv = (struct sockaddr_in *)get_nsaddr(ns);
+			if (srv->sin_family == inp->sin_family &&
+			    srv->sin_port == inp->sin_port &&
+			    (srv->sin_addr.s_addr == INADDR_ANY ||
+			     srv->sin_addr.s_addr == inp->sin_addr.s_addr)) {
+				ret++;
+				break;
+			}
+		}
+		break;
 	}
 	return (ret);
 }
@@ -332,7 +386,18 @@ res_send(buf, buflen, ans, anssiz)
 	 */
 	for (try = 0; try < _res.retry; try++) {
 	    for (ns = 0; ns < _res.nscount; ns++) {
-		struct sockaddr_in *nsap = &_res.nsaddr_list[ns];
+		struct sockaddr *nsap = get_nsaddr(ns);
+		socklen_t salen;
+
+		if (nsap->sa_len)
+			salen = nsap->sa_len;
+		else if (nsap->sa_family == AF_INET6)
+			salen = sizeof(struct sockaddr_in6);
+		else if (nsap->sa_family == AF_INET)
+			salen = sizeof(struct sockaddr_in);
+		else
+			salen = 0;	/*unknown, die on connect*/
+
     same_ns:
 		if (badns & (1 << ns)) {
 			res_close();
@@ -345,7 +410,8 @@ res_send(buf, buflen, ans, anssiz)
 			do {
 				res_sendhookact act;
 
-				act = (*Qhook)(&nsap, &buf, &buflen,
+				act = (*Qhook)((struct sockaddr_in **)&nsap,
+					       &buf, &buflen,
 					       ans, anssiz, &resplen);
 				switch (act) {
 				case res_goahead:
@@ -369,9 +435,11 @@ res_send(buf, buflen, ans, anssiz)
 			} while (!done);
 		}
 
-		Dprint(_res.options & RES_DEBUG,
+		Dprint((_res.options & RES_DEBUG) &&
+		       getnameinfo(nsap, salen, abuf, sizeof(abuf),
+			   NULL, 0, NI_NUMERICHOST | NI_WITHSCOPEID) == 0,
 		       (stdout, ";; Querying server (# %d) address = %s\n",
-			ns + 1, inet_ntoa(nsap->sin_addr)));
+			ns + 1, abuf));
 
 		if (v_circuit) {
 			int truncated;
@@ -385,22 +453,25 @@ res_send(buf, buflen, ans, anssiz)
 			 */
 			try = _res.retry;
 			truncated = 0;
-			if (s < 0 || !vc || hp->opcode == ns_o_update) {
+			if (s < 0 || !vc || hp->opcode == ns_o_update ||
+			    af != nsap->sa_family) {
 				if (s >= 0)
 					res_close();
 
-				s = socket(PF_INET, SOCK_STREAM, 0);
+				af = nsap->sa_family;
+				s = socket(af, SOCK_STREAM, 0);
 				if (s < 0) {
 					terrno = errno;
 					Perror(stderr, "socket(vc)", errno);
-					return (-1);
+					badns |= (1 << ns);
+					res_close();
+					goto next_ns;
 				}
 				errno = 0;
-				if (connect(s, (struct sockaddr *)nsap,
-					    sizeof *nsap) < 0) {
+				if (connect(s, nsap, salen) < 0) {
 					terrno = errno;
 					Aerror(stderr, "connect/vc",
-					       errno, *nsap);
+					       errno, nsap);
 					badns |= (1 << ns);
 					res_close();
 					goto next_ns;
@@ -530,20 +601,23 @@ read_len:
 			struct timeval timeout;
 			fd_set dsmask, *dsmaskp;
 			int dsmasklen;
-			struct sockaddr_in from;
+			struct sockaddr_storage from;
 			int fromlen;
 
-			if ((s < 0) || vc) {
+			if (s < 0 || vc || af != nsap->sa_family) {
 				if (vc)
 					res_close();
-				s = socket(PF_INET, SOCK_DGRAM, 0);
+				af = nsap->sa_family;
+				s = socket(af, SOCK_DGRAM, 0);
 				if (s < 0) {
 #ifndef CAN_RECONNECT
  bad_dg_sock:
 #endif
 					terrno = errno;
 					Perror(stderr, "socket(dg)", errno);
-					return (-1);
+					badns |= (1 << ns);
+					res_close();
+					goto next_ns;
 				}
 				connected = 0;
 			}
@@ -569,12 +643,10 @@ read_len:
 				 * receive a response from another server.
 				 */
 				if (!connected) {
-					if (connect(s, (struct sockaddr *)nsap,
-						    sizeof *nsap
-						    ) < 0) {
+					if (connect(s, nsap, salen) < 0) {
 						Aerror(stderr,
 						       "connect(dg)",
-						       errno, *nsap);
+						       errno, nsap);
 						badns |= (1 << ns);
 						res_close();
 						goto next_ns;
@@ -594,6 +666,7 @@ read_len:
 				 */
 				if (connected) {
 #ifdef CAN_RECONNECT
+					/* XXX: any errornous address */
 					struct sockaddr_in no_addr;
 
 					no_addr.sin_family = AF_INET;
@@ -604,7 +677,7 @@ read_len:
 						        &no_addr,
 						       sizeof no_addr);
 #else
-					int s1 = socket(PF_INET, SOCK_DGRAM,0);
+					int s1 = socket(af, SOCK_DGRAM,0);
 					if (s1 < 0)
 						goto bad_dg_sock;
 					(void)dup2(s1, s);
@@ -617,10 +690,8 @@ read_len:
 				}
 #endif /* !CANNOT_CONNECT_DGRAM */
 				if (sendto(s, (char*)buf, buflen, 0,
-					   (struct sockaddr *)nsap,
-					   sizeof *nsap)
-				    != buflen) {
-					Aerror(stderr, "sendto", errno, *nsap);
+					   nsap, salen) != buflen) {
+					Aerror(stderr, "sendto", errno, nsap);
 					badns |= (1 << ns);
 					res_close();
 					goto next_ns;
@@ -732,7 +803,7 @@ read_len:
 				goto next_ns;
 			}
 			errno = 0;
-			fromlen = sizeof(struct sockaddr_in);
+			fromlen = sizeof(from);
 			resplen = recvfrom(s, (char*)ans, anssiz, 0,
 					   (struct sockaddr *)&from, &fromlen);
 			if (resplen <= 0) {
@@ -767,7 +838,7 @@ read_len:
 			}
 #ifdef CHECK_SRVR_ADDR
 			if (!(_res.options & RES_INSECURE1) &&
-			    !res_isourserver(&from)) {
+			    !res_isourserver((struct sockaddr_in *)&from)) {
 				/*
 				 * response from wrong server? ignore it.
 				 * XXX - potential security hazard could
@@ -844,7 +915,8 @@ read_len:
 			do {
 				res_sendhookact act;
 
-				act = (*Rhook)(nsap, buf, buflen,
+				act = (*Rhook)((struct sockaddr_in *)nsap,
+					       buf, buflen,
 					       ans, anssiz, &resplen);
 				switch (act) {
 				case res_goahead:
@@ -897,6 +969,7 @@ res_close()
 		s = -1;
 		connected = 0;
 		vc = 0;
+		af = 0;
 	}
 }
 
