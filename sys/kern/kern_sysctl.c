@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sysctl.c	8.4 (Berkeley) 4/14/94
- * $Id: kern_sysctl.c,v 1.33 1995/11/09 20:22:09 phk Exp $
+ * $Id: kern_sysctl.c,v 1.34 1995/11/10 09:58:53 phk Exp $
  */
 
 /*
@@ -507,10 +507,11 @@ userland_sysctl(struct proc *p, int *name, u_int namelen, void *old, size_t *old
 		return error;
 	}
 
-	error = sysctl_root(0, name, namelen, oldp, &oldlen, 
-	newp, newlen);
+	error = sysctl_root(0, name, namelen, oldp, &oldlen, newp, newlen);
 
         if (!error || error == ENOMEM) {
+		if (retval)
+			*retval = oldlen;
 		if (oldlenp) {
 			if (inkernel) {
 				*oldlenp = oldlen;
