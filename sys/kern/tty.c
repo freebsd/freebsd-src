@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.c	8.8 (Berkeley) 1/21/94
- * $Id: tty.c,v 1.81 1996/05/02 14:20:27 phk Exp $
+ * $Id: tty.c,v 1.82 1996/06/12 05:07:33 gpalmer Exp $
  */
 
 /*-
@@ -2314,7 +2314,7 @@ tputchar(c, tp)
 
 /*
  * Sleep on chan, returning ERESTART if tty changed while we napped and
- * returning any errors (e.g. EINTR/ETIMEDOUT) reported by tsleep.  If
+ * returning any errors (e.g. EINTR/EWOULDBLOCK) reported by tsleep.  If
  * the tty is revoked, restarting a pending call will redo validation done
  * at the start of the call.
  */
