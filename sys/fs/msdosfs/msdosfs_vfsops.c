@@ -123,14 +123,6 @@ update_mp(mp, argp)
 		bcopy(argp->lu, pmp->pm_lu, sizeof(pmp->pm_lu));
 	}
 
-#ifndef __FreeBSD__
-	/*
-	 * GEMDOS knows nothing (yet) about win95
-	 */
-	if (pmp->pm_flags & MSDOSFSMNT_GEMDOSFS)
-		pmp->pm_flags |= MSDOSFSMNT_NOWIN95;
-#endif
-
 	if (pmp->pm_flags & MSDOSFSMNT_NOWIN95)
 		pmp->pm_flags |= MSDOSFSMNT_SHORTNAME;
 	else if (!(pmp->pm_flags &
@@ -153,67 +145,6 @@ update_mp(mp, argp)
 	}
 	return 0;
 }
-
-#ifndef __FreeBSD__
-int
-msdosfs_mountroot()
-{
-	register struct mount *mp;
-	struct thread *td = curthread;	/* XXX */
-	size_t size;
-	int error;
-	struct msdosfs_args args;
-
-	if (root_device->dv_class != DV_DISK)
-		return (ENODEV);
-
-	/*
-	 * Get vnodes for swapdev and rootdev.
-	 */
-	if (bdevvp(rootdev, &rootvp))
-		panic("msdosfs_mountroot: can't setup rootvp");
-
-	mp = malloc((u_long)sizeof(struct mount), M_MOUNT, M_WAITOK | M_ZERO);
-	mp->mnt_op = &msdosfs_vfsops;
-	mp->mnt_flag = 0;
-	TAILQ_INIT(&mp->mnt_nvnodelist);
-	TAILQ_INIT(&mp->mnt_reservedvnlist);
-
-	args.flags = 0;
-	args.uid = 0;
-	args.gid = 0;
-	args.mask = 0777;
-
-	if ((error = mountmsdosfs(rootvp, mp, p, &args)) != 0) {
-		free(mp, M_MOUNT);
-		return (error);
-	}
-
-	if ((error = update_mp(mp, &args)) != 0) {
-		(void)msdosfs_unmount(mp, 0, td);
-		free(mp, M_MOUNT);
-		return (error);
-	}
-
-	if ((error = vfs_lock(mp)) != 0) {
-		(void)msdosfs_unmount(mp, 0, td);
-		free(mp, M_MOUNT);
-		return (error);
-	}
-
-	TAILQ_INSERT_TAIL(&mountlist, mp, mnt_list);
-	mp->mnt_vnodecovered = NULLVP;
-	(void) copystr("/", mp->mnt_stat.f_mntonname, MNAMELEN - 1,
-	    &size);
-	bzero(mp->mnt_stat.f_mntonname + size, MNAMELEN - size);
-	(void) copystr(ROOTNAME, mp->mnt_stat.f_mntfromname, MNAMELEN - 1,
-	    &size);
-	bzero(mp->mnt_stat.f_mntfromname + size, MNAMELEN - size);
-	(void)msdosfs_statfs(mp, &mp->mnt_stat, td);
-	vfs_unlock(mp);
-	return (0);
-}
-#endif
 
 /*
  * mp - path - addr in user space of mount point (ie /usr or whatever)
@@ -364,10 +295,6 @@ mountmsdosfs(devvp, mp, td, argp)
 	struct msdosfsmount *pmp;
 	struct buf *bp;
 	dev_t dev = devvp->v_rdev;
-#ifndef __FreeBSD__
-	struct partinfo dpart;
-	int bsize = 0, dtype = 0, tmp;
-#endif
 	union bootsector *bsp;
 	struct byte_bpb33 *b33;
 	struct byte_bpb50 *b50;
@@ -403,32 +330,6 @@ mountmsdosfs(devvp, mp, td, argp)
 	bp  = NULL; /* both used in error_exit */
 	pmp = NULL;
 
-#ifndef __FreeBSD__
-	if (argp->flags & MSDOSFSMNT_GEMDOSFS) {
-		/*
-	 	 * We need the disklabel to calculate the size of a FAT entry
-		 * later on. Also make sure the partition contains a filesystem
-		 * of type FS_MSDOS. This doesn't work for floppies, so we have
-		 * to check for them too.
-	 	 *
-	 	 * At least some parts of the msdos fs driver seem to assume
-		 * that the size of a disk block will always be 512 bytes.
-		 * Let's check it...
-		 */
-		error = VOP_IOCTL(devvp, DIOCGPART, (caddr_t)&dpart,
-				  FREAD, NOCRED, td);
-		if (error)
-			goto error_exit;
-		tmp   = dpart.part->p_fstype;
-		dtype = dpart.disklab->d_type;
-		bsize = dpart.disklab->d_secsize;
-		if (bsize != 512 || (dtype!=DTYPE_FLOPPY && tmp!=FS_MSDOS)) {
-			error = EINVAL;
-			goto error_exit;
-		}
-	}
-#endif
-
 	/*
 	 * Read the boot sector of the filesystem, and then check the
 	 * boot signature.  If not a dos boot sector then error out.
@@ -444,18 +345,12 @@ mountmsdosfs(devvp, mp, td, argp)
 	b50 = (struct byte_bpb50 *)bsp->bs50.bsBPB;
 	b710 = (struct byte_bpb710 *)bsp->bs710.bsPBP;
 
-#ifndef __FreeBSD__
-	if (!(argp->flags & MSDOSFSMNT_GEMDOSFS)) {
-#endif
 #ifndef MSDOSFS_NOCHECKSIG
 		if (bsp->bs50.bsBootSectSig0 != BOOTSIG0
 		    || bsp->bs50.bsBootSectSig1 != BOOTSIG1) {
 			error = EINVAL;
 			goto error_exit;
 		}
-#endif
-#ifndef __FreeBSD__
-	}
 #endif
 
 	pmp = malloc(sizeof *pmp, M_MSDOSFSMNT, M_WAITOK | M_ZERO);
@@ -480,9 +375,6 @@ mountmsdosfs(devvp, mp, td, argp)
 	/* calculate the ratio of sector size to DEV_BSIZE */
 	pmp->pm_BlkPerSec = pmp->pm_BytesPerSec / DEV_BSIZE;
 
-#ifndef __FreeBSD__
-	if (!(argp->flags & MSDOSFSMNT_GEMDOSFS)) {
-#endif
 		/* XXX - We should probably check more values here */
 		if (!pmp->pm_BytesPerSec || !SecPerClust
 			|| !pmp->pm_Heads || pmp->pm_Heads > 255
@@ -494,9 +386,6 @@ mountmsdosfs(devvp, mp, td, argp)
 			error = EINVAL;
 			goto error_exit;
 		}
-#ifndef __FreeBSD__
-	}
-#endif
 
 	if (pmp->pm_Sectors == 0) {
 		pmp->pm_HiddenSects = getulong(b50->bpbHiddenSecs);
@@ -579,22 +468,6 @@ mountmsdosfs(devvp, mp, td, argp)
 	    SecPerClust + 1;
 	pmp->pm_fatsize = pmp->pm_FATsecs * DEV_BSIZE; /* XXX not used? */
 
-#ifndef __FreeBSD__
-	if (argp->flags & MSDOSFSMNT_GEMDOSFS) {
-		if ((pmp->pm_maxcluster <= (0xff0 - 2))
-		      && ((dtype == DTYPE_FLOPPY) || ((dtype == DTYPE_VNODE)
-		      && ((pmp->pm_Heads == 1) || (pmp->pm_Heads == 2))))
-		    ) {
-			pmp->pm_fatmask = FAT12_MASK;
-			pmp->pm_fatmult = 3;
-			pmp->pm_fatdiv = 2;
-		} else {
-			pmp->pm_fatmask = FAT16_MASK;
-			pmp->pm_fatmult = 2;
-			pmp->pm_fatdiv = 1;
-		}
-	} else 
-#endif
 	if (pmp->pm_fatmask == 0) {
 		if (pmp->pm_maxcluster
 		    <= ((CLUST_RSRVD - CLUST_FIRST) & FAT12_MASK)) {
