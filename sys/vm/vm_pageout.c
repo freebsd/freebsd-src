@@ -754,6 +754,7 @@ vm_pageout_scan(int pass)
 		maxlaunder = 1;
 	if (pass)
 		maxlaunder = 10000;
+	vm_page_lock_queues();
 rescan0:
 	addl_page_shortage = addl_page_shortage_init;
 	maxscan = cnt.v_inactive_count;
@@ -793,7 +794,6 @@ rescan0:
 			continue;
 		}
 
-		vm_page_lock_queues();
 		/*
 		 * If the object is not being used, we ignore previous 
 		 * references.
@@ -814,7 +814,6 @@ rescan0:
 		} else if (((m->flags & PG_REFERENCED) == 0) &&
 			(actcount = pmap_ts_referenced(m))) {
 			vm_page_activate(m);
-			vm_page_unlock_queues();
 			m->act_count += (actcount + ACT_ADVANCE);
 			continue;
 		}
@@ -829,7 +828,6 @@ rescan0:
 			vm_page_flag_clear(m, PG_REFERENCED);
 			actcount = pmap_ts_referenced(m);
 			vm_page_activate(m);
-			vm_page_unlock_queues();
 			m->act_count += (actcount + ACT_ADVANCE + 1);
 			continue;
 		}
@@ -845,15 +843,12 @@ rescan0:
 		} else {
 			vm_page_dirty(m);
 		}
-		vm_page_unlock_queues();
 
 		/*
 		 * Invalid pages can be easily freed
 		 */
 		if (m->valid == 0) {
-			vm_page_lock_queues();
 			vm_pageout_page_free(m);
-			vm_page_unlock_queues();
 			--page_shortage;
 
 		/*
@@ -861,9 +856,7 @@ rescan0:
 		 * effectively frees them.
 		 */
 		} else if (m->dirty == 0) {
-			vm_page_lock_queues();
 			vm_page_cache(m);
-			vm_page_unlock_queues();
 			--page_shortage;
 		} else if ((m->flags & PG_WINATCFLS) == 0 && pass == 0) {
 			/*
@@ -878,10 +871,8 @@ rescan0:
 			 * before being freed.  This significantly extends
 			 * the thrash point for a heavily loaded machine.
 			 */
-			vm_page_lock_queues();
 			vm_page_flag_set(m, PG_WINATCFLS);
 			vm_pageq_requeue(m);
-			vm_page_unlock_queues();
 		} else if (maxlaunder > 0) {
 			/*
 			 * We always want to try to flush some dirty pages if
@@ -943,14 +934,16 @@ rescan0:
 				mp = NULL;
 				if (vp->v_type == VREG)
 					vn_start_write(vp, &mp, V_NOWAIT);
+				vm_page_unlock_queues();
 				if (vget(vp, LK_EXCLUSIVE|LK_TIMELOCK, curthread)) {
+					vm_page_lock_queues();
 					++pageout_lock_miss;
 					vn_finished_write(mp);
 					if (object->flags & OBJ_MIGHTBEDIRTY)
 						vnodes_skipped++;
 					continue;
 				}
-
+				vm_page_lock_queues();
 				/*
 				 * The page might have been moved to another
 				 * queue during potential blocking in vget()
@@ -1008,7 +1001,6 @@ rescan0:
 			 * the (future) cleaned page.  Otherwise we could wind
 			 * up laundering or cleaning too many pages.
 			 */
-			vm_page_lock_queues();
 			s = splvm();
 			TAILQ_INSERT_AFTER(&vm_page_queues[PQ_INACTIVE].pl, m, &marker, pageq);
 			splx(s);
@@ -1020,7 +1012,6 @@ rescan0:
 			next = TAILQ_NEXT(&marker, pageq);
 			TAILQ_REMOVE(&vm_page_queues[PQ_INACTIVE].pl, &marker, pageq);
 			splx(s);
-			vm_page_unlock_queues();
 			if (vp) {
 				vput(vp);
 				vn_finished_write(mp);
@@ -1036,7 +1027,6 @@ rescan0:
 		cnt.v_inactive_target - cnt.v_inactive_count;
 	page_shortage += addl_page_shortage;
 
-	vm_page_lock_queues();
 	/*
 	 * Scan the active queue for things we can deactivate. We nominally
 	 * track the per-page activity counter and use it to locate
