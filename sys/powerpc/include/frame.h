@@ -63,8 +63,7 @@ struct trapframe {
  * This is to ensure alignment of the stackpointer
  */
 #define	FRAMELEN	roundup(sizeof(struct trapframe) + 8, 16)
-#define	trapframe(p)	((struct trapframe *)((char *)(p)->p_addr \
-			    + USPACE - FRAMELEN + 8))
+#define	trapframe(td)	((td)->td_frame)
 
 struct switchframe {
 	register_t sp;

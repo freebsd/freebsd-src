@@ -112,8 +112,11 @@
 #define	MAXPHYS		(128 * 1024)	/* max raw I/O transfer size */
 #define	MAXDUMPPGS	(DFLTPHYS/PAGE_SIZE)
 
-#define	UPAGES		2		/* pages of u-area */
-#define	USPACE		(UPAGES * PAGE_SIZE)	/* total size of u-area */
+#ifndef KSTACK_UPAGES
+#define	KSTACK_PAGES	2		/* includes pcb */
+#endif
+#define	USPACE		(KSTACK_PAGES * PAGE_SIZE)	/* total size of pcb */
+#define	UAREA_PAGES	1		/* holds struct user WITHOUT PCB */
 
 /*
  * Constants related to network buffer management.
