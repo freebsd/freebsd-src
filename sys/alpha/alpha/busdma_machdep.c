@@ -578,7 +578,7 @@ bus_dmamap_load(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 		}
 
 		if (sg->ds_len == 0) {
-			sg->ds_addr = paddr + alpha_XXX_dmamap_or;
+			sg->ds_addr = paddr | alpha_XXX_dmamap_or;
 			sg->ds_len = size;
 		} else if (paddr == nextpaddr) {
 			sg->ds_len += size;
@@ -588,7 +588,7 @@ bus_dmamap_load(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 			seg++;
 			if (seg > dmat->nsegments)
 				break;
-			sg->ds_addr = paddr + alpha_XXX_dmamap_or;
+			sg->ds_addr = paddr | alpha_XXX_dmamap_or;
 			sg->ds_len = size;
 		}
 		vaddr += size;
@@ -668,7 +668,7 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat,
 		 * previous segment if possible.
 		 */
 		if (first) {
-			segs[seg].ds_addr = curaddr + alpha_XXX_dmamap_or;
+			segs[seg].ds_addr = curaddr | alpha_XXX_dmamap_or;
 			segs[seg].ds_len = sgsize;
 			first = 0;
 		} else {
@@ -680,7 +680,7 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat,
 			else {
 				if (++seg >= dmat->nsegments)
 					break;
-				segs[seg].ds_addr = curaddr + alpha_XXX_dmamap_or;
+				segs[seg].ds_addr = curaddr | alpha_XXX_dmamap_or;
 				segs[seg].ds_len = sgsize;
 			}
 		}
