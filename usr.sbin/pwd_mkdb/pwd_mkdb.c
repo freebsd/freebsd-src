@@ -101,12 +101,17 @@ main(argc, argv)
 	char sbuf2[MAXPATHLEN];
 	char *username;
 	u_int method, methoduid;
+	int cflag;
 
+	cflag = 0;
 	strcpy(prefix, _PATH_PWD);
 	makeold = 0;
 	username = NULL;
-	while ((ch = getopt(argc, argv, "d:pu:v")) != EOF)
+	while ((ch = getopt(argc, argv, "cd:pu:v")) != EOF)
 		switch(ch) {
+		case 'c':                       /* verify only */
+			cflag = 1;
+			break;
 		case 'd':
 			strcpy(prefix, optarg);
 			break;
@@ -118,7 +123,6 @@ main(argc, argv)
 			break;
 		case 'v':                       /* backward compatible */
 			break;
-		case '?':
 		default:
 			usage();
 		}
@@ -147,6 +151,12 @@ main(argc, argv)
 	/* Open the original password file */
 	if (!(fp = fopen(pname, "r")))
 		error(pname);
+
+	/* check only if password database is valid */
+	if (cflag) {
+		for (cnt = 1; scan(fp, &pwd); ++cnt);
+		exit(0);
+	}
 
 	/* Open the temporary insecure password database. */
 	(void)snprintf(buf, sizeof(buf), "%s/%s.tmp", prefix, _MP_DB);
@@ -526,6 +536,6 @@ void
 usage()
 {
 
-	(void)fprintf(stderr, "usage: pwd_mkdb [-p] [-d <dest dir>] [-u <local username>] file\n");
+	(void)fprintf(stderr, "usage: pwd_mkdb [-c] [-p] [-d <dest dir>] [-u <local username>] file\n");
 	exit(1);
 }
