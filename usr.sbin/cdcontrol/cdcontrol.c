@@ -23,19 +23,20 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif /* not lint */
 
+#include <sys/cdio.h>
+#include <sys/file.h>
+#include <sys/ioctl.h>
+#include <sys/param.h>
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
+#include <histedit.h>
 #include <paths.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <sys/file.h>
-#include <sys/cdio.h>
-#include <sys/ioctl.h>
-#include <sys/param.h>
-#include <histedit.h>
+#include <vis.h>
 
 #define VERSION "2.0"
 
@@ -69,6 +70,8 @@ static const char rcsid[] =
 #define CMD_SET         13
 #define CMD_STATUS      14
 #define CMD_CDID        15
+#define CMD_NEXT        16
+#define CMD_PREVIOUS    17
 #define STATUS_AUDIO    0x1
 #define STATUS_MEDIA    0x2
 #define STATUS_VOLUME   0x4
@@ -85,11 +88,13 @@ struct cmdtab {
 { CMD_HELP,     "?",            1, 0 },
 { CMD_HELP,     "help",         1, "" },
 { CMD_INFO,     "info",         1, "" },
+{ CMD_NEXT,     "next",         1, "" },
 { CMD_PAUSE,    "pause",        2, "" },
 { CMD_PLAY,     "play",         1, "min1:sec1[.fram1] [min2:sec2[.fram2]]" },
 { CMD_PLAY,     "play",         1, "track1[.index1] [track2[.index2]]" },
 { CMD_PLAY,     "play",         1, "tr1 m1:s1[.f1] [[tr2] [m2:s2[.f2]]]" },
 { CMD_PLAY,     "play",         1, "[#block [len]]" },
+{ CMD_PREVIOUS, "previous",     2, "" },
 { CMD_QUIT,     "quit",         1, "" },
 { CMD_RESET,    "reset",        4, "" },
 { CMD_RESUME,   "resume",       1, "" },
@@ -115,6 +120,7 @@ int             play_track __P((int, int, int, int));
 int             get_vol __P((int *, int *));
 int             status __P((int *, int *, int *, int *));
 int             open_cd __P((void));
+int             next_prev __P((char *arg, int));
 int             play __P((char *arg));
 int             info __P((char *arg));
 int             cdid __P((void));
@@ -286,6 +292,16 @@ int run (int cmd, char *arg)
 			return (0);
 
 		return pstatus (arg);
+
+	case CMD_NEXT:
+	case CMD_PREVIOUS:
+		if (fd < 0 && ! open_cd ())
+			return (0);
+
+		while (isspace (*arg))
+			arg++;
+
+		return next_prev (arg, cmd);
 
 	case CMD_PAUSE:
 		if (fd < 0 && ! open_cd ())
@@ -690,6 +706,36 @@ Clean_up:
 	return (0);
 }
 
+int next_prev (char *arg, int cmd)
+{
+	struct ioc_toc_header h;
+	int dir, junk, n, off, rc, trk;
+
+	dir = (cmd == CMD_NEXT) ? 1 : -1;
+	rc = ioctl (fd, CDIOREADTOCHEADER, &h);
+	if (rc < 0)
+		return (rc);
+
+	n = h.ending_track - h.starting_track + 1;
+	rc = status (&trk, &junk, &junk, &junk);
+	if (rc < 0)
+		return (-1);
+
+	if (arg && *arg) {
+		if (sscanf (arg, "%u", &off) != 1) {
+		    warnx("invalid command argument");
+		    return (0);
+		} else
+		    trk += off * dir;
+	} else
+		trk += dir;
+
+	if (trk > h.ending_track)
+		trk = 1;
+
+	return (play_track (trk, 1, n, 1));
+}
+
 char *strstatus (int sts)
 {
 	switch (sts) {
@@ -710,7 +756,7 @@ int pstatus (char *arg)
 	struct cd_sub_channel_info data;
 	int rc, trk, m, s, f;
 	int what = 0;
-	char *p;
+	char *p, vmcn[(4 * 15) + 1];
 
 	while ((p = strtok(arg, " \t"))) {
 	    arg = 0;
@@ -750,8 +796,11 @@ int pstatus (char *arg)
 		       ss.data->what.media_catalog.mc_valid ? "": "in");
 		if (ss.data->what.media_catalog.mc_valid &&
 		    ss.data->what.media_catalog.mc_number[0])
-		    printf(", number \"%.15s\"",
-			   ss.data->what.media_catalog.mc_number);
+		{
+		    strvisx (vmcn, ss.data->what.media_catalog.mc_number,
+			    (sizeof (vmcn) - 1) / 4, VIS_OCTAL | VIS_NL);
+		    printf(", number \"%.*s\"", (int)sizeof (vmcn), vmcn);
+		}
 		putchar('\n');
 	    } else
 		printf("No media catalog info available\n");
@@ -1103,6 +1152,12 @@ char *parse (char *buf, int *cmd)
 	if (isdigit (*p) || (p[0] == '#' && isdigit (p[1]))) {
 		*cmd = CMD_PLAY;
 		return (p);
+	} else if (*p == '+') {
+		*cmd = CMD_NEXT;
+		return (p + 1);
+	} else if (*p == '-') {
+		*cmd = CMD_PREVIOUS;
+		return (p + 1);
 	}
 
 	for (buf = p; *p && ! isspace (*p); p++)
