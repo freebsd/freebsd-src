@@ -1,12 +1,6 @@
 #	@(#)symbols.raw	7.6 (Berkeley) 5/8/91
 #
-# PATCHES MAGIC                LEVEL   PATCH THAT GOT US HERE
-# --------------------         -----   ----------------------
-# CURRENT PATCH LEVEL:         1       00066
-# --------------------         -----   ----------------------
-#
-# 28 Nov 1991	Warren Toomey		Let symorder -t keep some needed
-#					symbols used by common programs
+#	$Id$
 #
 
 
@@ -73,6 +67,7 @@
 	_filehead
 	_nfiles
 	_rthashsize
+	_radix_node_head
 #routed
 	_ifnet
 #rwho
