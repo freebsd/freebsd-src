@@ -130,6 +130,25 @@ system calls.
 Modifications are private.
 .It Dv MAP_SHARED
 Modifications are shared.
+.It Dv MAP_STACK
+This option is only available if your system has been compiled with
+VM_STACK defined when compiling the kernel. This is the default for
+i386 only. Consider adding -DVM_STACK to COPTFLAGS in your /etc/make.conf
+to enable this option for other architechures. MAP_STACK implies
+MAP_ANON, and
+.Fa offset 
+of 0.   
+.Fa fd 
+must be -1 and 
+.Fa prot 
+must include at least PROT_READ and PROT_WRITE.  This option creates
+a memory region that grows to at most 
+.Fa len 
+bytes in size, starting from the stack top and growing down.  The
+stack top is the starting address returned by the call, plus 
+.Fa len 
+bytes.  The bottom of the stack at maximum growth is the starting
+address returned by the call.
 .El
 .Pp
 The 
