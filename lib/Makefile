@@ -23,10 +23,10 @@ SUBDIR=	${_csu} libcom_err libcrypt msun libmd \
 	${_compat} libalias libatm ${_libbind} libbz2 libc ${_libc_r} libcalendar \
 	libcam libcompat libdevstat libdisk libedit libfetch libform \
 	libftpio libgnumalloc ${_libio} libipsec libipx libisc libkvm libmenu \
-	${_libncp} \
+	${_libmilter} ${_libncp} \
 	libnetgraph libopie libpam libpanel libpcap \
-	libposix1e libresolv librpcsvc ${_libsmb} ${_libsmdb} ${_libsmutil} \
-	libss \
+	libposix1e libresolv librpcsvc ${_libsm} ${_libsmb} ${_libsmdb} \
+	${_libsmutil} libss \
 	libstand ${_libtelnet} libusb ${_libvgl} libwrap libxpg4 liby libz
 
 .if exists(${.CURDIR}/csu/${MACHINE_ARCH}-${OBJFORMAT})
@@ -44,6 +44,8 @@ _libbind=	libbind
 .endif
 
 .if !defined(NO_SENDMAIL)
+_libmilter=	libmilter
+_libsm=		libsm
 _libsmdb=	libsmdb
 _libsmutil=	libsmutil
 .endif
