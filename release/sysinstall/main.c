@@ -56,6 +56,7 @@ main(int argc, char **argv)
 	signal(SIGBUS, screech);
 	signal(SIGSEGV, screech);
     }
+    signal(SIGPIPE, SIG_IGN);
 
     /* We don't work too well when running as non-root anymore */
     if (geteuid() != 0) {
