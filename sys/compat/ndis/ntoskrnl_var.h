@@ -1103,8 +1103,6 @@ __stdcall extern uint32_t KeSetEvent(nt_kevent *, uint32_t, uint8_t);
 __stdcall extern uint32_t KeResetEvent(nt_kevent *);
 __fastcall extern void KefAcquireSpinLockAtDpcLevel(REGARGS1(kspin_lock *));
 __fastcall extern void KefReleaseSpinLockFromDpcLevel(REGARGS1(kspin_lock *));
-__stdcall extern uint8_t KeAcquireSpinLockRaiseToDpc(kspin_lock *);
-__stdcall extern void KeReleaseSpinLock(kspin_lock *, uint8_t);
 __stdcall extern void KeInitializeSpinLock(kspin_lock *);
 __stdcall extern void *ExAllocatePoolWithTag(uint32_t, size_t, uint32_t);
 __stdcall extern void ExFreePool(void *);
@@ -1138,7 +1136,8 @@ __stdcall void IoFreeMdl(mdl *);
 #endif /* __i386__ */
 
 #ifdef __amd64__
-#define KeAcquireSpinLock(a, b)	*(b) = KeAcquireSpinLockRaiseToDpc(a)
+#define KeAcquireSpinLock(a, b)	*(b) = KfAcquireSpinLock(a)
+#define KeReleaseSpinLock(a, b)	KfReleaseSpinLock(a, b)
 
 /*
  * These may need to be redefined later;
