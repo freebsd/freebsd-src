@@ -550,6 +550,9 @@ dev/ppbus/ppi.c		optional ppi
 dev/ppbus/pps.c		optional pps
 dev/ppbus/vpo.c		optional vpo
 dev/ppbus/vpoio.c	optional vpo
+dev/pst/pst-pci.c	optional pst pci
+dev/pst/pst-iop.c	optional pst
+dev/pst/pst-raid.c	optional pst
 dev/puc/puc.c		optional puc
 dev/puc/puc_pci.c	optional puc pci
 dev/puc/puc_pccard.c	optional puc pccard
