@@ -17,7 +17,7 @@ ex, vi, view \- text editors
 .SH SYNOPSIS
 .B ex
 [\c
-.B -eFRrSsv\c
+.B -eFGRrSsv\c
 ] [\c
 .BI -c " cmd"\c
 ] [\c
@@ -28,7 +28,7 @@ ex, vi, view \- text editors
 .br
 .B vi
 [\c
-.B -eFlRrSv\c
+.B -eFGlRrSv\c
 ] [\c
 .BI -c " cmd"\c
 ] [\c
@@ -39,7 +39,7 @@ ex, vi, view \- text editors
 .br
 .B view
 [\c
-.B -eFRrSv\c
+.B -eFGRrSv\c
 ] [\c
 .BI -c " cmd"\c
 ] [\c
@@ -120,6 +120,9 @@ the file during your edit session.)
 .TP
 .B \-l
 Start editing with the lisp and showmatch options set.
+.TP
+.B \-G
+Start editing in gtags mode, as if the gtagsmode option was set.
 .TP
 .B \-R
 Start editing in read-only mode, as if the command name was
@@ -429,6 +432,8 @@ commands or cancel partial commands.
 .TP
 .B "<control-]>"
 Push a tag reference onto the tag stack.
+In gtagsmode, if at the first column of line,
+locate function references otherwise function definitions.
 .TP
 .B "<control-^>"
 Switch to the most recently edited file.
@@ -940,6 +945,9 @@ Grow or shrink the current screen.
 .B "rew[ind][!]"
 Rewind the argument list.
 .TP
+.B "rta[g][!] tagstring"
+Edit the file refering the specified tag. (Only in gtagsmode)
+.TP
 .B "se[t] [option[=[value]] ...] [nooption ...] [option? ...] [all]"
 Display or set editor options.
 .TP
@@ -1109,6 +1117,9 @@ command line.
 .TP
 .B "flash [on]"
 Flash the screen instead of beeping the keyboard on error.
+.TP
+.B "gtagsmode, gt [off]"
+Use GTAGS and GRTAGS instead of tags.
 .TP
 .B "hardtabs, ht [8]"
 Set the spacing between hardware tab settings.
