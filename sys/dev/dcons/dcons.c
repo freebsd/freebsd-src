@@ -587,8 +587,6 @@ dcons_detach(int port)
 		printf("dcons: still opened\n");
 		(*linesw[tp->t_line].l_close)(tp, 0);
 		ttyclose(tp);
-		ttwakeup(tp);
-		ttwwakeup(tp);
 	}
 	/* XXX
 	 * must wait until all device are closed.
