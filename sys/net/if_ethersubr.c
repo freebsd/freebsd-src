@@ -43,6 +43,7 @@
 #include <sys/kernel.h>
 #include <sys/mac.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
 #include <sys/mbuf.h>
 #include <sys/random.h>
 #include <sys/socket.h>
