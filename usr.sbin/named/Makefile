@@ -70,7 +70,7 @@ SUBDIR=	tools xfer
 VER	= LOCAL-`date +%y%m%d.%H%M%S`
 
 version.c: ${.CURDIR}/Version.c ${.CURDIR}/Makefile ${SRCS}
-	(LANG=; LC_CTYPE=; u=$${USER-root} d=`pwd |sed -e 's|/obj/|/src/|'` \
+	(LANG=; LC_TIME=; u=$${USER-root} d=`pwd |sed -e 's|/obj/|/src/|'` \
 	 h=`hostname` t=`date`; \
 	sed -e "s|%WHEN%|$${t}|" -e "s|%VERSION%|"${VER}"|" \
 	    -e "s|%WHOANDWHERE%|$${u}@$${h}:$${d}|" \
