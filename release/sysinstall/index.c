@@ -733,13 +733,11 @@ index_initialize(char *path)
 	msgNotify("Attempting to fetch %s file from selected media.", path);
 	fp = mediaDevice->get(mediaDevice, path, TRUE);
 	if (!fp) {
-	    msgConfirm("Unable to get packages/INDEX file from selected media.\n"
-		       "This may be because the packages collection is not available at\n"
-		       "on the distribution media you've chosen (most likely an FTP site\n"
-		       "without the packages collection mirrored).  Please verify media\n"
-		       "(or path to media) and try again.  If your local site does not\n"
-		       "carry the packages collection, then we recommend either a CD\n"
-		       "distribution or the master distribution on ftp.freebsd.org.");
+	    msgConfirm("Unable to get packages/INDEX file from selected media.\n\n"
+		       "This may be because the packages collection is not available\n"
+		       "on the distribution media you've chosen, most likely an FTP site\n"
+		       "without the packages collection mirrored.  Please verify that\n"
+		       "your media, or your path to the media, is correct and try again.");
 	    mediaDevice->shutdown(mediaDevice);
 	    restorescr(w);
 	    return DITEM_FAILURE;
