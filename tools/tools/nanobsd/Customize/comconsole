@@ -24,7 +24,7 @@ export PKG_DBDIR
 sed -i "" -e /ttyd0/s/off/on/ ${WD}/etc/ttys
 
 # Disable getty on syscons devices
-sed -i "" -e '/ttyv[0-8]/s/on/off/' ${WD}/etc/ttys
+sed -i "" -e '/^ttyv[0-8]/s/	on/	off/' ${WD}/etc/ttys
 
 # Tell loader to use serial console early.
 echo " -h" > ${WD}/boot.config
