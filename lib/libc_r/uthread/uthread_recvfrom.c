@@ -38,7 +38,7 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-__weak_reference(_recvfrom, recvfrom);
+__weak_reference(__recvfrom, recvfrom);
 
 ssize_t
 _recvfrom(int fd, void *buf, size_t len, int flags, struct sockaddr * from,
@@ -72,5 +72,18 @@ _recvfrom(int fd, void *buf, size_t len, int flags, struct sockaddr * from,
 		}
 		_FD_UNLOCK(fd, FD_READ);
 	}
+	return (ret);
+}
+
+ssize_t
+__recvfrom(int fd, void *buf, size_t len, int flags, struct sockaddr * from,
+    socklen_t *from_len)
+{
+	int ret;
+
+	_thread_enter_cancellation_point();
+	ret = _recvfrom(fd, buf, len, flags, from, from_len);
+	_thread_leave_cancellation_point();
+
 	return (ret);
 }
