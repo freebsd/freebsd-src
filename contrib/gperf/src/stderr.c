@@ -20,6 +20,9 @@ along with GNU GPERF; see the file COPYING.  If not, write to
 the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #include <stdio.h>
+#ifdef _HAVE_PARAM_H
+#include <sys/param.h>
+#endif
 #include "stderr.h"
 
 /* Holds the name of the currently active program. */
@@ -50,11 +53,13 @@ report_error (va_alist)
      va_dcl
 {
   extern int errno, sys_nerr;
+#if (! defined(BSD) || (BSD < 199103))
   extern char *sys_errlist[];
+#endif /* not 4.3 Net2 based */
   typedef void (*PTF)();
 	typedef char *CHARP;
   va_list argp;
-  int     abort = 0;
+  int     abort_flag = 0;
   char   *format;
 
   va_start (argp);
@@ -68,7 +73,7 @@ report_error (va_alist)
           switch(*++format) 
             {
             case '%' : putc ('%', stderr); break;
-            case 'a' : abort = 1; break;
+            case 'a' : abort_flag = 1; break;
             case 'c' : putc (va_arg (argp, int), stderr); break;
             case 'd' : fprintf (stderr, "%d", va_arg (argp, int)); break;
             case 'e' : (*va_arg (argp, PTF))(); break;
@@ -83,7 +88,7 @@ report_error (va_alist)
             case 's' : fputs (va_arg (argp, CHARP), stderr); break;
             }
         }
-      if (abort) 
+      if (abort_flag) 
         exit (1);
     }
   va_end (argp);
