@@ -543,6 +543,12 @@ SYSCTL_INT(_debug, OID_AUTO, direct_blk_ptrs, CTLFLAG_RW, &stat_direct_blk_ptrs,
 SYSCTL_INT(_debug, OID_AUTO, dir_entry, CTLFLAG_RW, &stat_dir_entry, 0, "");
 #endif /* DEBUG */
 
+SYSCTL_DECL(_vfs_ffs);
+
+static int compute_summary_at_mount = 0;	/* Whether to recompute the summary at mount time */
+SYSCTL_INT(_vfs_ffs, OID_AUTO, compute_summary_at_mount, CTLFLAG_RW,
+	   &compute_summary_at_mount, 0, "Recompute summary at mount");
+
 /*
  * Add an item to the end of the work queue.
  * This routine requires that the lock be held.
@@ -1197,10 +1203,13 @@ softdep_mount(devvp, mp, fs, cred)
 	mp->mnt_flag |= MNT_SOFTDEP;
 	/*
 	 * When doing soft updates, the counters in the
-	 * superblock may have gotten out of sync, so we have
-	 * to scan the cylinder groups and recalculate them.
+	 * superblock may have gotten out of sync. Recomputation
+	 * can take a long time and can be deferred for background
+	 * fsck.  However, the old behavior of scanning the cylinder
+	 * groups and recalculating them at mount time is available
+	 * by setting vfs.ffs.compute_summary_at_mount to one.
 	 */
-	if (fs->fs_clean != 0)
+	if (compute_summary_at_mount == 0 || fs->fs_clean != 0)
 		return (0);
 	bzero(&cstotal, sizeof cstotal);
 	for (cyl = 0; cyl < fs->fs_ncg; cyl++) {

@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <ufs/ffs/fs.h>
 
 #include <err.h>
+#include <inttypes.h>
 #include <limits.h>
 #include <string.h>
 
@@ -343,6 +344,60 @@ pass5(void)
 		fs->fs_ronly = 0;
 		fs->fs_fmod = 0;
 		sbdirty();
+	}
+
+	/*
+	 * When doing background fsck on a snapshot, figure out whether
+	 * the superblock summary is inaccurate and correct it when
+	 * necessary.
+	 */
+	if (cursnapshot != 0) {
+		cmd.size = 1;
+
+		cmd.value = cstotal.cs_ndir - fs->fs_cstotal.cs_ndir;
+		if (cmd.value != 0) {
+			if (debug)
+				printf("adjndir by %+" PRIi64 "\n", cmd.value);
+			if (sysctl(adjndir, MIBSIZE, 0, 0,
+			    &cmd, sizeof cmd) == -1)
+				rwerror("ADJUST NUMBER OF DIRECTORIES", cmd.value);
+		}
+
+		cmd.value = cstotal.cs_nbfree - fs->fs_cstotal.cs_nbfree;
+		if (cmd.value != 0) {
+			if (debug)
+				printf("adjnbfree by %+" PRIi64 "\n", cmd.value);
+			if (sysctl(adjnbfree, MIBSIZE, 0, 0,
+			    &cmd, sizeof cmd) == -1)
+				rwerror("ADJUST NUMBER OF FREE BLOCKS", cmd.value);
+		}
+
+		cmd.value = cstotal.cs_nifree - fs->fs_cstotal.cs_nifree;
+		if (cmd.value != 0) {
+			if (debug)
+				printf("adjnifree by %+" PRIi64 "\n", cmd.value);
+			if (sysctl(adjnifree, MIBSIZE, 0, 0,
+			    &cmd, sizeof cmd) == -1)
+				rwerror("ADJUST NUMBER OF FREE INODES", cmd.value);
+		}
+
+		cmd.value = cstotal.cs_nffree - fs->fs_cstotal.cs_nffree;
+		if (cmd.value != 0) {
+			if (debug)
+				printf("adjnffree by %+" PRIi64 "\n", cmd.value);
+			if (sysctl(adjnffree, MIBSIZE, 0, 0,
+			    &cmd, sizeof cmd) == -1)
+				rwerror("ADJUST NUMBER OF FREE FRAGS", cmd.value);
+		}
+
+		cmd.value = cstotal.cs_numclusters - fs->fs_cstotal.cs_numclusters;
+		if (cmd.value != 0) {
+			if (debug)
+				printf("adjnumclusters by %+" PRIi64 "\n", cmd.value);
+			if (sysctl(adjnumclusters, MIBSIZE, 0, 0,
+			    &cmd, sizeof cmd) == -1)
+				rwerror("ADJUST NUMBER OF FREE CLUSTERS", cmd.value);
+		}
 	}
 }
 
