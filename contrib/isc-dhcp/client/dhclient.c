@@ -56,7 +56,7 @@
 
 #ifndef lint
 static char ocopyright[] =
-"$Id: dhclient.c,v 1.44.2.25 1999/03/05 16:13:54 mellon Exp $ Copyright (c) 1995, 1996, 1997, 1998, 1999 The Internet Software Consortium.  All rights reserved.\n";
+"$Id: dhclient.c,v 1.44.2.37 1999/04/24 16:55:19 mellon Exp $ Copyright (c) 1995, 1996, 1997, 1998, 1999 The Internet Software Consortium.  All rights reserved.\n";
 #endif /* not lint */
 
 #include "dhcpd.h"
@@ -93,11 +93,11 @@ int onetry;
 static char copyright[] =
 "Copyright 1995, 1996, 1997, 1998, 1999 The Internet Software Consortium.";
 static char arr [] = "All rights reserved.";
-static char message [] = "Internet Software Consortium DHCP Client V2.0b1pl18";
-static char contrib [] = "\nPlease contribute if you find this software useful.";
-static char url [] = "For info, please visit http://www.isc.org/dhcp-contrib.html\n";
+static char message [] = "Internet Software Consortium DHCP Client V2.0b1pl27";
+static char contrib [] = "Please contribute if you find this software useful.";
+static char url [] = "For info, please visit http://www.isc.org/dhcp-contrib.html";
 
-static void usage PROTO ((void));
+static void usage PROTO ((char *));
 
 int main (argc, argv, envp)
 	int argc;
@@ -108,12 +108,20 @@ int main (argc, argv, envp)
 	struct interface_info *ip;
 	int seed;
 	int quiet = 1;
+	char *s;
 
+	s = strchr (argv [0], '/');
+	if (!s)
+		s = argv [0];
+	else
+		s++;
+
+	/* Initially, log errors to stderr as well as to syslogd. */
 #ifdef SYSLOG_4_2
-	openlog ("dhclient", LOG_NDELAY);
-	log_priority = LOG_DAEMON;
+	openlog (s, LOG_NDELAY);
+	log_priority = DHCPD_LOG_FACILITY;
 #else
-	openlog ("dhclient", LOG_NDELAY, LOG_DAEMON);
+	openlog (s, LOG_NDELAY, DHCPD_LOG_FACILITY);
 #endif
 
 #if !(defined (DEBUG) || defined (SYSLOG_4_2) || defined (__CYGWIN32__))
@@ -123,7 +131,7 @@ int main (argc, argv, envp)
 	for (i = 1; i < argc; i++) {
 		if (!strcmp (argv [i], "-p")) {
 			if (++i == argc)
-				usage ();
+				usage (s);
 			local_port = htons (atoi (argv [i]));
 			debug ("binding to user-specified port %d",
 			       ntohs (local_port));
@@ -131,17 +139,21 @@ int main (argc, argv, envp)
 			no_daemon = 1;
 		} else if (!strcmp (argv [i], "-D")) {
 			save_scripts = 1;
-		} else if (!strcmp (argv [i], "-1")) {
-			onetry = 1;
+		} else if (!strcmp (argv [i], "-pf")) {
+			if (++i == argc)
+				usage (s);
+			path_dhclient_pid = argv [i];
 		} else if (!strcmp (argv [i], "-lf")) {
 			if (++i == argc)
-				usage ();
+				usage (s);
 			path_dhclient_db = argv [i];
 		} else if (!strcmp (argv [i], "-q")) {
 			quiet = 1;
 			quiet_interface_discovery = 1;
+		} else if (!strcmp (argv [i], "-1")) {
+			onetry = 1;
  		} else if (argv [i][0] == '-') {
- 		    usage ();
+ 		    usage (s);
  		} else {
  		    struct interface_info *tmp =
  			((struct interface_info *)
@@ -162,8 +174,10 @@ int main (argc, argv, envp)
 		note (message);
 		note (copyright);
 		note (arr);
+		note ("");
 		note (contrib);
 		note (url);
+		note ("");
 	}
 
 	/* Default to the DHCP/BOOTP port. */
@@ -269,9 +283,19 @@ int main (argc, argv, envp)
 	return 0;
 }
 
-static void usage ()
+static void usage (appname)
+	char *appname;
 {
-	error ("Usage: dhclient [-1] [-c] [-p <port>] [-lf lease-file] [interface]");
+	note (message);
+	note (copyright);
+	note (arr);
+	note ("");
+	note (contrib);
+	note (url);
+	note ("");
+
+	warn ("Usage: %s [-c] [-p <port>] [-lf lease-file]", appname);
+	error ("       [-pf pidfile] [-1] [interface]");
 }
 
 void cleanup ()
@@ -463,7 +487,6 @@ void dhcpack (packet)
 {
 	struct interface_info *ip = packet -> interface;
 	struct client_lease *lease;
-	int i;
 	
 	/* If we're not receptive to an offer right now, or if the offer
 	   has an unrecognizable transaction id, then just drop it. */
@@ -472,7 +495,9 @@ void dhcpack (packet)
 	     packet -> raw -> hlen) ||
 	    (memcmp (packet -> interface -> hw_address.haddr,
 		     packet -> raw -> chaddr, packet -> raw -> hlen))) {
+#if defined (DEBUG)
 		debug ("DHCPACK in wrong transaction.");
+#endif
 		return;
 	}
 
@@ -480,7 +505,9 @@ void dhcpack (packet)
 	    ip -> client -> state != S_REQUESTING &&
 	    ip -> client -> state != S_RENEWING &&
 	    ip -> client -> state != S_REBINDING) {
+#if defined (DEBUG)
 		debug ("DHCPACK in wrong state.");
+#endif
 		return;
 	}
 
@@ -703,7 +730,6 @@ void dhcpoffer (packet)
 	int arp_timeout_needed, stop_selecting;
 	char *name = (packet -> options [DHO_DHCP_MESSAGE_TYPE].len
 		      ? "DHCPOFFER" : "BOOTREPLY");
-	struct iaddrlist *ap;
 	
 #ifdef DEBUG_PACKET
 	dump_packet (packet);
@@ -717,7 +743,9 @@ void dhcpoffer (packet)
 	     packet -> raw -> hlen) ||
 	    (memcmp (packet -> interface -> hw_address.haddr,
 		     packet -> raw -> chaddr, packet -> raw -> hlen))) {
+#if defined (DEBUG)
 		debug ("%s in wrong transaction.", name);
+#endif
 		return;
 	}
 
@@ -920,7 +948,9 @@ void dhcpnak (packet)
 	     packet -> raw -> hlen) ||
 	    (memcmp (packet -> interface -> hw_address.haddr,
 		     packet -> raw -> chaddr, packet -> raw -> hlen))) {
+#if defined (DEBUG)
 		debug ("DHCPNAK in wrong transaction.");
+#endif
 		return;
 	}
 
@@ -928,7 +958,9 @@ void dhcpnak (packet)
 	    ip -> client -> state != S_REQUESTING &&
 	    ip -> client -> state != S_RENEWING &&
 	    ip -> client -> state != S_REBINDING) {
+#if defined (DEBUG)
 		debug ("DHCPNAK in wrong state.");
+#endif
 		return;
 	}
 
@@ -1036,10 +1068,11 @@ void send_discover (ipp)
 			 ip -> client -> config -> timeout) - cur_time + 1;
 
 	/* Record the number of seconds since we started sending. */
-	if (interval < 255)
-		ip -> client -> packet.secs = interval;
+	if (interval < 65536)
+		ip -> client -> packet.secs = htons (interval);
 	else
-		ip -> client -> packet.secs = 255;
+		ip -> client -> packet.secs = htons (65535);
+	ip -> client -> secs = ip -> client -> packet.secs;
 
 	note ("DHCPDISCOVER on %s to %s port %d interval %ld",
 	      ip -> name,
@@ -1283,10 +1316,14 @@ void send_request (ipp)
 		from.s_addr = INADDR_ANY;
 
 	/* Record the number of seconds since we started sending. */
-	if (interval < 255)
-		ip -> client -> packet.secs = interval;
-	else
-		ip -> client -> packet.secs = 255;
+	if (ip -> client -> state == S_REQUESTING)
+		ip -> client -> packet.secs = ip -> client -> secs;
+	else {
+		if (interval < 65536)
+			ip -> client -> packet.secs = htons (interval);
+		else
+			ip -> client -> packet.secs = htons (65535);
+	}
 
 	note ("DHCPREQUEST on %s to %s port %d", ip -> name,
 	      inet_ntoa (destination.sin_addr),
@@ -1354,7 +1391,6 @@ void make_discover (ip, lease)
 	struct interface_info *ip;
 	struct client_lease *lease;
 {
-	struct dhcp_packet *raw;
 	unsigned char discover = DHCPDISCOVER;
 	int i;
 
@@ -1416,8 +1452,8 @@ void make_discover (ip, lease)
 
 	/* Set up the option buffer... */
 	ip -> client -> packet_length =
-		cons_options ((struct packet *)0, &ip -> client -> packet,
-			      options, 0, 0, 0);
+		cons_options ((struct packet *)0, &ip -> client -> packet, 0,
+			      options, 0, 0, 0, (u_int8_t *)0, 0);
 	if (ip -> client -> packet_length < BOOTP_MIN_LEN)
 		ip -> client -> packet_length = BOOTP_MIN_LEN;
 
@@ -1427,7 +1463,12 @@ void make_discover (ip, lease)
 	ip -> client -> packet.hops = 0;
 	ip -> client -> packet.xid = random ();
 	ip -> client -> packet.secs = 0; /* filled in by send_discover. */
-	ip -> client -> packet.flags = htons (BOOTP_BROADCAST); /* XXX */
+
+	if (can_receive_unicast_unconfigured (ip))
+		ip -> client -> packet.flags = 0;
+	else
+		ip -> client -> packet.flags = htons (BOOTP_BROADCAST);
+
 	memset (&(ip -> client -> packet.ciaddr),
 		0, sizeof ip -> client -> packet.ciaddr);
 	memset (&(ip -> client -> packet.yiaddr),
@@ -1523,8 +1564,8 @@ void make_request (ip, lease)
 
 	/* Set up the option buffer... */
 	ip -> client -> packet_length =
-		cons_options ((struct packet *)0, &ip -> client -> packet,
-			      options, 0, 0, 0);
+		cons_options ((struct packet *)0, &ip -> client -> packet, 0,
+			      options, 0, 0, 0, (u_int8_t *)0, 0);
 	if (ip -> client -> packet_length < BOOTP_MIN_LEN)
 		ip -> client -> packet_length = BOOTP_MIN_LEN;
 
@@ -1546,7 +1587,10 @@ void make_request (ip, lease)
 	} else {
 		memset (&ip -> client -> packet.ciaddr, 0,
 			sizeof ip -> client -> packet.ciaddr);
-		ip -> client -> packet.flags = htons (BOOTP_BROADCAST);
+		if (can_receive_unicast_unconfigured (ip))
+			ip -> client -> packet.flags = 0;
+		else
+			ip -> client -> packet.flags = htons (BOOTP_BROADCAST);
 	}
 
 	memset (&ip -> client -> packet.yiaddr, 0,
@@ -1624,8 +1668,8 @@ void make_decline (ip, lease)
 
 	/* Set up the option buffer... */
 	ip -> client -> packet_length =
-		cons_options ((struct packet *)0, &ip -> client -> packet,
-			      options, 0, 0, 0);
+		cons_options ((struct packet *)0, &ip -> client -> packet, 0,
+			      options, 0, 0, 0, (u_int8_t *)0, 0);
 	if (ip -> client -> packet_length < BOOTP_MIN_LEN)
 		ip -> client -> packet_length = BOOTP_MIN_LEN;
 
@@ -1635,7 +1679,7 @@ void make_decline (ip, lease)
 	ip -> client -> packet.hops = 0;
 	ip -> client -> packet.xid = ip -> client -> xid;
 	ip -> client -> packet.secs = 0; /* Filled in by send_request. */
-	ip -> client -> packet.flags = htons (BOOTP_BROADCAST);
+	ip -> client -> packet.flags = 0;
 
 	/* ciaddr must always be zero. */
 	memset (&ip -> client -> packet.ciaddr, 0,
@@ -1664,7 +1708,6 @@ void make_release (ip, lease)
 
 	struct tree_cache *options [256];
 	struct tree_cache message_type_tree;
-	struct tree_cache requested_address_tree;
 	struct tree_cache server_id_tree;
 
 	memset (options, 0, sizeof options);
@@ -1690,8 +1733,8 @@ void make_release (ip, lease)
 
 	/* Set up the option buffer... */
 	ip -> client -> packet_length =
-		cons_options ((struct packet *)0, &ip -> client -> packet,
-			      options, 0, 0, 0);
+		cons_options ((struct packet *)0, &ip -> client -> packet, 0,
+			      options, 0, 0, 0, (u_int8_t *)0, 0);
 	if (ip -> client -> packet_length < BOOTP_MIN_LEN)
 		ip -> client -> packet_length = BOOTP_MIN_LEN;
 
@@ -1702,8 +1745,9 @@ void make_release (ip, lease)
 	ip -> client -> packet.xid = random ();
 	ip -> client -> packet.secs = 0;
 	ip -> client -> packet.flags = 0;
-	memcpy (&ip -> client -> packet.ciaddr,
-		lease -> address.iabuf, lease -> address.len);
+
+	memset (&ip -> client -> packet.ciaddr, 0,
+		sizeof ip -> client -> packet.ciaddr);
 	memset (&ip -> client -> packet.yiaddr, 0,
 		sizeof ip -> client -> packet.yiaddr);
 	memset (&ip -> client -> packet.siaddr, 0,
@@ -1999,20 +2043,19 @@ void script_write_params (ip, prefix, lease)
 					       lease -> options [i].len);
 					if (len > sizeof dbuf) {
 						warn ("no space to %s %s",
-						      "prepend option",
+						      "append option",
 						      dhcp_options [i].name);
 						goto supersede;
 					}
 					dp = dbuf;
 					memcpy (dp,
+						lease -> options [i].data,
+						lease -> options [i].len);
+					memcpy (dp + lease -> options [i].len,
 						ip -> client -> 
 						config -> defaults [i].data,
 						ip -> client -> 
 						config -> defaults [i].len);
-					memcpy (dp + ip -> client -> 
-						config -> defaults [i].len,
-						lease -> options [i].data,
-						lease -> options [i].len);
 				}
 			} else {
 				dp = ip -> client ->
