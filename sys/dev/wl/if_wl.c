@@ -808,6 +808,7 @@ wlinit(void *xsc)
 #endif
     if (TAILQ_FIRST(&ifp->if_addrhead) == (struct ifaddr *)0)
 	return;
+    WL_LOCK(sc);
     oldpri = splimp();
     if ((stat = wlhwrst(sc)) == TRUE) {
 	sc->wl_if.if_flags |= IFF_RUNNING;   /* same as DSF_RUNNING */
@@ -826,6 +827,7 @@ wlinit(void *xsc)
 	printf("wl%d init(): trouble resetting board.\n", sc->unit);
     }
     splx(oldpri);
+    WL_UNLOCK(sc);
 }
 
 /*
