@@ -55,7 +55,6 @@ options		NMBCLUSTERS=4096
 device		isa
 device		pci
 options 	COMPAT_OLDISA		# compatability shims for lnc, le
-options 	COMPAT_OLDPCI		# compatability shims for lnc, vx
 
 # Floppy drives
 device		fdc
