@@ -40,7 +40,7 @@
 #include <sys/queue.h>			/* for TAILQ macros */
 #include <sys/sx.h>			/* SX locks */
 #include <sys/selinfo.h>		/* for struct selinfo */
-#include <vm/vm_zone.h>
+#include <vm/uma.h>
 
 /*
  * Kernel structure per socket.
@@ -53,7 +53,7 @@ typedef	u_quad_t so_gen_t;
 struct accept_filter;
 
 struct socket {
-	vm_zone_t so_zone;	/* zone we were allocated from */
+	uma_zone_t so_zone;	/* zone we were allocated from */
 	int	so_count;		/* reference count */
 	short	so_type;		/* generic type, see socket.h */
 	short	so_options;		/* from socket call, see socket.h */
@@ -318,9 +318,8 @@ MALLOC_DECLARE(M_SONAME);
 MALLOC_DECLARE(M_ACCF);
 #endif
 
-extern int	maxsockets;
 extern u_long	sb_max;
-extern vm_zone_t	socket_zone;
+extern uma_zone_t	socket_zone;
 extern so_gen_t so_gencnt;
 
 struct file;

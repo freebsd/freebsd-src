@@ -79,7 +79,7 @@
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 #include <vm/vm_page.h>
-#include <vm/vm_zone.h>
+#include <vm/uma.h>
 
 /*
  * Use this define if you want to disable *fancy* VM things.  Expect an
@@ -175,7 +175,7 @@ static void pipe_clone_write_buffer(struct pipe *wpipe);
 #endif
 static int pipespace(struct pipe *cpipe, int size);
 
-static vm_zone_t pipe_zone;
+static uma_zone_t pipe_zone;
 
 SYSINIT(vfs, SI_SUB_VFS, SI_ORDER_ANY, pipeinit, NULL);
 
@@ -336,7 +336,7 @@ pipe_create(cpipep)
 	struct pipe *cpipe;
 	int error;
 
-	*cpipep = zalloc(pipe_zone);
+	*cpipep = uma_zalloc(pipe_zone, M_WAITOK);
 	if (*cpipep == NULL)
 		return (ENOMEM);
 
@@ -1337,7 +1337,7 @@ pipeclose(cpipe)
 	}
 	mtx_lock(&Giant);
 	pipe_free_kmem(cpipe);
-	zfree(pipe_zone, cpipe);
+	uma_zfree(pipe_zone, cpipe);
 	mtx_unlock(&Giant);
 }
 
