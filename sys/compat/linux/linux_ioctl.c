@@ -25,13 +25,14 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_ioctl.c,v 1.29 1998/09/30 01:42:53 jfieber Exp $
+ *  $Id: linux_ioctl.c,v 1.30 1998/11/12 00:42:08 jkh Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sysproto.h>
 #include <sys/proc.h>
+#include <sys/cdio.h>
 #include <sys/fcntl.h>
 #include <sys/file.h>
 #include <sys/filedesc.h>
@@ -447,6 +448,72 @@ linux_tiocsserial(struct file *fp, struct linux_serial_struct *lss)
     return;
 }
 
+struct linux_cdrom_msf
+{
+    u_char	cdmsf_min0;
+    u_char	cdmsf_sec0;
+    u_char	cdmsf_frame0;
+    u_char	cdmsf_min1;
+    u_char	cdmsf_sec1;
+    u_char	cdmsf_frame1;
+};
+
+struct linux_cdrom_tochdr
+{
+    u_char	cdth_trk0;
+    u_char	cdth_trk1;
+};
+
+union linux_cdrom_addr
+{
+    struct {
+	u_char	minute;
+	u_char	second;
+	u_char	frame;
+    } msf;
+    int		lba;
+};
+
+struct linux_cdrom_tocentry
+{
+    u_char	cdte_track;     
+    u_char	cdte_adr:4;
+    u_char	cdte_ctrl:4;
+    u_char	cdte_format;    
+    union linux_cdrom_addr cdte_addr;
+    u_char	cdte_datamode;  
+};
+
+static void
+linux_to_bsd_msf_lba(u_char address_format,
+    union linux_cdrom_addr *lp, union msf_lba *bp)
+{
+    if (address_format == CD_LBA_FORMAT)
+	bp->lba = lp->lba;
+    else {
+	bp->msf.minute = lp->msf.minute;
+	bp->msf.second = lp->msf.second;
+	bp->msf.frame = lp->msf.frame;
+    }
+}
+
+static void
+bsd_to_linux_msf_lba(u_char address_format,
+    union msf_lba *bp, union linux_cdrom_addr *lp)
+{
+    if (address_format == CD_LBA_FORMAT)
+	lp->lba = bp->lba;
+    else {
+	lp->msf.minute = bp->msf.minute;
+	lp->msf.second = bp->msf.second;
+	lp->msf.frame = bp->msf.frame;
+    }
+}
+
+static unsigned dirbits[4] = { IOC_VOID, IOC_OUT, IOC_IN, IOC_INOUT };
+
+#define SETDIR(c)	(((c) & ~IOC_DIRMASK) | dirbits[args->cmd >> 30])
+
 int
 linux_ioctl(struct proc *p, struct linux_ioctl_args *args)
 {
@@ -821,71 +888,71 @@ linux_ioctl(struct proc *p, struct linux_ioctl_args *args)
 	return ioctl(p, (struct ioctl_args *)args);
 
     case LINUX_SOUND_MIXER_WRITE_VOLUME:
-	args->cmd = SOUND_MIXER_WRITE_VOLUME;
+	args->cmd = SETDIR(SOUND_MIXER_WRITE_VOLUME);
 	return ioctl(p, (struct ioctl_args *)args);
 
     case LINUX_SOUND_MIXER_WRITE_BASS:
-	args->cmd = SOUND_MIXER_WRITE_BASS;
+	args->cmd = SETDIR(SOUND_MIXER_WRITE_BASS);
 	return ioctl(p, (struct ioctl_args *)args);
 
     case LINUX_SOUND_MIXER_WRITE_TREBLE:
-	args->cmd = SOUND_MIXER_WRITE_TREBLE;
+	args->cmd = SETDIR(SOUND_MIXER_WRITE_TREBLE);
 	return ioctl(p, (struct ioctl_args *)args);
 
     case LINUX_SOUND_MIXER_WRITE_SYNTH:
-	args->cmd = SOUND_MIXER_WRITE_SYNTH;
+	args->cmd = SETDIR(SOUND_MIXER_WRITE_SYNTH);
 	return ioctl(p, (struct ioctl_args *)args);
 
     case LINUX_SOUND_MIXER_WRITE_PCM:
-	args->cmd = SOUND_MIXER_WRITE_PCM;
+	args->cmd = SETDIR(SOUND_MIXER_WRITE_PCM);
 	return ioctl(p, (struct ioctl_args *)args);
 
     case LINUX_SOUND_MIXER_WRITE_SPEAKER:
-	args->cmd = SOUND_MIXER_WRITE_SPEAKER;
+	args->cmd = SETDIR(SOUND_MIXER_WRITE_SPEAKER);
 	return ioctl(p, (struct ioctl_args *)args);
 
     case LINUX_SOUND_MIXER_WRITE_LINE:
-	args->cmd = SOUND_MIXER_WRITE_LINE;
+	args->cmd = SETDIR(SOUND_MIXER_WRITE_LINE);
 	return ioctl(p, (struct ioctl_args *)args);
 
     case LINUX_SOUND_MIXER_WRITE_MIC:
-	args->cmd = SOUND_MIXER_WRITE_MIC;
+	args->cmd = SETDIR(SOUND_MIXER_WRITE_MIC);
 	return ioctl(p, (struct ioctl_args *)args);
 
     case LINUX_SOUND_MIXER_WRITE_CD:
-	args->cmd = SOUND_MIXER_WRITE_CD;
+	args->cmd = SETDIR(SOUND_MIXER_WRITE_CD);
 	return ioctl(p, (struct ioctl_args *)args);
 
     case LINUX_SOUND_MIXER_WRITE_IMIX:
-	args->cmd = SOUND_MIXER_WRITE_IMIX;
+	args->cmd = SETDIR(SOUND_MIXER_WRITE_IMIX);
 	return ioctl(p, (struct ioctl_args *)args);
 
     case LINUX_SOUND_MIXER_WRITE_ALTPCM:
-	args->cmd = SOUND_MIXER_WRITE_ALTPCM;
+	args->cmd = SETDIR(SOUND_MIXER_WRITE_ALTPCM);
 	return ioctl(p, (struct ioctl_args *)args);
 
     case LINUX_SOUND_MIXER_WRITE_RECLEV:
-	args->cmd = SOUND_MIXER_WRITE_RECLEV;
+	args->cmd = SETDIR(SOUND_MIXER_WRITE_RECLEV);
 	return ioctl(p, (struct ioctl_args *)args);
 
     case LINUX_SOUND_MIXER_WRITE_IGAIN:
-	args->cmd = SOUND_MIXER_WRITE_IGAIN;
+	args->cmd = SETDIR(SOUND_MIXER_WRITE_IGAIN);
 	return ioctl(p, (struct ioctl_args *)args);
 
     case LINUX_SOUND_MIXER_WRITE_OGAIN:
-	args->cmd = SOUND_MIXER_WRITE_OGAIN;
+	args->cmd = SETDIR(SOUND_MIXER_WRITE_OGAIN);
 	return ioctl(p, (struct ioctl_args *)args);
 
     case LINUX_SOUND_MIXER_WRITE_LINE1:
-	args->cmd = SOUND_MIXER_WRITE_LINE1;
+	args->cmd = SETDIR(SOUND_MIXER_WRITE_LINE1);
 	return ioctl(p, (struct ioctl_args *)args);
 
     case LINUX_SOUND_MIXER_WRITE_LINE2:
-	args->cmd = SOUND_MIXER_WRITE_LINE2;
+	args->cmd = SETDIR(SOUND_MIXER_WRITE_LINE2);
 	return ioctl(p, (struct ioctl_args *)args);
 
     case LINUX_SOUND_MIXER_WRITE_LINE3:
-	args->cmd = SOUND_MIXER_WRITE_LINE3;
+	args->cmd = SETDIR(SOUND_MIXER_WRITE_LINE3);
 	return ioctl(p, (struct ioctl_args *)args);
 
     case LINUX_SOUND_MIXER_READ_DEVMASK:
@@ -998,6 +1065,70 @@ linux_ioctl(struct proc *p, struct linux_ioctl_args *args)
     case LINUX_KDMKTONE:
 	args->cmd = KDMKTONE;
 	return  ioctl(p, (struct ioctl_args *)args);
+
+
+    case LINUX_CDROMPAUSE:
+	args->cmd = CDIOCPAUSE;
+	return	ioctl(p, (struct ioctl_args *)args);
+
+    case LINUX_CDROMRESUME:
+	args->cmd = CDIOCRESUME;
+	return	ioctl(p, (struct ioctl_args *)args);
+
+    case LINUX_CDROMPLAYMSF:
+	args->cmd = CDIOCPLAYMSF;
+	return	ioctl(p, (struct ioctl_args *)args);
+
+    case LINUX_CDROMPLAYTRKIND:
+	args->cmd = CDIOCPLAYTRACKS;
+	return	ioctl(p, (struct ioctl_args *)args);
+
+    case LINUX_CDROMSTART:
+	args->cmd = CDIOCSTART;
+	return	ioctl(p, (struct ioctl_args *)args);
+
+    case LINUX_CDROMSTOP:
+	args->cmd = CDIOCSTOP;
+	return	ioctl(p, (struct ioctl_args *)args);
+
+    case LINUX_CDROMEJECT:
+	args->cmd = CDIOCEJECT;
+	return	ioctl(p, (struct ioctl_args *)args);
+
+    case LINUX_CDROMRESET:
+	args->cmd = CDIOCRESET;
+	return	ioctl(p, (struct ioctl_args *)args);
+
+    case LINUX_CDROMREADTOCHDR: {
+	struct ioc_toc_header th;
+	struct linux_cdrom_tochdr lth;
+	error = (*func)(fp, CDIOREADTOCHEADER, (caddr_t)&th, p);
+	if (!error) {
+	    lth.cdth_trk0 = th.starting_track;
+	    lth.cdth_trk1 = th.ending_track;
+	    copyout((caddr_t)&lth, (caddr_t)args->arg, sizeof(lth));
+	}
+	return error;
+    }
+
+    case LINUX_CDROMREADTOCENTRY: {
+	struct linux_cdrom_tocentry lte, *ltep =
+	    (struct linux_cdrom_tocentry *)args->arg;
+	struct ioc_read_toc_single_entry irtse;
+	irtse.address_format = ltep->cdte_format;
+	irtse.track = ltep->cdte_track;
+	error = (*func)(fp, CDIOREADTOCENTRY, (caddr_t)&irtse, p);
+	if (!error) {
+	    lte = *ltep;
+	    lte.cdte_ctrl = irtse.entry.control;
+	    lte.cdte_adr = irtse.entry.addr_type;
+	    bsd_to_linux_msf_lba(irtse.address_format,
+		&irtse.entry.addr, &lte.cdte_addr);
+	    copyout((caddr_t)&lte, (caddr_t)args->arg, sizeof(lte));
+	}
+	return error;
+    }
+
     }
 
     uprintf("LINUX: 'ioctl' fd=%d, typ=0x%x(%c), num=0x%x not implemented\n",
