@@ -1834,6 +1834,9 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     <para>&man.cat.1; now has the ability to read from UNIX-domain
       sockets. &merged;</para>
 
+    <para>&man.catman.1; is now a C program, instead of a
+      Perl script.</para>
+
     <para>&man.cdcontrol.1; now supports a <literal>cdid</literal>
       command, which calculates and displays the CD serial number,
       using the same algorithm used by the CDDB
@@ -2208,11 +2211,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     <para>&man.killall.1; is now a C program, rather than a Perl
       script.  As a result, its <option>-m</option> option now uses
       the regular expression syntax of &man.regex.3;, rather than that
-      of &man.perl.1;. &merged;</para>
-
-    <para>&man.killall.1; now allows non-root users to kill SUID root
-      processes that they started, the same as the Perl version
-      did. &merged;</para>
+      of Perl. &merged;</para>
 
     <para>&man.killall.1; no longer tries to kill zombie processes
       unless the <option>-z</option> flag is specified.</para>
@@ -2385,6 +2384,9 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       This directive controls the addition of compiler warning flags
       to <varname>CFLAGS</varname> in a relatively compiler-neutral
       manner. &merged;</para>
+
+    <para>&man.makewhatis.1; is now a C program, instead of a
+      Perl script.</para>
 
     <para>&man.man.1; is no longer installed SUID
       <username>man</username>, in order to reduce vulnerabilities
@@ -2738,6 +2740,9 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <option>-l</option> flags for listing connected and listening
       sockets, respectively. &merged;</para>
 
+    <para>&man.spkrtest.8; is now a &man.sh.1; script, rather than a
+      Perl script.</para>
+
     <para>&man.split.1; now has the ability to split a file longer
       than 2GB. &merged;</para>
 
@@ -2758,9 +2763,6 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       example, both the <keycap>Delete</keycap> and
       <keycap>Backspace</keycap> keys can be used to erase
       characters. &merged;</para>
-
-    <para>&man.style.perl.7;, a style guide for Perl code in the &os;
-      base system, has been added. &merged;</para>
 
     <para>&man.su.1; now uses <application>PAM</application> for
       authentication.</para>
@@ -3158,8 +3160,25 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	replaced the functionality of
 	<application>S/Key</application>.</para>
 
-      <para><application>Perl</application> has been updated to version
-	5.6.1.</para>
+      <para><application>Perl</application> has been removed from the
+	&os; base system.  It can still be installed from the &os;
+	Ports Collection or as a binary package; moving it out of the
+	base system will make future upgrades and maintenence easier.
+	To reduce the dependence of the base system on
+	Perl, many utilities have been
+	rewritten as shell scripts or C programs (specific notes are
+	made for each affected utility).
+	<filename>/usr/bin/perl</filename> is now a
+	<quote>wrapper</quote> program, so that programs expecting to
+	find a Perl interpreter there will
+	be able to function correctly.
+
+	  <warning>
+	    <para>The Perl removal and
+	      package integration work is ongoing.</para>
+	  </warning>
+
+	</para>
 
       <para>&man.routed.8; has been updated to version
 	2.22. &merged;</para>
