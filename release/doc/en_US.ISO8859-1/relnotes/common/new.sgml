@@ -116,188 +116,27 @@
   <sect2 id="security">
     <title>Security Advisories</title>
 
-    <para>A remotely exploitable vulnerability in
-      <application>CVS</application> has been corrected with the
-      import of version 1.11.5.  More details can be found in security
-      advisory <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:01.cvs.asc">FreeBSD-SA-03:01</ulink>.
-      &merged;</para>
-
-    <para>A timing-based attack on <application>OpenSSL</application>,
-      which could allow a very powerful attacker access to plaintext
-      under certain circumstances, has been prevented via an upgrade
-      to <application>OpenSSL</application> 0.9.7.  See security
-      advisory <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:02.openssl.asc">FreeBSD-SA-03:02</ulink>
-      for more details. &merged;</para>
-
-    <para>The security and performance of the
-      <quote>syncookies</quote> feature has been improved to decrease
-      the chance of an attacker being able to spoof connections.
-      More details are given in security advisory <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:03.syncookies.asc">FreeBSD-SA-03:03</ulink>. &merged;</para>
-
-    <para>Remotely-exploitable buffer overflow vulnerabilities in
-      <application>sendmail</application> have been fixed by updating
-      <application>sendmail</application>.  For more
-      details, see security advisory <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:04.sendmail.asc">FreeBSD-SA-03:04</ulink>
-      and <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:07.sendmail.asc">FreeBSD-SA-03:07</ulink>.
-      &merged;</para>
-
-    <para>A bounds-checking bug in the XDR implementation, which could
-      allow a remote attacker to cause a denial-of-service, has been
-      fixed.  For more details see security advisory <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:05.xdr.asc">FreeBSD-SA-03:05</ulink>.
-      &merged;</para>
-
-    <para>Two recently-publicized flaws in
-      <application>OpenSSL</application> have been corrected.  For
-      more details, see security advisory <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:06.openssl.asc">FreeBSD-SA-03:06</ulink>.
-      &merged;</para>
+    <para></para>
 
   </sect2>
 
   <sect2 id="kernel">
     <title>Kernel Changes</title>
 
-    <para arch="pc98">Support for the CanBe power management
-      controller has been added. &merged;</para>
-
-    <para>&man.devfs.5; is now mandatory; the
-      <literal>NODEVFS</literal> option has been removed from the set of
-      possible kernel configuration options.</para>
-
-    <para arch="i386,ia64,pc98">An &man.ehci.4; driver has been added; it supports
-      the USB Enhanced Host Controller Interface used by USB 2.0
-      controllers.</para>
-
-    <para>A minor bug in the permissions handling of
-      <filename>/dev/tty</filename> has been fixed.  As a result,
-      &man.ssh.1; can now be used after &man.su.1;.</para>
-
-    <para>A bug that caused &man.fstat.2; to return
-      <literal>0</literal> as the number of bytes available to read
-      from a TCP socket has been fixed.</para>
-
-    <para>A bug that caused &man.kqueue.2; to report
-      <literal>0</literal> as the number of bytes available to read
-      from a TCP socket has been fixed.  The
-      <literal>NOTE_LOWAT</literal> flag for
-      <literal>EVFILT_READ</literal> has been fixed.</para>
-
-    <para>Linux emulation mode now supports IPv6.</para>
-
-    <para>&man.madvise.2; now supports a
-      <literal>MADV_PROTECT</literal> behavior, which informs the
-      virtual memory system that a process is critical and should not
-      be killed when swap space has been exhausted.  The process must
-      be owned by the superuser.</para>
-
-    <para arch="i386,pc98">The tw driver for TW-523 power line
-      interfaces (used by X-10 home control products) has been
-      removed.  It is currently non-functional, and would require a
-      considerable amount of work to make it work under
-      &release.branch;.  The xten and xtend userland control programs
-      have also been removed.</para>
+    <para></para>
 
     <!-- Above this line, sort kernel changes by manpage/keyword-->
-
-    <para>A second process scheduler, designed to be a general purpose
-      scheduler with many SMP benefits, has been added to the scheduler
-      framework.  Exactly one scheduler must be specified in a kernel
-      configuration.  The original scheduler may be selected using
-      <literal>options&nbsp;SCHED_4BSD</literal>.  The newer
-      (experimental) scheduler can be selected by using
-      <literal>options&nbsp;SCHED_ULE</literal>.</para>
-
-    <para>Device major numbers are now allocated dynamically by
-      default.  This change greatly decreases the need for a static,
-      centralized table of major number assignments to device drivers
-      (a few drivers retain their old static major numbers for
-      compatibility), and also reduces the possibility of running out
-      of device major numbers.</para>
-
-    <para arch="i386,pc98">A partial lazy switch mechanism for
-      in-kernel threads has been implemented; it is designed to reduce
-      the overhead of short context switches (such as for interrupt
-      handlers) that do not involve another process.  This feature can
-      be enabled with
-      <literal>options&nbsp;LAZY_SWITCH</literal>.</para>
 
     <sect3 id="proc">
       <title>Processor/Motherboard Support</title>
 
-      <para arch="i386"><literal>SMP</literal> kernels now have
-	rudimentary support for HyperThreading (HTT).  The scheduler
-	treats the logical CPUs as if they were additional physical
-	CPUs.  This can actually cause suboptimal performance in some
-	cases due to contention for resources.  Therefore, logical
-	CPUs are halted by default at startup.  They can be enabled
-	with the <varname>machdep.hlt_logical_cpus</varname> sysctl
-	variable.  It is also possible to halt any CPU in the idle
-	loop with the <varname>machdep.hlt_cpus</varname> sysctl
-	variable.  The &man.smp.4; manual page has more details.
-
-	<note>
-	  <para>Some other versions of &os;, including early
-	    5.0-CURRENT snapshots and 4.8-RELEASE, used
-	    <literal>options&nbsp;HTT</literal> to enable
-	    HyperThreading support at kernel configuration time.  This
-	    option is no longer necessary.</para>
-	</note>
-
-	</para>
-
-      <para arch="i386">Support for the Physical Address Extensions
-	(PAE) capability on Intel Pentium Pro and higher processors
-	has been added.  This allows the use of up to 64GB of RAM in a
-	machine, although the amount of memory usable by any single
-	process (or the &os; kernel) is unchanged.  For more
-	information, see the &man.pae.4; manual page.  Work on this
-	feature was sponsored by DARPA and Network Associates
-	Laboratories.</para>
-
-      <para arch="i386">A new &man.vpd.4; driver has been added to
-        read hardware information from the Vital Product Data structure
-        on IBM ThinkPad machines.</para>
-
+      <para></para>
     </sect3>
 
     <sect3 id="boot">
       <title>Boot Loader Changes</title>
 
-      <para arch="alpha">The alpha boot loader
-        (<filename>boot1</filename>) can now be called
-        <filename>boot</filename> for consistency with other
-        platforms.</para>
-
-      <para arch="i386,pc98">The two parts of the boot loader
-        (<filename>boot1</filename> and <filename>boot2</filename>)
-        have been combined into a single <filename>boot</filename>
-        file, to simplify programs that need to write or otherwise
-        manipulate the boot loader.</para>
-
-      <para arch="pc98">The PC98 boot loader now has support for
-        booting from SCSI MO media. &merged;</para>
-
-      <para>The <filename>/modules</filename> directory (once the
-        default location for modules on &os; 4.<replaceable>X</replaceable>) is no longer a
-        part of the default <varname>kern.module_path</varname>.
-        Third-party modules should be placed in
-        <filename>/boot/modules</filename>.
-
-	<note>
-	  <para>Modules designed for use with &os; 4.<replaceable>X</replaceable> are likely to
-	    panic when loaded into a &os; &release.current; kernel and should be used with extreme caution.</para>
-	</note>
-      </para>
-
-      <para arch="i386">Due to code size limitations, the i386 boot
-        loader can only load kernels from root file systems that are
-        1.5TB or smaller in size.</para>
+      <para></para>
 
       <!-- Above this line, order boot loader changes by keyword-->
 
@@ -306,178 +145,28 @@
     <sect3 id="net-if">
       <title>Network Interface Support</title>
 
-      <para arch="i386,pc98">A new &man.axe.4; network driver has been
-	added.  It provides support for USB Ethernet adapters based on
-	the ASIX Electronics AX88172 USB 2.0 chipset.</para>
-
-      <para>The cm driver now supports IPX. &merged;</para>
-
-      <para arch="i386,pc98">The &man.rue.4; network driver has been added,
-	providing support for Ethernet adapters based on the RealTek
-	RTL8150 USB to Fast Ethernet controller chip.</para>
-
-      <para arch="i386">The &man.sbsh.4; driver for the Granch SBNI16
-        SHDSL modem has been added. &merged;</para>
-
-      <para>A new &man.wlan.4; module provides 802.11 link-layer support.  The
-	&man.wi.4; and &man.an.4; drivers now use this facility.</para>
-
-      <para arch="i386,alpha,pc98,sparc64">A timing bug in the
-	&man.xl.4; driver, which could cause a kernel panic (or other
-	problems) when configuring an interface, has been
-	fixed.</para>
+      <para></para>
 
     </sect3>
 
     <sect3 id="net-proto">
       <title>Network Protocols</title>
 
-      <para>&man.ipfw.4; <literal>skipto</literal> rules can once
-        again be used with the <literal>log</literal> keyword.
-	&man.ipfw.4; <literal>uid</literal> rules are once again
-        working.</para>
-
-      <para>It is now possible to build the
-        <literal>FAST_IPSEC</literal> and <literal>INET6</literal>
-        options into the same kernel.  (They still cannot be used
-        together, however.)</para>
-
-      <para>A bug in TCP NewReno, which caused premature exit from
-	fast recovery when NewReno was enabled, has been
-	fixed. &merged;</para>
-
-      <para>TCP now has support for the <quote>Limited
-	Transmit</quote> mechanism proposed by RFC 3042.  This feature
-	is intended to improve the effectiveness of TCP loss recovery
-	in certain circumstances.  It is off by default but can be
-	enabled with the <varname>net.inet.tcp.rfc3042</varname>
-	sysctl variable.  More information can be found in
-	&man.tcp.4;.</para>
-
-      <para>TCP now has support for increased initial congestion
-	window sizes as described in RFC 3390.  This feature can
-	improve the throughput of short transfers, as well as
-	high-bandwidth, large propagation-delay connections.  It is
-	off by default but can be enabled with the
-	<varname>net.inet.tcp.rfc3390</varname> sysctl variable.  More
-	information can be found in &man.tcp.4;.</para>
-
-      <para>The IP fragment reassembly code behaves more gracefully
-	when receiving a large number of packet fragments (it is
-	designed to be more resistant to fragment-based denial of
-	service attacks). &merged;</para>
-
-      <para>TCP connections in the <literal>TIME_WAIT</literal> state
-	now use a special protocol control block that uses less space
-	than a full-blown TCP PCB.  This allows some of the data
-	structures and resources used by such a connection to be freed
-	earlier.</para>
-
-      <para>It is now possible to specify the range of
-        <quote>privileged ports</quote> (TCP and UDP ports that
-        require superuser access to &man.bind.2; to).  The range is
-        now specified with the
-        <varname>net.inet.ip.portrange.reservedlow</varname> and
-        <varname>net.inet.ip.portrange.reservedhigh</varname> sysctl
-        variables, defaulting to the traditional UNIX behavior.  This
-        feature is intended to help network servers bind
-        to traditionally privileged ports without requiring superuser
-        access.  &man.ip.4; has more details.</para>
-
-      <para>Some bugs in the non-blocking RPC code has been fixed.  As
-	a result, &man.amd.8; users are now able to mount volumes from
-	a &release.current; server.</para>
-
-      <para>Support for XNS networking, which has not worked
-	correctly for almost seven years, has been removed.</para>
+      <para></para>
 
     </sect3>
 
     <sect3 id="disks">
       <title>Disks and Storage</title>
 
-      <para>The &man.aac.4; driver now runs free of the Giant kernel
-        lock.  This change has given a nearly 20% performance speedup
-        on an SMP system running multiple I/O intensive loads.</para>
-
-      <para>The &man.ata.4; driver now supports all known SiS
-	chipsets.  (More details can be found in the Hardware
-	Notes.)</para>
-
-      <para>The &man.ata.4; driver now supports the Promise SATA150
-	TX2 and TX4 Serial ATA/150 controllers.</para>
-
-      <para>The &man.ata.4; driver now flushes devices on shutdown.
-	This change may result in failure messages being printed on
-	the console for devices that do not support flushing.</para>
-
-      <para>The CAM layer now has support for devices with more than
-	2<superscript>32</superscript> blocks.  (Assuming 512-byte
-	blocks, this means support for devices larger than 2TB.)
-
-	<note>
-	  <para>For users upgrading across this change, note that all
-	    userland applications that talk to &man.pass.4; or
-	    &man.xpt.4; devices must be recompiled.  Examples of such
-	    programs are &man.camcontrol.8; in the base system, 
-	    the <filename role="port">sysutils/cdrtools</filename>
-	    port, and the
-	    <filename role="port">multimedia/xmms</filename> port.</para>
-	</note>
-	
-	</para>
-
-      <para>A number of changes have been made to the &man.cd.4;
-        driver.  The primary user-visible change is improved
-        compatibility with ATAPI/USB/Firewire CDROM drives.</para>
-
-      <para>&man.geom.4; is now mandatory; the
-        <literal>NO_GEOM</literal> has been removed from the set of
-        kernel configuration options.</para>
-
-      <para>The &man.iir.4; driver has been updated; this update is
-        believed to fix problems detecting attached disks during
-        installation.</para>
-
-      <para arch="i386">The ips driver, which supports the IBM (now
-	Adaptec) ServeRAID series, has been added.</para>
-
-      <para>A bug in the &man.mly.4; driver that caused hangs has been
-	corrected.</para>
-
-      <para>Support has been added for volume labels on UFS and UFS2
-        file systems.  These labels are strings that can be used to
-        identify a volume, regardless of what device it appears on.
-        Labels can be set with the <option>-L</option> options to
-        &man.newfs.8; or &man.tunefs.8;.  With the
-        <literal>GEOM_VOL</literal> module, volumes can be accessed
-        using their labels under <filename>/dev/vol</filename>.</para>
-
-      <para>The root file system can now be located on a &man.vinum.4;
-	volume.  More information can be found in the &man.vinum.4;
-	manual page.</para>
-
-      <para arch="pc98">The wfd and wst drivers, which have been
-        broken for some time, have been removed.</para>
+      <para></para>
 
     </sect3>
 
     <sect3 id="fs">
       <title>File Systems</title>
 
-      <para>A new <literal>DIRECTIO</literal> kernel option enables
-	support for read operations that bypass the buffer cache and
-	put data directly into a userland buffer.  This feature
-	requires that the <literal>O_DIRECT</literal> flag is set on
-	the file descriptor and that both the offset and length for
-	the read operation are multiples of the physical media sector
-	size. &merged;</para>
-
-      <para>NETNCP and Netware File System Support (nwfs) are once
-	again working.</para>
-
-      <para>Bugs that could cause the unmounting of a smbfs share to
-	fail or cause a kernel panic have been fixed.</para>
+      <para></para>
 
     </sect3>
 
@@ -485,15 +174,14 @@
       <title>PCCARD Support</title>
 
       <para></para>
+
     </sect3>
 
     <sect3 id="mm">
       <title>Multimedia Support</title>
 
-      <para arch="i386,pc98">The <filename>atspeaker.ko</filename> and
-        <filename>pcspeaker.ko</filename> modules for the
-        &man.speaker.4; device have been renamed
-        <filename>speaker.ko</filename>.</para>
+      <para></para>
+
     </sect3>
 
   </sect2>
@@ -501,567 +189,35 @@
   <sect2 id="userland">
     <title>Userland Changes</title>
 
-    <para>&man.adduser.8; now correctly handles setting user passwords
-      containing special shell characters.</para>
-
-    <para>&man.adduser.8; now supports a <option>-g</option> option to
-      set a user's default login group.</para>
-
-    <para>The &man.bsdlabel.8; utility is a replacement for the older
-      disklabel utility.  Like its predecessor, it installs, examines,
-      or modifies the BSD label on a disk partition, and can install
-      bootstrap code.  Compared to disklabel, a number of obsolete
-      options and parameters have been retired.  A new
-      <option>-m</option> option instructs &man.bsdlabel.8; to use the
-      layout suitable for a specific machine.</para>
-
-    <para arch="alpha,i386">The <filename>compat4x</filename>
-      distribution now includes the
-      <filename>libcrypto.so.2</filename>,
-      <filename>libgmp.so.3</filename>, and
-      <filename>libssl.so.2</filename> libraries from &os;
-      4.7-RELEASE.</para>
-
-    <para>&man.chgrp.1 and &man.chown.8 now, when the owner/group is
-      modified, print the old and new uid/gid if the
-      <option>-v</option> option is specified more than once.</para>
-
-    <para>&man.config.8; now implements a <literal>nodevice</literal>
-      kernel configuration file directive that cancels the effect of a
-      <literal>device</literal> directive.  The new
-      <literal>nooption</literal> and <literal>nomakeoption</literal>
-      directives cancel prior <literal>options</literal> and
-      <literal>makeoptions</literal> directives, respectively.</para>
-
-    <para>The &man.diskinfo.8; utility has been added to show
-      information about a disk device and optionally to run a naive
-      performance test.</para>
-
-    <para>The disklabel utility has been replaced by &man.bsdlabel.8;.
-      On the alpha, i386, and pc98 platforms, disklabel is a link to
-      &man.bsdlabel.8;.</para>
-
-    <para>&man.dump.8; now supports caching of disk blocks with the
-      <option>-C</option> option.  This can improve dump performance
-      at the cost of possibly missing file system updates that occur
-      between passes.</para>
-
-    <para>&man.dumpfs.8; now supports a <option>-m</option> flag to
-      print file system parameters in the form of a &man.newfs.8;
-      command.</para>
-
-    <para>&man.elfdump.1;, a utility to display information about &man.elf.5;
-      format executable files, has been added.</para>
-
-    <para>&man.fetch.1; uses the <filename>.netrc</filename> support
-      in &man.fetch.3; and also supports a <option>-N</option> to
-      specify an alternate <filename>.netrc</filename> file.</para>
-
-    <para>&man.fetch.3; now has support for
-      <filename>.netrc</filename> files (see &man.ftp.1; for more
-      details).</para>
-
-    <para>&man.ftpd.8; now supports a <option>-h</option> option to
-      disable printing any host-specific information, such as the
-      &man.ftpd.8; version or hostname, in server messages.
-      &merged;</para>
-
-    <para>&man.ftpd.8; now supports a <option>-P</option> option to
-      specify a port on which to listen in daemon mode.  The default
-      data port number is now set to be one less than the control port
-      number, rather than being hard-coded. &merged;</para>
-
-    <para>&man.ftpd.8; now supports an extended format of the
-      <filename>/etc/ftpchroot</filename> file.  Please refer
-      to the &man.ftpchroot.5; manpage, which is now available,
-      for details. &merged;</para>
-
-    <para>&man.ftpd.8; now supports login directory pathnames
-      that specify simultaneously a directory for &man.chroot.2;
-      and that to change to in the chrooted environment.  The
-      <literal>/./</literal> separator is used for
-      this purpose, like in other FTP daemons having this feature.
-      It may be used in both &man.ftpchroot.5; and &man.passwd.5;.
-      &merged;</para>
-
-    <para>&man.fwcontrol.8; now supports <option>-R</option> and
-      <option>-S</option> options for receiving and sending DV
-      streams. &merged;</para>
-
-    <para>The &man.gstat.8; utility has been added to show the disk
-      activity inside the &man.geom.4; subsystem.</para>
-
-    <para>&man.ipfw.8; now supports <literal>enable</literal> and
-      <literal>disable</literal> commands to control various aspects
-      of the operation of &man.ipfw.4; (including enabling and
-      disabling the firewall itself).  These provide a more convenient
-      and visible interface than the existing sysctl
-      variables. &merged;</para>
-
-    <para>&man.jail.8; now supports a <option>-i</option> flag to
-      output an identifier for a newly-created jail.</para>
-
-    <para>The &man.jexec.8; utility has been added to execute a
-      command inside an existing jail.</para>
-
-    <para>The &man.jls.8; utility has been added to list existing
-      jails.</para>
-
-    <para>&man.kenv.1; has been moved from
-      <filename>/usr/bin</filename> to <filename>/bin</filename> to
-      make it available at times during system startup when only the
-      root file system is mounted.</para>
-
-    <para>&man.killall.1; now supports a <option>-j</option> option to
-      kill all processes inside a jail.</para>
-
-    <para>The &man.libgeom.3; library has been added to allow some
-      userland access to the &man.geom.4; subsystem.</para>
-
-    <para>The mac_portacl MAC policy module has been added.  It
-      provides a simple ACL mechanism to permit users and groups to
-      bind ports for TCP or UDP, and is intended to be used in
-      conjunction with the recently-added
-      <varname>net.inet.ip.portrange.reservedhigh</varname> sysctl.</para>
-
-    <para>The <filename>MAKEDEV</filename> script is now unnecessary, due to the mandatory
-      presence of &man.devfs.5;, and has been removed.</para>
-
-    <para>&man.mergemaster.8; now supports a <option>-P</option>
-      option to preserve the contents of files being replaced.</para>
-
-    <para>&man.mixer.8; can now implement relative volume
-      adjustments.</para>
-
-    <para>The &man.mksnap.ffs.8; program has been added to allow
-      easier creation of FFS snapshots.  It is a
-      SUID-<username>root</username> executable designed for use by
-      members of the <groupname>operator</groupname> group.</para>
-
-    <para>&man.mount.8; and &man.umount.8; now accept a
-      <option>-F</option> option to specify an alternate &man.fstab.5;
-      file.</para>
-
-    <para>&man.mount.nfs.8; now supports a <option>-c</option> flag to
-      avoid doing a &man.connect.2; for UDP mount points.  This option
-      must be used if the server does not reply to requests from the
-      standard NFS port number 2049 or if it replies to requests using
-      a different IP address (which can occur if the server is
-      multi-homed).  Setting the
-      <varname>vfs.nfs.nfs_ip_paranoia</varname> sysctl to
-      <literal>0</literal> will make this option the
-      default. &merged;</para>
-
-    <para>&man.mount.nfs.8; now supports the <option>noinet4</option>
-      and <option>noinet6</option> mount options to prevent NFS mounts
-      from using IPv4 or IPv6 respectively.</para>
-
-    <para>&man.newfs.8; will now create UFS2 file systems by default,
-      unless UFS1 is specifically requested with the
-      <option>-O1</option> option.</para>
-
-    <para>&man.newsyslog.8; has a number of new features.  Among them:
-
-      <itemizedlist>
-        <listitem>
-	  <para>A <literal>W</literal> flag forces previously-started
-	    compression jobs for an entry (or group of entries
-	    specified with the <literal>G</literal> flag) to finish
-	    before beginning a new one.  This feature is designed to
-	    prevent system overloads caused by starting several
-	    compression jobs on big files
-	    simultaneously. &merged;</para>
-	</listitem>
-
-	<listitem>
-	  <para>A <quote>default rotate action</quote>, to be used for
-	    files specified for rotation but not specified in the
-	    configuration file. &merged;</para>
-	</listitem>
-
-	<listitem>
-	  <para>A <option>-s</option> command-line flag to disable
-	    sending signals to processes when rotating
-	    files. &merged;</para>
-	</listitem>
-
-	<listitem>
-	  <para>A <literal>N</literal> configuration file flag to
-	    indicate that no process needs to be signaled when
-	    rotating a file. &merged;</para>
-	</listitem>
-
-	<listitem>
-	  <para>A <literal>U</literal> configuration file flag to
-	    specify that a process group (rather than a single
-	    process) should be signaled when rotating
-	    files. &merged;</para>
-	</listitem>
-
-      </itemizedlist>
-
-      </para>
-
-    <para>&man.nsdispatch.3; is now thread-safe and implements support
-      for Name Service Switch (NSS) modules.  NSS modules may be
-      statically built into <filename>libc</filename> or dynamically
-      loaded via &man.dlopen.3;.  They are loaded/initialized at
-      configuration time (i.e. when &man.nsdispatch.3; is called and
-      &man.nsswitch.conf.5; is read or re-read).</para>
-
-    <para>A new &man.pam.chroot.8; module has been added, which does a
-      &man.chroot.2; operation for users into either a predetermined
-      directory or one derived from their home directory.</para>
-
-    <para>&man.pam.ssh.8; has been rewritten.  One side effect of the
-      rewrite is that it now starts a separate instance of
-      &man.ssh-agent.1; for each session instead of trying to connect
-      each session to the agent started by the first session.</para>
-
-    <para>&man.ping.8; now supports a <option>-D</option> flag to set
-      the <quote>Don't Fragment</quote> bit on outgoing packets.</para>
-
-    <para>&man.ping.8; now supports a <option>-M</option> option to use
-      ICMP mask request or timestamp request messages instead of ICMP
-      echo requests.</para>
-
-    <para>&man.ping.8; now supports a <option>-z</option> flag to set
-      the Type of Service bits in outgoing packets.</para>
-
-    <para>&man.pw.8; can now add a user whose name ends with a
-      <literal>$</literal> character; this change is intended to help
-      administration of <application>Samba</application>
-      services. &merged;</para>
-
-    <para>The format of the <filename>/etc/pwd.db</filename> and
-      <filename>/etc/spwd.db</filename> password databases created by
-      &man.pwd.mkdb.8; is now byte-order independent.  The pre-processed
-      password databases can now be moved between machines of
-      different architectures.  The format includes version numbers on
-      entries to ensure compatibility with old binaries.</para>
-
-    <para>A bug in &man.rand.3; that could cause a sequence to remain
-      stuck at <literal>0</literal> has been fixed.  (&man.rand.3;
-      remains unsuitable for all but trivial uses.)</para>
-
-    <para>&man.rtld.1; now has support for the dynamic mapping of
-      shared object dependencies.  This optional feature is especially
-      useful when experimenting with different threading libraries.
-      It is not, however, built by default.  More information on
-      enabling and using this feature can be found in
-      &man.libmap.conf.5;.</para>
-
-    <para>&man.sem.open.3; now correctly handles multiple opens of the
-      same semaphore; as a result, &man.sem.close.3; no longer crashes
-      calling programs.</para>
-
-    <para>The seeding algorithm used by &man.srandom.3; has been
-      strengthened.</para>
-
-    <para arch="sparc64">The sunlabel utility, a program analogous to
-      &man.bsdlabel.8; that works on Sun disk labels, has been
-      added.</para>
-
-    <para arch="i386,alpha,sparc64,ia64">&man.sysinstall.8; will now
-      select UFS2 as the default layout for new file systems unless
-      specifically requested in the disk labeler.
-
-      <note arch="i386">
-	<para>Due to i386 boot loader limitations, the root file system
-	must be 1.5TB or smaller in size.</para>
-      </note>
-
-      </para>
-
-    <para>The &man.swapoff.8; command has been added to disable paging
-      and swapping on a device.  A related &man.swapctl.8; command has
-      been added to provide an interface to &man.swapon.8; and
-      &man.swapoff.8; similar to other BSDs.
-
-      <note>
-        <para>The &man.swapoff.8; feature should be considered
-	  experimental.</para>
-      </note>
-    </para>
-
-    <para>&man.syslogd.8; now allows multiple hosts or programs to be
-      named in host or program specifications in &man.syslog.conf.5;
-      files.</para>
-
-    <para>&man.systat.1; now includes an <option>-ifstat</option>
-      display mode that displays the network traffic going through
-      active interfaces on the system.</para>
-
-    <para>The &man.usbhidaction.1; command has been added; it performs
-      actions according to its configuration in response to USB HID
-      controls.</para>
-
-    <para>&man.uudecode.1; and &man.b64decode.1; now support a
-      <option>-r</option> flag for decoding raw (or broken) files that
-      may be missing the initial and possibly final framing
-      lines. &merged;</para>
-
-    <para>&man.vmstat.8; has re-implemented the <option>-f</option>
-      flag, which displays statistics on fork operations.</para>
-
-    <para>&man.xargs.1; now supports a <option>-P</option> option to
-      execute multiple copies of the same utility in parallel.</para>
-
-    <para>&man.xargs.1; now supports a <option>-o</option> flag to
-      reopen <filename>/dev/tty</filename> for the child process
-      before executing the command.  This is useful when the child
-      process is an interactive application.</para>
-
-    <para arch="i386,pc98">The <filename>libkse</filename> library,
-      providing POSIX threading support using KSE, is now enabled and
-      installed by default.
-      This library currently supports M:N threading.  Both process and
-      system scope threads are supported, as well as getting/setting
-      the concurrency level.  By default, the library sets the
-      concurrency level to the number of CPUs in the system.  Each
-      concurrency level correlates to a KSE, and all process scope
-      threads run in these KSEs.  Each system scope thread gets its
-      own KSE in addition to those corresponding to concurrency levels.
-      <filename>libkse</filename> is still considered a
-      work-in-progress, and is not used by default.  However, it can
-      be used as a replacement for the <filename>libc_r</filename>
-      thread library, by substituting <option>-lkse</option> instead of
-      <option>-pthread</option> when linking programs.</para>
-
-    <para arch="i386,pc98,sparc64,ia64">A 1:1 threading package (where for every pthread in an
-      application there is one KSE and thread) has been implemented.
-      Under this model, the kernel handles all thread scheduling
-      decisions and all signal delivery.  This uses some of the common
-      KSE code, and is a restricted case of the M:N threading work
-      still in progress.  The <filename>libthr</filename> library
-      implementing the userland portion of this functionality is a
-      drop-in replacement for the <filename>libc_r</filename> library.
-      Note that <filename>libthr</filename> is not (at this time)
-      built by default.</para>
-
-    <para>The historic BSD boot scripts in <filename>/etc</filename>
-      have been removed, in favor of the <filename>rc.d</filename>
-      system imported from <application>NetBSD</application>
-      (sometimes referred to as <quote>rcNG</quote>).  All
-      functionality of the historic system has been preserved.  In
-      particular, files such as <filename>/etc/rc.conf</filename>
-      continue to be the recommended means of configuring the system
-      startup.  The <filename>rc.d</filename> system has been the
-      default since &os; 5.0-RELEASE, so this change should be largely
-      transparent for the vast majority of users.  Users who have
-      customized their historic-style startup scripts should be aware
-      that the following files have been removed from
-      <filename>/etc</filename>:
-
-      <filename>rc.atm</filename>,
-      <filename>rc.devfs</filename>,
-      <filename>rc.diskless1</filename>,
-      <filename>rc.diskless2</filename>,
-      <filename>rc.i386</filename>,
-      <filename>rc.alpha</filename>,
-      <filename>rc.amd64</filename>,
-      <filename>rc.ia64</filename>,
-      <filename>rc.sparc64</filename>,
-      <filename>rc.isdn</filename>,
-      <filename>rc.network</filename>,
-      <filename>rc.network6</filename>,
-      <filename>rc.pccard</filename>,
-      <filename>rc.serial</filename>,
-      <filename>rc.syscons</filename>,
-      <filename>rc.sysctl</filename>.
-
-      &man.mergemaster.8;, when run, will offer to move these files
-      out of the way for convenience.  More details can be found in
-      &man.rc.subr.8;.</para>
+    <para></para>
 
   </sect2>
 
   <sect2 id="contrib">
     <title>Contributed Software</title>
 
-    <para>The <application>ACPI-CA</application> code has been updated
-      from the 20021118 snapshot to the 20030228 snapshot.</para>
-
-    <para><application>awk</application> from Bell Labs has been
-      updated to a 14 March 2003 snapshot.</para>
-
-    <para><application>BIND</application> has been updated to version
-      8.3.4. &merged;</para>
-
-    <para>All of the <application>bzip2</application> suite of
-      applications is now installed in the base system (in particular,
-      <command>bzip2recover</command> is now built and
-      installed). &merged;</para>
-
-    <para><application>CVS</application> has been updated to
-      1.11.5. &merged;</para>
-
-    <para arch="i386,pc98">The <application>DRM</application> kernel modules have been updated to
-      a snapshot from the DRI CVS repository, as of 24 April 2003.
-      The <literal>DRM_LINUX</literal> kernel option hsa been removed
-      because the handler is now provided by the Linux compatibility
-      code.</para>
-
-    <para><application>FILE</application> has been updated to
-      3.41. &merged;</para>
-
-    <para><application>GCC</application> has been updated to
-      3.2.2 (release version).
-
-      <note arch="i386">
-	<para><application>GCC</application> is known to produce
-	  broken code with the <option>-march=pentium4</option> option
-	  set.  As a workaround to avoid this problem, setting the
-	  <varname>CPUTYPE=p4</varname> Makefile variable (for example, in
-	  &man.make.conf.5;) enables GCC's
-	  <option>-march=pentium3</option> option instead.  This
-	  situation is expected to be resolved when GCC 3.3 is
-	  imported.</para>
-      </note>
-      </para>
-
-    <para>The <application>gdtoa</application> library, for
-      conversions between strings and floating point, has been imported.  These sources
-      were dated 24 March 2003.</para>
-
-    <para><application>groff</application> (and related utilities)
-      have been updated from 1.18.1 to 1.19.</para>
-
-    <para><application>IPFilter</application> has been updated to
-      3.4.31. &merged;</para>
-
-    <para>The <application>ISC DHCP</application> client has been
-      updated to 3.0.1RC11. &merged;</para>
-
-    <para>The <application>ISC DHCP</application> client now includes
-      the &man.omshell.1; utility and the &man.dhcpctl.3; library for
-      run-time control of the client.</para>
-
-    <para><application>Kerberos IV</application> support (in the form
-      of <application>KTH eBones</application>) has been removed.
-      Users requiring this functionality can still get it from the
-      <filename role="port">security/krb4</filename> port (or
-      package).  Kerberos IV compatibility mode for Kerberos 5 has
-      been removed, and the
-      <literal>k5<replaceable>program</replaceable></literal> userland
-      utilities have been renamed to
-      <literal>k<replaceable>program</replaceable></literal>.</para>
-
-    <para><application>Kerberos 5</application> is now built by
-      default in <literal>buildworld</literal> operations.  Setting
-      <varname>MAKE_KERBEROS5</varname> no longer has any effect.
-      Disabling the base system Kerberos 5 now requires the
-      <varname>NO_KERBEROS</varname> Makefile variable to be
-      set.</para>
-
-    <para><application>libpcap</application> now has support for
-      selecting among multiple data link types on an interface.</para>
-
-    <para><application>lukemftpd</application> (not built or installed
-      by default) has been updated to a snapshot from 22 January
-      2003.</para>
-
-    <para><application>OpenPAM</application> has been updated from the
-      <quote>Citronella</quote> release to the
-      <quote>Dianthus</quote> release.</para>
-
-    <para><application>OpenSSH</application> has been updated to
-      3.6.1p1.</para>
-
-    <para><application>OpenSSL</application> has been updated to
-      release 0.9.7a.  Among other features, this release includes
-      support for AES and takes advantage of &man.crypto.4;
-      devices. &merged;</para>
-
-    <para><application>sendmail</application> has been updated to
-      version 8.12.9. &merged;</para>
-
-    <para>&man.tcpdump.1; has been updated to version 3.7.2.  &merged;
-      It also now supports a <option>-L</option> flag to list the data
-      link types available on an interface and a <option>-y</option>
-      option to specify the data link type to use while capturing
-      packets.</para>
-
-    <para><application>texinfo</application> has been updated from 4.2
-      to 4.5.</para>
-
-    <para>The timezone database has been updated from
-      <filename>tzdata2002d</filename> to
-      <filename>tzdata2003a</filename>. &merged;</para>
+    <para></para>
 
   </sect2>
 
   <sect2 id="ports">
     <title>Ports/Packages Collection Infrastructure</title>
 
-    <para>The one-line <filename>pkg-comment</filename> files have
-      been eliminated from each port skeleton; their contents have
-      been moved into each port's <filename>Makefile</filename>.  This
-      change reduces the disk space and inodes used by the ports
-      tree. &merged;</para>
-
-    <para>When fetching distfiles for building a port, the
-      <varname>FETCH_REGET</varname> <filename>Makefile</filename>
-      variable can be used to specify the number of times to try
-      continuing to fetch a distfile if it fails its MD5 checksum.
-      The port infrastructure also supports re-fetching interrupted
-      distfiles.</para>
-
-    <para>&man.pkg.create.1; now supports a <option>-C</option>
-      option, which allows packages to register a list of other
-      packages with which they conflict.  They will refuse to install
-      (via &man.pkg.add.1;) if one of the listed packages is already
-      present.  The <option>-f</option> flag to &man.pkg.add.1;
-      overrides this conflict-checking.</para>
-
-    <para>&man.pkg.info.1; now honors the <varname>BLOCKSIZE</varname>
-      environment variable in its output when the <option>-b</option>
-      flag is given.</para>
-
-    <para>&man.pkg.info.1; now implements a <option>-Q</option>
-      option, which is similar to the <option>-q</option>
-      <quote>quiet</quote> option except that it prefixes the output
-      with the package name.</para>
+    <para></para>
 
   </sect2>
 
   <sect2 id="releng">
     <title>Release Engineering and Integration</title>
 
-    <para>The supported release of <application>GNOME</application>
-      has been updated to 2.2.1. &merged;</para>
-
-    <para>The supported release of <application>KDE</application>
-      has been updated to 3.1.2. &merged;</para>
-
-    <para>There is no longer a separate <filename>krb5</filename>
-      distribution.  The Kerberos 5 libraries and utilities have been
-      incorporated into the <filename>crypto</filename>
-      distribution.</para>
-
-    <para>&man.sysinstall.8; once again supports installing individual
-      components of <application>XFree86</application>.  Supporting
-      changes (not user-visible) generalize the concept of installing
-      parts of distributions as packages.</para>
-
-    <para>The supported release of <application>XFree86</application>
-      has been updated to 4.3.0. &merged;</para>
-
-    <para>Several upgrade mechanisms designed to permit major version
-      upgrades from &os; 2.<replaceable>X</replaceable> to 3.<replaceable>X</replaceable> and from &os; 3.<replaceable>X</replaceable> to 4.<replaceable>X</replaceable> have been
-      removed.</para>
+    <para></para>
 
   </sect2>
 
   <sect2 id="doc">
     <title>Documentation</title>
 
-    <para>The following new articles have been added to the
-      documentation set: <quote>FreeBSD From Scratch</quote>,
-      <quote>The Roadmap for 5-STABLE</quote>.</para>
-
-    <para>A new Danish (<filename>da_DK.ISO8859-1</filename>)
-      translation project has been started.</para>
+    <para></para>
 
   </sect2>
 
