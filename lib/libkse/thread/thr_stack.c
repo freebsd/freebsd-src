@@ -61,7 +61,7 @@ static LIST_HEAD(, stack)	mstackq = LIST_HEAD_INITIALIZER(mstackq);
  * Base address of the last stack allocated (including its red zone, if
  * there is one).  Stacks are allocated contiguously, starting beyond the
  * top of the main stack.  When a new stack is created, a red zone is
- * typically created (actually, the red zone is simply left unmapped) above
+ * typically created (actually, the red zone is mapped with PROT_NONE) above
  * the top of the stack, such that the stack will not be able to grow all
  * the way to the bottom of the next stack.  This isn't fool-proof.  It is
  * possible for a stack to grow by a large amount, such that it grows into
@@ -134,6 +134,7 @@ _thr_stack_alloc(struct pthread_attr *attr)
 	kse_critical_t crit;
 	size_t stacksize;
 	size_t guardsize;
+	char *stackaddr;
 
 	/*
 	 * Round up stack size to nearest multiple of _thr_page_size so
@@ -194,7 +195,7 @@ _thr_stack_alloc(struct pthread_attr *attr)
 			    _thr_guard_default;
 
 		/* Allocate a new stack. */
-		attr->stackaddr_attr = last_stack - stacksize;
+		stackaddr = last_stack - stacksize - guardsize;
 
 		/*
 		 * Even if stack allocation fails, we don't want to try to
@@ -209,11 +210,20 @@ _thr_stack_alloc(struct pthread_attr *attr)
 		KSE_LOCK_RELEASE(curkse, &_thread_list_lock);
 		_kse_critical_leave(crit);
 
-		/* Map the stack, but not the guard page: */
-		if ((attr->stackaddr_attr = mmap(attr->stackaddr_attr,
-		     stacksize, PROT_READ | PROT_WRITE, MAP_STACK,
-		     -1, 0)) == MAP_FAILED)
-			attr->stackaddr_attr = NULL;
+		/* Map the stack and guard page together, and split guard
+		   page from allocated space: */
+		if ((stackaddr = mmap(stackaddr, stacksize+guardsize,
+		     PROT_READ | PROT_WRITE, MAP_STACK,
+		     -1, 0)) != MAP_FAILED &&
+		    (guardsize == 0 ||
+		     mprotect(stackaddr, guardsize, PROT_NONE) == 0)) {
+			stackaddr += guardsize;
+		} else {
+			if (stackaddr != MAP_FAILED)
+				munmap(stackaddr, stacksize + guardsize);
+			stackaddr = NULL;
+		}
+		attr->stackaddr_attr = stackaddr;
 	}
 	if (attr->stackaddr_attr != NULL)
 		return (0);
