@@ -42,8 +42,8 @@
 #include "ipl.h"
 
 #if !defined(lint)
-static const char sccsid[] = "@(#)ipf.c	1.23 6/5/96 (C) 1993-1995 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ipf.c,v 2.2 1999/08/06 15:26:08 darrenr Exp $";
+static const char sccsid[] = "@(#)ipf.c	1.23 6/5/96 (C) 1993-2000 Darren Reed";
+static const char rcsid[] = "@(#)$Id: ipf.c,v 2.10.2.1 2000/07/08 02:19:46 darrenr Exp $";
 #endif
 
 #if	SOLARIS
@@ -283,9 +283,10 @@ char	*name, *file;
 
 			if ((opts & OPT_ZERORULEST) &&
 			    !(opts & OPT_DONOTHING)) {
-				if (ioctl(fd, add, fr) == -1)
+				if (ioctl(fd, add, &fr) == -1) {
+					fprintf(stderr, "%d:", linenum);
 					perror("ioctl(SIOCZRLST)");
-				else {
+				} else {
 #ifdef	USE_QUAD_T
 					printf("hits %qd bytes %qd ",
 #else
@@ -296,11 +297,15 @@ char	*name, *file;
 				}
 			} else if ((opts & OPT_REMOVE) &&
 				   !(opts & OPT_DONOTHING)) {
-				if (ioctl(fd, del, fr) == -1)
-					perror("ioctl(SIOCDELFR)");
+				if (ioctl(fd, del, &fr) == -1) {
+					fprintf(stderr, "%d:", linenum);
+					perror("ioctl(delete rule)");
+				}
 			} else if (!(opts & OPT_DONOTHING)) {
-				if (ioctl(fd, add, fr) == -1)
-					perror("ioctl(SIOCADDFR)");
+				if (ioctl(fd, add, &fr) == -1) {
+					fprintf(stderr, "%d:", linenum);
+					perror("ioctl(add/insert rule)");
+				}
 			}
 		}
 	}
@@ -325,7 +330,7 @@ FILE	*file;
 	int s, len;
 
 	do {
-		for (p = str, s = size;; p += len, s -= len) {
+		for (p = str, s = size;; p += (len - 1), s -= (len - 1)) {
 			/*
 			 * if an error occured, EOF was encounterd, or there
 			 * was no room to put NUL, return NULL.
@@ -333,12 +338,21 @@ FILE	*file;
 			if (fgets(p, s, file) == NULL)
 				return (NULL);
 			len = strlen(p);
-			p[len - 1] = '\0';
-			if (p[len - 1] != '\\')
+			if (p[len - 1] != '\n') {
+				p[len] = '\0';
 				break;
-			size -= len;
+			}
+			p[len - 1] = '\0';
+			if (len < 2 || p[len - 2] != '\\')
+				break;
+			else
+				/*
+				 * Convert '\\' to a space so words don't
+				 * run together
+				 */
+				p[len - 2] = ' ';
 		}
-	} while (*str == '\0' || *str == '\n');
+	} while (*str == '\0');
 	return (str);
 }
 

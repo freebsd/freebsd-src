@@ -5,7 +5,7 @@
 # provided that this notice is preserved and due credit is given
 # to the original author and the contributors.
 #
-# $Id: Makefile,v 2.2 1999/08/04 17:29:52 darrenr Exp $
+# $Id: Makefile,v 2.11.2.2 2000/07/18 13:58:10 darrenr Exp $
 #
 BINDEST=/usr/local/bin
 SBINDEST=/sbin
@@ -103,6 +103,16 @@ freebsd22: include
 	fi
 	make freebsd
 
+freebsd4: include
+	if [ x$INET6 = x ] ; then \
+		echo "#undef INET6" > opt_inet6.h; \
+	else \
+		echo "#define INET6" > opt_inet6.h; \
+	fi
+	make setup "TARGOS=BSD" "CPUDIR=$(CPUDIR)"
+	(cd BSD/$(CPUDIR); make build TOP=../.. $(MFLAGS) "ML=mlfk_ipl.c" "MLD=mlfk_ipl.c" "LKM=ipf.ko" "DLKM=-DKLD_MODULE"; cd ..)
+	(cd BSD/$(CPUDIR); make -f Makefile.ipsend TOP=../.. $(MFLAGS1); cd ..)
+
 freebsd3 freebsd30: include
 	make setup "TARGOS=BSD" "CPUDIR=$(CPUDIR)"
 	(cd BSD/$(CPUDIR); make build TOP=../.. $(MFLAGS1) "ML=mlf_ipl.c" LKM= ; cd ..)
@@ -154,9 +164,9 @@ setup:
 
 clean: clean-include
 	${RM} -f core *.o ipt fils ipf ipfstat ipftest ipmon if_ipl \
-	vnode_if.h $(LKM) *~
-	if [ "`uname -s`" = "SunOS" ]; then (cd SunOS4; make clean); fi
-	if [ "`uname -s`" = "SunOS" ]; then (cd SunOS5; make clean); fi
+	vnode_if.h $(LKM) *~ opt_inet6.h
+	(cd SunOS4; make clean)
+	(cd SunOS5; make clean)
 	(cd BSD; make clean)
 	(cd Linux; make clean)
 	if [ "`uname -s`" = "IRIX" ]; then (cd IRIX; make clean); fi

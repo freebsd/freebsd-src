@@ -53,7 +53,7 @@ extern	char	*sys_errlist[];
 
 #if !defined(lint)
 static const char sccsid[] ="@(#)ipnat.c	1.9 6/5/96 (C) 1993 Darren Reed";
-static const char rcsid[] = "@(#)$Id: natparse.c,v 1.2.2.1 1999/11/20 22:50:30 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: natparse.c,v 1.17.2.6 2000/07/08 02:14:40 darrenr Exp $";
 #endif
 
 
@@ -109,6 +109,40 @@ void *ptr;
 		break;
 	}
 
+	printf(" %s ", np->in_ifname);
+
+	if (np->in_flags & IPN_FILTER) {
+		if (np->in_flags & IPN_NOTSRC)
+			printf("! ");
+		printf("from ");
+		if (np->in_redir == NAT_REDIRECT) {
+			printhostmask(4, (u_32_t *)&np->in_srcip,
+				      (u_32_t *)&np->in_srcmsk);
+			if (np->in_scmp)
+				printportcmp(np->in_p, &np->in_tuc.ftu_src);
+		} else {
+			printhostmask(4, (u_32_t *)&np->in_inip,
+				      (u_32_t *)&np->in_inmsk);
+			if (np->in_dcmp)
+				printportcmp(np->in_p, &np->in_tuc.ftu_dst);
+		}
+
+		if (np->in_flags & IPN_NOTDST)
+			printf(" !");
+		printf(" to ");
+		if (np->in_redir == NAT_REDIRECT) {
+			printhostmask(4, (u_32_t *)&np->in_outip,
+				      (u_32_t *)&np->in_outmsk);
+			if (np->in_dcmp)
+				printportcmp(np->in_p, &np->in_tuc.ftu_dst);
+		} else {
+			printhostmask(4, (u_32_t *)&np->in_srcip,
+				      (u_32_t *)&np->in_srcmsk);
+			if (np->in_scmp)
+				printportcmp(np->in_p, &np->in_tuc.ftu_src);
+		}
+	}
+
 	if (np->in_redir == NAT_REDIRECT) {
 		printf("%s ", np->in_ifname);
 		if (np->in_src[0].s_addr || np->in_src[1].s_addr) {
@@ -117,17 +151,15 @@ void *ptr;
 			if (bits != -1)
 				printf("/%d ", bits);
 			else
-				printf("/%s ", inet_ntoa(np->in_src[1]));
+				printf("/%s ", inet_ntoa(np->in_out[1]));
+			if (np->in_pmin)
+				printf("port %d", ntohs(np->in_pmin));
+			if (np->in_pmax != np->in_pmin)
+				printf("- %d", ntohs(np->in_pmax));
 		}
-		printf("%s",inet_ntoa(np->in_out[0]));
-		bits = countbits(np->in_out[1].s_addr);
-		if (bits != -1)
-			printf("/%d ", bits);
-		else
-			printf("/%s ", inet_ntoa(np->in_out[1]));
-		if (np->in_pmin)
-			printf("port %d ", ntohs(np->in_pmin));
-		printf("-> %s", inet_ntoa(np->in_in[0]));
+		printf(" -> %s", inet_ntoa(np->in_in[0]));
+		if (np->in_flags & IPN_SPLIT)
+			printf(",%s", inet_ntoa(np->in_in[1]));
 		if (np->in_pnext)
 			printf(" port %d", ntohs(np->in_pnext));
 		if ((np->in_flags & IPN_TCPUDP) == IPN_TCPUDP)
@@ -286,35 +318,96 @@ int linenum;
 
 	strncpy(ipn.in_ifname, s, sizeof(ipn.in_ifname) - 1);
 	ipn.in_ifname[sizeof(ipn.in_ifname) - 1] = '\0';
-	if (!(s = strtok(NULL, " \t"))) {
-		fprintf(stderr, "%d: missing fields (%s)\n", linenum, 
-			ipn.in_redir ? "from source | destination" : "source");
-		return NULL;
-	}
+	cpp++;
 
-	if ((ipn.in_redir == NAT_REDIRECT) && !strcasecmp(s, "from")) {
-		if (!(s = strtok(NULL, " \t"))) {
-			fprintf(stderr,
-				"%d: missing fields (source address)\n",
-				linenum);
+	if (!strcasecmp(*cpp, "from") || (**cpp == '!')) {
+		if (!strcmp(*cpp, "!")) {
+			cpp++;
+			if (strcasecmp(*cpp, "from")) {
+				fprintf(stderr, "Missing from after !\n");
+				return NULL;
+			}
+			ipn.in_flags |= IPN_NOTSRC;
+		} else if (**cpp == '!') {
+			if (strcasecmp(*cpp + 1, "from")) {
+				fprintf(stderr, "Missing from after !\n");
+				return NULL;
+			}
+			ipn.in_flags |= IPN_NOTSRC;
+		}
+		if ((ipn.in_flags & IPN_NOTSRC) &&
+		    (ipn.in_redir & (NAT_MAP|NAT_MAPBLK))) {
+			fprintf(stderr, "Cannot use '! from' with map\n");
 			return NULL;
 		}
 
-		srchost = s;
-		srcnetm = strrchr(srchost, '/');
+		ipn.in_flags |= IPN_FILTER;
+		cpp++;
+		if (ipn.in_redir == NAT_REDIRECT) {
+				if (hostmask(&cpp, (u_32_t *)&ipn.in_srcip,
+					     (u_32_t *)&ipn.in_srcmsk,
+					     &ipn.in_sport, &ipn.in_scmp,
+					     &ipn.in_stop, linenum)) {
+					return NULL;
+				}
+		} else {
+				if (hostmask(&cpp, (u_32_t *)&ipn.in_inip,
+					     (u_32_t *)&ipn.in_inmsk,
+					     &ipn.in_sport, &ipn.in_scmp,
+					     &ipn.in_stop, linenum)) {
+					return NULL;
+				}
+		}
 
-		if (srcnetm == NULL) {
-			if (!(s = strtok(NULL, " \t"))) {
-				fprintf(stderr,
-				"%d: missing fields (source netmask)\n",
-					linenum);
-				return NULL;
-			}
+		if (!strcmp(*cpp, "!")) {
+			cpp++;
+			ipn.in_flags |= IPN_NOTDST;
+		} else if (**cpp == '!') {
+			(*cpp)++;
+			ipn.in_flags |= IPN_NOTDST;
+		}
 
-			if (strcasecmp(s, "netmask")) {
-				fprintf(stderr,
-					"%d: missing fields (netmask)\n",
-					linenum);
+		if (strcasecmp(*cpp, "to")) {
+			fprintf(stderr, "%d: unexpected keyword (%s) - to\n",
+				linenum, *cpp);
+			return NULL;
+		}
+		if ((ipn.in_flags & IPN_NOTDST) &&
+		    (ipn.in_redir & (NAT_REDIRECT))) {
+			fprintf(stderr, "Cannot use '! to' with rdr\n");
+			return NULL;
+		}
+
+		if (!*++cpp) {
+			fprintf(stderr, "%d: missing host after to\n", linenum);
+			return NULL;
+		}
+		if (ipn.in_redir == NAT_REDIRECT) {
+				if (hostmask(&cpp, (u_32_t *)&ipn.in_outip,
+					     (u_32_t *)&ipn.in_outmsk,
+					     &ipn.in_dport, &ipn.in_dcmp,
+					     &ipn.in_dtop, linenum)) {
+					return NULL;
+				}
+				ipn.in_pmin = htons(ipn.in_dport);
+		} else {
+				if (hostmask(&cpp, (u_32_t *)&ipn.in_srcip,
+					     (u_32_t *)&ipn.in_srcmsk,
+					     &ipn.in_dport, &ipn.in_dcmp,
+					     &ipn.in_dtop, linenum)) {
+					return NULL;
+				}
+		}
+	} else {
+		s = *cpp;
+		if (!s)
+			return NULL;
+		t = strchr(s, '/');
+		if (!t)
+			return NULL;
+		*t++ = '\0';
+		if (ipn.in_redir == NAT_REDIRECT) {
+			if (hostnum((u_32_t *)&ipn.in_outip, s, linenum) == -1)
 				return NULL;
 			}
 			if (!(s = strtok(NULL, " \t"))) {
@@ -646,16 +739,21 @@ int linenum;
 			"%d: expected \"portmap\" - got \"%s\"\n", linenum, s);
 		return NULL;
 	}
-	if (!(s = strtok(NULL, " \t")))
+	cpp++;
+	if (!*cpp) {
+		fprintf(stderr, "%d: missing expression following portmap\n",
+			linenum);
 		return NULL;
-	if (!strcasecmp(s, "tcp"))
-		ipn.in_flags = IPN_TCP;
-	else if (!strcasecmp(s, "udp"))
-		ipn.in_flags = IPN_UDP;
-	else if (!strcasecmp(s, "tcpudp"))
-		ipn.in_flags = IPN_TCPUDP;
-	else if (!strcasecmp(s, "tcp/udp"))
-		ipn.in_flags = IPN_TCPUDP;
+	}
+
+	if (!strcasecmp(*cpp, "tcp"))
+		ipn.in_flags |= IPN_TCP;
+	else if (!strcasecmp(*cpp, "udp"))
+		ipn.in_flags |= IPN_UDP;
+	else if (!strcasecmp(*cpp, "tcpudp"))
+		ipn.in_flags |= IPN_TCPUDP;
+	else if (!strcasecmp(*cpp, "tcp/udp"))
+		ipn.in_flags |= IPN_TCPUDP;
 	else {
 		fprintf(stderr,
 			"%d: expected protocol name - got \"%s\"\n",
@@ -707,7 +805,7 @@ int opts;
 		fp = stdin;
 
 	while (fgets(line, sizeof(line) - 1, fp)) {
-	        linenum++;
+		linenum++;
 		line[sizeof(line) - 1] = '\0';
 		if ((s = strchr(line, '\n')))
 			*s = '\0';
@@ -720,11 +818,16 @@ int opts;
 			if ((opts & OPT_VERBOSE) && np)
 				printnat(np, opts &  OPT_VERBOSE, NULL);
 			if (!(opts & OPT_NODO)) {
-				if (!(opts & OPT_REM)) {
-					if (ioctl(fd, SIOCADNAT, np) == -1)
+				if (!(opts & OPT_REMOVE)) {
+					if (ioctl(fd, SIOCADNAT, &np) == -1) {
+						fprintf(stderr, "%d:",
+							linenum);
 						perror("ioctl(SIOCADNAT)");
-				} else if (ioctl(fd, SIOCRMNAT, np) == -1)
+					}
+				} else if (ioctl(fd, SIOCRMNAT, &np) == -1) {
+					fprintf(stderr, "%d:", linenum);
 					perror("ioctl(SIOCRMNAT)");
+				}
 			}
 		}
 	}

@@ -56,8 +56,31 @@ Show the "rule number" for each rule as it is printed.
 Display the filter list used for the output side of the kernel IP processing.
 .TP
 .B \-s
-Show packet/flow state information (statistics) and held state information (in
-the kernel) if any is present.
+Show packet/flow state information (statistics only).
+.TP
+.B \-sl
+Show held state information (in the kernel) if any is present (no statistics).
+.TP
+.BR \-S \0<addrport>
+This option is only valid in combination with \fB\-t\fP. Limit the state top
+display to show only state entries whose source IP address and port match
+the addport argument. The addrport specification is of the form
+ipaddress[,port].  The ipaddress and port should be either numerical or the
+string "any" (specifying any ip address resp. any port). If the \fB\-S\fP
+option is not specified, it defaults to "\fB\-S\fP any,any".
+.TP
+.B \-t
+Show the state table in a way similar to they way \fBtop(1)\fP shows the process
+table. States can be sorted using a number of different ways. This options
+requires \fBncurses(3)\fP and needs to be compiled in. It may not be available on
+all operating systems. See below, for more information on the keys that can
+be used while ipfstat is in top mode.
+.TP
+.BR \-T \0<refreshtime>
+This option is only valid in combination with \fB\-t\fP. Specifies how often
+the state top display should be updated. The refresh time is the number of
+seconds between an update. Any postive integer can be used. The default (and
+minimal update time) is 1.
 .TP
 .B \-v
 Turn verbose mode on.  Displays more debugging information.
