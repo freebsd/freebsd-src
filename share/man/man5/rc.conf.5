@@ -141,6 +141,16 @@ is set to
 these are the flags to pass to the
 .Xr pccardd 8
 daemon.
+.It Va pccard_ether_delay
+.Pq Vt str
+Set the delay before starting dhclient in
+.Xr pccard_ether 8
+script.
+This defaults to 5 seconds to work around a bug in the
+.Xr ed 4
+driver which can lead to system hangs when using some newer
+.Xr ed 4
+based cards.
 .It Va removable_interfaces
 .Pq Vt str
 List of removable network interfaces to be supported by
