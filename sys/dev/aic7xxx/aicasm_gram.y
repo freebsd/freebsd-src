@@ -2,7 +2,7 @@
 /*
  * Parser for the Aic7xxx SCSI Host adapter sequencer assembler.
  *
- * Copyright (c) 1997-1998 Justin T. Gibbs.
+ * Copyright (c) 1997, 1998, 2000 Justin T. Gibbs.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -13,6 +13,9 @@
  *    without modification.
  * 2. The name of the author may not be used to endorse or promote products
  *    derived from this software without specific prior written permission.
+ *
+ * Alternatively, this software may be distributed under the terms of the
+ * GNU Public License ("GPL").
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -39,7 +42,7 @@
 
 #include "aicasm.h"
 #include "aicasm_symbol.h"
-#include "sequencer.h"
+#include "aicasm_insformat.h"
 
 int yylineno;
 char *yyfilename;
@@ -130,7 +133,7 @@ static int  is_download_const __P((expression_t *immed));
 
 %token <value> T_STC T_CLC
 
-%token <value> T_CMP T_XOR
+%token <value> T_CMP T_NOT T_XOR
 
 %token <value> T_TEST T_AND
 
@@ -551,6 +554,21 @@ reg_symbol:
 		$$.symbol = $1;
 		$$.offset = 0;
 	}
+|	T_SYMBOL '[' T_SYMBOL ']'
+	{
+		process_register(&$1);
+		if ($3->type != CONST) {
+			stop("register offset must be a constant", EX_DATAERR);
+			/* NOTREACHED */
+		}
+		if (($3->info.cinfo->value + 1) > $1->info.rinfo->size) {
+			stop("Accessing offset beyond range of register",
+			     EX_DATAERR);
+			/* NOTREACHED */
+		}
+		$$.symbol = $1;
+		$$.offset = $3->info.cinfo->value;
+	}
 |	T_SYMBOL '[' T_NUMBER ']'
 	{
 		process_register(&$1);
@@ -827,7 +845,7 @@ code:
 ;
 
 code:
-	T_BMOV destination ',' source ',' immediate ret ';'
+	T_BMOV destination ',' source ',' immediate_or_a ret ';'
 	{
 		format_1_instr(AIC_OP_BMOV, &$2, &$6, &$4, $7);
 	}
@@ -847,6 +865,16 @@ code:
 	T_MVI destination ',' immediate_or_a ret ';'
 	{
 		format_1_instr(AIC_OP_OR, &$2, &$4, &allzeros, $5);
+	}
+;
+
+code:
+	T_NOT destination opt_source ret ';'
+	{
+		expression_t immed;
+
+		make_expression(&immed, 0xff);
+		format_1_instr(AIC_OP_XOR, &$2, &immed, &$3, $4);
 	}
 ;
 
@@ -1173,7 +1201,7 @@ format_2_instr(opcode, dest, places, src, ret)
 {
 	struct instruction *instr;
 	struct ins_format2 *f2_instr;
-	u_int8_t shift_control;
+	uint8_t shift_control;
 
 	if (src->symbol == NULL)
 		src = dest;
