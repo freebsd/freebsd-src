@@ -281,7 +281,11 @@ kvm_proclist(kd, what, arg, p, bp, maxcnt)
 						tty.t_dev);
 					return (-1);
 				}
+#if 0
 				kp->ki_tdev = t_cdev.si_udev;
+#else
+				kp->ki_tdev = NULL;
+#endif
 			}
 			if (tty.t_pgrp != NULL) {
 				if (KREAD(kd, (u_long)tty.t_pgrp, &pgrp)) {
