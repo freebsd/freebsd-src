@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ide_pci.c,v 1.22 1999/01/12 01:36:46 eivind Exp $
+ *	$Id: ide_pci.c,v 1.23 1999/01/13 04:40:50 julian Exp $
  */
 
 #include "pci.h"
@@ -1450,16 +1450,16 @@ static struct pci_device ide_pci_device = {
 DATA_SET(pcidevice_set, ide_pci_device);
 
 /*
- * Return a cookie if we can do DMA on the specified (iobase_wd, unit).
+ * Return a cookie if we can do DMA on the specified (iobase_wd, ctrlr).
  */
 static void *
-ide_pci_candma(int iobase_wd, int unit)
+ide_pci_candma(int iobase_wd, int ctrlr)
 {
 	struct ide_pci_cookie *cp;
 
 	cp = softc.cookies.lh_first;
 	while(cp) {
-		if (cp->unit == unit &&
+		if (cp->ctrlr == ctrlr &&
 			((iobase_wd == 0) || (cp->iobase_wd == iobase_wd)))
 			break;
 		cp = cp->le.le_next;
