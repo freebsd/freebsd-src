@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vmmeter.h	8.1 (Berkeley) 6/2/93
- * $Id: vmmeter.h,v 1.9 1995/03/25 06:09:28 davidg Exp $
+ * $Id: vmmeter.h,v 1.11 1995/07/29 10:47:05 bde Exp $
  */
 
 #ifndef _SYS_VMMETER_H_
@@ -111,9 +111,6 @@ struct vmtotal
 	long	t_armshr;	/* active shared real memory */
 	long	t_free;		/* free memory pages */
 };
-#ifdef KERNEL
-struct	vmtotal total;
-#endif
 
 /*
  * Optional instrumentation.
