@@ -17,10 +17,10 @@ MAN=	aac.4 \
 	asr.4 \
 	ata.4 \
 	atapicam.4 \
-	atkbd.4 \
-	atkbdc.4 \
 	ath.4 \
 	ath_hal.4 \
+	atkbd.4 \
+	atkbdc.4 \
 	aue.4 \
 	awi.4 \
 	axe.4 \
@@ -105,8 +105,8 @@ MAN=	aac.4 \
 	kame.4 \
 	keyboard.4 \
 	kld.4 \
-	kue.4 \
 	ktr.4 \
+	kue.4 \
 	led.4 \
 	lge.4 \
 	lmc.4 \
@@ -144,21 +144,23 @@ MAN=	aac.4 \
 	ncv.4 \
 	netgraph.4 \
 	netintro.4 \
-	ng_atm.4 \
-	ng_atmpif.4 \
 	ng_UI.4 \
 	ng_async.4 \
+	ng_atm.4 \
+	ng_atmpif.4 \
 	ng_bluetooth.4 \
 	ng_bpf.4 \
 	ng_bridge.4 \
 	ng_bt3c.4 \
 	ng_btsocket.4 \
 	ng_cisco.4 \
+	ng_device.4 \
 	ng_echo.4 \
 	ng_etf.4 \
 	ng_ether.4 \
 	ng_frame_relay.4 \
 	ng_gif.4 \
+	ng_gif_demux.4 \
 	ng_h4.4 \
 	ng_hci.4 \
 	ng_hole.4 \
@@ -175,6 +177,7 @@ MAN=	aac.4 \
 	ng_pptpgre.4 \
 	ng_rfc1490.4 \
 	ng_socket.4 \
+	ng_split.4 \
 	ng_sscfu.4 \
 	ng_sscop.4 \
 	ng_tee.4 \
@@ -191,9 +194,9 @@ MAN=	aac.4 \
 	orm.4 \
 	pass.4 \
 	patm.4 \
-	pci.4 \
 	pccard.4 \
 	pccbb.4 \
+	pci.4 \
 	pcic.4 \
 	pcm.4 \
 	pcn.4 \
@@ -272,13 +275,13 @@ MAN=	aac.4 \
 	ucom.4 \
 	udbp.4 \
 	udp.4 \
+	ufm.4 \
 	uftdi.4 \
 	ugen.4 \
 	uhci.4 \
 	uhid.4 \
 	uhidev.4 \
 	ukbd.4 \
-	ufm.4 \
 	ulpt.4 \
 	umass.4 \
 	umodem.4 \
@@ -367,9 +370,9 @@ MLINKS+=sk.4 if_sk.4
 MLINKS+=sl.4 if_sl.4
 MLINKS+=smp.4 SMP.4
 MLINKS+=sn.4 if_sn.4
+MLINKS+=splash.4 screensaver.4
 MLINKS+=ste.4 if_ste.4
 MLINKS+=stf.4 if_stf.4
-MLINKS+=splash.4 screensaver.4
 MLINKS+=syncache.4 syncookies.4
 MLINKS+=syscons.4 sc.4
 MLINKS+=tap.4 if_tap.4
