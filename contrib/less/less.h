@@ -1,3 +1,4 @@
+/* $FreeBSD$ */
 /*
  * Copyright (C) 1984-2000  Mark Nudelman
  *
@@ -139,8 +140,8 @@ void free();
 /*
  * Special types and constants.
  */
-typedef long		POSITION;
-#define PR_POSITION	"%ld"
+typedef off_t		POSITION;
+#define PR_POSITION	"%lld"
 #define MAX_PRINT_POSITION 20
 #define MAX_PRINT_INT      10
 
