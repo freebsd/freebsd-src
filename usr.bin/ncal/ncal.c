@@ -740,16 +740,20 @@ mkmonthb(int y, int m, int jd_flag, struct monthlines *mlines)
 void
 mkweekdays(struct weekdays *wds)
 {
-	int i;
+	int i, len;
 	struct tm tm;
+	char buf[20];
 
 	memset(&tm, 0, sizeof(tm));
 
 	for (i = 0; i != 7; i++) {
 		tm.tm_wday = (i+1) % 7;
-		strftime(wds->names[i], 4, "%a", &tm);
-		wds->names[i][2] = ' '; 
-		wds->names[i][3] = '\0';
+		strftime(buf, sizeof(buf), "%a", &tm);
+		len = strlen(buf);
+		if (len > 2)
+			len = 2;
+		strcpy(wds->names[i], "   ");
+		strncpy(wds->names[i] + 2 - len, buf, len);
 	}
 }
 
