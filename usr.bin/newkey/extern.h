@@ -39,8 +39,8 @@
 #define	YPOP_STORE  4			/* add, or change */
 #endif
 
-void genkeys(char *, char *, char *);
-int setpublicmap(char *, char *, char *);
-int mapupdate(char *, char *, u_int, u_int, char *, u_int, char *);
-void xencrypt(char *, char *);
-void xdecrypt(char *, char *);
+void genkeys __P((char *, char *, char *));
+int setpublicmap __P((char *, char *, char *));
+int mapupdate __P((char *, char *, u_int, u_int, char *, u_int, char *));
+void xencrypt __P((char *, char *));
+void xdecrypt __P((char *, char *));
