@@ -475,7 +475,7 @@
 		    struct sigaction32 *oact); }
 343	MNOPROTO { int sigpending(sigset_t *set); }
 344	MCOMPAT4 { int freebsd32_sigreturn( \
-		    const struct __ucontext *sigcntxp); }
+		    const struct freebsd4_freebsd32_ucontext *sigcntxp); }
 ; XXX implement
 345	UNIMPL	sigtimedwait
 ; XXX implement
