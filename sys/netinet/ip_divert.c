@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ip_divert.c,v 1.25 1998/05/25 08:44:31 julian Exp $
+ *	$Id: ip_divert.c,v 1.26 1998/05/25 10:37:43 julian Exp $
  */
 
 #include "opt_inet.h"
@@ -82,7 +82,7 @@
 u_short ip_divert_port;
 
 /*
- * #ifndef IPFW_DIVERT_RESTART
+ * #ifdef IPFW_DIVERT_OLDRESTART
  * We set this value to a non-zero port number when we want the call to
  * ip_fw_chk() in ip_input() or ip_output() to ignore ``divert <port>''
  * chain entries. This is stored in host order.
@@ -98,13 +98,13 @@ u_short ip_divert_port;
  * 0 will restart processing at the beginning. 
  * #endif 
  */
-#ifndef IPFW_DIVERT_RESTART
+#ifdef IPFW_DIVERT_OLDRESTART
 u_short ip_divert_ignore;
 #else
 
 u_short ip_divert_in_cookie;
 u_short ip_divert_out_cookie;
-#endif /* IPFW_DIVERT_RESTART */
+#endif /* IPFW_DIVERT_OLDRESTART */
 
 /* Internal variables */
 
@@ -168,12 +168,12 @@ div_input(struct mbuf *m, int hlen)
 	ip = mtod(m, struct ip *);
 
 	/* Record divert port */
-#ifndef IPFW_DIVERT_RESTART
+#ifdef IPFW_DIVERT_OLDRESTART
 	divsrc.sin_port = htons(ip_divert_port);
 #else
 	divsrc.sin_port = ip_divert_in_cookie;
 	ip_divert_in_cookie = 0;
-#endif /* IPFW_DIVERT_RESTART */
+#endif /* IPFW_DIVERT_OLDRESTART */
 
 	/* Restore packet header fields */
 	ip->ip_len += hlen;
@@ -274,7 +274,7 @@ div_output(so, m, addr, control)
 		m_freem(control);		/* XXX */
 
 	/* Loopback avoidance */
-#ifndef IPFW_DIVERT_RESTART
+#ifdef IPFW_DIVERT_OLDRESTART
 	if (sin) {
 		ip_divert_ignore = ntohs(sin->sin_port);
 	} else {
@@ -286,7 +286,7 @@ div_output(so, m, addr, control)
 	} else {
 		ip_divert_out_cookie = 0;
 	}
-#endif /* IPFW_DIVERT_RESTART */
+#endif /* IPFW_DIVERT_OLDRESTART */
 
 	/* Reinject packet into the system as incoming or outgoing */
 	if (!sin || sin->sin_addr.s_addr == 0) {
@@ -344,19 +344,19 @@ div_output(so, m, addr, control)
 	}
 
 	/* Reset for next time (and other packets) */
-#ifndef IPFW_DIVERT_RESTART
+#ifdef IPFW_DIVERT_OLDRESTART
 	ip_divert_ignore = 0;
 #else
 	ip_divert_out_cookie = 0;
-#endif /* IPFW_DIVERT_RESTART */
+#endif /* IPFW_DIVERT_OLDRESTART */
 	return error;
 
 cantsend:
-#ifndef IPFW_DIVERT_RESTART
+#ifdef IPFW_DIVERT_OLDRESTART
 	ip_divert_ignore = 0;
 #else
 	ip_divert_out_cookie = 0;
-#endif /* IPFW_DIVERT_RESTART */
+#endif /* IPFW_DIVERT_OLDRESTART */
 	m_freem(m);
 	return error;
 }
