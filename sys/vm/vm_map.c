@@ -2306,10 +2306,8 @@ vm_map_copy_entry(
 				 src_object->type == OBJT_SWAP)) {
 				vm_object_collapse(src_object);
 				if ((src_object->flags & (OBJ_NOSPLIT|OBJ_ONEMAPPING)) == OBJ_ONEMAPPING) {
-					VM_OBJECT_UNLOCK(src_object);
 					vm_object_split(src_entry);
 					src_object = src_entry->object.vm_object;
-					VM_OBJECT_LOCK(src_object);
 				}
 			}
 			vm_object_reference_locked(src_object);
