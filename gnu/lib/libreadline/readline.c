@@ -921,7 +921,7 @@ _rl_kill_kbd_macro ()
 /* Initliaze readline (and terminal if not already). */
 rl_initialize ()
 {
-  char *t;
+  char *t, *t1;
 
   /* If we have never been called before, initialize the
      terminal and data structures. */
@@ -942,7 +942,11 @@ rl_initialize ()
   /* Check for LC_CTYPE and use its value to decide the defaults for
      8-bit character input and output. */
   t = getenv ("LC_CTYPE");
-  if (t && (strcmp (t, "iso-8859-1") == 0 || strcmp (t, "iso_8859_1") == 0))
+  t1 = getenv ("LANG");
+  if (t && (strstr (t, "8859-1") != NULL || strstr (t, "8859_1") != NULL ||
+	    strstr (t, "KOI8-R") != NULL || strstr (t, "koi8-r") != NULL) ||
+      t1 && (strstr (t1, "8859-1") != NULL || strstr (t1, "8859_1") != NULL ||
+	     strstr (t1, "KOI8-R") != NULL || strstr (t1, "koi8-r") != NULL))
     {
       _rl_meta_flag = 1;
       _rl_convert_meta_chars_to_ascii = 0;
