@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ide_pci.c,v 1.29 1999/03/28 05:05:12 grog Exp $
+ *	$Id: ide_pci.c,v 1.30 1999/04/13 19:38:12 peter Exp $
  */
 
 #include "pci.h"
@@ -60,6 +60,7 @@
 #endif
 
 #define PROMISE_ULTRA33 0x4d33105a
+#define CMD640B_PCI_ID	0x06401095
 
 struct ide_pci_cookie;  /* structs vendor_fns, ide_pci_cookie are recursive */
 
@@ -1386,8 +1387,8 @@ ide_pci_probe(pcici_t tag, pcidi_t type)
 			return ("Acer Aladdin IV/V (M5229) Bus-master IDE controller");
 	        if (type == 0x55131039)
 			return ("SiS 5591 Bus-master IDE Controller");
-		if (type == 0x06401095)		/* CMD 640B IDE */
-			return NULL;		/* Let wdc_p "find" it. */
+		if (type == CMD640B_PCI_ID)
+			return "CMD 640B IDE controller";
 		if (data & 0x8000)
 			return ("PCI IDE controller (busmaster capable)");
 		else
@@ -1454,6 +1455,14 @@ ide_pci_attach(pcici_t tag, int unit)
 		break;
 	case 0x55131039: /* SiS 5591 */
 		vp = &vs_sis_5591;
+		break;
+	case CMD640B_PCI_ID: /* CMD 640B IDE */
+		wdc_pci(Q_CMD640B);
+/* I'm curious to know if we can disable this and remove the return */
+#if 1
+		return;
+#endif
+		vp = &vs_generic;
 		break;
 	default:
 		/* everybody else */

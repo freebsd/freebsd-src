@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.191 1999/04/02 13:58:24 phk Exp $
+ *	$Id: wd.c,v 1.192 1999/04/13 19:38:11 peter Exp $
  */
 
 /* TODO:
@@ -94,7 +94,6 @@
 #include <vm/pmap.h>
 
 #include <i386/isa/atapi.h>
-#include <i386/isa/wdc_p.h>
 
 extern void wdstart(int ctrlr);
 
@@ -268,7 +267,7 @@ static int      eide_quirks;
 /*
  *  Here we use the pci-subsystem to find out, whether there is
  *  a cmd640b-chip attached on this pci-bus. This public routine
- *  will be called by wdc_p.c .
+ *  will be called by ide_pci.c
  */
 
 void
