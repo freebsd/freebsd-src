@@ -38,7 +38,7 @@
  *
  *	from: Utah $Hdr: mem.c 1.13 89/10/08$
  *	from: @(#)mem.c	7.2 (Berkeley) 5/9/91
- *	$Id: mem.c,v 1.8 1994/05/25 08:54:24 rgrimes Exp $
+ *	$Id: mem.c,v 1.9 1994/08/06 10:25:34 davidg Exp $
  */
 
 /*
@@ -61,6 +61,26 @@
 #include <vm/lock.h>
 #include <vm/vm_prot.h>
 #include <vm/pmap.h>
+
+#ifdef	DEVFS
+#include <sys/devfsext.h>
+#include "sys/kernel.h"
+int mmopen();
+
+void memdev_init(caddr_t data) /* data not used */
+{
+  void * x;
+/*            path	name	devsw   minor	type   uid gid perm*/
+   x=dev_add("/misc",	"mem",	mmopen, 0,	DV_CHR, 0,  2, 0640);
+   x=dev_add("/misc",	"kmem",	mmopen, 1,	DV_CHR, 0,  2, 0640);
+   x=dev_add("/misc",	"null",	mmopen, 2,	DV_CHR, 0,  0, 0666);
+   x=dev_add("/misc",	"zero",	mmopen, 12,	DV_CHR, 0,  0, 0666);
+   x=dev_add("/misc",	"io",	mmopen, 14,	DV_CHR, 0,  2, 0640);
+}
+SYSINIT(memdev,SI_SUB_DEVFS, SI_ORDER_ANY, memdev_init, NULL)
+#endif /*DEVFS*/
+
+
 
 extern        char *ptvmmap;            /* poor name! */
 /*ARGSUSED*/
