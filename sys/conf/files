@@ -88,6 +88,7 @@ dev/advansys/adwcam.c	optional adw device-driver
 dev/advansys/adwlib.c	optional adw device-driver
 dev/advansys/adwmcode.c	optional adw device-driver
 dev/aha/aha.c		optional aha device-driver
+dev/aic/aic.c		optional aic device-driver
 dev/aic7xxx/aic7xxx.c	optional ahc device-driver		\
 	dependency	"aic7xxx_{reg,seq}.h"
 dev/aic7xxx/93cx6.c	optional ahc device-driver
