@@ -519,6 +519,10 @@ p_option(u_long option) {
 	case RES_DNSRCH:	return "dnsrch";
 	case RES_INSECURE1:	return "insecure1";
 	case RES_INSECURE2:	return "insecure2";
+	case RES_NOALIASES:	return "noaliases";
+	case RES_USE_INET6:	return "inet6";
+	case RES_NOTLDQUERY:	return "no-tld-query";
+	case RES_USE_EDNS0:	return "edns0";
 	default:		sprintf(nbuf, "?0x%lx?", (u_long)option);
 				return (nbuf);
 	}

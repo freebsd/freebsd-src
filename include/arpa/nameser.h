@@ -273,6 +273,7 @@ typedef enum __ns_type {
 	ns_t_srv = 33,		/* Server Selection. */
 	ns_t_atma = 34,		/* ATM Address */
 	ns_t_naptr = 35,	/* Naming Authority PoinTeR */
+	ns_t_opt = 41,		/* OPT pseudo-RR, RFC2761 */
 	/* Query type values which do not appear in resource records. */
 	ns_t_ixfr = 251,	/* Incremental zone transfer. */
 	ns_t_axfr = 252,	/* Transfer zone of authority. */
