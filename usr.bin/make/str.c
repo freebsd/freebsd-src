@@ -117,10 +117,12 @@ str_concat(const char *s1, const char *s2, int flags)
  *	the first word is always the value of the .MAKE variable.
  */
 char **
-brk_string(char *str, int *store_argc, Boolean expand)
+brk_string(const char *str, int *store_argc, Boolean expand)
 {
 	int argc, ch;
-	char inquote, *p, *start, *t;
+	char inquote;
+	const char *p;
+	char *start, *t;
 	int len;
 
 	/* skip leading space chars. */
