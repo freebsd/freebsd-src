@@ -31,6 +31,7 @@
  *
  */
 
+#include <stdlib.h>
 #include <rpc/rpc.h>
 #include <rpcsvc/yp.h>
 #include <rpcsvc/yppasswd.h>
@@ -48,7 +49,7 @@
 #endif
 
 #ifndef lint
-static const char rcsid[] = "$Id$";
+static const char rcsid[] = "$Id: yp_access.c,v 1.3 1996/02/24 22:01:41 wpaul Exp $";
 #endif
 
 extern int debug;
@@ -102,8 +103,6 @@ void load_securenets()
 	if (securenets != NULL) {
 		while(securenets) {
 			tmp = securenets->next;
-			free(securenets->net);
-			free(securenets->mask);
 			free(securenets);
 			securenets = tmp;
 		}
