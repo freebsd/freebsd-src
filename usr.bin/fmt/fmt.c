@@ -362,7 +362,7 @@ main(int argc, char *argv[]) {
 static void
 process_named_file(const char *name) {
   FILE *f=fopen(name, "r");
-  if (!f) { perror(name); ++n_errors; }
+  if (!f) { warn("%s", name); ++n_errors; }
   else {
     process_stream(f, name);
     fclose(f);
@@ -459,7 +459,7 @@ process_stream(FILE *stream, const char *name) {
     ++para_line_number;
   }
   new_paragraph(output_in_paragraph ? last_indent : first_indent, 0);
-  if (ferror(stream)) { perror(name); ++n_errors; }
+  if (ferror(stream)) { warn("%s", name); ++n_errors; }
 }
 
 /* How long is the indent on this line?
@@ -586,7 +586,7 @@ center_stream(FILE *stream, const char *name) {
     fwrite(line, 1, length, stdout);
     putchar('\n');
   }
-  if (ferror(stream)) { perror(name); ++n_errors; }
+  if (ferror(stream)) { warn("%s", name); ++n_errors; }
 }
 
 /* Get a single line from a stream. Expand tabs, strip control
