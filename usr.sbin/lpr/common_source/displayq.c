@@ -114,7 +114,8 @@ displayq(format)
 		ST = DEFSTAT;
 	if (cgetnum(bp, "ct", &CT) < 0)
 		CT = DEFTIMEOUT;
-	cgetstr(bp, "rm", &RM);
+	if (cgetstr(bp, "rm", &RM) < 0)
+		RM = NULL;
 	if ((cp = checkremote()))
 		printf("Warning: %s\n", cp);
 
@@ -264,7 +265,7 @@ static void
 warn()
 {
 	if (remote)
-		printf("\n%s: ", host);
+		printf("%s: ", host);
 	puts("Warning: no daemon present");
 	current[0] = '\0';
 }
