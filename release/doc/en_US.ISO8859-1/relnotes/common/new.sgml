@@ -184,6 +184,9 @@
       <para><application>cvs</application> has been updated to
 	1.11.2.</para>
 
+      <para>The timezone database has been updated to the
+	<filename>tzdata2002d</filename> release.</para>
+
     </sect3>
 
     <sect3>
