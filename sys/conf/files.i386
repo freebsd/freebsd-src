@@ -1,7 +1,7 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-#	$Id: files.i386,v 1.179 1997/11/25 19:30:23 markm Exp $
+#	$Id: files.i386,v 1.180 1997/12/01 09:29:50 ahasty Exp $
 #
 # The long compile-with and dependency lines are required because of
 # limitations in config: backslash-newline doesn't work in strings, and
@@ -90,6 +90,7 @@ i386/ibcs2/ibcs2_sysvec.c	optional 	ibcs2
 i386/ibcs2/imgact_coff.c	optional	ibcs2
 i386/isa/aha1542.c		optional	aha	device-driver
 i386/isa/aic6360.c              optional        aic     device-driver
+i386/isa/alog.c                 optional        alog    device-driver
 i386/isa/b004.c			optional	bqu	device-driver
 i386/isa/bt5xx-445.c		optional	bt	device-driver
 i386/isa/clock.c		standard
