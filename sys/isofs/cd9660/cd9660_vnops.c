@@ -36,8 +36,10 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_vnops.c	8.3 (Berkeley) 1/23/94
- * $Id: cd9660_vnops.c,v 1.27 1996/10/20 21:01:43 alex Exp $
+ * $Id: cd9660_vnops.c,v 1.27.2.1 1997/07/07 07:48:58 dfr Exp $
  */
+
+#define CD9660 1  /* bogus dependency in sys/mount.h */
 
 #include <sys/param.h>
 #include <sys/systm.h>

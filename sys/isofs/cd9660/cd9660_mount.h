@@ -45,6 +45,7 @@ struct iso_args {
 	char	*fspec;			/* block special device to mount */
 	struct	export_args export;	/* network export info */
 	int	flags;			/* mounting flags, see below */
+	int	ssector;		/* starting sector, 0 for 1st session */
 };
 #define	ISOFSMNT_NORRIP	0x00000001	/* disable Rock Ridge Ext.*/
 #define	ISOFSMNT_GENS	0x00000002	/* enable generation numbers */

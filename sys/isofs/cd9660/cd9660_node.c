@@ -36,8 +36,10 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_node.c	8.2 (Berkeley) 1/23/94
- * $Id: cd9660_node.c,v 1.14 1996/09/20 05:51:09 nate Exp $
+ * $Id: cd9660_node.c,v 1.14.2.1 1997/07/07 07:48:57 dfr Exp $
  */
+
+#define CD9660 1  /* bogus dependency in sys/mount.h */
 
 #include <sys/param.h>
 #include <sys/systm.h>
