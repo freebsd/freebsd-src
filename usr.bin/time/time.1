@@ -40,7 +40,8 @@
 .Nd time command execution
 .Sh SYNOPSIS
 .Nm
-.Op Fl alp
+.Op Fl al
+.Op Fl h | Fl p
 .Op Fl o Ar file
 .Ar command
 .Sh DESCRIPTION
@@ -73,6 +74,9 @@ If the
 flag is used, append to the specified file rather than overwriting
 it.
 Otherwise, this option has no effect.
+.It Fl h
+Print times in a human friendly format.  Times are printed in minutes, hours,
+etc. as appropiate.
 .It Fl l
 The contents of the
 .Em rusage
