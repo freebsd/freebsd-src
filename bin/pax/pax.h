@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)pax.h	8.2 (Berkeley) 4/18/94
- *	$Id: pax.h,v 1.2 1994/09/24 02:56:28 davidg Exp $
+ *	$Id: pax.h,v 1.3 1995/05/30 00:07:01 rgrimes Exp $
  */
 
 /*
@@ -227,9 +227,9 @@ typedef struct oplist {
 #ifndef MIN
 #define        MIN(a,b) (((a)<(b))?(a):(b))
 #endif
-#define MAJOR(x)        (((unsigned)(x) >> 8) & 0xff)
-#define MINOR(x)        ((x) & 0xff)
-#define TODEV(x, y)	(((unsigned)(x) << 8) | ((unsigned)(y)))
+#define MAJOR(x)	major(x)
+#define MINOR(x)	minor(x)
+#define TODEV(x, y)	makedev((x), (y))
 
 /*
  * General Defines
