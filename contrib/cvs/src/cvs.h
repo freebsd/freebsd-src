@@ -418,10 +418,16 @@ void Subdir_Register PROTO((List *, const char *, const char *));
 void Subdir_Deregister PROTO((List *, const char *, const char *));
 char *Make_Date PROTO((char *rawdate));
 char *Name_Repository PROTO((char *dir, char *update_dir));
+
+
 char *Name_Root PROTO((char *dir, char *update_dir));
 int parse_cvsroot PROTO((char *CVSroot));
 void set_local_cvsroot PROTO((char *dir));
 void Create_Root PROTO((char *dir, char *rootdir));
+void root_allow_add PROTO ((char *));
+void root_allow_free PROTO ((void));
+int root_allow_ok PROTO ((char *));
+
 int same_directories PROTO((char *dir1, char *dir2));
 char *Short_Repository PROTO((char *repository));
 char *gca PROTO((char *rev1, char *rev2));

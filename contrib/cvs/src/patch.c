@@ -514,7 +514,9 @@ patch_fileproc (callerdat, finfo)
 	memset ((char *) &t, 0, sizeof (t));
 	if ((t.actime = t.modtime = RCS_getrevtime (rcsfile, vers_tag,
 						    (char *) 0, 0)) != -1)
-		(void) utime (tmpfile1, &t);
+	    /* I believe this timestamp only affects the dates in our diffs,
+	       and therefore should be on the server, not the client.  */
+	    (void) utime (tmpfile1, &t);
     }
     else if (toptwo_diffs)
     {
@@ -536,7 +538,9 @@ patch_fileproc (callerdat, finfo)
 	}
 	if ((t.actime = t.modtime = RCS_getrevtime (rcsfile, vers_head,
 						    (char *) 0, 0)) != -1)
-		(void) utime (tmpfile2, &t);
+	    /* I believe this timestamp only affects the dates in our diffs,
+	       and therefore should be on the server, not the client.  */
+	    (void) utime (tmpfile2, &t);
     }
     run_setup ("%s -%c", DIFF, unidiff ? 'u' : 'c');
     run_arg (tmpfile1);
