@@ -39,8 +39,6 @@
 #ifndef _FS_DEVFS_DEVFS_H_
 #define	_FS_DEVFS_DEVFS_H_
 
-#include "opt_devfs.h"
-
 #define	DEVFS_MAGIC	0xdb0a087a
 
 /*
@@ -174,7 +172,7 @@ struct devfs_mount {
 	struct devfs_dirent *dm_rootdir;
 	struct devfs_dirent *dm_basedir;
 	unsigned	dm_generation;
-	struct devfs_dirent *dm_dirent[NDEVFSINO];
+	struct devfs_dirent **dm_dirent;
 	struct devfs_dirent **dm_overflow;
 	int	dm_inode;
 	struct lock dm_lock;
