@@ -44,6 +44,7 @@
 #include <sys/linker.h>
 #include <sys/power.h>
 #include <sys/sbuf.h>
+#include <sys/smp.h>
 
 #include <machine/clock.h>
 #include <machine/resource.h>
@@ -132,6 +133,7 @@ static ACPI_STATUS acpi_probe_child(ACPI_HANDLE handle, UINT32 level,
 			void *context, void **status);
 static void	acpi_shutdown_pre_sync(void *arg, int howto);
 static void	acpi_shutdown_final(void *arg, int howto);
+static void	acpi_shutdown_poweroff(void *arg);
 static void	acpi_enable_fixed_events(struct acpi_softc *sc);
 static void	acpi_system_eventhandler_sleep(void *arg, int state);
 static void	acpi_system_eventhandler_wakeup(void *arg, int state);
@@ -1177,29 +1179,47 @@ acpi_shutdown_pre_sync(void *arg, int howto)
 static void
 acpi_shutdown_final(void *arg, int howto)
 {
+
+    ACPI_ASSERTLOCK;
+
+    /*
+     * If powering off, run the actual shutdown code on each processor.
+     * It will only perform the shutdown on the BSP.  Some chipsets do
+     * not power off the system correctly if called from an AP.
+     */
+    if ((howto & RB_POWEROFF) != 0) {
+	printf("Powering system off using ACPI\n");
+	smp_rendezvous(NULL, acpi_shutdown_poweroff, NULL, NULL);
+    } else {
+	printf("Shutting down ACPI\n");
+	AcpiTerminate();
+    }
+}
+
+static void
+acpi_shutdown_poweroff(void *arg)
+{
     ACPI_STATUS	status;
 
     ACPI_ASSERTLOCK;
 
-    if ((howto & RB_POWEROFF) != 0) {
-	printf("Powering system off using ACPI\n");
-	status = AcpiEnterSleepStatePrep(acpi_off_state);
-	if (ACPI_FAILURE(status)) {
-	    printf("AcpiEnterSleepStatePrep failed - %s\n",
-		   AcpiFormatException(status));
-	    return;
-	}
-	ACPI_DISABLE_IRQS();
-	status = AcpiEnterSleepState(acpi_off_state);
-	if (ACPI_FAILURE(status)) {
-	    printf("ACPI power-off failed - %s\n", AcpiFormatException(status));
-	} else {
-	    DELAY(1000000);
-	    printf("ACPI power-off failed - timeout\n");
-	}
+    /* Only attempt to power off if this is the BSP (cpuid 0). */
+    if (PCPU_GET(cpuid) != 0)
+	return;
+
+    status = AcpiEnterSleepStatePrep(acpi_off_state);
+    if (ACPI_FAILURE(status)) {
+	printf("AcpiEnterSleepStatePrep failed - %s\n",
+	       AcpiFormatException(status));
+	return;
+    }
+    ACPI_DISABLE_IRQS();
+    status = AcpiEnterSleepState(acpi_off_state);
+    if (ACPI_FAILURE(status)) {
+	printf("ACPI power-off failed - %s\n", AcpiFormatException(status));
     } else {
-	printf("Shutting down ACPI\n");
-	AcpiTerminate();
+	DELAY(1000000);
+	printf("ACPI power-off failed - timeout\n");
     }
 }
 
