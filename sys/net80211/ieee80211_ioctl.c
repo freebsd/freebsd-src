@@ -873,6 +873,15 @@ ieee80211_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		case IEEE80211_IOC_RTSTHRESHOLD:
 			ireq->i_val = ic->ic_rtsthreshold;
 			break;
+		case IEEE80211_IOC_PROTMODE:
+			ireq->i_val = ic->ic_protmode;
+			break;
+		case IEEE80211_IOC_TXPOWER:
+			if ((ic->ic_caps & IEEE80211_C_TXPMGT) == 0)
+				error = EINVAL;
+			else
+				ireq->i_val = ic->ic_txpower;
+			break;
 		default:
 			error = EINVAL;
 			break;
@@ -1013,6 +1022,29 @@ ieee80211_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 				break;
 			}
 			ic->ic_rtsthreshold = ireq->i_val;
+			error = ENETRESET;
+			break;
+		case IEEE80211_IOC_PROTMODE:
+			if (ireq->i_val > IEEE80211_PROT_RTSCTS) {
+				error = EINVAL;
+				break;
+			}
+			ic->ic_protmode = ireq->i_val;
+			/* NB: if not operating in 11g this can wait */
+			if (ic->ic_curmode == IEEE80211_MODE_11G)
+				error = ENETRESET;
+			break;
+		case IEEE80211_IOC_TXPOWER:
+			if ((ic->ic_caps & IEEE80211_C_TXPMGT) == 0) {
+				error = EINVAL;
+				break;
+			}
+			if (!(IEEE80211_TXPOWER_MIN < ireq->i_val &&
+			      ireq->i_val < IEEE80211_TXPOWER_MAX)) {
+				error = EINVAL;
+				break;
+			}
+			ic->ic_txpower = ireq->i_val;
 			error = ENETRESET;
 			break;
 		default:
