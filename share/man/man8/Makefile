@@ -9,7 +9,8 @@ MAN=	adding_user.8 \
 	intro.8 \
 	picobsd.8 \
 	rc.8 \
-	sticky.8
+	sticky.8 \
+	yp.8
 
 .if exists(${.CURDIR}/../../../release/sysinstall)
 MAN+=	sysinstall.8
@@ -17,6 +18,7 @@ MAN+=	sysinstall.8
 
 MLINKS=	rc.8 rc.serial.8 rc.8 rc.pccard.8 rc.8 rc.network.8
 MLINKS+=rc.8 rc.firewall.8 rc.8 rc.atm.8 rc.8 rc.local.8 rc.8 rc.shutdown.8
+MLINKS+=yp.8 YP.8 yp.8 NIS.8 yp.8 nis.8
 
 # XXX NOT IMPORTED:	man8.hp300 man8.tahoe man8.vax
 .if ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "alpha"

@@ -57,8 +57,16 @@ daemon makes direct
 library calls since there are no
 functions in the standard C library for reading bootparams.
 .Tn NIS
-support is enabled in
-.Xr nsswitch.conf 5 .
+support for the hosts, services and rpc databases is enabled by
+uncommenting the
+.Dq Li nis
+line in
+.Pa /etc/host.conf .
+.Tn NIS
+support for the remaining services is
+activated by adding a special
+.Ql +
+entry to the appropriate file.
 .Pp
 The
 .Nm YP

@@ -182,7 +182,6 @@ MAN=	aac.4 \
 	wst.4 \
 	xl.4 \
 	xpt.4 \
-	yp.4 \
 	zero.4
 
 MLINKS=	agp.4 agpgart.4
@@ -203,7 +202,6 @@ MLINKS+=smp.4 SMP.4
 MLINKS+=splash.4 screensaver.4
 MLINKS+=syscons.4 sc.4
 MLINKS+=vpo.4 imm.4
-MLINKS+=yp.4 YP.4 yp.4 NIS.4 yp.4 nis.4
 
 # XXX NOT IMPORTED:	man4.hp300 man4.sparc man4.tahoe man4.vax
 SUBDIR=	 man4.i386
