@@ -287,7 +287,7 @@ ntp_adjtime(struct proc *p, struct ntp_adjtime_args *uap)
 		return (error);
 	s = splclock();
 	if (modes & MOD_FREQUENCY) {
-		freq = (ntv.freq * 1000LL) << 16;
+		freq = (ntv.freq * 1000LL) >> 16;
 		if (freq > MAXFREQ)
 			L_LINT(time_freq, MAXFREQ);
 		else if (freq < -MAXFREQ)
@@ -378,8 +378,10 @@ ntp_adjtime(struct proc *p, struct ntp_adjtime_args *uap)
 	    time_status & STA_PPSJITTER) ||
 	    (time_status & STA_PPSFREQ &&
 	    time_status & (STA_PPSWANDER | STA_PPSERROR)))
-		return (TIME_ERROR);
-	return (time_state);
+		p->p_retval[0] = TIME_ERROR;
+	else
+		p->p_retval[0] = time_state;
+	return (error);
 }
 
 /*
