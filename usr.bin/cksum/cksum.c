@@ -41,17 +41,20 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)cksum.c	8.1 (Berkeley) 6/6/93";
+static char sccsid[] = "@(#)cksum.c	8.2 (Berkeley) 4/28/95";
 #endif /* not lint */
 
 #include <sys/cdefs.h>
 #include <sys/types.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <stdio.h>
+
+#include <err.h>
 #include <errno.h>
+#include <fcntl.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
+
 #include "extern.h"
 
 void usage __P((void));
@@ -61,27 +64,35 @@ main(argc, argv)
 	int argc;
 	char **argv;
 {
-	extern int optind;
-	u_long len, val;
 	register int ch, fd, rval;
-	char *fn;
+	u_long len, val;
+	char *fn, *p;
 	int (*cfncn) __P((int, unsigned long *, unsigned long *));
 	void (*pfncn) __P((char *, unsigned long, unsigned long));
 
-	cfncn = crc;
-	pfncn = pcrc;
-	while ((ch = getopt(argc, argv, "o:")) != EOF)
-		switch(ch) {
+	if ((p = rindex(argv[0], '/')) == NULL)
+		p = argv[0];
+	else
+		++p;
+	if (*p == 'c') {
+		cfncn = crc;
+		pfncn = pcrc;
+	} else {
+		cfncn = csum1;
+		pfncn = psum1;
+	}
+
+	while ((ch = getopt(argc, argv, "o:")) != -1)
+		switch (ch) {
 		case 'o':
-			if (*optarg == '1') {
+			if (!strcmp(optarg, "1")) {
 				cfncn = csum1;
 				pfncn = psum1;
-			} else if (*optarg == '2') {
+			} else if (!strcmp(optarg, "2")) {
 				cfncn = csum2;
 				pfncn = psum2;
 			} else {
-				(void)fprintf(stderr,
-				    "cksum: illegal argument to -o option\n");
+				warnx("illegal argument to -o option");
 				usage();
 			}
 			break;
@@ -99,15 +110,13 @@ main(argc, argv)
 		if (*argv) {
 			fn = *argv++;
 			if ((fd = open(fn, O_RDONLY, 0)) < 0) {
-				(void)fprintf(stderr, "cksum: %s: %s\n",
-				    fn, strerror(errno));
+				warn("%s", fn);
 				rval = 1;
 				continue;
 			}
 		}
 		if (cfncn(fd, &val, &len)) {
-			(void)fprintf(stderr, "cksum: %s: %s\n",
-			    fn ? fn : "stdin", strerror(errno));
+			warn("%s", fn ? fn : "stdin");
 			rval = 1;
 		} else
 			pfncn(fn, val, len);
