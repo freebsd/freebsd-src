@@ -175,7 +175,7 @@ char	**argv;
 	ip->ip_len = sizeof(*ip);
 	ip->ip_hl = sizeof(*ip) >> 2;
 
-	while ((c = getopt(argc, argv, "IP:TUd:f:g:m:o:s:t:")) != -1)
+	while ((c = (char)getopt(argc, argv, "IP:TUd:f:g:m:o:s:t:")) != -1)
 		switch (c)
 		{
 		case 'I' :

@@ -16,6 +16,7 @@
 #endif
 #include <sys/types.h>
 #include <sys/param.h>
+#include <sys/time.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <stddef.h>
@@ -33,12 +34,13 @@
 #include <netdb.h>
 #include <arpa/nameser.h>
 #include <resolv.h>
+#include "ip_compat.h"
 #include "ipf.h"
 #include "ipt.h"
 
 #if !defined(lint) && defined(LIBC_SCCS)
 static	char	sccsid[] = "@(#)ipft_hx.c	1.1 3/9/96 (C) 1996 Darren Reed";
-static	char	rcsid[] = "$Id: ipft_hx.c,v 2.0.2.3 1997/03/10 08:10:25 darrenr Exp $";
+static	char	rcsid[] = "$Id: ipft_hx.c,v 2.0.2.4 1997/04/30 13:55:07 darrenr Exp $";
 #endif
 
 extern	int	opts;

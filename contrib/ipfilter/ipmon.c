@@ -15,6 +15,7 @@
 #include <strings.h>
 #include <sys/dir.h>
 #else
+#include <sys/filio.h>
 #include <sys/byteorder.h>
 #endif
 #include <sys/types.h>
@@ -48,12 +49,13 @@
 
 #include "ip_compat.h"
 #include "ip_fil.h"
+#include "ip_proxy.h"
 #include "ip_nat.h"
 #include "ip_state.h"
 
 #if !defined(lint) && defined(LIBC_SCCS)
 static	char	sccsid[] = "@(#)ipmon.c	1.21 6/5/96 (C)1993-1996 Darren Reed";
-static	char	rcsid[] = "$Id: ipmon.c,v 2.0.2.6 1997/04/02 12:23:27 darrenr Exp $";
+static	char	rcsid[] = "$Id: ipmon.c,v 2.0.2.9 1997/04/30 13:54:10 darrenr Exp $";
 #endif
 
 
@@ -443,6 +445,15 @@ int	blen;
 	(void) sprintf(t, "[%s,%s]", hostname(res, nl->nl_origip),
 		portname(res, NULL, nl->nl_origport));
 	t += strlen(t);
+	if (nl->nl_type == NL_EXPIRE) {
+#ifdef	USE_QUAD_T
+		(void) sprintf(t, " Pkts %qd Bytes %qd",
+#else
+		(void) sprintf(t, " Pkts %ld Bytes %ld",
+#endif
+				nl->nl_pkts, nl->nl_bytes);
+		t += strlen(t);
+	}
 
 	*t++ = '\n';
 	*t++ = '\0';
@@ -495,21 +506,21 @@ int	blen;
 			hostname(res, sl->isl_src),
 			portname(res, proto, sl->isl_sport));
 		t += strlen(t);
-		(void) sprintf(t, "%s,%s PR %s ",
+		(void) sprintf(t, "%s,%s PR %s",
 			hostname(res, sl->isl_dst),
 			portname(res, proto, sl->isl_dport), proto);
 	} else if (sl->isl_p == IPPROTO_ICMP) {
 		(void) sprintf(t, "%s -> ", hostname(res, sl->isl_src));
 		t += strlen(t);
-		(void) sprintf(t, "%s PR icmp %d ",
+		(void) sprintf(t, "%s PR icmp %d",
 			hostname(res, sl->isl_dst), sl->isl_itype);
 	}
 	t += strlen(t);
 	if (sl->isl_type != ISL_NEW) {
 #ifdef	USE_QUAD_T
-		(void) sprintf(t, "Pkts %qd Bytes %qd",
+		(void) sprintf(t, " Pkts %qd Bytes %qd",
 #else
-		(void) sprintf(t, "Pkts %ld Bytes %ld",
+		(void) sprintf(t, " Pkts %ld Bytes %ld",
 #endif
 				sl->isl_pkts, sl->isl_bytes);
 		t += strlen(t);

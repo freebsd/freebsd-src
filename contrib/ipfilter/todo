@@ -1,12 +1,5 @@
-* automatically use the interface's IP# for NAT rather than any specific IP#
- - Done. Use "0/32" as destination address/mask.  Uses first interface IP#
-   set for an interface.
-
 * use fr_tcpstate() with NAT code for increased NAT usage security or even
-  fr_checkstate()
-
-* use minor devices for controlling access to alternate parts of IP Filter
-  such as filtering, accounting, state, NAT, etc.
+  fr_checkstate() - suspect this is not possible.
 
 * see if the Solaris2 and dynamic plumb/unplumb problem is solvable
 
@@ -17,11 +10,17 @@ time permitting:
 * record buffering for TCP/UDP
 
 * modular application proxying
+on the way
 
 * invesitgate making logging better
 
+done ?
 * add reverse nat (similar to rdr) to map addresses going in both directions
-
-* add 'tail' switch to ipmon
   (this might just be some changes to rdr).  In 1:1 relationships maybe make
   it an option.
+
+* keep fragment information for NAT/state entries automatically.
+done
+
+* support traceroute through the firewall
+

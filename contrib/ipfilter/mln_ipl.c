@@ -13,19 +13,12 @@
 
 #include <sys/param.h>
 
-/*
- * Post NetBSD 1.2 has the PFIL interface for packet filters.  This turns
- * on those hooks.  We don't need any special mods with this!
- */
-#if (defined(NetBSD) && (NetBSD > 199609) && (NetBSD <= 1991011)) || \
-    (defined(NetBSD1_2) && NetBSD1_2 > 1)
-#  define NETBSD_PF
-#endif
-
 #if defined(__FreeBSD__) && (__FreeBSD__ > 1)
-# include <osreldate.h>
 # ifdef	IPFILTER_LKM
+#  include <osreldate.h>
 #  define	ACTUALLY_LKM_NOT_KERNEL
+# else
+#  include <sys/osreldate.h>
 # endif
 #endif
 #include <sys/systm.h>
@@ -48,8 +41,10 @@
 #include <sys/mount.h>
 #include <sys/exec.h>
 #include <sys/mbuf.h>
-#if defined(__NetBSD__) || (defined(__FreeBSD_version) && \
-    (__FreeBSD_version >= 199511))
+#if	BSD >= 199506
+# include <sys/sysctl.h>
+#endif
+#if (__FreeBSD_version >= 199511)
 #include <net/if.h>
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
@@ -59,13 +54,13 @@
 #include <netinet/tcp.h>
 #include <netinet/tcpip.h>
 #endif
-#ifndef	__NetBSD__
-#include <sys/sysent.h>
+#if (__FreeBSD__ > 1)
+# include <sys/sysent.h>
 #endif
 #include <sys/lkm.h>
-#include "ipl.h"
-#include "ip_compat.h"
-#include "ip_fil.h"
+#include "netinet/ipl.h"
+#include "netinet/ip_compat.h"
+#include "netinet/ip_fil.h"
 
 #ifndef	IPL_NAME
 #define	IPL_NAME	"/dev/ipl"
@@ -84,43 +79,12 @@
 extern	int	lkmenodev __P((void));
 
 
-#ifdef NETBSD_PF
-#include <net/pfil.h>
-#endif
-#ifndef IPFILTER_LOG
-# ifdef NETBSD_PF
-# define iplread enodev
-# else
-# define	iplread	nodev
-# endif
-#endif
-
-#ifdef NETBSD_PF
-int        (*fr_checkp) __P((struct ip *, int, struct ifnet *, int, struct mbuf **)) = NULL;
-#endif
-
 static	int	ipl_unload __P((void));
 static	int	ipl_load __P((void));
 static	int	ipl_remove __P((void));
 int	xxxinit __P((struct lkm_table *, int, int));
 
 
-#if (defined(NetBSD1_0) && (NetBSD1_0 > 1)) || \
-    (defined(NetBSD) && (NetBSD <= 1991011) && (NetBSD >= 199511))
-struct	cdevsw	ipldevsw = 
-{
-	iplopen,		/* open */
-	iplclose,		/* close */
-	iplread,		/* read */
-	0,			/* write */
-	iplioctl,		/* ioctl */
-	0,			/* stop */
-	0,			/* tty */
-	0,			/* select */
-	0,			/* mmap */
-	NULL			/* strategy */
-};
-#else
 struct	cdevsw	ipldevsw = 
 {
 	iplopen,		/* open */
@@ -135,6 +99,16 @@ struct	cdevsw	ipldevsw =
 	(void *)nullop,		/* mmap */
 	NULL			/* strategy */
 };
+
+#ifdef  SYSCTL_INT
+SYSCTL_NODE(_net_inet, OID_AUTO, ipf, CTLFLAG_RW, 0, "IPF");
+SYSCTL_INT(_net_inet_ipf, OID_AUTO, fr_flags, CTLFLAG_RW, &fr_flags, 0, "");
+SYSCTL_INT(_net_inet_ipf, OID_AUTO, fr_pass, CTLFLAG_RW, &fr_pass, 0, "");
+SYSCTL_INT(_net_inet_ipf, OID_AUTO, fr_active, CTLFLAG_RD, &fr_active, 0, "");
+SYSCTL_INT(_net_inet_ipf, OID_AUTO, ipl_unreach, CTLFLAG_RW,
+	   &ipl_unreach, 0, "");
+SYSCTL_INT(_net_inet_ipf, OID_AUTO, ipl_inited, CTLFLAG_RD,
+	   &ipl_inited, 0, "");
 #endif
 
 #if !defined(__FreeBSD_version) || (__FreeBSD_version < 220000)
@@ -149,13 +123,15 @@ extern int nchrdev;
 int	ipl_major = CDEV_MAJOR;
 
 static struct cdevsw ipl_cdevsw = {
-        iplopen,	iplclose,	iplread,	nowrite, /* 79 */
+	iplopen,	iplclose,	iplread,	nowrite, /* 79 */
 	iplioctl,	nostop,		noreset,	nodevtotty,
 	noselect,	nommap,		nostrategy,	"ipl",
 	NULL,	-1
 };
 #endif
 
+
+static int iplaction __P((struct lkm_table *, int));
 
 
 static int iplaction(lkmtp, cmd)
@@ -229,6 +205,7 @@ static int ipl_remove __P((void))
 	VOP_LOCK(nd.ni_vp);
 	VOP_LEASE(nd.ni_dvp, curproc, curproc->p_ucred, LEASE_WRITE);
 	(void) VOP_REMOVE(nd.ni_dvp, nd.ni_vp, &nd.ni_cnd);
+	return 0;
 }
 
 
@@ -237,9 +214,6 @@ static int ipl_unload()
 	int error = 0;
 
 	error = ipldetach();
-#ifdef NETBSD_PF
-	pfil_remove_hook(fr_check, PFIL_IN|PFIL_OUT);
-#endif
 	if (!error)
 		error = ipl_remove();
 	return error;
@@ -253,9 +227,6 @@ static int ipl_load()
 	int error = 0, fmode = S_IFCHR|0600;
 
 	error = iplattach();
-#ifdef NETBSD_PF
-	pfil_add_hook(fr_check, PFIL_IN|PFIL_OUT);
-#endif
 	if (error)
 		return error;
 	(void) ipl_remove();
@@ -327,6 +298,20 @@ static int ipl_load()
 
 
 #if defined(__FreeBSD_version) && (__FreeBSD_version < 220000)
+/*
+ * strlen isn't present in 2.1.* kernels.
+ */
+size_t strlen(string)
+char *string;
+{
+        register char *s;
+
+        for (s = string; *s; s++)
+		;
+        return (size_t)(s - string);
+}
+
+
 int xxxinit(lkmtp, cmd, ver)
 struct lkm_table *lkmtp;
 int cmd, ver;
@@ -334,8 +319,8 @@ int cmd, ver;
 	DISPATCH(lkmtp, cmd, ver, iplaction, iplaction, iplaction);
 }
 #else
-#include <sys/exec.h>
-#include <sys/sysent.h>
+# ifdef	IPFILTER_LKM
+#  include <sys/exec.h>
 
 MOD_DECL(if_ipl);
 
@@ -354,21 +339,39 @@ int cmd, ver;
 {
 	DISPATCH(lkmtp, cmd, ver, iplaction, iplaction, iplaction);
 }
+# else
 
-/*
+#ifdef DEVFS
+static  void *ipf_devfs_token[3];
+#endif
 static ipl_devsw_installed = 0;
 
 static void ipl_drvinit __P((void *unused))
 {
-        dev_t dev;
+	dev_t dev;
+#ifdef	DEVFS
+	void **tp = ipf_devfs_token;
+#endif
 
-        if( ! ipl_devsw_installed ) {
-                dev = makedev(CDEV_MAJOR,0);
-                cdevsw_add(&dev, &ipl_cdevsw,NULL);
-                ipl_devsw_installed = 1;
-        }
+	if (!ipl_devsw_installed ) {
+		dev = makedev(CDEV_MAJOR, 0);
+		cdevsw_add(&dev, &ipl_cdevsw, NULL);
+		ipl_devsw_installed = 1;
+
+#ifdef	DEVFS
+		tp[IPL_LOGIPF] = devfs_add_devswf(&ipl_cdevsw, IPL_LOGIPF,
+						  DV_CHR, 0, 0, 0600,
+						  "ipf", IPL_LOGIPF);
+		tp[IPL_LOGNAT] = devfs_add_devswf(&ipl_cdevsw, IPL_LOGNAT,
+						  DV_CHR, 0, 0, 0600,
+						  "ipnat", IPL_LOGNAT);
+		tp[IPL_LOGSTATE] = devfs_add_devswf(&ipl_cdevsw, IPL_LOGSTATE,
+					            DV_CHR, 0, 0, 0600,
+						    "ipstate", IPL_LOGSTATE);
+#endif
+	}
 }
 
 SYSINIT(ipldev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,ipl_drvinit,NULL)
-*/
-#endif /* __FreeBSD__ */
+# endif /* IPFILTER_LKM */
+#endif /* _FreeBSD_version */

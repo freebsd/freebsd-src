@@ -16,6 +16,7 @@
 #endif
 #include <sys/types.h>
 #include <sys/param.h>
+#include <sys/time.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <stddef.h>
@@ -40,7 +41,7 @@
 
 #if !defined(lint) && defined(LIBC_SCCS)
 static	char	sccsid[] = "@(#)ipft_tx.c	1.7 6/5/96 (C) 1993 Darren Reed";
-static	char	rcsid[] = "$Id: ipft_tx.c,v 2.0.2.3 1997/03/10 08:10:31 darrenr Exp $";
+static	char	rcsid[] = "$Id: ipft_tx.c,v 2.0.2.4 1997/04/30 13:55:13 darrenr Exp $";
 #endif
 
 extern	int	opts;
