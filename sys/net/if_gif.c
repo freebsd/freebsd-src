@@ -78,8 +78,6 @@
 
 #include <net/net_osdep.h>
 
-#if NGIF > 0
-
 void gifattach __P((void *));
 
 /*
@@ -465,4 +463,3 @@ gif_ioctl(ifp, cmd, data)
  bad:
 	return error;
 }
-#endif /*NGIF > 0*/
