@@ -1,6 +1,6 @@
-<!-- $Id: authors.sgml,v 1.19 1997/04/01 02:32:27 hanai Exp $ -->
+<!-- $Id: authors.sgml,v 1.20 1997/04/25 07:24:02 hanai Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.63 -->
+<!-- Original revision: 1.65 -->
 
 <!-- 
 Names and email address of contributing authors and CVS committers.
@@ -197,6 +197,10 @@ Please keep this list in alphabetical order by entity names.
   <tt><htmlurl url='mailto:james@nexis.net'
   name='&lt;james@nexis.net&gt;'></tt>">
 
+<!ENTITY a.jgreco "Joe Greco
+  <tt><htmlurl url='mailto:jgreco@FreeBSD.ORG'
+  name='&lt;jgreco@FreeBSD.ORG&gt;'></tt>">
+
 <!ENTITY a.jhay "John Hay
   <tt><htmlurl url='mailto:jhay@FreeBSD.ORG'
   name='&lt;jhay@FreeBSD.ORG&gt;'></tt>">
@@ -260,6 +264,10 @@ Please keep this list in alphabetical order by entity names.
 <!ENTITY a.kelly "Sean Kelly
   <tt><htmlurl url='mailto:kelly@fsl.noaa.gov'
   name='&lt;kelly@fsl.noaa.gov&gt;'></tt>">
+
+<!ENTITY a.kjc "Kenjiro Cho
+  <tt><htmlurl url='mailto:kjc@FreeBSD.ORG'
+  name='&lt;kjc@FreeBSD.ORG&gt;'></tt>">
 
 <!ENTITY a.lars  "Lars Fredriksen
   <tt><htmlurl url='mailto:lars@FreeBSD.ORG'
@@ -408,6 +416,10 @@ Please keep this list in alphabetical order by entity names.
 <!ENTITY a.swallace  "Steven Wallace
   <tt><htmlurl url='mailto:swallace@FreeBSD.ORG'
   name='&lt;swallace@FreeBSD.ORG&gt;'></tt>">
+
+<!ENTITY a.tedm "Ted Mittelstaedt
+  <tt><htmlurl url='mailto:tedm@FreeBSD.ORG' 
+  name='&lt;tedm@FreeBSD.ORG&gt;'></tt>">
 
 <!ENTITY a.tegge "Tor Egge 
   <tt><htmlurl url='mailto:tegge@FreeBSD.ORG' 
