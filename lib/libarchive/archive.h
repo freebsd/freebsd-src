@@ -85,6 +85,7 @@ typedef int	archive_close_callback(struct archive *, void *_client_data);
 #define	ARCHIVE_COMPRESSION_NONE	0
 #define	ARCHIVE_COMPRESSION_GZIP	1
 #define	ARCHIVE_COMPRESSION_BZIP2	2
+#define	ARCHIVE_COMPRESSION_COMPRESS	3
 
 /*
  * Codes returned by archive_format.
@@ -128,6 +129,7 @@ struct archive	*archive_read_new(void);
  */
 int		 archive_read_support_compression_all(struct archive *);
 int		 archive_read_support_compression_bzip2(struct archive *);
+int		 archive_read_support_compression_compress(struct archive *);
 int		 archive_read_support_compression_gzip(struct archive *);
 int		 archive_read_support_compression_none(struct archive *);
 
