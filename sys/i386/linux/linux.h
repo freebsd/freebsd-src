@@ -48,7 +48,7 @@ MALLOC_DECLARE(M_LINUX);
 #endif
 
 /*
- * Provide a seperate set of types for the Linux types.
+ * Provide a separate set of types for the Linux types.
  */
 typedef int		l_int;
 typedef int32_t		l_long;
