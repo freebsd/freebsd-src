@@ -113,7 +113,7 @@ ufs_extattr_uepm_unlock(struct ufsmount *ump, struct thread *td)
 	lockmgr(&ump->um_extattr.uepm_lock, LK_RELEASE, 0, td);
 }
 
-/*
+/*-
  * Determine whether the name passed is a valid name for an actual
  * attribute.
  *
