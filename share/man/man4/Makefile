@@ -113,12 +113,6 @@ MAN=	aac.4 \
 	lp.4 \
 	lpbb.4 \
 	lpt.4 \
-	maestro3.4 \
-	md.4 \
-	mem.4 \
-	miibus.4 \
-	mlx.4 \
-	mly.4 \
 	mac.4 \
 	mac_biba.4 \
 	mac_bsdextended.4 \
@@ -131,6 +125,12 @@ MAN=	aac.4 \
 	mac_seeotheruids.4 \
 	mac_stub.4 \
 	mac_test.4 \
+	maestro3.4 \
+	md.4 \
+	mem.4 \
+	miibus.4 \
+	mlx.4 \
+	mly.4 \
 	mouse.4 \
 	mpt.4 \
 	mtio.4 \
@@ -342,6 +342,8 @@ MLINKS+=nge.4 if_nge.4
 MLINKS+=oldcard.4 card.4
 MLINKS+=patm.4 if_patm.4
 MLINKS+=pccbb.4 cbb.4
+MLINKS+=pcm.4 als4000.4
+MLINKS+=pcm.4 emu10k1.4
 MLINKS+=pcm.4 snd.4
 MLINKS+=pcn.4 if_pcn.4
 MLINKS+=pcvt.4 vt.4
