@@ -223,8 +223,10 @@ soo_poll(fp, events, active_cred, td)
 	struct socket *so = fp->f_data;
 	int error;
 
+	NET_LOCK_GIANT();
 	error = (so->so_proto->pr_usrreqs->pru_sopoll)
 	    (so, events, fp->f_cred, td);
+	NET_UNLOCK_GIANT();
 
 	return (error);
 }
