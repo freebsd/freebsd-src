@@ -257,8 +257,10 @@ adv_sgcount_to_qcount(int sgcount)
 	return (n_sg_list_qs + 1);
 }
 
+#if BYTE_ORDER == BIG_ENDIAN
 static void	 adv_adj_endian_qdone_info(struct adv_q_done_info *);
 static void	 adv_adj_scsiq_endian(struct adv_scsi_q *);
+#endif
 static void	 adv_get_q_info(struct adv_softc *adv, u_int16_t s_addr,
 				u_int16_t *inbuf, int words);
 static u_int	 adv_get_num_free_queues(struct adv_softc *adv, u_int8_t n_qs);
