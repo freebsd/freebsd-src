@@ -880,14 +880,22 @@ mk_mesg1:
  */
 
 inb_next:
-	mov	NONE,SCSIDATL			/*dummy read from latch to ACK*/
-inb_first:
+	call	inb_last
+inb_next_wait:
 	test	SSTAT1,PHASEMIS	jnz mesgin_phasemis
-	test	SSTAT0,SPIORDY	jz inb_first	/* wait for next byte */
+	test	SSTAT0,SPIORDY	jz inb_next_wait /* wait for next byte */
+inb_first:
 	mov	DINDEX,SINDEX
 	mov	DINDIR,SCSIBUSL	ret		/*read byte directly from bus*/
 inb_last:
-	mov	NONE,SCSIDATL ret		/*dummy read from latch to ACK*/
+	clr	STCNT2
+	clr	STCNT1
+	mvi	STCNT0,0x01
+	mov	NONE,SCSIDATL			/*dummy read from latch to ACK*/
+inb_last_wait:
+	test	SSTAT0,SDONE	jz inb_last_wait /* Wait for completion */
+	ret
+
 
 
 mesgin_phasemis:
