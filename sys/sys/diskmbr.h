@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)disklabel.h	8.1 (Berkeley) 6/2/93
- * $Id: disklabel.h,v 1.5 1994/10/20 23:41:57 paul Exp $
+ * $Id: disklabel.h,v 1.6 1994/10/27 20:45:09 jkh Exp $
  */
 
 #ifndef _SYS_DISKLABEL_H_
@@ -51,7 +51,7 @@
  */
 
 /* XXX these should be defined per controller (or drive) elsewhere, not here! */
-#ifdef i386
+#ifdef __i386__
 #define LABELSECTOR	1			/* sector containing label */
 #define LABELOFFSET	0			/* offset of label in sector */
 #define	OURPART		2			/* partition is 'all BSD' */
