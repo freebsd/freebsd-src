@@ -121,6 +121,7 @@ struct device {
 #define	UNKNOWN -2	/* -2 means not set yet */
 	int	d_dk;			/* if init 1 set to number for iostat */
 	int	d_flags;		/* flags for device init */
+	int	d_conflicts;		/* I'm allowed to conflict */
 	char	*d_port;		/* io port base manifest constant */
 	int	d_portn;	/* io port base (if number not manifest) */
 	char	*d_mask;		/* interrupt mask */
