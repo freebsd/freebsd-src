@@ -646,6 +646,16 @@ fi
 
 echo -n 'Additional ABI support:'
 
+# Load the SysV IPC API if requested.
+case ${sysvipc_enable} in
+[Yy][Ee][Ss])
+	echo -n ' sysvipc'
+	kldload sysvmsg >/dev/null 2>&1
+	kldload sysvsem >/dev/null 2>&1
+	kldload sysvshm >/dev/null 2>&1
+	;;
+esac
+
 # Start the Linux binary compatibility if requested.
 #
 case ${linux_enable} in
