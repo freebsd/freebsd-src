@@ -272,11 +272,17 @@ struct ata_device {
     void			(*setmode)(struct ata_device *atadev, int mode);
 };
 
-/* structure for holding DMA address data */
-struct ata_dmaentry {
-    u_int32_t base;
+/* structure for holding DMA Physical Region Descriptors (PRD) entries */
+struct ata_dma_prdentry {
+    u_int32_t addr;
     u_int32_t count;
 };  
+
+/* structure used by the setprd function */
+struct ata_dmasetprd_args {
+    void *dmatab;
+    int error;
+};
 
 /* structure holding DMA related information */
 struct ata_dma {
@@ -285,7 +291,7 @@ struct ata_dma {
     bus_dmamap_t		cdmamap;	/* control DMA map */
     bus_dma_tag_t		ddmatag;	/* data DMA tag */
     bus_dmamap_t		ddmamap;	/* data DMA map */
-    struct ata_dmaentry		*dmatab;	/* DMA transfer table */
+    void			*dmatab;	/* DMA transfer table */
     bus_addr_t			mdmatab;	/* bus address of dmatab */
     bus_dma_tag_t		wdmatag;	/* workspace DMA tag */
     bus_dmamap_t		wdmamap;	/* workspace DMA map */
@@ -303,6 +309,7 @@ struct ata_dma {
 
     void (*alloc)(struct ata_channel *ch);
     void (*free)(struct ata_channel *ch);
+    void (*setprd)(void *xsc, bus_dma_segment_t *segs, int nsegs, int error);
     int (*load)(struct ata_device *atadev, caddr_t data, int32_t count,int dir);
     int (*unload)(struct ata_channel *ch);
     int (*start)(struct ata_channel *ch);
