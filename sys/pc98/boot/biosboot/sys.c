@@ -5,7 +5,7 @@
  *
  * Permission to use, copy, modify and distribute this software and its
  * documentation is hereby granted, provided that both the copyright
-e* notice and this permission notice appear in all copies of the
+ * notice and this permission notice appear in all copies of the
  * software, derivative works or modified versions, and any portions
  * thereof, and that both notices appear in supporting documentation.
  *
@@ -24,7 +24,7 @@ e* notice and this permission notice appear in all copies of the
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:36:34  rpd
- *	$Id: sys.c,v 1.2 1996/08/31 15:06:24 asami Exp $
+ *	$Id: sys.c,v 1.3 1996/09/12 11:09:00 asami Exp $
  */
 
 /*
