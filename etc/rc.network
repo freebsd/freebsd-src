@@ -659,11 +659,6 @@ network_pass3() {
 
 			echo -n ' nfsd';	nfsd ${nfs_server_flags}
 
-			if [ -n "${nfs_bufpackets}" ]; then
-				sysctl vfs.nfs.bufpackets=${nfs_bufpackets} \
-					> /dev/null
-			fi
-
 			case ${rpc_lockd_enable} in
 			[Yy][Ee][Ss])
 				echo -n ' rpc.lockd';	rpc.lockd
@@ -711,6 +706,11 @@ network_pass3() {
 			if [ -n "${nfs_access_cache}" ]; then
 				echo -n " NFS access cache time=${nfs_access_cache}"
 				sysctl vfs.nfs.access_cache_timeout=${nfs_access_cache} >/dev/null
+			fi
+
+			if [ -n "${nfs_bufpackets}" ]; then
+				sysctl vfs.nfs.bufpackets=${nfs_bufpackets} \
+					> /dev/null
 			fi
 
 			case ${amd_enable} in
