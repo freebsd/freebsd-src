@@ -135,7 +135,6 @@ struct fatcache {
  * contained within a vnode.
  */
 struct denode {
-	struct lock de_lock;	/* denode lock >Keep this first< */
 	struct denode *de_next;	/* Hash chain forward */
 	struct denode **de_prev; /* Hash chain back */
 	struct vnode *de_vnode;	/* addr of vnode we are part of */
