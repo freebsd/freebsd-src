@@ -109,7 +109,7 @@ struct	linux_access_args {
 	int flags;
 };
 struct	linux_nice_args {
-	int dummy;
+	int inc;
 };
 struct	linux_ftime_args {
 	int dummy;

@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_dummy.c,v 1.2 1995/11/22 07:43:44 bde Exp $
+ *  $Id: linux_dummy.c,v 1.3 1996/03/02 19:37:52 peter Exp $
  */
 
 #include <sys/param.h>
@@ -104,13 +104,6 @@ int
 linux_gtty(struct proc *p, struct linux_gtty_args *args, int *retval)
 {
     printf("Linux-emul(%d): gtty() not supported\n", p->p_pid);
-    return ENOSYS;
-}
-
-int
-linux_nice(struct proc *p, struct linux_nice_args *args, int *retval)
-{
-    printf("Linux-emul(%d): nice() not supported\n", p->p_pid);
     return ENOSYS;
 }
 
