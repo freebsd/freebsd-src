@@ -28,12 +28,13 @@
  * $FreeBSD$
  */
 
-extern int from_local(struct sockaddr_in *);
-extern void check_startup(void);
-extern int check_default(struct sockaddr_in *, u_long, u_long);
-extern int check_setunset(struct sockaddr_in *, u_long, u_long, u_long);
-extern int check_privileged_port(struct sockaddr_in *, u_long, u_long, u_long);
-extern int check_callit(struct sockaddr_in *, u_long, u_long, u_long);
+extern int from_local __P((struct sockaddr_in *));
+extern void check_startup __P((void));
+extern int check_default __P((struct sockaddr_in *, u_long, u_long));
+extern int check_setunset __P((struct sockaddr_in *, u_long, u_long, u_long));
+extern int check_privileged_port __P((struct sockaddr_in *, u_long, u_long,
+	u_long));
+extern int check_callit __P((struct sockaddr_in *, u_long, u_long, u_long));
 
 extern int verboselog;
 extern int allow_severity;
