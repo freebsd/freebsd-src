@@ -2292,10 +2292,6 @@ dump_db(struct fwohci_softc *sc, uint32_t ch)
 	pp = dbch->top;
 	prev = pp->db;
 	for(idb = 0 ; idb < dbch->ndb ; idb ++ ){
-		if(pp == NULL){
-			curr = NULL;
-			goto outdb;
-		}
 		cp = STAILQ_NEXT(pp, link);
 		if(cp == NULL){
 			curr = NULL;
@@ -2314,6 +2310,10 @@ dump_db(struct fwohci_softc *sc, uint32_t ch)
 			}
 		}
 		pp = STAILQ_NEXT(pp, link);
+		if(pp == NULL){
+			curr = NULL;
+			goto outdb;
+		}
 		prev = pp->db;
 	}
 outdb:
