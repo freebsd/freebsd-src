@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)sys_machdep.c	5.5 (Berkeley) 1/19/91
- *	$Id: sys_machdep.c,v 1.23 1997/08/09 00:02:49 dyson Exp $
+ *	$Id: sys_machdep.c,v 1.24 1997/08/28 14:36:54 jlemon Exp $
  *
  */
 
@@ -51,10 +51,6 @@
 
 #include <machine/cpu.h>
 #include <machine/sysarch.h>
-#ifdef VM86
-#include <machine/pcb_ext.h>
-#include <machine/vm86.h>
-#endif /* VM86 */
 
 #include <vm/vm_kern.h>		/* for kernel_map */
 
