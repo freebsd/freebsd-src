@@ -34,8 +34,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfsm_subs.h	8.1 (Berkeley) 6/16/93
- * $Id$
+ * $Id: nfsm_subs.h,v 1.2 1994/08/02 07:52:20 davidg Exp $
  */
+
+#ifndef _NFS_NFSM_SUBS_H_
+#define _NFS_NFSM_SUBS_H_
 
 /*
  * These macros do strange and peculiar things to mbuf chains for
@@ -268,3 +271,4 @@ extern struct mbuf *nfsm_reqh();
 		txdr_hyper(&vap->va_filerev, &fp->fa_nqfilerev); \
 	}
 
+#endif

@@ -34,8 +34,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfsdiskless.h	8.1 (Berkeley) 6/10/93
- * $Id: nfsdiskless.h,v 1.2 1994/08/02 07:52:19 davidg Exp $
+ * $Id: nfsdiskless.h,v 1.3 1994/08/05 09:28:49 davidg Exp $
  */
+
+#ifndef _NFS_NFSDISKLESS_H_
+#define _NFS_NFSDISKLESS_H_
 
 /*
  * Structure that must be initialized for a diskless nfs client.
@@ -65,3 +68,5 @@ struct nfs_diskless {
 	long		root_time;		/* Timestamp of root fs */
 	char		my_hostnam[MAXHOSTNAMELEN]; /* Client host name */
 };
+
+#endif

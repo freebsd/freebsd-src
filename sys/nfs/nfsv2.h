@@ -34,8 +34,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfsv2.h	8.1 (Berkeley) 6/10/93
- * $Id: nfsv2.h,v 1.2 1994/08/02 07:52:26 davidg Exp $
+ * $Id: nfsv2.h,v 1.3 1994/08/18 22:35:37 wollman Exp $
  */
+
+#ifndef _NFS_NFSV2_H_
+#define _NFS_NFSV2_H_
 
 /*
  * nfs definitions as per the version 2 specs
@@ -258,3 +261,5 @@ struct nfsv2_statfs {
 	u_long	sf_files;	/* Nqnfs only */
 	u_long	sf_ffree;	/* ditto      */
 };
+
+#endif
