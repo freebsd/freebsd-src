@@ -18,10 +18,17 @@ DOC_PREFIX Makefile variable.  RELNOTESng also requires the DocProj
 build tools, which can easily be installed with the textproc/docproj
 port in the Ports Collection.
 
-share/sgml/*.dsl
-	Architecture-dependent stylesheets.  These stylesheets support
-	the arch= attribute on (all?) DocBook elements.  Currently-
-	supported values are:  i386, alpha.
+share/mk/doc.relnotes.mk
+	Common Makefile definitions for RELNOTESng.  These definitions
+	mostly accomodate the fact that we're building DocProj-like
+	documents outside the doc/ tree.
+share/sgml/release.dsl
+	Language-neutral stylesheet.  This stylesheet supports
+	the arch= attribute on (all?) DocBook elements; elements with
+	an arch= attribute are only included in the output if their
+	value is equal to the value of the &arch; entity.  In the
+	future, arch= could be a list of possible &arch; entity values
+	that match, such as "i386,alpha".
 share/sgml/release.ent
 	Release information.  Need to update the entry definitions in
 	this file when rolling new revisions; these should take effect
