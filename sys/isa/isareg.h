@@ -34,15 +34,15 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.h	5.7 (Berkeley) 5/9/91
- *	$Id: isareg.h,v 1.1 1998/08/06 08:49:09 dfr Exp $
+ *	$Id: isareg.h,v 1.2 1999/01/06 05:49:30 yokota Exp $
  */
 
 #ifdef PC98
 #error isa.h is included from PC-9801 source
 #endif
 
-#ifndef _I386_ISA_ISA_H_
-#define	_I386_ISA_ISA_H_
+#ifndef _ISA_ISA_H_
+#define	_ISA_ISA_H_
 
 /* BEWARE:  Included in both assembler and C code */
 
@@ -197,4 +197,4 @@
 #define	CYRIX_EMC	0xC0000000	/* Cyrix EMC */
 #endif /* !COMPAQ_RAMRELOC */
 
-#endif /* !_I386_ISA_ISA_H_ */
+#endif /* !_ISA_ISA_H_ */
