@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_lnc.c,v 1.47 1998/10/22 05:58:39 bde Exp $
+ * $Id: if_lnc.c,v 1.48 1998/10/30 11:53:58 luigi Exp $
  */
 
 /*
@@ -1311,7 +1311,7 @@ lnc_attach_ne2100_pci(int unit, unsigned iobase)
 		sc->bdp = iobase + PCNET_BDP;
 
 		sc->nic.ic = pcnet_probe(sc);
-		if (sc->nic.ic >= PCnet_PCI) {
+		if (sc->nic.ic >= PCnet_32) {
 			sc->nic.ident = NE2100;
 			sc->nic.mem_mode = DMA_FIXED;
   
