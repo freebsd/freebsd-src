@@ -59,6 +59,7 @@
 #include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/linker.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
@@ -2204,8 +2205,8 @@ init386(first)
 
 	/* setup curproc so that mutexes work */
 	PCPU_SET(curproc, &proc0);
+	PCPU_SET(spinlocks, NULL);
 
-	LIST_INIT(&proc0.p_heldmtx);
 	LIST_INIT(&proc0.p_contested);
 
 	mtx_init(&sched_lock, "sched lock", MTX_SPIN | MTX_RECURSE);
