@@ -38,6 +38,8 @@
  * from: Utah $Hdr: fdioctl.h 1.1 90/07/09$
  *
  *	@(#)vnioctl.h	8.1 (Berkeley) 6/10/93
+ *
+ * $FreeBSD$
  */
 
 #ifndef _SYS_VNIOCTL_H_
@@ -72,5 +74,6 @@ struct vn_ioctl {
 #define VN_DEBUG	0x4	/* Debug data in vn driver */
 #define VN_IO		0x8	/* Debug I/O in vn driver */
 #define VN_DONTCLUSTER	0x10	/* Don't cluster */
+#define VN_RESERVE	0x20	/* Pre-reserve swap */
 
 #endif	/* _SYS_VNIOCTL_H_*/
