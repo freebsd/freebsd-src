@@ -60,10 +60,10 @@
 #include <machine/md_var.h>
 
 /*
- * XXX ISA_HOLE_START is defined in <machine/pmap.h>, but it
- * carries too much baggage
+ * XXX We shouldn't be using processor-specific/bus-specific code in
+ * here, but we need the start of the ISA hole (IOM_BEGIN).
  */
-#define ISA_HOLE_START 0xA0000
+#include <i386/isa/isa.h>
 
 SYSCTL_NODE(_machdep, OID_AUTO, pccard, CTLFLAG_RW, 0, "pccard");
 
@@ -592,7 +592,7 @@ allocate_driver(struct slot *sp, struct drv_desc *drvp)
 	 */
 	if (drvp->mem)
 		devp->isahd.id_maddr = 
-			(caddr_t)(drvp->mem + atdevbase - ISA_HOLE_START);
+			(caddr_t)(drvp->mem + atdevbase - IOM_BEGIN);
 	else
 		devp->isahd.id_maddr = 0;
 	devp->next = sp->devices;
@@ -995,7 +995,7 @@ crdioctl(dev_t dev, int cmd, caddr_t data, int fflag, struct proc *p)
 		 */
 		pccard_mem = *(unsigned long *)data;
 		pccard_kmem = (unsigned char *)(pccard_mem
-				+ atdevbase - ISA_HOLE_START);
+				+ atdevbase - IOM_BEGIN);
 		break;
 	/*
 	 *	Set power values
@@ -1061,7 +1061,8 @@ crdpoll(dev_t dev, int events, struct proc *p)
 static int
 invalid_io_memory(unsigned long adr, int size)
 {
-	if (adr < 0xC0000 || (adr+size) > 0x100000)
+	/* XXX - What's magic about 0xC0000?? */
+	if (adr < 0xC0000 || (adr+size) > IOM_END)
 		return(1);
 	return(0);
 }
