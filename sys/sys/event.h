@@ -39,11 +39,11 @@
 #define EVFILT_SYSCOUNT		6
 
 struct kevent {
-	u_long		ident;		/* identifier for this event */
+	uintptr_t	ident;		/* identifier for this event */
 	short		filter;		/* filter for event */
 	u_short		flags;
 	u_int		fflags;
-	long		data;
+	intptr_t	data;
 	void		*udata;		/* opaque user data identifier */
 };
 
