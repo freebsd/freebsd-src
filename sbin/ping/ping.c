@@ -582,12 +582,12 @@ pinger()
 				return;
 			}
 			perror("ping: sendto");
-		}
-		(void)printf("ping: wrote %s %d chars, ret=%d\n",
+		} else {
+			(void)printf("ping: wrote %s %d chars, ret=%d\n",
 		    				hostname, cc, i);
-	} else {
-		ntransmitted++; /* only count ones that made it out */
+		}
 	}
+	ntransmitted++; 
 	if (!(options & F_QUIET) && options & F_FLOOD)
 		(void)write(STDOUT_FILENO, &DOT, 1);
 }
