@@ -316,7 +316,7 @@ The command reads the raw state data from the device.
 It uses the same structure as above.
 This command may not be supported by all drivers.
 .Pp
-.It Dv MOUSE_GETSTATE Ar mousestatus_t *status
+.It Dv MOUSE_GETSTATUS Ar mousestatus_t *status
 The command returns the current state of buttons and 
 movement counts in the following structure.
 .Bd -literal
@@ -344,7 +344,7 @@ through
 The first three buttons correspond to left, middle and right buttons.
 .Pp
 If the state of the button has changed since the last 
-.Dv MOUSE_GETSTATE
+.Dv MOUSE_GETSTATUS
 call, the corresponding bit in the
 .Dv flags
 field will be set. 
@@ -355,7 +355,7 @@ bit in the
 field will also be set.
 .Pp
 The other fields hold movement counts since the last 
-.Dv MOUSE_GETSTATE
+.Dv MOUSE_GETSTATUS
 call. The internal counters will be reset after every call to this
 command.
 .El
