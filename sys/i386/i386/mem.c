@@ -38,12 +38,14 @@
  *
  *	from: Utah $Hdr: mem.c 1.13 89/10/08$
  *	from: @(#)mem.c	7.2 (Berkeley) 5/9/91
- *	$Id: mem.c,v 1.28 1995/12/27 11:18:29 markm Exp $
+ *	$Id: mem.c,v 1.29 1995/12/31 09:32:16 joerg Exp $
  */
 
 /*
  * Memory special file
  */
+
+#include "opt_perfmon.h"
 
 #include <sys/param.h>
 #include <sys/conf.h>
@@ -60,6 +62,9 @@
 #include <machine/cpu.h>
 #include <machine/random.h>
 #include <machine/psl.h>
+#ifdef PERFMON
+#include <machine/perfmon.h>
+#endif
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -90,6 +95,9 @@ static void *random_devfs_token;
 static void *urandom_devfs_token;
 static void *zero_devfs_token;
 static void *io_devfs_token;
+#ifdef PERFMON
+static void *perfmon_devfs_token;
+#endif
 
 static void memdevfs_init __P((void));
 
@@ -111,6 +119,10 @@ memdevfs_init()
 		"/",	"zero",	&mem_cdevsw,    12,	DV_CHR, 0,  0, 0666);
     io_devfs_token = devfs_add_devsw(
 		"/",	"io",	&mem_cdevsw,    14,	DV_CHR, 0,  0, 0600);
+#ifdef PERFMON
+    perfmon_devfs_token = devfs_add_devsw(
+		"/",	"perfmon", &mem_cdevsw,	32,	DV_CHR,	0,  0, 0666);
+#endif /* PERFMON */
 }
 #endif /* DEVFS */
 
@@ -126,6 +138,10 @@ mmclose(dev, flags, fmt, p)
 	struct trapframe *fp;
 
 	switch (minor(dev)) {
+#ifdef PERFMON
+	case 32:
+		return perfmon_close(dev, flags, fmt, p);
+#endif
 	case 14:
 		fp = (struct trapframe *)curproc->p_md.md_regs;
 		fp->tf_eflags &= ~PSL_IOPL;
@@ -146,6 +162,12 @@ mmopen(dev, flags, fmt, p)
 	struct trapframe *fp;
 
 	switch (minor(dev)) {
+	case 32:
+#ifdef PERFMON
+		return perfmon_open(dev, flags, fmt, p);
+#else
+		return ENODEV;
+#endif
 	case 14:
 		fp = (struct trapframe *)curproc->p_md.md_regs;
 		fp->tf_eflags |= PSL_IOPL;
@@ -378,8 +400,18 @@ mmioctl(dev, cmd, cmdarg, flags, p)
 	u_int16_t interrupt_mask;
 	int error;
 
-	if (minor(dev) != 3 && minor(dev) != 4)
-		return (ENODEV);
+	switch(minor(dev)) {
+	case 3:
+	case 4:
+		break;
+
+#ifdef PERFMON
+	case 32:
+		return perfmon_ioctl(dev, cmd, cmdarg, flags, p);
+#endif
+	default:
+		return ENODEV;
+	}
 
 	if (*(u_int16_t *)cmdarg >= 16)
 		return (EINVAL);
