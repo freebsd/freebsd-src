@@ -174,9 +174,7 @@ IDTVEC(fpu)
 	MPLOCKED incl _cnt+V_TRAP
 	pushl	$0			/* dummy unit to finish intr frame */
 
-	call	__mtx_enter_giant_def
 	call	_npx_intr
-	call	__mtx_exit_giant_def
 
 	addl	$4,%esp
 	incb	PCPU(INTR_NESTING_LEVEL)
