@@ -40,7 +40,7 @@ m2-exp.tab.c: $(.CURDIR)/m2-exp.y
 
 
 
-CFLAGS+= -I$(.CURDIR)/. -I/usr/include/readline -I$(.CURDIR)/../bfd
+CFLAGS+= -I$(.CURDIR)/. -I${DESTDIR}/usr/include/readline -I$(.CURDIR)/../bfd
 DPADD+= ${LIBREADLINE} ${LIBTERMCAP}
 LDADD+= -lreadline  -ltermcap
 
