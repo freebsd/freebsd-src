@@ -3,5 +3,6 @@
 
 PROG=	sconfig
 MAN=	sconfig.8
+MANSUBDIR= /i386
 
 .include <bsd.prog.mk>
