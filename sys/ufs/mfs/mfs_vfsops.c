@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mfs_vfsops.c	8.4 (Berkeley) 4/16/94
- * $Id: mfs_vfsops.c,v 1.11 1995/08/20 10:26:00 davidg Exp $
+ * $Id: mfs_vfsops.c,v 1.12 1995/08/28 09:19:14 julian Exp $
  */
 
 #include <sys/param.h>
@@ -87,8 +87,6 @@ struct vfsops mfs_vfsops = {
 };
 
 VFS_SET(mfs_vfsops, mfs, MOUNT_MFS, 0);
-
-int vfs_mountroot __P((caddr_t));	/* XXX goes away*/
 
 /*
  * This is called early in boot to set the base address and size
