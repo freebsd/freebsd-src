@@ -30,8 +30,9 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)fig3.2.n	5.2 (Berkeley) 4/17/91
+.\" $FreeBSD$
 .\"
-.FK
+.KF
 .TS
 center, box;
 cw(15).
