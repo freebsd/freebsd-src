@@ -225,7 +225,7 @@ ${SHLIB_NAME}: ${SOBJS}
 	    -o ${SHLIB_NAME} \
 	    `lorder ${SOBJS} | tsort -q` ${LDADD}
 .else
-	@${CC} -shared -Wl,-x \
+	@${CC} ${CFLAGS} -shared -Wl,-x \
 	    -o ${SHLIB_NAME} -Wl,-soname,${SONAME} \
 	    `lorder ${SOBJS} | tsort -q` ${LDADD}
 .endif
