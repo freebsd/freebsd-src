@@ -48,15 +48,15 @@ static char	plwhite[] = "Player is white, computer is red.";
 static char	nocomp[] = "(No computer play.)";
 
 char  *descr[] = {
-	"Usage:  backgammon [-] [n r w b pr pw pb t3a]\n",
-	"\t-\tgets this list\n\tn\tdon't ask for rules or instructions",
-	"\tr\tplayer is red (implies n)\n\tw\tplayer is white (implies n)",
-	"\tb\ttwo players, red and white (implies n)",
-	"\tpr\tprint the board before red's turn",
-	"\tpw\tprint the board before white's turn",
-	"\tpb\tprint the board before both player's turn",
-	"\tterm\tterminal is a term",
-	"\tsfile\trecover saved game from file",
+	"Usage:  backgammon [-h n r w b pr pw pb tterm sfile]\n",
+	"\t-h\tgets this list\n\t-n\tdon't ask for rules or instructions",
+	"\t-r\tplayer is red (implies -n)\n\t-w\tplayer is white (implies -n)",
+	"\t-b\ttwo players, red and white (implies -n)",
+	"\t-pr\tprint the board before red's turn",
+	"\t-pw\tprint the board before white's turn",
+	"\t-pb\tprint the board before both player's turn",
+	"\t-tterm\tterminal is a term",
+	"\t-sfile\trecover saved game from file",
 	0
 };
 
@@ -308,11 +308,12 @@ register char	**argv;
 	register char	ch;
 	extern int optind;
 	extern char *optarg;
+	int i;
 
 	/* process arguments here.  dashes are ignored, nbrw are ignored
 	   if the game is being recovered */
 
-	while ((ch = getopt (argc, argv, "nbrwp:t:s:")) != -1) {
+	while ((ch = getopt (argc, argv, "nbrwp:t:s:h")) != -1) {
 		switch (ch)  {
 
 		/* don't ask if rules or instructions needed */
@@ -372,6 +373,10 @@ register char	**argv;
 			/* recover file */
 			recover (optarg);
 			break;
+		case 'h':
+			for (i = 0; descr[i] != 0; i++)
+				puts (descr[i]);
+			getout();
 		}
 	}
 	argc -= optind;
