@@ -39,7 +39,7 @@
  * from: Utah $Hdr: swap_pager.c 1.4 91/04/30$
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
- * $Id: swap_pager.c,v 1.32 1995/03/22 05:12:18 davidg Exp $
+ * $Id: swap_pager.c,v 1.33 1995/04/16 12:56:14 davidg Exp $
  */
 
 /*
@@ -51,6 +51,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
 #include <sys/proc.h>
 #include <sys/buf.h>
 #include <sys/vnode.h>
@@ -64,6 +65,7 @@
 #include <vm/vm_page.h>
 #include <vm/vm_pageout.h>
 #include <vm/swap_pager.h>
+#include <vm/vm_kern.h>
 
 #ifndef NPENDINGIO
 #define NPENDINGIO	10
@@ -73,16 +75,11 @@ int swap_pager_input __P((sw_pager_t, vm_page_t *, int, int));
 int swap_pager_output __P((sw_pager_t, vm_page_t *, int, int, int *));
 
 int nswiodone;
-extern int vm_pageout_rate_limit;
-static int cleandone;
-extern int hz;
 int swap_pager_full;
-extern vm_map_t pager_map;
 extern int vm_swap_size;
 int no_swap_space = 1;
 struct rlist *swaplist;
 int nswaplist;
-extern int vm_pio_needed;
 
 #define MAX_PAGEOUT_CLUSTER 8
 
@@ -101,8 +98,6 @@ struct swpagerclean {
 } swcleanlist[NPENDINGIO];
 
 
-extern vm_map_t kernel_map;
-
 /* spc_flags values */
 #define SPC_ERROR	0x01
 
@@ -117,7 +112,6 @@ struct pagerlst swap_pager_un_list;	/* list of "unnamed" anon pagers */
 #define	SWAP_FREE_NEEDED	0x1	/* need a swap block */
 #define SWAP_FREE_NEEDED_BY_PAGEOUT 0x2
 int swap_pager_needflags;
-struct rlist *swapfrag;
 
 struct pagerlst *swp_qs[] = {
 	&swap_pager_list, &swap_pager_un_list, (struct pagerlst *) 0
@@ -137,11 +131,9 @@ struct pagerops swappagerops = {
 };
 
 int npendingio = NPENDINGIO;
-int pendingiowait;
 int require_swap_init;
 void swap_pager_finish();
 int dmmin, dmmax;
-extern int vm_page_count;
 
 static inline void 
 swapsizecheck()
@@ -1601,7 +1593,6 @@ doclean:
 		if( swap_pager_needflags & SWAP_FREE_NEEDED_BY_PAGEOUT)
 			pagedaemon_wakeup();
 		swap_pager_needflags &= ~(SWAP_FREE_NEEDED|SWAP_FREE_NEEDED_BY_PAGEOUT);
-		++cleandone;
 		splx(s);
 	}
 
