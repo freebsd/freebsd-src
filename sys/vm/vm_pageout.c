@@ -461,7 +461,6 @@ vm_pageout_object_deactivate_pages(map, object, desired, map_remove_only)
 	vm_page_t p, next;
 	int rcount;
 	int remove_mode;
-	int s;
 
 	GIANT_REQUIRED;
 	if (object->type == OBJT_DEVICE || object->type == OBJT_PHYS)
@@ -515,20 +514,14 @@ vm_pageout_object_deactivate_pages(map, object, desired, map_remove_only)
 						vm_page_protect(p, VM_PROT_NONE);
 						vm_page_deactivate(p);
 					} else {
-						s = splvm();
-						TAILQ_REMOVE(&vm_page_queues[PQ_ACTIVE].pl, p, pageq);
-						TAILQ_INSERT_TAIL(&vm_page_queues[PQ_ACTIVE].pl, p, pageq);
-						splx(s);
+						vm_pageq_requeue(p);
 					}
 				} else {
 					vm_page_activate(p);
 					vm_page_flag_clear(p, PG_REFERENCED);
 					if (p->act_count < (ACT_MAX - ACT_ADVANCE))
 						p->act_count += ACT_ADVANCE;
-					s = splvm();
-					TAILQ_REMOVE(&vm_page_queues[PQ_ACTIVE].pl, p, pageq);
-					TAILQ_INSERT_TAIL(&vm_page_queues[PQ_ACTIVE].pl, p, pageq);
-					splx(s);
+					vm_pageq_requeue(p);
 				}
 			} else if (p->queue == PQ_INACTIVE) {
 				vm_page_protect(p, VM_PROT_NONE);
@@ -698,6 +691,7 @@ vm_pageout_scan(int pass)
 rescan0:
 	addl_page_shortage = addl_page_shortage_init;
 	maxscan = cnt.v_inactive_count;
+
 	for (m = TAILQ_FIRST(&vm_page_queues[PQ_INACTIVE].pl);
 	     m != NULL && maxscan-- > 0 && page_shortage > 0;
 	     m = next) {
@@ -717,10 +711,7 @@ rescan0:
 			continue;
 
 		if (m->hold_count) {
-			s = splvm();
-			TAILQ_REMOVE(&vm_page_queues[PQ_INACTIVE].pl, m, pageq);
-			TAILQ_INSERT_TAIL(&vm_page_queues[PQ_INACTIVE].pl, m, pageq);
-			splx(s);
+			vm_pageq_requeue(m);
 			addl_page_shortage++;
 			continue;
 		}
@@ -811,11 +802,8 @@ rescan0:
 			 * before being freed.  This significantly extends
 			 * the thrash point for a heavily loaded machine.
 			 */
-			s = splvm();
 			vm_page_flag_set(m, PG_WINATCFLS);
-			TAILQ_REMOVE(&vm_page_queues[PQ_INACTIVE].pl, m, pageq);
-			TAILQ_INSERT_TAIL(&vm_page_queues[PQ_INACTIVE].pl, m, pageq);
-			splx(s);
+			vm_pageq_requeue(m);
 		} else if (maxlaunder > 0) {
 			/*
 			 * We always want to try to flush some dirty pages if
@@ -844,10 +832,7 @@ rescan0:
 			 * Those objects are in a "rundown" state.
 			 */
 			if (!swap_pageouts_ok || (object->flags & OBJ_DEAD)) {
-				s = splvm();
-				TAILQ_REMOVE(&vm_page_queues[PQ_INACTIVE].pl, m, pageq);
-				TAILQ_INSERT_TAIL(&vm_page_queues[PQ_INACTIVE].pl, m, pageq);
-				splx(s);
+				vm_pageq_requeue(m);
 				continue;
 			}
 
@@ -918,10 +903,7 @@ rescan0:
 				 * If the page has become held, then skip it
 				 */
 				if (m->hold_count) {
-					s = splvm();
-					TAILQ_REMOVE(&vm_page_queues[PQ_INACTIVE].pl, m, pageq);
-					TAILQ_INSERT_TAIL(&vm_page_queues[PQ_INACTIVE].pl, m, pageq);
-					splx(s);
+					vm_pageq_requeue(m);
 					if (object->flags & OBJ_MIGHTBEDIRTY)
 						vnodes_skipped++;
 					vput(vp);
@@ -996,10 +978,7 @@ rescan0:
 		if ((m->busy != 0) ||
 		    (m->flags & PG_BUSY) ||
 		    (m->hold_count != 0)) {
-			s = splvm();
-			TAILQ_REMOVE(&vm_page_queues[PQ_ACTIVE].pl, m, pageq);
-			TAILQ_INSERT_TAIL(&vm_page_queues[PQ_ACTIVE].pl, m, pageq);
-			splx(s);
+			vm_pageq_requeue(m);
 			m = next;
 			continue;
 		}
@@ -1036,10 +1015,7 @@ rescan0:
 		 * page activation count stats.
 		 */
 		if (actcount && (m->object->ref_count != 0)) {
-			s = splvm();
-			TAILQ_REMOVE(&vm_page_queues[PQ_ACTIVE].pl, m, pageq);
-			TAILQ_INSERT_TAIL(&vm_page_queues[PQ_ACTIVE].pl, m, pageq);
-			splx(s);
+			vm_pageq_requeue(m);
 		} else {
 			m->act_count -= min(m->act_count, ACT_DECLINE);
 			if (vm_pageout_algorithm ||
@@ -1056,10 +1032,7 @@ rescan0:
 					vm_page_deactivate(m);
 				}
 			} else {
-				s = splvm();
-				TAILQ_REMOVE(&vm_page_queues[PQ_ACTIVE].pl, m, pageq);
-				TAILQ_INSERT_TAIL(&vm_page_queues[PQ_ACTIVE].pl, m, pageq);
-				splx(s);
+				vm_pageq_requeue(m);
 			}
 		}
 		m = next;
@@ -1076,7 +1049,7 @@ rescan0:
 
 	while (cnt.v_free_count < cnt.v_free_reserved) {
 		static int cache_rover = 0;
-		m = vm_page_list_find(PQ_CACHE, cache_rover, FALSE);
+		m = vm_pageq_find(PQ_CACHE, cache_rover, FALSE);
 		if (!m)
 			break;
 		if ((m->flags & (PG_BUSY|PG_UNMANAGED)) || 
@@ -1210,7 +1183,6 @@ rescan0:
 static void
 vm_pageout_page_stats()
 {
-	int s;
 	vm_page_t m,next;
 	int pcount,tpcount;		/* Number of pages to check */
 	static int fullintervalcount = 0;
@@ -1251,10 +1223,7 @@ vm_pageout_page_stats()
 		if ((m->busy != 0) ||
 		    (m->flags & PG_BUSY) ||
 		    (m->hold_count != 0)) {
-			s = splvm();
-			TAILQ_REMOVE(&vm_page_queues[PQ_ACTIVE].pl, m, pageq);
-			TAILQ_INSERT_TAIL(&vm_page_queues[PQ_ACTIVE].pl, m, pageq);
-			splx(s);
+			vm_pageq_requeue(m);
 			m = next;
 			continue;
 		}
@@ -1270,10 +1239,7 @@ vm_pageout_page_stats()
 			m->act_count += ACT_ADVANCE + actcount;
 			if (m->act_count > ACT_MAX)
 				m->act_count = ACT_MAX;
-			s = splvm();
-			TAILQ_REMOVE(&vm_page_queues[PQ_ACTIVE].pl, m, pageq);
-			TAILQ_INSERT_TAIL(&vm_page_queues[PQ_ACTIVE].pl, m, pageq);
-			splx(s);
+			vm_pageq_requeue(m);
 		} else {
 			if (m->act_count == 0) {
 				/*
@@ -1289,10 +1255,7 @@ vm_pageout_page_stats()
 				vm_page_deactivate(m);
 			} else {
 				m->act_count -= min(m->act_count, ACT_DECLINE);
-				s = splvm();
-				TAILQ_REMOVE(&vm_page_queues[PQ_ACTIVE].pl, m, pageq);
-				TAILQ_INSERT_TAIL(&vm_page_queues[PQ_ACTIVE].pl, m, pageq);
-				splx(s);
+				vm_pageq_requeue(m);
 			}
 		}
 

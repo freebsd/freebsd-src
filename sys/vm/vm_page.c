@@ -65,6 +65,39 @@
  */
 
 /*
+ *			GENERAL RULES ON VM_PAGE MANIPULATION
+ *
+ *	- a pageq mutex is required when adding or removing a page from a
+ *	  page queue (vm_page_queue[]), regardless of other mutexes or the
+ *	  busy state of a page.
+ *
+ *	- a hash chain mutex is required when associating or disassociating
+ *	  a page from the VM PAGE CACHE hash table (vm_page_buckets),
+ *	  regardless of other mutexes or the busy state of a page.
+ *
+ *	- either a hash chain mutex OR a busied page is required in order
+ *	  to modify the page flags.  A hash chain mutex must be obtained in
+ *	  order to busy a page.  A page's flags cannot be modified by a
+ *	  hash chain mutex if the page is marked busy.
+ *
+ *	- The object memq mutex is held when inserting or removing
+ *	  pages from an object (vm_page_insert() or vm_page_remove()).  This
+ *	  is different from the object's main mutex.
+ *
+ *	Generally speaking, you have to be aware of side effects when running
+ *	vm_page ops.  A vm_page_lookup() will return with the hash chain
+ *	locked, whether it was able to lookup the page or not.  vm_page_free(),
+ *	vm_page_cache(), vm_page_activate(), and a number of other routines
+ *	will release the hash chain mutex for you.  Intermediate manipulation
+ *	routines such as vm_page_flag_set() expect the hash chain to be held
+ *	on entry and the hash chain will remain held on return.
+ *
+ *	pageq scanning can only occur with the pageq in question locked.
+ *	We have a known bottleneck with the active queue, but the cache
+ *	and free queues are actually arrays already. 
+ */
+
+/*
  *	Resident memory management module.
  */
 
@@ -86,9 +119,6 @@
 #include <vm/vm_pager.h>
 #include <vm/vm_extern.h>
 
-static void	vm_page_queue_init __P((void));
-static vm_page_t vm_page_select_cache __P((vm_object_t, vm_pindex_t));
-
 /*
  *	Associated with page of user-allocatable memory is a
  *	page structure.
@@ -98,34 +128,12 @@ static struct vm_page **vm_page_buckets; /* Array of buckets */
 static int vm_page_bucket_count;	/* How big is array? */
 static int vm_page_hash_mask;		/* Mask for hash function */
 static volatile int vm_page_bucket_generation;
-
-struct vpgqueues vm_page_queues[PQ_COUNT];
-
-static void
-vm_page_queue_init(void) 
-{
-	int i;
-
-	for (i = 0; i < PQ_L2_SIZE; i++) {
-		vm_page_queues[PQ_FREE+i].cnt = &cnt.v_free_count;
-	}
-	for (i = 0; i < PQ_L2_SIZE; i++) {
-		vm_page_queues[PQ_CACHE+i].cnt = &cnt.v_cache_count;
-	}
-	vm_page_queues[PQ_INACTIVE].cnt = &cnt.v_inactive_count;
-	vm_page_queues[PQ_ACTIVE].cnt = &cnt.v_active_count;
-
-	for (i = 0; i < PQ_COUNT; i++) {
-		TAILQ_INIT(&vm_page_queues[i].pl);
-	}
-}
+static struct mtx vm_buckets_mtx[BUCKET_HASH_SIZE];
 
 vm_page_t vm_page_array = 0;
 int vm_page_array_size = 0;
 long first_page = 0;
 int vm_page_zero_count = 0;
-
-static vm_page_t _vm_page_list_find(int basequeue, int index);
 
 /*
  *	vm_set_page_size:
@@ -141,31 +149,6 @@ vm_set_page_size(void)
 		cnt.v_page_size = PAGE_SIZE;
 	if (((cnt.v_page_size - 1) & cnt.v_page_size) != 0)
 		panic("vm_set_page_size: page size not a power of two");
-}
-
-/*
- *	vm_add_new_page:
- *
- *	Add a new page to the freelist for use by the system.
- *	Must be called at splhigh().
- */
-vm_page_t
-vm_add_new_page(vm_offset_t pa)
-{
-	vm_page_t m;
-
-	GIANT_REQUIRED;
-
-	++cnt.v_page_count;
-	++cnt.v_free_count;
-	m = PHYS_TO_VM_PAGE(pa);
-	m->phys_addr = pa;
-	m->flags = 0;
-	m->pc = (pa >> PAGE_SHIFT) & PQ_L2_MASK;
-	m->queue = m->pc + PQ_FREE;
-	TAILQ_INSERT_TAIL(&vm_page_queues[m->queue].pl, m, pageq);
-	vm_page_queues[m->queue].lcnt++;
-	return (m);
 }
 
 /*
@@ -225,7 +208,7 @@ vm_page_startup(vm_offset_t starta, vm_offset_t enda, vm_offset_t vaddr)
 	 * and the inactive queue.
 	 */
 
-	vm_page_queue_init();
+	vm_pageq_init();
 
 	/*
 	 * Allocate (and initialize) the hash table buckets.
@@ -264,6 +247,8 @@ vm_page_startup(vm_offset_t starta, vm_offset_t enda, vm_offset_t vaddr)
 		*bucket = NULL;
 		bucket++;
 	}
+	for (i = 0; i < BUCKET_HASH_SIZE; ++i)
+		mtx_init(&vm_buckets_mtx[i],  "vm buckets hash mutexes", MTX_DEF);
 
 	/*
 	 * Compute the number of pages of memory that will be available for
@@ -309,7 +294,7 @@ vm_page_startup(vm_offset_t starta, vm_offset_t enda, vm_offset_t vaddr)
 		else
 			last_pa = phys_avail[i + 1];
 		while (pa < last_pa && npages-- > 0) {
-			vm_add_new_page(pa);
+			vm_pageq_add_new_page(pa);
 			pa += PAGE_SIZE;
 		}
 	}
@@ -782,132 +767,6 @@ vm_page_rename(vm_page_t m, vm_object_t new_object, vm_pindex_t new_pindex)
 }
 
 /*
- * vm_page_unqueue_nowakeup:
- *
- * 	vm_page_unqueue() without any wakeup
- *
- *	This routine must be called at splhigh().
- *	This routine may not block.
- */
-
-void
-vm_page_unqueue_nowakeup(vm_page_t m)
-{
-	int queue = m->queue;
-	struct vpgqueues *pq;
-	if (queue != PQ_NONE) {
-		pq = &vm_page_queues[queue];
-		m->queue = PQ_NONE;
-		TAILQ_REMOVE(&pq->pl, m, pageq);
-		(*pq->cnt)--;
-		pq->lcnt--;
-	}
-}
-
-/*
- * vm_page_unqueue:
- *
- *	Remove a page from its queue.
- *
- *	This routine must be called at splhigh().
- *	This routine may not block.
- */
-
-void
-vm_page_unqueue(vm_page_t m)
-{
-	int queue = m->queue;
-	struct vpgqueues *pq;
-
-	GIANT_REQUIRED;
-	if (queue != PQ_NONE) {
-		m->queue = PQ_NONE;
-		pq = &vm_page_queues[queue];
-		TAILQ_REMOVE(&pq->pl, m, pageq);
-		(*pq->cnt)--;
-		pq->lcnt--;
-		if ((queue - m->pc) == PQ_CACHE) {
-			if (vm_paging_needed())
-				pagedaemon_wakeup();
-		}
-	}
-}
-
-vm_page_t
-vm_page_list_find(int basequeue, int index, boolean_t prefer_zero)
-{
-        vm_page_t m;
-
-	GIANT_REQUIRED;
-
-#if PQ_L2_SIZE > 1
-        if (prefer_zero) {
-                m = TAILQ_LAST(&vm_page_queues[basequeue+index].pl, pglist);
-        } else {
-                m = TAILQ_FIRST(&vm_page_queues[basequeue+index].pl);
-        }
-        if (m == NULL) {
-                m = _vm_page_list_find(basequeue, index);
-	}
-#else
-        if (prefer_zero) {
-                m = TAILQ_LAST(&vm_page_queues[basequeue].pl, pglist);
-        } else {
-                m = TAILQ_FIRST(&vm_page_queues[basequeue].pl);
-        }
-#endif
-        return(m);
-}
-
-
-#if PQ_L2_SIZE > 1
-
-/*
- *	vm_page_list_find:
- *
- *	Find a page on the specified queue with color optimization.
- *
- *	The page coloring optimization attempts to locate a page
- *	that does not overload other nearby pages in the object in
- *	the cpu's L1 or L2 caches.  We need this optimization because 
- *	cpu caches tend to be physical caches, while object spaces tend 
- *	to be virtual.
- *
- *	This routine must be called at splvm().
- *	This routine may not block.
- *
- *	This routine may only be called from the vm_page_list_find() macro
- *	in vm_page.h
- */
-static vm_page_t
-_vm_page_list_find(int basequeue, int index)
-{
-	int i;
-	vm_page_t m = NULL;
-	struct vpgqueues *pq;
-
-	GIANT_REQUIRED;
-	pq = &vm_page_queues[basequeue];
-
-	/*
-	 * Note that for the first loop, index+i and index-i wind up at the
-	 * same place.  Even though this is not totally optimal, we've already
-	 * blown it by missing the cache case so we do not care.
-	 */
-
-	for(i = PQ_L2_SIZE / 2; i > 0; --i) {
-		if ((m = TAILQ_FIRST(&pq[(index + i) & PQ_L2_MASK].pl)) != NULL)
-			break;
-
-		if ((m = TAILQ_FIRST(&pq[(index - i) & PQ_L2_MASK].pl)) != NULL)
-			break;
-	}
-	return(m);
-}
-
-#endif
-
-/*
  *	vm_page_select_cache:
  *
  *	Find a page on the cache queue with color optimization.  As pages
@@ -924,7 +783,7 @@ vm_page_select_cache(vm_object_t object, vm_pindex_t pindex)
 
 	GIANT_REQUIRED;
 	while (TRUE) {
-		m = vm_page_list_find(
+		m = vm_pageq_find(
 		    PQ_CACHE,
 		    (pindex + object->pg_color) & PQ_L2_MASK,
 		    FALSE
@@ -952,7 +811,7 @@ vm_page_select_free(vm_object_t object, vm_pindex_t pindex, boolean_t prefer_zer
 {
 	vm_page_t m;
 
-	m = vm_page_list_find(
+	m = vm_pageq_find(
 		PQ_FREE,
 		(pindex + object->pg_color) & PQ_L2_MASK,
 		prefer_zero
@@ -1065,7 +924,7 @@ loop:
 	 * Remove from free queue
 	 */
 
-	vm_page_unqueue_nowakeup(m);
+	vm_pageq_remove_nowakeup(m);
 
 	/*
 	 * Initialize structure.  Only the PG_ZERO flag is inherited.
@@ -1178,7 +1037,7 @@ vm_page_activate(vm_page_t m)
 		if ((m->queue - m->pc) == PQ_CACHE)
 			cnt.v_reactivated++;
 
-		vm_page_unqueue(m);
+		vm_pageq_remove(m);
 
 		if (m->wire_count == 0 && (m->flags & PG_UNMANAGED) == 0) {
 			m->queue = PQ_ACTIVE;
@@ -1269,7 +1128,7 @@ vm_page_free_toq(vm_page_t m)
 	 * appropriate free queue.
 	 */
 
-	vm_page_unqueue_nowakeup(m);
+	vm_pageq_remove_nowakeup(m);
 	vm_page_remove(m);
 
 	/*
@@ -1369,7 +1228,7 @@ vm_page_unmanage(vm_page_t m)
 	s = splvm();
 	if ((m->flags & PG_UNMANAGED) == 0) {
 		if (m->wire_count == 0)
-			vm_page_unqueue(m);
+			vm_pageq_remove(m);
 	}
 	vm_page_flag_set(m, PG_UNMANAGED);
 	splx(s);
@@ -1398,7 +1257,7 @@ vm_page_wire(vm_page_t m)
 	s = splvm();
 	if (m->wire_count == 0) {
 		if ((m->flags & PG_UNMANAGED) == 0)
-			vm_page_unqueue(m);
+			vm_pageq_remove(m);
 		cnt.v_wire_count++;
 	}
 	m->wire_count++;
@@ -1494,7 +1353,7 @@ _vm_page_deactivate(vm_page_t m, int athead)
 		if ((m->queue - m->pc) == PQ_CACHE)
 			cnt.v_reactivated++;
 		vm_page_flag_clear(m, PG_WINATCFLS);
-		vm_page_unqueue(m);
+		vm_pageq_remove(m);
 		if (athead)
 			TAILQ_INSERT_HEAD(&vm_page_queues[PQ_INACTIVE].pl, m, pageq);
 		else
@@ -1586,7 +1445,7 @@ vm_page_cache(vm_page_t m)
 			(long)m->pindex);
 	}
 	s = splvm();
-	vm_page_unqueue_nowakeup(m);
+	vm_pageq_remove_nowakeup(m);
 	m->queue = PQ_CACHE + m->pc;
 	vm_page_queues[m->queue].lcnt++;
 	TAILQ_INSERT_TAIL(&vm_page_queues[m->queue].pl, m, pageq);
@@ -1926,231 +1785,6 @@ vm_page_test_dirty(vm_page_t m)
 	if ((m->dirty != VM_PAGE_BITS_ALL) && pmap_is_modified(m)) {
 		vm_page_dirty(m);
 	}
-}
-
-/*
- * This interface is for merging with malloc() someday.
- * Even if we never implement compaction so that contiguous allocation
- * works after initialization time, malloc()'s data structures are good
- * for statistics and for allocations of less than a page.
- */
-void *
-contigmalloc1(
-	unsigned long size,	/* should be size_t here and for malloc() */
-	struct malloc_type *type,
-	int flags,
-	unsigned long low,
-	unsigned long high,
-	unsigned long alignment,
-	unsigned long boundary,
-	vm_map_t map)
-{
-	int i, s, start;
-	vm_offset_t addr, phys, tmp_addr;
-	int pass;
-	vm_page_t pga = vm_page_array;
-
-	size = round_page(size);
-	if (size == 0)
-		panic("contigmalloc1: size must not be 0");
-	if ((alignment & (alignment - 1)) != 0)
-		panic("contigmalloc1: alignment must be a power of 2");
-	if ((boundary & (boundary - 1)) != 0)
-		panic("contigmalloc1: boundary must be a power of 2");
-
-	start = 0;
-	for (pass = 0; pass <= 1; pass++) {
-		s = splvm();
-again:
-		/*
-		 * Find first page in array that is free, within range, aligned, and
-		 * such that the boundary won't be crossed.
-		 */
-		for (i = start; i < cnt.v_page_count; i++) {
-			int pqtype;
-			phys = VM_PAGE_TO_PHYS(&pga[i]);
-			pqtype = pga[i].queue - pga[i].pc;
-			if (((pqtype == PQ_FREE) || (pqtype == PQ_CACHE)) &&
-			    (phys >= low) && (phys < high) &&
-			    ((phys & (alignment - 1)) == 0) &&
-			    (((phys ^ (phys + size - 1)) & ~(boundary - 1)) == 0))
-				break;
-		}
-
-		/*
-		 * If the above failed or we will exceed the upper bound, fail.
-		 */
-		if ((i == cnt.v_page_count) ||
-			((VM_PAGE_TO_PHYS(&pga[i]) + size) > high)) {
-			vm_page_t m, next;
-
-again1:
-			for (m = TAILQ_FIRST(&vm_page_queues[PQ_INACTIVE].pl);
-				m != NULL;
-				m = next) {
-
-				KASSERT(m->queue == PQ_INACTIVE,
-					("contigmalloc1: page %p is not PQ_INACTIVE", m));
-
-				next = TAILQ_NEXT(m, pageq);
-				if (vm_page_sleep_busy(m, TRUE, "vpctw0"))
-					goto again1;
-				vm_page_test_dirty(m);
-				if (m->dirty) {
-					if (m->object->type == OBJT_VNODE) {
-						vn_lock(m->object->handle, LK_EXCLUSIVE | LK_RETRY, curproc);
-						vm_object_page_clean(m->object, 0, 0, OBJPC_SYNC);
-						VOP_UNLOCK(m->object->handle, 0, curproc);
-						goto again1;
-					} else if (m->object->type == OBJT_SWAP ||
-								m->object->type == OBJT_DEFAULT) {
-						vm_pageout_flush(&m, 1, 0);
-						goto again1;
-					}
-				}
-				if ((m->dirty == 0) && (m->busy == 0) && (m->hold_count == 0))
-					vm_page_cache(m);
-			}
-
-			for (m = TAILQ_FIRST(&vm_page_queues[PQ_ACTIVE].pl);
-				m != NULL;
-				m = next) {
-
-				KASSERT(m->queue == PQ_ACTIVE,
-					("contigmalloc1: page %p is not PQ_ACTIVE", m));
-
-				next = TAILQ_NEXT(m, pageq);
-				if (vm_page_sleep_busy(m, TRUE, "vpctw1"))
-					goto again1;
-				vm_page_test_dirty(m);
-				if (m->dirty) {
-					if (m->object->type == OBJT_VNODE) {
-						vn_lock(m->object->handle, LK_EXCLUSIVE | LK_RETRY, curproc);
-						vm_object_page_clean(m->object, 0, 0, OBJPC_SYNC);
-						VOP_UNLOCK(m->object->handle, 0, curproc);
-						goto again1;
-					} else if (m->object->type == OBJT_SWAP ||
-								m->object->type == OBJT_DEFAULT) {
-						vm_pageout_flush(&m, 1, 0);
-						goto again1;
-					}
-				}
-				if ((m->dirty == 0) && (m->busy == 0) && (m->hold_count == 0))
-					vm_page_cache(m);
-			}
-
-			splx(s);
-			continue;
-		}
-		start = i;
-
-		/*
-		 * Check successive pages for contiguous and free.
-		 */
-		for (i = start + 1; i < (start + size / PAGE_SIZE); i++) {
-			int pqtype;
-			pqtype = pga[i].queue - pga[i].pc;
-			if ((VM_PAGE_TO_PHYS(&pga[i]) !=
-			    (VM_PAGE_TO_PHYS(&pga[i - 1]) + PAGE_SIZE)) ||
-			    ((pqtype != PQ_FREE) && (pqtype != PQ_CACHE))) {
-				start++;
-				goto again;
-			}
-		}
-
-		for (i = start; i < (start + size / PAGE_SIZE); i++) {
-			int pqtype;
-			vm_page_t m = &pga[i];
-
-			pqtype = m->queue - m->pc;
-			if (pqtype == PQ_CACHE) {
-				vm_page_busy(m);
-				vm_page_free(m);
-			}
-
-			TAILQ_REMOVE(&vm_page_queues[m->queue].pl, m, pageq);
-			vm_page_queues[m->queue].lcnt--;
-			cnt.v_free_count--;
-			m->valid = VM_PAGE_BITS_ALL;
-			m->flags = 0;
-			KASSERT(m->dirty == 0, ("contigmalloc1: page %p was dirty", m));
-			m->wire_count = 0;
-			m->busy = 0;
-			m->queue = PQ_NONE;
-			m->object = NULL;
-			vm_page_wire(m);
-		}
-
-		/*
-		 * We've found a contiguous chunk that meets are requirements.
-		 * Allocate kernel VM, unfree and assign the physical pages to it and
-		 * return kernel VM pointer.
-		 */
-		tmp_addr = addr = kmem_alloc_pageable(map, size);
-		if (addr == 0) {
-			/*
-			 * XXX We almost never run out of kernel virtual
-			 * space, so we don't make the allocated memory
-			 * above available.
-			 */
-			splx(s);
-			return (NULL);
-		}
-
-		for (i = start; i < (start + size / PAGE_SIZE); i++) {
-			vm_page_t m = &pga[i];
-			vm_page_insert(m, kernel_object,
-				OFF_TO_IDX(tmp_addr - VM_MIN_KERNEL_ADDRESS));
-			pmap_kenter(tmp_addr, VM_PAGE_TO_PHYS(m));
-			tmp_addr += PAGE_SIZE;
-		}
-
-		splx(s);
-		return ((void *)addr);
-	}
-	return NULL;
-}
-
-void *
-contigmalloc(
-	unsigned long size,	/* should be size_t here and for malloc() */
-	struct malloc_type *type,
-	int flags,
-	unsigned long low,
-	unsigned long high,
-	unsigned long alignment,
-	unsigned long boundary)
-{
-	void * ret;
-
-	GIANT_REQUIRED;
-	ret = contigmalloc1(size, type, flags, low, high, alignment, boundary,
-			     kernel_map);
-	return (ret);
-
-}
-
-void
-contigfree(void *addr, unsigned long size, struct malloc_type *type)
-{
-	GIANT_REQUIRED;
-	kmem_free(kernel_map, (vm_offset_t)addr, size);
-}
-
-vm_offset_t
-vm_page_alloc_contig(
-	vm_offset_t size,
-	vm_offset_t low,
-	vm_offset_t high,
-	vm_offset_t alignment)
-{
-	vm_offset_t ret;
-
-	GIANT_REQUIRED;
-	ret = ((vm_offset_t)contigmalloc1(size, M_DEVBUF, M_NOWAIT, low, high,
-					  alignment, 0ul, kernel_map));
-	return (ret);
-
 }
 
 #include "opt_ddb.h"
