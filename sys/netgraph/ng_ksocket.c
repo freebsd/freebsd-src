@@ -67,11 +67,11 @@
 #include <netatalk/at.h>
 
 /* Node private data */
-struct private {
+struct ng_ksocket_private {
 	hook_p		hook;
 	struct socket	*so;
 };
-typedef struct private *priv_p;
+typedef struct ng_ksocket_private *priv_p;
 
 /* Netgraph node methods */
 static ng_constructor_t	ng_ksocket_constructor;
@@ -392,16 +392,16 @@ ng_ksocket_rmnode(node_p node)
 {
 	const priv_p priv = node->private;
 
+	/* Close our socket (if any) */
+	if (priv->so != NULL) {
+		soclose(priv->so);
+		priv->so = NULL;
+	}
+
 	/* Take down netgraph node */
 	node->flags |= NG_INVALID;
 	ng_cutlinks(node);
 	ng_unname(node);
-	if (priv->so != NULL) {
-		struct socket *const so = priv->so;
-
-		priv->so = NULL;
-		soclose(so);
-	}
 	bzero(priv, sizeof(*priv));
 	FREE(priv, M_NETGRAPH);
 	node->private = NULL;
@@ -415,8 +415,9 @@ ng_ksocket_rmnode(node_p node)
 static int
 ng_ksocket_disconnect(hook_p hook)
 {
-	if (hook->node->numhooks == 0)
-		ng_rmnode(hook->node);
+	KASSERT(hook->node->numhooks == 0,
+	    ("%s: numhooks=%d?", __FUNCTION__, hook->node->numhooks));
+	ng_rmnode(hook->node);
 	return (0);
 }
 
@@ -436,11 +437,15 @@ ng_ksocket_incoming(struct socket *so, void *arg, int waitflag)
 	struct sockaddr *nam;
 	struct mbuf *m;
 	struct uio auio;
-	int flags, error;
+	int s, flags, error;
+
+	s = splnet();
 
 	/* Sanity check */
-	if ((node->flags & NG_INVALID) != 0)
+	if ((node->flags & NG_INVALID) != 0) {
+		splx(s);
 		return;
+	}
 	KASSERT(so == priv->so, ("%s: wrong socket", __FUNCTION__));
 	KASSERT(priv->hook != NULL, ("%s: no hook", __FUNCTION__));
 
@@ -453,6 +458,7 @@ ng_ksocket_incoming(struct socket *so, void *arg, int waitflag)
 		    (so, &nam, &auio, &m, (struct mbuf **)0, &flags)) == 0)
 			NG_SEND_DATA(error, priv->hook, m, meta);
 	} while (error == 0 && m != NULL);
+	splx(s);
 }
 
 /*
