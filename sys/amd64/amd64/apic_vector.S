@@ -275,7 +275,7 @@ Xinvltlb:
 	movl	PCPU(CPUID), %eax
 	popl	%fs
 	ss
-	incl	_xhits(,%eax,4)
+	incl	xhits(,%eax,4)
 #endif /* COUNT_XINVLTLB_HITS */
 
 	movl	%cr3, %eax		/* invalidate the TLB */
@@ -569,12 +569,6 @@ Xrendezvous:
 	
 	
 	.data
-
-#ifdef COUNT_XINVLTLB_HITS
-	.globl	_xhits
-_xhits:
-	.space	(MAXCPU * 4), 0
-#endif /* COUNT_XINVLTLB_HITS */
 
 	.globl	apic_pin_trigger
 apic_pin_trigger:
