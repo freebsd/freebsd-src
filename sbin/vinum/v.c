@@ -63,6 +63,10 @@
 #include <sys/resource.h>
 
 FILE *cf;						    /* config file handle */
+FILE *history;						    /* history file */
+char *historyfile;					    /* and its name */
+
+char *dateformat;					    /* format in which to store date */
 
 char buffer[BUFSIZE];					    /* buffer to read in to */
 
@@ -80,6 +84,7 @@ int verbose = 0;					    /* set verbose operation */
 int Verbose = 0;					    /* set very verbose operation */
 int recurse = 0;					    /* set recursion */
 int stats = 0;						    /* show statistics */
+int dowait = 0;						    /* wait for completion */
 
 /* Structures to read kernel data into */
 struct _vinum_conf vinum_conf;				    /* configuration information */
@@ -120,8 +125,8 @@ main(int argc, char *argv[], char *envp[])
 {
 #if __FreeBSD__ >= 3
     if (modfind(WRONGMOD) >= 0) {			    /* wrong module loaded, */
-	fprintf(stderr, "Wrong module loaded: %s.  Starting %s.\n", VINUMMOD, WRONGMOD);
-	argv[0] = WRONGMOD;
+	fprintf(stderr, "Wrong module loaded: %s.  Starting %s(8).\n", WRONGMOD, WRONGMOD);
+	argv[0] = "/sbin/" WRONGMOD;
 	execve(argv[0], argv, envp);
 	exit(1);
     }
@@ -134,6 +139,23 @@ main(int argc, char *argv[], char *envp[])
     }
 #endif
 
+    dateformat = getenv("VINUM_DATEFORMAT");
+    if (dateformat == NULL)
+	dateformat = "%e %b %Y %H:%M:%S";
+    historyfile = getenv("VINUM_HISTORY");
+    if (historyfile == NULL)
+	historyfile = DEFAULT_HISTORYFILE;
+    history = fopen(historyfile, "a+");
+    if (history != NULL) {
+	timestamp();
+	fprintf(history, "*** " VINUMMOD " started ***\n");
+	fflush(history);				    /* before we start the daemon */
+    } else
+	fprintf(stderr,
+	    "Can't open history file %s: %s (%d)\n",
+	    historyfile,
+	    strerror(errno),
+	    errno);
     superdev = open(VINUM_SUPERDEV_NAME, O_RDWR);	    /* open vinum superdevice */
     if (superdev < 0) {					    /* no go */
 	if (errno == ENODEV) {				    /* not configured, */
@@ -204,6 +226,8 @@ main(int argc, char *argv[], char *envp[])
 		if (tokens)
 		    parseline(tokens, token);		    /* and do what he says */
 	    }
+	    if (history)
+		fflush(history);
 	}
     }
     return 0;						    /* normal completion */
@@ -267,6 +291,12 @@ parseline(int args, char *argv[])
     int j;
     enum keyword command;				    /* command to execute */
 
+    if (history != NULL) {				    /* save the command to history file */
+	timestamp();
+	for (i = 0; i < args; i++)			    /* all args */
+	    fprintf(history, "%s ", argv[i]);
+	fputs("\n", history);
+    }
     if ((args == 0)					    /* empty line */
     ||(*argv[0] == '#'))				    /* or a comment, */
 	return;
@@ -309,6 +339,10 @@ parseline(int args, char *argv[])
 
 	    case 's':					    /* -s: show statistics */
 		stats = 1;
+		break;
+
+	    case 'w':					    /* -w: wait for completion */
+		dowait = 1;
 		break;
 
 	    default:
@@ -413,6 +447,10 @@ make_devices(void)
 	    perror(VINUMMOD ": Can't write to /dev");
 	return;
     }
+    if (history) {
+	timestamp();
+	fprintf(history, "*** Created devices ***\n");
+    }
     if (superdev >= 0)					    /* super device open */
 	close(superdev);
 
@@ -447,7 +485,7 @@ make_devices(void)
 	return;
     }
     /* First, create directories for the volumes */
-    for (volno = 0; volno < vinum_conf.volumes_used; volno++) {
+    for (volno = 0; volno < vinum_conf.volumes_allocated; volno++) {
 	dev_t voldev;
 	dev_t rvoldev;
 
@@ -541,7 +579,7 @@ make_devices(void)
     }
 
     /* Drives.  Do this later (both logical and physical names) XXX */
-    for (driveno = 0; driveno < vinum_conf.drives_used; driveno++) {
+    for (driveno = 0; driveno < vinum_conf.drives_allocated; driveno++) {
 	get_drive_info(&drive, driveno);
 	if (drive.state != drive_unallocated) {
 	    sprintf(filename, "ln -s %s " VINUM_DIR "/drive/%s", drive.devicename, drive.label.name);
@@ -573,7 +611,7 @@ find_object(const char *name, enum objecttype *type)
 	return -1;
     }
     /* Search the drive table */
-    for (object = 0; object < vinum_conf.drives_used; object++) {
+    for (object = 0; object < vinum_conf.drives_allocated; object++) {
 	get_drive_info(&drive, object);
 	if (strcmp(name, drive.label.name) == 0) {
 	    *type = drive_object;
@@ -582,7 +620,7 @@ find_object(const char *name, enum objecttype *type)
     }
 
     /* Search the subdisk table */
-    for (object = 0; object < vinum_conf.subdisks_used; object++) {
+    for (object = 0; object < vinum_conf.subdisks_allocated; object++) {
 	get_sd_info(&sd, object);
 	if (strcmp(name, sd.name) == 0) {
 	    *type = sd_object;
@@ -591,7 +629,7 @@ find_object(const char *name, enum objecttype *type)
     }
 
     /* Search the plex table */
-    for (object = 0; object < vinum_conf.plexes_used; object++) {
+    for (object = 0; object < vinum_conf.plexes_allocated; object++) {
 	get_plex_info(&plex, object);
 	if (strcmp(name, plex.name) == 0) {
 	    *type = plex_object;
@@ -600,7 +638,7 @@ find_object(const char *name, enum objecttype *type)
     }
 
     /* Search the volume table */
-    for (object = 0; object < vinum_conf.volumes_used; object++) {
+    for (object = 0; object < vinum_conf.volumes_allocated; object++) {
 	get_volume_info(&vol, object);
 	if (strcmp(name, vol.name) == 0) {
 	    *type = volume_object;
@@ -706,4 +744,27 @@ start_daemon(void)
 	exit(0);					    /* when told to die */
     } else if (pid < 0)					    /* couldn't fork */
 	printf("Can't fork to check daemon\n");
+}
+
+void 
+timestamp()
+{
+    struct timeval now;
+    struct tm *date;
+    char datetext[MAXDATETEXT];
+    time_t sec;
+
+    if (history != NULL) {
+	if (gettimeofday(&now, NULL) != 0) {
+	    fprintf(stderr, "Can't get time: %s\n", strerror(errno));
+	    return;
+	}
+	sec = now.tv_sec;
+	date = localtime(&sec);
+	strftime(datetext, MAXDATETEXT, dateformat, date),
+	    fprintf(history,
+	    "%s.%06ld ",
+	    datetext,
+	    now.tv_usec);
+    }
 }
