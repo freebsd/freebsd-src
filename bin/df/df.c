@@ -45,11 +45,10 @@ static const char copyright[] =
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)df.c	8.9 (Berkeley) 5/8/95";
-#else
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif
 #endif /* not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/stat.h>
