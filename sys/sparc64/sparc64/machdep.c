@@ -207,6 +207,12 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	kmdp = NULL;
 
 	/*
+	 * Find out what kind of cpu we have first, for anything that changes
+	 * behaviour.
+	 */
+	cpu_impl = VER_IMPL(rdpr(ver));
+
+	/*
 	 * Initialize openfirmware (needed for console).
 	 */
 	OF_init(vec);

@@ -56,6 +56,7 @@ ENTRY(_start)
 	wrpr	%g0, 0, %cleanwin
 	wrpr	%g0, 0, %pil
 	wr	%g0, 0, %fprs
+	wrpr	%g0, 0, %tick
 
 	/*
 	 * Get onto our per-cpu panic stack, which precedes the struct pcpu in
