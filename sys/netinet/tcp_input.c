@@ -988,6 +988,7 @@ after_listen:
 				tcpstat.tcps_rcvackbyte += acked;
 				sbdrop(&so->so_snd, acked);
 				tp->snd_una = th->th_ack;
+				tp->t_dupacks = 0;
 				m_freem(m);
 				ND6_HINT(tp); /* some progress has been done */
 
