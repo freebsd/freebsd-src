@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: os.c,v 1.37 1997/12/13 02:37:27 brian Exp $
+ * $Id: os.c,v 1.38 1997/12/24 09:29:09 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -168,6 +168,41 @@ SetIpDevice(struct in_addr myaddr,
   }
   close(s);
   return (0);
+}
+
+int
+CleanInterface(const char *name)
+{
+  int s;
+
+  s = ID0socket(AF_INET, SOCK_DGRAM, 0);
+  if (s < 0) {
+    LogPrintf(LogERROR, "SetIpDevice: socket(): %s\n", strerror(errno));
+    return (-1);
+  }
+  strncpy(ifrq.ifr_name, name, sizeof ifrq.ifr_name - 1);
+  ifrq.ifr_name[sizeof ifrq.ifr_name - 1] = '\0';
+  while (ID0ioctl(s, SIOCGIFADDR, &ifrq) == 0) {
+    memset(&ifra.ifra_mask, '\0', sizeof ifra.ifra_mask);
+    ifra.ifra_addr = ifrq.ifr_addr;
+    if (ID0ioctl(s, SIOCGIFDSTADDR, &ifrq) < 0) {
+      if (ifra.ifra_addr.sa_family == AF_INET)
+        LogPrintf(LogERROR, "tun_configure: Can't get dst for %s on %s !\n",
+                  inet_ntoa(((struct sockaddr_in *)&ifra.ifra_addr)->sin_addr),
+                  name);
+      return 0;
+    }
+    ifra.ifra_broadaddr = ifrq.ifr_dstaddr;
+    if (ID0ioctl(s, SIOCDIFADDR, &ifra) < 0) {
+      if (ifra.ifra_addr.sa_family == AF_INET)
+        LogPrintf(LogERROR, "tun_configure: Can't delete %s address on %s !\n",
+                  inet_ntoa(((struct sockaddr_in *)&ifra.ifra_addr)->sin_addr),
+                  name);
+      return 0;
+    }
+  }
+
+  return 1;
 }
 
 int
