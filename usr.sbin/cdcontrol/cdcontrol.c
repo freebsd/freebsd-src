@@ -243,8 +243,6 @@ int run (int cmd, char *arg)
 {
 	int l, r, rc;
 
-	if (arg == NULL)
-		return 0;
 	switch (cmd) {
 
 	case CMD_QUIT:
@@ -956,8 +954,11 @@ input (int *cmd)
 				el_set(el, EL_SIGNAL, 1);
 				el_source(el, NULL);
 			}
-			if ((bp = el_gets(el, &num)) == NULL || num == 0)
+			if ((bp = el_gets(el, &num)) == NULL || num == 0) {
+				*cmd = CMD_QUIT;
+				fprintf (stderr, "\r\n");
 				return (0);
+			}
 
 			len = (num > MAXLINE) ? MAXLINE : num;
 			memcpy(buf, bp, len);
