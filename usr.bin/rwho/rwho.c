@@ -32,23 +32,30 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1983, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)rwho.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/param.h>
 #include <sys/file.h>
 #include <protocols/rwhod.h>
 #include <dirent.h>
-#include <stdio.h>
-#include <time.h>
-#include <string.h>
+#include <err.h>
 #include <locale.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+#include <unistd.h>
 
 DIR	*dirp;
 
@@ -71,12 +78,14 @@ int	nusers;
 time_t	now;
 int	aflg;
 
+static void usage __P((void));
+int utmpcmp __P((struct myutmp *, struct myutmp *));
+
+int
 main(argc, argv)
 	int argc;
 	char **argv;
 {
-	extern char *optarg;
-	extern int optind;
 	int ch;
 	struct dirent *dp;
 	int cc, width;
@@ -95,16 +104,13 @@ main(argc, argv)
 			break;
 		case '?':
 		default:
-			fprintf(stderr, "usage: rwho [-a]\n");
-			exit(1);
+			usage();
 		}
-	if (chdir(_PATH_RWHODIR) || (dirp = opendir(".")) == NULL) {
-		perror(_PATH_RWHODIR);
-		exit(1);
-	}
+	if (chdir(_PATH_RWHODIR) || (dirp = opendir(".")) == NULL)
+		err(1, "%s", _PATH_RWHODIR);
 	mp = myutmp;
 	(void)time(&now);
-	while (dp = readdir(dirp)) {
+	while ((dp = readdir(dirp))) {
 		if (dp->d_ino == 0 || strncmp(dp->d_name, "whod.", 5))
 			continue;
 		f = open(dp->d_name, O_RDONLY);
@@ -126,10 +132,8 @@ main(argc, argv)
 				we++;
 				continue;
 			}
-			if (nusers >= NUSERS) {
-				printf("too many users\n");
-				exit(1);
-			}
+			if (nusers >= NUSERS)
+				errx(1, "too many users");
 			mp->myutmp = we->we_utmp; mp->myidle = we->we_idle;
 			(void) strcpy(mp->myhost, w->wd_hostname);
 			nusers++; we++; mp++;
@@ -175,6 +179,15 @@ main(argc, argv)
 	exit(0);
 }
 
+
+static void
+usage()
+{
+	fprintf(stderr, "usage: rwho [-a]\n");
+	exit(1);
+}
+
+int
 utmpcmp(u1, u2)
 	struct myutmp *u1, *u2;
 {
