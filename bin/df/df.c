@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: df.c,v 1.7 1995/05/30 00:06:42 rgrimes Exp $
+ *	$Id: df.c,v 1.8 1996/01/14 18:55:09 bde Exp $
  */
 
 #ifndef lint
@@ -95,6 +95,8 @@ struct typetab {
 	{"procfs",	MT(MOUNT_PROCFS)},
 	{"afs",		MT(MOUNT_AFS)},
 	{"iso9660fs",	MT(MOUNT_CD9660)},
+	{"isofs",	MT(MOUNT_CD9660)},
+	{"cd9660",	MT(MOUNT_CD9660)},
 	{"cdfs",	MT(MOUNT_CD9660)},
 	{"misc",	MT(MOUNT_LOFS)|MT(MOUNT_FDESC)|MT(MOUNT_PORTAL)|
 			MT(MOUNT_KERNFS)|MT(MOUNT_PROCFS)},
