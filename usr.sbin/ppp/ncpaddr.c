@@ -405,7 +405,7 @@ ncpaddr_aton(struct ncpaddr *addr, struct ncp *ncp, const char *data)
 
   if (!ncprange_aton(&range, ncp, data))
     return 0;
-  
+
   if (range.ncprange_family == AF_INET && range.ncprange_ip4width != 32) {
     log_Printf(LogWARN, "ncpaddr_aton: %s: Only 32 bits allowed\n", data);
     return 0;

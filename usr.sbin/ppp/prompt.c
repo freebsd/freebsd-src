@@ -277,7 +277,7 @@ prompt_Read(struct fdescriptor *d, struct bundle *bundle, const fd_set *fdset)
           arg.bundle = bundle;
           arg.cx = p->TermMode;
           arg.prompt = p;
-        
+
 	  mbuf_Show(&arg);
         }
 	break;

@@ -53,7 +53,7 @@
 #define LogERROR	(23)	/* syslog(LOG_ERR, ....), + sent to VarTerm */
 #define LogALERT	(24)	/* syslog(LOG_ALERT, ....)	 */
 
-#define LogMAXCONF	(21)  
+#define LogMAXCONF	(21)
 #define LogMAX		(24)
 
 struct mbuf;

@@ -203,7 +203,7 @@ packets on the private subnet will be NAT'd.
 
 - nat port <proto> <local addr>:<port>  <nat port>
 
-This command allows incoming traffic to <nat port> on the host 
+This command allows incoming traffic to <nat port> on the host
 machine to be redirected to a specific machine and port on the
 local area network.  One example of this would be:
 
@@ -229,7 +229,7 @@ case of a single, dynamically allocated IP address:
     nat addr 10.0.0.8 0
 
 The above command would redirect all incoming traffic to
-machine 10.0.0.8. 
+machine 10.0.0.8.
 
 If several address NATs specify the same public address
 as follows
@@ -318,7 +318,7 @@ Version 1.6: September 18, 1996
     tracert from Win95 as well as FreeBSD traceroute.
 
 Version 1.7: January 9, 1997 (cjm)
-    - Reduced malloc() activity for ICMP echo and 
+    - Reduced malloc() activity for ICMP echo and
       timestamp requests.
     - Added handling for out-of-order IP fragments.
     - Switched to differential checksum computation
@@ -356,7 +356,7 @@ Version 1.9: February 1, 1997 (Eivind Eklund <perhaps@yes.no>)
       disable this for debugging) (cjm)
     - Sockets will be allocated in cases where there might be
       port interference with the host machine.  This can be disabled
-      in cases where the ppp host will be acting purely as a 
+      in cases where the ppp host will be acting purely as a
       masquerading router and not generate any traffic of its own.
       (cjm)
 

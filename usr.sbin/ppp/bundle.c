@@ -191,7 +191,7 @@ bundle_Notify(struct bundle *bundle, char c)
   }
 }
 
-static void 
+static void
 bundle_ClearQueues(void *v)
 {
   struct bundle *bundle = (struct bundle *)v;
@@ -289,7 +289,7 @@ bundle_LayerUp(void *v, struct fsm *fp)
 #ifndef NORADIUS
       if (bundle->radius.sessiontime)
         bundle_StartSessionTimer(bundle, 0);
-#endif    
+#endif
       bundle_StartIdleTimer(bundle, 0);
       mp_CheckAutoloadTimer(&fp->bundle->ncp.mp);
     }
@@ -621,7 +621,7 @@ bundle_DescriptorRead(struct fdescriptor *d, struct bundle *bundle,
         /*
          * Drop the packet.  If we were to queue it, we'd just end up with
          * a pile of timed-out data in our output queue by the time we get
-         * around to actually dialing.  We'd also prematurely reach the 
+         * around to actually dialing.  We'd also prematurely reach the
          * threshold at which we stop select()ing to read() the tun
          * device - breaking auto-dial.
          */
@@ -1145,7 +1145,7 @@ bundle_ShowStatus(struct cmdargs const *arg)
   return 0;
 }
 
-static void 
+static void
 bundle_IdleTimeout(void *v)
 {
   struct bundle *bundle = (struct bundle *)v;
@@ -1214,7 +1214,7 @@ bundle_RemainingIdleTime(struct bundle *bundle)
 
 #ifndef NORADIUS
 
-static void 
+static void
 bundle_SessionTimeout(void *v)
 {
   struct bundle *bundle = (struct bundle *)v;

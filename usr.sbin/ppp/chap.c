@@ -217,7 +217,7 @@ chap_BuildAnswer(char *name, char *key, u_char id, char *challenge, u_char type
     GetMasterKey(pwdhashhash, ntresponse, MPPE_MasterKey);    /* XXX Global ! */
 
     /* Generate AUTHRESPONSE to verify on auth success */
-    GenerateAuthenticatorResponse(expkey, klen * 2, ntresponse, 
+    GenerateAuthenticatorResponse(expkey, klen * 2, ntresponse,
                                   peerchallenge + 1, challenge + 1, name, nlen,
                                   authresponse);
 
@@ -605,7 +605,7 @@ chap_Failure(struct authinfo *authp)
     ptr += sprintf(buf, "E=691 R=0 C=");
     for (i=0; i<16; i++)
       ptr += sprintf(ptr, "%02X", *(auth2chap(authp)->challenge.local+1+i));
-    
+
     sprintf(ptr, " V=3 M=Invalid!");
     msg = buf;
   } else
@@ -776,7 +776,7 @@ chap_Input(struct bundle *bundle, struct link *l, struct mbuf *bp)
         ans[alen+1] = '\0';
         bp = auth_ReadName(&chap->auth, bp, len);
 #ifndef NODES
-        lanman = p->link.lcp.want_authtype == 0x80 && 
+        lanman = p->link.lcp.want_authtype == 0x80 &&
                  alen == 49 && ans[alen] == 0;
 #endif
         break;
@@ -930,7 +930,7 @@ chap_Input(struct bundle *bundle, struct link *l, struct mbuf *bp)
                 datalink_AuthNotOk(p->dl);
 	        log_Printf(LogWARN, "CHAP81: AuthenticatorResponse: (%.42s)"
                            " != ans: (%.42s)\n", chap->authresponse, ans);
-                
+
               } else {
                 /* Successful login */
                 MPPE_MasterKeyValid = 1;		/* XXX Global ! */

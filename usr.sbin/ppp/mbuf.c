@@ -86,7 +86,7 @@ m_length(struct mbuf *bp)
 static const char *
 mbuftype(int type)
 {
-  static const char * const mbufdesc[MB_MAX] = { 
+  static const char * const mbufdesc[MB_MAX] = {
     "ip in", "ip out", "ipv6 in", "ipv6 out", "nat in", "nat out",
     "mp in", "mp out", "vj in", "vj out", "icompd in", "icompd out",
     "compd in", "compd out", "lqr in", "lqr out", "echo in", "echo out",
@@ -110,7 +110,7 @@ m_get(size_t m_len, int type)
     log_Printf(LogERROR, "Bad mbuf type %d\n", type);
     type = MB_UNKNOWN;
   }
-  
+
   if (m_len > M_MAXLEN || m_len == 0) {
     log_Printf(LogERROR, "Request for mbuf size %lu (\"%s\") denied !\n",
                (u_long)m_len, mbuftype(type));
@@ -342,7 +342,7 @@ struct mbuf *
 m_dequeue(struct mqueue *q)
 {
   struct mbuf *bp;
-  
+
   log_Printf(LogDEBUG, "m_dequeue: queue len = %lu\n", (u_long)q->len);
   bp = q->top;
   if (bp) {

@@ -252,7 +252,7 @@ iface_addr_Zap(const char *name, struct iface_addr *addr, int s)
       memcpy(&ifra6.ifra_dstaddr, &sspeer, sizeof ifra6.ifra_dstaddr);
     ifra6.ifra_lifetime.ia6t_vltime = ND6_INFINITE_LIFETIME;
     ifra6.ifra_lifetime.ia6t_pltime = ND6_INFINITE_LIFETIME;
-    
+
     res = ID0ioctl(s, SIOCDIFADDR_IN6, &ifra6);
     break;
 #endif
@@ -386,7 +386,7 @@ iface_Clear(struct iface *iface, struct ncp *ncp, int family, int how)
           }
           s = &s4;
           break;
-          
+
 #ifndef NOINET6
         case AF_INET6:
           if (in6skip) {
