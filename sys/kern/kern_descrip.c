@@ -102,7 +102,6 @@ static int do_dup(struct thread *td, enum dup_type type, int old, int new,
  */
 struct filelist filehead;	/* head of list of open files */
 int nfiles;			/* actual number of open files */
-extern int cmask;	
 struct sx filelist_lock;	/* sx to protect filelist */
 struct mtx sigio_lock;		/* mtx to protect pointers to sigio */
 
@@ -1264,7 +1263,7 @@ fdinit(fdp)
 
 	/* Create the file descriptor table. */
 	newfdp->fd_fd.fd_refcnt = 1;
-	newfdp->fd_fd.fd_cmask = cmask;
+	newfdp->fd_fd.fd_cmask = CMASK;
 	newfdp->fd_fd.fd_ofiles = newfdp->fd_dfiles;
 	newfdp->fd_fd.fd_ofileflags = newfdp->fd_dfileflags;
 	newfdp->fd_fd.fd_nfiles = NDFILE;

@@ -97,8 +97,6 @@ static struct plimit limit0;
 struct	vmspace vmspace0;
 struct	proc *initproc;
 
-int cmask = CMASK;
-
 struct	vnode *rootvp;
 int	boothowto = 0;		/* initialized so that it can be patched */
 SYSCTL_INT(_debug, OID_AUTO, boothowto, CTLFLAG_RD, &boothowto, 0, "");
@@ -413,7 +411,7 @@ proc0_init(void *dummy __unused)
 	p->p_fdtol = NULL;
 	mtx_init(&fdp->fd_fd.fd_mtx, FILEDESC_LOCK_DESC, NULL, MTX_DEF);
 	fdp->fd_fd.fd_refcnt = 1;
-	fdp->fd_fd.fd_cmask = cmask;
+	fdp->fd_fd.fd_cmask = CMASK;
 	fdp->fd_fd.fd_ofiles = fdp->fd_dfiles;
 	fdp->fd_fd.fd_ofileflags = fdp->fd_dfileflags;
 	fdp->fd_fd.fd_nfiles = NDFILE;
