@@ -776,13 +776,15 @@ sigtimedwait(struct thread *td, struct sigtimedwait_args *uap)
 	error = kern_sigtimedwait(td, set, &info, timeout);
 	if (error)
 		return (error);
-
-	error = copyout(&info, uap->info, sizeof(info));
+	if (uap->info)
+		error = copyout(&info, uap->info, sizeof(info));
 	/* Repost if we got an error. */
 	if (error && info.si_signo) {
 		PROC_LOCK(td->td_proc);
 		tdsignal(td, info.si_signo);
 		PROC_UNLOCK(td->td_proc);
+	} else {
+		td->td_retval[0] = info.si_signo;
 	}
 	return (error);
 }
@@ -805,12 +807,15 @@ sigwaitinfo(struct thread *td, struct sigwaitinfo_args *uap)
 	if (error)
 		return (error);
 
-	error = copyout(&info, uap->info, sizeof(info));
+	if (uap->info)
+		error = copyout(&info, uap->info, sizeof(info));
 	/* Repost if we got an error. */
 	if (error && info.si_signo) {
 		PROC_LOCK(td->td_proc);
 		tdsignal(td, info.si_signo);
 		PROC_UNLOCK(td->td_proc);
+	} else {
+		td->td_retval[0] = info.si_signo;
 	}
 	return (error);
 }
@@ -834,7 +839,9 @@ kern_sigtimedwait(struct thread *td, sigset_t set, siginfo_t *info,
 	PROC_LOCK(p);
 	ps = p->p_sigacts;
 	oldmask = td->td_sigmask;
-	td->td_sigmask = set;
+	SIGFILLSET(td->td_sigmask);
+	SIG_CANTMASK(td->td_sigmask);
+	SIGSETNAND(td->td_sigmask, set);
 	signotify(td);
 
 	mtx_lock(&ps->ps_mtx);
