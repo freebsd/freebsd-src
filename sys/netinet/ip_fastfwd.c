@@ -488,7 +488,7 @@ passin:
 	dst->sin_family = AF_INET;
 	dst->sin_len = sizeof(*dst);
 	dst->sin_addr.s_addr = dest;
-	rtalloc_ign(&ro, (RTF_PRCLONING | RTF_CLONING));
+	rtalloc_ign(&ro, RTF_CLONING);
 
 	/*
 	 * Route there and interface still up?
@@ -692,7 +692,7 @@ droptoours:	/* Used for DIVERT */
 		dst->sin_family = AF_INET;
 		dst->sin_len = sizeof(*dst);
 		dst->sin_addr.s_addr = dest;
-		rtalloc_ign(&ro, (RTF_PRCLONING | RTF_CLONING));
+		rtalloc_ign(&ro, RTF_CLONING);
 
 		/*
 		 * Route there and interface still up?

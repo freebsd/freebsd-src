@@ -151,7 +151,11 @@ struct ortentry {
 #define RTF_PROTO2	0x4000		/* protocol specific routing flag */
 #define RTF_PROTO1	0x8000		/* protocol specific routing flag */
 
-#define RTF_PRCLONING	0x10000		/* protocol requires cloning */
+/* XXX: temporary to stay API/ABI compatible with userland */
+#ifndef _KERNEL
+#define RTF_PRCLONING	0x10000		/* unused, for compatibility */
+#endif
+
 #define RTF_WASCLONED	0x20000		/* route generated through cloning */
 #define RTF_PROTO3	0x40000		/* protocol specific routing flag */
 /*			0x80000		   unused */

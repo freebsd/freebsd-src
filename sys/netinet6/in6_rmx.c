@@ -116,15 +116,8 @@ in6_addroute(void *v_arg, void *n_arg, struct radix_node_head *head,
 	struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)rt_key(rt);
 	struct radix_node *ret;
 
-	/*
-	 * For IPv6, all unicast non-host routes are automatically cloning.
-	 */
 	if (IN6_IS_ADDR_MULTICAST(&sin6->sin6_addr))
 		rt->rt_flags |= RTF_MULTICAST;
-
-	if (!(rt->rt_flags & (RTF_HOST | RTF_CLONING | RTF_MULTICAST))) {
-		rt->rt_flags |= RTF_PRCLONING;
-	}
 
 	/*
 	 * A little bit of help for both IPv6 output and input:
@@ -160,8 +153,7 @@ in6_addroute(void *v_arg, void *n_arg, struct radix_node_head *head,
 		 * Find out if it is because of an
 		 * ARP entry and delete it if so.
 		 */
-		rt2 = rtalloc1((struct sockaddr *)sin6, 0,
-				RTF_CLONING | RTF_PRCLONING);
+		rt2 = rtalloc1((struct sockaddr *)sin6, 0, RTF_CLONING);
 		if (rt2) {
 			if (rt2->rt_flags & RTF_LLINFO &&
 				rt2->rt_flags & RTF_HOST &&
@@ -188,8 +180,7 @@ in6_addroute(void *v_arg, void *n_arg, struct radix_node_head *head,
 		 *	net route entry, 3ffe:0501:: -> if0.
 		 *	This case should not raise an error.
 		 */
-		rt2 = rtalloc1((struct sockaddr *)sin6, 0,
-				RTF_CLONING | RTF_PRCLONING);
+		rt2 = rtalloc1((struct sockaddr *)sin6, 0, RTF_CLONING);
 		if (rt2) {
 			if ((rt2->rt_flags & (RTF_CLONING|RTF_HOST|RTF_GATEWAY))
 					== RTF_CLONING

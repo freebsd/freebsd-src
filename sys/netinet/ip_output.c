@@ -311,7 +311,7 @@ ip_output(struct mbuf *m0, struct mbuf *opt, struct route *ro,
 		 * for correct operation (as it is for ARP).
 		 */
 		if (ro->ro_rt == 0)
-			rtalloc_ign(ro, RTF_PRCLONING);
+			rtalloc(ro);
 		if (ro->ro_rt == 0) {
 			ipstat.ips_noroute++;
 			error = EHOSTUNREACH;
@@ -940,7 +940,7 @@ spd_done:
 			bcopy(dst, &ro_fwd->ro_dst, sizeof(*dst));
 
 			ro_fwd->ro_rt = 0;
-			rtalloc_ign(ro_fwd, RTF_PRCLONING);
+			rtalloc(ro_fwd);
 
 			if (ro_fwd->ro_rt == 0) {
 				ipstat.ips_noroute++;

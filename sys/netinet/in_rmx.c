@@ -73,15 +73,6 @@ in_addroute(void *v_arg, void *n_arg, struct radix_node_head *head,
 	struct radix_node *ret;
 
 	/*
-	 * For IP, all unicast non-host routes are automatically cloning.
-	 */
-	if (IN_MULTICAST(ntohl(sin->sin_addr.s_addr)))
-		rt->rt_flags |= RTF_MULTICAST;
-
-	if (!(rt->rt_flags & (RTF_HOST | RTF_CLONING | RTF_MULTICAST)))
-		rt->rt_flags |= RTF_PRCLONING;
-
-	/*
 	 * A little bit of help for both IP output and input:
 	 *   For host routes, we make sure that RTF_BROADCAST
 	 *   is set for anything that looks like a broadcast address.
@@ -94,8 +85,7 @@ in_addroute(void *v_arg, void *n_arg, struct radix_node_head *head,
 	 *
 	 * We also mark routes to multicast addresses as such, because
 	 * it's easy to do and might be useful (but this is much more
-	 * dubious since it's so easy to inspect the address).  (This
-	 * is done above.)
+	 * dubious since it's so easy to inspect the address).
 	 */
 	if (rt->rt_flags & RTF_HOST) {
 		if (in_broadcast(sin->sin_addr, rt->rt_ifp)) {
@@ -105,6 +95,8 @@ in_addroute(void *v_arg, void *n_arg, struct radix_node_head *head,
 			rt->rt_flags |= RTF_LOCAL;
 		}
 	}
+	if (IN_MULTICAST(ntohl(sin->sin_addr.s_addr)))
+		rt->rt_flags |= RTF_MULTICAST;
 
 	if (!rt->rt_rmx.rmx_mtu && !(rt->rt_rmx.rmx_locks & RTV_MTU) &&
 	    rt->rt_ifp)
@@ -118,8 +110,7 @@ in_addroute(void *v_arg, void *n_arg, struct radix_node_head *head,
 		 * Find out if it is because of an
 		 * ARP entry and delete it if so.
 		 */
-		rt2 = rtalloc1((struct sockaddr *)sin, 0,
-				RTF_CLONING | RTF_PRCLONING);
+		rt2 = rtalloc1((struct sockaddr *)sin, 0, RTF_CLONING);
 		if (rt2) {
 			if (rt2->rt_flags & RTF_LLINFO &&
 			    rt2->rt_flags & RTF_HOST &&
@@ -379,7 +370,7 @@ in_ifadownkill(struct radix_node *rn, void *xap)
 		 * the routes that rtrequest() would have in any case,
 		 * so that behavior is not needed there.
 		 */
-		rt->rt_flags &= ~(RTF_CLONING | RTF_PRCLONING);
+		rt->rt_flags &= ~RTF_CLONING;
 		rtexpunge(rt);
 	}
 	RT_UNLOCK(rt);
