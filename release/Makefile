@@ -33,6 +33,8 @@ ISRELEASE!=	expr ${RELEASETAG} : '^RELENG_.*_RELEASE$$' || true
 .if ${ISRELEASE} != 0
 # Convert "RELENG_ver_RELEASE" to "RELEASE_ver" for ports and doc trees.
 AUXRELEASETAG!=	echo ${RELEASETAG} | sed -e 's/^RELENG_/RELEASE_/' -e 's/_RELEASE$$//'
+DOCRELEASETAG?=		${AUXRELEASETAG}
+PORTSRELEASETAG?=	${AUXRELEASETAG}
 .endif
 .endif
 
@@ -226,15 +228,15 @@ rerelease release:
 	cd ${CHROOTDIR} && env CHROOTDIR=${CHROOTDIR} BUILDNAME=${BUILDNAME} RELEASETAG=${RELEASETAG} ${LOCAL_SCRIPT}
 .endif
 .if !defined(NOPORTS)
-.if defined(AUXRELEASETAG)
-	cd ${CHROOTDIR}/usr && rm -rf ports && cvs -R -d ${CVSROOT} co -P -r ${AUXRELEASETAG} ${RELEASEPORTSMODULE} && cd ports && ${MAKEREADMES}
+.if defined(PORTSRELEASETAG)
+	cd ${CHROOTDIR}/usr && rm -rf ports && cvs -R -d ${CVSROOT} co -P -r ${PORTSRELEASETAG} ${RELEASEPORTSMODULE} && cd ports && ${MAKEREADMES}
 .else
 	cd ${CHROOTDIR}/usr && rm -rf ports && cvs -R -d ${CVSROOT} co -P ${RELEASEPORTSMODULE} && cd ports && ${MAKEREADMES}
 .endif
 .endif
 .if !defined(NODOC)
-.if defined(AUXRELEASETAG)
-	cd ${CHROOTDIR}/usr && rm -rf doc && cvs -R -d ${CVSROOT} co -P -r ${AUXRELEASETAG} ${RELEASEDOCMODULE}
+.if defined(DOCRELEASETAG)
+	cd ${CHROOTDIR}/usr && rm -rf doc && cvs -R -d ${CVSROOT} co -P -r ${DOCRELEASETAG} ${RELEASEDOCMODULE}
 .else
 	cd ${CHROOTDIR}/usr && rm -rf doc && cvs -R -d ${CVSROOT} co -P ${RELEASEDOCMODULE}
 .endif
