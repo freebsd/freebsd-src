@@ -2759,6 +2759,7 @@ NdisOpenFile(status, filehandle, filelength, filename, highestaddr)
 
 	path = ExAllocatePoolWithTag(NonPagedPool, MAXPATHLEN, 0);
 	if (path == NULL) {
+		free(fh, M_TEMP);
 		*status = NDIS_STATUS_RESOURCES;
 		return;
 	}
