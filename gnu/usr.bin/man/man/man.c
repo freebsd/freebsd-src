@@ -416,7 +416,7 @@ man_getopt (argc, argv)
 #ifdef ALT_SYSTEMS
       if (alt_system)
 	{
-	  char buf[BUFSIZ];
+	  char buf[FILENAME_MAX];
 
 	  if (debug)
 	    fprintf (stderr, "Alternate system `%s' specified\n",
@@ -581,7 +581,7 @@ glob_for_file (path, section, name, cat)
      register char *name;
      register int cat;
 {
-  char pathname[BUFSIZ];
+  char pathname[FILENAME_MAX];
   char **gf;
 
   if (cat)
@@ -629,7 +629,7 @@ make_name (path, section, name, cat)
 {
   register int i = 0;
   static char *names[3];
-  char buf[BUFSIZ];
+  char buf[FILENAME_MAX];
 
   if (cat)
     sprintf (buf, "%s/cat%s/%s.%s", path, section, name, section);
@@ -706,7 +706,7 @@ display_cat_file (file)
      register char *file;
 {
   register int found;
-  char command[BUFSIZ];
+  char command[FILENAME_MAX];
 
   found = 0;
 
@@ -742,7 +742,7 @@ ultimate_source (name, path)
      char *path;
 {
   static  char buf[BUFSIZ];
-  static  char ult[BUFSIZ];
+  static  char ult[FILENAME_MAX];
 
   FILE *fp;
   char *beg;
@@ -1051,12 +1051,14 @@ make_cat_file (path, man_file, cat_file)
   int mode;
   FILE *fp;
   char *roff_command;
-  char command[BUFSIZ];
+  char command[FILENAME_MAX];
+  char temp[FILENAME_MAX];
 
-  if ((fp = fopen (cat_file, "w")) != NULL)
+  sprintf(temp, "%s.tmp", cat_file);
+  if ((fp = fopen (temp, "w")) != NULL)
     {
       fclose (fp);
-      unlink (cat_file);
+      unlink (temp);
 
       roff_command = make_roff_command (man_file);
       if (roff_command == NULL)
@@ -1064,21 +1066,33 @@ make_cat_file (path, man_file, cat_file)
       else
 #ifdef DO_COMPRESS
 	sprintf (command, "(cd %s ; %s | %s > %s)", path,
-		 roff_command, COMPRESSOR, cat_file);
+		 roff_command, COMPRESSOR, temp);
 #else
         sprintf (command, "(cd %s ; %s > %s)", path,
-		 roff_command, cat_file);
+		 roff_command, temp);
 #endif
       /*
        * Don't let the user interrupt the system () call and screw up
        * the formmatted man page if we're not done yet.
        */
-      signal (SIGINT, SIG_IGN);
-
-      fprintf (stderr, "Formatting page, please wait...\n");
+      fprintf (stderr, "Formatting page, please wait...");
+      fflush(stderr);
 
       status = do_system_command (command);
 
+      if (!status) {
+	fprintf(stderr, "Failed.\n");
+	unlink(temp);
+	exit(1);
+      }
+      else {
+        if (rename(temp, cat_file) == -1) {
+		perror("rename");
+		unlink(temp);
+		return 0;
+	}
+      }
+      fprintf(stderr, "Done.\n");
       if (status == 1)
 	{
 	  mode = CATMODE;
@@ -1088,7 +1102,6 @@ make_cat_file (path, man_file, cat_file)
 	    fprintf (stderr, "mode of %s is now %o\n", cat_file, mode);
 	}
 
-      signal (SIGINT, SIG_DFL);
 
       return 1;
     }
@@ -1118,7 +1131,7 @@ format_and_display (path, man_file, cat_file)
   int status;
   register int found;
   char *roff_command;
-  char command[BUFSIZ];
+  char command[FILENAME_MAX];
 
   found = 0;
 
