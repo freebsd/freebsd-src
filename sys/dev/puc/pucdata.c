@@ -623,6 +623,16 @@ const struct puc_device_description puc_devices[] = {
 	    },
 	},
 
+	/* VScom PCI-200L: 2S */
+	{   "VScom PCI-200L",
+	    {	0x14d2, 0x8020,	0, 0	},
+	    {	0xffff, 0xffff,	0, 0	},
+	    {
+		{ PUC_PORT_TYPE_COM, 0x14, 0x00, COM_FREQ * 8},
+		{ PUC_PORT_TYPE_COM, 0x18, 0x00, COM_FREQ * 8},
+	    },
+	},
+
 	/* VScom PCI-400: 4S */
 	{   "VScom PCI-400",
 	    {	0x10b5,	0x1077,	0x10b5,	0x1077	},
@@ -873,6 +883,18 @@ const struct puc_device_description puc_devices[] = {
 	    {
 		{ PUC_PORT_TYPE_COM, 0x10, 0x00, COM_FREQ },
 		{ PUC_PORT_TYPE_COM, 0x14, 0x00, COM_FREQ },
+	    },
+	},
+
+	/* Avlab Technology, Inc. Low Profile PCI 4 Serial: 4S */
+	{   "Avlab Low Profile PCI 4 Serial",
+	    {	0x14db,	0x2150,	0,	0	},
+	    {	0xffff,	0xffff,	0,	0	},
+	    {
+		{ PUC_PORT_TYPE_COM, 0x10, 0x00, COM_FREQ },
+		{ PUC_PORT_TYPE_COM, 0x14, 0x00, COM_FREQ },
+		{ PUC_PORT_TYPE_COM, 0x18, 0x00, COM_FREQ },
+		{ PUC_PORT_TYPE_COM, 0x1c, 0x00, COM_FREQ },
 	    },
 	},
 
