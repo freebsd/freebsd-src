@@ -205,7 +205,7 @@ init_tdlist(struct pthread *td, int reinit)
 	 */
 	if (reinit) {
 		TAILQ_FOREACH_SAFE(tdTemp, &_thread_list, tle, tdTemp2) {
-			if (tdTemp != NULL) {
+			if (tdTemp != NULL && tdTemp != td) {
 				TAILQ_REMOVE(&_thread_list, tdTemp, tle);
 				free(tdTemp);
 			}
@@ -220,10 +220,10 @@ init_tdlist(struct pthread *td, int reinit)
 	} else {
 		TAILQ_INIT(&_thread_list);
 		TAILQ_INIT(&_dead_list);
-	}
 
-	/* Insert this thread as the first thread in the active list */
-	TAILQ_INSERT_HEAD(&_thread_list, td, tle);
+		/* Insert this thread as the first thread in the active list */
+		TAILQ_INSERT_HEAD(&_thread_list, td, tle);
+	}
 
 	/*
 	 * Initialize the active thread list lock and the
