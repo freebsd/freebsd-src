@@ -27,6 +27,9 @@ PCS=	pcs750.bin
 WCS1=	wcs fppwcs poc poc1 poc2 fppoc
 WCS2=	fpevent fppwcs fppwcs_dual hdcwcs load_diags start_fpp wcs wcs_dual
 
+# Special top level files for FreeBSD
+FREEBSD= CONTRIB.386BSD CONTRIB.FreeBSD COPYRIGHT
+
 all clean cleandir depend etc install lint:
 
 distribution: distrib-dirs
@@ -97,6 +100,7 @@ distribution: distrib-dirs
 	 cd ../cf/cf; make tcpproto.cf; \
 	    install -o root -g wheel -m 644 tcpproto.cf \
 	        ${DESTDIR}/etc/sendmail.cf)
+	(cd ../; install -o root -g wheel -m 444 ${FREEBSD} ${DESTDIR}/)
 	(cd ..; make install)
 .endif
 
