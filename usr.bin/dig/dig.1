@@ -1,4 +1,4 @@
-.\" $Id: dig.1,v 1.1.1.1 1994/09/22 21:33:31 pst Exp $
+.\" $Id: dig.1,v 1.2 1994/11/19 13:12:37 ats Exp $
 .\"
 .\" ++Copyright++ 1993
 .\" -
@@ -188,7 +188,7 @@ Port number. Query a name server listening to a
 non-standard port number. Default is 53.
 .IP "\-P[\fIping-string\fP]"
 After query returns, execute a 
-.IR ping (@SYS_OPS_EXT@)
+.IR ping (8)
 command
 for response time comparison. This rather
 unelegantly makes a call to the shell. The last
@@ -258,7 +258,7 @@ subsequent lines (i.e. they are not restored to the
 "+" is used to specify an option to be changed in the
 query packet or to change \fIdig\fP output specifics. Many
 of these are the same parameters accepted by 
-.IR nslookup (@SYS_OPS_EXT@).
+.IR nslookup (8).
 If an option requires a parameter, the form is as
 follows:
 .sp 1
