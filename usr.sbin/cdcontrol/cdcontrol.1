@@ -40,7 +40,7 @@ characters as are required to uniquely identify a command
 need be specified.
 .Bl -tag -width Cm
 
-.It Cm play Op Ar first_track Op Ar last_track
+.It Cm play Ar first_track Op Ar last_track
 Play from track 
 .Nm first_track
 to track
@@ -64,7 +64,7 @@ in seconds and
 (frame number). Minutes are in the range 0-99. Seconds are in the range 0-59.
 Frame numbers are in the range 0-74.
 
-.It Cm play Ar #start_block Op length
+.It Cm play Op Ar #start_block Op length
 Play starting from the logical block
 .Nm start_block
 using
@@ -111,10 +111,12 @@ Play the left subtrack on both left and right channels.
 Play the right subtrack on both left and right channels.
 
 .It Cm info
+Print the the table of contents.
+
+.It Cm status
 Print the information about the disc:
 the current playing status and position,
-the current values of the volume for left and right channels,
-and the table of contents.
+the current values of the volume for left and right channels.
 
 .It Cm help
 Print the list of available commands.
@@ -125,8 +127,14 @@ Enable the debugging mode of the CD device driver.
 .It Cm debug Ar off
 Disable the driver debugging mode.
 
-.It Cm debug Ar reset
+.It Cm reset
 Perform the hardware reset of the device.
+
+.It Cm set Ar msf
+Set minute-second-frame ioctl mode (default).
+
+.It Cm set Ar lba
+Set LBA ioctl mode.
 
 .It Cm quit
 Quit the program.
