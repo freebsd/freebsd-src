@@ -392,6 +392,11 @@ AcpiOsWritable (
     void                    *Pointer,
     UINT32                  Length);
 
+UINT32
+AcpiOsGetTimer (
+    void);
+
+
 
 /*
  * Debug print routines
