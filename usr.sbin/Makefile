@@ -269,7 +269,7 @@ _kgmon=		kgmon
 .endif
 
 .if ${MACHINE_ARCH} == "i386"
-.if !defined(NO_ACPI)
+.if ${MACHINE} == "i386" && !defined(NO_ACPI)
 _acpi=		acpi
 .endif
 _apm=		apm
