@@ -3,7 +3,7 @@
 
     $FreeBSD$
 
-    Original revision: 1.22.2.384
+    Original revision: 1.22.2.385
 -->
 
 <articleinfo>
@@ -158,8 +158,8 @@
       をご覧ください。</para>
 
     <para><application>OpenSSH</application> の
-      PAM チャレンジ/認証サブシステムにあったいくつかの誤りが修正されました。
-      これらのバグの影響はその誤りによって異なります。
+      PAM チャレンジ/レスポンス認証サブシステムにあったいくつかの誤りが修正されました。
+      これらのバグの影響は、さまざまなものが存在します。
       詳細はセキュリティ勧告
       <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:15.openssh.asc">FreeBSD-SA-03:15</ulink>
       をご覧ください。</para>
@@ -197,8 +197,11 @@
       <command>kbdcontrol -k /dev/kbd1</command>
       を実行する必要はなくなっています。</para>
 
+    <para arch="i386,pc98">&man.hifn.4; ドライバが
+      7955 および 7956 チップセットの対称暗号機能に対応しました。</para>
+
     <para arch="i386,pc98">&man.safe.4; ドライバが追加されました。
-      これは SafeNet 1141、1741 ベースの
+      これは SafeNet 1141 ベース、1741 ベースの
       暗号処理アクセラレータに対応しています。
 
       <warning>
@@ -223,7 +226,8 @@
 	これは、一つのマシン上で最大 64GB の
 	RAM を使用することができるようになる機能ですが、
 	一つのプロセス (と FreeBSD カーネル) が使える
-	メモリ量は従来のままです。</para>
+	メモリ量は従来のままです。この機能の詳細は、&man.pae.4;
+        のマニュアルページを参照してください。</para>
     </sect3>
 
     <sect3 id="boot">
@@ -267,6 +271,9 @@
 
     <sect3 id="net-proto">
       <title>ネットワークプロトコル</title>
+
+      <para>&man.ipfw.4; limit ルールの処理に含まれていた、
+        システムパニックを発生させる可能性のあるバグが修正されました。</para>
 
       <para>&man.ipfw.4; ルールに、カンマで区切られたアドレスリスト
         (たとえば <literal>1.2.3.4, 5.6.7.8/30, 9.10.11.12/22</literal>)
@@ -398,15 +405,17 @@
       日時点のスナップショットに更新されました
       (デフォルトでは構築されません)。</para>
 
+    <para><application>OpenSSL</application> がバージョン
+      0.9.7a から 0.9.7c に更新されました。</para>
+
     <para><application>sendmail</application> がバージョン
       8.12.9 に更新されました。</para>
 
     <para><application>texinfo</application> がバージョン 4.5
       からバージョン 4.6 に更新されました。</para>
 
-    <para>timezone データベースが
-      <filename>tzdata2002d</filename> から
-      <filename>tzdata2003a</filename> に更新されました。</para>
+    <para>タイムゾーンデータベースが <filename>tzdata2003a</filename> リリースから
+      <filename>tzdata2003d</filename> リリースに更新されました。</para>
   </sect2>
 
   <sect2 id="ports">
