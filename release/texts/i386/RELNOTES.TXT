@@ -756,9 +756,6 @@ ONboard 4/16 and Brumby.
 
 Specialix SI/XIO/SX ISA, EISA and PCI serial expansion cards/modules.
 
-Adlib, SoundBlaster, SoundBlaster Pro, ProAudioSpectrum, Gravis UltraSound
-and Roland MPU-401 sound cards. (snd driver)
-
 Advance Asound 100, 110 and Logic ALS120
 Crystal Semiconductor CS461x/462x/428x
 ENSONIQ AudioPCI ES1370/1371
