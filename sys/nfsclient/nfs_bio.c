@@ -1032,14 +1032,14 @@ nfs_getcacheblk(struct vnode *vp, daddr_t bn, int size, struct thread *td)
 	nmp = VFSTONFS(mp);
 
 	if (nmp->nm_flag & NFSMNT_INT) {
-		bp = getblk(vp, bn, size, PCATCH, 0);
+		bp = getblk(vp, bn, size, PCATCH, 0, 0);
 		while (bp == NULL) {
 			if (nfs_sigintr(nmp, NULL, td))
 				return (NULL);
-			bp = getblk(vp, bn, size, 0, 2 * hz);
+			bp = getblk(vp, bn, size, 0, 2 * hz, 0);
 		}
 	} else {
-		bp = getblk(vp, bn, size, 0, 0);
+		bp = getblk(vp, bn, size, 0, 0, 0);
 	}
 
 	if (vp->v_type == VREG) {

@@ -549,7 +549,7 @@ ffs_indirtrunc(ip, lbn, dbn, lastbn, level, countp)
 	 * explicitly instead of letting bread do everything for us.
 	 */
 	vp = ITOV(ip);
-	bp = getblk(vp, lbn, (int)fs->fs_bsize, 0, 0);
+	bp = getblk(vp, lbn, (int)fs->fs_bsize, 0, 0, 0);
 	if ((bp->b_flags & B_CACHE) == 0) {
 		curproc->p_stats->p_ru.ru_inblock++;	/* pay for read */
 		bp->b_iocmd = BIO_READ;
