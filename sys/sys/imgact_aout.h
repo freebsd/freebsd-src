@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)exec.h	8.1 (Berkeley) 6/11/93
- *	$Id$
+ *	$Id: imgact_aout.h,v 1.7 1997/02/22 09:45:18 peter Exp $
  */
 
 #ifndef	_IMGACT_AOUT_H_
@@ -73,9 +73,13 @@
 
 
 /* Address of the bottom of the text segment. */
+/*
+ * This can not be done right.  Abuse a_entry in some cases to handle kernels.
+ */
 #define N_TXTADDR(ex) \
 	((N_GETMAGIC(ex) == OMAGIC || N_GETMAGIC(ex) == NMAGIC || \
-	N_GETMAGIC(ex) == ZMAGIC) ? 0 : __LDPGSZ)
+	N_GETMAGIC(ex) == ZMAGIC) ? \
+	((ex).a_entry < (ex).a_text ? 0 : (ex).a_entry & ~__LDPGSZ) : __LDPGSZ)
 
 /* Address of the bottom of the data segment. */
 #define N_DATADDR(ex) \
