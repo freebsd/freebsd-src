@@ -1,19 +1,35 @@
-Updating Information for FreeBSD STABLE users
+Updating Information for FreeBSD STABLE users, 4.4 security branch
 
 This file is maintained and copyrighted by M. Warner Losh
 <imp@village.org>.  Please send new entries directly to him.  See end
 of file for further details.  For commonly done items, please see the
-COMMON ITEMS: section later in the file.
+COMMON ITEMS: section later in the file.  A reverse chronology since
+4.0 was released is included, followed by the common items quick
+how-tos, followed by entries for versions of -current prior to 4.0
+Release.
 
-A reverse chronology since 4.0 was released is included, followed by
-the common items quick how-tos, followed by entries for versions of
--current prior to 4.0 Release.
+This is for the 4.4 release branch.  All entries since 4.4 are an
+itemized list of commits to this branch, numbered from the beginning.
+By this count, we're at 4.4.0p4.
 
-20011221:	p2
+The security advisories related to various patches contain information
+on how to build/install a minimal set of binaries and start/stop a
+minimal number of processes, if possible, for that patch.  For those
+updates that don't have an advisory, or to be safe, you can do a full
+build and install as described in the COMMON ITEMS section.
+
+20020123:	p4	FreeBSD-SA-02:08.exec
+	There's a small window in exec where one could debug a setuid
+	program and obtain elevated priviledges.  This was corrected.
+
+20020117:	p3	FreeBSD-SA-02:07.k5su
+	k5su fixes.
+
+20011221:	p2	FreeBSD-SA-02:02
 	A bug was fixed wherein the pw(8) command created a short-lived
 	but world-readable copy of /etc/master.passwd.
 
-20011202:	p1
+20011202:	p1	FreeBSD-SA-01:63
 	A security hole in OpenSSH involving `UseLogin yes' has been
 	patched.
 
