@@ -158,6 +158,8 @@ cpu_startup(void *arg)
 	if (child == 0)
 		panic("cpu_startup: no cpu\n");
 	OF_getprop(child, "clock-frequency", &clock, sizeof(clock));
+	OF_getprop(child, "#dtlb-entries", &tlb_slot_count,
+	    sizeof(tlb_slot_count));
 
 	tick_tc.tc_get_timecount = tick_get_timecount;
 	tick_tc.tc_poll_pps = NULL;

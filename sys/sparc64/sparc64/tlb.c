@@ -28,6 +28,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/ktr.h>
 #include <sys/pcpu.h>
 #include <sys/smp.h>
 
@@ -37,6 +38,8 @@
 #include <machine/pmap.h>
 #include <machine/smp.h>
 #include <machine/tlb.h>
+
+int tlb_slot_count;
 
 /*
  * Some tlb operations must be atomic, so no interrupt or trap can be allowed
@@ -137,4 +140,27 @@ tlb_range_demap(struct pmap *pm, vm_offset_t start, vm_offset_t end)
 	}
 	ipi_wait(cookie);
 	critical_exit();
+}
+
+void
+tlb_dump(void)
+{
+	u_long data;
+	u_long tag;
+	int slot;
+
+	for (slot = 0; slot < tlb_slot_count; slot++) {
+		data = ldxa(TLB_DAR_SLOT(slot), ASI_DTLB_DATA_ACCESS_REG);
+		if ((data & TD_V) != 0) {
+			tag = ldxa(TLB_DAR_SLOT(slot), ASI_DTLB_TAG_READ_REG);
+			TR3("pmap_dump_tlb: dltb slot=%d data=%#lx tag=%#lx",
+			    slot, data, tag);
+		}
+		data = ldxa(TLB_DAR_SLOT(slot), ASI_ITLB_DATA_ACCESS_REG);
+		if ((data & TD_V) != 0) {
+			tag = ldxa(TLB_DAR_SLOT(slot), ASI_ITLB_TAG_READ_REG);
+			TR3("pmap_dump_tlb: iltb slot=%d data=%#lx tag=%#lx",
+			    slot, data, tag);
+		}
+	}
 }
