@@ -223,6 +223,9 @@ XFILES=	BSD_daemon/FreeBSD.pfa \
 	ses/srcs/setobjstat.c \
 	scsi_target/Makefile \
 	scsi_target/scsi_target.c \
+	scsi_target/scsi_target.h \
+	scsi_target/scsi_target.8 \
+	scsi_target/scsi_cmds.c \
 	slattach/unit-command.sh \
 	sliplogin/slip.hosts \
 	sliplogin/slip.login \
