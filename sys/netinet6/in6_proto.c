@@ -129,8 +129,6 @@
 
 #include <net/net_osdep.h>
 
-#define	offsetof(type, member)	((size_t)(&((type *)0)->member))
-
 /*
  * TCP/IP protocol family: IP6, ICMP6, UDP, TCP.
  */

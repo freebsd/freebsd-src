@@ -308,10 +308,6 @@ stf_getsrcifa6(ifp)
 	return NULL;
 }
 
-#ifndef offsetof
-#define offsetof(s, e) ((int)&((s *)0)->e)
-#endif
-
 static int
 stf_output(ifp, m, dst, rt)
 	struct ifnet *ifp;

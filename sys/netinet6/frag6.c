@@ -73,10 +73,6 @@ struct	ip6q ip6q;	/* ip6 reassemble queue */
 /* FreeBSD tweak */
 MALLOC_DEFINE(M_FTABLE, "fragment", "fragment reassembly header");
 
-#ifndef offsetof		/* XXX */
-#define	offsetof(type, member)	((size_t)(&((type *)0)->member))
-#endif
-
 /*
  * Initialise reassembly queue and fragment identifier.
  */

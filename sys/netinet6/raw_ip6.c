@@ -66,8 +66,6 @@
 
 #include "opt_ipsec.h"
 
-#include <stddef.h>
-
 #include <sys/param.h>
 #include <sys/malloc.h>
 #include <sys/proc.h>
@@ -408,8 +406,6 @@ rip6_output(m, va_alist)
 		struct mbuf *n;
 		int off;
 		u_int16_t *p;
-
-#define	offsetof(type, member)	((size_t)(&((type *)0)->member)) /* XXX */
 
 		/* compute checksum */
 		if (so->so_proto->pr_protocol == IPPROTO_ICMPV6)
