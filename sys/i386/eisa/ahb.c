@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ahb.c,v 1.4 1998/10/09 21:38:31 gibbs Exp $
+ *	$Id: ahb.c,v 1.5 1999/01/28 01:33:02 dillon Exp $
  */
 
 #include "eisa.h"
@@ -171,14 +171,9 @@ ahbqueuembox(struct ahb_softc *ahb, u_int32_t mboxval, u_int attn_code)
 	while (--loopmax) {
 		u_int status;
 
-		/*
-		 * XXX - this still looks wrong, even after fixing the
-		 * parenthesization.
-		 */
-
 		status = ahb_inb(ahb, HOSTSTAT);
 		if ((status & (HOSTSTAT_MBOX_EMPTY|HOSTSTAT_BUSY))
-		   != HOSTSTAT_MBOX_EMPTY)
+		   == HOSTSTAT_MBOX_EMPTY)
 			break;
 		DELAY(20);
 	}
