@@ -516,7 +516,6 @@ exec_setregs(td, entry, stack, ps_strings)
 
 	bzero((char *)regs, sizeof(struct trapframe));
 	regs->tf_rip = entry;
-	/* This strangeness is to ensure alignment after the implied return address */
 	regs->tf_rsp = ((stack - 8) & ~0xF) + 8;
 	regs->tf_rdi = stack;		/* argv */
 	regs->tf_rflags = PSL_USER | (regs->tf_rflags & PSL_T);
@@ -524,20 +523,20 @@ exec_setregs(td, entry, stack, ps_strings)
 	regs->tf_cs = _ucodesel;
 
 	/*
-	 * Arrange to trap the next npx or `fwait' instruction (see npx.c
-	 * for why fwait must be trapped at least if there is an npx or an
+	 * Arrange to trap the next fpu or `fwait' instruction (see fpu.c
+	 * for why fwait must be trapped at least if there is an fpu or an
 	 * emulator).  This is mainly to handle the case where npx0 is not
-	 * configured, since the npx routines normally set up the trap
+	 * configured, since the fpu routines normally set up the trap
 	 * otherwise.  It should be done only at boot time, but doing it
-	 * here allows modifying `npx_exists' for testing the emulator on
-	 * systems with an npx.
+	 * here allows modifying `fpu_exists' for testing the emulator on
+	 * systems with an fpu.
 	 */
 	load_cr0(rcr0() | CR0_MP | CR0_TS);
 
-	/* Initialize the npx (if any) for the current process. */
+	/* Initialize the fpu (if any) for the current process. */
 	/*
 	 * XXX the above load_cr0() also initializes it and is a layering
-	 * violation if NPX is configured.  It drops the npx partially
+	 * violation.  It drops the fpu state partially
 	 * and this would be fatal if we were interrupted now, and decided
 	 * to force the state to the pcb, and checked the invariant
 	 * (CR0_TS clear) if and only if PCPU_GET(fpcurthread) != NULL).
@@ -555,7 +554,7 @@ cpu_setregs(void)
 	register_t cr0;
 
 	cr0 = rcr0();
-	cr0 |= CR0_NE;			/* Done by npxinit() */
+	cr0 |= CR0_NE;			/* Done by fpuinit() */
 	cr0 |= CR0_MP | CR0_TS;		/* Done at every execve() too. */
 	cr0 |= CR0_WP | CR0_AM;
 	load_cr0(cr0);
@@ -1525,8 +1524,8 @@ static void
 get_fpcontext(struct thread *td, mcontext_t *mcp)
 {
 
-	mcp->mc_ownedfp = npxgetregs(td, (struct savefpu *)&mcp->mc_fpstate);
-	mcp->mc_fpformat = npxformat();
+	mcp->mc_ownedfp = fpugetregs(td, (struct savefpu *)&mcp->mc_fpstate);
+	mcp->mc_fpformat = fpuformat();
 }
 
 static int
@@ -1543,11 +1542,11 @@ set_fpcontext(struct thread *td, const mcontext_t *mcp)
 	else if (mcp->mc_ownedfp == _MC_FPOWNED_FPU ||
 	    mcp->mc_ownedfp == _MC_FPOWNED_PCB) {
 		/*
-		 * XXX we violate the dubious requirement that npxsetregs()
+		 * XXX we violate the dubious requirement that fpusetregs()
 		 * be called with interrupts disabled.
 		 * XXX obsolete on trap-16 systems?
 		 */
-		npxsetregs(td, (struct savefpu *)&mcp->mc_fpstate);
+		fpusetregs(td, (struct savefpu *)&mcp->mc_fpstate);
 	} else
 		return (EINVAL);
 	return (0);
@@ -1560,18 +1559,18 @@ fpstate_drop(struct thread *td)
 
 	s = intr_disable();
 	if (PCPU_GET(fpcurthread) == td)
-		npxdrop();
+		fpudrop();
 	/*
-	 * XXX force a full drop of the npx.  The above only drops it if we
+	 * XXX force a full drop of the fpu.  The above only drops it if we
 	 * owned it.
 	 *
-	 * XXX I don't much like npxgetregs()'s semantics of doing a full
+	 * XXX I don't much like fpugetregs()'s semantics of doing a full
 	 * drop.  Dropping only to the pcb matches fnsave's behaviour.
 	 * We only need to drop to !PCB_INITDONE in sendsig().  But
-	 * sendsig() is the only caller of npxgetregs()... perhaps we just
+	 * sendsig() is the only caller of fpugetregs()... perhaps we just
 	 * have too many layers.
 	 */
-	curthread->td_pcb->pcb_flags &= ~PCB_NPXINITDONE;
+	curthread->td_pcb->pcb_flags &= ~PCB_FPUINITDONE;
 	intr_restore(s);
 }
 

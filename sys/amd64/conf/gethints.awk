@@ -91,7 +91,6 @@
 				sub ("IO_LPT3", "0x3BC", val);
 				sub ("IO_MDA", "0x3B0", val);
 				sub ("IO_NMI", "0x070", val);
-				sub ("IO_NPX", "0x0F0", val);
 				sub ("IO_PMP1", "0x026", val);
 				sub ("IO_PMP2", "0x178", val);
 				sub ("IO_PPI", "0x061", val);

@@ -41,12 +41,9 @@
  * Bits in 386 special registers:
  */
 #define	CR0_PE	0x00000001	/* Protected mode Enable */
-#define	CR0_MP	0x00000002	/* "Math" Present (NPX or NPX emulator) */
-#define	CR0_EM	0x00000004	/* EMulate non-NPX coproc. (trap ESC only) */
+#define	CR0_MP	0x00000002	/* "Math" (fpu) Present */
+#define	CR0_EM	0x00000004	/* EMulate FPU instructions. (trap ESC only) */
 #define	CR0_TS	0x00000008	/* Task Switched (if MP, trap ESC and WAIT) */
-#ifdef notused
-#define	CR0_ET	0x00000010	/* Extension Type (387 (if set) vs 287) */
-#endif
 #define	CR0_PG	0x80000000	/* PaGing enable */
 
 /*

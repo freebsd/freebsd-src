@@ -66,7 +66,7 @@ struct pcb {
 
 	struct	savefpu	pcb_save;
 	u_long	pcb_flags;
-#define	PCB_NPXINITDONE	0x01	/* fpu state is initialized */
+#define	PCB_FPUINITDONE	0x01	/* fpu state is initialized */
 #define	PCB_FULLCTX	0x02	/* full context restore on sysret */
 
 	caddr_t	pcb_onfault;	/* copyin/out fault recovery */

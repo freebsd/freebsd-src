@@ -108,7 +108,7 @@ ia32_get_fpcontext(struct thread *td, struct ia32_mcontext *mcp)
 	 *
 	 * XXX unpessimize most cases by only aligning when fxsave might be
 	 * called, although this requires knowing too much about
-	 * npxgetregs()'s internals.
+	 * fpugetregs()'s internals.
 	 */
 	addr = (struct savefpu *)&mcp->mc_fpstate;
 	if (td == PCPU_GET(fpcurthread) && ((uintptr_t)(void *)addr & 0xF)) {
@@ -116,12 +116,12 @@ ia32_get_fpcontext(struct thread *td, struct ia32_mcontext *mcp)
 			addr = (void *)((char *)addr + 4);
 		while ((uintptr_t)(void *)addr & 0xF);
 	}
-	mcp->mc_ownedfp = npxgetregs(td, addr);
+	mcp->mc_ownedfp = fpugetregs(td, addr);
 	if (addr != (struct savefpu *)&mcp->mc_fpstate) {
 		bcopy(addr, &mcp->mc_fpstate, sizeof(mcp->mc_fpstate));
 		bzero(&mcp->mc_spare2, sizeof(mcp->mc_spare2));
 	}
-	mcp->mc_fpformat = npxformat();
+	mcp->mc_fpformat = fpuformat();
 }
 
 static int
@@ -148,10 +148,10 @@ ia32_set_fpcontext(struct thread *td, const struct ia32_mcontext *mcp)
 			bcopy(&mcp->mc_fpstate, addr, sizeof(mcp->mc_fpstate));
 		}
 		/*
-		 * XXX we violate the dubious requirement that npxsetregs()
+		 * XXX we violate the dubious requirement that fpusetregs()
 		 * be called with interrupts disabled.
 		 */
-		npxsetregs(td, addr);
+		fpusetregs(td, addr);
 		/*
 		 * Don't bother putting things back where they were in the
 		 * misaligned case, since we know that the caller won't use
