@@ -155,6 +155,10 @@ _fseeko(fp, offset, whence, ltest)
 			errno = EINVAL;
 			return (EOF);
 		}
+		if (ltest && offset > LONG_MAX) {
+			errno = EOVERFLOW;
+			return (EOF);
+		}
 		whence = SEEK_SET;
 		havepos = 1;
 		break;
@@ -217,6 +221,10 @@ _fseeko(fp, offset, whence, ltest)
 		/* Disallow negative seeks per POSIX */
 		if ((off_t)target < 0) {
 			errno = EINVAL;
+			return (EOF);
+		}
+		if (ltest && (off_t)target > LONG_MAX) {
+			errno = EOVERFLOW;
 			return (EOF);
 		}
 	}
