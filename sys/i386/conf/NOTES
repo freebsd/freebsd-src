@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.549 1999/02/04 22:34:23 adam Exp $
+#	$Id: LINT,v 1.550 1999/02/07 20:33:05 joerg Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -1593,6 +1593,30 @@ controller	pci0
 controller	ahc1
 controller	ncr0
 controller	isp0
+#
+# Options for ISP
+#
+#	SCSI_ISP_NO_FWLOAD_MASK	- mask of isp unit numbers (obviously
+#				  a max of 32) that you wish to disable
+#				  to disable the loading of firmware on.
+#	SCSI_ISP_NO_NVRAM_MASK	- mask of isp unit numbers (obviously
+#				  a max of 32) that you wish to disable
+#				  them picking up information from NVRAM
+#				  (for broken cards you can't fix the NVRAM
+#				  on- very rare, or for systems you can't
+#				  change NVRAM on (e.g. alpha) and you don't
+#				  like what's in there)
+#	SCSI_ISP_PREFER_MEM_MAP	- control preference for using memory mappings
+#				  instead of I/O space mappings. It defaults
+#				  to 1 for i386, 0 for alpha. Set to 1 to
+#				  unconditionally prefer mapping memory,
+#				  else it will use I/O space mappings. Of
+#				  course, this can fail if the PCI implement-
+#				  ation doesn't support what you want.
+options	SCSI_ISP_NO_FWLOAD_MASK="0x12"	# disable FW load for isp1 and isp4
+options SCSI_ISP_NO_NVRAM_MASK="0x1"	# disable NVRAM for isp0
+options SCSI_ISP_PREFER_MEM_MAP="0"	# prefer I/O mapping
+
 device		ax0
 device		de0
 device		fxp0
