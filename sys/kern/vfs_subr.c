@@ -83,10 +83,6 @@ static void	vclean __P((struct vnode *vp, int flags, struct proc *p));
 static unsigned long	numvnodes;
 SYSCTL_LONG(_debug, OID_AUTO, numvnodes, CTLFLAG_RD, &numvnodes, 0, "");
 
-static int vmiodirenable = FALSE;
-SYSCTL_INT(_vfs, OID_AUTO, vmiodirenable, CTLFLAG_RW,
-        &vmiodirenable, 0, "");
-
 /*
  * Conversion tables for conversion from vnode types to inode formats
  * and back.
@@ -2382,9 +2378,6 @@ loop:
 		if (vp->v_flag & VXLOCK)	/* XXX: what if MNT_WAIT? */
 			continue;
 
-		if (vp->v_flag & VNOSYNC)	/* unlinked, skip it */
-			continue;
-
 		if (flags != MNT_WAIT) {
 			if (VOP_GETVOBJECT(vp, &obj) != 0 ||
 			    (obj->flags & OBJ_MIGHTBEDIRTY) == 0)
@@ -2791,22 +2784,6 @@ vn_isdisk(vp, errp)
 	if (errp != NULL)
 		*errp = 0;
 	return (1);
-}
-
-/*
- * Check if a vnode should be done with VMIO.
- */
-int
-vn_canvmio(vp)
-	struct vnode *vp;
-{
-	if (!vp)
-		return (FALSE);
-	if (vp->v_type == VREG || (vmiodirenable && vp->v_type == VDIR))
-		return (TRUE);
-	if (vn_isdisk(vp, NULL))
-		return TRUE;
-	return FALSE;
 }
 
 /*
