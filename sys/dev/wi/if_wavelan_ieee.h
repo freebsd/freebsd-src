@@ -169,6 +169,7 @@ struct wi_counters {
 	u_int32_t		wi_rx_msg_in_msg_frags;
 	u_int32_t		wi_rx_msg_in_bad_msg_frags;
 };
+#endif
 
 /*
  * These are all the LTV record types that we can read or write
@@ -247,6 +248,7 @@ struct wi_counters {
 #define WI_RID_TX_CRYPT_KEY	0xFCB1
 #define WI_RID_TICK_TIME	0xFCE0
 
+#ifndef _KERNEL
 struct wi_key {
 	u_int16_t		wi_keylen;
 	u_int8_t		wi_keydat[14];
@@ -257,6 +259,7 @@ struct wi_ltv_keys {
 	u_int16_t		wi_type;
 	struct wi_key		wi_keys[4];
 };
+#endif
 
 /*
  * NIC information
@@ -315,7 +318,6 @@ struct wi_ltv_keys {
 #define WI_RID_CCA_TIME		0xFDC4 /* clear chan assess time */
 #define WI_RID_MAC_PROC_DELAY	0xFDC5 /* MAC processing delay time */
 #define WI_RID_DATA_RATES	0xFDC6 /* supported data rates */
-#endif
 
 
 #endif

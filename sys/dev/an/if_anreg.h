@@ -34,8 +34,8 @@
 
 #define AN_TIMEOUT	65536
 
-/* Default network name: ANY */
-#define AN_DEFAULT_NETNAME	"ANY"
+/* Default network name: <empty string> */
+#define AN_DEFAULT_NETNAME	""
 
 /* The nodename must be less than 16 bytes */
 #define AN_DEFAULT_NODENAME	"FreeBSD"
@@ -846,6 +846,7 @@ struct an_softc	{
 	struct callout_handle	an_stat_ch;
 	struct mtx		an_mtx;
 	device_t		an_dev;
+	struct ifmedia		an_ifmedia;
 };
 
 #define AN_LOCK(_sc)		mtx_lock(&(_sc)->an_mtx)

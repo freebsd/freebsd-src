@@ -455,9 +455,12 @@ awi_ioctl(ifp, cmd, data)
 	struct awi_softc *sc = ifp->if_softc;
 	struct ifreq *ifr = (struct ifreq *)data;
 	struct ifaddr *ifa = (struct ifaddr *)data;
+	struct ieee80211req *ireq = (struct ieee80211req *)data;
 	int s, error;
 	struct ieee80211_nwid nwid;
 	u_int8_t *p;
+	int len;
+	u_int8_t tmpstr[IEEE80211_NWID_LEN*2];
 
 	s = splnet();
 
@@ -566,6 +569,184 @@ awi_ioctl(ifp, cmd, data)
 		error = ifmedia_ioctl(ifp, ifr, &sc->sc_media, cmd);
 		break;
 #endif
+#ifdef __FreeBSD__
+	case SIOCG80211:
+		switch(ireq->i_type) {
+		case IEEE80211_IOC_SSID:
+			bzero(tmpstr, IEEE80211_NWID_LEN);
+			if(ireq->i_val == -1 && ifp->if_flags & IFF_RUNNING) {
+				if (sc->sc_mib_local.Network_Mode) {
+					p = sc->sc_bss.essid;
+					len = p[1];
+					p += 2;
+				} else {
+					len = ETHER_ADDR_LEN;
+					p = sc->sc_bss.bssid;
+				}
+			} else if(ireq->i_val == 0) {
+				if (sc->sc_mib_local.Network_Mode)
+					p = sc->sc_mib_mac.aDesired_ESS_ID;
+				else
+					p = sc->sc_ownssid;
+				len = p[1];
+				p += 2;
+			} else {
+				error = EINVAL;
+				break;
+			}
+			if(len > IEEE80211_NWID_LEN) {
+				error = EINVAL;
+				break;
+			}
+			bcopy(p, tmpstr, len);
+			error = copyout(tmpstr, ireq->i_data,
+			    IEEE80211_NWID_LEN);
+			break;
+		case IEEE80211_IOC_NUMSSIDS:
+			ireq->i_val = 1;
+			break;
+		case IEEE80211_IOC_WEP:
+			/* XXX: I'm not sure this is entierly correct */
+			ireq->i_val = awi_wep_getalgo(sc);
+			if(ireq->i_val != IEEE80211_WEP_OFF)
+				ireq->i_val = IEEE80211_WEP_ON;
+			break;
+		case IEEE80211_IOC_WEPKEY:
+			if(ireq->i_val < 0 || ireq->i_val > 3) {
+				error = EINVAL;
+				break;
+			}
+			len = sizeof(tmpstr);
+			error = awi_wep_getkey(sc, ireq->i_val, tmpstr, &len);
+			if(error)
+				break;
+			if(!suser(curproc))
+				bzero(tmpstr, len);
+			ireq->i_val = len;
+			error = copyout(tmpstr, ireq->i_data, len);
+			break;
+		case IEEE80211_IOC_NUMWEPKEYS:
+			ireq->i_val = 4;
+			break;
+		case IEEE80211_IOC_WEPTXKEY:
+			ireq->i_val = sc->sc_wep_defkid;
+			break;
+		case IEEE80211_IOC_AUTHMODE:
+			/* XXX: Is this correct? */
+			ireq->i_val = IEEE80211_AUTH_OPEN;
+			break;
+		case IEEE80211_IOC_STATIONNAME:
+			bzero(tmpstr, IEEE80211_NWID_LEN);
+			p = hostname;
+			len = strlen(hostname);
+			if(len > IEEE80211_NWID_LEN) {
+				error = EINVAL;
+				break;
+			}
+			bcopy(p, tmpstr, len);
+			error = copyout(tmpstr, ireq->i_data,
+			    IEEE80211_NWID_LEN);
+			break;
+		case IEEE80211_IOC_CHANNEL:
+			/* XXX: Handle FH cards */
+			ireq->i_val = sc->sc_bss.chanset;
+			break;
+		case IEEE80211_IOC_POWERSAVE:
+			/*
+			 * There appears to be a mib for this in the
+			 * softc, but since there's no way to enable
+			 * powersaving reporting it's value isn't really
+			 * meaningfull.
+			 */
+			ireq->i_val = IEEE80211_POWERSAVE_NOSUP;
+			break;
+		case IEEE80211_IOC_POWERSAVESLEEP:
+			error = EINVAL;
+			break;
+		default:
+			error = EINVAL;
+			break;
+		}
+		break;
+	case SIOCS80211:
+		error = suser(curproc);
+		if(error)
+			break;
+		switch(ireq->i_type) {
+		case IEEE80211_IOC_SSID:
+			if(ireq->i_val != 0) {
+				error = EINVAL;
+				break;
+			}
+			bzero(tmpstr, AWI_ESS_ID_SIZE);
+			tmpstr[0] = IEEE80211_ELEMID_SSID;
+			tmpstr[1] = ireq->i_val;
+			error = copyin(ireq->i_data, tmpstr+2, ireq->i_val);
+			if(error)
+				break;
+			bcopy(tmpstr, sc->sc_mib_mac.aDesired_ESS_ID, 
+				AWI_ESS_ID_SIZE);
+			bcopy(tmpstr, sc->sc_ownssid, AWI_ESS_ID_SIZE);
+			break;
+		case IEEE80211_IOC_WEP:
+			if(ireq->i_val == IEEE80211_WEP_OFF)
+				error = awi_wep_setalgo(sc, 0);
+			else
+				error = awi_wep_setalgo(sc, 1);
+			break;
+		case IEEE80211_IOC_WEPKEY:
+			error = copyin(ireq->i_data, tmpstr, 14);
+			if(error)
+				break;
+			if(ireq->i_val < 0 || ireq->i_val > 3 ||
+			    tmpstr[0] > 13) {
+				error = EINVAL;
+				break;
+			}
+			error = awi_wep_setkey(sc, ireq->i_val, tmpstr+1,
+			    tmpstr[0]);
+			break;
+		case IEEE80211_IOC_WEPTXKEY:
+			if(ireq->i_val < 0 || ireq->i_val > 3) {
+				error = EINVAL;
+				break;
+			}
+			sc->sc_wep_defkid = ireq->i_val;
+			break;
+		case IEEE80211_IOC_AUTHMODE:
+			error = EINVAL;
+			break;
+		case IEEE80211_IOC_STATIONNAME:
+			error = EPERM;
+			break;
+		case IEEE80211_IOC_CHANNEL:
+			if(ireq->i_val < sc->sc_scan_min ||
+			    ireq->i_val > sc->sc_scan_max) {
+				error = EINVAL;
+				break;
+			}
+			sc->sc_ownch = ireq->i_val;
+			break;
+		case IEEE80211_IOC_POWERSAVE:
+			if(ireq->i_val != 0)
+				error = EINVAL;
+			break;
+		case IEEE80211_IOC_POWERSAVESLEEP:
+			error = EINVAL;
+			break;
+		default:
+			error = EINVAL;
+			break;
+		}
+		/* Restart the card so the change takes effect */
+		if(!error) {
+			if(sc->sc_enabled) {
+				awi_stop(sc);
+				error = awi_init(sc);
+			}
+		}
+		break;
+#endif /* __FreeBSD__ */
 	default:
 		error = awi_wicfg(ifp, cmd, data);
 		break;
