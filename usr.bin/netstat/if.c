@@ -448,9 +448,10 @@ intpr(interval, ifnetaddr, pfunc)
 			const char *fmt;
 
 			TAILQ_FOREACH(multiaddr, &ifnet.if_multiaddrs, ifma_link) {
-				if (kread(*(u_long *)multiaddr, (char *)&ifma,
+				if (kread((u_long)multiaddr, (char *)&ifma,
 					  sizeof ifma))
 					break;
+				multiaddr = &ifma;
 				if (kread((u_long)ifma.ifma_addr, (char *)&msa,
 					  sizeof msa))
 					break;
