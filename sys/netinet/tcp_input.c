@@ -2216,8 +2216,6 @@ dropwithreset:
 		goto drop;
 	/* IPv6 anycast check is done at tcp6_input() */
 
-	if (tp)
-		INP_UNLOCK(inp);
 	/*
 	 * Perform bandwidth limiting.
 	 */
@@ -2229,6 +2227,10 @@ dropwithreset:
 		tcp_trace(TA_DROP, ostate, tp, (void *)tcp_saveipgen,
 			  &tcp_savetcp, 0);
 #endif
+
+	if (tp)
+		INP_UNLOCK(inp);
+
 	if (thflags & TH_ACK)
 		/* mtod() below is safe as long as hdr dropping is delayed */
 		tcp_respond(tp, mtod(m, void *), th, m, (tcp_seq)0, th->th_ack,
