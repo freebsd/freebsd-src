@@ -1713,6 +1713,7 @@ ieee80211_node_leave_11g(struct ieee80211com *ic, struct ieee80211_node *ni)
 void
 ieee80211_node_leave(struct ieee80211com *ic, struct ieee80211_node *ni)
 {
+	struct ieee80211_node_table *nt = ni->ni_table;
 
 	IEEE80211_DPRINTF(ic, IEEE80211_MSG_ASSOC | IEEE80211_MSG_DEBUG,
 	    "[%s] station with aid %d leaves\n",
@@ -1752,8 +1753,18 @@ ieee80211_node_leave(struct ieee80211com *ic, struct ieee80211_node *ni)
 	 */
 	ieee80211_sta_leave(ic, ni);
 done:
-	ni->ni_inact_reload = ic->ic_inact_init;	/* just in case */
-	ieee80211_free_node(ni);
+	/*
+	 * Remove the node from any table it's recorded in and
+	 * drop the caller's reference.  Removal from the table
+	 * is important to insure the node is not reprocessed
+	 * for inactivity.
+	 */
+	if (nt != NULL) {
+		IEEE80211_NODE_LOCK(nt);
+		node_reclaim(nt, ni);
+		IEEE80211_NODE_UNLOCK(nt);
+	} else
+		ieee80211_free_node(ni);
 }
 
 u_int8_t
