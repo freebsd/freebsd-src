@@ -216,11 +216,11 @@ alias_skinny_opnrcvch_ack(struct libalias *la, struct OpenReceiveChannelAck *opn
 void
 AliasHandleSkinny(struct libalias *la, struct ip *pip, struct alias_link *lnk)
 {
-	int hlen, tlen, dlen;
+	size_t hlen, tlen, dlen;
 	struct tcphdr *tc;
-	int32_t msgId, len, t, lip;
+	u_int32_t msgId, t, len, lip;
 	struct skinny_header *sd;
-	int orig_len, skinny_hdr_len = sizeof(struct skinny_header);
+	size_t orig_len, skinny_hdr_len = sizeof(struct skinny_header);
 	ConvDirection direction;
 
 	tc = (struct tcphdr *)ip_next(pip);
@@ -297,7 +297,7 @@ AliasHandleSkinny(struct libalias *la, struct ip *pip, struct alias_link *lnk)
 				return;
 			}
 #ifdef DEBUG
-			fprintf(stderr
+			fprintf(stderr,
 			    "PacketAlias/Skinny: Received ipport message\n");
 #endif
 			port_mesg = (struct IpPortMessage *)&sd->msgId;
