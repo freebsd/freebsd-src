@@ -69,11 +69,11 @@ The following options are available:
 Complement the set of characters in
 .Ar string1 ,
 that is
-.Fl C Ar ab
+.Dq Fl C Li ab
 includes every character except for
-.Ar a
+.Ql a
 and
-.Ar b .
+.Ql b .
 .It Fl c
 Same as
 .Fl C
@@ -232,9 +232,7 @@ it's interpreted as a decimal value.
 .El
 .Sh ENVIRONMENT
 The
-.Ev LANG ,
-.Ev LC_ALL ,
-.Ev LC_CTYPE
+.Ev LANG , LC_ALL , LC_CTYPE
 and
 .Ev LC_COLLATE
 environment variables affect the execution of
@@ -258,7 +256,7 @@ Strip out non-printable characters from file1.
 .D1 Li "tr -cd \*q[:print:]\*q < file1"
 .Pp
 Remove diacritical marks from all accented variants of the letter
-.Sq e :
+.Ql e :
 .Pp
 .Dl "tr \*q[=e=]\*q \*qe\*q"
 .Sh DIAGNOSTICS

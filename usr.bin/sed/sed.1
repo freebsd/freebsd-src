@@ -423,9 +423,9 @@ The value of
 .Em flags
 in the substitute function is zero or more of the following:
 .Bl -tag -width "XXXXXX" -offset indent
-.It Em N
+.It Ar N
 Make the substitution only for the
-.Em N Ns 'th
+.Ar N Ns 'th
 occurrence of the regular expression in the pattern space.
 .It g
 Make the substitution for all non-overlapping matches of the
@@ -506,10 +506,7 @@ option on the command line.
 .El
 .Sh ENVIRONMENT
 The
-.Ev COLUMNS ,
-.Ev LANG ,
-.Ev LC_ALL ,
-.Ev LC_CTYPE
+.Ev COLUMNS , LANG , LC_ALL , LC_CTYPE
 and
 .Ev LC_COLLATE
 environment variables affect the execution of

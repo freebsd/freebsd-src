@@ -115,7 +115,7 @@ and the sample makefile to
 If option
 .Fl I
 is set,
-The server created can be started both by the port monitors
+the server created can be started both by the port monitors
 (for example,
 .Xr inetd 8 )
 or by itself.
@@ -301,7 +301,7 @@ Compile support for
 .Xr inetd 8
 in the server side stubs.
 Such servers can be self-started or can be started by
-.Nm inetd .
+.Xr inetd 8 .
 When the server is self-started, it backgrounds itself by default.
 A special define symbol
 .Em RPC_SVC_FG
@@ -312,13 +312,13 @@ the
 option.
 .Pp
 If there are no pending client requests, the
-.Nm inetd
+.Xr inetd 8
 servers exit after 120 seconds (default).
 The default can be changed with the
 .Fl K
 option.
 All the error messages for
-.Nm inetd
+.Xr inetd 8
 servers
 are always logged with
 .Xr syslog 3 .
@@ -327,7 +327,8 @@ Note:
 Contrary to some systems, in
 .Fx
 this option is needed to generate
-servers that can be invoked through portmonitors and inetd.
+servers that can be invoked through portmonitors and
+.Xr inetd 8 .
 .Pp
 .It Fl K Ar seconds
 By default, services created using
@@ -432,7 +433,6 @@ If the
 option has been specified,
 .Fl P
 is turned off automatically.
-.Pp
 .It Fl s Ar nettype
 Compile into server-side stubs for all the
 transports belonging to the class

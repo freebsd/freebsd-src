@@ -44,14 +44,14 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl abmqsux
-.Op Fl BMS Ar dir Ar ... Fl f
+.Op Fl BMS Ar dir ... Fl f
 .Ar program ...
 .Sh DESCRIPTION
 The
 .Nm
 utility checks the standard binary, manual page, and source
 directories for the specified programs, printing out the paths of any
-it finds.  The supplied program names are first stripped of leading 
+it finds.  The supplied program names are first stripped of leading
 path name components, any single trailing extension added by
 .Xr gzip 1 ,
 .Xr compress 1 ,
@@ -69,7 +69,7 @@ utility for the
 .Dq user.cs_path
 string, with
 .Pa /usr/libexec ,
-.Pa /usr/games 
+.Pa /usr/games
 and the current user's
 .Ev $PATH
 appended.  Manual pages are searched by default along the
