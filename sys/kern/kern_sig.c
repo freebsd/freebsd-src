@@ -1812,7 +1812,7 @@ do_tdsignal(struct thread *td, int sig, sigtarget_t target)
 			 * It will die elsewhere.
 			 * All threads must be restarted.
 			 */
-			p->p_flag &= ~P_STOPPED;
+			p->p_flag &= ~P_STOPPED_SIG;
 			goto runfast;
 		}
 
