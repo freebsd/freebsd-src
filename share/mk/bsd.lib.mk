@@ -187,7 +187,7 @@ LDDESTDIR?=	-L${DESTDIR}/usr/lib
 .endif
 
 .if !defined(NOPIC)
-.if !make(clean) && !make(cleandir)
+.if defined(CPLUSPLUSLIB) && !make(clean) && !make(cleandir)
 SOBJS+= ${DESTDIR}/usr/lib/c++rt0.o
 .endif
 
