@@ -164,7 +164,7 @@ device		rl		# RealTek 8129/8139
 #device		wb		# Winbond W89C840F
 device		xl		# 3Com 3c90x (``Boomerang'', ``Cyclone'')
 
-# Pseudo devices - the number indicates how many units to allocated.
+# Pseudo devices.
 device		random		# Entropy device
 device		loop		# Network loopback
 device		ether		# Ethernet support
