@@ -62,7 +62,7 @@ ACPI_MODULE_NAME("BATTERY")
 	tmp = &res->Package.Elements[idx];				\
 	if (tmp == NULL) {						\
 		ACPI_VPRINT(dev, acpi_device_get_parent_softc(dev),	\
-		    __func__ ": PKG_GETINT error, idx = %d\n.", idx);	\
+		    "%s: PKG_GETINT error, idx = %d\n.", __func__, idx); \
 		goto label;						\
 	}								\
 	if (tmp->Type != ACPI_TYPE_INTEGER)				\
@@ -76,7 +76,7 @@ ACPI_MODULE_NAME("BATTERY")
 	tmp = &res->Package.Elements[idx]; 				\
 	if (tmp == NULL) {						\
 		ACPI_VPRINT(dev, acpi_device_get_parent_softc(dev),	\
-		    __func__ ": PKG_GETSTR error, idx = %d\n.", idx);	\
+		    "%s: PKG_GETSTR error, idx = %d\n.", __func__, idx); \
 		goto label;						\
 	}								\
 	bzero(dest, sizeof(dest));					\
