@@ -32,19 +32,17 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/interrupt.h>
 #include <sys/kernel.h>
+#include <sys/kthread.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/taskqueue.h>
-#include <sys/kthread.h>
 #include <sys/unistd.h>
 
 static MALLOC_DEFINE(M_TASKQUEUE, "taskqueue", "Task Queues");
-
-static STAILQ_HEAD(taskqueue_list, taskqueue) taskqueue_queues;
-
-static void	*taskqueue_ih;
 static void	*taskqueue_giant_ih;
+static void	*taskqueue_ih;
+static STAILQ_HEAD(taskqueue_list, taskqueue) taskqueue_queues;
 static struct mtx taskqueue_queues_mutex;
 static struct proc *taskqueue_thread_proc;
 
@@ -124,14 +122,14 @@ taskqueue_find(const char *name)
 	mtx_lock(&taskqueue_queues_mutex);
 	STAILQ_FOREACH(queue, &taskqueue_queues, tq_link) {
 		mtx_lock(&queue->tq_mutex);
-		if (!strcmp(queue->tq_name, name)) {
+		if (strcmp(queue->tq_name, name) == 0) {
 			mtx_unlock(&taskqueue_queues_mutex);
 			return queue;
 		}
 		mtx_unlock(&queue->tq_mutex);
 	}
 	mtx_unlock(&taskqueue_queues_mutex);
-	return 0;
+	return NULL;
 }
 
 int
