@@ -197,11 +197,9 @@ char *ordernames[] = {
 
 int
 machine_init(statics)
-
-struct statics *statics;
-
+    struct statics *statics;
 {
-    register int pagesize;
+    int pagesize;
     size_t modelen;
     struct passwd *pw;
 
@@ -259,9 +257,9 @@ struct statics *statics;
     return(0);
 }
 
-char *format_header(uname_field)
-
-register char *uname_field;
+char *
+format_header(uname_field)
+    char *uname_field;
 
 {
     static char Header[128];
@@ -280,9 +278,7 @@ extern struct timeval timeout;
 
 void
 get_system_info(si)
-
-struct system_info *si;
-
+    struct system_info *si;
 {
     long total;
     struct loadavg sysload;
@@ -297,8 +293,8 @@ struct system_info *si;
 
     /* convert load averages to doubles */
     {
-	register int i;
-	register double *infoloadp;
+	int i;
+	double *infoloadp;
 
 	infoloadp = si->load_avg;
 	for (i = 0; i < 3; i++)
@@ -393,18 +389,17 @@ struct system_info *si;
 
 static struct handle handle;
 
-caddr_t get_process_info(si, sel, compare)
-
-struct system_info *si;
-struct process_select *sel;
-int (*compare)();
-
+caddr_t
+get_process_info(si, sel, compare)
+    struct system_info *si;
+    struct process_select *sel;
+    int (*compare)();
 {
-    register int i;
-    register int total_procs;
-    register int active_procs;
-    register struct kinfo_proc **prefp;
-    register struct kinfo_proc *pp;
+    int i;
+    int total_procs;
+    int active_procs;
+    struct kinfo_proc **prefp;
+    struct kinfo_proc *pp;
     struct kinfo_proc *prev_pp = NULL;
 
     /* these are copied out of sel for speed */
@@ -414,7 +409,6 @@ int (*compare)();
     int show_uid;
     int show_command;
 
-    
     pbase = kvm_getprocs(kd, KERN_PROC_ALL, 0, &nproc);
     if (nproc > onproc)
 	pref = (struct kinfo_proc **) realloc(pref, sizeof(struct kinfo_proc *)
@@ -494,15 +488,14 @@ int (*compare)();
 
 char fmt[128];		/* static area where result is built */
 
-char *format_next_process(handle, get_userid)
-
-caddr_t handle;
-char *(*get_userid)();
-
+char *
+format_next_process(handle, get_userid)
+    caddr_t handle;
+    char *(*get_userid)();
 {
-    register struct kinfo_proc *pp;
-    register long cputime;
-    register double pct;
+    struct kinfo_proc *pp;
+    long cputime;
+    double pct;
     struct handle *hp;
     char status[16];
     int state;
@@ -602,14 +595,14 @@ char *(*get_userid)();
     return(fmt);
 }
 
-static void getsysctl (name, ptr, len)
-
-char *name;
-void *ptr;
-size_t len;
-
+static void
+getsysctl(name, ptr, len)
+    char *name;
+    void *ptr;
+    size_t len;
 {
     size_t nlen = len;
+
     if (sysctlbyname(name, ptr, &nlen, NULL, 0) == -1) {
 	    fprintf(stderr, "top: sysctl(%s...) failed: %s\n", name,
 		strerror(errno));
@@ -676,15 +669,13 @@ compare_cpu(pp1, pp2)
 #else
 proc_compare(pp1, pp2)
 #endif
-
-struct proc **pp1;
-struct proc **pp2;
-
+    struct proc **pp1;
+    struct proc **pp2;
 {
-    register struct kinfo_proc *p1;
-    register struct kinfo_proc *p2;
-    register int result;
-    register pctcpu lresult;
+    struct kinfo_proc *p1;
+    struct kinfo_proc *p2;
+    int result;
+    pctcpu lresult;
 
     /* remove one level of indirection */
     p1 = *(struct kinfo_proc **) pp1;
@@ -718,15 +709,13 @@ int (*proc_compares[])() = {
 
 int
 compare_size(pp1, pp2)
-
-struct proc **pp1;
-struct proc **pp2;
-
+    struct proc **pp1;
+    struct proc **pp2;
 {
-    register struct kinfo_proc *p1;
-    register struct kinfo_proc *p2;
-    register int result;
-    register pctcpu lresult;
+    struct kinfo_proc *p1;
+    struct kinfo_proc *p2;
+    int result;
+    pctcpu lresult;
 
     /* remove one level of indirection */
     p1 = *(struct kinfo_proc **) pp1;
@@ -747,15 +736,13 @@ struct proc **pp2;
 
 int
 compare_res(pp1, pp2)
-
-struct proc **pp1;
-struct proc **pp2;
-
+    struct proc **pp1;
+    struct proc **pp2;
 {
-    register struct kinfo_proc *p1;
-    register struct kinfo_proc *p2;
-    register int result;
-    register pctcpu lresult;
+    struct kinfo_proc *p1;
+    struct kinfo_proc *p2;
+    int result;
+    pctcpu lresult;
 
     /* remove one level of indirection */
     p1 = *(struct kinfo_proc **) pp1;
@@ -776,16 +763,14 @@ struct proc **pp2;
 
 int
 compare_time(pp1, pp2)
-
-struct proc **pp1;
-struct proc **pp2;
-
+    struct proc **pp1;
+    struct proc **pp2;
 {
-    register struct kinfo_proc *p1;
-    register struct kinfo_proc *p2;
-    register int result;
-    register pctcpu lresult;
-  
+    struct kinfo_proc *p1;
+    struct kinfo_proc *p2;
+    int result;
+    pctcpu lresult;
+
     /* remove one level of indirection */
     p1 = *(struct kinfo_proc **) pp1;
     p2 = *(struct kinfo_proc **) pp2;
@@ -800,20 +785,18 @@ struct proc **pp2;
 
       return(result);
   }
-  
+
 /* compare_prio - the comparison function for sorting by cpu percentage */
 
 int
 compare_prio(pp1, pp2)
-
-struct proc **pp1;
-struct proc **pp2;
-
+    struct proc **pp1;
+    struct proc **pp2;
 {
-    register struct kinfo_proc *p1;
-    register struct kinfo_proc *p2;
-    register int result;
-    register pctcpu lresult;
+    struct kinfo_proc *p1;
+    struct kinfo_proc *p2;
+    int result;
+    pctcpu lresult;
 
     /* remove one level of indirection */
     p1 = *(struct kinfo_proc **) pp1;
@@ -841,14 +824,13 @@ struct proc **pp2;
  *		and "renice" commands.
  */
 
-int proc_owner(pid)
-
-int pid;
-
+int
+proc_owner(pid)
+    int pid;
 {
-    register int cnt;
-    register struct kinfo_proc **prefp;
-    register struct kinfo_proc *pp;
+    int cnt;
+    struct kinfo_proc **prefp;
+    struct kinfo_proc *pp;
 
     prefp = pref;
     cnt = pref_len;
