@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.109 1998/06/21 11:14:50 brian Exp $
+.\" $Id: ppp.8,v 1.110 1998/06/25 22:33:31 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -2976,23 +2976,29 @@ Setting this option enables Multi-link PPP negotiations, also known as
 Multi-link Protocol or MP.  There is no default MRRU (Maximum
 Reconstructed Receive Unit) value.  If no argument is given, multi-link
 mode is disabled.
-.It set mru Ar value
+.It set mru Op Ar value
 The default MRU (Maximum Receive Unit) is 1500.  If it is increased, the
 other side *may* increase its mtu.  There is no point in decreasing the
 MRU to below the default as the
 .Em PPP
-protocol *must* be able to accept packets of at least 1500 octets.
-.It set mtu Ar value
+protocol *must* be able to accept packets of at least 1500 octets.  If
+no argument is given, 1500 is assumed.
+.It set mtu Op Ar value
 The default MTU is 1500.  At negotiation time,
 .Nm
 will accept whatever MRU or MRRU that the peer wants (assuming it's
 not less than 296 bytes).  If the MTU is set,
 .Nm
-will not accept MRU/MRRU values less that the set value.  When
-negotiations are complete, the MTU is assigned to the interface, even
+will not accept MRU/MRRU values less than
+.Ar value .
+When negotiations are complete, the MTU is assigned to the interface, even
 if the peer requested a higher value MRU/MRRU.  This can be useful for
 limiting your packet size (giving better bandwidth sharing at the expense
 of more header data).
+.Pp
+If no
+.Ar value
+is given, 1500, or whatever the peer asks for is used.
 .It set nbns Op Ar x.x.x.x Op Ar y.y.y.y
 This option allows the setting of the Microsoft NetBIOS name server
 values to be returned at the peers request.  If no values are given,

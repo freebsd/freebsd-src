@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.60 1998/06/27 14:18:06 brian Exp $
+ * $Id: ipcp.c,v 1.61 1998/06/27 16:24:52 brian Exp $
  *
  *	TODO:
  *		o More RFC1772 backward compatibility
@@ -438,9 +438,6 @@ ipcp_Setup(struct ipcp *ipcp)
 
   ipcp->peer_reject = 0;
   ipcp->my_reject = 0;
-
-  throughput_stop(&ipcp->throughput);
-  throughput_init(&ipcp->throughput);
 }
 
 static int
@@ -524,11 +521,11 @@ static struct in_addr
 ChooseHisAddr(struct bundle *bundle, const struct in_addr gw)
 {
   struct in_addr try;
-  int f;
+  u_long f;
 
   for (f = 0; f < bundle->ncp.ipcp.cfg.peer_list.nItems; f++) {
     try = iplist_next(&bundle->ncp.ipcp.cfg.peer_list);
-    log_Printf(LogDEBUG, "ChooseHisAddr: Check item %d (%s)\n",
+    log_Printf(LogDEBUG, "ChooseHisAddr: Check item %ld (%s)\n",
               f, inet_ntoa(try));
     if (ipcp_SetIPaddress(bundle, gw, try, 1) == 0) {
       log_Printf(LogIPCP, "Selected IP address %s\n", inet_ntoa(try));
@@ -572,7 +569,7 @@ IpcpSendConfigReq(struct fsm *fp)
 
   if (ipcp->my_compproto && !REJECTED(ipcp, TY_COMPPROTO)) {
     if (ipcp->heis1172) {
-      *(u_short *)o->data = htons(PROTO_VJCOMP);
+      *(u_int32_t *)o->data = htons(PROTO_VJCOMP);
       INC_LCP_OPT(TY_COMPPROTO, 4, o);
     } else {
       *(u_int32_t *)o->data = htonl(ipcp->my_compproto);
@@ -613,7 +610,7 @@ IpcpLayerStart(struct fsm *fp)
   /* We're about to start up ! */
   struct ipcp *ipcp = fsm2ipcp(fp);
 
-  log_Printf(LogIPCP, "%s: IpcpLayerStart.\n", fp->link->name);
+  log_Printf(LogIPCP, "%s: LayerStart.\n", fp->link->name);
   throughput_start(&ipcp->throughput, "IPCP throughput",
                    Enabled(fp->bundle, OPT_THROUGHPUT));
 
@@ -626,7 +623,7 @@ IpcpLayerFinish(struct fsm *fp)
   /* We're now down */
   struct ipcp *ipcp = fsm2ipcp(fp);
 
-  log_Printf(LogIPCP, "%s: IpcpLayerFinish.\n", fp->link->name);
+  log_Printf(LogIPCP, "%s: LayerFinish.\n", fp->link->name);
   throughput_stop(&ipcp->throughput);
   throughput_log(&ipcp->throughput, LogIPCP, NULL);
 }
@@ -678,7 +675,7 @@ IpcpLayerDown(struct fsm *fp)
   const char *s;
 
   s = inet_ntoa(ipcp->peer_ifip);
-  log_Printf(LogIPCP, "%s: IpcpLayerDown: %s\n", fp->link->name, s);
+  log_Printf(LogIPCP, "%s: LayerDown: %s\n", fp->link->name, s);
 
   /*
    * XXX this stuff should really live in the FSM.  Our config should
@@ -722,7 +719,7 @@ IpcpLayerUp(struct fsm *fp)
   struct ipcp *ipcp = fsm2ipcp(fp);
   char tbuff[100];
 
-  log_Printf(LogIPCP, "%s: IpcpLayerUp.\n", fp->link->name);
+  log_Printf(LogIPCP, "%s: LayerUp.\n", fp->link->name);
   snprintf(tbuff, sizeof tbuff, "myaddr = %s ", inet_ntoa(ipcp->my_ip));
   log_Printf(LogIPCP, " %s hisaddr = %s\n", tbuff, inet_ntoa(ipcp->peer_ip));
 

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: iplist.c,v 1.5 1998/05/21 21:45:53 brian Exp $
+ *	$Id: iplist.c,v 1.6 1998/06/15 19:06:47 brian Exp $
  */
 
 #include <sys/types.h>
@@ -43,7 +43,7 @@ do_inet_aton(const char *start, const char *end, struct in_addr *ip)
   char ipstr[16];
 
   if (end - start > 15) {
-    log_Printf(LogWARN, "%.*s: Invalid IP address\n", end-start, start);
+    log_Printf(LogWARN, "%.*s: Invalid IP address\n", (int)(end-start), start);
     return 0;
   }
   strncpy(ipstr, start, end-start);
@@ -110,7 +110,8 @@ iplist_nextrange(struct iplist *list)
       end = ptr + strlen(ptr);
     if (end == ptr)
       return 0;
-    log_Printf(LogWARN, "%.*s: Invalid IP range (skipping)\n", end - ptr, ptr);
+    log_Printf(LogWARN, "%.*s: Invalid IP range (skipping)\n",
+               (int)(end - ptr), ptr);
     to = ptr;
     do
       *to = *end++;
@@ -168,7 +169,7 @@ iplist_reset(struct iplist *list)
 }
 
 struct in_addr
-iplist_setcurpos(struct iplist *list, int pos)
+iplist_setcurpos(struct iplist *list, long pos)
 {
   if (pos < 0 || pos >= list->nItems) {
     list->cur.pos = -1;
@@ -206,7 +207,8 @@ int
 iplist_ip2pos(struct iplist *list, struct in_addr ip)
 {
   struct iplist_cur cur;
-  int f, result;
+  u_long f;
+  int result;
 
   result = -1;
   memcpy(&cur, &list->cur, sizeof cur);

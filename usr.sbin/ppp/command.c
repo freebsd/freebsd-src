@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.150 1998/06/27 14:17:24 brian Exp $
+ * $Id: command.c,v 1.151 1998/06/27 14:18:02 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -122,7 +122,7 @@
 #define NEG_DNS		50
 
 const char Version[] = "2.0-beta";
-const char VersionDate[] = "$Date: 1998/06/27 14:17:24 $";
+const char VersionDate[] = "$Date: 1998/06/27 14:18:02 $";
 
 static int ShowCommand(struct cmdargs const *);
 static int TerminalCommand(struct cmdargs const *);
@@ -552,8 +552,6 @@ ShowProtocolStats(struct cmdargs const *arg)
 {
   struct link *l = command_ChooseLink(arg);
 
-  if (!l)
-    return -1;
   prompt_Printf(arg->prompt, "%s:\n", l->name);
   link_ReportProtocolStatus(l, arg->prompt);
   return 0;
@@ -847,13 +845,9 @@ OpenCommand(struct cmdargs const *arg)
       } else
         log_Printf(LogWARN, "open lcp: You must specify a link\n");
     } else if (!strcasecmp(arg->argv[arg->argn], "ccp")) {
-      struct link *l;
       struct fsm *fp;
 
-      if (!(l = command_ChooseLink(arg)))
-        return -1;
-      fp = &l->ccp.fsm;
-
+      fp = &command_ChooseLink(arg)->ccp.fsm;
       if (fp->link->lcp.fsm.state != ST_OPENED)
         log_Printf(LogWARN, "open: LCP must be open before opening CCP\n");
       else if (fp->state == ST_OPENED)
@@ -893,13 +887,9 @@ CloseCommand(struct cmdargs const *arg)
       bundle_Close(arg->bundle, arg->cx ? arg->cx->name : NULL, CLOSE_LCP);
     else if (!strcasecmp(arg->argv[arg->argn], "ccp") ||
              !strcasecmp(arg->argv[arg->argn], "ccp!")) {
-      struct link *l;
       struct fsm *fp;
 
-      if (!(l = command_ChooseLink(arg)))
-        return -1;
-      fp = &l->ccp.fsm;
-
+      fp = &command_ChooseLink(arg)->ccp.fsm;
       if (fp->state == ST_OPENED) {
         fsm_Close(fp);
         if (arg->argv[arg->argn][3] == '!')
@@ -1038,7 +1028,7 @@ SetServer(struct cmdargs const *arg)
       ptr = strstr(port, "%d");
       if (ptr) {
         snprintf(name, sizeof name, "%.*s%d%s",
-                 ptr - port, port, arg->bundle->unit, ptr + 2);
+                 (int)(ptr - port), port, arg->bundle->unit, ptr + 2);
         port = name;
       }
       res = server_LocalOpen(arg->bundle, port, imask);
@@ -1175,17 +1165,13 @@ SetInterfaceAddr(struct cmdargs const *arg)
 static int
 SetVariable(struct cmdargs const *arg)
 {
-  u_long ulong_val;
+  long long_val, param = (long)arg->cmd->args;
+  int mode, dummyint;
   const char *argp;
-  int param = (int)arg->cmd->args, mode;
   struct datalink *cx = arg->cx;	/* LOCAL_CX uses this */
   const char *err = NULL;
   struct link *l = command_ChooseLink(arg);	/* LOCAL_CX_OPT uses this */
-  int dummyint;
   struct in_addr dummyaddr, *addr;
-
-  if (!l)
-    return -1;
 
   if (arg->argc > arg->argn)
     argp = arg->argv[arg->argn];
@@ -1213,6 +1199,7 @@ SetVariable(struct cmdargs const *arg)
       log_Printf(LogWARN, err);
     }
     break;
+
   case VAR_AUTHNAME:
     if (bundle_Phase(arg->bundle) == PHASE_DEAD) {
       strncpy(arg->bundle->cfg.auth.name, argp,
@@ -1223,6 +1210,7 @@ SetVariable(struct cmdargs const *arg)
       log_Printf(LogWARN, err);
     }
     break;
+
   case VAR_AUTOLOAD:
     if (arg->argc == arg->argn + 2 || arg->argc == arg->argn + 4) {
       arg->bundle->autoload.running = 1;
@@ -1240,14 +1228,17 @@ SetVariable(struct cmdargs const *arg)
       log_Printf(LogWARN, err);
     }
     break;
+
   case VAR_DIAL:
     strncpy(cx->cfg.script.dial, argp, sizeof cx->cfg.script.dial - 1);
     cx->cfg.script.dial[sizeof cx->cfg.script.dial - 1] = '\0';
     break;
+
   case VAR_LOGIN:
     strncpy(cx->cfg.script.login, argp, sizeof cx->cfg.script.login - 1);
     cx->cfg.script.login[sizeof cx->cfg.script.login - 1] = '\0';
     break;
+
   case VAR_WINSIZE:
     if (arg->argc > arg->argn) {
       l->ccp.cfg.deflate.out.winsize = atoi(arg->argv[arg->argn]);
@@ -1272,19 +1263,23 @@ SetVariable(struct cmdargs const *arg)
       log_Printf(LogWARN, err);
     }
     break;
+
   case VAR_DEVICE:
     physical_SetDeviceList(cx->physical, arg->argc - arg->argn,
                            arg->argv + arg->argn);
     break;
+
   case VAR_ACCMAP:
     if (arg->argc > arg->argn) {
+      u_long ulong_val;
       sscanf(argp, "%lx", &ulong_val);
-      cx->physical->link.lcp.cfg.accmap = ulong_val;
+      cx->physical->link.lcp.cfg.accmap = (u_int32_t)ulong_val;
     } else {
       err = "No accmap specified\n";
       log_Printf(LogWARN, err);
     }
     break;
+
   case VAR_MODE:
     mode = Nam2mode(argp);
     if (mode == PHYS_NONE || mode == PHYS_ALL) {
@@ -1293,45 +1288,49 @@ SetVariable(struct cmdargs const *arg)
     }
     bundle_SetMode(arg->bundle, cx, mode);
     break;
+
   case VAR_MRRU:
-    if (bundle_Phase(arg->bundle) != PHASE_DEAD)
+    if (bundle_Phase(arg->bundle) != PHASE_DEAD) {
       log_Printf(LogWARN, "mrru: Only changable at phase DEAD\n");
-    else {
-      ulong_val = atol(argp);
-      if (ulong_val && ulong_val < MIN_MRU)
-        err = "Given MRRU value (%lu) is too small.\n";
-      else if (ulong_val > MAX_MRU)
-        err = "Given MRRU value (%lu) is too big.\n";
-      else
-        arg->bundle->ncp.mp.cfg.mrru = ulong_val;
-      if (err)
-        log_Printf(LogWARN, err, ulong_val);
+      return 1;
     }
+    long_val = atol(argp);
+    if (long_val && long_val < MIN_MRU) {
+      log_Printf(LogWARN, "MRRU %ld: too small - min %d\n", long_val, MIN_MRU);
+      return 1;
+    } else if (long_val > MAX_MRU) {
+      log_Printf(LogWARN, "MRRU %ld: too big - max %d\n", long_val, MAX_MRU);
+      return 1;
+    } else
+      arg->bundle->ncp.mp.cfg.mrru = long_val;
     break;
+
   case VAR_MRU:
-    ulong_val = atol(argp);
-    if (ulong_val < MIN_MRU)
-      err = "Given MRU value (%lu) is too small.\n";
-    else if (ulong_val > MAX_MRU)
-      err = "Given MRU value (%lu) is too big.\n";
-    else
-      l->lcp.cfg.mru = ulong_val;
-    if (err)
-      log_Printf(LogWARN, err, ulong_val);
+    long_val = atol(argp);
+    if (long_val == 0)
+      l->lcp.cfg.mru = DEF_MRU;
+    else if (long_val < MIN_MRU) {
+      log_Printf(LogWARN, "MRU %ld: too small - min %d\n", long_val, MIN_MRU);
+      return 1;
+    } else if (long_val > MAX_MRU) {
+      log_Printf(LogWARN, "MRU %ld: too big - max %d\n", long_val, MAX_MRU);
+      return 1;
+    } else
+      l->lcp.cfg.mru = long_val;
     break;
+
   case VAR_MTU:
-    ulong_val = atol(argp);
-    if (ulong_val == 0)
-      arg->bundle->cfg.mtu = 0;
-    else if (ulong_val < MIN_MTU)
-      err = "Given MTU value (%lu) is too small.\n";
-    else if (ulong_val > MAX_MTU)
-      err = "Given MTU value (%lu) is too big.\n";
-    else
-      arg->bundle->cfg.mtu = ulong_val;
-    if (err)
-      log_Printf(LogWARN, err, ulong_val);
+    long_val = atol(argp);
+    if (long_val && long_val < MIN_MTU) {
+      log_Printf(LogWARN, "MTU %ld: too small - min %d\n", long_val, MIN_MTU);
+      return 1;
+    } else if (long_val > MAX_MTU) {
+      log_Printf(LogWARN, "MTU %ld: too big - max %d\n", long_val, MAX_MTU);
+      return 1;
+    } else
+      arg->bundle->cfg.mtu = long_val;
     break;
+
   case VAR_OPENMODE:
     if (strcasecmp(argp, "active") == 0)
       cx->physical->link.lcp.cfg.openmode = arg->argc > arg->argn+1 ?
@@ -1343,14 +1342,17 @@ SetVariable(struct cmdargs const *arg)
       log_Printf(LogWARN, err, argp);
     }
     break;
+
   case VAR_PHONE:
     strncpy(cx->cfg.phone.list, argp, sizeof cx->cfg.phone.list - 1);
     cx->cfg.phone.list[sizeof cx->cfg.phone.list - 1] = '\0';
     break;
+
   case VAR_HANGUP:
     strncpy(cx->cfg.script.hangup, argp, sizeof cx->cfg.script.hangup - 1);
     cx->cfg.script.hangup[sizeof cx->cfg.script.hangup - 1] = '\0';
     break;
+
   case VAR_IDLETIMEOUT:
     if (arg->argc > arg->argn+1)
       err = "Too many idle timeout values\n";
@@ -1359,54 +1361,67 @@ SetVariable(struct cmdargs const *arg)
     if (err)
       log_Printf(LogWARN, err);
     break;
+
   case VAR_LQRPERIOD:
-    ulong_val = atol(argp);
-    if (ulong_val <= 0) {
-      err = "%s: Invalid lqr period\n";
-      log_Printf(LogWARN, err, argp);
+    long_val = atol(argp);
+    if (long_val < MIN_LQRPERIOD) {
+      log_Printf(LogWARN, "%ld: Invalid lqr period - min %d\n",
+                 long_val, MIN_LQRPERIOD);
+      return 1;
     } else
-      l->lcp.cfg.lqrperiod = ulong_val;
+      l->lcp.cfg.lqrperiod = long_val;
     break;
+
   case VAR_LCPRETRY:
-    ulong_val = atol(argp);
-    if (ulong_val <= 0) {
-      err = "%s: Invalid LCP FSM retry period\n";
-      log_Printf(LogWARN, err, argp);
+    long_val = atol(argp);
+    if (long_val < MIN_FSMRETRY) {
+      log_Printf(LogWARN, "%ld: Invalid LCP FSM retry period - min %d\n",
+                 long_val, MIN_FSMRETRY);
+      return 1;
     } else
-      cx->physical->link.lcp.cfg.fsmretry = ulong_val;
+      cx->physical->link.lcp.cfg.fsmretry = long_val;
     break;
+
   case VAR_CHAPRETRY:
-    ulong_val = atol(argp);
-    if (ulong_val <= 0) {
-      err = "%s: Invalid CHAP retry period\n";
-      log_Printf(LogWARN, err, argp);
+    long_val = atol(argp);
+    if (long_val < MIN_FSMRETRY) {
+      log_Printf(LogWARN, "%ld: Invalid CHAP FSM retry period - min %d\n",
+                 long_val, MIN_FSMRETRY);
+      return 1;
     } else
-      cx->chap.auth.cfg.fsmretry = ulong_val;
+      cx->chap.auth.cfg.fsmretry = long_val;
     break;
+
   case VAR_PAPRETRY:
-    ulong_val = atol(argp);
-    if (ulong_val <= 0) {
-      err = "%s: Invalid PAP retry period\n";
-      log_Printf(LogWARN, err, argp);
+    long_val = atol(argp);
+    if (long_val < MIN_FSMRETRY) {
+      log_Printf(LogWARN, "%ld: Invalid PAP FSM retry period - min %d\n",
+                 long_val, MIN_FSMRETRY);
+      return 1;
     } else
-      cx->pap.cfg.fsmretry = ulong_val;
+      cx->pap.cfg.fsmretry = long_val;
     break;
+
   case VAR_CCPRETRY:
-    ulong_val = atol(argp);
-    if (ulong_val <= 0) {
-      err = "%s: Invalid CCP FSM retry period\n";
-      log_Printf(LogWARN, err, argp);
+    long_val = atol(argp);
+    if (long_val < MIN_FSMRETRY) {
+      log_Printf(LogWARN, "%ld: Invalid CCP FSM retry period - min %d\n",
+                 long_val, MIN_FSMRETRY);
+      return 1;
     } else
-      l->ccp.cfg.fsmretry = ulong_val;
+      l->ccp.cfg.fsmretry = long_val;
     break;
+
   case VAR_IPCPRETRY:
-    ulong_val = atol(argp);
-    if (ulong_val <= 0) {
-      err = "%s: Invalid IPCP FSM retry period\n";
-      log_Printf(LogWARN, err, argp);
+    long_val = atol(argp);
+    if (long_val < MIN_FSMRETRY) {
+      log_Printf(LogWARN, "%ld: Invalid IPCP FSM retry period - min %d\n",
+                 long_val, MIN_FSMRETRY);
+      return 1;
     } else
-      arg->bundle->ncp.ipcp.cfg.fsmretry = ulong_val;
+      arg->bundle->ncp.ipcp.cfg.fsmretry = long_val;
     break;
+
   case VAR_NBNS:
   case VAR_DNS:
     if (param == VAR_DNS)
@@ -1810,12 +1825,12 @@ command_ChooseLink(struct cmdargs const *arg)
 {
   if (arg->cx)
     return &arg->cx->physical->link;
-  else if (arg->bundle->ncp.mp.cfg.mrru)
-    return &arg->bundle->ncp.mp.link;
-  else {
+  else if (!arg->bundle->ncp.mp.cfg.mrru) {
     struct datalink *dl = bundle2datalink(arg->bundle, NULL);
-    return dl ? &dl->physical->link : NULL;
+    if (dl)
+      return &dl->physical->link;
   }
+  return &arg->bundle->ncp.mp.link;
 }
 
 static const char *
@@ -1865,7 +1880,7 @@ ident_cmd(const char *cmd, unsigned *keep, unsigned *add)
 static int
 OptSet(struct cmdargs const *arg)
 {
-  int bit = (int)arg->cmd->args;
+  int bit = (long)arg->cmd->args ? 1 : 0;
   const char *cmd;
   unsigned keep;			/* Keep these bits */
   unsigned add;				/* Add these bits */
@@ -1883,15 +1898,12 @@ OptSet(struct cmdargs const *arg)
 static int
 NegotiateSet(struct cmdargs const *arg)
 {
-  int param = (int)arg->cmd->args;
+  long param = (long)arg->cmd->args;
   struct link *l = command_ChooseLink(arg);	/* LOCAL_CX_OPT uses this */
   struct datalink *cx = arg->cx;	/* LOCAL_CX uses this */
   const char *cmd;
   unsigned keep;			/* Keep these bits */
   unsigned add;				/* Add these bits */
-
-  if (!l)
-    return -1;
 
   if ((cmd = ident_cmd(arg->argv[arg->argn-2], &keep, &add)) == NULL)
     return 1;

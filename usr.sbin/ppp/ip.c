@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ip.c,v 1.46 1998/06/27 14:17:26 brian Exp $
+ * $Id: ip.c,v 1.47 1998/06/27 14:18:05 brian Exp $
  *
  *	TODO:
  *		o Return ICMP message for filterd packet
@@ -333,8 +333,8 @@ PacketCheck(struct bundle *bundle, char *cp, int nb, struct filter *filter)
 	n++;
       }
       snprintf(logbuf + loglen, sizeof logbuf - loglen,
-	       "  seq:%x  ack:%x (%d/%d)",
-	       ntohl(th->th_seq), ntohl(th->th_ack), len, nb);
+	       "  seq:%lx  ack:%lx (%d/%d)",
+	       (u_long)ntohl(th->th_seq), (u_long)ntohl(th->th_ack), len, nb);
       loglen += strlen(logbuf + loglen);
       if ((th->th_flags & TH_SYN) && nb > 40) {
 	u_short *sp;
@@ -379,7 +379,9 @@ ip_Input(struct bundle *bundle, struct mbuf * bp)
   int nb, nw;
   struct tun_data tun;
   struct ip *pip = (struct ip *)tun.data;
+#ifndef NOALIAS
   struct ip *piip = (struct ip *)((char *)pip + (pip->ip_hl << 2));
+#endif
 
   tun_fill_header(tun, AF_INET);
   cp = tun.data;

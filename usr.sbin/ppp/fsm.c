@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: fsm.c,v 1.32 1998/06/20 01:55:28 brian Exp $
+ * $Id: fsm.c,v 1.33 1998/06/25 22:33:20 brian Exp $
  *
  *  TODO:
  */
@@ -210,6 +210,21 @@ FsmOpenNow(void *v)
 
   timer_Stop(&fp->OpenTimer);
   if (fp->state <= ST_STOPPED) {
+    if (fp->state != ST_STARTING) {
+      /*
+       * In practice, we're only here in ST_STOPPED (when delaying the
+       * first config request) or ST_CLOSED (when openmode == 0).
+       *
+       * The ST_STOPPED bit is breaking the RFC already :-(
+       *
+       * According to the RFC (1661) state transition table, a TLS isn't
+       * required for an Open event when state == Closed, but the RFC
+       * must be wrong as TLS hasn't yet been called (since the last TLF)
+       * ie, Initial gets an `Up' event, Closing gets a RTA etc.
+       */
+      (*fp->fn->LayerStart)(fp);
+      (*fp->parent->LayerStart)(fp->parent->object, fp);
+    }
     FsmInitRestartCounter(fp);
     FsmSendConfigReq(fp);
     NewState(fp, ST_REQSENT);
@@ -227,12 +242,12 @@ fsm_Open(struct fsm * fp)
     break;
   case ST_CLOSED:
     if (fp->open_mode == OPEN_PASSIVE) {
-      NewState(fp, ST_STOPPED);
+      NewState(fp, ST_STOPPED);		/* XXX: This is a hack ! */
     } else if (fp->open_mode > 0) {
       if (fp->open_mode > 1)
         log_Printf(LogPHASE, "%s: Entering STOPPED state for %d seconds\n",
                   fp->link->name, fp->open_mode);
-      NewState(fp, ST_STOPPED);
+      NewState(fp, ST_STOPPED);		/* XXX: This is a not-so-bad hack ! */
       timer_Stop(&fp->OpenTimer);
       fp->OpenTimer.load = fp->open_mode * SECTICKS;
       fp->OpenTimer.func = FsmOpenNow;
@@ -258,7 +273,7 @@ void
 fsm_Up(struct fsm * fp)
 {
   switch (fp->state) {
-    case ST_INITIAL:
+  case ST_INITIAL:
     log_Printf(fp->LogLevel, "FSM: Using \"%s\" as a transport\n",
               fp->link->name);
     NewState(fp, ST_CLOSED);
@@ -764,7 +779,7 @@ FsmRecvProtoRej(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
   struct physical *p = link2physical(fp->link);
   u_short *sp, proto;
 
-  sp = (u_short *) MBUF_CTOP(bp);
+  sp = (u_short *)MBUF_CTOP(bp);
   proto = ntohs(*sp);
   log_Printf(fp->LogLevel, "%s: -- Protocol 0x%04x (%s) was rejected!\n",
             fp->link->name, proto, hdlc_Protocol2Nam(proto));
