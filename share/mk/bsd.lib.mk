@@ -1,5 +1,5 @@
 #	from: @(#)bsd.lib.mk	5.26 (Berkeley) 5/2/91
-#	$Id: bsd.lib.mk,v 1.4 1994/08/10 02:48:07 wollman Exp $
+#	$Id: bsd.lib.mk,v 1.5 1994/08/26 18:58:10 wollman Exp $
 #
 
 .if exists(${.CURDIR}/../Makefile.inc)
@@ -15,6 +15,7 @@ SHLIB_MINOR != . ${.CURDIR}/shlib_version ; echo $$minor
 CFLAGS+= -I${DESTDIR}/usr/include
 CXXINCLUDES+= -I${DESTDIR}/usr/include/${CXX}
 .endif
+
 INSTALL?=	install
 LIBDIR?=	/usr/lib
 LINTLIBDIR?=	/usr/libdata/lint
@@ -138,14 +139,14 @@ all: ${_LIBS} # llib-l${LIB}.ln
 OBJS+=	${SRCS:N*.h:R:S/$/.o/g}
 
 lib${LIB}.a:: ${OBJS}
-	@echo building standard ${LIB} library
+	@${ECHO} building standard ${LIB} library
 	@rm -f lib${LIB}.a
 	@${AR} cTq lib${LIB}.a `lorder ${OBJS} | tsort` ${ARADD}
 	${RANLIB} lib${LIB}.a
 
 POBJS+=	${OBJS:.o=.po}
 lib${LIB}_p.a:: ${POBJS}
-	@echo building profiled ${LIB} library
+	@${ECHO} building profiled ${LIB} library
 	@rm -f lib${LIB}_p.a
 	@${AR} cTq lib${LIB}_p.a `lorder ${POBJS} | tsort` ${ARADD}
 	${RANLIB} lib${LIB}_p.a
@@ -160,14 +161,14 @@ SOBJS+= ${DESTDIR}/usr/lib/c++rt0.o
 
 SOBJS+= ${OBJS:.o=.so}
 lib${LIB}.so.${SHLIB_MAJOR}.${SHLIB_MINOR}: ${SOBJS}
-	@echo building shared ${LIB} library \(version ${SHLIB_MAJOR}.${SHLIB_MINOR}\)
+	@${ECHO} building shared ${LIB} library \(version ${SHLIB_MAJOR}.${SHLIB_MINOR}\)
 	@rm -f lib${LIB}.so.${SHLIB_MAJOR}.${SHLIB_MINOR}
-	@$(LD) -Bshareable \
+	@${LD} -Bshareable \
 	    -o lib${LIB}.so.${SHLIB_MAJOR}.${SHLIB_MINOR} \
 	    ${SOBJS} ${LDDESTDIR} ${LDADD}
 
 lib${LIB}_pic.a:: ${SOBJS}
-	@echo building special pic ${LIB} library
+	@${ECHO} building special pic ${LIB} library
 	@rm -f lib${LIB}_pic.a
 	@${AR} cTq lib${LIB}_pic.a ${SOBJS} ${ARADD}
 	${RANLIB} lib${LIB}_pic.a
@@ -242,7 +243,7 @@ realinstall: beforeinstall
 		shift; \
 		t=${DESTDIR}$$1; \
 		shift; \
-		echo $$t -\> $$l; \
+		${ECHO} $$t -\> $$l; \
 		rm -f $$t; \
 		ln $$l $$t; \
 	done; true
@@ -279,7 +280,7 @@ obj:
 obj:
 	@cd ${.CURDIR}; rm -rf obj; \
 	here=`pwd`; dest=/usr/obj`echo $$here | sed 's,^/usr/src,,'`; \
-	echo "$$here -> $$dest"; ln -s $$dest obj; \
+	${ECHO} "$$here -> $$dest"; ln -s $$dest obj; \
 	if test -d /usr/obj -a ! -d $$dest; then \
 		mkdir -p $$dest; \
 	else \
