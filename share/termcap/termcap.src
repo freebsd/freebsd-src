@@ -1957,8 +1957,8 @@ c100-rv-s|concept-rv-s|concept100-rv-s|c100rvs|slow reverse concept 100:\
 # for syscons
 # common entry without semigraphics
 cons25w|ansiw|ansi80x25-raw:\
-	:al=\E[L:am:bs:cd=\E[J:ce=\E[K:cl=\E[H\E[J:cm=\E[%i%d;%dH:co#80:\
-	:dc=\E[P:dl=\E[M:do=\E[B:bt=\E[Z:ho=\E[H:ic=\E[@:li#25:\
+	:al=\E[L:am:bs:NP:cd=\E[J:ce=\E[K:cl=\E[H\E[J:cm=\E[%i%d;%dH:co#80:\
+	:dc=\E[P:dl=\E[M:do=\E[B:bt=\E[Z:ho=\E[H:ic=\E[@:li#25:cb=\E[1K:\
 	:ms:nd=\E[C:pt:rs=\E[x\E[m\Ec:so=\E[7m:se=\E[m:up=\E[A:\
 	:pa#64:Co#8:Sf=\E[3%dm:Sb=\E[4%dm:op=\E[37;40m:\
 	:k1=\E[M:k2=\E[N:k3=\E[O:k4=\E[P:k5=\E[Q:k6=\E[R:k7=\E[S:k8=\E[T:\
