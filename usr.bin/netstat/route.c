@@ -36,7 +36,7 @@
 static char sccsid[] = "From: @(#)route.c	8.6 (Berkeley) 4/28/95";
 #endif
 static const char rcsid[] =
-	"$Id: route.c,v 1.11 1996/01/15 02:18:35 peter Exp $";
+	"$Id: route.c,v 1.12 1996/02/16 15:42:14 wollman Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -235,7 +235,7 @@ again:
 	kget(rn, rnode);
 	if (rnode.rn_b < 0) {
 		if (Aflag)
-			printf("%-8.8x ", rn);
+			printf("%-8.8x ", (int)rn);
 		if (rnode.rn_flags & RNF_ROOT) {
 			if (Aflag)
 				printf("(root node)%s",
@@ -250,11 +250,11 @@ again:
 				   NULL, 0, 44);
 			putchar('\n');
 		}
-		if (rn = rnode.rn_dupedkey)
+		if ((rn = rnode.rn_dupedkey))
 			goto again;
 	} else {
 		if (Aflag && do_rtent) {
-			printf("%-8.8x ", rn);
+			printf("%-8.8x ", (int)rn);
 			p_rtnode();
 		}
 		rn = rnode.rn_r;
@@ -279,13 +279,13 @@ p_rtnode()
 			return;
 	} else {
 		sprintf(nbuf, "(%d)", rnode.rn_b);
-		printf("%6.6s %8.8x : %8.8x", nbuf, rnode.rn_l, rnode.rn_r);
+		printf("%6.6s %8.8x : %8.8x", nbuf, (int)rnode.rn_l, (int)rnode.rn_r);
 	}
 	while (rm) {
 		kget(rm, rmask);
 		sprintf(nbuf, " %d refs, ", rmask.rm_refs);
 		printf(" mk = %8.8x {(%d),%s",
-			rm, -1 - rmask.rm_b, rmask.rm_refs ? nbuf : " ");
+			(int)rm, -1 - rmask.rm_b, rmask.rm_refs ? nbuf : " ");
 		if (rmask.rm_flags & RNF_NORMAL) {
 			struct radix_node rnode_aux;
 			printf(" <normal>, ");
@@ -296,7 +296,7 @@ p_rtnode()
 		    p_sockaddr(kgetsa((struct sockaddr *)rmask.rm_mask),
 				NULL, 0, -1);
 		putchar('}');
-		if (rm = rmask.rm_mklist)
+		if ((rm = rmask.rm_mklist))
 			printf(" ->");
 	}
 	putchar('\n');
@@ -513,7 +513,7 @@ p_rtentry(rt)
 	p_sockaddr(&addr, &mask, rt->rt_flags, WID_DST);
 	p_sockaddr(kgetsa(rt->rt_gateway), NULL, RTF_HOST, WID_GW);
 	p_flags(rt->rt_flags, "%-6.6s ");
-	printf("%6d %8d ", rt->rt_refcnt, rt->rt_use);
+	printf("%6d %8ld ", rt->rt_refcnt, rt->rt_use);
 	if (rt->rt_ifp) {
 		if (rt->rt_ifp != lastif) {
 			kget(rt->rt_ifp, ifnet);
@@ -528,7 +528,7 @@ p_rtentry(rt)
 		        if ((expire_time
 			       =rt->rt_rmx.rmx_expire - time((time_t *)0)) > 0)
 			    printf(" %8.8s %6d%s", prettyname,
-				   expire_time,
+				   (int)expire_time,
 				   rt->rt_nodes[0].rn_dupedkey ? " =>" : "");
 		} else {
 			printf(" %8.8s%s", prettyname,
@@ -561,7 +561,7 @@ routename(in)
 	else {
 #define C(x)	((x) & 0xff)
 		in = ntohl(in);
-		sprintf(line, "%u.%u.%u.%u",
+		sprintf(line, "%lu.%lu.%lu.%lu",
 		    C(in >> 24), C(in >> 16), C(in >> 8), C(in));
 	}
 	return (line);
@@ -666,13 +666,13 @@ netname(in, mask)
 	if (cp)
 		strncpy(line, cp, sizeof(line) - 1);
 	else if ((i & 0xffffff) == 0)
-		sprintf(line, "%u", C(i >> 24));
+		sprintf(line, "%lu", C(i >> 24));
 	else if ((i & 0xffff) == 0)
-		sprintf(line, "%u.%u", C(i >> 24) , C(i >> 16));
+		sprintf(line, "%lu.%lu", C(i >> 24) , C(i >> 16));
 	else if ((i & 0xff) == 0)
-		sprintf(line, "%u.%u.%u", C(i >> 24), C(i >> 16), C(i >> 8));
+		sprintf(line, "%lu.%lu.%lu", C(i >> 24), C(i >> 16), C(i >> 8));
 	else
-		sprintf(line, "%u.%u.%u.%u", C(i >> 24),
+		sprintf(line, "%lu.%lu.%lu.%lu", C(i >> 24),
 			C(i >> 16), C(i >> 8), C(i));
 	domask(line+strlen(line), i, omask);
 	return (line);

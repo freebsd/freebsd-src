@@ -73,11 +73,10 @@ mroutepr(mrpaddr, mfcaddr, vifaddr)
 	struct mfc smfc;
 	register struct vif *v;
 	register vifi_t vifi;
-	register struct in_addr *grp;
-	register int i, n;
+	register int i;
 	register int banner_printed;
 	register int saved_nflag;
-	vifi_t maxvif;
+	vifi_t maxvif = 0;
 
 	if (mrpaddr == 0) {
 		printf("ip_mrtproto: symbol not in namelist\n");
@@ -207,30 +206,30 @@ mrt_stats(mrpaddr, mstaddr)
 
 	kread(mstaddr, (char *)&mrtstat, sizeof(mrtstat));
 	printf("multicast forwarding:\n");
-	printf(" %10u multicast forwarding cache lookup%s\n",
+	printf(" %10lu multicast forwarding cache lookup%s\n",
 	  mrtstat.mrts_mfc_lookups, plural(mrtstat.mrts_mfc_lookups));
-	printf(" %10u multicast forwarding cache miss%s\n",
+	printf(" %10lu multicast forwarding cache miss%s\n",
 	  mrtstat.mrts_mfc_misses, plurales(mrtstat.mrts_mfc_misses));
-	printf(" %10u upcall%s to mrouted\n",
+	printf(" %10lu upcall%s to mrouted\n",
 	  mrtstat.mrts_upcalls, plural(mrtstat.mrts_upcalls));
-	printf(" %10u upcall queue overflow%s\n",
+	printf(" %10lu upcall queue overflow%s\n",
 	  mrtstat.mrts_upq_ovflw, plural(mrtstat.mrts_upq_ovflw));
-	printf(" %10u upcall%s dropped due to full socket buffer\n",
+	printf(" %10lu upcall%s dropped due to full socket buffer\n",
 	  mrtstat.mrts_upq_sockfull, plural(mrtstat.mrts_upq_sockfull));
-	printf(" %10u cache cleanup%s\n",
+	printf(" %10lu cache cleanup%s\n",
 	  mrtstat.mrts_cache_cleanups, plural(mrtstat.mrts_cache_cleanups));
-	printf(" %10u datagram%s with no route for origin\n",
+	printf(" %10lu datagram%s with no route for origin\n",
 	  mrtstat.mrts_no_route, plural(mrtstat.mrts_no_route));
-	printf(" %10u datagram%s arrived with bad tunneling\n",
+	printf(" %10lu datagram%s arrived with bad tunneling\n",
 	  mrtstat.mrts_bad_tunnel, plural(mrtstat.mrts_bad_tunnel));
-	printf(" %10u datagram%s could not be tunneled\n",
+	printf(" %10lu datagram%s could not be tunneled\n",
 	  mrtstat.mrts_cant_tunnel, plural(mrtstat.mrts_cant_tunnel));
-	printf(" %10u datagram%s arrived on wrong interface\n",
+	printf(" %10lu datagram%s arrived on wrong interface\n",
 	  mrtstat.mrts_wrong_if, plural(mrtstat.mrts_wrong_if));
-	printf(" %10u datagram%s selectively dropped\n",
+	printf(" %10lu datagram%s selectively dropped\n",
 	  mrtstat.mrts_drop_sel, plural(mrtstat.mrts_drop_sel));
-	printf(" %10u datagram%s dropped due to queue overflow\n",
+	printf(" %10lu datagram%s dropped due to queue overflow\n",
 	  mrtstat.mrts_q_overflow, plural(mrtstat.mrts_q_overflow));
-	printf(" %10u datagram%s dropped for being too large\n",
+	printf(" %10lu datagram%s dropped for being too large\n",
 	  mrtstat.mrts_pkt2large, plural(mrtstat.mrts_pkt2large));
 }
