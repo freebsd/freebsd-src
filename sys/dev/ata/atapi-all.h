@@ -143,57 +143,58 @@ struct atapi_reqsense {
 
 struct atapi_softc {
     struct ata_softc		*controller;	/* ptr to controller softc */
-    int32_t			unit;		/* ATA_MASTER or ATA_SLAVE */
+    int				unit;		/* ATA_MASTER or ATA_SLAVE */
     void			*driver;	/* ptr to subdriver softc */
-    int8_t			*devname;	/* this devices name */
-    int8_t			cmd;		/* last cmd executed */
-    u_int32_t			flags;		/* drive flags */
+    char			*devname;	/* this devices name */
+    u_int8_t			cmd;		/* last cmd executed */
+    int				flags;		/* drive flags */
 #define		ATAPI_F_MEDIA_CHANGED	0x0001
 
 };
 
-typedef int32_t atapi_callback_t(struct atapi_request *);
+typedef int atapi_callback_t(struct atapi_request *);
 
 struct atapi_request {
     struct atapi_softc		*device;	/* ptr to parent device */
     u_int8_t			ccb[16];	/* command control block */
-    int32_t			ccbsize;	/* size of ccb (12 | 16) */
+    int				ccbsize;	/* size of ccb (12 | 16) */
     u_int32_t			bytecount;	/* bytes to transfer */
     u_int32_t			donecount;	/* bytes transferred */
-    int32_t			timeout;	/* timeout for this cmd */
+    int				timeout;	/* timeout for this cmd */
     struct callout_handle	timeout_handle; /* handle for untimeout */
-    int32_t			retries;	/* retry count */
-    int32_t			result;		/* result of this cmd */
-    int32_t			error;		/* result translated to errno */
+    int				retries;	/* retry count */
+    int				result;		/* result of this cmd */
+    int				error;		/* result translated to errno */
     struct atapi_reqsense	sense;		/* sense data if error */
-    int32_t			flags;		
+    int				flags;		
 #define		ATPR_F_READ		0x0001
 #define		ATPR_F_DMA_USED		0x0002
 #define		ATPR_F_AT_HEAD		0x0004
 
-    int8_t			*data;		/* pointer to data buf */
+    caddr_t			data;		/* pointer to data buf */
     atapi_callback_t		*callback;	/* ptr to callback func */
+    struct ata_dmaentry		*dmatab;	/* DMA transfer table */
     void 			*driver;	/* driver specific */
     TAILQ_ENTRY(atapi_request)	chain;		/* list management */
 };
 
-void atapi_attach(struct ata_softc *, int32_t);
+void atapi_attach(struct ata_softc *, int);
 void atapi_detach(struct atapi_softc *);
 void atapi_start(struct atapi_softc *);
 void atapi_transfer(struct atapi_request *);
-int32_t atapi_interrupt(struct atapi_request *);
-int32_t atapi_queue_cmd(struct atapi_softc *, int8_t [], void *, int32_t, int32_t, int32_t, atapi_callback_t, void *);
+int atapi_interrupt(struct atapi_request *);
+int atapi_queue_cmd(struct atapi_softc *, int8_t [], caddr_t, int, int, int, atapi_callback_t, void *);
 void atapi_reinit(struct atapi_softc *);
-int32_t atapi_test_ready(struct atapi_softc *);
-int32_t atapi_wait_ready(struct atapi_softc *, int32_t);
+int atapi_test_ready(struct atapi_softc *);
+int atapi_wait_ready(struct atapi_softc *, int);
 void atapi_request_sense(struct atapi_softc *, struct atapi_reqsense *);
-void atapi_dump(int8_t *, void *, int32_t);
-int32_t acdattach(struct atapi_softc *);
+void atapi_dump(char *, void *, int);
+int acdattach(struct atapi_softc *);
 void acddetach(struct atapi_softc *);
 void acd_start(struct atapi_softc *);
-int32_t afdattach(struct atapi_softc *);
+int afdattach(struct atapi_softc *);
 void afddetach(struct atapi_softc *);
 void afd_start(struct atapi_softc *);
-int32_t astattach(struct atapi_softc *);
+int astattach(struct atapi_softc *);
 void astdetach(struct atapi_softc *);
 void ast_start(struct atapi_softc *);
