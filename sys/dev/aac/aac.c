@@ -887,8 +887,6 @@ aac_bio_command(struct aac_softc *sc, struct aac_command **cmp)
 {
 	struct aac_command *cm;
 	struct aac_fib *fib;
-	struct aac_blockread *br;
-	struct aac_blockwrite *bw;
 	struct aac_disk *ad;
 	struct bio *bp;
 
@@ -911,6 +909,7 @@ aac_bio_command(struct aac_softc *sc, struct aac_command **cmp)
 
 	/* build the FIB */
 	fib = cm->cm_fib;
+	fib->Header.Size = sizeof(struct aac_fib_header);
 	fib->Header.XferState =  
 		AAC_FIBSTATE_HOSTOWNED   | 
 		AAC_FIBSTATE_INITIALISED | 
@@ -920,30 +919,61 @@ aac_bio_command(struct aac_softc *sc, struct aac_command **cmp)
 		AAC_FIBSTATE_NORM	 |
 		AAC_FIBSTATE_ASYNC	 |
 		AAC_FIBSTATE_FAST_RESPONSE;
-	fib->Header.Command = ContainerCommand;
-	fib->Header.Size = sizeof(struct aac_fib_header);
 
 	/* build the read/write request */
 	ad = (struct aac_disk *)bp->bio_disk->d_drv1;
-	if (bp->bio_cmd == BIO_READ) {
-		br = (struct aac_blockread *)&fib->data[0];
-		br->Command = VM_CtBlockRead;
-		br->ContainerId = ad->ad_container->co_mntobj.ObjectId;
-		br->BlockNumber = bp->bio_pblkno;
-		br->ByteCount = bp->bio_bcount;
-		fib->Header.Size += sizeof(struct aac_blockread);
-		cm->cm_sgtable = &br->SgMap;
-		cm->cm_flags |= AAC_CMD_DATAIN;
+
+	if ((sc->flags & AAC_FLAGS_SG_64BIT) == 0) {
+		fib->Header.Command = ContainerCommand;
+		if (bp->bio_cmd == BIO_READ) {
+			struct aac_blockread *br;
+			br = (struct aac_blockread *)&fib->data[0];
+			br->Command = VM_CtBlockRead;
+			br->ContainerId = ad->ad_container->co_mntobj.ObjectId;
+			br->BlockNumber = bp->bio_pblkno;
+			br->ByteCount = bp->bio_bcount;
+			fib->Header.Size += sizeof(struct aac_blockread);
+			cm->cm_sgtable = &br->SgMap;
+			cm->cm_flags |= AAC_CMD_DATAIN;
+		} else {
+			struct aac_blockwrite *bw;
+			bw = (struct aac_blockwrite *)&fib->data[0];
+			bw->Command = VM_CtBlockWrite;
+			bw->ContainerId = ad->ad_container->co_mntobj.ObjectId;
+			bw->BlockNumber = bp->bio_pblkno;
+			bw->ByteCount = bp->bio_bcount;
+			bw->Stable = CUNSTABLE;
+			fib->Header.Size += sizeof(struct aac_blockwrite);
+			cm->cm_flags |= AAC_CMD_DATAOUT;
+			cm->cm_sgtable = &bw->SgMap;
+		}
 	} else {
-		bw = (struct aac_blockwrite *)&fib->data[0];
-		bw->Command = VM_CtBlockWrite;
-		bw->ContainerId = ad->ad_container->co_mntobj.ObjectId;
-		bw->BlockNumber = bp->bio_pblkno;
-		bw->ByteCount = bp->bio_bcount;
-		bw->Stable = CUNSTABLE;	/* XXX what's appropriate here? */
-		fib->Header.Size += sizeof(struct aac_blockwrite);
-		cm->cm_flags |= AAC_CMD_DATAOUT;
-		cm->cm_sgtable = &bw->SgMap;
+		fib->Header.Command = ContainerCommand64;
+		if (bp->bio_cmd == BIO_READ) {
+			struct aac_blockread64 *br;
+			br = (struct aac_blockread64 *)&fib->data[0];
+			br->Command = VM_CtHostRead64;
+			br->ContainerId = ad->ad_container->co_mntobj.ObjectId;
+			br->SectorCount = bp->bio_bcount / AAC_BLOCK_SIZE;
+			br->BlockNumber = bp->bio_pblkno;
+			br->Pad = 0;
+			br->Flags = 0;
+			fib->Header.Size += sizeof(struct aac_blockread64);
+			cm->cm_flags |= AAC_CMD_DATAOUT;
+			(struct aac_sg_table64 *)cm->cm_sgtable = &br->SgMap64;
+		} else {
+			struct aac_blockwrite64 *bw;
+			bw = (struct aac_blockwrite64 *)&fib->data[0];
+			bw->Command = VM_CtHostWrite64;
+			bw->ContainerId = ad->ad_container->co_mntobj.ObjectId;
+			bw->SectorCount = bp->bio_bcount / AAC_BLOCK_SIZE;
+			bw->BlockNumber = bp->bio_pblkno;
+			bw->Pad = 0;
+			bw->Flags = 0;
+			fib->Header.Size += sizeof(struct aac_blockwrite64);
+			cm->cm_flags |= AAC_CMD_DATAIN;
+			(struct aac_sg_table64 *)cm->cm_sgtable = &bw->SgMap64;
+		}
 	}
 
 	*cmp = cm;
@@ -1039,8 +1069,10 @@ aac_alloc_command(struct aac_softc *sc, struct aac_command **cmp)
 	debug_called(3);
 
 	if ((cm = aac_dequeue_free(sc)) == NULL) {
-		sc->aifflags |= AAC_AIFFLAGS_ALLOCFIBS;
-		wakeup(sc->aifthread);
+		if (sc->total_fibs < sc->aac_max_fibs) {
+			sc->aifflags |= AAC_AIFFLAGS_ALLOCFIBS;
+			wakeup(sc->aifthread);
+		}
 		return (EBUSY);
 	}
 
@@ -1193,7 +1225,6 @@ aac_map_command_sg(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 {
 	struct aac_command *cm;
 	struct aac_fib *fib;
-	struct aac_sg_table *sg;
 	int i;
 
 	debug_called(3);
@@ -1201,20 +1232,30 @@ aac_map_command_sg(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 	cm = (struct aac_command *)arg;
 	fib = cm->cm_fib;
 
-	/* find the s/g table */
-	sg = cm->cm_sgtable;
-
 	/* copy into the FIB */
-	if (sg != NULL) {
-		sg->SgCount = nseg;
-		for (i = 0; i < nseg; i++) {
-			sg->SgEntry[i].SgAddress = segs[i].ds_addr;
-			sg->SgEntry[i].SgByteCount = segs[i].ds_len;
+	if (cm->cm_sgtable != NULL) {
+		if ((cm->cm_sc->flags & AAC_FLAGS_SG_64BIT) == 0) {
+			struct aac_sg_table *sg;
+			sg = cm->cm_sgtable;
+			sg->SgCount = nseg;
+			for (i = 0; i < nseg; i++) {
+				sg->SgEntry[i].SgAddress = segs[i].ds_addr;
+				sg->SgEntry[i].SgByteCount = segs[i].ds_len;
+			}
+			/* update the FIB size for the s/g count */
+			fib->Header.Size += nseg * sizeof(struct aac_sg_entry);
+		} else {
+			struct aac_sg_table64 *sg;
+			sg = (struct aac_sg_table64 *)cm->cm_sgtable;
+			sg->SgCount = nseg;
+			for (i = 0; i < nseg; i++) {
+				sg->SgEntry64[i].SgAddress = segs[i].ds_addr;
+				sg->SgEntry64[i].SgByteCount = segs[i].ds_len;
+			}
+			/* update the FIB size for the s/g count */
+			fib->Header.Size += nseg*sizeof(struct aac_sg_entry64);
 		}
-		/* update the FIB size for the s/g count */
-		fib->Header.Size += nseg * sizeof(struct aac_sg_entry);
 	}
-
 }
 
 /*
@@ -1341,12 +1382,10 @@ aac_check_firmware(struct aac_softc *sc)
 		sc->flags |= AAC_FLAGS_4GB_WINDOW;
 	if (options & AAC_SUPPORTED_NONDASD)
 		sc->flags |= AAC_FLAGS_ENABLE_CAM;
-#if 0
-	if (options & AAC_SUPPORTED_SGMAP_HOST64 && sizeof(bus_addr_t) > 4) {
+	if ((options & AAC_SUPPORTED_SGMAP_HOST64) != 0 && (sizeof(bus_addr_t) > 4)) {
 		device_printf(sc->aac_dev, "Enabling 64-bit address support\n");
 		sc->flags |= AAC_FLAGS_SG_64BIT;
 	}
-#endif
 
 	/* Check for broken hardware that does a lower number of commands */
 	if ((sc->flags & AAC_FLAGS_256FIBS) == 0)
