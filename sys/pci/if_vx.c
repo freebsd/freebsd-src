@@ -111,7 +111,7 @@ void vxread __P((struct vx_softc *));
 void vxreset __P((int));
 void vxstart __P((struct ifnet *));
 void vxstop __P((int));
-void vxwatchdog __P((int));
+void vxwatchdog __P((struct ifnet *));
 
 static int send_ID_sequence __P((int));
 static int get_eeprom_data __P((int, int));
@@ -252,12 +252,10 @@ vx_pci_attach(
     ifp->if_name = "vx";
     ifp->if_mtu = ETHERMTU;
     ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX /*| IFF_NOTRAILERS*/;
-    ifp->if_init = vxinit;
     ifp->if_output = ether_output;
     ifp->if_start = vxstart;
     ifp->if_ioctl = vxioctl;
     ifp->if_watchdog = vxwatchdog;
-    ifp->if_timer=1;
 
     if_attach(ifp);
 
@@ -1071,25 +1069,20 @@ vxreset(unit)
 }
 
 void
-vxwatchdog(unit)
-    int unit;
+vxwatchdog(ifp)
+    struct ifnet *ifp;
 {
-    struct vx_softc *sc = &vx_softc[unit];
-    struct ifnet *ifp=&sc->arpcom.ac_if;
-
     /*
     printf("vx: watchdog\n");
 
-    log(LOG_ERR, "vx%d: watchdog\n", unit);
-    ++sc->arpcom.ac_if.if_oerrors;
+    log(LOG_ERR, "vx%d: watchdog\n", ifp->if_unit);
+    ifp->if_oerrors++;
     */
 
-    /* vxreset(unit); */
+    /* vxreset(ifp->if_unit); */
     ifp->if_flags &= ~IFF_OACTIVE;
     vxstart(ifp);
-    vxintr(unit);
-
-    ifp->if_timer=1;
+    vxintr(ifp->if_unit);
 }
 
 void

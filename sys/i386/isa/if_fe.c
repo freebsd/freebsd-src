@@ -252,7 +252,7 @@ void		fe_init		( int );
 int		fe_ioctl	( struct ifnet *, int, caddr_t );
 void		fe_start	( struct ifnet * );
 void		fe_reset	( int );
-void		fe_watchdog	( int );
+void		fe_watchdog	( struct ifnet * );
 
 /* Local functions.  Order of declaration is confused.  FIXME.  */
 static int	fe_probe_fmv	( struct isa_device *, struct fe_softc * );
@@ -1062,11 +1062,9 @@ fe_attach ( struct isa_device *isa_dev )
 	 */
 	sc->sc_if.if_unit     = sc->sc_unit;
 	sc->sc_if.if_name     = "fe";
-	sc->sc_if.if_init     = fe_init;
 	sc->sc_if.if_output   = ether_output;
 	sc->sc_if.if_start    = fe_start;
 	sc->sc_if.if_ioctl    = fe_ioctl;
-	sc->sc_if.if_reset    = fe_reset;
 	sc->sc_if.if_watchdog = fe_watchdog;
 
 	/*
@@ -1246,27 +1244,27 @@ fe_stop ( int unit )
  * generate an interrupt after a transmit has been started on it.
  */
 void
-fe_watchdog ( int unit )
+fe_watchdog ( struct ifnet *ifp )
 {
-	struct fe_softc *sc = &fe_softc[unit];
+	struct fe_softc *sc = (struct fe_softc *)ifp;
 
 #if FE_DEBUG >= 1
 	log( LOG_ERR, "fe%d: transmission timeout (%d+%d)%s\n",
-		unit, sc->txb_sched, sc->txb_count,
-		( sc->sc_if.if_flags & IFF_UP )	? "" : " when down" );
+		ifp->if_unit, sc->txb_sched, sc->txb_count,
+		( ifp->if_flags & IFF_UP )	? "" : " when down" );
 #endif
 #if FE_DEBUG >= 3
 	fe_dump( LOG_INFO, sc, NULL );
 #endif
 
 	/* Record how many packets are lost by this accident.  */
-	sc->sc_if.if_oerrors += sc->txb_sched + sc->txb_count;
+	ifp->if_oerrors += sc->txb_sched + sc->txb_count;
 
 	/* Put the interface into known initial state.  */
-	if ( sc->sc_if.if_flags & IFF_UP ) {
-		fe_reset( unit );
+	if ( ifp->if_flags & IFF_UP ) {
+		fe_reset( ifp->if_unit );
 	} else {
-		fe_stop( unit );
+		fe_stop( ifp->if_unit );
 	}
 }
 
