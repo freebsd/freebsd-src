@@ -41,6 +41,7 @@ struct uart_ops {
 	int (*getc)(struct uart_bas *);
 };
 
+extern struct uart_ops uart_i8251_ops;
 extern struct uart_ops uart_ns8250_ops;
 extern struct uart_ops uart_sab82532_ops;
 extern struct uart_ops uart_z8530_ops;
