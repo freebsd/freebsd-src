@@ -86,6 +86,11 @@ main(argc, argv)
 
 	(void)setlocale(LC_CTYPE, "");
 
+	while (getopt(argc, argv, "") != -1)
+		usage();
+	argc -= optind;
+	argv += optind;
+
 	/* check that sender has write enabled */
 	if (isatty(fileno(stdin)))
 		myttyfd = fileno(stdin);
@@ -108,20 +113,20 @@ main(argc, argv)
 
 	/* check args */
 	switch (argc) {
-	case 2:
-		search_utmp(argv[1], tty, mytty, myuid);
+	case 1:
+		search_utmp(argv[0], tty, mytty, myuid);
 		do_write(tty, mytty, myuid);
 		break;
-	case 3:
-		if (!strncmp(argv[2], _PATH_DEV, strlen(_PATH_DEV)))
-			argv[2] += strlen(_PATH_DEV);
-		if (utmp_chk(argv[1], argv[2]))
-			errx(1, "%s is not logged in on %s", argv[1], argv[2]);
-		if (term_chk(argv[2], &msgsok, &atime, 1))
+	case 2:
+		if (!strncmp(argv[1], _PATH_DEV, strlen(_PATH_DEV)))
+			argv[1] += strlen(_PATH_DEV);
+		if (utmp_chk(argv[0], argv[1]))
+			errx(1, "%s is not logged in on %s", argv[0], argv[1]);
+		if (term_chk(argv[1], &msgsok, &atime, 1))
 			exit(1);
 		if (myuid && !msgsok)
-			errx(1, "%s has messages disabled on %s", argv[1], argv[2]);
-		do_write(argv[2], mytty, myuid);
+			errx(1, "%s has messages disabled on %s", argv[0], argv[1]);
+		do_write(argv[1], mytty, myuid);
 		break;
 	default:
 		usage();
