@@ -83,7 +83,7 @@ static void	aac_complete(void *context, int pending);
 static int	aac_bio_command(struct aac_softc *sc, struct aac_command **cmp);
 static void	aac_bio_complete(struct aac_command *cm);
 static int	aac_wait_command(struct aac_command *cm, int timeout);
-static void	aac_host_command(struct aac_softc *sc);
+static void	aac_command_thread(struct aac_softc *sc);
 static void	aac_host_response(struct aac_softc *sc);
 
 /* Command Buffer Management */
@@ -312,10 +312,10 @@ aac_attach(struct aac_softc *sc)
 
 	/* Create the AIF thread */
 #if __FreeBSD_version > 500005
-	if (kthread_create((void(*)(void *))aac_host_command, sc,
+	if (kthread_create((void(*)(void *))aac_command_thread, sc,
 			   &sc->aifthread, 0, 0, "aac%daif", unit))
 #else
-	if (kthread_create((void(*)(void *))aac_host_command, sc,
+	if (kthread_create((void(*)(void *))aac_command_thread, sc,
 			   &sc->aifthread, "aac%daif", unit))
 #endif
 		panic("Could not create AIF thread\n");
@@ -326,8 +326,10 @@ aac_attach(struct aac_softc *sc)
 	device_printf(sc->aac_dev, "shutdown event registration failed\n");
 
 	/* Register with CAM for the non-DASD devices */
-	if (!(sc->quirks & AAC_QUIRK_NOCAM))
+	if (!(sc->quirks & AAC_QUIRK_NOCAM)) {
+		TAILQ_INIT(&sc->aac_sim_tqh);
 		aac_get_bus_info(sc);
+	}
 
 	return(0);
 }
@@ -383,9 +385,6 @@ aac_startup(void *arg)
 
 	/* enable interrupts now */
 	AAC_UNMASK_INTERRUPTS(sc);
-
-	/* enable the timeout watchdog */
-	timeout((timeout_t*)aac_timeout, sc, AAC_PERIODIC_INTERVAL * hz);
 }
 
 /*
@@ -484,18 +483,33 @@ int
 aac_detach(device_t dev)
 {
 	struct aac_softc *sc;
-#if AAC_BROKEN
+	struct aac_container *co;
+	struct aac_sim	*sim;
 	int error;
-#endif
 
 	debug_called(1);
 
 	sc = device_get_softc(dev);
 
 	if (sc->aac_state & AAC_STATE_OPEN)
-	return(EBUSY);
+		return(EBUSY);
 
-#if AAC_BROKEN
+	/* Remove the child containers */
+	TAILQ_FOREACH(co, &sc->aac_container_tqh, co_link) {
+		error = device_delete_child(dev, co->co_disk);
+		if (error)
+			return (error);
+	}
+
+	/* Remove the CAM SIMs */
+	TAILQ_FOREACH(sim, &sc->aac_sim_tqh, sim_link) {
+		error = device_delete_child(dev, sim->sim_dev);
+		if (error)
+			return (error);
+	}
+
+	bus_generic_detach(dev);
+
 	if (sc->aifflags & AAC_AIFFLAGS_RUNNING) {
 		sc->aifflags |= AAC_AIFFLAGS_EXIT;
 		wakeup(sc->aifthread);
@@ -511,9 +525,6 @@ aac_detach(device_t dev)
 	aac_free(sc);
 
 	return(0);
-#else
-	return (EBUSY);
-#endif
 }
 
 /*
@@ -556,6 +567,9 @@ aac_shutdown(device_t dev)
 	if (aac_sync_fib(sc, ContainerCommand, 0, fib,
 	    sizeof(struct aac_close_command)))
 		printf("FAILED.\n");
+	else
+		printf("done\n");
+#if 0
 	else {
 		fib->data[0] = 0;
 		/*
@@ -571,6 +585,7 @@ aac_shutdown(device_t dev)
 			printf("done.\n");
 		}
 	}
+#endif
 
 	AAC_MASK_INTERRUPTS(sc);
 
@@ -624,8 +639,8 @@ void
 aac_intr(void *arg)
 {
 	struct aac_softc *sc;
-	u_int16_t reason;
 	u_int32_t *resp_queue;
+	u_int16_t reason;
 
 	debug_called(2);
 
@@ -650,17 +665,30 @@ aac_intr(void *arg)
 		aac_host_response(sc);
 
 	/* controller wants to talk to the log */
-	if (reason & AAC_DB_PRINTF)
-		aac_print_printf(sc);
+	if (reason & AAC_DB_PRINTF) {
+		if (sc->aifflags & AAC_AIFFLAGS_RUNNING) {
+			sc->aifflags |= AAC_AIFFLAGS_PRINTF;
+		} else
+			aac_print_printf(sc);
+	}
 
 	/* controller has a message for us? */
 	if (reason & AAC_DB_COMMAND_READY) {
-		/* XXX What happens if the thread is already awake? */
 		if (sc->aifflags & AAC_AIFFLAGS_RUNNING) {
-			sc->aifflags |= AAC_AIFFLAGS_PENDING;
-			wakeup(sc->aifthread);
+			sc->aifflags |= AAC_AIFFLAGS_AIF;
+		} else {
+			/*
+			 * XXX If the kthread is dead and we're at this point,
+			 * there are bigger problems than just figuring out
+			 * what to do with an AIF.
+			 */
 		}
+	
 	}
+
+	if ((sc->aifflags & AAC_AIFFLAGS_PENDING) != 0)
+		/* XXX Should this be done with cv_signal? */
+		wakeup(sc->aifthread);
 }
 
 /*
@@ -737,7 +765,7 @@ aac_start(struct aac_command *cm)
  * Handle notification of one or more FIBs coming from the controller.
  */
 static void
-aac_host_command(struct aac_softc *sc)
+aac_command_thread(struct aac_softc *sc)
 {
 	struct aac_fib *fib;
 	u_int32_t fib_size;
@@ -748,14 +776,27 @@ aac_host_command(struct aac_softc *sc)
 	sc->aifflags |= AAC_AIFFLAGS_RUNNING;
 
 	while (!(sc->aifflags & AAC_AIFFLAGS_EXIT)) {
-		if (!(sc->aifflags & AAC_AIFFLAGS_PENDING))
-			tsleep(sc->aifthread, PRIBIO, "aifthd", 15 * hz);
+		if ((sc->aifflags & AAC_AIFFLAGS_PENDING) == 0)
+			tsleep(sc->aifthread, PRIBIO, "aifthd",
+			       AAC_PERIODIC_INTERVAL * hz);
 
-		sc->aifflags &= ~AAC_AIFFLAGS_PENDING;
-		for (;;) {
+		/* While we're here, check to see if any commands are stuck */
+		if ((sc->aifflags & AAC_AIFFLAGS_PENDING) == 0)
+			aac_timeout(sc);
+
+		/* Check the hardware printf message buffer */
+		if ((sc->aifflags & AAC_AIFFLAGS_PRINTF) != 0) {
+			sc->aifflags &= ~AAC_AIFFLAGS_PRINTF;
+			aac_print_printf(sc);
+		}
+
+		while (sc->aifflags & AAC_AIFFLAGS_AIF) {
+
 			if (aac_dequeue_fib(sc, AAC_HOST_NORM_CMD_QUEUE,
-					    &fib_size, &fib))
+					    &fib_size, &fib)) {
+				sc->aifflags &= ~AAC_AIFFLAGS_AIF;
 				break;	/* nothing to do */
+			}
 	
 			AAC_PRINT_FIB(sc, fib);
 	
@@ -769,11 +810,11 @@ aac_host_command(struct aac_softc *sc)
 				break;
 			}
 
-			/* Return the AIF to the controller. */
 			if ((fib->Header.XferState == 0) ||
 			    (fib->Header.StructType != AAC_FIBTYPE_TFIB))
 				break;
 
+			/* Return the AIF to the controller. */
 			if (fib->Header.XferState & AAC_FIBSTATE_FROMADAP) {
 				fib->Header.XferState |= AAC_FIBSTATE_DONEHOST;
 				*(AAC_FSAStatus*)fib->data = ST_OK;
@@ -1117,7 +1158,8 @@ aac_alloc_commands(struct aac_softc *sc)
 	/* allocate the FIBs in DMAable memory and load them */
 	if (bus_dmamem_alloc(sc->aac_fib_dmat, (void **)&sc->aac_fibs,
 			     BUS_DMA_NOWAIT, &sc->aac_fibmap)) {
-		printf("Not enough contiguous memory available.\n");
+		device_printf(sc->aac_dev,
+			      "Not enough contiguous memory available.\n");
 		return (ENOMEM);
 	}
 
@@ -1805,24 +1847,8 @@ aac_timeout(struct aac_softc *sc)
 	struct aac_command *cm;
 	time_t deadline;
 
-#if 0
-	/* simulate an interrupt to handle possibly-missed interrupts */
 	/*
-	 * XXX This was done to work around another bug which has since been
-	 * fixed.  It is dangerous anyways because you don't want multiple
-	 * threads in the interrupt handler at the same time!  If calling
-	 * is deamed neccesary in the future, proper mutexes must be used.
-	 */
-	s = splbio();
-	aac_intr(sc);
-	splx(s);
-
-	/* kick the I/O queue to restart it in the case of deadlock */
-	aac_startio(sc);
-#endif
-
-	/*
-	 * traverse the busy command list, bitch about late commands once
+	 * Traverse the busy command list, bitch about late commands once
 	 * only.
 	 */
 	deadline = time_second - AAC_CMD_TIMEOUT;
@@ -1839,8 +1865,6 @@ aac_timeout(struct aac_softc *sc)
 	}
 	splx(s);
 
-	/* reset the timer for next time */
-	timeout((timeout_t*)aac_timeout, sc, AAC_PERIODIC_INTERVAL * hz);
 	return;
 }
 
@@ -2344,7 +2368,8 @@ aac_ioctl_sendfib(struct aac_softc *sc, caddr_t ufib)
 	 * Pass the FIB to the controller, wait for it to complete.
 	 */
 	if ((error = aac_wait_command(cm, 30)) != 0) {	/* XXX user timeout? */
-		printf("aac_wait_command return %d\n", error);
+		device_printf(sc->aac_dev,
+			      "aac_wait_command return %d\n", error);
 		goto out;
 	}
 
@@ -2448,7 +2473,8 @@ aac_handle_aif(struct aac_softc *sc, struct aac_fib *fib)
 
 					/*
 					 * This is a new container.  Do all the
-					 * appropriate things to set it up.						 */
+					 * appropriate things to set it up.
+					 */
 					aac_add_container(sc, mir, 1);
 					added = 1;
 				}
@@ -2612,7 +2638,8 @@ aac_return_aif(struct aac_softc *sc, caddr_t uptr)
 		error = copyout(&sc->aac_aifq[sc->aac_aifq_tail], uptr,
 				sizeof(struct aac_aif_command));
 		if (error)
-			printf("aac_return_aif: copyout returned %d\n", error);
+			device_printf(sc->aac_dev,
+			    "aac_return_aif: copyout returned %d\n", error);
 		if (!error)
 			sc->aac_aifq_tail = (sc->aac_aifq_tail + 1) %
 					    AAC_AIFQ_LENGTH;
@@ -2687,7 +2714,7 @@ aac_get_bus_info(struct aac_softc *sc)
 	struct aac_vmioctl *vmi;
 	struct aac_vmi_businf_resp *vmi_resp;
 	struct aac_getbusinf businfo;
-	struct aac_cam_inf *caminf;
+	struct aac_sim *caminf;
 	device_t child;
 	int i, found, error;
 
@@ -2752,8 +2779,8 @@ aac_get_bus_info(struct aac_softc *sc)
 		if (businfo.BusValid[i] != AAC_BUS_VALID)
 			continue;
 
-		MALLOC(caminf, struct aac_cam_inf *,
-		    sizeof(struct aac_cam_inf), M_AACBUF, M_NOWAIT | M_ZERO);
+		MALLOC(caminf, struct aac_sim *,
+		    sizeof(struct aac_sim), M_AACBUF, M_NOWAIT | M_ZERO);
 		if (caminf == NULL)
 			continue;
 
@@ -2770,6 +2797,7 @@ aac_get_bus_info(struct aac_softc *sc)
 
 		device_set_ivars(child, caminf);
 		device_set_desc(child, "SCSI Passthrough Bus");
+		TAILQ_INSERT_TAIL(&sc->aac_sim_tqh, caminf, sim_link);
 
 		found = 1;
 	}
