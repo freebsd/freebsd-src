@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)union_vnops.c	8.32 (Berkeley) 6/23/95
- * $Id: union_vnops.c,v 1.57 1998/05/07 04:58:38 msmith Exp $
+ * $Id: union_vnops.c,v 1.58 1998/07/04 20:45:35 julian Exp $
  */
 
 #include <sys/param.h>
@@ -205,7 +205,7 @@ union_lookup(ap)
 	struct proc *p = cnp->cn_proc;
 	int lockparent = cnp->cn_flags & LOCKPARENT;
 	struct union_mount *um = MOUNTTOUNIONMOUNT(dvp->v_mount);
-	struct ucred *saved_cred;
+	struct ucred *saved_cred = NULL;
 	int iswhiteout;
 	struct vattr va;
 
