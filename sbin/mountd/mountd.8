@@ -29,9 +29,10 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     @(#)mountd.8	8.1 (Berkeley) 6/9/93
+.\"     From: @(#)mountd.8	8.1 (Berkeley) 6/9/93
+.\"	$Id$
 .\"
-.Dd June 9, 1993
+.Dd September 22, 1994
 .Dt MOUNTD 8
 .Os
 .Sh NAME
@@ -81,6 +82,22 @@ After sending the SIGHUP
 (kill -HUP `cat /var/run/mountd.pid`),
 check the syslog output to see if mountd logged any parsing
 errors in the exports file.
+.Pp
+If
+.Nm mountd
+detects that the running kernel does not include
+.Tn NFS
+support, it will attempt to load a loadable kernel module containing
+.Tn NFS
+code, using
+.Xr modload 8
+by way of
+.Xr vfsload 3 .
+If this fails, or no
+.Tn NFS
+LKM was available,
+.Nm mountd
+exits with an error.
 .Sh FILES
 .Bl -tag -width /var/run/mountd.pid -compact
 .It Pa /etc/exports
@@ -91,6 +108,7 @@ the pid of the currently running mountd
 .Sh SEE ALSO
 .Xr nfsstat 1 ,
 .Xr exports 5 ,
+.Xr modload 8 ,
 .Xr nfsd 8 ,
 .Xr portmap 8 ,
 .Xr showmount 8

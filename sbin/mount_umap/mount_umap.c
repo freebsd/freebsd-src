@@ -95,6 +95,7 @@ main(argc, argv)
         u_long gmapdata[GMAPFILEENTRIES][2], mapdata[MAPFILEENTRIES][2];
 	int ch, count, gnentries, mntflags, nentries;
 	char *gmapfile, *mapfile, *source, *target, buf[20];
+	struct vfsconf *vfc;
 
 	mntflags = 0;
 	mapfile = gmapfile = NULL;
@@ -218,7 +219,15 @@ main(argc, argv)
 	args.gnentries = gnentries;
 	args.gmapdata = gmapdata;
 
-	if (mount(MOUNT_UMAP, argv[1], mntflags, &args))
+	vfc = getvfsbyname("umap");
+	if(!vfc && vfsisloadable("umap")) {
+		if(vfsload("umap"))
+			err(1, "vfsload(umap)");
+		endvfsent();	/* flush cache */
+		vfc = getvfsbyname("umap");
+	}
+
+	if (mount(vfc ? vfc->vfc_index : MOUNT_UMAP, argv[1], mntflags, &args))
 		err(1, NULL);
 	exit(0);
 }

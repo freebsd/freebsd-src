@@ -73,6 +73,7 @@ main(argc, argv)
 	struct union_args args;
 	int ch, mntflags;
 	char target[MAXPATHLEN];
+	struct vfsconf *vfc;
 
 	mntflags = 0;
 	args.mntflags = UNMNT_ABOVE;
@@ -109,7 +110,15 @@ main(argc, argv)
 
 	args.target = target;
 
-	if (mount(MOUNT_UNION, argv[1], mntflags, &args))
+	vfc = getvfsbyname("union");
+	if(!vfc && vfsisloadable("union")) {
+		if(vfsload("union"))
+			err(1, "vfsload(union)");
+		endvfsent();	/* flush cache */
+		vfc = getvfsbyname("union");
+	}
+
+	if (mount(vfc ? vfc->vfc_index : MOUNT_UNION, argv[1], mntflags, &args))
 		err(1, NULL);
 	exit(0);
 }
