@@ -200,6 +200,12 @@ execvp(name, argv)
 	}
 	bp = buf;
 
+	/* If it's an empty path name, fail in the usual POSIX way. */
+	if (*name == '\0') {
+		errno = ENOENT;
+		return (-1);
+	}
+
 	/* Get the path we're searching. */
 	if (!(path = getenv("PATH")))
 		path = _PATH_DEFPATH;
