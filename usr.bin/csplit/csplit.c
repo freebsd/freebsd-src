@@ -227,8 +227,11 @@ newfile(void)
 {
 	FILE *fp;
 
-	snprintf(currfile, sizeof(currfile), "%s%0*ld", prefix, (int)sufflen,
-	    nfiles);
+	if (snprintf(currfile, sizeof(currfile), "%s%0*ld", prefix,
+	    (int)sufflen, nfiles) >= sizeof(currfile)) {
+		errno = ENAMETOOLONG;
+		err(1, NULL);
+	}
 	if ((fp = fopen(currfile, "w+")) == NULL)
 		err(1, "%s", currfile);
 	nfiles++;
