@@ -9,23 +9,29 @@
 # Copyright (C) 1994 by Jordan K. Hubbard
 #
 # Permission to copy or use this software for any purpose is granted
-# provided that this message stay intact, and at this location (e.g. no putting
-# your name on top after doing something trivial like reindenting it, just
-# to make it look like you wrote it!).
+# provided that this message stay intact, and at this location (e.g. no
+# putting your name on top after doing something trivial like reindenting
+# it, just to make it look like you wrote it!).
 #
-# $Id: bininst,v 1.27 1994/11/11 08:33:03 jkh Exp $
+# $Id: bininst,v 1.28 1994/11/11 08:34:03 jkh Exp $
 
 # Some useful constants.
 PATH=/usr/bin:/usr/sbin:/bin:/sbin:/stand
 export PATH
+
 TAR=tar
 TAR_FLAGS=xvf
+
 TMP=/tmp
+
 IFCONFIG=ifconfig
+
 ROUTE=route
 ROUTE_FLAGS="add default"
+
 HOME=/
 export HOME
+
 
 interrupt() {
 	if dialog --clear --title "User Interrupt Requested" \
@@ -115,12 +121,12 @@ welcome() {
 sets onto your machine.  At the minimum, you need a bindist
 distribution, though a secrdist is also useful if you want your
 system to use the same DES and/or Kerberos security model used
-by other commercial systems (the FreeBSD model is md5 based,
-and not bad in and of itself though).  The secrdist is also a
-bit of a special case since it cannot be legally obtained via
-U.S. ftp sites from outside the U.S. due to export restrictions,
-but non-U.S. versions are also available.  See the release notes
-for more information on obtaining a secrdist for your part of the
+by other commercial systems (though the md5 based FreeBSD model
+is not bad in and of itself).  The secrdist is also a bit of a
+special case since it cannot be legally obtained via U.S. ftp
+sites from outside the U.S. due to export restrictions, but
+non-U.S. versions are also available.  See the release notes for
+more information on obtaining a secrdist for your part of the
 world.  If you wish to run a 1.x binary (and can't simply recompile
 it from source), it's also recommended that you install the
 compat1xdist.  If you're interested in doing FreeBSD development,
@@ -304,16 +310,16 @@ setup_network_slip()
 {
 	clear=""
 	default_value=""
-	if ! network_dialog "What is the IP number for the remote host"; then return 1; fi
+	if ! network_dialog "What is the IP number for the remote host?"; then return 1; fi
 	remote_hostip=$answer
 	interface=sl0
 
 	default_value=$serial_interface
-	if ! network_dialog "What is the name of the serial interface"; then return 1; fi
+	if ! network_dialog "What is the name of the serial interface?"; then return 1; fi
 	serial_interface=$answer
 
 	default_value=$serial_speed
-	if ! network_dialog "What speed is the serial interface"; then return 1; fi
+	if ! network_dialog "What speed is the serial interface?"; then return 1; fi
 	serial_speed=$answer
 	clear="--clear"
 
@@ -331,7 +337,7 @@ setup_network_slip()
 setup_network_plip()
 {
 	default_value=""
-	if ! network_dialog "What is the IP number for the remote host"; then return 1; fi
+	if ! network_dialog "What is the IP number for the remote host?"; then return 1; fi
 	remote_hostip=$answer
 	interface=lp0
 }
@@ -370,18 +376,18 @@ setup_network()
 
 		clear=""
 		default_value=""
-		if ! network_dialog "What is the fully qualified name of this host"; then clear="--clear"; return 1; fi
+		if ! network_dialog "What is the fully qualified name of this host?"; then clear="--clear"; return 1; fi
 		hostname=$answer
 		echo $hostname > /etc/myname
 		hostname $hostname
 
 		default_value=`echo $hostname | sed -e 's/[^.]*\.//'`
-		if network_dialog "What is the domain name of this host (Internet, not YP/NIS)"; then
+		if network_dialog "What is the domain name of this host (Internet, not YP/NIS)?"; then
 			domain=$answer
 		fi
 
 		default_value=""
-		if ! network_dialog "What is the IP address of this host"; then clear="--clear"; return 1; fi
+		if ! network_dialog "What is the IP address of this host?"; then clear="--clear"; return 1; fi
 		ipaddr=$answer
 
         	echo "$ipaddr    $hostname `echo $hostname | sed -e 's/\.$domain//'`" >> /etc/hosts
@@ -482,7 +488,7 @@ install_set()
 		if ! set_tmpdir; then return; fi
 		if ! cd_tmpdir; then return; fi
 		if ! echo $media_device | grep -v 'ftp://'; then
-			message "Fetching distribution using ncftp.  Use ALT-F2 to see output."
+			message "Fetching distribution using ncftp.  Use ALT-F2 to see output, ALT-F1 to return."
 			if ! ncftp $media_device/* > /dev/ttyv1 2>&1; then
 				error "Couldn't fetch distribution from ${media_device}!"
 			else
