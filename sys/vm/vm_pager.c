@@ -154,13 +154,11 @@ dead_pager_dealloc(object)
 }
 
 static struct pagerops deadpagerops = {
-	NULL,
-	dead_pager_alloc,
-	dead_pager_dealloc,
-	dead_pager_getpages,
-	dead_pager_putpages,
-	dead_pager_haspage,
-	NULL
+	.pgo_alloc = 	dead_pager_alloc,
+	.pgo_dealloc =	dead_pager_dealloc,
+	.pgo_getpages =	dead_pager_getpages,
+	.pgo_putpages =	dead_pager_putpages,
+	.pgo_haspage =	dead_pager_haspage,
 };
 
 struct pagerops *pagertab[] = {
@@ -261,24 +259,6 @@ vm_pager_deallocate(object)
 
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 	(*pagertab[object->type]->pgo_dealloc) (object);
-}
-
-/*
- *      vm_pager_strategy:
- *
- *      called with no specific spl
- *      Execute strategy routine directly to pager.
- */
-void
-vm_pager_strategy(vm_object_t object, struct bio *bp)
-{
-	if (pagertab[object->type]->pgo_strategy) {
-		(*pagertab[object->type]->pgo_strategy)(object, bp);
-	} else {
-		bp->bio_flags |= BIO_ERROR;
-		bp->bio_error = ENXIO;
-		biodone(bp);
-	}
 }
 
 /*

@@ -83,13 +83,12 @@ static void vnode_pager_putpages(vm_object_t, vm_page_t *, int, boolean_t, int *
 static boolean_t vnode_pager_haspage(vm_object_t, vm_pindex_t, int *, int *);
 
 struct pagerops vnodepagerops = {
-	vnode_pager_init,
-	vnode_pager_alloc,
-	vnode_pager_dealloc,
-	vnode_pager_getpages,
-	vnode_pager_putpages,
-	vnode_pager_haspage,
-	NULL
+	.pgo_init =	vnode_pager_init,
+	.pgo_alloc =	vnode_pager_alloc,
+	.pgo_dealloc =	vnode_pager_dealloc,
+	.pgo_getpages =	vnode_pager_getpages,
+	.pgo_putpages =	vnode_pager_putpages,
+	.pgo_haspage =	vnode_pager_haspage,
 };
 
 int vnode_pbuf_freecnt;
