@@ -236,13 +236,14 @@ int
 isinstalledpkg(const char *name)
 {
     char buf[FILENAME_MAX];
+    char buf2[FILENAME_MAX];
 
     snprintf(buf, sizeof(buf), "%s/%s", LOG_DIR, name);
     if (!isdir(buf) || access(buf, R_OK) == FAIL)
 	return FALSE;
 
-    snprintf(buf, sizeof(buf), "%s/%s", buf, CONTENTS_FNAME);
-    if (!isfile(buf) || access(buf, R_OK) == FAIL)
+    snprintf(buf2, sizeof(buf2), "%s/%s", buf, CONTENTS_FNAME);
+    if (!isfile(buf2) || access(buf2, R_OK) == FAIL)
 	return FALSE;
 
     return TRUE;
