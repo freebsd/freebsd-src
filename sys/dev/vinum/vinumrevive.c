@@ -37,7 +37,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumrevive.c,v 1.13 2000/05/10 22:43:01 grog Exp grog $
+ * $Id: vinumrevive.c,v 1.10 2000/01/03 03:40:54 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -410,7 +410,7 @@ parityrebuild(struct plex *plex,
 	    if (sdno == psd)
 		parity_buf = (int *) bpp[sdno]->b_data;
 	    if (sdno == newpsd)				    /* the new one? */
-		bpp[sdno]->b_dev = VINUM_SD(psd);	    /* write back to the parity SD */
+		bpp[sdno]->b_dev = VINUM_SD(plex->sdnos[psd]); /* write back to the parity SD */
 	    else
 		bpp[sdno]->b_dev = VINUM_SD(plex->sdnos[sdno]);	/* device number */
 	    bpp[sdno]->b_flags = B_READ;		    /* either way, read it */
