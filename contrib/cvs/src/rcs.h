@@ -126,3 +126,6 @@ int RCS_lock PROTO ((RCSNode *, const char *, int));
 int RCS_unlock PROTO ((RCSNode *, const char *, int));
 int rcs_change_text PROTO ((const char *, char *, size_t, const char *,
 			    size_t, char **, size_t *));
+
+void RCS_setlocalid PROTO ((const char *arg));
+void RCS_setincexc PROTO ((const char *arg));
