@@ -1,8 +1,3 @@
-#ifndef _SCHED_H_
-#define _SCHED_H_
-
-/* sched.h: POSIX 1003.1b Process Scheduling header */
-
 /*-
  * Copyright (c) 1996, 1997
  *	HD Associates, Inc.  All rights reserved.
@@ -38,39 +33,42 @@
  * $FreeBSD$
  */
 
+/* sched.h: POSIX 1003.1b Process Scheduling header */
+
+#ifndef _SCHED_H_
+#define _SCHED_H_
+
 #include <sys/types.h>	/* For pid_t */
 
 #ifndef _KERNEL
 #include <time.h>		/* Per P1003.4 */
 #endif
 
-/* Scheduling policies
+/*
+ * Scheduling policies
  */
-#define SCHED_FIFO  1
-#define SCHED_OTHER 2
-#define SCHED_RR    3
+#define	SCHED_FIFO	1
+#define	SCHED_OTHER	2
+#define	SCHED_RR	3
 
-struct sched_param
-{
-	int sched_priority;
+struct sched_param {
+	int	sched_priority;
 };
 
 #ifndef _KERNEL
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
-int sched_setparam(pid_t, const struct sched_param *);
-int sched_getparam(pid_t, struct sched_param *);
-
-int sched_setscheduler(pid_t, int, const struct sched_param *);
-int sched_getscheduler(pid_t);
-
-int sched_yield(void);
-int sched_get_priority_max(int);
-int sched_get_priority_min(int);
-int sched_rr_get_interval(pid_t, struct timespec *);
+int	sched_get_priority_max(int);
+int	sched_get_priority_min(int);
+int	sched_getparam(pid_t, struct sched_param *);
+int	sched_getscheduler(pid_t);
+int	sched_rr_get_interval(pid_t, struct timespec *);
+int	sched_setparam(pid_t, const struct sched_param *);
+int	sched_setscheduler(pid_t, int, const struct sched_param *);
+int	sched_yield(void);
 __END_DECLS
 
 #endif
 
-#endif /* _SCHED_H_ */
+#endif /* !_SCHED_H_ */
