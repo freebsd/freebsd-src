@@ -22,8 +22,8 @@ DBMDEF=	-DNEWDB
 NIS=	-DNIS
 
 # If you want tcp wrapper support, uncomment the following two lines
-TCPWRAPPERSBASEDIR=	/usr/local
-TCPWRAPPERS=		-DTCPWRAPPERS -I${TCPWRAPPERSBASEDIR}/include
+#TCPWRAPPERSBASEDIR=	/usr/local
+#TCPWRAPPERS=		-DTCPWRAPPERS -I${TCPWRAPPERSBASEDIR}/include
 
 CFLAGS+=-I${.CURDIR} ${DBMDEF} ${NIS} ${TCPWRAPPERS} #-DNETISO
 
