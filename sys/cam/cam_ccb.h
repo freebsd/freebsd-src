@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: cam_ccb.h,v 1.1 1998/09/15 06:33:23 gibbs Exp $
+ *      $Id: cam_ccb.h,v 1.2 1998/10/15 23:17:35 gibbs Exp $
  */
 
 #ifndef _CAM_CAM_CCB_H
@@ -412,7 +412,8 @@ typedef enum {
 typedef enum {
 	PIM_SCANHILO	= 0x80,	/* Bus scans from high ID to low ID */
 	PIM_NOREMOVE	= 0x40,	/* Removeable devices not included in scan */
-	PIM_NOINQUIRY	= 0x20,	/* Inquiry data not kept by XPT */
+	PIM_NOINITIATOR	= 0x20,	/* Initiator role not supported. */
+	PIM_NOBUSRESET  = 0x10, /* User has disabled initial BUS RESET */
 } pi_miscflag;
 
 /* Path Inquiry CCB */

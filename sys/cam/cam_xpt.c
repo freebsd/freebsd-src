@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: cam_xpt.c,v 1.27 1998/11/25 13:50:10 joerg Exp $
+ *      $Id: cam_xpt.c,v 1.28 1998/12/06 00:06:48 mjacob Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -4552,6 +4552,17 @@ xpt_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 			return;
 		}
 
+		if ((work_ccb->cpi.hba_misc & PIM_NOINITIATOR) != 0) {
+			/*
+			 * Can't scan the bus on an adapter that
+			 * cannot perform the initiator role.
+			 */
+			request_ccb->ccb_h.status = CAM_REQ_CMP;
+			xpt_free_ccb(work_ccb);
+			xpt_done(request_ccb);
+			return;
+		}
+
 		/* Save some state for use while we probe for devices */
 		scan_info = (xpt_scan_bus_info *)
 		    malloc(sizeof(xpt_scan_bus_info), M_TEMP, M_WAITOK);
@@ -4739,6 +4750,7 @@ static void
 xpt_scan_lun(struct cam_periph *periph, struct cam_path *path,
 	     cam_flags flags, union ccb *request_ccb)
 {
+	struct ccb_pathinq cpi;
 	cam_status status;
 	struct cam_path *new_path;
 	struct cam_periph *old_periph;
@@ -4746,6 +4758,30 @@ xpt_scan_lun(struct cam_periph *periph, struct cam_path *path,
 	
 	CAM_DEBUG(request_ccb->ccb_h.path, CAM_DEBUG_TRACE,
 		  ("xpt_scan_lun\n"));
+	
+	xpt_setup_ccb(&cpi.ccb_h, path, /*priority*/1);
+	cpi.ccb_h.func_code = XPT_PATH_INQ;
+	xpt_action((union ccb *)&cpi);
+
+	if (cpi.ccb_h.status != CAM_REQ_CMP) {
+		if (request_ccb != NULL) {
+			request_ccb->ccb_h.status = cpi.ccb_h.status;
+			xpt_done(request_ccb);
+		}
+		return;
+	}
+
+	if ((cpi.hba_misc & PIM_NOINITIATOR) != 0) {
+		/*
+		 * Can't scan the bus on an adapter that
+		 * cannot perform the initiator role.
+		 */
+		if (request_ccb != NULL) {
+			request_ccb->ccb_h.status = CAM_REQ_CMP;
+			xpt_done(request_ccb);
+		}
+		return;
+	}
 
 	if (request_ccb == NULL) {
 		request_ccb = malloc(sizeof(union ccb), M_TEMP, M_NOWAIT);
@@ -5528,15 +5564,34 @@ xptconfigfunc(struct cam_eb *bus, void *arg)
 			       "status %#x for bus %d\n", status, bus->path_id);
 			printf("xptconfigfunc: halting bus configuration\n");
 			xpt_free_ccb(work_ccb);
+			busses_to_config--;
+			xpt_finishconfig(xpt_periph, NULL);
 			return(0);
 		}
 		xpt_setup_ccb(&work_ccb->ccb_h, path, /*priority*/1);
-		work_ccb->ccb_h.func_code = XPT_RESET_BUS;
-		work_ccb->ccb_h.cbfcnp = NULL;
-		CAM_DEBUG(path, CAM_DEBUG_SUBTRACE,
-			  ("Resetting Bus\n"));
+		work_ccb->ccb_h.func_code = XPT_PATH_INQ;
 		xpt_action(work_ccb);
-		xpt_finishconfig(xpt_periph, work_ccb);
+		if (work_ccb->ccb_h.status != CAM_REQ_CMP) {
+			printf("xptconfigfunc: CPI failed on bus %d "
+			       "with status %d\n", bus->path_id,
+			       work_ccb->ccb_h.status);
+			xpt_finishconfig(xpt_periph, work_ccb);
+			return(1);
+		}
+
+		if ((work_ccb->cpi.hba_misc & PIM_NOBUSRESET) == 0) {
+			xpt_setup_ccb(&work_ccb->ccb_h, path, /*priority*/1);
+			work_ccb->ccb_h.func_code = XPT_RESET_BUS;
+			work_ccb->ccb_h.cbfcnp = NULL;
+			CAM_DEBUG(path, CAM_DEBUG_SUBTRACE,
+				  ("Resetting Bus\n"));
+			xpt_action(work_ccb);
+			xpt_finishconfig(xpt_periph, work_ccb);
+		} else {
+			/* Act as though we performed a successful BUS RESET */
+			work_ccb->ccb_h.func_code = XPT_RESET_BUS;
+			xpt_finishconfig(xpt_periph, work_ccb);
+		}
 	}
 
 	return(1);
@@ -5654,10 +5709,9 @@ xpt_finishconfig(struct cam_periph *periph, union ccb *done_ccb)
 			}
 			/* FALLTHROUGH */
 		case XPT_SCAN_BUS:
+		default:
 			xpt_free_path(done_ccb->ccb_h.path);
 			busses_to_config--;
-			break;
-		default:
 			break;
 		}
 	}
