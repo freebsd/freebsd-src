@@ -384,12 +384,8 @@ _fetch_read(conn_t *conn, char *buf, size_t len)
 		else
 #endif
 			rlen = read(conn->sd, buf, len);
-		if (rlen == 0) {
-			/* we consider a short read a failure */
-			errno = EPIPE;
-			_fetch_syserr();
-			return (-1);
-		}
+		if (rlen == 0)
+			break;
 		if (rlen < 0) {
 			if (errno == EINTR && fetchRestartCalls)
 				continue;
@@ -398,6 +394,12 @@ _fetch_read(conn_t *conn, char *buf, size_t len)
 		len -= rlen;
 		buf += rlen;
 		total += rlen;
+	}
+	if (total == 0 && len != 0) {
+		/* no data available at all */
+		errno = EPIPE;
+		_fetch_syserr();
+		return (-1);
 	}
 	return (total);
 }
