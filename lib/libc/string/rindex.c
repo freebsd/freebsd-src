@@ -38,24 +38,27 @@ static char sccsid[] = "@(#)rindex.c	8.1 (Berkeley) 6/4/93";
 __FBSDID("$FreeBSD$");
 
 #include <stddef.h>
+
+#ifdef STRRCHR
 #include <string.h>
 
 char *
-#ifdef STRRCHR
-strrchr(p, ch)
+strrchr
 #else
-rindex(p, ch)
+#include <strings.h>
+
+char *
+rindex
 #endif
-	const char *p;
-	int ch;
+(const char *p, int ch)
 {
 	char *save;
 
 	for (save = NULL;; ++p) {
 		if (*p == ch)
 			save = (char *)p;
-		if (!*p)
-			return(save);
+		if (*p == '\0')
+			return (save);
 	}
 	/* NOTREACHED */
 }
