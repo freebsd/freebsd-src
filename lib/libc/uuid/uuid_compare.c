@@ -34,7 +34,6 @@
  * uuid_compare() - compare two UUIDs.
  * See also:
  *	http://www.opengroup.org/onlinepubs/009629399/uuid_compare.htm
- *	http://www.transarc.ibm.com/Library/documentation/dce/1.1/uuid_compare.html
  *
  * NOTE: Either UUID can be NULL, meaning a nil UUID. nil UUIDs are smaller
  *	 than any non-nil UUID.
