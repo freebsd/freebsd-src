@@ -68,6 +68,9 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/ioccom.h>
+#include <sys/systm.h>
+#include <sys/conf.h>
+
 #include "cdev.h"
 
 /*
@@ -109,7 +112,7 @@ mydev_ioctl(dev_t dev, u_long cmd, caddr_t arg, int mode, struct proc *procp)
     int error = 0;
 
     printf("mydev_ioctl: dev_t=%d, cmd=%lx, arg=%p, mode=%x procp=%p\n",
-	   dev, cmd, arg, mode, procp);
+	   dev2udev(dev), cmd, arg, mode, procp);
 
     switch(cmd) {
     case CDEV_IOCTL1:

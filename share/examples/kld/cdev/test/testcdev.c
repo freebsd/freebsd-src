@@ -74,8 +74,9 @@
 
 #define CDEV_IOCTL1     _IOR('C', 1, u_int)
 #define CDEV_DEVICE	"cdev"
+
 int
-main()
+main(int argc, char *argv[])
 {
     int kernel_fd;
     int one;
