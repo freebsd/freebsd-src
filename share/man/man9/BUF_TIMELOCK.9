@@ -31,44 +31,50 @@
 .Os
 .Sh NAME
 .Nm BUF_TIMELOCK
-.Nd "Locks a buffer"
+.Nd "locks a buffer"
 .Sh SYNOPSIS
-.Fd #include <sys/param.h>
-.Fd #include <sys/buf.h>
+.In sys/param.h
+.In sys/buf.h
 .Ft int
 .Fn BUF_TIMELOCK "struct buf *bp" "int locktype" "char *wmesg" "int catch" "int timo"
 .Sh DESCRIPTION
 The
-.Nm
+.Fn BUF_TIMELOCK
 function locks the given buffer, and limits the amount of time it
 will sleep to
-.Ar timo
+.Fa timo
 and OR's
-.Ar catch
+.Fa catch
 into the sleep priority.
-.Ar wmesg
+.Fa wmesg
 is the wmesg used in the sleep.
 .Pp
 Its arguments are:
-.Bl -tag -width locktype
-.It Ar bp
+.Bl -tag -xwidth ".Fa locktype"
+.It Fa bp
 The buffer to lock.
-.It Ar locktype
-Flags controlling the type of lock.  See lockmgr(9) for details.
-.It Ar wmesg
+.It Fa locktype
+Flags controlling the type of lock.
+See
+.Xr lockmgr 9
+for details.
+.It Fa wmesg
 The wmesg used in any sleeps while aquiring the lock.
-.It Ar catch
+.It Fa catch
 Priority OR'd into the sleep priority.
-.It Ar timo
+.It Fa timo
 The timeout for any sleeps encountered during the lock.
 .El
-.Sh RETURN VALUE
-A value of 0 is returned on success.  See lockmgr(9) for
-details on non-zero return values.
-.Sh SEE ALSO
-.Xr buf 9
+.Sh RETURN VALUES
+A value of 0 is returned on success.
+See
 .Xr lockmgr 9
-.Xr BUF_LOCK 9
-.Xr BUF_UNLOCK 9
+for details on non-zero return values.
+.Sh SEE ALSO
+.Xr buf 9 ,
+.Xr BUF_LOCK 9 ,
+.Xr BUF_UNLOCK 9 ,
+.Xr lockmgr 9
 .Sh AUTHORS
-This man page was written by Chad David.
+This man page was written by
+.An Chad David .
