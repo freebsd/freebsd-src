@@ -56,6 +56,27 @@ struct wi_counters {
 	u_int32_t		wi_rx_msg_in_bad_msg_frags;
 };
 
+/*
+ * Encryption controls. We can enable or disable encryption as
+ * well as specify up to 4 encryption keys. We can also specify
+ * which of the four keys will be used for transmit encryption.
+ */
+#define WI_RID_ENCRYPTION	0xFC20
+#define WI_RID_AUTHTYPE		0xFC21
+#define WI_RID_DEFLT_CRYPT_KEYS	0xFCB0
+#define WI_RID_TX_CRYPT_KEY	0xFCB1
+#define WI_RID_WEP_AVAIL	0xFD4F
+struct wi_key {
+	u_int16_t		wi_keylen;
+	u_int8_t		wi_keydat[14];
+};
+
+struct wi_ltv_keys {
+	u_int16_t		wi_len;
+	u_int16_t		wi_type;
+	struct wi_key		wi_keys[4];
+};
+
 struct wi_softc	{
 	struct arpcom		arpcom;
 	struct ifmedia		ifmedia;
@@ -84,8 +105,12 @@ struct wi_softc	{
 	char			wi_node_name[32];
 	char			wi_net_name[32];
 	char			wi_ibss_name[32];
-	u_int8_t		wi_txbuf[1536];
+	u_int8_t		wi_txbuf[1596];
 	struct wi_counters	wi_stats;
+	int			wi_has_wep;
+	int			wi_use_wep;
+	int			wi_tx_key;
+	struct wi_ltv_keys	wi_keys;
 #ifdef WICACHE
 	int			wi_sigitems;
 	struct wi_sigcache	wi_sigcache[MAXWICACHE];
