@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.37 1996/06/15 17:58:51 jkh Exp $
+ * $Id: config.c,v 1.38 1996/06/25 04:28:20 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -576,6 +576,22 @@ configGated(dialogMenuItem *self)
 	    variable_set2(VAR_GATED, "YES");
    }
    return ret;
+}
+
+/* Load novell client/server package */
+int
+configNovell(dialogMenuItem *self)
+{
+    int ret = DITEM_SUCCESS;
+
+    if (variable_get(VAR_NOVELL))
+	variable_unset(VAR_NOVELL);
+    else {
+	ret = package_add("commerce/netcon/bsd60");
+	if (DITEM_STATUS(ret) == DITEM_SUCCESS)
+	    variable_set2(VAR_NOVELL, "YES");
+    }
+    return ret;
 }
 
 /* Load pcnfsd package */
