@@ -52,6 +52,9 @@
 #	mse*	Logitech and ATI Inport bus mouse
 #	psm*	PS/2 mouse
 #
+# Time devices:
+#	refclock-*  serial ports used by xntpd parse refclocks
+#
 # Terminal ports:
 #	tty*	general purpose serial ports
 #	cua*	dialout serial ports
@@ -85,7 +88,7 @@
 #	isdn*	ISDN devices
 #   labpc*  National Instrument's Lab-PC and LAB-PC+
 #
-#	$Id: MAKEDEV,v 1.94 1995/05/15 09:44:10 rgrimes Exp $
+#	$Id: MAKEDEV,v 1.95 1995/05/18 10:51:03 jkh Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
