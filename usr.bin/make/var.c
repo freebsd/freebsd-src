@@ -1592,37 +1592,48 @@ Var_Parse(char *str, GNode *ctxt, Boolean err, int *lengthPtr, Boolean *freePtr)
 			 * Now we break this sucker into the lhs and
 			 * rhs. We must null terminate them of course.
 			 */
-			for (cp = tstr; *cp != '='; cp++)
-			    continue;
-			pattern.lhs = tstr;
-			pattern.leftLen = cp - tstr;
-			*cp++ = '\0';
+			cp = tstr;
 
-			pattern.rhs = cp;
-			cnt = 1;
-			while (cnt) {
-			    if (*cp == endc)
-				cnt--;
-			    else if (*cp == startc)
-				cnt++;
-			    if (cnt)
-				cp++;
+			delim = '=';
+			if ((pattern.lhs = VarGetPattern(ctxt,
+			    err, &cp, delim, &pattern.flags, &pattern.leftLen,
+			    NULL)) == NULL) {
+				/* was: goto cleanup */
+				*lengthPtr = cp - start + 1;
+				if (*freePtr)
+				    free(str);
+				if (delim != '\0')
+				    Fatal("Unclosed substitution for %s (%c missing)",
+					  v->name, delim);
+				return (var_Error);
 			}
-			pattern.rightLen = cp - pattern.rhs;
-			*cp = '\0';
+
+			delim = endc;
+			if ((pattern.rhs = VarGetPattern(ctxt,
+			    err, &cp, delim, NULL, &pattern.rightLen,
+			    &pattern)) == NULL) {
+				/* was: goto cleanup */
+				*lengthPtr = cp - start + 1;
+				if (*freePtr)
+				    free(str);
+				if (delim != '\0')
+				    Fatal("Unclosed substitution for %s (%c missing)",
+					  v->name, delim);
+				return (var_Error);
+			}
 
 			/*
 			 * SYSV modifications happen through the whole
 			 * string. Note the pattern is anchored at the end.
 			 */
+			termc = *--cp;
+			delim = '\0';
 			newStr = VarModify(str, VarSYSVMatch,
 					   (void *)&pattern);
 
-			/*
-			 * Restore the nulled characters
-			 */
-			pattern.lhs[pattern.leftLen] = '=';
-			pattern.rhs[pattern.rightLen] = endc;
+			free(pattern.lhs);
+			free(pattern.rhs);
+
 			termc = endc;
 		    } else
 #endif
