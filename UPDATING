@@ -32,9 +32,9 @@ ITEMS:'
 	errors. (see below, 20000624).
 
 20000709:
-	phk made the default options AJ.  This may slow things down
-	and uncover other latent bugs in the code.  If you need to run
-	at full speed, you can disable this by doing the following:
+	phk made the malloc default options AJ.  This may slow things
+	down and uncover other latent bugs in the code.  If you need to
+	run at full speed, you can disable this by doing the following:
 		ln -s aj /etc/malloc.conf
 
 20000706:
@@ -119,7 +119,7 @@ ITEMS:'
 20000612:
 	Peter took an axe to config(8).  Besure that you read his mail
 	on the topic before even thinking about updating.  You will
-	need to create a /boot/devices.hints or add a hints directive
+	need to create a /boot/device.hints or add a hints directive
 	to your config file to compile them in statically.  The format
 	of the config file has changed as well.  Please see GENERIC or
 	NEWCARD for examples of the new format.
