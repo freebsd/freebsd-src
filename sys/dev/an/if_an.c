@@ -1816,7 +1816,6 @@ an_setdef(sc, areq)
 	default:
 		printf("an%d: unknown RID: %x\n", sc->an_unit, areq->an_type);
 		return;
-		break;
 	}
 
 
@@ -1838,6 +1837,7 @@ an_promisc(sc, promisc)
 {
 	if (sc->an_was_monitor)
 		an_reset(sc);
+		/* XXX: indentation bug or braces bug ? */
 		if (sc->mpi350)
 			an_init_mpi350_desc(sc);	
 	if (sc->an_monitor || sc->an_was_monitor)
