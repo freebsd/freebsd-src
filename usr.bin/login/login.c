@@ -350,9 +350,11 @@ main(argc, argv)
 				/* already authenticated */
 				break;
 			} else if (pwd->pw_passwd[0] == '\0') {
-				/* pretend password okay */
-				rval = 0;
-				goto ttycheck;
+				if (rootlogin && !rootok) {
+					/* pretend password okay */
+					rval = 0;
+					goto ttycheck;
+				}
 			}
 		}
 
