@@ -140,6 +140,26 @@
 			   created software i2cProbe() routine.
 			   Randall Hopper's fixes of BT848_GHUE & BT848_GBRIG.
 			   eeprom support.
+
+1.11            3/24/97    fsmp@freefall.org
+			   Louis Mamakos's new bt848 struct.
+
+1.12		3/25/97    fsmp@freefall.org
+			   japanese freq table from Naohiro Shichijo.
+			   new table structs for tuner lookups.
+			   major scrub for "magic numbers".
+
+1.13		3/28/97    fsmp@freefall.org
+			   1st PAL support.
+			   MAGIC_[1-4] demarcates magic #s needing PAL work.
+			   AFC code submitted by Richard Tobin
+			    <richard@cogsci.ed.ac.uk>.
+
+1.14		3/29/97    richard@cogsci.ed.ac.uk
+			   PAL support: magic numbers moved into
+			   format_params structure.
+			   Revised AFC interface.
+			   fixed DMA_PROG_ALLOC size misdefinition.
 */
 
 #include "bktr.h"
@@ -186,7 +206,11 @@
 
 static void	bktr_intr __P((void *arg));
 static		bt_enable_cnt;
-static u_long	btl_status_prev;
+
+/*
+ * memory allocated for DMA programs
+ */
+#define DMA_PROG_ALLOC		(8 * PAGE_SIZE)
 
 /* 
  * Allocate enough memory for:
@@ -200,7 +224,7 @@ static u_long	btl_status_prev;
 #endif
 #define BROOKTREE_ALLOC		(BROOKTREE_ALLOC_PAGES * PAGE_SIZE)
 
-static bktr_reg_t brooktree[NBKTR];
+static bktr_reg_t brooktree[ NBKTR ];
 #define BROOKTRE_NUM(mtr)	((bktr - &brooktree[0])/sizeof(bktr_reg_t))
 
 #define BKTRPRI (PZERO+8)|PCATCH
@@ -244,123 +268,212 @@ static struct cdevsw bktr_cdevsw =
 #endif
 
 /*
- * the recognized cards.
- * used as indexes of several tables.
+ * Parameters describing size of transmitted image.
  */
-#define	CARD_UNKNOWN		0
-#define	CARD_MIRO		1
-#define	CARD_HAUPPAUGE		2
-#define	CARD_STB		3
-#define	CARD_INTEL		4
+
+struct format_params format_params[] = {
+#define FORMAT_PARAMS_NTSC525 0
+  { 525, 22, 480,  910, 135, 754, (640.0 / 780.0) },
+#define FORMAT_PARAMS_PAL625 1
+  { 625, 32, 576, 1135, 186, 922, (768.0 / 944.0) }
+};
+
+/* experimental code for Automatic Frequency Control */
+#define TUNER_AFC
+#define TEST_TUNER_AFC_NOT
+
+#if defined( TUNER_AFC )
+#define AFC_DELAY		10000	/* 10 millisend delay */
+#define AFC_BITS		0x07
+#define AFC_FREQ_MINUS_125	0x00
+#define AFC_FREQ_MINUS_62	0x01
+#define AFC_FREQ_CENTERED	0x02
+#define AFC_FREQ_PLUS_62	0x03
+#define AFC_FREQ_PLUS_125	0x04
+#define AFC_MAX_STEP		(5 * FREQFACTOR) /* no more than 5 MHz */
+#endif /* TUNER_AFC */
 
 /*
  * i2c things:
  */
 
-/* XXX FIXME: experimental code, use with caution! */
-#define EEPROM_SUPPORT
+#define TEST_PAL
+
+/* PLL on a Temic NTSC tuner: 4032FY5 */
+#define TEMIC_NTSC_WADDR	0xc0
+#define TEMIC_NTSC_RADDR	0xc1
+
+/* PLL on a Temic PAL I tuner: 4062FY5 */
+#define TEMIC_PALI_WADDR	0xc2
+#define TEMIC_PALI_RADDR	0xc3
+
+/* PLL on a Philips tuner */
+#define PHILIPS_NTSC_WADDR	0xc6
+#define PHILIPS_NTSC_RADDR	0xc7
 
 /* guaranteed address for any TSA5522/3 (PLL on all(?) tuners) */
-#define TSA5522_WADDR		0xc2
-#define TSA5522_RADDR		0xc3
+#define TSA552x_WADDR		0xc2
+#define TSA552x_RADDR		0xc3
 
-#define TEMIC_TSA5522_RADDR	0xc1
-#define PHILIPS_TSA5523_RADDR	0xc7
+#define TSA552x_CB_MSB		(0x80)
+#define TSA552x_CB_CP		(1<<6)
+#define TSA552x_CB_T2		(1<<5)
+#define TSA552x_CB_T1		(1<<4)
+#define TSA552x_CB_T0		(1<<3)
+#define TSA552x_CB_RSA		(1<<2)
+#define TSA552x_CB_RSB		(1<<1)
+#define TSA552x_CB_OS		(1<<0)
+
 
 /* address of BTSC/SAP decoder chip */
 #define TDA9850_WADDR		0xb6
 #define TDA9850_RADDR		0xb7
 
+
 /* EEProm (128 * 8) on an STB card */
 #define X24C01_WADDR		0xae
 #define X24C01_RADDR		0xaf
+
 
 /* EEProm (256 * 8) on a Hauppauge card */
 #define PFC8582_WADDR		0xa0
 #define PFC8582_RADDR		0xa1
 
+
+/* registers in the BTSC/dbx chip */
+#define CON1ADDR		0x04
+#define CON2ADDR		0x05
+#define CON3ADDR		0x06
+#define CON4ADDR		0x07
+
+
+/* raise the charge pump voltage for fast tuning */
+#define TSA552x_FCONTROL	(TSA552x_CB_MSB |	\
+				 TSA552x_CB_CP  |	\
+				 TSA552x_CB_T0  |	\
+				 TSA552x_CB_RSA |	\
+				 TSA552x_CB_RSB)
+
+/* lower the charge pump voltage for better residual oscillator FM */
+#define TSA552x_SCONTROL	(TSA552x_CB_MSB |	\
+				 TSA552x_CB_T0  |	\
+				 TSA552x_CB_RSA |	\
+				 TSA552x_CB_RSB)
+
+/* sync detect threshold */
+#if 1
+#define SYNC_LEVEL		(BT848_ADC_RESERVED |	\
+				 BT848_ADC_CRUSH)	/* threshold ~125 mV */
+#else
+#define SYNC_LEVEL		(BT848_ADC_RESERVED |	\
+				 BT848_ADC_CRUSH    |	\
+				 BT848_ADC_SYNC_T)	/* threshold ~75 mV */
+#endif
+
+
+/* the GPIO bits that control the audio MUXes */
+#define GPIO_AUDIOMUX_BITS	0x07
+
+
 /* debug utility for holding previous INT_STAT contents */
-#define STATUS
+#define STATUS_SUM
 static u_long	status_sum = 0;
 
-/* FIXME: magic#s sync detect threashold */
-#if 1
-#define SYNC_LEVEL	0x81		/* threashold ~125 mV */
-#else
-#define SYNC_LEVEL	0xa1		/* threashold ~75 mV */
-#endif
+/*
+ * defines to make certain bit-fiddles understandable
+ */
+#define FIFO_ENABLED		BT848_DMA_CTL_FIFO_EN
+#define RISC_ENABLED		BT848_DMA_CTL_RISC_EN
+#define FIFO_RISC_ENABLED	(BT848_DMA_CTL_FIFO_EN | BT848_DMA_CTL_RISC_EN)
+#define FIFO_RISC_DISABLED	0
+
+#define ALL_INTS_DISABLED	0
+#define ALL_INTS_CLEARED	0xffffffff
+#define CAPTURE_OFF		0
+
+#define BIT_SEVEN_HIGH		(1<<7)
+#define BIT_EIGHT_HIGH		(1<<8)
+
+#define I2C_BITS		(BT848_INT_RACK | BT848_INT_I2CDONE)
 
 
 /*
  * misc. support routines.
  */
-static struct CARDTYPE	card_types[];
-static int		probe_card( bktr_reg_t *bktr, int verbose );
+static const struct CARDTYPE	cards[];
+static const struct TUNER	tuners[];
+static int			signCard( bktr_ptr_t bktr, int offset,
+					  int count, u_char* sig );
+static void			probeCard( bktr_ptr_t bktr, int verbose );
+
 static vm_offset_t	get_bktr_mem( int unit, unsigned size );
 
 
 /*
  * bt848 RISC programming routines.
  */
-static int	dump_bt848( bt848_reg_t bt848 );
+static int	dump_bt848( bt848_ptr_t bt848 );
 
-static void	yuvpack_prog( bktr_reg_t * bktr, char i_flag, int cols,
-			      int rows,  int interlace) ;
-
-static void	yuv422_prog( bktr_reg_t * bktr, char i_flag, int cols,
-			     int rows, int interlace);
-static void	rgb_prog( bktr_reg_t * bktr, char i_flag, int cols,
-			  int rows, int pixel_width, int interlace) ;
-static void	build_dma_prog( bktr_reg_t * bktr, char i_flag);
+static void	yuvpack_prog( bktr_ptr_t bktr, char i_flag, int cols,
+			      int rows,  int interlace );
+static void	yuv422_prog( bktr_ptr_t bktr, char i_flag, int cols,
+			     int rows, int interlace );
+static void	rgb_prog( bktr_ptr_t bktr, char i_flag, int cols,
+			  int rows, int pixel_width, int interlace );
+static void	build_dma_prog( bktr_ptr_t bktr, char i_flag );
 
 
 /*
  * video & video capture specific routines.
  */
-static int	video_open( bktr_reg_t *bktr );
-static int	video_close( bktr_reg_t *bktr );
-static int	video_ioctl( bktr_reg_t* bktr, int unit,
+static int	video_open( bktr_ptr_t bktr );
+static int	video_close( bktr_ptr_t bktr );
+static int	video_ioctl( bktr_ptr_t bktr, int unit,
 			     int cmd, caddr_t arg, struct proc* pr );
 
-static void	start_capture( bktr_reg_t *bktr, unsigned type );
-static void	set_fps( bktr_reg_t *bktr, u_short fps );
+static void	start_capture( bktr_ptr_t bktr, unsigned type );
+static void	set_fps( bktr_ptr_t bktr, u_short fps );
 
 
 /*
  * tuner specific functions.
  */
-static int	tuner_open( bktr_reg_t* bktr );
-static int	tuner_close( bktr_reg_t* bktr );
-static int	tuner_ioctl( bktr_reg_t* bktr, int unit,
+static int	tuner_open( bktr_ptr_t bktr );
+static int	tuner_close( bktr_ptr_t bktr );
+static int	tuner_ioctl( bktr_ptr_t bktr, int unit,
 			     int cmd, caddr_t arg, struct proc* pr );
 
-static int	tv_channel( bktr_reg_t* bktr, int channel );
-static int	tv_freq( bktr_reg_t* bktr, int frequency );
+static int	tv_channel( bktr_ptr_t bktr, int channel );
+static int	tv_freq( bktr_ptr_t bktr, int frequency );
+#if defined( TUNER_AFC )
+static int	do_afc( bktr_ptr_t bktr, int addr, int frequency );
+#endif /* TUNER_AFC */
 
 
 /*
  * audio specific functions.
  */
-static int	set_audio( bktr_reg_t * bktr, int mode );
-static int	set_BTSC( bktr_reg_t * bktr, int control );
+static int	set_audio( bktr_ptr_t bktr, int mode );
+static void	temp_mute( bktr_ptr_t bktr, int flag );
+static int	set_BTSC( bktr_ptr_t bktr, int control );
 
 
 /*
- * 
+ * ioctls common to both video & tuner.
  */
-static int	common_ioctl( bktr_reg_t* bktr, bt848_reg_t bt848,
+static int	common_ioctl( bktr_ptr_t bktr, bt848_ptr_t bt848,
 			      int cmd, caddr_t arg );
 
 
 /*
  * i2c primitives
  */
-static int	i2cWrite( bktr_reg_t *bktr, int addr, int byte1, int byte2 );
-static int	i2cRead( bktr_reg_t *bktr, int addr );
-#if defined( EEPROM_SUPPORT )
-static int	readEEProm( bktr_reg_t* bktr, int offset, int count,
+static int	i2cWrite( bktr_ptr_t bktr, int addr, int byte1, int byte2 );
+static int	i2cRead( bktr_ptr_t bktr, int addr );
+static int	writeEEProm( bktr_ptr_t bktr, int offset, int count,
+			     u_char* data );
+static int	readEEProm( bktr_ptr_t bktr, int offset, int count,
 			    u_char* data );
-#endif /* EEPROM_SUPPORT */
 
 
 /*
@@ -382,7 +495,7 @@ bktr_probe( pcici_t tag, pcidi_t type )
  * what should we do here?
  */
 static void
-bktr_init ( bktr_reg_t *bktr )
+bktr_init ( bktr_ptr_t bktr )
 {
 	return;
 }
@@ -394,8 +507,8 @@ bktr_init ( bktr_reg_t *bktr )
 static	void
 bktr_attach( pcici_t tag, int unit )
 {
-	bktr_reg_t	*bktr;
-	bt848_reg_t	bt848;
+	bktr_ptr_t	bktr;
+	bt848_ptr_t	bt848;
 #ifdef BROOKTREE_IRQ
 	u_long		old_irq, new_irq;
 #endif 
@@ -409,14 +522,14 @@ bktr_attach( pcici_t tag, int unit )
 
 	if (unit >= NBKTR) {
 		printf("brooktree%d: attach: only %d units configured.\n",
-				unit, NBKTR);
+		        unit, NBKTR);
 		printf("brooktree%d: attach: invalid unit number.\n", unit);
-		return ;
+		return;
 	}
 
 	bktr->tag = tag;
-	pci_map_mem(tag, PCI_MAP_REG_START, (vm_offset_t *) &bktr->base,
-				&bktr->phys_base);
+	pci_map_mem( tag, PCI_MAP_REG_START, (vm_offset_t *) &bktr->base,
+		     &bktr->phys_base );
 
 	fun = pci_conf_read(tag, PCI_COMMAND_STATUS_REG);
 
@@ -457,8 +570,10 @@ bktr_attach( pcici_t tag, int unit )
 	/*	bktr_init(bktr);	 set up the bt848 */
 
 	/* allocate space for dma program */
-	bktr->dma_prog = get_bktr_mem(unit, 8);
-	bktr->odd_dma_prog = get_bktr_mem(unit, 8);
+	bktr->dma_prog = get_bktr_mem(unit, DMA_PROG_ALLOC);
+	bktr->odd_dma_prog = get_bktr_mem(unit, DMA_PROG_ALLOC);
+
+	/* allocate space for pixel buffer */
 	if ( BROOKTREE_ALLOC )
 		buf = get_bktr_mem(unit, BROOKTREE_ALLOC);
 	else
@@ -490,22 +605,25 @@ end of setup up dma risc program
 
 		bktr->flags = METEOR_INITALIZED | METEOR_AUTOMODE |
 			      METEOR_DEV0 | METEOR_RGB16;
-		bktr->dma_prog_loaded = 0;
+		bktr->dma_prog_loaded = FALSE;
 		bktr->cols = 640;
 		bktr->rows = 480;
 		bktr->depth = 2;		/* two bytes per pixel */
 		bktr->frames = 1;		/* one frame */
 		bt848 = bktr->base;
-		bt848->int_mask = 0;
-		bt848->gpio_dma_ctl = 0;
+		bt848->int_mask = ALL_INTS_DISABLED;
+		bt848->gpio_dma_ctl = FIFO_RISC_DISABLED;
 	}
 
 	/* defaults for the tuner section of the card */
+	bktr->tflags = TUNER_INITALIZED;
 	bktr->tuner.frequency = 0;
 	bktr->tuner.channel = 0;
 	bktr->tuner.chnlset = DEFAULT_CHNLSET;
+	bktr->audio_mux_select = 0;
+	bktr->audio_mute_state = FALSE;
 
-	probe_card( bktr, 1 );
+	probeCard( bktr, TRUE );
 
 #ifdef DEVFS
 	bktr->devfs_token = devfs_add_devswf(&bktr_cdevsw, unit,
@@ -520,13 +638,12 @@ end of setup up dma risc program
 static void
 bktr_intr( void *arg )
 { 
-        
-	bktr_reg_t		*bktr = (bktr_reg_t *) arg;
-	volatile u_long	        *bktr_pc;
-	bt848_reg_t		bt848;
+	bktr_ptr_t		bktr;
+	bt848_ptr_t		bt848;
 	u_long			bktr_status;
 	u_char			dstatus;
 
+	bktr = (bktr_ptr_t) arg;
 	bt848 = bktr->base;
 
 	/*
@@ -534,73 +651,74 @@ bktr_intr( void *arg )
 	 * none are, then we likely got here by way of being on a PCI shared
 	 * interrupt dispatch list.
 	 */
-	if ( bt848->int_mask == 0 )
+	if (bt848->int_mask == ALL_INTS_DISABLED)
 	  	return;		/* bail out now, before we do something we
 				   shouldn't */
 
 	if (!(bktr->flags & METEOR_OPEN)) {
-		bt848->gpio_dma_ctl = 0;
-		bt848->int_mask = 0;
+		bt848->gpio_dma_ctl = FIFO_RISC_DISABLED;
+		bt848->int_mask = ALL_INTS_DISABLED;
 		/* return; ?? */
 	}
 
 	/* record and clear the INTerrupt status bits */
 	bktr_status = bt848->int_stat;
-	bt848->int_stat = bt848->int_stat;
+	bt848->int_stat = bktr_status & ~I2C_BITS;	/* don't touch i2c */
 
 	/* record and clear the device status register */
 	dstatus = bt848->dstatus;
-	bt848->dstatus = 0;
+	bt848->dstatus = 0x00;
 
-#if defined( STATUS )
+#if defined( STATUS_SUM )
 	/* add any new device status or INTerrupt status bits */
-	status_sum |= (bktr_status & ~0xc0);	/* clear 2 resv bits */
-	status_sum |= ((dstatus & 0x03) << 6);	/* device LOF/COF */
-#endif /* STATUS */
+	status_sum |= (bktr_status & ~(BT848_INT_RSV0|BT848_INT_RSV1));
+	status_sum |= ((dstatus & (BT848_DSTATUS_COF|BT848_DSTATUS_LOF)) << 6);
+#endif /* STATUS_SUM */
 
-#if 0
-	/* check i2c status */
-	if (bt848->int_stat & (1 << 25))   /* XXX bug, already cleared above */
-		bt848->int_stat |= 1 << 8;
-#endif
-
-#if 0
-	bktr_pc = bt848->risc_count;
-	printf( " STATUS %x %x %x \n", dstatus, bktr_status, *bktr_pc );
-#endif
-
-	if (!((bktr_status  & 0x800) || (bktr_status & 1 << 19 ))) {
-		btl_status_prev = bktr_status;
-		/* return; */
-	}
+/**
+	printf( " STATUS %x %x %x \n",
+		dstatus, bktr_status, bt848->risc_count );
+ */
 
 	/* if risc was disabled re-start process again */
-	if (!(bktr_status & (1 << 27)) || ((bktr_status & 0xff000) != 0) ) {
+	if ( !(bktr_status & BT848_INT_RISC_EN) ||
+	     ((bktr_status & (BT848_INT_FBUS   |
+			      BT848_INT_FTRGT  |
+			      BT848_INT_FDSR   |
+			      BT848_INT_PPERR  |
+			      BT848_INT_RIPERR |
+			      BT848_INT_PABORT |
+			      BT848_INT_OCERR  |
+			      BT848_INT_SCERR)) != 0) ) {
 
 /* XXX isn't this redundant ??? */
-		bt848->int_stat = bt848->int_stat;
+		bt848->int_stat = bt848->int_stat & ~I2C_BITS;
 
-		bt848->gpio_dma_ctl = 0;
+		bt848->gpio_dma_ctl = FIFO_RISC_DISABLED;
 
-		bt848->int_mask = 0;
+		bt848->int_mask = ALL_INTS_DISABLED;
 
 		bt848->risc_strt_add = vtophys(bktr->dma_prog);
 
-		bt848->gpio_dma_ctl = 1;
+		bt848->gpio_dma_ctl = FIFO_ENABLED;
 		bt848->gpio_dma_ctl = bktr->capcontrol;
 
-		bt848->int_mask = 1 << 23  |  1 << 11  |  2  | 1;
+		bt848->int_mask = BT848_INT_MYSTERYBIT |
+				  BT848_INT_RISCI      |
+				  BT848_INT_VSYNC      |
+				  BT848_INT_FMTCHG;
+
 		bt848->cap_ctl = bktr->bktr_cap_ctl;
 
 		return;
 	}
 
-	if (!(bktr_status & (1 << 11)))
+	if (!(bktr_status & BT848_INT_RISCI))
 		return;
-#if 0
-	printf( "intr status %x %x %x\n", bktr_status, dstatus,
-	       bt848->risc_count);
-#endif
+/**
+	printf( "intr status %x %x %x\n",
+		bktr_status, dstatus, bt848->risc_count );
+ */
 
 	/*
 	 * Disable future interrupts if a capture mode is not selected.
@@ -608,7 +726,7 @@ bktr_intr( void *arg )
 	 * changing capture modes, otherwise it shouldn't happen.
 	 */
 	if (!(bktr->flags & METEOR_CAP_MASK))
-	    bt848->cap_ctl = 0;
+		bt848->cap_ctl = CAPTURE_OFF;
 
 	/*
 	 * If we have a complete frame.
@@ -637,12 +755,14 @@ bktr_intr( void *arg )
 		 */
 		if (bktr->flags & METEOR_SINGLE) {
 
-			if (!(bktr_status & (1 << 24)))
-			    return;
+			if (!(bktr_status & BT848_INT_FIELD))
+				return;
 
 			/* stop dma */
-			bt848->int_mask = 0;
-			bt848->gpio_dma_ctl = 1; /* disable risc and fifo */
+			bt848->int_mask = ALL_INTS_DISABLED;
+
+			/* disable risc, leave fifo running */
+			bt848->gpio_dma_ctl = FIFO_ENABLED;
 			wakeup((caddr_t)bktr);
 		}
 
@@ -651,13 +771,14 @@ bktr_intr( void *arg )
 		 * let them know the frame is complete.
 		 */
 		if (bktr->proc && !(bktr->signal & METEOR_SIG_MODE_MASK))
-		    psignal(bktr->proc, bktr->signal&(~METEOR_SIG_MODE_MASK));
+			psignal( bktr->proc,
+				 bktr->signal&(~METEOR_SIG_MODE_MASK) );
 
 		/*
 		 * Reset the want flags if in continuous or
 		 * synchronous capture mode.
 		 */
-		if (bktr->flags & (METEOR_CONTIN|METEOR_SYNCAP)) {
+		if (bktr->flags & (METEOR_CONTIN | METEOR_SYNCAP)) {
 			switch(bktr->flags & METEOR_ONLY_FIELDS_MASK) {
 			case METEOR_ONLY_ODD_FIELDS:
 				bktr->flags |= METEOR_WANT_ODD;
@@ -684,8 +805,10 @@ bktr_intr( void *arg )
 */
 
 
-#define UNIT(x) ((x) & 0x0f)
-#define MINOR(x) ((x) & 0xf0)
+#define UNIT(x)		((x) & 0x0f)
+#define MINOR(x)	((x >> 4) & 0x0f)
+#define VIDEO_DEV	0x00
+#define TUNER_DEV	0x01
 
 /*
  * 
@@ -693,24 +816,27 @@ bktr_intr( void *arg )
 int
 bktr_open( dev_t dev, int flags, int fmt, struct proc *p )
 {
-	bktr_reg_t	*bktr;
-	int		unit, minor;
-	int		i;
-	bt848_reg_t	bt848;
+	bktr_ptr_t	bktr;
+	int		unit;
 
-	unit = UNIT(minor(dev));
+	unit = UNIT( minor(dev) );
 	if (unit >= NBKTR)			/* unit out of range */
-		return(ENXIO);
+		return( ENXIO );
 
-	bktr = &(brooktree[unit]);
+	bktr = &(brooktree[ unit ]);
 
 	if (!(bktr->flags & METEOR_INITALIZED)) /* device not found */
-		return(ENXIO);	
+		return( ENXIO );	
 
-	if ( minor(dev) & 0x0010 )
-		return tuner_open( bktr );
-	else
-		return video_open( bktr );
+	switch ( MINOR( minor(dev) ) ) {
+	case VIDEO_DEV:
+		return( video_open( bktr ) );
+
+	case TUNER_DEV:
+		return( tuner_open( bktr ) );
+	}
+
+	return( ENXIO );
 }
 
 
@@ -718,32 +844,35 @@ bktr_open( dev_t dev, int flags, int fmt, struct proc *p )
  * 
  */
 static int
-video_open( bktr_reg_t *bktr )
+video_open( bktr_ptr_t bktr )
 {
-	bt848_reg_t bt848;
+	bt848_ptr_t bt848;
 
 	if (bktr->flags & METEOR_OPEN)		/* device is busy */
-		return(EBUSY);
+		return( EBUSY );
 
 	bktr->flags |= METEOR_OPEN;
 
 	bt848 = bktr->base;
 
-#if 0
+/**
 	dump_bt848( bt848 );
-#endif /* 0 */
+ */
 
-	bt848->dstatus = 0x00;			/* bt848[ DSTATUS ] */
+	bt848->dstatus = 0x00;			/* clear device status reg. */
 
 	bt848->adc = SYNC_LEVEL;
 
-	bt848->iform = 0x69;
+	bt848->iform = BT848_IFORM_M_MUX1 |
+		       BT848_IFORM_X_XT0  |
+		       BT848_IFORM_F_NTSCM;
 	bktr->flags = (bktr->flags & ~METEOR_DEV_MASK) | METEOR_DEV0;
+	bktr->format_params = FORMAT_PARAMS_NTSC525;
 
-	bt848->color_ctl = 0x20;
+	bt848->color_ctl = BT848_COLOR_CTL_RGB_DED;
 
-	bt848->e_hscale_lo = 0xaa;
-	bt848->o_hscale_lo = 0xaa;
+	bt848->e_hscale_lo = 170;
+	bt848->o_hscale_lo = 170;
 
 	bt848->e_delay_lo = 0x72;
 	bt848->o_delay_lo = 0x72;
@@ -766,7 +895,7 @@ video_open( bktr_reg_t *bktr )
 	bktr->video.banksize = 0;
 	bktr->video.ramsize = 0;
 
-	bt848->int_mask = 1 << 23;	/* ? */
+	bt848->int_mask = BT848_INT_MYSTERYBIT;	/* what does this bit do ??? */
 
 	return( 0 );
 }
@@ -776,16 +905,25 @@ video_open( bktr_reg_t *bktr )
  * 
  */
 static int
-tuner_open( bktr_reg_t *bktr )
+tuner_open( bktr_ptr_t bktr )
 {
-	bt848_reg_t bt848 = bktr->base;
+	if ( !(bktr->tflags & TUNER_INITALIZED) )	/* device not found */
+		return( ENXIO );	
 
-#define GPIO_AUDIOMUX_BITS	0x07
-	bt848->gpio_out_en = GPIO_AUDIOMUX_BITS;	/* drive low 3 bits */
+	if ( bktr->tflags & TUNER_OPEN )		/* already open */
+		return( 0 );
 
+	bktr->tflags |= TUNER_OPEN;
+
+	/* enable drivers on the GPIO port that control the MUXes */
+	bktr->base->gpio_out_en = GPIO_AUDIOMUX_BITS;
+
+	/* unmure the audio stream */
 	set_audio( bktr, AUDIO_UNMUTE );
-	if ( bktr->card->dbx )
-		set_BTSC( bktr, 0 );			/* enable stereo */
+
+	/* enable stereo if appropriate */
+	if ( bktr->card.dbx )
+		set_BTSC( bktr, 0 );
 
 	return( 0 );
 }
@@ -797,24 +935,24 @@ tuner_open( bktr_reg_t *bktr )
 int
 bktr_close( dev_t dev, int flags, int fmt, struct proc *p )
 {
-	bktr_reg_t	*bktr;
+	bktr_ptr_t	bktr;
 	int		unit;
-	bt848_reg_t	bt848;
 
-#ifdef METEOR_DEALLOC_ABOVE
-	int		temp;
-#endif
-
-	unit = UNIT(minor(dev));
+	unit = UNIT( minor(dev) );
 	if (unit >= NBKTR)			/* unit out of range */
-		return(ENXIO);
+		return( ENXIO );
 
-	bktr = &(brooktree[unit]);
+	bktr = &(brooktree[ unit ]);
 
-	if ( minor(dev) & 0x0010 )
-		return tuner_close( bktr );
-	else
-		return video_close( bktr );
+	switch ( MINOR( minor(dev) ) ) {
+	case VIDEO_DEV:
+		return( video_close( bktr ) );
+
+	case TUNER_DEV:
+		return( tuner_close( bktr ) );
+	}
+
+	return( ENXIO );
 }
 
 
@@ -822,24 +960,26 @@ bktr_close( dev_t dev, int flags, int fmt, struct proc *p )
  * 
  */
 static int
-video_close( bktr_reg_t *bktr )
+video_close( bktr_ptr_t bktr )
 {
-	bt848_reg_t	bt848;
+	bt848_ptr_t	bt848;
 
-	bktr->flags &= ~METEOR_OPEN;
-	bktr->flags &= ~(METEOR_SINGLE | METEOR_WANT_MASK);
-	bktr->flags &= ~(METEOR_CAP_MASK|METEOR_WANT_MASK);
+	bktr->flags &= ~(METEOR_OPEN     |
+			 METEOR_SINGLE   |
+			 METEOR_CAP_MASK |
+			 METEOR_WANT_MASK);
 
 	bt848 = bktr->base;
-	bt848->gpio_dma_ctl = 0;
-	bt848->cap_ctl = 0;
+	bt848->gpio_dma_ctl = FIFO_RISC_DISABLED;
+	bt848->cap_ctl = CAPTURE_OFF;
 
-	bktr->dma_prog_loaded = 0;
+	bktr->dma_prog_loaded = FALSE;
 	bt848->tdec = 0;
-	bt848->int_mask = 0;
+	bt848->int_mask = ALL_INTS_DISABLED;
 
+/** FIXME: is 0xf magic, wouldn't 0x00 work ??? */
 	bt848->sreset = 0xf;
-	bt848->int_stat = 0xffffffff;
+	bt848->int_stat = ALL_INTS_CLEARED;
 
 	return( 0 );
 }
@@ -850,14 +990,15 @@ video_close( bktr_reg_t *bktr )
  *  place holder for tuner specific operations on a close.
  */
 static int
-tuner_close( bktr_reg_t *bktr )
+tuner_close( bktr_ptr_t bktr )
 {
-	bt848_reg_t	bt848 = bktr->base;
+	bktr->tflags &= ~TUNER_OPEN;
 
 	/* mute the audio by switching the mux */
 	set_audio( bktr, AUDIO_MUTE );
 
-	bt848->gpio_out_en = 0;		/* float low 3 bits */
+	/* disable drivers on the GPIO port that control the MUXes */
+	bktr->base->gpio_out_en = 0;
 
 	return( 0 );
 }
@@ -869,37 +1010,38 @@ tuner_close( bktr_reg_t *bktr )
 int
 bktr_read( dev_t dev, struct uio *uio, int ioflag )
 {
-	bktr_reg_t	*bktr;
+	bktr_ptr_t	bktr;
+	bt848_ptr_t	bt848;
 	int		unit;
 	int		status;
 	int		count;
-	bt848_reg_t	bt848;
 	
-	if (minor(dev) > 0 ) return(ENXIO);
+	if (minor(dev) > 0)
+		return( ENXIO );
+
 	unit = UNIT(minor(dev));
 	if (unit >= NBKTR)	/* unit out of range */
-		return(ENXIO);
+		return( ENXIO );
 
 	bktr = &(brooktree[unit]);
 	if (bktr->bigbuf == 0)	/* no frame buffer allocated (ioctl failed) */
-		return(ENOMEM);
+		return( ENOMEM );
 
 	if (bktr->flags & METEOR_CAP_MASK)
-		return(EIO);	/* already capturing */
-
-	bt848 = bktr->base;
-
+		return( EIO );	/* already capturing */
 
 	count = bktr->rows * bktr->cols * bktr->depth;
 	if ((int) uio->uio_iov->iov_len < count)
-		return(EINVAL);
-	bktr->flags &= ~(METEOR_CAP_MASK|METEOR_WANT_MASK);
+		return( EINVAL );
+
+	bktr->flags &= ~(METEOR_CAP_MASK | METEOR_WANT_MASK);
 
 	/* Start capture */
-	bt848->gpio_dma_ctl = 0x1;
-	bt848->gpio_dma_ctl = 0x3;
+	bt848 = bktr->base;
+	bt848->gpio_dma_ctl = FIFO_ENABLED;
+	bt848->gpio_dma_ctl = FIFO_RISC_ENABLED;
 
-	status=tsleep((caddr_t)bktr, METPRI, "capturing", 0);
+	status = tsleep((caddr_t)bktr, METPRI, "captur", 0);
 	if (!status)		/* successful capture */
 		status = uiomove((caddr_t)bktr->bigbuf, count, uio);
 	else
@@ -907,7 +1049,7 @@ bktr_read( dev_t dev, struct uio *uio, int ioflag )
 
 	bktr->flags &= ~(METEOR_SINGLE | METEOR_WANT_MASK);
 
-	return(status);
+	return( status );
 }
 
 
@@ -927,7 +1069,7 @@ bktr_write( dev_t dev, struct uio *uio, int ioflag )
 int
 bktr_ioctl( dev_t dev, int cmd, caddr_t arg, int flag, struct proc* pr )
 {
-	bktr_reg_t*	bktr;
+	bktr_ptr_t	bktr;
 	int		unit;
 
 	unit = UNIT(minor(dev));
@@ -939,24 +1081,27 @@ bktr_ioctl( dev_t dev, int cmd, caddr_t arg, int flag, struct proc* pr )
 	if (bktr->bigbuf == 0)	/* no frame buffer allocated (ioctl failed) */
 		return( ENOMEM );
 
-	if ( minor(dev) & 0x0010 )
-		return  tuner_ioctl( bktr, unit, cmd, arg, pr );
-	else
-		return  video_ioctl( bktr, unit, cmd, arg, pr );
-}
+	switch ( MINOR( minor(dev) ) ) {
+	case VIDEO_DEV:
+		return( video_ioctl( bktr, unit, cmd, arg, pr ) );
 
+	case TUNER_DEV:
+		return( tuner_ioctl( bktr, unit, cmd, arg, pr ) );
+	}
+
+	return( ENXIO );
+}
 
 /*
  * video ioctls
  */
 static int
-video_ioctl( bktr_reg_t* bktr, int unit,
-	     int cmd, caddr_t arg, struct proc* pr )
+video_ioctl( bktr_ptr_t bktr, int unit, int cmd, caddr_t arg, struct proc* pr )
 {
 	int			status;
 	int			count;
 	int			tmp_int;
-	bt848_reg_t		bt848;
+	bt848_ptr_t		bt848;
 	volatile u_char		c_temp;
 	volatile u_short	s_temp;
 	unsigned int		temp, temp1;
@@ -965,6 +1110,7 @@ video_ioctl( bktr_reg_t* bktr, int unit,
 	struct meteor_counts	*cnt;
 	struct meteor_video	*video;
 	vm_offset_t		buf;
+	struct format_params	*fp;
 
 	bt848 =	bktr->base;
 
@@ -984,18 +1130,31 @@ video_ioctl( bktr_reg_t* bktr, int unit,
 		case METEOR_FMT_NTSC:
 			bktr->flags = (bktr->flags & ~METEOR_FORM_MASK) |
 				METEOR_NTSC;
-			bt848->iform &= ~0x3;
-			bt848->iform |= 1;
+			bt848->iform &= ~BT848_IFORM_FORMAT;
+			bt848->iform |= BT848_IFORM_F_NTSCM;
+			bt848->adelay = 0x68;
+			bt848->bdelay = 0x5d;
+			bktr->format_params = FORMAT_PARAMS_NTSC525;
+			break;
+
+		case METEOR_FMT_PAL:
+			bktr->flags = (bktr->flags & ~METEOR_FORM_MASK) |
+				METEOR_PAL;
+			bt848->iform &= ~BT848_IFORM_FORMAT;
+			bt848->iform |= BT848_IFORM_F_PALBDGHI;
+			bt848->adelay = 0x7f;
+			bt848->bdelay = 0x72;
+			bktr->format_params = FORMAT_PARAMS_PAL625;
 			break;
 
 		case METEOR_FMT_AUTOMODE:
 			bktr->flags = (bktr->flags & ~METEOR_FORM_MASK) |
 				METEOR_AUTOMODE;
-			bt848->iform &= ~0x3;
+			bt848->iform &= ~BT848_IFORM_FORMAT;
 			break;
 
 		default:
-			return EINVAL;
+			return( EINVAL );
 		}
 		break;
 
@@ -1054,7 +1213,7 @@ video_ioctl( bktr_reg_t* bktr, int unit,
 		break;
 
 	case METEORSBRIG:	/* set brightness */
-		bt848->bright =  *(u_char *)arg & 0xff;
+		bt848->bright = *(u_char *)arg & 0xff;
 		break;
 
 	case METEORGBRIG:	/* get brightness */
@@ -1064,22 +1223,25 @@ video_ioctl( bktr_reg_t* bktr, int unit,
 	case METEORSCSAT:	/* set chroma saturation */
 		temp = (int)*(u_char *)arg;
 
-		bt848->sat_u_lo = bt848->sat_v_lo =
-			(temp << 1) & 0xff;
+		bt848->sat_u_lo = bt848->sat_v_lo = (temp << 1) & 0xff;
 
-		bt848->e_control &= ~0x3;	/* clear U/V MSBs */
-		bt848->o_control &= ~0x3;	/* clear U/V MSBs */
+		bt848->e_control &= ~(BT848_E_CONTROL_SAT_U_MSB |
+				      BT848_E_CONTROL_SAT_V_MSB);
+		bt848->o_control &= ~(BT848_O_CONTROL_SAT_U_MSB |
+				      BT848_O_CONTROL_SAT_V_MSB);
 
-		if ( temp & 0x80 ) {
-			bt848->e_control |= 0x3;
-			bt848->o_control |= 0x3;
+		if ( temp & BIT_SEVEN_HIGH ) {
+			bt848->e_control |= (BT848_E_CONTROL_SAT_U_MSB |
+					     BT848_E_CONTROL_SAT_V_MSB);
+			bt848->o_control |= (BT848_O_CONTROL_SAT_U_MSB |
+					     BT848_O_CONTROL_SAT_V_MSB);
 		}
 		break;
 
 	case METEORGCSAT:	/* get chroma saturation */
 		temp = (bt848->sat_v_lo >> 1) & 0xff;
-		if ( bt848->e_control & 0x01 )
-			temp |= 0x80;
+		if ( bt848->e_control & BT848_E_CONTROL_SAT_V_MSB )
+			temp |= BIT_SEVEN_HIGH;
 		*(u_char *)arg = (u_char)temp;
 		break;
 
@@ -1087,10 +1249,12 @@ video_ioctl( bktr_reg_t* bktr, int unit,
 		temp = (int)*(u_char *)arg & 0xff;
 		temp <<= 1;
 		bt848->contrast_lo =  temp & 0xff;
-		bt848->e_control &= ~0x4;
-		bt848->o_control &= ~0x4;
-		bt848->e_control |= ((temp & 0x100) >> 6 ) & 0x4 ;
-		bt848->o_control |= ((temp & 0x100) >> 6 ) & 0x4 ;
+		bt848->e_control &= ~BT848_E_CONTROL_CON_MSB;
+		bt848->o_control &= ~BT848_O_CONTROL_CON_MSB;
+		bt848->e_control |=
+			((temp & 0x100) >> 6 ) & BT848_E_CONTROL_CON_MSB;
+		bt848->o_control |=
+			((temp & 0x100) >> 6 ) & BT848_O_CONTROL_CON_MSB;
 		break;
 
 	case METEORGCONT:	/* get contrast */
@@ -1114,81 +1278,82 @@ video_ioctl( bktr_reg_t* bktr, int unit,
 		case METEOR_CAP_SINGLE:
 
 			if (bktr->bigbuf==0)	/* no frame buffer allocated */
-				return(ENOMEM);
+				return( ENOMEM );
 
-			/*			if (temp & METEOR_CAP_MASK)
-				return(EIO);		 already capturing */
+			/* already capturing */
+/* XXX:
+			if (temp & METEOR_CAP_MASK)
+				return( EIO );
+ */
 
 			start_capture(bktr, METEOR_SINGLE);
 			bktr->flags |= METEOR_SINGLE;
 			bktr->flags &= ~METEOR_WANT_MASK;
 
 			/* wait for capture to complete */
-			bt848->int_stat = 0xffffffff;
-
-#if 0
-XXX why was this done???
-			bt848->gpio_out_en = 1;
-#endif
-			bt848->gpio_dma_ctl = 0x1;
+			bt848->int_stat = ALL_INTS_CLEARED;
+			bt848->gpio_dma_ctl = FIFO_ENABLED;
 			bt848->gpio_dma_ctl = bktr->capcontrol;
 
-			bt848->int_mask =  1 << 23 |  1 << 11 |  2  |  1;
+			bt848->int_mask = BT848_INT_MYSTERYBIT |
+					  BT848_INT_RISCI      |
+					  BT848_INT_VSYNC      |
+					  BT848_INT_FMTCHG;
 
-			error=tsleep((caddr_t)bktr, METPRI, "capturing",  hz);
-
+			error = tsleep((caddr_t)bktr, METPRI, "captur", hz);
 			if (error) {
-				printf("bktr%d: ioctl: tsleep error %d %x\n",
+				printf( "bktr%d: ioctl: tsleep error %d %x\n",
 					unit, error, bt848->risc_count);
 			}
+
 			bktr->flags &= ~(METEOR_SINGLE|METEOR_WANT_MASK);
-			/* bt848->int_stat; ?? */
+			/* FIXME: should we set bt848->int_stat ??? */
 			break;
 
 		case METEOR_CAP_CONTINOUS:
 			if (bktr->bigbuf==0)	/* no frame buffer allocated */
-				return(ENOMEM);
+				return( ENOMEM );
 
 			if (temp & METEOR_CAP_MASK)
-				return(EIO);		/* already capturing */
+				return( EIO );	/* already capturing */
 
 			start_capture(bktr, METEOR_CONTIN);
 			bt848->int_stat = bt848->int_stat;
 
-			bt848->gpio_dma_ctl = 1;
+			bt848->gpio_dma_ctl = FIFO_ENABLED;
 			bt848->gpio_dma_ctl = bktr->capcontrol;
 
-			bt848->int_mask = 1 << 23  |  1 << 11  |  2  |  1;
-
-#if 0
+			bt848->int_mask = BT848_INT_MYSTERYBIT |
+					  BT848_INT_RISCI      |
+					  BT848_INT_VSYNC      |
+					  BT848_INT_FMTCHG;
+/**
 			dump_bt848( bt848 );
-#endif /* 0 */
-
+ */
 			break;
 		
 		case METEOR_CAP_STOP_CONT:
 			if (bktr->flags & METEOR_CONTIN) {
 				/* turn off capture */
-				bt848->int_mask = 0;
-				bt848->gpio_dma_ctl = 0;
+				bt848->int_mask = ALL_INTS_DISABLED;
+				bt848->gpio_dma_ctl = FIFO_RISC_DISABLED;
 				bktr->flags &=
-					~(METEOR_CONTIN|METEOR_WANT_MASK);
+					~(METEOR_CONTIN | METEOR_WANT_MASK);
 			}
 		}
 		break;
 
 	case METEORSETGEO:
-
 		geo = (struct meteor_geomet *) arg;
+		fp = &format_params[bktr->format_params];
 
 		error = 0;
 		/* Either even or odd, if even & odd, then these a zero */
 		if ((geo->oformat & METEOR_GEO_ODD_ONLY) &&
 			(geo->oformat & METEOR_GEO_EVEN_ONLY)) {
-			printf("bktr%d: ioctl: Geometry odd or even only.\n",
+			printf( "bktr%d: ioctl: Geometry odd or even only.\n",
 				unit);
-
-			return EINVAL;
+			return( EINVAL );
 		}
 
 		/* set/clear even/odd flags */
@@ -1204,8 +1369,8 @@ XXX why was this done???
 		/* can't change parameters while capturing */
 /* XXX:
 		if (bktr->flags & METEOR_CAP_MASK)
-			return(EBUSY);
-*/
+			return( EBUSY );
+ */
 		if ((geo->columns & 0x3fe) != geo->columns) {
 			printf(
 			"bktr%d: ioctl: %d: columns too large or not even.\n",
@@ -1227,11 +1392,12 @@ XXX why was this done???
 		}
 
 		if (error)
-			return error;
-		bktr->dma_prog_loaded = 0;
-		bt848->gpio_dma_ctl = 0;
+			return( error );
 
-		bt848->int_mask = 0;
+		bktr->dma_prog_loaded = FALSE;
+		bt848->gpio_dma_ctl = FIFO_RISC_DISABLED;
+
+		bt848->int_mask = ALL_INTS_DISABLED;
 
 		if (temp=geo->rows * geo->columns * geo->frames * 2) {
 			if (geo->oformat & METEOR_GEO_RGB24) temp = temp * 2;
@@ -1252,9 +1418,9 @@ XXX why was this done???
 						printf(
 				"meteor%d: ioctl: Allocating %d bytes\n",
 							unit, temp*PAGE_SIZE);
-				} else {
-					error = ENOMEM;
 				}
+				else
+					error = ENOMEM;
 			}
 		}
 
@@ -1266,15 +1432,12 @@ XXX why was this done???
 		bktr->frames = geo->frames;
 
 		/* horizontal scale */
-		/* temp = ((910.0/( (float) bktr->cols *1.21875)) - 1.0) * 4096.0;*/
-		/* temp = ((910.0/( (float) bktr->cols *1.212)) - 1.0) * 4096.0; */
-		temp = ((910.0/( (float) bktr->cols *1.21875)) - 1.0) * 4096.0;
-		/* temp = ((754.0/(float) bktr->cols) - 1 ) * 4096.0;*/
+		temp = ((fp->htotal*fp->hactive_frac) / bktr->cols - 1) * 4096;
 
 		bt848->e_hscale_lo = temp & 0xff;
 		bt848->o_hscale_lo = temp & 0xff;
-		bt848->e_hscale_hi = ( temp >> 8 ) & 0xff;
-		bt848->o_hscale_hi = ( temp >> 8 ) & 0xff;
+		bt848->e_hscale_hi = (temp >> 8) & 0xff;
+		bt848->o_hscale_hi = (temp >> 8) & 0xff;
 
 		/* horizontal active */
 		temp = bktr->cols;
@@ -1282,13 +1445,13 @@ XXX why was this done???
 		bt848->o_hactive_lo = temp & 0xff;
 		bt848->e_crop &= ~0x3;
 		bt848->o_crop  &= ~0x3;
-		bt848->e_crop |= (temp >> 8 ) & 0x3;
-		bt848->o_crop  |= (temp >> 8 ) & 0x3;
+		bt848->e_crop |= (temp >> 8) & 0x3;
+		bt848->o_crop  |= (temp >> 8) & 0x3;
 
 		/* horizontal delay */
-		temp = ((135.0/754.0) * (float) bktr->cols) ;
-		temp = temp + 2;
-		temp = temp &  0x3fe;
+		temp = ((float)fp->hdelay / fp->hactive) * bktr->cols;
+		temp = temp + 2; /* why?? - rmt */
+		temp = temp & 0x3fe;
 		bt848->e_delay_lo = temp & 0xff;
 		bt848->o_delay_lo = temp & 0xff;
 		bt848->e_crop &= ~0xc;
@@ -1296,22 +1459,35 @@ XXX why was this done???
 		bt848->e_crop |= (temp >> 6) & 0xc;
 		bt848->o_crop |= (temp >> 6) & 0xc;
 
-		/* vscale */
+		/* vertical scale */
 		if (geo->oformat & METEOR_GEO_ODD_ONLY ||
-		   geo->oformat & METEOR_GEO_EVEN_ONLY) {
-		  tmp_int = 65536.0 - (((240.0/(float) bktr->rows) - 1.0) * 512.0);
-		} else {
-		  tmp_int = 65536 - (((480.0/(float) bktr->rows) - 1.0) * 512);
-		}
+		    geo->oformat & METEOR_GEO_EVEN_ONLY)
+		        tmp_int = 65536.0 -
+			  ((float)fp->vactive / 2 / bktr->rows - 1) * 512.0;
+		else
+		        tmp_int = 65536.0 -
+			  ((float)fp->vactive / bktr->rows - 1) * 512.0;
+
 		tmp_int &= 0x1fff;
 
-		/* Vertical scaling */
 		bt848->e_vscale_lo = tmp_int & 0xff;
 		bt848->o_vscale_lo = tmp_int & 0xff;
 		bt848->e_vscale_hi &= ~0x1f;
 		bt848->o_vscale_hi &= ~0x1f;
 		bt848->e_vscale_hi |= (tmp_int >> 8) & 0x1f;
 		bt848->o_vscale_hi |= (tmp_int >> 8) & 0x1f;
+
+		/* vertical active */
+		bt848->e_crop &= ~0x30;
+		bt848->e_crop |= (fp->vactive >> 4) & 0x30;
+		bt848->e_vactive_lo = fp->vactive & 0xff;
+		bt848->o_crop &= ~0x30;
+		bt848->o_crop |= (fp->vactive >> 4) & 0x30;
+		bt848->o_vactive_lo = fp->vactive & 0xff;
+
+		/* vertical delay */
+		bt848->e_vdelay_lo = fp->vdelay;
+		bt848->o_vdelay_lo = fp->vdelay;
 
 		bktr->format = METEOR_GEO_YUV_422;
 		switch (geo->oformat & METEOR_GEO_OUTPUT_MASK) {
@@ -1337,7 +1513,7 @@ XXX why was this done???
 			bktr->format |= METEOR_GEO_YUV_12;
 		else if (geo->oformat & METEOR_GEO_YUV_9 )
 			bktr->format |= METEOR_GEO_YUV_9;
-*/
+ */
 
 		if (bktr->flags & METEOR_CAP_MASK) {
 
@@ -1356,9 +1532,11 @@ XXX why was this done???
 
 				start_capture(bktr, METEOR_CONTIN);
 				bt848->int_stat = bt848->int_stat;
-				bt848->gpio_dma_ctl = 0x1;
+				bt848->gpio_dma_ctl = FIFO_ENABLED;
 				bt848->gpio_dma_ctl = bktr->capcontrol;
-				bt848->int_mask =  1 << 23 |  2  |  1;
+				bt848->int_mask = BT848_INT_MYSTERYBIT |
+						  BT848_INT_VSYNC      |
+						  BT848_INT_FMTCHG;
 			}
 		}
 		break;
@@ -1368,7 +1546,7 @@ XXX why was this done???
 		return common_ioctl( bktr, bt848, cmd, arg );
 	}
 
-	return 0;
+	return( 0 );
 }
 
 
@@ -1376,32 +1554,37 @@ XXX why was this done???
  * tuner ioctls
  */
 static int
-tuner_ioctl( bktr_reg_t* bktr, int unit,
-	     int cmd, caddr_t arg, struct proc* pr )
+tuner_ioctl( bktr_ptr_t bktr, int unit, int cmd, caddr_t arg, struct proc* pr )
 {
-	bt848_reg_t		bt848;
-	int			status;
-	int			tmp_int;
-	unsigned int		temp, temp1;
-#if defined( EEPROM_SUPPORT )
-	int			offset;
-	int			count;
-	u_char			*buf;
-#endif /* EEPROM_SUPPORT */
+	bt848_ptr_t	bt848;
+	int		status;
+	int		tmp_int;
+	unsigned int	temp, temp1;
+	int		offset;
+	int		count;
+	u_char		*buf;
 
 	bt848 =	bktr->base;
 
 	switch ( cmd ) {
 
+#if defined( TUNER_AFC )
+	case TVTUNER_SETAFC:
+		bktr->tuner.afc = (*(int *)arg != 0);
+		break;
+
+	case TVTUNER_GETAFC:
+		*(int *)arg = bktr->tuner.afc;
+		/* XXX Perhaps use another bit to indicate AFC success? */
+		break;
+#endif /* TUNER_AFC */
+
 	case TVTUNER_SETCHNL:
-		tmp_int = bktr->audio_mute_state;
-		set_audio( bktr, AUDIO_MUTE );		/* prevent 'click' */
+		temp_mute( bktr, TRUE );
 		temp = tv_channel( bktr, (int)*(unsigned long *)arg );
-		tsleep((caddr_t)bktr, PZERO, "tuning", hz/8 );
-		if ( tmp_int == FALSE )
-			set_audio( bktr, AUDIO_UNMUTE );
+		temp_mute( bktr, FALSE );
 		if ( temp < 0 )
-			return EINVAL;
+			return( EINVAL );
 		*(unsigned long *)arg = temp;
 		break;
 
@@ -1412,7 +1595,7 @@ tuner_ioctl( bktr_reg_t* bktr, int unit,
 	case TVTUNER_SETTYPE:
 		temp = *(unsigned long *)arg;
 		if ( (temp < CHNLSET_MIN) || (temp > CHNLSET_MAX) )
-			return EINVAL;
+			return( EINVAL );
 		bktr->tuner.chnlset = temp;
 		break;
 
@@ -1421,23 +1604,16 @@ tuner_ioctl( bktr_reg_t* bktr, int unit,
 		break;
 
 	case TVTUNER_GETSTATUS:
-		temp = i2cRead( bktr, TSA5522_RADDR );
+		temp = i2cRead( bktr, TSA552x_RADDR );
 		*(unsigned long *)arg = temp & 0xff;
 		break;
 
 	case TVTUNER_SETFREQ:
-#if defined( AUDIO_SUPPORT_XXX )
-		tmp_int = bktr->audio_mute_state;
-		set_audio( bktr, AUDIO_MUTE );		/* prevent 'click' */
-#endif /* AUDIO_SUPPORT */
+		temp_mute( bktr, TRUE );
 		temp = tv_freq( bktr, (int)*(unsigned long *)arg );
-#if defined( AUDIO_SUPPORT_XXX )
-		tsleep((caddr_t)bktr, PZERO, "tuning", hz/8 );
-		if ( tmp_int == FALSE )
-			set_audio( bktr, AUDIO_UNMUTE );
-#endif /* AUDIO_SUPPORT */
+		temp_mute( bktr, FALSE );
 		if ( temp < 0 )
-			return EINVAL;
+			return( EINVAL );
 		*(unsigned long *)arg = temp;
 		break;
 
@@ -1447,7 +1623,7 @@ tuner_ioctl( bktr_reg_t* bktr, int unit,
 
 	case BT848_SAUDIO:	/* set audio channel */
 		if ( set_audio( bktr, *(int*)arg ) < 0 )
-			return EIO;
+			return( EIO );
 		break;
 
 	/* hue is a 2's compliment number, -90' to +89.3' in 0.7' steps */
@@ -1472,11 +1648,19 @@ tuner_ioctl( bktr_reg_t* bktr, int unit,
 	case BT848_SCSAT:	/* set chroma saturation */
 		tmp_int = *(int*)arg;
 
-		temp = bt848->e_control & 0xfc;
-		temp1 = bt848->o_control & 0xfc;
-		if ( tmp_int & 0x100 ) {
-			temp |= 0x03;
-			temp1 |= 0x03;
+		temp = bt848->e_control;
+		temp1 = bt848->o_control;
+		if ( tmp_int & BIT_EIGHT_HIGH ) {
+			temp |= (BT848_E_CONTROL_SAT_U_MSB |
+				 BT848_E_CONTROL_SAT_V_MSB);
+			temp1 |= (BT848_O_CONTROL_SAT_U_MSB |
+				  BT848_O_CONTROL_SAT_V_MSB);
+		}
+		else {
+			temp &= ~(BT848_E_CONTROL_SAT_U_MSB |
+				  BT848_E_CONTROL_SAT_V_MSB);
+			temp1 &= ~(BT848_O_CONTROL_SAT_U_MSB |
+				   BT848_O_CONTROL_SAT_V_MSB);
 		}
 
 		bt848->sat_u_lo = (u_char)(tmp_int & 0xff);
@@ -1487,8 +1671,8 @@ tuner_ioctl( bktr_reg_t* bktr, int unit,
 
 	case BT848_GCSAT:	/* get chroma saturation */
 		tmp_int = (int)(bt848->sat_v_lo & 0xff);
-		if ( bt848->e_control & 0x01 )
-			tmp_int |= 0x0100;
+		if ( bt848->e_control & BT848_E_CONTROL_SAT_V_MSB )
+			tmp_int |= BIT_EIGHT_HIGH;
 		*(int*)arg = tmp_int;
 		break;
 
@@ -1496,11 +1680,15 @@ tuner_ioctl( bktr_reg_t* bktr, int unit,
 	case BT848_SVSAT:	/* set chroma V saturation */
 		tmp_int = *(int*)arg;
 
-		temp = bt848->e_control & 0xfe;
-		temp1 = bt848->o_control & 0xfe;
-		if ( tmp_int & 0x100 ) {
-			temp |= 0x01;
-			temp1 |= 0x01;
+		temp = bt848->e_control;
+		temp1 = bt848->o_control;
+		if ( tmp_int & BIT_EIGHT_HIGH) {
+			temp |= BT848_E_CONTROL_SAT_V_MSB;
+			temp1 |= BT848_O_CONTROL_SAT_V_MSB;
+		}
+		else {
+			temp &= ~BT848_E_CONTROL_SAT_V_MSB;
+			temp1 &= ~BT848_O_CONTROL_SAT_V_MSB;
 		}
 
 		bt848->sat_v_lo = (u_char)(tmp_int & 0xff);
@@ -1510,8 +1698,8 @@ tuner_ioctl( bktr_reg_t* bktr, int unit,
 
 	case BT848_GVSAT:	/* get chroma V saturation */
 		tmp_int = (int)bt848->sat_v_lo & 0xff;
-		if ( bt848->e_control & 0x01 )
-			tmp_int |= 0x0100;
+		if ( bt848->e_control & BT848_E_CONTROL_SAT_V_MSB )
+			tmp_int |= BIT_EIGHT_HIGH;
 		*(int*)arg = tmp_int;
 		break;
 
@@ -1519,11 +1707,15 @@ tuner_ioctl( bktr_reg_t* bktr, int unit,
 	case BT848_SUSAT:	/* set chroma U saturation */
 		tmp_int = *(int*)arg;
 
-		temp = bt848->e_control & 0xfd;
-		temp1 = bt848->o_control & 0xfd;
-		if ( tmp_int & 0x100 ) {
-			temp |= 0x02;
-			temp1 |= 0x02;
+		temp = bt848->e_control;
+		temp1 = bt848->o_control;
+		if ( tmp_int & BIT_EIGHT_HIGH ) {
+			temp |= BT848_E_CONTROL_SAT_U_MSB;
+			temp1 |= BT848_O_CONTROL_SAT_U_MSB;
+		}
+		else {
+			temp &= ~BT848_E_CONTROL_SAT_U_MSB;
+			temp1 &= ~BT848_O_CONTROL_SAT_U_MSB;
 		}
 
 		bt848->sat_u_lo = (u_char)(tmp_int & 0xff);
@@ -1533,8 +1725,8 @@ tuner_ioctl( bktr_reg_t* bktr, int unit,
 
 	case BT848_GUSAT:	/* get chroma U saturation */
 		tmp_int = (int)bt848->sat_u_lo & 0xff;
-		if ( bt848->e_control & 0x02 )
-			tmp_int |= 0x0100;
+		if ( bt848->e_control & BT848_E_CONTROL_SAT_U_MSB )
+			tmp_int |= BIT_EIGHT_HIGH;
 		*(int*)arg = tmp_int;
 		break;
 
@@ -1542,11 +1734,15 @@ tuner_ioctl( bktr_reg_t* bktr, int unit,
 	case BT848_SCONT:	/* set contrast */
 		tmp_int = *(int*)arg;
 
-		temp = bt848->e_control & 0xfb;
-		temp1 = bt848->o_control & 0xfb;
-		if ( tmp_int & 0x100 ) {
-			temp |= 0x04;
-			temp1 |= 0x04;
+		temp = bt848->e_control;
+		temp1 = bt848->o_control;
+		if ( tmp_int & BIT_EIGHT_HIGH ) {
+			temp |= BT848_E_CONTROL_CON_MSB;
+			temp1 |= BT848_O_CONTROL_CON_MSB;
+		}
+		else {
+			temp &= ~BT848_E_CONTROL_CON_MSB;
+			temp1 &= ~BT848_O_CONTROL_CON_MSB;
 		}
 
 		bt848->contrast_lo = (u_char)(tmp_int & 0xff);
@@ -1556,17 +1752,17 @@ tuner_ioctl( bktr_reg_t* bktr, int unit,
 
 	case BT848_GCONT:	/* get contrast */
 		tmp_int = (int)bt848->contrast_lo & 0xff;
-		if ( bt848->e_control & 0x04 )
-			tmp_int |= 0x0100;
+		if ( bt848->e_control & BT848_E_CONTROL_CON_MSB )
+			tmp_int |= BIT_EIGHT_HIGH;
 		*(int*)arg = tmp_int;
 		break;
 
 	case BT848_SCBARS:	/* set colorbar output */
-		bt848->color_ctl |= 0x40;
+		bt848->color_ctl |= BT848_COLOR_CTL_COLOR_BARS;
 		break;
 
 	case BT848_CCBARS:	/* clear colorbar output */
-		bt848->color_ctl &= ~0x40;
+		bt848->color_ctl &= ~BT848_COLOR_CTL_COLOR_BARS;
 		break;
 
 	case BT848_GAUDIO:	/* get audio channel */
@@ -1578,21 +1774,32 @@ tuner_ioctl( bktr_reg_t* bktr, int unit,
 
 	case BT848_SBTSC:	/* set audio channel */
 		if ( set_BTSC( bktr, *(int*)arg ) < 0 )
-			return EIO;
+			return( EIO );
 		break;
 
-#if defined( EEPROM_SUPPORT )
 	case BT848_WEEPROM:	/* write eeprom */
-		return EINVAL;
+		offset = (((struct eeProm *)arg)->offset);
+		count = (((struct eeProm *)arg)->count);
+		buf = &(((struct eeProm *)arg)->bytes[ 0 ]);
+		if ( writeEEProm( bktr, offset, count, buf ) < 0 )
+			return( EIO );
+		break;
 
 	case BT848_REEPROM:	/* read eeprom */
 		offset = (((struct eeProm *)arg)->offset);
 		count = (((struct eeProm *)arg)->count);
 		buf = &(((struct eeProm *)arg)->bytes[ 0 ]);
 		if ( readEEProm( bktr, offset, count, buf ) < 0 )
-			return EIO;
+			return( EIO );
 		break;
-#endif /* EEPROM_SUPPORT */
+
+	case BT848_SIGNATURE:
+		offset = (((struct eeProm *)arg)->offset);
+		count = (((struct eeProm *)arg)->count);
+		buf = &(((struct eeProm *)arg)->bytes[ 0 ]);
+		if ( signCard( bktr, offset, count, buf ) < 0 )
+			return( EIO );
+		break;
 
 	default:
 		return common_ioctl( bktr, bt848, cmd, arg );
@@ -1606,10 +1813,10 @@ tuner_ioctl( bktr_reg_t* bktr, int unit,
  * common ioctls
  */
 int
-common_ioctl( bktr_reg_t* bktr, bt848_reg_t bt848, int cmd, caddr_t arg )
+common_ioctl( bktr_ptr_t bktr, bt848_ptr_t bt848, int cmd, caddr_t arg )
 {
-	int			status;
-	unsigned int		temp;
+	int		status;
+	unsigned int	temp;
 
 	switch (cmd) {
 
@@ -1621,10 +1828,10 @@ common_ioctl( bktr_reg_t* bktr, bt848_reg_t bt848, int cmd, caddr_t arg )
 		case METEOR_INPUT_DEV0:
 			bktr->flags = (bktr->flags & ~METEOR_DEV_MASK)
 				| METEOR_DEV0;
-			bt848->iform &= ~0x60;
-			bt848->iform |= 0x60;
-			bt848->e_control &= ~0x40;
-			bt848->o_control &= ~0x40;
+			bt848->iform &= ~BT848_IFORM_MUXSEL;
+			bt848->iform |= BT848_IFORM_M_MUX1;
+			bt848->e_control &= ~BT848_E_CONTROL_COMP;
+			bt848->o_control &= ~BT848_O_CONTROL_COMP;
 			set_audio( bktr, AUDIO_EXTERN );
 			break;
 
@@ -1632,10 +1839,10 @@ common_ioctl( bktr_reg_t* bktr, bt848_reg_t bt848, int cmd, caddr_t arg )
 		case METEOR_INPUT_DEV1:
 			bktr->flags = (bktr->flags & ~METEOR_DEV_MASK)
 				| METEOR_DEV1;
-			bt848->iform &= ~0x60;
-			bt848->iform |= 0x40;
-			bt848->e_control &= ~0x40;
-			bt848->o_control &= ~0x40;
+			bt848->iform &= ~BT848_IFORM_MUXSEL;
+			bt848->iform |= BT848_IFORM_M_MUX0;
+			bt848->e_control &= ~BT848_E_CONTROL_COMP;
+			bt848->o_control &= ~BT848_O_CONTROL_COMP;
 			set_audio( bktr, AUDIO_TUNER );
 			break;
 
@@ -1644,15 +1851,15 @@ common_ioctl( bktr_reg_t* bktr, bt848_reg_t bt848, int cmd, caddr_t arg )
 		case METEOR_INPUT_DEV_SVIDEO:
 			bktr->flags = (bktr->flags & ~METEOR_DEV_MASK)
 				| METEOR_DEV2;
-			bt848->iform &= ~0x60;
-			bt848->iform |= 0x20;
-			bt848->e_control |= 0x40;
-			bt848->o_control |= 0x40;
+			bt848->iform &= ~BT848_IFORM_MUXSEL;
+			bt848->iform |= BT848_IFORM_M_MUX2;
+			bt848->e_control |= BT848_E_CONTROL_COMP;
+			bt848->o_control |= BT848_O_CONTROL_COMP;
 			set_audio( bktr, AUDIO_EXTERN );
 			break;
 
 		default:
-			return EINVAL;
+			return( EINVAL );
 		}
 		break;
 
@@ -1660,7 +1867,7 @@ common_ioctl( bktr_reg_t* bktr, bt848_reg_t bt848, int cmd, caddr_t arg )
 		*(u_long *)arg = bktr->flags & METEOR_DEV_MASK;
 		break;
 
-#if defined( STATUS )
+#if defined( STATUS_SUM )
 	case BT848_GSTATUS:	/* reap status */
 		disable_intr();
 		temp = status_sum;
@@ -1668,10 +1875,10 @@ common_ioctl( bktr_reg_t* bktr, bt848_reg_t bt848, int cmd, caddr_t arg )
 		enable_intr();
 		*(u_int*)arg = temp;
 		break;
-#endif /* STATUS */
+#endif /* STATUS_SUM */
 
 	default:
-		return ENODEV;
+		return( ENODEV );
 	}
 
 	return( 0 );
@@ -1685,23 +1892,22 @@ int
 bktr_mmap( dev_t dev, int offset, int nprot )
 {
 	int		unit;
-	bktr_reg_t	*bktr;
+	bktr_ptr_t	bktr;
 
 	unit = UNIT(minor(dev));
 
-	if (unit >= NBKTR || minor(dev) > 0 )	/* at this point could this happen? */
-		return(-1);
+	if (unit >= NBKTR || minor(dev) > 0 )	/* could this happen here? */
+		return( -1 );
 
-
-	bktr = &(brooktree[unit]);
+	bktr = &(brooktree[ unit ]);
 
 	if (nprot & PROT_EXEC)
-		return -1;
+		return( -1 );
 
 	if (offset >= bktr->alloc_pages * PAGE_SIZE)
-		return -1;
+		return( -1 );
 
-	return i386_btop(vtophys(bktr->bigbuf) + offset);
+	return( i386_btop(vtophys(bktr->bigbuf) + offset) );
 }
 
 
@@ -1714,7 +1920,7 @@ bktr_mmap( dev_t dev, int offset, int nprot )
  * 
  */
 static int
-dump_bt848( bt848_reg_t bt848 )
+dump_bt848( bt848_ptr_t bt848 )
 {
 	volatile u_char *bt848r = (u_char *)bt848;
 	int	r[60]={
@@ -1739,7 +1945,7 @@ dump_bt848( bt848_reg_t bt848 )
 	printf(" Reg INT_MASK %x \n",  bt848->int_mask);
 	printf(" Reg GPIO_DMA_CTL %x \n", bt848->gpio_dma_ctl);
 
-	return 0;
+	return( 0 );
 }
 
 
@@ -1764,12 +1970,12 @@ dump_bt848( bt848_reg_t bt848 )
 #define OP_EOL	      (1 << 26)
 
 static void
-rgb_prog( bktr_reg_t * bktr, char i_flag, int cols,
+rgb_prog( bktr_ptr_t bktr, char i_flag, int cols,
 	  int rows, int pixel_width, int interlace )
 {
 	int			i;
 	int  			byte_count;
-	bt848_reg_t		bt848;
+	bt848_ptr_t		bt848;
 	volatile unsigned int	inst;
 	volatile unsigned int	inst2;
 	volatile unsigned int	inst3;
@@ -1786,10 +1992,13 @@ rgb_prog( bktr_reg_t * bktr, char i_flag, int cols,
 	else
 		bt848->color_fmt = 0x33;
 
-	bt848->color_ctl = 0x40;
-	bt848->color_ctl = 0x10;
+/* FIXME: why set colorbars for 1 instant ??? */
+	bt848->color_ctl = BT848_COLOR_CTL_COLOR_BARS;
+/* FIXME: undone 4 lines later, why bother ??? */
+	bt848->color_ctl = BT848_COLOR_CTL_GAMMA;
 
 #if 0
+/* FIXME: any reason to keep these lines around ??? */
 	bt848->e_vdelay_low = 0x1C;
 	bt848->o_vdelay_low = 0x1C;
 #endif
@@ -1798,7 +2007,7 @@ rgb_prog( bktr_reg_t * bktr, char i_flag, int cols,
 	bt848->vbi_pack_del = 0;
 
 	bt848->adc = SYNC_LEVEL;
-	bt848->color_ctl = 0x20;
+	bt848->color_ctl = BT848_COLOR_CTL_RGB_DED;
 
 	bt848->e_vscale_hi |= 0xc0;
 	bt848->o_vscale_hi |= 0xc0;
@@ -1903,7 +2112,7 @@ rgb_prog( bktr_reg_t * bktr, char i_flag, int cols,
  * 
  */
 static void
-yuvpack_prog( bktr_reg_t *bktr, char i_flag,
+yuvpack_prog( bktr_ptr_t bktr, char i_flag,
 	      int cols, int rows, int interlace )
 {
 	int			i;
@@ -1912,7 +2121,7 @@ yuvpack_prog( bktr_reg_t *bktr, char i_flag,
 	volatile unsigned int	inst2;
 	volatile unsigned int	inst3;
 	volatile u_long		target_buffer, buffer;
-	bt848_reg_t		bt848;
+	bt848_ptr_t		bt848;
 	volatile  u_long	*dma_prog;
 	int			b;
 
@@ -1921,10 +2130,11 @@ yuvpack_prog( bktr_reg_t *bktr, char i_flag,
 	/* color format : yuvpack */
 	bt848->color_fmt = 0x44;
 
-	bt848->e_scloop |= 0x40; /* enable chroma comb */
-	bt848->o_scloop |= 0x40;
+	bt848->e_scloop |= BT848_E_SCLOOP_CAGC; /* enable chroma comb */
+	bt848->o_scloop |= BT848_O_SCLOOP_CAGC;
 
-	bt848->color_ctl = 0x30;
+	bt848->color_ctl = BT848_COLOR_CTL_RGB_DED |
+			   BT848_COLOR_CTL_GAMMA;
 	bt848->adc = SYNC_LEVEL;
 
 	bktr->capcontrol =   1 << 6 | 1 << 4 | 1 << 2 | 3;
@@ -2026,7 +2236,7 @@ yuvpack_prog( bktr_reg_t *bktr, char i_flag,
  * 
  */
 static void
-yuv422_prog( bktr_reg_t * bktr, char i_flag,
+yuv422_prog( bktr_ptr_t bktr, char i_flag,
 	     int cols, int rows, int interlace ){
 
 	int			i, j;
@@ -2036,8 +2246,8 @@ yuv422_prog( bktr_reg_t * bktr, char i_flag,
 	volatile unsigned int	instskip, instskip2, instskip3;
 	volatile unsigned int	inst3;
 	volatile u_long		target_buffer, t1, buffer;
-	bt848_reg_t		bt848;
-	volatile  u_long	*dma_prog;
+	bt848_ptr_t		bt848;
+	volatile u_long		*dma_prog;
 	int			b, b1;
 
 	bt848 = bktr->base;
@@ -2048,18 +2258,19 @@ yuv422_prog( bktr_reg_t * bktr, char i_flag,
 	bt848->adc = SYNC_LEVEL;
 	bt848->oform = 0x00;
 
-	bt848->e_control |= 0x20;		/* disable luma decimation */
-	bt848->o_control |= 0x20;
+	bt848->e_control |= BT848_E_CONTROL_LDEC; /* disable luma decimation */
+	bt848->o_control |= BT848_O_CONTROL_LDEC;
 
-	bt848->e_scloop |= 0x40;		/* chroma agc enable */
-	bt848->o_scloop |= 0x40; 
+	bt848->e_scloop |= BT848_O_SCLOOP_CAGC;	/* chroma agc enable */
+	bt848->o_scloop |= BT848_O_SCLOOP_CAGC; 
 
-	bt848->e_vscale_hi |= 0xc0;	/* luma comb and comb enable */
+	bt848->e_vscale_hi |= 0xc0;		/* luma comb and comb enable */
 	bt848->o_vscale_hi |= 0xc0;
 
 	bt848->color_fmt = 0x88;
 
-	bt848->color_ctl = 0x10;		/* disable gamma correction */
+	/* disable gamma correction removal */
+	bt848->color_ctl = BT848_COLOR_CTL_GAMMA;
 
 	bt_enable_cnt = 0;
 
@@ -2097,7 +2308,7 @@ yuv422_prog( bktr_reg_t * bktr, char i_flag,
 		*dma_prog++ = OP_JUMP | 0xc << 24;
 		*dma_prog++ = (u_long ) vtophys(bktr->dma_prog);
 		return;
-		break;
+
 	case 2:
 		*dma_prog++ = OP_SYNC  | 0xC << 24 | 1 << 24 |	BKTR_VRO;  /*sync vre*/
 		*dma_prog++ = 0;  /* NULL WORD */
@@ -2105,7 +2316,7 @@ yuv422_prog( bktr_reg_t * bktr, char i_flag,
 		*dma_prog++ = OP_JUMP;
 		*dma_prog++ = (u_long ) vtophys(bktr->dma_prog);
 		return;
-		break;
+
 	case 3:
 		*dma_prog++ = OP_SYNC	| 0xc << 24 |  1 << 15 |  BKTR_VRO;  
 		*dma_prog++ = 0;  /* NULL WORD */
@@ -2146,7 +2357,7 @@ yuv422_prog( bktr_reg_t * bktr, char i_flag,
  * 
  */
 static void
-build_dma_prog( bktr_reg_t * bktr, char i_flag )
+build_dma_prog( bktr_ptr_t bktr, char i_flag )
 {
 	int			i;
 	int			pixel_width, rows, cols, byte_count, interlace;
@@ -2154,33 +2365,36 @@ build_dma_prog( bktr_reg_t * bktr, char i_flag )
 	volatile unsigned int	inst2;
 	volatile unsigned int	inst3;
 	volatile u_long		target_buffer;
-	bt848_reg_t		bt848;
+	bt848_ptr_t		bt848;
 	volatile  u_long	*dma_prog;
 	int			b;
 
 	bt848 = bktr->base;
-	bt848->int_mask = 0;
-	bt848->gpio_dma_ctl &= ~3;
+	bt848->int_mask = ALL_INTS_DISABLED;
+
+	/* disable FIFO & RISC, leave other bits alone */
+	bt848->gpio_dma_ctl &= ~FIFO_RISC_ENABLED;
 
 	/* capture control */
 	switch (i_flag) {
 	case 1:
- 	        bktr->bktr_cap_ctl  = 0x11;
-		bt848->cap_ctl = 0x11;
+ 	        bktr->bktr_cap_ctl = bt848->cap_ctl =
+			(BT848_CAP_CTL_DITH_FRAME | BT848_CAP_CTL_EVEN);
 		bt848->e_vscale_hi &= ~0x20;
 		bt848->o_vscale_hi &= ~0x20;
 		interlace = 1;
 		break;
 	 case 2:
- 	        bktr->bktr_cap_ctl  = 0x12;
-		bt848->cap_ctl = 0x12;
+ 	        bktr->bktr_cap_ctl = bt848->cap_ctl =
+			(BT848_CAP_CTL_DITH_FRAME | BT848_CAP_CTL_ODD);
 		bt848->e_vscale_hi &= ~0x20;
 		bt848->o_vscale_hi &= ~0x20;
 		interlace = 1;
 		break;
 	 default:
- 	        bktr->bktr_cap_ctl  = 0x13;
-		bt848->cap_ctl = 0x13;
+ 	        bktr->bktr_cap_ctl = bt848->cap_ctl =
+			(BT848_CAP_CTL_DITH_FRAME |
+			 BT848_CAP_CTL_EVEN | BT848_CAP_CTL_ODD);
 		bt848->e_vscale_hi |= 0x20;
 		bt848->o_vscale_hi |= 0x20;
 		interlace = 2;
@@ -2222,9 +2436,9 @@ build_dma_prog( bktr_reg_t * bktr, char i_flag )
  * 
  */
 static void
-start_capture( bktr_reg_t *bktr, unsigned type )
+start_capture( bktr_ptr_t bktr, unsigned type )
 {
-	bt848_reg_t		bt848;
+	bt848_ptr_t		bt848;
 	u_char			i_flag;
 
 	bt848 = bktr->base;
@@ -2248,38 +2462,38 @@ start_capture( bktr_reg_t *bktr, unsigned type )
 		break;
 	}
 
-	if (!bktr->dma_prog_loaded) {
+	if (bktr->dma_prog_loaded == FALSE) {
 		build_dma_prog(bktr, i_flag);
-		bktr->dma_prog_loaded = 1;
+		bktr->dma_prog_loaded = TRUE;
 	}
 	
-/*XXX
-	switch(bktr->flags & METEOR_ONLY_FIELDS_MASK) {
+/* XXX:
+	switch (bktr->flags & METEOR_ONLY_FIELDS_MASK) {
 	default:
-	*bts_reg |= 0xb;   bts_reg never been initialized!
+		*bts_reg |= 0xb;   bts_reg never been initialized!
 	}
-*/
+ */
 
-	bt848->risc_strt_add =  vtophys(bktr->dma_prog);
+	bt848->risc_strt_add = vtophys(bktr->dma_prog);
 
-/*XXX
-	bt848->gpio_dma_ctl = 0x3;
-*/
-
+/* XXX:
+	bt848->gpio_dma_ctl = FIFO_RISC_ENABLED;
+ */
 }
+
 
 /*
  * 
  */
 static void
-set_fps( bktr_reg_t *bktr, u_short fps )
+set_fps( bktr_ptr_t bktr, u_short fps )
 {
-	bt848_reg_t		bt848;
+	bt848_ptr_t	bt848;
 
 	bt848 = bktr->base;
 
-	bt848->gpio_dma_ctl = 0;
-	bt848->int_stat = 0xffffffff;
+	bt848->gpio_dma_ctl = FIFO_RISC_DISABLED;
+	bt848->int_stat = ALL_INTS_CLEARED;
 
 	bktr->fps = fps;
 
@@ -2293,12 +2507,15 @@ set_fps( bktr_reg_t *bktr, u_short fps )
 
 	if ( bktr->flags & METEOR_CAP_MASK ) {
 
-		bt848->int_stat = 0xffffffff;	  
+		bt848->int_stat = ALL_INTS_CLEARED;	  
 		bt848->risc_strt_add = vtophys(bktr->dma_prog);
 
-		bt848->gpio_dma_ctl = 1;
+		bt848->gpio_dma_ctl = FIFO_ENABLED;
 		bt848->gpio_dma_ctl = bktr->capcontrol;
-		bt848->int_mask =  1 << 11 |  2 | 1;
+		bt848->int_mask = BT848_INT_MYSTERYBIT |
+				  BT848_INT_RISCI      |
+				  BT848_INT_VSYNC      |
+				  BT848_INT_FMTCHG;
 	}
 
 	return;
@@ -2331,7 +2548,7 @@ get_bktr_mem( int unit, unsigned size )
 			unit, size);
 	}
 
-	return addr;
+	return( addr );
 }
 
 
@@ -2339,59 +2556,50 @@ get_bktr_mem( int unit, unsigned size )
  * i2c primitives:
  */
 
-
-typedef volatile u_long*	i2c_regptr_t;
-#define I2C_REGADDR()		((i2c_regptr_t)&bktr->base->i2c_data_ctl)
-
-#define RACK			(1 << 25)
-#define I2CDONE			(1 << 8)
-#define I2CDIV			(0x0f << 4)
-#define I2CBITTIME		(0x05 << 4)
-#define I2CSYNC			(0x01 << 3)
-#define I2CW3B			(0x01 << 2)
-#define I2CSCL			(0x01 << 1)
-#define I2CSDA			(0x01 << 0)
+/* */
+#define I2CBITTIME		(0x5<<4)	/* 5 * 0.48uS */
 #define I2C_READ		0x01
-#define I2C_COMMAND		(I2CBITTIME | I2CSCL | I2CSDA)
+#define I2C_COMMAND		(I2CBITTIME |			\
+				 BT848_DATA_CTL_I2CSCL |	\
+				 BT848_DATA_CTL_I2CSDA)
 
 /*
  * 
  */
 static int
-i2cWrite( bktr_reg_t *bktr, int addr, int byte1, int byte2 )
+i2cWrite( bktr_ptr_t bktr, int addr, int byte1, int byte2 )
 {
 	u_long		x;
 	u_long		data;
-	i2c_regptr_t	bti2c;
+	bt848_ptr_t	bt848;
 
-	/* setup register addresses */
-	bti2c = I2C_REGADDR();
+	bt848 = bktr->base;
 
 	/* clear status bits */
-	bktr->base->int_stat = (RACK | I2CDONE);
+	bt848->int_stat = (BT848_INT_RACK | BT848_INT_I2CDONE);
 
 	/* build the command datum */
 	data = ((addr & 0xff) << 24) | ((byte1 & 0xff) << 16) | I2C_COMMAND;
 	if ( byte2 != -1 ) {
 		data |= ((byte2 & 0xff) << 8);
-		data |= I2CW3B;
+		data |= BT848_DATA_CTL_I2CW3B;
 	}
 
 	/* write the address and data */
-	*bti2c = data;
+	bt848->i2c_data_ctl = data;
 
 	/* wait for completion */
-	for ( x = 0xffffffff; x; --x ) {	/* safety valve */
-		if ( bktr->base->int_stat & I2CDONE )
+	for ( x = 0x7fffffff; x; --x ) {	/* safety valve */
+		if ( bt848->int_stat & BT848_INT_I2CDONE )
 			break;
 	}
 
 	/* check for ACK */
-	if ( !x || !(bktr->base->int_stat & RACK) )
-		return -1;
+	if ( !x || !(bt848->int_stat & BT848_INT_RACK) )
+		return( -1 );
 
 	/* return OK */
-	return 0;
+	return( 0 );
 }
 
 
@@ -2399,32 +2607,31 @@ i2cWrite( bktr_reg_t *bktr, int addr, int byte1, int byte2 )
  * 
  */
 static int
-i2cRead( bktr_reg_t *bktr, int addr )
+i2cRead( bktr_ptr_t bktr, int addr )
 {
 	u_long		x;
-	i2c_regptr_t	bti2c;
+	bt848_ptr_t	bt848;
 
-	/* setup register addresses */
-	bti2c = I2C_REGADDR();
+	bt848 = bktr->base;
 
 	/* clear status bits */
-	bktr->base->int_stat = (RACK | I2CDONE);
+	bt848->int_stat = (BT848_INT_RACK | BT848_INT_I2CDONE);
 
 	/* write the READ address */
-	*bti2c = ((addr & 0xff) << 24) | I2C_COMMAND;
+	bt848->i2c_data_ctl = ((addr & 0xff) << 24) | I2C_COMMAND;
 
 	/* wait for completion */
-	for ( x = 0xffffffff; x; --x ) {	/* safety valve */
-		if ( bktr->base->int_stat & I2CDONE )
+	for ( x = 0x7fffffff; x; --x ) {	/* safety valve */
+		if ( bt848->int_stat & BT848_INT_I2CDONE )
 			break;
 	}
 
 	/* check for ACK */
-	if ( !(bktr->base->int_stat & RACK) )
-		return -1;
+	if ( !x || !(bt848->int_stat & BT848_INT_RACK) )
+		return( -1 );
 
 	/* it was a read */
-	return (*bti2c >> 8) & 0xff;
+	return( (bt848->i2c_data_ctl >> 8) & 0xff );
 }
 
 
@@ -2438,63 +2645,83 @@ i2cRead( bktr_reg_t *bktr, int addr )
  * currently there are no known i2c parts that we need to probe
  * and that cannot be safely read.
  */
-static int	i2cProbe( i2c_regptr_t bti2c, int addr );
-#define BITDELAY		40
+static int	i2cProbe( bktr_ptr_t bktr, int addr );
+#define BITD		40
 #define EXTRA_START
 
 /*
  * probe for an I2C device at addr.
  */
 static int
-i2cProbe( i2c_regptr_t bti2c, int addr )
+i2cProbe( bktr_ptr_t bktr, int addr )
 {
-	int x, status;
+	int		x, status;
+	bt848_ptr_t	bt848;
+
+	bt848 = bktr->base;
 
 	/* the START */
 #if defined( EXTRA_START )
-	*bti2c = 1; DELAY( BITDELAY );	/* release data */
-	*bti2c = 3; DELAY( BITDELAY );	/* release clock */
+	bt848->i2c_data_ctl = 1; DELAY( BITD );	/* release data */
+	bt848->i2c_data_ctl = 3; DELAY( BITD );	/* release clock */
 #endif /* EXTRA_START */
-	*bti2c = 2; DELAY( BITDELAY );	/* lower data */
-	*bti2c = 0; DELAY( BITDELAY );	/* lower clock */
+	bt848->i2c_data_ctl = 2; DELAY( BITD );	/* lower data */
+	bt848->i2c_data_ctl = 0; DELAY( BITD );	/* lower clock */
 
 	/* write addr */
 	for ( x = 7; x >= 0; --x ) {
 		if ( addr & (1<<x) ) {
-			*bti2c = 1; DELAY( BITDELAY ); /* assert HI data */
-			*bti2c = 3; DELAY( BITDELAY ); /* strobe clock */
-			*bti2c = 1; DELAY( BITDELAY ); /* release clock */
+			bt848->i2c_data_ctl = 1;
+			DELAY( BITD );		/* assert HI data */
+			bt848->i2c_data_ctl = 3;
+			DELAY( BITD );		/* strobe clock */
+			bt848->i2c_data_ctl = 1;
+			DELAY( BITD );		/* release clock */
 		}
 		else {
-			*bti2c = 0; DELAY( BITDELAY ); /* assert LO data */
-			*bti2c = 2; DELAY( BITDELAY ); /* strobe clock */
-			*bti2c = 0; DELAY( BITDELAY ); /* release clock */
+			bt848->i2c_data_ctl = 0;
+			DELAY( BITD );		/* assert LO data */
+			bt848->i2c_data_ctl = 2;
+			DELAY( BITD );		/* strobe clock */
+			bt848->i2c_data_ctl = 0;
+			DELAY( BITD );		/* release clock */
 		}
 	}
 
 	/* look for an ACK */
-	*bti2c = 1; DELAY( BITDELAY );	/* float data */
-	*bti2c = 3; DELAY( BITDELAY );	/* strobe clock */
-	status = *bti2c & 1;		/* read the ACK bit */
-	*bti2c = 1; DELAY( BITDELAY );	/* release clock */
+	bt848->i2c_data_ctl = 1; DELAY( BITD );	/* float data */
+	bt848->i2c_data_ctl = 3; DELAY( BITD );	/* strobe clock */
+	status = bt848->i2c_data_ctl & 1;	/* read the ACK bit */
+	bt848->i2c_data_ctl = 1; DELAY( BITD );	/* release clock */
 
 	/* the STOP */
-	*bti2c = 0; DELAY( BITDELAY );	/* lower clock & data */
-	*bti2c = 2; DELAY( BITDELAY );	/* release clock */
-	*bti2c = 3; DELAY( BITDELAY );	/* release data */
+	bt848->i2c_data_ctl = 0; DELAY( BITD );	/* lower clock & data */
+	bt848->i2c_data_ctl = 2; DELAY( BITD );	/* release clock */
+	bt848->i2c_data_ctl = 3; DELAY( BITD );	/* release data */
 
-	return status;
+	return( status );
 }
 #undef EXTRA_START
-#undef BITDELAY
+#undef BITD
 
 #endif /* I2C_SOFTWARE_PROBE */
 
 
-#if defined( EEPROM_SUPPORT )
-
+/*
+ * 
+ */
 static int
-readEEProm( bktr_reg_t* bktr, int offset, int count, u_char *data )
+writeEEProm( bktr_ptr_t bktr, int offset, int count, u_char *data )
+{
+	return( -1 );
+}
+
+
+/*
+ * 
+ */
+static int
+readEEProm( bktr_ptr_t bktr, int offset, int count, u_char *data )
 {
 	int	x;
 	int	addr;
@@ -2502,29 +2729,27 @@ readEEProm( bktr_reg_t* bktr, int offset, int count, u_char *data )
 	int	byte;
 
 	/* get the address of the EEProm */
-	addr = (int)(bktr->card->eepromAddr & 0xff);
+	addr = (int)(bktr->card.eepromAddr & 0xff);
 	if ( addr == 0 )
-		return -1;
+		return( -1 );
 
-	max = (int)(bktr->card->eepromSize * EEPROMBLOCKSIZE);
+	max = (int)(bktr->card.eepromSize * EEPROMBLOCKSIZE);
 	if ( (offset + count) > max )
-		return -1;
+		return( -1 );
 
 	/* set the start address */
 	if ( i2cWrite( bktr, addr, offset, -1 ) == -1 )
-		return -1;
+		return( -1 );
 
 	/* the read cycle */
 	for ( x = 0; x < count; ++x ) {
 		if ( (byte = i2cRead( bktr, (addr | 1) )) == -1 )
-			return -1;
+			return( -1 );
 		data[ x ] = byte;
 	}
 
-	return 0;
+	return( 0 );
 }
-
-#endif /* EEPROM_SUPPORT */
 
 
 /******************************************************************************
@@ -2533,174 +2758,273 @@ readEEProm( bktr_reg_t* bktr, int offset, int count, u_char *data )
 
 
 /*
- * the data for each type of card
- */
-#define NO_TUNER		0
-#define TEMIC_TUNER		1
-#define PHILIPS_TUNER		2
-
-
-/*
- * Note:
- *   these entried MUST be kept in the order defined by the CARD_XXX defines!
- */
-struct CARDTYPE card_types[] = {
-
-	/* CARD_UNKNOWN */
-	{ "Unknown",
-	   NO_TUNER,
-	   0,
-	   0,
-	   0,
-	   { 0, 0, 0, 0 } },
-
-	/* CARD_MIRO */
-	{ "Miro TV",
-	   NO_TUNER, /** TEMIC_TUNER ??? */
-	   0,
-	   0,
-	   0,
-	   { 0x02, 0x01, 0x00, 0x00 } },	/* XXX ??? */
-
-	/* CARD_HAUPPAUGE */
-	{ "Hauppauge WinCast/TV",
-	   PHILIPS_TUNER,
-	   0,
-	   PFC8582_WADDR,
-	   (u_char)(256 / EEPROMBLOCKSIZE),	/* 256 bytes */
-	   { 0x00, 0x02, 0x01, 0x01 } },
-
-	/* CARD_STB */
-	{ "STB TV/PCI",
-	   TEMIC_TUNER,
-	   0,
-	   X24C01_WADDR,
-	   (u_char)(128 / EEPROMBLOCKSIZE),	/* 128 bytes */
-	   { 0x00, 0x01, 0x02, 0x02 } },
-
-	/* CARD_INTEL */
-	{ "Intel Smart Video III",
-	   NO_TUNER,
-	   0,
-	   0,
-	   0,
-	   { 0, 0, 0, 0 } }
-};
-
-
-/*
- * If probe_card() fails to detect the proper card on boot you can
+ * the recognized cards, used as indexes of several tables.
+ *
+ * if probeCard() fails to detect the proper card on boot you can
  * override it by setting the following define to the card you are using:
  *
 #define OVERRIDE_CARD	<card type>
  *
- * where <card type> is one of the card defines in the above array.
+ * where <card type> is one of the following card defines.
+ */
+#define	CARD_UNKNOWN		0
+#define	CARD_MIRO		1
+#define	CARD_HAUPPAUGE		2
+#define	CARD_STB		3
+#define	CARD_INTEL		4
+
+/*
+ * the data for each type of card
+ *
+ * Note:
+ *   these entried MUST be kept in the order defined by the CARD_XXX defines!
+ */
+const struct CARDTYPE cards[] = {
+
+	/* CARD_UNKNOWN */
+	{ "Unknown",				/* the 'name' */
+	   NULL,				/* the tuner */
+	   0,					/* dbx unknown */
+	   0,					/* EEProm unknown */
+	   0,					/* EEProm unknown */
+	   { 0, 0, 0, 0, 0 } },
+
+	/* CARD_MIRO */
+	{ "Miro TV",				/* the 'name' */
+	   NULL,				/* the tuner */
+	   0,					/* dbx unknown */
+	   0,					/* EEProm unknown */
+	   0,					/* size unknown */
+	   { 0x02, 0x01, 0x00, 0x00, 1 } },	/* XXX ??? */
+
+	/* CARD_HAUPPAUGE */
+	{ "Hauppauge WinCast/TV",		/* the 'name' */
+	   NULL,				/* the tuner */
+	   0,					/* dbx is optional */
+	   PFC8582_WADDR,			/* EEProm type */
+	   (u_char)(256 / EEPROMBLOCKSIZE),	/* 256 bytes */
+	   { 0x00, 0x02, 0x01, 0x01, 1 } },	/* audio MUX values */
+
+	/* CARD_STB */
+	{ "STB TV/PCI",				/* the 'name' */
+	   NULL,				/* the tuner */
+	   0,					/* dbx is optional */
+	   X24C01_WADDR,			/* EEProm type */
+	   (u_char)(128 / EEPROMBLOCKSIZE),	/* 128 bytes */
+	   { 0x00, 0x01, 0x02, 0x02, 1 } },	/* audio MUX values */
+
+	/* CARD_INTEL */
+	{ "Intel Smart Video III",		/* the 'name' */
+	   NULL,				/* the tuner */
+	   0,
+	   0,
+	   0,
+	   { 0, 0, 0, 0, 0 } }
+};
+
+
+/*
+ * the data for each type of tuner
+ */
+
+/* indexes into tuners[] */
+#define NO_TUNER		0
+#define TEMIC_NTSC		1
+#define TEMIC_PAL		2
+#define TEMIC_SECAM		3
+#define PHILIPS_NTSC		4
+#define PHILIPS_PAL		5
+#define PHILIPS_SECAM		6
+/* XXX FIXME: this list is incomplete */
+
+/* input types */
+#define TTYPE_XXX		0
+#define TTYPE_NTSC		1
+#define TTYPE_NTSC_J		2
+#define TTYPE_PAL		3
+#define TTYPE_PAL_M		4
+#define TTYPE_PAL_N		5
+#define TTYPE_SECAM		6
+
+/**
+struct TUNER {
+	char*		name;
+	u_char		type;
+	u_char		pllAddr;
+	u_char		pllControl;
+	u_char		bandLimits[ 2 ];
+	u_char		bandAddrs[ 3 ];
+};
+ */
+const struct TUNER tuners[] = {
+/* XXX FIXME: fill in the band-switch crosspoints */
+	/* NO_TUNER */
+	{ "<none>",				/* the 'name' */
+	   TTYPE_XXX,				/* input type */
+	   0x00,				/* PLL write address */
+	   0x00,				/* control byte for PLL */
+	   { 0x00, 0x00 },			/* band-switch crosspoints */
+	   { 0x00, 0x00, 0x00 } },		/* the band-switch values */
+
+	/* TEMIC_NTSC */
+	{ "Temic NTSC",				/* the 'name' */
+	   TTYPE_NTSC,				/* input type */
+	   TEMIC_NTSC_WADDR,			/* PLL write address */
+	   TSA552x_SCONTROL,			/* control byte for PLL */
+	   { 0x00, 0x00 },			/* band-switch crosspoints */
+	   { 0x02, 0x04, 0x01 } },		/* the band-switch values */
+
+	/* TEMIC_PAL */
+	{ "Temic PAL",				/* the 'name' */
+	   TTYPE_PAL,				/* input type */
+	   TEMIC_PALI_WADDR,			/* PLL write address */
+	   TSA552x_SCONTROL,			/* control byte for PLL */
+	   { 0x00, 0x00 },			/* band-switch crosspoints */
+	   { 0x02, 0x04, 0x01 } },		/* the band-switch values */
+
+	/* TEMIC_SECAM */
+	{ "Temic SECAM",			/* the 'name' */
+	   TTYPE_SECAM,				/* input type */
+	   0x00,				/* PLL write address */
+	   TSA552x_SCONTROL,			/* control byte for PLL */
+	   { 0x00, 0x00 },			/* band-switch crosspoints */
+	   { 0x02, 0x04, 0x01 } },		/* the band-switch values */
+
+	/* PHILIPS_NTSC */
+	{ "Philips NTSC",			/* the 'name' */
+	   TTYPE_NTSC,				/* input type */
+	   PHILIPS_NTSC_WADDR,			/* PLL write address */
+	   TSA552x_SCONTROL,			/* control byte for PLL */
+	   { 0x00, 0x00 },			/* band-switch crosspoints */
+	   { 0xa0, 0x90, 0x30 } },		/* the band-switch values */
+
+	/* PHILIPS_PAL */
+	{ "Philips PAL",			/* the 'name' */
+	   TTYPE_PAL,				/* input type */
+	   0x00,				/* PLL write address */
+	   TSA552x_SCONTROL,			/* control byte for PLL */
+	   { 0x00, 0x00 },			/* band-switch crosspoints */
+	   { 0xa0, 0x90, 0x30 } },		/* the band-switch values */
+
+	/* PHILIPS_SECAM */
+	{ "Philips SECAM",			/* the 'name' */
+	   TTYPE_SECAM,				/* input type */
+	   0x00,				/* PLL write address */
+	   TSA552x_SCONTROL,			/* control byte for PLL */
+	   { 0x00, 0x00 },			/* band-switch crosspoints */
+	   { 0xa0, 0x90, 0x30 } }		/* the band-switch values */
+};
+
+
+/*
+ * get a signature of the card
+ * read all 128 possible i2c read addresses from 0x01 thru 0xff
+ * build a bit array with a 1 bit for each i2c device that responds
+ *
+ * XXX FIXME: use offset & count args
  */
 #define ABSENT		(-1)
 static int
-probe_card( bktr_reg_t *bktr, int verbose )
+signCard( bktr_ptr_t bktr, int offset, int count, u_char* sig )
 {
+	int	x;
+
+	for ( x = 0; x < 16; ++x )
+		sig[ x ] = 0;
+
+	for ( x = 0; x < 128; ++x ) {
+		if ( i2cRead( bktr, (2 * x) + 1 ) != ABSENT ) {
+			sig[ x / 8 ] |= (1 << (x % 8) );
+		}
+	}
+
+	return( 0 );
+}
+#undef ABSENT
+
+
+/*
+ * determine the card brand/model
+ */
+#define ABSENT		(-1)
+static void
+probeCard( bktr_ptr_t bktr, int verbose )
+{
+	int	card;
 	int	status;
 
 #if defined( OVERRIDE_CARD )
-	bktr->card_type = OVERRIDE_CARD;
-	bktr->card = &(card_types[ bktr->card_type ]);
-	goto end;
+	bktr->card = cards[ (card = OVERRIDE_CARD) ];
+	goto checkTuner;
 #endif
 
 	/* look for a tuner */
-	if ( i2cRead( bktr, TSA5522_RADDR ) == ABSENT ) {
-		bktr->card_type = CARD_INTEL;
-		bktr->card = &(card_types[ bktr->card_type ]);
+	if ( i2cRead( bktr, TSA552x_RADDR ) == ABSENT ) {
+		bktr->card = cards[ (card = CARD_INTEL) ];
+		bktr->card.tuner = &tuners[ NO_TUNER ];
 		goto checkDBX;
 	}
 
 	/* look for a hauppauge card */
 	if ( (status = i2cRead( bktr, PFC8582_RADDR )) != ABSENT ) {
-		bktr->card_type = CARD_HAUPPAUGE;
-		bktr->card = &(card_types[ bktr->card_type ]);
+		bktr->card = cards[ (card = CARD_HAUPPAUGE) ];
 		goto checkTuner;
 	}
 
 	/* look for an STB card */
 	if ( (status = i2cRead( bktr, X24C01_RADDR )) != ABSENT ) {
-		bktr->card_type = CARD_STB;
-		bktr->card = &(card_types[ bktr->card_type ]);
+		bktr->card = cards[ (card = CARD_STB) ];
 		goto checkTuner;
 	}
 
 	/* XXX FIXME: (how do I) look for a Miro card */
-	bktr->card_type = CARD_MIRO;
-	bktr->card = &(card_types[ bktr->card_type ]);
+	bktr->card = cards[ (card = CARD_MIRO) ];
 
 checkTuner:
-	/* differentiate TEMIC vs. PHILIPS tuners */
-	if ( i2cRead( bktr, TEMIC_TSA5522_RADDR ) != ABSENT ) {
-		bktr->card->tuner = TEMIC_TUNER;
+	/* differentiate type of tuner */
+	if ( i2cRead( bktr, TEMIC_NTSC_RADDR ) != ABSENT ) {
+		bktr->card.tuner = &tuners[ TEMIC_NTSC ];
 		goto checkDBX;
 	}
 
-	if ( i2cRead( bktr, PHILIPS_TSA5523_RADDR ) != ABSENT ) {
-		bktr->card->tuner = PHILIPS_TUNER;
+	if ( i2cRead( bktr, PHILIPS_NTSC_RADDR ) != ABSENT ) {
+		bktr->card.tuner = &tuners[ PHILIPS_NTSC ];
 		goto checkDBX;
 	}
+#if defined( TEST_PAL )
+/** WARNING: this is a test */
+	if ( card == CARD_HAUPPAUGE ) {
+		if ( i2cRead( bktr, TEMIC_PALI_RADDR ) != ABSENT ) {
+			bktr->card.tuner = &tuners[ TEMIC_PAL ];
+			goto checkDBX;
+		}
+	}
+#endif /* TEST_PAL */
 
 	/* no tuner found */
-	bktr->card->tuner = NO_TUNER;
+	bktr->card.tuner = &tuners[ NO_TUNER ];
 
 checkDBX:
 	/* probe for BTSC (dbx) chips */
 	if ( i2cRead( bktr, TDA9850_RADDR ) != ABSENT )
-		bktr->card->dbx = 1;
+		bktr->card.dbx = 1;
 
 end:
 	if ( verbose ) {
-		printf( "%s", bktr->card->name );
-		if ( bktr->card->tuner )
-			printf( ", %s tuner", bktr->card->tuner ==
-			        TEMIC_TUNER ? "Temic" : "Philips" );
-		if ( bktr->card->dbx )
+		printf( "%s", bktr->card.name );
+		if ( bktr->card.tuner )
+			printf( ", %s tuner", bktr->card.tuner->name );
+		if ( bktr->card.dbx )
 			printf( ", dbx stereo" );
-		printf( "\n" );
+		printf( ".\n" );
 	}
-	return bktr->card_type;
 }
 #undef ABSENT
-
-
-#define TSA5522_BANDA	band_addrs[card_types[bktr->card_type].tuner-1][0]
-#define TSA5522_BANDB	band_addrs[card_types[bktr->card_type].tuner-1][1]
-#define TSA5522_BANDC	band_addrs[card_types[bktr->card_type].tuner-1][2]
-
-u_char band_addrs[][3] = {
-	/* BANDA BANDB  BANDC */
-	{  0x02,  0x04,  0x01 },	/* TEMIC */
-	{  0xa0,  0x90,  0x30 }		/* PHILIPS */
-};
 
 
 /******************************************************************************
  * tuner specific routines:
  */
-
-
-/*
- * bit 7: CONTROL BYTE = 1
- * bit 6: CP = 0		moderate speed tuning, better FM
- * bit 5: T2 = 0		normal operation
- * bit 4: T1 = 0		normal operation
- * bit 3: T0 = 1		normal operation
- * bit 2: RSA = 1		62.5kHz
- * bit 1: RSB = 1		62.5kHz
- * bit 0: OS = 0		normal operation
- *
- * FIXME: create defines for the above bitfields.
- */
-#if 0
-#define TSA5522_CONTROL		0xce
-#else
-#define TSA5522_CONTROL		0x8e
-#endif
 
 
 /* scaling factor for frequencies expressed as ints */
@@ -2773,7 +3097,6 @@ int	irccable[] = {
 
 /*
  * North American Cable Channels, HRC:
- *
  */
 int	hrccable[] = {
 	0, 0, 0,
@@ -2781,20 +3104,163 @@ int	hrccable[] = {
 };
 
 /*
- * Western European channels:
+ * Western European broadcast channels:
  *
+ * (there are others that appear to vary between countries - rmt)
+ *
+ * here's the table Philips provides:
+ * caution, some of the offsets don't compute...
+ *
+ *  1	 4525	700	N21
+ * 
+ *  2	 4825	700	E2
+ *  3	 5525	700	E3
+ *  4	 6225	700	E4
+ * 
+ *  5	17525	700	E5
+ *  6	18225	700	E6
+ *  7	18925	700	E7
+ *  8	19625	700	E8
+ *  9	20325	700	E9
+ * 10	21025	700	E10
+ * 11	21725	700	E11
+ * 12	22425	700	E12
+ * 
+ * 13	 5375	700	ITA
+ * 14	 6225	700	ITB
+ * 
+ * 15	 8225	700	ITC
+ * 
+ * 16	17525	700	ITD
+ * 17	18325	700	ITE
+ * 
+ * 18	19225	700	ITF
+ * 19	20125	700	ITG
+ * 20	21025	700	ITH
+ * 
+ * 21	47125	800	E21
+ * 22	47925	800	E22
+ * 23	48725	800	E23
+ * 24	49525	800	E24
+ * 25	50325	800	E25
+ * 26	51125	800	E26
+ * 27	51925	800	E27
+ * 28	52725	800	E28
+ * 29	53525	800	E29
+ * 30	54325	800	E30
+ * 31	55125	800	E31
+ * 32	55925	800	E32
+ * 33	56725	800	E33
+ * 34	57525	800	E34
+ * 35	58325	800	E35
+ * 36	59125	800	E36
+ * 37	59925	800	E37
+ * 38	60725	800	E38
+ * 39	61525	800	E39
+ * 40	62325	800	E40
+ * 41	63125	800	E41
+ * 42	63925	800	E42
+ * 43	64725	800	E43
+ * 44	65525	800	E44
+ * 45	66325	800	E45
+ * 46	67125	800	E46
+ * 47	67925	800	E47
+ * 48	68725	800	E48
+ * 49	69525	800	E49
+ * 50	70325	800	E50
+ * 51	71125	800	E51
+ * 52	71925	800	E52
+ * 53	72725	800	E53
+ * 54	73525	800	E54
+ * 55	74325	800	E55
+ * 56	75125	800	E56
+ * 57	75925	800	E57
+ * 58	76725	800	E58
+ * 59	77525	800	E59
+ * 60	78325	800	E60
+ * 61	79125	800	E61
+ * 62	79925	800	E62
+ * 63	80725	800	E63
+ * 64	81525	800	E64
+ * 65	82325	800	E65
+ * 66	83125	800	E66
+ * 67	83925	800	E67
+ * 68	84725	800	E68
+ * 69	85525	800	E69
+ * 
+ * 70	 4575	800	IA
+ * 71	 5375	800	IB
+ * 72	 6175	800	IC
+ * 
+ * 74	 6925	700	S01
+ * 75	 7625	700	S02
+ * 76	 8325	700	S03
+ * 
+ * 80	10525	700	S1
+ * 81	11225	700	S2
+ * 82	11925	700	S3
+ * 83	12625	700	S4
+ * 84	13325	700	S5
+ * 85	14025	700	S6
+ * 86	14725	700	S7
+ * 87	15425	700	S8
+ * 88	16125	700	S9
+ * 89	16825	700	S10
+ * 90	23125	700	S11
+ * 91	23825	700	S12
+ * 92	24525	700	S13
+ * 93	25225	700	S14
+ * 94	25925	700	S15
+ * 95	26625	700	S16
+ * 96	27325	700	S17
+ * 97	28025	700	S18
+ * 98	28725	700	S19
+ * 99	29425	700	S20
+ * 
+ * 100	 3890	000	IFFREQ
+ * 
  */
-int	weurope[] = {
-	0, 0, 0,
-	0
+#define OFFSET	8.00
+int   weurope[] = {
+	69,	(int)( 38.90 * FREQFACTOR),	0,
+	21,	(int)(471.25 * FREQFACTOR),	(int)(OFFSET * FREQFACTOR),
+	 0
 };
+#undef OFFSET
+
+/*
+ * Japanese Broadcast Channels:
+ *
+ *  1:  91.25MHz -  3: 103.25MHz
+ *  4: 171.25MHz -  7: 189.25MHz
+ *  8: 193.25MHz - 12: 217.25MHz  (VHF)
+ * 13: 471.25MHz - 62: 765.25MHz  (UHF)
+ *
+ * IF freq: 45.75 mHz
+ *  OR
+ * IF freq: 58.75 mHz
+ */
+#define OFFSET  6.00
+#define IF_FREQ 45.75
+int     jpnbcst[] = {
+	62,     (int)(IF_FREQ * FREQFACTOR),    0,
+	13,     (int)(471.25 * FREQFACTOR),     (int)(OFFSET * FREQFACTOR),
+	 8,     (int)(193.25 * FREQFACTOR),     (int)(OFFSET * FREQFACTOR),
+	 4,     (int)(171.25 * FREQFACTOR),     (int)(OFFSET * FREQFACTOR),
+	 1,     (int)( 91.25 * FREQFACTOR),     (int)(OFFSET * FREQFACTOR),
+	 0
+};
+#undef IF_FREQ
+#undef OFFSET
+
 
 int* freqTable[] = {
 	NULL,
 	nabcst,
 	irccable,
 	hrccable,
-	weurope
+	weurope,
+	jpnbcst
 };
 
 
@@ -2802,25 +3268,25 @@ int* freqTable[] = {
 #define TBL_BASE_FREQ	freqTable[ bktr->tuner.chnlset ][ x + 1 ]
 #define TBL_OFFSET	freqTable[ bktr->tuner.chnlset ][ x + 2 ]
 static int
-frequency_lookup( bktr_reg_t* bktr, int channel )
+frequency_lookup( bktr_ptr_t bktr, int channel )
 {
 	int	x;
 
 	/* check for "> MAX channel" */
 	x = 0;
 	if ( channel > TBL_CHNL )
-		return -1;
+		return( -1 );
 
 	/* search the table for data */
 	for ( x = 3; TBL_CHNL; x += 3 ) {
 		if ( channel >= TBL_CHNL ) {
-			return
-			  (TBL_BASE_FREQ + ((channel-TBL_CHNL) * TBL_OFFSET));
+			return( TBL_BASE_FREQ +
+				 ((channel - TBL_CHNL) * TBL_OFFSET) );
 		}
 	}
 
 	/* not found, must be below the MIN channel */
-	return -1;
+	return( -1 );
 }
 #undef TBL_OFFSET
 #undef TBL_BASE_FREQ
@@ -2832,24 +3298,33 @@ frequency_lookup( bktr_reg_t* bktr, int channel )
  * set the frequency of the tuner
  */
 static int
-tv_freq( bktr_reg_t* bktr, int frequency )
+tv_freq( bktr_ptr_t bktr, int frequency )
 {
-	i2c_regptr_t	bti2c;
-	u_char		band;
-	int		N;
-	int		order;
+	const struct TUNER*	tuner;
+	u_char			addr;
+	u_char			control;
+	u_char			band;
+	int			N;
+	int			order;
+
+	tuner = bktr->card.tuner;
+	if ( tuner == NULL )
+		return( -1 );
 
 	/*
 	 * select the band based on frequency
-	 * FIXME: do the cross-over points need to be set on a
-	 * tuner by tuner basis?
+	 * XXX FIXME: get the cross-over points from the tuner struct
 	 */
 	if ( frequency < (160 * FREQFACTOR) )
-		band = TSA5522_BANDA;
+		band = tuner->bandAddrs[ 0 ];
 	else if ( frequency < (454 * FREQFACTOR) )
-		band = TSA5522_BANDB;
+		band = tuner->bandAddrs[ 1 ];
 	else
-		band = TSA5522_BANDC;
+		band = tuner->bandAddrs[ 2 ];
+
+	/* set the address of the PLL */
+	addr = tuner->pllAddr;
+	control = tuner->pllControl;
 
 	/*
 	 * N = 16 * { fRF(pc) + fIF(pc) }
@@ -2858,22 +3333,107 @@ tv_freq( bktr_reg_t* bktr, int frequency )
 	 *
 	 * frequency was passed in as mHz * 16
 	 */
+#if defined( TEST_TUNER_AFC )
+	if ( bktr->tuner.afc )
+		frequency -= 4;
+#endif
 	N = frequency + TBL_IF;
 
 	if ( frequency > bktr->tuner.frequency ) {
-		i2cWrite( bktr, TSA5522_WADDR, (N>>8) & 0x7f, N & 0xff );
-		i2cWrite( bktr, TSA5522_WADDR, TSA5522_CONTROL, band );
+		i2cWrite( bktr, addr, (N>>8) & 0x7f, N & 0xff );
+		i2cWrite( bktr, addr, control, band );
 	}
 	else {
-		i2cWrite( bktr, TSA5522_WADDR, TSA5522_CONTROL, band );
-		i2cWrite( bktr, TSA5522_WADDR, (N>>8) & 0x7f, N & 0xff );
+		i2cWrite( bktr, addr, control, band );
+		i2cWrite( bktr, addr, (N>>8) & 0x7f, N & 0xff );
 	}
+
+#if defined( TUNER_AFC )
+	if ( bktr->tuner.afc == TRUE ) {
+		if ( (N = do_afc( bktr, addr, N )) < 0 ) {
+		    /* AFC failed, restore requested frequency */
+		    N = frequency + TBL_IF;
+		    i2cWrite( bktr, addr, (N>>8) & 0x7f, N & 0xff );
+		}
+		else
+		    frequency = N - TBL_IF;
+	}
+#endif /* TUNER_AFC */
 
 	/* update frequency */
 	bktr->tuner.frequency = frequency;
 
-	return 0;
+	return( 0 );
 }
+
+#if defined( TUNER_AFC )
+/*
+ * 
+ */
+static int
+do_afc( bktr_ptr_t bktr, int addr, int frequency )
+{
+	int step;
+	int status;
+	int origFrequency;
+
+	origFrequency = frequency;
+
+	/* wait for first setting to take effect */
+	tsleep( (caddr_t)bktr, PZERO, "tuning", hz/8 );
+
+	if ( (status = i2cRead( bktr, addr + 1 )) < 0 )
+		return( -1 );
+
+#if defined( TEST_TUNER_AFC )
+ printf( "\nOriginal freq: %d, status: 0x%02x\n", frequency, status );
+#endif
+	for ( step = 0; step < AFC_MAX_STEP; ++step ) {
+		if ( (status = i2cRead( bktr, addr + 1 )) < 0 )
+			goto fubar;
+		if ( !(status & 0x40) ) {
+#if defined( TEST_TUNER_AFC )
+ printf( "no lock!\n" );
+#endif
+			goto fubar;
+		}
+
+		switch( status & AFC_BITS ) {
+		case AFC_FREQ_CENTERED:
+#if defined( TEST_TUNER_AFC )
+ printf( "Centered, freq: %d, status: 0x%02x\n", frequency, status );
+#endif
+			return( frequency );
+
+		case AFC_FREQ_MINUS_125:
+		case AFC_FREQ_MINUS_62:
+#if defined( TEST_TUNER_AFC )
+ printf( "Low, freq: %d, status: 0x%02x\n", frequency, status );
+#endif
+			--frequency;
+			break;
+
+		case AFC_FREQ_PLUS_62:
+		case AFC_FREQ_PLUS_125:
+#if defined( TEST_TUNER_AFC )
+ printf( "Hi, freq: %d, status: 0x%02x\n", frequency, status );
+#endif
+			++frequency;
+			break;
+		}
+
+		i2cWrite( bktr, addr,
+			  (frequency>>8) & 0x7f, frequency & 0xff );
+		DELAY( AFC_DELAY );
+	}
+
+ fubar:
+	i2cWrite( bktr, addr,
+		  (origFrequency>>8) & 0x7f, origFrequency & 0xff );
+
+	return( -1 );
+}
+#endif /* TUNER_AFC */
 #undef TBL_IF
 
 
@@ -2881,22 +3441,20 @@ tv_freq( bktr_reg_t* bktr, int frequency )
  * set the channel of the tuner
  */
 static int
-tv_channel( bktr_reg_t* bktr, int channel )
+tv_channel( bktr_ptr_t bktr, int channel )
 {
 	int frequency;
 
 	/* calculate the frequency according to tuner type */
 	if ( (frequency = frequency_lookup( bktr, channel )) < 0 )
-		return -1;
+		return( -1 );
 
 	/* set the new frequency */
 	if ( tv_freq( bktr, frequency ) < 0 )
-		return -1;
+		return( -1 );
 
 	/* OK to update records */
-	bktr->tuner.channel = channel;
-
-	return channel;
+	return( (bktr->tuner.channel = channel) );
 }
 
 
@@ -2910,17 +3468,21 @@ tv_channel( bktr_reg_t* bktr, int channel )
  */
 #define AUDIOMUX_DISCOVER_NOT
 static int
-set_audio( bktr_reg_t *bktr, int cmd )
+set_audio( bktr_ptr_t bktr, int cmd )
 {
-	bt848_reg_t		bt848;
-	u_long			temp;
-	volatile u_char		idx;
+	bt848_ptr_t	bt848;
+	u_long		temp;
+	volatile u_char	idx;
 
 #if defined( AUDIOMUX_DISCOVER )
 	if ( cmd >= 200 )
 		cmd -= 200;
 	else
 #endif /* AUDIOMUX_DISCOVER */
+
+	/* check for existance of audio MUXes */
+	if ( !bktr->card.audiomuxs[ 4 ] )
+		return( -1 );
 
 	switch (cmd) {
 	case AUDIO_TUNER:
@@ -2940,7 +3502,7 @@ set_audio( bktr_reg_t *bktr, int cmd )
 		break;
 	default:
 		printf("bktr: audio cmd error %02x\n", cmd);
-		return -1;
+		return( -1 );
 	}
 
 	bt848 =	bktr->base;
@@ -2951,7 +3513,7 @@ set_audio( bktr_reg_t *bktr, int cmd )
 	 * success, but follows the rule of least astonishment.
 	 */
 
-	/* this was an 8 bit reference before ?? */
+	/* XXX FIXME: this was an 8 bit reference before new struct ??? */
 	bt848->gpio_reg_inp = (~GPIO_AUDIOMUX_BITS & 0xff);
 
 	if ( bktr->audio_mute_state == TRUE )
@@ -2965,7 +3527,7 @@ set_audio( bktr_reg_t *bktr, int cmd )
 		bt848->gpio_data = temp | (cmd & 0xff);
 		printf("cmd: %d\n", cmd );
 #else
-		temp | bktr->card->audiomuxs[ idx ];
+		temp | bktr->card.audiomuxs[ idx ];
 #endif /* AUDIOMUX_DISCOVER */
 
 	return( 0 );
@@ -2975,15 +3537,31 @@ set_audio( bktr_reg_t *bktr, int cmd )
 /*
  * 
  */
-#define CON1ADDR		0x04
-#define CON2ADDR		0x05
-#define CON3ADDR		0x06
-#define CON4ADDR		0x07
-
-static int
-set_BTSC( bktr_reg_t *bktr, int control )
+static void
+temp_mute( bktr_ptr_t bktr, int flag )
 {
-	return i2cWrite( bktr, TDA9850_WADDR, CON3ADDR, control );
+	static int	muteState = FALSE;
+
+	if ( flag == TRUE ) {
+		muteState = bktr->audio_mute_state;
+		set_audio( bktr, AUDIO_MUTE );		/* prevent 'click' */
+	}
+	else {
+		tsleep( (caddr_t)bktr, PZERO, "tuning", hz/8 );
+		if ( muteState == FALSE )
+			set_audio( bktr, AUDIO_UNMUTE );
+	}
+}
+
+
+/*
+ * setup the dbx chip
+ * XXX FIXME: alot of work to be done here, this merely unmutes it.
+ */
+static int
+set_BTSC( bktr_ptr_t bktr, int control )
+{
+	return( i2cWrite( bktr, TDA9850_WADDR, CON3ADDR, control ) );
 }
 
 
@@ -3019,4 +3597,3 @@ SYSINIT(bktrdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,bktr_drvinit,NULL)
 /* c-continued-statement-offset: 8 */
 /* c-tab-always-indent: nil */
 /* End: */
-
