@@ -18,6 +18,6 @@ LDADD=	${LIBCC_INT}
 CLEANFILES= f77.1
 
 f77.1: g77.1
-	ln -sf ${.ALLSRC} ${.TARGET}
+	cat ${.ALLSRC} > ${.TARGET}
 
 .include <bsd.prog.mk>

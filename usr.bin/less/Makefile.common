@@ -8,4 +8,4 @@ CFLAGS+=-I${.CURDIR}/../less -I${LSDIR}
 .SUFFIXES: .nro .1
 
 .nro.1:
-	ln -s ${.IMPSRC} ${.TARGET}
+	cat ${.IMPSRC} > ${.TARGET}
