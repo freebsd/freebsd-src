@@ -106,6 +106,7 @@ static struct lfs lfs_default =  {
 	/* lfs_offset */	0,
 	/* lfs_lastpseg */	0,
 	/* lfs_tstamp */	0,
+        /* lfs_maxsymlinklen */ MAXSYMLINKLEN,			       
 	/* lfs_minfree */	MINFREE,
 	/* lfs_maxfilesize */	0,
 	/* lfs_dbpseg */	DFL_LFSSEG/DEV_BSIZE,
@@ -143,6 +144,7 @@ static struct lfs lfs_default =  {
 	/* lfs_flags */		0,
 	/* lfs_fsmnt */		{ 0 },
 	/* lfs_pad */		{ 0 },
+        /* lfs_pad2 */          { 0 },				
 	/* lfs_cksum */		0
 };
 
