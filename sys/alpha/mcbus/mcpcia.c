@@ -233,6 +233,7 @@ mcpcia_attach(device_t dev)
 			printf("Attaching Real Console\n");
 			mcpcia_enable_intr(sc, 16);
 			dec_kn300_cons_init();
+			promcndetach();
 			/*
 			 * Enable EISA interrupts.
 			 */
