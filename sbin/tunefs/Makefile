@@ -2,7 +2,7 @@
 # $FreeBSD$
 
 PROG=	tunefs
-DPADD=	-lufs
+DPADD=	${LIBUFS}
 LDADD=	-lufs
 MAN=	tunefs.8
 
