@@ -49,13 +49,28 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/vnode.h>
+#ifdef __NetBSD__
+#include <sys/proc.h>
+#endif
 
+#ifdef __FreeBSD__
 #include <machine/clock.h>      /* for DELAY */
-
 #include <pci/pcivar.h>
+#endif
 
-#include <machine/ioctl_meteor.h>
+#if (__FreeBSD_version >=300000)
+#include <machine/bus_memio.h>          /* for bus space */
+#include <machine/bus.h>
+#include <sys/bus.h>
+#endif
+
+#ifdef __NetBSD__
+#include <dev/ic/ioctl_meteor.h>	/* NetBSD .h file location */
+#include <dev/ic/ioctl_bt848.h>
+#else
+#include <machine/ioctl_meteor.h>	/* Traditional .h file location */
 #include <machine/ioctl_bt848.h>        /* extensions to ioctl_meteor.h */
+#endif
 #include <dev/bktr/bktr_reg.h>
 #include <dev/bktr/bktr_tuner.h>
 #include <dev/bktr/bktr_card.h>
@@ -317,7 +332,8 @@ static int nabcst[] = {
  */
 #define OFFSET	6.00
 static int irccable[] = {
-	99,	(int)( 45.75 * FREQFACTOR),	0,
+	116,    (int)( 45.75 * FREQFACTOR),     0,
+	100,    (int)(649.25 * FREQFACTOR),     (int)(OFFSET * FREQFACTOR),
 	95,	(int)( 91.25 * FREQFACTOR),	(int)(OFFSET * FREQFACTOR),
 	23,	(int)(217.25 * FREQFACTOR),	(int)(OFFSET * FREQFACTOR),
 	14,	(int)(121.25 * FREQFACTOR),	(int)(OFFSET * FREQFACTOR),
@@ -342,7 +358,8 @@ static int irccable[] = {
  */
 #define OFFSET  6.00
 static int hrccable[] = {
-	99,	(int)( 45.75 * FREQFACTOR),     0,
+	116,    (int)( 45.75 * FREQFACTOR),     0,
+	100,    (int)(648.00 * FREQFACTOR),     (int)(OFFSET * FREQFACTOR),
 	95,	(int)( 90.00 * FREQFACTOR),	(int)(OFFSET * FREQFACTOR),
 	23,	(int)(216.00 * FREQFACTOR),	(int)(OFFSET * FREQFACTOR),
 	14,	(int)(120.00 * FREQFACTOR),	(int)(OFFSET * FREQFACTOR),
