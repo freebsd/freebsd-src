@@ -1,12 +1,12 @@
 #
-# $Id: Makefile,v 1.4 1994/08/20 18:13:59 csgr Exp $
+# $Id: Makefile,v 1.5 1994/11/07 21:07:05 phk Exp $
 #
 
 LCRYPTBASE= 	libcrypt
-LCRYPTSO=	$(LCRYPTBASE).so.$(SHLIB_MAJOR).$(SHLIB_MINOR)
+LCRYPTSO=	${LCRYPTBASE}.so.${SHLIB_MAJOR}.${SHLIB_MINOR}
 
 LSCRYPTBASE= 	libscrypt
-LSCRYPTSO=	$(LSCRYPTBASE).so.$(SHLIB_MAJOR).$(SHLIB_MINOR)
+LSCRYPTSO=	${LSCRYPTBASE}.so.${SHLIB_MAJOR}.${SHLIB_MINOR}
 
 # called libscrypt - for scramble crypt!
 .PATH:	${.CURDIR}/../libmd
@@ -19,22 +19,22 @@ CFLAGS+=	-I${.CURDIR}/../libmd
 
 afterinstall:
 .if !defined(NOPIC) 
-	@cd $(DESTDIR)/$(LIBDIR); \
-	if [ ! -e $(LCRYPTSO) ]; then \
-	rm -f $(LCRYPTSO); \
-	ln -s $(LSCRYPTSO) $(LCRYPTSO); \
+	@cd ${DESTDIR}${SHLIBDIR}; \
+	if [ ! -e ${LCRYPTSO} ]; then \
+	rm -f ${LCRYPTSO}; \
+	ln -s ${LSCRYPTSO} ${LCRYPTSO}; \
 	fi
 .endif
-	@cd  $(DESTDIR)/$(LIBDIR); \
-	if [ ! -e $(LCRYPTBASE).a ]; then \
-	rm -f $(LCRYPTBASE).a; \
-	ln -s $(LSCRYPTBASE).a libcrypt.a; \
+	@cd  ${DESTDIR}${LIBDIR}; \
+	if [ ! -e ${LCRYPTBASE}.a ]; then \
+	rm -f ${LCRYPTBASE}.a; \
+	ln -s ${LSCRYPTBASE}.a libcrypt.a; \
 	fi
 .if !defined(NOPROFILE)
-	@cd  $(DESTDIR)/$(LIBDIR); \
-	if [ ! -e $(LCRYPTBASE)_p.a ]; then \
-	rm -f $(LCRYPTBASE)_p.a; \
-	ln -s $(LSCRYPTBASE)_p.a libcrypt_p.a; \
+	@cd  ${DESTDIR}${LIBDIR}; \
+	if [ ! -e ${LCRYPTBASE}_p.a ]; then \
+	rm -f ${LCRYPTBASE}_p.a; \
+	ln -s ${LSCRYPTBASE}_p.a libcrypt_p.a; \
 	fi
 .endif
 
