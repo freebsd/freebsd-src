@@ -1,0 +1,436 @@
+.\"
+.\" dc.1 - the *roff document processor source for the dc manual
+.\"
+.\" This file is part of GNU dc.
+.\" Copyright (C) 1994, 1997 Free Software Foundation, Inc.
+.\"
+.\" This program is free software; you can redistribute it and/or modify
+.\" it under the terms of the GNU General Public License as published by
+.\" the Free Software Foundation; either version 2 of the License , or
+.\" (at your option) any later version.
+.\"
+.\" This program is distributed in the hope that it will be useful,
+.\" but WITHOUT ANY WARRANTY; without even the implied warranty of
+.\" MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+.\" GNU General Public License for more details.
+.\"
+.\" You should have received a copy of the GNU General Public License
+.\" along with this program; see the file COPYING.  If not, write to
+.\" the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+.\"
+.TH DC 1 "1997-03-25" "GNU Project"
+.ds dc \fIdc\fP
+.ds Dc \fIDc\fP
+.SH NAME
+dc \- an arbitrary precision calculator
+.SH SYNOPSIS
+dc
+.SH DESCRIPTION
+.PP
+\*(Dc is a reverse-polish desk calculator which supports
+unlimited precision arithmetic.
+It also allows you to define and call macros.
+Normally \*(dc reads from the standard input;
+if any command arguments are given to it, they are filenames,
+and \*(dc reads and executes the contents of the files before reading
+from standard input.
+All normal output is to standard output;
+all error output is to standard error.
+.PP
+A reverse-polish calculator stores numbers on a stack.
+Entering a number pushes it on the stack.
+Arithmetic operations pop arguments off the stack and push the results.
+.PP
+To enter a number in
+.IR dc ,
+type the digits with an optional decimal point.
+Exponential notation is not supported.
+To enter a negative number,
+begin the number with ``_''.
+``-'' cannot be used for this,
+as it is a binary operator for subtraction instead.
+To enter two numbers in succession,
+separate them with spaces or newlines.
+These have no meaning as commands.
+.PD
+.SH
+Printing Commands
+.TP
+.B p
+Prints the value on the top of the stack,
+without altering the stack.
+A newline is printed after the value.
+.TP
+.B P
+Prints the value on the top of the stack, popping it off,
+and does not print a newline after.
+.TP
+.B f
+Prints the entire contents of the stack
+.ig
+and the contents of all of the registers,
+..
+without altering anything.
+This is a good command to use if you are lost or want
+to figure out what the effect of some command has been.
+.PD
+.SH
+Arithmetic
+.TP
+.B +
+Pops two values off the stack, adds them,
+and pushes the result.
+The precision of the result is determined only
+by the values of the arguments,
+and is enough to be exact.
+.TP
+.B -
+Pops two values,
+subtracts the first one popped from the second one popped,
+and pushes the result.
+.TP
+.B *
+Pops two values, multiplies them, and pushes the result.
+The number of fraction digits in the result is controlled
+by the current precision value (see below) and does not
+depend on the values being multiplied.
+.TP
+.B /
+Pops two values,
+divides the second one popped from the first one popped,
+and pushes the result.
+The number of fraction digits is specified by the precision value.
+.TP
+.B %
+Pops two values,
+computes the remainder of the division that the
+.B /
+command would do,
+and pushes that.
+The division is done with as many fraction digits
+as the precision value specifies,
+and the remainder is also computed with that many fraction digits.
+.TP
+.B ~
+Pops two values,
+divides the second one popped from the first one popped.
+The quotient is pushed first, and the remainder is pushed next.
+The number of fraction digits used in the division
+is specified by the precision value.
+(The sequence \fBSdSn lnld/ LnLd%\fP could also accomplish
+this function, with slightly different error checking.)
+.TP
+.B ^
+Pops two values and exponentiates,
+using the first value popped as the exponent
+and the second popped as the base.
+The fraction part of the exponent is ignored.
+The precision value specifies the number of fraction
+digits in the result.
+.TP
+.B |
+Pops three values and computes a modular exponentiation.
+The first value popped is used as the reduction modulus;
+this value must be a non-zero number,
+and should be an integer.
+The second popped is used as the exponent;
+this value must be a non-negative number,
+and any fractional part of this exponent will be ignored.
+The third value popped is the base which gets exponentiated.
+The precision value specifies the number of fraction
+digits in the result.
+For small numbers this is like the sequence \fBSm lble^ Lm%\fP,
+but, unlike \fB^\fP, this command will work with arbritrarily large exponents.
+.TP
+.B v
+Pops one value,
+computes its square root,
+and pushes that.
+The precision value specifies the number of fraction digits in the result.
+.PP
+Most arithmetic operations are affected by the ``precision value'',
+which you can set with the
+.B k
+command.
+The default precision value is zero,
+which means that all arithmetic except for
+addition and subtraction produces integer results.
+.PP
+The remainder operation
+.B %
+requires some explanation:
+applied to arguments ``a'' and ``b'' it produces ``a - (b * (a / b))'',
+where ``a / b'' is computed in the current precision.
+.SH
+Stack Control
+.TP
+.B c
+Clears the stack, rendering it empty.
+.TP
+.B d
+Duplicates the value on the top of the stack,
+pushing another copy of it.
+Thus, ``4d*p'' computes 4 squared and prints it.
+.TP
+.B r
+Reverses the order of (swaps) the top two values on the stack.
+.SH
+Registers
+.PP
+\*(Dc provides 256 memory registers,
+each named by a single character.
+You can store a number or a string in a register and retrieve it later.
+.TP
+.BI s r
+Pop the value off the top of the stack and store
+it into register
+.IR r .
+.TP
+.BI l r
+Copy the value in register
+.I r
+and push it onto the stack.
+This does not alter the contents of
+.IR r .
+.PP
+Each register also contains its own stack.
+The current register value is the top of the register's stack.
+.TP
+.BI S r
+Pop the value off the top of the (main) stack and
+push it onto the stack of register
+.IR r .
+The previous value of the register becomes inaccessible.
+.TP
+.BI L r
+Pop the value off the top of register
+.IR r 's
+stack and push it onto the main stack.
+The previous value
+in register
+.IR r 's
+stack, if any,
+is now accessible via the
+.BI l r
+command.
+.ig
+.PP
+The
+.B f
+command prints a list of all registers that have contents stored in them,
+together with their contents.
+Only the current contents of each register
+(the top of its stack)
+is printed.
+..
+.SH
+Parameters
+.PP
+\*(Dc has three parameters that control its operation:
+the precision, the input radix, and the output radix.
+The precision specifies the number
+of fraction digits to keep in the result of most arithmetic operations.
+The input radix controls the interpretation of numbers typed in;
+all numbers typed in use this radix.
+The output radix is used for printing numbers.
+.PP
+The input and output radices are separate parameters;
+you can make them unequal,
+which can be useful or confusing.
+The input radix must be between 2 and 36 inclusive.
+The output radix must be at least 2.
+The precision must be zero or greater.
+The precision is always measured in decimal digits,
+regardless of the current input or output radix.
+.TP
+.B i
+Pops the value off the top of the stack
+and uses it to set the input radix.
+.TP
+.B o
+Pops the value off the top of the stack
+and uses it to set the output radix.
+.TP
+.B k
+Pops the value off the top of the stack
+and uses it to set the precision.
+.TP
+.B I
+Pushes the current input radix on the stack.
+.TP
+.B O
+Pushes the current output radix on the stack.
+.TP
+.B K
+Pushes the current precision on the stack.
+.SH
+Strings
+.PP
+\*(Dc can operate on strings as well as on numbers.
+The only things you can do with strings are
+print them and execute them as macros
+(which means that the contents of the string are processed as
+\*(dc commands).
+All registers and the stack can hold strings,
+and \*(dc always knows whether any given object is a string or a number.
+Some commands such as arithmetic operations demand numbers
+as arguments and print errors if given strings.
+Other commands can accept either a number or a string;
+for example, the
+.B p
+command can accept either and prints the object
+according to its type.
+.TP
+.BI [ characters ]
+Makes a string containing
+.I characters
+(contained between balanced
+.B [
+and
+.B ]
+characters),
+and pushes it on the stack.
+For example,
+.B [foo]P
+prints the characters
+.B foo
+(with no newline).
+.TP
+.B a
+The top-of-stack is popped.
+If it was a number, then the low-order byte of this number
+is converted into a string and pushed onto the stack.
+Otherwise the top-of-stack was a string,
+and the first character of that string is pushed back.
+.TP
+.B x
+Pops a value off the stack and executes it as a macro.
+Normally it should be a string;
+if it is a number,
+it is simply pushed back onto the stack.
+For example,
+.B [1p]x
+executes the macro
+.B 1p
+which pushes
+.B 1
+on the stack and prints
+.B 1
+on a separate line.
+.PP
+Macros are most often stored in registers;
+.B [1p]sa
+stores a macro to print
+.B 1
+into register
+.BR a ,
+and
+.B lax
+invokes this macro.
+.TP
+.BI > r
+Pops two values off the stack and compares them
+assuming they are numbers,
+executing the contents of register
+.I r
+as a macro if the original top-of-stack
+is greater.
+Thus,
+.B 1 2>a
+will invoke register
+.BR a 's
+contents and
+.B 2 1>a
+will not.
+.TP
+.BI < r
+Similar but invokes the macro if the original top-of-stack is less.
+.TP
+.BI = r
+Similar but invokes the macro if the two numbers popped are equal.
+.ig
+This can also be validly used to compare two strings for equality.
+..
+.TP
+.B ?
+Reads a line from the terminal and executes it.
+This command allows a macro to request input from the user.
+.TP
+.B q
+exits from a macro and also from the macro which invoked it.
+If called from the top level,
+or from a macro which was called directly from the top level,
+the
+.B q
+command will cause \*(dc to exit.
+.TP
+.B Q
+Pops a value off the stack and uses it as a count
+of levels of macro execution to be exited.
+Thus,
+.B 3Q
+exits three levels.
+The
+.B Q
+command will never cause \*(dc to exit.
+.SH
+Status Inquiry
+.TP
+.B Z
+Pops a value off the stack,
+calculates the number of digits it has
+(or number of characters, if it is a string)
+and pushes that number.
+.TP
+.B X
+Pops a value off the stack,
+calculates the number of fraction digits it has,
+and pushes that number.
+For a string,
+the value pushed is
+.\" -1.
+0.
+.TP
+.B z
+Pushes the current stack depth;
+the number of objects on the stack before the execution of the
+.B z
+command.
+.SH
+Miscellaneous
+.TP
+.B !
+Will run the rest of the line as a system command.
+.TP
+.B #
+Will interpret the rest of the line as a comment.
+.TP
+.BI : r
+Will pop the top two values off of the stack.
+The old second-to-top value will be stored in the array
+.IR r ,
+indexed by the old top-of-stack value.
+.TP
+.BI ; r
+Pops the top-of-stack and uses it as an index into
+the array
+.IR r .
+The selected value is then pushed onto the stack.
+.SH
+NOTES
+.PP
+The array operations
+.B :
+and
+.B ;
+are usually only used by traditional implementations of
+.IR bc .
+(The GNU 
+.I bc
+is self contained and does not need \*(dc to run.)
+.SH
+BUGS
+.PP
+Email bug reports to
+.BR bug-gnu-utils@prep.ai.mit.edu .
+Be sure to include the word ``dc'' somewhere in the ``Subject:'' field.
