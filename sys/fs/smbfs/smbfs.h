@@ -34,8 +34,6 @@
 #ifndef _SMBFS_SMBFS_H_
 #define _SMBFS_SMBFS_H_
 
-#define VT_SMBFS	24
-
 #define SMBFS_VERMAJ	1
 #define SMBFS_VERMIN	1012
 #define SMBFS_VERSION	(SMBFS_VERMAJ*100000 + SMBFS_VERMIN)
@@ -69,11 +67,6 @@ struct smbfs_args {
 
 #ifdef MALLOC_DECLARE
 MALLOC_DECLARE(M_SMBFSMNT);
-#endif
-
-#ifndef VI_LOCK
-#define	VI_LOCK(vp)	smb_sl_lock(&(vp)->v_interlock)
-#define	VI_UNLOCK(vp)	smb_sl_unlock(&(vp)->v_interlock)
 #endif
 
 struct smbnode;
