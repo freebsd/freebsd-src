@@ -1,5 +1,5 @@
 .\" $FreeBSD$
-.\" $Id: file.man,v 1.39 2001/04/27 22:48:33 christos Exp $
+.\" $Id: file.man,v 1.42 2002/07/03 18:26:37 christos Exp $
 .Dd April 4, 2001
 .Dt FILE 1 "Copyright but distributable"
 .Os
@@ -16,7 +16,7 @@
 .Fl C
 .Op Fl m Ar magicfile
 .Sh DESCRIPTION
-This manual page documents version 3.37 of the
+This manual page documents version 3.39 of the
 .Nm
 utility which tests each argument in an attempt to classify it.
 There are three sets of tests, performed in this order:
@@ -316,12 +316,15 @@ keep the old magic file around for comparison purposes
 .Pa /usr/share/misc/magic.orig ) .
 .Sh EXAMPLES
 .Bd -literal
-$ file file.c file /dev/hda
-file.c:   C program text
-file:     ELF 32-bit LSB executable, Intel 80386, version 1,
-          dynamically linked, not stripped
-/dev/hda: block special
-
+$ file file.c file /dev/{wd0a,hda}
+file.c:    C program text
+file:      ELF 32-bit LSB executable, Intel 80386, version 1 (SYSV),
+           dynamically linked (uses shared libs), stripped
+/dev/wd0a: block special (0/0)
+/dev/hda:  block special (3/0)
+$ file -s /dev/wd0{b,d}
+/dev/wd0b: data
+/dev/wd0d: x86 boot sector
 $ file -s /dev/hda{,1,2,3,4,5,6,7,8,9,10}
 /dev/hda:   x86 boot sector
 /dev/hda1:  Linux/i386 ext2 filesystem
@@ -335,19 +338,20 @@ $ file -s /dev/hda{,1,2,3,4,5,6,7,8,9,10}
 /dev/hda9:  empty
 /dev/hda10: empty
 
-$ file -i file.c file /dev/hda
-file.c:      text/x-c
-file:        application/x-executable, dynamically linked (uses shared libs),
-             not stripped
-/dev/hda:    application/x-not-regular-file
+$ file -i file.c file /dev/{wd0a,hda}
+file.c:    text/x-c
+file:      application/x-executable, dynamically linked (uses shared libs),
+           not stripped
+/dev/hda:  application/x-not-regular-file
+/dev/wd0a: application/x-not-regular-file
 .Ed
 .Sh HISTORY
 There has been a
 .Nm
 command in every
 .Ux
-since at least Research Version 6
-(man page dated January 16, 1975).
+since at least Research Version 4
+(man page dated November, 1973).
 The System V version introduced one significant major change:
 the external list of magic number types.
 This slowed the program down slightly but made it a lot more flexible.
