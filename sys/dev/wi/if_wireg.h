@@ -201,13 +201,18 @@ struct wi_softc	{
 /* Default TX rate: 2Mbps, auto fallback */
 #define WI_DEFAULT_TX_RATE	3
 
-/* Default network name: empty string implies any */
+/* Default network name: ANY */
+/*
+ * [sommerfeld 1999/07/15] Changed from "ANY" to ""; according to Bill Fenner,
+ * ANY is used in MS driver user interfaces, while "" is used over the
+ * wire..
+ */
 #define WI_DEFAULT_NETNAME	""
 
 #define WI_DEFAULT_AP_DENSITY	1
 
 #define WI_DEFAULT_RTS_THRESH	2347
-	
+
 #define WI_DEFAULT_DATALEN	2304
 
 #define WI_DEFAULT_CREATE_IBSS	0
@@ -309,12 +314,12 @@ struct wi_softc	{
  */
 
 /*
- * Size of Hermes I/O space.
+ * Size of Hermes & Prism2 I/O space.
  */
 #define WI_IOSIZ		0x40
 
 /*
- * Hermes register definitions and what little I know about them.
+ * Hermes & Prism2 register definitions 
  */
 
 /* Hermes command/status registers. */
@@ -420,7 +425,7 @@ struct wi_softc	{
 #define WI_SW0			0x28
 #define WI_SW1			0x2A
 #define WI_SW2			0x2C
-#define WI_SW3			0x2E
+#define WI_SW3			0x2E 	/* does not appear in Prism2 */
 
 #define WI_CNTL			0x14
 
@@ -461,7 +466,7 @@ struct wi_ltv_str {
 						\
 		g.wi_len = 2;			\
 		g.wi_type = recno;		\
-		g.wi_val = val;			\
+		g.wi_val = htole16(val);	\
 		wi_write_record(sc, &g);	\
 	} while (0)
 
@@ -474,7 +479,7 @@ struct wi_ltv_str {
 		bzero((char *)&s, sizeof(s));			\
 		s.wi_len = (l / 2) + 2;				\
 		s.wi_type = recno;				\
-		s.wi_str[0] = strlen(str);			\
+		s.wi_str[0] = htole16(strlen(str));		\
 		bcopy(str, (char *)&s.wi_str[1], strlen(str));	\
 		wi_write_record(sc, (struct wi_ltv_gen *)&s);	\
 	} while (0)
@@ -482,7 +487,6 @@ struct wi_ltv_str {
 /*
  * Download buffer location and length (0xFD01).
  */
-#define WI_RID_DNLD_BUF		0xFD01
 struct wi_ltv_dnld_buf {
 	u_int16_t		wi_len;
 	u_int16_t		wi_type;
@@ -494,7 +498,6 @@ struct wi_ltv_dnld_buf {
 /*
  * Mem sizes (0xFD02).
  */
-#define WI_RID_MEMSZ		0xFD02
 struct wi_ltv_memsz {
 	u_int16_t		wi_len;
 	u_int16_t		wi_type;
@@ -503,9 +506,8 @@ struct wi_ltv_memsz {
 };
 
 /*
- * NIC Identification (0xFD0B)
+ * NIC Identification (0xFD0B, 0xFD20)
  */
-#define WI_RID_CARDID		0xFD0B
 struct wi_ltv_ver {
 	u_int16_t		wi_len;
 	u_int16_t		wi_type;
@@ -531,7 +533,6 @@ struct wi_ltv_ver {
 /*
  * List of intended regulatory domains (0xFD11).
  */
-#define WI_RID_DOMAINS		0xFD11
 struct wi_ltv_domains {
 	u_int16_t		wi_len;
 	u_int16_t		wi_type;
@@ -541,7 +542,6 @@ struct wi_ltv_domains {
 /*
  * CIS struct (0xFD13).
  */
-#define WI_RID_CIS		0xFD13
 struct wi_ltv_cis {
 	u_int16_t		wi_len;
 	u_int16_t		wi_type;
@@ -551,7 +551,6 @@ struct wi_ltv_cis {
 /*
  * Communications quality (0xFD43).
  */
-#define WI_RID_COMMQUAL		0xFD43
 struct wi_ltv_commqual {
 	u_int16_t		wi_len;
 	u_int16_t		wi_type;
