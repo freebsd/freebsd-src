@@ -579,19 +579,24 @@ ia64_init()
 	proc0.p_md.md_tf =
 	    (struct trapframe *)(proc0.p_addr->u_pcb.pcb_sp + 16);
 
-	PCPU_SET(curproc, &proc0);
-
 	/*
 	 * Record all cpus in a list.
 	 */
 	SLIST_INIT(&cpuhead);
 	SLIST_INSERT_HEAD(&cpuhead, GLOBALP, gd_allcpu);
 
+	/* Setup curproc so that mutexes work */
+	PCPU_SET(curproc, &proc0);
+
+	LIST_INIT(&proc0.p_heldmtx);
+	LIST_INIT(&proc0.p_contested);
+
 	/*
 	 * Initialise mutexes.
 	 */
 	mtx_init(&Giant, "Giant", MTX_DEF | MTX_RECURSE);
 	mtx_init(&sched_lock, "sched lock", MTX_SPIN | MTX_RECURSE);
+	mtx_enter(&Giant, MTX_DEF);
 
 #if 0
 	/*
