@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: package.c,v 1.60 1997/03/11 09:29:23 jkh Exp $
+ * $Id: package.c,v 1.61 1997/03/22 15:20:51 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -56,6 +56,21 @@ package_add(char *name)
     if (!mediaVerify())
 	return DITEM_FAILURE;
     return package_extract(mediaDevice, name, FALSE);
+}
+
+/* For use by dispatch */
+int
+packageAdd(dialogMenuItem *self)
+{
+    char *cp;
+
+    cp = variable_get("package");
+    if (!cp) {
+	msgDebug("packageAdd:  No package name passed in package variable\n");
+	return DITEM_FAILURE;
+    }
+    else
+	return package_add(cp);
 }
 
 Boolean
