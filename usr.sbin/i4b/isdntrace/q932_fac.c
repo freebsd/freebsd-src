@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,9 +27,9 @@
  *	q932_fac.c - decode Q.932 facilities
  *	------------------------------------
  *
- *	$Id: q932_fac.c,v 1.4 1998/12/05 18:04:22 hm Exp $ 
+ *	$Id: q932_fac.c,v 1.5 1999/02/14 09:44:58 hm Exp $ 
  *
- *      last edit-date: [Sat Dec  5 18:20:58 1998]
+ *      last edit-date: [Sun Feb 14 10:23:16 1999]
  *
  *---------------------------------------------------------------------------
  *

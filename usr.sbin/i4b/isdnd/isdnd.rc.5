@@ -1,5 +1,5 @@
 .\"
-.\" Copyright (c) 1997, 1998 Hellmuth Michaelis. All rights reserved.
+.\" Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -22,11 +22,11 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: isdnd.rc.5,v 1.1 1998/12/27 21:47:01 phk Exp $ 
+.\"	$Id: isdnd.rc.5,v 1.31 1999/02/25 19:16:53 hm Exp $ 
 .\"
-.\"     last edit-date: [Sat Dec  5 18:10:08 1998]
+.\"     last edit-date: [Thu Feb 25 20:15:38 1999]
 .\"
-.Dd October 27, 1998
+.Dd February, 23, 1999
 .Dt isdnd.rc 5
 .Sh NAME
 .Nm isdnd.rc
@@ -107,6 +107,11 @@ with the
 utility when alias processing is enabled via the
 .Em aliasing
 keyword. (optional)
+
+.It Li beepconnect
+In fullscreen mode, if this parameter is set to
+.Em on ,
+ring the bell when connecting or disconnecting a call.
 
 .It Li isdntime
 If this parameter is set to
@@ -345,6 +350,19 @@ This keyword is optional and is set to 60 seconds by default.
 A (safety) time in seconds which specifies the time to hangup before an
 expected next charging unit will occur. (optional)
 
+.It Li idle-algorithm-outgoing
+The algorithm used to determine when to hang up an outgoing call when the
+line becomes idle. The current algorithms are:
+
+.Pp
+.Bl -tag -width calledback -compact -offset
+.It Ar fix-unit-size
+idle algorithm which assumes fixed sized changing units during the whole call.
+.It Ar var-unit-size
+idle algorithm which assumes that the charging is time based after the first
+units time has expired.
+.El
+
 .It Li idletime-outgoing
 The time in seconds an outgoing connection must be idle before hanging up.
 (optional)
@@ -533,7 +551,16 @@ address negotiation is complete (i.e.: the connection is useable).
 expects to find the program below the path
 .Pa /etc/isdn
 which is prepended to the string specified as a parameter to this keyword.
-(optional)
+The programs specified by connect and disconnect will get the following
+command line arguments: -d (device) -f (flag) [ -a (addr) ] where 
+.Em device
+is the name of device, e.g. "isp0", 
+.Em flag
+will be "up" if connection just got up, or "down" if interface changed to down 
+state and
+.Em addr
+the address that got assigned to the interface as a dotted-quad ip address
+(optional, only if it can be figured out by isdnd). (optional)
 
 .It Li disconnectprog
 specifies a program run everytime after a connection was shut down.
@@ -565,11 +592,15 @@ is used as a last resort and is therefore set much higher than a charging
 unit time: typical values are one to five minutes.
 
 .It Li outgoing calls
-Outgoing call disconnect time can be setup in one of two ways:
+Outgoing call disconnect time can be setup in one of three ways:
 
 .Bl -tag -width shorthold mode -compact
 .It Li simple mode
-For simple mode, the selected
+For simple mode, the 
+.Em idle-algorithm-outgoing
+must be
+.Em fix-unit-size
+and the selected
 .Em unitlength
 must be 0 (zero) and
 .Em idletime-outgoing
@@ -582,8 +613,12 @@ the call is closed.
 .Pp
 Typical values in simple mode are 10 to 30 seconds.
 
-.It Li shorthold mode
-For shorthold mode, the selected
+.It Li shorthold mode for fixed unit charging
+For shorthold mode, the 
+.Em idle-algorithm-outgoing
+ must be
+.Em fix-unit-size
+ and the selected
 .Em unitlength 
 and 
 .Em idletime-outgoing
@@ -615,6 +650,52 @@ must (!) be greater than the sum of
 and
 .Em earlyhangup !
 
+.It Li shorthold mode for variable unit charging
+For shorthold mode, the 
+.Em idle-algorithm-outgoing
+must be
+.Em var-unit-size
+and the selected
+.Em unitlength 
+and
+.Em idletime-outgoing
+must be greater than 0 (zero);
+.Pp
+
+This shorthold mode is suitable when your calls are billed on
+the elapse time of the call plus a fixed connection charge.
+For example British Telecom bill this way.
+.Pp
+
+Each call is divided into two periods, the first is the
+.Em unchecked
+period and the second is the
+.Em checked
+. The
+.Em checked
+period starts 1 second before the first units time expires.
+.Pp
+During the
+.Em checked
+period if there is no traffic for
+.Em idle-time
+seconds the call is disconnected.
+.Pp
+
+.Bd -literal
+
+|<---unchecked------------------>|<------checked------>
++------------------+-------------+
+|                  |<-idle-time->|
+|<--------------unitlength------->|
+
+.Ed
+
+Experience shows that useful values for idle-time are from 15 to 30 seconds.
+.Pp
+If idle-time is too short an application that is not yet finished with the
+network will cause a new call to be placed.
+.Pp
 .El
 .El
 
@@ -638,3 +719,5 @@ The
 .Xr isdnd 8
 daemon and this manual page were written by Hellmuth Michaelis. 
 He can be reached at hm@kts.org.
+.Pp
+Additions to this manual page by Barry Scott (barry@scottb.demon.co.uk).

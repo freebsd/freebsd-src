@@ -1,7 +1,7 @@
 /*
  *   Copyright (c) 1997 Joerg Wunsch. All rights reserved.
  *
- *   Copyright (c) 1997, 1998 Hellmuth Michaelis. All rights reserved.
+ *   Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
  *
  *   Redistribution and use in source and binary forms, with or without
  *   modification, are permitted provided that the following conditions
@@ -30,9 +30,9 @@
  *	i4b daemon - runtime configuration lexical analyzer
  *	---------------------------------------------------
  *
- *	$Id: rc_scan.l,v 1.19 1998/12/18 17:17:57 hm Exp $ 
+ *	$Id: rc_scan.l,v 1.22 1999/02/23 16:25:49 hm Exp $ 
  *
- *      last edit-date: [Fri Dec 18 18:08:25 1998]
+ *      last edit-date: [Tue Feb 23 16:41:02 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -92,6 +92,7 @@ aliasing			{ return ALIASING; }
 aliasfile			{ return ALIASFNAME; }
 answerprog			{ return ANSWERPROG; }
 b1protocol			{ return B1PROTOCOL; }
+beepconnect			{ return BEEPCONNECT; }
 callbackwait			{ return CALLBACKWAIT; }
 calledbackwait			{ return CALLEDBACKWAIT; }
 connectprog			{ return CONNECTPROG; }
@@ -107,6 +108,7 @@ earlyhangup			{ return EARLYHANGUP; }
 entry				{ return ENTRY; }
 idletime-incoming		{ return IDLETIME_IN; }
 idletime-outgoing		{ return IDLETIME_OUT; }
+idle-algorithm-outgoing		{ return IDLE_ALG_OUT; }
 isdncontroller			{ return ISDNCONTROLLER; }
 isdnchannel			{ return ISDNCHANNEL; }
 isdntime			{ return ISDNTIME; }

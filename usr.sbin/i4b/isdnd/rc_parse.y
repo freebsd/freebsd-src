@@ -1,7 +1,7 @@
 /*
  *   Copyright (c) 1997 Joerg Wunsch. All rights reserved.
  *
- *   Copyright (c) 1997, 1998 Hellmuth Michaelis. All rights reserved.
+ *   Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
  *
  *   Redistribution and use in source and binary forms, with or without
  *   modification, are permitted provided that the following conditions
@@ -30,9 +30,9 @@
  *	i4b daemon - runtime configuration parser
  *	-----------------------------------------
  *
- *	$Id: rc_parse.y,v 1.15 1998/12/05 18:03:38 hm Exp $ 
+ *	$Id: rc_parse.y,v 1.18 1999/02/23 16:25:49 hm Exp $ 
  *
- *      last edit-date: [Sat Dec  5 18:12:26 1998]
+ *      last edit-date: [Tue Feb 23 16:42:02 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -76,6 +76,7 @@ int		entrycount = -1;
 %token		ALIASFNAME
 %token		ANSWERPROG
 %token		B1PROTOCOL
+%token		BEEPCONNECT
 %token		CALLBACKWAIT
 %token		CALLEDBACKWAIT
 %token		CONNECTPROG
@@ -90,6 +91,7 @@ int		entrycount = -1;
 %token		ENTRY
 %token		IDLETIME_IN
 %token		IDLETIME_OUT
+%token		IDLE_ALG_OUT
 %token		ISDNCONTROLLER
 %token		ISDNCHANNEL
 %token		ISDNTIME
@@ -290,6 +292,7 @@ sysfilekeyword:	  RATESFILE		{ $$ = RATESFILE; }
 sysboolkeyword:	  USEACCTFILE		{ $$ = USEACCTFILE; }
 		| ALIASING		{ $$ = ALIASING; }
 		| ACCTALL		{ $$ = ACCTALL; }
+		| BEEPCONNECT		{ $$ = BEEPCONNECT; }
 		| ISDNTIME		{ $$ = ISDNTIME; }
 		| MONITORSW		{ $$ = MONITORSW; }
 		;
@@ -351,6 +354,7 @@ strkeyword:	  ANSWERPROG		{ $$ = ANSWERPROG; }
 		| DIALOUTTYPE		{ $$ = DIALOUTTYPE; }
 		| DIRECTION		{ $$ = DIRECTION; }
 		| DISCONNECTPROG	{ $$ = DISCONNECTPROG; }
+		| IDLE_ALG_OUT		{ $$ = IDLE_ALG_OUT; }
 		| LOCAL_PHONE_INCOMING	{ $$ = LOCAL_PHONE_INCOMING; }
 		| LOCAL_PHONE_DIALOUT	{ $$ = LOCAL_PHONE_DIALOUT; }
 		| NAME			{ $$ = NAME; }		

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,9 +27,9 @@
  *	isdntelctl - i4b set telephone interface options
  *	------------------------------------------------
  *
- *	$Id: main.c,v 1.4 1998/12/14 10:31:57 hm Exp $
+ *	$Id: main.c,v 1.7 1999/02/16 10:40:18 hm Exp $
  *
- *      last edit-date: [Sat Dec  5 18:17:17 1998]
+ *      last edit-date: [Tue Feb 16 11:32:09 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -58,6 +58,7 @@ int opt_unit = 0;
 int opt_U = 0;
 int opt_A = 0;
 int opt_C = 0;
+int opt_R = 0;
 
 /*---------------------------------------------------------------------------*
  *	program entry
@@ -70,7 +71,7 @@ main(int argc, char **argv)
 	int telfd;
 	char namebuffer[128];
 	
-	while ((c = getopt(argc, argv, "cgu:AU?")) != EOF)
+	while ((c = getopt(argc, argv, "cgu:AUR?")) != EOF)
 	{
 		switch(c)
 		{
@@ -96,6 +97,10 @@ main(int argc, char **argv)
 				opt_U = 1;
 				break;
 
+			case 'R':
+				opt_R = 1;
+				break;
+
 			case '?':
 			default:
 				usage();
@@ -103,12 +108,12 @@ main(int argc, char **argv)
 		}
 	}
 
-	if(opt_get == 0 && opt_U == 0 && opt_A && opt_C == 0)
+	if(opt_get == 0 && opt_R == 0 && opt_U == 0 && opt_A == 0 && opt_C == 0)
 	{
 		opt_get = 1;
 	}
 
-	if((opt_get + opt_U + opt_A + opt_C) > 1)
+	if((opt_get + opt_R + opt_U + opt_A + opt_C) > 1)
 	{
 		usage();
 	}
@@ -138,6 +143,10 @@ main(int argc, char **argv)
 		else if(format == CVT_ALAW2ULAW)
 		{
 			printf("device %s uses u-Law sound format\n", namebuffer);
+		}
+		else if(format == CVT_ALAW_CANON)
+		{
+			printf("device %s uses canonical A-Law sound format\n", namebuffer);
 		}
 		else
 		{
@@ -169,6 +178,17 @@ main(int argc, char **argv)
 		}
 		exit(0);
 	}
+	if(opt_R)
+	{
+		int format = CVT_ALAW_CANON;
+		
+		if((ret = ioctl(telfd, I4B_TEL_SETAUDIOFMT, &format)) < 0)
+		{
+			fprintf(stderr, "ioctl I4B_TEL_SETAUDIOFMT failed: %s", strerror(errno));
+			exit(1);
+		}
+		exit(0);
+	}
 	if(opt_C)
 	{
 		int dummy;
@@ -190,11 +210,12 @@ usage(void)
 {
 	fprintf(stderr, "\n");
 	fprintf(stderr, "isdntelctl - i4b telephone i/f control, compiled %s %s\n",__DATE__, __TIME__);
-	fprintf(stderr, "usage: isdndebug -e -h -g -l <layer> -m -r -s <value> -u <unit> -z -H\n");
+	fprintf(stderr, "usage: isdntelctl -g -u <unit> -A -U -c\n");
 	fprintf(stderr, "       -g            get current settings\n");
 	fprintf(stderr, "       -u unit       specify unit number\n");	
 	fprintf(stderr, "       -A            set interface to A-Law coding\n");
 	fprintf(stderr, "       -U            set interface to u-Law coding\n");
+	fprintf(stderr, "       -R            set interface to canonical (regular) A-Law coding\n");
 	fprintf(stderr, "       -c            clear input queue\n");
 	fprintf(stderr, "\n");
 	exit(1);

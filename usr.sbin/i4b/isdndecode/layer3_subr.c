@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,9 +27,9 @@
  *	layer3_subr.c - subroutines for IE decoding
  *	-------------------------------------------
  *
- *	$Id: layer3_subr.c,v 1.4 1998/12/18 17:09:38 hm Exp $
+ *	$Id: layer3_subr.c,v 1.5 1999/02/14 09:44:57 hm Exp $
  *
- *      last edit-date: [Fri Dec 18 18:12:37 1998]
+ *      last edit-date: [Sun Feb 14 10:16:58 1999]
  *
  *---------------------------------------------------------------------------*/
 

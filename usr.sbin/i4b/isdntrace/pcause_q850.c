@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,9 +27,9 @@
  *	printing cause values
  *	---------------------
  *
- *	$Id: pcause_q850.c,v 1.4 1998/12/23 10:03:55 hm Exp $
+ *	$Id: pcause_q850.c,v 1.5 1999/02/14 09:44:58 hm Exp $
  *
- *	last edit-date: [Wed Dec 23 10:57:36 1998]
+ *	last edit-date: [Sun Feb 14 10:22:42 1999]
  *
  *---------------------------------------------------------------------------*/
 
