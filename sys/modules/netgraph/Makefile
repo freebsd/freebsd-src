@@ -32,6 +32,7 @@ SUBDIR=	UI \
 	rfc1490 \
 	socket \
 	split \
+	sppp \
 	sync_ar \
 	sync_sr \
 	tee \
