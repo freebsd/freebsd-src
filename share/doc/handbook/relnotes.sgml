@@ -1,11 +1,11 @@
-<!-- $Id: relnotes.sgml,v 1.1 1995/06/14 18:38:56 jfieber Exp $ -->
+<!-- $Id: relnotes.sgml,v 1.2 1995/06/22 13:47:09 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
 <!DOCTYPE linuxdoc PUBLIC '-//FreeBSD//DTD linuxdoc//EN'>
 <linuxdoc><book><chapt>foo
 -->
-      <sect>About this release
+      <sect>About this release<label id="relnotes">
 
 	<p>Since our first release of FreeBSD 1.0 nearly two
 	  years ago, FreeBSD has changed dramatically.  Since
@@ -52,7 +52,7 @@
 	  as a pre-compiled package which can be installed with
 	  the <tt>pkg_add(1)</tt> command for those who do not
 	  wish to compile their own ports from source.  See <ref
-	  id="ports:" name="The Ports Collection"> for a more
+	  id="ports" name="The Ports Collection"> for a more
 	  complete description.
 
 <!-- XXX make xref 

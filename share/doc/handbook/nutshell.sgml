@@ -1,7 +1,7 @@
-<!-- $Id: nutshell.sgml,v 1.1 1995/05/11 02:03:38 jfieber Exp $ -->
+<!-- $Id: nutshell.sgml,v 1.2 1995/06/22 13:47:06 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
-<sect><heading>FreeBSD in a nutshell</heading>
+<sect><heading>FreeBSD in a nutshell<label id="nutshell"></heading>
 
     <p>FreeBSD is a state of the art operating system for
       personal computers based on the Intel CPU architecture, which

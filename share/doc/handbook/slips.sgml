@@ -11,7 +11,7 @@ Setting up FreeBSD as a SLIP Server
 
 -->
 
-<sect><heading>Setting up a SLIP server</heading>
+<sect><heading>Setting up a SLIP server<label id="slips"></heading>
 <p><em>Contribudted by &a.ghelmer;.<newline>
 v1.0, 15 May 1995.</em>
 
@@ -35,7 +35,7 @@ problem.
 For FreeBSD 1.x users, all of the files referenced in the directory
 <tt>/etc/sliphome</tt> are actually in the <tt>/etc</tt> directory.
 
-<sect1><heading>Prerequisites<label id="prereqs"></>
+<sect1><heading>Prerequisites<label id="slips:prereqs"></>
 
 <p>
 This document is very technical in nature, so background knowledge is
@@ -249,7 +249,7 @@ going to use ``proxy ARP'' on your SLIP server (it's not ``true''
 proxy ARP, but that is the terminology used in this document to
 describe it).  If you're not sure which method to select or how to
 assign IP addresses, please refer to the TCP/IP books referenced in
-the <ref id="prereqs"> section and/or consult your IP network manager.
+the <ref id="slips:prereqs"> section and/or consult your IP network manager.
 
 If you are going to use a separate subnet for your SLIP clients, you
 will need to allocate the subnet number out of your assigned IP

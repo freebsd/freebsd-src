@@ -1,4 +1,4 @@
-<!-- $Id:$ -->
+<!-- $Id: kerneldebug.sgml,v 1.1 1995/06/14 18:38:55 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -8,7 +8,7 @@
 ]>
 -->
 
-<chapt><heading>Kernel Debugging</heading>
+<chapt><heading>Kernel Debugging<label id="kerneldebug"></heading>
 
 <p><em>Contributed by &a.paul; and &a.joerg;</em>
 
@@ -30,7 +30,7 @@ options  DODUMP
 </verb></tscreen>
   in your config file in order to get kernel core dumps. 
 -->
-  See <ref id="kernelconfig:" name="Kernel Configuration"> for
+  See <ref id="kernelconfig" name="Kernel Configuration"> for
   details on configuring the FreeBSD kernel.
 
   <em><bf>Note:</bf> In the following, the term `<tt>kgdb</tt>' refers
@@ -253,7 +253,7 @@ options  DODUMP
 <tscreen><verb>
         options DDB
 </verb></tscreen>
-  to your config file, and rebuild.  (See <ref id="kernelconfig:"
+  to your config file, and rebuild.  (See <ref id="kernelconfig"
   name="Kernel Configuration"> for details on configuring the
   FreeBSD kernel. Note that if you have an older version of the
   boot blocks, your debugger symbols might not be loaded at all.

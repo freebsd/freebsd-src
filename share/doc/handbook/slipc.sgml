@@ -1,7 +1,7 @@
-<!-- $Id: m_slip_c.sgml,v 1.1 1995/04/10 02:36:16 jfieber Exp $ -->
+<!-- $Id: slipc.sgml,v 1.1.1.1 1995/04/28 16:19:59 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
-<sect><heading>Setting up a SLIP client</heading>
+<sect><heading>Setting up a SLIP client<label id="slipc"></heading>
 
 <p><em>Contributed by &a.asami;.</em>
 
@@ -17,20 +17,19 @@ mileage may vary.
 -->
 
 Note: for 1.1 systems (not 1.1.5), you need to use /dev/tty01 instead
-of /dev/cua01. substitute all the occurences of "cua" in this document
-with "tty".
+of /dev/cuaa1. 
 
 Note: the default 1.1.5(.1) system only comes with cua/ttyd pairs for
 the last two ports (2 and 3), so if your modem is at sio0/sio1
 (COM1/COM2), you need to make the devices.  Try "cd /dev; sh MAKEDEV
-cua01" to make the new special files for sio1 (ditto for sio0).  This
+cuaa1" to make the new special files for sio1 (ditto for sio0).  This
 will delete tty01, but you shouldn't need it anymore...or you can make
 a symbolic link /dev/tty01 -> ttyd1 if you don't want to hunt down all
 occurences of tty01 in your setup files.
 
-I actually have a symbolic link /dev/modem -> cua01 (and /dev/mouse ->
+I actually have a symbolic link /dev/modem -> cuaa1 (and /dev/mouse ->
 ttyd0). I use only the modem/mouse names in my configuration files.
-This helped a lot when I switched from 1.1 to 1.1.5.1 (tty01 => cua01)
+This helped a lot when I switched from 1.1 to 1.1.5.1 (tty01 => cuaa1)
 and when I had to move my modem temporarily to sio2 to enable the
 RS-232C port on the serial card.  It can become quite cumbersome when
 you need to fix a bunch of files in /etc and .kermrc's all over the
@@ -99,7 +98,7 @@ nameserver 128.32.136.12
 <verb>
 # kermit setup
 set modem hayes
-set line /dev/cua01
+set line /dev/cuaa1
 set speed 57600
 set parity none
 set flow rts/cts
@@ -128,7 +127,7 @@ output ***\x0d, echo \x0aCONNECTED\x0a
 <item> Leave the kermit there (you can suspend it by "z") and as root,
     type
 <verb>
-slattach -h -c -s 57600 /dev/cua01
+slattach -h -c -s 57600 /dev/cuaa1
 </verb>
     if you are able to "ping" hosts on campus, you are connected!
     If it doesn't work, you might want to try "-a" instead of "-c".

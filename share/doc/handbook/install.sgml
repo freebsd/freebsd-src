@@ -1,10 +1,10 @@
-<!-- $Id:$ -->
+<!-- $Id: install.sgml,v 1.1 1995/06/14 18:38:54 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
 <!DOCTYPE linuxdoc PUBLIC '-//FreeBSD//DTD linuxdoc//EN'>
 -->
-<chapt><heading>Installing FreeBSD</heading>
+<chapt><heading>Installing FreeBSD<label id="install"></heading>
 
     <sect>MS-DOS user's Questions and Answers
 

@@ -3,7 +3,7 @@
 #
 # Converted by Ollivier RObert <roberto@FreeBSD.ORG>
 #
-# $Id: m_ctm.sgml,v 1.1 1995/04/10 02:35:55 jfieber Exp $
+# $Id: ctm.sgml,v 1.1.1.1 1995/04/28 16:19:59 jfieber Exp $
 #
 # ----------------------------------------------------------------------------
 # "THE BEER-WARE LICENSE" (Revision 42):
@@ -14,7 +14,7 @@
 #
 -->
 
-<sect><heading>CTM</heading>
+<sect><heading>CTM<label id="ctm"></heading>
 
 <p><em>Contributed by &a.phk;.  Updated 16-Mar-1995.</em>
 
