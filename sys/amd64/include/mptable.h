@@ -1454,18 +1454,18 @@ struct simplelock	fast_intr_lock;
 /* critical region around INTR() routines */
 struct simplelock	intr_lock;
 
-/* lock regions around the clock hardware */
-struct simplelock	clock_lock;
-
-#ifdef SIMPLE_MPINTRLOCK
 /* lock regions protected in UP kernel via cli/sti */
 struct simplelock	mpintr_lock;
-#endif
 
 #ifdef USE_COMLOCK
 /* locks com (tty) data/hardware accesses: a FASTINTR() */
 struct simplelock	com_lock;
 #endif /* USE_COMLOCK */
+
+#ifdef USE_CLOCKLOCK
+/* lock regions around the clock hardware */
+struct simplelock	clock_lock;
+#endif /* USE_CLOCKLOCK */
 
 static void
 init_locks(void)
@@ -1479,17 +1479,19 @@ init_locks(void)
 	/* ISR uses its own "giant lock" */
 	isr_lock = FREE_LOCK;
 
-#ifdef SIMPLE_MPINTRLOCK
 	s_lock_init((struct simplelock*)&mpintr_lock);
-#endif
-	s_lock_init((struct simplelock*)&clock_lock);
+
 	s_lock_init((struct simplelock*)&fast_intr_lock);
 	s_lock_init((struct simplelock*)&intr_lock);
 	s_lock_init((struct simplelock*)&imen_lock);
 	s_lock_init((struct simplelock*)&cpl_lock);
+
 #ifdef USE_COMLOCK
 	s_lock_init((struct simplelock*)&com_lock);
 #endif /* USE_COMLOCK */
+#ifdef USE_CLOCKLOCK
+	s_lock_init((struct simplelock*)&clock_lock);
+#endif /* USE_CLOCKLOCK */
 }
 
 
