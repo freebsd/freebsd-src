@@ -69,8 +69,8 @@
  */
 /* $FreeBSD$ */
 
-#ifndef _I386_BUS_H_
-#define _I386_BUS_H_
+#ifndef _I386_BUS_AT386_H_
+#define _I386_BUS_AT386_H_
 
 #include <machine/cpufunc.h>
 
@@ -1288,4 +1288,4 @@ void _bus_dmamap_unload(bus_dma_tag_t dmat, bus_dmamap_t map);
 	if ((dmamap) != NULL)				\
 		_bus_dmamap_unload(dmat, dmamap)
 
-#endif /* _I386_BUS_H_ */
+#endif /* _I386_BUS_AT386_H_ */
