@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: perfmon.c,v 1.10 1997/02/22 09:32:35 peter Exp $
  */
 
 #include "opt_cpu.h"
@@ -34,11 +34,12 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/fcntl.h>
-#include <sys/ioccom.h>
 
+#ifndef SMP
 #include <machine/cpu.h>
 #include <machine/cputypes.h>
 #include <machine/clock.h>
+#endif
 #include <machine/perfmon.h>
 
 static int perfmon_inuse;
@@ -57,6 +58,7 @@ static int writectl6(int);
 void
 perfmon_init(void)
 {
+#ifndef SMP
 	switch(cpu_class) {
 	case CPUCLASS_586:
 		perfmon_cpuok = 1;
@@ -79,6 +81,7 @@ perfmon_init(void)
 		perfmon_cpuok = 0;
 		break;
 	}
+#endif /* SMP */
 }
 
 int
@@ -339,6 +342,7 @@ perfmon_ioctl(dev_t dev, int cmd, caddr_t param, int flags, struct proc *p)
 		rv = perfmon_read(pmcd->pmcd_num, &pmcd->pmcd_value);
 		break;
 
+#if (defined(I586_CPU) || defined(I686_CPU)) && !defined(SMP)
 	case PMIOTSTAMP:
 		pmct = (struct pmc_tstamp *)param;
 		/* XXX interface loses precision. */
@@ -346,6 +350,7 @@ perfmon_ioctl(dev_t dev, int cmd, caddr_t param, int flags, struct proc *p)
 		pmct->pmct_value = rdtsc();
 		rv = 0;
 		break;
+#endif
 
 	default:
 		rv = ENOTTY;
