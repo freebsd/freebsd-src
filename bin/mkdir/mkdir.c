@@ -174,7 +174,7 @@ build(char *path, mode_t omode)
 		if (last)
 			(void)umask(oumask);
 		if (mkdir(path, last ? omode : S_IRWXU | S_IRWXG | S_IRWXO) < 0) {
-			if (errno == EEXIST) {
+			if (errno == EEXIST || errno == EISDIR) {
 				if (stat(path, &sb) < 0) {
 					warn("%s", path);
 					retval = 1;
