@@ -171,7 +171,7 @@ ktrgenio(vp, fd, rw, uio, error)
 	kth->ktr_buf = (caddr_t)&ktg;
 	kth->ktr_len = sizeof(struct ktr_genio);
 	uio->uio_offset = 0;
-	uio->uio_rw = UIO_READ;
+	uio->uio_rw = UIO_WRITE;
 
 	ktrwrite(vp, kth, uio);
 	FREE(kth, M_KTRACE);
