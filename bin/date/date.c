@@ -42,7 +42,7 @@ static char const copyright[] =
 static char sccsid[] = "@(#)date.c	8.2 (Berkeley) 4/28/95";
 #endif
 static const char rcsid[] =
-	"$Id: date.c,v 1.26 1998/10/03 16:29:59 alex Exp $";
+	"$Id: date.c,v 1.27 1999/03/09 09:38:54 brian Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -61,9 +61,9 @@ static const char rcsid[] =
 #include "vary.h"
 
 time_t tval;
-int retval, nflag;
+int retval;
 
-static void setthetime __P((const char *, const char *));
+static void setthetime __P((const char *, const char *, int, int));
 static void badformat __P((void));
 static void usage __P((void));
 
@@ -78,6 +78,7 @@ main(argc, argv)
 	extern char *optarg;
 	struct timezone tz;
 	int ch, rflag;
+	int jflag, nflag;
 	char *format, buf[1024];
 	char *endptr, *fmt;
 	int set_timezone;
@@ -90,8 +91,9 @@ main(argc, argv)
 	(void) setlocale(LC_TIME, "");
 	tz.tz_dsttime = tz.tz_minuteswest = 0;
 	rflag = 0;
+	jflag = nflag = 0;
 	set_timezone = 0;
-	while ((ch = getopt(argc, argv, "d:f:nr:t:uv:")) != -1)
+	while ((ch = getopt(argc, argv, "d:f:jnr:t:uv:")) != -1)
 		switch((char)ch) {
 		case 'd':		/* daylight savings time */
 			tz.tz_dsttime = strtol(optarg, &endptr, 10) ? 1 : 0;
@@ -101,6 +103,9 @@ main(argc, argv)
 			break;
 		case 'f':
 			fmt = optarg;
+			break;
+		case 'j':
+			jflag = 1;	/* don't set time */
 			break;
 		case 'n':		/* don't set network */
 			nflag = 1;
@@ -147,7 +152,7 @@ main(argc, argv)
 	}
 
 	if (*argv) {
-		setthetime(fmt, *argv);
+		setthetime(fmt, *argv, jflag, nflag);
 		++argv;
 	} else if (fmt != NULL)
 		usage();
@@ -171,9 +176,10 @@ main(argc, argv)
 
 #define	ATOI2(ar)	((ar)[0] - '0') * 10 + ((ar)[1] - '0'); (ar) += 2;
 void
-setthetime(fmt, p)
+setthetime(fmt, p, jflag, nflag)
 	const char *fmt;
 	register const char *p;
+	int jflag, nflag;
 {
 	register struct tm *lt;
 	struct timeval tv;
@@ -251,19 +257,21 @@ setthetime(fmt, p)
 	if ((tval = mktime(lt)) == -1)
 		errx(1, "nonexistent time");
 
-	/* set the time */
-	if (nflag || netsettime(tval)) {
-		logwtmp("|", "date", "");
-		tv.tv_sec = tval;
-		tv.tv_usec = 0;
-		if (settimeofday(&tv, (struct timezone *)NULL))
-			err(1, "settimeofday (timeval)");
-		logwtmp("{", "date", "");
-	}
+	if (!jflag) {
+		/* set the time */
+		if (nflag || netsettime(tval)) {
+			logwtmp("|", "date", "");
+			tv.tv_sec = tval;
+			tv.tv_usec = 0;
+			if (settimeofday(&tv, (struct timezone *)NULL))
+				err(1, "settimeofday (timeval)");
+			logwtmp("{", "date", "");
+		}
 
-	if ((p = getlogin()) == NULL)
-		p = "???";
-	syslog(LOG_AUTH | LOG_NOTICE, "date set by %s", p);
+		if ((p = getlogin()) == NULL)
+			p = "???";
+		syslog(LOG_AUTH | LOG_NOTICE, "date set by %s", p);
+	}
 }
 
 static void
