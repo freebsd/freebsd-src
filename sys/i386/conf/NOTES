@@ -471,7 +471,7 @@ hint.pca.0.port="0x040"
 # Notes on APM
 #  The flags takes the following meaning for apm0:
 #    0x0020  Statclock is broken.
-#  If apm is omitted, some systems require sysctl -w kern.timecounter.method=1
+#  If apm is omitted, some systems require sysctl kern.timecounter.method=1
 #  for correct timekeeping.
 
 # Notes on the spigot:
