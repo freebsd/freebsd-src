@@ -155,7 +155,7 @@ NOTE: You must have kernel sources installed in order to compile the driver
    Remove the following lines from the /usr/src/sys/conf/files.i386 file, if 
    they exist:
 
-        /dev/em/if_em_fxhw.c optional em
+        /dev/em/if_em_fx_hw.c optional em
         /dev/em/if_em_phy.c optional em
 
    Compile and install the kernel.
