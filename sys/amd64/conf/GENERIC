@@ -76,6 +76,7 @@ device		fdc
 # ATA and ATAPI devices
 device		ata
 device		atadisk			# ATA disk drives
+device		ataraid			# ATA RAID drives
 device		atapicd			# ATAPI CDROM drives
 device		atapifd			# ATAPI floppy drives
 device		atapist			# ATAPI tape drives
