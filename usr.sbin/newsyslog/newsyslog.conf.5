@@ -21,12 +21,14 @@
 .\" the suitability of this software for any purpose.  It is
 .\" provided "as is" without express or implied warranty.
 .\"
-.Dd June 03, 2004
+.Dd June 3, 2004
 .Dt NEWSYSLOG.CONF 5
 .Os
 .Sh NAME
 .Nm newsyslog.conf
-.Nd configuration of the newsyslog utility
+.Nd
+.Xr newsyslog 8
+configuration file
 .Sh DESCRIPTION
 The
 .Nm
@@ -45,31 +47,30 @@ reads a configuration file,
 normally
 .Pa /etc/newsyslog.conf ,
 to determine which logs may potentially be rotated and archived.
-Each line has five mandatory fields and four optional fields
+Each line has five mandatory fields and four optional fields,
 separated with whitespace.
 Blank lines or lines beginning with
-.Dq #
+.Ql #
 are ignored.
 If
-.Dq #
+.Ql #
 is placed in the middle of the line, the
-.Dq #
+.Ql #
 character and the rest of the line after it is ignored.
 To prevent special meaning, the
-.Dq #
+.Ql #
 character may be escaped with
-.Dq \e\e ,
+.Ql \e\e ;
 in this case preceding
-.Dq \e\e
+.Ql \e\e
 is removed and
-.Dq #
-treated as ordinary character.
+.Ql #
+is treated as an ordinary character.
 The fields of the configuration file are as follows:
-.Pp
 .Bl -tag -width indent
 .It Ar logfile_name
 Name of the system log file to be archived, or the literal string
-.Dq Aq default .
+.Dq Aq Li default .
 The special default entry will only be used if a log file
 name is given as a command line argument to
 .Xr newsyslog 8 ,
@@ -78,7 +79,7 @@ line in the configuration file.
 .It Ar owner : Ns Ar group
 This optional field specifies the owner and group for the archive file.
 The
-.Dq \&:
+.Ql \&:
 is essential regardless if the
 .Ar owner
 or
@@ -98,7 +99,7 @@ When the size of the log file reaches
 .Ar size
 in kilobytes, the log file will be trimmed as described above.
 If this field contains an asterisk
-.Pq Ql \&* ,
+.Pq Ql * ,
 the log file will not be trimmed based on size.
 .It Ar when
 The
@@ -107,7 +108,7 @@ field may consist of an interval, a specific time, or both.
 If the
 .Ar when
 field contains an asterisk
-.Pq Ql \&*
+.Pq Ql * ,
 log rotation will solely depend on the contents of the
 .Ar size
 field.
@@ -120,9 +121,9 @@ and a time in restricted
 .Tn ISO 8601
 format.
 Additionally, the format may also be constructed with a
-.So Li \&$ Sc Ns No -sign
-along with a rotation time specification of once
-a day, once a week or once a month.
+.Ql $
+sign along with a rotation time specification of once
+a day, once a week, or once a month.
 .Pp
 If a time is specified, the log file will only be trimmed if
 .Xr newsyslog 8
@@ -136,43 +137,24 @@ take place.
 There is no provision for the specification of a timezone.
 There is little point in specifying an explicit minutes or
 seconds component in the current implementation, since the only comparison is
-.Sq within the hour .
+.Dq within the hour .
 .Pp
-.Sy ISO 8601 restricted time format:
+.Sy ISO 8601 restricted time format :
 .Pp
 The lead-in character for a restricted
 .Tn ISO 8601
 time is an
-.So Li \&@ Sc Ns No -sign .
+.Ql @
+sign.
 The particular format of the time in restricted
 .Tn ISO 8601
 is:
 .Sm off
 .Oo
+.Op Oo Oo Oo Va cc Oc Va yy Oc Va mm Oc Va dd
 .Oo
-.Oo
-.Oo
-.Oo
-.Va \&cc
-.Oc
-.Va \&yy
-.Oc
-.Va \&mm
-.Oc
-.Va \&dd
-.Oc
-.Oo
-.Li \&T
-.Oo
-.Va \&hh
-.Oo
-.Va \&mm
-.Oo
-.Va \&ss
-.Oc
-.Oc
-.Oc
-.Oc
+.Li T
+.Op Va hh Oo Va mm Oo Va ss Oc Oc Oc
 .Oc .
 .Sm on
 Optional date fields default to the appropriate component of the
@@ -198,69 +180,69 @@ equivalent:
 .It
 .Sq Li 22T
 .It
-.Sq Li \&T
+.Sq Li T
 .It
 .Sq Li \&
 .El
 .Pp
 .Sy Day, week, and month time format:
 .Pp
-The lead-in character for day, week, and month specification is an
-.So Li \&$ Sc Ns No -sign .
+The lead-in character for day, week, and month specification is a
+.Ql $
+sign.
 The particular format of day, week, and month specification is:
-.Op Va D\&hh ,
-.Op Va W\&w Ns Op Va D\&hh
+.Op Li D Ns Va hh ,
+.Op Li W Ns Va w Ns Op Li D Ns Va hh ,
 and
-.Op Va M\&dd Ns Op Va D\&hh
+.Op Li M Ns Va dd Ns Op Li D Ns Va hh ,
 respectively.
 Optional time fields default to midnight.
 The ranges for day and hour specifications are:
 .Pp
-.Bl -tag -width Ds -compact -offset indent
+.Bl -tag -width indent -offset indent -compact
 .It Ar hh
-hours, range 0 ... 23
+hours, range 0..23
 .It Ar w
-day of week, range 0 ... 6, 0 = Sunday
+day of week, range 0..6, 0 = Sunday
 .It Ar dd
-day of month, range 1 ... 31, or one of the letters
-.Em L
+day of month, range 1..31, or one of the letters
+.Ql L
 or
-.Em l
+.Ql l
 to specify the last day of the month.
 .El
 .Pp
 Some examples:
 .Pp
-.Bl -tag -width Ds -compact -offset indent
-.It Ar $D0
+.Bl -tag -width indent -offset indent -compact
+.It Li $D0
 rotate every night at midnight
 (same as
-.Ar @T00 )
-.It Ar $D23
-rotate every day at 23:00 hr
+.Li @T00 )
+.It Li $D23
+rotate every day at 23:00
 (same as
-.Ar @T23 )
-.It Ar $W0D23
-rotate every week on Sunday at 23:00 hr
-.It Ar $W5D16
-rotate every week on Friday at 16:00 hr
-.It Ar $M1D0
+.Li @T23 )
+.It Li $W0D23
+rotate every week on Sunday at 23:00
+.It Li $W5D16
+rotate every week on Friday at 16:00
+.It Li $M1D0
 rotate at the first day of every month at midnight
 (i.e., the start of the day; same as
-.Ar @01T00 )
-.It Ar $M5D6
-rotate on every 5th day of month at 6:00 hr
+.Li @01T00 )
+.It Li $M5D6
+rotate on every 5th day of month at 6:00
 (same as
-.Ar @05T06 )
+.Li @05T06 )
 .El
-.Pp
 .It Ar flags
 This optional field is made up of one or more characters
 that specify any special processing to be done for the log
 files matched by this line.
 The following are valid flags:
 .Bl -tag -width indent
-.It Sy B
+.It Cm B
 indicates that the log file is a binary file, or has some
 special format.
 Usually
@@ -271,23 +253,25 @@ message into a log file during rotation.
 This message is used to indicate
 when, and sometimes why the log file was rotated.
 If
-.Sy B
+.Cm B
 is specified, then that informational message will not be
 inserted into the log file.
-.It Sy C
+.It Cm C
 indicates that the log file should be created if it does not
 already exist, and if the
 .Fl C
 option was also specified on the command line.
-.It Sy D
+.It Cm D
 indicates that
 .Xr newsyslog 8
-should set the NODUMP flag when creating a new version of
+should set the
+.Dv UF_NODUMP
+flag when creating a new version of
 this log file.
 This option would effect how the
 .Xr dump 8
 command treats the log file when making a file system backup.
-.It Sy G
+.It Cm G
 indicates that the specified
 .Ar logfile_name
 is a shell pattern, and that
@@ -297,43 +281,43 @@ other options on this line.
 See
 .Xr glob 3
 for details on syntax and matching rules.
-.It Sy J
+.It Cm J
 indicates that
 .Xr newsyslog 8
 should attempt to save disk space by compressing the rotated
 log file using
 .Xr bzip2 1 .
-.It Sy N
+.It Cm N
 indicates that there is no process which needs to be signaled
 when this log file is rotated.
-.It Sy U
+.It Cm U
 indicates that the file specified by
 .Ar path_to_pid_file
-will contain the id for a process group instead of a process.
+will contain the ID for a process group instead of a process.
 This option also requires that the first line in that file
-be a negative value to distinguish it from a process id.
-.It Sy W
+be a negative value to distinguish it from a process ID.
+.It Cm W
 if used with the
-.Sy Z
+.Cm Z
 or
-.Sy J
+.Cm J
 flag, this indicates that
 .Xr newsyslog 8
 should wait for previously started compression jobs to complete before
 starting a new one for this entry.
 If this is used with the
-.Sy G
+.Cm G
 flag and if multiple log files match the given pattern, then
 .Xr newsyslog 8
 will compress those logs one by one.
 This ensures that only one compression job is running at a time.
-.It Sy Z
+.It Cm Z
 indicates that
 .Xr newsyslog 8
 should attempt to save disk space by compressing the rotated
 log file using
 .Xr gzip 1 .
-.It Sy -
+.It Fl
 a minus sign will not cause any special processing, but it
 can be used as a placeholder to create a
 .Ar flags
@@ -341,26 +325,26 @@ field when you need to specify any of the following fields.
 .El
 .It Ar path_to_pid_file
 This optional field specifies the file name containing a daemon's
-process id or to find a group process id if the
-.Sy U
+process ID or to find a group process ID if the
+.Cm U
 flag was specified.
 If this field is present, a
 .Ar signal_number
-is sent the process id contained in this file.
+is sent the process ID contained in this file.
 If this field is not present, then a
 .Dv SIGHUP
 signal will be sent to
 .Xr syslogd 8 ,
 unless the
-.Sy N
+.Cm N
 flag has been specified.
 This field must start with
-.Dq /
+.Ql /
 in order to be recognized properly.
 .It Ar signal_number
 This optional field specifies the signal number that will be sent
 to the daemon process (or to all processes in a process group, if the
-.Sy U
+.Cm U
 flag was specified).
 If this field is not present, then a
 .Dv SIGHUP

@@ -30,7 +30,7 @@
 .Os
 .Sh NAME
 .Nm watchdogd
-.Nd Watchdog daemon
+.Nd watchdog daemon
 .Sh SYNOPSIS
 .Nm
 .Op Fl d
@@ -53,12 +53,12 @@ If
 is specified,
 .Nm
 will attempt to execute this command with
-.Xr system 3
+.Xr system 3 ,
 and only if the command returns with a zero exit code will the
 watchdog be reset.
 If
 .Fl e Ar cmd
-is not specified the daemon will perform a trivial file system
+is not specified, the daemon will perform a trivial file system
 check instead.
 .Pp
 The
@@ -91,7 +91,7 @@ The
 utility recognizes the following runtime options:
 .Bl -tag -width ".Fl I Ar file"
 .It Fl I Ar file
-Write the process id of the
+Write the process ID of the
 .Nm
 utility in the specified file.
 .It Fl d
