@@ -1,5 +1,5 @@
-/*	$NetBSD: pucvar.h,v 1.2 1999/02/06 06:29:54 cgd Exp $	*/
-/*	$FreeBSD$ */
+#define PUC_DEBUG
+/*	$NetBSD: puc.c,v 1.7 2000/07/29 17:43:38 jlam Exp $	*/
 
 /*-
  * Copyright (c) 2002 JF Hay.  All rights reserved.
@@ -28,7 +28,8 @@
  */
 
 /*
- * Copyright (c) 1998, 1999 Christopher G. Demetriou.  All rights reserved.
+ * Copyright (c) 1996, 1998, 1999
+ *	Christopher G. Demetriou.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -57,82 +58,82 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/*
- * Exported (or conveniently located) PCI "universal" communications card
- * software structures.
- *
- * Author: Christopher G. Demetriou, May 14, 1998.
- */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
-#define	PUC_MAX_PORTS		12
+#include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/bus.h>
+#include <sys/conf.h>
+#include <sys/malloc.h>
 
-struct puc_device_description {
-	const char	*name;
-	uint32_t	rval[4];
-	uint32_t	rmask[4];
-	struct {
-		int	type;
-		int	bar;
-		int	offset;
-		u_int	serialfreq;
-	} ports[PUC_MAX_PORTS];
+#include <machine/bus.h>
+#include <machine/resource.h>
+#include <sys/rman.h>
+
+#include <dev/pci/pcireg.h>
+#include <dev/pci/pcivar.h>
+
+#define PUC_ENTRAILS	1
+#include <dev/puc/pucvar.h>
+
+#include <opt_puc.h>
+
+static int
+puc_pci_probe(device_t dev)
+{
+	uint32_t v1, v2, d1, d2;
+	const struct puc_device_description *desc;
+
+	if ((pci_read_config(dev, PCIR_HEADERTYPE, 1) & 0x7f) != 0)
+		return (ENXIO);
+
+	v1 = pci_read_config(dev, PCIR_VENDOR, 2);
+	d1 = pci_read_config(dev, PCIR_DEVICE, 2);
+	v2 = pci_read_config(dev, PCIR_SUBVEND_0, 2);
+	d2 = pci_read_config(dev, PCIR_SUBDEV_0, 2);
+
+	desc = puc_find_description(v1, d1, v2, d2);
+	if (desc == NULL)
+		return (ENXIO);
+	device_set_desc(dev, desc->name);
+	return (0);
+}
+
+static int
+puc_pci_attach(device_t dev)
+{
+	uint32_t v1, v2, d1, d2;
+
+	v1 = pci_read_config(dev, PCIR_VENDOR, 2);
+	d1 = pci_read_config(dev, PCIR_DEVICE, 2);
+	v2 = pci_read_config(dev, PCIR_SUBVEND_0, 2);
+	d2 = pci_read_config(dev, PCIR_SUBDEV_0, 2);
+	return (puc_attach(dev, puc_find_description(v1, d1, v2, d2)));
+}
+
+static device_method_t puc_pci_methods[] = {
+    /* Device interface */
+    DEVMETHOD(device_probe,		puc_pci_probe),
+    DEVMETHOD(device_attach,		puc_pci_attach),
+
+    DEVMETHOD(bus_alloc_resource,	puc_alloc_resource),
+    DEVMETHOD(bus_release_resource,	puc_release_resource),
+    DEVMETHOD(bus_get_resource,		puc_get_resource),
+    DEVMETHOD(bus_read_ivar,		puc_read_ivar),
+    DEVMETHOD(bus_setup_intr,		puc_setup_intr),
+    DEVMETHOD(bus_teardown_intr,	puc_teardown_intr),
+    DEVMETHOD(bus_print_child,		bus_generic_print_child),
+    DEVMETHOD(bus_driver_added,		bus_generic_driver_added),
+    { 0, 0 }
 };
 
-#define	PUC_REG_VEND		0
-#define	PUC_REG_PROD		1
-#define	PUC_REG_SVEND		2
-#define	PUC_REG_SPROD		3
-
-#define	PUC_PORT_TYPE_NONE	0
-#define	PUC_PORT_TYPE_COM	1
-#define	PUC_PORT_TYPE_LPT	2
-
-#define	PUC_PORT_VALID(desc, port) \
-  ((port) < PUC_MAX_PORTS && (desc)->ports[(port)].type != PUC_PORT_TYPE_NONE)
-#define PUC_PORT_BAR_INDEX(bar)	(((bar) - PCIR_MAPS) / 4)
-
-#define PUC_MAX_BAR		6
-
-enum puc_device_ivars {
-	PUC_IVAR_FREQ
+static driver_t puc_pci_driver = {
+	"puc",
+	puc_pci_methods,
+	sizeof(struct puc_softc),
 };
 
-#ifdef PUC_ENTRAILS
-int puc_attach(device_t dev, const struct puc_device_description *desc);
-extern devclass_t puc_devclass;
-struct resource *puc_alloc_resource(device_t, device_t, int, int *,
-    u_long, u_long, u_long, u_int);
-int puc_release_resource(device_t, device_t, int, int, struct resource *);
-int puc_get_resource(device_t, device_t, int, int, u_long *, u_long *);
-int puc_read_ivar(device_t, device_t, int, uintptr_t *);
-int puc_setup_intr(device_t, device_t, struct resource *, int,
-    void (*)(void *), void *, void **);
-int puc_teardown_intr(device_t, device_t, struct resource *,
-    void *);
-const struct puc_device_description *puc_find_description(uint32_t,
-    uint32_t, uint32_t, uint32_t);
-
-struct puc_softc {
-	const struct puc_device_description *sc_desc;
-
-	/* card-global dynamic data */
-	int			barmuxed;
-	int			irqrid;
-	struct resource		*irqres;
-	void			*intr_cookie;
-
-	struct {
-		struct resource	*res;
-	} sc_bar_mappings[PUC_MAX_BAR];
-
-	/* per-port dynamic data */
-        struct {
-		struct device	*dev;
-		/* filled in by bus_setup_intr() */
-		void		(*ihand)(void *);
-		void		*ihandarg;
-        } sc_ports[PUC_MAX_PORTS];
-};
-
-#endif /* PUC_ENTRAILS */
-extern const struct puc_device_description puc_devices[];
+DRIVER_MODULE(puc, pci, puc_pci_driver, puc_devclass, 0, 0);
+DRIVER_MODULE(puc, cardbus, puc_pci_driver, puc_devclass, 0, 0);
