@@ -22,9 +22,12 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id: kldstat.c,v 1.2 1997/10/19 11:15:44 jmg Exp $
  */
+
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
 
 #include <err.h>
 #include <stdio.h>
@@ -42,7 +45,7 @@ printmod(int modid)
 
     stat.version = sizeof(struct module_stat);
     if (modstat(modid, &stat) < 0)
-	warn("Can't stat module id %d", modid);
+	warn("can't stat module id %d", modid);
     else
 	printf("\t\t%2d %s\n", stat.id, stat.name);
 }
@@ -54,7 +57,7 @@ static void printfile(int fileid, int verbose)
 
     stat.version = sizeof(struct kld_file_stat);
     if (kldstat(fileid, &stat) < 0)
-	warn("Can't stat file id %d", fileid);
+	warn("can't stat file id %d", fileid);
     else
 	printf("%2d %4d %p %-8x %s\n",
 	       stat.id, stat.refs, stat.address, stat.size, stat.name);
@@ -71,7 +74,7 @@ static void printfile(int fileid, int verbose)
 static void
 usage(void)
 {
-    fprintf(stderr, "usage: kldstat [-v]\n");
+    fprintf(stderr, "usage: kldstat [-v] [-i id] [-n name]\n");
     exit(1);
 }
 
@@ -105,7 +108,7 @@ main(int argc, char** argv)
 
     if (filename) {
 	if ((fileid = kldfind(filename)) < 0)
-	    err(1, "Can't find file %s", filename);
+	    err(1, "can't find file %s", filename);
     }
 
     printf("Id Refs Address  Size     Name\n");
