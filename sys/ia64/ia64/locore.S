@@ -73,27 +73,30 @@ kstack:	.space KSTACK_PAGES * PAGE_SIZE
 
 /*
  * Not really a leaf but we can't return.
+ * The EFI loader passes the physical address of the bootinfo block in
+ * register r8.
  */
 ENTRY(__start, 1)
-	movl	r8=ia64_vector_table	// set up IVT early
-	movl	r9=ia64_vhpt+(1<<8)+(15<<2)+1 // and VHPT
+	movl	r16=ia64_vector_table	// set up IVT early
 	;;
-	mov	cr.iva=r8
-	mov	cr.pta=r9
+	mov	cr.iva=r16
+	movl	r16=ia64_vhpt+(1<<8)+(15<<2)+1	// and VHPT
 	;;
-	movl	r11=kstack
+	mov	cr.pta=r16
+	movl	r16=kstack
 	;;
 	srlz.i
 	;;
-	srlz.d
-	mov	r9=KSTACK_PAGES*PAGE_SIZE-SIZEOF_PCB-SIZEOF_TRAPFRAME-16
-	;; 
+	mov	r17=KSTACK_PAGES*PAGE_SIZE-SIZEOF_PCB-SIZEOF_TRAPFRAME-16
 	movl	gp=__gp			// find kernel globals
-	add	sp=r9,r11		// proc0's stack
+	;;
+	add	sp=r16,r17		// proc0's stack
 	mov	ar.rsc=0		// turn off rse
 	;;
-	mov	ar.bspstore=r11		// switch backing store
+	mov	ar.bspstore=r16		// switch backing store
+	movl	r16=pa_bootinfo
 	;;
+	st8	[r16]=r8		// save the PA of the bootinfo block
 	loadrs				// invalidate regs
 	;;
 	mov	ar.rsc=3		// turn rse back on
@@ -121,7 +124,7 @@ ENTRY(__start, 1)
 	movl	r17=mi_startup_trampoline
 	;;
 	st8	[r16]=r17
-	;; 
+	;;
 	br.call.sptk.many rp=restorectx
 
 	/* NOTREACHED */	
@@ -161,7 +164,6 @@ ENTRY(os_boot_rendez,0)
 	srlz.d
 	rsm	IA64_PSR_IC|IA64_PSR_I
 	;;
-	srlz.d
 	mov	r16 = (5<<8)|(PAGE_SHIFT<<2)|1
 	movl	r17 = 5<<61
 	;;
@@ -189,13 +191,11 @@ ENTRY(os_boot_rendez,0)
 	ptr.d	r17, r18
 	ptr.i	r17, r18
 	;;
-	srlz.d
 	srlz.i
 	;;
 	itr.d	dtr[r0] = r16
 	;;
 	itr.i	itr[r0] = r16
-	srlz.d
 	;;
 	srlz.i
 	;;
