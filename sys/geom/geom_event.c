@@ -54,7 +54,6 @@
 
 static struct event_tailq_head g_events = TAILQ_HEAD_INITIALIZER(g_events);
 static u_int g_pending_events;
-static void g_do_event(struct g_event *ep);
 static TAILQ_HEAD(,g_provider) g_doorstep = TAILQ_HEAD_INITIALIZER(g_doorstep);
 static struct mtx g_eventlock;
 static struct sx g_eventstall;
@@ -139,23 +138,6 @@ g_destroy_event(struct g_event *ep)
 	g_free(ep);
 }
 
-static void
-g_do_event(struct g_event *ep)
-{
-
-	g_trace(G_T_TOPOLOGY, "g_do_event(%p) %d - ", ep, ep->event);
-	g_topology_assert();
-	switch (ep->event) {
-	case EV_CALL_ME:
-		ep->func(ep->arg, 0);
-		g_topology_assert();
-		break;	
-	case EV_LAST:
-	default:
-		KASSERT(1 == 0, ("Unknown event %d", ep->event));
-	}
-}
-
 static int
 one_event(void)
 {
@@ -184,7 +166,9 @@ one_event(void)
 	}
 	TAILQ_REMOVE(&g_events, ep, events);
 	mtx_unlock(&g_eventlock);
-	g_do_event(ep);
+	g_topology_assert();
+	ep->func(ep->arg, 0);
+	g_topology_assert();
 	g_destroy_event(ep);
 	g_pending_events--;
 	if (g_pending_events == 0)
@@ -203,35 +187,6 @@ g_run_events()
 }
 
 void
-g_post_event(enum g_events ev, ...)
-{
-	struct g_event *ep;
-	va_list ap;
-	void *p;
-	int n;
-
-	g_trace(G_T_TOPOLOGY, "g_post_event(%d)", ev);
-	g_topology_assert();
-	ep = g_malloc(sizeof *ep, M_WAITOK | M_ZERO);
-	ep->event = ev;
-	va_start(ap, ev);
-	for (n = 0; n < G_N_EVENTREFS; n++) {
-		p = va_arg(ap, void *);
-		if (p == NULL)
-			break;
-		g_trace(G_T_TOPOLOGY, "  ref %p", p);
-		ep->ref[n] = p;
-	}
-	va_end(ap);
-	KASSERT(p == NULL, ("Too many references to event"));
-	mtx_lock(&g_eventlock);
-	g_pending_events++;
-	TAILQ_INSERT_TAIL(&g_events, ep, events);
-	mtx_unlock(&g_eventlock);
-	wakeup(&g_wait_event);
-}
-
-void
 g_cancel_event(void *ref)
 {
 	struct g_event *ep, *epn;
@@ -245,8 +200,7 @@ g_cancel_event(void *ref)
 				break;
 			if (ep->ref[n] == ref) {
 				TAILQ_REMOVE(&g_events, ep, events);
-				if (ep->event == EV_CALL_ME)
-					ep->func(ep->arg, EV_CANCEL);
+				ep->func(ep->arg, EV_CANCEL);
 				g_free(ep);
 				break;
 			}
@@ -277,7 +231,6 @@ g_call_me(g_call_me_t *func, void *arg, ...)
 	}
 	va_end(ap);
 	KASSERT(p == NULL, ("Too many references to event"));
-	ep->event = EV_CALL_ME;
 	ep->func = func;
 	ep->arg = arg;
 	mtx_lock(&g_eventlock);
