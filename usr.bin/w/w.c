@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)w.c	8.4 (Berkeley) 4/16/94";
 #endif
 static const char rcsid[] =
-	"$Id: w.c,v 1.31 1998/12/24 23:27:33 dillon Exp $";
+	"$Id: w.c,v 1.32 1999/01/10 15:28:37 peter Exp $";
 #endif /* not lint */
 
 /*
@@ -116,7 +116,7 @@ struct	entry {
 
 static void	pr_header __P((time_t *, int));
 static struct stat
-		*ttystat __P((char *));
+		*ttystat __P((char *, int));
 static void	usage __P((int));
 static int	this_is_uptime __P((const char *s));
 
@@ -127,14 +127,12 @@ main(argc, argv)
 	int argc;
 	char **argv;
 {
-	extern char *__progname;
 	struct kinfo_proc *kp;
 	struct kinfo_proc *dkp;
 	struct hostent *hp;
 	struct stat *stp;
 	FILE *ut;
 	u_long l;
-	size_t arglen;
 	int ch, i, nentries, nusers, wcmd, longidle;
 	char *memf, *nlistf, *p, *x;
 	char buf[MAXHOSTNAMELEN], errbuf[256];
@@ -207,8 +205,8 @@ main(argc, argv)
 	for (nusers = 0; fread(&utmp, sizeof(utmp), 1, ut);) {
 		if (utmp.ut_name[0] == '\0')
 			continue;
-		if (!(stp = ttystat(utmp.ut_line))) /* corrupted record */
-			continue;
+		if (!(stp = ttystat(utmp.ut_line, UT_LINESIZE)))
+			continue;	/* corrupted record */
 		++nusers;
 		if (wcmd == 0 || (sel_user &&
 		    strncmp(utmp.ut_name, sel_user, UT_NAMESIZE) != 0))
@@ -261,10 +259,10 @@ main(argc, argv)
 	if ((kp = kvm_getprocs(kd, KERN_PROC_ALL, 0, &nentries)) == NULL)
 		err(1, "%s", kvm_geterr(kd));
 	for (i = 0; i < nentries; i++, kp++) {
-		struct proc *p = &kp->kp_proc;
+		struct proc *pr = &kp->kp_proc;
 		struct eproc *e;
 
-		if (p->p_stat == SIDL || p->p_stat == SZOMB)
+		if (pr->p_stat == SIDL || pr->p_stat == SZOMB)
 			continue;
 		e = &kp->kp_eproc;
 		for (ep = ehead; ep != NULL; ep = ep->next) {
@@ -276,7 +274,7 @@ main(argc, argv)
 					/*
 					 * Proc is 'most interesting'
 					 */
-					if (proc_compare(&ep->kp->kp_proc, p))
+					if (proc_compare(&ep->kp->kp_proc, pr))
 						ep->kp = kp;
 				}
 				/*
@@ -370,12 +368,12 @@ main(argc, argv)
 		}
 		if (dflag) {
 			for (dkp = ep->dkp; dkp != NULL; dkp = *((struct kinfo_proc **)(&dkp->kp_eproc.e_spare[0]))) {
-				char *p;
-				p = fmt_argv(kvm_getargv(kd, dkp, argwidth),
+				char *ptr;
+				ptr = fmt_argv(kvm_getargv(kd, dkp, argwidth),
 					    dkp->kp_proc.p_comm, MAXCOMLEN);
-				if (p == NULL)
-					p = "-";
-				(void)printf( "\t\t%-9d %s\n", dkp->kp_proc.p_pid, p);
+				if (ptr == NULL)
+					ptr = "-";
+				(void)printf( "\t\t%-9d %s\n", dkp->kp_proc.p_pid, ptr);
 			}
 		}
 		(void)printf("%-*.*s %-*.*s %-*.*s ",
@@ -468,13 +466,14 @@ pr_header(nowp, nusers)
 }
 
 static struct stat *
-ttystat(line)
+ttystat(line, sz)
 	char *line;
+	int sz;
 {
 	static struct stat sb;
 	char ttybuf[MAXPATHLEN];
 
-	(void)snprintf(ttybuf, sizeof(ttybuf), "%s/%s", _PATH_DEV, line);
+	(void)snprintf(ttybuf, sizeof(ttybuf), "%s%.*s", _PATH_DEV, sz, line);
 	if (stat(ttybuf, &sb)) {
 		warn("%s", ttybuf);
 		return NULL;
