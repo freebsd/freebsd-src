@@ -91,24 +91,24 @@ struct	printer {
  * reversed in process.
  */
 struct	req_user {
-	TAILQ_ENTRY(req_user)	ru_link; /* macro glue */
+	TAILQ_ENTRY(struct req_user)	ru_link; /* macro glue */
 	char	ru_uname[1];	/* name of user */
 };
-TAILQ_HEAD(req_user_head, req_user);
+TAILQ_HEAD(req_user_head, struct req_user);
 
 struct	req_file {
-	TAILQ_ENTRY(req_file)	rf_link; /* macro glue */
+	TAILQ_ENTRY(struct req_file)	rf_link; /* macro glue */
 	char	 rf_type;	/* type (lowercase cf file letter) of file */
 	char	*rf_prettyname;	/* user-visible name of file */
 	char	 rf_fname[1];	/* name of file */
 };
-TAILQ_HEAD(req_file_head, req_file);
+TAILQ_HEAD(req_file_head, struct req_file);
 
 struct	req_jobid {
-	TAILQ_ENTRY(req_jobid)	rj_link; /* macro glue */
+	TAILQ_ENTRY(struct req_jobid)	rj_link; /* macro glue */
 	int	rj_job;		/* job number */
 };
-TAILQ_HEAD(req_jobid_head, req_jobid);
+TAILQ_HEAD(req_jobid_head, struct req_jobid);
 
 /*
  * Encapsulate all the information relevant to a request in the

@@ -156,9 +156,9 @@ Static void	usb_event_thread __P((void *));
 #define USB_MAX_EVENTS 50
 struct usb_event_q {
 	struct usb_event ue;
-	SIMPLEQ_ENTRY(usb_event_q) next;
+	SIMPLEQ_ENTRY(struct usb_event_q) next;
 };
-Static SIMPLEQ_HEAD(, usb_event_q) usb_events =
+Static SIMPLEQ_HEAD(, struct usb_event_q) usb_events =
 	SIMPLEQ_HEAD_INITIALIZER(usb_events);
 Static int usb_nevents = 0;
 Static struct selinfo usb_selevent;

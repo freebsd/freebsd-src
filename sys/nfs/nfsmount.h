@@ -75,7 +75,7 @@ struct	nfsmount {
 	int	nm_acdirmax;		/* Directory attr cache max lifetime */
 	int	nm_acregmin;		/* Reg file attr cache min lifetime */
 	int	nm_acregmax;		/* Reg file attr cache max lifetime */
-	CIRCLEQ_HEAD(, nfsnode) nm_timerhead; /* Head of lease timer queue */
+	CIRCLEQ_HEAD(, struct nfsnode) nm_timerhead; /* Head of lease timer queue */
 	struct vnode *nm_inprog;	/* Vnode in prog by nqnfs_clientd() */
 	uid_t	nm_authuid;		/* Uid for authenticator */
 	int	nm_authtype;		/* Authenticator type */
@@ -86,9 +86,9 @@ struct	nfsmount {
 	u_char	nm_verf[NFSX_V3WRITEVERF]; /* V3 write verifier */
 	NFSKERBKEY_T nm_key;		/* and the session key */
 	int	nm_numuids;		/* Number of nfsuid mappings */
-	TAILQ_HEAD(, nfsuid) nm_uidlruhead; /* Lists of nfsuid mappings */
-	LIST_HEAD(, nfsuid) nm_uidhashtbl[NFS_MUIDHASHSIZ];
-	TAILQ_HEAD(, buf) nm_bufq;	/* async io buffer queue */
+	TAILQ_HEAD(, struct nfsuid) nm_uidlruhead; /* Lists of nfsuid mappings */
+	LIST_HEAD(, struct nfsuid) nm_uidhashtbl[NFS_MUIDHASHSIZ];
+	TAILQ_HEAD(, struct buf) nm_bufq;	/* async io buffer queue */
 	short	nm_bufqlen;		/* number of buffers in queue */
 	short	nm_bufqwant;		/* process wants to add to the queue */
 	int	nm_bufqiods;		/* number of iods processing queue */

@@ -130,10 +130,10 @@ static CORE_ADDR cached_pthread_addr;
 #define THREADID_TID(id)	((id) >> 17)
 #define THREADID_PID(id)	((id) & ((1 << 17) - 1))
 
-LIST_HEAD(idmaplist, idmap);
+LIST_HEAD(idmaplist, struct idmap);
 
 struct idmap {
-    LIST_ENTRY(idmap)	link;
+    LIST_ENTRY(struct idmap)	link;
     u_int64_t		uniqueid;
     int			tid;
 };

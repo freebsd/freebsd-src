@@ -87,14 +87,14 @@ SYSCTL_INT(_net_link_ether_inet, OID_AUTO, host_down_time, CTLFLAG_RW,
 #define	rt_expire rt_rmx.rmx_expire
 
 struct llinfo_arp {
-	LIST_ENTRY(llinfo_arp) la_le;
+	LIST_ENTRY(struct llinfo_arp) la_le;
 	struct	rtentry *la_rt;
 	struct	mbuf *la_hold;		/* last packet until resolved/timeout */
 	long	la_asked;		/* last time we QUERIED for this addr */
 #define la_timer la_rt->rt_rmx.rmx_expire /* deletion time in seconds */
 };
 
-static	LIST_HEAD(, llinfo_arp) llinfo_arp;
+static	LIST_HEAD(, struct llinfo_arp) llinfo_arp;
 
 struct	ifqueue arpintrq = {0, 0, 0, 50};
 static int	arp_inuse, arp_allocated;

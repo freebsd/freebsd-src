@@ -37,7 +37,7 @@
 struct proc;
 
 struct pcic_event {
-	STAILQ_ENTRY(pcic_event) pe_q;
+	STAILQ_ENTRY(struct pcic_event) pe_q;
 	int pe_type;
 };
 
@@ -65,7 +65,7 @@ struct pcic_handle {
 
 	int shutdown;
 	struct proc *event_thread;
-	STAILQ_HEAD(, pcic_event) events;
+	STAILQ_HEAD(, struct pcic_event) events;
 };
 
 #define	PCIC_FLAG_SOCKETP	0x0001

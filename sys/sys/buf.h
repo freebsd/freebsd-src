@@ -53,7 +53,7 @@ struct vnode;
 /*
  * To avoid including <ufs/ffs/softdep.h> 
  */   
-LIST_HEAD(workhead, worklist);
+LIST_HEAD(workhead, struct worklist);
 /*
  * These are currently used only by the soft dependency code, hence
  * are stored once in a global variable. If other subsystems wanted
@@ -103,10 +103,10 @@ struct buf {
 #define	b_resid		b_io.bio_resid
 	void	(*b_iodone) __P((struct buf *));
 	off_t	b_offset;		/* Offset into file. */
-	LIST_ENTRY(buf) b_hash;		/* Hash chain. */
-	TAILQ_ENTRY(buf) b_vnbufs;	/* Buffer's associated vnode. */
-	TAILQ_ENTRY(buf) b_freelist;	/* Free list position if not active. */
-	TAILQ_ENTRY(buf) b_act;		/* Device driver queue when active. *new* */
+	LIST_ENTRY(struct buf) b_hash;	/* Hash chain. */
+	TAILQ_ENTRY(struct buf) b_vnbufs; /* Buffer's associated vnode. */
+	TAILQ_ENTRY(struct buf) b_freelist; /* Free list position if not active. */
+	TAILQ_ENTRY(struct buf) b_act;	/* Device driver queue when active. *new* */
 	long	b_flags;		/* B_* flags. */
 	unsigned short b_qindex;	/* buffer queue index */
 	unsigned char b_xflags;		/* extra flags */
@@ -126,8 +126,8 @@ struct buf {
 		int	pg_reqpage;
 	} b_pager;
 	union	cluster_info {
-		TAILQ_HEAD(cluster_list_head, buf) cluster_head;
-		TAILQ_ENTRY(buf) cluster_entry;
+		TAILQ_HEAD(cluster_list_head, struct buf) cluster_head;
+		TAILQ_ENTRY(struct buf) cluster_entry;
 	} b_cluster;
 	struct	vm_page *b_pages[btoc(MAXPHYS)];
 	int		b_npages;
@@ -334,7 +334,7 @@ BUF_REFCNT(struct buf *bp)
 #endif /* _KERNEL */
 
 struct buf_queue_head {
-	TAILQ_HEAD(buf_queue, buf) queue;
+	TAILQ_HEAD(buf_queue, struct buf) queue;
 	daddr_t	last_pblkno;
 	struct	buf *insert_point;
 	struct	buf *switch_point;
@@ -440,8 +440,8 @@ extern char	*buffers;		/* The buffer contents. */
 extern int	bufpages;		/* Number of memory pages in the buffer pool. */
 extern struct	buf *swbuf;		/* Swap I/O buffer headers. */
 extern int	nswbuf;			/* Number of swap I/O buffer headers. */
-extern TAILQ_HEAD(swqueue, buf) bswlist;
-extern TAILQ_HEAD(bqueues, buf) bufqueues[BUFFER_QUEUES];
+extern TAILQ_HEAD(swqueue, struct buf) bswlist;
+extern TAILQ_HEAD(bqueues, struct buf) bufqueues[BUFFER_QUEUES];
 
 struct uio;
 

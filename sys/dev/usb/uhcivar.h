@@ -73,7 +73,7 @@ typedef struct uhci_intr_info {
 	usbd_xfer_handle xfer;
 	uhci_soft_td_t *stdstart;
 	uhci_soft_td_t *stdend;
-	LIST_ENTRY(uhci_intr_info) list;
+	LIST_ENTRY(struct uhci_intr_info) list;
 #if defined(__FreeBSD__)
 	struct callout_handle timeout_handle;
 #endif /* defined(__FreeBSD__) */
@@ -149,7 +149,7 @@ typedef struct uhci_softc {
 	uhci_soft_td_t *sc_freetds;	/* TD free list */
 	uhci_soft_qh_t *sc_freeqhs;	/* QH free list */
 
-	SIMPLEQ_HEAD(, usbd_xfer) sc_free_xfers; /* free xfers */
+	SIMPLEQ_HEAD(, struct usbd_xfer) sc_free_xfers; /* free xfers */
 
 	u_int8_t sc_addr;		/* device address */
 	u_int8_t sc_conf;		/* device configuration */
@@ -157,7 +157,7 @@ typedef struct uhci_softc {
 	char sc_isreset;
 	char sc_suspend;
 
-	LIST_HEAD(, uhci_intr_info) sc_intrhead;
+	LIST_HEAD(, struct uhci_intr_info) sc_intrhead;
 
 	/* Info for the root hub interrupt channel. */
 	int sc_ival;			/* time between root hug intrs */

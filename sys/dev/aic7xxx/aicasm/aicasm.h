@@ -41,7 +41,7 @@
 typedef struct path_entry {
 	char	*directory;
 	int	quoted_includes_only;
-	SLIST_ENTRY(path_entry) links;
+	SLIST_ENTRY(struct path_entry) links;
 } *path_entry_t;
 
 typedef enum {  
@@ -50,7 +50,7 @@ typedef enum {
 	SOURCE_FILE
 } include_type;
 
-SLIST_HEAD(path_list, path_entry);
+SLIST_HEAD(path_list, struct path_entry);
 
 extern struct path_list search_path;
 extern struct scope_list scope_stack;

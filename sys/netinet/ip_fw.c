@@ -84,7 +84,7 @@ struct ipfw_flow_id last_pkt ;
 
 #define	IPFW_DEFAULT_RULE	((u_int)(u_short)~0)
 
-LIST_HEAD (ip_fw_head, ip_fw_chain) ip_fw_chain;
+LIST_HEAD (ip_fw_head, struct ip_fw_chain) ip_fw_chain;
 
 MALLOC_DEFINE(M_IPFW, "IpFw/IpAcct", "IpFw/IpAcct chain's");
 

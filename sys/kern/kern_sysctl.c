@@ -112,7 +112,7 @@ void sysctl_register_oid(struct sysctl_oid *oidp)
 
 void sysctl_unregister_oid(struct sysctl_oid *oidp)
 {
-	SLIST_REMOVE(oidp->oid_parent, oidp, sysctl_oid, oid_link);
+	SLIST_REMOVE(oidp->oid_parent, oidp, struct sysctl_oid, oid_link);
 }
 
 /*

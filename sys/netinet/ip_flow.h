@@ -40,7 +40,7 @@
 #define _NETINET_IP_FLOW_H
 
 struct ipflow {
-	LIST_ENTRY(ipflow) ipf_next;	/* next ipflow in bucket */
+	LIST_ENTRY(struct ipflow) ipf_next;	/* next ipflow in bucket */
 	struct in_addr ipf_dst;		/* destination address */
 	struct in_addr ipf_src;		/* source address */
 

@@ -67,7 +67,7 @@ static vop_t **fdesc_vnodeop_p;
 #define	NFDCACHE 4
 #define FD_NHASH(ix) \
 	(&fdhashtbl[(ix) & fdhash])
-static LIST_HEAD(fdhashhead, fdescnode) *fdhashtbl;
+static LIST_HEAD(fdhashhead, struct fdescnode) *fdhashtbl;
 static u_long fdhash;
 
 static int	fdesc_badop __P((void));

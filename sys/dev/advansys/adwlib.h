@@ -324,7 +324,7 @@ struct sg_map_node {
 	bus_dmamap_t		 sg_dmamap;
 	bus_addr_t		 sg_physaddr;
 	struct adw_sg_block*	 sg_vaddr;
-	SLIST_ENTRY(sg_map_node) links;
+	SLIST_ENTRY(struct sg_map_node) links;
 };
 
 typedef enum {
@@ -425,7 +425,7 @@ struct acb {
 	struct		adw_sg_block* sg_blocks;
 	bus_addr_t	sg_busaddr;
 	struct		scsi_sense_data sense_data;
-	SLIST_ENTRY(acb) links;
+	SLIST_ENTRY(struct acb) links;
 };
 
 /*
@@ -612,15 +612,15 @@ struct adw_softc
 	struct adw_carrier	 *free_carriers;
 	struct adw_carrier	 *commandq;
 	struct adw_carrier	 *responseq;
-	LIST_HEAD(, ccb_hdr)	  pending_ccbs;
-	SLIST_HEAD(, acb)	  free_acb_list;
+	LIST_HEAD(, struct ccb_hdr)	  pending_ccbs;
+	SLIST_HEAD(, struct acb)	  free_acb_list;
 	bus_dma_tag_t		  parent_dmat;
 	bus_dma_tag_t		  carrier_dmat;	/* dmat for our acb carriers*/
 	bus_dmamap_t		  carrier_dmamap;
 	bus_dma_tag_t		  acb_dmat;	/* dmat for our ccb array */
 	bus_dmamap_t		  acb_dmamap;
 	bus_dma_tag_t		  sg_dmat;	/* dmat for our sg maps */
-	SLIST_HEAD(, sg_map_node) sg_maps;
+	SLIST_HEAD(, struct sg_map_node) sg_maps;
 	bus_addr_t		  acb_busbase;
 	bus_addr_t		  carrier_busbase;
 	adw_chip		  chip;

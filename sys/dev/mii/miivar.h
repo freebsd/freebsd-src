@@ -74,7 +74,7 @@ struct mii_data {
 	 * PHYs is required so they can all be notified when a media
 	 * request is made.
 	 */
-	LIST_HEAD(mii_listhead, mii_softc) mii_phys;
+	LIST_HEAD(mii_listhead, struct mii_softc) mii_phys;
 	int mii_instance;
 
 	/*
@@ -113,7 +113,7 @@ typedef	int (*mii_downcall_t) __P((struct mii_softc *, struct mii_data *, int));
 struct mii_softc {
 	device_t mii_dev;		/* generic device glue */
 	
-	LIST_ENTRY(mii_softc) mii_list;	/* entry on parent's PHY list */
+	LIST_ENTRY(struct mii_softc) mii_list;	/* entry on parent's PHY list */
 
 	int mii_phy;			/* our MII address */
 	int mii_inst;			/* instance for ifmedia */

@@ -125,7 +125,7 @@ struct	in6_ndireq {
 		((MAX_RANDOM_FACTOR - MIN_RANDOM_FACTOR) * (x >> 10)))) /1000)
 
 struct	nd_defrouter {
-	LIST_ENTRY(nd_defrouter)	dr_entry;
+	LIST_ENTRY(struct nd_defrouter)	dr_entry;
 	struct	in6_addr rtaddr;
 	u_char	flags;
 	u_short	rtlifetime;
@@ -135,7 +135,7 @@ struct	nd_defrouter {
 
 struct nd_prefix {
 	struct	ifnet *ndpr_ifp;
-	LIST_ENTRY(nd_prefix) ndpr_entry;
+	LIST_ENTRY(struct nd_prefix) ndpr_entry;
 	struct	sockaddr_in6 ndpr_prefix;	/* prefix */
 	struct	in6_addr ndpr_mask; /* netmask derived from the prefix */
 	struct	in6_addr ndpr_addr; /* address that is derived from the prefix */
@@ -145,7 +145,7 @@ struct nd_prefix {
 	time_t	ndpr_preferred;	/* preferred time of the prefix */
 	struct	prf_ra ndpr_flags;
 	/* list of routers that advertise the prefix: */
-	LIST_HEAD(pr_rtrhead, nd_pfxrouter) ndpr_advrtrs;
+	LIST_HEAD(pr_rtrhead, struct nd_pfxrouter) ndpr_advrtrs;
 	u_char	ndpr_plen;
 	struct	ndpr_stateflags {
 		/* if this prefix can be regarded as on-link */
@@ -196,12 +196,12 @@ struct inet6_ndpr_msghdr {
 #define	ndpr2ifpr(ndpr)	((struct ifprefix *)(ndpr))
 
 struct nd_pfxrouter {
-	LIST_ENTRY(nd_pfxrouter) pfr_entry;
+	LIST_ENTRY(struct nd_pfxrouter) pfr_entry;
 	struct	nd_defrouter *router;
 };
 
-LIST_HEAD(nd_drhead, nd_defrouter);
-LIST_HEAD(nd_prhead, nd_prefix);
+LIST_HEAD(nd_drhead, struct nd_defrouter);
+LIST_HEAD(nd_prhead, struct nd_prefix);
 
 /* nd6.c */
 extern int	nd6_prune;

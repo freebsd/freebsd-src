@@ -1103,12 +1103,12 @@ struct ti_type {
 
 struct ti_mc_entry {
 	struct ether_addr		mc_addr;
-	SLIST_ENTRY(ti_mc_entry)	mc_entries;
+	SLIST_ENTRY(struct ti_mc_entry)	mc_entries;
 };
 
 struct ti_jpool_entry {
 	int                             slot;
-	SLIST_ENTRY(ti_jpool_entry)	jpool_entries;
+	SLIST_ENTRY(struct ti_jpool_entry)	jpool_entries;
 };
 
 struct ti_softc {
@@ -1135,9 +1135,9 @@ struct ti_softc {
 	u_int16_t		ti_std;		/* current std ring head */
 	u_int16_t		ti_mini;	/* current mini ring head */
 	u_int16_t		ti_jumbo;	/* current jumo ring head */
-	SLIST_HEAD(__ti_mchead, ti_mc_entry)	ti_mc_listhead;
-	SLIST_HEAD(__ti_jfreehead, ti_jpool_entry)	ti_jfree_listhead;
-	SLIST_HEAD(__ti_jinusehead, ti_jpool_entry)	ti_jinuse_listhead;
+	SLIST_HEAD(__ti_mchead, struct ti_mc_entry)	ti_mc_listhead;
+	SLIST_HEAD(__ti_jfreehead, struct ti_jpool_entry) ti_jfree_listhead;
+	SLIST_HEAD(__ti_jinusehead, struct ti_jpool_entry) ti_jinuse_listhead;
 	u_int32_t		ti_stat_ticks;
 	u_int32_t		ti_rx_coal_ticks;
 	u_int32_t		ti_tx_coal_ticks;

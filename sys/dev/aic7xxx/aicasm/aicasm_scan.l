@@ -200,10 +200,10 @@ typedef struct include {
         YY_BUFFER_STATE  buffer;
         int              lineno;
         char            *filename;
-	SLIST_ENTRY(include) links;
+	SLIST_ENTRY(struct include) links;
 }include_t;
 
-SLIST_HEAD(, include) include_stack;
+SLIST_HEAD(, struct include) include_stack;
 
 void
 include_file(file_name, type)

@@ -61,7 +61,7 @@ struct ng_hook {
 	int	refs;		/* dont actually free this till 0 */
 	struct	ng_hook *peer;	/* the other end of this link */
 	struct	ng_node *node;	/* The node this hook is attached to */
-	LIST_ENTRY(ng_hook) hooks;	/* linked list of all hooks on node */
+	LIST_ENTRY(struct ng_hook) hooks; /* linked list of all hooks on node */
 };
 typedef struct ng_hook *hook_p;
 
@@ -81,9 +81,9 @@ struct ng_node {
 	int	colour;		/* for graph colouring algorithms */
 	void   *private;	/* node type dependant node ID */
 	ng_ID_t		ID;	/* Unique per node */
-	LIST_HEAD(hooks, ng_hook) hooks;	/* linked list of node hooks */
-	LIST_ENTRY(ng_node)	  nodes;	/* linked list of all nodes */
-	LIST_ENTRY(ng_node)	  idnodes;	/* ID hash collision list */
+	LIST_HEAD(hooks, struct ng_hook) hooks;	/* linked list of node hooks */
+	LIST_ENTRY(struct ng_node)	  nodes; /* linked list of all nodes */
+	LIST_ENTRY(struct ng_node)	  idnodes; /* ID hash collision list */
 };
 typedef struct ng_node *node_p;
 
@@ -177,7 +177,7 @@ struct ng_type {
 	const struct	ng_cmdlist *cmdlist;	/* commands we can convert */
 
 	/* R/W data private to the base netgraph code DON'T TOUCH! */
-	LIST_ENTRY(ng_type) types;		/* linked list of all types */
+	LIST_ENTRY(struct ng_type) types;	/* linked list of all types */
 	int		    refs;		/* number of instances */
 };
 

@@ -126,13 +126,13 @@ struct cd_softc {
 	cd_state		state;
 	volatile cd_flags	flags;
 	struct bio_queue_head	bio_queue;
-	LIST_HEAD(, ccb_hdr)	pending_ccbs;
+	LIST_HEAD(, struct ccb_hdr)	pending_ccbs;
 	struct cd_params	params;
 	struct disk	 	disk;
 	union ccb		saved_ccb;
 	cd_quirks		quirks;
 	struct devstat		device_stats;
-	STAILQ_ENTRY(cd_softc)	changer_links;
+	STAILQ_ENTRY(struct cd_softc)	changer_links;
 	struct cdchanger	*changer;
 	int			bufs_left;
 	struct cam_periph	*periph;
@@ -299,11 +299,11 @@ struct cdchanger {
 	struct callout_handle		 short_handle;
 	struct callout_handle		 long_handle;
 	volatile cd_changer_flags	 flags;
-	STAILQ_ENTRY(cdchanger)		 changer_links;
-	STAILQ_HEAD(chdevlist, cd_softc) chluns;
+	STAILQ_ENTRY(struct cdchanger)		 changer_links;
+	STAILQ_HEAD(chdevlist, struct cd_softc) chluns;
 };
 
-static STAILQ_HEAD(changerlist, cdchanger) changerq;
+static STAILQ_HEAD(changerlist, struct cdchanger) changerq;
 
 void
 cdinit(void)
@@ -477,7 +477,7 @@ cdcleanup(struct cam_periph *periph)
 			softc->changer->flags &= ~CHANGER_SHORT_TMOUT_SCHED;
 		}
 
-		STAILQ_REMOVE(&changerq, softc->changer, cdchanger,
+		STAILQ_REMOVE(&changerq, softc->changer, struct cdchanger,
 			      changer_links);
 		xpt_print_path(periph->path);
 		printf("removing changer entry\n");

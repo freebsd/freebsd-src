@@ -120,7 +120,7 @@ static void dummynet_flush(void);
  * ip_fw_chain is used when deleting a pipe, because ipfw rules can
  * hold references to the pipe.
  */
-extern LIST_HEAD (ip_fw_head, ip_fw_chain) ip_fw_chain;
+extern LIST_HEAD (ip_fw_head, struct ip_fw_chain) ip_fw_chain;
 
 static void
 rt_unref(struct rtentry *rt)

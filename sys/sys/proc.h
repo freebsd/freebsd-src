@@ -70,8 +70,8 @@ struct	session {
  * One structure allocated per process group.
  */
 struct	pgrp {
-	LIST_ENTRY(pgrp) pg_hash;	/* Hash chain. */
-	LIST_HEAD(, proc) pg_members;	/* Pointer to pgrp members. */
+	LIST_ENTRY(struct pgrp) pg_hash;	/* Hash chain. */
+	LIST_HEAD(, struct proc) pg_members;	/* Pointer to pgrp members. */
 	struct	session *pg_session;	/* Pointer to session. */
 	struct  sigiolst pg_sigiolst;	/* List of sigio sources. */
 	pid_t	pg_id;			/* Pgrp id. */
@@ -123,8 +123,8 @@ struct	pargs {
 struct jail;
 
 struct	proc {
-	TAILQ_ENTRY(proc) p_procq;	/* run/sleep queue. */
-	LIST_ENTRY(proc) p_list;	/* List of all processes. */
+	TAILQ_ENTRY(struct proc) p_procq;	/* run/sleep queue. */
+	LIST_ENTRY(struct proc) p_list;	/* List of all processes. */
 
 	/* substructures: */
 	struct	pcred *p_cred;		/* Process owner's identity. */
@@ -145,11 +145,11 @@ struct	proc {
 	char	p_pad1[3];
 
 	pid_t	p_pid;			/* Process identifier. */
-	LIST_ENTRY(proc) p_hash;	/* Hash chain. */
-	LIST_ENTRY(proc) p_pglist;	/* List of processes in pgrp. */
+	LIST_ENTRY(struct proc) p_hash;	/* Hash chain. */
+	LIST_ENTRY(struct proc) p_pglist;	/* List of processes in pgrp. */
 	struct	proc *p_pptr;	 	/* Pointer to parent process. */
-	LIST_ENTRY(proc) p_sibling;	/* List of sibling processes. */
-	LIST_HEAD(, proc) p_children;	/* Pointer to list of children. */
+	LIST_ENTRY(struct proc) p_sibling;	/* List of sibling processes. */
+	LIST_HEAD(, struct proc) p_children;	/* Pointer to list of children. */
 
 	struct callout_handle p_ithandle; /*
 					      * Callout handle for scheduling
@@ -361,11 +361,11 @@ extern void stopevent(struct proc*, unsigned int, unsigned int);
 #define PRELE(p)	(--(p)->p_lock)
 
 #define	PIDHASH(pid)	(&pidhashtbl[(pid) & pidhash])
-extern LIST_HEAD(pidhashhead, proc) *pidhashtbl;
+extern LIST_HEAD(pidhashhead, struct proc) *pidhashtbl;
 extern u_long pidhash;
 
 #define	PGRPHASH(pgid)	(&pgrphashtbl[(pgid) & pgrphash])
-extern LIST_HEAD(pgrphashhead, pgrp) *pgrphashtbl;
+extern LIST_HEAD(pgrphashhead, struct pgrp) *pgrphashtbl;
 extern u_long pgrphash;
 
 #ifndef SET_CURPROC
@@ -384,13 +384,13 @@ extern int nprocs, maxproc;		/* Current and max number of procs. */
 extern int maxprocperuid;		/* Max procs per uid. */
 extern int sched_quantum;		/* Scheduling quantum in ticks */
 
-LIST_HEAD(proclist, proc);
+LIST_HEAD(proclist, struct proc);
 extern struct proclist allproc;		/* List of all processes. */
 extern struct proclist zombproc;	/* List of zombie processes. */
 extern struct proc *initproc, *pageproc, *updateproc; /* Process slots for init, pager. */
 
 #define	NQS	32			/* 32 run queues. */
-TAILQ_HEAD(rq, proc);
+TAILQ_HEAD(rq, struct proc);
 extern struct rq queues[];
 extern struct rq rtqueues[];
 extern struct rq idqueues[];

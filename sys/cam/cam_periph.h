@@ -49,7 +49,7 @@ typedef periph_init_t *periph_init_func_t;
 struct periph_driver {
 	periph_init_func_t	 init;
 	char			 *driver_name;
-	TAILQ_HEAD(,cam_periph)	 units;
+	TAILQ_HEAD(, struct cam_periph)	 units;
 	u_int			 generation;
 };
 
@@ -89,9 +89,9 @@ struct cam_periph {
 #define CAM_PERIPH_RECOVERY_INPROG	0x20
 	u_int32_t		 immediate_priority;
 	u_int32_t		 refcount;
-	SLIST_HEAD(, ccb_hdr)	 ccb_list;	/* For "immediate" requests */
-	SLIST_ENTRY(cam_periph)  periph_links;
-	TAILQ_ENTRY(cam_periph)  unit_links;
+	SLIST_HEAD(, struct ccb_hdr)	ccb_list; /* For "immediate" requests */
+	SLIST_ENTRY(struct cam_periph)  periph_links;
+	TAILQ_ENTRY(struct cam_periph)  unit_links;
 	ac_callback_t		*deferred_callback; 
 	ac_code			 deferred_ac;
 };

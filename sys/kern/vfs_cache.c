@@ -55,9 +55,9 @@
  */
 
 struct	namecache {
-	LIST_ENTRY(namecache) nc_hash;	/* hash chain */
-	LIST_ENTRY(namecache) nc_src;	/* source vnode list */
-	TAILQ_ENTRY(namecache) nc_dst;	/* destination vnode list */
+	LIST_ENTRY(struct namecache) nc_hash;	/* hash chain */
+	LIST_ENTRY(struct namecache) nc_src;	/* source vnode list */
+	TAILQ_ENTRY(struct namecache) nc_dst;	/* destination vnode list */
 	struct	vnode *nc_dvp;		/* vnode of parent of name */
 	struct	vnode *nc_vp;		/* vnode the name refers to */
 	u_char	nc_flag;		/* flag bits */
@@ -87,8 +87,8 @@ struct	namecache {
  */
 #define NCHHASH(dvp, hash) \
 	(&nchashtbl[((dvp)->v_id + (hash)) & nchash])
-static LIST_HEAD(nchashhead, namecache) *nchashtbl;	/* Hash Table */
-static TAILQ_HEAD(, namecache) ncneg;	/* Hash Table */
+static LIST_HEAD(nchashhead, struct namecache) *nchashtbl;	/* Hash Table */
+static TAILQ_HEAD(, struct namecache) ncneg;	/* Hash Table */
 static u_long	nchash;			/* size of hash table */
 SYSCTL_INT(_debug, OID_AUTO, nchash, CTLFLAG_RD, &nchash, 0, "");
 static u_long	ncnegfactor = 16;	/* ratio of negative entries */

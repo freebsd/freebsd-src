@@ -113,7 +113,7 @@
  */
 #define	SLIST_HEAD(name, type)						\
 struct name {								\
-	struct type *slh_first;	/* first element */			\
+	type *slh_first;	/* first element */			\
 }
 
 #define	SLIST_HEAD_INITIALIZER(head)					\
@@ -121,7 +121,7 @@ struct name {								\
  
 #define	SLIST_ENTRY(type)						\
 struct {								\
-	struct type *sle_next;	/* next element */			\
+	type *sle_next;		/* next element */			\
 }
  
 /*
@@ -157,7 +157,7 @@ struct {								\
 		SLIST_REMOVE_HEAD((head), field);			\
 	}								\
 	else {								\
-		struct type *curelm = SLIST_FIRST((head));		\
+		type *curelm = SLIST_FIRST((head));			\
 		while (SLIST_NEXT(curelm, field) != (elm))		\
 			curelm = SLIST_NEXT(curelm, field);		\
 		SLIST_NEXT(curelm, field) =				\
@@ -174,8 +174,8 @@ struct {								\
  */
 #define	STAILQ_HEAD(name, type)						\
 struct name {								\
-	struct type *stqh_first;/* first element */			\
-	struct type **stqh_last;/* addr of last next element */		\
+	type *stqh_first;	/* first element */			\
+	type **stqh_last;	/* addr of last next element */		\
 }
 
 #define	STAILQ_HEAD_INITIALIZER(head)					\
@@ -183,7 +183,7 @@ struct name {								\
 
 #define	STAILQ_ENTRY(type)						\
 struct {								\
-	struct type *stqe_next;	/* next element */			\
+	type *stqe_next;	/* next element */			\
 }
 
 /*
@@ -230,7 +230,7 @@ struct {								\
 		STAILQ_REMOVE_HEAD(head, field);			\
 	}								\
 	else {								\
-		struct type *curelm = STAILQ_FIRST((head));		\
+		type *curelm = STAILQ_FIRST((head));			\
 		while (STAILQ_NEXT(curelm, field) != (elm))		\
 			curelm = STAILQ_NEXT(curelm, field);		\
 		if ((STAILQ_NEXT(curelm, field) =			\
@@ -255,7 +255,7 @@ struct {								\
  */
 #define	LIST_HEAD(name, type)						\
 struct name {								\
-	struct type *lh_first;	/* first element */			\
+	type *lh_first;		/* first element */			\
 }
 
 #define	LIST_HEAD_INITIALIZER(head)					\
@@ -263,8 +263,8 @@ struct name {								\
 
 #define	LIST_ENTRY(type)						\
 struct {								\
-	struct type *le_next;	/* next element */			\
-	struct type **le_prev;	/* address of previous next element */	\
+	type *le_next;		/* next element */			\
+	type **le_prev;		/* address of previous next element */	\
 }
 
 /*
@@ -320,8 +320,8 @@ struct {								\
  */
 #define	TAILQ_HEAD(name, type)						\
 struct name {								\
-	struct type *tqh_first;	/* first element */			\
-	struct type **tqh_last;	/* addr of last next element */		\
+	type *tqh_first;	/* first element */			\
+	type **tqh_last;	/* addr of last next element */		\
 }
 
 #define	TAILQ_HEAD_INITIALIZER(head)					\
@@ -329,8 +329,8 @@ struct name {								\
 
 #define	TAILQ_ENTRY(type)						\
 struct {								\
-	struct type *tqe_next;	/* next element */			\
-	struct type **tqe_prev;	/* address of previous next element */	\
+	type *tqe_next;		/* next element */			\
+	type **tqe_prev;	/* address of previous next element */	\
 }
 
 /*
@@ -411,8 +411,8 @@ struct {								\
  */
 #define	CIRCLEQ_HEAD(name, type)					\
 struct name {								\
-	struct type *cqh_first;		/* first element */		\
-	struct type *cqh_last;		/* last element */		\
+	type *cqh_first;		/* first element */		\
+	type *cqh_last;			/* last element */		\
 }
 
 #define	CIRCLEQ_HEAD_INITIALIZER(head)					\
@@ -420,8 +420,8 @@ struct name {								\
 
 #define	CIRCLEQ_ENTRY(type)						\
 struct {								\
-	struct type *cqe_next;		/* next element */		\
-	struct type *cqe_prev;		/* previous element */		\
+	type *cqe_next;			/* next element */		\
+	type *cqe_prev;			/* previous element */		\
 }
 
 /*

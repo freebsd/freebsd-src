@@ -61,13 +61,13 @@ static void pgdelete	__P((struct pgrp *));
  * Structure associated with user cacheing.
  */
 struct uidinfo {
-	LIST_ENTRY(uidinfo) ui_hash;
+	LIST_ENTRY(struct uidinfo) ui_hash;
 	uid_t	ui_uid;
 	long	ui_proccnt;
 	rlim_t	ui_sbsize;
 };
 #define	UIHASH(uid)	(&uihashtbl[(uid) & uihash])
-static LIST_HEAD(uihashhead, uidinfo) *uihashtbl;
+static LIST_HEAD(uihashhead, struct uidinfo) *uihashtbl;
 static u_long uihash;		/* size of hash table - 1 */
 
 static void	orphanpg __P((struct pgrp *pg));

@@ -51,7 +51,7 @@ typedef struct ohci_soft_td {
 	struct ohci_soft_td *nexttd; /* mirrors nexttd in TD */
 	struct ohci_soft_td *dnext; /* next in done list */
 	ohci_physaddr_t physaddr;
-	LIST_ENTRY(ohci_soft_td) hnext;
+	LIST_ENTRY(struct ohci_soft_td) hnext;
 	usbd_xfer_handle xfer;
 	u_int16_t len;
 	u_int16_t flags;
@@ -97,7 +97,7 @@ typedef struct ohci_softc {
 	ohci_soft_ed_t *sc_ctrl_head;
 	ohci_soft_ed_t *sc_bulk_head;
 
-	LIST_HEAD(, ohci_soft_td) sc_hash_tds[OHCI_HASH_SIZE];
+	LIST_HEAD(, struct ohci_soft_td) sc_hash_tds[OHCI_HASH_SIZE];
 
 	int sc_noport;
 	u_int8_t sc_addr;		/* device address */
@@ -107,7 +107,7 @@ typedef struct ohci_softc {
 	ohci_soft_td_t *sc_freetds;
 	ohci_soft_itd_t *sc_freeitds;
 
-	SIMPLEQ_HEAD(, usbd_xfer) sc_free_xfers; /* free xfers */
+	SIMPLEQ_HEAD(, struct usbd_xfer) sc_free_xfers; /* free xfers */
 
 	usbd_xfer_handle sc_intrxfer;
 

@@ -41,7 +41,7 @@
 						
 /* (I)  structure and prototype */
 #define GENERIC_CCB_ASSERT(DEV, CCBTYPE)				\
-TAILQ_HEAD(CCBTYPE##tab, CCBTYPE);					\
+TAILQ_HEAD(CCBTYPE##tab, struct CCBTYPE);				\
 struct CCBTYPE##que {							\
 	struct CCBTYPE##tab CCBTYPE##tab;				\
 	int count;							\
