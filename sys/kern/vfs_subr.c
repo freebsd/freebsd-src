@@ -3006,20 +3006,31 @@ privcheck:
 	 * or the request type onto the cap_granted mask.
 	 */
 	cap_granted = 0;
-	if ((acc_mode & VEXEC) && ((dac_granted & VEXEC) == 0) &&
-	    !cap_check_xxx(cred, NULL, CAP_DAC_EXECUTE, PRISON_ROOT))
-	    cap_granted |= VEXEC;
+
+	if (type == VDIR) {
+		/*
+		 * For directories, use CAP_DAC_READ_SEARCH to satisfy
+		 * VEXEC requests, instead of CAP_DAC_EXECUTE.
+		 */
+		if ((acc_mode & VEXEC) && ((dac_granted & VEXEC) == 0) &&
+		    !cap_check(cred, NULL, CAP_DAC_READ_SEARCH, PRISON_ROOT))
+			cap_granted |= VEXEC;
+	} else {
+		if ((acc_mode & VEXEC) && ((dac_granted & VEXEC) == 0) &&
+		    !cap_check(cred, NULL, CAP_DAC_EXECUTE, PRISON_ROOT))
+			cap_granted |= VEXEC;
+	}
 
 	if ((acc_mode & VREAD) && ((dac_granted & VREAD) == 0) &&
-	    !cap_check_xxx(cred, NULL, CAP_DAC_READ_SEARCH, PRISON_ROOT))
+	    !cap_check(cred, NULL, CAP_DAC_READ_SEARCH, PRISON_ROOT))
 		cap_granted |= VREAD;
 
 	if ((acc_mode & VWRITE) && ((dac_granted & VWRITE) == 0) &&
-	    !cap_check_xxx(cred, NULL, CAP_DAC_WRITE, PRISON_ROOT))
+	    !cap_check(cred, NULL, CAP_DAC_WRITE, PRISON_ROOT))
 		cap_granted |= VWRITE;
 
 	if ((acc_mode & VADMIN) && ((dac_granted & VADMIN) == 0) &&
-	    !cap_check_xxx(cred, NULL, CAP_FOWNER, PRISON_ROOT))
+	    !cap_check(cred, NULL, CAP_FOWNER, PRISON_ROOT))
 		cap_granted |= VADMIN;
 
 	if ((acc_mode & (cap_granted | dac_granted)) == acc_mode) {
