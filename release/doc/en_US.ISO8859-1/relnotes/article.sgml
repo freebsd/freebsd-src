@@ -1479,6 +1479,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       </sect4>
     </sect3>
   </sect2>
+
   <sect2 id="security">
     <title>Security-Related Changes</title>
 
@@ -1785,7 +1786,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <application>bzip2</application>.  For more information, see
       security advisory <ulink
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:25.bzip2.asc">FreeBSD-SA-02:25</ulink>.
-      &merged; </para>
+      &merged;</para>
 
     <para>A bug has been fixed in the implementation of the TCP SYN 
       cache (<quote>syncache</quote>), which could allow a remote
@@ -1793,6 +1794,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       (see &man.accept.filter.9;) were in use.  This bug has been 
       fixed. &merged;</para>
   </sect2>
+
   <sect2 id="userland">
     <title>Userland Changes</title>
 
