@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: package.c,v 1.48.2.9 1997/03/22 15:20:26 jkh Exp $
+ * $Id: package.c,v 1.48.2.10 1997/06/13 17:54:47 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -96,7 +96,7 @@ int
 package_extract(Device *dev, char *name, Boolean depended)
 {
     char path[511];
-    int ret;
+    int ret, last_msg = 0;
     FILE *fp;
 
     /* Check to make sure it's not already there */
@@ -165,7 +165,10 @@ package_extract(Device *dev, char *name, Boolean depended)
 		seconds = stop.tv_sec + (stop.tv_usec / 1000000.0);
 		if (!seconds)
 		    seconds = 1;
-		msgInfo("%10d bytes read from package %s @ %4.1f KBytes/second", tot, name, (tot / seconds) / 1024.0);
+		if (seconds != last_msg) {
+		    last_msg = seconds;
+		    msgInfo("%10d bytes read from package %s @ %4.1f KBytes/second", tot, name, (tot / seconds) / 1024.0);
+		}
 		/* Write it out */
 		if (sigpipe_caught || write(pfd[1], buf, i) != i) {
 		    msgInfo("Write failure to pkg_add!  Package may be corrupt.");

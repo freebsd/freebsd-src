@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: label.c,v 1.63.2.7 1997/08/11 13:15:23 jkh Exp $
+ * $Id: label.c,v 1.63.2.8 1997/09/10 10:16:21 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -756,25 +756,27 @@ diskLabel(char *str)
 			sz = atoi(cp) * ONE_MEG;
 		    else
 			sz = space_free(label_chunk_info[here].c);
-		    if (!sz || sz < (USR_MIN_SIZE * ONE_MEG)) {
-			msgConfirm("Less than %dMB free for /usr - you will need to\n"
-				   "partition your disk manually with a custom install!", USR_MIN_SIZE);
-			clear_wins();
-			break;
-		    }
+		    if (sz) {
+			if (sz < (USR_MIN_SIZE * ONE_MEG)) {
+			    msgConfirm("Less than %dMB free for /usr - you will need to\n"
+				       "partition your disk manually with a custom install!", USR_MIN_SIZE);
+			    clear_wins();
+			    break;
+			}
 
-		    tmp = Create_Chunk_DWIM(label_chunk_info[here].c->disk,
-					    label_chunk_info[here].c,
-					    sz, part, FS_BSDFFS, 0);
-		    if (!tmp) {
-			msgConfirm("Unable to create the /usr partition.  Not enough space?\n"
-				   "You will need to partition your disk manually with a custom install!");
-			clear_wins();
-			break;
+			tmp = Create_Chunk_DWIM(label_chunk_info[here].c->disk,
+						label_chunk_info[here].c,
+						sz, part, FS_BSDFFS, 0);
+			if (!tmp) {
+			    msgConfirm("Unable to create the /usr partition.  Not enough space?\n"
+				       "You will need to partition your disk manually with a custom install!");
+			    clear_wins();
+			    break;
+			}
+			tmp->private_data = new_part("/usr", TRUE, tmp->size);
+			tmp->private_free = safe_free;
+			record_label_chunks(devs);
 		    }
-		    tmp->private_data = new_part("/usr", TRUE, tmp->size);
-		    tmp->private_free = safe_free;
-		    record_label_chunks(devs);
 		}
 		/* At this point, we're reasonably "labelled" */
 		if (((cp = variable_get(DISK_LABELLED)) == NULL) || (strcmp(cp, "written")))
