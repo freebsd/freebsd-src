@@ -43,12 +43,13 @@
  * are token separators.
  *
  *-M*************************************************************************/
-static char id[] = "$Id: aic7xxx_asm.c,v 1.8 1995/04/15 21:45:56 gibbs Exp $";
+static char id[] = "$Id: aic7xxx_asm.c,v 1.9 1995/05/30 07:57:33 rgrimes Exp $";
 #include <ctype.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <fcntl.h>
 
 #define MEMORY		448
 #define MAXLINE		1024
@@ -67,7 +68,6 @@ static char id[] = "$Id: aic7xxx_asm.c,v 1.8 1995/04/15 21:45:56 gibbs Exp $";
 int debug;
 int lineno, LC;
 char *filename;
-FILE *ifp, *ofp;
 unsigned char M[MEMORY][4];
 
 void
@@ -223,7 +223,7 @@ getl(int *n)
 
 	i = 0;
 
-	while (fgets(buf, sizeof(buf), ifp)) {
+	while (fgets(buf, sizeof(buf), stdin)) {
 
 		lineno += 1;
 
@@ -536,7 +536,7 @@ crack(char **a, int n)
 #undef A
 
 void
-assemble(void)
+assemble(FILE *ofile)
 {
 	int n;
 	char **a;
@@ -559,7 +559,7 @@ assemble(void)
 			continue;
 
 		if (n == 3 && !strcmp("VERSION", *a))
-			fprintf(ofp, "#define %s \"%s\"\n", a[1], a[2]);
+			fprintf(ofile, "#define %s \"%s\"\n", a[1], a[2]);
 		else {
 			if (n == 3 && !strcmp("=", a[1]))
 				define(*a, strtol(a[2], NULL, 0));
@@ -569,7 +569,7 @@ assemble(void)
 	}
 
 	backpatch();
-	output(ofp);
+	output(ofile);
 
 	if (debug)
 		output(stderr);
@@ -579,7 +579,12 @@ int
 main(int argc, char **argv)
 {
 	int c;
+	int pid;
+	int ifile;
+	FILE *ofile;
+	int fd[2];
 
+	ofile = NULL;
 	while ((c = getopt(argc, argv, "dho:vD")) != EOF) {
 		switch (c) {
 		    case 'd':
@@ -597,8 +602,8 @@ main(int argc, char **argv)
 			break;
 		    }
 		    case 'o':
-		        ofp = fopen(optarg, "w");
-			if (!ofp) {
+		        
+			if ((ofile = fopen(optarg, "w")) < 0) {
 				perror(optarg);
 				exit(EXIT_FAILURE);
 			}
@@ -624,20 +629,57 @@ main(int argc, char **argv)
 	}
 	filename = argv[optind];
 
-	ifp = fopen(filename, "r");
-	if (!ifp) {
+	
+	if ((ifile = open(filename, O_RDONLY)) < 0) {
 		perror(filename);
 		exit(EXIT_FAILURE);
 	}
 
-	if (!ofp) {
-		ofp = fopen(ADOTOUT, "w");
-		if (!ofp) {
+	if (!ofile) {
+		if ((ofile = fopen(ADOTOUT, "w")) < 0) {
 			perror(ADOTOUT);
 			exit(EXIT_FAILURE);
 		}
 	}
 
-	assemble();
-	exit(EXIT_SUCCESS);
+	if (pipe(fd) < 0) {
+		perror("pipe failed");
+		exit(1);
+	}
+
+	if ((pid = fork()) < 0 ) {
+		perror("fork failed");
+		exit(1);
+	}
+	else if (pid > 0) {		/* Parent */
+		close(fd[1]);		/* Close write end */
+		if (fd[0] != STDIN_FILENO) {
+			if (dup2(fd[0], STDIN_FILENO) != STDIN_FILENO) {
+				perror("dup2 error on stdin");
+				exit(EXIT_FAILURE);
+			}
+			close(fd[0]);
+		}
+		assemble(ofile);
+		exit(EXIT_SUCCESS);
+	}
+	else {				/* Child */
+		close(fd[0]);		/* Close Read end */
+		if (fd[1] != STDOUT_FILENO) {
+			if (dup2(fd[1], STDOUT_FILENO) != STDOUT_FILENO) {
+				perror("dup2 error on stdout");
+				exit(EXIT_FAILURE);
+			}
+			close(fd[1]);
+		}
+		if (ifile != STDIN_FILENO) {
+			if (dup2(ifile, STDIN_FILENO) != STDIN_FILENO) {
+				perror("dup2 error on stdin");
+				exit(EXIT_FAILURE);
+			}
+			close(ifile);
+		}
+		execl("/usr/bin/cpp", "/usr/bin/cpp", "-P", "-", "-");
+	}
+	return(EXIT_SUCCESS);
 }
