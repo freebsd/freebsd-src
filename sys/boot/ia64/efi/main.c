@@ -388,7 +388,7 @@ print_trs(int type)
 	int i, maxtr;
 	struct {
 		pt_entry_t	pte;
-		struct ia64_itir itir;
+		uint64_t	itir;
 		uint64_t	ifa;
 		struct ia64_rr	rr;
 	} buf;
@@ -445,7 +445,8 @@ print_trs(int type)
 			buf.pte &= ~PTE_MA_MASK;
 		sprintf(lbuf, "%03d %06x %013lx %013lx %4s %d  %d  %d  %d %d "
 		    "%-3s %d %06x\n", i, buf.rr.rr_rid, buf.ifa >> 12,
-		    (buf.pte & PTE_PPN_MASK) >> 12, psnames[buf.itir.ps],
+		    (buf.pte & PTE_PPN_MASK) >> 12,
+		    psnames[(buf.itir & ITIR_PS_MASK) >> 2],
 		    (buf.pte & PTE_ED) ? 1 : 0,
 		    (int)(buf.pte & PTE_AR_MASK) >> 9,
 		    (int)(buf.pte & PTE_PL_MASK) >> 7,
@@ -453,7 +454,7 @@ print_trs(int type)
 		    (buf.pte & PTE_ACCESSED) ? 1 : 0,
 		    manames[(buf.pte & PTE_MA_MASK) >> 2],
 		    (buf.pte & PTE_PRESENT) ? 1 : 0,
-		    buf.itir.key);
+		    (int)((buf.itir & ITIR_KEY_MASK) >> 8));
 		pager_output(lbuf);
 	}
 	pager_close();

@@ -1093,8 +1093,7 @@ pmap_set_pte(struct ia64_lpte *pte, vm_offset_t va, vm_offset_t pa,
 	pte->pte |= (wired) ? PTE_WIRED : 0;
 	pte->pte |= pa & PTE_PPN_MASK;
 
-	pte->itir.ps = PAGE_SHIFT;
-	pte->itir.key = 0;
+	pte->itir = PAGE_SHIFT << 2;
 
 	pte->tag = ia64_ttag(va);
 
@@ -2250,9 +2249,9 @@ print_trs(int type)
 	struct ia64_pal_result res;
 	int i, maxtr;
 	struct {
-		uint64_t	ifa;
-		struct ia64_itir itir;
 		pt_entry_t	pte;
+		uint64_t	itir;
+		uint64_t	ifa;
 		struct ia64_rr	rr;
 	} buf;
 	static const char *manames[] = {
@@ -2287,14 +2286,15 @@ print_trs(int type)
 		db_printf("%d %06x %013lx %013lx %4s %d  %d  %d  %d %d %-3s "
 		    "%d %06x\n", (int)buf.ifa & 1, buf.rr.rr_rid,
 		    buf.ifa >> 12, (buf.pte & PTE_PPN_MASK) >> 12,
-		    psnames[buf.itir.ps], (buf.pte & PTE_ED) ? 1 : 0,
+		    psnames[(buf.itir & ITIR_PS_MASK) >> 2],
+		    (buf.pte & PTE_ED) ? 1 : 0,
 		    (int)(buf.pte & PTE_AR_MASK) >> 9,
 		    (int)(buf.pte & PTE_PL_MASK) >> 7,
 		    (pmap_lpte_dirty(&buf)) ? 1 : 0,
 		    (pmap_lpte_accessed(&buf)) ? 1 : 0,
 		    manames[(buf.pte & PTE_MA_MASK) >> 2],
 		    (pmap_lpte_present(&buf)) ? 1 : 0,
-		    buf.itir.key);
+		    (int)((buf.itir & ITIR_KEY_MASK) >> 8));
 	}
 }
 
