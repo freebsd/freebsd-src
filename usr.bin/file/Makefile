@@ -38,8 +38,7 @@ SRCS=		file.c apprentice.c fsmagic.c softmagic.c ascmagic.c \
 		compress.c is_tar.c  readelf.c print.c
 #		compress.c is_tar.c  readelf.c internat.c print.c
 
-MAN1=		file.1
-MAN5=		magic.5
+MAN=		file.1 magic.5
 
 CLEANFILES+=	magic
 

@@ -7,7 +7,5 @@ USE_LIBBIND=	true
 .PATH:	${BIND_DIR}/doc/man
 
 PROG=	dnskeygen
-SRCS=	dnskeygen.c 
-MAN1=	dnskeygen.1
 
 .include <bsd.prog.mk>

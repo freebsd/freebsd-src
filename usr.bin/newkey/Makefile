@@ -2,8 +2,7 @@
 
 PROG= newkey
 SRCS= newkey.c update.c generic.c
-
-MAN8= newkey.8
+MAN= newkey.8
 
 # Later
 #CFLAGS+= -DYP

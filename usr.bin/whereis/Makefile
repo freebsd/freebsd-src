@@ -1,4 +1,6 @@
-MAN1=	whereis.1
+# $FreeBSD$
+
+MAN=	whereis.1
 
 beforeinstall:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
