@@ -52,7 +52,7 @@ struct rlimit { size_t rlim_cur; };
 
 #define AUTHORS N_ ("Mike Haertel and Paul Eggert")
 
-#if defined ENABLE_NLS && HAVE_LANGINFO_H
+#if HAVE_LANGINFO_H
 # include <langinfo.h>
 #endif
 
@@ -91,7 +91,7 @@ double strtod ();
 #define NEGATION_SIGN   '-'
 #define NUMERIC_ZERO    '0'
 
-#ifdef ENABLE_NLS
+#if HAVE_SETLOCALE
 
 static char decimal_point;
 static int th_sep; /* if CHAR_MAX + 1, then there is no thousands separator */
@@ -194,15 +194,9 @@ static char fold_toupper[UCHAR_LIM];
 
 #define MONTHS_PER_YEAR 12
 
-#if defined ENABLE_NLS && HAVE_NL_LANGINFO
-# define MONTHTAB_CONST /* empty */
-#else
-# define MONTHTAB_CONST const
-#endif
-
 /* Table mapping month names to integers.
    Alphabetic order allows binary search. */
-static MONTHTAB_CONST struct month monthtab[] =
+static struct month monthtab[] =
 {
   {"APR", 4},
   {"AUG", 8},
@@ -349,7 +343,7 @@ The locale specified by the environment affects sort order.\n\
 Set LC_ALL=C to get the traditional sort order that uses\n\
 native byte values.\n\
 "), stdout );
-      puts (_("\nReport bugs to <bug-textutils@gnu.org>."));
+      printf (_("\nReport bugs to <%s>.\n"), PACKAGE_BUGREPORT);
     }
   /* Don't use EXIT_FAILURE here in case it is defined to be 1.
      POSIX requires that sort return 1 IFF invoked with -c and
@@ -536,7 +530,7 @@ zaptemp (const char *name)
       }
 }
 
-#if defined ENABLE_NLS && HAVE_NL_LANGINFO
+#if HAVE_NL_LANGINFO
 
 static int
 struct_month_cmp (const void *m1, const void *m2)
@@ -568,7 +562,7 @@ inittables (void)
 	fold_toupper[i] = i;
     }
 
-#if defined ENABLE_NLS && HAVE_NL_LANGINFO
+#if HAVE_NL_LANGINFO
   /* If we're not in the "C" locale, read different names for months.  */
   if (hard_LC_TIME)
     {
@@ -591,7 +585,7 @@ inittables (void)
       qsort ((void *) monthtab, MONTHS_PER_YEAR,
 	     sizeof (struct month), struct_month_cmp);
     }
-#endif /* NLS */
+#endif
 }
 
 /* Specify the amount of main memory to use when sorting.  */
@@ -858,24 +852,25 @@ limfield (const struct line *line, const struct keyfield *key)
 
      From: kwzh@gnu.ai.mit.edu (Karl Heuer)
      Date: Thu, 30 May 96 12:20:41 -0400
+     [Translated to POSIX 1003.1-2001 terminology by Paul Eggert.]
 
      [...]I believe I've found another bug in `sort'.
 
      $ cat /tmp/sort.in
      a b c 2 d
      pq rs 1 t
-     $ textutils-1.15/src/sort +0.6 -0.7 </tmp/sort.in
+     $ textutils-1.15/src/sort -k1.7,1.7 </tmp/sort.in
      a b c 2 d
      pq rs 1 t
-     $ /bin/sort +0.6 -0.7 </tmp/sort.in
+     $ /bin/sort -k1.7,1.7 </tmp/sort.in
      pq rs 1 t
      a b c 2 d
 
      Unix sort produced the answer I expected: sort on the single character
-     in column 6.  GNU sort produced different results, because it disagrees
-     on the interpretation of the key-end spec "-M.N".  Unix sort reads this
-     as "skip M fields, then N characters"; but GNU sort wants it to mean
-     "skip M fields, then either N characters or the rest of the current
+     in column 7.  GNU sort produced different results, because it disagrees
+     on the interpretation of the key-end spec "M.N".  Unix sort reads this
+     as "skip M-1 fields, then N-1 characters"; but GNU sort wants it to mean
+     "skip M-1 fields, then either N-1 characters or the rest of the current
      field, whichever comes first".  This extra clause applies only to
      key-ends, not key-starts.
      */
@@ -1366,10 +1361,9 @@ keycompare (const struct line *a, const struct line *b)
 	}
       else if (key->month)
 	diff = getmonth (texta, lena) - getmonth (textb, lenb);
-#ifdef ENABLE_NLS
       /* Sorting like this may become slow, so in a simple locale the user
          can select a faster sort that is similar to ascii sort  */
-      else if (hard_LC_COLLATE)
+      else if (HAVE_SETLOCALE && hard_LC_COLLATE)
 	{
 	  if (ignore || translate)
 	    {
@@ -1407,7 +1401,6 @@ keycompare (const struct line *a, const struct line *b)
 	  else
 	    diff = xmemcoll (texta, lena, textb, lenb);
 	}
-#endif
       else if (ignore)
 	{
 #define CMP_WITH_IGNORE(A, B)						\
@@ -1527,10 +1520,8 @@ compare (register const struct line *a, register const struct line *b)
     diff = - NONZERO (blen);
   else if (blen == 0)
     diff = NONZERO (alen);
-#ifdef ENABLE_NLS
-  else if (hard_LC_COLLATE)
+  else if (HAVE_SETLOCALE && hard_LC_COLLATE)
     diff = xmemcoll (a->text, alen, b->text, blen);
-#endif
   else if (! (diff = memcmp (a->text, b->text, min (alen, blen))))
     diff = alen < blen ? -1 : alen != blen;
 
@@ -2187,13 +2178,12 @@ main (int argc, char **argv)
 
   atexit (cleanup);
 
-#ifdef ENABLE_NLS
-
   hard_LC_COLLATE = hard_locale (LC_COLLATE);
-# if HAVE_NL_LANGINFO
+#if HAVE_NL_LANGINFO
   hard_LC_TIME = hard_locale (LC_TIME);
-# endif
+#endif
 
+#if HAVE_SETLOCALE
   /* Let's get locale's representation of the decimal point */
   {
     struct lconv *lconvp = localeconv ();
@@ -2210,8 +2200,7 @@ main (int argc, char **argv)
     if (! th_sep || lconvp->thousands_sep[1])
       th_sep = CHAR_MAX + 1;
   }
-
-#endif /* NLS */
+#endif
 
   have_read_stdin = 0;
   inittables ();
