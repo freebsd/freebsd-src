@@ -95,6 +95,7 @@ getnewpasswd(pw, nis)
 	int nis;
 {
 	int tries, min_length = 6;
+	int force_mix_case = 1;
 	char *p, *t;
 #ifdef LOGIN_CAP
 	login_cap_t * lc;
@@ -114,7 +115,8 @@ getnewpasswd(pw, nis)
 
 #ifdef LOGIN_CAP
 	/*
-	 * Determine minimum password length and next password change date.
+	 * Determine minimum password length, next password change date,
+	 * and whether or not to force mixed case passwords.
 	 * Note that even for NIS passwords, login_cap is still used.
 	 */
 	if ((lc = login_getpwclass(pw)) != NULL) {
@@ -128,6 +130,8 @@ getnewpasswd(pw, nis)
 		if (period > (time_t)0) {
 			pw->pw_change = time(NULL) + period;
 		}
+		/* mixpasswordcase capability */
+		force_mix_case = login_getcapbool(lc, "mixpasswordcase", 1);
 		login_close(lc);
 	}
 #endif
@@ -142,10 +146,13 @@ getnewpasswd(pw, nis)
 			(void)printf("Please enter a password at least %d characters in length.\n", min_length);
 			continue;
 		}
-		for (t = p; *t && islower(*t); ++t);
-		if (!*t && (uid != 0 || ++tries < 2)) {
-			(void)printf("Please don't use an all-lower case password.\nUnusual capitalization, control characters or digits are suggested.\n");
-			continue;
+		
+		if (force_mix_case) {
+		    for (t = p; *t && islower(*t); ++t);
+		    if (!*t && (uid != 0 || ++tries < 2)) {
+			    (void)printf("Please don't use an all-lower case password.\nUnusual capitalization, control characters or digits are suggested.\n");
+			    continue;
+		    }
 		}
 		(void)strcpy(buf, p);
 		if (!strcmp(buf, getpass("Retype new password:")))
