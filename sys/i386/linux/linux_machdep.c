@@ -222,7 +222,6 @@ linux_clone(struct proc *p, struct linux_clone_args *args)
 	struct proc *p2;
 	int exit_signal;
 	vm_offset_t start;
-	struct rfork_args rf_args;
 
 #ifdef DEBUG
 	if (ldebug(clone)) {
@@ -256,13 +255,8 @@ linux_clone(struct proc *p, struct linux_clone_args *args)
 	error = 0;
 	start = 0;
 
-	rf_args.flags = ff;
-	if ((error = rfork(p, &rf_args)) != 0)
+	if ((error = fork1(p, ff, &p2)) != 0)
 		return (error);
-
-	p2 = pfind(p->p_retval[0]);
-	if (p2 == NULL)
-		return (ESRCH);
 
 	PROC_LOCK(p2);
 	p2->p_sigparent = exit_signal;
@@ -283,6 +277,8 @@ linux_clone(struct proc *p, struct linux_clone_args *args)
 	setrunqueue(p2);
 	mtx_unlock_spin(&sched_lock);
 
+	p->p_retval[0] = p2->p_pid;
+	p->p_retval[1] = 0;
 	return (0);
 }
 
