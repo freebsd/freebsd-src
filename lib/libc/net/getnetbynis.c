@@ -24,8 +24,8 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)$Id: getnetbynis.c,v 1.4 1995/10/22 14:39:06 phk Exp $";
-static char rcsid[] = "$Id: getnetbynis.c,v 1.4 1995/10/22 14:39:06 phk Exp $";
+static char sccsid[] = "@(#)$Id: getnetbynis.c,v 1.5 1996/03/23 22:16:22 wpaul Exp $";
+static char rcsid[] = "$Id: getnetbynis.c,v 1.5 1996/03/23 22:16:22 wpaul Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
@@ -53,8 +53,10 @@ static char *host_aliases[MAXALIASES];
 #endif /* YP */
 
 static struct netent *
-_getnetbynis(name, map)
-	char *name, *map;
+_getnetbynis(name, map, af)
+	const char *name;
+	char *map;
+	int af;
 {
 #ifdef YP
 	register char *cp, **q;
@@ -63,6 +65,15 @@ _getnetbynis(name, map)
 	static struct netent h;
 	static char *domain = (char *)NULL;
 	static char ypbuf[YPMAXRECORD];
+
+	switch(af) {
+	case AF_INET:
+		break;
+	default:
+	case AF_INET6:
+		errno = EAFNOSUPPORT;
+		return NULL;
+	}
 
 	if (domain == (char *)NULL)
 		if (yp_get_default_domain (&domain))
@@ -112,15 +123,15 @@ _getnetbynis(name, map)
 
 struct netent *
 _getnetbynisname(name)
-	char *name;
+	const char *name;
 {
 	return _getnetbynis(name, "networks.byname");
 }
 
 struct netent *
-_getnetbynisaddr(addr, type)
-	long addr;
-	int type;
+_getnetbynisaddr(addr, af)
+	unsigned long addr;
+	int af;
 {
 	char *str, *cp;
 	unsigned long net2;
@@ -128,8 +139,10 @@ _getnetbynisaddr(addr, type)
 	unsigned int netbr[4];
 	char buf[MAXDNAME];
 
-	if (type != AF_INET)
+	if (af != AF_INET) {
+		errno = EAFNOSUPPORT;
 		return (NULL);
+	}
 
         for (nn = 4, net2 = addr; net2; net2 >>= 8) {
                 netbr[--nn] = net2 & 0xff;
@@ -159,5 +172,5 @@ _getnetbynisaddr(addr, type)
 		cp = str + (strlen(str) - 2);
 	}
 
-	return _getnetbynis(str, "networks.byaddr");
+	return _getnetbynis(str, "networks.byaddr", af);
 }

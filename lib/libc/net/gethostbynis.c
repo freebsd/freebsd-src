@@ -24,8 +24,8 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)$Id: gethostbynis.c,v 1.2 1996/03/16 21:25:58 wpaul Exp $";
-static char rcsid[] = "$Id: gethostbynis.c,v 1.2 1996/03/16 21:25:58 wpaul Exp $";
+static char sccsid[] = "@(#)$Id: gethostbynis.c,v 1.3 1996/07/12 18:54:35 jkh Exp $";
+static char rcsid[] = "$Id: gethostbynis.c,v 1.3 1996/07/12 18:54:35 jkh Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
@@ -54,8 +54,10 @@ static char *host_addrs[2];
 #endif /* YP */
 
 static struct hostent *
-_gethostbynis(name, map)
-	char *name, *map;
+_gethostbynis(name, map, af)
+	const char *name;
+	char *map;
+	int af;
 {
 #ifdef YP
 	register char *cp, **q;
@@ -64,6 +66,15 @@ _gethostbynis(name, map)
 	static struct hostent h;
 	static char *domain = (char *)NULL;
 	static char ypbuf[YPMAXRECORD];
+
+	switch(af) {
+	case AF_INET:
+		break;
+	default:
+	case AF_INET6:
+		errno = EAFNOSUPPORT;
+		return NULL;
+	}
 
 	if (domain == (char *)NULL)
 		if (yp_get_default_domain (&domain))
@@ -113,17 +124,18 @@ _gethostbynis(name, map)
 }
 
 struct hostent *
-_gethostbynisname(name)
-	char *name;
+_gethostbynisname(name, af)
+	const char *name;
+	int af;
 {
-	return _gethostbynis(name, "hosts.byname");
+	return _gethostbynis(name, "hosts.byname", af);
 }
 
 struct hostent *
-_gethostbynisaddr(addr, len, type)
-	char *addr;
+_gethostbynisaddr(addr, len, af)
+	const char *addr;
 	int len;
-	int type;
+	int af;
 {
-	return _gethostbynis(inet_ntoa(*(struct in_addr *)addr),"hosts.byaddr");
+	return _gethostbynis(inet_ntoa(*(struct in_addr *)addr),"hosts.byaddr", af);
 }
