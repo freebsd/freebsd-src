@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_fxp.c,v 1.21.2.13 1998/07/07 05:24:18 gibbs Exp $
+ *	$Id: if_fxp.c,v 1.21.2.14 1998/09/17 18:02:33 luigi Exp $
  */
 
 /*
@@ -1179,10 +1179,14 @@ fxp_stop(sc)
 	/*
 	 * Release any xmit buffers.
 	 */
-	for (txp = sc->cbl_first; txp != NULL && txp->mb_head != NULL;
-	    txp = txp->next) {
-		m_freem(txp->mb_head);
-		txp->mb_head = NULL;
+	txp = sc->cbl_base;
+	if (txp != NULL) {
+		for (i = 0; i < FXP_NTXCB; i++) {
+			if (txp[i].mb_head != NULL) {
+				m_freem(txp[i].mb_head);
+				txp[i].mb_head = NULL;
+			}
+		}
 	}
 	sc->tx_queued = 0;
 
