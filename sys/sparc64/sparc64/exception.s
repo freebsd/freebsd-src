@@ -1196,31 +1196,6 @@ END(tl1_sfsr_trap)
 
 ENTRY(intr_enqueue)
 	/*
-	 * Find the head of the queue and advance it.
-	 */
-	ldx	[IQ_REG + IQ_HEAD], %g1
-	add	%g1, 1, %g2
-	and	%g2, IQ_MASK, %g2
-	stx	%g2, [IQ_REG + IQ_HEAD]
-
-#ifdef INVARIANTS
-	/*
-	 * If the new head is the same as the tail, the next interrupt will
-	 * overwrite unserviced packets.  This is bad.
-	 */
-	ldx	[IQ_REG + IQ_TAIL], %g3
-	cmp	%g3, %g2
-	be	%xcc, 3f
-	 nop
-#endif
-
-	/*
-	 * Find the iqe.
-	 */
-	sllx	%g1, IQE_SHIFT, %g1
-	add	%g1, IQ_REG, %g1
-
-	/*
 	 * Load the interrupt packet from the hardware.
 	 */
 	wr	%g0, ASI_SDB_INTR_R, %asi
@@ -1232,51 +1207,82 @@ ENTRY(intr_enqueue)
 	membar	#Sync
 
 	/*
+	 * If the second data word is present it points to code to execute
+	 * directly.  Jump to it.
+	 */
+	brz,a,pt %g4, 1f
+	 nop
+	jmpl	%g4, %g0
+	 nop
+
+	/*
+	 * Find the head of the queue and advance it.
+	 */
+1:	ldx	[PCPU(IQ) + IQ_HEAD], %g1
+	add	%g1, 1, %g6
+	and	%g6, IQ_MASK, %g6
+	stx	%g6, [PCPU(IQ) + IQ_HEAD]
+
+	/*
+	 * Find the iqe.
+	 */
+	sllx	%g1, IQE_SHIFT, %g1
+	add	%g1, PCPU_REG, %g1
+	add	%g1, PC_IQ, %g1
+
+	/*
 	 * Store the tag and first data word in the iqe.  These are always
 	 * valid.
 	 */
 	stw	%g2, [%g1 + IQE_TAG]
 	stx	%g3, [%g1 + IQE_VEC]
 
+#ifdef INVARIANTS
 	/*
-	 * Load the function and argument, if not supplied in iqe.
+	 * If the new head is the same as the tail, the next interrupt will
+	 * overwrite unserviced packets.  This is bad.
 	 */
-	sllx	%g3, IV_SHIFT, %g3
-	brnz,pn %g4, 1f
-	 add	%g3, IV_REG, %g3
-	ldx	[%g3 + IV_FUNC], %g4
-	ldx	[%g3 + IV_ARG], %g5
+	ldx	[PCPU(IQ) + IQ_TAIL], %g2
+	cmp	%g2, %g6
+	be	%xcc, 2f
+	 nop
+#endif
 
 	/*
-	 * Save the priority and the two remaining data words in the iqe.
+	 * Load the function, argument and priority and store them in the iqe.
 	 */
-1:	lduw	[%g3 + IV_PRI], %g3
-	stw	%g3, [%g1 + IQE_PRI]
+	sllx	%g3, IV_SHIFT, %g3
+	SET(intr_vectors, %g6, %g2)
+	add	%g2, %g3, %g2
+	ldx	[%g2 + IV_FUNC], %g4
+	ldx	[%g2 + IV_ARG], %g5
+	lduw	[%g2 + IV_PRI], %g6
 	stx	%g4, [%g1 + IQE_FUNC]
 	stx	%g5, [%g1 + IQE_ARG]
+	stw	%g6, [%g1 + IQE_PRI]
 
 #if KTR_COMPILE & KTR_INTR
 	CATR(KTR_INTR, "intr_enqueue: head=%d tail=%d pri=%p tag=%#x vec=%#x"
-	    , %g2, %g4, %g5, 7, 8, 9)
-	ldx	[IQ_REG + IQ_HEAD], %g4
-	stx	%g4, [%g2 + KTR_PARM1]
-	ldx	[IQ_REG + IQ_TAIL], %g4
-	stx	%g4, [%g2 + KTR_PARM2]
-	lduw	[%g1 + IQE_PRI], %g4
-	stx	%g4, [%g2 + KTR_PARM3]
-	lduw	[%g1 + IQE_TAG], %g4
-	stx	%g4, [%g2 + KTR_PARM4]
-	ldx	[%g1 + IQE_VEC], %g4
-	stx	%g4, [%g2 + KTR_PARM5]
+	    , %g2, %g3, %g4, 7, 8, 9)
+	ldx	[PCPU(IQ) + IQ_HEAD], %g3
+	stx	%g3, [%g2 + KTR_PARM1]
+	ldx	[PCPU(IQ) + IQ_TAIL], %g3
+	stx	%g3, [%g2 + KTR_PARM2]
+	lduw	[%g1 + IQE_PRI], %g3
+	stx	%g3, [%g2 + KTR_PARM3]
+	lduw	[%g1 + IQE_TAG], %g3
+	stx	%g3, [%g2 + KTR_PARM4]
+	ldx	[%g1 + IQE_VEC], %g3
+	stx	%g3, [%g2 + KTR_PARM5]
 9:
 #endif
 
 	/*
 	 * Trigger a softint at the level indicated by the priority.
 	 */
-	mov	1, %g2
-	sllx	%g2, %g3, %g2
-	wr	%g2, 0, %asr20
+	mov	1, %g1
+	sllx	%g1, %g6, %g1
+	wr	%g1, 0, %asr20
 
 	retry
 
@@ -1284,7 +1290,7 @@ ENTRY(intr_enqueue)
 	/*
 	 * The interrupt queue is about to overflow.  We are in big trouble.
 	 */
-3:	sir
+2:	sir
 #endif
 END(intr_enqueue)
 
