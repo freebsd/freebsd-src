@@ -36,7 +36,7 @@
  *
  */
 
-/* $Id: commands.c,v 1.2 1998/11/02 04:12:28 grog Exp $ */
+/* $Id: commands.c,v 1.3 1998/12/28 16:32:39 peter Exp $ */
 
 #include <ctype.h>
 #include <errno.h>
@@ -212,7 +212,7 @@ vinum_drive(int argc, char *argv[], char *arg0[])
 	fprintf(stdout, "** %d %s: %s\n", file_line, reply->msg, strerror(reply->error));
 }
 
-#ifdef DEBUG
+#ifdef VINUMDEBUG
 void 
 vinum_debug(int argc, char *argv[], char *arg0[])
 {

@@ -30,7 +30,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: vext.h,v 1.9 1998/08/11 03:06:02 grog Exp grog $ */
+/* $Id: vext.h,v 1.1.1.1 1998/09/16 05:57:36 grog Exp $ */
 
 #define MAXARGS 64					    /* maximum number of args on a line */
 #define PLEXINITSIZE MAXPHYS				    /* block size to write when initializing */
@@ -77,7 +77,7 @@ void vinum_ld(int argc, char *argv[], char *arg0[]);
 void vinum_ls(int argc, char *argv[], char *arg0[]);
 void vinum_lp(int argc, char *argv[], char *arg0[]);
 void vinum_lv(int argc, char *argv[], char *arg0[]);
-#ifdef DEBUG
+#ifdef VINUMDEBUG
 void vinum_debug(int argc, char *argv[], char *arg0[]);
 #endif
 void make_devices(void);
