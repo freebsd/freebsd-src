@@ -55,7 +55,7 @@
 
 #ifndef lint
 static char sccsid[] = "@(#)subr.c	5.24 (Berkeley) 3/2/91";
-static char rcsid[] = "$Id: subr.c,v 4.9.1.7 1994/07/19 22:51:24 vixie Exp $";
+static char rcsid[] = "$Id: subr.c,v 8.2 1994/12/15 06:27:07 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -372,7 +372,9 @@ DecodeError(result)
 	    case NXDOMAIN:	return("Non-existent host/domain"); break;
 	    case NOTIMP:	return("Not implemented"); break;
 	    case REFUSED:	return("Query refused"); break;
+#ifdef NOCHANGE
 	    case NOCHANGE:	return("No change"); break;
+#endif
 	    case TIME_OUT:	return("Timed out"); break;
 	    case NO_INFO:	return("No information"); break;
 	    case ERROR:		return("Unspecified error"); break;
@@ -428,6 +430,8 @@ StringToType(type, dflt, errorfile)
 		return(T_NS);			/* authoritative server */
 	if (strcasecmp(type, "MX") == 0)
 		return(T_MX);			/* mail exchanger */
+	if (strcasecmp(type, "PX") == 0)
+		return(T_PX);                   /* mapping information */
 	if (strcasecmp(type, "CNAME") == 0)
 		return(T_CNAME);		/* canonical name */
 	if (strcasecmp(type, "SOA") == 0)
@@ -474,6 +478,8 @@ StringToType(type, dflt, errorfile)
 		return(T_AFSDB);			/* DCE or AFS server */
 	if (strcasecmp(type, "NSAP") == 0)
 		return(T_NSAP);			/* NSAP address */
+	if (strcasecmp(type, "NSAP_PTR") == 0)
+		return(T_NSAP_PTR);		/* NSAP reverse pointer */
 	if (errorfile)
 		fprintf(errorfile, "unknown query type: %s\n", type);
 	return(dflt);
@@ -524,6 +530,8 @@ DecodeType(type)
 		return("mailbox information");
 	case T_MX:
 		return("mail exchanger");
+	case T_PX:
+		return("mapping information");
 	case T_TXT:
 		return("text");
 	case T_RP:
@@ -538,6 +546,8 @@ DecodeType(type)
 		return("router");
 	case T_NSAP:
 		return("nsap address");
+	case T_NSAP_PTR:
+		return("domain name pointer");
 	case T_UINFO:
 		return("user information");
 	case T_UID:

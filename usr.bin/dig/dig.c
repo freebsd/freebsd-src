@@ -1,5 +1,5 @@
 #ifndef lint
-static char rcsid[] = "$Id: dig.c,v 4.9.1.17 1994/07/19 22:51:24 vixie Exp $";
+static char rcsid[] = "$Id: dig.c,v 8.4 1995/06/19 08:35:06 vixie Exp $";
 #endif
 
 /*
@@ -197,8 +197,7 @@ jmp_buf		env;
 HostInfo	*defaultPtr = NULL;
 HostInfo	curHostInfo, defaultRec;
 int		curHostValid = FALSE;
-int		queryType = T_A;
-int		queryClass = C_IN;
+int		queryType, queryClass;
 extern int	StringToClass(), StringToType();	/* subr.c */
 #if defined(BSD) && BSD >= 199006 && !defined(RISCOS_BSD)
 FILE		*yyin = NULL;
@@ -221,7 +220,7 @@ stackarg(y, l)
 		case '\t':
 		case ' ':
 			l++;    break;
-		case NULL:
+		case '\0':
 		case '\n':
 			done++;
 			*y = NULL;
@@ -246,7 +245,12 @@ main(argc, argv)
 {
 	struct hostent *hp;
 	short port = htons(NAMESERVER_PORT);
-	u_char packet[PACKETSZ];
+	/* Wierd stuff for SPARC alignment, hurts nothing else. */
+	union {
+		HEADER header_;
+		u_char packet_[PACKETSZ];
+	} packet_;
+#define	packet  (packet_.packet_)
 	u_char answer[8*1024];
 	int n;
 	char doping[90];
@@ -260,7 +264,7 @@ main(argc, argv)
 	int anyflag = 0;
 	int sticky = 0;
 	int tmp; 
-	int qtype = 1, qclass = 1;
+	int qtypeSet;
 	int addrflag = 0;
 	int zone = 0;
         int bytes_out, bytes_in;
@@ -283,6 +287,7 @@ main(argc, argv)
 
 	res_init();
 	_res.pfcode = PRF_DEF;
+	qtypeSet = 0;
 	gethostname(myhostname, (sizeof myhostname));
 	defsrv = strcat(defbuf, inet_ntoa(_res.nsaddr.sin_addr));
 	res_x = _res;
@@ -296,7 +301,7 @@ main(argc, argv)
 	if ((((afile = (char *) getenv("LOCALDEF")) != (char *) NULL) &&
 	     ((fp = open(afile, O_RDONLY)) > 0)) ||
 	    ((fp = open(SAVEENV, O_RDONLY)) > 0)) {
-		read(fp, &res_x, (sizeof res_x));
+		read(fp, (char *)&res_x, (sizeof res_x));
 		close(fp);
 		_res = res_x;
 	}
@@ -362,7 +367,8 @@ main(argc, argv)
 		stackarg(ay, qptr);
 
 		/* defaults */
-		qtype = qclass = 1;
+		queryType = T_NS;
+		queryClass = C_IN;
 		zone = 0;
 		*pingstr = 0;
 		srv = NULL;
@@ -408,11 +414,11 @@ main(argc, argv)
 				case 'c': 
 					if ((tmp = atoi(*++argv))
 					    || *argv[0]=='0') {
-						qclass = tmp;
+						queryClass = tmp;
 					} else if (tmp = StringToClass(*argv,
 								       0, NULL)
 						   ) {
-						qclass = tmp;
+						queryClass = tmp;
 					} else {
 						printf(
 						  "; invalid class specified\n"
@@ -422,11 +428,13 @@ main(argc, argv)
 				case 't': 
 					if ((tmp = atoi(*++argv))
 					    || *argv[0]=='0') {
-						qtype = tmp;
+						queryType = tmp;
+						qtypeSet++;
 					} else if (tmp = StringToType(*argv,
 								      0, NULL)
 						   ) {
-						qtype = tmp;
+						queryType = tmp;
+						qtypeSet++;
 					} else {
 						printf(
 						   "; invalid type specified\n"
@@ -434,8 +442,10 @@ main(argc, argv)
 						}
 					break;
 				case 'x':
-					if (qtype == T_A)
-						qtype = T_ANY;
+					if (!qtypeSet) {
+						queryType = T_ANY;
+						qtypeSet++;
+					}
 					if (!(addrc = *++argv)) {
 						printf(
 						       "; no arg for -x?\n"
@@ -472,18 +482,19 @@ main(argc, argv)
 
 			if ((tmp = StringToType(*argv, -1, NULL)) != -1) { 
 				if ((T_ANY == tmp) && anyflag++) {  
-					qclass = C_ANY; 	
+					queryClass = C_ANY; 	
 					continue; 
 				}
 				if (T_AXFR == tmp) {
 					_res.pfcode = PRF_ZONE;
 					zone++;
 				} else {
-					qtype = tmp; 
+					queryType = tmp; 
+					qtypeSet++;
 				}
 			} else if ((tmp = StringToClass(*argv, -1, NULL))
 				   != -1) { 
-				qclass = tmp; 
+				queryClass = tmp; 
 			} else {
 				bzero(domain, (sizeof domain));
 				sprintf(domain,"%s",*argv);
@@ -518,7 +529,7 @@ main(argc, argv)
 			    ((fp = open(SAVEENV,
 					O_WRONLY|O_CREAT|O_TRUNC,
 					S_IREAD|S_IWRITE)) > 0)) {
-				write(fp, &_res, (sizeof _res));
+				write(fp, (char *)&_res, (sizeof _res));
 				close(fp);
 			}
 			envsave = 0;
@@ -622,7 +633,13 @@ main(argc, argv)
 			continue;
 		}
 
-		bytes_out = n = res_mkquery(QUERY, domain, qclass, qtype,
+		if (*domain && !qtypeSet) {
+			queryType = T_A;
+			qtypeSet++;
+		}
+		
+		bytes_out = n = res_mkquery(QUERY, domain,
+					    queryClass, queryType,
 					    NULL, 0, NULL,
 					    packet, sizeof(packet));
 		if (n < 0) {
@@ -1011,7 +1028,7 @@ printZone(zone, sin)
 	__putshort(msglen, (u_char *)&len);
 
         if (write(sockFD, (char *)&len, INT16SZ) != INT16SZ ||
-            write(sockFD, (char *) &buf, msglen) != msglen) {
+            write(sockFD, (char *)&buf, msglen) != msglen) {
 		int e = errno;
 		perror(";; write");
 		(void) close(sockFD);
@@ -1046,7 +1063,7 @@ printZone(zone, sin)
 	     * The server sent too much data to fit the existing buffer --
 	     * allocate a new one.
 	     */
-	    if (len > answerLen) {
+	    if (len > (u_int)answerLen) {
 		if (answerLen != 0) {
 		    free(answer);
 		}
