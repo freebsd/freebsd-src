@@ -778,82 +778,45 @@ first three arguments in function calls in registers.  Structures are no
 longer a multiple of 2 bytes.
   
 @item hppa*-*-*
-There are two variants of this CPU, called 1.0 and 1.1, which have
-different machine descriptions.  You must use the right one for your
-machine.  All 7@var{nn} machines and 8@var{n}7 machines use 1.1, while
-all other 8@var{nn} machines use 1.0.
-
-The easiest way to handle this problem is to use @samp{configure
-hp@var{nnn}} or @samp{configure hp@var{nnn}-hpux}, where @var{nnn} is
-the model number of the machine.  Then @file{configure} will figure out
-if the machine is a 1.0 or 1.1.  Use @samp{uname -a} to find out the
-model number of your machine.
+There are several variants of the HP-PA processor which run a variety
+of operating systems.  GNU CC must be configured to use the correct
+processor type and operating system, or GNU CC will not function correctly.
+The easiest way to handle this problem is to @emph{not} specify a target
+when configuring GNU CC, the @file{configure} script will try to automatically
+determine the right processor type and operating system.
 
 @samp{-g} does not work on HP-UX, since that system uses a peculiar
 debugging format which GNU CC does not know about.  However, @samp{-g}
 will work if you also use GAS and GDB in conjunction with GCC.  We
 highly recommend using GAS for all HP-PA configurations.
 
-You should be using GAS-2.3 (or later) along with GDB-4.12 (or later).  These
+You should be using GAS-2.6 (or later) along with GDB-4.16 (or later).  These
 can be retrieved from all the traditional GNU ftp archive sites.  
 
-Build GAS and install the resulting binary as:
+GAS will need to be installed into a directory before @code{/bin},
+@code{/usr/bin}, and @code{/usr/ccs/bin} in your search path.  You
+should install GAS before you build GNU CC.
 
-@example
-/usr/local/lib/gcc-lib/@var{configuration}/@var{gccversion}/as
-@end example
-
-@noindent
-where @var{configuration} is the configuration name (perhaps
-@samp{hp@var{nnn}-hpux}) and @var{gccversion} is the GNU CC version
-number.  Do this @emph{before} starting the build process, otherwise you will
-get errors from the HPUX assembler while building @file{libgcc2.a}.  The
-command 
-
-@example
-make install-dir
-@end example
-
-@noindent
-will create the necessary directory hierarchy so you can install GAS before
-building GCC.
-
-To enable debugging, configure GNU CC with the @samp{--with-gnu-as} option
-before building.
-
-It has been reported that GNU CC produces invalid assembly code for
-1.1 machines running HP-UX 8.02 when using the HP assembler.  Typically
-the errors look like this:
-@example
-as: bug.s @@line#15 [err#1060]
-  Argument 0 or 2 in FARG upper
-         - lookahead = ARGW1=FR,RTNVAL=GR
-as: foo.s @@line#28 [err#1060]
-  Argument 0 or 2 in FARG upper
-         - lookahead = ARGW1=FR
-@end example
-
-You can check the version of HP-UX you are running by executing the command
-@samp{uname -r}.   If you are indeed running HP-UX 8.02 on a PA and 
-using the HP assembler then configure GCC with "hp@var{nnn}-hpux8.02".
+To enable debugging, you must configure GNU CC with the @samp{--with-gnu-as}
+option before building.
 
 @item i370-*-*
 This port is very preliminary and has many known bugs.  We hope to
 have a higher-quality port for this machine soon.
 
 @item i386-*-linuxoldld
-Use this configuration to generate a.out binaries on Linux if you do not
-have gas/binutils version 2.5.2 or later installed. This is an obsolete
-configuration.
+Use this configuration to generate a.out binaries on Linux-based GNU
+systems, if you do not have gas/binutils version 2.5.2 or later
+installed.  This is an obsolete configuration.
 
 @item i386-*-linuxaout
-Use this configuration to generate a.out binaries on Linux. This configuration
-is being superseded. You must use gas/binutils version 2.5.2 or
-later.
+Use this configuration to generate a.out binaries on Linux-based GNU
+systems.  This configuration is being superseded.  You must use
+gas/binutils version 2.5.2 or later.
 
 @item i386-*-linux
-Use this configuration to generate ELF binaries on Linux.  You must 
-use gas/binutils version 2.5.2 or later.
+Use this configuration to generate ELF binaries on Linux-based GNU
+systems.  You must use gas/binutils version 2.5.2 or later.
 
 @item i386-*-sco
 Compilation with RCC is recommended.  Also, it may be a good idea to
