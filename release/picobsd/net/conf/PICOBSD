@@ -1,5 +1,5 @@
 #
-#	$Id: PICOBSD,v 1.6 1999/01/14 23:21:58 abial Exp $
+#	$Id: PICOBSD,v 1.7 1999/01/18 10:17:33 abial Exp $
 #
 
 machine		"i386"
@@ -18,7 +18,6 @@ options		NFS			#Network Filesystem
 options		MFS
 options		MSDOSFS			#MSDOS Filesystem
 options		"CD9660"		#ISO 9660 Filesystem
-options		PROCFS			#Process filesystem
 options		"COMPAT_43"		#Compatible with BSD 4.3 [KEEP THIS!]
 options		USERCONFIG		#boot -c editor
 options		INTRO_USERCONFIG		#imply -c and parse info area
