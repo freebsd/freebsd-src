@@ -609,6 +609,6 @@ start_init(dummy)
 			printf("exec %.*s: error %d\n", (int)(next - path), 
 			    path, error);
 	}
-	printf("init: not found\n");
+	printf("init: not found in path %s\n", init_path);
 	panic("no init");
 }
