@@ -41,6 +41,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl BPSXeiknqrstv
+.Op Fl C Ar directory
 .Op Fl D Ar variable
 .Op Fl d Ar flags
 .Op Fl E Ar variable
@@ -88,6 +89,10 @@ by executing the commands to make the sources of a dependency line in sequence.
 This is turned on by default unless
 .Fl j
 is used.
+.It Fl C Ar directory
+Change to
+.Ar directory
+while running.
 .It Fl D Ar variable
 Define
 .Ar variable
