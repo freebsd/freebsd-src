@@ -1,6 +1,6 @@
 /*
  *	from: vector.s, 386BSD 0.1 unknown origin
- *	$Id: apic_vector.s,v 1.24 1997/08/21 04:52:30 smp Exp smp $
+ *	$Id: apic_vector.s,v 1.27 1997/08/23 05:15:12 smp Exp smp $
  */
 
 
@@ -10,6 +10,18 @@
 
 #include "i386/isa/intr_machdep.h"
 
+
+#if defined(SMP) && defined(REAL_AVCPL)
+
+#define AVCPL_LOCK	CPL_LOCK
+#define AVCPL_UNLOCK	CPL_UNLOCK
+
+#else
+
+#define AVCPL_LOCK
+#define AVCPL_UNLOCK
+
+#endif
 
 #ifdef FAST_SIMPLELOCK
 
@@ -82,7 +94,7 @@ IDTVEC(vec_name) ;							\
 	popl	%eax ;							\
 	iret
 
-#else
+#else /* FAST_WITHOUTCPL */
 
 #define	FAST_INTR(irq_num, vec_name)					\
 	.text ;								\
@@ -93,21 +105,23 @@ IDTVEC(vec_name) ;							\
 	pushl	%edx ;							\
 	pushl	%ds ;							\
 	MAYBE_PUSHL_ES ;						\
-	movl	$KDSEL,%eax ;						\
-	movl	%ax,%ds ;						\
+	movl	$KDSEL, %eax ;						\
+	movl	%ax, %ds ;						\
 	MAYBE_MOVW_AX_ES ;						\
 	FAKE_MCOUNT((4+ACTUALLY_PUSHED)*4(%esp)) ;			\
 	GET_FAST_INTR_LOCK ;						\
 	pushl	_intr_unit + (irq_num) * 4 ;				\
 	call	*_intr_handler + (irq_num) * 4 ; /* do the work ASAP */ \
-	addl	$4,%esp ;						\
+	addl	$4, %esp ;						\
 	movl	$0, lapic_eoi ;						\
+	lock ; 								\
 	incl	_cnt+V_INTR ;	/* book-keeping can wait */		\
 	movl	_intr_countp + (irq_num) * 4,%eax ;			\
+	lock ; 								\
 	incl	(%eax) ;						\
-	movl	_cpl,%eax ;	/* unmasking pending HWIs or SWIs? */	\
+	movl	_cpl, %eax ;	/* unmasking pending HWIs or SWIs? */	\
 	notl	%eax ;							\
-	andl	_ipending,%eax ;					\
+	andl	_ipending, %eax ;					\
 	jne	2f ; 		/* yes, maybe handle them */		\
 1: ;									\
 	MEXITCOUNT ;							\
@@ -121,27 +135,28 @@ IDTVEC(vec_name) ;							\
 ;									\
 	ALIGN_TEXT ;							\
 2: ;									\
-	cmpb	$3,_intr_nesting_level ;	/* enough stack? */	\
+	cmpb	$3, _intr_nesting_level ;	/* enough stack? */	\
 	jae	1b ;		/* no, return */			\
-	movl	_cpl,%eax ;						\
+	movl	_cpl, %eax ;						\
 	/* XXX next line is probably unnecessary now. */		\
-	movl	$HWI_MASK|SWI_MASK,_cpl ;	/* limit nesting ... */	\
+	movl	$HWI_MASK|SWI_MASK, _cpl ;	/* limit nesting ... */	\
+	lock ; 								\
 	incb	_intr_nesting_level ;	/* ... really limit it ... */	\
 	sti ;			/* to do this as early as possible */	\
 	MAYBE_POPL_ES ;		/* discard most of thin frame ... */	\
 	popl	%ecx ;		/* ... original %ds ... */		\
 	popl	%edx ;							\
-	xchgl	%eax,4(%esp) ;	/* orig %eax; save cpl */		\
+	xchgl	%eax, 4(%esp) ;	/* orig %eax; save cpl */		\
 	pushal ;		/* build fat frame (grrr) ... */	\
 	pushl	%ecx ;		/* ... actually %ds ... */		\
 	pushl	%es ;							\
-	movl	$KDSEL,%eax ;						\
-	movl	%ax,%es ;						\
-	movl	(2+8+0)*4(%esp),%ecx ;	/* %ecx from thin frame ... */	\
-	movl	%ecx,(2+6)*4(%esp) ;	/* ... to fat frame ... */	\
-	movl	(2+8+1)*4(%esp),%eax ;	/* ... cpl from thin frame */	\
+	movl	$KDSEL, %eax ;						\
+	movl	%ax, %es ;						\
+	movl	(2+8+0)*4(%esp), %ecx ;	/* %ecx from thin frame ... */	\
+	movl	%ecx, (2+6)*4(%esp) ;	/* ... to fat frame ... */	\
+	movl	(2+8+1)*4(%esp), %eax ;	/* ... cpl from thin frame */	\
 	pushl	%eax ;							\
-	subl	$4,%esp ;	/* junk for unit number */		\
+	subl	$4, %esp ;	/* junk for unit number */		\
 	MEXITCOUNT ;							\
 	jmp	_doreti
 
@@ -215,11 +230,11 @@ IDTVEC(vec_name) ;							\
 	testl	%eax, %eax ;			/* did we get it? */	\
 	jz	1f ;				/* no */		\
 ;									\
-	CPL_LOCK ;				/* MP-safe */		\
+	AVCPL_LOCK ;				/* MP-safe */		\
 	testl	$IRQ_BIT(irq_num), _cpl ;				\
-	jne	2f ;							\
+	jne	2f ;				/* this INT masked */	\
 	orl	$IRQ_BIT(irq_num), _cil ;				\
-	CPL_UNLOCK ;							\
+	AVCPL_UNLOCK ;							\
 ;									\
 	movl	$0, lapic_eoi ;			/* XXX too soon? */	\
 	incb	_intr_nesting_level ;					\
@@ -229,12 +244,12 @@ __CONCAT(Xresume,irq_num): ;						\
 	movl	_intr_countp + (irq_num) * 4, %eax ;			\
 	lock ;	incl	(%eax) ;					\
 ;									\
-	CPL_LOCK ;				/* MP-safe */		\
+	AVCPL_LOCK ;				/* MP-safe */		\
 	movl	_cpl, %eax ;						\
 	pushl	%eax ;							\
 	orl	_intr_mask + (irq_num) * 4, %eax ;			\
 	movl	%eax, _cpl ;						\
-	CPL_UNLOCK ;							\
+	AVCPL_UNLOCK ;							\
 ;									\
 	pushl	_intr_unit + (irq_num) * 4 ;				\
 	sti ;								\
@@ -252,16 +267,16 @@ __CONCAT(Xresume,irq_num): ;						\
 	MASK_LEVEL_IRQ(irq_num) ;					\
 	movl	$0, lapic_eoi ;			/* do the EOI */	\
 ;									\
-	CPL_LOCK ;				/* MP-safe */		\
+	AVCPL_LOCK ;				/* MP-safe */		\
 	orl	$IRQ_BIT(irq_num), _ipending ;				\
-	CPL_UNLOCK ;							\
+	AVCPL_UNLOCK ;							\
 ;									\
 	POP_FRAME ;							\
 	iret ;								\
 ;									\
 	ALIGN_TEXT ;							\
 2: ;						/* masked by cpl */	\
-	CPL_UNLOCK ;							\
+	AVCPL_UNLOCK ;							\
 	ISR_RELLOCK ;		/* XXX this is going away... */		\
 	jmp	1b
 
