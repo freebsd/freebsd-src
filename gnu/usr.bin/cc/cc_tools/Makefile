@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.33 1999/07/28 07:19:38 obrien Exp $
+# $Id: Makefile,v 1.34 1999/07/28 07:22:06 obrien Exp $
 #
 
 #
@@ -103,10 +103,10 @@ c-parse.c c-parse.h: c-parse.in
 	    -e "/^ifc$$/d" -e "/^end ifc$$/d" \
 	    ${GCCDIR}/c-parse.in > c-parse.y
 	${YACC} -d -o c-parse.c c-parse.y
-	rm -f c-parse.y
+	mv c-parse.y c-parse.y.out
 
 GENSRCS+=	c-parse.c c-parse.h
-CLEANFILES+=	c-parse.y		# insurance
+CLEANFILES+=	c-parse.y c-parse.y.out		# insurance
 
 #-----------------------------------------------------------------------
 # objc parser
@@ -116,10 +116,10 @@ objc-parse.c objc-parse.h: c-parse.in
 	    -e "/^ifobjc$$/d" -e "/^end ifobjc$$/d" \
 	    ${GCCDIR}/c-parse.in > objc-parse.y
 	${YACC} -d -o objc-parse.c objc-parse.y
-	rm -f objc-parse.y
+	mv objc-parse.y objc-parse.y.out
 
 GENSRCS+=	objc-parse.c objc-parse.h
-CLEANFILES+=	objc-parse.y		# insurance
+CLEANFILES+=	objc-parse.y objc-parse.y.out	# insurance
 
 #-----------------------------------------------------------------------
 # C++ parser done in its own makefile
