@@ -296,7 +296,7 @@ static struct witness_order_list_entry order_lists[] = {
 	{ "icu", &lock_class_mtx_spin },
 #ifdef SMP
 	{ "smp rendezvous", &lock_class_mtx_spin },
-#ifdef __i386__
+#if defined(__i386__) || defined(__amd64__)
 	{ "tlb", &lock_class_mtx_spin },
 	{ "lazypmap", &lock_class_mtx_spin },
 #endif

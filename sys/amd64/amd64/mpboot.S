@@ -1,5 +1,5 @@
-/*
- * Copyright (c) 1995, Jack F. Vogel
+/*-
+ * Copyright (c) 2003 Peter Wemm
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -10,16 +10,11 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by Jack F. Vogel
- * 4. The name of the developer may be used to endorse or promote products
- *    derived from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -28,257 +23,214 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * mpboot.s:	FreeBSD machine support for the Intel MP Spec
- *		multiprocessor systems.
- *
  * $FreeBSD$
  */
 
-#include "opt_pmap.h"
-
 #include <machine/asmacros.h>		/* miscellaneous asm macros */
-#include <machine/apicreg.h>
 #include <machine/specialreg.h>
 
 #include "assym.s"
 
-#define	R(x)	((x)-KERNBASE)
+	.data				/* So we can modify it */
 
-/*
- * this code MUST be enabled here and in mp_machdep.c
- * it follows the very early stages of AP boot by placing values in CMOS ram.
- * it NORMALLY will never be needed and thus the primitive method for enabling.
- *
-#define CHECK_POINTS
- */
-
-#if defined(CHECK_POINTS) && !defined(PC98)
-
-#define CMOS_REG	(0x70)
-#define CMOS_DATA	(0x71)
-
-#define CHECKPOINT(A,D)		\
-	movb	$(A),%al ;	\
-	outb	%al,$CMOS_REG ;	\
-	movb	$(D),%al ;	\
-	outb	%al,$CMOS_DATA
-
-#else
-
-#define CHECKPOINT(A,D)
-
-#endif /* CHECK_POINTS */
-
-
-/*
- * the APs enter here from their trampoline code (bootMP, below)
- */
-	.p2align 4
-
-NON_GPROF_ENTRY(MPentry)
-	CHECKPOINT(0x36, 3)
+	.p2align 4,0
+	.globl	mptramp_start
+mptramp_start:
+	.code16
 	/*
-	 * Enable features on this processor.  We don't support SMP on
-	 * CPUs older than a Pentium, so we know that we can use the cpuid
-	 * instruction.
+	 * The AP enters here in response to the startup IPI.
+	 * We are in real mode. %cs is the only segment register set.
 	 */
-	movl	$1,%eax
-	cpuid					/* Retrieve features */
-	movl	%cr4,%eax
-#ifndef DISABLE_PSE
-	testl	$CPUID_PSE,%edx
-	jz 1f
-	orl	$CR4_PSE,%eax			/* Enable PSE  */
-1:
-#endif
-#ifndef DISABLE_PG_G
-	testl	$CPUID_PGE,%edx
-	jz 1f
-	orl	$CR4_PGE,%eax			/* Enable PGE  */
-1:	
-#endif
-	testl	$CPUID_VME,%edx
-	jz 1f
-	orl	$CR4_VME,%eax			/* Enable VME  */
-1:
-	movl	%eax,%cr4
-
-	/* Now enable paging mode */
-#ifdef PAE
-	movl	R(IdlePDPT), %eax
-	movl	%eax, %cr3
-	movl	%cr4, %eax
-	orl	$CR4_PAE, %eax
-	movl	%eax, %cr4
-#else
-	movl	R(IdlePTD), %eax
-	movl	%eax,%cr3	
-#endif
-	movl	%cr0,%eax
-	orl	$CR0_PE|CR0_PG,%eax		/* enable paging */
-	movl	%eax,%cr0			/* let the games begin! */
-	movl	bootSTK,%esp			/* boot stack end loc. */
-
-	pushl	$mp_begin			/* jump to high mem */
-	ret
-
-	/*
-	 * Wait for the booting CPU to signal startup
-	 */
-mp_begin:	/* now running relocated at KERNBASE */
-	CHECKPOINT(0x37, 4)
-	call	init_secondary			/* load i386 tables */
-
-/*
- * This is the embedded trampoline or bootstrap that is
- * copied into 'real-mode' low memory, it is where the
- * secondary processor "wakes up". When it is executed
- * the processor will eventually jump into the routine
- * MPentry, which resides in normal kernel text above
- * 1Meg.		-jackv
- */
-
-	.data
-	ALIGN_DATA				/* just to be sure */
-
-BOOTMP1:
-
-NON_GPROF_ENTRY(bootMP)
-	.code16		
-	cli
-	CHECKPOINT(0x34, 1)
-	/* First guarantee a 'clean slate' */
-	xorl	%eax, %eax
-	movl	%eax, %ebx
-	movl	%eax, %ecx
- 	movl	%eax, %edx
-	movl	%eax, %esi
-	movl	%eax, %edi
-
-	/* set up data segments */
-	mov	%cs, %ax
-	mov	%ax, %ds
-	mov	%ax, %es
-	mov	%ax, %fs
-	mov	%ax, %gs
+	cli				/* make sure no interrupts */
+	mov	%cs, %ax		/* copy %cs to %ds.  Remember these */
+	mov	%ax, %ds		/* are offsets rather than selectors */
 	mov	%ax, %ss
-	mov	$(boot_stk-bootMP), %esp
 
-	/* Now load the global descriptor table */
-	lgdt	MP_GDTptr-bootMP
+	/*
+	 * Find relocation base and patch the gdt descript and ljmp targets
+	 */
+	xorl	%ebx,%ebx
+	mov	%cs, %bx
+	sall	$4, %ebx		/* %ebx is now our relocation base */
+	orl	%ebx, lgdt_desc-mptramp_start+2
+	orl	%ebx, jmp_32-mptramp_start+2
+	orl	%ebx, jmp_64-mptramp_start+1
+
+	/*
+	 * Load the descriptor table pointer.  We'll need it when running
+	 * in 16 bit protected mode.
+	 */
+	lgdt	lgdt_desc-mptramp_start
 
 	/* Enable protected mode */
-	movl	%cr0, %eax
-	orl	$CR0_PE, %eax
-	movl	%eax, %cr0 
+	movl	$CR0_PE, %eax
+	mov	%eax, %cr0 
 
 	/*
-	 * make intrasegment jump to flush the processor pipeline and
-	 * reload CS register
-	 */
-	pushl	$0x18
-	pushl	$(protmode-bootMP)
-	lretl
-
-       .code32		
-protmode:
-	CHECKPOINT(0x35, 2)
-
-	/*
-	 * we are NOW running for the first time with %eip
-	 * having the full physical address, BUT we still
-	 * are using a segment descriptor with the origin
-	 * not matching the booting kernel.
+	 * Now execute a far jump to turn on protected mode.  This
+	 * causes the segment registers to turn into selectors and causes
+	 * %cs to be loaded from the gdt.
 	 *
- 	 * SO NOW... for the BIG Jump into kernel's segment
-	 * and physical text above 1 Meg.
+	 * The following instruction is:
+	 * ljmpl $bootcode-gdt, $protmode-mptramp_start
+	 * but gas cannot assemble that.  And besides, we patch the targets
+	 * in early startup and its a little clearer what we are patching.
 	 */
-	mov	$0x10, %ebx
-	movw	%bx, %ds
-	movw	%bx, %es
-	movw	%bx, %fs
-	movw	%bx, %gs
-	movw	%bx, %ss
+jmp_32:
+	.byte	0x66			/* size override to 32 bits */
+	.byte	0xea			/* opcode for far jump */
+	.long	protmode-mptramp_start	/* offset in segment */
+	.word	bootcode-gdt		/* index in gdt for 32 bit code */
 
-	.globl	bigJump
-bigJump:
-	/* this will be modified by mpInstallTramp() */
-	ljmp	$0x08, $0			/* far jmp to MPentry() */
-	
-dead:	hlt /* We should never get here */
-	jmp	dead
+	/*
+	 * At this point, we are running in 32 bit legacy protected mode.
+	 */
+	.code32
+protmode:
+	mov	$bootdata-gdt, %eax
+	mov	%ax, %ds
 
-/*
- * MP boot strap Global Descriptor Table
- */
-	.p2align 4
-	.globl	MP_GDT
-	.globl	bootCodeSeg
-	.globl	bootDataSeg
-MP_GDT:
+	/* Turn on the PAE, PSE and PGE bits for when paging is enabled */
+	mov	%cr4, %eax
+	orl	$(CR4_PAE | CR4_PSE), %eax
+	mov	%eax, %cr4
 
-nulldesc:		/* offset = 0x0 */
+	/*
+	 * Enable EFER.LME so that we get long mode when all the prereqs are
+	 * in place.  In this case, it turns on when CR0_PG is finally enabled.
+	 * Pick up a few other EFER bits that we'll use need we're here.
+	 */
+	movl	$MSR_EFER, %ecx
+	rdmsr
+	orl	$EFER_LME | EFER_SCE | EFER_NXE, %eax
+	wrmsr
 
-	.word	0x0	
-	.word	0x0	
-	.byte	0x0	
-	.byte	0x0	
-	.byte	0x0	
-	.byte	0x0	
+	/*
+	 * Point to the embedded page tables for startup.  Note that this
+	 * only gets accessed after we're actually in 64 bit mode, however
+	 * we can only set the bottom 32 bits of %cr3 in this state.  This
+	 * means we are required to use a temporary page table that is below
+	 * the 4GB limit.  %ebx is still our relocation base.  We could just
+	 * subtract 3 * PAGE_SIZE, but that would be too easy.
+	 */
+	leal	mptramp_pagetables-mptramp_start(%ebx),%eax
+	movl	(%eax), %eax
+	mov	%eax, %cr3
 
-kernelcode:		/* offset = 0x08 */
+	/*
+	 * Finally, switch to long bit mode by enabling paging.  We have
+	 * to be very careful here because all the segmentation disappears
+	 * out from underneath us.  The spec says we can depend on the
+	 * subsequent pipelined branch to execute, but *only if* everthing
+	 * is still identity mapped.  If any mappings change, the pipeline
+	 * will flush.
+	 */
+	mov	%cr0, %eax
+	orl	$CR0_PG, %eax
+	mov	%eax, %cr0
 
-	.word	0xffff	/* segment limit 0..15 */
-	.word	0x0000	/* segment base 0..15 */
-	.byte	0x0	/* segment base 16..23; set for 0K */
-	.byte	0x9f	/* flags; Type	*/
-	.byte	0xcf	/* flags; Limit	*/
-	.byte	0x0	/* segment base 24..32 */
+	/*
+	 * At this point paging is enabled, and we are in "compatability" mode.
+	 * We do another far jump to reload %cs with the 64 bit selector.
+	 * %cr3 points to a 4-level page table page.
+	 * We cannot yet jump all the way to the kernel because we can only
+	 * specify a 32 bit linear address.  So, yet another trampoline.
+	 *
+	 * The following instruction is:
+	 * ljmp $kernelcode-gdt, $tramp_64-mptramp_start
+	 * but gas cannot assemble that.  And besides, we patch the targets
+	 * in early startup and its a little clearer what we are patching.
+	 */
+jmp_64:
+	.byte	0xea			/* opcode for far jump */
+	.long	tramp_64-mptramp_start	/* offset in segment */
+	.word	kernelcode-gdt		/* index in gdt for 64 bit code */
 
-kerneldata:		/* offset = 0x10 */
+	/*
+	 * Yeehar!  We're running in 64 bit mode!  We can mostly ignore our
+	 * segment registers, and get on with it.
+	 * Note that we are running at the correct virtual address, but with
+	 * a 1:1 1GB mirrored mapping over entire address space.  We had better
+	 * switch to a real %cr3 promptly so that we can get to the direct map
+	 * space. Remember that jmp is relative and that we've been relocated,
+	 * so use an indirect jump.
+	 */
+	.code64
+tramp_64:
+	movabsq	$entry_64,%rax		/* 64 bit immediate load */
+	jmp	*%rax
 
-	.word	0xffff	/* segment limit 0..15 */
-	.word	0x0000	/* segment base 0..15 */
-	.byte	0x0	/* segment base 16..23; set for 0k */
-	.byte	0x93	/* flags; Type  */
-	.byte	0xcf	/* flags; Limit */
-	.byte	0x0	/* segment base 24..32 */
+	.p2align 4,0
+gdt:
+	/*
+	 * All segment descriptor tables start with a null descriptor
+	 */
+	.long	0x00000000
+	.long	0x00000000
 
-bootcode:		/* offset = 0x18 */
+	/*
+	 * This is the 64 bit long mode code descriptor.  There is no
+	 * 64 bit data descriptor.
+	 */
+kernelcode:
+	.long	0x00000000
+	.long	0x00209800
 
-	.word	0xffff	/* segment limit 0..15 */
-bootCodeSeg:		/* this will be modified by mpInstallTramp() */
-	.word	0x0000	/* segment base 0..15 */
-	.byte	0x00	/* segment base 16...23; set for 0x000xx000 */
-	.byte	0x9e	/* flags; Type  */
-	.byte	0xcf	/* flags; Limit */
-	.byte	0x0	/*segment base 24..32 */
+	/*
+	 * This is the descriptor for the 32 bit boot code.
+	 * %cs:  +A, +R, -C, DPL=0, +P, +D, +G
+	 * Accessed, Readable, Present, 32 bit, 4G granularity
+	 */
+bootcode:
+	.long	0x0000ffff
+	.long	0x00cf9b00
 
-bootdata:		/* offset = 0x20 */
+	/*
+	 * This is the descriptor for the 32 bit boot data.
+	 * We load it into %ds and %ss.  The bits for each selector
+	 * are interpreted slightly differently.
+	 * %ds:  +A, +W, -E, DPL=0, +P, +D, +G
+	 * %ss:  +A, +W, -E, DPL=0, +P, +B, +G
+	 * Accessed, Writeable, Expand up, Present, 32 bit, 4GB 
+	 * For %ds, +D means 'default operand size is 32 bit'.
+	 * For %ss, +B means the stack register is %esp rather than %sp.
+	 */
+bootdata:
+	.long	0x0000ffff
+	.long	0x00cf9300
 
-	.word	0xffff	
-bootDataSeg:		/* this will be modified by mpInstallTramp() */
-	.word	0x0000	/* segment base 0..15 */
-	.byte	0x00	/* segment base 16...23; set for 0x000xx000 */
-	.byte	0x92	
-	.byte	0xcf	
-	.byte	0x0		
+gdtend:
 
-/*
- * GDT pointer for the lgdt call
- */
-	.globl	mp_gdtbase
-
-MP_GDTptr:	
-mp_gdtlimit:
-	.word	0x0028		
-mp_gdtbase:		/* this will be modified by mpInstallTramp() */
+	/*
+	 * The address of our page table pages that the boot code
+	 * uses to trampoline up to kernel address space.
+	 */
+	.globl	mptramp_pagetables
+mptramp_pagetables:
 	.long	0
 
-	.space	0x100	/* space for boot_stk - 1st temporary stack */
-boot_stk:
+	/*
+	 * The pseudo descriptor for lgdt to use.
+	 */
+lgdt_desc:	
+	.word	gdtend-gdt		/* Length */
+	.long	gdt-mptramp_start	/* Offset plus %ds << 4 */
 
-BOOTMP2:
-	.globl	bootMP_size
-bootMP_size:
-	.long	BOOTMP2 - BOOTMP1
+	.globl	mptramp_end
+mptramp_end:
+
+	/*
+	 * From here on down is executed in the kernel .text section.
+	 *
+	 * Load a real %cr3 that has all the direct map stuff and switches
+	 * off the 1GB replicated mirror.  Load a stack pointer and jump
+	 * into AP startup code in C.
+	 */
+	.text
+	.code64
+	.p2align 4,0
+entry_64:
+	movq	KPML4phys, %rax
+	movq	%rax, %cr3
+	movq	bootSTK, %rsp
+	jmp	init_secondary

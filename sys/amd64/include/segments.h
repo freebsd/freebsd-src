@@ -49,6 +49,7 @@
  * Selectors
  */
 
+#define	SEL_RPL_MASK	3	/* requester priv level */
 #define	ISPL(s)	((s)&3)		/* what is the priority level of a selector */
 #define	SEL_KPL	0		/* kernel priority level */
 #define	SEL_UPL	3		/* user priority level */
@@ -191,6 +192,7 @@ struct region_descriptor {
 #define	IDT_AC		17	/* #AC: Alignment Check */
 #define	IDT_MC		18	/* #MC: Machine Check */
 #define	IDT_XF		19	/* #XF: SIMD Floating-Point Exception */
+#define	IDT_IO_INTS	NRSVIDT	/* Base of IDT entries for I/O interrupts. */
 #define	IDT_SYSCALL	0x80	/* System Call Interrupt Vector */
 
 /*
@@ -210,6 +212,7 @@ struct region_descriptor {
 extern struct user_segment_descriptor gdt[];
 extern struct soft_segment_descriptor gdt_segs[];
 extern struct gate_descriptor *idt;
+extern struct region_descriptor r_gdt, r_idt;
 
 void	lgdt(struct region_descriptor *rdp);
 void	sdtossd(struct user_segment_descriptor *sdp,

@@ -38,6 +38,7 @@
 
 extern	long	Maxmem;
 extern	u_long	atdevbase;	/* offset in virtual memory of ISA io mem */
+extern	u_int	basemem;
 extern	int	busdma_swi_pending;
 extern	u_int	cpu_exthigh;
 extern	u_int	cpu_feature;
@@ -50,7 +51,8 @@ extern	uint16_t *elan_mmcr;
 extern	char	kstack[];
 extern	char	sigcode[];
 extern	int	szsigcode;
-extern	u_int	basemem;
+
+extern	struct pcpu __pcpu[];
 
 typedef void alias_for_inthand_t(u_int cs, u_int ef, u_int esp, u_int ss);
 struct	thread;
@@ -66,6 +68,7 @@ void	enable_sse(void);
 void	fillw(int /*u_short*/ pat, void *base, size_t cnt);
 void	pagezero(void *addr);
 int	is_physical_memory(vm_offset_t addr);
+int	isa_nmi(int cd);
 void	setidt(int idx, alias_for_inthand_t *func, int typ, int dpl, int ist);
 void	fpstate_drop(struct thread *td);
 
