@@ -459,7 +459,7 @@ at_pcbdetach( struct socket *so, struct ddpcb *ddp)
     }
 
     if ( ddp->ddp_route.ro_rt ) {
-	rtfree( ddp->ddp_route.ro_rt );
+	RTFREE( ddp->ddp_route.ro_rt );
     }
 
     if ( ddp->ddp_prev ) {
