@@ -118,6 +118,11 @@ rather than trying to copy it.
 .It Fl m
 Mirror mode: if the file already exists locally and has the same size
 and modification time as the remote file, it will not be fetched.
+Note that the
+.Fl m
+and
+.Fl r
+flags are mutually exclusive.
 .It Fl n
 Don't preserve the modification time of the transferred file.
 .It Fl o Ar file
@@ -148,6 +153,11 @@ The output files are precious, and should not be deleted under any
 circumstances, even if the transfer failed or was incomplete.
 .It Fl r
 Restart a previously interrupted transfer.
+Note that the
+.Fl m
+and
+.Fl r
+flags are mutually exclusive.
 .It Fl S Ar bytes
 Require the file size reported by the server to match the specified
 value.

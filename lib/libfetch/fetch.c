@@ -43,6 +43,7 @@
 int	 fetchLastErrCode;
 char	 fetchLastErrString[MAXERRSTRING];
 int	 fetchTimeout;
+int	 fetchRestartCalls = 1;
 
 
 /*** Local data **************************************************************/
@@ -66,26 +67,37 @@ static struct fetcherr _url_errlist[] = {
 /*
  * Select the appropriate protocol for the URL scheme, and return a
  * read-only stream connected to the document referenced by the URL.
+ * Also fill out the struct url_stat.
  */
 FILE *
-fetchGet(struct url *URL, char *flags)
+fetchXGet(struct url *URL, struct url_stat *us, char *flags)
 {
     int direct;
 
     direct = (flags && strchr(flags, 'd'));
     if (strcasecmp(URL->scheme, "file") == 0)
-	return fetchGetFile(URL, flags);
+	return fetchXGetFile(URL, us, flags);
     else if (strcasecmp(URL->scheme, "http") == 0)
-	return fetchGetHTTP(URL, flags);
+	return fetchXGetHTTP(URL, us, flags);
     else if (strcasecmp(URL->scheme, "ftp") == 0) {
 	if (!direct &&
 	    getenv("FTP_PROXY") == NULL && getenv("HTTP_PROXY") != NULL)
-	    return fetchGetHTTP(URL, flags);
-	return fetchGetFTP(URL, flags);
+	    return fetchXGetHTTP(URL, us, flags);
+	return fetchXGetFTP(URL, us, flags);
     } else {
 	_url_seterr(URL_BAD_SCHEME);
 	return NULL;
     }
+}
+
+/*
+ * Select the appropriate protocol for the URL scheme, and return a
+ * read-only stream connected to the document referenced by the URL.
+ */
+FILE *
+fetchGet(struct url *URL, char *flags)
+{
+    return fetchXGet(URL, NULL, flags);
 }
 
 /*
@@ -164,10 +176,10 @@ fetchList(struct url *URL, char *flags)
 }
 
 /*
- * Attempt to parse the given URL; if successful, call fetchGet().
+ * Attempt to parse the given URL; if successful, call fetchXGet().
  */
 FILE *
-fetchGetURL(char *URL, char *flags)
+fetchXGetURL(char *URL, struct url_stat *us, char *flags)
 {
     struct url *u;
     FILE *f;
@@ -175,12 +187,20 @@ fetchGetURL(char *URL, char *flags)
     if ((u = fetchParseURL(URL)) == NULL)
 	return NULL;
     
-    f = fetchGet(u, flags);
+    f = fetchXGet(u, us, flags);
     
     fetchFreeURL(u);
     return f;
 }
 
+/*
+ * Attempt to parse the given URL; if successful, call fetchGet().
+ */
+FILE *
+fetchGetURL(char *URL, char *flags)
+{
+    return fetchXGetURL(URL, NULL, flags);
+}
 
 /*
  * Attempt to parse the given URL; if successful, call fetchPut().
