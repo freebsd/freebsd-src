@@ -13,7 +13,7 @@
 .\"     @(#)vidcontrol.1
 .\" $FreeBSD$
 .\"
-.Dd May 27, 2001
+.Dd May 27, 2002
 .Dt VIDCONTROL 1
 .Os
 .Sh NAME
@@ -36,6 +36,7 @@
 .Op Fl M Ar char
 .Op Fl m Cm on | off
 .Op Fl r Ar foreground Ar background
+.Op Fl S Cm on | off
 .Op Fl s Ar number
 .Op Fl t Ar N | Cm off
 .Op Ar mode
@@ -213,6 +214,11 @@ Change reverse mode colors to
 .Ar foreground
 and
 .Ar background .
+.It Fl S Cm on | off
+Turn vty switching on or off.
+When vty switching is off,
+attempts to switch to a different virtual terminal will fail.
+(The default is to permit vty switching.)
 .It Fl s Ar number
 Set the current vty to
 .Ar number .
