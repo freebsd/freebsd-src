@@ -73,7 +73,6 @@ typedef struct ohci_softc {
 
 #elif defined(__FreeBSD__)
         int             sc_iobase;
-	int             unit;
 #endif /* __FreeBSD__ */
 
 	usb_dma_t sc_hccadma;
