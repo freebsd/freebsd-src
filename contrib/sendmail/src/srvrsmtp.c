@@ -17,7 +17,7 @@
 # include <libmilter/mfdef.h>
 #endif /* MILTER */
 
-SM_RCSID("@(#)$Id: srvrsmtp.c,v 8.900 2004/07/08 23:29:33 ca Exp $")
+SM_RCSID("@(#)$Id: srvrsmtp.c,v 8.902 2004/11/18 21:46:01 ca Exp $")
 
 #include <sys/time.h>
 #include <sm/fdset.h>
@@ -1966,6 +1966,13 @@ tlsfail:
 
 					/* only complain if strict check */
 					ok = AllowBogusHELO;
+
+					/* allow trailing whitespace */
+					while (!ok && *++q != '\0' &&
+					       isspace(*q))
+						;
+					if (*q == '\0')
+						ok = true;
 					break;
 				}
 				if (strchr("[].-_#:", *q) == NULL)
@@ -4110,7 +4117,9 @@ rcpt_esmtp_args(a, kp, vp, e)
 			return;
 		for (p = vp; p != NULL; vp = p)
 		{
-			p = strchr(p, ',');
+			char *s;
+
+			s = p = strchr(p, ',');
 			if (p != NULL)
 				*p++ = '\0';
 			if (sm_strcasecmp(vp, "success") == 0)
@@ -4125,6 +4134,8 @@ rcpt_esmtp_args(a, kp, vp, e)
 					vp);
 				/* NOTREACHED */
 			}
+			if (s != NULL)
+				*s = ',';
 		}
 	}
 	else if (sm_strcasecmp(kp, "orcpt") == 0)

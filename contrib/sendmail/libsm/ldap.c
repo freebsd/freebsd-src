@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001-2003 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 2001-2004 Sendmail, Inc. and its suppliers.
  *      All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -8,7 +8,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: ldap.c,v 1.59 2003/12/23 21:20:15 gshapiro Exp $")
+SM_RCSID("@(#)$Id: ldap.c,v 1.60 2004/08/03 20:42:21 ca Exp $")
 
 #if LDAPMAP
 # include <sys/types.h>
@@ -33,6 +33,8 @@ SM_DEBUG_T SmLDAPTrace = SM_DEBUG_INITIALIZER("sm_trace_ldap",
 	"@(#)$Debug: sm_trace_ldap - trace LDAP operations $");
 
 static void	ldaptimeout __P((int));
+static bool	sm_ldap_has_objectclass __P((SM_LDAP_STRUCT *, LDAPMessage *, char *));
+static SM_LDAP_RECURSE_ENTRY *sm_ldap_add_recurse __P((SM_LDAP_RECURSE_LIST **, char *, int, SM_RPOOL_T *));
 
 /*
 **  SM_LDAP_CLEAR -- set default values for SM_LDAP_STRUCT
@@ -126,7 +128,7 @@ sm_ldap_start(name, lmap)
 	SM_LDAP_STRUCT *lmap;
 {
 	int bind_result;
-	int save_errno;
+	int save_errno = 0;
 	char *id;
 	SM_EVENT *ev = NULL;
 	LDAP *ld = NULL;

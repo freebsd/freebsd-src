@@ -13,9 +13,9 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: recipient.c,v 8.336 2004/07/23 20:45:02 gshapiro Exp $")
+SM_RCSID("@(#)$Id: recipient.c,v 8.337 2004/08/03 19:57:23 ca Exp $")
 
-static void	includetimeout __P((void));
+static void	includetimeout __P((int));
 static ADDRESS	*self_reference __P((ADDRESS *));
 static int	sortexpensive __P((ADDRESS *, ADDRESS *));
 static int	sortbysignature __P((ADDRESS *, ADDRESS *));
@@ -1874,7 +1874,8 @@ resetuid:
 }
 
 static void
-includetimeout()
+includetimeout(ignore)
+	int ignore;
 {
 	/*
 	**  NOTE: THIS CAN BE CALLED FROM A SIGNAL HANDLER.  DO NOT ADD

@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 1999-2003 Sendmail, Inc. and its suppliers.
+ *  Copyright (c) 1999-2004 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -9,7 +9,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: listener.c,v 8.109 2004/02/04 22:55:59 ca Exp $")
+SM_RCSID("@(#)$Id: listener.c,v 8.111 2004/09/20 21:11:15 msk Exp $")
 
 /*
 **  listener.c -- threaded network listener
@@ -32,6 +32,7 @@ static SOCKADDR_LEN_T L_socksize;
 static socket_t listenfd = INVALID_SOCKET;
 
 static socket_t mi_milteropen __P((char *, int, bool, char *));
+static void *mi_thread_handle_wrapper __P((void *));
 
 /*
 **  MI_OPENSOCKET -- create the socket where this filter and the MTA will meet
@@ -88,6 +89,7 @@ mi_opensocket(conn, backlog, dbg, rmsocket, smfi)
 		return MI_FAILURE;
 	}
 #endif /* !SM_CONF_POLL */
+	(void) smutex_unlock(&L_Mutex);
 	return MI_SUCCESS;
 }
 
@@ -553,7 +555,7 @@ mi_milteropen(conn, backlog, rmsocket, name)
 **		results from mi_handle_session()
 */
 
-void *
+static void *
 mi_thread_handle_wrapper(arg)
 	void *arg;
 {
@@ -722,7 +724,6 @@ mi_listener(conn, dbg, smfi, timeout, backlog)
 		return MI_FAILURE;
 
 	clilen = L_socksize;
-	(void) smutex_unlock(&L_Mutex);
 	while ((mistop = mi_stop()) == MILTER_CONT)
 	{
 		(void) smutex_lock(&L_Mutex);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000-2001 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 2000-2001, 2004 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -8,7 +8,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: heap.c,v 1.50 2001/09/11 04:04:48 gshapiro Exp $")
+SM_RCSID("@(#)$Id: heap.c,v 1.51 2004/08/03 20:32:00 ca Exp $")
 
 /*
 **  debugging memory allocation package
@@ -43,6 +43,7 @@ SM_RCSID("@(#)$Id: heap.c,v 1.50 2001/09/11 04:04:48 gshapiro Exp $")
 SM_DEBUG_T SmHeapCheck = SM_DEBUG_INITIALIZER("sm_check_heap",
     "@(#)$Debug: sm_check_heap - check sm_malloc, sm_realloc, sm_free calls $");
 # define HEAP_CHECK sm_debug_active(&SmHeapCheck, 1)
+static int	ptrhash __P((void *p));
 #endif /* SM_HEAP_CHECK */
 
 const SM_EXC_TYPE_T SmHeapOutOfMemoryType =
