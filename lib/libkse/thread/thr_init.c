@@ -146,8 +146,8 @@ static void *libgcc_references[] = {
 	&_pthread_mutex_unlock
 };
 
-int pthread_guard_default;
-int pthread_page_size;
+int _pthread_guard_default;
+int _pthread_page_size;
 
 /*
  * Threaded process initialization
@@ -165,11 +165,11 @@ _thread_init(void)
 	struct clockinfo clockinfo;
 	struct sigaction act;
 
-	pthread_page_size = getpagesize();
-	pthread_guard_default = getpagesize();
+	_pthread_page_size = getpagesize();
+	_pthread_guard_default = getpagesize();
 	sched_stack_size = getpagesize();
     	
-	pthread_attr_default.guardsize_attr = pthread_guard_default;
+	pthread_attr_default.guardsize_attr = _pthread_guard_default;
 
 
 	/* Check if this function has already been called: */
@@ -291,8 +291,8 @@ _thread_init(void)
 		 * thread stack that is just beyond.
 		 */
 		if (mmap(_usrstack - PTHREAD_STACK_INITIAL -
-		    pthread_guard_default, pthread_guard_default, 0, MAP_ANON,
-		    -1, 0) == MAP_FAILED)
+		    _pthread_guard_default, _pthread_guard_default, 0,
+		    MAP_ANON, -1, 0) == MAP_FAILED)
 			PANIC("Cannot allocate red zone for initial thread");
 
 		/* Set the main thread stack pointer. */
