@@ -27,6 +27,9 @@
  * $FreeBSD$
  */
 
+#ifndef _MACHINE_PC_BIOS_H_
+#define _MACHINE_PC_BIOS_H_
+
 /* 
  * Signature structure for the BIOS32 Service Directory header 
  */
@@ -278,3 +281,8 @@ struct bios_smap {
     u_int64_t	length;
     u_int32_t	type;
 } __packed;
+
+const u_char *bios_string(u_int from, u_int to, const u_char *string, int len);
+
+
+#endif /* _MACHINE_PC_BIOS_H_ */
