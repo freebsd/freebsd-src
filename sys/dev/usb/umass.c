@@ -2272,6 +2272,7 @@ umass_cam_action(struct cam_sim *sim, union ccb *ccb)
 		break;
 	default:
 		/* XXX Hm, we should check the input parameters */
+		break;
 	}
 
 	/* Perform the requested action */
@@ -2623,8 +2624,8 @@ umass_cam_sense_cb(struct umass_softc *sc, void *priv, int residue, int status)
 					    | CAM_AUTOSNS_VALID;
 			csio->scsi_status = SCSI_STATUS_CHECK_COND;
 
-			DPRINTF(UDMASS_SCSI,("%s: Doing a sneaky
-					     TEST_UNIT_READY\n",
+			DPRINTF(UDMASS_SCSI,("%s: Doing a sneaky"
+					     "TEST_UNIT_READY\n",
 				USBDEVNAME(sc->sc_dev)));
 
 			/* the rest of the command was filled in at attach */
