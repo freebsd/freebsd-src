@@ -220,6 +220,7 @@ static struct mbuf *makembuf (void *buf, unsigned len)
  * Test the presence of the adapter on the given i/o port.
  */
 #ifdef __FreeBSD__
+extern void cx_devsw_install();
 int cxprobe (struct isa_device *id)
 {
 	int unit = id->id_unit;
@@ -265,6 +266,10 @@ int cxprobe (struct device *parent, struct cfdata *cf, void *aux)
 	}
 	if (! cx_probe_board (iobase))
 		return (0);
+#ifdef JREMOD
+        cx_devsw_install();
+#endif /*JREMOD*/
+
 	return (1);
 }
 

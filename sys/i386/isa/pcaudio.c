@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: pcaudio.c,v 1.16 1995/11/04 13:23:36 bde Exp $
+ *	$Id: pcaudio.c,v 1.17 1995/11/16 09:56:02 bde Exp $
  */
 
 #include "pca.h"
@@ -48,6 +48,11 @@
 #include <i386/isa/timerreg.h>
 
 #include <i386/isa/sound/ulaw.h>
+
+#ifdef JREMOD
+#define CDEV_MAJOR 24
+static void 	pca_devsw_install();
+#endif /*JREMOD*/
 
 #define BUF_SIZE 	8192
 #define SAMPLE_RATE	8000
@@ -260,9 +265,13 @@ pcaattach(struct isa_device *dvp)
 	printf("pca%d: PC speaker audio driver\n", dvp->id_unit);
 	pca_init();
 	pca_registerdev(dvp);
+#ifdef JREMOD
+        pca_devsw_install();
+#endif /*JREMOD*/
 #ifdef DEVFS
 	pcadev_init(NULL);
 #endif /*DEVFS*/
+
 	return 1;
 }
 
@@ -477,4 +486,27 @@ pcaselect(dev_t dev, int rw, struct proc *p)
  		return(0);
 	}
 }
+
+#ifdef JREMOD
+struct cdevsw pca_cdevsw = 
+ 	{ pcaopen,      pcaclose,       noread,         pcawrite,       /*24*/
+ 	  pcaioctl,     nostop,         nullreset,      nodevtotty,/* pcaudio */
+ 	  pcaselect,	nommap,		NULL };
+
+static pca_devsw_installed = 0;
+
+static void 	pca_devsw_install()
+{
+	dev_t descript;
+	if( ! pca_devsw_installed ) {
+		descript = makedev(CDEV_MAJOR,0);
+		cdevsw_add(&descript,&pca_cdevsw,NULL);
+#if defined(BDEV_MAJOR)
+		descript = makedev(BDEV_MAJOR,0);
+		bdevsw_add(&descript,&pca_bdevsw,NULL);
+#endif /*BDEV_MAJOR*/
+		pca_devsw_installed = 1;
+	}
+}
+#endif /* JREMOD */
 #endif

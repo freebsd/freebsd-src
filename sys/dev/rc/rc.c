@@ -58,6 +58,12 @@
 #include <i386/isa/ic/cd180.h>
 #include <i386/isa/rcreg.h>
 
+#ifdef JREMOD
+#include <sys/conf.h>
+#define CDEV_MAJOR 63
+static void 	rc_devsw_install();
+#endif /*JREMOD*/
+
 /* Prototypes */
 int     rcprobe         __P((struct isa_device *));
 int     rcattach        __P((struct isa_device *));
@@ -277,6 +283,10 @@ int rcattach(dvp)
 		rc_wakeup((void *)NULL);
 		rc_wakeup_started = 0;
 	}
+#ifdef JREMOD
+        rc_devsw_install();
+#endif /*JREMOD*/
+
 	return 1;
 }
 
@@ -1492,4 +1502,27 @@ rc_wait0(nec, unit, chan, line)
 		printf("rc%d/%d: channel command timeout, rc.c line: %d\n",
 		      unit, chan, line);
 }
+
+#ifdef JREMOD
+struct cdevsw rc_cdevsw = 
+	{ rcopen,       rcclose,        rcread,         rcwrite,        /*63*/
+	  rcioctl,      rcstop,         nxreset,        rcdevtotty,/* rc */
+	  ttselect,	nommap,		NULL };
+
+static rc_devsw_installed = 0;
+
+static void 	rc_devsw_install()
+{
+	dev_t descript;
+	if( ! rc_devsw_installed ) {
+		descript = makedev(CDEV_MAJOR,0);
+		cdevsw_add(&descript,&rc_cdevsw,NULL);
+#if defined(BDEV_MAJOR)
+		descript = makedev(BDEV_MAJOR,0);
+		bdevsw_add(&descript,&rc_bdevsw,NULL);
+#endif /*BDEV_MAJOR*/
+		rc_devsw_installed = 1;
+	}
+}
+#endif /* JREMOD */
 #endif /* NRC */

@@ -8,7 +8,7 @@
  *	of this software, nor does the author assume any responsibility
  *	for damages incurred with its use.
  *
- *	$Id: ctx.c,v 1.6 1995/05/30 08:01:27 rgrimes Exp $
+ *	$Id: ctx.c,v 1.7 1995/09/08 11:07:34 bde Exp $
  */
 
 /*
@@ -126,6 +126,11 @@
 #include <i386/isa/ctxreg.h>
 #include <machine/ioctl_ctx.h>
 
+#ifdef JREMOD
+#include <sys/conf.h>
+#define CDEV_MAJOR 40
+static void 	ctx_devsw_install();
+#endif /*JREMOD*/
 int     waitvb(short);
 
 /* state flags */
@@ -184,8 +189,12 @@ ctxprobe(struct isa_device * devp)
 
 	if (inb(devp->id_iobase) == 0xff)	/* 0xff only if board absent */
 		status = 0;
-	else
-		status = 1;
+	else {
+		status = 1; /*XXX uses only one port? */
+#ifdef JREMOD
+        	ctx_devsw_install();
+#endif /*JREMOD*/
+	}
 	return (status);
 }
 
@@ -438,4 +447,28 @@ waitvb(short port)
 
 	return (0);
 }
+
+#ifdef JREMOD
+struct cdevsw ctx_cdevsw = 
+	{ ctxopen,	ctxclose,	ctxread,	ctxwrite,	/*40*/
+	  ctxioctl,	nostop,		nullreset,	nodevtotty,/* cortex */
+	  seltrue,	nommap,		NULL };
+
+static ctx_devsw_installed = 0;
+
+static void 	ctx_devsw_install()
+{
+	dev_t descript;
+	if( ! ctx_devsw_installed ) {
+		descript = makedev(CDEV_MAJOR,0);
+		cdevsw_add(&descript,&ctx_cdevsw,NULL);
+#if defined(BDEV_MAJOR)
+		descript = makedev(BDEV_MAJOR,0);
+		bdevsw_add(&descript,&ctx_bdevsw,NULL);
+#endif /*BDEV_MAJOR*/
+		ctx_devsw_installed = 1;
+	}
+}
+#endif /* JREMOD */
+
 #endif				/* NCTX > 0 */

@@ -57,6 +57,11 @@
  * CONSTANTS & DEFINES
  *
  ***********************************************************************/
+#ifdef JREMOD
+#include <sys/conf.h>
+#define CDEV_MAJOR 47
+static void 	gsc_devsw_install();
+#endif /*JREMOD*/ /* clean up later */
 
 #define PROBE_FAIL    0
 #define PROBE_SUCCESS 1
@@ -499,6 +504,10 @@ gscattach(struct isa_device *isdp)
   scu->flags |= ATTACHED;
   lprintf("gsc%d.attach: ok\n", unit);
   scu->flags &= ~DEBUG;
+#ifdef JREMOD
+  gsc_devsw_install();
+#endif /*JREMOD*/
+
   return SUCCESS; /* attach must not fail */
 }
 
@@ -772,4 +781,27 @@ int gscioctl (dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
   }
 }
 
+
+#ifdef JREMOD
+struct cdevsw gsc_cdevsw = 
+	{ gscopen,      gscclose,       gscread,        nowrite,	/*47*/
+	  gscioctl,     nostop,         nullreset,      nodevtotty,/* gsc */
+	  seltrue,      nommap,         NULL };
+
+static gsc_devsw_installed = 0;
+
+static void 	gsc_devsw_install()
+{
+	dev_t descript;
+	if( ! gsc_devsw_installed ) {
+		descript = makedev(CDEV_MAJOR,0);
+		cdevsw_add(&descript,&gsc_cdevsw,NULL);
+#if defined(BDEV_MAJOR)
+		descript = makedev(BDEV_MAJOR,0);
+		bdevsw_add(&descript,&gsc_bdevsw,NULL);
+#endif /*BDEV_MAJOR*/
+		gsc_devsw_installed = 1;
+	}
+}
+#endif /* JREMOD */
 #endif /* NGSC > 0 */

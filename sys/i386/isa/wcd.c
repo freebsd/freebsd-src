@@ -32,6 +32,13 @@
 #include <i386/include/cpufunc.h>
 #include <i386/isa/atapi.h>
 
+#ifdef JREMOD
+#include <sys/conf.h>
+#define CDEV_MAJOR 69
+#define BDEV_MAJOR 19
+static void 	wcd_devsw_install();
+#endif /*JREMOD */
+
 extern int  wcdattach(struct atapi*, int, struct atapi_params*, int, struct kern_devconf*);
 
 #define NUNIT   (NWDC*2)                /* Max. number of devices */
@@ -315,6 +322,10 @@ wcdattach (struct atapi *ata, int unit, struct atapi_params *ap, int debug,
 	strncpy (t->description + strlen(t->description),
 		ap->model, sizeof(ap->model));
 	dev_attach (&t->cf);
+#ifdef JREMOD
+	wcd_devsw_install();
+#endif /*JREMOD*/
+
 	return (1);
 }
 
@@ -1158,5 +1169,32 @@ int wcd_mod (struct lkm_table *lkmtp, int cmd, int ver)
 	return lkmdispatch (lkmtp, cmd);
 }
 #endif /* WCD_MODULE */
+
+#ifdef JREMOD
+struct bdevsw wcd_bdevsw = 
+	{ wcdbopen,	wcdbclose,	wcdstrategy,	wcdioctl,	/*19*/
+	  nxdump,	zerosize,	0 };
+
+struct cdevsw wcd_cdevsw = 
+	{ wcdropen,	wcdrclose,	rawread,	nowrite,	/*69*/
+	  wcdioctl,	nostop,		nullreset,	nodevtotty,/* atapi */
+	  seltrue,	nommap,		wcdstrategy };
+
+static wcd_devsw_installed = 0;
+
+static void 	wcd_devsw_install()
+{
+	dev_t descript;
+	if( ! wcd_devsw_installed ) {
+		descript = makedev(CDEV_MAJOR,0);
+		cdevsw_add(&descript,&wcd_cdevsw,NULL);
+#if defined(BDEV_MAJOR)
+		descript = makedev(BDEV_MAJOR,0);
+		bdevsw_add(&descript,&wcd_bdevsw,NULL);
+#endif /*BDEV_MAJOR*/
+		wcd_devsw_installed = 1;
+	}
+}
+#endif /* JREMOD */
 
 #endif /* NWCD && NWDC && ATAPI */

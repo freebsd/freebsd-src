@@ -39,6 +39,10 @@
 #      include <machine/pio.h>
 #      define RB_GETC(q) getc(q)
 #   else /* BSD 4.4 Lite */
+#	ifdef JREMOD
+#	 define CDEV_MAJOR 42
+	 void 	cx_devsw_install(); /* can't be static, needed in if_cx.c */
+#	endif /*JREMOD*/
 #      include <sys/devconf.h>
 #   endif
 #endif
@@ -961,4 +965,27 @@ void cxtimeout (void *a)
 		}
 	timeout (cxtimeout, 0, hz*5);
 }
+
+#ifdef JREMOD
+struct cdevsw cx_cdevsw = 
+	{ cxopen,	cxclose,	cxread,		cxwrite,	/*42*/
+	  cxioctl,	cxstop,		nullreset,	cxdevtotty,/* cronyx */
+	  cxselect,	nommap,		NULL };
+
+static cx_devsw_installed = 0;
+
+void 	cx_devsw_install()
+{
+	dev_t descript;
+	if( ! cx_devsw_installed ) {
+		descript = makedev(CDEV_MAJOR,0);
+		cdevsw_add(&descript,&cx_cdevsw,NULL);
+#if defined(BDEV_MAJOR)
+		descript = makedev(BDEV_MAJOR,0);
+		bdevsw_add(&descript,&cx_bdevsw,NULL);
+#endif /*BDEV_MAJOR*/
+		cx_devsw_installed = 1;
+	}
+}
+#endif /* JREMOD */
 #endif /* NCX */

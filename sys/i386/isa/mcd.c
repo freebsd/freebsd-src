@@ -40,7 +40,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: mcd.c,v 1.47 1995/10/28 15:39:15 phk Exp $
+ *	$Id: mcd.c,v 1.48 1995/11/04 13:23:35 bde Exp $
  */
 static char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 
@@ -69,6 +69,12 @@ static char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 #include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
 #include <i386/isa/mcdreg.h>
+
+#ifdef JREMOD
+#define CDEV_MAJOR 29
+#define BDEV_MAJOR 7
+static void 	mcd_devsw_install();
+#endif /*JREMOD */
 
 #define	MCD_TRACE(format, args...)						\
 {									\
@@ -256,6 +262,10 @@ int mcd_attach(struct isa_device *dev)
 	kdc_mcd[dev->id_unit].kdc_state = DC_IDLE;
 	/* name filled in probe */
 	kdc_mcd[dev->id_unit].kdc_description = mcd_data[dev->id_unit].name;
+#ifdef JREMOD
+	mcd_devsw_install();
+#endif /*JREMOD*/
+
 
 	return 1;
 }
@@ -1659,4 +1669,31 @@ mcd_resume(int unit)
 		return EINVAL;
 	return mcd_play(unit, &cd->lastpb);
 }
+
+#ifdef JREMOD
+struct bdevsw mcd_bdevsw = 
+	{ mcdopen,	mcdclose,	mcdstrategy,	mcdioctl,	/*7*/
+	  nxdump,	mcdsize,	0 };
+
+struct cdevsw mcd_cdevsw = 
+	{ mcdopen,	mcdclose,	rawread,	nowrite,	/*29*/
+	  mcdioctl,	nostop,		nullreset,	nodevtotty,/* mitsumi cd */
+	  seltrue,	nommap,		mcdstrategy };
+
+static mcd_devsw_installed = 0;
+
+static void 	mcd_devsw_install()
+{
+	dev_t descript;
+	if( ! mcd_devsw_installed ) {
+		descript = makedev(CDEV_MAJOR,0);
+		cdevsw_add(&descript,&mcd_cdevsw,NULL);
+#if defined(BDEV_MAJOR)
+		descript = makedev(BDEV_MAJOR,0);
+		bdevsw_add(&descript,&mcd_bdevsw,NULL);
+#endif /*BDEV_MAJOR*/
+		mcd_devsw_installed = 1;
+	}
+}
+#endif /* JREMOD */
 #endif /* NMCD > 0 */
