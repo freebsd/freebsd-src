@@ -1,5 +1,5 @@
 .\" manual page [] for pppd 2.0
-.\" $Id: pppd.8,v 1.7 1994/06/09 01:50:48 paulus Exp $
+.\" $Id: pppd.8,v 1.2 1994/09/25 02:32:12 wollman Exp $
 .\" SH section heading
 .\" SS subsection heading
 .\" LP paragraph
@@ -121,6 +121,14 @@ links (40 bytes for TCP/IP header + 256 bytes of data).
 .B netmask \fI<n>
 Set the interface netmask to <n>, a 32 bit netmask in "decimal dot" notation
 (e.g. 255.255.255.0).
+.TP
+.B dns1 \fI<n>
+If peer asks for primary DNS server, tell them this address,
+a 32 bit ip number in "decimal dot" notation (e.g. 1.2.3.4).
+.TP
+.B dns2 \fI<n>
+If peer asks for secondary DNS server, tell them this address,
+a 32 bit ip number in "decimal dot" notation (e.g. 1.2.3.5).
 .TP
 .B passive
 Enables the "passive" option in the LCP.  With this option,

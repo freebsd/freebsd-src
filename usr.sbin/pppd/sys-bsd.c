@@ -19,19 +19,27 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: sys-bsd.c,v 1.4 1995/10/03 10:50:42 joerg Exp $";
+static char rcsid[] = "$Id: sys-bsd.c,v 1.3.4.1 1995/10/06 11:28:59 davidg Exp $";
 #endif
 
 /*
  * TODO:
  */
 
+#include <stdio.h>
 #include <syslog.h>
+#include <string.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <termios.h>
+#include <errno.h>
 #include <sys/ioctl.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/time.h>
-#include <sys/errno.h>
+#include <sys/stat.h>
 
 #include <net/if.h>
 #include <net/if_ppp.h>
@@ -162,7 +170,7 @@ read_packet(buf)
 {
     int len;
 
-    if ((len = read(fd, buf, MTU + DLLHEADERLEN)) < 0) {
+    if ((len = read(fd, buf, MTU + PPP_HDRLEN)) < 0) {
 	if (errno == EWOULDBLOCK) {
 	    MAINDEBUG((LOG_DEBUG, "read(fd): EWOULDBLOCK"));
 	    return -1;
@@ -285,6 +293,9 @@ sifvjcomp(u, vjcomp, cidcomp, maxcid)
 /*
  * sifup - Config the interface up and enable IP packets to pass.
  */
+#ifndef SC_ENABLE_IP
+#define SC_ENABLE_IP	0x100	/* compat for old versions of kernel code */
+#endif
 int
 sifup(u)
     int u;

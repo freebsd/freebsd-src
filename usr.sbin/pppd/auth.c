@@ -33,11 +33,13 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: auth.c,v 1.4 1995/08/28 21:30:51 mpp Exp $";
+static char rcsid[] = "$Id: auth.c,v 1.3.4.1 1995/09/02 14:40:06 davidg Exp $";
 #endif
 
 #include <stdio.h>
 #include <stddef.h>
+#include <stdlib.h>
+#include <unistd.h>
 #include <syslog.h>
 #include <pwd.h>
 #include <string.h>
@@ -78,7 +80,7 @@ struct wordlist {
 
 extern char user[];
 extern char passwd[];
-extern char devname[];
+extern char devnam[];
 extern char our_name[];
 extern char remote_name[];
 extern char hostname[];
@@ -87,9 +89,9 @@ extern int usehostname;
 extern int auth_required;
 
 /* Records which authentication operations haven't completed yet. */
-static int auth_pending[NPPP];
+static int auth_pending[NUM_PPP];
 static int logged_in;
-static struct wordlist *addresses[NPPP];
+static struct wordlist *addresses[NUM_PPP];
 
 /* Bits in auth_pending[] */
 #define UPAP_WITHPEER	1
@@ -98,19 +100,17 @@ static struct wordlist *addresses[NPPP];
 #define CHAP_PEER	8
 
 /* Prototypes */
-void check_access __ARGS((FILE *, char *));
+void check_access __P((FILE *, char *));
 
-static int  login __ARGS((char *, char *, char **, int *));
-static void logout __ARGS((void));
-static int  null_login __ARGS((int));
-static int  get_upap_passwd __ARGS((void));
-static int  have_upap_secret __ARGS((void));
-static int  have_chap_secret __ARGS((char *, char *));
-static int  scan_authfile __ARGS((FILE *, char *, char *, char *,
+static int  login __P((char *, char *, char **, int *));
+static void logout __P((void));
+static int  null_login __P((int));
+static int  get_upap_passwd __P((void));
+static int  have_upap_secret __P((void));
+static int  have_chap_secret __P((char *, char *));
+static int  scan_authfile __P((FILE *, char *, char *, char *,
 				  struct wordlist **, char *));
-static void free_wordlist __ARGS((struct wordlist *));
-
-extern char *crypt __ARGS((char *, char *));
+static void free_wordlist __P((struct wordlist *));
 
 /*
  * An Open on LCP has requested a change from Dead to Establish phase.
@@ -130,6 +130,8 @@ void
 link_terminated(unit)
     int unit;
 {
+    if (phase == PHASE_DEAD)
+	return;
     if (logged_in)
 	logout();
     phase = PHASE_DEAD;
@@ -143,6 +145,7 @@ void
 link_down(unit)
     int unit;
 {
+    ipcp_close(0);
     phase = PHASE_TERMINATE;
 }
 
@@ -221,10 +224,10 @@ auth_peer_success(unit, protocol)
     int bit;
 
     switch (protocol) {
-    case CHAP:
+    case PPP_CHAP:
 	bit = CHAP_PEER;
 	break;
-    case UPAP:
+    case PPP_PAP:
 	bit = UPAP_PEER;
 	break;
     default:
@@ -267,10 +270,10 @@ auth_withpeer_success(unit, protocol)
     int bit;
 
     switch (protocol) {
-    case CHAP:
+    case PPP_CHAP:
 	bit = CHAP_WITHPEER;
 	break;
-    case UPAP:
+    case PPP_PAP:
 	bit = UPAP_WITHPEER;
 	break;
     default:
@@ -411,7 +414,7 @@ check_passwd(unit, auser, userlen, apasswd, passwdlen, msg, msglen)
 	 */
 	if (attempts++ >= 10) {
 	    syslog(LOG_WARNING, "%d LOGIN FAILURES ON %s, %s",
-		   attempts, devname, user);
+		   attempts, devnam, user);
 	    quit();
 	}
 	if (attempts > 3)
@@ -476,11 +479,9 @@ login(user, passwd, msg, msglen)
     /*
      * Write a wtmp entry for this user.
      */
-    tty = strrchr(devname, '/');
-    if (tty == NULL)
-	tty = devname;
-    else
-	tty++;
+    tty = devnam;
+    if (strncmp(tty, "/dev/", 5) == 0)
+	tty += 5;
     logwtmp(tty, user, "");		/* Add wtmp login entry */
     logged_in = TRUE;
 
@@ -495,9 +496,9 @@ logout()
 {
     char *tty;
 
-    tty = strrchr(devname, '/');
+    tty = strrchr(devnam, '/');
     if (tty == NULL)
-	tty = devname;
+	tty = devnam;
     else
 	tty++;
     logwtmp(tty, "", "");		/* Wipe out wtmp logout entry */

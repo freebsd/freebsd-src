@@ -18,16 +18,16 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: options.c,v 1.5 1995/09/06 16:33:40 pst Exp $";
+static char rcsid[] = "$Id: options.c,v 1.4.4.1 1995/10/06 11:28:58 davidg Exp $";
 #endif
 
 #include <stdio.h>
 #include <errno.h>
 #include <unistd.h>
 #include <limits.h>
-#define devname STDLIB_devname
+#define devnam STDLIB_devnam
 #include <stdlib.h>
-#undef devname
+#undef devnam
 #include <termios.h>
 #include <syslog.h>
 #include <string.h>
@@ -51,7 +51,7 @@ static char rcsid[] = "$Id: options.c,v 1.5 1995/09/06 16:33:40 pst Exp $";
 #define TRUE	1
 
 #ifdef ultrix
-char *strdup __ARGS((char *));
+char *strdup __P((char *));
 #endif
 
 #ifndef GIDSET_TYPE
@@ -61,72 +61,74 @@ char *strdup __ARGS((char *));
 /*
  * Prototypes
  */
-static int setdebug __ARGS((void));
-static int setkdebug __ARGS((char **));
-static int setpassive __ARGS((void));
-static int setsilent __ARGS((void));
-static int noopt __ARGS((void));
-static int setnovj __ARGS((void));
-static int setnovjccomp __ARGS((void));
-static int setvjslots __ARGS((char **));
-static int reqpap __ARGS((void));
-static int nopap __ARGS((void));
-static int setupapfile __ARGS((char **));
-static int nochap __ARGS((void));
-static int reqchap __ARGS((void));
-static int setspeed __ARGS((char *));
-static int noaccomp __ARGS((void));
-static int noasyncmap __ARGS((void));
-static int noipaddr __ARGS((void));
-static int nomagicnumber __ARGS((void));
-static int setasyncmap __ARGS((char **));
-static int setescape __ARGS((char **));
-static int setmru __ARGS((char **));
-static int setmtu __ARGS((char **));
-static int nomru __ARGS((void));
-static int nopcomp __ARGS((void));
-static int setconnector __ARGS((char **));
-static int setdisconnector __ARGS((char **));
-static int setdomain __ARGS((char **));
-static int setnetmask __ARGS((char **));
-static int setcrtscts __ARGS((void));
-static int setxonxoff __ARGS((void));
-static int setnodetach __ARGS((void));
-static int setmodem __ARGS((void));
-static int setlocal __ARGS((void));
-static int setlock __ARGS((void));
-static int setname __ARGS((char **));
-static int setuser __ARGS((char **));
-static int setremote __ARGS((char **));
-static int setauth __ARGS((void));
-static int readfile __ARGS((char **));
-static int setdefaultroute __ARGS((void));
-static int setproxyarp __ARGS((void));
-static int setpersist __ARGS((void));
-static int setdologin __ARGS((void));
-static int setusehostname __ARGS((void));
-static int setnoipdflt __ARGS((void));
-static int setlcptimeout __ARGS((char **));
-static int setlcpterm __ARGS((char **));
-static int setlcpconf __ARGS((char **));
-static int setlcpfails __ARGS((char **));
-static int setipcptimeout __ARGS((char **));
-static int setipcpterm __ARGS((char **));
-static int setipcpconf __ARGS((char **));
-static int setipcpfails __ARGS((char **));
-static int setpaptimeout __ARGS((char **));
-static int setpapreqs __ARGS((char **));
-static int setchaptimeout __ARGS((char **));
-static int setchapchal __ARGS((char **));
-static int setchapintv __ARGS((char **));
-static int setipcpaccl __ARGS((void));
-static int setipcpaccr __ARGS((void));
-static int setlcpechointv __ARGS((char **));
-static int setlcpechofails __ARGS((char **));
+static int setdebug __P((void));
+static int setkdebug __P((char **));
+static int setpassive __P((void));
+static int setsilent __P((void));
+static int noopt __P((void));
+static int setnovj __P((void));
+static int setnovjccomp __P((void));
+static int setvjslots __P((char **));
+static int reqpap __P((void));
+static int nopap __P((void));
+static int setupapfile __P((char **));
+static int nochap __P((void));
+static int reqchap __P((void));
+static int setspeed __P((char *));
+static int noaccomp __P((void));
+static int noasyncmap __P((void));
+static int noipaddr __P((void));
+static int nomagicnumber __P((void));
+static int setasyncmap __P((char **));
+static int setescape __P((char **));
+static int setmru __P((char **));
+static int setmtu __P((char **));
+static int nomru __P((void));
+static int nopcomp __P((void));
+static int setconnector __P((char **));
+static int setdisconnector __P((char **));
+static int setdomain __P((char **));
+static int setnetmask __P((char **));
+static int setcrtscts __P((void));
+static int setxonxoff __P((void));
+static int setnodetach __P((void));
+static int setmodem __P((void));
+static int setlocal __P((void));
+static int setlock __P((void));
+static int setname __P((char **));
+static int setuser __P((char **));
+static int setremote __P((char **));
+static int setauth __P((void));
+static int readfile __P((char **));
+static int setdefaultroute __P((void));
+static int setproxyarp __P((void));
+static int setpersist __P((void));
+static int setdologin __P((void));
+static int setusehostname __P((void));
+static int setnoipdflt __P((void));
+static int setlcptimeout __P((char **));
+static int setlcpterm __P((char **));
+static int setlcpconf __P((char **));
+static int setlcpfails __P((char **));
+static int setipcptimeout __P((char **));
+static int setipcpterm __P((char **));
+static int setipcpconf __P((char **));
+static int setipcpfails __P((char **));
+static int setpaptimeout __P((char **));
+static int setpapreqs __P((char **));
+static int setchaptimeout __P((char **));
+static int setchapchal __P((char **));
+static int setchapintv __P((char **));
+static int setipcpaccl __P((void));
+static int setipcpaccr __P((void));
+static int setlcpechointv __P((char **));
+static int setlcpechofails __P((char **));
 
-static int number_option __ARGS((char *, long *, int));
-static int readable __ARGS((int fd));
+static int number_option __P((char *, long *, int));
+static int readable __P((int fd));
 
+static int setdns1 __P((char **));
+static int setdns2 __P((char **));
 /*
  * Option variables
  */
@@ -140,9 +142,11 @@ extern int nodetach;
 extern char *connector;
 extern char *disconnector;
 extern int inspeed;
-extern char devname[];
+extern char devnam[];
 extern int default_device;
 extern u_long netmask;
+extern u_long dns1;
+extern u_long dns2;
 extern int detach;
 extern char user[];
 extern char passwd[];
@@ -178,7 +182,7 @@ static struct cmd {
     {"-pc", 0, nopcomp},	/* Disable protocol field compress */
     {"+ua", 1, setupapfile},	/* Get PAP user and password from file */
     {"+pap", 0, reqpap},	/* Require PAP auth from peer */
-    {"-pap", 0, nopap},		/* Don't allow UPAP authentication with peer */
+    {"-pap", 0, nopap},		/* Don't allow PPP_PAP authentication with peer */
     {"+chap", 0, reqchap},	/* Require CHAP authentication from peer */
     {"-chap", 0, nochap},	/* Don't allow CHAP authentication with peer */
     {"-vj", 0, setnovj},	/* disable VJ compression */
@@ -197,6 +201,8 @@ static struct cmd {
     {"mru", 1, setmru},		/* Set MRU value for negotiation */
     {"mtu", 1, setmtu},		/* Set our MTU */
     {"netmask", 1, setnetmask},	/* set netmask */
+    {"dns1", 1, setdns1},	/* set Primary Domain Name Server */
+    {"dns2", 1, setdns2},	/* set Secondary Domain Name Server */
     {"passive", 0, setpassive},	/* Set passive mode */
     {"silent", 0, setsilent},	/* Set silent mode */
     {"modem", 0, setmodem},	/* Use modem control lines */
@@ -211,7 +217,7 @@ static struct cmd {
     {"defaultroute", 0, setdefaultroute}, /* Add default route */
     {"proxyarp", 0, setproxyarp}, /* Add proxy ARP entry */
     {"persist", 0, setpersist},	/* Keep on reopening connection after close */
-    {"login", 0, setdologin},	/* Use system password database for UPAP */
+    {"login", 0, setdologin},	/* Use system password database for PPP_PAP */
     {"noipdefault", 0, setnoipdflt}, /* Don't use name for default IP adrs */
     {"lcp-echo-failure", 1, setlcpechofails}, /* consecutive echo failures */
     {"lcp-echo-interval", 1, setlcpechointv}, /* time for lcp echo events */
@@ -219,11 +225,11 @@ static struct cmd {
     {"lcp-max-terminate", 1, setlcpterm}, /* Set max #xmits for term-reqs */
     {"lcp-max-configure", 1, setlcpconf}, /* Set max #xmits for conf-reqs */
     {"lcp-max-failure", 1, setlcpfails}, /* Set max #conf-naks for LCP */
-    {"ipcp-restart", 1, setipcptimeout}, /* Set timeout for IPCP */
+    {"ipcp-restart", 1, setipcptimeout}, /* Set timeout for PPP_IPCP */
     {"ipcp-max-terminate", 1, setipcpterm}, /* Set max #xmits for term-reqs */
     {"ipcp-max-configure", 1, setipcpconf}, /* Set max #xmits for conf-reqs */
-    {"ipcp-max-failure", 1, setipcpfails}, /* Set max #conf-naks for IPCP */
-    {"pap-restart", 1, setpaptimeout}, /* Set timeout for UPAP */
+    {"ipcp-max-failure", 1, setipcpfails}, /* Set max #conf-naks for PPP_IPCP */
+    {"pap-restart", 1, setpaptimeout}, /* Set timeout for PPP_PAP */
     {"pap-max-authreq", 1, setpapreqs}, /* Set max #xmits for auth-reqs */
     {"chap-restart", 1, setchaptimeout}, /* Set timeout for CHAP */
     {"chap-max-challenge", 1, setchapchal}, /* Set max #xmits for challenge */
@@ -296,7 +302,7 @@ parse_args(argc, argv)
 	    /*
 	     * Maybe a tty name, speed or IP address?
 	     */
-	    if ((ret = setdevname(arg)) == 0
+	    if ((ret = setdevnam(arg)) == 0
 		&& (ret = setspeed(arg)) == 0
 		&& (ret = setipaddr(arg)) == 0) {
 		fprintf(stderr, "%s: unrecognized command\n", arg);
@@ -376,7 +382,7 @@ options_from_file(filename, must_exist, check_prot)
 	    /*
 	     * Maybe a tty name, speed or IP address?
 	     */
-	    if ((ret = setdevname(cmd)) == 0
+	    if ((ret = setdevnam(cmd)) == 0
 		&& (ret = setspeed(cmd)) == 0
 		&& (ret = setipaddr(cmd)) == 0) {
 		fprintf(stderr, "In file %s: unrecognized command %s\n",
@@ -427,9 +433,9 @@ options_for_tty()
     char *dev, *path;
     int ret;
 
-    dev = strrchr(devname, '/');
+    dev = strrchr(devnam, '/');
     if (dev == NULL)
-	dev = devname;
+	dev = devnam;
     else
 	++dev;
     if (strcmp(dev, "tty") == 0)
@@ -821,7 +827,7 @@ reqpap()
 
 
 /*
- * setupapfile - specifies UPAP info for authenticating with peer.
+ * setupapfile - specifies PPP_PAP info for authenticating with peer.
  */
 static int
 setupapfile(argv)
@@ -1039,10 +1045,10 @@ setspeed(arg)
 
 
 /*
- * setdevname - Set the device name.
+ * setdevnam - Set the device name.
  */
 int
-setdevname(cp)
+setdevnam(cp)
     char *cp;
 {
     struct stat statbuf;
@@ -1066,8 +1072,8 @@ setdevname(cp)
 	return -1;
     }
 
-    (void) strncpy(devname, cp, MAXPATHLEN);
-    devname[MAXPATHLEN-1] = 0;
+    (void) strncpy(devnam, cp, MAXPATHLEN);
+    devnam[MAXPATHLEN-1] = 0;
     default_device = FALSE;
 
     return 1;
@@ -1224,6 +1230,44 @@ setnetmask(argv)
     }
 
     netmask = mask.s_addr;
+    return (1);
+}
+
+
+/*
+ * setdns1 - set the primary dns.
+ */
+static int
+setdns1(argv)
+    char **argv;
+{
+    struct in_addr mask;
+
+    if ((inet_aton(*argv, &mask) < 0)) {
+	fprintf(stderr, "Invalid dns1 %s\n", *argv);
+	return (0);
+    }
+
+    dns1 = mask.s_addr;
+    return (1);
+}
+
+
+/*
+ * setdns2 - set the secondary dns.
+ */
+static int
+setdns2(argv)
+    char **argv;
+{
+    struct in_addr mask;
+
+    if ((inet_aton(*argv, &mask) < 0)) {
+	fprintf(stderr, "Invalid dns2 %s\n", *argv);
+	return (0);
+    }
+
+    dns2 = mask.s_addr;
     return (1);
 }
 

@@ -16,7 +16,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: pppd.h,v 1.2 1994/09/25 02:32:13 wollman Exp $
+ * $Id: pppd.h,v 1.3 1995/05/30 03:51:15 rgrimes Exp $
  */
 
 /*
@@ -29,7 +29,7 @@
 
 #include <sys/param.h>		/* for MAXPATHLEN and BSD4_4, if defined */
 
-#define NPPP	1		/* One PPP interface supported (per process) */
+#define NUM_PPP	1		/* One PPP interface supported (per process) */
 
 /*
  * Limits.
@@ -63,20 +63,20 @@ extern int phase;		/* See values below */
 /*
  * Prototypes.
  */
-void quit __ARGS((void));	/* Cleanup and exit */
-void timeout __ARGS((void (*)(), caddr_t, int));
+void quit __P((void));	/* Cleanup and exit */
+void timeout __P((void (*)(), caddr_t, int));
 				/* Look-alike of kernel's timeout() */
-void untimeout __ARGS((void (*)(), caddr_t));
+void untimeout __P((void (*)(), caddr_t));
 				/* Look-alike of kernel's untimeout() */
-void output __ARGS((int, u_char *, int));
+void output __P((int, u_char *, int));
 				/* Output a PPP packet */
-void demuxprotrej __ARGS((int, int));
+void demuxprotrej __P((int, int));
 				/* Demultiplex a Protocol-Reject */
-int  check_passwd __ARGS((int, char *, int, char *, int, char **, int *));
+int  check_passwd __P((int, char *, int, char *, int, char **, int *));
 				/* Check peer-supplied username/password */
-int  get_secret __ARGS((int, char *, char *, char *, int *, int));
+int  get_secret __P((int, char *, char *, char *, int *, int));
 				/* get "secret" for chap */
-u_long GetMask __ARGS((u_long)); /* get netmask for address */
+u_long GetMask __P((u_long)); /* get netmask for address */
 
 
 /*
@@ -146,15 +146,15 @@ u_long GetMask __ARGS((u_long)); /* get netmask for address */
 #define DEBUGMAIN	1
 #define DEBUGFSM	1
 #define DEBUGLCP	1
-#define DEBUGIPCP	1
-#define DEBUGUPAP	1
+#define DEBUGPPP_IPCP	1
+#define DEBUGPPP_PAP	1
 #define DEBUGCHAP	1
 #endif
 
 #ifndef LOG_PPP			/* we use LOG_LOCAL2 for syslog by default */
 #if defined(DEBUGMAIN) || defined(DEBUGFSM) || defined(DEBUG) \
-  || defined(DEBUGLCP) || defined(DEBUGIPCP) || defined(DEBUGUPAP) \
-  || defined(DEBUGCHAP)
+  || defined(DEBUGLCP) || defined(DEBUGPPP_IPCP) || defined(DEBUGPPP_PAP) \
+  || defined(DEBUGPPP_CHAP)
 #define LOG_PPP LOG_LOCAL2
 #else
 #define LOG_PPP LOG_DAEMON
