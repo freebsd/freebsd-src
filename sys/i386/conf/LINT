@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.247 1996/04/02 18:13:36 wollman Exp $
+#	$Id: LINT,v 1.248 1996/04/03 00:28:40 gpalmer Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -429,11 +429,14 @@ controller	isa0
 # reset the CPU for reboot.  This is needed on some systems with broken
 # keyboard controllers.
 #
+# PAS_JOYSTICK_ENABLE enables the gameport on the ProAudio Spectrum
+
 options		"AUTO_EOI_1"
 #options	"AUTO_EOI_2"
 options		BOUNCE_BUFFERS
 #options        "TUNE_1542"
 #options	BROKEN_KEYBOARD_RESET
+#options	PAS_JOYSTICK_ENABLE
 
 # Enable this and PCVT_FREEBSD for pcvt vt220 compatible console driver
 device		vt0	at isa? port "IO_KBD" tty irq 1 vector pcrint
