@@ -329,6 +329,10 @@
       SAB82532 serial chip found on many newer Sparc Ultra machines,
       has been added.</para>
 
+    <para>A bug in the &man.sendfile.2; system call, in which headers
+      counted against the size of the file to be sent, has been
+      fixed. &merged;</para>
+
     <para role="historic">The &man.snp.4; device is no longer static and can now be
       compiled as a module. &merged;</para>
 
@@ -340,20 +344,6 @@
     <para>The &man.syscons.4; driver now supports keyboard-controlled
       pasting, by default bound to
       <keycap>Shift</keycap>-<keycap>Insert</keycap>.</para>
-
-    <para>The &man.tcp.4; protocol's retransmission timer can now be
-      manipulated with two sysctl's,
-      <varname>net.inet.tcp.rexmit_min</varname> and
-      <varname>net.inet.tcp.rexmit_slop</varname>.  The default has
-      been reduced from one second to 200ms (similar to the Linux default)
-      in order to better handle hicups over interactive connections and
-      improve recovery over lossy fast connections such as wireless links.</para>
-
-    <para>The &man.tcp.4; protocol now has the ability to dynamically
-      limit the send-side window to maximize bandwidth and minimize
-      round trip times.  The feature can be enabled via the
-      <varname>net.inet.tcp.inflight_enable</varname>
-      sysctl.</para>
 
     <para role="historic">Support for USB devices was added to the
       <filename>GENERIC</filename> kernel and to the installation
@@ -1134,6 +1124,21 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	changed to 49152&ndash;65535 (the old default was
 	1024&ndash;5000).  This increases the number of concurrent
 	outgoing connections/streams.</para>
+
+    <para>The &man.tcp.4; protocol's retransmission timer can now be
+      manipulated with two sysctl variables,
+      <varname>net.inet.tcp.rexmit_min</varname> and
+      <varname>net.inet.tcp.rexmit_slop</varname>.  The default has
+      been reduced from one second to 200ms (similar to the Linux default)
+      in order to better handle hicups over interactive connections and
+      improve recovery over lossy fast connections such as wireless links.</para>
+
+    <para>The &man.tcp.4; protocol now has the ability to dynamically
+      limit the send-side window to maximize bandwidth and minimize
+      round trip times.  The feature can be enabled via the
+      <varname>net.inet.tcp.inflight_enable</varname>
+      sysctl. &merged;</para>
+
     </sect3>
 
     <sect3>
@@ -2878,8 +2883,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     <para>The &man.newgrp.1; utility to change to a new group has been
       added.</para>
 
-    <para role="historic">&man.newsyslog.8; now has the ability to compress log files
-      using &man.bzip2.1;. &merged;</para>
+    <para>&man.newsyslog.8; now compresses log files
+      using &man.bzip2.1; by default.  (The former behavior of using
+      &man.gzip.1; can be specified in
+      <filename>/etc/newsyslog.conf</filename>.)</para>
 
     <para><application>NFS</application> now works over IPv6.</para>
 
