@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.36.2.22 1995/10/26 08:55:37 jkh Exp $
+ * $Id: dist.c,v 1.36.2.23 1995/10/27 17:00:19 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -263,8 +263,11 @@ int
 distSetDES(char *str)
 {
     dmenuOpenSimple(&MenuDESDistributions);
-    if (DESDists)
+    if (DESDists) {
+	if (DESDists & DIST_DES_KERBEROS)
+	    DESDists |= DIST_DES_DES;
 	Dists |= DIST_DES;
+    }
     return RET_SUCCESS;
 }
 

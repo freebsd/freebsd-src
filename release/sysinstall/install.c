@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.71.2.74 1995/11/06 07:27:29 jkh Exp $
+ * $Id: install.c,v 1.71.2.75 1995/11/06 08:28:03 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -591,9 +591,10 @@ installFixup(char *str)
 
 	msgNotify("Fixing permissions..");
 	/* BOGON #1:  XFree86 extracting /usr/X11R6 with root-only perms */
-	if (directoryExists("/usr/X11R6"))
+	if (directoryExists("/usr/X11R6")) {
 	    chmod("/usr/X11R6", 0755);
-
+	    chmod("/usr/X11R6/bin", 0755);
+	}
 	/* BOGON #2: We leave /etc in a bad state */
 	chmod("/etc", 0755);
 
