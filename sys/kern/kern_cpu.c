@@ -91,6 +91,7 @@ static struct cf_level *cpufreq_dup_set(struct cpufreq_softc *sc,
 		    struct cf_level *dup, struct cf_setting *set);
 static int	cpufreq_curr_sysctl(SYSCTL_HANDLER_ARGS);
 static int	cpufreq_levels_sysctl(SYSCTL_HANDLER_ARGS);
+static int	cpufreq_settings_sysctl(SYSCTL_HANDLER_ARGS);
 
 static device_method_t cpufreq_methods[] = {
 	DEVMETHOD(device_probe,		bus_generic_probe),
@@ -745,11 +746,51 @@ out:
 	return (error);
 }
 
+static int
+cpufreq_settings_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	device_t dev;
+	struct cf_setting *sets;
+	struct sbuf sb;
+	int error, i, set_count;
+
+	dev = oidp->oid_arg1;
+	sbuf_new(&sb, NULL, 128, SBUF_AUTOEXTEND);
+
+	/* Get settings from the device and generate the output string. */
+	set_count = MAX_SETTINGS;
+	sets = malloc(set_count * sizeof(*sets), M_TEMP, M_NOWAIT);
+	if (sets == NULL)
+		return (ENOMEM);
+	error = CPUFREQ_DRV_SETTINGS(dev, sets, &set_count);
+	if (error)
+		goto out;
+	if (set_count) {
+		for (i = 0; i < set_count; i++)
+			sbuf_printf(&sb, "%d/%d ", sets[i].freq, sets[i].power);
+	} else
+		sbuf_cpy(&sb, "0");
+	sbuf_trim(&sb);
+	sbuf_finish(&sb);
+	error = sysctl_handle_string(oidp, sbuf_data(&sb), sbuf_len(&sb), req);
+
+out:
+	free(sets, M_TEMP);
+	sbuf_delete(&sb);
+	return (error);
+}
+
 int
 cpufreq_register(device_t dev)
 {
 	struct cpufreq_softc *sc;
 	device_t cf_dev, cpu_dev;
+
+	/* Add a sysctl to get each driver's settings separately. */
+	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+	    OID_AUTO, "freq_settings", CTLTYPE_STRING | CTLFLAG_RD, dev, 0,
+	    cpufreq_settings_sysctl, "A", "CPU frequency driver settings");
 
 	/*
 	 * Add only one cpufreq device to each CPU.  Currently, all CPUs
