@@ -370,7 +370,7 @@
 #define PACKAGE_TARNAME "cvs"
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "1.11.2.1-20021024-FreeBSD"
+#define PACKAGE_VERSION "1.11.2.1-20021201-FreeBSD"
 
 /* Path to the pr utility */
 #define PR_PROGRAM "/usr/bin/pr"
