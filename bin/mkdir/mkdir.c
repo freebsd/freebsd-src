@@ -147,7 +147,7 @@ build(char *path, mode_t omode)
 		else if (p[0] != '/')
 			continue;
 		*p = '\0';
-		if (p[1] == '\0')
+		if (!last && p[1] == '\0')
 			last = 1;
 		if (first) {
 			/*
