@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $Id: init_main.c,v 1.84 1998/02/15 04:16:57 dyson Exp $
+ * $Id: init_main.c,v 1.85 1998/03/30 09:49:52 phk Exp $
  */
 
 #include "opt_devfs.h"
@@ -103,10 +103,6 @@ SYSCTL_STRUCT(_kern, KERN_BOOTTIME, boottime,
 static int shutdowntimeout = 120;
 SYSCTL_INT(_kern, OID_AUTO, shutdown_timeout,
 	CTLFLAG_RW, &shutdowntimeout, 0, "");
-
-#ifndef SMP	/* per-cpu on smp */
-struct	timeval runtime;
-#endif
 
 /*
  * Promiscuous argument pass for start_init()
@@ -441,21 +437,21 @@ proc0_post(dummy)
 	void *dummy;
 {
 	struct timeval tv;
+	struct timespec ts;
 
 	/*
 	 * Now can look at time, having had a chance to verify the time
 	 * from the file system.  Reset p->p_rtime as it may have been
 	 * munched in mi_switch() after the time got set.
 	 */
-	getmicrotime(&boottime);
-	proc0.p_stats->p_start = runtime = mono_time = boottime;
+	proc0.p_stats->p_start = boottime;
 	proc0.p_rtime.tv_sec = proc0.p_rtime.tv_usec = 0;
 
 	/*
 	 * Give the ``random'' number generator a thump.
 	 */
-	microtime(&tv);
-	srandom(tv.tv_sec ^ tv.tv_usec);
+	nanotime(&ts);
+	srandom(ts.tv_sec ^ ts.tv_nsec);
 
 	/* Initialize signal state for process 0. */
 	siginit(&proc0);

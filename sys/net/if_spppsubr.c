@@ -17,7 +17,7 @@
  *
  * From: Version 2.4, Thu Apr 30 17:17:21 MSD 1997
  *
- * $Id: if_spppsubr.c,v 1.34 1998/03/01 06:01:33 bde Exp $
+ * $Id: if_spppsubr.c,v 1.35 1998/03/30 09:52:06 phk Exp $
  */
 
 #include "opt_inet.h"
@@ -1018,8 +1018,10 @@ sppp_cisco_send(struct sppp *sp, int type, long par1, long par2)
 	struct ppp_header *h;
 	struct cisco_packet *ch;
 	struct mbuf *m;
-	u_long t = (time_second - boottime.tv_sec) * 1000;
+	struct timeval tv;
 
+	getmicroruntime(&tv);
+	
 	MGETHDR (m, M_DONTWAIT, MT_DATA);
 	if (! m)
 		return;
@@ -1036,8 +1038,8 @@ sppp_cisco_send(struct sppp *sp, int type, long par1, long par2)
 	ch->par1 = htonl (par1);
 	ch->par2 = htonl (par2);
 	ch->rel = -1;
-	ch->time0 = htons ((u_short) (t >> 16));
-	ch->time1 = htons ((u_short) t);
+	ch->time0 = htons ((u_short) (tv.tv_sec >> 16));
+	ch->time1 = htons ((u_short) tv.tv_sec);
 
 	if (debug)
 		log(LOG_DEBUG,

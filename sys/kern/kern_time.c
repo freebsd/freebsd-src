@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_time.c	8.1 (Berkeley) 6/10/93
- * $Id: kern_time.c,v 1.43 1998/03/26 20:51:41 phk Exp $
+ * $Id: kern_time.c,v 1.44 1998/03/30 09:50:23 phk Exp $
  */
 
 #include <sys/param.h>
@@ -84,9 +84,8 @@ settime(tv)
 
 	s = splclock();
 	microtime(&tv1);
-	delta.tv_sec = tv->tv_sec - tv1.tv_sec;
-	delta.tv_usec = tv->tv_usec - tv1.tv_usec;
-	timevalfix(&delta);
+	delta = *tv;
+	timevalsub(&delta, &tv1);
 
 	/*
 	 * If the system is secure, we do not allow the time to be 
@@ -103,13 +102,9 @@ settime(tv)
 	ts.tv_nsec = tv->tv_usec * 1000;
 	set_timecounter(&ts);
 	(void) splsoftclock();
-	timevaladd(&boottime, &delta);
-	timevaladd(&runtime, &delta);
 	for (p = allproc.lh_first; p != 0; p = p->p_list.le_next) {
 		if (timerisset(&p->p_realtimer.it_value))
 			timevaladd(&p->p_realtimer.it_value, &delta);
-		if (p->p_sleepend)
-			timevaladd(p->p_sleepend, &delta);
 	}
 	lease_updatetime(delta.tv_sec);
 	splx(s);
@@ -203,69 +198,44 @@ nanosleep1(p, rqt, rmt)
 	struct proc *p;
 	struct timespec *rqt, *rmt;
 {
-	struct timeval atv, utv, rtv;
-	int error, s, timo, i, n;
+	struct timespec ts, ts2;
+	int error, timo;
 
 	if (rqt->tv_nsec < 0 || rqt->tv_nsec >= 1000000000)
 		return (EINVAL);
 	if (rqt->tv_sec < 0 || rqt->tv_sec == 0 && rqt->tv_nsec == 0)
 		return (0);
-	TIMESPEC_TO_TIMEVAL(&atv, rqt)
 
-	if (itimerfix(&atv)) {
-		n = atv.tv_sec / 100000000;
-		rtv = atv;
-		rtv.tv_sec %= 100000000;
-		(void)itimerfix(&rtv);
-	} else
-		n = 0;
-
-	for (i = 0, error = EWOULDBLOCK; i <= n && error == EWOULDBLOCK; i++) {
-		if (n > 0) {
-			if (i == n)
-				atv = rtv;
-			else {
-				atv.tv_sec = 100000000;
-				atv.tv_usec = 0;
-			}
+	getnanoruntime(&ts);
+	timespecadd(&ts, rqt);
+	error = 0;
+	while (1) {
+		getnanoruntime(&ts2);
+		if (timespeccmp(&ts2, &ts, >=))
+			break;
+		else if (ts2.tv_sec + 60 * 60 * 24 * hz < ts.tv_sec) 
+			timo = 60 * 60 * 24 * hz;
+		else if (ts2.tv_sec + 2 < ts.tv_sec) {
+			/* Leave one second for the difference in tv_nsec */
+			timo = ts.tv_sec - ts2.tv_sec - 1;
+			timo *= hz;
+		} else {
+			timo = (ts.tv_sec - ts2.tv_sec) * 1000000000;
+			timo += ts.tv_nsec - ts2.tv_nsec;
+			timo /= (1000000000 / hz);
+			timo ++;
 		}
-		timo = tvtohz(&atv);
-
-		p->p_sleepend = &atv;
 		error = tsleep(&nanowait, PWAIT | PCATCH, "nanslp", timo);
-		p->p_sleepend = NULL;
-		if (error == ERESTART)
+		if (error == ERESTART) {
 			error = EINTR;
-		if (rmt != NULL && (i == n || error != EWOULDBLOCK)) {
-			/*-
-			 * XXX this is unnecessary and possibly wrong if the timeout
-			 * expired.  Then the remaining time should be zero.  If the
-			 * calculation gives a nonzero value, then we have a bug.
-			 * (1) if settimeofday() was called, then the calculation is
-			 *     probably wrong, since `time' has probably become
-			 *     inconsistent with the ending time `atv'.
-			 *     XXX (1) should be fixed now with p->p_sleepend;
-			 * (2) otherwise, our calculation of `timo' was wrong, perhaps
-			 *     due to `tick' being wrong when hzto() was called or
-			 *     changing afterwards (it can be wrong or change due to
-			 *     hzto() not knowing about adjtime(2) or tickadj(8)).
-			 *     Then we should be sleeping again instead instead of
-			 *     returning.  Rounding up in hzto() probably fixes this
-			 *     problem for small timeouts, but the absolute error may
-			 *     be large for large timeouts.
-			 */
-			getmicrotime(&utv);
-			if (i != n) {
-				atv.tv_sec += (n - i - 1) * 100000000;
-				timevaladd(&atv, &rtv);
-			}
-			timevalsub(&atv, &utv);
-			if (atv.tv_sec < 0)
-				timerclear(&atv);
-			TIMEVAL_TO_TIMESPEC(&atv, rmt);
+			break;
 		}
 	}
-	return (error == EWOULDBLOCK ? 0 : error);
+	if (rmt) {
+		*rmt = ts;
+		timespecsub(rmt, &ts2);
+	}
+	return(error);
 }
 
 #ifndef _SYS_SYSPROTO_H_

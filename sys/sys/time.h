@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)time.h	8.5 (Berkeley) 5/4/95
- * $Id: time.h,v 1.21 1998/03/26 20:53:36 phk Exp $
+ * $Id: time.h,v 1.22 1998/03/30 09:55:35 phk Exp $
  */
 
 #ifndef _SYS_TIME_H_
@@ -149,9 +149,44 @@ struct timecounter {
 	u_int32_t		offset_sec;
 	u_int32_t		offset_micro;
 	u_int64_t		offset_nano;
+	struct timeval		microtime;
+	struct timespec		nanotime;
 	struct timecounter	*other;
 	struct timecounter	*tweak;
 };
+
+#ifdef KERNEL
+/* Operations on timespecs */
+#define	timespecclear(tvp)	(tvp)->tv_sec = (tvp)->tv_nsec = 0
+#define	timespecisset(tvp)	((tvp)->tv_sec || (tvp)->tv_nsec)
+#define	timespeccmp(tvp, uvp, cmp)					\
+	(((tvp)->tv_sec == (uvp)->tv_sec) ?				\
+	    ((tvp)->tv_nsec cmp (uvp)->tv_nsec) :			\
+	    ((tvp)->tv_sec cmp (uvp)->tv_sec))
+#define timespecadd(vvp, uvp)					\
+	do {								\
+		(vvp)->tv_sec += (uvp)->tv_sec;		\
+		(vvp)->tv_nsec += (uvp)->tv_nsec;	\
+		if ((vvp)->tv_nsec >= 1000000000) {			\
+			(vvp)->tv_sec++;				\
+			(vvp)->tv_nsec -= 1000000000;			\
+		}							\
+	} while (0)
+#define timespecsub(vvp, uvp)					\
+	do {								\
+		(vvp)->tv_sec -= (uvp)->tv_sec;		\
+		(vvp)->tv_nsec -= (uvp)->tv_nsec;	\
+		if ((vvp)->tv_nsec < 0) {				\
+			(vvp)->tv_sec--;				\
+			(vvp)->tv_nsec += 1000000000;			\
+		}							\
+	} while (0)
+/* Operations on timevals. */
+#define	timevalcmp(tvp, uvp, cmp)					\
+	(((tvp)->tv_sec == (uvp)->tv_sec) ?				\
+	    ((tvp)->tv_usec cmp (uvp)->tv_usec) :			\
+	    ((tvp)->tv_sec cmp (uvp)->tv_sec))
+#endif /* KERNEL */
 
 /* Operations on timevals. */
 #define	timerclear(tvp)		(tvp)->tv_sec = (tvp)->tv_usec = 0
@@ -224,14 +259,17 @@ extern struct timecounter *timecounter;
 extern time_t	time_second;
 
 void	forward_timecounter __P((void));
+void	getmicroruntime __P((struct timeval *tv));
 void	getmicrotime __P((struct timeval *tv));
+void	getnanoruntime __P((struct timespec *tv));
 void	getnanotime __P((struct timespec *tv));
 void	init_timecounter __P((struct timecounter *tc));
-int	itimerfix __P((struct timeval *tv));
 int	itimerdecr __P((struct itimerval *itp, int usec));
+int	itimerfix __P((struct timeval *tv));
+void	microruntime __P((struct timeval *tv));
 void	microtime __P((struct timeval *tv));
+void	nanoruntime __P((struct timespec *ts));
 void	nanotime __P((struct timespec *ts));
-void	second_overflow __P((u_int32_t *psec));
 void	set_timecounter __P((struct timespec *ts));
 void	timevaladd __P((struct timeval *, struct timeval *));
 void	timevalsub __P((struct timeval *, struct timeval *));

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.104 1998/01/31 02:53:41 eivind Exp $
+ *	$Id: locore.s,v 1.105 1998/03/23 19:52:27 jlemon Exp $
  *
  *		originally from: locore.s, by William F. Jolitz
  *
@@ -105,7 +105,7 @@
 	.set	_prv_CPAGE3,_SMP_prvstart + ((5 + UPAGES) * PAGE_SIZE)
 	.set	_SMP_ioapic,_SMP_prvstart + (16 * PAGE_SIZE)
 
-	.globl	_cpuid,_curproc,_curpcb,_npxproc,_runtime,_cpu_lockid
+	.globl	_cpuid,_curproc,_curpcb,_npxproc,_cpu_lockid
 	.globl	_common_tss,_other_cpus,_my_idlePTD,_ss_tpr
 	.globl	_prv_CMAP1,_prv_CMAP2,_prv_CMAP3
 	.globl	_inside_intr
@@ -113,7 +113,7 @@
 	.set	_curproc,_SMP_prvpage+4		/* [1] */
 	.set	_curpcb,_SMP_prvpage+8		/* [2] */
 	.set	_npxproc,_SMP_prvpage+12	/* [3] */
-	.set	_runtime,_SMP_prvpage+16	/* [4,5] */
+						/* [4,5] was runtime, free */
 	.set	_cpu_lockid,_SMP_prvpage+24	/* [6] */
 	.set	_other_cpus,_SMP_prvpage+28	/* [7] bitmap of available CPUs,
 						    excluding ourself */
