@@ -1244,7 +1244,7 @@
     </para>
 
     <para arch="i386,pc98,alpha">VIA Technologies VT3043 <quote>Rhine I</quote>, VT86C100A
-    <quote>Rhine II</quote>, and VT86C105/VT86C105M <quote>Rhine III</quote> Fast Ethernet NICs (&man.vr.4; driver)
+    <quote>Rhine II</quote>, and VT6105/VT6105M <quote>Rhine III</quote> Fast Ethernet NICs (&man.vr.4; driver)
       <itemizedlist>
         <listitem arch="i386,alpha">
 	  <para>AOpen/Acer ALN-320</para>
