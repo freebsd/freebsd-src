@@ -289,9 +289,7 @@ set_user_ldt_rv(struct thread *td)
 	if (td->td_proc != curthread->td_proc)
 		return;
 
-	mtx_lock_spin(&sched_lock);
 	set_user_ldt(&td->td_proc->p_md);
-	mtx_unlock_spin(&sched_lock);
 }
 #endif
 
@@ -462,9 +460,6 @@ i386_set_ldt(td, args)
 #endif
 		} else {
 			mdp->md_ldt = pldt = new_ldt;
-#ifdef SMP
-			mtx_unlock_spin(&sched_lock);
-#endif
 		}
 #ifdef SMP
 		/* signal other cpus to reload ldt */
@@ -472,8 +467,8 @@ i386_set_ldt(td, args)
 		    NULL, td);
 #else
 		set_user_ldt(mdp);
-		mtx_unlock_spin(&sched_lock);
 #endif
+		mtx_unlock_spin(&sched_lock);
 	}
 
 	descs_size = uap->num * sizeof(union descriptor);
