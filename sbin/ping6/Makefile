@@ -8,8 +8,8 @@ CFLAGS+=-DINET6 -DIPSEC
 BINOWN=	root
 BINMODE=4555
 
-LDADD=	-lipsec -lmd
-DPADD= ${LIBIPSEC} ${LIBMD}
+LDADD=	-lipsec -lm -lmd
+DPADD= ${LIBIPSEC} ${LIBM} ${LIBMD}
 
 # kame scopeid hack
 CFLAGS+=-DKAME_SCOPEID
