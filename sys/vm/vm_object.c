@@ -268,7 +268,8 @@ vm_object_clear_flag(vm_object_t object, u_short bits)
 void
 vm_object_pip_add(vm_object_t object, short i)
 {
-	GIANT_REQUIRED;
+
+	mtx_assert(object == kmem_object ? &object->mtx : &Giant, MA_OWNED);
 	object->paging_in_progress += i;
 }
 
@@ -282,7 +283,8 @@ vm_object_pip_subtract(vm_object_t object, short i)
 void
 vm_object_pip_wakeup(vm_object_t object)
 {
-	GIANT_REQUIRED;
+
+	mtx_assert(object == kmem_object ? &object->mtx : &Giant, MA_OWNED);
 	object->paging_in_progress--;
 	if ((object->flags & OBJ_PIPWNT) && object->paging_in_progress == 0) {
 		vm_object_clear_flag(object, OBJ_PIPWNT);
