@@ -1,0 +1,30 @@
+#
+# $Id$
+#
+
+#
+# This is included explicitly at the top of each sub-Makefile.  We can't
+# use the normal "Makefile.inc" mechanism, because we need some of these
+# definitions before the sub-Makefile is processed.
+#
+
+VERSION=	2.8.1
+
+# RELTOP is the relative path to this point in the source or object
+# tree, from any subdirectory of same.  It gets extra "../" prefixes
+# added to it as we descend into subdirectories.
+RELTOP:=	..
+
+RELSRC=		${RELTOP}/../../../contrib/binutils
+SRCDIR=		${.CURDIR}/${RELSRC}
+HOST=		i386-unknown-freebsdelf
+TARGET=		i386-unknown-freebsdelf
+
+CFLAGS+=	-D_GNU_SOURCE
+CFLAGS+=	-DARCH_i386
+
+# We use "-I-" because without it our yacc-generated parser tries to
+# use GNU's bison-generated header files.
+CFLAGS+=	-I- -I. -I${.CURDIR}
+CFLAGS+=	-I${.CURDIR}/${RELTOP}/libbfd
+CFLAGS+=	-I${SRCDIR}/include
