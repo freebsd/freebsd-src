@@ -1035,6 +1035,7 @@ agg_attach(device_t dev)
 	if (pcm_register(dev, ess, AGG_MAXPLAYCH, 1))
 		goto bad;
 
+	mixer_hwinit(dev);
 	for (data = 0; data < AGG_MAXPLAYCH; data++)
 		pcm_addchan(dev, PCMDIR_PLAY, &aggch_class, ess);
 #if 0	/* XXX - RECORDING */
