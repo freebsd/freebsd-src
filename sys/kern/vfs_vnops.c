@@ -61,7 +61,7 @@
 #include <machine/limits.h>
 
 static int vn_closefile(struct file *fp, struct thread *td);
-static int vn_ioctl(struct file *fp, u_long com, caddr_t data, 
+static int vn_ioctl(struct file *fp, u_long com, void *data, 
 		struct thread *td);
 static int vn_read(struct file *fp, struct uio *uio, 
 		struct ucred *cred, int flags, struct thread *td);
@@ -664,7 +664,7 @@ static int
 vn_ioctl(fp, com, data, td)
 	struct file *fp;
 	u_long com;
-	caddr_t data;
+	void *data;
 	struct thread *td;
 {
 	register struct vnode *vp = ((struct vnode *)fp->f_data);

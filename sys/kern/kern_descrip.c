@@ -99,7 +99,7 @@ static struct cdevsw fildesc_cdevsw = {
 static int do_dup(struct filedesc *fdp, int old, int new, register_t *retval, struct thread *td);
 static int badfo_readwrite(struct file *fp, struct uio *uio,
     struct ucred *cred, int flags, struct thread *td);
-static int badfo_ioctl(struct file *fp, u_long com, caddr_t data,
+static int badfo_ioctl(struct file *fp, u_long com, void *data,
     struct thread *td);
 static int badfo_poll(struct file *fp, int events,
     struct ucred *cred, struct thread *td);
@@ -313,34 +313,34 @@ fcntl(td, uap)
 		fp->f_flag &= ~FCNTLFLAGS;
 		fp->f_flag |= FFLAGS(uap->arg & ~O_ACCMODE) & FCNTLFLAGS;
 		tmp = fp->f_flag & FNONBLOCK;
-		error = fo_ioctl(fp, FIONBIO, (caddr_t)&tmp, td);
+		error = fo_ioctl(fp, FIONBIO, &tmp, td);
 		if (error) {
 			fdrop(fp, td);
 			break;
 		}
 		tmp = fp->f_flag & FASYNC;
-		error = fo_ioctl(fp, FIOASYNC, (caddr_t)&tmp, td);
+		error = fo_ioctl(fp, FIOASYNC, &tmp, td);
 		if (!error) {
 			fdrop(fp, td);
 			break;
 		}
 		fp->f_flag &= ~FNONBLOCK;
 		tmp = 0;
-		(void)fo_ioctl(fp, FIONBIO, (caddr_t)&tmp, td);
+		(void)fo_ioctl(fp, FIONBIO, &tmp, td);
 		fdrop(fp, td);
 		break;
 
 	case F_GETOWN:
 		fhold(fp);
 		FILEDESC_UNLOCK(fdp);
-		error = fo_ioctl(fp, FIOGETOWN, (caddr_t)td->td_retval, td);
+		error = fo_ioctl(fp, FIOGETOWN, (void *)td->td_retval, td);
 		fdrop(fp, td);
 		break;
 
 	case F_SETOWN:
 		fhold(fp);
 		FILEDESC_UNLOCK(fdp);
-		error = fo_ioctl(fp, FIOSETOWN, (caddr_t)&uap->arg, td);
+		error = fo_ioctl(fp, FIOSETOWN, &uap->arg, td);
 		fdrop(fp, td);
 		break;
 
@@ -363,8 +363,7 @@ fcntl(td, uap)
 		vp = (struct vnode *)fp->f_data;
 
 		/* Copy in the lock structure */
-		error = copyin((caddr_t)(intptr_t)uap->arg, (caddr_t)&fl,
-		    sizeof(fl));
+		error = copyin((caddr_t)(intptr_t)uap->arg, &fl, sizeof(fl));
 		if (error) {
 			fdrop(fp, td);
 			break;
@@ -434,8 +433,7 @@ fcntl(td, uap)
 		vp = (struct vnode *)fp->f_data;
 
 		/* Copy in the lock structure */
-		error = copyin((caddr_t)(intptr_t)uap->arg, (caddr_t)&fl,
-		    sizeof(fl));
+		error = copyin((caddr_t)(intptr_t)uap->arg, &fl, sizeof(fl));
 		if (error) {
 			fdrop(fp, td);
 			break;
@@ -461,8 +459,8 @@ fcntl(td, uap)
 			    &fl, F_POSIX);
 		fdrop(fp, td);
 		if (error == 0) {
-			error = copyout((caddr_t)&fl,
-				    (caddr_t)(intptr_t)uap->arg, sizeof(fl));
+			error = copyout(&fl, (caddr_t)(intptr_t)uap->arg,
+			    sizeof(fl));
 		}
 		break;
 	default:
@@ -835,7 +833,7 @@ ofstat(td, uap)
 	error = fo_stat(fp, &ub, td);
 	if (error == 0) {
 		cvtstat(&ub, &oub);
-		error = copyout((caddr_t)&oub, (caddr_t)uap->sb, sizeof (oub));
+		error = copyout(&oub, uap->sb, sizeof (oub));
 	}
 	fdrop(fp, td);
 done2:
@@ -871,7 +869,7 @@ fstat(td, uap)
 		goto done2;
 	error = fo_stat(fp, &ub, td);
 	if (error == 0)
-		error = copyout((caddr_t)&ub, (caddr_t)uap->sb, sizeof (ub));
+		error = copyout(&ub, uap->sb, sizeof (ub));
 	fdrop(fp, td);
 done2:
 	mtx_unlock(&Giant);
@@ -907,7 +905,7 @@ nfstat(td, uap)
 	error = fo_stat(fp, &ub, td);
 	if (error == 0) {
 		cvtnstat(&ub, &nub);
-		error = copyout((caddr_t)&nub, (caddr_t)uap->sb, sizeof (nub));
+		error = copyout(&nub, uap->sb, sizeof (nub));
 	}
 	fdrop(fp, td);
 done2:
@@ -1563,7 +1561,7 @@ fdcheckstd(td)
 				break;
 			}
 			NDFREE(&nd, NDF_ONLY_PNBUF);
-			fp->f_data = (caddr_t)nd.ni_vp;
+			fp->f_data = nd.ni_vp;
 			fp->f_flag = flags;
 			fp->f_ops = &vnops;
 			fp->f_type = DTYPE_VNODE;
@@ -2067,7 +2065,7 @@ sysctl_kern_file(SYSCTL_HANDLER_ARGS)
 		return (error);
 	}
 
-	error = SYSCTL_OUT(req, (caddr_t)&filehead, sizeof(filehead));
+	error = SYSCTL_OUT(req, &filehead, sizeof(filehead));
 	if (error) {
 		sx_sunlock(&filelist_lock);
 		return (error);
@@ -2077,7 +2075,7 @@ sysctl_kern_file(SYSCTL_HANDLER_ARGS)
 	 * followed by an array of file structures
 	 */
 	LIST_FOREACH(fp, &filehead, f_list) {
-		error = SYSCTL_OUT(req, (caddr_t)fp, sizeof (struct file));
+		error = SYSCTL_OUT(req, fp, sizeof (struct file));
 		if (error) {
 			sx_sunlock(&filelist_lock);
 			return (error);
@@ -2145,7 +2143,7 @@ static int
 badfo_ioctl(fp, com, data, td)
 	struct file *fp;
 	u_long com;
-	caddr_t data;
+	void *data;
 	struct thread *td;
 {
 

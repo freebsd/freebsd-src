@@ -353,7 +353,7 @@ interpret:
 	p->p_flag |= P_EXEC;
 	if (p->p_pptr && (p->p_flag & P_PPWAIT)) {
 		p->p_flag &= ~P_PPWAIT;
-		wakeup((caddr_t)p->p_pptr);
+		wakeup(p->p_pptr);
 	}
 
 	/*
