@@ -64,7 +64,7 @@ __RCSID("$FreeBSD$");
 ReturnStatus
 Lst_Replace (ln, d)
     register LstNode	ln;
-    ClientData	  	d;
+    void *	  	d;
 {
     if (ln == NULL) {
 	return (FAILURE);

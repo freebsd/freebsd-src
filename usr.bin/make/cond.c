@@ -100,7 +100,7 @@ typedef enum {
 static void CondPushBack __P((Token));
 static int CondGetArg __P((char **, char **, char *, Boolean));
 static Boolean CondDoDefined __P((int, char *));
-static int CondStrMatch __P((ClientData, ClientData));
+static int CondStrMatch __P((void *, void *));
 static Boolean CondDoMake __P((int, char *));
 static Boolean CondDoExists __P((int, char *));
 static Boolean CondDoTarget __P((int, char *));
@@ -312,8 +312,8 @@ CondDoDefined (argLen, arg)
  */
 static int
 CondStrMatch(string, pattern)
-    ClientData    string;
-    ClientData    pattern;
+    void *    string;
+    void *    pattern;
 {
     return(!Str_Match((char *) string,(char *) pattern));
 }
@@ -340,7 +340,7 @@ CondDoMake (argLen, arg)
     Boolean result;
 
     arg[argLen] = '\0';
-    if (Lst_Find (create, (ClientData)arg, CondStrMatch) == NULL) {
+    if (Lst_Find (create, (void *)arg, CondStrMatch) == NULL) {
 	result = FALSE;
     } else {
 	result = TRUE;

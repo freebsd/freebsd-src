@@ -69,8 +69,8 @@ void
 Lst_ForEachFrom (l, ln, proc, d)
     Lst	    	    	l;
     LstNode    	  	ln;
-    register int	(*proc) __P((ClientData, ClientData));
-    register ClientData	d;
+    register int	(*proc) __P((void *, void *));
+    register void *	d;
 {
     register ListNode	tln = (ListNode)ln;
     register List 	list = (List)l;

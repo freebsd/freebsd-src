@@ -68,7 +68,7 @@ ReturnStatus
 Lst_Append (l, ln, d)
     Lst	  	l;	/* affected list */
     LstNode	ln;	/* node after which to append the datum */
-    ClientData	d;	/* said datum */
+    void *	d;	/* said datum */
 {
     register List 	list;
     register ListNode	lNode;

@@ -54,7 +54,7 @@ typedef struct ListNode {
 				     * node may not be deleted until count
 				     * goes to 0 */
  	    	    	flags:8;    /* Node status flags */
-	ClientData	datum;	    /* datum associated with this element */
+	void *	datum;	    /* datum associated with this element */
 } *ListNode;
 /*
  * Flags required for synchronization

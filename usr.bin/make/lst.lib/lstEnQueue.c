@@ -65,7 +65,7 @@ __RCSID("$FreeBSD$");
 ReturnStatus
 Lst_EnQueue (l, d)
     Lst	    	  l;
-    ClientData	  d;
+    void *	  d;
 {
     if (LstValid (l) == FALSE) {
 	return (FAILURE);

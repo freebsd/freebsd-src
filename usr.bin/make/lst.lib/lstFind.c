@@ -65,8 +65,8 @@ __RCSID("$FreeBSD$");
 LstNode
 Lst_Find (l, d, cProc)
     Lst		l;
-    ClientData	d;
-    int		(*cProc) __P((ClientData, ClientData));
+    void *	d;
+    int		(*cProc) __P((void *, void *));
 {
     return (Lst_FindFrom (l, Lst_First(l), d, cProc));
 }

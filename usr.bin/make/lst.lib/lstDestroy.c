@@ -66,7 +66,7 @@ __RCSID("$FreeBSD$");
 void
 Lst_Destroy (l, freeProc)
     Lst	    	  	l;
-    register void	(*freeProc) __P((ClientData));
+    register void	(*freeProc) __P((void *));
 {
     register ListNode	ln;
     register ListNode	tln = NULL;
@@ -84,7 +84,7 @@ Lst_Destroy (l, freeProc)
     if (list->lastPtr != NULL)
 	list->lastPtr->nextPtr = NULL;
     else {
-	free ((Address)l);
+	free (l);
 	return;
     }
 
@@ -92,14 +92,14 @@ Lst_Destroy (l, freeProc)
 	for (ln = list->firstPtr; ln != NULL; ln = tln) {
 	     tln = ln->nextPtr;
 	     (*freeProc) (ln->datum);
-	     free ((Address)ln);
+	     free (ln);
 	}
     } else {
 	for (ln = list->firstPtr; ln != NULL; ln = tln) {
 	     tln = ln->nextPtr;
-	     free ((Address)ln);
+	     free (ln);
 	}
     }
 
-    free ((Address)l);
+    free (l);
 }
