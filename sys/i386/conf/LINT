@@ -77,8 +77,8 @@ options		PQ_CACHESIZE=512	# color for 512k/16k cache
 #options 	PQ_NOOPT		# No coloring
 #options 	PQ_LARGECACHE		# color for 512k/16k cache
 #options 	PQ_HUGECACHE		# color for 1024k/16k cache
-#options 	PQ_MEDIUMCACHE		# color for 64k/16k cache
-#options 	PQ_NORMALCACHE		# color for 256k/16k cache
+#options 	PQ_MEDIUMCACHE		# color for 256k/16k cache
+#options 	PQ_NORMALCACHE		# color for 64k/16k cache
 
 # This allows you to actually store this configuration file into
 # the kernel binary itself, where it may be later read by saying:
