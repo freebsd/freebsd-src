@@ -89,7 +89,15 @@ error_exit PROTO ((void))
    thing for the server, whether the normal server_active (child process)
    case or the error_use_protocol (parent process) case.  The one exception
    is that STATUS nonzero for error_use_protocol probably doesn't work yet;
-   in that case still need to use the pending_error machinery in server.c.  */
+   in that case still need to use the pending_error machinery in server.c.
+
+   error() does not molest errno; some code (e.g. Entries_Open) depends
+   on being able to say something like:
+      error (0, 0, "foo");
+      error (0, errno, "bar");
+
+   */
+
 /* VARARGS */
 void
 #if defined (HAVE_VPRINTF) && defined (__STDC__)
@@ -102,6 +110,9 @@ error (status, errnum, message, va_alist)
     va_dcl
 #endif
 {
+    /* Prevent strtoul (via int_vasprintf) from clobbering it.  */
+    int save_errno = errno;
+
 #ifdef HAVE_VPRINTF
     if (message[0] != '\0')
     {
@@ -211,6 +222,7 @@ error (status, errnum, message, va_alist)
 
     if (status)
 	error_exit ();
+    errno = save_errno;
 }
 
 /* Print the program name and error message MESSAGE, which is a printf-style
