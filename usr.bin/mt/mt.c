@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)mt.c	8.2 (Berkeley) 5/4/95";
 #endif
 static const char rcsid[] =
-	"$Id: mt.c,v 1.19 1998/12/19 20:23:37 mjacob Exp $";
+	"$Id: mt.c,v 1.20 1998/12/22 17:28:25 mjacob Exp $";
 #endif /* not lint */
 
 /*
@@ -624,6 +624,63 @@ st_status(struct mtget *bp)
 	       denstobp(bp->mt_density2, TRUE), comptostring(bp->mt_comp2),
 	       denstostring(bp->mt_density3), getblksiz(bp->mt_blksiz3),
 	       denstobp(bp->mt_density3, TRUE), comptostring(bp->mt_comp3));
+
+	if (bp->mt_dsreg != MTIO_DSREG_NIL) {
+		auto char foo[32];
+		const char *sfmt = "Current Driver State: %s.\n";
+		printf("---------------------------------\n");
+		switch (bp->mt_dsreg) {
+		case MTIO_DSREG_REST:
+			printf(sfmt, "at rest");      
+			break;
+		case MTIO_DSREG_RBSY:    
+			printf(sfmt, "Communicating with drive");
+			break;
+		case MTIO_DSREG_WR:
+			printf(sfmt, "Writing");
+			break;
+		case MTIO_DSREG_FMK:
+			printf(sfmt, "Writing Filemarks");
+			break;
+		case MTIO_DSREG_ZER:
+			printf(sfmt, "Erasing");
+			break;
+		case MTIO_DSREG_RD:
+			printf(sfmt, "Reading");
+			break;
+		case MTIO_DSREG_FWD:
+			printf(sfmt, "Spacing Forward");
+			break;
+		case MTIO_DSREG_REV:     
+			printf(sfmt, "Spacing Reverse");
+			break;
+		case MTIO_DSREG_POS:
+			printf(sfmt,
+			    "Hardware Positioning (direction unknown)");
+			break;
+		case MTIO_DSREG_REW:
+			printf(sfmt, "Rewinding");
+			break;
+		case MTIO_DSREG_TEN:
+			printf(sfmt, "Retensioning");
+			break;
+		case MTIO_DSREG_UNL:
+			printf(sfmt, "Unloading");
+			break;
+		case MTIO_DSREG_LD:
+			printf(sfmt, "Loading");
+			break;
+		default:
+			(void) sprintf(foo, "Unknown state 0x%x", bp->mt_dsreg);
+			printf(sfmt, foo);
+			break;
+		}
+	}
+	if (bp->mt_fileno == (daddr_t) -1 || bp->mt_blkno == (daddr_t) -1)
+		return;
+	printf("---------------------------------\n");
+	printf("File Number: %ld\tRecord Number: %ld\n", bp->mt_fileno,
+	    bp->mt_blkno);
 }
 
 void
