@@ -835,29 +835,28 @@ static void
 dointr(void)
 {
 	unsigned long *intrcnt, uptime;
-	u_int64_t inttotal;
-	size_t clen, nintr, inamlen, i, istrnamlen;
+	uint64_t inttotal;
+	size_t clen, inamlen, intrcntlen, istrnamlen;
+	unsigned int i, nintr;
 	char *intrname, *tintrname;
 
 	uptime = getuptime();
 	if (kd != NULL) {
-		nintr = namelist[X_EINTRCNT].n_value -
+		intrcntlen = namelist[X_EINTRCNT].n_value -
 		    namelist[X_INTRCNT].n_value;
 		inamlen = namelist[X_EINTRNAMES].n_value -
 		    namelist[X_INTRNAMES].n_value;
-		if ((intrcnt = malloc(nintr)) == NULL ||
+		if ((intrcnt = malloc(intrcntlen)) == NULL ||
 		    (intrname = malloc(inamlen)) == NULL)
 			err(1, "malloc()");
-		kread(X_INTRCNT, intrcnt, nintr);
+		kread(X_INTRCNT, intrcnt, intrcntlen);
 		kread(X_INTRNAMES, intrname, inamlen);
 	} else {
-		for (intrcnt = NULL, nintr = 1024; ; nintr *= 2) {
-			if ((intrcnt = reallocf(intrcnt, nintr)) == NULL)
-				err(1, "reallocf()");
-			if (mysysctl("hw.intrcnt",
-			    intrcnt, &nintr, NULL, 0) == 0)
-				break;
-		}
+		mysysctl("hw.intrcnt", NULL, &intrcntlen, NULL, 0);
+		fprintf(stderr, "intrcntlen = %lu\n", (unsigned long)intrcntlen);
+		if ((intrcnt = malloc(intrcntlen)) == NULL)
+			err(1, "calloc()");
+		mysysctl("hw.intrcnt", intrcnt, &intrcntlen, NULL, 0);
 		for (intrname = NULL, inamlen = 1024; ; inamlen *= 2) {
 			if ((intrname = reallocf(intrname, inamlen)) == NULL)
 				err(1, "reallocf()");
@@ -866,7 +865,7 @@ dointr(void)
 				break;
 		}
 	}
-	nintr /= sizeof(unsigned long);
+	nintr = intrcntlen / sizeof(unsigned long);
 	tintrname = intrname;
 	istrnamlen = strlen("interrupt");
 	for (i = 0; i < nintr; i++) {
@@ -880,14 +879,7 @@ dointr(void)
 	inttotal = 0;
 	for (i = 0; i < nintr; i++) {
 		const char *p;
-		if (intrname[0] != '\0' &&
-		    (aflag > 0 || *intrcnt != 0) &&
-#ifdef __ia64__
-		    (aflag > 1 || *intrname != '#'))
-#else
-		    (aflag > 1 || ((p = strchr(intrname, ' ')) && p[1] != ' ')) &&
-		    (aflag > 2 || strncmp(intrname, "stray ", 6) != 0))
-#endif
+		if (intrname[0] != '\0' && (*intrcnt != 0 || aflag))
 			(void)printf("%-*s %20lu %10lu\n", istrnamlen, intrname,
 			    *intrcnt, *intrcnt / uptime);
 		intrname += strlen(intrname) + 1;
