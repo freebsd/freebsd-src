@@ -82,9 +82,6 @@
 int		dpt_controllers_present;
 devclass_t	dpt_devclass;
 
-/* The linked list of softc structures */
-struct dpt_softc_list dpt_softcs = TAILQ_HEAD_INITIALIZER(dpt_softcs);
-
 #define microtime_now dpt_time_now()
 
 #define dpt_inl(dpt, port)				\
@@ -1194,7 +1191,6 @@ dpt_alloc(device_t dev)
 	dpt->unit = device_get_unit(dev);
 	SLIST_INIT(&dpt->free_dccb_list);
 	LIST_INIT(&dpt->pending_ccb_list);
-	TAILQ_INSERT_TAIL(&dpt_softcs, dpt, links);
 	for (i = 0; i < MAX_CHANNELS; i++)
 		dpt->resetlevel[i] = DPT_HA_OK;
 
@@ -1236,8 +1232,6 @@ dpt_free(struct dpt_softc *dpt)
 	case 0:
 		break;
 	}
-
-	TAILQ_REMOVE(&dpt_softcs, dpt, links);
 }
 
 int
