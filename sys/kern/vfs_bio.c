@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.89 1996/05/03 21:01:26 phk Exp $
+ * $Id: vfs_bio.c,v 1.90 1996/05/18 03:37:06 dyson Exp $
  */
 
 /*
@@ -618,7 +618,10 @@ vfs_vmio_release(bp)
 				 */
 				if ((vm_swap_size == 0) ||
 					(cnt.v_free_count < cnt.v_free_min)) {
-					if (m->dirty == 0)
+					if ((m->dirty == 0) &&
+						(m->hold_count == 0) &&
+						(m->flags & PG_BUSY) == 0 &&
+						(m->busy == 0))
 						vm_page_cache(m);
 					else
 						vm_page_deactivate(m);
