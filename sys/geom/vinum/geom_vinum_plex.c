@@ -46,6 +46,10 @@ __FBSDID("$FreeBSD$");
 static void gv_plex_completed_request(struct gv_plex *, struct bio *);
 static void gv_plex_normal_request(struct gv_plex *, struct bio *);
 static void gv_plex_worker(void *);
+static int gv_check_parity(struct gv_plex *, struct bio *,
+    struct gv_raid5_packet *);
+static int gv_normal_parity(struct gv_plex *, struct bio *,
+    struct gv_raid5_packet *);
 
 /* XXX: is this the place to catch dying subdisks? */
 static void
@@ -346,6 +350,85 @@ gv_plex_worker(void *arg)
 	kthread_exit(ENXIO);
 }
 
+static int
+gv_normal_parity(struct gv_plex *p, struct bio *bp, struct gv_raid5_packet *wp)
+{
+	struct bio *cbp, *pbp;
+	int finished, i;
+
+	finished = 1;
+
+	if (wp->waiting != NULL) {
+		pbp = wp->waiting;
+		wp->waiting = NULL;
+		cbp = wp->parity;
+		for (i = 0; i < wp->length; i++)
+			cbp->bio_data[i] ^= pbp->bio_data[i];
+		g_io_request(pbp, pbp->bio_caller2);
+		finished = 0;
+
+	} else if (wp->parity != NULL) {
+		cbp = wp->parity;
+		wp->parity = NULL;
+		g_io_request(cbp, cbp->bio_caller2);
+		finished = 0;
+	}
+
+	return (finished);
+}
+
+static int
+gv_check_parity(struct gv_plex *p, struct bio *bp, struct gv_raid5_packet *wp)
+{
+	struct bio *cbp, *pbp;
+	int err, finished, i;
+
+	err = 0;
+	finished = 1;
+
+	if (wp->waiting != NULL) {
+		pbp = wp->waiting;
+		wp->waiting = NULL;
+		g_io_request(pbp, pbp->bio_caller2);
+		finished = 0;
+
+	} else if (wp->parity != NULL) {
+		cbp = wp->parity;
+		wp->parity = NULL;
+
+		/* Check if the parity is correct. */
+		for (i = 0; i < wp->length; i++) {
+			if (bp->bio_data[i] != cbp->bio_data[i]) {
+				err = 1;
+				break;
+			}
+		}
+
+		/* The parity is not correct... */
+		if (err) {
+			bp->bio_parent->bio_error = EAGAIN;
+
+			/* ... but we rebuild it. */
+			if (bp->bio_parent->bio_cflags & GV_BIO_PARITY) {
+				g_io_request(cbp, cbp->bio_caller2);
+				finished = 0;
+			}
+		}
+
+		/*
+		 * Clean up the BIO we would have used for rebuilding the
+		 * parity.
+		 */
+		if (finished) {
+			bp->bio_parent->bio_inbed++;
+			g_destroy_bio(cbp);
+		}
+
+	}
+
+	return (finished);
+}
+
 void
 gv_plex_completed_request(struct gv_plex *p, struct bio *bp)
 {
@@ -405,18 +488,13 @@ gv_plex_completed_request(struct gv_plex *p, struct bio *bp)
 
 		/* Handle parity data. */
 		if (TAILQ_EMPTY(&wp->bits)) {
-			if (wp->waiting != NULL) {
-				pbp = wp->waiting;
-				wp->waiting = NULL;
-				cbp = wp->parity;
-				for (i = 0; i < wp->length; i++)
-					cbp->bio_data[i] ^= pbp->bio_data[i];
-				g_io_request(pbp, pbp->bio_caller2);
-			} else if (wp->parity != NULL) {
-				cbp = wp->parity;
-				wp->parity = NULL;
-				g_io_request(cbp, cbp->bio_caller2);
-			} else {
+			if (bp->bio_parent->bio_cflags & GV_BIO_CHECK)
+				i = gv_check_parity(p, bp, wp);
+			else
+				i = gv_normal_parity(p, bp, wp);
+
+			/* All of our sub-requests have finished. */
+			if (i) {
 				bp->bio_parent->bio_completed += wp->length;
 				TAILQ_REMOVE(&p->packets, wp, list);
 				/* Bring the waiting bios back into the game. */
@@ -474,6 +552,9 @@ gv_plex_normal_request(struct gv_plex *p, struct bio *bp)
 
 			if (bp->bio_cflags & GV_BIO_REBUILD)
 				err = gv_rebuild_raid5(p, wp, bp, addr,
+				    boff, bcount);
+			else if (bp->bio_cflags & GV_BIO_CHECK)
+				err = gv_check_raid5(p, wp, bp, addr,
 				    boff, bcount);
 			else
 				err = gv_build_raid5_req(p, wp, bp, addr,
