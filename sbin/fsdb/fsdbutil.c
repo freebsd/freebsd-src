@@ -29,25 +29,20 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: fsdbutil.c,v 1.5 1997/03/13 12:44:53 peter Exp $";
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/types.h>
-#include <sys/stat.h>
 #include <sys/param.h>
-#include <sys/time.h>
-#include <sys/mount.h>
 #include <ctype.h>
-#include <fcntl.h>
+#include <err.h>
 #include <grp.h>
 #include <pwd.h>
-#include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
+#include <time.h>
 
 #include <ufs/ufs/dinode.h>
-#include <ufs/ffs/fs.h>
 
 #include "fsdb.h"
 #include "fsck.h"
@@ -144,11 +139,11 @@ printstat(cp, inum, dp)
     printf("\n\tATIME=%15.15s %4.4s [%d nsec]\n", &p[4], &p[20],
 	   dp->di_atimensec);
 
-    if (pw = getpwuid(dp->di_uid))
+    if ((pw = getpwuid(dp->di_uid)))
 	printf("OWNER=%s ", pw->pw_name);
     else
 	printf("OWNUID=%u ", dp->di_uid);
-    if (grp = getgrgid(dp->di_gid))
+    if ((grp = getgrgid(dp->di_gid)))
 	printf("GRP=%s ", grp->gr_name);
     else
 	printf("GID=%u ", dp->di_gid);
