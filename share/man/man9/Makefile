@@ -16,7 +16,7 @@ MAN9=	CONDSPLASSERT.9 KASSERT.9 MD5.9 SPLASSERT.9 \
 	devtoname.9 fetch.9 ifnet.9 inittodr.9 intro.9 kernacc.9 malloc.9 \
 	make_dev.9 microseq.9 mi_switch.9 mutex.9 namei.9 panic.9 pfil.9 physio.9 \
 	posix4.9 psignal.9 random.9 resettodr.9 rtalloc.9 rtentry.9 sleep.9 spl.9 \
-	store.9 style.9 suser.9 time.9 timeout.9 uio.9 \
+	store.9 style.9 suser.9 swi.9 time.9 timeout.9 uio.9 \
 	vget.9 vnode.9 vput.9 vref.9 vrele.9 vslock.9 \
 	mbuf.9 microtime.9 microuptime.9 tvtohz.9
 
@@ -92,6 +92,7 @@ MLINKS+=spl.9 splbio.9 spl.9 splclock.9 spl.9 splhigh.9 spl.9 splimp.9
 MLINKS+=spl.9 splnet.9 spl.9 splsoftclock.9 spl.9 splsofttty.9
 MLINKS+=spl.9 splstatclock.9 spl.9 spltty.9 spl.9 splvm.9 spl.9 splx.9
 MLINKS+=store.9 subyte.9 store.9 suswintr.9 store.9 susword.9 store.9 suword.9
+MLINKS+=swi.9 sched_swi.9 swi.9 sinthand_add.9
 MLINKS+=time.9 boottime.9 time.9 mono_time.9 time.9 runtime.9
 MLINKS+=timeout.9 untimeout.9
 MLINKS+=timeout.9 callout_handle_init.9 timeout.9 callout_init.9
