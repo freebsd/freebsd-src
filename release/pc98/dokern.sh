@@ -107,23 +107,30 @@ echo "options  NETGRAPH_SOCKET"
 elif [ "${ARCH}" = "alpha" ]; then
 
 sed	-e '/pty/d' \
+	-e '/DEC_3000_300/d' \
+	-e '/DEC_3000_500/d' \
 	-e '/pass/d' \
 	-e '/	apm/d' \
 	-e '/pmtimer/d' \
+	-e '/	sl	/d' \
 	-e '/ppp/d' \
 	-e '/gif/d' \
 	-e '/faith/d' \
 	-e '/gzip/d' \
 	-e '/random/d' \
+	-e '/NOBLOCKRANDOM/d' \
 	-e '/splash/d' \
 	-e '/PROCFS/d' \
 	-e '/KTRACE/d' \
 	-e '/SYSV/d' \
+	-e '/P1003_1B/d' \
+	-e '/_KPOSIX_PRIORITY_SCHEDULING/d' \
 	-e '/SOFTUPDATES/d' \
 	-e '/MFS/d' \
 	-e '/NFS_ROOT/d' \
 	-e '/MSDOSFS/d' \
 	-e '/ncr/d' \
+	-e '/	le	/d' \
 	-e '/pcm/d' \
 	-e '/atapist/d' \
 	-e '/lpt/d' \
