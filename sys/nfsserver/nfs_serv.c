@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_serv.c	8.3 (Berkeley) 1/12/94
- * $Id: nfs_serv.c,v 1.10 1995/02/15 03:38:12 davidg Exp $
+ * $Id: nfs_serv.c,v 1.11 1995/03/17 07:45:19 davidg Exp $
  */
 
 /*
@@ -1978,10 +1978,9 @@ nfsrv_access(vp, flags, cred, rdonly, p)
 		}
 		/*
 		 * If there's shared text associated with
-		 * the inode, try to free it up once.  If
-		 * we fail, we can't allow writing.
+		 * the inode, we can't allow writing.
 		 */
-		if ((vp->v_flag & VTEXT) && !vnode_pager_uncache(vp))
+		if (vp->v_flag & VTEXT)
 			return (ETXTBSY);
 	}
 	error = VOP_GETATTR(vp, &vattr, cred, p);
