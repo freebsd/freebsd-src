@@ -44,6 +44,7 @@ static const char rcsid[] =
 
 #include <db.h>
 #include <err.h>
+#include <langinfo.h>
 #include <pwd.h>
 #include <stdio.h>
 #include <string.h>
@@ -64,7 +65,10 @@ sflag_print()
 	char p[80];
 	PERSON *tmp;
 	DBT data, key;
+	struct tm *lc;
 
+	if (d_first < 0)
+		d_first = (*nl_langinfo(D_MD_ORDER) == 'd');
 	/*
 	 * short format --
 	 *	login name
@@ -84,8 +88,8 @@ sflag_print()
 #define	MAXREALNAME	20
 #define MAXHOSTNAME     17      /* in reality, hosts are never longer than 16 */
 	(void)printf("%-*s %-*s%s  %s\n", UT_NAMESIZE, "Login", MAXREALNAME,
-	    "Name", " TTY  Idle  Login Time",
-	    oflag ? " Office  Phone" : " Where");
+	    "Name", " TTY  Idle  Login  Time",
+	    oflag ? "Office  Phone" : "Where");
 
 	for (sflag = R_FIRST;; sflag = R_NEXT) {
 		r = (*db->seq)(db, &key, &data, sflag);
@@ -121,18 +125,23 @@ sflag_print()
 				(void)printf("  ");
 			} else
 				(void)printf("    *  ");
-			strftime(p, sizeof(p), "%c", localtime(&w->loginat));
+			lc = localtime(&w->loginat);
 #define SECSPERDAY 86400
 #define DAYSPERWEEK 7
 #define DAYSPERNYEAR 365
-			if (now - w->loginat < SECSPERDAY * (DAYSPERWEEK - 1))
-				(void)printf("%.3s   ", p);
-			else
-				(void)printf("%.6s", p + 4);
-			if (now - w->loginat >= SECSPERDAY * DAYSPERNYEAR / 2)
-				(void)printf("  %.4s", p + 20);
-			else
-				(void)printf(" %.5s", p + 11);
+			if (now - w->loginat < SECSPERDAY * (DAYSPERWEEK - 1)) {
+				(void)strftime(p, sizeof(p), "%a", lc);
+			} else {
+				(void)strftime(p, sizeof(p),
+					     d_first ? "%e %b" : "%b %e", lc);
+			}
+			(void)printf("%-6.6s", p);
+			if (now - w->loginat >= SECSPERDAY * DAYSPERNYEAR / 2) {
+				(void)strftime(p, sizeof(p), "%Y", lc);
+			} else {
+				(void)strftime(p, sizeof(p), "%R", lc);
+			}
+			(void)printf(" %-5.5s", p);
 office:			if (oflag) {
 				if (pn->office)
 					(void)printf(" %-7.7s", pn->office);

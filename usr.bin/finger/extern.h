@@ -37,6 +37,7 @@
 extern char tbuf[1024];			/* Temp buffer for anybody. */
 extern int entries;			/* Number of people. */
 extern DB *db;				/* Database. */
+extern int d_first;
 
 void	 enter_lastlog __P((PERSON *));
 PERSON	*enter_person __P((struct passwd *));
