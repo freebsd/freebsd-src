@@ -1,5 +1,5 @@
 /* Output Dwarf format symbol table information from the GNU C compiler.
-   Copyright (C) 1992, 1993, 1995, 1996, 1997 Free Software Foundation, Inc.
+   Copyright (C) 1992, 1993, 95-98, 1999 Free Software Foundation, Inc.
    Contributed by Ron Guilmette (rfg@monkeys.com) of Network Computing Devices.
 
 This file is part of GNU CC.
@@ -18,6 +18,8 @@ You should have received a copy of the GNU General Public License
 along with GNU CC; see the file COPYING.  If not, write to
 the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
+
+/* $FreeBSD$ */
 
 #include "config.h"
 
@@ -62,10 +64,6 @@ extern char *getpwd PROTO((void));
 
 /* Note that the implementation of C++ support herein is (as yet) unfinished.
    If you want to try to complete it, more power to you.  */
-
-#if !defined(__GNUC__) || (NDEBUG != 1)
-#define inline
-#endif
 
 /* How to start an assembler comment.  */
 #ifndef ASM_COMMENT_START
@@ -273,6 +271,22 @@ static unsigned pending_types;
    be enough for most typical programs.	 */
 
 #define PENDING_TYPES_INCREMENT 64
+
+/* A pointer to the base of a list of incomplete types which might be
+   completed at some later time.  */
+
+static tree *incomplete_types_list;
+
+/* Number of elements currently allocated for the incomplete_types_list.  */
+static unsigned incomplete_types_allocated;
+
+/* Number of elements of incomplete_types_list currently in use.  */
+static unsigned incomplete_types;
+
+/* Size (in elements) of increments by which we may expand the incomplete
+   types list.  Actually, a single hunk of space of this size should
+   be enough for most typical programs.	 */
+#define INCOMPLETE_TYPES_INCREMENT 64
 
 /* Pointer to an artificial RECORD_TYPE which we create in dwarfout_init.
    This is used in a hack to help us get the DIEs describing types of
@@ -857,10 +871,20 @@ static int is_redundant_typedef		PROTO((tree));
   } while (0)
 #endif
 
+/* ASM_OUTPUT_DWARF_STRING is defined to output an ascii string, but to
+   NOT issue a trailing newline. We define ASM_OUTPUT_DWARF_STRING_NEWLINE
+   based on whether ASM_OUTPUT_DWARF_STRING is defined or not. If it is
+   defined, we call it, then issue the line feed. If not, we supply a
+   default defintion of calling ASM_OUTPUT_ASCII */
+
 #ifndef ASM_OUTPUT_DWARF_STRING
-#define ASM_OUTPUT_DWARF_STRING(FILE,P) \
+#define ASM_OUTPUT_DWARF_STRING_NEWLINE(FILE,P) \
   ASM_OUTPUT_ASCII ((FILE), P, strlen (P)+1)
+#else
+#define ASM_OUTPUT_DWARF_STRING_NEWLINE(FILE,P) \
+  ASM_OUTPUT_DWARF_STRING (FILE,P), ASM_OUTPUT_DWARF_STRING (FILE,"\n") 
 #endif
+
 
 /************************ general utility functions **************************/
 
@@ -1150,23 +1174,14 @@ static tree
 decl_ultimate_origin (decl)
      register tree decl;
 {
-  register tree immediate_origin = DECL_ABSTRACT_ORIGIN (decl);
+#ifdef ENABLE_CHECKING 
+  if (DECL_FROM_INLINE (DECL_ORIGIN (decl)))
+    /* Since the DECL_ABSTRACT_ORIGIN for a DECL is supposed to be the
+       most distant ancestor, this should never happen.  */
+    abort ();
+#endif
 
-  if (immediate_origin == NULL)
-    return NULL;
-  else
-    {
-      register tree ret_val;
-      register tree lookahead = immediate_origin;
-
-      do
-	{
-	  ret_val = lookahead;
-	  lookahead = DECL_ABSTRACT_ORIGIN (ret_val);
-	}
-      while (lookahead != NULL && lookahead != ret_val);
-      return ret_val;
-    }
+  return DECL_ABSTRACT_ORIGIN (decl);
 }
 
 /* Determine the "ultimate origin" of a block.  The block may be an
@@ -1400,6 +1415,10 @@ fundamental_type_code (type)
 	if (TYPE_PRECISION (type) == CHAR_TYPE_SIZE)
 	  return (TREE_UNSIGNED (type) ? FT_unsigned_char : FT_char);
 
+	/* In C++, __java_boolean is an INTEGER_TYPE with precision == 1 */
+	if (TYPE_PRECISION (type) == 1)
+	  return FT_boolean;
+
 	abort ();
 
       case REAL_TYPE:
@@ -1421,7 +1440,16 @@ fundamental_type_code (type)
 	  }
 
 	if (TYPE_PRECISION (type) == DOUBLE_TYPE_SIZE)
-	  return FT_dbl_prec_float;
+	  {
+	    /* On the SH, when compiling with -m3e or -m4-single-only, both
+	       float and double are 32 bits.  But since the debugger doesn't
+	       know about the subtarget, it always thinks double is 64 bits.
+	       So we have to tell the debugger that the type is float to
+	       make the output of the 'print' command etc. readable.  */
+	    if (DOUBLE_TYPE_SIZE == FLOAT_TYPE_SIZE && FLOAT_TYPE_SIZE == 32)
+	      return FT_float;
+	    return FT_dbl_prec_float;
+	  }
 	if (TYPE_PRECISION (type) == FLOAT_TYPE_SIZE)
 	  return FT_float;
 
@@ -1893,7 +1921,7 @@ output_enumeral_list (link)
       output_enumeral_list (TREE_CHAIN (link));
       ASM_OUTPUT_DWARF_DATA4 (asm_out_file,
 			      (unsigned) TREE_INT_CST_LOW (TREE_VALUE (link)));
-      ASM_OUTPUT_DWARF_STRING (asm_out_file,
+      ASM_OUTPUT_DWARF_STRING_NEWLINE (asm_out_file,
 			       IDENTIFIER_POINTER (TREE_PURPOSE (link)));
     }
 }
@@ -2084,8 +2112,16 @@ field_byte_offset (decl)
      negative.  Gdb fails when given negative bit offsets.  We avoid this
      by recomputing using the first bit of the bitfield.  This will give
      us an object which does not completely contain the bitfield, but it
-     will be aligned, and it will contain the first bit of the bitfield.  */
-  if (object_offset_in_bits > bitpos_int)
+     will be aligned, and it will contain the first bit of the bitfield.
+
+     However, only do this for a BYTES_BIG_ENDIAN target.  For a
+     ! BYTES_BIG_ENDIAN target, bitpos_int + field_size_in_bits is the first
+     first bit of the bitfield.  If we recompute using bitpos_int + 1 below,
+     then we end up computing the object byte offset for the wrong word of the
+     desired bitfield, which in turn causes the field offset to be negative
+     in bit_offset_attribute.  */
+  if (BYTES_BIG_ENDIAN
+      && object_offset_in_bits > bitpos_int)
     {
       deepest_bitpos = bitpos_int + 1;
       object_offset_in_bits
@@ -2256,7 +2292,7 @@ const_value_attribute (rtl)
 	break;
 
       case CONST_STRING:
-	ASM_OUTPUT_DWARF_STRING (asm_out_file, XSTR (rtl, 0));
+	ASM_OUTPUT_DWARF_STRING_NEWLINE (asm_out_file, XSTR (rtl, 0));
 	break;
 
       case SYMBOL_REF:
@@ -2415,7 +2451,7 @@ location_or_const_value_attribute (decl)
 
   rtl = eliminate_regs (rtl, 0, NULL_RTX);
 #ifdef LEAF_REG_REMAP
-  if (leaf_function)
+  if (current_function_uses_only_leaf_regs)
     leaf_renumber_regs_insn (rtl);
 #endif
 
@@ -2466,7 +2502,7 @@ name_attribute (name_string)
   if (name_string && *name_string)
     {
       ASM_OUTPUT_DWARF_ATTRIBUTE (asm_out_file, AT_name);
-      ASM_OUTPUT_DWARF_STRING (asm_out_file, name_string);
+      ASM_OUTPUT_DWARF_STRING_NEWLINE (asm_out_file, name_string);
     }
 }
 
@@ -2904,7 +2940,7 @@ comp_dir_attribute (dirname)
      register char *dirname;
 {
   ASM_OUTPUT_DWARF_ATTRIBUTE (asm_out_file, AT_comp_dir);
-  ASM_OUTPUT_DWARF_STRING (asm_out_file, dirname);
+  ASM_OUTPUT_DWARF_STRING_NEWLINE (asm_out_file, dirname);
 }
 
 static inline void
@@ -2942,7 +2978,7 @@ prototyped_attribute (func_type)
       && (TYPE_ARG_TYPES (func_type) != NULL))
     {
       ASM_OUTPUT_DWARF_ATTRIBUTE (asm_out_file, AT_prototyped);
-      ASM_OUTPUT_DWARF_STRING (asm_out_file, "");
+      ASM_OUTPUT_DWARF_STRING_NEWLINE (asm_out_file, "");
     }
 }
 
@@ -2951,7 +2987,7 @@ producer_attribute (producer)
      register char *producer;
 {
   ASM_OUTPUT_DWARF_ATTRIBUTE (asm_out_file, AT_producer);
-  ASM_OUTPUT_DWARF_STRING (asm_out_file, producer);
+  ASM_OUTPUT_DWARF_STRING_NEWLINE (asm_out_file, producer);
 }
 
 static inline void
@@ -2961,7 +2997,7 @@ inline_attribute (decl)
   if (DECL_INLINE (decl))
     {
       ASM_OUTPUT_DWARF_ATTRIBUTE (asm_out_file, AT_inline);
-      ASM_OUTPUT_DWARF_STRING (asm_out_file, "");
+      ASM_OUTPUT_DWARF_STRING_NEWLINE (asm_out_file, "");
     }
 }
 
@@ -3024,7 +3060,7 @@ pure_or_virtual_attribute (func_decl)
       else
 #endif
         ASM_OUTPUT_DWARF_ATTRIBUTE (asm_out_file, AT_virtual);
-      ASM_OUTPUT_DWARF_STRING (asm_out_file, "");
+      ASM_OUTPUT_DWARF_STRING_NEWLINE (asm_out_file, "");
     }
 }
 
@@ -3513,7 +3549,12 @@ output_label_die (arg)
     {
       register rtx insn = DECL_RTL (decl);
 
-      if (GET_CODE (insn) == CODE_LABEL)
+      /* Deleted labels are programmer specified labels which have been
+	 eliminated because of various optimisations.  We still emit them
+	 here so that it is possible to put breakpoints on them.  */
+      if (GET_CODE (insn) == CODE_LABEL
+	  || ((GET_CODE (insn) == NOTE
+	       && NOTE_LINE_NUMBER (insn) == NOTE_INSN_DELETED_LABEL)))
 	{
 	  char label[MAX_ARTIFICIAL_LABEL_BYTES];
 
@@ -3751,17 +3792,17 @@ output_inheritance_die (arg)
   if (TREE_VIA_VIRTUAL (binfo))
     {
       ASM_OUTPUT_DWARF_ATTRIBUTE (asm_out_file, AT_virtual);
-      ASM_OUTPUT_DWARF_STRING (asm_out_file, "");
+      ASM_OUTPUT_DWARF_STRING_NEWLINE (asm_out_file, "");
     }
   if (TREE_VIA_PUBLIC (binfo))
     {
       ASM_OUTPUT_DWARF_ATTRIBUTE (asm_out_file, AT_public);
-      ASM_OUTPUT_DWARF_STRING (asm_out_file, "");
+      ASM_OUTPUT_DWARF_STRING_NEWLINE (asm_out_file, "");
     }
   else if (TREE_VIA_PROTECTED (binfo))
     {
       ASM_OUTPUT_DWARF_ATTRIBUTE (asm_out_file, AT_protected);
-      ASM_OUTPUT_DWARF_STRING (asm_out_file, "");
+      ASM_OUTPUT_DWARF_STRING_NEWLINE (asm_out_file, "");
     }
 }  
 
@@ -4205,6 +4246,40 @@ output_pending_types_for_scope (containing_scope)
     }
 }
 
+/* Remember a type in the incomplete_types_list.  */
+
+static void
+add_incomplete_type (type)
+     tree type;
+{
+  if (incomplete_types == incomplete_types_allocated)
+    {
+      incomplete_types_allocated += INCOMPLETE_TYPES_INCREMENT;
+      incomplete_types_list
+	= (tree *) xrealloc (incomplete_types_list,
+			     sizeof (tree) * incomplete_types_allocated);
+    }
+
+  incomplete_types_list[incomplete_types++] = type;
+}
+
+/* Walk through the list of incomplete types again, trying once more to
+   emit full debugging info for them.  */
+
+static void
+retry_incomplete_types ()
+{
+  register tree type;
+
+  finalizing = 1;
+  while (incomplete_types)
+    {
+      --incomplete_types;
+      type = incomplete_types_list[incomplete_types];
+      output_type (type, NULL_TREE);
+    }
+}
+
 static void
 output_type (type, containing_scope)
      register tree type;
@@ -4369,7 +4444,13 @@ output_type (type, containing_scope)
 		    && TREE_CODE (TYPE_CONTEXT (type)) != FUNCTION_TYPE
 		    && TREE_CODE (TYPE_CONTEXT (type)) != METHOD_TYPE))
 	    && !finalizing)
-	  return;	/* EARLY EXIT!  Avoid setting TREE_ASM_WRITTEN.  */
+	  {
+	    /* We can't do this for function-local types, and we don't need
+               to.  */
+	    if (TREE_PERMANENT (type))
+	      add_incomplete_type (type);
+	    return;	/* EARLY EXIT!  Avoid setting TREE_ASM_WRITTEN.  */
+	  }
 
 	/* Prevent infinite recursion in cases where the type of some
 	   member of this type is expressed in terms of this type itself.  */
@@ -4424,7 +4505,11 @@ output_type (type, containing_scope)
 		register int i;
 
 		for (i = 0; i < n_bases; i++)
-		  output_die (output_inheritance_die, TREE_VEC_ELT (bases, i));
+		  {
+		    tree binfo = TREE_VEC_ELT (bases, i);
+		    output_type (BINFO_TYPE (binfo), containing_scope);
+		    output_die (output_inheritance_die, binfo);
+		  }
 	      }
 
 	    ++in_class;
@@ -5121,7 +5206,7 @@ dwarfout_file_scope_decl (decl, set_finalizing)
 	  ASM_OUTPUT_PUSH_SECTION (asm_out_file, PUBNAMES_SECTION);
 	  sprintf (label, PUB_DIE_LABEL_FMT, next_pubname_number);
 	  ASM_OUTPUT_DWARF_ADDR (asm_out_file, label);
-	  ASM_OUTPUT_DWARF_STRING (asm_out_file,
+	  ASM_OUTPUT_DWARF_STRING_NEWLINE (asm_out_file,
 				   IDENTIFIER_POINTER (DECL_NAME (decl)));
 	  ASM_OUTPUT_POP_SECTION (asm_out_file);
 	}
@@ -5159,7 +5244,7 @@ dwarfout_file_scope_decl (decl, set_finalizing)
 	      ASM_OUTPUT_PUSH_SECTION (asm_out_file, PUBNAMES_SECTION);
 	      sprintf (label, PUB_DIE_LABEL_FMT, next_pubname_number);
 	      ASM_OUTPUT_DWARF_ADDR (asm_out_file, label);
-	      ASM_OUTPUT_DWARF_STRING (asm_out_file,
+	      ASM_OUTPUT_DWARF_STRING_NEWLINE (asm_out_file,
 				       IDENTIFIER_POINTER (DECL_NAME (decl)));
 	      ASM_OUTPUT_POP_SECTION (asm_out_file);
 	    }
@@ -5247,10 +5332,16 @@ dwarfout_file_scope_decl (decl, set_finalizing)
 
   output_pending_types_for_scope (NULL_TREE);
 
-  /* The above call should have totally emptied the pending_types_list.  */
-
-  if (pending_types != 0)
-    abort ();
+  /* The above call should have totally emptied the pending_types_list
+     if this is not a nested function or class.  If this is a nested type,
+     then the remaining pending_types will be emitted when the containing type
+     is handled.  */
+  
+  if (! DECL_CONTEXT (decl))
+    {
+      if (pending_types != 0)
+	abort ();
+    }
 
   ASM_OUTPUT_POP_SECTION (asm_out_file);
 
@@ -5386,7 +5477,7 @@ generate_new_sfname_entry ()
   ASM_OUTPUT_PUSH_SECTION (asm_out_file, SFNAMES_SECTION);
   sprintf (label, SFNAMES_ENTRY_LABEL_FMT, filename_table[0].number);
   ASM_OUTPUT_LABEL (asm_out_file, label);
-  ASM_OUTPUT_DWARF_STRING (asm_out_file,
+  ASM_OUTPUT_DWARF_STRING_NEWLINE (asm_out_file,
     			   filename_table[0].name
 			     ? filename_table[0].name
 			     : "");
@@ -5559,7 +5650,7 @@ generate_macinfo_entry (type_and_offset, string)
   fputc ('\n', asm_out_file);
   ASM_OUTPUT_PUSH_SECTION (asm_out_file, MACINFO_SECTION);
   fprintf (asm_out_file, "\t%s\t%s\n", UNALIGNED_INT_ASM_OP, type_and_offset);
-  ASM_OUTPUT_DWARF_STRING (asm_out_file, string);
+  ASM_OUTPUT_DWARF_STRING_NEWLINE (asm_out_file, string);
   ASM_OUTPUT_POP_SECTION (asm_out_file);
 }
 
@@ -5740,7 +5831,7 @@ dwarfout_init (asm_out_file, main_input_filename)
     
 	    strcpy (dirname, pwd);
 	    strcpy (dirname + len, "/");
-	    ASM_OUTPUT_DWARF_STRING (asm_out_file, dirname);
+	    ASM_OUTPUT_DWARF_STRING_NEWLINE (asm_out_file, dirname);
 	    free (dirname);
 	  }
 	  ASM_OUTPUT_POP_SECTION (asm_out_file);
@@ -5826,6 +5917,8 @@ void
 dwarfout_finish ()
 {
   char label[MAX_ARTIFICIAL_LABEL_BYTES];
+
+  retry_incomplete_types ();
 
   fputc ('\n', asm_out_file);
   ASM_OUTPUT_PUSH_SECTION (asm_out_file, DEBUG_SECTION);
@@ -5944,7 +6037,7 @@ dwarfout_finish ()
 	  fputc ('\n', asm_out_file);
 	  ASM_OUTPUT_PUSH_SECTION (asm_out_file, MACINFO_SECTION);
 	  ASM_OUTPUT_DWARF_DATA4 (asm_out_file, 0);
-	  ASM_OUTPUT_DWARF_STRING (asm_out_file, "");
+	  ASM_OUTPUT_DWARF_STRING_NEWLINE (asm_out_file, "");
 	  ASM_OUTPUT_POP_SECTION (asm_out_file);
 	}
     
@@ -5953,7 +6046,7 @@ dwarfout_finish ()
       fputc ('\n', asm_out_file);
       ASM_OUTPUT_PUSH_SECTION (asm_out_file, PUBNAMES_SECTION);
       ASM_OUTPUT_DWARF_DATA4 (asm_out_file, 0);
-      ASM_OUTPUT_DWARF_STRING (asm_out_file, "");
+      ASM_OUTPUT_DWARF_STRING_NEWLINE (asm_out_file, "");
       ASM_OUTPUT_POP_SECTION (asm_out_file);
     
       /* Generate the terminating entries for the .debug_aranges section.
@@ -6003,6 +6096,12 @@ dwarfout_finish ()
 
       ASM_OUTPUT_POP_SECTION (asm_out_file);
     }
+
+  /* There should not be any pending types left at the end.  We need
+     this now because it may not have been checked on the last call to
+     dwarfout_file_scope_decl.  */
+  if (pending_types != 0)
+    abort ();
 }
 
 #endif /* DWARF_DEBUGGING_INFO */
