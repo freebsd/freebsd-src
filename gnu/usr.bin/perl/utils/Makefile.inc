@@ -3,13 +3,13 @@
 #
 
 PERL5SRC=	${.CURDIR}/../../../../../contrib/perl5
-MINIPERLOPT?=	-I${.OBJDIR}/../../miniperl/lib -I${.OBJDIR}/../../miniperl
+MINIPERLOPT?=	-I${.OBJDIR}/../../perl/lib -I${.OBJDIR}/../../perl
 
 ${PROG}: ${PROG}.PL
-	miniperl ${.OODATE}
+	miniperl ${MINIPERLOPT} ${.OODATE}
 
 ${PROG}.1: ${PROG}.PL
-	miniperl ${.OBJDIR}/../../pod/pod2man/pod2man ${.OODATE} > ${.TARGET}
+	miniperl ${MINIPERLOPT} ${.OBJDIR}/../../pod/pod2man/pod2man ${.OODATE} > ${.TARGET}
 
 ${PROG}.PL: ${PERL5SRC}/utils/${PROG}.PL
 	@ln -sf ${.OODATE} ${.TARGET}
