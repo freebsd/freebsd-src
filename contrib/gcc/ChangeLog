@@ -1,7 +1,172 @@
+2002-09-14  Stephane Carrez  <stcarrez@nerim.fr>
+
+	* config/m68hc11/m68hc11.md ("movdi_internal"): Allow any offsetable
+	memory operand when source is 0 (K constraint).
+	("movsi_internal"): Likewise.
+	("movdf_internal"): Likewise.
+	("movsf_internal"): Likewise.
+
+2002-09-14  Alan Modra  <amodra@bigpond.net.au>
+
+	Merge from mainline.
+	2002-09-14  Alan Modra  <amodra@bigpond.net.au>
+	* doc/tm.texi (DBX_OUTPUT_NFUN): Describe.
+	* dbxout.c (dbxout_function_end): Use DBX_OUTPUT_NFUN.
+	* config/rs6000/linux64.h (DBX_OUTPUT_NFUN): Define.
+
+	2002-08-27  David Edelsohn  <edelsohn@gnu.org>
+	* config/rs6000/linux64.h (ADJUST_FIELD_ALIGN): Undef before define.
+
+	2002-08-02  Alan Modra  <amodra@bigpond.net.au>
+	* config/rs6000/linux64.h (DBX_OUTPUT_BRAC): Define.
+	(DBX_OUTPUT_LBRAC, DBX_OUTPUT_RBRAC): Define.
+	* config/rs6000/rs6000.c (output_toc): Don't use lshift_double when
+	HOST_BITS_PER_WIDE_INT == 64.
+
+	2002-07-27  Alan Modra  <amodra@bigpond.net.au>
+	* config/rs6000/rs6000.c (output_profile_hook): Don't generate profile
+	label reference when NO_PROFILE_COUNTERS.
+
+	2002-07-11  Alan Modra  <amodra@bigpond.net.au>
+	* config/rs6000/linux64.h (ASM_SPEC): Define.
+
+2002-09-13  Alan Modra  <amodra@bigpond.net.au>
+
+	Merge from mainline.
+	2002-07-24  Alan Modra  <amodra@bigpond.net.au>
+	PR c/7150, target/7380
+	* config/rs6000/rs6000.md: Remove scratch reg on insns using
+	addze and similar (plus (comparison r1 r2) r3) insns.  Add
+	missing scratch reg in one case.  Formatting fixes.
+
+	2002-07-18  Alan Modra  <amodra@bigpond.net.au>
+	PR other/7114, target/5967
+	* config/rs6000/rs6000.c (first_reg_to_save): Remove bogus
+	adjustments to first_reg for profiling case.
+	(output_function_profiler): Correct lr save slot for ABI_AIX_NODESC.
+	Disable profiling for 64 bit code on both ABI_V4 and ABI_AIX_NODESC.
+	Save static chain reg to sp + 12 on ABI_AIX_NODESC.
+	* config/rs6000/sysv4.h (ASM_OUTPUT_REG_PUSH): Define.
+	(ASM_OUTPUT_REG_POP): Define.
+	* config/rs6000/linux64.h (ASM_OUTPUT_REG_PUSH): Undef.
+	(ASM_OUTPUT_REG_POP): Undef.
+
+	2002-06-30  Alan Modra  <amodra@bigpond.net.au>
+	PR optimization/7120
+	* unroll.c (loop_iterations): Handle EQ loops.
+
+2002-09-13  Alan Modra  <amodra@bigpond.net.au>
+
+	* config/rs6000/rs6000.c (rs6000_emit_load_toc_table): Remove "if"
+	nesting.  Correct test for non-PowerPC64 ELF ABI_AIX.
+	* config/rs6000/rs6000.md (load_toc_v4_PIC*): Disable when ABI_AIX.
+
+2002-09-12  Janis Johnson  <janis187@us.ibm.com>
+
+	* doc/compat.texi: New file with new chapter, Binary Compatibility.
+
+2002-09-12  Jason Merrill  <jason@redhat.com>
+
+	* calls.c (store_one_arg): Use size_in_bytes to determine the
+	amount of space to push.
+
+2002-09-12  Jakub Jelinek  <jakub@redhat.com>
+
+	* config/sparc/linux64.h (STARTFILE_SPEC32): Fix a typo.
+
+2002-09-12  Alan Modra  <amodra@bigpond.net.au>
+
+	* emit-rtl.c (set_mem_size): New function.
+	* expr.h (set_mem_size): Declare.
+	* config/rs6000/rs6000.c (expand_block_move_mem): Exterminate.
+	(expand_block_move): Instead, use adjust_address and
+	replace_equiv_address to generate proper aliasing info.
+	Move common code out of conditionals.  Localize vars.
+
+2002-09-11  Alexander Kabaev  <kan@FreeBSD.ORG>
+
+	Wed Apr 24 13:48:25 CEST 2002  Jan Hubicka  <jh@suse.cz>
+	* loop.c (canonicalize_condition): Use gen_int_mode.
+
+2002-09-11  Janis Johnson  <janis187@us.ibm.com>
+
+	* Makefile.in (TEXI_GCC_FILES): Add compat.texi.
+	* doc/gcc.texi (Top): Add new chapter, Binary Compatibility, and
+	include its file, compat.texi.
+	* doc/trouble.texi (Interoperation): Update information about C++ ABI
+	issues.
+	* doc/invoke.texi (-fshort-wchar): Move to Code Generation Options.
+	(-fpcc-struct-return, -freg-struct-return, -fshort-enums,
+	-fshort-double, -fshort-wchar, -fpack-struct, -fleading-underscore):
+	Warn that these options can break ABI compatibility.
+	(Many places): Fix overfull hboxes.
+
+	* doc/extend.texi: Fix a broken link; fix overfull hboxes.
+	* doc/install.texi: Fix a typo, some formatting directives, and
+	overfull hboxes.
+	* doc/c-tree.texi: Fix overfull hboxes.
+	* doc/cppopts.texi: Ditto.
+	* doc/makefile.texi: Ditto.
+	* doc/rtl.texi: Ditto.
+	* doc/standards.texi: Ditto.
+	* doc/tm.texi: Ditto.
+
+2002-09-08  Alan Modra  <amodra@bigpond.net.au>
+
+	* reload.c (find_reloads <p constraint>): Pass operand_mode to
+	find_reloads_address.
+
+2002-09-07  Scott Snyder  <snyder@fnal.gov>
+
+	PR target/7374
+	* config/alpha/alpha.md (abstf2): Fix typo: 'neg' for 'abs'.
+
+2002-09-07  Glen Nakamura  <glen@imodulo.com>
+
+	PR opt/7814
+	* sched-deps.c (sched_analyze_insn): Make sure to add insn
+	to reg_last->sets after flushing the dependency lists to guarantee
+	that subsequent clobbers will be dependent on it.
+
+2002-09-07  Alan Modra  <amodra@bigpond.net.au>
+
+	* config/rs6000/linux64.h (ASM_PREFERRED_EH_DATA_FORMAT): Define.
+
+2002-09-06  Jakub Jelinek  <jakub@redhat.com>
+
+	* configure.in (HAVE_AS_OFFSETABLE_LO10): Use -xarch=v9
+	unconditionally when gcc_cv_as_flags64 checks are gone.
+	* configure: Rebuilt.
+
+2002-09-04  Eric Botcazou  <ebotcazou@multimania.com>
+
+	PR c/7102
+	* optabs.c (expand_binop): Convert CONST_INTs in all cases.
+
+2002-09-04  Jason Thorpe  <thorpej@wasabisystems.com>
+
+	* config/sparc/t-netbsd64: Disable multilib for now.
+
+2002-09-01  Alexandre Oliva  <aoliva@redhat.com>
+
+	* c-tree.h (skip_evaluation): Move declaration...
+	* c-common.h: ... here.
+	* c-typeck.c (build_external_ref): Don't assemble_external nor
+	mark a tree as used if skip_evaluation is set.
+	* c-parse.in (typeof): New non-terminal to set skip_evaluation
+	around TYPEOF.
+	(typespec_nonreserved_nonattr): Use it.
+
+2002-09-01  Marek Michalkiewicz  <marekm@amelek.gda.pl>
+
+	2002-08-13  Denis Chertykov  <denisc@overta.ru>
+	* config/avr/avr.md: Call CC_STATUS_INIT in all peepnoles
+	which can change CC0.
+
 2002-08-29  Rodney Brown  <rbrown64@csc.com.au>
 
-        * doc/install.texi (Specific, alpha*-dec-osf*): Add "virtual
-        memory exhausted" workarounds.
+	* doc/install.texi (Specific, alpha*-dec-osf*): Add "virtual
+	memory exhausted" workarounds.
 
 2002-08-29  John David Anglin  <dave@hiauly1.hia.nrc.ca>
 
@@ -23,10 +188,10 @@
 	
 2002-08-23  David Edelsohn  <edelsohn@gnu.org>
 
-        * config/rs6000/rs6000.c (rs6000_select_section): Treat
-        DEFAULT_ABI == ABI_AIX like PIC.  Test PIC & reloc for readonly
-        default.
-        (rs6000_unique_section): Likewise.
+	* config/rs6000/rs6000.c (rs6000_select_section): Treat
+	DEFAULT_ABI == ABI_AIX like PIC.  Test PIC & reloc for readonly
+	default.
+	(rs6000_unique_section): Likewise.
 
 2002-08-22  Jason Merrill  <jason@redhat.com>
 
