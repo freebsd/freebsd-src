@@ -16,7 +16,7 @@
  *
  * New configuration setup: dufault@hda.com
  *
- *      $Id: scsiconf.c,v 1.81 1997/03/10 20:51:17 joerg Exp $
+ *      $Id: scsiconf.c,v 1.82 1997/03/23 06:33:49 bde Exp $
  */
 
 #include "opt_scsi.h"
@@ -393,6 +393,11 @@ static struct scsidevs knowndevs[] =
 	{
 		/* That's the Philips drive, in case anybody wonders... */
 		T_READONLY, T_WORM, T_REMOV, "IMS", "CDD2000*", "*",
+		"worm", SC_ONE_LU
+	},
+	{
+		/* Here's another Philips drive... */
+		T_READONLY, T_WORM, T_REMOV, "PHILIPS", "CDD2*", "*",
 		"worm", SC_ONE_LU
 	},
 	/*
