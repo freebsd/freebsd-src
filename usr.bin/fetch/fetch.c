@@ -200,7 +200,7 @@ stat_display(struct xferstat *xs, int force)
 		return;
 	xs->last = now;
 
-	fprintf(stderr, "\r%-46s", xs->name);
+	fprintf(stderr, "\r%-46.46s", xs->name);
 	if (xs->size <= 0) {
 		fprintf(stderr, "        %s", stat_bytes(xs->rcvd));
 	} else {
