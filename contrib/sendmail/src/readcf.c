@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: readcf.c,v 8.607 2002/06/14 16:57:32 ca Exp $")
+SM_RCSID("@(#)$Id: readcf.c,v 8.607.2.2 2002/08/19 21:50:49 gshapiro Exp $")
 
 #if NETINET || NETINET6
 # include <arpa/inet.h>
@@ -2039,11 +2039,11 @@ static struct optioninfo
 #define O_SRVCERTFILE	0xb4
 	{ "ServerCertFile",		O_SRVCERTFILE,	OI_NONE	},
 #define O_SRVKEYFILE	0xb5
-	{ "Serverkeyfile",		O_SRVKEYFILE,	OI_NONE	},
+	{ "ServerKeyFile",		O_SRVKEYFILE,	OI_NONE	},
 #define O_CLTCERTFILE	0xb6
 	{ "ClientCertFile",		O_CLTCERTFILE,	OI_NONE	},
 #define O_CLTKEYFILE	0xb7
-	{ "Clientkeyfile",		O_CLTKEYFILE,	OI_NONE	},
+	{ "ClientKeyFile",		O_CLTKEYFILE,	OI_NONE	},
 #define O_CACERTFILE	0xb8
 	{ "CACERTFile",			O_CACERTFILE,	OI_NONE	},
 #define O_CACERTPATH	0xb9
@@ -4100,7 +4100,6 @@ settimeout(name, val, sticky)
 		toval = convtime(val, 'd');
 		TimeOuts.to_q_return[TOC_NONURGENT] = toval;
 		break;
-
 
 	  case TO_HOSTSTATUS:
 		MciInfoTimeout = toval;

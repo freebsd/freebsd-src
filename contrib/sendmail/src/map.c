@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: map.c,v 8.645.2.1 2002/06/21 20:25:23 ca Exp $")
+SM_RCSID("@(#)$Id: map.c,v 8.645.2.3 2002/08/09 22:23:13 gshapiro Exp $")
 
 #if LDAPMAP
 # include <sm/ldap.h>
@@ -3811,6 +3811,8 @@ ldapmap_lookup(map, name, av, statp)
 					{
 						p += sm_strlcpy(p, attr,
 								vsize - (p - vp_tmp));
+						if (p >= vp_tmp + vsize)
+							syserr("ldapmap_lookup: Internal error: buffer too small for LDAP values");
 						*p++ = lmap->ldap_attrsep;
 					}
 					p += sm_strlcpy(p, vals[i],
@@ -7198,6 +7200,7 @@ ns_map_t_find(mapname)
 		ns_map = (ns_map_list_t *) xalloc(sizeof *ns_map);
 		ns_map->mapname = newstr(mapname);
 		ns_map->map = (ns_map_t *) xalloc(sizeof *ns_map->map);
+		memset(ns_map->map, '\0', sizeof *ns_map->map);
 		ns_map->next = ns_maps;
 		ns_maps = ns_map;
 	}

@@ -25,7 +25,7 @@ SM_UNUSED(static char copyright[]) =
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* ! lint */
 
-SM_RCSID("@(#)$Id: main.c,v 8.887 2002/06/17 22:25:52 gshapiro Exp $")
+SM_RCSID("@(#)$Id: main.c,v 8.887.2.1 2002/08/04 17:36:06 gshapiro Exp $")
 
 
 #if NETINET || NETINET6
@@ -3380,7 +3380,7 @@ getextenv(envar)
 	int l;
 
 	l = strlen(envar);
-	for (envp = ExternalEnviron; *envp != NULL; envp++)
+	for (envp = ExternalEnviron; envp != NULL && *envp != NULL; envp++)
 	{
 		if (strncmp(*envp, envar, l) == 0 && (*envp)[l] == '=')
 			return &(*envp)[l + 1];
