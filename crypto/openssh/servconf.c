@@ -99,17 +99,17 @@ fill_default_server_options(ServerOptions *options)
 	if (options->server_key_bits == -1)
 		options->server_key_bits = 768;
 	if (options->login_grace_time == -1)
-		options->login_grace_time = 600;
+		options->login_grace_time = 60;
 	if (options->key_regeneration_time == -1)
 		options->key_regeneration_time = 3600;
 	if (options->permit_root_login == -1)
-		options->permit_root_login = 1;			/* yes */
+		options->permit_root_login = 0;			/* no */
 	if (options->ignore_rhosts == -1)
 		options->ignore_rhosts = 1;
 	if (options->ignore_user_known_hosts == -1)
 		options->ignore_user_known_hosts = 0;
 	if (options->check_mail == -1)
-		options->check_mail = 0;
+		options->check_mail = 1;
 	if (options->print_motd == -1)
 		options->print_motd = 1;
 	if (options->x11_forwarding == -1)
