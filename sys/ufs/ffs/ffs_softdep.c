@@ -987,7 +987,6 @@ softdep_initialize()
 
 	/* hooks through which the main kernel code calls us */
 	softdep_process_worklist_hook = softdep_process_worklist;
-	softdep_fsync_hook = softdep_fsync;
 
 	/* initialise bioops hack */
 	bioops.io_start = softdep_disk_io_initiation;
@@ -1006,7 +1005,6 @@ softdep_uninitialize()
 {
 
 	softdep_process_worklist_hook = NULL;
-	softdep_fsync_hook = NULL;
 	hashdestroy(pagedep_hashtbl, M_PAGEDEP, pagedep_hash);
 	hashdestroy(inodedep_hashtbl, M_INODEDEP, inodedep_hash);
 	hashdestroy(newblk_hashtbl, M_NEWBLK, newblk_hash);

@@ -160,6 +160,13 @@ ffs_fsync(struct vop_fsync_args *ap)
 	int error;
 
 	error = ffs_syncvnode(ap->a_vp, ap->a_waitfor);
+#ifdef SOFTUPDATES
+	if (error)
+		return (error);
+	if (ap->a_waitfor == MNT_WAIT &&
+	    (ap->a_vp->v_mount->mnt_flag & MNT_SOFTDEP))
+		error = softdep_fsync(ap->a_vp);
+#endif
 	return (error);
 }
 
