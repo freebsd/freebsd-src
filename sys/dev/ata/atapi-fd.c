@@ -344,7 +344,7 @@ afd_start(struct ata_device *atadev)
     ccb[8] = count;
 
     if (!(request = ata_alloc_request())) {
-	biofinish(bp, NULL, EIO);
+	biofinish(bp, NULL, ENOMEM);
 	return;
     }
     request->device = atadev;
