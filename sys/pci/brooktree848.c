@@ -3531,11 +3531,28 @@ int	irccable[] = {
 
 /*
  * North American Cable Channels, HRC:
+ *
+ * 2:   54 mHz  - 4:    66 mHz
+ * 5:   78 mHz  - 6:    84 mHz
+ * 7:  174 mHz  - 13:  210 mHz
+ * 14: 120 mHz  - 22:  168 mHz
+ * 23: 216 mHz  - 94:  642 mHz
+ * 95:  90 mHz  - 99:  114 mHz
+ *
+ * IF freq: 45.75 mHz
  */
-int	hrccable[] = {
-	0, 0, 0,
+#define OFFSET  6.00
+int     hrccable[] = {
+	99,	(int)( 45.75 * FREQFACTOR),     0,
+	95,	(int)( 90.00 * FREQFACTOR),	(int)(OFFSET * FREQFACTOR),
+	23,	(int)(216.00 * FREQFACTOR),	(int)(OFFSET * FREQFACTOR),
+	14,	(int)(120.00 * FREQFACTOR),	(int)(OFFSET * FREQFACTOR),
+	7,	(int)(174.00 * FREQFACTOR),	(int)(OFFSET * FREQFACTOR),
+	5,	(int)( 78.00 * FREQFACTOR),	(int)(OFFSET * FREQFACTOR),
+	2,	(int)( 54.00 * FREQFACTOR),	(int)(OFFSET * FREQFACTOR),
 	0
 };
+#undef OFFSET
 
 /*
  * Western European broadcast channels:
