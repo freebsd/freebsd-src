@@ -36,7 +36,7 @@
 static char sccsid[] = "From: @(#)route.c	8.3 (Berkeley) 3/9/94";
 #endif
 static const char rcsid[] =
-	"$Id: route.c,v 1.4 1995/04/06 06:09:44 jkh Exp $";
+	"$Id: route.c,v 1.5 1995/05/30 06:32:53 rgrimes Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -103,6 +103,7 @@ int	do_rtent = 0;
 struct	rtentry rtentry;
 struct	radix_node rnode;
 struct	radix_mask rmask;
+struct	radix_node_head *rt_tables[AF_MAX+1];
 
 int	NewTree = 0;
 
