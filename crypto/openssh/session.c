@@ -667,10 +667,11 @@ do_login(Session *s, const char *command)
 	time_t warntime = DEFAULT_WARN;
 #endif /* __FreeBSD__ */
 
-#ifndef USE_PAM
+#ifdef USE_PAM
 	/*
 	 * Let PAM handle utmp / wtmp.
 	 */
+#else
 	/*
 	 * Get IP address of client. If the connection is not a socket, let
 	 * the address be 0.0.0.0.
@@ -1048,9 +1049,6 @@ do_setup_env(char **env, Session *s, const char *shell)
 	if (s->ttyfd != -1)
 		child_set_env(&env, &envsize, "SSH_TTY", s->tty);
 	if (s->term)
-#ifdef HAVE_LOGIN_CAP
-	    if (options.use_login)
-#endif /* HAVE_LOGIN_CAP */
 		child_set_env(&env, &envsize, "TERM", s->term);
 	if (s->display)
 		child_set_env(&env, &envsize, "DISPLAY", s->display);
@@ -1183,7 +1181,7 @@ do_nologin(struct passwd *pw)
 }
 
 /* Set login name, uid, gid, and groups. */
-void
+char **
 do_setusercontext(struct passwd *pw)
 {
 	char **env = NULL;
@@ -1243,7 +1241,7 @@ do_setusercontext(struct passwd *pw)
 	if (getuid() != pw->pw_uid || geteuid() != pw->pw_uid)
 		fatal("Failed to set uids to %u.", (u_int) pw->pw_uid);
 #endif  /* HAVE_LOGIN_CAP */
-	return;
+	return env;
 }
 
 static void
@@ -1292,7 +1290,7 @@ do_child(Session *s, const char *command)
 	 */
 	if (!options.use_login) {
 		do_nologin(pw);
-		do_setusercontext(pw);
+		env = do_setusercontext(pw);
 	}
 
 	/*
