@@ -1,4 +1,4 @@
-#	$Id: Makefile.inc,v 1.3 1996/08/20 08:20:59 julian Exp $
+#	$Id: Makefile.inc,v 1.4 1996/11/11 09:08:11 hsu Exp $
 
 CPLUSPLUSLIB=	cpluspluslib
 
@@ -7,6 +7,7 @@ CPLUSPLUSLIB=	cpluspluslib
 
 SRCS+= \
 	uthread_accept.c \
+	uthread_attr_destroy.c \
 	uthread_attr_init.c \
 	uthread_attr_setcreatesuspend_np.c \
 	uthread_attr_setstacksize.c \
