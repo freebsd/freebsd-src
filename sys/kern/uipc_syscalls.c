@@ -1661,8 +1661,6 @@ sf_buf_alloc()
 	return (sf);
 }
 
-#define dtosf(x)	(&sf_bufs[((uintptr_t)(x) - (uintptr_t)sf_base) >> PAGE_SHIFT])
-
 /*
  * Detatch mapped page and release resources back to the system.
  */
@@ -1672,7 +1670,7 @@ sf_buf_free(void *addr, void *args)
 	struct sf_buf *sf;
 	struct vm_page *m;
 
-	sf = dtosf(addr);
+	sf = args;
 	pmap_qremove((vm_offset_t)addr, 1);
 	m = sf->m;
 	vm_page_lock_queues();
@@ -1955,14 +1953,14 @@ retry_lookup:
 		MGETHDR(m, M_TRYWAIT, MT_DATA);
 		if (m == NULL) {
 			error = ENOBUFS;
-			sf_buf_free((void *)sf->kva, NULL);
+			sf_buf_free((void *)sf->kva, sf);
 			sbunlock(&so->so_snd);
 			goto done;
 		}
 		/*
 		 * Setup external storage for mbuf.
 		 */
-		MEXTADD(m, sf->kva, PAGE_SIZE, sf_buf_free, NULL, M_RDONLY,
+		MEXTADD(m, sf->kva, PAGE_SIZE, sf_buf_free, sf, M_RDONLY,
 		    EXT_SFBUF);
 		m->m_data = (char *) sf->kva + pgoff;
 		m->m_pkthdr.len = m->m_len = xfsize;
