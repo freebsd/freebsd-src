@@ -99,6 +99,7 @@
 #include <sys/signal.h>
 #include <sys/cons.h>
 
+#include <machine/prom.h>
 #include <machine/reg.h>
 
 #include <ddb/ddb.h>
@@ -625,7 +626,7 @@ gdb_handle_exception (db_regs_t *raw_regs, int type, int code)
   while (1)
     {
       if (gdbdev == NODEV)	/* somebody's removed it */
-	return 1;		/* get out of here */
+	return;			/* get out of here */
       remcomOutBuffer[0] = 0;
 
       getpacket (remcomInBuffer);
@@ -644,7 +645,7 @@ gdb_handle_exception (db_regs_t *raw_regs, int type, int code)
 	  return;
 
 	case 'k':
-	  prom_halt();
+	  prom_halt(1);
 	  /*NOTREACHED*/
 	  break;
 
