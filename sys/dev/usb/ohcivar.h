@@ -1,4 +1,4 @@
-/*	$NetBSD: ohcivar.h,v 1.13 1999/10/13 08:10:55 augustss Exp $	*/
+/*	$NetBSD: ohcivar.h,v 1.18 2000/01/18 20:11:00 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -61,6 +61,14 @@ typedef struct ohci_soft_td {
 #define OHCI_STD_SIZE ((sizeof (struct ohci_soft_td) + OHCI_TD_ALIGN - 1) / OHCI_TD_ALIGN * OHCI_TD_ALIGN)
 #define OHCI_STD_CHUNK 128
 
+typedef struct ohci_soft_itd {
+	ohci_itd_t itd;
+	struct ohci_soft_itd *nextitd; /* mirrors nexttd in ITD */
+	ohci_physaddr_t physaddr;
+} ohci_soft_itd_t;
+#define OHCI_SITD_SIZE ((sizeof (struct ohci_soft_itd) + OHCI_ITD_ALIGN - 1) / OHCI_ITD_ALIGN * OHCI_ITD_ALIGN)
+#define OHCI_SITD_CHUNK 64
+
 #define OHCI_NO_EDS (2*OHCI_NO_INTRS-1)
 
 #define OHCI_HASH_SIZE 128
@@ -76,6 +84,7 @@ typedef struct ohci_softc {
 	u_int sc_bws[OHCI_NO_INTRS];
 
 	u_int32_t sc_eintrs;
+	ohci_soft_ed_t *sc_isoc_head;
 	ohci_soft_ed_t *sc_ctrl_head;
 	ohci_soft_ed_t *sc_bulk_head;
 
@@ -87,6 +96,9 @@ typedef struct ohci_softc {
 
 	ohci_soft_ed_t *sc_freeeds;
 	ohci_soft_td_t *sc_freetds;
+	ohci_soft_itd_t *sc_freeitds;
+
+	SIMPLEQ_HEAD(, usbd_xfer) sc_free_xfers; /* free xfers */
 
 	usbd_xfer_handle sc_intrxfer;
 
@@ -94,6 +106,8 @@ typedef struct ohci_softc {
 	int sc_id_vendor;
 
 	void *sc_powerhook;
+	void *sc_shutdownhook;		/* cookie from shutdown hook */
+
 	device_ptr_t sc_child;
 } ohci_softc_t;
 

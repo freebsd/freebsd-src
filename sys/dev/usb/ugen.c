@@ -333,7 +333,8 @@ ugenopen(dev, flag, mode, p)
 			err = usbd_open_pipe_intr(sce->iface, 
 				edesc->bEndpointAddress, 
 				USBD_SHORT_XFER_OK, &sce->pipeh, sce, 
-				sce->ibuf, isize, ugenintr);
+				sce->ibuf, isize, ugenintr,
+				USBD_DEFAULT_INTERVAL);
 			if (err) {
 				free(sce->ibuf, M_USBDEV);
 				clfree(&sce->q);

@@ -243,6 +243,7 @@ struct aue_softc {
 	usbd_pipe_handle	aue_ep[AUE_ENDPT_MAX];
 	int			aue_unit;
 	u_int8_t		aue_link;
+	u_int8_t		aue_gone;
 	int			aue_if_flags;
 	struct aue_cdata	aue_cdata;
 	struct callout_handle	aue_stat_ch;
@@ -253,3 +254,4 @@ struct aue_softc {
 #define AUE_BUFSZ		1536
 #define AUE_CUTOFF		1088
 #define AUE_MIN_FRAMELEN	60
+#define AUE_INTR_INTERVAL	100 /* ms */
