@@ -541,7 +541,7 @@ nodisks:
 		  "between interfaces)?"))
 	variable_set2("gateway_enable", "YES", 1);
 
-    if (!msgYesNo("Do you want to grant only normal users FTP access to this\n"
+    if (msgYesNo("Do you want to grant only normal users FTP access to this\n"
 	           "host (e.g. no anonymous FTP connections)?"))
 	configAnonFTP(self);
 
