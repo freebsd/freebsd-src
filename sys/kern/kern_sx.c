@@ -283,6 +283,7 @@ _sx_downgrade(struct sx *sx, const char *file, int line)
 	WITNESS_UNLOCK(&sx->sx_object, LOP_EXCLUSIVE, file, line);
 
 	sx->sx_cnt = 1;
+	sx->sx_xholder = NULL;
         if (sx->sx_shrd_wcnt > 0)
                 cv_broadcast(&sx->sx_shrd_cv);
 
