@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: utils.c,v 1.5 1995/10/03 12:55:01 bde Exp $
+ *	$Id: utils.c,v 1.7 1996/02/19 00:43:44 wosch Exp $
  */
 
 #ifndef lint
@@ -281,7 +281,7 @@ void
 usage()
 {
 	(void)fprintf(stderr, "%s\n%s\n",
-"usage: cp [-R [-H | -L | -P] [-fip] src target",
-"       cp [-R [-H | -L | -P] [-fip] src1 ... srcN directory");
+"usage: cp [-R [-H | -L | -P]] [-fip] src target",
+"       cp [-R [-H | -L | -P]] [-fip] src1 ... srcN directory");
 	exit(1);
 }

@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cp.c,v 1.6 1995/05/30 00:06:21 rgrimes Exp $
+ *	$Id: cp.c,v 1.8 1996/02/19 00:43:42 wosch Exp $
  */
 
 #ifndef lint
@@ -104,7 +104,7 @@ main(argc, argv)
 	int Hflag, Lflag, Pflag, ch, fts_options, r;
 	char *target;
 
-	Hflag = Lflag = Pflag = Rflag = 0;
+	Hflag = Lflag = Pflag = 0;
 	while ((ch = getopt(argc, argv, "HLPRfipr")) != EOF)
 		switch (ch) {
 		case 'H':
@@ -134,7 +134,6 @@ main(argc, argv)
 		case 'r':
 			rflag = 1;
 			break;
-		case '?':
 		default:
 			usage();
 			break;
