@@ -48,8 +48,8 @@
  * $FreeBSD$
  */
 
-#ifndef _SPARC_VARARGS_H_
-#define	_SPARC_VARARGS_H_
+#ifndef _MACHINE_VARARGS_H_
+#define	_MACHINE_VARARGS_H_
 
 #include <machine/stdarg.h>
 
@@ -66,4 +66,4 @@
 #define	va_start(ap) \
 	((ap) = (va_list)__builtin_saveregs())
 
-#endif /* !_SPARC_VARARGS_H_ */
+#endif /* !_MACHINE_VARARGS_H_ */
