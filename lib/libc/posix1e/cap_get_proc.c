@@ -45,7 +45,7 @@ cap_get_proc(void)
 	if (!cap)
 		return (NULL);
 
-	error = __cap_get_proc(&cap);
+	error = __cap_get_proc(cap);
 	if (error) {
 		cap_free(cap);
 		return (NULL);
