@@ -101,7 +101,6 @@ and certain types of parallel port hardware.
 As such this driver may eventually replace the
 .Xr amd 4
 driver for network hardware.
-.Pp
 .Sh ERRORS
 The following driver specific error messages
 may be reported:
@@ -129,16 +128,19 @@ core registers.
 .Xr scbus 4 ,
 .Xr camcontrol 8
 .Pp
+.Bl -item -compact
+.It
 .Pa http://www.qlc.com/
-.br
+.It
 .Pa http://www.sun.com/
+.El
 .Sh HISTORY
 The
 .Nm
 driver was written for
 .Nx
 by
-.An Eric S. Hvozda.
+.An Eric S. Hvozda .
 The
 .Nm
 driver was then ported to
