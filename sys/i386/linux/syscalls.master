@@ -1,4 +1,4 @@
-	$Id: syscalls.master,v 1.16.2.2 1999/08/17 13:14:35 marcel Exp $
+	$Id: syscalls.master,v 1.16.2.3 1999/08/17 21:02:36 marcel Exp $
 
 ;	@(#)syscalls.master	8.1 (Berkeley) 7/19/93
 ; System call name/number master file (or rather, slave, from LINUX).
@@ -249,8 +249,14 @@
 171	UNIMPL	LINUX	getresgid
 172	UNIMPL	LINUX	prctl
 173	UNIMPL	LINUX	rt_sigreturn
-174	UNIMPL	LINUX	rt_sigaction
-175	UNIMPL	LINUX	rt_sigprocmask
+174	STD	LINUX	{ int linux_rt_sigaction(int sig, \
+				struct linux_new_sigaction *act, \
+				struct linux_new_sigaction *oact, \
+				size_t sigsetsize); }
+175	STD	LINUX	{ int linux_rt_sigprocmask(int how, \
+				struct linux_new_sigset *mask, \
+				struct linux_new_sigset *omask, \
+				size_t sigsetsize); }
 176	UNIMPL	LINUX	rt_sigpending
 177	UNIMPL	LINUX	rt_sigtimedwait
 178	UNIMPL	LINUX	rt_sigqueueinfo
@@ -258,3 +264,11 @@
 180	UNIMPL	LINUX	pread
 181	UNIMPL	LINUX	pwrite
 182	STD	LINUX	{ int linux_chown(char *path, int uid, int gid); }
+183	STD	LINUX	{ int linux_getcwd(char *buf, unsigned long bufsize); }
+184	UNIMPL	LINUX	capget
+185	UNIMPL	LINUX	capset
+186	UNIMPL	LINUX	sigaltstack
+187	UNIMPL	LINUX	sendfile
+188	UNIMPL	LINUX	getpmsg
+189	UNIMPL	LINUX	putpmsg
+190	STD	LINUX	{ int linux_vfork(void); }
