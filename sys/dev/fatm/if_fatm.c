@@ -2877,7 +2877,7 @@ fatm_attach(device_t dev)
 	if (bus_dma_tag_create(NULL, 1, 0,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR,
 	    NULL, NULL, BUS_SPACE_MAXSIZE_32BIT, MAXDMASEGS,
-	    BUS_SPACE_MAXSIZE_32BIT, 0, busdma_lock_mutex, &Giant,
+	    BUS_SPACE_MAXSIZE_32BIT, 0, NULL, NULL,
 	    &sc->parent_dmat)) {
 		if_printf(ifp, "could not allocate parent DMA tag\n");
 		error = ENOMEM;
@@ -2891,20 +2891,21 @@ fatm_attach(device_t dev)
 	if (bus_dma_tag_create(sc->parent_dmat, 1, 0,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR,
 	    NULL, NULL, MCLBYTES, 1, MCLBYTES, 0, 
-	    busdma_lock_mutex, &Giant, &sc->rbuf_tag)) {
+	    NULL, NULL, &sc->rbuf_tag)) {
 		if_printf(ifp, "could not allocate rbuf DMA tag\n");
 		error = ENOMEM;
 		goto fail;
 	}
 
 	/*
-	 * Allocate the transmission DMA tag.
+	 * Allocate the transmission DMA tag. Must add 1, because
+	 * rounded up PDU will be 65536 bytes long.
 	 */
 	if (bus_dma_tag_create(sc->parent_dmat, 1, 0,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR,
 	    NULL, NULL,
-	    FATM_MAXPDU, TPD_EXTENSIONS + TXD_FIXED, MCLBYTES, 0,
-	    busdma_lock_mutex, &Giant, &sc->tx_tag)) {
+	    FATM_MAXPDU + 1, TPD_EXTENSIONS + TXD_FIXED, MCLBYTES, 0,
+	    NULL, NULL, &sc->tx_tag)) {
 		if_printf(ifp, "could not allocate tx DMA tag\n");
 		error = ENOMEM;
 		goto fail;
