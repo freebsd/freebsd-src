@@ -3770,7 +3770,7 @@ ncr_attach (device_t dev)
 		device_printf(dev,
 			      "interruptless mode: reduced performance.\n");
 	} else {
-		bus_setup_intr(dev, np->irq_res, INTR_TYPE_CAM,
+		bus_setup_intr(dev, np->irq_res, INTR_TYPE_CAM | INTR_ENTROPY,
 			       ncr_intr, np, &np->irq_handle);
 	}
 

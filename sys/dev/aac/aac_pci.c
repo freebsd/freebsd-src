@@ -181,7 +181,7 @@ aac_pci_attach(device_t dev)
 	device_printf(sc->aac_dev, "can't allocate interrupt\n");
 	goto out;
     }
-    if (bus_setup_intr(sc->aac_dev, sc->aac_irq, INTR_TYPE_BIO,  aac_intr, sc, &sc->aac_intr)) {
+    if (bus_setup_intr(sc->aac_dev, sc->aac_irq, INTR_TYPE_BIO|INTR_ENTROPY,  aac_intr, sc, &sc->aac_intr)) {
 	device_printf(sc->aac_dev, "can't set up interrupt\n");
 	goto out;
     }

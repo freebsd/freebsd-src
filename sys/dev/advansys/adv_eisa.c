@@ -309,7 +309,7 @@ adv_eisa_attach(device_t dev)
 	/*
 	 * Enable our interrupt handler.
 	 */
-	bus_setup_intr(dev, irq, INTR_TYPE_CAM, adv_intr, adv, &ih);
+	bus_setup_intr(dev, irq, INTR_TYPE_CAM|INTR_ENTROPY, adv_intr, adv, &ih);
 
 	/* Attach sub-devices - always succeeds */
 	adv_attach(adv);

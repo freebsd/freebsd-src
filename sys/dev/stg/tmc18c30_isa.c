@@ -192,7 +192,7 @@ stg_isa_attach(device_t dev)
 		return(error);
 	}
 
-	error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_CAM,
+	error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_CAM | INTR_ENTROPY,
 			       stg_isa_intr, (void *)sc, &sc->stg_intrhand);
 	if (error) {
 		stg_release_resource(dev);
