@@ -244,7 +244,6 @@ Add_Chunk(struct disk *d, long offset, u_long size, const char *name,
 		case mbr:
 		case extended:
 		case freebsd:
-			subtype = 0xa5;
 			c1 = Find_Mother_Chunk(d->chunks, offset, end, whole);
 			break;
 		case part:
