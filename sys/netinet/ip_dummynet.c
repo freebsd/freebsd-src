@@ -940,7 +940,7 @@ red_drops(struct dn_flow_set *fs, struct dn_flow_queue *q, int len)
     /* queue in bytes or packets ? */
     u_int q_size = (fs->flags_fs & DN_QSIZE_IS_BYTES) ? q->len_bytes : q->len;
 
-    DEB(printf("\ndymmynet: %d q: %2u ", (int) curr_time, q_size);)
+    DEB(printf("\ndummynet: %d q: %2u ", (int) curr_time, q_size);)
 
     /* average queue size estimation */
     if (q_size != 0) {
