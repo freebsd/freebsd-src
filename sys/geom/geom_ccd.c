@@ -1,4 +1,4 @@
-/* $Id: ccd.c,v 1.16 1996/07/24 23:45:24 asami Exp $ */
+/* $Id: ccd.c,v 1.17 1996/09/06 23:06:40 phk Exp $ */
 
 /*	$NetBSD: ccd.c,v 1.22 1995/12/08 19:13:26 thorpej Exp $	*/
 
@@ -909,6 +909,8 @@ ccdbuffer(cb, cs, bp, bn, addr, bcount)
 		cbp->cb_buf.b_bcount = dbtob(cs->sc_ileave - cboff);
 	if (cbp->cb_buf.b_bcount > bcount)
 		cbp->cb_buf.b_bcount = bcount;
+
+ 	cbp->cb_buf.b_bufsize = cbp->cb_buf.b_bcount;
 
 	/*
 	 * context for ccdiodone
