@@ -1115,6 +1115,7 @@ Dir_MakeFlags(char *flag, Lst *path)
 {
 	char *str;	/* the string which will be returned */
 	char *tstr;	/* the current directory preceded by 'flag' */
+	char *nstr;
 	LstNode *ln;	/* the node of the current directory */
 	Path *p;	/* the structure describing the current directory */
 
@@ -1124,7 +1125,10 @@ Dir_MakeFlags(char *flag, Lst *path)
 		while ((ln = Lst_Next(path)) != NULL) {
 			p = Lst_Datum(ln);
 			tstr = str_concat(flag, p->name, 0);
-			str = str_concat(str, tstr, STR_ADDSPACE | STR_DOFREE);
+			nstr = str_concat(str, tstr, STR_ADDSPACE);
+			free(str);
+			free(tstr);
+			str = nstr;
 		}
 		Lst_Close(path);
 	}
