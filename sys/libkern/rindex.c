@@ -33,23 +33,35 @@
  * $FreeBSD$
  */
 
-#include <stddef.h>
-#include <string.h>
+#include <sys/param.h>
+#include <sys/libkern.h>
 
 char *
-#ifdef STRRCHR
-strrchr(p, ch)
-#else
 rindex(p, ch)
-#endif
-	register const char *p;
-	register int ch;
+	char *p;
+	int ch;
 {
-	register char *save;
+	char *save;
 
 	for (save = NULL;; ++p) {
 		if (*p == ch)
-			save = (char *)p;
+			save = p;
+		if (!*p)
+			return(save);
+	}
+	/* NOTREACHED */
+}
+
+const char *
+c_rindex(p, ch)
+	const char *p;
+	int ch;
+{
+	const char *save;
+
+	for (save = NULL;; ++p) {
+		if (*p == ch)
+			save = p;
 		if (!*p)
 			return(save);
 	}

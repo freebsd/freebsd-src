@@ -33,21 +33,33 @@
  * $FreeBSD$
  */
 
-#include <string.h>
+#include <sys/param.h>
+#include <sys/libkern.h>
 
 char *
-#ifdef STRCHR
-strchr(p, ch)
-#else
 index(p, ch)
-#endif
-	register const char *p, ch;
+	char *p;
+	int ch;
 {
 	for (;; ++p) {
 		if (*p == ch)
-			return((char *)p);
+			return(p);
 		if (!*p)
-			return((char *)NULL);
+			return(NULL);
+	}
+	/* NOTREACHED */
+}
+
+const char *
+c_index(p, ch)
+	const char *p;
+	int ch;
+{
+	for (;; ++p) {
+		if (*p == ch)
+			return(p);
+		if (!*p)
+			return(NULL);
 	}
 	/* NOTREACHED */
 }
