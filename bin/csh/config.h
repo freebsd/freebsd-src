@@ -135,7 +135,7 @@
 /*
  * _PATH_TCSHELL      if you've change the installation location (vix)
  */
-# ifdef _BSDI_VERSION >= 199701
+# if _BSDI_VERSION >= 199701
 #  define _PATH_TCSHELL "/bin/tcsh"
 /* #  undef SYSMALLOC */
 #  define SYSMALLOC
