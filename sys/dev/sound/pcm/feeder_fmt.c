@@ -291,7 +291,7 @@ feed_monotostereo16(struct pcm_feeder *f, struct pcm_channel *c, u_int8_t *b, u_
 
 	j = k - 1;
 	i = j * 2 + 1;
-	while (i > 3 && j >= 1) {
+	while (i >= 3 && j >= 1) {
 		x = b[j--];
 		y = b[j--];
 		b[i--] = x;
