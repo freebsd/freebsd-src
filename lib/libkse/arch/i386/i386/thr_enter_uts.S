@@ -28,74 +28,18 @@
 #include <machine/asm.h>
 __FBSDID("$FreeBSD$");
 
-/*
- * Where do we define these?
- */
-#define	MC_SIZE			640	/* sizeof mcontext_t */
-#define	UC_MC_OFFSET		16	/* offset to mcontext from ucontext */
-#define	MC_LEN_OFFSET		80	/* offset to mc_len from mcontext */
-#define	MC_FP_CW_OFFSET		96	/* offset to FP control word */
-#define	MC_FPFMT_OFFSET		84	/* offset to mc_fpformat from mcontext */
-#define MC_FPFMT_NODEV		0x10000
-#define	MC_OWNEDFP_OFFSET	88	/* offset to mc_ownedfp from mcontext */
-#define	MC_OWNEDFP_NONE 	0x20000
-#define	KM_STACK_SP_OFFSET	36	/* offset to km_stack.ss_sp */
-#define	KM_STACK_SIZE_OFFSET	40	/* offset to km_stack.ss_sp */
-#define	KM_FUNC_OFFSET		32	/* offset to km_func */
 
 /*
- * int _thread_enter_uts(kse_thr_mailbox *tm, kse_mailbox *km);
- *
- * Returns 0 on success, -1 otherwise.
+ * _i386_enter_uts(struct kse_mailbox *km, kse_func_t uts, void *stack,
+ *     long stacksz);
+ * +4 = km, +8 = uts, +12 = stack, +16 = size
  */
-ENTRY(_thread_enter_uts)
-	movl	4(%esp), %eax		/* get address of context */
-	cmpl	$0, %eax		/* check for null pointer */
-	jne	1f
-	movl	$-1, %eax
-	jmp	2f
-1:	pushl	%edx			/* save value of edx */
-	movl	%eax, %edx		/* get address of context */
-	addl	$UC_MC_OFFSET, %edx	/* add offset to mcontext */
-	/*movl	%gs, 4(%edx)*/		/* we don't touch %gs */
-	movl	%fs, 8(%edx)
-	movl	%es, 12(%edx)
-	movl	%ds, 16(%edx)
-	movl	%edi, 20(%edx)
-	movl	%esi, 24(%edx)
-	movl	%ebp, 28(%edx)
-	movl	%ebx, 36(%edx)
-	movl	$0, 48(%edx)		/* store successful return in eax */
-	popl	%eax			/* get saved value of edx */
-	movl	%eax, 40(%edx)		/* save edx */
-	movl	%ecx, 44(%edx)
-	movl	(%esp), %eax		/* get return address */
-	movl	%eax, 60(%edx)		/* save return address */
-	movl	%ss, 76(%edx)
-	/*
-	 * Don't save floating point registers here.
-	 *
-	 * This is an explicit call to get the current context, so
-	 * the caller is done with the floating point registers.
-	 * Contexts formed by involuntary switches, such as signal delivery,
-	 * have floating point registers saved by the kernel.
-	 */
-	fnstcw	MC_FP_CW_OFFSET(%edx)
-	movl	$MC_OWNEDFP_NONE, MC_OWNEDFP_OFFSET(%edx) /* no FP */
-	movl	$MC_FPFMT_NODEV, MC_FPFMT_OFFSET(%edx) /* no FP */
-	pushfl				/* get eflags */
-	popl	%eax
-	movl	%eax, 68(%edx)		/* store eflags */
-	movl	%esp, %eax		/* setcontext pushes the return  */
-	addl	$4, %eax		/*   address onto the top of the */
-	movl	%eax, 72(%edx)		/*   stack; account for this     */
-	movl	$MC_SIZE, MC_LEN_OFFSET(%edx) /* context is now valid */
-	movl	8(%esp), %edx		/* get address of mailbox */
-	movl	KM_STACK_SP_OFFSET(%edx), %eax	/* get bottom of stack */
-	addl	KM_STACK_SIZE_OFFSET(%edx), %eax /* add length */
-	movl	%eax, %esp		/* switch to the uts's stack */
-	pushl	%edx			/* push the address of the mailbox */
-	pushl	KM_FUNC_OFFSET(%edx)	/* .. the uts can return to itself */
-	pushl	KM_FUNC_OFFSET(%edx)	/* push the address of the uts func */
-2:	ret
-
+ENTRY(_i386_enter_uts)
+	movl	%esp, %edx		/* save stack */
+	movl	12(%edx), %eax		/* get bottom of stack */
+	addl	16(%edx), %eax		/* add length */
+	movl	%eax, %esp		/* switch to uts stack */
+	pushl	4(%edx)			/* push the address of the mailbox */
+	pushl	8(%edx)			/* .. the uts can return to itself */
+	pushl	8(%edx)			/* .. the uts can return to itself */
+	ret
