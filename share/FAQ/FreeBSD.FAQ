@@ -6,7 +6,7 @@
 Please mail all suggestions and additions to <FAQ@FreeBSD.ORG>
 
 
-Revision: $Id: FreeBSD.FAQ,v 1.17 1995/02/25 23:42:14 roberto Exp $
+Revision: $Id: FreeBSD.FAQ,v 1.18 1995/02/26 21:27:29 gclarkii Exp $
 
 All entries are assumed to be relevant to FreeBSD 2.0. 
 Any entries with a <XXX> are under construction.
@@ -603,9 +603,9 @@ be corrupted.
 5.6:  I would like to track changes to current and do not have net access.  
       Is there any way besides downloading the whole tree?
 
-Yes, Poul-Henning has set up a source tracking list.  Please email 
-majordomo@ref.tfs.com with a body of "get ctm-src-cur README" for
-futher information.
+Yes, you can use the CTM facility.  Check out the ctm.FAQ file or
+	ftp://freefall.cdrom.com/pub/CTM/README
+for more information.
 
 5.7:  How do I split up large binary files into smaller 240k files
       like the distribution does?
