@@ -76,7 +76,7 @@ NgSendMsg(int cs, const char *path,
 	msg.header.token = gMsgId;
 	msg.header.flags = NGF_ORIG;
 	msg.header.cmd = cmd;
-	snprintf(msg.header.cmdstr, NG_CMDSTRLEN + 1, "cmd%d", cmd);
+	snprintf(msg.header.cmdstr, NG_CMDSTRSIZ, "cmd%d", cmd);
 
 	/* Deliver message */
 	if (NgDeliverMsg(cs, path, &msg, args, arglen) < 0)
@@ -175,7 +175,7 @@ static int
 NgDeliverMsg(int cs, const char *path,
 	const struct ng_mesg *hdr, const void *args, size_t arglen)
 {
-	u_char sgbuf[NG_PATHLEN + 3];
+	u_char sgbuf[NG_PATHSIZ + NGSA_OVERHEAD];
 	struct sockaddr_ng *const sg = (struct sockaddr_ng *) sgbuf;
 	u_char *buf = NULL;
 	struct ng_mesg *msg;
@@ -203,8 +203,9 @@ NgDeliverMsg(int cs, const char *path,
 
 	/* Prepare socket address */
 	sg->sg_family = AF_NETGRAPH;
-	snprintf(sg->sg_data, NG_PATHLEN + 1, "%s", path);
-	sg->sg_len = strlen(sg->sg_data) + 3;
+	/* XXX handle overflow */
+	strlcpy(sg->sg_data, path, NG_PATHSIZ);
+	sg->sg_len = strlen(sg->sg_data) + 1 + NGSA_OVERHEAD;
 
 	/* Debugging */
 	if (_gNgDebugLevel >= 2) {
@@ -240,7 +241,7 @@ done:
 int
 NgRecvMsg(int cs, struct ng_mesg *rep, size_t replen, char *path)
 {
-	u_char sgbuf[NG_PATHLEN + sizeof(struct sockaddr_ng)];
+	u_char sgbuf[NG_PATHSIZ + NGSA_OVERHEAD];
 	struct sockaddr_ng *const sg = (struct sockaddr_ng *) sgbuf;
 	int len, sglen = sizeof(sgbuf);
 	int errnosv;
@@ -254,7 +255,7 @@ NgRecvMsg(int cs, struct ng_mesg *rep, size_t replen, char *path)
 		goto errout;
 	}
 	if (path != NULL)
-		snprintf(path, NG_PATHLEN + 1, "%s", sg->sg_data);
+		strlcpy(path, sg->sg_data, NG_PATHSIZ);
 
 	/* Debugging */
 	if (_gNgDebugLevel >= 2) {

@@ -174,7 +174,7 @@ bytes.
 If
 .Fa "path"
 is non-NULL, it must point to a buffer of at least
-.Dv "NG_PATHLEN + 1"
+.Dv "NG_PATHSIZ"
 bytes, which will be filled in (and NUL terminated) with the path to
 the node from which the message was received.
 .Pp
@@ -216,7 +216,7 @@ and stores it in
 which must be large enough to hold the entire packet.  If
 .Fa "hook"
 is non-NULL, it must point to a buffer of at least
-.Dv "NG_HOOKLEN + 1"
+.Dv "NG_HOOKSIZ"
 bytes, which will be filled in (and NUL terminated) with the name of
 the hook on which the data was received.
 .Pp

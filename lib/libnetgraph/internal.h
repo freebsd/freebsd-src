@@ -46,6 +46,7 @@
 #include <sys/socket.h>
 #include <sys/select.h>
 #include <sys/linker.h>
+#include <stddef.h>
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -54,6 +55,10 @@
 #include <errno.h>
 #include <ctype.h>
 #include <err.h>
+
+/* the 'sockaddr overhead' for a netgraph address. This is everything before
+ * the string that constitutes the address. */
+#define	NGSA_OVERHEAD	(offsetof(struct sockaddr_ng, sg_data))
 
 extern int	_gNgDebugLevel;
 
