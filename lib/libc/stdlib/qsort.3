@@ -36,11 +36,11 @@
 .\"     @(#)qsort.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd June 4, 1993
+.Dd September 7, 2002
 .Dt QSORT 3
 .Os
 .Sh NAME
-.Nm qsort , heapsort , mergesort
+.Nm qsort , qsort_r , heapsort , mergesort
 .Nd sort functions
 .Sh LIBRARY
 .Lb libc
@@ -48,6 +48,14 @@
 .In stdlib.h
 .Ft void
 .Fn qsort "void *base" "size_t nmemb" "size_t size" "int (*compar)(const void *, const void *)"
+.Ft void
+.Fo qsort_r
+.Fa "void *base"
+.Fa "size_t nmemb"
+.Fa "size_t size"
+.Fa "void *thunk"
+.Fa "int (*compar)(void *, const void *, const void *)"
+.Fc
 .Ft int
 .Fn heapsort "void *base" "size_t nmemb" "size_t size" "int (*compar)(const void *, const void *)"
 .Ft int
@@ -94,24 +102,40 @@ The comparison function must return an integer less than, equal to, or
 greater than zero if the first argument is considered to be respectively
 less than, equal to, or greater than the second.
 .Pp
-The functions
-.Fn qsort
+The
+.Fn qsort_r
+function behaves identically to
+.Fn qsort ,
+except that it takes an additional argument,
+.Fa thunk ,
+which is passed unchanged as the first argument to function pointed to
+.Fa compar .
+This allows the comparison function to access additional
+data without using global variables, and thus 
+.Fn qsort_r
+is suitable for use in functions which must be reentrant.
+.Pp
+The algorithms implemented by
+.Fn qsort ,
+.Fn qsort_r ,
 and
 .Fn heapsort
 are
 .Em not
 stable, that is, if two members compare as equal, their order in
 the sorted array is undefined.
-The function
+The
 .Fn mergesort
-is stable.
+algorithm is stable.
 .Pp
 The
 .Fn qsort
-function is an implementation of C.A.R. Hoare's ``quicksort'' algorithm,
+and
+.Fn qsort_r
+functions are an implementation of C.A.R. Hoare's ``quicksort'' algorithm,
 a variant of partition-exchange sorting; in particular, see D.E. Knuth's
 Algorithm Q.
-.Fn Qsort
+.Sy Quicksort
 takes O N lg N average time.
 This implementation uses median selection to avoid its
 O N**2 worst-case behavior.
@@ -120,7 +144,7 @@ The
 .Fn heapsort
 function is an implementation of J.W.J. William's ``heapsort'' algorithm,
 a variant of selection sorting; in particular, see D.E. Knuth's Algorithm H.
-.Fn Heapsort
+.Sy Heapsort
 takes O N lg N worst-case time.
 Its
 .Em only
@@ -151,8 +175,10 @@ untrue.
 .Sh RETURN VALUES
 The
 .Fn qsort
-function
-returns no value.
+and
+.Fn qsort_r
+functions
+return no value.
 .Pp
 .Rv -std heapsort mergesort
 .Sh ERRORS
