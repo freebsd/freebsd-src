@@ -35,7 +35,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)skeleton.c	5.8 (Berkeley) 4/29/95";
+static char const sccsid[] = "@(#)skeleton.c	5.8 (Berkeley) 4/29/95";
 #endif /* not lint */
 
 #include "defs.h"
@@ -370,6 +370,7 @@ char *trailer[] =
 };
 
 
+void
 write_section(section)
 char *section[];
 {
@@ -379,10 +380,10 @@ char *section[];
     register FILE *f;
 
     f = code_file;
-    for (i = 0; s = section[i]; ++i)
+    for (i = 0; (s = section[i]); ++i)
     {
 	++outline;
-	while (c = *s)
+	while ((c = *s))
 	{
 	    putc(c, f);
 	    ++s;

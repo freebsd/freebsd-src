@@ -35,9 +35,11 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)symtab.c	5.3 (Berkeley) 6/1/90";
+static char const sccsid[] = "@(#)symtab.c	5.3 (Berkeley) 6/1/90";
 #endif /* not lint */
 
+#include <stdlib.h>
+#include <string.h>
 #include "defs.h"
 
 /* TABLE_SIZE is the number of entries in the symbol table. */
@@ -45,13 +47,14 @@ static char sccsid[] = "@(#)symtab.c	5.3 (Berkeley) 6/1/90";
 
 #define	TABLE_SIZE 1024
 
+static int hash __P((char *));
 
 bucket **symbol_table;
 bucket *first_symbol;
 bucket *last_symbol;
 
 
-int
+static int
 hash(name)
 char *name;
 {
@@ -61,7 +64,7 @@ char *name;
     assert(name && *name);
     s = name;
     k = *s;
-    while (c = *++s)
+    while ((c = *++s))
 	k = (31*k + c) & (TABLE_SIZE - 1);
 
     return (k);
@@ -119,6 +122,7 @@ char *name;
 }
 
 
+void
 create_symbol_table()
 {
     register int i;
@@ -139,6 +143,7 @@ create_symbol_table()
 }
 
 
+void
 free_symbol_table()
 {
     FREE(symbol_table);
@@ -146,6 +151,7 @@ free_symbol_table()
 }
 
 
+void
 free_symbols()
 {
     register bucket *p, *q;
