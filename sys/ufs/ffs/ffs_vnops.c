@@ -746,20 +746,9 @@ static int
 ffs_getpages(ap)
 	struct vop_getpages_args *ap;
 {
-	off_t foff, physoffset;
-	int i, size, bsize;
-	struct vnode *dp, *vp;
-	vm_object_t obj;
-	vm_pindex_t pindex;
+	int i;
 	vm_page_t mreq;
-	int bbackwards, bforwards;
-	int pbackwards, pforwards;
-	int firstpage;
-	ufs2_daddr_t reqblkno, reqlblkno;
-	int poff;
 	int pcount;
-	int rtval;
-	int pagesperblock;
 
 	GIANT_REQUIRED;
 
@@ -787,108 +776,12 @@ ffs_getpages(ap)
 		return VM_PAGER_OK;
 	}
 	VM_OBJECT_UNLOCK(mreq->object);
-	vp = ap->a_vp;
-	obj = vp->v_object;
-	bsize = vp->v_mount->mnt_stat.f_iosize;
-	pindex = mreq->pindex;
-	foff = IDX_TO_OFF(pindex) /* + ap->a_offset should be zero */;
 
-	if (bsize < PAGE_SIZE)
-		return vnode_pager_generic_getpages(ap->a_vp, ap->a_m,
-						    ap->a_count,
-						    ap->a_reqpage);
-
-	/*
-	 * foff is the file offset of the required page
-	 * reqlblkno is the logical block that contains the page
-	 * poff is the index of the page into the logical block
-	 */
-	reqlblkno = foff / bsize;
-	poff = (foff % bsize) / PAGE_SIZE;
-
-	dp = VTOI(vp)->i_devvp;
-	if (ufs_bmaparray(vp, reqlblkno, &reqblkno, 0, &bforwards, &bbackwards)
-	    || (reqblkno == -1)) {
-		VM_OBJECT_LOCK(obj);
-		vm_page_lock_queues();
-		for(i = 0; i < pcount; i++) {
-			if (i != ap->a_reqpage)
-				vm_page_free(ap->a_m[i]);
-		}
-		vm_page_unlock_queues();
-		if (reqblkno == -1) {
-			if ((mreq->flags & PG_ZERO) == 0)
-				pmap_zero_page(mreq);
-			vm_page_undirty(mreq);
-			mreq->valid = VM_PAGE_BITS_ALL;
-			VM_OBJECT_UNLOCK(obj);
-			return VM_PAGER_OK;
-		} else {
-			VM_OBJECT_UNLOCK(obj);
-			return VM_PAGER_ERROR;
-		}
-	}
-
-	physoffset = (off_t)reqblkno * DEV_BSIZE + poff * PAGE_SIZE;
-	pagesperblock = bsize / PAGE_SIZE;
-	/*
-	 * find the first page that is contiguous...
-	 * note that pbackwards is the number of pages that are contiguous
-	 * backwards.
-	 */
-	firstpage = 0;
-	if (ap->a_count) {
-		pbackwards = poff + bbackwards * pagesperblock;
-		if (ap->a_reqpage > pbackwards) {
-			firstpage = ap->a_reqpage - pbackwards;
-			VM_OBJECT_LOCK(obj);
-			vm_page_lock_queues();
-			for(i=0;i<firstpage;i++)
-				vm_page_free(ap->a_m[i]);
-			vm_page_unlock_queues();
-			VM_OBJECT_UNLOCK(obj);
-		}
-
-	/*
-	 * pforwards is the number of pages that are contiguous
-	 * after the current page.
-	 */
-		pforwards = (pagesperblock - (poff + 1)) +
-			bforwards * pagesperblock;
-		if (pforwards < (pcount - (ap->a_reqpage + 1))) {
-			VM_OBJECT_LOCK(obj);
-			vm_page_lock_queues();
-			for( i = ap->a_reqpage + pforwards + 1; i < pcount; i++)
-				vm_page_free(ap->a_m[i]);
-			vm_page_unlock_queues();
-			VM_OBJECT_UNLOCK(obj);
-			pcount = ap->a_reqpage + pforwards + 1;
-		}
-
-	/*
-	 * number of pages for I/O corrected for the non-contig pages at
-	 * the beginning of the array.
-	 */
-		pcount -= firstpage;
-	}
-
-	/*
-	 * calculate the size of the transfer
-	 */
-
-	size = pcount * PAGE_SIZE;
-
-	if ((IDX_TO_OFF(ap->a_m[firstpage]->pindex) + size) >
-		obj->un_pager.vnp.vnp_size)
-		size = obj->un_pager.vnp.vnp_size -
-			IDX_TO_OFF(ap->a_m[firstpage]->pindex);
-
-	physoffset -= foff;
-	rtval = VOP_GETPAGES(dp, &ap->a_m[firstpage], size,
-		(ap->a_reqpage - firstpage), physoffset);
-
-	return (rtval);
+	return vnode_pager_generic_getpages(ap->a_vp, ap->a_m,
+					    ap->a_count,
+					    ap->a_reqpage);
 }
+
 
 /*
  * Extended attribute area reading.
