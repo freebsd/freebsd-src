@@ -168,7 +168,7 @@ targbhinit(void)
 
 		xpt_setup_ccb(&csa.ccb_h, path, /*priority*/5);
 		csa.ccb_h.func_code = XPT_SASYNC_CB;
-		csa.event_enable = AC_PATH_REGISTERED;
+		csa.event_enable = AC_PATH_REGISTERED | AC_PATH_DEREGISTERED;
 		csa.callback = targbhasync;
 		csa.callback_arg = NULL;
 		xpt_action((union ccb *)&csa);
@@ -186,55 +186,56 @@ static void
 targbhasync(void *callback_arg, u_int32_t code,
 	    struct cam_path *path, void *arg)
 {
-	struct cam_periph *periph;
+	struct cam_path *new_path;
+	struct ccb_pathinq *cpi;
+	path_id_t bus_path_id;
+	cam_status status;
 
-	periph = (struct cam_periph *)callback_arg;
+	cpi = (struct ccb_pathinq *)arg;
+	if (code == AC_PATH_REGISTERED)
+		bus_path_id = cpi->ccb_h.path_id;
+	else
+		bus_path_id = xpt_path_path_id(path);
+	/*
+	 * Allocate a peripheral instance for
+	 * this target instance.
+	 */
+	status = xpt_create_path(&new_path, NULL,
+				 bus_path_id,
+				 CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD);
+	if (status != CAM_REQ_CMP) {
+		printf("targbhasync: Unable to create path "
+			"due to status 0x%x\n", status);
+		return;
+	}
+
 	switch (code) {
 	case AC_PATH_REGISTERED:
 	{
-		struct ccb_pathinq *cpi;
-		struct cam_path *new_path;
-		cam_status status;
- 
-		cpi = (struct ccb_pathinq *)arg;
-
 		/* Only attach to controllers that support target mode */
 		if ((cpi->target_sprt & PIT_PROCESSOR) == 0)
 			break;
 
-		/*
-		 * Allocate a peripheral instance for
-		 * this target instance.
-		 */
-		status = xpt_create_path(&new_path, NULL,
-					 xpt_path_path_id(path),
-					 CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD);
-		if (status != CAM_REQ_CMP) {
-			printf("targbhasync: Unable to create path "
-				"due to status 0x%x\n", status);
-			break;
-		}
 		status = cam_periph_alloc(targbhctor, NULL, targbhdtor,
 					  targbhstart,
 					  "targbh", CAM_PERIPH_BIO,
 					  new_path, targbhasync,
 					  AC_PATH_REGISTERED,
 					  cpi);
-		xpt_free_path(new_path);
-		if (status != CAM_REQ_CMP
-		 && status != CAM_REQ_INPROG)
-			printf("targbhasync: Unable to allocate new periph "
-			       "due to status 0x%x\n", status);
 		break;
 	}
 	case AC_PATH_DEREGISTERED:
 	{
-		targbhdislun(periph);
+		struct cam_periph *periph;
+
+		if ((periph = cam_periph_find(new_path, "targbh")) != NULL)
+			cam_periph_invalidate(periph);
 		break;
 	}
 	default:
 		break;
 	}
+	xpt_free_path(new_path);
 }
 
 /* Attempt to enable our lun */
@@ -442,13 +443,15 @@ targbhdtor(struct cam_periph *periph)
 	targbhdislun(periph);
 
 	switch (softc->init_level) {
-	default:
-		/* FALLTHROUGH */
-	case 1:
-		free(softc, M_DEVBUF);
-		break;
 	case 0:
 		panic("targdtor - impossible init level");;
+	case 1:
+		/* FALLTHROUGH */
+	default:
+		/* XXX Wait for callback of targbhdislun() */
+		tsleep(softc, PRIBIO, "targbh", hz/2);
+		free(softc, M_DEVBUF);
+		break;
 	}
 }
 
