@@ -123,6 +123,11 @@ acpi_AllocObjectList(int nobj) {
     return(l);
 }
 
+/*
+ * Note that the low ivar values are reserved to provide
+ * interface compatibility with ISA drivers which can also
+ * attach to ACPI.
+ */
 #define ACPI_IVAR_HANDLE	0x100
 #define ACPI_IVAR_MAGIC		0x101
 #define ACPI_IVAR_PRIVATE	0x102
@@ -168,7 +173,7 @@ static __inline int
 acpi_set_private(device_t dev, void *p) {
     return(BUS_WRITE_IVAR(device_get_parent(dev), dev, ACPI_IVAR_PRIVATE, (uintptr_t)p));
 }
-	    
+
 static __inline ACPI_OBJECT_TYPE
 acpi_get_type(device_t dev) {
     ACPI_HANDLE		h;
