@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: isa_dma.c,v 1.1 1999/04/16 21:22:24 peter Exp $
+ *	$Id: isa_dma.c,v 1.1 1999/04/18 14:42:17 kato Exp $
  */
 
 /*
@@ -64,7 +64,6 @@
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
 #include <i386/isa/isa_device.h>
-#include <i386/isa/intr_machdep.h>
 #ifdef PC98
 #include <pc98/pc98/pc98.h>
 #else
