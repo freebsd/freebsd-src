@@ -281,7 +281,7 @@ nfs_inactive(struct vop_inactive_args *ap)
 	struct thread *td = curthread;	/* XXX */
 
 	np = VTONFS(ap->a_vp);
-	if (prtactive && ap->a_vp->v_usecount != 0)
+	if (prtactive && vrefcnt(ap->a_vp) != 0)
 		vprint("nfs_inactive: pushing active", ap->a_vp);
 	if (ap->a_vp->v_type != VDIR) {
 		sp = np->n_sillyrename;
@@ -296,7 +296,7 @@ nfs_inactive(struct vop_inactive_args *ap)
 		 * are being forcibly unmounted in which case we already
 		 * have our own reference.
 		 */
-		if (ap->a_vp->v_usecount > 0)
+		if (vrefcnt(ap->a_vp) > 0)
 			(void) nfs_vinvalbuf(ap->a_vp, 0, sp->s_cred, td, 1);
 		else if (vget(ap->a_vp, 0, td))
 			panic("nfs_inactive: lost vnode");
@@ -327,7 +327,7 @@ nfs_reclaim(struct vop_reclaim_args *ap)
 	struct nfsnode *np = VTONFS(vp);
 	struct nfsdmap *dp, *dp2;
 
-	if (prtactive && vp->v_usecount != 0)
+	if (prtactive && vrefcnt(vp) != 0)
 		vprint("nfs_reclaim: pushing active", vp);
 
 	if (np->n_hash.le_prev != NULL)		/* XXX beware */
