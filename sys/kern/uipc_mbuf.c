@@ -34,7 +34,6 @@
  * $FreeBSD$
  */
 
-#include "opt_param.h"
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/condvar.h>
@@ -98,10 +97,6 @@ SYSCTL_INT(_kern_ipc, OID_AUTO, nmbufs, CTLFLAG_RD, &nmbufs, 0,
 	   "Maximum number of mbufs available"); 
 SYSCTL_INT(_kern_ipc, OID_AUTO, nmbcnt, CTLFLAG_RD, &nmbcnt, 0,
 	   "Maximum number of ext_buf counters available");
-
-#ifndef NMBCLUSTERS
-#define NMBCLUSTERS	(512 + MAXUSERS * 16)
-#endif
 
 TUNABLE_INT_DECL("kern.ipc.nmbclusters", NMBCLUSTERS, nmbclusters);
 TUNABLE_INT_DECL("kern.ipc.nmbufs", NMBCLUSTERS * 4, nmbufs);
