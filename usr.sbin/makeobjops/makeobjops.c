@@ -56,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/stat.h>
 
+#include <ctype.h>
 #include <err.h>
 #include <fcntl.h>
 #include <libgen.h>
@@ -82,7 +83,6 @@ static int parse_method(char *src,
 		FILE *src_fp, FILE *cfile_fp, FILE *hfile_fp,
 		char *input_buffer, int line_count);
 static void make_copy(char *fin, char *fout);
-static char* skip_spaces(char *s);
 static char* first_token(char *s);
 static char* next_token(char *s);
 static char* trim_name(char *name);
@@ -109,6 +109,7 @@ int line_width = 80;
 #define	MAXLINE 128
 
 /* Process the command line */
+int
 main(int argc,char *argv[])
 {
 	char *progname;
@@ -166,6 +167,7 @@ main(int argc,char *argv[])
 	}
 
 	process_files(argc, argv, progname);
+	return (0);
 }
 
 /*
@@ -257,7 +259,8 @@ mk_tmp(char *tmpdir, char *name, char *ext)
  * output	- none
  * side effects	- given files are processed
  */
-static void process_files(int argc, char *argv[], char *progname)
+static void
+process_files(int argc, char *argv[], char *progname)
 {
 	char *tmpdir;
 	char *ctmpname;
@@ -353,7 +356,6 @@ static void process_files(int argc, char *argv[], char *progname)
 		free(cname);
 		free(hname);
 		free(src);
-
 	}
 }
 
@@ -457,8 +459,6 @@ process_body(char *src, FILE *src_fp, FILE *cfile_fp, FILE *hfile_fp,
 {
 	char input_buffer[MAXLINE];
 	char *p;
-	char *s;
-	char *token;
 	char *src_noext;
 	int myheader;
 
@@ -533,10 +533,7 @@ parse_method(char *src,
 		FILE *src_fp, FILE *cfile_fp, FILE *hfile_fp,
 		char *input_buffer, int line_count)
 {
-	char *uppercase_src;
-	char *uppercase_mname;	/* method name */
 	char *token;		/* currently being parsed token */
-	char *method;		/* should always be 'METHOD' */
 	char *mtype;
 	char *dname;
 	char *tmp_type;
@@ -597,7 +594,8 @@ parse_method(char *src,
 				if ((p = strchr(dname, ';')) != NULL)
 					*p = '\0';
 
-			} else dname = "0";
+			} else
+				dname = "0";
 
 			if (cfile)
 				emit_c_body(trim_src, src_fp, cfile_fp, mname,
@@ -747,7 +745,6 @@ emit_c_body(char *src, FILE *src_fp, FILE *cfile_fp, char *mname, char *dname)
 static void
 emit_h_body(char *src, FILE *hfile_fp, char *mtype, char *mname, int max_list)
 {
-	char input_buffer[MAXLINE];
 	char *upper_case_src;
 	char *upper_case_mname;
 	int i;
@@ -872,22 +869,6 @@ strip_ext(char *s, char *ext)
 		*p = '\0';
 	}
 	return (t);		
-}
-
-/*
- * skip_spaces
- *
- * inputs	- pointer to string
- * output	- pointer to string without leading spaces
- * side effects	- NONE
- */
-static char*
-skip_spaces(char *s)
-{
-	while (isspace(*s))
-		s++;
-
-	return (s);
 }
 
 /*
