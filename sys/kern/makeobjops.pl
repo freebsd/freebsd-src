@@ -130,7 +130,6 @@ foreach $src (@filenames) {
 	print CFILE " */\n";
 	print CFILE "\n";
 	print CFILE "#include <sys/param.h>\n";
-	print CFILE "#include <sys/cdefs.h>\n";
 	print CFILE "#include <sys/queue.h>\n";
 	print CFILE "#include <sys/kernel.h>\n";
 	print CFILE "#include <sys/kobj.h>\n";
