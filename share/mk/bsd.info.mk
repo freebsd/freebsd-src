@@ -1,3 +1,5 @@
+# $Id$
+
 BINMODE=        444
 BINDIR?=	/usr/share/info
 MAKEINFO?=	makeinfo
@@ -14,6 +16,13 @@ MAKEINFOFLAGS?=	# --no-split would simplify some things, e.g., compression
 .PATH: ${.CURDIR}
 
 all: ${INFO:S/$/.info/g}
+
+DISTRIBUTION?=	infodist
+.if !target(distribute)
+distribute:     
+	cd ${.CURDIR} ; $(MAKE) install DESTDIR=${RELEASEDIR}/${DISTRIBUTION} SH
+ARED=copies     
+.endif
 
 .if defined(SRCS)
 ${INFO}.info: ${SRCS}
