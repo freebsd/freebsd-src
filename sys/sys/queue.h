@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)queue.h	8.5 (Berkeley) 8/20/94
- * $Id: queue.h,v 1.15 1997/04/27 08:31:17 phk Exp $
+ * $Id: queue.h,v 1.16 1997/05/07 14:38:11 dfr Exp $
  */
 
 #ifndef _SYS_QUEUE_H_
@@ -96,7 +96,7 @@
  * _NEXT		+	+	-	+	+
  * _PREV		-	-	-	+	+
  * _LAST		-	-	-	+	+
- * _FOREACH		-	+	-	+	-
+ * _FOREACH		+	+	-	+	-
  * _INSERT_HEAD		+	+	+	+	+
  * _INSERT_BEFORE	-	+	-	+	+
  * _INSERT_AFTER	+	+	+	+	+
@@ -125,6 +125,9 @@ struct {								\
 #define	SLIST_EMPTY(head)	((head)->slh_first == NULL)
 
 #define	SLIST_FIRST(head)	((head)->slh_first)
+
+#define SLIST_FOREACH(var, head, field)					\
+	for((var) = (head)->slh_first; (var); (var) = (var)->field.sle_next)
 
 #define SLIST_INIT(head) {						\
 	(head)->slh_first = NULL;					\
