@@ -41,8 +41,6 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/interrupt.h>
-#include <sys/conf.h>
 #include <sys/disk.h>
 #include <sys/module.h>
 #include <sys/bus.h>
