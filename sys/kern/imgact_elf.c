@@ -1178,18 +1178,21 @@ __elfN(puthdr)(struct proc *p, void *dst, size_t *off, int numsegs)
 	    sizeof *psinfo);
 
 	/*
-	 * We want to start with the registers of the first thread in the
+	 * We want to start with the registers of the initial thread in the
 	 * process so that the .reg and .reg2 pseudo-sections created by bfd
 	 * will be identical to the .reg/$PID and .reg2/$PID pseudo-sections.
 	 * This makes sure that any tool that only looks for .reg and .reg2
 	 * and not for .reg/$PID and .reg2/$PID will behave the same as
-	 * before. The first thread is the thread with an ID equal to the 
+	 * before. The first thread is the thread with an ID equal to the
 	 * process' ID.
+	 * Note that the initial thread may already be gone. In that case
+	 * 'first' is NULL.
 	 */
-	first = TAILQ_FIRST(&p->p_threads);
-	while (first->td_tid > PID_MAX)
+	thr = first = TAILQ_FIRST(&p->p_threads);
+	while (first != NULL && first->td_tid > PID_MAX)
 		first = TAILQ_NEXT(first, td_plist);
-	thr = first;
+	if (first != NULL)
+		thr = first;
 	do {
 		if (dst != NULL) {
 			status->pr_version = PRSTATUS_VERSION;
@@ -1209,7 +1212,7 @@ __elfN(puthdr)(struct proc *p, void *dst, size_t *off, int numsegs)
 		/* XXX allow for MD specific notes. */
 		thr = (thr == first) ? TAILQ_FIRST(&p->p_threads) :
 		    TAILQ_NEXT(thr, td_plist);
-		if (thr == first)
+		if (thr == first && thr != NULL)
 			thr = TAILQ_NEXT(thr, td_plist);
 	} while (thr != NULL);
 
