@@ -559,7 +559,7 @@ fill_kinfo_proc(p, kp)
 			strncpy(kp->ki_login, sp->s_login,
 			    sizeof(kp->ki_login) - 1);
 			if (sp->s_ttyvp)
-				kp->ki_kiflag = KI_CTTY;
+				kp->ki_kiflag |= KI_CTTY;
 			if (SESS_LEADER(p))
 				kp->ki_kiflag |= KI_SLEADER;
 		}
