@@ -1,5 +1,5 @@
 #	from: @(#)bsd.subdir.mk	5.9 (Berkeley) 2/1/91
-#	$Id: bsd.subdir.mk,v 1.15 1997/03/30 23:39:39 scrappy Exp $
+#	$Id: bsd.subdir.mk,v 1.16 1997/03/31 05:30:16 scrappy Exp $
 #
 # The include file <bsd.subdir.mk> contains the default targets
 # for building subdirectories. It has the same seven targets
@@ -57,12 +57,34 @@ ${SUBDIR}::
 	${MAKE} all
 
 
-.for __target in all checkdpadd clean cleandepend cleandir depend lint \
-		 maninstall obj objlink tags
+.for __target in all checkdpadd clean cleandir depend lint \
+		 maninstall obj objlink
 .if !target(__target)
 ${__target}: _SUBDIRUSE
 .endif
 .endfor
+
+.if !target(tags)
+.if defined(TAGS)
+tags:
+	@cd ${.CURDIR} && gtags ${GTAGSFLAGS}
+.if defined(HTML)
+	@cd ${.CURDIR} && htags ${HTAGSFLAGS}
+.endif
+.else
+tags:	_SUBDIRUSE
+.endif
+.endif
+
+.if !defined(cleandepend)
+cleandepend:	_SUBDIRUSE
+.if defined(TAGS)
+	@rm -f ${.CURDIR}/GTAGS ${.CURDIR}/GRTAGS
+.if defined(HTML)
+	@rm -rf ${.CURDIR}/HTML
+.endif
+.endif
+.endif
 
 .if !target(install)
 .if !target(beforeinstall)

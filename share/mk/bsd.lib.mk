@@ -1,5 +1,5 @@
 #	from: @(#)bsd.lib.mk	5.26 (Berkeley) 5/2/91
-#	$Id: bsd.lib.mk,v 1.51 1997/04/09 16:10:24 bde Exp $
+#	$Id: bsd.lib.mk,v 1.52 1997/04/09 20:31:15 jdp Exp $
 #
 
 .if exists(${.CURDIR}/../Makefile.inc)
@@ -256,10 +256,16 @@ distribute:	_SUBDIR
 lint:
 .endif
 
+.if defined(NOTAGS)
+tags:
+.endif
+
 .if !target(tags)
 tags: ${SRCS} _SUBDIR
-	-cd ${.CURDIR}; ctags -f /dev/stdout ${.ALLSRC:M*.c} | \
-	    sed "s;\${.CURDIR}/;;" > tags
+	@cd ${.CURDIR} && gtags ${GTAGSFLAGS}
+.if defined(HTML)
+	@cd ${.CURDIR} && htags ${HTAGSFLAGS}
+.endif
 .endif
 
 .if !defined(NOMAN)

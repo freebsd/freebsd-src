@@ -52,13 +52,4 @@ libkern.${MACHINE}:: ${KMSRCS}
 	cp -p ${.ALLSRC} /sys/libkern/${MACHINE}
 .endif
 
-#beforeinstall: tags
-#	${INSTALL} ${COPY} -o bin -g bin -m 444 tags /var/db/libc.tags
-
-tags: ${SRCS}
-	ctags ${.ALLSRC:M*.c}
-	egrep -o "^ENTRY(.*)|^FUNC(.*)|^SYSCALL(.*)" ${.ALLSRC:M*.s} | \
-	    sed "s;\([^:]*\):\([^(]*\)(\([^, )]*\)\(.*\);\3 \1 /^\2(\3\4$$/;" \
-	    >> tags; sort -o tags tags
-
 .include <bsd.lib.mk>
