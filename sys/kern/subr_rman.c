@@ -232,6 +232,10 @@ rman_reserve_resource_bound(struct rman *rm, u_long start, u_long end,
 		} while ((rstart & amask) != 0 && rstart < end &&
 		    rstart < s->r_end);
 		rend = ulmin(s->r_end, ulmax(rstart + count, end));
+		if (rstart > rend) {
+			DPRINTF(("adjusted start exceeds end\n"));
+			continue;
+		}
 		DPRINTF(("truncated region: [%#lx, %#lx]; size %#lx (requested %#lx)\n",
 		       rstart, rend, (rend - rstart + 1), count));
 
