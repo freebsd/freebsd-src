@@ -56,13 +56,13 @@ void
 _thread_critical_enter(pthread_t pthread)
 {
 	_thread_sigblock();
-	_SPINLOCK(&pthread->lock);
+	THR_LOCK(&pthread->lock);
 }
 
 void
 _thread_critical_exit(pthread_t pthread)
 {
-	_SPINUNLOCK(&pthread->lock);
+	THR_UNLOCK(&pthread->lock);
 	_thread_sigunblock();
 }
 
