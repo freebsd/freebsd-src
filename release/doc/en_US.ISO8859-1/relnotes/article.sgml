@@ -140,6 +140,10 @@
         panics on PAE machines of certain large memory sizes has been
         corrected.</para>
 
+      <para arch="i386">A bug that even when no AT keyboard is connected,
+        &man.atkbd.4; registers an AT keyboard during console initialization
+        has been fixed.  <command>kbdcontrol -k /dev/kbd1</command>
+        is no longer needed when only a USB keyboard is connected.</para>
     </sect3>
 
     <sect3 id="boot">
@@ -175,6 +179,14 @@
       <title>Network Protocols</title>
 
       <para>&man.ipfw.4; rules now support C++-style comment.</para>
+
+      <para>&man.ipfw.8; now allows to modify &man.ipfw.4; rules in set 31,
+        which was read-only and used for the default rules.
+        They can be deleted by <command>ipfw delete set 31</command>
+        command but are not deleted
+        by <command>ipfw flush</command> command.
+        So this implements a flexible form of <quote>persistent
+          rules</quote>.  More details can be found in &man.ipfw.8;.</para>
 
       <para>To reduce information leakage, IPv4 packets no longer have
 	a <varname>ip_id</varname> field set unless fragmentation is
