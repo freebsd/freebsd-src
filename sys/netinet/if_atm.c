@@ -162,8 +162,10 @@ failed:
 			rt->rt_flags &= ~RTF_LLINFO;
 		}
 #endif
-		rtrequest(RTM_DELETE, rt_key(rt), (struct sockaddr *)0,
-		    rt_mask(rt), 0, (struct rtentry **)0);
+		/* mark as invalid. We cannot RTM_DELETE the route from
+		 * here, because the recursive call to rtrequest1 does
+		 * not really work. */
+		rt->rt_flags |= RTF_REJECT;
 		break;
 
 	case RTM_DELETE:
