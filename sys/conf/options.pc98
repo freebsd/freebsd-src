@@ -63,6 +63,7 @@ NO_MEMORY_HOLE			opt_cpu.h
 CPU_ENABLE_SSE			opt_cpu.h
 CPU_ATHLON_SSE_HACK		opt_cpu.h
 CPU_DISABLE_SSE			opt_cpu.h
+CPU_DISABLE_CMPXCHG		opt_global.h
 
 # The CPU type affects the endian conversion functions all over the kernel.
 I386_CPU		opt_global.h
