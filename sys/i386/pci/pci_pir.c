@@ -266,9 +266,11 @@ pci_cfgregread(int bus, int slot, int func, int reg, int bytes)
 void
 pci_cfgregwrite(int bus, int slot, int func, int reg, u_int32_t data, int bytes)
 {
-    return (usebios ? 
-	pcibios_cfgwrite(bus, slot, func, reg, data, bytes) : 
-	pcireg_cfgwrite(bus, slot, func, reg, data, bytes));
+
+	if (usebios)
+		pcibios_cfgwrite(bus, slot, func, reg, data, bytes);
+	else
+		pcireg_cfgwrite(bus, slot, func, reg, data, bytes);
 }
 
 /*
