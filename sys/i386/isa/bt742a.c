@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *	$Id$
+ *	$Id: bt742a.c,v 1.5 1993/08/21 20:01:32 rgrimes Exp $
  */
 
 /*
@@ -1047,11 +1047,9 @@ int	unit;
 	* level						*
 	\***********************************************/
 #ifdef	__386BSD__
-	printf("bt%d reading board settings, ",unit);
-#define	PRNT(x) printf(x)
+	printf("bt%d: reading board settings, ",unit);
 #else	__386BSD__
 	printf("bt%d:",unit);
-#define	PRNT(x) printf(x)
 #endif	__386BSD__
 
 	bt_cmd(unit,0, sizeof(conf), 0 ,&conf, BT_CONF_GET);
@@ -1059,66 +1057,66 @@ int	unit;
 	{
 	case	EISADMA:
 		bt_dma[unit] = -1;
-		PRNT("eisa dma,");
 		break;
 	case	CHAN0:
 		outb(0x0b, 0x0c);
 		outb(0x0a, 0x00);
 		bt_dma[unit] = 0;
-		PRNT("dma=0,");
 		break;
 	case	CHAN5:
 		outb(0xd6, 0xc1);
 		outb(0xd4, 0x01);
 		bt_dma[unit] = 5;
-		PRNT("dma=5,");
 		break;
 	case	CHAN6:
 		outb(0xd6, 0xc2);
 		outb(0xd4, 0x02);
 		bt_dma[unit] = 6;
-		PRNT("dma=6,");
 		break;
 	case	CHAN7:
 		outb(0xd6, 0xc3);
 		outb(0xd4, 0x03);
 		bt_dma[unit] = 7;
-		PRNT("dma=7,");
 		break;
 	default:
 		printf("illegal dma setting %x\n",conf.chan);
 		return(EIO);
 	}
+	if (bt_dma[unit] == -1)
+		printf("eisa dma, ");
+	else
+		printf("dma=%d, ",bt_dma[unit]);
+
 	switch(conf.intr)
 	{
 	case	INT9:
 		bt_int[unit] = 9;
-		PRNT("int=9,");
 		break;
 	case	INT10:
 		bt_int[unit] = 10;
-		PRNT("int=10,");
 		break;
 	case	INT11:
 		bt_int[unit] = 11;
-		PRNT("int=11,");
 		break;
 	case	INT12:
 		bt_int[unit] = 12;
-		PRNT("int=12,");
 		break;
 	case	INT14:
 		bt_int[unit] = 14;
-		PRNT("int=14,");
 		break;
 	case	INT15:
 		bt_int[unit] = 15;
-		PRNT("int=15,");
 		break;
 	default:
 		printf("illegal int setting\n");
 		return(EIO);
 	}
+#ifdef	__386BSD__
+	printf("int=%d\n",bt_int[unit]);
+#else
+	printf("int=%d ",bt_int[unit]);
+#endif	__386BSD__
+
 	/* who are we on the scsi bus */
 	bt_scsi_dev[unit] = conf.scsi_dev;
 	/***********************************************\
@@ -1177,24 +1175,25 @@ int	unit;
 
 	/* Inquire Board ID to Bt742 for FirmWare Version */
 	bt_cmd(unit, 0, sizeof(bID), 0, &bID, BT_INQUIRE );
-	printf("ver%c.%c,", bID.firm_revision, bID.firm_version );
+	printf("bt%d: version %c.%c, ",
+		unit, bID.firm_revision, bID.firm_version );
 
 	/*  Ask setup information to Bt742 */
 	bt_cmd(unit, 1, sizeof(setup), 0, &setup, BT_SETUP_GET, sizeof(setup) );
 
 	if ( setup.sync_neg ) {
-		printf("sync,");
+		printf("sync, ");
 	} else {
-		printf("async,");
+		printf("async, ");
 	}
 
 	if ( setup.parity ) {
-		printf("parity,");
+		printf("parity, ");
 	} else {
-		printf("no parity,");
+		printf("no parity, ");
 	}
 
-	printf("%dmbxs,%dccbs", setup.num_mbx,
+	printf("%d mbxs, %d ccbs\n", setup.num_mbx,
 		sizeof(bt_ccb)/(sizeof(struct bt_ccb) * NBT) );
 
 	for ( i = 0; i < 8; i++ ) {
@@ -1203,7 +1202,8 @@ int	unit;
 		    !setup.sync[i].valid	)
 			continue;
 
-		printf("\ndev%02d Offset=%d,Transfer period=%d, Synchronous? %s",i,
+		printf("bt%d: dev%02d Offset=%d,Transfer period=%d, Synchronous? %s",
+			unit, i,
 			setup.sync[i].offset, setup.sync[i].period, 
 			setup.sync[i].valid  ? "Yes" : "No" );
 	}
@@ -1525,7 +1525,7 @@ struct scsi_xfer *xs;
 			}
 			if(!count && !done)
 			{
-				printf("abort failed in wait\n");
+				printf("bt%d: abort failed in wait\n", unit);
 				ccb->mbx->cmd = BT_MBO_FREE;
 			}
 			bt_free_ccb(unit,ccb,flags);

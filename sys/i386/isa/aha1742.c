@@ -14,7 +14,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *	$Id$
+ *	$Id: aha1742.c,v 1.7 1993/08/21 20:01:31 rgrimes Exp $
  */
 
 #include <sys/types.h>
@@ -868,10 +868,8 @@ int	unit;
 	\***********************************************/
 #ifdef	__386BSD__
 	printf("ahb%d: reading board settings, ",unit);
-#define	PRNT(x) printf(x)
 #else	__386BSD__
 	printf("ahb%d:",unit);
-#define	PRNT(x) printf(x)
 #endif	__386BSD__
 
 	intdef = inb(port + INTDEF);
@@ -879,35 +877,32 @@ int	unit;
 	{
 	case	INT9:
 		ahb_data[unit].vect = 9;
-		PRNT("int=9 ");
 		break;
 	case	INT10:
 		ahb_data[unit].vect = 10;
-		PRNT("int=10 ");
 		break;
 	case	INT11:
 		ahb_data[unit].vect = 11;
-		PRNT("int=11 ");
 		break;
 	case	INT12:
 		ahb_data[unit].vect = 12;
-		PRNT("int=12 ");
 		break;
 	case	INT14:
 		ahb_data[unit].vect = 14;
-		PRNT("int=14 ");
 		break;
 	case	INT15:
 		ahb_data[unit].vect = 15;
-		PRNT("int=15 ");
 		break;
 	default:
 		printf("illegal int setting\n");
 		return(EIO);
 	}
 #ifdef	__386BSD__
-	printf("\n");
+	printf("int=%d\n",ahb_data[unit].vect);
+#else	__386BSD__
+	printf("int=%d ",ahb_data[unit].vect);
 #endif	__386BSD__
+
 	outb(port + INTDEF ,(intdef | INTEN)); /* make sure we can interrupt */
 	/* who are we on the scsi bus */
 	ahb_data[unit].our_id = (inb(port + SCSIDEF) & HSCSIID);
