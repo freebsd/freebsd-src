@@ -1,5 +1,5 @@
 /* zutil.h -- internal interface and configuration of the compression library
- * Copyright (C) 1995-1996 Jean-loup Gailly.
+ * Copyright (C) 1995-1998 Jean-loup Gailly.
  * For conditions of distribution and use, see copyright notice in zlib.h
  */
 
@@ -8,22 +8,22 @@
    subject to change. Applications should only use zlib.h.
  */
 
-/* $Id: zutil.h,v 1.16 1996/07/24 13:41:13 me Exp $ */
+/* $FreeBSD$ */
 
 #ifndef _Z_UTIL_H
 #define _Z_UTIL_H
 
 #include "zlib.h"
 
-#if defined(MSDOS)||defined(VMS)||defined(CRAY)||defined(WIN32)||defined(RISCOS)
-#   include <stddef.h>
-#   include <errno.h>
-#else
-    extern int errno;
-#endif
 #ifdef STDC
+#  include <stddef.h>
 #  include <string.h>
 #  include <stdlib.h>
+#endif
+#ifdef NO_ERRNO_H
+    extern int errno;
+#else
+#   include <errno.h>
 #endif
 
 #ifndef local
@@ -76,7 +76,13 @@ extern const char *z_errmsg[10]; /* indexed by 2-zlib_error */
 #ifdef MSDOS
 #  define OS_CODE  0x00
 #  ifdef __TURBOC__
-#    include <alloc.h>
+#    if(__STDC__ == 1) && (defined(__LARGE__) || defined(__COMPACT__))
+       /* Allow compilation with ANSI keywords only enabled */
+       void _Cdecl farfree( void *block );
+       void *_Cdecl farmalloc( unsigned long nbytes );
+#    else
+#     include <alloc.h>
+#    endif
 #  else /* MSC or DJGPP */
 #    include <malloc.h>
 #  endif
@@ -92,7 +98,7 @@ extern const char *z_errmsg[10]; /* indexed by 2-zlib_error */
 
 #if defined(VAXC) || defined(VMS)
 #  define OS_CODE  0x02
-#  define FOPEN(name, mode) \
+#  define F_OPEN(name, mode) \
      fopen((name), (mode), "mbc=60", "ctx=stm", "rfm=fix", "mrs=512")
 #endif
 
@@ -104,8 +110,16 @@ extern const char *z_errmsg[10]; /* indexed by 2-zlib_error */
 #  define OS_CODE  0x05
 #endif
 
-#ifdef MACOS
+#if defined(MACOS) || defined(TARGET_OS_MAC)
 #  define OS_CODE  0x07
+#  ifndef fdopen
+#    define fdopen(fd,mode) NULL /* No fdopen() */
+#  endif
+#endif
+#if defined(__MWERKS__) && !defined(fdopen)
+#  if __dest_os != __be_os && __dest_os != __win32_os
+#    define fdopen(fd,mode) NULL
+#  endif
 #endif
 
 #ifdef __50SERIES /* Prime/PRIMOS */
@@ -120,14 +134,19 @@ extern const char *z_errmsg[10]; /* indexed by 2-zlib_error */
 #  define fdopen(fd,mode) NULL /* No fdopen() */
 #endif
 
+#if (defined(_MSC_VER) && (_MSC_VER >= 600))
+#  define fdopen(fd,type)  _fdopen(fd,type)
+#endif
+
+
         /* Common defaults */
 
 #ifndef OS_CODE
 #  define OS_CODE  0x03  /* assume Unix */
 #endif
 
-#ifndef FOPEN
-#  define FOPEN(name, mode) fopen((name), (mode))
+#ifndef F_OPEN
+#  define F_OPEN(name, mode) fopen((name), (mode))
 #endif
 
          /* functions */
@@ -142,9 +161,10 @@ extern const char *z_errmsg[10]; /* indexed by 2-zlib_error */
 #if defined(pyr)
 #  define NO_MEMCPY
 #endif
-#if (defined(M_I86SM) || defined(M_I86MM)) && !defined(_MSC_VER)
+#if defined(SMALL_MEDIUM) && !defined(_MSC_VER) && !defined(__SC__)
  /* Use our own functions for small and medium model with MSC <= 5.0.
   * You may have to use the same strategy for Borland C (untested).
+  * The __SC__ check is for Symantec.
   */
 #  define NO_MEMCPY
 #endif
@@ -170,16 +190,14 @@ extern const char *z_errmsg[10]; /* indexed by 2-zlib_error */
 /* Diagnostic functions */
 #ifdef DEBUG
 #  include <stdio.h>
-#  ifndef verbose
-#    define verbose 0
-#  endif
+   extern int z_verbose;
    extern void z_error    OF((char *m));
 #  define Assert(cond,msg) {if(!(cond)) z_error(msg);}
-#  define Trace(x) fprintf x
-#  define Tracev(x) {if (verbose) fprintf x ;}
-#  define Tracevv(x) {if (verbose>1) fprintf x ;}
-#  define Tracec(c,x) {if (verbose && (c)) fprintf x ;}
-#  define Tracecv(c,x) {if (verbose>1 && (c)) fprintf x ;}
+#  define Trace(x) {if (z_verbose>=0) fprintf x ;}
+#  define Tracev(x) {if (z_verbose>0) fprintf x ;}
+#  define Tracevv(x) {if (z_verbose>1) fprintf x ;}
+#  define Tracec(c,x) {if (z_verbose>0 && (c)) fprintf x ;}
+#  define Tracecv(c,x) {if (z_verbose>1 && (c)) fprintf x ;}
 #else
 #  define Assert(cond,msg)
 #  define Trace(x)
@@ -190,8 +208,8 @@ extern const char *z_errmsg[10]; /* indexed by 2-zlib_error */
 #endif
 
 
-typedef uLong (*check_func) OF((uLong check, const Bytef *buf, uInt len));
-
+typedef uLong (ZEXPORT *check_func) OF((uLong check, const Bytef *buf,
+				       uInt len));
 voidpf zcalloc OF((voidpf opaque, unsigned items, unsigned size));
 void   zcfree  OF((voidpf opaque, voidpf ptr));
 

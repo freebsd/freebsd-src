@@ -1,9 +1,9 @@
 /* zconf.h -- configuration of the zlib compression library
- * Copyright (C) 1995-1996 Jean-loup Gailly.
+ * Copyright (C) 1995-1998 Jean-loup Gailly.
  * For conditions of distribution and use, see copyright notice in zlib.h 
  */
 
-/* $Id: zconf.h,v 1.20 1996/07/02 15:09:28 me Exp $ */
+/* $FreeBSD$ */
 
 #ifndef _ZCONF_H
 #define _ZCONF_H
@@ -27,8 +27,10 @@
 #  define inflateInit2_	z_inflateInit2_
 #  define inflateSetDictionary z_inflateSetDictionary
 #  define inflateSync	z_inflateSync
+#  define inflateSyncPoint z_inflateSyncPoint
 #  define inflateReset	z_inflateReset
 #  define compress	z_compress
+#  define compress2	z_compress2
 #  define uncompress	z_uncompress
 #  define adler32	z_adler32
 #  define crc32		z_crc32
@@ -72,8 +74,10 @@
 #if (defined(MSDOS) || defined(_WINDOWS) || defined(WIN32))  && !defined(STDC)
 #  define STDC
 #endif
-#if (defined(__STDC__) || defined(__cplusplus)) && !defined(STDC)
-#  define STDC
+#if defined(__STDC__) || defined(__cplusplus) || defined(__OS2__)
+#  ifndef STDC
+#    define STDC
+#  endif
 #endif
 
 #ifndef STDC
@@ -87,6 +91,12 @@
 #  define NO_DUMMY_DECL
 #endif
 
+/* Borland C incorrectly complains about missing returns: */
+#if defined(__BORLANDC__)
+#  define NEED_DUMMY_RETURN
+#endif
+
+
 /* Maximum value for memLevel in deflateInit2 */
 #ifndef MAX_MEM_LEVEL
 #  ifdef MAXSEG_64K
@@ -96,13 +106,17 @@
 #  endif
 #endif
 
-/* Maximum value for windowBits in deflateInit2 and inflateInit2 */
+/* Maximum value for windowBits in deflateInit2 and inflateInit2.
+ * WARNING: reducing MAX_WBITS makes minigzip unable to extract .gz files
+ * created by gzip. (Files created by minigzip can still be extracted by
+ * gzip.)
+ */
 #ifndef MAX_WBITS
 #  define MAX_WBITS   15 /* 32K LZ77 window */
 #endif
 
 /* The memory requirements for deflate are (in bytes):
-            1 << (windowBits+2)   +  1 << (memLevel+9)
+            (1 << (windowBits+2)) +  (1 << (memLevel+9))
  that is: 128K for windowBits=15  +  128K for memLevel = 8  (default values)
  plus a few kilobytes for small objects. For example, if you want to reduce
  the default memory requirements from 256K to 128K, compile with
@@ -145,6 +159,29 @@
 #    define FAR __far
 #  endif
 #endif
+
+/* Compile with -DZLIB_DLL for Windows DLL support */
+#if (defined(_WINDOWS) || defined(WINDOWS)) && defined(ZLIB_DLL)
+#  ifdef FAR
+#    undef FAR
+#  endif
+#  include <windows.h>
+#  define ZEXPORT  WINAPI
+#  ifdef WIN32
+#    define ZEXPORTVA  WINAPIV
+#  else
+#    define ZEXPORTVA  FAR _cdecl _export
+#  endif
+#else
+#   if defined (__BORLANDC__) && defined (_Windows) && defined (__DLL__)
+#       define ZEXPORT _export
+#       define ZEXPORTVA _export
+#   else
+#       define ZEXPORT
+#       define ZEXPORTVA
+#   endif
+#endif
+
 #ifndef FAR
 #   define FAR
 #endif
@@ -172,13 +209,44 @@ typedef uLong FAR uLongf;
    typedef Byte     *voidp;
 #endif
 
+#ifdef HAVE_UNISTD_H
+#  include <sys/types.h> /* for off_t */
+#  include <unistd.h>    /* for SEEK_* and off_t */
+#  define z_off_t  off_t
+#endif
+#ifndef SEEK_SET
+#  define SEEK_SET        0       /* Seek from beginning of file.  */
+#  define SEEK_CUR        1       /* Seek from current position.  */
+#endif
+#ifndef z_off_t
+#  define  z_off_t long
+#endif
 
-/* Compile with -DZLIB_DLL for Windows DLL support */
-#if (defined(_WINDOWS) || defined(WINDOWS)) && defined(ZLIB_DLL)
-#  include <windows.h>
-#  define EXPORT  WINAPI
-#else
-#  define EXPORT
+/* MVS linker does not support external names larger than 8 bytes */
+#if defined(__MVS__)
+#   pragma map(deflateInit_,"DEIN")
+#   pragma map(deflateInit2_,"DEIN2")
+#   pragma map(deflateEnd,"DEEND")
+#   pragma map(inflateInit_,"ININ")
+#   pragma map(inflateInit2_,"ININ2")
+#   pragma map(inflateEnd,"INEND")
+#   pragma map(inflateSync,"INSY")
+#   pragma map(inflateSetDictionary,"INSEDI")
+#   pragma map(inflate_blocks,"INBL")
+#   pragma map(inflate_blocks_new,"INBLNE")
+#   pragma map(inflate_blocks_free,"INBLFR")
+#   pragma map(inflate_blocks_reset,"INBLRE")
+#   pragma map(inflate_codes_free,"INCOFR")
+#   pragma map(inflate_codes,"INCO")
+#   pragma map(inflate_fast,"INFA")
+#   pragma map(inflate_flush,"INFLU")
+#   pragma map(inflate_mask,"INMA")
+#   pragma map(inflate_set_dictionary,"INSEDI2")
+#   pragma map(inflate_copyright,"INCOPY")
+#   pragma map(inflate_trees_bits,"INTRBI")
+#   pragma map(inflate_trees_dynamic,"INTRDY")
+#   pragma map(inflate_trees_fixed,"INTRFI")
+#   pragma map(inflate_trees_free,"INTRFR")
 #endif
 
 #endif /* _ZCONF_H */
