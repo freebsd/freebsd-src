@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.77.2.29 1998/03/09 19:24:57 brian Exp $
+ * $Id: modem.c,v 1.77.2.30 1998/03/10 03:05:44 brian Exp $
  *
  *  TODO:
  */
@@ -942,7 +942,7 @@ modem_ShowStatus(struct cmdargs const *arg)
 #ifdef TIOCOUTQ
   if (arg->cx->physical->fd >= 0)
     if (ioctl(arg->cx->physical->fd, TIOCOUTQ, &nb) >= 0)
-      prompt_Printf(&prompt, "outq:         %d\n", nb);
+      prompt_Printf(&prompt, "outq:          %d\n", nb);
     else
       prompt_Printf(&prompt, "outq: ioctl probe failed: %s\n", strerror(errno));
 #endif
