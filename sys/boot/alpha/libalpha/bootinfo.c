@@ -160,6 +160,7 @@ bi_load(struct bootinfo_v1 *bi, vm_offset_t *ffp_save,
     struct preloaded_file	*xp;
     vm_offset_t			addr, bootinfo_addr;
     u_int			pad;
+    char			*kernelname;
     vm_offset_t			ssym, esym;
     struct file_metadata	*md;
 
@@ -223,6 +224,11 @@ bi_load(struct bootinfo_v1 *bi, vm_offset_t *ffp_save,
     *ffp_save = ALPHA_K0SEG_TO_PHYS((addr + PAGE_MASK) & ~PAGE_MASK)
 	>> PAGE_SHIFT;
     *ffp_save += 2;		/* XXX OSF/1 does this, no idea why. */
+
+    kernelname = getenv("kernelname");
+    if (kernelname) {
+	strncpy(bi->booted_kernel, kernelname, sizeof(bi->booted_kernel) - 1);
+    }
 
     return(0);
 }
