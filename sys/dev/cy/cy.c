@@ -27,7 +27,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: cy.c,v 1.34 1996/07/30 19:50:37 bde Exp $
+ *	$Id: cy.c,v 1.35 1996/09/06 23:07:17 phk Exp $
  */
 
 #include "cy.h"
@@ -401,6 +401,16 @@ static	u_int	cy_timeouts;
 static	int	cy_nr_cd1400s[NCY];
 #undef	RxFifoThreshold
 static	int	volatile RxFifoThreshold = (CD1400_RX_FIFO_SIZE / 2);
+static	int	cy_chip_offset[] = {
+	0x0000,
+	0x0400,
+	0x0800,
+	0x0c00,
+	0x0200,
+	0x0600,
+	0x0a00,
+	0x0e00
+};
 
 static int
 sioprobe(dev)
@@ -425,10 +435,10 @@ sioprobe(dev)
 	cy_outb(iobase, CY_CLEAR_INTR, 0);
 	DELAY(500);
 
-	for (cyu = 0; cyu < CY_MAX_CD1400s;
-	    ++cyu, iobase += CY_CD1400_MEMSIZE) {
+	for (cyu = 0; cyu < CY_MAX_CD1400s; ++cyu) {
 		int	i;
 
+		iobase = (cy_addr) (dev->id_maddr + cy_chip_offset[cyu]);
 		/* wait for chip to become ready for new command */
 		for (i = 0; i < 10; i++) {
 			DELAY(50);
@@ -486,10 +496,10 @@ sioattach(isdp)
 
 	cy_iobase = (cy_addr)isdp->id_maddr;
 	unit *= CY_MAX_PORTS;
-	for (cyu = 0, iobase = cy_iobase; cyu < ncyu;
-	     ++cyu, iobase += CY_CD1400_MEMSIZE) {
+	for (cyu = 0; cyu < ncyu; ++cyu) {
 		int	cdu;
 
+		iobase = (cy_addr) (isdp->id_maddr + cy_chip_offset[cyu]);
 		/* Set up a receive timeout period of than 1+ ms. */
 		cd_outb(iobase, CD1400_PPR,
 			howmany(CY_CLOCK / CD1400_PPR_PRESCALER, 1000));
@@ -498,67 +508,67 @@ sioattach(isdp)
 			struct com_s	*com;
 			int		s;
 
-	com = malloc(sizeof *com, M_DEVBUF, M_NOWAIT);
-	if (com == NULL)
-		break;
-	bzero(com, sizeof *com);
-	com->unit = unit;
-	com->dtr_wait = 3 * hz;
-	com->iptr = com->ibuf = com->ibuf1;
-	com->ibufend = com->ibuf1 + RS_IBUFSIZE;
-	com->ihighwater = com->ibuf1 + RS_IHIGHWATER;
-	com->obufs[0].l_head = com->obuf1;
-	com->obufs[1].l_head = com->obuf2;
+			com = malloc(sizeof *com, M_DEVBUF, M_NOWAIT);
+			if (com == NULL)
+				break;
+			bzero(com, sizeof *com);
+			com->unit = unit;
+			com->dtr_wait = 3 * hz;
+			com->iptr = com->ibuf = com->ibuf1;
+			com->ibufend = com->ibuf1 + RS_IBUFSIZE;
+			com->ihighwater = com->ibuf1 + RS_IHIGHWATER;
+			com->obufs[0].l_head = com->obuf1;
+			com->obufs[1].l_head = com->obuf2;
 
 			com->cy_iobase = cy_iobase;
-	com->iobase = iobase;
+			com->iobase = iobase;
 
-	/*
-	 * We don't use all the flags from <sys/ttydefaults.h> since they
-	 * are only relevant for logins.  It's important to have echo off
-	 * initially so that the line doesn't start blathering before the
-	 * echo flag can be turned off.
-	 */
-	com->it_in.c_iflag = 0;
-	com->it_in.c_oflag = 0;
-	com->it_in.c_cflag = TTYDEF_CFLAG;
-	com->it_in.c_lflag = 0;
-	if (unit == comconsole) {
-		com->it_in.c_iflag = TTYDEF_IFLAG;
-		com->it_in.c_oflag = TTYDEF_OFLAG;
-		com->it_in.c_cflag = TTYDEF_CFLAG | CLOCAL;
-		com->it_in.c_lflag = TTYDEF_LFLAG;
-		com->lt_out.c_cflag = com->lt_in.c_cflag = CLOCAL;
-	}
-	termioschars(&com->it_in);
-	com->it_in.c_ispeed = com->it_in.c_ospeed = comdefaultrate;
-	com->it_out = com->it_in;
+			/*
+			 * We don't use all the flags from <sys/ttydefaults.h> since they
+			 * are only relevant for logins.  It's important to have echo off
+			 * initially so that the line doesn't start blathering before the
+			 * echo flag can be turned off.
+			 */
+			com->it_in.c_iflag = 0;
+			com->it_in.c_oflag = 0;
+			com->it_in.c_cflag = TTYDEF_CFLAG;
+			com->it_in.c_lflag = 0;
+			if (unit == comconsole) {
+				com->it_in.c_iflag = TTYDEF_IFLAG;
+				com->it_in.c_oflag = TTYDEF_OFLAG;
+				com->it_in.c_cflag = TTYDEF_CFLAG | CLOCAL;
+				com->it_in.c_lflag = TTYDEF_LFLAG;
+				com->lt_out.c_cflag = com->lt_in.c_cflag = CLOCAL;
+			}
+			termioschars(&com->it_in);
+			com->it_in.c_ispeed = com->it_in.c_ospeed = comdefaultrate;
+			com->it_out = com->it_in;
 
-	s = spltty();
-	com_addr(unit) = com;
-	splx(s);
+			s = spltty();
+			com_addr(unit) = com;
+			splx(s);
 
-	dev = makedev(CDEV_MAJOR, 0);
-	cdevsw_add(&dev, &sio_cdevsw, NULL);
+			dev = makedev(CDEV_MAJOR, 0);
+			cdevsw_add(&dev, &sio_cdevsw, NULL);
 #ifdef DEVFS
-	com->devfs_token_ttyd = devfs_add_devswf(&sio_cdevsw,
-		unit, DV_CHR,
-		UID_ROOT, GID_WHEEL, 0600, "ttyc%n", unit);
-	com->devfs_token_ttyi = devfs_add_devswf(&sio_cdevsw,
-		unit | CONTROL_INIT_STATE, DV_CHR,
-		UID_ROOT, GID_WHEEL, 0600, "ttyic%n", unit);
-	com->devfs_token_ttyl = devfs_add_devswf(&sio_cdevsw,
-		unit | CONTROL_LOCK_STATE, DV_CHR,
-		UID_ROOT, GID_WHEEL, 0600, "ttylc%n", unit);
-	com->devfs_token_cuaa = devfs_add_devswf(&sio_cdevsw,
-		unit | CALLOUT_MASK, DV_CHR,
-		UID_UUCP, GID_DIALER, 0660, "cuac%n", unit);
-	com->devfs_token_cuai = devfs_add_devswf(&sio_cdevsw,
-		unit | CALLOUT_MASK | CONTROL_INIT_STATE, DV_CHR,
-		UID_UUCP, GID_DIALER, 0660, "cuaic%n", unit);
-	com->devfs_token_cual = devfs_add_devswf(&sio_cdevsw,
-		unit | CALLOUT_MASK | CONTROL_LOCK_STATE, DV_CHR,
-		UID_UUCP, GID_DIALER, 0660, "cualc%n", unit);
+			com->devfs_token_ttyd = devfs_add_devswf(&sio_cdevsw,
+				unit, DV_CHR,
+				UID_ROOT, GID_WHEEL, 0600, "ttyc%n", unit);
+			com->devfs_token_ttyi = devfs_add_devswf(&sio_cdevsw,
+				unit | CONTROL_INIT_STATE, DV_CHR,
+				UID_ROOT, GID_WHEEL, 0600, "ttyic%n", unit);
+			com->devfs_token_ttyl = devfs_add_devswf(&sio_cdevsw,
+				unit | CONTROL_LOCK_STATE, DV_CHR,
+				UID_ROOT, GID_WHEEL, 0600, "ttylc%n", unit);
+			com->devfs_token_cuaa = devfs_add_devswf(&sio_cdevsw,
+				unit | CALLOUT_MASK, DV_CHR,
+				UID_UUCP, GID_DIALER, 0660, "cuac%n", unit);
+			com->devfs_token_cuai = devfs_add_devswf(&sio_cdevsw,
+				unit | CALLOUT_MASK | CONTROL_INIT_STATE, DV_CHR,
+				UID_UUCP, GID_DIALER, 0660, "cuaic%n", unit);
+			com->devfs_token_cual = devfs_add_devswf(&sio_cdevsw,
+				unit | CALLOUT_MASK | CONTROL_LOCK_STATE, DV_CHR,
+				UID_UUCP, GID_DIALER, 0660, "cualc%n", unit);
 #endif
 		}
 	}
@@ -831,7 +841,7 @@ comhardclose(com)
 		enable_intr();
 #endif
 		tp = com->tp;
-		if (tp->t_cflag & HUPCL
+		if ((tp->t_cflag & HUPCL)
 		    /*
 		     * XXX we will miss any carrier drop between here and the
 		     * next open.  Perhaps we should watch DCD even when the
