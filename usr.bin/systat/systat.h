@@ -30,20 +30,22 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)systat.h	8.1 (Berkeley) 6/6/93
+ *	From: @(#)systat.h	8.1 (Berkeley) 6/6/93
+ *	$Id$
  */
 
 #include <curses.h>
 
 struct  cmdtab {
         char    *c_name;		/* command name */
-        void    (*c_refresh)();		/* display refresh */
-        void    (*c_fetch)();		/* sets up data structures */
-        void    (*c_label)();		/* label display */
-	int	(*c_init)();		/* initialize namelist, etc. */
-	WINDOW	*(*c_open)();		/* open display */
-	void	(*c_close)();		/* close display */
-	int	(*c_cmd)();		/* display command interpreter */
+        void    (*c_refresh)(void);	/* display refresh */
+        void    (*c_fetch)(void);	/* sets up data structures */
+        void    (*c_label)(void);	/* label display */
+	int	(*c_init)(void);	/* initialize namelist, etc. */
+	WINDOW	*(*c_open)(void);	/* open display */
+	void	(*c_close)(WINDOW *);	/* close display */
+	int	(*c_cmd)(char *, char *); /* display command interpreter */
+	void	(*c_reset)(void);	/* reset ``mode since'' display */
 	char	c_flags;		/* see below */
 };
 
