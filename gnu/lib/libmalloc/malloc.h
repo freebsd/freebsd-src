@@ -52,7 +52,7 @@ Cambridge, MA 02139, USA.
 
 #endif	/* _MALLOC_INTERNAL.  */
 
-
+#include <sys/cdefs.h>
 #ifdef	__cplusplus
 extern "C"
 {
