@@ -36,7 +36,7 @@
 .\"	@(#)stdarg.3	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd June 5, 1993
+.Dd September 18, 2002
 .Dt STDARG 3
 .Os
 .Sh NAME
@@ -48,6 +48,8 @@
 .Fn va_start "va_list ap" last
 .Ft type
 .Fn va_arg "va_list ap" type
+.Ft void
+.Fn va_copy "va_list dest" "va_list src"
 .Ft void
 .Fn va_end "va_list ap"
 .Sh DESCRIPTION
@@ -130,6 +132,27 @@ macro returns the argument after
 .Fa last .
 Successive invocations return the values of the remaining
 arguments.
+.Pp
+The
+.Fn va_copy
+macro copies a variable argument list, previously initialized by
+.Fn va_start ,
+from
+.Va src
+to
+.Va dest .
+The state is preserved such that it is equivalent to calling
+.Fn va_start
+with the same second argument used with
+.Va src ,
+and calling
+.Fn va_arg
+the same number of times as called with
+.Va src .
+.Pp
+The
+.Fn va_copy
+macro returns no value.
 .Pp
 The
 .Fn va_end
