@@ -10,7 +10,7 @@
  * the sendmail distribution.
  *
  *
- *	$Id: conf.h,v 8.496.4.20 2000/07/15 17:35:19 gshapiro Exp $
+ *	$Id: conf.h,v 8.496.4.25 2000/08/08 23:50:40 ca Exp $
  */
 
 /* $FreeBSD$ */
@@ -527,6 +527,8 @@ typedef int		pid_t;
 #  endif /* SOLARIS >= 20500 || (SOLARIS < 10000 && SOLARIS >= 205) */
 #  if SOLARIS >= 20600 || (SOLARIS < 10000 && SOLARIS >= 206)
 #   define HASSNPRINTF	1		/* has snprintf starting in 2.6 */
+#  else /* SOLARIS >= 20600 || (SOLARIS < 10000 && SOLARIS >= 206) */
+    typedef int int32_t;
 #  endif /* SOLARIS >= 20600 || (SOLARIS < 10000 && SOLARIS >= 206) */
 #  if SOLARIS >= 20700 || (SOLARIS < 10000 && SOLARIS >= 207)
 #   ifndef LA_TYPE
@@ -536,9 +538,9 @@ typedef int		pid_t;
 #   define HASGETUSERSHELL 1	/* getusershell(3c) bug fixed in 2.7 */
 #  endif /* SOLARIS >= 20700 || (SOLARIS < 10000 && SOLARIS >= 207) */
 #  if SOLARIS >= 20800 || (SOLARIS < 10000 && SOLARIS >= 208)
-#   undef NETINET6
-#   define NETINET6	1	/* IPv6 added in 2.8 */
 #   define HASSTRL	1	/* str*(3) added in 2.8 */
+#   undef _PATH_SENDMAILPID	/* tmpfs /var/run added in 2.8 */
+#   define _PATH_SENDMAILPID	"/var/run/sendmail.pid"
 #  endif /* SOLARIS >= 20800 || (SOLARIS < 10000 && SOLARIS >= 208) */
 #  ifndef HASGETUSERSHELL
 #   define HASGETUSERSHELL 0	/* getusershell(3) causes core dumps pre-2.7 */
@@ -2791,9 +2793,14 @@ typedef void		(*sigfunc_t) __P((int));
 # define LOG_DEBUG	7	/* debug-level messages */
 #endif /* !LOG */
 
-#if SFIO && defined(ERRLIST_PREDEFINED)
-# undef ERRLIST_PREDEFINED
-#endif /* SFIO && defined(ERRLIST_PREDEFINED) */
+#if SFIO
+# ifdef ERRLIST_PREDEFINED
+#  undef ERRLIST_PREDEFINED
+# endif /* ERRLIST_PREDEFINED */
+# if !HASSNPRINTF
+#  define HASSNPRINTF	1	/* sfio includes snprintf() */
+# endif /* !HASSNPRINTF */
+#endif /* SFIO */
 
 #ifndef SFIO_STDIO_COMPAT
 # define SFIO_STDIO_COMPAT	0
