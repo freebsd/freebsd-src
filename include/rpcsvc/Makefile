@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	2.3 88/08/11 4.0 RPCSRC
-#	$Id: Makefile,v 1.3 1995/03/18 07:04:23 rgrimes Exp $
+#	$Id: Makefile,v 1.4 1995/06/29 19:43:00 wollman Exp $
 
 .SUFFIXES: .x
 
@@ -23,13 +23,13 @@ install: all
 .for i in $(EVERYTHING)
 	@cd ${.CURDIR}; cmp -s $i $(RPCDIR)/$i || \
 		(install -c -m ${BINMODE} -o ${BINOWN} -g ${BINGRP} \
-			${.CURDIR}/$i ${RPCDIR}; \
+			$i ${RPCDIR}; \
 			$(ECHO) $i)
 .endfor
 .for i in $(HDRS)
 	@cmp -s $i $(RPCDIR)/$i || \
 		(install -c -m ${BINMODE} -o ${BINOWN} -g ${BINGRP} \
-			${.CURDIR}/$i ${RPCDIR}; \
+			$i ${RPCDIR}; \
 			$(ECHO) $i)
 .endfor
 
