@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ahc_eisa.c,v 1.4 1998/12/15 08:24:45 gibbs Exp $
+ *	$Id: ahc_eisa.c,v 1.4.2.1 1999/03/07 00:41:38 gibbs Exp $
  */
 
 #include "eisa.h"
@@ -61,14 +61,14 @@
 #define AHC_EISA_IOSIZE		0x100
 #define INTDEF			0x5cul	/* Interrupt Definition Register */
 
-static int	aic7770probe(void);
-static int	aic7770_attach(struct eisa_device *e_dev);
+static int	aic7770_probe(void);
+static int	aic7770_attach(struct eisa_device *e_dev); 
 static void	aha2840_load_seeprom(struct ahc_softc *ahc);
 
 static struct eisa_driver ahc_eisa_driver =
 {
 	"ahc",
-	aic7770probe,
+	aic7770_probe,
 	aic7770_attach,
 	/*shutdown*/NULL,
 	&ahc_unit
@@ -79,8 +79,7 @@ DATA_SET (eisadriver_set, ahc_eisa_driver);
 static const char *aic7770_match(eisa_id_t type);
 
 static const char*
-aic7770_match(type)
-	eisa_id_t type;
+aic7770_match(eisa_id_t type)
 {
 	switch (type) {
 	case EISA_DEVICE_ID_ADAPTEC_AIC7770:
@@ -100,20 +99,20 @@ aic7770_match(type)
 }
 
 static int
-aic7770probe(void)
+aic7770_probe()
 {
 	u_int32_t iobase;
 	u_int32_t irq;
 	u_int8_t intdef;
 	u_int8_t hcntrl;
 	struct eisa_device *e_dev;
-	int count;
+	int count; 
 
 	e_dev = NULL;
 	count = 0;
 	while ((e_dev = eisa_match_dev(e_dev, aic7770_match))) {
 		iobase = (e_dev->ioconf.slot * EISA_SLOT_SIZE)
-			 + AHC_EISA_SLOT_OFFSET;
+			+ AHC_EISA_SLOT_OFFSET;
 
 		/* Pause the card preseving the IRQ type */
 		hcntrl = inb(iobase + HCNTRL) & IRQMS;
@@ -124,7 +123,7 @@ aic7770probe(void)
 		intdef = inb(INTDEF + iobase);
 		irq = intdef & 0xf;
 		switch (irq) {
-			case 9: 
+			case 9:
 			case 10:
 			case 11:
 			case 12:
@@ -134,7 +133,7 @@ aic7770probe(void)
 			default:
 				printf("aic7770 at slot %d: illegal "
 				       "irq setting %d\n", e_dev->ioconf.slot,
-					intdef);
+				       intdef);
 				irq = 0;
 				break;
 		}
@@ -151,7 +150,7 @@ static int
 aic7770_attach(struct eisa_device *e_dev)
 {
 	ahc_chip chip;
-
+	bus_dma_tag_t parent_dmat;
 	struct ahc_softc *ahc;
 	resvaddr_t *iospace;
 	int unit = e_dev->unit;
@@ -180,15 +179,8 @@ aic7770_attach(struct eisa_device *e_dev)
 	default: 
 		printf("aic7770_attach: Unknown device type!\n");
 		return -1;
-		break;
 	}
 
-	if (!(ahc = ahc_alloc(unit, iospace->addr, NULL,
-			      chip, AHC_AIC7770_FE, AHC_FNONE, NULL)))
-		return -1;
-
-	ahc->channel = 'A';
-	ahc->channel_b = 'B';
 	/* XXX Should be a child of the EISA bus dma tag */
 	error = bus_dma_tag_create(/*parent*/NULL, /*alignment*/0,
 				   /*boundary*/0,
@@ -198,15 +190,20 @@ aic7770_attach(struct eisa_device *e_dev)
 				   /*maxsize*/MAXBSIZE,
 				   /*nsegments*/AHC_NSEG,
 				   /*maxsegsz*/AHC_MAXTRANSFER_SIZE,
-				   /*flags*/BUS_DMA_ALLOCNOW, &ahc->dmat);
+				   /*flags*/BUS_DMA_ALLOCNOW, &parent_dmat);
 
 	if (error != 0) {
-		printf("%s: Could not allocate DMA tag - error %d\n",
-		       ahc_name(ahc), error);
-		ahc_free(ahc);
+		printf("ahc_eisa_attach: Could not allocate DMA tag "
+		       "- error %d\n", error);
 		return -1;
 	}
 
+	if (!(ahc = ahc_alloc(unit, iospace->addr, NULL, parent_dmat,
+			      chip, AHC_AIC7770_FE, AHC_FNONE, NULL)))
+		return -1;
+
+	ahc->channel = 'A';
+	ahc->channel_b = 'B';
 
 	eisa_reg_start(e_dev);
 	if (eisa_reg_iospace(e_dev, iospace)) {
@@ -224,7 +221,7 @@ aic7770_attach(struct eisa_device *e_dev)
 	 * IRQ sharing if it's set.
 	 */
 	if (eisa_reg_intr(e_dev, irq, ahc_intr, (void *)ahc, &cam_imask,
-			 /*shared ==*/ahc->pause & IRQMS)) {
+			  /*shared ==*/ahc->pause & IRQMS)) {
 		ahc_free(ahc);
 		return -1;
 	}
@@ -473,5 +470,4 @@ aha2840_load_seeprom(struct ahc_softc *ahc)
 			ahc->flags |= AHC_TERM_ENB_A;
 	}
 }
-
 #endif /* NEISA > 0 */
