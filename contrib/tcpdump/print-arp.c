@@ -33,6 +33,7 @@ struct mbuf;
 struct rtentry;
 #endif
 #include <net/if.h>
+#include <net/if_var.h>
 
 #include <netinet/in.h>
 #include <netinet/if_ether.h>

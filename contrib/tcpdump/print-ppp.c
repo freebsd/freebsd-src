@@ -47,7 +47,7 @@ struct rtentry;
 #include <signal.h>
 #include <stdio.h>
 
-#include <netinet/if_ether.h>
+#include <net/ethernet.h>
 #include "ethertype.h"
 
 #include <net/ppp_defs.h>
