@@ -1,11 +1,11 @@
 #
-# hosts.allow access control file for "tcp wrapped" apps.
+# hosts.allow access control file for "tcp wrapped" applications.
 # $FreeBSD$
 #
-# NOTE: The hosts.deny file is not longer used.  Instead, put both 'allow'
-#       and 'deny' rules in the hosts.allow file.
-# see hosts_options(5) for the format of this file.
-# hosts_access(5) no longer fully applies.
+# NOTE: The hosts.deny file is no longer used.
+#       Instead, put both 'allow' and 'deny' rules in the hosts.allow file.
+#	See hosts_options(5) for the format of this file.
+#	hosts_access(5) no longer fully applies.
 
 #	 _____                                      _          _ 
 #	| ____| __  __   __ _   _ __ ___    _ __   | |   ___  | |
