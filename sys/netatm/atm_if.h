@@ -317,48 +317,21 @@ struct atm_ncm {
 /*
  * atm_dev_compress() buffer allocation sizes
  */
-#if defined(BSD)
 #define	ATM_DEV_CMPR_LG	MCLBYTES	/* Size of large buffers */
 #define	ATM_DEV_CMPR_SM	MLEN		/* Size of small buffers */
-#endif
 
 /*
  * Macros to manage DMA addresses
  */
-#if defined(sun4c)
-#define	DMA_INIT()
-#define	DMA_GET_ADDR(addr,len,align,flags)	((void *)(addr))
-#define	DMA_FREE_ADDR(addr,daddr,len,flags)
-#define	DMA_RELEASE()
-
-#elif defined(sun4m)
-#define	DMA_INIT()
-#define	DMA_GET_ADDR(addr,len,align,flags)		\
-		(void *)atm_dma_map((addr),(len),(flags))
-#define	DMA_FREE_ADDR(addr,daddr,len,flags)		\
-		(void)atm_dma_free((daddr),(flags))
-#define	DMA_RELEASE()
-
-#elif defined(BSD) && defined(__i386__)
 #define	DMA_INIT()
 #define	DMA_GET_ADDR(addr,len,align,flags)	((void *)vtophys(addr))
 #define	DMA_FREE_ADDR(addr,daddr,len,flags)
 #define	DMA_RELEASE()
 
-#else
-	#error - Must define hardware-specific requirements here
-#endif
-
-
 /*
  * Macros to lock out device interrupts
  */
-#if defined(sun)
-#define	DEVICE_LOCK(u)		((u)->cu_savepri = splr((u)->cu_intrpri))
-#endif
-#if defined(__FreeBSD__)
 #define	DEVICE_LOCK(u)		((u)->cu_savepri = splimp())
-#endif
 #define	DEVICE_UNLOCK(u)	((void) splx((u)->cu_savepri))
 
 
@@ -377,10 +350,6 @@ typedef	void (atm_intr_t) __P((void *, KBuffer *)); /* Callback function type */
 typedef	atm_intr_t	*atm_intr_func_t; /* Pointer to callback function */
 
 #define	SCHED_ATM	schednetisr(NETISR_ATM) 
-#ifdef sgi
-extern	int	atm_intr_index;
-#define	SCHED_ATM	schednetisr(atm_intr_index) 
-#endif
 #endif /* _KERNEL */
 
 #endif	/* _NETATM_ATM_IF_H */
