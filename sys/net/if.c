@@ -317,8 +317,7 @@ if_findindex(struct ifnet *ifp)
 	case IFT_XETHER:
 	case IFT_ISO88025:
 	case IFT_L2VLAN:
-		snprintf(eaddr, 18, "%6D",
-		    IFP2AC(ifp)->ac_enaddr, ":");
+		snprintf(eaddr, 18, "%6D", IFP2AC(ifp)->ac_enaddr, ":");
 		break;
 	default:
 		eaddr[0] = '\0';
