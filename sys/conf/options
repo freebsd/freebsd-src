@@ -1,4 +1,4 @@
-#	$Id: options,v 1.10 1996/03/29 13:51:30 bde Exp $
+#	$Id: options,v 1.11 1996/05/05 02:26:57 pst Exp $
 
 # Option name	filename
 
@@ -6,13 +6,22 @@ BOUNCE_BUFFERS	opt_bounce.h
 DDB
 DDB_UNATTENDED	opt_ddb.h
 KTRACE
-FDESC		opt_staticfs.h
-KERNFS		opt_staticfs.h
-NULLFS		opt_staticfs.h
-PORTAL		opt_staticfs.h
-PROCFS		opt_staticfs.h
-UMAPFS		opt_staticfs.h
-UNION		opt_staticfs.h
+
+# Options for static file systems.  These should only be used at config
+# time, since the corresponding lkms cannot work if there are any static
+# dependencies.  Unusability is enforced by hiding the defines for the
+# options in a never-included header.
+FDESC		opt_dontuse.h
+KERNFS		opt_dontuse.h
+NULLFS		opt_dontuse.h
+PORTAL		opt_dontuse.h
+PROCFS		opt_dontuse.h
+UMAPFS		opt_dontuse.h
+
+# The union static file system has bogus static dependencies, so it isn't
+# hidden yet.
+UNION
+
 QUOTA
 SYSVSHM		opt_sysvipc.h
 SYSVSEM		opt_sysvipc.h

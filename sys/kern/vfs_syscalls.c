@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.45 1996/01/05 17:46:14 wollman Exp $
+ * $Id: vfs_syscalls.c,v 1.46 1996/01/16 13:07:14 davidg Exp $
  */
 
 /*
@@ -46,7 +46,7 @@
  * but I don't have time to study the code deeply enough to understand
  * what's going on and determine an appropriate fix.  -GAW
  */
-#include "opt_staticfs.h"
+#include "opt_union.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
