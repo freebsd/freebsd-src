@@ -89,7 +89,7 @@ static void	do_char(struct lcd_driver *driver, char ch);
 int	debuglevel = 0;
 int	vflag = 0;
 
-void
+int
 main(int argc, char *argv[]) 
 {
     extern char		*optarg;
