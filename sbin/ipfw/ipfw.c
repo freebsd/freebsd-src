@@ -1908,7 +1908,7 @@ badviacombo:
 				av++; ac--; 
 				if (!ac)
 					show_usage("missing argument"
-					    " for ``tcpflags''");
+					    " for ``tcpoptions''");
 				fill_tcpopts(&rule.fw_tcpopt, &rule.fw_tcpnopt, av);
 				av++; ac--; continue;
 			}
