@@ -65,67 +65,48 @@ controller.
 Compatible Mylex controllers not listed should work, but have not been 
 verified. 
 .Sh DIAGNOSTICS
-Controller initialisation phase:
+.Ss Controller initialisation phase
 .Bl -diag
 .It mlx%d: controller initialisation in progress...
 .It mlx%d: initialisation complete
-.El
 .Pp
 The controller firmware is performing/has completed initialisation.
-.Bl -diag
 .It mlx%d: physical drive %d:%d not responding
-.El
 .Pp
 The drive at channel:target is not responding; it may have failed or
 been removed.
-.Bl -diag
 .It mlx%d: spinning up drives...
-.El
 .Pp
 Drive startup is in progress; this may take several minutes.
-.Bl -diag
 .It mlx%d: configuration checksum error
-.El
 .Pp
 The array configuration has become corrupted.
-.Bl -diag
 .It mlx%d: mirror race recovery in progress
 .It mlx%d: mirror race on a critical system drive
 .It mlx%d: mirror race recovery failed
-.El
 .Pp
 These error codes are undocumented.
-.Bl -diag
 .It mlx%d: physical drive %d:%d COD mismatch
-.El
 .Pp
 Configuration data on the drive at channel:target does not match the
 rest of the array.
-.Bl -diag
 .It mlx%d: system drive installation aborted
-.El
 .Pp
 Errors occured preventing one or more system drives from being configured.
-.Bl -diag
 .It mlx%d: new controller configuration found
-.El
 .Pp
 The controller has detected a configuration on disk which supersedes the
 configuration in its nonvolatile memory.
 It will reset and come up with the new configuration.
-.Bl -diag
 .It mlx%d: FATAL MEMORY PARITY ERROR
-.El
 .Pp
 Firmware detected a fatal memory error; the driver will not attempt to
 attach to this controller.
-.Bl -diag
 .It mlx%d: unknown firmware initialisation error %x:%x:%x
-.El
 .Pp
 An unknown error occurred during initialisation; it will be ignored.
-.Pp
-Driver initialisation/shutdown phase:
+.El
+.Ss Driver initialisation/shutdown phase:
 .Bl -diag
 .It mlx%d: can't allocate scatter/gather DMA tag
 .It mlx%d: can't allocate buffer DMA tag
@@ -134,41 +115,30 @@ Driver initialisation/shutdown phase:
 .It mlx%d: can't make permanent s/g list mapping
 .It mlx%d: can't allocate interrupt
 .It mlx%d: can't set up interrupt
-.El
 .Pp
 A resource allocation error occurred while initialising the driver;
 initialisation has failed and the driver will not attach to this
 controller.
-.Bl -diag
 .It mlx%d: error fetching drive status
-.El
 .Pp
 The current status of all system drives could not be fetched; attachment
 of system drives will be aborted.
-.Bl -diag
 .It mlx%d: device_add_child failed
 .It mlx%d: bus_generic_attach returned %d
-.El
 .Pp
 Creation of the system drive instances failed; attachment of one or more
 system drives may have been aborted.
-.Bl -diag
 .It mlxd%d: detaching...
-.El
 .Pp
 The indicated system drive is being detached.
-.Bl -diag
 .It mlxd%d: still open, can't detach
-.El
 .Pp
 The indicated system drive is still open or mounted; the controller cannot be detached.
-.Bl -diag
 .It mlx%d: flushing cache...
-.El
 .Pp
 The controller cache is being flushed prior to detach or shutdown.
-.Pp
-Operational diagnostics:
+.El
+.Ss Operational diagnostics:
 .Bl -diag
 .It mlx%d: ENQUIRY failed - %s
 .It mlx%d: ENQUIRY2 failed
@@ -177,88 +147,64 @@ Operational diagnostics:
 .It mlx%d: CHECK ASYNC failed - %s
 .It mlx%d: REBUILD ASYNC failed - %s
 .It mlx%d: command failed - %s
-.El
 .Pp
 The controller rejected a command for the reason given.
-.Bl -diag
 .It mlx%d: I/O beyond end of unit (%u,%d > %u)
 .It mlx%d: I/O error - %s
-.El
 .Pp
 An I/O error was reported by the controller.
-.Bl -diag
 .It mlx%d: periodic enquiry failed - %s
-.El
 .Pp
 An attempt to poll the controller for status failed for the reason given.
-.Bl -diag
 .It mlx%d: mlx_periodic_enquiry: unknown command %x
-.El
 .Pp
 The periodic status poll has issued a command which has become corrupted.
-.Bl -diag
 .It mlxd%d: drive offline
 .It mlxd%d: drive online
 .It mlxd%d: drive critical
-.El
 .Pp
 The system disk indicated has changed state.
-.Bl -diag
 .It mlx%d: physical drive %d:%d reset
 .It mlx%d: physical drive %d:%d killed %s
 .It "mlx%d: physical drive %d:%d error log: sense = %d asc = %x asq = %x"
 .It "mlx%d:   info %4D csi %4D"
-.El
 .Pp
 The drive at channel:target has been reset, killed for the given reason,
 or experienced a SCSI error.
-.Bl -diag
 .It mlx%d: unknown log message type %x
 .It mlx%d: error reading message log - %s
-.El
 .Pp
 An error occurred while trying to read the controller's message log.
-.Bl -diag
 .It mlxd%d: consistency check started
 .It mlx%d: consistency check completed
-.El
 .Pp
 A user-initiated consistency check has started/completed.
-.Bl -diag
 .It mlx%d: drive rebuild started for %d:%d
 .It mlx%d: drive rebuild completed
-.El
 .Pp
 A user-initiated physical drive rebuild has started/completed.
-.Bl -diag
 .It mlx%d: background check/rebuild operation started
 .It mlx%d: background check/rebuild operation completed
-.El
 .Pp
 An automatic system drive consistency check or physical drive rebuild has started/completed.
-.Bl -diag
 .It mlx%d: channel %d pausing for %d seconds
 .It mlx%d: channel %d resuming
 .It mlx%d: pause command failed - %s
 .It mlx%d: pause failed for channel %d
 .It mlx%d: resume command failed - %s
 .It mlx%d: resume failed for channel %d
-.El
 .Pp
 Controller/channel pause operation notification.
 (Channel pause is not currently supported on any controller.)
-.Bl -diag
 .It mlx%d: controller wedged (not taking commands)
-.El
 .Pp
 The controller is not responding to attempts to submit new commands.
-.Bl -diag
 .It mlx%d: duplicate done event for slot %d
 .It mlx%d: done event for nonbusy slot %d
-.El
 .Pp
 Corruption has occurred in either the controller's onboard list of commands
 or in the driver.
+.El
 .Sh SEE ALSO
 .Xr mlxcontrol 8
 .Sh BUGS
