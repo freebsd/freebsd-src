@@ -1,4 +1,4 @@
-#	$Id: options,v 1.129 1999/03/02 20:26:02 semenu Exp $
+#	$Id: options,v 1.130 1999/03/17 01:48:34 mjacob Exp $
 #
 #        On the handling of kernel options   
 # 
@@ -344,6 +344,7 @@ BUS_DEBUG		opt_bus.h
 # options for USB support
 USB_DEBUG		opt_usb.h
 USBVERBOSE		opt_usb.h
+UMASS_DEBUG    opt_usb.h
 
 # Vinum options
 VINUMDEBUG		opt_vinum.h
