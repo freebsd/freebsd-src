@@ -297,11 +297,11 @@
 
 /* Deal with various X/Open Portability Guides and Single UNIX Spec. */
 #ifdef _XOPEN_SOURCE
-#if _XOPEN_SOURCE >= 600
+#if _XOPEN_SOURCE - 0 >= 600
 #define	__XSI_VISIBLE		600
 #undef _POSIX_C_SOURCE
 #define	_POSIX_C_SOURCE		200112
-#elif _XOPEN_SOURCE >= 500
+#elif _XOPEN_SOURCE - 0 >= 500
 #define	__XSI_VISIBLE		500
 #undef _POSIX_C_SOURCE
 #define	_POSIX_C_SOURCE		199506
