@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/pam_set_item.c#17 $
+ * $P4: //depot/projects/openpam/lib/pam_set_item.c#18 $
  */
 
 #include <sys/param.h>
@@ -62,6 +62,7 @@ pam_set_item(pam_handle_t *pamh,
 	if (pamh == NULL)
 		RETURNC(PAM_SYSTEM_ERR);
 	slot = &pamh->item[item_type];
+	osize = nsize = 0;
 	switch (item_type) {
 	case PAM_SERVICE:
 	case PAM_USER:
@@ -73,10 +74,10 @@ pam_set_item(pam_handle_t *pamh,
 	case PAM_USER_PROMPT:
 	case PAM_AUTHTOK_PROMPT:
 	case PAM_OLDAUTHTOK_PROMPT:
-		if (item != NULL)
-			nsize = strlen(item) + 1;
 		if (*slot != NULL)
 			osize = strlen(*slot) + 1;
+		if (item != NULL)
+			nsize = strlen(item) + 1;
 		break;
 	case PAM_REPOSITORY:
 		osize = nsize = sizeof(struct pam_repository);
