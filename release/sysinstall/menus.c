@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.42.2.76 1997/03/14 05:41:30 jkh Exp $
+ * $Id: menus.c,v 1.42.2.77 1997/03/16 04:07:10 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -213,6 +213,7 @@ DMenu MenuIndex = {
       { "Commit",		"Commit any pending actions (dangerous!)", NULL, installCustomCommit },
       { "Console settings",	"Customize system console behavior.",	NULL, dmenuSubmenu, NULL, &MenuSyscons },
       { "Configure",		"The system configuration menu.",	NULL, dmenuSubmenu, NULL, &MenuConfigure },
+      { "Defaults, Load",	"Load default settings.",		NULL, variableLoad },
       { "Device, Mouse",	"The mouse configuration menu.",	NULL, dmenuSubmenu, NULL, &MenuMouse },
       { "Disklabel",		"The disk Label editor",		NULL, diskLabelEditor },
       { "Dists, All",		"Root of the distribution tree.",	NULL, dmenuSubmenu, NULL, &MenuDistributions },
@@ -305,6 +306,7 @@ DMenu MenuInitial = {
       { "8 Fixit",	"Go into repair mode with CDROM or floppy, or start a shell.",	NULL, dmenuSubmenu, NULL, &MenuFixit },
       { "9 Upgrade",	"Upgrade an existing system",			NULL, installUpgrade },
       { "c Configure",	"Do post-install configuration of FreeBSD",	NULL, dmenuSubmenu, NULL, &MenuConfigure },
+      { "l Load Config","Load default install configuration",		NULL, variableLoad },
       { "0 Index",	"Glossary of functions",			NULL, dmenuSubmenu, NULL, &MenuIndex },
       { NULL } },
 };
@@ -510,6 +512,8 @@ DMenu MenuMediaFTP = {
 	VAR_FTP_PATH "=ftp://ftp.nl.freebsd.org/pub/FreeBSD/" },
       { "Hong Kong",	"ftp.hk.super.net", NULL, dmenuSetVariable, NULL,
 	VAR_FTP_PATH "=ftp://ftp.hk.super.net/pub/FreeBSD/" },
+      { "Iceland",	"ftp.is.freebsd.org", NULL, dmenuSetVariable, NULL,
+	VAR_FTP_PATH "=ftp://ftp.is.freebsd.org/pub/FreeBSD/" },
       { "Ireland",	"ftp.ie.freebsd.org", NULL, dmenuSetVariable, NULL,
 	VAR_FTP_PATH "=ftp://ftp.ie.freebsd.org/pub/FreeBSD/" },
       { "Israel",	"ftp.il.freebsd.org", NULL, dmenuSetVariable, NULL,

@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id$
+ * $Id: attr.c,v 1.3.2.17 1997/02/07 04:25:22 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -85,7 +85,7 @@ attr_parse(Attribs *attr, FILE *fp)
 		state = NAME;
 	    }
 	    else {
-		msgDebug("Parse config: Invalid character '%c' at line %d", ch, lno);
+		msgDebug("Parse config: Invalid character '%c' at line %d\n", ch, lno);
 		state = COMMENT;	/* Ignore the rest of the line */
 	    }
 	    break;

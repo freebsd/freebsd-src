@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.42.2.79 1997/03/11 09:29:23 jkh Exp $
+ * $Id: sysinstall.h,v 1.42.2.80 1997/03/15 16:23:39 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -114,6 +114,7 @@
 #define VAR_HOSTNAME			"hostname"
 #define VAR_IFCONFIG			"ifconfig_"
 #define VAR_INTERFACES			"network_interfaces"
+#define VAR_INSTALL_CFG			"installConfig"
 #define VAR_INSTALL_ROOT		"installRoot"
 #define VAR_IPADDR			"ipaddr"
 #define VAR_LABEL			"label"
@@ -561,6 +562,7 @@ extern u_char		default_scrnmap[];
 
 /* media.c */
 extern char	*cpioVerbosity(void);
+extern void	mediaClose(void);
 extern int	mediaTimeout(void);
 extern int	mediaSetCDROM(dialogMenuItem *self);
 extern int	mediaSetFloppy(dialogMenuItem *self);
@@ -690,6 +692,9 @@ extern void	variable_set2(char *name, char *value);
 extern char 	*variable_get(char *var);
 extern void	variable_unset(char *var);
 extern char	*variable_get_value(char *var, char *prompt);
+
+/* variable_load.c */
+extern int	variableLoad(dialogMenuItem *self);
 
 /* wizard.c */
 extern void	slice_wizard(Disk *d);

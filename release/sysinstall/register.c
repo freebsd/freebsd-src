@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: register.c,v 1.2.2.1 1997/03/14 05:41:33 jkh Exp $
+ * $Id: register.c,v 1.2.2.2 1997/03/15 16:23:36 jkh Exp $
  *
  * Copyright (c) 1997
  *	Jordan Hubbard.  All rights reserved.
@@ -38,7 +38,7 @@
 #include <ctype.h>
 
 #define REGISTER_HELPFILE	"register"
-#define REGISTRATION_FNAME	"/tmp/new-registration"
+#define REGISTRATION_FNAME	"/new-registration"
 #define REGISTRATION_ADDRESS	"register@freebsd.org"
 #define MAJORDOMO_ADDRESS	"majordomo@freebsd.org"
 
@@ -64,11 +64,11 @@ static int	okbutton, cancelbutton;
 
 static Layout layout[] = {
 #define LAYOUT_LASTNAME		0
-    { 2, 2, LASTNAME_FIELD_LEN - 1, LASTNAME_FIELD_LEN - 1,
+    { 1, 2, LASTNAME_FIELD_LEN - 1, LASTNAME_FIELD_LEN - 1,
       "Last Name:", "Your surname (family name) or company name should go here.",
       lastname, STRINGOBJ, NULL },
 #define LAYOUT_FIRSTNAME	1
-    { 2, 36, FIRSTNAME_FIELD_LEN - 1, FIRSTNAME_FIELD_LEN - 1,
+    { 1, 36, FIRSTNAME_FIELD_LEN - 1, FIRSTNAME_FIELD_LEN - 1,
       "First Name:", "Your given name or a contact name if registering for a company.",
       firstname, STRINGOBJ, NULL },
 #define LAYOUT_EMAIL		2
@@ -112,10 +112,10 @@ static Layout layout[] = {
 #define NEWSLETTER	3
 
 static struct { int y, x, sel; char *desc, *allowed; } hotspots[] = {
-    { 7, 35, 0, "Do you wish to receive FreeBSD [ONLY!] related commercial mail?",         "Y" },
-    { 7, 57, 0, "Do you wish to receive FreeBSD [ONLY!] related commercial email?",        "Y" },
-    { 8, 35, 0, "Sign up (with majordomo@FreeBSD.org) for important announcements?",       "Y" },
-    { 9, 35, 0, "Sign up for the FreeBSD Newsletter?  P = Postal (paper) copy, E = Email", "PE" },
+    { 5, 35, 0, "Do you wish to receive FreeBSD [ONLY!] related commercial mail?",         "Y" },
+    { 5, 57, 0, "Do you wish to receive FreeBSD [ONLY!] related commercial email?",        "Y" },
+    { 6, 35, 0, "Sign up (with majordomo@FreeBSD.org) for important announcements?",       "Y" },
+    { 10, 35, 0, "Sign up for the FreeBSD Newsletter?  P = Postal (paper) copy, E = Email", "PE" },
 };
 
 /* Check the accuracy of user's choices before letting them move on */
