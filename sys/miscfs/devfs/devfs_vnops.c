@@ -1,7 +1,7 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vnops.c,v 1.13 1995/09/19 07:32:01 julian Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vnops.c,v 1.14 1995/10/04 11:05:07 julian Exp $
  *
  * symlinks can wait 'til later.
  */
@@ -29,7 +29,7 @@
 
 
 /*
- * Convert a component of a pathname into a pointer to a locked devfs_front.
+ * Convert a component of a pathname into a pointer to a locked node.
  * This is a very central and rather complicated routine.
  * If the file system is not maintained in a strict tree hierarchy,
  * this can result in a deadlock situation (see comments in code below).
@@ -58,12 +58,12 @@
  * found:
  *	if at end of path and deleting, return information to allow delete
  *	if at end of path and rewriting (RENAME and LOCKPARENT), lock target
- *	  devfs_front and return info to allow rewrite
+ *	  node and return info to allow rewrite
  *	if not at end, add name to cache; if at end and neither creating
  *	  nor deleting, add name to cache
  * On return to lookup, remove the null termination we put in at the start.
  *
- * NOTE: (LOOKUP | LOCKPARENT) currently returns the parent devfs_front unlocked.
+ * NOTE: (LOOKUP | LOCKPARENT) currently returns the parent node unlocked.
  */
 int devfs_lookup(struct vop_lookup_args *ap) /*proto*/
         /*struct vop_lookup_args {
@@ -90,6 +90,7 @@ int devfs_lookup(struct vop_lookup_args *ap) /*proto*/
 
 DBPRINT(("lookup\n"));
 
+	if(dir_vnode->v_usecount == 0) printf("dir had no refs ");
 	if(devfs_vntodn(dir_vnode,&dir_node))
 	{
 		printf("vnode has changed?\n");
@@ -122,21 +123,23 @@ DBPRINT(("lookup\n"));
 		int vpid;	/* capability number of vnode */
 
 		if (error == ENOENT)
-			return (error);
+			return (error); /* got an actual -ve hit */
 DBPRINT(("cached "));
 		/*
 		 * Claim the next vnode in the path.
 		 * See comment below starting `Step through' for
 		 * an explaination of the locking protocol.
 		 */
+#ifdef MAYBE_NOT_NEEDED
 		if(devfs_vntodn(*result_vnode,&new_node))
 		{
 			printf("vnode has changed!?\n");
 			vprint("=",*result_vnode);
 			return(EINVAL);
 		}
+#endif
 		vpid = (*result_vnode)->v_id;
-		if (dir_node == new_node) {	/* is "." */
+		if (dir_vnode == *result_vnode) {	/* is "." */
 			VREF(*result_vnode); /* not a full vget() */
 			error = 0;
 		} else if (flags & ISDOTDOT) {/* do a locking dance */
@@ -158,9 +161,11 @@ DBPRINT(("cached "));
 				return (0);	/* SUCCCESS, return! */
 			vput((*result_vnode));	/* pretend we failed */
 			if (lockparent
-			&& (dir_node != new_node)
+			&& (dir_vnode != *result_vnode)
 			&& (flags & ISLASTCN))
 				VOP_UNLOCK(dir_vnode);
+		} else { /* we have an error */
+
 		}
 		if( error = VOP_LOCK(dir_vnode))
 			return error;
@@ -177,26 +182,27 @@ DBPRINT(("errr, maybe not cached "));
 	cnp->cn_nameptr[cnp->cn_namelen] = '\0';
 	new_nodename = dev_findname(dir_node,cnp->cn_nameptr);
 	cnp->cn_nameptr[cnp->cn_namelen] = heldchar;
-	if(new_nodename)
-	{
-		new_node = new_nodename->dnp;
-		new_node->last_lookup = new_nodename; /* for unlink */
-		goto found;
-	}
-	new_node = NULL; /* to be safe */
-/***********************************************************************\
-* Failed to find it.. (That may be good)				*
-\***********************************************************************/
-/* notfound: */
-/*XXX*/ /* possibly release some resources here */
-	/*
-	 * If creating, and at end of pathname
-	 * then can consider
-	 * allowing file to be created.
-	 * XXX original code (ufs_lookup) checked for . being deleted
-	 */
-        if ((op == CREATE || op == RENAME) && (flags & ISLASTCN)) {
+	if(!new_nodename) {
+		/*******************************************************\
+		* Failed to find it.. (That may be good)		*
+		\*******************************************************/
+		new_node = NULL; /* to be safe */
+		/*
+		 * If creating, and at end of pathname
+		 * then can consider
+		 * allowing file to be created.
+		 */
+        	if (!(flags & ISLASTCN) || !(op == CREATE || op == RENAME)) {
 
+			/*
+			 * Insert name into cache
+			 * (as non-existent) if appropriate.
+			 */
+			if ((cnp->cn_flags & MAKEENTRY) && op != CREATE)
+			cache_enter(dir_vnode, *result_vnode, cnp);
+DBPRINT(("NOT\n"));
+			return ENOENT;
+		}
 		/*
 		 * Access for write is interpreted as allowing
 		 * creation of files in the directory.
@@ -207,47 +213,36 @@ DBPRINT(("errr, maybe not cached "));
 DBPRINT(("MKACCESS "));
 			return (error);
 		}
-		dir_node->flags |= IUPD|ICHG;/*XXX*/
 		/*
 		 * We return with the directory locked, so that
 		 * the parameters we set up above will still be
-		 * valid if we actually decide to do a direnter().
+		 * valid if we actually decide to add a new entry.
 		 * We return ni_vp == NULL to indicate that the entry
 		 * does not currently exist; we leave a pointer to
-		 * the (locked) directory devfs_front in namei_data->ni_dvp.
+		 * the (locked) directory vnode in namei_data->ni_dvp.
 		 * The pathname buffer is saved so that the name
 		 * can be obtained later.
 		 *
 		 * NB - if the directory is unlocked, then this
 		 * information cannot be used.
 		 */
-		cnp->cn_flags |= SAVENAME;
+		cnp->cn_flags |= SAVENAME; /*XXX why? */
 		if (!lockparent)
 			VOP_UNLOCK(dir_vnode);
-		/* DON't make a cache entry... status changing */
 		return (EJUSTRETURN);
 	}
-	/*
-	 * Insert name into cache (as non-existent) if appropriate.
-	 */
-	if ((cnp->cn_flags & MAKEENTRY) && op != CREATE)
-		cache_enter(dir_vnode, *result_vnode, cnp);
-DBPRINT(("NOT\n"));
-	return (ENOENT);
 
-/***********************************************************************\
-* Found it.. this is not always a good thing..				*
-\***********************************************************************/
-found:
-/*XXX*/ /* possibly release some resources here */
-
-
+	/***************************************************************\
+	* Found it.. this is not always a good thing..			*
+	\***************************************************************/
+	new_node = new_nodename->dnp;
+	new_node->last_lookup = new_nodename; /* for unlink */
 	/*
 	 * If deleting, and at end of pathname, return
 	 * parameters which can be used to remove file.
 	 * If the wantparent flag isn't set, we return only
 	 * the directory (in namei_data->ni_dvp), otherwise we go
-	 * on and lock the devfs_front, being careful with ".".
+	 * on and lock the node, being careful with ".".
 	 */
 	if (op == DELETE && (flags & ISLASTCN)) {
 		/*
@@ -257,6 +252,7 @@ found:
 				cnp->cn_cred, cnp->cn_proc))
 			return (error);
 		/*
+		 * we are trying to delete '.'.  What does this mean? XXX
 		 */
 		if (dir_node == new_node) {
 			VREF(dir_vnode);
@@ -286,23 +282,27 @@ found:
 	}
 
 	/*
-	 * If rewriting (RENAME), return the devfs_front and the
+	 * If rewriting (RENAME), return the vnode and the
 	 * information required to rewrite the present directory
-	 * Must get devfs_front of directory entry to verify it's a
+	 * Must get node of directory entry to verify it's a
 	 * regular file, or empty directory.
 	 */
 	if (op == RENAME && wantparent && (flags & ISLASTCN)) {
+		/*
+		 * Are we allowed to change the holding directory?
+		 */
 		if (error = VOP_ACCESS(dir_vnode, VWRITE,
 				cnp->cn_cred, cnp->cn_proc))
 			return (error);
 		/*
-		 * Careful about locking second devfs_front.
+		 * Careful about locking second node.
 		 * This can only occur if the target is ".".
 		 */
 		if (dir_node == new_node)
 			return (EISDIR);
 		devfs_dntovn(new_node,result_vnode);
 		VOP_LOCK(*result_vnode);
+		/* hmm save the 'from' name (we need to delete it) */
 		cnp->cn_flags |= SAVENAME;
 		if (!lockparent)
 			VOP_UNLOCK(dir_vnode);
@@ -310,19 +310,19 @@ found:
 	}
 
 	/*
-	 * Step through the translation in the name.  We do not `DNUNLOCK' the
+	 * Step through the translation in the name.  We do not unlock the
 	 * directory because we may need it again if a symbolic link
 	 * is relative to the current directory.  Instead we save it
 	 * unlocked as "saved_dir_node" XXX.  We must get the target
-	 * devfs_front before unlocking
-	 * the directory to insure that the devfs_front will not be removed
+	 * node before unlocking
+	 * the directory to insure that the node will not be removed
 	 * before we get it.  We prevent deadlock by always fetching
-	 * devfs_fronts from the root, moving down the directory tree. Thus
+	 * nodes from the root, moving down the directory tree. Thus
 	 * when following backward pointers ".." we must unlock the
 	 * parent directory before getting the requested directory.
 	 * There is a potential race condition here if both the current
-	 * and parent directories are removed before the `DNLOCK' for the
-	 * devfs_front associated with ".." returns.  We hope that this occurs
+	 * and parent directories are removed before the lock for the
+	 * node associated with ".." returns.  We hope that this occurs
 	 * infrequently since we cannot avoid this race condition without
 	 * implementing a sophisticated deadlock detection algorithm.
 	 * Note also that this simple deadlock detection scheme will not
@@ -330,7 +330,7 @@ found:
 	 * that point backwards in the directory structure.
 	 */
 	if (flags & ISDOTDOT) {
-		VOP_UNLOCK(dir_vnode);	/* race to get the devfs_front */
+		VOP_UNLOCK(dir_vnode);	/* race to get the node */
 		devfs_dntovn(new_node,result_vnode);
 		VOP_LOCK(*result_vnode);
 		if (lockparent && (flags & ISLASTCN))
