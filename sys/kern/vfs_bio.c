@@ -351,6 +351,7 @@ kern_vfs_bio_buffer_alloc(caddr_t v, int physmem_est)
 			nbuf = maxbcache / BKVASIZE;
 	}
 
+#if 0
 	/*
 	 * Do not allow the buffer_map to be more then 1/2 the size of the
 	 * kernel_map.
@@ -361,6 +362,7 @@ kern_vfs_bio_buffer_alloc(caddr_t v, int physmem_est)
 		    (BKVASIZE * 2);
 		printf("Warning: nbufs capped at %d\n", nbuf);
 	}
+#endif
 
 	/*
 	 * swbufs are used as temporary holders for I/O, such as paging I/O.
