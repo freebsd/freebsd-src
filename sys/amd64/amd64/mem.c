@@ -182,19 +182,17 @@ mmrw(dev_t dev, struct uio *uio, int flags)
 			eaddr = round_page(uio->uio_offset + c);
 
 			if (addr < (vm_offset_t)VADDR(PTDPTDI, 0))
-				return EFAULT;
+				return (EFAULT);
 			if (eaddr >= (vm_offset_t)VADDR(APTDPTDI, 0))
-				return EFAULT;
+				return (EFAULT);
 			for (; addr < eaddr; addr += PAGE_SIZE) 
-				if (pmap_extract(kernel_pmap, addr) == 0) {
-					return EFAULT;
-				}
+				if (pmap_extract(kernel_pmap, addr) == 0)
+					return (EFAULT);
 
 			if (!kernacc((caddr_t)(int)uio->uio_offset, c,
 			    uio->uio_rw == UIO_READ ? 
-			    VM_PROT_READ : VM_PROT_WRITE)) {
+			    VM_PROT_READ : VM_PROT_WRITE))
 				return (EFAULT);
-			}
 			error = uiomove((caddr_t)(int)uio->uio_offset, (int)c, uio);
 			continue;
 		}
@@ -221,14 +219,14 @@ memmmap(dev_t dev, vm_offset_t offset, int prot)
 
 	/* minor device 0 is physical memory */
 	case 0:
-        	return i386_btop(offset);
+        	return (i386_btop(offset));
 
 	/* minor device 1 is kernel memory */
 	case 1:
-        	return i386_btop(vtophys(offset));
+        	return (i386_btop(vtophys(offset)));
 
 	default:
-		return -1;
+		return (-1);
 	}
 }
 
@@ -270,9 +268,9 @@ mmioctl(dev_t dev, u_long cmd, caddr_t data, int flags, struct thread *td)
 				error = copyout(md, mo->mo_desc, 
 					nd * sizeof(struct mem_range_desc));
 			free(md, M_MEMDESC);
-		} else {
-			nd = mem_range_softc.mr_ndesc;
 		}
+		else
+			nd = mem_range_softc.mr_ndesc;
 		mo->mo_arg[0] = nd;
 		break;
 		
@@ -301,13 +299,11 @@ mem_range_attr_get(struct mem_range_desc *mrd, int *arg)
 	if (mem_range_softc.mr_op == NULL)
 		return (EOPNOTSUPP);
 
-	if (*arg == 0) {
+	if (*arg == 0)
 		*arg = mem_range_softc.mr_ndesc;
-	}
-	else {
+	else
 		bcopy(mem_range_softc.mr_desc, mrd,
 			(*arg) * sizeof(struct mem_range_desc));
-	}
 	return (0);
 }
 
@@ -326,7 +322,7 @@ void
 mem_range_AP_init(void)
 {
 	if (mem_range_softc.mr_op && mem_range_softc.mr_op->initAP)
-		return (mem_range_softc.mr_op->initAP(&mem_range_softc));
+		(mem_range_softc.mr_op->initAP(&mem_range_softc));
 }
 #endif
 
@@ -347,19 +343,19 @@ mem_modevent(module_t mod, int type, void *data)
 			0640, "kmem");
 		iodev = make_dev(&mem_cdevsw, 14, UID_ROOT, GID_WHEEL,
 			0600, "io");
-		return 0;
+		return (0);
 
 	case MOD_UNLOAD:
 		destroy_dev(memdev);
 		destroy_dev(kmemdev);
 		destroy_dev(iodev);
-		return 0;
+		return (0);
 
 	case MOD_SHUTDOWN:
-		return 0;
+		return (0);
 
 	default:
-		return EOPNOTSUPP;
+		return (EOPNOTSUPP);
 	}
 }
 
