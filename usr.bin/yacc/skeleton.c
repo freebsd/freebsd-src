@@ -59,11 +59,14 @@ __FBSDID("$FreeBSD$");
 
 const char *banner[] =
 {
+    "#include <stdlib.h>",
     "#ifndef lint",
+    "#ifdef __unused",
+    "__unused",
+    "#endif",
     "static char const ",
     "yyrcsid[] = \"$FreeBSD$\";",
     "#endif",
-    "#include <stdlib.h>",
     "#define YYBYACC 1",
     "#define YYMAJOR 1",
     "#define YYMINOR 9",
