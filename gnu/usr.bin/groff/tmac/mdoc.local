@@ -54,15 +54,10 @@
 .\" Default .Os value
 .ds doc-operating-system FreeBSD\~4.7
 .
-.\" FreeBSD releases not found in doc-common
-.ds doc-operating-system-FreeBSD-4.6    4.6
-.ds doc-operating-system-FreeBSD-4.6.2  4.6.2
-.ds doc-operating-system-FreeBSD-4.7    4.7
-.ds doc-operating-system-FreeBSD-4.8    4.8
-.
 .ec
 .
 .\" Locale support
 .if d doc-lang \{\
-.  if "\*[doc-lang]"ru.KOI8-R" .mso mdoc/koi8-r
-.\}
+.  if "\*[doc-lang]"ru.KOI8-R" \
+.    mso mdoc/ru.KOI8-R
+.\}\}

@@ -1,42 +1,48 @@
 LIB=groff
 OBJS=\
-  assert.o \
-  change_lf.o \
-  cmap.o \
-  cset.o \
-  device.o \
-  errarg.o \
-  error.o \
-  fatal.o \
-  filename.o \
-  font.o \
-  fontfile.o \
-  getopt.o \
-  getopt1.o \
-  htmlindicate.o \
-  illegal.o \
-  lf.o \
-  lineno.o \
-  macropath.o \
-  maxfilename.o \
-  nametoindex.o \
-  new.o \
-  prime.o \
-  progname.o \
-  ptable.o \
-  searchpath.o \
-  string.o \
-  strsave.o \
-  tmpfile.o \
-  iftoa.o \
-  itoa.o \
-  matherr.o \
-  version.o \
+  assert.$(OBJEXT) \
+  change_lf.$(OBJEXT) \
+  cmap.$(OBJEXT) \
+  color.$(OBJEXT) \
+  cset.$(OBJEXT) \
+  device.$(OBJEXT) \
+  errarg.$(OBJEXT) \
+  error.$(OBJEXT) \
+  fatal.$(OBJEXT) \
+  filename.$(OBJEXT) \
+  font.$(OBJEXT) \
+  fontfile.$(OBJEXT) \
+  geometry.$(OBJEXT) \
+  getopt.$(OBJEXT) \
+  getopt1.$(OBJEXT) \
+  htmlhint.$(OBJEXT) \
+  invalid.$(OBJEXT) \
+  lf.$(OBJEXT) \
+  lineno.$(OBJEXT) \
+  macropath.$(OBJEXT) \
+  maxfilename.$(OBJEXT) \
+  mksdir.$(OBJEXT) \
+  nametoindex.$(OBJEXT) \
+  new.$(OBJEXT) \
+  paper.$(OBJEXT) \
+  prime.$(OBJEXT) \
+  progname.$(OBJEXT) \
+  ptable.$(OBJEXT) \
+  searchpath.$(OBJEXT) \
+  string.$(OBJEXT) \
+  strsave.$(OBJEXT) \
+  tmpfile.$(OBJEXT) \
+  tmpname.$(OBJEXT) \
+  iftoa.$(OBJEXT) \
+  itoa.$(OBJEXT) \
+  matherr.$(OBJEXT) \
+  version.$(OBJEXT) \
   $(LIBOBJS)
 CCSRCS=\
   $(srcdir)/assert.cc \
   $(srcdir)/change_lf.cc \
   $(srcdir)/cmap.cc \
+  $(srcdir)/color.cc \
   $(srcdir)/cset.cc \
   $(srcdir)/device.cc \
   $(srcdir)/errarg.cc \
@@ -45,14 +51,18 @@ CCSRCS=\
   $(srcdir)/filename.cc \
   $(srcdir)/font.cc \
   $(srcdir)/fontfile.cc \
-  $(srcdir)/htmlindicate.cc \
-  $(srcdir)/illegal.cc \
+  $(srcdir)/geometry.cc \
+  $(srcdir)/htmlhint.cc \
+  $(srcdir)/invalid.cc \
   $(srcdir)/lf.cc \
   $(srcdir)/lineno.cc \
   $(srcdir)/macropath.cc \
   $(srcdir)/maxfilename.cc \
+  $(srcdir)/mksdir.cc \
+  $(srcdir)/mkstemp.cc \
   $(srcdir)/nametoindex.cc \
   $(srcdir)/new.cc \
+  $(srcdir)/paper.cc \
   $(srcdir)/prime.cc \
   $(srcdir)/progname.cc \
   $(srcdir)/ptable.cc \
@@ -60,6 +70,7 @@ CCSRCS=\
   $(srcdir)/string.cc \
   $(srcdir)/strsave.cc \
   $(srcdir)/tmpfile.cc \
+  $(srcdir)/tmpname.cc \
   version.cc
 CSRCS=\
   $(srcdir)/fmod.c \
@@ -71,16 +82,22 @@ CSRCS=\
   $(srcdir)/matherr.c \
   $(srcdir)/putenv.c \
   $(srcdir)/strerror.c \
-  $(srcdir)/strtol.c
+  $(srcdir)/strtol.c \
+  $(srcdir)/../snprintf/snprintf.c
 GENSRCS=\
   version.cc
 
-version=`cat $(top_srcdir)/VERSION`
-revision=`cat $(top_srcdir)/REVISION`
+src_version=`cat $(top_srcdir)/VERSION`
+src_revision=`cat $(top_srcdir)/REVISION`
 
 version.cc: $(top_srcdir)/VERSION $(top_srcdir)/REVISION
 	@echo Making version.cc
-	@echo const char \*version_string = \"$(version)\"\; >$@
-	@echo const char \*revision_string = \"$(revision)\"\; >>$@
-	@echo extern \"C\" const char \*Version_string = \"$(version).$(revision)\"\; | \
+	@echo const char \*version_string = \"$(src_version)\"\; >$@
+	@echo const char \*revision_string = \"$(src_revision)\"\; >>$@
+	@echo extern \"C\" const char \*Version_string = \"$(src_version).$(src_revision)\"\; | \
 	  sed -e 's/\.0\"/\"/' >>$@
+
+# We have to avoid $(COMPILE.c) since we must not use groff's `assert.h'
+snprintf.$(OBJEXT): $(srcdir)/../snprintf/snprintf.c
+	$(CC) -c $(CDEFINES) $(CFLAGS) $(CPPFLAGS) \
+	  $(srcdir)/../snprintf/snprintf.c

@@ -1,3 +1,6 @@
+#
+# Additional predefined groff symbols for special fonts.
+#
 plus pl
 minus mi
 plusminus +-

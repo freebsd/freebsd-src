@@ -1,5 +1,5 @@
 .ig
-Copyright (C) 1989-2000, 2001 Free Software Foundation, Inc.
+Copyright (C) 1989-2000, 2001, 2002 Free Software Foundation, Inc.
 
 Permission is granted to make and distribute verbatim copies of
 this manual provided the copyright notice and this permission notice
@@ -121,8 +121,26 @@ def ignore_math_fit(expr left_adjustment,right_adjustment) =
 .fi
 .ft R
 .LP
+For the EC font family, load the following definition after
+.B exbase
+(it is probably easiest to patch
+.B exbase.mf
+locally):
+.IP
+.nf
+.ft B
+def ignore_math_fit(expr left_adjustment,right_adjustment) =
+    ori_special "adjustment";
+    ori_numspecial left_adjustment*16/designsize;
+    ori_numspecial right_adjustment*16/designsize;
+    enddef;
+.fi
+.ft R
+.LP
 The gf file created using this modified
 .B cm.base
+or
+.B exbase
 should be specified with the
 .B \-g
 option.

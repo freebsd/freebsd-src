@@ -1,6 +1,6 @@
 '\" t
 .ig
-Copyright (C) 2000, 2001 Free Software Foundation, Inc.
+Copyright (C) 2000, 2001, 2002 Free Software Foundation, Inc.
 
 Permission is granted to make and distribute verbatim copies of
 this manual provided the copyright notice and this permission notice
@@ -46,7 +46,7 @@ the original English.
 .BI \-F dir
 ]
 [
-.IR file\.\.\.
+.IR file\.\.\.\&
 ]
 .PP
 It is possible to have whitespace between a command line option and its
@@ -131,8 +131,11 @@ for subdirectories
 .RI ( name
 is the name of the device) for the
 .B DESC
-file before the normal
-.BR @FONTDIR@ .
+file before the default font directories
+.BR @LOCALFONTDIR@ ,
+.BR @FONTDIR@ ,
+and
+.BR @LEGACYFONTDIR@ .
 .TP
 .B \-C
 Recognize
@@ -217,7 +220,7 @@ confusion with
 There is
 .I no
 default for stipples (unless one is set by the default command), and it is
-illegal to include a
+invalid to include a
 .I gremlin
 picture with polygons without specifying a
 stipple font.
@@ -408,7 +411,6 @@ format is the use of names for picture objects (e.g., POLYGON, CURVE)
 instead of numbers.
 Files representing the same picture are shown in Table 1 in each format.
 .sp
-.DS
 .TS
 center, tab(@);
 l lw(0.1i) l.
@@ -435,7 +437,6 @@ css.
 .sp
 Table 1. File examples
 .TE
-.DE
 .sp
 .IP \(bu
 The first line of each
@@ -479,6 +480,8 @@ The stuff on this line really isn't all that important; a value of ``1 0.00
 .IP \(bu
 The rest of the file consists of zero or more element specifications.
 After the last element specification is a line containing the string ``-1''.
+.IP \(bu
+Lines longer than 127 characters are chopped to this limit.
 .SH ELEMENT SPECIFICATIONS
 .IP \(bu
 The first line of each element contains a single decimal number giving the
@@ -489,7 +492,6 @@ version) or its ASCII name
 version).
 See Table 2.
 .sp
-.DS
 .TS
 center, tab(@);
 css
@@ -505,6 +507,8 @@ nll.
 4@ARC@arc
 5@CURVE@curve
 6@POLYGON@polygon
+7@BSPLINE@b-spline
+8@BEZIER@B\['e]zier
 10@TOPLEFT@top-left-justified text
 11@TOPCENT@top-center-justified text
 12@TOPRIGHT@top-right-justified text
@@ -517,7 +521,6 @@ css.
 Table 2.
 Type Specifications in \fIgremlin\fP Files
 .TE
-.DE
 .sp
 .IP \(bu
 After the object type comes a variable number of lines, each specifying a
@@ -536,7 +539,6 @@ brush and size for the element.
 The brush determines the style in which things are drawn.
 For vectors, arcs, and curves there are six legal brush values:
 .sp
-.DS
 .TS
 center, tab(@);
 ncw(0.1i)l.
@@ -547,13 +549,11 @@ ncw(0.1i)l.
 5 \(mi@@thin solid lines
 6 \(mi@@medium solid lines
 .TE
-.DE
 .sp
 For polygons, one more value, 0, is legal.
 It specifies a polygon with an invisible border.
 For text, the brush selects a font as follows:
 .sp
-.DS
 .TS
 center, tab(@);
 ncw(0.1i)l.
@@ -562,7 +562,6 @@ ncw(0.1i)l.
 3 \(mi@@bold (B font in groff)
 4 \(mi@@special (S font in groff)
 .TE
-.DE
 .sp
 If you're using
 .I @g@grn
@@ -570,9 +569,9 @@ to run your pictures through
 .IR groff ,
 the font is really just a starting font:
 The text string can contain formatting sequences like
-``\\fI''
+``\efI''
 or
-``\\d''
+``\ed''
 which may change the font (as well as do many other things).
 For text, the size field is a decimal value between 1 and 4.
 It selects the size of the font in which the text will be drawn.

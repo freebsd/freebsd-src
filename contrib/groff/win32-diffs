@@ -1,6 +1,6 @@
-diff -aruN groff/Makefile.msc groff.win32/Makefile.msc
---- groff/Makefile.msc	Thu Jan  1 00:00:00 1970
-+++ groff.win32/Makefile.msc	Wed May 17 09:15:07 2000
+diff -aruN groff-1.18/Makefile.msc groff-1.18.win32/Makefile.msc
+--- groff-1.18/Makefile.msc	Thu Jan  1 01:00:00 1970
++++ groff-1.18.win32/Makefile.msc	Mon Jul  8 06:47:51 2002
 @@ -0,0 +1,36 @@
 +
 +
@@ -38,40 +38,40 @@ diff -aruN groff/Makefile.msc groff.win32/Makefile.msc
 +	copy src\preproc\pic\pic.exe bin
 +	copy src\preproc\tbl\tbl.exe bin
 +	copy src\roff\troff\troff.exe bin
-diff -aruN groff/bin/gs.cmd groff.win32/bin/gs.cmd
---- groff/bin/gs.cmd	Thu Jan  1 00:00:00 1970
-+++ groff.win32/bin/gs.cmd	Wed May 17 08:57:48 2000
+diff -aruN groff-1.18/bin/gs.cmd groff-1.18.win32/bin/gs.cmd
+--- groff-1.18/bin/gs.cmd	Thu Jan  1 01:00:00 1970
++++ groff-1.18.win32/bin/gs.cmd	Mon Jul  8 06:47:51 2002
 @@ -0,0 +1,2 @@
 +@echo off
 +gswin32c -sDEVICE=ljet3 -sOutputFile=%1.jep -q -dNOPAUSE %1.ps <nul
-diff -aruN groff/bin/nroff.cmd groff.win32/bin/nroff.cmd
---- groff/bin/nroff.cmd	Thu Jan  1 00:00:00 1970
-+++ groff.win32/bin/nroff.cmd	Wed May 17 08:57:48 2000
+diff -aruN groff-1.18/bin/nroff.cmd groff-1.18.win32/bin/nroff.cmd
+--- groff-1.18/bin/nroff.cmd	Thu Jan  1 01:00:00 1970
++++ groff-1.18.win32/bin/nroff.cmd	Mon Jul  8 06:47:51 2002
 @@ -0,0 +1,2 @@
 +@echo off
 +troff -Tascii %1 %2 %3 %4 %5 %6 %7 %8 %9 |grotty 
-diff -aruN groff/bin/troff-dvi.cmd groff.win32/bin/troff-dvi.cmd
---- groff/bin/troff-dvi.cmd	Thu Jan  1 00:00:00 1970
-+++ groff.win32/bin/troff-dvi.cmd	Wed May 17 08:57:48 2000
+diff -aruN groff-1.18/bin/troff-dvi.cmd groff-1.18.win32/bin/troff-dvi.cmd
+--- groff-1.18/bin/troff-dvi.cmd	Thu Jan  1 01:00:00 1970
++++ groff-1.18.win32/bin/troff-dvi.cmd	Mon Jul  8 06:47:51 2002
 @@ -0,0 +1,2 @@
 +@echo off
 +troff -Tdvi %1 %2 %3 %4 %5 %6 %7 %8 %9 |grodvi 
-diff -aruN groff/bin/troff-lj.cmd groff.win32/bin/troff-lj.cmd
---- groff/bin/troff-lj.cmd	Thu Jan  1 00:00:00 1970
-+++ groff.win32/bin/troff-lj.cmd	Wed May 17 08:57:48 2000
+diff -aruN groff-1.18/bin/troff-lj.cmd groff-1.18.win32/bin/troff-lj.cmd
+--- groff-1.18/bin/troff-lj.cmd	Thu Jan  1 01:00:00 1970
++++ groff-1.18.win32/bin/troff-lj.cmd	Mon Jul  8 06:47:51 2002
 @@ -0,0 +1,2 @@
 +@echo off
 +troff -Tlj4 %1 %2 %3 %4 %5 %6 %7 %8 %9 |grolj4 
-diff -aruN groff/bin/troff-ps.cmd groff.win32/bin/troff-ps.cmd
---- groff/bin/troff-ps.cmd	Thu Jan  1 00:00:00 1970
-+++ groff.win32/bin/troff-ps.cmd	Wed May 17 08:57:48 2000
+diff -aruN groff-1.18/bin/troff-ps.cmd groff-1.18.win32/bin/troff-ps.cmd
+--- groff-1.18/bin/troff-ps.cmd	Thu Jan  1 01:00:00 1970
++++ groff-1.18.win32/bin/troff-ps.cmd	Mon Jul  8 06:47:51 2002
 @@ -0,0 +1,2 @@
 +@echo off
 +troff -Tps %1 %2 %3 %4 %5 %6 %7 %8 %9 |grops 
-diff -aruN groff/font/devascii/B groff.win32/font/devascii/B
---- groff/font/devascii/B	Thu Jan  1 00:00:00 1970
-+++ groff.win32/font/devascii/B	Wed May 17 08:57:48 2000
-@@ -0,0 +1,166 @@
+diff -aruN groff-1.18/font/devascii/B groff-1.18.win32/font/devascii/B
+--- groff-1.18/font/devascii/B	Thu Jan  1 01:00:00 1970
++++ groff-1.18.win32/font/devascii/B	Fri Jul  5 16:06:31 2002
+@@ -0,0 +1,168 @@
 +name B
 +internalname 2
 +spacewidth 24
@@ -91,6 +91,7 @@ diff -aruN groff/font/devascii/B groff.win32/font/devascii/B
 +aa	"
 +fm	"
 +aq	"
++cq	"
 +(	24	0	0050
 +)	24	0	0051
 +*	24	0	0052
@@ -213,6 +214,7 @@ diff -aruN groff/font/devascii/B groff.win32/font/devascii/B
 +w	24	0	0167
 +x	24	0	0170
 +mu	"
++tmu	"
 +y	24	0	0171
 +z	24	0	0172
 +lC	24	0	0173
@@ -238,10 +240,10 @@ diff -aruN groff/font/devascii/B groff.win32/font/devascii/B
 +~	"
 +ap	"
 +ti	"
-diff -aruN groff/font/devascii/BI groff.win32/font/devascii/BI
---- groff/font/devascii/BI	Thu Jan  1 00:00:00 1970
-+++ groff.win32/font/devascii/BI	Wed May 17 08:57:48 2000
-@@ -0,0 +1,166 @@
+diff -aruN groff-1.18/font/devascii/BI groff-1.18.win32/font/devascii/BI
+--- groff-1.18/font/devascii/BI	Thu Jan  1 01:00:00 1970
++++ groff-1.18.win32/font/devascii/BI	Fri Jul  5 16:06:31 2002
+@@ -0,0 +1,168 @@
 +name BI
 +internalname 3
 +spacewidth 24
@@ -261,6 +263,7 @@ diff -aruN groff/font/devascii/BI groff.win32/font/devascii/BI
 +aa	"
 +fm	"
 +aq	"
++cq	"
 +(	24	0	0050
 +)	24	0	0051
 +*	24	0	0052
@@ -383,6 +386,7 @@ diff -aruN groff/font/devascii/BI groff.win32/font/devascii/BI
 +w	24	0	0167
 +x	24	0	0170
 +mu	"
++tmu	"
 +y	24	0	0171
 +z	24	0	0172
 +lC	24	0	0173
@@ -408,9 +412,9 @@ diff -aruN groff/font/devascii/BI groff.win32/font/devascii/BI
 +~	"
 +ap	"
 +ti	"
-diff -aruN groff/font/devascii/DESC groff.win32/font/devascii/DESC
---- groff/font/devascii/DESC	Thu Jan  1 00:00:00 1970
-+++ groff.win32/font/devascii/DESC	Wed May 17 08:57:48 2000
+diff -aruN groff-1.18/font/devascii/DESC groff-1.18.win32/font/devascii/DESC
+--- groff-1.18/font/devascii/DESC	Thu Jan  1 01:00:00 1970
++++ groff-1.18.win32/font/devascii/DESC	Mon Jul  8 06:47:51 2002
 @@ -0,0 +1,8 @@
 +res 240
 +hor 24
@@ -420,10 +424,10 @@ diff -aruN groff/font/devascii/DESC groff.win32/font/devascii/DESC
 +fonts 4 R I B BI
 +tcommand
 +postpro grotty
-diff -aruN groff/font/devascii/I groff.win32/font/devascii/I
---- groff/font/devascii/I	Thu Jan  1 00:00:00 1970
-+++ groff.win32/font/devascii/I	Wed May 17 08:57:48 2000
-@@ -0,0 +1,166 @@
+diff -aruN groff-1.18/font/devascii/I groff-1.18.win32/font/devascii/I
+--- groff-1.18/font/devascii/I	Thu Jan  1 01:00:00 1970
++++ groff-1.18.win32/font/devascii/I	Fri Jul  5 16:06:31 2002
+@@ -0,0 +1,168 @@
 +name I
 +internalname 1
 +spacewidth 24
@@ -443,6 +447,7 @@ diff -aruN groff/font/devascii/I groff.win32/font/devascii/I
 +aa	"
 +fm	"
 +aq	"
++cq	"
 +(	24	0	0050
 +)	24	0	0051
 +*	24	0	0052
@@ -565,6 +570,7 @@ diff -aruN groff/font/devascii/I groff.win32/font/devascii/I
 +w	24	0	0167
 +x	24	0	0170
 +mu	"
++tmu	"
 +y	24	0	0171
 +z	24	0	0172
 +lC	24	0	0173
@@ -590,10 +596,10 @@ diff -aruN groff/font/devascii/I groff.win32/font/devascii/I
 +~	"
 +ap	"
 +ti	"
-diff -aruN groff/font/devascii/R groff.win32/font/devascii/R
---- groff/font/devascii/R	Thu Jan  1 00:00:00 1970
-+++ groff.win32/font/devascii/R	Wed May 17 08:57:48 2000
-@@ -0,0 +1,165 @@
+diff -aruN groff-1.18/font/devascii/R groff-1.18.win32/font/devascii/R
+--- groff-1.18/font/devascii/R	Thu Jan  1 01:00:00 1970
++++ groff-1.18.win32/font/devascii/R	Fri Jul  5 16:06:31 2002
+@@ -0,0 +1,167 @@
 +name R
 +spacewidth 24
 +charset
@@ -612,6 +618,7 @@ diff -aruN groff/font/devascii/R groff.win32/font/devascii/R
 +aa	"
 +fm	"
 +aq	"
++cq	"
 +(	24	0	0050
 +)	24	0	0051
 +*	24	0	0052
@@ -734,6 +741,7 @@ diff -aruN groff/font/devascii/R groff.win32/font/devascii/R
 +w	24	0	0167
 +x	24	0	0170
 +mu	"
++tmu	"
 +y	24	0	0171
 +z	24	0	0172
 +lC	24	0	0173
@@ -759,24 +767,25 @@ diff -aruN groff/font/devascii/R groff.win32/font/devascii/R
 +~	"
 +ap	"
 +ti	"
-diff -aruN groff/font/devdvi/DESC groff.win32/font/devdvi/DESC
---- groff/font/devdvi/DESC	Thu Jan  1 00:00:00 1970
-+++ groff.win32/font/devdvi/DESC	Wed May 17 08:57:48 2000
-@@ -0,0 +1,10 @@
+diff -aruN groff-1.18/font/devdvi/DESC groff-1.18.win32/font/devdvi/DESC
+--- groff-1.18/font/devdvi/DESC	Thu Jan  1 01:00:00 1970
++++ groff-1.18.win32/font/devdvi/DESC	Mon Jul  8 08:42:17 2002
+@@ -0,0 +1,11 @@
 +sizescale 100
 +unitwidth 131072
 +res 57816
 +hor 1
 +vert 1
-+sizes 500 600 700 800 900 1000 1095 1200 1400 1440 1600 1728 1800
-+2000 2074 2200 2400 2488 2800 3600 0
-+fonts 14 R I B BI 0 0 0 0 0 MI S EX CW CWI
++sizes 500-1000000 0
++styles R I B BI
++family T
++fonts 13 0 0 0 0 0 0 0 0 0 MI S EX CW
 +tcommand
 +postpro grodvi
-diff -aruN groff/font/devlatin1/B groff.win32/font/devlatin1/B
---- groff/font/devlatin1/B	Thu Jan  1 00:00:00 1970
-+++ groff.win32/font/devlatin1/B	Wed May 17 08:57:48 2000
-@@ -0,0 +1,356 @@
+diff -aruN groff-1.18/font/devlatin1/B groff-1.18.win32/font/devlatin1/B
+--- groff-1.18/font/devlatin1/B	Thu Jan  1 01:00:00 1970
++++ groff-1.18.win32/font/devlatin1/B	Fri Jul  5 16:06:31 2002
+@@ -0,0 +1,266 @@
 +name B
 +internalname 2
 +spacewidth 24
@@ -795,6 +804,7 @@ diff -aruN groff/font/devlatin1/B groff.win32/font/devlatin1/B
 +'	24	0	0047
 +fm	"
 +aq	"
++cq	"
 +(	24	0	0050
 +)	24	0	0051
 +*	24	0	0052
@@ -942,201 +952,110 @@ diff -aruN groff/font/devlatin1/B groff.win32/font/devlatin1/B
 +ap	"
 +ti	"
 +r!	24	0	0241
-+char161	"
 +ct	24	0	0242
-+char162	"
 +Po	24	0	0243
-+char163	"
 +Cs	24	0	0244
-+char164	"
 +Ye	24	0	0245
-+char165	"
 +bb	24	0	0246
-+char166	"
 +sc	24	0	0247
-+char167	"
 +ad	24	0	0250
-+char168	"
 +co	24	0	0251
-+char169	"
 +Of	24	0	0252
-+char170	"
 +Fo	24	0	0253
-+char171	"
 +no	24	0	0254
-+char172	"
 +shc	24	0	0255
-+char173	"
 +rg	24	0	0256
-+char174	"
 +a-	24	0	0257
-+char175	"
 +de	24	0	0260
-+char176	"
 +ao	"
 ++-	24	0	0261
-+char177	"
++t+-	"
 +S2	24	0	0262
-+char178	"
 +S3	24	0	0263
-+char179	"
 +aa	24	0	0264
-+char180	"
 +*m	24	0	0265
-+char181	"
++mc	"
 +ps	24	0	0266
-+char182	"
 +pc	24	0	0267
 +md	"
-+char183	"
 +ac	24	0	0270
-+char184	"
 +S1	24	0	0271
-+char185	"
 +Om	24	0	0272
-+char186	"
 +Fc	24	0	0273
-+char187	"
 +14	24	0	0274
-+char188	"
 +12	24	0	0275
-+char189	"
 +34	24	0	0276
-+char190	"
 +r?	24	0	0277
-+char191	"
 +`A	24	0	0300
-+char192	"
 +'A	24	0	0301
-+char193	"
 +^A	24	0	0302
-+char194	"
 +~A	24	0	0303
-+char195	"
 +:A	24	0	0304
-+char196	"
 +oA	24	0	0305
-+char197	"
 +AE	24	0	0306
-+char198	"
 +,C	24	0	0307
-+char199	"
 +`E	24	0	0310
-+char200	"
 +'E	24	0	0311
-+char201	"
 +^E	24	0	0312
-+char202	"
 +:E	24	0	0313
-+char203	"
 +`I	24	0	0314
-+char204	"
 +'I	24	0	0315
-+char205	"
 +^I	24	0	0316
-+char206	"
 +:I	24	0	0317
-+char207	"
 +-D	24	0	0320
-+char208	"
 +~N	24	0	0321
-+char209	"
 +`O	24	0	0322
-+char210	"
 +'O	24	0	0323
-+char211	"
 +^O	24	0	0324
-+char212	"
 +~O	24	0	0325
-+char213	"
 +:O	24	0	0326
-+char214	"
 +mu	24	0	0327
-+char215	"
++tmu	"
 +/O	24	0	0330
-+char216	"
 +`U	24	0	0331
-+char217	"
 +'U	24	0	0332
-+char218	"
 +^U	24	0	0333
-+char219	"
 +:U	24	0	0334
-+char220	"
 +'Y	24	0	0335
-+char221	"
 +TP	24	0	0336
-+char222	"
 +ss	24	0	0337
-+char223	"
 +`a	24	0	0340
-+char224	"
 +'a	24	0	0341
-+char225	"
 +^a	24	0	0342
-+char226	"
 +~a	24	0	0343
-+char227	"
 +:a	24	0	0344
-+char228	"
 +oa	24	0	0345
-+char229	"
 +ae	24	0	0346
-+char230	"
 +,c	24	0	0347
-+char231	"
 +`e	24	0	0350
-+char232	"
 +'e	24	0	0351
-+char233	"
 +^e	24	0	0352
-+char234	"
 +:e	24	0	0353
-+char235	"
 +`i	24	0	0354
-+char236	"
 +'i	24	0	0355
-+char237	"
 +^i	24	0	0356
-+char238	"
 +:i	24	0	0357
-+char239	"
 +Sd	24	0	0360
-+char240	"
 +~n	24	0	0361
-+char241	"
 +`o	24	0	0362
-+char242	"
 +'o	24	0	0363
-+char243	"
 +^o	24	0	0364
-+char244	"
 +~o	24	0	0365
-+char245	"
 +:o	24	0	0366
-+char246	"
 +di	24	0	0367
-+char247	"
++tdi	"
 +/o	24	0	0370
-+char248	"
 +`u	24	0	0371
-+char249	"
 +'u	24	0	0372
-+char250	"
 +^u	24	0	0373
-+char251	"
 +:u	24	0	0374
-+char252	"
 +'y	24	0	0375
-+char253	"
 +Tp	24	0	0376
-+char254	"
 +:y	24	0	0377
-+char255	"
-diff -aruN groff/font/devlatin1/BI groff.win32/font/devlatin1/BI
---- groff/font/devlatin1/BI	Thu Jan  1 00:00:00 1970
-+++ groff.win32/font/devlatin1/BI	Wed May 17 08:57:48 2000
-@@ -0,0 +1,356 @@
+diff -aruN groff-1.18/font/devlatin1/BI groff-1.18.win32/font/devlatin1/BI
+--- groff-1.18/font/devlatin1/BI	Thu Jan  1 01:00:00 1970
++++ groff-1.18.win32/font/devlatin1/BI	Fri Jul  5 16:06:31 2002
+@@ -0,0 +1,266 @@
 +name BI
 +internalname 3
 +spacewidth 24
@@ -1155,6 +1074,7 @@ diff -aruN groff/font/devlatin1/BI groff.win32/font/devlatin1/BI
 +'	24	0	0047
 +fm	"
 +aq	"
++cq	"
 +(	24	0	0050
 +)	24	0	0051
 +*	24	0	0052
@@ -1302,200 +1222,109 @@ diff -aruN groff/font/devlatin1/BI groff.win32/font/devlatin1/BI
 +ap	"
 +ti	"
 +r!	24	0	0241
-+char161	"
 +ct	24	0	0242
-+char162	"
 +Po	24	0	0243
-+char163	"
 +Cs	24	0	0244
-+char164	"
 +Ye	24	0	0245
-+char165	"
 +bb	24	0	0246
-+char166	"
 +sc	24	0	0247
-+char167	"
 +ad	24	0	0250
-+char168	"
 +co	24	0	0251
-+char169	"
 +Of	24	0	0252
-+char170	"
 +Fo	24	0	0253
-+char171	"
 +no	24	0	0254
-+char172	"
 +shc	24	0	0255
-+char173	"
 +rg	24	0	0256
-+char174	"
 +a-	24	0	0257
-+char175	"
 +de	24	0	0260
-+char176	"
 +ao	"
 ++-	24	0	0261
-+char177	"
++t+-	"
 +S2	24	0	0262
-+char178	"
 +S3	24	0	0263
-+char179	"
 +aa	24	0	0264
-+char180	"
 +*m	24	0	0265
-+char181	"
++mc	"
 +ps	24	0	0266
-+char182	"
 +pc	24	0	0267
 +md	"
-+char183	"
 +ac	24	0	0270
-+char184	"
 +S1	24	0	0271
-+char185	"
 +Om	24	0	0272
-+char186	"
 +Fc	24	0	0273
-+char187	"
 +14	24	0	0274
-+char188	"
 +12	24	0	0275
-+char189	"
 +34	24	0	0276
-+char190	"
 +r?	24	0	0277
-+char191	"
 +`A	24	0	0300
-+char192	"
 +'A	24	0	0301
-+char193	"
 +^A	24	0	0302
-+char194	"
 +~A	24	0	0303
-+char195	"
 +:A	24	0	0304
-+char196	"
 +oA	24	0	0305
-+char197	"
 +AE	24	0	0306
-+char198	"
 +,C	24	0	0307
-+char199	"
 +`E	24	0	0310
-+char200	"
 +'E	24	0	0311
-+char201	"
 +^E	24	0	0312
-+char202	"
 +:E	24	0	0313
-+char203	"
 +`I	24	0	0314
-+char204	"
 +'I	24	0	0315
-+char205	"
 +^I	24	0	0316
-+char206	"
 +:I	24	0	0317
-+char207	"
 +-D	24	0	0320
-+char208	"
 +~N	24	0	0321
-+char209	"
 +`O	24	0	0322
-+char210	"
 +'O	24	0	0323
-+char211	"
 +^O	24	0	0324
-+char212	"
 +~O	24	0	0325
-+char213	"
 +:O	24	0	0326
-+char214	"
 +mu	24	0	0327
-+char215	"
++tmu	"
 +/O	24	0	0330
-+char216	"
 +`U	24	0	0331
-+char217	"
 +'U	24	0	0332
-+char218	"
 +^U	24	0	0333
-+char219	"
 +:U	24	0	0334
-+char220	"
 +'Y	24	0	0335
-+char221	"
 +TP	24	0	0336
-+char222	"
 +ss	24	0	0337
-+char223	"
 +`a	24	0	0340
-+char224	"
 +'a	24	0	0341
-+char225	"
 +^a	24	0	0342
-+char226	"
 +~a	24	0	0343
-+char227	"
 +:a	24	0	0344
-+char228	"
 +oa	24	0	0345
-+char229	"
 +ae	24	0	0346
-+char230	"
 +,c	24	0	0347
-+char231	"
 +`e	24	0	0350
-+char232	"
 +'e	24	0	0351
-+char233	"
 +^e	24	0	0352
-+char234	"
 +:e	24	0	0353
-+char235	"
 +`i	24	0	0354
-+char236	"
 +'i	24	0	0355
-+char237	"
 +^i	24	0	0356
-+char238	"
 +:i	24	0	0357
-+char239	"
 +Sd	24	0	0360
-+char240	"
 +~n	24	0	0361
-+char241	"
 +`o	24	0	0362
-+char242	"
 +'o	24	0	0363
-+char243	"
 +^o	24	0	0364
-+char244	"
 +~o	24	0	0365
-+char245	"
 +:o	24	0	0366
-+char246	"
 +di	24	0	0367
-+char247	"
++tdi	"
 +/o	24	0	0370
-+char248	"
 +`u	24	0	0371
-+char249	"
 +'u	24	0	0372
-+char250	"
 +^u	24	0	0373
-+char251	"
 +:u	24	0	0374
-+char252	"
 +'y	24	0	0375
-+char253	"
 +Tp	24	0	0376
-+char254	"
 +:y	24	0	0377
-+char255	"
-diff -aruN groff/font/devlatin1/DESC groff.win32/font/devlatin1/DESC
---- groff/font/devlatin1/DESC	Thu Jan  1 00:00:00 1970
-+++ groff.win32/font/devlatin1/DESC	Wed May 17 08:57:48 2000
+diff -aruN groff-1.18/font/devlatin1/DESC groff-1.18.win32/font/devlatin1/DESC
+--- groff-1.18/font/devlatin1/DESC	Thu Jan  1 01:00:00 1970
++++ groff-1.18.win32/font/devlatin1/DESC	Mon Jul  8 06:47:51 2002
 @@ -0,0 +1,8 @@
 +res 240
 +hor 24
@@ -1505,10 +1334,10 @@ diff -aruN groff/font/devlatin1/DESC groff.win32/font/devlatin1/DESC
 +fonts 4 R I B BI
 +tcommand
 +postpro grotty
-diff -aruN groff/font/devlatin1/I groff.win32/font/devlatin1/I
---- groff/font/devlatin1/I	Thu Jan  1 00:00:00 1970
-+++ groff.win32/font/devlatin1/I	Wed May 17 08:57:48 2000
-@@ -0,0 +1,356 @@
+diff -aruN groff-1.18/font/devlatin1/I groff-1.18.win32/font/devlatin1/I
+--- groff-1.18/font/devlatin1/I	Thu Jan  1 01:00:00 1970
++++ groff-1.18.win32/font/devlatin1/I	Fri Jul  5 16:06:31 2002
+@@ -0,0 +1,266 @@
 +name I
 +internalname 1
 +spacewidth 24
@@ -1527,6 +1356,7 @@ diff -aruN groff/font/devlatin1/I groff.win32/font/devlatin1/I
 +'	24	0	0047
 +fm	"
 +aq	"
++cq	"
 +(	24	0	0050
 +)	24	0	0051
 +*	24	0	0052
@@ -1674,201 +1504,110 @@ diff -aruN groff/font/devlatin1/I groff.win32/font/devlatin1/I
 +ap	"
 +ti	"
 +r!	24	0	0241
-+char161	"
 +ct	24	0	0242
-+char162	"
 +Po	24	0	0243
-+char163	"
 +Cs	24	0	0244
-+char164	"
 +Ye	24	0	0245
-+char165	"
 +bb	24	0	0246
-+char166	"
 +sc	24	0	0247
-+char167	"
 +ad	24	0	0250
-+char168	"
 +co	24	0	0251
-+char169	"
 +Of	24	0	0252
-+char170	"
 +Fo	24	0	0253
-+char171	"
 +no	24	0	0254
-+char172	"
 +shc	24	0	0255
-+char173	"
 +rg	24	0	0256
-+char174	"
 +a-	24	0	0257
-+char175	"
 +de	24	0	0260
-+char176	"
 +ao	"
 ++-	24	0	0261
-+char177	"
++t+-	"
 +S2	24	0	0262
-+char178	"
 +S3	24	0	0263
-+char179	"
 +aa	24	0	0264
-+char180	"
 +*m	24	0	0265
-+char181	"
++mc	"
 +ps	24	0	0266
-+char182	"
 +pc	24	0	0267
 +md	"
-+char183	"
 +ac	24	0	0270
-+char184	"
 +S1	24	0	0271
-+char185	"
 +Om	24	0	0272
-+char186	"
 +Fc	24	0	0273
-+char187	"
 +14	24	0	0274
-+char188	"
 +12	24	0	0275
-+char189	"
 +34	24	0	0276
-+char190	"
 +r?	24	0	0277
-+char191	"
 +`A	24	0	0300
-+char192	"
 +'A	24	0	0301
-+char193	"
 +^A	24	0	0302
-+char194	"
 +~A	24	0	0303
-+char195	"
 +:A	24	0	0304
-+char196	"
 +oA	24	0	0305
-+char197	"
 +AE	24	0	0306
-+char198	"
 +,C	24	0	0307
-+char199	"
 +`E	24	0	0310
-+char200	"
 +'E	24	0	0311
-+char201	"
 +^E	24	0	0312
-+char202	"
 +:E	24	0	0313
-+char203	"
 +`I	24	0	0314
-+char204	"
 +'I	24	0	0315
-+char205	"
 +^I	24	0	0316
-+char206	"
 +:I	24	0	0317
-+char207	"
 +-D	24	0	0320
-+char208	"
 +~N	24	0	0321
-+char209	"
 +`O	24	0	0322
-+char210	"
 +'O	24	0	0323
-+char211	"
 +^O	24	0	0324
-+char212	"
 +~O	24	0	0325
-+char213	"
 +:O	24	0	0326
-+char214	"
 +mu	24	0	0327
-+char215	"
++tmu	"
 +/O	24	0	0330
-+char216	"
 +`U	24	0	0331
-+char217	"
 +'U	24	0	0332
-+char218	"
 +^U	24	0	0333
-+char219	"
 +:U	24	0	0334
-+char220	"
 +'Y	24	0	0335
-+char221	"
 +TP	24	0	0336
-+char222	"
 +ss	24	0	0337
-+char223	"
 +`a	24	0	0340
-+char224	"
 +'a	24	0	0341
-+char225	"
 +^a	24	0	0342
-+char226	"
 +~a	24	0	0343
-+char227	"
 +:a	24	0	0344
-+char228	"
 +oa	24	0	0345
-+char229	"
 +ae	24	0	0346
-+char230	"
 +,c	24	0	0347
-+char231	"
 +`e	24	0	0350
-+char232	"
 +'e	24	0	0351
-+char233	"
 +^e	24	0	0352
-+char234	"
 +:e	24	0	0353
-+char235	"
 +`i	24	0	0354
-+char236	"
 +'i	24	0	0355
-+char237	"
 +^i	24	0	0356
-+char238	"
 +:i	24	0	0357
-+char239	"
 +Sd	24	0	0360
-+char240	"
 +~n	24	0	0361
-+char241	"
 +`o	24	0	0362
-+char242	"
 +'o	24	0	0363
-+char243	"
 +^o	24	0	0364
-+char244	"
 +~o	24	0	0365
-+char245	"
 +:o	24	0	0366
-+char246	"
 +di	24	0	0367
-+char247	"
++tdi	"
 +/o	24	0	0370
-+char248	"
 +`u	24	0	0371
-+char249	"
 +'u	24	0	0372
-+char250	"
 +^u	24	0	0373
-+char251	"
 +:u	24	0	0374
-+char252	"
 +'y	24	0	0375
-+char253	"
 +Tp	24	0	0376
-+char254	"
 +:y	24	0	0377
-+char255	"
-diff -aruN groff/font/devlatin1/R groff.win32/font/devlatin1/R
---- groff/font/devlatin1/R	Thu Jan  1 00:00:00 1970
-+++ groff.win32/font/devlatin1/R	Wed May 17 08:57:48 2000
-@@ -0,0 +1,355 @@
+diff -aruN groff-1.18/font/devlatin1/R groff-1.18.win32/font/devlatin1/R
+--- groff-1.18/font/devlatin1/R	Thu Jan  1 01:00:00 1970
++++ groff-1.18.win32/font/devlatin1/R	Fri Jul  5 16:06:31 2002
+@@ -0,0 +1,265 @@
 +name R
 +spacewidth 24
 +charset
@@ -1886,6 +1625,7 @@ diff -aruN groff/font/devlatin1/R groff.win32/font/devlatin1/R
 +'	24	0	0047
 +fm	"
 +aq	"
++cq	"
 +(	24	0	0050
 +)	24	0	0051
 +*	24	0	0052
@@ -2033,200 +1773,109 @@ diff -aruN groff/font/devlatin1/R groff.win32/font/devlatin1/R
 +ap	"
 +ti	"
 +r!	24	0	0241
-+char161	"
 +ct	24	0	0242
-+char162	"
 +Po	24	0	0243
-+char163	"
 +Cs	24	0	0244
-+char164	"
 +Ye	24	0	0245
-+char165	"
 +bb	24	0	0246
-+char166	"
 +sc	24	0	0247
-+char167	"
 +ad	24	0	0250
-+char168	"
 +co	24	0	0251
-+char169	"
 +Of	24	0	0252
-+char170	"
 +Fo	24	0	0253
-+char171	"
 +no	24	0	0254
-+char172	"
 +shc	24	0	0255
-+char173	"
 +rg	24	0	0256
-+char174	"
 +a-	24	0	0257
-+char175	"
 +de	24	0	0260
-+char176	"
 +ao	"
 ++-	24	0	0261
-+char177	"
++t+-	"
 +S2	24	0	0262
-+char178	"
 +S3	24	0	0263
-+char179	"
 +aa	24	0	0264
-+char180	"
 +*m	24	0	0265
-+char181	"
++mc	"
 +ps	24	0	0266
-+char182	"
 +pc	24	0	0267
 +md	"
-+char183	"
 +ac	24	0	0270
-+char184	"
 +S1	24	0	0271
-+char185	"
 +Om	24	0	0272
-+char186	"
 +Fc	24	0	0273
-+char187	"
 +14	24	0	0274
-+char188	"
 +12	24	0	0275
-+char189	"
 +34	24	0	0276
-+char190	"
 +r?	24	0	0277
-+char191	"
 +`A	24	0	0300
-+char192	"
 +'A	24	0	0301
-+char193	"
 +^A	24	0	0302
-+char194	"
 +~A	24	0	0303
-+char195	"
 +:A	24	0	0304
-+char196	"
 +oA	24	0	0305
-+char197	"
 +AE	24	0	0306
-+char198	"
 +,C	24	0	0307
-+char199	"
 +`E	24	0	0310
-+char200	"
 +'E	24	0	0311
-+char201	"
 +^E	24	0	0312
-+char202	"
 +:E	24	0	0313
-+char203	"
 +`I	24	0	0314
-+char204	"
 +'I	24	0	0315
-+char205	"
 +^I	24	0	0316
-+char206	"
 +:I	24	0	0317
-+char207	"
 +-D	24	0	0320
-+char208	"
 +~N	24	0	0321
-+char209	"
 +`O	24	0	0322
-+char210	"
 +'O	24	0	0323
-+char211	"
 +^O	24	0	0324
-+char212	"
 +~O	24	0	0325
-+char213	"
 +:O	24	0	0326
-+char214	"
 +mu	24	0	0327
-+char215	"
++tmu	"
 +/O	24	0	0330
-+char216	"
 +`U	24	0	0331
-+char217	"
 +'U	24	0	0332
-+char218	"
 +^U	24	0	0333
-+char219	"
 +:U	24	0	0334
-+char220	"
 +'Y	24	0	0335
-+char221	"
 +TP	24	0	0336
-+char222	"
 +ss	24	0	0337
-+char223	"
 +`a	24	0	0340
-+char224	"
 +'a	24	0	0341
-+char225	"
 +^a	24	0	0342
-+char226	"
 +~a	24	0	0343
-+char227	"
 +:a	24	0	0344
-+char228	"
 +oa	24	0	0345
-+char229	"
 +ae	24	0	0346
-+char230	"
 +,c	24	0	0347
-+char231	"
 +`e	24	0	0350
-+char232	"
 +'e	24	0	0351
-+char233	"
 +^e	24	0	0352
-+char234	"
 +:e	24	0	0353
-+char235	"
 +`i	24	0	0354
-+char236	"
 +'i	24	0	0355
-+char237	"
 +^i	24	0	0356
-+char238	"
 +:i	24	0	0357
-+char239	"
 +Sd	24	0	0360
-+char240	"
 +~n	24	0	0361
-+char241	"
 +`o	24	0	0362
-+char242	"
 +'o	24	0	0363
-+char243	"
 +^o	24	0	0364
-+char244	"
 +~o	24	0	0365
-+char245	"
 +:o	24	0	0366
-+char246	"
 +di	24	0	0367
-+char247	"
++tdi	"
 +/o	24	0	0370
-+char248	"
 +`u	24	0	0371
-+char249	"
 +'u	24	0	0372
-+char250	"
 +^u	24	0	0373
-+char251	"
 +:u	24	0	0374
-+char252	"
 +'y	24	0	0375
-+char253	"
 +Tp	24	0	0376
-+char254	"
 +:y	24	0	0377
-+char255	"
-diff -aruN groff/font/devlj4/DESC groff.win32/font/devlj4/DESC
---- groff/font/devlj4/DESC	Thu Jan  1 00:00:00 1970
-+++ groff.win32/font/devlj4/DESC	Wed May 17 08:57:48 2000
+diff -aruN groff-1.18/font/devlj4/DESC groff-1.18.win32/font/devlj4/DESC
+--- groff-1.18/font/devlj4/DESC	Thu Jan  1 01:00:00 1970
++++ groff-1.18.win32/font/devlj4/DESC	Mon Jul  8 06:47:51 2002
 @@ -0,0 +1,12 @@
 +res 600
 +unitwidth 12700
@@ -2240,9 +1889,9 @@ diff -aruN groff/font/devlj4/DESC groff.win32/font/devlj4/DESC
 +tcommand
 +postpro grolj4
 +papersize letter
-diff -aruN groff/font/devps/DESC groff.win32/font/devps/DESC
---- groff/font/devps/DESC	Thu Jan  1 00:00:00 1970
-+++ groff.win32/font/devps/DESC	Wed May 17 08:57:48 2000
+diff -aruN groff-1.18/font/devps/DESC groff-1.18.win32/font/devps/DESC
+--- groff-1.18/font/devps/DESC	Thu Jan  1 01:00:00 1970
++++ groff-1.18.win32/font/devps/DESC	Mon Jul  8 06:52:35 2002
 @@ -0,0 +1,13 @@
 +res 72000
 +hor 1
@@ -2256,11 +1905,11 @@ diff -aruN groff/font/devps/DESC groff.win32/font/devps/DESC
 +tcommand
 +postpro grops
 +broken 7
-+paperlength 792000
-diff -aruN groff/font/devps/prologue groff.win32/font/devps/prologue
---- groff/font/devps/prologue	Thu Jan  1 00:00:00 1970
-+++ groff.win32/font/devps/prologue	Wed May 17 08:57:48 2000
-@@ -0,0 +1,155 @@
++papersize letter
+diff -aruN groff-1.18/font/devps/prologue groff-1.18.win32/font/devps/prologue
+--- groff-1.18/font/devps/prologue	Thu Jan  1 01:00:00 1970
++++ groff-1.18.win32/font/devps/prologue	Fri Jul  5 16:06:29 2002
+@@ -0,0 +1,164 @@
 +%!PS-Adobe-3.0 Resource-ProcSet
 +/setpacking where{
 +pop
@@ -2359,11 +2008,20 @@ diff -aruN groff/font/devps/prologue groff.win32/font/devps/prologue
 +/ST/stroke load def
 +/MT/moveto load def
 +/CL/closepath load def
-+/FL{
-+currentgray exch setgray fill setgray
++/Fr{
++setrgbcolor fill
 +}bind def
-+/BL/fill load def
++/Fk{
++setcmykcolor fill
++}bind def
++/Fg{
++setgray fill
++}bind def
++/FL/fill load def
 +/LW/setlinewidth load def
++/Cr/setrgbcolor load def
++/Ck/setcmykcolor load def
++/Cg/setgray load def
 +/RE{
 +findfont
 +dup maxlength 1 index/FontName known not{1 add}if dict begin
@@ -2416,9 +2074,9 @@ diff -aruN groff/font/devps/prologue groff.win32/font/devps/prologue
 +pop
 +setpacking
 +}if
-diff -aruN groff/font/devps/symbolsl.pfa groff.win32/font/devps/symbolsl.pfa
---- groff/font/devps/symbolsl.pfa	Thu Jan  1 00:00:00 1970
-+++ groff.win32/font/devps/symbolsl.pfa	Wed May 17 08:57:48 2000
+diff -aruN groff-1.18/font/devps/symbolsl.pfa groff-1.18.win32/font/devps/symbolsl.pfa
+--- groff-1.18/font/devps/symbolsl.pfa	Thu Jan  1 01:00:00 1970
++++ groff-1.18.win32/font/devps/symbolsl.pfa	Mon Jul  8 06:47:51 2002
 @@ -0,0 +1,29 @@
 +%!PS-Adobe-3.0 Resource-Font
 +%%DocumentNeededResources: font Symbol
@@ -2449,9 +2107,9 @@ diff -aruN groff/font/devps/symbolsl.pfa groff.win32/font/devps/symbolsl.pfa
 +[.89 0.0 15.5 dup sin exch cos div .89 0.0 0.0]
 +/Symbol
 +MakeTransformedFont
-diff -aruN groff/font/devps/zapfdr.pfa groff.win32/font/devps/zapfdr.pfa
---- groff/font/devps/zapfdr.pfa	Thu Jan  1 00:00:00 1970
-+++ groff.win32/font/devps/zapfdr.pfa	Wed May 17 08:57:48 2000
+diff -aruN groff-1.18/font/devps/zapfdr.pfa groff-1.18.win32/font/devps/zapfdr.pfa
+--- groff-1.18/font/devps/zapfdr.pfa	Thu Jan  1 01:00:00 1970
++++ groff-1.18.win32/font/devps/zapfdr.pfa	Mon Jul  8 06:47:51 2002
 @@ -0,0 +1,218 @@
 +%!PS-Adobe-3.0 Resource-Font
 +%%DocumentNeededResources: font ZapfDingbats
@@ -2671,9 +2329,9 @@ diff -aruN groff/font/devps/zapfdr.pfa groff.win32/font/devps/zapfdr.pfa
 +/a96[-299 -334]def
 +end def
 +/ZapfDingbats-Reverse currentdict end definefont pop
-diff -aruN groff/src/devices/grodvi/Makefile.msc groff.win32/src/devices/grodvi/Makefile.msc
---- groff/src/devices/grodvi/Makefile.msc	Thu Jan  1 00:00:00 1970
-+++ groff.win32/src/devices/grodvi/Makefile.msc	Wed May 17 08:57:48 2000
+diff -aruN groff-1.18/src/devices/grodvi/Makefile.msc groff-1.18.win32/src/devices/grodvi/Makefile.msc
+--- groff-1.18/src/devices/grodvi/Makefile.msc	Thu Jan  1 01:00:00 1970
++++ groff-1.18.win32/src/devices/grodvi/Makefile.msc	Mon Jul  8 06:47:51 2002
 @@ -0,0 +1,21 @@
 +
 +#  Makefile for Microsoft Visual C++ 6.0
@@ -2696,9 +2354,9 @@ diff -aruN groff/src/devices/grodvi/Makefile.msc groff.win32/src/devices/grodvi/
 +
 +
 +
-diff -aruN groff/src/devices/grolj4/Makefile.msc groff.win32/src/devices/grolj4/Makefile.msc
---- groff/src/devices/grolj4/Makefile.msc	Thu Jan  1 00:00:00 1970
-+++ groff.win32/src/devices/grolj4/Makefile.msc	Wed May 17 08:57:48 2000
+diff -aruN groff-1.18/src/devices/grolj4/Makefile.msc groff-1.18.win32/src/devices/grolj4/Makefile.msc
+--- groff-1.18/src/devices/grolj4/Makefile.msc	Thu Jan  1 01:00:00 1970
++++ groff-1.18.win32/src/devices/grolj4/Makefile.msc	Mon Jul  8 06:47:51 2002
 @@ -0,0 +1,22 @@
 +
 +#  Makefile for Microsoft Visual C++ 6.0
@@ -2722,9 +2380,9 @@ diff -aruN groff/src/devices/grolj4/Makefile.msc groff.win32/src/devices/grolj4/
 +
 +
 +
-diff -aruN groff/src/devices/grops/Makefile.msc groff.win32/src/devices/grops/Makefile.msc
---- groff/src/devices/grops/Makefile.msc	Thu Jan  1 00:00:00 1970
-+++ groff.win32/src/devices/grops/Makefile.msc	Wed May 17 08:57:48 2000
+diff -aruN groff-1.18/src/devices/grops/Makefile.msc groff-1.18.win32/src/devices/grops/Makefile.msc
+--- groff-1.18/src/devices/grops/Makefile.msc	Thu Jan  1 01:00:00 1970
++++ groff-1.18.win32/src/devices/grops/Makefile.msc	Mon Jul  8 06:47:51 2002
 @@ -0,0 +1,23 @@
 +
 +#  Makefile for Microsoft Visual C++ 6.0
@@ -2749,9 +2407,9 @@ diff -aruN groff/src/devices/grops/Makefile.msc groff.win32/src/devices/grops/Ma
 +
 +
 +
-diff -aruN groff/src/devices/grotty/Makefile.msc groff.win32/src/devices/grotty/Makefile.msc
---- groff/src/devices/grotty/Makefile.msc	Thu Jan  1 00:00:00 1970
-+++ groff.win32/src/devices/grotty/Makefile.msc	Wed May 17 08:57:48 2000
+diff -aruN groff-1.18/src/devices/grotty/Makefile.msc groff-1.18.win32/src/devices/grotty/Makefile.msc
+--- groff-1.18/src/devices/grotty/Makefile.msc	Thu Jan  1 01:00:00 1970
++++ groff-1.18.win32/src/devices/grotty/Makefile.msc	Mon Jul  8 06:47:51 2002
 @@ -0,0 +1,22 @@
 +
 +#  Makefile for Microsoft Visual C++ 6.0
@@ -2775,10 +2433,10 @@ diff -aruN groff/src/devices/grotty/Makefile.msc groff.win32/src/devices/grotty/
 +
 +
 +
-diff -aruN groff/src/include/defs.h groff.win32/src/include/defs.h
---- groff/src/include/defs.h	Thu Jan  1 00:00:00 1970
-+++ groff.win32/src/include/defs.h	Wed May 17 08:57:48 2000
-@@ -0,0 +1,12 @@
+diff -aruN groff-1.18/src/include/defs.h groff-1.18.win32/src/include/defs.h
+--- groff-1.18/src/include/defs.h	Thu Jan  1 01:00:00 1970
++++ groff-1.18.win32/src/include/defs.h	Mon Jul  8 08:32:01 2002
+@@ -0,0 +1,8 @@
 +
 +#define	FONTPATH	"c:/groff/font"
 +
@@ -2787,14 +2445,10 @@ diff -aruN groff/src/include/defs.h groff.win32/src/include/defs.h
 +#define	DEVICE		"ps"
 +
 +#define	PROG_PREFIX	""
-+
-+#define	popen	_popen
-+#define	pclose	_pclose
-+
-diff -aruN groff/src/include/getopt.h groff.win32/src/include/getopt.h
---- groff/src/include/getopt.h	Sat Apr  8 06:04:36 2000
-+++ groff.win32/src/include/getopt.h	Wed May 17 08:57:48 2000
-@@ -150,7 +150,7 @@
+diff -aruN groff-1.18/src/include/getopt.h groff-1.18.win32/src/include/getopt.h
+--- groff-1.18/src/include/getopt.h	Sat Aug 25 01:37:49 2001
++++ groff-1.18.win32/src/include/getopt.h	Mon Jul  8 06:47:51 2002
+@@ -162,7 +162,7 @@
  			     int __long_only);
  # endif
  #else /* not __STDC__ */
@@ -2803,9 +2457,9 @@ diff -aruN groff/src/include/getopt.h groff.win32/src/include/getopt.h
  # ifndef __need_getopt
  extern int getopt_long ();
  extern int getopt_long_only ();
-diff -aruN groff/src/libs/libdriver/Makefile.msc groff.win32/src/libs/libdriver/Makefile.msc
---- groff/src/libs/libdriver/Makefile.msc	Thu Jan  1 00:00:00 1970
-+++ groff.win32/src/libs/libdriver/Makefile.msc	Wed May 17 08:57:48 2000
+diff -aruN groff-1.18/src/libs/libdriver/Makefile.msc groff-1.18.win32/src/libs/libdriver/Makefile.msc
+--- groff-1.18/src/libs/libdriver/Makefile.msc	Thu Jan  1 01:00:00 1970
++++ groff-1.18.win32/src/libs/libdriver/Makefile.msc	Mon Jul  8 06:47:51 2002
 @@ -0,0 +1,22 @@
 +
 +#  Makefile for Microsoft Visual C++ 6.0
@@ -2829,10 +2483,10 @@ diff -aruN groff/src/libs/libdriver/Makefile.msc groff.win32/src/libs/libdriver/
 +	rm -zq $@
 +	lib /NOLOGO /OUT:$@ *.obj
 +
-diff -aruN groff/src/libs/libgroff/Makefile.msc groff.win32/src/libs/libgroff/Makefile.msc
---- groff/src/libs/libgroff/Makefile.msc	Thu Jan  1 00:00:00 1970
-+++ groff.win32/src/libs/libgroff/Makefile.msc	Wed May 17 08:57:48 2000
-@@ -0,0 +1,53 @@
+diff -aruN groff-1.18/src/libs/libgroff/Makefile.msc groff-1.18.win32/src/libs/libgroff/Makefile.msc
+--- groff-1.18/src/libs/libgroff/Makefile.msc	Thu Jan  1 01:00:00 1970
++++ groff-1.18.win32/src/libs/libgroff/Makefile.msc	Mon Jul  8 06:47:51 2002
+@@ -0,0 +1,59 @@
 +
 +#  Makefile for Microsoft Visual C++ 6.0
 +#  by Blake McBride  (blake@florida-software.com)
@@ -2856,6 +2510,7 @@ diff -aruN groff/src/libs/libgroff/Makefile.msc groff.win32/src/libs/libgroff/Ma
 +	assert.obj	\
 +	change_lf.obj	\
 +	cmap.obj	\
++	color.obj	\
 +	cset.obj	\
 +	device.obj	\
 +	errarg.obj	\
@@ -2865,20 +2520,25 @@ diff -aruN groff/src/libs/libgroff/Makefile.msc groff.win32/src/libs/libgroff/Ma
 +	font.obj	\
 +	fontfile.obj	\
 +	getopt.obj	\
-+	htmlindicate.obj \
++	geometry.obj	\
++	htmlhint.obj	\
 +	iftoa.obj	\
-+	illegal.obj	\
++	invalid.obj	\
 +	itoa.obj	\
 +	lf.obj		\
 +	lineno.obj	\
 +	macropath.obj	\
++	mkstemp.obj	\
++	mksdir.obj	\
 +	nametoindex.obj	\
++	paper.obj	\
 +	progname.obj	\
 +	ptable.obj	\
 +	searchpath.obj	\
 +	string.obj	\
 +	strsave.obj	\
 +	tmpfile.obj	\
++	tmpname.obj	\
 +	version.obj
 +
 +
@@ -2886,16 +2546,16 @@ diff -aruN groff/src/libs/libgroff/Makefile.msc groff.win32/src/libs/libgroff/Ma
 +	rm -zq $@
 +	lib /NOLOGO /OUT:$@ *.obj
 +
-diff -aruN groff/src/libs/libgroff/version.cc groff.win32/src/libs/libgroff/version.cc
---- groff/src/libs/libgroff/version.cc	Thu Jan  1 00:00:00 1970
-+++ groff.win32/src/libs/libgroff/version.cc	Wed May 17 08:57:48 2000
+diff -aruN groff-1.18/src/libs/libgroff/version.cc groff-1.18.win32/src/libs/libgroff/version.cc
+--- groff-1.18/src/libs/libgroff/version.cc	Thu Jan  1 01:00:00 1970
++++ groff-1.18.win32/src/libs/libgroff/version.cc	Mon Jul  8 06:47:51 2002
 @@ -0,0 +1,3 @@
-+const char *version_string = "1.17";
-+const char *revision_string = "1";
-+extern "C" const char *Version_string = "1.17.1";
-diff -aruN groff/src/preproc/eqn/Makefile.msc groff.win32/src/preproc/eqn/Makefile.msc
---- groff/src/preproc/eqn/Makefile.msc	Thu Jan  1 00:00:00 1970
-+++ groff.win32/src/preproc/eqn/Makefile.msc	Wed May 17 08:57:48 2000
++const char *version_string = "1.18";
++const char *revision_string = "0";
++extern "C" const char *Version_string = "1.18";
+diff -aruN groff-1.18/src/preproc/eqn/Makefile.msc groff-1.18.win32/src/preproc/eqn/Makefile.msc
+--- groff-1.18/src/preproc/eqn/Makefile.msc	Thu Jan  1 01:00:00 1970
++++ groff-1.18.win32/src/preproc/eqn/Makefile.msc	Mon Jul  8 06:47:51 2002
 @@ -0,0 +1,39 @@
 +
 +#  Makefile for Microsoft Visual C++ 6.0
@@ -2936,9 +2596,9 @@ diff -aruN groff/src/preproc/eqn/Makefile.msc groff.win32/src/preproc/eqn/Makefi
 +
 +
 +
-diff -aruN groff/src/preproc/pic/Makefile.msc groff.win32/src/preproc/pic/Makefile.msc
---- groff/src/preproc/pic/Makefile.msc	Thu Jan  1 00:00:00 1970
-+++ groff.win32/src/preproc/pic/Makefile.msc	Wed May 17 08:57:48 2000
+diff -aruN groff-1.18/src/preproc/pic/Makefile.msc groff-1.18.win32/src/preproc/pic/Makefile.msc
+--- groff-1.18/src/preproc/pic/Makefile.msc	Thu Jan  1 01:00:00 1970
++++ groff-1.18.win32/src/preproc/pic/Makefile.msc	Mon Jul  8 06:47:51 2002
 @@ -0,0 +1,31 @@
 +
 +#  Makefile for Microsoft Visual C++ 6.0
@@ -2971,9 +2631,9 @@ diff -aruN groff/src/preproc/pic/Makefile.msc groff.win32/src/preproc/pic/Makefi
 +
 +
 +
-diff -aruN groff/src/preproc/tbl/Makefile.msc groff.win32/src/preproc/tbl/Makefile.msc
---- groff/src/preproc/tbl/Makefile.msc	Thu Jan  1 00:00:00 1970
-+++ groff.win32/src/preproc/tbl/Makefile.msc	Wed May 17 08:57:48 2000
+diff -aruN groff-1.18/src/preproc/tbl/Makefile.msc groff-1.18.win32/src/preproc/tbl/Makefile.msc
+--- groff-1.18/src/preproc/tbl/Makefile.msc	Thu Jan  1 01:00:00 1970
++++ groff-1.18.win32/src/preproc/tbl/Makefile.msc	Mon Jul  8 06:47:51 2002
 @@ -0,0 +1,26 @@
 +
 +#  Makefile for Microsoft Visual C++ 6.0
@@ -3001,9 +2661,9 @@ diff -aruN groff/src/preproc/tbl/Makefile.msc groff.win32/src/preproc/tbl/Makefi
 +
 +
 +
-diff -aruN groff/src/roff/troff/Makefile.msc groff.win32/src/roff/troff/Makefile.msc
---- groff/src/roff/troff/Makefile.msc	Thu Jan  1 00:00:00 1970
-+++ groff.win32/src/roff/troff/Makefile.msc	Wed May 17 08:57:48 2000
+diff -aruN groff-1.18/src/roff/troff/Makefile.msc groff-1.18.win32/src/roff/troff/Makefile.msc
+--- groff-1.18/src/roff/troff/Makefile.msc	Thu Jan  1 01:00:00 1970
++++ groff-1.18.win32/src/roff/troff/Makefile.msc	Mon Jul  8 06:47:51 2002
 @@ -0,0 +1,34 @@
 +
 +#  Makefile for Microsoft Visual C++ 6.0
@@ -3039,10 +2699,10 @@ diff -aruN groff/src/roff/troff/Makefile.msc groff.win32/src/roff/troff/Makefile
 +
 +
 +
-diff -aruN groff/src/roff/troff/majorminor.cc groff.win32/src/roff/troff/majorminor.cc
---- groff/src/roff/troff/majorminor.cc	Thu Jan  1 00:00:00 1970
-+++ groff.win32/src/roff/troff/majorminor.cc	Wed May 17 08:57:48 2000
+diff -aruN groff-1.18/src/roff/troff/majorminor.cc groff-1.18.win32/src/roff/troff/majorminor.cc
+--- groff-1.18/src/roff/troff/majorminor.cc	Thu Jan  1 01:00:00 1970
++++ groff-1.18.win32/src/roff/troff/majorminor.cc	Mon Jul  8 06:47:51 2002
 @@ -0,0 +1,3 @@
 +const char *major_version = "1";
-+const char *minor_version = "17";
-+const char *revision = "1";
++const char *minor_version = "18";
++const char *revision = "0";

@@ -1,11 +1,10 @@
-MAN5=\
-  groff_tmac.n
 MAN7=\
   groff_ms.n \
   groff_man.n \
   groff_me.n \
   groff_mdoc.n \
-  groff_mwww.n
+  groff_trace.n \
+  groff_www.n
 
 NORMALFILES=\
   mandoc.tmac andoc.tmac an-old.tmac \
@@ -13,14 +12,17 @@ NORMALFILES=\
   mdoc.tmac \
   pic.tmac \
   a4.tmac \
+  ec.tmac \
   safer.tmac \
   trace.tmac \
   ps.tmac psold.tmac pspic.tmac psatk.tmac \
   dvi.tmac \
-  tty.tmac tty-char.tmac latin1.tmac \
+  tty.tmac tty-char.tmac \
+  latin1.tmac cp1047.tmac \
   X.tmac Xps.tmac \
   lj4.tmac \
-  html.tmac mwww.tmac www.tmac \
+  lbp.tmac \
+  html.tmac www.tmac \
   eqnrc \
   troffrc troffrc-end \
   hyphen.us

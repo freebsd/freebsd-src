@@ -1,5 +1,5 @@
 // -*- C++ -*-
-/* Copyright (C) 1989, 1990, 1991, 1992, 2000, 2001
+/* Copyright (C) 1989, 1990, 1991, 1992, 2000, 2001, 2002
    Free Software Foundation, Inc.
      Written by James Clark (jjc@jclark.com)
 
@@ -51,14 +51,16 @@ class token {
     TOKEN_REQUEST,
     TOKEN_RIGHT_BRACE,
     TOKEN_SPACE,		// ` ' -- ordinary space
-    TOKEN_SPECIAL,		// a special character -- \' \` \- \(xx
+    TOKEN_SPECIAL,		// a special character -- \' \` \- \(xx \[xxx]
     TOKEN_SPREAD,		// \p -- break and spread output line 
     TOKEN_STRETCHABLE_SPACE,	// \~
+    TOKEN_UNSTRETCHABLE_SPACE,	// `\ '
     TOKEN_TAB,			// tab
     TOKEN_TRANSPARENT,		// \!
     TOKEN_TRANSPARENT_DUMMY,	// \)
+    TOKEN_ZERO_WIDTH_BREAK,	// \:
     TOKEN_EOF			// end of file
-    } type;
+  } type;
 public:
   token();
   ~token();
@@ -71,6 +73,7 @@ public:
   int nspaces();		// 1 if space, 2 if double space, 0 otherwise
   int space();			// is the current token a space?
   int stretchable_space();	// is the current token a stretchable space?
+  int unstretchable_space();	// is the current token an unstretchable space?
   int white_space();		// is the current token space or tab?
   int special();		// is the current token a special character?
   int newline();		// is the current token a newline?
@@ -85,6 +88,7 @@ public:
   int right_brace();
   int page_ejector();
   int hyphen_indicator();
+  int zero_width_break();
   int operator==(const token &); // need this for delimiters, and for conditions
   int operator!=(const token &); // ditto
   unsigned char ch();
@@ -103,6 +107,7 @@ extern token tok;		// the current token
 extern symbol get_name(int required = 0);
 extern symbol get_long_name(int required = 0);
 extern charinfo *get_optional_char();
+extern char *read_string();
 extern void check_missing_character();
 extern void skip_line();
 extern void handle_initial_title();
@@ -135,6 +140,11 @@ inline int token::space()
 inline int token::stretchable_space()
 {
   return type == TOKEN_STRETCHABLE_SPACE;
+}
+
+inline int token::unstretchable_space()
+{
+  return type == TOKEN_UNSTRETCHABLE_SPACE;
 }
 
 inline int token::special()
@@ -213,6 +223,11 @@ inline int token::backspace()
 inline int token::hyphen_indicator()
 {
   return type == TOKEN_HYPHEN_INDICATOR;
+}
+
+inline int token::zero_width_break()
+{
+  return type == TOKEN_ZERO_WIDTH_BREAK;
 }
 
 int has_arg();

@@ -2,49 +2,75 @@
 .\"
 .nr _C \n(.C
 .cp 0
+.
 .nroff
+.ta T 0.8i
+.
 .\" Don't warn about non-existent fonts.
 .warn \n[.warn]-(\n[.warn]/131072%2*131072)
+.
 .po 0
-.if c\[shc] .shc \[shc]
-.de tty-char
-.if !c\\$1 .char \\$1 "\\$2
-..
-.ie c\(pc .tr \(bu\(pc
-.el .if c\(md .tr \(bu\(md
-.tty-char \(bu \z+o
-.tty-char \(14 1/4
-.tty-char \(12 1/2
-.tty-char \(34 3/4
-.tty-char \(ff ff
-.tty-char \(fi fi
-.tty-char \(fl fl
-.tty-char \(Fi ffi
-.tty-char \(Fl ffl
-.tty-char \(<- <-
-.tty-char \(-> ->
-.tty-char \(<> <->
-.tty-char \(em --
-.tty-char \(+- +-
-.tty-char \(co (C)
-.tty-char \(<= <=
-.tty-char \(>= >=
-.tty-char \(!= !=
-.tty-char \(== ==
-.tty-char \(~= ~=
-.tty-char \(sq []
-.tty-char \(lh <=
-.tty-char \(rh =>
-.tty-char \(lA <=
-.tty-char \(rA =>
-.tty-char \(hA <=>
-.tty-char \(rg (R)
-.tty-char \(OE OE
-.tty-char \(oe oe
-.tty-char \(AE AE
-.tty-char \(ae ae
-.tty-char \(an -
-.cp \n(_C
+.
+.ie c\[pc] \
+.  tr \[bu]\[pc]
+.el \
+.  if c\[md] \
+.    tr \[bu]\[md]
+.
+.fchar \[bu] \z+o
+.fchar \[14] 1/4
+.fchar \[12] 1/2
+.fchar \[34] 3/4
+.fchar \[ff] ff
+.fchar \[fi] fi
+.fchar \[fl] fl
+.fchar \[Fi] ffi
+.fchar \[Fl] ffl
+.fchar \[<-] <-
+.fchar \[->] ->
+.fchar \[<>] <->
+.fchar \[em] --
+.fchar \[+-] +-
+.fchar \[t+-] +-
+.fchar \[co] (C)
+.fchar \[<=] <=
+.fchar \[>=] >=
+.fchar \[!=] !=
+.fchar \[==] ==
+.fchar \[~=] ~=
+.fchar \[sq] []
+.fchar \[lh] <=
+.fchar \[rh] =>
+.fchar \[lA] <=
+.fchar \[rA] =>
+.fchar \[hA] <=>
+.fchar \[rg] (R)
+.fchar \[OE] OE
+.fchar \[oe] oe
+.fchar \[AE] AE
+.fchar \[ae] ae
+.fchar \[an] -
+.fchar \[eu] EUR
+.fchar \[Eu] EUR
+.
+.\" color definitions
+.defcolor black rgb #000000
+.defcolor red rgb #ff0000
+.defcolor green rgb #00ff00
+.defcolor blue rgb #0000ff
+.defcolor yellow rgb #ffff00
+.defcolor magenta rgb #ff00ff
+.defcolor cyan rgb #00ffff
+.defcolor white rgb #ffffff
+.
+.cp \n[_C]
+.
+.ie '\*(.T'cp1047' \
+.  do mso cp1047.tmac
+.el \
+.  if '\*(.T'latin1' \
+.    do mso latin1.tmac
+.
 .\" If you want the character definitions in tty-char.tmac to be loaded
 .\" automatically, remove the `\"' from the next line.
 .\"do mso tty-char.tmac

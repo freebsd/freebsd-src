@@ -24,7 +24,7 @@ TAGS_src: $(CCSRCS) $(CSRCS) $(GRAM) $(HDRS)
 Makefile: $(MAKEFILEPARTS)
 Makefile.dep:
 	touch Makefile.dep
-$(MANPAGES): $(top_srcdir)/VERSION $(top_srcdir)/REVISION
+$(top_builddir)/stamp-h $(MANPAGES): $(top_srcdir)/VERSION $(top_srcdir)/REVISION
 
 pure: $(PROG).pure
 

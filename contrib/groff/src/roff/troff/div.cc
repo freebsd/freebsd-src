@@ -1,5 +1,5 @@
 // -*- C++ -*-
-/* Copyright (C) 1989, 1990, 1991, 1992, 2000, 2001
+/* Copyright (C) 1989, 1990, 1991, 1992, 2000, 2001, 2002
    Free Software Foundation, Inc.
      Written by James Clark (jjc@jclark.com)
 
@@ -410,7 +410,7 @@ void top_level_diversion::output(node *nd, int retain_size,
 void top_level_diversion::transparent_output(unsigned char c)
 {
   if (before_first_page && begin_page())
-    // This can only happen with the transparent() request.
+    // This can only happen with the .output request.
     fatal("sorry, I didn't manage to begin the first page in time: use an explicit .br request");
   const char *s = asciify(c);
   while (*s)
@@ -467,7 +467,7 @@ void top_level_diversion::space(vunits n, int forced)
 }
 
 trap::trap(symbol s, vunits n, trap *p)
-     : next(p), position(n), nm(s)
+: next(p), position(n), nm(s)
 {
 }
 
@@ -641,7 +641,7 @@ void page_offset()
     n = topdiv->prev_page_offset;
   topdiv->prev_page_offset = topdiv->page_offset;
   topdiv->page_offset = n;
-  curenv->add_html_tag(".po", n.to_units());
+  curenv->add_html_tag(0, ".po", n.to_units());
   skip_line();
 }
 
@@ -760,7 +760,7 @@ void space_request()
   else
     // The line might have had line spacing that was truncated.
     truncated_space += n;
-  curenv->add_html_tag(".sp", n.to_units());
+  curenv->add_html_tag(1, ".sp", n.to_units());
   tok.next();
 }
 
@@ -769,7 +769,7 @@ void blank_line()
   curenv->do_break();
   if (!trap_sprung_flag && !curdiv->no_space_mode) {
     curdiv->space(curenv->get_vertical_spacing());
-    curenv->add_html_tag(".sp", 1);
+    curenv->add_html_tag(1, ".sp", 1);
   } else
     truncated_space += curenv->get_vertical_spacing();
 }
@@ -791,8 +791,13 @@ void need_space()
 void page_number()
 {
   int n;
-  if (has_arg() && get_integer(&n, topdiv->get_page_number()))
-    topdiv->set_next_page_number(n);
+
+  // the ps4html register is set if we are using -Tps
+  // to generate images for html
+  reg *r = (reg *)number_reg_dictionary.lookup("ps4html");
+  if (r == NULL)
+    if (has_arg() && get_integer(&n, topdiv->get_page_number()))
+      topdiv->set_next_page_number(n);
   skip_line();
 }
 
@@ -828,7 +833,7 @@ void flush_output()
     curenv->do_break();
   if (the_output)
     the_output->flush();
-  curenv->add_html_tag(".fl");
+  curenv->add_html_tag(1, ".fl");
   tok.next();
 }
 

@@ -63,6 +63,10 @@ public:
 	       const line_type &, double) = 0;
   void rounded_box(const position &, const distance &, double,
 		   const line_type &, double);
+  void set_color(char *, char *) = 0;
+  void reset_color() = 0;
+  char *get_last_filled() = 0;
+  char *get_outline_color() = 0;
 };
 
 int compute_arc_center(const position &start, const position &cent,

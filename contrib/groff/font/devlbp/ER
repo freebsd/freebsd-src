@@ -1,4 +1,3 @@
-
 name  ER
 lbpname  NeliteR
 spacewidth 1900
@@ -25,7 +24,6 @@ cq	1900	0	0x27		--	0,39	#	quoteright
 -	1900	0	0x2d		--	0,45	#	hyphen
 \-	1900	0	0x2d		--	0,45	#	hyphen
 hy	1900	0	0x2d		--	0,45	#	"
-char173	1900	0	0x2d		--	0,45	#	"
 .	1900	0	0x2e		--	0,46	#	period
 /	1900	0	0x2f		--	0,47	#	slash
 sl	1900	0	0x2f		--	0,47	#	"
@@ -117,63 +115,6 @@ rC	1900	0	0x7d		--	0,125	#	braceright
 }	1900	0	0x7d		--	0,125	#	"
 a~	1900	0	0x7e		--	0,126	#	tilde
 ~	1900	0	0x7e		--	0,126	#	"
-char161	1900	0	0xad		--	4,7	#	exclamdown
-char162	1900	0	0x9b		--	4,19	#	cent
-char163	1900	0	0x9c		--	4,11	#	sterling
-char165	1900	0	0x9d		--	4,12	#	yen
-char166	1900	0	0x7c		--	0,124	#	brokenbar
-char167	1900	0	0x15		--	4,6	#	section
-char170	1900	0	0xa6		--	4,15	#	ordfeminine
-char171	1900	0	0xae		--	4,9	#	guillemotleft
-char172	1900	0	0xaa		--	6,20	#	logicalnot
-char175	1900	0	0x2d		--	6,0	#	macron
-char176	1900	0	0xf8		--	6,36	#	degree
-char177	1900	0	0xf1		--	6,1	#	plusminus
-char178	1900	0	0xfd		--	4,20	#	twosuperior
-char181	1900	0	0xe6		--	8,25	#	mu
-char182	1900	0	0x14		--	4,5	#	paragraph
-char183	1900	0	0xfa		--	6,32	#	periodcentered
-char186	1900	0	0xa7		--	4,16	#	ordmasculine
-char187	1900	0	0xaf		--	4,10	#	guillemotright
-char188	1900	0	0xac		--	4,18	#	onequarter
-char189	1900	0	0xab		--	4,17	#	onehalf
-char191	1900	0	0xa8		--	4,8	#	questiondown
-char195	1900	0	0x28e		--	1,76	#	Atilde
-char196	1900	0	0x8e		--	1,30	#	Adieresis
-char197	1900	0	0x8f		--	1,34	#	Aring
-char198	1900	0	0x92		--	1,36	#	AE
-char199	1900	0	0x80		--	1,38	#	Ccedilla
-char201	1900	0	0x90		--	1,40	#	Eacute
-char209	1900	0	0xa5		--	1,56	#	Ntilde
-char214	1900	0	0x99		--	1,62	#	Odieresis
-char220	1900	0	0x9a		--	1,70	#	Udieresis
-char224	1900	0	0x85		--	1,33	#	agrave
-char225	1900	0	0xa0		--	1,27	#	aacute
-char226	1900	0	0x83		--	1,29	#	acircumflex
-char227	1900	0	0x284		--	1,93	#	atilde
-char228	1900	0	0x84		--	1,31	#	adieresis
-char229	1900	0	0x86		--	1,35	#	aring
-char230	1900	0	0x91		--	1,37	#	ae
-char231	1900	0	0x87		--	1,39	#	ccedilla
-char232	1900	0	0x8a		--	1,47	#	egrave
-char233	1900	0	0x82		--	1,41	#	eacute
-char234	1900	0	0x88		--	1,43	#	ecircumflex
-char235	1900	0	0x89		--	1,45	#	edieresis
-char236	1900	0	0x8d		--	1,55	#	igrave
-char237	1900	0	0xa1		--	1,49	#	iacute
-char238	1900	0	0x8c		--	1,51	#	icircumflex
-char239	1900	0	0x8b		--	1,53	#	idieresis
-char241	1900	0	0xa4		--	1,57	#	ntilde
-char242	1900	0	0x95		--	1,65	#	ograve
-char243	1900	0	0xa2		--	1,59	#	oacute
-char244	1900	0	0x93		--	1,61	#	ocircumflex
-char246	1900	0	0x94		--	1,63	#	odieresis
-char247	1900	0	0xf6		--	6,8	#	divide
-char249	1900	0	0x97		--	1,73	#	ugrave
-char250	1900	0	0xa3		--	1,67	#	uacute
-char251	1900	0	0x96		--	1,69	#	ucircumflex
-char252	1900	0	0x81		--	1,71	#	udieresis
-char255	1900	0	0x98		--	1,75	#	ydieresis
 AE	1900	0	0x92		--	1,36	#	AE
 ae	1900	0	0x91		--	1,37	#	ae
 'E	1900	0	0x90		--	1,40	#	Eacute
@@ -270,3 +211,5 @@ DI	1900	0	0x4		--	5,169	#	diamond	"diamond	suit"
 <<	1900	0	0xae		--	6,77	#	""	"much	less"
 >>	1900	0	0xaf		--	6,78	#	""	"much	greater"
 pc	1900	0	0xfa		--	6,32	#	periodcentered
+mc	1900	0	0xe6		--	8,25	#	mu
+t+-	1900	0	0xf1		--	6,1	#	plusminus

@@ -2,6 +2,7 @@
 .\"
 .nr _C \n(.C
 .cp 0
+.
 .ftr AX ABI
 .ftr KR BMR
 .ftr KI BMI
@@ -22,33 +23,593 @@
 .ftr PX PBI
 .ftr ZI ZCMI
 .ftr C CR
-.cflags 8 \(an
-.char \[radicalex] \h'-\w'\(sr'u'\[radicalex]\h'\w'\(sr'u'
-.char \(mo \h'.08m'\(mo\h'-.08m'
-.char \(nm \h'.08m'\(nm\h'-.08m'
+.
+.cflags 8 \[an]
+.char \[radicalex] \h'-\w'\[sr]'u'\[radicalex]\h'\w'\[sr]'u'
+.char \[mo] \h'.08m'\[mo]\h'-.08m'
+.char \[nm] \h'.08m'\[nm]\h'-.08m'
 .char \[parenlefttp] \[parenlefttp]\h'.016m'
 .char \[parenleftbt] \[parenleftbt]\h'.016m'
 .char \[parenleftex] \[parenleftex]\h'.016m'
 .char \[parenrighttp] \[parenrighttp]\h'.016m'
 .char \[parenrightbt] \[parenrightbt]\h'.016m'
 .char \[parenrightex] \[parenrightex]\h'.016m'
-.if !c\[va] .char \[va] \o'\[ua]\[da]'
-.if !c\[ci] \
-.char \[ci] \v'-.25m'\h'.05m'\D'c .5m'\h'.05m'\v'.25m'
-.if !c\[sq] \
-.char \[sq] \h'.05m'\D'l .5m 0'\D'l 0 -.5m'\D'l -.5m 0'\D'l 0 .5m'\h'.55m'
-.if !c\[ru] .char \[ru] \D'l .5m 0'
-.if !c\[ul] .char \[ul] \v'.25m'\D'l .5m 0'\v'-.25m'
-.if !c\[br] .char \[br] \Z'\v'.25m'\D'l 0 -1m''
-.if !c\[rn] .char \[rn] \v'-.75m'\D'l .5m 0'\v'.75m'
-.if !c\[or] .char \[or] \h'.1m'\Z'\D'l 0 -.675m''\h'.1m'
-.if !c\[Fi] .char \[Fi] ffi
-.if !c\[Fl] .char \[Fl] ffl
-.if !c\[ff] .char \[ff] ff
-.if !c\[ij] .char \[ij] ij
-.if !c\[IJ] .char \[IJ] IJ
-.if !c\[tm] .char \[tm] \s-3\v'-.3m'TM\v'+.3m'\s+3
+.
+.fchar \[va] \o'\[ua]\[da]'
+.fchar \[ci] \v'-.25m'\h'.05m'\D'c .5m'\h'.05m'\v'.25m'
+.fchar \[sq] \h'.05m'\D'l .5m 0'\D'l 0 -.5m'\D'l -.5m 0'\D'l 0 .5m'\h'.55m'
+.fchar \[ru] \D'l .5m 0'
+.fchar \[ul] \v'.25m'\D'l .5m 0'\v'-.25m'
+.fchar \[br] \Z'\v'.25m'\D'l 0 -1m''
+.fchar \[rn] \v'-.75m'\D'l .5m 0'\v'.75m'
+.fchar \[or] \h'.1m'\Z'\D'l 0 -.675m''\h'.1m'
+.fchar \[Fi] ffi
+.fchar \[Fl] ffl
+.fchar \[ff] ff
+.fchar \[ij] ij
+.fchar \[IJ] IJ
+.fchar \[tm] \s-3\v'-.3m'TM\v'+.3m'\s+3
+.
 .\" pic tests this register to see whether it should use \X'ps:...'
 .nr 0p 1
-.cp \n(_C
-.if !\n(.C .mso pspic.tmac
+.
+.\" now for color definitions
+.\"
+.\" this is a composite of MIT's X Consortium red/green/blue (rgb) color
+.\" specifications, X Consortium version 10.41, 1994.
+.defcolor black rgb #000000
+.defcolor grey rgb #bebebe
+.defcolor dimgrey rgb #696969
+.defcolor lightgray rgb #d3d3d3
+.defcolor lightslategrey rgb #778899
+.defcolor slategray rgb #708090
+.defcolor slategray1 rgb #c6e2ff
+.defcolor slategray2 rgb #b9d3ee
+.defcolor slategray3 rgb #9fb6cd
+.defcolor slategray4 rgb #6c7b8b
+.defcolor slategrey rgb #708090
+.defcolor grey0 rgb #000000
+.defcolor grey1 rgb #030303
+.defcolor grey2 rgb #050505
+.defcolor grey3 rgb #080808
+.defcolor grey4 rgb #0a0a0a
+.defcolor grey5 rgb #0d0d0d
+.defcolor grey6 rgb #0f0f0f
+.defcolor grey7 rgb #121212
+.defcolor grey8 rgb #141414
+.defcolor grey9 rgb #171717
+.defcolor grey10 rgb #1a1a1a
+.defcolor grey11 rgb #1c1c1c
+.defcolor grey12 rgb #1f1f1f
+.defcolor grey13 rgb #212121
+.defcolor grey14 rgb #242424
+.defcolor grey15 rgb #262626
+.defcolor grey16 rgb #292929
+.defcolor grey17 rgb #2b2b2b
+.defcolor grey18 rgb #2e2e2e
+.defcolor grey19 rgb #303030
+.defcolor grey20 rgb #333333
+.defcolor grey21 rgb #363636
+.defcolor grey22 rgb #383838
+.defcolor grey23 rgb #3b3b3b
+.defcolor grey24 rgb #3d3d3d
+.defcolor grey25 rgb #404040
+.defcolor grey26 rgb #424242
+.defcolor grey27 rgb #454545
+.defcolor grey28 rgb #474747
+.defcolor grey29 rgb #4a4a4a
+.defcolor grey30 rgb #4d4d4d
+.defcolor grey31 rgb #4f4f4f
+.defcolor grey32 rgb #525252
+.defcolor grey33 rgb #545454
+.defcolor grey34 rgb #575757
+.defcolor grey35 rgb #595959
+.defcolor grey36 rgb #5c5c5c
+.defcolor grey37 rgb #5e5e5e
+.defcolor grey38 rgb #616161
+.defcolor grey39 rgb #636363
+.defcolor grey40 rgb #666666
+.defcolor grey41 rgb #696969
+.defcolor grey42 rgb #6b6b6b
+.defcolor grey43 rgb #6e6e6e
+.defcolor grey44 rgb #707070
+.defcolor grey45 rgb #737373
+.defcolor grey46 rgb #757575
+.defcolor grey47 rgb #787878
+.defcolor grey48 rgb #7a7a7a
+.defcolor grey49 rgb #7d7d7d
+.defcolor grey50 rgb #7f7f7f
+.defcolor grey51 rgb #828282
+.defcolor grey52 rgb #858585
+.defcolor grey53 rgb #878787
+.defcolor grey54 rgb #8a8a8a
+.defcolor grey55 rgb #8c8c8c
+.defcolor grey56 rgb #8f8f8f
+.defcolor grey57 rgb #919191
+.defcolor grey58 rgb #949494
+.defcolor grey59 rgb #969696
+.defcolor grey60 rgb #999999
+.defcolor grey61 rgb #9c9c9c
+.defcolor grey62 rgb #9e9e9e
+.defcolor grey63 rgb #a1a1a1
+.defcolor grey64 rgb #a3a3a3
+.defcolor grey65 rgb #a6a6a6
+.defcolor grey66 rgb #a8a8a8
+.defcolor grey67 rgb #ababab
+.defcolor grey68 rgb #adadad
+.defcolor grey69 rgb #b0b0b0
+.defcolor grey70 rgb #b3b3b3
+.defcolor grey71 rgb #b5b5b5
+.defcolor grey72 rgb #b8b8b8
+.defcolor grey73 rgb #bababa
+.defcolor grey74 rgb #bdbdbd
+.defcolor grey75 rgb #bfbfbf
+.defcolor grey76 rgb #c2c2c2
+.defcolor grey77 rgb #c4c4c4
+.defcolor grey78 rgb #c7c7c7
+.defcolor grey79 rgb #c9c9c9
+.defcolor grey80 rgb #cccccc
+.defcolor grey81 rgb #cfcfcf
+.defcolor grey82 rgb #d1d1d1
+.defcolor grey83 rgb #d4d4d4
+.defcolor grey84 rgb #d6d6d6
+.defcolor grey85 rgb #d9d9d9
+.defcolor grey86 rgb #dbdbdb
+.defcolor grey87 rgb #dedede
+.defcolor grey88 rgb #e0e0e0
+.defcolor grey89 rgb #e3e3e3
+.defcolor grey90 rgb #e5e5e5
+.defcolor grey91 rgb #e8e8e8
+.defcolor grey92 rgb #ebebeb
+.defcolor grey93 rgb #ededed
+.defcolor grey94 rgb #f0f0f0
+.defcolor grey95 rgb #f2f2f2
+.defcolor grey96 rgb #f5f5f5
+.defcolor grey97 rgb #f7f7f7
+.defcolor grey98 rgb #fafafa
+.defcolor grey99 rgb #fcfcfc
+.defcolor grey100 rgb #ffffff
+.defcolor aliceblue rgb #f0f8ff
+.defcolor blueviolet rgb #8a2be2
+.defcolor cadetblue rgb #5f9ea0
+.defcolor cadetblue1 rgb #98f5ff
+.defcolor cadetblue2 rgb #8ee5ee
+.defcolor cadetblue3 rgb #7ac5cd
+.defcolor cadetblue4 rgb #53868b
+.defcolor cornflowerblue rgb #6495ed
+.defcolor darkslateblue rgb #483d8b
+.defcolor darkturquoise rgb #00ced1
+.defcolor deepskyblue rgb #00bfff
+.defcolor deepskyblue1 rgb #00bfff
+.defcolor deepskyblue2 rgb #00b2ee
+.defcolor deepskyblue3 rgb #009acd
+.defcolor deepskyblue4 rgb #00688b
+.defcolor dodgerblue rgb #1e90ff
+.defcolor dodgerblue1 rgb #1e90ff
+.defcolor dodgerblue2 rgb #1c86ee
+.defcolor dodgerblue3 rgb #1874cd
+.defcolor dodgerblue4 rgb #104e8b
+.defcolor lightblue rgb #add8e6
+.defcolor lightblue1 rgb #bfefff
+.defcolor lightblue2 rgb #b2dfee
+.defcolor lightblue3 rgb #9ac0cd
+.defcolor lightblue4 rgb #68838b
+.defcolor lightcyan rgb #e0ffff
+.defcolor lightcyan1 rgb #e0ffff
+.defcolor lightcyan2 rgb #d1eeee
+.defcolor lightcyan3 rgb #b4cdcd
+.defcolor lightcyan4 rgb #7a8b8b
+.defcolor lightskyblue rgb #87cefa
+.defcolor lightskyblue1 rgb #b0e2ff
+.defcolor lightskyblue2 rgb #a4d3ee
+.defcolor lightskyblue3 rgb #8db6cd
+.defcolor lightskyblue4 rgb #607b8b
+.defcolor lightslateblue rgb #8470ff
+.defcolor lightsteelblue rgb #b0c4de
+.defcolor lightsteelblue1 rgb #cae1ff
+.defcolor lightsteelblue2 rgb #bcd2ee
+.defcolor lightsteelblue3 rgb #a2b5cd
+.defcolor lightsteelblue4 rgb #6e7b8b
+.defcolor mediumaquamarine rgb #66cdaa
+.defcolor mediumblue rgb #0000cd
+.defcolor mediumslateblue rgb #7b68ee
+.defcolor mediumturquoise rgb #48d1cc
+.defcolor midnightblue rgb #191970
+.defcolor navyblue rgb #000080
+.defcolor paleturquoise rgb #afeeee
+.defcolor paleturquoise1 rgb #bbffff
+.defcolor paleturquoise2 rgb #aeeeee
+.defcolor paleturquoise3 rgb #96cdcd
+.defcolor paleturquoise4 rgb #668b8b
+.defcolor powderblue rgb #b0e0e6
+.defcolor royalblue rgb #4169e1
+.defcolor royalblue1 rgb #4876ff
+.defcolor royalblue2 rgb #436eee
+.defcolor royalblue3 rgb #3a5fcd
+.defcolor royalblue4 rgb #27408b
+.defcolor skyblue rgb #87ceeb
+.defcolor skyblue1 rgb #87ceff
+.defcolor skyblue2 rgb #7ec0ee
+.defcolor skyblue3 rgb #6ca6cd
+.defcolor skyblue4 rgb #4a708b
+.defcolor slateblue rgb #6a5acd
+.defcolor slateblue1 rgb #836fff
+.defcolor slateblue2 rgb #7a67ee
+.defcolor slateblue3 rgb #6959cd
+.defcolor slateblue4 rgb #473c8b
+.defcolor steelblue rgb #4682b4
+.defcolor steelblue1 rgb #63b8ff
+.defcolor steelblue2 rgb #5cacee
+.defcolor steelblue3 rgb #4f94cd
+.defcolor steelblue4 rgb #36648b
+.defcolor aquamarine rgb #7fffd4
+.defcolor aquamarine1 rgb #7fffd4
+.defcolor aquamarine2 rgb #76eec6
+.defcolor aquamarine3 rgb #66cdaa
+.defcolor aquamarine4 rgb #458b74
+.defcolor azure rgb #f0ffff
+.defcolor azure1 rgb #f0ffff
+.defcolor azure2 rgb #e0eeee
+.defcolor azure3 rgb #c1cdcd
+.defcolor azure4 rgb #838b8b
+.defcolor blue rgb #0000ff
+.defcolor blue1 rgb #0000ff
+.defcolor blue2 rgb #0000ee
+.defcolor blue3 rgb #0000cd
+.defcolor blue4 rgb #00008b
+.defcolor cyan rgb #00ffff
+.defcolor cyan1 rgb #00ffff
+.defcolor cyan2 rgb #00eeee
+.defcolor cyan3 rgb #00cdcd
+.defcolor cyan4 rgb #008b8b
+.defcolor navy rgb #000080
+.defcolor turquoise rgb #40e0d0
+.defcolor turquoise1 rgb #00f5ff
+.defcolor turquoise2 rgb #00e5ee
+.defcolor turquoise3 rgb #00c5cd
+.defcolor turquoise4 rgb #00868b
+.defcolor darkslategray rgb #2f4f4f
+.defcolor darkslategray1 rgb #97ffff
+.defcolor darkslategray2 rgb #8deeee
+.defcolor darkslategray3 rgb #79cdcd
+.defcolor darkslategray4 rgb #528b8b
+.defcolor rosybrown rgb #bc8f8f
+.defcolor rosybrown1 rgb #ffc1c1
+.defcolor rosybrown2 rgb #eeb4b4
+.defcolor rosybrown3 rgb #cd9b9b
+.defcolor rosybrown4 rgb #8b6969
+.defcolor saddlebrown rgb #8b4513
+.defcolor sandybrown rgb #f4a460
+.defcolor beige rgb #f5f5dc
+.defcolor brown rgb #a52a2a
+.defcolor brown1 rgb #ff4040
+.defcolor brown2 rgb #ee3b3b
+.defcolor brown3 rgb #cd3333
+.defcolor brown4 rgb #8b2323
+.defcolor burlywood rgb #deb887
+.defcolor burlywood1 rgb #ffd39b
+.defcolor burlywood2 rgb #eec591
+.defcolor burlywood3 rgb #cdaa7d
+.defcolor burlywood4 rgb #8b7355
+.defcolor chocolate rgb #d2691e
+.defcolor chocolate1 rgb #ff7f24
+.defcolor chocolate2 rgb #ee7621
+.defcolor chocolate3 rgb #cd661d
+.defcolor chocolate4 rgb #8b4513
+.defcolor peru rgb #cd853f
+.defcolor tan rgb #d2b48c
+.defcolor tan1 rgb #ffa54f
+.defcolor tan2 rgb #ee9a49
+.defcolor tan3 rgb #cd853f
+.defcolor tan4 rgb #8b5a2b
+.defcolor darkgreen rgb #006400
+.defcolor darkkhaki rgb #bdb76b
+.defcolor darkolivegreen rgb #556b2f
+.defcolor darkolivegreen1 rgb #caff70
+.defcolor darkolivegreen2 rgb #bcee68
+.defcolor darkolivegreen3 rgb #a2cd5a
+.defcolor darkolivegreen4 rgb #6e8b3d
+.defcolor darkseagreen rgb #8fbc8f
+.defcolor darkseagreen1 rgb #c1ffc1
+.defcolor darkseagreen2 rgb #b4eeb4
+.defcolor darkseagreen3 rgb #9bcd9b
+.defcolor darkseagreen4 rgb #698b69
+.defcolor forestgreen rgb #228b22
+.defcolor greenyellow rgb #adff2f
+.defcolor lawngreen rgb #7cfc00
+.defcolor lightseagreen rgb #20b2aa
+.defcolor limegreen rgb #32cd32
+.defcolor mediumseagreen rgb #3cb371
+.defcolor mediumspringgreen rgb #00fa9a
+.defcolor mintcream rgb #f5fffa
+.defcolor olivedrab rgb #6b8e23
+.defcolor olivedrab1 rgb #c0ff3e
+.defcolor olivedrab2 rgb #b3ee3a
+.defcolor olivedrab3 rgb #9acd32
+.defcolor olivedrab4 rgb #698b22
+.defcolor palegreen rgb #98fb98
+.defcolor palegreen1 rgb #9aff9a
+.defcolor palegreen2 rgb #90ee90
+.defcolor palegreen3 rgb #7ccd7c
+.defcolor palegreen4 rgb #548b54
+.defcolor seagreen rgb #2e8b57
+.defcolor seagreen1 rgb #54ff9f
+.defcolor seagreen2 rgb #4eee94
+.defcolor seagreen3 rgb #43cd80
+.defcolor seagreen4 rgb #2e8b57
+.defcolor springgreen rgb #00ff7f
+.defcolor springgreen1 rgb #00ff7f
+.defcolor springgreen2 rgb #00ee76
+.defcolor springgreen3 rgb #00cd66
+.defcolor springgreen4 rgb #008b45
+.defcolor yellowgreen rgb #9acd32
+.defcolor chartreuse rgb #7fff00
+.defcolor chartreuse1 rgb #7fff00
+.defcolor chartreuse2 rgb #76ee00
+.defcolor chartreuse3 rgb #66cd00
+.defcolor chartreuse4 rgb #458b00
+.defcolor green rgb #00ff00
+.defcolor green1 rgb #00ff00
+.defcolor green2 rgb #00ee00
+.defcolor green3 rgb #00cd00
+.defcolor green4 rgb #008b00
+.defcolor khaki rgb #f0e68c
+.defcolor khaki1 rgb #fff68f
+.defcolor khaki2 rgb #eee685
+.defcolor khaki3 rgb #cdc673
+.defcolor khaki4 rgb #8b864e
+.defcolor darkorange rgb #ff8c00
+.defcolor darkorange1 rgb #ff7f00
+.defcolor darkorange2 rgb #ee7600
+.defcolor darkorange3 rgb #cd6600
+.defcolor darkorange4 rgb #8b4500
+.defcolor darksalmon rgb #e9967a
+.defcolor lightcoral rgb #f08080
+.defcolor lightsalmon rgb #ffa07a
+.defcolor lightsalmon1 rgb #ffa07a
+.defcolor lightsalmon2 rgb #ee9572
+.defcolor lightsalmon3 rgb #cd8162
+.defcolor lightsalmon4 rgb #8b5742
+.defcolor peachpuff rgb #ffdab9
+.defcolor peachpuff1 rgb #ffdab9
+.defcolor peachpuff2 rgb #eecbad
+.defcolor peachpuff3 rgb #cdaf95
+.defcolor peachpuff4 rgb #8b7765
+.defcolor bisque rgb #ffe4c4
+.defcolor bisque1 rgb #ffe4c4
+.defcolor bisque2 rgb #eed5b7
+.defcolor bisque3 rgb #cdb79e
+.defcolor bisque4 rgb #8b7d6b
+.defcolor coral rgb #ff7f50
+.defcolor coral1 rgb #ff7256
+.defcolor coral2 rgb #ee6a50
+.defcolor coral3 rgb #cd5b45
+.defcolor coral4 rgb #8b3e2f
+.defcolor honeydew rgb #f0fff0
+.defcolor honeydew1 rgb #f0fff0
+.defcolor honeydew2 rgb #e0eee0
+.defcolor honeydew3 rgb #c1cdc1
+.defcolor honeydew4 rgb #838b83
+.defcolor orange rgb #ffa500
+.defcolor orange1 rgb #ffa500
+.defcolor orange2 rgb #ee9a00
+.defcolor orange3 rgb #cd8500
+.defcolor orange4 rgb #8b5a00
+.defcolor salmon rgb #fa8072
+.defcolor salmon1 rgb #ff8c69
+.defcolor salmon2 rgb #ee8262
+.defcolor salmon3 rgb #cd7054
+.defcolor salmon4 rgb #8b4c39
+.defcolor sienna rgb #a0522d
+.defcolor sienna1 rgb #ff8247
+.defcolor sienna2 rgb #ee7942
+.defcolor sienna3 rgb #cd6839
+.defcolor sienna4 rgb #8b4726
+.defcolor deeppink rgb #ff1493
+.defcolor deeppink1 rgb #ff1493
+.defcolor deeppink2 rgb #ee1289
+.defcolor deeppink3 rgb #cd1076
+.defcolor deeppink4 rgb #8b0a50
+.defcolor hotpink rgb #ff69b4
+.defcolor hotpink1 rgb #ff6eb4
+.defcolor hotpink2 rgb #ee6aa7
+.defcolor hotpink3 rgb #cd6090
+.defcolor hotpink4 rgb #8b3a62
+.defcolor indianred rgb #cd5c5c
+.defcolor indianred1 rgb #ff6a6a
+.defcolor indianred2 rgb #ee6363
+.defcolor indianred3 rgb #cd5555
+.defcolor indianred4 rgb #8b3a3a
+.defcolor lightpink rgb #ffb6c1
+.defcolor lightpink1 rgb #ffaeb9
+.defcolor lightpink2 rgb #eea2ad
+.defcolor lightpink3 rgb #cd8c95
+.defcolor lightpink4 rgb #8b5f65
+.defcolor mediumvioletred rgb #c71585
+.defcolor mistyrose rgb #ffe4e1
+.defcolor mistyrose1 rgb #ffe4e1
+.defcolor mistyrose2 rgb #eed5d2
+.defcolor mistyrose3 rgb #cdb7b5
+.defcolor mistyrose4 rgb #8b7d7b
+.defcolor orangered rgb #ff4500
+.defcolor orangered1 rgb #ff4500
+.defcolor orangered2 rgb #ee4000
+.defcolor orangered3 rgb #cd3700
+.defcolor orangered4 rgb #8b2500
+.defcolor palevioletred rgb #db7093
+.defcolor palevioletred1 rgb #ff82ab
+.defcolor palevioletred2 rgb #ee799f
+.defcolor palevioletred3 rgb #cd6889
+.defcolor palevioletred4 rgb #8b475d
+.defcolor violetred rgb #d02090
+.defcolor violetred1 rgb #ff3e96
+.defcolor violetred2 rgb #ee3a8c
+.defcolor violetred3 rgb #cd3278
+.defcolor violetred4 rgb #8b2252
+.defcolor firebrick rgb #b22222
+.defcolor firebrick1 rgb #ff3030
+.defcolor firebrick2 rgb #ee2c2c
+.defcolor firebrick3 rgb #cd2626
+.defcolor firebrick4 rgb #8b1a1a
+.defcolor pink rgb #ffc0cb
+.defcolor pink1 rgb #ffb5c5
+.defcolor pink2 rgb #eea9b8
+.defcolor pink3 rgb #cd919e
+.defcolor pink4 rgb #8b636c
+.defcolor red rgb #ff0000
+.defcolor red1 rgb #ff0000
+.defcolor red2 rgb #ee0000
+.defcolor red3 rgb #cd0000
+.defcolor red4 rgb #8b0000
+.defcolor tomato rgb #ff6347
+.defcolor tomato1 rgb #ff6347
+.defcolor tomato2 rgb #ee5c42
+.defcolor tomato3 rgb #cd4f39
+.defcolor tomato4 rgb #8b3626
+.defcolor darkorchid rgb #9932cc
+.defcolor darkorchid1 rgb #bf3eff
+.defcolor darkorchid2 rgb #b23aee
+.defcolor darkorchid3 rgb #9a32cd
+.defcolor darkorchid4 rgb #68228b
+.defcolor darkviolet rgb #9400d3
+.defcolor lavenderblush rgb #fff0f5
+.defcolor lavenderblush1 rgb #fff0f5
+.defcolor lavenderblush2 rgb #eee0e5
+.defcolor lavenderblush3 rgb #cdc1c5
+.defcolor lavenderblush4 rgb #8b8386
+.defcolor mediumorchid rgb #ba55d3
+.defcolor mediumorchid1 rgb #e066ff
+.defcolor mediumorchid2 rgb #d15fee
+.defcolor mediumorchid3 rgb #b452cd
+.defcolor mediumorchid4 rgb #7a378b
+.defcolor mediumpurple rgb #9370db
+.defcolor mediumpurple1 rgb #ab82ff
+.defcolor mediumpurple2 rgb #9f79ee
+.defcolor mediumpurple3 rgb #8968cd
+.defcolor mediumpurple4 rgb #5d478b
+.defcolor lavender rgb #e6e6fa
+.defcolor magenta rgb #ff00ff
+.defcolor magenta1 rgb #ff00ff
+.defcolor magenta2 rgb #ee00ee
+.defcolor magenta3 rgb #cd00cd
+.defcolor magenta4 rgb #8b008b
+.defcolor maroon rgb #b03060
+.defcolor maroon1 rgb #ff34b3
+.defcolor maroon2 rgb #ee30a7
+.defcolor maroon3 rgb #cd2990
+.defcolor maroon4 rgb #8b1c62
+.defcolor orchid rgb #da70d6
+.defcolor orchid1 rgb #ff83fa
+.defcolor orchid2 rgb #ee7ae9
+.defcolor orchid3 rgb #cd69c9
+.defcolor orchid4 rgb #8b4789
+.defcolor plum rgb #dda0dd
+.defcolor plum1 rgb #ffbbff
+.defcolor plum2 rgb #eeaeee
+.defcolor plum3 rgb #cd96cd
+.defcolor plum4 rgb #8b668b
+.defcolor purple rgb #a020f0
+.defcolor purple1 rgb #9b30ff
+.defcolor purple2 rgb #912cee
+.defcolor purple3 rgb #7d26cd
+.defcolor purple4 rgb #551a8b
+.defcolor thistle rgb #d8bfd8
+.defcolor thistle1 rgb #ffe1ff
+.defcolor thistle2 rgb #eed2ee
+.defcolor thistle3 rgb #cdb5cd
+.defcolor thistle4 rgb #8b7b8b
+.defcolor violet rgb #ee82ee
+.defcolor antiquewhite rgb #faebd7
+.defcolor antiquewhite1 rgb #ffefdb
+.defcolor antiquewhite2 rgb #eedfcc
+.defcolor antiquewhite3 rgb #cdc0b0
+.defcolor antiquewhite4 rgb #8b8378
+.defcolor floralwhite rgb #fffaf0
+.defcolor ghostwhite rgb #f8f8ff
+.defcolor navajowhite rgb #ffdead
+.defcolor navajowhite1 rgb #ffdead
+.defcolor navajowhite2 rgb #eecfa1
+.defcolor navajowhite3 rgb #cdb38b
+.defcolor navajowhite4 rgb #8b795e
+.defcolor oldlace rgb #fdf5e6
+.defcolor whitesmoke rgb #f5f5f5
+.defcolor gainsboro rgb #dcdcdc
+.defcolor ivory rgb #fffff0
+.defcolor ivory1 rgb #fffff0
+.defcolor ivory2 rgb #eeeee0
+.defcolor ivory3 rgb #cdcdc1
+.defcolor ivory4 rgb #8b8b83
+.defcolor linen rgb #faf0e6
+.defcolor seashell rgb #fff5ee
+.defcolor seashell1 rgb #fff5ee
+.defcolor seashell2 rgb #eee5de
+.defcolor seashell3 rgb #cdc5bf
+.defcolor seashell4 rgb #8b8682
+.defcolor snow rgb #fffafa
+.defcolor snow1 rgb #fffafa
+.defcolor snow2 rgb #eee9e9
+.defcolor snow3 rgb #cdc9c9
+.defcolor snow4 rgb #8b8989
+.defcolor wheat rgb #f5deb3
+.defcolor wheat1 rgb #ffe7ba
+.defcolor wheat2 rgb #eed8ae
+.defcolor wheat3 rgb #cdba96
+.defcolor wheat4 rgb #8b7e66
+.defcolor white rgb #ffffff
+.defcolor blanchedalmond rgb #ffebcd
+.defcolor darkgoldenrod rgb #b8860b
+.defcolor darkgoldenrod1 rgb #ffb90f
+.defcolor darkgoldenrod2 rgb #eead0e
+.defcolor darkgoldenrod3 rgb #cd950c
+.defcolor darkgoldenrod4 rgb #8b6508
+.defcolor lemonchiffon rgb #fffacd
+.defcolor lemonchiffon1 rgb #fffacd
+.defcolor lemonchiffon2 rgb #eee9bf
+.defcolor lemonchiffon3 rgb #cdc9a5
+.defcolor lemonchiffon4 rgb #8b8970
+.defcolor lightgoldenrod rgb #eedd82
+.defcolor lightgoldenrod1 rgb #ffec8b
+.defcolor lightgoldenrod2 rgb #eedc82
+.defcolor lightgoldenrod3 rgb #cdbe70
+.defcolor lightgoldenrod4 rgb #8b814c
+.defcolor lightgoldenrodyellow rgb #fafad2
+.defcolor lightyellow rgb #ffffe0
+.defcolor lightyellow1 rgb #ffffe0
+.defcolor lightyellow2 rgb #eeeed1
+.defcolor lightyellow3 rgb #cdcdb4
+.defcolor lightyellow4 rgb #8b8b7a
+.defcolor palegoldenrod rgb #eee8aa
+.defcolor papayawhip rgb #ffefd5
+.defcolor cornsilk rgb #fff8dc
+.defcolor cornsilk1 rgb #fff8dc
+.defcolor cornsilk2 rgb #eee8cd
+.defcolor cornsilk3 rgb #cdc8b1
+.defcolor cornsilk4 rgb #8b8878
+.defcolor gold rgb #ffd700
+.defcolor gold1 rgb #ffd700
+.defcolor gold2 rgb #eec900
+.defcolor gold3 rgb #cdad00
+.defcolor gold4 rgb #8b7500
+.defcolor goldenrod rgb #daa520
+.defcolor goldenrod1 rgb #ffc125
+.defcolor goldenrod2 rgb #eeb422
+.defcolor goldenrod3 rgb #cd9b1d
+.defcolor goldenrod4 rgb #8b6914
+.defcolor moccasin rgb #ffe4b5
+.defcolor yellow rgb #ffff00
+.defcolor yellow1 rgb #ffff00
+.defcolor yellow2 rgb #eeee00
+.defcolor yellow3 rgb #cdcd00
+.defcolor yellow4 rgb #8b8b00
+.
+.cp \n[_C]
+.
+.if !\n(.C \
+.  mso pspic.tmac
+.
+.do ie '\[char97]'a' \
+.  do mso latin1.tmac
+.el \
+.  do mso cp1047.tmac
+.
+.\" make sure that no blank lines creep in at the end of this file.

@@ -1,4 +1,4 @@
-# Copyright (C) 1989-2000 Free Software Foundation, Inc.
+# Copyright (C) 1989-2000, 2002 Free Software Foundation, Inc.
 #      Written by James Clark (jjc@jclark.com)
 #
 # This file is part of groff.
@@ -42,6 +42,7 @@ FONTS=$(TEXTFONTS) $(SPECIALFONTS) $(GREEKFONTS) $(DINGBATSFONTS)
 DESC=$(srcdir)/../DESC
 AFMTODIT=afmtodit -d$(DESC)
 IFLAG=-i 50
+RFLAG=-i 0
 NOLIGFLAG=-n
 TEXTENC=$(srcdir)/../text.enc
 EFLAG=-e $(TEXTENC)
@@ -51,11 +52,11 @@ AFMNAME=$(srcdir)/afmname
 all: $(FONTS)
 
 TR:
-	$(AFMTODIT) $(EFLAG) \
+	$(AFMTODIT) $(EFLAG) $(RFLAG) \
 	`$(AFMNAME) $(afmdir)/Times-Roman.afm` $(TEXTMAP) $@
 
 TB:
-	$(AFMTODIT) $(EFLAG) \
+	$(AFMTODIT) $(EFLAG) $(RFLAG) \
 	`$(AFMNAME) $(afmdir)/Times-Bold.afm` $(TEXTMAP) $@
 
 TI:
@@ -67,11 +68,11 @@ TBI:
 	`$(AFMNAME) $(afmdir)/Times-BoldItalic.afm` $(TEXTMAP) $@
 
 HR:
-	$(AFMTODIT) $(EFLAG) \
+	$(AFMTODIT) $(EFLAG) $(RFLAG) \
 	`$(AFMNAME) $(afmdir)/Helvetica.afm` $(TEXTMAP) $@
 
 HB:
-	$(AFMTODIT) $(EFLAG) \
+	$(AFMTODIT) $(EFLAG) $(RFLAG) \
 	`$(AFMNAME) $(afmdir)/Helvetica-Bold.afm` $(TEXTMAP) $@
 
 HI:
@@ -83,11 +84,11 @@ HBI:
 	`$(AFMNAME) $(afmdir)/Helvetica-BoldOblique.afm` $(TEXTMAP) $@
 
 CR:
-	$(AFMTODIT) $(NOLIGFLAG) $(EFLAG) \
+	$(AFMTODIT) $(NOLIGFLAG) $(EFLAG) $(RFLAG) \
 	`$(AFMNAME) $(afmdir)/Courier.afm` $(TEXTMAP) $@
 
 CB:
-	$(AFMTODIT) $(NOLIGFLAG) $(EFLAG) \
+	$(AFMTODIT) $(NOLIGFLAG) $(EFLAG) $(RFLAG) \
 	`$(AFMNAME) $(afmdir)/Courier-Bold.afm` $(TEXTMAP) $@
 
 CI:
@@ -99,11 +100,11 @@ CBI:
 	`$(AFMNAME) $(afmdir)/Courier-BoldOblique.afm` $(TEXTMAP) $@
 
 PR:
-	$(AFMTODIT) $(EFLAG) \
+	$(AFMTODIT) $(EFLAG) $(RFLAG) \
 	`$(AFMNAME) $(afmdir)/Palatino-Roman.afm` $(TEXTMAP) $@
 
 PB:
-	$(AFMTODIT) $(EFLAG) \
+	$(AFMTODIT) $(EFLAG) $(RFLAG) \
 	`$(AFMNAME) $(afmdir)/Palatino-Bold.afm` $(TEXTMAP) $@
 
 PI:
@@ -115,11 +116,11 @@ PBI:
 	`$(AFMNAME) $(afmdir)/Palatino-BoldItalic.afm` $(TEXTMAP) $@
 
 NR:
-	$(AFMTODIT) $(EFLAG) \
+	$(AFMTODIT) $(EFLAG) $(RFLAG) \
 	`$(AFMNAME) $(afmdir)/NewCenturySchlbk-Roman.afm` $(TEXTMAP) $@
 
 NB:
-	$(AFMTODIT) $(EFLAG) \
+	$(AFMTODIT) $(EFLAG) $(RFLAG) \
 	`$(AFMNAME) $(afmdir)/NewCenturySchlbk-Bold.afm` $(TEXTMAP) $@
 
 NI:
@@ -131,11 +132,11 @@ NBI:
 	`$(AFMNAME) $(afmdir)/NewCenturySchlbk-BoldItalic.afm` $(TEXTMAP) $@
 
 BMR:
-	$(AFMTODIT) $(EFLAG) \
+	$(AFMTODIT) $(EFLAG) $(RFLAG) \
 	`$(AFMNAME) $(afmdir)/Bookman-Light.afm` $(TEXTMAP) $@
 
 BMB:
-	$(AFMTODIT) $(EFLAG) \
+	$(AFMTODIT) $(EFLAG) $(RFLAG) \
 	`$(AFMNAME) $(afmdir)/Bookman-Demi.afm` $(TEXTMAP) $@
 
 BMI:
@@ -147,11 +148,11 @@ BMBI:
 	`$(AFMNAME) $(afmdir)/Bookman-DemiItalic.afm` $(TEXTMAP) $@
 
 AR:
-	$(AFMTODIT) $(EFLAG) \
+	$(AFMTODIT) $(EFLAG) $(RFLAG) \
 	`$(AFMNAME) $(afmdir)/AvantGarde-Book.afm` $(TEXTMAP) $@
 
 AB:
-	$(AFMTODIT) $(EFLAG) \
+	$(AFMTODIT) $(EFLAG) $(RFLAG) \
 	`$(AFMNAME) $(afmdir)/AvantGarde-Demi.afm` $(TEXTMAP) $@
 
 AI:
@@ -163,11 +164,11 @@ ABI:
 	`$(AFMNAME) $(afmdir)/AvantGarde-DemiOblique.afm` $(TEXTMAP) $@
 
 HNR:
-	$(AFMTODIT) $(EFLAG) \
+	$(AFMTODIT) $(EFLAG) $(RFLAG) \
 	`$(AFMNAME) $(afmdir)/Helvetica-Narrow.afm` $(TEXTMAP) $@
 
 HNB:
-	$(AFMTODIT) $(EFLAG) \
+	$(AFMTODIT) $(EFLAG) $(RFLAG) \
 	`$(AFMNAME) $(afmdir)/Helvetica-Narrow-Bold.afm` $(TEXTMAP) $@
 
 HNI:
@@ -183,17 +184,17 @@ ZCMI:
 	`$(AFMNAME) $(afmdir)/ZapfChancery-MediumItalic.afm` $(TEXTMAP) $@
 
 ZD:
-	$(AFMTODIT) -s \
+	$(AFMTODIT) -s $(RFLAG) \
 	`$(AFMNAME) $(afmdir)/ZapfDingbats.afm` $(srcdir)/dingbats.map $@
 
 SS: $(srcdir)/symbolsl.afm
 	$(AFMTODIT) -s $(IFLAG) $(srcdir)/symbolsl.afm $(srcdir)/lgreekmap $@
 
 S: symbol.afm
-	$(AFMTODIT) -s symbol.afm symbolmap $@
+	$(AFMTODIT) -s $(RFLAG) symbol.afm symbolmap $@
 
 ZDR: zapfdr.afm
-	$(AFMTODIT) -s zapfdr.afm $(srcdir)/dingbats.rmap $@
+	$(AFMTODIT) -s $(RFLAG) zapfdr.afm $(srcdir)/dingbats.rmap $@
 
 symbol.afm: $(srcdir)/symbol.sed
 	-rm -f $@
@@ -212,7 +213,10 @@ $(GREEKFONTS): $(srcdir)/lgreekmap
 $(FONTS): $(DESC)
 
 symbolmap: $(TEXTMAP) $(srcdir)/symbolchars
-	cat $(TEXTMAP) $(srcdir)/symbolchars >$@
+	echo '#' >$@
+	echo '# This is a list of all predefined groff symbols.' >>$@
+	echo '#' >>$@
+	cat $(TEXTMAP) $(srcdir)/symbolchars >>$@
 
 clean:
 	-rm -f symbolmap symbol.afm zapfdr.afm

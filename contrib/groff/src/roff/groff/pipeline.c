@@ -1,4 +1,4 @@
-/* Copyright (C) 1989, 1990, 1991, 1992, 2000, 2001
+/* Copyright (C) 1989, 1990, 1991, 1992, 2000, 2001, 2002
    Free Software Foundation, Inc.
      Written by James Clark (jjc@jclark.com)
 
@@ -18,14 +18,9 @@ You should have received a copy of the GNU General Public License along
 with groff; see the file COPYING.  If not, write to the Free Software
 Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
 
-/*
-Compile options are:
-
--DWCOREFLAG=0200 (or whatever)
--DHAVE_SYS_SIGLIST
--DSYS_SIGLIST_DECLARED
--DHAVE_UNISTD_H
-*/
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
 
 #include <stdio.h>
 #include <signal.h>
@@ -39,6 +34,14 @@ Compile options are:
 #include <string.h>
 #else
 extern char *strerror();
+#endif
+
+#ifndef HAVE_STRCASECMP
+#define strcasecmp(a,b) strcmp((a),(b))
+#endif
+
+#ifndef HAVE_STRNCASECMP
+#define strncasecmp(a,b,c) strncmp((a),(b),(c))
 #endif
 
 #ifdef _POSIX_VERSION
@@ -104,7 +107,8 @@ static char *i_to_a P((int));
    via temporary files...  */
 
 #if defined(__MSDOS__) \
-    || (defined(_WIN32) && !defined(_UWIN) && !defined(__CYGWIN32__))
+    || (defined(_WIN32) && !defined(_UWIN) && !defined(__CYGWIN__)) \
+    || defined(__EMX__)
 
 #include <process.h>
 #include <fcntl.h>

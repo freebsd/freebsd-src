@@ -1,5 +1,5 @@
 // -*- C++ -*-
-/* Copyright (C) 1989, 1990, 1991, 1992 Free Software Foundation, Inc.
+/* Copyright (C) 1989, 1990, 1991, 1992, 2002 Free Software Foundation, Inc.
      Written by James Clark (jjc@jclark.com)
 
 This file is part of groff.
@@ -73,10 +73,10 @@ int script_box::compute_metrics(int style)
 {
   int res = p->compute_metrics(style);
   p->compute_subscript_kern();
-  printf(".nr " SIZE_FORMAT " \\n[.s]\n", uid);
+  printf(".nr " SIZE_FORMAT " \\n[.ps]\n", uid);
   if (!(style <= SCRIPT_STYLE && one_size_reduction_flag))
     set_script_size();
-  printf(".nr " SMALL_SIZE_FORMAT " \\n[.s]\n", uid);
+  printf(".nr " SMALL_SIZE_FORMAT " \\n[.ps]\n", uid);
   if (sub != 0)
     sub->compute_metrics(cramped_style(script_style(style)));
   if (sup != 0)
@@ -92,7 +92,7 @@ int script_box::compute_metrics(int style)
     printf(".nr " SUB_LOWER_FORMAT " \\n[" DEPTH_FORMAT "]+%dM\n",
 	   uid, p->uid, sub_drop);
   }
-  printf(".ps \\n[" SIZE_FORMAT "]\n", uid);
+  printf(".ps \\n[" SIZE_FORMAT "]u\n", uid);
   if (sup == 0) {
     assert(sub != 0);
     // 18b
@@ -171,18 +171,18 @@ void script_box::output()
   if (sup != 0) {
     printf("\\Z" DELIMITER_CHAR);
     printf("\\v'-\\n[" SUP_RAISE_FORMAT "]u'", uid);
-    printf("\\s[\\n[" SMALL_SIZE_FORMAT "]]", uid);
+    printf("\\s[\\n[" SMALL_SIZE_FORMAT "]u]", uid);
     sup->output();
-    printf("\\s[\\n[" SIZE_FORMAT "]]", uid);
+    printf("\\s[\\n[" SIZE_FORMAT "]u]", uid);
     printf(DELIMITER_CHAR);
   }
   if (sub != 0) {
     printf("\\Z" DELIMITER_CHAR);
     printf("\\v'\\n[" SUB_LOWER_FORMAT "]u'", uid);
-    printf("\\s[\\n[" SMALL_SIZE_FORMAT "]]", uid);
+    printf("\\s[\\n[" SMALL_SIZE_FORMAT "]u]", uid);
     printf("\\h'-\\n[" SUB_KERN_FORMAT "]u'", p->uid);
     sub->output();
-    printf("\\s[\\n[" SIZE_FORMAT "]]", uid);
+    printf("\\s[\\n[" SIZE_FORMAT "]u]", uid);
     printf(DELIMITER_CHAR);
   }
   printf("\\h'\\n[" WIDTH_FORMAT "]u-\\n[" WIDTH_FORMAT "]u'",

@@ -1,5 +1,5 @@
 // -*- C++ -*-
-/* Copyright (C) 2001 Free Software Foundation, Inc.
+/* Copyright (C) 2001, 2002 Free Software Foundation, Inc.
      Written by Gaius Mulley (gaius@glam.ac.uk).
 
 This file is part of groff.
@@ -25,7 +25,3 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
 
 #define HTML_IMAGE_INLINE_BEGIN	"\\O[HTML-IMAGE-INLINE-BEGIN]"
 #define HTML_IMAGE_INLINE_END	"\\O[HTML-IMAGE-INLINE-END]"
-#define HTML_IMAGE_CENTERED	".HTML-IMAGE"
-#define HTML_IMAGE_RIGHT	".HTML-IMAGE-RIGHT"
-#define HTML_IMAGE_LEFT		".HTML-IMAGE-LEFT"
-#define HTML_IMAGE_END		".HTML-IMAGE-END"

@@ -19,22 +19,15 @@ You should have received a copy of the GNU General Public License along
 with groff; see the file COPYING.  If not, write to the Free Software
 Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
 
-#include <stdio.h>
+#include "lib.h"
+
 #include <errno.h>
-#include <string.h>
 #include <stdlib.h>
 
 #include "posix.h"
-#include "lib.h"
 #include "errarg.h"
 #include "error.h"
 #include "nonposix.h"
-
-#ifndef HAVE_MKSTEMP_PROTO
-extern "C" {
-  extern int mkstemp (char *);
-}
-#endif
 
 // If this is set, create temporary files there
 #define GROFF_TMPDIR_ENVVAR "GROFF_TMPDIR"
@@ -48,11 +41,49 @@ extern "C" {
 # define DEFAULT_TMPDIR "/tmp"
 #endif
 // Use this as the prefix for temporary filenames.
-#ifdef __MSDOS__
-#define TMPFILE_PREFIX ""
-#else
-#define TMPFILE_PREFIX "groff"
-#endif
+#define TMPFILE_PREFIX_SHORT ""
+#define TMPFILE_PREFIX_LONG "groff"
+
+char *tmpfile_prefix;
+size_t tmpfile_prefix_len;
+int use_short_postfix = 0;
+
+struct temp_init {
+  temp_init();
+  ~temp_init();
+} _temp_init;
+
+temp_init::temp_init()
+{
+  const char *tem = getenv(GROFF_TMPDIR_ENVVAR);
+  if (!tem) {
+    tem = getenv(TMPDIR_ENVVAR);
+    if (!tem)
+      tem = DEFAULT_TMPDIR;
+  }
+  size_t tem_len = strlen(tem);
+  const char *tem_end = tem + tem_len - 1;
+  int need_slash = strchr(DIR_SEPS, *tem_end) == NULL ? 1 : 0;
+  char *tem2 = new char[tem_len + need_slash + 1];
+  strcpy(tem2, tem);
+  if (need_slash)
+    strcat(tem2, "/");
+  const char *tem3 = TMPFILE_PREFIX_LONG;
+  if (file_name_max(tem2) <= 14) {
+    tem3 = TMPFILE_PREFIX_SHORT;
+    use_short_postfix = 1;
+  }
+  tmpfile_prefix_len = tem_len + need_slash + strlen(tem3);
+  tmpfile_prefix = new char[tmpfile_prefix_len + 1];
+  strcpy(tmpfile_prefix, tem2);
+  strcat(tmpfile_prefix, tem3);
+  a_delete tem2;
+}
+
+temp_init::~temp_init()
+{
+  a_delete tmpfile_prefix;
+}
 
 /*
  *  Generate a temporary name template with a postfix
@@ -62,85 +93,67 @@ extern "C" {
  *  only the *template* is returned.
  */
 
-char *xtmptemplate(char *postfix)
+char *xtmptemplate(const char *postfix_long, const char *postfix_short)
 {
-  const char *dir = getenv(GROFF_TMPDIR_ENVVAR);
+  const char *postfix = use_short_postfix ? postfix_short : postfix_long;
   int postlen = 0;
-
   if (postfix)
     postlen = strlen(postfix);
-    
-  if (!dir) {
-    dir = getenv(TMPDIR_ENVVAR);
-    if (!dir)
-      dir = DEFAULT_TMPDIR;
-  }
-
-  size_t dir_len = strlen(dir);
-  const char *dir_end = dir + dir_len - 1;
-  int needs_slash = strchr(DIR_SEPS, *dir_end) == NULL;
-  char *templ = new char[strlen(dir) + needs_slash
-		+ sizeof(TMPFILE_PREFIX) - 1 + 6 + 1 + postlen];
-  strcpy(templ, dir);
-  if (needs_slash)
-    strcat(templ, "/");
-  strcat(templ, TMPFILE_PREFIX);
+  char *templ = new char[tmpfile_prefix_len + postlen + 6 + 1];
+  strcpy(templ, tmpfile_prefix);
   if (postlen > 0)
     strcat(templ, postfix);
   strcat(templ, "XXXXXX");
-
-  return( templ );
+  return templ;
 }
 
 // The trick with unlinking the temporary file while it is still in
 // use is not portable, it will fail on MS-DOS and most MS-Windows
 // filesystems.  So it cannot be used on non-Posix systems.
-// Instead, we maintain a list of files to be deleted on exit, and
-// register an atexit function that will remove them all in one go.
+// Instead, we maintain a list of files to be deleted on exit.
 // This should be portable to all platforms.
 
-static struct xtmpfile_list {
-  struct xtmpfile_list *next;
-  char fname[1];
-} *xtmpfiles_to_delete;
+struct xtmpfile_list {
+  char *fname;
+  xtmpfile_list *next;
+  xtmpfile_list(char *fn) : fname(fn), next(0) {}
+};
 
-static void remove_tmp_files()
+xtmpfile_list *xtmpfiles_to_delete = 0;
+
+struct xtmpfile_list_init {
+  ~xtmpfile_list_init();
+} _xtmpfile_list_init;
+
+xtmpfile_list_init::~xtmpfile_list_init()
 {
-  struct xtmpfile_list *p = xtmpfiles_to_delete;
-
-  while (p) {
-    if (unlink(p->fname) < 0)
-      error("cannot unlink `%1': %2", p->fname, strerror(errno));
-    struct xtmpfile_list *old = p;
-    p = p->next;
-    free(old);
+  xtmpfile_list *x = xtmpfiles_to_delete;
+  while (x != 0) {
+    if (unlink(x->fname) < 0)
+      error("cannot unlink `%1': %2", x->fname, strerror(errno));
+    xtmpfile_list *tmp = x;
+    x = x->next;
+    a_delete tmp->fname;
+    delete tmp;
   }
 }
 
 static void add_tmp_file(const char *name)
 {
-  if (xtmpfiles_to_delete == NULL)
-    atexit(remove_tmp_files);
-
-  struct xtmpfile_list *p
-    = (struct xtmpfile_list *)malloc(sizeof(struct xtmpfile_list)
-				     + strlen (name));
-  if (p == NULL) {
-    error("cannot unlink `%1': %2", name, strerror(errno));
-    return;
-  }
-  p->next = xtmpfiles_to_delete;
-  strcpy(p->fname, name);
-  xtmpfiles_to_delete = p;
+  char *s = new char[strlen(name)+1];
+  strcpy(s, name);
+  xtmpfile_list *x = new xtmpfile_list(s);
+  x->next = xtmpfiles_to_delete;
+  xtmpfiles_to_delete = x;
 }
 
 // Open a temporary file and with fatal error on failure.
 
-FILE *xtmpfile(char **namep, char *postfix, int do_unlink)
+FILE *xtmpfile(char **namep,
+	       const char *postfix_long, const char *postfix_short,
+	       int do_unlink)
 {
-  char *templ = xtmptemplate(postfix);
-
-#ifdef HAVE_MKSTEMP
+  char *templ = xtmptemplate(postfix_long, postfix_short);
   errno = 0;
   int fd = mkstemp(templ);
   if (fd < 0)
@@ -149,17 +162,9 @@ FILE *xtmpfile(char **namep, char *postfix, int do_unlink)
   FILE *fp = fdopen(fd, FOPEN_RWB); // many callers of xtmpfile use binary I/O
   if (!fp)
     fatal("fdopen: %1", strerror(errno));
-#else /* not HAVE_MKSTEMP */
-  if (!mktemp(templ) || !templ[0])
-    fatal("cannot create file name for temporary file");
-  errno = 0;
-  FILE *fp = fopen(templ, FOPEN_RWB);
-  if (!fp)
-    fatal("cannot open `%1': %2", templ, strerror(errno));
-#endif /* not HAVE_MKSTEMP */
   if (do_unlink)
     add_tmp_file(templ);
-  if ((namep != 0) && ((*namep) != 0))
+  if (namep)
     *namep = templ;
   else
     a_delete templ;

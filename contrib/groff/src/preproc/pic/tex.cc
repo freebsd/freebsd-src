@@ -42,6 +42,10 @@ public:
   void circle(const position &, double rad, const line_type &, double);
   void ellipse(const position &, const distance &, const line_type &, double);
   void command(const char *, const char *, int);
+  void set_color(char *, char *);
+  void reset_color();
+  char *get_last_filled();
+  char *get_outline_color();
   int supports_filled_polygons();
 private:
   position upper_left;
@@ -348,6 +352,28 @@ void tex_output::dot(const position &pos, const line_type &lt)
 	   "    \\special{ia %d %d %d %d 0 6.28319}%%\n",
 	   milliinches(p.x), milliinches(p.y), dot_rad, dot_rad);
   }
+}
+
+void tex_output::set_color(char *, char *)
+{
+  /* not implemented yet */
+}
+
+void tex_output::reset_color()
+{
+  /* not implemented yet */
+}
+
+char *tex_output::get_last_filled()
+{
+  /* not implemented yet */
+  return NULL;
+}
+
+char *tex_output::get_outline_color()
+{
+  /* not implemented yet */
+  return NULL;
 }
 
 class tpic_output : public tex_output {

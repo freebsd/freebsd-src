@@ -1,5 +1,5 @@
 // -*- C++ -*-
-/* Copyright (C) 1989, 1990, 1991, 1992, 2000, 2001
+/* Copyright (C) 1989, 1990, 1991, 1992, 2000, 2001, 2002
    Free Software Foundation, Inc.
      Written by James Clark (jjc@jclark.com)
 
@@ -97,6 +97,8 @@ struct node {
 
   virtual node *merge_glyph_node(glyph_node *);
   virtual tfont *get_tfont();
+  virtual color *get_glyph_color();
+  virtual color *get_fill_color();
   virtual void tprint(troff_output_file *);
   virtual void zero_width_tprint(troff_output_file *);
 
@@ -106,11 +108,13 @@ struct node {
   virtual const char *type() = 0;
 };
 
-inline node::node() : next(0), last(0)
+inline node::node()
+: next(0), last(0)
 {
 }
 
-inline node::node(node *n) : next(n), last(0)
+inline node::node(node *n)
+: next(n), last(0)
 {
 }
 
@@ -152,9 +156,10 @@ protected:
   hunits n;
   char set;
   char was_escape_colon;
-  space_node(hunits, int, int, node * = 0);
+  color *col;			/* for grotty */
+  space_node(hunits, int, int, color *, node * = 0);
 public:
-  space_node(hunits d, node *p = 0);
+  space_node(hunits, color *, node * = 0);
 #if 0
   ~space_node();
   void *operator new(size_t);
@@ -192,9 +197,9 @@ class word_space_node : public space_node {
 protected:
   width_list *orig_width;
   unsigned char unformat;
-  word_space_node(hunits, int, width_list *, int, node * = 0);
+  word_space_node(hunits, int, color *, width_list *, int, node * = 0);
 public:
-  word_space_node(hunits, width_list *, node * = 0);
+  word_space_node(hunits, color *, width_list *, node * = 0);
   ~word_space_node();
   node *copy();
   int reread(int *);
@@ -208,9 +213,9 @@ public:
 };
 
 class unbreakable_space_node : public word_space_node {
-  unbreakable_space_node(hunits, int, node * = 0);
+  unbreakable_space_node(hunits, int, color *, node * = 0);
 public:
-  unbreakable_space_node(hunits, node * = 0);
+  unbreakable_space_node(hunits, color *, node * = 0);
   node *copy();
   int reread(int *);
   int same(node *);
@@ -279,11 +284,12 @@ protected:
   hunits n;
   unsigned char was_tab;
   unsigned char unformat;
+  color *col;			/* for grotty */
 public:
-  hmotion_node(hunits i, node *next = 0)
-  : node(next), n(i), was_tab(0), unformat(0) {}
-  hmotion_node(hunits i, int flag1, int flag2, node *next = 0)
-  : node(next), n(i), was_tab(flag1), unformat(flag2) {}
+  hmotion_node(hunits i, color *c, node *next = 0)
+    : node(next), n(i), was_tab(0), unformat(0), col(c) {}
+  hmotion_node(hunits i, int flag1, int flag2, color *c, node *next = 0)
+    : node(next), n(i), was_tab(flag1), unformat(flag2), col(c) {}
   node *copy();
   int reread(int *);
   int set_unformat_flag();
@@ -301,7 +307,7 @@ public:
 
 class space_char_hmotion_node : public hmotion_node {
 public:
-  space_char_hmotion_node(hunits i, node *next = 0);
+  space_char_hmotion_node(hunits, color *, node * = 0);
   node *copy();
   void ascii_print(ascii_output_file *);
   void asciify(macro *);
@@ -315,8 +321,9 @@ public:
 
 class vmotion_node : public node {
   vunits n;
+  color *col;			/* for grotty */
 public:
-  vmotion_node(vunits i) : n(i) {}
+  vmotion_node(vunits i, color *c) : n(i), col(c) {}
   void tprint(troff_output_file *);
   node *copy();
   vunits vertical_width();
@@ -458,13 +465,15 @@ public:
 class special_node : public node {
   macro mac;
   tfont *tf;
+  color *gcol;
+  color *fcol;
   int no_init_string;
   void tprint_start(troff_output_file *);
   void tprint_char(troff_output_file *, unsigned char);
   void tprint_end(troff_output_file *);
 public:
   special_node(const macro &, int = 0);
-  special_node(const macro &, tfont *, int = 0);
+  special_node(const macro &, tfont *, color *, color *, int = 0);
   node *copy();
   void tprint(troff_output_file *);
   int same(node *);
@@ -479,10 +488,11 @@ class suppress_node : public node {
   int emit_limits;	// must we issue the extent of the area written out?
   symbol filename;
   char position;
+  int  image_id;
 public:
   suppress_node(int, int);
-  suppress_node(symbol f, char p);
-  suppress_node(int, int, symbol f, char p);
+  suppress_node(symbol f, char p, int id);
+  suppress_node(int, int, symbol f, char p, int id);
   node *copy();
   void tprint(troff_output_file *);
   hunits width();
@@ -502,10 +512,12 @@ struct hvpair {
 class draw_node : public node {
   int npoints;
   font_size sz;
+  color *gcol;
+  color *fcol;
   char code;
   hvpair *point;
 public:
-  draw_node(char, hvpair *, int, font_size);
+  draw_node(char, hvpair *, int, font_size, color *, color *);
   ~draw_node();
   hunits width();
   vunits vertical_width();
@@ -582,3 +594,4 @@ public:
 };
 
 font_family *lookup_family(symbol);
+symbol get_font_name(int, environment *);

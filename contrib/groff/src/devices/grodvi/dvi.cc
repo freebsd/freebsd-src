@@ -1,5 +1,5 @@
 // -*- C++ -*-
-/* Copyright (C) 1989, 1990, 1991, 1992, 2000, 2001
+/* Copyright (C) 1989, 1990, 1991, 1992, 2000, 2001, 2002
    Free Software Foundation, Inc.
      Written by James Clark (jjc@jclark.com)
 
@@ -43,8 +43,6 @@ width in the tfm file. */
 #define UNITWIDTH 131072
 #define SIZESCALE 100
 #define MULTIPLIER 1
-
-#define FILL_MAX 1000
 
 class dvi_font : public font {
   dvi_font(const char *);
@@ -123,6 +121,7 @@ class dvi_printer : public printer {
   output_font output_font_table[FONTS_MAX];
   font *cur_font;
   int cur_point_size;
+  color cur_color;
   int pushed;
   int pushed_h;
   int pushed_v;
@@ -132,6 +131,7 @@ class dvi_printer : public printer {
   void define_font(int);
   void set_font(int);
   void possibly_begin_line();
+  void set_color(color *);
 protected:
   enum {
     id_byte = 2,
@@ -179,9 +179,8 @@ public:
 
 class draw_dvi_printer : public dvi_printer {
   int output_pen_size;
-  int fill;
   void set_line_thickness(const environment *);
-  void fill_next();
+  void fill_next(const environment *);
 public:
   draw_dvi_printer();
   ~draw_dvi_printer();
@@ -214,7 +213,7 @@ dvi_printer::~dvi_printer()
 
 
 draw_dvi_printer::draw_dvi_printer()
-: output_pen_size(-1), fill(FILL_MAX)
+: output_pen_size(-1)
 {
 }
 
@@ -302,9 +301,45 @@ int scale(int x, int z)
   return sw;
 }
 
-
-void dvi_printer::set_char(int index, font *f, const environment *env, int w, const char *name)
+void dvi_printer::set_color(color *col)
 {
+  cur_color = *col;
+  char buf[256];
+  unsigned int components[4];
+  color_scheme cs = col->get_components(components);
+  switch (cs) {
+  case DEFAULT:
+    sprintf(buf, "color gray 0");
+    break;
+  case RGB:
+    sprintf(buf, "color rgb %.3g %.3g %.3g",
+		 double(Red) / color::MAX_COLOR_VAL,
+		 double(Green) / color::MAX_COLOR_VAL,
+		 double(Blue) / color::MAX_COLOR_VAL);
+    break;
+  case CMY:
+    col->get_cmyk(&Cyan, &Magenta, &Yellow, &Black);
+    // fall through
+  case CMYK:
+    sprintf(buf, "color cmyk %.3g %.3g %.3g %.3g",
+		 double(Cyan) / color::MAX_COLOR_VAL,
+		 double(Magenta) / color::MAX_COLOR_VAL,
+		 double(Yellow) / color::MAX_COLOR_VAL,
+		 double(Black) / color::MAX_COLOR_VAL);
+    break;
+  case GRAY:
+    sprintf(buf, "color gray %.3g",
+		 double(Gray) / color::MAX_COLOR_VAL);
+    break;
+  }
+  do_special(buf);
+}
+
+void dvi_printer::set_char(int index, font *f, const environment *env,
+			   int w, const char *name)
+{
+  if (*env->col != cur_color)
+    set_color(env->col);
   int code = f->get_code(index);
   if (env->size != cur_point_size || f != cur_font) {
     cur_font = f;
@@ -345,7 +380,7 @@ void dvi_printer::set_char(int index, font *f, const environment *env, int w, co
   possibly_begin_line();
   end_h = env->hpos + w;
   cur_h += scale(f->get_width(index, UNITWIDTH)/MULTIPLIER,
-		cur_point_size*RES_7227);
+		 cur_point_size*RES_7227);
   if (cur_h > max_h)
     max_h = cur_h;
   if (cur_v > max_v)
@@ -464,6 +499,8 @@ void dvi_printer::begin_page(int i)
     out4(0);
   out4(last_bop);
   last_bop = tem;
+  if (cur_color != default_color)
+    set_color(&cur_color);
   // By convention position (0,0) in a dvi file is placed at (1in, 1in).
   cur_h = font::res;
   cur_v = font::res;
@@ -472,6 +509,7 @@ void dvi_printer::begin_page(int i)
 
 void dvi_printer::end_page(int)
 {
+  set_color(&default_color);
   if (pushed)
     end_of_line();
   out1(eop);
@@ -629,10 +667,17 @@ void draw_dvi_printer::set_line_thickness(const environment *env)
   }
 }
 
-void draw_dvi_printer::fill_next()
+void draw_dvi_printer::fill_next(const environment *env)
 {
+  unsigned int g;
+  if (env->fill->is_default())
+    g = 0;
+  else {
+    // currently, only BW support
+    env->fill->get_gray(&g);
+  }
   char buf[256];
-  sprintf(buf, "sh %.3f", double(fill)/FILL_MAX);
+  sprintf(buf, "sh %.3g", 1 - double(g)/color::MAX_COLOR_VAL);
   do_special(buf);
 }
 
@@ -652,7 +697,7 @@ void draw_dvi_printer::draw(int code, int *p, int np, const environment *env)
     }
     moveto(env->hpos+p[0]/2, env->vpos);
     if (fill_flag)
-      fill_next();
+      fill_next(env);
     else
       set_line_thickness(env);
     int rad;
@@ -685,7 +730,7 @@ void draw_dvi_printer::draw(int code, int *p, int np, const environment *env)
     }
     moveto(env->hpos+p[0]/2, env->vpos);
     if (fill_flag)
-      fill_next();
+      fill_next(env);
     sprintf(buf, "%s 0 0 %d %d 0 6.28319",
 	    (fill_flag ? "ia" : "ar"),
 	    milliinches(p[0]/2),
@@ -707,7 +752,7 @@ void draw_dvi_printer::draw(int code, int *p, int np, const environment *env)
       }
       moveto(env->hpos, env->vpos);
       if (fill_flag)
-	fill_next();
+	fill_next(env);
       else
 	set_line_thickness(env);
       do_special("pa 0 0");
@@ -788,17 +833,6 @@ void draw_dvi_printer::draw(int code, int *p, int np, const environment *env)
 	}
 	line_thickness = p[0];
       }
-      break;
-    }
-  case 'f':
-    {
-      if (np != 1 && np != 2) {
-	error("1 argument required for fill");
-	break;
-      }
-      fill = p[0];
-      if (fill < 0 || fill > FILL_MAX)
-	fill = FILL_MAX;
       break;
     }
   case 'R':

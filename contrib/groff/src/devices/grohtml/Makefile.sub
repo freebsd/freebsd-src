@@ -1,15 +1,18 @@
-PROG=post-grohtml
+PROG=post-grohtml$(EXEEXT)
 MAN1=grohtml.n
 XLIBS=$(LIBDRIVER) $(LIBGROFF)
 MLIB=$(LIBM)
 OBJS=\
-  post-html.o \
-  html-text.o \
-  output.o
+  post-html.$(OBJEXT) \
+  html-table.$(OBJEXT) \
+  html-text.$(OBJEXT) \
+  output.$(OBJEXT)
 CCSRCS=\
   $(srcdir)/post-html.cc \
+  $(srcdir)/html-table.cc \
   $(srcdir)/html-text.cc \
   $(srcdir)/output.cc
 HDRS=\
   $(srcdir)/html.h \
+  $(srcdir)/html-table.h \
   $(srcdir)/html-text.h

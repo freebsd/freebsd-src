@@ -1,5 +1,5 @@
 // -*- C++ -*-
-/* Copyright (C) 1992, 2000 Free Software Foundation, Inc.
+/* Copyright (C) 1992, 2000, 2001 Free Software Foundation, Inc.
      Written by James Clark (jjc@jclark.com)
 
 This file is part of groff.
@@ -42,10 +42,22 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
 #define S_IROTH 0004
 #endif
 
+#ifndef S_IWUSR
+#define S_IWUSR 0200
+#endif
+
+#ifndef S_IXUSR
+#define S_IXUSR 0100
+#endif
+
 #ifndef S_ISREG
 #define S_ISREG(m) (((m) & S_IFMT) == S_IFREG)
 #endif
 
 #ifndef O_RDONLY
 #define O_RDONLY 0
+#endif
+
+#ifndef HAVE_ISATTY
+#define isatty(n) (1)
 #endif
