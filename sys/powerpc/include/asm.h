@@ -54,8 +54,9 @@
 #define	PIC_GOTOFF(x)	x
 #endif
 
-#define	_C_LABEL(x)	x
-#define	_ASM_LABEL(x)	x
+#define	CNAME(csym)		csym
+#define	ASMNAME(asmsym)		asmsym
+#define	HIDENAME(asmsym)	__CONCAT(.,asmsym)
 
 #define	_GLOBAL(x) \
 	.data; .align 2; .globl x; x:
@@ -69,9 +70,9 @@
 # define	_PROF_PROLOGUE
 #endif
 
-#define	ENTRY(y)	_ENTRY(_C_LABEL(y)); _PROF_PROLOGUE
-#define	ASENTRY(y)	_ENTRY(_ASM_LABEL(y)); _PROF_PROLOGUE
-#define	GLOBAL(y)	_GLOBAL(_C_LABEL(y))
+#define	ENTRY(y)	_ENTRY(CNAME(y)); _PROF_PROLOGUE
+#define	ASENTRY(y)	_ENTRY(ASMNAME(y)); _PROF_PROLOGUE
+#define	GLOBAL(y)	_GLOBAL(CNAME(y))
 
 #define	ASMSTR		.asciz
 

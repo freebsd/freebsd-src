@@ -42,8 +42,8 @@
  * On entry r1 points to a struct sigframe at bottom of current stack.
  * All other registers are unchanged.
  */
-	.globl	_C_LABEL(sigcode),_C_LABEL(szsigcode)
-_C_LABEL(sigcode):
+	.globl	CNAME(sigcode),CNAME(szsigcode)
+CNAME(sigcode):
 	addi	1,1,-16			/* reserved space for callee */
 	blrl
 	addi	3,1,16+8		/* compute &sf_sc */
@@ -51,4 +51,4 @@ _C_LABEL(sigcode):
 	sc				/* sigreturn(scp) */
 	li	0,SYS_exit
 	sc				/* exit(errno) */
-_C_LABEL(szsigcode) = . - _C_LABEL(sigcode)
+CNAME(szsigcode) = . - CNAME(sigcode)
