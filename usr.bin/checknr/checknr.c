@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
  * later but for now think of these restrictions as contributions to
  * structured typesetting.
  */
+#include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -257,7 +258,7 @@ main(int argc, char **argv)
 			cfilename = argv[i];
 			f = fopen(cfilename, "r");
 			if (f == NULL)
-				perror(cfilename);
+				warn("%s", cfilename);
 			else {
 				process(f);
 				fclose(f);
