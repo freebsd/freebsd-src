@@ -275,6 +275,7 @@ set_qstate(int action, const char *lfname)
 	struct stat stbuf;
 	mode_t chgbits, newbits, oldmask;
 	const char *failmsg, *okmsg;
+	static const char *nomsg = "no state msg";
 	int chres, errsav, fd, res, statres;
 
 	/*
@@ -298,6 +299,13 @@ set_qstate(int action, const char *lfname)
 	newbits = LOCK_FILE_MODE;
 	okmsg = NULL;
 	failmsg = NULL;
+	if (action & SQS_QCHANGED) {
+		chgbits |= LFM_RESET_QUE;
+		newbits |= LFM_RESET_QUE;
+		/* The okmsg is not actually printed for this case. */
+		okmsg = nomsg;
+		failmsg = "set queue-changed";
+	}
 	if (action & SQS_DISABLEQ) {
 		chgbits |= LFM_QUEUE_DIS;
 		newbits |= LFM_QUEUE_DIS;
@@ -374,7 +382,8 @@ set_qstate(int action, const char *lfname)
 	case SQS_CHGOK:
 	case SQS_CREOK:
 	case SQS_SKIPCREOK:
-		printf("\t%s\n", okmsg);
+		if (okmsg != nomsg)
+			printf("\t%s\n", okmsg);
 		break;
 	case SQS_CREFAIL:
 		printf("\tcannot create lock file: %s\n",
