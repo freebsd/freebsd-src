@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.51.2.5 1997/10/01 06:23:48 davidg Exp $
+ * $Id: vfs_syscalls.c,v 1.51.2.6 1997/10/23 18:04:55 joerg Exp $
  */
 
 /*
@@ -291,6 +291,7 @@ dounmount(mp, flags, p)
 {
 	struct vnode *coveredvp;
 	int error;
+	int async_flag;
 
 	coveredvp = mp->mnt_vnodecovered;
 	if (vfs_busy(mp))
@@ -303,6 +304,7 @@ dounmount(mp, flags, p)
 		return (error);
 	}
 
+	async_flag = mp->mnt_flag & MNT_ASYNC;
 	mp->mnt_flag &=~ MNT_ASYNC;
 	vfs_msync(mp, MNT_NOWAIT);
 	vnode_pager_umount(mp);	/* release cached vnodes */
@@ -311,6 +313,7 @@ dounmount(mp, flags, p)
 	    (flags & MNT_FORCE))
 		error = VFS_UNMOUNT(mp, flags, p);
 	mp->mnt_flag &= ~MNT_UNMOUNT;
+	mp->mnt_flag |= async_flag;
 	vfs_unbusy(mp);
 	if (error) {
 		vfs_unlock(mp);
