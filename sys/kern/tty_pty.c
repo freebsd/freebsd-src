@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_pty.c	8.2 (Berkeley) 9/23/93
- * $Id: tty_pty.c,v 1.21 1995/09/19 12:26:47 bde Exp $
+ * $Id: tty_pty.c,v 1.22 1995/10/25 18:23:58 bde Exp $
  */
 
 /*
@@ -83,7 +83,6 @@ int	npty = NPTY;		/* for pstat -t */
 #define PF_UCNTL	0x80		/* user control mode */
 
 void	ptsstop		__P((struct tty *, int));
-void	ptcwakeup	__P((struct tty *, int));
 
 /*
  * Establish n (or default if n is 1) ptys in the system.
