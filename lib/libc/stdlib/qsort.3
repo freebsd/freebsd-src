@@ -47,19 +47,34 @@
 .Sh SYNOPSIS
 .In stdlib.h
 .Ft void
-.Fn qsort "void *base" "size_t nmemb" "size_t size" "int (*compar)(const void *, const void *)"
+.Fo qsort
+.Fa "void *base"
+.Fa "size_t nmemb"
+.Fa "size_t size"
+.Fa "int \*[lp]*compar\*[rp]\*[lp]const void *, const void *\*[rp]"
+.Fc
 .Ft void
 .Fo qsort_r
 .Fa "void *base"
 .Fa "size_t nmemb"
 .Fa "size_t size"
 .Fa "void *thunk"
-.Fa "int (*compar)(void *, const void *, const void *)"
+.Fa "int \*[lp]*compar\*[rp]\*[lp]void *, const void *, const void *\*[rp]"
 .Fc
 .Ft int
-.Fn heapsort "void *base" "size_t nmemb" "size_t size" "int (*compar)(const void *, const void *)"
+.Fo heapsort
+.Fa "void *base"
+.Fa "size_t nmemb"
+.Fa "size_t size"
+.Fa "int \*[lp]*compar\*[rp]\*[lp]const void *, const void *\*[rp]"
+.Fc
 .Ft int
-.Fn mergesort "void *base" "size_t nmemb" "size_t size" "int (*compar)(const void *, const void *)"
+.Fo mergesort
+.Fa "void *base"
+.Fa "size_t nmemb"
+.Fa "size_t size"
+.Fa "int \*[lp]*compar\*[rp]\*[lp]const void *, const void *\*[rp]"
+.Fc
 .Sh DESCRIPTION
 The
 .Fn qsort
@@ -111,7 +126,7 @@ except that it takes an additional argument,
 which is passed unchanged as the first argument to function pointed to
 .Fa compar .
 This allows the comparison function to access additional
-data without using global variables, and thus 
+data without using global variables, and thus
 .Fn qsort_r
 is suitable for use in functions which must be reentrant.
 .Pp
@@ -132,7 +147,9 @@ The
 .Fn qsort
 and
 .Fn qsort_r
-functions are an implementation of C.A.R. Hoare's ``quicksort'' algorithm,
+functions are an implementation of C.A.R. Hoare's
+.Dq quicksort
+algorithm,
 a variant of partition-exchange sorting; in particular, see D.E. Knuth's
 Algorithm Q.
 .Sy Quicksort
@@ -142,7 +159,9 @@ O N**2 worst-case behavior.
 .Pp
 The
 .Fn heapsort
-function is an implementation of J.W.J. William's ``heapsort'' algorithm,
+function is an implementation of J.W.J. William's
+.Dq heapsort
+algorithm,
 a variant of selection sorting; in particular, see D.E. Knuth's Algorithm H.
 .Sy Heapsort
 takes O N lg N worst-case time.
