@@ -284,7 +284,8 @@ acpi_Startup(void)
      * Set the globals from our tunables.  This is needed because ACPI-CA
      * uses UINT8 for some values and we have no tunable_byte.
      */
-    AcpiGbl_AllMethodsSerialized = (UINT8)acpi_serialize_methods;
+    AcpiGbl_AllMethodsSerialized = acpi_serialize_methods;
+    AcpiGbl_EnableInterpreterSlack = TRUE;
 
     /* Start up the ACPI CA subsystem. */
     if (ACPI_FAILURE(error = AcpiInitializeSubsystem())) {
