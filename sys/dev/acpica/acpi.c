@@ -2396,6 +2396,8 @@ acpiioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, d_thread_t *td)
     struct acpi_ioctl_hook	*hp;
     int				error, state;
 
+    error = 0;
+    hp = NULL;
     sc = dev->si_drv1;
 
     /*
