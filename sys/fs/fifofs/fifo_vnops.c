@@ -122,6 +122,9 @@ static struct vnodeopv_desc fifo_vnodeop_opv_desc =
 
 VNODEOP_SET(fifo_vnodeop_opv_desc);
 
+struct mtx fifo_mtx;
+MTX_SYSINIT(fifo, &fifo_mtx, "fifo mutex", MTX_DEF);
+
 int
 fifo_vnoperate(ap)
 	struct vop_generic_args /* {
@@ -217,28 +220,25 @@ fail1:
 	 * the vnode lock.
 	 *
 	 * Protect the increment of fi_readers and fi_writers and the
-	 * associated calls to wakeup() with the vnode interlock in
-	 * addition to the vnode lock.  This allows the vnode lock to
-	 * be dropped for the msleep() calls below, and using the vnode
-	 * interlock as the msleep() mutex prevents the wakeup from
-	 * being missed.
+	 * associated calls to wakeup() with the fifo mutex in addition
+	 * to the vnode lock.  This allows the vnode lock to be dropped
+	 * for the msleep() calls below, and using the fifo mutex with
+	 * msleep() prevents the wakeup from being missed.
 	 */
-	VI_LOCK(vp);
+	mtx_lock(&fifo_mtx);
 	if (ap->a_mode & FREAD) {
 		fip->fi_readers++;
 		if (fip->fi_readers == 1) {
 			fip->fi_writesock->so_state &= ~SS_CANTSENDMORE;
 			if (fip->fi_writers > 0) {
 				wakeup(&fip->fi_writers);
-				VI_UNLOCK(vp);
 				sowwakeup(fip->fi_writesock);
-				VI_LOCK(vp);
 			}
 		}
 	}
 	if (ap->a_mode & FWRITE) {
 		if ((ap->a_mode & O_NONBLOCK) && fip->fi_readers == 0) {
-			VI_UNLOCK(vp);
+			mtx_unlock(&fifo_mtx);
 			return (ENXIO);
 		}
 		fip->fi_writers++;
@@ -246,26 +246,25 @@ fail1:
 			fip->fi_readsock->so_state &= ~SS_CANTRCVMORE;
 			if (fip->fi_readers > 0) {
 				wakeup(&fip->fi_readers);
-				VI_UNLOCK(vp);
 				sorwakeup(fip->fi_writesock);
-				VI_LOCK(vp);
 			}
 		}
 	}
 	if ((ap->a_mode & O_NONBLOCK) == 0) {
 		if ((ap->a_mode & FREAD) && fip->fi_writers == 0) {
 			VOP_UNLOCK(vp, 0, td);
-			error = msleep(&fip->fi_readers, VI_MTX(vp),
-			    PCATCH | PSOCK, "fifoor", 0);
-			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY | LK_INTERLOCK, td);
+			error = msleep(&fip->fi_readers, &fifo_mtx,
+			    PDROP | PCATCH | PSOCK, "fifoor", 0);
+			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 			if (error) {
 				fip->fi_readers--;
-				if (fip->fi_readers == 0)
+				if (fip->fi_readers == 0) {
 					socantsendmore(fip->fi_writesock);
-				fifo_cleanup(vp);
+					fifo_cleanup(vp);
+				}
 				return (error);
 			}
-			VI_LOCK(vp);
+			mtx_lock(&fifo_mtx);
 			/*
 			 * We must have got woken up because we had a writer.
 			 * That (and not still having one) is the condition
@@ -274,15 +273,15 @@ fail1:
 		}
 		if ((ap->a_mode & FWRITE) && fip->fi_readers == 0) {
 			VOP_UNLOCK(vp, 0, td);
-			error = msleep(&fip->fi_writers, VI_MTX(vp),
-			    PCATCH | PSOCK, "fifoow", 0);
-			vn_lock(vp,
-			    LK_EXCLUSIVE | LK_RETRY | LK_INTERLOCK, td);
+			error = msleep(&fip->fi_writers, &fifo_mtx,
+			    PDROP | PCATCH | PSOCK, "fifoow", 0);
+			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 			if (error) {
 				fip->fi_writers--;
-				if (fip->fi_writers == 0)
+				if (fip->fi_writers == 0) {
 					socantrcvmore(fip->fi_readsock);
-				fifo_cleanup(vp);
+					fifo_cleanup(vp);
+				}
 				return (error);
 			}
 			/*
@@ -293,7 +292,7 @@ fail1:
 			return (0);
 		}
 	}
-	VI_UNLOCK(vp);
+	mtx_unlock(&fifo_mtx);
 	return (0);
 }
 
