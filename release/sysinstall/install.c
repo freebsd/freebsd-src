@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.223.2.10 1999/04/29 03:33:52 jkh Exp $
+ * $Id: install.c,v 1.223.2.11 1999/05/05 11:34:42 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -734,6 +734,7 @@ int
 installFixupBin(dialogMenuItem *self)
 {
     Device **devs;
+    char *cp;
     int i;
 
     /* All of this is done only as init, just to be safe */
@@ -747,17 +748,20 @@ installFixupBin(dialogMenuItem *self)
 		}
 #ifndef __alpha__
                 /* Snapshot any boot -c changes back to the new kernel */
-                if (kget("/boot/kernel.conf")) {
-		    msgConfirm("Kernel copied OK, but unable to save boot -c changes\n"
-			       "to it.  See the debug screen (ALT-F2) for details.");
-		}
-		else if (file_readable("/boot/kernel.conf")) {
-		    FILE *fp;
-
-		    if ((fp = fopen("/boot/loader.conf", "a")) != NULL) {
-			fprintf(fp, "# -- sysinstall generated deltas -- #\n");
-			fprintf(fp, "userconfig_script_load=\"YES\"\n");
-		 	fclose(fp);
+		cp = variable_get(VAR_KGET);
+		if (cp && (*cp == 'Y' || *cp == 'y')) {
+		    if (kget("/boot/kernel.conf")) {
+			msgConfirm("Kernel copied OK, but unable to save boot -c changes\n"
+				   "to it.  See the debug screen (ALT-F2) for details.");
+		    }
+		    else if (file_readable("/boot/kernel.conf")) {
+			FILE *fp;
+			
+			if ((fp = fopen("/boot/loader.conf", "a")) != NULL) {
+			    fprintf(fp, "# -- sysinstall generated deltas -- #\n");
+			    fprintf(fp, "userconfig_script_load=\"YES\"\n");
+			    fclose(fp);
+			}
 		    }
 		}
 #endif
@@ -1029,6 +1033,7 @@ installVarDefaults(dialogMenuItem *self)
     /* Set default startup options */
     variable_set2(VAR_RELNAME,			getRelname(), 0);
     variable_set2(VAR_CPIO_VERBOSITY,		"high", 0);
+    variable_set2(VAR_KGET,			"YES", 0);
     variable_set2(VAR_TAPE_BLOCKSIZE,		DEFAULT_TAPE_BLOCKSIZE, 0);
     variable_set2(VAR_INSTALL_ROOT,		"/", 0);
     variable_set2(VAR_INSTALL_CFG,		"install.cfg", 0);

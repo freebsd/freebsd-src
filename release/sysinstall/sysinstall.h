@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.153.2.8 1999/04/24 02:02:29 jkh Exp $
+ * $Id: sysinstall.h,v 1.153.2.9 1999/04/28 06:58:16 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -119,6 +119,7 @@
 #define VAR_INSTALL_ROOT		"installRoot"
 #define VAR_IPADDR			"ipaddr"
 #define VAR_KEYMAP			"keymap"
+#define VAR_KGET			"kget"
 #define VAR_LABEL			"label"
 #define VAR_LABEL_COUNT			"labelCount"
 #define VAR_MEDIA_TYPE			"mediaType"
