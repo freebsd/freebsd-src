@@ -32,8 +32,11 @@
 
 #ifndef SYS_KSE_H
 #define SYS_KSE_H
+
 #include <machine/kse.h>
-/* 
+#include <sys/ucontext.h>
+
+/*
  * This file defines the structures needed for communication between
  * the userland and the kernel when running a KSE-based threading system.
  * The only programs that should see this file are the UTS and the kernel.
@@ -41,38 +44,41 @@
 struct kse_mailbox;
 typedef void kse_fn_t(struct kse_mailbox *mbx);
 
-/* 
- * Each userland thread has one of these buried in it's 
- * Thread control structure somewhere.
+/*
+ * Thread mailbox.
+ *
+ * This describes a user thread to the kernel scheduler.
  */
-struct thread_mailbox
-{
-	struct thread_mailbox *next_completed;
-	unsigned int	flags;
-	void		*UTS_handle;	/* The UTS can use this for anything */
-	union kse_td_ctx ctx;		/* thread's saved context goes here. */
+struct thread_mailbox {
+	ucontext_t		tm_context;	/* User and machine context */
+	unsigned int		tm_flags;	/* Thread flags */
+	struct thread_mailbox	*tm_next;	/* Next thread in list */
+	void			*tm_udata;	/* For use by the UTS */
+	int			tm_spare[8];
 };
 
-/* 
- * You need to supply one of these as the argument to the 
- * kse_new() system call.
+/*
+ * KSE mailbox.
+ *
+ * Cummunication path between the UTS and the kernel scheduler specific to
+ * a single KSE.
  */
-struct kse_mailbox 
-{
-	kse_fn_t	*kmbx_upcall;
-	char *kmbx_stackbase;
-	unsigned long int kmbx_stacksize;
-	struct thread_mailbox *kmbx_current_thread;
-	struct thread_mailbox *kmbx_completed_threads;
-	unsigned int	kmbx_flags;
-	void		*kmbx_UTS_handle; /* UTS can use this for anything */
+struct kse_mailbox {
+	struct thread_mailbox	*km_curthread;	/* Currently running thread */
+	struct thread_mailbox	*km_completed;	/* Threads back from kernel */
+	sigset_t		km_sigscaught;	/* Caught signals */
+	unsigned int		km_flags;	/* KSE flags */
+	void			*km_func;	/* UTS function */
+	stack_t			km_stack;	/* UTS context */
+	void			*km_udata;	/* For use by the UTS */
+	int			tm_spare[8];
 };
-#define KEMBXF_CRITICAL 0x00000001
 
-struct kse_global_mailbox
-{
-	unsigned int	flags;
-};
-#define GMBXF_CRITICAL 0x00000001
+#ifndef _KERNEL
+int	kse_exit(void);
+int	kse_wakeup(void);
+int	kse_new(struct kse_mailbox *, int);
+int	kse_yield(void);
+#endif
 
 #endif

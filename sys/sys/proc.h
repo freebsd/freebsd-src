@@ -55,6 +55,7 @@
 #else
 #include <sys/pcpu.h>
 #endif
+#include <sys/ucontext.h>
 #include <sys/ucred.h>
 #include <machine/proc.h>		/* Machine-dependent proc substruct. */
 
@@ -282,7 +283,7 @@ struct thread {
 	LIST_HEAD(, mtx) td_contested;	/* (j) Contested locks. */
 	struct lock_list_entry *td_sleeplocks; /* (k) Held sleep locks. */
 	int		td_intr_nesting_level; /* (k) Interrupt recursion. */
-	void 		*td_mailbox;	/* The userland mailbox address. */
+	struct thread_mailbox *td_mailbox; /* the userland mailbox address */
 	struct ucred	*td_ucred;	/* (k) Reference to credentials. */
 	void		(*td_switchin)(void); /* (k) Switchin special func. */
 	u_int		td_critnest;	/* (k) Critical section nest level. */
@@ -421,7 +422,9 @@ struct kse {
 		KES_UNQUEUED,		/* in transit */
 		KES_THREAD		/* slaved to thread state */
 	} ke_state;			/* (j) S* process status. */
-	void 		*ke_mailbox;	/* the userland mailbox address */
+	struct kse_mailbox *ke_mailbox;	/* the userland mailbox address */
+	stack_t		ke_stack;
+	void		*ke_upcall;
 	struct thread	*ke_tdspare;	/* spare thread for upcalls */
 #define	ke_endzero ke_dummy
 
@@ -429,9 +432,6 @@ struct kse {
 	u_char		ke_dummy;
 #define	ke_endcopy ke_mdstorage
 
-	void		*ke_upcall;
-	void		*ke_stackbase;
-	u_long		ke_stacksize;
 	void 		*ke_mdstorage;	/* where we store the pcb and frame */
 	struct pcb	*ke_pcb;	/* the pcb saved for the upcalls */
 	struct trapframe *ke_frame;	/* the upcall trapframe */
@@ -898,11 +898,8 @@ struct	kse *kse_alloc(void);
 void	kse_free(struct kse *td);
 struct	thread *thread_alloc(void);
 void	thread_free(struct thread *td);
-int	cpu_export_context(struct thread *td);
-void	cpu_free_kse_mdstorage(struct kse *kse);
-void	cpu_save_upcall(struct thread *td, struct kse *newkse);
-void	cpu_set_args(struct thread *, struct kse *);
 void	cpu_set_upcall(struct thread *td, void *pcb);
+void	cpu_set_upcall_kse(struct thread *td, struct kse *ke);
 void	cpu_thread_exit(struct thread *);
 void	cpu_thread_setup(struct thread *td);
 void	kse_reassign(struct kse *ke);
@@ -910,11 +907,14 @@ void	kse_link(struct kse *ke, struct ksegrp *kg);
 void	ksegrp_link(struct ksegrp *kg, struct proc *p);
 int	kserunnable(void);
 void	make_kse_runnable(struct kse *ke);
+struct thread *signal_upcall(struct proc *p, int sig);
 void	thread_exit(void) __dead2;
 int	thread_export_context(struct thread *td);
 void	thread_link(struct thread *td, struct ksegrp *kg);
 void	thread_reap(void);
 struct thread *thread_schedule_upcall(struct thread *td, struct kse *ke);
+int	thread_setcontext(struct thread *td, ucontext_t *uc);
+void	thread_getcontext(struct thread *td, ucontext_t *uc);
 int	thread_single(int how);
 #define	SINGLE_NO_EXIT 0			/* values for 'how' */
 #define	SINGLE_EXIT 1
