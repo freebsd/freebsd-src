@@ -135,23 +135,6 @@ void
 init_param2(long physpages)
 {
 
-	/* Kernel map size */
-	int kmempages, kmemtunable;
-	kmempages = VM_KMEM_SIZE / PAGE_SIZE;
-#if defined(VM_KMEM_SIZE_SCALE)
-        if ((physpages / VM_KMEM_SIZE_SCALE) > kmempages)
-                kmempages = (physpages / VM_KMEM_SIZE_SCALE);
-#endif   
-      
-#if defined(VM_KMEM_SIZE_MAX)
-        if (kmempages * PAGE_SIZE >= VM_KMEM_SIZE_MAX)
-                kmempages = VM_KMEM_SIZE_MAX / PAGE_SIZE;
-#endif
-	kmemtunable = 0;
-	TUNABLE_INT_FETCH("kern.vm.kmem.size", &kmemtunable);
-	if (kmemtunable != 0)
-		kmempages = kmemtunable / PAGE_SIZE;
-	kmempages = min(physpages, kmempages);
 	/* Base parameters */
 	maxusers = MAXUSERS;
 	TUNABLE_INT_FETCH("kern.maxusers", &maxusers);
@@ -179,7 +162,23 @@ init_param2(long physpages)
 	TUNABLE_INT_FETCH("kern.maxfiles", &maxfiles);
 	maxprocperuid = (maxproc * 9) / 10;
 	maxfilesperproc = (maxfiles * 9) / 10;
+	
+	/*
+	 * Cannot be changed after boot.
+	 */
+	nbuf = NBUF;
+	TUNABLE_INT_FETCH("kern.nbuf", &nbuf);
 
+	ncallout = 16 + maxproc + maxfiles;
+	TUNABLE_INT_FETCH("kern.ncallout", &ncallout);
+}
+
+/*
+ * Boot time overrides that are scaled against the kernel map
+ */
+void
+init_param3(long kmempages)
+{
 	/*
 	 * Limit number of pipes to a reasonable fraction of kmap entries,
 	 * pageable pipe memory usage to 2.5% of the kernel map, and wired
@@ -196,13 +195,4 @@ init_param2(long physpages)
 		maxpipekva = 512 * 1024;
 	if (maxpipekvawired < 512 * 1024)
 		maxpipekvawired = 512 * 1024;
-	
-	/*
-	 * Cannot be changed after boot.
-	 */
-	nbuf = NBUF;
-	TUNABLE_INT_FETCH("kern.nbuf", &nbuf);
-
-	ncallout = 16 + maxproc + maxfiles;
-	TUNABLE_INT_FETCH("kern.ncallout", &ncallout);
 }
