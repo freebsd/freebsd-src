@@ -198,6 +198,12 @@ g_bsd_leenc_disklabel(u_char *ptr, struct disklabel *d)
 		g_bsd_leenc_partition(ptr + 148 + 16 * i, &d->d_partitions[i]);
 }
 
+static int
+g_bsd_ondisk_size(void)
+{
+	return (148 + 16 * MAXPARTITIONS);
+}
+
 /*
  * For reasons which were valid and just in their days, FreeBSD/i386 uses
  * absolute disk-addresses in disklabels.  The way it works is that the
@@ -418,7 +424,7 @@ g_bsd_lesum(struct disklabel *dl, u_char *p)
  */
 
 static int
-g_bsd_try(struct g_slicer *gsp, struct g_consumer *cp, int secsize, struct g_bsd_softc *ms, off_t offset)
+g_bsd_try(struct g_geom *gp, struct g_slicer *gsp, struct g_consumer *cp, int secsize, struct g_bsd_softc *ms, off_t offset)
 {
 	int error;
 	u_char *buf;
@@ -456,6 +462,9 @@ g_bsd_try(struct g_slicer *gsp, struct g_consumer *cp, int secsize, struct g_bsd
 	if (error == 0) {
 		gsp->frontstuff = 16 * secsize;	/* XXX */
 		ms->labeloffset = offset;
+		g_topology_lock();
+		g_slice_conf_hot(gp, 0, offset, g_bsd_ondisk_size());
+		g_topology_unlock();
 	}
 	return (error);
 }
@@ -535,6 +544,52 @@ g_bsd_ioctl(void *arg)
 	g_io_deliver(bp, error);
 }
 
+/*
+ * If the user tries to overwrite our disklabel through an open partition
+ * or via a magicwrite config call, we end up here and try to prevent
+ * footshooting as best we can.
+ */
+static void
+g_bsd_hotwrite(void *arg)
+{
+	struct bio *bp;
+	struct g_geom *gp;
+	struct g_slicer *gsp;
+	struct g_bsd_softc *ms;
+	struct g_bsd_softc fake;
+	u_char *p;
+	int error;
+	
+	bp = arg;
+	gp = bp->bio_to->geom;
+	gsp = gp->softc;
+	ms = gsp->softc;
+	p = bp->bio_data + ms->labeloffset - bp->bio_offset;
+	g_bsd_ledec_disklabel(p, &fake.ondisk);
+	
+	ondisk2inram(&fake);
+	if (g_bsd_checklabel(&fake.inram)) {
+		g_io_deliver(bp, EPERM);
+		return;
+	}
+	if (g_bsd_lesum(&fake.ondisk, p) != 0) {
+		g_io_deliver(bp, EPERM);
+		return;
+	}
+	g_topology_unlock();
+	error = g_bsd_modify(gp, &fake.inram);	/* May pick up topology. */
+	if (error) {
+		g_io_deliver(bp, EPERM);
+		g_topology_lock();
+		return;
+	}
+	/* Update our copy of the disklabel. */
+	ms->inram = fake.inram;
+	inram2ondisk(ms);
+	g_bsd_leenc_disklabel(p, &ms->ondisk);
+	g_slice_finish_hot(bp);
+}
+
 /*-
  * This start routine is only called for non-trivial requests, all the
  * trivial ones are handled autonomously by the slice code.
@@ -558,6 +613,23 @@ g_bsd_start(struct bio *bp)
 	gp = bp->bio_to->geom;
 	gsp = gp->softc;
 	ms = gsp->softc;
+	switch(bp->bio_cmd) {
+	case BIO_READ:
+		/* We allow reading of our hot spots */
+		return (0);
+	case BIO_DELETE:
+		/* We do not allow deleting our hot spots */
+		return (EPERM);
+	case BIO_WRITE:
+		g_call_me(g_bsd_hotwrite, bp);
+		return (EJUSTRETURN);
+	case BIO_GETATTR:
+	case BIO_SETATTR:
+		break;
+	default:
+		KASSERT(0 == 1, ("Unknown bio_cmd in g_bsd_start (%d)",
+		    bp->bio_cmd));
+	}
 
 	/* We only handle ioctl(2) requests of the right format. */
 	if (strcmp(bp->bio_attribute, "GEOM::ioctl"))
@@ -707,16 +779,23 @@ g_bsd_taste(struct g_class *mp, struct g_provider *pp, int flags)
 		 * attach to any other type (BSD was handles above)
 		 */
 		error = g_getattr("MBR::type", cp, &i);
-		if (!error && i != 165 && flags == G_TF_NORMAL)
-			break;
+		if (!error) {
+			if (i != 165 && flags == G_TF_NORMAL)
+				break;
+			error = g_getattr("MBR::offset", cp, &ms->mbroffset);
+			if (error)
+				break;
+		}
 
+		/* Same thing if we are inside a PC98 */
 		error = g_getattr("PC98::type", cp, &i);
-		if (!error && i != 0xc494 && flags == G_TF_NORMAL)
-			break;
-
-		ms->mbroffset = 0;
-		g_getattr("MBR::offset", cp, &ms->mbroffset);
-		g_getattr("PC98::offset", cp, &ms->mbroffset);
+		if (!error) {
+			if (i != 0xc494 && flags == G_TF_NORMAL)
+				break;
+			error = g_getattr("PC98::offset", cp, &ms->mbroffset);
+			if (error)
+				break;
+		}
 
 		/* Get sector size, we need it to read data. */
 		secsize = cp->provider->sectorsize;
@@ -724,11 +803,11 @@ g_bsd_taste(struct g_class *mp, struct g_provider *pp, int flags)
 			break;
 
 		/* First look for a label at the start of the second sector. */
-		error = g_bsd_try(gsp, cp, secsize, ms, secsize);
+		error = g_bsd_try(gp, gsp, cp, secsize, ms, secsize);
 
 		/* Next, look for alpha labels */
 		if (error)
-			error = g_bsd_try(gsp, cp, secsize, ms,
+			error = g_bsd_try(gp, gsp, cp, secsize, ms,
 			    ALPHA_LABEL_OFFSET);
 
 		/* If we didn't find a label, punt. */
