@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.9 1996/09/19 15:42:15 peter Exp $
+# $Id: Makefile,v 1.10 1996/09/21 14:27:35 peter Exp $
 #
 .include "../Makefile.inc"
 
@@ -23,7 +23,6 @@ NOPIC=		no thanks
 
 install:
 	@true
-.endif
 
 ${OUT_OBJ}.o ${OUT_OBJ}.so:	${OUT_FILE}
 
