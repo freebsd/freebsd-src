@@ -1152,22 +1152,27 @@ checklabel(struct disklabel *lp)
 				case '%':
 					total_percent += size;
 					break;
+				case 't':
+				case 'T':
+					size *= 1024ULL;
+					/* FALLTHROUGH */
+				case 'g':
+				case 'G':
+					size *= 1024ULL;
+					/* FALLTHROUGH */
+				case 'm':
+				case 'M':
+					size *= 1024ULL;
+					/* FALLTHROUGH */
 				case 'k':
 				case 'K':
 					size *= 1024ULL;
 					break;
-				case 'm':
-				case 'M':
-					size *= 1024ULL * 1024ULL;
-					break;
-				case 'g':
-				case 'G':
-					size *= 1024ULL * 1024ULL * 1024ULL;
-					break;
 				case '\0':
 					break;
 				default:
-					warnx("unknown size specifier '%c' (K/M/G are valid)",part_size_type[i]);
+					warnx("unknown multiplier prefix '%c' for partition %c (should be K, M, G or T)",
+					    part_size_type[i], i + 'a');
 					break;
 				}
 				/* don't count %'s yet */
