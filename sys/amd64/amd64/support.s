@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: support.s,v 1.37 1996/06/13 07:17:20 asami Exp $
+ *	$Id: support.s,v 1.38 1996/09/10 08:31:57 bde Exp $
  */
 
 #include <sys/errno.h>
@@ -53,7 +53,7 @@ _bzero:	.long	_generic_bzero
 
 /*
  * bcopy family
- * void bzero(void *base, u_int cnt)
+ * void bzero(void *buf, u_int len)
  */
 
 ENTRY(generic_bzero)
@@ -141,13 +141,14 @@ ENTRY(i486_bzero)
  *
  * XXX need a const section for non-text
  */
-	SUPERALIGN_TEXT
+	.data
 jtab:
 	.long	do0
 	.long	do1
 	.long	do2
 	.long	do3
 
+	.text
 	SUPERALIGN_TEXT
 5:
 	jmp	jtab(,%ecx,4)
@@ -166,6 +167,7 @@ do2:
 	SUPERALIGN_TEXT
 do1:
 	movb	%al,(%edx)
+	ret
 
 	SUPERALIGN_TEXT
 do0:
@@ -294,6 +296,7 @@ bcopy:
 	subl	%esi,%eax
 	cmpl	%ecx,%eax			/* overlapping? */
 	jb	1f
+
 	shrl	$2,%ecx				/* copy by 32-bit words */
 	cld					/* nope, copy forwards */
 	rep
@@ -458,14 +461,16 @@ ENTRY(copyout)					/* copyout(from_kernel, to_user, len) */
 	movl	%ebx,%ecx
 #if defined(I586_CPU) && defined(I586_FAST_BCOPY)
 	cmpl	$1024,%ecx
-	jbe	slow_copyout
+	jb	slow_copyout
 
 #if defined(I386_CPU) || defined(I486_CPU) || defined(I686_CPU)
 	cmpl	$CPUCLASS_586,_cpu_class
 	jne	slow_copyout
 #endif /* I386_CPU || I486_CPU || I686_CPU */
 
-	call	fastmove
+	pushl	%ecx
+	call	_fastmove
+	addl	$4,%esp
 	jmp	done_copyout
 
 	ALIGN_TEXT
@@ -520,14 +525,16 @@ ENTRY(copyin)
 
 #if defined(I586_CPU) && defined(I586_FAST_BCOPY)
 	cmpl	$1024,%ecx
-	jbe	slow_copyin
+	jb	slow_copyin
 
 #if defined(I386_CPU) || defined(I486_CPU) || defined(I686_CPU)
 	cmpl	$CPUCLASS_586,_cpu_class
 	jne	slow_copyin
 #endif /* I386_CPU || I486_CPU || I686_CPU */
 
-	call	fastmove
+	pushl	%ecx
+	call	_fastmove
+	addl	$4,%esp
 	jmp	done_copyin
 
 	ALIGN_TEXT
@@ -567,19 +574,20 @@ copyin_fault:
 /* fastmove(src, dst, len)
 	src in %esi
 	dst in %edi
-	len in %ecx
+	len in %ecx		XXX changed to on stack for profiling
 	uses %eax and %edx for tmp. storage
  */
-	ALIGN_TEXT
-fastmove:
+/* XXX use ENTRY() to get profiling.  fastmove() is actually a non-entry. */
+ENTRY(fastmove)
+	movl	4(%esp),%ecx
 	cmpl	$63,%ecx
-	jbe	8f
+	jbe	fastmove_tail
 
 	testl	$7,%esi	/* check if src addr is multiple of 8 */
-	jnz	8f
+	jnz	fastmove_tail
 
 	testl	$7,%edi	/* check if dst addr is multiple of 8 */
-	jnz	8f
+	jnz	fastmove_tail
 
 	pushl	%ebp
 	movl	%esp,%ebp
@@ -652,7 +660,7 @@ fastmove:
 	popl	%esi
 5:
 	ALIGN_TEXT
-7:
+fastmove_loop:
 	fildq	0(%esi)
 	fildq	8(%esi)
 	fildq	16(%esi)
@@ -673,7 +681,7 @@ fastmove:
 	addl	$64,%esi
 	addl	$64,%edi
 	cmpl	$63,%ecx
-	ja	7b
+	ja	fastmove_loop
 	popl	%eax
 	addl	%eax,%ecx
 	cmpl	$64,%ecx
@@ -704,7 +712,7 @@ fastmove:
 	popl	%ebp
 	
 	ALIGN_TEXT
-8:
+fastmove_tail:
 	movb	%cl,%al
 	shrl	$2,%ecx				/* copy longword-wise */
 	cld
@@ -1171,10 +1179,7 @@ ENTRY(longjmp)
  * Here for doing BB-profiling (gcc -a).
  * We rely on the "bbset" instead, but need a dummy function.
  */
-	.text
-	.align 2
-.globl	___bb_init_func
-___bb_init_func:
-        movl 4(%esp),%eax
-        movl $1,(%eax)
-        ret 
+NON_GPROF_ENTRY(__bb_init_func)
+	movl	4(%esp),%eax
+	movl	$1,(%eax)
+	.byte	0xc3				/* avoid macro for `ret' */
