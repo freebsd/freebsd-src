@@ -66,6 +66,11 @@ The following options may be passed to the authentication module:
 debugging information at
 .Dv LOG_DEBUG
 level.
+.It Cm no_warn
+suppress warning messages to the user.
+These messages include
+reasons why the user's
+authentication attempt was declined.
 .It Cm use_first_pass
 If the authentication module is not the first in the stack,
 and a previous module obtained the user's password, that password is
