@@ -544,6 +544,7 @@ restart:
 		 * lock.  This may take a while and it_need may get
 		 * set again, so we have to check it again.
 		 */
+		WITNESS_WARN(WARN_PANIC, NULL, "suspending ithread");
 		mtx_assert(&Giant, MA_NOTOWNED);
 		mtx_lock_spin(&sched_lock);
 		if (!ithd->it_need) {
