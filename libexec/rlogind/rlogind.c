@@ -42,7 +42,7 @@ static const char copyright[] =
 static const char sccsid[] = "@(#)rlogind.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: rlogind.c,v 1.19 1997/11/25 07:17:15 charnier Exp $";
 #endif /* not lint */
 
 /*
@@ -122,8 +122,6 @@ void	getstr __P((char *, int, char *));
 void	setup_term __P((int));
 int	do_krb_login __P((struct sockaddr_in *));
 void	usage __P((void));
-int	local_domain __P((char *));
-char	*topdomain __P((char *));
 
 int
 main(argc, argv)
@@ -232,9 +230,27 @@ doit(f, fromp)
 	hp = gethostbyaddr((char *)&fromp->sin_addr, sizeof(struct in_addr),
 	    fromp->sin_family);
 	if (hp) {
-		(void)strncpy(hostname, hp->h_name, sizeof(hostname));
+		strncpy(hostname, hp->h_name, sizeof(hostname) - 1);
+		hostname[sizeof(hostname) - 1] = '\0';
+		hp = gethostbyname(hostname);
+		if (hp == NULL) {
+			strncpy(hostname, inet_ntoa(fromp->sin_addr),
+				sizeof(hostname) - 1);
+		} else for (; ; hp->h_addr_list++) {
+			if (hp->h_addr_list[0] == NULL) {
+				/* End of list - ditch it */
+				strncpy(hostname, inet_ntoa(fromp->sin_addr),
+					sizeof(hostname) - 1);
+				break;
+			}
+			if (!bcmp(hp->h_addr_list[0],
+			    (caddr_t)&fromp->sin_addr,
+			    sizeof(fromp->sin_addr)))
+				break;		/* OK! */
+		}
 	} else {
-		(void)strncpy(hostname, inet_ntoa(fromp->sin_addr), sizeof(hostname));
+		strncpy(hostname, inet_ntoa(fromp->sin_addr),
+			sizeof(hostname) - 1);
 	}
 	hostname[sizeof(hostname) - 1] = '\0';
 
@@ -741,46 +757,4 @@ usage()
 #else
 	syslog(LOG_ERR, "usage: rlogind [-Daln]");
 #endif
-}
-
-/*
- * Check whether host h is in our local domain,
- * defined as sharing the last two components of the domain part,
- * or the entire domain part if the local domain has only one component.
- * If either name is unqualified (contains no '.'),
- * assume that the host is local, as it will be
- * interpreted as such.
- */
-int
-local_domain(h)
-	char *h;
-{
-	char localhost[MAXHOSTNAMELEN];
-	char *p1, *p2;
-
-	localhost[0] = 0;
-	(void) gethostname(localhost, sizeof(localhost));
-	p1 = topdomain(localhost);
-	p2 = topdomain(h);
-	if (p1 == NULL || p2 == NULL || !strcasecmp(p1, p2))
-		return (1);
-	return (0);
-}
-
-char *
-topdomain(h)
-	char *h;
-{
-	register char *p;
-	char *maybe = NULL;
-	int dots = 0;
-
-	for (p = h + strlen(h); p >= h; p--) {
-		if (*p == '.') {
-			if (++dots == 2)
-				return (p);
-			maybe = p;
-		}
-	}
-	return (maybe);
 }
