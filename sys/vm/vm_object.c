@@ -1697,7 +1697,6 @@ void
 vm_object_page_remove(vm_object_t object, vm_pindex_t start, vm_pindex_t end, boolean_t clean_only)
 {
 	vm_page_t p, next;
-	vm_pindex_t size;
 	int all;
 
 	if (object == NULL ||
@@ -1715,69 +1714,39 @@ vm_object_page_remove(vm_object_t object, vm_pindex_t start, vm_pindex_t end, bo
 	vm_object_pip_add(object, 1);
 again:
 	vm_page_lock_queues();
-	size = end - start;
-	if (all || size > object->resident_page_count / 4) {
-		for (p = TAILQ_FIRST(&object->memq); p != NULL; p = next) {
-			next = TAILQ_NEXT(p, listq);
-			if (all || ((start <= p->pindex) && (p->pindex < end))) {
-				if (p->wire_count != 0) {
-					pmap_remove_all(p);
-					if (!clean_only)
-						p->valid = 0;
-					continue;
-				}
-
-				/*
-				 * The busy flags are only cleared at
-				 * interrupt -- minimize the spl transitions
-				 */
- 				if (vm_page_sleep_if_busy(p, TRUE, "vmopar"))
- 					goto again;
-
-				if (clean_only && p->valid) {
-					vm_page_test_dirty(p);
-					if (p->valid & p->dirty)
-						continue;
-				}
-				vm_page_busy(p);
-				pmap_remove_all(p);
-				vm_page_free(p);
-			}
+	if ((p = TAILQ_FIRST(&object->memq)) != NULL) {
+		if (p->pindex < start) {
+			p = vm_page_splay(start, object->root);
+			if ((object->root = p)->pindex < start)
+				p = TAILQ_NEXT(p, listq);
 		}
-	} else {
-		while (size > 0) {
-			if ((p = vm_page_lookup(object, start)) != NULL) {
-				if (p->wire_count != 0) {
-					pmap_remove_all(p);
-					if (!clean_only)
-						p->valid = 0;
-					start += 1;
-					size -= 1;
-					continue;
-				}
+	}
+	/*
+	 * Assert: the variable p is either (1) the page with the
+	 * least pindex greater than or equal to the parameter pindex
+	 * or (2) NULL.
+	 */
+	for (;
+	     p != NULL && (all || p->pindex < end);
+	     p = next) {
+		next = TAILQ_NEXT(p, listq);
 
-				/*
-				 * The busy flags are only cleared at
-				 * interrupt -- minimize the spl transitions
-				 */
-				if (vm_page_sleep_if_busy(p, TRUE, "vmopar"))
-					goto again;
-
-				if (clean_only && p->valid) {
-					vm_page_test_dirty(p);
-					if (p->valid & p->dirty) {
-						start += 1;
-						size -= 1;
-						continue;
-					}
-				}
-				vm_page_busy(p);
-				pmap_remove_all(p);
-				vm_page_free(p);
-			}
-			start += 1;
-			size -= 1;
+		if (p->wire_count != 0) {
+			pmap_remove_all(p);
+			if (!clean_only)
+				p->valid = 0;
+			continue;
 		}
+		if (vm_page_sleep_if_busy(p, TRUE, "vmopar"))
+			goto again;
+		if (clean_only && p->valid) {
+			vm_page_test_dirty(p);
+			if (p->valid & p->dirty)
+				continue;
+		}
+		vm_page_busy(p);
+		pmap_remove_all(p);
+		vm_page_free(p);
 	}
 	vm_page_unlock_queues();
 	vm_object_pip_wakeup(object);
