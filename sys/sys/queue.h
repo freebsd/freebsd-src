@@ -164,6 +164,11 @@ struct {								\
 	    (var);							\
 	    (var) = SLIST_NEXT((var), field))
 
+#define SLIST_FOREACH_PREVPTR(var, varp, head, field)			\
+	for ((varp) = &SLIST_FIRST((head));				\
+	    ((var) = *(varp)) != NULL;					\
+	    (varp) = &SLIST_NEXT((var), field))
+
 #define	SLIST_INIT(head) do {						\
 	SLIST_FIRST((head)) = NULL;					\
 } while (0)
