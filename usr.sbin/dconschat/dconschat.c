@@ -621,7 +621,7 @@ dconschat_read_filter(struct dcons_state *dc, struct dcons_port *p,
 	while (slen > 0) {
 		if (IS_CONSOLE(p)) {
 			if ((dc->flags & F_TELNET) != 0) {
-				/* XXX Telent workarounds */
+				/* XXX Telnet workarounds */
 				if (p->skip_read -- > 0) {
 					sp ++;
 					slen --;
@@ -825,7 +825,7 @@ main(int argc, char **argv)
 	dc = &sc;
 	dc->flags |= USE_CROM ? F_USE_CROM : 0;
 
-	/* defualt ports */
+	/* default ports */
 	port[0] = 0;	/* stdin/out for console */
 	port[1] = -1;	/* disable gdb port */
 
@@ -945,7 +945,7 @@ found:
 	}
 	dconschat_fetch_header(dc);
 
-	/* iniit sockets */
+	/* init sockets */
 	dc->kq = kqueue();
 	if (poll_hz == 1) {
 		dc->to.tv_sec = 1;
