@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_socket.c	8.5 (Berkeley) 3/30/95
- * $Id: nfs_socket.c,v 1.49 1998/12/30 00:37:43 hoek Exp $
+ * $Id: nfs_socket.c,v 1.50 1999/02/25 00:03:51 peter Exp $
  */
 
 /*
@@ -589,8 +589,8 @@ tryagain:
 			    if (auio.uio_resid != sizeof (u_int32_t))
 			    log(LOG_INFO,
 				 "short receive (%d/%d) from nfs server %s\n",
-				 sizeof(u_int32_t) - auio.uio_resid,
-				 sizeof(u_int32_t),
+				 (int)(sizeof(u_int32_t) - auio.uio_resid),
+				 (int)sizeof(u_int32_t),
 				 rep->r_nmp->nm_mountp->mnt_stat.f_mntfromname);
 			    error = EPIPE;
 			}
