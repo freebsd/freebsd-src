@@ -294,7 +294,7 @@ wihap_shutdown(struct wi_softc *sc)
 	 * a single broadcast.  Maybe try that someday.
 	 */
 
-	s = splimp();
+	s = splclock();
 	sta = LIST_FIRST(&whi->sta_list);
 	while (sta) {
 		untimeout(wihap_sta_timeout, sta, sta->tmo);
@@ -938,7 +938,7 @@ wihap_mgmt_input(struct wi_softc *sc, struct wi_frame *rxfrm, struct mbuf *m)
 	    htole16(WI_FTYPE_MGMT)) {
 
 		/* any of the following will mess w/ the station list */
-		s = splsoftclock();
+		s = splclock();	/* XXX */
 		switch (le16toh(rxfrm->wi_frame_ctl) & WI_FCTL_STYPE) {
 		case WI_STYPE_MGMT_ASREQ:
 			wihap_assoc_req(sc, rxfrm, pkt, len);
@@ -983,17 +983,20 @@ static int
 wihap_sta_is_assoc(struct wihap_info *whi, u_int8_t addr[])
 {
 	struct wihap_sta_info *sta;
+	int retval, s;
 
+	s = splclock();
+	retval = 0;
 	sta = wihap_sta_find(whi, addr);
 	if (sta != NULL && (sta->flags & WI_SIFLAGS_ASSOC)) {
 		/* Keep it active. */
 		untimeout(wihap_sta_timeout, sta, sta->tmo);
 		sta->tmo = timeout(wihap_sta_timeout, sta,
 		    hz * whi->inactivity_time);
-		return(1);
+		retval = 1;
 	}
-	else
-		return(0);
+	splx(s);
+	return (retval);
 }
 
 /* wihap_check_tx()
@@ -1008,11 +1011,11 @@ wihap_check_tx(struct wihap_info *whi, u_int8_t addr[], u_int8_t *txrate)
 	static u_int8_t txratetable[] = { 10, 20, 55, 110 };
 	int s;
 
-	s = splclock();
 	if (addr[0] & 0x01) {
 		*txrate = 0; /* XXX: multicast rate? */
 		return(1);
 	}
+	s = splclock();
 	sta = wihap_sta_find(whi, addr);
 	if (sta != NULL && (sta->flags & WI_SIFLAGS_ASSOC)) {
 		/* Keep it active. */
@@ -1064,7 +1067,7 @@ wihap_data_input(struct wi_softc *sc, struct wi_frame *rxfrm, struct mbuf *m)
 		return (1);
 	}
 
-	s = splsoftclock();
+	s = splclock();
 
 	/* Find source station. */
 	sta = wihap_sta_find(whi, rxfrm->wi_addr2);
