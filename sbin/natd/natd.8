@@ -1,5 +1,5 @@
 .\" manual page [] for natd 1.4
-.\" $Id: natd.8,v 1.14 1998/07/14 08:18:51 jkoshy Exp $
+.\"	$Id:$
 .Dd 15 April 1997
 .Os FreeBSD
 .Dt NATD 8
@@ -10,7 +10,6 @@ Network Address Translation Daemon
 .Sh SYNOPSIS
 .Nm
 .Op Fl ldsmvu
-.Op Fl permanent_link
 .Op Fl dynamic
 .Op Fl i Ar inport
 .Op Fl o Ar outport
@@ -22,11 +21,12 @@ Network Address Translation Daemon
 .Nm
 .Op Fl log
 .Op Fl deny_incoming
+.Op Fl log_denied
 .Op Fl use_sockets
 .Op Fl same_ports
 .Op Fl verbose
+.Op Fl log_facility Ar facility_name
 .Op Fl unregistered_only
-.Op Fl permanent_link
 .Op Fl dynamic
 .Op Fl inport Ar inport
 .Op Fl outport Ar outport
@@ -36,6 +36,10 @@ Network Address Translation Daemon
 .Op Fl config Ar configfile
 .Op Fl redirect_port Ar linkspec
 .Op Fl redirect_address Ar localIP publicIP
+.Op Fl reverse
+.Op Fl proxy_only
+.Op Fl proxy_rule Ar proxyspec
+.Op Fl pptpalias Ar localIP
 
 .Sh DESCRIPTION
 This program provides a Network Address Translation facility for use
@@ -75,6 +79,14 @@ This file is truncated each time natd is started.
 Reject packets destined for the current IP number that have no entry
 in the internal translation table.
 
+.It Fl log_denied
+Log denied incoming packets via syslog (see also log_facility)
+
+.It Fl log_facility Ar facility_name
+Use specified log facility when logging information via syslog.
+Facility names are as in
+.Xr syslog.conf 5
+
 .It Fl use_sockets | s
 Allocate a
 .Xr socket 2
@@ -102,13 +114,9 @@ Only alter outgoing packets with an unregistered source address.
 According to rfc 1918, unregistered source addresses are 10.0.0.0/8,
 172.16.0.0/12 and 192.168.0.0/16.
 
-.It Fl redirect_port Ar linkspec
+.It Fl redirect_port Ar proto targetIP:targetPORT [aliasIP:]aliasPORT [remoteIP[:remotePORT]]
 Redirect incoming connections arriving to given port to another host and port.
-Linkspec is of the form
-
-  proto targetIP:targetPORT [aliasIP:]aliasPORT [remoteIP[:remotePORT]]
-
-where proto is either tcp or udp, targetIP is the desired target IP
+Proto is either tcp or udp, targetIP is the desired target IP
 number, targetPORT is the desired target PORT number, aliasPORT
 is the requested PORT number and aliasIP is the aliasing address.
 RemoteIP and remotePORT can be used to specify the connection
@@ -142,26 +150,6 @@ the incoming traffic will be directed to the last
 translated local address (192.168.0.4), but outgoing
 traffic to the first two addresses will still be aliased
 to specified public address.
-
-.It Fl permanent_link Ar linkspec
-Create a permanent entry in the internal alias table. Linkspec is
-of the form
-
-  proto targetIP:targetPORT sourceIP:sourcePORT aliasPORT
-
-where proto is either tcp or udp, targetIP is the desired target IP
-number, targetPORT is the desired target PORT number, sourceIP and
-sourcePORT match the incoming packet, and aliasPORT is the requested
-PORT number.  Values of zero are considered as wildcards.  For example,
-the argument
-
-.Ar tcp inside1:telnet outside1:0 6666
-
-means that tcp packets destined for port 6666 on this machine from the
-outside1 machine (any port) will be sent to the telnet port on the
-inside1 machine.
-
-New installations are encouraged to use redirect_port instead.
 
 .It Fl dynamic
 If the
@@ -271,6 +259,34 @@ in the configuration file.  For example, the line
 is synonomous with
 .Fl log .
 Empty lines and lines beginning with '#' are ignored.
+
+.It Fl reverse
+Reverse operation of natd. This can be useful in some 
+transparent proxying situations when outgoing traffic
+is redirected to the local machine and natd is running on the
+incoming interface (it usually runs on the outgoing interface).
+
+.It Fl proxy_only
+Force natd to perform transparent proxying
+only. Normal address translation is not performed.
+
+.It Fl proxy_rule Ar [type encode_ip_hdr|encode_tcp_stream] port xxxx server a.b.c.d:yyyy
+Enable transparent proxying. Packets with the given port going through this
+host to any other host are redirected to the given server and port.
+Optionally, the original target address can be encoded into the packet. Use 
+.Dq encode_ip_hdr
+to put this information into the IP option field or
+.Dq encode_tcp_stream
+to inject the data into the beginning of the TCP stream.
+
+.It Fl pptpalias Ar localIP
+Allow PPTP packets to go to the defined localIP address. PPTP is a VPN or secure
+IP tunneling technology being developed primarily by Microsoft. For its encrypted traffic,
+it uses an old IP encapsulation protocol called GRE (47). This
+natd option will translate any traffic of this protocol to a
+single, specified IP address. This would allow either one client or one server 
+to be serviced with natd. If you are setting up a server, don't forget to allow the TCP traffic
+for the PPTP setup. For a client or server, you must allow GRE (protocol 47) if you have firewall lists active.
 
 .El
 
@@ -404,5 +420,7 @@ times:
 (IRC support & misc additions)
 .An Ari Suutari Aq suutari@iki.fi
 (natd)
+.An Dru Nelson Aq dnelson@redwoodsoft.com
+(PPTP support)
 .An Brian Somers Aq brian@awfulhak.org
 (glue)

@@ -122,3 +122,25 @@
 
 	- Code cleanup work done in FreeBSD-current development merged.
 	- Port numbers are now unsigned as they should always have been.
+
+* Version 1.12
+
+	- Typos in comment fixed. Copyright message added to 
+	  source & header files that were missing it.
+	- A small patch to libalias to make static NAT work correctly.
+
+* Version 2.0
+
+	- Upgrade to libalias 3.0 which gives:
+	- Transparent proxy support.
+	- permanent_link is now obsolete, use redirect_port instead.
+	- Drop support for early FreeBSD 2.2 versions
+	- If separate input & output sockets are being used
+	  use them to find out packet direction instead of
+	  normal mechanism. This can be handy in complex environments
+	  with multiple interfaces.
+	- libalias is no longer part of this distribution.
+	- New sample configuration file
+          from Ted Mittelstaedt <tedm@portsoft.com>.
+	- PPTP redirect support by Dru Nelson <dnelson@redwoodsoft.com> added.
+	- Logging enhancements from Martin Machacek <mm@i.cz> added.

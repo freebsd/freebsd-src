@@ -9,8 +9,10 @@
  *
  * Ari Suutari <suutari@iki.fi>
  *
- * $Id: natd.c,v 1.8 1997/12/27 19:31:11 alex Exp $
+ *	$Id:$
  */
+
+#define SYSLOG_NAMES
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -21,6 +23,8 @@
 #include <netinet/ip.h>
 #include <machine/in_cksum.h>
 #include <netinet/tcp.h>
+#include <netinet/udp.h>
+#include <netinet/ip_icmp.h>
 #include <sys/ioctl.h>
 #include <net/if.h>
 #include <net/route.h>
@@ -51,20 +55,22 @@
  * Function prototypes.
  */
 
-static void	DoAliasing (int fd);
+static void	DoAliasing (int fd, int direction);
 static void	DaemonMode ();
 static void	HandleRoutingInfo (int fd);
 static void	Usage ();
+static char*	FormatPacket (struct ip*);
 static void	PrintPacket (struct ip*);
+static void	SyslogPacket (struct ip*, int priority, char *label);
 static void	SetAliasAddressFromIfName (char* ifName);
 static void	InitiateShutdown ();
 static void	Shutdown ();
 static void	RefreshAddr ();
 static void	ParseOption (char* option, char* parms, int cmdLine);
 static void	ReadConfigFile (char* fileName);
-static void	SetupPermanentLink (char* parms);
 static void	SetupPortRedirect (char* parms);
 static void	SetupAddressRedirect (char* parms);
+static void	SetupPptpAlias (char* parms);
 static void	StrToAddr (char* str, struct in_addr* addr);
 static u_short  StrToPort (char* str, char* proto);
 static int 	StrToProto (char* str);
@@ -94,7 +100,10 @@ static	char			packetBuf[IP_MAXPACKET];
 static 	int			packetLen;
 static	struct sockaddr_in	packetAddr;
 static 	int			packetSock;
+static 	int			packetDirection;
 static  int			dropIgnoredIncoming;
+static  int			logDropped;
+static	int			logFacility;
 
 int main (int argc, char** argv)
 {
@@ -127,12 +136,19 @@ int main (int argc, char** argv)
 	aliasAddr.s_addr	= INADDR_NONE;
 	aliasOverhead		= 12;
 	dynamicMode		= 0;
+ 	logDropped		= 0;
+ 	logFacility		= LOG_DAEMON;
 /*
  * Mark packet buffer empty.
  */
 	packetSock		= -1;
+	packetDirection		= DONT_KNOW;
 
 	ParseArgs (argc, argv);
+/*
+ * Open syslog channel.
+ */
+	openlog ("natd", LOG_CONS | LOG_PID, logFacility);
 /*
  * Check that valid aliasing address has been given.
  */
@@ -275,7 +291,7 @@ int main (int argc, char** argv)
  * When using only one socket, just call 
  * DoAliasing repeatedly to process packets.
  */
-			DoAliasing (divertInOut);
+			DoAliasing (divertInOut, DONT_KNOW);
 			continue;
 		}
 /* 
@@ -330,15 +346,15 @@ int main (int argc, char** argv)
 
 		if (divertIn != -1)
 			if (FD_ISSET (divertIn, &readMask))
-				DoAliasing (divertIn);
+				DoAliasing (divertIn, INPUT);
 
 		if (divertOut != -1)
 			if (FD_ISSET (divertOut, &readMask))
-				DoAliasing (divertOut);
+				DoAliasing (divertOut, OUTPUT);
 
 		if (divertInOut != -1) 
 			if (FD_ISSET (divertInOut, &readMask))
-				DoAliasing (divertInOut);
+				DoAliasing (divertInOut, DONT_KNOW);
 
 		if (routeSock != -1)
 			if (FD_ISSET (routeSock, &readMask))
@@ -402,7 +418,7 @@ static void ParseArgs (int argc, char** argv)
 	}
 }
 
-static void DoAliasing (int fd)
+static void DoAliasing (int fd, int direction)
 {
 	int			bytes;
 	int			origBytes;
@@ -437,17 +453,18 @@ static void DoAliasing (int fd)
  * This is a IP packet.
  */
 	ip = (struct ip*) packetBuf;
+	if (direction == DONT_KNOW)
+		if (packetAddr.sin_addr.s_addr == INADDR_ANY)
+			direction = OUTPUT;
+		else
+			direction = INPUT;
 
 	if (verbose) {
 		
 /*
  * Print packet direction and protocol type.
  */
- 
-		if (packetAddr.sin_addr.s_addr == INADDR_ANY)
-			printf ("Out ");
-		else
-			printf ("In  ");
+		printf (direction == OUTPUT ? "Out " : "In  ");
 
 		switch (ip->ip_p) {
 		case IPPROTO_TCP:
@@ -463,7 +480,7 @@ static void DoAliasing (int fd)
 			break;
 
 		default:
-			printf ("[?]    ");
+			printf ("[%d]    ", ip->ip_p);
 			break;
 		}
 /*
@@ -472,13 +489,14 @@ static void DoAliasing (int fd)
 		PrintPacket (ip);
 	}
 
-	if (packetAddr.sin_addr.s_addr == INADDR_ANY) {
+	if (direction == OUTPUT) {
 /*
  * Outgoing packets. Do aliasing.
  */
 		PacketAliasOut (packetBuf, IP_MAXPACKET);
 	}
 	else {
+
 /*
  * Do aliasing.
  */	
@@ -486,7 +504,12 @@ static void DoAliasing (int fd)
 		if (status == PKT_ALIAS_IGNORED &&
 		    dropIgnoredIncoming) {
 
-			printf (" dropped.\n");
+			if (verbose)
+				printf (" dropped.\n");
+
+			if (logDropped)
+				SyslogPacket (ip, LOG_WARNING, "denied");
+
 			return;
 		}
 	}
@@ -497,7 +520,7 @@ static void DoAliasing (int fd)
 /*
  * Update alias overhead size for outgoing packets.
  */
-	if (packetAddr.sin_addr.s_addr == INADDR_ANY &&
+	if (direction == OUTPUT &&
 	    bytes - origBytes > aliasOverhead)
 		aliasOverhead = bytes - origBytes;
 
@@ -512,8 +535,10 @@ static void DoAliasing (int fd)
 		printf ("\n");
 	}
 
-	packetLen  = bytes;
-	packetSock = fd;
+	packetLen  	= bytes;
+	packetSock 	= fd;
+	packetDirection = direction;
+
 	FlushPacketBuffer (fd);
 }
 
@@ -542,7 +567,7 @@ static void FlushPacketBuffer (int fd)
 
 		if (errno == EMSGSIZE) {
 
-			if (packetAddr.sin_addr.s_addr == INADDR_ANY &&
+			if (packetDirection == OUTPUT &&
 			    ifMTU != -1)
 				SendNeedFragIcmp (icmpSock,
 						  (struct ip*) packetBuf,
@@ -593,21 +618,60 @@ static void HandleRoutingInfo (int fd)
 
 static void PrintPacket (struct ip* ip)
 {
+	printf ("%s", FormatPacket (ip));
+}
+
+static void SyslogPacket (struct ip* ip, int priority, char *label)
+{
+	syslog (priority, "%s %s", label, FormatPacket (ip));
+}
+
+static char* FormatPacket (struct ip* ip)
+{
+	static char	buf[256];
 	struct tcphdr*	tcphdr;
+	struct udphdr*	udphdr;
+	struct icmp*	icmphdr;
+	char		src[20];
+	char		dst[20];
 
-	if (ip->ip_p == IPPROTO_TCP)
+	strcpy (src, inet_ntoa (ip->ip_src));
+	strcpy (dst, inet_ntoa (ip->ip_dst));
+
+	switch (ip->ip_p) {
+	case IPPROTO_TCP:
 		tcphdr = (struct tcphdr*) ((char*) ip + (ip->ip_hl << 2));
-	else
-		tcphdr = NULL;
+		sprintf (buf, "[TCP] %s:%d -> %s:%d",
+			      src,
+			      ntohs (tcphdr->th_sport),
+			      dst,
+			      ntohs (tcphdr->th_dport));
+		break;
 
-	printf ("%s", inet_ntoa (ip->ip_src));
-	if (tcphdr)
-		printf (":%d", ntohs (tcphdr->th_sport));
+	case IPPROTO_UDP:
+		udphdr = (struct udphdr*) ((char*) ip + (ip->ip_hl << 2));
+		sprintf (buf, "[UDP] %s:%d -> %s:%d",
+			      src,
+			      ntohs (udphdr->uh_sport),
+			      dst,
+			      ntohs (udphdr->uh_dport));
+		break;
 
-	printf (" -> ");
-	printf ("%s", inet_ntoa (ip->ip_dst));
-	if (tcphdr)
-		printf (":%d", ntohs (tcphdr->th_dport));
+	case IPPROTO_ICMP:
+		icmphdr = (struct icmp*) ((char*) ip + (ip->ip_hl << 2));
+		sprintf (buf, "[ICMP] %s -> %s %d(%d)",
+			      src,
+			      dst,
+			      ntohs (icmphdr->icmp_type),
+			      ntohs (icmphdr->icmp_code));
+		break;
+
+	default:
+		sprintf (buf, "[%d] %s -> %s ", ip->ip_p, src, dst);
+		break;
+	}
+
+	return buf;
 }
 
 static void SetAliasAddressFromIfName (char* ifName)
@@ -757,11 +821,14 @@ enum Option {
 	Port,
 	AliasAddress,
 	InterfaceName,
-	PermanentLink,
 	RedirectPort,
 	RedirectAddress,
 	ConfigFile,
-	DynamicMode
+	DynamicMode,
+	PptpAlias,
+	ProxyRule,
+ 	LogDenied,
+ 	LogFacility
 };
 
 enum Param {
@@ -810,6 +877,22 @@ static struct OptionInfo optionTable[] = {
 		"enable logging",
 		"log",
 		"l" },
+
+	{ PacketAliasOption,
+		PKT_ALIAS_PROXY_ONLY,
+		YesNo,
+		"[yes|no]",
+		"proxy only",
+		"proxy_only",
+		NULL },
+
+	{ PacketAliasOption,
+		PKT_ALIAS_REVERSE,
+		YesNo,
+		"[yes|no]",
+		"operate in reverse mode",
+		"reverse",
+		NULL },
 
 	{ PacketAliasOption,
 		PKT_ALIAS_DENY_INCOMING,
@@ -891,12 +974,13 @@ static struct OptionInfo optionTable[] = {
 		"interface",
 		"n" },
 
-	{ PermanentLink,
+	{ ProxyRule,
 		0,
 		String,
-	        "tcp|udp src:port dst:port alias",
-		"define permanent link for incoming connection",
-		"permanent_link",
+	        "[type encode_ip_hdr|encode_tcp_stream] port xxxx server "
+		"a.b.c.d:yyyy",
+		"add transparent proxying / destination NAT",
+		"proxy_rule",
 		NULL },
 
 	{ RedirectPort,
@@ -916,13 +1000,38 @@ static struct OptionInfo optionTable[] = {
 		"redirect_address",
 		NULL },
 
+       { PptpAlias,
+		0,
+		String,
+		"src",
+		"define inside machine for PPTP traffic",
+		"pptpalias",
+		NULL },
+
 	{ ConfigFile,
 		0,
 		String,
 		"file_name",
 		"read options from configuration file",
 		"config",
-		"f" }
+		"f" },
+
+	{ LogDenied,
+		0,
+		YesNo,
+	        "[yes|no]",
+		"enable logging of denied incoming packets",
+		"log_denied",
+		NULL },
+
+	{ LogFacility,
+		0,
+		String,
+	        "facility",
+		"name of syslog facility to use for logging",
+		"log_facility",
+		NULL }
+
 };
 	
 static void ParseOption (char* option, char* parms, int cmdLine)
@@ -937,6 +1046,7 @@ static void ParseOption (char* option, char* parms, int cmdLine)
 	struct in_addr		addrValue;
 	int			max;
 	char*			end;
+	CODE* 			fac_record = NULL;
 /*
  * Find option from table.
  */
@@ -1047,16 +1157,20 @@ static void ParseOption (char* option, char* parms, int cmdLine)
 		memcpy (&aliasAddr, &addrValue, sizeof (struct in_addr));
 		break;
 
-	case PermanentLink:
-		SetupPermanentLink (strValue);
-		break;
-
 	case RedirectPort:
 		SetupPortRedirect (strValue);
 		break;
 
 	case RedirectAddress:
 		SetupAddressRedirect (strValue);
+		break;
+
+	case PptpAlias:
+		SetupPptpAlias (strValue);
+		break;
+
+	case ProxyRule:
+		PacketAliasProxyRule (strValue);
 		break;
 
 	case InterfaceName:
@@ -1069,6 +1183,30 @@ static void ParseOption (char* option, char* parms, int cmdLine)
 
 	case ConfigFile:
 		ReadConfigFile (strValue);
+		break;
+
+	case LogDenied:
+		logDropped = 1;
+		break;
+
+	case LogFacility:
+
+		fac_record = facilitynames;
+		while (fac_record->c_name != NULL) {
+
+			if (!strcmp (fac_record->c_name, strValue)) {
+
+				logFacility = fac_record->c_val;
+				break;
+
+			}
+			else
+				fac_record++;
+		}
+
+		if(fac_record->c_name == NULL)
+			errx(1, "Unknown log facility name: %s", strValue);	
+
 		break;
 	}
 }
@@ -1154,60 +1292,23 @@ static void Usage ()
 	exit (1);
 }
 
-void SetupPermanentLink (char* parms)
+void SetupPptpAlias (char* parms)
 {
 	char		buf[128];
 	char*		ptr;
 	struct in_addr	srcAddr;
-	struct in_addr	dstAddr;
-	struct in_addr  null_address;
-	u_short		srcPort;
-	u_short		dstPort;
-	u_short		aliasPort;
-	int		proto;
-	char*		protoName;
 
 	strcpy (buf, parms);
-/*
- * Extract protocol.
- */
-	protoName = strtok (buf, " \t");
-	if (!protoName)
-		errx (1, "permanent_link: missing protocol");
 
-	proto = StrToProto (protoName);
 /*
  * Extract source address.
  */
-	ptr = strtok (NULL, " \t");
+	ptr = strtok (buf, " \t");
 	if (!ptr)
-		errx (1, "permanent_link: missing src address");
+		errx(1, "pptpalias: missing src address");
 
-	srcPort = StrToAddrAndPort (ptr, &srcAddr, protoName);
-/*
- * Extract destination address.
- */
-	ptr = strtok (NULL, " \t");
-	if (!ptr)
-		errx (1, "permanent_link: missing dst address");
-
-	dstPort = StrToAddrAndPort (ptr, &dstAddr, protoName);
-/*
- * Export alias port.
- */
-	ptr = strtok (NULL, " \t");
-	if (!ptr)
-		errx (1, "permanent_link: missing alias port");
-
-	aliasPort = StrToPort (ptr, protoName);
-
-	null_address.s_addr = 0;
-	PacketAliasRedirectPort (srcAddr,
-				  srcPort,
-				  dstAddr,
-				  dstPort,
-				  null_address, aliasPort,
-				  proto);
+	StrToAddr (ptr, &srcAddr);
+	PacketAliasPptp (srcAddr);
 }
 
 void SetupPortRedirect (char* parms)
