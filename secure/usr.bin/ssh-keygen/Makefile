@@ -1,11 +1,9 @@
 # $FreeBSD$
-#
 
 PROG=	ssh-keygen
-SRCS=	ssh-keygen.c
 
-DPADD+=	${LIBSSH} ${LIBCRYPTO} ${LIBZ}
-LDADD+=	-lssh -lcrypto -lz
+DPADD=	${LIBSSH} ${LIBCRYPTO}
+LDADD=	-lssh -lcrypto
 
 .include <bsd.prog.mk>
 
