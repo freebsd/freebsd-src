@@ -10,7 +10,7 @@ SUBDIR=	ac \
 	ancontrol \
 	${_apm} \
 	${_apmd} \
-	${_arlconfig} \
+	${_arlcontrol} \
 	arp \
 	${_asf} \
 	${_atm} \
@@ -249,7 +249,7 @@ _asf=		asf
 _bluetooth=	bluetooth
 .endif
 .if ${MACHINE} == "i386"
-_arlconfig=	arlconfig
+_arlcontrol=	arlcontrol
 _boot0cfg=	boot0cfg
 .endif
 .if ${MACHINE} == "pc98"
