@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)symlink.7	8.3 (Berkeley) 3/31/94
-.\"	$Id: symlink.7,v 1.8 1998/04/24 12:38:18 des Exp $
+.\"	$Id: symlink.7,v 1.10 1999/04/24 10:08:09 nik Exp $
 .\"
 .Dd March 31, 1994
 .Dt SYMLINK 7
@@ -313,6 +313,11 @@ For example, the command
 .Dq Li "chown -HR user slink"
 will traverse the file hierarchy rooted in the file pointed to by
 .Dq Li slink .
+Note, the
+.Fl H
+is not the same as the previously discussed
+.Fl h
+flag.
 The
 .Fl H
 flag causes symbolic links specified on the command line to be
