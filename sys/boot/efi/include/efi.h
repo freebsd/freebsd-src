@@ -44,6 +44,7 @@ Revision History
 #include "efinet.h"
 #include "efiapi.h"
 #include "efifs.h"
+#include "efifpswa.h"
 #include "efierr.h"
 
 #endif
