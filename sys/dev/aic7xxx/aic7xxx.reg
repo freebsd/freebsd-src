@@ -878,7 +878,7 @@ register DFSTATUS {
 	access_mode RO
 	bit	PRELOAD_AVAIL	0x80
 	bit	DFCACHETH	0x40
-	bit	DWORDEMP	0x20
+	bit	FIFOQWDEMP	0x20
 	bit	MREQPEND	0x10
 	bit	HDONE		0x08
 	bit	DFTHRESH	0x04

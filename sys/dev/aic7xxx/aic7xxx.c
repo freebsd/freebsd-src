@@ -2006,13 +2006,14 @@ struct ahc_phase_table_entry*
 ahc_lookup_phase_entry(int phase)
 {
 	struct ahc_phase_table_entry *entry;
-	int i;
+	struct ahc_phase_table_entry *last_entry;
 
 	/*
 	 * num_phases doesn't include the default entry which
 	 * will be returned if the phase doesn't match.
 	 */
-	for (i = 0, entry = ahc_phase_table; i < num_phases; i++) {
+	last_entry = &ahc_phase_table[num_phases];
+	for (entry = ahc_phase_table; entry < last_entry; entry++) {
 		if (phase == entry->phase)
 			break;
 	}
