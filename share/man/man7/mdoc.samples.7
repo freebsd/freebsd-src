@@ -1151,7 +1151,8 @@ may be used with
 (function argument)
 to get around the limitation.  For example:
 .Bd -literal -offset indent
-\&.Fo "int res_mkquery"
+\&.Ft int
+\&.Fo res_mkquery
 \&.Fa "int op"
 \&.Fa "char *dname"
 \&.Fa "int class"
@@ -1166,7 +1167,8 @@ to get around the limitation.  For example:
 .Pp
 Produces:
 .Bd -filled -offset indent
-.Fo "int res_mkquery"
+.Ft int
+.Fo res_mkquery
 .Fa "int op"
 .Fa "char *dname"
 .Fa "int class"
@@ -1443,10 +1445,6 @@ are:
 .St -ieee754
 .It Li "-iso8802-3"
 .St -iso8802-3
-.It Li "-iso9899"
-.St -iso9899
-.It Li "-iso9945-1"
-.St -iso9945-1
 .It Li "-isoC"
 .St -isoC
 .It Li "-isoC-99"
@@ -1457,12 +1455,12 @@ are:
 .St -p1003.1-88
 .It Li "-p1003.1-90"
 .St -p1003.1-90
-.It Li "-p1003.1b"
-.St -p1003.1b
+.It Li "-p1003.1-96"
+.St -p1003.1-96
 .It Li "-p1003.1b-93"
 .St -p1003.1b-93
-.It Li "-p1003.1g"
-.St -p1003.1g
+.It Li "-p1003.1g-2000"
+.St -p1003.1g-2000
 .It Li "-p1003.2"
 .St -p1003.2
 .It Li "-p1003.2-92"
@@ -2117,7 +2115,7 @@ placed in alphabetical order and comma separated.  For example:
 .Xr ls 1 ,
 .Xr ps 1 ,
 .Xr group 5 ,
-.Xr passwd 5 .
+.Xr passwd 5
 .Pp
 At this time
 .Xr refer 1
@@ -3026,13 +3024,6 @@ several example man pages
 .Xr troff 1 ,
 .Xr mdoc 7
 .Sh BUGS
-Undesirable hyphenation on the dash of a flag
-argument is not yet resolved, and causes
-occasional mishaps in the
-.Sx DESCRIPTION
-section.
-(line break on the hyphen).
-.Pp
 Predefined strings are not declared in documentation.
 .Pp
 Section 3f has not been added to the header routines.
@@ -3048,11 +3039,6 @@ if the line length is too short.
 Occasionally it
 separates the last parenthesis, and sometimes
 looks ridiculous if a line is in fill mode.
-.Pp
-The method used to prevent header and footer page
-breaks (other than the initial header and footer) when using
-nroff occasionally places an unsightly partially filled line (blank)
-at the would be bottom of the page.
 .Pp
 The list and display macros to not do any keeps
 and certainly should be able to.
