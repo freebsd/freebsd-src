@@ -16,7 +16,11 @@
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 /* Written by David MacKenzie <djm@gnu.ai.mit.edu>.
-   Some algorithms adapted from GNU Emacs. */
+   Some algorithms adapted from GNU Emacs.
+ */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "config.h"
 #include <stdio.h>
