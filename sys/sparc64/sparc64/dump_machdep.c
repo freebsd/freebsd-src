@@ -137,7 +137,7 @@ blk_dump(struct dumperinfo *di, vm_paddr_t pa, vm_size_t size)
 
 	printf("  chunk at %#lx: %ld bytes ", (u_long)pa, (long)size);
 
-	va = NULL;
+	va = 0L;
 	error = counter = twiddle = 0;
 	for (pos = 0; pos < size; pos += MAXDUMPSZ, counter++) {
 		if (counter % 128 == 0)
