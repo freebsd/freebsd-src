@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)npx.c	7.2 (Berkeley) 5/12/91
- *	$Id: npx.c,v 1.17 1994/11/14 14:59:06 bde Exp $
+ *	$Id: npx.c,v 1.18 1995/01/03 04:00:06 bde Exp $
  */
 
 #include "npx.h"
@@ -339,7 +339,7 @@ npxattach(dvp)
 	if (npx_ex16)
 		printf("INT 16 interface\n");
 	else if (npx_irq13)
-		printf("IRQ 13 interface\n");
+		;		/* higher level has printed "irq 13" */
 #if defined(MATH_EMULATE) || defined(GPL_MATH_EMULATE) 
 	else if (npx_exists) {
 		printf("error reporting broken; using 387 emulator\n");
@@ -444,9 +444,10 @@ npxintr(frame)
 		panic("npxintr from non-current process");
 	}
 
+	outb(0xf0, 0);
 	fnstsw(&curpcb->pcb_savefpu.sv_ex_sw);
 	fnclex();
-	outb(0xf0, 0);
+	fnop();
 
 	/*
 	 * Pass exception to process.
@@ -562,7 +563,6 @@ npxsave(addr)
 	stop_emulating();
 	fnsave(addr);
 	fnop();
-	outb(0xf0, 0);
 	start_emulating();
 	npxproc = NULL;
 	disable_intr();
