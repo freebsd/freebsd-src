@@ -126,7 +126,6 @@
 #endif
 #define	KSTACK_GUARD_PAGES 1	/* pages of kstack guard; 0 disables */
 
-
 /*
  * Ceiling on amount of swblock kva space, can be changed via
  * the kern.maxswzone /boot/loader.conf variable.
