@@ -310,6 +310,13 @@ int main(int argc, char **argv)
   nlm_lockargs arg;
   struct timeval tim;
 
+  if (argc != 2) 
+  {
+	printf("usage: %s <lockd hostname>\n", argv[0]);
+	exit(1);
+  }
+
+
   printf("Creating client for host %s\n", argv[1]);
   cli = clnt_create(argv[1], NLM_PROG, NLM_VERS, "udp");
   if (!cli)
