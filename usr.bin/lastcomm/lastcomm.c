@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *  $Id: lastcomm.c,v 1.6 1997/02/22 19:55:33 peter Exp $
+ *  $Id: lastcomm.c,v 1.7 1997/03/29 04:30:24 imp Exp $
  */
 
 #ifndef lint
@@ -175,7 +175,8 @@ main(argc, argv)
 		if (*argv && !requested(argv, &ab))
 			continue;
 
-		(void)printf("%-*s %-7s %-*s %-*s ",
+		(void)printf("%-*.*s %-7s %-*s %-*s ",
+			     fldsiz(acct, ac_comm),
 			     fldsiz(acct, ac_comm), ab.ac_comm,
 			     flagbits(ab.ac_flag),
 			     UT_NAMESIZE, user_from_uid(ab.ac_uid, 0),
