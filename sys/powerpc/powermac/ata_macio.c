@@ -47,8 +47,7 @@
 #include <sys/ata.h>
 #include <dev/ata/ata-all.h>
 
-#include <dev/ofw/openfirm.h>
-#include <powerpc/powermac/maciovar.h>
+#include <dev/ofw/ofw_bus.h>
 
 /*
  * Offset to control registers from base
@@ -99,7 +98,7 @@ ata_macio_setmode(struct ata_device *atadev, int mode)
 static int
 ata_macio_probe(device_t dev)
 {
-	char *type = macio_get_devtype(dev);
+	const char *type = ofw_bus_get_type(dev);
 	struct ata_channel *ch;
 	struct resource *mem;
 	int rid, i;

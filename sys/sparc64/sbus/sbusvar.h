@@ -98,11 +98,7 @@
 enum sbus_device_ivars {
 	SBUS_IVAR_BURSTSZ,
 	SBUS_IVAR_CLOCKFREQ,
-	SBUS_IVAR_COMPAT,
-	SBUS_IVAR_NAME,
-	SBUS_IVAR_NODE,
 	SBUS_IVAR_SLOT,
-	SBUS_IVAR_DEVICE_TYPE,
 };
 
 /*
@@ -113,11 +109,7 @@ enum sbus_device_ivars {
 
 SBUS_ACCESSOR(burstsz,		BURSTSZ,	int)
 SBUS_ACCESSOR(clockfreq,	CLOCKFREQ,	int)
-SBUS_ACCESSOR(compat,		COMPAT,		char *)
-SBUS_ACCESSOR(name,		NAME,		char *)
-SBUS_ACCESSOR(node,		NODE,		phandle_t)
 SBUS_ACCESSOR(slot,		SLOT,		int)
-SBUS_ACCESSOR(device_type,	DEVICE_TYPE,	char *)
 
 #undef SBUS_ACCESSOR
 

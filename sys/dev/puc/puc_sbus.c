@@ -35,12 +35,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
+
+#include <dev/ofw/ofw_bus.h>
+
 #include <machine/bus.h>
 #include <sys/rman.h>
 #include <machine/resource.h>
-
-#include <dev/ofw/openfirm.h>
-#include <sparc64/sbus/sbusvar.h>
 
 #define	PUC_ENTRAILS	1
 #include <dev/puc/pucvar.h>
@@ -50,7 +50,7 @@ puc_sbus_probe(device_t dev)
 {
 	const char *nm;
 
-	nm = sbus_get_name(dev);
+	nm = ofw_bus_get_name(dev);
 	if (!strcmp(nm, "zs")) {
 		device_set_desc(dev, "Zilog Z8530 dual channel SCC");
 		return (0);

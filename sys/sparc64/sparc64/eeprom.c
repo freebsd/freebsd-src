@@ -57,13 +57,13 @@
 #include <sys/malloc.h>
 #include <sys/resource.h>
 
+#include <dev/ofw/ofw_bus.h>
+
 #include <machine/bus.h>
 #include <machine/idprom.h>
 #include <machine/resource.h>
 
 #include <sys/rman.h>
-
-#include <dev/ofw/openfirm.h>
 
 #include <machine/eeprom.h>
 
@@ -73,26 +73,34 @@
 
 devclass_t eeprom_devclass;
 
-
 #define IDPROM_OFFSET (8 * 1024 - 40)	/* XXX - get nvram size from driver */
 
 int
-eeprom_attach(device_t dev, phandle_t node, bus_space_tag_t bt,
-    bus_space_handle_t bh)
+eeprom_probe(device_t dev)
+{
+ 
+	if (strcmp("eeprom", ofw_bus_get_name(dev)) == 0) {
+		device_set_desc(dev, "EEPROM/clock");
+		return (0);
+	}
+	return (ENXIO);
+}
+
+int
+eeprom_attach(device_t dev, bus_space_tag_t bt, bus_space_handle_t bh)
 {
 	struct timespec ts;
 	struct idprom *idp;
-	char *model;
+	const char *model;
 	int error, i;
 	u_int32_t h;
 
-	if (OF_getprop_alloc(node, "model", 1, (void **)&model) == -1)
+	if ((model = ofw_bus_get_model(dev)) == NULL)
 		panic("eeprom_attach: no model property");
 
 	/* Our TOD clock year 0 is 1968 */
 	if ((error = mk48txx_attach(dev, bt, bh, model, 1968)) != 0) {
 		device_printf(dev, "Can't attach %s tod clock", model);
-		free(model, M_OFWPROP);
 		return (error);
 	}
 	/* XXX: register clock device */
@@ -115,4 +123,3 @@ eeprom_attach(device_t dev, phandle_t node, bus_space_tag_t bt,
 
 	return (0);
 }
-

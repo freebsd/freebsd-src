@@ -57,15 +57,17 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/module.h>
 #include <sys/proc.h>
+
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/openfirm.h>
+
 #include <machine/bus.h>
 #include <machine/resource.h>
+
 #include <sys/rman.h>
 #include <sys/serial.h>
 #include <sys/syslog.h>
 #include <sys/tty.h>
-
-#include <dev/ofw/openfirm.h>
-#include <sparc64/ebus/ebusvar.h>
 
 #include <dev/sab/sab82532reg.h>
 
@@ -249,9 +251,10 @@ sab_probe(device_t dev)
 	bus_space_tag_t tag;
 	uint8_t r;
 	int rid;
+	const char *name;
 
-	if (strcmp(ebus_get_name(dev), "se") != 0 &&
-	    strcmp(ebus_get_name(dev), "serial") != 0)
+	name = ofw_bus_get_name(dev);
+	if (strcmp(name, "se") != 0 && strcmp(name, "serial") != 0)
 		return (ENXIO);
 	rid = 0;
 	res = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &rid,
@@ -1191,25 +1194,25 @@ sabtty_cnputc(struct sabtty_softc *sc, int c)
 static int
 sabtty_console(device_t dev, char *mode, int len)
 {
-	device_t parent;
 	phandle_t chosen;
 	phandle_t options;
+	phandle_t parent;
 	ihandle_t stdin;
 	ihandle_t stdout;
 	char output[32];
 	char input[32];
 	char name[32];
 
-	parent = device_get_parent(dev);
 	chosen = OF_finddevice("/chosen");
 	options = OF_finddevice("/options");
+	parent = ofw_bus_get_node(device_get_parent(dev));
 	if (OF_getprop(chosen, "stdin", &stdin, sizeof(stdin)) == -1 ||
 	    OF_getprop(chosen, "stdout", &stdout, sizeof(stdout)) == -1 ||
 	    OF_getprop(options, "input-device", input, sizeof(input)) == -1 ||
 	    OF_getprop(options, "output-device", output, sizeof(output)) == -1)
 		return (0);
-	if (ebus_get_node(parent) != OF_instance_to_package(stdin) ||
-	    ebus_get_node(parent) != OF_instance_to_package(stdout))
+	if (parent != OF_instance_to_package(stdin) ||
+	    parent != OF_instance_to_package(stdout))
 		return (0);
 	if ((strcmp(input, device_get_desc(dev)) == 0 &&
 	     strcmp(output, device_get_desc(dev)) == 0) ||

@@ -46,6 +46,7 @@
 #include <sys/conf.h>
 #include <sys/kernel.h>
 
+#include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/openfirm.h>
 
 #include <machine/bus.h>
@@ -61,7 +62,6 @@
 
 #include <sys/rman.h>
 
-#include <powerpc/powermac/maciovar.h>
 #include <powerpc/powermac/hrowpicvar.h>
 
 #include "pic_if.h"
@@ -434,7 +434,7 @@ DRIVER_MODULE(hrowpicmacio, macio, hrowpic_macio_driver,
 static int
 hrowpic_macio_probe(device_t dev)
 {
-        char *type = macio_get_devtype(dev);
+        const char *type = ofw_bus_get_type(dev);
 
 	/*
 	 * OpenPIC cells have a type of "open-pic", so this

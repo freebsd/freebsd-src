@@ -112,6 +112,7 @@
 #include <sys/pcpu.h>
 #include <sys/reboot.h>
 
+#include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/openfirm.h>
 
 #include <machine/bus.h>
@@ -132,7 +133,6 @@
 #include <sparc64/sbus/sbusreg.h>
 #include <sparc64/sbus/sbusvar.h>
 
-
 #ifdef DEBUG
 #define SDB_DVMA	0x1
 #define SDB_INTR	0x2
@@ -144,11 +144,12 @@ int sbus_debug = 0;
 
 struct sbus_devinfo {
 	int			sdi_burstsz;
-	char			*sdi_compat;
+	char			*sdi_compat;	/* PROM compatible */
+	char			*sdi_model;	/* PROM model */
 	char			*sdi_name;	/* PROM name */
 	phandle_t		sdi_node;	/* PROM node */
 	int			sdi_slot;
-	char			*sdi_type;	/* PROM name */
+	char			*sdi_type;	/* PROM device_type */
 
 	struct resource_list	sdi_rl;
 };
@@ -219,6 +220,11 @@ static int sbus_deactivate_resource(device_t, device_t, int, int,
     struct resource *);
 static int sbus_release_resource(device_t, device_t, int, int,
     struct resource *);
+static ofw_bus_get_compat_t sbus_get_compat;
+static ofw_bus_get_model_t sbus_get_model;
+static ofw_bus_get_name_t sbus_get_name;
+static ofw_bus_get_node_t sbus_get_node;
+static ofw_bus_get_type_t sbus_get_type;
 
 static struct sbus_devinfo * sbus_setup_dinfo(struct sbus_softc *sc,
     phandle_t node, char *name);
@@ -245,6 +251,13 @@ static device_method_t sbus_methods[] = {
 	DEVMETHOD(bus_release_resource,	sbus_release_resource),
 	DEVMETHOD(bus_get_resource_list, sbus_get_resource_list),
 	DEVMETHOD(bus_get_resource,	bus_generic_rl_get_resource),
+
+	/* ofw_bus interface */
+	DEVMETHOD(ofw_bus_get_compat,	sbus_get_compat),
+	DEVMETHOD(ofw_bus_get_model,	sbus_get_model),
+	DEVMETHOD(ofw_bus_get_name,	sbus_get_name),
+	DEVMETHOD(ofw_bus_get_node,	sbus_get_node),
+	DEVMETHOD(ofw_bus_get_type,	sbus_get_type),
 
 	{ 0, 0 }
 };
@@ -460,6 +473,7 @@ sbus_setup_dinfo(struct sbus_softc *sc, phandle_t node, char *name)
 	sdi->sdi_node = node;
 	OF_getprop_alloc(node, "compatible", 1, (void **)&sdi->sdi_compat);
 	OF_getprop_alloc(node, "device_type", 1, (void **)&sdi->sdi_type);
+	OF_getprop_alloc(node, "model", 1, (void **)&sdi->sdi_model);
 	slot = -1;
 	nreg = OF_getprop_alloc(node, "reg", sizeof(*reg), (void **)&reg);
 	if (nreg == -1) {
@@ -524,6 +538,8 @@ sbus_destroy_dinfo(struct sbus_devinfo *dinfo)
 	resource_list_free(&dinfo->sdi_rl);
 	if (dinfo->sdi_compat != NULL)
 		free(dinfo->sdi_compat, M_OFWPROP);
+	if (dinfo->sdi_model != NULL)
+		free(dinfo->sdi_model, M_OFWPROP);
 	if (dinfo->sdi_type != NULL)
 		free(dinfo->sdi_type, M_OFWPROP);
 	free(dinfo, M_DEVBUF);
@@ -548,19 +564,12 @@ sbus_print_child(device_t dev, device_t child)
 static void
 sbus_probe_nomatch(device_t dev, device_t child)
 {
-	char *name;
-	char *type;
+	const char *type;
 
-	if (BUS_READ_IVAR(dev, child, SBUS_IVAR_NAME,
-	    (uintptr_t *)&name) != 0 ||
-	    BUS_READ_IVAR(dev, child, SBUS_IVAR_DEVICE_TYPE,
-	    (uintptr_t *)&type) != 0)
-		return;
-
-	if (type == NULL)
+	if ((type = ofw_bus_get_type(child)) == NULL)
 		type = "(unknown)";
 	device_printf(dev, "<%s>, type %s (no driver attached)\n",
-	    name, type);
+            ofw_bus_get_name(child), type);
 }
 
 static int
@@ -578,20 +587,8 @@ sbus_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 	case SBUS_IVAR_CLOCKFREQ:
 		*result = sc->sc_clockfreq;
 		break;
-	case SBUS_IVAR_COMPAT:
-		*result = (uintptr_t)dinfo->sdi_compat;
-		break;
-	case SBUS_IVAR_NAME:
-		*result = (uintptr_t)dinfo->sdi_name;
-		break;
-	case SBUS_IVAR_NODE:
-		*result = dinfo->sdi_node;
-		break;
 	case SBUS_IVAR_SLOT:
 		*result = dinfo->sdi_slot;
-		break;
-	case SBUS_IVAR_DEVICE_TYPE:
-		*result = (uintptr_t)dinfo->sdi_type;
 		break;
 	default:
 		return (ENOENT);
@@ -889,4 +886,49 @@ sbus_alloc_bustag(struct sbus_softc *sc)
 	sbt->bst_parent = sc->sc_bustag;
 	sbt->bst_type = SBUS_BUS_SPACE;
 	return (sbt);
+}
+
+const char *
+sbus_get_compat(device_t bus, device_t dev)
+{
+	struct sbus_devinfo *dinfo;
+
+	dinfo = device_get_ivars(dev);
+	return (dinfo->sdi_compat);
+}
+
+const char *
+sbus_get_model(device_t bus, device_t dev)
+{
+	struct sbus_devinfo *dinfo;
+
+	dinfo = device_get_ivars(dev);
+	return (dinfo->sdi_model);
+}
+
+const char *
+sbus_get_name(device_t bus, device_t dev)
+{
+	struct sbus_devinfo *dinfo;
+
+	dinfo = device_get_ivars(dev);
+	return (dinfo->sdi_name);
+}
+
+static phandle_t
+sbus_get_node(device_t bus, device_t dev)
+{
+	struct sbus_devinfo *dinfo;
+
+	dinfo = device_get_ivars(dev);
+	return (dinfo->sdi_node);
+}
+
+const char *
+sbus_get_type(device_t bus, device_t dev)
+{
+	struct sbus_devinfo *dinfo;
+
+	dinfo = device_get_ivars(dev);
+	return (dinfo->sdi_type);
 }

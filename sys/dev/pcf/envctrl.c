@@ -46,14 +46,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/resource.h>
 #include <sys/uio.h>
 
+#include <dev/ofw/ofw_bus.h>
+
 #include <machine/bus.h>
 #include <machine/resource.h>
 
 #include <sys/rman.h>
-
-#include <dev/ofw/openfirm.h>
-
-#include <sparc64/ebus/ebusvar.h>
 
 #include <dev/iicbus/iiconf.h>
 #include <dev/pcf/pcfvar.h>
@@ -95,7 +93,7 @@ static int
 envctrl_probe(device_t dev)
 {
 
-	if (strcmp("SUNW,envctrl", ebus_get_name(dev)) == 0) {
+	if (strcmp("SUNW,envctrl", ofw_bus_get_name(dev)) == 0) {
 		device_set_desc(dev, "EBus SUNW,envctrl");
 		return (0);
 	}

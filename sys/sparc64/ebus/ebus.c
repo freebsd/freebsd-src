@@ -57,6 +57,7 @@
 
 #include <sys/rman.h>
 
+#include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/openfirm.h>
 
 #include <machine/ofw_bus.h>
@@ -72,11 +73,12 @@
  * ones.
  */
 #include <sparc64/isa/ofw_isa.h>
-#include <sparc64/ebus/ebusvar.h>
 
 struct ebus_devinfo {
+	char			*edi_compat;	/* PROM compatible */
+	char			*edi_model;	/* PROM model */
 	char			*edi_name;	/* PROM name */
-	char			*edi_compat;
+	char			*edi_type;	/* PROM device_type */
 	phandle_t		edi_node;	/* PROM node */
 
 	struct resource_list	edi_rl;
@@ -104,11 +106,14 @@ static device_probe_t ebus_probe;
 static device_attach_t ebus_attach;
 static bus_print_child_t ebus_print_child;
 static bus_probe_nomatch_t ebus_probe_nomatch;
-static bus_read_ivar_t ebus_read_ivar;
-static bus_write_ivar_t ebus_write_ivar;
 static bus_alloc_resource_t ebus_alloc_resource;
 static bus_release_resource_t ebus_release_resource;
 static bus_get_resource_list_t ebus_get_resource_list;
+static ofw_bus_get_compat_t ebus_get_compat;
+static ofw_bus_get_model_t ebus_get_model;
+static ofw_bus_get_name_t ebus_get_name;
+static ofw_bus_get_node_t ebus_get_node;
+static ofw_bus_get_type_t ebus_get_type;
 
 static struct ebus_devinfo *ebus_setup_dinfo(device_t, struct ebus_softc *,
     phandle_t, char *);
@@ -123,8 +128,6 @@ static device_method_t ebus_methods[] = {
 	/* Bus interface */
 	DEVMETHOD(bus_print_child,	ebus_print_child),
 	DEVMETHOD(bus_probe_nomatch,	ebus_probe_nomatch),
-	DEVMETHOD(bus_read_ivar,	ebus_read_ivar),
-	DEVMETHOD(bus_write_ivar,	ebus_write_ivar),
 	DEVMETHOD(bus_setup_intr, 	bus_generic_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
 	DEVMETHOD(bus_alloc_resource,	ebus_alloc_resource),
@@ -133,6 +136,13 @@ static device_method_t ebus_methods[] = {
 	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
 	DEVMETHOD(bus_release_resource,	ebus_release_resource),
 	DEVMETHOD(bus_get_resource,	bus_generic_rl_get_resource),
+
+	/* ofw_bus interface */
+	DEVMETHOD(ofw_bus_get_compat,	ebus_get_compat),
+	DEVMETHOD(ofw_bus_get_model,	ebus_get_model),
+	DEVMETHOD(ofw_bus_get_name,	ebus_get_name),
+	DEVMETHOD(ofw_bus_get_node,	ebus_get_node),
+	DEVMETHOD(ofw_bus_get_type,	ebus_get_type),
 
 	{ 0, 0 }
 };
@@ -153,7 +163,7 @@ ebus_probe(device_t dev)
 	char name[10];
 	phandle_t node;
 
-	if ((node = ofw_pci_get_node(dev)) == 0)
+	if ((node = ofw_bus_get_node(dev)) == 0)
 		return (ENXIO);
 
 	OF_getprop(node, "name", &name, sizeof(name));
@@ -184,7 +194,7 @@ ebus_attach(device_t dev)
 	int i, rnum, rid;
 
 	sc = device_get_softc(dev);
-	sc->sc_node = node = ofw_pci_get_node(dev);
+	sc->sc_node = node = ofw_bus_get_node(dev);
 
 	sc->sc_nrange = OF_getprop_alloc(node, "ranges",
 	    sizeof(*sc->sc_range), (void **)&sc->sc_range);
@@ -279,47 +289,6 @@ ebus_probe_nomatch(device_t dev, device_t child)
 	device_printf(dev, "<%s>", edi->edi_name);
 	ebus_print_res(edi);
 	printf(" (no driver attached)\n");
-}
-
-static int
-ebus_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
-{
-	struct ebus_devinfo *dinfo;
-
-	if ((dinfo = device_get_ivars(child)) == NULL)
-		return (ENOENT);
-	switch (which) {
-	case EBUS_IVAR_COMPAT:
-		*result = (uintptr_t)dinfo->edi_compat;
-		break;
-	case EBUS_IVAR_NAME:
-		*result = (uintptr_t)dinfo->edi_name;
-		break;
-	case EBUS_IVAR_NODE:
-		*result = dinfo->edi_node;
-		break;
-	default:
-		return (ENOENT);
-	}
-	return 0;
-}
-
-static int
-ebus_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
-{
-	struct ebus_devinfo *dinfo;
-
-	if ((dinfo = device_get_ivars(child)) == NULL)
-		return (ENOENT);
-	switch (which) {
-	case EBUS_IVAR_COMPAT:
-	case EBUS_IVAR_NAME:
-	case EBUS_IVAR_NODE:
-		return (EINVAL);
-	default:
-		return (ENOENT);
-	}
-	return 0;
 }
 
 static struct resource *
@@ -452,6 +421,8 @@ ebus_setup_dinfo(device_t dev, struct ebus_softc *sc, phandle_t node,
 	edi->edi_node = node;
 
 	OF_getprop_alloc(node, "compatible", 1, (void **)&edi->edi_compat);
+	OF_getprop_alloc(node, "device_type", 1, (void **)&edi->edi_type);
+	OF_getprop_alloc(node, "model", 1, (void **)&edi->edi_model);
 	nreg = OF_getprop_alloc(node, "reg", sizeof(*reg), (void **)&reg);
 	if (nreg == -1) {
 		ebus_destroy_dinfo(edi);
@@ -492,6 +463,12 @@ static void
 ebus_destroy_dinfo(struct ebus_devinfo *edi)
 {
 
+	if (edi->edi_compat != NULL)
+		free(edi->edi_compat, M_OFWPROP);
+	if (edi->edi_type != NULL)
+		free(edi->edi_type, M_OFWPROP);
+	if (edi->edi_model != NULL)
+		free(edi->edi_model, M_OFWPROP);
 	resource_list_free(&edi->edi_rl);
 	free(edi, M_DEVBUF);
 }
@@ -507,4 +484,49 @@ ebus_print_res(struct ebus_devinfo *edi)
 	retval += resource_list_print_type(&edi->edi_rl, "irq", SYS_RES_IRQ,
 	    "%ld");
 	return (retval);
+}
+
+static const char *
+ebus_get_compat(device_t bus, device_t dev)
+{
+	struct ebus_devinfo *dinfo;
+
+	dinfo = device_get_ivars(dev);
+	return (dinfo->edi_compat);
+}
+
+static const char *
+ebus_get_model(device_t bus, device_t dev)
+{
+	struct ebus_devinfo *dinfo;
+
+	dinfo = device_get_ivars(dev);
+	return (dinfo->edi_model);
+}
+
+static const char *
+ebus_get_name(device_t bus, device_t dev)
+{
+	struct ebus_devinfo *dinfo;
+
+	dinfo = device_get_ivars(dev);
+	return (dinfo->edi_name);
+}
+
+static phandle_t
+ebus_get_node(device_t bus, device_t dev)
+{
+	struct ebus_devinfo *dinfo;
+
+	dinfo = device_get_ivars(dev);
+	return (dinfo->edi_node);
+}
+
+static const char *
+ebus_get_type(device_t bus, device_t dev)
+{
+	struct ebus_devinfo *dinfo;
+
+	dinfo = device_get_ivars(dev);
+	return (dinfo->edi_type);
 }

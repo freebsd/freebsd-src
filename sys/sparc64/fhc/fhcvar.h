@@ -29,12 +29,6 @@
 #ifndef _SPARC64_FHC_FHCVAR_H_
 #define	_SPARC64_FHC_FHCVAR_H_
 
-enum fhc_device_ivars {
-	FHC_IVAR_NAME,
-	FHC_IVAR_NODE,
-	FHC_IVAR_TYPE
-};
-
 #define	FHC_CENTRAL		(1<<0)
 
 struct fhc_softc {
@@ -54,22 +48,16 @@ int fhc_attach(device_t dev);
 
 int fhc_print_child(device_t dev, device_t child);
 void fhc_probe_nomatch(device_t dev, device_t child);
-int fhc_read_ivar(device_t, device_t, int, uintptr_t *);
-int fhc_write_ivar(device_t, device_t, int, uintptr_t);
 int fhc_setup_intr(device_t, device_t, struct resource *, int, driver_intr_t *,
     void *, void **);
 int fhc_teardown_intr(device_t, device_t, struct resource *, void *);
 struct resource *fhc_alloc_resource(device_t, device_t, int, int *, u_long,
     u_long, u_long, u_int);
 int fhc_release_resource(device_t, device_t, int, int, struct resource *);
-
-#define	FHC_ACCESSOR(var, ivar, type) \
-	__BUS_ACCESSOR(fhc, var, FHC, ivar, type)
-
-FHC_ACCESSOR(name,	NAME,	char *)
-FHC_ACCESSOR(node,	NODE,	phandle_t)
-FHC_ACCESSOR(type,	TYPE,	char *)
-
-#undef FHC_ACCESSOR
+ofw_bus_get_compat_t fhc_get_compat;
+ofw_bus_get_model_t fhc_get_model;
+ofw_bus_get_name_t fhc_get_name;
+ofw_bus_get_node_t fhc_get_node;
+ofw_bus_get_type_t fhc_get_type;
 
 #endif

@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>
 #include <sys/kernel.h>
 
+#include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/openfirm.h>
 
 #include <machine/bus.h>
@@ -61,7 +62,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 
 #include <machine/openpicvar.h>
-#include <powerpc/powermac/maciovar.h>
 
 #include "pic_if.h"
 
@@ -186,7 +186,7 @@ DRIVER_MODULE(openpicmacio, macio, openpic_macio_driver,
 static int
 openpic_macio_probe(device_t dev)
 {
-	char *type = macio_get_devtype(dev);
+	const char *type = ofw_bus_get_type(dev);
 
 	if (strcmp(type, "open-pic") != 0)
                 return (ENXIO);

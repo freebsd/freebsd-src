@@ -48,11 +48,4 @@ typedef u_int32_t ofw_pci_intr_t;
 
 u_int8_t ofw_pci_alloc_busno(phandle_t);
 
-static __inline phandle_t
-ofw_pci_get_node(device_t dev)
-{
-
-	return (OFW_PCI_GET_NODE(device_get_parent(dev), dev));
-}
-
 #endif /* ! _SPARC64_PCI_OFW_PCI_H_ */
