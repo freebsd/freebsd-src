@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_inode.c	8.9 (Berkeley) 5/14/95
- * $Id: ufs_inode.c,v 1.19 1997/10/16 10:50:14 phk Exp $
+ * $Id: ufs_inode.c,v 1.20 1997/10/16 20:32:39 phk Exp $
  */
 
 #include "opt_quota.h"
@@ -51,7 +51,6 @@
 #include <ufs/ufs/ufsmount.h>
 #include <ufs/ufs/ufs_extern.h>
 
-u_long	nextgennumber;		/* Next generation number to assign. */
 int	prtactive = 0;		/* 1 => print out reclaim of active vnodes */
 
 /*
