@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vnops.c,v 1.85 1999/05/11 19:54:43 phk Exp $ */
+/*	$Id: msdosfs_vnops.c,v 1.86 1999/06/26 02:46:26 mckusick Exp $ */
 /*	$NetBSD: msdosfs_vnops.c,v 1.68 1998/02/10 14:10:04 mrg Exp $	*/
 
 /*-
@@ -554,6 +554,7 @@ msdosfs_read(ap)
 	int diff;
 	int blsize;
 	int isadir;
+	int orig_resid;
 	long n;
 	long on;
 	daddr_t lbn;
@@ -565,13 +566,15 @@ msdosfs_read(ap)
 	struct msdosfsmount *pmp = dep->de_pmp;
 	struct uio *uio = ap->a_uio;
 
+	if (uio->uio_offset < 0)
+		return (EINVAL);
+
 	/*
 	 * If they didn't ask for any data, then we are done.
 	 */
-	if (uio->uio_resid == 0)
+	orig_resid = uio->uio_resid;
+	if (orig_resid <= 0)
 		return (0);
-	if (uio->uio_offset < 0)
-		return (EINVAL);
 
 	isadir = dep->de_Attributes & ATTR_DIRECTORY;
 	do {
@@ -580,14 +583,14 @@ msdosfs_read(ap)
 		n = min((u_long) (pmp->pm_bpcluster - on), uio->uio_resid);
 		diff = dep->de_FileSize - uio->uio_offset;
 		if (diff <= 0)
-			return (0);
+			break;
 		if (diff < n)
 			n = diff;
 		/* convert cluster # to block # if a directory */
 		if (isadir) {
 			error = pcbmap(dep, lbn, &lbn, 0, &blsize);
 			if (error)
-				return (error);
+				break;
 		}
 		/*
 		 * If we are operating on a directory file then be sure to
@@ -611,12 +614,13 @@ msdosfs_read(ap)
 		n = min(n, pmp->pm_bpcluster - bp->b_resid);
 		if (error) {
 			brelse(bp);
-			return (error);
+			break;
 		}
 		error = uiomove(bp->b_data + on, (int) n, uio);
 		brelse(bp);
 	} while (error == 0 && uio->uio_resid > 0 && n != 0);
-	if (!isadir && !(vp->v_mount->mnt_flag & MNT_NOATIME))
+	if (!isadir && (error == 0 || uio->uio_resid != orig_resid) &&
+	    (vp->v_mount->mnt_flag & MNT_NOATIME) == 0)
 		dep->de_flag |= DE_ACCESS;
 	return (error);
 }
