@@ -928,14 +928,14 @@ void
 pmap_init(vm_offset_t phys_start, vm_offset_t phys_end)
 {
 
-	CTR(KTR_PMAP, "pmap_init");
+	CTR0(KTR_PMAP, "pmap_init");
 }
 
 void
 pmap_init2(void)
 {
 
-	CTR(KTR_PMAP, "pmap_init2");
+	CTR0(KTR_PMAP, "pmap_init2");
 
 	pmap_pvo_obj = vm_object_allocate(OBJT_PHYS, 16);
 	pmap_pvo_count = 0;
