@@ -7,7 +7,9 @@ PROG=	pppd
 MAN=	pppd.8
 SRCS=	main.c magic.c fsm.c lcp.c ipcp.c ipxcp.c upap.c chap.c ccp.c \
 	demand.c auth.c options.c sys-bsd.c
-BINMODE= 4555
+BINMODE=4550
+BINOWN=	root
+BINGRP=	dialer
 
 CFLAGS+= -DHAVE_PATHS_H
 
