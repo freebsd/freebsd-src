@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_pt.c,v 1.3 1998/10/22 22:16:56 ken Exp $
+ *      $Id: scsi_pt.c,v 1.4 1998/11/22 23:44:47 ken Exp $
  */
 
 #include <sys/param.h>
@@ -372,7 +372,8 @@ ptctor(struct cam_periph *periph, void *arg)
 	devstat_add_entry(&softc->device_stats, "pt",
 			  periph->unit_number, 0,
 			  DEVSTAT_NO_BLOCKSIZE,
-			  cgd->pd_type | DEVSTAT_TYPE_IF_SCSI);
+			  cgd->pd_type | DEVSTAT_TYPE_IF_SCSI,
+			  DEVSTAT_PRIORITY_OTHER);
 
 	/*
 	 * Add async callbacks for bus reset and

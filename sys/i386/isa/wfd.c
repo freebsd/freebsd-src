@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *      $Id: wfd.c,v 1.17 1998/12/07 21:58:24 archie Exp $
+ *      $Id: wfd.c,v 1.18 1999/01/30 12:21:44 phk Exp $
  */
 
 /*
@@ -273,7 +273,8 @@ wfdattach (struct atapi *ata, int unit, struct atapi_params *ap, int debug)
 	devstat_add_entry(&t->device_stats, "wfd", 
 			  wfdnlun, t->cap.sector_size,
 			  DEVSTAT_NO_ORDERED_TAGS,
-			  DEVSTAT_TYPE_FLOPPY | DEVSTAT_TYPE_IF_IDE);
+			  DEVSTAT_TYPE_FLOPPY | DEVSTAT_TYPE_IF_IDE,
+			  DEVSTAT_PRIORITY_WFD);
 	return (1);
 }
 

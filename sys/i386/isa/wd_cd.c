@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: atapi-cd.c,v 1.9 1999/01/31 21:51:03 sos Exp $
+ *	$Id: atapi-cd.c,v 1.10 1999/01/31 23:08:47 sos Exp $
  */
 
 #include "wdc.h"
@@ -265,13 +265,15 @@ acdattach(struct atapi *ata, int unit, struct atapi_params *ap, int debug)
 	sprintf(string, "acd%d-", cdp->lun);
         devstat_add_entry(cdp->device_stats, string, tmpcdp->lun, DEV_BSIZE,
                           DEVSTAT_NO_ORDERED_TAGS,
-                          DEVSTAT_TYPE_CDROM | DEVSTAT_TYPE_IF_IDE);
+                          DEVSTAT_TYPE_CDROM | DEVSTAT_TYPE_IF_IDE,
+			  DEVSTAT_PRIORITY_WCD);
     }
     else {
         acdnlun++;
         devstat_add_entry(cdp->device_stats, "acd", cdp->lun, DEV_BSIZE,
                           DEVSTAT_NO_ORDERED_TAGS,
-                          DEVSTAT_TYPE_CDROM | DEVSTAT_TYPE_IF_IDE);
+                          DEVSTAT_TYPE_CDROM | DEVSTAT_TYPE_IF_IDE,
+			  DEVSTAT_PRIORITY_WCD);
     }
     return 1;
 }
