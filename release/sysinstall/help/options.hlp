@@ -29,31 +29,6 @@ FTP Reselect: On transfer failure, ask for another host
     up from where it left off on the other server, if at all possible.
 
 
-FTP Active:   Use "active mode" for standard FTP
-
-    For all FTP transfers, use "Active" mode.  This will not work
-    through firewalls, but will often work with older ftp servers
-    that do not support passive mode.  If your connection hangs
-    with passive mode (the default), try active!
-
-
-FTP Passive:  Use "passive mode" for firewalled FTP
-
-    For all FTP transfers, use "Passive" mode.  This allows the user
-    to pass through firewalls that do not allow incoming connections
-    on random port addresses.
-
-    NOTE: ACTIVE AND PASSIVE MODES ARE NOT THE SAME AS A `PROXY'
-    CONNECTION, WHERE A PROXY FTP SERVER IS LISTENING ON A DIFFERENT
-    PORT!
-
-    In such situations, you should specify the URL as something like:
-
-        ftp://foo.bar.com:1234/pub/FreeBSD
-
-    Where "1234" is the port number of the proxy ftp server.
-
-
 Debugging:    Turn on the extra debugging flag
 
     This turns on a lot of extra noise over on the second screen
