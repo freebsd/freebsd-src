@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.128 1996/10/23 05:31:54 dyson Exp $
+ *	$Id: pmap.c,v 1.128.2.1 1996/11/06 10:23:40 phk Exp $
  */
 
 /*
@@ -214,6 +214,24 @@ static vm_offset_t pdstack[PDSTACKMAX];
 static int pdstackptr;
 
 /*
+ *	Routine:	pmap_pte
+ *	Function:
+ *		Extract the page table entry associated
+ *		with the given map/virtual_address pair.
+ */
+
+PMAP_INLINE unsigned *
+pmap_pte(pmap, va)
+	register pmap_t pmap;
+	vm_offset_t va;
+{
+	if (pmap && *pmap_pde(pmap, va)) {
+		return get_ptbase(pmap) + i386_btop(va);
+	}
+	return (0);
+}
+
+/*
  *	Bootstrap the system enough to run with virtual memory.
  *
  *	On the i386 this is called after mapping has already been enabled
@@ -281,14 +299,17 @@ pmap_bootstrap(firstaddr, loadaddr)
 	SYSMAP(caddr_t, CMAP2, CADDR2, 1)
 
 	/*
-	 * ptmmap is used for reading arbitrary physical pages via /dev/mem.
+	 * ptvmmap is used for reading arbitrary physical pages via /dev/mem.
+	 * XXX ptmmap is not used.
 	 */
 	SYSMAP(caddr_t, ptmmap, ptvmmap, 1)
 
 	/*
-	 * msgbufmap is used to map the system message buffer.
+	 * msgbufp is used to map the system message buffer.
+	 * XXX msgbufmap is not used.
 	 */
-	SYSMAP(struct msgbuf *, msgbufmap, msgbufp, 1)
+	SYSMAP(struct msgbuf *, msgbufmap, msgbufp,
+	       atop(round_page(sizeof(struct msgbuf))))
 
 	/*
 	 * ptemap is used for pmap_pte_quick
@@ -452,24 +473,6 @@ get_ptbase(pmap)
 		invltlb();
 	}
 	return (unsigned *) APTmap;
-}
-
-/*
- *	Routine:	pmap_pte
- *	Function:
- *		Extract the page table entry associated
- *		with the given map/virtual_address pair.
- */
-
-PMAP_INLINE unsigned *
-pmap_pte(pmap, va)
-	register pmap_t pmap;
-	vm_offset_t va;
-{
-	if (pmap && *pmap_pde(pmap, va)) {
-		return get_ptbase(pmap) + i386_btop(va);
-	}
-	return (0);
 }
 
 /*
