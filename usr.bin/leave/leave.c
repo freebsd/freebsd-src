@@ -70,8 +70,8 @@ main(argc, argv)
 	register u_int secs;
 	register int hours, minutes;
 	register char c, *cp = NULL;
-	struct tm *t, *localtime();
-	time_t now, time();
+	struct tm *t;
+	time_t now;
 	int plusnow, t_12_hour;
 	char buf[50];
 
@@ -142,7 +142,7 @@ doalarm(secs)
 	u_int secs;
 {
 	register int bother;
-	time_t daytime, time();
+	time_t daytime;
 	char tb[80];
 	int pid;
 
