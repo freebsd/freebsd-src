@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id$
+ * $Id: kernbb.c,v 1.1 1995/03/10 08:53:55 phk Exp $
  *
  */
 
@@ -82,7 +82,7 @@ main()
 		continue;
 	doit:
 		for (i=0; i < bb.ncounts; i++) {
-			if (!pn[i]) {
+			if (!pn[i] && func[i]) {
 				kvm_read(kv,func[i], buf, sizeof buf);
 				buf[sizeof buf -1] = 0;
 				pn[i] = malloc(strlen(buf)+1);
@@ -93,7 +93,9 @@ main()
 						func[j] = 0;
 					}
 			}
-			if (!fn[i]) {
+			if (!pn[i])
+				pn[i] = "-";
+			if (!fn[i] && file[i]) {
 				kvm_read(kv,file[i], buf, sizeof buf);
 				buf[sizeof buf -1] = 0;
 				fn[i] = malloc(strlen(buf)+1);
@@ -104,6 +106,8 @@ main()
 						file[j] = 0;
 					}
 			}
+			if (!fn[i])
+				fn[i] = "-";
 			printf("%s %5u %s %u %u\n",
 				fn[i],lineno[i],pn[i],addr[i],counts[i]);
 		}
