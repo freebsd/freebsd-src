@@ -38,6 +38,7 @@
 #include "devinfo.h"
 
 int	rflag;
+int	vflag;
 
 static void	print_resource(struct devinfo_res *);
 static int	print_device_matching_resource(struct devinfo_res *, void *);
@@ -136,11 +137,11 @@ print_device(struct devinfo_dev *dev, void *arg)
 	struct indent_arg	ia;
 	int			i, indent;
 
-	if (dev->dd_name[0] != 0) {
+	if (vflag || (dev->dd_name[0] != 0 && dev->dd_state >= DIS_ATTACHED)) {
 		indent = (int)(intptr_t)arg;
 		for (i = 0; i < indent; i++)
 			printf(" ");
-		printf("%s\n", dev->dd_name);
+		printf("%s\n", dev->dd_name[0] ? dev->dd_name : "unknown");
 		if (rflag) {
 			ia.indent = indent + 4;
 			ia.arg = dev;
@@ -191,7 +192,7 @@ main(int argc, char *argv[])
 	int			c, uflag;
 
 	uflag = 0;
-	while ((c = getopt(argc, argv, "ru")) != -1) {
+	while ((c = getopt(argc, argv, "ruv")) != -1) {
 		switch(c) {
 		case 'r':
 			rflag++;
@@ -199,8 +200,11 @@ main(int argc, char *argv[])
 		case 'u':
 			uflag++;
 			break;
+		case 'v':
+			vflag++;
+			break;
 		default:
-			errx(1, "usage: %s [-ru]", argv[0]);
+			errx(1, "usage: %s [-ruv]", argv[0]);
 		}
 	}
 
