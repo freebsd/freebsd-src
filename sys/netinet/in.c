@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in.c	8.2 (Berkeley) 11/15/93
- * $Id: in.c,v 1.5 1994/09/16 05:47:06 phk Exp $
+ * $Id: in.c,v 1.6 1994/10/02 17:48:37 phk Exp $
  */
 
 #include <sys/param.h>
@@ -146,7 +146,7 @@ struct sockaddr_in *ap;
     register char *cp = (char *) (&ap->sin_addr + 1);
 
     ap->sin_len = 0;
-    while (--cp > cplim)
+    while (--cp >= cplim)
         if (*cp) {
 	    (ap)->sin_len = cp - (char *) (ap) + 1;
 	    break;
