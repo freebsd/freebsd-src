@@ -39,7 +39,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: mcd.c,v 1.23 1994/09/03 16:48:12 ache Exp $
+ *	$Id: mcd.c,v 1.24 1994/09/06 21:56:09 se Exp $
  */
 static char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 
@@ -195,7 +195,7 @@ struct	isa_driver	mcddriver = { mcd_probe, mcd_attach, "mcd" };
 #define RDELAY_WAITREAD	800
 
 #define MIN_DELAY       15
-#define DELAY_GETREPLY  1200000
+#define DELAY_GETREPLY  1300000
 
 int mcd_attach(struct isa_device *dev)
 {
@@ -952,6 +952,14 @@ nextblock:
 		mcd_put(com_port,1);
 		enable_intr();
 
+		/* Spin briefly (<= 2ms) to avoid missing next block */
+		for (i = 0; i < 20; i++) {
+			k = inb(port+mcd_xfer);
+			if (!(k & 2))
+				goto got_it;
+			DELAY(100);
+		}
+
 		mbx->count = RDELAY_WAITREAD;
 		timeout((timeout_func_t)mcd_doread,
 			(caddr_t)MCD_S_WAITREAD,hz/100); /* XXX */
@@ -963,6 +971,7 @@ nextblock:
 			if (!(k & 2)) { /* XXX */
 				MCD_TRACE("got data delay=%d\n",
 					RDELAY_WAITREAD-mbx->count,0,0,0);
+			got_it:
 				/* data is ready */
 				addr	= bp->b_un.b_addr + mbx->skip;
 
