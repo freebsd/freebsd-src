@@ -8630,8 +8630,6 @@ rcs_internal_lockfile (rcsfile)
     if (fp == NULL)
 	error (1, errno, "cannot fdopen %s", rcs_lockfile);
 
-    free (lockfile);
-
     return fp;
 }
 
