@@ -1,9 +1,9 @@
 # $FreeBSD$
 
 MAINTAINER=	rwatson@FreeBSD.org
-LIB=	posix1e
-SHLIB_MAJOR= 2 
-SHLIB_MINOR= 0
+
+.PATH: ${.CURDIR}/../libc/posix1e
+
 SRCS+=	acl_calc_mask.c			\
 	acl_copy.c			\
 	acl_delete.c			\
@@ -31,6 +31,8 @@ SRCS+=	acl_calc_mask.c			\
 	cap_set_flag.c			\
 	cap_set_proc.c			\
 	cap_text.c
+
+.if ${LIB} == "c"
 
 MAN=	acl.3				\
 	acl_add_perm.3			\
@@ -79,4 +81,4 @@ MLINKS+=acl_delete.3 acl_delete_def_file.3	\
 	acl_valid.3 acl_valid_file_np.3		\
 	acl_valid.3 acl_valid_fd_np.3
 
-.include <bsd.lib.mk>
+.endif
