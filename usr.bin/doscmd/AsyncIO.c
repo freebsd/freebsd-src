@@ -132,7 +132,7 @@ static void
 CleanIO()
 {
 	int x;
-	static struct timeval tv = { 0 };
+	static struct timeval tv;
 
 	/*
 	 * For every file des in fd_set, we check to see if it
@@ -173,7 +173,7 @@ HandleIO(struct sigframe *sf)
 	++in_handler;
 
 	for (;;) {
-		static struct timeval tv = { 0 };
+		static struct timeval tv;
 		fd_set readset;
 		int x;
 		int fd;

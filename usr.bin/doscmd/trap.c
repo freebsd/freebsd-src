@@ -77,7 +77,7 @@ fake_int(regcontext_t *REGS, int intnum)
     }
 
     /* user_int: */
-    debug(D_TRAPS,
+    debug(D_TRAPS | intnum,
 	  "INT %02x:%02x [%04lx:%04lx] %04x %04x %04x %04x from %04x:%04x\n",
 	  intnum, R_AH, ivec[intnum] >> 16, ivec[intnum] & 0xffff,
 	  R_AX, R_BX, R_CX, R_DX, R_CS, R_IP);

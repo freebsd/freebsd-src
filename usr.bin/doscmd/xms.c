@@ -92,7 +92,7 @@ static u_char xms_trampoline[] = {
 static void xms_entry(regcontext_t *REGS);
 static UMB_block *create_block(u_long addr, u_long size);
 static void add_block(UMB_block **listp, UMB_block *blk);
-static void merge_blocks();
+static void merge_blocks(void);
 
 /* Init the entire module */
 void

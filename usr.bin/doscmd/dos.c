@@ -51,8 +51,6 @@
 #include "dispatch.h"
 #include "tty.h"
 
-static u_long upcase_vector;
-
 /* Country Info */
 struct {
         ushort  ciDateFormat;
@@ -100,11 +98,13 @@ char		*InDOS;
 unsigned long	disk_transfer_addr;
 
 /* locals */
+static void	fcb_to_string(struct fcb *, u_char *);
+
 static int	ctrl_c_flag = 0;
 static int	return_status = 0;
 static int	doserrno = 0;
 static int	memory_strategy = 0;	/* first fit (we ignore this) */
-
+static u_long	upcase_vector;
 
 static u_char upc_table[0x80] = {
 	0x80, 0x9a, 'E',  'A',  0x8e, 'A',  0x8f, 0x80,
@@ -2054,7 +2054,7 @@ setfcb_rec(struct fcb *fcbp, int n)
 	return(0);
 }
 
-void
+static void
 fcb_to_string(fcbp, buf)
 	struct fcb *fcbp;
 	u_char *buf;
