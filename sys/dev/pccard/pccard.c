@@ -86,7 +86,6 @@ static int	pccard_ccr_read(struct pccard_function *pf, int ccr);
 static void	pccard_ccr_write(struct pccard_function *pf, int ccr, int val);
 static int	pccard_attach_card(device_t dev);
 static int	pccard_detach_card(device_t dev);
-static int	pccard_card_gettype(device_t dev, int *type);
 static void	pccard_function_init(struct pccard_function *pf);
 static void	pccard_function_free(struct pccard_function *pf);
 static int	pccard_function_enable(struct pccard_function *pf);
@@ -377,27 +376,6 @@ pccard_do_product_lookup(device_t bus, device_t dev,
 			return (ent);
 	}
 	return (NULL);
-}
-
-static int
-pccard_card_gettype(device_t dev, int *type)
-{
-	struct pccard_softc *sc = PCCARD_SOFTC(dev);
-	struct pccard_function *pf;
-
-	/*
-	 * set the iftype to memory if this card has no functions (not yet
-	 * probed), or only one function, and that is not initialized yet or
-	 * that is memory.
-	 */
-	pf = STAILQ_FIRST(&sc->card.pf_head);
-	if (pf == NULL ||
-	    (STAILQ_NEXT(pf, pf_list) == NULL &&
-	    (pf->cfe == NULL || pf->cfe->iftype == PCCARD_IFTYPE_MEMORY)))
-		*type = PCCARD_IFTYPE_MEMORY;
-	else
-		*type = PCCARD_IFTYPE_IO;
-	return (0);
 }
 
 /*
@@ -1303,7 +1281,6 @@ static device_method_t pccard_methods[] = {
 	/* Card Interface */
 	DEVMETHOD(card_set_res_flags,	pccard_set_res_flags),
 	DEVMETHOD(card_set_memory_offset, pccard_set_memory_offset),
-	DEVMETHOD(card_get_type,	pccard_card_gettype),
 	DEVMETHOD(card_attach_card,	pccard_attach_card),
 	DEVMETHOD(card_detach_card,	pccard_detach_card),
 	DEVMETHOD(card_compat_do_probe, pccard_compat_do_probe),
