@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_resource.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_resource.c,v 1.12 1995/05/30 08:05:39 rgrimes Exp $
+ * $Id: kern_resource.c,v 1.13 1995/10/21 09:18:45 bde Exp $
  */
 
 #include <sys/param.h>
@@ -455,8 +455,9 @@ calcru(p, up, sp, ip)
 	register struct timeval *sp;
 	register struct timeval *ip;
 {
+	register quad_t totusec;
 	register u_quad_t u, st, ut, it, tot;
-	register u_long sec, usec;
+	register long sec, usec;
 	register int s;
 	struct timeval tv;
 
@@ -487,7 +488,12 @@ calcru(p, up, sp, ip)
 		sec += tv.tv_sec - runtime.tv_sec;
 		usec += tv.tv_usec - runtime.tv_usec;
 	}
-	u = (u_quad_t) sec * 1000000 + usec;
+	totusec = (quad_t)sec * 1000000 + usec;
+	if (totusec < 0) {
+		printf("calcru: negative time: %qd usec\n", totusec);
+		totusec = 0;
+	}
+	u = totusec;
 	st = (u * st) / tot;
 	sp->tv_sec = st / 1000000;
 	sp->tv_usec = st % 1000000;
