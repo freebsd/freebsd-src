@@ -2,6 +2,8 @@
 #
 # $FreeBSD$
 
+BINDIR?=	/boot
+
 LOADER_ADDRESS?=	0x200000
 CFLAGS+=		-ffreestanding -mpreferred-stack-boundary=2
 

@@ -10,7 +10,6 @@ LOADER=		loader
 PROG=		${BOOT}
 MAN=		${BOOT}.8
 STRIP=
-BINDIR?=	/boot
 M4?=		m4
 
 .if defined(BOOT_PXELDR_PROBE_KEYBOARD)

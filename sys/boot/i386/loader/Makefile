@@ -3,7 +3,6 @@
 PROG=		loader
 STRIP=
 NEWVERSWHAT=	"bootstrap loader" i386
-BINDIR?=	/boot
 INSTALLFLAGS=	-b
 
 # architecture-specific loader code

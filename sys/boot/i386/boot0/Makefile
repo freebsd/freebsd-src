@@ -3,7 +3,6 @@
 PROG?=		boot0
 NOMAN=
 STRIP=
-BINDIR?=	/boot
 BINMODE=	444
 
 M4?=	m4
