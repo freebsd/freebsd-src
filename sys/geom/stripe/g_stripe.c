@@ -1153,7 +1153,8 @@ g_stripe_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 	if (pp != NULL) {
 		/* Nothing here. */
 	} else if (cp != NULL) {
-		/* Nothing here. */
+		sbuf_printf(sb, "%s<Number>%u</Number>\n", indent,
+		    (u_int)cp->index);
 	} else {
 		sbuf_printf(sb, "%s<ID>%u</ID>\n", indent, (u_int)sc->sc_id);
 		sbuf_printf(sb, "%s<Stripesize>%u</Stripesize>\n", indent,
