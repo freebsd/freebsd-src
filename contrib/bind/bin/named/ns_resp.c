@@ -2001,7 +2001,7 @@ rrextract(u_char *msg, int msglen, u_char *rrp, struct databuf **dpp,
 		 * to BOUNDS_CHECK() here.
 		 */
 		cp1 += (n = strlen((char *)cp1) + 1);
-		n1 = sizeof(data) - n;
+		n1 = sizeof(data) - n - INT16SZ;
 		n = dn_expand(msg, eom, cp, (char *)cp1, n1);
 		if (n < 0) {
 			hp->rcode = FORMERR;
@@ -2043,8 +2043,18 @@ rrextract(u_char *msg, int msglen, u_char *rrp, struct databuf **dpp,
 			ttl = origTTL;
 		}
 
+		/*
+		 * Check that expire and signature times are internally
+		 * consistant.
+		 */
+		if (!SEQ_GT(exptime, signtime) && exptime != signtime) {
+			ns_debug(ns_log_default, 3,
+			"ignoring SIG: signature expires before it was signed");
+			return ((cp - rrp) + dlen);
+		}
+
 		/* Don't let bogus signers "sign" in the future.  */
-		if (signtime > now) {
+		if (SEQ_GT(signtime, now)) {
 			ns_debug(ns_log_default, 3,
 			  "ignoring SIG: signature date %s is in the future",
 				 p_secstodate (signtime));
@@ -2052,7 +2062,7 @@ rrextract(u_char *msg, int msglen, u_char *rrp, struct databuf **dpp,
 		}
 		
 		/* Ignore received SIG RR's that are already expired.  */
-		if (exptime <= now) {
+		if (SEQ_GT(now, exptime)) {
 			ns_debug(ns_log_default, 3,
 				"ignoring SIG: expiration %s is in the past",
 				 p_secstodate (exptime));

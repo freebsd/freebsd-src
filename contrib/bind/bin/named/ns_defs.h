@@ -469,7 +469,7 @@ struct qinfo {
 			q_cmsglen,	/* len of cname message */
 			q_cmsgsize;	/* allocated size of cname message */
 	int16_t		q_dfd;		/* UDP file descriptor */
-	int16_t		q_udpsize;	/* UDP message size */
+	u_int16_t	q_udpsize;	/* UDP message size */
 	int		q_distance;	/* distance this query is from the
 					 * original query that the server
 					 * received. */

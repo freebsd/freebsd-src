@@ -341,6 +341,10 @@ ns_name_ntol(const u_char *src, u_char *dst, size_t dstsiz)
 	dn = dst;
 	eom = dst + dstsiz;
 
+	if (dn >= eom) {
+		errno = EMSGSIZE;
+		return (-1);
+	}
 	while ((n = *cp++) != 0) {
 		if ((n & NS_CMPRSFLGS) == NS_CMPRSFLGS) {
 			/* Some kind of compression pointer. */
