@@ -101,6 +101,17 @@
 
 #define RCSID(x)	.text; .asciz x
 
+#undef __FBSDID
+#if !defined(lint) && !defined(STRIP_FBSDID)
+#ifdef __ELF__
+#define __FBSDID(s)	.ident s
+#else
+#define __FBSDID(s)	.data ;	.asciz s ; .previous
+#endif
+#else
+#define __FBSDID(s)	/* nothing */
+#endif /* not lint and not STRIP_FBSDID */
+
 #ifdef _ARCH_INDIRECT
 /*
  * Generate code to select between the generic functions and _ARCH_INDIRECT
