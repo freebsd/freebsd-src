@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)udp_usrreq.c	8.6 (Berkeley) 5/23/95
- *	$Id: udp_usrreq.c,v 1.53 1999/07/11 18:32:46 green Exp $
+ *	$Id: udp_usrreq.c,v 1.54 1999/08/17 12:17:53 csgr Exp $
  */
 
 #include <sys/param.h>
@@ -306,7 +306,7 @@ udp_input(m, iphlen)
 		if (badport_bandlim(0) < 0)
 			goto bad;
 #endif
-		if(!blackhole)
+		if (!blackhole)
 			icmp_error(m, ICMP_UNREACH, ICMP_UNREACH_PORT, 0, 0);
 		return;
 	}
