@@ -1006,7 +1006,6 @@ fetchStatFTP(struct url *url, struct url_stat *us, const char *flags)
 	f = _ftp_request(url, "STAT", us, _ftp_get_proxy(flags), flags);
 	if (f == NULL)
 		return (-1);
-	fclose(f);
 	return (0);
 }
 
