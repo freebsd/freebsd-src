@@ -48,9 +48,10 @@ usage(void)
 	exit (1);
 }
 
-static int opt_t, opt_v;
+static int opt_c, opt_t, opt_v;
 
 static void speeddisk(int fd, off_t mediasize, u_int sectorsize);
+static void commandtime(int fd, off_t mediasize, u_int sectorsize);
 
 int
 main(int argc, char **argv)
@@ -60,8 +61,12 @@ main(int argc, char **argv)
 	off_t	mediasize;
 	u_int	sectorsize, fwsectors, fwheads;
 
-	while ((ch = getopt(argc, argv, "tv")) != -1) {
+	while ((ch = getopt(argc, argv, "ctv")) != -1) {
 		switch (ch) {
+		case 'c':
+			opt_c = 1;
+			opt_v = 1;
+			break;
 		case 't':
 			opt_t = 1;
 			opt_v = 1;
@@ -127,6 +132,8 @@ main(int argc, char **argv)
 			} 
 		}
 		printf("\n");
+		if (opt_c)
+			commandtime(fd, mediasize, sectorsize);
 		if (opt_t)
 			speeddisk(fd, mediasize, sectorsize);
 		close(fd);
@@ -305,6 +312,41 @@ speeddisk(int fd, off_t mediasize, u_int sectorsize)
 	TR(100 * 1024);
 
 	printf("\n");
+	return;
+}
 
+static void
+commandtime(int fd, off_t mediasize, u_int sectorsize)
+{	
+	double dtmega, dtsector;
+	int i;
+
+	printf("I/O command overhead:\n");
+	i = mediasize;
+	rdsect(fd, 0, sectorsize);
+	T0();
+	for (i = 0; i < 10; i++)
+		rdmega(fd);
+	gettimeofday(&tv2, NULL);
+	dtmega = (tv2.tv_usec - tv1.tv_usec) / 1e6;
+	dtmega += (tv2.tv_sec - tv1.tv_sec);
+
+	printf("\ttime to read 10MB block    %10.6f sec\t= %8.3f msec/sector\n",
+		dtmega, dtmega*100/2048);
+
+	rdsect(fd, 0, sectorsize);
+	T0();
+	for (i = 0; i < 20480; i++)
+		rdsect(fd, 0, sectorsize);
+	gettimeofday(&tv2, NULL);
+	dtsector = (tv2.tv_usec - tv1.tv_usec) / 1e6;
+	dtsector += (tv2.tv_sec - tv1.tv_sec);
+
+	printf("\ttime to read 20480 sectors %10.6f sec\t= %8.3f msec/sector\n",
+		dtsector, dtsector*100/2048);
+	printf("\tcalculated command overhead\t\t\t= %8.3f msec/sector\n",
+		(dtsector - dtmega)*100/2048);
+
+	printf("\n");
 	return;
 }
