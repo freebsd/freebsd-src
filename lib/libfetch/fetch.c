@@ -274,7 +274,7 @@ fetchMakeURL(const char *scheme, const char *host, int port, const char *doc,
 	}
 
 	/* allocate struct url */
-	if ((u = calloc(1, sizeof *u)) == NULL) {
+	if ((u = calloc(1, sizeof(*u))) == NULL) {
 		_fetch_syserr();
 		return (NULL);
 	}
@@ -285,7 +285,7 @@ fetchMakeURL(const char *scheme, const char *host, int port, const char *doc,
 		return (NULL);
 	}
 
-#define seturl(x) snprintf(u->x, sizeof u->x, "%s", x)
+#define seturl(x) snprintf(u->x, sizeof(u->x), "%s", x)
 	seturl(scheme);
 	seturl(host);
 	seturl(user);
@@ -310,7 +310,7 @@ fetchParseURL(const char *URL)
 	int i;
 
 	/* allocate struct url */
-	if ((u = calloc(1, sizeof *u)) == NULL) {
+	if ((u = calloc(1, sizeof(*u))) == NULL) {
 		_fetch_syserr();
 		return (NULL);
 	}
