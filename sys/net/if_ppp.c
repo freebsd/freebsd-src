@@ -69,7 +69,7 @@
  * Paul Mackerras (paulus@cs.anu.edu.au).
  */
 
-/* $Id: if_ppp.c,v 1.13.2.1 1995/06/04 16:12:49 davidg Exp $ */
+/* $Id: if_ppp.c,v 1.14 1995/06/11 19:31:41 rgrimes Exp $ */
 /* from if_sl.c,v 1.11 84/10/04 12:54:47 rick Exp */
 
 #include "ppp.h"
@@ -680,6 +680,15 @@ pppoutput(ifp, m0, dst, rt)
 	    if (INTERACTIVE(p & 0xffff) || INTERACTIVE(p >> 16))
 		ifq = &sc->sc_fastq;
 	}
+
+      /*
+       * Most high-priority services set IPTOS_LOWDELAY.  This is a much more
+       * generic mechanism than specific port numbers.  This same mechanism
+       * is used by slip.
+       */
+      if (ip->ip_tos & IPTOS_LOWDELAY)
+          ifq = &sc->sc_fastq;
+
 	break;
 #endif
 #ifdef NS
