@@ -397,8 +397,6 @@ struct socket *
 	sodropablereq __P((struct socket *head));
 struct socket *
 	sonewconn __P((struct socket *head, int connstatus));
-struct socket *
-	sonewconn3 __P((struct socket *head, int connstatus, struct thread *td));
 int	sooptcopyin __P((struct sockopt *sopt, void *buf, size_t len,
 			 size_t minlen));
 int	sooptcopyout __P((struct sockopt *sopt, void *buf, size_t len));
