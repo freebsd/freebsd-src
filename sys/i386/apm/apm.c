@@ -1026,28 +1026,11 @@ apm_attach(device_t dev)
 	      sc->bios.seg.code16.limit, sc->bios.seg.data.limit);
 #endif /* APM_DEBUG */
 
-#if 0
 	/*
-	 * XXX this may not be needed anymore
-	 */
-	if ((flags & 0x10)) {
-		if ((flags & 0xf) >= 0x2) {
-			apm_driver_version(0x102);
-		} 
-		if (!apm_version && (flags & 0xf) >= 0x1) {
-			apm_driver_version(0x101);
-		}
-	} else {
-		apm_driver_version(0x102);
-		if (!apm_version)
-			apm_driver_version(0x101);
-	} 
-#endif
-	/*
-        * In one test, apm bios version was 1.02; an attempt to register
-        * a 1.04 driver resulted in a 1.00 connection!  Registering a
-        * 1.02 driver resulted in a 1.02 connection.
-        */
+         * In one test, apm bios version was 1.02; an attempt to register
+         * a 1.04 driver resulted in a 1.00 connection!  Registering a
+         * 1.02 driver resulted in a 1.02 connection.
+         */
 	drv_version = apm_version > 0x102 ? 0x102 : apm_version;
 	for (; drv_version > 0x100; drv_version--)
 		if (apm_driver_version(drv_version) == 0)
