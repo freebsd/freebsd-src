@@ -38,7 +38,7 @@
  *
  *	from: Utah $Hdr: mem.c 1.13 89/10/08$
  *	from: @(#)mem.c	7.2 (Berkeley) 5/9/91
- *	$Id: mem.c,v 1.12 1995/09/09 18:09:46 davidg Exp $
+ *	$Id: mem.c,v 1.13 1995/09/15 23:49:23 davidg Exp $
  */
 
 /*
@@ -172,7 +172,7 @@ mmrw(dev, uio, flags)
 			 * that we don't create any zero-fill pages.
 			 */
 			addr = trunc_page(uio->uio_offset);
-			eaddr = round_page(addr + c);
+			eaddr = round_page(uio->uio_offset + c);
 			for (; addr < eaddr; addr += PAGE_SIZE)
 				if (pmap_extract(kernel_pmap, addr) == 0)
 					return EFAULT;
