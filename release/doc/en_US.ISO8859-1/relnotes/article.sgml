@@ -608,6 +608,21 @@
       protocol or routing) can be performed on these devices.  The
       <varname>SIOCGIFCONF</varname> ioctl may be performed on the
       special <filename>/dev/network</filename> node.</para>
+
+      <para arch="i386">Selected network drivers now implement a
+      semi-polling mode, which makes systems much more resilient to
+      attacks and overloads.  To enable polling, the following options
+      are required in a kernel configuration file:
+
+      <programlisting>options DEVICE_POLLING
+options HZ=1000 # not compulsory but strongly recommended</programlisting>
+
+      The <varname>kern.polling.enable</varname> sysctl variable
+      will then activate polling mode; with the
+      <varname>kern.polling.user_frac</varname> sysctl indicating the
+      percentage of CPU time to be reserved for userland.  The devices
+      initially supporting polling are &man.dc.4;, &man.fxp.4;, and
+      &man.sis.4;.</para>
     </sect3>
 
     <sect3>
@@ -725,7 +740,10 @@
       <varname>net.inet.tcp.sendspace</varname> and 
       <varname>net.inet.tcp.recvspace</varname> sysctl variables, have
       been increased to 32K and 64K respectively.  Previously, the
-      default for both buffer sizes was 16K. &merged;</para>
+      default for both buffer sizes was 16K.  To try to avoid
+      increasing congestion, the default value for
+      <varname>net.inet.tcp.local_slowstart_flightsize</varname> has
+      been changed from infinity to 4. &merged;</para>
 
       <para>TCP now supports RFC 1948 (Defending Against Sequence
       Number Attacks).  This functionality is controlled by the 
