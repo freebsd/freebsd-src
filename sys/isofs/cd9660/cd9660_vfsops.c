@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_vfsops.c	8.18 (Berkeley) 5/22/95
- * $Id: cd9660_vfsops.c,v 1.48 1999/01/27 21:49:55 dillon Exp $
+ * $Id: cd9660_vfsops.c,v 1.49 1999/01/27 23:45:39 dillon Exp $
  */
 
 #include <sys/param.h>
@@ -231,20 +231,19 @@ cd9660_mount(mp, path, data, ndp, p)
 	}
 
 	/*       
-	 * If mount by non-root, then verify that user has necessary
-	 * permissions on the device.
+	 * Verify that user has necessary permissions on the device,
+	 * or has superuser abilities
 	 */
-	if (p->p_ucred->cr_uid != 0) {
-		accessmode = VREAD;
-		if ((mp->mnt_flag & MNT_RDONLY) == 0)
-			accessmode |= VWRITE;
-		vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, p);
-		if ((error = VOP_ACCESS(devvp, accessmode, p->p_ucred, p)) != 0) {
-			vput(devvp);
-			return (error);
-		}
-		VOP_UNLOCK(devvp, 0, p);
+	accessmode = VREAD;
+	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, p);
+	error = VOP_ACCESS(devvp, accessmode, p->p_ucred, p);
+	if (error) 
+		error = suser(p->p_ucred, &p->p_acflag);
+	if (error) {
+		vput(devvp);
+		return (error);
 	}
+	VOP_UNLOCK(devvp, 0, p);
 
 	if ((mp->mnt_flag & MNT_UPDATE) == 0) {
 		if (bdevsw[major(devvp->v_rdev)]->d_flags & D_NOCLUSTERR)
@@ -286,7 +285,6 @@ iso_mountfs(devvp, mp, p, argp)
 	int error = EINVAL;
 	int needclose = 0;
 	int high_sierra = 0;
-	int ronly = (mp->mnt_flag & MNT_RDONLY) != 0;
 	int iso_bsize;
 	int iso_blknum;
 	struct iso_volume_descriptor *vdp = 0;
@@ -295,7 +293,7 @@ iso_mountfs(devvp, mp, p, argp)
 	struct iso_directory_record *rootp;
 	int logical_block_size;
 
-	if (!ronly)
+	if (!(mp->mnt_flag & MNT_RDONLY))
 		return EROFS;
 
 	/*
@@ -311,7 +309,7 @@ iso_mountfs(devvp, mp, p, argp)
 	if ((error = vinvalbuf(devvp, V_SAVE, p->p_ucred, p, 0, 0)))
 		return (error);
 
-	if ((error = VOP_OPEN(devvp, ronly ? FREAD : FREAD|FWRITE, FSCRED, p)))
+	if ((error = VOP_OPEN(devvp, FREAD, FSCRED, p)))
 		return error;
 	needclose = 1;
 
@@ -460,7 +458,7 @@ out:
 	if (bp)
 		brelse(bp);
 	if (needclose)
-		(void)VOP_CLOSE(devvp, ronly ? FREAD : FREAD|FWRITE, NOCRED, p);
+		(void)VOP_CLOSE(devvp, FREAD, NOCRED, p);
 	if (isomp) {
 		free((caddr_t)isomp, M_ISOFSMNT);
 		mp->mnt_data = (qaddr_t)0;
