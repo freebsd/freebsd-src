@@ -704,7 +704,7 @@ pcic_probe(void)
 		}
 		switch(sp->controller) {
 		case PCIC_I82365:
-			cinfo.name = "Intel 82365";
+			cinfo.name = "i82365";
 			break;
 		case PCIC_IBM:
 			cinfo.name = "IBM PCIC";
