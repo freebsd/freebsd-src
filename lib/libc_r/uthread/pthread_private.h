@@ -31,7 +31,7 @@
  *
  * Private thread definitions for the uthread kernel.
  *
- * $Id: pthread_private.h,v 1.20 1999/06/20 08:28:08 jb Exp $
+ * $Id: pthread_private.h,v 1.21 1999/07/05 00:35:17 jasone Exp $
  */
 
 #ifndef _PTHREAD_PRIVATE_H
@@ -335,23 +335,23 @@ struct pthread_attr {
  * Miscellaneous definitions.
  */
 #define PTHREAD_STACK_DEFAULT			65536
-#ifdef _PTHREAD_GSTACK
 /* Size of red zone at the end of each stack. */
 #define PTHREAD_STACK_GUARD			4096
 /* Maximum size of initial thread's stack.  This perhaps deserves to be larger
- * than the stacks of other threads, since legacy applications are likely to run
+ * than the stacks of other threads, since many applications are likely to run
  * almost entirely on this stack. */
 #define PTHREAD_STACK_INITIAL			0x100000
 /* Address immediately beyond the beginning of the initial thread stack. */
 #if defined(__FreeBSD__)
-#  if defined(__alpha__)
-#    define PTHREAD_STACK_TOP			0x160022000
-#  else
-#    define PTHREAD_STACK_TOP			0xbfbde000
-#  endif
+#	if defined(__i386__)
+#		define PTHREAD_STACK_TOP	0xbfbde000
+#	elif defined(__alpha__)
+#		define PTHREAD_STACK_TOP	0x160022000
+#	else
+#		error "Don't recognize this architecture!"
+#	endif
 #else
-#  error "Don't recognize this operating system!"
-#endif
+#	error "Don't recognize this operating system!"
 #endif
 #define PTHREAD_DEFAULT_PRIORITY		64
 #define PTHREAD_MAX_PRIORITY			126
@@ -673,12 +673,10 @@ struct pthread {
 	int			lineno;	/* Source line number.      */
 };
 
-#ifdef _PTHREAD_GSTACK
 /* Spare thread stack. */
 struct stack {
 	SLIST_ENTRY(stack)	qe; /* Queue entry for this stack. */
 };
-#endif
 
 /*
  * Global variables for the uthread kernel.
@@ -889,7 +887,6 @@ SCLASS pthread_switch_routine_t _sched_switch_hook
 #endif
 ;
 
-#ifdef _PTHREAD_GSTACK
 /* Spare stack queue.  Stacks of default size are cached in order to reduce
  * thread creation time.  Spare stacks are used in LIFO order to increase cache
  * locality. */
@@ -905,7 +902,6 @@ SCLASS void *	_next_stack
 = (void *) PTHREAD_STACK_TOP - PTHREAD_STACK_INITIAL - PTHREAD_STACK_DEFAULT - (2 * PTHREAD_STACK_GUARD)
 #endif
 ;
-#endif
 
 /* Used for _PTHREADS_INVARIANTS checking. */
 SCLASS int	_thread_kern_new_state
