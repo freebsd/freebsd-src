@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: kern_intr.c,v 1.8 1997/07/09 18:06:25 ache Exp $
+ * $Id: kern_intr.c,v 1.9 1997/08/02 14:31:27 bde Exp $
  *
  */
 
@@ -57,9 +57,10 @@ typedef struct intrec {
 /*
  * The interrupt multiplexer calls each of the handlers in turn,
  * and applies the associated interrupt mask to "cpl", which is
- * defined as a ".long" in /sys/i386/isa/icu.s
+ * defined as a ".long" in /sys/i386/isa/ipl.s
  */
 
+#ifndef SMP
 static inline intrmask_t
 splq(intrmask_t mask)
 {
@@ -67,6 +68,7 @@ splq(intrmask_t mask)
 	cpl |= mask;
 	return (tmp);
 }
+#endif /* SMP */
 
 static void
 intr_mux(void *arg)
