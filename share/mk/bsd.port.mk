@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.110 1995/02/04 05:49:26 asami Exp $
+# $Id: bsd.port.mk,v 1.111 1995/02/04 22:56:28 phk Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -70,6 +70,7 @@
 #						target.
 # HAS_CONFIGURE	- Says that the port has its own configure script.
 # GNU_CONFIGURE	- Set if you are using GNU configure (optional).
+# CONFIGURE_SCRIPT - Name of configure script, defaults to 'configure'.
 # CONFIGURE_ARGS - Pass these args to configure, if ${HAS_CONFIGURE} set.
 # IS_INTERACTIVE - Set this if your port needs to interact with the user
 #				  during a build.  User can then decide to skip this port by
@@ -222,6 +223,8 @@ PKGFILE?=		${PACKAGES}/${PKGNAME}${PKG_SUFX}
 .else
 PKGFILE?=		${PKGNAME}${PKG_SUFX}
 .endif
+
+CONFIGURE_SCRIPT?=	configure
 
 .if defined(GNU_CONFIGURE)
 CONFIGURE_ARGS?=	--prefix=${PREFIX}
@@ -534,7 +537,7 @@ ${CONFIGURE_COOKIE}:
 	@(cd ${WRKSRC}; CC="${CC}" ac_cv_path_CC="${CC}" CFLAGS="${CFLAGS}" \
 	    INSTALL="/usr/bin/install -c -o ${BINOWN} -g ${BINGRP}" \
 	    INSTALL_PROGRAM="/usr/bin/install ${COPY} ${STRIP} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE}" \
-	    ./configure ${CONFIGURE_ARGS})
+	    ./${CONFIGURE_SCRIPT} ${CONFIGURE_ARGS})
 .endif
 .if defined(USE_IMAKE)
 .if defined(USE_GMAKE)
