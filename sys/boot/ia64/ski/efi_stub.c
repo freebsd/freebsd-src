@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003 Marcel Moolenaar
+ * Copyright (c) 2003,2004 Marcel Moolenaar
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,7 +29,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <machine/bootinfo.h>
-#include <efi.h>
+#include <machine/efi.h>
 #include <stand.h>
 #include "libski.h"
 
@@ -39,32 +39,33 @@ extern void sal_systab;
 extern void acpi_stub_init(void);
 extern void sal_stub_init(void);
 
-EFI_CONFIGURATION_TABLE efi_cfgtab[] = {
-	{ ACPI_20_TABLE_GUID,		&acpi_root },
-	{ SAL_SYSTEM_TABLE_GUID,	&sal_systab }
+struct efi_cfgtbl efi_cfgtab[] = {
+	{ EFI_TABLE_ACPI20,	(intptr_t)&acpi_root },
+	{ EFI_TABLE_SAL,	(intptr_t)&sal_systab }
 };
 
+static efi_status GetTime(struct efi_tm *, struct efi_tmcap *);
+static efi_status SetTime(struct efi_tm *);
+static efi_status GetWakeupTime(uint8_t *, uint8_t *, struct efi_tm *);
+static efi_status SetWakeupTime(uint8_t, struct efi_tm *);
 
-static EFI_STATUS GetTime(EFI_TIME *, EFI_TIME_CAPABILITIES *);
-static EFI_STATUS SetTime(EFI_TIME *);
-static EFI_STATUS GetWakeupTime(BOOLEAN *, BOOLEAN *, EFI_TIME *);
-static EFI_STATUS SetWakeupTime(BOOLEAN, EFI_TIME *);
+static efi_status SetVirtualAddressMap(u_long, u_long, uint32_t,
+    struct efi_md*);
+static efi_status ConvertPointer(u_long, void **);
 
-static EFI_STATUS SetVirtualAddressMap(UINTN, UINTN, UINT32,
-    EFI_MEMORY_DESCRIPTOR*);
-static EFI_STATUS ConvertPointer(UINTN, VOID **);
+static efi_status GetVariable(efi_char *, struct uuid *, uint32_t *, u_long *,
+    void *);
+static efi_status GetNextVariableName(u_long *, efi_char *, struct uuid *);
+static efi_status SetVariable(efi_char *, struct uuid *, uint32_t, u_long,
+    void *);
 
-static EFI_STATUS GetVariable(CHAR16 *, EFI_GUID *, UINT32 *, UINTN *, VOID *);
-static EFI_STATUS GetNextVariableName(UINTN *, CHAR16 *, EFI_GUID *);
-static EFI_STATUS SetVariable(CHAR16 *, EFI_GUID *, UINT32, UINTN, VOID *);
+static efi_status GetNextHighMonotonicCount(uint32_t *);
+static efi_status ResetSystem(enum efi_reset, efi_status, u_long, efi_char *);
 
-static EFI_STATUS GetNextHighMonotonicCount(UINT32 *);
-static EFI_STATUS ResetSystem(EFI_RESET_TYPE, EFI_STATUS, UINTN, CHAR16 *);
-
-EFI_RUNTIME_SERVICES efi_rttab = {
+struct efi_rt efi_rttab = {
 	/* Header. */
-	{	EFI_RUNTIME_SERVICES_SIGNATURE,
-		EFI_RUNTIME_SERVICES_REVISION,
+	{	0,			/* XXX Signature */
+		0,			/* XXX Revision */
 		0,			/* XXX HeaderSize */
 		0,			/* XXX CRC32 */
 	},
@@ -89,16 +90,16 @@ EFI_RUNTIME_SERVICES efi_rttab = {
 	ResetSystem
 };
 
-EFI_SYSTEM_TABLE efi_systab = {
+struct efi_systbl efi_systab = {
 	/* Header. */
-	{	EFI_SYSTEM_TABLE_SIGNATURE,
-		EFI_SYSTEM_TABLE_REVISION,
-		0,	/* XXX HeaderSize */
-		0,	/* XXX CRC32 */
+	{	EFI_SYSTBL_SIG,
+		0,			/* XXX Revision */
+		0,			/* XXX HeaderSize */
+		0,			/* XXX CRC32 */
 	},
 
 	/* Firmware info. */
-	L"FreeBSD", 0,
+	L"FreeBSD", 0, 0,
 
 	/* Console stuff. */
 	NULL, NULL,
@@ -106,118 +107,118 @@ EFI_SYSTEM_TABLE efi_systab = {
 	NULL, NULL,
 
 	/* Services (runtime first). */
-	&efi_rttab,
+	(intptr_t)&efi_rttab,
 	NULL,
 
 	/* Configuration tables. */
-	sizeof(efi_cfgtab)/sizeof(EFI_CONFIGURATION_TABLE),
-	efi_cfgtab
+	sizeof(efi_cfgtab)/sizeof(struct efi_cfgtbl),
+	(intptr_t)efi_cfgtab
 };
 
-static EFI_STATUS
+static efi_status
 unsupported(const char *func)
 {
 	printf("EFI: %s not supported\n", func);
-	return (EFI_UNSUPPORTED);
+	return ((1UL << 63) + 3);
 }
 
-static EFI_STATUS
-GetTime(EFI_TIME *time, EFI_TIME_CAPABILITIES *caps)
+static efi_status
+GetTime(struct efi_tm *time, struct efi_tmcap *caps)
 {
-	UINT32 comps[8];
+	uint32_t comps[8];
 
-	ssc((UINT64)comps, 0, 0, 0, SSC_GET_RTC);
-	time->Year = comps[0] + 1900;
-	time->Month = comps[1] + 1;
-	time->Day = comps[2];
-	time->Hour = comps[3];
-	time->Minute = comps[4];
-	time->Second = comps[5];
-	time->Pad1 = time->Pad2 = 0;
-	time->Nanosecond = 0;
-	time->TimeZone = 0;
-	time->Daylight = 0;
-	return (EFI_SUCCESS);
+	ssc((uint64_t)comps, 0, 0, 0, SSC_GET_RTC);
+	time->tm_year = comps[0] + 1900;
+	time->tm_mon = comps[1] + 1;
+	time->tm_mday = comps[2];
+	time->tm_hour = comps[3];
+	time->tm_min = comps[4];
+	time->tm_sec = comps[5];
+	time->__pad1 = time->__pad2 = 0;
+	time->tm_nsec = 0;
+	time->tm_tz = 0;
+	time->tm_dst = 0;
+	return (0);
 }
 
-static EFI_STATUS
-SetTime(EFI_TIME *time)
+static efi_status
+SetTime(struct efi_tm *time)
 {
-	return (EFI_SUCCESS);
+	return (0);
 }
 
-static EFI_STATUS
-GetWakeupTime(BOOLEAN *enabled, BOOLEAN *pending, EFI_TIME *time)
+static efi_status
+GetWakeupTime(uint8_t *enabled, uint8_t *pending, struct efi_tm *time)
 {
 	return (unsupported(__func__));
 }
 
-static EFI_STATUS
-SetWakeupTime(BOOLEAN enable, EFI_TIME *time)
+static efi_status
+SetWakeupTime(uint8_t enable, struct efi_tm *time)
 {
 	return (unsupported(__func__));
 }
 
 static void
-Reloc(void *addr, UINT64 delta)
+Reloc(void *addr, uint64_t delta)
 {
-	UINT64 **fpp = addr;
+	uint64_t **fpp = addr;
 
 	*fpp[0] += delta;
 	*fpp[1] += delta;
 	*fpp += delta >> 3;
 }
 
-static EFI_STATUS
-SetVirtualAddressMap(UINTN mapsz, UINTN descsz, UINT32 version,
-    EFI_MEMORY_DESCRIPTOR *memmap)
+static efi_status
+SetVirtualAddressMap(u_long mapsz, u_long descsz, uint32_t version,
+    struct efi_md *memmap)
 {
-	UINT64 delta;
+	uint64_t delta;
 
-	delta = memmap->VirtualStart - memmap->PhysicalStart;
-	Reloc(&efi_rttab.GetTime, delta);
-	Reloc(&efi_rttab.SetTime, delta);
-	return (EFI_SUCCESS);		/* Hah... */
+	delta = (uintptr_t)memmap->md_virt - memmap->md_phys;
+	Reloc(&efi_rttab.rt_gettime, delta);
+	Reloc(&efi_rttab.rt_settime, delta);
+	return (0);		/* Hah... */
 }
 
-static EFI_STATUS
-ConvertPointer(UINTN debug, VOID **addr)
+static efi_status
+ConvertPointer(u_long debug, void **addr)
 {
 	return (unsupported(__func__));
 }
 
-static EFI_STATUS
-GetVariable(CHAR16 *name, EFI_GUID *vendor, UINT32 *attrs, UINTN *datasz,
-    VOID *data)
+static efi_status
+GetVariable(efi_char *name, struct uuid *vendor, uint32_t *attrs,
+    u_long *datasz, void *data)
 {
 	return (unsupported(__func__));
 }
 
-static EFI_STATUS
-GetNextVariableName(UINTN *namesz, CHAR16 *name, EFI_GUID *vendor)
+static efi_status
+GetNextVariableName(u_long *namesz, efi_char *name, struct uuid *vendor)
 {
 	return (unsupported(__func__));
 }
 
-static EFI_STATUS
-SetVariable(CHAR16 *name, EFI_GUID *vendor, UINT32 attrs, UINTN datasz,
-    VOID *data)
+static efi_status
+SetVariable(efi_char *name, struct uuid *vendor, uint32_t attrs, u_long datasz,
+    void *data)
 {
 	return (unsupported(__func__));
 }
 
-static EFI_STATUS
-GetNextHighMonotonicCount(UINT32 *high)
+static efi_status
+GetNextHighMonotonicCount(uint32_t *high)
 {
-	static UINT32 counter = 0;
+	static uint32_t counter = 0;
 
 	*high = counter++;
-	return (EFI_SUCCESS);
+	return (0);
 }
 
-static EFI_STATUS
-ResetSystem(EFI_RESET_TYPE type, EFI_STATUS status, UINTN datasz,
-    CHAR16 *data)
+static efi_status
+ResetSystem(enum efi_reset type, efi_status status, u_long datasz,
+    efi_char *data)
 {
 	return (unsupported(__func__));
 }
@@ -225,39 +226,39 @@ ResetSystem(EFI_RESET_TYPE type, EFI_STATUS status, UINTN datasz,
 int
 ski_init_stubs(struct bootinfo *bi)
 {
-	EFI_MEMORY_DESCRIPTOR *memp;
+	struct efi_md *memp;
 
 	/* Describe the SKI memory map. */
 	bi->bi_memmap = (u_int64_t)(bi + 1);
-	bi->bi_memmap_size = 4 * sizeof(EFI_MEMORY_DESCRIPTOR);
-	bi->bi_memdesc_size = sizeof(EFI_MEMORY_DESCRIPTOR);
+	bi->bi_memmap_size = 4 * sizeof(struct efi_md);
+	bi->bi_memdesc_size = sizeof(struct efi_md);
 	bi->bi_memdesc_version = 1;
 
-	memp = (EFI_MEMORY_DESCRIPTOR *)bi->bi_memmap;
+	memp = (struct efi_md *)bi->bi_memmap;
 
-	memp[0].Type = EfiPalCode;
-	memp[0].PhysicalStart = 0x100000;
-	memp[0].VirtualStart = 0;
-	memp[0].NumberOfPages = (4L*1024*1024)>>12;
-	memp[0].Attribute = EFI_MEMORY_WB | EFI_MEMORY_RUNTIME;
+	memp[0].md_type = EFI_MD_TYPE_PALCODE;
+	memp[0].md_phys = 0x100000;
+	memp[0].md_virt = NULL;
+	memp[0].md_pages = (4L*1024*1024)>>12;
+	memp[0].md_attr = EFI_MD_ATTR_WB | EFI_MD_ATTR_RT;
 
-	memp[1].Type = EfiConventionalMemory;
-	memp[1].PhysicalStart = 5L*1024*1024;
-	memp[1].VirtualStart = 0;
-	memp[1].NumberOfPages = (128L*1024*1024)>>12;
-	memp[1].Attribute = EFI_MEMORY_WB;
+	memp[1].md_type = EFI_MD_TYPE_FREE;
+	memp[1].md_phys = 5L*1024*1024;
+	memp[1].md_virt = NULL;
+	memp[1].md_pages = (128L*1024*1024)>>12;
+	memp[1].md_attr = EFI_MD_ATTR_WB;
 
-	memp[2].Type = EfiConventionalMemory;
-	memp[2].PhysicalStart = 4L*1024*1024*1024;
-	memp[2].VirtualStart = 0;
-	memp[2].NumberOfPages = (64L*1024*1024)>>12;
-	memp[2].Attribute = EFI_MEMORY_WB;
+	memp[2].md_type = EFI_MD_TYPE_FREE;
+	memp[2].md_phys = 4L*1024*1024*1024;
+	memp[2].md_virt = NULL;
+	memp[2].md_pages = (64L*1024*1024)>>12;
+	memp[2].md_attr = EFI_MD_ATTR_WB;
 
-	memp[3].Type = EfiMemoryMappedIOPortSpace;
-	memp[3].PhysicalStart = 0xffffc000000;
-	memp[3].VirtualStart = 0;
-	memp[3].NumberOfPages = (64L*1024*1024)>>12;
-	memp[3].Attribute = EFI_MEMORY_UC;
+	memp[3].md_type = EFI_MD_TYPE_IOPORT;
+	memp[3].md_phys = 0xffffc000000;
+	memp[3].md_virt = NULL;
+	memp[3].md_pages = (64L*1024*1024)>>12;
+	memp[3].md_attr = EFI_MD_ATTR_UC;
 
 	bi->bi_systab = (u_int64_t)&efi_systab;
 
