@@ -151,8 +151,8 @@ _SUBDIR: .USE
 .if defined(SUBDIR) && !empty(SUBDIR)
 	@for entry in ${SUBDIR}; do \
 		(${ECHODIR} "===> ${DIRPRFX}$$entry"; \
-		if test -d ${.CURDIR}/$${entry}.${MACHINE}; then \
-			cd ${.CURDIR}/$${entry}.${MACHINE}; \
+		if test -d ${.CURDIR}/$${entry}.${MACHINE_ARCH}; then \
+			cd ${.CURDIR}/$${entry}.${MACHINE_ARCH}; \
 		else \
 			cd ${.CURDIR}/$${entry}; \
 		fi; \
