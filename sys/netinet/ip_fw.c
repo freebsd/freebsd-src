@@ -12,7 +12,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.c,v 1.51.2.4 1997/08/06 00:22:59 alex Exp $
+ *	$Id: ip_fw.c,v 1.51.2.5 1997/08/23 14:31:52 alex Exp $
  */
 
 /*
@@ -938,18 +938,23 @@ ip_fw_ctl(int stage, struct mbuf **mm)
 void
 ip_fw_init(void)
 {
-	struct ip_fw deny;
+	struct ip_fw default_rule;
 
 	ip_fw_chk_ptr = ip_fw_chk;
 	ip_fw_ctl_ptr = ip_fw_ctl;
 	LIST_INIT(&ip_fw_chain);
 
-	bzero(&deny, sizeof deny);
-	deny.fw_prot = IPPROTO_IP;
-	deny.fw_number = (u_short)-1;
-	deny.fw_flg |= IP_FW_F_DENY;
-	deny.fw_flg |= IP_FW_F_IN | IP_FW_F_OUT;
-	if (check_ipfw_struct(&deny) == NULL || add_entry(&ip_fw_chain, &deny))
+	bzero(&default_rule, sizeof default_rule);
+	default_rule.fw_prot = IPPROTO_IP;
+	default_rule.fw_number = (u_short)-1;
+#ifdef IPFIREWALL_DEFAULT_TO_ACCEPT
+	default_rule.fw_flg |= IP_FW_F_ACCEPT;
+#else
+	default_rule.fw_flg |= IP_FW_F_DENY;
+#endif
+	default_rule.fw_flg |= IP_FW_F_IN | IP_FW_F_OUT;
+	if (check_ipfw_struct(&default_rule) == NULL ||
+		add_entry(&ip_fw_chain, &default_rule))
 		panic(__FUNCTION__);
 
 	printf("IP packet filtering initialized, "
@@ -957,6 +962,9 @@ ip_fw_init(void)
 		"divert enabled, ");
 #else
 		"divert disabled, ");
+#endif
+#ifdef IPFIREWALL_DEFAULT_TO_ACCEPT
+	printf("default to accept, ");
 #endif
 #ifndef IPFIREWALL_VERBOSE
 	printf("logging disabled\n");
