@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcibus.c,v 1.32 1997/03/05 20:52:00 se Exp $
+**  $Id: pcibus.c,v 1.33 1997/04/09 09:15:03 se Exp $
 **
 **  pci bus subroutines for i386 architecture.
 **
@@ -67,17 +67,17 @@
 **	pcibus_read():
 **		Read a long word from the pci configuration space.
 **		Requires a tag (from pcitag) and the register
-**		number (should be a long word alligned one).
+**		number (should be a long word aligned one).
 **
 **	pcibus_write():
 **		Writes a long word to the pci configuration space.
 **		Requires a tag (from pcitag), the register number
-**		(should be a long word alligned one), and a value.
+**		(should be a long word aligned one), and a value.
 **
 **	pcibus_regirq():
-**		Register an interupt handler for a pci device.
+**		Register an interrupt handler for a pci device.
 **		Requires a tag (from pcitag), the register number
-**		(should be a long word alligned one), and a value.
+**		(should be a long word aligned one), and a value.
 **
 **-----------------------------------------------------------------
 */
@@ -432,7 +432,7 @@ pcibus_write (pcici_t tag, u_long reg, u_long data)
 
 /*-----------------------------------------------------------------------
 **
-**	Register an interupt handler for a pci device.
+**	Register an interrupt handler for a pci device.
 **
 **-----------------------------------------------------------------------
 */
