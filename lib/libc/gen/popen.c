@@ -94,18 +94,20 @@ popen(command, type)
 	case 0:				/* Child. */
 		if (*type == 'r') {
 			/*
-			 * We must NOT modify pdes, due to the
-			 * semantics of vfork.
+			 * The dup2() to STDIN_FILENO is repeated to avoid
+			 * writing to pdes[1], which might corrupt the
+			 * parent's copy.  This isn't good enough in
+			 * general, since the _exit() is no return, so
+			 * the compiler is free to corrupt all the local
+			 * variables.
 			 */
-			int tpdes1 = pdes[1];
-			if (tpdes1 != STDOUT_FILENO) {
-				(void)dup2(tpdes1, STDOUT_FILENO);
-				(void)close(tpdes1);
-				tpdes1 = STDOUT_FILENO;
-			}
 			(void) close(pdes[0]);
-			if (twoway && (tpdes1 != STDIN_FILENO))
-				(void)dup2(tpdes1, STDIN_FILENO);
+			if (pdes[1] != STDOUT_FILENO) {
+				(void)dup2(pdes[1], STDOUT_FILENO);
+				(void)close(pdes[1]);
+				(void)dup2(STDOUT_FILENO, STDIN_FILENO);
+			} else if (twoway && (pdes[1] != STDIN_FILENO))
+				(void)dup2(pdes[1], STDIN_FILENO);
 		} else {
 			if (pdes[0] != STDIN_FILENO) {
 				(void)dup2(pdes[0], STDIN_FILENO);
