@@ -80,20 +80,24 @@ ASSYM(TLB_DEMAP_NUCLEUS, TLB_DEMAP_NUCLEUS);
 
 ASSYM(TSB_USER_MIN_ADDRESS, TSB_USER_MIN_ADDRESS);
 ASSYM(TSB_PRIMARY_BUCKET_SHIFT, TSB_PRIMARY_BUCKET_SHIFT);
-ASSYM(TSB_KERNEL_MIN_ADDRESS, TSB_KERNEL_MIN_ADDRESS);
 ASSYM(TSB_PRIMARY_MASK_WIDTH, TSB_MASK_WIDTH);
 ASSYM(TSB_PRIMARY_STTE_MASK, TSB_PRIMARY_STTE_MASK);
 ASSYM(TSB_PRIMARY_STTE_SHIFT, TSB_PRIMARY_STTE_SHIFT);
 ASSYM(TSB_KERNEL_MASK, TSB_KERNEL_MASK);
+ASSYM(TSB_KERNEL_VA_MASK, TSB_KERNEL_VA_MASK);
 
 ASSYM(PAGE_SHIFT, PAGE_SHIFT);
 ASSYM(PAGE_MASK, PAGE_MASK);
 
 ASSYM(KTR_COMPILE, KTR_COMPILE);
+ASSYM(KTR_PROC, KTR_PROC);
 ASSYM(KTR_TRAP, KTR_TRAP);
 ASSYM(KTR_SYSC, KTR_SYSC);
 ASSYM(KTR_INTR, KTR_INTR);
 ASSYM(KTR_CT1, KTR_CT1);
+ASSYM(KTR_CT2, KTR_CT2);
+ASSYM(KTR_CT3, KTR_CT3);
+ASSYM(KTR_CT4, KTR_CT4);
 
 ASSYM(KTR_SIZEOF, sizeof(struct ktr_entry));
 ASSYM(KTR_DESC, offsetof(struct ktr_entry, ktr_desc));
@@ -127,9 +131,6 @@ ASSYM(GD_CURTHREAD, offsetof(struct globaldata, gd_curthread));
 ASSYM(GD_CURPCB, offsetof(struct globaldata, gd_curpcb));
 ASSYM(GD_CPUID, offsetof(struct globaldata, gd_cpuid));
 
-ASSYM(GD_IQ, offsetof(struct globaldata, gd_iq));
-ASSYM(GD_IVT, offsetof(struct globaldata, gd_ivt));
-
 ASSYM(IH_SHIFT, IH_SHIFT);
 ASSYM(IH_FUNC, offsetof(struct intr_handler, ih_func));
 
@@ -148,6 +149,8 @@ ASSYM(IV_SHIFT, IV_SHIFT);
 ASSYM(IV_FUNC, offsetof(struct intr_vector, iv_func));
 ASSYM(IV_ARG, offsetof(struct intr_vector, iv_arg));
 ASSYM(IV_PRI, offsetof(struct intr_vector, iv_pri));
+
+ASSYM(NIV, NIV);
 
 ASSYM(JB_FP, offsetof(struct _jmp_buf, _jb[_JB_FP]));
 ASSYM(JB_PC, offsetof(struct _jmp_buf, _jb[_JB_PC]));
