@@ -961,7 +961,7 @@ long_format (file_hdr, link_name)
 
   /* Get time values ready to print.  */
   when = file_hdr->c_mtime;
-  strcpy (tbuf, ctime (&when));
+  strftime(tbuf, sizeof(tbuf), "%c", localtime(&when));
   if (current_time - when > 6L * 30L * 24L * 60L * 60L
       || current_time - when < 0L)
     {
