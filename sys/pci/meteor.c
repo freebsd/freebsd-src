@@ -532,10 +532,6 @@ register int		err = 0;
 static	const char *
 met_probe (pcici_t tag, pcidi_t type)
 {
-	static int once;
-
-	if (!once++)
-		cdevsw_add(&meteor_cdevsw);
 	
 	switch (type) {
 	case SAA7116_PHILIPS_ID:	/* meteor */
