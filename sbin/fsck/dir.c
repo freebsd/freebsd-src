@@ -41,8 +41,7 @@ static const char sccsid[] = "@(#)dir.c	8.8 (Berkeley) 4/28/95";
 #include <ufs/ufs/dinode.h>
 #include <ufs/ufs/dir.h>
 #include <ufs/ffs/fs.h>
-#include <stdio.h>
-#include <stdlib.h>
+
 #include <err.h>
 #include <string.h>
 
@@ -489,7 +488,7 @@ linkup(orphan, parentdir)
 		pwarn("DIR I=%lu CONNECTED. ", orphan);
 		if (parentdir != (ino_t)-1) {
 			printf("PARENT WAS I=%lu\n", parentdir);
-		/*
+			/*
 			 * The parent directory, because of the ordering
 			 * guarantees, has had the link count incremented
 			 * for the child, but no entry was made.  This
