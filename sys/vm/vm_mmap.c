@@ -883,6 +883,7 @@ RestartScan:
 				pindex = OFF_TO_IDX(offset);
 				m = vm_page_lookup(current->object.vm_object,
 					pindex);
+				vm_page_lock_queues();
 				/*
 				 * if the page is resident, then gather information about
 				 * it.
@@ -898,6 +899,7 @@ RestartScan:
 						mincoreinfo |= MINCORE_REFERENCED_OTHER;
 					}
 				}
+				vm_page_unlock_queues();
 			}
 
 			/*
