@@ -85,7 +85,7 @@
 #	isdn*	ISDN devices
 #   labpc*  National Instrument's Lab-PC and LAB-PC+
 #
-#	$Id: MAKEDEV,v 1.91 1995/05/07 23:04:03 ache Exp $
+#	$Id: MAKEDEV,v 1.92 1995/05/11 20:39:36 jkh Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
@@ -585,7 +585,7 @@ matcd*)
 	case $i in
 	matcd*) unit=`expr $i : '.....\(.*\)'`; name=matcd; blk=17; chr=46;;
 	esac
-	rm -f $name$unit? r$name$unit?
+	rm -f $name$unit? r$name$unit? $name$unit?? r$name$unit??
 	case $unit in
 	0|1|2|3|4|5|6|7|8|9|10|11|12|13|14|15)
 		mknod ${name}${unit}a	b $blk `expr $unit '*' 8 + 0`
