@@ -48,14 +48,12 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc,
 
     int			pamret, i;
     const char		*name;
-    char		*source_princ = NULL;
     char		*princ_name = NULL;
     char		*pass = NULL, *service = NULL;
     char		*prompt = NULL;
     char		cache_name[L_tmpnam + 8];
     char		lname[64]; /* local acct name */
     struct passwd	*pw;
-    uid_t		ruid;
 
     int debug = 0, try_first_pass = 0, use_first_pass = 0;
     int forwardable = 0, reuse_ccache = 0, no_ccache = 0;
@@ -110,24 +108,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc,
     }
 
     /* Get principal name */
-    /* This case is for use mainly by su.
-       If non-root is authenticating as "root", use "source_user/root".  */
-    if (!strcmp(name, "root") && (ruid = getuid()) != 0) {
-	pw = getpwuid(ruid);
-	if (pw != NULL)
-	    source_princ = (char *)malloc(strlen(pw->pw_name) + 6);
-	if (source_princ)
-	    sprintf(source_princ, "%s/root", pw->pw_name);
-    } else {
-	source_princ = strdup(name);
-    }
-    if (!source_princ) {
-	DLOG("malloc()", "failure");
-	pamret = PAM_BUF_ERR;
-	goto cleanup2;
-    }
-
-    if ((krbret = krb5_parse_name(pam_context, source_princ, &princ)) != 0) {
+    if ((krbret = krb5_parse_name(pam_context, name, &princ)) != 0) {
 	DLOG("krb5_parse_name()", error_message(krbret));
 	pamret = PAM_SERVICE_ERR;
 	goto cleanup3;
@@ -173,9 +154,15 @@ get_pass:
 	(void) pam_get_item(pamh, PAM_AUTHTOK, (const void **) &pass);
     }
 
-    /* get a local account name for this principal */
-    if ((krbret = krb5_aname_to_localname(pam_context, princ, 
-					  sizeof(lname), lname)) == 0) {
+    /* Verify the local user exists (AFTER getting the password) */
+    if (strchr(name, '@')) {
+	/* get a local account name for this principal */
+	if ((krbret = krb5_aname_to_localname(pam_context, princ, 
+	  sizeof(lname), lname)) != 0) {
+	    DLOG("krb5_aname_to_localname()", error_message(krbret));
+	    pamret = PAM_USER_UNKNOWN;
+	    goto cleanup2;
+	}
 	DLOG("changing PAM_USER to", lname);
 	if ((pamret = pam_set_item(pamh, PAM_USER, lname)) != 0) {
 	    DLOG("pam_set_item()", pam_strerror(pamh, pamret));
@@ -188,12 +175,7 @@ get_pass:
 	    pamret = PAM_SERVICE_ERR;
 	    goto cleanup2;
 	}
-    } else {
-	DLOG("krb5_aname_to_localname()", error_message(krbret));
-	/* Not an error.  */
     }
-
-    /* Verify the local user exists (AFTER getting the password) */
     pw = getpwnam(name);
     if (!pw) {
 	DLOG("getpwnam()", lname);
@@ -264,8 +246,6 @@ cleanup3:
 	free(prompt);
     if (princ_name)
 	free(princ_name);
-    if (source_princ)
-	free(source_princ);
 
     krb5_free_context(pam_context);
     DLOG("exit", pamret ? "failure" : "success");
@@ -306,7 +286,7 @@ pam_sm_setcred(pam_handle_t *pamh, int flags, int argc,
     if (flags == PAM_REINITIALIZE_CRED)
 	return PAM_SUCCESS; /* XXX Incorrect behavior */
 
-    if (flags != PAM_ESTABLISH_CRED && flags != PAM_DELETE_CRED)
+    if (flags != PAM_ESTABLISH_CRED)
 	return PAM_SERVICE_ERR;
 
     for (i = 0; i < argc; i++) {
@@ -341,9 +321,8 @@ pam_sm_setcred(pam_handle_t *pamh, int flags, int argc,
     /* Retrieve the cache name */
     if ((pamret = pam_get_data(pamh, "ccache", (const void **) &ccache_temp)) 
       != 0) {
-	/* User did not use krb5 to login */
-	DLOG("ccache", "not found");
-	pamret = PAM_SUCCESS;
+	DLOG("pam_get_data()", pam_strerror(pamh, pamret));
+	pamret = PAM_CRED_UNAVAIL;
 	goto cleanup3;
     }
 
@@ -409,19 +388,18 @@ pam_sm_setcred(pam_handle_t *pamh, int flags, int argc,
 	}
     }
 
-    if ((krbret = krb5_cc_resolve(pam_context, cache_name, &ccache_perm)) 
-      != 0) {
-	DLOG("krb5_cc_resolve()", error_message(krbret));
-	pamret = PAM_SERVICE_ERR;
-	goto cleanup3;
-    }
-    if (flags == PAM_ESTABLISH_CRED) {
     /* Initialize the new ccache */
     if ((krbret = krb5_cc_get_principal(pam_context, ccache_temp, &princ)) 
       != 0) {
 	DLOG("krb5_cc_get_principal()", error_message(krbret));
 	pamret = PAM_SERVICE_ERR;
 	goto cleanup3;
+    }
+    if ((krbret = krb5_cc_resolve(pam_context, cache_name, &ccache_perm)) 
+      != 0) {
+	DLOG("krb5_cc_resolve()", error_message(krbret));
+	pamret = PAM_SERVICE_ERR;
+	goto cleanup2;
     }
     if ((krbret = krb5_cc_initialize(pam_context, ccache_perm, princ)) != 0) {
 	DLOG("krb5_cc_initialize()", error_message(krbret));
@@ -439,7 +417,7 @@ pam_sm_setcred(pam_handle_t *pamh, int flags, int argc,
     }
 
     /* Copy the creds (should be two of them) */
-    while ((krbret = compat_cc_next_cred(pam_context, ccache_temp,
+    while ((krbret = krb5_cc_next_cred(pam_context, ccache_temp,
 	&cursor, &creds) == 0)) {
 	    if ((krbret = krb5_cc_store_cred(pam_context, ccache_perm, 
 		&creds)) != 0) {
@@ -483,14 +461,6 @@ pam_sm_setcred(pam_handle_t *pamh, int flags, int argc,
 	(void) krb5_cc_destroy(pam_context, ccache_perm);
 	pamret = PAM_SERVICE_ERR;
 	goto cleanup2;
-    }
-    } else {
-	/* flag == PAM_DELETE_CRED */
-	if ((krbret = krb5_cc_destroy(pam_context, ccache_perm)) != 0) {
-		/* log error, but otherwise ignore it */
-		DLOG("krb5_cc_destroy()", error_message(krbret));
-	}
-	goto cleanup3;
     }
 
 cleanup2:
