@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #define DKTYPENAMES
+#define FSTYPENAMES
 #include <sys/disklabel.h>
 
 #include <fcntl.h>
