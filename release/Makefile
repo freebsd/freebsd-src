@@ -439,9 +439,9 @@ release.3:
 .for kernel in ${KERNELS}
 	-chflags -R noschg ${RD}/kernels/${kernel}
 	rm -rf ${RD}/kernels/${kernel}
-	rm -rf ${.CURDIR}/../sys/compile/${kernel}
+	rm -rf ${.CURDIR}/../sys/${MACHINE}/compile/${kernel}
 	cd ${.CURDIR} && ${MAKE} doSTDKERNEL KERNEL=${kernel} KODIR=/${kernel}
-	rm -rf ${.CURDIR}/../sys/compile/${kernel}
+	rm -rf ${.CURDIR}/../sys/${MACHINE}/compile/${kernel}
 	-mkdir ${RD}/trees/bin/boot/${kernel}
 	cp -p ${RD}/kernels/${kernel}/kernel ${RD}/trees/bin/boot/${kernel}
 .endfor
@@ -902,13 +902,13 @@ createBOOTMFS:
 #
 # --==## Compile a kernel by name ${KERNEL} ##==--
 #
-# We don't erase the sys/compile/${KERNEL} directory, since somebody
+# We don't erase the sys/${MACHINE}/compile/${KERNEL} directory, since somebody
 # may want to reuse it (release.8 presently)
 #
 doKERNEL:
 	@rm -f ${RD}/kernels/${KERNEL}
 	@cd ${.CURDIR}/../sys/${MACHINE}/conf && config ${KERNEL}
-	@cd ${.CURDIR}/../sys/compile/${KERNEL} && \
+	@cd ${.CURDIR}/../sys/${MACHINE}/compile/${KERNEL} && \
 			make kernel-depend && \
 			make ${KERNEL_FLAGS} ${KERNEL_KO} && \
 			make kernel-reinstall DESTDIR=${RD}/kernels && \
@@ -918,7 +918,7 @@ doKERNEL:
 doMODULES:
 	@rm -f ${RD}/kernels/*.ko
 	@cd ${.CURDIR}/../sys/${MACHINE}/conf && config ${KERNEL}
-	@cd ${.CURDIR}/../sys/compile/${KERNEL} && \
+	@cd ${.CURDIR}/../sys/${MACHINE}/compile/${KERNEL} && \
 			make kernel-depend && \
 			make ${KERNEL_FLAGS} modules && \
 			make modules-reinstall DESTDIR=${RD}/kernels && \
@@ -926,13 +926,13 @@ doMODULES:
 doSTDKERNEL:
 	@rm -f ${RD}/kernels/${KERNEL}
 	@cd ${.CURDIR}/../sys/${MACHINE}/conf && config ${KERNEL}
-	@cd ${.CURDIR}/../sys/compile/${KERNEL} && \
+	@cd ${.CURDIR}/../sys/${MACHINE}/compile/${KERNEL} && \
 			make depend && \
 			make ${KERNEL_FLAGS} KERNEL=${KERNEL} && \
 			make KERNEL=${KERNEL} DESTDIR=${RD}/kernels install && \
 			[ -r ${.CURDIR}/../sys/${MACHINE}/conf/${KERNEL}.hints ] && \
 			cp ${.CURDIR}/../sys/${MACHINE}/conf/${KERNEL}.hints ${RD}/kernels
-	@-cd ${.CURDIR}/../sys/compile/${KERNEL} && \
+	@-cd ${.CURDIR}/../sys/${MACHINE}/compile/${KERNEL} && \
 			make KERNEL=${KERNEL} DESTDIR=${RD}/kernels \
 				kernel-reinstall.debug
 
