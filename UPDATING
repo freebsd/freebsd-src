@@ -31,6 +31,14 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 5.x IS SLOW:
 	have been committed.  Expect a bumpy ride for a few days until
 	the unanticipated problems have been resolved.
 
+20040409:
+        Due to changes in the the Yarrow initialization process,
+        /dev/random needs to be fed before operations requiring
+        temp files can succeed in single user mode.  This includes
+        running "make installworld". /dev/random may be fed by running
+        "/etc/rc.d/initrandom start" or with 20040315 source by running
+        "/etc/rc.d/preseedrandom".
+
 20040322:
 	The debug.mpsafenet tunable controls whether the kernel Giant
 	lock is held across the lower levels of the network stack, and
@@ -1418,6 +1426,7 @@ COMMON ITEMS:
 	make installkernel KERNCONF=YOUR_KERNEL_HERE
 							[1]
 	<reboot in single user>				[3]
+	/etc/rc.d/preseedrandom				[10]
 	mergemaster -p					[5]
 	make installworld
 	mergemaster					[4]
@@ -1470,6 +1479,7 @@ COMMON ITEMS:
 	cd src/sys/boot ; make install			[6]
 							[1]
 	<reboot in single user>				[3]
+	/etc/rc.d/preseedrandom				[10]
 	mergemaster -p					[5]
 	rm -rf /usr/include/g++
 	make installworld
@@ -1544,6 +1554,10 @@ COMMON ITEMS:
 
 	[9] When checking out sources, you must include the -P flag to have
 	cvs prune empty directories.
+
+	[10] In order to create temporary files, /dev/random must be
+	initialized by feeding data into it.  /etc/rc.d/preseedrandom
+	takes care of this.
 FORMAT:
 
 This file contains a list, in reverse chronological order, of major
