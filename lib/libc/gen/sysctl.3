@@ -44,11 +44,11 @@
 .Fn sysctl "int *name" "u_int namelen" "void *oldp" "size_t *oldlenp" "void *newp" "size_t newlen"
 .Sh DESCRIPTION
 The
-.Nm sysctl
+.Fn sysctl
 function retrieves system information and allows processes with
 appropriate privileges to set system information.
 The information available from
-.Nm sysctl
+.Fn sysctl
 consists of integers, strings, and tables.
 Information may be retrieved and set from the command interface
 using the 
@@ -56,12 +56,12 @@ using the
 utility.
 .Pp
 Unless explicitly noted below,
-.Nm sysctl
+.Fn sysctl
 returns a consistent snapshot of the data requested.
 Consistency is obtained by locking the destination
 buffer into memory so that the data may be copied out without blocking.
 Calls to
-.Nm sysctl
+.Fn sysctl
 are serialized to avoid deadlock.
 .Pp
 The state is described using a ``Management Information Base'' (MIB)
@@ -88,7 +88,7 @@ and
 should be set to NULL.
 .Pp
 The size of the available data can be determined by calling 
-.Nm sysctl
+.Fn sysctl
 with a NULL parameter for
 .Fa oldp .
 The size of the available data will be returned in the location pointed to by
@@ -154,10 +154,10 @@ sysctl(mib, 2, p, &len, NULL, 0);
 .Sh CTL_DEBUG
 The debugging variables vary from system to system.
 A debugging variable may be added or deleted without need to recompile
-.Nm sysctl
+.Fn sysctl
 to know about it.
 Each time it runs,
-.Nm sysctl
+.Fn sysctl
 gets the list of debugging variables from the kernel and
 displays their current values.
 The system defines twenty 
@@ -583,7 +583,7 @@ The returned data consists of a
 .El
 .Sh RETURN VALUES
 If the call to
-.Nm sysctl
+.Fn sysctl
 is successful, 0 is returned.
 Otherwise \-1 is returned and
 .Va errno
@@ -649,5 +649,5 @@ definitions for fourth level UDP identifiers
 .Xr sysctl 8
 .Sh HISTORY
 The
-.Nm sysctl
+.Fn sysctl
 function first appeared in 4.4BSD.

@@ -67,14 +67,14 @@ returns \-1 if it was not invoked by the super-user.
 .Xr getgrouplist 3
 .Sh HISTORY
 The
-.Nm
+.Fn initgorups
 function appeared in 
 .Bx 4.2 .
 .Sh BUGS
 The
 .Fn getgrouplist
 function called by
-.Nm
+.Fn initgorups
 uses the routines based on
 .Xr getgrent 3 .
 If the invoking program uses any of these routines,
