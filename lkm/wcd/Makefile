@@ -1,19 +1,18 @@
-#	$Id: Makefile,v 1.3 1996/06/23 14:58:14 bde Exp $
+#	$Id: Makefile,v 1.4 1996/09/06 23:32:55 pst Exp $
 
 .PATH:          ${.CURDIR}/../../sys/i386/isa
 KMOD            = wcd_mod
 SRCS            = wcd.c wdc.h wcd.h opt_atapi.h
 NOMAN           =
-BINDIR          = /lkm
 CFLAGS         += -nostdinc -I. -DWCD_MODULE
 CLEANFILES     += $(KMOD) machine wdc.h wcd.h opt_atapi.h *.b
 LN              = ln -f -s
 
 load:           ${PROG}
-		/sbin/modload -u -e wcd $(PROG)
+		${MODLOAD} -u -e wcd $(PROG)
 
 unload:         ${PROG}
-		/sbin/modunload -n wcd
+		${MODUNLOAD} -n wcd
 
 wdc.h:
 		echo "#define NWDC 2" > wdc.h
