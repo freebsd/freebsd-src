@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_vnops.c	8.18 (Berkeley) 5/21/95
  *
- *	$Id: procfs_vnops.c,v 1.66 1999/04/28 11:37:21 phk Exp $
+ *	$Id: procfs_vnops.c,v 1.67 1999/04/30 13:04:21 phk Exp $
  */
 
 /*
@@ -515,6 +515,12 @@ procfs_getattr(ap)
 	 * a per-file stat function in the corresponding .c file.
 	 */
 
+	vap->va_nlink = 1;
+	if (procp) {
+		vap->va_uid = procp->p_ucred->cr_uid;
+		vap->va_gid = procp->p_ucred->cr_gid;
+	}
+
 	switch (pfs->pfs_type) {
 	case Proot:
 		/*
@@ -528,7 +534,6 @@ procfs_getattr(ap)
 
 	case Pcurproc: {
 		char buf[16];		/* should be enough */
-		vap->va_nlink = 1;
 		vap->va_uid = 0;
 		vap->va_gid = 0;
 		vap->va_size = vap->va_bytes =
@@ -538,8 +543,6 @@ procfs_getattr(ap)
 
 	case Pproc:
 		vap->va_nlink = nproc_targets;
-		vap->va_uid = procp->p_ucred->cr_uid;
-		vap->va_gid = procp->p_ucred->cr_gid;
 		vap->va_size = vap->va_bytes = DEV_BSIZE;
 		break;
 
@@ -548,7 +551,6 @@ procfs_getattr(ap)
 		break;
 
 	case Pmem:
-		vap->va_nlink = 1;
 		/*
 		 * If we denied owner access earlier, then we have to
 		 * change the owner to root - otherwise 'ps' and friends
@@ -561,27 +563,22 @@ procfs_getattr(ap)
 		vap->va_gid = KMEM_GROUP;
 		break;
 
-	case Ptype:
-	case Pmap:
 	case Pregs:
 		vap->va_bytes = vap->va_size = sizeof(struct reg);
-		vap->va_nlink = 1;
-		vap->va_uid = procp->p_ucred->cr_uid;
-		vap->va_gid = procp->p_ucred->cr_gid;
 		break;
 
 	case Pfpregs:
 		vap->va_bytes = vap->va_size = sizeof(struct fpreg);
+		break;
 
+	case Ptype:
+	case Pmap:
 	case Pctl:
 	case Pstatus:
 	case Pnote:
 	case Pnotepg:
 	case Pcmdline:
 	case Prlimit:
-		vap->va_nlink = 1;
-		vap->va_uid = procp->p_ucred->cr_uid;
-		vap->va_gid = procp->p_ucred->cr_gid;
 		break;
 
 	default:
