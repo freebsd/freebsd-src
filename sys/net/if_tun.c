@@ -69,7 +69,7 @@ PSEUDO_SET(tunattach, if_tun);
 
 #define TUNDEBUG	if (tundebug) printf
 static int tundebug = 0;
-SYSCTL_INT(_debug, OID_AUTO, if_tun_debug, CTLFLAG_RD, &tundebug, 0, "");
+SYSCTL_INT(_debug, OID_AUTO, if_tun_debug, CTLFLAG_RW, &tundebug, 0, "");
 
 static struct tun_softc tunctl[NTUN];
 
