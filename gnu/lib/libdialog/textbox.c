@@ -49,31 +49,27 @@ int dialog_textbox(unsigned char *title, unsigned char *file, int height, int wi
   WINDOW *dialog, *text;
 
   if (height < 0 || width < 0) {
-    endwin();
     fprintf(stderr, "\nAutosizing is impossible in dialog_textbox().\n");
-    exit(-1);
+    return(-1);
   }
 
   search_term[0] = '\0';    /* no search term entered yet */
 
   /* Open input file for reading */
   if ((fd = open(file, O_RDONLY)) == -1) {
-    endwin();
     fprintf(stderr, "\nCan't open input file <%s>in dialog_textbox().\n", file);
-    exit(-1);
+    return(-1);
   }
   /* Get file size. Actually, 'file_size' is the real file size - 1,
      since it's only the last byte offset from the beginning */
   if ((file_size = lseek(fd, 0, SEEK_END)) == -1) {
-    endwin();
     fprintf(stderr, "\nError getting file size in dialog_textbox().\n");
-    exit(-1);
+    return(-1);
   }
   /* Restore file pointer to beginning of file after getting file size */
   if (lseek(fd, 0, SEEK_SET) == -1) {
-    endwin();
     fprintf(stderr, "\nError moving file pointer in dialog_textbox().\n");
-    exit(-1);
+    return(-1);
   }
   /* Allocate space for read buffer */
   if ((buf = malloc(BUF_SIZE+1)) == NULL) {
@@ -82,9 +78,8 @@ int dialog_textbox(unsigned char *title, unsigned char *file, int height, int wi
     exit(-1);
   }
   if ((bytes_read = read(fd, buf, BUF_SIZE)) == -1) {
-    endwin();
     fprintf(stderr, "\nError reading file in dialog_textbox().\n");
-    exit(-1);
+    return(-1);
   }
   buf[bytes_read] = '\0';    /* mark end of valid data */
   page = buf;    /* page is pointer to start of page to be displayed */
