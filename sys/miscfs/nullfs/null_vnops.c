@@ -277,7 +277,7 @@ null_bypass(ap)
 			 * of vrele'ing their vp's.  We must account for
 			 * that.  (This should go away in the future.)
 			 */
-			if (reles & 1)
+			if (reles & VDESC_VP0_WILLRELE)
 				VREF(*this_vp_p);
 		}
 
@@ -287,7 +287,12 @@ null_bypass(ap)
 	 * Call the operation on the lower layer
 	 * with the modified argument structure.
 	 */
-	error = VCALL(*(vps_p[0]), descp->vdesc_offset, ap);
+	if (vps_p[0] && *vps_p[0])
+		error = VCALL(*(vps_p[0]), descp->vdesc_offset, ap);
+	else {
+		printf("null_bypass: no map for %s\n", descp->vdesc_name);
+		error = EINVAL;
+	}
 
 	/*
 	 * Maintain the illusion of call-by-value
@@ -300,7 +305,11 @@ null_bypass(ap)
 			break;   /* bail out at end of list */
 		if (old_vps[i]) {
 			*(vps_p[i]) = old_vps[i];
-			if (reles & 1)
+#if 0
+			if (reles & VDESC_VP0_WILLUNLOCK)
+				VOP_UNLOCK(*(vps_p[i]), LK_THISLAYER, curproc);
+#endif
+			if (reles & VDESC_VP0_WILLRELE)
 				vrele(*(vps_p[i]));
 		}
 	}
@@ -430,6 +439,7 @@ null_setattr(ap)
 				return (EROFS);
 		}
 	}
+
 	return (null_bypass((struct vop_generic_args *)ap));
 }
 
@@ -560,6 +570,7 @@ null_reclaim(ap)
 	} */ *ap;
 {
 	struct vnode *vp = ap->a_vp;
+	struct proc *p = ap->a_p;
 	struct null_node *xp = VTONULL(vp);
 	struct vnode *lowervp = xp->null_lowervp;
 
@@ -569,9 +580,11 @@ null_reclaim(ap)
 	 */
 	/* After this assignment, this node will not be re-used. */
 	xp->null_lowervp = NULLVP;
+	lockmgr(&null_hashlock, LK_EXCLUSIVE, NULL, p);
 	LIST_REMOVE(xp, null_hash);
-	FREE(vp->v_data, M_TEMP);
+	lockmgr(&null_hashlock, LK_RELEASE, NULL, p);
 	vp->v_data = NULL;
+	FREE(xp, M_NULLFSNODE);
 	vrele (lowervp);
 	return (0);
 }

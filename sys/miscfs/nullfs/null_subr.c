@@ -40,6 +40,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
 #include <sys/proc.h>
 #include <sys/vnode.h>
 #include <sys/mount.h>
@@ -59,8 +60,13 @@
 
 #define	NULL_NHASH(vp) \
 	(&null_node_hashtbl[(((uintptr_t)vp)>>LOG2_SIZEVNODE) & null_node_hash])
+
 static LIST_HEAD(null_node_hashhead, null_node) *null_node_hashtbl;
 static u_long null_node_hash;
+struct lock null_hashlock;
+
+static MALLOC_DEFINE(M_NULLFSHASH, "NULLFS hash", "NULLFS hash table");
+MALLOC_DEFINE(M_NULLFSNODE, "NULLFS node", "NULLFS vnode private part");
 
 static int	null_node_alloc(struct mount *mp, struct vnode *lowervp,
 				     struct vnode **vpp);
@@ -75,15 +81,26 @@ nullfs_init(vfsp)
 	struct vfsconf *vfsp;
 {
 
-#ifdef DEBUG
-	printf("nullfs_init\n");		/* printed during system boot */
-#endif
-	null_node_hashtbl = hashinit(NNULLNODECACHE, M_CACHE, &null_node_hash);
+	NULLFSDEBUG("nullfs_init\n");		/* printed during system boot */
+	null_node_hashtbl = hashinit(NNULLNODECACHE, M_NULLFSHASH, &null_node_hash);
+	lockinit(&null_hashlock, PVFS, "nullhs", 0, 0);
+	return (0);
+}
+
+int
+nullfs_uninit(vfsp)
+	struct vfsconf *vfsp;
+{
+
+        if (null_node_hashtbl) {
+		free(null_node_hashtbl, M_NULLFSHASH);
+	}
 	return (0);
 }
 
 /*
  * Return a VREF'ed alias for lower vnode if already exists, else 0.
+ * Lower vnode should be locked on entry and will be left locked on exit.
  */
 static struct vnode *
 null_node_find(mp, lowervp)
@@ -103,9 +120,11 @@ null_node_find(mp, lowervp)
 	 */
 	hd = NULL_NHASH(lowervp);
 loop:
+	lockmgr(&null_hashlock, LK_EXCLUSIVE, NULL, p);
 	for (a = hd->lh_first; a != 0; a = a->null_hash.le_next) {
 		if (a->null_lowervp == lowervp && NULLTOV(a)->v_mount == mp) {
 			vp = NULLTOV(a);
+			lockmgr(&null_hashlock, LK_RELEASE, NULL, p);
 			/*
 			 * We need vget for the VXLOCK
 			 * stuff, but we don't want to lock
@@ -118,6 +137,7 @@ loop:
 			return (vp);
 		}
 	}
+	lockmgr(&null_hashlock, LK_RELEASE, NULL, p);
 
 	return NULLVP;
 }
@@ -134,6 +154,7 @@ null_node_alloc(mp, lowervp, vpp)
 	struct vnode *lowervp;
 	struct vnode **vpp;
 {
+	struct proc *p = curproc;	/* XXX */
 	struct null_node_hashhead *hd;
 	struct null_node *xp;
 	struct vnode *othervp, *vp;
@@ -144,11 +165,12 @@ null_node_alloc(mp, lowervp, vpp)
 	 * might cause a bogus v_data pointer to get dereferenced
 	 * elsewhere if MALLOC should block.
 	 */
-	MALLOC(xp, struct null_node *, sizeof(struct null_node), M_TEMP, M_WAITOK);
+	MALLOC(xp, struct null_node *, sizeof(struct null_node),
+	    M_NULLFSNODE, M_WAITOK);
 
 	error = getnewvnode(VT_NULL, mp, null_vnodeop_p, vpp);
 	if (error) {
-		FREE(xp, M_TEMP);
+		FREE(xp, M_NULLFSNODE);
 		return (error);
 	}
 	vp = *vpp;
@@ -164,23 +186,26 @@ null_node_alloc(mp, lowervp, vpp)
 	 */
 	othervp = null_node_find(mp, lowervp);
 	if (othervp) {
-		FREE(xp, M_TEMP);
+		vp->v_data = NULL;
+		FREE(xp, M_NULLFSNODE);
 		vp->v_type = VBAD;	/* node is discarded */
-		vp->v_usecount = 0;	/* XXX */
+		vrele(vp);
 		*vpp = othervp;
 		return 0;
 	};
 	VREF(lowervp);   /* Extra VREF will be vrele'd in null_node_create */
+	lockmgr(&null_hashlock, LK_EXCLUSIVE, NULL, p);
 	hd = NULL_NHASH(lowervp);
 	LIST_INSERT_HEAD(hd, xp, null_hash);
+	lockmgr(&null_hashlock, LK_RELEASE, NULL, p);
 	return 0;
 }
 
 
 /*
- * Try to find an existing null_node vnode refering
- * to it, otherwise make a new null_node vnode which
- * contains a reference to the lower vnode.
+ * Try to find an existing null_node vnode refering to the given underlying
+ * vnode (which should be locked). If no vnode found, create a new null_node
+ * vnode which contains a reference to the lower vnode.
  */
 int
 null_node_create(mp, lowervp, newvpp)
@@ -196,7 +221,7 @@ null_node_create(mp, lowervp, newvpp)
 		 * null_node_find has taken another reference
 		 * to the alias vnode.
 		 */
-#ifdef DEBUG
+#ifdef NULLFS_DEBUG
 		vprint("null_node_create: exists", aliasvp);
 #endif
 		/* VREF(aliasvp); --- done in null_node_find */
@@ -206,9 +231,7 @@ null_node_create(mp, lowervp, newvpp)
 		/*
 		 * Get new vnode.
 		 */
-#ifdef DEBUG
-		printf("null_node_create: create new alias vnode\n");
-#endif
+		NULLFSDEBUG("null_node_create: create new alias vnode\n");
 
 		/*
 		 * Make new vnode reference the null_node.
@@ -233,7 +256,7 @@ null_node_create(mp, lowervp, newvpp)
 	};
 #endif
 
-#ifdef DEBUG
+#ifdef NULLFS_DEBUG
 	vprint("null_node_create: alias", aliasvp);
 	vprint("null_node_create: lower", lowervp);
 #endif
