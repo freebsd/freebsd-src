@@ -22,6 +22,7 @@ MAN=	BUF_LOCK.9 BUF_LOCKFREE.9 BUF_LOCKINIT.9 BUF_REFCNT.9 \
 	accept_filter.9 accf_data.9 accf_http.9 acl.9 atomic.9 \
 	bios.9 boot.9 buf.9 bus_activate_resource.9 \
 	bus_alloc_resource.9 bus_child_present.9 bus_generic_attach.9 \
+	bus_dma.9 \
 	bus_generic_detach.9 \
 	bus_generic_print_child.9 bus_generic_read_ivar.9 \
 	bus_generic_shutdown.9 bus_release_resource.9 \
@@ -112,6 +113,17 @@ MLINKS+=atomic.9 atomic_set.9
 MLINKS+=atomic.9 atomic_subtract.9
 MLINKS+=atomic.9 atomic_store.9
 MLINKS+=bus_activate_resource.9 bus_deactivate_resource.9
+MLINKS+=bus_dma.9 bus_dma_tag_create.9
+MLINKS+=bus_dma.9 bus_dma_tag_destroy.9
+MLINKS+=bus_dma.9 bus_dmamap_create.9
+MLINKS+=bus_dma.9 bus_dmamap_destroy.9
+MLINKS+=bus_dma.9 bus_dmamap_load.9
+MLINKS+=bus_dma.9 bus_dmamap_load_mbuf.9
+MLINKS+=bus_dma.9 bus_dmamap_load_uio.9
+MLINKS+=bus_dma.9 bus_dmamap_sync.9
+MLINKS+=bus_dma.9 bus_dmamap_unload.9
+MLINKS+=bus_dma.9 bus_dmamem_alloc.9
+MLINKS+=bus_dma.9 bus_dmamem_free.9
 MLINKS+=byteorder.9 bswap16.9
 MLINKS+=byteorder.9 bswap32.9
 MLINKS+=byteorder.9 bswap64.9
