@@ -31,7 +31,7 @@ import os
 import popen2
 import re
 
-gdb_cmd = 'gdb -q -k -s %(p)s/kernel.debug -e %(p)s/kernel'
+gdb_cmd = 'kgdb %(p)s/kernel.debug %(core)s | tee /tmp/gdb.log' 
 #GDB regex
 filenamere = re.compile(r'filename\s+=\s+0x[0-9a-f]+\s("(?P<fn>[^"]+)"|(?P<error><[^>]*>))', re.M)
 addressre = re.compile(r'address\s+=\s+(?P<ad>0x[0-9a-f]+)', re.M)
@@ -61,8 +61,7 @@ if i == -1:
 kld_debug_paths.append('/'.join(pfs[:i] + ['modules']))
 kld_debug_paths.append(sys.argv[1])
 #kld_debug_paths.append(sys.argv[3:])
-gdb_cmd = gdb_cmd % {'p': sys.argv[1] }
-gdb_cmd += ' -c %s | tee /tmp/gdb.log' % sys.argv[2]
+gdb_cmd = gdb_cmd % {'p': sys.argv[1], 'core': sys.argv[2] }
 
 #Start gdb
 gdb = popen2.popen4(gdb_cmd)
