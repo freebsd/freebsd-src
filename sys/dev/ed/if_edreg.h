@@ -88,6 +88,7 @@
 #define ED_P1_PAR3	0x04	/* Physical Address Register 3 */
 #define ED_P1_PAR4	0x05	/* Physical Address Register 4 */
 #define ED_P1_PAR5	0x06	/* Physical Address Register 5 */
+#define ED_P1_PAR(i)	(ED_P1_PAR0 + i)
 #define ED_P1_CURR	0x07	/* Current RX ring-buffer page */
 #define ED_P1_MAR0	0x08	/* Multicast Address Register 0 */
 #define ED_P1_MAR1	0x09	/* Multicast Address Register 1 */
@@ -97,6 +98,7 @@
 #define ED_P1_MAR5	0x0d	/* Multicast Address Register 5 */
 #define ED_P1_MAR6	0x0e	/* Multicast Address Register 6 */
 #define ED_P1_MAR7	0x0f	/* Multicast Address Register 7 */
+#define ED_P1_MAR(i)	(ED_P1_MAR0 + i)
 
 /*
  * Page 2 register offsets
@@ -989,8 +991,9 @@ struct ed_ring	{
  */
 #define ED_PC_PAGE_OFFSET	0x40	/* page offset for NIC access to mem */
 #define ED_PC_IO_PORTS		32
-#define ED_PC_RESET		0x1f
-#define ED_PC_MISC		0x18
+#define ED_PC_ASIC_OFFSET	0x10
+#define ED_PC_RESET		0x0f	/* Reset(offset from ASIC base) */
+#define ED_PC_MISC		0x08	/* Misc (offset from ASIC base) */
 
 /* 
  * if_ze.h  constants
