@@ -311,7 +311,7 @@ pam_sm_chauthtok(pam_handle_t *pamh, int flags,
 
 	if (flags & PAM_PRELIM_CHECK) {
 
-		PAM_LOG("PRELIM round; checking user password");
+		PAM_LOG("PRELIM round");
 
 		if (pwd->pw_passwd[0] == '\0'
 		    && pam_test_option(&options, PAM_OPT_NULLOK, NULL)) {
@@ -333,6 +333,15 @@ pam_sm_chauthtok(pam_handle_t *pamh, int flags,
 		if ((old_pass[0] == '\0' && pwd->pw_passwd[0] != '\0') ||
 		    strcmp(encrypted, pwd->pw_passwd) != 0)
 			return (PAM_PERM_DENIED);
+	}
+	else if (flags & PAM_UPDATE_AUTHTOK) {
+		PAM_LOG("UPDATE round");
+
+		retval = pam_get_authtok(pamh,
+		    PAM_AUTHTOK, &old_pass, NULL);
+		if (retval != PAM_SUCCESS)
+			return (retval);
+		PAM_LOG("Got old password");
 
 		/* get new password */
 		for (;;) {
@@ -346,21 +355,6 @@ pam_sm_chauthtok(pam_handle_t *pamh, int flags,
 		if (retval != PAM_SUCCESS)
 			PAM_VERBOSE_ERROR("Unable to get new password");
 		return (retval);
-	}
-	else if (flags & PAM_UPDATE_AUTHTOK) {
-		PAM_LOG("UPDATE round");
-
-		retval = pam_get_item(pamh,
-		    PAM_OLDAUTHTOK, (const void **)&old_pass);
-		if (retval != PAM_SUCCESS)
-			return (retval);
-		PAM_LOG("Got old password");
-
-		retval = pam_get_item(pamh,
-		    PAM_AUTHTOK, (const void **)&new_pass);
-		if (retval != PAM_SUCCESS)
-			return (retval);
-		PAM_LOG("Got new password");
 
 		pwd->pw_change = 0;
 		lc = login_getclass(NULL);
