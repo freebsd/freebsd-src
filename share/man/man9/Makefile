@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.46 1999/03/06 19:03:31 bde Exp $
+#	$Id: Makefile,v 1.47 1999/03/17 20:17:31 ghelmer Exp $
 
 MAN9=	MD5.9 \
 	VFS.9 VFS_FHTOVP.9 VFS_INIT.9 VFS_MOUNT.9 VFS_QUOTACTL.9 \
@@ -22,8 +22,8 @@ MAN9=	MD5.9 \
 MAN9+=	device.9 device_add_child.9 device_delete_child.9 device_enable.9 \
 	device_find_child.9 device_get_devclass.9 device_get_driver.9 \
 	device_get_ivars.9 device_get_softc.9 device_get_state.9 \
-	device_get_unit.9 device_probe_and_attach.9 device_set_desc.9 \
-	driver.9 \
+	device_get_unit.9 device_probe_and_attach.9 device_quiet.9 \
+	device_set_desc.9 driver.9 \
 	devclass.9 devclass_add_driver.9 devclass_find.9 \
 	devclass_get_device.9 devclass_get_devices.9 devclass_get_maxunit.9 \
 	devclass_get_name.9 devclass_get_softc.9 \
@@ -85,6 +85,8 @@ MLINKS+=device_enable.9 device_is_enabled.9
 MLINKS+=device_get_state.9 device_busy.9
 MLINKS+=device_get_state.9 device_unbusy.9
 MLINKS+=device_get_state.9 device_is_alive.9
+MLINKS+=device_quiet.9 device_verbose.9
+MLINKS+=device_quiet.9 device_is_quiet.9
 MLINKS+=device_set_desc.9 device_get_desc.9
 MLINKS+=devclass_add_driver.9 devclass_delete_driver.9
 MLINKS+=devclass_add_driver.9 devclass_find_driver.9
