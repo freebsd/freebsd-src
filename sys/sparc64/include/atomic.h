@@ -68,11 +68,7 @@
  *		expect = result;
  *	}
  *
- * the return value of cas is used to avoid the extra reload.  At the
- * time of writing, with gcc version 2.95.3, the branch for the if
- * statement is predicted incorrectly as not taken, rather than taken.
- * It is expected that the branch prediction hints available in gcc 3.0,
- * __builtin_expect, will allow better code to be generated.
+ * the return value of cas is used to avoid the extra reload.
  *
  * The memory barriers provided by the acq and rel variants are intended
  * to be sufficient for use of relaxed memory ordering.  Due to the
@@ -104,7 +100,7 @@
 	v;								\
 })
 
-#define	atomic_op(p, op, v, sz) do {					\
+#define	atomic_op(p, op, v, sz) ({					\
 	itype(sz) e, r, s;						\
 	for (e = *(volatile itype(sz) *)p;; e = r) {			\
 		s = e op v;						\
@@ -112,17 +108,22 @@
 		if (r == e)						\
 			break;						\
 	}								\
-} while (0)
+	e;								\
+})
 
-#define	atomic_op_acq(p, op, v, sz) do {				\
-	atomic_op(p, op, v, sz);					\
+#define	atomic_op_acq(p, op, v, sz) ({					\
+	itype(sz) t;							\
+	t = atomic_op(p, op, v, sz);					\
 	membar(LoadLoad | LoadStore);					\
-} while (0)
+	t;								\
+})
 
-#define	atomic_op_rel(p, op, v, sz) do {				\
+#define	atomic_op_rel(p, op, v, sz) ({					\
+	itype(sz) t;							\
 	membar(LoadStore | StoreStore);					\
-	atomic_op(p, op, v, sz);					\
-} while (0)
+	t = atomic_op(p, op, v, sz);					\
+	t;								\
+})
 
 #define	atomic_load(p, sz)						\
 	atomic_cas(p, 0, 0, sz)
@@ -160,36 +161,36 @@
 
 #define	ATOMIC_GEN(name, ptype, vtype, atype, sz)			\
 									\
-static __inline void							\
+static __inline vtype							\
 atomic_add_ ## name(volatile ptype p, atype v)				\
 {									\
-	atomic_op(p, +, v, sz);						\
+	return ((vtype)atomic_op(p, +, v, sz));				\
 }									\
-static __inline void							\
+static __inline vtype							\
 atomic_add_acq_ ## name(volatile ptype p, atype v)			\
 {									\
-	atomic_op_acq(p, +, v, sz);					\
+	return ((vtype)atomic_op_acq(p, +, v, sz));			\
 }									\
-static __inline void							\
+static __inline vtype							\
 atomic_add_rel_ ## name(volatile ptype p, atype v)			\
 {									\
-	atomic_op_rel(p, +, v, sz);					\
+	return ((vtype)atomic_op_rel(p, +, v, sz));			\
 }									\
 									\
-static __inline void							\
+static __inline vtype							\
 atomic_clear_ ## name(volatile ptype p, atype v)			\
 {									\
-	atomic_op(p, &, ~v, sz);					\
+	return ((vtype)atomic_op(p, &, ~v, sz));			\
 }									\
-static __inline void							\
+static __inline vtype							\
 atomic_clear_acq_ ## name(volatile ptype p, atype v)			\
 {									\
-	atomic_op_acq(p, &, ~v, sz);					\
+	return ((vtype)atomic_op_acq(p, &, ~v, sz));			\
 }									\
-static __inline void							\
+static __inline vtype							\
 atomic_clear_rel_ ## name(volatile ptype p, atype v)			\
 {									\
-	atomic_op_rel(p, &, ~v, sz);					\
+	return ((vtype)atomic_op_rel(p, &, ~v, sz));			\
 }									\
 									\
 static __inline int							\
@@ -225,36 +226,36 @@ atomic_readandclear_ ## name(volatile ptype p)				\
 	return ((vtype)atomic_load_clear(p, sz));			\
 }									\
 									\
-static __inline void							\
+static __inline vtype							\
 atomic_set_ ## name(volatile ptype p, atype v)				\
 {									\
-	atomic_op(p, |, v, sz);						\
+	return ((vtype)atomic_op(p, |, v, sz));				\
 }									\
-static __inline void							\
+static __inline vtype							\
 atomic_set_acq_ ## name(volatile ptype p, atype v)			\
 {									\
-	atomic_op_acq(p, |, v, sz);					\
+	return ((vtype)atomic_op_acq(p, |, v, sz));			\
 }									\
-static __inline void							\
+static __inline vtype							\
 atomic_set_rel_ ## name(volatile ptype p, atype v)			\
 {									\
-	atomic_op_rel(p, |, v, sz);					\
+	return ((vtype)atomic_op_rel(p, |, v, sz));			\
 }									\
 									\
-static __inline void							\
+static __inline vtype							\
 atomic_subtract_ ## name(volatile ptype p, atype v)			\
 {									\
-	atomic_op(p, -, v, sz);						\
+	return ((vtype)atomic_op(p, -, v, sz));				\
 }									\
-static __inline void							\
+static __inline vtype							\
 atomic_subtract_acq_ ## name(volatile ptype p, atype v)			\
 {									\
-	atomic_op_acq(p, -, v, sz);					\
+	return ((vtype)atomic_op_acq(p, -, v, sz));			\
 }									\
-static __inline void							\
+static __inline vtype							\
 atomic_subtract_rel_ ## name(volatile ptype p, atype v)			\
 {									\
-	atomic_op_rel(p, -, v, sz);					\
+	return ((vtype)atomic_op_rel(p, -, v, sz));			\
 }									\
 									\
 static __inline void							\
@@ -276,10 +277,7 @@ ATOMIC_GEN(64, long *, long, long, 64);
 
 ATOMIC_GEN(ptr, void *, void *, uintptr_t, 64);
 
-#undef __ASI_ATOMIC
 #undef ATOMIC_GEN
-#undef atomic_cas_32
-#undef atomic_cas_64
 #undef atomic_cas
 #undef atomic_cas_acq
 #undef atomic_cas_rel
