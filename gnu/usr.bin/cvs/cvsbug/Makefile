@@ -11,12 +11,9 @@ MAINTAINER=	peter@FreeBSD.org
 SCRIPTS=	cvsbug
 MAN=		cvsbug.8
 
-CLEANFILES+=    cvsbug version.c
+CLEANFILES+=    cvsbug
 VERSION!=       sed < ${CVSDIR}/configure \
-		-e '/^VERSION=/!d' -e 's/.*=\(.*\)/\1/' -e q
-
-version.c: version.c.in
-	sed -e "s,@VERSION@,${VERSION}-FreeBSD,g" ${.ALLSRC} > ${.TARGET}
+		-e '/^[ 	]*VERSION=/!d' -e 's/.*=\(.*\)/\1/' -e q
 
 cvsbug: cvsbug.in
 	sed -e "s,@VERSION@,${VERSION}-FreeBSD,g" ${.ALLSRC} > ${.TARGET}
