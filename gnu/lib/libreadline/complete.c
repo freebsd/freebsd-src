@@ -63,7 +63,7 @@ extern struct passwd *getpwent ();
 #include "rldefs.h"
 
 /* Some standard library routines. */
-#include "readline.h"
+#include <readline/readline.h>
 
 /* Possible values for do_replace in rl_complete_internal. */
 #define NO_MATCH	0

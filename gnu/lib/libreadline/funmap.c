@@ -37,7 +37,7 @@ extern char *xmalloc (), *xrealloc ();
 #endif /* HAVE_STDLIB_H */
 
 #include "rlconf.h"
-#include "readline.h"
+#include <readline/readline.h>
 
 FUNMAP **funmap = (FUNMAP **)NULL;
 static int funmap_size = 0;

@@ -24,7 +24,7 @@
 #include <stdio.h>
 #endif /* !BUFSIZ */
 
-#include "readline.h"
+#include <readline/readline.h>
 
 #if 0
 extern KEYMAP_ENTRY_ARRAY vi_escape_keymap;

@@ -36,7 +36,7 @@
 #endif /* OSF1 || BSD386 */
 
 #include "rldefs.h"
-#include "readline.h"
+#include <readline/readline.h>
 
 #if !defined (errno)
 extern int errno;

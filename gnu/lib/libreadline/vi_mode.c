@@ -42,8 +42,8 @@
 
 /* Some standard library routines. */
 #include "rldefs.h"
-#include "readline.h"
-#include "history.h"
+#include <readline/readline.h>
+#include <readline/history.h>
 
 #ifndef digit
 #define digit(c)  ((c) >= '0' && (c) <= '9')

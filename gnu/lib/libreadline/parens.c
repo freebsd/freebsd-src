@@ -25,7 +25,7 @@
 #if defined (FD_SET)
 #include <sys/time.h>
 #endif
-#include "readline.h"
+#include <readline/readline.h>
 
 extern int rl_explicit_arg;
 
