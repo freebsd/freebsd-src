@@ -79,18 +79,15 @@ void printfs(void);
 int
 main(int argc, char *argv[])
 {
-	char *special;
+	const char *special, *on;
 	const char *name;
-	struct stat st;
 	int Aflag = 0, active = 0, aflag = 0;
 	int eflag = 0, fflag = 0, lflag = 0, mflag = 0;
 	int nflag = 0, oflag = 0, pflag = 0, sflag = 0;
 	int evalue = 0, fvalue = 0;
 	int mvalue = 0, ovalue = 0, svalue = 0;
 	char *avalue = NULL, *lvalue = NULL, *nvalue = NULL; 
-	struct fstab *fs;
 	const char *chg[2];
-	char device[MAXPATHLEN];
 	struct ufs_args args;
 	struct statfs stfs;
 	int found_arg, ch;
@@ -193,34 +190,14 @@ main(int argc, char *argv[])
 	if (found_arg == 0 || argc != 1)
 	  usage();
 
-	special = argv[0];
-	fs = getfsfile(special);
-	if (fs) {
+	on = special = argv[0];
+	if (ufs_disk_fillout(&disk, special) == -1)
+		goto err;
+	if (disk.d_name != special) {
+		special = disk.d_name;
 		if (statfs(special, &stfs) == 0 &&
-		    strcmp(special, stfs.f_mntonname) == 0) {
+		    strcmp(special, stfs.f_mntonname) == 0)
 			active = 1;
-		}
-		special = fs->fs_spec;
-	}
-again:
-	if (stat(special, &st) < 0) {
-		if (*special != '/') {
-			if (*special == 'r')
-				special++;
-			(void)snprintf(device, sizeof(device), "%s%s",
-				       _PATH_DEV, special);
-			special = device;
-			goto again;
-		}
-		err(1, "%s", special);
-	}
-	if (fs == NULL && (st.st_mode & S_IFMT) == S_IFDIR)
-		errx(10, "%s: unknown file system", special);
-	if (ufs_disk_fillout(&disk, special) == -1) {
-		if (disk.d_error != NULL)
-			errx(11, "%s: %s", special, disk.d_error);
-		else
-			err(12, "%s", special);
 	}
 
 	if (pflag) {
@@ -356,15 +333,22 @@ again:
 		}
 	}
 
-	sbwrite(&disk, Aflag);
+	if (sbwrite(&disk, Aflag) == -1)
+		goto err;
+	ufs_disk_close(&disk);
 	if (active) {
 		bzero(&args, sizeof(args));
-		if (mount("ufs", fs->fs_file,
+		if (mount("ufs", on,
 		    stfs.f_flags | MNT_UPDATE | MNT_RELOAD, &args) < 0)
 			err(9, "%s: reload", special);
 		warnx("file system reloaded");
 	}
 	exit(0);
+err:
+	if (disk.d_error != NULL)
+		errx(11, "%s: %s", special, disk.d_error);
+	else
+		err(12, "%s", special);
 }
 
 void
