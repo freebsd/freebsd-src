@@ -80,7 +80,7 @@ enum {
 void parseline(int c, char *args[]);			    /* parse a line with c parameters at args */
 void checkentry(int index);
 int haveargs(int);					    /* check arg, error message if not valid */
-void setsigs();
+void setsigs(void);
 void catchsig(int ignore);
 void vinum_create(int argc, char *argv[], char *arg0[]);
 void vinum_read(int argc, char *argv[], char *arg0[]);
@@ -123,8 +123,8 @@ void vinum_replace(int argc, char *argv[], char *argv0[]);
 void vinum_printconfig(int argc, char *argv[], char *argv0[]);
 void printconfig(FILE * of, char *comment);
 void vinum_saveconfig(int argc, char *argv[], char *argv0[]);
-int checkupdates();
-void genvolname();
+int checkupdates(void);
+void genvolname(void);
 struct _drive *create_drive(char *devicename);
 void vinum_concat(int argc, char *argv[], char *argv0[]);
 void vinum_stripe(int argc, char *argv[], char *argv0[]);
@@ -146,7 +146,7 @@ void make_devices(void);
 void make_vol_dev(int, int);
 void make_plex_dev(int, int);
 void make_sd_dev(int);
-void list_defective_objects();
+void list_defective_objects(void);
 void vinum_dumpconfig(int argc, char *argv[], char *argv0[]);
 void dumpconfig(char *part);
 int check_drive(char *devicename);
@@ -166,7 +166,7 @@ int vinum_li(int object, enum objecttype type);
 char *roughlength(int64_t bytes, int);
 u_int64_t sizespec(char *spec);
 char *sd_state(enum sdstate);
-void timestamp();
+void timestamp(void);
 
 extern int force;					    /* set to 1 to force some dangerous ops */
 extern int interval;					    /* interval in ms between init/revive */
