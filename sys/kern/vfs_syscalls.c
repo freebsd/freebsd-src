@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.64 1997/04/04 17:46:19 dfr Exp $
+ * $Id: vfs_syscalls.c,v 1.65 1997/04/04 17:47:41 dfr Exp $
  */
 
 /*
@@ -413,6 +413,10 @@ dounmount(mp, flags, p)
 	simple_lock(&mountlist_slock);
 	mp->mnt_flag |= MNT_UNMOUNT;
 	lockmgr(&mp->mnt_lock, LK_DRAIN | LK_INTERLOCK, &mountlist_slock, p);
+
+	if (mp->mnt_flag & MNT_EXPUBLIC)
+		vfs_setpublicfs(NULL, NULL, NULL);
+
 	mp->mnt_flag &=~ MNT_ASYNC;
 	vfs_msync(mp, MNT_NOWAIT);
 	vnode_pager_umount(mp);	/* release cached vnodes */
