@@ -1024,6 +1024,12 @@ ugen_set_interface(struct ugen_softc *sc, int ifaceidx, int altno)
 	err = usbd_endpoint_count(iface, &nendpt);
 	if (err)
 		return (err);
+
+#if defined(__FreeBSD__)
+	/* destroy the existing devices, we remake the new ones in a moment */
+	ugen_destroy_devnodes(sc);
+#endif
+
 	/* XXX should only do this after setting new altno has succeeded */
 	for (endptno = 0; endptno < nendpt; endptno++) {
 		ed = usbd_interface2endpoint_descriptor(iface,endptno);
@@ -1034,6 +1040,11 @@ ugen_set_interface(struct ugen_softc *sc, int ifaceidx, int altno)
 		sce->edesc = 0;
 		sce->iface = 0;
 	}
+
+#if defined(__FreeBSD__)
+	/* make the new devices */
+	ugen_make_devnodes(sc);
+#endif
 
 	/* change setting */
 	err = usbd_set_interface(iface, altno);
