@@ -74,6 +74,7 @@
 #include <dev/usb/ohcivar.h>
 
 #define PCI_OHCI_VENDORID_ALI		0x10b9
+#define PCI_OHCI_VENDORID_AMD756	0x1022
 #define PCI_OHCI_VENDORID_CMDTECH	0x1095
 #define PCI_OHCI_VENDORID_COMPAQ	0x0e11
 #define PCI_OHCI_VENDORID_NEC		0x1033
@@ -82,6 +83,8 @@
 
 #define PCI_OHCI_DEVICEID_ALADDIN_V	0x523710b9
 static const char *ohci_device_aladdin_v = "AcerLabs M5237 (Aladdin-V) USB controller";
+#define PCI_OHCI_DEVICEID_AMD756	0x740c1022
+static const char *ohci_device_amd756	 = "AMD-756 USB Controller";
 #define PCI_OHCI_DEVICEID_FIRELINK	0xc8611045
 static const char *ohci_device_firelink  = "OPTi 82C861 (FireLink) USB controller";
 #define PCI_OHCI_DEVICEID_NEC		0x00351033
@@ -103,6 +106,8 @@ ohci_pci_match(device_t self)
 	switch(device_id) {
 	case PCI_OHCI_DEVICEID_ALADDIN_V:
 		return (ohci_device_aladdin_v);
+	case PCI_OHCI_DEVICEID_AMD756:
+		return (ohci_device_amd756);
 	case PCI_OHCI_DEVICEID_USB0670:
 		return (ohci_device_usb0670);
 	case PCI_OHCI_DEVICEID_USB0673:
@@ -179,6 +184,10 @@ ohci_pci_attach(device_t self)
 	case PCI_OHCI_DEVICEID_ALADDIN_V:
 		device_set_desc(usbus, ohci_device_aladdin_v);
 		sprintf(sc->sc_vendor, "AcerLabs");
+		break;
+	case PCI_OHCI_DEVICEID_AMD756:
+		device_set_desc(usbus, ohci_device_amd756);
+		sprintf(sc->sc_vendor, "AMD");
 		break;
 	case PCI_OHCI_DEVICEID_FIRELINK:
 		device_set_desc(usbus, ohci_device_firelink);
