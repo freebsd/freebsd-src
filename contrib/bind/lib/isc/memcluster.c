@@ -16,7 +16,7 @@
  */
 
 #if !defined(LINT) && !defined(CODECENTER)
-static char rcsid[] = "$Id: memcluster.c,v 8.7 1998/03/27 00:17:31 halley Exp $";
+static char rcsid[] = "$Id: memcluster.c,v 8.10 1998/05/05 19:00:52 halley Exp $";
 #endif /* not lint */
 
 #include "port_before.h"
@@ -51,9 +51,14 @@ typedef struct {
 #define SMALL_SIZE_LIMIT sizeof(memcluster_element)
 #define P_SIZE sizeof(void *)
 
+#ifndef MEMCLUSTER_LITTLE_MALLOC
+#define MEMCLUSTER_BIG_MALLOC 1
+#define NUM_BASIC_BLOCKS 64
+#endif
+
 struct stats {
 	u_long			gets;
-	u_long			puts;
+	u_long			totalgets;
 	u_long			blocks;
 	u_long			freefrags;
 };
@@ -65,6 +70,9 @@ static size_t			mem_target;
 static size_t			mem_target_half;
 static size_t			mem_target_fudge;
 static memcluster_element **	freelists;
+#ifdef MEMCLUSTER_BIG_MALLOC
+static memcluster_element *	basic_blocks;
+#endif
 static struct stats *		stats;
 
 /* Forward. */
@@ -100,7 +108,9 @@ meminit(size_t init_max_size, size_t target_size) {
 	memset(freelists, 0,
 	       max_size * sizeof (memcluster_element *));
 	memset(stats, 0, (max_size + 1) * sizeof (struct stats));
-
+#ifdef MEMCLUSTER_BIG_MALLOC
+	basic_blocks = NULL;
+#endif
 	return (0);
 }
 
@@ -119,6 +129,7 @@ __memget(size_t size) {
 	if (size >= max_size || new_size >= max_size) {
 		/* memget() was called on something beyond our upper limit. */
 		stats[max_size].gets++;
+		stats[max_size].totalgets++;
 		return (malloc(size));
 	}
 
@@ -133,6 +144,31 @@ __memget(size_t size) {
 		void *new;
 		char *curr, *next;
 
+#ifdef MEMCLUSTER_BIG_MALLOC
+		if (basic_blocks == NULL) {
+			new = malloc(NUM_BASIC_BLOCKS * mem_target);
+			if (new == NULL) {
+				errno = ENOMEM;
+				return (NULL);
+			}
+			curr = new;
+			next = curr + mem_target;
+			for (i = 0; i < (NUM_BASIC_BLOCKS - 1); i++) {
+				((memcluster_element *)curr)->next = next;
+				curr = next;
+				next += mem_target;
+			}
+			/*
+			 * curr is now pointing at the last block in the
+			 * array.
+			 */
+			((memcluster_element *)curr)->next = NULL;
+			basic_blocks = new;
+		}
+		total_size = mem_target;
+		new = basic_blocks;
+		basic_blocks = basic_blocks->next;
+#else
 		if (new_size > mem_target_half)
 			total_size = mem_target_fudge;
 		else
@@ -142,6 +178,7 @@ __memget(size_t size) {
 			errno = ENOMEM;
 			return (NULL);
 		}
+#endif
 		frags = total_size / new_size;
 		stats[new_size].blocks++;
 		stats[new_size].freefrags += frags;
@@ -169,6 +206,7 @@ __memget(size_t size) {
 	 * max_size.
 	 */
 	stats[size].gets++;
+	stats[size].totalgets++;
 	stats[new_size].freefrags--;
 	return (ret);
 }
@@ -190,8 +228,8 @@ __memput(void *mem, size_t size) {
 	if (size == max_size || new_size >= max_size) {
 		/* memput() called on something beyond our upper limit */
 		free(mem);
-		INSIST(stats[max_size].puts < stats[max_size].gets);
-		stats[max_size].puts++;
+		INSIST(stats[max_size].gets != 0);
+		stats[max_size].gets--;
 		return;
 	}
 
@@ -205,8 +243,8 @@ __memput(void *mem, size_t size) {
 	 * max. size (max_size) ends up getting recorded as a call to
 	 * max_size.
 	 */
-	INSIST(stats[size].puts < stats[size].gets);
-	stats[size].puts++;
+	INSIST(stats[size].gets != 0);
+	stats[size].gets--;
 	stats[new_size].freefrags++;
 }
 
@@ -238,12 +276,11 @@ memstats(FILE *out) {
 	for (i = 1; i <= max_size; i++) {
 		const struct stats *s = &stats[i];
 
-		if (s->gets == 0 && s->puts == 0)
+		if (s->totalgets == 0 && s->gets == 0)
 			continue;
-		INSIST(s->gets >= s->puts);
-		fprintf(out, "%s%5d: %11lu get, %11lu put, %11lu rem",
+		fprintf(out, "%s%5d: %11lu gets, %11lu rem",
 			(i == max_size) ? ">=" : "  ",
-			i, s->gets, s->puts, s->gets - s->puts);
+			i, s->totalgets, s->gets);
 		if (s->blocks != 0)
 			fprintf(out, " (%lu bl, %lu ff)",
 				s->blocks, s->freefrags);

@@ -1,4 +1,51 @@
 
+	--- 8.1.2 released ---
+
+ 380.	[bug]		Replaying the dynamic update log could trigger an
+			INSIST.
+
+ 379.	[port]		Updated IRIX port.
+
+ 378.	[bug]		The declaration for res_freeupdrec() in resolv.h
+			didn't use __P().
+
+ 377.	[func]		The server now sets SO_SNDBUF on UDP sockets.
+
+ 376.	[port]		The malloc() implementation on many systems didn't
+			like memcluster.c's 4KB block allocations, sometimes
+			causing huge amounts of memory to be wasted.
+			memcluster.c now allocates bigger chunks and makes
+			its own 4KB blocks.
+
+ 375.	[bug]		If more than (sizeof u_long) gets occurred for a
+			particular memory bucket, an INSIST about puts < gets
+			might have been erroneously trigged.  Now total
+			gets and outstanding gets are counted.
+
+ 374.	[port]		SCO 3.2v4.2 doesn't have initgroups(), so we do not
+			want to define CAN_CHANGE_ID.
+
+ 373.	[port]		Updated LynxOS port.
+
+ 372.	[port]		Updated SCO 3.2v5.0.x port.
+
+ 371.	[bug]		"make install" could fail on some Linux systems
+			because src/port/linux/include/net/Makefile didn't
+			cope with an empty HFILES variable.
+
+ 370.	[bug]		Trying to update an expired slave zone would cause
+			the server to panic.
+
+ 369.	[bug]		The Makefile for named-xfer didn't try to create
+			${DESTDIR}${DESTEXEC} if it didn't exist.
+
+ 368.	[bug]		Interface scanning could get confused on BSD-like
+			systems if the sa_len of the address was less than
+			sizeof (struct sockaddr).
+
+ 367.	[func]		The default value for the host-statistics option has
+			been changed to "no".
+
 	--- 8.1.2-T3B released ---
 
  366.	[bug]		Z_AUTH was set on the cache zone do_reload().

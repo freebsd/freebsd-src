@@ -1,6 +1,6 @@
 /*
  *	from ns.h	4.33 (Berkeley) 8/23/90
- *	$Id: ns_defs.h,v 8.38 1998/03/17 03:22:27 halley Exp $
+ *	$Id: ns_defs.h,v 8.39 1998/04/14 00:35:09 halley Exp $
  */
 
 /*
@@ -145,7 +145,7 @@
 #define OPTION_HOSTSTATS	0x0080	/* Maintain per-host statistics? */
 #define OPTION_DEALLOC_ON_EXIT	0x0100	/* Deallocate everything on exit? */
 
-#define	DEFAULT_OPTION_FLAGS	(OPTION_HOSTSTATS)
+#define	DEFAULT_OPTION_FLAGS	0
 
 #ifdef BIND_UPDATE
 #define SOAINCRINTVL 300 /* default value for the time after which
