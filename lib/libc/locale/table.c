@@ -45,7 +45,6 @@ __FBSDID("$FreeBSD$");
 
 extern rune_t	_none_sgetrune(const char *, size_t, char const **);
 extern int	_none_sputrune(rune_t, char *, size_t, char **);
-extern int	_none_init(char *, char **);
 
 _RuneLocale _DefaultRuneLocale = {
     _RUNE_MAGIC_1,
