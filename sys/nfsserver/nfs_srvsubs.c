@@ -81,10 +81,11 @@ __FBSDID("$FreeBSD$");
  * Data items converted to xdr at startup, since they are constant
  * This is kinda hokey, but may save a little time doing byte swaps
  */
-u_int32_t nfs_xdrneg1;
-u_int32_t rpc_call, rpc_vers, rpc_reply, rpc_msgdenied, rpc_autherr,
-	rpc_mismatch, rpc_auth_unix, rpc_msgaccepted;
-u_int32_t nfs_prog, nfs_true, nfs_false;
+u_int32_t nfsrv_nfs_xdrneg1;
+u_int32_t nfsrv_rpc_call, nfsrv_rpc_vers, nfsrv_rpc_reply,
+	nfsrv_rpc_msgdenied, nfsrv_rpc_autherr,
+	nfsrv_rpc_mismatch, nfsrv_rpc_auth_unix, nfsrv_rpc_msgaccepted;
+u_int32_t nfsrv_nfs_prog, nfsrv_nfs_true, nfsrv_nfs_false;
 
 /* And other global data */
 static nfstype nfsv2_type[9] = { NFNON, NFREG, NFDIR, NFBLK, NFCHR, NFLNK,
@@ -92,7 +93,7 @@ static nfstype nfsv2_type[9] = { NFNON, NFREG, NFDIR, NFBLK, NFCHR, NFLNK,
 #define vtonfsv2_type(a)	txdr_unsigned(nfsv2_type[((int32_t)(a))])
 #define vtonfsv3_mode(m)	txdr_unsigned((m) & ALLPERMS)
 
-int nfs_ticks;
+int nfsrv_ticks;
 
 struct nfssvc_sockhead nfssvc_sockhead;
 int nfssvc_sockhead_flag;
@@ -105,7 +106,7 @@ static sy_call_t *nfs_prev_nfssvc_sy_call;
 /*
  * Mapping of old NFS Version 2 RPC numbers to generic numbers.
  */
-int nfsv3_procid[NFS_NPROCS] = {
+int nfsrv_nfsv3_procid[NFS_NPROCS] = {
 	NFSPROC_NULL,
 	NFSPROC_GETATTR,
 	NFSPROC_SETATTR,
@@ -527,21 +528,21 @@ nfsrv_modevent(module_t mod, int type, void *data)
 
 	switch (type) {
 	case MOD_LOAD:
-		rpc_vers = txdr_unsigned(RPC_VER2);
-		rpc_call = txdr_unsigned(RPC_CALL);
-		rpc_reply = txdr_unsigned(RPC_REPLY);
-		rpc_msgdenied = txdr_unsigned(RPC_MSGDENIED);
-		rpc_msgaccepted = txdr_unsigned(RPC_MSGACCEPTED);
-		rpc_mismatch = txdr_unsigned(RPC_MISMATCH);
-		rpc_autherr = txdr_unsigned(RPC_AUTHERR);
-		rpc_auth_unix = txdr_unsigned(RPCAUTH_UNIX);
-		nfs_prog = txdr_unsigned(NFS_PROG);
-		nfs_true = txdr_unsigned(TRUE);
-		nfs_false = txdr_unsigned(FALSE);
-		nfs_xdrneg1 = txdr_unsigned(-1);
-		nfs_ticks = (hz * NFS_TICKINTVL + 500) / 1000;
-		if (nfs_ticks < 1)
-			nfs_ticks = 1;
+		nfsrv_rpc_vers = txdr_unsigned(RPC_VER2);
+		nfsrv_rpc_call = txdr_unsigned(RPC_CALL);
+		nfsrv_rpc_reply = txdr_unsigned(RPC_REPLY);
+		nfsrv_rpc_msgdenied = txdr_unsigned(RPC_MSGDENIED);
+		nfsrv_rpc_msgaccepted = txdr_unsigned(RPC_MSGACCEPTED);
+		nfsrv_rpc_mismatch = txdr_unsigned(RPC_MISMATCH);
+		nfsrv_rpc_autherr = txdr_unsigned(RPC_AUTHERR);
+		nfsrv_rpc_auth_unix = txdr_unsigned(RPCAUTH_UNIX);
+		nfsrv_nfs_prog = txdr_unsigned(NFS_PROG);
+		nfsrv_nfs_true = txdr_unsigned(TRUE);
+		nfsrv_nfs_false = txdr_unsigned(FALSE);
+		nfsrv_nfs_xdrneg1 = txdr_unsigned(-1);
+		nfsrv_ticks = (hz * NFS_TICKINTVL + 500) / 1000;
+		if (nfsrv_ticks < 1)
+			nfsrv_ticks = 1;
 
 		nfsrv_init(0);		/* Init server data structures */
 		nfsrv_initcache();	/* Init the server request cache */
@@ -932,10 +933,10 @@ nfsm_srvwcc(struct nfsrv_descript *nfsd, int before_ret,
 
 	if (before_ret) {
 		tl = nfsm_build(u_int32_t *, NFSX_UNSIGNED);
-		*tl = nfs_false;
+		*tl = nfsrv_nfs_false;
 	} else {
 		tl = nfsm_build(u_int32_t *, 7 * NFSX_UNSIGNED);
-		*tl++ = nfs_true;
+		*tl++ = nfsrv_nfs_true;
 		txdr_hyper(before_vap->va_size, tl);
 		tl += 2;
 		txdr_nfsv3time(&(before_vap->va_mtime), tl);
@@ -958,10 +959,10 @@ nfsm_srvpostopattr(struct nfsrv_descript *nfsd, int after_ret,
 
 	if (after_ret) {
 		tl = nfsm_build(u_int32_t *, NFSX_UNSIGNED);
-		*tl = nfs_false;
+		*tl = nfsrv_nfs_false;
 	} else {
 		tl = nfsm_build(u_int32_t *, NFSX_UNSIGNED + NFSX_V3FATTR);
-		*tl++ = nfs_true;
+		*tl++ = nfsrv_nfs_true;
 		fp = (struct nfs_fattr *)tl;
 		nfsm_srvfattr(nfsd, after_vap, fp);
 	}
@@ -1222,7 +1223,7 @@ nfsm_srvpostop_fh_xx(fhandle_t *f, struct mbuf **mb, caddr_t *bpos)
 	u_int32_t *tl;
 
 	tl = nfsm_build_xx(2 * NFSX_UNSIGNED + NFSX_V3FH, mb, bpos);
-	*tl++ = nfs_true;
+	*tl++ = nfsrv_nfs_true;
 	*tl++ = txdr_unsigned(NFSX_V3FH);
 	bcopy(f, tl, NFSX_V3FH);
 }
@@ -1313,7 +1314,7 @@ nfsm_srvsattr_xx(struct vattr *a, struct mbuf **md, caddr_t *dpos)
 	tl = nfsm_dissect_xx(NFSX_UNSIGNED, md, dpos);
 	if (tl == NULL)
 		return EBADRPC;
-	if (*tl == nfs_true) {
+	if (*tl == nfsrv_nfs_true) {
 		tl = nfsm_dissect_xx(NFSX_UNSIGNED, md, dpos);
 		if (tl == NULL)
 			return EBADRPC;
@@ -1322,7 +1323,7 @@ nfsm_srvsattr_xx(struct vattr *a, struct mbuf **md, caddr_t *dpos)
 	tl = nfsm_dissect_xx(NFSX_UNSIGNED, md, dpos);
 	if (tl == NULL)
 		return EBADRPC;
-	if (*tl == nfs_true) {
+	if (*tl == nfsrv_nfs_true) {
 		tl = nfsm_dissect_xx(NFSX_UNSIGNED, md, dpos);
 		if (tl == NULL)
 			return EBADRPC;
@@ -1331,7 +1332,7 @@ nfsm_srvsattr_xx(struct vattr *a, struct mbuf **md, caddr_t *dpos)
 	tl = nfsm_dissect_xx(NFSX_UNSIGNED, md, dpos);
 	if (tl == NULL)
 		return EBADRPC;
-	if (*tl == nfs_true) {
+	if (*tl == nfsrv_nfs_true) {
 		tl = nfsm_dissect_xx(NFSX_UNSIGNED, md, dpos);
 		if (tl == NULL)
 			return EBADRPC;
@@ -1340,7 +1341,7 @@ nfsm_srvsattr_xx(struct vattr *a, struct mbuf **md, caddr_t *dpos)
 	tl = nfsm_dissect_xx(NFSX_UNSIGNED, md, dpos);
 	if (tl == NULL)
 		return EBADRPC;
-	if (*tl == nfs_true) {
+	if (*tl == nfsrv_nfs_true) {
 		tl = nfsm_dissect_xx(2 * NFSX_UNSIGNED, md, dpos);
 		if (tl == NULL)
 			return EBADRPC;
