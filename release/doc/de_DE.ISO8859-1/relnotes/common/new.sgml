@@ -1,6 +1,6 @@
 <!--
-  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/relnotes/common/new.sgml,v 1.134 2002/10/16 20:54:16 ue Exp $
-  basiert auf: 1.433
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/relnotes/common/new.sgml,v 1.138 2002/10/19 18:32:07 ue Exp $
+  basiert auf: 1.437
 -->
 <articleinfo>
   <title>&os;/&arch; &release.current; Release Notes</title>
@@ -353,6 +353,9 @@
       andere Treibe versehentlich Adressen zuweisen, die mit diesen
       ROMs kollidieren.  &merged;</para>
 
+    <para>Die Kernel-Option <literal>P1003_1B</literal> wurde nicht
+      mehr verwendet und daher entfernt.</para>
+
     <para arch="i386,pc98">PECOFF (Dateiformat von Win32-Programmen)
       wird jetzt unterst&uuml;tzt.</para>
 
@@ -406,7 +409,7 @@
     <para arch="sparc64">SBus-Ger&auml;te werden jetzt
       unterst&uuml;tzt.</para>
 
-    <para arch="sparc64">Der neue Treiber se unterst&uuml;tzt serielle
+    <para arch="sparc64">Der neue Treiber sab unterst&uuml;tzt serielle
       Schnittstellen auf Basis des Siemens SAB82532 Chips, den man in
       vielen neueren Sparc Ultra System findet.</para>
 
@@ -715,6 +718,18 @@
         unterst&uuml;tzt, dazu mu&szlig; in der Konfigurationsdatei
         f&uuml;r den angepa&szlig;ten Kernel die Zeile
         <literal>CPU_ELAN</literal> stehen.  &merged;</para>
+
+      <para arch="i386">In der Konfigurationsdatei f&uuml;r den
+	angepa&szlig;ten Kernel kann jetzt die neue Option
+	<literal>CPU_DISABLE_CMPXCHG</literal> verwendet werden.
+	Durch die Verwendung dieser Option kommt es zu starken
+	Steigerungen der Performance bei der Installation als Gast-OS
+	unter VMware.
+	<note>
+	  <para>Diese Option kann nicht bei <literal>SMP</literal>
+	    Kerneln verwendet wird.</para>
+	</note>
+      </para>
     </sect3>
 
     <sect3>
@@ -1115,6 +1130,24 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
         dynamischen &Auml;nderungen erh&ouml;ht. VLANs werden jetzt
         vollst&auml;ndig unterst&uuml;tzt.  &merged;</para>
 
+      <para>Wird in der Konfigurationsdatei f&uuml;r den
+	angepa&szlig;ten die Option <literal>FAST_IPSEC</literal>
+	verwendet, nutzt IPsec die Verschl&uuml;sselungs-Infrastruktur
+	des Kernels, inklusive der Unterst&uuml;tzung f&uuml;r
+	Hardware-Verschl&uuml;sselung.
+	<note>
+	  <para>Die gleichzeitige Verwendung von
+	    <literal>FAST_IPSEC</literal> und <literal>IPSEC</literal>
+	    ist nicht m&ouml;glich.</para>
+	</note>
+
+	<note>
+	  <para>Zur Zeit kann <literal>FAST_IPSEC</literal> nicht
+	    zusammen mit IPv6 oder der Option <literal>INET6</literal>
+	    verwendet werden.</para>
+	</note>
+      </para>
+
       <para>Der neue Treiber &man.gre.4; unterst&uuml;tzt die
         Encapsulation von IP Paketen mt GRE (RFC 1701) und die
         minimale IP Encapsulation f&uuml;r Mobile IP (RFC
@@ -1501,7 +1534,7 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
 	Grundfunktionen zur Ansteuerung von Festplatten &uuml;ber
 	OpenFirmware.</para>
 
-      <para arch="i386">Der neue Treiber pst unterst&uuml;tzt die
+      <para arch="i386">Der neue Treiber &man.pst.4; unterst&uuml;tzt die
         Promise SuperTrak ATA RAID Controller.  &merged;</para>
 
       <para>Diverse Fehler in &man.sa.4; wurden behoben, u.a. der
@@ -2870,6 +2903,12 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
       <option>promisc</option> m&ouml;glich, ein Interface in den
       Promiscuous Mode zu setzen.  &merged;</para>
 
+    <para>Wird bei &man.ifconfig.8; die neue Option
+      <literal>monitor</literal> angegeben, werden keine Pakete mehr
+      &uuml;ber diese Schnittstelle gesendet oder empfangen.  Damit
+      ist es m&ouml;glich, den Datenverkehr in einem Netzwerk zu
+      &uuml;berwachen, ohne es zu beinflussen.</para>
+
     <para role="historic">Die Syntax der &man.faithd.8;-Unterst&uuml;tzung in
       &man.inetd.8; ist jetzt mit der den anderen BSD-Varianten
       identisch.  &merged;</para>
@@ -3089,10 +3128,18 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
       von <application>PAM</application> Modulen gesetzt werden.
       &merged;</para>
 
-    <para role="historic">&man.lpc.8; wurde verbessert; <command>lpc clean</command>
+    <para>&man.lpc.8; wurde verbessert; <command>lpc clean</command>
       ist jetzt sicherer und das neue Kommando <command>lpc
       tclean</command> zeigt an, welche Dateien von <command>lpc
-      clean</command> gel&ouml;scht w&uuml;rden.  &merged;</para>
+      clean</command> gel&ouml;scht w&uuml;rden.  <command>lpc
+      topq</command> wurde v&ouml;llig &uuml;berarbeitet und ist jetzt
+      deutlich flexibler bei der Auswahl der zu verschiebenden
+      Druckauftr&auml;ge (z.B. Gruppen von Druckauftr&auml;ge, alle
+      Auftr&auml;ge eines bestimmten Systems).   Mit dem neuen Befehl
+      <command>lpc bottomq</command> k&ouml;nnen Druckauftr&auml;ge an
+      das Ende der Warteschlange verschoben werden; mit dem neuen
+      Befehl <command>lpc setstatus</command> kann der Status des
+      Druckers ge&auml;ndert werden.  &merged;</para>
 
     <para role="historic">&man.lpd.8; hat zwei neue Optionen erhalten:
       <option>-c</option> protokolliert alle fehlgeschlagenen
@@ -3352,6 +3399,10 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
       <option>-t</option> zur Festlegung des Ausgabeformates.
       &merged;</para>
 
+    <para arch="sparc64">Mit dem neuen Programm &man.ofwdump.8; kann
+      die OpenFirmware Ger&auml;te-Hierarchie ausgegeben
+      werden.</para>
+
     <para><application>PAM</application> wird jetzt f&uuml;r die
       Verwaltung von Benutzer-Accounts und Sitzungen
       unterst&uuml;tzt.</para>
@@ -3464,6 +3515,10 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
       genutzt, wird ein Audiosignal ausgegeben, wenn ein Paket
       verloren geht.  &merged;</para>
 
+    <para>Wird bei &man.ping.8; die Option <option>-o</option>
+      angegeben, wird das Programm sofort beendet, wenn eine Antwort
+      eintrifft.</para>
+
     <para role="historic">&man.ppp.8; wurde in diversen Punkten aktualisiert und
       korrigiert.  &merged;</para>
 
@@ -3510,6 +3565,10 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
     <para>Bei &man.pwd.1; kann jetzt mit der Option
       <option>-L</option> das logische Arbeitsverzeichnis ausgegeben
       werden.  &merged;</para>
+
+    <para>Wird bei &man.quota.1; die neue Option <option>-l</option>
+      angegeben, werden die Quotas auf NFS Dateisystemen nicht
+      &uuml;berpr&uuml;ft.</para>
 
     <para>Der von &man.rand.3; zur Verf&uuml;gung gestellte Generator
       f&uuml;r Pseudo-Zufallszahlen wurde verbessert, um bessere
@@ -3894,6 +3953,17 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
     <para role="historic">Mit dem neuen Programm &man.truncate.1; k&ouml;nnen Dateien
       vergr&ouml;&szlig;ert oder verkleinert werden.  &merged;</para>
 
+    <para>Bei &man.tunefs.8; k&ouml;nnen mit den neuen Optionen
+      <option>-a</option> und <option>-l</option> auf
+      UFS-Dateisystemen die Einstellungen <literal>FS_ACLS</literal>
+      bzw. <literal>FS_MULTILABEL</literal> aktiviert und deaktiviert
+      werden.</para>
+
+    <para>Mit dem neuen Programm &man.ugidfw.8; kann das Regelwerk
+      f&uuml;r die Mandatory Access Control Policy
+      <literal>mac_bsdextended</literal> manipuliert werden, analog zu
+      &man.ipfw.8;.</para>
+
     <para role="historic">Die &os; Konsole unterst&uuml;tzt jetzt Ukrainisch.
       &merged;</para>
 
@@ -4015,9 +4085,8 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
       <option>-I</option><replaceable>replstr</replaceable>, die es
       dem Benutzer erlaubt, &man.xargs.1; die von stdin gelesen Daten
       an einen bestimmten Punkt der Kommandozeile einf&uuml;gen zu
-      lassen.  (Die &os;-spezifische Variante <option>-J</option> hat
-      die gleiche Wirkung, sollte aber nicht mehr verwendet
-      werden).  &merged;</para>
+      lassen.  Die &os;-spezifische Variante <option>-J</option> hat
+      eine &auml;hnliche Wirkung.  &merged;</para>
 
     <para>&man.xargs.1; unterst&uuml;tzt jetzt die neue Option
       <option>-L</option>, um den Start des aufzurufenden Programmes
@@ -4053,6 +4122,15 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
       alten Programmen wird durch Eintr&auml;ge in
       <filename>/etc/locale.alias</filename> sichergestellt.
       &merged;</para>
+
+    <para>Mehrere Routinen in der C-Bibliothek unterst&uuml;tzen jetzt
+      auch <quote>wide characters</quote>.  Dazu geh&ouml;ren die
+      Routinen zur Bestimmung des Typs eines Zeichens wie
+      &man.wctype.3;;  die Routinen zur Ein- und Ausgabe dieser
+      Zeichens wie &man.getwc.3;;  die Routinen f&uuml;r formatierte
+      Ein-/Ausgabe wie &man.wprintf.3; und &man.wscanf.3;.  Routinen
+      zur Umwandlung in mehrere Byte gro&szlig;e Zeichen stehen
+      ebenfalls zur Verf&uuml;gung, siehe &man.multibyte.3;.</para>
 
     <para role="historic">In <filename>/usr/src/share/examples/BSD_daemon/</filename>
       steht jetzt eine skalierbare Graphik des Beastie zur
