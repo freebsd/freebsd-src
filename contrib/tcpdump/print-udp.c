@@ -48,7 +48,7 @@ static char rcsid[] =
 #include "addrtoname.h"
 #include "appletalk.h"
 
-#include "nfsv2.h"
+#include "nfs.h"
 #include "bootp.h"
 
 struct rtcphdr {
