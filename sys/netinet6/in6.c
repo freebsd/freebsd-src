@@ -281,30 +281,6 @@ in6_ifremloop(struct ifaddr *ifa)
 }
 
 int
-in6_ifindex2scopeid(idx)
-	int idx;
-{
-	struct ifnet *ifp;
-	struct ifaddr *ifa;
-	struct sockaddr_in6 *sin6;
-
-	if (idx < 0 || if_index < idx)
-		return -1;
-	ifp = ifnet_byindex(idx);
-
-	TAILQ_FOREACH(ifa, &ifp->if_addrlist, ifa_list)
-	{
-		if (ifa->ifa_addr->sa_family != AF_INET6)
-			continue;
-		sin6 = (struct sockaddr_in6 *)ifa->ifa_addr;
-		if (IN6_IS_ADDR_SITELOCAL(&sin6->sin6_addr))
-			return sin6->sin6_scope_id & 0xffff;
-	}
-
-	return -1;
-}
-
-int
 in6_mask2len(mask, lim0)
 	struct in6_addr *mask;
 	u_char *lim0;
@@ -340,20 +316,6 @@ in6_mask2len(mask, lim0)
 	}
 
 	return x * 8 + y;
-}
-
-void
-in6_len2mask(mask, len)
-	struct in6_addr *mask;
-	int len;
-{
-	int i;
-
-	bzero(mask, sizeof(*mask));
-	for (i = 0; i < len / 8; i++)
-		mask->s6_addr8[i] = 0xff;
-	if (len % 8)
-		mask->s6_addr8[i] = (0xff00 >> (len % 8)) & 0xff;
 }
 
 #define ifa2ia6(ifa)	((struct in6_ifaddr *)(ifa))
@@ -1387,7 +1349,7 @@ in6_lifaddr_ioctl(so, cmd, data, ifp, td)
 		}
 
 		ifra.ifra_prefixmask.sin6_len = sizeof(struct sockaddr_in6);
-		in6_len2mask(&ifra.ifra_prefixmask.sin6_addr, prefixlen);
+		in6_prefixlen2mask(&ifra.ifra_prefixmask.sin6_addr, prefixlen);
 
 		ifra.ifra_flags = iflr->flags & ~IFLR_PREFIX;
 		return in6_control(so, SIOCAIFADDR_IN6, (caddr_t)&ifra, ifp, td);
@@ -1403,7 +1365,7 @@ in6_lifaddr_ioctl(so, cmd, data, ifp, td)
 		bzero(&mask, sizeof(mask));
 		if (iflr->flags & IFLR_PREFIX) {
 			/* lookup a prefix rather than address. */
-			in6_len2mask(&mask, iflr->prefixlen);
+			in6_prefixlen2mask(&mask, iflr->prefixlen);
 
 			sin6 = (struct sockaddr_in6 *)&iflr->addr;
 			bcopy(&sin6->sin6_addr, &match, sizeof(match));
@@ -1423,7 +1385,7 @@ in6_lifaddr_ioctl(so, cmd, data, ifp, td)
 				cmp = 0;	/* XXX */
 			} else {
 				/* on deleting an address, do exact match */
-				in6_len2mask(&mask, 128);
+				in6_prefixlen2mask(&mask, 128);
 				sin6 = (struct sockaddr_in6 *)&iflr->addr;
 				bcopy(&sin6->sin6_addr, &match, sizeof(match));
 
