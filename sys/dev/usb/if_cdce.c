@@ -686,7 +686,7 @@ cdce_rxstart(struct ifnet *ifp)
 	sc = ifp->if_softc;
 	CDCE_LOCK(sc);
 
-	    if (sc->cdce_dying || !(ifp->if_flags & IFF_RUNNING)) {
+	if (sc->cdce_dying || !(ifp->if_flags & IFF_RUNNING)) {
 		CDCE_UNLOCK(sc);
 		return;
 	}
