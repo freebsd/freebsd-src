@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.141 1996/04/23 18:36:56 nate Exp $
+ *	$Id: sio.c,v 1.142 1996/05/02 09:34:40 phk Exp $
  */
 
 #include "opt_comconsole.h"
@@ -68,7 +68,6 @@
 
 #include <machine/clock.h>
 
-#include <i386/isa/icu.h>	/* XXX just to get at `imen' */
 #include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
 #include <i386/isa/sioreg.h>
@@ -236,7 +235,9 @@ struct com_s {
 	struct termios	lt_out;
 
 	bool_t	do_timestamp;
+	bool_t	do_dcd_timestamp;
 	struct timeval	timestamp;
+	struct timeval	dcd_timestamp;
 
 	u_long	bytes_in;	/* statistics */
 	u_long	bytes_out;
@@ -272,8 +273,7 @@ struct com_s {
  * by `config', not here.
  */
 
-/* Interrupt handling entry points. */
-inthand2_t	siointrts;
+/* Interrupt handling entry point. */
 void	siopoll		__P((void));
 
 /* Device switch entry points. */
@@ -308,8 +308,6 @@ static char driver_name[] = "sio";
 /* table and macro for fast conversion from a unit number to its com struct */
 static	struct com_s	*p_com_addr[NSIO];
 #define	com_addr(unit)	(p_com_addr[unit])
-
-static  struct timeval	intr_timestamp;
 
 struct isa_driver	siodriver = {
 	sioprobe, sioattach, driver_name
@@ -600,14 +598,6 @@ sioprobe(dev)
 /* EXTRA DELAY? */
 
 	/*
-	 * XXX DELAY() reenables CPU interrupts.  This is a problem for
-	 * shared interrupts after the first device using one has been
-	 * successfully probed - config_isadev() has enabled the interrupt
-	 * in the ICU.
-	 */
-	outb(IO_ICU1 + 1, 0xff);
-
-	/*
 	 * Initialize the speed and the word size and wait long enough to
 	 * drain the maximum of 16 bytes of junk in device output queues.
 	 * The speed is undefined after a master reset and must be set
@@ -706,7 +696,6 @@ sioprobe(dev)
 		failures[8] = isa_irq_pending(idev) ? 1	: 0;
 	failures[9] = (inb(iobase + com_iir) & IIR_IMASK) - IIR_NOPEND;
 
-	outb(IO_ICU1 + 1, imen);	/* XXX */
 	enable_intr();
 
 	result = IO_COMSIZE;
@@ -1358,24 +1347,6 @@ siodtrwakeup(chan)
 	wakeup(&com->dtr_wait);
 }
 
-/* Interrupt routine for timekeeping purposes */
-void
-siointrts(unit)
-	int	unit;
-{
-	/*
-	 * XXX microtime() reenables CPU interrupts.  We can't afford to
-	 * be interrupted and don't want to slow down microtime(), so lock
-	 * out interrupts in another way.
-	 */
-	outb(IO_ICU1 + 1, 0xff);
-	microtime(&intr_timestamp);
-	disable_intr();
-	outb(IO_ICU1 + 1, imen);
-
-	siointr(unit);
-}
-
 void
 siointr(unit)
 	int	unit;
@@ -1418,9 +1389,6 @@ siointr1(com)
 	u_char	*ioptr;
 	u_char	recv_data;
 
-	if (com->do_timestamp)
-		/* XXX a little bloat here... */
-		com->timestamp = intr_timestamp;
 	while (TRUE) {
 		line_status = inb(com->line_status_port);
 
@@ -1467,6 +1435,8 @@ siointr1(com)
 			if (ioptr >= com->ibufend)
 				CE_RECORD(com, CE_INTERRUPT_BUF_OVERFLOW);
 			else {
+				if (com->do_timestamp)
+					microtime(&com->timestamp);
 				++com_events;
 				schedsofttty();
 #if 0 /* for testing input latency vs efficiency */
@@ -1494,6 +1464,11 @@ cont:
 		/* modem status change? (always check before doing output) */
 		modem_status = inb(com->modem_status_port);
 		if (modem_status != com->last_modem_status) {
+			if (com->do_dcd_timestamp
+			    && !(com->last_modem_status & MSR_DCD)
+			    && modem_status & MSR_DCD)
+				microtime(&com->dcd_timestamp);
+
 			/*
 			 * Schedule high level to handle DCD changes.  Note
 			 * that we don't use the delta bits anywhere.  Some
@@ -1732,6 +1707,10 @@ sioioctl(dev, cmd, data, flag, p)
 	case TIOCTIMESTAMP:
 		com->do_timestamp = TRUE;
 		*(struct timeval *)data = com->timestamp;
+		break;
+	case TIOCDCDTIMESTAMP:
+		com->do_dcd_timestamp = TRUE;
+		*(struct timeval *)data = com->dcd_timestamp;
 		break;
 	default:
 		splx(s);
