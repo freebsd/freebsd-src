@@ -63,59 +63,63 @@ __FBSDID("$FreeBSD$");
 #include "opt_msgbuf.h"
 
 #include <sys/param.h>
+#include <sys/proc.h>
 #include <sys/systm.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
 #include <sys/bus.h>
+#include <sys/cons.h>
 #include <sys/cpu.h>
 #include <sys/eventhandler.h>
-#include <sys/kdb.h>
-#include <sys/imgact.h>
-#include <sys/sysproto.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
-#include <sys/ktr.h>
-#include <sys/signalvar.h>
-#include <sys/kernel.h>
-#include <sys/proc.h>
-#include <sys/malloc.h>
-#include <sys/reboot.h>
-#include <sys/mbuf.h>
-#include <sys/vmmeter.h>
-#include <sys/msgbuf.h>
 #include <sys/exec.h>
-#include <sys/sysctl.h>
-#include <sys/uio.h>
+#include <sys/imgact.h>
+#include <sys/kdb.h>
+#include <sys/kernel.h>
+#include <sys/ktr.h>
 #include <sys/linker.h>
-#include <sys/cons.h>
-#include <sys/ucontext.h>
+#include <sys/lock.h>
+#include <sys/malloc.h>
+#include <sys/mbuf.h>
+#include <sys/msgbuf.h>
+#include <sys/mutex.h>
+#include <sys/ptrace.h>
+#include <sys/reboot.h>
+#include <sys/signalvar.h>
+#include <sys/sysctl.h>
 #include <sys/sysent.h>
+#include <sys/sysproto.h>
+#include <sys/ucontext.h>
+#include <sys/uio.h>
+#include <sys/vmmeter.h>
+#include <sys/vnode.h>
+
 #include <net/netisr.h>
+
 #include <vm/vm.h>
+#include <vm/vm_extern.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_page.h>
 #include <vm/vm_map.h>
-#include <vm/vm_extern.h>
 #include <vm/vm_object.h>
 #include <vm/vm_pager.h>
-#include <sys/ptrace.h>
+
 #include <machine/bat.h>
 #include <machine/clock.h>
 #include <machine/cpu.h>
+#include <machine/elf.h>
+#include <machine/fpu.h>
 #include <machine/md_var.h>
 #include <machine/metadata.h>
 #include <machine/pcb.h>
-#include <machine/reg.h>
-#include <machine/fpu.h>
-#include <machine/vmparam.h>
-#include <machine/elf.h>
-#include <machine/trap.h>
 #include <machine/powerpc.h>
-#include <dev/ofw/openfirm.h>
-#include <sys/vnode.h>
+#include <machine/reg.h>
 #include <machine/sigframe.h>
+#include <machine/trap.h>
+#include <machine/vmparam.h>
 
 #include <ddb/ddb.h>
+
+#include <dev/ofw/openfirm.h>
 
 #ifdef DDB
 extern vm_offset_t ksym_start, ksym_end;

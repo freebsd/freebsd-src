@@ -52,13 +52,16 @@
 #include "opt_perfmon.h"
 
 #include <sys/param.h>
+#include <sys/proc.h>
 #include <sys/systm.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
 #include <sys/bus.h>
 #include <sys/callout.h>
+#include <sys/cons.h>
 #include <sys/cpu.h>
 #include <sys/eventhandler.h>
+#include <sys/exec.h>
 #include <sys/imgact.h>
 #include <sys/kdb.h>
 #include <sys/kernel.h>
@@ -70,6 +73,7 @@
 #include <sys/msgbuf.h>
 #include <sys/mutex.h>
 #include <sys/pcpu.h>
+#include <sys/ptrace.h>
 #include <sys/proc.h>
 #include <sys/reboot.h>
 #include <sys/sched.h>
@@ -81,16 +85,13 @@
 #include <sys/vmmeter.h>
 
 #include <vm/vm.h>
-#include <vm/vm_param.h>
+#include <vm/vm_extern.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_map.h>
 #include <vm/vm_pager.h>
-#include <vm/vm_extern.h>
-
-#include <sys/exec.h>
-#include <sys/cons.h>
+#include <vm/vm_param.h>
 
 #ifdef DDB
 #ifndef KDB
@@ -102,19 +103,20 @@
 
 #include <net/netisr.h>
 
+#include <machine/bootinfo.h>
 #include <machine/clock.h>
 #include <machine/cpu.h>
 #include <machine/cputypes.h>
-#include <machine/reg.h>
-#include <machine/clock.h>
-#include <machine/specialreg.h>
-#include <machine/bootinfo.h>
 #include <machine/intr_machdep.h>
 #include <machine/md_var.h>
 #include <machine/pc/bios.h>
 #include <machine/pcb.h>
 #include <machine/pcb_ext.h>
 #include <machine/proc.h>
+#include <machine/reg.h>
+#include <machine/sigframe.h>
+#include <machine/specialreg.h>
+#include <machine/vm86.h>
 #ifdef PERFMON
 #include <machine/perfmon.h>
 #endif
@@ -133,9 +135,6 @@
 #else
 #include <isa/rtc.h>
 #endif
-#include <machine/vm86.h>
-#include <sys/ptrace.h>
-#include <machine/sigframe.h>
 
 /* Sanity check for __curthread() */
 CTASSERT(offsetof(struct pcpu, pc_curthread) == 0);

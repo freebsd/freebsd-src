@@ -47,13 +47,14 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/proc.h>
 #include <sys/systm.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
 #include <sys/bus.h>
+#include <sys/cons.h>
 #include <sys/cpu.h>
-#include <sys/sysproto.h>
-#include <sys/signalvar.h>
+#include <sys/exec.h>
 #include <sys/imgact.h>
 #include <sys/kernel.h>
 #include <sys/linker.h>
@@ -61,32 +62,31 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/pcpu.h>
-#include <sys/proc.h>
 #include <sys/ptrace.h>
-#include <sys/cons.h>
-#include <sys/exec.h>
+#include <sys/signalvar.h>
 #include <sys/sysent.h>
+#include <sys/sysproto.h>
 #include <sys/uio.h>
-#include <machine/reg.h>
-#include <machine/cpu.h>
-#include <machine/trap.h>
 
-#include <vm/vm.h>
 #include <vm/pmap.h>
 #include <vm/vm.h>
+#include <vm/vm_map.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
-#include <vm/vm_map.h>
 #include <vm/vnode_pager.h>
-#include <machine/pmap.h>
-#include <machine/vmparam.h>
-#include <machine/pcb.h>
-#include <machine/undefined.h>
-#include <machine/machdep.h>
-#include <machine/metadata.h>
+
 #include <machine/armreg.h>
+#include <machine/cpu.h>
+#include <machine/machdep.h>
 #include <machine/md_var.h>
+#include <machine/metadata.h>
+#include <machine/pcb.h>
+#include <machine/pmap.h>
+#include <machine/reg.h>
+#include <machine/trap.h>
+#include <machine/undefined.h>
+#include <machine/vmparam.h>
 
 #define MDROOT_ADDR 0xd0400000
 
