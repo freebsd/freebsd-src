@@ -19,7 +19,7 @@ const
 static char rcsid[] = "$FreeBSD$";
 #endif
 
-char version_string[] = "GNU assembler version 1.92.3, FreeBSD $Revision: 1.6 $\n";
+char version_string[] = "GNU assembler version 1.92.3,\n$FreeBSD$\n";
 
 #ifdef HO_VMS
 dummy3()
