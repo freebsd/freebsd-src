@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: Makefile,v 1.1.1.1 1997/09/24 20:37:13 markm Exp $
 
 PROG=		kauth
 MAN1=		${KRB4DIR}/man/kauth.1
@@ -9,8 +9,8 @@ CFLAGS+=	-I${KRB4DIR}/include \
 		-I${KRB4DIR}/lib/krb \
 		-I${KRB4DIR}/appl/kauth
 LDADD=		-L${ROKENOBJDIR} -lroken -L${KAFSOBJDIR} -lkafs \
-		-L${KRBOBJDIR} -lkrb -ldes
-DPADD=		${LIBROKEN} ${LIBKAFS} ${LIBKRB} ${LIBDES}
+		-L${KRBOBJDIR} -lkrb -ldes -lcrypt
+DPADD=		${LIBROKEN} ${LIBKAFS} ${LIBKRB} ${LIBDES} ${LIBCRYPT}
 
 .include <bsd.prog.mk>
 
