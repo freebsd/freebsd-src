@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: isa.c,v 1.6 1993/11/07 21:47:19 wollman Exp $
+ *	$Id: isa.c,v 1.7 1993/11/09 02:12:36 alm Exp $
  */
 
 /*
@@ -237,6 +237,13 @@ isa_configure() {
 	netmask |= ttymask;
 	ttymask |= netmask;
 #endif
+	/* if netmask == 0, then the loopback code can do some really
+	 * bad things.
+	 * workaround for this: if netmask == 0, set it to 0x8000,
+	 * which is value used by splsoftclock
+	 */
+	if (netmask == 0)
+		netmask = 0x8000; /* same as for softclock from icu.s */
 	/* biomask |= ttymask ;  can some tty devices use buffers? */
 	printf("biomask %x ttymask %x netmask %x\n", biomask, ttymask, netmask);
 	splnone();
