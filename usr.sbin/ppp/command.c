@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.24.2.41 1997/09/22 00:50:34 brian Exp $
+ * $Id: command.c,v 1.24.2.42 1997/09/22 07:32:01 jkh Exp $
  *
  */
 #include <sys/types.h>
@@ -300,9 +300,14 @@ ShellCommand(struct cmdtab const * cmdlist, int argc, char **argv, int bg)
 	  exit(1);
 	}
       }
+      if (VarTerm)
+        fprintf(VarTerm, "ppp: Pausing until %s finishes\n", argv[0]);
       (void) execvp(argv[0], argv);
-    } else
+    } else {
+      if (VarTerm)
+        fprintf(VarTerm, "ppp: Pausing until %s finishes\n", shell);
       (void) execl(shell, shell, NULL);
+    }
 
     LogPrintf(LogWARN, "exec() of %s failed\n", argc > 0 ? argv[0] : shell);
     exit(255);
