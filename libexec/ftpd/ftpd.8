@@ -44,6 +44,7 @@
 .Op Fl l Op Fl l
 .Op Fl a Ar address
 .Op Fl p Ar file
+.Op Fl P Ar port
 .Op Fl t Ar timeout
 .Op Fl T Ar maxtimeout
 .Op Fl u Ar umask
@@ -54,7 +55,9 @@ Internet File Transfer Protocol
 server process.  The server uses the
 .Tn TCP
 protocol
-and listens at the port specified in the
+and listens at the port specified with the
+.Fl P
+option or in the
 .Dq ftp
 service specification; see
 .Xr services 5 .
@@ -141,6 +144,14 @@ When
 .Fl D
 is specified, write the daemon's process ID to
 .Ar file .
+.It Fl P
+When
+.Fl D
+is specified, accept connections at
+.Ar port ,
+specified as a numeric value or service name, instead of at the default
+.Dq ftp
+port.
 .It Fl r
 Put server in read-only mode.
 All commands which may modify the local filesystem are disabled.
