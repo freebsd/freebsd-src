@@ -308,7 +308,7 @@ vfs_mount(td, fstype, fspath, fsflags, fsdata)
 			return error;
 		}
 		error = securelevel_gt(td->td_ucred, 0);
-		if (error == 0) {
+		if (error != 0) {
 			vput(vp);
 			return (EPERM);
 		}
