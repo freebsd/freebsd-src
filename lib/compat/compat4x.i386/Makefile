@@ -2,8 +2,6 @@
 
 DISTRIBUTION=	compat4x
 
-LIBCOMPATDIR=	${LIBDIR}/compat
-
 LIBS=	\
 	libc.so.4 \
 	libc_r.so.4 \
