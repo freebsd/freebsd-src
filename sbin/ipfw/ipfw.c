@@ -24,7 +24,8 @@ static const char rcsid[] =
 #endif /* not lint */
 
 
-#include <sys/types.h>
+#include <sys/param.h>
+#include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
 #include <sys/sysctl.h>
@@ -53,8 +54,6 @@ static const char rcsid[] =
 #include <netinet/ip_icmp.h>
 #include <netinet/ip_fw.h>
 #include <net/route.h> /* def. of struct route */
-#include <sys/param.h>
-#include <sys/mbuf.h>
 #include <netinet/ip_dummynet.h>
 #include <netinet/tcp.h>
 #include <arpa/inet.h>
