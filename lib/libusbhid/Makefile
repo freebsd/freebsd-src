@@ -6,7 +6,7 @@ MAINTAINER=	n_hibma@FreeBSD.ORG
 LIB=	usbhid
 MAN=	usbhid.3
 
-SHLIB_MAJOR= 0
+SHLIB_MAJOR= 1
 
 MLINKS=	usbhid.3 libusbhid.3 usbhid.3 hid_get_report_desc.3 \
 	usbhid.3 hid_dispose_report_desc.3 \
@@ -19,7 +19,6 @@ MLINKS=	usbhid.3 libusbhid.3 usbhid.3 hid_get_report_desc.3 \
 
 SRCS=	descr.c parse.c usage.c data.c
 
-INCS=	libusbhid.h
+INCS=	usbhid.h
 
 .include <bsd.lib.mk>
-

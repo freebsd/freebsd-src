@@ -29,13 +29,14 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <assert.h>
 #include <ctype.h>
 #include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "libusbhid.h"
+#include "usbhid.h"
 
 #define _PATH_HIDTABLE "/usr/share/misc/usb_hid_usages"
 

@@ -37,13 +37,11 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 #include <sys/time.h>
-#if defined(__FreeBSD__)
 #include <sys/ioctl.h>
-#endif
 
 #include <dev/usb/usb.h>
 
-#include "libusbhid.h"
+#include "usbhid.h"
 #include "usbvar.h"
 
 report_desc_t

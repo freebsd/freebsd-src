@@ -47,13 +47,14 @@
 #include <err.h>
 #include <ctype.h>
 #include <errno.h>
-#include <libusbhid.h>
+#include <usbhid.h>
 #include <dev/usb/usb.h>
 #include <dev/usb/usbhid.h>
 
 int verbose = 0;
 int all = 0;
 int noname = 0;
+static int reportid;
 
 char **names;
 int nnames;
@@ -125,7 +126,7 @@ dumpitems(report_desc_t r)
 	struct hid_item h;
 	int size;
 
-	for (d = hid_start_parse(r, ~0); hid_get_item(d, &h); ) {
+	for (d = hid_start_parse(r, ~0, reportid); hid_get_item(d, &h); ) {
 		switch (h.kind) {
 		case hid_collection:
 			printf("Collection page=%s usage=%s\n",
@@ -204,7 +205,7 @@ dumpdata(int f, report_desc_t rd, int loop)
 	char namebuf[10000], *namep;
 
 	hids = 0;
-	for (d = hid_start_parse(rd, 1<<hid_input); 
+	for (d = hid_start_parse(rd, 1<<hid_input, reportid); 
 	     hid_get_item(d, &h); ) {
 		if (h.kind == hid_collection)
 			colls[++sp] = h.usage;
