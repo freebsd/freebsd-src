@@ -95,7 +95,7 @@
   089   cr     cr     nl     nl     cr     cr     nl     nl      O
   090   rctrl  rctrl  rctrl  rctrl  rctrl  rctrl  rctrl  rctrl   O
   091   '/'    '/'    '/'    '/'    '/'    '/'    '/'    '/'     N
-  092   nscr   nscr   debug  debug  nop    nop    nop    nop     O
+  092   nscr   pscr   debug  debug  nop    nop    nop    nop     O
   093   ralt   ralt   ralt   ralt   ralt   ralt   ralt   ralt    O
   094   fkey49 fkey49 fkey49 fkey49 fkey49 fkey49 fkey49 fkey49  O
   095   fkey50 fkey50 fkey50 fkey50 fkey50 fkey50 fkey50 fkey50  O
@@ -105,7 +105,7 @@
   099   fkey57 fkey57 fkey57 fkey57 fkey57 fkey57 fkey57 fkey57  O
   100   fkey58 fkey58 fkey58 fkey58 fkey58 fkey58 fkey58 fkey58  O
   101   fkey59 fkey59 fkey59 fkey59 fkey59 fkey59 fkey59 fkey59  O
-  102   fkey60 fkey60 fkey60 fkey60 fkey60 fkey60 fkey60 fkey60  O
+  102   fkey60 paste  fkey60 fkey60 fkey60 fkey60 fkey60 fkey60  O
   103	fkey61 fkey61 fkey61 fkey61 fkey61 fkey61 boot   fkey61  O
   104   slock  saver  slock  saver  susp   nop    susp   nop     O
   105   fkey62 fkey62 fkey62 fkey62 fkey62 fkey62 fkey62 fkey62  O
@@ -222,7 +222,7 @@
   217   cr     cr     nl     nl     cr     cr     nl     nl      O
   218   rctrl  rctrl  rctrl  rctrl  rctrl  rctrl  rctrl  rctrl   O
   219   '/'    '/'    '/'    '/'    '/'    '/'    '/'    '/'     N
-  220   nscr   nscr   debug  debug  nop    nop    nop    nop     O
+  220   nscr   pscr   debug  debug  nop    nop    nop    nop     O
   221   ralt   ralt   ralt   ralt   ralt   ralt   ralt   ralt    O
   222   fkey49 fkey49 fkey49 fkey49 fkey49 fkey49 fkey49 fkey49  O
   223   fkey50 fkey50 fkey50 fkey50 fkey50 fkey50 fkey50 fkey50  O
@@ -232,7 +232,7 @@
   227   fkey57 fkey57 fkey57 fkey57 fkey57 fkey57 fkey57 fkey57  O
   228   fkey58 fkey58 fkey58 fkey58 fkey58 fkey58 fkey58 fkey58  O
   229   fkey59 fkey59 fkey59 fkey59 fkey59 fkey59 fkey59 fkey59  O
-  230   fkey60 fkey60 fkey60 fkey60 fkey60 fkey60 fkey60 fkey60  O
+  230   fkey60 paste  fkey60 fkey60 fkey60 fkey60 fkey60 fkey60  O
   231	fkey61 fkey61 fkey61 fkey61 fkey61 fkey61 boot   fkey61  O
   232   slock  saver  slock  saver  susp   nop    susp   nop     O
   233   fkey62 fkey62 fkey62 fkey62 fkey62 fkey62 fkey62 fkey62  O
