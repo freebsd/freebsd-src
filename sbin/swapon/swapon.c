@@ -140,7 +140,7 @@ main(int argc, char **argv)
 					continue;
 				if (strstr(fsp->fs_mntops, "noauto"))
 					continue;
-				if (swap_on_off(fsp->fs_spec, 0)) {
+				if (swap_on_off(fsp->fs_spec, 1)) {
 					stat = 1;
 				} else {
 					printf("%s: %sing %s as swap device\n",
@@ -170,13 +170,19 @@ main(int argc, char **argv)
 }
 
 static int
-swap_on_off(char *name, int ignoreebusy)
+swap_on_off(char *name, int doingall)
 {
 	if ((which_prog == SWAPOFF ? swapoff(name) : swapon(name)) == -1) {
 		switch (errno) {
 		case EBUSY:
-			if (!ignoreebusy)
+			if (!doingall)
 				warnx("%s: device already in use", name);
+			break;
+		case EINVAL:
+			if (which_prog == SWAPON)
+				warnx("%s: NSWAPDEV limit reached", name);
+			else if (!doingall)
+				warn("%s", name);
 			break;
 		default:
 			warn("%s", name);
