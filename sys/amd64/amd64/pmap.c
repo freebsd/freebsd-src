@@ -1012,23 +1012,29 @@ pmap_new_thread(struct thread *td)
 
 #ifdef KSTACK_GUARD
 	/* get a kernel virtual address for the kstack for this thread */
-	ks = kmem_alloc_nofault(kernel_map,
-	    (KSTACK_PAGES + 1) * PAGE_SIZE);
+	ks = kmem_alloc_nofault(kernel_map, (KSTACK_PAGES + 1) * PAGE_SIZE);
 	if (ks == 0)
 		panic("pmap_new_thread: kstack allocation failed");
-	ks += PAGE_SIZE;
-	td->td_kstack = ks;
 
-	ptek = vtopte(ks - PAGE_SIZE);
+	/* 
+	 * Set the first page to be the unmapped guard page.
+	 */
+	ptek = vtopte(ks);
 	oldpte = *ptek;
 	*ptek = 0;
 	if (oldpte) {
 #ifdef I386_CPU
 		updateneeded = 1;
 #else
-		invlpg(ks - PAGE_SIZE);
+		invlpg(ks);
 #endif
 	}
+
+	/*
+	 * move to the next page, which is where the real stack starts.
+	 */
+	ks += PAGE_SIZE;
+	td->td_kstack = ks;
 	ptek++;
 #else
 	/* get a kernel virtual address for the kstack for this thread */
@@ -1038,6 +1044,10 @@ pmap_new_thread(struct thread *td)
 	td->td_kstack = ks;
 	ptek = vtopte(ks);
 #endif
+	/* 
+	 * For the length of the stack, link in a real page of ram for each
+	 * page of stack.
+	 */
 	for (i = 0; i < KSTACK_PAGES; i++) {
 		/*
 		 * Get a kernel stack page
@@ -1050,16 +1060,16 @@ pmap_new_thread(struct thread *td)
 		m->wire_count++;
 		cnt.v_wire_count++;
 
-		oldpte = *(ptek + i);
 		/*
 		 * Enter the page into the kernel address space.
 		 */
-		*(ptek + i) = VM_PAGE_TO_PHYS(m) | PG_RW | PG_V | pgeflag;
+		oldpte = ptek[i];
+		ptek[i] = VM_PAGE_TO_PHYS(m) | PG_RW | PG_V | pgeflag;
 		if (oldpte) {
 #ifdef I386_CPU
 			updateneeded = 1;
 #else
-			invlpg(ks + i * PAGE_SIZE);
+			invlpg(ks + (i * PAGE_SIZE));
 #endif
 		}
 
