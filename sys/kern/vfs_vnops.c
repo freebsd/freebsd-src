@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_vnops.c	8.2 (Berkeley) 1/21/94
- * $Id: vfs_vnops.c,v 1.36 1997/04/04 17:47:40 dfr Exp $
+ * $Id: vfs_vnops.c,v 1.37 1997/09/02 20:06:04 bde Exp $
  */
 
 #include <sys/param.h>
@@ -56,12 +56,13 @@ static int vn_ioctl __P((struct file *fp, int com, caddr_t data,
 		struct proc *p));
 static int vn_read __P((struct file *fp, struct uio *uio, 
 		struct ucred *cred));
-static int vn_select __P((struct file *fp, int which, struct proc *p));
+static int vn_poll __P((struct file *fp, int events, struct ucred *cred,
+		struct proc *p));
 static int vn_write __P((struct file *fp, struct uio *uio, 
 		struct ucred *cred));
 
 struct 	fileops vnops =
-	{ vn_read, vn_write, vn_ioctl, vn_select, vn_closefile };
+	{ vn_read, vn_write, vn_ioctl, vn_poll, vn_closefile };
 
 /*
  * Common code for vnode open operations.
@@ -476,17 +477,17 @@ vn_ioctl(fp, com, data, p)
 }
 
 /*
- * File table vnode select routine.
+ * File table vnode poll routine.
  */
 static int
-vn_select(fp, which, p)
+vn_poll(fp, events, cred, p)
 	struct file *fp;
-	int which;
+	int events;
+	struct ucred *cred;
 	struct proc *p;
 {
 
-	return (VOP_SELECT(((struct vnode *)fp->f_data), which, fp->f_flag,
-		fp->f_cred, p));
+	return (VOP_POLL(((struct vnode *)fp->f_data), events, cred, p));
 }
 
 /*
