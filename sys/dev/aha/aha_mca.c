@@ -201,7 +201,7 @@ aha_mca_attach (device_t dev)
 		goto bad;
 	}
 
-	error = bus_setup_intr(dev, irq, INTR_TYPE_CAM, aha_intr, sc, &ih);
+	error = bus_setup_intr(dev, irq, INTR_TYPE_CAM|INTR_ENTROPY, aha_intr, sc, &ih);
 	if (error) {
 		device_printf(dev, "Unable to register interrupt handler\n");
 		goto bad;

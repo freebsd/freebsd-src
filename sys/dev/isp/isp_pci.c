@@ -616,13 +616,13 @@ isp_pci_attach(device_t dev)
 	mtx_init(&isp->isp_osinfo.lock, "isp", MTX_DEF);
 	locksetup++;
 
-	if (bus_setup_intr(dev, irq, INTR_TYPE_CAM | INTR_MPSAFE,
+	if (bus_setup_intr(dev, irq, INTR_TYPE_CAM | INTR_MPSAFE | INTR_ENTROPY,
 	    isp_pci_intr, isp, &pcs->ih)) {
 		device_printf(dev, "could not setup interrupt\n");
 		goto bad;
 	}
 #else
-	if (bus_setup_intr(dev, irq, INTR_TYPE_CAM,
+	if (bus_setup_intr(dev, irq, INTR_TYPE_CAM | INTR_ENTROPY,
 	    isp_pci_intr, isp, &pcs->ih)) {
 		device_printf(dev, "could not setup interrupt\n");
 		goto bad;

@@ -146,7 +146,8 @@ dpt_isa_attach (device_t dev)
 
 	splx(s);
 
-	if (bus_setup_intr(dev, irq, INTR_TYPE_CAM, dpt_intr, dpt, &ih)) {
+	if (bus_setup_intr(dev, irq, INTR_TYPE_CAM | INTR_ENTROPY, dpt_intr,
+			   dpt, &ih)) {
 		device_printf(dev, "Unable to register interrupt handler\n");
 		error = ENXIO;
 		goto bad;

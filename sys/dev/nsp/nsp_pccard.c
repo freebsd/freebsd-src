@@ -218,7 +218,7 @@ nsp_pccard_attach(DEVPORT_PDEVICE dev)
 		return(error);
 	}
 
-	error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_CAM,
+	error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_CAM | INTR_ENTROPY,
 			       nsp_pccard_intr, (void *)sc, &sc->nsp_intrhand);
 	if (error) {
 		nsp_release_resource(dev);
