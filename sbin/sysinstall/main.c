@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: main.c,v 1.9 1994/10/29 10:01:34 phk Exp $
+ * $Id: main.c,v 1.10 1994/11/01 10:10:24 phk Exp $
  *
  */
 
@@ -69,12 +69,15 @@ main(int argc, char **argv)
 	if (alloc_memory() < 0)
 		Fatal("No memory\n");
 
-	setjmp(jmp_restart);  /* XXX Allow people to "restart" */
-
-	if (getenv("STAGE0") || !access("/this_is_boot_flp",R_OK)) {
+	if (getpid() != 1) {
+		stage0();
+		stage1();
+	} else if (!access("/this_is_boot_flp",R_OK)) {
 		stage0();
 		stage1();
 		stage2();
+		end_dialog();
+		dialog_active=0;
 		reboot(RB_AUTOBOOT);
 	} else {
 		stage3();
