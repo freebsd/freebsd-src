@@ -16,7 +16,7 @@
  */
 
 #if !defined(lint) && !defined(LINT)
-static char rcsid[] = "$Id: entry.c,v 2.12 1994/01/17 03:20:37 vixie Exp $";
+static char rcsid[] = "$Id: entry.c,v 1.1.1.1 1994/08/27 13:43:02 jkh Exp $";
 #endif
 
 /* vix 26jan87 [RCS'd; rest of log is in RCS file]
@@ -252,10 +252,8 @@ load_entry(file, error_func, pw, envp)
 		sprintf(envstr, "SHELL=%s", _PATH_BSHELL);
 		e->envp = env_set(e->envp, envstr);
 	}
-	if (!env_get("HOME", e->envp)) {
-		sprintf(envstr, "HOME=%s", pw->pw_dir);
-		e->envp = env_set(e->envp, envstr);
-	}
+	sprintf(envstr, "HOME=%s", pw->pw_dir);
+	e->envp = env_set(e->envp, envstr);
 	if (!env_get("PATH", e->envp)) {
 		sprintf(envstr, "PATH=%s", _PATH_DEFPATH);
 		e->envp = env_set(e->envp, envstr);
