@@ -272,6 +272,8 @@ struct uma_zone {
 #define UMA_ZFLAG_INTERNAL	0x0004	/* Internal zone, no offpage no PCPU */
 #define UMA_ZFLAG_MALLOC	0x0008	/* Zone created by malloc */
 #define UMA_ZFLAG_NOFREE	0x0010	/* Don't free data from this zone */
+#define UMA_ZFLAG_FULL		0x0020	/* This zone reached uz_maxpages */
+
 /* This lives in uflags */
 #define UMA_ZONE_INTERNAL	0x1000	/* Internal zone for uflags */
 
