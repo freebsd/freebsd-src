@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.125 1995/01/14 02:39:22 jkh Exp $
+#	$Id: LINT,v 1.126 1995/01/23 00:25:01 jkh Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -460,22 +460,20 @@ options		DSI_SOFT_MODEM		#code for DSI Softmodems
 # el: 3Com 3C501 (slow!)
 # ep: 3Com 3C509 (buggy)
 # ie: AT&T StarLAN 10 and EN100; 3Com 3C507; unknown NI5210
-# is: Isolan AT 4141-0; Isolink 4110; Novell NE2100
 # le: Digital Equipment EtherWorks 2 and EtherWorks 3 (DEPCA, DE100,
 #     DE101, DE200, DE201, DE202, DE203, DE204, DE205, DE422)
-# lnc: unknown LANCE-based
+# lnc: Lance/PCnet cards (Isolan, Novell NE2100, NE32-VL)
 # ze: PCMCIA ethernet controller.
 #
 
 device cx0 at isa? port 0x240 net irq 15 drq 7 vector cxintr
 device ed0 at isa? port 0x280 net irq 5 iomem 0xd8000 vector edintr
 device ie0 at isa? port 0x360 net irq 7 iomem 0xd0000 vector ieintr
-device is0 at isa? port 0x280 net irq 10 drq 7 vector isintr
+device lnc0 at isa? port 0x280 net irq 10 drq 0 vector lncintr
 device ep0 at isa? port 0x300 net irq 10 vector epintr
 device el0 at isa? port 0x300 net irq 9 vector elintr
 device le0 at isa? port 0x300 net irq 5 iomem 0xd0000 vector le_intr
 device ze0 at isa? port 0x300 net irq 5 iomem 0xd8000 vector zeintr
-#device lnc0 at isa? XXX FILL ME IN
 
 #
 # Audio drivers: `snd', `pca'
