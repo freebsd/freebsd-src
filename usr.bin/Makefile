@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.3 (Berkeley) 1/7/94
-#	$Id: Makefile,v 1.103 1998/06/12 16:18:27 peter Exp $
+#	$Id: Makefile,v 1.104 1998/08/17 07:37:55 gpalmer Exp $
 
 # XXX MISSING:		deroff diction graph learn plot
 #			spell spline struct xsend
@@ -12,19 +12,19 @@ SUBDIR=	apply at banner basename biff c89 calendar \
 	dirname du ee env error expand \
 	f2c false fetch file file2c \
 	find finger fmt fold fpr from fsplit ftp gencat getopt \
-	global head hexdump id indent \
+	global head hexdump id indent ipcrm ipcs \
 	join jot key keyinfo keyinit keylogin keylogout killall kzip \
 	lam last lastcomm leave lex limits locate lock lockf logger login \
 	logname look lorder lsvfs m4 mail make mesg mkdep mkfifo mklocale \
-	mkstr mktemp mk_cmds more msgs ncal newkey nice nohup \
-	opieinfo opiekey opiepasswd pagesize passwd paste pr \
+	mkstr mktemp mk_cmds more msgs ncal netstat newkey nfsstat nice nohup \
+	objformat opieinfo opiekey opiepasswd pagesize passwd paste pr \
 	printenv printf quota rdist renice rev rlogin rpcgen \
 	rpcinfo rs rsh rup ruptime rusers rwall \
 	rwho script sed shar showmount soelim split \
 	su symorder tail talk tconv tcopy tee tftp time \
-	tip tn3270 touch tput tr true tset tsort tty ul uname \
+	tip tn3270 top touch tput tr true tset tsort tty ul uname \
 	unexpand unifdef uniq units unvis users uudecode uuencode vacation \
-	vgrind vi vis wall wc what whereis which who whois window \
+	vgrind vi vis w wall wc what whereis which who whois window \
 	write xargs xinstall xlint xstr yacc yes ypcat ypmatch ypwhich
 SUBDIR+=minigzip
 
@@ -35,9 +35,9 @@ SUBDIR+=telnet
 
 .if ${MACHINE_ARCH} == "i386"
 # Things that don't compile on alpha or are aout specific:
-SUBDIR+=ar brandelf dig dnsquery fstat gcore gprof gprof4 host ipcrm \
-	ipcs kdump ktrace ldd modstat mt netstat nfsstat nm objformat \
-	ranlib sasc size strings strip systat top truss vmstat w
+SUBDIR+=ar brandelf dig dnsquery fstat gcore gprof gprof4 host \
+	kdump ktrace ldd modstat mt nm \
+	ranlib sasc size strings strip systat truss vmstat
 .if ${BINFORMAT} == aout
 SUBDIR+=doscmd
 .endif
