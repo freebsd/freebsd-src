@@ -142,7 +142,6 @@
 #define		sendfile			_sendfile
 #define		shutdown			_shutdown
 #define		sigaltstack			_sigaltstack
-#define		signanosleep			_signanosleep
 #define		sigpending			_sigpending
 #define		sigreturn			_sigreturn
 #define		sigsetmask			_sigsetmask
