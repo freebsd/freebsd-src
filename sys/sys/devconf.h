@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: devconf.h,v 1.6 1995/04/13 20:37:51 wollman Exp $
+ *	$Id: devconf.h,v 1.7 1995/11/20 12:42:38 phk Exp $
  */
 
 /*
@@ -128,6 +128,8 @@ struct kern_devconf {
 	const char *kdc_description; 		/* filled in by driver; maybe dyn. */
 	enum dc_class kdc_class; 		/* filled in by driver */
 };
+
+extern struct kern_devconf *dc_list;
 
 int dev_attach(struct kern_devconf *);
 int dev_detach(struct kern_devconf *);
