@@ -80,23 +80,23 @@ main(argc, argv)
 		err(2, "stat");
 
 	if (*argv == NULL) {
-		(void)printf("is %s\n", sb.st_mode&0100 ? "y" : "n");
-		return(sb.st_mode & 0100 ? 0 : 1);
+		(void)printf("is %s\n", sb.st_mode & S_IXUSR ? "y" : "n");
+		return(sb.st_mode & S_IXUSR ? 0 : 1);
 	}
 
 	switch(argv[0][0]) {
 	case 'n':
-		if (chmod(name, sb.st_mode & ~0100) < 0)
+		if (chmod(name, sb.st_mode & ~S_IXUSR) < 0)
 			err(2, "%s", name);
 		break;
 	case 'y':
-		if (chmod(name, sb.st_mode | 0100) < 0)
+		if (chmod(name, sb.st_mode | S_IXUSR) < 0)
 			err(2, "%s", name);
 		break;
 	default:
 		usage();
 	}
-	return(sb.st_mode & 0100 ? 0 : 1);
+	return(sb.st_mode & S_IXUSR ? 0 : 1);
 }
 
 static void
