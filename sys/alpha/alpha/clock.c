@@ -228,6 +228,7 @@ out:
 void
 cpu_initclocks()
 {
+	static int once = 1;
 	u_int32_t freq;
 
 	if (clockdev == NULL)
@@ -269,7 +270,8 @@ cpu_initclocks()
 		tc_init(&i8254_timecounter);
 	}
 
-	if (ncpus == 1) {
+	if (once) {
+		once = 0;
 		alpha_timecounter.tc_frequency = freq;
 		tc_init(&alpha_timecounter);
 	}
@@ -316,7 +318,7 @@ calibrate_clocks(u_int32_t firmware_freq, u_int32_t *pcc, u_int32_t *timer)
 	 */
 	if (hwrpb->rpb_type == ST_DEC_21000) {
 		if (bootverbose)
-			printf("No i8254- using firmware default of %u Hz\n",
+			printf("Using firmware default frequency of %u Hz\n",
 			    firmware_freq);
 		*pcc = firmware_freq;
 		*timer = 0;
@@ -416,7 +418,7 @@ set_timer_freq(u_int freq, int intr_freq)
 }
 
 static void
-handleclock(void* arg)
+handleclock(void *arg)
 {
 	/*
 	 * XXX: TurboLaser doesn't have an i8254 counter.
