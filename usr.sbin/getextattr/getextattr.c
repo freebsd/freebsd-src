@@ -38,6 +38,10 @@
 #include <unistd.h>
 #include <vis.h>
 
+#define BUFSIZE	2048
+
+void usage(void);
+
 void
 usage(void)
 {
@@ -46,11 +50,6 @@ usage(void)
 	    "[filename ...]\n");
 	exit(-1);
 }
-
-extern char	*optarg;
-extern int	optind;
-
-#define BUFSIZE	2048
 
 int
 main(int argc, char *argv[])
