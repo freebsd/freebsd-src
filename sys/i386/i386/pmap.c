@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.127 1996/10/15 03:16:31 dyson Exp $
+ *	$Id: pmap.c,v 1.128 1996/10/23 05:31:54 dyson Exp $
  */
 
 /*
@@ -2571,13 +2571,20 @@ pmap_remove_pages(pmap, sva, eva)
 		pte = pmap_pte_quick(pv->pv_pmap, pv->pv_va);
 #endif
 		tpte = *pte;
+
+/*
+ * We cannot remove wired pages from a process' mapping at this time
+ */
+		if (tpte & PG_W) {
+			npv = TAILQ_NEXT(pv, pv_plist);
+			continue;
+		}
 		*pte = 0;
 
 		ppv = pa_to_pvh(tpte);
 
 		pv->pv_pmap->pm_stats.resident_count--;
-		if (tpte & PG_W)
-			pv->pv_pmap->pm_stats.wired_count--;
+
 		/*
 		 * Update the vm_page_t clean and reference bits.
 		 */
