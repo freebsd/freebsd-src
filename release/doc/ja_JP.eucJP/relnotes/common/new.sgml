@@ -3,7 +3,7 @@
 
     $FreeBSD$
 
-    Original revision: 1.186
+    Original revision: 1.187
 -->
 
 <articleinfo>
@@ -643,29 +643,18 @@
         読み込みを行なう際のオーバヘッドを低減するカーネルの機能です.
         &merged;</para>
 
-      <para>&man.netgraph.4; サブシステムに
-        &man.ng.mppc.4; と &man.ng.bridge.4; のノードタイプが新たに追加され,
-        &man.ng.ether.4; ノードが動的にロード可能になりました.
-        また, 細かなバグ修正と改良も加えられています.
-        &merged;</para>
+      <para>&man.arp.8; の <option>-d</option> オプションフラグにある
+        <literal>proxy</literal> という修飾子が
+        <option>-s</option> オプションフラグで使われているものと同じ
+        <literal>pub</literal> という修飾子に変更されました.
+        また, <option>-s</option> および
+        <option>-S</option> オプションフラグに
+        <literal>only</literal> キーワードが追加されました.
+        これは <quote>proxy 専用</quote>
+        の公開エントリを作成するために使います.</para>
 
-      <para>&man.netgraph.4; の更新・バグ修正が行なわれました.</para>
-
-      <para>複数のリンク上でパケットの多重化を行なう
-        netgraph ノードタイプ &man.ng.one2many.4; が新たに追加されました.
-        &merged;</para>
-
-      <para>&man.gif.4; で動作する netgraph ノード
-        &man.ng.gif.4; および &man.ng.gif.demux.4;
-        が新しく追加されました.</para>
-
-      <para>IP の入力処理を行なうコードに入る前のキューに格納された
-        IP パケットに対応する
-        netgraph ノード &man.ng.ip.input.4; が新しく追加されました.</para>
-
-      <para arch="alpha">SLIP が
-        <filename>mfsroot</filename>
-        フロッピイメージから削除されました.</para>
+      <para>&man.bridge.4; および &man.dummynet.4;
+        に細かな改良とバグ修正が加えられました.</para>
 
       <para>ICMP ECHO および TSTAMP 応答速度に制限が加えられるようになりました.
         open 状態のポート, open 状態にないポートに対して送信されるパケットに
@@ -677,6 +666,57 @@
         <literal>SYN_SENT</literal> 状態にある TCP 接続を RST できるようになりました.
         これは sysctl 変数 <varname>net.inet.tcp.icmp_may_rst</varname>
         で制御することができます.</para>
+
+      <para>IP マルチキャストが VLAN デバイス上で動作するようになりました.
+        また, VLAN コードにあったいくつかのバグも修正されています.</para>
+
+      <para>&man.ipfw.4; が TCP セグメント内に
+        ECN ビットを含む場合にも正しくフィルタ動作を行なうようになりました.
+        &merged;</para>
+
+      <para>&man.netgraph.4; の更新・バグ修正が行なわれました.</para>
+
+      <para>&man.gif.4; で動作する netgraph ノード
+        &man.ng.gif.4; および &man.ng.gif.demux.4;
+        が新しく追加されました.</para>
+
+      <para>IP の入力処理を行なうコードに入る前のキューに格納された
+        IP パケットに対応する
+        netgraph ノード &man.ng.ip.input.4; が新しく追加されました.</para>
+
+      <para>&man.netgraph.4; サブシステムに
+        &man.ng.mppc.4; と &man.ng.bridge.4; のノードタイプが新たに追加され,
+        &man.ng.ether.4; ノードが動的にロード可能になりました.
+        また, 細かなバグ修正と改良も加えられています.
+        &merged;</para>
+
+      <para>複数のリンク上でパケットの多重化を行なう
+        netgraph ノードタイプ &man.ng.one2many.4; が新たに追加されました.
+        &merged;</para>
+
+      <para>sysctl 変数 <varname>net.inet.ip.check_interface</varname>
+        が新たに追加されました.  これは標準設定で on になっており,
+        パケットの送信先アドレスと一致するアドレスを持ったインターフェイスに
+        パケットが到着したかどうか IP レベルでチェックを行ないます.
+        &merged;</para>
+
+      <para>sysctl 変数
+        <varname>net.link.ether.inet.log_arp_wrong_iface</varname>
+        が新たに追加されました.  これは ARP
+        要求が間違ったインターフェイスに到着した時のログ記録を抑制するかどうか制御するためのものです.
+        &merged;</para>
+
+      <para>IP パケットの ID フィールドを乱数化する
+        <literal>options RANDOM_IP_ID</literal>
+        カーネルオプションが追加されました.
+        これはリモートの観測者が,
+        各送信パケットに対して一つずつカウントを増加させるという標準的な動作から
+        マシンのパケット生成速度を推定できないようにするものです.
+        &merged;</para>
+
+      <para arch="alpha">SLIP が
+        <filename>mfsroot</filename>
+        フロッピイメージから削除されました.</para>
 
       <para>ACK が遅れるという TCP のバグが修正されました.
         &merged;</para>
@@ -728,62 +768,6 @@
         <varname>net.inet.tcp.isn_reseed_interval</varname>
         sysctl 変数できます.
         &merged;</para>
-
-      <para>sysctl 変数 <varname>net.inet.ip.check_interface</varname>
-        が新たに追加されました.  これは標準設定で on になっており,
-        パケットの送信先アドレスと一致するアドレスを持ったインターフェイスに
-        パケットが到着したかどうか IP レベルでチェックを行ないます.
-        &merged;</para>
-
-      <para>sysctl 変数
-        <varname>net.link.ether.inet.log_arp_wrong_iface</varname>
-        が新たに追加されました.  これは ARP
-        要求が間違ったインターフェイスに到着した時のログ記録を抑制するかどうか制御するためのものです.
-        &merged;</para>
-
-      <para>&man.arp.8; の <option>-d</option> オプションフラグにある
-        <literal>proxy</literal> という修飾子が
-        <option>-s</option> オプションフラグで使われているものと同じ
-        <literal>pub</literal> という修飾子に変更されました.
-        また, <option>-s</option> および
-        <option>-S</option> オプションフラグに
-        <literal>only</literal> キーワードが追加されました.
-        これは <quote>proxy 専用</quote>
-        の公開エントリを作成するために使います.</para>
-
-      <para>&man.ipfw.4; が TCP セグメント内に
-        ECN ビットを含む場合にも正しくフィルタ動作を行なうようになりました.
-        &merged;</para>
-
-      <para><option>-d</option> オプションを指定されなかった場合は
-        &man.ipfw.8;
-        が動的ファイアウォールルールを表示しないように変更されました.
-        <option>-e</option>
-        オプションでは有効期限の切れた動的ルールが表示されます.</para>
-
-      <para>&man.bridge.4; および &man.dummynet.4;
-        に細かな改良とバグ修正が加えられました.</para>
-
-      <para>&man.ipfw.8; に新機能 (<literal>me</literal>) が追加されました.
-        これにより IP
-        アドレスが動的に変化するインターフェイス上のパケットに一致させることができます.
-        &merged;</para>
-
-      <para>&man.ip6fw.8;
-        にファイル読み込み時のプリプロセッサ機能と
-        <option>-q</option> (quiet) フラグが新たに追加されました.
-        &merged;</para>
-
-      <para>IP パケットの ID フィールドを乱数化する
-        <literal>options RANDOM_IP_ID</literal>
-        カーネルオプションが追加されました.
-        これはリモートの観測者が,
-        各送信パケットに対して一つずつカウントを増加させるという標準的な動作から
-        マシンのパケット生成速度を推定できないようにするものです.
-        &merged;</para>
-
-      <para>IP マルチキャストが VLAN デバイス上で動作するようになりました.
-        また, VLAN コードにあったいくつかのバグも修正されています.</para>
     </sect3>
 
     <sect3>
@@ -1842,6 +1826,22 @@ hw.pcic.irq="0"</programlisting>
 
     <para>&man.ipfstat.8; に &man.top.1; 風の表示を行なう
       <option>-t</option> オプションが追加されました.
+      &merged;</para>
+
+    <para><option>-d</option> オプションを指定されなかった場合は
+      &man.ipfw.8;
+      が動的ファイアウォールルールを表示しないように変更されました.
+      <option>-e</option>
+      オプションでは有効期限の切れた動的ルールが表示されます.</para>
+
+    <para>&man.ipfw.8; に新機能 (<literal>me</literal>) が追加されました.
+      これにより IP
+      アドレスが動的に変化するインターフェイス上のパケットに一致させることができます.
+      &merged;</para>
+
+    <para>&man.ip6fw.8;
+      にファイル読み込み時のプリプロセッサ機能と
+      <option>-q</option> (quiet) フラグが新たに追加されました.
       &merged;</para>
 
     <para>カーネル環境変数をダンプする &man.kenv.1;
