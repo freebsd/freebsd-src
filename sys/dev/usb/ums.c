@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/ioccom.h>
 #include <sys/conf.h>
+#include <sys/fcntl.h>
 #include <sys/tty.h>
 #include <sys/file.h>
 #if __FreeBSD_version >= 500014
@@ -61,7 +62,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/poll.h>
 #include <sys/sysctl.h>
 #include <sys/uio.h>
-#include <sys/vnode.h>
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbhid.h>
@@ -673,7 +673,7 @@ ums_read(struct cdev *dev, struct uio *uio, int flag)
 	}
 
 	while (sc->qcount == 0 )  {
-		if (flag & IO_NDELAY) {		/* non-blocking I/O */
+		if (flag & O_NONBLOCK) {		/* non-blocking I/O */
 			splx(s);
 			return EWOULDBLOCK;
 		}
