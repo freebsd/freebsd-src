@@ -496,9 +496,9 @@ parsecolors(cs)
 				colors[i].num[j] = c[j] - '0';
 				if (!legacy_warn) {
 					fprintf(stderr,
-					    "warn: colors are now defined "
-					    "using a-h instead of 0-9. "
-					    "see manual page.\n");
+					    "warn: LSCOLOURS should use "
+					    "characters a-h instead of 0-9 ("
+					    "see the manual page)\n");
 				}
 				legacy_warn = 1;
 			} else if (c[j] >= 'a' && c[j] <= 'h')
