@@ -1,37 +1,74 @@
 .\" -*- nroff-fill -*-
 .\" $FreeBSD$
-.Dd December 23, 1999
-.Os FreeBSD
+.Dd June 20, 2001
+.Os
 .Dt PICOBSD 8
 .Sh NAME
-.Nm PicoBSD
+.Nm picobsd
 .Nd floppy disk based FreeBSD system
 .Sh SYNOPSIS
 .Nm
-is a minimal implementation of
-.Fx
-on one or more floppy disks.  The
-floppies are required for loading only; the system runs from ramdisk and is thus
-not limited to the speed of the floppies.
+.Op options
+.Op Ar floppy-type Op Ar site-name
 .Sh DESCRIPTION
-The first (and only required)
 .Nm
-floppy contains a compressed kernel and compressed MFS root file system, as well
-as some files in the
-.Pa /etc
-directory.  The system loads the kernel in the normal way, uncompresses the file
-system and mounts it as root.  It then copies the files in the floppy
-.Pa /etc
-directory to the MFS
-.Pa /etc
-directory and executes a specialized version
+is a script which can be used to produce a minimal implementation of
+.Fx
+(historically called
+.Nm PicoBSD )
+which typically fits on one floppy disk, or can be downloaded as a
+single image file from some media such as CDROM, flash memory, or through
+.Xr etherboot .
+.Pp
+The boot media (typically a floppy disk) contains a boot loader and a
+compressed kernel which includes a memory file system.
+Depending on the media, it might also contain a number of
+additional files, which can be updated at run time, and are
+used to override/update those in the memory file system.
+.Pp
+The system loads the kernel in the normal way, uncompresses
+the memory file system and mounts it as root.
+It then updates the memory
+filesystem with files from the boot media (if present),
+and executes a specialized version of
 .Pa /etc/rc .
-The standard version of
-.Pa /etc/rc
-prompts for additional floppies and reads them in to the MFS file system.
+The boot media (floppy etc.) is
+required for loading only, and typically used as readonly.
+After the boot phase, the system runs entirely from ram.
+.Pp
+The following options are available (but also check the
+.Nm
+script for more details):
+.Pp
+.Bl -tag -width "--floppy_size" -compact
+.It Fl c
+.It Fl clean
+Clean the product of previous builds.
+.It Fl n
+Make the script non interactive. Do not show the initial menu, and
+proceed in the build process without requiring user input.
+.It Fl v
+Make the script verbose, showing the various commands to execute and
+waiting for user input before each of them. Useful when debugging.
+.It Fl -floppy_size Ar size
+Set the size of the floppy image. Values other than 1440 can
+be used for images that are burned into a CDROM, or downloaded
+using
+.Xr etherboot
+.It Fl -src Ar pathname
+Use the source tree at
+.Ar pathname
+instead the one at
+.Ar /usr/src .
+Can be useful for cross-building floppy images, but you must be
+careful in that there are dependencies with the
+.Xr config 8
+program, and also with include files and libraries.
+.El
+.Pp
 .Sh ENVIRONMENT
 As a result of the extreme size limitations, the
-.Nm 
+.Nm
 environment differs from the normal
 .Fx
 in a number of ways:
@@ -48,13 +85,13 @@ floppy are joined together as a single executable built with
 Some programs are supplied in minimalistic versions, specifically
 .Nm ns ,
 a cut-down version of
-.Nm netstat ,
+.Xr netstat 1 ,
 and
 .Nm vm ,
 a cut-down version of
-.Nm vmstat .
+.Xr vmstat 8 .
 .El
-.Sh BUILDING PicoBSD
+.Sh BUILDING picobsd
 The
 .Nm
 sources reside in the hierarchy
@@ -62,20 +99,21 @@ sources reside in the hierarchy
 In the following discussion, all relative path names are relative to this
 directory.  The
 .Nm
-build process is designed to be flexible in order to cram as much as possible on
-to the floppies.  In particular, the following possibilities exist:
-.Bl -bullet
-.It
-The old style of building uses a script called 
-.Pa build/build .
-To use it, change directory to
-.Pa build/
-and run
-.Cm build .
-.Cm build
-is an interactive script which will ask for parameter entries and then build the
-appropriate single floppy version.  Five kinds of floppy are envisaged:
-.Bl -hang
+build process has changed slightly over time, in order to cope
+with the unavoidable increase of code size, which requires more and more
+tricks to cram as much as possible on
+to the floppies.
+In
+.Fx 4.3 ,
+the supported build script is
+.Pa /usr/src/release/picobsd/build/picobsd
+which can be run from anywhere.
+This interactive script will ask for parameter entries and then build the
+appropriate single floppy version.
+The following kinds of floppy are envisaged:
+.Bl -hang -width "install  "
+.It bridge
+is a configuration suitable for bridges, routers and firewalls
 .It dial
 is a configuration suitable for dial-out (ppp) networking.
 .It install
@@ -88,99 +126,50 @@ is a configuration suitable for general networking.
 is a configuration suitable for use as a router.  This particular configuration
 aims to work on minimal hardware.
 .El
-.It
-The new style of building uses
-.Cm make .
-The file
-.Pa Makefile
-will build in the directory
-.Pa custom .
+.Pp
+These configurations serve only as examples to build your own.
+Not all of them have been tested, and you might need small tweaks
+to the configuration files to make them work or even fit into
+the available disk space as code size increases.
+.Pp
+You can define your own floppy type, by creating a directory
+with a name of your choice (e.g. FOO) which contains
+.Pp
+.Bl -tag -width "floppy.tree.exclude" -compact
+.It Pa PICOBSD
+the kernel configuration file (required).
+.It Pa crunch.conf
+crunchgen configuration (required).
+.It Pa config
+shell variables, sourced by the
+.Pa picobsd
+script (optional).
+.It Pa floppy.tree.exclude
+files from the standard floppy tree which are not needed (optional).
+.It Pa floppy.tree/
+local additions to the standard floppy tree (optional).
+.It Pa floppy.tree. Ns ${site}
+same as above, site-specific (optional).
 .El
 .Pp
-The build process involves the following steps.  In the examples, the
-subdirectory
-.Pa custom 
-is used, but the principle also applies to the subdirectories
-.Pa dial ,
-.Pa install ,
-.Pa isp ,
-.Pa net
-and 
-.Pa router .
-.Bl -hang
-.It Em "Build the kernel" .
-Each directory contains a configuration file with a name starting with
-.Pa PICOBSD .
-When building a custom
-.Nm ,
-it is important to review this file carefully.  The smallest possible kernel
-occupies about 600 kB after compression, and it is easy to have a kernel as
-large as 900 kB.  It is probably not possible to build a first
-.Nm
-floppy with a kernel of 900 kB.
-.It Em "Create the MFS image" .
-The MFS image for the first floppy is created as a
-.Nm vnode
-file system which is subsequently mounted as
-.Pa /dev/vn0 
-on
-.Pa custom/mmnt .
-.It Em "Create the crunched executables" .
-The executables for the first floppy are built in the directory
-.Pa crunch/crunch1/ .
-The contents of this executable are determined by the file
-.Pa crunch/crunch1/crunch.conf .
-.It Em "Build the floppy image" .
-A second file system image, which will later become the first floppy, is built
-and mounted as 
-.Pa /dev/vn1
-on
-.Pa custom/fmnt .
-It receives the compressed kernel, the compressed MFS file system, the contents
-of the tree
-.Pa floppy.tree/ 
-and
-.Pa floppy.tree/custom/
-if the latter directory exists.  This dual method allows specific files in
-.Pa floppy.tree/custom/ 
-to overlay files from 
-.Pa floppy.tree/ .
-.It Em "Create the image for the second floppy" .
-Finally, the image for the second floppy is built.  There is only one file on
-this floppy, which will be copied to the MFS-relative directory 
-.Pa /bin
-at boot time.  The contents are built in the directory
-.Pa crunch/crunch2/ .
-The contents of this executable are determined by the file
-.Pa crunch/crunch2/crunch.conf .
-.It Em "Copy the data to the floppies" .
-The previous steps are performed by the
-.Nm make all
-step.
-.Nm make all
-does not copy data to the floppy disks.  Instead, use
-.Nm make floppy 
-for the first floppy, and
-.Nm make floppy2
-for the second disk.
-.It Em "Create additional floppies" .
-You can theoretically possible to read a large number of floppies into the MFS.
-Each additional floppy, including the second, is a gzipped tar file containing
-files relative to
-.Pa /bin .
-You can put any statically linked program on a floppy in this form, and the
-startup routines will automatically read it in.  Remember that there are no
-dynamic libraries, so the programs must be static.
-.El
-.\" .Sh FILES
-.\" .Sh EXAMPLES
-.\" This next request is for sections 1, 6, 7, 8 & 9 only
-.\"     (command return values (to shell) and
-.\"       fprintf/stderr type diagnostics)
-.\" .Sh DIAGNOSTICS
-.\" The next request is for sections 2, 3 and 9 error
-.\" and signal handling only.
-.\" .Sh ERRORS
+More information on the build process can be found in the
+.Pa picobsd
+script.
+Sample configurations can be found in
+.Pa /usr/src/release/picobsd/ Ns ${type} Ns /
+.Sh USING ALTERNATE SOURCE TREES
+The build script can be instructed use an alternate source tree
+using the
+.Fl -src Ar pathname
+option.
+The tree that you specify must contain full sources for the kernel
+and for all programs that you want to include in your image.
+This option must be used with great care though, because different
+source trees might refer to different include files, libraries
+or versions of the
+.Xr config 8
+program.
+.Pp
 .Sh BOOTING PicoBSD
 To boot
 .Nm ,
@@ -188,32 +177,22 @@ insert the floppy and reset the machine.  The boot procedure is similar to the
 standard
 .Fx
 boot, but proceeds at a snail's pace.  From the end of the POST
-(BIOS Power On Self Test) until the prompt for the second floppy takes about 3
-minutes.
+(BIOS Power On Self Test) until the system is up and running takes
+anywhere between 1 and 3 minutes.
 .Pp
-When the prompt for additional floppies appears, first insert the floppy in the
-drive, then answer
-.Em y .
-When you have no more floppies, enter
-.Em n .
-This version of
+To speed up booting, you can use
+.Xr etherboot
+to load the preloaded, uncompressed kernel image
+which is a byproduct of the
 .Nm
-does not have a root password.  If you require greater security, you can copy
-your own
-.Pa /etc/master.passwd
-and possibly
-.Pa /etc/group
-to the first boot floppy.  These are the only files you need: the boot process
-generates the files
-.Pa /etc/passwd ,
-.Pa /etc/spwd 
-and
-.Pa /etc/pwd.db 
-automatically.
+build.
+In this case
+the load time is a matter of a few seconds, even on a 10Mbit/s
+ethernet.
 .Ss Swap space
 After booting,
 .Nm
-runs entirely from the MFS file system.  The floppies are no longer used, and
+runs entirely from the memory file system.  The floppies are no longer used, and
 even if there are hard disk drivers in the
 .Nm
 kernel, it does not access the drives.  In particular, there is no swap space,
@@ -225,69 +204,35 @@ partition does not contain a dump you want to keep, you can use this swap with
 Use the
 .Xr swapon 8
 command.
-.Sh RECOVERING CRASHED SYSTEMS
-The
-.Em custom
-.Nm
-configuration contains all the programs that are present on the
-.Em fixit 
-floppy, so you can use it instead of the fixit floppy.
 .Sh SEE ALSO
 .Xr crunchgen 1 ,
 .Xr swapon 8 ,
 .Xr vnconfig 8
-.\" .Sh STANDARDS
-.\" .Sh HISTORY
 .Sh AUTHORS
 .An -nosplit
-.An Andrzej Bialecki Aq abial@FreeBSD.org .
-Man page and Makefiles created by
+.An Andrzej Bialecki Aq abial@FreeBSD.org ,
+with subsequent work on the scripts by
+.An Luigi Rizzo Aq luigi@iet.unipi.it
+and others.
+Man page and
+.Pa Makefiles
+created by
 .An Greg Lehey Aq grog@lemis.com .
 .Sh BUGS
-In order to build 
+In order to build
 .Nm ,
 the kernel of the system on which it is built must have the
-.Nm vn
-driver installed.  
+.Xr vn 4
+driver installed.
 .Pp
 The build process must be run as
-.Nm root .
-.Pp
-The build process does not search for unused vnode devices; it uses
-.Pa /dev/vn0
+.Dq root
+because of the need of running
+.Xr vnconfig 8
 and
-.Pa /dev/vn1 .
-If these files are not in use by other programs, unexpected behaviour may
-result.
+.Xr mount 8 .
 .Pp
 Building
 .Nm
 is still a black art.  The biggest problem is determining what will fit on the
 floppies, and the only practical method is trial and error.
-.Pp
-The original version of 
-.Nm
-fits on one floppy.  Since
-.Fx 4.0 ,
-the kernel is so large that most
-configurations will need a second floppy to do any productive work.
-Nevertheless, it should be possible to create minimal kernels which will fit
-alongside sufficient other programs on a single floppy.
-.Pp
-The approach of building executables with
-.Xr crunchgen 1
-means that considerable duplication of libraries occurs between the floppies.
-.Pp
-At the current time (December 1999), the old-style build is broken in
-.Fx Ns -CURRENT .
-In view of the significant increase in size of the 4.x kernel
-compared to the 3.x kernel, it is not certain that it can be fixed.
-.Pp
-.Nm
-has suffered some bit rot in 1999, and currently most of the old-style
-configurations do not build.
-.Pp
-There appears to be no way to get
-.Nm Emacs
-to run on
-.Nm .
