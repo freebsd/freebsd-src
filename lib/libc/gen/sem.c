@@ -162,7 +162,7 @@ __sem_destroy(sem_t *sem)
 {
 	int retval;
 
-	if (sem_check_validity(sem) == 0)
+	if (sem_check_validity(sem) != 0)
 		return (-1);
 
 	_pthread_mutex_lock(&(*sem)->lock);
