@@ -265,7 +265,7 @@ aac_startup(void *arg)
 	}
 	/* check response size */
 	if (rsize != sizeof(mir)) {
-	    debug(2, "container info response wrong size (%d should be %d)", rsize, sizeof(*mir));
+	    debug(2, "container info response wrong size (%d should be %d)", rsize, sizeof(mir));
 	    continue;
 	}
 	/* 
