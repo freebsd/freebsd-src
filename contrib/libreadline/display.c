@@ -44,6 +44,7 @@
 
 /* System-specific feature definitions and include files. */
 #include "rldefs.h"
+#include "rlmbutil.h"
 
 /* Termcap library stuff. */
 #include "tcap.h"
@@ -63,11 +64,18 @@ extern char *strchr (), *strrchr ();
 extern char *_rl_term_forward_char;
 #endif
 
-static void update_line __P((char *, char *, int, int, int, int));
-static void space_to_eol __P((int));
-static void delete_chars __P((int));
-static void insert_some_chars __P((char *, int));
-static void cr __P((void));
+static void update_line PARAMS((char *, char *, int, int, int, int));
+static void space_to_eol PARAMS((int));
+static void delete_chars PARAMS((int));
+static void insert_some_chars PARAMS((char *, int, int));
+static void cr PARAMS((void));
+
+#if defined (HANDLE_MULTIBYTE)
+static int _rl_col_width PARAMS((char *, int, int));
+static int *_rl_wrapped_line;
+#else
+#  define _rl_col_width(l, s, e)	(((e) <= (s)) ? 0 : (e) - (s))
+#endif
 
 static int *inv_lbreaks, *vis_lbreaks;
 static int inv_lbsize, vis_lbsize;
@@ -203,7 +211,7 @@ expand_prompt (pmt, lp, lip, niflp)
     }
 
   l = strlen (pmt);
-  r = ret = xmalloc (l + 1);
+  r = ret = (char *)xmalloc (l + 1);
 
   invfl = 0;	/* invisible chars in first line of prompt */
 
@@ -336,16 +344,16 @@ init_line_structures (minsize)
     {
       if (line_size < minsize)
 	line_size = minsize;
-      visible_line = xmalloc (line_size);
-      invisible_line = xmalloc (line_size);
+      visible_line = (char *)xmalloc (line_size);
+      invisible_line = (char *)xmalloc (line_size);
     }
   else if (line_size < minsize)	/* ensure it can hold MINSIZE chars */
     {
       line_size *= 2;
       if (line_size < minsize)
 	line_size = minsize;
-      visible_line = xrealloc (visible_line, line_size);
-      invisible_line = xrealloc (invisible_line, line_size);
+      visible_line = (char *)xrealloc (visible_line, line_size);
+      invisible_line = (char *)xrealloc (invisible_line, line_size);
     }
 
   for (n = minsize; n < line_size; n++)
@@ -360,6 +368,9 @@ init_line_structures (minsize)
       inv_lbsize = vis_lbsize = 256;
       inv_lbreaks = (int *)xmalloc (inv_lbsize * sizeof (int));
       vis_lbreaks = (int *)xmalloc (vis_lbsize * sizeof (int));
+#if defined (HANDLE_MULTIBYTE)
+      _rl_wrapped_line = (int *)xmalloc (vis_lbsize * sizeof (int));
+#endif
       inv_lbreaks[0] = vis_lbreaks[0] = 0;
     }
 }
@@ -373,6 +384,13 @@ rl_redisplay ()
   int c_pos, inv_botlin, lb_botlin, lb_linenum;
   int newlines, lpos, temp;
   char *prompt_this_line;
+#if defined (HANDLE_MULTIBYTE)
+  wchar_t wc;
+  size_t wc_bytes;
+  int wc_width;
+  mbstate_t ps;
+  int _rl_wrapped_multicolumn = 0;
+#endif
 
   if (!readline_echoing_p)
     return;
@@ -422,8 +440,8 @@ rl_redisplay ()
 	  if (temp >= line_size)
 	    {
 	      line_size = (temp + 1024) - (temp % 1024);
-	      visible_line = xrealloc (visible_line, line_size);
-	      line = invisible_line = xrealloc (invisible_line, line_size);
+	      visible_line = (char *)xrealloc (visible_line, line_size);
+	      line = invisible_line = (char *)xrealloc (invisible_line, line_size);
 	    }
 	  strncpy (line + out, local_prompt, local_len);
 	  out += local_len;
@@ -456,8 +474,8 @@ rl_redisplay ()
       if (temp >= line_size)
 	{
 	  line_size = (temp + 1024) - (temp % 1024);
-	  visible_line = xrealloc (visible_line, line_size);
-	  line = invisible_line = xrealloc (invisible_line, line_size);
+	  visible_line = (char *)xrealloc (visible_line, line_size);
+	  line = invisible_line = (char *)xrealloc (invisible_line, line_size);
 	}
       strncpy (line + out,  prompt_this_line, pmtlen);
       out += pmtlen;
@@ -473,7 +491,25 @@ rl_redisplay ()
 	    inv_lbreaks = (int *)xrealloc (inv_lbreaks, inv_lbsize * sizeof (int)); \
 	  } \
       } while (0)
-	  
+
+#if defined (HANDLE_MULTIBYTE)	  
+#define CHECK_LPOS() \
+      do { \
+	lpos++; \
+	if (lpos >= _rl_screenwidth) \
+	  { \
+	    if (newlines >= (inv_lbsize - 2)) \
+	      { \
+		inv_lbsize *= 2; \
+		inv_lbreaks = (int *)xrealloc (inv_lbreaks, inv_lbsize * sizeof (int)); \
+		_rl_wrapped_line = (int *)xrealloc (_rl_wrapped_line, inv_lbsize * sizeof (int)); \
+	      } \
+	    inv_lbreaks[++newlines] = out; \
+	    _rl_wrapped_line[newlines] = _rl_wrapped_multicolumn; \
+	    lpos = 0; \
+	  } \
+      } while (0)
+#else
 #define CHECK_LPOS() \
       do { \
 	lpos++; \
@@ -488,10 +524,14 @@ rl_redisplay ()
 	    lpos = 0; \
 	  } \
       } while (0)
+#endif
 
   /* inv_lbreaks[i] is where line i starts in the buffer. */
   inv_lbreaks[newlines = 0] = 0;
   lpos = out - wrap_offset;
+#if defined (HANDLE_MULTIBYTE)
+  memset (_rl_wrapped_line, 0, vis_lbsize);
+#endif
 
   /* prompt_invis_chars_first_line is the number of invisible characters in
      the first physical line of the prompt.
@@ -509,7 +549,11 @@ rl_redisplay ()
          probably too much work for the benefit gained.  How many people have
          prompts that exceed two physical lines? */
       temp = ((newlines + 1) * _rl_screenwidth) +
+#if 0
              ((newlines == 0) ? prompt_invis_chars_first_line : 0) +
+#else
+             ((newlines == 0 && local_prompt_prefix == 0) ? prompt_invis_chars_first_line : 0) +
+#endif
              ((newlines == 1) ? wrap_offset : 0);
 
       inv_lbreaks[++newlines] = temp;
@@ -524,15 +568,49 @@ rl_redisplay ()
      It maintains an array of line breaks for display (inv_lbreaks).
      This handles expanding tabs for display and displaying meta characters. */
   lb_linenum = 0;
+#if defined (HANDLE_MULTIBYTE)
+  in = 0;
+  if (MB_CUR_MAX > 1 && rl_byte_oriented == 0)
+    {
+      memset (&ps, 0, sizeof (mbstate_t));
+      wc_bytes = mbrtowc (&wc, rl_line_buffer, rl_end, &ps);
+    }
+  else
+    wc_bytes = 1;
+  while (in < rl_end)
+#else
   for (in = 0; in < rl_end; in++)
+#endif
     {
       c = (unsigned char)rl_line_buffer[in];
+
+#if defined (HANDLE_MULTIBYTE)
+      if (MB_CUR_MAX > 1 && rl_byte_oriented == 0)
+	{
+	  if (wc_bytes == (size_t)-1 || wc_bytes == (size_t)-2)
+	    {
+	      /* Byte sequence is invalid or shortened.  Assume that the
+	         first byte represents a character. */
+	      wc_bytes = 1;
+	      /* Assume that a character occupies a single column. */
+	      wc_width = 1;
+	      memset (&ps, 0, sizeof (mbstate_t));
+	    }
+	  else if (wc_bytes == (size_t)0)
+	    break;			/* Found '\0' */
+	  else
+	    {
+	      temp = wcwidth (wc);
+	      wc_width = (temp < 0) ? 1 : temp;
+	    }
+	}
+#endif
 
       if (out + 8 >= line_size)		/* XXX - 8 for \t */
 	{
 	  line_size *= 2;
-	  visible_line = xrealloc (visible_line, line_size);
-	  invisible_line = xrealloc (invisible_line, line_size);
+	  visible_line = (char *)xrealloc (visible_line, line_size);
+	  invisible_line = (char *)xrealloc (invisible_line, line_size);
 	  line = invisible_line;
 	}
 
@@ -542,7 +620,11 @@ rl_redisplay ()
 	  lb_linenum = newlines;
 	}
 
+#if defined (HANDLE_MULTIBYTE)
+      if (META_CHAR (c) && _rl_output_meta_chars == 0)	/* XXX - clean up */
+#else
       if (META_CHAR (c))
+#endif
 	{
 	  if (_rl_output_meta_chars == 0)
 	    {
@@ -611,9 +693,52 @@ rl_redisplay ()
 	}
       else
 	{
+#if defined (HANDLE_MULTIBYTE)
+	  if (MB_CUR_MAX > 1 && rl_byte_oriented == 0)
+	    {
+	      register int i;
+
+	      _rl_wrapped_multicolumn = 0;
+
+	      if (_rl_screenwidth < lpos + wc_width)
+		for (i = lpos; i < _rl_screenwidth; i++)
+		  {
+		    /* The space will be removed in update_line() */
+		    line[out++] = ' ';
+		    _rl_wrapped_multicolumn++;
+		    CHECK_LPOS();
+		  }
+	      if (in == rl_point)
+		{
+		  c_pos = out;
+		  lb_linenum = newlines;
+		}
+	      for (i = in; i < in+wc_bytes; i++)
+		line[out++] = rl_line_buffer[i];
+	      for (i = 0; i < wc_width; i++)
+		CHECK_LPOS();
+	    }
+	  else
+	    {
+	      line[out++] = c;
+	      CHECK_LPOS();
+	    }
+#else
 	  line[out++] = c;
 	  CHECK_LPOS();
+#endif
 	}
+
+#if defined (HANDLE_MULTIBYTE)
+      if (MB_CUR_MAX > 1 && rl_byte_oriented == 0)
+	{
+	  in += wc_bytes;
+	  wc_bytes = mbrtowc (&wc, rl_line_buffer + in, rl_end - in, &ps);
+	}
+      else
+        in++;
+#endif
+
     }
   line[out] = '\0';
   if (c_pos < 0)
@@ -651,7 +776,12 @@ rl_redisplay ()
 	     only display a screenful.  We should display the last screen,
 	     not the first.  */
 	  if (out >= _rl_screenchars)
-	    out = _rl_screenchars - 1;
+	    {
+	      if (MB_CUR_MAX > 1 && rl_byte_oriented == 0)
+		out = _rl_find_prev_mbchar (line, _rl_screenchars, MB_FIND_ANY);
+	      else
+		out = _rl_screenchars - 1;
+	    }
 
 	  /* The first line is at character position 0 in the buffer.  The
 	     second and subsequent lines start at inv_lbreaks[N], offset by
@@ -737,7 +867,10 @@ rl_redisplay ()
 		tputs (_rl_term_cr, 1, _rl_output_character_function);
 #endif
 	      _rl_output_some_chars (local_prompt, nleft);
-	      _rl_last_c_pos = nleft;
+	      if (MB_CUR_MAX > 1 && rl_byte_oriented == 0)
+		_rl_last_c_pos = _rl_col_width(local_prompt, 0, nleft);
+	      else
+		_rl_last_c_pos = nleft;
 	    }
 
 	  /* Where on that line?  And where does that line start
@@ -753,10 +886,15 @@ rl_redisplay ()
 	  if (wrap_offset && cursor_linenum == 0 && nleft < _rl_last_c_pos)
 	    {
 	      _rl_backspace (_rl_last_c_pos - nleft);
-	      _rl_last_c_pos = nleft;
+	      if (MB_CUR_MAX > 1 && rl_byte_oriented == 0)
+		_rl_last_c_pos = _rl_col_width (&visible_line[pos], 0, nleft);
+	      else
+		_rl_last_c_pos = nleft;
 	    }
 
-	  if (nleft != _rl_last_c_pos)
+	  if (MB_CUR_MAX > 1 && rl_byte_oriented == 0)
+	    _rl_move_cursor_relative (nleft, &invisible_line[pos]);
+	  else if (nleft != _rl_last_c_pos)
 	    _rl_move_cursor_relative (nleft, &invisible_line[pos]);
 	}
     }
@@ -901,6 +1039,11 @@ update_line (old, new, current_line, omax, nmax, inv_botlin)
   register char *ofd, *ols, *oe, *nfd, *nls, *ne;
   int temp, lendiff, wsatend, od, nd;
   int current_invis_chars;
+  int col_lendiff, col_temp;
+#if defined (HANDLE_MULTIBYTE)
+  mbstate_t ps_new, ps_old;
+  int new_offset, old_offset, tmp;
+#endif
 
   /* If we're at the right edge of a terminal that supports xn, we're
      ready to wrap around, so do so.  This fixes problems with knowing
@@ -909,19 +1052,97 @@ update_line (old, new, current_line, omax, nmax, inv_botlin)
      position of the cursor. */
   temp = _rl_last_c_pos - W_OFFSET(_rl_last_v_pos, visible_wrap_offset);
   if (temp == _rl_screenwidth && _rl_term_autowrap && !_rl_horizontal_scroll_mode
-      && _rl_last_v_pos == current_line - 1)
+	&& _rl_last_v_pos == current_line - 1)
     {
-      if (new[0])
-	putc (new[0], rl_outstream);
+#if defined (HANDLE_MULTIBYTE)
+      if (MB_CUR_MAX > 1 && rl_byte_oriented == 0)
+	{
+	  wchar_t wc;
+	  mbstate_t ps;
+	  int tempwidth, bytes;
+	  size_t ret;
+
+	  /* This fixes only double-column characters, but if the wrapped
+	     character comsumes more than three columns, spaces will be
+	     inserted in the string buffer. */
+	  if (_rl_wrapped_line[current_line] > 0)
+	    _rl_clear_to_eol (_rl_wrapped_line[current_line]);
+
+	  memset (&ps, 0, sizeof (mbstate_t));
+	  ret = mbrtowc (&wc, new, MB_CUR_MAX, &ps);
+	  if (ret == (size_t)-1 || ret == (size_t)-2)
+	    {
+	      tempwidth = 1;
+	      ret = 1;
+	    }
+	  else if (ret == 0)
+	    tempwidth = 0;
+	  else
+	    tempwidth = wcwidth (wc);
+
+	  if (tempwidth > 0)
+	    {
+	      int count;
+	      bytes = ret;
+	      for (count = 0; count < bytes; count++)
+		putc (new[count], rl_outstream);
+	      _rl_last_c_pos = tempwidth;
+	      _rl_last_v_pos++;
+	      memset (&ps, 0, sizeof (mbstate_t));
+	      ret = mbrtowc (&wc, old, MB_CUR_MAX, &ps);
+	      if (ret != 0 && bytes != 0)
+		{
+		  if (ret == (size_t)-1 || ret == (size_t)-2)
+		    memmove (old+bytes, old+1, strlen (old+1));
+		  else
+		    memmove (old+bytes, old+ret, strlen (old+ret));
+		  memcpy (old, new, bytes);
+		}
+	    }
+	  else
+	    {
+	      putc (' ', rl_outstream);
+	      _rl_last_c_pos = 1;
+	      _rl_last_v_pos++;
+	      if (old[0] && new[0])
+		old[0] = new[0];
+	    }
+	}
       else
-	putc (' ', rl_outstream);
-      _rl_last_c_pos = 1;		/* XXX */
-      _rl_last_v_pos++;
-      if (old[0] && new[0])
-	old[0] = new[0];
+#endif
+	{
+	  if (new[0])
+	    putc (new[0], rl_outstream);
+	  else
+	    putc (' ', rl_outstream);
+	  _rl_last_c_pos = 1;		/* XXX */
+	  _rl_last_v_pos++;
+	  if (old[0] && new[0])
+	    old[0] = new[0];
+	}
     }
+
       
   /* Find first difference. */
+#if defined (HANDLE_MULTIBYTE)
+  if (MB_CUR_MAX > 1 && rl_byte_oriented == 0)
+    {
+      memset (&ps_new, 0, sizeof(mbstate_t));
+      memset (&ps_old, 0, sizeof(mbstate_t));
+
+      new_offset = old_offset = 0;
+      for (ofd = old, nfd = new;
+	   (ofd - old < omax) && *ofd &&
+	     _rl_compare_chars(old, old_offset, &ps_old, new, new_offset, &ps_new); )
+	{
+	  old_offset = _rl_find_next_mbchar (old, old_offset, 1, MB_FIND_ANY);
+	  new_offset = _rl_find_next_mbchar (new, new_offset, 1, MB_FIND_ANY);
+	  ofd = old + old_offset;
+	  nfd = new + new_offset;
+	}
+    }
+  else
+#endif
   for (ofd = old, nfd = new;
        (ofd - old < omax) && *ofd && (*ofd == *nfd);
        ofd++, nfd++)
@@ -938,6 +1159,33 @@ update_line (old, new, current_line, omax, nmax, inv_botlin)
     return;
 
   wsatend = 1;			/* flag for trailing whitespace */
+
+#if defined (HANDLE_MULTIBYTE)
+  if (MB_CUR_MAX > 1 && rl_byte_oriented == 0)
+    {
+      ols = old + _rl_find_prev_mbchar (old, oe - old, MB_FIND_ANY);
+      nls = new + _rl_find_prev_mbchar (new, ne - new, MB_FIND_ANY);
+      while ((ols > ofd) && (nls > nfd))
+	{
+	  memset (&ps_old, 0, sizeof (mbstate_t));
+	  memset (&ps_new, 0, sizeof (mbstate_t));
+
+	  _rl_adjust_point (old, ols - old, &ps_old);
+	  _rl_adjust_point (new, nls - new, &ps_new);
+
+	  if (_rl_compare_chars (old, ols - old, &ps_old, new, nls - new, &ps_new) == 0)
+	    break;
+
+	  if (*ols == ' ')
+	    wsatend = 0;
+
+	  ols = old + _rl_find_prev_mbchar (old, ols - old, MB_FIND_ANY);
+	  nls = new + _rl_find_prev_mbchar (new, nls - new, MB_FIND_ANY);
+	}
+    }
+  else
+    {
+#endif /* HANDLE_MULTIBYTE */
   ols = oe - 1;			/* find last same */
   nls = ne - 1;
   while ((ols > ofd) && (nls > nfd) && (*ols == *nls))
@@ -947,18 +1195,38 @@ update_line (old, new, current_line, omax, nmax, inv_botlin)
       ols--;
       nls--;
     }
+#if defined (HANDLE_MULTIBYTE)
+    }
+#endif
 
   if (wsatend)
     {
       ols = oe;
       nls = ne;
     }
+#if defined (HANDLE_MULTIBYTE)
+  /* This may not work for stateful encoding, but who cares?  To handle
+     stateful encoding properly, we have to scan each string from the
+     beginning and compare. */
+  else if (_rl_compare_chars (ols, 0, NULL, nls, 0, NULL) == 0)
+#else
   else if (*ols != *nls)
+#endif
     {
       if (*ols)			/* don't step past the NUL */
-	ols++;
+	{
+	  if (MB_CUR_MAX > 1 && rl_byte_oriented == 0)
+	    ols = old + _rl_find_next_mbchar (old, ols - old, 1, MB_FIND_ANY);
+	  else
+	    ols++;
+	}
       if (*nls)
-	nls++;
+	{
+	  if (MB_CUR_MAX > 1 && rl_byte_oriented == 0)
+	    nls = new + _rl_find_next_mbchar (new, nls - new, 1, MB_FIND_ANY);
+	  else
+	    nls++;
+	}
     }
 
   /* count of invisible characters in the current invisible line. */
@@ -994,24 +1262,50 @@ update_line (old, new, current_line, omax, nmax, inv_botlin)
       tputs (_rl_term_cr, 1, _rl_output_character_function);
 #endif
       _rl_output_some_chars (local_prompt, lendiff);
-      _rl_last_c_pos = lendiff;
+      if (MB_CUR_MAX > 1 && rl_byte_oriented == 0)
+	_rl_last_c_pos = _rl_col_width (local_prompt, 0, lendiff);
+      else
+	_rl_last_c_pos = lendiff;
     }
 
   _rl_move_cursor_relative (od, old);
 
-  /* if (len (new) > len (old)) */
+  /* if (len (new) > len (old))
+     lendiff == difference in buffer
+     col_lendiff == difference on screen
+     When not using multibyte characters, these are equal */
   lendiff = (nls - nfd) - (ols - ofd);
+  if (MB_CUR_MAX > 1 && rl_byte_oriented == 0)
+    col_lendiff = _rl_col_width (new, nfd - new, nls - new) - _rl_col_width (old, ofd - old, ols - old);
+  else
+    col_lendiff = lendiff;
 
   /* If we are changing the number of invisible characters in a line, and
      the spot of first difference is before the end of the invisible chars,
      lendiff needs to be adjusted. */
   if (current_line == 0 && !_rl_horizontal_scroll_mode &&
       current_invis_chars != visible_wrap_offset)
-    lendiff += visible_wrap_offset - current_invis_chars;
+    {
+      if (MB_CUR_MAX > 1 && rl_byte_oriented == 0)
+	{
+	  lendiff += visible_wrap_offset - current_invis_chars;
+	  col_lendiff += visible_wrap_offset - current_invis_chars;
+	}
+      else
+	{
+	  lendiff += visible_wrap_offset - current_invis_chars;
+	  col_lendiff = lendiff;
+	}
+    }
 
   /* Insert (diff (len (old), len (new)) ch. */
   temp = ne - nfd;
-  if (lendiff > 0)
+  if (MB_CUR_MAX > 1 && rl_byte_oriented == 0)
+    col_temp = _rl_col_width (new, nfd - new, ne - new);
+  else
+    col_temp = temp;
+
+  if (col_lendiff > 0)	/* XXX - was lendiff */
     {
       /* Non-zero if we're increasing the number of lines. */
       int gl = current_line >= _rl_vis_botlin && inv_botlin > _rl_vis_botlin;
@@ -1019,7 +1313,7 @@ update_line (old, new, current_line, omax, nmax, inv_botlin)
 	 use the terminal's capabilities.  If we're growing the number
 	 of lines, make sure we actually cause the new line to wrap
 	 around on auto-wrapping terminals. */
-      if (_rl_terminal_can_insert && ((2 * temp) >= lendiff || _rl_term_IC) && (!_rl_term_autowrap || !gl))
+      if (_rl_terminal_can_insert && ((2 * col_temp) >= col_lendiff || _rl_term_IC) && (!_rl_term_autowrap || !gl))
 	{
 	  /* If lendiff > prompt_visible_length and _rl_last_c_pos == 0 and
 	     _rl_horizontal_scroll_mode == 1, inserting the characters with
@@ -1028,8 +1322,8 @@ update_line (old, new, current_line, omax, nmax, inv_botlin)
 	  if (*ols && (!_rl_horizontal_scroll_mode || _rl_last_c_pos > 0 ||
 			lendiff <= prompt_visible_length || !current_invis_chars))
 	    {
-	      insert_some_chars (nfd, lendiff);
-	      _rl_last_c_pos += lendiff;
+	      insert_some_chars (nfd, lendiff, col_lendiff);
+	      _rl_last_c_pos += col_lendiff;
 	    }
 	  else if (*ols == 0)
 	    {
@@ -1038,7 +1332,7 @@ update_line (old, new, current_line, omax, nmax, inv_botlin)
 	      /* However, this screws up the rest of this block, which
 		 assumes you've done the insert because you can. */
 	      _rl_output_some_chars (nfd, lendiff);
-	      _rl_last_c_pos += lendiff;
+	      _rl_last_c_pos += col_lendiff;
 	    }
 	  else
 	    {
@@ -1046,7 +1340,7 @@ update_line (old, new, current_line, omax, nmax, inv_botlin)
 		 the end.  We have invisible characters in this line.  This
 		 is a dumb update. */
 	      _rl_output_some_chars (nfd, temp);
-	      _rl_last_c_pos += temp;
+	      _rl_last_c_pos += col_temp;
 	      return;
 	    }
 	  /* Copy (new) chars to screen from first diff to last match. */
@@ -1054,37 +1348,41 @@ update_line (old, new, current_line, omax, nmax, inv_botlin)
 	  if ((temp - lendiff) > 0)
 	    {
 	      _rl_output_some_chars (nfd + lendiff, temp - lendiff);
-	      _rl_last_c_pos += temp - lendiff;
+#if 0
+	      _rl_last_c_pos += _rl_col_width (nfd+lendiff, 0, temp-lendiff) - col_lendiff;
+#else
+	      _rl_last_c_pos += _rl_col_width (nfd+lendiff, 0, temp-col_lendiff);
+#endif
 	    }
 	}
       else
 	{
 	  /* cannot insert chars, write to EOL */
 	  _rl_output_some_chars (nfd, temp);
-	  _rl_last_c_pos += temp;
+	  _rl_last_c_pos += col_temp;
 	}
     }
   else				/* Delete characters from line. */
     {
       /* If possible and inexpensive to use terminal deletion, then do so. */
-      if (_rl_term_dc && (2 * temp) >= -lendiff)
+      if (_rl_term_dc && (2 * col_temp) >= -col_lendiff)
 	{
 	  /* If all we're doing is erasing the invisible characters in the
 	     prompt string, don't bother.  It screws up the assumptions
 	     about what's on the screen. */
 	  if (_rl_horizontal_scroll_mode && _rl_last_c_pos == 0 &&
 	      -lendiff == visible_wrap_offset)
-	    lendiff = 0;
+	    col_lendiff = 0;
 
-	  if (lendiff)
-	    delete_chars (-lendiff); /* delete (diff) characters */
+	  if (col_lendiff)
+	    delete_chars (-col_lendiff); /* delete (diff) characters */
 
 	  /* Copy (new) chars to screen from first diff to last match */
 	  temp = nls - nfd;
 	  if (temp > 0)
 	    {
 	      _rl_output_some_chars (nfd, temp);
-	      _rl_last_c_pos += temp;
+	      _rl_last_c_pos += _rl_col_width (nfd, 0, temp);;
 	    }
 	}
       /* Otherwise, print over the existing material. */
@@ -1093,15 +1391,20 @@ update_line (old, new, current_line, omax, nmax, inv_botlin)
 	  if (temp > 0)
 	    {
 	      _rl_output_some_chars (nfd, temp);
-	      _rl_last_c_pos += temp;
+	      _rl_last_c_pos += col_temp;
 	    }
 	  lendiff = (oe - old) - (ne - new);
-	  if (lendiff)
+	  if (MB_CUR_MAX > 1 && rl_byte_oriented == 0)
+	    col_lendiff = _rl_col_width (old, 0, oe - old) - _rl_col_width (new, 0, ne - new);
+	  else
+	    col_lendiff = lendiff;
+
+	  if (col_lendiff)
 	    {	  
 	      if (_rl_term_autowrap && current_line < inv_botlin)
-		space_to_eol (lendiff);
+		space_to_eol (col_lendiff);
 	      else
-		_rl_clear_to_eol (lendiff);
+		_rl_clear_to_eol (col_lendiff);
 	    }
 	}
     }
@@ -1147,7 +1450,10 @@ rl_on_new_line_with_prompt ()
     prompt_last_line = rl_prompt;
 
   l = strlen (prompt_last_line);
-  _rl_last_c_pos = l;
+  if (MB_CUR_MAX > 1 && rl_byte_oriented == 0)
+    _rl_last_c_pos = _rl_col_width (prompt_last_line, 0, l);
+  else
+    _rl_last_c_pos = l;
 
   /* Dissect prompt_last_line into screen lines. Note that here we have
      to use the real screenwidth. Readline's notion of screenwidth might be
@@ -1202,7 +1508,14 @@ _rl_move_cursor_relative (new, data)
   register int i;
 
   /* If we don't have to do anything, then return. */
+#if defined (HANDLE_MULTIBYTE)
+  /* If we have multibyte characters, NEW is indexed by the buffer point in
+     a multibyte string, but _rl_last_c_pos is the display position.  In
+     this case, NEW's display position is not obvious. */
+  if ((MB_CUR_MAX == 1 || rl_byte_oriented ) && _rl_last_c_pos == new) return;
+#else
   if (_rl_last_c_pos == new) return;
+#endif
 
   /* It may be faster to output a CR, and then move forwards instead
      of moving backwards. */
@@ -1232,19 +1545,69 @@ _rl_move_cursor_relative (new, data)
 	 data is underneath the cursor. */
 #if defined (HACK_TERMCAP_MOTION)
       if (_rl_term_forward_char)
-	for (i = _rl_last_c_pos; i < new; i++)
-	  tputs (_rl_term_forward_char, 1, _rl_output_character_function);
+	{
+	  if (MB_CUR_MAX > 1 && rl_byte_oriented == 0)
+	    {
+	      int width;
+	      width = _rl_col_width (data, _rl_last_c_pos, new);
+	      for (i = 0; i < width; i++)
+		tputs (_rl_term_forward_char, 1, _rl_output_character_function);
+	    }
+	  else
+	    {
+	      for (i = _rl_last_c_pos; i < new; i++)
+		tputs (_rl_term_forward_char, 1, _rl_output_character_function);
+	    }
+	}
+      else if (MB_CUR_MAX > 1 && rl_byte_oriented == 0)
+	{
+	  tputs (_rl_term_cr, 1, _rl_output_character_function);
+	  for (i = 0; i < new; i++)
+	    putc (data[i], rl_outstream);
+	}
       else
 	for (i = _rl_last_c_pos; i < new; i++)
 	  putc (data[i], rl_outstream);
-#else
-      for (i = _rl_last_c_pos; i < new; i++)
-	putc (data[i], rl_outstream);
-#endif /* HACK_TERMCAP_MOTION */
+
+#else /* !HACK_TERMCAP_MOTION */
+
+      if (MB_CUR_MAX > 1 && rl_byte_oriented == 0)
+	{
+	  tputs (_rl_term_cr, 1, _rl_output_character_function);
+	  for (i = 0; i < new; i++)
+	    putc (data[i], rl_outstream);
+	}
+      else
+	for (i = _rl_last_c_pos; i < new; i++)
+	  putc (data[i], rl_outstream);
+
+#endif /* !HACK_TERMCAP_MOTION */
+
     }
+#if defined (HANDLE_MULTIBYTE)
+  /* NEW points to the buffer point, but _rl_last_c_pos is the display point.
+     The byte length of the string is probably bigger than the column width
+     of the string, which means that if NEW == _rl_last_c_pos, then NEW's
+     display point is less than _rl_last_c_pos. */
+  else if (_rl_last_c_pos >= new)
+#else
   else if (_rl_last_c_pos > new)
-    _rl_backspace (_rl_last_c_pos - new);
-  _rl_last_c_pos = new;
+#endif
+    {
+      if (MB_CUR_MAX > 1 && rl_byte_oriented == 0)
+	{
+	  tputs (_rl_term_cr, 1, _rl_output_character_function);
+	  for (i = 0; i < new; i++)
+	    putc (data[i], rl_outstream);
+	}
+      else
+	_rl_backspace (_rl_last_c_pos - new);
+    }
+
+  if (MB_CUR_MAX > 1 && rl_byte_oriented == 0)
+    _rl_last_c_pos =  _rl_col_width (data, 0, new);
+  else
+    _rl_last_c_pos = new;
 }
 
 /* PWP: move the cursor up or down. */
@@ -1331,7 +1694,7 @@ rl_character_len (c, pos)
   if (CTRL_CHAR (c) || c == RUBOUT)
     return (2);
 
-  return ((isprint (uc)) ? 1 : 2);
+  return ((ISPRINT (uc)) ? 1 : 2);
 }
 
 /* How to print things in the "echo-area".  The prompt is treated as a
@@ -1358,7 +1721,12 @@ rl_message (va_alist)
   format = va_arg (args, char *);
 #endif
 
+#if defined (HAVE_VSNPRINTF)
+  vsnprintf (msg_buf, sizeof (msg_buf) - 1, format, args);
+#else
   vsprintf (msg_buf, format, args);
+  msg_buf[sizeof(msg_buf) - 1] = '\0';	/* overflow? */
+#endif
   va_end (args);
 
   rl_display_prompt = msg_buf;
@@ -1371,6 +1739,7 @@ rl_message (format, arg1, arg2)
      char *format;
 {
   sprintf (msg_buf, format, arg1, arg2);
+  msg_buf[sizeof(msg_buf) - 1] = '\0';	/* overflow? */
   rl_display_prompt = msg_buf;
   (*rl_redisplay_function) ();
   return 0;
@@ -1437,7 +1806,7 @@ _rl_make_prompt_for_search (pchar)
   if (saved_local_prompt == 0)
     {
       len = (rl_prompt && *rl_prompt) ? strlen (rl_prompt) : 0;
-      pmt = xmalloc (len + 2);
+      pmt = (char *)xmalloc (len + 2);
       if (len)
 	strcpy (pmt, rl_prompt);
       pmt[len] = pchar;
@@ -1446,7 +1815,7 @@ _rl_make_prompt_for_search (pchar)
   else
     {
       len = *saved_local_prompt ? strlen (saved_local_prompt) : 0;
-      pmt = xmalloc (len + 2);
+      pmt = (char *)xmalloc (len + 2);
       if (len)
 	strcpy (pmt, saved_local_prompt);
       pmt[len] = pchar;
@@ -1509,17 +1878,23 @@ _rl_clear_screen ()
     rl_crlf ();
 }
 
-/* Insert COUNT characters from STRING to the output stream. */
+/* Insert COUNT characters from STRING to the output stream at column COL. */
 static void
-insert_some_chars (string, count)
+insert_some_chars (string, count, col)
      char *string;
-     int count;
+     int count, col;
 {
+  /* DEBUGGING */
+  if (MB_CUR_MAX == 1 || rl_byte_oriented)
+    if (count != col)
+      fprintf(stderr, "readline: debug: insert_some_chars: count (%d) != col (%d)\n", count, col);
+
   /* If IC is defined, then we do not have to "enter" insert mode. */
   if (_rl_term_IC)
     {
       char *buffer;
-      buffer = tgoto (_rl_term_IC, 0, count);
+
+      buffer = tgoto (_rl_term_IC, 0, col);
       tputs (buffer, 1, _rl_output_character_function);
       _rl_output_some_chars (string, count);
     }
@@ -1535,7 +1910,7 @@ insert_some_chars (string, count)
 	 use that first to open up the space. */
       if (_rl_term_ic && *_rl_term_ic)
 	{
-	  for (i = count; i--; )
+	  for (i = col; i--; )
 	    tputs (_rl_term_ic, 1, _rl_output_character_function);
 	}
 
@@ -1590,11 +1965,8 @@ _rl_update_final ()
   if (full_lines && _rl_term_autowrap && (VIS_LLEN(_rl_vis_botlin) == _rl_screenwidth))
     {
       char *last_line;
-#if 0
-      last_line = &visible_line[inv_lbreaks[_rl_vis_botlin]];
-#else
+
       last_line = &visible_line[vis_lbreaks[_rl_vis_botlin]];
-#endif
       _rl_move_cursor_relative (_rl_screenwidth - 1, last_line);
       _rl_clear_to_eol (0);
       putc (last_line[_rl_screenwidth - 1], rl_outstream);
@@ -1739,3 +2111,87 @@ _rl_current_display_line ()
 
   return ret;
 }
+
+#if defined (HANDLE_MULTIBYTE)
+/* Calculate the number of screen columns occupied by STR from START to END.
+   In the case of multibyte characters with stateful encoding, we have to
+   scan from the beginning of the string to take the state into account. */
+static int
+_rl_col_width (str, start, end)
+     char *str;
+     int start, end;
+{
+  wchar_t wc;
+  mbstate_t ps = {0};
+  int tmp, point, width, max;
+
+  if (end <= start)
+    return 0;
+
+  point = 0;
+  max = end;
+
+  while (point < start)
+    {
+      tmp = mbrlen (str + point, max, &ps);
+      if ((size_t)tmp == (size_t)-1 || (size_t)tmp == (size_t)-2)
+	{
+	  /* In this case, the bytes are invalid or too short to compose a
+	     multibyte character, so we assume that the first byte represents
+	     a single character. */
+	  point++;
+	  max--;
+
+	  /* Clear the state of the byte sequence, because in this case the
+	     effect of mbstate is undefined. */
+	  memset (&ps, 0, sizeof (mbstate_t));
+	}
+      else if (tmp == 0)
+        break;		/* Found '\0' */
+      else
+	{
+	  point += tmp;
+	  max -= tmp;
+	}
+    }
+
+  /* If START is not a byte that starts a character, then POINT will be
+     greater than START.  In this case, assume that (POINT - START) gives
+     a byte count that is the number of columns of difference. */
+  width = point - start;
+
+  while (point < end)
+    {
+      tmp = mbrtowc (&wc, str + point, max, &ps);
+      if ((size_t)tmp == (size_t)-1 || (size_t)tmp == (size_t)-2)
+	{
+	  /* In this case, the bytes are invalid or too short to compose a
+	     multibyte character, so we assume that the first byte represents
+	     a single character. */
+	  point++;
+	  max--;
+
+	  /* and assume that the byte occupies a single column. */
+	  width++;
+
+	  /* Clear the state of the byte sequence, because in this case the
+	     effect of mbstate is undefined. */
+	  memset (&ps, 0, sizeof (mbstate_t));
+	}
+      else if (tmp == 0)
+        break;			/* Found '\0' */
+      else
+	{
+	  point += tmp;
+	  max -= tmp;
+	  tmp = wcwidth(wc);
+	  width += (tmp >= 0) ? tmp : 1;
+	}
+    }
+
+  width += point - end;
+
+  return width;
+}
+#endif /* HANDLE_MULTIBYTE */
+	  
