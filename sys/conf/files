@@ -248,7 +248,7 @@ dev/amr/amr_pci.c	optional amr
 dev/an/if_an.c		optional an
 dev/an/if_an_isa.c	optional an isa
 dev/an/if_an_pccard.c	optional an card
-#dev/an/if_an_pccard.c	optional an pccard
+dev/an/if_an_pccard.c	optional an pccard
 dev/an/if_an_pci.c	optional an pci
 dev/ar/if_ar.c		optional ar
 dev/ar/if_ar_pci.c	optional ar pci
