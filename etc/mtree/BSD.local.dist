@@ -443,6 +443,8 @@
             ..
             zh_CN.eucCN
             ..
+            zh_CN.GBK
+            ..
             zh_TW.Big5
             ..
         ..
