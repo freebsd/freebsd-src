@@ -269,8 +269,8 @@ rlines(fp, off, sbp)
 	long off;
 	struct stat *sbp;
 {
-	register off_t size;
-	register char *p;
+	off_t size;
+	char *p;
 	char *start;
 
 	if (!(size = sbp->st_size))
