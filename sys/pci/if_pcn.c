@@ -34,7 +34,7 @@
  */
 
 /*
- * AMD Am79c972 fast ethernet PCI NIC driver. Datatheets are available
+ * AMD Am79c972 fast ethernet PCI NIC driver. Datasheets are available
  * from http://www.amd.com.
  *
  * Written by Bill Paul <wpaul@osd.bsdi.com>
@@ -441,8 +441,8 @@ static int pcn_probe(dev)
 			 * Note III: the test for 0x10001000 is a hack to
 			 * pacify VMware, who's pseudo-PCnet interface is
 			 * broken. Reading the subsystem register from PCI
-			 * config space yeilds 0x00000000 while reading the
-			 * same value from I/O space yeilds 0x10001000. It's
+			 * config space yields 0x00000000 while reading the
+			 * same value from I/O space yields 0x10001000. It's
 			 * not supposed to be that way.
 			 */
 			if (chip_id == pci_read_config(dev,
@@ -949,7 +949,7 @@ static void pcn_intr(arg)
 	sc = arg;
 	ifp = &sc->arpcom.ac_if;
 
-	/* Supress unwanted interrupts */
+	/* Suppress unwanted interrupts */
 	if (!(ifp->if_flags & IFF_UP)) {
 		pcn_stop(sc);
 		return;
