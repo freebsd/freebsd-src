@@ -30,7 +30,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *      $Id: crt1.c,v 1.4 1999/01/19 06:58:31 simokawa Exp $
+ *      $Id: crt1.c,v 1.5 1999/04/24 02:07:17 jdp Exp $
  */
 
 #ifndef __GNUC__
@@ -48,6 +48,13 @@ extern int _DYNAMIC;
 extern void _init(void);
 extern void _fini(void);
 extern int main(int, char **, char **);
+
+#ifdef GCRT
+extern void _mcleanup(void);
+extern void monstartup(void *, void *);
+extern int eprol;
+extern int etext;
+#endif
 
 char **environ;
 char *__progname = "";
@@ -78,7 +85,19 @@ _start(char **ap,
 	if (&_DYNAMIC != NULL)
 		atexit(cleanup);
 
+#ifdef GCRT
+	atexit(_mcleanup);
+#endif
 	atexit(_fini);
+#ifdef GCRT
+	monstartup(&eprol, &etext);
+#endif
 	_init();
 	exit( main(argc, argv, env) );
 }
+
+#ifdef GCRT
+__asm__(".text");
+__asm__("eprol:");
+__asm__(".previous");
+#endif
