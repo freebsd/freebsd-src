@@ -58,7 +58,9 @@ static int verbose = 0;
 static struct g_command *class_commands = NULL;
 static void (*usage)(const char *name);
 
-static struct g_command *find_command(const char *cmdstr, int all);
+#define	GEOM_CLASS_CMDS	0x01
+#define	GEOM_STD_CMDS	0x02
+static struct g_command *find_command(const char *cmdstr, int flags);
 static int std_available(const char *name);
 
 static void std_help(struct gctl_req *req, unsigned flags);
@@ -131,9 +133,12 @@ geom_usage(void)
 			cmd = &std_commands[i];
 			if (cmd->gc_name == NULL)
 				break;
-			if (find_command(cmd->gc_name, 0) != NULL)
-				continue;
-			if (!std_available(cmd->gc_name))
+			/*
+			 * If class defines command, which has the same name as
+			 * standard command, skip it, because it was already
+			 * shown on usage().
+			 */
+			if (find_command(cmd->gc_name, GEOM_CLASS_CMDS) != NULL)
 				continue;
 			fprintf(stderr, "%s %s %s", prefix, comm, cmd->gc_name);
 			if ((cmd->gc_flags & G_FLAG_VERBOSE) != 0)
@@ -336,7 +341,7 @@ parse_arguments(struct g_command *cmd, struct gctl_req *req, int *argc,
  * Find given command in commands available for given class.
  */
 static struct g_command *
-find_command(const char *cmdstr, int all)
+find_command(const char *cmdstr, int flags)
 {
 	struct g_command *cmd;
 	unsigned i;
@@ -344,7 +349,7 @@ find_command(const char *cmdstr, int all)
 	/*
 	 * First try to find command defined by loaded library.
 	 */
-	if (class_commands != NULL) {
+	if ((flags & GEOM_CLASS_CMDS) != 0 && class_commands != NULL) {
 		for (i = 0; ; i++) {
 			cmd = &class_commands[i];
 			if (cmd->gc_name == NULL)
@@ -353,19 +358,17 @@ find_command(const char *cmdstr, int all)
 				return (cmd);
 		}
 	}
-	if (!all)
-		return (NULL);
 	/*
 	 * Now try to find in standard commands.
 	 */
-	for (i = 0; ; i++) {
-		cmd = &std_commands[i];
-		if (cmd->gc_name == NULL)
-			break;
-		if (!std_available(cmd->gc_name))
-			continue;
-		if (strcmp(cmd->gc_name, cmdstr) == 0)
-			return (cmd);
+	if ((flags & GEOM_STD_CMDS) != 0) {
+		for (i = 0; ; i++) {
+			cmd = &std_commands[i];
+			if (cmd->gc_name == NULL)
+				break;
+			if (strcmp(cmd->gc_name, cmdstr) == 0)
+				return (cmd);
+		}
 	}
 	return (NULL);
 }
@@ -392,10 +395,20 @@ run_command(int argc, char *argv[])
 	const char *errstr;
 	char buf[4096];
 
-	cmd = find_command(argv[0], 1);
+	/* First try to find a command defined by a class. */
+	cmd = find_command(argv[0], GEOM_CLASS_CMDS);
 	if (cmd == NULL) {
-		fprintf(stderr, "Unknown command: %s\n", argv[0]);
-		geom_usage();
+		/* Now, try to find a standard command. */
+		cmd = find_command(argv[0], GEOM_STD_CMDS);
+		if (cmd == NULL) {
+			fprintf(stderr, "Unknown command: %s\n", argv[0]);
+			geom_usage();
+		}
+		if (!std_available(cmd->gc_name)) {
+			fprintf(stderr, "Command '%s' not available.\n",
+			    argv[0]);
+			exit(EXIT_FAILURE);
+		}
 	}
 	if ((cmd->gc_flags & G_FLAG_LOADKLD) != 0)
 		load_module();
