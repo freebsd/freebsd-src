@@ -64,8 +64,8 @@ PORTSRELEASETAG?=	${AUXRELEASETAG}
 # WORLD_FLAGS.  Similarly, you can specify make flags for kernel
 # builds via KERNEL_FLAGS.
 # Similarly, you can specify make flags for make readmes via PORTREADMES_FLAGS.
-WORLD_FLAGS=-j8 -s
-KERNEL_FLAGS=-j8 -s
+#WORLD_FLAGS=-j4
+#KERNEL_FLAGS=-j4
 #PORTREADMES_FLAGS=-j4
 
 TARGET_ARCH?=	${MACHINE_ARCH}
