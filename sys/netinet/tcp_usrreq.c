@@ -90,7 +90,7 @@
  */
 extern	char *tcpstates[];	/* XXX ??? */
 
-static int	tcp_attach(struct socket *, struct thread *td);
+static int	tcp_attach(struct socket *);
 static int	tcp_connect(struct tcpcb *, struct sockaddr *,
 		    struct thread *td);
 #ifdef INET6
@@ -134,7 +134,7 @@ tcp_usr_attach(struct socket *so, int proto, struct thread *td)
 		goto out;
 	}
 
-	error = tcp_attach(so, td);
+	error = tcp_attach(so);
 	if (error)
 		goto out;
 
@@ -1188,9 +1188,8 @@ SYSCTL_INT(_net_inet_tcp, TCPCTL_RECVSPACE, recvspace, CTLFLAG_RW,
  * bufer space, and entering LISTEN state if to accept connections.
  */
 static int
-tcp_attach(so, td)
+tcp_attach(so)
 	struct socket *so;
-	struct thread *td;
 {
 	register struct tcpcb *tp;
 	struct inpcb *inp;
