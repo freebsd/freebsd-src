@@ -404,9 +404,6 @@ relpbuf(bp, pfreecnt)
 		bp->b_wcred = NOCRED;
 	}
 
-	if (bp->b_vp)
-		pbrelvp(bp);
-
 	BUF_UNLOCK(bp);
 
 	mtx_lock(&pbuf_mtx);
