@@ -33,18 +33,20 @@
 
 #ifndef lint
 #if 0
-static char sccsid[] = "@(#)odsyntax.c	8.1 (Berkeley) 6/6/93";
+static char sccsid[] = "@(#)odsyntax.c	8.2 (Berkeley) 5/4/95";
 #endif
 static const char rcsid[] =
-	"$Id: odsyntax.c,v 1.2.6.1 1997/07/11 06:25:57 charnier Exp $";
+	"$Id: odsyntax.c,v 1.2.6.2 1997/08/29 05:29:21 imp Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
 
 #include <ctype.h>
 #include <err.h>
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+
 #include "hexdump.h"
 
 int deprecated;
@@ -64,7 +66,7 @@ oldsyntax(argc, argvp)
 
 	deprecated = 1;
 	argv = *argvp;
-	while ((ch = getopt(argc, argv, "aBbcDdeFfHhIiLlOoPpswvXx")) !=  -1)
+	while ((ch = getopt(argc, argv, "aBbcDdeFfHhIiLlOoPpswvXx")) != -1)
 		switch (ch) {
 		case 'a':
 			odprecede();
