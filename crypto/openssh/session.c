@@ -858,6 +858,10 @@ do_child(const char *command, struct passwd * pw, const char *term,
 	struct stat st;
 	char *argv[10];
 
+	/* login(1) is only called if we execute the login shell */
+	if (options.use_login && command != NULL)
+		options.use_login = 0;
+
 #ifdef LOGIN_CAP
 	login_cap_t *lc;
 
