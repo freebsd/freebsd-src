@@ -29,6 +29,7 @@ INSTALL_PIC_ARCHIVE=	yes
 CFLAGS+= -DYP
 .include "${.CURDIR}/yp/Makefile.inc"
 .endif
+.include "${.CURDIR}/${MACHINE}/sys/Makefile.inc"
 
 KQSRCS=	adddi3.c anddi3.c ashldi3.c ashrdi3.c cmpdi2.c divdi3.c iordi3.c \
 	lshldi3.c lshrdi3.c moddi3.c muldi3.c negdi2.c notdi2.c qdivrem.c \
