@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.100 1997/11/07 09:21:00 phk Exp $
+ * $Id: vm_object.c,v 1.101 1997/11/18 11:02:19 bde Exp $
  */
 
 /*
@@ -358,6 +358,15 @@ vm_object_deallocate(object)
 		 * Make sure no one uses us.
 		 */
 		object->flags |= OBJ_DEAD;
+
+		if (object->type == OBJT_VNODE) {
+			struct vnode *vp = object->handle;
+			if (vp->v_flag & VVMIO) {
+				object->ref_count++;
+				vm_freeze_copyopts(object, 0, object->size);
+				object->ref_count--;
+			}
+		}
 
 		temp = object->backing_object;
 		if (temp) {
@@ -678,6 +687,30 @@ vm_object_pmap_copy(object, start, end)
 	}
 
 	object->flags &= ~OBJ_WRITEABLE;
+}
+
+/*
+ * Same as vm_object_pmap_copy_1, except range checking really
+ * works, and is meant for small sections of an object.
+ */
+void
+vm_object_pmap_copy_1(object, start, end)
+	register vm_object_t object;
+	register vm_pindex_t start;
+	register vm_pindex_t end;
+{
+	vm_pindex_t idx;
+	register vm_page_t p;
+
+	if (object == NULL || (object->flags & OBJ_WRITEABLE) == 0)
+		return;
+
+	for (idx = start; idx < end; idx++) {
+		p = vm_page_lookup(object, idx);
+		if (p == NULL)
+			continue;
+		vm_page_protect(p, VM_PROT_READ);
+	}
 }
 
 /*

@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.h,v 1.37 1997/09/01 02:55:50 bde Exp $
+ * $Id: vm_object.h,v 1.38 1997/09/21 04:24:24 dyson Exp $
  */
 
 /*
@@ -131,9 +131,9 @@ struct vm_object {
 #define	OBJ_MIGHTBEDIRTY	0x0100	/* object might be dirty */
 #define OBJ_CLEANING	0x0200
 #define	OBJ_VFS_REF	0x0400		/* object is refed by vfs layer */
-
-
 #define OBJ_VNODE_GONE	0x0800		/* vnode is gone */
+#define OBJ_OPT		0x1000			/* I/O optimization */
+
 #define OBJ_NORMAL	0x0		/* default behavior */
 #define OBJ_SEQUENTIAL	0x1		/* expect sequential accesses */
 #define OBJ_RANDOM	0x2		/* expect random accesses */
@@ -179,6 +179,7 @@ void vm_object_init __P((void));
 void vm_object_page_clean __P((vm_object_t, vm_pindex_t, vm_pindex_t, boolean_t, boolean_t));
 void vm_object_page_remove __P((vm_object_t, vm_pindex_t, vm_pindex_t, boolean_t));
 void vm_object_pmap_copy __P((vm_object_t, vm_pindex_t, vm_pindex_t));
+void vm_object_pmap_copy_1 __P((vm_object_t, vm_pindex_t, vm_pindex_t));
 void vm_object_pmap_remove __P((vm_object_t, vm_pindex_t, vm_pindex_t));
 void vm_object_reference __P((vm_object_t));
 void vm_object_shadow __P((vm_object_t *, vm_ooffset_t *, vm_size_t));

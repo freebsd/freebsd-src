@@ -31,11 +31,13 @@
  * SUCH DAMAGE.
  *
  *	@(#)uio.h	8.5 (Berkeley) 2/22/94
- * $Id$
+ * $Id: uio.h,v 1.6 1997/02/22 09:46:19 peter Exp $
  */
 
 #ifndef _SYS_UIO_H_
 #define	_SYS_UIO_H_
+
+struct vm_object;
 
 /*
  * XXX
@@ -77,6 +79,7 @@ struct uio {
 #ifdef KERNEL
 
 int	uiomove __P((caddr_t, int, struct uio *));
+int	uiomoveco __P((caddr_t, int, struct uio *, struct vm_object *));
 
 #else /* !KERNEL */
 

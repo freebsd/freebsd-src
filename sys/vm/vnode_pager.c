@@ -38,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vnode_pager.c	7.5 (Berkeley) 4/20/91
- *	$Id: vnode_pager.c,v 1.75 1997/10/06 02:38:30 dyson Exp $
+ *	$Id: vnode_pager.c,v 1.76 1997/12/02 21:07:20 phk Exp $
  */
 
 /*
@@ -64,6 +64,7 @@
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
+#include <vm/vm_map.h>
 #include <vm/vnode_pager.h>
 #include <vm/vm_extern.h>
 
@@ -291,10 +292,12 @@ vnode_pager_setsize(vp, nsize)
 		vm_ooffset_t nsizerounded;
 		nsizerounded = IDX_TO_OFF(OFF_TO_IDX(nsize + PAGE_MASK));
 		if (nsizerounded < object->un_pager.vnp.vnp_size) {
-			vm_object_page_remove(object,
-				OFF_TO_IDX(nsize + PAGE_MASK),
-				OFF_TO_IDX(object->un_pager.vnp.vnp_size),
-				FALSE);
+			vm_pindex_t st, end;
+			st = OFF_TO_IDX(nsize + PAGE_MASK);
+			end = OFF_TO_IDX(object->un_pager.vnp.vnp_size);
+
+			vm_freeze_copyopts(object, OFF_TO_IDX(nsize), object->size);
+			vm_object_page_remove(object, st, end, FALSE);
 		}
 		/*
 		 * this gets rid of garbage at the end of a page that is now
@@ -371,6 +374,7 @@ vnode_pager_uncache(vp, p)
 		return;
 
 	vm_object_reference(object);
+	vm_freeze_copyopts(object, 0, object->size);
 
 	/*
 	 * XXX We really should handle locking on
