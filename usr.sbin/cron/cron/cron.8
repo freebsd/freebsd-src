@@ -15,14 +15,14 @@
 .\" * Paul Vixie          <paul@vix.com>          uunet!decwrl!vixie!paul
 .\" */
 .\" 
-.\" $Id: cron.8,v 2.2 1993/12/28 08:34:43 vixie Exp $
+.\" $Id: cron.8,v 1.1.1.1 1994/08/27 13:43:03 jkh Exp $
 .\" 
 .TH CRON 8 "20 December 1993"
 .UC 4
 .SH NAME
 cron \- daemon to execute scheduled commands (Vixie Cron)
 .SH SYNOPSIS
-cron
+.B cron [-x debugflag[,...]]
 .SH DESCRIPTION
 .I Cron
 should be started from /etc/rc or /etc/rc.local.  It will return immediately,
