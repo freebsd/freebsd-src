@@ -203,9 +203,11 @@ ofwn_init(struct iodesc *desc, void *machdep_hint)
 	printf("ofwn_init: OpenFirmware instance handle: %08x\n", netinstance);
 #endif
 
-	if (OF_call_method("dma-alloc", netinstance, 1, 1, MAXPHYS, &dmabuf)
-	    == -1)
+	if (OF_call_method("dma-alloc", netinstance, 1, 1, NULL, &dmabuf)
+	    < 0) {   
+		printf("Failed to allocate DMA buffer (got %08x).\n", dmabuf);
 		goto punt;
+	}
 
 #if defined(NETIF_DEBUG)
 	printf("ofwn_init: allocated DMA buffer: %08x\n", dmabuf);
