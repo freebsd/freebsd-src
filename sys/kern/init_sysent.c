@@ -358,4 +358,5 @@ struct sysent sysent[] = {
 	{ 1, (sy_call_t *)thr_wakeup },			/* 323 = thr_wakeup */
 	{ 1, (sy_call_t *)mlockall },			/* 324 = mlockall */
 	{ 0, (sy_call_t *)munlockall },			/* 325 = munlockall */
+	{ 2, (sy_call_t *)__getcwd },			/* 326 = __getcwd */
 };

@@ -1,4 +1,4 @@
-	$Id: syscalls.master,v 1.41 1997/08/19 05:53:48 peter Exp $
+	$Id: syscalls.master,v 1.42 1997/09/14 02:22:05 peter Exp $
 ;	from: @(#)syscalls.master	8.2 (Berkeley) 1/13/94
 ;
 ; System call name/number master file.
@@ -476,3 +476,4 @@
 323     STD     BSD     { int thr_wakeup(pid_t pid); }
 324     STD     BSD     { int mlockall(int how); }
 325     STD     BSD     { int munlockall(void); }
+326     STD     BSD     { int __getcwd(u_char *buf, u_int buflen); }
