@@ -682,9 +682,6 @@ USB_ATTACH(rue)
 		goto error1;
 	}
 
-	/* RealTek RTL8150 was detected */
-	printf("rue%d: Ethernet address: %6D\n", sc->rue_unit, eaddr, ":");
-
 	bcopy(eaddr, (char *)&sc->arpcom.ac_enaddr, ETHER_ADDR_LEN);
 
 	ifp = &sc->arpcom.ac_if;

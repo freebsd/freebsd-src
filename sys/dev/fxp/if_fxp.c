@@ -758,9 +758,6 @@ fxp_attach(device_t dev)
 	sc->arpcom.ac_enaddr[3] = myea[1] >> 8;
 	sc->arpcom.ac_enaddr[4] = myea[2] & 0xff;
 	sc->arpcom.ac_enaddr[5] = myea[2] >> 8;
-	device_printf(dev, "Ethernet address %6D%s\n",
-	    sc->arpcom.ac_enaddr, ":",
-	    sc->flags & FXP_FLAG_SERIAL_MEDIA ? ", 10Mbps" : "");
 	if (bootverbose) {
 		device_printf(dev, "PCI IDs: %04x %04x %04x %04x %04x\n",
 		    pci_get_vendor(dev), pci_get_device(dev),

@@ -4784,8 +4784,10 @@ tulip_attach(
 	   sc->tulip_revinfo & 0x0F,
 	   (sc->tulip_features & (TULIP_HAVE_ISVSROM|TULIP_HAVE_OKSROM))
 		 == TULIP_HAVE_ISVSROM ? " (invalid EESPROM checksum)" : "");
+#ifndef __FreeBSD__
     printf("%s: address %6D\n",
 	   sc->tulip_xname, sc->tulip_enaddr, ":");
+#endif
 
 #if defined(__alpha__)
     /*

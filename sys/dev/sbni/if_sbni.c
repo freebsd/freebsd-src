@@ -245,8 +245,7 @@ sbni_attach(struct sbni_softc *sc, int unit, struct sbni_flags flags)
 	ether_ifattach(ifp, sc->arpcom.ac_enaddr);
 	/* device attach does transition from UNCONFIGURED to IDLE state */
 
-	if_printf(ifp, "speed %ld, address %6D, rxl ",
-	       ifp->if_baudrate, sc->arpcom.ac_enaddr, ":");
+	if_printf(ifp, "speed %ld, rxl ", ifp->if_baudrate);
 	if (sc->delta_rxl)
 		printf("auto\n");
 	else

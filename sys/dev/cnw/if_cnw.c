@@ -1628,8 +1628,6 @@ static int cnw_pccard_attach(device_t dev)
 			 bus_space_read_1(sc->sc_memt, sc->sc_memh,
 				sc->sc_memoff + CNW_EREG_PA + i);
 	}
-	device_printf(dev, "Ethernet address: %6D\n",
-		sc->arpcom.ac_enaddr, ":");
 
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));

@@ -615,7 +615,6 @@ rdp_attach(struct isa_device *isa_dev)
 	       "8002",		/* hook for 8012 */
 	       sc->eeprom == EEPROM_93C46? "93C46": "74S288",
 	       sc->slow? "slow": "fast");
-	if_printf(ifp, "address %6D\n", sc->arpcom.ac_enaddr, ":");
 
 	return 1;
 }

@@ -492,11 +492,6 @@ USB_ATTACH(axe)
 	 */
 	sc->axe_phyaddrs[0] = sc->axe_phyaddrs[1] = 0xFF;
 
-	/*
-	 * An ASIX chip was detected. Inform the world.
-	 */
-	printf("axe%d: Ethernet address: %6D\n", sc->axe_unit, eaddr, ":");
-
 	bcopy(eaddr, (char *)&sc->arpcom.ac_enaddr, ETHER_ADDR_LEN);
 
 	ifp = &sc->arpcom.ac_if;

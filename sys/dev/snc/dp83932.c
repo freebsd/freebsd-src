@@ -162,7 +162,6 @@ sncconfig(sc, media, nmedia, defmedia, myea)
 		camdump(sc);
 	}
 #endif
-	device_printf(sc->sc_dev, "address %6D\n", myea, ":");
 
 #ifdef SNCDEBUG
 	device_printf(sc->sc_dev,

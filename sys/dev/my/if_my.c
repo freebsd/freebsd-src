@@ -961,11 +961,6 @@ my_attach(device_t dev)
 	for (i = 0; i < ETHER_ADDR_LEN; ++i)
 		eaddr[i] = CSR_READ_1(sc, MY_PAR0 + i);
 
-	/*
-	 * A Myson chip was detected. Inform the world.
-	 */
-	printf("my%d: Ethernet address: %6D\n", unit, eaddr, ":");
-
 	sc->my_unit = unit;
 	bcopy(eaddr, (char *)&sc->arpcom.ac_enaddr, ETHER_ADDR_LEN);
 

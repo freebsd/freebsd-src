@@ -1758,11 +1758,6 @@ ed_attach(dev)
 	ether_ifattach(ifp, sc->arpcom.ac_enaddr);
 	/* device attach does transition from UNCONFIGURED to IDLE state */
 
-	/*
-	 * Print additional info when attached
-	 */
-	if_printf(ifp, "address %6D, ", sc->arpcom.ac_enaddr, ":");
-
 	if (sc->type_str && (*sc->type_str != 0))
 		printf("type %s ", sc->type_str);
 	else

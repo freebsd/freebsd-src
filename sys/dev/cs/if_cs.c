@@ -686,10 +686,6 @@ cs_attach(device_t dev)
 
 	ether_ifattach(ifp, sc->arpcom.ac_enaddr);
 
-	if (bootverbose)
-		if_printf(ifp, "ethernet address %6D\n",
-		       sc->arpcom.ac_enaddr, ":");
-
 	return (0);
 }
 
