@@ -111,9 +111,12 @@ atot(p, store)
 	year = atoi(t);
 	if (day < 1 || day > 31 || month < 1 || month > 12 || !year)
 		goto bad;
-	if (year < 100)
+	/* Allow two digit years 1969-2068 */
+	if (year < 69)
+		year += 2000;
+	else if (year < 100)
 		year += 1900;
-	if (year <= 1970)
+	if (year < 1969)
 bad:		return (1);
 	lt->tm_year = year - 1900;
 	lt->tm_mon = month - 1;
