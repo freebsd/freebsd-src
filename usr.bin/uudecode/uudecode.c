@@ -247,7 +247,7 @@ decode2(void)
 			}
 			q = memcpy(p - n, pw->pw_dir, n);
 		}
-	} else if (strcmp(q, "/dev/stdout") != 0) {
+	} else {
 		/* strip down to leaf name */
 		p = strrchr(q, '/');
 		if (p != NULL)
