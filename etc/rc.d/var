@@ -93,7 +93,6 @@ case "${populate_var}" in
 		else
 			_populate_var
 		fi
-	else
 	fi
 	;;
 esac
