@@ -257,15 +257,12 @@ Same as
 .Fl T .
 .El
 .It Fl q
-Use the leasing extensions to the NFS Version 3 protocol
-to maintain cache consistency.
-This protocol Version 2, referred to as Not Quite Nfs (NQNFS),
-is only supported by this updated release of NFS code.
-(It is not backwards compatible with the release of NQNFS that went out on
-4.4BSD-Lite.
-To interoperate with a 4.4BSD-Lite NFS system you will have to
-avoid this option until you have had an opportunity to upgrade the NFS code
-on all your 4.4BSD-Lite based systems.)
+Use the Not Quite NFS (NQNFS) protocol.
+This experimental protocol is NFS Version 2 with leasing extensions
+similar to those found in NFS Version 3.
+The interoperability of this protocol with other systems is
+very limited and its implementation is not widely used.
+Do not use this option unless you know exactly what you are doing!
 .It Fl r
 Set the read data size to the specified value.
 It should normally be a power of 2 greater than or equal to 1024.
