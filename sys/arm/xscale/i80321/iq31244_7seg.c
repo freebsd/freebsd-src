@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/bus.h>
+#include <sys/sysctl.h>
 
 #include <machine/bus.h>
 
@@ -333,6 +334,10 @@ static const uint8_t snakemap[][2] = {
 	{ ~SEG_B,	~SEG_F },
 };
 
+SYSCTL_NODE(_hw, OID_AUTO, sevenseg, CTLFLAG_RD, 0, "7 seg");
+static int freq = 100;
+SYSCTL_INT(_hw_sevenseg, OID_AUTO, freq, CTLFLAG_RW, &freq, 0, 
+    "7 Seg update frequency");
 static void
 iq31244_7seg_snake(void)
 {
@@ -340,7 +345,7 @@ iq31244_7seg_snake(void)
 	int cur = snakestate;
 
 	snakefreq++;
-	if ((snakefreq & (0xff)))
+	if ((snakefreq % freq))
 		return;
 	WRITE(IQ80321_7SEG_MSB, snakemap[cur][0]);
 	WRITE(IQ80321_7SEG_LSB, snakemap[cur][1]);
