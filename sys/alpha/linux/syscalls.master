@@ -59,9 +59,7 @@
 18	UNIMPL	LINUX
 19	STD	LINUX	{ int linux_lseek(int fdes, long off, int whence); }
 20	NOPROTO	LINUX	{ int getpid(void); } 
-21	STD	LINUX	{ int linux_mount(char *specialfile, char *dir, \
-				char *filesystemtype, u_long rwflag, \
-				void *data); }
+21	UNIMPL	LINUX
 22	STD	LINUX	{ int linux_umount(char *path); }
 23	NOPROTO	LINUX	{ int setuid(uid_t uid); }
 24	NOPROTO	LINUX	{ int getuid(void); }
@@ -385,7 +383,9 @@
 299	UNIMPL	LINUX
 300	STD	LINUX	{ int linux_bdflush(void); }
 301	UNIMPL	LINUX	sethae
-302	STD	LINUX	{ int linux_mount(void); }	
+302	STD	LINUX	{ int linux_mount(char *specialfile, char *dir, \
+				char *filesystemtype, u_long rwflag, \
+				void *data); }
 303	UNIMPL	LINUX	old_adjtimex
 304	STD	LINUX	{ int linux_swapoff(void); }
 305	STD	LINUX	{ int linux_getdents(int fd, void *dent, \
