@@ -2676,9 +2676,7 @@ static struct vnodeopv_entry_desc ufs_vnodeop_entries[] = {
 	{ &vop_create_desc,		(vop_t *) ufs_create },
 	{ &vop_getattr_desc,		(vop_t *) ufs_getattr },
 	{ &vop_inactive_desc,		(vop_t *) ufs_inactive },
-	{ &vop_islocked_desc,		(vop_t *) vop_stdislocked },
 	{ &vop_link_desc,		(vop_t *) ufs_link },
-	{ &vop_lock_desc,		(vop_t *) vop_stdlock },
 	{ &vop_lookup_desc,		(vop_t *) vfs_cache_lookup },
 	{ &vop_mkdir_desc,		(vop_t *) ufs_mkdir },
 	{ &vop_mknod_desc,		(vop_t *) ufs_mknod },
@@ -2700,7 +2698,6 @@ static struct vnodeopv_entry_desc ufs_vnodeop_entries[] = {
 #endif
 	{ &vop_strategy_desc,		(vop_t *) ufs_strategy },
 	{ &vop_symlink_desc,		(vop_t *) ufs_symlink },
-	{ &vop_unlock_desc,		(vop_t *) vop_stdunlock },
 	{ &vop_whiteout_desc,		(vop_t *) ufs_whiteout },
 #ifdef UFS_EXTATTR
 	{ &vop_getextattr_desc,		(vop_t *) ufs_getextattr },
@@ -2724,8 +2721,6 @@ static struct vnodeopv_entry_desc ufs_specop_entries[] = {
 	{ &vop_close_desc,		(vop_t *) ufsspec_close },
 	{ &vop_getattr_desc,		(vop_t *) ufs_getattr },
 	{ &vop_inactive_desc,		(vop_t *) ufs_inactive },
-	{ &vop_islocked_desc,		(vop_t *) vop_stdislocked },
-	{ &vop_lock_desc,		(vop_t *) vop_stdlock },
 	{ &vop_print_desc,		(vop_t *) ufs_print },
 	{ &vop_read_desc,		(vop_t *) ufsspec_read },
 	{ &vop_reclaim_desc,		(vop_t *) ufs_reclaim },
@@ -2733,7 +2728,6 @@ static struct vnodeopv_entry_desc ufs_specop_entries[] = {
 #ifdef MAC
 	{ &vop_setlabel_desc,		(vop_t *) vop_stdsetlabel_ea },
 #endif
-	{ &vop_unlock_desc,		(vop_t *) vop_stdunlock },
 	{ &vop_write_desc,		(vop_t *) ufsspec_write },
 #ifdef UFS_EXTATTR
 	{ &vop_getextattr_desc,		(vop_t *) ufs_getextattr },
@@ -2757,9 +2751,7 @@ static struct vnodeopv_entry_desc ufs_fifoop_entries[] = {
 	{ &vop_close_desc,		(vop_t *) ufsfifo_close },
 	{ &vop_getattr_desc,		(vop_t *) ufs_getattr },
 	{ &vop_inactive_desc,		(vop_t *) ufs_inactive },
-	{ &vop_islocked_desc,		(vop_t *) vop_stdislocked },
 	{ &vop_kqfilter_desc,		(vop_t *) ufsfifo_kqfilter },
-	{ &vop_lock_desc,		(vop_t *) vop_stdlock },
 	{ &vop_print_desc,		(vop_t *) ufs_print },
 	{ &vop_read_desc,		(vop_t *) ufsfifo_read },
 	{ &vop_reclaim_desc,		(vop_t *) ufs_reclaim },
@@ -2767,7 +2759,6 @@ static struct vnodeopv_entry_desc ufs_fifoop_entries[] = {
 #ifdef MAC
 	{ &vop_setlabel_desc,		(vop_t *) vop_stdsetlabel_ea },
 #endif
-	{ &vop_unlock_desc,		(vop_t *) vop_stdunlock },
 	{ &vop_write_desc,		(vop_t *) ufsfifo_write },
 #ifdef UFS_EXTATTR
 	{ &vop_getextattr_desc,		(vop_t *) ufs_getextattr },

@@ -1851,7 +1851,6 @@ static struct vnodeopv_entry_desc union_vnodeop_entries[] = {
 	{ &vop_getvobject_desc,		(vop_t *) union_getvobject },
 	{ &vop_inactive_desc,		(vop_t *) union_inactive },
 	{ &vop_ioctl_desc,		(vop_t *) union_ioctl },
-	{ &vop_islocked_desc,		(vop_t *) vop_stdislocked },
 	{ &vop_lease_desc,		(vop_t *) union_lease },
 	{ &vop_link_desc,		(vop_t *) union_link },
 	{ &vop_lookup_desc,		(vop_t *) union_lookup },

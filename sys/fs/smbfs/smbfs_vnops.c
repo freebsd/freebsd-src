@@ -99,9 +99,7 @@ static struct vnodeopv_entry_desc smbfs_vnodeop_entries[] = {
 	{ &vop_getpages_desc,		(vop_t *) smbfs_getpages },
 	{ &vop_inactive_desc,		(vop_t *) smbfs_inactive },
 	{ &vop_ioctl_desc,		(vop_t *) smbfs_ioctl },
-	{ &vop_islocked_desc,		(vop_t *) vop_stdislocked },
 	{ &vop_link_desc,		(vop_t *) smbfs_link },
-	{ &vop_lock_desc,		(vop_t *) vop_stdlock },
 	{ &vop_lookup_desc,		(vop_t *) smbfs_lookup },
 	{ &vop_mkdir_desc,		(vop_t *) smbfs_mkdir },
 	{ &vop_mknod_desc,		(vop_t *) smbfs_mknod },
@@ -118,7 +116,6 @@ static struct vnodeopv_entry_desc smbfs_vnodeop_entries[] = {
 	{ &vop_setattr_desc,		(vop_t *) smbfs_setattr },
 	{ &vop_strategy_desc,		(vop_t *) smbfs_strategy },
 	{ &vop_symlink_desc,		(vop_t *) smbfs_symlink },
-	{ &vop_unlock_desc,		(vop_t *) vop_stdunlock },
 	{ &vop_write_desc,		(vop_t *) smbfs_write },
 #ifndef FB_RELENG3
 	{ &vop_getextattr_desc, 	(vop_t *) smbfs_getextattr },

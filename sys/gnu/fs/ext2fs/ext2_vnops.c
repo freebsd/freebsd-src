@@ -136,9 +136,7 @@ static struct vnodeopv_entry_desc ext2_vnodeop_entries[] = {
 	{ &vop_getattr_desc,		(vop_t *) ext2_getattr },
 	{ &vop_getwritemount_desc,	(vop_t *) vop_stdgetwritemount },
 	{ &vop_inactive_desc,		(vop_t *) ext2_inactive },
-	{ &vop_islocked_desc,		(vop_t *) vop_stdislocked },
 	{ &vop_link_desc,		(vop_t *) ext2_link },
-	{ &vop_lock_desc,		(vop_t *) vop_stdlock },
 	{ &vop_lookup_desc,		(vop_t *) vfs_cache_lookup },
 	{ &vop_mkdir_desc,		(vop_t *) ext2_mkdir },
 	{ &vop_mknod_desc,		(vop_t *) ext2_mknod },
@@ -158,7 +156,6 @@ static struct vnodeopv_entry_desc ext2_vnodeop_entries[] = {
 	{ &vop_setattr_desc,		(vop_t *) ext2_setattr },
 	{ &vop_strategy_desc,		(vop_t *) ext2_strategy },
 	{ &vop_symlink_desc,		(vop_t *) ext2_symlink },
-	{ &vop_unlock_desc,		(vop_t *) vop_stdunlock },
 	{ &vop_write_desc,		(vop_t *) ext2_write },
 	{ NULL, NULL }
 };
@@ -173,13 +170,10 @@ static struct vnodeopv_entry_desc ext2_specop_entries[] = {
 	{ &vop_fsync_desc,		(vop_t *) ext2_fsync },
 	{ &vop_getattr_desc,		(vop_t *) ext2_getattr },
 	{ &vop_inactive_desc,		(vop_t *) ext2_inactive },
-	{ &vop_islocked_desc,		(vop_t *) vop_stdislocked },
-	{ &vop_lock_desc,		(vop_t *) vop_stdlock },
 	{ &vop_print_desc,		(vop_t *) ext2_print },
 	{ &vop_read_desc,		(vop_t *) ext2spec_read },
 	{ &vop_reclaim_desc,		(vop_t *) ext2_reclaim },
 	{ &vop_setattr_desc,		(vop_t *) ext2_setattr },
-	{ &vop_unlock_desc,		(vop_t *) vop_stdunlock },
 	{ &vop_write_desc,		(vop_t *) ext2spec_write },
 	{ NULL, NULL }
 };
@@ -194,14 +188,11 @@ static struct vnodeopv_entry_desc ext2_fifoop_entries[] = {
 	{ &vop_fsync_desc,		(vop_t *) ext2_fsync },
 	{ &vop_getattr_desc,		(vop_t *) ext2_getattr },
 	{ &vop_inactive_desc,		(vop_t *) ext2_inactive },
-	{ &vop_islocked_desc,		(vop_t *) vop_stdislocked },
 	{ &vop_kqfilter_desc,		(vop_t *) ext2fifo_kqfilter },
-	{ &vop_lock_desc,		(vop_t *) vop_stdlock },
 	{ &vop_print_desc,		(vop_t *) ext2_print },
 	{ &vop_read_desc,		(vop_t *) ext2fifo_read },
 	{ &vop_reclaim_desc,		(vop_t *) ext2_reclaim },
 	{ &vop_setattr_desc,		(vop_t *) ext2_setattr },
-	{ &vop_unlock_desc,		(vop_t *) vop_stdunlock },
 	{ &vop_write_desc,		(vop_t *) ext2fifo_write },
 	{ NULL, NULL }
 };
