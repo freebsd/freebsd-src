@@ -29,11 +29,12 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
+.\"	$FreeBSD$
 .\"	@(#)0.t	8.1 (Berkeley) 6/8/93
 .\"
 .if n .ND
 .TL
-Fsck \- The UNIX\(dg File System Check Program
+Fsck_ffs \- The UNIX\(dg File System Check Program
 .EH 'SMM:3-%''The \s-2UNIX\s+2 File System Check Program'
 .OH 'The \s-2UNIX\s+2 File System Check Program''SMM:3-%'
 .AU
@@ -61,15 +62,15 @@ Arpa Order No. 4031 monitored by Naval Electronic System Command under
 Contract No. N00039-82-C-0235.
 .FE
 This document reflects the use of
-.I fsck
+.I fsck_ffs
 with the 4.2BSD and 4.3BSD file system organization.  This
 is a revision of the
 original paper written by
 T. J. Kowalski.
 .PP
-File System Check Program (\fIfsck\fR)
+File System Check Program (\fIfsck_ffs\fR)
 is an interactive file system check and repair program.
-.I Fsck
+.I Fsck_ffs
 uses the redundant structural information in the
 UNIX file system to perform several consistency checks.
 If an inconsistency is detected, it is reported
@@ -79,7 +80,7 @@ These inconsistencies result from the permanent interruption
 of the file system updates, which are performed every
 time a file is modified.
 Unless there has been a hardware failure,
-.I fsck
+.I fsck_ffs
 is able to repair corrupted file systems
 using procedures based upon the order in which UNIX honors
 these file system update requests.
@@ -89,7 +90,7 @@ of the file system,
 to discuss the possible causes of file system corruption,
 and to present the corrective actions implemented
 by
-.I fsck.
+.I fsck_ffs.
 Both the program and the interaction between the
 program and the operator are described.
 .sp 2

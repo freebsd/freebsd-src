@@ -62,6 +62,9 @@ static const char rcsid[] =
 
 #include "fsck.h"
 
+int returntosingle;
+
+static void usage __P((void));
 static int argtoi __P((int flag, char *req, char *str, int base));
 static int docheck __P((struct fstab *fsp));
 static int checkfilesys __P((char *filesys, char *mntpt, long auxdata,
@@ -75,22 +78,22 @@ main(argc, argv)
 	char	*argv[];
 {
 	int ch;
-	int ret, maxrun = 0;
 	struct rlimit rlimit;
+	int ret = 0;
 
 	sync();
-	while ((ch = getopt(argc, argv, "dfpnNyYb:c:l:m:")) != -1) {
+	skipclean = 1;
+	markclean = 1;
+	while ((ch = getopt(argc, argv, "b:c:dfm:npy")) != -1) {
 		switch (ch) {
-		case 'p':
-			preen++;
-			break;
-
 		case 'b':
+			skipclean = 0;
 			bflag = argtoi('b', "number", optarg, 10);
 			printf("Alternate super block location: %d\n", bflag);
 			break;
 
 		case 'c':
+			skipclean = 0;
 			cvtlevel = argtoi('c', "conversion level", optarg, 10);
 			break;
 
@@ -99,11 +102,7 @@ main(argc, argv)
 			break;
 
 		case 'f':
-			fflag++;
-			break;
-
-		case 'l':
-			maxrun = argtoi('l', "number", optarg, 10);
+			skipclean = 0;
 			break;
 
 		case 'm':
@@ -114,23 +113,29 @@ main(argc, argv)
 			break;
 
 		case 'n':
-		case 'N':
 			nflag++;
 			yflag = 0;
 			break;
 
+		case 'p':
+			preen++;
+			break;
+
 		case 'y':
-		case 'Y':
 			yflag++;
 			nflag = 0;
 			break;
 
 		default:
-			errx(EEXIT, "%c option?", ch);
+			usage();
 		}
 	}
 	argc -= optind;
 	argv += optind;
+
+	if (!argc)
+		usage();
+
 	if (signal(SIGINT, SIG_IGN) != SIG_IGN)
 		(void)signal(SIGINT, catch);
 	if (preen)
@@ -143,21 +148,11 @@ main(argc, argv)
 		rlimit.rlim_cur = rlimit.rlim_max;
 		(void)setrlimit(RLIMIT_DATA, &rlimit);
 	}
-	if (argc) {
-		while (argc-- > 0) {
-			char *path = blockcheck(*argv);
+	while (argc-- > 0)
+		(void)checkfilesys(blockcheck(*argv++), 0, 0L, 0);
 
-			if (path == NULL)
-				pfatal("Can't check %s\n", *argv);
-			else
-				(void)checkfilesys(path, 0, 0L, 0);
-			++argv;
-		}
-		exit(0);
-	}
-	ret = checkfstab(preen, maxrun, docheck, checkfilesys);
 	if (returntosingle)
-		exit(2);
+		ret = 2;
 	exit(ret);
 }
 
@@ -174,22 +169,6 @@ argtoi(flag, req, str, base)
 	if (cp == str || *cp)
 		errx(EEXIT, "-%c flag requires a %s", flag, req);
 	return (ret);
-}
-
-/*
- * Determine whether a filesystem should be checked.
- */
-static int
-docheck(fsp)
-	register struct fstab *fsp;
-{
-
-	if (strcmp(fsp->fs_vfstype, "ufs") ||
-	    (strcmp(fsp->fs_type, FSTAB_RW) &&
-	     strcmp(fsp->fs_type, FSTAB_RO)) ||
-	    fsp->fs_passno == 0)
-		return (0);
-	return (1);
 }
 
 /*
@@ -414,4 +393,16 @@ getmntpt(name)
 			return (&mntbuf[i]);
 	}
 	return (NULL);
+}
+
+static void
+usage()
+{
+        extern char *__progname;
+
+        (void) fprintf(stderr,
+            "Usage: %s [-dfnpy] [-B be|le] [-b block] [-c level] [-m mode] "
+                        "filesystem ...\n",
+            __progname);
+        exit(1);
 }
