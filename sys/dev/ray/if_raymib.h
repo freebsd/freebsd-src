@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_raymib.h,v 1.4 2000/03/31 20:13:03 dmlb Exp $
+ * $Id: if_raymib.h,v 1.6 2000/04/24 14:51:25 dmlb Exp $
  *
  */
 
@@ -231,7 +231,7 @@ struct ray_mib_5 {
 	"APM mode",			\
 	"MAC address",			\
 	"Fragmentation threshold",	\
-	"Dwell tIME",			\
+	"Dwell time",			\
 	"Beacon period",		\
 	"DTIM_INTERVAL",		\
 	"MAX_RETRY",			\
@@ -296,7 +296,7 @@ struct ray_mib_5 {
 	"0 Passive, 1 Active",			\
 	"0 Off, 1 On",				\
 	"",					\
-	"FRAG_THRESH",				\
+	"Bytes",				\
 	"DWELL_TIME",				\
 	"BEACON_PERIOD",			\
 	"DTIM_INTERVAL",			\
@@ -463,6 +463,53 @@ struct ray_mib_5 {
  *	Revision ECF 5.00
  *	17 June, 1998
  */
+
+/* XXX Obtained by raycontrol _before_ downloading
+ * # /sys/dev/ray/raycontrol/raycontrol -i ray0
+ * Firmware version                4
+ * Network type                    0x01    0 Ad hoc, 1 Infrastructure
+ * AP status                       0x00    0 Station, 1 Access Point
+ * SSID                                                            
+ * Scan mode                       0x01    0 Passive, 1 Active
+ * APM mode                        0x00    0 Off, 1 On
+ * MAC address                     00:00:8f:48:e4:44
+ * Fragmentation threshold         0x0200  FRAG_THRESH
+ * Dwell tIME                      0x01    DWELL_TIME
+ * Beacon period                   0x01    BEACON_PERIOD
+ * DTIM_INTERVAL                   0x05    DTIM_INTERVAL
+ * MAX_RETRY                       0x03    MAX_RETRY
+ * ACK_TIMO                        0x8c    ACK_TIMO
+ * SIFS                            0x1e    SIFS
+ * DIFS                            0x82    DIFS
+ * PIFS                            0xce    PIFS
+ * RTS_THRESH                      0x0100  RTS_THRESH
+ * SCAN_DWELL                      0xfc18  SCAN_DWELL
+ * SCAN_MAX_DWELL                  0xc180  SCAN_MAX_DWELL
+ * ASSOC_TIMO                      0x05    ASSOC_TIMO
+ * ADHOC_SCAN_CYCLE                0x04    ADHOC_SCAN_CYCLE
+ * INFRA_SCAN_CYCLE                0x02    INFRA_SCAN_CYCLE
+ * INFRA_SUPER_SCAN_CYCLE          0x04    INFRA_SUPER_SCAN_CYCLE
+ * PROMISC                         0x00    PROMISC
+ * UNIQ_WORD                       0x0cbd  UNIQ_WORD
+ * SLOT_TIME                       0x4e    SLOT_TIME
+ * ROAM_LOW_SNR_THRESH             0x20    ROAM_LOW_SNR_THRESH
+ * LOW_SNR_COUNT                   0x04    LOW_SNR_COUNT
+ * INFRA_MISSED_BEACON_COUNT       0x04    INFRA_MISSED_BEACON_COUNT
+ * ADHOC_MISSED_BEACON_COUNT       0x04    ADHOC_MISSED_BEACON_COUNT
+ * COUNTRY_CODE                    0x01    COUNTRY_CODE
+ * HOP_SEQ                         0x07    HOP_SEQ
+ * HOP_SEQ_LEN                     0x4e    HOP_SEQ_LEN
+ * CW_MAX                          0x3f    CW_MAX
+ * CW_MIN                          0x0f    CW_MIN
+ * NOISE_FILTER_GAIN               0x00    NOISE_FILTER_GAIN
+ * NOISE_LIMIT_OFFSET              0x00    NOISE_LIMIT_OFFSET
+ * RSSI_THRESH_OFFSET              0x70    RSSI_THRESH_OFFSET
+ * BUSY_THRESH_OFFSET              0x70    BUSY_THRESH_OFFSET
+ * SYNC_THRESH                     0x07    SYNC_THRESH
+ * TEST_MODE                       0x00    TEST_MODE
+ * TEST_MIN_CHAN                   0x02    TEST_MIN_CHAN
+ * TEST_MAX_CHAN                   0x02    TEST_MAX_CHAN
+*/
 
 /*
  * mib_net_type
