@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mount.h	8.21 (Berkeley) 5/20/95
- *	$Id: mount.h,v 1.49 1997/11/12 05:42:23 julian Exp $
+ *	$Id: mount.h,v 1.50 1997/11/13 00:28:51 julian Exp $
  */
 
 #ifndef _SYS_MOUNT_H_
@@ -164,10 +164,10 @@ struct mount {
 #define	MNT_NODEV	0x00000010	/* don't interpret special files */
 #define	MNT_UNION	0x00000020	/* union with underlying filesystem */
 #define	MNT_ASYNC	0x00000040	/* file system written asynchronously */
-#define	MNT_SUIDDIR	0x00100000	/* Disable cluster read */
-#define	MNT_NOATIME	0x10000000	/* Disable update of file access time */
-#define	MNT_NOCLUSTERR	0x40000000	/* Disable cluster read */
-#define	MNT_NOCLUSTERW	0x80000000	/* Disable cluster read */
+#define	MNT_SUIDDIR	0x00100000	/* special handling of SUID on dirs */
+#define	MNT_NOATIME	0x10000000	/* disable update of file access time */
+#define	MNT_NOCLUSTERR	0x40000000	/* disable cluster read */
+#define	MNT_NOCLUSTERW	0x80000000	/* disable cluster write */
 
 /*
  * NFS export related mount flags.
