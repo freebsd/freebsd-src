@@ -325,12 +325,11 @@ getcmd(curdir, cmd, name, size, ap)
 	do	{
 		fprintf(stderr, "restore > ");
 		(void) fflush(stderr);
-		(void) fgets(input, BUFSIZ, terminal);
-	} while (!feof(terminal) && input[0] == '\n');
-	if (feof(terminal)) {
-		(void) strcpy(cmd, "quit");
-		return;
-	}
+		if (fgets(input, BUFSIZ, terminal) == NULL) {
+			strcpy(cmd, "quit");
+			return;
+		}
+	} while (input[0] == '\n');
 	for (cp = &input[strlen(input) - 2]; *cp == ' ' || *cp == '\t'; cp--)
 		/* trim off trailing white space and newline */;
 	*++cp = '\0';

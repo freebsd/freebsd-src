@@ -307,8 +307,12 @@ getvol(nextvol)
 		gettingfile = 0;
 	}
 	if (pipein) {
-		if (nextvol != 1)
+		if (nextvol != 1) {
 			panic("Changing volumes on pipe input?\n");
+			/* Avoid looping if we couldn't ask the user. */
+			if (yflag || ferror(terminal) || feof(terminal))
+				done(1);
+		}
 		if (volno == 1)
 			return;
 		goto gethdr;
@@ -345,10 +349,9 @@ again:
 		do	{
 			fprintf(stderr, "Specify next volume #: ");
 			(void) fflush(stderr);
-			(void) fgets(buf, BUFSIZ, terminal);
-		} while (!feof(terminal) && buf[0] == '\n');
-		if (feof(terminal))
-			done(1);
+			if (fgets(buf, BUFSIZ, terminal) == NULL)
+				done(1);
+		} while (buf[0] == '\n');
 		newvol = atoi(buf);
 		if (newvol <= 0) {
 			fprintf(stderr,
@@ -364,8 +367,7 @@ again:
 	fprintf(stderr, "Enter ``none'' if there are no more tapes\n");
 	fprintf(stderr, "otherwise enter tape name (default: %s) ", magtape);
 	(void) fflush(stderr);
-	(void) fgets(buf, BUFSIZ, terminal);
-	if (feof(terminal))
+	if (fgets(buf, BUFSIZ, terminal) == NULL)
 		done(1);
 	if (!strcmp(buf, "none\n")) {
 		terminateinput();
