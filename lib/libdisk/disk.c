@@ -460,7 +460,7 @@ Disk_Names()
 	for (j = 0; device_list[j]; j++) {
 		for (i = 0; i < MAX_NO_DISKS; i++) {
 			sprintf(diskname, "%s%d", device_list[j], i);
-			sprintf(disk, "/dev/r%s", diskname);
+			sprintf(disk, "/dev/%s", diskname);
 			if (stat(disk, &st) || !(st.st_mode & S_IFCHR))
 				continue;
 			if ((fd = open(disk, O_RDWR)) == -1)
