@@ -289,12 +289,10 @@ struct thread {
 	void		(*td_switchin)(void); /* (k) Switchin special func. */
 	struct thread	*td_standin;	/* (?) use this for an upcall */
 	u_int		td_critnest;	/* (k) Critical section nest level. */
-#define	td_endzero td_md
+#define	td_endzero td_base_pri
 
 /* Copied during fork1() or thread_sched_upcall() */
 #define	td_startcopy td_endzero
-	/* XXXKSE just copying td_md needs checking! */
-	struct mdthread td_md;		/* (k) Any machine-dependent fields. */
 	u_char		td_base_pri;	/* (j) Thread base kernel priority. */
 	u_char		td_priority;	/* (j) Thread active priority. */
 #define	td_endcopy td_pcb
@@ -320,6 +318,7 @@ struct thread {
 	struct vm_object *td_altkstack_obj;/* (a) Alternate kstack object. */
 	vm_offset_t	td_altkstack;	/* Kernel VA of alternate kstack. */
 	int		td_altkstack_pages; /* Size of the alternate kstack */
+	struct mdthread td_md;		/* (k) Any machine-dependent fields. */
 };
 /* flags kept in td_flags */ 
 #define	TDF_UNBOUND	0x000001 /* May give away the kse, uses the kg runq. */
