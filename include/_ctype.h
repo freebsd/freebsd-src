@@ -88,17 +88,19 @@ int	digittoint __P((int));
 #endif
 __END_DECLS
 
-#define	isalnum(c)      __istype((c), (_A|_D))
-#define	isalpha(c)      __istype((c),     _A)
-#define	iscntrl(c)      __istype((c),     _C)
-#define	isdigit(c)      __isctype((c),    _D)	/* ANSI -- locale independent */
-#define	isgraph(c)      __istype((c),     _G)
-#define	islower(c)      __istype((c),     _L)
-#define	isprint(c)      __istype((c),     _R)
-#define	ispunct(c)      __istype((c),     _P)
-#define	isspace(c)      __istype((c),     _S)
-#define	isupper(c)      __istype((c),     _U)
-#define	isxdigit(c)     __isctype((c),    _X)	/* ANSI -- locale independent */
+#define	__istype(c,f)	(!!__maskrune((c),(f))
+
+#define	isalnum(c)	__istype((c), _A|_D)
+#define	isalpha(c)	__istype((c), _A)
+#define	iscntrl(c)	__istype((c), _C)
+#define	isdigit(c)	__isctype((c), _D) /* ANSI -- locale independent */
+#define	isgraph(c)	__istype((c), _G)
+#define	islower(c)	__istype((c), _L)
+#define	isprint(c)	__istype((c), _R)
+#define	ispunct(c)	__istype((c), _P)
+#define	isspace(c)	__istype((c), _S)
+#define	isupper(c)	__istype((c), _U)
+#define	isxdigit(c)	__isctype((c), _X) /* ANSI -- locale independent */
 #define	tolower(c)	__tolower(c)
 #define	toupper(c)	__toupper(c)
 
@@ -106,15 +108,15 @@ __END_DECLS
 #define	isascii(c)	(((c) & ~0x7F) == 0)
 #define	isblank(c)	__istype((c), _B)
 #define	toascii(c)	((c) & 0x7F)
-#define	digittoint(c)	__istype((c), 0xFF)
+#define	digittoint(c)	__maskrune((c), 0xFF)
 
 /* XXX the following macros are not backed up by functions. */
 #define	ishexnumber(c)	__istype((c), _X)
 #define	isideogram(c)	__istype((c), _I)
 #define	isnumber(c)	__istype((c), _D)
-#define isphonogram(c)  __istype((c), _Q)
+#define	isphonogram(c)	__istype((c), _Q)
 #define	isrune(c)	__istype((c), 0xFFFFFF00L)
-#define isspecial(c)    __istype((c), _T)
+#define	isspecial(c)	__istype((c), _T)
 #endif
 
 /* See comments in <machine/ansi.h> about _BSD_CT_RUNE_T_. */
@@ -140,7 +142,7 @@ __END_DECLS
 #if !defined(_DONT_USE_CTYPE_INLINE_) && \
     (defined(_USE_CTYPE_INLINE_) || defined(__GNUC__) || defined(__cplusplus))
 static __inline int
-__istype(_BSD_CT_RUNE_T_ _c, unsigned long _f)
+__maskrune(_BSD_CT_RUNE_T_ _c, unsigned long _f)
 {
 	return ((_c < 0 || _c >= _CACHED_RUNES) ? ___runetype(_c) :
 		_CurrentRuneLocale->runetype[_c]) & _f;
@@ -150,7 +152,7 @@ static __inline int
 __isctype(_BSD_CT_RUNE_T_ _c, unsigned long _f)
 {
 	return (_c < 0 || _c >= _CACHED_RUNES) ? 0 :
-	       (_DefaultRuneLocale.runetype[_c] & _f);
+	       !!(_DefaultRuneLocale.runetype[_c] & _f);
 }
 
 static __inline _BSD_CT_RUNE_T_
@@ -170,7 +172,7 @@ __tolower(_BSD_CT_RUNE_T_ _c)
 #else /* not using inlines */
 
 __BEGIN_DECLS
-int		__istype __P((_BSD_CT_RUNE_T_, unsigned long));
+int		__maskrune __P((_BSD_CT_RUNE_T_, unsigned long));
 int		__isctype __P((_BSD_CT_RUNE_T_, unsigned long));
 _BSD_CT_RUNE_T_	__toupper __P((_BSD_CT_RUNE_T_));
 _BSD_CT_RUNE_T_	__tolower __P((_BSD_CT_RUNE_T_));
