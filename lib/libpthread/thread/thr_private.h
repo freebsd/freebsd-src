@@ -81,12 +81,14 @@
 #define	DBG_MUTEX	0x0001
 #define	DBG_SIG		0x0002
 
-
+#ifdef _PTHREADS_INVARIANTS
 #define THR_ASSERT(cond, msg) do {	\
 	if (!(cond))			\
 		PANIC(msg);		\
 } while (0)
-
+#else
+#define THR_ASSERT(cond, msg)
+#endif
 
 /*
  * State change macro without scheduling queue change:
@@ -192,14 +194,20 @@ struct kse {
 	int			k_flags;
 #define	KF_STARTED			0x0001	/* kernel kse created */
 #define	KF_INITIALIZED			0x0002	/* initialized on 1st upcall */
-#define	KF_TERMINATED			0x0004
-	int			k_idle;		/* kse is idle */
+#define	KF_TERMINATED			0x0004	/* kse is terminated */
+#define	KF_IDLE				0x0008	/* kse is idle */
+#define	KF_SWITCH			0x0010	/* thread switch in UTS */
 	int			k_error;	/* syscall errno in critical */
 	int			k_cpu;		/* CPU ID when bound */
-	int			k_done;		/* this KSE is done */
-	int			k_switch;	/* thread switch in UTS */
 	int			k_sigseqno;	/* signal buffered count */
 };
+
+#define	KSE_SET_IDLE(kse)	((kse)->k_flags |= KF_IDLE)
+#define	KSE_CLEAR_IDLE(kse)	((kse)->k_flags &= ~KF_IDLE)
+#define	KSE_IS_IDLE(kse)	(((kse)->k_flags & KF_IDLE) != 0)
+#define	KSE_SET_SWITCH(kse)	((kse)->k_flags |= KF_SWITCH)
+#define	KSE_CLEAR_SWITCH(kse)	((kse)->k_flags &= ~KF_SWITCH)
+#define	KSE_IS_SWITCH(kse)	(((kse)->k_flags & KF_SWITCH) != 0)
 
 /*
  * Each KSE group contains one or more KSEs in which threads can run.
@@ -292,10 +300,6 @@ do { \
 #define	KSE_WAITQ_FIRST(kse)		TAILQ_FIRST(&(kse)->k_schedq->sq_waitq)
 
 #define	KSE_WAKEUP(kse)		kse_wakeup(&(kse)->k_kcb->kcb_kmbx)
-
-#define	KSE_SET_IDLE(kse)	((kse)->k_idle = 1)
-#define	KSE_CLEAR_IDLE(kse)	((kse)->k_idle = 0)
-#define	KSE_IS_IDLE(kse)	((kse)->k_idle != 0)
 
 /*
  * TailQ initialization values.
@@ -659,7 +663,6 @@ struct pthread {
 	int			active;		/* thread running */
 	int			blocked;	/* thread blocked in kernel */
 	int			need_switchout;
-	int			need_wakeup;
 
 	/*
 	 * Used for tracking delivery of signal handlers.
@@ -984,7 +987,15 @@ do {									\
 	(((thrd)->state == PS_SUSPENDED) || \
 	(((thrd)->flags & THR_FLAGS_SUSPENDED) != 0))
 #define	THR_IS_EXITING(thrd)	(((thrd)->flags & THR_FLAGS_EXITING) != 0)
-	
+
+extern int __isthreaded;
+
+static inline int
+_kse_isthreaded(void)
+{
+	return (__isthreaded != 0);
+}
+
 /*
  * Global variables for the pthread kernel.
  */
@@ -1149,8 +1160,8 @@ void	_thr_sig_rundown(struct pthread *, ucontext_t *,
 void	_thr_sig_send(struct pthread *pthread, int sig);
 void	_thr_sigframe_restore(struct pthread *thread, struct pthread_sigframe *psf);
 void	_thr_spinlock_init(void);
-void	_thr_enter_cancellation_point(struct pthread *);
-void	_thr_leave_cancellation_point(struct pthread *);
+void	_thr_cancel_enter(struct pthread *);
+void	_thr_cancel_leave(struct pthread *, int);
 int	_thr_setconcurrency(int new_level);
 int	_thr_setmaxconcurrency(void);
 void	_thr_critical_enter(struct pthread *);

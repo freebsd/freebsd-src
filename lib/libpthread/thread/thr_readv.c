@@ -48,9 +48,9 @@ __readv(int fd, const struct iovec *iov, int iovcnt)
 	struct pthread *curthread = _get_curthread();
 	ssize_t ret;
 
-	_thr_enter_cancellation_point(curthread);
+	_thr_cancel_enter(curthread);
 	ret = __sys_readv(fd, iov, iovcnt);
-	_thr_leave_cancellation_point(curthread);
+	_thr_cancel_leave(curthread, 1);
 
 	return ret;
 }
