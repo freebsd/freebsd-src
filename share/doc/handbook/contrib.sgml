@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.50 1996/02/08 00:08:25 jkh Exp $ -->
+<!-- $Id: contrib.sgml,v 1.51 1996/02/22 11:08:57 tg Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>FreeBSD contributor list<label id="contrib"></heading>
@@ -38,8 +38,8 @@
       Thanks also to Dermot McDonnell for his donation of a
       Toshiba XM3401B CDROM drive.  It's been most useful!
 
-      Thanks to Chuck Robey &lt;chuckr@eng.umd.edu&gt; who's been
-      contributing his floppy tape streamer for experimental
+      Thanks to Chuck Robey &lt;chuckr@eng.umd.edu&gt; who
+      contributed his floppy tape streamer for experimental
       work.
 
       Thanks to Larry Altneu &lt;larry@ALR.COM&gt;, and to Wilko Bulte
@@ -49,73 +49,73 @@
 
   <sect><heading>The FreeBSD core team<label id="contrib:core"></heading>
 
-    <p>(in alphabetical order by first name):
+    <p>(in alphabetical order by last name):
 
       <itemize>
+	<item>&a.asami
 	<item>&a.ache
-	<item>&a.bde
-	<item>&a.davidg
-	<item>&a.wollman
-	<item>&a.gpalmer
-	<item>&a.joerg
 	<item>&a.dyson
-	<item>&a.jkh
+	<item>&a.bde
 	<item>&a.gibbs
-	<item>&a.peter
+	<item>&a.davidg
+	<item>&a.jkh
 	<item>&a.phk
 	<item>&a.rich
-	<item>&a.asami
+	<item>&a.gpalmer
 	<item>&a.sos
+	<item>&a.peter
+	<item>&a.wollman
+	<item>&a.joerg
       </itemize>
 
-    <sect><heading>The FreeBSD Developers</heading>
+  <sect><heading>The FreeBSD Developers</heading>
 
-      <p>These are the people who have commit privileges and do the work on
-         FreeBSD source tree.  All core team members are also developers.
+    <p>These are the people who have commit privileges and do the work on
+       FreeBSD source tree.  All core team members are also developers.
 
-        <itemize>
-                <item>&a.paul;
-                <item>&a.gibbs;
-                <item>&a.pst;
-                <item>&a.nate;
-                <item>&a.karl;
-                <item>&a.csgr;
-                <item>&a.ats;
-                <item>&a.jvh;
-                <item>&a.proven;
-                <item>&a.guido;
-                <item>&a.martin;
-                <item>&a.hsu;
-                <item>&a.sef;
-                <item>&a.se;  
-                <item>&a.torstenb;
-                <item>&a.dfr;  
-                <item>&a.gclarkii;
-                <item>&a.swallace;
-                <item>&a.ljo;
-                <item>&a.dima;
-                <item>&a.lars;
-                <item>&a.jmz; 
-                <item>&a.ugen;
-                <item>&a.dufault;
-                <item>&a.wpaul; 
-                <item>&a.amurai;
-                <item>&a.jmacd; 
-                <item>&a.jfieber;
-                <item>&a.olah;
-                <item>&a.roberto;
-                <item>&a.markm;
-                <item>&a.gj;
-                <item>&a.mpp;
-                <item>&a.rgrimes;
-                <item>&a.smace;
-                <item>&a.erich;
-                <item>&a.graichen;
-                <item>&a.adam;
-                <item>&a.tg;
-                <item>&a.uhclem;
-                <item>&a.jdp;
-        </itemize>
+      <itemize>
+        <item>&a.torstenb;
+        <item>&a.gclarkii;
+        <item>&a.adam;
+        <item>&a.dufault;
+        <item>&a.uhclem;
+        <item>&a.julian;
+        <item>&a.sef;
+        <item>&a.se;  
+        <item>&a.fenner;
+        <item>&a.jfieber;
+        <item>&a.lars;
+        <item>&a.tg;
+        <item>&a.graichen;
+        <item>&a.rgrimes;
+        <item>&a.hsu;
+        <item>&a.ugen;
+        <item>&a.gj;
+        <item>&a.ljo;
+        <item>&a.erich;
+        <item>&a.smace;
+        <item>&a.amurai;
+        <item>&a.markm;
+        <item>&a.olah;
+        <item>&a.wpaul; 
+        <item>&a.jmacd; 
+        <item>&a.jdp;
+        <item>&a.mpp;
+        <item>&a.dfr;  
+        <item>&a.csgr;
+        <item>&a.martin;
+        <item>&a.paul;
+        <item>&a.roberto;
+        <item>&a.dima;
+        <item>&a.wosch;
+        <item>&a.ats;
+        <item>&a.karl;
+        <item>&a.pst;
+        <item>&a.guido;
+        <item>&a.swallace;
+        <item>&a.nate;
+        <item>&a.jmz; 
+      </itemize>
 
   <sect><heading>Who is responsible for what</heading>
       
@@ -144,13 +144,11 @@
 	  <item>Adrian T. Filipi-Martin &lt;atf3r@agate.cs.virginia.edu&gt;
 	  <item>Akito Fujita &lt;fujita@zoo.ncl.omron.co.jp&gt;
 	  <item>Alain Kalker &lt;A.C.P.M.Kalker@student.utwente.nl&gt;
-	  <item>Andras Olah &lt;olah@cs.utwente.nl&gt;
 	  <item>Andreas Klemm &lt;andreas@knobel.GUN.de&gt;
 	  <item>Andrew Herbert &lt;andrew@werple.apana.org.au&gt;
 	  <item>Andrew Moore &lt;alm@FreeBSD.org&gt;
 	  <item>Anthony Yee-Hang Chan &lt;yeehang@netcom.com&gt;
 	  <item>Bernd Rosauer &lt;br@netland.sub.de&gt;
-	  <item>Bill Fenner &lt;fenner@parc.xerox.com&gt;
 	  <item>Bob Wilcox &lt;bob@obiwan.uucp&gt;
 	  <item>Brian Clapper &lt;bmc@telebase.com&gt;
 	  <item>Brian Tao &lt;taob@gate.sinica.edu.tw&gt;
@@ -179,7 +177,6 @@
 	  <item>Dirk Froemberg &lt;dirk@hal.in-berlin.de&gt;
 	  <item>Don Whiteside &lt;dwhite@anshar.shadow.net&gt;
 	  <item>Donald Burr &lt;d_burr@ix.netcom.com&gt;
-	  <item>Eric L. Hernes &lt;erich@lodgenet.com&gt;
 	  <item>Frank Bartels &lt;knarf@camelot.de&gt;
 	  <item>Frank Maclachlan &lt;fpm@crash.cts.com&gt;
 	  <item>Frank Nobis &lt;fn@trinity.radio-do.de&gt;
@@ -196,7 +193,6 @@
 	  <item>Janusz Kokot &lt;janek@gaja.ipan.lublin.pl&gt;
 	  <item>Javier Martin Rueda &lt;jmrueda@diatel.upm.es&gt;
 	  <item>Jim Wilson &lt;wilson@moria.cygnus.com&gt;
-	  <item>Josh MacDonald &lt;jmacd@uclink.berkeley.edu&gt;
 	  <item>Juergen Lock &lt;nox@jelal.hb.north.de&gt;
 	  <item>Julian Stacey &lt;stacey@guug.de&gt;
 	    (fallback: &lt;julian@meepmeep.pcs.com&gt)
@@ -204,8 +200,6 @@
 	  <item>Keith Moore &lt;?&gt;
 	  <item>Kirk McKusick &lt;mckusick@mckusick.com&gt;
 	  <item>Kurt Olsen &lt;kurto@tiny.mcs.usu.edu&gt;
-	  <item>L Jonas Olsson &lt;ljo@po.cwru.edu&gt;
-	  <item>Lars Fredriksen &lt;fredriks@mcs.com&gt;
 	  <item>Lucas James &lt;Lucas.James@ldjpc.apana.org.au&gt;
 	  <item>Marc Frajola &lt;marc@dev.com&gt;
 	  <item>Marc Ramirez &lt;mrami@mramirez.sy.yale.edu
@@ -213,14 +207,11 @@
 	  <item>Mark Tinguely &lt;tinguely@plains.nodak.edu&gt;
 	    &lt;tinguely@hookie.cs.ndsu.NoDak.edu&gt;
 	  <item>Martin Birgmeier
-	  <item>Martin Renters &lt;martin@innovus.com&gt;
 	  <item>Matt Thomas &lt;thomas@lkg.dec.com&gt;
 	  <item>Michael Elbel &lt;me@freebsd.org&gt;
 	  <item>Michael Smith &lt;msmith@atrad.adelaide.edu.au&gt;
-	  <item>Mike Pritchard &lt;mpp@mpp.minn.net&gt;
 	  <item>MITA Yoshio &lt;mita@iis.u-tokyo.ac.jp&gt;
 	  <item>NIIMI Satoshi &lt;sa2c@and.or.jp&gt;
-	  <item>Nate Williams &lt;nate@FreeBSD.org&gt;
 	  <item>Nobuhiro Yasutomi &lt;nobu@psrc.isac.co.jp&gt;
 	  <item>Nobuyuki Koganemaru &lt;kogane@kces.koganemaru.co.jp&gt;
 	  <item>Paul Kranenburg &lt;pk@cs.few.eur.nl&gt;
@@ -245,7 +236,6 @@
 	  <item>Werner Griessl &lt;werner@btp1da.phy.uni-bayreuth.de&gt;
 	  <item>Wes Santee &lt;wsantee@wsantee.oz.net&gt;
 	  <item>Wolfgang Stanglmeier &lt;wolf@kintaro.cologne.de&gt;
-	  <item>Wolfram Schneider &lt;wosch@cs.tu-berlin.de&gt;
 	  <item>Yuval Yarom &lt;yval@cs.huji.ac.il&gt;
 	  <item>Yves Fonk &lt;yves@cpcoup5.tn.tudelft.nl&gt;
 	</itemize>
