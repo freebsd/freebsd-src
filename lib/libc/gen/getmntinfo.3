@@ -48,7 +48,7 @@ The
 .Fn getmntinfo
 function
 returns an array of
-.Xr statfs
+.Fn statfs
 structures describing each currently mounted file system (see
 .Xr statfs 2 ) .
 .Pp
@@ -104,5 +104,5 @@ will modify the same object.
 The memory allocated by
 .Fn getmntinfo
 cannot be
-.Xr free 2 Ns 'd
+.Xr free 3 Ns 'd
 by the application.
