@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_pn.c,v 1.47 1999/04/12 02:44:28 wpaul Exp $
+ *	$Id: if_pn.c,v 1.48 1999/04/12 21:08:27 wpaul Exp $
  */
 
 /*
@@ -97,7 +97,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: if_pn.c,v 1.47 1999/04/12 02:44:28 wpaul Exp $";
+	"$Id: if_pn.c,v 1.48 1999/04/12 21:08:27 wpaul Exp $";
 #endif
 
 /*
@@ -874,12 +874,14 @@ static void pn_setcfg(sc, media)
 
 	if (IFM_SUBTYPE(media) == IFM_100_TX) {
 		PN_CLRBIT(sc, PN_NETCFG, PN_NETCFG_SPEEDSEL);
-		CSR_WRITE_4(sc, PN_GEN, PN_GEN_MUSTBEONE|
-		    PN_GEN_SPEEDSEL|PN_GEN_100TX_LOOP);
+		if (sc->pn_pinfo == NULL)
+			CSR_WRITE_4(sc, PN_GEN, PN_GEN_MUSTBEONE|
+			    PN_GEN_SPEEDSEL|PN_GEN_100TX_LOOP);
 	} else {
 		PN_SETBIT(sc, PN_NETCFG, PN_NETCFG_SPEEDSEL);
-		CSR_WRITE_4(sc, PN_GEN,
-		    PN_GEN_MUSTBEONE|PN_GEN_100TX_LOOP);
+		if (sc->pn_pinfo == NULL)
+			CSR_WRITE_4(sc, PN_GEN,
+			    PN_GEN_MUSTBEONE|PN_GEN_100TX_LOOP);
 	}
 
 	if ((media & IFM_GMASK) == IFM_FDX)
