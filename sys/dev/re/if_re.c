@@ -728,6 +728,9 @@ re_diag(sc)
 	ifp->if_flags |= IFF_PROMISC;
 	sc->rl_testmode = 1;
 	re_init(sc);
+	re_stop(sc);
+	DELAY(100000);
+	re_init(sc);
 
 	/* Put some data in the mbuf */
 
