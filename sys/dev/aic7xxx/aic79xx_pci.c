@@ -38,7 +38,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  *
- * $Id: //depot/aic7xxx/aic7xxx/aic79xx_pci.c#54 $
+ * $Id: //depot/aic7xxx/aic7xxx/aic79xx_pci.c#60 $
  *
  * $FreeBSD$
  */
@@ -175,8 +175,8 @@ struct ahd_pci_identity ahd_pci_ident_table [] =
 	},
 	/* Generic chip probes for devices we don't know 'exactly' */
 	{
-		ID_AIC7901A & ID_ALL_MASK,
-		ID_ALL_MASK,
+		ID_AIC7901A & ID_DEV_VENDOR_MASK,
+		ID_DEV_VENDOR_MASK,
 		"Adaptec AIC7901A Ultra320 SCSI adapter",
 		ahd_aic7901A_setup
 	},
@@ -378,7 +378,16 @@ ahd_pci_config(struct ahd_softc *ahd, struct ahd_pci_identity *entry)
 int
 ahd_pci_test_register_access(struct ahd_softc *ahd)
 {
-	int i;
+	ahd_mode_state	saved_modes;
+	int		error;
+	uint8_t		seqctl;
+
+	saved_modes = ahd_save_modes(ahd);
+	error = EIO;
+
+	/* Enable PCI error interrupt status */
+	seqctl = ahd_inb(ahd, SEQCTL0);
+	ahd_outb(ahd, SEQCTL0, seqctl & ~FAILDIS);
 
 	/*
 	 * First a simple test to see if any
@@ -389,7 +398,7 @@ ahd_pci_test_register_access(struct ahd_softc *ahd)
 	 * use for this test.
 	 */
 	if (ahd_inb(ahd, HCNTRL) == 0xFF)
-		return (EIO);
+		goto fail;
 
 	/*
 	 * Next create a situation where write combining
@@ -398,19 +407,26 @@ ahd_pci_test_register_access(struct ahd_softc *ahd)
 	 * either, so look for data corruption and/or flaged
 	 * PCI errors.
 	 */
-	for (i = 0; i < 16; i++)
-	       ahd_outb(ahd, SRAM_BASE + i, i);
-
-	for (i = 0; i < 16; i++)
-		if (ahd_inb(ahd, SRAM_BASE + i) != i)
-			return (EIO);
+	ahd_outl(ahd, SRAM_BASE, 0x5aa555aa);
+	if (ahd_inl(ahd, SRAM_BASE) != 0x5aa555aa)
+		goto fail;
 
 	if ((ahd_inb(ahd, INTSTAT) & PCIINT) != 0) {
-		ahd_mode_state	saved_modes;
-		u_int		targpcistat;
-		u_int		pci_status1;
+		u_int targpcistat;
 
-		saved_modes = ahd_save_modes(ahd);
+		ahd_set_modes(ahd, AHD_MODE_CFG, AHD_MODE_CFG);
+		targpcistat = ahd_inb(ahd, TARGPCISTAT);
+		if ((targpcistat & STA) != 0)
+			goto fail;
+	}
+
+	error = 0;
+
+fail:
+	if ((ahd_inb(ahd, INTSTAT) & PCIINT) != 0) {
+		u_int targpcistat;
+		u_int pci_status1;
+
 		ahd_set_modes(ahd, AHD_MODE_CFG, AHD_MODE_CFG);
 		targpcistat = ahd_inb(ahd, TARGPCISTAT);
 
@@ -420,13 +436,12 @@ ahd_pci_test_register_access(struct ahd_softc *ahd)
 						  PCIR_STATUS + 1, /*bytes*/1);
 		ahd_pci_write_config(ahd->dev_softc, PCIR_STATUS + 1,
 				     pci_status1, /*bytes*/1);
-		ahd_restore_modes(ahd, saved_modes);
-
-		if ((targpcistat & STA) != 0)
-			return (EIO);
+		ahd_outb(ahd, CLRINT, CLRPCIINT);
 	}
 
-	return (0);
+	ahd_restore_modes(ahd, saved_modes);
+	ahd_outb(ahd, SEQCTL0, seqctl);
+	return (error);
 }
 
 /*
@@ -731,7 +746,7 @@ ahd_pci_intr(struct ahd_softc *ahd)
 
 				s = pci_status_strings[bit];
 				if (i == 7/*TARG*/ && bit == 3)
-					s = "%s: Signal Target Abort\n";
+					s = "%s: Signaled Target Abort\n";
 				printf(s, ahd_name(ahd), pci_status_source[i]);
 			}
 		}	
@@ -741,6 +756,7 @@ ahd_pci_intr(struct ahd_softc *ahd)
 	ahd_pci_write_config(ahd->dev_softc, PCIR_STATUS + 1,
 			     pci_status1, /*bytes*/1);
 	ahd_restore_modes(ahd, saved_modes);
+	ahd_outb(ahd, CLRINT, CLRPCIINT);
 	ahd_unpause(ahd);
 }
 
@@ -810,6 +826,7 @@ ahd_pci_split_intr(struct ahd_softc *ahd, u_int intstat)
 	 */
 	ahd_pci_write_config(ahd->dev_softc, PCIXR_STATUS,
 			     pcix_status, /*bytes*/2);
+	ahd_outb(ahd, CLRINT, CLRSPLTINT);
 	ahd_restore_modes(ahd, saved_modes);
 }
 

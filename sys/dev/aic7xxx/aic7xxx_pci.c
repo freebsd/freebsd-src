@@ -39,7 +39,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  *
- * $Id: //depot/aic7xxx/aic7xxx/aic7xxx_pci.c#52 $
+ * $Id: //depot/aic7xxx/aic7xxx/aic7xxx_pci.c#53 $
  *
  * $FreeBSD$
  */
@@ -1202,8 +1202,15 @@ done:
 int
 ahc_pci_test_register_access(struct ahc_softc *ahc)
 {
-	int   i;
-	u_int status1;
+	int	error;
+	u_int	status1;
+	uint8_t	seqctl;
+
+	error = EIO;
+
+	/* Enable PCI error interrupt status */
+	seqctl = ahc_inb(ahc, SEQCTL);
+	ahc_outb(ahc, SEQCTL, seqctl & ~FAILDIS);
 
 	/*
 	 * First a simple test to see if any
@@ -1214,7 +1221,7 @@ ahc_pci_test_register_access(struct ahc_softc *ahc)
 	 * use for this test.
 	 */
 	if (ahc_inb(ahc, HCNTRL) == 0xFF)
-		return (EIO);
+		goto fail;
 
 	/*
 	 * Next create a situation where write combining
@@ -1223,25 +1230,33 @@ ahc_pci_test_register_access(struct ahc_softc *ahc)
 	 * either, so look for data corruption and/or flagged
 	 * PCI errors.
 	 */
-	for (i = 0; i < 16; i++)
-		ahc_outb(ahc, SRAM_BASE + i, i);
+	ahc_outb(ahc, SRAM_BASE, 0xaa);
+	ahc_outb(ahc, SRAM_BASE + 1, 0x55);
+	ahc_outb(ahc, SRAM_BASE + 2, 0xa5);
+	ahc_outb(ahc, SRAM_BASE + 3, 0x5a);
 
-	for (i = 0; i < 16; i++)
-		if (ahc_inb(ahc, SRAM_BASE + i) != i)
-			return (EIO);
+	if ((ahc_inb(ahc, SRAM_BASE) != 0xaa)
+	 || (ahc_inb(ahc, SRAM_BASE + 1) != 0x55)
+	 || (ahc_inb(ahc, SRAM_BASE + 2) != 0xa5)
+	 || (ahc_inb(ahc, SRAM_BASE + 3) != 0x5a))
+		goto fail;
 
 	status1 = ahc_pci_read_config(ahc->dev_softc,
 				      PCIR_STATUS + 1, /*bytes*/1);
-	if ((status1 & STA) != 0) {
+	if ((status1 & STA) != 0)
+		goto fail;
 
-		/* Silently clear any latched errors. */
-		ahc_pci_write_config(ahc->dev_softc, PCIR_STATUS + 1,
-				     status1, /*bytes*/1);
-		ahc_outb(ahc, CLRINT, CLRPARERR);
-		return (EIO);
-	}
+	error = 0;
 
-	return (0);
+fail:
+	/* Silently clear any latched errors. */
+	status1 = ahc_pci_read_config(ahc->dev_softc,
+				      PCIR_STATUS + 1, /*bytes*/1);
+	ahc_pci_write_config(ahc->dev_softc, PCIR_STATUS + 1,
+			     status1, /*bytes*/1);
+	ahc_outb(ahc, CLRINT, CLRPARERR);
+	ahc_outb(ahc, SEQCTL, seqctl);
+	return (error);
 }
 
 /*
