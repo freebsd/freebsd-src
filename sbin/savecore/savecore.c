@@ -58,7 +58,6 @@ static char sccsid[] = "@(#)savecore.c	8.3 (Berkeley) 1/2/94";
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <tzfile.h>
 #include <unistd.h>
 
 #define ok(number) ((number) - KERNBASE)
@@ -519,7 +518,7 @@ get_crashtime()
 		return (0);
 	}
 	(void)printf("savecore: system went down at %s", ctime(&dumptime));
-#define	LEEWAY	(7 * SECSPERDAY)
+#define	LEEWAY	(7 * 86400)
 	if (dumptime < now - LEEWAY || dumptime > now + LEEWAY) {
 		(void)printf("dump time is unreasonable\n");
 		return (0);
