@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.8.2.12 1998/01/04 09:53:20 kato Exp $
+ *	$Id: sio.c,v 1.8.2.13 1998/01/22 03:53:54 kato Exp $
  */
 
 #include "opt_comconsole.h"
@@ -391,7 +391,6 @@ static	int	sioprobe	__P((struct isa_device *dev));
 static	void	siosettimeout	__P((void));
 static	void	comstart	__P((struct tty *tp));
 static	timeout_t comwakeup;
-static	int	tiocm_xxx2mcr	__P((int tiocm_xxx));
 static	void	disc_optim	__P((struct tty	*tp, struct termios *t,
 				     struct com_s *com));
 
@@ -2135,36 +2134,36 @@ sioioctl(dev, cmd, data, flag, p)
 	}
 #ifdef PC98
 	if(IS_8251(com->pc98_if_type)){
-	switch (cmd) {
-	case TIOCSBRK:
+	    switch (cmd) {
+	    case TIOCSBRK:
 		com_send_break_on( com );
 		break;
-	case TIOCCBRK:
+	    case TIOCCBRK:
 		com_send_break_off( com );
 		break;
-	case TIOCSDTR:
+	    case TIOCSDTR:
 		com_tiocm_bis(com, TIOCM_DTR | TIOCM_RTS );
 		break;
-	case TIOCCDTR:
+	    case TIOCCDTR:
 		com_tiocm_bic(com, TIOCM_DTR);
 		break;
 	/*
 	 * XXX should disallow changing MCR_RTS if CS_RTS_IFLOW is set.  The
 	 * changes get undone on the next call to comparam().
 	 */
-	case TIOCMSET:
+	    case TIOCMSET:
 		com_tiocm_set( com, *(int *)data );
 		break;
-	case TIOCMBIS:
+	    case TIOCMBIS:
 		com_tiocm_bis( com, *(int *)data );
 		break;
-	case TIOCMBIC:
+	    case TIOCMBIC:
 		com_tiocm_bic( com, *(int *)data );
 		break;
-	case TIOCMGET:
+	    case TIOCMGET:
 		*(int *)data = com_tiocm_get(com);
 		break;
-	case TIOCMSDTRWAIT:
+	    case TIOCMSDTRWAIT:
 		/* must be root since the wait applies to following logins */
 		error = suser(p->p_ucred, &p->p_acflag);
 		if (error != 0) {
@@ -2173,21 +2172,21 @@ sioioctl(dev, cmd, data, flag, p)
 		}
 		com->dtr_wait = *(int *)data * hz / 100;
 		break;
-	case TIOCMGDTRWAIT:
+	    case TIOCMGDTRWAIT:
 		*(int *)data = com->dtr_wait * 100 / hz;
 		break;
-	case TIOCTIMESTAMP:
+	    case TIOCTIMESTAMP:
 		com->do_timestamp = TRUE;
 		*(struct timeval *)data = com->timestamp;
 		break;
-	case TIOCDCDTIMESTAMP:
+	    case TIOCDCDTIMESTAMP:
 		com->do_dcd_timestamp = TRUE;
 		*(struct timeval *)data = com->dcd_timestamp;
 		break;
-	default:
+	    default:
 		splx(s);
 		return (ENOTTY);
-	}
+	    }
 	} else {
 #endif
 	switch (cmd) {
@@ -2203,6 +2202,10 @@ sioioctl(dev, cmd, data, flag, p)
 	case TIOCCDTR:
 		(void)commctl(com, TIOCM_DTR, DMBIC);
 		break;
+	/*
+	 * XXX should disallow changing MCR_RTS if CS_RTS_IFLOW is set.  The
+	 * changes get undone on the next call to comparam().
+	 */
 	case TIOCMSET:
 		(void)commctl(com, *(int *)data, DMSET);
 		break;
@@ -2230,6 +2233,10 @@ sioioctl(dev, cmd, data, flag, p)
 	case TIOCTIMESTAMP:
 		com->do_timestamp = TRUE;
 		*(struct timeval *)data = com->timestamp;
+		break;
+	case TIOCDCDTIMESTAMP:
+		com->do_dcd_timestamp = TRUE;
+		*(struct timeval *)data = com->dcd_timestamp;
 		break;
 	default:
 		splx(s);
