@@ -265,17 +265,42 @@ Int_Open_Disk(const char *name)
 		printf("%s [%s] %jd %jd\n", t, n, (intmax_t)(off / s), (intmax_t) (len / s));
 		if (!strcmp(t, "SUN"))
 			i = Add_Chunk(d, off, len, n, part, 0, 0, 0);
-		else if (!strncmp(t, "MBR", 3) && ty == 165)
-			i = Add_Chunk(d, off, len, n, freebsd, ty, 0, 0);
-		else if (!strncmp(t, "MBR", 3))
-			i = Add_Chunk(d, off, len, n, mbr, ty, 0, 0);
-		else if (!strcmp(t, "BSD"))
+		else if (!strncmp(t, "MBR", 3)) {
+			switch (ty) {
+			case 0xa5:
+				i = Add_Chunk(d, off, len, n, freebsd, ty, 0, 0);
+				break;
+			case 0x01:
+			case 0x04:
+			case 0x06:
+			case 0x0b:
+			case 0x0c:
+			case 0x0e:
+				i = Add_Chunk(d, off, len, n, fat, ty, 0, 0);
+				break;
+			default:
+				i = Add_Chunk(d, off, len, n, mbr, ty, 0, 0);
+				break;
+			}
+		} else if (!strcmp(t, "BSD"))
 			i = Add_Chunk(d, off, len, n, part, 0, 0, 0);
-		else if (!strcmp(t, "PC98") && ty == 0xc494)
-			i = Add_Chunk(d, off, len, n, freebsd, ty, 0, 0);
-		else if (!strcmp(t, "PC98"))
-			i = Add_Chunk(d, off, len, n, pc98, ty, 0, 0);
-		else if (!strcmp(t, "GPT"))
+		else if (!strcmp(t, "PC98")) {
+			switch (ty & 0x7f) {
+			case 0x14:
+				i = Add_Chunk(d, off, len, n, freebsd, ty, 0, 0);
+				break;
+			case 0x20:
+			case 0x21:
+			case 0x22:
+			case 0x23:
+			case 0x24:
+				i = Add_Chunk(d, off, len, n, fat, ty, 0, 0);
+				break;
+			default:
+				i = Add_Chunk(d, off, len, n, pc98, ty, 0, 0);
+				break;
+			}
+		} else if (!strcmp(t, "GPT"))
 			i = Add_Chunk(d, off, len, n, ty, 0, 0, 0);
 		else
 			{ printf("BARF %d\n", __LINE__); exit(0); }
@@ -502,15 +527,17 @@ slice_type_name( int type, int subtype )
 {
 
 	switch (type) {
-	case 0:
+	case whole:
 		return "whole";
-	case 2:
+	case fat:
 		return "fat";
-	case 3:
+	case freebsd:
 		switch (subtype) {
 		case 0xc494:	return "freebsd";
 		default:	return "unknown";
 		}
+	case unused:
+		return "unused";
 	default:
 		return "unknown";
 	}
@@ -521,9 +548,9 @@ slice_type_name( int type, int subtype )
 {
 
 	switch (type) {
-	case 0:
+	case whole:
 		return "whole";
-	case 1:
+	case mbr:
 		switch (subtype) {
 		case 1:		return "fat (12-bit)";
 		case 2:		return "XENIX /";
@@ -557,18 +584,18 @@ slice_type_name( int type, int subtype )
 		case 239:	return "EFI Sys. Part.";
 		default:	return "unknown";
 		}
-	case 2:
+	case fat:
 		return "fat";
-	case 3:
+	case freebsd:
 		switch (subtype) {
 		case 165:	return "freebsd";
 		default:	return "unknown";
 		}
-	case 4:
+	case extended:
 		return "extended";
-	case 5:
+	case part:
 		return "part";
-	case 6:
+	case unused:
 		return "unused";
 	default:
 		return "unknown";
