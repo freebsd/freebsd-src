@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)swapgeneric.c	5.5 (Berkeley) 5/9/91
- *	$Id: swapgeneric.c,v 1.28 1999/04/15 15:35:32 bde Exp $
+ *	$Id: swapgeneric.c,v 1.29 1999/05/07 10:10:25 phk Exp $
  */
 
 #include <sys/param.h>
@@ -55,6 +55,7 @@ setconf()
 	char name[128];
 	char *cp;
 	int bd, unit;
+	dev_t dev;
 
 retry:
 	printf("root device? ");
@@ -72,10 +73,12 @@ retry:
 	}
 	unit = *cp - '0';
 	*cp++ = '\0';
-	for (bd = 0; bd < nblkdev; bd++)
-		if (bdevsw(bd) != NULL &&
-		    strcmp(bdevsw(bd)->d_name, name) == 0)
+	for (bd = 0; bd < nblkdev; bd++) {
+		dev = makedev(bd, 0);
+		if (bdevsw(dev) != NULL &&
+		    strcmp(bdevsw(dev)->d_name, name) == 0)
 			goto gotit;
+	}
 	goto bad;
 gotit:
 	while (*cp >= '0' && *cp <= '9')
