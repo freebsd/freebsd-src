@@ -69,6 +69,8 @@
 #include <msdosfs/msdosfsmount.h>
 #include <msdosfs/fat.h>
 
+#define MSDOSFS_DFLTBSIZE       4096
+
 #if 1 /*def PC98*/
 /*
  * XXX - The boot signature formatted by NEC PC-98 DOS looks like a
@@ -627,7 +629,7 @@ mountmsdosfs(devvp, mp, p, argp)
 	if (FAT12(pmp))
 		pmp->pm_fatblocksize = 3 * pmp->pm_BytesPerSec;
 	else
-		pmp->pm_fatblocksize = DFLTBSIZE;
+		pmp->pm_fatblocksize = MSDOSFS_DFLTBSIZE;
 
 	pmp->pm_fatblocksec = pmp->pm_fatblocksize / DEV_BSIZE;
 	pmp->pm_bnshift = ffs(DEV_BSIZE) - 1;
