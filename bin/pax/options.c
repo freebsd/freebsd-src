@@ -188,7 +188,7 @@ static void
 pax_options(int argc, char **argv)
 {
 	int c;
-	int i;
+	size_t i;
 	unsigned int flg = 0;
 	unsigned int bflg = 0;
 	char *pt;
@@ -1017,7 +1017,8 @@ mkpath(path)
 static void
 cpio_options(int argc, char **argv)
 {
-	int c, i;
+	int c;
+	size_t i;
 	char *str;
 	FSUB tmp;
 	FILE *fp;
