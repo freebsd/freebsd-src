@@ -1,5 +1,5 @@
-/* $Id: brooktree848.c,v 1.62 1999/01/23 11:32:06 roger Exp $ */
-/* BT848 Driver for Brooktree's Bt848 based cards.
+/* $Id: brooktree848.c,v 1.63 1999/01/28 00:57:51 dillon Exp $ */
+/* BT848 Driver for Brooktree's Bt848, Bt849, Bt878 and Bt 879 based cards.
    The Brooktree  BT848 Driver driver is based upon Mark Tinguely and
    Jim Lowe's driver for the Matrox Meteor PCI card . The 
    Philips SAA 7116 and SAA 7196 are very different chipsets than
@@ -325,8 +325,15 @@ They are unrelated to Revision Control numbering of FreeBSD or any other system.
                            Hauppauge supplied details of new Tuner Types.
                            Danny Braniss <danny@cs.huji.ac.il> submitted Bt878
                            AverMedia detection with PCI subsystem vendor id.
-			
 
+1.57          26 Jan 1998  Roger Hardiman <roger@cs.strath.ac.uk>
+                           Support for MSP3410D / MSP3415D Stereo/Mono audio
+                           using the audio format Auto Detection Mode.
+                           Nicolas Souchu <nsouch@freebsd.org> ported the
+                           msp_read/write/reset functions to smbus/iicbus.
+                           METEOR_INPUT_DEV2 now selects a composite camera on
+                           the SVIDEO port for Johan Larsson<gozer@ludd.luth.se>
+                           For true SVIDEO, use METEOR_INPUT_DEV_SVIDEO
 */
 
 #define DDB(x) x
@@ -1121,6 +1128,13 @@ static int	set_audio( bktr_ptr_t bktr, int mode );
 static void	temp_mute( bktr_ptr_t bktr, int flag );
 static int	set_BTSC( bktr_ptr_t bktr, int control );
 
+static void	msp_autodetect( bktr_ptr_t bktr );
+static void	msp_read_id( bktr_ptr_t bktr );
+static void	msp_reset( bktr_ptr_t bktr );
+static unsigned int	msp_read(bktr_ptr_t bktr, unsigned char dev,
+                        unsigned int addr);
+static void 	msp_write( bktr_ptr_t bktr, unsigned char dev,
+                unsigned int addr, unsigned int data);
 
 /*
  * ioctls common to both video & tuner.
@@ -1138,6 +1152,16 @@ static int	writeEEProm( bktr_ptr_t bktr, int offset, int count,
 			     u_char* data );
 static int	readEEProm( bktr_ptr_t bktr, int offset, int count,
 			    u_char* data );
+
+#ifndef __FreeBSD__
+/*
+ * i2c primatives for low level control of i2c bus. Added for MSP34xx control
+ */
+static void     i2c_start( bktr_ptr_t bktr);
+static void     i2c_stop( bktr_ptr_t bktr);
+static int      i2c_write_byte( bktr_ptr_t bktr, unsigned char data);
+static int      i2c_read_byte( bktr_ptr_t bktr, unsigned char *data, int last );
+#endif
 
 
 #ifdef __FreeBSD__
@@ -1161,8 +1185,8 @@ bktr_probe( pcici_t tag, pcidi_t type )
 
 	return ((char *)0);
 }
-#endif /* __FreeBSD__ */
 
+#endif /* __FreeBSD__ */
 
 /*
  * the attach routine.
@@ -1306,6 +1330,10 @@ bktr_attach( ATTACH_ARGS )
 	bktr->reverse_mute = -1;
 
 	probeCard( bktr, TRUE );
+
+	/* If there is an MSP Audio device, reset it and display the model */
+	if (bktr->card.msp3400c)msp_reset(bktr);
+	if (bktr->card.msp3400c)msp_read_id(bktr);
 
 #ifdef DEVFS
 	/* XXX This just throw away the token, which should probably be fixed when
@@ -1766,10 +1794,14 @@ tuner_open( bktr_ptr_t bktr )
 	/* unmute the audio stream */
 	set_audio( bktr, AUDIO_UNMUTE );
 
-	/* enable stereo if appropriate */
+	/* enable stereo if appropriate on TDA audio chip */
 	if ( bktr->card.dbx )
 		set_BTSC( bktr, 0 );
 
+	/* reset the MSP34xx stereo audio chip */
+	if ( bktr->card.msp3400c )
+		msp_reset( bktr );
+	
 	return( 0 );
 }
 
@@ -2565,6 +2597,11 @@ tuner_ioctl( bktr_ptr_t bktr, int unit, int cmd, caddr_t arg, struct proc* pr )
 		if ( temp < 0 )
 			return( EINVAL );
 		*(unsigned long *)arg = temp;
+
+		/* after every channel change, we must restart the MSP34xx */
+		/* audio chip to reselect NICAM STEREO or MONO audio */
+		if ( bktr->card.msp3400c )
+		  msp_autodetect( bktr );
 		break;
 
 	case TVTUNER_GETCHNL:
@@ -2594,6 +2631,11 @@ tuner_ioctl( bktr_ptr_t bktr, int unit, int cmd, caddr_t arg, struct proc* pr )
 		if ( temp < 0 )
 			return( EINVAL );
 		*(unsigned long *)arg = temp;
+
+		/* after every channel change, we must restart the MSP34xx */
+		/* audio chip to reselect NICAM STEREO or MONO audio */
+		if ( bktr->card.msp3400c )
+		  msp_autodetect( bktr );
 		break;
 
 	case TVTUNER_GETFREQ:
@@ -2929,11 +2971,21 @@ common_ioctl( bktr_ptr_t bktr, bt848_ptr_t bt848, int cmd, caddr_t arg )
 			set_audio( bktr, AUDIO_TUNER );
 			break;
 
-		/* this is the S-VHS input */
+		/* this is the S-VHS input, but with a composite camera */
 		case METEOR_INPUT_DEV2:
-		case METEOR_INPUT_DEV_SVIDEO:
 			bktr->flags = (bktr->flags & ~METEOR_DEV_MASK)
 				| METEOR_DEV2;
+			bt848->iform &= ~BT848_IFORM_MUXSEL;
+			bt848->iform |= BT848_IFORM_M_MUX2;
+			bt848->e_control &= ~BT848_E_CONTROL_COMP;
+			bt848->o_control &= ~BT848_O_CONTROL_COMP;
+			set_audio( bktr, AUDIO_EXTERN );
+			break;
+
+		/* this is the S-VHS input */
+		case METEOR_INPUT_DEV_SVIDEO:
+			bktr->flags = (bktr->flags & ~METEOR_DEV_MASK)
+				| METEOR_DEV_SVIDEO;
 			bt848->iform &= ~BT848_IFORM_MUXSEL;
 			bt848->iform |= BT848_IFORM_M_MUX2;
 			bt848->e_control |= BT848_E_CONTROL_COMP;
@@ -2949,7 +3001,15 @@ common_ioctl( bktr_ptr_t bktr, bt848_ptr_t bt848, int cmd, caddr_t arg )
 			bktr->flags = (bktr->flags & ~METEOR_DEV_MASK)
 				| METEOR_DEV3;
 			bt848->iform &= ~BT848_IFORM_MUXSEL;
-			bt848->iform |= BT848_IFORM_M_MUX3;
+
+			/* work around for new Hauppauge 878 cards */
+			if ((bktr->card.card_id == CARD_HAUPPAUGE) &&
+				(bktr->id==BROOKTREE_878_ID ||
+				 bktr->id==BROOKTREE_879_ID) )
+				bt848->iform |= BT848_IFORM_M_MUX1;
+			else
+				bt848->iform |= BT848_IFORM_M_MUX3;
+
 			bt848->e_control &= ~BT848_E_CONTROL_COMP;
 			bt848->o_control &= ~BT848_O_CONTROL_COMP;
 			set_audio( bktr, AUDIO_EXTERN );
@@ -4185,6 +4245,7 @@ static int oformat_meteor_to_bt( u_long format )
 				 BT848_DATA_CTL_I2CSCL |	\
 				 BT848_DATA_CTL_I2CSDA)
 
+/* Select between old i2c code and new iicbus / smbus code */
 #if defined(__FreeBSD__)
 
 /*
@@ -4233,10 +4294,90 @@ i2cRead( bktr_ptr_t bktr, int addr )
 	return ((int)((unsigned char)result));
 }
 
+#define IICBUS(bktr) ((bktr)->i2c_sc.iicbus)
+
+/* The MSP34xx Audio chip require i2c bus writes of up to 5 bytes which the */
+/* bt848 automated i2c bus controller cannot handle */
+/* Therefore we need low level control of the i2c bus hardware */
+
+/* Write to the MSP registers */
+static void
+msp_write(bktr_ptr_t bktr, unsigned char dev, unsigned int addr, unsigned int data)
+{
+	unsigned char addr_l, addr_h, data_h, data_l ;
+
+	addr_h = (addr >>8) & 0xff;
+	addr_l = addr & 0xff;
+	data_h = (data >>8) & 0xff;
+	data_l = data & 0xff;
+
+	iicbus_start(IICBUS(bktr), MSP3400C_WADDR, 0 /* no timeout? */);
+
+	iicbus_write_byte(IICBUS(bktr), dev, 0);
+	iicbus_write_byte(IICBUS(bktr), addr_h, 0);
+	iicbus_write_byte(IICBUS(bktr), addr_l, 0);
+	iicbus_write_byte(IICBUS(bktr), data_h, 0);
+	iicbus_write_byte(IICBUS(bktr), data_l, 0);
+
+	iicbus_stop(IICBUS(bktr));
+
+	return;
+}
+
+/* Write to the MSP registers */
+static unsigned int
+msp_read(bktr_ptr_t bktr, unsigned char dev, unsigned int addr)
+{
+	unsigned int data;
+	unsigned char addr_l, addr_h, dev_r;
+	int read;
+	u_char data_read[2];
+
+	addr_h = (addr >>8) & 0xff;
+	addr_l = addr & 0xff;
+	dev_r = dev+1;
+
+	/* XXX errors ignored */
+	iicbus_start(IICBUS(bktr), MSP3400C_WADDR, 0 /* no timeout? */);
+
+	iicbus_write_byte(IICBUS(bktr), dev_r, 0);
+	iicbus_write_byte(IICBUS(bktr), addr_h, 0);
+	iicbus_write_byte(IICBUS(bktr), addr_l, 0);
+
+	iicbus_repeated_start(IICBUS(bktr), MSP3400C_RADDR, 0 /* no timeout? */);
+	iicbus_read(IICBUS(bktr), data_read, 2, &read, IIC_LAST_READ, 0);
+	iicbus_stop(IICBUS(bktr));
+
+	data = (data_read[0]<<8) | data_read[1];
+
+	return (data);
+}
+
+/* Reset the MSP chip */
+static void
+msp_reset( bktr_ptr_t bktr )
+{
+	/* put into reset mode */
+	iicbus_start(IICBUS(bktr), MSP3400C_WADDR, 0 /* no timeout? */);
+	iicbus_write_byte(IICBUS(bktr), 0x00, 0);
+	iicbus_write_byte(IICBUS(bktr), 0x80, 0);
+	iicbus_write_byte(IICBUS(bktr), 0x00, 0);
+	iicbus_stop(IICBUS(bktr));
+
+	/* put back to operational mode */
+	iicbus_start(IICBUS(bktr), MSP3400C_WADDR, 0 /* no timeout? */);
+	iicbus_write_byte(IICBUS(bktr), 0x00, 0);
+	iicbus_write_byte(IICBUS(bktr), 0x00, 0);
+	iicbus_write_byte(IICBUS(bktr), 0x00, 0);
+	iicbus_stop(IICBUS(bktr));
+
+	return;
+}
+
 #else /* defined(__FreeBSD__) */
 
 /*
- * 
+ * Program the i2c bus directly
  */
 static int
 i2cWrite( bktr_ptr_t bktr, int addr, int byte1, int byte2 )
@@ -4316,6 +4457,171 @@ i2cRead( bktr_ptr_t bktr, int addr )
 
 	/* it was a read */
 	return( (bt848->i2c_data_ctl >> 8) & 0xff );
+}
+
+/* The MSP34xx Audio chip require i2c bus writes of up to 5 bytes which the */
+/* bt848 automated i2c bus controller cannot handle */
+/* Therefore we need low level control of the i2c bus hardware */
+/* Idea for the following functions are from elsewhere in this driver and */
+/* from the Linux BTTV i2c driver by Gerd Knorr <kraxel@cs.tu-berlin.de> */
+
+#define BITD    40
+static void i2c_start( bktr_ptr_t bktr) {
+        bt848_ptr_t     bt848;
+        bt848 = bktr->base;
+
+        bt848->i2c_data_ctl = 1; DELAY( BITD ); /* release data */
+        bt848->i2c_data_ctl = 3; DELAY( BITD ); /* release clock */
+        bt848->i2c_data_ctl = 2; DELAY( BITD ); /* lower data */
+        bt848->i2c_data_ctl = 0; DELAY( BITD ); /* lower clock */
+}
+
+static void i2c_stop( bktr_ptr_t bktr) {
+        bt848_ptr_t     bt848;
+        bt848 = bktr->base;
+
+        bt848->i2c_data_ctl = 0; DELAY( BITD ); /* lower clock & data */
+        bt848->i2c_data_ctl = 2; DELAY( BITD ); /* release clock */
+        bt848->i2c_data_ctl = 3; DELAY( BITD ); /* release data */
+}
+
+static int i2c_write_byte( bktr_ptr_t bktr, unsigned char data) {
+        int x;
+        int status;
+        bt848_ptr_t     bt848;
+        bt848 = bktr->base;
+
+        /* write out the byte */
+        for ( x = 7; x >= 0; --x ) {
+                if ( data & (1<<x) ) {
+                        bt848->i2c_data_ctl = 1;
+                        DELAY( BITD );          /* assert HI data */
+                        bt848->i2c_data_ctl = 3;
+                        DELAY( BITD );          /* strobe clock */
+                        bt848->i2c_data_ctl = 1;
+                        DELAY( BITD );          /* release clock */
+                }
+                else {
+                        bt848->i2c_data_ctl = 0;
+                        DELAY( BITD );          /* assert LO data */
+                        bt848->i2c_data_ctl = 2;
+                        DELAY( BITD );          /* strobe clock */
+                        bt848->i2c_data_ctl = 0;
+                        DELAY( BITD );          /* release clock */
+                }
+        }
+
+        /* look for an ACK */
+        bt848->i2c_data_ctl = 1; DELAY( BITD ); /* float data */
+        bt848->i2c_data_ctl = 3; DELAY( BITD ); /* strobe clock */
+        status = bt848->i2c_data_ctl & 1;       /* read the ACK bit */
+        bt848->i2c_data_ctl = 1; DELAY( BITD ); /* release clock */
+
+        return( status );
+}
+
+static int i2c_read_byte( bktr_ptr_t bktr, unsigned char *data, int last ) {
+        int x;
+        int bit;
+        int byte = 0;
+        bt848_ptr_t     bt848;
+        bt848 = bktr->base;
+
+        /* read in the byte */
+        bt848->i2c_data_ctl = 1;
+        DELAY( BITD );                          /* float data */
+        for ( x = 7; x >= 0; --x ) {
+                bt848->i2c_data_ctl = 3;
+                DELAY( BITD );                  /* strobe clock */
+                bit = bt848->i2c_data_ctl & 1;  /* read the data bit */
+                if ( bit ) byte |= (1<<x);
+                bt848->i2c_data_ctl = 1;
+                DELAY( BITD );                  /* release clock */
+        }
+        /* After reading the byte, send an ACK */
+        /* (unless that was the last byte, for which we send a NAK */
+        if (last) { /* send NAK - same a writing a 1 */
+                bt848->i2c_data_ctl = 1;
+                DELAY( BITD );                  /* set data bit */
+                bt848->i2c_data_ctl = 3;
+                DELAY( BITD );                  /* strobe clock */
+                bt848->i2c_data_ctl = 1;
+                DELAY( BITD );                  /* release clock */
+        } else { /* send ACK - same as writing a 0 */
+                bt848->i2c_data_ctl = 0;
+                DELAY( BITD );                  /* set data bit */
+                bt848->i2c_data_ctl = 2;
+                DELAY( BITD );                  /* strobe clock */
+                bt848->i2c_data_ctl = 0;
+                DELAY( BITD );                  /* release clock */
+        }
+
+        *data=byte;
+	return 0;
+}
+#undef BITD
+
+/* Write to the MSP registers */
+static void msp_write( bktr_ptr_t bktr, unsigned char dev, unsigned int addr, unsigned int data){
+	unsigned int msp_w_addr = MSP3400C_WADDR;
+	unsigned char addr_l, addr_h, data_h, data_l ;
+	addr_h = (addr >>8) & 0xff;
+	addr_l = addr & 0xff;
+	data_h = (data >>8) & 0xff;
+	data_l = data & 0xff;
+
+	i2c_start(bktr);
+	i2c_write_byte(bktr, msp_w_addr);
+	i2c_write_byte(bktr, dev);
+	i2c_write_byte(bktr, addr_h);
+	i2c_write_byte(bktr, addr_l);
+	i2c_write_byte(bktr, data_h);
+	i2c_write_byte(bktr, data_l);
+	i2c_stop(bktr);
+}
+
+/* Write to the MSP registers */
+static unsigned int msp_read(bktr_ptr_t bktr, unsigned char dev, unsigned int addr){
+	unsigned int data;
+	unsigned char addr_l, addr_h, data_1, data_2, dev_r ;
+	addr_h = (addr >>8) & 0xff;
+	addr_l = addr & 0xff;
+	dev_r = dev+1;
+
+	i2c_start(bktr);
+	i2c_write_byte(bktr,MSP3400C_WADDR);
+	i2c_write_byte(bktr,dev_r);
+	i2c_write_byte(bktr,addr_h);
+	i2c_write_byte(bktr,addr_l);
+
+	i2c_start(bktr);
+	i2c_write_byte(bktr,MSP3400C_RADDR);
+	i2c_read_byte(bktr,&data_1, 0);
+	i2c_read_byte(bktr,&data_2, 1);
+	i2c_stop(bktr);
+	data = (data_1<<8) | data_2;
+	return data;
+}
+
+/* Reset the MSP chip */
+static void msp_reset( bktr_ptr_t bktr ) {
+
+	/* put into reset mode */
+	i2c_start(bktr);
+	i2c_write_byte(bktr, MSP3400C_WADDR);
+	i2c_write_byte(bktr, 0x00);
+	i2c_write_byte(bktr, 0x80);
+	i2c_write_byte(bktr, 0x00);
+	i2c_stop(bktr);
+
+	/* put back to operational mode */
+	i2c_start(bktr);
+	i2c_write_byte(bktr, MSP3400C_WADDR);
+	i2c_write_byte(bktr, 0x00);
+	i2c_write_byte(bktr, 0x00);
+	i2c_write_byte(bktr, 0x00);
+	i2c_stop(bktr);
+
 }
 
 #endif /* !define(__FreeBSD__) */
@@ -4585,7 +4891,10 @@ probeCard( bktr_ptr_t bktr, int verbose )
             subsystem_vendor_id =
                 pci_conf_read( bktr->tag, PCIR_SUBVEND_0) & 0xffff;
             subsystem_id        =
-               (pci_conf_read( bktr->tag, PCIR_SUBDEV_0) >> 16) & 0xffff;
+               (pci_conf_read( bktr->tag, PCIR_SUBVEND_0) >> 16) & 0xffff;
+
+	    if ( bootverbose ) 
+	        printf("subsytem %x %x\n",subsystem_vendor_id,subsystem_id);
 
             if (subsystem_vendor_id == VENDOR_AVER_MEDIA) {
                 bktr->card = cards[ (card = CARD_AVER_MEDIA) ];
@@ -4834,15 +5143,20 @@ checkDBX:
 		bktr->card.dbx = 1;
 
 checkMSP:
-	/* If this is a Hauppauge card, we need to reset and enable the MSP */
-        /* chip. The chip's reset line is wired to GPIO pin 5 */
-
-	/* Toggle GPIO line 5 which resets the MSP stereo decoder */
-        if (card == CARD_HAUPPAUGE) {
+	/* If this is a Hauppauge Bt878 card, we need to enable the
+	 * MSP 34xx audio chip. 
+         * The chip's reset line is wired to GPIO pin 5 and a pulldown
+	 * resistor holds the device in reset until we set GPIO pin 5
+         */
+	if ((card == CARD_HAUPPAUGE) &&
+	    (bktr->id==BROOKTREE_878_ID || bktr->id==BROOKTREE_879_ID) ) {
             bt848->gpio_out_en = bt848->gpio_out_en | (1<<5);
-            bt848->gpio_data   = bt848->gpio_data & ~(1<<5); /* write '0' */
-            tsleep( (caddr_t)bktr, PZERO, "bktrio", hz/10 );
             bt848->gpio_data   = bt848->gpio_data | (1<<5);  /* write '1' */
+            DELAY(10); /* wait 10us */
+            bt848->gpio_data   = bt848->gpio_data & ~(1<<5); /* write '0' */
+            DELAY(10); /* wait 10us */
+            bt848->gpio_data   = bt848->gpio_data | (1<<5);  /* write '1' */
+            DELAY(10); /* wait 10us */
         }
 
 #if defined( OVERRIDE_MSP )
@@ -5597,6 +5911,32 @@ set_BTSC( bktr_ptr_t bktr, int control )
 	return( i2cWrite( bktr, TDA9850_WADDR, CON3ADDR, control ) );
 }
 
+/*
+ * setup the MSP34xx Stereo Audio Chip
+ * This uses the Auto Configuration Option on MSP3410D and MSP3415D
+ * chips. For MSP3400C support, the full programming sequence is required
+ * and so is not yet supported.
+ */
+
+/* Read the MSP version string */
+static void msp_read_id( bktr_ptr_t bktr ){
+    int rev1=0, rev2=0;
+    rev1 = msp_read(bktr, 0x12, 0x001e);
+    rev2 = msp_read(bktr, 0x12, 0x001f);
+
+    printf("Detected a MSP34%02d%c-%c%d \n",
+      (rev2>>8)&0xff, (rev1&0xff)+'@', ((rev1>>8)&0xff)+'@', rev2&0x1f);
+}
+
+
+/* Configure the MSP chip to Auto-detect the audio format */
+static void msp_autodetect( bktr_ptr_t bktr ) {
+    msp_write(bktr, 0x12, 0x0000,0x7300); /* Set volume to 0db gain */
+    msp_write(bktr, 0x10, 0x0020,0x0001); /* Enable Auto format detection */
+    msp_write(bktr, 0x10, 0x0021,0x0001); /* Auto selection of NICAM/MONO mode */
+    /* uncomment the following line to enable the MSP34xx 1Khz Tone Generator */
+    /* msp_write(bktr, 0x12, 0x0014, 0x7f40); */
+}
 
 /******************************************************************************
  * magic:
