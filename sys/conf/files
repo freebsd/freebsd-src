@@ -270,12 +270,14 @@ crypto/des/des_ecb.c		optional ipsec ipsec_esp
 crypto/des/des_setkey.c		optional crypto
 crypto/des/des_setkey.c		optional ipsec ipsec_esp
 crypto/rc4/rc4.c		optional netgraph_mppc_encryption
+crypto/rijndael/rijndael-alg-fst.c optional crypto
 crypto/rijndael/rijndael-alg-fst.c optional geom_bde
 crypto/rijndael/rijndael-alg-fst.c optional ipsec
 crypto/rijndael/rijndael-alg-fst.c optional random
 crypto/rijndael/rijndael-alg-fst.c optional wlan_ccmp
 crypto/rijndael/rijndael-api-fst.c optional geom_bde
 crypto/rijndael/rijndael-api-fst.c optional random
+crypto/rijndael/rijndael-api.c	optional crypto
 crypto/rijndael/rijndael-api.c	optional ipsec
 crypto/rijndael/rijndael-api.c	optional wlan_ccmp
 crypto/sha1.c			optional carp
@@ -1636,7 +1638,6 @@ opencrypto/crypto.c		optional crypto
 opencrypto/cryptodev.c		optional cryptodev
 opencrypto/cryptosoft.c		optional crypto
 opencrypto/deflate.c		optional crypto
-opencrypto/rijndael.c		optional crypto
 opencrypto/rmd160.c		optional crypto
 opencrypto/rmd160.c		optional ipsec
 opencrypto/skipjack.c		optional crypto
