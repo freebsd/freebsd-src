@@ -44,10 +44,14 @@
 .Fd #include <unistd.h>
 .Ft int
 .Fn access "const char *path" "int mode"
+.Ft int
+.Fn eaccess "const char *path" "int mode"
 .Sh DESCRIPTION
 The
 .Fn access
-function checks the accessibility of the
+and
+.Fn eaccess
+functions check the accessibility of the
 file named by
 .Fa path
 for the access permissions indicated by
@@ -69,12 +73,17 @@ For additional information, see the
 section of
 .Xr intro 2 .
 .Pp
-The real user ID is used in place of the effective user ID
+.Fn eaccess
+uses the effective user ID, group ID, and additional groups to authorize
+the request.
+.Fn access
+uses
+the real user ID in place of the effective user ID
 and the real group access list
 (including the real group ID) are
 used in place of the effective ID for verifying permission.
 .Pp
-Even if a process's real user has appropriate privileges
+Even if a process's real or effective user has appropriate privileges
 and indicates success for
 .Dv X_OK ,
 the file may not actually have execute permission bits set.
@@ -126,8 +135,14 @@ function call is expected to conform to
 .St -p1003.1-90 .
 .Sh CAVEAT
 .Fn Access
-is a potential security hole and
+is a potential security hole due to race conditions and
 should never be used.
+Setuid and setgid applications should restore the effective uid or gid
+and perform actions directly rather than use
+.Fn access
+to simulate access checks for the real user of group id.
+.Fn Eaccess
+likewise may be subject to races if used inappropriately.
 .Sh HISTORY
 An
 .Fn access
