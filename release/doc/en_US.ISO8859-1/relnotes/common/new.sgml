@@ -180,7 +180,7 @@
     <para>The <literal>O_DIRECT</literal> flag has been added to
     &man.open.2; and &man.fcntl.2;.  Specifying this flag for open
     files will attempt to minimize the cache effects of reading and
-    writing.</para>
+    writing. &merged;</para>
 
     <sect3>
       <title>Processor/Motherboard Support</title>
@@ -1324,7 +1324,7 @@
     of bug fixes.</para>
 
     <para>Ukranian language support has been added to the &os;
-    console.</para>
+    console. &merged;</para>
 
     <para>The performance of the ELF dynamic linker &man.rtld.1; has
     been improved. &merged;</para>
@@ -1455,6 +1455,11 @@
 
       <para><application>Perl</application> has been updated to version
       5.6.0.</para>
+
+      <para>&man.pim6dd.8; and &man.pim6sd.8; have been removed due to
+      restrictive licensing conditions.  These programs are available
+      in the ports collection as <filename>net/pim6dd</filename> and
+      <filename>net/pim6dd</filename>. &merged;</para>
 
       <para>&man.routed.8; has been updated to version 2.22. &merged;</para>
 
