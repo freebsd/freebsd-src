@@ -595,9 +595,13 @@ extern int ix86_arch;
 %{march=pentium-mmx:-D__i586 -D__i586__ -D__pentium -D__pentium__ \
   -D__pentium__mmx__ \
   %{!mcpu*:-D__tune_i586__ -D__tune_pentium__ -D__tune_pentium_mmx__}}\
-%{march=pentiumpro|march=i686:-D__i686 -D__i686__ \
+%{march=pentiumpro|march=i686|march=pentium2|march=pentium3:-D__i686 -D__i686__ \
   -D__pentiumpro -D__pentiumpro__ \
   %{!mcpu*:-D__tune_i686__ -D__tune_pentiumpro__ }}\
+%{march=march=pentium2|march=pentium3: -D__pentium2 -D__pentium2__\
+  %{!mcpu*:-D__tune_pentium2__ }}\
+%{march=pentium3: -D__pentium3 -D__pentium3__\
+  %{!mcpu*:-D__tune_pentium3__ }}\
 %{march=k6:-D__k6 -D__k6__ %{!mcpu*:-D__tune_k6__ }}\
 %{march=k6-2:-D__k6 -D__k6__ -D__k6_2__ \
   %{!mcpu*:-D__tune_k6__ -D__tune_k6_2__ }}\
@@ -612,7 +616,7 @@ extern int ix86_arch;
 %{m386|mcpu=i386:-D__tune_i386__ }\
 %{m486|mcpu=i486:-D__tune_i486__ }\
 %{mpentium|mcpu=pentium|mcpu=i586|mcpu=pentium-mmx:-D__tune_i586__ -D__tune_pentium__ }\
-%{mpentiumpro|mcpu=pentiumpro|mcpu=i686|cpu=pentium2|cpu=pentium3:-D__tune_i686__ \
+%{mpentiumpro|mcpu=pentiumpro|mcpu=i686|mcpu=pentium2|mcpu=pentium3:-D__tune_i686__ \
 -D__tune_pentiumpro__ }\
 %{mcpu=k6|mcpu=k6-2|mcpu=k6-3:-D__tune_k6__ }\
 %{mcpu=athlon|mcpu=athlon-tbird|mcpu=athlon-4|mcpu=athlon-xp|mcpu=athlon-mp:\
@@ -620,17 +624,17 @@ extern int ix86_arch;
 %{mcpu=athlon-4|mcpu=athlon-xp|mcpu=athlon-mp:\
 -D__tune_athlon_sse__ }\
 %{mcpu=pentium4:-D__tune_pentium4__ }\
-%{march=athlon-xp|march=athlon-mp|march=pentium3|march=pentium4:\
+%{march=athlon-xp|march=athlon-mp|march=pentium3|march=pentium4|msse|msse2:\
 -D__SSE__ }\
 %{march=pentium-mmx|march=k6|march=k6-2|march=k6-3\
 |march=athlon|march=athlon-tbird|march=athlon-4|march=athlon-xp\
-|march=athlon-mp|march=pentium2|march=pentium3|march=pentium4: -D__MMX__ }\
+|march=athlon-mp|march=pentium2|march=pentium3|march=pentium4|mmx|msse|m3dnow: -D__MMX__ }\
 %{march=k6-2|march=k6-3\
 |march=athlon|march=athlon-tbird|march=athlon-4|march=athlon-xp\
-|march=athlon-mp: -D__3dNOW__ }\
+|march=athlon-mp|m3dnow: -D__3dNOW__ }\
 %{march=athlon|march=athlon-tbird|march=athlon-4|march=athlon-xp\
 |march=athlon-mp: -D__3dNOW_A__ }\
-%{march=pentium4: -D__SSE2__ }\
+%{march=pentium4|msse2: -D__SSE2__ }\
 %{!march*:%{!mcpu*:%{!m386:%{!m486:%{!mpentium*:%(cpp_cpu_default)}}}}}"
 
 #ifndef CPP_CPU_SPEC
@@ -769,8 +773,11 @@ extern int ix86_arch;
 #define FORCE_PREFERRED_STACK_BOUNDARY_IN_MAIN \
   (ix86_preferred_stack_boundary > STACK_BOUNDARY && !TARGET_64BIT)
 
-/* Allocation boundary for the code of a function.  */
-#define FUNCTION_BOUNDARY 16
+/* Minimum allocation boundary for the code of a function.  */
+#define FUNCTION_BOUNDARY 8
+
+/* C++ stores the virtual bit in the lowest bit of function pointers.  */
+#define TARGET_PTRMEMFUNC_VBIT_LOCATION ptrmemfunc_vbit_in_pfn
 
 /* Alignment of field after `int : 0' in a structure.  */
 
