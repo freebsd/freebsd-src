@@ -2,26 +2,26 @@
 
 .include "Makefile.inc"
 
-.PATH:	${LCRYPTO_SRC} ${LCRYPTO_SRC}/asn1 ${LCRYPTO_SRC}/bf \
-	${LCRYPTO_SRC}/bio ${LCRYPTO_SRC}/bn ${LCRYPTO_SRC}/buffer \
-	${LCRYPTO_SRC}/cast ${LCRYPTO_SRC}/comp ${LCRYPTO_SRC}/conf \
-	${LCRYPTO_SRC}/des ${LCRYPTO_SRC}/dh ${LCRYPTO_SRC}/dsa \
-	${LCRYPTO_SRC}/dso ${LCRYPTO_SRC}/err ${LCRYPTO_SRC}/evp \
-	${LCRYPTO_SRC}/hmac ${LCRYPTO_SRC}/lhash ${LCRYPTO_SRC}/md2 \
-	${LCRYPTO_SRC}/md4 ${LCRYPTO_SRC}/md5 ${LCRYPTO_SRC}/mdc2 \
-	${LCRYPTO_SRC}/objects ${LCRYPTO_SRC}/pem ${LCRYPTO_SRC}/pkcs7 \
-	${LCRYPTO_SRC}/pkcs12 ${LCRYPTO_SRC}/rand ${LCRYPTO_SRC}/rc2 \
-	${LCRYPTO_SRC}/rc4 ${LCRYPTO_SRC}/rc5 ${LCRYPTO_SRC}/ripemd \
-	${LCRYPTO_SRC}/rsa ${LCRYPTO_SRC}/../rsaref ${LCRYPTO_SRC}/sha \
-	${LCRYPTO_SRC}/stack ${LCRYPTO_SRC}/txt_db ${LCRYPTO_SRC}/x509 \
-	${LCRYPTO_SRC}/x509v3 ${.CURDIR}/man
+.PATH: ${LCRYPTO_SRC} ${LCRYPTO_SRC}/asn1 ${LCRYPTO_SRC}/bf \
+       ${LCRYPTO_SRC}/bio ${LCRYPTO_SRC}/bn ${LCRYPTO_SRC}/buffer \
+       ${LCRYPTO_SRC}/cast ${LCRYPTO_SRC}/comp ${LCRYPTO_SRC}/conf \
+       ${LCRYPTO_SRC}/des ${LCRYPTO_SRC}/dh ${LCRYPTO_SRC}/dsa \
+       ${LCRYPTO_SRC}/dso ${LCRYPTO_SRC}/err ${LCRYPTO_SRC}/evp \
+       ${LCRYPTO_SRC}/hmac ${LCRYPTO_SRC}/lhash ${LCRYPTO_SRC}/md2 \
+       ${LCRYPTO_SRC}/md4 ${LCRYPTO_SRC}/md5 ${LCRYPTO_SRC}/mdc2 \
+       ${LCRYPTO_SRC}/objects ${LCRYPTO_SRC}/pem ${LCRYPTO_SRC}/pkcs7 \
+       ${LCRYPTO_SRC}/pkcs12 ${LCRYPTO_SRC}/rand ${LCRYPTO_SRC}/rc2 \
+       ${LCRYPTO_SRC}/rc4 ${LCRYPTO_SRC}/rc5 ${LCRYPTO_SRC}/ripemd \
+       ${LCRYPTO_SRC}/rsa ${LCRYPTO_SRC}/../rsaref ${LCRYPTO_SRC}/sha \
+       ${LCRYPTO_SRC}/stack ${LCRYPTO_SRC}/txt_db ${LCRYPTO_SRC}/x509 \
+       ${LCRYPTO_SRC}/x509v3 ${.CURDIR}/man
 
 .if ${MACHINE_ARCH} == "i386"
-.PATH:	${.CURDIR}/i386
+.PATH: ${.CURDIR}/i386
 .endif
 
 .if defined(MAKE_IDEA) && ${MAKE_IDEA} == YES
-.PATH:  ${LCRYPTO_SRC}/idea
+.PATH: ${LCRYPTO_SRC}/idea
 .endif
 
 LIB=		crypto
@@ -36,7 +36,6 @@ SRCS+=	cpt_err.c cryptlib.c cversion.c ebcdic.c ex_data.c mem.c mem_dbg.c \
 	tmdiff.c uid.c
 
 # asn1
-
 SRCS+=	a_bitstr.c a_bmp.c a_bool.c a_bytes.c a_d2i_fp.c a_digest.c \
 	a_dup.c a_enum.c a_gentm.c a_hdr.c a_i2d_fp.c a_int.c \
 	a_mbstr.c a_meth.c a_null.c a_object.c a_octet.c a_print.c \

@@ -8,18 +8,16 @@
 
 .include "Makefile.inc"
 
-.PATH:	${LCRYPTO_SRC}/rc4/asm ${LCRYPTO_SRC}/rc5/asm \
-	${LCRYPTO_SRC}/des/asm ${LCRYPTO_SRC}/cast/asm \
-	${LCRYPTO_SRC}/sha/asm ${LCRYPTO_SRC}/bn/asm \
-	${LCRYPTO_SRC}/bf/asm ${LCRYPTO_SRC}/md5/asm \
-	${LCRYPTO_SRC}/ripemd/asm
+.PATH: ${LCRYPTO_SRC}/rc4/asm ${LCRYPTO_SRC}/rc5/asm \
+       ${LCRYPTO_SRC}/des/asm ${LCRYPTO_SRC}/cast/asm \
+       ${LCRYPTO_SRC}/sha/asm ${LCRYPTO_SRC}/bn/asm \
+       ${LCRYPTO_SRC}/bf/asm ${LCRYPTO_SRC}/md5/asm \
+       ${LCRYPTO_SRC}/ripemd/asm
+
 PERLPATH=	${LCRYPTO_SRC}/des/asm:${LCRYPTO_SRC}/perlasm
 
-SRCS=
-
 # blowfish
-SRCS+=	bf-686.pl
-SRCS+=	bf-586.pl
+SRCS=	bf-686.pl bf-586.pl
 
 # bn
 SRCS+=	bn-586.pl co-586.pl
@@ -57,7 +55,6 @@ CLEANFILES+=	${SRCS:M*.pl:S/.pl$/.cmt/} ${SRCS:M*.pl:S/.pl$/.s/}
 
 .cmt.s:
 	tr -d "'" < ${.IMPSRC} > ${.TARGET}
-
 
 .include <bsd.prog.mk>
 .endif
