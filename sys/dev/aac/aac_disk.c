@@ -89,7 +89,7 @@ static struct cdevsw aac_disk_cdevsw = {
 #endif
 };
 
-devclass_t		aac_disk_devclass;
+static devclass_t	aac_disk_devclass;
 static struct cdevsw	aac_disk_disk_cdevsw;
 #ifdef FREEBSD_4
 static int		disks_registered = 0;
