@@ -295,7 +295,9 @@ gv_plex_worker(void *arg)
 		/* A completed request. */
 		if (bp->bio_cflags & GV_BIO_DONE) {
 			g_free(bq);
-			if (bp->bio_cflags & GV_BIO_SYNCREQ) {
+
+			if (bp->bio_cflags & GV_BIO_SYNCREQ ||
+			    bp->bio_cflags & GV_BIO_REBUILD) {
 				s = bp->bio_to->private;
 				if (bp->bio_error == 0)
 					s->initialized += bp->bio_length;
@@ -306,8 +308,11 @@ gv_plex_worker(void *arg)
 					g_topology_unlock();
 					s->initialized = 0;
 				}
+			}
+
+			if (bp->bio_cflags & GV_BIO_SYNCREQ)
 				g_std_done(bp);
-			} else
+			else
 				gv_plex_completed_request(p, bp);
 		/*
 		 * A sub-request that was hold back because it interfered with
@@ -457,7 +462,12 @@ gv_plex_normal_request(struct gv_plex *p, struct bio *bp)
 			wp->bio = bp;
 			TAILQ_INIT(&wp->bits);
 
-			err = gv_build_raid5_req(p, wp, bp, addr, boff, bcount);
+			if (bp->bio_cflags & GV_BIO_REBUILD)
+				err = gv_rebuild_raid5(p, wp, bp, addr,
+				    boff, bcount);
+			else
+				err = gv_build_raid5_req(p, wp, bp, addr,
+				    boff, bcount);
 
  			/*
 			 * Building the sub-request failed, we probably need to
