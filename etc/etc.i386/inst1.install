@@ -226,17 +226,21 @@ if [ $sysid_cnt -eq 0 ]; then
 elif [ "$have_opsys_part" ]; then
 	echo
 	echo "386/Net/FreeBSD partition already exists!"
-	echo -n "Overwrite existing partition? [n] "
+	echo "${OPSYSTEM} cannot be installed alongside an existing BSD partition."
+	echo -n "Overwrite existing partition? [y] "
 	read resp junk
-	case "$resp" in
+	case "${resp:-y}" in
 	y*|Y*)
 		opsys_part=${have_opsys_part}
 		set_existing_part
 		return 0
 		;;
 	*)
-		have_opsys_part=
-		# FALL THROUGH
+		echo
+		echo	"Installation aborted.  Enter \`halt' to halt the machine."
+		echo	"Once the machine has halted, remove the floppy,"
+		echo	"and press any key to reboot."
+		exit
 		;;
 	esac
 fi
@@ -413,7 +417,7 @@ y*|Y*)
 	;;
 *)
 	echo
-	echo	"OK, then.  Enter \`halt' to halt the machine."
+	echo	"Installation aborted.  Enter \`halt' to halt the machine."
 	echo	"Once the machine has halted, remove the floppy,"
 	echo	"and press any key to reboot."
 	exit
@@ -494,7 +498,7 @@ if [ ! "$partition" ]; then
 			;;
 		*)
 			echo
-			echo "Okay.  Let's start again from the top."
+			echo "Oops.  Let's start again from the top."
 			continue
 			;;
 		esac
@@ -811,7 +815,7 @@ esac
 
 
 echo
-echo	"OK!  THIS IS THE LAST CHANCE!!!  Data on the hard disk wil be lost."
+echo	"THIS IS THE LAST CHANCE!!!  Data on the hard disk will be lost!"
 echo -n "Are you sure you want to install on the hard drive? (yes/no) "
 resp=""
 while [ ! "$resp" ]; do
@@ -820,7 +824,7 @@ while [ ! "$resp" ]; do
 	Yes|yes|YES)
 		verified_install=1
 		echo
-		echo	"OK!  Here we go..."
+		echo	"Here we go..."
 		;;
 	No|no|NO)
 		echo
@@ -832,7 +836,7 @@ while [ ! "$resp" ]; do
 			;;
 		*)
 			echo
-			echo	"OK, then.  Enter 'halt' to halt the machine."
+			echo	"Installation aborted.  Enter 'halt' to halt the machine."
 			echo	"Once the machine has halted, remove the floppy,"
 			echo	"and press any key to reboot."
 			exit
