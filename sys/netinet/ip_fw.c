@@ -12,7 +12,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.c,v 1.51.2.19 1998/09/18 20:53:08 luigi Exp $
+ *	$Id: ip_fw.c,v 1.51.2.20 1998/10/06 09:55:01 luigi Exp $
  */
 
 /*
@@ -491,6 +491,8 @@ non_ip:		ip = NULL ;
 	    if ( (chain = (*flow_id)->rule->next_rule_ptr) == NULL )
 		chain = (*flow_id)->rule->next_rule_ptr =
 			lookup_next_rule(*flow_id) ;
+		if (!chain)
+		    goto dropit;
 	} else {
 	    chain=LIST_FIRST(&ip_fw_chain);
 #ifdef IPFW_DIVERT_RESTART
@@ -762,6 +764,8 @@ got_match:
 			chain = f->next_rule_ptr ;
 		    else
 			chain = lookup_next_rule(chain) ;
+		    if (!chain)
+			goto dropit;
 		    goto again ;
 #ifdef DUMMYNET
 		case IP_FW_F_PIPE:
