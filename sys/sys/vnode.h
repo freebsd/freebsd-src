@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vnode.h	8.7 (Berkeley) 2/4/94
- * $Id: vnode.h,v 1.55 1997/10/26 20:54:57 phk Exp $
+ * $Id: vnode.h,v 1.56 1997/11/18 09:26:50 bde Exp $
  */
 
 #ifndef _SYS_VNODE_H_
@@ -453,14 +453,11 @@ void	cache_purgevfs __P((struct mount *mp));
 void	cvtstat __P((struct stat *st, struct ostat *ost));
 int 	getnewvnode __P((enum vtagtype tag,
 	    struct mount *mp, vop_t **vops, struct vnode **vpp));
-void	insmntque __P((struct vnode *vp, struct mount *mp));
 int	lease_check __P((struct vop_lease_args *ap));
 void 	vattr_null __P((struct vattr *vap));
-void	vbusy __P((struct vnode *));
 int 	vcount __P((struct vnode *vp));
 void	vdrop __P((struct vnode *));
 int	vfinddev __P((dev_t dev, enum vtype type, struct vnode **vpp));
-void	vfree __P((struct vnode *));
 void	vfs_opv_init __P((struct vnodeopv_desc **them));
 int	vflush __P((struct mount *mp, struct vnode *skipvp, int flags));
 int 	vget __P((struct vnode *vp, int lockflag, struct proc *p));

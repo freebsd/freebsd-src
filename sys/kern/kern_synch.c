@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_synch.c	8.9 (Berkeley) 5/19/95
- * $Id: kern_synch.c,v 1.39 1997/09/21 22:00:14 gibbs Exp $
+ * $Id: kern_synch.c,v 1.40 1997/11/21 11:36:56 bde Exp $
  */
 
 #include "opt_ktrace.h"
@@ -64,8 +64,8 @@ SYSINIT(runqueue, SI_SUB_RUN_QUEUE, SI_ORDER_FIRST, rqinit, NULL)
 u_char	curpriority;		/* usrpri of curproc */
 int	lbolt;			/* once a second sleep address */
 
-extern void	endtsleep __P((void *));
-extern void	updatepri __P((struct proc *p));
+static void	endtsleep __P((void *));
+static void	updatepri __P((struct proc *p));
 
 #define MAXIMUM_SCHEDULE_QUANTUM	(1000000) /* arbitrary limit */
 #ifndef DEFAULT_SCHEDULE_QUANTUM
@@ -176,7 +176,7 @@ roundrobin(arg)
 #define	decay_cpu(loadfac, cpu)	(((loadfac) * (cpu)) / ((loadfac) + FSCALE))
 
 /* decay 95% of `p_pctcpu' in 60 seconds; see CCPU_SHIFT before changing */
-fixpt_t	ccpu = 0.95122942450071400909 * FSCALE;		/* exp(-1/20) */
+static fixpt_t	ccpu = 0.95122942450071400909 * FSCALE;	/* exp(-1/20) */
 
 /*
  * If `ccpu' is not equal to `exp(-1/20)' and you still want to use the
@@ -265,7 +265,7 @@ schedcpu(arg)
  * For all load averages >= 1 and max p_estcpu of 255, sleeping for at
  * least six times the loadfactor will decay p_estcpu to zero.
  */
-void
+static void
 updatepri(p)
 	register struct proc *p;
 {
@@ -289,7 +289,7 @@ updatepri(p)
  * of 2.  Shift right by 8, i.e. drop the bottom 256 worth.
  */
 #define TABLESIZE	128
-TAILQ_HEAD(slpquehead, proc) slpque[TABLESIZE];
+static TAILQ_HEAD(slpquehead, proc) slpque[TABLESIZE];
 #define LOOKUP(x)	(((long)(x) >> 8) & (TABLESIZE - 1))
 
 /*
@@ -428,7 +428,7 @@ resume:
  * set timeout flag and undo the sleep.  If proc
  * is stopped, just unsleep so it will remain stopped.
  */
-void
+static void
 endtsleep(arg)
 	void *arg;
 {

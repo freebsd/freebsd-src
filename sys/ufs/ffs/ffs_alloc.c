@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_alloc.c	8.18 (Berkeley) 5/26/95
- * $Id: ffs_alloc.c,v 1.42 1997/11/07 08:53:34 phk Exp $
+ * $Id: ffs_alloc.c,v 1.43 1997/11/22 07:00:40 bde Exp $
  */
 
 #include "opt_quota.h"
@@ -58,6 +58,9 @@ typedef ufs_daddr_t allocfcn_t __P((struct inode *ip, int cg, ufs_daddr_t bpref,
 
 static ufs_daddr_t ffs_alloccg __P((struct inode *, int, ufs_daddr_t, int));
 static ufs_daddr_t ffs_alloccgblk __P((struct fs *, struct cg *, ufs_daddr_t));
+#ifdef DIAGNOSTIC
+static int	ffs_checkblk __P((struct inode *, ufs_daddr_t, long));
+#endif
 static void	ffs_clusteracct	__P((struct fs *, struct cg *, ufs_daddr_t,
 				     int));
 #ifdef notyet
@@ -335,7 +338,7 @@ nospace:
 static int doasyncfree = 1;
 SYSCTL_INT(_vfs_ffs, FFS_ASYNCFREE, doasyncfree, CTLFLAG_RW, &doasyncfree, 0, "");
 
-int doreallocblks = 1;
+static int doreallocblks = 1;
 SYSCTL_INT(_vfs_ffs, FFS_REALLOCBLKS, doreallocblks, CTLFLAG_RW, &doreallocblks, 0, "");
 
 static int prtrealloc = 0;
@@ -1357,7 +1360,7 @@ ffs_blkfree(ip, bno, size)
  * Verify allocation of a block or fragment. Returns true if block or
  * fragment is allocated, false if it is free.
  */
-int
+static int
 ffs_checkblk(ip, bno, size)
 	struct inode *ip;
 	ufs_daddr_t bno;

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_subr.c	8.5 (Berkeley) 3/21/95
- * $Id: ffs_subr.c,v 1.13 1997/10/16 10:49:30 phk Exp $
+ * $Id: ffs_subr.c,v 1.14 1997/11/18 15:10:38 bde Exp $
  */
 
 #include <sys/param.h>
@@ -48,6 +48,10 @@
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>
 #include <ufs/ffs/ffs_extern.h>
+
+#if defined(KERNEL) && defined(DIAGNOSTIC) && defined(DDB)
+static void	ffs_checkoverlap __P((struct buf *, struct inode *));
+#endif
 
 /*
  * Return buffer with the contents of block "offset" from the beginning of
@@ -121,7 +125,7 @@ ffs_fragacct(fs, fragmap, fraglist, cnt)
 }
 
 #if defined(KERNEL) && defined(DIAGNOSTIC) && defined(DDB)
-void
+static void
 ffs_checkoverlap(bp, ip)
 	struct buf *bp;
 	struct inode *ip;
