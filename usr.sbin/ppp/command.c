@@ -913,7 +913,7 @@ command_Interpret(char *buff, int nb, char *argv[MAXARGS])
     cp = buff + strcspn(buff, "\r\n");
     if (cp)
       *cp = '\0';
-    return MakeArgs(buff, argv, MAXARGS);
+    return MakeArgs(buff, argv, MAXARGS, 1);
   }
   return 0;
 }
