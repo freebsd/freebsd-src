@@ -794,17 +794,17 @@ unp_connect(so, nam, td)
 	error = VOP_ACCESS(vp, VWRITE, td->td_ucred, td);
 	if (error)
 		goto bad;
+	mtx_unlock(&Giant);
+	UNP_LOCK();
 	so2 = vp->v_socket;
 	if (so2 == NULL) {
 		error = ECONNREFUSED;
-		goto bad;
+		goto bad2;
 	}
 	if (so->so_type != so2->so_type) {
 		error = EPROTOTYPE;
-		goto bad;
+		goto bad2;
 	}
-	mtx_unlock(&Giant);
-	UNP_LOCK();
 	if (so->so_proto->pr_flags & PR_CONNREQUIRED) {
 		if (so2->so_options & SO_ACCEPTCONN) {
 			/*
