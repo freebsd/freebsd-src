@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.3 1995/08/18 16:33:55 se Exp $ -->
+<!-- $Id: contrib.sgml,v 1.4 1995/08/18 20:23:52 gclarkii Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt>FreeBSD contributor list<label id="contrib">
@@ -93,22 +93,34 @@
 	  <item>Andreas Klemm &lt;andreas@knobel.GUN.de&gt;
 	  <item>Andrew Herbert &lt;andrew@werple.apana.org.au&gt;
 	  <item>Andrew Moore &lt;alm@FreeBSD.org&gt;
+	  <item>Anthony Yee-Hang Chan &lt;yeehang@netcom.com&gt;
 	  <item>Atsushi Murai &lt;amurai@spec.co.jp&gt;
+	  <item>Bill Fenner &lt;fenner@parc.xerox.com&gt;
 	  <item>Bill Paul &lt;wpaul@FreeBSD.org&gt;
 	  <item>Bob Wilcox &lt;bob@obiwan.uucp&gt;
+	  <item>Brian Tao &lt;taob@gate.sinica.edu.tw&gt;
 	  <item>Charles Hannum &lt;mycroft@ai.mit.edu&gt;
 	  <item>Chris G. Demetriou &lt;cgd@postgres.berkeley.edu&gt;
-	  <item>Christian Gusenbauer &lt;cg@fimp01.fim.uni-linz.ac.at&gt;
+	  <item>Chris Provenzano &lt;proven@athena.mit.edu&gt;
+	  <item>Chris Stenton &lt;jacs@gnome.co.uk&gt;
 	  <item>Chris Torek &lt;torek@ee.lbl.gov&gt;
+	  <item>Christian Gusenbauer &lt;cg@fimp01.fim.uni-linz.ac.at&gt;
 	  <item>Christoph Robitschko &lt;chmr@edvz.tu-graz.ac.at&gt;
+	  <item>Chuck Robey &lt;chuckr@Glue.umd.edu&gt;
+	  <item>Cornelis van der Laan &lt;nils@guru.ims.uni-stuttgart.de&gt;
+	  <item>Craig Struble &lt;cstruble@vt.edu&gt;
 	  <item>Curt Mayer &lt;curt@toad.com&gt;
 	  <item>Danny J. Zerkel &lt;dzerkel@feephi.phofarm.com&gt;
 	  <item>Dave Burgess &lt;burgess@hrd769.brooks.af.mil&gt;
+	  <item>Dave Chapeskie &lt;dchapes@ale.zeus.leitch.com&gt;
 	  <item>Dave Rivers &lt;rivers@ponds.uucp&gt;
 	  <item>David Dawes &lt;dawes@physics.su.OZ.AU&gt;
 	  <item>Dean Huxley &lt;dean@fsa.ca&gt;
-	  <item>Frank Durda IV  &lt;bsdmail@nemesis.lonestar.org&gt;
+	  <item>Don Whiteside &lt;dwhite@anshar.shadow.net&gt;
+	  <item>Eric L. Hernes &lt;erich@lodgenet.com&gt;
+	  <item>Frank Durda IV	&lt;bsdmail@nemesis.lonestar.org&gt;
 	  <item>Frank Maclachlan &lt;fpm@crash.cts.com&gt;
+	  <item>Frank Nobis &lt;fn@trinity.radio-do.de&gt;
 	  <item>Gary A. Browning &lt;gab10@griffcd.amdahl.com&gt;
 	  <item>Gary Clark II &lt;gclarkii@FreeBSD.ORG&gt;
 	  <item>Gary Jennejohn &lt;gj%pcs.dec.com@inet-gw-1.pa.dec.com&gt;
@@ -120,32 +132,43 @@
 	  <item>J.T. Conklin &lt;jtc@winsey.com&gt;
 	  <item>James Clark &lt;jjc@jclark.com&gt;
 	  <item>James da Silva &lt;jds@cs.umd.edu&gt; et al
+	  <item>Janusz Kokot &lt;janek@gaja.ipan.lublin.pl&gt;
+	  <item>Javier Martin Rueda &lt;jmrueda@diatel.upm.es&gt;
 	  <item>Jim Wilson &lt;wilson@moria.cygnus.com&gt;
 	  <item>Jonathan Bresler &lt; jmb@FreeBSD.ORG&gt; 
-	  <item>J&ouml;rg Wunsch &lt;joerg_wunsch@uriah.heep.sax.de&gt;
+	  <item>Josh MacDonald &lt;jmacd@uclink.berkeley.edu&gt;
 	  <item>Julian Elischer &lt;julian@dialix.oz.au&gt;
-	  <item>Julian Stacey &lt;stacey@guug.de&gt; 
+	  <item>Julian Stacey &lt;stacey@guug.de&gt;
 	    (fallback: &lt;julian@meepmeep.pcs.com&gt)
 	  <item>Keith Bostic &lt;bostic@toe.CS.Berkeley.EDU&gt;
 	  <item>Keith Moore &lt;?&gt;
 	  <item>L Jonas Olsson &lt;ljo@po.cwru.edu&gt;
 	  <item>Lars Fredriksen &lt;fredriks@mcs.com&gt;
+	  <item>Lucas James &lt;Lucas.James@ldjpc.apana.org.au&gt;
 	  <item>Marc Frajola &lt;marc@escargot.rain.com&gt;
+	  <item>Marc Ramirez &lt;mrami@mramirez.sy.yale.edu
+	  <item>Marc van Kempen &lt;wmbfmk@urc.tue.nl&gt;
 	  <item>Mark Murray &lt;mark@grondar.za&gt;
-	  <item>Mark Tinguely &lt;tinguely@plains.nodak.edu&gt; 
+	  <item>Mark Tinguely &lt;tinguely@plains.nodak.edu&gt;
 	    &lt;tinguely@hookie.cs.ndsu.NoDak.edu&gt;
 	  <item>Martin Birgmeier
 	  <item>Martin Renters &lt;martin@innovus.com&gt;
 	  <item>Matt Thomas &lt;thomas@lkg.dec.com&gt;
+	  <item>Michael Smith &lt;msmith@atrad.adelaide.edu.au&gt;
+	  <item>NIIMI Satoshi &lt;sa2c@and.or.jp&gt;
 	  <item>Nate Williams &lt;nate@FreeBSD.org&gt;
 	  <item>Nobuhiro Yasutomi &lt;nobu@psrc.isac.co.jp&gt;
+	  <item>Nobuyuki Koganemaru &lt;kogane@kces.koganemaru.co.jp&gt;
 	  <item>Ollivier Robert &lt;roberto@FreeBSD.org&gt;
 	  <item>Paul Kranenburg &lt;pk@cs.few.eur.nl&gt;
 	  <item>Paul Mackerras &lt;paulus@cs.anu.edu.au&gt;
 	  <item>Paul Traina &lt;pst@cisco.com&gt;
 	  <item>Peter Dufault &lt;dufault@hda.com&gt;
-	  <item>Chris Provenzano &lt;proven@athena.mit.edu&gt;
+	  <item>Peter Wemm &lt;peter@haywire.DIALix.COM&gt;
+	  <item>Philippe Charnier &lt;charnier@lirmm.fr&gt;
+	  <item>Richard Stallman &lt;rms@gnu.ai.mit.edu&gt;
 	  <item>Rob Shady &lt;rls@id.net&gt;
+	  <item>Rob Snow &lt;rsnow@txdirect.net&gt;
 	  <item>Sascha Wildner &lt;swildner@channelz.GUN.de&gt;
 	  <item>Scott Mace &lt;smace@FreeBSD.org&gt;
 	  <item>Sean Eric Fagan &lt;sef@kithrup.com&gt;
@@ -157,8 +180,12 @@
 	  <item>Tatsumi Hosokawa &lt;hosokawa@mt.cs.keio.ac.jp&gt;
 	  <item>Terry Lee &lt;terry@uivlsi.csl.uiuc.edu&gt;
 	  <item>Theo Deraadt &lt;deraadt@fsa.ca&gt;
+	  <item>Thomas Gellekum &lt;thomas@ghpc8.ihf.rwth-aachen.de&gt;
+	  <item>Tom Samplonius &lt;tom@misery.sdf.com&gt;
+	  <item>Torbjorn Granlund &lt;tege@matematik.su.se&gt;
 	  <item>Torsten Blum &lt;torstenb@FreeBSD.ORG&gt;
 	  <item>Ugen J.S.Antsilevich &lt;ugen@NetVision.net.il&gt;
+	  <item>Werner Griessl &lt;werner@btp1da.phy.uni-bayreuth.de&gt;
 	  <item>Wolfgang Stanglmeier &lt;wolf@kintaro.cologne.de&gt;
 	  <item>Wolfram Schneider &lt;wosch@cs.tu-berlin.de&gt;
 	  <item>Yuval Yarom &lt;yval@cs.huji.ac.il&gt;
