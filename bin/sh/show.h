@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)show.h	1.1 (Berkeley) 5/4/95
- *	$Id: show.h,v 1.5 1997/02/22 13:58:46 peter Exp $
+ * $FreeBSD$
  */
 
 void showtree __P((union node *));

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)jobs.h	8.2 (Berkeley) 5/4/95
- *	$Id: jobs.h,v 1.11 1999/04/21 11:52:39 cracauer Exp $
+ * $FreeBSD$
  */
 
 /* Mode argument to forkshell.  Don't change FORK_FG or FORK_BG. */

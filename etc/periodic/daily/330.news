@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $Id: 330.news,v 1.1.1.1 1997/08/12 17:51:15 pst Exp $
+# $FreeBSD$
 #
 # Expire news articles
 # (This is present only for backwards compatibility, usually the news

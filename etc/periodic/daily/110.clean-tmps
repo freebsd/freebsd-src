@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $Id: 110.clean-tmps,v 1.5 1999/06/10 00:34:15 brian Exp $
+# $FreeBSD$
 #
 # Use at your own risk, but for a long-living system, this might come
 # more useful than the boot-time cleaning of /tmp.  If /var/tmp and

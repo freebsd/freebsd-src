@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)alloc.c	8.1 (Berkeley) 5/31/93";
 #else
 static const char rcsid[] =
-	"$Id: alloc.c,v 1.8 1998/05/06 06:50:37 charnier Exp $";
+  "$FreeBSD$";
 #endif
 #endif /* not lint */
 

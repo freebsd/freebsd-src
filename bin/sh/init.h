@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)init.h	8.2 (Berkeley) 5/4/95
- *	$Id$
+ * $FreeBSD$
  */
 
 void init __P((void));

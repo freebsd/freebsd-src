@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $Id: 120.clean-preserve,v 1.2 1997/08/17 17:55:29 pst Exp $
+# $FreeBSD$
 #
 
 if [ -d /var/preserve ]; then

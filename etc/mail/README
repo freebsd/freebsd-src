@@ -1,4 +1,4 @@
-#	$Id: README,v 1.5.2.1 1999/05/01 03:37:29 jkh Exp $
+# $FreeBSD$
 
 		Filtering out SPAM from your site
         Sendmail now includes excellent tools block spam.  These

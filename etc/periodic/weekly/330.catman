@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-# $Id: 330.catman,v 1.1.1.1 1997/08/16 17:04:02 pst Exp $
+# $FreeBSD$
 #
 
 exit 0		# do not run by default

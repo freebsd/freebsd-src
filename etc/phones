@@ -1,4 +1,4 @@
-#	$Id: phones,v 1.6 1997/02/23 09:20:43 peter Exp $
+# $FreeBSD$
 #	From: @(#)phones	5.2 (Berkeley) 6/30/90
 #
 # phones -- remote host phone number data base

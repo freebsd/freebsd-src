@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-#	$Id: rc.i386,v 1.37.2.2 1999/08/25 18:10:20 iwasaki Exp $
+# $FreeBSD$
 #	Do i386 specific processing
 #
 

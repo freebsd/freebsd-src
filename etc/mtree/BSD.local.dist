@@ -1,4 +1,4 @@
-#     $Id: BSD.local.dist,v 1.44.2.1 1999/06/05 03:15:37 julian Exp $
+# $FreeBSD$
 #
 
 /set type=dir uname=root gname=wheel mode=0755

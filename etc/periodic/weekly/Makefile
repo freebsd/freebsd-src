@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.2 1997/08/18 16:49:40 pst Exp $
+# $FreeBSD$
 
 BIN=	120.clean-kvmdb \
 	300.uucp \

@@ -4,7 +4,7 @@
  *
  * Largely rewritten by J.T. Conklin (jtc@wimsey.com)
  *
- * $Id$
+ * $FreeBSD$
  */
 
 #include <stdio.h>

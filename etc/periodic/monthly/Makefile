@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.1 1997/08/12 18:23:28 pst Exp $
+# $FreeBSD$
 
 BIN=	200.accounting \
 	999.local
