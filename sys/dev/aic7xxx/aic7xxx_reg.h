@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aic7xxx_reg.h,v 1.16 1996/11/11 05:16:41 gibbs Exp $
+ *	$Id: aic7xxx_reg.h,v 1.17 1996/11/16 01:07:35 gibbs Exp $
  */
 
 /*
@@ -420,10 +420,6 @@
                                                  * it that it can fill the
                                                  * message buffer.
                                                  */
-#define			IMMEDDONE	0xb1	/*
-						 * An immediate command has
-						 * completed
-						 */
 #define			MSG_BUFFER_BUSY	0xc1	/*
 						 * Sequencer wants to use the
 						 * message buffer, but it
@@ -571,11 +567,7 @@
 #define	SCB_ACTIVE2		0x0be
 #define	SCB_ACTIVE3		0x0bf
 
-#ifdef __linux__
-#define	SG_SIZEOF		0x0c		/* sizeof(struct scatterlist) */
-#else
 #define	SG_SIZEOF		0x08		/* sizeof(struct ahc_dma) */
-#endif
 
 /* --------------------- AHA-2840-only definitions -------------------- */
 
@@ -711,7 +703,6 @@
 #define		TWIN_BUS	0x01
 #define		WIDE_BUS	0x02
 #define		PAGESCBS	0x04
-#define		SCB_LISTED	0x08
 #define		DPHASE		0x10
 #define		TAGGED_SCB	0x20
 #define		IDENTIFY_SEEN	0x40
