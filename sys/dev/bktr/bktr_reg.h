@@ -28,7 +28,7 @@
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id$
+ * $Id: brktree_reg.h,v 1.22 1998/09/30 21:06:54 sos Exp $
  */
 #ifndef PCI_LATENCY_TIMER
 #define	PCI_LATENCY_TIMER		0x0c	/* pci timer register */
@@ -369,6 +369,12 @@ struct format_params {
   int iform_xtsel;
 };
 
+#ifdef __FreeBSD__
+struct bktr_i2c_softc {
+	device_t iicbus;
+	device_t smbus;
+};
+#endif
 
 typedef struct bktr_clip bktr_clip_t;
 /*
@@ -380,6 +386,9 @@ struct bktr_softc {
     struct isadev bktr_id;	/* ISA device */
     struct intrhand bktr_ih;	/* interrupt vectoring */
 #define pcici_t pci_devaddr_t
+#endif
+#ifdef __FreeBSD__
+    struct bktr_i2c_softc i2c_sc;	/* bt848_i2c device */
 #endif
     bt848_ptr_t base;		/* Bt848 register physical address */
     vm_offset_t phys_base;	/* Bt848 register physical address */
