@@ -2469,9 +2469,9 @@ ath_recv_mgmt(struct ieee80211com *ic, struct mbuf *m,
 			 */
 			if (le64toh(ni->ni_tstamp.tsf) >= tsf) {
 				DPRINTF(sc, ATH_DEBUG_STATE,
-				    "ibss merge, rstamp %u tsf %llu "
-				    "tstamp %llu\n", rstamp, tsf,
-				    ni->ni_tstamp.tsf);
+				    "ibss merge, rstamp %u tsf %ju "
+				    "tstamp %ju\n", rstamp, (uintmax_t)tsf,
+				    (uintmax_t)ni->ni_tstamp.tsf);
 				(void) ieee80211_ibss_merge(ic, ni);
 			}
 		}
