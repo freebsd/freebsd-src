@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp_machdep.c,v 1.97 1999/04/13 03:24:47 tegge Exp $
+ *	$Id: mp_machdep.c,v 1.98 1999/04/28 01:03:21 luoqi Exp $
  */
 
 #include "opt_smp.h"
@@ -2199,6 +2199,9 @@ ap_init()
 
 	/* Init local apic for irq's */
 	apic_initialize();
+
+	/* Set memory range attributes for this CPU to match the BSP */
+	mem_range_AP_init();
 
 	/*
 	 * Activate smp_invltlb, although strictly speaking, this isn't
