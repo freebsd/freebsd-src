@@ -1,4 +1,4 @@
-#	$Id: options,v 1.103 1998/10/07 03:30:55 gibbs Exp $
+#	$Id: options,v 1.104 1998/10/09 23:26:26 peter Exp $
 #
 #        On the handling of kernel options   
 # 
@@ -52,8 +52,8 @@ FAILSAFE
 HW_WDOG
 KTRACE
 MD5
-MFS_AUTOLOAD	opt_mfs.h
 MFS_ROOT	opt_mfs.h
+MFS_ROOT_SIZE	opt_mfs.h
 EXPORTMFS	opt_mfs.h
 NO_LKM
 NSWAPDEV	opt_swap.h
