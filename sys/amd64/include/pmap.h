@@ -42,7 +42,7 @@
  *
  *	from: hp300: @(#)pmap.h	7.2 (Berkeley) 12/16/90
  *	from: @(#)pmap.h	7.4 (Berkeley) 5/12/91
- * 	$Id: pmap.h,v 1.10 1994/01/31 04:19:00 davidg Exp $
+ * 	$Id: pmap.h,v 1.11 1994/03/07 11:38:48 davidg Exp $
  */
 
 #ifndef	_PMAP_MACHINE_
@@ -179,6 +179,21 @@ extern int	IdlePTD;	/* physical address of "Idle" state directory */
 #define	avtopte(va)	(APTmap + i386_btop(va))
 #define	ptetoav(pt)	(i386_ptob(pt - APTmap)) 
 #define	avtophys(va)	(((int) (*avtopte(va))&PG_FRAME) | ((int)(va) & PGOFSET))
+
+/*
+ *	Routine:	pmap_kextract
+ *	Function:
+ *		Extract the physical page address associated
+ *		kernel virtual address.
+ */
+static inline vm_offset_t
+pmap_kextract(va)
+	vm_offset_t va;
+{
+	vm_offset_t pa = *(int *)vtopte(va);
+	pa = (pa & PG_FRAME) | (va & ~PG_FRAME);
+	return pa;
+}
 
 /*
  * macros to generate page directory/table indicies

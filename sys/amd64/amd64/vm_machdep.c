@@ -37,7 +37,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.13 1994/03/21 09:35:10 davidg Exp $
+ *	$Id: vm_machdep.c,v 1.14 1994/03/23 09:15:06 davidg Exp $
  */
 
 #include "npx.h"
@@ -57,10 +57,11 @@
 
 caddr_t		bouncememory;
 vm_offset_t	bouncepa, bouncepaend;
-int		bouncepages;
+int		bouncepages, bpwait;
 vm_map_t	bounce_map;
 int		bmwait, bmfreeing;
 
+#define BITS_IN_UNSIGNED (8*sizeof(unsigned))
 int		bounceallocarraysize;
 unsigned	*bounceallocarray;
 int		bouncefree;
@@ -98,10 +99,11 @@ retry:
 				bounceallocarray[i] |= 1 << (bit - 1) ;
 				bouncefree -= count;
 				splx(s);
-				return bouncepa + (i * 8 * sizeof(unsigned) + (bit - 1)) * NBPG;
+				return bouncepa + (i * BITS_IN_UNSIGNED + (bit - 1)) * NBPG;
 			}
 		}
 	}
+	bpwait = 1;
 	tsleep((caddr_t) &bounceallocarray, PRIBIO, "bncwai", 0);
 	goto retry;
 }
@@ -126,13 +128,16 @@ vm_bounce_page_free(pa, count)
 	if ((index < 0) || (index >= bouncepages))
 		panic("vm_bounce_page_free -- bad index\n");
 
-	allocindex = index / (8 * sizeof(unsigned));
-	bit = index % (8 * sizeof(unsigned));
+	allocindex = index / BITS_IN_UNSIGNED;
+	bit = index % BITS_IN_UNSIGNED;
 
 	bounceallocarray[allocindex] &= ~(1 << bit);
 
 	bouncefree += count;
-	wakeup((caddr_t) &bounceallocarray);
+	if (bpwait) {
+		bpwait = 0;
+		wakeup((caddr_t) &bounceallocarray);
+	}
 }
 
 /*
@@ -189,7 +194,7 @@ vm_bounce_init()
 	if (bouncepages == 0)
 		return;
 	
-	bounceallocarraysize = (bouncepages + (8*sizeof(unsigned))-1) / (8 * sizeof(unsigned));
+	bounceallocarraysize = (bouncepages + BITS_IN_UNSIGNED - 1) / BITS_IN_UNSIGNED;
 	bounceallocarray = malloc(bounceallocarraysize * sizeof(unsigned), M_TEMP, M_NOWAIT);
 
 	if (!bounceallocarray)
@@ -199,7 +204,7 @@ vm_bounce_init()
 
 	bounce_map = kmem_suballoc(kernel_map, &minaddr, &maxaddr, MAXBKVA * NBPG, FALSE);
 
-	bouncepa = pmap_extract(kernel_pmap, (vm_offset_t) bouncememory);
+	bouncepa = pmap_kextract((vm_offset_t) bouncememory);
 	bouncepaend = bouncepa + bouncepages * NBPG;
 	bouncefree = bouncepages;
 	kvasfreecnt = 0;
@@ -238,7 +243,7 @@ vm_bounce_alloc(bp)
  */
 	va = vapstart;
 	for (i = 0; i < countvmpg; i++) {
-		pa = pmap_extract(kernel_pmap, va);
+		pa = pmap_kextract(va);
 		if (pa >= SIXTEENMEG)
 			++dobounceflag;
 		va += NBPG;
@@ -255,7 +260,7 @@ vm_bounce_alloc(bp)
 	kva = vm_bounce_kva(countvmpg);
 	va = vapstart;
 	for (i = 0; i < countvmpg; i++) {
-		pa = pmap_extract(kernel_pmap, va);
+		pa = pmap_kextract(va);
 		if (pa >= SIXTEENMEG) {
 			/*
 			 * allocate a replacement page
@@ -338,7 +343,7 @@ vm_bounce_free(bp)
 		vm_offset_t copycount;
 
 		copycount = i386_round_page(bouncekva + 1) - bouncekva;
-		mybouncepa = pmap_extract(kernel_pmap, i386_trunc_page(bouncekva));
+		mybouncepa = pmap_kextract(i386_trunc_page(bouncekva));
 
 /*
  * if this is a bounced pa, then process as one
@@ -552,7 +557,7 @@ kvtop(void *addr)
 {
 	vm_offset_t va;
 
-	va = pmap_extract(kernel_pmap, (vm_offset_t)addr);
+	va = pmap_kextract((vm_offset_t)addr);
 	if (va == 0)
 		panic("kvtop: zero page frame");
 	return((int)va);
