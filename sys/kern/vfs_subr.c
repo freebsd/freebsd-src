@@ -2843,22 +2843,6 @@ loop:
 }
 
 /*
- * Create the VM object needed for VMIO and mmap support.  This
- * is done for all VREG files in the system.  Some filesystems might
- * afford the additional metadata buffering capability of the
- * VMIO code by making the device node be VMIO mode also.
- *
- * vp must be locked when vfs_object_create is called.
- */
-int
-vfs_object_create(struct vnode *vp, struct thread *td, struct ucred *cred)
-{
-
-	GIANT_REQUIRED;
-	return (VOP_CREATEVOBJECT(vp, cred, td));
-}
-
-/*
  * Mark a vnode as free, putting it up for recycling.
  */
 void

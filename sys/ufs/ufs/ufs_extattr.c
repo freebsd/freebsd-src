@@ -333,12 +333,11 @@ ufs_extattr_enable_with_open(struct ufsmount *ump, struct vnode *vp,
 	}
 
 	/*
-	 * XXX: Note, should VOP_CLOSE() if vfs_object_create() fails, but due
+	 * XXX: Note, should VOP_CLOSE() if VOP_CREATEVOBJECT() fails, but due
 	 * to a similar piece of code in vn_open(), we don't.
 	 */
 	if (vn_canvmio(vp) == TRUE)
-		if ((error = vfs_object_create(vp, td,
-		    td->td_ucred)) != 0) {
+		if ((error = VOP_CREATEVOBJECT(vp, td->td_ucred, td)) != 0) {
 			/*
 			 * XXX: bug replicated from vn_open(): should
 			 * VOP_CLOSE() here.

@@ -649,8 +649,6 @@ int	vn_extattr_set(struct vnode *vp, int ioflg, int attrnamespace,
 int	vn_extattr_rm(struct vnode *vp, int ioflg, int attrnamespace,
 	    const char *attrname, struct thread *td);
 int	vfs_cache_lookup(struct vop_lookup_args *ap);
-int	vfs_object_create(struct vnode *vp, struct thread *td,
-	    struct ucred *cred);
 void	vfs_timestamp(struct timespec *);
 void	vfs_write_resume(struct mount *mp);
 int	vfs_write_suspend(struct mount *mp);
