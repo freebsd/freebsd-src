@@ -3,7 +3,7 @@
  * arguments.
  */
 /*
- * $Id$
+ * $Id: syscalls.c,v 1.1 1997/12/06 05:23:10 sef Exp $
  */
 
 #include <stdio.h>
@@ -39,6 +39,8 @@ struct syscall syscalls[] = {
 	  { { Int, 0 }, { Ptr | OUT, 1 }}},
 	{ "write", 1, 3,
 	  { { Int, 0}, { Ptr | IN, 1 }, { Int, 2 }}},
+	{ "ioctl", 1, 3,
+	  { { Int, 0}, { Ioctl, 1 }, { Hex, 2 }}},
 	{ "break", 1, 1, { { Hex, 0 }}},
 	{ "exit", 0, 1, { { Hex, 0 }}},
 	{ 0, 0, 0, { 0, 0 } },
@@ -168,6 +170,16 @@ print_arg(int fd, struct syscall_args *sc, unsigned long *args) {
     tmp = malloc(12);
     sprintf(tmp, "0x%x", args[sc->offset]);
     break;
+  case Ioctl:
+    {
+      char *temp = ioctlname(args[sc->offset]);
+      if (temp)
+	tmp = strdup(temp);
+      else {
+	tmp = malloc(12);
+	sprintf(tmp, "0x%x", args[sc->offset]);
+      }
+    }
   }
   return tmp;
 }
