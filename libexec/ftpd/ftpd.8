@@ -40,7 +40,7 @@
 .Nd Internet File Transfer Protocol server
 .Sh SYNOPSIS
 .Nm
-.Op Fl 46AdDEMoOrRSUv
+.Op Fl 46AdDEmMoOrRSUv
 .Op Fl l Op Fl l
 .Op Fl a Ar address
 .Op Fl p Ar file
@@ -121,6 +121,11 @@ are not displayed by
 by default, and may have to be enabled in
 .Xr syslogd 8 Ns 's
 configuration file.
+.It Fl m
+Permit anonymous users to overwrite or modify
+existing files if allowed by filesystem permissions.
+By default, anonymous users cannot modify existing files;
+in particular, files to upload will be created under a unique name.
 .It Fl M
 Prevent anonymous users from creating directories.
 .It Fl o
