@@ -108,7 +108,7 @@ struct snddev_channel {
 struct snddev_info {
 	SLIST_HEAD(, snddev_channel) channels;
 	struct pcm_channel **aplay, **arec, *fakechan;
-	unsigned chancount, maxchans;
+	unsigned chancount, maxchans, defaultchan;
 	struct snd_mixer *mixer;
 	unsigned flags;
 	void *devinfo;
@@ -116,6 +116,7 @@ struct snddev_info {
 	char status[SND_STATUSLEN];
 	struct sysctl_ctx_list sysctl_tree;
 	struct sysctl_oid *sysctl_tree_top;
+	dev_t dspdev, dspWdev, audiodev, mixerdev;
 	void *lock;
 };
 
@@ -198,8 +199,8 @@ int fkchan_kill(struct pcm_channel *c);
 
 SYSCTL_DECL(_hw_snd);
 
-struct pcm_channel *pcm_chnalloc(struct snddev_info *d, int direction);
-int pcm_chnfree(struct pcm_channel *c);
+struct pcm_channel *pcm_chnalloc(struct snddev_info *d, int direction, pid_t pid);
+int pcm_chnrelease(struct pcm_channel *c);
 int pcm_chnref(struct pcm_channel *c, int ref);
 
 struct pcm_channel *pcm_chn_create(struct snddev_info *d, struct pcm_channel *parent, kobj_class_t cls, int dir, void *devinfo);
