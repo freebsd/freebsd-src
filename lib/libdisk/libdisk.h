@@ -10,6 +10,14 @@
 *
 */
 
+#ifdef __i386__
+#include <err.h>
+#define barfout(n, errstr) err(n, errstr)
+#else
+#include <stdio.h>
+#define barfout(n, errstr) fprintf(stderr, "\n\n\t***[ %s ]***\t\n\n", errstr)
+#endif
+
 #define MAX_NO_DISKS	20
 /* Max # of disks Disk_Names() will return */
 
