@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: malloc.c,v 1.18.2.3 1997/07/24 08:25:25 phk Exp $
+ * $Id: malloc.c,v 1.18.2.4 1998/04/23 08:21:49 tg Exp $
  *
  */
 
@@ -51,8 +51,9 @@
 #   if defined(_THREAD_SAFE)
 #       include <pthread.h>
 #       include "pthread_private.h"
-#       define THREAD_LOCK()		pthread_mutex_lock(&malloc_lock)
-#       define THREAD_UNLOCK()		pthread_mutex_unlock(&malloc_lock)
+#       define THREAD_STATUS 		int thread_lock_status;
+#       define THREAD_LOCK()		_thread_kern_sig_block(&thread_lock_status);
+#       define THREAD_UNLOCK()		_thread_kern_sig_unblock(thread_lock_status);
         static struct pthread_mutex _malloc_lock = PTHREAD_MUTEX_STATIC_INITIALIZER;
         static pthread_mutex_t malloc_lock = &_malloc_lock;
 #   endif
@@ -155,6 +156,10 @@ struct pgfree {
 
 #define pageround(foo) (((foo) + (malloc_pagemask))&(~(malloc_pagemask)))
 #define ptr2index(foo) (((u_long)(foo) >> malloc_pageshift)-malloc_origo)
+
+#ifndef THREAD_STATUS
+#define THREAD_STATUS
+#endif
 
 #ifndef THREAD_LOCK
 #define THREAD_LOCK()
@@ -1051,6 +1056,7 @@ void *
 malloc(size_t size)
 {
     register void *r;
+    THREAD_STATUS
 
     malloc_func = " in malloc():";
     THREAD_LOCK();
@@ -1076,6 +1082,8 @@ malloc(size_t size)
 void
 free(void *ptr)
 {
+    THREAD_STATUS
+
     malloc_func = " in free():";
     THREAD_LOCK();
     if (malloc_active++) {
@@ -1093,6 +1101,7 @@ free(void *ptr)
 void *
 realloc(void *ptr, size_t size)
 {
+    THREAD_STATUS
     register void *r;
 
     malloc_func = " in realloc():";
