@@ -123,6 +123,8 @@ void	 check_kmem __P((void));
 int	 check_space __P((void));
 void	 clear_dump __P((void));
 int	 Create __P((char *, int));
+void	 DumpRead __P((int fd, void *bp, int size, off_t off, int flag));
+void	 DumpWrite __P((int fd, void *bp, int size, off_t off, int flag));
 int	 dump_exists __P((void));
 char	*find_dev __P((dev_t, int));
 int	 get_crashtime __P((void));
@@ -285,31 +287,24 @@ void
 check_kmem()
 {
 	register char *cp;
-	FILE *fp;
-	char core_vers[1024];
+	char core_vers[1024], *p;
 
-	fp = fdopen(dumpfd, "r");
-	if (fp == NULL) {
-		syslog(LOG_ERR, "%s: fdopen: %m", ddname);
-		exit(1);
-	}
-	fseek(fp, (off_t)(dumplo + ok(dump_nl[X_VERSION].n_value)), L_SET);
-	fgets(core_vers, sizeof(core_vers), fp);
+	DumpRead(dumpfd, core_vers, sizeof(core_vers),
+	    (off_t)(dumplo + ok(dump_nl[X_VERSION].n_value)), L_SET);
+	core_vers[sizeof(core_vers) - 1] = '\0';
+	p = strchr(core_vers, '\n');
+	if (p)
+		p[1] = '\0';
 	if (strcmp(vers, core_vers) && kernel == 0)
 		syslog(LOG_WARNING,
-		    "warning: %s version mismatch:\n\t%s\nand\t%s\n",
+		    "warning: %s version mismatch:\n\t\"%s\"\nand\t\"%s\"\n",
 		    getbootfile(), vers, core_vers);
-	(void)fseek(fp,
+	DumpRead(dumpfd, &panicstr, sizeof(panicstr),
 	    (off_t)(dumplo + ok(dump_nl[X_PANICSTR].n_value)), L_SET);
-	(void)fread(&panicstr, sizeof(panicstr), 1, fp);
 	if (panicstr) {
-		(void)fseek(fp, dumplo + ok(panicstr), L_SET);
-		cp = panic_mesg;
-		do
-			*cp = getc(fp);
-		while (*cp++ && cp < &panic_mesg[sizeof(panic_mesg)]);
+		DumpRead(dumpfd, panic_mesg, sizeof(panic_mesg),
+		    (off_t)(dumplo + ok(panicstr)), L_SET);
 	}
-	/* Don't fclose(fp), we use dumpfd later. */
 }
 
 void
@@ -318,8 +313,8 @@ clear_dump()
 	long newdumplo;
 
 	newdumplo = 0;
-	Lseek(dumpfd, (off_t)(dumplo + ok(dump_nl[X_DUMPMAG].n_value)), L_SET);
-	Write(dumpfd, &newdumplo, sizeof(newdumplo));
+	DumpWrite(dumpfd, &newdumplo, sizeof(newdumplo),
+	    (off_t)(dumplo + ok(dump_nl[X_DUMPMAG].n_value)), L_SET);
 }
 
 int
@@ -327,8 +322,8 @@ dump_exists()
 {
 	int newdumpmag;
 
-	Lseek(dumpfd, (off_t)(dumplo + ok(dump_nl[X_DUMPMAG].n_value)), L_SET);
-	(void)Read(dumpfd, &newdumpmag, sizeof(newdumpmag));
+	DumpRead(dumpfd, &newdumpmag, sizeof(newdumpmag),
+	    (off_t)(dumplo + ok(dump_nl[X_DUMPMAG].n_value)), L_SET);
 	if (newdumpmag != dumpmag) {
 		if (verbose)
 			syslog(LOG_WARNING, "magic number mismatch (%x != %x)",
@@ -528,8 +523,8 @@ get_crashtime()
 {
 	time_t dumptime;			/* Time the dump was taken. */
 
-	Lseek(dumpfd, (off_t)(dumplo + ok(dump_nl[X_TIME].n_value)), L_SET);
-	(void)Read(dumpfd, &dumptime, sizeof(dumptime));
+	DumpRead(dumpfd, &dumptime, sizeof(dumptime),
+	    (off_t)(dumplo + ok(dump_nl[X_TIME].n_value)), L_SET);
 	if (dumptime == 0) {
 		if (verbose)
 			syslog(LOG_ERR, "dump time is zero");
@@ -548,8 +543,8 @@ void
 get_dumpsize()
 {
 	/* Read the dump size. */
-	Lseek(dumpfd, (off_t)(dumplo + ok(dump_nl[X_DUMPSIZE].n_value)), L_SET);
-	(void)Read(dumpfd, &dumpsize, sizeof(dumpsize));
+	DumpRead(dumpfd, &dumpsize, sizeof(dumpsize),
+	    (off_t)(dumplo + ok(dump_nl[X_DUMPSIZE].n_value)), L_SET);
 	dumpsize *= getpagesize();
 }
 
@@ -640,6 +635,74 @@ Lseek(fd, off, flag)
 	if (ret == -1) {
 		syslog(LOG_ERR, "lseek: %m");
 		exit(1);
+	}
+}
+
+/*
+ * DumpWrite and DumpRead block io requests to the * dump device.
+ */
+#define DUMPBUFSIZE	8192
+void
+DumpWrite(fd, bp, size, off, flag)
+	int fd, size, flag;
+	void *bp;
+	off_t off;
+{
+	unsigned char buf[DUMPBUFSIZE], *p, *q;
+	off_t pos;
+	int i, j;
+	
+	if (flag != L_SET) {
+		syslog(LOG_ERR, "lseek: not LSET");
+		exit(2);
+	}
+	q = bp;
+	while (size) {
+		pos = off & ~(DUMPBUFSIZE - 1);
+		Lseek(fd, pos, flag);
+		(void)Read(fd, buf, sizeof(buf));
+		j = off & (DUMPBUFSIZE - 1);
+		p = buf + j;
+		i = size;
+		if (i > DUMPBUFSIZE - j)
+			i = DUMPBUFSIZE - j;
+		memcpy(p, q, i);
+		Lseek(fd, pos, flag);
+		(void)Write(fd, buf, sizeof(buf));
+		size -= i;
+		q += i;
+		off += i;
+	}
+}
+
+void
+DumpRead(fd, bp, size, off, flag)
+	int fd, size, flag;
+	void *bp;
+	off_t off;
+{
+	unsigned char buf[DUMPBUFSIZE], *p, *q;
+	off_t pos;
+	int i, j;
+	
+	if (flag != L_SET) {
+		syslog(LOG_ERR, "lseek: not LSET");
+		exit(2);
+	}
+	q = bp;
+	while (size) {
+		pos = off & ~(DUMPBUFSIZE - 1);
+		Lseek(fd, pos, flag);
+		(void)Read(fd, buf, sizeof(buf));
+		j = off & (DUMPBUFSIZE - 1);
+		p = buf + j;
+		i = size;
+		if (i > DUMPBUFSIZE - j)
+			i = DUMPBUFSIZE - j;
+		memcpy(q, p, i);
+		size -= i;
+		q += i;
+		off += i;
 	}
 }
 
