@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)route.c	8.2 (Berkeley) 11/15/93
- *	$Id: route.c,v 1.33 1996/03/29 08:02:30 fenner Exp $
+ *	$Id: route.c,v 1.34 1996/07/10 01:34:35 fenner Exp $
  */
 
 #include "opt_mrouting.h"
@@ -535,7 +535,7 @@ rtrequest(req, dst, gateway, netmask, flags, ret_nrt)
 		 * it doesn't fire when we call it there because the node
 		 * hasn't been added to the tree yet.
 		 */
-		if (!(rt->rt_flags & RTF_HOST)) {
+		if (!(rt->rt_flags & RTF_HOST) && rt_mask(rt) != 0) {
 			struct rtfc_arg arg;
 			arg.rnh = rnh;
 			arg.rt0 = rt;
