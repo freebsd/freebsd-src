@@ -27,7 +27,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: cy.c,v 1.55 1997/09/21 21:40:57 gibbs Exp $
+ *	$Id: cy.c,v 1.56 1997/11/10 15:46:33 bde Exp $
  */
 
 #include "cy.h"
@@ -1463,12 +1463,12 @@ sioioctl(dev, cmd, data, flag, p)
 			dt->c_ospeed = tp->t_ospeed;
 	}
 	error = (*linesw[tp->t_line].l_ioctl)(tp, cmd, data, flag, p);
-	if (error >= 0)
+	if (error != ENOIOCTL)
 		return (error);
 	s = spltty();
 	error = ttioctl(tp, cmd, data, flag);
 	disc_optim(tp, &tp->t_termios, com);
-	if (error >= 0) {
+	if (error != ENOIOCTL) {
 		splx(s);
 		return (error);
 	}
