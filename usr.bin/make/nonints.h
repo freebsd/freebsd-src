@@ -94,10 +94,9 @@ void str_init(void);
 void str_end(void);
 char *str_concat(char *, char *, int);
 char **brk_string(char *, int *, Boolean);
-char *Str_FindSubstring(char *, char *);
-int Str_Match(char *, char *);
-char *Str_SYSVMatch(char *, char *, int *len);
-void Str_SYSVSubst(Buffer, char *, char *, int);
+int Str_Match(const char *, const char *);
+const char *Str_SYSVMatch(const char *, const char *, int *);
+void Str_SYSVSubst(Buffer, const char *, const char *, int);
 
 /* suff.c */
 void Suff_ClearSuffixes(void);

@@ -1877,7 +1877,7 @@ JobOutput(Job *job, char *cp, char *endp, int msg)
     char *ecp;
 
     if (commandShell->noPrint) {
-	ecp = Str_FindSubstring(cp, commandShell->noPrint);
+	ecp = strstr(cp, commandShell->noPrint);
 	while (ecp != NULL) {
 	    if (cp != ecp) {
 		*ecp = '\0';
@@ -1905,7 +1905,7 @@ JobOutput(Job *job, char *cp, char *endp, int msg)
 		while (*cp == ' ' || *cp == '\t' || *cp == '\n') {
 		    cp++;
 		}
-		ecp = Str_FindSubstring(cp, commandShell->noPrint);
+		ecp = strstr(cp, commandShell->noPrint);
 	    } else {
 		return cp;
 	    }
