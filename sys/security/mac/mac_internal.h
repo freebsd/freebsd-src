@@ -39,18 +39,22 @@
 /*
  * MAC Framework sysctl namespace.
  */
+#ifdef SYSCTL_DECL
 SYSCTL_DECL(_security);
 SYSCTL_DECL(_security_mac);
 #ifdef MAC_DEBUG
 SYSCTL_DECL(_security_mac_debug);
 SYSCTL_DECL(_security_mac_debug_counters);
 #endif
+#endif /* SYSCTL_DECL */
 
 /*
  * MAC Framework global types and typedefs.
  */
 LIST_HEAD(mac_policy_list_head, mac_policy_conf);
+#ifdef MALLOC_DECLARE
 MALLOC_DECLARE(M_MACTEMP);
+#endif
 
 /*
  * MAC Framework global variables.
