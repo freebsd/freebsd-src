@@ -87,10 +87,68 @@ static int	irq_penalty[MAX_ACPI_INTERRUPTS];
  */
 
 static void
+acpi_pci_link_dump_polarity(UINT32 ActiveHighLow)
+{
+
+	switch (ActiveHighLow) {
+	case ACPI_ACTIVE_HIGH:
+		printf("high,");
+		break;
+
+	case ACPI_ACTIVE_LOW:
+		printf("low,");
+		break;
+
+	default:
+		printf("unknown,");
+		break;
+	}
+}
+
+static void
+acpi_pci_link_dump_trigger(UINT32 EdgeLevel)
+{
+
+	switch (EdgeLevel) {
+	case ACPI_EDGE_SENSITIVE:
+		printf("edge,");
+		break;
+
+	case ACPI_LEVEL_SENSITIVE:
+		printf("level,");
+		break;
+
+	default:
+		printf("unknown,");
+		break;
+	}
+}
+
+static void
+acpi_pci_link_dump_sharemode(UINT32 SharedExclusive)
+{
+
+	switch (SharedExclusive) {
+	case ACPI_EXCLUSIVE:
+		printf("exclusive");
+		break;
+
+	case ACPI_SHARED:
+		printf("sharable");
+		break;
+
+	default:
+		printf("unknown");
+		break;
+	}
+}
+
+static void
 acpi_pci_link_entry_dump(struct acpi_prt_entry *entry)
 {
 	UINT8			i;
 	ACPI_RESOURCE_IRQ	*Irq;
+	ACPI_RESOURCE_EXT_IRQ	*ExtIrq;
 
 	if (entry == NULL || entry->pci_link == NULL) {
 		return;
@@ -105,57 +163,21 @@ acpi_pci_link_entry_dump(struct acpi_prt_entry *entry)
 	}
 	printf("] ");
 
-	Irq = NULL;
 	switch (entry->pci_link->possible_resources.Id) {
 	case ACPI_RSTYPE_IRQ:
 		Irq = &entry->pci_link->possible_resources.Data.Irq;
 
-		switch (Irq->ActiveHighLow) {
-		case ACPI_ACTIVE_HIGH:
-			printf("high,");
-			break;
-
-		case ACPI_ACTIVE_LOW:
-			printf("low,");
-			break;
-
-		default:
-			printf("unknown,");
-			break;
-		}
-		
-		switch (Irq->EdgeLevel) {
-		case ACPI_EDGE_SENSITIVE:
-			printf("edge,");
-			break;
-
-		case ACPI_LEVEL_SENSITIVE:
-			printf("level,");
-			break;
-
-		default:
-			printf("unknown,");
-			break;
-		}
-
-		switch (Irq->SharedExclusive) {
-		case ACPI_EXCLUSIVE:
-			printf("exclusive");
-			break;
-
-		case ACPI_SHARED:
-			printf("sharable");
-			break;
-
-		default:
-			printf("unknown");
-			break;
-		}
-
+		acpi_pci_link_dump_polarity(Irq->ActiveHighLow);
+		acpi_pci_link_dump_trigger(Irq->EdgeLevel);
+		acpi_pci_link_dump_sharemode(Irq->SharedExclusive);
 		break;
 
 	case ACPI_RSTYPE_EXT_IRQ:
-		/* TBD */
+		ExtIrq = &entry->pci_link->possible_resources.Data.ExtendedIrq;
+
+		acpi_pci_link_dump_polarity(ExtIrq->ActiveHighLow);
+		acpi_pci_link_dump_trigger(ExtIrq->EdgeLevel);
+		acpi_pci_link_dump_sharemode(ExtIrq->SharedExclusive);
 		break;
 	}
 
@@ -565,33 +587,34 @@ acpi_pci_link_set_irq(struct acpi_pci_link_entry *link, UINT8 irq)
 
 	bzero(&resbuf, sizeof(resbuf));
 	crsbuf.Pointer = NULL;
-	resbuf.Id = ACPI_RSTYPE_IRQ;
-	resbuf.Length = ACPI_SIZEOF_RESOURCE(ACPI_RESOURCE_IRQ);
 
-	if (link->possible_resources.Id != ACPI_RSTYPE_IRQ &&
-	    link->possible_resources.Id != ACPI_RSTYPE_EXT_IRQ) {
+	switch (link->possible_resources.Id) {
+	default:
 		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
 		    "Resource is not an IRQ entry %s - %d\n",
 		    acpi_name(link->handle), link->possible_resources.Id));
 		return_ACPI_STATUS (AE_TYPE);
-	}
 
-	switch (link->possible_resources.Id) {
 	case ACPI_RSTYPE_IRQ:
+		resbuf.Id = ACPI_RSTYPE_IRQ;
+		resbuf.Length = ACPI_SIZEOF_RESOURCE(ACPI_RESOURCE_IRQ);
+
 		/* structure copy other fields */
 		resbuf.Data.Irq = link->possible_resources.Data.Irq;
+		resbuf.Data.Irq.NumberOfInterrupts = 1;
+		resbuf.Data.Irq.Interrupts[0] = irq;
 		break;
 
 	case ACPI_RSTYPE_EXT_IRQ:
-		/* XXX */
-		resbuf.Data.Irq.EdgeLevel = ACPI_LEVEL_SENSITIVE;
-		resbuf.Data.Irq.ActiveHighLow = ACPI_ACTIVE_LOW;
-		resbuf.Data.Irq.SharedExclusive = ACPI_SHARED;
+		resbuf.Id = ACPI_RSTYPE_EXT_IRQ;
+		resbuf.Length = ACPI_SIZEOF_RESOURCE(ACPI_RESOURCE_EXT_IRQ);
+
+		/* structure copy other fields */
+		resbuf.Data.ExtendedIrq = link->possible_resources.Data.ExtendedIrq;
+		resbuf.Data.ExtendedIrq.NumberOfInterrupts = 1;
+		resbuf.Data.ExtendedIrq.Interrupts[0] = irq;
 		break;
 	}
-
-	resbuf.Data.Irq.NumberOfInterrupts = 1;
-	resbuf.Data.Irq.Interrupts[0] = irq;
 
 	error = acpi_AppendBufferResource(&crsbuf, &resbuf);
 	if (ACPI_FAILURE(error)) {
