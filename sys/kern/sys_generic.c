@@ -403,7 +403,8 @@ dofilewrite(p, fp, fd, buf, nbyte, offset, flags)
 	}
 #endif
 	cnt = nbyte;
-	bwillwrite();
+	if (fp->f_type == DTYPE_VNODE)
+		bwillwrite();
 	if ((error = fo_write(fp, &auio, fp->f_cred, flags, p))) {
 		if (auio.uio_resid != cnt && (error == ERESTART ||
 		    error == EINTR || error == EWOULDBLOCK))
