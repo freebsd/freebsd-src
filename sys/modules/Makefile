@@ -25,6 +25,7 @@ SUBDIR=	3dfx \
 	ed \
 	fdescfs \
 	fdc \
+	firewire \
 	fxp \
 	gx \
 	if_disc \
