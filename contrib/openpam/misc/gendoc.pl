@@ -32,7 +32,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $P4: //depot/projects/openpam/misc/gendoc.pl#27 $
+# $P4: //depot/projects/openpam/misc/gendoc.pl#29 $
 #
 
 use strict;
@@ -96,7 +96,7 @@ $COPYRIGHT = ".\\\"-
     PAM_CRED_UNAVAIL		=> "Failed to retrieve user credentials",
     PAM_CRED_EXPIRED		=> "User credentials have expired",
     PAM_CRED_ERR		=> "Failed to set user credentials",
-    PAM_ACCT_EXPIRED		=> "User accound has expired",
+    PAM_ACCT_EXPIRED		=> "User account has expired",
     PAM_AUTHTOK_EXPIRED		=> "Password has expired",
     PAM_SESSION_ERR		=> "Session failure",
     PAM_AUTHTOK_ERR		=> "Authentication token failure",
@@ -156,7 +156,7 @@ sub parse_source($) {
     $args = "\"$args\"";
 
     %xref = (
-	"pam 3" => 1
+	3 => { 'pam' => 1 },
     );
 
     if ($type eq "int") {
@@ -164,14 +164,21 @@ sub parse_source($) {
 	    next unless (m/^ \*\s+(!?PAM_[A-Z_]+|=[a-z_]+)\s*$/);
 	    push(@errors, $1);
 	}
-	$xref{"pam_strerror 3"} = 1;
+	++$xref{3}->{'pam_strerror'};
     }
 
     $argnames = $args;
+    # extract names of regular arguments
     $argnames =~ s/\"[^\"]+\*?\b(\w+)\"/\"$1\"/g;
+    # extract names of function pointer arguments
+    $argnames =~ s/\"([\w\s\*]+)\(\*?(\w+)\)\([^\)]+\)\"/\"$2\"/g;
+    # escape metacharacters (there shouldn't be any, but...)
     $argnames =~ s/([\|\[\]\(\)\.\*\+\?])/\\$1/g;
+    # separate argument names with |
     $argnames =~ s/\" \"/|/g;
+    # and surround with ()
     $argnames =~ s/^\"(.*)\"$/($1)/;
+    # $argnames is now a regexp that matches argument names
     $inliteral = $inlist = 0;
     foreach (split("\n", $source)) {
 	s/\s*$//;
@@ -197,8 +204,9 @@ sub parse_source($) {
 	    }
 	    next;
 	}
-	if (m/^>(\w+)(?:\s+(\d))?$/) {
-	    ++$xref{$2 ? "$1 $2" : "$1 3"};
+	if (m/^>(\w+)(\s+\d)?$/) {
+	    my ($page, $sect) = ($1, $2 ? int($2) : 3);
+	    ++$xref{$sect}->{$page};
 	    next;
 	}
 	if (s/^\s+(=?\w+):\s*/.It $1/) {
@@ -232,12 +240,12 @@ sub parse_source($) {
 	    next;
 	}
 	s/\s*=$func\b\s*/\n.Nm\n/gs;
-	s/\s*=$argnames\b\s*/\n.Va $1\n/gs;
+	s/\s*=$argnames\b\s*/\n.Fa $1\n/gs;
 	s/\s*=(struct \w+(?: \*)?)\b\s*/\n.Vt $1\n/gs;
 	s/\s*:([a-z_]+)\b\s*/\n.Va $1\n/gs;
 	s/\s*;([a-z_]+)\b\s*/\n.Dv $1\n/gs;
 	while (s/\s*=([a-z_]+)\b\s*/\n.Xr $1 3\n/s) {
-	    ++$xref{"$1 3"};
+	    ++$xref{3}->{$1};
 	}
 	s/\s*\"(?=\w)/\n.Do\n/gs;
 	s/\"(?!\w)\s*/\n.Dc\n/gs;
@@ -333,6 +341,23 @@ sub expand_errors($) {
     $func->{'errors'} = [ sort(keys(%errors)) ];
 }
 
+sub genxref($) {
+    my $xref = shift;		# References
+
+    my $mdoc = '';
+    my @refs = ();
+    foreach my $sect (sort(keys(%{$xref}))) {
+	foreach my $page (sort(keys(%{$xref->{$sect}}))) {
+	    push(@refs, "$page $sect");
+	}
+    }
+    while ($_ = shift(@refs)) {
+	$mdoc .= ".Xr $_" .
+	    (@refs ? " ,\n" : "\n");
+    }
+    return $mdoc;
+}
+
 sub gendoc($) {
     my $func = shift;		# Ref to function hash
 
@@ -391,11 +416,7 @@ on failure.
 ";
 	}
     }
-    $mdoc .= ".Sh SEE ALSO\n";
-    my @xref = sort(keys(%{$func->{'xref'}}));
-    while (@xref) {
-	$mdoc .= ".Xr " . shift(@xref) . (@xref ? " ,\n" : "\n");
-    }
+    $mdoc .= ".Sh SEE ALSO\n" . genxref($func->{'xref'});
     $mdoc .= ".Sh STANDARDS\n";
     if ($func->{'openpam'}) {
 	$mdoc .= "The
@@ -415,7 +436,7 @@ The
 function and this manual page were developed for the
 .Fx
 Project by ThinkSec AS and Network Associates Laboratories, the
-Security Research Division of Network Associates, Inc.  under
+Security Research Division of Network Associates, Inc.\& under
 DARPA/SPAWAR contract N66001-01-C-8035
 .Pq Dq CBOSS ,
 as part of the DARPA CHATS research program.
@@ -495,7 +516,7 @@ sub gensummary($) {
     }
     while (<STDIN>) {
 	if (m/^\.Xr (\S+)\s*(\d)\s*$/) {
-	    $xref{$1} = $2;
+	    ++$xref{int($2)}->{$1};
 	}
 	print FILE $_;
     }
@@ -503,7 +524,7 @@ sub gensummary($) {
     if ($page eq 'pam') {
 	print FILE ".Sh RETURN VALUES
 The following return codes are defined by
-.Aq Pa security/pam_constants.h :
+.In security/pam_constants.h :
 .Bl -tag -width 18n
 ";
 	foreach (sort(keys(%PAMERR))) {
@@ -513,18 +534,13 @@ The following return codes are defined by
     }
     print FILE ".Sh SEE ALSO
 ";
-    print FILE ".Xr openpam 3 ,\n"
-	if ($page eq 'pam');
+    if ($page eq 'pam') {
+	++$xref{3}->{'openpam'};
+    }
     foreach $func (keys(%FUNCTIONS)) {
-	$xref{$func} = 3;
+	++$xref{3}->{$func};
     }
-    my @refs = sort(keys(%xref));
-    while ($_ = shift(@refs)) {
-	print FILE ".Xr $_ $xref{$_}";
-	print FILE " ,"
-	    if (@refs);
-	print FILE "\n";
-    }
+    print FILE genxref(\%xref);
     print FILE ".Sh STANDARDS
 .Rs
 .%T \"X/Open Single Sign-On Service (XSSO) - Pluggable Authentication Modules\"
@@ -534,7 +550,7 @@ The following return codes are defined by
 The OpenPAM library and this manual page were developed for the
 .Fx
 Project by ThinkSec AS and Network Associates Laboratories, the
-Security Research Division of Network Associates, Inc.  under
+Security Research Division of Network Associates, Inc.\& under
 DARPA/SPAWAR contract N66001-01-C-8035
 .Pq Dq CBOSS ,
 as part of the DARPA CHATS research program.

@@ -1,5 +1,5 @@
 .\"
-.\" $P4: //depot/projects/openpam/doc/man/pam.man#2 $
+.\" $P4: //depot/projects/openpam/doc/man/pam.man#4 $
 .\"
 .Sh DESCRIPTION
 The Pluggable Authentication Modules (PAM) library abstracts a number
@@ -77,7 +77,7 @@ The
 .Fn pam_open_session
 and
 .Fn pam_close_session
-handle session setup and teardown.
+functions handle session setup and teardown.
 .Ss Password Management
 The
 .Fn pam_chauthtok
@@ -89,8 +89,9 @@ The
 .Fn pam_getenv
 and
 .Fn pam_getenvlist
-manage a private environment list in which modules can set environment
-variables they want the server to export during the session.
+functions manage a private environment list in which modules can set
+environment variables they want the server to export during the
+session.
 .Pp
 The
 .Fn pam_strerror

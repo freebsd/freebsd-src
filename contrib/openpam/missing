@@ -1,6 +1,10 @@
 #! /bin/sh
 # Common stub for a few missing GNU programs while installing.
-# Copyright 1996, 1997, 1999, 2000 Free Software Foundation, Inc.
+
+scriptversion=2003-09-02.23
+
+# Copyright (C) 1996, 1997, 1999, 2000, 2002, 2003 
+#   Free Software Foundation, Inc.
 # Originally by Fran,cois Pinard <pinard@iro.umontreal.ca>, 1996.
 
 # This program is free software; you can redistribute it and/or modify
@@ -38,12 +42,23 @@ else
   configure_ac=configure.in
 fi
 
+msg="missing on your system"
+
 case "$1" in
 --run)
   # Try to run requested program, and just exit if it succeeds.
   run=
   shift
   "$@" && exit 0
+  # Exit code 63 means version mismatch.  This often happens
+  # when the user try to use an ancient version of a tool on
+  # a file that requires a minimum version.  In this case we
+  # we should proceed has if the program had been absent, or
+  # if --run hadn't been passed.
+  if test $? = 63; then
+    run=:
+    msg="probably too old"
+  fi
   ;;
 esac
 
@@ -74,11 +89,13 @@ Supported PROGRAM values:
   lex          create \`lex.yy.c', if possible, from existing .c
   makeinfo     touch the output file
   tar          try tar, gnutar, gtar, then tar without non-portable flags
-  yacc         create \`y.tab.[ch]', if possible, from existing .[ch]"
+  yacc         create \`y.tab.[ch]', if possible, from existing .[ch]
+
+Send bug reports to <bug-automake@gnu.org>."
     ;;
 
   -v|--v|--ve|--ver|--vers|--versi|--versio|--version)
-    echo "missing 0.3 - GNU automake"
+    echo "missing $scriptversion (GNU Automake)"
     ;;
 
   -*)
@@ -87,9 +104,14 @@ Supported PROGRAM values:
     exit 1
     ;;
 
-  aclocal)
+  aclocal*)
+    if test -z "$run" && ($1 --version) > /dev/null 2>&1; then
+       # We have it, but it failed.
+       exit 1
+    fi
+
     echo 1>&2 "\
-WARNING: \`$1' is missing on your system.  You should only need it if
+WARNING: \`$1' is $msg.  You should only need it if
          you modified \`acinclude.m4' or \`${configure_ac}'.  You might want
          to install the \`Automake' and \`Perl' packages.  Grab them from
          any GNU archive site."
@@ -97,8 +119,13 @@ WARNING: \`$1' is missing on your system.  You should only need it if
     ;;
 
   autoconf)
+    if test -z "$run" && ($1 --version) > /dev/null 2>&1; then
+       # We have it, but it failed.
+       exit 1
+    fi
+
     echo 1>&2 "\
-WARNING: \`$1' is missing on your system.  You should only need it if
+WARNING: \`$1' is $msg.  You should only need it if
          you modified \`${configure_ac}'.  You might want to install the
          \`Autoconf' and \`GNU m4' packages.  Grab them from any GNU
          archive site."
@@ -106,8 +133,13 @@ WARNING: \`$1' is missing on your system.  You should only need it if
     ;;
 
   autoheader)
+    if test -z "$run" && ($1 --version) > /dev/null 2>&1; then
+       # We have it, but it failed.
+       exit 1
+    fi
+
     echo 1>&2 "\
-WARNING: \`$1' is missing on your system.  You should only need it if
+WARNING: \`$1' is $msg.  You should only need it if
          you modified \`acconfig.h' or \`${configure_ac}'.  You might want
          to install the \`Autoconf' and \`GNU m4' packages.  Grab them
          from any GNU archive site."
@@ -124,9 +156,14 @@ WARNING: \`$1' is missing on your system.  You should only need it if
     touch $touch_files
     ;;
 
-  automake)
+  automake*)
+    if test -z "$run" && ($1 --version) > /dev/null 2>&1; then
+       # We have it, but it failed.
+       exit 1
+    fi
+
     echo 1>&2 "\
-WARNING: \`$1' is missing on your system.  You should only need it if
+WARNING: \`$1' is $msg.  You should only need it if
          you modified \`Makefile.am', \`acinclude.m4' or \`${configure_ac}'.
          You might want to install the \`Automake' and \`Perl' packages.
          Grab them from any GNU archive site."
@@ -135,9 +172,37 @@ WARNING: \`$1' is missing on your system.  You should only need it if
 	   while read f; do touch "$f"; done
     ;;
 
+  autom4te)
+    if test -z "$run" && ($1 --version) > /dev/null 2>&1; then
+       # We have it, but it failed.
+       exit 1
+    fi
+
+    echo 1>&2 "\
+WARNING: \`$1' is needed, but is $msg.
+         You might have modified some files without having the
+         proper tools for further handling them.
+         You can get \`$1' as part of \`Autoconf' from any GNU
+         archive site."
+
+    file=`echo "$*" | sed -n 's/.*--output[ =]*\([^ ]*\).*/\1/p'`
+    test -z "$file" && file=`echo "$*" | sed -n 's/.*-o[ ]*\([^ ]*\).*/\1/p'`
+    if test -f "$file"; then
+	touch $file
+    else
+	test -z "$file" || exec >$file
+	echo "#! /bin/sh"
+	echo "# Created by GNU Automake missing as a replacement of"
+	echo "#  $ $@"
+	echo "exit 0"
+	chmod +x $file
+	exit 1
+    fi
+    ;;
+
   bison|yacc)
     echo 1>&2 "\
-WARNING: \`$1' is missing on your system.  You should only need it if
+WARNING: \`$1' $msg.  You should only need it if
          you modified a \`.y' file.  You may need the \`Bison' package
          in order for those modifications to take effect.  You can get
          \`Bison' from any GNU archive site."
@@ -167,7 +232,7 @@ WARNING: \`$1' is missing on your system.  You should only need it if
 
   lex|flex)
     echo 1>&2 "\
-WARNING: \`$1' is missing on your system.  You should only need it if
+WARNING: \`$1' is $msg.  You should only need it if
          you modified a \`.l' file.  You may need the \`Flex' package
          in order for those modifications to take effect.  You can get
          \`Flex' from any GNU archive site."
@@ -189,8 +254,13 @@ WARNING: \`$1' is missing on your system.  You should only need it if
     ;;
 
   help2man)
+    if test -z "$run" && ($1 --version) > /dev/null 2>&1; then
+       # We have it, but it failed.
+       exit 1
+    fi
+
     echo 1>&2 "\
-WARNING: \`$1' is missing on your system.  You should only need it if
+WARNING: \`$1' is $msg.  You should only need it if
 	 you modified a dependency of a manual page.  You may need the
 	 \`Help2man' package in order for those modifications to take
 	 effect.  You can get \`Help2man' from any GNU archive site."
@@ -215,7 +285,7 @@ WARNING: \`$1' is missing on your system.  You should only need it if
     fi
 
     echo 1>&2 "\
-WARNING: \`$1' is missing on your system.  You should only need it if
+WARNING: \`$1' is $msg.  You should only need it if
          you modified a \`.texi' or \`.texinfo' file, or any other file
          indirectly affecting the aspect of the manual.  The spurious
          call might also be the consequence of using a buggy \`make' (AIX,
@@ -240,23 +310,23 @@ WARNING: \`$1' is missing on your system.  You should only need it if
     # Look for gnutar/gtar before invocation to avoid ugly error
     # messages.
     if (gnutar --version > /dev/null 2>&1); then
-       gnutar ${1+"$@"} && exit 0
+       gnutar "$@" && exit 0
     fi
     if (gtar --version > /dev/null 2>&1); then
-       gtar ${1+"$@"} && exit 0
+       gtar "$@" && exit 0
     fi
     firstarg="$1"
     if shift; then
 	case "$firstarg" in
 	*o*)
 	    firstarg=`echo "$firstarg" | sed s/o//`
-	    tar "$firstarg" ${1+"$@"} && exit 0
+	    tar "$firstarg" "$@" && exit 0
 	    ;;
 	esac
 	case "$firstarg" in
 	*h*)
 	    firstarg=`echo "$firstarg" | sed s/h//`
-	    tar "$firstarg" ${1+"$@"} && exit 0
+	    tar "$firstarg" "$@" && exit 0
 	    ;;
 	esac
     fi
@@ -270,10 +340,10 @@ WARNING: I can't seem to be able to run \`tar' with the given arguments.
 
   *)
     echo 1>&2 "\
-WARNING: \`$1' is needed, and you do not seem to have it handy on your
-         system.  You might have modified some files without having the
+WARNING: \`$1' is needed, and is $msg.
+         You might have modified some files without having the
          proper tools for further handling them.  Check the \`README' file,
-         it often tells you about the needed prerequirements for installing
+         it often tells you about the needed prerequisites for installing
          this package.  You may also peek at any GNU archive site, in case
          some other package would contain this missing \`$1' program."
     exit 1
@@ -281,3 +351,10 @@ WARNING: \`$1' is needed, and you do not seem to have it handy on your
 esac
 
 exit 0
+
+# Local variables:
+# eval: (add-hook 'write-file-hooks 'time-stamp)
+# time-stamp-start: "scriptversion="
+# time-stamp-format: "%:y-%02m-%02d.%02H"
+# time-stamp-end: "$"
+# End:

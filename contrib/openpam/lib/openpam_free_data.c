@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/openpam_free_data.c#5 $
+ * $P4: //depot/projects/openpam/lib/openpam_free_data.c#7 $
  */
 
 #include <stdlib.h>
@@ -48,7 +48,9 @@
  */
 
 void
-openpam_free_data(pam_handle_t *pamh, void *data, int status)
+openpam_free_data(pam_handle_t *pamh,
+	void *data,
+	int status)
 {
 
 	ENTER();
@@ -63,7 +65,7 @@ openpam_free_data(pam_handle_t *pamh, void *data, int status)
  */
 
 /**
- * The =openpam_free_data is a cleanup function suitable for passing to
- * =pam_set_data.  It simply releases the data by passing its =data
- * argument to =free.
+ * The =openpam_free_data function is a cleanup function suitable for
+ * passing to =pam_set_data.
+ * It simply releases the data by passing its =data argument to =free.
  */

@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/pam_strerror.c#12 $
+ * $P4: //depot/projects/openpam/lib/pam_strerror.c#13 $
  */
 
 #include <stdio.h>
@@ -124,7 +124,7 @@ pam_strerror(pam_handle_t *pamh,
 	case PAM_CRED_ERR:
 		return ("failed to set user credentials");
 	case PAM_ACCT_EXPIRED:
-		return ("user accound has expired");
+		return ("user account has expired");
 	case PAM_AUTHTOK_EXPIRED:
 		return ("password has expired");
 	case PAM_SESSION_ERR:
