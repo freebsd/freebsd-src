@@ -490,3 +490,19 @@
 .tm xX==\\n(xX local register
 .tm END OF REGISTER DUMP
 ..
+.\" Ns Lb macro - Formal library names for LIBRARY sections
+.\"  note: this macro does not handle punctuation
+.\"        it is really only intended for standalone use.
+.de Lb
+.nr cF \\n(.f
+.nr cZ \\n(.s
+.ds aa \&\f\\n(cF\s\\n(cZ
+.if !\\n(.$==1 .tm Usage: .Lb [library name]
+.if "\\$1"libc" \&Standard C Library (libc, -lc)
+.if "\\$1"libcompat" \&Compatibility Library (libcompat, -lcompat)
+.if "\\$1"libcrypt" \&Crypt Library (libcrypt, -lcrypt)
+.if "\\$1"libkvm" \&Kernel Data Access Library (libkvm, -lkvm)
+.if "\\$1"libm" \&Math Library (libm, -lm)
+.if "\\$1"libutil" \&System Utilities Library (libutil, -lutil)
+.if "\\$1"libz" \&Compression Library (libz, -lz)
+..
