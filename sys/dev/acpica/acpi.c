@@ -929,7 +929,7 @@ acpi_shutdown_final(void *arg, int howto)
     ACPI_ASSERTLOCK;
 
     if (howto & RB_POWEROFF) {
-	printf("Power system off using ACPI...\n");
+	printf("Powering system off using ACPI\n");
 	if (ACPI_FAILURE(status = AcpiEnterSleepStatePrep(acpi_off_state))) {
 	    printf("AcpiEnterSleepStatePrep failed - %s\n",
 		   AcpiFormatException(status));
@@ -942,7 +942,7 @@ acpi_shutdown_final(void *arg, int howto)
 	    printf("ACPI power-off failed - timeout\n");
 	}
     } else {
-	printf("Terminate ACPI\n");
+	printf("Shutting down ACPI\n");
 	AcpiTerminate();
     }
 }
