@@ -1,4 +1,4 @@
-/*	$KAME: getnameinfo.c,v 1.45 2000/09/25 22:43:56 itojun Exp $	*/
+/*	$KAME: getnameinfo.c,v 1.61 2002/06/27 09:25:47 itojun Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
@@ -58,12 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <stddef.h>
 #include <errno.h>
 
-#define SUCCESS 0
-#define ANY 0
-#define YES 1
-#define NO  0
-
-static struct afd {
+static const struct afd {
 	int a_af;
 	int a_addrlen;
 	int a_socklen;
@@ -86,18 +81,9 @@ struct sockinet {
 
 #ifdef INET6
 static int ip6_parsenumeric(const struct sockaddr *, const char *, char *,
-	    size_t, int);
+    size_t, int);
 static int ip6_sa2str(const struct sockaddr_in6 *, char *, size_t, int);
 #endif
-
-/* 2553bis: use EAI_xx for getnameinfo */
-#define ENI_NOSOCKET 	EAI_FAIL		/*XXX*/
-#define ENI_NOSERVNAME	EAI_NONAME
-#define ENI_NOHOSTNAME	EAI_NONAME
-#define ENI_MEMORY	EAI_MEMORY
-#define ENI_SYSTEM	EAI_SYSTEM
-#define ENI_FAMILY	EAI_FAMILY
-#define ENI_SALEN	EAI_FAMILY
 
 int
 getnameinfo(sa, salen, host, hostlen, serv, servlen, flags)
@@ -109,7 +95,7 @@ getnameinfo(sa, salen, host, hostlen, serv, servlen, flags)
 	size_t servlen;
 	int flags;
 {
-	struct afd *afd;
+	const struct afd *afd;
 	struct servent *sp;
 	struct hostent *hp;
 	u_short port;
@@ -121,23 +107,23 @@ getnameinfo(sa, salen, host, hostlen, serv, servlen, flags)
 	char numaddr[512];
 
 	if (sa == NULL)
-		return ENI_NOSOCKET;
+		return EAI_FAIL;
 
 	if (sa->sa_len != salen)
-		return ENI_SALEN;
-	
+		return EAI_FAIL;
+
 	family = sa->sa_family;
 	for (i = 0; afdl[i].a_af; i++)
 		if (afdl[i].a_af == family) {
 			afd = &afdl[i];
 			goto found;
 		}
-	return ENI_FAMILY;
-	
+	return EAI_FAMILY;
+
  found:
 	if (salen != afd->a_socklen)
-		return ENI_SALEN;
-	
+		return EAI_FAIL;
+
 	/* network byte order */
 	port = ((const struct sockinet *)sa)->si_port;
 	addr = (const char *)sa + afd->a_off;
@@ -146,8 +132,8 @@ getnameinfo(sa, salen, host, hostlen, serv, servlen, flags)
 		/*
 		 * do nothing in this case.
 		 * in case you are wondering if "&&" is more correct than
-		 * "||" here: RFC2553 says that serv == NULL OR servlen == 0
-		 * means that the caller does not want the result.
+		 * "||" here: rfc2553bis-03 says that serv == NULL OR
+		 * servlen == 0 means that the caller does not want the result.
 		 */
 	} else {
 		if (flags & NI_NUMERICSERV)
@@ -158,13 +144,13 @@ getnameinfo(sa, salen, host, hostlen, serv, servlen, flags)
 		}
 		if (sp) {
 			if (strlen(sp->s_name) + 1 > servlen)
-				return ENI_MEMORY;
-			strcpy(serv, sp->s_name);
+				return EAI_MEMORY;
+			strlcpy(serv, sp->s_name, servlen);
 		} else {
-			snprintf(numserv, sizeof(numserv), "%d", ntohs(port));
+			snprintf(numserv, sizeof(numserv), "%u", ntohs(port));
 			if (strlen(numserv) + 1 > servlen)
-				return ENI_MEMORY;
-			strcpy(serv, numserv);
+				return EAI_MEMORY;
+			strlcpy(serv, numserv, servlen);
 		}
 	}
 
@@ -208,15 +194,15 @@ getnameinfo(sa, salen, host, hostlen, serv, servlen, flags)
 		/*
 		 * do nothing in this case.
 		 * in case you are wondering if "&&" is more correct than
-		 * "||" here: RFC2553 says that host == NULL OR hostlen == 0
-		 * means that the caller does not want the result.
+		 * "||" here: rfc2553bis-03 says that host == NULL or
+		 * hostlen == 0 means that the caller does not want the result.
 		 */
 	} else if (flags & NI_NUMERICHOST) {
 		int numaddrlen;
 
 		/* NUMERICHOST and NAMEREQD conflicts with each other */
 		if (flags & NI_NAMEREQD)
-			return ENI_NOHOSTNAME;
+			return EAI_NONAME;
 
 		switch(afd->a_af) {
 #ifdef INET6
@@ -233,11 +219,11 @@ getnameinfo(sa, salen, host, hostlen, serv, servlen, flags)
 		default:
 			if (inet_ntop(afd->a_af, addr, numaddr, sizeof(numaddr))
 			    == NULL)
-				return ENI_SYSTEM;
+				return EAI_SYSTEM;
 			numaddrlen = strlen(numaddr);
 			if (numaddrlen + 1 > hostlen) /* don't forget terminator */
-				return ENI_MEMORY;
-			strcpy(host, numaddr);
+				return EAI_MEMORY;
+			strlcpy(host, numaddr, hostlen);
 			break;
 		}
 	} else {
@@ -258,13 +244,13 @@ getnameinfo(sa, salen, host, hostlen, serv, servlen, flags)
 #endif
 			if (strlen(hp->h_name) + 1 > hostlen) {
 				freehostent(hp);
-				return ENI_MEMORY;
+				return EAI_MEMORY;
 			}
-			strcpy(host, hp->h_name);
+			strlcpy(host, hp->h_name, hostlen);
 			freehostent(hp);
 		} else {
 			if (flags & NI_NAMEREQD)
-				return ENI_NOHOSTNAME;
+				return EAI_NONAME;
 			switch(afd->a_af) {
 #ifdef INET6
 			case AF_INET6:
@@ -281,12 +267,12 @@ getnameinfo(sa, salen, host, hostlen, serv, servlen, flags)
 			default:
 				if (inet_ntop(afd->a_af, addr, host,
 				    hostlen) == NULL)
-					return ENI_SYSTEM;
+					return EAI_SYSTEM;
 				break;
 			}
 		}
 	}
-	return SUCCESS;
+	return(0);
 }
 
 #ifdef INET6
@@ -301,30 +287,29 @@ ip6_parsenumeric(sa, addr, host, hostlen, flags)
 	int numaddrlen;
 	char numaddr[512];
 
-	if (inet_ntop(AF_INET6, addr, numaddr, sizeof(numaddr))
-	    == NULL)
-		return ENI_SYSTEM;
+	if (inet_ntop(AF_INET6, addr, numaddr, sizeof(numaddr)) == NULL)
+		return EAI_SYSTEM;
 
 	numaddrlen = strlen(numaddr);
 	if (numaddrlen + 1 > hostlen) /* don't forget terminator */
-		return ENI_MEMORY;
-	strcpy(host, numaddr);
+		return EAI_MEMORY;
+	strlcpy(host, numaddr, hostlen);
 
 	if (((const struct sockaddr_in6 *)sa)->sin6_scope_id) {
 		char zonebuf[MAXHOSTNAMELEN];
 		int zonelen;
 
-		/* ip6_sa2str never fails */
 		zonelen = ip6_sa2str(
 		    (const struct sockaddr_in6 *)(const void *)sa,
 		    zonebuf, sizeof(zonebuf), flags);
 		if (zonelen < 0)
 			return EAI_MEMORY;
 		if (zonelen + 1 + numaddrlen + 1 > hostlen)
-			return ENI_MEMORY;
-		/* construct <numeric-addr><delim><scopeid> */
+			return EAI_MEMORY;
+
+		/* construct <numeric-addr><delim><zoneid> */
 		memcpy(host + numaddrlen + 1, zonebuf,
-		       (size_t)zonelen);
+		    (size_t)zonelen);
 		host[numaddrlen] = SCOPE_DELIMITER;
 		host[numaddrlen + 1 + zonelen] = '\0';
 	}
@@ -340,18 +325,26 @@ ip6_sa2str(sa6, buf, bufsiz, flags)
 	size_t bufsiz;
 	int flags;
 {
-	unsigned int ifindex = (unsigned int)sa6->sin6_scope_id;
-	const struct in6_addr *a6 = &sa6->sin6_addr;
+	unsigned int ifindex;
+	const struct in6_addr *a6;
+	int n;
+
+	ifindex = (unsigned int)sa6->sin6_scope_id;
+	a6 = &sa6->sin6_addr;
 
 #ifdef NI_NUMERICSCOPE
-	if (flags & NI_NUMERICSCOPE) {
-		return(snprintf(buf, bufsiz, "%d", sa6->sin6_scope_id));
+	if ((flags & NI_NUMERICSCOPE) != 0) {
+		n = snprintf(buf, bufsiz, "%u", sa6->sin6_scope_id);
+		if (n < 0 || n >= bufsiz)
+			return -1;
+		else
+			return n;
 	}
 #endif
 
 	/* if_indextoname() does not take buffer size.  not a good api... */
-	if ((IN6_IS_ADDR_LINKLOCAL(a6) || IN6_IS_ADDR_MC_LINKLOCAL(a6)) &&
-	    bufsiz >= IF_NAMESIZE) {
+	if ((IN6_IS_ADDR_LINKLOCAL(a6) || IN6_IS_ADDR_MC_LINKLOCAL(a6) ||
+	     IN6_IS_ADDR_MC_NODELOCAL(a6)) && bufsiz >= IF_NAMESIZE) {
 		char *p = if_indextoname(ifindex, buf);
 		if (p) {
 			return(strlen(p));
@@ -359,6 +352,10 @@ ip6_sa2str(sa6, buf, bufsiz, flags)
 	}
 
 	/* last resort */
-	return(snprintf(buf, bufsiz, "%u", sa6->sin6_scope_id));
+	n = snprintf(buf, bufsiz, "%u", sa6->sin6_scope_id);
+	if (n < 0 || n >= bufsiz)
+		return -1;
+	else
+		return n;
 }
 #endif /* INET6 */
