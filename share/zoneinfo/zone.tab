@@ -3,7 +3,7 @@
 # From Paul Eggert <eggert@twinsun.com> (1996-08-05):
 #
 # This file contains a table with the following columns:
-# 1.  ISO 3166 2-character country code.  See the file `iso3166.tab'.
+# 1.  ISO 3166 2-character country code.  See /usr/share/misc/iso3166.
 # 2.  Latitude and longitude of the zone's principal location
 #     in ISO 6709 sign-degrees-minutes-seconds format,
 #     either +-DDMM+-DDDMM or +-DDMMSS+-DDDMMSS,
