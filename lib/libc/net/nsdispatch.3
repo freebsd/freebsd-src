@@ -189,9 +189,10 @@ Refer to
 .Xr nsswitch.conf 5
 for a complete description of what each status code is.
 .Pp
-.Nm
-returns the value of the callback that caused the dispatcher to finish,
-or NS_NOTFOUND otherwise.
+The
+.Fn nsdispatch
+function returns the value of the callback that caused the dispatcher to
+finish, or NS_NOTFOUND otherwise.
 .Sh SEE ALSO
 .Xr hesiod 3 ,
 .Xr stdarg 3 ,
@@ -199,13 +200,13 @@ or NS_NOTFOUND otherwise.
 .Xr nsswitch.conf 5
 .Sh HISTORY
 The
-.Nm
-routines first appeared in
+.Fn nsdispatch
+function first appeared in
 .Fx 5.0 .
-They were imported from the
+It was imported from the
 .Nx
 Project,
-where they appeared first in
+where it appeared first in
 .Nx 1.4 .
 .Sh AUTHORS
 Luke Mewburn
@@ -220,8 +221,8 @@ and
 manual pages.
 .Sh BUGS
 The
-.Nm
-routines are not thread safe.
+.Fn nsdispatch
+function is not thread safe.
 This will be rectified in the future.
 .Pp
 Currently there is no support for dynamically loadable dispatcher callback

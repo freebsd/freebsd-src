@@ -236,8 +236,9 @@ or
 all signals, the signal mask, the signal stack,
 and the restart/interrupt flags are inherited by the child.
 .Pp
-.Xr Execve 2
-reinstates the default
+The
+.Xr execve 2
+system call reinstates the default
 action for all signals which were caught and
 resets all signals to be caught on the user stack.
 Ignored signals remain ignored;
