@@ -42,8 +42,10 @@ foreign-language documentation or ports, use the following patterns:
     ports/french
     ports/german
     ports/hebrew
+    ports/hungarian
     ports/japanese
     ports/korean
+    ports/portuguese
     ports/russian
     ports/ukrainian
     ports/vietnamese
