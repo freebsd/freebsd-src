@@ -476,6 +476,10 @@ fastcall3(fcall3 f, uint32_t a, uint32_t b, uint32_t c)
 #define FASTCALL3(f, a, b, c) (f)((a), (b), (c))
 #endif /* __i386__ */
 
+#define FUNC void(*)(void)
+#define IMPORT_FUNC(x)		{ #x, (FUNC)x }
+#define IMPORT_FUNC_MAP(x, y)	{ #x, (FUNC)y }
+
 __BEGIN_DECLS
 extern int pe_get_dos_header(vm_offset_t, image_dos_header *);
 extern int pe_is_nt_image(vm_offset_t);

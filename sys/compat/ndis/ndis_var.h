@@ -953,6 +953,7 @@ struct ndis_work_item {
 
 typedef struct ndis_work_item ndis_work_item;
 
+#ifdef notdef
 struct ndis_buffer {
 	struct ndis_buffer	*nb_next;
 	uint16_t		nb_size;
@@ -965,6 +966,7 @@ struct ndis_buffer {
 };
 
 typedef struct ndis_buffer ndis_buffer;
+#endif
 
 struct ndis_sc_element {
 	ndis_physaddr		nse_addr;

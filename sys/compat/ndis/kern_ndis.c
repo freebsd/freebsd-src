@@ -786,9 +786,9 @@ ndis_return(arg)
 		return;
 
 	returnfunc = sc->ndis_chars.nmc_return_packet_func;
-	irql = ntoskrnl_raise_irql(DISPATCH_LEVEL);
+	irql = KeRaiseIrql(DISPATCH_LEVEL);
 	returnfunc(adapter, p);
-	ntoskrnl_lower_irql(irql);
+	KeLowerIrql(irql);
 
 	return;
 }
@@ -827,7 +827,7 @@ ndis_free_bufs(b0)
 		return;
 
 	while(b0 != NULL) {
-		next = b0->nb_next;
+		next = b0->mdl_next;
 		uma_zfree (ndis_buffer_zone, b0);
 		b0 = next;
 	}
@@ -989,7 +989,7 @@ ndis_ptom(m0, p)
 	buf = priv->npp_head;
 	p->np_refcnt = 0;
 
-	for (buf = priv->npp_head; buf != NULL; buf = buf->nb_next) {
+	for (buf = priv->npp_head; buf != NULL; buf = buf->mdl_next) {
 		if (buf == priv->npp_head)
 			MGETHDR(m, M_DONTWAIT, MT_HEADER);
 		else
@@ -999,8 +999,8 @@ ndis_ptom(m0, p)
 			*m0 = NULL;
 			return(ENOBUFS);
 		}
-		m->m_len = buf->nb_bytecount;
-		m->m_data = MDL_VA(buf);
+		m->m_len = MmGetMdlByteCount(buf);
+		m->m_data = MmGetMdlVirtualAddress(buf);
 		MEXTADD(m, m->m_data, m->m_len, ndis_return_packet,
 		    p, 0, EXT_NDIS);
 		p->np_refcnt++;
@@ -1067,11 +1067,11 @@ ndis_mtop(m0, p)
 			return(ENOMEM);
 		}
 
-		MDL_INIT(buf, m->m_data, m->m_len);
+		MmInitializeMdl(buf, m->m_data, m->m_len);
 		if (priv->npp_head == NULL)
 			priv->npp_head = buf;
 		else
-			prev->nb_next = buf;
+			prev->mdl_next = buf;
 		prev = buf;
 	}
 
@@ -1136,10 +1136,10 @@ ndis_set_info(arg, oid, buf, buflen)
 	if (adapter == NULL || setfunc == NULL)
 		return(ENXIO);
 
-	ntoskrnl_acquire_spinlock(&sc->ndis_block.nmb_lock, &irql);
+	KeAcquireSpinLock(&sc->ndis_block.nmb_lock, &irql);
 	rval = setfunc(adapter, oid, buf, *buflen,
 	    &byteswritten, &bytesneeded);
-	ntoskrnl_release_spinlock(&sc->ndis_block.nmb_lock, irql);
+	KeReleaseSpinLock(&sc->ndis_block.nmb_lock, irql);
 
 	if (rval == NDIS_STATUS_PENDING) {
 		mtx_lock(&ndis_req_mtx);
@@ -1193,9 +1193,9 @@ ndis_send_packets(arg, packets, cnt)
 		return(ENXIO);
 	sendfunc = sc->ndis_chars.nmc_sendmulti_func;
 	senddonefunc = sc->ndis_block.nmb_senddone_func;
-	irql = ntoskrnl_raise_irql(DISPATCH_LEVEL);
+	irql = KeRaiseIrql(DISPATCH_LEVEL);
 	sendfunc(adapter, packets, cnt);
-	ntoskrnl_lower_irql(irql);
+	KeLowerIrql(irql);
 
 	for (i = 0; i < cnt; i++) {
 		p = packets[i];
@@ -1232,9 +1232,9 @@ ndis_send_packet(arg, packet)
 	sendfunc = sc->ndis_chars.nmc_sendsingle_func;
 	senddonefunc = sc->ndis_block.nmb_senddone_func;
 
-	irql = ntoskrnl_raise_irql(DISPATCH_LEVEL);
+	irql = KeRaiseIrql(DISPATCH_LEVEL);
 	status = sendfunc(adapter, packet, packet->np_private.npp_flags);
-	ntoskrnl_lower_irql(irql);
+	KeLowerIrql(irql);
 
 	if (status == NDIS_STATUS_PENDING)
 		return(0);
@@ -1321,9 +1321,9 @@ ndis_reset_nic(arg)
 	if (adapter == NULL || resetfunc == NULL)
 		return(EIO);
 
-	irql = ntoskrnl_raise_irql(DISPATCH_LEVEL);
+	irql = KeRaiseIrql(DISPATCH_LEVEL);
 	rval = resetfunc(&addressing_reset, adapter);
-	ntoskrnl_lower_irql(irql);
+	KeLowerIrql(irql);
 
 	if (rval == NDIS_STATUS_PENDING) {
 		mtx_lock(&ndis_req_mtx);
@@ -1554,10 +1554,10 @@ ndis_get_info(arg, oid, buf, buflen)
 	if (adapter == NULL || queryfunc == NULL)
 		return(ENXIO);
 
-	ntoskrnl_acquire_spinlock(&sc->ndis_block.nmb_lock, &irql);
+	KeAcquireSpinLock(&sc->ndis_block.nmb_lock, &irql);
 	rval = queryfunc(adapter, oid, buf, *buflen,
 	    &byteswritten, &bytesneeded);
-	ntoskrnl_release_spinlock(&sc->ndis_block.nmb_lock, irql);
+	KeReleaseSpinLock(&sc->ndis_block.nmb_lock, irql);
 
 	/* Wait for requests that block. */
 
@@ -1711,7 +1711,7 @@ ndis_load_driver(img, arg)
 	ndis_enlarge_thrqueue(8);
 
 	TAILQ_INSERT_TAIL(&ndis_devhead, block, link);
-	ntoskrnl_init_lock(&block->nmb_lock);
+	KeInitializeSpinLock(&block->nmb_lock);
 
 	return(0);
 }
