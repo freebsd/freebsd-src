@@ -47,17 +47,12 @@ static const char rcsid[] =
 /*
  * build the ioconf.c file
  */
-static char	*qu __P((int));
-static char	*wnum __P((int));
 static void	scbus_devtab __P((FILE *));
 
 static char *
 devstr(struct device *dp)
 {
     static char buf[100];
-
-    if (dp == TO_NEXUS)
-	return "nexus0";
 
     if (dp->d_unit >= 0) {
 	snprintf(buf, sizeof(buf), "%s%d", dp->d_name, dp->d_unit);
@@ -70,11 +65,15 @@ static void
 write_device_resources(FILE *fp, struct device *dp)
 {
     int count = 0;
+    char buf[80];
 
     fprintf(fp, "struct config_resource %s_resources[] = {\n", devstr(dp));
     if (dp->d_conn) {
-	fprintf(fp, "\t{ \"at\",\tRES_STRING,\t{ (long)\"%s\" }},\n",
-		devstr(dp->d_conn));
+	if (dp->d_connunit >= 0)
+	    snprintf(buf, sizeof(buf), "%s%d", dp->d_conn, dp->d_connunit);
+	else
+	    snprintf(buf, sizeof(buf), "%s", dp->d_conn);
+	fprintf(fp, "\t{ \"at\",\tRES_STRING,\t{ (long)\"%s\" }},\n", buf);
 	count++;
     }
     if (dp->d_drive != -2) {
@@ -87,6 +86,10 @@ write_device_resources(FILE *fp, struct device *dp)
     }
     if (dp->d_lun != -2) {
 	fprintf(fp, "\t{ \"lun\",\tRES_INT,\t{ %d }},\n", dp->d_lun);
+	count++;
+    }
+    if (dp->d_bus != -2) {
+	fprintf(fp, "\t{ \"bus\",\tRES_INT,\t{ %d }},\n", dp->d_bus);
 	count++;
     }
     if (dp->d_flags) {
@@ -135,7 +138,7 @@ write_all_device_resources(FILE *fp)
 	struct device *dp;
 
 	for (dp = dtab; dp != 0; dp = dp->d_next) {
-		if (dp->d_type != CONTROLLER && dp->d_type != DEVICE)
+		if (dp->d_type != DEVICE)
 			continue;
 		write_device_resources(fp, dp);
 	}
@@ -153,7 +156,7 @@ write_devtab(FILE *fp)
 	fprintf(fp, "struct config_device config_devtab[] = {\n");
 	for (dp = dtab; dp != 0; dp = dp->d_next) {
 		char* n = devstr(dp);
-		if (dp->d_type != CONTROLLER && dp->d_type != DEVICE)
+		if (dp->d_type != DEVICE)
 			continue;
 		fprintf(fp, "\t{ \"%s\",\t%d,\t%s_count,\t%s_resources },\n",
 			dp->d_name, dp->d_unit, n, n);
@@ -204,6 +207,8 @@ newbus_ioconf()
 static char *
 id(int unit)
 {
+	static char buf[32];
+
 	char *s;
 	switch(unit)
 	{
@@ -216,19 +221,11 @@ id(int unit)
 		break;
 
 		default:
-		s = qu(unit);
+		(void) snprintf(buf, sizeof(buf), "%d", unit);
+		s = buf;
 	}
 
 	return s;
-}
-
-static void
-id_put(fp, unit, s)
-	FILE *fp;
-	int unit;
-	char *s;
-{
-	fprintf(fp, "%s%s", id(unit), s);
 }
 
 /* XXX: dufault@hda.com: wiped out mkioconf.c locally:
@@ -239,7 +236,7 @@ static void
 scbus_devtab(fp)
 	FILE	*fp;
 {
-	register struct device *dp, *mp;
+	register struct device *dp;
 
 	fprintf(fp, "\n");
 	fprintf(fp, "/*\n");
@@ -251,20 +248,14 @@ scbus_devtab(fp)
 	fprintf(fp, "struct cam_sim_config cam_sinit[] = {\n");
 	fprintf(fp, "/* pathid, sim name, sim unit, sim bus */\n");
 
-	/* XXX: Why do we always get an entry such as:
-	 * { '?', "ncr", '?', '?' },
-	 */
-
 	for (dp = dtab; dp; dp = dp->d_next) {
-		mp = dp->d_conn;
-		if (dp->d_type != CONTROLLER || mp == TO_NEXUS || mp == 0 ||
-		    !eq(dp->d_name, "scbus")) {
+		if (dp->d_type != DEVICE || dp->d_conn == 0 ||
+		    !eq(dp->d_name, "scbus"))
 			continue;
-		}
 		fprintf(fp, "{ %s, ", id(dp->d_unit));
-		fprintf(fp, "\"%s\", ", mp->d_name);
-		fprintf(fp, "%s, ", id(mp->d_unit));
-		fprintf(fp, "%s },\n", id(dp->d_slave));
+		fprintf(fp, "\"%s\", ", dp->d_conn);
+		fprintf(fp, "%s, ", id(dp->d_connunit));
+		fprintf(fp, "%s },\n", id(dp->d_bus));
 	}
 	fprintf(fp, "{ 0, 0, 0, 0 }\n");
 	fprintf(fp, "};\n");
@@ -275,58 +266,18 @@ scbus_devtab(fp)
 	fprintf(fp,
 "/* periph name, periph unit, pathid, target, LUN, flags */\n");
 	for (dp = dtab; dp; dp = dp->d_next) {
-		if (dp->d_type == CONTROLLER || dp->d_type == PSEUDO_DEVICE ||
-		    dp->d_conn == TO_NEXUS)
+		if (dp->d_type != DEVICE || dp->d_conn == 0 ||
+		    !eq(dp->d_conn, "scbus"))
 			continue;
-
-		mp = dp->d_conn;
-		if (mp == 0 || !eq(mp->d_name, "scbus")) {
-			continue;
-		}
-
-		if (mp->d_conn == 0 &&
-		(dp->d_target != UNKNOWN && dp->d_target != QUES)) {
-			fprintf(stderr,
-			 "Warning: %s%s is configured at ",
-			 dp->d_name, wnum(dp->d_unit));
-
-			fprintf(stderr,
-			 "%s%s which is not fixed at a single adapter.\n",
-			 mp->d_name, wnum(mp->d_unit));
-		}
 
 		fprintf(fp, "{ ");
 		fprintf(fp, "\"%s\", ", dp->d_name);
-		id_put(fp, dp->d_unit, ", ");
-		id_put(fp, mp->d_unit, ", ");
-		id_put(fp, dp->d_target, ", ");
-		id_put(fp, dp->d_lun, ", ");
+		fprintf(fp, "%d, ", dp->d_unit);
+		fprintf(fp, "%d, ", dp->d_connunit);
+		fprintf(fp, "%d, ", dp->d_target);
+		fprintf(fp, "%d, ", dp->d_lun);
 		fprintf(fp, " 0x%x },\n", dp->d_flags);
 	}
 	fprintf(fp, "{ 0, 0, 0, 0, 0, 0 }\n");
 	fprintf(fp, "};\n");
-}
-
-static char *
-qu(num)
-	int num;
-{
-
-	if (num == QUES)
-		return ("'?'");
-	if (num == UNKNOWN)
-		return (" -1");
-	(void) snprintf(errbuf, sizeof(errbuf), "%3d", num);
-	return (errbuf);
-}
-
-static char *
-wnum(num)
-	int num;
-{
-
-	if (num == QUES || num == UNKNOWN)
-		return ("?");
-	(void) snprintf(errbuf, sizeof(errbuf), "%d", num);
-	return (errbuf);
 }
