@@ -663,6 +663,11 @@ cardbus_alloc_resources(device_t cbdev, device_t child)
 		res = bus_alloc_resource(cbdev, SYS_RES_MEMORY, &rid, 0,
 		    (dinfo->mprefetchable & dinfo->mbelow1mb)?0xFFFFF:~0UL,
 		    mem_psize, flags);
+		if (res == NULL) { /* XXX need cleanup*/
+		    device_printf(cbdev, "Unable to allocate memory for "
+		      "prefetchable memory.\n");
+		    return ENOMEM;
+		}
 		start = rman_get_start(res);
 		end = rman_get_end(res);
 		DEVPRINTF((cbdev, "Prefetchable memory at %x-%x\n", start, end));
@@ -730,6 +735,11 @@ cardbus_alloc_resources(device_t cbdev, device_t child)
 		res = bus_alloc_resource(cbdev, SYS_RES_MEMORY, &rid, 0,
 		    ((~dinfo->mprefetchable) & dinfo->mbelow1mb)?0xFFFFF:~0UL,
 		    mem_nsize, flags);
+		if (res == NULL) { /* XXX need cleanup*/
+		    device_printf(cbdev, "Unable to allocate memory for "
+		      "non-prefetchable memory.\n");
+		    return ENOMEM;
+		}
 		start = rman_get_start(res);
 		end = rman_get_end(res);
 		DEVPRINTF((cbdev, "Non-prefetchable memory at %x-%x\n",
@@ -790,6 +800,10 @@ cardbus_alloc_resources(device_t cbdev, device_t child)
 		rid = 0;
 		res = bus_alloc_resource(cbdev, SYS_RES_IOPORT, &rid, 0, ~0UL,
 		    io_size, flags);
+		if (res == NULL) { /* XXX need cleanup*/
+		    device_printf(cbdev, "Unable to allocate I/O ports\n");
+		    return ENOMEM;
+		}
 		start = rman_get_start(res);
 		end = rman_get_end(res);
 		DEVPRINTF((cbdev, "IO port at %x-%x\n", start, end));
@@ -832,6 +846,10 @@ cardbus_alloc_resources(device_t cbdev, device_t child)
 	rid = 0;
 	res = bus_alloc_resource(cbdev, SYS_RES_IRQ, &rid, 0, ~0UL, 1,
 	    RF_SHAREABLE);
+	if (res == NULL) { /* XXX need cleanup*/
+		device_printf(cbdev, "Unable to allocate IRQ\n");
+		return ENOMEM;
+	}
 	resource_list_add(&dinfo->pci.resources, SYS_RES_IRQ, rid,
 	    rman_get_start(res), rman_get_end(res), 1);
 	dinfo->pci.cfg.intline = rman_get_start(res);
