@@ -156,7 +156,7 @@ mac_mls_dominate_element(struct mac_mls_element *a,
 {
 	int bit;
 
-	switch(a->mme_type) {
+	switch (a->mme_type) {
 	case MAC_MLS_TYPE_EQUAL:
 	case MAC_MLS_TYPE_HIGH:
 		return (1);
