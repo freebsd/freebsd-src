@@ -38,7 +38,7 @@
 /* #undef TRAD_HEADER */
 
 /* Define only if <sys/procfs.h> is available *and* it defines prstatus_t.  */
-/* #undef HAVE_SYS_PROCFS_H */
+#define HAVE_SYS_PROCFS_H 1
 
 /* Do we really want to use mmap if it's available?  */
 /* #undef USE_MMAP */

@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.35 1998/08/30 02:01:07 jb Exp $
+#	$Id: Makefile,v 1.36 1998/08/30 02:46:35 jb Exp $
 
 PROG = gdb
 
@@ -18,7 +18,7 @@ CFLAGS+=	-DFREEBSD_ELF
 XSRCS = annotate.c blockframe.c breakpoint.c buildsym.c c-lang.c \
 	c-typeprint.c c-valprint.c ch-lang.c ch-typeprint.c \
 	ch-valprint.c coffread.c command.c complaints.c copying.c \
-	corelow.c cp-valprint.c \
+	core-regset.c corelow.c cp-valprint.c \
 	dcache.c dbxread.c demangle.c dwarfread.c \
 	elfread.c environ.c eval.c exec.c expprint.c \
 	findvar.c fork-child.c freebsd-nat.c gdbtypes.c \
