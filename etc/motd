@@ -15,7 +15,11 @@ Before asking for technical assistance:
      `uname -a' along with error messages from whatever part of the
      system you are having problems with and email it as a question
      to the questions@FreeBSD.org mailing list.
-        
+
+If you are not familiar with FreeBSD's directory layout, please refer
+to the hier(7) man page. If you are not familiar with man pages, type
+"man man".
+ 
 You may also use `/stand/sysinstall' to re-enter the installation and
 configuration  utility.  Edit /etc/motd to change this login announcement.
 
