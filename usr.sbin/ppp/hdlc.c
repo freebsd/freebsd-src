@@ -17,11 +17,11 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: hdlc.c,v 1.35 1998/08/01 01:02:12 brian Exp $
+ * $Id: hdlc.c,v 1.39 1999/02/11 10:14:08 brian Exp $
  *
  *	TODO:
  */
-#include <sys/types.h>
+#include <sys/param.h>
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
@@ -48,12 +48,12 @@
 #include "vjcomp.h"
 #include "auth.h"
 #include "pap.h"
-#include "chap.h"
 #include "lcp.h"
 #include "async.h"
 #include "ccp.h"
 #include "link.h"
 #include "descriptor.h"
+#include "chap.h"
 #include "physical.h"
 #include "prompt.h"
 #include "chat.h"
@@ -61,6 +61,9 @@
 #include "cbcp.h"
 #include "datalink.h"
 #include "filter.h"
+#ifndef NORADIUS
+#include "radius.h"
+#endif
 #include "bundle.h"
 
 static u_int16_t const fcstab[256] = {
@@ -390,7 +393,7 @@ hdlc_DecodePacket(struct bundle *bundle, u_short proto, struct mbuf * bp,
     break;
   case PROTO_PAP:
     if (p)
-      pap_Input(bundle, bp, p);
+      pap_Input(p, bp);
     else {
       log_Printf(LogERROR, "DecodePacket: PAP: Not a physical link !\n");
       mbuf_Free(bp);
@@ -415,7 +418,7 @@ hdlc_DecodePacket(struct bundle *bundle, u_short proto, struct mbuf * bp,
     break;
   case PROTO_CHAP:
     if (p)
-      chap_Input(bundle, bp, p);
+      chap_Input(p, bp);
     else {
       log_Printf(LogERROR, "DecodePacket: CHAP: Not a physical link !\n");
       mbuf_Free(bp);

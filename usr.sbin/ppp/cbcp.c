@@ -23,10 +23,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cbcp.c,v 1.7 1998/10/31 17:38:48 brian Exp $
+ *	$Id: cbcp.c,v 1.10 1999/02/26 21:28:07 brian Exp $
  */
 
-#include <sys/types.h>
+#include <sys/param.h>
 
 #include <sys/un.h>
 
@@ -327,7 +327,7 @@ cbcp_Up(struct cbcp *cbcp)
     } else
       cbcp->fsm.type = CBCP_CLIENTNUM;
     cbcp_NewPhase(cbcp, CBCP_STOPPED);		/* Wait for a REQ */
-    cbcp_StartTimer(cbcp, cbcp->fsm.delay * DEF_REQs);
+    cbcp_StartTimer(cbcp, cbcp->fsm.delay * DEF_FSMTRIES);
   } else {
     if (*cbcp->fsm.phone == '\0')
       cbcp->fsm.type = CBCP_NONUM;
@@ -338,7 +338,7 @@ cbcp_Up(struct cbcp *cbcp)
       cbcp->fsm.type = CBCP_LISTNUM;
     else
       cbcp->fsm.type = CBCP_SERVERNUM;
-    cbcp->fsm.restart = DEF_REQs;
+    cbcp->fsm.restart = DEF_FSMTRIES;
     cbcp_SendReq(cbcp);
   }
 }
@@ -635,7 +635,7 @@ cbcp_Input(struct physical *p, struct mbuf *bp)
       if (cbcp->fsm.state == CBCP_STOPPED || cbcp->fsm.state == CBCP_RESPSENT) {
         timer_Stop(&cbcp->fsm.timer);
         if (cbcp_AdjustResponse(cbcp, data)) {
-          cbcp->fsm.restart = DEF_REQs;
+          cbcp->fsm.restart = DEF_FSMTRIES;
           cbcp->fsm.id = head->id;
           cbcp_SendResponse(cbcp);
         } else
@@ -661,7 +661,7 @@ cbcp_Input(struct physical *p, struct mbuf *bp)
             break;
 
           case CBCP_ACTION_ACK:
-            cbcp->fsm.restart = DEF_REQs;
+            cbcp->fsm.restart = DEF_FSMTRIES;
             cbcp_SendAck(cbcp);
             if (cbcp->fsm.type == CBCP_NONUM) {
               /*

@@ -17,13 +17,13 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.65 1998/10/17 12:28:02 brian Exp $
+ * $Id: lcp.c,v 1.70 1999/03/01 13:46:45 brian Exp $
  *
  * TODO:
  *	o Limit data field length by MRU
  */
 
-#include <sys/types.h>
+#include <sys/param.h>
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
@@ -64,6 +64,9 @@
 #include "chap.h"
 #include "cbcp.h"
 #include "datalink.h"
+#ifndef NORADIUS
+#include "radius.h"
+#endif
 #include "bundle.h"
 
 /* for received LQRs */
@@ -78,7 +81,7 @@ static int LcpLayerUp(struct fsm *);
 static void LcpLayerDown(struct fsm *);
 static void LcpLayerStart(struct fsm *);
 static void LcpLayerFinish(struct fsm *);
-static void LcpInitRestartCounter(struct fsm *);
+static void LcpInitRestartCounter(struct fsm *, int);
 static void LcpSendConfigReq(struct fsm *);
 static void LcpSentTerminateReq(struct fsm *);
 static void LcpSendTerminateAck(struct fsm *, u_char);
@@ -168,13 +171,21 @@ lcp_ReportStatus(struct cmdargs const *arg)
                 lcp->cfg.openmode == OPEN_PASSIVE ? "passive" : "active");
   if (lcp->cfg.openmode > 0)
     prompt_Printf(arg->prompt, " (delay %ds)", lcp->cfg.openmode);
-  prompt_Printf(arg->prompt, "\n           FSM retry = %us\n",
-                lcp->cfg.fsmretry);
+  prompt_Printf(arg->prompt, "\n           FSM retry = %us, max %u Config"
+                " REQ%s, %u Term REQ%s\n", lcp->cfg.fsm.timeout,
+                lcp->cfg.fsm.maxreq, lcp->cfg.fsm.maxreq == 1 ? "" : "s",
+                lcp->cfg.fsm.maxtrm, lcp->cfg.fsm.maxtrm == 1 ? "" : "s");
   prompt_Printf(arg->prompt, "\n Negotiation:\n");
   prompt_Printf(arg->prompt, "           ACFCOMP =   %s\n",
                 command_ShowNegval(lcp->cfg.acfcomp));
   prompt_Printf(arg->prompt, "           CHAP =      %s\n",
-                command_ShowNegval(lcp->cfg.chap));
+                command_ShowNegval(lcp->cfg.chap05));
+#ifdef HAVE_DES
+  prompt_Printf(arg->prompt, "           MSCHAP =    %s\n",
+                command_ShowNegval(lcp->cfg.chap80nt));
+  prompt_Printf(arg->prompt, "           LANMan =    %s\n",
+                command_ShowNegval(lcp->cfg.chap80lm));
+#endif
   prompt_Printf(arg->prompt, "           LQR =       %s\n",
                 command_ShowNegval(lcp->cfg.lqr));
   prompt_Printf(arg->prompt, "           PAP =       %s\n",
@@ -209,17 +220,23 @@ lcp_Init(struct lcp *lcp, struct bundle *bundle, struct link *l,
   /* Initialise ourselves */
   int mincode = parent ? 1 : LCP_MINMPCODE;
 
-  fsm_Init(&lcp->fsm, "LCP", PROTO_LCP, mincode, LCP_MAXCODE, 10, LogLCP,
+  fsm_Init(&lcp->fsm, "LCP", PROTO_LCP, mincode, LCP_MAXCODE, LogLCP,
            bundle, l, parent, &lcp_Callbacks, lcp_TimerNames);
 
   lcp->cfg.mru = DEF_MRU;
   lcp->cfg.accmap = 0;
   lcp->cfg.openmode = 1;
   lcp->cfg.lqrperiod = DEF_LQRPERIOD;
-  lcp->cfg.fsmretry = DEF_FSMRETRY;
+  lcp->cfg.fsm.timeout = DEF_FSMRETRY;
+  lcp->cfg.fsm.maxreq = DEF_FSMTRIES;
+  lcp->cfg.fsm.maxtrm = DEF_FSMTRIES;
 
   lcp->cfg.acfcomp = NEG_ENABLED|NEG_ACCEPTED;
-  lcp->cfg.chap = NEG_ACCEPTED;
+  lcp->cfg.chap05 = NEG_ACCEPTED;
+#ifdef HAVE_DES
+  lcp->cfg.chap80nt = NEG_ACCEPTED;
+  lcp->cfg.chap80lm = NEG_ACCEPTED;
+#endif
   lcp->cfg.lqr = NEG_ACCEPTED;
   lcp->cfg.pap = NEG_ACCEPTED;
   lcp->cfg.protocomp = NEG_ENABLED|NEG_ACCEPTED;
@@ -231,7 +248,6 @@ void
 lcp_Setup(struct lcp *lcp, int openmode)
 {
   lcp->fsm.open_mode = openmode;
-  lcp->fsm.maxconfig = 10;
 
   lcp->his_mru = lcp->fsm.bundle->cfg.mtu;
   if (!lcp->his_mru || lcp->his_mru > DEF_MRU)
@@ -241,6 +257,7 @@ lcp_Setup(struct lcp *lcp, int openmode)
   lcp->his_lqrperiod = 0;
   lcp->his_acfcomp = 0;
   lcp->his_auth = 0;
+  lcp->his_authtype = 0;
   lcp->his_callback.opmask = 0;
   lcp->his_shortseq = 0;
 
@@ -257,8 +274,24 @@ lcp_Setup(struct lcp *lcp, int openmode)
     lcp->his_protocomp = 0;
     lcp->want_protocomp = IsEnabled(lcp->cfg.protocomp) ? 1 : 0;
     lcp->want_magic = GenerateMagic();
-    lcp->want_auth = IsEnabled(lcp->cfg.chap) ? PROTO_CHAP :
-                     IsEnabled(lcp->cfg.pap) ?  PROTO_PAP : 0;
+
+    if (IsEnabled(lcp->cfg.chap05)) {
+      lcp->want_auth = PROTO_CHAP;
+      lcp->want_authtype = 0x05;
+#ifdef HAVE_DES
+    } else if (IsEnabled(lcp->cfg.chap80nt) ||
+               IsEnabled(lcp->cfg.chap80lm)) {
+      lcp->want_auth = PROTO_CHAP;
+      lcp->want_authtype = 0x80;
+#endif
+    } else if (IsEnabled(lcp->cfg.pap)) {
+      lcp->want_auth = PROTO_PAP;
+      lcp->want_authtype = 0;
+    } else {
+      lcp->want_auth = 0;
+      lcp->want_authtype = 0;
+    }
+
     if (p->type != PHYS_DIRECT)
       memcpy(&lcp->want_callback, &p->dl->cfg.callback, sizeof(struct callback));
     else
@@ -270,6 +303,7 @@ lcp_Setup(struct lcp *lcp, int openmode)
     lcp->his_protocomp = lcp->want_protocomp = 1;
     lcp->want_magic = 0;
     lcp->want_auth = 0;
+    lcp->want_authtype = 0;
     lcp->want_callback.opmask = 0;
     lcp->want_lqrperiod = 0;
   }
@@ -280,13 +314,23 @@ lcp_Setup(struct lcp *lcp, int openmode)
 }
 
 static void
-LcpInitRestartCounter(struct fsm * fp)
+LcpInitRestartCounter(struct fsm *fp, int what)
 {
   /* Set fsm timer load */
   struct lcp *lcp = fsm2lcp(fp);
 
-  fp->FsmTimer.load = lcp->cfg.fsmretry * SECTICKS;
-  fp->restart = DEF_REQs;
+  fp->FsmTimer.load = lcp->cfg.fsm.timeout * SECTICKS;
+  switch (what) {
+    case FSM_REQ_TIMER:
+      fp->restart = lcp->cfg.fsm.maxreq;
+      break;
+    case FSM_TRM_TIMER:
+      fp->restart = lcp->cfg.fsm.maxtrm;
+      break;
+    default:
+      fp->restart = 1;
+      break;
+  }
 }
 
 static void
@@ -347,7 +391,7 @@ LcpSendConfigReq(struct fsm *fp)
   case PROTO_CHAP:
     proto = PROTO_CHAP;
     ua_htons(&proto, o->data);
-    o->data[2] = 0x05;
+    o->data[2] = lcp->want_authtype;
     INC_LCP_OPT(TY_AUTHPROTO, 5, o);
     break;
   }
@@ -398,7 +442,7 @@ lcp_SendProtoRej(struct lcp *lcp, u_char *option, int count)
 }
 
 static void
-LcpSentTerminateReq(struct fsm * fp)
+LcpSentTerminateReq(struct fsm *fp)
 {
   /* Term REQ just sent by FSM */
 }
@@ -423,6 +467,7 @@ LcpLayerStart(struct fsm *fp)
 
   log_Printf(LogLCP, "%s: LayerStart\n", fp->link->name);
   lcp->LcpFailedMagic = 0;
+  fp->more.reqs = fp->more.naks = fp->more.rejs = lcp->cfg.fsm.maxreq * 3;
 }
 
 static void
@@ -443,6 +488,8 @@ LcpLayerUp(struct fsm *fp)
   async_SetLinkParams(&p->async, lcp);
   lqr_Start(lcp);
   hdlc_StartTimer(&p->hdlc);
+  fp->more.reqs = fp->more.naks = fp->more.rejs = lcp->cfg.fsm.maxreq * 3;
+
   return 1;
 }
 
@@ -598,31 +645,34 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
       switch (mode_type) {
       case MODE_REQ:
 	lcp->his_accmap = accmap;
-	memcpy(dec->ackend, cp, 6);
-	dec->ackend += 6;
+        lcp->want_accmap |= accmap;	/* restrict our requested map */
+        if (lcp->want_accmap == accmap) {
+	  memcpy(dec->ackend, cp, 6);
+	  dec->ackend += 6;
+        } else {
+          /* NAK with what we now want */
+          *dec->nakend++ = *cp;
+          *dec->nakend++ = 6;
+          ua_htonl(&lcp->want_accmap, dec->nakend);
+          dec->nakend += 4;
+        }
 	break;
       case MODE_NAK:
-	lcp->want_accmap = accmap;
+	lcp->want_accmap |= accmap;
 	break;
       case MODE_REJ:
-	lcp->his_reject |= (1 << type);
+        if (lcp->want_accmap)
+          log_Printf(LogWARN, "Peer is rejecting our ACCMAP.... bad news !\n");
+        else
+	  lcp->his_reject |= (1 << type);
 	break;
       }
       break;
 
     case TY_AUTHPROTO:
       ua_ntohs(cp + 2, &proto);
-      switch (proto) {
-      case PROTO_PAP:
-        log_Printf(LogLCP, "%s 0x%04x (PAP)\n", request, proto);
-        break;
-      case PROTO_CHAP:
-        log_Printf(LogLCP, "%s 0x%04x (CHAP 0x%02x)\n", request, proto, cp[4]);
-        break;
-      default:
-        log_Printf(LogLCP, "%s 0x%04x\n", request, proto);
-        break;
-      }
+      log_Printf(LogLCP, "%s 0x%04x (%s)\n", request, proto,
+                 Auth2Nam(proto, length > 4 ? cp[4] : 0));
 
       switch (mode_type) {
       case MODE_REQ:
@@ -634,46 +684,69 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
 	  }
 	  if (IsAccepted(lcp->cfg.pap)) {
 	    lcp->his_auth = proto;
+	    lcp->his_authtype = 0;
 	    memcpy(dec->ackend, cp, length);
 	    dec->ackend += length;
-	  } else if (IsAccepted(lcp->cfg.chap)) {
+	  } else if (IsAccepted(lcp->cfg.chap05)) {
 	    *dec->nakend++ = *cp;
 	    *dec->nakend++ = 5;
 	    *dec->nakend++ = (unsigned char) (PROTO_CHAP >> 8);
 	    *dec->nakend++ = (unsigned char) PROTO_CHAP;
 	    *dec->nakend++ = 0x05;
+#ifdef HAVE_DES
+	  } else if (IsAccepted(lcp->cfg.chap80nt) ||
+	             IsAccepted(lcp->cfg.chap80lm)) {
+	    *dec->nakend++ = *cp;
+	    *dec->nakend++ = 5;
+	    *dec->nakend++ = (unsigned char) (PROTO_CHAP >> 8);
+	    *dec->nakend++ = (unsigned char) PROTO_CHAP;
+	    *dec->nakend++ = 0x80;
+#endif
 	  } else
 	    goto reqreject;
 	  break;
 
 	case PROTO_CHAP:
-	  if (length < 5) {
+	  if (length != 5) {
 	    log_Printf(LogLCP, " Bad length!\n");
 	    goto reqreject;
 	  }
+          if ((cp[4] == 0x05 && IsAccepted(lcp->cfg.chap05))
 #ifdef HAVE_DES
-          if (IsAccepted(lcp->cfg.chap) && (cp[4] == 0x05 || cp[4] == 0x80))
-#else
-          if (IsAccepted(lcp->cfg.chap) && cp[4] == 0x05)
+              || (cp[4] == 0x80 && (IsAccepted(lcp->cfg.chap80nt) ||
+                                   (IsAccepted(lcp->cfg.chap80lm))))
 #endif
-	  {
+             ) {
 	    lcp->his_auth = proto;
+	    lcp->his_authtype = cp[4];
 	    memcpy(dec->ackend, cp, length);
 	    dec->ackend += length;
-#ifdef HAVE_DES
-            link2physical(fp->link)->dl->chap.using_MSChap = cp[4] == 0x80;
-#endif
 	  } else {
-            if (IsAccepted(lcp->cfg.chap)) {
 #ifndef HAVE_DES
-              if (cp[4] == 0x80)
-                log_Printf(LogWARN, "Chap 0x80 not available without DES\n");
-              else
+            if (cp[4] == 0x80)
+              log_Printf(LogWARN, "CHAP 0x80 not available without DES\n");
+            else
 #endif
-                log_Printf(LogWARN, "Chap 0x%02x not supported\n",
-                           (unsigned)cp[4]);
-            }
-            if (IsAccepted(lcp->cfg.pap)) {
+            if (cp[4] != 0x05)
+              log_Printf(LogWARN, "%s not supported\n",
+                         Auth2Nam(PROTO_CHAP, cp[4]));
+
+            if (IsAccepted(lcp->cfg.chap05)) {
+	      *dec->nakend++ = *cp;
+	      *dec->nakend++ = 5;
+	      *dec->nakend++ = (unsigned char) (PROTO_CHAP >> 8);
+	      *dec->nakend++ = (unsigned char) PROTO_CHAP;
+	      *dec->nakend++ = 0x05;
+#ifdef HAVE_DES
+            } else if (IsAccepted(lcp->cfg.chap80nt) ||
+                       IsAccepted(lcp->cfg.chap80lm)) {
+	      *dec->nakend++ = *cp;
+	      *dec->nakend++ = 5;
+	      *dec->nakend++ = (unsigned char) (PROTO_CHAP >> 8);
+	      *dec->nakend++ = (unsigned char) PROTO_CHAP;
+	      *dec->nakend++ = 0x80;
+#endif
+            } else if (IsAccepted(lcp->cfg.pap)) {
 	      *dec->nakend++ = *cp;
 	      *dec->nakend++ = 4;
 	      *dec->nakend++ = (unsigned char) (PROTO_PAP >> 8);
@@ -694,18 +767,37 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
       case MODE_NAK:
 	switch (proto) {
 	case PROTO_PAP:
-          if (IsEnabled(lcp->cfg.pap))
+          if (IsEnabled(lcp->cfg.pap)) {
             lcp->want_auth = PROTO_PAP;
-          else {
+            lcp->want_authtype = 0;
+          } else {
             log_Printf(LogLCP, "Peer will only send PAP (not enabled)\n");
 	    lcp->his_reject |= (1 << type);
           }
           break;
 	case PROTO_CHAP:
-          if (IsEnabled(lcp->cfg.chap))
+          if (cp[4] == 0x05 && IsEnabled(lcp->cfg.chap05)) {
             lcp->want_auth = PROTO_CHAP;
-          else {
-            log_Printf(LogLCP, "Peer will only send CHAP (not enabled)\n");
+            lcp->want_authtype = 0x05;
+#ifdef HAVE_DES
+          } else if (cp[4] == 0x80 && (IsEnabled(lcp->cfg.chap80nt) ||
+                                       IsEnabled(lcp->cfg.chap80lm))) {
+            lcp->want_auth = PROTO_CHAP;
+            lcp->want_authtype = 0x80;
+#endif
+          } else {
+#ifndef HAVE_DES
+            if (cp[4] == 0x80)
+              log_Printf(LogLCP, "Peer will only send MSCHAP (not available"
+                         " without DES)\n");
+            else
+#endif
+            log_Printf(LogLCP, "Peer will only send %s (not %s)\n",
+                       Auth2Nam(PROTO_CHAP, cp[4]),
+#ifdef HAVE_DES
+                       cp[4] == 0x80 ? "configured" :
+#endif
+                       "supported");
 	    lcp->his_reject |= (1 << type);
           }
           break;
@@ -1002,7 +1094,7 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
         }
 	break;
 
-      case MODE_NAK:	/* Treat this as a REJ, we don't vary or disc */
+      case MODE_NAK:	/* Treat this as a REJ, we don't vary our disc */
       case MODE_REJ:
 	lcp->his_reject |= (1 << type);
 	break;
@@ -1070,7 +1162,7 @@ reqreject:
 }
 
 void
-lcp_Input(struct lcp *lcp, struct mbuf * bp)
+lcp_Input(struct lcp *lcp, struct mbuf *bp)
 {
   /* Got PROTO_LCP from link */
   fsm_Input(&lcp->fsm, bp);

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: mbuf.c,v 1.21 1998/08/21 18:10:15 brian Exp $
+ * $Id: mbuf.c,v 1.23 1999/02/06 02:54:47 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -114,13 +114,8 @@ mbuf_Read(struct mbuf * bp, u_char * ptr, int len)
     bp->cnt -= nb;
     len -= nb;
     bp->offset += nb;
-    if (bp->cnt == 0) {
-#ifdef notdef
-      bp = bp->next;
-#else
+    if (bp->cnt == 0)
       bp = mbuf_FreeSeg(bp);
-#endif
-    }
   }
   return (bp);
 }

@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.h,v 1.18 1998/06/27 23:48:48 brian Exp $
+ * $Id: lcp.h,v 1.21 1999/02/26 21:28:12 brian Exp $
  *
  *	TODO:
  */
@@ -46,6 +46,7 @@ struct lcp {
   u_int32_t his_magic;		/* Peers magic number */
   u_int32_t his_lqrperiod;	/* Peers LQR frequency (100ths of seconds) */
   u_short his_auth;		/* Peer wants this type of authentication */
+  u_char his_authtype;		/* Fifth octet of REQ/NAK/REJ */
   struct callback his_callback;	/* Peer wants callback ? */
   unsigned his_shortseq : 1;	/* Peer would like only 12bit seqs (MP) */
   unsigned his_protocomp : 1;	/* Does peer do Protocol field compression */
@@ -57,6 +58,7 @@ struct lcp {
   u_int32_t want_magic;		/* Our magic number */
   u_int32_t want_lqrperiod;	/* Our LQR frequency (100ths of seconds) */
   u_short want_auth;		/* We want this type of authentication */
+  u_char want_authtype;		/* Fifth octet of REQ/NAK/REJ */
   struct callback want_callback;/* We want callback ? */
   unsigned want_shortseq : 1;	/* I'd like only 12bit seqs (MP) */
   unsigned want_protocomp : 1;	/* Do we do protocol field compression */
@@ -75,10 +77,13 @@ struct lcp {
     u_int32_t accmap;		/* Initial ACCMAP value */
     int openmode;		/* when to start CFG REQs */
     u_int32_t lqrperiod;	/* LQR frequency (seconds) */
-    u_int fsmretry;		/* FSM retry frequency */
-
+    struct fsm_retry fsm;	/* How often/frequently to resend requests */
     unsigned acfcomp : 2;	/* Address & Control Field Compression neg */
-    unsigned chap : 2;		/* Challenge Handshake Authentication proto */
+    unsigned chap05 : 2;	/* Challenge Handshake Authentication proto */
+#ifdef HAVE_DES
+    unsigned chap80nt : 2;	/* Microsoft (NT) CHAP */
+    unsigned chap80lm : 2;	/* Microsoft (LANMan) CHAP */
+#endif
     unsigned lqr : 2;		/* Link Quality Report */
     unsigned pap : 2;		/* Password Authentication protocol */
     unsigned protocomp : 2;	/* Protocol field compression */
@@ -120,7 +125,6 @@ struct lcp_opt {
 
 struct mbuf;
 struct link;
-struct physical;
 struct bundle;
 struct cmdargs;
 

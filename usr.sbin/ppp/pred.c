@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: pred.c,v 1.21 1998/05/21 21:47:53 brian Exp $
+ *	$Id: pred.c,v 1.24 1999/03/16 01:24:23 brian Exp $
  */
 
 #include <sys/types.h>
@@ -43,6 +43,8 @@
 #include "hdlc.h"
 #include "lcp.h"
 #include "ccp.h"
+#include "throughput.h"
+#include "link.h"
 #include "pred.h"
 
 /* The following hash code is the heart of the algorithm:
@@ -85,17 +87,16 @@ compress(struct pred1_state *state, u_char *source, u_char *dest, int len)
 }
 
 static void
-SyncTable(struct pred1_state *state, u_char * source, u_char * dest, int len)
+SyncTable(struct pred1_state *state, u_char *source, u_char *dest, int len)
 {
   while (len--) {
-    if (state->dict[state->hash] != *source)
-      state->dict[state->hash] = *source;
-    HASH(state, *dest++ = *source++);
+    *dest++ = state->dict[state->hash] = *source;
+    HASH(state, *source++);
   }
 }
 
 static int
-decompress(struct pred1_state *state, u_char * source, u_char * dest, int len)
+decompress(struct pred1_state *state, u_char *source, u_char *dest, int len)
 {
   int i, bitmask;
   unsigned char flags, *orgdest;
@@ -218,7 +219,7 @@ Pred1Input(void *v, struct ccp *ccp, u_short *proto, struct mbuf *bp)
   u_char *bufp;
   u_short fcs;
 
-  wp = mbuf_Alloc(MAX_MTU + 2, MB_IPIN);
+  wp = mbuf_Alloc(MAX_MRU + 2, MB_IPIN);
   cp = MBUF_CTOP(bp);
   olen = mbuf_Length(bp);
   pp = bufp = MBUF_CTOP(wp);
@@ -232,14 +233,20 @@ Pred1Input(void *v, struct ccp *ccp, u_short *proto, struct mbuf *bp)
     ccp->compin += olen;
     len &= 0x7fff;
     if (len != len1) {		/* Error is detected. Send reset request */
-      log_Printf(LogCCP, "Pred1: Length error\n");
-      ccp_SendResetReq(&ccp->fsm);
+      log_Printf(LogCCP, "Pred1: Length error (got %d, not %d)\n", len1, len);
+      fsm_Reopen(&ccp->fsm);
       mbuf_Free(bp);
       mbuf_Free(wp);
       return NULL;
     }
     cp += olen - 4;
     pp += len1;
+  } else if (len + 4 != olen) {
+    log_Printf(LogCCP, "Pred1: Length error (got %d, not %d)\n", len + 4, olen);
+    fsm_Reopen(&ccp->fsm);
+    mbuf_Free(wp);
+    mbuf_Free(bp);
+    return NULL;
   } else {
     ccp->compin += len;
     SyncTable(state, cp, pp, len);
@@ -249,10 +256,6 @@ Pred1Input(void *v, struct ccp *ccp, u_short *proto, struct mbuf *bp)
   *pp++ = *cp++;		/* CRC */
   *pp++ = *cp++;
   fcs = hdlc_Fcs(INITFCS, bufp, wp->cnt = pp - bufp);
-  if (fcs != GOODFCS)
-    log_Printf(LogDEBUG, "Pred1Input: fcs = 0x%04x (%s), len = 0x%x,"
-	      " olen = 0x%x\n", fcs, (fcs == GOODFCS) ? "good" : "bad",
-	      len, olen);
   if (fcs == GOODFCS) {
     wp->offset += 2;		/* skip length */
     wp->cnt -= 4;		/* skip length & CRC */
@@ -269,8 +272,12 @@ Pred1Input(void *v, struct ccp *ccp, u_short *proto, struct mbuf *bp)
     mbuf_Free(bp);
     return wp;
   } else {
-    log_DumpBp(LogHDLC, "Bad FCS", wp);
-    ccp_SendResetReq(&ccp->fsm);
+    const char *pre = *MBUF_CTOP(bp) & 0x80 ? "" : "un";
+    log_Printf(LogDEBUG, "Pred1Input: fcs = 0x%04x (%scompressed), len = 0x%x,"
+	      " olen = 0x%x\n", fcs, pre, len, olen);
+    log_Printf(LogCCP, "%s: Bad %scompressed CRC-16\n",
+               ccp->fsm.link->name, pre);
+    fsm_Reopen(&ccp->fsm);
     mbuf_Free(wp);
   }
   mbuf_Free(bp);

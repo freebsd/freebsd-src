@@ -14,6 +14,6 @@ http://www.Awfulhak.org/ppp.html.
 
 A FAQ is available at http://www.FreeBSD.org/FAQ/userppp.html.  It applies
 equally to OpenBSD as it does to FreeBSD.  The man page is quite extensive,
-and there are lots of examples in /etc/ppp/ppp.*.sample.
+and there are lots of examples in /usr/share/examples/ppp/.
 
 Ppp is still under development.  There is no official TODO list.

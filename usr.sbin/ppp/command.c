@@ -17,10 +17,10 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.177 1998/12/14 01:15:34 brian Exp $
+ * $Id: command.c,v 1.189 1999/03/19 00:05:32 brian Exp $
  *
  */
-#include <sys/types.h>
+#include <sys/param.h>
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
@@ -76,6 +76,9 @@
 #include "link.h"
 #include "physical.h"
 #include "mp.h"
+#ifndef NORADIUS
+#include "radius.h"
+#endif
 #include "bundle.h"
 #include "server.h"
 #include "prompt.h"
@@ -115,6 +118,8 @@
 #define	VAR_CHOKED	26
 #define	VAR_SENDPIPE	27
 #define	VAR_RECVPIPE	28
+#define	VAR_RADIUS	29
+#define	VAR_CD		30
 
 /* ``accept|deny|disable|enable'' masks */
 #define NEG_HISMASK (1)
@@ -122,19 +127,21 @@
 
 /* ``accept|deny|disable|enable'' values */
 #define NEG_ACFCOMP	40
-#define NEG_CHAP	41
-#define NEG_DEFLATE	42
-#define NEG_LQR		43
-#define NEG_PAP		44
-#define NEG_PPPDDEFLATE	45
-#define NEG_PRED1	46
-#define NEG_PROTOCOMP	47
-#define NEG_SHORTSEQ	48
-#define NEG_VJCOMP	49
-#define NEG_DNS		50
+#define NEG_CHAP05	41
+#define NEG_CHAP80	42
+#define NEG_CHAP80LM	43
+#define NEG_DEFLATE	44
+#define NEG_LQR		45
+#define NEG_PAP		46
+#define NEG_PPPDDEFLATE	47
+#define NEG_PRED1	48
+#define NEG_PROTOCOMP	49
+#define NEG_SHORTSEQ	50
+#define NEG_VJCOMP	51
+#define NEG_DNS		52
 
-const char Version[] = "2.0";
-const char VersionDate[] = "$Date: 1998/12/14 01:15:34 $";
+const char Version[] = "2.11";
+const char VersionDate[] = "$Date: 1999/03/19 00:05:32 $";
 
 static int ShowCommand(struct cmdargs const *);
 static int TerminalCommand(struct cmdargs const *);
@@ -384,9 +391,9 @@ subst(char *tgt, const char *oldstr, const char *newstr)
   return tgt;
 }
 
-static void
-expand(char **nargv, int argc, char const *const *oargv, struct bundle *bundle,
-       int inc0)
+void
+command_Expand(char **nargv, int argc, char const *const *oargv,
+               struct bundle *bundle, int inc0)
 {
   int arg;
   char pid[12];
@@ -480,7 +487,7 @@ ShellCommand(struct cmdargs const *arg, int bg)
         argc = sizeof argv / sizeof argv[0] - 1;
         log_Printf(LogWARN, "Truncating shell command to %d args\n", argc);
       }
-      expand(argv, argc, arg->argv + arg->argn, arg->bundle, 0);
+      command_Expand(argv, argc, arg->argv + arg->argn, arg->bundle, 0);
       if (bg) {
 	pid_t p;
 
@@ -547,6 +554,10 @@ static struct cmdtab const AliasCommands[] =
    (const void *) PKT_ALIAS_LOG},
   {"port", NULL, alias_RedirectPort, LOCAL_AUTH,
    "port redirection", "alias port [proto addr_local:port_local  port_alias]"},
+  {"pptp", NULL, alias_Pptp, LOCAL_AUTH,
+   "Set the PPTP address", "alias pptp IP"},
+  {"proxy", NULL, alias_ProxyRule, LOCAL_AUTH,
+   "proxy control", "alias proxy server host[:port] ..."},
   {"same_ports", NULL, AliasOption, LOCAL_AUTH,
    "try to leave port numbers unchanged", "alias same_ports [yes|no]",
    (const void *) PKT_ALIAS_SAME_PORTS},
@@ -1274,21 +1285,21 @@ SetInterfaceAddr(struct cmdargs const *arg)
     return -1;
 
   hisaddr = NULL;
-  ipcp->cfg.my_range.ipaddr.s_addr = INADDR_ANY;
-  ipcp->cfg.peer_range.ipaddr.s_addr = INADDR_ANY;
+  memset(&ipcp->cfg.my_range, '\0', sizeof ipcp->cfg.my_range);
+  memset(&ipcp->cfg.peer_range, '\0', sizeof ipcp->cfg.peer_range);
   ipcp->cfg.HaveTriggerAddress = 0;
   ipcp->cfg.netmask.s_addr = INADDR_ANY;
   iplist_reset(&ipcp->cfg.peer_list);
 
   if (arg->argc > arg->argn) {
-    if (!ParseAddr(ipcp, arg->argc - arg->argn, arg->argv + arg->argn,
+    if (!ParseAddr(ipcp, arg->argv[arg->argn],
                    &ipcp->cfg.my_range.ipaddr, &ipcp->cfg.my_range.mask,
                    &ipcp->cfg.my_range.width))
       return 1;
     if (arg->argc > arg->argn+1) {
       hisaddr = arg->argv[arg->argn+1];
       if (arg->argc > arg->argn+2) {
-        ipcp->cfg.netmask = GetIpAddr(arg->argv[arg->argn+2]);
+        ipcp->ifmask = ipcp->cfg.netmask = GetIpAddr(arg->argv[arg->argn+2]);
 	if (arg->argc > arg->argn+3) {
 	  ipcp->cfg.TriggerAddress = GetIpAddr(arg->argv[arg->argn+3]);
 	  ipcp->cfg.HaveTriggerAddress = 1;
@@ -1307,6 +1318,47 @@ SetInterfaceAddr(struct cmdargs const *arg)
   if (hisaddr && !ipcp_UseHisaddr(arg->bundle, hisaddr,
                                   arg->bundle->phys_type.all & PHYS_AUTO))
     return 4;
+
+  return 0;
+}
+
+static int
+SetRetry(int argc, char const *const *argv, u_int *timeout, u_int *maxreq,
+          u_int *maxtrm, int def)
+{
+  if (argc == 0) {
+    *timeout = DEF_FSMRETRY;
+    *maxreq = def;
+    if (maxtrm != NULL)
+      *maxtrm = def;
+  } else {
+    long l = atol(argv[0]);
+
+    if (l < MIN_FSMRETRY) {
+      log_Printf(LogWARN, "%ld: Invalid FSM retry period - min %d\n",
+                 l, MIN_FSMRETRY);
+      return 1;
+    } else
+      *timeout = l;
+
+    if (argc > 1) {
+      l = atol(argv[1]);
+      if (l < 1) {
+        log_Printf(LogWARN, "%ld: Invalid FSM REQ tries - changed to 1\n", l);
+        l = 1;
+      }
+      *maxreq = l;
+
+      if (argc > 2 && maxtrm != NULL) {
+        l = atol(argv[2]);
+        if (l < 1) {
+          log_Printf(LogWARN, "%ld: Invalid FSM TRM tries - changed to 1\n", l);
+          l = 1;
+        }
+        *maxtrm = l;
+      }
+    }
+  }
 
   return 0;
 }
@@ -1541,53 +1593,35 @@ SetVariable(struct cmdargs const *arg)
     break;
 
   case VAR_LCPRETRY:
-    long_val = atol(argp);
-    if (long_val < MIN_FSMRETRY) {
-      log_Printf(LogWARN, "%ld: Invalid LCP FSM retry period - min %d\n",
-                 long_val, MIN_FSMRETRY);
-      return 1;
-    } else
-      cx->physical->link.lcp.cfg.fsmretry = long_val;
+    return SetRetry(arg->argc - arg->argn, arg->argv + arg->argn,
+                    &cx->physical->link.lcp.cfg.fsm.timeout,
+                    &cx->physical->link.lcp.cfg.fsm.maxreq,
+                    &cx->physical->link.lcp.cfg.fsm.maxtrm, DEF_FSMTRIES);
     break;
 
   case VAR_CHAPRETRY:
-    long_val = atol(argp);
-    if (long_val < MIN_FSMRETRY) {
-      log_Printf(LogWARN, "%ld: Invalid CHAP FSM retry period - min %d\n",
-                 long_val, MIN_FSMRETRY);
-      return 1;
-    } else
-      cx->chap.auth.cfg.fsmretry = long_val;
+    return SetRetry(arg->argc - arg->argn, arg->argv + arg->argn,
+                    &cx->chap.auth.cfg.fsm.timeout,
+                    &cx->chap.auth.cfg.fsm.maxreq, NULL, DEF_FSMAUTHTRIES);
     break;
 
   case VAR_PAPRETRY:
-    long_val = atol(argp);
-    if (long_val < MIN_FSMRETRY) {
-      log_Printf(LogWARN, "%ld: Invalid PAP FSM retry period - min %d\n",
-                 long_val, MIN_FSMRETRY);
-      return 1;
-    } else
-      cx->pap.cfg.fsmretry = long_val;
+    return SetRetry(arg->argc - arg->argn, arg->argv + arg->argn,
+                    &cx->pap.cfg.fsm.timeout, &cx->pap.cfg.fsm.maxreq,
+                    NULL, DEF_FSMAUTHTRIES);
     break;
 
   case VAR_CCPRETRY:
-    long_val = atol(argp);
-    if (long_val < MIN_FSMRETRY) {
-      log_Printf(LogWARN, "%ld: Invalid CCP FSM retry period - min %d\n",
-                 long_val, MIN_FSMRETRY);
-      return 1;
-    } else
-      l->ccp.cfg.fsmretry = long_val;
+    return SetRetry(arg->argc - arg->argn, arg->argv + arg->argn,
+                    &l->ccp.cfg.fsm.timeout, &l->ccp.cfg.fsm.maxreq,
+                    &l->ccp.cfg.fsm.maxtrm, DEF_FSMTRIES);
     break;
 
   case VAR_IPCPRETRY:
-    long_val = atol(argp);
-    if (long_val < MIN_FSMRETRY) {
-      log_Printf(LogWARN, "%ld: Invalid IPCP FSM retry period - min %d\n",
-                 long_val, MIN_FSMRETRY);
-      return 1;
-    } else
-      arg->bundle->ncp.ipcp.cfg.fsmretry = long_val;
+    return SetRetry(arg->argc - arg->argn, arg->argv + arg->argn,
+                    &arg->bundle->ncp.ipcp.cfg.fsm.timeout,
+                    &arg->bundle->ncp.ipcp.cfg.fsm.maxreq,
+                    &arg->bundle->ncp.ipcp.cfg.fsm.maxtrm, DEF_FSMTRIES);
     break;
 
   case VAR_NBNS:
@@ -1600,10 +1634,10 @@ SetVariable(struct cmdargs const *arg)
     addr[0].s_addr = addr[1].s_addr = INADDR_ANY;
 
     if (arg->argc > arg->argn) {
-      ParseAddr(&arg->bundle->ncp.ipcp, 1, arg->argv + arg->argn,
+      ParseAddr(&arg->bundle->ncp.ipcp, arg->argv[arg->argn],
                 addr, &dummyaddr, &dummyint);
       if (arg->argc > arg->argn+1)
-        ParseAddr(&arg->bundle->ncp.ipcp, 1, arg->argv + arg->argn + 1,
+        ParseAddr(&arg->bundle->ncp.ipcp, arg->argv[arg->argn + 1],
                   addr + 1, &dummyaddr, &dummyint);
 
       if (addr[1].s_addr == INADDR_ANY)
@@ -1675,6 +1709,35 @@ SetVariable(struct cmdargs const *arg)
     long_val = atol(argp);
     arg->bundle->ncp.ipcp.cfg.recvpipe = long_val;
     break;
+
+#ifndef NORADIUS
+  case VAR_RADIUS:
+    if (!*argp)
+      *arg->bundle->radius.cfg.file = '\0';
+    else if (access(argp, R_OK)) {
+      log_Printf(LogWARN, "%s: %s\n", argp, strerror(errno));
+      return 1;
+    } else {
+      strncpy(arg->bundle->radius.cfg.file, argp,
+              sizeof arg->bundle->radius.cfg.file - 1);
+      arg->bundle->radius.cfg.file
+        [sizeof arg->bundle->radius.cfg.file - 1] = '\0';
+    }
+    break;
+#endif
+
+  case VAR_CD:
+    if (*argp) {
+      long_val = atol(argp);
+      if (long_val < 0)
+        long_val = 0;
+      cx->physical->cfg.cd.delay = long_val;
+      cx->physical->cfg.cd.required = argp[strlen(argp)-1] == '!';
+    } else {
+      cx->physical->cfg.cd.delay = DEF_CDDELAY;
+      cx->physical->cfg.cd.required = 0;
+    }
+    break;
   }
 
   return err ? 1 : 0;
@@ -1711,10 +1774,13 @@ static struct cmdtab const SetCommands[] = {
   {"cbcp", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX,
   "CBCP control", "set cbcp [*|phone[,phone...] [delay [timeout]]]", 
   (const void *)VAR_CBCP},
-  {"ccpretry", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX_OPT,
-  "FSM retry period", "set ccpretry value", (const void *)VAR_CCPRETRY},
-  {"chapretry", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX,
-  "CHAP retry period", "set chapretry value", (const void *)VAR_CHAPRETRY},
+  {"ccpretry", "ccpretries", SetVariable, LOCAL_AUTH | LOCAL_CX_OPT,
+   "CCP retries", "set ccpretry value [attempts]", (const void *)VAR_CCPRETRY},
+  {"cd", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX, "Carrier delay requirement",
+   "set cd value[!]", (const void *)VAR_CD},
+  {"chapretry", "chapretries", SetVariable, LOCAL_AUTH | LOCAL_CX,
+   "CHAP retries", "set chapretry value [attempts]",
+   (const void *)VAR_CHAPRETRY},
   {"choked", NULL, SetVariable, LOCAL_AUTH,
   "choked timeout", "set choked [secs]", (const void *)VAR_CHOKED},
   {"ctsrts", "crtscts", SetCtsRts, LOCAL_AUTH | LOCAL_CX,
@@ -1741,10 +1807,10 @@ static struct cmdtab const SetCommands[] = {
   "hangup script", "set hangup chat-script", (const void *) VAR_HANGUP},
   {"ifaddr", NULL, SetInterfaceAddr, LOCAL_AUTH, "destination address",
   "set ifaddr [src-addr [dst-addr [netmask [trg-addr]]]]"},
-  {"ipcpretry", NULL, SetVariable, LOCAL_AUTH,
-  "FSM retry period", "set ipcpretry value", (const void *)VAR_IPCPRETRY},
-  {"lcpretry", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX,
-  "FSM retry period", "set lcpretry value", (const void *)VAR_LCPRETRY},
+  {"ipcpretry", "ipcpretries", SetVariable, LOCAL_AUTH, "IPCP retries",
+   "set ipcpretry value [attempts]", (const void *)VAR_IPCPRETRY},
+  {"lcpretry", "lcpretries", SetVariable, LOCAL_AUTH | LOCAL_CX, "LCP retries",
+   "set lcpretry value [attempts]", (const void *)VAR_LCPRETRY},
   {"log", NULL, log_SetLevel, LOCAL_AUTH, "log level",
   "set log [local] [+|-]async|cbcp|ccp|chat|command|connect|debug|hdlc|id0|"
   "ipcp|lcp|lqm|phase|tcp/ip|timer|tun..."},
@@ -1764,20 +1830,24 @@ static struct cmdtab const SetCommands[] = {
   "set nbns pri-addr [sec-addr]", (const void *)VAR_NBNS},
   {"openmode", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX, "open mode",
   "set openmode active|passive [secs]", (const void *)VAR_OPENMODE},
-  {"papretry", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX,
-  "PAP retry period", "set papretry value", (const void *)VAR_PAPRETRY},
+  {"papretry", "papretries", SetVariable, LOCAL_AUTH | LOCAL_CX, "PAP retries",
+   "set papretry value [attempts]", (const void *)VAR_PAPRETRY},
   {"parity", NULL, SetModemParity, LOCAL_AUTH | LOCAL_CX,
   "modem parity", "set parity [odd|even|none]"},
   {"phone", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX, "telephone number(s)",
   "set phone phone1[:phone2[...]]", (const void *)VAR_PHONE},
   {"proctitle", "title", SetProcTitle, LOCAL_AUTH,
   "Process title", "set proctitle [value]"},
+#ifndef NORADIUS
+  {"radius", NULL, SetVariable, LOCAL_AUTH,
+  "RADIUS Config", "set radius cfgfile", (const void *)VAR_RADIUS},
+#endif
   {"reconnect", NULL, datalink_SetReconnect, LOCAL_AUTH | LOCAL_CX,
   "Reconnect timeout", "set reconnect value ntries"},
   {"recvpipe", NULL, SetVariable, LOCAL_AUTH,
   "RECVPIPE value", "set recvpipe value", (const void *)VAR_RECVPIPE},
   {"redial", NULL, datalink_SetRedial, LOCAL_AUTH | LOCAL_CX,
-  "Redial timeout", "set redial value|random[.value|random] [attempts]"},
+  "Redial timeout", "set redial secs[+inc[-incmax]][.next] [attempts]"},
   {"sendpipe", NULL, SetVariable, LOCAL_AUTH,
   "SENDPIPE value", "set sendpipe value", (const void *)VAR_SENDPIPE},
   {"server", "socket", SetServer, LOCAL_AUTH,
@@ -1828,7 +1898,7 @@ AddCommand(struct cmdargs const *arg)
     else {
       int width;
 
-      if (!ParseAddr(&arg->bundle->ncp.ipcp, 1, arg->argv + arg->argn,
+      if (!ParseAddr(&arg->bundle->ncp.ipcp, arg->argv[arg->argn],
 	             &dest, &netmask, &width))
         return -1;
       if (!strncasecmp(arg->argv[arg->argn], "MYADDR", 6))
@@ -1857,7 +1927,8 @@ AddCommand(struct cmdargs const *arg)
     gateway = GetIpAddr(arg->argv[arg->argn+gw]);
 
   if (bundle_SetRoute(arg->bundle, RTM_ADD, dest, gateway, netmask,
-                  arg->cmd->args ? 1 : 0, (addrs & ROUTE_GWHISADDR) ? 1 : 0))
+                  arg->cmd->args ? 1 : 0, (addrs & ROUTE_GWHISADDR) ? 1 : 0)
+      && addrs != ROUTE_STATIC)
     route_Add(&arg->bundle->ncp.ipcp.route, addrs, dest, netmask, gateway);
 
   return 0;
@@ -2114,10 +2185,20 @@ NegotiateSet(struct cmdargs const *arg)
       cx->physical->link.lcp.cfg.acfcomp &= keep;
       cx->physical->link.lcp.cfg.acfcomp |= add;
       break;
-    case NEG_CHAP:
-      cx->physical->link.lcp.cfg.chap &= keep;
-      cx->physical->link.lcp.cfg.chap |= add;
+    case NEG_CHAP05:
+      cx->physical->link.lcp.cfg.chap05 &= keep;
+      cx->physical->link.lcp.cfg.chap05 |= add;
       break;
+#ifdef HAVE_DES
+    case NEG_CHAP80:
+      cx->physical->link.lcp.cfg.chap80nt &= keep;
+      cx->physical->link.lcp.cfg.chap80nt |= add;
+      break;
+    case NEG_CHAP80LM:
+      cx->physical->link.lcp.cfg.chap80lm &= keep;
+      cx->physical->link.lcp.cfg.chap80lm |= add;
+      break;
+#endif
     case NEG_DEFLATE:
       l->ccp.cfg.neg[CCP_NEG_DEFLATE] &= keep;
       l->ccp.cfg.neg[CCP_NEG_DEFLATE] |= add;
@@ -2201,9 +2282,17 @@ static struct cmdtab const NegotiateCommands[] = {
   {"acfcomp", NULL, NegotiateSet, LOCAL_AUTH | LOCAL_CX,
   "Address & Control field compression", "accept|deny|disable|enable",
   (const void *)NEG_ACFCOMP},
-  {"chap", NULL, NegotiateSet, LOCAL_AUTH | LOCAL_CX,
+  {"chap", "chap05", NegotiateSet, LOCAL_AUTH | LOCAL_CX,
   "Challenge Handshake Authentication Protocol", "accept|deny|disable|enable",
-  (const void *)NEG_CHAP},
+  (const void *)NEG_CHAP05},
+#ifdef HAVE_DES
+  {"mschap", "chap80nt", NegotiateSet, LOCAL_AUTH | LOCAL_CX,
+  "Microsoft (NT) CHAP", "accept|deny|disable|enable",
+  (const void *)NEG_CHAP80},
+  {"LANMan", "chap80lm", NegotiateSet, LOCAL_AUTH | LOCAL_CX,
+  "Microsoft (NT) CHAP", "accept|deny|disable|enable",
+  (const void *)NEG_CHAP80LM},
+#endif
   {"deflate", NULL, NegotiateSet, LOCAL_AUTH | LOCAL_CX_OPT,
   "Deflate compression", "accept|deny|disable|enable",
   (const void *)NEG_DEFLATE},
@@ -2340,24 +2429,24 @@ IfaceAddCommand(struct cmdargs const *arg)
   struct in_addr ifa, mask, brd;
 
   if (arg->argc == arg->argn + 1) {
-    if (!ParseAddr(NULL, 1, arg->argv + arg->argn, &ifa, NULL, NULL))
+    if (!ParseAddr(NULL, arg->argv[arg->argn], &ifa, NULL, NULL))
       return -1;
     mask.s_addr = brd.s_addr = INADDR_BROADCAST;
   } else {
     if (arg->argc == arg->argn + 2) {
-      if (!ParseAddr(NULL, 1, arg->argv + arg->argn, &ifa, &mask, &bits))
+      if (!ParseAddr(NULL, arg->argv[arg->argn], &ifa, &mask, &bits))
         return -1;
       n = 1;
     } else if (arg->argc == arg->argn + 3) {
-      if (!ParseAddr(NULL, 1, arg->argv + arg->argn, &ifa, NULL, NULL))
+      if (!ParseAddr(NULL, arg->argv[arg->argn], &ifa, NULL, NULL))
         return -1;
-      if (!ParseAddr(NULL, 1, arg->argv + arg->argn + 1, &mask, NULL, NULL))
+      if (!ParseAddr(NULL, arg->argv[arg->argn + 1], &mask, NULL, NULL))
         return -1;
       n = 2;
     } else
       return -1;
 
-    if (!ParseAddr(NULL, 1, arg->argv + arg->argn + n, &brd, NULL, NULL))
+    if (!ParseAddr(NULL, arg->argv[arg->argn + n], &brd, NULL, NULL))
       return -1;
   }
 
@@ -2377,7 +2466,7 @@ IfaceDeleteCommand(struct cmdargs const *arg)
   if (arg->argc != arg->argn + 1)
     return -1;
 
-  if (!ParseAddr(NULL, 1, arg->argv + arg->argn, &ifa, NULL, NULL))
+  if (!ParseAddr(NULL, arg->argv[arg->argn], &ifa, NULL, NULL))
     return -1;
 
   if (arg->bundle->ncp.ipcp.fsm.state == ST_OPENED &&
@@ -2433,7 +2522,7 @@ SetProcTitle(struct cmdargs const *arg)
     argc = sizeof argv / sizeof argv[0] - 1;
     log_Printf(LogWARN, "Truncating proc title to %d args\n", argc);
   }
-  expand(argv, argc, arg->argv + arg->argn, arg->bundle, 1);
+  command_Expand(argv, argc, arg->argv + arg->argn, arg->bundle, 1);
 
   ptr = title;
   remaining = sizeof title - 1;

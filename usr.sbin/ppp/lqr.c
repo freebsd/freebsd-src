@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lqr.c,v 1.29 1998/06/27 23:48:49 brian Exp $
+ * $Id: lqr.c,v 1.31 1999/01/28 01:56:33 brian Exp $
  *
  *	o LQR based on RFC1333
  *
@@ -26,7 +26,7 @@
  *	o Allow user to configure LQM method and interval.
  */
 
-#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/un.h>
 
 #include <string.h>

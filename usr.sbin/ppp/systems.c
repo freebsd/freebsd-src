@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: systems.c,v 1.40 1998/10/31 17:38:47 brian Exp $
+ * $Id: systems.c,v 1.42 1999/03/09 20:39:03 brian Exp $
  *
  *  TODO:
  */
@@ -249,6 +249,8 @@ xgets(char *buf, int buflen, FILE *fp)
 #define SYSTEM_VALIDATE	2
 #define SYSTEM_EXEC	3
 
+/* Returns -2 for ``file not found'' and -1 for ``label not found'' */
+
 static int
 ReadSystem(struct bundle *bundle, const char *name, const char *file,
            struct prompt *prompt, struct datalink *cx, int how)
@@ -272,7 +274,7 @@ ReadSystem(struct bundle *bundle, const char *name, const char *file,
   fp = ID0fopen(filename, "r");
   if (fp == NULL) {
     log_Printf(LogDEBUG, "ReadSystem: Can't open %s.\n", filename);
-    return (-1);
+    return -2;
   }
   log_Printf(LogDEBUG, "ReadSystem: Checking %s (%s).\n", name, filename);
 
@@ -359,7 +361,7 @@ system_IsValid(const char *name, struct prompt *prompt, int mode)
    * Note:  The ReadSystem() calls only result in calls to the Allow*
    * functions.  arg->bundle will be set to NULL for these commands !
    */
-  int def, how;
+  int def, how, rs;
 
   def = !strcmp(name, "default");
   how = ID0realuid() == 0 ? SYSTEM_EXISTS : SYSTEM_VALIDATE;
@@ -367,11 +369,21 @@ system_IsValid(const char *name, struct prompt *prompt, int mode)
   modeok = 1;
   modereq = mode;
 
-  if (ReadSystem(NULL, "default", CONFFILE, prompt, NULL, how) != 0 && def)
-    return "Configuration label not found";
+  rs = ReadSystem(NULL, "default", CONFFILE, prompt, NULL, how);
 
-  if (!def && ReadSystem(NULL, name, CONFFILE, prompt, NULL, how) != 0)
-    return "Configuration label not found";
+  if (!def) {
+    if (rs == -1)
+      rs = 0;		/* we don't care that ``default'' doesn't exist */
+
+    if (rs == 0)
+      rs = ReadSystem(NULL, name, CONFFILE, prompt, NULL, how);
+
+    if (rs == -1)
+      return "Configuration label not found";
+
+    if (rs == -2)
+      return _PATH_PPP "/" CONFFILE ": File not found";
+  }
 
   if (how == SYSTEM_EXISTS)
     userok = modeok = 1;

@@ -15,14 +15,13 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: chap.h,v 1.9.2.6 1998/05/01 19:24:05 brian Exp $
+ * $Id: chap.h,v 1.14 1999/02/18 19:45:06 brian Exp $
  *
  *	TODO:
  */
 
 struct mbuf;
 struct physical;
-struct bundle;
 
 #define	CHAP_CHALLENGE	1
 #define	CHAP_RESPONSE	2
@@ -30,13 +29,27 @@ struct bundle;
 #define	CHAP_FAILURE	4
 
 struct chap {
+  struct descriptor desc;
+  struct {
+    pid_t pid;
+    int fd;
+    struct {
+      char ptr[AUTHLEN * 2 + 3];	/* Allow for \r\n at the end (- NUL) */
+      int len;
+    } buf;
+  } child;
   struct authinfo auth;
-  char challenge_data[80];
-  int challenge_len;
-  unsigned using_MSChap : 1;	/* A combination of MD4 & DES */
+  u_char challenge[CHAPCHALLENGELEN + AUTHLEN];
+#ifdef HAVE_DES
+  unsigned NTRespSent : 1;		/* Our last response */
+  int peertries;
+#endif
 };
 
-#define auth2chap(a) ((struct chap *)(a))
+#define descriptor2chap(d) \
+  ((d)->type == CHAP_DESCRIPTOR ? (struct chap *)(d) : NULL)
+#define auth2chap(a) (struct chap *)((char *)a - (int)&((struct chap *)0)->auth)
 
-extern void chap_Input(struct bundle *, struct mbuf *, struct physical *);
-extern void chap_SendChallenge(struct authinfo *, int, struct physical *);
+extern void chap_Init(struct chap *, struct physical *);
+extern void chap_ReInit(struct chap *);
+extern void chap_Input(struct physical *, struct mbuf *);

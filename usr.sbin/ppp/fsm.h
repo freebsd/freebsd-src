@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: fsm.h,v 1.18 1998/06/20 00:19:38 brian Exp $
+ * $Id: fsm.h,v 1.20 1999/02/26 21:28:11 brian Exp $
  *
  *	TODO:
  */
@@ -45,7 +45,16 @@
 
 #define	OPEN_PASSIVE	-1
 
+#define FSM_REQ_TIMER	1
+#define FSM_TRM_TIMER	2
+
 struct fsm;
+
+struct fsm_retry {
+  u_int timeout;                             /* FSM retry frequency */
+  u_int maxreq;                              /* Max Config REQ retries */
+  u_int maxtrm;                              /* Max Term REQ retries */
+};
 
 struct fsm_decode {
   u_char ack[100], *ackend;
@@ -58,7 +67,7 @@ struct fsm_callbacks {
   void (*LayerDown) (struct fsm *);          /* About to come down (tld) */
   void (*LayerStart) (struct fsm *);         /* Layer about to start up (tls) */
   void (*LayerFinish) (struct fsm *);        /* Layer now down (tlf) */
-  void (*InitRestartCounter) (struct fsm *); /* Set fsm timer load */
+  void (*InitRestartCounter) (struct fsm *, int); /* Set fsm timer load */
   void (*SendConfigReq) (struct fsm *);      /* Send REQ please */
   void (*SentTerminateReq) (struct fsm *);   /* Term REQ just sent */
   void (*SendTerminateAck) (struct fsm *, u_char); /* Send Term ACK please */
@@ -88,7 +97,12 @@ struct fsm {
   int state;			/* State of the machine */
   u_char reqid;			/* Next request id */
   int restart;			/* Restart counter value */
-  int maxconfig;		/* Max config REQ before a close() */
+
+  struct {
+    int reqs;			/* Max config REQs before a close() */
+    int naks;			/* Max config NAKs before a close() */
+    int rejs;			/* Max config REJs before a close() */
+  } more;
 
   struct pppTimer FsmTimer;	/* Restart Timer */
   struct pppTimer OpenTimer;	/* Delay before opening */
@@ -143,7 +157,7 @@ struct fsmconfig {
   u_char length;
 };
 
-extern void fsm_Init(struct fsm *, const char *, u_short, int, int, int, int,
+extern void fsm_Init(struct fsm *, const char *, u_short, int, int, int,
                      struct bundle *, struct link *, const  struct fsm_parent *,
                      struct fsm_callbacks *, const char *[3]);
 extern void fsm_Output(struct fsm *, u_int, u_int, u_char *, int);

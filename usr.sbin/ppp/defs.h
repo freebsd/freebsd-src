@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: defs.h,v 1.36 1998/08/25 17:48:42 brian Exp $
+ * $Id: defs.h,v 1.41 1999/02/26 21:28:10 brian Exp $
  *
  *	TODO:
  */
@@ -44,6 +44,9 @@
 #define	DIAL_NEXT_TIMEOUT 3	/* Default Hold time to next number redial */
 #define SCRIPT_LEN 512		/* Size of login scripts */
 #define LINE_LEN SCRIPT_LEN 	/* Size of login scripts */
+#define AUTHLEN 100 		/* Size of authname/authkey */
+#define CHAPDIGESTLEN 100	/* Maximum chap digest */
+#define CHAPCHALLENGELEN 48	/* Maximum chap challenge */
 #define MAXARGS 40		/* How many args per config line */
 #define NCP_IDLE_TIMEOUT 180	/* Drop all links */
 #define CHOKED_TIMEOUT 120	/* Delete queued packets w/ blocked tun */
@@ -53,7 +56,9 @@
 #define DEF_LQRPERIOD 30	/* Default LQR frequency */
 #define MIN_FSMRETRY 3		/* Minimum FSM retry frequency */
 #define DEF_FSMRETRY 3		/* FSM retry frequency */
-#define DEF_REQs     5		/* This number of REQs in IRC */
+#define DEF_FSMTRIES 5		/* Default max retries */
+#define DEF_FSMAUTHTRIES 3		/* Default max auth retries */
+#define DEF_CDDELAY  1		/* Delay before checking for carrier */
 
 #define	CONFFILE 	"ppp.conf"
 #define	LINKUPFILE 	"ppp.linkup"

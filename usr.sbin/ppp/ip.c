@@ -17,13 +17,13 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ip.c,v 1.53 1998/09/17 00:45:26 brian Exp $
+ * $Id: ip.c,v 1.55 1999/01/28 01:56:32 brian Exp $
  *
  *	TODO:
  *		o Return ICMP message for filterd packet
  *		  and optionaly record it into log.
  */
-#include <sys/types.h>
+#include <sys/param.h>
 #ifdef __OpenBSD__
 #include <sys/socket.h>
 #endif
@@ -66,6 +66,9 @@
 #include "ccp.h"
 #include "link.h"
 #include "mp.h"
+#ifndef NORADIUS
+#include "radius.h"
+#endif
 #include "bundle.h"
 #include "vjcomp.h"
 #include "tun.h"
