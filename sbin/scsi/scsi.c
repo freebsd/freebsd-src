@@ -39,7 +39,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: scsi.c,v 1.12.2.2 1997/09/14 19:48:28 jkh Exp $
+ *	$Id: scsi.c,v 1.12.2.3 1998/07/17 20:13:51 jkh Exp $
  */
 
 #include <stdio.h>
@@ -226,6 +226,8 @@ void arg_put(void *hook, int letter, void *arg, int count, char *name)
 		case 'z':
 		{
 			char *p = malloc(count + 1);
+			if (p == NULL)
+				errx(1, "malloc failed");
 			p[count] = 0;
 			strncpy(p, (char *)arg, count);
 			if (letter == 'z')
@@ -316,6 +318,8 @@ do_cmd(int fd, char *fmt, int argc, char **argv)
 			data_fmt = cget(&h, 0);
 
 			scsireq->databuf = malloc(count);
+			if (scsireq->databuf == NULL)
+				errx(1, "malloc failed");
 
 			if (data_phase == out)
 			{
@@ -695,6 +699,8 @@ edit_edit(void)
 	fclose(edit_file);
 
 	system_line = malloc(strlen(editor) + strlen(edit_name) + 6);
+	if (system_line == NULL)
+		errx(1, "malloc failed");
 	sprintf(system_line, "%s %s", editor, edit_name);
 	system(system_line);
 	free(system_line);
@@ -834,9 +840,12 @@ void do_probe_all(void)
 
 	char vendor_id[8 + 1], product_id[16 + 1], revision[4 + 1];
 	int id;
-	u_char *inq_buf = malloc(96);
+	u_char *inq_buf;
 	struct scsi_addr addr;
 
+	inq_buf = malloc(96);
+	if (inq_buf == NULL)
+		errx(1, "malloc failed");
 	scsireq = scsireq_build(scsireq_new(),
 	96, inq_buf, SCCMD_READ,
 	"12 0 0 0 v 0", 96);
