@@ -173,7 +173,9 @@ vmspace_alloc(min, max)
 {
 	struct vmspace *vm;
 
+	mtx_assert(&vm_mtx, MA_OWNED);
 	vm = zalloc(vmspace_zone);
+	CTR1(KTR_VM, "vmspace_alloc: %p", vm);
 	vm_map_init(&vm->vm_map, min, max);
 	pmap_pinit(vmspace_pmap(vm));
 	vm->vm_map.pmap = vmspace_pmap(vm);		/* XXX */
@@ -206,6 +208,7 @@ vmspace_free(vm)
 
 	if (--vm->vm_refcnt == 0) {
 
+		CTR1(KTR_VM, "vmspace_free: %p", vm);
 		/*
 		 * Lock the map, to wait out all other references to it.
 		 * Delete all of the mappings and pages they hold, then call
@@ -236,7 +239,9 @@ vm_map_create(pmap, min, max)
 {
 	vm_map_t result;
 
+	mtx_assert(&vm_mtx, MA_OWNED);
 	result = zalloc(mapzone);
+	CTR1(KTR_VM, "vm_map_create: %p", result);
 	vm_map_init(result, min, max);
 	result->pmap = pmap;
 	return (result);
@@ -252,6 +257,8 @@ vm_map_init(map, min, max)
 	struct vm_map *map;
 	vm_offset_t min, max;
 {
+
+	mtx_assert(&vm_mtx, MA_OWNED);
 	map->header.next = map->header.prev = &map->header;
 	map->nentries = 0;
 	map->size = 0;
@@ -269,6 +276,8 @@ void
 vm_map_destroy(map)
 	struct vm_map *map;
 {
+
+	mtx_assert(&vm_mtx, MA_OWNED);
 	lockdestroy(&map->lock);
 }
 
@@ -314,6 +323,10 @@ vm_map_entry_link(vm_map_t map,
 		  vm_map_entry_t after_where,
 		  vm_map_entry_t entry)
 {
+
+	CTR4(KTR_VM,
+	    "vm_map_entry_link: map %p, nentries %d, entry %p, after %p", map,
+	    map->nentries, entry, after_where);
 	map->nentries++;
 	entry->prev = after_where;
 	entry->next = after_where->next;
@@ -331,6 +344,8 @@ vm_map_entry_unlink(vm_map_t map,
 	next->prev = prev;
 	prev->next = next;
 	map->nentries--;
+	CTR3(KTR_VM, "vm_map_entry_unlink: map %p, nentries %d, entry %p", map,
+	    map->nentries, entry);
 }
 
 /*
@@ -363,6 +378,7 @@ vm_map_lookup_entry(map, address, entry)
 	vm_map_entry_t cur;
 	vm_map_entry_t last;
 
+	mtx_assert(&vm_mtx, MA_OWNED);
 	/*
 	 * Start looking either from the head of the list, or from the hint.
 	 */
@@ -604,6 +620,7 @@ vm_map_findspace(map, start, length, addr)
 	vm_map_entry_t entry, next;
 	vm_offset_t end;
 
+	mtx_assert(&vm_mtx, MA_OWNED);
 	if (start < map->min_offset)
 		start = map->min_offset;
 	if (start > map->max_offset)
@@ -672,6 +689,7 @@ vm_map_find(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 	vm_offset_t start;
 	int result, s = 0;
 
+	mtx_assert(&vm_mtx, MA_OWNED);
 	start = *addr;
 
 	if (map == kmem_map || map == mb_map)
@@ -717,6 +735,7 @@ vm_map_simplify_entry(map, entry)
 	vm_map_entry_t next, prev;
 	vm_size_t prevsize, esize;
 
+	mtx_assert(&vm_mtx, MA_OWNED);
 	if (entry->eflags & MAP_ENTRY_IS_SUB_MAP)
 		return;
 
@@ -935,6 +954,7 @@ vm_map_submap(map, start, end, submap)
 	vm_map_entry_t entry;
 	int result = KERN_INVALID_ARGUMENT;
 
+	mtx_assert(&vm_mtx, MA_OWNED);
 	vm_map_lock(map);
 
 	VM_MAP_RANGE_CHECK(map, start, end);
@@ -973,6 +993,7 @@ vm_map_protect(vm_map_t map, vm_offset_t start, vm_offset_t end,
 	vm_map_entry_t current;
 	vm_map_entry_t entry;
 
+	mtx_assert(&vm_mtx, MA_OWNED);
 	vm_map_lock(map);
 
 	VM_MAP_RANGE_CHECK(map, start, end);
@@ -1062,6 +1083,7 @@ vm_map_madvise(map, start, end, behav)
 	vm_map_entry_t current, entry;
 	int modify_map = 0;
 
+	mtx_assert(&vm_mtx, MA_OWNED);
 	/*
 	 * Some madvise calls directly modify the vm_map_entry, in which case
 	 * we need to use an exclusive lock on the map and we need to perform 
@@ -1215,6 +1237,7 @@ vm_map_inherit(vm_map_t map, vm_offset_t start, vm_offset_t end,
 	vm_map_entry_t entry;
 	vm_map_entry_t temp_entry;
 
+	mtx_assert(&vm_mtx, MA_OWNED);
 	switch (new_inheritance) {
 	case VM_INHERIT_NONE:
 	case VM_INHERIT_COPY:
@@ -1401,6 +1424,7 @@ vm_map_pageable(map, start, end, new_pageable)
 	vm_offset_t failed = 0;
 	int rv;
 
+	mtx_assert(&vm_mtx, MA_OWNED);
 	vm_map_lock(map);
 
 	VM_MAP_RANGE_CHECK(map, start, end);
@@ -1631,6 +1655,8 @@ vm_map_clean(map, start, end, syncio, invalidate)
 	vm_object_t object;
 	vm_ooffset_t offset;
 
+	mtx_assert(&Giant, MA_OWNED);
+	mtx_assert(&vm_mtx, MA_OWNED);
 	vm_map_lock_read(map);
 	VM_MAP_RANGE_CHECK(map, start, end);
 	if (!vm_map_lookup_entry(map, start, &entry)) {
@@ -1788,6 +1814,7 @@ vm_map_delete(map, start, end)
 	vm_map_entry_t entry;
 	vm_map_entry_t first_entry;
 
+	mtx_assert(&vm_mtx, MA_OWNED);
 	/*
 	 * Find the start of the region, and clip it
 	 */
@@ -1889,6 +1916,7 @@ vm_map_remove(map, start, end)
 {
 	int result, s = 0;
 
+	mtx_assert(&vm_mtx, MA_OWNED);
 	if (map == kmem_map || map == mb_map)
 		s = splvm();
 
@@ -1917,6 +1945,7 @@ vm_map_check_protection(vm_map_t map, vm_offset_t start, vm_offset_t end,
 	vm_map_entry_t entry;
 	vm_map_entry_t tmp_entry;
 
+	mtx_assert(&vm_mtx, MA_OWNED);
 	if (!vm_map_lookup_entry(map, start, &tmp_entry)) {
 		return (FALSE);
 	}
@@ -1964,6 +1993,7 @@ vm_map_split(entry)
 	vm_size_t size;
 	vm_ooffset_t offset;
 
+	mtx_assert(&vm_mtx, MA_OWNED);
 	orig_object = entry->object.vm_object;
 	if (orig_object->type != OBJT_DEFAULT && orig_object->type != OBJT_SWAP)
 		return;
@@ -2130,6 +2160,7 @@ vmspace_fork(vm1)
 	vm_map_entry_t new_entry;
 	vm_object_t object;
 
+	mtx_assert(&vm_mtx, MA_OWNED);
 	vm_map_lock(old_map);
 	old_map->infork = 1;
 
@@ -2239,6 +2270,7 @@ vm_map_stack (vm_map_t map, vm_offset_t addrbos, vm_size_t max_ssize,
 	vm_size_t      init_ssize;
 	int            rv;
 
+	mtx_assert(&vm_mtx, MA_OWNED);
 	if (VM_MIN_ADDRESS > 0 && addrbos < VM_MIN_ADDRESS)
 		return (KERN_NO_SPACE);
 
@@ -2461,6 +2493,7 @@ vmspace_exec(struct proc *p) {
 	struct vmspace *newvmspace;
 	vm_map_t map = &p->p_vmspace->vm_map;
 
+	mtx_assert(&vm_mtx, MA_OWNED);
 	newvmspace = vmspace_alloc(map->min_offset, map->max_offset);
 	bcopy(&oldvmspace->vm_startcopy, &newvmspace->vm_startcopy,
 	    (caddr_t) (newvmspace + 1) - (caddr_t) &newvmspace->vm_startcopy);
@@ -2471,9 +2504,9 @@ vmspace_exec(struct proc *p) {
 	 * run it down.  Even though there is little or no chance of blocking
 	 * here, it is a good idea to keep this form for future mods.
 	 */
-	vmspace_free(oldvmspace);
 	p->p_vmspace = newvmspace;
 	pmap_pinit2(vmspace_pmap(newvmspace));
+	vmspace_free(oldvmspace);
 	if (p == curproc)
 		pmap_activate(p);
 }
@@ -2488,12 +2521,13 @@ vmspace_unshare(struct proc *p) {
 	struct vmspace *oldvmspace = p->p_vmspace;
 	struct vmspace *newvmspace;
 
+	mtx_assert(&vm_mtx, MA_OWNED);
 	if (oldvmspace->vm_refcnt == 1)
 		return;
 	newvmspace = vmspace_fork(oldvmspace);
-	vmspace_free(oldvmspace);
 	p->p_vmspace = newvmspace;
 	pmap_pinit2(vmspace_pmap(newvmspace));
+	vmspace_free(oldvmspace);
 	if (p == curproc)
 		pmap_activate(p);
 }
@@ -2539,6 +2573,7 @@ vm_map_lookup(vm_map_t *var_map,		/* IN/OUT */
 	vm_prot_t prot;
 	vm_prot_t fault_type = fault_typea;
 
+	mtx_assert(&vm_mtx, MA_OWNED);
 RetryLookup:;
 
 	/*
@@ -2711,6 +2746,7 @@ vm_map_lookup_done(map, entry)
 	 * Unlock the main-level map
 	 */
 
+	mtx_assert(&vm_mtx, MA_OWNED);
 	vm_map_unlock_read(map);
 }
 
@@ -2739,6 +2775,7 @@ vm_uiomove(mapa, srcobject, cp, cnta, uaddra, npages)
 	off_t ooffset;
 	int cnt;
 
+	mtx_assert(&vm_mtx, MA_OWNED);
 	if (npages)
 		*npages = 0;
 
