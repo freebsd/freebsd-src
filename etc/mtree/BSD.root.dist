@@ -1,4 +1,4 @@
-#	$Id: BSD.root.dist,v 1.25 1997/08/18 16:49:22 pst Exp $
+#	$Id: BSD.root.dist,v 1.26 1997/09/29 11:10:09 ache Exp $
 #
 
 /set type=dir uname=root gname=wheel mode=0755
@@ -28,8 +28,6 @@
         ..
         namedb
         ..
-	opielocks       uname=root gname=wheel mode=0700
-	..
         ppp
         ..
 	skel
