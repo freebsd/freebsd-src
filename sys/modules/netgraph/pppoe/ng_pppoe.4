@@ -40,15 +40,15 @@
 .Os FreeBSD 4.0
 .Sh NAME
 .Nm ng_pppoe
-.Nd RFC-2516 PPPOE protocol netgraph node type
+.Nd RFC 2516 PPPOE protocol netgraph node type
 .Sh SYNOPSIS
 .Fd #include <netgraph/ng_pppoe.h>
 .Sh DESCRIPTION
 The
 .Nm 
-node type performs the PPPoE protocol. It is used in conjunction with a the
-.Dv Netgraph
-extensions to the ethernet framework to divert and inject ethernet packets
+node type performs the PPPoE protocol. It is used in conjunction with the
+.Xr netgraph 4
+extensions to the Ethernet framework to divert and inject Ethernet packets
 to and from a PPP agent (which is not specified).
 .Pp
 The
@@ -64,7 +64,7 @@ This node type supports the following hooks:
 .Pp
 .Bl -tag -width foobarbaz
 .It Dv ethernet
-The hook that should normally be connected to an ethernet node.
+The hook that should normally be connected to an Ethernet node.
 .It Dv debug
 Presently no use.
 .It Dv [unspecified]
@@ -79,8 +79,8 @@ This command returns status information in a
 .Dv "struct ngpppoestat" :
 .Bd -literal -offset 4n
 struct ngpppoestat {
-	u_int   packets_in;     /* packets in from ethernet */
-	u_int   packets_out;    /* packets out towards ethernet */
+    u_int   packets_in;     /* packets in from ethernet */
+    u_int   packets_out;    /* packets out towards ethernet */
 };
 .Ed
 .It Dv NGM_TEXT_STATUS
@@ -91,7 +91,7 @@ Tell a nominated newly created hook that it's session should enter
 the state machine in a manner to become a client. It must be newly created and 
 a service name can be given as an argument. It is legal to specify a zero length
 service name. This is common on some DSL setups. A session request packet
-will be broadcast on the ethernet.
+will be broadcast on the Ethernet.
 This command uses the 
 .Dv ngpppoe_init_data
 structure shown below.
@@ -121,18 +121,15 @@ received, the session negotiation will proceed.
 This command uses the 
 .Dv ngpppoe_init_data
 structure shown below.
-
 .Pp
-The three commands above use a common data structure.
-.Dv "struct ngpppoe_init_data"
+The three commands above use a common data structure:
 .Bd -literal -offset 4n
 struct ngpppoe_init_data {
-        char    hook[NG_HOOKLEN + 1];   /* hook to monitor on */
-        u_int16_t       data_len;  /* Length of the service name */
-        char    data[0];                /* init data goes here */
+    char       hook[NG_HOOKLEN + 1];   /* hook to monitor on */
+    u_int16_t  data_len;               /* service name length */
+    char       data[0];                /* init data goes here */
 };
 .Ed
-
 .It Dv NGM_PPPOE_SUCCESS
 This command is sent to the node that started this session with one of the
 above messages, and reports a state change. This message reports
@@ -153,11 +150,10 @@ The hook will probably have been removed immediately after sending this
 message. At present this message is not yet used and a 'failed' message
 will be received at closure instead.
 .Pp
-The three commands above use a common data structure.
-.Dv "struct ngpppoe_sts"
+The three commands above use a common data structure:
 .Bd -literal -offset 4n
 struct ngpppoe_sts {
-        char    hook[NG_HOOKLEN + 1]; /* hook associated with event session */
+    char    hook[NG_HOOKLEN + 1]; /* hook associated with event session */
 };
 
 .El
@@ -172,10 +168,10 @@ The following code uses
 .Dv libnetgraph
 to set up a
 .Nm 
-node and connect it to both a socket node and an ethernet node. It can handle
+node and connect it to both a socket node and an Ethernet node. It can handle
 the case of when a
 .Nm
-node is already attached to the ethernet. It then starts a client session.
+node is already attached to the Ethernet. It then starts a client session.
 .Bd -literal
 #include <stdio.h>
 #include <stdlib.h>
@@ -386,9 +382,17 @@ setup(char *ethername, char *service, char *sessname,
 .Xr netgraph 3 ,
 .Xr netgraph 4 ,
 .Xr ng_socket 8 ,
+.Xr ng_ppp 8 ,
 .Xr ngctl 8 .
 .Rs
-.%T "RFC 2516 - A Method of transmitting PPP over Ethernet (PPPoE)"
+.%A L. Mamakos
+.%A K. Lidl
+.%A J. Evarts
+.%A D. Carrel
+.%A D. Simone
+.%A R. Wheeler
+.%T "A Method for transmitting PPP over Ethernet (PPPoE)"
+.%O RFC 2516
 .Re
 .Sh AUTHOR
 Julian Elischer <julian@whistle.com>
