@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: bt742a.c,v 1.43 1995/11/04 17:07:08 bde Exp $
+ *      $Id: btreg.h,v 1.1 1995/12/12 08:57:22 gibbs Exp $
  */
 
 #ifndef _BTREG_H_
@@ -142,7 +142,7 @@ extern u_long bt_unit;
 
 struct bt_data *bt_alloc __P((int unit, u_long iobase));
 void bt_free __P((struct bt_data *bt));
-void btintr __P((void *arg));
+void bt_intr __P((void *arg));
 int bt_init __P((struct bt_data *bt)); 
 int bt_attach __P((struct bt_data *bt));
 
