@@ -1,5 +1,7 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.166 1998/05/27 12:13:16 jkoshy Exp $
+#	$Id: Makefile,v 1.167 1998/06/11 20:25:56 guido Exp $
+
+SUBDIR=	sendmail
 
 # -rw-r--r--
 BINOWN= root
@@ -38,7 +40,7 @@ LATIN1LINKS = \
 	fr_BE fr_CA fr_CH fr_FR is_IS it_CH it_IT nl_BE nl_NL no_NO \
 	pt_PT sv_SE
 
-all depend etc install lint:
+etc:
 
 distribute:
 	cd ${.CURDIR} ; ${MAKE} distribution DESTDIR=${DISTDIR}/bin
@@ -56,7 +58,7 @@ distribution:
 	( cd ${.CURDIR}/../gnu/libexec/uucp/sample; ${MAKE} install ); \
 	( cd ${.CURDIR}/../share/termcap; ${MAKE} etc-termcap ); \
 	( cd ${.CURDIR}/../usr.sbin/rmt; ${MAKE} etc-rmt ); \
-	( cd ${.CURDIR}/../usr.sbin/sendmail/cf/cf; ${MAKE} etc-sendmail.cf ); \
+	( cd ${.CURDIR}/sendmail/cf; ${MAKE} etc-sendmail.cf ); \
 	( cd ${.CURDIR}/../sys/i386/boot/biosboot; ${MAKE} install-boothelp ); \
 	pwd_mkdb -p -d ${DESTDIR}/etc ${DESTDIR}/etc/master.passwd; \
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 555 \
