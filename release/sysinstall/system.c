@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: system.c,v 1.43.2.8 1995/06/02 00:45:18 jkh Exp $
+ * $Id: system.c,v 1.43.2.9 1995/06/05 03:15:49 jkh Exp $
  *
  * Jordan Hubbard
  *
@@ -59,6 +59,9 @@ systemInitialize(int argc, char **argv)
 	setbuf(stdin, 0);
 	setbuf(stderr, 0);
     }
+
+    /* Don't be overly conservative */
+    umask(0755);
 
     for(i = 0; i < 256; i++)
 	default_scrnmap[i] = i;
