@@ -61,7 +61,7 @@ print_all_info(apm_info_t aip)
 	else if (aip->ai_acline > 1)
 		printf("invalid value (0x%x)", aip->ai_acline);
 	else {
-		static char messages[][10] = {"off-line", "on-line"};
+		char messages[][10] = {"off-line", "on-line"};
 		printf("%s", messages[aip->ai_acline]);
 	}
 	printf("\n");
