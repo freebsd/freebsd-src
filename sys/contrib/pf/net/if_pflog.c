@@ -126,6 +126,7 @@ extern int ifqmaxlen;
 #ifdef __FreeBSD__
 static MALLOC_DEFINE(M_PFLOG, PFLOGNAME, "Packet Filter Logging Interface");
 static LIST_HEAD(pflog_list, pflog_softc) pflog_list;
+#define	SCP2IFP(sc)		(&(sc)->sc_if)
 IFC_SIMPLE_DECLARE(pflog, 1);
 
 static void
@@ -150,26 +151,28 @@ static int
 pflog_clone_create(struct if_clone *ifc, int unit)
 {
 	struct pflog_softc *sc;
+	struct ifnet *ifp;
 
 	MALLOC(sc, struct pflog_softc *, sizeof(*sc), M_PFLOG, M_WAITOK|M_ZERO);
 
-	if_initname(&sc->sc_if, ifc->ifc_name, unit);
-        sc->sc_if.if_mtu = PFLOGMTU;
-        sc->sc_if.if_ioctl = pflogioctl;
-        sc->sc_if.if_output = pflogoutput;
-        sc->sc_if.if_start = pflogstart;
-        sc->sc_if.if_type = IFT_PFLOG;
-        sc->sc_if.if_snd.ifq_maxlen = ifqmaxlen;
-        sc->sc_if.if_hdrlen = PFLOG_HDRLEN;
-        sc->sc_if.if_softc = sc;
-        if_attach(&sc->sc_if);
+	ifp = SCP2IFP(sc);
+	if_initname(ifp, ifc->ifc_name, unit);
+	ifp->if_mtu = PFLOGMTU;
+	ifp->if_ioctl = pflogioctl;
+	ifp->if_output = pflogoutput;
+	ifp->if_start = pflogstart;
+	ifp->if_type = IFT_PFLOG;
+	ifp->if_snd.ifq_maxlen = ifqmaxlen;
+	ifp->if_hdrlen = PFLOG_HDRLEN;
+	ifp->if_softc = sc;
+	if_attach(ifp);
 
-        LIST_INSERT_HEAD(&pflog_list, sc, sc_next);
+	LIST_INSERT_HEAD(&pflog_list, sc, sc_next);
 #if NBPFILTER > 0
-	bpfattach(&sc->sc_if, DLT_PFLOG, PFLOG_HDRLEN);
+	bpfattach(ifp, DLT_PFLOG, PFLOG_HDRLEN);
 #endif
 
-        return (0);
+	return (0);
 }
 #else /* !__FreeBSD__ */
 void
@@ -329,7 +332,7 @@ pflog_packet(struct pfi_kif *kif, struct mbuf *m, sa_family_t af, u_int8_t dir,
 
 #ifdef __FreeBSD__
 	KASSERT((!LIST_EMPTY(&pflog_list)), ("pflog: no interface"));
-	ifn = &LIST_FIRST(&pflog_list)->sc_if;
+	ifn = SCP2IFP(LIST_FIRST(&pflog_list));
 	BPF_MTAP2(ifn, &hdr, sizeof(hdr), m);
 #else
 	ifn = &(pflogif[0].sc_if);
@@ -357,8 +360,7 @@ pflog_modevent(module_t mod, int type, void *data)
 	case MOD_UNLOAD:
 		if_clone_detach(&pflog_cloner);
 		while (!LIST_EMPTY(&pflog_list))
-			pflog_clone_destroy(
-				&LIST_FIRST(&pflog_list)->sc_if);
+			pflog_clone_destroy(SCP2IFP(LIST_FIRST(&pflog_list)));
 		break;
 
 	default:

@@ -2021,7 +2021,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 			/* Can we completely trust user-land? */
 			strlcpy(ps.ifname, psp->ifname, IFNAMSIZ);
 			ifp = ifunit(ps.ifname);
-			if (ifp )
+			if (ifp != NULL)
 				psp->baudrate = ifp->if_baudrate;
 			else
 				error = EINVAL;
