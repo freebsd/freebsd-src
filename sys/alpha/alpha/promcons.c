@@ -1,4 +1,4 @@
-/* $Id: promcons.c,v 1.5 1999/04/27 11:13:22 phk Exp $ */
+/* $Id: promcons.c,v 1.6 1999/05/07 10:09:28 phk Exp $ */
 /* $NetBSD: promcons.c,v 1.13 1998/03/21 22:52:59 mycroft Exp $ */
 
 /*
@@ -266,6 +266,6 @@ promdevtotty(dev)
 	return &prom_tty[0];
 }
 
-DEV_MODULE(prom, CDEV_MAJOR, NODEV, prom_cdevsw, 0, 0);
+DEV_MODULE(prom, CDEV_MAJOR, NOMAJ, prom_cdevsw, 0, 0);
 
 #endif /* _PMAP_MAY_USE_PROM_CONSOLE */
