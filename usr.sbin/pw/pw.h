@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: pw.h,v 1.1.1.2 1996/12/09 23:55:23 joerg Exp $
+ *	$Id: pw.h,v 1.1.1.3 1996/12/10 23:58:59 joerg Exp $
  */
 
 #include <stdio.h>
@@ -101,6 +101,7 @@ void cmderr(int ec, char const * fmt,...);
 
 int pw_user(struct userconf * cnf, int mode, struct cargs * _args);
 int pw_group(struct userconf * cnf, int mode, struct cargs * _args);
+char    *pw_checkname(u_char *name, int gecos);
 
 int addpwent(struct passwd * pwd);
 int delpwent(struct passwd * pwd);

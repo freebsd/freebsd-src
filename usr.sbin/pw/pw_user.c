@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: pw_user.c,v 1.4 1996/12/17 01:43:30 davidn Exp $
+ *	$Id: pw_user.c,v 1.5 1996/12/17 14:15:35 davidn Exp $
  */
 
 #include <unistd.h>
@@ -49,7 +49,6 @@ static time_t   pw_exppolicy(struct userconf * cnf, struct cargs * args);
 static char    *pw_homepolicy(struct userconf * cnf, struct cargs * args, char const * user);
 static char    *pw_shellpolicy(struct userconf * cnf, struct cargs * args, char *newshell);
 static char    *pw_password(struct userconf * cnf, struct cargs * args, char const * user);
-static char    *pw_checkname(char *name, int gecos);
 static char    *shell_path(char const * path, char *shells[], char *sh);
 static void     rmat(uid_t uid);
 
@@ -148,7 +147,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 		cnf->default_group = newstr(grp->gr_name);
 	}
 	if ((arg = getarg(args, 'L')) != NULL)
-		cnf->default_class = pw_checkname(arg->val, 0);
+		cnf->default_class = pw_checkname((u_char *)arg->val, 0);
 
 	if ((arg = getarg(args, 'G')) != NULL && arg->val) {
 		int             i = 0;
@@ -204,7 +203,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 		return EXIT_SUCCESS;
 	}
 	if ((a_name = getarg(args, 'n')) != NULL)
-		pwd = getpwnam(pw_checkname(a_name->val, 0));
+		pwd = getpwnam(pw_checkname((u_char *)a_name->val, 0));
 	a_uid = getarg(args, 'u');
 
 	if (a_uid == NULL) {
@@ -306,7 +305,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 		if ((arg = getarg(args, 'l')) != NULL) {
 			if (strcmp(pwd->pw_name, "root") == 0)
 				cmderr(EX_DATAERR, "can't rename `root' account\n");
-			pwd->pw_name = pw_checkname(arg->val, 0);
+			pwd->pw_name = pw_checkname((u_char *)arg->val, 0);
 		}
 		if ((arg = getarg(args, 'u')) != NULL && isdigit(*arg->val)) {
 			pwd->pw_uid = (uid_t) atol(arg->val);
@@ -379,7 +378,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 	 * Shared add/edit code
 	 */
 	if ((arg = getarg(args, 'c')) != NULL)
-		pwd->pw_gecos = pw_checkname(arg->val, 1);
+		pwd->pw_gecos = pw_checkname((u_char *)arg->val, 1);
 
 	if ((arg = getarg(args, 'h')) != NULL) {
 		if (strcmp(arg->val, "-") == 0)
@@ -933,15 +932,16 @@ print_user(struct passwd * pwd, int pretty)
 	return EXIT_SUCCESS;
 }
 
-static char    *
-pw_checkname(char *name, int gecos)
+char    *
+pw_checkname(u_char *name, int gecos)
 {
 	int             l = 0;
 	char const     *notch = gecos ? ":" : " ,\t:+-&#%$^()!@~*?<>=|\\/\"";
 
 	while (name[l]) {
-		if (strchr(notch, name[l]) != NULL || name[l] < ' ' || name[l] > 126)
-			cmderr(EX_DATAERR, (name[l]<' ' || (unsigned char)name[l] > 126)
+		if (strchr(notch, name[l]) != NULL || name[l] < ' ' ||
+			name[l] == 127 || (!gecos && name[l] & 0x80))	/* 8-bit */
+			cmderr(EX_DATAERR, (name[l]<' ' || name[l] > 126)
 					    ? "invalid character `%c' in field\n"
 					    : "invalid character 0x$02x in field\n",
 					    name[l]);
@@ -949,7 +949,7 @@ pw_checkname(char *name, int gecos)
 	}
 	if (!gecos && l > MAXLOGNAME)
 		cmderr(EX_DATAERR, "name too long `%s'\n", name);
-	return name;
+	return (char *)name;
 }
 
 
