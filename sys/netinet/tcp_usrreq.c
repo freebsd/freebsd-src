@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_usrreq.c	8.2 (Berkeley) 1/3/94
- * $Id: tcp_usrreq.c,v 1.4 1994/08/02 07:49:15 davidg Exp $
+ * $Id: tcp_usrreq.c,v 1.5 1994/09/15 10:36:56 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -81,6 +81,7 @@ tcp_usrreq(so, req, m, nam, control)
 {
 	register struct inpcb *inp;
 	register struct tcpcb *tp = 0;
+	struct sockaddr_in *sinp;
 	int s;
 	int error = 0;
 	int ostate;
@@ -152,6 +153,16 @@ tcp_usrreq(so, req, m, nam, control)
 	 * Give the socket an address.
 	 */
 	case PRU_BIND:
+		/*
+		 * Must check for multicast addresses and disallow binding
+		 * to them.
+		 */
+		sinp = mtod(nam, struct sockaddr_in *);
+		if (sinp->sin_family == AF_INET &&
+		    IN_MULTICAST(ntohl(sinp->sin_addr.s_addr))) {
+			error = EAFNOSUPPORT;
+			break;
+		}
 		error = in_pcbbind(inp, nam);
 		if (error)
 			break;
@@ -175,6 +186,16 @@ tcp_usrreq(so, req, m, nam, control)
 	 * Send initial segment on connection.
 	 */
 	case PRU_CONNECT:
+		/*
+		 * Must disallow TCP ``connections'' to multicast addresses.
+		 */
+		sinp = mtod(nam, struct sockaddr_in *);
+		if (sinp->sin_family == AF_INET
+		    && IN_MULTICAST(ntohl(sinp->sin_addr.s_addr))) {
+			error = EAFNOSUPPORT;
+			break;
+		}
+			
 		if (inp->inp_lport == 0) {
 			error = in_pcbbind(inp, (struct mbuf *)0);
 			if (error)
