@@ -1,7 +1,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 28, 2004
+.Dd January 2, 2005
 .Dt BKTR 4
 .Os
 .Sh NAME
@@ -63,8 +63,8 @@ probed.
 The default number of pages allocated by the kernel is 216.
 This means that there are (216*4096) bytes available for use.
 .Bd -unfilled
-.Em options BROOKTREE_SYSTEM_DEFAULT=BROOKTREE_PAL
-.Em options BROOKTREE_SYSTEM_DEFAULT=BROOKTREE_NTSC
+.Cd options BROOKTREE_SYSTEM_DEFAULT=BROOKTREE_PAL
+.Cd options BROOKTREE_SYSTEM_DEFAULT=BROOKTREE_NTSC
 .Ed
 One of these options can be used to set the default video format for the driver.
 This fixed random hangs and lockups with the VideoLogic Captivator PCI card.
@@ -175,6 +175,8 @@ Pinnacle PCTV Pro
 .It
 Pinnacle PCTV Rave
 .It
+PixelView PlayTV PAK
+.It
 SIGMA TV II
 .It
 STB TV PCI Television Tuner
@@ -187,16 +189,6 @@ Video Highway XTreme
 .It
 VideoLogic Captivator PCI
 .El
-.Sh AUTHORS
-.An -nosplit
-This driver is based on the work of
-.An Jim Lowe Aq james@miller.cs.uwm.edu ,
-.An Mark Tinguely Aq tinguely@plains.nodak.edu ,
-.An Amancio Hasty Aq hasty@star-gate.com ,
-.An Roger Hardiman Aq roger@FreeBSD.org
-and a bunch of other people.
-Support for Pinnacle PCTV Rave cards was added by
-.An Branko Lankester Aq branko@euro.net .
 .Sh FILES
 .Bl -tag -width /usr/share/examples/meteor -compact
 .It Pa /usr/share/examples/meteor
@@ -232,3 +224,13 @@ The
 .Nm
 driver first appeared in
 .Fx 2.2 .
+.Sh AUTHORS
+.An -nosplit
+This driver is based on the work of
+.An Jim Lowe Aq james@miller.cs.uwm.edu ,
+.An Mark Tinguely Aq tinguely@plains.nodak.edu ,
+.An Amancio Hasty Aq hasty@star-gate.com ,
+.An Roger Hardiman Aq roger@FreeBSD.org
+and a bunch of other people.
+Support for Pinnacle PCTV Rave cards was added by
+.An Branko Lankester Aq branko@euro.net .
