@@ -229,7 +229,7 @@ __startwin()
 	tputs(TI, 0, __cputchar);
 	tputs(VS, 0, __cputchar);
 	if (curscr != NULL && __usecs)
-		__set_scroll_region(0, curscr->maxx - 1, 0, 0);
+		__set_scroll_region(0, curscr->maxy - 1, 0, 0);
 }
 
 void
@@ -258,8 +258,8 @@ endwin()
 			curscr->flags &= ~__WSTANDOUT;
 		}
 		if (__usecs)
-			__set_scroll_region(0, curscr->maxx - 1, 0, 0);
-		__mvcur(curscr->cury, curscr->cury, curscr->maxy - 1, 0, 0);
+			__set_scroll_region(0, curscr->maxy - 1, 0, 0);
+		__mvcur(curscr->curx, curscr->cury, curscr->maxy - 1, 0, 0);
 	}
 
 	(void)tputs(VE, 0, __cputchar);
