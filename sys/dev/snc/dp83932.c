@@ -172,8 +172,8 @@ sncconfig(sc, media, nmedia, defmedia, myea)
 #endif
 
 	ifp->if_softc = sc;
-        ifp->if_unit = device_get_unit(sc->sc_dev);
-        ifp->if_name = "snc";
+	if_initname(ifp, device_get_name(sc->sc_dev),
+	    device_get_unit(sc->sc_dev));
 	ifp->if_ioctl = sncioctl;
         ifp->if_output = ether_output;
 	ifp->if_start = sncstart;
