@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.25 1994/10/08 15:08:14 ache Exp $
+#	$Id: Makefile,v 1.26 1994/10/11 23:33:00 ache Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include and MOST of /usr/lib 
@@ -151,6 +151,42 @@ cleandist:
 	${MAKE} cleandir
 	${MAKE} obj
 .endif
+
+installmost:
+	@echo "--------------------------------------------------------------"
+	@echo " Installing programs only"
+	@echo "--------------------------------------------------------------"
+	cd ${.CURDIR}/bin	&&	${MAKE} ${.MAKEFLAGS} install
+	cd ${.CURDIR}/sbin	&&	${MAKE} ${.MAKEFLAGS} install
+	cd ${.CURDIR}/libexec	&&	${MAKE} ${.MAKEFLAGS} install
+	cd ${.CURDIR}/usr.bin	&&	${MAKE} ${.MAKEFLAGS} install
+	cd ${.CURDIR}/usr.sbin	&&	${MAKE} ${.MAKEFLAGS} install
+	cd ${.CURDIR}/gnu/libexec &&	${MAKE} ${.MAKEFLAGS} install
+	cd ${.CURDIR}/gnu/usr.bin &&	${MAKE} ${.MAKEFLAGS} install
+#.if defined(MAKE_EBONES) && !defined(NOCRYPT)
+#	cd ${.CURDIR}/eBones	&&	${MAKE} ${.MAKEFLAGS} installmost
+#.endif
+#.if !defined(NOSECURE) && !defined(NOCRYPT)
+#	cd ${.CURDIR}/secure	&&	${MAKE} ${.MAKEFLAGS} installmost
+#.endif
+
+most:
+	@echo "--------------------------------------------------------------"
+	@echo " Building programs only"
+	@echo "--------------------------------------------------------------"
+	cd ${.CURDIR}/bin	&&	${MAKE} ${.MAKEFLAGS} all
+	cd ${.CURDIR}/sbin	&&	${MAKE} ${.MAKEFLAGS} all
+	cd ${.CURDIR}/libexec	&&	${MAKE} ${.MAKEFLAGS} all
+	cd ${.CURDIR}/usr.bin	&&	${MAKE} ${.MAKEFLAGS} all
+	cd ${.CURDIR}/usr.sbin	&&	${MAKE} ${.MAKEFLAGS} all
+	cd ${.CURDIR}/gnu/libexec &&	${MAKE} ${.MAKEFLAGS} all
+	cd ${.CURDIR}/gnu/usr.bin &&	${MAKE} ${.MAKEFLAGS} all
+#.if defined(MAKE_EBONES) && !defined(NOCRYPT)
+#	cd ${.CURDIR}/eBones	&&	${MAKE} ${.MAKEFLAGS} most
+#.endif
+#.if !defined(NOSECURE) && !defined(NOCRYPT)
+#	cd ${.CURDIR}/secure	&&	${MAKE} ${.MAKEFLAGS} most
+#.endif
 
 mk:
 	@echo "--------------------------------------------------------------"
