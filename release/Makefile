@@ -214,11 +214,7 @@ BOOTSTRAPUTILS+= /usr/bin/cpio
 CRUNCH_TARGETS=	boot fixit
 .endif
 
-.if ${MACHINE} == "pc98"
-EXTRAS= ftp.1
-.else
 EXTRAS= cdrom.1 ftp.1
-.endif
 .if defined(MAKE_ISOS)
 EXTRAS+= iso.1
 .endif
@@ -735,7 +731,9 @@ cdrom.1:
 	@mkdir -p ${CD_DISC1} ${CD_DISC2}
 	@cd ${RD} && find floppies -print | cpio -dumpl ${CD_DISC1}
 	@cd ${RD}/dists && find . -print | cpio -dumpl ${CD_DISC1}
+.if ${MACHINE} != "pc98"
 	@ln -f ${RD}/kernels/MFSKERNEL.boot ${CD_DISC1}/kernel
+.endif
 	@for i in ${DISTRIBUTIONS} ; \
 	do \
 		if [ -d ${RD}/trees/$${i} ] ; then \
@@ -767,7 +765,7 @@ cdrom.1:
 	@ln -f ${CD_DISC2}/boot/cdboot ${CD_DISC1}/boot
 	@ln -f ${CD_DISC1}/boot/loader.rc ${CD_DISC2}/boot
 	@ln -f ${CD_DISC1}/kernel ${CD_DISC2}/kernel
-.elif ${MACHINE_ARCH} == "i386"
+.elif ${MACHINE} == "i386"
 	@mkdir -p ${CD_DISC2}/floppies
 	@cp ${CD_DISC1}/floppies/boot.flp ${CD_DISC2}/floppies
 .endif
