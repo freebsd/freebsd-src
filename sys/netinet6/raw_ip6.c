@@ -141,7 +141,7 @@ rip6_input(mp, offp, proto)
 	register struct inpcb *in6p;
 	struct inpcb *last = 0;
 	struct mbuf *opts = NULL;
-	struct sockaddr_in6 rip6src;
+	struct sockaddr_in6 fromsa;
 
 	rip6stat.rip6s_ipackets++;
 
@@ -151,7 +151,7 @@ rip6_input(mp, offp, proto)
 		return IPPROTO_DONE;
 	}
 
-	init_sin6(&rip6src, m); /* general init */
+	init_sin6(&fromsa, m); /* general init */
 
 	LIST_FOREACH(in6p, &ripcb, inp_list) {
 		if ((in6p->in6p_vflag & INP_IPV6) == 0)
@@ -202,7 +202,7 @@ rip6_input(mp, offp, proto)
 				/* strip intermediate headers */
 				m_adj(n, *offp);
 				if (sbappendaddr(&last->in6p_socket->so_rcv,
-						(struct sockaddr *)&rip6src,
+						(struct sockaddr *)&fromsa,
 						 n, opts) == 0) {
 					m_freem(n);
 					if (opts)
@@ -243,7 +243,7 @@ rip6_input(mp, offp, proto)
 		/* strip intermediate headers */
 		m_adj(m, *offp);
 		if (sbappendaddr(&last->in6p_socket->so_rcv,
-				(struct sockaddr *)&rip6src, m, opts) == 0) {
+				(struct sockaddr *)&fromsa, m, opts) == 0) {
 			m_freem(m);
 			if (opts)
 				m_freem(opts);
