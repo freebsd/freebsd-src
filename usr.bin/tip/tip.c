@@ -558,6 +558,8 @@ pwrite(fd, buf, n)
 	if (write(fd, buf, n) < 0) {
 		if (errno == EIO)
 			tipabort("Lost carrier.");
+		if (errno == ENODEV)
+			tipabort("tty not available.");
 		/* this is questionable */
 		perror("write");
 	}
