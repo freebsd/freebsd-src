@@ -7,7 +7,7 @@
 # PROVIDE: syslogd
 # REQUIRE: mountcritremote sysdb wscons
 # BEFORE:  SERVERS
-# KEYWORD: FreeBSD NetBSD
+# KEYWORD: FreeBSD
 
 . /etc/rc.subr
 

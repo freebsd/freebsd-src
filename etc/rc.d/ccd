@@ -5,7 +5,7 @@
 #
 
 # PROVIDE: disks
-# KEYWORD: FreeBSD NetBSD
+# KEYWORD: FreeBSD
 
 . /etc/rc.subr
 
