@@ -2186,7 +2186,7 @@ options 	HW_WDOG
 # Add the Intel ICH watchdog timer driver. This is independent from
 # HW_WDOG option.
 #
-options 	ichwd
+device		ichwd
 
 #
 # Add software watchdog routines.
