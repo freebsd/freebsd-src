@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.46 1997/12/29 16:08:48 kato Exp $
+ *	$Id: sio.c,v 1.47 1998/01/08 10:50:06 kato Exp $
  */
 
 #include "opt_comconsole.h"
@@ -435,7 +435,6 @@ static	int	sioprobe	__P((struct isa_device *dev));
 static	void	siosettimeout	__P((void));
 static	void	comstart	__P((struct tty *tp));
 static	timeout_t comwakeup;
-static	int	tiocm_xxx2mcr	__P((int tiocm_xxx));
 static	void	disc_optim	__P((struct tty	*tp, struct termios *t,
 				     struct com_s *com));
 
@@ -821,14 +820,12 @@ sioprobe(dev)
 	Port_t		iobase;
 	u_char		mcr_image;
 	int		result;
-#ifdef PC98
 	struct isa_device	*xdev;
+#ifdef PC98
 	int		irqout=0;
 	int		ret = 0;
 	int		tmp;
 	struct		siodev	iod;
-#else
-	struct isa_device	*xdev;
 #endif
 
 	if (!already_init) {
@@ -847,6 +844,11 @@ sioprobe(dev)
 #endif
 				outb(xdev->id_iobase + com_mcr, 0);
 		already_init = TRUE;
+	}
+
+	if (COM_LLCONSOLE(dev)) {
+		printf("sio%d: reserved for low-level i/o\n", dev->id_unit);
+		return (0);
 	}
 
 #ifdef PC98
@@ -941,11 +943,6 @@ sioprobe(dev)
 #endif
 	bzero(failures, sizeof failures);
 	iobase = dev->id_iobase;
-
-	if (COM_LLCONSOLE(dev)) {
-		printf("sio%d: reserved for low-level i/o\n", dev->id_unit);
-		return (0);
-	}
 
 	/*
 	 * We don't want to get actual interrupts, just masked ones.
@@ -2027,7 +2024,6 @@ more_intr:
 					|| com->tp->t_iflag & INPCK))
 					recv_data = 0;
 			}
-
 			++com->bytes_in;
 			if (com->hotchar != 0 && recv_data == com->hotchar)
 				setsofttty();
@@ -2809,13 +2805,13 @@ retry:
 		com_cflag_and_speed_set(com, cflag, t->c_ospeed);
 #endif
 	if (!(tp->t_state & TS_TTSTOP))
+		com->state |= CS_TTGO;
+
+	if (cflag & CRTS_IFLOW) {
 		if (com->st16650a) {
 			outb(iobase + com_cfcr, 0xbf);
 			outb(iobase + com_fifo, inb(iobase + com_fifo) | 0x40);
 		}
-		com->state |= CS_TTGO;
-
-	if (cflag & CRTS_IFLOW) {
 		com->state |= CS_RTS_IFLOW;
 		/*
 		 * If CS_RTS_IFLOW just changed from off to on, the change
@@ -2858,6 +2854,7 @@ retry:
 		} else {
 #endif
 		if (!(com->last_modem_status & MSR_CTS))
+			com->state &= ~CS_ODEVREADY;
 		if (com->st16650a) {
 			outb(iobase + com_cfcr, 0xbf);
 			outb(iobase + com_fifo, inb(iobase + com_fifo) | 0x80);
@@ -2870,7 +2867,6 @@ retry:
 			outb(iobase + com_cfcr, 0xbf);
 			outb(iobase + com_fifo, inb(iobase + com_fifo) & ~0x80);
 		}
-			com->state &= ~CS_ODEVREADY;
 	}
 
 
