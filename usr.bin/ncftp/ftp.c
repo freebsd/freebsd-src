@@ -1883,11 +1883,11 @@ dataconn(char *mode)
 	FILE *fp;
 	int s, fromlen = sizeof (from);
 
+ 	if (using_pasv)
+ 		return( fdopen( data, mode ));
 #ifdef SOCKS
 	s = Raccept(data, (struct sockaddr *) &from, &fromlen);
 #else
- 	if (using_pasv)
- 		return( fdopen( data, mode ));
 	s = Accept(data, &from, &fromlen);
 #endif
 	if (s < 0) {
