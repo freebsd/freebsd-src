@@ -30,7 +30,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- *	$Id: si.c,v 1.39 1996/05/05 17:35:19 peter Exp $
+ *	$Id: si.c,v 1.40 1996/05/08 04:48:25 peter Exp $
  */
 
 #ifndef lint
@@ -2134,9 +2134,9 @@ si_start(tp)
 				else
 					time = 2;
 			} else {
-				printf("si%d: bad char time value!!\n",
-					(int)SI_CARD(tp->t_dev));
-				goto out;
+				DPRINT((pp, DBG_START,
+					"bad char time value! %d\n", time));
+				time = hz/10;
 			}
 		}
 
