@@ -123,13 +123,8 @@ struct icmp {
 #define	ICMP_TSLEN	(8 + 3 * sizeof (n_time))	/* timestamp */
 #define	ICMP_MASKLEN	12				/* address mask */
 #define	ICMP_ADVLENMIN	(8 + sizeof (struct ip) + 8)	/* min */
-#ifndef _IP_VHL
 #define	ICMP_ADVLEN(p)	(8 + ((p)->icmp_ip.ip_hl << 2) + 8)
 	/* N.B.: must separately check that ip_hl >= 5 */
-#else
-#define	ICMP_ADVLEN(p)	(8 + (IP_VHL_HL((p)->icmp_ip.ip_vhl) << 2) + 8)
-	/* N.B.: must separately check that header length >= 5 */
-#endif
 
 /*
  * Definition of type and code field values.

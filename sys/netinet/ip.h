@@ -47,9 +47,6 @@
  * Structure of an internet header, naked of options.
  */
 struct ip {
-#ifdef _IP_VHL
-	u_char	ip_vhl;			/* version << 4 | header length >> 2 */
-#else
 #if BYTE_ORDER == LITTLE_ENDIAN
 	u_int	ip_hl:4,		/* header length */
 		ip_v:4;			/* version */
@@ -58,7 +55,6 @@ struct ip {
 	u_int	ip_v:4,			/* version */
 		ip_hl:4;		/* header length */
 #endif
-#endif /* not _IP_VHL */
 	u_char	ip_tos;			/* type of service */
 	u_short	ip_len;			/* total length */
 	u_short	ip_id;			/* identification */
@@ -71,13 +67,10 @@ struct ip {
 	u_char	ip_p;			/* protocol */
 	u_short	ip_sum;			/* checksum */
 	struct	in_addr ip_src,ip_dst;	/* source and dest address */
-};
+} __attribute__((__packed__));
 
-#ifdef _IP_VHL
-#define	IP_MAKE_VHL(v, hl)	((v) << 4 | (hl))
-#define	IP_VHL_HL(vhl)		((vhl) & 0x0f)
-#define	IP_VHL_V(vhl)		((vhl) >> 4)
-#define	IP_VHL_BORING		0x45
+#ifdef CTASSERT
+CTASSERT(sizeof (struct ip) == 20);
 #endif
 
 #define	IP_MAXPACKET	65535		/* maximum packet size */

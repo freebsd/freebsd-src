@@ -59,7 +59,6 @@
 #include <net/if.h>
 #include <net/route.h>
 
-#define _IP_VHL
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/in_pcb.h>
@@ -283,10 +282,10 @@ rip_output(m, so, dst)
 		ip = mtod(m, struct ip *);
 		/* don't allow both user specified and setsockopt options,
 		   and don't allow packet length sizes that will crash */
-		if (((IP_VHL_HL(ip->ip_vhl) != (sizeof (*ip) >> 2))
+		if (((ip->ip_hl != (sizeof (*ip) >> 2))
 		     && inp->inp_options)
 		    || (ip->ip_len > m->m_pkthdr.len)
-		    || (ip->ip_len < (IP_VHL_HL(ip->ip_vhl) << 2))) {
+		    || (ip->ip_len < (ip->ip_hl << 2))) {
 			m_freem(m);
 			return EINVAL;
 		}
