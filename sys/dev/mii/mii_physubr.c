@@ -593,3 +593,15 @@ mii_phy_detach(device_t dev)
 
 	return(0);
 }
+
+const struct mii_phydesc *
+mii_phy_match(const struct mii_attach_args *ma, const struct mii_phydesc *mpd)
+{
+
+	for (; mpd->mpd_name != NULL; mpd++) {
+		if (MII_OUI(ma->mii_id1, ma->mii_id2) == mpd->mpd_oui &&
+		    MII_MODEL(ma->mii_id2) == mpd->mpd_model)
+			return (mpd);
+	}
+	return (NULL);
+}

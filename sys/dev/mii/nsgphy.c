@@ -98,28 +98,35 @@ static driver_t nsgphy_driver = {
 	sizeof(struct mii_softc)
 };
 
+
 DRIVER_MODULE(nsgphy, miibus, nsgphy_driver, nsgphy_devclass, 0, 0);
 
 static int	nsgphy_service(struct mii_softc *, struct mii_data *,int);
 static void	nsgphy_status(struct mii_softc *);
 extern void	mii_phy_auto_timeout(void *);
 
+const struct mii_phydesc gphyters[] = {
+	{ MII_OUI_NATSEMI,		MII_MODEL_NATSEMI_DP83861,
+	  MII_STR_NATSEMI_DP83861 },
+
+	{ MII_OUI_NATSEMI,		MII_MODEL_NATSEMI_DP83891,
+	  MII_STR_NATSEMI_DP83891 },
+
+	{ 0,				0,
+	  NULL },
+};
+
 static int
 nsgphy_probe(device_t dev)
 {
 	struct mii_attach_args *ma;
+	const struct mii_phydesc *mpd;
 
 	ma = device_get_ivars(dev);
-
-	if (MII_OUI(ma->mii_id1, ma->mii_id2) == MII_OUI_NATSEMI) {
-		if (MII_MODEL(ma->mii_id2) == MII_MODEL_NATSEMI_DP83891) {
-			device_set_desc(dev, MII_STR_NATSEMI_DP83891);
-			return(0);
-		}
-		if (MII_MODEL(ma->mii_id2) == MII_MODEL_NATSEMI_DP83861) {
-			device_set_desc(dev, MII_STR_NATSEMI_DP83861);
-			return(0);
-		}
+	mpd = mii_phy_match(ma, gphyters);
+	if (mpd != NULL) {
+		device_set_desc(dev, mpd->mpd_name);
+		return(0);
 	}
 
 	return(ENXIO);
@@ -131,9 +138,14 @@ nsgphy_attach(device_t dev)
 	struct mii_softc *sc;
 	struct mii_attach_args *ma;
 	struct mii_data *mii;
+	const struct mii_phydesc *mpd;
 
 	sc = device_get_softc(dev);
 	ma = device_get_ivars(dev);
+	mpd = mii_phy_match(ma, gphyters);
+	if (bootverbose)
+		device_printf(dev, "<rev. %d>\n", MII_REV(ma->mii_id2));
+	device_printf(dev, " ");
 	sc->mii_dev = device_get_parent(dev);
 	mii = device_get_softc(sc->mii_dev);
 	LIST_INSERT_HEAD(&mii->mii_phys, sc, mii_list);
