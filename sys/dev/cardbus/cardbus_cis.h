@@ -35,7 +35,7 @@
 struct cis_tupleinfo;
 
 int	cardbus_do_cis(device_t, device_t);
-int	cardbus_cis_read(device_t, device_t, u_int8_t, struct cis_tupleinfo**,
+int	cardbus_cis_read(device_t, device_t, uint8_t, struct cis_tupleinfo**,
 	    int*);
 void	cardbus_cis_free(device_t, struct cis_tupleinfo*, int*);
 

@@ -89,7 +89,7 @@ static int	cardbus_child_location_str(device_t cbdev, device_t child,
 static int	cardbus_child_pnpinfo_str(device_t cbdev, device_t child,
 		    char *, size_t len);
 static __inline void cardbus_clear_command_bit(device_t cbdev, device_t child,
-		    u_int16_t bit);
+		    uint16_t bit);
 static void	cardbus_delete_resource(device_t cbdev, device_t child,
 		    int type, int rid);
 static void	cardbus_delete_resource_method(device_t cbdev, device_t child,
@@ -122,7 +122,7 @@ static void	cardbus_probe_nomatch(device_t cbdev, device_t child);
 static struct cardbus_devinfo	*cardbus_read_device(device_t brdev, int b,
 		    int s, int f);
 static void	cardbus_read_extcap(device_t cbdev, pcicfgregs *cfg);
-static u_int32_t cardbus_read_config_method(device_t cbdev,
+static uint32_t cardbus_read_config_method(device_t cbdev,
 		    device_t child, int reg, int width);
 static int	cardbus_read_ivar(device_t cbdev, device_t child, int which,
 		    u_long *result);
@@ -131,7 +131,7 @@ static void	cardbus_release_all_resources(device_t cbdev,
 static int	cardbus_release_resource(device_t cbdev, device_t child,
 		    int type, int rid, struct resource *r);
 static __inline void cardbus_set_command_bit(device_t cbdev, device_t child,
-		    u_int16_t bit);
+		    uint16_t bit);
 static int	cardbus_set_powerstate_method(device_t cbdev, device_t child,
 		    int state);
 static int	cardbus_set_resource(device_t cbdev, device_t child, int type,
@@ -144,7 +144,7 @@ static int	cardbus_setup_intr(device_t cbdev, device_t child,
 static int	cardbus_teardown_intr(device_t cbdev, device_t child,
 		    struct resource *irq, void *cookie);
 static void	cardbus_write_config_method(device_t cbdev, device_t child,
-		    int reg, u_int32_t val, int width);
+		    int reg, uint32_t val, int width);
 static int	cardbus_write_ivar(device_t cbdev, device_t child, int which,
 		    uintptr_t value);
 
@@ -952,10 +952,10 @@ cardbus_read_ivar(device_t cbdev, device_t child, int which, u_long *result)
 		 * we set the return value, then return an error.
 		 */
 		if ((dinfo->fepresent & (1 << TPL_FUNCE_LAN_NID)) == 0) {
-			*((u_int8_t **) result) = NULL;
+			*((uint8_t **) result) = NULL;
 			return (EINVAL);
 		}
-		*((u_int8_t **) result) = dinfo->funce.lan.nid;
+		*((uint8_t **) result) = dinfo->funce.lan.nid;
 		break;
 	case PCI_IVAR_SUBVENDOR:
 		*result = cfg->subvendor;
@@ -1049,7 +1049,7 @@ cardbus_set_powerstate_method(device_t cbdev, device_t child, int state)
 {
 	struct cardbus_devinfo *dinfo = device_get_ivars(child);
 	pcicfgregs *cfg = &dinfo->pci.cfg;
-	u_int16_t status;
+	uint16_t status;
 	int result;
 
 	if (cfg->pp_cap != 0) {
@@ -1094,7 +1094,7 @@ cardbus_get_powerstate_method(device_t cbdev, device_t child)
 {
 	struct cardbus_devinfo *dinfo = device_get_ivars(child);
 	pcicfgregs *cfg = &dinfo->pci.cfg;
-	u_int16_t status;
+	uint16_t status;
 	int result;
 
 	if (cfg->pp_cap != 0) {
@@ -1123,7 +1123,7 @@ cardbus_get_powerstate_method(device_t cbdev, device_t child)
 	return (result);
 }
 
-static u_int32_t
+static uint32_t
 cardbus_read_config_method(device_t cbdev, device_t child, int reg, int width)
 {
 	struct cardbus_devinfo *dinfo = device_get_ivars(child);
@@ -1135,7 +1135,7 @@ cardbus_read_config_method(device_t cbdev, device_t child, int reg, int width)
 
 static void
 cardbus_write_config_method(device_t cbdev, device_t child, int reg,
-    u_int32_t val, int width)
+    uint32_t val, int width)
 {
 	struct cardbus_devinfo *dinfo = device_get_ivars(child);
 	pcicfgregs *cfg = &dinfo->pci.cfg;
@@ -1145,9 +1145,9 @@ cardbus_write_config_method(device_t cbdev, device_t child, int reg,
 }
 
 static __inline void
-cardbus_set_command_bit(device_t cbdev, device_t child, u_int16_t bit)
+cardbus_set_command_bit(device_t cbdev, device_t child, uint16_t bit)
 {
-	u_int16_t command;
+	uint16_t command;
 
 	command = PCI_READ_CONFIG(cbdev, child, PCIR_COMMAND, 2);
 	command |= bit;
@@ -1155,9 +1155,9 @@ cardbus_set_command_bit(device_t cbdev, device_t child, u_int16_t bit)
 }
 
 static __inline void
-cardbus_clear_command_bit(device_t cbdev, device_t child, u_int16_t bit)
+cardbus_clear_command_bit(device_t cbdev, device_t child, uint16_t bit)
 {
-	u_int16_t command;
+	uint16_t command;
 
 	command = PCI_READ_CONFIG(cbdev, child, PCIR_COMMAND, 2);
 	command &= ~bit;
