@@ -74,14 +74,11 @@
 #define	FDCTL	7	/* Control Register (W) */
 #endif /* PC98 */
 
-#ifndef FDC_500KBPS
-#  define	FDC_500KBPS	0x00	/* 500KBPS MFM drive transfer rate */
-#  define	FDC_300KBPS	0x01	/* 300KBPS MFM drive transfer rate */
-#  define	FDC_250KBPS	0x02	/* 250KBPS MFM drive transfer rate */
-#  define	FDC_125KBPS	0x03	/* 125KBPS FM drive transfer rate */
-				/* for some controllers 1MPBS instead */
-#endif /* FDC_500KBPS */
-
+/*
+ * The definitions for FDC_500KBPS etc. have been moved out to <sys/fdcio.h>
+ * since they need to be visible in userland.  They cover the lower two bits
+ * of FDCTL when used for output.
+ */
 /*
  * this is the secret PIO data port (offset from base)
  */
