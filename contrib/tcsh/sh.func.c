@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/sh.func.c,v 3.91 2000/11/11 23:03:36 christos Exp $ */
+/* $Header: /src/pub/tcsh/sh.func.c,v 3.93 2001/03/13 12:53:50 christos Exp $ */
 /*
  * sh.func.c: csh builtin functions
  */
@@ -36,7 +36,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id: sh.func.c,v 3.91 2000/11/11 23:03:36 christos Exp $")
+RCSID("$Id: sh.func.c,v 3.93 2001/03/13 12:53:50 christos Exp $")
 
 #include "ed.h"
 #include "tw.h"
@@ -1147,7 +1147,7 @@ xecho(sep, v)
 #endif /* BSDSIGS */
     v++;
     if (*v == 0)
-	return;
+	goto done;
     gflag = 0, tglob(v);
     if (gflag) {
 	v = globall(v);
@@ -1753,6 +1753,8 @@ doumask(v, c)
 /* In order to use rusage, we included "/usr/ucbinclude/sys/resource.h" in */
 /* sh.h.  However, some SVR4 limits are defined in <sys/resource.h>.  Rather */
 /* than include both and get warnings, we define the extra SVR4 limits here. */
+/* XXX: I don't understand if RLIMIT_AS is defined, why don't we define */
+/* RLIMIT_VMEM based on it? */
 #  ifndef RLIMIT_VMEM
 #   define RLIMIT_VMEM	6
 #  endif
@@ -1760,6 +1762,10 @@ doumask(v, c)
 #   define RLIMIT_AS	RLIMIT_VMEM
 #  endif
 # endif /* SYSVREL > 3 && BSDLIMIT */
+
+# if defined(__linux__) && defined(RLIMIT_AS) && !defined(RLIMIT_VMEM)
+#  define RLIMIT_VMEM	RLIMIT_AS
+# endif
 
 struct limits limits[] = 
 {

@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/tw.color.c,v 1.7 2000/06/11 02:14:16 kim Exp $ */
+/* $Header: /src/pub/tcsh/tw.color.c,v 1.8 2001/03/18 19:06:32 christos Exp $ */
 /*
  * tw.color.c: builtin color ls-F
  */
@@ -36,7 +36,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id: tw.color.c,v 1.7 2000/06/11 02:14:16 kim Exp $")
+RCSID("$Id: tw.color.c,v 1.8 2001/03/18 19:06:32 christos Exp $")
 
 #include "tw.h"
 #include "ed.h"
@@ -70,6 +70,7 @@ static Variable variables[] = {
     VAR('&', "or", ""),		/* Orphanned symbolic link (defaults to ln) */
     VAR('|', "pi", "33"),	/* Named pipe (FIFO) */
     VAR('=', "so", "01;35"),	/* Socket */
+    VAR('>', "do", "01;35"),	/* Door (solaris fast ipc mechanism)  */
     VAR('#', "bd", "01;33"),	/* Block device */
     VAR('%', "cd", "01;33"),	/* Character device */
     VAR('*', "ex", "01;32"),	/* Executable file */
@@ -86,7 +87,7 @@ static Variable variables[] = {
 };
 
 enum FileType {
-    VDir, VSym, VOrph, VPipe, VSock, VBlock, VChr, VExe,
+    VDir, VSym, VOrph, VPipe, VSock, VDoor, VBlock, VChr, VExe,
     VFile, VNormal, VMiss, VLeft, VRight, VEnd
 };
 

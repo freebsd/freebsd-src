@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/ed.h,v 3.30 2000/11/11 23:03:34 christos Exp $ */
+/* $Header: /src/pub/tcsh/ed.h,v 3.31 2001/02/19 23:30:44 kim Exp $ */
 /*
  * ed.h: Editor declarations and globals
  */
@@ -132,8 +132,11 @@ EXTERN Char *Mark;		/* the emacs "mark" (dot is Cursor) */
 EXTERN Char DoingArg;		/* true if we have an argument */
 EXTERN int Argument;		/* "universal" argument value */
 EXTERN KEYCMD LastCmd;		/* previous command executed */
-EXTERN Char KillBuf[INBUFSIZE];	/* kill buffer */
-EXTERN Char *LastKill;		/* points to end of kill buffer */
+EXTERN CStr *KillRing;		/* kill ring */
+EXTERN int KillRingMax;		/* max length of kill ring */
+EXTERN int KillRingLen;		/* current length of kill ring */
+EXTERN int KillPos;		/* points to next kill */
+EXTERN int YankPos;		/* points to next yank */
 
 EXTERN Char UndoBuf[INBUFSIZE];
 EXTERN Char *UndoPtr;
