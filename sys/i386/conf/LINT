@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.539.2.13 1999/04/23 06:27:54 peter Exp $
+#	$Id: LINT,v 1.539.2.14 1999/04/24 02:30:19 obrien Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -1509,6 +1509,12 @@ options	"EISA_SLOTS=12"
 # the MPX 5030/5038, which is either a RealTek in disguise or a RealTek
 # workalike.
 #
+# The 'ti' device provides support for PCI gigabit ethernet NICs based
+# on the Alteon Networks Tigon 1 and Tigon 2 chipsets. This includes the
+# Alteon AceNIC, the 3Com 3c985, the Netgear GA620 and various others.
+# Note that you will probably want to bump up NBMCLUSTERS a lot to use
+# this driver.
+#
 # The 'tl' device provides support for the Texas Instruments TNETE100
 # series 'ThunderLAN' cards and integrated ethernet controllers. This
 # includes several Compaq Netelligent 10/100 cards and the built-in
@@ -1580,6 +1586,7 @@ device		fxp0
 device		mx0
 device		pn0
 device		rl0
+device		ti0
 device		tl0
 device		tx0
 device		vr0
