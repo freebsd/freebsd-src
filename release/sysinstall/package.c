@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: package.c,v 1.22 1995/10/27 03:07:14 jkh Exp $
+ * $Id: package.c,v 1.23 1995/11/06 12:49:27 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -97,6 +97,13 @@ package_extract(Device *dev, char *name)
 	if ((where = make_playpen(pen, 0)) != NULL) {
 	    if (mediaExtractDist(pen, fd)) {
 		if (file_readable("+CONTENTS")) {
+		    if (mediaDevice->type == DEVICE_TYPE_FTP && variable_get(VAR_FTP_PATH)) {
+			char ftppath[512];
+
+			/* Special case to leave hint for pkg_add that this is an FTP install */
+			sprintf(ftppath, "%spackages/All/", variable_get(VAR_FTP_PATH));
+			variable_set2("PKG_ADD_BASE", ftppath);
+		    }
 		    if (vsystem("(pwd; cat +CONTENTS) | pkg_add %s-S",
 				!strcmp(variable_get(VAR_CPIO_VERBOSITY), "high") ? "-v " : "")) {
 			dialog_clear();
