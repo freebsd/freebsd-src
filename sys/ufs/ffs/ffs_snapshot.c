@@ -1102,9 +1102,10 @@ ffs_snapblkfree(fs, devvp, bno, size, inum)
 		}
 #ifdef DEBUG
 		if (snapdebug)
-			printf("%s%d lbn %d for inum %d size %ld to blkno %lld\n",
-			    "Copyonremove: snapino ", ip->i_number, lbn,
-			    inum, size, cbp->b_blkno);
+			printf(
+"Copyonremove: snapino %lu lbn %ld for inum %lu size %ld to blkno %lld\n",
+			    (unsigned long)ip->i_number, (long)lbn,
+			    (unsigned long)inum, size, (long long)cbp->b_blkno);
 #endif
 		/*
 		 * If we have already read the old block contents, then
@@ -1320,8 +1321,8 @@ retry:
 				printf("fs metadata");
 			else
 				printf("inum %d", VTOI(bp->b_vp)->i_number);
-			printf(" lblkno %lld to blkno %lld\n", bp->b_lblkno,
-			    cbp->b_blkno);
+			printf(" lblkno %lld to blkno %lld\n",
+			    (long long)bp->b_lblkno, (long long)cbp->b_blkno);
 		}
 #endif
 		/*
