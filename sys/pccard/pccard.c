@@ -56,8 +56,6 @@
 
 #if __FreeBSD_version < 500000
 #define suser_td(a)	suser(a)
-#define thread	proc		/* Compat with new thread stuff */
-#include <sys/proc.h>
 #endif
 
 SYSCTL_NODE(_machdep, OID_AUTO, pccard, CTLFLAG_RW, 0, "pccard");
@@ -359,7 +357,7 @@ pccard_event(struct slot *slt, enum card_event event)
  *	Device driver interface.
  */
 static	int
-crdopen(dev_t dev, int oflags, int devtype, struct thread *td)
+crdopen(dev_t dev, int oflags, int devtype, d_thread_t *td)
 {
 	struct slot *slt = PCCARD_DEV2SOFTC(dev);
 
@@ -375,7 +373,7 @@ crdopen(dev_t dev, int oflags, int devtype, struct thread *td)
  *	slots may be assigned to drivers already.
  */
 static	int
-crdclose(dev_t dev, int fflag, int devtype, struct thread *td)
+crdclose(dev_t dev, int fflag, int devtype, d_thread_t *td)
 {
 	return (0);
 }
@@ -476,7 +474,7 @@ crdwrite(dev_t dev, struct uio *uio, int ioflag)
  *	descriptors, and assignment of drivers.
  */
 static	int
-crdioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
+crdioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, d_thread_t *td)
 {
 	u_int32_t	addr;
 	int		err;
@@ -646,7 +644,7 @@ crdioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
  *	when a change in card status occurs.
  */
 static	int
-crdpoll(dev_t dev, int events, struct thread *td)
+crdpoll(dev_t dev, int events, d_thread_t *td)
 {
 	int	revents = 0;
 	int	s;
