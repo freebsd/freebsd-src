@@ -49,6 +49,8 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/bus.h>
 
 #include <machine/bus_pio.h>
@@ -1022,6 +1024,8 @@ adw_init(struct adw_softc *adw)
 			/* nsegments	*/ ADW_SGSIZE,
 			/* maxsegsz	*/ BUS_SPACE_MAXSIZE_32BIT,
 			/* flags	*/ BUS_DMA_ALLOCNOW,
+			/* lockfunc	*/ busdma_lock_mutex,
+			/* lockarg	*/ &Giant,
 			&adw->buffer_dmat) != 0) {
 		return (ENOMEM);
 	}
@@ -1043,6 +1047,8 @@ adw_init(struct adw_softc *adw)
 			/* nsegments	*/ 1,
 			/* maxsegsz	*/ BUS_SPACE_MAXSIZE_32BIT,
 			/* flags	*/ 0,
+			/* lockfunc	*/ busdma_lock_mutex,
+			/* lockarg	*/ &Giant,
 			&adw->carrier_dmat) != 0) {
 		return (ENOMEM);
         }
@@ -1102,6 +1108,8 @@ adw_init(struct adw_softc *adw)
 			/* nsegments	*/ 1,
 			/* maxsegsz	*/ BUS_SPACE_MAXSIZE_32BIT,
 			/* flags	*/ 0,
+			/* lockfunc	*/ busdma_lock_mutex,
+			/* lockarg	*/ &Giant,
 			&adw->acb_dmat) != 0) {
 		return (ENOMEM);
         }
@@ -1137,6 +1145,8 @@ adw_init(struct adw_softc *adw)
 			/* nsegments	*/ 1,
 			/* maxsegsz	*/ BUS_SPACE_MAXSIZE_32BIT,
 			/* flags	*/ 0,
+			/* lockfunc	*/ busdma_lock_mutex,
+			/* lockarg	*/ &Giant,
 			&adw->sg_dmat) != 0) {
 		return (ENOMEM);
         }

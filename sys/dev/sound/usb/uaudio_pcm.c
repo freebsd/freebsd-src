@@ -307,6 +307,8 @@ ua_attach(device_t dev)
 				/*filter*/NULL, /*filterarg*/NULL,
 				/*maxsize*/bufsz, /*nsegments*/1,
 				/*maxsegz*/0x3fff, /*flags*/0,
+				/*lockfunc*/busdma_lock_mutex,
+				/*lockarg*/&Giant,
 				&ua->parent_dmat) != 0) {
 		device_printf(dev, "unable to create dma tag\n");
 		goto bad;

@@ -55,6 +55,8 @@
 #include <sys/systm.h>
 #include <sys/queue.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -2290,6 +2292,8 @@ amd_init(device_t dev)
 			       /*maxsize*/MAXBSIZE, /*nsegments*/AMD_NSEG,
 			       /*maxsegsz*/AMD_MAXTRANSFER_SIZE,
 			       /*flags*/BUS_DMA_ALLOCNOW,
+			       /*lockfunc*/busdma_lock_mutex,
+			       /*lockarg*/&Giant,
 			       &amd->buffer_dmat) != 0) {
 		if (bootverbose)
 			printf("amd_init: bus_dma_tag_create failure!\n");
@@ -2305,7 +2309,9 @@ amd_init(device_t dev)
 			       sizeof(struct scsi_sense_data) * MAX_SRB_CNT,
 			       /*nsegments*/1,
 			       /*maxsegsz*/AMD_MAXTRANSFER_SIZE,
-			       /*flags*/0, &amd->sense_dmat) != 0) {
+			       /*flags*/0,
+			       /*lockfunc*/busdma_lock_mutex,
+			       /*lockarg*/&Giant, &amd->sense_dmat) != 0) {
 		if (bootverbose)
 			device_printf(dev, "cannot create sense buffer dmat\n");
 		return (ENXIO);

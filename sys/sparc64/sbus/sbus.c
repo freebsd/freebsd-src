@@ -393,7 +393,7 @@ sbus_probe(device_t dev)
 	/* Create the DMA tag. */
 	sc->sc_dmatag = nexus_get_dmatag(dev);
 	if (bus_dma_tag_create(sc->sc_dmatag, 8, 1, 0, 0x3ffffffff, NULL, NULL,
-	    0x3ffffffff, 0xff, 0xffffffff, 0, &sc->sc_cdmatag) != 0)
+	    0x3ffffffff, 0xff, 0xffffffff, 0, NULL, NULL, &sc->sc_cdmatag) != 0)
 		panic("bus_dma_tag_create failed");
 	/* Customize the tag. */
 	sc->sc_cdmatag->dt_cookie = &sc->sc_is;

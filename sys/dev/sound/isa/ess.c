@@ -855,7 +855,8 @@ ess_attach(device_t dev)
 			/*filter*/NULL, /*filterarg*/NULL,
 			/*maxsize*/sc->bufsize, /*nsegments*/1,
 			/*maxsegz*/0x3ffff,
-			/*flags*/0, &sc->parent_dmat) != 0) {
+			/*flags*/0, /*lockfunc*/busdma_lock_mutex,
+			/*lockarg*/&Giant, &sc->parent_dmat) != 0) {
 		device_printf(dev, "unable to create dma tag\n");
 		goto no;
     	}

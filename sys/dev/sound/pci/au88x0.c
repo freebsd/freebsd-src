@@ -545,7 +545,7 @@ au88x0_pci_attach(device_t dev)
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, /* restrict to 4GB */
 	    NULL, NULL, /* no filter */
 	    aui->aui_bufsize, 1, aui->aui_bufsize,
-	    0, &aui->aui_dmat);
+	    0, busdma_lock_mutex, &Giant, &aui->aui_dmat);
 	if (error != 0) {
 		device_printf(dev, "failed to create DMA tag\n");
 		goto failed;

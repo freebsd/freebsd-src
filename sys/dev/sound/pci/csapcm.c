@@ -679,7 +679,8 @@ csa_allocres(struct csa_info *csa, device_t dev)
 			       /*highaddr*/BUS_SPACE_MAXADDR,
 			       /*filter*/NULL, /*filterarg*/NULL,
 			       /*maxsize*/CS461x_BUFFSIZE, /*nsegments*/1, /*maxsegz*/0x3ffff,
-			       /*flags*/0, &csa->parent_dmat) != 0)
+			       /*flags*/0, /*lockfunc*/busdma_lock_mutex,
+			       /*lockarg*/&Giant, &csa->parent_dmat) != 0)
 		return (1);
 
 	return (0);

@@ -45,6 +45,8 @@
 #include <machine/bus.h>
 #include <sys/rman.h>
 #include <sys/malloc.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #include <machine/resource.h>
 
 #if __FreeBSD_version < 500000
@@ -299,7 +301,8 @@ fwohci_pci_attach(device_t self)
 				/*nsegments*/0x20,
 				/*maxsegsz*/0x8000,
 				/*flags*/BUS_DMA_ALLOCNOW,
-				&sc->fc.dmat);
+				/*lockfunc*/busdma_lock_mutex,
+				/*lockarg*/&Giant, &sc->fc.dmat);
 	if (err != 0) {
 		printf("fwohci_pci_attach: Could not allocate DMA tag "
 			"- error %d\n", err);

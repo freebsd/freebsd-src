@@ -196,6 +196,8 @@ mlx_pci_attach(device_t dev)
 			       MAXBSIZE, MLX_NSEG,	/* maxsize, nsegments */
 			       BUS_SPACE_MAXSIZE_32BIT,	/* maxsegsize */
 			       BUS_DMA_ALLOCNOW,	/* flags */
+			       NULL,			/* lockfunc */
+			       NULL,			/* lockarg */
 			       &sc->mlx_parent_dmat);
     if (error != 0) {
 	device_printf(dev, "can't allocate parent DMA tag\n");

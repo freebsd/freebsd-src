@@ -212,6 +212,8 @@ lnc_isa_attach(device_t dev)
 				 1,			/* nsegments */
 				 BUS_SPACE_MAXSIZE_32BIT,	/* maxsegsize */
 				 0,			/* flags */
+				 busdma_lock_mutex,	/* lockfunc */
+				 &Giant,		/* lockarg */
 				 &sc->dmat);
 
 	if (err) {

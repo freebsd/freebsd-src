@@ -249,6 +249,8 @@ mlx_sglist_map(struct mlx_softc *sc)
 			       segsize, 1,		/* maxsize, nsegments */
 			       BUS_SPACE_MAXSIZE_32BIT,	/* maxsegsize */
 			       0,			/* flags */
+			       busdma_lock_mutex,	/* lockfunc */
+			       &Giant,			/* lockarg */
 			       &sc->mlx_sg_dmat);
     if (error != 0) {
 	device_printf(sc->mlx_dev, "can't allocate scatter/gather DMA tag\n");
@@ -375,6 +377,8 @@ mlx_attach(struct mlx_softc *sc)
 			       MAXBSIZE, MLX_NSEG,		/* maxsize, nsegments */
 			       BUS_SPACE_MAXSIZE_32BIT,		/* maxsegsize */
 			       0,				/* flags */
+			       busdma_lock_mutex,	/* lockfunc */
+			       &Giant,			/* lockarg */
 			       &sc->mlx_buffer_dmat);
     if (error != 0) {
 	device_printf(sc->mlx_dev, "can't allocate buffer DMA tag\n");

@@ -776,7 +776,8 @@ sv_attach(device_t dev) {
                                /*filter*/NULL, /*filterarg*/NULL,
                                /*maxsize*/sc->bufsz, /*nsegments*/1,
                                /*maxsegz*/0x3ffff, /*flags*/0,
-                               &sc->parent_dmat) != 0) {
+			       /*lockfunc*/busdma_lock_mutex,
+			       /*lockarg*/&Giant, &sc->parent_dmat) != 0) {
                 device_printf(dev, "sv_attach: Unable to create dma tag\n");
                 goto fail;
         }

@@ -315,7 +315,8 @@ acpi_alloc_wakeup_handler(void)
 	if (bus_dma_tag_create(/* parent */ NULL, /* alignment */ 2, 0,
 			       /* lowaddr below 1MB */ 0x9ffff,
 			       /* highaddr */ BUS_SPACE_MAXADDR, NULL, NULL,
-				PAGE_SIZE, 1, PAGE_SIZE, 0, &acpi_waketag) != 0) {
+				PAGE_SIZE, 1, PAGE_SIZE, 0, busdma_lock_mutex,
+				&Giant, &acpi_waketag) != 0) {
 		printf("acpi_alloc_wakeup_handler: unable to create wake tag\n");
 		return;
 	}
