@@ -608,6 +608,9 @@ dev/puc/puc_sbus.c	optional puc sbus
 dev/puc/pucdata.c	optional puc pci
 dev/random/harvest.c	standard
 dev/random/randomdev.c	optional random
+dev/random/randomdev_soft.c	optional random
+dev/random/nehemiah.c	optional random
+dev/random/probe.c	optional random
 dev/random/yarrow.c	optional random
 dev/random/hash.c	optional random
 crypto/rijndael/rijndael-alg-fst.c	optional random

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2000-2004 Mark R V Murray
+ * Copyright (c) 2004 Mark R V Murray
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -23,37 +23,44 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
  */
 
-/* This contains Yarrow-specific declarations.
- * See http://www.counterpane.com/yarrow.html
- */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
-#define TIMEBIN		16	/* max value for Pt/t */
+#include <sys/types.h>
+#include <sys/time.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
+#include <sys/selinfo.h>
 
-#define FAST		0
-#define SLOW		1
+#include <dev/random/randomdev.h>
 
-/* This is the beastie that needs protecting. It contains all of the
- * state that we are excited about.
- * Exactly one will be instantiated.
- */
-struct random_state {
-	u_int64_t counter[4];	/* C - 256 bits */
-	struct yarrowkey key;	/* K */
-	u_int gengateinterval;	/* Pg */
-	u_int bins;		/* Pt/t */
-	u_int outputblocks;	/* count output blocks for gates */
-	u_int slowoverthresh;	/* slow pool overthreshhold reseed count */
-	struct pool {
-		struct source {
-			u_int bits;	/* estimated bits of entropy */
-			u_int frac;	/* fractional bits of entropy
-					   (given as 1024/n) */
-		} source[ENTROPYSOURCE];
-		u_int thresh;	/* pool reseed threshhold */
-		struct yarrowhash hash;	/* accumulated entropy */
-	} pool[2];		/* pool[0] is fast, pool[1] is slow */
-	u_int which;		/* toggle - sets the current insertion pool */
+static int random_nehemiah_read(void *, int);
+
+struct random_systat random_nehemiah = {
+	.ident = "Hardware, VIA Nehemiah",
+	.init = (random_init_func_t *)random_null_func,
+	.deinit = (random_deinit_func_t *)random_null_func,
+	.read = random_nehemiah_read,
+	.write = (random_write_func_t *)random_null_func,
+	.reseed = (random_reseed_func_t *)random_null_func,
+	.seeded = 1,
 };
+
+/* ARGSUSED */
+static int
+random_nehemiah_read(void *buf, int c)
+{
+#if (defined(__GNUC__) || defined(__INTEL_COMPILER)) && defined(__i386__)
+	int count = c;
+	int rate = 0;
+
+	/* VIA C3 Nehemiah "rep; xstore" */
+	__asm __volatile("rep; .byte 0x0f, 0xa7, 0xc0"
+				: "+D" (buf), "+c" (count), "=d" (rate)
+				:
+				: "memory");
+#endif
+	return (c);
+}

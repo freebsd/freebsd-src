@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2000, 2001, 2002, 2003 Mark R V Murray
+ * Copyright (c) 2000-2004 Mark R V Murray
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,7 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <crypto/sha2/sha2.h>
 
 #include <dev/random/hash.h>
-#include <dev/random/randomdev.h>
+#include <dev/random/randomdev_soft.h>
 #include <dev/random/yarrow.h>
 
 RANDOM_CHECK_UINT(gengateinterval, 4, 64);
@@ -52,23 +52,6 @@ RANDOM_CHECK_UINT(slowoverthresh, 1, 5);
 
 /* Structure holding the entropy state */
 static struct random_state random_state;
-
-SYSCTL_NODE(_kern_random, OID_AUTO, yarrow, CTLFLAG_RW, 0, "Yarrow Parameters");
-SYSCTL_PROC(_kern_random_yarrow, OID_AUTO, gengateinterval,
-	CTLTYPE_INT|CTLFLAG_RW, &random_state.gengateinterval, 10,
-	random_check_uint_gengateinterval, "I", "Generator Gate Interval");
-SYSCTL_PROC(_kern_random_yarrow, OID_AUTO, bins,
-	CTLTYPE_INT|CTLFLAG_RW, &random_state.bins, 10,
-	random_check_uint_bins, "I", "Execution time tuner");
-SYSCTL_PROC(_kern_random_yarrow, OID_AUTO, fastthresh,
-	CTLTYPE_INT|CTLFLAG_RW, &random_state.pool[0].thresh, (3*BLOCKSIZE)/4,
-	random_check_uint_fastthresh, "I", "Fast reseed threshold");
-SYSCTL_PROC(_kern_random_yarrow, OID_AUTO, slowthresh,
-	CTLTYPE_INT|CTLFLAG_RW, &random_state.pool[1].thresh, BLOCKSIZE,
-	random_check_uint_slowthresh, "I", "Slow reseed threshold");
-SYSCTL_PROC(_kern_random_yarrow, OID_AUTO, slowoverthresh,
-	CTLTYPE_INT|CTLFLAG_RW, &random_state.slowoverthresh, 2,
-	random_check_uint_slowoverthresh, "I", "Slow over-threshold reseed");
 
 static void generator_gate(void);
 static void reseed(u_int);
@@ -118,13 +101,56 @@ random_process_event(struct harvest *event)
 }
 
 void
-random_init(void)
+random_yarrow_init_alg(struct sysctl_ctx_list *clist, struct sysctl_oid *in_o)
 {
 	int i;
+	struct sysctl_oid *o, *random_yarrow_o;
 
 	/* Yarrow parameters. Do not adjust these unless you have
 	 * have a very good clue about what they do!
 	 */
+	o = SYSCTL_ADD_NODE(clist,
+		SYSCTL_CHILDREN(in_o),
+		OID_AUTO, "yarrow", CTLFLAG_RW, 0,
+		"Yarrow Parameters");
+
+	random_yarrow_o = o;
+
+	o = SYSCTL_ADD_PROC(clist,
+		SYSCTL_CHILDREN(random_yarrow_o), OID_AUTO,
+		"gengateinterval", CTLTYPE_INT|CTLFLAG_RW,
+		&random_state.gengateinterval, 10,
+		random_check_uint_gengateinterval, "I",
+		"Generation gate interval");
+
+	o = SYSCTL_ADD_PROC(clist,
+		SYSCTL_CHILDREN(random_yarrow_o), OID_AUTO,
+		"bins", CTLTYPE_INT|CTLFLAG_RW,
+		&random_state.bins, 10,
+		random_check_uint_bins, "I",
+		"Execution time tuner");
+
+	o = SYSCTL_ADD_PROC(clist,
+		SYSCTL_CHILDREN(random_yarrow_o), OID_AUTO,
+		"fastthresh", CTLTYPE_INT|CTLFLAG_RW,
+		&random_state.pool[0].thresh, (3*BLOCKSIZE)/4,
+		random_check_uint_fastthresh, "I",
+		"Fast reseed threshold");
+
+	o = SYSCTL_ADD_PROC(clist,
+		SYSCTL_CHILDREN(random_yarrow_o), OID_AUTO,
+		"slowthresh", CTLTYPE_INT|CTLFLAG_RW,
+		&random_state.pool[1].thresh, BLOCKSIZE,
+		random_check_uint_slowthresh, "I",
+		"Slow reseed threshold");
+
+	o = SYSCTL_ADD_PROC(clist,
+		SYSCTL_CHILDREN(random_yarrow_o), OID_AUTO,
+		"slowoverthresh", CTLTYPE_INT|CTLFLAG_RW,
+		&random_state.slowoverthresh, 2,
+		random_check_uint_slowoverthresh, "I",
+		"Slow over-threshold reseed");
+
 	random_state.gengateinterval = 10;
 	random_state.bins = 10;
 	random_state.pool[0].thresh = (3*BLOCKSIZE)/4;
@@ -145,7 +171,7 @@ random_init(void)
 }
 
 void
-random_deinit(void)
+random_yarrow_deinit_alg(void)
 {
 	mtx_destroy(&random_reseed_mtx);
 }
@@ -236,12 +262,12 @@ reseed(u_int fastslow)
 	mtx_unlock(&random_reseed_mtx);
 
 	/* Unblock the device if it was blocked due to being unseeded */
-	random_unblock();
+	random_yarrow_unblock();
 }
 
 /* Internal function to return processed entropy from the PRNG */
 int
-read_random_real(void *buf, int count)
+random_yarrow_read(void *buf, int count)
 {
 	static int cur = 0;
 	static int gate = 1;
@@ -289,7 +315,7 @@ read_random_real(void *buf, int count)
 			retval = count;
 		}
 		else {
-			retval = cur < count ? cur : count;
+			retval = MIN(cur, count);
 			memcpy(buf,
 			    &genval[(int)sizeof(random_state.counter) - cur],
 			    (size_t)retval);
@@ -319,7 +345,7 @@ generator_gate(void)
 
 /* Helper routine to perform explicit reseeds */
 void
-random_reseed(void)
+random_yarrow_reseed(void)
 {
 	reseed(SLOW);
 }
