@@ -84,6 +84,5 @@ static void
 resume_common(struct pthread *thread)
 {
 	thread->flags &= ~PTHREAD_FLAGS_SUSPENDED;
-	if (thr_kill(thread->thr_id, SIGTHR))
-		abort();
+	thr_wake(thread->thr_id);
 }

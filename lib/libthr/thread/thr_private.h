@@ -139,10 +139,8 @@
 } while (0)
 
 #define PTHREAD_NEW_STATE(thrd, newstate) do {				\
-	if (newstate == PS_RUNNING) { 					\
-		if (thr_kill(thrd->thr_id, SIGTHR))			\
-			abort();					\
-	}								\
+	if (newstate == PS_RUNNING) 					\
+		thr_wake(thrd->thr_id);					\
 	PTHREAD_SET_STATE(thrd, newstate);				\
 } while (0)
 
