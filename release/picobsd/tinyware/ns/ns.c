@@ -75,7 +75,7 @@ extern int optind;
 void
 usage()
 {
-	fprintf(stderr,"\n%s [-rsi] [-p proto] [-w wait]\n",progname);
+	fprintf(stderr,"\n%s [-nrsi] [-p proto] [-w wait]\n",progname);
 #ifdef BRIDGING
 	fprintf(stderr,"  proto: {ip|tcp|udp|icmp|bdg}\n\n");
 #else
@@ -677,11 +677,13 @@ main(int argc, char *argv[])
 
 	progname=argv[0];
 
-	while((c=getopt(argc,argv,"irsp:w:"))!=-1) {
+	while((c=getopt(argc,argv,"inrsp:w:"))!=-1) {
 		switch(c) {
 		case 'w':
 			wflag = atoi(optarg) ;
 			break;
+		case 'n' /* ignored, just for compatibility with std netstat */
+			break ;
 		case 'r':
 			rflag++;
 			break;
