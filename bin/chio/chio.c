@@ -68,16 +68,16 @@ static	const char *bits_to_string __P((int, const char *));
 static	void find_element __P((char *, u_int16_t *, u_int16_t *));
 static	struct changer_element_status *get_element_status __P((u_int16_t, u_int16_t));
 
-static	int do_move __P((char *, int, char **));
-static	int do_exchange __P((char *, int, char **));
-static	int do_position __P((char *, int, char **));
-static	int do_params __P((char *, int, char **));
-static	int do_getpicker __P((char *, int, char **));
-static	int do_setpicker __P((char *, int, char **));
-static	int do_status __P((char *, int, char **));
-static	int do_ielem __P((char *, int, char **));
-static	int do_return __P((char *, int, char **));
-static	int do_voltag __P((char *, int, char **));
+static	int do_move __P((const char *, int, char **));
+static	int do_exchange __P((const char *, int, char **));
+static	int do_position __P((const char *, int, char **));
+static	int do_params __P((const char *, int, char **));
+static	int do_getpicker __P((const char *, int, char **));
+static	int do_setpicker __P((const char *, int, char **));
+static	int do_status __P((const char *, int, char **));
+static	int do_ielem __P((const char *, int, char **));
+static	int do_return __P((const char *, int, char **));
+static	int do_voltag __P((const char *, int, char **));
 
 #ifndef CHET_VT
 #define	CHET_VT		10			/* Completely Arbitrary */
@@ -176,7 +176,7 @@ main(argc, argv)
 
 static int
 do_move(cname, argc, argv)
-	char *cname;
+	const char *cname;
 	int argc;
 	char **argv;
 {
@@ -257,7 +257,7 @@ do_move(cname, argc, argv)
 
 static int
 do_exchange(cname, argc, argv)
-	char *cname;
+	const char *cname;
 	int argc;
 	char **argv;
 {
@@ -369,7 +369,7 @@ do_exchange(cname, argc, argv)
 
 static int
 do_position(cname, argc, argv)
-	char *cname;
+	const char *cname;
 	int argc;
 	char **argv;
 {
@@ -433,7 +433,7 @@ do_position(cname, argc, argv)
 /* ARGSUSED */
 static int
 do_params(cname, argc, argv)
-	char *cname;
+	const char *cname;
 	int argc;
 	char **argv;
 {
@@ -479,7 +479,7 @@ do_params(cname, argc, argv)
 /* ARGSUSED */
 static int
 do_getpicker(cname, argc, argv)
-	char *cname;
+	const char *cname;
 	int argc;
 	char **argv;
 {
@@ -509,7 +509,7 @@ do_getpicker(cname, argc, argv)
 
 static int
 do_setpicker(cname, argc, argv)
-	char *cname;
+	const char *cname;
 	int argc;
 	char **argv;
 {
@@ -540,14 +540,14 @@ do_setpicker(cname, argc, argv)
 
 static int
 do_status(cname, argc, argv)
-	char *cname;
+	const char *cname;
 	int argc;
 	char **argv;
 {
 	struct changer_params cp;
 	struct changer_element_status_request cesr;
 	int i, count, base, chet, schet, echet;
-	char *description;
+	const char *description;
 	int pvoltag = 0;
 	int avoltag = 0;
 	int sense = 0;
@@ -762,7 +762,7 @@ do_status(cname, argc, argv)
 
 static int
 do_ielem(cname, argc, argv)
-	char *cname;
+	const char *cname;
 	int argc;
 	char **argv;
 {
@@ -788,7 +788,7 @@ do_ielem(cname, argc, argv)
 
 static int
 do_voltag(cname, argc, argv)
-	char *cname;
+	const char *cname;
 	int argc;
 	char **argv;
 {
@@ -977,7 +977,7 @@ bits_to_string(v, cp)
  */
 static int
 do_return(cname, argc, argv)
-	char *cname;
+	const char *cname;
 	int  argc;
 	char **argv;
 {
