@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/conf.h>
 #include <sys/bus.h>
@@ -160,6 +161,58 @@ isavga_attach(device_t dev)
 	return 0;
 }
 
+static int
+isavga_suspend(device_t dev)
+{
+	vga_softc_t *sc;
+	int err, nbytes;
+
+	sc = device_get_softc(dev);
+	err = bus_generic_suspend(dev);
+	if (err)
+		return (err);
+
+	/* Save the video state across the suspend. */
+	if (sc->state_buf != NULL) {
+		free(sc->state_buf, M_TEMP);
+		sc->state_buf = NULL;
+	}
+	nbytes = (*vidsw[sc->adp->va_index]->save_state)(sc->adp, NULL, 0);
+	if (nbytes <= 0)
+		return (0);
+	sc->state_buf = malloc(nbytes, M_TEMP, M_NOWAIT | M_ZERO);
+	if (sc->state_buf == NULL)
+		return (0);
+	if (bootverbose)
+		device_printf(dev, "saving %d bytes of video state\n", nbytes);
+	if ((*vidsw[sc->adp->va_index]->save_state)(sc->adp, sc->state_buf,
+	    nbytes) != 0) {
+		device_printf(dev, "failed to save state (nbytes=%d)\n",
+		    nbytes);
+		free(sc->state_buf, M_TEMP);
+		sc->state_buf = NULL;
+	}
+	return (0);
+}
+
+static int
+isavga_resume(device_t dev)
+{
+	vga_softc_t *sc;
+
+	sc = device_get_softc(dev);
+	if (sc->state_buf != NULL) {
+		if ((*vidsw[sc->adp->va_index]->load_state)(sc->adp,
+		    sc->state_buf) != 0)
+			device_printf(dev, "failed to reload state\n");
+		free(sc->state_buf, M_TEMP);
+		sc->state_buf = NULL;
+	}
+
+	bus_generic_resume(dev);
+	return 0;
+}
+
 #ifdef FB_INSTALL_CDEV
 
 static int
@@ -204,6 +257,8 @@ static device_method_t isavga_methods[] = {
 	DEVMETHOD(device_identify,	isavga_identify),
 	DEVMETHOD(device_probe,		isavga_probe),
 	DEVMETHOD(device_attach,	isavga_attach),
+	DEVMETHOD(device_suspend,	isavga_suspend),
+	DEVMETHOD(device_resume,	isavga_resume),
 
 	DEVMETHOD(bus_print_child,	bus_generic_print_child),
 	{ 0, 0 }
