@@ -47,13 +47,13 @@
 .Nm
 .Cm enable
 .Ar path
-.Ar namespace
+.Ar attrnamespace
 .Ar attrname
 .Ar attrfile
 .Nm
 .Cm disable
 .Ar path
-.Ar namespace
+.Ar attrnamespace
 .Ar attrname
 .Sh DESCRIPTION
 .Nm
@@ -104,11 +104,11 @@ from denying attribute service.
 .Pp
 This file should not exist before running
 .Cm initattr .
-.It Cm enable Ar path namespace attrname attrfile
+.It Cm enable Ar path attrnamespace attrname attrfile
 Enable an attribute named
 .Ar attrname
 in the namespace
-.Ar namespace
+.Ar attrnamespace
 on the file system identified using
 .Ar path ,
 and backed by initialized attribute file
@@ -119,11 +119,11 @@ The backing file must have been initialized using
 before its first use.
 Attributes must have been started on the file system prior to the
 enabling of any attributes.
-.It Cm disable Ar path namespace attrname
+.It Cm disable Ar path attrnamespace attrname
 Disable the attributed named
 .Ar attrname
 in namespace
-.Ar namespace
+.Ar attrnamespace
 on the file system identified by
 .Ar path .
 Available namespaces are "user" and "system".
