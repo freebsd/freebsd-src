@@ -15,7 +15,7 @@ NCURSES_MINOR!=egrep 'NCURSES_MINOR[ 	]*=' ${NCURSES}/dist.mk | sed -e 's/^[^0-9
 NCURSES_PATCH!=egrep 'NCURSES_PATCH[ 	]*=' ${NCURSES}/dist.mk | sed -e 's/^[^0-9]*//'
 
 # From autoconf (!)
-NCURSES_CONST=
+NCURSES_CONST=	const
 NCURSES_XNAMES=	1
 OSPEED_INCLUDES=\#include <termios.h>
 OSPEED_TYPE=	speed_t
