@@ -159,7 +159,7 @@ ChallengeHash(char *PeerChallenge, char *AuthenticatorChallenge,
 
   SHA1_Update(&Context, PeerChallenge, 16); 
   SHA1_Update(&Context, AuthenticatorChallenge, 16);
-  SHA1_Update(&Context, UserName, UserNameLen);
+  SHA1_Update(&Context, Name, strlen(Name));
 
   SHA1_Final(Digest, &Context);
   memcpy(Challenge, Digest, 8);
