@@ -358,17 +358,17 @@ print_AMD_features(void)
 		"\022PGE36"	/* 36 bit address space support */
 		"\023RSVD"	/* Reserved, unknown */
 		"\024MP"	/* Multiprocessor Capable */
-		"\025<b20>"
+		"\025NX"	/* Has EFER.NXE, NX (no execute pte bit) */
 		"\026<b21>"
-		"\027AMIE"	/* AMD MMX Instruction Extensions */
+		"\027MMX+"	/* AMD MMX Instruction Extensions */
 		"\030MMX"
 		"\031FXSAVE"	/* FXSAVE/FXRSTOR */
 		"\032<b25>"
 		"\033<b26>"
 		"\034<b27>"
 		"\035<b28>"
-		"\036<b29>"
-		"\037DSP"	/* AMD 3DNow! Instruction Extensions */
-		"\0403DNow!"
+		"\036LM"	/* Long mode */
+		"\0373DNow!+"	/* AMD 3DNow! Instruction Extensions */
+		"\0403DNow!"	/* AMD 3DNow! Instructions */
 		);
 }
