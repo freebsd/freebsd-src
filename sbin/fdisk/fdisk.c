@@ -452,11 +452,10 @@ struct stat 	st;
 		fprintf(stderr, "%s: Can't get file status of %s\n",
 			name, disk);
 		return -1;
-	} else if ( !(st.st_mode & S_IFCHR) ) {
+	}
+	if ( !(st.st_mode & S_IFCHR) )
 		fprintf(stderr,"%s: Device %s is not character special\n",
 			name, disk);
-		return -1;
-	}
 	if ((fd = open(disk, u_flag?O_RDWR:O_RDONLY)) == -1) {
 		fprintf(stderr,"%s: Can't open device %s\n", name, disk);
 		return -1;
@@ -486,7 +485,15 @@ get_params(verbose)
 {
 
     if (ioctl(fd, DIOCGDINFO, &disklabel) == -1) {
-	return -1;
+	fprintf(stderr,
+		"%s: Can't get disk parameters on %s; supplying dummy ones\n",
+		name, disk);
+	dos_cyls = cyls = 1;
+	dos_heads = heads = 1;
+	dos_sectors = sectors = 1;
+	dos_cylsecs = cylsecs = heads * sectors;
+	disksecs = cyls * heads * sectors;
+	return disksecs;
     }
 
     dos_cyls = cyls = disklabel.d_ncylinders;
