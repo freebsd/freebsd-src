@@ -12,6 +12,4 @@ MAN8=	restore.0
 MLINKS+=restore.8 rrestore.8
 .PATH:	${.CURDIR}/../dump
 
-all: ${PROG} ${MAN8}
-
 .include <bsd.prog.mk>
