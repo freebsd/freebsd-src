@@ -206,10 +206,6 @@ struct buf {
  *			sticky until the buffer is released and typically
  *			only has an effect when B_RELBUF is also set.
  *
- *	B_NOWDRAIN	This flag should be set when a device (like MD)
- *			does a turn-around VOP_WRITE from its strategy
- *			routine.  This flag prevents bwrite() from blocking
- *			in wdrain, avoiding a deadlock situation.
  */
 
 #define	B_AGE		0x00000001	/* Move to age queue when I/O done. */
@@ -223,7 +219,7 @@ struct buf {
 #define	B_00000100	0x00000100	/* Available flag. */
 #define	B_DONE		0x00000200	/* I/O completed. */
 #define	B_EINTR		0x00000400	/* I/O was interrupted */
-#define	B_NOWDRAIN	0x00000800	/* Avoid wdrain deadlock */
+#define	B_00000800	0x00000800	/* Availabel flag. */
 #define	B_00001000	0x00001000	/* Available flag. */
 #define	B_INVAL		0x00002000	/* Does not contain valid info. */
 #define	B_LOCKED	0x00004000	/* Locked in core (not reusable). */
