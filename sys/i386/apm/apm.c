@@ -29,13 +29,14 @@
 #include <sys/select.h>
 #include <sys/poll.h>
 #include <sys/fcntl.h>
-#include <sys/proc.h>
 #include <sys/uio.h>
 #include <sys/signalvar.h>
 #include <sys/sysctl.h>
+#include <sys/power.h>
 #include <machine/apm_bios.h>
 #include <machine/segments.h>
 #include <machine/clock.h>
+#include <machine/stdarg.h>
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
@@ -53,6 +54,8 @@ struct apm_softc apm_softc;
 static void apm_resume __P((void));
 static int apm_bioscall(void);
 static int apm_check_function_supported __P((u_int version, u_int func));
+
+static int apm_pm_func __P((u_long, void*, ...));
 
 static u_long	apm_version;
 
@@ -402,69 +405,6 @@ apm_hook_disestablish(int apmh, struct apmhook *ah)
 	apm_del_hook(&hook[apmh], ah);
 }
 
-
-static struct timeval suspend_time;
-static struct timeval diff_time;
-
-static int
-apm_default_resume(void *arg)
-{
-	int pl;
-	u_int second, minute, hour;
-	struct timeval resume_time, tmp_time;
-
-	/* modified for adjkerntz */
-	pl = splsoftclock();
-	timer_restore();		/* restore the all timers */
-	inittodr(0);			/* adjust time to RTC */
-	microtime(&resume_time);
-	getmicrotime(&tmp_time);
-	timevaladd(&tmp_time, &diff_time);
-
-#ifdef FIXME
-	/* XXX THIS DOESN'T WORK!!! */
-	time = tmp_time;
-#endif
-
-#ifdef APM_FIXUP_CALLTODO
-	/* Calculate the delta time suspended */
-	timevalsub(&resume_time, &suspend_time);
-	/* Fixup the calltodo list with the delta time. */
-	adjust_timeout_calltodo(&resume_time);
-#endif /* APM_FIXUP_CALLTODOK */
-	splx(pl);
-#ifndef APM_FIXUP_CALLTODO
-	second = resume_time.tv_sec - suspend_time.tv_sec; 
-#else /* APM_FIXUP_CALLTODO */
-	/* 
-	 * We've already calculated resume_time to be the delta between 
-	 * the suspend and the resume. 
-	 */
-	second = resume_time.tv_sec; 
-#endif /* APM_FIXUP_CALLTODO */
-	hour = second / 3600;
-	second %= 3600;
-	minute = second / 60;
-	second %= 60;
-	log(LOG_NOTICE, "resumed from suspended mode (slept %02d:%02d:%02d)\n",
-		hour, minute, second);
-	return 0;
-}
-
-static int
-apm_default_suspend(void *arg)
-{
-	int	pl;
-
-	pl = splsoftclock();
-	microtime(&diff_time);
-	inittodr(0);
-	microtime(&suspend_time);
-	timevalsub(&diff_time, &suspend_time);
-	splx(pl);
-	return 0;
-}
-
 static int apm_record_event __P((struct apm_softc *, u_int));
 static void apm_processevent(void);
 
@@ -489,6 +429,7 @@ apm_do_suspend(void)
 		} else {
 			apm_execute_hook(hook[APM_HOOK_SUSPEND]);
 			if (apm_suspend_system(PMST_SUSPEND) == 0) {
+				sc->suspending = 1;
 				apm_processevent();
 			} else {
 				/* Failure, 'resume' the system again */
@@ -515,7 +456,6 @@ apm_do_standby(void)
 		 * As far as standby, we don't need to execute 
 		 * all of suspend hooks.
 		 */
-		apm_default_suspend(&apm_softc);
 		if (apm_suspend_system(PMST_STANDBY) == 0)
 			apm_processevent();
 	}
@@ -600,6 +540,10 @@ apm_resume(void)
 	if (!sc)
 		return;
 
+	if (sc->suspending == 0)
+		return;
+
+	sc->suspending = 0;
 	if (sc->initialized) {
 		apm_execute_hook(hook[APM_HOOK_RESUME]);
 		DEVICE_RESUME(root_bus);
@@ -751,7 +695,7 @@ apm_timeout(void *dummy)
 
 	if (sc->active == 1)
 		/* Run slightly more oftan than 1 Hz */
-		apm_timeout_ch = timeout(apm_timeout, NULL, hz - 1 );
+		apm_timeout_ch = timeout(apm_timeout, NULL, hz - 1);
 }
 
 /* enable APM BIOS */
@@ -803,12 +747,41 @@ apm_not_halt_cpu(void)
 /* device driver definitions */
 
 /*
+ * Module event
+ */
+
+static int
+apm_modevent(struct module *mod, int event, void *junk)
+{
+
+	switch (event) {
+	case MOD_LOAD:
+		if (!cold)
+			return (EPERM);
+		break;
+	case MOD_UNLOAD:
+		if (!cold && power_pm_get_type() == POWER_PM_TYPE_APM)
+			return (EBUSY);
+		break;
+	default:
+		break;
+	}
+
+	return (0);
+}
+
+/*
  * Create "connection point"
  */
 static void
 apm_identify(driver_t *driver, device_t parent)
 {
 	device_t child;
+
+	if (!cold) {
+		printf("Don't load this driver from userland!!\n");
+		return;
+	}
 
 	child = BUS_ADD_CHILD(parent, 0, "apm", 0);
 	if (child == NULL)
@@ -826,14 +799,21 @@ apm_probe(device_t dev)
 	struct apm_softc	*sc = &apm_softc;
 	int			disabled, flags;
 
-	if (resource_int_value("apm", 0, "disabled", &disabled) == 0
-	    && disabled != 0)
-		return ENXIO;
-
 	device_set_desc(dev, "APM BIOS");
 
-	if ( device_get_unit(dev) > 0 ) {
+	if (resource_int_value("apm", 0, "disabled", &disabled) != 0)
+		disabled = 0;
+	if (disabled)
+		return ENXIO;
+
+	if (device_get_unit(dev) > 0) {
 		printf("apm: Only one APM driver supported.\n");
+		return ENXIO;
+	}
+
+	if (power_pm_get_type() != POWER_PM_TYPE_NONE &&
+	    power_pm_get_type() != POWER_PM_TYPE_APM) {
+		printf("apm: Other PM system enabled.\n");
 		return ENXIO;
 	}
 
@@ -927,6 +907,24 @@ apm_record_event(struct apm_softc *sc, u_int event_type)
 	return (sc->sc_flags & SCFLAG_OCTL) ? 0 : 1; /* user may handle */
 }
 
+/* Power profile */
+static void
+apm_power_profile(struct apm_softc *sc)
+{
+	int state;
+	struct apm_info info;
+	static int apm_acline = 0;
+
+	if (apm_get_info(&info))
+		return;
+
+	if (apm_acline != info.ai_acline) {
+		apm_acline = info.ai_acline;
+		state = apm_acline ? POWER_PROFILE_PERFORMANCE : POWER_PROFILE_ECONOMY;
+		power_profile_set_state(state);
+	}
+}
+
 /* Process APM event */
 static void
 apm_processevent(void)
@@ -987,7 +985,6 @@ apm_processevent(void)
 			break;
 		    OPMEV_DEBUGMESSAGE(PMEV_STANDBYRESUME);
 			apm_record_event(sc, apm_event);
-			apm_resume();
 			break;
 		    OPMEV_DEBUGMESSAGE(PMEV_BATTERYLOW);
 			if (apm_record_event(sc, apm_event)) {
@@ -997,6 +994,7 @@ apm_processevent(void)
 			break;
 		    OPMEV_DEBUGMESSAGE(PMEV_POWERSTATECHANGE);
 			apm_record_event(sc, apm_event);
+			apm_power_profile(sc);
 			break;
 		    OPMEV_DEBUGMESSAGE(PMEV_UPDATETIME);
 			apm_record_event(sc, apm_event);
@@ -1004,6 +1002,7 @@ apm_processevent(void)
 			break;
 		    OPMEV_DEBUGMESSAGE(PMEV_CAPABILITIESCHANGE);
 			apm_record_event(sc, apm_event);
+			apm_power_profile(sc);
 			break;
 		    case PMEV_NOEVENT:
 			break;
@@ -1095,28 +1094,17 @@ apm_attach(device_t dev)
 		}
 	}
 
-        /* default suspend hook */
-        sc->sc_suspend.ah_fun = apm_default_suspend;
-        sc->sc_suspend.ah_arg = sc;
-        sc->sc_suspend.ah_name = "default suspend";
-        sc->sc_suspend.ah_order = APM_MAX_ORDER;
-
-        /* default resume hook */
-        sc->sc_resume.ah_fun = apm_default_resume;
-        sc->sc_resume.ah_arg = sc;
-        sc->sc_resume.ah_name = "default resume";
-        sc->sc_resume.ah_order = APM_MIN_ORDER;
-
-        apm_hook_establish(APM_HOOK_SUSPEND, &sc->sc_suspend);
-        apm_hook_establish(APM_HOOK_RESUME , &sc->sc_resume);
-
 	/* Power the system off using APM */
 	EVENTHANDLER_REGISTER(shutdown_final, apm_power_off, NULL, 
 			      SHUTDOWN_PRI_LAST);
 
-	sc->initialized = 1;
+	/* Register APM again to pass the correct argument of pm_func. */
+	power_pm_register(POWER_PM_TYPE_APM, apm_pm_func, sc);
 
-	make_dev(&apm_cdevsw, 0, 0, 5, 0660, "apm");
+	sc->initialized = 1;
+	sc->suspending = 0;
+
+	make_dev(&apm_cdevsw, 0, 0, 5, 0664, "apm");
 	make_dev(&apm_cdevsw, 8, 0, 5, 0660, "apmctl");
 	return 0;
 }
@@ -1390,4 +1378,56 @@ static driver_t apm_driver = {
 
 static devclass_t apm_devclass;
 
-DRIVER_MODULE(apm, nexus, apm_driver, apm_devclass, 0, 0);
+DRIVER_MODULE(apm, nexus, apm_driver, apm_devclass, apm_modevent, 0);
+MODULE_VERSION(apm, 1);
+
+static int
+apm_pm_func(u_long cmd, void *arg, ...)
+{
+	int	state, apm_state;
+	int	error;
+	va_list	ap;
+
+	error = 0;
+	switch (cmd) {
+	case POWER_CMD_SUSPEND:
+		va_start(ap, arg);
+		state = va_arg(ap, int);
+		va_end(ap);	
+
+		switch (state) {
+		case POWER_SLEEP_STATE_STANDBY:
+			apm_state = PMST_STANDBY;
+			break;
+		case POWER_SLEEP_STATE_SUSPEND:
+		case POWER_SLEEP_STATE_HIBERNATE:
+			apm_state = PMST_SUSPEND;
+			break;
+		default:
+			error = EINVAL;
+			goto out;
+		}
+
+		apm_suspend(apm_state);
+		break;
+
+	default:
+		error = EINVAL;
+		goto out;
+	}
+
+out:
+	return (error);
+}
+
+static void
+apm_pm_register(void *arg)
+{
+	int	disabled = 0;
+
+	resource_int_value("apm", 0, "disabled", &disabled);
+	if (disabled == 0)
+		power_pm_register(POWER_PM_TYPE_APM, apm_pm_func, NULL);
+}
+
+SYSINIT(power, SI_SUB_KLD, SI_ORDER_ANY, apm_pm_register, 0);

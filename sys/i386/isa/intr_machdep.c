@@ -142,6 +142,7 @@ static inthand_t *slowintr[ICU_LEN] = {
 };
 
 static inthand2_t isa_strayintr;
+static void	init_i8259(void);
 
 #ifdef PC98
 #define NMI_PARITY 0x04
@@ -225,6 +226,19 @@ isa_nmi(cd)
 }
 
 /*
+ *  ICU reinitialize when ICU configuration has lost.
+ */
+void
+icu_reinit()
+{
+	int i;
+
+	init_i8259();
+	for(i=0;i<ICU_LEN;i++)
+		if(intr_handler[i] != isa_strayintr)
+			INTREN(1<<i);
+}
+/*
  * Fill in default interrupt table (in case of spuruious interrupt
  * during configuration of kernel, setup interrupt control unit
  */
@@ -236,7 +250,12 @@ isa_defaultirq()
 	/* icu vectors */
 	for (i = 0; i < ICU_LEN; i++)
 		icu_unset(i, (inthand2_t *)NULL);
+	init_i8259();
+}
 
+static void
+init_i8259(void)
+{
 	/* initialize 8259's */
 #if NMCA > 0
 	if (MCA_system)

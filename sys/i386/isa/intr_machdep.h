@@ -192,6 +192,7 @@ int	isa_nmi __P((int cd));
 int	icu_setup __P((int intr, inthand2_t *func, void *arg, 
 		       u_int *maskptr, int flags));
 int	icu_unset __P((int intr, inthand2_t *handler));
+void	icu_reinit __P((void));
 int	update_intr_masks __P((void));
 
 intrmask_t splq __P((intrmask_t mask));
