@@ -1,8 +1,8 @@
 #	from: @(#)Makefile	5.6 (Berkeley) 5/22/91
-#	$Id: Makefile,v 1.19 1995/10/18 04:19:00 davidg Exp $
+#	$Id: Makefile,v 1.20 1995/10/20 20:05:15 phk Exp $
 
 CFLAGS+=	-DLIBC_SCCS -fno-omit-frame-pointer
-OBJS=		scrt0.o crt0.o gcrt0.o c++rt0.o
+OBJS=		crt0.o c++rt0.o gcrt0.o scrt0.o sgcrt0.o
 CLEANFILES+=	a.out
 MAN3+=		dlopen.3
 MLINKS+=	dlopen.3 dlsym.3 \
@@ -10,11 +10,6 @@ MLINKS+=	dlopen.3 dlsym.3 \
 		dlopen.3 dlclose.3
 
 all: ${OBJS}
-
-scrt0.o: crt0.c
-	${CC} ${CFLAGS} -c -DCRT0 ${.CURDIR}/crt0.c -o ${.TARGET}
-	${LD} -x -r ${.TARGET}
-	mv a.out ${.TARGET}
 
 crt0.o: crt0.c
 	${CC} ${CFLAGS} -c -DCRT0 -DDYNAMIC ${.CURDIR}/crt0.c -o ${.TARGET}
@@ -32,6 +27,18 @@ c++rt0.o: c++rt0.c
 #
 gcrt0.o: crt0.o
 	${CC} ${CFLAGS} -c -DMCRT0 -DDYNAMIC ${.CURDIR}/crt0.c -o ${.TARGET}
+	${LD} -x -r ${.TARGET}
+	mv a.out ${.TARGET}
+
+# dependencies fudged as for gcrt0.o
+scrt0.o: crt0.o
+	${CC} ${CFLAGS} -c -DCRT0 ${.CURDIR}/crt0.c -o ${.TARGET}
+	${LD} -x -r ${.TARGET}
+	mv a.out ${.TARGET}
+
+# dependencies fudged as for gcrt0.o
+sgcrt0.o: scrt0.o
+	${CC} ${CFLAGS} -c -DMCRT0 ${.CURDIR}/crt0.c -o ${.TARGET}
 	${LD} -x -r ${.TARGET}
 	mv a.out ${.TARGET}
 
