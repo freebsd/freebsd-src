@@ -60,6 +60,7 @@ static const char rcsid[] =
 #ifdef SHELL
 #define main printfcmd
 #include "bltin/bltin.h"
+#include "memalloc.h"
 #else
 #define	warnx1(a, b, c)		warnx(a)
 #define	warnx2(a, b, c)		warnx(a, b)
@@ -247,12 +248,23 @@ mklong(str, ch)
 	char *str;
 	int ch;
 {
-	static char copy[64];
-	int len;
+	static char *copy;
+	static size_t copy_size;
+	size_t len, newlen;
+	char *newcopy;
 
 	len = strlen(str) + 2;
-	if (len > sizeof copy)
-		return NULL;
+	if (len > copy_size) {
+		newlen = ((len + 1023) >> 10) << 10;
+#ifdef SHELL
+		if ((newcopy = ckrealloc(copy, newlen)) == NULL)
+#else
+		if ((newcopy = realloc(copy, newlen)) == NULL)
+#endif
+			return (NULL);
+		copy = newcopy;
+		copy_size = newlen;
+	}
 
 	memmove(copy, str, len - 3);
 	copy[len - 3] = 'q';
