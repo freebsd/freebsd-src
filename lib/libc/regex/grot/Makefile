@@ -4,7 +4,14 @@
 # internal assertion checking).  Take -Dconst= out for an ANSI compiler.
 # Do not take -DPOSIX_MISTAKE out.  REGCFLAGS isn't important to you (it's
 # for my use in some special contexts).
-CFLAGS = -I. -DPOSIX_MISTAKE -DREDEBUG $(REGCFLAGS)
+
+PATHS= ${.CURDIR}/.. ${.CURDIR}/../../locale ${.CURDIR}/../../../../include
+.PATH: ${PATHS}
+
+CFLAGS+= -DPOSIX_MISTAKE -DREDEBUG $(REGCFLAGS)
+.for incpath in ${PATHS}
+CFLAGS+= -I${incpath}
+.endfor
 
 # If you have an ANSI compiler, take -o out of MKHFLAGS.  If you want
 # the Berkeley __P macro, put -b in.
