@@ -215,7 +215,7 @@ _bluetooth=	bluetooth
 _keyserv=	keyserv
 .endif
 
-.if !defined(NOINET6)
+.if !defined(NO_INET6)
 _mld6query=	mld6query
 _rip6query=	rip6query
 _route6d=	route6d

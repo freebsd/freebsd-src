@@ -6,7 +6,7 @@ SENDMAIL_DIR=${.CURDIR}/../../contrib/sendmail
 CFLAGS+=-I${SENDMAIL_DIR}/src -I${SENDMAIL_DIR}/include -I.
 CFLAGS+=-DNEWDB -DNIS -DMAP_REGEX -DNOT_SENDMAIL
 
-.if !defined(NOINET6)
+.if !defined(NO_INET6)
 CFLAGS+=-DNETINET6
 .endif
 

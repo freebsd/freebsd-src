@@ -6,7 +6,7 @@ KMOD=	ipl
 SRCS=	mlfk_ipl.c ip_nat.c ip_frag.c ip_state.c ip_proxy.c ip_auth.c \
 	ip_log.c ip_fil.c fil.c
 
-.if !defined(NOINET6)
+.if !defined(NO_INET6)
 CFLAGS+= -DUSE_INET6
 .endif
 CFLAGS+=  -I${.CURDIR}/../../contrib/ipfilter
