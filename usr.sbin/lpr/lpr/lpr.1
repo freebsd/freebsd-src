@@ -44,6 +44,7 @@
 .Op Fl \&# Ns Ar num
 .Op Fl C Ar class
 .Op Fl J Ar job
+.Op Fl L Ar locale
 .Op Fl T Ar title
 .Op Fl U Ar user
 .Op Fl i Ar numcols
@@ -173,6 +174,11 @@ and the file foo.c to be printed.
 .It Fl J Ar job
 Job name to print on the burst page.
 Normally, the first file's name is used.
+.It Fl L Ar locale
+Use
+.Ar locale
+specified as argument instead of one found in environment.
+Use "C" to reset locale to default.
 .It Fl T Ar title
 Title name for
 .Xr pr  1 ,

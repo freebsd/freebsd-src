@@ -65,6 +65,7 @@ static const char rcsid[] =
 #include <fcntl.h>
 #include <a.out.h>
 #include <err.h>
+#include <locale.h>
 #include <signal.h>
 #include <syslog.h>
 #include <pwd.h>
@@ -98,6 +99,7 @@ static int	 sflag;		/* symbolic link flag */
 static int	 tfd;		/* control file descriptor */
 static char	*tfname;	/* tmp copy of cf before linking */
 static char	*title;		/* pr'ing title */
+static char     *locale;        /* pr'ing locale */
 static int	 userid;	/* user id */
 static char	*Uflag;		/* user name specified with -U flag */
 static char	*width;		/* width for versatec printing */
@@ -152,7 +154,7 @@ main(argc, argv)
 
 	errs = 0;
 	while ((c = getopt(argc, argv,
-			   ":#:1:2:3:4:C:J:P:T:U:cdfghi:lnmprstvw:")) != -1)
+			   ":#:1:2:3:4:C:J:L:P:T:U:cdfghi:lnmprstvw:")) != -1)
 		switch (c) {
 		case '#':		/* n copies */
 			i = strtol(optarg, &p, 10);
@@ -181,6 +183,10 @@ main(argc, argv)
 
 		case 'P':		/* specifiy printer name */
 			printer = optarg;
+			break;
+
+		case 'L':               /* pr's locale */
+			locale = optarg;
 			break;
 
 		case 'T':		/* pr's title line */
@@ -336,6 +342,14 @@ main(argc, argv)
 				card('1'+i, fonts[i]);
 	if (width != NULL)
 		card('W', width);
+	if (format == 'p') {
+		char *s;
+
+		if (locale)
+			card('Z', locale);
+		else if ((s = setlocale(LC_TIME, "")) != NULL)
+			card('Z', s);
+	}
 
 	/*
 	 * Read the files and spool them.
@@ -722,7 +736,7 @@ usage()
 {
 	fprintf(stderr, "%s\n%s\n",
 "usage: lpr [-Pprinter] [-#num] [-C class] [-J job] [-T title] [-U user]",
-"[-i[numcols]] [-1234 font] [-wnum] [-cdfghlnmprstv] [name ...]");
+"[-i[numcols]] [-1234 font] [-L locale] [-wnum] [-cdfghlnmprstv] [name ...]");
 	exit(1);
 }
 
