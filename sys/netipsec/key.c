@@ -512,6 +512,18 @@ static struct mbuf *key_alloc_mbuf __P((int));
 	IPSEC_ASSERT((p)->refcnt > 0, ("SP refcnt underflow"));		\
 	(p)->refcnt--;							\
 } while (0)
+ 
+
+/*
+ * Update the refcnt while holding the SPTREE lock.
+ */
+void
+key_addref(struct secpolicy *sp)
+{
+	SPTREE_LOCK();
+	SP_ADDREF(sp);
+	SPTREE_UNLOCK();
+}
 
 /*
  * Return 0 when there are known to be no SP's for the specified
@@ -2041,7 +2053,6 @@ key_spddelete(so, m, mhp)
 	xpl0->sadb_x_policy_id = sp->id;
 
 	sp->state = IPSEC_SPSTATE_DEAD;
-	SECPOLICY_LOCK_DESTROY(sp);
 	KEY_FREESP(&sp);
 
     {
@@ -2105,7 +2116,6 @@ key_spddelete2(so, m, mhp)
 	}
 
 	sp->state = IPSEC_SPSTATE_DEAD;
-	SECPOLICY_LOCK_DESTROY(sp);
 	KEY_FREESP(&sp);
 
     {
@@ -6670,11 +6680,6 @@ key_parse(m, so)
 	error = key_align(m, &mh);
 	if (error)
 		return error;
-
-	if (m->m_next) {	/*XXX*/
-		m_freem(m);
-		return ENOBUFS;
-	}
 
 	msg = mh.msg;
 

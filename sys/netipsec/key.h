@@ -46,6 +46,7 @@ struct sadb_x_policy;
 struct secasindex;
 union sockaddr_union;
 
+extern void key_addref(struct secpolicy *sp);
 extern	int key_havesp(u_int dir);
 extern struct secpolicy *key_allocsp(struct secpolicyindex *, u_int,
 	const char*, int);

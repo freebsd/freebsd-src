@@ -220,7 +220,7 @@ key_allocsp_default(const char* where, int tag)
 		    sp->policy, IPSEC_POLICY_NONE));
 		sp->policy = IPSEC_POLICY_NONE;
 	}
-	sp->refcnt++;
+	key_addref(sp);
 
 	KEYDEBUG(KEYDEBUG_IPSEC_STAMP,
 		printf("DP key_allocsp_default returns SP:%p (%u)\n",
@@ -317,7 +317,7 @@ ipsec_getpolicybysock(m, dir, inp, error)
 		switch (currsp->policy) {
 		case IPSEC_POLICY_BYPASS:
 		case IPSEC_POLICY_IPSEC:
-			currsp->refcnt++;
+			key_addref(currsp);
 			sp = currsp;
 			break;
 
@@ -350,7 +350,7 @@ ipsec_getpolicybysock(m, dir, inp, error)
 				break;
 
 			case IPSEC_POLICY_IPSEC:
-				currsp->refcnt++;
+				key_addref(currsp);
 				sp = currsp;
 				break;
 
