@@ -1,14 +1,22 @@
 #
-# $Id: Makefile,v 1.1 1993/12/21 19:40:50 wollman Exp $
+# $Id: Makefile,v 1.2 1993/12/21 21:06:30 wollman Exp $
 #
 
 CFLAGS+= -I${.CURDIR}/../include
-LDADD+= -L${.CURDIR}/../lib -lntp
+
+.if exists(${.CURDIR}/../lib/obj)
+LDADD+= -L${.CURDIR}/../lib/obj
+DPADD+= -L${.CURDIR}/../lib/obj/libntp.a
+.else
+LDADD+= -L${.CURDIR}/../lib
 DPADD+= -L${.CURDIR}/../lib/libntp.a
+.endif
+
+LDADD+= -lntp
 
 PROG= ntpdate
 MAN8= ${.CURDIR}/../doc/ntpdate.8
-CLEANFILES+= version.c
+CLEANFILES+= .version version.c
 
 SRCS= ntpdate.c version.c
 
