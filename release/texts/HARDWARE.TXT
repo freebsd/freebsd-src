@@ -740,7 +740,7 @@ including the following:
     IO DATA PCLATE
     IBM Creditcard Ethernet I/II
     IC-CARD Ethernet/IC-CARD+ Ethernet
-    Linksys EC2T/PCMPC100
+    Linksys EC2T/PCMPC100,EtherFast 10/100 PC Card (PCMPC100 V2)
     Melco LPC-T/LPC2-T/LPC3-TX/LPC3-CLX
     NDC Ethernet Instant-Link
     National Semiconductor InfoMover NE4100
