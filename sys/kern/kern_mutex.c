@@ -339,17 +339,6 @@ _mtx_lock_sleep(struct mtx *m, int opts, const char *file, int line)
 		    "_mtx_lock_sleep: %s contested (lock=%p) at %s:%d",
 		    m->mtx_description, (void *)m->mtx_lock, file, line);
 
-	/*
-	 * Save our priority. Even though p_nativepri is protected by
-	 * sched_lock, we don't obtain it here as it can be expensive.
-	 * Since this is the only place p_nativepri is set, and since two
-	 * CPUs will not be executing the same process concurrently, we know
-	 * that no other CPU is going to be messing with this. Also,
-	 * p_nativepri is only read when we are blocked on a mutex, so that
-	 * can't be happening right now either.
-	 */
-	p->p_pri.pri_native = p->p_pri.pri_level;
-
 	while (!_obtain_lock(m, p)) {
 		uintptr_t v;
 		struct proc *p1;
@@ -437,6 +426,8 @@ _mtx_lock_sleep(struct mtx *m, int opts, const char *file, int line)
 		p->p_blocked = m;
 		p->p_mtxname = m->mtx_description;
 		p->p_stat = SMTX;
+		if (p->p_pri.pri_native == PRI_MAX)
+			p->p_pri.pri_native = p->p_pri.pri_level;
 		propagate_priority(p);
 
 		if ((opts & MTX_QUIET) == 0)
