@@ -1314,19 +1314,21 @@ Static int
 ukbd_poll(keyboard_t *kbd, int on)
 {
 	ukbd_state_t *state;
+	usbd_device_handle dev;
 	int s;
 
 	state = (ukbd_state_t *)kbd->kb_data;
+	usbd_interface2device_handle(state->ks_iface, &dev);
 
 	s = splusb();
 	if (on) {
 		if (state->ks_polling == 0)
-			usbd_set_polling(state->ks_iface, on);
+			usbd_set_polling(dev, on);
 		++state->ks_polling;
 	} else {
 		--state->ks_polling;
 		if (state->ks_polling == 0)
-			usbd_set_polling(state->ks_iface, on);
+			usbd_set_polling(dev, on);
 	}
 	splx(s);
 	return 0;

@@ -1080,12 +1080,12 @@ usbd_dopoll(usbd_interface_handle iface)
 }
 
 void
-usbd_set_polling(usbd_interface_handle iface, int on)
+usbd_set_polling(usbd_device_handle dev, int on)
 {
 	if (on)
-		iface->device->bus->use_polling++;
+		dev->bus->use_polling++;
 	else
-		iface->device->bus->use_polling--;
+		dev->bus->use_polling--;
 }
 
 
