@@ -51,6 +51,8 @@
 #error "This file should not be included in user level programs"
 #endif
 
+#define NG_ABI_VERSION NG_VERSION
+
 /*
  * Structure of a hook
  */
@@ -67,6 +69,24 @@ typedef struct ng_hook *hook_p;
 
 /* Flags for a hook */
 #define HK_INVALID		0x0001	/* don't trust it! */
+
+void ng_unref_hook(hook_p hook); /* don't move this */
+#define NG_HOOK_REF(hook)	atomic_add_int(&(hook)->refs, 1)
+#define NG_HOOK_NAME(hook)	((hook)->name)
+#define NG_HOOK_UNREF(hook)	ng_unref_hook(hook)
+#define NG_HOOK_SET_PRIVATE(hook, val)	do {(hook)->private = val;} while (0)
+#define NG_HOOK_SET_RCVMSG(hook, val)	do {(hook)->rcvmsg = val;} while (0)
+#define NG_HOOK_SET_RCVDATA(hook, val)	do {(hook)->rcvdata = val;} while (0)
+#define NG_HOOK_PRIVATE(hook)	((hook)->private)
+#define NG_HOOK_NOT_VALID(hook)	((hook)->flags & HK_INVALID)
+#define NG_HOOK_IS_VALID(hook)	(!((hook)->flags & HK_INVALID))
+#define NG_HOOK_NODE(hook)	((hook)->node) /* only rvalue! */
+#define NG_HOOK_PEER(hook)	((hook)->peer) /* only rvalue! */
+
+/* Some shortcuts */
+#define NG_PEER_NODE(hook)	NG_HOOK_NODE(NG_HOOK_PEER(hook))
+#define NG_PEER_HOOK_NAME(hook)	NG_HOOK_NAME(NG_HOOK_PEER(hook))
+#define NG_PEER_NODE_NAME(hook)	NG_NODE_NAME(NG_PEER_NODE(hook))
 
 /*
  * Structure of a node
@@ -95,6 +115,18 @@ typedef struct ng_node *node_p;
 #define NGF_TYPE2	0x20000000	/* reserved for type specific storage */
 #define NGF_TYPE3	0x40000000	/* reserved for type specific storage */
 #define NGF_TYPE4	0x80000000	/* reserved for type specific storage */
+
+void	ng_unref_node(node_p node); /* don't move this */
+#define NG_NODE_NAME(node)	((node)->name + 0)
+#define NG_NODE_HAS_NAME(node)	((node)->name[0] + 0)
+#define NG_NODE_ID(node)	((node)->ID + 0)
+#define NG_NODE_REF(node)	atomic_add_int(&(node)->refs, 1)
+#define NG_NODE_UNREF(node)	ng_unref_node(node)
+#define NG_NODE_SET_PRIVATE(node, val)	do {(node)->private = val;} while (0)
+#define NG_NODE_PRIVATE(node)	((node)->private)
+#define NG_NODE_IS_VALID(node)	(!((node)->flags & NG_INVALID))
+#define NG_NODE_NOT_VALID(node)	((node)->flags & NG_INVALID)
+#define NG_NODE_NUMHOOKS(node)	((node)->numhooks + 0) /* rvalue */
 
 /*
  * The structure that holds meta_data about a data packet (e.g. priority)
@@ -195,22 +227,47 @@ struct ng_type {
 		(a) = NULL;						\
 	} while (0)
 
-/* Free metadata */
+#define NG_RESPOND_MSG(error, here, retaddr, resp, rptr)		\
+	do {								\
+		if (rptr) {						\
+			*rptr = resp;					\
+		} else if (resp) {					\
+			if (retaddr) {					\
+				error = ng_queue_msg(here, resp, retaddr); \
+			} else {					\
+				FREE(resp, M_NETGRAPH);			\
+			}						\
+		}							\
+	} while (0)
+
+#define NG_FREE_MSG(msg)						\
+	do {								\
+		if ((msg)) {						\
+			FREE((msg), M_NETGRAPH);			\
+			(msg) = NULL;					\
+		}	 						\
+	} while (0)
+
 #define NG_FREE_META(a)							\
 	do {								\
 		if ((a)) {						\
 			FREE((a), M_NETGRAPH);				\
-			a = NULL;					\
+			(a) = NULL;					\
+		}							\
+	} while (0)
+
+#define NG_FREE_M(m)							\
+	do {								\
+		if ((m)) {						\
+			m_freem((m));					\
+			(m) = NULL;					\
 		}							\
 	} while (0)
 
 /* Free any data packet and/or meta-data */
 #define NG_FREE_DATA(m, a)						\
 	do {								\
-		if ((m)) {						\
-			m_freem((m));					\
-			m = NULL;					\
-		}							\
+		NG_FREE_M((m));						\
 		NG_FREE_META((a));					\
 	} while (0)
 
