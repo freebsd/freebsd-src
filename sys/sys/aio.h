@@ -16,7 +16,7 @@
  * bad that happens because of using this software isn't the responsibility
  * of the author.  This software is distributed AS-IS.
  *
- * $Id: aio.h,v 1.1 1997/05/22 00:19:44 toor Exp $
+ * $Id: aio.h,v 1.1 1997/06/16 12:10:21 dyson Exp $
  */
 
 #include <sys/types.h>
@@ -168,6 +168,11 @@ int aio_cancel( int fd, struct aiocb *iocb);
 int aio_suspend( struct aiocb * const acb_list[], int nacb_listent,
 		 struct timespec *tm);
 
+#else
+
+void	aio_proc_rundown( struct proc *p);
+
 #endif
+
 #endif
 
