@@ -38,6 +38,7 @@
  * SUCH DAMAGE.
  */
 
+#if 0
 #ifndef lint
 static const char copyright[] =
 "@(#) Copyright (c) 1983, 1988, 1989, 1993\n\
@@ -45,12 +46,11 @@ static const char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-#if 0
 static const char sccsid[] = "@(#)rlogind.c	8.1 (Berkeley) 6/4/93";
-#endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
+#endif
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * remote login server:
@@ -343,7 +343,7 @@ control(int pty, char *cp, int n)
 {
 	struct winsize w;
 
-	if (n < 4+sizeof (w) || cp[2] != 's' || cp[3] != 's')
+	if (n < 4 + (int)sizeof(w) || cp[2] != 's' || cp[3] != 's')
 		return (0);
 	oobdata[0] &= ~TIOCPKT_WINDOW;	/* we know he heard */
 	bcopy(cp+4, (char *)&w, sizeof(w));
