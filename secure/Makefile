@@ -6,7 +6,7 @@
 
 MAINTAINER=	markm
 
-SUBDIR= lib libexec usr.bin
+SUBDIR= lib libexec usr.bin usr.sbin
 
 SDIR= ${.CURDIR}/..
 
