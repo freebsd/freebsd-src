@@ -63,7 +63,15 @@
 #define		    ATA_C_F_AUTOPOLL	0x01	/* start autopoll function */
 #define		ATA_C_ATAPI_RESET	0x08	/* reset ATAPI device */
 #define		ATA_C_READ		0x20	/* read command */
+#define		ATA_C_READ48		0x24	/* read command */
+#define		ATA_C_READ_DMA48	0x25	/* read w/DMA command */
+#define		ATA_C_READ_DMA_QUEUED48	0x26	/* read w/DMS QUEUED command */
+#define		ATA_C_READ_MUL48	0x29	/* read multi command */
 #define		ATA_C_WRITE		0x30	/* write command */
+#define		ATA_C_WRITE48		0x34	/* write command */
+#define		ATA_C_WRITE_DMA48	0x35	/* write w/DMA command */
+#define		ATA_C_WRITE_DMA_QUEUED48 0x36	/* write w/DMA QUEUED command */
+#define		ATA_C_WRITE_MUL48	0x39	/* write multi command */
 #define		ATA_C_PACKET_CMD	0xa0	/* packet command */
 #define		ATA_C_ATAPI_IDENTIFY	0xa1	/* get ATAPI params*/
 #define		ATA_C_SERVICE		0xa2	/* service command */
@@ -74,7 +82,9 @@
 #define		ATA_C_READ_DMA		0xc8	/* read w/DMA command */
 #define		ATA_C_WRITE_DMA		0xca	/* write w/DMA command */
 #define		ATA_C_WRITE_DMA_QUEUED	0xcc	/* write w/DMA QUEUED command */
+#define		ATA_C_SLEEP		0xe6	/* sleep command */
 #define		ATA_C_FLUSHCACHE	0xe7	/* flush cache to disk */
+#define		ATA_C_FLUSHCACHE48	0xea	/* flush cache to disk */
 #define		ATA_C_ATA_IDENTIFY	0xec	/* get ATA params */
 #define		ATA_C_SETFEATURES	0xef	/* features command */
 #define		    ATA_C_F_SETXFER	0x03	/* set transfer mode */
