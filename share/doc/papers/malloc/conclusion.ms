@@ -20,7 +20,7 @@ wastes time paging in pages it's not going to use.
 In such cases as much as a factor of five in wall-clock time has 
 been seen in difference.
 Apart from that gnumalloc and this implementation are pretty
-much head-on performance wise.
+much head-on performance-wise.
 .PP
 Several legacy programs in the BSD 4.4 Lite distribution had
 code that depended on the memory returned from malloc
