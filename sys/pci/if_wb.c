@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_wb.c,v 1.2 1998/12/05 02:21:44 wpaul Exp $
+ *	$Id: if_wb.c,v 1.3 1998/12/10 02:02:30 archie Exp $
  */
 
 /*
@@ -121,7 +121,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: if_wb.c,v 1.2 1998/12/05 02:21:44 wpaul Exp $";
+	"$Id: if_wb.c,v 1.3 1998/12/10 02:02:30 archie Exp $";
 #endif
 
 /*
@@ -152,7 +152,7 @@ static struct wb_type wb_phys[] = {
 };
 
 static unsigned long wb_count = 0;
-static char *wb_probe		__P((pcici_t, pcidi_t));
+static const char *wb_probe	__P((pcici_t, pcidi_t));
 static void wb_attach		__P((pcici_t, int));
 
 static int wb_newbuf		__P((struct wb_softc *,
@@ -995,7 +995,7 @@ static void wb_reset(sc)
  * Probe for a Winbond chip. Check the PCI vendor and device
  * IDs against our list and return a device name if we find a match.
  */
-static char *
+static const char *
 wb_probe(config_id, device_id)
 	pcici_t			config_id;
 	pcidi_t			device_id;

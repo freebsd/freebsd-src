@@ -16,7 +16,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: wdc_p.c,v 1.2 1997/04/28 19:26:18 se Exp $
+ *	$Id: wdc_p.c,v 1.3 1997/08/02 14:33:14 bde Exp $
  */
 
 /*
@@ -41,7 +41,7 @@
 
 #define CMD640B_PCI_ID	0x06401095
 
-static char* wdc_pci_probe __P((pcici_t tag, pcidi_t type));
+static const char* wdc_pci_probe __P((pcici_t tag, pcidi_t type));
 static void wdc_pci_attach __P((pcici_t config_id, int unit));
 
 static u_long wdc_pci_count = 0;
@@ -56,7 +56,7 @@ static struct pci_device wdc_pci_driver = {
 
 DATA_SET (pcidevice_set, wdc_pci_driver);
 
-static char*
+static const char*
 wdc_pci_probe (pcici_t tag, pcidi_t type)
 {
 	if (type == CMD640B_PCI_ID)

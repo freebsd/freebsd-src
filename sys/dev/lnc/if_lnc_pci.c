@@ -17,7 +17,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: if_lnc_p.c,v 1.5 1997/08/02 14:33:11 bde Exp $
+ *	$Id: if_lnc_p.c,v 1.6 1998/07/20 17:33:01 msmith Exp $
  */
 
 #include "pci.h"
@@ -36,7 +36,7 @@
 
 extern void *lnc_attach_ne2100_pci __P((int unit, unsigned iobase));
 
-static char* lnc_pci_probe __P((pcici_t tag, pcidi_t type));
+static const char* lnc_pci_probe __P((pcici_t tag, pcidi_t type));
 static void lnc_pci_attach __P((pcici_t config_id, int unit));
 
 static u_long lnc_pci_count = NLNC;
@@ -51,7 +51,7 @@ static struct pci_device lnc_pci_driver = {
 
 DATA_SET (pcidevice_set, lnc_pci_driver);
 
-static char*
+static const char*
 lnc_pci_probe (pcici_t tag, pcidi_t type)
 {
 	switch(type) {

@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pcic_p.c,v 1.5 1998/02/07 20:41:20 nate Exp $
+ * $Id: pcic_p.c,v 1.6 1998/08/18 00:32:48 bde Exp $
  */
 
 #include "pci.h"
@@ -44,7 +44,7 @@
 
 static u_long pcic_pci_count = 0;
 
-static char *pcic_pci_probe(pcici_t, pcidi_t);
+static const char *pcic_pci_probe(pcici_t, pcidi_t);
 static void  pcic_pci_attach(pcici_t, int);
 
 static void  pd6832_legacy_init(pcici_t tag, int unit);
@@ -63,7 +63,7 @@ DATA_SET(pcidevice_set, pcic_pci_driver);
  * Return the ID string for the controller if the vendor/product id
  * matches, NULL otherwise.
  */
-static char *
+static const char *
 pcic_pci_probe(pcici_t tag, pcidi_t type)
 {
 	switch (type) {

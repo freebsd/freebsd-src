@@ -32,7 +32,7 @@
  *  dptpci.c:  PCI Bus Attachment for DPT SCSI HBAs
  */
 
-#ident "$Id: dpt_pci.c,v 1.9 1998/10/07 03:40:51 gibbs Exp $"
+#ident "$Id: dpt_pci.c,v 1.10 1998/12/07 21:58:46 archie Exp $"
 
 #include "opt_devfs.h"
 #include "opt_dpt.h"
@@ -64,7 +64,7 @@
 
 /* Function Prototypes */
 
-static char    *dpt_pci_probe(pcici_t tag, pcidi_t type);
+static const char    *dpt_pci_probe(pcici_t tag, pcidi_t type);
 static void     dpt_pci_attach(pcici_t config_id, int unit);
 
 extern struct cdevsw dpt_cdevsw;
@@ -86,7 +86,7 @@ DATA_SET(pcidevice_set, dpt_pci_driver);
  * because we do not know for sure how the two relate.
  */
 
-static char *
+static const char *
 dpt_pci_probe(pcici_t tag, pcidi_t type)
 {
 	u_int32_t  class;

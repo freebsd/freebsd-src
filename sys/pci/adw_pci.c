@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: adw_pci.c,v 1.1 1998/10/07 03:20:49 gibbs Exp $
+ *	$Id: adw_pci.c,v 1.2 1998/12/07 21:58:45 archie Exp $
  */
 
 #include <pci.h>
@@ -58,7 +58,7 @@
 #define ADW_PCI_MAX_DMA_ADDR    (0xFFFFFFFFUL)
 #define ADW_PCI_MAX_DMA_COUNT   (0xFFFFFFFFUL)
 
-static char* adwpciprobe(pcici_t tag, pcidi_t type);
+static const char* adwpciprobe(pcici_t tag, pcidi_t type);
 static void adwpciattach(pcici_t config_id, int unit);
 
 static struct  pci_device adw_pci_driver = {
@@ -71,7 +71,7 @@ static struct  pci_device adw_pci_driver = {
 
 DATA_SET (pcidevice_set, adw_pci_driver);
 
-static  char*
+static const char*
 adwpciprobe(pcici_t tag, pcidi_t type)
 {
 	switch (type) {

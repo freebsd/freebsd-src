@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_sr_p.c,v 1.5 1997/09/02 20:06:27 bde Exp $
+ * $Id: if_sr_p.c,v 1.6 1998/02/09 06:10:52 eivind Exp $
  */
 
 #include "pci.h"
@@ -54,7 +54,7 @@ extern void *srattach_pci(int unit,
 			  vm_offset_t sca_vaddr);
 extern void srintr_hc(void *hc);
 
-static char *sr_pci_probe(pcici_t tag, pcidi_t type);
+static const char *sr_pci_probe(pcici_t tag, pcidi_t type);
 static void sr_pci_attach(pcici_t config_id, int unit);
 
 static u_long src_count = NSR;
@@ -69,7 +69,7 @@ static struct pci_device sr_pci_driver =
 
 DATA_SET (pcidevice_set, sr_pci_driver);
 
-static char *
+static const char *
 sr_pci_probe(pcici_t tag, pcidi_t type)
 {
 	switch(type) {
