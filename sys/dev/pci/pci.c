@@ -903,6 +903,7 @@ pci_compat_attach(device_t dev)
 		*dvp->pd_count = unit;
 	if (dvp->pd_attach)
 		dvp->pd_attach(cfg, unit);
+	device_printf(dev, "driver is using old-style compatability shims\n");
 	return 0;
 }
 
