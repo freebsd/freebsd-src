@@ -356,7 +356,7 @@ doskip(fname, statok)
 		}
 	}
 	if (S_ISREG(sb.st_mode)) {
-		if (fseek(stdin, skip, SEEK_SET))
+		if (fseeko(stdin, skip, SEEK_SET))
 			err(1, "%s", fname);
 		address += skip;
 		skip = 0;
