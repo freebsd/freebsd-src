@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.c	8.8 (Berkeley) 1/21/94
- * $Id: tty.c,v 1.108 1998/11/22 09:04:09 bde Exp $
+ * $Id: tty.c,v 1.109 1998/12/07 07:59:20 ache Exp $
  */
 
 /*-
@@ -706,7 +706,6 @@ ttioctl(tp, cmd, data, flag)
 
 	/* If the ioctl involves modification, hang if in the background. */
 	switch (cmd) {
-	case  FIOASYNC:
 	case  TIOCCBRK:
 	case  TIOCCONS:
 	case  TIOCDRAIN:
