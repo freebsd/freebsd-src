@@ -2054,7 +2054,7 @@ meteor_ioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct proc *pr)
 }
 
 int
-meteor_mmap(dev_t dev, int offset, int nprot)
+meteor_mmap(dev_t dev, vm_offset_t offset, int nprot)
 {
 
 	int	unit;
