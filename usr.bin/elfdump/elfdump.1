@@ -1,0 +1,118 @@
+.\" Copyright (c) 2003 David O'Brien
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 15, 2003
+.Dt ELFDUMP 1
+.Os
+.Sh NAME
+.Nm elfdump
+.Nd "Displays information about ELF files."
+.Sh SYNOPSIS
+.Nm
+.Op Fl a | cdeiGhnprs
+.Op Fl w Ar argument
+.Ar file
+.Sh DESCRIPTION
+This is an example manual page for the
+.Nm
+command.
+It is intended that this example can be used as a template
+when writing a new manual page.
+.Pp
+The options are as follows:
+.Bl -tag -width ".Fl d Ar argument"
+.It Fl a
+Dump all information.
+.It Fl c
+Dump shared headers.
+.It Fl d
+Dump dynamic symbols.
+.It Fl e
+Dump ELF header.
+.It Fl i
+Dump the dyanmic interupter.
+.It Fl G
+Dump the GOT.
+.It Fl h
+Dump the hash values.
+.It Fl n
+Dump note sections.
+.It Fl p
+Dump the program header.
+.It Fl r
+Dump relocations.
+.It Fl s
+Dump the symbol table.
+.It Fl w
+Write output to
+.Ar argument .
+.It Ar file
+Required argument
+.Ar file .
+.El
+.Sh EXAMPLES
+The following is an example of a typical usage
+of the
+.Nm
+command:
+.Pp
+.Dl "elfdump -a -w output /bin/ls"
+.Sh DIAGNOSTICS
+Exit status is 0 on success, and 1 if the command fails.
+.El
+.Sh COMPATIBILITY
+The
+.Nm
+command has no known compatibility issues.
+.Sh SEE ALSO
+.Xr objdump 1 ,
+.Xr readelf 1
+.Pp
+.Rs
+.%A AT&T Unix Systems Labs
+.%T System V Application Binary Interface
+.%O http://www.sco.com/developers/gabi/
+.Re
+.\".Sh STANDARDS
+.\"If the command conforms to some standard, such as
+.\".St -p1003.2
+.\"or
+.\".St -isoC ,
+.\"it should be noted here.
+.Sh HISTORY
+The
+.Nm
+command first appeared in
+.Fx 5.0 .
+.Sh AUTHORS
+.Nm
+was authored by
+.An Jake Burkholder Aq jake@FreeBSD.org .
+This
+manual page was written by
+.An David O'Brien Aq obrien@FreeBSD.org .
+.Sh BUGS
+Does not fully impliment the ELF gABI.
