@@ -1,0 +1,4 @@
+#	$Id$
+
+BINDIR=	/lkm
+
