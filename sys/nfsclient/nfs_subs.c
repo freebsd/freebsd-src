@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_subs.c  8.8 (Berkeley) 5/22/95
- * $Id: nfs_subs.c,v 1.61 1998/05/31 20:08:55 peter Exp $
+ * $Id: nfs_subs.c,v 1.62 1998/06/14 15:52:00 bde Exp $
  */
 
 /*
@@ -1413,7 +1413,7 @@ nfs_getattrcache(vp, vaper)
 			nmp->nm_acdirmin, nmp->nm_acdirmax);
 
 	if (nfs_acdebug)
-		printf("nfs_getattrcache: age = %d; final timeo = %d\n",r
+		printf("nfs_getattrcache: age = %d; final timeo = %d\n",
 			(time_second - np->n_attrstamp), timeo);
 #endif
 
