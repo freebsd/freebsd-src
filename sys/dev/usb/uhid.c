@@ -230,6 +230,9 @@ USB_ATTACH(uhid)
 	sc->sc_repdesc = desc;
 	sc->sc_repdesc_size = size;
 
+#ifdef __FreeBSD__
+	cdevsw_add(&uhid_cdevsw);
+#endif
 	USB_ATTACH_SUCCESS_RETURN;
 }
 
@@ -663,6 +666,5 @@ uhidpoll(dev, events, p)
 }
 
 #if defined(__FreeBSD__)
-DEV_DRIVER_MODULE(uhid, uhub, uhid_driver, uhid_devclass, 
-		  uhid_cdevsw, usbd_driver_load, 0);
+DRIVER_MODULE(uhid, uhub, uhid_driver, uhid_devclass, usbd_driver_load, 0);
 #endif
