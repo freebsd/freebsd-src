@@ -33,7 +33,7 @@
  *
  *	@(#)ipx_outputfl.c
  *
- * $Id: ipx_outputfl.c,v 1.8 1997/06/26 19:35:51 jhay Exp $
+ * $Id: ipx_outputfl.c,v 1.9 1997/07/01 00:22:49 bde Exp $
  */
 
 #include <sys/param.h>
@@ -52,7 +52,7 @@
 #include <machine/mtpr.h>
 #endif
 
-int	ipx_copy_output = 0;
+static int ipx_copy_output = 0;
 
 int
 ipx_outputfl(m0, ro, flags)

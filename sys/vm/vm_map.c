@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.112 1998/02/06 12:14:24 eivind Exp $
+ * $Id: vm_map.c,v 1.113 1998/02/08 14:55:13 dyson Exp $
  */
 
 /*
@@ -161,9 +161,9 @@ static struct vm_zone kmapentzone_store, mapentzone_store, mapzone_store;
 static vm_zone_t mapentzone, kmapentzone, mapzone, vmspace_zone;
 static struct vm_object kmapentobj, mapentobj, mapobj;
 #define MAP_ENTRY_INIT	128
-struct vm_map_entry map_entry_init[MAX_MAPENT];
-struct vm_map_entry kmap_entry_init[MAX_KMAPENT];
-struct vm_map map_init[MAX_KMAP];
+static struct vm_map_entry map_entry_init[MAX_MAPENT];
+static struct vm_map_entry kmap_entry_init[MAX_KMAPENT];
+static struct vm_map map_init[MAX_KMAP];
 
 static void _vm_map_clip_end __P((vm_map_t, vm_map_entry_t, vm_offset_t));
 static void _vm_map_clip_start __P((vm_map_t, vm_map_entry_t, vm_offset_t));

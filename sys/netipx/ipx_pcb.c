@@ -33,7 +33,7 @@
  *
  *	@(#)ipx_pcb.c
  *
- * $Id: ipx_pcb.c,v 1.12 1997/09/02 01:19:10 bde Exp $
+ * $Id: ipx_pcb.c,v 1.13 1997/10/28 15:58:56 bde Exp $
  */
 
 #include <sys/param.h>
@@ -51,7 +51,7 @@
 #include <netipx/ipx_pcb.h>
 #include <netipx/ipx_var.h>
 
-struct	ipx_addr zeroipx_addr;
+static struct	ipx_addr zeroipx_addr;
 
 int
 ipx_pcballoc(so, head, p)

@@ -4131,7 +4131,7 @@ checkDBX:
  * IF freq: 45.75 mHz
  */
 #define OFFSET	6.00
-int	nabcst[] = {
+static int nabcst[] = {
 	83,	(int)( 45.75 * FREQFACTOR),	0,
 	14,	(int)(471.25 * FREQFACTOR),	(int)(OFFSET * FREQFACTOR),
 	 7,	(int)(175.25 * FREQFACTOR),	(int)(OFFSET * FREQFACTOR),
@@ -4154,7 +4154,7 @@ int	nabcst[] = {
  * IF freq: 45.75 mHz
  */
 #define OFFSET	6.00
-int	irccable[] = {
+static int irccable[] = {
 	99,	(int)( 45.75 * FREQFACTOR),	0,
 	95,	(int)( 91.25 * FREQFACTOR),	(int)(OFFSET * FREQFACTOR),
 	23,	(int)(217.25 * FREQFACTOR),	(int)(OFFSET * FREQFACTOR),
@@ -4179,7 +4179,7 @@ int	irccable[] = {
  * IF freq: 45.75 mHz
  */
 #define OFFSET  6.00
-int     hrccable[] = {
+static int hrccable[] = {
 	99,	(int)( 45.75 * FREQFACTOR),     0,
 	95,	(int)( 90.00 * FREQFACTOR),	(int)(OFFSET * FREQFACTOR),
 	23,	(int)(216.00 * FREQFACTOR),	(int)(OFFSET * FREQFACTOR),
@@ -4308,12 +4308,12 @@ int     hrccable[] = {
  * 100	 3890	000	IFFREQ
  * 
  */
-int   weurope[] = {
+static int weurope[] = {
         100,    (int)( 38.90 * FREQFACTOR),     0, 
         90,     (int)(231.25 * FREQFACTOR),     (int)(7.00 * FREQFACTOR),
         80,     (int)(105.25 * FREQFACTOR),     (int)(7.00 * FREQFACTOR),  
         74,     (int)( 69.25 * FREQFACTOR),     (int)(7.00 * FREQFACTOR),  
-	21,	(int)(471.25 * FREQFACTOR),	(int)(8.00 * FREQFACTOR),
+        21,     (int)(471.25 * FREQFACTOR),     (int)(8.00 * FREQFACTOR),
         17,     (int)(183.25 * FREQFACTOR),     (int)(9.00 * FREQFACTOR),
         16,     (int)(175.25 * FREQFACTOR),     (int)(9.00 * FREQFACTOR),
         15,     (int)(82.25 * FREQFACTOR),      (int)(8.50 * FREQFACTOR),
@@ -4337,7 +4337,7 @@ int   weurope[] = {
  */
 #define OFFSET  6.00
 #define IF_FREQ 45.75
-int     jpnbcst[] = {
+static int jpnbcst[] = {
 	62,     (int)(IF_FREQ * FREQFACTOR),    0,
 	13,     (int)(471.25 * FREQFACTOR),     (int)(OFFSET * FREQFACTOR),
 	 8,     (int)(193.25 * FREQFACTOR),     (int)(OFFSET * FREQFACTOR),
@@ -4362,7 +4362,7 @@ int     jpnbcst[] = {
  */
 #define OFFSET  6.00
 #define IF_FREQ 45.75
-int     jpncable[] = {
+static int jpncable[] = {
 	63,     (int)(IF_FREQ * FREQFACTOR),    0,
 	23,     (int)(223.25 * FREQFACTOR),     (int)(OFFSET * FREQFACTOR),
 	22,     (int)(165.25 * FREQFACTOR),     (int)(OFFSET * FREQFACTOR),
@@ -4375,7 +4375,7 @@ int     jpncable[] = {
 #undef IF_FREQ
 #undef OFFSET
 
-int* freqTable[] = {
+static int* freqTable[] = {
 	NULL,
 	nabcst,
 	irccable,

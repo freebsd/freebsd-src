@@ -11,7 +11,7 @@
  * - added Z_PACKET_FLUSH (see zlib.h for details)
  * - added inflateIncomp
  *
- * $Id: zlib.c,v 1.3 1997/08/19 14:10:48 peter Exp $
+ * $Id: zlib.c,v 1.4 1997/09/01 02:18:13 bde Exp $
  */
 
 /* 
@@ -4581,7 +4581,7 @@ z_stream *z;
 
 char *zlib_version = ZLIB_VERSION;
 
-char *z_errmsg[] = {
+static char *z_errmsg[] = {
 "stream end",          /* Z_STREAM_END    1 */
 "",                    /* Z_OK            0 */
 "file error",          /* Z_ERRNO        (-1) */

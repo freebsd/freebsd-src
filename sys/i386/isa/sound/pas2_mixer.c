@@ -246,7 +246,7 @@ pas_mixer_reset(void)
 	set_mode(P_M_MV508_LOUDNESS | P_M_MV508_ENHANCE_40);
 }
 
-int
+static int
 pas_mixer_ioctl(int dev, u_int cmd, ioctl_arg arg)
 {
 	TRACE(printf("pas2_mixer.c: int pas_mixer_ioctl(u_int cmd = %X, u_int arg = %X)\n", cmd, arg));

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_serv.c	8.3 (Berkeley) 1/12/94
- * $Id: nfs_serv.c,v 1.56 1998/02/04 22:33:14 eivind Exp $
+ * $Id: nfs_serv.c,v 1.57 1998/02/06 12:13:56 eivind Exp $
  */
 
 /*
@@ -99,7 +99,7 @@ extern struct nfsstats nfsstats;
 int nfsrvw_procrastinate = NFS_GATHERDELAY * 1000;
 int nfsrvw_procrastinate_v3 = 0;
 
-int nfs_async;
+static int nfs_async;
 SYSCTL_INT(_vfs_nfs, OID_AUTO, async, CTLFLAG_RW, &nfs_async, 0, "");
 
 static int nfsrv_access __P((struct vnode *,int,struct ucred *,int,

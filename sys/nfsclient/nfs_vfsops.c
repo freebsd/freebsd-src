@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vfsops.c	8.12 (Berkeley) 5/20/95
- * $Id: nfs_vfsops.c,v 1.52 1997/11/12 05:42:21 julian Exp $
+ * $Id: nfs_vfsops.c,v 1.53 1998/02/05 16:40:57 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -162,7 +162,7 @@ static int nfs_mountdiskless __P((char *, char *, int,
 				  struct sockaddr_in *, struct nfs_args *,
 				  struct proc *, struct vnode **,
 				  struct mount **));
-void nfs_convert_diskless __P((void));
+static void nfs_convert_diskless __P((void));
 static void nfs_convert_oargs __P((struct nfs_args *args,
 				   struct onfs_args *oargs));
 
@@ -206,7 +206,8 @@ static void nfs_convert_oargs(args,oargs)
   args->hostname = oargs->hostname;
 }
 
-void nfs_convert_diskless()
+static void
+nfs_convert_diskless()
 {
   bcopy(&nfs_diskless.myif, &nfsv3_diskless.myif,
 	sizeof(struct ifaliasreq));

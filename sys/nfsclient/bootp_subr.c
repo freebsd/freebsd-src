@@ -1,4 +1,4 @@
-/*	$Id: bootp_subr.c,v 1.7 1998/01/09 03:21:07 eivind Exp $	*/
+/*	$Id: bootp_subr.c,v 1.8 1998/01/18 18:46:20 tegge Exp $	*/
 
 /*
  * Copyright (c) 1995 Gordon Ross, Adam Glass
@@ -129,14 +129,15 @@ void bootpboot_p_rtlist(void);
 void bootpboot_p_iflist(void);
 #endif
 
-int  bootpc_call(struct bootp_packet *call,
-		 struct bootp_packet *reply,
-		 struct proc *procp);
-
-int bootpc_fakeup_interface(struct ifreq *ireq,struct socket *so,
+static int  bootpc_call(struct bootp_packet *call,
+			struct bootp_packet *reply,
 			struct proc *procp);
 
-int 
+static int bootpc_fakeup_interface(struct ifreq *ireq,
+			struct socket *so,
+			struct proc *procp);
+
+static int 
 bootpc_adjust_interface(struct ifreq *ireq,struct socket *so,
 			struct sockaddr_in *myaddr,
 			struct sockaddr_in *netmask,
@@ -252,7 +253,7 @@ void bootpboot_p_iflist(void)
 }
 #endif
 
-int
+static int
 bootpc_call(call,reply,procp)
      struct bootp_packet *call;
      struct bootp_packet *reply;	/* output */
@@ -421,7 +422,7 @@ bootpc_call(call,reply,procp)
 	return error;
 }
 
-int 
+static int 
 bootpc_fakeup_interface(struct ifreq *ireq,struct socket *so,
 			struct proc *procp)
 {
@@ -511,7 +512,7 @@ bootpc_fakeup_interface(struct ifreq *ireq,struct socket *so,
   return error;
 }
 
-int 
+static int 
 bootpc_adjust_interface(struct ifreq *ireq,struct socket *so,
 			struct sockaddr_in *myaddr,
 			struct sockaddr_in *netmask,

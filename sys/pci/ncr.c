@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.113 1997/12/02 22:37:58 se Exp $
+**  $Id: ncr.c,v 1.114 1998/02/04 03:47:16 eivind Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -1342,7 +1342,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 1.113 1997/12/02 22:37:58 se Exp $\n";
+	"\n$Id: ncr.c,v 1.114 1998/02/04 03:47:16 eivind Exp $\n";
 
 static const u_long	ncr_version = NCR_VERSION	* 11
 	+ (u_long) sizeof (struct ncb)	*  7
@@ -1352,7 +1352,7 @@ static const u_long	ncr_version = NCR_VERSION	* 11
 
 #ifdef KERNEL
 static const int nncr=MAX_UNITS;	/* XXX to be replaced by SYSCTL */
-ncb_p         ncrp [MAX_UNITS];		/* XXX to be replaced by SYSCTL */
+static ncb_p ncrp [MAX_UNITS];		/* XXX to be replaced by SYSCTL */
 
 static int ncr_debug = SCSI_NCR_DEBUG;
 SYSCTL_INT(_debug, OID_AUTO, ncr_debug, CTLFLAG_RW, &ncr_debug, 0, "");

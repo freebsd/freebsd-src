@@ -35,7 +35,7 @@
  *
  *	@(#)fdesc_vnops.c	8.9 (Berkeley) 1/21/94
  *
- * $Id: fdesc_vnops.c,v 1.32 1997/10/26 20:55:14 phk Exp $
+ * $Id: fdesc_vnops.c,v 1.33 1997/10/27 13:33:38 bde Exp $
  */
 
 /*
@@ -77,8 +77,8 @@ FD_STDIN, FD_STDOUT, FD_STDERR must be a sequence n, n+1, n+2
 #define	NFDCACHE 4
 #define FD_NHASH(ix) \
 	(&fdhashtbl[(ix) & fdhash])
-LIST_HEAD(fdhashhead, fdescnode) *fdhashtbl;
-u_long fdhash;
+static LIST_HEAD(fdhashhead, fdescnode) *fdhashtbl;
+static u_long fdhash;
 
 static int	fdesc_attr __P((int fd, struct vattr *vap, struct ucred *cred,
 				struct proc *p));

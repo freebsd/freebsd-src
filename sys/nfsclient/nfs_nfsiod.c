@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_syscalls.c	8.5 (Berkeley) 3/30/95
- * $Id: nfs_syscalls.c,v 1.34 1998/02/04 22:33:16 eivind Exp $
+ * $Id: nfs_syscalls.c,v 1.35 1998/02/06 12:13:57 eivind Exp $
  */
 
 #include <sys/param.h>
@@ -747,7 +747,7 @@ done:
 }
 #endif /* NFS_NOSERVER */
 
-int nfs_defect = 0;
+static int nfs_defect = 0;
 SYSCTL_INT(_vfs_nfs, OID_AUTO, defect, CTLFLAG_RW, &nfs_defect, 0, "");
 
 /*

@@ -1,4 +1,4 @@
-/*	$Id: sysv_shm.c,v 1.32 1997/11/06 19:29:25 phk Exp $ */
+/*	$Id: sysv_shm.c,v 1.33 1997/12/16 17:40:23 eivind Exp $ */
 /*	$NetBSD: sysv_shm.c,v 1.23 1994/07/04 23:25:12 glass Exp $	*/
 
 /*
@@ -77,7 +77,7 @@ static int shmget_allocate_segment __P((struct proc *p, struct shmget_args *uap,
 static int shmget_existing __P((struct proc *p, struct shmget_args *uap, int mode, int segnum));
 
 /* XXX casting to (sy_call_t *) is bogus, as usual. */
-sy_call_t *shmcalls[] = {
+static sy_call_t *shmcalls[] = {
 	(sy_call_t *)shmat, (sy_call_t *)oshmctl,
 	(sy_call_t *)shmdt, (sy_call_t *)shmget,
 	(sy_call_t *)shmctl

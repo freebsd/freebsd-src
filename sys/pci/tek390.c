@@ -126,27 +126,28 @@ static void DC390_InvalidCmd( PACB pACB );
 static void DC390_reset (PACB pACB);
 static PUCHAR  phystovirt( PSRB pSRB, ULONG xferCnt );
 
-void   DC390_initDCB( PACB pACB, PDCB pDCB, PSCSICMD cmd );
-void   DC390_initSRB( PSRB psrb );
-void   DC390_linkSRB( PACB pACB );
-void   DC390_initACB( PACB pACB, ULONG io_port, UCHAR Irq, USHORT index );
-int    DC390_initAdapter( PACB pACB, ULONG io_port, UCHAR Irq, USHORT index,
-			  pcici_t config_id );
+static void   DC390_initDCB( PACB pACB, PDCB pDCB, PSCSICMD cmd );
+static void   DC390_initSRB( PSRB psrb );
+static void   DC390_linkSRB( PACB pACB );
+static void   DC390_initACB( PACB pACB, ULONG io_port, UCHAR Irq,
+			     USHORT index );
+static int    DC390_initAdapter( PACB pACB, ULONG io_port, UCHAR Irq,
+				 USHORT index, pcici_t config_id );
 void   DC390_EnableCfg( USHORT mechnum, UCHAR regval );
 void   DC390_DisableCfg( USHORT mechnum );
 UCHAR  DC390_inByte( USHORT mechnum, UCHAR regval );
 USHORT DC390_inWord( USHORT mechnum, UCHAR regval );
 ULONG  DC390_inDword(USHORT mechnum, UCHAR regval );
 void   DC390_OutB(USHORT mechnum, UCHAR regval, UCHAR bval );
-void   DC390_EnDisableCE( UCHAR mode, USHORT mechnum, PUCHAR regval );
-void   DC390_EEpromOutDI( USHORT mechnum, PUCHAR regval, USHORT Carry );
-UCHAR  DC390_EEpromInDO( USHORT mechnum );
-USHORT EEpromGetData1( USHORT mechnum );
-void   DC390_Prepare( USHORT mechnum, PUCHAR regval, UCHAR EEpromCmd );
-void   DC390_ReadEEprom( USHORT mechnum, USHORT index );
-USHORT DC390_DefaultEEprom( USHORT mechnum, USHORT index );
-USHORT DC390_CheckEEpromCheckSum( USHORT MechNum, USHORT index );
-USHORT DC390_ToMech( USHORT Mechnum, pcici_t config_id );
+static void   DC390_EnDisableCE( UCHAR mode, USHORT mechnum, PUCHAR regval );
+static void   DC390_EEpromOutDI( USHORT mechnum, PUCHAR regval, USHORT Carry );
+static UCHAR  DC390_EEpromInDO( USHORT mechnum );
+static USHORT EEpromGetData1( USHORT mechnum );
+static void   DC390_Prepare( USHORT mechnum, PUCHAR regval, UCHAR EEpromCmd );
+static void   DC390_ReadEEprom( USHORT mechnum, USHORT index );
+static USHORT DC390_DefaultEEprom( USHORT mechnum, USHORT index );
+static USHORT DC390_CheckEEpromCheckSum( USHORT MechNum, USHORT index );
+static USHORT DC390_ToMech( USHORT Mechnum, pcici_t config_id );
 
 
 #ifdef KERNEL
@@ -173,7 +174,7 @@ static	u_int32 trmamd_info( int unit );
 
 static u_long	trmamd_count;
 
-struct	pci_device   trmamd_device = {
+static struct	pci_device   trmamd_device = {
 	"amd",
 	trmamd_probe,
 	trmamd_attach,
@@ -185,7 +186,7 @@ DATA_SET (pcidevice_set, trmamd_device);
 
 
 
-struct scsi_adapter trmamd_switch =
+static struct scsi_adapter trmamd_switch =
 {
 	trmamd_scsi_cmd,
 	trmamd_min_phys,
@@ -200,7 +201,7 @@ struct scsi_adapter trmamd_switch =
 	"amd",
 };
 
-struct scsi_device trmamd_dev =
+static struct scsi_device trmamd_dev =
 {
 	NULL,			/* Use default error handler */
 	NULL,			/* have a queue, served by this */
@@ -242,12 +243,12 @@ static PVOID DC390_phase1[]={
        DC390_Nop_1,
        };
 
-UCHAR  eepromBuf[MAX_ADAPTER_NUM][128];
+static UCHAR eepromBuf[MAX_ADAPTER_NUM][128];
 
 
-UCHAR  clock_period1[] = {4, 5, 6, 7 ,8, 10, 13, 20};
+static UCHAR  clock_period1[] = {4, 5, 6, 7 ,8, 10, 13, 20};
 
-UCHAR  baddevname1[2][28] ={
+static UCHAR baddevname1[2][28] ={
        "SEAGATE ST3390N  ???    9546",
        "HP      C3323-300       4269"};
 
@@ -992,7 +993,8 @@ DC390_reset (PACB pACB)
  * Inputs : cmd - pointer to this scsi cmd request block structure
  *
  ***********************************************************************/
-void DC390_initDCB( PACB pACB, PDCB pDCB, PSCSICMD cmd )
+static void
+DC390_initDCB( PACB pACB, PDCB pDCB, PSCSICMD cmd )
 {
     PEEprom	prom;
     UCHAR	bval;
@@ -1065,13 +1067,15 @@ void DC390_initDCB( PACB pACB, PDCB pDCB, PSCSICMD cmd )
  * Inputs : psrb - pointer to this scsi request block structure
  *
  ***********************************************************************/
-void DC390_initSRB( PSRB psrb )
+static void
+DC390_initSRB( PSRB psrb )
 {
 	psrb->PhysSRB = vtophys( psrb );
 }
 
 
-void DC390_linkSRB( PACB pACB )
+static void
+DC390_linkSRB( PACB pACB )
 {
     USHORT  count, i;
     PSRB    psrb;
@@ -1098,7 +1102,8 @@ void DC390_linkSRB( PACB pACB )
  * Inputs : psh - pointer to this host adapter's structure
  *
  ***********************************************************************/
-void DC390_initACB( PACB pACB, ULONG io_port, UCHAR Irq, USHORT index )
+static void
+DC390_initACB( PACB pACB, ULONG io_port, UCHAR Irq, USHORT index )
 {
     USHORT  i;
 
@@ -1155,7 +1160,8 @@ void DC390_initACB( PACB pACB, ULONG io_port, UCHAR Irq, USHORT index )
  * Inputs : psh - pointer to this host adapter's structure
  *
  ***********************************************************************/
-int DC390_initAdapter( PACB pACB, ULONG io_port, UCHAR Irq, USHORT index,
+static int DC390_initAdapter( PACB pACB, ULONG io_port, UCHAR Irq,
+		       USHORT index,
 		       pcici_t config_id )
 {
     USHORT ioport;
@@ -1369,7 +1375,7 @@ DC390_OutB(USHORT mechnum, UCHAR regval, UCHAR bval )
 
 #endif /PCI_COMPAT */
 
-void
+static void
 DC390_EnDisableCE( UCHAR mode, USHORT mechnum, PUCHAR regval )
 {
 
@@ -1387,7 +1393,7 @@ DC390_EnDisableCE( UCHAR mode, USHORT mechnum, PUCHAR regval )
 }
 
 
-void
+static void
 DC390_EEpromOutDI( USHORT mechnum, PUCHAR regval, USHORT Carry )
 {
     UCHAR bval;
@@ -1409,7 +1415,7 @@ DC390_EEpromOutDI( USHORT mechnum, PUCHAR regval, USHORT Carry )
 }
 
 
-UCHAR
+static UCHAR
 DC390_EEpromInDO( USHORT mechnum )
 {
     UCHAR bval,regval;
@@ -1430,7 +1436,7 @@ DC390_EEpromInDO( USHORT mechnum )
 }
 
 
-USHORT
+static USHORT
 EEpromGetData1( USHORT mechnum )
 {
     UCHAR i;
@@ -1448,7 +1454,7 @@ EEpromGetData1( USHORT mechnum )
 }
 
 
-void
+static void
 DC390_Prepare( USHORT mechnum, PUCHAR regval, UCHAR EEpromCmd )
 {
     UCHAR i,j;
@@ -1465,7 +1471,7 @@ DC390_Prepare( USHORT mechnum, PUCHAR regval, UCHAR EEpromCmd )
 }
 
 
-void
+static void
 DC390_ReadEEprom( USHORT mechnum, USHORT index )
 {
     UCHAR   regval,cmd;
@@ -1486,7 +1492,7 @@ DC390_ReadEEprom( USHORT mechnum, USHORT index )
 }
 
 
-USHORT
+static USHORT
 DC390_DefaultEEprom( USHORT mechnum, USHORT index )
 {
     PUCHAR  ptr;
@@ -1506,7 +1512,7 @@ DC390_DefaultEEprom( USHORT mechnum, USHORT index )
 }
 
 
-USHORT
+static USHORT
 DC390_CheckEEpromCheckSum( USHORT MechNum, USHORT index )
 {
     USHORT wval, rc, *ptr;
@@ -1525,7 +1531,7 @@ DC390_CheckEEpromCheckSum( USHORT MechNum, USHORT index )
 }
 
 
-USHORT
+static USHORT
 DC390_ToMech( USHORT Mechnum, pcici_t config_id )
 {
 

@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_vnops.c	8.18 (Berkeley) 5/21/95
  *
- *	$Id: procfs_vnops.c,v 1.53 1998/02/04 22:32:49 eivind Exp $
+ *	$Id: procfs_vnops.c,v 1.54 1998/02/06 12:13:42 eivind Exp $
  */
 
 /*
@@ -80,7 +80,7 @@ static int	procfs_setattr __P((struct vop_setattr_args *));
  * process-specific sub-directories.  It is
  * used in procfs_lookup and procfs_readdir
  */
-struct proc_target {
+static struct proc_target {
 	u_char	pt_type;
 	u_char	pt_namlen;
 	char	*pt_name;

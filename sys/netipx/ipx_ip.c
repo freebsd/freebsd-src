@@ -33,7 +33,7 @@
  * 
  *	@(#)ipx_ip.c
  *
- * $Id: ipx_ip.c,v 1.18 1997/12/21 16:35:12 bde Exp $
+ * $Id: ipx_ip.c,v 1.19 1998/01/08 23:41:56 eivind Exp $
  */
 
 /*
@@ -72,8 +72,10 @@
 #include <netipx/ipx_ip.h>
 #include <netipx/ipx_var.h>
 
-struct	ifnet ipxipif;
-struct	ifnet_en *ipxip_list; /* list of all hosts and gateways or broadcast addrs */
+static struct	ifnet ipxipif;
+
+/* list of all hosts and gateways or broadcast addrs */
+static struct	ifnet_en *ipxip_list;
 
 static	struct ifnet_en *ipxipattach(void);
 static	int ipxip_free(struct ifnet *ifp);
@@ -156,9 +158,9 @@ ipxipioctl(ifp, cmd, data)
 	return (error);
 }
 
-struct mbuf *ipxip_badlen;
-struct mbuf *ipxip_lastin;
-int ipxip_hold_input;
+static struct mbuf *ipxip_badlen;
+static struct mbuf *ipxip_lastin;
+static int ipxip_hold_input;
 
 void
 ipxip_input(m, hlen)
@@ -311,7 +313,7 @@ struct ifnet *ifp;
 	panic("ipxip_start called\n");
 }
 
-struct ifreq ifr_ipxip = {"ipxip0"};
+static struct ifreq ifr_ipxip = {"ipxip0"};
 
 int
 ipxip_route(so, m, p)

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_syscalls.c	8.4 (Berkeley) 2/21/94
- * $Id: uipc_syscalls.c,v 1.34 1997/12/15 02:29:10 msmith Exp $
+ * $Id: uipc_syscalls.c,v 1.35 1997/12/16 17:40:30 eivind Exp $
  */
 
 #include "opt_compat.h"
@@ -54,8 +54,8 @@
 #include <sys/ktrace.h>
 #endif
 
-extern int sendit __P((struct proc *p, int s, struct msghdr *mp, int flags));
-extern int recvit __P((struct proc *p, int s, struct msghdr *mp,
+static int sendit __P((struct proc *p, int s, struct msghdr *mp, int flags));
+static int recvit __P((struct proc *p, int s, struct msghdr *mp,
 		       caddr_t namelenp));
   
 static int accept1 __P((struct proc *p, struct accept_args *uap, int compat));
@@ -397,7 +397,7 @@ free1:
 	return (error);
 }
 
-int
+static int
 sendit(p, s, mp, flags)
 	register struct proc *p;
 	int s;
@@ -633,7 +633,7 @@ done:
 	return (error);
 }
 
-int
+static int
 recvit(p, s, mp, namelenp)
 	register struct proc *p;
 	int s;

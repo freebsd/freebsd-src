@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_quota.c	8.5 (Berkeley) 5/20/95
- * $Id: ufs_quota.c,v 1.17 1998/02/04 22:33:36 eivind Exp $
+ * $Id: ufs_quota.c,v 1.18 1998/02/06 12:14:18 eivind Exp $
  */
 
 #include <sys/param.h>
@@ -692,7 +692,7 @@ static u_long dqhash;
  * Dquot free list.
  */
 #define	DQUOTINC	5	/* minimum free dquots desired */
-TAILQ_HEAD(dqfreelist, dquot) dqfreelist;
+static TAILQ_HEAD(dqfreelist, dquot) dqfreelist;
 static long numdquot, desireddquot = DQUOTINC;
 
 /*

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.91 1998/02/05 03:32:46 dyson Exp $
+ *	$Id: vm_page.c,v 1.92 1998/02/06 12:14:27 eivind Exp $
  */
 
 /*
@@ -105,10 +105,10 @@ struct pglist vm_page_queue_active = {0};
 struct pglist vm_page_queue_inactive = {0};
 struct pglist vm_page_queue_cache[PQ_L2_SIZE] = {0};
 
-int no_queue=0;
+static int no_queue=0;
 
 struct vpgqueues vm_page_queues[PQ_COUNT] = {0};
-int pqcnt[PQ_COUNT] = {0};
+static int pqcnt[PQ_COUNT] = {0};
 
 static void
 vm_page_queue_init(void) {
@@ -144,7 +144,7 @@ vm_page_queue_init(void) {
 }
 
 vm_page_t vm_page_array = 0;
-int vm_page_array_size = 0;
+static int vm_page_array_size = 0;
 long first_page = 0;
 static long last_page;
 static vm_size_t page_mask;

@@ -33,7 +33,7 @@
  *
  *	@(#)ipx_input.c
  *
- * $Id: ipx_input.c,v 1.13 1997/05/10 09:58:52 jhay Exp $
+ * $Id: ipx_input.c,v 1.14 1997/06/26 19:35:46 jhay Exp $
  */
 
 #include <sys/param.h>
@@ -85,7 +85,7 @@ struct	ipxpcb ipxpcb;
 struct	ipxpcb ipxrawpcb;
 
 struct	ifqueue	ipxintrq;
-int	ipxqmaxlen = IFQ_MAXLEN;
+static int ipxqmaxlen = IFQ_MAXLEN;
 
 long	ipx_pexseq;
 
@@ -328,8 +328,8 @@ ipx_ctlinput(cmd, arg_as_sa, dummy)
  * have a way to return errors to the sender.
  */
 
-struct route ipx_droute;
-struct route ipx_sroute;
+static struct route ipx_droute;
+static struct route ipx_sroute;
 
 static void
 ipx_forward(m)

@@ -33,7 +33,7 @@
  *
  *	@(#)spx_usrreq.h
  *
- * $Id: spx_usrreq.c,v 1.16 1997/09/02 01:19:15 bde Exp $
+ * $Id: spx_usrreq.c,v 1.17 1997/09/14 03:10:41 peter Exp $
  */
 
 #include <sys/param.h>
@@ -59,20 +59,20 @@
 /*
  * SPX protocol implementation.
  */
-u_short spx_iss;
-u_short	spx_newchecks[50];
-int	spx_hardnosed;
-int	spx_use_delack = 0;
-int	traceallspxs = 0;
-struct	spx spx_savesi;
-struct	spx_istat spx_istat;
+static u_short 	spx_iss;
+static u_short	spx_newchecks[50];
+static int	spx_hardnosed;
+static int	spx_use_delack = 0;
+static int	traceallspxs = 0;
+static struct	spx 	spx_savesi;
+static struct	spx_istat spx_istat;
 
 /* Following was struct spxstat spxstat; */
 #ifndef spxstat 
 #define spxstat spx_istat.newstats
 #endif  
 
-int	spx_backoff[SPX_MAXRXTSHIFT+1] =
+static int spx_backoff[SPX_MAXRXTSHIFT+1] =
     { 1, 2, 4, 8, 16, 32, 64, 64, 64, 64, 64, 64, 64 };
 
 static	void spx_abort(struct ipxpcb *ipxp);
@@ -329,7 +329,7 @@ bad:
 	m_freem(m);
 }
 
-int spxrexmtthresh = 3;
+static int spxrexmtthresh = 3;
 
 /*
  * This is structurally similar to the tcp reassembly routine
@@ -1133,7 +1133,7 @@ send:
 	return (0);
 }
 
-int spx_do_persist_panics = 0;
+static int spx_do_persist_panics = 0;
 
 static void
 spx_setpersist(cb)

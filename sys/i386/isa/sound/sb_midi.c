@@ -53,12 +53,12 @@ extern int      sb_dsp_highspeed;
 extern volatile int sb_irq_mode;
 extern int      sb_duplex_midi;
 extern int      sb_intr_active;
-int             input_opened = 0;
+static int      input_opened = 0;
 static int      my_dev;
 
 extern sound_os_info *sb_osp;
 
-void            (*midi_input_intr) (int dev, u_char data);
+static void            (*midi_input_intr) (int dev, u_char data);
 
 static int
 sb_midi_open(int dev, int mode, void (*input) (int dev, u_char data),

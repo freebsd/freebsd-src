@@ -28,7 +28,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: imgact_linux.c,v 1.24 1997/07/20 16:05:50 bde Exp $
+ *	$Id: imgact_linux.c,v 1.25 1997/12/05 19:55:37 bde Exp $
  */
 
 #include <sys/param.h>
@@ -53,9 +53,9 @@
 
 #include <i386/linux/linux.h>
 
-extern int	exec_linux_imgact __P((struct image_params *iparams));
+static int	exec_linux_imgact __P((struct image_params *iparams));
 
-int
+static int
 exec_linux_imgact(imgp)
     struct image_params *imgp;
 {
@@ -232,6 +232,6 @@ exec_linux_imgact(imgp)
  * Since `const' objects end up in the text segment, TEXT_SET is the
  * correct directive to use.
  */
-const struct execsw linux_execsw = { exec_linux_imgact, "linux a.out" };
+static const struct execsw linux_execsw = { exec_linux_imgact, "linux a.out" };
 TEXT_SET(execsw_set, linux_execsw);
 

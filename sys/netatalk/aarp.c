@@ -30,8 +30,8 @@ static void at_aarpinput( struct arpcom *ac, struct mbuf *m);
 #define AARPTAB_BSIZ	9
 #define AARPTAB_NB	19
 #define AARPTAB_SIZE	(AARPTAB_BSIZ * AARPTAB_NB)
-struct aarptab		aarptab[AARPTAB_SIZE];
-int			aarptab_size = AARPTAB_SIZE;
+static struct aarptab	aarptab[AARPTAB_SIZE];
+static int		aarptab_size = AARPTAB_SIZE;
 
 #define AARPTAB_HASH(a) \
     ((((a).s_net << 8 ) + (a).s_node ) % AARPTAB_NB )
@@ -55,7 +55,7 @@ int			aarptab_size = AARPTAB_SIZE;
 extern u_char			etherbroadcastaddr[6];
 # endif __FreeBSD__
 
-u_char	atmulticastaddr[ 6 ] = {
+static u_char atmulticastaddr[ 6 ] = {
     0x09, 0x00, 0x07, 0xff, 0xff, 0xff,
 };
 

@@ -9,7 +9,7 @@
  * Modified by Bill Fenner, PARC, April 1995
  *
  * MROUTING Revision: 3.5
- * $Id: ip_mroute.c,v 1.43 1998/02/04 22:33:08 eivind Exp $
+ * $Id: ip_mroute.c,v 1.44 1998/02/06 12:13:52 eivind Exp $
  */
 
 #include "opt_mrouting.h"
@@ -199,9 +199,9 @@ ip_rsvp_force_done(so)
  */
 #ifndef MROUTE_LKM
 struct socket  *ip_mrouter  = NULL;
-struct mrtstat	mrtstat;
+static struct mrtstat	mrtstat;
 
-int		ip_mrtproto = IGMP_DVMRP;    /* for netstat only */
+static int		ip_mrtproto = IGMP_DVMRP;    /* for netstat only */
 #else /* MROUTE_LKM */
 extern void	X_ipip_input __P((struct mbuf *m, int iphlen));
 extern struct mrtstat mrtstat;

@@ -40,7 +40,7 @@ extern int      gus_pcm_volume;
 extern int      have_gus_max;
 extern int      gus_timer_enabled;
 
-sound_os_info  *gus_osp;
+static sound_os_info *gus_osp;
 
 #ifndef NOGUSPNP
 int             IwaveOpen(char voices, char mode, struct address_info * hw);
