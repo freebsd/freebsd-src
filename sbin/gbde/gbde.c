@@ -486,14 +486,14 @@ cmd_init(struct g_bde_key *gl, int dfd, const char *f_opt, int i_opt, const char
 	/* <sector_size> */
 	p = property_find(params, "sector_size");
 	i = ioctl(dfd, DIOCGSECTORSIZE, &u);
-	if (i == 0)
-		sector_size = u;
-	else if (p == NULL)
-		errx(1, "Missing sector_size property");
 	if (p != NULL) {
 		sector_size = strtoul(p, &q, 0);
 		if (!*p || *q)
 			errx(1, "sector_size not a proper number");
+	} else if (i == 0) {
+		sector_size = u;
+	} else {
+		errx(1, "Missing sector_size property");
 	}
 	if (sector_size & (sector_size - 1))
 		errx(1, "sector_size not a power of 2");
