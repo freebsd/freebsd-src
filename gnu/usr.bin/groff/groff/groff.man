@@ -83,6 +83,9 @@ For typewriter-like devices
 .TP
 .B latin1
 For typewriter-like devices using the ISO Latin-1 character set.
+.TP
+.B koi8-r
+For typewriter-like devices using the russian KOI8-R character set.
 .LP
 The postprocessor to be used for a device is specified by the
 .B postpro
