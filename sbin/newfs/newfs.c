@@ -103,8 +103,8 @@ void	fatal();
  *	sectorsize <= DESFRAGSIZE <= DESBLKSIZE
  *	DESBLKSIZE / DESFRAGSIZE <= 8
  */
-#define	DFL_FRAGSIZE	1024
-#define	DFL_BLKSIZE	8192
+#define	DFL_FRAGSIZE	2048
+#define	DFL_BLKSIZE	16384
 
 /*
  * Cylinder groups may have up to many cylinders. The actual
