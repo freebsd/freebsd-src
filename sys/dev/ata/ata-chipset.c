@@ -1426,7 +1426,7 @@ ata_cmd_setmode(struct ata_device *atadev, int mode)
 	    u_int8_t umode = pci_read_config(parent, ureg, 1);
 
 	    umode &= ~(atadev->unit == ATA_MASTER ? 0x35 : 0xca);
-	    umode |= udmatimings[ATA_DEV(atadev->unit)][mode & ATA_MODE_MASK];
+	    umode |= udmatimings[mode & ATA_MODE_MASK][ATA_DEV(atadev->unit)];
 	    pci_write_config(parent, ureg, umode, 1);
 	}
 	else if (mode >= ATA_WDMA0) { 
