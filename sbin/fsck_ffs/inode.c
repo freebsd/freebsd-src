@@ -95,7 +95,8 @@ ckinode(union dinode *dp, struct inodesc *idesc)
 					pathbuf);
                         	if (reply("ADJUST LENGTH") == 1) {
 					dp = ginode(idesc->id_number);
-                                	DIP(dp, di_size) = i * sblock.fs_bsize;
+                                	DIP_SET(dp, di_size,
+					    i * sblock.fs_bsize);
 					printf(
 					    "YOU MUST RERUN FSCK AFTERWARDS\n");
 					rerun = 1;
@@ -133,7 +134,8 @@ ckinode(union dinode *dp, struct inodesc *idesc)
 					pathbuf);
                         	if (reply("ADJUST LENGTH") == 1) {
 					dp = ginode(idesc->id_number);
-                                	DIP(dp, di_size) -= remsize;
+                                	DIP_SET(dp, di_size,
+					    DIP(dp, di_size) - remsize);
 					remsize = 0;
 					printf(
 					    "YOU MUST RERUN FSCK AFTERWARDS\n");
@@ -183,7 +185,7 @@ iblock(struct inodesc *idesc, long ilevel, off_t isize)
 			if (preen) {
 				pfatal("%s", buf);
 			} else if (dofix(idesc, buf)) {
-				IBLK(bp, i) = 0;
+				IBLK_SET(bp, i, 0);
 				dirty(bp);
 			}
 		}
@@ -211,7 +213,8 @@ iblock(struct inodesc *idesc, long ilevel, off_t isize)
 					pathbuf);
                         	if (reply("ADJUST LENGTH") == 1) {
 					dp = ginode(idesc->id_number);
-                                	DIP(dp, di_size) -= isize;
+                                	DIP_SET(dp, di_size,
+					    DIP(dp, di_size) - isize);
 					isize = 0;
 					printf(
 					    "YOU MUST RERUN FSCK AFTERWARDS\n");
@@ -630,20 +633,21 @@ allocino(ino_t request, int type)
 	}
 	cgdirty();
 	dp = ginode(ino);
-	DIP(dp, di_db[0]) = allocblk((long)1);
+	DIP_SET(dp, di_db[0], allocblk((long)1));
 	if (DIP(dp, di_db[0]) == 0) {
 		inoinfo(ino)->ino_state = USTATE;
 		return (0);
 	}
-	DIP(dp, di_mode) = type;
-	DIP(dp, di_flags) = 0;
-	DIP(dp, di_atime) = time(NULL);
-	DIP(dp, di_mtime) = DIP(dp, di_ctime) = DIP(dp, di_atime);
-	DIP(dp, di_mtimensec) = 0;
-	DIP(dp, di_ctimensec) = 0;
-	DIP(dp, di_atimensec) = 0;
-	DIP(dp, di_size) = sblock.fs_fsize;
-	DIP(dp, di_blocks) = btodb(sblock.fs_fsize);
+	DIP_SET(dp, di_mode, type);
+	DIP_SET(dp, di_flags, 0);
+	DIP_SET(dp, di_atime, time(NULL));
+	DIP_SET(dp, di_ctime, DIP(dp, di_atime));
+	DIP_SET(dp, di_mtime, DIP(dp, di_ctime));
+	DIP_SET(dp, di_mtimensec, 0);
+	DIP_SET(dp, di_ctimensec, 0);
+	DIP_SET(dp, di_atimensec, 0);
+	DIP_SET(dp, di_size, sblock.fs_fsize);
+	DIP_SET(dp, di_blocks, btodb(sblock.fs_fsize));
 	n_files++;
 	inodirty();
 	inoinfo(ino)->ino_type = IFTODT(type);

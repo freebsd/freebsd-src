@@ -56,6 +56,13 @@ union dinode {
 	((sblock.fs_magic == FS_UFS1_MAGIC) ? \
 	(dp)->dp1.field : (dp)->dp2.field)
 
+#define DIP_SET(dp, field, val) do { \
+	if (sblock.fs_magic == FS_UFS1_MAGIC) \
+		(dp)->dp1.field = (val); \
+	else \
+		(dp)->dp2.field = (val); \
+	} while (0)
+
 /*
  * Each inode on the file system is described by the following structure.
  * The linkcnt is initially set to the value in the inode. Each time it
@@ -107,9 +114,17 @@ struct bufarea {
 	} b_un;
 	char b_dirty;
 };
+
 #define	IBLK(bp, i) \
 	((sblock.fs_magic == FS_UFS1_MAGIC) ? \
 	(bp)->b_un.b_indir1[i] : (bp)->b_un.b_indir2[i])
+
+#define IBLK_SET(bp, i, val) do { \
+	if (sblock.fs_magic == FS_UFS1_MAGIC) \
+		(bp)->b_un.b_indir1[i] = (val); \
+	else \
+		(bp)->b_un.b_indir2[i] = (val); \
+	} while (0)
 
 #define	B_INUSE 1
 

@@ -236,8 +236,8 @@ checkinode(ino_t inumber, struct inodesc *idesc)
 	}
 	if (!preen && mode == IFMT && reply("HOLD BAD BLOCK") == 1) {
 		dp = ginode(inumber);
-		DIP(dp, di_size) = sblock.fs_fsize;
-		DIP(dp, di_mode) = IFREG|0600;
+		DIP_SET(dp, di_size, sblock.fs_fsize);
+		DIP_SET(dp, di_mode, IFREG|0600);
 		inodirty();
 	}
 	if ((mode == IFBLK || mode == IFCHR || mode == IFIFO ||
@@ -364,7 +364,7 @@ checkinode(ino_t inumber, struct inodesc *idesc)
 			return;
 		if (bkgrdflag == 0) {
 			dp = ginode(inumber);
-			DIP(dp, di_blocks) = idesc->id_entryno;
+			DIP_SET(dp, di_blocks, idesc->id_entryno);
 			inodirty();
 		} else {
 			cmd.value = idesc->id_number;
