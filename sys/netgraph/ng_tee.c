@@ -128,18 +128,15 @@ static const struct ng_cmdlist ng_tee_cmds[] = {
 
 /* Netgraph type descriptor */
 static struct ng_type ng_tee_typestruct = {
-	NG_ABI_VERSION,
-	NG_TEE_NODE_TYPE,
-	NULL,
-	ngt_constructor,
-	ngt_rcvmsg,
-	ngt_shutdown,
-	ngt_newhook,
-	NULL,
-	NULL,
-	ngt_rcvdata,
-	ngt_disconnect,
-	ng_tee_cmds
+	.version =	NG_ABI_VERSION,
+	.name =		NG_TEE_NODE_TYPE,
+	.constructor =	ngt_constructor,
+	.rcvmsg =	ngt_rcvmsg,
+	.shutdown =	ngt_shutdown,
+	.newhook =	ngt_newhook,
+	.rcvdata =	ngt_rcvdata,
+	.disconnect =	ngt_disconnect,
+	.cmdlist =	ng_tee_cmds,
 };
 NETGRAPH_INIT(tee, &ng_tee_typestruct);
 

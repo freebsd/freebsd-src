@@ -102,18 +102,14 @@ static ng_rcvdata_t	ngh_rcvdata;
 static ng_disconnect_t	ngh_disconnect;
 
 static struct ng_type typestruct = {
-	NG_ABI_VERSION,
-	NG_HOLE_NODE_TYPE,
-	NULL,		/* modeventhand_t */
-	ngh_cons,	/* ng_constructor_t */
-	ngh_rcvmsg,	/* ng_rcvmsg_t */
-	NULL,		/* ng_shutdown_t */
-	ngh_newhook,	/* ng_newhook_t */
-	NULL,		/* ng_findhook_t */
-	NULL,		/* ng_connect_t */
-	ngh_rcvdata,	/* ng_rcvdata_t */
-	ngh_disconnect,	/* ng_disconnect_t */
-	ng_hole_cmdlist	/* ng_cmdlist */
+	.version =	NG_ABI_VERSION,
+	.name =		NG_HOLE_NODE_TYPE,
+	.constructor =	ngh_cons,
+	.rcvmsg =	ngh_rcvmsg,
+	.newhook = 	ngh_newhook,
+	.rcvdata =	ngh_rcvdata,
+	.disconnect =	ngh_disconnect,
+	.cmdlist =	ng_hole_cmdlist,
 };
 NETGRAPH_INIT(hole, &typestruct);
 

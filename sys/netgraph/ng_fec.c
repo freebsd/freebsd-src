@@ -227,18 +227,12 @@ static const struct ng_cmdlist ng_fec_cmds[] = {
 
 /* Node type descriptor */
 static struct ng_type typestruct = {
-	NG_ABI_VERSION,
-	NG_FEC_NODE_TYPE,
-	NULL,
-	ng_fec_constructor,
-	ng_fec_rcvmsg,
-	ng_fec_shutdown,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	ng_fec_cmds
+	.version =	NG_ABI_VERSION,
+	.name =		NG_FEC_NODE_TYPE,
+	.constructor =	ng_fec_constructor,
+	.rcvmsg =	ng_fec_rcvmsg,
+	.shutdown =	ng_fec_shutdown,
+	.cmdlist =	ng_fec_cmds,
 };
 NETGRAPH_INIT(fec, &typestruct);
 

@@ -77,18 +77,14 @@ static ng_disconnect_t	ng_UI_disconnect;
 
 /* Node type descriptor */
 static struct ng_type typestruct = {
-	NG_ABI_VERSION,
-	NG_UI_NODE_TYPE,
-	NULL,
-	ng_UI_constructor,
-	ng_UI_rcvmsg,
-	ng_UI_shutdown,
-	ng_UI_newhook,
-	NULL,
-	NULL,
-	ng_UI_rcvdata,
-	ng_UI_disconnect,
-	NULL
+	.version =	NG_ABI_VERSION,
+	.name =		NG_UI_NODE_TYPE,
+	.constructor =	ng_UI_constructor,
+	.rcvmsg =	ng_UI_rcvmsg,
+	.shutdown =	ng_UI_shutdown,
+	.newhook =	ng_UI_newhook,
+	.rcvdata =	ng_UI_rcvdata,
+	.disconnect =	ng_UI_disconnect,
 };
 NETGRAPH_INIT(UI, &typestruct);
 

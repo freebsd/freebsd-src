@@ -190,18 +190,15 @@ static const struct ng_cmdlist ng_bpf_cmdlist[] = {
 
 /* Netgraph type descriptor */
 static struct ng_type typestruct = {
-	NG_ABI_VERSION,
-	NG_BPF_NODE_TYPE,
-	NULL,
-	ng_bpf_constructor,
-	ng_bpf_rcvmsg,
-	ng_bpf_shutdown,
-	ng_bpf_newhook,
-	NULL,
-	NULL,
-	ng_bpf_rcvdata,
-	ng_bpf_disconnect,
-	ng_bpf_cmdlist
+	.version =	NG_ABI_VERSION,
+	.name =		NG_BPF_NODE_TYPE,
+	.constructor =	ng_bpf_constructor,
+	.rcvmsg =	ng_bpf_rcvmsg,
+	.shutdown =	ng_bpf_shutdown,
+	.newhook =	ng_bpf_newhook,
+	.rcvdata =	ng_bpf_rcvdata,
+	.disconnect =	ng_bpf_disconnect,
+	.cmdlist =	ng_bpf_cmdlist,
 };
 NETGRAPH_INIT(bpf, &typestruct);
 

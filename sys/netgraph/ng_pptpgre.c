@@ -248,18 +248,15 @@ static const struct ng_cmdlist ng_pptpgre_cmdlist[] = {
 
 /* Node type descriptor */
 static struct ng_type ng_pptpgre_typestruct = {
-	NG_ABI_VERSION,
-	NG_PPTPGRE_NODE_TYPE,
-	NULL,
-	ng_pptpgre_constructor,
-	ng_pptpgre_rcvmsg,
-	ng_pptpgre_shutdown,
-	ng_pptpgre_newhook,
-	NULL,
-	NULL,
-	ng_pptpgre_rcvdata,
-	ng_pptpgre_disconnect,
-	ng_pptpgre_cmdlist
+	.version =	NG_ABI_VERSION,
+	.name =		NG_PPTPGRE_NODE_TYPE,
+	.constructor =	ng_pptpgre_constructor,
+	.rcvmsg =	ng_pptpgre_rcvmsg,
+	.shutdown =	ng_pptpgre_shutdown,
+	.newhook =	ng_pptpgre_newhook,
+	.rcvdata =	ng_pptpgre_rcvdata,
+	.disconnect =	ng_pptpgre_disconnect,
+	.cmdlist =	ng_pptpgre_cmdlist,
 };
 NETGRAPH_INIT(pptpgre, &ng_pptpgre_typestruct);
 

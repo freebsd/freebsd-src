@@ -65,18 +65,15 @@ static int get_free_unit(void);
 
 /* Netgraph type */
 static struct ng_type typestruct = {
-	NG_ABI_VERSION,			/* version */
-	NG_DEVICE_NODE_TYPE,		/* name */
-	ng_device_mod_event,		/* modevent */
-	ng_device_cons, 		/* constructor */
-	ng_device_rcvmsg, 		/* receive msg */
-	NULL, 				/* shutdown */
-	ng_device_newhook, 		/* newhook */
-	NULL,				/* findhook */
-	ng_device_connect, 		/* connect */
-	ng_device_rcvdata, 		/* receive data */
-	ng_device_disconnect, 		/* disconnect */
-	NULL
+	.version =	NG_ABI_VERSION,
+	.name =		NG_DEVICE_NODE_TYPE,
+	.mod_event =	ng_device_mod_event,
+	.constructor =	ng_device_cons,
+	.rcvmsg =	ng_device_rcvmsg,
+	.newhook =	ng_device_newhook,
+	.connect = 	ng_device_connect,
+	.rcvdata =	ng_device_rcvdata,
+	.disconnect =	ng_device_disconnect,
 };
 NETGRAPH_INIT(device, &typestruct);
 

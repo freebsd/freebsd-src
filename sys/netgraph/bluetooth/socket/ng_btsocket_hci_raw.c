@@ -91,19 +91,16 @@ struct ng_btsocket_hci_raw_sec_filter {
 };
 
 /* Netgraph type descriptor */
-static struct ng_type   typestruct = {
-	NG_ABI_VERSION,
-	NG_BTSOCKET_HCI_RAW_NODE_TYPE,		/* typename */
-	NULL,					/* modevent */
-	ng_btsocket_hci_raw_node_constructor,	/* constructor */
-	ng_btsocket_hci_raw_node_rcvmsg,	/* control message */
-	ng_btsocket_hci_raw_node_shutdown,	/* destructor */
-	ng_btsocket_hci_raw_node_newhook,	/* new hook */
-	NULL,					/* find hook */
-	ng_btsocket_hci_raw_node_connect,	/* connect hook */
-	ng_btsocket_hci_raw_node_rcvdata,	/* data */
-	ng_btsocket_hci_raw_node_disconnect,	/* disconnect hook */
-	NULL					/* node command list */
+static struct ng_type typestruct = {
+	.version =	NG_ABI_VERSION,
+	.name =		NG_BTSOCKET_HCI_RAW_NODE_TYPE,
+	.constructor =	ng_btsocket_hci_raw_node_constructor,
+	.rcvmsg =	ng_btsocket_hci_raw_node_rcvmsg,
+	.shutdown =	ng_btsocket_hci_raw_node_shutdown,
+	.newhook =	ng_btsocket_hci_raw_node_newhook,
+	.connect =	ng_btsocket_hci_raw_node_connect,
+	.rcvdata =	ng_btsocket_hci_raw_node_rcvdata,
+	.disconnect =	ng_btsocket_hci_raw_node_disconnect,
 };
 
 /* Globals */

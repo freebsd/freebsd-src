@@ -274,18 +274,15 @@ static  ng_rcvdata_t musycc_rcvdata;
 static  ng_disconnect_t musycc_disconnect;
 
 static struct ng_type ngtypestruct = {
-	NG_ABI_VERSION,
-	NG_NODETYPE,
-	NULL, 
-	musycc_constructor,
-	musycc_rcvmsg,
-	musycc_shutdown,
-	musycc_newhook,
-	NULL,
-	musycc_connect,
-	musycc_rcvdata,
-	musycc_disconnect,
-	NULL
+	.version =	NG_ABI_VERSION,
+	.name =		NG_NODETYPE,
+	.constructor =	musycc_constructor,
+	.rcvmsg =	musycc_rcvmsg,
+	.shutdown =	musycc_shutdown,
+	.newhook =	musycc_newhook,
+	.connect =	musycc_connect,
+	.rcvdata =	musycc_rcvdata,
+	.disconnect =	musycc_disconnect,
 };
 
 /*
