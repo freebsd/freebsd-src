@@ -156,6 +156,7 @@ id_to_sem(id)
 {
 	struct ksem *ks;
 
+	mtx_assert(&sem_lock, MA_OWNED);
 	DP(("id_to_sem: id = %0x,%p\n", id, (struct ksem *)id));
 	LIST_FOREACH(ks, &ksem_head, ks_entry) {
 		DP(("id_to_sem: ks = %p\n", ks));
@@ -171,6 +172,7 @@ sem_lookup_byname(name)
 {
 	struct ksem *ks;
 
+	mtx_assert(&sem_lock, MA_OWNED);
 	LIST_FOREACH(ks, &ksem_head, ks_entry)
 		if (ks->ks_name != NULL && strcmp(ks->ks_name, name) == 0)
 			return (ks);
