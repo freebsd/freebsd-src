@@ -42,7 +42,7 @@ $ENV{"PATH"} = "/bin:/sbin:/usr/bin:/usr/sbin";
 umask(022);
 $whoami = $0;
 $passwd_file = "/etc/master.passwd";
-$ptmp = "/etc/ptmp";
+$passwd_tmp = "/etc/ptmp";
 $group_file = "/etc/group";
 $new_group_file = "${group_file}.new.$$";
 $mail_dir = "/var/mail";
@@ -311,8 +311,8 @@ sub update_passwd_file {
     print STDERR "Updating password file,";
     seek(MASTER_PW, 0, 0);
 
-    sysopen(NEW_PW, $etc_ptmp, O_RDWR|O_CREAT|O_EXCL, 0600) ||
-	die "\n${whoami}: Error: Couldn't open file ${etc_ptmp}:\n $!\n";
+    sysopen(NEW_PW, $passwd_tmp, O_RDWR|O_CREAT|O_EXCL, 0600) ||
+	die "\n${whoami}: Error: Couldn't open file ${passwd_tmp}:\n $!\n";
 
     $skipped = 0;
     while (<MASTER_PW>) {
@@ -339,8 +339,8 @@ sub update_passwd_file {
 
     if ($skipped == 0) {
 	print STDERR "\n${whoami}: Whoops! Didn't find ${login_name}'s entry second time around!\n";
-	unlink($etc_ptmp) ||
-	    print STDERR "\n${whoami}: Warning: couldn't unlink $etc_ptmp ($!)\n\tPlease investigate, as this file should not be left in the filesystem\n";
+	unlink($passwd_tmp) ||
+	    print STDERR "\n${whoami}: Warning: couldn't unlink $passwd_tmp ($!)\n\tPlease investigate, as this file should not be left in the filesystem\n";
 	&unlockpw;
 	exit 1;
     }
