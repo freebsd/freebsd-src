@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.128 1998/09/04 08:06:57 dfr Exp $
+ * $Id: vm_object.c,v 1.129 1998/09/28 02:40:11 dg Exp $
  */
 
 /*
@@ -91,7 +91,6 @@
 #include <vm/vm_zone.h>
 
 static void	vm_object_qcollapse __P((vm_object_t object));
-static void vm_object_dispose __P((vm_object_t));
 
 /*
  *	Virtual memory objects maintain the actual data
@@ -406,7 +405,6 @@ vm_object_terminate(object)
 	register vm_object_t object;
 {
 	register vm_page_t p;
-	int s;
 
 	/*
 	 * Make sure no one uses us.
@@ -442,58 +440,48 @@ vm_object_terminate(object)
 
 		vp = (struct vnode *) object->handle;
 		vinvalbuf(vp, V_SAVE, NOCRED, NULL, 0, 0);
-
-		/*
-		 * Let the pager know object is dead.
-		 */
-		vm_pager_deallocate(object);
-
 	}
 
-	if ((object->type != OBJT_VNODE) && (object->ref_count == 0)) {
+	if (object->ref_count != 0)
+		panic("vm_object_terminate: object with references, ref_count=%d", object->ref_count);
 
-		/*
-		 * Now free the pages. For internal objects, this also removes them
-		 * from paging queues.
-		 */
-		while ((p = TAILQ_FIRST(&object->memq)) != NULL) {
+	/*
+	 * Now free the pages. For internal objects, this also removes them
+	 * from paging queues. Don't free wired pages, just remove them
+	 * from the object.
+	 */
+	while ((p = TAILQ_FIRST(&object->memq)) != NULL) {
 #if !defined(MAX_PERF)
-			if (p->busy || (p->flags & PG_BUSY))
-				printf("vm_object_terminate: freeing busy page\n");
+		if (p->busy || (p->flags & PG_BUSY))
+			printf("vm_object_terminate: freeing busy page\n");
 #endif
+		if (p->wire_count == 0) {
 			vm_page_busy(p);
 			vm_page_free(p);
 			cnt.v_pfree++;
+		} else {
+			printf("vm_object_terminate: not freeing wired page; wire_count=%d\n", p->wire_count);
+			vm_page_remove(p);
 		}
-		/*
-		 * Let the pager know object is dead.
-		 */
-		vm_pager_deallocate(object);
-
 	}
+	/*
+	 * Let the pager know object is dead.
+	 */
+	vm_pager_deallocate(object);
 
-	if ((object->ref_count == 0) && (object->resident_page_count == 0))
-		vm_object_dispose(object);
-}
+	/*
+	 * Remove the object from the global object list.
+	 */
+	simple_lock(&vm_object_list_lock);
+	TAILQ_REMOVE(&vm_object_list, object, object_list);
+	simple_unlock(&vm_object_list_lock);
 
-/*
- * vm_object_dispose
- *
- * Dispose the object.
- */
-static void
-vm_object_dispose(object)
-	vm_object_t object;
-{
-		simple_lock(&vm_object_list_lock);
-		TAILQ_REMOVE(&vm_object_list, object, object_list);
-		vm_object_count--;
-		simple_unlock(&vm_object_list_lock);
-		/*
-   		* Free the space for the object.
-   		*/
-		zfree(obj_zone, object);
-		wakeup(object);
+	wakeup(object);
+
+	/*
+	 * Free the space for the object.
+	 */
+	zfree(obj_zone, object);
 }
 
 /*
