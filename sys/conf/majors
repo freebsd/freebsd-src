@@ -163,7 +163,6 @@
 164	*iir		Intel Integrated RAID <boji.t.kannanthanam@intel.com>
 165	*net		Network drivers <jlemon>
 166	*ciss		Compaq SmartArray 5* adapter <msmith>
-167	ufm		USB Fm Radio
 168	XXX		used by pst in RELENG_4
 170	pst		Promise SuperTrak (uses 168 in RELENG_4)
 171	mide		LSI MegaRAID IDE (control device)
@@ -179,7 +178,6 @@
 181	casm		HP/Compaq ProLiant Advanced Server Management <peter>
 183	*smapi		SMAPI BIOS interface <mdodd>
 200	??		entries from 200-252 are reserved for local use
-200	*ufm		dev/usb/ufm.c
 248	*isp		dev/isp/isp_freebsd.c
 252	??		entries from 200-252 are reserved for local use
 254	internal	Used internally by the kernel
