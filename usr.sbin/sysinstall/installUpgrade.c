@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: installUpgrade.c,v 1.27 1996/07/02 01:03:43 jkh Exp $
+ * $Id: installUpgrade.c,v 1.28 1996/07/05 08:35:57 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -266,7 +266,7 @@ installUpgrade(dialogMenuItem *self)
     if (extractingBin) {
 	while (!saved_etc) {
 	    saved_etc = msgGetInput("/usr/tmp/etc", "Under which directory do you wish to save your current /etc?");
-	    if (!saved_etc || !*saved_etc || Mkdir(saved_etc, NULL)) {
+	    if (!saved_etc || !*saved_etc || Mkdir(saved_etc)) {
 		saved_etc = NULL;
 		if (msgYesNo("Directory was not specified, was invalid or user selected Cancel.\n\n"
 			     "Doing an upgrade without first backing up your /etc directory is a very\n"
