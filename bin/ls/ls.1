@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)ls.1	8.7 (Berkeley) 7/29/94
-.\"	$Id: ls.1,v 1.17 1998/04/21 22:01:58 des Exp $
+.\"	$Id: ls.1,v 1.18 1998/04/24 07:49:46 des Exp $
 .\"
 .Dd July 29, 1994
 .Dt LS 1
@@ -43,7 +43,7 @@
 .Nd list directory contents
 .Sh SYNOPSIS
 .Nm ls
-.Op Fl ?ABCFLRTWabcdfgikloqrstu1
+.Op Fl ?ABCFHLPRTWabcdfgikloqrstu1
 .Op Ar file ...
 .Sh DESCRIPTION
 For each operand that names a
@@ -92,9 +92,26 @@ an equals sign (=) after each socket,
 a percent sign (%) after each whiteout,
 and a vertical bar (|) after each that is a
 .Tn FIFO .
+.It Fl H
+Symbolic links on the command line are followed.  This option is assumed if
+none of the
+.Fl F ,
+.Fl d ,
+or
+.Fl l
+options are specified.
 .It Fl L
 If argument is a symbolic link, list the file or directory the link references
-rather than the link itself.
+rather than the link itself. This option cancels the
+.Fl P
+option.
+.It Fl P
+If argument is a symbolic link, list the link itself rather than the
+object the link references.  This option cancels the
+.Fl H
+and
+.Fl L
+options.
 .It Fl R
 Recursively list subdirectories encountered.
 .It Fl T
@@ -112,8 +129,7 @@ but use C escape codes whenever possible.
 .It Fl c
 Use time when file status was last changed for sorting or printing.
 .It Fl d
-Directories are listed as plain files (not searched recursively) and
-symbolic links in the argument list are not indirected through.
+Directories are listed as plain files (not searched recursively).
 .It Fl f
 Output is not sorted.
 .It Fl g
@@ -129,7 +145,7 @@ For each file, print the file's file serial number (inode number).
 If the 
 .Fl s
 option is specified, print the file size allocation in kilobytes,
-not blocks.
+not blocks.  This option overrides the environment variable BLOCKSIZE.
 .It Fl l
 (The lowercase letter ``ell.'')  List in long format. (See below.)
 If the output is to a terminal, a total sum for all the file
@@ -176,11 +192,27 @@ options all override each other; the last one specified determines
 the format used.
 .Pp
 The
-.Fl c ,
+.Fl c
 and
 .Fl u
 options override each other; the last one specified determines
 the file time used.
+.Pp
+The
+.Fl B ,
+.Fl b
+and
+.Fl q
+options all override each other; the last one specified determines
+the format used for non-printable characters.
+.Pp
+The
+.Fl H,
+.Fl L
+and
+.Fl P
+options all override each other (either partially or fully); they
+are applied in the order specified.
 .Pp
 By default,
 .Nm ls
@@ -363,3 +395,7 @@ The
 function is expected to be a superset of the
 .St -p1003.2
 specification.
+.Sh BUGS
+To maintain backward compatibility, the relationships between the many
+options is quite complex.
+
