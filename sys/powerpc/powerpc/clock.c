@@ -185,7 +185,7 @@ decr_intr(struct clockframe *frame)
 	__asm ("mftb %0; mfdec %1" : "=r"(tb), "=r"(tick));
 	for (nticks = 0; tick < 0; nticks++)
 		tick += ticks_per_intr;
-	__asm __volatile ("mtdec %0" :: "r"(tick));
+	mtdec(tick);
 	/*
 	 * lasttb is used during microtime. Set it to the virtual
 	 * start of this tick interval.
