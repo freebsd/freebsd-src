@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.296 1996/11/27 22:52:09 ache Exp $
+#	$Id: LINT,v 1.297 1996/11/29 07:08:48 dyson Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -920,6 +920,12 @@ options AHC_ALLOW_MEMIO
 # The `ncr' device provides support for the NCR 53C810 and 53C825
 # self-contained SCSI host adapters.
 #
+# The `amd' device provides support for the Tekram DC-390 and 390T
+# SCSI host adapters, but is expected to work with any AMD 53c974
+# PCI SCSI chip and the AMD Ethernet+SCSI Combo chip, after some
+# local patches were applied to the sources (that had originally
+# been written by Tekram and limited to work with their SCSI cards).
+#
 # The `de' device provides support for the Digital Equipment DC21040
 # self-contained Ethernet adapter.
 #
@@ -946,6 +952,7 @@ options AHC_ALLOW_MEMIO
 controller	pci0
 controller	ahc1
 controller	ncr0
+controller	amd0
 device		de0
 device		fxp0
 device		vx0
