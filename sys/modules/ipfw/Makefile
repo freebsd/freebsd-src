@@ -14,5 +14,9 @@ CFLAGS+= -DIPFIREWALL
 #If you want it to pass all packets by default
 #CFLAGS+= -DIPFIREWALL_DEFAULT_TO_ACCEPT
 #
+#If you want it with divert(4) support (kernel must be compiled
+#with "options IPDIVERT" for this to work)
+#CFLAGS+= -DIPDIVERT
+#
 
 .include <bsd.kmod.mk>
