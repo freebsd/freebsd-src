@@ -254,6 +254,8 @@ static symtab_t pnpprod[] = {
     { "A4W0005",	MOUSE_PROTO_INTELLI,	MOUSE_MODEL_4D },
     /* 8D Scroll Mouse */
     { "PEC9802",	MOUSE_PROTO_INTELLI,	MOUSE_MODEL_INTELLI },
+    /* Mitsumi Wireless Scroll Mouse */
+    { "MTM6401",	MOUSE_PROTO_INTELLI,	MOUSE_MODEL_INTELLI },
 
     /* MS bus */
     { "PNP0F00",	MOUSE_PROTO_BUS,	MOUSE_MODEL_GENERIC },
