@@ -267,7 +267,7 @@ installUpgrade(dialogMenuItem *self)
 
     if (extractingBin) {
 	while (!*saved_etc) {
-	    char *cp = msgGetInput("/usr/tmp/etc", "Under which directory do you wish to save your current /etc?");
+	    char *cp = msgGetInput("/var/tmp/etc", "Under which directory do you wish to save your current /etc?");
 
 	    if (!cp || !*cp || Mkdir(cp)) {
 		if (msgYesNo("Directory was not specified, was invalid or user selected Cancel.\n\n"
@@ -452,7 +452,7 @@ installUpgradeNonInteractive(dialogMenuItem *self)
 	return DITEM_FAILURE;
     }
 
-    saved_etc = "/usr/tmp/etc";
+    saved_etc = "/var/tmp/etc";
     Mkdir(saved_etc);
     msgNotify("Preserving /etc directory..");
     if (vsystem("tar -cpBf - -C /etc . | tar -xpBf - -C %s", saved_etc)) {
