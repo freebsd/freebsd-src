@@ -42,18 +42,18 @@
 .Nm mklocale
 .Nd make LC_CTYPE locale files
 .Sh SYNOPSIS
-.Nm mklocale
+.Nm
 .Op Fl d
 .Ar "< src-file"
 .Ar "> language/LC_CTYPE"
-.Nm mklocale
+.Nm
 .Op Fl d
 .Fl o
 .Ar language/LC_CTYPE
 .Ar src-file
 .Sh DESCRIPTION
 The
-.Nm mklocale
+.Nm
 utility reads a
 .Dv LC_CTYPE
 source file from standard input and produces a
@@ -142,7 +142,7 @@ No translation and the default.
 .It Dv UTF2
 .Dv "Universal character set Transformation Format"
 adopted from
-.Nm "Plan 9 from Bell Labs" .
+.Tn "Plan 9 from Bell Labs" .
 This is the preferred encoding.
 .It Dv EUC
 .Dv EUC
@@ -201,11 +201,9 @@ Defines a map from runes to their digit value.
 is the integer value represented  by
 .Dv RUNE1 .
 For example, the ASCII character
-.Nm '0'
-would map to the decimal value
-.Nm 0 .
-Only values up to
-.Nm 255
+.Ql 0
+would map to the decimal value 0.
+Only values up to 255
 are allowed.
 .El
 .Pp
@@ -260,10 +258,10 @@ Defines runes which are phonograms, printable and graphic.
 .Xr utf2 4
 .Sh BUGS
 The
-.Nm mklocale
+.Nm
 utility is overly simplistic.
 .Sh HISTORY
 The
-.Nm mklocale
+.Nm
 utility first appeared in
 .Bx 4.4 .

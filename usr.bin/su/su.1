@@ -78,7 +78,7 @@ is set to the target login, unless the target login has a user ID of 0,
 in which case it is unmodified.
 The invoked shell is the target login's.
 This is the traditional behavior of
-.Nm su .
+.Nm .
 Resource limits and session priority applicable to the original user's
 login class (See
 .Xr login.conf 5 )
@@ -186,7 +186,7 @@ configure authentication services
 .Xr environ 7
 .Sh ENVIRONMENT
 Environment variables used by
-.Nm su :
+.Nm :
 .Bl -tag -width HOME
 .It Ev HOME
 Default home directory of real user ID unless modified as

@@ -42,11 +42,11 @@
 .Nm sed
 .Nd stream editor
 .Sh SYNOPSIS
-.Nm sed
+.Nm
 .Op Fl Ean
 .Ar command
 .Op Ar file ...
-.Nm sed
+.Nm
 .Op Fl Ean
 .Op Fl e Ar command
 .Op Fl f Ar command_file
@@ -59,7 +59,7 @@ are specified, modifying the input as specified by a list of commands.
 The input is then written to the standard output.
 .Pp
 A single command may be specified as the first argument to
-.Nm Ns .
+.Nm .
 Multiple commands may be specified by using the
 .Fl e
 or
@@ -167,7 +167,7 @@ of the exclamation character
 function.
 .Sh "Sed Regular Expressions"
 The regular expressions used in
-.Nm sed ,
+.Nm ,
 by default, are basic regular expressions (BREs, see
 .Xr re_format 7
 for more information).

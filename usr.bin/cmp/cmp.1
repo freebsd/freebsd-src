@@ -42,18 +42,18 @@
 .Nm cmp
 .Nd compare two files
 .Sh SYNOPSIS
-.Nm cmp
+.Nm
 .Op Fl l | Fl s | Fl x
 .Op Fl z
 .Ar file1 file2
 .Op Ar skip1 Op Ar skip2
 .Sh DESCRIPTION
 The
-.Nm cmp
+.Nm
 utility compares two files of any type and writes the results
 to the standard output.
 By default,
-.Nm cmp
+.Nm
 is silent if the files are the same; if they differ, the byte
 and line number at which the first difference occurred is reported.
 .Pp
@@ -90,7 +90,7 @@ The offset is decimal by default, but may be expressed as an hexadecimal
 or octal value by preceding it with a leading ``0x'' or ``0''.
 .Pp
 The
-.Nm cmp
+.Nm
 utility exits with one of the following values:
 .Bl -tag -width 4n
 .It 0
@@ -102,7 +102,7 @@ the other.
 In the latter case, if the
 .Fl s
 option has not been specified,
-.Nm cmp
+.Nm
 writes to standard error that EOF was reached in the shorter
 file (before any differences were found).
 .It >1
@@ -113,12 +113,12 @@ An error occurred.
 .Xr diff3 1
 .Sh STANDARDS
 The
-.Nm cmp
+.Nm
 utility is expected to be
 .St -p1003.2
 compatible.
 .Sh HISTORY
 A
-.Nm cmp
+.Nm
 command appeared in
 .At v1 .

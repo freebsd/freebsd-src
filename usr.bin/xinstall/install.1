@@ -39,14 +39,14 @@
 .Nm install
 .Nd install binaries
 .Sh SYNOPSIS
-.Nm install
+.Nm
 .Op Fl CcDMpsv
 .Op Fl f Ar flags
 .Op Fl g Ar group
 .Op Fl m Ar mode
 .Op Fl o Ar owner
 .Ar file1 file2
-.Nm install
+.Nm
 .Op Fl CcDMpsv
 .Op Fl f Ar flags
 .Op Fl g Ar group
@@ -55,7 +55,7 @@
 .Ar file1
 \&...
 .Ar fileN directory
-.Nm install
+.Nm
 .Fl d
 .Op Fl v
 .Op Fl g Ar group
@@ -85,7 +85,7 @@ then don't change the modification time of the target.
 .It Fl c
 Copy the file.
 This flag turns off the default behavior of
-.Nm install
+.Nm
 where it deletes the original file after creating the target.
 .It Fl D
 Print debugging information.

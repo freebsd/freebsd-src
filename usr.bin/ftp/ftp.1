@@ -48,11 +48,11 @@ file transfer program
 .Op Fl P Ar port
 .Op Fl s Ar src_addr
 .Op Ar host Op Ar port
-.Nm ftp
+.Nm
 ftp://[\fIuser\fR:\fIpassword\fR@]\fIhost\fR[:\fIport\fR]/\fIfile\fR[/]
-.Nm ftp
+.Nm
 http://\fIhost\fR[:\fIport\fR]/\fIfile\fR
-.Nm ftp
+.Nm
 \fIhost\fR:[/\fIpath\fR/]\fIfile\fR[/]
 .Sh DESCRIPTION
 .Nm
@@ -157,7 +157,7 @@ is awaiting commands from the user the prompt
 is provided to the user.
 The following commands are recognized
 by
-.Nm ftp  :
+.Nm :
 .Bl -tag -width Fl
 .It Ic \&! Op Ar command Op Ar args
 Invoke an interactive shell on the local machine.
@@ -209,7 +209,7 @@ Terminate the
 .Tn FTP
 session with the remote server
 and exit
-.Nm ftp .
+.Nm .
 An end of file will also terminate the session and exit.
 .It Ic case
 Toggle remote computer file name case mapping during
@@ -954,7 +954,7 @@ Return size of
 on remote machine.
 .It Ic status
 Show the current status of
-.Nm ftp .
+.Nm .
 .It Ic struct Op Ar struct-name
 Set the file transfer
 .Ar structure
@@ -1421,7 +1421,7 @@ The
 and
 .Xr gate-ftp 1
 commands are links to
-.Nm ftp .
+.Nm .
 .Sh HISTORY
 The
 .Nm

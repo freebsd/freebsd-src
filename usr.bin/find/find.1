@@ -41,7 +41,7 @@
 .Nm find
 .Nd walk a file hierarchy
 .Sh SYNOPSIS
-.Nm find
+.Nm
 .Op Fl H | Fl L | Fl P
 .Op Fl Xdsx
 .Op Fl f Ar pathname
@@ -103,12 +103,12 @@ quotes, backslash (``\e''), space, tab and newline characters.
 The
 .Fl d
 option causes
-.Nm find
+.Nm
 to perform a depth\-first traversal, i.e. directories
 are visited in post\-order and all entries in a directory will be acted
 on before the directory itself.
 By default,
-.Nm find
+.Nm
 visits directories in pre\-order, i.e. before their contents.
 Note, the default is
 .Ar not
@@ -117,7 +117,7 @@ a breadth\-first traversal.
 The
 .Fl f
 option specifies a file hierarchy for
-.Nm find
+.Nm
 to traverse.
 File hierarchies may also be specified as the operands immediately
 following the options.
@@ -125,7 +125,7 @@ following the options.
 The
 .Fl s
 option causes
-.Nm find
+.Nm
 to traverse the file hierarchies in lexicographical order,
 i.e., alphabetical order within each directory.
 Note: 
@@ -139,7 +139,7 @@ may give different results.
 The
 .Fl x
 option prevents
-.Nm find
+.Nm
 from descending into directories that have a device number different
 than that of the file from which the descent began.
 .El
@@ -147,27 +147,27 @@ than that of the file from which the descent began.
 .Bl -tag -width Ds
 .It Ic -amin Ar n 
 True if the difference between the file last access time and the time
-.Nm find
+.Nm
 was started, rounded up to the next full minute, is
 .Ar n
 minutes.
 .It Ic -atime Ar n 
 True if the difference between the file last access time and the time
-.Nm find
+.Nm
 was started, rounded up to the next full 24\-hour period, is
 .Ar n
 24\-hour periods.
 .It Ic -cmin Ar n 
 True if the difference between the time of last change of file status
 information and the time
-.Nm find
+.Nm
 was started, rounded up to the next full minute, is
 .Ar n
 minutes.
 .It Ic -ctime Ar n 
 True if the difference between the time of last change of file status
 information and the time
-.Nm find
+.Nm
 was started, rounded up to the next full 24\-hour period, is
 .Ar n
 24\-hour periods.
@@ -191,7 +191,7 @@ If the string ``{}'' appears anywhere in the utility name or the
 arguments it is replaced by the pathname of the current file.
 .Ar Utility
 will be executed from the directory from which
-.Nm find
+.Nm
 was executed.
 .It Ic -execdir Ar utility Op argument ... ; 
 The
@@ -217,7 +217,7 @@ sysctl vfs
 In addition, there are two pseudo-types, ``local'' and ``rdonly''.
 The former matches any file system physically mounted on the system where
 the
-.Nm find
+.Nm
 is being executed and the latter matches any file system which is
 mounted read-only.
 .It Ic -group Ar gname 
@@ -253,13 +253,13 @@ True if the depth of the current file into the tree is greater than or equal to
 .Ar n .
 .It Ic -mmin Ar n 
 True if the difference between the file last modification time and the time
-.Nm find
+.Nm
 was started, rounded up to the next full minute, is
 .Ar n
 minutes.
 .It Ic -mtime Ar n 
 True if the difference between the file last modification time and the time
-.Nm find
+.Nm
 was started, rounded up to the next full 24\-hour period, is
 .Ar n
 24\-hour periods.
@@ -269,7 +269,7 @@ The
 primary is identical to the
 .Ic -exec
 primary with the exception that
-.Nm find
+.Nm
 requests user affirmation for the execution of the utility by printing
 a message to the terminal and reading a response.
 If the response is other than ``y'' the command is not executed and the
@@ -369,7 +369,7 @@ character (character code 0).
 .It Ic -prune
 This primary always evaluates to true.
 It causes
-.Nm find
+.Nm
 to not descend into the current file.
 Note, the
 .Ic -prune
@@ -458,10 +458,10 @@ The second expression is not evaluated if the first expression is true.
 .El
 .Pp
 All operands and primaries must be separate arguments to
-.Nm find  .
+.Nm .
 Primaries which themselves take arguments expect each argument
 to be a separate argument to
-.Nm find  .
+.Nm .
 .Sh EXAMPLES
 .Pp
 The following examples are shown as given to the shell:
@@ -492,7 +492,7 @@ that are newer than ``ttt''.
 .Xr symlink 7
 .Sh STANDARDS
 The
-.Nm find
+.Nm
 utility syntax is a superset of the syntax specified by the
 .St -p1003.2
 standard.
@@ -534,7 +534,7 @@ This version replaces it no matter where in the utility name or arguments
 it appears.
 .Sh BUGS
 The special characters used by
-.Nm find
+.Nm
 are also special characters to many shell programs.
 In particular, the characters ``*'', ``['', ``]'', ``?'', ``('', ``)'',
 ``!'', ``\e'' and ``;'' may have to be escaped from the shell.
