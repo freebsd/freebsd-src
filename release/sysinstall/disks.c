@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.16 1995/05/11 06:10:48 jkh Exp $
+ * $Id: disks.c,v 1.17 1995/05/11 09:01:28 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -45,298 +45,58 @@
 #include <ctype.h>
 #include <sys/disklabel.h>
 
-/*
- * I make some pretty gross assumptions about having a max of 50 chunks
- * total - 8 slices and 42 partitions.  I can't easily display many more
- * than that on the screen at once!
- *
- * For 2.1 I'll revisit this and try to make it more dynamic, but since
- * this will catch 99.99% of all possible cases, I'm not too worried.
- */
+/* Where we start displaying chunk information on the screen */
+#define CHUNK_START_ROW		5
 
-#define MAX_CHUNKS	50
-
-/* Where to start printing the freebsd slices */
-#define CHUNK_SLICE_START_ROW		2
-#define CHUNK_PART_START_ROW		10
-
-/* The smallest filesystem we're willing to create */
-#define FS_MIN_SIZE			2048
-
-#define MSG_NOT_APPLICABLE		"That option is not applicable here"
-
-static struct {
-    struct disk *d;
-    struct chunk *c;
-    PartType type;
-} fbsd_chunk_info[MAX_CHUNKS + 1];
+/* Where we keep track of MBR chunks */
+static struct chunk *chunk_info[10];
 static int current_chunk;
 
-
-static Boolean
-check_conflict(char *name)
+static void
+record_chunks(Disk *d)
 {
-    int i;
-
-    for (i = 0; fbsd_chunk_info[i].d; i++)
-	if (fbsd_chunk_info[i].type == PART_FILESYSTEM &&
-	    fbsd_chunk_info[i].c->private &&
-	    !strcmp(((PartInfo *)fbsd_chunk_info[i].c->private)->mountpoint,
-		    name))
-	    return TRUE;
-    return FALSE;
-}
-
-static int
-space_free(struct chunk *c)
-{
-    struct chunk *c1 = c->part;
-    int sz = c->size;
-
+    struct chunk *c1;
+    int i = 0;
+    int last_free = 0;
+    if (!d->chunks)
+	msgFatal("No chunk list found for %s!", d->name);
+    c1 = d->chunks->part;
+    current_chunk = 0;
     while (c1) {
-	if (c1->type != unused)
-	    sz -= c1->size;
+	if (c1->type == unused && c1->size > last_free) {
+	    last_free = c1->size;
+	    current_chunk = i;
+	}
+	chunk_info[i++] = c1;
 	c1 = c1->next;
     }
-    if (sz < 0)
-	msgFatal("Partitions are larger than actual chunk??");
-    return sz;
+    chunk_info[i] = NULL;
 }
 
 static void
-record_fbsd_chunks()
+print_chunks(Disk *d)
 {
-    int i, j, p;
-    struct chunk *c1, *c2;
+    int row;
+    int i;
 
-    j = p = 0;
-    for (i = 0; Disks[i]; i++) {
-	if (!Disks[i]->chunks)
-	    msgFatal("No chunk list found for %s!", Disks[i]->name);
-
-	/* Put the freebsd chunks first */
-	for (c1 = Disks[i]->chunks->part; c1; c1 = c1->next) {
-	    if (c1->type == freebsd) {
-		fbsd_chunk_info[j].type = PART_SLICE;
-		fbsd_chunk_info[j].d = Disks[i];
-		fbsd_chunk_info[j].c = c1;
-		++j;
-	    }
-	}
-    }
-    for (i = 0; Disks[i]; i++) {
-	/* Then buzz through and pick up the partitions */
-	for (c1 = Disks[i]->chunks->part; c1; c1 = c1->next) {
-	    if (c1->type == freebsd) {
-		for (c2 = c1->part; c2; c2 = c2->next) {
-		    if (c2->type == part) {
-			if (c2->subtype == FS_SWAP)
-			    fbsd_chunk_info[j].type = PART_SWAP;
-			else
-			    fbsd_chunk_info[j].type = PART_FILESYSTEM;
-			fbsd_chunk_info[j].d = Disks[i];
-			fbsd_chunk_info[j].c = c2;
-			++j;
-		    }
-		}
-	    }
-	}
-    }
-    fbsd_chunk_info[j].d = NULL;
-    fbsd_chunk_info[j].c = NULL;
-    if (current_chunk >= j)
-	current_chunk = j  ? j - 1 : 0;
-}
-
-static PartInfo *
-new_part(char *mpoint, Boolean newfs)
-{
-    PartInfo *ret;
-
-    ret = (PartInfo *)safe_malloc(sizeof(PartInfo));
-    strncpy(ret->mountpoint, mpoint, FILENAME_MAX);
-    strcpy(ret->newfs_cmd, "newfs");
-    ret->newfs = newfs;
-    return ret;
-}
-
-PartInfo *
-get_mountpoint(struct chunk *c)
-{
-    char *val;
-    PartInfo *tmp;
-
-    val = msgGetInput(c && c->private ?
-		      ((PartInfo *)c->private)->mountpoint : NULL,
-		      "Please specify a mount point for the partition");
-    if (val) {
-	if (check_conflict(val)) {
-	    msgConfirm("You already have a mount point for %s assigned!", val);
-	    return NULL;
-	}
-	else if (*val != '/') {
-	    msgConfirm("Mount point must start with a / character");
-	    return NULL;
-	}
-	else if (!strcmp(val, "/")) {
-	    if (c) {
-	    	if (c->flags & CHUNK_PAST_1024) {
-		    msgConfirm("This region cannot be used for your root partition as\nit is past the 1024'th cylinder mark and the system would not be\nable to boot from it.  Please pick another location for your\nroot partition and try again!");
-		    return NULL;
-		}
-#if 0	/* This never seems to be set */
-		else if (!(c->flags & CHUNK_BSD_COMPAT)) {
-		    msgConfirm("This region cannot be used for your root partition as\nthe FreeBSD boot code cannot deal with a root partition created in\nsuch a region.  Please choose another partition for this.");
-		    return NULL;
-		}
-#endif
-		else
-		    c->flags |= CHUNK_IS_ROOT;
-	    }
-	}
-	else if (c)
-	    c->flags &= ~CHUNK_IS_ROOT;
-	safe_free(c ? c->private : NULL);
-	tmp = new_part(val, TRUE);
-	if (c) {
-	    c->private = tmp;
-	    c->private_free = safe_free;
-	}
-	return tmp;
-    }
-    return NULL;
-}
-
-static PartType
-get_partition_type(void)
-{
-    char selection[20];
-    static unsigned char *fs_types[] = {
-	"FS",
-	"A file system",
-	"Swap",
-	"A swap partition.",
-    };
-
-    if (!dialog_menu("Please choose a partition type",
-		    "If you want to use this partition for swap space, select Swap.\nIf you want to put a filesystem on it, choose FS.", -1, -1, 2, 2, fs_types, selection, NULL, NULL)) {
-	if (!strcmp(selection, "FS"))
-	    return PART_FILESYSTEM;
-	else if (!strcmp(selection, "Swap"))
-	    return PART_SWAP;
-    }
-    return PART_NONE;
-}
-
-static void
-getNewfsCmd(PartInfo *p)
-{
-    char *val;
-
-    val = msgGetInput(p->newfs_cmd,
-		      "Please enter the newfs command and options you'd like to use in\ncreating this file system.");
-    if (val)
-	strncpy(p->newfs_cmd, val, NEWFS_CMD_MAX);
-}
-
-
-#define MAX_MOUNT_NAME	12
-
-#define PART_PART_COL	0
-#define PART_MOUNT_COL	8
-#define PART_SIZE_COL	(PART_MOUNT_COL + MAX_MOUNT_NAME + 3)
-#define PART_NEWFS_COL	(PART_SIZE_COL + 7)
-#define PART_OFF	38
-
-/* How many mounted partitions to display in column before going to next */
-#define CHUNK_COLUMN_MAX	6
-
-static void
-print_fbsd_chunks(void)
-{
-    int i, j, srow, prow, pcol;
-    int sz;
-
-    attrset(A_REVERSE);
-    mvaddstr(0, 25, "FreeBSD Partition Editor");
     attrset(A_NORMAL);
-
-    for (i = 0; i < 2; i++) {
-	attrset(A_UNDERLINE);
-	mvaddstr(CHUNK_PART_START_ROW - 1, PART_PART_COL + (i * PART_OFF),
-		 "Part");
-	attrset(A_NORMAL);
-
-	attrset(A_UNDERLINE);
-	mvaddstr(CHUNK_PART_START_ROW - 1, PART_MOUNT_COL + (i * PART_OFF),
-		 "Mount");
-	attrset(A_NORMAL);
-
-	attrset(A_UNDERLINE);
-	mvaddstr(CHUNK_PART_START_ROW - 1, PART_SIZE_COL + (i * PART_OFF) + 2,
-		 "Size");
-	attrset(A_NORMAL);
-
-	attrset(A_UNDERLINE);
-	mvaddstr(CHUNK_PART_START_ROW - 1, PART_NEWFS_COL + (i * PART_OFF),
-		 "Newfs");
-	attrset(A_NORMAL);
-    }
-
-    srow = CHUNK_SLICE_START_ROW;
-    prow = CHUNK_PART_START_ROW;
-    pcol = 0;
-
-    for (i = 0; fbsd_chunk_info[i].d; i++) {
+    mvaddstr(0, 0, "Disk name:\t");
+    attrset(A_REVERSE); addstr(d->name); attrset(A_NORMAL);
+    attrset(A_REVERSE); mvaddstr(0, 55, "Master Partition Editor"); attrset(A_NORMAL);
+    mvprintw(1, 0,
+	     "BIOS Geometry:\t%lu cyls/%lu heads/%lu sectors",
+	     d->bios_cyl, d->bios_hd, d->bios_sect);
+    mvprintw(3, 1, "%10s %10s %10s %8s %8s %8s %8s %8s",
+	     "Offset", "Size", "End", "Name", "PType", "Desc",
+	     "Subtype", "Flags");
+    for (i = 0, row = CHUNK_START_ROW; chunk_info[i]; i++, row++) {
 	if (i == current_chunk)
 	    attrset(A_REVERSE);
-	/* Is it a slice entry displayed at the top? */
-	if (fbsd_chunk_info[i].type == PART_SLICE) {
-	    sz = space_free(fbsd_chunk_info[i].c);
-	    mvprintw(srow++, 0,
-		     "Disk: %s\tPartition name: %s\tFree: %d blocks (%dMB)",
-		     fbsd_chunk_info[i].d->name,
-		     fbsd_chunk_info[i].c->name, sz, (sz / 2048));
-	}
-	/* Otherwise it's a swap or filesystem entry, at the bottom */
-	else {
-	    char onestr[PART_OFF], num[10], *mountpoint, *newfs;
-
-	    memset(onestr, ' ', PART_OFF - 1);
-	    onestr[PART_OFF - 1] = '\0';
-	    /* Go for two columns */
-	    if (prow == (CHUNK_PART_START_ROW + CHUNK_COLUMN_MAX)) {
-		pcol = PART_OFF;
-		prow = CHUNK_PART_START_ROW;
-	    }
-	    memcpy(onestr + PART_PART_COL, fbsd_chunk_info[i].c->name,
-		   strlen(fbsd_chunk_info[i].c->name));
-	    if (fbsd_chunk_info[i].type == PART_FILESYSTEM) {
-		if (fbsd_chunk_info[i].c->private) {
-		    mountpoint = ((PartInfo *)fbsd_chunk_info[i].c->private)->mountpoint;
-		    newfs = ((PartInfo *)fbsd_chunk_info[i].c->private)->newfs ? "Y" : "N";
-		}
-		else {
-		    fbsd_chunk_info[i].c->private = new_part("", FALSE);
-		    fbsd_chunk_info[i].c->private_free = safe_free;
-		    mountpoint = " ";
-		    newfs = "N";
-		}
-	    }
-	    else {
-		mountpoint = "swap";
-		newfs = " ";
-	    }
-	    for (j = 0; j < MAX_MOUNT_NAME && mountpoint[j]; j++)
-		onestr[PART_MOUNT_COL + j] = mountpoint[j];
-	    snprintf(num, 10, "%4ldMB", fbsd_chunk_info[i].c->size ?
-		    fbsd_chunk_info[i].c->size / 2048 : 0);
-	    memcpy(onestr + PART_SIZE_COL, num, strlen(num));
-	    memcpy(onestr + PART_NEWFS_COL, newfs, strlen(newfs));
-	    onestr[PART_NEWFS_COL + strlen(newfs)] = '\0';
-	    mvaddstr(prow, pcol, onestr);
-	    ++prow;
-	}
+	mvprintw(row, 2, "%10lu %10lu %10lu %8s %8d %8s %8d %6lx",
+		 chunk_info[i]->offset, chunk_info[i]->size,
+		 chunk_info[i]->end, chunk_info[i]->name,
+		 chunk_info[i]->type, chunk_n[chunk_info[i]->type],
+		 chunk_info[i]->subtype, chunk_info[i]->flags);
 	if (i == current_chunk)
 	    attrset(A_NORMAL);
     }
@@ -345,46 +105,44 @@ print_fbsd_chunks(void)
 static void
 print_command_summary()
 {
-    mvprintw(17, 0,
-	     "The following commands are valid here (upper or lower case):");
-    mvprintw(19, 0, "C = Create Partition   D = Delete Partition   M = Mount Partition");
-    mvprintw(20, 0, "N = Newfs Options      T = Toggle Newfs       ESC = Finish Partitioning");
-    mvprintw(21, 0, "The default target will be displayed in ");
-
-    attrset(A_REVERSE);
-    addstr("reverse video.");
-    attrset(A_NORMAL);
-    mvprintw(22, 0, "Use F1 or ? to get more help, arrow keys to move.");
+    mvprintw(14, 0, "The following commands are supported (in upper or lower case):");
+    mvprintw(16, 0, "A = Use Entire Disk    B = Bad Block Scan     C = Create Partition");
+    mvprintw(17, 0, "D = Delete Partition   G = Set BIOS Geometry  S = Set Bootable");
+    mvprintw(18, 0, "U = Undo All Changes   W = `Wizard' Mode      ESC = Proceed to next screen");
+    mvprintw(20, 0, "The currently selected partition is displayed in ");
+    attrset(A_REVERSE); addstr("reverse video."); attrset(A_NORMAL);
+    mvprintw(21, 0, "Use F1 or ? to get more help, arrow keys to move.");
     move(0, 0);
 }
 
-void
-partition_disks(void)
+static Disk *
+diskPartition(Disk *d)
 {
-    int sz, key = 0;
-    Boolean partitioning;
+    char *p;
+    int key = 0;
+    Boolean chunking;
     char *msg = NULL;
-    PartInfo *p;
-    PartType type;
+    char name[40];
 
     dialog_clear();
-    partitioning = TRUE;
+    chunking = TRUE;
+    strncpy(name, d->name, 40);
     keypad(stdscr, TRUE);
-    record_fbsd_chunks();
 
-    while (partitioning) {
+    record_chunks(d);
+    while (chunking) {
 	clear();
-	print_fbsd_chunks();
+	print_chunks(d);
 	print_command_summary();
 	if (msg) {
-	    attrset(A_REVERSE); mvprintw(23, 0, msg); attrset(A_NORMAL);
+	    standout(); mvprintw(23, 0, msg); standend();
 	    beep();
 	    msg = NULL;
 	}
 	refresh();
+
 	key = toupper(getch());
 	switch (key) {
-
 	case KEY_UP:
 	case '-':
 	    if (current_chunk != 0)
@@ -395,7 +153,7 @@ partition_disks(void)
 	case '+':
 	case '\r':
 	case '\n':
-	    if (fbsd_chunk_info[current_chunk + 1].d)
+	    if (chunk_info[current_chunk + 1])
 		++current_chunk;
 	    break;
 
@@ -404,138 +162,104 @@ partition_disks(void)
 	    break;
 
 	case KEY_END:
-	    while (fbsd_chunk_info[current_chunk + 1].d)
+	    while (chunk_info[current_chunk + 1])
 		++current_chunk;
 	    break;
 
 	case KEY_F(1):
 	case '?':
-	    systemDisplayFile("partitioning.hlp");
+	    systemDisplayFile("slice.hlp");
+	    break;
+
+	case 'A':
+	    All_FreeBSD(d);
+	    record_chunks(d);
+	    break;
+
+	case 'B':
+	    if (chunk_info[current_chunk]->type != freebsd)
+		msg = "Can only scan for bad blocks in FreeBSD partition.";
+	    else if (strncmp(name, "sd", 2) ||
+		     !msgYesNo("This typically makes sense only for ESDI, IDE or MFM drives.\nAre you sure you want to do this on a SCSI disk?"))
+		chunk_info[current_chunk]->flags |= CHUNK_BAD144;
 	    break;
 
 	case 'C':
-	    if (fbsd_chunk_info[current_chunk].type != PART_SLICE) {
-		msg = "You can only do this in a master partition (see top of screen)";
-		break;
-	    }
-	    sz = space_free(fbsd_chunk_info[current_chunk].c);
-	    if (sz <= FS_MIN_SIZE)
-		msg = "Not enough space to create additional FreeBSD partition";
+	    if (chunk_info[current_chunk]->type != unused)
+		msg = "Partition in use, delete it first or move to an unused one.";
 	    else {
-		char *val, *cp, tmp[20];
+		char *val, tmp[20];
 		int size;
 
-		snprintf(tmp, 20, "%d", sz);
-		val = msgGetInput(tmp, "Please specify the size for new FreeBSD partition in blocks, or append\na trailing `M' for megabytes (e.g. 20M).");
-		if (val && (size = strtol(val, &cp, 0)) > 0) {
-		    struct chunk *tmp;
-		    u_long flags = 0;
-
-		    if (*cp && toupper(*cp) == 'M')
-			size *= 2048;
-		    
-		    type = get_partition_type();
-		    if (type == PART_NONE)
-			break;
-		    else if (type == PART_FILESYSTEM) {
-			if ((p = get_mountpoint(NULL)) == NULL)
-			    break;
-			else if (!strcmp(p->mountpoint, "/"))
-			    flags |= CHUNK_IS_ROOT;
-			else
-			    flags &= ~CHUNK_IS_ROOT;
-		    }
-		    else
-			p = NULL;
-
-		    tmp = Create_Chunk_DWIM(fbsd_chunk_info[current_chunk].d,
-					    fbsd_chunk_info[current_chunk].c,
-					    size,
-					    part,
-					    (type == PART_SWAP) ?
-					    FS_SWAP : FS_BSDFFS,
-					    flags);
-		    if (!tmp)
-			msgConfirm("Unable to create the partition.  Too big?");
-		    else {
-			tmp->private = p;
-			tmp->private_free = safe_free;
-			record_fbsd_chunks();
-		    }
+		snprintf(tmp, 20, "%d", chunk_info[current_chunk]->size);
+		val = msgGetInput(tmp, "Please specify size for new FreeBSD partition");
+		if (val && (size = strtol(val, 0, 0)) > 0) {
+		    Create_Chunk(d, chunk_info[current_chunk]->offset,
+				 size,
+				 freebsd,
+				 3,
+				 (chunk_info[current_chunk]->flags &
+				  CHUNK_ALIGN));
+		    record_chunks(d);
 		}
 	    }
 	    break;
 
-	case 'D':	/* delete */
-	    if (fbsd_chunk_info[current_chunk].type == PART_SLICE) {
-		msg = MSG_NOT_APPLICABLE;
-		break;
-	    }
-	    Delete_Chunk(fbsd_chunk_info[current_chunk].d,
-			 fbsd_chunk_info[current_chunk].c);
-	    record_fbsd_chunks();
-	    break;
-
-	case 'M':	/* mount */
-	    switch(fbsd_chunk_info[current_chunk].type) {
-	    case PART_SLICE:
-		msg = MSG_NOT_APPLICABLE;
-		break;
-
-	    case PART_SWAP:
-		msg = "You don't need to specify a mountpoint for a swap partition.";
-		break;
-
-	    case PART_FILESYSTEM:
-		p = get_mountpoint(fbsd_chunk_info[current_chunk].c);
-		if (p) {
-		    p->newfs = FALSE;
-		    record_fbsd_chunks();
-		}
-		break;
-
-	    default:
-		msgFatal("Bogus partition under cursor???");
-		break;
+	case 'D':
+	    if (chunk_info[current_chunk]->type == unused)
+		msg = "Partition is already unused!";
+	    else {
+		Delete_Chunk(d, chunk_info[current_chunk]);
+		record_chunks(d);
 	    }
 	    break;
 
-	case 'N':	/* Set newfs options */
-	    if (fbsd_chunk_info[current_chunk].c->private &&
-		((PartInfo *)fbsd_chunk_info[current_chunk].c->private)->newfs)
-		getNewfsCmd(fbsd_chunk_info[current_chunk].c->private);
-	    else
-		msg = MSG_NOT_APPLICABLE;
+	case 'G': {
+	    char *val, geometry[80];
+
+	    snprintf(geometry, 80, "%lu/%lu/%lu",
+		     d->bios_cyl, d->bios_hd, d->bios_sect);
+	    val = msgGetInput(geometry,
+"Please specify the new geometry in cyl/hd/sect format.\nDon't forget to use the two slash (/) separator characters!\nIt's not possible to parse the field without them.");
+	    if (val) {
+		d->bios_cyl = strtol(val, &val, 0);
+		d->bios_hd = strtol(val + 1, &val, 0);
+		d->bios_sect = strtol(val + 1, 0, 0);
+	    }
+	}
 	    break;
 
-	case 'T':	/* Toggle newfs state */
-	    if (fbsd_chunk_info[current_chunk].c->private)
-		((PartInfo *)fbsd_chunk_info[current_chunk].c->private)->newfs = !((PartInfo *)fbsd_chunk_info[current_chunk].c->private)->newfs;
-	    else
-		msg = MSG_NOT_APPLICABLE;
+	case 'S':
+	    /* Set Bootable */
+	    chunk_info[current_chunk]->flags |= CHUNK_ACTIVE;
+	    break;
+
+	case 'U':
+	    Free_Disk(d);
+	    d = Open_Disk(name);
+	    if (!d)
+		msgFatal("Can't reopen disk %s!", name);
+	    record_chunks(d);
 	    break;
 
 	case 'W':
-	    if (!msgYesNo("Are you sure you want to go into Wizard mode?\n\nThis is an entirely undocumented feature which you are not\nexpected to understand!")) {
-		int i;
-
+	    if (!msgYesNo("Are you sure you want to go into Wizard mode?\nNo seat belts whatsoever are provided!")) {
 		clear();
 		dialog_clear();
 		end_dialog();
 		DialogActive = FALSE;
-		for (i = 0; Disks[i]; i++)
-		    slice_wizard(Disks[i]);
+		slice_wizard(d);
 		clear();
 		dialog_clear();
 		DialogActive = TRUE;
-		record_fbsd_chunks();
+		record_chunks(d);
 	    }
 	    else
-		msg = "A most prudent choice!";
+		msg = "Wise choice!";
 	    break;
 
 	case 27:	/* ESC */
-	    partitioning = FALSE;
+	    chunking = FALSE;
 	    break;
 
 	default:
@@ -544,31 +268,65 @@ partition_disks(void)
 	    break;
 	}
     }
+    p = CheckRules(d);
+    if (p) {
+	msgConfirm(p);
+	free(p);
+    }
+    clear();
+    refresh();
+    variable_set2(DISK_PARTITIONED, "yes");
+    return d;
 }
 
-int
-write_disks(void)
+static int
+partitionHook(char *str)
 {
-    int i;
-    extern u_char boot1[], boot2[];
-    extern u_char mbr[], bteasy17[];
+    Device *devs;
 
-    dialog_clear();
-    for (i = 0; Disks[i]; i++) {
-	Set_Boot_Blocks(Disks[i], boot1, boot2);
-	dialog_clear();
-	if (i == 0 && !msgYesNo("Would you like to install a boot manager?\n\nThis will allow you to easily select between other operating systems\non the first disk, or boot from a disk other than the first."))
-	    Set_Boot_Mgr(Disks[i], bteasy17);
-	else {
-	    dialog_clear();
-	    if (i == 0 && !msgYesNo("Would you like to remove an existing boot manager?"))
-		Set_Boot_Mgr(Disks[i], mbr);
-	}
-	dialog_clear();
-	if (!msgYesNo("Last Chance!  Are you sure you want to write out\nall these changes to disk?")) {
-	    Write_Disk(Disks[i]);
+    /* Clip garbage off the ends */
+    string_prune(str);
+    str = string_skipwhite(str);
+    /* Try and open all the disks */
+    while (str) {
+	char *cp;
+
+	cp = index(str, '\n');
+	if (cp)
+	   *cp++ = 0;
+	if (!*str) {
+	    beep();
 	    return 0;
 	}
+	devs = deviceFind(str, DEVICE_TYPE_DISK);
+	if (!devs) {
+	    msgConfirm("Unable to find disk %s!", str);
+	    return 0;
+	}
+	else if (devs[1])
+	    msgConfirm("Bizarre multiple match for %s!", str);
+	devs[0]->private = diskPartition((Disk *)devs[0]->private);
+	str = cp;
     }
-    return 1;
+    return devs ? 1 : 0;
+}
+
+extern DMenu MenuInstall;
+
+int
+diskPartitionEditor(char *str)
+{
+    int scroll, choice, curr, max;
+    extern DMenu MenuDiskDevices;
+    DMenu *menu;
+
+    menu = deviceCreateMenu(&MenuDiskDevices, DEVICE_TYPE_DISK, partitionHook);
+    if (!menu) {
+	msgConfirm("No devices suitable for installation found!\n\nPlease verify that your disk controller (and attached drives) were detected properly.  This can be done by selecting the ``Bootmsg'' option on the main menu and reviewing the boot messages carefully.");
+	return 0;
+    }
+    choice = scroll = curr = max = 0;
+    dmenuOpen(menu, &choice, &scroll, &curr, &max);
+    free(menu);
+    return 0;
 }
