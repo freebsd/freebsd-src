@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: async.c,v 1.5.2.4 1997/08/25 00:34:20 brian Exp $
+ * $Id: async.c,v 1.5.2.5 1998/01/26 20:04:15 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -48,8 +48,8 @@ static struct async_state {
   int length;
   u_char hbuff[HDLCSIZE];	/* recv buffer */
   u_char xbuff[HDLCSIZE];	/* xmit buffer */
-  u_long my_accmap;
-  u_long his_accmap;
+  u_int32_t my_accmap;
+  u_int32_t his_accmap;
 } AsyncState;
 
 #define MODE_HUNT 0x01
