@@ -913,10 +913,10 @@
 	  <para>SK-9841 1000baseLX single mode fiber, single port</para>
         </listitem>
         <listitem>
-	  <para>SK-9842 1000baseSX multimode fiber, single port</para>
+	  <para>SK-9842 1000baseLX single mode fiber, dual port</para>
         </listitem>
         <listitem>
-	  <para>SK-9843 1000baseLX single mode fiber, dual port</para>
+	  <para>SK-9843 1000baseSX multimode fiber, single port</para>
         </listitem>
         <listitem>
 	  <para>SK-9844 1000baseSX multimode fiber, dual port</para>
