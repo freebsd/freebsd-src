@@ -29,7 +29,7 @@
 #ifndef SRANDOM_PROTO
 extern void srandom P((unsigned int seed));
 #endif
-#ifndef linux
+#if !defined(linux) && !defined(__FreeBSD__)
 extern char *initstate P((unsigned seed, char *state, int n));
 extern char *setstate P((char *state));
 extern long random P((void));
