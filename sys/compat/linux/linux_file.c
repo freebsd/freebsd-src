@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_file.c,v 1.12 1997/03/24 11:24:29 bde Exp $
+ *  $Id: linux_file.c,v 1.13 1997/04/05 14:50:56 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -35,16 +35,11 @@
 #include <sys/file.h>
 #include <sys/filedesc.h>
 #include <sys/proc.h>
-#include <sys/stat.h>
 #include <sys/vnode.h>
 #include <sys/malloc.h>
-#include <sys/exec.h>
 #include <sys/dirent.h>
-#include <sys/sysproto.h>
 #include <sys/conf.h>
 #include <sys/tty.h>
-
-#include <ufs/ufs/dir.h>
 
 #include <i386/linux/linux.h>
 #include <i386/linux/linux_proto.h>
@@ -447,6 +442,7 @@ linux_getdents(struct proc *p, struct linux_getdents_args *args, int *retval)
 	justone = 0;
 
     off = fp->f_offset;
+#define	DIRBLKSIZ	512		/* XXX we used to use ufs's DIRBLKSIZ */
     buflen = max(DIRBLKSIZ, nbytes);
     buflen = min(buflen, MAXBSIZE);
     buf = malloc(buflen, M_TEMP, M_WAITOK);
