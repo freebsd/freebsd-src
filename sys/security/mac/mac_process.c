@@ -141,22 +141,17 @@ SYSCTL_INT(_security_mac, OID_AUTO, enforce_process, CTLFLAG_RW,
     &mac_enforce_process, 0, "Enforce MAC policy on inter-process operations");
 TUNABLE_INT("security.mac.enforce_process", &mac_enforce_process);
 
-static int	mac_enforce_reboot = 1;
-SYSCTL_INT(_security_mac, OID_AUTO, enforce_reboot, CTLFLAG_RW,
-    &mac_enforce_reboot, 0, "Enforce MAC policy for reboot operations");
-TUNABLE_INT("security.mac.enforce_reboot", &mac_enforce_reboot);
-
 static int	mac_enforce_socket = 1;
 SYSCTL_INT(_security_mac, OID_AUTO, enforce_socket, CTLFLAG_RW,
     &mac_enforce_socket, 0, "Enforce MAC policy on socket operations");
 TUNABLE_INT("security.mac.enforce_socket", &mac_enforce_socket);
 
-static int	mac_enforce_sysctl = 1;
-SYSCTL_INT(_security_mac, OID_AUTO, enforce_sysctl, CTLFLAG_RW,
-    &mac_enforce_sysctl, 0, "Enforce MAC policy on sysctl operations");
-TUNABLE_INT("security.mac.enforce_sysctl", &mac_enforce_sysctl);
+static int	mac_enforce_system = 1;
+SYSCTL_INT(_security_mac, OID_AUTO, enforce_system, CTLFLAG_RW,
+    &mac_enforce_system, 0, "Enforce MAC policy on system operations");
+TUNABLE_INT("security.mac.enforce_system", &mac_enforce_system);
 
-static int     mac_enforce_vm = 1;
+static int	mac_enforce_vm = 1;
 SYSCTL_INT(_security_mac, OID_AUTO, enforce_vm, CTLFLAG_RW,
     &mac_enforce_vm, 0, "Enforce MAC policy on vm operations");
 TUNABLE_INT("security.mac.enforce_vm", &mac_enforce_vm);
@@ -3021,10 +3016,11 @@ mac_check_system_reboot(struct ucred *cred, int howto)
 
 	ASSERT_VOP_LOCKED(vp, "mac_check_system_reboot");
 
-	if (!mac_enforce_reboot)
+	if (!mac_enforce_system)
 		return (0);
 
 	MAC_CHECK(check_system_reboot, cred, howto);
+
 	return (error);
 }
 
@@ -3035,7 +3031,7 @@ mac_check_system_swapon(struct ucred *cred, struct vnode *vp)
 
 	ASSERT_VOP_LOCKED(vp, "mac_check_system_swapon");
 
-	if (!mac_enforce_fs)
+	if (!mac_enforce_system)
 		return (0);
 
 	MAC_CHECK(check_system_swapon, cred, vp, &vp->v_label);
@@ -3052,7 +3048,7 @@ mac_check_system_sysctl(struct ucred *cred, int *name, u_int namelen,
 	 * XXXMAC: We're very much like to assert the SYSCTL_LOCK here,
 	 * but since it's not exported from kern_sysctl.c, we can't.
 	 */
-	if (!mac_enforce_sysctl)
+	if (!mac_enforce_system)
 		return (0);
 
 	MAC_CHECK(check_system_sysctl, cred, name, namelen, old, oldlenp,
