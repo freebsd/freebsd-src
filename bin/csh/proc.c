@@ -32,7 +32,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)proc.c	8.1 (Berkeley) 5/31/93";
+static char sccsid[] = "@(#)proc.c	8.2 (Berkeley) 3/22/95";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -201,17 +201,19 @@ pnote()
 {
     register struct process *pp;
     int     flags;
-    sigset_t omask;
+    sigset_t sigset, osigset;
 
     neednote = 0;
+    sigemptyset(&sigset);
+    sigaddset(&sigset, SIGCHLD);
     for (pp = proclist.p_next; pp != NULL; pp = pp->p_next) {
 	if (pp->p_flags & PNEEDNOTE) {
-	    omask = sigblock(sigmask(SIGCHLD));
+	    sigprocmask(SIG_BLOCK, &sigset, &osigset);
 	    pp->p_flags &= ~PNEEDNOTE;
 	    flags = pprint(pp, NUMBER | NAME | REASON);
 	    if ((flags & (PRUNNING | PSTOPPED)) == 0)
 		pflush(pp);
-	    (void) sigsetmask(omask);
+	    sigprocmask(SIG_SETMASK, &osigset, NULL);
 	}
     }
 }
@@ -224,12 +226,14 @@ void
 pwait()
 {
     register struct process *fp, *pp;
-    sigset_t omask;
+    sigset_t sigset, osigset;
 
     /*
      * Here's where dead procs get flushed.
      */
-    omask = sigblock(sigmask(SIGCHLD));
+    sigemptyset(&sigset);
+    sigaddset(&sigset, SIGCHLD);
+    sigprocmask(SIG_BLOCK, &sigset, &osigset);
     for (pp = (fp = &proclist)->p_next; pp != NULL; pp = (fp = pp)->p_next)
 	if (pp->p_pid == 0) {
 	    fp->p_next = pp->p_next;
@@ -240,7 +244,7 @@ pwait()
 	    xfree((ptr_t) pp);
 	    pp = fp;
 	}
-    (void) sigsetmask(omask);
+    sigprocmask(SIG_SETMASK, &osigset, NULL);
     pjwait(pcurrjob);
 }
 
@@ -255,7 +259,7 @@ pjwait(pp)
 {
     register struct process *fp;
     int     jobflags, reason;
-    sigset_t omask;
+    sigset_t sigset, osigset;
 
     while (pp->p_pid != pp->p_jobid)
 	pp = pp->p_friends;
@@ -270,9 +274,13 @@ pjwait(pp)
      * target process, or any of its friends, are running
      */
     fp = pp;
-    omask = sigblock(sigmask(SIGCHLD));
+    sigemptyset(&sigset);
+    sigaddset(&sigset, SIGCHLD);
+    sigprocmask(SIG_BLOCK, &sigset, &osigset);
     for (;;) {
-	(void) sigblock(sigmask(SIGCHLD));
+	sigemptyset(&sigset);
+	sigaddset(&sigset, SIGCHLD);
+	sigprocmask(SIG_BLOCK, &sigset, NULL);
 	jobflags = 0;
 	do
 	    jobflags |= fp->p_flags;
@@ -280,12 +288,14 @@ pjwait(pp)
 	if ((jobflags & PRUNNING) == 0)
 	    break;
 #ifdef JOBDEBUG
-	(void) fprintf(csherr, "starting to sigpause for  SIGCHLD on %d\n",
+	(void) fprintf(csherr, "starting to sigsuspend for  SIGCHLD on %d\n",
 		       fp->p_pid);
 #endif				/* JOBDEBUG */
-	(void) sigpause(omask & ~sigmask(SIGCHLD));
+	sigset = osigset;
+	sigdelset(&sigset, SIGCHLD);
+	sigsuspend(&sigset);
     }
-    (void) sigsetmask(omask);
+    sigprocmask(SIG_SETMASK, &osigset, NULL);
     if (tpgrp > 0)		/* get tty back */
 	(void) tcsetpgrp(FSHTTY, tpgrp);
     if ((jobflags & (PSIGNALED | PSTOPPED | PTIME)) ||
@@ -344,18 +354,21 @@ dowait(v, t)
     struct command *t;
 {
     register struct process *pp;
-    sigset_t omask;
+    sigset_t sigset, osigset;
 
     pjobs++;
-    omask = sigblock(sigmask(SIGCHLD));
+    sigemptyset(&sigset);
+    sigaddset(&sigset, SIGCHLD);
+    sigprocmask(SIG_BLOCK, &sigset, &osigset);
 loop:
     for (pp = proclist.p_next; pp; pp = pp->p_next)
 	if (pp->p_pid &&	/* pp->p_pid == pp->p_jobid && */
 	    pp->p_flags & PRUNNING) {
-	    (void) sigpause((sigset_t) 0);
+	    sigemptyset(&sigset);
+	    sigsuspend(&sigset);
 	    goto loop;
 	}
-    (void) sigsetmask(omask);
+    sigprocmask(SIG_SETMASK, &osigset, NULL);
     pjobs = 0;
 }
 
@@ -999,13 +1012,14 @@ pkill(v, signum)
     register struct process *pp, *np;
     register int jobflags = 0;
     int     pid, err1 = 0;
-    sigset_t omask;
+    sigset_t sigset;
     Char   *cp;
 
-    omask = sigmask(SIGCHLD);
+    sigemptyset(&sigset);
+    sigaddset(&sigset, SIGCHLD);
     if (setintr)
-	omask |= sigmask(SIGINT);
-    omask = sigblock(omask) & ~omask;
+	sigaddset(&sigset, SIGINT);
+    sigprocmask(SIG_BLOCK, &sigset, NULL);
     gflag = 0, tglob(v);
     if (gflag) {
 	v = globall(v);
@@ -1069,7 +1083,7 @@ cont:
     }
     if (gargv)
 	blkfree(gargv), gargv = 0;
-    (void) sigsetmask(omask);
+    sigprocmask(SIG_UNBLOCK, &sigset, NULL);
     if (err1)
 	stderror(ERR_SILENT);
 }
@@ -1083,10 +1097,12 @@ pstart(pp, foregnd)
     int     foregnd;
 {
     register struct process *np;
-    sigset_t omask;
+    sigset_t sigset, osigset;
     long    jobflags = 0;
 
-    omask = sigblock(sigmask(SIGCHLD));
+    sigemptyset(&sigset);
+    sigaddset(&sigset, SIGCHLD);
+    sigprocmask(SIG_BLOCK, &sigset, &osigset);
     np = pp;
     do {
 	jobflags |= np->p_flags;
@@ -1106,7 +1122,7 @@ pstart(pp, foregnd)
 	(void) tcsetpgrp(FSHTTY, pp->p_jobid);
     if (jobflags & PSTOPPED)
 	(void) killpg((pid_t) pp->p_jobid, SIGCONT);
-    (void) sigsetmask(omask);
+    sigprocmask(SIG_SETMASK, &osigset, NULL);
 }
 
 void
@@ -1229,7 +1245,7 @@ pfork(t, wanttty)
     register int pid;
     bool    ignint = 0;
     int     pgrp;
-    sigset_t omask;
+    sigset_t sigset, osigset;
 
     /*
      * A child will be uninterruptible only under very special conditions.
@@ -1250,12 +1266,14 @@ pfork(t, wanttty)
     /*
      * Hold SIGCHLD until we have the process installed in our table.
      */
-    omask = sigblock(sigmask(SIGCHLD));
+    sigemptyset(&sigset);
+    sigaddset(&sigset, SIGCHLD);
+    sigprocmask(SIG_BLOCK, &sigset, &osigset);
     while ((pid = fork()) < 0)
 	if (setintr == 0)
 	    (void) sleep(FORKSLEEP);
 	else {
-	    (void) sigsetmask(omask);
+	    sigprocmask(SIG_SETMASK, &osigset, NULL);
 	    stderror(ERR_NOPROC);
 	}
     if (pid == 0) {
@@ -1299,7 +1317,7 @@ pfork(t, wanttty)
 	if (wanttty >= 0)
 	    (void) setpgid(pid, pcurrjob ? pcurrjob->p_jobid : pid);
 	palloc(pid, t);
-	(void) sigsetmask(omask);
+	sigprocmask(SIG_SETMASK, &osigset, NULL);
     }
 
     return (pid);
@@ -1326,14 +1344,19 @@ void
 pgetty(wanttty, pgrp)
     int     wanttty, pgrp;
 {
-    sigset_t omask = 0;
+    sigset_t sigset, osigset;
 
     /*
      * christos: I am blocking the tty signals till I've set things
      * correctly....
      */
-    if (wanttty > 0)
-	omask = sigblock(sigmask(SIGTSTP)|sigmask(SIGTTIN)|sigmask(SIGTTOU));
+    if (wanttty > 0) {
+	sigemptyset(&sigset);
+	sigaddset(&sigset, SIGTSTP);
+	sigaddset(&sigset, SIGTTIN);
+	sigaddset(&sigset, SIGTTOU);
+	sigprocmask(SIG_BLOCK, &sigset, &osigset);
+    }
     /*
      * From: Michael Schroeder <mlschroe@immd4.informatik.uni-erlangen.de>
      * Don't check for tpgrp >= 0 so even non-interactive shells give
@@ -1348,7 +1371,7 @@ pgetty(wanttty, pgrp)
 
     if (wanttty > 0) {
 	(void) tcsetpgrp(FSHTTY, pgrp);
-	(void) sigsetmask(omask);
+	sigprocmask(SIG_SETMASK, &osigset, NULL);
     }
 
     if (tpgrp > 0)

@@ -32,9 +32,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     @(#)cat.1	8.1 (Berkeley) 6/29/93
+.\"     @(#)cat.1	8.3 (Berkeley) 5/2/95
 .\"
-.Dd June 29, 1993
+.Dd May 2, 1995
 .Dt CAT 1
 .Os BSD 3
 .Sh NAME
@@ -68,9 +68,7 @@ option, and displays a dollar sign
 at the end of each line
 as well.
 .It Fl n
-Number the
-.Ar output
-lines, starting at 1.
+Number the output lines, starting at 1.
 .It Fl s
 Squeeze multiple adjacent empty lines, causing the output to be
 single spaced.
@@ -78,7 +76,7 @@ single spaced.
 Implies the
 .Fl v
 option, and displays tab characters as
-.Pq Ql ^I
+.Ql ^I
 as well.
 .It Fl u
 The
@@ -108,7 +106,8 @@ will cause the original data in file1 to be destroyed!
 .Xr head 1 ,
 .Xr more 1 ,
 .Xr pr 1 ,
-.Xr tail 1
+.Xr tail 1 ,
+.Xr vis 1
 .Rs
 .%A Rob Pike
 .%T "UNIX Style, or cat -v Considered Harmful"

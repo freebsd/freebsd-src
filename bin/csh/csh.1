@@ -29,9 +29,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     @(#)csh.1	8.2 (Berkeley) 1/21/94
+.\"     @(#)csh.1	8.4 (Berkeley) 6/1/94
 .\"
-.Dd January 21, 1994
+.Dd June 1, 1994
 .Dt CSH 1
 .Os BSD 4
 .Sh NAME
@@ -360,6 +360,7 @@ bench    class    dev      mbox     xmpl.out
 and the input is
 .Pp
 .Dl % vi ch<escape>
+.ne 1i
 .Pp
 .Nm csh
 will complete the prefix ``ch''
@@ -753,6 +754,7 @@ If the last number of a range is omitted it defaults to `$#name'.
 The selector `*' selects all words.
 It is not an error for a range to be empty if the second argument is omitted
 or in range.
+.ne 1i
 .It $#name
 .It ${#name}
 Gives the number of words in the variable.
@@ -1036,6 +1038,7 @@ form of the
 .Ic if
 statement require that the major keywords appear in a single simple command
 on an input line as shown below.
+.pl +1
 .Pp
 If the shell's input is not seekable,
 the shell buffers up input whenever a loop is being read
@@ -1374,6 +1377,8 @@ beyond the end of the program text),
 size of the automatically-extended stack region), and
 .Ar coredumpsize
 (the size of the largest core dump that will be created).
+.lp -1
+.ne 1i
 .Pp
 The
 .Ar maximum-use
@@ -1476,6 +1481,7 @@ discards the
 .Ar n Ns \'th
 entry in the stack.
 The members of the directory stack are numbered from the top starting at 0.
+.ne 1i
 .Pp
 .It Ic pushd
 .It Ic pushd Ar name
@@ -1603,6 +1609,7 @@ The second form performs the same function on the specified variable.
 .Pp
 .It Ic source Ar name
 .It Ic source Fl h Ar name
+.pl -1
 The shell reads commands from
 .Ar name .
 .Ic Source
@@ -1826,6 +1833,7 @@ as inferior
 processes will import the definition of
 .Ar path
 from the environment, and re-export it if you then change it.
+.ne 1i
 .Bl -tag -width histchars
 .It Ic argv
 Set to the arguments to the shell, it is from this variable that
@@ -2034,6 +2042,7 @@ from affecting the current shell.
 If the file has execute permissions but is not an
 executable binary to the system, then it is assumed to be a
 file containing shell commands and a new shell is spawned to read it.
+.pl +1
 .Pp
 If there is an
 .Ic alias
@@ -2049,6 +2058,7 @@ Note that this is a special, late occurring, case of
 .Ic alias
 substitution,
 and only allows words to be prepended to the argument list without change.
+.ne 1i
 .Ss Signal handling
 The shell normally ignores
 .Ar quit

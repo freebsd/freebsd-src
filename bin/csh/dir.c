@@ -32,7 +32,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)dir.c	8.1 (Berkeley) 5/31/93";
+static char sccsid[] = "@(#)dir.c	8.2 (Berkeley) 4/29/95";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -80,9 +80,9 @@ dinit(hp)
     static char *emsg = "csh: Trying to start from \"%s\"\n";
 
     /* Don't believe the login shell home, because it may be a symlink */
-    tcp = getwd(path);		/* see ngetwd.c for System V version */
+    tcp = getcwd(path, MAXPATHLEN);
     if (tcp == NULL || *tcp == '\0') {
-	(void) fprintf(csherr, "csh: %s\n", path);
+	(void) fprintf(csherr, "csh: %s\n", strerror(errno));
 	if (hp && *hp) {
 	    tcp = short2str(hp);
 	    if (chdir(tcp) == -1)

@@ -32,7 +32,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)exec.c	8.1 (Berkeley) 5/31/93";
+static char sccsid[] = "@(#)exec.c	8.3 (Berkeley) 5/23/95";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -116,6 +116,7 @@ doexec(v, t)
     register bool slash;
     register int hashval = 0, hashval1, i;
     Char   *blk[2];
+    sigset_t sigset;
 
     /*
      * Glob the command name. We will search $path even if this does something,
@@ -191,7 +192,8 @@ doexec(v, t)
      * We must do this AFTER any possible forking (like `foo` in glob) so that
      * this shell can still do subprocesses.
      */
-    (void) sigsetmask((sigset_t) 0);
+    sigemptyset(&sigset);
+    sigprocmask(SIG_SETMASK, &sigset, NULL);
     /*
      * If no path, no words in path, or a / in the filename then restrict the
      * command search.
@@ -654,7 +656,7 @@ tellmewhat(lex)
     register struct biltins *bptr;
     register struct wordent *sp = lex->next;
     bool    aliased = 0;
-    Char   *s0, *s1, *s2;
+    Char   *s0, *s1, *s2, *cmd;
     Char    qc;
 
     if (adrof1(sp->word, &aliases)) {
@@ -701,6 +703,8 @@ tellmewhat(lex)
 	}
     }
 
+    sp->word = cmd = globone(sp->word, G_IGNORE);
+
     if ((i = iscommand(strip(sp->word))) != 0) {
 	register Char **pv;
 	register struct varent *v;
@@ -715,10 +719,15 @@ tellmewhat(lex)
 	while (--i)
 	    pv++;
 	if (pv[0][0] == 0 || eq(pv[0], STRdot)) {
-	    sp->word = Strspl(STRdotsl, sp->word);
-	    prlex(cshout, lex);
-	    xfree((ptr_t) sp->word);
+	    if (!slash) {
+		sp->word = Strspl(STRdotsl, sp->word);
+		prlex(cshout, lex);
+		xfree((ptr_t) sp->word);
+	    }
+	    else
+		prlex(cshout, lex);
 	    sp->word = s0;	/* we save and then restore this */
+	    xfree((ptr_t) cmd);
 	    return;
 	}
 	s1 = Strspl(*pv, STRslash);
@@ -733,4 +742,5 @@ tellmewhat(lex)
 	(void) fprintf(csherr, "%s: Command not found.\n", vis_str(sp->word));
     }
     sp->word = s0;		/* we save and then restore this */
+    xfree((ptr_t) cmd);
 }

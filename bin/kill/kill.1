@@ -32,9 +32,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	@(#)kill.1	8.1 (Berkeley) 5/31/93
+.\"	@(#)kill.1	8.2 (Berkeley) 4/28/95
 .\"
-.Dd May 31, 1993
+.Dd April 28, 1995
 .Dt KILL 1
 .Os
 .Sh NAME
@@ -42,19 +42,22 @@
 .Nd terminate or signal a process
 .Sh SYNOPSIS
 .Nm kill
-.Op Fl signal_name
+.Op Fl s Ar signal_name
 .Ar pid
 \&...
 .Nm kill
-.Op Fl signal_number
+.Fl l
+.Op Ar exit_status
+.Nm kill
+.Fl signal_name
 .Ar pid
 \&...
 .Nm kill
-.Op Fl l
+.Fl signal_number
+.Ar pid
+\&...
 .Sh DESCRIPTION
-The kill utility sends the
-.Dv TERM
-signal to the processes specified
+The kill utility sends a signal to the processes specified
 by the pid operand(s).
 .Pp
 Only the super-user may send signals to other users' processes.
@@ -62,35 +65,48 @@ Only the super-user may send signals to other users' processes.
 The options are as follows:
 .Pp
 .Bl -tag -width Ds
-.It Fl l
-List the signal names.
+.It Fl s Ar signal_name
+A symbolic signal name specifying the signal to be sent instead of the
+default
+.Dv TERM .
+.It Fl l Op Ar exit_status
+If no operand is given, list the signal names; otherwise, write
+the signal name corresponding to
+.Ar exit_status .
 .It Fl signal_name
 A symbolic signal name specifying the signal to be sent instead of the
 default
 .Dv TERM .
-The
-.Fl l
-option displays the signal names.
 .It Fl signal_number
 A non-negative decimal integer, specifying the signal to be sent instead
 of the default
 .Dv TERM .
 .El
 .Pp
-Some of the more commonly used signals:
-.Bd -ragged -offset indent -compact
-.Bl -column XXX TERM
-.It -1	-1	(super-user broadcast to all processes, or user broadcast
-to user's processes)
-.It 0	0	(sh(1) only, signals all members of process group)
-.It 2	INT	(interrupt)
-.It 3	QUIT	(quit)
-.It 6	ABRT	(abort)
-.It 9	KILL	(non-catchable, non-ignorable kill)
-.It 14	ALRM	(alarm clock)
-.It 15	TERM	(software termination signal)
+The following pids have special meanings:
+.Bl -tag -width Ds -compact
+.It -1
+If superuser, broadcast the signal to all processes; otherwise broadcast
+to all processes belonging to the user.
 .El
-.Ed
+.Pp
+Some of the more commonly used signals:
+.Bl -tag -width Ds -compact
+.It 1
+HUP (hang up)
+.It 2
+INT (interrupt)
+.It 3
+QUIT (quit)
+.It 6
+ABRT (abort)
+.It 9
+KILL (non-catchable, non-ignorable kill)
+.It 14
+ALRM (alarm clock)
+.It 15
+TERM (software termination signal)
+.El
 .Pp
 .Nm Kill
 is a built-in to
@@ -107,6 +123,12 @@ for details.
 .Xr ps 1 ,
 .Xr kill 2 ,
 .Xr sigvec 2
+.Sh STANDARDS
+The
+.Nm kill
+function is expected to be
+.St -p1003.2
+compatible.
 .Sh HISTORY
 A
 .Nm kill

@@ -41,7 +41,7 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)cp.c	8.2 (Berkeley) 4/1/94";
+static char sccsid[] = "@(#)cp.c	8.5 (Berkeley) 4/29/95";
 #endif /* not lint */
 
 /*
@@ -49,7 +49,7 @@ static char sccsid[] = "@(#)cp.c	8.2 (Berkeley) 4/1/94";
  * 
  * The global PATH_T structure "to" always contains the path to the
  * current target file.  Since fts(3) does not change directories,
- * this path can be either absolute or dot-realative.
+ * this path can be either absolute or dot-relative.
  * 
  * The basic algorithm is to initialize "to" and use fts(3) to traverse
  * the file hierarchy rooted in the argument list.  A trivial case is the
@@ -341,6 +341,13 @@ copy(argv, type, fts_options)
 					(void)fts_set(ftsp, curr, FTS_SKIP);
 				continue;
 			}
+			if (!S_ISDIR(curr->fts_statp->st_mode) &&
+			    S_ISDIR(to_stat.st_mode)) {
+		warnx("cannot overwrite directory %s with non-directory %s",
+				    to.p_path, curr->fts_path);
+				rval = 1;
+				continue;
+			}
 			dne = 0;
 		}
 
@@ -371,7 +378,7 @@ copy(argv, type, fts_options)
 					err(1, "%s", to.p_path);
 			} else if (!S_ISDIR(to_stat.st_mode)) {
 				errno = ENOTDIR;
-				err(1, "%s: %s", to.p_path);
+				err(1, "%s", to.p_path);
 			}
 			/*
 			 * If not -p and directory didn't exist, set it to be
@@ -395,10 +402,10 @@ copy(argv, type, fts_options)
 					rval = 1;
 			break;
 		case S_IFIFO:
-			if (Rflag)
+			if (Rflag) {
 				if (copy_fifo(curr->fts_statp, !dne))
 					rval = 1;
-			else 
+			} else 
 				if (copy_file(curr, dne))
 					rval = 1;
 			break;
