@@ -49,8 +49,8 @@
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 
-#include <ofw/ofw_pci.h>
-#include <ofw/openfirm.h>
+#include <dev/ofw/ofw_pci.h>
+#include <dev/ofw/openfirm.h>
 
 #include <machine/intr_machdep.h>
 #include <machine/ofw_bus.h>

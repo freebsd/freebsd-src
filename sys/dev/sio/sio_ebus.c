@@ -37,7 +37,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/sio/siovar.h>
 
-#include <ofw/openfirm.h>
+#include <dev/ofw/openfirm.h>
 #include <sparc64/ebus/ebusvar.h>
 
 int	sio_ofw_inlist(char *name, char *list[]);

@@ -56,8 +56,8 @@
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 
-#include <ofw/openfirm.h>
-#include <ofw/ofw_pci.h>
+#include <dev/ofw/openfirm.h>
+#include <dev/ofw/ofw_pci.h>
 
 #include <machine/bus.h>
 #include <machine/ofw_bus.h>

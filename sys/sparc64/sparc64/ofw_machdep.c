@@ -34,7 +34,7 @@
 
 #include <net/ethernet.h>
 
-#include <ofw/openfirm.h>
+#include <dev/ofw/openfirm.h>
 
 #include <machine/idprom.h>
 #include <machine/ofw_machdep.h>
