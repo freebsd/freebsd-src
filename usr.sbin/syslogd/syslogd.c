@@ -1449,7 +1449,7 @@ init(int signo)
 				continue;
 			}
 			for (i = 0; i < NAME_MAX; i++) {
-				if (!isalnum(p[i]))
+				if (!isprint(p[i]))
 					break;
 				prog[i] = p[i];
 			}
