@@ -138,18 +138,9 @@ ${DFILE.${_dev}}: _stamp.extra
 .endif
 ${DFILE.${_dev}}: ${SRCS}
 .if defined(NODOCCOMPRESS)
-.if defined(CD_HACK)
-	(cd ${CD_HACK}; ${ROFF.${_dev}} ${.ALLSRC:N_stamp.extra}) > ${.TARGET}
-.else
 	${ROFF.${_dev}} ${.ALLSRC:N_stamp.extra} > ${.TARGET}
-.endif
-.else
-.if defined(CD_HACK)
-	(cd ${CD_HACK}; ${ROFF.${_dev}} ${.ALLSRC:N_stamp.extra}) | \
-	    ${DCOMPRESS_CMD} > ${.TARGET}
 .else
 	${ROFF.${_dev}} ${.ALLSRC:N_stamp.extra} | ${DCOMPRESS_CMD} > ${.TARGET}
-.endif
 .endif
 .endif
 .endfor
