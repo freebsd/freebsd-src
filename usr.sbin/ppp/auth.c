@@ -170,7 +170,8 @@ auth_Select(struct bundle *bundle, const char *name)
   }
 
 #ifndef NORADIUS
-  if (bundle->radius.valid && bundle->radius.ip.s_addr != INADDR_NONE) {
+  if (bundle->radius.valid && bundle->radius.ip.s_addr != INADDR_NONE &&
+	bundle->radius.ip.s_addr != RADIUS_INADDR_POOL) {
     /* We've got a radius IP - it overrides everything */
     if (!ipcp_UseHisIPaddr(bundle, bundle->radius.ip))
       return 0;
