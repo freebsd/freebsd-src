@@ -39,6 +39,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 #include <float.h>
 #include <err.h>
@@ -55,7 +56,7 @@ static	int selectscale(const char *);
 int
 ifcmd(const char *cmd, const char *args)
 {
-	if (prefix((char *)cmd, (char *)"scale")) {
+	if (prefix(cmd, "scale")) {
 		if (*args != '\0' && selectscale(args) != -1)
 			;
 		else {

@@ -108,6 +108,7 @@ void	 fetchpigs(void);
 void	 fetchswap(void);
 void	 fetchtcp(void);
 void	 getsysctl(const char *, void *, size_t);
+int	 ifcmd(const char *cmd, const char *args);
 int	 initicmp(void);
 int	 initicmp6(void);
 int	 initifstat(void);

@@ -39,6 +39,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 #include <float.h>
 #include <err.h>
@@ -56,12 +57,12 @@
 #define C4	60		/* 60-80 */
 #define C5	80		/* Used for label positioning. */
 
-static	int col0 = 0;
-static	int col1 = C1;
-static	int col2 = C2;
-static	int col3 = C3;
-static	int col4 = C4;
-static	int col5 = C5;
+static const int col0 = 0;
+static const int col1 = C1;
+static const int col2 = C2;
+static const int col3 = C3;
+static const int col4 = C4;
+static const int col5 = C5;
 
 
 SLIST_HEAD(, if_stat)		curlist;	
@@ -245,7 +246,6 @@ fetchifstat(void)
 	struct	timeval tv, new_tv, old_tv;
 	double	elapsed = 0.0;
 	u_int	new_inb, new_outb, old_inb, old_outb = 0;
-	u_int	error = 0;
 	u_int	we_need_to_sort_interface_list = 0;
 
 	SLIST_FOREACH(ifp, &curlist, link) {
@@ -257,8 +257,7 @@ fetchifstat(void)
 		old_outb = ifp->if_mib.ifmd_data.ifi_obytes;
 		ifp->tv_lastchanged = ifp->if_mib.ifmd_data.ifi_lastchange;
 
-		error = gettimeofday(&new_tv, (struct timezone *)0);
-		if (error) 
+		if (gettimeofday(&new_tv, (struct timezone *)0) != 0)
 			IFSTAT_ERR(2, "error getting time of day");
 		(void)getifmibdata(ifp->if_row, &ifp->if_mib);
 
@@ -364,7 +363,6 @@ static
 unsigned int
 getifnum(void)
 {
-	int	error   = 0;
 	u_int	data    = 0;
 	size_t	datalen = 0;
 	static	int name[] = { CTL_NET,
@@ -374,13 +372,8 @@ getifnum(void)
 			       IFMIB_IFCOUNT };
 
 	datalen = sizeof(data);
-	error = sysctl(name, 
-		       5,
-		       (void *)&data,
-		       (size_t *)&datalen,
-		       (void *)NULL,
-		       (size_t)0);
-	if (error)
+	if (sysctl(name, 5, (void *)&data, (size_t *)&datalen, (void *)NULL,
+	    (size_t)0) != 0)
 		IFSTAT_ERR(1, "sysctl error");
 	return data;
 }
@@ -388,7 +381,6 @@ getifnum(void)
 static void 
 getifmibdata(int row, struct ifmibdata *data)
 {
-	int	error   = 0;
 	size_t	datalen = 0;
 	static	int name[] = { CTL_NET,
 			       PF_LINK,
@@ -399,13 +391,8 @@ getifmibdata(int row, struct ifmibdata *data)
 	datalen = sizeof(*data);
 	name[4] = row;
 
-	error = sysctl(name,
-		       6,
-		       (void *)data,
-		       (size_t *)&datalen,
-		       (void *)NULL,
-		       (size_t)0);
-	if (error)
+	if (sysctl(name, 6, (void *)data, (size_t *)&datalen, (void *)NULL,
+	    (size_t)0) != 0)
 		IFSTAT_ERR(2, "sysctl error getting interface data");
 }
 

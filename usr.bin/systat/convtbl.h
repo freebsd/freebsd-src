@@ -55,13 +55,13 @@
 struct convtbl {
 	u_int	 mul;
 	u_int	 scale;
-	char	*str;
+	const char	*str;
 };
 
 extern	struct convtbl convtbl[];
 
 extern	double 	 convert(const u_long, const u_int);
-extern	char	*get_string(const u_long, const u_int);
+extern	const char	*get_string(const u_long, const u_int);
 
 #endif		/* ! _CONVTBL_H_ */
 /*

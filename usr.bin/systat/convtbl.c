@@ -55,24 +55,24 @@ get_tbl_ptr(const u_long size, const u_int scale)
 {
 	struct	convtbl *tbl_ptr = NULL;
 	u_long	tmp = 0;
-	u_int	index = scale;
+	u_int	idx = scale;
 
 	/* If our index is out of range, default to auto-scaling. */
-	if (index > SC_AUTO)
-		index = SC_AUTO;
+	if (idx > SC_AUTO)
+		idx = SC_AUTO;
 
-	if (index == SC_AUTO)
+	if (idx == SC_AUTO)
 		/*
 		 * Simple but elegant algorithm.  Count how many times
 		 * we can shift our size value right by a factor of ten,
 		 * incrementing an index each time.  We then use the
 		 * index as the array index into the conversion table.
 		 */
-		for (tmp = size, index = SC_KILOBYTE;
-		     tmp >= MEGA && index <= SC_GIGABYTE;
-		     tmp >>= 10, index++);
+		for (tmp = size, idx = SC_KILOBYTE;
+		     tmp >= MEGA && idx <= SC_GIGABYTE;
+		     tmp >>= 10, idx++);
 
-	tbl_ptr = &convtbl[index];
+	tbl_ptr = &convtbl[idx];
 	return tbl_ptr;
 }
 
@@ -87,7 +87,7 @@ convert(const u_long size, const u_int scale)
 
 }
 
-char *
+const char *
 get_string(const u_long size, const u_int scale)
 {
 	struct	convtbl *tp = NULL;
