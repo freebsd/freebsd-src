@@ -43,23 +43,3 @@ struct bootsector {
 	unsigned char bigsect[4];	/* big total sectors */
 	unsigned char junk[476];	/* who cares? */
 };
-
-/* DOS partition table -- located in boot block */
-
-#define	DOSBBSECTOR	0	/* DOS boot block relative sector number */
-#define	DOSPARTOFF	446
-#define NDOSPART	4
-
-struct dos_partition {
-	unsigned char	dp_flag;	/* bootstrap flags */
-	unsigned char	dp_shd;		/* starting head */
-	unsigned char	dp_ssect;	/* starting sector */
-	unsigned char	dp_scyl;	/* starting cylinder */
-	unsigned char	dp_typ;		/* partition type */
-#define		DOSPTYP_386BSD	0xa5		/* 386BSD partition type */
-	unsigned char	dp_ehd;		/* end head */
-	unsigned char	dp_esect;	/* end sector */
-	unsigned char	dp_ecyl;	/* end cylinder */
-	unsigned long	dp_start;	/* absolute starting sector number */
-	unsigned long	dp_size;	/* partition size in sectors */
-} dos_partitions[NDOSPART];
