@@ -485,7 +485,9 @@ print_item(WINDOW *win, char *tag, char *item, int status, int choice, int selec
   wattrset(win, selected ? item_selected_attr : item_attr);
   waddstr(win, item);
   /* If have a selection handler for this, call it */
-  if (me && me->selected)
+  if (me && me->selected) {
+    wrefresh(win);
     me->selected(me, selected);
+  }
 }
 /* End of print_item() */
