@@ -759,6 +759,8 @@ ohci_init(ohci_softc_t *sc)
 			OWRITE4(sc, OHCI_CONTROL, OHCI_HCFS_RESET);
 			goto reset;
 		}
+#if 0
+/* Don't bother trying to reuse the BIOS init, we'll reset it anyway.  */
 	} else if ((ctl & OHCI_HCFS_MASK) != OHCI_HCFS_RESET) {
 		/* BIOS started controller. */
 		DPRINTF(("ohci_init: BIOS active\n"));
@@ -766,6 +768,7 @@ ohci_init(ohci_softc_t *sc)
 			OWRITE4(sc, OHCI_CONTROL, OHCI_HCFS_OPERATIONAL);
 			usb_delay_ms(&sc->sc_bus, USB_RESUME_DELAY);
 		}
+#endif
 	} else {
 		DPRINTF(("ohci_init: cold started\n"));
 	reset:
