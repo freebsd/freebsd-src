@@ -1248,7 +1248,7 @@ badsub:				synerror("Bad substitution");
 		} else {
 			pungetc();
 		}
-		if (dblquote || arinest)
+		if (subtype != VSLENGTH && (dblquote || arinest))
 			flags |= VSQUOTE;
 		*(stackblock() + typeloc) = subtype | flags;
 		if (subtype != VSNORMAL)
