@@ -57,6 +57,7 @@ static const char rcsid[] =
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <timeconv.h>
 #include <unistd.h>
 
 #include "restore.h"
