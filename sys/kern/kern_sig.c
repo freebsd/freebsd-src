@@ -1692,7 +1692,7 @@ nosys(p, args)
 }
 
 /*
- * Send a signal to a SIGIO or SIGURG to a process or process group using
+ * Send a SIGIO or SIGURG signal to a process or process group using
  * stored credentials rather than those of the current process.
  */
 void
