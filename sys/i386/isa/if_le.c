@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_le.c,v 1.13 1995/03/28 07:55:32 bde Exp $
+ * $Id: if_le.c,v 1.14 1995/04/12 20:47:51 wollman Exp $
  */
 
 /*
@@ -801,11 +801,13 @@ static void lemac_rxd_intr(le_softc_t *sc, unsigned cs_value);
 static int  lemac_read_eeprom(le_softc_t *sc);
 static void lemac_init_adapmem(le_softc_t *sc);
 
+#define	LE_MCBITS_ALL_1S	((le_mcbits_t)~(le_mcbits_t)0)
+
 static const le_mcbits_t lemac_allmulti_mctbl[16] =  {
-    0xFFFFFFFFU, 0xFFFFFFFFU, 0xFFFFFFFFU, 0xFFFFFFFFU,
-    0xFFFFFFFFU, 0xFFFFFFFFU, 0xFFFFFFFFU, 0xFFFFFFFFU,
-    0xFFFFFFFFU, 0xFFFFFFFFU, 0xFFFFFFFFU, 0xFFFFFFFFU,
-    0xFFFFFFFFU, 0xFFFFFFFFU, 0xFFFFFFFFU, 0xFFFFFFFFU,
+    LE_MCBITS_ALL_1S, LE_MCBITS_ALL_1S, LE_MCBITS_ALL_1S, LE_MCBITS_ALL_1S,
+    LE_MCBITS_ALL_1S, LE_MCBITS_ALL_1S, LE_MCBITS_ALL_1S, LE_MCBITS_ALL_1S,
+    LE_MCBITS_ALL_1S, LE_MCBITS_ALL_1S, LE_MCBITS_ALL_1S, LE_MCBITS_ALL_1S,
+    LE_MCBITS_ALL_1S, LE_MCBITS_ALL_1S, LE_MCBITS_ALL_1S, LE_MCBITS_ALL_1S,
 };
 /*
  * An IRQ mapping table.  Less space than switch statement.
