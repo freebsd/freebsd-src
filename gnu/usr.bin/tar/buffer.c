@@ -63,7 +63,7 @@ time_t time ();
 
 /* Either stdout or stderr:  The thing we write messages (standard msgs, not
    errors) to.  Stdout unless we're writing a pipe, in which case stderr */
-FILE *msg_file = stdout;
+FILE *msg_file;
 
 #define	STDIN	0		/* Standard input  file descriptor */
 #define	STDOUT	1		/* Standard output file descriptor */
