@@ -1,7 +1,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.11 1994/08/22 11:23:17 jkh Exp $
+# $Id: bsd.port.mk,v 1.12 1994/08/22 12:00:34 jkh Exp $
 
 #
 # Supported Variables and their behaviors:
@@ -93,7 +93,7 @@ package:
 	@if [ -d ${PKGDIR} ]; then \
 	   echo "===>  Building package for ${DISTNAME}"; \
 	   pkg_create -c ${PKGDIR}/COMMENT -d ${PKGDIR}/DESCR \
-	     -f ${PKGDIR}/PLIST ${DISTNAME}; \
+	     -f ${PKGDIR}/PLIST ${DISTNAME}.tgz; \
 	fi
 .endif
 
