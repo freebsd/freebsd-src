@@ -157,13 +157,8 @@ again:
 	 * Discount the physical memory larger than the size of kernel_map
 	 * to avoid eating up all of KVA space.
 	 */
-	if (kernel_map->first_free == NULL) {
-		printf("Warning: no free entries in kernel_map.\n");
-		physmem_est = physmem;
-	} else {
-		physmem_est = lmin(physmem, btoc(kernel_map->max_offset -
-		    kernel_map->min_offset));
-	}
+	physmem_est = lmin(physmem, btoc(kernel_map->max_offset -
+	    kernel_map->min_offset));
 
 	v = kern_vfs_bio_buffer_alloc(v, physmem_est);
 
