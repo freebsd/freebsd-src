@@ -1,4 +1,4 @@
-/*	$KAME: test-policy.c,v 1.14 2000/12/27 11:38:11 sakane Exp $	*/
+/*	$KAME: test-policy.c,v 1.16 2003/08/26 03:24:08 itojun Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, 1998, and 1999 WIDE Project.
@@ -115,9 +115,9 @@ test1()
 
 		result = test1sub1(&reqs[i]);
 		if (result == 0 && reqs[i].result == 1) {
-			warnx("ERROR: expecting failure.\n");
+			warnx("ERROR: expecting failure.");
 		} else if (result == 1 && reqs[i].result == 0) {
-			warnx("ERROR: expecting success.\n");
+			warnx("ERROR: expecting success.");
 		}
 	}
 
@@ -234,7 +234,7 @@ test2()
 
 	printf("TEST2\n");
 	if (getuid() != 0)
-		errx(1, "root privilege required.\n");
+		errx(1, "root privilege required.");
 
 	sp1 = ipsec_set_policy(pol1, strlen(pol1));
 	splen1 = ipsec_get_policylen(sp1);
@@ -242,20 +242,19 @@ test2()
 	splen2 = ipsec_get_policylen(sp2);
 
 	if ((so = pfkey_open()) < 0)
-		errx(1, "ERROR: %s\n", ipsec_strerror());
+		errx(1, "ERROR: %s", ipsec_strerror());
 
 	printf("spdflush()\n");
 	if (pfkey_send_spdflush(so) < 0)
-		errx(1, "ERROR: %s\n", ipsec_strerror());
+		errx(1, "ERROR: %s", ipsec_strerror());
 	m = pfkey_recv(so);
 	free(m);
 
-#if 0
 	printf("spdsetidx()\n");
 	if (pfkey_send_spdsetidx(so, (struct sockaddr *)addr, 128,
 				(struct sockaddr *)addr, 128,
 				255, sp1, splen1, 0) < 0)
-		errx(1, "ERROR: %s\n", ipsec_strerror());
+		errx(1, "ERROR: %s", ipsec_strerror());
 	m = pfkey_recv(so);
 	free(m);
 	
@@ -263,17 +262,18 @@ test2()
 	if (pfkey_send_spdupdate(so, (struct sockaddr *)addr, 128,
 				(struct sockaddr *)addr, 128,
 				255, sp2, splen2, 0) < 0)
-		errx(1, "ERROR: %s\n", ipsec_strerror());
+		errx(1, "ERROR: %s", ipsec_strerror());
 	m = pfkey_recv(so);
 	free(m);
 
+	printf("sleep(4)\n");
 	sleep(4);
 
 	printf("spddelete()\n");
 	if (pfkey_send_spddelete(so, (struct sockaddr *)addr, 128,
 				(struct sockaddr *)addr, 128,
 				255, sp1, splen1, 0) < 0)
-		errx(1, "ERROR: %s\n", ipsec_strerror());
+		errx(1, "ERROR: %s", ipsec_strerror());
 	m = pfkey_recv(so);
 	free(m);
 
@@ -281,40 +281,38 @@ test2()
 	if (pfkey_send_spdadd(so, (struct sockaddr *)addr, 128,
 				(struct sockaddr *)addr, 128,
 				255, sp2, splen2, 0) < 0)
-		errx(1, "ERROR: %s\n", ipsec_strerror());
+		errx(1, "ERROR: %s", ipsec_strerror());
 	spid = test2sub(so);
 
 	printf("spdget(%u)\n", spid);
 	if (pfkey_send_spdget(so, spid) < 0)
-		errx(1, "ERROR: %s\n", ipsec_strerror());
+		errx(1, "ERROR: %s", ipsec_strerror());
 	m = pfkey_recv(so);
 	free(m);
 
+	printf("sleep(4)\n");
 	sleep(4);
 
 	printf("spddelete2()\n");
 	if (pfkey_send_spddelete2(so, spid) < 0)
-		errx(1, "ERROR: %s\n", ipsec_strerror());
+		errx(1, "ERROR: %s", ipsec_strerror());
 	m = pfkey_recv(so);
 	free(m);
-#endif
 
 	printf("spdadd() with lifetime's 10(s)\n");
 	if (pfkey_send_spdadd2(so, (struct sockaddr *)addr, 128,
 				(struct sockaddr *)addr, 128,
 				255, 0, 10, sp2, splen2, 0) < 0)
-		errx(1, "ERROR: %s\n", ipsec_strerror());
+		errx(1, "ERROR: %s", ipsec_strerror());
 	spid = test2sub(so);
 
-#if 0
 	/* expecting failure */
 	printf("spdupdate()\n");
 	if (pfkey_send_spdupdate(so, (struct sockaddr *)addr, 128,
 				(struct sockaddr *)addr, 128,
 				255, sp2, splen2, 0) == 0) {
-		warnx("ERROR: expecting failure.\n");
+		warnx("ERROR: expecting failure.");
 	}
-#endif
 
 	return 0;
 }
@@ -327,9 +325,9 @@ test2sub(so)
 	caddr_t mhp[SADB_EXT_MAX + 1];
 
 	if ((msg = pfkey_recv(so)) == NULL)
-		errx(1, "ERROR: pfkey_recv failure.\n");
+		errx(1, "ERROR: pfkey_recv failure.");
 	if (pfkey_align(msg, mhp) < 0)
-		errx(1, "ERROR: pfkey_align failure.\n");
+		errx(1, "ERROR: pfkey_align failure.");
 
 	return ((struct sadb_x_policy *)mhp[SADB_X_EXT_POLICY])->sadb_x_policy_id;
 }

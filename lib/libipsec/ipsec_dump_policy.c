@@ -1,4 +1,4 @@
-/*	$KAME: ipsec_dump_policy.c,v 1.11 2000/05/07 05:29:47 itojun Exp $	*/
+/*	$KAME: ipsec_dump_policy.c,v 1.13 2002/06/27 14:35:11 itojun Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, 1998, and 1999 WIDE Project.
@@ -262,7 +262,7 @@ ipsec_dump_ipsecrequest(buf, len, xisr, bound)
 			ch = '#';
 		else
 			ch = ':';
-		snprintf(buf, len, "%s/%s/%s/%s%c%d", proto, mode, abuf, level,
+		snprintf(buf, len, "%s/%s/%s/%s%c%u", proto, mode, abuf, level,
 		    ch, xisr->sadb_x_ipsecrequest_reqid);
 	}
 
