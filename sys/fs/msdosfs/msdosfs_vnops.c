@@ -390,7 +390,7 @@ msdosfs_setattr(ap)
 		 * set ATTR_ARCHIVE for directories `cp -pr' from a more
 		 * sensible file system attempts it a lot.
 		 */
-		if (cred->cr_uid != 0) {
+		if (suser_xxx(cred, ap->a_td->td_proc, PRISON_ROOT)) {
 			if (vap->va_flags & SF_SETTABLE)
 				return EPERM;
 		}
