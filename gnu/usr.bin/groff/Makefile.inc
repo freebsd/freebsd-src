@@ -49,11 +49,14 @@ tmac_s_prefix=
 tmac_m_prefix=
 tmac_an_prefix=
 fontdir=/usr/share/groff_font
-fontpath=$(fontdir)
+localfontdir=$(fontdir)
+legacyfontdir=$(fontdir)
 tmacdir=/usr/share/tmac
 systemtmacdir=/usr/share/tmac
 localtmacdir=/usr/share/tmac
-tmacpath=$(tmacdir)
+docdir=/usr/src/contrib/groff/doc
+exampledir=XXX
+htmldocdir=XXX
 indexext=.i
 common_words_file=/usr/share/dict/eign
 indexdir=/usr/share/dict/papers
@@ -73,34 +76,7 @@ LIBDRIVER=	${.CURDIR}/${TOPREL}/src/libs/libdriver/libdriver.a
 LIBBIB=		${.CURDIR}/${TOPREL}/src/libs/libbib/libbib.a
 .endif
 
-CFLAGS+=	-DHAVE_STDLIB_H=1\
-		-DHAVE_UNISTD_H=1\
-		-DHAVE_DIRENT_H=1\
-		-DHAVE_LIMITS_H=1\
-		-DHAVE_STRING_H=1\
-		-DHAVE_STRINGS_H=1\
-		-DHAVE_MATH_H=1\
-		-DRET_TYPE_SRAND_IS_VOID=1\
-		-DHAVE_SYS_NERR=1\
-		-DHAVE_SYS_ERRLIST=1\
-		-DHAVE_CC_LIMITS_H=1\
-		-DRETSIGTYPE=void\
-		-DHAVE_STRUCT_EXCEPTION=1\
-		-DHAVE_GETPAGESIZE=1\
-		-DHAVE_MMAP=1\
-		-DHAVE_FMOD=1\
-		-DHAVE_STRTOL=1\
-		-DHAVE_GETCWD=1\
-		-DHAVE_STRERROR=1\
-		-DHAVE_PUTENV=1\
-		-DHAVE_RENAME=1\
-		-DHAVE_MKSTEMP=1\
-		-DHAVE_STRCASECMP=1\
-		-DHAVE_STRNCASECMP=1\
-		-DHAVE_STRSEP=1\
-		-DHAVE_STRDUP=1\
-		-DSYS_SIGLIST_DECLARED=1
-
+CFLAGS+=	-DHAVE_CONFIG_H
 CFLAGS+=	-I${GROFF_DIST}/src/include -I${.CURDIR}/${TOPREL}/src/include
 CXXFLAGS+=	-fno-rtti -fno-exceptions
 
@@ -125,11 +101,14 @@ revision=`sed -e 's/^0$$//' -e 's/^[1-9].*$$/.&/' $(GROFF_DIST)/REVISION`
 	@-rm -f $@
 	@sed -e "s;@BINDIR@;${BINDIR};g" \
 	-e "s;@FONTDIR@;$(fontdir);g" \
-	-e "s;@FONTPATH@;$(fontpath);g" \
+	-e "s;@LOCALFONTDIR@;$(localfontdir);g" \
+	-e "s;@LEGACYFONTDIR@;$(legacyfontdir);g" \
 	-e "s;@MACRODIR@;$(tmacdir);g" \
 	-e "s;@SYSTEMMACRODIR@;$(systemtmacdir);g" \
 	-e "s;@LOCALMACRODIR@;$(localtmacdir);g" \
-	-e "s;@MACROPATH@;$(tmacpath);g" \
+	-e "s;@DOCDIR@;$(docdir);g" \
+	-e "s;@EXAMPLEDIR@;$(exampledir);g" \
+	-e "s;@HTMLDOCDIR@;$(htmldocdir);g" \
 	-e "s;@DEVICE@;$(DEVICE);g" \
 	-e "s;@DEFAULT_INDEX@;$(indexdir)/$(indexname);g" \
 	-e "s;@DEFAULT_INDEX_NAME@;$(indexname);g" \

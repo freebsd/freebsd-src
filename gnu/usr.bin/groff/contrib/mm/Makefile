@@ -1,11 +1,11 @@
 # $FreeBSD$
 
 SCRIPTS=	mmroff.pl
-MAN=		mmroff.7
+MAN=		mmroff.1
 
 TMACDIR?=	${SHAREDIR}/tmac
 
-FILES=		m.tmac mse.tmac
+FILES=		m.tmac mm.tmac mse.tmac mmse.tmac
 FILESDIR_m.tmac=${TMACDIR}
 FILESDIR_mse.tmac=${TMACDIR}
 FILES+=		0.MT 5.MT 4.MT ms.cov se_ms.cov
