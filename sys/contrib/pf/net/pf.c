@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$OpenBSD: pf.c,v 1.433 2004/03/26 22:20:57 dhartmei Exp $ */
+/*	$OpenBSD: pf.c,v 1.433.2.1 2004/04/30 21:46:33 brad Exp $ */
 
 /*
  * Copyright (c) 2001 Daniel Hartmeier
@@ -5188,17 +5188,14 @@ pf_route(struct mbuf **m, struct pf_rule *r, int dir, struct ifnet *oifp,
 	if (ifp == NULL)
 		goto bad;
 
-	mtag = m_tag_find(m0, PACKET_TAG_PF_ROUTED, NULL);
-	if (mtag == NULL) {
-		struct m_tag *mtag;
+	if (m_tag_find(m0, PACKET_TAG_PF_ROUTED, NULL) != NULL)
+		goto bad;
+	mtag = m_tag_get(PACKET_TAG_PF_ROUTED, 0, M_NOWAIT);
+	if (mtag == NULL)
+		goto bad;
+	m_tag_prepend(m0, mtag);
 
-		mtag = m_tag_get(PACKET_TAG_PF_ROUTED, 0, M_NOWAIT);
-		if (mtag == NULL)
-			goto bad;
-		m_tag_prepend(m0, mtag);
-	}
-
-	if (oifp != ifp && mtag == NULL) {
+	if (oifp != ifp) {
 #ifdef __FreeBSD__
 		PF_UNLOCK();
 		if (pf_test(PF_OUT, ifp, &m0) != PF_PASS) {
