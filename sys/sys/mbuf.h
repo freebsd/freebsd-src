@@ -157,6 +157,24 @@ struct mbuf {
 #define	M_DONTWAIT	1
 #define	M_WAIT		0
 
+/* mbuf and mbuf cluster wait count variables... */
+static u_int m_mballoc_wid = 0, m_clalloc_wid = 0; 
+
+static __inline void m_mballoc_wakeup __P((void));
+static __inline void m_clalloc_wakeup __P((void));
+/* We'll need wakeup_one(). */
+#ifdef KERNEL
+#include <sys/systm.h>
+#endif
+
+/*
+ * Identifying number passed to the m_mballoc_wait function, allowing
+ * us to determine that the call came from an MGETHDR and not an MGET --
+ * this way we are sure to run the MGETHDR macro when the call came from there.
+ */
+#define	MGETHDR_C      1
+#define	MGET_C         2
+
 /* Freelists:
  *
  * Normal mbuf clusters are normally treated as character arrays
@@ -167,6 +185,37 @@ union mcluster {
 	union	mcluster *mcl_next;
 	char	mcl_buf[MCLBYTES];
 };
+
+/*
+ * mbuf and mbuf cluster wakeup inline routines.
+ */
+/*
+ * Wakeup the next instance -- if any -- of m_mballoc_wait() which
+ * is waiting for an mbuf to be freed. Make sure to decrement sleep count.
+ * XXX: If there is another free mbuf, this routine will be called [again]
+ * from the m_mballoc_wait routine in order to wake another sleep instance.
+ * Should be called at splimp()
+ */
+static __inline void
+m_mballoc_wakeup(void)
+{
+	if (m_mballoc_wid) {
+		m_mballoc_wid--;
+		wakeup_one(&m_mballoc_wid); 
+	}
+}
+
+/*
+ * Same as above, only for mbuf cluster(s). Should be called at splimp()
+ */
+static __inline void
+m_clalloc_wakeup(void)
+{
+	if (m_clalloc_wid) {
+		m_clalloc_wid--;
+		wakeup_one(&m_clalloc_wid);
+	}
+}
 
 /*
  * mbuf utility macros:
@@ -191,7 +240,8 @@ union mcluster {
  * allocates an mbuf and initializes it to contain a packet header
  * and internal data.
  */
-#define	MGET(m, how, type) { \
+#define	MGET(m, how, type) \
+	do { \
 	  int _ms = splimp(); \
 	  if (mmbfree == 0) \
 		(void)m_mballoc(1, (how)); \
@@ -205,13 +255,15 @@ union mcluster {
 		(m)->m_data = (m)->m_dat; \
 		(m)->m_flags = 0; \
 		splx(_ms); \
-	} else { \
+	  } else { \
 		splx(_ms); \
-		(m) = m_retry((how), (type)); \
-	} \
-}
+		if (((m) = m_retry((how), (type))) == NULL && (how) == M_WAIT) \
+			(m) = m_mballoc_wait(MGET_C, (type)); \
+	  } \
+	} while (0)
 
-#define	MGETHDR(m, how, type) { \
+#define	MGETHDR(m, how, type) \
+	do { \
 	  int _ms = splimp(); \
 	  if (mmbfree == 0) \
 		(void)m_mballoc(1, (how)); \
@@ -225,11 +277,13 @@ union mcluster {
 		(m)->m_data = (m)->m_pktdat; \
 		(m)->m_flags = M_PKTHDR; \
 		splx(_ms); \
-	} else { \
+	  } else { \
 		splx(_ms); \
-		(m) = m_retryhdr((how), (type)); \
-	} \
-}
+		if (((m) = m_retryhdr((how), (type))) == NULL && \
+		    (how) == M_WAIT) \
+			(m) = m_mballoc_wait(MGETHDR_C, (type)); \
+	  } \
+	} while (0)
 
 /*
  * Mbuf cluster macros.
@@ -240,15 +294,20 @@ union mcluster {
  * freeing the cluster if the reference count has reached 0.
  */
 #define	MCLALLOC(p, how) \
-	MBUFLOCK( \
+	do { \
+	  int _ms = splimp(); \
 	  if (mclfree == 0) \
 		(void)m_clalloc(1, (how)); \
 	  if (((p) = (caddr_t)mclfree) != 0) { \
 		++mclrefcnt[mtocl(p)]; \
 		mbstat.m_clfree--; \
 		mclfree = ((union mcluster *)(p))->mcl_next; \
+		splx(_ms); \
+	  } else if ((how) == M_WAIT) { \
+		splx(_ms); \
+		(p) = m_clalloc_wait(); \
 	  } \
-	)
+ 	} while (0)	
 
 #define	MCLGET(m, how) \
 	{ MCLALLOC((m)->m_ext.ext_buf, (how)); \
@@ -267,6 +326,7 @@ union mcluster {
 			((union mcluster *)(p))->mcl_next = mclfree; \
 			mclfree = (union mcluster *)(p); \
 			mbstat.m_clfree++; \
+			m_clalloc_wakeup(); \
 	  	} \
 	} while (0)
 
@@ -307,6 +367,7 @@ union mcluster {
 	  mbstat.m_mtypes[MT_FREE]++; \
 	  (m)->m_next = mmbfree; \
 	  mmbfree = (m); \
+	  m_mballoc_wakeup(); \
 	)
 
 /*
@@ -412,7 +473,9 @@ extern int	max_linkhdr;		/* largest link-level header */
 extern int	max_protohdr;		/* largest protocol header */
 extern int	max_hdr;		/* largest link+protocol header */
 extern int	max_datalen;		/* MHLEN - max_hdr */
+extern int	mbuf_wait;		/* mbuf sleep time */
 
+struct mbuf *m_mballoc_wait __P((int, int));
 struct	mbuf *m_copym __P((struct mbuf *, int, int, int));
 struct	mbuf *m_copypacket __P((struct mbuf *, int));
 struct	mbuf *m_devget __P((char *, int, int, struct ifnet *,
@@ -432,6 +495,7 @@ void	m_adj __P((struct mbuf *, int));
 void	m_cat __P((struct mbuf *,struct mbuf *));
 int	m_mballoc __P((int, int));
 int	m_clalloc __P((int, int));
+caddr_t m_clalloc_wait __P((void));
 void	m_copyback __P((struct mbuf *, int, int, caddr_t));
 void	m_copydata __P((struct mbuf *,int,int,caddr_t));
 void	m_freem __P((struct mbuf *));

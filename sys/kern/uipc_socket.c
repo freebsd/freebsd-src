@@ -507,11 +507,19 @@ restart:
 		    } else do {
 			if (top == 0) {
 				MGETHDR(m, M_WAIT, MT_DATA);
+				if (m == NULL) {
+					error = ENOBUFS;
+					goto release;
+				}
 				mlen = MHLEN;
 				m->m_pkthdr.len = 0;
 				m->m_pkthdr.rcvif = (struct ifnet *)0;
 			} else {
 				MGET(m, M_WAIT, MT_DATA);
+				if (m == NULL) {
+					error = ENOBUFS;
+					goto release;
+				}
 				mlen = MLEN;
 			}
 			if (resid >= MINCLSIZE) {
@@ -636,6 +644,10 @@ soreceive(so, psa, uio, mp0, controlp, flagsp)
 		flags = 0;
 	if (flags & MSG_OOB) {
 		m = m_get(M_WAIT, MT_DATA);
+		if (m == NULL) {
+			error = ENOBUFS;
+			goto release;
+		}
 		error = (*pr->pr_usrreqs->pru_rcvoob)(so, m, flags & MSG_PEEK);
 		if (error)
 			goto bad;
