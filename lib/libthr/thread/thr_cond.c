@@ -518,7 +518,15 @@ static void
 cond_queue_enq(pthread_cond_t cond, pthread_t pthread)
 {
 	pthread_t tid = TAILQ_LAST(&cond->c_queue, cond_head);
+	char *name;
 
+	name = pthread->name ? pthread->name : "unknown";
+	if ((pthread->flags & PTHREAD_FLAGS_IN_CONDQ) != 0)
+		_thread_printf(2, "Thread (%s:%u) already on condq\n",
+		    pthread->name, pthread->uniqueid);
+	if ((pthread->flags & PTHREAD_FLAGS_IN_MUTEXQ) != 0)
+		_thread_printf(2, "Thread (%s:%u) already on mutexq\n",
+		    pthread->name, pthread->uniqueid);
 	PTHREAD_ASSERT_NOT_IN_SYNCQ(pthread);
 
 	/*
