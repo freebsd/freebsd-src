@@ -26,24 +26,23 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- *	$Id$
  */
 
 #ifndef lint
-static char rcsid[] = "$Id$";
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <signal.h>
-#include <unistd.h>
 #include <rpc/rpc.h>
 #include <rpc/pmap_clnt.h>
+#include <rpcsvc/spray.h>
+#include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <sys/time.h>
 #include <sys/socket.h>
 #include <syslog.h>
-#include <rpcsvc/spray.h>
+#include <unistd.h>
 
 static void spray_service __P((struct svc_req *, SVCXPRT *));
 
@@ -112,12 +111,12 @@ main(argc, argv)
 
 	transp = svcudp_create(sock);
 	if (transp == NULL) {
-		syslog(LOG_ERR, "cannot create udp service.");
+		syslog(LOG_ERR, "cannot create udp service");
 		return 1;
 	}
 	if (!svc_register(transp, SPRAYPROG, SPRAYVERS, spray_service, proto)) {
 		syslog(LOG_ERR,
-		    "unable to register (SPRAYPROG, SPRAYVERS, %s).",
+		    "unable to register (SPRAYPROG, SPRAYVERS, %s)",
 		    proto ? "udp" : "(inetd)");
 		return 1;
 	}
