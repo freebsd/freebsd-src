@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.86.2.5 1999/05/07 23:43:07 julian Exp $
+**  $Id: pcisupport.c,v 1.86.2.6 1999/05/10 13:33:08 peter Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -398,6 +398,10 @@ chipset_probe (pcici_t tag, pcidi_t type)
 		return ("NEC 002C PCI to PC-98 C-bus bridge");
 	case 0x003b1033:
 		return ("NEC 003B PCI to PC-98 C-bus bridge");
+
+	/* OPTi -- vendor 0x1045 */
+	case 0xc8221045:
+		return ("OPTi 82C822 host to PCI Bridge");
 
 	/* Ross (?) -- vendor 0x1166 */
 	case 0x00051166:
