@@ -46,6 +46,7 @@
 #include <sys/rman.h>
 #include <sys/ata.h>
 #include <dev/ata/ata-all.h>
+#include <ata_if.h>
 
 #include <dev/ofw/ofw_bus.h>
 
@@ -63,12 +64,15 @@
  * Define the macio ata bus attachment.
  */
 static  int  ata_macio_probe(device_t dev);
+static  void ata_macio_setmode(device_t parent, device_t dev);
 
 static device_method_t ata_macio_methods[] = {
         /* Device interface */
 	DEVMETHOD(device_probe,		ata_macio_probe),
 	DEVMETHOD(device_attach,        ata_attach),
 
+	/* ATA interface */
+	DEVMETHOD(ata_setmode,		ata_macio_setmode),
 	{ 0, 0 }
 };
 
@@ -118,5 +122,14 @@ ata_macio_probe(device_t dev)
 	ata_generic_hw(ch);
 
 	return (ata_probe(dev));
+}
+
+static void
+ata_macio_setmode(device_t parent, device_t dev)
+{
+	struct ata_device *atadev = device_get_softc(dev);
+
+	/* TODO bang macio speed register */
+	atadev->mode = ATA_PIO;
 }
 

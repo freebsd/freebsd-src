@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 #include <sys/ata.h>
 #include <dev/ata/ata-all.h>
+#include <ata_if.h>
 
 #include <dev/ofw/openfirm.h>
 
@@ -69,6 +70,7 @@ __FBSDID("$FreeBSD$");
  * Define the kauai pci bus attachment.
  */
 static  int  ata_kauai_probe(device_t dev);
+static  void ata_kauai_setmode(device_t parent, device_t dev);
 
 static device_method_t ata_kauai_methods[] = {
         /* Device interface */
@@ -79,6 +81,8 @@ static device_method_t ata_kauai_methods[] = {
 	DEVMETHOD(device_suspend,	bus_generic_suspend),
 	DEVMETHOD(device_resume,	bus_generic_resume),
 
+	/* ATA interface */
+	DEVMETHOD(ata_setmode,		ata_kauai_setmode),
 	{ 0, 0 }
 };
 
@@ -183,3 +187,11 @@ ata_kauai_probe(device_t dev)
         return (ata_probe(dev));
 }
 
+static void
+ata_kauai_setmode(device_t parent, device_t dev)
+{
+	struct ata_device *atadev = device_get_softc(dev);
+
+	/* TODO bang kauai speed register */
+	atadev->mode = ATA_PIO;
+}
