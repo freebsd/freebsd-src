@@ -63,7 +63,6 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <utmp.h>
 
 #include "lomac.h"
 #include "ps.h"
@@ -419,7 +418,7 @@ main(int argc, char *argv[])
 uid_t *
 getuids(const char *arg, int *nuids)
 {
-	char name[UT_NAMESIZE + 1];
+	char name[MAXLOGNAME];
 	struct passwd *pwd;
 	uid_t *uids, *moreuids;
 	int alloc;
