@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)malloc.h	8.5 (Berkeley) 5/3/95
- * $Id: malloc.h,v 1.30 1997/10/12 20:25:59 phk Exp $
+ * $Id: malloc.h,v 1.31 1997/10/28 19:01:02 phk Exp $
  */
 
 #ifndef _SYS_MALLOC_H_
@@ -49,17 +49,17 @@
 #define M_MAGIC		877983977	/* time when first defined :-) */
 
 struct malloc_type {
-	const char * const ks_shortdesc;	/* Short description */
-	u_long	ks_magic;	/* If if's not magic, don't touch it */
 	struct malloc_type *ks_next; /* Next pointer */
-	long	ks_inuse;	/* # of packets of this type currently in use */
-	long	ks_calls;	/* total packets of this type ever allocated */
 	long 	ks_memuse;	/* total memory held in bytes */
-	u_short	ks_limblocks;	/* number of times blocked for hitting limit */
-	u_short	ks_mapblocks;	/* number of times blocked for kernel map */
-	long	ks_maxused;	/* maximum number ever used */
 	long	ks_limit;	/* most that are allowed to exist */
 	long	ks_size;	/* sizes of this thing that are allocated */
+	long	ks_inuse;	/* # of packets of this type currently in use */
+	long	ks_calls;	/* total packets of this type ever allocated */
+	long	ks_maxused;	/* maximum number ever used */
+	u_long	ks_magic;	/* If if's not magic, don't touch it */
+	const char * const ks_shortdesc;	/* Short description */
+	u_short	ks_limblocks;	/* number of times blocked for hitting limit */
+	u_short	ks_mapblocks;	/* number of times blocked for kernel map */
 };
 
 #define	MALLOC_DEFINE(type, shortdesc, longdesc) \
@@ -101,10 +101,10 @@ struct kmemusage {
 struct kmembuckets {
 	caddr_t kb_next;	/* list of free blocks */
 	caddr_t kb_last;	/* last free block */
-	long	kb_calls;	/* total calls to allocate this size */
 	long	kb_total;	/* total number of blocks allocated */
-	long	kb_totalfree;	/* # of free elements in this bucket */
 	long	kb_elmpercl;	/* # of elements in this sized allocation */
+	long	kb_totalfree;	/* # of free elements in this bucket */
+	long	kb_calls;	/* total calls to allocate this size */
 	long	kb_highwat;	/* high water mark */
 	long	kb_couldfree;	/* over high water mark and could free */
 };
