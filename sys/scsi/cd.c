@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *      $Id: cd.c,v 1.61 1996/01/30 23:11:06 ache Exp $
+ *      $Id: cd.c,v 1.62 1996/02/01 16:22:58 ache Exp $
  */
 
 #include "opt_bounce.h"
@@ -786,7 +786,6 @@ cd_ioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p,
 					(struct cd_toc_entry *)th, sizeof (*th));
 			if (error)
 				break;
-			NTOHS(th->len);
 
 			if (starting_track == 0)
 				starting_track = th->starting_track;
