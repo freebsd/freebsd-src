@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.99 1996/09/22 06:36:49 imp Exp $
+#	$Id: rc,v 1.100 1996/10/08 20:00:44 peter Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -252,7 +252,7 @@ fi
 
 if [ "X${amdflags}" != X"NO" ]; then
 	echo -n ' amd'
-	amd ${amdflags} > /var/run/amd.pid
+	amd -p ${amdflags} > /var/run/amd.pid
 fi
 
 # $rwhod is imported from /etc/sysconfig;
