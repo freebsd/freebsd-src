@@ -604,7 +604,7 @@ _thread_kern_scheduler(void)
 				 */
 				_thread_run->ctx.uc.uc_sigmask =
 				    _process_sigmask;
-				_thread_sys_sigreturn(&_thread_run->ctx.uc);
+				sigreturn(&_thread_run->ctx.uc);
 #endif
 				break;
 			}

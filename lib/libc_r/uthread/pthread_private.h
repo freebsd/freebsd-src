@@ -1355,7 +1355,6 @@ int	_thread_sys_sigaltstack(const struct sigaltstack *, struct sigaltstack *);
 int	_thread_sys_sigblock(int);
 int	_thread_sys_sigpending(sigset_t *);
 int	_thread_sys_sigprocmask(int, const sigset_t *, sigset_t *);
-int	_thread_sys_sigreturn(ucontext_t *);
 int	_thread_sys_sigsetmask(int);
 int	_thread_sys_sigsuspend(const sigset_t *);
 #endif

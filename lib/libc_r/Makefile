@@ -34,7 +34,7 @@ HIDDEN_SYSCALLS= aio_suspend.o accept.o bind.o close.o connect.o dup.o dup2.o \
 	msync.o nanosleep.o open.o poll.o read.o readv.o recvfrom.o \
 	recvmsg.o sched_yield.o select.o sendfile.o sendmsg.o sendto.o \
 	setsockopt.o shutdown.o sigaction.o sigaltstack.o \
-	sigpending.o sigprocmask.o sigreturn.o sigsetmask.o \
+	sigpending.o sigprocmask.o sigsetmask.o \
 	sigsuspend.o socket.o \
 	socketpair.o wait4.o write.o writev.o
 
