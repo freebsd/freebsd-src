@@ -372,7 +372,7 @@ struct ifmultiaddr {
 extern	struct ifnethead ifnet;
 extern struct	ifnet	**ifindex2ifnet;
 extern	int ifqmaxlen;
-extern	struct ifnet loif[];
+extern	struct ifnet *loif;	/* first loopback interface */
 extern	int if_index;
 extern	struct ifaddr **ifnet_addrs;
 
