@@ -36,14 +36,12 @@
 #include "copyright.h"
 
 /* cmds.c globals */
-#ifdef PASSIVEMODE
-int					passivemode;			/* no reverse FTP connections */
-#endif
 int					curtype;			/* file transfer type */
 char				*typeabbrs = "abiet";
 str32				curtypename;		/* name of file transfer type */
 int					verbose; 			/* verbosity level of output */
 int					mprompt;			/* interactively prompt on m* cmds */
+int					passivemode;		/* no reverse FTP connections */
 int					debug;				/* debugging level */
 int					options;			/* used during socket creation */
 int					macnum;				/* number of defined macros */
@@ -52,7 +50,9 @@ int					creating = 0;
 struct macel		macros[MAXMACROS];
 char				*macbuf;			/* holds ALL macros */
 int					doingInitMacro = 0;	/* TRUE if executing "init" macro. */
+static char			pad1a[8] = "Pad 1a";
 jmp_buf				jabort;
+static char			pad1b[8] = "Pad 1b";
 char				*mname;				/* name of current m* command */
 int					activemcmd;			/* flag: if != 0, then active multi command */
 int					warnNoLSFlagsWithWildcards = 0;
@@ -2059,9 +2059,6 @@ int show_version(int argc, char **argv)
 #ifdef NET_ERRNO_H
 	DStrs[nDStrs++] = "NET_ERRNO_H";
 #endif
-#ifdef PASSIVEMODE
-	DStrs[nDStrs++] = "PASSIVEMODE";
-#endif
 
 
 /* DONE with #ifdefs for now! */
@@ -2215,14 +2212,12 @@ int unimpl(int argc, char **argv)
 	return (NOERR);
 }	/* unimpl */
 
-#ifdef PASSIVEMODE
 int setpassive(int argc, char **argv)
 {
 	passivemode = !passivemode;
 	printf( "Passive mode %s.\n", (passivemode ? "ON" : "OFF") );
 	return NOERR;
 }
-#endif
 
 
 /* eof cmds.c */
