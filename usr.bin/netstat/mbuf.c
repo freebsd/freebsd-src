@@ -96,7 +96,7 @@ mbpr(mbaddr)
 	totmbufs = 0;
 	for (mp = mbtypes; mp->mt_name; mp++)
 		totmbufs += mbstat.m_mtypes[mp->mt_type];
-	printf("%u mbufs in use:\n", totmbufs);
+	printf("%u/%u mbufs in use:\n", totmbufs, mbstat.m_mbufs);
 	for (mp = mbtypes; mp->mt_name; mp++)
 		if (mbstat.m_mtypes[mp->mt_type]) {
 			seen[mp->mt_type] = YES;
@@ -111,8 +111,9 @@ mbpr(mbaddr)
 		}
 	printf("%lu/%lu mbuf clusters in use\n",
 		mbstat.m_clusters - mbstat.m_clfree, mbstat.m_clusters);
-	totmem = totmbufs * MSIZE + mbstat.m_clusters * MCLBYTES;
-	totfree = mbstat.m_clfree * MCLBYTES;
+	totmem = mbstat.m_mbufs * MSIZE + mbstat.m_clusters * MCLBYTES;
+	totfree = mbstat.m_clfree * MCLBYTES + 
+		MSIZE * (mbstat.m_mbufs - totmbufs);
 	printf("%u Kbytes allocated to network (%d%% in use)\n",
 		totmem / 1024, (totmem - totfree) * 100 / totmem);
 	printf("%lu requests for memory denied\n", mbstat.m_drops);
