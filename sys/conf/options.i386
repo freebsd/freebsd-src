@@ -1,4 +1,4 @@
-#	$Id: options.i386,v 1.96 1998/12/19 23:07:51 msmith Exp $
+#	$Id: options.i386,v 1.97 1998/12/27 13:36:44 phk Exp $
 
 DISABLE_PSE
 IDE_DELAY
@@ -99,11 +99,6 @@ EISA_SLOTS		opt_eisa.h
 FDC_DEBUG			opt_fdc.h
 FDC_PRINT_BOGUS_CHIPTYPE	opt_fdc.h
 FDC_YE				opt_fdc.h
-
-# voxware options
-GUS_DMA2		opt_sound.h
-GUS_DMA			opt_sound.h
-GUS_IRQ			opt_sound.h
 
 # Video spigot
 SPIGOT_UNSECURE		opt_spigot.h
