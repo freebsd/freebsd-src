@@ -1,5 +1,5 @@
 #	from: @(#)bsd.subdir.mk	5.9 (Berkeley) 2/1/91
-#	$Id: bsd.subdir.mk,v 1.3 1994/08/28 15:35:30 bde Exp $
+#	$Id: bsd.subdir.mk,v 1.4 1994/09/16 14:30:25 jkh Exp $
 
 .MAIN: all
 
@@ -51,6 +51,16 @@ depend: _SUBDIRUSE
 
 .if !target (maninstall)
 maninstall: _SUBDIRUSE
+.endif
+
+DISTRIBUTION?=	bindist
+.if !target(afterdistribute)
+afterdistribute:
+.endif
+.if !target(distribute)
+distribute: _SUBDIRUSE 
+	cd ${.CURDIR} ; ${MAKE} afterdistribute DESTDIR=${RELEASEDIR}/${DISTRIBUTION}
+	
 .endif
 
 .if !target(install)
