@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.279 1996/09/13 05:54:39 bde Exp $
+#	$Id: LINT,v 1.280 1996/09/19 08:27:58 phk Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -886,6 +886,15 @@ device		stli0	at isa? port 0x2a0 tty iomem 0xcc000 flags 23 iosiz 0x1000
 controller	eisa0
 controller	ahb0
 controller	ahc0
+
+# enable tagged command queueing, which is a major performance win on
+# devices that support it (and controllers with enough SCB's)
+options	AHC_TAGENABLE
+
+# enable SCB paging -- don't use this right now, gibbs says it isn't ready
+# for the real world
+#options	AHC_SCBPAGING_ENABLE
+
 
 #
 # PCI devices:

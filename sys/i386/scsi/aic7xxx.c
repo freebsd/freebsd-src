@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aic7xxx.c,v 1.74 1996/06/09 17:29:35 gibbs Exp $
+ *      $Id: aic7xxx.c,v 1.75 1996/06/23 20:02:37 gibbs Exp $
  */
 /*
  * TODO:
@@ -140,6 +140,7 @@
 #include <vm/pmap.h>
 
 #if defined(__FreeBSD__)
+#include "opt_aic7xxx.h"
 #include <i386/scsi/aic7xxx.h>
 
 #include <dev/aic7xxx/aic7xxx_reg.h>
