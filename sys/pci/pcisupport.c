@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.86.2.6 1999/05/10 13:33:08 peter Exp $
+**  $Id: pcisupport.c,v 1.86.2.7 1999/05/25 20:22:43 roger Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -285,6 +285,10 @@ chipset_probe (pcici_t tag, pcidi_t type)
 		return ("Intel 82371AB PCI to ISA bridge");
 	case 0x71138086:
 		return ("Intel 82371AB Power management controller");
+	case 0x71808086:
+		return ("Intel 82443LX host to PCI bridge");
+	case 0x71818086:
+		return ("Intel 82443LX PCI-PCI bridge");
 	case 0x71908086:
 		return ("Intel 82443BX host to PCI bridge");
 	case 0x71918086:
