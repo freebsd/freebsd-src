@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.13.2.34 1998/09/28 08:28:40 kato Exp $
+ *  $Id: syscons.c,v 1.13.2.35 1998/11/07 00:12:20 kato Exp $
  */
 
 #include "sc.h"
@@ -115,6 +115,8 @@
 #define MODE_MAP_SIZE		(M_VGA_CG320 + 1)
 #define MODE_PARAM_SIZE		64
 
+#define MAX_BLANKTIME		(7*24*60*60)	/* 7 days!? */
+
 /* for backward compatibility */
 #define OLD_CONS_MOUSECTL	_IOWR('c', 10, old_mouse_info_t)
 
@@ -167,6 +169,7 @@ static  int		sc_port = IO_KBD;
 static  KBDC		sc_kbdc = NULL;
 static  char        	init_done = COLD;
 static  u_short		sc_buffer[ROW*COL];
+static  char		shutdown_in_progress = FALSE;
 static  char        	font_loading_in_progress = FALSE;
 static  char        	switch_in_progress = FALSE;
 static  char        	write_in_progress = FALSE;
@@ -277,6 +280,7 @@ static int sckbdprobe(int unit, int flags);
 static void scstart(struct tty *tp);
 static void scmousestart(struct tty *tp);
 static void scinit(void);
+static void scshutdown(int howto, void *arg);
 static void map_mode_table(char *map[], char *table, int max);
 static u_char map_mode_num(u_char mode);
 static char *get_mode_param(scr_stat *scp, u_char mode);
@@ -902,6 +906,8 @@ scattach(struct isa_device *dev)
     apm_hook_establish(APM_HOOK_RESUME , &scp->r_hook);
 #endif
 
+    at_shutdown(scshutdown, NULL, SHUTDOWN_PRE_SYNC);
+
     cdevsw_add(&cdev, &scdevsw, NULL);
 
 #ifdef DEVFS
@@ -1144,7 +1150,7 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	return 0;
 
     case CONS_BLANKTIME:    	/* set screen saver timeout (0 = no saver) */
-	if (*(int *)data < 0)
+	if (*(int *)data < 0 || *(int *)data > MAX_BLANKTIME)
             return EINVAL;
 	scrn_blank_time = *(int *)data;
 	if (scrn_blank_time == 0)
@@ -1177,10 +1183,14 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	return 0;
 
     case CONS_BELLTYPE: 	/* set bell type sound/visual */
-	if (*data)
+	if ((*(int *)data) & 0x01)
 	    flags |= VISUAL_BELL;
 	else
 	    flags &= ~VISUAL_BELL;
+	if ((*(int *)data) & 0x02)
+	    flags |= QUIET_BELL;
+	else
+	    flags &= ~QUIET_BELL;
 	return 0;
 
     case CONS_HISTORY:  	/* set history size */
@@ -2572,7 +2582,7 @@ scrn_timer(void *arg)
     }
 
     /* should we stop the screen saver? */
-    if (panicstr)
+    if (panicstr || shutdown_in_progress)
 	scrn_time_stamp = mono_time.tv_sec;
     if (mono_time.tv_sec <= scrn_time_stamp + scrn_blank_time)
 	if (scrn_blanked > 0)
@@ -3506,7 +3516,7 @@ scan_esc(scr_stat *scp, u_char c)
 	case 'B':   /* set bell pitch and duration */
 	    if (scp->term.num_param == 2) {
 		scp->bell_pitch = scp->term.param[0];
-		scp->bell_duration = scp->term.param[1]*10;
+		scp->bell_duration = scp->term.param[1];
 	    }
 	    break;
 
@@ -4154,6 +4164,16 @@ scinit(void)
     toggle_splash_screen(cur_console);
 #endif
 #endif
+}
+
+static void
+scshutdown(int howto, void *arg)
+{
+    scrn_time_stamp = mono_time.tv_sec;
+    if (!cold && cur_console->smode.mode == VT_AUTO 
+	&& console[0]->smode.mode == VT_AUTO)
+	switch_scr(cur_console, 0);
+    shutdown_in_progress = TRUE;
 }
 
 static void
@@ -6096,7 +6116,10 @@ load_palette(char *palette)
 static void
 do_bell(scr_stat *scp, int pitch, int duration)
 {
-    if (cold)
+    if (cold || shutdown_in_progress)
+	return;
+
+    if (scp != cur_console && (flags & QUIET_BELL))
 	return;
 
     if (flags & VISUAL_BELL) {
