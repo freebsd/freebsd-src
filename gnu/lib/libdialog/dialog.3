@@ -49,7 +49,7 @@
 .Nm dialog_tree
 .Nd provide a simple ncurses-based GUI interface
 .Sh SYNOPSIS
-.Fd #include <dialog.h>
+.In dialog.h
 .Ft "void"
 .Fn draw_shadow "WINDOW *win" "int y" "int x" "int height" "int width"
 .Ft "void"
@@ -74,6 +74,7 @@
 .Fn dialog_create_rc "unsigned char *filename"
 .Ft "int"
 .Fn dialog_yesno "unsigned char *title" "unsigned char *prompt" "int height" "int width"
+.Ft "int"
 .Fn dialog_noyes "unsigned char *title" "unsigned char *prompt" "int height" "int width"
 .Ft "int"
 .Fn dialog_prgbox "unsigned char *title" "const unsigned char *line" "int height" "int width" "int pause" "int use_shell"
