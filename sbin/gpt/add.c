@@ -41,15 +41,15 @@
 #include "map.h"
 #include "gpt.h"
 
-off_t block, size;
-uuid_t type;
+static uuid_t type;
+static off_t block, size;
 
 static void
 usage_add(void)
 {
 
 	fprintf(stderr,
-	    "usage: %s [-bst] device\n", getprogname());
+	    "usage: %s [-b lba] [-s lba] [-t uuid] device\n", getprogname());
 	exit(1);
 }
 
@@ -164,8 +164,17 @@ cmd_add(int argc, char *argv[])
 				usage_add();
 			uuid_from_string(optarg, &type, &status);
 			if (status != uuid_s_ok) {
-				/* TODO: accept aliases. */
-				usage_add();
+				if (strcmp(optarg, "efi") == 0) {
+					uuid_t efi = GPT_ENT_TYPE_EFI;
+					type = efi;
+				} else if (strcmp(optarg, "swap") == 0) {
+					uuid_t sw = GPT_ENT_TYPE_FREEBSD_SWAP;
+					type = sw;
+				} else if (strcmp(optarg, "ufs") == 0) {
+					uuid_t ufs = GPT_ENT_TYPE_FREEBSD_UFS;
+					type = ufs;
+				} else
+					usage_add();
 			}
 			break;
 		default:
