@@ -24,7 +24,9 @@ LOCALES=	af_ZA.ISO_8859-1 \
 		sv_SE.ISO_8859-1 \
 		uk_UA.KOI8-U \
 		ko_KR.EUC \
-		ja_JP.EUC
+		ja_JP.EUC \
+		zh_TW.Big5 \
+		zh_CN.EUC
 
 LOCALEDIR=      ${DESTDIR}/usr/share/locale
 

@@ -19,7 +19,9 @@ LOCALES=	af_ZA.ISO_8859-1 \
 		sv_SE.ISO_8859-1 \
 		uk_UA.KOI8-U \
 		ko_KR.EUC \
-		ja_JP.EUC
+		ja_JP.EUC \
+		zh_TW.Big5 \
+		zh_CN.EUC
 
 ENGLISH=	en_US.ISO_8859-1
 ENGLISHLINKS=	en_AU.ISO_8859-1 en_CA.ISO_8859-1 en_GB.ISO_8859-1 \
