@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * From: scsi.c,v 1.8 1997/02/22 15:07:54 peter Exp $
- * $Id$
+ * $Id: scsi_cmdparse.c,v 1.1 1998/09/15 06:16:46 gibbs Exp $
  */
 #include <stdlib.h>
 #include <stdio.h>
@@ -655,7 +655,14 @@ csio_decode_visit(struct ccb_scsiio *csio, char *fmt,
 {
 	va_list ap;
 
-	ap = (va_list)0;
+	/*
+	 * We need some way to output things; we can't do it without
+	 * the arg_put function.
+	 */
+	if (arg_put == NULL)
+		return(-1);
+
+	bzero(&ap, sizeof(ap));
 
 	return(do_buff_decode(csio->data_ptr, (size_t)csio->dxfer_len,
 			      arg_put, puthook, fmt, ap));
@@ -678,7 +685,14 @@ buff_decode_visit(u_int8_t *buff, size_t len, char *fmt,
 {
 	va_list ap;
 
-	ap = (va_list)0;
+	/*
+	 * We need some way to output things; we can't do it without
+	 * the arg_put function.
+	 */
+	if (arg_put == NULL)
+		return(-1);
+
+	bzero(&ap, sizeof(ap));
 
 	return(do_buff_decode(buff, len, arg_put, puthook, fmt, ap));
 }
@@ -691,7 +705,7 @@ int
 csio_build(struct ccb_scsiio *csio, u_int8_t *data_ptr, u_int32_t dxfer_len,
 	   u_int32_t flags, int retry_count, int timeout, char *cmd_spec, ...)
 {
-	int cmdlen;
+	size_t cmdlen;
 	int retval;
 	va_list ap;
 
@@ -727,12 +741,20 @@ csio_build_visit(struct ccb_scsiio *csio, u_int8_t *data_ptr,
 		 int (*arg_get)(void *hook, char *field_name), void *gethook)
 {
 	va_list ap;
-	int cmdlen, retval;
+	size_t cmdlen;
+	int retval;
 
 	if (csio == NULL)
 		return(0);
 
-	ap = (va_list)0;
+	/*
+	 * We need something to encode, but we can't get it without the
+	 * arg_get function.
+	 */
+	if (arg_get == NULL)
+		return(-1);
+
+	bzero(&ap, sizeof(ap));
 
 	bzero(csio, sizeof(struct ccb_scsiio));
 
@@ -773,7 +795,14 @@ buff_encode_visit(u_int8_t *buff, size_t len, char *fmt,
 {
 	va_list ap;
 
-	ap = (va_list)0;
+	/*
+	 * We need something to encode, but we can't get it without the
+	 * arg_get function.
+	 */
+	if (arg_get == NULL)
+		return(-1);
+
+	bzero(&ap, sizeof(ap));
 
 	return(do_encode(buff, len, 0, arg_get, gethook, fmt, ap));
 }
@@ -784,9 +813,15 @@ csio_encode_visit(struct ccb_scsiio *csio, char *fmt,
 {
 	va_list ap;
 
-	ap = (va_list) 0;
+	/*
+	 * We need something to encode, but we can't get it without the
+	 * arg_get function.
+	 */
+	if (arg_get == NULL)
+		return(-1);
+
+	bzero(&ap, sizeof(ap));
 
 	return(do_encode(csio->data_ptr, csio->dxfer_len, 0, arg_get,
 			 gethook, fmt, ap));
 }
-
