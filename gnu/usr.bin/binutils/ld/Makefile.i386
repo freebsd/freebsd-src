@@ -8,7 +8,7 @@ CFLAGS+=	-DDEFAULT_EMULATION=\"elf_i386\"
 CFLAGS+=	-DTARGET=\"i386-unknown-freebsdelf\"
 _i386_path=	\"/usr/lib\"
 .else
-_i386_path=	\"/usr/cross/i386-freebsdelf/usr/lib\"
+_i386_path=	\"/usr/cross/i386-freebsd/usr/lib\"
 .endif
 EMS+=		ld_elf_i386_emulation
 LDSCRIPTS+=	elf_i386.x elf_i386.xbn elf_i386.xn elf_i386.xr \
