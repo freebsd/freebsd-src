@@ -193,7 +193,7 @@ int		pthread_cond_timedwait __P((pthread_cond_t *,
 int		pthread_cond_wait __P((pthread_cond_t *, pthread_mutex_t *));
 int		pthread_create __P((pthread_t *, const pthread_attr_t *,
 			void *(*start_routine) (void *), void *));
-int		pthread_detach __P((pthread_t *));
+int		pthread_detach __P((pthread_t));
 int		pthread_equal __P((pthread_t, pthread_t));
 void		pthread_exit __P((void *));
 void		*pthread_getspecific __P((pthread_key_t));
