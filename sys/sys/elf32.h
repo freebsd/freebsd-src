@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: elf32.h,v 1.4 1998/08/16 03:03:38 jdp Exp $
+ *      $Id: elf32.h,v 1.5 1998/09/14 20:30:13 jdp Exp $
  */
 
 #ifndef _SYS_ELF32_H_
@@ -107,21 +107,6 @@ typedef struct {
 		Elf32_Addr	d_ptr;	/* Address value. */
 	} d_un;
 } Elf32_Dyn;
-
-/*
- * Note header.  The ".note" section contains an array of notes.  Each
- * begins with this header, aligned to a word boundary.  Immediately
- * following the note header is n_namesz bytes of name, padded to the
- * next word boundary.  Then comes n_descsz bytes of contents, again
- * padded to a word boundary.  The values of n_namesz and n_descsz do
- * not include the padding.
- */
-
-typedef struct {
-	Elf32_Size	n_namesz;	/* Length of name. */
-	Elf32_Size	n_descsz;	/* Length of descriptor. */
-	Elf32_Word	n_type;		/* Type of this note. */
-} Elf32_Note;
 
 /*
  * Relocation entries.
