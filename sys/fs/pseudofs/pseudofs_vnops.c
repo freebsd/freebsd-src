@@ -197,17 +197,6 @@ pfs_getattr(struct vop_getattr_args *va)
 	if (pvd->pvd_pid != NO_PID) {
 		if ((proc = pfind(pvd->pvd_pid)) == NULL)
 			PFS_RETURN (ENOENT);
-		/*
-		 * XXX: pfind() returning incompletely allocated processes
-		 * is probably a bug.  Or, at least, we should check the
-		 * process state, not the ucred pointer.  Work around for
-		 * now by checking that to avoid a possible NULL pointer
-		 * dereference.
-		 */
-		if (proc->p_ucred == NULL) {
-			PROC_UNLOCK(proc);
-			PFS_RETURN (ENOENT);
-		}
 		vap->va_uid = proc->p_ucred->cr_ruid;
 		vap->va_gid = proc->p_ucred->cr_rgid;
 		if (pn->pn_attr != NULL)
