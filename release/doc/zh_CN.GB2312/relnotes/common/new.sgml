@@ -1533,7 +1533,7 @@
 
     <para>时区数据库从
       <filename>tzdata2003a</filename> 升级到了
-      <filename>tzdata2004a</filename>。</para>
+      <filename>tzdata2004e</filename>。</para>
 
     <para><application>zlib</application> 从
       1.1.4 升级到了 1.2.1。</para>
