@@ -859,57 +859,55 @@ alpha_init(pfn, ptb, bim, bip, biv)
 		 * XXX memory after the kernel in the first system segment,
 		 * XXX to avoid clobbering prom mapping, data, etc.
 		 */
-		if (!pmap_uses_prom_console() || physmem == 0) {
-			physmem += memc->mddt_pg_cnt;
-			pfn0 = memc->mddt_pfn;
-			pfn1 = memc->mddt_pfn + memc->mddt_pg_cnt;
-			if (pfn0 <= kernendpfn && kernstartpfn <= pfn1) {
-				/*
-				 * Must compute the location of the kernel
-				 * within the segment.
-				 */
+		physmem += memc->mddt_pg_cnt;
+		pfn0 = memc->mddt_pfn;
+		pfn1 = memc->mddt_pfn + memc->mddt_pg_cnt;
+		if (pfn0 <= kernendpfn && kernstartpfn <= pfn1) {
+			/*
+			 * Must compute the location of the kernel
+			 * within the segment.
+			 */
 #ifdef DEBUG_CLUSTER
-				printf("Cluster %d contains kernel\n", i);
+			printf("Cluster %d contains kernel\n", i);
 #endif
-				if (!pmap_uses_prom_console()) {
-					if (pfn0 < kernstartpfn) {
-				/*
-				 * There is a chunk before the kernel.
-				 */
+			if (!pmap_uses_prom_console()) {
+				if (pfn0 < kernstartpfn) {
+					/*
+					 * There is a chunk before the kernel.
+					 */
 #ifdef DEBUG_CLUSTER
-						printf("Loading chunk before kernel: "
-						       "0x%lx / 0x%lx\n", pfn0, kernstartpfn);
+					printf("Loading chunk before kernel: "
+					       "0x%lx / 0x%lx\n", pfn0, kernstartpfn);
 #endif
-						phys_avail[phys_avail_cnt] = alpha_ptob(pfn0);
-						phys_avail[phys_avail_cnt+1] = alpha_ptob(kernstartpfn);
-						phys_avail_cnt += 2;
-					}
+					phys_avail[phys_avail_cnt] = alpha_ptob(pfn0);
+					phys_avail[phys_avail_cnt+1] = alpha_ptob(kernstartpfn);
+					phys_avail_cnt += 2;
 				}
-				if (kernendpfn < pfn1) {
+			}
+			if (kernendpfn < pfn1) {
 				/*
 				 * There is a chunk after the kernel.
 				 */
 #ifdef DEBUG_CLUSTER
-					printf("Loading chunk after kernel: "
-					       "0x%lx / 0x%lx\n", kernendpfn, pfn1);
+				printf("Loading chunk after kernel: "
+				       "0x%lx / 0x%lx\n", kernendpfn, pfn1);
 #endif
-					phys_avail[phys_avail_cnt] = alpha_ptob(kernendpfn);
-					phys_avail[phys_avail_cnt+1] = alpha_ptob(pfn1);
-					phys_avail_cnt += 2;
-				}
-			} else {
-				/*
-				 * Just load this cluster as one chunk.
-				 */
-#ifdef DEBUG_CLUSTER
-				printf("Loading cluster %d: 0x%lx / 0x%lx\n", i,
-				       pfn0, pfn1);
-#endif
-				phys_avail[phys_avail_cnt] = alpha_ptob(pfn0);
+				phys_avail[phys_avail_cnt] = alpha_ptob(kernendpfn);
 				phys_avail[phys_avail_cnt+1] = alpha_ptob(pfn1);
 				phys_avail_cnt += 2;
-			
 			}
+		} else {
+			/*
+			 * Just load this cluster as one chunk.
+			 */
+#ifdef DEBUG_CLUSTER
+			printf("Loading cluster %d: 0x%lx / 0x%lx\n", i,
+			       pfn0, pfn1);
+#endif
+			phys_avail[phys_avail_cnt] = alpha_ptob(pfn0);
+			phys_avail[phys_avail_cnt+1] = alpha_ptob(pfn1);
+			phys_avail_cnt += 2;
+			
 		}
 	}
 	phys_avail[phys_avail_cnt] = 0;
@@ -956,16 +954,16 @@ alpha_init(pfn, ptb, bim, bip, biv)
 		phys_avail[i+1] -= sz;
 		msgbufp = (struct msgbuf*) ALPHA_PHYS_TO_K0SEG(phys_avail[i+1]);
 
-		msgbufinit(msgbufp, MSGBUF_SIZE);
+		msgbufinit(msgbufp, sz);
 
 		/* Remove the last segment if it now has no pages. */
 		if (phys_avail[i] == phys_avail[i+1])
 			phys_avail[i] = 0;
 
 		/* warn if the message buffer had to be shrunk */
-		if (sz != round_page(MSGBUFSIZE))
+		if (sz != round_page(MSGBUF_SIZE))
 			printf("WARNING: %ld bytes not available for msgbuf in last cluster (%ld used)\n",
-			    round_page(MSGBUFSIZE), sz);
+			    round_page(MSGBUF_SIZE), sz);
 
 	}
 

@@ -172,6 +172,7 @@
 #include <sys/user.h>
 
 #include <machine/md_var.h>
+#include <machine/rpb.h>
 
 #ifndef PMAP_SHPGPERPROC
 #define PMAP_SHPGPERPROC 200
@@ -606,19 +607,14 @@ pmap_bootstrap(vm_offset_t ptaddr, u_int maxasn)
 int
 pmap_uses_prom_console()
 {
-#if 0
-	extern int cputype;
+	int cputype;
 
-#if defined(NEW_SCC_DRIVER)
-	return (cputype == ST_DEC_21000);
-#else
+	cputype = hwrpb->rpb_type;
 	return (cputype == ST_DEC_21000
 	     || cputype == ST_DEC_3000_300
 	     || cputype == ST_DEC_3000_500);
-#endif /* NEW_SCC_DRIVER */
-#endif
 
-	return 1;
+	return 0;
 }
 
 /*
