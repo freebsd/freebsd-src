@@ -48,6 +48,10 @@ struct usave {
 #define KI_PROC(ki) (&(ki)->ki_p->kp_proc)
 #define KI_EPROC(ki) (&(ki)->ki_p->kp_eproc)
 
+/* These two make it easier to MFC some changes from 5.x. */
+#define	KI_PROC2(ki)	(&(ki)->kp_proc)
+#define	KI_EPROC2(ki)	(&(ki)->kp_eproc)
+
 typedef struct kinfo {
 	struct kinfo_proc *ki_p;	/* proc structure */
 	struct usave ki_u;	/* interesting parts of user */
