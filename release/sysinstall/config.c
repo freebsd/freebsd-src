@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.51.2.53 1997/06/13 14:18:45 jkh Exp $
+ * $Id: config.c,v 1.51.2.54 1997/06/21 15:47:32 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -167,8 +167,10 @@ seq_num(Chunk *c1)
     if (c1->type == part && c1->subtype != FS_SWAP) {
 	if (rootdev_is_od == 0 && strncmp(c1->name, "od", 2) == 0)
 	    return 0;
-	else
+	else if (c1->flags & CHUNK_IS_ROOT)
 	    return 1;
+	else
+	    return 2;
     }
     return 0;
 }
