@@ -32,14 +32,14 @@
 .Nm llrintf ,
 .Nm lrint ,
 .Nm lrintf
-.Nd convert to integer
+.Nd "convert to integer"
 .Sh LIBRARY
 .Lb libm
 .Sh SYNOPSIS
 .In math.h
-.Ft long long
+.Ft "long long"
 .Fn llrint "double x"
-.Ft long long
+.Ft "long long"
 .Fn llrintf "float x"
 .Ft long
 .Fn lrint "double x"
@@ -52,7 +52,7 @@ function returns the integer nearest to its argument
 .Fa x
 according to the current rounding mode.
 If the rounded result is too large to be represented as a
-.Ft long
+.Vt long
 value, an invalid exception is raised and the return value is undefined.
 Otherwise, if
 .Fa x
@@ -60,12 +60,12 @@ is not an integer,
 .Fn lrint
 raises an inexact exception.
 When the rounded result is representable as a
-.Ft long ,
+.Vt long ,
 the expression
-.Li lrint(x)
+.Fn lrint x
 is equivalent to
-.Li (long)rint(x)
-(although the former may be more efficient.)
+.Po Vt long Pc Ns Fn rint x
+(although the former may be more efficient).
 .Pp
 The
 .Fn llrint ,
