@@ -34,6 +34,7 @@
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
+#include <sys/socket.h>
 #include <sys/un.h>
 
 #include <stdio.h>
@@ -63,7 +64,10 @@
 #include "mbuf.h"
 #include "lqr.h"
 #include "hdlc.h"
+#include "ncpaddr.h"
+#include "ip.h"
 #include "ipcp.h"
+#include "ipv6cp.h"
 #include "lcp.h"
 #include "ccp.h"
 #include "link.h"
@@ -72,7 +76,7 @@
 #ifndef NORADIUS
 #include "radius.h"
 #endif
-#include "ip.h"
+#include "ncp.h"
 #include "bundle.h"
 
 
@@ -547,7 +551,8 @@ nat_LayerPull(struct bundle *bundle, struct link *l, struct mbuf *bp,
         bp = NULL;
       } else if (log_IsKept(LogTCPIP)) {
         log_Printf(LogTCPIP, "NAT engine ignored data:\n");
-        PacketCheck(bundle, MBUF_CTOP(bp), bp->m_len, NULL, NULL, NULL);
+        PacketCheck(bundle, AF_INET, MBUF_CTOP(bp), bp->m_len, NULL,
+                    NULL, NULL);
       }
       break;
 

@@ -57,13 +57,16 @@
 #include "slcompress.h"
 #include "lqr.h"
 #include "hdlc.h"
+#include "ncpaddr.h"
 #include "ipcp.h"
-#include "filter.h"
+#include "ipv6cp.h"
 #include "descriptor.h"
 #include "lcp.h"
 #include "ccp.h"
 #include "link.h"
 #include "mp.h"
+#include "ncp.h"
+#include "filter.h"
 #ifndef NORADIUS
 #include "radius.h"
 #endif

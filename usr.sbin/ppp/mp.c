@@ -61,6 +61,8 @@
 #include "slcompress.h"
 #include "lqr.h"
 #include "hdlc.h"
+#include "ncpaddr.h"
+#include "ip.h"
 #include "ipcp.h"
 #include "auth.h"
 #include "lcp.h"
@@ -79,8 +81,9 @@
 #ifndef NORADIUS
 #include "radius.h"
 #endif
+#include "ipv6cp.h"
+#include "ncp.h"
 #include "bundle.h"
-#include "ip.h"
 #include "prompt.h"
 #include "id.h"
 #include "arp.h"
@@ -243,6 +246,7 @@ mp_Init(struct mp *mp, struct bundle *bundle)
 
   mp->out.seq = 0;
   mp->out.link = 0;
+  mp->out.af = AF_INET;
   mp->seq.min_in = 0;
   mp->seq.next_in = 0;
   mp->inbufs = NULL;
@@ -336,6 +340,7 @@ mp_Up(struct mp *mp, struct datalink *dl)
 
     mp->out.seq = 0;
     mp->out.link = 0;
+    mp->out.af = AF_INET;
     mp->seq.min_in = 0;
     mp->seq.next_in = 0;
 
@@ -355,8 +360,8 @@ mp_Up(struct mp *mp, struct datalink *dl)
       log_Printf(LogPHASE, "mp: Listening on %s\n", mp->server.socket.sun_path);
       log_Printf(LogPHASE, "    First link: %s\n", dl->name);
 
-      /* Re-point our IPCP layer at our MP link */
-      ipcp_SetLink(&mp->bundle->ncp.ipcp, &mp->link);
+      /* Re-point our NCP layers at our MP link */
+      ncp_SetLink(&mp->bundle->ncp, &mp->link);
 
       /* Our lcp's already up 'cos of the NULL parent */
       if (ccp_SetOpenMode(&mp->link.ccp)) {
@@ -657,7 +662,7 @@ mp_Output(struct mp *mp, struct bundle *bundle, struct link *l,
 }
 
 int
-mp_FillQueues(struct bundle *bundle)
+mp_FillPhysicalQueues(struct bundle *bundle)
 {
   struct mp *mp = &bundle->ncp.mp;
   struct datalink *dl, *fdl;
@@ -665,6 +670,7 @@ mp_FillQueues(struct bundle *bundle)
   int thislink, nlinks;
   u_int32_t begin, end;
   struct mbuf *m, *mo;
+  struct link *bestlink;
 
   thislink = nlinks = 0;
   for (fdl = NULL, dl = bundle->links; dl; dl = dl->next) {
@@ -706,7 +712,7 @@ mp_FillQueues(struct bundle *bundle)
       continue;
     }
 
-    if (!link_QueueLen(&mp->link)) {
+    if (!mp_QueueLen(mp)) {
       struct datalink *other;
       int mrutoosmall;
 
@@ -714,7 +720,8 @@ mp_FillQueues(struct bundle *bundle)
        * If there's only a single open link in our bundle and we haven't got
        * MP level link compression, queue outbound traffic directly via that
        * link's protocol stack rather than using the MP link.  This results
-       * in the outbound traffic going out as PROTO_IP rather than PROTO_MP.
+       * in the outbound traffic going out as PROTO_IP or PROTO_IPV6 rather
+       * than PROTO_MP.
        */
       for (other = dl->next; other; other = other->next)
         if (other->state == DATALINK_OPEN)
@@ -734,9 +741,9 @@ mp_FillQueues(struct bundle *bundle)
         }
       }
 
-      if (!ip_PushPacket(other ? &mp->link : &dl->physical->link, bundle))
-        /* Nothing else to send */
-        break;
+      bestlink = other ? &mp->link : &dl->physical->link;
+      if (!ncp_PushPacket(&bundle->ncp, &mp->out.af, bestlink))
+        break;	/* Nothing else to send */
 
       if (mrutoosmall)
         log_Printf(LogDEBUG, "Don't send data as PROTO_IP, MRU < MRRU\n");
@@ -978,7 +985,7 @@ mp_SetEnddisc(struct cmdargs const *arg)
       mp->cfg.enddisc.len = strlen(mp->cfg.enddisc.address);
     } else if (!strcasecmp(arg->argv[arg->argn], "ip")) {
       if (arg->bundle->ncp.ipcp.my_ip.s_addr == INADDR_ANY)
-        addr = arg->bundle->ncp.ipcp.cfg.my_range.ipaddr;
+        ncprange_getip4addr(&arg->bundle->ncp.ipcp.cfg.my_range, &addr);
       else
         addr = arg->bundle->ncp.ipcp.my_ip;
       memcpy(mp->cfg.enddisc.address, &addr.s_addr, sizeof addr.s_addr);
@@ -989,7 +996,7 @@ mp_SetEnddisc(struct cmdargs const *arg)
       int s;
 
       if (arg->bundle->ncp.ipcp.my_ip.s_addr == INADDR_ANY)
-        addr = arg->bundle->ncp.ipcp.cfg.my_range.ipaddr;
+        ncprange_getip4addr(&arg->bundle->ncp.ipcp.cfg.my_range, &addr);
       else
         addr = arg->bundle->ncp.ipcp.my_ip;
 
@@ -1195,8 +1202,8 @@ mp_LinkLost(struct mp *mp, struct datalink *dl)
     mp_Assemble(mp, NULL, NULL);
 }
 
-void
-mp_DeleteQueue(struct mp *mp)
+size_t
+mp_QueueLen(struct mp *mp)
 {
-  link_DeleteQueue(&mp->link);
+  return link_QueueLen(&mp->link);
 }
