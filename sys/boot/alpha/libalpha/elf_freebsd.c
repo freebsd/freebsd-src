@@ -90,16 +90,16 @@
 
 #define _KERNEL
 
-static int	elf_exec(struct preloaded_file *afp);
+static int	elf64_exec(struct preloaded_file *afp);
 int		bi_load(struct bootinfo_v1 *, vm_offset_t *,
 			struct preloaded_file *);
 
-struct file_format alpha_elf = { elf_loadfile, elf_exec };
+struct file_format alpha_elf = { elf64_loadfile, elf64_exec };
 
 vm_offset_t ffp_save, ptbr_save;
 
 static int
-elf_exec(struct preloaded_file *fp)
+elf64_exec(struct preloaded_file *fp)
 {
     static struct bootinfo_v1	bootinfo_v1;
     struct file_metadata	*md;

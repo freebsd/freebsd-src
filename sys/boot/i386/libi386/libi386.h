@@ -84,6 +84,10 @@ ssize_t	i386_copyin(const void *src, vm_offset_t dest, const size_t len);
 ssize_t	i386_copyout(const vm_offset_t src, void *dest, const size_t len);
 ssize_t	i386_readin(const int fd, vm_offset_t dest, const size_t len);
 
+struct preloaded_file;
+void	bios_addsmapdata(struct preloaded_file *);
+void	bios_getsmap(void);
+
 void	bios_getmem(void);
 extern u_int32_t	bios_basemem;				/* base memory in bytes */
 extern u_int32_t	bios_extmem;				/* extended memory in bytes */
@@ -97,6 +101,8 @@ int	i386_autoload(void);
 
 int	bi_getboothowto(char *kargs);
 vm_offset_t	bi_copyenv(vm_offset_t addr);
-int	bi_load(char *args, int *howtop, int *bootdevp, vm_offset_t *bip);
+int	bi_load32(char *args, int *howtop, int *bootdevp, vm_offset_t *bip,
+	    vm_offset_t *modulep, vm_offset_t *kernend);
+int	bi_load64(char *args, vm_offset_t *modulep, vm_offset_t *kernend);
 
 void	pxe_enable(void *pxeinfo);
