@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ed.c,v 1.130 1998/01/08 23:40:45 eivind Exp $
+ *	$Id: if_ed.c,v 1.131 1998/02/04 22:32:18 eivind Exp $
  */
 
 /*
@@ -41,6 +41,17 @@
 #include "bpfilter.h"
 #include "opt_diagnostic.h"
 #include "opt_inet.h"
+#include "pnp.h"
+
+#ifndef EXTRA_ED
+# if NPNP > 0
+#  define EXTRA_ED 8
+# else
+#  define EXTRA_ED 0
+# endif
+#endif
+
+#define NEDTOT (NED + EXTRA_ED)
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -68,6 +79,10 @@
 
 #if NBPFILTER > 0
 #include <net/bpf.h>
+#endif
+
+#if NPNP > 0
+#include <i386/isa/pnp.h>
 #endif
 
 #include <machine/clock.h>
@@ -129,7 +144,7 @@ struct ed_softc {
 	struct	ifmib_iso_8802_3 mibdata; /* stuff for network mgmt */
 };
 
-static struct ed_softc ed_softc[NED];
+static struct ed_softc ed_softc[NEDTOT];
 
 static int ed_attach		__P((struct ed_softc *, int, int));
 static int ed_attach_isa	__P((struct isa_device *));
@@ -185,8 +200,10 @@ static void    ed_setrcr(struct ed_softc *);
 
 static u_long ds_crc(u_char *ep);
 
-#if NCARD > 0
+#if (NCARD > 0) || (NPNP > 0)
 #include <sys/kernel.h>
+#endif
+#if NCARD > 0
 #include <sys/select.h>
 #include <pccard/cardinfo.h>
 #include <pccard/driver.h>
@@ -220,7 +237,7 @@ edinit(struct pccard_devinfo *devi)
 	struct ed_softc *sc = &ed_softc[devi->isahd.id_unit];
 
 	/* validate unit number. */
-	if (devi->isahd.id_unit >= NED)
+	if (devi->isahd.id_unit >= NEDTOT)
 		return(ENODEV);
 	/*
 	 * Probe the device. If a value is returned, the
@@ -3382,3 +3399,95 @@ ds_getmcaf(sc, mcaf)
 		af[index >> 3] |= 1 << (index & 7);
 	}
 }
+
+/*
+ * support PnP cards if we are using 'em
+ */
+
+#if NPNP > 0
+
+static struct edpnp_ids {
+	u_long vend_id;
+	char *id_str;
+} edpnp_ids[] = {
+	{ 0x1980635e, "WSC8019"},
+	{ 0 }
+};
+
+static char *edpnp_probe(u_long csn, u_long vend_id);
+static void edpnp_attach(u_long csn, u_long vend_id, char *name,
+	struct isa_device *dev);
+static u_long nedpnp = NED;
+
+static struct pnp_device edpnp = {
+	"edpnp",
+	edpnp_probe,
+	edpnp_attach,
+	&nedpnp,
+	&net_imask
+};
+DATA_SET (pnpdevice_set, edpnp);
+
+static char *
+edpnp_probe(u_long csn, u_long vend_id)
+{
+	struct edpnp_ids *ids;
+	char *s = NULL;
+
+	for(ids = edpnp_ids; ids->vend_id != 0; ids++) {
+		if (vend_id == ids->vend_id) {
+			s = ids->id_str;
+			break;
+		}
+	}
+
+	if (s) {
+		struct pnp_cinfo d;
+		read_pnp_parms(&d, 0);
+		if (d.enable == 0 || d.flags & 1) {
+			printf("CSN %d is disabled.\n", csn);
+			return (NULL);
+		}
+
+	}
+
+	return (s);
+}
+
+static void
+edpnp_attach(u_long csn, u_long vend_id, char *name, struct isa_device *dev)
+{
+	struct pnp_cinfo d;
+	struct isa_device *dvp;
+
+	if (dev->id_unit >= NEDTOT)
+		return;
+
+	if (read_pnp_parms(&d, 0) == 0) {
+		printf("failed to read pnp parms\n");
+		return;
+	}
+
+	write_pnp_parms(&d, 0);
+
+	enable_pnp_card();
+
+	dev->id_iobase = d.port[0];
+	dev->id_irq = (1 << d.irq[0]);
+	dev->id_intr = edintr;
+	dev->id_ri_flags = RI_FAST;
+	dev->id_drq = -1;
+
+	if (dev->id_driver == NULL) {
+		dev->id_driver = &eddriver;
+		dvp = find_isadev(isa_devtab_net, &eddriver, 0);
+		if (dvp != NULL)
+			dev->id_id = dvp->id_id;
+	}
+
+	if ((dev->id_alive = ed_probe(dev)) != 0)
+		ed_attach_isa(dev);
+	else
+		printf("ed%d: probe failed\n", dev->id_unit);
+}
+#endif
