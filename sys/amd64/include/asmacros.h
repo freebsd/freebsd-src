@@ -30,11 +30,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: asmacros.h,v 1.3 1994/08/02 07:38:40 davidg Exp $
+ *	$Id: asmacros.h,v 1.4 1994/08/19 11:20:11 jkh Exp $
  */
 
-#ifndef _ASMACROS_H_
-#define _ASMACROS_H_	1
+#ifndef _MACHINE_ASMACROS_H_
+#define _MACHINE_ASMACROS_H_
+
+#ifdef KERNEL
 
 #define ALIGN_DATA	.align	2	/* 4 byte alignment, zero filled */
 #define ALIGN_TEXT	.align	2,0x90	/* 4-byte alignment, nop filled */
@@ -85,8 +87,14 @@
 #define NOP		pushl %eax ; inb $0x84,%al ; inb $0x84,%al ; popl %eax
 #endif
 
+#else /* !KERNEL */
+
+#include "/usr/src/lib/libc/i386/DEFS.h"	/* XXX blech */
+
 #ifndef RCSID
 #define RCSID(a)
 #endif
 
-#endif	/* _ASMACROS_H_ */
+#endif /* KERNEL */
+
+#endif /* !_MACHINE_ASMACROS_H_ */
