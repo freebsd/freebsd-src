@@ -38,13 +38,12 @@ static const char copyright[] =
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
-#ifndef lint
 #if 0
 static char sccsid[] = "@(#)recvjob.c	8.2 (Berkeley) 4/27/95";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
+
+#include "lp.cdefs.h"		/* A cross-platform version of <sys/cdefs.h> */
+__FBSDID("$FreeBSD$");
 
 /*
  * Receive printer jobs from the network, queue them and
