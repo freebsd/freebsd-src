@@ -35,31 +35,29 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1989, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif not lint
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)nfsiod.c	8.4 (Berkeley) 5/3/95";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif not lint
 
 #include <sys/param.h>
-#include <sys/ioctl.h>
 #include <sys/syslog.h>
-#include <sys/ucred.h>
 #include <sys/wait.h>
 #include <sys/mount.h>
 #include <sys/time.h>
 
 #include <nfs/rpcv2.h>
-#include <nfs/nfsproto.h>
 #include <nfs/nfs.h>
 
 #include <err.h>
-#include <errno.h>
-#include <fcntl.h>
-#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -164,7 +162,7 @@ void
 nonfs(signo)
 	int signo;
 {
-	syslog(LOG_ERR, "missing system call: NFS not available.");
+	syslog(LOG_ERR, "missing system call: NFS not available");
 }
 
 void
