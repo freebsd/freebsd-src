@@ -21,6 +21,13 @@ stop_dhcp() {
 
 start_dhcp() {
 	stop_dhcp
+	case ${pccard_ether_delay} in
+	[Nn][Oo])
+		;;
+	[0-9])
+		sleep ${pccard_ether_delay}
+		;;
+        esac
 	if [ -x "${dhcp_program}" ]; then
 		if [ `basename ${dhcp_program}` = "dhclient" ]; then
 			pidfile="/var/run/dhclient.${interface}.pid"
@@ -46,17 +53,6 @@ shift
 startstop=$1
 shift
 
-case ${pccard_ether_delay} in
-[Nn][Oo])
-	;;
-[0-9])
-	sleep ${pccard_ether_delay}
-	;;
-*)	# Default until it has had a chance to make it to /etc/defaults/rc.conf
-	sleep 5
-	;;
-esac
-
 case ${pccard_ifconfig} in
 [Nn][Oo] | '')
 	expr "${removable_interfaces}" : ".*${interface}" > /dev/null || exit 0
@@ -69,6 +65,11 @@ esac
 
 case ${startstop} in
 [Ss][Tt][Aa][Rr][Tt] | '')
+	if ifconfig ${interface} | grep -s UP,; then
+	    # Interface is already up, so ignore it.
+	    exit 0
+	fi
+
 	if [ -r /etc/start_if.${interface} ]; then
 		. /etc/start_if.${interface}
 	fi
