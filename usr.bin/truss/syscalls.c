@@ -39,6 +39,7 @@ static const char rcsid[] =
  * arguments.
  */
 
+#include <sys/mman.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/time.h>
@@ -48,6 +49,7 @@ static const char rcsid[] =
 
 #include <ctype.h>
 #include <err.h>
+#include <fcntl.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -64,12 +66,14 @@ static const char rcsid[] =
  */
 
 struct syscall syscalls[] = {
+	{ "fcntl", 1, 3,
+	  { { Int, 0 } , { Fcntl, 1 }, { Hex, 2 }}},
 	{ "readlink", 1, 3,
 	  { { String, 0 } , { String | OUT, 1 }, { Int, 2 }}},
 	{ "lseek", 2, 3,
 	  { { Int, 0 }, {Quad, 2 }, { Int, 4 }}},
 	{ "mmap", 2, 6,
-	  { { Hex, 0 }, {Int, 1}, {Hex, 2}, {Hex, 3}, {Int, 4}, {Quad, 6}}},
+	  { { Ptr, 0 }, {Int, 1}, {Mprot, 2}, {Mmapflags, 3}, {Int, 4}, {Quad, 6}}},
 	{ "open", 1, 3,
 	  { { String | IN, 0} , { Hex, 1}, {Octal, 2}}},
 	{ "linux_open", 1, 3,
@@ -243,6 +247,18 @@ make_quad(unsigned long p1, unsigned long p2) {
   return t.ll;
 }
 
+/*
+ * Remove a trailing '|' in a string, useful for fixup after decoding
+ * a "flags" argument.
+ */
+
+void
+remove_trailing_or(char *str)
+{
+
+	if (str != NULL && (str = rindex(str, '|')) != NULL && str[1] == '\0')
+		*str = '\0';
+}
 
 /*
  * print_arg
@@ -345,6 +361,52 @@ print_arg(int fd, struct syscall_args *sc, unsigned long *args) {
         asprintf(&tmp, "%ld", sig);
     }
     break;
+  case Fcntl:
+    {
+	switch (args[sc->offset]) {
+#define S(a)	case a: tmp = strdup(#a); break;
+	S(F_DUPFD);
+	S(F_GETFD);
+	S(F_SETFD);
+	S(F_GETFL);
+	S(F_SETFL);
+	S(F_GETOWN);
+	S(F_SETOWN);
+	S(F_GETLK);
+	S(F_SETLK);
+	S(F_SETLKW);
+#undef S
+	}
+	if (tmp == NULL)
+    		asprintf(&tmp, "0x%lx", args[sc->offset]);
+    }
+    break;
+
+  case Mprot:
+    {
+
+#define S(a)	((args[sc->offset] & a) ? #a "|" : "")
+	    asprintf(&tmp, "(0x%lx)%s%s%s%s", args[sc->offset],
+		S(PROT_NONE), S(PROT_READ), S(PROT_WRITE), S(PROT_EXEC));
+#undef S
+	    remove_trailing_or(tmp);
+
+    }
+    break;
+
+  case Mmapflags:
+    {
+#define S(a)	((args[sc->offset] & a) ? #a "|" : "")
+	    asprintf(&tmp, "(0x%lx)%s%s%s%s%s%s%s%s", args[sc->offset],
+		S(MAP_ANON), S(MAP_FIXED), S(MAP_HASSEMAPHORE),
+		S(MAP_NOCORE), S(MAP_NOSYNC), S(MAP_PRIVATE),
+		S(MAP_SHARED), S(MAP_STACK));
+#undef S
+
+	    remove_trailing_or(tmp);
+    }
+    break;
+
   case Sockaddr:
     {
       struct sockaddr_storage ss;
