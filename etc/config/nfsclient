@@ -1,0 +1,4 @@
+# $Id$
+# This file determines whether the NFS client software is automatically
+# started at boot time.  The default is off.
+off
