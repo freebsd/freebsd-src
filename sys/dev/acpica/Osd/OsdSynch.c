@@ -73,6 +73,8 @@ AcpiOsCreateSemaphore(UINT32 MaxUnits, UINT32 InitialUnits, ACPI_HANDLE *OutHand
 ACPI_STATUS
 AcpiOsDeleteSemaphore (ACPI_HANDLE Handle)
 {
+    struct acpi_semaphore *as = (struct acpi_semaphore *)Handle;
+    mtx_destroy(&as->as_mtx);
     free(Handle, M_ACPISEM);
     return(AE_OK);
 }
