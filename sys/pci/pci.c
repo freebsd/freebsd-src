@@ -948,7 +948,7 @@ pci_add_map(device_t pcib, int b, int s, int f, int reg,
 	u_int8_t ln2size;
 	u_int8_t ln2range;
 	u_int32_t testval;
-		
+	u_int16_t cmd;
 	int type;
 
 	map = PCIB_READ_CONFIG(pcib, b, s, f, reg, 4);
@@ -983,11 +983,18 @@ pci_add_map(device_t pcib, int b, int s, int f, int reg,
 		else
 			printf(", enabled\n");
 	}
-
-	if (type == SYS_RES_IOPORT && !pci_porten(pcib, b, s, f))
-		return 1;
-	if (type == SYS_RES_MEMORY && !pci_memen(pcib, b, s, f))
-		return 1;
+	
+	/* Turn on resources that have been left off by a lazy BIOS */
+	if (type == SYS_RES_IOPORT && !pci_porten(pcib, b, s, f)) {
+		cmd = PCIB_READ_CONFIG(pcib, b, s, f, PCIR_COMMAND, 2);
+		cmd |= PCIM_CMD_PORTEN;
+		PCIB_WRITE_CONFIG(pcib, b, s, f, PCIR_COMMAND, cmd, 2);
+	}
+	if (type == SYS_RES_MEMORY && !pci_memen(pcib, b, s, f)) {
+		cmd = PCIB_READ_CONFIG(pcib, b, s, f, PCIR_COMMAND, 2);
+		cmd |= PCIM_CMD_MEMEN;
+		PCIB_WRITE_CONFIG(pcib, b, s, f, PCIR_COMMAND, cmd, 2);
+	}
 
 	resource_list_add(rl, type, reg,
 			  base, base + (1 << ln2size) - 1,
