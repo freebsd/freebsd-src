@@ -1,10 +1,10 @@
-#	$Id: Makefile,v 1.8 1997/09/10 04:19:07 peter Exp $
+#	$Id: Makefile,v 1.9 1998/10/16 04:30:46 peter Exp $
 
 .PATH:	${.CURDIR}/../../netinet
 KMOD=	ipfw
 SRCS=	ip_fw.c
 NOMAN=
-CFLAGS+= -DIPFIREWALL -DIPFIREWALL_MODULE
+CFLAGS+= -DIPFIREWALL
 #
 #If you want it verbose
 #CFLAGS+= -DIPFIREWALL_VERBOSE
