@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: fmt.c,v 1.5 1995/03/09 20:40:17 davidg Exp $
+ *	$Id: fmt.c,v 1.6 1995/10/23 21:03:40 ache Exp $
  */
 
 #ifndef lint
@@ -59,7 +59,7 @@ shquote(argv)
 	char **argv;
 {
 	char **p, *dst, *src;
-	static char buf[ARG_MAX];		/* XXX */
+	static char buf[4*ARG_MAX];		/* XXX */
 
 	if (*argv == 0) {
 		buf[0] = 0;
