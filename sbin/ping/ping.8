@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)ping.8	8.2 (Berkeley) 12/11/93
-.\"	$Id: ping.8,v 1.10 1997/03/02 20:01:07 imp Exp $
+.\"	$Id: ping.8,v 1.11 1997/03/02 23:38:05 jmg Exp $
 .\"
 .Dd March 1, 1997
 .Dt PING 8
@@ -214,12 +214,14 @@ Then, hosts and gateways further and further away should be
 Round-trip times and packet loss statistics are computed.
 If duplicate packets are received, they are not included in the packet
 loss calculation, although the round trip time of these packets is used
-in calculating the minimum/average/maximum round-trip time numbers.
+in calculating the round-trip time statistics.
 When the specified number of packets have been sent
 .Pq and received
 or if the program is terminated with a
 .Dv SIGINT ,
-a brief summary is displayed.
+a brief summary is displayed, showing the number of packets sent and
+received, and the minimum, maximum, mean, and standard deviation of
+the round-trip times.
 .Pp
 This program is intended for use in network testing, measurement and
 management.
@@ -267,25 +269,21 @@ to the same request.
 Damaged packets are obviously serious cause for alarm and often
 indicate broken hardware somewhere in the
 .Nm ping
-.No packet Ap s path
-.Pq in the network or in the hosts .
+packet's path (in the network or in the hosts).
 .Sh TRYING DIFFERENT DATA PATTERNS
 The
-.Po
-inter
-.Pc Ns network
+(inter)network
 layer should never treat packets differently depending on the data
 contained in the data portion.
 Unfortunately, data-dependent problems have been known to sneak into
 networks and remain undetected for long periods of time.
 In many cases the particular pattern that will have problems is something
-.No that doesn Ap t have sufficient
+that does not have sufficient
 .Dq transitions ,
 such as all ones or all zeros, or a pattern right at the edge, such as
 almost all zeros.
-.No It isn Ap t
-necessarily enough to specify a data pattern of all zeros
-.Pq for example
+It is not
+necessarily enough to specify a data pattern of all zeros (for example)
 on the command line because the pattern that is of interest is
 at the data link level, and the relationship between what you type and
 what the controllers transmit can be complicated.
@@ -293,7 +291,7 @@ what the controllers transmit can be complicated.
 This means that if you have a data-dependent problem you will probably
 have to do a lot of testing to find it.
 If you are lucky, you may manage to find a file that either
-.No can Ap t
+cannot
 be sent across your network or that takes much longer to transfer than
 other similar length files.
 You can then examine this file for repeated patterns that you can test
@@ -318,7 +316,12 @@ specification states that the
 field for
 .Tn TCP
 packets should be set to 60, but many systems use smaller values
-.Pq Bx 4.3 \ uses 30, Bx 4.2 \ used 15 .
+.Po
+.Bx 4.3
+uses 30,
+.Bx 4.2
+used 15
+.Pc .
 .Pp
 The maximum possible value of this field is 255, and most Unix systems set
 the
@@ -348,7 +351,9 @@ In this case the
 value in the received packet will be 255 minus the
 number of routers in the round-trip path.
 .It
-Set it to 255; this is what current Berkeley Unix systems do.
+Set it to 255; this is what current 
+.Tn BSD
+systems do.
 In this case the
 .Tn TTL
 value in the received packet will be 255 minus the
