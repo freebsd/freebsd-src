@@ -152,7 +152,7 @@
 /*
  * Hooks for the ACPI CA debugging infrastructure
  */
-#define _COMPONENT	EMBEDDED_CONTROLLER
+#define _COMPONENT	ACPI_EMBEDDED_CONTROLLER
 MODULE_NAME("EC")
 
 struct acpi_ec_softc {
@@ -251,7 +251,7 @@ DRIVER_MODULE(acpi_ec, acpi, acpi_ec_driver, acpi_ec_devclass, 0, 0);
 static void
 acpi_ec_identify(driver_t driver, device_t bus)
 {
-    FUNCTION_TRACE(__FUNCTION__);
+    FUNCTION_TRACE(__func__);
 
     /* XXX implement - need an ACPI 2.0 system to test this */
 
@@ -286,7 +286,7 @@ acpi_ec_attach(device_t dev)
     struct acpi_ec_softc	*sc;
     ACPI_STATUS			Status;
 
-    FUNCTION_TRACE(__FUNCTION__);
+    FUNCTION_TRACE(__func__);
 
     /*
      * Fetch/initialise softc
@@ -353,7 +353,7 @@ acpi_ec_attach(device_t dev)
      * Install address space handler
      */
     DEBUG_PRINT(TRACE_RESOURCES, ("attaching address space handler\n"));
-    if ((Status = AcpiInstallAddressSpaceHandler(sc->ec_handle, ADDRESS_SPACE_EC, 
+    if ((Status = AcpiInstallAddressSpaceHandler(sc->ec_handle, ACPI_ADR_SPACE_EC, 
 						 EcSpaceHandler, EcSpaceSetup, sc)) != AE_OK) {
 	device_printf(dev, "can't install address space handler - %s\n", acpi_strerror(Status));
 	return_VALUE(ENXIO);
@@ -371,7 +371,7 @@ EcGpeQueryHandler(void *Context)
     ACPI_STATUS			Status;
     char			qxx[5];
 
-    FUNCTION_TRACE(__FUNCTION__);
+    FUNCTION_TRACE(__func__);
 
     for (;;) {
 
@@ -455,7 +455,7 @@ static ACPI_STATUS
 EcSpaceSetup(ACPI_HANDLE Region, UINT32 Function, void *Context, void **RegionContext)
 {
 
-    FUNCTION_TRACE(__FUNCTION__);
+    FUNCTION_TRACE(__func__);
 
     /*
      * Just pass the context through, there's nothing to do here.
@@ -474,22 +474,21 @@ EcSpaceHandler(UINT32 Function, ACPI_PHYSICAL_ADDRESS Address, UINT32 width, UIN
     EC_REQUEST			EcRequest;
     int				i;
 
-    FUNCTION_TRACE_U32(__FUNCTION__, (UINT32)Address);
+    FUNCTION_TRACE_U32(__func__, (UINT32)Address);
 
     if ((Address > 0xFF) || (width % 8 != 0) || (Value == NULL) || (Context == NULL))
         return_ACPI_STATUS(AE_BAD_PARAMETER);
 
     switch (Function) {
-    case ADDRESS_SPACE_READ:
+    case ACPI_READ_ADR_SPACE:
         EcRequest.Command = EC_COMMAND_READ;
         EcRequest.Address = Address;
-        EcRequest.Data = 0;
+	(*Value) = 0;
         break;
 
-    case ADDRESS_SPACE_WRITE:
+    case ACPI_WRITE_ADR_SPACE:
         EcRequest.Command = EC_COMMAND_WRITE;
         EcRequest.Address = Address;
-        EcRequest.Data = (UINT8)(*Value);
         break;
 
     default:
@@ -500,9 +499,8 @@ EcSpaceHandler(UINT32 Function, ACPI_PHYSICAL_ADDRESS Address, UINT32 width, UIN
     /*
      * Perform the transaction.
      */
-    (*Value) = 0;
     for (i = 0; i < width; i += 8) {
-	if (Function == ADDRESS_SPACE_READ)
+	if (Function == ACPI_READ_ADR_SPACE)
 	    EcRequest.Data = 0;
 	else
 	    EcRequest.Data = (UINT8)((*Value) >> i);
@@ -512,9 +510,9 @@ EcSpaceHandler(UINT32 Function, ACPI_PHYSICAL_ADDRESS Address, UINT32 width, UIN
 	if (++EcRequest.Address == 0)
             return_ACPI_STATUS(AE_BAD_PARAMETER);
     }
-
     return_ACPI_STATUS(Status);
 }
+
 static ACPI_STATUS
 EcWaitEventIntr(struct acpi_ec_softc *sc, EC_EVENT Event)
 {
@@ -569,9 +567,9 @@ EcWaitEvent(struct acpi_ec_softc *sc, EC_EVENT Event)
      * Wait For Event:
      * ---------------
      * Poll the EC status register to detect completion of the last
-     * command.  Wait up to 10ms (in 100us chunks) for this to occur.
+     * command.  Wait up to 10ms (in 10us chunks) for this to occur.
      */
-    for (i = 0; i < 100; i++) {
+    for (i = 0; i < 1000; i++) {
 	EcStatus = EC_GET_CSR(sc);
 
         if ((Event == EC_EVENT_OUTPUT_BUFFER_FULL) &&
@@ -582,7 +580,7 @@ EcWaitEvent(struct acpi_ec_softc *sc, EC_EVENT Event)
             !(EcStatus & EC_FLAG_INPUT_BUFFER))
 	    return(AE_OK);
 	
-	AcpiOsSleepUsec(100);
+	AcpiOsSleepUsec(10);
     }
 
     return(AE_ERROR);
@@ -638,6 +636,11 @@ EcTransaction(struct acpi_ec_softc *sc, EC_REQUEST *EcRequest)
     }
 
     /*
+     * Unlock the EC
+     */
+    EcUnlock(sc);
+    
+    /*
      * Clear & Re-Enable the EC GPE:
      * -----------------------------
      * 'Consume' any EC GPE events that we generated while performing
@@ -657,11 +660,6 @@ EcTransaction(struct acpi_ec_softc *sc, EC_REQUEST *EcRequest)
 	device_printf(sc->ec_dev, "EcRequest: Unable to clear the EC GPE.\n");
     if (AcpiEnableEvent(sc->ec_gpebit, ACPI_EVENT_GPE) != AE_OK)
 	device_printf(sc->ec_dev, "EcRequest: Unable to re-enable the EC GPE.\n");
-
-    /*
-     * Unlock the EC
-     */
-    EcUnlock(sc);
 
     return(Status);
 }

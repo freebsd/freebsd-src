@@ -41,7 +41,7 @@
 /*
  * Hooks for the ACPI CA debugging infrastructure
  */
-#define _COMPONENT	BUS_MANAGER
+#define _COMPONENT	ACPI_BUS_MANAGER
 MODULE_NAME("RESOURCE")
 
 /*
@@ -54,13 +54,13 @@ ACPI_STATUS
 acpi_parse_resources(device_t dev, ACPI_HANDLE handle, struct acpi_parse_resource_set *set)
 {
     ACPI_BUFFER		buf;
-    RESOURCE		*res;
+    ACPI_RESOURCE	*res;
     char		*curr, *last;
     ACPI_STATUS		status;
     int			i;
     void		*context;
 
-    FUNCTION_TRACE(__FUNCTION__);
+    FUNCTION_TRACE(__func__);
 
     /*
      * Fetch the device resources
@@ -79,24 +79,24 @@ acpi_parse_resources(device_t dev, ACPI_HANDLE handle, struct acpi_parse_resourc
     curr = buf.Pointer;
     last = (char *)buf.Pointer + buf.Length;
     while (curr < last) {
-	res = (RESOURCE *)curr;
+	res = (ACPI_RESOURCE *)curr;
 	curr += res->Length;
 
 	/*
 	 * Handle the individual resource types
 	 */
 	switch(res->Id) {
-	case EndTag:
+	case ACPI_RSTYPE_END_TAG:
 	    DEBUG_PRINT(TRACE_RESOURCES, ("EndTag\n"));
 	    curr = last;
 	    break;
 
-	case FixedIo:
+	case ACPI_RSTYPE_FIXED_IO:
 	    DEBUG_PRINT(TRACE_RESOURCES, ("FixedIo 0x%x/%d\n", res->Data.FixedIo.BaseAddress, res->Data.FixedIo.RangeLength));
 	    set->set_ioport(dev, context, res->Data.FixedIo.BaseAddress, res->Data.FixedIo.RangeLength);
 	    break;
 
-	case Io:
+	case ACPI_RSTYPE_IO:
 	    if (res->Data.Io.MinBaseAddress == res->Data.Io.MaxBaseAddress) {
 		DEBUG_PRINT(TRACE_RESOURCES, ("Io 0x%x/%d\n", res->Data.Io.MinBaseAddress, res->Data.Io.RangeLength));
 		set->set_ioport(dev, context, res->Data.Io.MinBaseAddress, res->Data.Io.RangeLength);
@@ -108,14 +108,14 @@ acpi_parse_resources(device_t dev, ACPI_HANDLE handle, struct acpi_parse_resourc
 	    }
 	    break;
 
-	case FixedMemory32:
+	case ACPI_RSTYPE_FIXED_MEM32:
 	    DEBUG_PRINT(TRACE_RESOURCES, ("FixedMemory32 0x%x/%d\n", res->Data.FixedMemory32.RangeBaseAddress, 
 					  res->Data.FixedMemory32.RangeLength));
 	    set->set_memory(dev, context, res->Data.FixedMemory32.RangeBaseAddress, 
 			    res->Data.FixedMemory32.RangeLength);
 	    break;
 
-	case Memory32:
+	case ACPI_RSTYPE_MEM32:
 	    if (res->Data.Memory32.MinBaseAddress == res->Data.Memory32.MaxBaseAddress) {
 		DEBUG_PRINT(TRACE_RESOURCES, ("Memory32 0x%x/%d\n", res->Data.Memory32.MinBaseAddress, 
 					      res->Data.Memory32.RangeLength));
@@ -128,7 +128,7 @@ acpi_parse_resources(device_t dev, ACPI_HANDLE handle, struct acpi_parse_resourc
 	    }
 	    break;
 
-	case Memory24:
+	case ACPI_RSTYPE_MEM24:
 	    if (res->Data.Memory24.MinBaseAddress == res->Data.Memory24.MaxBaseAddress) {
 		DEBUG_PRINT(TRACE_RESOURCES, ("Memory24 0x%x/%d\n", res->Data.Memory24.MinBaseAddress, 
 					      res->Data.Memory24.RangeLength));
@@ -141,43 +141,43 @@ acpi_parse_resources(device_t dev, ACPI_HANDLE handle, struct acpi_parse_resourc
 	    }
 	    break;
 
-	case Irq:
+	case ACPI_RSTYPE_IRQ:
 	    for (i = 0; i < res->Data.Irq.NumberOfInterrupts; i++) {
 		DEBUG_PRINT(TRACE_RESOURCES, ("Irq %d\n", res->Data.Irq.Interrupts[i]));
 		set->set_irq(dev, context, res->Data.Irq.Interrupts[i]);
 	    }
 	    break;
 	    
-	case Dma:
+	case ACPI_RSTYPE_DMA:
 	    for (i = 0; i < res->Data.Dma.NumberOfChannels; i++) {
 		DEBUG_PRINT(TRACE_RESOURCES, ("Drq %d\n", res->Data.Dma.Channels[i]));
 		set->set_drq(dev, context, res->Data.Dma.Channels[i]);
 	    }
 	    break;
 
-	case StartDependentFunctions:
+	case ACPI_RSTYPE_START_DPF:
 	    DEBUG_PRINT(TRACE_RESOURCES, ("start dependant functions"));
-	    set->set_start_dependant(dev, context, res->Data.StartDependentFunctions.CompatibilityPriority);
+	    set->set_start_dependant(dev, context, res->Data.StartDpf.CompatibilityPriority);
 	    break;
 
-	case EndDependentFunctions:
+	case ACPI_RSTYPE_END_DPF:
 	    DEBUG_PRINT(TRACE_RESOURCES, ("end dependant functions"));
 	    set->set_end_dependant(dev, context);
 	    break;
 
-	case Address32:
+	case ACPI_RSTYPE_ADDRESS32:
 	    DEBUG_PRINT(TRACE_RESOURCES, ("unimplemented Address32 resource\n"));
 	    break;
 
-	case Address16:
+	case ACPI_RSTYPE_ADDRESS16:
 	    DEBUG_PRINT(TRACE_RESOURCES, ("unimplemented Address16 resource\n"));
 	    break;
 
-	case ExtendedIrq:
+	case ACPI_RSTYPE_EXT_IRQ:
 	    DEBUG_PRINT(TRACE_RESOURCES, ("unimplemented ExtendedIrq resource\n"));
 	    break;
 
-	case VendorSpecific:
+	case ACPI_RSTYPE_VENDOR:
 	    DEBUG_PRINT(TRACE_RESOURCES, ("unimplemented VendorSpecific resource\n"));
 	    break;
 	default:

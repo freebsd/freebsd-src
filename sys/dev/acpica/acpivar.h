@@ -154,6 +154,13 @@ acpi_get_type(device_t dev) {
 extern void		acpi_EnterDebugger(void);
 #endif
 
+#ifdef ACPI_DEBUG
+#include <sys/cons.h>
+#define STEP(x)		do {printf x, printf("\n"); cngetc();} while (0)
+#else
+#define STEP(x)
+#endif
+
 extern BOOLEAN		acpi_MatchHid(device_t dev, char *hid);
 extern ACPI_STATUS	acpi_GetIntoBuffer(ACPI_HANDLE handle, 
 					   ACPI_STATUS (*func)(ACPI_HANDLE, ACPI_BUFFER *), 

@@ -38,7 +38,7 @@
 #include <sys/taskqueue.h>
 #include <machine/clock.h>
 
-#define _COMPONENT	OS_DEPENDENT
+#define _COMPONENT	ACPI_OS_SERVICES
 MODULE_NAME("SCHEDULE")
 
 /*
@@ -64,7 +64,7 @@ AcpiOsQueueForExecution(UINT32 Priority, OSD_EXECUTION_CALLBACK Function, void *
 {
     struct acpi_task	*at;
 
-    FUNCTION_TRACE(__FUNCTION__);
+    FUNCTION_TRACE(__func__);
 
     if (Function == NULL)
 	return_ACPI_STATUS(AE_BAD_PARAMETER);
@@ -107,7 +107,7 @@ AcpiOsExecuteQueue(void *arg, int pending)
     OSD_EXECUTION_CALLBACK	Function;
     void			*Context;
 
-    FUNCTION_TRACE(__FUNCTION__);
+    FUNCTION_TRACE(__func__);
 
     Function = (OSD_EXECUTION_CALLBACK)at->at_function;
     Context = at->at_context;
@@ -126,20 +126,21 @@ void
 AcpiOsSleep (UINT32 Seconds, UINT32 Milliseconds)
 {
     int		timo;
+    static int	dummy;
 
-    FUNCTION_TRACE(__FUNCTION__);
+    FUNCTION_TRACE(__func__);
 
-    timo = (Seconds * hz) + Milliseconds / (1000 * hz);
+    timo = (Seconds * hz) + Milliseconds * hz / 1000;
     if (timo == 0)
 	timo = 1;
-    tsleep(NULL, PZERO, "acpislp", timo);
+    tsleep(&dummy, 0, "acpislp", timo);
     return_VOID;
 }
 
 void
 AcpiOsSleepUsec (UINT32 Microseconds)
 {
-    FUNCTION_TRACE(__FUNCTION__);
+    FUNCTION_TRACE(__func__);
 
     if (Microseconds > 1000) {	/* long enough to be worth the overhead of sleeping */
 	AcpiOsSleep(0, Microseconds / 1000);
@@ -147,4 +148,13 @@ AcpiOsSleepUsec (UINT32 Microseconds)
 	DELAY(Microseconds);
     }
     return_VOID;
+}
+
+UINT32
+AcpiOsGetThreadId (void)
+{
+    /* XXX do not add FUNCTION_TRACE here, results in recursive call */
+
+    KASSERT(curproc != NULL, (__func__ ": curproc is NULL!"));
+    return(curproc->p_pid + 1);	/* can't return 0 */
 }

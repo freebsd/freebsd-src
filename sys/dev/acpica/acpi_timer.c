@@ -39,7 +39,7 @@
 /*
  * Hooks for the ACPI CA debugging infrastructure
  */
-#define _COMPONENT	SYSTEM_CONTROL
+#define _COMPONENT	ACPI_SYSTEM
 MODULE_NAME("TIMER")
 
 #define ACPITIMER_MAGIC 0x524d4954	/* "TIMR" */
@@ -76,7 +76,7 @@ acpi_timer_identify(driver_t *driver, device_t parent)
     device_t			dev;
     char			desc[40];
 
-    FUNCTION_TRACE(__FUNCTION__);
+    FUNCTION_TRACE(__func__);
 
     if (acpi_disabled("timer"))
 	return_VOID;
@@ -112,7 +112,7 @@ acpi_timer_attach(device_t dev)
 {
     struct acpi_timer_softc		*sc;
 
-    FUNCTION_TRACE(__FUNCTION__);
+    FUNCTION_TRACE(__func__);
 
     sc = device_get_softc(dev);
     sc->tm_dev = dev;
