@@ -175,7 +175,7 @@ video_outb(int port, u_int8_t value)
 	    col = cp % DpyCols;
 	    break;
 	default:
-	    debug(D_VIDEO, "outb 0x%04x, 0x%02x at index 0x%02x\n",
+	    debug(D_VIDEO, "VGA: outb 0x%04x, 0x%02x at index 0x%02x\n",
 		  port, value, crtc_index);
 	    break;
 	}
@@ -190,7 +190,7 @@ video_outb(int port, u_int8_t value)
 	    VGA_ATC[atc_index] = value;
 	    switch (atc_index) {
 	    default:
-		debug(D_VIDEO, "outb 0x%04x, 0x%02x at index 0x%02x\n",
+		debug(D_VIDEO, "VGA: outb 0x%04x, 0x%02x at index 0x%02x\n",
 		      port, value, crtc_index);
 		break;
 	    }
@@ -204,7 +204,7 @@ video_outb(int port, u_int8_t value)
 	VGA_TSC[tsc_index] = value;
 	switch (tsc_index) {
 	default:
-	    debug(D_VIDEO, "outb 0x%04x, 0x%02x at index 0x%02x\n",
+	    debug(D_VIDEO, "VGA: outb 0x%04x, 0x%02x at index 0x%02x\n",
 		  port, value, crtc_index);
 	    break;
 	}
@@ -217,7 +217,7 @@ video_outb(int port, u_int8_t value)
 #if 0
 	switch (gdc_index) {
 	default:
-	    debug(D_VIDEO, "outb 0x%04x, 0x%02x at index 0x%02x\n",
+	    debug(D_VIDEO, "VGA: outb 0x%04x, 0x%02x at index 0x%02x\n",
 		  port, value, crtc_index);
 
 	    break;
@@ -225,7 +225,7 @@ video_outb(int port, u_int8_t value)
 #endif
 	break;
     default:
-	debug(D_ALWAYS, "Unknown port 0x%4x\n", port);
+	debug(D_ALWAYS, "VGA: Unknown port 0x%4x\n", port);
 	break;
     }
 	
@@ -385,7 +385,7 @@ init_mode(int mode)
     int idx;			/* Index into vmode */
     int pidx;			/* Index into videoparams */
     
-    debug(D_VIDEO, "Set video mode to 0x%02x\n", mode);
+    debug(D_VIDEO, "VGA: Set video mode to 0x%02x\n", mode);
 
     idx = find_vmode(mode & 0x7f);
     if (idx == -1 || vmodelist[idx].type == NOMODE)
@@ -466,7 +466,7 @@ init_mode(int mode)
        0xaffff will generate a T_PAGEFAULT trap in VM86 mode (aside: why not a
        SIGSEGV?), which is handled in 'trap.c:sigbus()'. */
     if (vmode.type == GRAPHICS) {
-	vmem = mmap((void *)0xa0000, 64 * 1024, PROT_READ,
+	vmem = mmap((void *)0xa0000, 64 * 1024, PROT_NONE,
 		    MAP_ANON | MAP_FIXED | MAP_INHERIT | MAP_SHARED, -1, 0);
 	if (vmem == NULL)
 	    fatal("Could not mmap() video memory");
@@ -493,7 +493,7 @@ init_mode(int mode)
    'videoparams' array. */
 int find_vmode(int mode)
 {
-    int i;
+    unsigned i;
 
     for (i = 0; i < NUMMODES; i++)
 	if (vmodelist[i].modenumber == mode)
@@ -501,8 +501,6 @@ int find_vmode(int mode)
 	
     return -1;
 }
-
-
 
 /* Handle access to the graphics memory.
 
@@ -534,6 +532,35 @@ vmem_pageflt(struct sigframe *sf)
     return emu_instr(REGS);
 }
 
+/* We need to keep track of the latches' contents.*/
+static u_int8_t latch0, latch1, latch2, latch3;
+
+/* Read a byte from the video memory. 'vga_read()' is called from
+   'cpu.c:read_byte()' and will emulate the VGA read modes. */
+u_int8_t
+vga_read(u_int32_t addr)
+{
+    u_int32_t dst;
+    
+    /* 'addr' lies between 0xa0000 and 0xaffff. */
+    dst = addr - 0xa0000;
+
+    /* Fill latches. */
+    latch0 = vplane0[dst];
+    latch1 = vplane1[dst];
+    latch2 = vplane2[dst];
+    latch3 = vplane3[dst];
+    
+    /* Select read mode. */
+    if ((VGA_GDC[GDC_Mode] & 0x80) == 0)
+	/* Read Mode 0; return the byte from the selected bit plane. */
+	return vram[dst + (VGA_GDC[GDC_ReadMapSelect] & 3) * 0x10000];
+
+    /* Read Mode 1 */
+    debug(D_ALWAYS, "VGA: Read Mode 1 not implemented\n");
+    return 0;
+}
+
 /* Write a byte to the video memory. 'vga_write()' is called from
    'cpu.c:write_word()' and will emulate the VGA write modes. Not all four
    modes are implemented yet, nor are the addressing modes (odd/even, chain4).
@@ -543,46 +570,41 @@ void
 vga_write(u_int32_t addr, u_int8_t val)
 {
     u_int32_t dst;
-    u_int8_t *latch0, *latch1, *latch2, *latch3;
     u_int8_t c0, c1, c2, c3;
     u_int8_t m0, m1, m2, m3;
     u_int8_t mask;
+
 #if 0
-    int i;
+    unsigned i;
     
-    debug(D_VIDEO, "Write 0x%02x to 0x%x\n", val, addr);
-    debug(D_VIDEO, "GDC: ");
+    debug(D_VIDEO, "VGA: Write 0x%02x to 0x%x\n", val, addr);
+    debug(D_VIDEO, "   GDC: ");
     for (i = 0; i < sizeof(VGA_GDC); i++)
 	debug(D_VIDEO, "%02x ", VGA_GDC[i]);
     debug(D_VIDEO, "\n");
-    debug(D_VIDEO, "TSC: ");
+    debug(D_VIDEO, "   TSC: ");
     for (i = 0; i < sizeof(VGA_TSC); i++)
 	debug(D_VIDEO, "%02x ", VGA_TSC[i]);
     debug(D_VIDEO, "\n");
 #endif
     
-    /* 'addr' lies between 0xa0000 and 0xaffff */
+    /* 'addr' lies between 0xa0000 and 0xaffff. */
     dst = addr - 0xa0000;
 
-    /* fill latches */
-    latch0 = vplane0 + dst;
-    latch1 = vplane1 + dst;
-    latch2 = vplane2 + dst;
-    latch3 = vplane3 + dst;
-
-    c0 = *latch0;
-    c1 = *latch1;
-    c2 = *latch2;
-    c3 = *latch3;
+    c0 = latch0;
+    c1 = latch1;
+    c2 = latch2;
+    c3 = latch3;
     
-    /* select write mode */
+    /* Select write mode. */
     switch (VGA_GDC[GDC_Mode] & 3) {
     case 0:
-	/* XXX to do: Enable Set Reset register */
-	
 	mask = VGA_GDC[GDC_BitMask];
 
-	/* select function */
+	if (VGA_GDC[GDC_DataRotate] & 7)
+	    debug(D_ALWAYS, "VGA: Data Rotate != 0\n");
+	
+	/* Select function.  */
 	switch (VGA_GDC[GDC_DataRotate] & 0x18) {
 	case 0x00:		/* replace */
 	    m0 = VGA_GDC[GDC_SetReset] & 1 ? mask : 0x00;
@@ -590,53 +612,54 @@ vga_write(u_int32_t addr, u_int8_t val)
 	    m2 = VGA_GDC[GDC_SetReset] & 4 ? mask : 0x00;
 	    m3 = VGA_GDC[GDC_SetReset] & 8 ? mask : 0x00;
 
-	    c0 &= ~mask;
-	    c1 &= ~mask;
-	    c2 &= ~mask;
-	    c3 &= ~mask;
+	    c0 = VGA_GDC[GDC_EnableSetReset] & 1 ? c0 & ~mask : val & ~mask;
+	    c1 = VGA_GDC[GDC_EnableSetReset] & 2 ? c1 & ~mask : val & ~mask;
+	    c2 = VGA_GDC[GDC_EnableSetReset] & 4 ? c2 & ~mask : val & ~mask;
+	    c3 = VGA_GDC[GDC_EnableSetReset] & 8 ? c3 & ~mask : val & ~mask;
     
 	    c0 |= m0;
 	    c1 |= m1;
 	    c2 |= m2;
 	    c3 |= m3;
 	    break;
-	case 0x08:		/* and */
+	case 0x08:		/* AND */
 	    m0 = VGA_GDC[GDC_SetReset] & 1 ? 0xff : ~mask;
 	    m1 = VGA_GDC[GDC_SetReset] & 2 ? 0xff : ~mask;
 	    m2 = VGA_GDC[GDC_SetReset] & 4 ? 0xff : ~mask;
 	    m3 = VGA_GDC[GDC_SetReset] & 8 ? 0xff : ~mask;
 
-	    c0 &= m0;
-	    c1 &= m1;
-	    c2 &= m2;
-	    c3 &= m3;
+	    c0 = VGA_GDC[GDC_EnableSetReset] & 1 ? c0 & m0 : val & m0;
+	    c1 = VGA_GDC[GDC_EnableSetReset] & 2 ? c1 & m1 : val & m1;
+	    c2 = VGA_GDC[GDC_EnableSetReset] & 4 ? c2 & m2 : val & m2;
+	    c3 = VGA_GDC[GDC_EnableSetReset] & 8 ? c3 & m3 : val & m3;
 	    break;
-	case 0x10:		/* or */
+	case 0x10:		/* OR */
 	    m0 = VGA_GDC[GDC_SetReset] & 1 ? mask : 0x00;
 	    m1 = VGA_GDC[GDC_SetReset] & 2 ? mask : 0x00;
 	    m2 = VGA_GDC[GDC_SetReset] & 4 ? mask : 0x00;
 	    m3 = VGA_GDC[GDC_SetReset] & 8 ? mask : 0x00;
 
-	    c0 |= m0;
-	    c1 |= m1;
-	    c2 |= m2;
-	    c3 |= m3;
+	    c0 = VGA_GDC[GDC_EnableSetReset] & 1 ? c0 | m0 : val | m0;
+	    c1 = VGA_GDC[GDC_EnableSetReset] & 2 ? c1 | m1 : val | m1;
+	    c2 = VGA_GDC[GDC_EnableSetReset] & 4 ? c2 | m2 : val | m2;
+	    c3 = VGA_GDC[GDC_EnableSetReset] & 8 ? c3 | m3 : val | m3;
 	    break;
-	case 0x18:		/* xor */
+	case 0x18:		/* XOR */
 	    m0 = VGA_GDC[GDC_SetReset] & 1 ? mask : 0x00;
 	    m1 = VGA_GDC[GDC_SetReset] & 2 ? mask : 0x00;
 	    m2 = VGA_GDC[GDC_SetReset] & 4 ? mask : 0x00;
 	    m3 = VGA_GDC[GDC_SetReset] & 8 ? mask : 0x00;
 
-	    c0 ^= m0;
-	    c1 ^= m1;
-	    c2 ^= m2;
-	    c3 ^= m3;
+	    c0 = VGA_GDC[GDC_EnableSetReset] & 1 ? c0 ^ m0 : val ^ m0;
+	    c1 = VGA_GDC[GDC_EnableSetReset] & 2 ? c1 ^ m1 : val ^ m1;
+	    c2 = VGA_GDC[GDC_EnableSetReset] & 4 ? c2 ^ m2 : val ^ m2;
+	    c3 = VGA_GDC[GDC_EnableSetReset] & 8 ? c3 ^ m3 : val ^ m3;
 	    break;
 	}
 	break;
     case 1:
-	/* not yet */
+	/* Just copy the latches' content to the desired destination
+	   address. */
 	break;
     case 2:
 	mask = VGA_GDC[GDC_BitMask];
@@ -696,18 +719,19 @@ vga_write(u_int32_t addr, u_int8_t val)
 	break;
     case 3:
 	/* not yet */
+	debug(D_ALWAYS, "VGA: Write Mode 3 not implemented\n");
 	break;
     }
 
-    /* write back changed byte, depending on Map Mask register */
+    /* Write back changed byte, depending on Map Mask register. */
     if (VGA_TSC[TSC_MapMask] & 1)
-	*latch0 = c0;
+	vplane0[dst] = c0;
     if (VGA_TSC[TSC_MapMask] & 2)
-	*latch1 = c1;
+	vplane1[dst] = c1;
     if (VGA_TSC[TSC_MapMask] & 4)
-	*latch2 = c2;
+	vplane2[dst] = c2;
     if (VGA_TSC[TSC_MapMask] & 8)
-	*latch3 = c3;
+	vplane3[dst] = c3;
     
     return;
 }

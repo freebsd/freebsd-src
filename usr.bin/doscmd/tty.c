@@ -115,7 +115,7 @@ typedef struct TextLine {
     u_char	max_length;	/* Not used, but here for future use */
     u_char	changed:1;
 } TextLine;
-TextLine *lines;
+TextLine *lines = NULL;
 
 int kbd_fd = -1;
 int kbd_read = 0;
@@ -133,14 +133,14 @@ SetVREGCur()
     VGA_CRTC[CRTC_CurLocLo] = cp & 0xff;
 }
 
-void	_kbd_event(void *);
-void	debug_event(void *);
-int	video_event();
-void	video_async_event(void *);
-void	tty_cooked();
-unsigned char inb_port60(int);
-void	kbd_event(int fd, REGISTERS);
-u_short	read_raw_kbd(int fd, u_short *code);
+void		_kbd_event(void *);
+void		debug_event(void *);
+int		video_event();
+void		video_async_event(void *);
+void		tty_cooked();
+unsigned char	inb_port60(int);
+void		kbd_event(int);
+u_short		read_raw_kbd(int, u_short *);
 
 /* Local functions */
 #ifndef NO_X
@@ -364,7 +364,7 @@ video_update(regcontext_t *REGS)
 	static int icnt = 3;
 
 	if (kbd_read)
-	    kbd_event(kbd_fd, REGS);
+	    kbd_event(kbd_fd);
 
     	if (--icnt == 0) {
 	    icnt = 3;
@@ -791,7 +791,7 @@ inb_port60(int port)
 }       
 
 void
-kbd_event(int fd, REGISTERS)
+kbd_event(int fd)
 {
     kbd_read = 0;
 
@@ -998,7 +998,7 @@ video_async_event(void *pfd)
                 int x;
                 fd_set fdset;
                 XEvent ev;  
-                static struct timeval tv = { 0 };
+                static struct timeval tv;
  
                 /*
                  * Handle any events just sitting around...
@@ -1042,7 +1042,7 @@ video_async_event(void *pfd)
 }
 
 void
-kbd_async_event(int fd, REGISTERS)
+kbd_async_event(int fd)
 {
     unsigned char c;
 
@@ -2182,7 +2182,7 @@ get_ximage()
         XDestroyImage(xi);
         err(1, "Could not get memory for ximage data");
     }
-    
+
     return;
 #endif
 }
@@ -2193,14 +2193,31 @@ get_lines()
 {
     int i;
     
-    if (!(lines = (TextLine *)malloc(sizeof(TextLine) * height)))
-	err(1, "Could not allocate data structure for text lines\n");
-
-    for (i = 0; i < height; ++i) {
-	lines[i].max_length = width;
-	if (!(lines[i].data = (u_short *)malloc(width * sizeof(u_short))))
+    if (lines == NULL) {
+	lines = (TextLine *)malloc(sizeof(TextLine) * height);
+	if (lines == NULL)
 	    err(1, "Could not allocate data structure for text lines\n");
-	lines[i].changed = 1;
+
+	for (i = 0; i < height; ++i) {
+	    lines[i].max_length = width;
+	    lines[i].data = (u_short *)malloc(width * sizeof(u_short));
+	    if (lines[i].data == NULL)
+		err(1, "Could not allocate data structure for text lines\n");
+	    lines[i].changed = 1;
+	}
+    } else {
+	lines = (TextLine *)realloc(lines, sizeof(TextLine) * height);
+	if (lines == NULL)
+	    err(1, "Could not allocate data structure for text lines\n");
+
+	for (i = 0; i < height; ++i) {
+	    lines[i].max_length = width;
+	    lines[i].data = (u_short *)realloc(lines[i].data,
+					       width * sizeof(u_short));
+	    if (lines[i].data == NULL)
+		err(1, "Could not allocate data structure for text lines\n");
+	    lines[i].changed = 1;
+	}
     }
 }
 
@@ -2258,7 +2275,8 @@ resize_window()
     sh->min_height = sh->max_height = sh->base_height;
     sh->flags = USSize | PMinSize | PMaxSize | PSize;
 
-    debug(D_VIDEO, "window size %dx%d\n", sh->base_width, sh->base_height);
+    debug(D_VIDEO, "VGA: Set window size %dx%d\n",
+	  sh->base_width, sh->base_height);
     
     XSetWMNormalHints(dpy, win, sh);
     XResizeWindow(dpy, win, sh->base_width, sh->base_height);
