@@ -317,7 +317,7 @@ vmapbuf(bp)
 		 * Do the vm_fault if needed; do the copy-on-write thing
 		 * when reading stuff off device into memory.
 		 */
-		vm_fault_quick(addr,
+		vm_fault_quick((addr >= bp->b_data) ? addr : bp->b_data,
 			(bp->b_flags&B_READ)?(VM_PROT_READ|VM_PROT_WRITE):VM_PROT_READ);
 		pa = trunc_page(pmap_kextract((vm_offset_t) addr));
 		if (pa == 0)
