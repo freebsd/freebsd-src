@@ -95,7 +95,6 @@ int	pids;			/* preserve file uid/gid */
 int	exit_val;		/* exit value */
 int	docrc;			/* check/create file crc */
 char	*dirptr;		/* destination dir in a copy */
-char	*ltmfrmt;		/* -v locale time format (if any) */
 char	*argv0;			/* root of argv[0] */
 sigset_t s_mask;		/* signal mask for cleanup critical sect */
 
@@ -348,13 +347,6 @@ gen_init()
 		reslimit.rlim_cur = reslimit.rlim_max;
 		(void)setrlimit(RLIMIT_RSS , &reslimit);
 	}
-
-	/*
-	 * Handle posix locale
-	 *
-	 * set user defines time printing format for -v option
-	 */
-	ltmfrmt = getenv("LC_TIME");
 
 	/*
 	 * signal handling to reset stored directory times and modes. Since
