@@ -29,20 +29,21 @@
  */
 #include <sys/cdefs.h>
 #include <stdlib.h>
-#include <rtld_lock.h>
+
+#include "rtld_lock.h"
 #include "thr_private.h"
 
-static void *_thr_rtld_lock_create();
-static void  _thr_rtld_lock_destroy(void *);
-static void  _thr_rtld_rlock_acquire(void *);
-static void  _thr_rtld_wlock_acquire(void *);
-static void  _thr_rtld_lock_release(void *);
-static int   _thr_rtld_set_flag(int);
-static int   _thr_rtld_clr_flag(int);
+static int	_thr_rtld_clr_flag(int);
+static void	*_thr_rtld_lock_create(void);
+static void	_thr_rtld_lock_destroy(void *);
+static void	_thr_rtld_lock_release(void *);
+static void	_thr_rtld_rlock_acquire(void *);
+static int	_thr_rtld_set_flag(int);
+static void	_thr_rtld_wlock_acquire(void *);
 
 #ifdef NOTYET
 static void *
-_thr_rtld_lock_create()
+_thr_rtld_lock_create(void)
 {
 	pthread_rwlock_t prwlock;
 	if (_pthread_rwlock_init(&prwlock, NULL))
@@ -53,7 +54,9 @@ _thr_rtld_lock_create()
 static void
 _thr_rtld_lock_destroy(void *lock)
 {
-	pthread_rwlock_t prwlock = (pthread_rwlock_t)lock;
+	pthread_rwlock_t prwlock;
+
+	prwlock = (pthread_rwlock_t)lock;
 	if (prwlock != NULL)
 		_pthread_rwlock_destroy(&prwlock);
 }
@@ -61,21 +64,27 @@ _thr_rtld_lock_destroy(void *lock)
 static void
 _thr_rtld_rlock_acquire(void *lock)
 {
-	pthread_rwlock_t prwlock = (pthread_rwlock_t)lock;
+	pthread_rwlock_t prwlock;
+
+	prwlock = (pthread_rwlock_t)lock;
 	_thr_rwlock_rdlock(&prwlock);
 }
 
 static void
 _thr_rtld_wlock_acquire(void *lock)
 {
-	pthread_rwlock_t prwlock = (pthread_rwlock_t)lock;
+	pthread_rwlock_t prwlock;
+
+	prwlock = (pthread_rwlock_t)lock;
 	_thr_rwlock_wrlock(&prwlock);
 }
 
 static void
 _thr_rtld_lock_release(void *lock)
 {
-	pthread_rwlock_t prwlock = (pthread_rwlock_t)lock;
+	pthread_rwlock_t prwlock;
+
+	prwlock = (pthread_rwlock_t)lock;
 	_thr_rwlock_unlock(&prwlock);
 }
 
@@ -87,7 +96,6 @@ _thr_rtld_set_flag(int mask)
 	int bits;
 
 	curthread = _get_curthread();
-
 	if (curthread != NULL) {
 		bits = curthread->rtld_bits;
 		curthread->rtld_bits |= mask;
@@ -106,7 +114,6 @@ _thr_rtld_clr_flag(int mask)
 	int bits;
 
 	curthread = _get_curthread();
-
 	if (curthread != NULL) {
 		bits = curthread->rtld_bits;
 		curthread->rtld_bits &= ~mask;
@@ -118,22 +125,23 @@ _thr_rtld_clr_flag(int mask)
 }
 
 void
-_thr_rtld_init()
+_thr_rtld_init(void)
 {
 	struct RtldLockInfo li;
-        li.lock_create  = _thr_rtld_lock_create;
-        li.lock_destroy = _thr_rtld_lock_destroy;
-        li.rlock_acquire = _thr_rtld_rlock_acquire;
-        li.wlock_acquire = _thr_rtld_wlock_acquire;
-        li.lock_release  = _thr_rtld_lock_release;
-        li.thread_set_flag = _thr_rtld_set_flag;
-        li.thread_clr_flag = _thr_rtld_clr_flag;
-        li.at_fork = NULL;
+
+	li.lock_create  = _thr_rtld_lock_create;
+	li.lock_destroy = _thr_rtld_lock_destroy;
+	li.rlock_acquire = _thr_rtld_rlock_acquire;
+	li.wlock_acquire = _thr_rtld_wlock_acquire;
+	li.lock_release  = _thr_rtld_lock_release;
+	li.thread_set_flag = _thr_rtld_set_flag;
+	li.thread_clr_flag = _thr_rtld_clr_flag;
+	li.at_fork = NULL;
 	_rtld_thread_init(&li);
 }
 
 void
-_thr_rtld_fini()
+_thr_rtld_fini(void)
 {
 	_rtld_thread_init(NULL);
 }
@@ -148,10 +156,11 @@ struct rtld_kse_lock {
 };
 
 static void *
-_thr_rtld_lock_create()
+_thr_rtld_lock_create(void)
 {
-	struct rtld_kse_lock *l = malloc(sizeof(struct rtld_kse_lock));
+	struct rtld_kse_lock *l;
 
+	l = malloc(sizeof(struct rtld_kse_lock));
 	_lock_init(&l->lck, LCK_ADAPTIVE, _kse_lock_wait, _kse_lock_wakeup);
 	l->owner = NULL;
 	l->count = 0;
@@ -164,8 +173,9 @@ _thr_rtld_lock_destroy(void *lock)
 {
 	/* XXX We really can not free memory after a fork() */
 #if 0
-	struct rtld_kse_lock *l = (struct rtld_kse_lock *)lock;
-	
+	struct rtld_kse_lock *l;
+
+	l = (struct rtld_kse_lock *)lock;
 	_lock_destroy(&l->lck);
 	free(l);
 #endif
@@ -175,10 +185,11 @@ _thr_rtld_lock_destroy(void *lock)
 static void
 _thr_rtld_rlock_acquire(void *lock)
 {
-	struct rtld_kse_lock *l = (struct rtld_kse_lock *)lock;
+	struct rtld_kse_lock *l;
 	kse_critical_t crit;
 	struct kse *curkse;
 
+	l  = (struct rtld_kse_lock *)lock;
 	crit = _kse_critical_enter();
 	curkse = _get_curkse();
 	if (l->owner == curkse) {
@@ -196,10 +207,11 @@ _thr_rtld_rlock_acquire(void *lock)
 static void
 _thr_rtld_wlock_acquire(void *lock)
 {
-	struct rtld_kse_lock *l = (struct rtld_kse_lock *)lock;
+	struct rtld_kse_lock *l;
 	kse_critical_t crit;
 	struct kse *curkse;
 
+	l = (struct rtld_kse_lock *)lock;
 	crit = _kse_critical_enter();
 	curkse = _get_curkse();
 	if (l->owner == curkse) {
@@ -217,10 +229,11 @@ _thr_rtld_wlock_acquire(void *lock)
 static void
 _thr_rtld_lock_release(void *lock)
 {
-	struct rtld_kse_lock *l = (struct rtld_kse_lock *)lock;
+	struct rtld_kse_lock *l;
 	kse_critical_t crit;
 	struct kse *curkse;
 
+	l = (struct rtld_kse_lock *)lock;
 	crit = _kse_critical_enter();
 	curkse = _get_curkse();
 	if (l->owner != curkse) {
@@ -269,14 +282,14 @@ _thr_rtld_init(void)
 {
 	struct RtldLockInfo li;
 
-        li.lock_create  = _thr_rtld_lock_create;
-        li.lock_destroy = _thr_rtld_lock_destroy;
-        li.rlock_acquire = _thr_rtld_rlock_acquire;
-        li.wlock_acquire = _thr_rtld_wlock_acquire;
-        li.lock_release  = _thr_rtld_lock_release;
-        li.thread_set_flag = _thr_rtld_set_flag;
-        li.thread_clr_flag = _thr_rtld_clr_flag;
-        li.at_fork = NULL;
+	li.lock_create  = _thr_rtld_lock_create;
+	li.lock_destroy = _thr_rtld_lock_destroy;
+	li.rlock_acquire = _thr_rtld_rlock_acquire;
+	li.wlock_acquire = _thr_rtld_wlock_acquire;
+	li.lock_release  = _thr_rtld_lock_release;
+	li.thread_set_flag = _thr_rtld_set_flag;
+	li.thread_clr_flag = _thr_rtld_clr_flag;
+	li.at_fork = NULL;
 	_rtld_thread_init(&li);
 }
 
