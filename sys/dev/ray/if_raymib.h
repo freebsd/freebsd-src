@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_raymib.h,v 1.1 2000/02/27 19:47:06 dmlb Exp $
+ * $Id: if_raymib.h,v 1.3 2000/03/21 14:27:46 dmlb Exp $
  *
  */
 
@@ -169,7 +169,19 @@ struct ray_stats_req {
 #define	SIOCSRAYPARAM	SIOCSIFGENERIC
 #define	SIOCGRAYPARAM	SIOCGIFGENERIC
 /* Get the error counters the data is a ray_stats_req structure */
-#define	SIOCGRAYSTATS	_IOWR('i', 59, struct ifreq)
+#define	SIOCGRAYSTATS	_IOWR('i', 201, struct ifreq)
+#define SIOCGRAYSIGLEV  _IOWR('i', 202, struct ifreq)
+
+#define RAY_NSIGLEVRECS 8
+#define RAY_NSIGLEV 8
+#define RAY_NANTENNA 8
+
+struct ray_siglev {
+	u_int8_t	rsl_host[ETHER_ADDR_LEN]; /* MAC address */
+	u_int8_t	rsl_siglevs[RAY_NSIGLEV]; /* levels, newest in [0] */
+	u_int8_t	rsl_antennas[RAY_NANTENNA]; /* best antenna */
+	struct timeval	rsl_time; 		  /* time of last packet */
+};
 
 /*
  * MIB IDs for the update/report param commands
