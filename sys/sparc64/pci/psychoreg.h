@@ -231,6 +231,15 @@
 #define	PCICTL_4ENABLE	0x000000000000000f	/* enable 4 PCI slots */
 #define	PCICTL_6ENABLE	0x000000000000003f	/* enable 6 PCI slots */
 
+/* Uncorrectable error asynchronous fault status registers */
+#define	UEAFSR_BLK	(1UL << 22)	/* pri. error caused by read */
+#define	UEAFSR_P_DTE	(1UL << 56)	/* pri. DMA translation error */
+#define	UEAFSR_S_DTE	(1UL << 57)	/* sec. DMA translation error */
+#define	UEAFSR_S_DWR	(1UL << 58)	/* sec. error during write */
+#define	UEAFSR_S_DRD	(1UL << 59)	/* sec. error during read */
+#define	UEAFSR_P_DWR	(1UL << 61)	/* pri. error during write */
+#define	UEAFSR_P_DRD	(1UL << 62)	/* pri. error during read */
+
 /*
  * these are the PROM structures we grovel
  */
