@@ -215,8 +215,6 @@ nfs_getpages(struct vop_getpages_args *ap)
 		nextoff = toff + PAGE_SIZE;
 		m = pages[i];
 
-		m->flags &= ~PG_ZERO;
-
 		if (nextoff <= size) {
 			/*
 			 * Read operation filled an entire page

@@ -1893,7 +1893,6 @@ retry_lookup:
 			if (error)
 				VM_OBJECT_LOCK(obj);
 			vm_page_lock_queues();
-			vm_page_flag_clear(pg, PG_ZERO);
 			vm_page_io_finish(pg);
 			mbstat.sf_iocnt++;
 		}

@@ -780,8 +780,6 @@ spec_getpages(ap)
 		nextoff = toff + PAGE_SIZE;
 		m = ap->a_m[i];
 
-		m->flags &= ~PG_ZERO;
-
 		if (nextoff <= nread) {
 			m->valid = VM_PAGE_BITS_ALL;
 			vm_page_undirty(m);

@@ -513,7 +513,6 @@ vnode_pager_input_smlfs(object, m)
 	sf_buf_free(sf);
 	vm_page_lock_queues();
 	pmap_clear_modify(m);
-	vm_page_flag_clear(m, PG_ZERO);
 	vm_page_unlock_queues();
 	if (error) {
 		return VM_PAGER_ERROR;
@@ -586,7 +585,6 @@ vnode_pager_input_old(object, m)
 	vm_page_lock_queues();
 	pmap_clear_modify(m);
 	vm_page_undirty(m);
-	vm_page_flag_clear(m, PG_ZERO);
 	vm_page_unlock_queues();
 	if (!error)
 		m->valid = VM_PAGE_BITS_ALL;
@@ -884,7 +882,6 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 			/* vm_page_zero_invalid(mt, FALSE); */
 		}
 		
-		vm_page_flag_clear(mt, PG_ZERO);
 		if (i != reqpage) {
 
 			/*

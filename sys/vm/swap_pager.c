@@ -1483,7 +1483,6 @@ swp_pager_async_iodone(struct buf *bp)
 				 * interrupt.
 				 */
 				m->valid = 0;
-				vm_page_flag_clear(m, PG_ZERO);
 				if (i != bp->b_pager.pg_reqpage)
 					vm_page_free(m);
 				else
@@ -1516,8 +1515,6 @@ swp_pager_async_iodone(struct buf *bp)
 			 * that existed in the old swapper for a time before
 			 * it got ripped out due to precisely this problem.
 			 *
-			 * clear PG_ZERO in page.
-			 *
 			 * If not the requested page then deactivate it.
 			 *
 			 * Note that the requested page, reqpage, is left
@@ -1529,7 +1526,6 @@ swp_pager_async_iodone(struct buf *bp)
 			pmap_clear_modify(m);
 			m->valid = VM_PAGE_BITS_ALL;
 			vm_page_undirty(m);
-			vm_page_flag_clear(m, PG_ZERO);
 
 			/*
 			 * We have to wake specifically requested pages

@@ -517,8 +517,6 @@ smbfs_getpages(ap)
 		nextoff = toff + PAGE_SIZE;
 		m = pages[i];
 
-		m->flags &= ~PG_ZERO;
-
 		if (nextoff <= size) {
 			/*
 			 * Read operation filled an entire page
