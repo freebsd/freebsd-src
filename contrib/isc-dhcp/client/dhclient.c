@@ -41,7 +41,7 @@
 
 #ifndef lint
 static char ocopyright[] =
-"$Id: dhclient.c,v 1.129.2.9 2002/02/20 07:16:31 mellon Exp $ Copyright (c) 1995-2001 Internet Software Consortium.  All rights reserved.\n"
+"$Id: dhclient.c,v 1.129.2.12 2002/11/07 23:26:38 dhankins Exp $ Copyright (c) 1995-2002 Internet Software Consortium.  All rights reserved.\n"
 "$FreeBSD$\n";
 #endif /* not lint */
 
@@ -72,20 +72,19 @@ struct in_addr giaddr;
    assert (state_is == state_shouldbe). */
 #define ASSERT_STATE(state_is, state_shouldbe) {}
 
-static char copyright[] = "Copyright 1995-2001 Internet Software Consortium.";
+static char copyright[] = "Copyright 1995-2002 Internet Software Consortium.";
 static char arr [] = "All rights reserved.";
 static char message [] = "Internet Software Consortium DHCP Client";
 static char url [] = "For info, please visit http://www.isc.org/products/DHCP";
 
-u_int16_t local_port;
-u_int16_t remote_port;
-int no_daemon;
-int save_scripts;
-struct string_list *client_env;
-int client_env_count;
-int onetry;
-int quiet = 1;
-int nowait;
+u_int16_t local_port=0;
+u_int16_t remote_port=0;
+int no_daemon=0;
+struct string_list *client_env=NULL;
+int client_env_count=0;
+int onetry=0;
+int quiet=1;
+int nowait=0;
 
 static void usage PROTO ((void));
 
@@ -200,8 +199,6 @@ int main (argc, argv, envp)
 		} else if (!strcmp (argv [i], "-w")) {
 			/* do not exit if there are no broadcast interfaces. */
 			persist = 1;
- 		} else if (argv [i][0] == '-') {
- 		    usage ();
 		} else if (!strcmp (argv [i], "-e")) {
 			struct string_list *tmp;
 			if (++i == argc)
@@ -218,7 +215,9 @@ int main (argc, argv, envp)
 			exit (0);
 		} else if (!strcmp (argv [i], "-nw")) {
 			nowait = 1;
- 		} else {
+ 		} else if (argv [i][0] == '-') {
+ 		    usage ();
+		} else {
  		    struct interface_info *tmp = (struct interface_info *)0;
 		    status = interface_allocate (&tmp, MDL);
  		    if (status != ISC_R_SUCCESS)
@@ -291,8 +290,10 @@ int main (argc, argv, envp)
 
 	/* Default to the DHCP/BOOTP port. */
 	if (!local_port) {
+		/* If we're faking a relay agent, and we're not using loopback,
+		   use the server port, not the client port. */
 		if (relay && giaddr.s_addr != htonl (INADDR_LOOPBACK)) {
-			local_port = htons (67);
+			local_port = htons(67);
 		} else {
 			ent = getservbyname ("dhcpc", "udp");
 			if (!ent)
@@ -306,13 +307,12 @@ int main (argc, argv, envp)
 	}
 
 	/* If we're faking a relay agent, and we're not using loopback,
-	   use the server port, not the client port. */
+	   we're using the server port, not the client port. */
 	if (relay && giaddr.s_addr != htonl (INADDR_LOOPBACK)) {
-		local_port = htons (ntohs (local_port) - 1);
 		remote_port = local_port;
 	} else
 		remote_port = htons (ntohs (local_port) - 1);	/* XXX */
-  
+
 	/* Get the current time... */
 	GET_TIME (&cur_time);
 
@@ -1874,6 +1874,7 @@ void make_discover (client, lease)
 			      (struct option_state *)0, options,
 			      &global_scope, 0, 0, 0, (struct data_string *)0,
 			      client -> config -> vendor_space_name);
+	option_state_dereference (&options, MDL);
 	if (client -> packet_length < BOOTP_MIN_LEN)
 		client -> packet_length = BOOTP_MIN_LEN;
 
@@ -1940,6 +1941,7 @@ void make_request (client, lease)
 			      (struct option_state *)0, client -> sent_options,
 			      &global_scope, 0, 0, 0, (struct data_string *)0,
 			      client -> config -> vendor_space_name);
+	option_state_dereference (&client -> sent_options, MDL);
 	if (client -> packet_length < BOOTP_MIN_LEN)
 		client -> packet_length = BOOTP_MIN_LEN;
 
@@ -2010,6 +2012,7 @@ void make_decline (client, lease)
 			      (struct option_state *)0, options,
 			      &global_scope, 0, 0, 0, (struct data_string *)0,
 			      client -> config -> vendor_space_name);
+	option_state_dereference (&options, MDL);
 	if (client -> packet_length < BOOTP_MIN_LEN)
 		client -> packet_length = BOOTP_MIN_LEN;
 	option_state_dereference (&options, MDL);
