@@ -548,7 +548,7 @@ void
 bc_add ( n1, n2, result)
      bc_num n1, n2, *result;
 {
-  bc_num sum;
+  bc_num sum = 0;
   int cmp_res;
 
   if (n1->n_sign == n2->n_sign)
@@ -591,7 +591,7 @@ void
 bc_sub ( n1, n2, result)
      bc_num n1, n2, *result;
 {
-  bc_num diff;
+  bc_num diff = 0;
   int cmp_res;
 
   if (n1->n_sign != n2->n_sign)
