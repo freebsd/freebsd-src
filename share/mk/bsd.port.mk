@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.173 1995/07/17 16:20:58 jkh Exp $
+# $Id: bsd.port.mk,v 1.174 1995/07/24 08:02:07 asami Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -209,7 +209,8 @@ EXEC_DEPENDS+=               gmake:${PORTSDIR}/devel/gmake
 .include "${PORTSDIR}/../Makefile.inc"
 .endif
 
-# Change these if you'd prefer to keep the cookies someplace else.
+# Don't change these!!!  These names are built into the _TARGET_USE macro,
+# there is no way to refer to them cleanly from within the macro AFAIK.
 EXTRACT_COOKIE?=	${WRKDIR}/.extract_done
 CONFIGURE_COOKIE?=	${WRKDIR}/.configure_done
 INSTALL_COOKIE?=	${WRKDIR}/.install_done
@@ -608,6 +609,100 @@ do-install:
 .endif
 .endif
 
+# Package
+
+.if !target(do-package)
+do-package:
+	@if [ -e ${PKGDIR}/PLIST ]; then \
+		${ECHO_MSG} "===>  Building package for ${PKGNAME}"; \
+		if [ -d ${PACKAGES} ]; then \
+			if [ ! -d ${PKGREPOSITORY} ]; then \
+				if ! /bin/mkdir -p ${PKGREPOSITORY}; then \
+					${ECHO_MSG} ">> Can't create directory ${PKGREPOSITORY}."; \
+					exit 1; \
+				fi; \
+			fi; \
+		fi; \
+		if ${PKG_CMD} ${PKG_ARGS} ${PKGFILE}; then \
+			if [ -d ${PACKAGES} ]; then \
+				${MAKE} ${.MAKEFLAGS} package-links; \
+			fi; \
+		else \
+			${MAKE} ${.MAKEFLAGS} delete-package; \
+			exit 1; \
+		fi; \
+	fi
+.endif
+
+# Some support rules for do-package
+
+.if !target(package-links)
+package-links:
+	@${MAKE} ${.MAKEFLAGS} delete-package-links
+	@for cat in ${CATEGORIES}; do \
+		if [ ! -d ${PACKAGES}/$$cat ]; then \
+			if ! /bin/mkdir -p ${PACKAGES}/$$cat; then \
+				${ECHO_MSG} ">> Can't create directory ${PACKAGES}/$$cat."; \
+				exit 1; \
+			fi; \
+		fi; \
+		ln -s ../${PKGREPOSITORYSUBDIR}/${PKGNAME}${PKG_SUFX} ${PACKAGES}/$$cat; \
+	done;
+.endif
+
+.if !target(delete-package-links)
+delete-package-links:
+	@/bin/rm -f ${PACKAGES}/[a-z]*/${PKGNAME}${PKG_SUFX};
+.endif
+
+.if !target(delete-package)
+delete-package:
+	@${MAKE} ${.MAKEFLAGS} delete-package-links
+	@/bin/rm -f ${PKGFILE}
+.endif
+
+################################################################
+# This is the "generic" port target, actually a macro used from the
+# six main targets.  See below for more.
+################################################################
+
+_PORT_USE: .USE
+.if make(real-install)
+.if !defined(NO_MTREE)
+	@if [ `id -u` = 0 ]; then \
+		${MTREE_CMD} ${MTREE_ARGS} ${PREFIX}/; \
+	else \
+		${ECHO_MSG} "Warning: not superuser, can't run mtree."; \
+		${ECHO_MSG} "Become root and try again to ensure correct permissions."; \
+	fi
+.endif
+.endif
+	@${MAKE} ${.MAKEFLAGS} ${.TARGET:S/^real-/pre-/}
+	@if [ -f ${SCRIPTDIR}/${.TARGET:S/^real-/pre-/} ]; then \
+		/usr/bin/env CURDIR=${.CURDIR} DISTDIR=${DISTDIR} WRKDIR=${WRKDIR} \
+		  WRKSRC=${WRKSRC} PATCHDIR=${PATCHDIR} SCRIPTDIR=${SCRIPTDIR} \
+		  FILESDIR=${FILESDIR} PORTSDIR=${PORTSDIR} PREFIX=${PREFIX} \
+		  DEPENDS="${DEPENDS}" X11BASE=${X11BASE} \
+			/bin/sh ${SCRIPTDIR}/${.TARGET:S/^real-/pre-/}; \
+	fi
+	@${MAKE} ${.MAKEFLAGS} ${.TARGET:S/^real-/do-/}
+	@${MAKE} ${.MAKEFLAGS} ${.TARGET:S/^real-/post-/}
+	@if [ -f ${SCRIPTDIR}/${.TARGET:S/^real-/post-/} ]; then \
+		/usr/bin/env CURDIR=${.CURDIR} DISTDIR=${DISTDIR} WRKDIR=${WRKDIR} \
+		  WRKSRC=${WRKSRC} PATCHDIR=${PATCHDIR} SCRIPTDIR=${SCRIPTDIR} \
+		  FILESDIR=${FILESDIR} PORTSDIR=${PORTSDIR} PREFIX=${PREFIX} \
+		  DEPENDS="${DEPENDS}" X11BASE=${X11BASE} \
+			/bin/sh ${SCRIPTDIR}/${.TARGET:S/^real-/post-/}; \
+	fi
+.if make(real-install)
+	@${MAKE} ${.MAKEFLAGS} fake-pkg
+.endif
+.if !make(real-fetch) \
+	&& (!make(real-patch) || !defined(PATCH_CHECK_ONLY)) \
+	&& (!make(real-package) || !defined(PACKAGE_NOINSTALL))
+	@${TOUCH} ${TOUCH_FLAGS} ${WRKDIR}/.${.TARGET:S/^real-//}_done
+.endif
+
 ################################################################
 # Skeleton targets start here
 # 
@@ -617,96 +712,79 @@ do-install:
 # call the necessary targets/scripts.
 ################################################################
 
-# Fetch
-
 .if !target(fetch)
 fetch: depends
-.if target(pre-fetch)
-	@${MAKE} ${.MAKEFLAGS} pre-fetch
+	@${MAKE} ${.MAKEFLAGS} real-fetch
 .endif
-	@if [ -f ${SCRIPTDIR}/pre-fetch ]; then \
-		/usr/bin/env CURDIR=${.CURDIR} DISTDIR=${DISTDIR} WRKDIR=${WRKDIR} \
-		  WRKSRC=${WRKSRC} PATCHDIR=${PATCHDIR} SCRIPTDIR=${SCRIPTDIR} \
-		  FILESDIR=${FILESDIR} PORTSDIR=${PORTSDIR} PREFIX=${PREFIX} \
-		  DEPENDS="${DEPENDS}" X11BASE=${X11BASE} \
-			/bin/sh ${SCRIPTDIR}/pre-fetch; \
-	fi
-	@${MAKE} ${.MAKEFLAGS} do-fetch
-.if target(post-fetch)
-	@${MAKE} ${.MAKEFLAGS} post-fetch
-.endif
-	@if [ -f ${SCRIPTDIR}/post-fetch ]; then \
-		/usr/bin/env CURDIR=${.CURDIR} DISTDIR=${DISTDIR} WRKDIR=${WRKDIR} \
-		  WRKSRC=${WRKSRC} PATCHDIR=${PATCHDIR} SCRIPTDIR=${SCRIPTDIR} \
-		  FILESDIR=${FILESDIR} PORTSDIR=${PORTSDIR} PREFIX=${PREFIX} \
-		  DEPENDS="${DEPENDS}" X11BASE=${X11BASE} \
-			/bin/sh ${SCRIPTDIR}/post-fetch; \
-	fi
-.endif
-
-# Extract
 
 .if !target(extract)
 extract: checksum ${EXTRACT_COOKIE}
-
-${EXTRACT_COOKIE}:
-	@${ECHO_MSG} "===>  Extracting for ${PKGNAME}"
-.if target(pre-extract)
-	@${MAKE} ${.MAKEFLAGS} pre-extract
 .endif
-	@if [ -f ${SCRIPTDIR}/pre-extract ]; then \
-		/usr/bin/env CURDIR=${.CURDIR} DISTDIR=${DISTDIR} WRKDIR=${WRKDIR} \
-		  WRKSRC=${WRKSRC} PATCHDIR=${PATCHDIR} SCRIPTDIR=${SCRIPTDIR} \
-		  FILESDIR=${FILESDIR} PORTSDIR=${PORTSDIR} PREFIX=${PREFIX} \
-		  DEPENDS="${DEPENDS}" X11BASE=${X11BASE} \
-			/bin/sh ${SCRIPTDIR}/pre-extract; \
-	fi
-	@${MAKE} ${.MAKEFLAGS} do-extract
-.if target(post-extract)
-	@${MAKE} ${.MAKEFLAGS} post-extract
-.endif
-	@if [ -f ${SCRIPTDIR}/post-extract ]; then \
-		/usr/bin/env CURDIR=${.CURDIR} DISTDIR=${DISTDIR} WRKDIR=${WRKDIR} \
-		  WRKSRC=${WRKSRC} PATCHDIR=${PATCHDIR} SCRIPTDIR=${SCRIPTDIR} \
-		  FILESDIR=${FILESDIR} PORTSDIR=${PORTSDIR} PREFIX=${PREFIX} \
-		  DEPENDS="${DEPENDS}" X11BASE=${X11BASE} \
-			/bin/sh ${SCRIPTDIR}/post-extract; \
-	fi
-	@${TOUCH} ${TOUCH_FLAGS} ${EXTRACT_COOKIE}
-.endif
-
-# Patch
 
 .if !target(patch)
 patch: extract ${PATCH_COOKIE}
+.endif
 
+.if !target(configure)
+configure: patch ${CONFIGURE_COOKIE}
+.endif
+
+.if !target(build)
+build: configure ${BUILD_COOKIE}
+.endif
+
+.if !target(install)
+install: build ${INSTALL_COOKIE}
+.endif
+
+.if !target(package)
+package: install ${PACKAGE_COOKIE}
+.endif
+
+${EXTRACT_COOKIE}:
+	@${MAKE} ${.MAKEFLAGS} real-extract
 ${PATCH_COOKIE}:
+	@${MAKE} ${.MAKEFLAGS} real-patch
+${CONFIGURE_COOKIE}:
+	@${MAKE} ${.MAKEFLAGS} real-configure
+${BUILD_COOKIE}:
+	@${MAKE} ${.MAKEFLAGS} real-build
+${INSTALL_COOKIE}:
+	@${MAKE} ${.MAKEFLAGS} real-install
+${PACKAGE_COOKIE}:
+	@${MAKE} ${.MAKEFLAGS} real-package
+
+# And call the macros
+
+real-fetch: _PORT_USE
+real-extract: _PORT_USE
+	@${ECHO_MSG} "===>  Extracting for ${PKGNAME}"
+real-patch: _PORT_USE
 	@${ECHO_MSG} "===>  Patching for ${PKGNAME}"
-.if target(pre-patch)
-	@${MAKE} ${.MAKEFLAGS} pre-patch
+real-configure: _PORT_USE
+	@${ECHO_MSG} "===>  Configuring for ${PKGNAME}"
+real-build: _PORT_USE
+	@${ECHO_MSG} "===>  Building for ${PKGNAME}"
+real-install: _PORT_USE
+	@${ECHO_MSG} "===>  Installing for ${PKGNAME}"
+real-package: _PORT_USE
+
+# Empty pre-* and post-* targets, note we can't use .if !target()
+# in the _PORT_USE macro
+
+.for name in fetch extract patch configure build install package
+
+.if !target(pre-${name})
+pre-${name}:
+	@${DO_NADA}
 .endif
-	@if [ -f ${SCRIPTDIR}/pre-patch ]; then \
-		/usr/bin/env CURDIR=${.CURDIR} DISTDIR=${DISTDIR} WRKDIR=${WRKDIR} \
-		  WRKSRC=${WRKSRC} PATCHDIR=${PATCHDIR} SCRIPTDIR=${SCRIPTDIR} \
-		  FILESDIR=${FILESDIR} PORTSDIR=${PORTSDIR} PREFIX=${PREFIX} \
-		  DEPENDS="${DEPENDS}" X11BASE=${X11BASE} \
-			/bin/sh ${SCRIPTDIR}/pre-patch; \
-	fi
-	@${MAKE} ${.MAKEFLAGS} do-patch
-.if target(post-patch)
-	@${MAKE} ${.MAKEFLAGS} post-patch
+
+.if !target(post-${name})
+post-${name}:
+	@${DO_NADA}
 .endif
-	@if [ -f ${SCRIPTDIR}/post-patch ]; then \
-		/usr/bin/env CURDIR=${.CURDIR} DISTDIR=${DISTDIR} WRKDIR=${WRKDIR} \
-		  WRKSRC=${WRKSRC} PATCHDIR=${PATCHDIR} SCRIPTDIR=${SCRIPTDIR} \
-		  FILESDIR=${FILESDIR} PORTSDIR=${PORTSDIR} PREFIX=${PREFIX} \
-		  DEPENDS="${DEPENDS}" X11BASE=${X11BASE} \
-			/bin/sh ${SCRIPTDIR}/post-patch; \
-	fi
-.if !defined(PATCH_CHECK_ONLY)
-	@${TOUCH} ${TOUCH_FLAGS} ${PATCH_COOKIE}
-.endif
-.endif
+
+.endfor
 
 # Checkpatch
 #
@@ -717,111 +795,9 @@ checkpatch:
 	@${MAKE} PATCH_CHECK_ONLY=yes ${.MAKEFLAGS} patch
 .endif
 
-# Configure
-
-.if !target(configure)
-configure: patch ${CONFIGURE_COOKIE}
-
-${CONFIGURE_COOKIE}:
-	@${ECHO_MSG} "===>  Configuring for ${PKGNAME}"
-.if target(pre-configure)
-	@${MAKE} ${.MAKEFLAGS} pre-configure
-.endif
-	@if [ -f ${SCRIPTDIR}/pre-configure ]; then \
-		/usr/bin/env CURDIR=${.CURDIR} DISTDIR=${DISTDIR} WRKDIR=${WRKDIR} \
-		  WRKSRC=${WRKSRC} PATCHDIR=${PATCHDIR} SCRIPTDIR=${SCRIPTDIR} \
-		  FILESDIR=${FILESDIR} PORTSDIR=${PORTSDIR} PREFIX=${PREFIX} \
-		  DEPENDS="${DEPENDS}" X11BASE=${X11BASE} \
-			/bin/sh ${SCRIPTDIR}/pre-configure; \
-	fi
-	@${MAKE} ${.MAKEFLAGS} do-configure
-.if target(post-configure)
-	@${MAKE} ${.MAKEFLAGS} post-configure
-.endif
-	@if [ -f ${SCRIPTDIR}/post-configure ]; then \
-		/usr/bin/env CURDIR=${.CURDIR} DISTDIR=${DISTDIR} WRKDIR=${WRKDIR} \
-		  WRKSRC=${WRKSRC} PATCHDIR=${PATCHDIR} SCRIPTDIR=${SCRIPTDIR} \
-		  FILESDIR=${FILESDIR} PORTSDIR=${PORTSDIR} PREFIX=${PREFIX} \
-		  DEPENDS="${DEPENDS}" X11BASE=${X11BASE} \
-			/bin/sh ${SCRIPTDIR}/post-configure; \
-	fi
-	@${TOUCH} ${TOUCH_FLAGS} ${CONFIGURE_COOKIE}
-.endif
-
-# Build
-
-.if !target(build)
-build: configure ${BUILD_COOKIE}
-
-${BUILD_COOKIE}:
-	@${ECHO_MSG} "===>  Building for ${PKGNAME}"
-.if target(pre-build)
-	@${MAKE} ${.MAKEFLAGS} pre-build
-.endif
-	@if [ -f ${SCRIPTDIR}/pre-build ]; then \
-		/usr/bin/env CURDIR=${.CURDIR} DISTDIR=${DISTDIR} WRKDIR=${WRKDIR} \
-		  WRKSRC=${WRKSRC} PATCHDIR=${PATCHDIR} SCRIPTDIR=${SCRIPTDIR} \
-		  FILESDIR=${FILESDIR} PORTSDIR=${PORTSDIR} PREFIX=${PREFIX} \
-		  DEPENDS="${DEPENDS}" X11BASE=${X11BASE} \
-			/bin/sh ${SCRIPTDIR}/pre-build; \
-	fi
-	@${MAKE} ${.MAKEFLAGS} do-build
-.if target(post-build)
-	@${MAKE} ${.MAKEFLAGS} post-build
-.endif
-	@if [ -f ${SCRIPTDIR}/post-build ]; then \
-		/usr/bin/env CURDIR=${.CURDIR} DISTDIR=${DISTDIR} WRKDIR=${WRKDIR} \
-		  WRKSRC=${WRKSRC} PATCHDIR=${PATCHDIR} SCRIPTDIR=${SCRIPTDIR} \
-		  FILESDIR=${FILESDIR} PORTSDIR=${PORTSDIR} PREFIX=${PREFIX} \
-		  DEPENDS="${DEPENDS}" X11BASE=${X11BASE} \
-			/bin/sh ${SCRIPTDIR}/post-build; \
-	fi
-	@${TOUCH} ${TOUCH_FLAGS} ${BUILD_COOKIE}
-.endif
-
-# Install
-
-.if !target(install)
-install: build ${INSTALL_COOKIE}
-
-${INSTALL_COOKIE}:
-	@${ECHO_MSG} "===>  Installing for ${PKGNAME}"
-.if !defined(NO_MTREE)
-	@if [ `id -u` = 0 ]; then \
-		${MTREE_CMD} ${MTREE_ARGS} ${PREFIX}/; \
-	else \
-		${ECHO_MSG} "Warning: not superuser, can't run mtree."; \
-		${ECHO_MSG} "Become root and try again to ensure correct permissions."; \
-	fi
-.endif
-.if target(pre-install)
-	@${MAKE} ${.MAKEFLAGS} pre-install
-.endif
-	@if [ -f ${SCRIPTDIR}/pre-install ]; then \
-		/usr/bin/env CURDIR=${.CURDIR} DISTDIR=${DISTDIR} WRKDIR=${WRKDIR} \
-		  WRKSRC=${WRKSRC} PATCHDIR=${PATCHDIR} SCRIPTDIR=${SCRIPTDIR} \
-		  FILESDIR=${FILESDIR} PORTSDIR=${PORTSDIR} PREFIX=${PREFIX} \
-		  DEPENDS="${DEPENDS}" X11BASE=${X11BASE} \
-			/bin/sh ${SCRIPTDIR}/pre-install; \
-	fi
-	@${MAKE} ${.MAKEFLAGS} do-install
-.if target(post-install)
-	@${MAKE} ${.MAKEFLAGS} post-install
-.endif
-	@if [ -f ${SCRIPTDIR}/post-install ]; then \
-		/usr/bin/env CURDIR=${.CURDIR} DISTDIR=${DISTDIR} WRKDIR=${WRKDIR} \
-		  WRKSRC=${WRKSRC} PATCHDIR=${PATCHDIR} SCRIPTDIR=${SCRIPTDIR} \
-		  FILESDIR=${FILESDIR} PORTSDIR=${PORTSDIR} PREFIX=${PREFIX} \
-		  DEPENDS="${DEPENDS}" X11BASE=${X11BASE} \
-			/bin/sh ${SCRIPTDIR}/post-install; \
-	fi
-	@${MAKE} ${.MAKEFLAGS} fake-pkg
-	@${TOUCH} ${TOUCH_FLAGS} ${INSTALL_COOKIE}
-.endif
-
 # Reinstall
 #
-# This is a special target to re-run install
+# Special target to re-run install
 
 .if !target(reinstall)
 reinstall: pre-reinstall install
@@ -921,11 +897,12 @@ checksum: fetch
 .endif
 
 ################################################################
-# The package-building targets
+# The special package-building targets
 # You probably won't need to touch these
 ################################################################
 
 # Nobody should want to override this unless PKGNAME is simply bogus.
+
 .if !target(package-name)
 package-name:
 .if !defined(NO_PACKAGE)
@@ -934,25 +911,13 @@ package-name:
 .endif
 
 # Show (recursively) all the packages this package depends on.
+
 .if !target(package-depends)
 package-depends:
 	@for i in ${EXEC_DEPENDS} ${LIB_DEPENDS} ${DEPENDS}; do \
 		dir=`/bin/echo $$i | /usr/bin/sed -e 's/.*://'`; \
 		(cd $$dir ; ${MAKE} package-name package-depends); \
 	done
-.endif
-
-# Build a package
-
-.if !target(package)
-package: install ${PACKAGE_COOKIE}
-
-${PACKAGE_COOKIE}:
-.if target(pre-package)
-	@${MAKE} ${.MAKEFLAGS} pre-package
-.endif
-	@${MAKE} ${.MAKEFLAGS} do-package
-	@${TOUCH} ${TOUCH_FLAGS} ${PACKAGE_COOKIE}
 .endif
 
 # Build a package but don't check the package cookie
@@ -969,60 +934,7 @@ pre-repackage:
 
 .if !target(package-noinstall)
 package-noinstall:
-.if target(pre-package)
-	@${MAKE} ${.MAKEFLAGS} pre-package
-.endif
-	@${MAKE} ${.MAKEFLAGS} do-package
-.endif
-
-# The body of the package-building target
-
-.if !target(do-package)
-do-package:
-	@if [ -e ${PKGDIR}/PLIST ]; then \
-		${ECHO_MSG} "===>  Building package for ${PKGNAME}"; \
-		if [ -d ${PACKAGES} ]; then \
-			if [ ! -d ${PKGREPOSITORY} ]; then \
-				if ! /bin/mkdir -p ${PKGREPOSITORY}; then \
-					${ECHO_MSG} ">> Can't create directory ${PKGREPOSITORY}."; \
-					exit 1; \
-				fi; \
-			fi; \
-		fi; \
-		if ${PKG_CMD} ${PKG_ARGS} ${PKGFILE}; then \
-			if [ -d ${PACKAGES} ]; then \
-				${MAKE} ${.MAKEFLAGS} package-links; \
-			fi; \
-		else \
-			${MAKE} ${.MAKEFLAGS} delete-package; \
-			exit 1; \
-		fi; \
-	fi
-.endif
-
-.if !target(package-links)
-package-links:
-	@${MAKE} ${.MAKEFLAGS} delete-package-links
-	@for cat in ${CATEGORIES}; do \
-		if [ ! -d ${PACKAGES}/$$cat ]; then \
-			if ! /bin/mkdir -p ${PACKAGES}/$$cat; then \
-				${ECHO_MSG} ">> Can't create directory ${PACKAGES}/$$cat."; \
-				exit 1; \
-			fi; \
-		fi; \
-		ln -s ../${PKGREPOSITORYSUBDIR}/${PKGNAME}${PKG_SUFX} ${PACKAGES}/$$cat; \
-	done;
-.endif
-
-.if !target(delete-package-links)
-delete-package-links:
-	@/bin/rm -f ${PACKAGES}/[a-z]*/${PKGNAME}${PKG_SUFX};
-.endif
-
-.if !target(delete-package)
-delete-package:
-	@${MAKE} ${.MAKEFLAGS} delete-package-links
-	@/bin/rm -f ${PKGFILE}
+	@${MAKE} ${.MAKEFLAGS} PACKAGE_NOINSTALL=yes real-package
 .endif
 
 ################################################################
