@@ -1723,6 +1723,7 @@ device		miibus
 #       Olicom PCI token-ring adapters OC-3136, OC-3137, OC-3139, OC-3140,
 #       OC-3141, OC-3540, OC-3250
 # rdp:  RealTek RTL 8002-based pocket ethernet adapters
+# sbni:	Granch SBNI12-xx ISA and PCI adapters
 # pcn:	Support for PCI fast ethernet adapters based on the AMD Am79c97x
 #	chipsets, including the PCnet/FAST, PCnet/FAST+, PCnet/PRO and
 #	PCnet/Home. These were previously handled by the lnc driver (and
@@ -1841,6 +1842,11 @@ hint.rdp.0.at="isa"
 hint.rdp.0.port="0x378"
 hint.rdp.0.irq="7"
 hint.rdp.0.flags="2"
+device		sbni	1
+hint.sbni.0.at="isa"
+hint.sbni.0.port="0x210"
+hint.sbni.0.irq="0xefdead"
+hint.sbni.0.flags="0"
 device		sr	1
 hint.sr.0.at="isa"
 hint.sr.0.port="0x300"
