@@ -128,7 +128,7 @@ execve(td, uap)
 	mtx_lock(&Giant);
 	PROC_LOCK(p);
 	KASSERT((p->p_flag & P_INEXEC) == 0,
-	    (__FUNCTION__ "(): process already has P_INEXEC flag"));
+	    ("%s(): process already has P_INEXEC flag", __func__));
 	p->p_flag |= P_INEXEC;
 	PROC_UNLOCK(p);
 	
