@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <pwd.h>
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
 
 #define PAM_SM_AUTH
@@ -66,13 +67,13 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **argv)
 	struct opie opie;
 	struct options options;
 	struct passwd *pwd;
-	int retval, i;
+	int retval, i, pwok;
 	char *(promptstr[]) = { "%s\nPassword: ", "%s\nPassword [echo on]: "};
 	char challenge[OPIE_CHALLENGE_MAX];
 	char prompt[OPIE_CHALLENGE_MAX+22];
 	char resp[OPIE_SECRET_MAX];
-	const char *user;
-	const char *response;
+	const char *user, *response, *rhost;
+	char *encrypted;
 
 	pam_std_option(&options, other_options, argc, argv);
 
@@ -96,6 +97,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **argv)
 		retval = pam_get_user(pamh, (const char **)&user, NULL);
 		if (retval != PAM_SUCCESS)
 			PAM_RETURN(retval);
+		pwd = getpwnam(user);
 	}
 
 	PAM_LOG("Got user: %s", user);
@@ -106,7 +108,15 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **argv)
 	 */
 	opiedisableaeh();
 
-	opiechallenge(&opie, (char *)user, challenge);
+	pwok = 0;
+	if (opiechallenge(&opie, (char *)user, challenge) == 0) {
+		rhost = NULL;
+		(void) pam_get_item(pamh, PAM_RHOST, (const void **)&rhost);
+		pwok = (pwd != NULL) &&
+		       (rhost != NULL) && (*rhost != '\0') &&
+		       opieaccessfile((char *)rhost) &&
+		       opiealways(pwd->pw_dir);
+	}
 	for (i = 0; i < 2; i++) {
 		snprintf(prompt, sizeof prompt, promptstr[i], challenge);
 		retval = pam_get_pass(pamh, &response, prompt, &options);
@@ -133,7 +143,19 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **argv)
 	 * it expects.  Thus we can't log an error and can only check for
 	 * success or lack thereof.
 	 */
-	retval = opieverify(&opie, resp) == 0 ? PAM_SUCCESS : PAM_AUTH_ERR;
+	if (opieverify(&opie, resp) == 0)
+		retval = PAM_SUCCESS;
+	else if (pwok) {
+		encrypted = crypt(resp, pwd->pw_passwd);
+		if (resp[0] == '\0' && pwd->pw_passwd[0] != '\0')
+			encrypted = ":";
+		if (strcmp(encrypted, pwd->pw_passwd) != 0 ||
+		    (pwd->pw_expire && time(NULL) >= pwd->pw_expire))
+			retval = PAM_AUTH_ERR;
+		else
+			retval = PAM_SUCCESS;
+	} else
+		retval = PAM_AUTH_ERR;
 	PAM_RETURN(retval);
 }
 
