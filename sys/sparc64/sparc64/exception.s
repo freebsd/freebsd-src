@@ -73,17 +73,6 @@
 	.register %g7,#ignore
 
 /*
- * Atomically increment an integer in memory.
- */
-#define	ATOMIC_INC_INT(r1, r2, r3) \
-	lduw	[r1], r2 ; \
-9:	add	r2, 1, r3 ; \
-	casa	[r1] ASI_N, r2, r3 ; \
-	cmp	r2, r3 ; \
-	bne,pn	%xcc, 9b ; \
-	 mov	r3, r2
-
-/*
  * Atomically set the reference bit in a tte.
  */
 #define	TTE_SET_BIT(r1, r2, r3, bit) \
