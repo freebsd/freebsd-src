@@ -40,7 +40,13 @@
 #ifndef	_SYS_UTSNAME_H
 #define	_SYS_UTSNAME_H
 
-#define SYS_NMLN	32
+#ifdef _KERNEL
+#define SYS_NMLN	32		/* uname(2) is FreeBSD 1.1 compatable */
+#endif
+
+#ifndef SYS_NMLN
+#define SYS_NMLN	256		/* Ask and ye shall receive */
+#endif
 
 struct utsname {
 	char	sysname[SYS_NMLN];	/* Name of this OS. */
@@ -54,8 +60,14 @@ struct utsname {
 
 #ifndef _KERNEL
 __BEGIN_DECLS
-int	uname __P((struct utsname *));
+int	__xuname(int, void *);		/* Variable record size */
 __END_DECLS
+
+static __inline int
+uname(struct utsname *name)
+{
+	return __xuname(SYS_NMLN, (void *)name);
+}
 #endif	/* _KERNEL */
 
 #endif	/* !_SYS_UTSNAME_H */
