@@ -1,4 +1,4 @@
-<!-- $Id: nutshell.sgml,v 1.2 1995/06/22 13:47:06 jfieber Exp $ -->
+<!-- $Id: nutshell.sgml,v 1.3 1995/06/30 17:37:44 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>FreeBSD in a nutshell<label id="nutshell"></heading>
@@ -31,7 +31,7 @@
 	as such from the ground up.</item>
       <item>The industry standard <bf>X Window System</bf> (X11R6)
 	provides a graphical user interface (GUI) for the cost of a
-	common VGA card and monitor.</item>
+	common VGA card and monitor and comes with full sources.</item>
       <item><bf>Binary compatibility</bf> with many programs built for SCO,
 	BSDI, NetBSD, and 386BSD.</item>
       <item>Hundreds of <bf>ready-to-run</bf> applications are
@@ -52,9 +52,8 @@
         and memory.</item>
       <item>A full compliment of <bf>C</bf>, <bf>C++</bf> and
         <bf>Fortran</bf> development tools.  Many additional
-        languages for research and advanced development are
-        available as well in the ports and packages
-        collection.</item>
+        languages for advanced research and development are
+        also available in the ports and packages collection.</item>
       <item><bf>Source code</bf> for the entire system means you have
 	the greatest degree of control over your environment.  Why be
 	locked into a proprietary solution and at the mercy of your vendor
@@ -71,19 +70,19 @@
       many thousands of hours in fine tuning the system for
       maximum performance and reliability in real-life load
       situations.  As many of the commercial giants struggle to
-      field PC operating systems with such features, performance,
+      field PC operating systems with such features, performance
       and reliability, FreeBSD can offer them <bf>now</bf>!
 
       The applications to which FreeBSD can be put are truly
       limited only by your own imagination.  From software
-      development to factory automation. Inventory control to
-      azimuth correction of remote satellite antennae, if it can
-      be done with a commercial UNIX product, then it's more than
+      development to factory automation, inventory control to
+      azimuth correction of remote satellite antennae; if it can
+      be done with a commercial UNIX product then it's more than
       likely that you can do it with FreeBSD, too!  FreeBSD also
       benefits significantly from the literally thousands of high
       quality applications developed by research centers and
-      universities around the world, and often available at low
-      (to no) cost.  Commercial applications are also available
+      universities around the world, often available at little
+      to no cost.  Commercial applications are also available
       and appearing in greater numbers every day.
 
       Because the source code for FreeBSD itself is generally
@@ -112,7 +111,7 @@
       <item><bf>Education:</bf> Are you a student of computer science
 	or a related engineering field?  There is no better way
 	of learning about operating systems, computer
-	architecture and networks than the hands on, under the
+	architecture and networking than the hands on, under the
 	hood experience that FreeBSD can provide.  A number of
 	freely available CAD, mathematical and graphic design
 	packages also make it highly useful to those who's
@@ -124,22 +123,22 @@
 	computer science.  FreeBSD's freely available nature also
 	makes it possible for remote groups to collaborate on
 	ideas or shared development without having to worry about
-	special licensing agreements, or with limitations on what
-	may be discussed in certain forums.</item>
+	special licensing agreements or limitations on what
+	may be discussed in open forums.</item>
       <item><bf>Networking:</bf> Need a new router?  A name server
 	(DNS)?  A firewall to keep people out of your internal
 	network?  FreeBSD can easily turn that unused 386 or 486 PC
 	sitting in the corner into an advanced router with
 	sophisticated packet filtering capabilities. </item>
-      <item><bf>X Window workstation:</bf> FreeBSD is an excellent
+      <item><bf>X Window workstation:</bf> FreeBSD is a fine
 	choice for an inexpensive X terminal solution, either
 	using the freely available XFree86 server or one
 	of the excellent commercial servers provided by X Inside.  
         Unlike an X
 	terminal, FreeBSD allows many applications to be run
 	locally, if desired, thus relieving the burden on a
-	central server.  Additionally, FreeBSD can boot
-	"diskless" making individual workstations even cheaper
+	central server.  FreeBSD can even boot
+	"diskless", making individual workstations even cheaper
 	and easier to administer.</item>
       <item><bf>Software Development:</bf> The basic FreeBSD system
 	comes with a full compliment of development tools
