@@ -65,7 +65,7 @@
 #define SWAP_MIN_SIZE			32
 #define USR_MIN_SIZE			80
 #define VAR_MIN_SIZE			20
-#define VARTMP_MIN_SIZE			20
+#define TMP_MIN_SIZE			20
 #define HOME_MIN_SIZE			20
 
 /*
@@ -81,7 +81,7 @@
 #define ROOT_DEFAULT_SIZE		128
 #define USR_DEFAULT_SIZE		3072
 #define VAR_DEFAULT_SIZE		256
-#define VARTMP_DEFAULT_SIZE		256
+#define TMP_DEFAULT_SIZE		256
 #define HOME_DEFAULT_SIZE		USR_DEFAULT_SIZE
 
 /*
@@ -92,7 +92,7 @@
 #define ROOT_NOMINAL_SIZE		128
 #define USR_NOMINAL_SIZE		512
 #define VAR_NOMINAL_SIZE		64
-#define VARTMP_NOMINAL_SIZE		64
+#define TMP_NOMINAL_SIZE		64
 #define HOME_NOMINAL_SIZE		USR_NOMINAL_SIZE
 
 /* The bottom-most row we're allowed to scribble on */
@@ -1159,7 +1159,7 @@ requested_part_size(char *varName, int nom, int def, int perc)
  * a confirmation requestor (*req == 1).  *req is 0 on
  * entry to this call.
  *
- * We autolabel the following partitions:  /, swap, /var, /var/tmp, /usr,
+ * We autolabel the following partitions:  /, swap, /var, /tmp, /usr,
  * and /home.  /home receives any extra left over disk space. 
  */
 static char *
@@ -1248,15 +1248,15 @@ try_auto_label(Device **devs, Device *dev, int perc, int *req)
 	var_chunk->flags |= CHUNK_NEWFS;
 	record_label_chunks(devs, dev);
     }
-    if (!tmpdev && !variable_get(VAR_NO_VARTMP)) {
-	sz = requested_part_size(VAR_VARTMP_SIZE, VARTMP_NOMINAL_SIZE, VARTMP_DEFAULT_SIZE, perc);
+    if (!tmpdev && !variable_get(VAR_NO_TMP)) {
+	sz = requested_part_size(VAR_TMP_SIZE, TMP_NOMINAL_SIZE, TMP_DEFAULT_SIZE, perc);
 
 	tmp_chunk = Create_Chunk_DWIM(label_chunk_info[here].c->disk, 
 				label_chunk_info[here].c, sz, part,
 				FS_BSDFFS, CHUNK_AUTO_SIZE);
 	if (!tmp_chunk) {
 	    *req = 1;
-	    msg = "Not enough free space for /var/tmp - you will need to\n"
+	    msg = "Not enough free space for /tmp - you will need to\n"
 		   "partition your disk manually with a custom install!";
 	    goto done;
 	}
