@@ -1,107 +1,446 @@
-<!-- $Id: ports.sgml,v 1.2.4.2 1995/10/12 03:16:27 jfieber Exp $ -->
+<!-- $Id: ports.sgml,v 1.2.4.3 1996/06/19 20:28:09 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>The Ports collection<label id="ports"></heading>
 
-<p><em>Contributed by &a.gpalmer; and &a.jkh;.</em>
+<p><em>Contributed by &a.jraynard;.</em>
 
-    Unfortunately, there are more variations of UN*X than most people
-know of, and hence not all software for UN*X available on the Internet
-will work on all versions of UN*X (in fact, I can guarantee it!).
-Hence, some software needs modifications to work under some UN*Xs. The
-process of making those modifications is known as ``porting'' and the
-result known as a ``port'' (not to be confused with the sockets on the
-back of your computer!).
+The FreeBSD Ports collection allows you to compile and install a very
+wide range of applications with a minimum of effort. 
 
+<p> For all the hype about open standards, getting a program to work
+on different versions of Unix in the real world can be a tedious and
+tricky business, as anyone who's tried it will know. You may be lucky
+enough to find that the program you want will compile cleanly on your
+system, install itself in all the right places and run flawlessly
+``out of the box'', but this is unfortunately rather rare. With most
+programs, you will find yourself doing a fair bit of head-scratching,
+and there are quite a few programs that will result in premature
+greying, or even chronic alopecia...
 
-<sect1><heading>What is the FreeBSD Ports Collection?</heading>
+<p> Some software distributions have attacked this problem by
+providing configuration scripts. Some of these are very clever, but
+they have an unfortunate tendency to triumphantly announce that your
+system is something you've never heard of and then ask you lots of
+questions that sound like a final exam in system-level Unix
+programming (``Does your system's gethitlist function return a const
+pointer to a fromboz or a pointer to a const fromboz? Do you have
+Foonix style unacceptable exception handling? And if not, why not?'').
 
-<p> When 2.0 was released, the FreeBSD Project decided to attempt to
-automate the process of ``porting'' such software to FreeBSD, and the
-result is the Ports Collection.  The general idea was that a
-combination of various programming tools already available in the base
-FreeBSD installation would allow you to simply type `make' for a given
-port and have the underlying ports mechanism automatically fetch the
-port from a FreeBSD mirror site, apply any special configuration
-knowledge to it and then build it to result in a fully working version
-of the program.
+<p> Fortunately, with the Ports collection, all the hard work involved
+has already been done, and you can just type 'make install' and get a
+working program.
 
-    The ports collection itself normally doesn't have any of the
-original source code necessary for the compilation in the tree, just
-those shell scripts, Makefiles and source code ``diffs'' that are
-necessary to configure and compile the program under FreeBSD.  This
-keeps the entire system down to a manageable size, with the current
-system having over 300 ports in the master source tree and yet taking
-up less than twenty megabytes.
+<sect1><heading>Why have a Ports Collection?</heading>
 
+<p>The base FreeBSD system comes with a very wide range of tools and
+system utilities, but a lot of popular programs aren't in the base
+system, for good reasons:-
 
-<sect1><heading>How does the system compile with no source code?</heading>
+<enum>
+<item>``I can't live without x y and z on my system'' type programs
+(eg a certain Lisp-based editor, or the mtools set of programs for
+dealing with DOS floppy disks), because it's too subjective (many
+people can't stand Emacs and/or never use DOS floppies and seem none
+the worse for it).
 
-<p> The Makefile for a port automatically looks in a central location
-on your system (usually /usr/ports/distfiles, though this value can be
-customized) for the associated set of original distribution files that
-have been ``ported''.  Those not found locally are searched for
-wherever they are generally provided on the Internet.  If you have a
-CDROM distribution of FreeBSD then you already have them available
-on your CD for ease of use.  See <ref id="ports:cd"
-name="Compiling ports from CD"> if you have such a CDROM
-distribution, otherwise skip to <ref id="ports:inet" 
-name="Compiling ports using an Internet connection">.
+<item>Too specialised to put in the base system (CAD, databases).
 
-<sect1><heading>Compiling ports from CDROM<label id="ports:cd"></heading>
+<item>Programs which fall into the ``I wouldn't mind having a look at
+that when I get a spare minute'' category, rather than system-critical
+ones (some languages, perhaps).
 
-<p>The ports collection is easy to use from CDROM, and all you need to
-do is to create a "link tree" to it using the <tt>lndir(1)</tt> command that
+<item>``Wow fab this is way cool'' fun type programs that couldn't
+possibly be supplied with a serious operating system like FreeBSD ;-)
+
+<item>However many programs you put in the base system, people will
+always want more, and a line has to be drawn somewhere (otherwise
+FreeBSD distributions would become absolutely enormous).
+</enum>
+
+<p> Obviously it would be unreasonable to expect everyone to port their
+favourite programs by hand (not to mention a tremendous amount of
+duplicated work), so the FreeBSD Project came up with an ingenious
+way of using standard tools that would automate the process. 
+
+<p> Incidentally, this is an excellent illustration of how ``the Unix way''
+works in practice by combining a set of simple but very flexible tools
+into something very powerful.
+
+<sect1><heading> How does the Ports collection work?</heading>
+<p>
+Programs are typically distributed on the Internet as a 
+<ref id="ports:tarball" name="tarball"> consisting of
+a Makefile and the source code for the program and usually
+some instructions (which are unfortunately not always as instructive
+as they could be), with perhaps a configuration script. 
+<p>
+The standard scenario is that you FTP down the tarball, extract it 
+somewhere, glance through the instructions, make any changes that seem 
+necessary, run the configure script to set things up and use the standard 
+`make' program to compile and install the program from the source.
+<p>
+FreeBSD ports still use the tarball mechanism, but use a 
+<ref id="ports:skeleton" name="skeleton"> to hold the &quot;knowledge&quot; 
+of how to get the program working on FreeBSD, rather than expecting the
+user to be able to work it out. They also supply their own customised
+<ref id="ports:makefile" name="Makefile">, so that almost every port
+can be built in the same way.
+<p>
+If you look at a port skeleton (either on <htmlurl
+url="file://localhost/usr/ports/shells/bash" name="your FreeBSD
+system"> or <htmlurl
+url="ftp://www.freebsd.org/pub/FreeBSD/ports/shells/bash" name="the
+FTP site">) and expect to find all sorts of pointy-headed rocket
+science lurking there, you may be disappointed by the one or two
+rather unexciting-looking files and directories you find there.
+(We'll discuss in a minute how to go about <ref id="ports:getting"
+name="Getting a port">).
+
+<p>``How on earth can this do anything?'' I hear you cry. ``There
+isn't even any source code there!''
+
+<p> Fear not, gentle reader, all will become clear (hopefully). Let's
+see what happens if we try and install a port. I've chose `bash', also
+known as the Bourne-Again Shell, as that seems fairly typical.
+
+<em /Note/ if you're trying this at home, you'll need to be root.
+
+<verb>
+ # cd /usr/ports/shells/bash
+ # make install
+ Checksums OK.
+ ===>  Extracting for bash-1.14.5
+ ===>  Patching for bash-1.14.5
+ ===>  Applying FreeBSD patches for bash-1.14.5
+ ===>  Configuring for bash-1.14.5
+ ===>  Building for bash-1.14.5
+ [lots and lots of compiler output here...]
+ ===>  Installing for bash-1.14.5
+ make -f bash-Makefile    bindir=/usr/local/bin  prefix=/usr/local install
+ (cd ./documentation/; make  )
+ rm -f builtins.txt
+ nroff -man builtins.1 > builtins.txt
+ install -c -o bin -g bin -m 555 bash /usr/local/bin/bash
+ install -c -o bin -g bin -m 555 bashbug /usr/local/bin/bashbug
+ ( cd ./documentation/ ; make   mandir=/usr/local/man/man1 man3dir=/usr/local/man/man3 infodir=/usr/local/info install )
+ [ -d /usr/local/man/man1 ] || mkdir /usr/local/man/man1
+ [ -d /usr/local/info ] || mkdir /usr/local/info
+ ../support/install.sh -c -m 644 bash.1 /usr/local/man/man1
+ ../support/install.sh -c -m 644 builtins.1 /usr/local/man/man1/bash_builtins.1
+ ../support/install.sh -c -m 644 features.info /usr/local/info/bash.info
+ gzip -9nf /usr/local/man/man1/bash.1 /usr/local/man/man1/bash_builtins.1
+ ===>  Registering installation for bash-1.14.5
+</verb>
+
+<p> To avoid confusing the issue, I've slightly pruned the install
+output, as well as completely removing the build output. If you tried
+this yourself, you may well have got something like this at the start:-
+
+<label id="ports:fetch">
+<verb>
+ >> bash-1.14.5.tar.gz doesn't seem to exist on this system.
+ >> Attempting to fetch from ftp://slc2.ins.cwru.edu/pub/dist/.
+</verb>
+
+<p> The `make' program has noticed that you didn't have a local copy
+of the source code and tried to FTP it down so it could get the job
+done (are you starting to feel impressed? 8-)). I already had the
+source handy in my example, so it didn't need to fetch it.
+
+<p> Let's go through this and see what the `make' program was doing.
+
+<enum>
+<item> Locate the source code <ref id="ports:tarball"
+name="tarball."> If it's not available locally, try to grab it from an
+FTP site.
+
+<item> Run a <ref id="ports:checksum" name="checksum"> test on the
+tarball to make sure it hasn't been tampered with, accidentally
+truncated, struck by neutrinos while in transit, etc.
+
+<item> Extract the tarball into a temporary work directory.
+
+<item> Apply any <ref id="ports:patch" name="patches"> needed to get
+the source to compile and run under FreeBSD.
+
+<item> Run any configuration script required by the build process and
+correctly answer any questions it asks.
+
+<item> (Finally!) Compile the code.
+
+<item> Install the program executable and other supporting files, man
+pages, etc. under the /usr/local hierarchy, where they won't get mixed
+up with system programs. This also makes sure that all the ports you
+install will go in the same place, instead of being flung all over
+your system.
+
+<item> Register the installation in a database. This means
+that, if you don't like the program, you can cleanly <ref
+id="ports:remove" name="remove"> all traces of it from your system.
+
+</enum>
+
+<p> See if you can match these steps to the make output. And if you
+weren't impressed before, you should be by now!
+
+<sect1><heading>Getting a FreeBSD Port<label id="ports:getting"></heading>
+<p>
+There are two ways of getting hold of the FreeBSD port for a
+program. One requires a <ref id="ports:cd" name="FreeBSD
+CDROM">, the other involves using an <ref id="ports:inet"
+name="Internet Connection.">
+
+<sect2><heading>Compiling ports from CDROM<label id="ports:cd"></heading>
+<p>
+If you answered yes to the question ``Do you want to link the ports 
+collection to your CDROM'' during the FreeBSD installation, the initial
+setting up will already have been done for you.
+<p>
+If not, make sure the <em /FreeBSD/ CDROM is in the drive and mounted on, 
+say, /cdrom. Then do
+
+<verb>
+ # mkdir /usr/ports
+ # cd /usr/ports
+ # ln -s /cdrom/ports/distfiles distfiles
+</verb>
+
+to enable the ports make mechanism to find the tarballs (it expects to
+find them in /usr/ports/distfiles, which is why we sym-linked the
+CDROM's tarball directory to there).
+<p>
+Now, suppose you want to install the gnats program from the databases
+directory. Here's how to do it:-
+
+<verb>
+ # cd /usr/ports
+ # mkdir databases
+ # cp -R /cdrom/ports/databases/gnats databases
+ # cd databases/gnats
+ # make install
+</verb>
+
+Or if you're a serious database user and you want to compare all the
+ones available in the Ports collection, do
+
+<verb>
+ # cd /usr/ports
+ # cp -R /cdrom/ports/databases .
+ # cd databases
+ # make install
+</verb>
+
+(yes, that really is a dot on its own after the cp command and not a
+mistake. It's Unix-ese for ``the current directory'')
+<p>
+and the ports make mechanism will automatically compile and install
+all the ports in the databases directory for you!
+<p>
+If you don't like this method, here's a completely different way of
+doing it:-
+<p>
+Create a "link tree" to it using the <tt>lndir(1)</tt> command that
 comes with the <em>XFree86</em> distribution.  Find a location with
 some free space and create a directory there, and make a symbolic link
-from <tt>/usr/ports</tt> to that directory.  Then invoke the <tt>lndir(1)</tt> command with
-the full pathname of the ``ports'' directory on the CDROM as an
-argument (this might be, for example, something like: <tt>lndir
-/cdrom/ports</tt>).  Then you can build ports directly off the CDROM by
-building them in the link tree you have created.
-
+from <tt>/usr/ports</tt> to that directory.  Then invoke the
+<tt>lndir(1)</tt> command with the full pathname of the ``ports''
+directory on the CDROM as an argument (this might be, for example,
+something like: <tt>lndir /cdrom/ports</tt>).  Then you can build
+ports directly off the CDROM by building them in the link tree you
+have created.
+<p>
 Note that there are some ports for which we cannot provide the original
 source in the CDROM due to licensing limitations.  In that case,
-you will need to look at the next section (<ref id="ports:inet"
-name="Compiling ports using an Internet connection">).
+you will need to look at the section on <ref id="ports:inet"
+name="Compiling ports using an Internet connection.">
 
-<sect1><heading>Compiling ports using an Internet connection<label id="ports:inet"></heading>
+<sect2><heading>Compiling ports from the Internet<label
+id="ports:inet"></heading>
+<p>
+If you don't have a CDROM, or you want to make sure you get the very
+latest version of the port you want, you'll need to download the
+<ref id="ports:skeleton" name="skeleton"> for the port. Now this 
+might sound like rather a fiddly job
+full of pitfalls, like downloading the patches into the pkg
+sub-directory by mistake, but it's actually very easy. 
+<p>
+The key to it is that the FreeBSD FTP server can create on-the-fly
+<ref id="ports:tarball" name="tarballs"> for you. Here's how it works,
+with the gnats program in the databases directory as an example (the
+bits in square brackets are comments, don't type them in if you're
+trying this yourself!):-
 
-<p>    The ports collection can also use an auto-fetch system to keep
-your ports collection source tree up to date, updating the central
-``distfiles'' version for you the next time you compile the port.
+<verb>
+ # cd /usr/ports
+ # mkdir databases
+ # cd databases
+ # ftp ftp.freebsd.org
+ [log in as `ftp' and give your email address when asked for a
+ password. Remember to use binary (aka image) mode!]
+ > cd /pub/FreeBSD/ports/databases
+ > get gnats.tar.gz		[tarballs up the gnats skeleton for us]
+ > quit
+ # tar xzf gnats.tar.gz		[extract the gnats skeleton]
+ # cd gnats
+ # make install			[build and install gnats]
+</verb>
 
-    Of course, this assumes you have a permanent network link or do not
-mind heavy usage of your telephone.  If you do not want heavy network
-usage when you compile your ports tree, you can pre-fetch the
-necessary tarballs beforehand and put them into /usr/ports/distfiles
-by hand.  A good way to see what files a port is going to need is to
-cd to that ports' directory and do a <tt>make fetch-list</tt> to see what
-it does.  The output of <tt>make fetch-list</tt> can also be used as a
-shell script to fetch the ports' tarballs at a well-connected machine.
+What happened here? We connected to the FTP server in the usual way
+and went to its databases sub-directory. When we gave it the command
+`get gnats.tar.gz', the FTP server <ref id="ports:tarball"
+name="tarballed"> up the gnats directory for us and even went to the
+trouble of compressing it before sending it so we could get our hands
+on it a little quicker.
+<p>
+We then extracted the gnats skeleton and went into the gnats directory
+to build the port. As we explained <ref id="ports:fetch"
+name="earlier">, the make process noticed we didn't have a copy of the
+source locally, so it fetched one before extracting, patching and
+building it.
+<p>
+Let's try something more ambitious now. Instead of getting a single
+port skeleton, let's get a whole sub-directory, for example all the
+database skeletons in the ports collection. It looks almost the same:-
 
-    You can also chose to get the source files either from the master
-FTP site as defined in the relevant Makefile (in the MASTER_SITES
-line), or some FreeBSD mirror site also carrying a set of distfiles,
-as does the master FTP site on ftp.FreeBSD.org (aka ftp.cdrom.com) in
-the directory <tt>/pub/FreeBSD/distfiles</tt>.  Note that the files in
-that directory are not guaranteed to be kept up to date - this is a
-volunteer project!  We canno make any guarantees about the mirror
-sites either - they are obviously under independent control and do not
-even have to mirror the distfiles directory.
+<verb>
+ # cd /usr/ports
+ # ftp ftp.freebsd.org
+ [log in as `ftp' and give your email address when asked for a
+ password. Remember to use binary (aka image) mode!]
+ > cd /pub/FreeBSD/ports/databases
+ > get databases.tar.gz		[tarballs up the databases directory for us]
+ > quit
+ # tar xzf databases.tar.gz	[extract all the database skeletons]
+ # cd databases
+ # make install			[build and install all the database ports]
+</verb>
 
-    If you have a non-permanent link, you can fetch all the distfiles by
-going to the top of the tree and typing ``make fetch''.
+With half a dozen straightforward commands, we have now got a set of
+database programs on our FreeBSD machine! All we did that was
+different from getting a single port skeleton and building it was that
+we got a whole directory at once, and compiled everything in it at
+once. Pretty impressive, no?
+<p>
+If you expect to be installing more than one or two ports, it's
+probably worth downloading all the ports directories - this involves
+downloading 2 or 3MB, when they're compressed. However, don't get
+carried away and type 'get ports.tar.gz' unless you're prepared to
+download the distfiles directory as well - this contains the source
+code for every single port and will take a very long time to download!
 
+<sect1><heading>Skeletons<label id="ports:skeleton"></heading>
+<p>
+A team of compulsive hackers who've forgotten to eat in a frantic
+attempt to make a deadline? Something unpleasant lurking in the FreeBSD 
+attic? No, a skeleton here is a minimal framework that supplies everything
+needed to make the ports magic work.
 
-<sect1><heading>It does not work?!</heading>
+<sect2><heading>Makefile<label id="ports:makefile"></heading>
+<p>
+The most important component of a skeleton is the Makefile. This contains
+various statements that specify how the port should be compiled and
+installed. Here's the Makefile for bash:-
+
+<verb>
+ # New ports collection makefile for:	bash
+ # Version required:     1.14.5
+ # Date created:		21 August 1994
+ # Whom:			jkh
+ #
+ # Makefile,v 1.13 1995/10/04 14:45:01 asami Exp
+ #
+ 
+ DISTNAME=       bash-1.14.5
+ CATEGORIES+=	shells
+ MASTER_SITES=   ftp://slc2.ins.cwru.edu/pub/dist/
+ 
+ MAINTAINER=     ache@FreeBSD.ORG
+ 
+ post-install:
+ .if !defined(NOMANCOMPRESS)
+	 gzip -9nf ${PREFIX}/man/man1/bash.1 ${PREFIX}/man/man1/bash_builtins.1
+ .endif
+ 
+ .include &lt;bsd.port.mk>
+</verb>
+
+The lines beginning with a &quot;#&quot; sign are comments for the benefit
+of human readers (as in most Unix script files).
+<p>
+`DISTNAME&quot; specifies the name of the <ref id="ports:tarball" 
+name="tarball">, but without the extension.
+<p>
+`CATEGORIES&quot; states what kind of program this is.
+<p>
+`MASTER_SITES&quot; is the URL(s) of the master FTP site, which is
+used to retrieve the <ref id="ports:tarball" name="tarball"> if it is not
+available on the local system. This is a site which is regarded as
+reputable, and is normally the one from which the program is officially 
+distributed (in so far as any software is &quot;officially&quot; distributed
+on the Internet).
+<p>
+`MAINTAINER&quot; is the email address of the person who is
+responsible for updating the skeleton if, for example a new version
+of the program comes out. (Note: The title of &quot;maintainer&quot;
+is mainly an administrative one; it does <em /not/ mean the person
+concerned is responsible for supporting the program. If you have any
+<ref id="ports:kaput" name="problems with a port,"> please mail 
+&a.ports; and <em /not/ the maintainer. Thank you!)
+<p>
+Skipping over the next few lines for a minute, the line 
+<verb>
+ .include <bsd.port.mk> 
+</verb>
+says that the other statements and commmands 
+needed for this port are in a standard file called 
+`bsd.port.mk&quot;. As these are the same for all ports, there is
+no point in duplicating them all over the place, so they are kept in a
+single standard file.
+<p>
+This is probably not the place to go into a detailed examination of
+how Makefiles work; suffice it to say that the lines starting with 
+`post-install&quot; over-ride the instructions in bsd.port.mk
+about what to do after installing the program, so that the man pages
+can be compressed after they have been put in their final destination.
+
+<sect2><heading>The files directory</heading>
+<p>
+The file containing the <ref id="ports:checksum" name="checksum"> for
+the port is called &quot;md5&quot;, after the MD5 algorithm
+used for ports checksums. It lives in a directory with the slightly
+confusing name of &quot;files&quot;.
+<p>
+This directory can also contain other miscellaneous files that are required
+by the port and don't belong anywhere else.
+
+<sect2><heading>The patches directory</heading>
+<p>
+This directory contains the <ref id="ports:patch" name="patches"> needed
+to make everything work properly under FreeBSD.
+
+<sect2><heading>The pkg directory</heading>
+<p>
+This program contains three quite useful files:-
+
+<itemize>
+<item>
+COMMENT - a one-line description of the program.
+
+<item>
+DESCR - a more detailed description.
+
+<item>
+PLIST - a list of all the files that will be created when the program is installed.
+</itemize>
+
+<sect1><heading>It does not work?!<label id="ports:kaput"></heading>
 
 <p>Oh. You can do one of four (4) things :
+
 <enum>
-
 <item> Fix it yourself. Technical details can be found in
-  <ref id="porting" name="Porting applications">.
-
+  <ref id="porting" name="Porting applications.">
 <item> Gripe. This is done by e-mail *ONLY*! The people at Walnut Creek are
    in no way responsible for the functionality (or lack thereof) of the
    FreeBSD system as a whole, and especially the ports system, which
@@ -109,9 +448,9 @@ going to the top of the tree and typing ``make fetch''.
    the catalogue, especially the line saying "We cannot offer tech-support
    on this product")
 
-   The e-mail address is the &a.ports;.  Please include details of
-   the port, where you got both the port source &amp; distfile(s) from, and
-   what the error was.
+   The e-mail address is the &a.ports;. Please include 
+   details of the port, where you got both the port source &amp; 
+   distfile(s) from, and what the error was.
 
    Note: At time of writing, lang/Sather does not seem to work on Pentium
    machines due to the Intel Curse (aka the Floating Point Division Bug).
@@ -122,116 +461,378 @@ going to the top of the tree and typing ``make fetch''.
    ports can be classified as `essential'!
 
 <item> Grab the pre-compiled package from a ftp server. The ``master'' package
-   collection is in:
-	   ftp://ftp.FreeBSD.org/pub/FreeBSD/packages/
+   collection is on FreeBSD's FTP server in the <htmlurl
+   url="ftp://ftp.FreeBSD.org/pub/FreeBSD/packages/" 
+name="packages directory.">
 
    though check your local mirror first, please!
 
    These are more likely to work (on the whole) than trying to compile from
-   source, and a lot faster!  Use the <tt>pkg_add(1)</tt> or <tt>pkg_manage(1)</tt> program to 
-   install them to your system.
+   source, and a lot faster!  Use the <tt>pkg_add(1)</tt> or 
+   <tt>pkg_manage(1)</tt> program to install them to your system.
+
 </enum>
 
-<sect1><heading>I have ported a program and I want to make a port out of it. What now?</heading>
+<sect1><heading>I've got this program I'd like to make into a port...</heading>
 
-<p>   See the <ref id="porting:starting" name="guidelines"> that
-      contain details of the procedure and structure involved.
+<p>Great! Please see the <ref id="porting:starting" name="guidelines">
+for detailed instructions on how to do this.
 
-<sect1><heading>I have got a good port, what now?</heading>
+<sect1><heading>Some Questions and Answers</heading>
+<p>
+<itemize>
+<item>
+Q. I thought this was going to be a discussion about modems??!
+<p>
+A. Ah. You must be thinking of the serial ports on the back of your
+computer. We're using `port' here to mean the result of `porting' a
+program from one version of Unix to another. (It's an unfortunate bad
+habit of computer people to use the same word to refer to several
+completely different things).
 
-<p>Upload the fixed version to <tt>ftp://freefall.cdrom.com/pub/incoming</tt> or
-<tt>ftp://ftp.FreeBSD.org/pub/FreeBSD/incoming</tt> and send e-mail to
-the &a.ports with the filename and details.  Someone on the
-all-volunteer `ports committee' will (hopefully) look it over and
-commit it to the ports collection if they like the looks of it.
+<item>
+Q. I thought you were supposed to use packages to install extra
+programs?
+<p>
+A. Yes, that's usually the quickest and easiest way of doing it.
 
+<item>
+Q. So why bother with ports then?
+<p>
+A. Several reasons:-
 
-<sect1><heading>I want to leave the compile going overnight, but some ports do not like this.</heading>
+<enum>
+<item> The licensing conditions on some software distributions
+require that they be distributed as source code, not binaries.
 
-<p>   There is a way around this. Before starting the compilation, type:
+<item> Some people don't trust binary distributions. At least with
+source code you can (in theory) read through it and look for potential
+problems yourself.
+
+<item> If you've got some local patches, you'll need the source to add
+them yourself.
+
+<item> You might have opinions on how a program should be compiled
+that differ from the person who did the package - some people have
+strong views on what optimisation setting should be used, whether to
+build debug versions and then strip them or not, etc. etc.
+
+<item> Some people like having code around, so they can read it if
+they get bored, hack around with it, borrow from it (licence terms
+permitting, of course!) and so on.
+
+<item> If you ain't got the source, it ain't software! ;-)
+</enum>
+
+<item><label id="ports:patch">
+Q. What's a patch?
+<p>
+A. A patch is a small (usually) file that specifies how to go from one
+version of a file to another. It contains text that says, in effect,
+things like ``delete line 23'', ``add these two lines after line 468''
+or ``change line 197 to this''. Also known as a `diff', since it's
+generated by a program of that name.
+
+<item><label id="ports:tarball">
+Q. What's all this about tarballs?
+<p>
+A. It's a file ending in .tar.gz (with variations like .tar.Z, or
+even .tgz if you're trying to squeeze the names into a DOS filesystem).
+<p>
+Basically, it's a directory tree that's been archived into a single
+file (.tar) and then compressed (.gz). This technique was originally
+used for <em /T/ape <em /AR/chives (hence the name `tar'), but it's a
+widely used way of distributing program source code around the
+Internet.
+<p>
+You can see what files are in them, or even extract them yourself, by
+using the standard Unix tar program, which comes with the base FreeBSD
+system, like this:-
+
 <verb>
-	setenv BATCH yes # (if you use csh/tcsh) or
-	BATCH=yes; export BATCH # (for sh/bash)
+ tar tvzf foobar.tar.gz		# View contents of foobar.tar.gz
+ tar xzvf foobar.tar.gz		# Extract contents into the current directory
 </verb>
-    This should skip ports which need user interaction to build.
 
-    To compile those ports left out by doing the above, using a
-different login shell (or unsetting the above BATCH variable), set the
-INTERACTIVE variable instead (you can use the same statements as above
-except replace ``BATCH'' with ``INTERACTIVE'') and re-run make. This
-should now compile only those ports which will definitely ask for user
-interaction.
+<item><label id="ports:checksum">
+Q. And a checksum?
+<p>
+A. It's a number generated by adding up all the data in the file you
+want to check. If any of the characters change, the checksum will no
+longer be equal to the total, so a simple comparison will allow you to
+spot the difference. (In practice, it's done in a more complicated way
+to spot problems like position-swapping, which won't show up with a
+simplistic addition).
 
+<item>
+Q. I did what you said for <ref id="ports:cd" name="compiling ports
+from a CDROM"> and it worked great until I tried to install the kermit
+port:-
 
-<sect1><heading>The ports collection is weak.  What can I do to help?</heading>
-
-<p>    First read the bsd.port.mk file (which may be found in
-/usr/share/mk/) and the associated bsd.port.subdir.mk file. A lot of
-the weirdness can be explained properly in there (most of the current
-weirdness is due to the lack of assumptions about anything, which is
-necessary due to the generic nature of these files). Also check that
-you have an up-to-date copy, as the file can change from minute to
-minute.  The most up-to-date copy can be found in:
-
-  <url url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/FreeBSD-current/src/share/mk">
-
-    If you find that you still need to go in there and alter things,
-by all means do so, and then send the diffs to the &a.ports if
-you would like them to be a part of the default distribution.  Please also
-remember that any changes must respect backwards-compatibility with
-any and all older Makefiles, unless you want a real nightmare of
-/usr/ports munging ahead of you!  Large scale changes will generally
-not be warmly welcomed unless all the existing makefiles work without
-alteration. Sorry!
-
-
-<sect1><heading>This FAQ is weak.  What can I do?</heading>
-
-<p>    Send changes to the &a.ports;.  Changes are most welcome!
-This FAQ is also very green and should be considered no more than
-a `good start' for now.  Authors?  You can come out of hiding any
-time now! :-)
-
-
-<sect1><heading>How do I get more information on all the ports?</heading>
-
-<p>    One good method is to cd to the top of the ports tree (say /usr/ports)
-and type:
 <verb>
-	make print-index
+ # make install
+ >> cku190.tar.gz doesn't seem to exist on this system.
+ >> Attempting to fetch from ftp://kermit.columbia.edu/kermit/archives/.
 </verb>
-This will print a summary of all ports in the tree.
 
-<sect1><heading>I have heard of a new checksum system. What is this for?</heading>
+Why can't it find it? Have I got a dud CDROM?
+<p>
+A. The licensing terms for kermit don't allow us to put the tarball
+for it on the CDROM, so you'll have to fetch it by hand - sorry!
+The reason why you got all those error messages was because you
+weren't connected to the Internet at the time. Once you've downloaded
+it from any of the sites above, you can re-start the process (try and
+choose the nearest site to you, though, to save your time and the
+Internet's bandwidth).
 
-<p>    For various reasons, when using FTP over the Internet to obtain the
-source code, you may not always end up with the same copy of the code
-that the original porter worked from, and this can lead to problems.
-So a simple checksumming system has been employed to try and highlight
-problems in this area.
+<item>
+Q. I did that, but when I tried to put it into /usr/ports/distfiles I
+got some error about not having permission.
+<p>
+A. The ports mechanism looks for the tarball in /usr/ports/distfiles,
+but you won't be able to copy anything there because it's sym-linked
+to the CDROM, which is read-only. You can tell it to look somewhere
+else by doing
 
-    To check the entire system, go to the top of the ports tree
-(defaults to /usr/ports) and type
 <verb>
-	make checksum
+ DISTDIR=/where/you/put/it make install
 </verb>
-This will give a report on the validity of the files you have FTP'd. If some
-are missing, the system will attempt to retrieve them before running the
-checksum routine. The same technique can be applied to a single port.
 
-    The system will complain if there is no pre-computed checksum available
-for that port. Not all ports currently have checksums, but this should be
-cured soon.
+<item>
+Q. Does the ports scheme only work if you have everything in
+/usr/ports? My system administrator says I must put everything under
+/u/people/guests/wurzburger, but it doesn't seem to work.
+<p>
+A. You can use the PORTSDIR and PREFIX variables to tell the ports
+mechanism to use different directories. For instance,
 
-    Some older versions of the system do not recognize the ``checksum''
-target. In that case, try the command
 <verb>
-	make check-md5
+ PORTSDIR=/u/people/guests/wurzburger/ports make install
 </verb>
-(``check-md5'' was the pre-cursor to the ``checksum'' target). If neither
-work, get the latest copies of bsd.port.mk and bsd.port.subdir.mk from
 
-   <url url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/FreeBSD-current/src/share/mk">
+will compile the port in /u/people/guests/wurzburger/ports and install
+everything under /usr/local. 
 
-and install them in /usr/share/mk. This will get you the latest version
-of the ports system.
+<verb> 
+ PREFIX=/u/people/guests/wurzburger/local make install
+</verb>
+
+will compile it in /usr/ports and install it in
+/u/people/guests/wurzburger/local. 
+
+And of course
+
+<verb>
+ PORTSDIR=.../ports PREFIX=.../local make install
+</verb>
+
+will combine the two (it's too long to fit on the page if I write it
+in full, but I'm sure you get the idea).
+<p>
+If you don't fancy typing all that in every time you install a port
+(and to be honest, who would?), it's a good idea to put these variables
+into your environment.
+
+<item>
+Q. I don't have a FreeBSD CDROM, but I'd like to have all the tarballs
+handy on my system so I don't have to wait for a download every time I
+install a port. Is there an easy way to get them all at once?
+<p>
+A. To get every single tarball for the ports collection, do
+
+<verb>
+ # cd /usr/ports
+ # make fetch
+</verb>
+
+For all the tarballs for a single ports directory, do
+
+<verb>
+ # cd /usr/ports/directory
+ # make fetch
+</verb>
+
+and for just one port - well, I think you've guessed already.
+
+<item>
+Q. I want to know what files make is going to need before it tries to
+pull them down.
+<p>
+A. 'make fetch-list' will display a list of the files needed for a port.
+
+<item>
+Q. Is there any way to stop the port from compiling? I want to do some
+hacking on the source before I install it, but it's a bit tiresome having 
+to watch it and hit control-C every time.
+<p>
+A. Doing 'make extract' will stop it after it has fetched and
+extracted the source code.
+
+<item>
+Q. I'm trying to make my own port and I want to be able to stop it
+compiling until I've had a chance to see if my patches worked properly. 
+Is there something like 'make extract', but for patches?
+<p>
+A. Yep, 'make patch' is what you want. And by the way, thank you for
+your efforts!
+
+<item>
+Q. I've heard that some compiler options can cause bugs. Is this true?
+How can I make sure that I compile ports with the right settings?
+<p>
+A. Yes, with version 2.6.3 of gcc (the version shipped with FreeBSD
+2.1.0 and 2.1.5), the -O2 option could result in buggy code unless you
+used the -fno-strength-reduce option as well. (Most of the ports don't
+use -O2). You <em /should/ be able to specify the compiler options
+used by something like
+
+<verb>
+ # CFLAGS='-O2 -fno-strength-reduce' make install
+</verb>
+
+or by editing /etc/make.conf, but this doesn't always seem to get
+picked up. The surest way is to do 'make configure', then go into the
+source directory and inspect the Makefiles by hand, but this can get
+tedious if the source has lots of sub-directories, each with their own
+Makefiles.
+
+<item>
+Q. There's so many ports it's hard to find the one I want. Is there a
+list anywhere of what ports are available?
+<p>
+A. Look in the INDEX file in /usr/ports.
+
+<item>
+Q. I went to install the 'foo' port but the system suddenly stopped
+and starting compiling the 'bar' port. What's going on?
+<p>
+A. The 'foo' port needs something that's supplied with 'bar' - for
+instance, if 'foo' uses graphics, 'bar' might have a library with
+useful graphics processing routines. Or 'bar' might be a tool that's
+needed to compile the 'foo' port.
+
+<item><label id="ports:remove"> 
+Q. I installed the grizzle program from the ports and frankly it's a
+complete waste of disk space. I want to delete it but I don't know
+where it put all the files. Any clues?
+<p>
+A. No problem, just do
+
+<verb>
+ pkg_delete grizzle-6.5
+</verb>
+<item>
+
+Q. Hang on a minute, you have to know the version number to use that
+command. You don't seriously expect me to remember that, do you??
+<p>
+A. Not at all, you can find it out by doing
+
+<verb>
+ pkg_info -a | grep grizzle
+</verb>
+
+And it'll tell you:-
+
+<verb>
+ Information for grizzle-6.5:
+ grizzle-6.5 - the combined piano tutorial, LOGO interpreter and shoot 'em up arcade game.
+</verb>
+
+<item>
+Q. Nope, that's still too complicated.
+<p>
+A. Do 'pkg_manage' to get a friendly front-end to the package manager.
+
+<item>
+Q. Talking of disk space, the ports directory seems to be taking up
+an awful lot of room. Is it safe to go in there and delete things?
+<p>
+A. Yes, if you've installed the program and are fairly certain you
+won't need the source again, there's no point in keeping it hanging
+around. The best way to do this is
+
+<verb>
+ # cd /usr/ports
+ # make clean
+</verb>
+
+which will go through all the ports subdirectories and delete
+everything except the skeletons for each port.
+<item>
+Q. I tried that and it still left all those tarballs or whatever you
+called them in the distfiles directory. Can I delete those as well?
+<p>
+A. Yes, if you're sure you've finished with them, those can go as
+well.
+
+<item>
+Q. I like having lots and lots of programs to play with. Is there any
+way of installing all the ports in one go?
+<p>
+A. Just do
+
+<verb>
+ # cd /usr/ports
+ # make install
+</verb>
+
+<item>
+Q. OK, I tried that, but I thought it would take a very long time so I
+went to bed and left it to get on with it. When I looked at the
+computer this morning, it had only done three and a half ports. Did
+something go wrong?
+<p>
+A. No, the problem is that some of the ports need to ask you questions
+that we can't answer for you (eg ``Do you want to print on A4 or US
+letter sized paper?'') and they need to have someone on hand to answer
+them.
+
+<item>
+Q. I really don't want to spend all day staring at the monitor. Any
+better ideas?
+<p>
+A. OK, do this before you go to bed/work/the local park:-
+
+<verb>
+ # cd /usr/ports
+ # make -DBATCH install
+</verb>
+
+This will install every port that does <em /not/ require user
+input. Then, when you come back, do
+
+<verb>
+ # cd /usr/ports
+ # make -DIS_INTERACTIVE install
+</verb>
+
+to finish the job.
+
+<item>
+Q. At work, we're using frobble, which is in your ports collection,
+but we've altered it quite a bit to get it to do what we need. Is
+there any way of making our own packages, so we can distribute it more
+easily around our sites?
+<p>
+A. No problem, assuming you know how to make patches for your changes:-
+
+<verb>
+ # cd /usr/ports/somewhere/frobble
+ # make extract
+ # cd work/frobble-2.8
+ [Apply your patches]
+ # cd ../..
+ # make package
+</verb>
+
+<item>
+Q. This ports stuff is really clever. I'm desperate to find out how
+you did it. What's the secret?
+<p>
+A. Nothing secret about it at all, just look at the bsd.ports.mk and
+bsd.ports.subdir.mk files in your <htmlurl
+url="file://localhost/usr/share/mk/" name="makefiles directory.">
+(Note: readers with an aversion to intricate shell-scripts are advised
+not to follow this link...)
+</itemize>
