@@ -72,7 +72,7 @@ static Distribution DistTable[] = {
 { "dict",	"/",			&Dists,		DIST_DICT,		NULL		},
 { "info",	"/",			&Dists,		DIST_INFO,		NULL		},
 { "src",	"/",			&Dists,		DIST_SRC,		SrcDistTable	},
-{ "des",	"/",			&Dists,		DIST_CRYPTO,		CRYPTODistTable	},
+{ "crypto",	"/",			&Dists,		DIST_CRYPTO,		CRYPTODistTable	},
 #ifdef __i386__
 { "compat1x",	"/",			&Dists,		DIST_COMPAT1X,		NULL		},
 { "compat20",	"/",			&Dists,		DIST_COMPAT20,		NULL		},
