@@ -953,6 +953,8 @@ rc.conf(5) variables. [MERGED]
 The setfacl(1) and getfacl(1) commands have been added to manage
 file system Access Control Lists.
 
+ee(1) editor has been updated to 1.4.2.
+
 
 2. Supported Configurations
 ---------------------------
