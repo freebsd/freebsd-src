@@ -2,8 +2,8 @@
 
 PROG=	newkey
 SRCS=	newkey.c generic.c update.c
-MAN=	newkey.8
 CFLAGS+= -DYP
+MAN=	newkey.8
 DPADD=	${LIBRPCSVC} ${LIBMP} ${LIBCRYPTO}
 LDADD=	-lrpcsvc -lmp -lcrypto
 
