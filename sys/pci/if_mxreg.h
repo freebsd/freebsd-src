@@ -489,6 +489,7 @@ struct mx_softc {
 	u_int8_t		mx_unit;	/* interface number */
 	u_int8_t		mx_type;
 	u_int8_t		mx_cachesize;
+	u_int8_t		mx_link;
 	int			mx_if_flags;
 	caddr_t			mx_ldata_ptr;
 	struct mx_list_data	*mx_ldata;
