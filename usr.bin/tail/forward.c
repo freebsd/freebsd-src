@@ -193,7 +193,6 @@ forward(fp, style, off, sbp)
 		switch (action) {
 		case ADD_EVENTS: {
 			int n = 0;
-			struct kevent *evp[2];
 			struct timespec ts = { 0, 0 };
 
 			if (Fflag && fileno(fp) != STDIN_FILENO) {
@@ -201,16 +200,14 @@ forward(fp, style, off, sbp)
 				ev[n].filter = EVFILT_VNODE;
 				ev[n].flags = EV_ADD | EV_ENABLE | EV_CLEAR;
 				ev[n].fflags = NOTE_DELETE | NOTE_RENAME;
-				evp[n] = &ev[n];
 				n++;
 			}
 			ev[n].ident = fileno(fp);
 			ev[n].filter = EVFILT_READ;
 			ev[n].flags = EV_ADD | EV_ENABLE;
-			evp[n] = &ev[n];
 			n++;
 
-			if (kevent(kq, n, evp, 0, NULL, &ts) < 0) {
+			if (kevent(kq, ev, n, NULL, 0, &ts) < 0) {
 				close(kq);
 				kq = -1;
 				action = USE_SLEEP;
@@ -221,7 +218,7 @@ forward(fp, style, off, sbp)
 		}
 
 		case USE_KQUEUE:
-			if (kevent(kq, 0, NULL, 1, ev, NULL) < 0)
+			if (kevent(kq, NULL, 0, ev, 1, NULL) < 0)
 				err(1, "kevent");
 
 			if (ev->filter == EVFILT_VNODE) {
