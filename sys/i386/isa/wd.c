@@ -37,7 +37,7 @@ static int wdtest = 0;
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.41 1994/08/08 13:56:46 davidg Exp $
+ *	$Id: wd.c,v 1.42 1994/08/13 03:50:18 wollman Exp $
  */
 
 /* TODO:
@@ -178,7 +178,7 @@ static void wderror(struct buf *bp, struct disk *du, char *mesg);
 static void wdflushirq(struct disk *du, int old_ipl);
 static int wdreset(struct disk *du);
 static void wdsleep(int ctrlr, char *wmesg);
-static void wdtimeout(caddr_t cdu);
+static timeout_t wdtimeout;
 static int wdunwedge(struct disk *du);
 static int wdwait(struct disk *du, u_char bits_wanted, int timeout);
 
@@ -1695,7 +1695,7 @@ wdsleep(int ctrlr, char *wmesg)
 }
 
 static void
-wdtimeout(caddr_t cdu)
+wdtimeout(void *cdu)
 {
 	struct disk *du;
 	int	x;
@@ -1710,7 +1710,7 @@ wdtimeout(caddr_t cdu)
 		du->dk_flags |= DKFL_SINGLE;
 		wdstart(du->dk_ctrlr);
 	}
-	timeout((timeout_func_t)wdtimeout, cdu, hz);
+	timeout(wdtimeout, cdu, hz);
 	splx(x);
 }
 

@@ -46,7 +46,7 @@
  * SUCH DAMAGE.
  *
  *	from: unknown origin, 386BSD 0.1
- *	$Id: lpt.c,v 1.14 1994/08/13 03:50:08 wollman Exp $
+ *	$Id: lpt.c,v 1.15 1994/08/14 01:46:28 phk Exp $
  */
 
 /*
@@ -424,8 +424,10 @@ lptopen(dev_t dev, int flag)
 	if ((unit >= NLPT) || (sc->sc_port == 0))
 		return (ENXIO);
 
+#ifdef INET
 	if (sc->sc_if.if_flags & IFF_UP) 
 		return(EBUSY);
+#endif
 	if (sc->sc_state) {
 	lprintf("lp: still open\n") ;
 	lprintf("still open %x\n", sc->sc_state);

@@ -14,7 +14,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aha1742.c,v 1.17 1994/08/13 03:49:54 wollman Exp $
+ *      $Id: aha1742.c,v 1.18 1994/08/20 03:48:38 davidg Exp $
  */
 
 #include <sys/types.h>
@@ -270,7 +270,7 @@ int     ahb_attach();
 int	ahb_init __P((int unit));
 int     ahbintr();
 int32   ahb_scsi_cmd();
-void    ahb_timeout	__P((caddr_t));
+timeout_t ahb_timeout;
 void	ahb_done();
 struct	ecb *cheat;
 void	ahb_free_ecb();
@@ -624,7 +624,7 @@ ahbintr(unit)
 			if ((ahb_debug & AHB_SHOWECBS) && ecb)
 				printf("<int ecb(%x)>", ecb);
 #endif /*AHBDEBUG */
-			untimeout((timeout_func_t)ahb_timeout, (caddr_t)ecb);
+			untimeout(ahb_timeout, (caddr_t)ecb);
 			ahb_done(unit, ecb, ((stat == AHB_ECB_OK) ? SUCCESS : FAIL));
 		}
 	}
@@ -989,7 +989,7 @@ ahb_scsi_cmd(xs)
 		if (!(flags & SCSI_NOMASK)) {
 			s = splbio();
 			ahb_send_immed(unit, xs->sc_link->target, AHB_TARG_RESET);
-			timeout((timeout_func_t)ahb_timeout, (caddr_t)ecb, (xs->timeout * hz) / 1000);
+			timeout(ahb_timeout, (caddr_t)ecb, (xs->timeout * hz) / 1000);
 			splx(s);
 			return (SUCCESSFULLY_QUEUED);
 		} else {
@@ -1118,7 +1118,7 @@ ahb_scsi_cmd(xs)
 	if (!(flags & SCSI_NOMASK)) {
 		s = splbio();
 		ahb_send_mbox(unit, OP_START_ECB, xs->sc_link->target, ecb);
-		timeout((timeout_func_t)ahb_timeout, (caddr_t)ecb, (xs->timeout * hz) / 1000);
+		timeout(ahb_timeout, (caddr_t)ecb, (xs->timeout * hz) / 1000);
 		splx(s);
 		SC_DEBUG(xs->sc_link, SDEV_DB3, ("cmd_sent\n"));
 		return (SUCCESSFULLY_QUEUED);
@@ -1148,7 +1148,7 @@ ahb_scsi_cmd(xs)
 }
 
 void
-ahb_timeout(caddr_t arg1)
+ahb_timeout(void *arg1)
 {
 	struct ecb * ecb = (struct ecb *)arg1;
 	int     unit;
@@ -1195,7 +1195,7 @@ ahb_timeout(caddr_t arg1)
 		printf("\n");
 		ahb_send_mbox(unit, OP_ABORT_ECB, ecb->xs->sc_link->target, ecb);
 		/* 2 secs for the abort */
-		timeout((timeout_func_t)ahb_timeout, (caddr_t)ecb, 2 * hz);
+		timeout(ahb_timeout, (caddr_t)ecb, 2 * hz);
 		ecb->flags = ECB_ABORTED;
 	}
 	splx(s);
