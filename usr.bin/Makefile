@@ -46,7 +46,6 @@ SUBDIR=	alias \
 	dirname \
 	${_dnskeygen} \
 	${_dnsquery} \
-	${_doscmd} \
 	du \
 	ee \
 	elf2aout \
@@ -267,7 +266,6 @@ _usbhidctl=	usbhidctl
 .if !defined(NO_BLUETOOTH)
 _bluetooth=	bluetooth
 .endif
-_doscmd=	doscmd
 _ncplist=	ncplist
 _ncplogin=	ncplogin
 _smbutil=	smbutil
