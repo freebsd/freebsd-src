@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: timer.c,v 1.24 1997/11/22 03:37:52 brian Exp $
+ * $Id: timer.c,v 1.25 1997/12/28 21:55:04 brian Exp $
  *
  *  TODO:
  */
@@ -224,8 +224,8 @@ nointr_dosleep(u_int sec, u_int usec)
       break;
     } else {
       gettimeofday(&to, NULL);
-      if (to.tv_sec > et.tv_sec ||
-          (to.tv_sec == et.tv_sec && to.tv_usec > et.tv_usec) ||
+      if (to.tv_sec > et.tv_sec + 1 ||
+          (to.tv_sec == et.tv_sec + 1 && to.tv_usec > et.tv_usec) ||
           to.tv_sec < st.tv_sec ||
           (to.tv_sec == st.tv_sec && to.tv_usec < st.tv_usec)) {
         LogPrintf(LogWARN, "Clock adjusted between %d and %d seconds "
@@ -237,7 +237,8 @@ nointr_dosleep(u_int sec, u_int usec)
         et.tv_usec = st.tv_usec + usec;
         to.tv_sec = sec;
         to.tv_usec = usec;
-      } else if (to.tv_sec == et.tv_sec && to.tv_usec == et.tv_usec) {
+      } else if (to.tv_sec > et.tv_sec ||
+                 (to.tv_sec == et.tv_sec && to.tv_usec >= et.tv_usec)) {
         break;
       } else {
         to.tv_sec = et.tv_sec - to.tv_sec;
