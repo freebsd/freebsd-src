@@ -263,7 +263,7 @@ vchan_create(struct pcm_channel *parent)
 	CHN_UNLOCK(parent);
 
 	/* add us to our grandparent's channel list */
-	err = pcm_chn_add(d, child);
+	err = pcm_chn_add(d, child, !first);
 	if (err) {
 		pcm_chn_destroy(child);
 		free(pce, M_DEVBUF);
@@ -288,12 +288,7 @@ vchan_destroy(struct pcm_channel *c)
 	struct pcm_channel *parent = c->parentchannel;
     	struct snddev_info *d = parent->parentsnddev;
 	struct pcmchan_children *pce;
-	int err;
-
-	/* remove us from our grantparent's channel list */
-	err = pcm_chn_remove(d, c);
-	if (err)
-		return err;
+	int err, last;
 
 	CHN_LOCK(parent);
 	if (!(parent->flags & CHN_F_BUSY)) {
@@ -316,8 +311,15 @@ gotch:
 	SLIST_REMOVE(&parent->children, pce, pcmchan_children, link);
 	free(pce, M_DEVBUF);
 
-	if (SLIST_EMPTY(&parent->children))
+	last = SLIST_EMPTY(&parent->children);
+	if (last)
 		parent->flags &= ~CHN_F_BUSY;
+
+	/* remove us from our grantparent's channel list */
+	err = pcm_chn_remove(d, c, !last);
+	if (err)
+		return err;
+
 	CHN_UNLOCK(parent);
 	/* destroy ourselves */
 	err = pcm_chn_destroy(c);

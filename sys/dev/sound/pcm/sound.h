@@ -115,7 +115,7 @@ struct snddev_channel {
 struct snddev_info {
 	SLIST_HEAD(, snddev_channel) channels;
 	struct pcm_channel *fakechan;
-	unsigned chancount;
+	unsigned devcount, chancount, vchancount;
 	unsigned flags;
 	int inprog;
 	void *devinfo;
@@ -245,8 +245,8 @@ int pcm_chnref(struct pcm_channel *c, int ref);
 
 struct pcm_channel *pcm_chn_create(struct snddev_info *d, struct pcm_channel *parent, kobj_class_t cls, int dir, void *devinfo);
 int pcm_chn_destroy(struct pcm_channel *ch);
-int pcm_chn_add(struct snddev_info *d, struct pcm_channel *ch);
-int pcm_chn_remove(struct snddev_info *d, struct pcm_channel *ch);
+int pcm_chn_add(struct snddev_info *d, struct pcm_channel *ch, int mkdev);
+int pcm_chn_remove(struct snddev_info *d, struct pcm_channel *ch, int rmdev);
 
 int pcm_addchan(device_t dev, int dir, kobj_class_t cls, void *devinfo);
 int pcm_register(device_t dev, void *devinfo, int numplay, int numrec);
