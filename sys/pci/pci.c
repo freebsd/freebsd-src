@@ -51,6 +51,9 @@
 #include <sys/rman.h>
 #include <machine/resource.h>
 #include <machine/md_var.h>		/* For the Alpha */
+#ifdef __i386__
+#include <machine/pci_cfgreg.h>
+#endif
 
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
