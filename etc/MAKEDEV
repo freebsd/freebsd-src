@@ -196,6 +196,39 @@ dkminor()
 	echo $(($1 << 25 | ($2 / 32) << 21 | ($2 % 32) << 3 | $3 << 16 | $4))
 }
 
+# Print the hexadecimal representation of a decimal value from 0 to 15
+hexdigit () {
+	if [ $1 -lt 10 ]; then
+		echo $1
+	else
+		case $1 in
+		10)	echo a ;;
+		11)	echo b ;;
+		12)	echo c ;;
+		13)	echo d ;;
+		14)	echo e ;;
+		15)	echo f ;;
+		esac
+	fi
+}
+
+# Print the hexadecimal representation of an arbitrary decimal value
+hexprint () {
+	val=$1
+	str=''
+
+	dig=`hexdigit $((${val} & 15))`
+	str=${dig}${str}
+	val=$((${val} >> 4))
+	while [ ${val} -gt 0 ]; do
+		dig=`hexdigit $((${val} & 15))`
+		str=${dig}${str}
+		val=$((${val} >> 4))
+	done
+
+	echo ${str}
+}
+
 # Override mknod(2) to add extra handling to it.
 mknod=/sbin/mknod
 for i in `IFS=':'; echo $PATH`; do
@@ -237,6 +270,18 @@ ttyminor()
 unit2minor()
 {
   echo $(((($1 >> 8) << 16) | ($1 % 256)))
+}
+
+# Zero-pad a value to the appropriate minimum length
+zeropad () {
+	min=$1
+	val=$2
+
+	while [ ${#val} -lt ${min} ]; do
+		val=0${val}
+	done
+
+	echo ${val}
 }
 
 # Raw partition for disks
@@ -1073,7 +1118,7 @@ vty*)
 	units=`expr $i : 'vty\(.*\)'`
 	i=0
 	while [ $i -lt $units ]; do
-		mknod ttyv$(printf %01x $i) c $chr `unit2minor $i`
+		mknod ttyv$(hexprint $i) c $chr `unit2minor $i`
 		i=$(($i + 1))
 	done
 	ln -fs ttyv0 vga	# XXX X still needs this pccons relic
@@ -1182,7 +1227,7 @@ ttyA*)
 	port=1
 	while [ $port -le $units ]; do
 		minor=$(expr $port - 1)
-		name=$(printf %02d $port)
+		name=$(zeropad 2 $port)
 		mknod ttyA$name c $major $minor
 		mknod ttyiA$name c $major `expr $minor + 65536`
 		mknod ttylA$name c $major `expr $minor + 131072`
@@ -1199,7 +1244,7 @@ cuaA*)
 	port=1
 	while [ $port -le $units ]; do
 		minor=$(expr $port - 1)
-		name=$(printf %02d $port)
+		name=$(zeropad 2 $port)
 		mknod cuaA$name c $major `expr $minor + 128` uucp:dialer
 		mknod cuaiA$name c $major `expr $minor + 128 + 65536` \
 		    uucp:dialer
