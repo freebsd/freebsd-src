@@ -87,23 +87,23 @@
 #define	SPR_TBL			0x11c	/* 468 Time Base Lower */
 #define	SPR_TBU			0x11d	/* 468 Time Base Upper */
 #define	SPR_PVR			0x11f	/* 468 Processor Version Register */
-#define   MPC601		  0x0001
-#define   MPC603		  0x0003
-#define   MPC604		  0x0004
-#define   MPC602		  0x0005
-#define   MPC603e		  0x0006
-#define   MPC603ev		  0x0007
-#define   MPC750		  0x0008
-#define   MPC604ev		  0x0009
-#define   MPC7400		  0x000c
-#define   MPC620		  0x0014
-#define   MPC860		  0x0050
-#define   MPC8240		  0x0081
-#define   MPC7450		  0x8000
-#define   MPC7455		  0x8001
-#define   MPC7410		  0x800c
-#define   IBM405GP		  0x4011
-#define   IBM405L		  0x4161
+#define   PVR_MPC601		  0x0001
+#define   PVR_MPC603		  0x0003
+#define   PVR_MPC604		  0x0004
+#define   PVR_MPC602		  0x0005
+#define   PVR_MPC603e		  0x0006
+#define   PVR_MPC603ev		  0x0007
+#define   PVR_MPC750		  0x0008
+#define   PVR_MPC604ev		  0x0009
+#define   PVR_MPC7400		  0x000c
+#define   PVR_MPC620		  0x0014
+#define   PVR_MPC860		  0x0050
+#define   PVR_MPC8240		  0x0081
+#define   PVR_MPC7450		  0x8000
+#define   PVR_MPC7455		  0x8001
+#define   PVR_MPC7410		  0x800c
+#define   PVR_IBM405GP		  0x4011
+#define   PVR_IBM405L		  0x4161
 #define	SPR_IBAT0U		0x210	/* .68 Instruction BAT Reg 0 Upper */
 #define	SPR_IBAT0L		0x211	/* .68 Instruction BAT Reg 0 Lower */
 #define	SPR_IBAT1U		0x212	/* .68 Instruction BAT Reg 1 Upper */
