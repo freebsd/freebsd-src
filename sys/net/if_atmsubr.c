@@ -31,12 +31,11 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
- */
-
-/*
  * if_atmsubr.c
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
 #include "opt_inet6.h"
@@ -74,10 +73,10 @@
 SYSCTL_NODE(_hw, OID_AUTO, atm, CTLFLAG_RW, 0, "ATM hardware");
 
 #ifndef ETHERTYPE_IPV6
-#define ETHERTYPE_IPV6	0x86dd
+#define	ETHERTYPE_IPV6	0x86dd
 #endif
 
-#define senderr(e) do { error = (e); goto bad;} while (0)
+#define	senderr(e) do { error = (e); goto bad; } while (0)
 
 /*
  * atm_output: ATM output routine
@@ -93,13 +92,9 @@ SYSCTL_NODE(_hw, OID_AUTO, atm, CTLFLAG_RW, 0, "ATM hardware");
  *		[for native mode ATM output]   if dst is null, then
  *		rt0 must also be NULL.
  */
-
 int
-atm_output(ifp, m0, dst, rt0)
-	struct ifnet *ifp;
-	struct mbuf *m0;
-	struct sockaddr *dst;
-	struct rtentry *rt0;
+atm_output(struct ifnet *ifp, struct mbuf *m0, struct sockaddr *dst,
+    struct rtentry *rt0)
 {
 	u_int16_t etype = 0;			/* if using LLC/SNAP */
 	int error = 0, sz;
@@ -116,7 +111,7 @@ atm_output(ifp, m0, dst, rt0)
 		senderr(error);
 #endif
 
-	if ((ifp->if_flags & (IFF_UP|IFF_RUNNING)) != (IFF_UP|IFF_RUNNING))
+	if ((ifp->if_flags & (IFF_UP | IFF_RUNNING)) != (IFF_UP | IFF_RUNNING))
 		senderr(ENETDOWN);
 
 	/*
@@ -131,6 +126,7 @@ atm_output(ifp, m0, dst, rt0)
 	 */
 	if (dst) {
 		switch (dst->sa_family) {
+
 #if defined(INET) || defined(INET6)
 		case AF_INET:
 		case AF_INET6:
@@ -154,7 +150,8 @@ atm_output(ifp, m0, dst, rt0)
 			 * (atm pseudo header (4) + LLC/SNAP (8))
 			 */
 			bcopy(dst->sa_data, &atmdst, sizeof(atmdst));
-			llc_hdr = (struct atmllc *)(dst->sa_data + sizeof(atmdst));
+			llc_hdr = (struct atmllc *)(dst->sa_data +
+			    sizeof(atmdst));
 			break;
 			
 		default:
@@ -173,7 +170,8 @@ atm_output(ifp, m0, dst, rt0)
 		 */
 		sz = sizeof(atmdst);
 		atm_flags = ATM_PH_FLAGS(&atmdst);
-		if (atm_flags & ATM_PH_LLCSNAP) sz += 8; /* sizeof snap == 8 */
+		if (atm_flags & ATM_PH_LLCSNAP)
+			sz += 8;	/* sizeof snap == 8 */
 		M_PREPEND(m, sz, M_DONTWAIT);
 		if (m == 0)
 			senderr(ENOBUFS);
@@ -184,8 +182,8 @@ atm_output(ifp, m0, dst, rt0)
 			if (llc_hdr == NULL) {
 			        bcopy(ATMLLC_HDR, atmllc->llchdr, 
 				      sizeof(atmllc->llchdr));
+				/* note: in host order */
 				ATM_LLC_SETTYPE(atmllc, etype); 
-					/* note: in host order */
 			}
 			else
 			        bcopy(llc_hdr, atmllc, sizeof(struct atmllc));
@@ -196,7 +194,7 @@ atm_output(ifp, m0, dst, rt0)
 	 * Queue message on interface, and start output if interface
 	 * not yet active.
 	 */
-	if (! IF_HANDOFF(&ifp->if_snd, m, ifp))
+	if (!IF_HANDOFF(&ifp->if_snd, m, ifp))
 		return (ENOBUFS);
 	return (error);
 
@@ -211,14 +209,11 @@ bad:
  * the packet is in the mbuf chain m.
  */
 void
-atm_input(ifp, ah, m, rxhand)
-	struct ifnet *ifp;
-	struct atm_pseudohdr *ah;
-	struct mbuf *m;
-	void *rxhand;
+atm_input(struct ifnet *ifp, struct atm_pseudohdr *ah, struct mbuf *m,
+    void *rxhand)
 {
 	int isr;
-	u_int16_t etype = ETHERTYPE_IP; /* default */
+	u_int16_t etype = ETHERTYPE_IP;		/* default */
 	int s;
 
 	if ((ifp->if_flags & IFF_UP) == 0) {
@@ -233,13 +228,15 @@ atm_input(ifp, ah, m, rxhand)
 	if (rxhand) {
 #ifdef NATM
 		struct natmpcb *npcb = rxhand;
+
 		s = splimp();		/* in case 2 atm cards @ diff lvls */
 		npcb->npcb_inq++;	/* count # in queue */
 		splx(s);
 		isr = NETISR_NATM;
 		m->m_pkthdr.rcvif = rxhand; /* XXX: overload */
 #else
-		printf("atm_input: NATM detected but not configured in kernel\n");
+		printf("atm_input: NATM detected but not "
+		    "configured in kernel\n");
 		m_freem(m);
 		return;
 #endif
@@ -249,17 +246,21 @@ atm_input(ifp, ah, m, rxhand)
 		 */
 		if (ATM_PH_FLAGS(ah) & ATM_PH_LLCSNAP) {
 			struct atmllc *alc;
+
 			if (m->m_len < sizeof(*alc) &&
 			    (m = m_pullup(m, sizeof(*alc))) == 0)
 				return; /* failed */
 			alc = mtod(m, struct atmllc *);
 			if (bcmp(alc, ATMLLC_HDR, 6)) {
 #if defined(__NetBSD__) || defined(__OpenBSD__)
-				printf("%s: recv'd invalid LLC/SNAP frame [vp=%d,vc=%d]\n",
-				       ifp->if_xname, ATM_PH_VPI(ah), ATM_PH_VCI(ah));
+				printf("%s: recv'd invalid LLC/SNAP frame "
+				    "[vp=%d,vc=%d]\n", ifp->if_xname,
+				    ATM_PH_VPI(ah), ATM_PH_VCI(ah));
 #elif defined(__FreeBSD__) || defined(__bsdi__)
-				printf("%s%d: recv'd invalid LLC/SNAP frame [vp=%d,vc=%d]\n",
-				       ifp->if_name, ifp->if_unit, ATM_PH_VPI(ah), ATM_PH_VCI(ah));
+				printf("%s%d: recv'd invalid LLC/SNAP frame "
+				    "[vp=%d,vc=%d]\n", ifp->if_name,
+				    ifp->if_unit, ATM_PH_VPI(ah),
+				    ATM_PH_VCI(ah));
 #endif
 				m_freem(m);
 				return;
@@ -269,11 +270,13 @@ atm_input(ifp, ah, m, rxhand)
 		}
 
 		switch (etype) {
+
 #ifdef INET
 		case ETHERTYPE_IP:
 			isr = NETISR_IP;
 			break;
 #endif
+
 #ifdef INET6
 		case ETHERTYPE_IPV6:
 			isr = NETISR_IPV6;
@@ -291,8 +294,7 @@ atm_input(ifp, ah, m, rxhand)
  * Perform common duties while attaching to interface list.
  */
 void
-atm_ifattach(ifp)
-	struct ifnet *ifp;
+atm_ifattach(struct ifnet *ifp)
 {
 	struct ifaddr *ifa;
 	struct sockaddr_dl *sdl;
