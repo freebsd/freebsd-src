@@ -130,13 +130,6 @@ static struct llinfo_arp
 static void	in_arpinput(struct mbuf *);
 #endif
 
-static struct	mtx arp_mtx;
-
-#define	ARP_LOCK_INIT()	\
-    mtx_init(&arp_mtx, "arp mutex", NULL, MTX_DEF | MTX_RECURSE)
-#define	ARP_LOCK()	mtx_lock(&arp_mtx)
-#define	ARP_UNLOCK()	mtx_unlock(&arp_mtx)
-
 /*
  * Timeout routine.  Age arp_tab entries periodically.
  */
@@ -148,9 +141,8 @@ arptimer(ignored_arg)
 	struct llinfo_arp *la, *ola;
 	int s = splnet();
 
-	ARP_LOCK();
+	RADIX_NODE_HEAD_LOCK(rt_tables[AF_INET]);
 	la = LIST_FIRST(&llinfo_arp);
-	timeout(arptimer, NULL, arpt_prune * hz);
 	while (la != NULL) {
 		struct rtentry *rt = la->la_rt;
 		ola = la;
@@ -158,8 +150,9 @@ arptimer(ignored_arg)
 		if (rt->rt_expire && rt->rt_expire <= time_second)
 			arptfree(ola);		/* timer has expired, clear */
 	}
-	ARP_UNLOCK();
+	RADIX_NODE_HEAD_UNLOCK(rt_tables[AF_INET]);
 	splx(s);
+	timeout(arptimer, NULL, arpt_prune * hz);
 }
 
 /*
@@ -235,9 +228,8 @@ arp_rtrequest(req, rt, info)
 		Bzero(la, sizeof(*la));
 		la->la_rt = rt;
 		rt->rt_flags |= RTF_LLINFO;
-		ARP_LOCK();
+		RADIX_NODE_HEAD_LOCK_ASSERT(rt_tables[AF_INET]);
 		LIST_INSERT_HEAD(&llinfo_arp, la, la_le);
-		ARP_UNLOCK();
 
 #ifdef INET
 		/*
@@ -285,9 +277,8 @@ arp_rtrequest(req, rt, info)
 		if (la == 0)
 			break;
 		arp_inuse--;
-		ARP_LOCK();
+		RADIX_NODE_HEAD_LOCK_ASSERT(rt_tables[AF_INET]);
 		LIST_REMOVE(la, la_le);
-		ARP_UNLOCK();
 		rt->rt_llinfo = 0;
 		rt->rt_flags &= ~RTF_LLINFO;
 		if (la->la_hold)
@@ -965,7 +956,6 @@ arp_init(void)
 	arpintrq.ifq_maxlen = 50;
 	mtx_init(&arpintrq.ifq_mtx, "arp_inq", NULL, MTX_DEF);
 	LIST_INIT(&llinfo_arp);
-	ARP_LOCK_INIT();
 	register_netisr(NETISR_ARP, arpintr);
 }
 
