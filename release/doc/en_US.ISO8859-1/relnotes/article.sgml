@@ -151,6 +151,11 @@
       <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/ERRATA/notices/FreeBSD-EN-05:03.ipi.asc">FreeBSD-EN-05:03.ipi</ulink>.
       &merged;</para>
 
+    <para>System V IPC objects (message queues, semaphores, and shared
+      memory) now have support for Mandatory Access Control policies,
+      notably &man.mac.biba.4;, &man.mac.mls.4;, &man.mac.stub.4;, and
+      &man.mac.test.4;.</para>
+
     <!-- Above this line, sort kernel changes by manpage/keyword-->
 
     <sect3 id="boot">
@@ -176,6 +181,10 @@
     <sect3 id="proc">
       <title>Hardware Support</title>
 	
+      <para arch="sparc64">The &man.auxio.4; driver has been to drive
+	some auxiliary I/O functions found on various SBus/EBus
+	&ultrasparc; models. &merged;</para>
+
       <para>A framework for flexible processor speed control has been
 	added.  It provides methods for various drivers to control CPU
 	power utilization by adjusting the processor speed.  More
@@ -188,6 +197,9 @@
 	been removed.  The NEWCARD system is now used for all PCCARD
 	device support.</para>
 
+      <para>The pcii driver has been added to support GPIB-PCIIA IEEE-488
+	cards.</para>
+
       <para>The &man.psm.4; driver now has improved support for
 	Synaptics Touchpad users.  It now has better tracking of
 	slow-speed movement and now has support for various extra
@@ -195,11 +207,26 @@
 	<varname>hw.psm.synaptics.<replaceable>*</replaceable></varname>
 	hierarchy of sysctl variables.</para>
 
+      <para arch="sparc64">The rtc driver has been added to support
+	the MC146818-compatible clock found on some &ultrasparc; II
+	and III models. &merged;</para>
+
+      <para arch="sparc64">The &man.uart.4; driver is now enabled in
+	the <filename>GENERIC</filename> kernel, and is now the
+	default driver for serial ports.  The ofw_console,
+	&man.sab.4;, and zs drivers are now disabled in the
+	<filename>GENERIC</filename> kernel. &merged;</para>
+
       <para>The &man.uplcom.4; driver now supports handling of the
 	<literal>CTS</literal> signal.</para>
 
       <sect4 id="mm">
 	<title>Multimedia Support</title>
+
+	<para arch="sparc64">The &man.snd.audiocs.4; driver has been
+	  added to support the Crystal Semiconductor CS4231 audio
+	  controller found on &ultrasparc;
+	  workstations. &merged;</para>
 
 	<para>The &man.uaudio.4; driver now has some added
 	  functionality, including volume control on more inputs and
@@ -217,7 +244,21 @@
 	  the kernel configuration when using the &man.ath.4;
 	  driver.</para>
 
+	<para>The &man.cp.4; driver is now MPSAFE. &merged;</para>
+
+	<para>The &man.ctau.4; driver is now MPSAFE. &merged;</para>
+
+	<para>The &man.cx.4; driver is now MPSAFE. &merged;</para>
+
 	<para>The &man.dc.4; driver now supports the &man.altq.4; framework.</para>
+
+	<para>In the &man.em.4; driver, hardware support for VLAN
+	  tagging is now disabled by default due to some interactions
+	  between this feature and promiscuous mode. &merged;</para>
+
+	<para>Ethernet flow control is now disabled by default in the
+	  &man.fxp.4; driver, to prevent problems with a system panics
+	  or is left in the kernel debugger. &merged;</para>
 
 	<para>The &man.hme.4; driver is now MPSAFE. &merged;</para>
 
@@ -265,6 +306,9 @@
       <para>Ongoing work is reducing the use of the Giant lock by the
 	network protocol stack and improving the locking
 	strategies.</para>
+
+      <para>The &man.sppp.4; driver now includes Frame Relay
+	support. &merged;</para>
 
       <para>A bug in TCP that sometimes caused RST packets to
 	be ignored if the receive window was zero bytes has been
@@ -403,6 +447,12 @@
     <para>The &man.ncal.1; utility now supports a <option>-m</option>
       flag to generate a calendar for a specified month in the current
       year. &merged;</para>
+
+    <para>The <filename>libgpib</filename> library has been added to
+      give userland access to GPIB devices (using the the pcii driver)
+      via the
+      <function>ib<replaceable>foo</replaceable></function>
+      API.</para>
 
     <para>The &man.mknod.8; utility has been marked deprecated.
       Device nodes have been managed by the &man.devfs.5; device file
