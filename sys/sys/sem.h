@@ -12,12 +12,7 @@
 
 #include <sys/ipc.h>
 
-struct sem {
-	u_short	semval;		/* semaphore value */
-	pid_t	sempid;		/* pid of last operation */
-	u_short	semncnt;	/* # awaiting semval > cval */
-	u_short	semzcnt;	/* # awaiting semval = 0 */
-};
+struct sem;
 
 struct semid_ds {
 	struct	ipc_perm sem_perm;	/* operation permission struct */
@@ -71,26 +66,6 @@ union semun {
 #define SEM_R		0400	/* read permission */
 
 #ifdef _KERNEL
-/*
- * Kernel implementation stuff
- */
-#define SEMVMX	32767		/* semaphore maximum value */
-#define SEMAEM	16384		/* adjust on exit max value */
-
-
-/*
- * Undo structure (one per process)
- */
-struct sem_undo {
-	struct	sem_undo *un_next;	/* ptr to next active undo structure */
-	struct	proc *un_proc;		/* owner of this structure */
-	short	un_cnt;			/* # of active entries */
-	struct undo {
-		short	un_adjval;	/* adjust on exit values */
-		short	un_num;		/* semaphore # */
-		int	un_id;		/* semid */
-	} un_ent[1];			/* undo entries */
-};
 
 /*
  * semaphore info struct
@@ -112,52 +87,6 @@ extern struct seminfo	seminfo;
 /* internal "mode" bits */
 #define	SEM_ALLOC	01000	/* semaphore is allocated */
 #define	SEM_DEST	02000	/* semaphore will be destroyed on last detach */
-
-/*
- * Configuration parameters
- */
-#ifndef SEMMNI
-#define SEMMNI	10		/* # of semaphore identifiers */
-#endif
-#ifndef SEMMNS
-#define SEMMNS	60		/* # of semaphores in system */
-#endif
-#ifndef SEMUME
-#define SEMUME	10		/* max # of undo entries per process */
-#endif
-#ifndef SEMMNU
-#define SEMMNU	30		/* # of undo structures in system */
-#endif
-
-/* shouldn't need tuning */
-#ifndef SEMMAP
-#define SEMMAP	30		/* # of entries in semaphore map */
-#endif
-#ifndef SEMMSL
-#define SEMMSL	SEMMNS		/* max # of semaphores per id */
-#endif
-#ifndef SEMOPM
-#define SEMOPM	100		/* max # of operations per semop call */
-#endif
-
-/*
- * Due to the way semaphore memory is allocated, we have to ensure that
- * SEMUSZ is properly aligned.
- */
-
-#define SEM_ALIGN(bytes) (((bytes) + (sizeof(long) - 1)) & ~(sizeof(long) - 1))
-
-/* actual size of an undo structure */
-#define SEMUSZ	SEM_ALIGN(offsetof(struct sem_undo, un_ent[SEMUME]))
-
-extern struct semid_ds *sema;	/* semaphore id pool */
-extern struct sem *sem;		/* semaphore pool */
-extern int	*semu;		/* undo structure pool */
-
-/*
- * Macro to find a particular sem_undo vector
- */
-#define SEMU(ix)	((struct sem_undo *)(((intptr_t)semu)+ix * seminfo.semusz))
 
 /*
  * Process sem_undo vectors at proc exit.
