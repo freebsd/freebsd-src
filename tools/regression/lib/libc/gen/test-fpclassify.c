@@ -42,6 +42,8 @@ main(void)
 	assert(fpclassify(0x1.2p-150f) == FP_SUBNORMAL);
 #endif
 	assert(fpclassify(HUGE_VALF) == FP_INFINITE);
+	assert(fpclassify((float)HUGE_VAL) == FP_INFINITE);
+	assert(fpclassify((float)HUGE_VALL) == FP_INFINITE);
 	assert(fpclassify(NAN) == FP_NAN);
 
 	assert(fpclassify((double)0) == FP_ZERO);
@@ -52,6 +54,8 @@ main(void)
 	assert(fpclassify(0x1.2p-1075) == FP_SUBNORMAL);
 #endif
 	assert(fpclassify(HUGE_VAL) == FP_INFINITE);
+	assert(fpclassify((double)HUGE_VALF) == FP_INFINITE);
+	assert(fpclassify((double)HUGE_VALL) == FP_INFINITE);
 	assert(fpclassify((double)NAN) == FP_NAN);
 
 	assert(fpclassify((long double)0) == FP_ZERO);
@@ -62,6 +66,8 @@ main(void)
 	assert(fpclassify(0x1.2p-16383L) == FP_SUBNORMAL);
 #endif
 	assert(fpclassify(HUGE_VALL) == FP_INFINITE);
+	assert(fpclassify((long double)HUGE_VALF) == FP_INFINITE);
+	assert(fpclassify((long double)HUGE_VAL) == FP_INFINITE);
 	assert(fpclassify((long double)NAN) == FP_NAN);
 
 	printf("PASS fpclassify()\n");
