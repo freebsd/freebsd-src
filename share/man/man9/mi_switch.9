@@ -41,7 +41,8 @@
 .Os FreeBSD
 .Sh NAME
 .Nm mi_switch ,
-.Nm cpu_switch
+.Nm cpu_switch ,
+.Nm cpu_throw
 .Nd switch to another process context
 .Sh SYNOPSIS
 .Fd #include <sys/param.h>
@@ -50,6 +51,8 @@
 .Fn mi_switch "void"
 .Ft void
 .Fn cpu_switch "void"
+.Ft void
+.Fn cpu_throw "void"
 .Sh DESCRIPTION
 The
 .Fn mi_switch
@@ -103,49 +106,33 @@ hands over control to the machine dependent routine
 which will perform the actual process context switch.
 .Pp
 .Fn cpu_switch
-will make a choice amongst the processes which are ready to run from a
-priority queue data-structure.
-The priority queue consists of an array
-.Va qs[NQS]
-of queue header structures each of which identifies a list of runnable
-processes of equal priority
-.Pq see Fa <sys/proc.h> .
-A single word
-.Va whichqs
-containing a bit mask identifying non-empty queues assists in selecting
-a process quickly.
-.Fn cpu_switch
-must remove the first process from the list on the queue
-with the highest priority
-.Po lower indices in Va qs
-indicate higher priority
-.Pc ,
-and assign the address of its process structure to the global variable
-.Dv curproc .
-If no processes are available on the run queues,
-.Fn cpu_switch
-shall go into an
-.Dq idle
-loop.
-The idle loop must allow interrupts to be taken that will eventually
-cause processes to appear again on the run queues.
-The variable
-.Va curproc
-should be
-.Dv NULL
-while
-.Fn cpu_switch
-waits for this to happen.
+first saves the context of the current process.
+Next, it calls
+.Fn chooseproc
+to determine which process to run next.
+Finally, it reads in the saved context of the new process and starts to
+execute the new process.
 .Pp
-Note that
-.Fn mi_switch
-and thus
+.Fn cpu_throw
+is similar to
 .Fn cpu_switch
-should be called at splhigh().
+except that it does not save the context of the old process.
+This function is useful when the kernel does not have an old process
+context to save, such as when CPUs other than the boot CPU perform their
+first task switch, or when the kernel does not care about the state of the
+old process, such as in
+.Fn cpu_exit
+when the kernel terminates the current process and switches into a new
+process.
 .Pp
+To protect the
+.Xr runqueue 9 ,
+all of these functions must be called with the
+.Va sched_lock
+mutex held.
 .Sh SEE ALSO
 .Xr issignal 9 ,
-.Xr spl 9 ,
+.Xr mutex 9 ,
+.Xr runqueue 9 ,
 .Xr tsleep 9 ,
 .Xr wakeup 9
-.Pp
