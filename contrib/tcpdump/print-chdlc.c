@@ -1,4 +1,3 @@
-/* maybe it should be merged into print-ppp.c */
 /*
  * Copyright (c) 1990, 1991, 1993, 1994, 1995, 1996, 1997
  *	The Regents of the University of California.  All rights reserved.
@@ -21,21 +20,16 @@
  */
 
 #ifndef lint
-static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-chdlc.c,v 1.13 2001/09/17 21:57:57 fenner Exp $ (LBL)";
+static const char rcsid[] _U_ =
+    "@(#) $Header: /tcpdump/master/tcpdump/print-chdlc.c,v 1.28.2.3 2004/03/24 00:46:03 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
-#include <sys/param.h>
-#include <sys/time.h>
+#include <tcpdump-stdinc.h>
 
-#include <netinet/in.h>
-
-#include <ctype.h>
-#include <netdb.h>
 #include <pcap.h>
 #include <stdio.h>
 
@@ -49,41 +43,17 @@ static const char rcsid[] =
 static void chdlc_slarp_print(const u_char *, u_int);
 
 /* Standard CHDLC printer */
-void
-chdlc_if_print(u_char *user, const struct pcap_pkthdr *h,
-	     register const u_char *p)
+u_int
+chdlc_if_print(const struct pcap_pkthdr *h, register const u_char *p)
 {
 	register u_int length = h->len;
 	register u_int caplen = h->caplen;
-
-	++infodelay;
-	ts_print(&h->ts);
-
-	/*
-	 * Some printers want to get back at the link level addresses,
-	 * and/or check that they're not walking off the end of the packet.
-	 * Rather than pass them all the way down, we set these globals.
-	 */
-	packetp = p;
-	snapend = p + caplen;
-
-	chdlc_print(p, length, caplen);
-
-	putchar('\n');
-	--infodelay;
-	if (infoprint)
-		info(0);
-}
-
-void
-chdlc_print(register const u_char *p, u_int length, u_int caplen)
-{
 	const struct ip *ip;
 	u_int proto;
 
 	if (caplen < CHDLC_HDRLEN) {
 		printf("[|chdlc]");
-		return;
+		return (caplen);
 	}
 
 	proto = EXTRACT_16BITS(&p[2]);
@@ -121,9 +91,25 @@ chdlc_print(register const u_char *p, u_int length, u_int caplen)
 		chdlc_cdp_print((const u_char *)ip, length);
 		break;
 #endif
+        case ETHERTYPE_MPLS:
+        case ETHERTYPE_MPLS_MULTI:
+                mpls_print((const u_char *)(ip), length);
+		break;
+        case ETHERTYPE_ISO:
+                /* is the fudge byte set ? lets verify by spotting ISO headers */
+                if (*(p+CHDLC_HDRLEN+1) == 0x81 ||
+                    *(p+CHDLC_HDRLEN+1) == 0x82 ||
+                    *(p+CHDLC_HDRLEN+1) == 0x83)
+                    isoclns_print(p+CHDLC_HDRLEN+1, length-1, length-1);
+                else
+                    isoclns_print(p+CHDLC_HDRLEN, length, length);
+                break;
+	default:
+                printf("unknown CHDLC protocol (0x%04x)", proto);
+                break;
 	}
-	if (xflag)
-		default_print((const u_char *)ip, caplen - CHDLC_HDRLEN);
+
+	return (CHDLC_HDRLEN);
 }
 
 struct cisco_slarp {
@@ -154,34 +140,45 @@ chdlc_slarp_print(const u_char *cp, u_int length)
 {
 	const struct cisco_slarp *slarp;
 
-	if (length < SLARP_LEN) {
-		printf("[|slarp]");
-		return;
-	}
+	if (length < SLARP_LEN)
+		goto trunc;
 
 	slarp = (const struct cisco_slarp *)cp;
-	switch (ntohl(slarp->code)) {
+	TCHECK(*slarp);
+        printf("SLARP (length: %u), ",length);
+	switch (EXTRACT_32BITS(&slarp->code)) {
 	case SLARP_REQUEST:
-		printf("slarp-request");
+		printf("request");
+                /* ok we do not know it - but lets at least dump it */
+                print_unknown_data(cp+4,"\n\t",length-4);
 		break;
 	case SLARP_REPLY:
-		printf("slarp-reply %s/%s",
+		printf("reply %s/%s",
 			ipaddr_string(&slarp->un.addr.addr),
 			ipaddr_string(&slarp->un.addr.mask));
 		break;
 	case SLARP_KEEPALIVE:
-		printf("slarp-keepalive my=0x%x your=0x%x ",
-			(u_int32_t)ntohl(slarp->un.keep.myseq),
-			(u_int32_t)ntohl(slarp->un.keep.yourseq));
-		printf("reliability=0x%04x t1=%d.%d",
-			ntohs(slarp->un.keep.rel), ntohs(slarp->un.keep.t1),
-			ntohs(slarp->un.keep.t2));
+		printf("keepalive: mineseen=0x%08x, yourseen=0x%08x",
+			EXTRACT_32BITS(&slarp->un.keep.myseq),
+			EXTRACT_32BITS(&slarp->un.keep.yourseq));
+		printf(", reliability=0x%04x, t1=%d.%d",
+			EXTRACT_16BITS(&slarp->un.keep.rel),
+			EXTRACT_16BITS(&slarp->un.keep.t1),
+			EXTRACT_16BITS(&slarp->un.keep.t2));
 		break;
 	default:
-		printf("slarp-0x%x unknown", (u_int32_t)ntohl(slarp->code));
+		printf("0x%02x unknown", EXTRACT_32BITS(&slarp->code));
+                if (vflag <= 1)
+                    print_unknown_data(cp+4,"\n\t",length-4);
 		break;
 	}
 
 	if (SLARP_LEN < length && vflag)
-		printf("(trailing junk: %d bytes)", length - SLARP_LEN);
+		printf(", (trailing junk: %d bytes)", length - SLARP_LEN);
+        if (vflag > 1)
+            print_unknown_data(cp+4,"\n\t",length-4);
+	return;
+
+trunc:
+	printf("[|slarp]");
 }

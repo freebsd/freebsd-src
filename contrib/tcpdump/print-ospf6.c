@@ -22,26 +22,22 @@
  */
 
 #ifndef lint
-static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-ospf6.c,v 1.7 2001/05/09 01:08:03 fenner Exp $ (LBL)";
+static const char rcsid[] _U_ =
+    "@(#) $Header: /tcpdump/master/tcpdump/print-ospf6.c,v 1.11.2.2 2003/11/16 08:51:37 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
-#include <sys/param.h>
-#include <sys/time.h>
-#include <sys/socket.h>
+#include <tcpdump-stdinc.h>
 
-#include <netinet/in.h>
-
-#include <ctype.h>
 #include <stdio.h>
 #include <string.h>
 
 #include "interface.h"
 #include "addrtoname.h"
+#include "extract.h"
 
 #include "ospf6.h"
 
@@ -86,6 +82,10 @@ static struct tok type2str[] = {
 };
 
 static char tstr[] = " [|ospf]";
+
+#ifdef WIN32
+#define inline __inline
+#endif /* WIN32 */
 
 /* Forwards */
 static inline void ospf6_print_seqage(u_int32_t, time_t);
@@ -132,7 +132,7 @@ ospf6_print_ls_type(register u_int ls_type,
     register const rtrid_t *ls_stateid,
     register const rtrid_t *ls_router, register const char *fmt)
 {
-	char *scope;
+	const char *scope;
 
 	switch (ls_type & LS_SCOPE_MASK) {
 	case LS_SCOPE_LINKLOCAL:
@@ -218,8 +218,8 @@ ospf6_print_lshdr(register const struct lsa_hdr *lshp)
 	printf(" {");						/* } (ctags) */
 
 	TCHECK(lshp->ls_seq);
-	ospf6_print_seqage(ntohl(lshp->ls_seq), ntohs(lshp->ls_age));
-	ospf6_print_ls_type(ntohs(lshp->ls_type), &lshp->ls_stateid,
+	ospf6_print_seqage(EXTRACT_32BITS(&lshp->ls_seq), EXTRACT_16BITS(&lshp->ls_age));
+	ospf6_print_ls_type(EXTRACT_16BITS(&lshp->ls_type), &lshp->ls_stateid,
 		&lshp->ls_router, "ls_type %d");
 
 	return (0);
@@ -230,7 +230,7 @@ trunc:
 static int
 ospf6_print_lsaprefix(register const struct lsa_prefix *lsapp)
 {
-	int k;
+	u_int k;
 	struct in6_addr prefix;
 
 	TCHECK(*lsapp);
@@ -241,12 +241,12 @@ ospf6_print_lsaprefix(register const struct lsa_prefix *lsapp)
 	}
 	memset(&prefix, 0, sizeof(prefix));
 	memcpy(&prefix, lsapp->lsa_p_prefix, k * 4);
-	printf(" %s/%d", ip6addr_string(&prefix), 
+	printf(" %s/%d", ip6addr_string(&prefix),
 		lsapp->lsa_p_len);
 	if (lsapp->lsa_p_opt)
 		printf("(opt=%x)", lsapp->lsa_p_opt);
 	if (lsapp->lsa_p_mbz)
-		printf("(mbz=%x)", ntohs(lsapp->lsa_p_mbz)); /* XXX */
+		printf("(mbz=%x)", EXTRACT_16BITS(&lsapp->lsa_p_mbz)); /* XXX */
 	return sizeof(*lsapp) - 4 + k * 4;
 
 trunc:
@@ -275,21 +275,22 @@ ospf6_print_lsa(register const struct lsa *lsap)
 #if 0
 	register const u_int32_t *lp;
 #endif
-	register int j, k;
+	register u_int j;
+	register int k;
 	u_int32_t flags32;
 
 	if (ospf6_print_lshdr(&lsap->ls_hdr))
 		return (1);
 	TCHECK(lsap->ls_hdr.ls_length);
-	ls_end = (u_char *)lsap + ntohs(lsap->ls_hdr.ls_length);
-	switch (ntohs(lsap->ls_hdr.ls_type)) {
+	ls_end = (u_char *)lsap + EXTRACT_16BITS(&lsap->ls_hdr.ls_length);
+	switch (EXTRACT_16BITS(&lsap->ls_hdr.ls_type)) {
 	case LS_TYPE_ROUTER | LS_SCOPE_AREA:
 		TCHECK(lsap->lsa_un.un_rla.rla_flags);
 		ospf6_print_bits(ospf6_rla_flag_bits,
 			lsap->lsa_un.un_rla.rla_flags);
 		TCHECK(lsap->lsa_un.un_rla.rla_options);
 		ospf6_print_bits(ospf6_option_bits,
-			ntohl(lsap->lsa_un.un_rla.rla_options));
+			EXTRACT_32BITS(&lsap->lsa_un.un_rla.rla_options));
 
 		TCHECK(lsap->lsa_un.un_rla.rla_link);
 		rlp = lsap->lsa_un.un_rla.rla_link;
@@ -322,7 +323,7 @@ ospf6_print_lsa(register const struct lsa *lsap)
 				    rlp->link_type);
 				return (0);
 			}
-			printf(" metric %d", ntohs(rlp->link_metric));
+			printf(" metric %d", EXTRACT_16BITS(&rlp->link_metric));
 								/* { (ctags) */
 			printf(" }");
 			rlp++;
@@ -332,7 +333,7 @@ ospf6_print_lsa(register const struct lsa *lsap)
 	case LS_TYPE_NETWORK | LS_SCOPE_AREA:
 		TCHECK(lsap->lsa_un.un_nla.nla_options);
 		ospf6_print_bits(ospf6_option_bits,
-			ntohl(lsap->lsa_un.un_nla.nla_options));
+			EXTRACT_32BITS(&lsap->lsa_un.un_nla.nla_options));
 		printf(" rtrs");
 		ap = lsap->lsa_un.un_nla.nla_router;
 		while ((u_char *)ap < ls_end) {
@@ -345,7 +346,7 @@ ospf6_print_lsa(register const struct lsa *lsap)
 	case LS_TYPE_INTER_AP | LS_SCOPE_AREA:
 		TCHECK(lsap->lsa_un.un_inter_ap.inter_ap_metric);
 		printf(" metric %u",
-			(u_int32_t)ntohl(lsap->lsa_un.un_inter_ap.inter_ap_metric) & SLA_MASK_METRIC);
+			EXTRACT_32BITS(&lsap->lsa_un.un_inter_ap.inter_ap_metric) & SLA_MASK_METRIC);
 		lsapp = lsap->lsa_un.un_inter_ap.inter_ap_prefix;
 		while (lsapp + sizeof(lsapp) <= (struct lsa_prefix *)ls_end) {
 			k = ospf6_print_lsaprefix(lsapp);
@@ -356,10 +357,10 @@ ospf6_print_lsa(register const struct lsa *lsap)
 		break;
 	case LS_SCOPE_AS | LS_TYPE_ASE:
 		TCHECK(lsap->lsa_un.un_asla.asla_metric);
-		flags32 = ntohl(lsap->lsa_un.un_asla.asla_metric);
+		flags32 = EXTRACT_32BITS(&lsap->lsa_un.un_asla.asla_metric);
 		ospf6_print_bits(ospf6_asla_flag_bits, flags32);
 		printf(" metric %u",
-		       (u_int32_t)ntohl(lsap->lsa_un.un_asla.asla_metric) &
+		       EXTRACT_32BITS(&lsap->lsa_un.un_asla.asla_metric) &
 		       ASLA_MASK_METRIC);
 		lsapp = lsap->lsa_un.un_asla.asla_prefix;
 		k = ospf6_print_lsaprefix(lsapp);
@@ -379,7 +380,7 @@ ospf6_print_lsa(register const struct lsa *lsap)
 
 			if ((flags32 & ASLA_FLAG_ROUTETAG) != 0) {
 				TCHECK(*(u_int32_t *)ls_opt);
-				printf(" tag %s", 
+				printf(" tag %s",
 				       ipaddr_string((u_int32_t *)ls_opt));
 
 				ls_opt += sizeof(u_int32_t);
@@ -402,7 +403,7 @@ ospf6_print_lsa(register const struct lsa *lsap)
 			register u_int32_t ul;
 
 			TCHECK(*lp);
-			ul = ntohl(*lp);
+			ul = EXTRACT_32BITS(lp);
 			printf(" tos %d metric %d",
 			    (ul & SLA_MASK_TOS) >> SLA_SHIFT_TOS,
 			    ul & SLA_MASK_METRIC);
@@ -415,7 +416,7 @@ ospf6_print_lsa(register const struct lsa *lsap)
 		mcp = lsap->lsa_un.un_mcla;
 		while ((u_char *)mcp < ls_end) {
 			TCHECK(mcp->mcla_vid);
-			switch (ntohl(mcp->mcla_vtype)) {
+			switch (EXTRACT_32BITS(&mcp->mcla_vtype)) {
 
 			case MCLA_VERTEX_ROUTER:
 				printf(" rtr rtrid %s",
@@ -429,7 +430,7 @@ ospf6_print_lsa(register const struct lsa *lsap)
 
 			default:
 				printf(" ??VertexType %u??",
-				    (u_int32_t)ntohl(mcp->mcla_vtype));
+				    EXTRACT_32BITS(&mcp->mcla_vtype));
 				break;
 			}
 		++mcp;
@@ -440,13 +441,13 @@ ospf6_print_lsa(register const struct lsa *lsap)
 		/* Link LSA */
 		llsap = &lsap->lsa_un.un_llsa;
 		TCHECK(llsap->llsa_options);
-		ospf6_print_bits(ospf6_option_bits, ntohl(llsap->llsa_options));
+		ospf6_print_bits(ospf6_option_bits, EXTRACT_32BITS(&llsap->llsa_options));
 		TCHECK(llsap->llsa_nprefix);
 		printf(" pri %d lladdr %s npref %d", llsap->llsa_priority,
 			ip6addr_string(&llsap->llsa_lladdr),
-			(u_int32_t)ntohl(llsap->llsa_nprefix));
+			EXTRACT_32BITS(&llsap->llsa_nprefix));
 		lsapp = llsap->llsa_prefix;
-		for (j = 0; j < ntohl(llsap->llsa_nprefix); j++) {
+		for (j = 0; j < EXTRACT_32BITS(&llsap->llsa_nprefix); j++) {
 			k = ospf6_print_lsaprefix(lsapp);
 			if (k)
 				goto trunc;
@@ -458,17 +459,17 @@ ospf6_print_lsa(register const struct lsa *lsap)
 		/* Intra-Area-Prefix LSA */
 		TCHECK(lsap->lsa_un.un_intra_ap.intra_ap_rtid);
 		ospf6_print_ls_type(
-			ntohs(lsap->lsa_un.un_intra_ap.intra_ap_lstype),
+			EXTRACT_16BITS(&lsap->lsa_un.un_intra_ap.intra_ap_lstype),
 			&lsap->lsa_un.un_intra_ap.intra_ap_lsid,
 			&lsap->lsa_un.un_intra_ap.intra_ap_rtid,
 			"LinkStateType %d");
 		TCHECK(lsap->lsa_un.un_intra_ap.intra_ap_nprefix);
 		printf(" npref %d",
-			ntohs(lsap->lsa_un.un_intra_ap.intra_ap_nprefix));
+			EXTRACT_16BITS(&lsap->lsa_un.un_intra_ap.intra_ap_nprefix));
 
 		lsapp = lsap->lsa_un.un_intra_ap.intra_ap_prefix;
 		for (j = 0;
-		     j < ntohs(lsap->lsa_un.un_intra_ap.intra_ap_nprefix);
+		     j < EXTRACT_16BITS(&lsap->lsa_un.un_intra_ap.intra_ap_nprefix);
 		     j++) {
 			k = ospf6_print_lsaprefix(lsapp);
 			if (k)
@@ -479,7 +480,7 @@ ospf6_print_lsa(register const struct lsa *lsap)
 
 	default:
 		printf(" ??LinkStateType 0x%04x??",
-			ntohs(lsap->ls_hdr.ls_type));
+			EXTRACT_16BITS(&lsap->ls_hdr.ls_type));
 	}
 
 								/* { (ctags) */
@@ -514,12 +515,12 @@ ospf6_decode_v3(register const struct ospf6hdr *op,
 		if (vflag) {
 			TCHECK(op->ospf6_hello.hello_deadint);
 			ospf6_print_bits(ospf6_option_bits,
-			    ntohl(op->ospf6_hello.hello_options));
+			    EXTRACT_32BITS(&op->ospf6_hello.hello_options));
 			printf(" ifid %s pri %d int %d dead %u",
 			    ipaddr_string(&op->ospf6_hello.hello_ifid),
 			    op->ospf6_hello.hello_priority,
-			    ntohs(op->ospf6_hello.hello_helloint),
-			    ntohs(op->ospf6_hello.hello_deadint));
+			    EXTRACT_16BITS(&op->ospf6_hello.hello_helloint),
+			    EXTRACT_16BITS(&op->ospf6_hello.hello_deadint));
 		}
 		TCHECK(op->ospf6_hello.hello_dr);
 		if (op->ospf6_hello.hello_dr != 0)
@@ -543,7 +544,7 @@ ospf6_decode_v3(register const struct ospf6hdr *op,
 	case OSPF_TYPE_DB:
 		TCHECK(op->ospf6_db.db_options);
 		ospf6_print_bits(ospf6_option_bits,
-			ntohl(op->ospf6_db.db_options));
+			EXTRACT_32BITS(&op->ospf6_db.db_options));
 		sep = ' ';
 		TCHECK(op->ospf6_db.db_flags);
 		if (op->ospf6_db.db_flags & OSPF6_DB_INIT) {
@@ -559,8 +560,8 @@ ospf6_decode_v3(register const struct ospf6hdr *op,
 			sep = '/';
 		}
 		TCHECK(op->ospf6_db.db_seq);
-		printf(" mtu %u S %X", ntohs(op->ospf6_db.db_mtu),
-			(u_int32_t)ntohl(op->ospf6_db.db_seq));
+		printf(" mtu %u S %X", EXTRACT_16BITS(&op->ospf6_db.db_mtu),
+			EXTRACT_32BITS(&op->ospf6_db.db_seq));
 
 		if (vflag) {
 			/* Print all the LS adv's */
@@ -580,7 +581,7 @@ ospf6_decode_v3(register const struct ospf6hdr *op,
 			while ((u_char *)lsrp < dataend) {
 				TCHECK(*lsrp);
 				printf(" {");		/* } (ctags) */
-				ospf6_print_ls_type(ntohs(lsrp->ls_type),
+				ospf6_print_ls_type(EXTRACT_16BITS(&lsrp->ls_type),
 				    &lsrp->ls_stateid,
 				    &lsrp->ls_router,
 				    "LinkStateType %d");
@@ -595,12 +596,12 @@ ospf6_decode_v3(register const struct ospf6hdr *op,
 		if (vflag) {
 			lsap = op->ospf6_lsu.lsu_lsa;
 			TCHECK(op->ospf6_lsu.lsu_count);
-			i = ntohl(op->ospf6_lsu.lsu_count);
+			i = EXTRACT_32BITS(&op->ospf6_lsu.lsu_count);
 			while (i--) {
 				if (ospf6_print_lsa(lsap))
 					goto trunc;
 				lsap = (struct lsa *)((u_char *)lsap +
-				    ntohs(lsap->ls_hdr.ls_length));
+				    EXTRACT_16BITS(&lsap->ls_hdr.ls_length));
 			}
 		}
 		break;
@@ -645,8 +646,8 @@ ospf6_print(register const u_char *bp, register u_int length)
 		return;
 
 	TCHECK(op->ospf6_len);
-	if (length != ntohs(op->ospf6_len)) {
-		printf(" [len %d]", ntohs(op->ospf6_len));
+	if (length != EXTRACT_16BITS(&op->ospf6_len)) {
+		printf(" [len %d]", EXTRACT_16BITS(&op->ospf6_len));
 		return;
 	}
 	dataend = bp + length;

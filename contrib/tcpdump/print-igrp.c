@@ -22,21 +22,16 @@
  */
 
 #ifndef lint
-static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-igrp.c,v 1.16 2001/06/15 22:17:32 fenner Exp $ (LBL)";
+static const char rcsid[] _U_ =
+    "@(#) $Header: /tcpdump/master/tcpdump/print-igrp.c,v 1.18.2.2 2003/11/16 08:51:26 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
-#include <sys/param.h>
-#include <sys/types.h>			/* concession to AIX */
-#include <sys/socket.h>
+#include <tcpdump-stdinc.h>
 
-#include <netinet/in.h>
-
-#include <errno.h>
 #include <stdio.h>
 
 #include "interface.h"

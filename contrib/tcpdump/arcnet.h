@@ -30,13 +30,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * @(#) $Id: arcnet.h,v 1.1 2001/04/17 08:39:18 guy Exp $ (LBL)
+ * @(#) $Id: arcnet.h,v 1.3 2003/01/23 09:05:37 guy Exp $ (LBL)
  *
  * from: NetBSD: if_arc.h,v 1.13 1999/11/19 20:41:19 thorpej Exp
  */
 
 /*
- * Structure of a 2.5MB/s Arcnet header.
+ * Structure of a 2.5MB/s Arcnet header on the BSDs,
  * as given to interface code.
  */
 struct	arc_header {
@@ -56,7 +56,7 @@ struct	arc_header {
 	u_int8_t  arc_type2;	/* same as arc_type */
 	u_int8_t  arc_flag2;	/* real flag value */
 	u_int16_t arc_seqid2;	/* real seqid value */
-} __attribute__((__packed__));
+};
 
 #define	ARC_HDRLEN		3
 #define	ARC_HDRNEWLEN		6
@@ -77,3 +77,25 @@ struct	arc_header {
 
 #define ARCTYPE_INET6		0xc4	/* IPng */
 #define ARCTYPE_DIAGNOSE	0x80	/* as per ANSI/ATA 878.1 */
+
+/*
+ * Structure of a 2.5MB/s Arcnet header on Linux.  Linux has
+ * an extra "offset" field when given to interface code, and
+ * never presents packets that look like exception frames.
+ */
+struct	arc_linux_header {
+	u_int8_t  arc_shost;
+	u_int8_t  arc_dhost;
+	u_int16_t arc_offset;
+	u_int8_t  arc_type;
+	/*
+	 * only present for newstyle encoding with LL fragmentation.
+	 * Don't use sizeof(anything), use ARC_LINUX_HDR{,NEW}LEN
+	 * instead.
+	 */
+	u_int8_t  arc_flag;
+	u_int16_t arc_seqid;
+};
+
+#define	ARC_LINUX_HDRLEN	5
+#define	ARC_LINUX_HDRNEWLEN	8

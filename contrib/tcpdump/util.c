@@ -20,20 +20,18 @@
  */
 
 #ifndef lint
-static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/tcpdump/util.c,v 1.72.2.2 2002/07/16 04:03:54 guy Exp $ (LBL)";
+static const char rcsid[] _U_ =
+    "@(#) $Header: /tcpdump/master/tcpdump/util.c,v 1.87.2.3 2003/12/29 22:42:23 hannes Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
-#include <sys/types.h>
-#include <sys/time.h>
-#include <sys/file.h>
+#include <tcpdump-stdinc.h>
+
 #include <sys/stat.h>
 
-#include <ctype.h>
 #include <errno.h>
 #ifdef HAVE_FCNTL_H
 #include <fcntl.h>
@@ -43,10 +41,6 @@ static const char rcsid[] =
 #include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
-#ifdef TIME_WITH_SYS_TIME
-#include <time.h>
-#endif
-#include <unistd.h>
 
 #include "interface.h"
 
@@ -91,15 +85,10 @@ int
 fn_printn(register const u_char *s, register u_int n,
 	  register const u_char *ep)
 {
-	register int ret;
 	register u_char c;
 
-	ret = 1;			/* assume truncated */
-	while (ep == NULL || s < ep) {
-		if (n-- <= 0) {
-			ret = 0;
-			break;
-		}
+	while (n > 0 && (ep == NULL || s < ep)) {
+		n--;
 		c = *s++;
 		if (!isascii(c)) {
 			c = toascii(c);
@@ -112,7 +101,7 @@ fn_printn(register const u_char *s, register u_int n,
 		}
 		putchar(c);
 	}
-	return(ret);
+	return (n == 0) ? 0 : 1;
 }
 
 /*
@@ -145,7 +134,7 @@ ts_print(register const struct timeval *tvp)
 		} else {
 			int d_usec = tvp->tv_usec - b_usec;
 			int d_sec = tvp->tv_sec - b_sec;
-			
+
 			while (d_usec < 0) {
 				d_usec += 1000000;
 				d_sec--;
@@ -160,12 +149,14 @@ ts_print(register const struct timeval *tvp)
 	case -3: /* Default + Date*/
 		s = (tvp->tv_sec + thiszone) % 86400;
 		Time = (tvp->tv_sec + thiszone) - s;
-		tm  = gmtime (&Time);
-		(void)printf("%02d/%02d/%04d %02d:%02d:%02d.%06u ",
-			     tm->tm_mon+1, tm->tm_mday,
-			     tm->tm_year+1900,
-			     s / 3600, (s % 3600) / 60,
-			     s % 60, (unsigned)tvp->tv_usec);
+		tm = gmtime (&Time);
+		if (!tm)
+			printf("Date fail  ");
+		else
+			printf("%04d-%02d-%02d ",
+				   tm->tm_year+1900, tm->tm_mon+1, tm->tm_mday);
+		printf("%02d:%02d:%02d.%06u ",
+			   s / 3600, (s % 3600) / 60, s % 60, (unsigned)tvp->tv_usec);
 		break;
 	}
 }
@@ -202,6 +193,19 @@ relts_print(int secs)
 }
 
 /*
+ *  this is a generic routine for printing unknown data;
+ *  we pass on the linefeed plus indentation string to
+ *  get a proper output - returns 0 on error
+ */
+
+int
+print_unknown_data(const u_char *cp,const char *ident,int len)
+{
+        hex_print(ident,cp,len);
+	return(1); /* everything is ok */
+}
+
+/*
  * Convert a token value to a string; use "fmt" if not found.
  */
 const char *
@@ -222,6 +226,51 @@ tok2str(register const struct tok *lp, register const char *fmt,
 }
 
 /*
+ * Convert a bit token value to a string; use "fmt" if not found.
+ * this is useful for parsing bitfields, the output strings are comma seperated
+ */
+char *
+bittok2str(register const struct tok *lp, register const char *fmt,
+	register int v)
+{
+        static char buf[256]; /* our stringbuffer */
+        int buflen=0;
+        register int rotbit; /* this is the bit we rotate through all bitpositions */
+        register int tokval;
+
+	while (lp->s != NULL) {
+            tokval=lp->v;   /* load our first value */
+            rotbit=1;
+            while (rotbit != 0) {
+                /*
+                 * lets AND the rotating bit with our token value
+                 * and see if we have got a match
+                 */
+		if (tokval == (v&rotbit)) {
+                    /* ok we have found something */
+                    buflen+=snprintf(buf+buflen, sizeof(buf)-buflen, "%s, ",lp->s);
+                    break;
+                }
+                rotbit=rotbit<<1; /* no match - lets shift and try again */
+            }
+            lp++;
+	}
+
+        if (buflen != 0) { /* did we find anything */
+            /* yep, set the the trailing zero 2 bytes before to eliminate the last comma & whitespace */
+            buf[buflen-2] = '\0';
+            return (buf);
+        }
+        else {
+            /* bummer - lets print the "unknown" message as advised in the fmt string if we got one */
+            if (fmt == NULL)
+		fmt = "#%d";
+            (void)snprintf(buf, sizeof(buf), fmt, v);
+            return (buf);
+        }
+}
+
+/*
  * Convert a value to a string using an array; the macro
  * tok2strary() in <interface.h> is the public interface to
  * this function and ensures that the second argument is
@@ -239,6 +288,37 @@ tok2strary_internal(register const char **lp, int n, register const char *fmt,
 		fmt = "#%d";
 	(void)snprintf(buf, sizeof(buf), fmt, v);
 	return (buf);
+}
+
+/*
+ * Convert a 32-bit netmask to prefixlen if possible
+ * the function returns the prefix-len; if plen == -1
+ * then conversion was not possible;
+ */
+
+int
+mask2plen (u_int32_t mask)
+{
+	u_int32_t bitmasks[33] = {
+		0x00000000,
+		0x80000000, 0xc0000000, 0xe0000000, 0xf0000000,
+		0xf8000000, 0xfc000000, 0xfe000000, 0xff000000,
+		0xff800000, 0xffc00000, 0xffe00000, 0xfff00000,
+		0xfff80000, 0xfffc0000, 0xfffe0000, 0xffff0000,
+		0xffff8000, 0xffffc000, 0xffffe000, 0xfffff000,
+		0xfffff800, 0xfffffc00, 0xfffffe00, 0xffffff00,
+		0xffffff80, 0xffffffc0, 0xffffffe0, 0xfffffff0,
+		0xfffffff8, 0xfffffffc, 0xfffffffe, 0xffffffff
+	};
+	int prefix_len = 32;
+
+	/* let's see if we can transform the mask into a prefixlen */
+	while (prefix_len >= 0) {
+		if (bitmasks[prefix_len] == mask)
+			break;
+		prefix_len--;
+	}
+	return (prefix_len);
 }
 
 /* VARARGS */
@@ -311,14 +391,24 @@ copy_argv(register char **argv)
 	return buf;
 }
 
+/*
+ * On Windows, we need to open the file in binary mode, so that
+ * we get all the bytes specified by the size we get from "fstat()".
+ * On UNIX, that's not necessary.  O_BINARY is defined on Windows;
+ * we define it as 0 if it's not defined, so it does nothing.
+ */
+#ifndef O_BINARY
+#define O_BINARY	0
+#endif
+
 char *
 read_infile(char *fname)
 {
-	register int fd, cc;
+	register int i, fd, cc;
 	register char *cp;
 	struct stat buf;
 
-	fd = open(fname, O_RDONLY);
+	fd = open(fname, O_RDONLY|O_BINARY);
 	if (fd < 0)
 		error("can't open %s: %s", fname, pcap_strerror(errno));
 
@@ -334,8 +424,15 @@ read_infile(char *fname)
 		error("read %s: %s", fname, pcap_strerror(errno));
 	if (cc != buf.st_size)
 		error("short read %s (%d != %d)", fname, cc, (int)buf.st_size);
-	cp[(int)buf.st_size] = '\0';
 
+	close(fd);
+	/* replace "# comment" with spaces */
+	for (i = 0; i < cc; i++) {
+		if (cp[i] == '#')
+			while (i < cc && cp[i] != '\n')
+				cp[i++] = ' ';
+	}
+	cp[cc] = '\0';
 	return (cp);
 }
 
