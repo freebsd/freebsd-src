@@ -25,6 +25,7 @@ sed	-e '/	pci$/d' \
 	-e '/	de/d' \
 	-e '/	fxp/d' \
 	-e '/	tx/d' \
+	-e '/   txp/d' \
 	-e '/	vx/d' \
 	-e '/	wx/d' \
 	-e '/	dc/d' \
@@ -52,10 +53,12 @@ sed	-e '/	pci$/d' \
 	-e '/UFS_DIRHASH/d' \
 	-e '/MFS/d' \
 	-e '/NFS_ROOT/d' \
+	-e '/P1003_1B/d' \
 	-e '/RANDOMDEV/d' \
 	-e '/atapist/d' \
 	-e '/lpt/d' \
 	-e '/ppi/d' \
+	-e '/ugen/d' \
 	-e '/uhid/d' \
 	-e '/ulpt/d' \
 	-e '/urio/d' \
@@ -85,6 +88,7 @@ sed	-e '/pty/d' \
 	-e '/atapist/d' \
 	-e '/lpt/d' \
 	-e '/ppi/d' \
+	-e '/ugen/d' \
 	-e '/uhid/d' \
 	-e '/ulpt/d' \
 	-e '/urio/d' \
