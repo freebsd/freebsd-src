@@ -1126,7 +1126,7 @@ amr_start(struct amr_command *ac)
 
     /* spin waiting for the mailbox */
     debug("wait for mailbox");
-    for (i = 10000, done = 0, worked = 0; (i > 0) && !done; i--) {
+    for (i = 100000, done = 0, worked = 0; (i > 0) && !done; i--) {
 	s = splbio();
 	
 	/* is the mailbox free? */
