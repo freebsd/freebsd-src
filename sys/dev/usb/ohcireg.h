@@ -224,7 +224,7 @@ typedef struct {
 } ohci_itd_t;
 /* #define OHCI_ITD_SIZE 32 */
 #define OHCI_ITD_ALIGN 32
-	
+
 
 #define OHCI_CC_NO_ERROR		0
 #define OHCI_CC_CRC			1

@@ -85,7 +85,6 @@
 
 #define UHCI_FRNUM		0x06
 #define  UHCI_FRNUM_MASK	0x03ff
- 
 
 #define UHCI_FLBASEADDR		0x08
 
@@ -122,7 +121,7 @@ typedef u_int32_t uhci_physaddr_t;
 #define UHCI_PTR_QH		0x00000002
 #define UHCI_PTR_VF		0x00000004
 
-/* 
+/*
  * Wait this long after a QH has been removed.  This gives that HC a
  * chance to stop looking at it before it's recycled.
  */

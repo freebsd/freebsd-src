@@ -279,7 +279,7 @@ USB_ATTACH(uplcom)
 
 	DPRINTF(("uplcom attach: sc = %p\n", sc));
 
-	/* initialize endpoints */ 
+	/* initialize endpoints */
 	ucom->sc_bulkin_no = ucom->sc_bulkout_no = -1;
 	sc->sc_intr_number = -1;
 	sc->sc_intr_pipe = NULL;
@@ -304,7 +304,7 @@ USB_ATTACH(uplcom)
 	}
 
 	/* get the (first/common) interface */
-	err = usbd_device2interface_handle(dev, UPLCOM_IFACE_INDEX, 
+	err = usbd_device2interface_handle(dev, UPLCOM_IFACE_INDEX,
 					   &ucom->sc_iface);
 	if (err) {
 		printf("%s: failed to get interface: %s\n",
@@ -331,7 +331,7 @@ USB_ATTACH(uplcom)
 		    UE_GET_XFERTYPE(ed->bmAttributes) == UE_INTERRUPT) {
 			sc->sc_intr_number = ed->bEndpointAddress;
 			sc->sc_isize = UGETW(ed->wMaxPacketSize);
-		} 
+		}
 	}
 
 	if (sc->sc_intr_number == -1) {
@@ -353,11 +353,11 @@ USB_ATTACH(uplcom)
 	 *  Interrupt(0x81) | Interrupt(0x81)
 	 * -----------------+ BulkIN(0x02)
 	 * Interface 1	    | BulkOUT(0x83)
-	 *   BulkIN(0x02)   | 
+	 *   BulkIN(0x02)   |
 	 *   BulkOUT(0x83)  |
 	 */
 	if (cdesc->bNumInterface == 2) {
-		err = usbd_device2interface_handle(dev, 
+		err = usbd_device2interface_handle(dev,
 						   UPLCOM_SECOND_IFACE_INDEX,
 						   &ucom->sc_iface);
 		if (err) {
@@ -366,7 +366,7 @@ USB_ATTACH(uplcom)
 			ucom->sc_dying = 1;
 			goto error;
 		}
-	} 
+	}
 
 	/* Find the bulk{in,out} endpoints */
 
@@ -468,9 +468,9 @@ uplcom_reset(struct uplcom_softc *sc)
 	req.bRequest = UPLCOM_SET_REQUEST;
 	USETW(req.wValue, 0);
 	USETW(req.wIndex, sc->sc_iface_number);
-	USETW(req.wLength, 0); 
+	USETW(req.wLength, 0);
 
-	err = usbd_do_request(sc->sc_ucom.sc_udev, &req, 0); 
+	err = usbd_do_request(sc->sc_ucom.sc_udev, &req, 0);
 	if (err) {
 		printf("%s: uplcom_reset: %s\n",
 		       USBDEVNAME(sc->sc_ucom.sc_dev), usbd_errstr(err));
@@ -677,7 +677,7 @@ uplcom_open(void *addr, int portno)
 {
 	struct uplcom_softc *sc = addr;
 	int err;
-	
+
 	if (sc->sc_ucom.sc_dying)
 		return (ENXIO);
 
@@ -707,7 +707,7 @@ uplcom_open(void *addr, int portno)
 }
 
 Static void
-uplcom_close(void *addr, int portno) 
+uplcom_close(void *addr, int portno)
 {
 	struct uplcom_softc *sc = addr;
 	int err;

@@ -64,9 +64,9 @@
  *  It therefore doesn't make sense to use the interrupt pipe to signal
  *  'data ready' and then schedule a bulk transfer to fetch it. That would
  *  incur a 2ms delay at least, without reducing bandwidth requirements.
- *  
+ *
  */
- 
+
 
 
 #include <sys/param.h>
@@ -116,7 +116,7 @@ SYSCTL_INT(_hw_usb_udbp, OID_AUTO, debug, CTLFLAG_RW,
 #define DPRINTFN(n,x)
 #endif
 
-#define MS_TO_TICKS(ms) ((ms) * hz / 1000)                            
+#define MS_TO_TICKS(ms) ((ms) * hz / 1000)
 
 #define UDBP_TIMEOUT	2000	/* timeout on outbound transfers, in msecs */
 #define UDBP_BUFFERSIZE	2048	/* maximum number of bytes in one transfer */
@@ -243,11 +243,11 @@ USB_MATCH(udbp)
 	     (uaa->product == USB_PRODUCT_PROLIFIC_PL2301 ||
 	      uaa->product == USB_PRODUCT_PROLIFIC_PL2302)))
 		return(UMATCH_VENDOR_PRODUCT);
-	
+
 	if ((uaa->vendor == USB_VENDOR_ANCHOR &&
 	     uaa->product == USB_PRODUCT_ANCHOR_EZLINK))
 		return(UMATCH_VENDOR_PRODUCT);
-	
+
 	return (UMATCH_NONE);
 }
 
@@ -354,7 +354,7 @@ USB_ATTACH(udbp)
 	}
 
 	if (!ngudbp_done_init){
-		ngudbp_done_init=1;	
+		ngudbp_done_init=1;
 		if (ng_newtype(&ng_udbp_typestruct)) {
 			printf("ngudbp install failed\n");
 			goto bad;
@@ -505,7 +505,7 @@ udbp_in_transfer_cb(usbd_xfer_handle xfer, usbd_private_handle priv,
 	} else {
 
 		len = xfer->actlen;
-		
+
 		s = splimp(); /* block network stuff too */
 		if (sc->hook) {
 			/* get packet from device and send on */
@@ -513,7 +513,7 @@ udbp_in_transfer_cb(usbd_xfer_handle xfer, usbd_private_handle priv,
 	    		NG_SEND_DATA_ONLY(err, sc->hook, m);
 		}
 		splx(s);
-	
+
 	}
 	/* schedule the next in transfer */
 	udbp_setup_in_transfer(sc);
@@ -678,7 +678,7 @@ ng_udbp_rcvmsg(node_p node, item_p item, hook_p lasthook)
 	NGI_GET_MSG(item, msg);
 	/* Deal with message according to cookie and command */
 	switch (msg->header.typecookie) {
-	case NGM_UDBP_COOKIE: 
+	case NGM_UDBP_COOKIE:
 		switch (msg->header.cmd) {
 		case NGM_UDBP_GET_STATUS:
 		    {
@@ -733,7 +733,7 @@ ng_udbp_rcvdata(hook_p hook, item_p item)
 	NGI_GET_M(item, m);
 	NGI_GET_META(item, meta);
 	NG_FREE_ITEM(item);
-	/* 
+	/*
 	 * Now queue the data for when it can be sent
 	 */
 	if (meta && meta->priority > 0) {
@@ -778,9 +778,9 @@ ng_udbp_rmnode(node_p node)
 	int err;
 
 	if (sc->flags & DISCONNECTED) {
-		/* 
+		/*
 		 * WE are really going away.. hardware must have gone.
-		 * Assume that the hardware drive part will clear up the 
+		 * Assume that the hardware drive part will clear up the
 		 * sc, in fact it may already have done so..
 		 * In which case we may have just segfaulted..XXX
 		 */

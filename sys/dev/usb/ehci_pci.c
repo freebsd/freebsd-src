@@ -250,7 +250,7 @@ ehci_pci_attach(device_t self)
 			bsc = device_get_softc(nbus[0]);
 			printf("ehci_pci_attach: companion %s\n",
 			USBDEVNAME(bsc->bdev));
-			sc->sc_comps[ncomp++] = bsc;  
+			sc->sc_comps[ncomp++] = bsc;
 			if (ncomp >= EHCI_COMPANION_MAX)
 				break;
 		}

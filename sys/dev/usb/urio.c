@@ -195,7 +195,7 @@ USB_ATTACH(urio)
 	char * ermsg = "<none>";
 	int i;
 
-	DPRINTFN(10,("urio_attach: sc=%p\n", sc));	
+	DPRINTFN(10,("urio_attach: sc=%p\n", sc));
 	usbd_devinfo(uaa->device, 0, devinfo);
 	USB_ATTACH_SETUP;
 	printf("%s: %s\n", USBDEVNAME(sc->sc_dev), devinfo);
@@ -216,12 +216,12 @@ USB_ATTACH(urio)
 	r = usbd_interface_count(udev, &niface);
 	if (r) {
 		ermsg = "iface";
-		goto nobulk;  
+		goto nobulk;
 	}
 	r = usbd_device2interface_handle(udev, 0, &iface);
 	if (r) {
 		ermsg = "iface";
-		goto nobulk;  
+		goto nobulk;
 	}
 	sc->sc_iface = iface;
 #endif
@@ -231,7 +231,7 @@ USB_ATTACH(urio)
 	sc->sc_refcnt = 0;
 
 	r = usbd_endpoint_count(iface, &epcount);
-	if (r != USBD_NORMAL_COMPLETION) { 
+	if (r != USBD_NORMAL_COMPLETION) {
 		ermsg = "endpoints";
 		goto nobulk;
 	}
@@ -240,7 +240,7 @@ USB_ATTACH(urio)
 	sc->sc_epaddr[RIO_IN] = 0x00;
 
 	for (i = 0; i < epcount; i++) {
-		usb_endpoint_descriptor_t *edesc = 
+		usb_endpoint_descriptor_t *edesc =
 			usbd_interface2endpoint_descriptor(iface, i);
 		int d;
 
@@ -248,7 +248,7 @@ USB_ATTACH(urio)
 			ermsg = "interface endpoint";
 			goto nobulk;
 		}
-	
+
 		d = RIO_UE_GET_DIR(edesc->bEndpointAddress);
 		if (d != RIO_NODIR)
 			sc->sc_epaddr[d] = edesc->bEndpointAddress;
@@ -288,7 +288,7 @@ urioopen(dev_t dev, int flag, int mode, usb_proc_ptr p)
 	int unit = URIOUNIT(dev);
 	USB_GET_SC_OPEN(urio, unit, sc);
 
-	DPRINTFN(5, ("urioopen: flag=%d, mode=%d, unit=%d\n", 
+	DPRINTFN(5, ("urioopen: flag=%d, mode=%d, unit=%d\n",
 		     flag, mode, unit));
 
 	if (sc->sc_opened)
@@ -300,18 +300,18 @@ urioopen(dev_t dev, int flag, int mode, usb_proc_ptr p)
 	sc->sc_opened = 1;
 	sc->sc_pipeh_in = 0;
 	sc->sc_pipeh_out = 0;
-	if (usbd_open_pipe(sc->sc_iface, 
-		sc->sc_epaddr[RIO_IN], 0, &sc->sc_pipeh_in) 
+	if (usbd_open_pipe(sc->sc_iface,
+		sc->sc_epaddr[RIO_IN], 0, &sc->sc_pipeh_in)
 	   		!= USBD_NORMAL_COMPLETION)
 	{
 			sc->sc_pipeh_in = 0;
 			return EIO;
 	};
-	if (usbd_open_pipe(sc->sc_iface, 
-		sc->sc_epaddr[RIO_OUT], 0, &sc->sc_pipeh_out) 
+	if (usbd_open_pipe(sc->sc_iface,
+		sc->sc_epaddr[RIO_OUT], 0, &sc->sc_pipeh_out)
 	   		!= USBD_NORMAL_COMPLETION)
 	{
-			usbd_close_pipe(sc->sc_pipeh_in);	
+			usbd_close_pipe(sc->sc_pipeh_in);
 			sc->sc_pipeh_in = 0;
 			sc->sc_pipeh_out = 0;
 			return EIO;
@@ -329,17 +329,17 @@ urioclose(dev_t dev, int flag, int mode, usb_proc_ptr p)
 	USB_GET_SC(urio, unit, sc);
 
 	DPRINTFN(5, ("urioclose: flag=%d, mode=%d, unit=%d\n", flag, mode, unit));
-	if (sc->sc_pipeh_in) 
-		usbd_close_pipe(sc->sc_pipeh_in);	
+	if (sc->sc_pipeh_in)
+		usbd_close_pipe(sc->sc_pipeh_in);
 
-	if (sc->sc_pipeh_out) 
-		usbd_close_pipe(sc->sc_pipeh_out);	
+	if (sc->sc_pipeh_out)
+		usbd_close_pipe(sc->sc_pipeh_out);
 
 	sc->sc_pipeh_in = 0;
 	sc->sc_pipeh_out = 0;
 	sc->sc_opened = 0;
 	sc->sc_refcnt = 0;
-	return 0;	
+	return 0;
 }
 
 int
@@ -512,7 +512,7 @@ urioioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, usb_proc_ptr p)
 		len = rio_cmd->length;
 
 		requesttype = rio_cmd->requesttype | UT_READ_VENDOR_DEVICE;
-		DPRINTFN(1,("sending command:reqtype=%0x req=%0x value=%0x index=%0x len=%0x\n", 
+		DPRINTFN(1,("sending command:reqtype=%0x req=%0x value=%0x index=%0x len=%0x\n",
 			requesttype, rio_cmd->request, rio_cmd->value, rio_cmd->index, len));
 		break;
 
@@ -525,7 +525,7 @@ urioioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, usb_proc_ptr p)
 		len = rio_cmd->length;
 
 		requesttype = rio_cmd->requesttype | UT_WRITE_VENDOR_DEVICE;
-		DPRINTFN(1,("sending command:reqtype=%0x req=%0x value=%0x index=%0x len=%0x\n", 
+		DPRINTFN(1,("sending command:reqtype=%0x req=%0x value=%0x index=%0x len=%0x\n",
 			requesttype, rio_cmd->request, rio_cmd->value, rio_cmd->index, len));
 		break;
 
@@ -552,7 +552,7 @@ urioioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, usb_proc_ptr p)
 		uio.uio_offset = 0;
 		uio.uio_segflg = UIO_USERSPACE;
 		uio.uio_rw =
-			req.bmRequestType & UT_READ ? 
+			req.bmRequestType & UT_READ ?
 			UIO_READ : UIO_WRITE;
 		uio.uio_procp = p;
 		ptr = malloc(len, M_TEMP, M_WAITOK);
@@ -563,7 +563,7 @@ urioioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, usb_proc_ptr p)
 		}
 	}
 
-	r = usbd_do_request_flags(sc->sc_udev, &req, 
+	r = usbd_do_request_flags(sc->sc_udev, &req,
 				  ptr, req_flags, &req_actlen,
 				  USBD_DEFAULT_TIMEOUT);
 	if (r == USBD_NORMAL_COMPLETION) {
@@ -637,11 +637,11 @@ USB_DETACH(urio)
 	}
 	splx(s);
 #else
-	if (sc->sc_pipeh_in) 
-		usbd_abort_pipe(sc->sc_pipeh_in);	
+	if (sc->sc_pipeh_in)
+		usbd_abort_pipe(sc->sc_pipeh_in);
 
-	if (sc->sc_pipeh_out) 
-		usbd_abort_pipe(sc->sc_pipeh_out);	
+	if (sc->sc_pipeh_out)
+		usbd_abort_pipe(sc->sc_pipeh_out);
 
 	s = splusb();
 	if (--sc->sc_refcnt >= 0) {
@@ -672,7 +672,7 @@ USB_DETACH(urio)
 #if defined(__FreeBSD__)
 Static int
 urio_detach(device_t self)
-{       
+{
 	struct urio_softc *sc = device_get_softc(self);
 
 	DPRINTF(("%s: disconnected\n", USBDEVNAME(self)));
