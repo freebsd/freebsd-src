@@ -1,12 +1,20 @@
-#	$Id$
+#	$Id: Makefile,v 1.1 1994/09/13 23:01:57 wollman Exp $
 
-NOPROG=	tzsetup
+PROG=	tzsetup
 NOMAN=
+SRCS=	main.c tzmenu.c menus.c
+CFLAGS+=	-I. -I${.CURDIR}
+CLEANFILES+=	menus.c
+LDADD+=	-ldialog -lncurses -lmytinfo
+DPADD+=	${LIBDIALOG} ${LIBNCURSES} ${LIBMYTINFO}
 
-all depend:
+Z=	${.CURDIR}/../../share/zoneinfo
+.PATH:	${Z}
 
-beforeinstall:
-	$(INSTALL) -c -m $(BINMODE) -o $(BINOWN) -g $(BINGRP) \
-		${.CURDIR}/tzsetup.sh ${DESTDIR}${BINDIR}/tzsetup
+ZF=	africa antarctica asia australasia europe northamerica southamerica
+
+menus.c:	grok.pl ${ZF}
+	perl ${.CURDIR}/grok.pl `for a in ${ZF}; do echo ${Z}/$$a; done` \
+		> ${.TARGET}
 
 .include <bsd.prog.mk>
