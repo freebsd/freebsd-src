@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: auth.c,v 1.21 1997/11/09 22:07:27 brian Exp $
+ * $Id: auth.c,v 1.22 1997/11/11 22:58:09 brian Exp $
  *
  *	TODO:
  *		o Implement check against with registered IP addresses.
@@ -47,19 +47,6 @@
 void
 LocalAuthInit()
 {
-  if (*VarShortHost == '\0') {
-    char *p;
-
-    if (gethostname(VarShortHost, sizeof(VarShortHost))) {
-      VarLocalAuth = LOCAL_DENY;
-      return;
-    }
-
-    p = strchr(VarShortHost, '.');
-    if (p)
-      *p = '\0';
-  }
-
   if (!(mode&MODE_DAEMON))
     /* We're allowed in interactive mode */
     VarLocalAuth = LOCAL_AUTH;
