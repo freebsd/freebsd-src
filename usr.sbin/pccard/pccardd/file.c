@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: file.c,v 1.5 1996/06/18 19:52:29 nate Exp $
+ * $Id: file.c,v 1.6 1996/06/18 23:50:51 nate Exp $
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -184,7 +184,7 @@ parse_card(void)
 			confp = xmalloc(sizeof(*confp));
 			man = next_tok();
 			confp->driver = new_driver(man);
-			confp->irq = num_tok();
+			confp->irq = irq_tok(1);
 			confp->flags = num_tok();
 			if (confp->flags == -1) {
 				pusht = 1;
