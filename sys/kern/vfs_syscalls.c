@@ -78,7 +78,6 @@
 #include <vm/vm_page.h>
 #include <vm/uma.h>
 
-static int change_dir(struct nameidata *ndp, struct thread *td);
 static int chroot_refuse_vdir_fds(struct filedesc *fdp);
 static int getutimes(const struct timeval *, enum uio_seg, struct timespec *);
 static int setfown(struct thread *td, struct vnode *, uid_t, gid_t);
@@ -463,8 +462,13 @@ kern_chdir(struct thread *td, char *path, enum uio_seg pathseg)
 	struct vnode *vp;
 
 	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF, pathseg, path, td);
-	if ((error = change_dir(&nd, td)) != 0)
+	if ((error = namei(&nd)) != 0)
 		return (error);
+	if ((error = change_dir(nd.ni_vp, td)) != 0) {
+		vput(nd.ni_vp);
+		NDFREE(&nd, NDF_ONLY_PNBUF);
+		return (error);
+	}
 	VOP_UNLOCK(nd.ni_vp, 0, td);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	FILEDESC_LOCK(fdp);
@@ -530,45 +534,31 @@ chroot(td, uap)
 		char *path;
 	} */ *uap;
 {
-	register struct filedesc *fdp = td->td_proc->p_fd;
 	int error;
 	struct nameidata nd;
-	struct vnode *vp;
 
 	error = suser_cred(td->td_ucred, PRISON_ROOT);
 	if (error)
 		return (error);
 	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF, UIO_USERSPACE, uap->path, td);
 	mtx_lock(&Giant);
-	if ((error = change_dir(&nd, td)) != 0)
+	error = namei(&nd);
+	if (error)
 		goto error;
+	if ((error = change_dir(nd.ni_vp, td)) != 0)
+		goto e_vunlock;
 #ifdef MAC
-	if ((error = mac_check_vnode_chroot(td->td_ucred, nd.ni_vp))) {
-		vput(nd.ni_vp);
-		goto error;
-	}
+	if ((error = mac_check_vnode_chroot(td->td_ucred, nd.ni_vp)))
+		goto e_vunlock;
 #endif
 	VOP_UNLOCK(nd.ni_vp, 0, td);
-	FILEDESC_LOCK(fdp);
-	if (chroot_allow_open_directories == 0 ||
-	    (chroot_allow_open_directories == 1 && fdp->fd_rdir != rootvnode)) {
-		error = chroot_refuse_vdir_fds(fdp);
-		if (error)
-			goto error_unlock;
-	}
-	vp = fdp->fd_rdir;
-	fdp->fd_rdir = nd.ni_vp;
-	if (!fdp->fd_jdir) {
-		fdp->fd_jdir = nd.ni_vp;
-                VREF(fdp->fd_jdir);
-	}
-	FILEDESC_UNLOCK(fdp);
+	error = change_root(nd.ni_vp, td);
+	vrele(nd.ni_vp);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
-	vrele(vp);
 	mtx_unlock(&Giant);
-	return (0);
-error_unlock:
-	FILEDESC_UNLOCK(fdp);
+	return (error);
+e_vunlock:
+	vput(nd.ni_vp);
 error:
 	mtx_unlock(&Giant);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
@@ -576,32 +566,63 @@ error:
 }
 
 /*
- * Common routine for chroot and chdir.  On success, the directory vnode
- * is returned locked, and must be unlocked by the caller.
+ * Common routine for chroot and chdir.  Callers must provide a locked vnode
+ * instance.
  */
-static int
-change_dir(ndp, td)
-	register struct nameidata *ndp;
+int
+change_dir(vp, td)
+	struct vnode *vp;
 	struct thread *td;
 {
-	struct vnode *vp;
 	int error;
 
-	error = namei(ndp);
+	ASSERT_VOP_LOCKED(vp, "change_dir(): vp not locked");
+	if (vp->v_type != VDIR)
+		return (ENOTDIR);
+#ifdef MAC
+	error = mac_check_vnode_chdir(td->td_ucred, vp);
 	if (error)
 		return (error);
-	vp = ndp->ni_vp;
-	if (vp->v_type != VDIR)
-		error = ENOTDIR;
-#ifdef MAC
-	if (error == 0)
-		error = mac_check_vnode_chdir(td->td_ucred, vp);
 #endif
-	if (error == 0)
-		error = VOP_ACCESS(vp, VEXEC, td->td_ucred, td);
-	if (error)
-		vput(vp);
+	error = VOP_ACCESS(vp, VEXEC, td->td_ucred, td);
 	return (error);
+}
+
+/*
+ * Common routine for kern_chroot() and jail_attach().  The caller is
+ * responsible for invoking suser() and mac_check_chroot() to authorize this
+ * operation.
+ */
+int
+change_root(vp, td)
+	struct vnode *vp;
+	struct thread *td;
+{
+	struct filedesc *fdp;
+	struct vnode *oldvp;
+	int error;
+
+	mtx_assert(&Giant, MA_OWNED);
+	fdp = td->td_proc->p_fd;
+	FILEDESC_LOCK(fdp);
+	if (chroot_allow_open_directories == 0 ||
+	    (chroot_allow_open_directories == 1 && fdp->fd_rdir != rootvnode)) {
+		error = chroot_refuse_vdir_fds(fdp);
+		if (error) {
+			FILEDESC_UNLOCK(fdp);
+			return (error);
+		}
+	}
+	oldvp = fdp->fd_rdir;
+	fdp->fd_rdir = vp;
+	VREF(fdp->fd_rdir);
+	if (!fdp->fd_jdir) {
+		fdp->fd_jdir = vp;
+		VREF(fdp->fd_jdir);
+	}
+	FILEDESC_UNLOCK(fdp);
+	vrele(oldvp);
+	return (0);
 }
 
 /*

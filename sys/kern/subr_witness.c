@@ -266,6 +266,7 @@ static struct witness_order_list_entry order_lists[] = {
 	{ "session", &lock_class_mtx_sleep },
 	{ "uidinfo hash", &lock_class_mtx_sleep },
 	{ "uidinfo struct", &lock_class_mtx_sleep },
+	{ "allprison", &lock_class_mtx_sleep },
 	{ NULL, NULL },
 	/*
 	 * spin locks
