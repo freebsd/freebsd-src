@@ -39,12 +39,12 @@ static char sccsid[] = "@(#)save.c	8.1 (Berkeley) 5/31/93";
 #include <sys/stat.h>
 #include <sys/param.h>			/* MAXPATHLEN */
 #include <fcntl.h>
+#include <stdlib.h>
 #include "externs.h"
 
 void
 restore()
 {
-	char *getenv();
 	char *home;
 	char home1[MAXPATHLEN];
 	register int n;
@@ -55,13 +55,10 @@ restore()
   	  sprintf(home1, "%.*s/Bstar", MAXPATHLEN - 7, home);
 	else return;
 
-	setegid(egid);
 	if ((fp = fopen(home1, "r")) == 0) {
 		perror(home1);
-		setegid(getgid());
 		return;
 	}
-	setegid(getgid());
 	fread(&WEIGHT, sizeof WEIGHT, 1, fp);
 	fread(&CUMBER, sizeof CUMBER, 1, fp);
 	fread(&gclock, sizeof gclock, 1, fp);
@@ -103,7 +100,6 @@ void
 save()
 {
 	struct stat sbuf;
-	char *getenv();
 	char *home;
 	char home1[MAXPATHLEN];
 	register int n;
@@ -115,36 +111,30 @@ save()
 		return;
 	sprintf(home1, "%.*s/Bstar", MAXPATHLEN - 7, home);
 
-	setegid(egid);
 	/* Try to open the file safely. */
 	if (stat(home1, &sbuf) < 0) {	  	
-		fd = open(home1, O_WRONLY|O_CREAT|O_EXCL);
+		fd = open(home1, O_WRONLY|O_CREAT|O_EXCL, 0600);
 	        if (fd < 0) {
           		fprintf(stderr, "Can't create %s\n", home1);
-				setegid(getgid());
            		return;
 	        }
 	} else {
-		if (sbuf.st_mode & S_IFLNK) {
+		if ((sbuf.st_mode & S_IFLNK) == S_IFLNK) {
 			fprintf(stderr, "No symlinks!\n");
-			setegid(getgid());
 			return;
 		}
 
 		fd = open(home1, O_WRONLY|O_EXCL);
 		if (fd < 0) {
 			fprintf(stderr, "Can't open %s for writing\n", home1);
-			setegid(getgid());
 			return;
 		}
 	}
 
 	if ((fp = fdopen(fd, "w")) == 0) {
 		perror(home1);
-		setegid(getgid());
 		return;
 	}
-	setegid(getgid());
 
 	printf("Saved in %s.\n", home1);
 	fwrite(&WEIGHT, sizeof WEIGHT, 1, fp);
