@@ -2593,9 +2593,6 @@ static void dc_txeof(sc)
 
 	ifp = &sc->arpcom.ac_if;
 
-	/* Clear the timeout timer. */
-	ifp->if_timer = 0;
-
 	/*
 	 * Go through our tx list and free mbufs for those
 	 * frames that have been transmitted.
@@ -2612,7 +2609,6 @@ static void dc_txeof(sc)
 
 		if (!(cur_tx->dc_ctl & DC_TXCTL_LASTFRAG) ||
 		    cur_tx->dc_ctl & DC_TXCTL_SETUP) {
-			sc->dc_cdata.dc_tx_cnt--;
 			if (cur_tx->dc_ctl & DC_TXCTL_SETUP) {
 				/*
 				 * Yes, the PNIC is so brain damaged
@@ -2629,6 +2625,7 @@ static void dc_txeof(sc)
 				}
 				sc->dc_cdata.dc_tx_chain[idx] = NULL;
 			}
+			sc->dc_cdata.dc_tx_cnt--;
 			DC_INC(idx, DC_TX_LIST_CNT);
 			continue;
 		}
@@ -2679,9 +2676,12 @@ static void dc_txeof(sc)
 		DC_INC(idx, DC_TX_LIST_CNT);
 	}
 
-	sc->dc_cdata.dc_tx_cons = idx;
-	if (cur_tx != NULL)
+	if (idx != sc->dc_cdata.dc_tx_cons) {
+	    	/* some buffers have been freed */
+		sc->dc_cdata.dc_tx_cons = idx;
 		ifp->if_flags &= ~IFF_OACTIVE;
+	}
+	ifp->if_timer = (sc->dc_cdata.dc_tx_cnt == 0) ? 0 : 5;
 
 	return;
 }
