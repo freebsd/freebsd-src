@@ -214,7 +214,7 @@ flushroutes(argc, argv)
 	size_t needed;
 	int mib[6], rlen, seqno;
 	char *buf, *next, *lim;
-	register struct rt_msghdr *rtm;
+	struct rt_msghdr *rtm;
 
 	if (uid) {
 		errx(EX_NOPERM, "must be root to alter routing table");
@@ -306,7 +306,7 @@ const char *
 routename(sa)
 	struct sockaddr *sa;
 {
-	register char *cp;
+	char *cp;
 	static char line[MAXHOSTNAMELEN + 1];
 	struct hostent *hp;
 	static char domain[MAXHOSTNAMELEN + 1];
@@ -430,7 +430,7 @@ netname(sa)
 	static char line[MAXHOSTNAMELEN + 1];
 	struct netent *np = 0;
 	u_long net, mask;
-	register u_long i;
+	u_long i;
 	int n, subnetshift;
 #ifdef NS
 	char *ns_print();
@@ -586,7 +586,7 @@ set_metric(value, key)
 void
 newroute(argc, argv)
 	int argc;
-	register char **argv;
+	char **argv;
 {
 	char *cmd, *dest = "", *gateway = "", *err;
 	int ishost = 0, proxy = 0, ret, attempts, oerrno, flags = RTF_STATIC;
@@ -818,10 +818,10 @@ newroute(argc, argv)
 void
 inet_makenetandmask(net, sin, bits)
 	u_long net, bits;
-	register struct sockaddr_in *sin;
+	struct sockaddr_in *sin;
 {
 	u_long addr, mask = 0;
-	register char *cp;
+	char *cp;
 
 	rtm_addrs |= RTA_NETMASK;
 	if (net == 0)
@@ -869,7 +869,7 @@ getaddr(which, s, hpp)
 	char *s;
 	struct hostent **hpp;
 {
-	register sup su;
+	sup su;
 	struct hostent *hp;
 	struct netent *np;
 	u_long val;
@@ -1124,8 +1124,8 @@ ns_print(sns)
 	u_short port;
 	static char mybuf[50+MAXHOSTNAMELEN], cport[10], chost[25];
 	char *host = "";
-	register char *p;
-	register u_char *q;
+	char *p;
+	u_char *q;
 
 	work = sns->sns_addr;
 	port = ntohs(work.x_port);
@@ -1168,7 +1168,7 @@ interfaces()
 	size_t needed;
 	int mib[6];
 	char *buf, *lim, *next;
-	register struct rt_msghdr *rtm;
+	struct rt_msghdr *rtm;
 
 	mib[0] = CTL_NET;
 	mib[1] = PF_ROUTE;
@@ -1220,8 +1220,8 @@ rtmsg(cmd, flags)
 {
 	static int seq;
 	int rlen;
-	register char *cp = m_rtmsg.m_space;
-	register int l;
+	char *cp = m_rtmsg.m_space;
+	int l;
 
 #define NEXTADDR(w, u) \
 	if (rtm_addrs & (w)) {\
@@ -1287,7 +1287,7 @@ void
 mask_addr()
 {
 	int olen = so_mask.sa.sa_len;
-	register char *cp1 = olen + (char *)&so_mask, *cp2;
+	char *cp1 = olen + (char *)&so_mask, *cp2;
 
 	for (so_mask.sa.sa_len = 0; cp1 > (char *)&so_mask; )
 		if (*--cp1 != 0) {
@@ -1356,7 +1356,7 @@ char addrnames[] =
 
 void
 print_rtmsg(rtm, msglen)
-	register struct rt_msghdr *rtm;
+	struct rt_msghdr *rtm;
 	int msglen;
 {
 	struct if_msghdr *ifm;
@@ -1426,14 +1426,14 @@ print_rtmsg(rtm, msglen)
 
 void
 print_getmsg(rtm, msglen)
-	register struct rt_msghdr *rtm;
+	struct rt_msghdr *rtm;
 	int msglen;
 {
 	struct sockaddr *dst = NULL, *gate = NULL, *mask = NULL;
 	struct sockaddr_dl *ifp = NULL;
-	register struct sockaddr *sa;
-	register char *cp;
-	register int i;
+	struct sockaddr *sa;
+	char *cp;
+	int i;
 
 	(void) printf("   route to: %s\n", routename(&so_dst));
 	if (rtm->rtm_version != RTM_VERSION) {
@@ -1522,7 +1522,7 @@ print_getmsg(rtm, msglen)
 
 void
 pmsg_common(rtm)
-	register struct rt_msghdr *rtm;
+	struct rt_msghdr *rtm;
 {
 	(void) printf("\nlocks: ");
 	bprintf(stdout, rtm->rtm_rmx.rmx_locks, metricnames);
@@ -1536,7 +1536,7 @@ pmsg_addrs(cp, addrs)
 	char	*cp;
 	int	addrs;
 {
-	register struct sockaddr *sa;
+	struct sockaddr *sa;
 	int i;
 
 	if (addrs == 0) {
@@ -1558,11 +1558,11 @@ pmsg_addrs(cp, addrs)
 
 void
 bprintf(fp, b, s)
-	register FILE *fp;
-	register int b;
-	register u_char *s;
+	FILE *fp;
+	int b;
+	u_char *s;
 {
-	register int i;
+	int i;
 	int gotsome = 0;
 
 	if (b == 0)
@@ -1589,7 +1589,7 @@ int
 keyword(cp)
 	char *cp;
 {
-	register struct keytab *kt = keywords;
+	struct keytab *kt = keywords;
 
 	while (kt->kt_cp && strcmp(kt->kt_cp, cp))
 		kt++;
@@ -1598,7 +1598,7 @@ keyword(cp)
 
 void
 sodump(su, which)
-	register sup su;
+	sup su;
 	char *which;
 {
 	switch (su->sa.sa_family) {
@@ -1635,13 +1635,13 @@ sodump(su, which)
 
 void
 sockaddr(addr, sa)
-	register char *addr;
-	register struct sockaddr *sa;
+	char *addr;
+	struct sockaddr *sa;
 {
-	register char *cp = (char *)sa;
+	char *cp = (char *)sa;
 	int size = sa->sa_len;
 	char *cplim = cp + size;
-	register int byte = 0, state = VIRGIN, new = 0 /* foil gcc */;
+	int byte = 0, state = VIRGIN, new = 0 /* foil gcc */;
 
 	memset(cp, 0, size);
 	cp++;

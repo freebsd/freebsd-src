@@ -190,7 +190,7 @@ helpfn(argc, argv)
 	int argc;
 	char *argv[];
 {
-    register struct cmdtable *cmdtp;
+    struct cmdtable *cmdtp;
 
     printf("Commands are:\n%-10s %5s %5s   %s\n",
 	   "command", "min argc", "max argc", "what");
@@ -395,7 +395,7 @@ int
 scannames(idesc)
 	struct inodesc *idesc;
 {
-	register struct direct *dirp = idesc->id_dirp;
+	struct direct *dirp = idesc->id_dirp;
 
 	printf("slot %d ino %d reclen %d: %s, `%.*s'\n",
 	       slot++, dirp->d_ino, dirp->d_reclen, typename[dirp->d_type],
@@ -517,7 +517,7 @@ int
 chinumfunc(idesc)
 	struct inodesc *idesc;
 {
-	register struct direct *dirp = idesc->id_dirp;
+	struct direct *dirp = idesc->id_dirp;
 
 	if (slotcount++ == desired) {
 	    dirp->d_ino = idesc->id_parent;
@@ -561,7 +561,7 @@ int
 chnamefunc(idesc)
 	struct inodesc *idesc;
 {
-	register struct direct *dirp = idesc->id_dirp;
+	struct direct *dirp = idesc->id_dirp;
 	struct direct testdir;
 
 	if (slotcount++ == desired) {

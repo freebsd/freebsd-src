@@ -140,7 +140,7 @@ void			 mode_list(struct cam_device *device, int page_control,
 
 
 #define	RTRIM(string) do {						\
-	register int _length;						\
+	int _length;						\
 	while (isspace(string[_length = strlen(string) - 1]))		\
 		string[_length] = '\0';					\
 } while (0)

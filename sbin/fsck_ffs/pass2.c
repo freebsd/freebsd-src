@@ -58,8 +58,8 @@ static int pass2check __P((struct inodesc *));
 void
 pass2()
 {
-	register struct dinode *dp;
-	register struct inoinfo **inpp, *inp;
+	struct dinode *dp;
+	struct inoinfo **inpp, *inp;
 	struct inoinfo **inpend;
 	struct inodesc curino;
 	struct dinode dino;
@@ -223,8 +223,8 @@ static int
 pass2check(idesc)
 	struct inodesc *idesc;
 {
-	register struct direct *dirp = idesc->id_dirp;
-	register struct inoinfo *inp;
+	struct direct *dirp = idesc->id_dirp;
+	struct inoinfo *inp;
 	int n, entrysize, ret = 0;
 	struct dinode *dp;
 	char *errmsg;

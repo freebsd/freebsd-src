@@ -274,8 +274,8 @@ int	silent;
 	}
 
 	while ((dp = readdir(dd)) != NULL) {
-		register int n;
-		register char *cp;
+		int n;
+		char *cp;
 
 		/* Check for `lib' prefix */
 		if (dp->d_name[0] != 'l' ||
