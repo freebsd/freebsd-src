@@ -2,6 +2,6 @@
 
 PROG=	kldxref
 SRCS=	kldxref.c ef.c
-NOMAN=
+MAN=	kldxref.8
 
 .include <bsd.prog.mk>
