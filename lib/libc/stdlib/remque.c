@@ -13,7 +13,8 @@ __FBSDID("$FreeBSD$");
 #include <search.h>
 #include <stdlib.h>	/* for NULL */
 
-void remque(void *element)
+void
+remque(void *element)
 {
 	struct que_elem *prev, *next, *elem;
 
