@@ -34,8 +34,8 @@ options 	MATH_EMULATE		#Support for x87 emulation
 options 	INET			#InterNETworking
 options 	FFS			#Berkeley Fast Filesystem
 options 	FFS_ROOT		#FFS usable as root device [keep this!]
-options 	MD_ROOT			#MD is a potential root device
 options 	MFS			#Memory Filesystem
+options 	MD_ROOT			#MD is a potential root device
 options 	NFS			#Network Filesystem
 options 	NFS_ROOT		#NFS usable as root device, "NFS" req'ed
 options 	MSDOSFS			#MSDOS Filesystem
@@ -126,9 +126,6 @@ device		pass0		# Passthrough device (direct SCSI access)
 # RAID controllers
 device		amr0		# AMI MegaRAID
 device		mlx0		# Mylex DAC960 family
-
-# Proprietary or custom CD-ROM Interfaces
-device		matcd0	at isa? port?
 
 # keyboard driver
 device		pckbd0	at isa? port IO_KBD irq 1
@@ -246,7 +243,13 @@ device		xl0		# 3Com 3c90x (``Boomerang'', ``Cyclone'')
 #device ed6 at isa? port 0x0770 irq 6 flags 0x800000
 #device ed9 at isa? port 0x03d0 irq 6 flags 0xb00000
 #device ed8 at isa? port 0xa3d0 irq 6 iomem 0xd0000 iosiz 16384 flags 0xa00000
+# NOTE: This removes the isa attachment so that the pccard unit numbers
+# come out right.
 device ep0 at isa? port 0x40d0 irq 3
+# WaveLAN/IEEE 802.1 wireless NICs. Note: the WaveLAN/IEEE really
+# exists only as a PCMCIA device, so there is no ISA attatement needed
+# and resources will always be dynamically assigned by the pccard code.
+#device		wi0
 device fe0 at isa? port 0x00d0 irq 3
 device fe1 at isa? port 0x73d0 irq 5
 device lnc0 at isa? port 0x03d0 irq 6
