@@ -1,7 +1,9 @@
 /*
  * ng_eiface.h
- *
- * Copyright (c) 1999-2000, Vitaly V Belekhov
+ */
+
+/*-
+ * Copyright (c) 1999-2001, Vitaly V Belekhov
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,12 +28,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * 	$Id: ng_eiface.h,v 1.4 2000/03/06 09:46:14 vitaly Exp $
  * $FreeBSD$
  */
 
-#ifndef _NETGRAPH_EIFACE_H_
-#define _NETGRAPH_EIFACE_H_
+#ifndef _NETGRAPH_NG_EIFACE_H_
+#define _NETGRAPH_NG_EIFACE_H_
 
 /* Node type name and magic cookie */
 #define NG_EIFACE_NODE_TYPE		"eiface"
@@ -39,7 +40,7 @@
 
 /* Interface base name */
 #define NG_EIFACE_EIFACE_NAME		"ngeth"
-#define NG_EIFACE_EIFACE_NAME_MAX		15
+#define NG_EIFACE_EIFACE_NAME_MAX	15
 
 /* My hook names */
 #define NG_EIFACE_HOOK_ETHER		"ether"
@@ -80,4 +81,4 @@ struct ng_eiface_par {
     { NULL }							\
 }
 
-#endif /* _NETGRAPH_EIFACE_H_ */
+#endif /* _NETGRAPH_NG_EIFACE_H_ */
