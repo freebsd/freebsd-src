@@ -2386,7 +2386,8 @@ filt_aio(struct knote *kn, long hint)
 	struct aiocblist *aiocbe = (struct aiocblist *)kn->kn_id;
 
 	kn->kn_data = 0;		/* XXX data returned? */
-	if (aiocbe->jobstate != JOBST_JOBFINISHED)
+	if (aiocbe->jobstate != JOBST_JOBFINISHED &&
+	    aiocbe->jobstate != JOBST_JOBBFINISHED)
 		return (0);
 	kn->kn_flags |= EV_EOF; 
 	return (1);
