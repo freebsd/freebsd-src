@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.4 1995/05/01 21:56:22 jkh Exp $
+ * $Id: install.c,v 1.5 1995/05/04 03:51:16 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -131,42 +131,5 @@ int
 installMaint(char *str)
 {
     msgConfirm("Sorry, maintainance mode is not implemented in this version.");
-    return 0;
-}
-
-int
-installSetDeveloper(char *str)
-{
-    /* Dists = DIST_BIN | DIST_MAN | DIST_FOO; */
-    return 0;
-}
-
-int
-installSetXDeveloper(char *str)
-{
-    return 0;
-}
-
-int
-installSetUser(char *str)
-{
-    return 0;
-}
-
-int
-installSetXUser(char *str)
-{
-    return 0;
-}
-
-int
-installSetMinimum(char *str)
-{
-    return 0;
-}
-
-int
-installSetEverything(char *str)
-{
     return 0;
 }

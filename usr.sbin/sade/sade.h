@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.4 1995/05/01 21:56:30 jkh Exp $
+ * $Id: sysinstall.h,v 1.5 1995/05/04 03:51:22 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -57,6 +57,49 @@
 #define DMENU_RADIO_TYPE	0x2	/* Radio dialog menu		*/
 #define DMENU_MULTIPLE_TYPE	0x4	/* Multiple choice menu		*/
 #define DMENU_SELECTION_RETURNS	0x8	/* Select item then exit	*/
+
+/* Bitfields for distributions - hope we never have more than 32! :-) */
+#define DIST_BIN		0x1
+#define DIST_GAMES		0x2
+#define DIST_MANPAGES		0x4
+#define DIST_PROFLIBS		0x8
+#define DIST_DICT		0x10
+#define DIST_SRC		0x20
+#define DIST_DES		0x40
+#define DIST_COMPAT1X		0x80
+#define DIST_XFREE86		0x100
+#define DIST_ALL		0xFFF
+
+/* Canned distribution sets */
+#define _DIST_DEVELOPER \
+	(DIST_BIN | DIST_MANPAGES | DIST_DICT | DIST_PROFLIBS | DIST_SRC)
+
+#define _DIST_XDEVELOPER \
+	(_DIST_DEVELOPER | DIST_XFREE86)
+
+#define _DIST_USER \
+	(DIST_BIN | DIST_MANPAGES | DIST_DICT | DIST_COMPAT1X)
+
+#define _DIST_XUSER \
+	(_DIST_USER | DIST_XFREE86)
+
+
+/* Subtypes for SRC distribution */
+#define DIST_SRC_BASE		0x1
+#define DIST_SRC_GNU		0x2
+#define DIST_SRC_ETC		0x4
+#define DIST_SRC_GAMES		0x8
+#define DIST_SRC_INCLUDE	0x10
+#define DIST_SRC_LIB		0x20
+#define DIST_SRC_LIBEXEC	0x40
+#define DIST_SRC_LKM		0x80
+#define DIST_SRC_RELEASE	0x100
+#define DIST_SRC_SBIN		0x200
+#define DIST_SRC_SHARE		0x400
+#define DIST_SRC_SYS		0x800
+#define DIST_SRC_UBIN		0x1000
+#define DIST_SRC_USBIN		0x2000
+#define DIST_SRC_ALL		0xFFFF
 
 /* variable limits */
 #define VAR_NAME_MAX		128
@@ -130,9 +173,8 @@ extern Boolean		OnCDROM;  /* Are we running off of a CDROM?	*/
 extern Boolean		OnSerial; /* Are we on a serial console?	*/
 extern Boolean		DialogActive; /* Is the dialog() stuff up?	*/
 extern Variable		*VarHead; /* The head of the variable chain	*/
-
-/* All the menus to which forward references exist */
-extern DMenu		MenuDocumenation, MenuInitial, MenuLanguage;
+extern unsigned int	Dists;    /* Which distributions we want        */
+extern unsigned int	SrcDists; /* Which src distributions we want    */
 
 
 /*** Prototypes ***/
@@ -144,12 +186,14 @@ extern void	globalsInit(void);
 extern int	installCustom(char *str);
 extern int	installExpress(char *str);
 extern int	installMaint(char *str);
-extern int	installSetDeveloper(char *str);
-extern int	installSetXDeveloper(char *str);
-extern int	installSetUser(char *str);
-extern int	installSetXUser(char *str);
-extern int	installSetMinimum(char *str);
-extern int	installSetEverything(char *str);
+
+/* dist.c */
+extern int	distSetDeveloper(char *str);
+extern int	distSetXDeveloper(char *str);
+extern int	distSetUser(char *str);
+extern int	distSetXUser(char *str);
+extern int	distSetMinimum(char *str);
+extern int	distSetEverything(char *str);
 
 /* system.c */
 extern void	systemInitialize(int argc, char **argv);
@@ -159,6 +203,10 @@ extern int	systemExecute(char *cmd);
 extern int	systemShellEscape(void);
 extern int	systemDisplayFile(char *file);
 extern char	*systemHelpFile(char *file, char *buf);
+extern void	systemChangeFont(char *font);
+extern void	systemChangeLang(char *lang);
+extern void	systemChangeTerminal(char *color, char *mono);
+extern void	systemChangeScreenmap(char *newmap);
 
 /* dmenu.c */
 extern void	dmenuOpen(DMenu *menu, int *choice, int *scroll,
@@ -207,6 +255,18 @@ extern DMenu	*device_create_disk_menu(DMenu *menu, Device **rdevs,
 /* variables.c */
 extern void	variable_set(char *var);
 extern void	variable_set2(char *name, char *value);
+
+/* lang.c */
+extern void	lang_set_Danish(char *str);
+extern void	lang_set_Dutch(char *str);
+extern void	lang_set_English(char *str);
+extern void	lang_set_French(char *str);
+extern void	lang_set_German(char *str);
+extern void	lang_set_Italian(char *str);
+extern void	lang_set_Japanese(char *str);
+extern void	lang_set_Russian(char *str);
+extern void	lang_set_Spanish(char *str);
+extern void	lang_set_Swedish(char *str);
 
 #endif
 /* _SYSINSTALL_H_INCLUDE */
