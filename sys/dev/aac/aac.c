@@ -710,8 +710,11 @@ aac_start(struct aac_command *cm)
 	/* get the command mapped */
 	aac_map_command(cm);
 
-	/* fix up the address values in the FIB */
-	cm->cm_fib->Header.SenderFibAddress = (u_int32_t)cm->cm_fib;
+	/* Fix up the address values in the FIB.  Use the command array index
+	 * instead of a pointer since these fields are only 32 bits.  Shift
+	 * the SenderFibAddress over to make room for the fast response bit.
+	 */
+	cm->cm_fib->Header.SenderFibAddress = (cm->cm_index << 1);
 	cm->cm_fib->Header.ReceiverFibAddress = cm->cm_fibphys;
 
 	/* save a pointer to the command for speedy reverse-lookup */
@@ -1533,7 +1536,7 @@ aac_init(struct aac_softc *sc)
 
 	ip->AdapterFibsPhysicalAddress = sc->aac_common_busaddr +
 					 offsetof(struct aac_common, ac_fibs);
-	ip->AdapterFibsVirtualAddress = (u_int32_t)&sc->aac_common->ac_fibs[0];
+	ip->AdapterFibsVirtualAddress = 0;
 	ip->AdapterFibsSize = AAC_ADAPTER_FIBS * sizeof(struct aac_fib);
 	ip->AdapterFibAlign = sizeof(struct aac_fib);
 
@@ -1842,6 +1845,7 @@ aac_dequeue_fib(struct aac_softc *sc, int queue, u_int32_t *fib_size,
 		struct aac_fib **fib_addr)
 {
 	u_int32_t pi, ci;
+	u_int32_t fib_index;
 	int error;
 	int notify;
 
@@ -1867,18 +1871,52 @@ aac_dequeue_fib(struct aac_softc *sc, int queue, u_int32_t *fib_size,
 
 	/* fetch the entry */
 	*fib_size = (sc->aac_qentries[queue] + ci)->aq_fib_size;
-	*fib_addr = (struct aac_fib *)(sc->aac_qentries[queue] +
-				       ci)->aq_fib_addr;
 
-	/*
-	 * Is this a fast response? If it is, update the fib fields in
-	 * local memory so the whole fib doesn't have to be DMA'd back up.
-	 */
-	if (*(uintptr_t *)fib_addr & 0x01) {
-		*(uintptr_t *)fib_addr &= ~0x01;
-		(*fib_addr)->Header.XferState |= AAC_FIBSTATE_DONEADAP;
-		*((u_int32_t*)((*fib_addr)->data)) = AAC_ERROR_NORMAL;
+	switch (queue) {
+	case AAC_HOST_NORM_CMD_QUEUE:
+	case AAC_HOST_HIGH_CMD_QUEUE:
+		/*
+		 * The aq_fib_addr is only 32 bits wide so it can't be counted
+		 * on to hold an address.  For AIF's, the adapter assumes
+		 * that it's giving us an address into the array of AIF fibs.
+		 * Therefore, we have to convert it to an index.
+		 */
+		fib_index = (sc->aac_qentries[queue] + ci)->aq_fib_addr /
+			sizeof(struct aac_fib);
+		*fib_addr = &sc->aac_common->ac_fibs[fib_index];
+		break;
+
+	case AAC_HOST_NORM_RESP_QUEUE:
+	case AAC_HOST_HIGH_RESP_QUEUE:
+	{
+		struct aac_command *cm;
+
+		/*
+		 * As above, an index is used instead of an actual address.
+		 * Gotta shift the index to account for the fast response
+		 * bit.  No other correction is needed since this value was
+		 * originally provided by the driver via the SenderFibAddress
+		 * field.
+		 */
+		fib_index = (sc->aac_qentries[queue] + ci)->aq_fib_addr;
+		cm = sc->aac_commands + (fib_index >> 1);
+		*fib_addr = cm->cm_fib;
+
+		/*
+		 * Is this a fast response? If it is, update the fib fields in
+		 * local memory since the whole fib isn't DMA'd back up.
+		 */
+		if (fib_index & 0x01) {
+			(*fib_addr)->Header.XferState |= AAC_FIBSTATE_DONEADAP;
+			*((u_int32_t*)((*fib_addr)->data)) = AAC_ERROR_NORMAL;
+		}
+		break;
 	}
+	default:
+		panic("Invalid queue in aac_dequeue_fib()");
+		break;
+	}
+
 	/* update consumer index */
 	sc->aac_queues->qt_qindex[queue][AAC_CONSUMER_INDEX] = ci + 1;
 
