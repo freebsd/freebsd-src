@@ -489,4 +489,3 @@ kmem_init(start, end)
 	/* ... and ending with the completion of the above `insert' */
 	vm_map_unlock(m);
 }
-
