@@ -1,13 +1,18 @@
 /*
- *       O.S   : FreeBSD CAM
+ *      O.S   : FreeBSD CAM
  *	FILE NAME  : trm.c					      
  *	     BY    : C.L. Huang 	(ching@tekram.com.tw)
- *               Erich Chen     (erich@tekram.com.tw)
- *	Description: Device Driver for Tekram DC395U/UW/F ,DC315/U 
- *		         PCI SCSI Bus Master Host Adapter	
- *               (SCSI chip set used Tekram ASIC TRM-S1040)
- * (C)Copyright 1995-1999 Tekram Technology Co., Ltd.
+ *                   Erich Chen     (erich@tekram.com.tw)
+ *      Description: Device Driver for Tekram SCSI adapters
+ *                   DC395U/UW/F ,DC315/U(TRM-S1040)
+ *                   DC395U2D/U2W(TRM-S2080)
+ *                   PCI SCSI Bus Master Host Adapter	
+ *                   (SCSI chip set used Tekram ASIC TRM-S1040,TRM-S2080)
+ *(C)Copyright 1995-2001 Tekram Technology Co.,Ltd.
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  *	HISTORY:					
@@ -17,6 +22,9 @@
  *  1.06   07/29/1999  ERICH CHEN  Modify for NEW PCI
  *  1.07   12/12/1999  ERICH CHEN  Modify for 3.3.x ,DCB no free
  *  1.08   06/12/2000  ERICH CHEN  Modify for 4.x.x 
+ *  1.09   11/03/2000  ERICH CHEN  Modify for 4.1.R ,new sim
+ *  1.10   10/10/2001  Oscar Feng  Fixed CAM rescan hang up bug.	
+ *  1.11   10/13/2001  Oscar Feng  Fixed wrong Async speed display bug.	
  */
 
 /*
@@ -56,9 +64,6 @@
  * <doginou@ci0.org>, 2002-03-04
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <sys/param.h>
 
 #include <sys/systm.h>
@@ -70,6 +75,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/buf.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
+#include <sys/module.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -89,6 +95,7 @@ __FBSDID("$FreeBSD$");
 #include <cam/cam_debug.h>
 
 #include <cam/scsi/scsi_all.h>
+#include <cam/scsi/scsi_message.h>
 
 #include <dev/trm/trm.h>
 
@@ -105,6 +112,7 @@ __FBSDID("$FreeBSD$");
 #define PCI_Vendor_ID_TEKRAM	0x1DE1
 #define PCI_Device_ID_TRM_S1040	0x0391
 #define PCI_DEVICEID_TRMS1040	0x03911DE1
+#define PCI_DEVICEID_TRMS2080   0x03921DE1
 
 #ifdef trm_DEBUG1
 #define TRM_DPRINTF(fmt, arg...) printf("trm: " fmt, ##arg)
@@ -113,40 +121,40 @@ __FBSDID("$FreeBSD$");
 #endif /* TRM_DEBUG */
 
 static void	trm_check_eeprom(PNVRAMTYPE pEEpromBuf,PACB pACB);
-static void	TRM_read_all(PNVRAMTYPE pEEpromBuf,PACB pACB);
-static u_int8_t	TRM_get_data(PACB pACB, u_int8_t bAddr);
-static void	TRM_write_all(PNVRAMTYPE pEEpromBuf,PACB pACB);
-static void	TRM_set_data(PACB pACB, u_int8_t bAddr, u_int8_t bData);
-static void	TRM_write_cmd(PACB pACB, u_int8_t bCmd, u_int8_t bAddr);
-static void	TRM_wait_30us(PACB pACB);
+static void	NVRAM_trm_read_all(PNVRAMTYPE pEEpromBuf,PACB pACB);
+static u_int8_t	NVRAM_trm_get_data(PACB pACB, u_int8_t bAddr);
+static void	NVRAM_trm_write_all(PNVRAMTYPE pEEpromBuf,PACB pACB);
+static void	NVRAM_trm_set_data(PACB pACB, u_int8_t bAddr, u_int8_t bData);
+static void	NVRAM_trm_write_cmd(PACB pACB, u_int8_t bCmd, u_int8_t bAddr);
+static void	NVRAM_trm_wait_30us(PACB pACB);
 
 static void	trm_Interrupt(void *vpACB);
 static void	trm_DataOutPhase0(PACB pACB, PSRB pSRB, 
-					 u_int8_t * pscsi_status);
+					 u_int16_t * pscsi_status);
 static void	trm_DataInPhase0(PACB pACB, PSRB pSRB, 
-					u_int8_t * pscsi_status);
+					u_int16_t * pscsi_status);
 static void	trm_CommandPhase0(PACB pACB, PSRB pSRB, 
-					 u_int8_t * pscsi_status);
+					 u_int16_t * pscsi_status);
 static void	trm_StatusPhase0(PACB pACB, PSRB pSRB, 
-					u_int8_t * pscsi_status);
+					u_int16_t * pscsi_status);
 static void	trm_MsgOutPhase0(PACB pACB, PSRB pSRB, 
-					u_int8_t * pscsi_status);
+					u_int16_t * pscsi_status);
 static void	trm_MsgInPhase0(PACB pACB, PSRB pSRB, 
-					u_int8_t * pscsi_status);
+					u_int16_t * pscsi_status);
 static void	trm_DataOutPhase1(PACB pACB, PSRB pSRB, 
-					 u_int8_t * pscsi_status);
+					 u_int16_t * pscsi_status);
 static void	trm_DataInPhase1(PACB pACB, PSRB pSRB, 
-					u_int8_t * pscsi_status);
+					u_int16_t * pscsi_status);
 static void	trm_CommandPhase1(PACB pACB, PSRB pSRB, 
-					 u_int8_t * pscsi_status);
+					 u_int16_t * pscsi_status);
 static void	trm_StatusPhase1(PACB pACB, PSRB pSRB, 
-					u_int8_t * pscsi_status);
+					u_int16_t * pscsi_status);
 static void	trm_MsgOutPhase1(PACB pACB, PSRB pSRB, 
-					u_int8_t * pscsi_status);
+					u_int16_t * pscsi_status);
 static void	trm_MsgInPhase1(PACB pACB, PSRB pSRB, 
-					u_int8_t * pscsi_status);
-static void	trm_Nop0(PACB pACB, PSRB pSRB, u_int8_t * pscsi_status);
-static void	trm_Nop1(PACB pACB, PSRB pSRB, u_int8_t * pscsi_status);
+					u_int16_t * pscsi_status);
+static void	trm_Nop0(PACB pACB, PSRB pSRB, u_int16_t * pscsi_status);
+static void	trm_Nop1(PACB pACB, PSRB pSRB, u_int16_t * pscsi_status);
 static void	trm_SetXferRate(PACB pACB, PSRB pSRB,PDCB pDCB);
 static void	trm_DataIO_transfer(PACB pACB, PSRB pSRB, u_int16_t ioDir);
 static void	trm_Disconnect(PACB pACB);
@@ -165,13 +173,11 @@ static void	trm_reset(PACB pACB);
 
 static u_int16_t	trm_StartSCSI(PACB pACB, PDCB pDCB, PSRB pSRB);
 
-static int	trm_initAdapter(PACB pACB, u_int16_t unit, 
-    					device_t pci_config_id);
+static int	trm_initAdapter(PACB pACB, u_int16_t unit); 
 static void	trm_initDCB(PACB pACB, PDCB pDCB, u_int16_t unit, 
     					u_int32_t i, u_int32_t j);
-static void	trm_initSRB(PSRB psrb);
-static void	trm_linkSRB(PACB pACB);
-static void	trm_initACB(PACB pACB, u_int16_t unit);
+static int	trm_initSRB(PACB pACB);
+static void	trm_initACB(PACB pACB, u_int8_t adaptType, u_int16_t unit);
 /* CAM SIM entry points */
 #define ccb_trmsrb_ptr spriv_ptr0
 #define ccb_trmacb_ptr spriv_ptr1
@@ -207,7 +213,7 @@ static void * trm_SCSI_phase1[] = {
 };
 
 
-NVRAMTYPE trm_eepromBuf[MAX_ADAPTER_NUM];
+NVRAMTYPE trm_eepromBuf[TRM_MAX_ADAPTER_NUM];
 /*
  *Fast20:  000	 50ns, 20.0 Mbytes/s
  *	       001	 75ns, 13.3 Mbytes/s
@@ -228,7 +234,7 @@ NVRAMTYPE trm_eepromBuf[MAX_ADAPTER_NUM];
  *	       111	200ns,  5.0 Mbytes/s
  */
                                              /* real period: */
-u_int8_t dc395x_trm_clock_period[] = {
+u_int8_t dc395x_clock_period[] = {
 	12,/*  48  ns 20   MB/sec */
 	18,/*  72  ns 13.3 MB/sec */
 	25,/* 100  ns 10.0 MB/sec */
@@ -239,16 +245,19 @@ u_int8_t dc395x_trm_clock_period[] = {
 	62 /* 248  ns  4.0 MB/sec */
 };
 
-u_int8_t dc395x_trm_tinfo_sync_period[] = { 
-	12,/* 20.0 MB/sec */
-	18,/* 13.3 MB/sec */
-	25,/* 10.0 MB/sec */
-	31,/*  8.0 MB/sec */
-	37,/*  6.6 MB/sec */
-	43,/*  5.7 MB/sec */
-	50,/*  5.0 MB/sec */
-	62,/*  4.0 MB/sec */
+u_int8_t dc395u2x_clock_period[]={
+	10,/*  25  ns 40.0 MB/sec */
+	12,/*  48  ns 20.0 MB/sec */
+	18,/*  72  ns 13.3 MB/sec */
+	25,/* 100  ns 10.0 MB/sec */
+	31,/* 124  ns  8.0 MB/sec */
+	37,/* 148  ns  6.6 MB/sec */
+	43,/* 172  ns  5.7 MB/sec */
+	50,/* 200  ns  5.0 MB/sec */
 };
+
+#define  dc395x_tinfo_period           dc395x_clock_period
+#define  dc395u2x_tinfo_period         dc395u2x_clock_period
 
 static PSRB
 trm_GetSRB(PACB pACB)
@@ -279,7 +288,7 @@ trm_RewaitSRB0(PDCB pDCB, PSRB pSRB)
 	} else {
 	  	pSRB->pNextSRB = NULL;
 		pDCB->pWaitingSRB = pSRB;
-		pDCB->pWaitLastSRB = pSRB;
+		pDCB->pWaitingLastSRB = pSRB;
 	}
 	splx(intflag);
 }
@@ -289,14 +298,21 @@ trm_RewaitSRB(PDCB pDCB, PSRB pSRB)
 {
 	PSRB	psrb1;
 	int	intflag;
-	u_int8_t	bval;
 
 	intflag = splcam();
     	pDCB->GoingSRBCnt--;
 	psrb1 = pDCB->pGoingSRB;
 	if (pSRB == psrb1)
+		/*
+		 * if this SRB is GoingSRB
+		 * remove this SRB from GoingSRB Q
+		 */
 		pDCB->pGoingSRB = psrb1->pNextSRB;
 	else {
+		/*
+		 * if this SRB is not current GoingSRB
+		 * remove this SRB from GoingSRB Q
+		 */
 		while (pSRB != psrb1->pNextSRB)
 			psrb1 = psrb1->pNextSRB;
 		psrb1->pNextSRB = pSRB->pNextSRB;
@@ -304,15 +320,18 @@ trm_RewaitSRB(PDCB pDCB, PSRB pSRB)
 			pDCB->pGoingLastSRB = psrb1;
 	}
 	if ((psrb1 = pDCB->pWaitingSRB)) {
+		/*
+		 * if WaitingSRB Q is not NULL
+		 * Q back this SRB into WaitingSRB
+		 */
+
 		pSRB->pNextSRB = psrb1;
 		pDCB->pWaitingSRB = pSRB;
 	} else {
 		pSRB->pNextSRB = NULL;
 		pDCB->pWaitingSRB = pSRB;
-		pDCB->pWaitLastSRB = pSRB;
+		pDCB->pWaitingLastSRB = pSRB;
 	}
-	bval = pSRB->TagNumber;
-	pDCB->TagMask &= (~(1 << bval));	  /* Free TAG number */
 	splx(intflag);
 }
 
@@ -334,7 +353,7 @@ trm_DoWaitingSRB(PACB pACB)
 		ptr1 = ptr;
 		for (;ptr1 ;) {
 			pACB->pDCBRunRobin = ptr1->pNextDCB;
-			if (!(ptr1->MaxCommand > ptr1->GoingSRBCnt) 
+			if (!(ptr1->MaxActiveCommandCnt > ptr1->GoingSRBCnt) 
 			    || !(pSRB = ptr1->pWaitingSRB)) {
 				if (pACB->pDCBRunRobin == ptr)
 					break;
@@ -347,9 +366,9 @@ trm_DoWaitingSRB(PACB pACB)
 				 * It's said that SCSI processor is unoccupied 
 				 */
 					ptr1->GoingSRBCnt++;
-					if (ptr1->pWaitLastSRB == pSRB) {
+					if (ptr1->pWaitingLastSRB == pSRB) {
 						ptr1->pWaitingSRB = NULL;
-						ptr1->pWaitLastSRB = NULL;
+						ptr1->pWaitingLastSRB = NULL;
 					} else
 						ptr1->pWaitingSRB = pSRB->pNextSRB;
 					pSRB->pNextSRB = NULL;
@@ -372,17 +391,35 @@ trm_SRBwaiting(PDCB pDCB, PSRB pSRB)
 {
   
 	if (pDCB->pWaitingSRB) {
-		pDCB->pWaitLastSRB->pNextSRB = pSRB;
-		pDCB->pWaitLastSRB = pSRB;
+		pDCB->pWaitingLastSRB->pNextSRB = pSRB;
+		pDCB->pWaitingLastSRB = pSRB;
 		pSRB->pNextSRB = NULL;
 	} else {
 		pDCB->pWaitingSRB = pSRB;
-		pDCB->pWaitLastSRB = pSRB;
+		pDCB->pWaitingLastSRB = pSRB;
 	}
 }
 
+static u_int32_t
+trm_get_sense_bufaddr(PACB pACB, PSRB pSRB)
+{
+	int offset;
+
+	offset = pSRB->TagNumber;
+	return (pACB->sense_busaddr + 
+	    (offset * sizeof(struct scsi_sense_data)));
+}
+
+static struct scsi_sense_data *
+trm_get_sense_buf(PACB pACB, PSRB pSRB)
+{
+	int offset;
+
+	offset = pSRB->TagNumber;
+	return (&pACB->sense_buffers[offset]);
+}
 static void
-trm_ExecuteSRB(void *arg, bus_dma_segment_t *dm_segs, int nseg, int vp)
+trm_ExecuteSRB(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 {
 	int		flags;
 	PACB		pACB;
@@ -390,6 +427,7 @@ trm_ExecuteSRB(void *arg, bus_dma_segment_t *dm_segs, int nseg, int vp)
 	union ccb	*ccb;
 	u_long		totalxferlen=0;
 
+	flags = splcam();
 	pSRB = (PSRB)arg;
 	ccb = pSRB->pccb;
 	pACB = (PACB)ccb->ccb_h.ccb_trmacb_ptr;
@@ -397,15 +435,13 @@ trm_ExecuteSRB(void *arg, bus_dma_segment_t *dm_segs, int nseg, int vp)
 	if (nseg != 0) {
 		PSEG			psg;
 		bus_dma_segment_t	*end_seg;
-		bus_dmasync_op_t	op;
+		int			op;
 
 		/* Copy the segments into our SG list */
 		end_seg = dm_segs + nseg;
-		psg = (PSEG) &pSRB->SegmentX[0];
-		pSRB->SRBSGListPointer= psg;
+		psg = pSRB->pSRBSGL;
 		while (dm_segs < end_seg) {
-			psg->address = vp?(u_long)vtophys(dm_segs->ds_addr)
-			  :(u_long)dm_segs->ds_addr;
+			psg->address = dm_segs->ds_addr;
 			psg->length = (u_long)dm_segs->ds_len;
 			totalxferlen += dm_segs->ds_len;
 			psg++;
@@ -419,7 +455,7 @@ trm_ExecuteSRB(void *arg, bus_dma_segment_t *dm_segs, int nseg, int vp)
 		bus_dmamap_sync(pACB->buffer_dmat, pSRB->dmamap, op);
 	}
 	pSRB->RetryCnt = 0;
-	pSRB->SRBTotalXferLength=totalxferlen;
+	pSRB->SRBTotalXferLength = totalxferlen;
 	pSRB->SRBSGCount = nseg;
 	pSRB->SRBSGIndex = 0;
 	pSRB->AdaptStatus = 0;
@@ -430,7 +466,6 @@ trm_ExecuteSRB(void *arg, bus_dma_segment_t *dm_segs, int nseg, int vp)
 	pSRB->SRBState = 0;
 	pSRB->ScsiPhase = PH_BUS_FREE; /* SCSI bus free Phase */
 
-	flags = splcam();
 	if (ccb->ccb_h.status != CAM_REQ_INPROG) {
 		if (nseg != 0)
 			bus_dmamap_unload(pACB->buffer_dmat, pSRB->dmamap);
@@ -453,14 +488,12 @@ trm_ExecuteSRB(void *arg, bus_dma_segment_t *dm_segs, int nseg, int vp)
 static void
 trm_SendSRB(PACB pACB, PSRB pSRB)
 {
-	int	intflag;
 	PDCB	pDCB;
 
-	intflag = splcam();
 	pDCB = pSRB->pSRBDCB;
-	if (!(pDCB->MaxCommand > pDCB->GoingSRBCnt) || (pACB->pActiveDCB)
+	if (!(pDCB->MaxActiveCommandCnt > pDCB->GoingSRBCnt) || (pACB->pActiveDCB)
 	    || (pACB->ACBFlag & (RESET_DETECT+RESET_DONE+RESET_DEV))) {
-		TRM_DPRINTF("pDCB->MaxCommand=%d \n",pDCB->MaxCommand);        
+		TRM_DPRINTF("pDCB->MaxCommand=%d \n",pDCB->MaxActiveCommandCnt);        
 		TRM_DPRINTF("pDCB->GoingSRBCnt=%d \n",pDCB->GoingSRBCnt);
 		TRM_DPRINTF("pACB->pActiveDCB=%8x \n",(u_int)pACB->pActiveDCB);
 		TRM_DPRINTF("pACB->ACBFlag=%x \n",pACB->ACBFlag);
@@ -498,10 +531,6 @@ trm_SendSRB(PACB pACB, PSRB pSRB)
 		trm_RewaitSRB0(pDCB, pSRB);
 	}
 SND_EXIT:
-	splx(intflag);
-	/*
-	 *	enable interrupt
-	 */
 	return;
 }
 
@@ -510,10 +539,12 @@ static void
 trm_action(struct cam_sim *psim, union ccb *pccb) 
 {
 	PACB	pACB;
+	int	actionflags;
 	u_int	target_id,target_lun;
 
 	CAM_DEBUG(pccb->ccb_h.path, CAM_DEBUG_TRACE, ("trm_action\n"));
 
+	actionflags = splcam();
 	pACB = (PACB) cam_sim_softc(psim);
     	target_id  = pccb->ccb_h.target_id;
 	target_lun = pccb->ccb_h.target_lun;
@@ -539,7 +570,18 @@ trm_action(struct cam_sim *psim, union ccb *pccb)
 			TRM_DPRINTF(
 			    "pACB->scan_devices[target_id][target_lun]= %d \n"
 			    ,pACB->scan_devices[target_id][target_lun]);
-			pDCB = pACB->pDCB[target_id][target_lun];
+			if ((pccb->ccb_h.status & CAM_STATUS_MASK) !=
+			    CAM_REQ_INPROG) {
+				xpt_done(pccb);
+				splx(actionflags);
+				return;
+			}
+			pDCB = &pACB->DCBarray[target_id][target_lun];
+			if (!(pDCB->DCBstatus & DS_IN_QUEUE)) {
+				pACB->scan_devices[target_id][target_lun] = 1;
+				trm_initDCB(pACB, pDCB, pACB->AdapterUnit, 
+				    target_id, target_lun); 
+			}
 			/*
 			 * Assign an SRB and connect it with this ccb.
 			 */
@@ -548,6 +590,7 @@ trm_action(struct cam_sim *psim, union ccb *pccb)
 				/* Freeze SIMQ */
 				pccb->ccb_h.status = CAM_RESRC_UNAVAIL;
 				xpt_done(pccb);
+				splx(actionflags);
 				return;
 			}
 	    		pSRB->pSRBDCB = pDCB;
@@ -559,18 +602,31 @@ trm_action(struct cam_sim *psim, union ccb *pccb)
 			 * move layer of CAM command block to layer of SCSI
 			 * Request Block for SCSI processor command doing
 			 */
-			bcopy(pcsio->cdb_io.cdb_bytes,pSRB->CmdBlock
-			    ,pcsio->cdb_len);
+			if ((pccb->ccb_h.flags & CAM_CDB_POINTER) != 0) {
+				if ((pccb->ccb_h.flags & CAM_CDB_PHYS) == 0) {
+					bcopy(pcsio->cdb_io.cdb_ptr,pSRB->CmdBlock
+					    ,pcsio->cdb_len);
+				} else {
+					pccb->ccb_h.status = CAM_REQ_INVALID;
+					pSRB->pNextSRB = pACB->pFreeSRB;
+					pACB->pFreeSRB=  pSRB;
+					xpt_done(pccb);
+					splx(actionflags);
+					return;
+				}		
+			} else
+				bcopy(pcsio->cdb_io.cdb_bytes,
+				    pSRB->CmdBlock, pcsio->cdb_len);
 			if ((pccb->ccb_h.flags & CAM_DIR_MASK)
 			    != CAM_DIR_NONE) {
 				if ((pccb->ccb_h.flags &
 				      CAM_SCATTER_VALID) == 0) {
 					if ((pccb->ccb_h.flags 
 					      & CAM_DATA_PHYS) == 0) {
-						int flags;
+						int vmflags;
 						int error;
 
-						flags = splsoftvm();
+						vmflags = splsoftvm();
 						error = bus_dmamap_load(
 						    pACB->buffer_dmat,
 						    pSRB->dmamap,
@@ -586,7 +642,7 @@ trm_action(struct cam_sim *psim, union ccb *pccb)
 							pccb->ccb_h.status |=
 							  CAM_RELEASE_SIMQ;
 						}
-						splx(flags);
+						splx(vmflags);
 					} else {   
 						struct bus_dma_segment seg;
 
@@ -610,6 +666,7 @@ trm_action(struct cam_sim *psim, union ccb *pccb)
 						pccb->ccb_h.status = 
 						  CAM_PROVIDE_FAIL;
 						xpt_done(pccb);
+						splx(actionflags);
 						return;
 					}
 
@@ -652,6 +709,7 @@ trm_action(struct cam_sim *psim, union ccb *pccb)
 			cpi->max_lun = pACB->max_lun;        /* 7 or 0 */
 			cpi->initiator_id = pACB->AdaptSCSIID;
 			cpi->bus_id = cam_sim_bus(psim);
+			cpi->base_transfer_speed = 3300;
 			strncpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
 			strncpy(cpi->hba_vid, "Tekram_TRM", HBA_IDLEN);
 			strncpy(cpi->dev_name, cam_sim_name(psim), DEV_IDLEN);
@@ -781,7 +839,7 @@ trm_action(struct cam_sim *psim, union ccb *pccb)
 			
 			TRM_DPRINTF(" XPT_GET_TRAN_SETTINGS \n");
 	    		cts = &pccb->cts;
-			pDCB = pACB->pDCB[target_id][target_lun];
+			pDCB = &pACB->DCBarray[target_id][target_lun];
 			intflag = splcam();
 			/*
 			 * disable interrupt
@@ -847,7 +905,7 @@ trm_action(struct cam_sim *psim, union ccb *pccb)
 			if ((cts->flags & CCB_TRANS_USER_SETTINGS) != 0)
 				update_type |= TRM_TRANS_USER;
 			intflag = splcam();
-	    		pDCB = pACB->pDCB[target_id][target_lun];
+	    		pDCB = &pACB->DCBarray[target_id][target_lun];
 
 			if ((cts->valid & CCB_TRANS_DISC_VALID) != 0) {
 			  /*ccb disc enables */
@@ -928,17 +986,17 @@ trm_action(struct cam_sim *psim, union ccb *pccb)
 		 * Calculate the geometry parameters for a device give
 		 * the sector size and volume size. 
    		 */
-		case XPT_CALC_GEOMETRY:	{
+		case XPT_CALC_GEOMETRY: {
 			struct		ccb_calc_geometry *ccg;
-			u_int32_t	size_mb;
-			u_int32_t	secs_per_cylinder;
-			int		extended;
+                        u_int32_t	size_mb;
+                        u_int32_t	secs_per_cylinder;
+                        int		extended;
 
 			TRM_DPRINTF(" XPT_CALC_GEOMETRY \n");
 			ccg = &pccb->ccg;
-			size_mb = ccg->volume_size / 
+			size_mb = ccg->volume_size /
 			    ((1024L * 1024L) / ccg->block_size);
-			extended =  1;		
+			extended = 1;
 			if (size_mb > 1024 && extended) {
 				ccg->heads = 255;
 				ccg->secs_per_track = 63;
@@ -950,8 +1008,8 @@ trm_action(struct cam_sim *psim, union ccb *pccb)
 			ccg->cylinders = ccg->volume_size / secs_per_cylinder;
 			pccb->ccb_h.status = CAM_REQ_CMP;
 			xpt_done(pccb);
-					}
 			break;
+		}
 		case XPT_ENG_INQ:           
 			TRM_DPRINTF(" XPT_ENG_INQ \n");
 	    		pccb->ccb_h.status = CAM_REQ_INVALID;
@@ -1043,12 +1101,13 @@ trm_action(struct cam_sim *psim, union ccb *pccb)
 			xpt_done(pccb);
 			break;
 	}
+	splx(actionflags);
 }
 
 static void 
 trm_poll(struct cam_sim *psim)
 {       
-	trm_Interrupt(cam_sim_softc(psim)); 
+	trm_Interrupt(cam_sim_softc(psim));	
 }
 
 static void
@@ -1072,7 +1131,10 @@ trm_ResetDevParam(PACB pACB)
 		pDCB->AdpMode = pEEpromBuf->NvramChannelCfg;
 		PeriodIndex =
 		   pEEpromBuf->NvramTarget[pDCB->TargetID].NvmTarPeriod & 0x07;
-		pDCB->MaxNegoPeriod = dc395x_trm_clock_period[PeriodIndex];
+		if (pACB->AdaptType == 1) /* is U2? */
+			pDCB->MaxNegoPeriod = dc395u2x_clock_period[PeriodIndex];
+		else
+			pDCB->MaxNegoPeriod = dc395x_clock_period[PeriodIndex];
 		if ((pDCB->DevMode & NTC_DO_WIDE_NEGO) && 
 		    (pACB->Config & HCC_WIDE_CARD))
 			pDCB->SyncMode |= WIDE_NEGO_ENABLE;
@@ -1103,13 +1165,12 @@ trm_RecoverSRB(PACB pACB)
 				pdcb->pWaitingSRB = psrb2;
 			} else {
 				pdcb->pWaitingSRB = psrb2;
-				pdcb->pWaitLastSRB = psrb2;
+				pdcb->pWaitingLastSRB = psrb2;
 				psrb2->pNextSRB = NULL;
 			}
 		}
 		pdcb->GoingSRBCnt = 0;
 		pdcb->pGoingSRB = NULL;
-		pdcb->TagMask = 0;
 		pdcb = pdcb->pNextDCB;
 	}
 	while (pdcb != pDCB);
@@ -1152,15 +1213,13 @@ static u_int16_t
 trm_StartSCSI(PACB pACB, PDCB pDCB, PSRB pSRB)
 {
 	u_int16_t	return_code;
-	u_int8_t	tag_number, scsicommand, i,command,identify_message;
+	u_int8_t	scsicommand, i,command,identify_message;
 	u_int8_t *	ptr;
-	u_long		tag_mask;
 	union  ccb	*pccb;
 	struct ccb_scsiio *pcsio;
 
 	pccb  = pSRB->pccb;
 	pcsio = &pccb->csio;
-	pSRB->TagNumber = 31;
 
 	trm_reg_write8(pACB->AdaptSCSIID, TRMREG_SCSI_HOSTID);
 	trm_reg_write8(pDCB->TargetID, TRMREG_SCSI_TARGETID);
@@ -1176,7 +1235,7 @@ trm_StartSCSI(PACB pACB, PDCB pDCB, PSRB pSRB)
 	    (pSRB->CmdBlock[0] == REQUEST_SENSE) ||
 	    (pSRB->SRBFlag & AUTO_REQSENSE)) {
 		if (((pDCB->SyncMode & WIDE_NEGO_ENABLE) &&
-		      !(pDCB->SyncMode & WIDE_NEGO_DONE)) \
+		      !(pDCB->SyncMode & WIDE_NEGO_DONE)) 
 		|| ((pDCB->SyncMode & SYNC_NEGO_ENABLE) &&
 		  !(pDCB->SyncMode & SYNC_NEGO_DONE))) {
 			if (!(pDCB->IdentifyMsg & 7) ||
@@ -1202,24 +1261,9 @@ trm_StartSCSI(PACB pACB, PDCB pDCB, PSRB pSRB)
 		pSRB->SRBState = SRB_START_;
 		if (pDCB->SyncMode & EN_TAG_QUEUING) {
 		  /* Send Tag message */
-	      	  /* 
-	       	   * Get tag id
-   		   */
-			tag_mask = 1;
-			tag_number = 0;
-			while (tag_mask & pDCB->TagMask) {
-				tag_mask = tag_mask << 1;
-				tag_number++;
-			}
-			/* 
-			 * Send Tag id
-			 */
-			trm_reg_write8(MSG_SIMPLE_QTAG, TRMREG_SCSI_FIFO);
-			trm_reg_write8(tag_number, TRMREG_SCSI_FIFO);
-			pDCB->TagMask |= tag_mask;
-			pSRB->TagNumber = tag_number;
+ 			trm_reg_write8(MSG_SIMPLE_QTAG, TRMREG_SCSI_FIFO);
+			trm_reg_write8(pSRB->TagNumber, TRMREG_SCSI_FIFO);
 			scsicommand = SCMD_SEL_ATN3;
-			pSRB->SRBState = SRB_START_;
 		}
 	}
 polling:
@@ -1248,7 +1292,6 @@ polling:
      	     * SCSI processor has been occupied by one SRB.
 	     */
 		pSRB->SRBState = SRB_READY;
-		pDCB->TagMask &= ~(1 << pSRB->TagNumber);
 		return_code = 1;
 	} else { 
 	  /* 
@@ -1278,15 +1321,11 @@ void *vpACB;
 	PDCB		pDCB;
 	PSRB		pSRB;
 	u_int16_t	phase;
-	void		(*stateV)(PACB, PSRB, u_int8_t *);
-	u_int8_t	scsi_status=0, scsi_intstatus;
+	void		(*stateV)(PACB, PSRB, u_int16_t *);
+	u_int16_t	scsi_status=0;
+	u_int8_t	scsi_intstatus;
 
 	pACB = vpACB;
-
-	if (pACB == NULL) {
-		TRM_DPRINTF("trm_Interrupt: pACB NULL return......");
-	    	return;
-	}
 
 	scsi_status = trm_reg_read16(TRMREG_SCSI_STATUS);
 	if (!(scsi_status & SCSIINTERRUPT)) {
@@ -1315,11 +1354,10 @@ void *vpACB;
 
 	if (scsi_intstatus & (INT_BUSSERVICE | INT_CMDDONE)) {
 		pDCB = pACB->pActiveDCB;
+		KASSERT(pDCB != NULL, ("no active DCB"));
 		pSRB = pDCB->pActiveSRB;
-		if (pDCB) {
-			if (pDCB->DCBFlag & ABORT_DEV_)
+		if (pDCB->DCBFlag & ABORT_DEV_)
 				trm_EnableMsgOutAbort1(pACB, pSRB);
-		}
 		phase = (u_int16_t) pSRB->ScsiPhase;  /* phase: */
 		stateV = (void *) trm_SCSI_phase0[phase];
 		stateV(pACB, pSRB, &scsi_status);
@@ -1332,7 +1370,7 @@ void *vpACB;
 }
 
 static void
-trm_MsgOutPhase0(PACB pACB, PSRB pSRB, u_int8_t *pscsi_status)
+trm_MsgOutPhase0(PACB pACB, PSRB pSRB, u_int16_t *pscsi_status)
 {
 
 	if (pSRB->SRBState & (SRB_UNEXPECT_RESEL+SRB_ABORT_SENT))
@@ -1341,7 +1379,7 @@ trm_MsgOutPhase0(PACB pACB, PSRB pSRB, u_int8_t *pscsi_status)
 }
 
 static void
-trm_MsgOutPhase1(PACB pACB, PSRB pSRB, u_int8_t *pscsi_status)
+trm_MsgOutPhase1(PACB pACB, PSRB pSRB, u_int16_t *pscsi_status)
 {
 	u_int8_t	bval;
 	u_int16_t	i, cnt;
@@ -1409,7 +1447,8 @@ mop1:   /* message out phase */
 		  /* SYNCHRONOUS DATA TRANSFER REQUEST code (01h) */
 			trm_reg_write8(pDCB->MaxNegoPeriod,TRMREG_SCSI_FIFO);
 		  /* Transfer peeriod factor */
-			trm_reg_write8(SYNC_NEGO_OFFSET,TRMREG_SCSI_FIFO); 
+			trm_reg_write8((pACB->AdaptType == 1) ? 31 : 15,
+			    TRMREG_SCSI_FIFO); 
 		  /* REQ/ACK offset */
 			pSRB->SRBState |= SRB_DO_SYNC_NEGO;
 		}
@@ -1423,13 +1462,13 @@ mop1:   /* message out phase */
 }
 
 static void 
-trm_CommandPhase0(PACB pACB, PSRB pSRB, u_int8_t *pscsi_status)
+trm_CommandPhase0(PACB pACB, PSRB pSRB, u_int16_t *pscsi_status)
 {
 
 }
 
 static void 
-trm_CommandPhase1(PACB pACB, PSRB pSRB, u_int8_t *pscsi_status)
+trm_CommandPhase1(PACB pACB, PSRB pSRB, u_int16_t *pscsi_status)
 {
 	PDCB			pDCB;
 	u_int8_t *		ptr;
@@ -1469,7 +1508,7 @@ trm_CommandPhase1(PACB pACB, PSRB pSRB, u_int8_t *pscsi_status)
 }
 
 static void
-trm_DataOutPhase0(PACB pACB, PSRB pSRB, u_int8_t *pscsi_status)
+trm_DataOutPhase0(PACB pACB, PSRB pSRB, u_int16_t *pscsi_status)
 {
 	PDCB		pDCB;
 	u_int8_t	TempDMAstatus,SGIndexTemp;
@@ -1489,7 +1528,7 @@ trm_DataOutPhase0(PACB pACB, PSRB pSRB, u_int8_t *pscsi_status)
 		   * if there was some data left in SCSI FIFO
 		   */
   			dLeftCounter = (u_long) 
-			  (trm_reg_read8(TRMREG_SCSI_FIFOCNT) & 0x1F);
+			  (trm_reg_read8(TRMREG_SCSI_FIFOCNT) & 0x3F);
 			if (pDCB->SyncPeriod & WIDE_SYNC) {
 			  /*
 		   	   * if WIDE scsi SCSI FIFOCNT unit is word
@@ -1542,7 +1581,7 @@ trm_DataOutPhase0(PACB pACB, PSRB pSRB, u_int8_t *pscsi_status)
 				 * parsing from last time disconnect SRBSGIndex
 				 */
 				pseg = 
-				  pSRB->SRBSGListPointer + pSRB->SRBSGIndex;
+				  pSRB->pSRBSGL + pSRB->SRBSGIndex;
 				for (SGIndexTemp = pSRB->SRBSGIndex;
 				    SGIndexTemp < pSRB->SRBSGCount; 
 				    SGIndexTemp++) {
@@ -1578,7 +1617,7 @@ trm_DataOutPhase0(PACB pACB, PSRB pSRB, u_int8_t *pscsi_status)
 
 
 static void
-trm_DataOutPhase1(PACB pACB, PSRB pSRB, u_int8_t *pscsi_status)
+trm_DataOutPhase1(PACB pACB, PSRB pSRB, u_int16_t *pscsi_status)
 {
 	u_int16_t	ioDir;
 	/*
@@ -1590,9 +1629,9 @@ trm_DataOutPhase1(PACB pACB, PSRB pSRB, u_int8_t *pscsi_status)
 }
 
 static void 
-trm_DataInPhase0(PACB pACB, PSRB pSRB, u_int8_t *pscsi_status)
+trm_DataInPhase0(PACB pACB, PSRB pSRB, u_int16_t *pscsi_status)
 {
-	u_int8_t	bval,SGIndexTemp;
+	u_int8_t	TempDMAstatus, SGIndexTemp;
 	u_int16_t	scsi_status;
 	PSEG		pseg;
 	u_long		TempSRBXferredLength,dLeftCounter = 0;
@@ -1603,9 +1642,9 @@ trm_DataInPhase0(PACB pACB, PSRB pSRB, u_int8_t *pscsi_status)
 			pSRB->SRBStatus |= PARITY_ERROR;
 		dLeftCounter += trm_reg_read32(TRMREG_SCSI_COUNTER);
 		if ((dLeftCounter == 0) || (scsi_status & SCSIXFERCNT_2_ZERO)) {
-			bval = trm_reg_read8(TRMREG_DMA_STATUS);
-			while (!(bval & DMAXFERCOMP))
-				bval = trm_reg_read8(TRMREG_DMA_STATUS);
+			TempDMAstatus = trm_reg_read8(TRMREG_DMA_STATUS);
+			while (!(TempDMAstatus & DMAXFERCOMP))
+				TempDMAstatus = trm_reg_read8(TRMREG_DMA_STATUS);
 			pSRB->SRBTotalXferLength = 0;
 		} else {  
 	  	  /*
@@ -1629,7 +1668,7 @@ trm_DataInPhase0(PACB pACB, PSRB pSRB, u_int8_t *pscsi_status)
 				/*
 				 * parsing from last time disconnect SRBSGIndex
 				 */
-			pseg = pSRB->SRBSGListPointer + pSRB->SRBSGIndex;
+			pseg = pSRB->pSRBSGL + pSRB->SRBSGIndex;
 			for (SGIndexTemp = pSRB->SRBSGIndex; 
 			    SGIndexTemp < pSRB->SRBSGCount;
 			    SGIndexTemp++) {
@@ -1657,7 +1696,7 @@ trm_DataInPhase0(PACB pACB, PSRB pSRB, u_int8_t *pscsi_status)
 }
 
 static void
-trm_DataInPhase1(PACB pACB, PSRB pSRB, u_int8_t *pscsi_status)
+trm_DataInPhase1(PACB pACB, PSRB pSRB, u_int16_t *pscsi_status)
 {
 	u_int16_t	ioDir;
 	/*
@@ -1677,11 +1716,19 @@ trm_DataIO_transfer(PACB pACB, PSRB pSRB, u_int16_t ioDir)
 	pDCB = pSRB->pSRBDCB;
 	if (pSRB->SRBSGIndex < pSRB->SRBSGCount) {
 		if (pSRB->SRBTotalXferLength != 0) {
-			pSRB->SRBSGPhyAddr = vtophys(pSRB->SRBSGListPointer);
 			/* 
 			 * load what physical address of Scatter/Gather list 
 			 table want to be transfer
 			 */
+			TRM_DPRINTF(" SG->address=%8x \n",pSRB->pSRBSGL->address);
+			TRM_DPRINTF(" SG->length=%8x \n",pSRB->pSRBSGL->length);
+			TRM_DPRINTF(" pDCB->SyncPeriod=%x \n",pDCB->SyncPeriod);
+			TRM_DPRINTF(" pSRB->pSRBSGL=%8x \n",(unsigned int)pSRB->pSRBSGL);
+			TRM_DPRINTF(" pSRB->SRBSGPhyAddr=%8x \n",pSRB->SRBSGPhyAddr);
+			TRM_DPRINTF(" pSRB->SRBSGIndex=%d \n",pSRB->SRBSGIndex);
+			TRM_DPRINTF(" pSRB->SRBSGCount=%d \n",pSRB->SRBSGCount);
+			TRM_DPRINTF(" pSRB->SRBTotalXferLength=%d \n",pSRB->SRBTotalXferLength);
+
 			pSRB->SRBState = SRB_DATA_XFER;
 			trm_reg_write32(0, TRMREG_DMA_XHIGHADDR);
 			trm_reg_write32(
@@ -1740,7 +1787,7 @@ trm_DataIO_transfer(PACB pACB, PSRB pSRB, u_int16_t ioDir)
 }
 
 static void
-trm_StatusPhase0(PACB pACB, PSRB pSRB, u_int8_t *pscsi_status)
+trm_StatusPhase0(PACB pACB, PSRB pSRB, u_int16_t *pscsi_status)
 {
 
 	pSRB->TargetStatus = trm_reg_read8(TRMREG_SCSI_FIFO);
@@ -1758,7 +1805,7 @@ trm_StatusPhase0(PACB pACB, PSRB pSRB, u_int8_t *pscsi_status)
 
 
 static void
-trm_StatusPhase1(PACB pACB, PSRB pSRB, u_int8_t *pscsi_status)
+trm_StatusPhase1(PACB pACB, PSRB pSRB, u_int16_t *pscsi_status)
 {
 
 	if (trm_reg_read16(TRMREG_DMA_COMMAND) & 0x0001) {
@@ -1800,7 +1847,7 @@ trm_StatusPhase1(PACB pACB, PSRB pSRB, u_int8_t *pscsi_status)
  */
 
 static void
-trm_MsgInPhase0(PACB pACB, PSRB pSRB, u_int8_t *pscsi_status)
+trm_MsgInPhase0(PACB pACB, PSRB pSRB, u_int16_t *pscsi_status)
 {
 	u_int8_t	message_in_code,bIndex,message_in_tag_id;
 	PDCB		pDCB;
@@ -1812,9 +1859,23 @@ trm_MsgInPhase0(PACB pACB, PSRB pSRB, u_int8_t *pscsi_status)
 	if (!(pSRB->SRBState & SRB_EXTEND_MSGIN)) {
 		if (message_in_code == MSG_DISCONNECT) {
 			pSRB->SRBState = SRB_DISCONNECT;
-			goto  min6;
+			*pscsi_status = PH_BUS_FREE; /* .. initial phase */
+			/* it's important for atn stop */
+			trm_reg_write16(DO_DATALATCH, TRMREG_SCSI_CONTROL);
+			/*
+			 * SCSI command
+			 */
+			trm_reg_write8(SCMD_MSGACCEPT, TRMREG_SCSI_COMMAND);
+			return;
 		} else if (message_in_code == MSG_SAVE_PTR) {
-			goto  min6;
+			*pscsi_status = PH_BUS_FREE; /* .. initial phase */
+			/* it's important for atn stop */
+			trm_reg_write16(DO_DATALATCH, TRMREG_SCSI_CONTROL);
+			/*
+			 * SCSI command
+			 */
+			trm_reg_write8(SCMD_MSGACCEPT, TRMREG_SCSI_COMMAND);
+			return;
 		} else if ((message_in_code == MSG_EXTENDED) ||
 		    ((message_in_code >= MSG_SIMPLE_QTAG) &&
 		     (message_in_code <= MSG_ORDER_QTAG))) {
@@ -1824,7 +1885,14 @@ trm_MsgInPhase0(PACB pACB, PSRB pSRB, u_int8_t *pscsi_status)
 			pSRB->MsgCnt = 1;
 			pSRB->pMsgPtr = &pSRB->MsgInBuf[1];
 			/* extended message length (n) */
-			goto  min6;
+			*pscsi_status = PH_BUS_FREE; /* .. initial phase */
+			/* it's important for atn stop */
+			trm_reg_write16(DO_DATALATCH, TRMREG_SCSI_CONTROL);
+			/*
+			 * SCSI command
+			 */
+			trm_reg_write8(SCMD_MSGACCEPT, TRMREG_SCSI_COMMAND);
+			return;
 		} else if (message_in_code == MSG_REJECT_) {
 			/* Reject message */
 			if (pDCB->SyncMode & WIDE_NEGO_ENABLE) {
@@ -1856,20 +1924,50 @@ trm_MsgInPhase0(PACB pACB, PSRB pSRB, u_int8_t *pscsi_status)
 					  ~(SYNC_NEGO_ENABLE+SYNC_NEGO_DONE); 
 					pDCB->SyncPeriod = 0;
 					pDCB->SyncOffset = 0;
-					goto  re_prog;
+					/*               
+					 *
+					 *   program SCSI control register
+					 *
+					 */
+					trm_reg_write8(pDCB->SyncPeriod,
+					    TRMREG_SCSI_SYNC);
+					trm_reg_write8(pDCB->SyncOffset,
+					    TRMREG_SCSI_OFFSET);
+					trm_SetXferRate(pACB,pSRB,pDCB);
 				}
 			}
-			goto  min6;
+			*pscsi_status = PH_BUS_FREE; /* .. initial phase */
+			/* it's important for atn stop */
+			trm_reg_write16(DO_DATALATCH, TRMREG_SCSI_CONTROL);
+			/*
+			 * SCSI command
+			 */
+			trm_reg_write8(SCMD_MSGACCEPT, TRMREG_SCSI_COMMAND);
+			return;
 		} else if (message_in_code == MSG_IGNOREWIDE) {
 			trm_reg_write32(1, TRMREG_SCSI_COUNTER);
 			trm_reg_read8(TRMREG_SCSI_FIFO);
-			goto  min6;
+			*pscsi_status = PH_BUS_FREE; /* .. initial phase */
+			/* it's important for atn stop */
+			trm_reg_write16(DO_DATALATCH, TRMREG_SCSI_CONTROL);
+			/*
+			 * SCSI command
+			 */
+			trm_reg_write8(SCMD_MSGACCEPT, TRMREG_SCSI_COMMAND);
+			return;
 		} else {
 	  	  /* Restore data pointer message */
   		  /* Save data pointer message	  */
 		  /* Completion message		  */
 		  /* NOP message       	          */
-			goto  min6;
+			*pscsi_status = PH_BUS_FREE; /* .. initial phase */
+			/* it's important for atn stop */
+			trm_reg_write16(DO_DATALATCH, TRMREG_SCSI_CONTROL);
+			/*
+			 * SCSI command
+			 */
+			trm_reg_write8(SCMD_MSGACCEPT, TRMREG_SCSI_COMMAND);
+			return;
 		}
 	} else {	
 	  /* 
@@ -1916,13 +2014,15 @@ trm_MsgInPhase0(PACB pACB, PSRB pSRB, u_int8_t *pscsi_status)
 						trm_EnableMsgOutAbort1(
 						    pACB, pSRB);
 					}
-					if (!(pSRB->SRBState & SRB_DISCONNECT))
+					if (!(pSRB->SRBState & SRB_DISCONNECT)) {
+						TRM_DPRINTF("SRB not yet disconnect........ \n ");
 						goto  mingx0;
+					}
 					pDCB->pActiveSRB = pSRB;
 					pSRB->SRBState = SRB_DATA_XFER;
 				} else {
 mingx0:
-	     				pSRB = pACB->pTmpSRB;
+	     				pSRB = &pACB->TmpSRB;
 					pSRB->SRBState = SRB_UNEXPECT_RESEL;
 					pDCB->pActiveSRB = pSRB;
 					pSRB->MsgOutBuf[0] = MSG_ABORT_TAG;
@@ -1931,6 +2031,15 @@ mingx0:
 					    pSRB);
 				}
 			}
+			*pscsi_status = PH_BUS_FREE;
+			/* .. initial phase */
+			trm_reg_write16(DO_DATALATCH, TRMREG_SCSI_CONTROL);
+			/* it's important for atn stop */
+			/*
+			 * SCSI command 
+			 */
+			trm_reg_write8(SCMD_MSGACCEPT, TRMREG_SCSI_COMMAND);
+			return;
 		} else if ((pSRB->MsgInBuf[0] == MSG_EXTENDED) &&
 		    (pSRB->MsgInBuf[2] == 3) && (pSRB->MsgCnt == 4)) {
 		  /*
@@ -1952,7 +2061,14 @@ mingx0:
 				pSRB->MsgCnt = 1;
 				pSRB->MsgInBuf[0] = MSG_REJECT_;
 				trm_reg_write16(DO_SETATN, TRMREG_SCSI_CONTROL);
-				goto  min6;
+				*pscsi_status = PH_BUS_FREE; /* .. initial phase */
+				/* it's important for atn stop */
+				trm_reg_write16(DO_DATALATCH, TRMREG_SCSI_CONTROL);
+				/*
+				 * SCSI command
+				 */
+				trm_reg_write8(SCMD_MSGACCEPT, TRMREG_SCSI_COMMAND);
+				return;
 			}
 			if (pDCB->SyncMode & WIDE_NEGO_ENABLE) {		
 			  /* Do wide negoniation */
@@ -1965,7 +2081,14 @@ mingx0:
 					pSRB->MsgInBuf[0] = MSG_REJECT_;
 					trm_reg_write16(DO_SETATN,
 					    TRMREG_SCSI_CONTROL);
-					goto  min6;
+					*pscsi_status = PH_BUS_FREE; /* .. initial phase */
+					/* it's important for atn stop */
+					trm_reg_write16(DO_DATALATCH, TRMREG_SCSI_CONTROL);
+					/*
+					 * SCSI command
+					 */
+					trm_reg_write8(SCMD_MSGACCEPT, TRMREG_SCSI_COMMAND);
+					return;
 				}
 				if (pSRB->MsgInBuf[3] == 2) {
 					pSRB->MsgInBuf[3] = 1;
@@ -1996,7 +2119,14 @@ mingx0:
 				pSRB->MsgInBuf[3] = 0;
 			pSRB->SRBState |= SRB_MSGOUT;
 			trm_reg_write16(DO_SETATN,TRMREG_SCSI_CONTROL);
-			goto  min6;
+			*pscsi_status = PH_BUS_FREE; /* .. initial phase */
+			/* it's important for atn stop */
+			trm_reg_write16(DO_DATALATCH, TRMREG_SCSI_CONTROL);
+			/*
+			 * SCSI command
+			 */
+			trm_reg_write8(SCMD_MSGACCEPT, TRMREG_SCSI_COMMAND);
+			return;
 		} else if ((pSRB->MsgInBuf[0] == MSG_EXTENDED) &&
 		    (pSRB->MsgInBuf[2] == 1) && (pSRB->MsgCnt == 5)) {
 			/*
@@ -2017,6 +2147,15 @@ mingx0:
 				pSRB->MsgCnt = 1;
 				pSRB->MsgInBuf[0] = MSG_REJECT_;
 				trm_reg_write16(DO_SETATN, TRMREG_SCSI_CONTROL);
+				*pscsi_status = PH_BUS_FREE;
+				/* .. initial phase */
+				trm_reg_write16(DO_DATALATCH, TRMREG_SCSI_CONTROL);
+				/* it's important for atn stop */
+				/*
+				 * SCSI cammand 
+				 */
+				trm_reg_write8(SCMD_MSGACCEPT, TRMREG_SCSI_COMMAND);
+				return;
 			} else if (!(pSRB->MsgInBuf[3]) || !(pSRB->MsgInBuf[4])) {
 				/* set async */
 				pDCB = pSRB->pSRBDCB;
@@ -2031,7 +2170,23 @@ mingx0:
 				pDCB->tinfo.current.offset = 0;
 				pDCB->tinfo.current.width = 
 				  MSG_EXT_WDTR_BUS_8_BIT;
-				goto  re_prog;
+				/*               
+				 *
+				 *   program SCSI control register
+				 *
+				 */
+				trm_reg_write8(pDCB->SyncPeriod,TRMREG_SCSI_SYNC);
+				trm_reg_write8(pDCB->SyncOffset,TRMREG_SCSI_OFFSET);
+				trm_SetXferRate(pACB,pSRB,pDCB);
+				*pscsi_status = PH_BUS_FREE;
+				/* .. initial phase */
+				trm_reg_write16(DO_DATALATCH, TRMREG_SCSI_CONTROL);
+				/* it's important for atn stop */
+				/*
+				 * SCSI cammand 
+				 */
+				trm_reg_write8(SCMD_MSGACCEPT, TRMREG_SCSI_COMMAND);
+				return;
 			} else {
 				/* set sync */
 				pDCB = pSRB->pSRBDCB;
@@ -2041,20 +2196,40 @@ mingx0:
 				/* Transfer period factor */
 				pDCB->SyncOffset = pSRB->MsgInBuf[4]; 
 				/* REQ/ACK offset */
-				for (bIndex = 0; bIndex < 7; bIndex++) {
-				  if (pSRB->MsgInBuf[3] <=
-				      dc395x_trm_clock_period[bIndex]) {
-				  	break;
-				  }
+				if (pACB->AdaptType == 1) {
+					for(bIndex = 0; bIndex < 7; bIndex++) {
+						if (pSRB->MsgInBuf[3] <=
+					   dc395u2x_clock_period[bIndex]) {
+				            pDCB->tinfo.goal.period =
+						dc395u2x_tinfo_period[bIndex];
+				            pDCB->tinfo.current.period =
+						dc395u2x_tinfo_period[bIndex];
+			                pDCB->tinfo.goal.offset = 
+					    pDCB->SyncOffset;
+					pDCB->tinfo.current.offset = 
+					    pDCB->SyncOffset;
+					pDCB->SyncPeriod |= (bIndex|LVDS_SYNC);
+					break;
+						}
+					}
+				} else {
+					for(bIndex = 0; bIndex < 7; bIndex++) {
+						if (pSRB->MsgInBuf[3] <=
+						 dc395x_clock_period[bIndex]) {
+						   pDCB->tinfo.goal.period =
+						dc395x_tinfo_period[bIndex];
+						   pDCB->tinfo.current.period =
+						dc395x_tinfo_period[bIndex];
+						   pDCB->tinfo.goal.offset =
+						pDCB->SyncOffset;
+						   pDCB->tinfo.current.offset =
+					     	       pDCB->SyncOffset;
+					     	   pDCB->SyncPeriod |=
+				     		       (bIndex|ALT_SYNC);
+			     			   break;
+						}
+					}
 				}
-				pDCB->tinfo.goal.period =
-				  dc395x_trm_tinfo_sync_period[bIndex];
-				pDCB->tinfo.current.period = 
-				  dc395x_trm_tinfo_sync_period[bIndex];
-				pDCB->tinfo.goal.offset = pDCB->SyncOffset;
-				pDCB->tinfo.current.offset = pDCB->SyncOffset;
-				pDCB->SyncPeriod |= (bIndex | ALT_SYNC);
-re_prog:
 				/*               
 				 *
 	 			 *   program SCSI control register
@@ -2065,10 +2240,15 @@ re_prog:
 				trm_reg_write8(pDCB->SyncOffset,
 				    TRMREG_SCSI_OFFSET);
 				trm_SetXferRate(pACB,pSRB,pDCB);
+				*pscsi_status=PH_BUS_FREE;/*.. initial phase*/
+				trm_reg_write16(DO_DATALATCH,TRMREG_SCSI_CONTROL);/* it's important for atn stop*/
+	            /*
+	            ** SCSI command 
+	            */
+				trm_reg_write8(SCMD_MSGACCEPT,TRMREG_SCSI_COMMAND);
+				return;
 			}
 		}
-	}
-min6:
 	*pscsi_status = PH_BUS_FREE;
 	/* .. initial phase */
 	trm_reg_write16(DO_DATALATCH, TRMREG_SCSI_CONTROL);
@@ -2077,10 +2257,11 @@ min6:
 	 * SCSI cammand 
 	 */
 	trm_reg_write8(SCMD_MSGACCEPT, TRMREG_SCSI_COMMAND);
+	}
 }
 
 static void
-trm_MsgInPhase1(PACB pACB, PSRB pSRB, u_int8_t *pscsi_status)
+trm_MsgInPhase1(PACB pACB, PSRB pSRB, u_int16_t *pscsi_status)
 {
 
 	trm_reg_write16(DO_CLRFIFO, TRMREG_SCSI_CONTROL);
@@ -2098,13 +2279,13 @@ trm_MsgInPhase1(PACB pACB, PSRB pSRB, u_int8_t *pscsi_status)
 }
 
 static void
-trm_Nop0(PACB pACB, PSRB pSRB, u_int8_t *pscsi_status)
+trm_Nop0(PACB pACB, PSRB pSRB, u_int16_t *pscsi_status)
 {
 
 }
 
 static void
-trm_Nop1(PACB pACB, PSRB pSRB, u_int8_t *pscsi_status)
+trm_Nop1(PACB pACB, PSRB pSRB, u_int16_t *pscsi_status)
 {
 
 }
@@ -2112,31 +2293,33 @@ trm_Nop1(PACB pACB, PSRB pSRB, u_int8_t *pscsi_status)
 static void
 trm_SetXferRate(PACB pACB,PSRB pSRB, PDCB pDCB)
 {
+	union ccb	*pccb;
+	struct ccb_trans_settings neg;
 	u_int16_t	cnt, i;
 	u_int8_t	bval;
 	PDCB		pDCBTemp;
-	u_int		target_id,target_lun;
 
 	/*
 	 * set all lun device's  period , offset
 	 */
-	target_id  = pSRB->pccb->ccb_h.target_id;
-	target_lun = pSRB->pccb->ccb_h.target_lun;
-	TRM_DPRINTF("trm_SetXferRate:target_id= %d ,target_lun= %d \n"
-	    ,target_id,target_lun);
+	TRM_DPRINTF("trm_SetXferRate\n");
+	pccb = pSRB->pccb;
+	neg.sync_period = pDCB->tinfo.goal.period;
+	neg.sync_offset = pDCB->tinfo.goal.offset;
+	neg.valid = CCB_TRANS_SYNC_RATE_VALID | CCB_TRANS_SYNC_OFFSET_VALID;
+	xpt_setup_ccb(&neg.ccb_h, pccb->ccb_h.path, /* priority */1);
+	xpt_async(AC_TRANSFER_NEG, pccb->ccb_h.path, &neg);
 	if (!(pDCB->IdentifyMsg & 0x07)) {
-		if (!pACB->scan_devices[target_id][target_lun]) {
-			pDCBTemp = pACB->pLinkDCB;
-			cnt = pACB->DeviceCnt;
-			bval = pDCB->TargetID;
-			for (i = 0; i < cnt; i++) {
-				if (pDCBTemp->TargetID == bval) {
-					pDCBTemp->SyncPeriod = pDCB->SyncPeriod;
-					pDCBTemp->SyncOffset = pDCB->SyncOffset;
-					pDCBTemp->SyncMode = pDCB->SyncMode;
-				}
-				pDCBTemp = pDCBTemp->pNextDCB;
+		pDCBTemp = pACB->pLinkDCB;
+		cnt = pACB->DeviceCnt;
+		bval = pDCB->TargetID;
+		for (i = 0; i < cnt; i++) {
+			if (pDCBTemp->TargetID == bval) {
+				pDCBTemp->SyncPeriod = pDCB->SyncPeriod;
+				pDCBTemp->SyncOffset = pDCB->SyncOffset;
+				pDCBTemp->SyncMode = pDCB->SyncMode;
 			}
+			pDCBTemp = pDCBTemp->pNextDCB;
 		}
 	}
 	return;
@@ -2164,14 +2347,11 @@ trm_Disconnect(PACB pACB)
 {
 	PDCB		pDCB;
 	PSRB		pSRB, psrb;
-	int		intflag;
 	u_int16_t	i,j, cnt;
-	u_int8_t	bval;
 	u_int		target_id,target_lun;
 	
 	TRM_DPRINTF("trm_Disconnect...............\n ");
 	
-	intflag = splcam();
        	pDCB = pACB->pActiveDCB;
 	if (!pDCB) {
 		TRM_DPRINTF(" Exception Disconnect DCB=NULL..............\n ");
@@ -2196,7 +2376,6 @@ trm_Disconnect(PACB pACB)
 		pSRB->SRBState = 0;
 		trm_DoWaitingSRB(pACB);
 	} else if (pSRB->SRBState & SRB_ABORT_SENT) {
-		pDCB->TagMask = 0;
 		pDCB->DCBFlag = 0;
 		cnt = pDCB->GoingSRBCnt;
 		pDCB->GoingSRBCnt = 0;
@@ -2213,7 +2392,9 @@ trm_Disconnect(PACB pACB)
 		if ((pSRB->SRBState & (SRB_START_+SRB_MSGOUT)) || 
 		    !(pSRB->SRBState & (SRB_DISCONNECT+SRB_COMPLETED))) {
 		  /* Selection time out */
-			if (!(pACB->scan_devices[target_id][target_lun])) {
+			if (!(pACB->scan_devices[target_id][target_lun]) &&
+			    pSRB->CmdBlock[0] != 0x00 && /* TEST UNIT READY */
+			    pSRB->CmdBlock[0] != INQUIRY) {
 				pSRB->SRBState = SRB_READY;
 				trm_RewaitSRB(pDCB, pSRB);
 			} else {
@@ -2230,17 +2411,11 @@ disc1:
 		  /*
 		   * SRB_COMPLETED
 		   */
-			if (pDCB->MaxCommand > 1) {
-				bval = pSRB->TagNumber;
-				pDCB->TagMask &= (~(1 << bval));
-				/* free tag mask */
-			}
 			pDCB->pActiveSRB = 0;
 			pSRB->SRBState = SRB_FREE;
 			trm_SRBdone(pACB, pDCB, pSRB);
 		}
 	}
-	splx(intflag);
 	return;
 }
 
@@ -2269,7 +2444,7 @@ trm_Reselect(PACB pACB)
 
 	pACB->pActiveDCB = pDCB;
 	if (pDCB->SyncMode & EN_TAG_QUEUING) {
-		pSRB = pACB->pTmpSRB;
+		pSRB = &pACB->TmpSRB;
 		pDCB->pActiveSRB = pSRB;
 	} else {
 		pSRB = pDCB->pActiveSRB;
@@ -2277,7 +2452,7 @@ trm_Reselect(PACB pACB)
 		  /*
 	   	   * abort command
    		   */
-			pSRB = pACB->pTmpSRB;
+			pSRB = &pACB->TmpSRB;
 			pSRB->SRBState = SRB_UNEXPECT_RESEL;
 			pDCB->pActiveSRB = pSRB;
 			trm_EnableMsgOutAbort1(pACB, pSRB);
@@ -2361,10 +2536,13 @@ trm_SRBdone(PACB pACB, PDCB pDCB, PSRB pSRB)
 		*((u_long *) &(pSRB->CmdBlock[0])) = pSRB->Segment0[0];
 		*((u_long *) &(pSRB->CmdBlock[4])) = pSRB->Segment0[1];
 		pSRB->SRBTotalXferLength = pSRB->Segment1[1];
-		pSRB->SegmentX[0].address = pSRB->SgSenseTemp.address;
-		pSRB->SegmentX[0].length = pSRB->SgSenseTemp.length;
+		pSRB->pSRBSGL->address = pSRB->SgSenseTemp.address;
+		pSRB->pSRBSGL->length = pSRB->SgSenseTemp.length;
 		pcsio->scsi_status = SCSI_STATUS_CHECK_COND;
-		pccb->ccb_h.status = CAM_AUTOSNS_VALID;
+		bcopy(trm_get_sense_buf(pACB, pSRB), &pcsio->sense_data,
+		    pcsio->sense_len);
+		pcsio->ccb_h.status = CAM_SCSI_STATUS_ERROR 
+		    | CAM_AUTOSNS_VALID;
 		goto ckc_e;
 	}
 	/*
@@ -2378,19 +2556,16 @@ trm_SRBdone(PACB pACB, PDCB pDCB, PSRB pSRB)
 			  return;
 			}
 			pcsio->scsi_status = SCSI_STATUS_CHECK_COND;
-			pccb->ccb_h.status = CAM_AUTOSNS_VALID |
-			  CAM_SCSI_STATUS_ERROR;
+			pccb->ccb_h.status = CAM_SCSI_STATUS_ERROR;
 			goto ckc_e;
 		} else if (status == SCSI_STAT_QUEUEFULL) {
 			bval = (u_int8_t) pDCB->GoingSRBCnt;
 			bval--;
-			pDCB->MaxCommand = bval;
+			pDCB->MaxActiveCommandCnt = bval;
 			trm_RewaitSRB(pDCB, pSRB);
 			pSRB->AdaptStatus = 0;
 			pSRB->TargetStatus = 0;
-			pcsio->scsi_status = SCSI_STAT_QUEUEFULL;
-			pccb->ccb_h.status = CAM_SCSI_STATUS_ERROR;
-			goto ckc_e;
+			return;
 		} else if (status == SCSI_STAT_SEL_TIMEOUT) {
 			pSRB->AdaptStatus  = H_SEL_TIMEOUT;
 			pSRB->TargetStatus = 0;
@@ -2401,20 +2576,20 @@ trm_SRBdone(PACB pACB, PDCB pDCB, PSRB pSRB)
 				__FILE__, __LINE__);
 			pcsio->scsi_status = SCSI_STAT_BUSY;
 			pccb->ccb_h.status = CAM_SCSI_BUSY;
+			return;
 		  /* The device busy, try again later?	  */
 		} else if (status == SCSI_STAT_RESCONFLICT) {
 			TRM_DPRINTF("trm: target reserved at %s %d\n",
 				__FILE__, __LINE__);
 			pcsio->scsi_status = SCSI_STAT_RESCONFLICT;
 			pccb->ccb_h.status = CAM_SCSI_STATUS_ERROR;	/*XXX*/
+			return;
 		} else {
 			pSRB->AdaptStatus = 0;
 			if (pSRB->RetryCnt) {
 				pSRB->RetryCnt--;
 				pSRB->TargetStatus = 0;
 				pSRB->SRBSGIndex = 0;
-				pSRB->SRBSGListPointer = (PSEG)
-				  &pSRB->SegmentX[0];
 				if (trm_StartSCSI(pACB, pDCB, pSRB)) {
 				  /* 
 				   * If trm_StartSCSI return 1 :
@@ -2506,6 +2681,7 @@ NO_DEV:
 					pACB->pLinkDCB = pTempDCB->pNextDCB;
 				if (pACB->pDCBRunRobin == pDCB)
 					pACB->pDCBRunRobin = pTempDCB->pNextDCB;
+				pDCB->DCBstatus &= ~DS_IN_QUEUE;
 				pACB->DeviceCnt--;
 				if (pACB->DeviceCnt == 0) {
 					pACB->pLinkDCB = NULL;
@@ -2530,11 +2706,11 @@ NO_DEV:
 					    (pDCB->DevMode & EN_DISCONNECT_)) {
 						if (pDCB->DevMode &
 						    TAG_QUEUING_) {
-							pDCB->MaxCommand = 
+							pDCB->
+							    MaxActiveCommandCnt = 
 							  pACB->TagMaxNum;
 							pDCB->SyncMode |= 
 							  EN_TAG_QUEUING;
-							pDCB->TagMask = 0;
 							pDCB->tinfo.disc_tag |=
 							  TRM_CUR_TAGENB;
 						} else {
@@ -2601,7 +2777,6 @@ trm_DoingSRB_Done(PACB pACB)
 		}
 		pdcb->GoingSRBCnt = 0;;
 		pdcb->pGoingSRB = NULL;
-		pdcb->TagMask = 0;
 		pdcb = pdcb->pNextDCB;
 	}
 	while (pdcb != pDCB);
@@ -2673,11 +2848,10 @@ trm_RequestSense(PACB pACB, PDCB pDCB, PSRB pSRB)
 	/* $$$$$$ Status of initiator/target $$$$$$$$ */
 	
 	pSRB->SRBTotalXferLength = sizeof(pcsio->sense_data);
-	pSRB->SgSenseTemp.address = pSRB->SegmentX[0].address;
-	pSRB->SgSenseTemp.length  = pSRB->SegmentX[0].length;
-	pSRB->SegmentX[0].address = (u_long) vtophys(&pcsio->sense_data);
-	pSRB->SegmentX[0].length = (u_long) pcsio->sense_len;
-	pSRB->SRBSGListPointer = &pSRB->SegmentX[0];
+	pSRB->SgSenseTemp.address = pSRB->pSRBSGL->address;
+	pSRB->SgSenseTemp.length  = pSRB->pSRBSGL->length;
+	pSRB->pSRBSGL->address = trm_get_sense_bufaddr(pACB, pSRB);
+	pSRB->pSRBSGL->length = (u_long) sizeof(struct scsi_sense_data);
 	pSRB->SRBSGCount = 1;
 	pSRB->SRBSGIndex = 0;
 	
@@ -2723,6 +2897,15 @@ trm_initDCB(PACB pACB, PDCB pDCB, u_int16_t unit,u_int32_t i,u_int32_t j)
     	target_id  = i;
 	target_lun = j;
 
+	/*
+	 *  Using the lun 0 device to init other DCB first, if the device 
+	 *  has been initialized.
+	 *  I don't want init sync arguments one by one, it is the same.
+	 */
+	if (target_lun != 0 && 
+	    (pACB->DCBarray[target_id][0].DCBstatus & DS_IN_QUEUE))
+		bcopy(&pACB->DCBarray[target_id][0], pDCB, 
+		    sizeof(TRM_DCB));
 	intflag = splcam();
 	if (pACB->pLinkDCB == 0) {
 		pACB->pLinkDCB = pDCB;
@@ -2746,16 +2929,15 @@ trm_initDCB(PACB pACB, PDCB pDCB, u_int16_t unit,u_int32_t i,u_int32_t j)
 	splx(intflag);
 
 	pACB->DeviceCnt++;
-	pDCB->pDCBACB = pACB;
 	pDCB->TargetID = target_id;
 	pDCB->TargetLUN =  target_lun;
 	pDCB->pWaitingSRB = NULL;
 	pDCB->pGoingSRB = NULL;
 	pDCB->GoingSRBCnt = 0;
 	pDCB->pActiveSRB = NULL;
-	pDCB->TagMask = 0;
-	pDCB->MaxCommand = 1;
+	pDCB->MaxActiveCommandCnt = 1;
 	pDCB->DCBFlag = 0;
+	pDCB->DCBstatus |= DS_IN_QUEUE;
 	/* $$$$$$$ */
 	pEEpromBuf = &trm_eepromBuf[unit];
 	pDCB->DevMode = pEEpromBuf->NvramTarget[target_id].NvmTarCfg0;
@@ -2773,6 +2955,9 @@ trm_initDCB(PACB pACB, PDCB pDCB, u_int16_t unit,u_int32_t i,u_int32_t j)
 	}
 	bval |= target_lun;
 	pDCB->IdentifyMsg = bval;
+	if (target_lun != 0 && 
+	    (pACB->DCBarray[target_id][0].DCBstatus & DS_IN_QUEUE))
+		return;
 	/* $$$$$$$ */
 	/*
 	 * tag Qing enable ?
@@ -2788,7 +2973,15 @@ trm_initDCB(PACB pACB, PDCB pDCB, u_int16_t unit,u_int32_t i,u_int32_t j)
 	pDCB->SyncPeriod = 0;
 	pDCB->SyncOffset = 0;
 	PeriodIndex = pEEpromBuf->NvramTarget[target_id].NvmTarPeriod & 0x07;
-	pDCB->MaxNegoPeriod = dc395x_trm_clock_period[ PeriodIndex ] ;
+	if (pACB->AdaptType==1) {/* is U2? */
+	    pDCB->MaxNegoPeriod=dc395u2x_clock_period[ PeriodIndex ];
+	    pDCB->tinfo.user.period=pDCB->MaxNegoPeriod;
+	    pDCB->tinfo.user.offset=(pDCB->SyncMode & SYNC_NEGO_ENABLE) ? 31 : 0;
+	} else {
+        pDCB->MaxNegoPeriod=dc395x_clock_period[ PeriodIndex ];
+	    pDCB->tinfo.user.period=pDCB->MaxNegoPeriod;
+	    pDCB->tinfo.user.offset=(pDCB->SyncMode & SYNC_NEGO_ENABLE) ? 15 : 0;
+	}
 	pDCB->SyncMode = 0;
 	if ((pDCB->DevMode & NTC_DO_WIDE_NEGO) && 
 	    (pACB->Config & HCC_WIDE_CARD))
@@ -2801,8 +2994,6 @@ trm_initDCB(PACB pACB, PDCB pDCB, u_int16_t unit,u_int32_t i,u_int32_t j)
 	/*
 	 *	Fill in tinfo structure.
 	 */
-	pDCB->tinfo.user.period = pDCB->MaxNegoPeriod;
-	pDCB->tinfo.user.offset = (pDCB->SyncMode & SYNC_NEGO_ENABLE) ? 15 : 0;
 	pDCB->tinfo.user.width  = (pDCB->SyncMode & WIDE_NEGO_ENABLE) ? 
 	  MSG_EXT_WDTR_BUS_16_BIT : MSG_EXT_WDTR_BUS_8_BIT;
 
@@ -2811,42 +3002,83 @@ trm_initDCB(PACB pACB, PDCB pDCB, u_int16_t unit,u_int32_t i,u_int32_t j)
 	pDCB->tinfo.current.width = MSG_EXT_WDTR_BUS_8_BIT;
 }
 
-static void 
-trm_initSRB(PSRB psrb)
+static void
+trm_srbmapSG(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 {
-  
-	psrb->PhysSRB = vtophys(psrb);
+	PSRB pSRB;
+
+	pSRB=(PSRB) arg;
+	pSRB->SRBSGPhyAddr=segs->ds_addr;
+	return;
 }
 
 static void
-trm_linkSRB(PACB pACB)
+trm_destroySRB(PACB pACB)
 {
-	u_int16_t	i;
+	PSRB pSRB;
 
-	for (i = 0; i < MAX_SRB_CNT; i++) {
-		if (i != MAX_SRB_CNT - 1)
-			/*
-			 * link all SRB 
-			 */
-			pACB->SRB_array[i].pNextSRB = &pACB->SRB_array[i+1];
-    	else
-			/*
-			 * load NULL to NextSRB of the last SRB
-			 */
-		pACB->SRB_array[i].pNextSRB = NULL;
-	/*
- 	 * convert and save physical address of SRB to pSRB->PhysSRB
-	 */
-	trm_initSRB((PSRB) &pACB->SRB_array[i]);
+	pSRB = pACB->pFreeSRB;
+	while (pSRB) {
+		if (pSRB->sg_dmamap) {
+			bus_dmamap_unload(pACB->sg_dmat, pSRB->sg_dmamap);
+			bus_dmamem_free(pACB->sg_dmat, pSRB->pSRBSGL,
+			    pSRB->sg_dmamap);
+			bus_dmamap_destroy(pACB->sg_dmat, pSRB->sg_dmamap);
+		}
+		if (pSRB->dmamap)
+			bus_dmamap_destroy(pACB->buffer_dmat, pSRB->dmamap);
+		pSRB = pSRB->pNextSRB;
 	}
 }
 
+static int
+trm_initSRB(PACB pACB)
+{
+    	u_int16_t    i;
+	PSRB    pSRB;
+	int error;
+
+	for (i = 0; i < TRM_MAX_SRB_CNT; i++) {
+	       	pSRB = (PSRB)&pACB->pFreeSRB[i];
+
+		if (bus_dmamem_alloc(pACB->sg_dmat, (void **)&pSRB->pSRBSGL,
+		    BUS_DMA_NOWAIT, &pSRB->sg_dmamap) !=0 ) {
+			return ENXIO;
+		}
+		bus_dmamap_load(pACB->sg_dmat, pSRB->sg_dmamap, pSRB->pSRBSGL,
+		    TRM_MAX_SG_LISTENTRY * sizeof(SGentry),
+		    trm_srbmapSG, pSRB, /*flags*/0);
+		if (i != TRM_MAX_SRB_CNT - 1) {
+			/*
+			 * link all SRB 
+			 */
+			pSRB->pNextSRB = &pACB->pFreeSRB[i+1];
+		} else {
+			/*
+			 * load NULL to NextSRB of the last SRB
+			 */
+			pSRB->pNextSRB = NULL;
+		}
+		pSRB->TagNumber = i;
+
+		/*
+		 * Create the dmamap.  This is no longer optional!
+		 */
+		if ((error = bus_dmamap_create(pACB->buffer_dmat, 0,
+					       &pSRB->dmamap)) != 0)
+			return (error);
+
+	}
+	return (0);
+}
+
+
+
 
 static void
-trm_initACB(PACB pACB, u_int16_t unit)
+trm_initACB(PACB pACB, u_int8_t adaptType, u_int16_t unit)
 {
 	PNVRAMTYPE	pEEpromBuf;
-	u_int16_t		i,j;
     
 	pEEpromBuf = &trm_eepromBuf[unit];
 	pACB->max_id = 15;
@@ -2858,50 +3090,21 @@ trm_initACB(PACB pACB, u_int16_t unit)
 
 	TRM_DPRINTF("trm: pACB->max_id= %d pACB->max_lun= %d \n",
 	    pACB->max_id, pACB->max_lun);
-
 	pACB->pLinkDCB = NULL;
 	pACB->pDCBRunRobin = NULL;
 	pACB->pActiveDCB = NULL;
-	pACB->pFreeSRB = pACB->SRB_array;
-	pACB->AdapterUnit = unit;
+	pACB->AdapterUnit = (u_int8_t)unit;
 	pACB->AdaptSCSIID = pEEpromBuf->NvramScsiId;
 	pACB->AdaptSCSILUN = 0;
 	pACB->DeviceCnt = 0;
-	pACB->TagMaxNum = 2 << pEEpromBuf->NvramMaxTag ;
+	pACB->AdaptType = adaptType; 
+	pACB->TagMaxNum = 2 << pEEpromBuf->NvramMaxTag;
 	pACB->ACBFlag = 0;
-	/* 
-	 * link all device's SRB Q of this adapter 
-	 */
-	trm_linkSRB(pACB);
-	/* 
-	 * temp SRB for Q tag used or abord command used 
-	 */
-	pACB->pTmpSRB = &pACB->TmpSRB;
-	/*
-	 * convert and save physical address of SRB to pSRB->PhysSRB
-	 */
-	trm_initSRB(pACB->pTmpSRB);
-	/* allocate DCB array for scan device */
-	for (i = 0; i < (pACB->max_id +1); i++) {   
-		if (pACB->AdaptSCSIID != i) {
-			for (j = 0; j < (pACB->max_lun +1); j++) {
-				pACB->scan_devices[i][j] = 1;
-				pACB->pDCB[i][j]= (PDCB) malloc (
-				    sizeof (struct _DCB), M_DEVBUF, M_WAITOK);
-				trm_initDCB(pACB,
-				    pACB->pDCB[i][j], unit, i, j);
-				TRM_DPRINTF("pDCB= %8x \n",
-					(u_int)pACB->pDCB[i][j]);
-			}
-		}
-	}
-    	TRM_DPRINTF("sizeof(struct _DCB)= %8x \n",sizeof(struct _DCB));
-	TRM_DPRINTF("sizeof(struct _ACB)= %8x \n",sizeof(struct _ACB));
-	TRM_DPRINTF("sizeof(struct _SRB)= %8x \n",sizeof(struct _SRB));
+	return;
 }
 
 static void
-TRM_write_all(PNVRAMTYPE pEEpromBuf,PACB pACB)
+NVRAM_trm_write_all(PNVRAMTYPE pEEpromBuf,PACB pACB)
 {
 	u_int8_t	*bpEeprom = (u_int8_t *) pEEpromBuf;
 	u_int8_t	bAddr;
@@ -2912,18 +3115,18 @@ TRM_write_all(PNVRAMTYPE pEEpromBuf,PACB pACB)
 	/*
 	 * Write enable
 	 */
-	TRM_write_cmd(pACB, 0x04, 0xFF);
+	NVRAM_trm_write_cmd(pACB, 0x04, 0xFF);
 	trm_reg_write8(0, TRMREG_GEN_NVRAM);
-	TRM_wait_30us(pACB);
+	NVRAM_trm_wait_30us(pACB);
 	for (bAddr = 0; bAddr < 128; bAddr++, bpEeprom++) { 
-		TRM_set_data(pACB, bAddr, *bpEeprom);
+		NVRAM_trm_set_data(pACB, bAddr, *bpEeprom);
 	}
 	/* 
 	 * Write disable
 	 */
-	TRM_write_cmd(pACB, 0x04, 0x00);
+	NVRAM_trm_write_cmd(pACB, 0x04, 0x00);
 	trm_reg_write8(0 , TRMREG_GEN_NVRAM);
-	TRM_wait_30us(pACB);
+	NVRAM_trm_wait_30us(pACB);
 	/* Disable SEEPROM */
 	trm_reg_write8((trm_reg_read8(TRMREG_GEN_CONTROL) & ~EN_EEPROM),
 	    TRMREG_GEN_CONTROL);
@@ -2931,7 +3134,7 @@ TRM_write_all(PNVRAMTYPE pEEpromBuf,PACB pACB)
 }
 
 static void
-TRM_set_data(PACB pACB, u_int8_t bAddr, u_int8_t bData)
+NVRAM_trm_set_data(PACB pACB, u_int8_t bAddr, u_int8_t bData)
 {
 	int		i;
 	u_int8_t	bSendData;
@@ -2939,7 +3142,7 @@ TRM_set_data(PACB pACB, u_int8_t bAddr, u_int8_t bData)
 	 * Send write command & address	
 	 */
 	
-	TRM_write_cmd(pACB, 0x05, bAddr);
+	NVRAM_trm_write_cmd(pACB, 0x05, bAddr);
 	/* 
 	 * Write data 
 	 */
@@ -2949,27 +3152,27 @@ TRM_set_data(PACB pACB, u_int8_t bAddr, u_int8_t bData)
 		  /* Start from bit 7	*/
 			bSendData |= NVR_BITOUT;
 		trm_reg_write8(bSendData , TRMREG_GEN_NVRAM);
-		TRM_wait_30us(pACB);
+		NVRAM_trm_wait_30us(pACB);
 		trm_reg_write8((bSendData | NVR_CLOCK), TRMREG_GEN_NVRAM);
-		TRM_wait_30us(pACB);
+		NVRAM_trm_wait_30us(pACB);
 	}
 	trm_reg_write8(NVR_SELECT , TRMREG_GEN_NVRAM);
-	TRM_wait_30us(pACB);
+	NVRAM_trm_wait_30us(pACB);
 	/*
 	 * Disable chip select 
 	 */
 	trm_reg_write8(0 , TRMREG_GEN_NVRAM);
-	TRM_wait_30us(pACB);
+	NVRAM_trm_wait_30us(pACB);
 	trm_reg_write8(NVR_SELECT ,TRMREG_GEN_NVRAM);
-	TRM_wait_30us(pACB);
+	NVRAM_trm_wait_30us(pACB);
 	/* 
 	 * Wait for write ready	
 	 */
 	while (1) {
 		trm_reg_write8((NVR_SELECT | NVR_CLOCK), TRMREG_GEN_NVRAM);
-		TRM_wait_30us(pACB);
+		NVRAM_trm_wait_30us(pACB);
 		trm_reg_write8(NVR_SELECT, TRMREG_GEN_NVRAM);
-		TRM_wait_30us(pACB);
+		NVRAM_trm_wait_30us(pACB);
 		if (trm_reg_read8(TRMREG_GEN_NVRAM) & NVR_BITIN) {
 			break;
 		}
@@ -2982,7 +3185,7 @@ TRM_set_data(PACB pACB, u_int8_t bAddr, u_int8_t bData)
 }
 
 static void 
-TRM_read_all(PNVRAMTYPE pEEpromBuf, PACB pACB)
+NVRAM_trm_read_all(PNVRAMTYPE pEEpromBuf, PACB pACB)
 {
 	u_int8_t	*bpEeprom = (u_int8_t*) pEEpromBuf;
 	u_int8_t	bAddr;
@@ -2993,7 +3196,7 @@ TRM_read_all(PNVRAMTYPE pEEpromBuf, PACB pACB)
 	trm_reg_write8((trm_reg_read8(TRMREG_GEN_CONTROL) | EN_EEPROM),
 	    TRMREG_GEN_CONTROL);
 	for (bAddr = 0; bAddr < 128; bAddr++, bpEeprom++)
-		*bpEeprom = TRM_get_data(pACB, bAddr);
+		*bpEeprom = NVRAM_trm_get_data(pACB, bAddr);
 	/* 
 	 * Disable SEEPROM 
 	 */
@@ -3003,7 +3206,7 @@ TRM_read_all(PNVRAMTYPE pEEpromBuf, PACB pACB)
 }
 
 static u_int8_t
-TRM_get_data(PACB pACB, u_int8_t bAddr)
+NVRAM_trm_get_data(PACB pACB, u_int8_t bAddr)
 {
 	int		i;
 	u_int8_t	bReadData, bData = 0;
@@ -3011,14 +3214,14 @@ TRM_get_data(PACB pACB, u_int8_t bAddr)
 	* Send read command & address
 	*/
 	
-	TRM_write_cmd(pACB, 0x06, bAddr);
+	NVRAM_trm_write_cmd(pACB, 0x06, bAddr);
 				
 	for (i = 0; i < 8; i++) {
 	  /* 
 	   * Read data
 	   */
 		trm_reg_write8((NVR_SELECT | NVR_CLOCK) , TRMREG_GEN_NVRAM);
-		TRM_wait_30us(pACB);
+		NVRAM_trm_wait_30us(pACB);
 		trm_reg_write8(NVR_SELECT , TRMREG_GEN_NVRAM);
 		/* 
 		 * Get data bit while falling edge 
@@ -3028,7 +3231,7 @@ TRM_get_data(PACB pACB, u_int8_t bAddr)
 		if (bReadData & NVR_BITIN) {
 			bData |= 1;
 		}
-		TRM_wait_30us(pACB);
+		NVRAM_trm_wait_30us(pACB);
 	}
 	/* 
 	 * Disable chip select 
@@ -3038,7 +3241,7 @@ TRM_get_data(PACB pACB, u_int8_t bAddr)
 }
 
 static void
-TRM_wait_30us(PACB pACB)
+NVRAM_trm_wait_30us(PACB pACB)
 {
   
 	/*    ScsiPortStallExecution(30);	 wait 30 us	*/
@@ -3048,7 +3251,7 @@ TRM_wait_30us(PACB pACB)
 }
 
 static void
-TRM_write_cmd(PACB pACB, u_int8_t bCmd, u_int8_t bAddr)
+NVRAM_trm_write_cmd(PACB pACB, u_int8_t bCmd, u_int8_t bAddr)
 {
 	int		i;
 	u_int8_t	bSendData;
@@ -3062,9 +3265,9 @@ TRM_write_cmd(PACB pACB, u_int8_t bCmd, u_int8_t bAddr)
 			bSendData |= NVR_BITOUT;
 		/* start from bit 2 */
 		trm_reg_write8(bSendData, TRMREG_GEN_NVRAM);
-		TRM_wait_30us(pACB);
+		NVRAM_trm_wait_30us(pACB);
 		trm_reg_write8((bSendData | NVR_CLOCK), TRMREG_GEN_NVRAM);
-		TRM_wait_30us(pACB);
+		NVRAM_trm_wait_30us(pACB);
 	}	
 	for (i = 0; i < 7; i++, bAddr <<= 1) {
 	  /* 
@@ -3075,12 +3278,12 @@ TRM_write_cmd(PACB pACB, u_int8_t bCmd, u_int8_t bAddr)
 		  /* Start from bit 6	*/
 			bSendData |= NVR_BITOUT;
 		trm_reg_write8(bSendData , TRMREG_GEN_NVRAM);
-		TRM_wait_30us(pACB);
+		NVRAM_trm_wait_30us(pACB);
 		trm_reg_write8((bSendData | NVR_CLOCK), TRMREG_GEN_NVRAM);
-		TRM_wait_30us(pACB);
+		NVRAM_trm_wait_30us(pACB);
 	}
 	trm_reg_write8(NVR_SELECT, TRMREG_GEN_NVRAM);
-	TRM_wait_30us(pACB);
+	NVRAM_trm_wait_30us(pACB);
 }
 
 static void
@@ -3090,7 +3293,7 @@ trm_check_eeprom(PNVRAMTYPE pEEpromBuf, PACB pACB)
 	u_int16_t	wAddr, wCheckSum;
 	u_long	dAddr, *dpEeprom;
 
-	TRM_read_all(pEEpromBuf,pACB);
+	NVRAM_trm_read_all(pEEpromBuf,pACB);
 	wCheckSum = 0;
 	for (wAddr = 0, wpEeprom = (u_int16_t *) pEEpromBuf;
 	    wAddr < 64; wAddr++, wpEeprom++) {
@@ -3132,12 +3335,12 @@ trm_check_eeprom(PNVRAMTYPE pEEpromBuf, PACB pACB)
 		    wAddr < 63; wAddr++, wpEeprom++)
 	      		wCheckSum += *wpEeprom;
 		*wpEeprom = 0x1234 - wCheckSum;
-		TRM_write_all(pEEpromBuf,pACB);
+		NVRAM_trm_write_all(pEEpromBuf,pACB);
 	}
 	return;
 }
 static int
-trm_initAdapter(PACB pACB, u_int16_t unit, device_t pci_config_id)
+trm_initAdapter(PACB pACB, u_int16_t unit)
 {
 	PNVRAMTYPE	pEEpromBuf;
 	u_int16_t	wval;
@@ -3184,76 +3387,203 @@ trm_initAdapter(PACB pACB, u_int16_t unit, device_t pci_config_id)
 	return (0);
 }
 
+static void
+trm_mapSRB(void *arg, bus_dma_segment_t *segs, int nseg, int error)
+{
+	PACB pACB;
+
+	pACB = (PACB)arg;
+	pACB->srb_physbase = segs->ds_addr;
+}
+
+static void
+trm_dmamap_cb(void *arg, bus_dma_segment_t *segs, int nseg, int error)
+{
+	bus_addr_t *baddr;
+
+	baddr = (bus_addr_t *)arg;
+	*baddr = segs->ds_addr;
+}
+
 static PACB
-trm_init(u_int16_t unit, device_t pci_config_id)
+trm_init(u_int16_t unit, device_t dev)
 {
 	PACB		pACB;
-	int		rid = PCIR_MAPS;
+	int		rid = PCIR_BAR(0), i = 0, j = 0;
+	u_int16_t	adaptType = 0;
     
- 	pACB = (PACB) device_get_softc(pci_config_id);
+ 	pACB = (PACB) device_get_softc(dev);
    	if (!pACB) {
 		printf("trm%d: cannot allocate ACB !\n", unit);
 		return (NULL);
 	}
-	bzero (pACB, sizeof (struct _ACB));
-	pACB->iores = bus_alloc_resource(pci_config_id, SYS_RES_IOPORT, 
-	    &rid, 0, ~0, 1, RF_ACTIVE);
+	pACB->iores = bus_alloc_resource_any(dev, SYS_RES_IOPORT, 
+	    &rid, RF_ACTIVE);
     	if (pACB->iores == NULL) {
 		printf("trm_init: bus_alloc_resource failed!\n");
 		return (NULL);
 	}
+	switch (pci_get_devid(dev)) {
+	case PCI_DEVICEID_TRMS1040:
+		adaptType = 0;
+		break;
+	case PCI_DEVICEID_TRMS2080:
+		adaptType = 1;
+		break;
+	default:
+		printf("trm_init %d: unknown adapter type!\n", unit);
+		goto bad;
+	}
+	pACB->dev = dev;
 	pACB->tag = rman_get_bustag(pACB->iores);
 	pACB->bsh = rman_get_bushandle(pACB->iores);
-	if (bus_dma_tag_create(/*parent_dmat*/                 NULL, 
-	      /*alignment*/                      1,
-	      /*boundary*/                       0,
-	      /*lowaddr*/  BUS_SPACE_MAXADDR_32BIT,
-	      /*highaddr*/       BUS_SPACE_MAXADDR,
-	      /*filter*/                      NULL, 
-	      /*filterarg*/                   NULL,
-	      /*maxsize*/                 MAXBSIZE,
-	      /*nsegments*/               TRM_NSEG,
-	      /*maxsegsz*/    TRM_MAXTRANSFER_SIZE,
-	      /*flags*/           BUS_DMA_ALLOCNOW,
-	      &pACB->buffer_dmat) != 0) 
+	if (bus_dma_tag_create(
+	/*parent_dmat*/	pACB->parent_dmat,
+	/*alignment*/	1,
+	/*boundary*/	0,
+	/*lowaddr*/	BUS_SPACE_MAXADDR,
+	/*highaddr*/	BUS_SPACE_MAXADDR,
+	/*filter*/	NULL, 
+	/*filterarg*/	NULL,
+	/*maxsize*/	MAXBSIZE,
+	/*nsegments*/	TRM_NSEG,
+	/*maxsegsz*/	TRM_MAXTRANSFER_SIZE,
+	/*flags*/	BUS_DMA_ALLOCNOW,
+	/* dmat */	&pACB->buffer_dmat) != 0) 
 		goto bad;
+	/* DMA tag for our ccb structures */
+	if (bus_dma_tag_create(                                 
+	/*parent_dmat*/pACB->parent_dmat, 
+	/*alignment*/  1, 
+	/*boundary*/   0,
+	/*lowaddr*/    BUS_SPACE_MAXADDR,
+	/*highaddr*/   BUS_SPACE_MAXADDR,
+	/*filter*/     NULL, 
+	/*filterarg*/  NULL,
+	/*maxsize*/    TRM_MAX_SRB_CNT * sizeof(TRM_SRB),
+	/*nsegments*/  1,
+	/*maxsegsz*/   TRM_MAXTRANSFER_SIZE,
+	/*flags*/      0,
+	/*dmat*/       &pACB->srb_dmat) != 0) {
+		printf("trm_init %d: bus_dma_tag_create SRB failure\n", unit);
+		goto bad;
+	}
+	if (bus_dmamem_alloc(pACB->srb_dmat, (void **)&pACB->pFreeSRB, 
+	    BUS_DMA_NOWAIT, &pACB->srb_dmamap) != 0) {
+		printf("trm_init %d: bus_dmamem_alloc SRB failure\n", unit);
+		goto bad;
+	}
+	bus_dmamap_load(pACB->srb_dmat, pACB->srb_dmamap, pACB->pFreeSRB,
+	    TRM_MAX_SRB_CNT * sizeof(TRM_SRB), trm_mapSRB, pACB, 
+	    /* flags */0);
+	/* Create, allocate, and map DMA buffers for autosense data */
+	if (bus_dma_tag_create(/*parent_dmat*/NULL, /*alignment*/1,
+	    /*boundary*/0,
+	    /*lowaddr*/BUS_SPACE_MAXADDR_32BIT,
+	    /*highaddr*/BUS_SPACE_MAXADDR,
+	    /*filter*/NULL, /*filterarg*/NULL,
+	    sizeof(struct scsi_sense_data) * TRM_MAX_SRB_CNT,
+	    /*nsegments*/1,
+	    /*maxsegsz*/TRM_MAXTRANSFER_SIZE,
+	    /*flags*/0,
+	    &pACB->sense_dmat) != 0) {
+	  if (bootverbose)
+	    device_printf(dev, "cannot create sense buffer dmat\n");
+	  goto bad;
+	}
+
+	if (bus_dmamem_alloc(pACB->sense_dmat, (void **)&pACB->sense_buffers,
+			     BUS_DMA_NOWAIT, &pACB->sense_dmamap) != 0)
+		goto bad;
+
+	bus_dmamap_load(pACB->sense_dmat, pACB->sense_dmamap,
+		       pACB->sense_buffers,
+		       sizeof(struct scsi_sense_data) * TRM_MAX_SRB_CNT,
+		       trm_dmamap_cb, &pACB->sense_busaddr, /*flags*/0);
+
 	trm_check_eeprom(&trm_eepromBuf[unit],pACB);
-	trm_initACB(pACB, unit);
-   	if (trm_initAdapter(pACB, unit, pci_config_id)) {
+	trm_initACB(pACB, adaptType, unit);
+	for (i = 0; i < (pACB->max_id + 1); i++) {   
+		if (pACB->AdaptSCSIID == i)
+			continue;
+		for(j = 0; j < (pACB->max_lun + 1); j++) {
+			pACB->scan_devices[i][j] = 1;
+			/* we assume we need to scan all devices */ 
+			trm_initDCB(pACB, &pACB->DCBarray[i][j], unit, i, j);
+		}
+	}
+	bzero(pACB->pFreeSRB, TRM_MAX_SRB_CNT * sizeof(TRM_SRB));
+	if (bus_dma_tag_create(                    
+		    /*parent_dmat*/NULL, 
+		    /*alignment*/  1,
+		    /*boundary*/   0,
+		    /*lowaddr*/    BUS_SPACE_MAXADDR,
+		    /*highaddr*/   BUS_SPACE_MAXADDR,
+		    /*filter*/     NULL, 
+		    /*filterarg*/  NULL,
+		    /*maxsize*/    TRM_MAX_SG_LISTENTRY * sizeof(SGentry), 
+		    /*nsegments*/  1,
+		    /*maxsegsz*/   TRM_MAXTRANSFER_SIZE,
+		    /*flags*/      0, 
+		    /*dmat*/       &pACB->sg_dmat) != 0)
+		goto bad;
+
+	if (trm_initSRB(pACB)) {
+		printf("trm_initSRB: error\n");
+		goto bad;
+	}
+   	if (trm_initAdapter(pACB, unit)) {
 		printf("trm_initAdapter: initial ERROR\n");
 		goto bad;
 	}
 	return (pACB);
 bad:
 	if (pACB->iores)
-		bus_release_resource(pci_config_id, SYS_RES_IOPORT, PCIR_MAPS,
+		bus_release_resource(dev, SYS_RES_IOPORT, PCIR_BAR(0),
 		    pACB->iores);
+	if (pACB->sense_dmamap) {
+		bus_dmamap_unload(pACB->sense_dmat, pACB->sense_dmamap);
+		bus_dmamem_free(pACB->sense_dmat, pACB->sense_buffers,
+		    pACB->sense_dmamap);
+		bus_dmamap_destroy(pACB->sense_dmat, pACB->sense_dmamap);
+	}
+	if (pACB->sense_dmat)
+		bus_dma_tag_destroy(pACB->sense_dmat);
+	if (pACB->sg_dmat) {
+		trm_destroySRB(pACB);
+		bus_dma_tag_destroy(pACB->sg_dmat);
+	}
+	if (pACB->srb_dmamap) {
+		bus_dmamap_unload(pACB->srb_dmat, pACB->srb_dmamap);
+		bus_dmamem_free(pACB->srb_dmat, pACB->pFreeSRB, 
+		    pACB->srb_dmamap);
+		bus_dmamap_destroy(pACB->srb_dmat, pACB->srb_dmamap);
+	}
+	if (pACB->srb_dmat)
+		bus_dma_tag_destroy(pACB->srb_dmat);
 	if (pACB->buffer_dmat)
 		bus_dma_tag_destroy(pACB->buffer_dmat);
 	return (NULL);
 }
 
 static int
-trm_attach(device_t pci_config_id)
+trm_attach(device_t dev)
 {
 	struct	cam_devq *device_Q;
 	u_long	device_id;
 	PACB	pACB = 0;
 	int	rid = 0;
-	int unit = device_get_unit(pci_config_id);
+	int unit = device_get_unit(dev);
 	
-	device_id = pci_get_devid(pci_config_id);
+	device_id = pci_get_devid(dev);
 	/*
 	 * These cards do not allow memory mapped accesses
 	 */
-	if (device_id == PCI_DEVICEID_TRMS1040) {
-		if ((pACB=trm_init((u_int16_t) unit,
-			pci_config_id)) == NULL) {
-			printf("trm%d: trm_init error!\n",unit);
-			return (ENXIO);
-		}
-	} else
+	if ((pACB = trm_init((u_int16_t) unit,
+    	    dev)) == NULL) {
+		printf("trm%d: trm_init error!\n",unit);
 		return (ENXIO);
+	}
 	/* After setting up the adapter, map our interrupt */
 	/*  
 	 * Now let the CAM generic SCSI layer find the SCSI devices on the bus
@@ -3261,15 +3591,15 @@ trm_attach(device_t pci_config_id)
 	 * Create device queue of SIM(s)
 	 * (MAX_START_JOB - 1) : max_sim_transactions
 	 */
-	pACB->irq = bus_alloc_resource(pci_config_id, SYS_RES_IRQ, &rid, 0,
-	    ~0, 1, RF_SHAREABLE | RF_ACTIVE);
+	pACB->irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
+	    RF_SHAREABLE | RF_ACTIVE);
     	if (pACB->irq == NULL ||
-	    bus_setup_intr(pci_config_id, pACB->irq, 
+	    bus_setup_intr(dev, pACB->irq, 
 	    INTR_TYPE_CAM, trm_Interrupt, pACB, &pACB->ih)) {
 		printf("trm%d: register Interrupt handler error!\n", unit);
 		goto bad;
 	}
-	device_Q = cam_simq_alloc(MAX_START_JOB);
+	device_Q = cam_simq_alloc(TRM_MAX_START_JOB);
 	if (device_Q == NULL){ 
 		printf("trm%d: device_Q == NULL !\n",unit);
 		goto bad;
@@ -3306,7 +3636,7 @@ trm_attach(device_t pci_config_id)
 	    pACB,
 	    unit,
 	    1,
-	    MAX_TAGS_CMD_QUEUE,
+	    TRM_MAX_TAGS_CMD_QUEUE,
 	    device_Q);
 	if (pACB->psim == NULL) {
 		printf("trm%d: SIM allocate fault !\n",unit);
@@ -3325,23 +3655,39 @@ trm_attach(device_t pci_config_id)
 		printf("trm%d: xpt_create_path fault !\n",unit);
 		xpt_bus_deregister(cam_sim_path(pACB->psim));
 		goto bad;
-		/* 
-		 * cam_sim_free(pACB->psim, TRUE);  free_devq 
-		 * pACB->psim = NULL;
-		 */
-		return (ENXIO);
 	}
 	return (0);
 bad:
 	if (pACB->iores)
-		bus_release_resource(pci_config_id, SYS_RES_IOPORT, PCIR_MAPS,
+		bus_release_resource(dev, SYS_RES_IOPORT, PCIR_BAR(0),
 		    pACB->iores);
+	if (pACB->sg_dmat) {		
+		trm_destroySRB(pACB);
+		bus_dma_tag_destroy(pACB->sg_dmat);
+	}
+	
+	if (pACB->srb_dmamap) {
+		bus_dmamap_unload(pACB->srb_dmat, pACB->srb_dmamap);
+		bus_dmamem_free(pACB->srb_dmat, pACB->pFreeSRB, 
+		    pACB->srb_dmamap);
+		bus_dmamap_destroy(pACB->srb_dmat, pACB->srb_dmamap);
+	}
+	if (pACB->srb_dmat)
+		bus_dma_tag_destroy(pACB->srb_dmat);
+	if (pACB->sense_dmamap) {
+	  	  bus_dmamap_unload(pACB->sense_dmat, pACB->sense_dmamap);
+		  bus_dmamem_free(pACB->sense_dmat, pACB->sense_buffers,
+		      pACB->sense_dmamap);
+		  bus_dmamap_destroy(pACB->sense_dmat, pACB->sense_dmamap);
+	}
+	if (pACB->sense_dmat)
+		bus_dma_tag_destroy(pACB->sense_dmat);		
 	if (pACB->buffer_dmat)
 		bus_dma_tag_destroy(pACB->buffer_dmat);
 	if (pACB->ih)
-		bus_teardown_intr(pci_config_id, pACB->irq, pACB->ih);
+		bus_teardown_intr(dev, pACB->irq, pACB->ih);
 	if (pACB->irq)
-		bus_release_resource(pci_config_id, SYS_RES_IRQ, 0, pACB->irq);
+		bus_release_resource(dev, SYS_RES_IRQ, 0, pACB->irq);
 	if (pACB->psim)
 		cam_sim_free(pACB->psim, TRUE);
 	
@@ -3355,15 +3701,20 @@ bad:
 *
 */
 static int
-trm_probe(device_t tag)
+trm_probe(device_t dev)
 {
-  
-	if (pci_get_devid(tag) == PCI_DEVICEID_TRMS1040) { 
-		device_set_desc(tag,
+  	switch (pci_get_devid(dev)) {
+	case PCI_DEVICEID_TRMS1040: 
+		device_set_desc(dev,
 		    "Tekram DC395U/UW/F DC315/U Fast20 Wide SCSI Adapter");
 		return (0);
-	} else
+	case PCI_DEVICEID_TRMS2080:
+		device_set_desc(dev,
+		    "Tekram DC395U2D/U2W Fast40 Wide SCSI Adapter");
+		return 0;
+	default:
 		return (ENXIO);
+	}
 }
 
 static int
@@ -3371,8 +3722,20 @@ trm_detach(device_t dev)
 {
 	PACB pACB = device_get_softc(dev);
 
-	bus_release_resource(dev, SYS_RES_IOPORT, PCIR_MAPS, pACB->iores);
-	bus_dma_tag_destroy(pACB->buffer_dmat);	
+	bus_release_resource(dev, SYS_RES_IOPORT, PCIR_BAR(0), pACB->iores);
+	trm_destroySRB(pACB);
+	bus_dma_tag_destroy(pACB->sg_dmat);
+	bus_dmamap_unload(pACB->srb_dmat, pACB->srb_dmamap);
+	bus_dmamem_free(pACB->srb_dmat, pACB->pFreeSRB,
+	    pACB->srb_dmamap);
+	bus_dmamap_destroy(pACB->srb_dmat, pACB->srb_dmamap);
+	bus_dma_tag_destroy(pACB->srb_dmat);	
+	bus_dmamap_unload(pACB->sense_dmat, pACB->sense_dmamap);
+	bus_dmamem_free(pACB->sense_dmat, pACB->sense_buffers,
+	    pACB->sense_dmamap);
+	bus_dmamap_destroy(pACB->sense_dmat, pACB->sense_dmamap);
+	bus_dma_tag_destroy(pACB->sense_dmat);				      
+	bus_dma_tag_destroy(pACB->buffer_dmat);
 	bus_teardown_intr(dev, pACB->irq, pACB->ih);
 	bus_release_resource(dev, SYS_RES_IRQ, 0, pACB->irq);
 	xpt_async(AC_LOST_DEVICE, pACB->ppath, NULL);
@@ -3395,3 +3758,4 @@ static driver_t trm_driver = {
 
 static devclass_t trm_devclass;
 DRIVER_MODULE(trm, pci, trm_driver, trm_devclass, 0, 0);
+MODULE_DEPEND(trm, cam, 1, 1, 1);
