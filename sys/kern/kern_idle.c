@@ -18,6 +18,7 @@
 #include <sys/unistd.h>
 #include <sys/kthread.h>
 #include <sys/queue.h>
+#include <sys/eventhandler.h>
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 #ifdef KTRACE
@@ -43,6 +44,8 @@ static void idle_setup(void *dummy);
 SYSINIT(idle_setup, SI_SUB_SCHED_IDLE, SI_ORDER_FIRST, idle_setup, NULL)
 
 static void idle_proc(void *dummy);
+
+EVENTHANDLER_FAST_DEFINE(idle_event, idle_eventhandler_t);
 
 /*
  * setup per-cpu idle process contexts
@@ -88,9 +91,13 @@ idle_proc(void *dummy)
 		 * This is a good place to put things to be done in
 		 * the background, including sanity checks.
 		 */
+
 			if (count++ < 0)
 				CTR0(KTR_PROC, "idle_proc: timed out waiting"
 				    " for a process");
+
+			/* call out to any cpu-becoming-idle events */
+			EVENTHANDLER_FAST_INVOKE(idle_event, count);
 		}
 
 		mtx_enter(&sched_lock, MTX_SPIN);
