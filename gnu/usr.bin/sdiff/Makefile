@@ -1,5 +1,5 @@
-PROG=		diff3
-SRCS=		diff3.c getopt.c getopt1.c version.c
+PROG=		sdiff
+SRCS=		sdiff.c getopt.c getopt1.c version.c
 CFLAGS+=	-I$(.CURDIR)/../diff\
 		-DDIRENT=1 -DHAVE_UNISTD_H=1 -DHAVE_DUP2=1 -DHAVE_MEMCHR=1\
 		-DHAVE_STRERROR=1 -DHAVE_WAITPID=1 -DHAVE_FCNTL_H=1\
