@@ -45,6 +45,7 @@
 .Sh SYNOPSIS
 For standard ISA ports:
 .Cd "device sio"
+.Pp
 In
 .Pa /boot/device.hints :
 .Cd hint.sio.0.at="isa"
@@ -59,6 +60,7 @@ In
 For AST compatible multiport cards with 4 ports:
 .Cd "options COM_MULTIPORT"
 .Cd "device sio"
+.Pp
 In
 .Pa /boot/device.hints :
 .Cd hint.sio.4.at="isa"
@@ -78,6 +80,7 @@ In
 For Boca Board compatible multiport cards with 8 ports:
 .Cd "options COM_MULTIPORT"
 .Cd "device sio"
+.Pp
 In
 .Pa /boot/device.hints :
 .Cd hint.sio.4.at="isa"
@@ -92,6 +95,7 @@ In
 For Netmos Nm9845 multiport cards with 6 ports:
 .Cd "options COM_MULTIPORT"
 .Cd "device sio"
+.Pp
 In
 .Pa /boot/device.hints :
 .Cd hint.sio.4.at="isa"
@@ -121,6 +125,7 @@ For Hayes ESP cards:
 .Pp
 For single port PCI and PCCARD cards:
 .Cd "device sio"
+.Pp
 No lines are required in
 .Pa /boot/device.hints
 for these cards.
@@ -128,6 +133,7 @@ for these cards.
 For dual port PCI cards that share an interrupt:
 .Cd "device sio"
 .Cd "options COM_MULTIPORT"
+.Pp
 In
 .Pa /boot/device.hints :
 .Cd hint.sio.2.flags="0x201"
@@ -159,7 +165,7 @@ device is assumed to use a 16650A-type (extended FIFO) chip
 .El
 .Pp
 Minor numbering:
-.Bd -literal
+.Bd -literal -compact
 0b\fIOLIMMMMM\fR
   call\fBO\fRut
    \fBL\fRock
