@@ -8,6 +8,6 @@
 ..
 .de TH
 .rm TH
-.do mso tmac.an
+.do mso tmac.an-old
 \\*(TH\\
 ..
