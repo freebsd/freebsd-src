@@ -564,7 +564,7 @@ void
 npxinit(control)
 	u_short control;
 {
-	union savefpu dummy;
+	static union savefpu dummy;
 	critical_t savecrit;
 
 	if (!npx_exists)
@@ -926,30 +926,21 @@ static void
 fpusave(addr)
 	union savefpu *addr;
 {
-	static struct savexmm svxmm[MAXCPU];
-	u_char oncpu = PCPU_GET(cpuid);
 	
 	if (!cpu_fxsr)
 		fnsave(addr);
-	else {
-		fxsave(&svxmm[oncpu]);
-		bcopy(&svxmm[oncpu], addr, sizeof(struct savexmm));
-	}
+	else
+		fxsave(addr);
 }
 
 static void
 fpurstor(addr)
 	union savefpu *addr;
 {
-	static struct savexmm svxmm[MAXCPU];
-	u_char oncpu = PCPU_GET(cpuid);
-
 	if (!cpu_fxsr)
 		frstor(addr);
-	else {
-		bcopy(addr, &svxmm[oncpu], sizeof (struct savexmm));
-		fxrstor(&svxmm[oncpu]);
-	}
+	else
+		fxrstor(addr);
 }
 
 #ifdef I586_CPU_XXX
