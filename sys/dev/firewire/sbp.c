@@ -1665,7 +1665,9 @@ sbp_detach_target(struct sbp_target *target)
 	struct sbp_dev *sdev;
 
 	if (target->luns != NULL) {
+SBP_DEBUG(0)
 		printf("sbp_detach_target %d\n", target->target_id);
+END_DEBUG
 		for (i=0; i < target->num_lun; i++) {
 			sdev = &target->luns[i];
 			if (sdev->status == SBP_DEV_RESET ||
