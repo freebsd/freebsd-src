@@ -1,11 +1,14 @@
 #
-# $Id$
+# $Id: Makefile.alpha,v 1.1 1998/03/12 02:55:20 jdp Exp $
 #
 
-EMULATION=	elf64alpha
+.if	${MACHINE_ARCH} == "alpha"
 HOST=		alpha-unknown-freebsdelf
-TARGET=		alpha-unknown-freebsdelf
-LDSCRIPTS=	elf64alpha.x elf64alpha.xbn elf64alpha.xn elf64alpha.xr \
+CFLAGS+=	-DDEFAULT_EMULATION=\"elf64alpha\"
+CFLAGS+=	-DTARGET=\"alpha-unknown-freebsdelf\"
+.endif
+EMS+=		ld_elf64alpha_emulation
+LDSCRIPTS+=	elf64alpha.x elf64alpha.xbn elf64alpha.xn elf64alpha.xr \
 		elf64alpha.xs elf64alpha.xu alpha.x alpha.xbn \
 		alpha.xn alpha.xr alpha.xu
 SRCS+=		eelf64alpha.c ealpha.c
@@ -16,11 +19,11 @@ beforedepend: eelf64alpha.c ealpha.c
 eelf64alpha.c:	emulparams/elf64alpha.sh emultempl/elf32.em \
 		scripttempl/elf.sc genscripts.sh emultempl/stringify.sed
 	sh ${SRCDIR}/ld/genscripts.sh ${SRCDIR}/ld ${DESTDIR}/usr/lib \
-	    ${HOST} ${TARGET} ${TARGET} ${EMULATION} "" \
-	    ${EMULATION} ${TARGET}
+	    ${HOST} alpha-unknown-freebsdelf alpha-unknown-freebsdelf \
+	    elf64alpha ""  elf64alpha alpha-unknown-freebsdelf
 
 ealpha.c:	emulparams/elf64alpha.sh emultempl/elf32.em \
 		scripttempl/elf.sc genscripts.sh emultempl/stringify.sed
 	sh ${SRCDIR}/ld/genscripts.sh ${SRCDIR}/ld ${DESTDIR}/usr/lib \
-	    ${HOST} ${TARGET} ${TARGET} ${EMULATION} "" \
-	    alpha alpha-unknown-freebsd
+	    ${HOST} alpha-unknown-freebsdelf alpha-unknown-freebsdelf \
+	    elf64alpha ""  alpha alpha-unknown-freebsd
