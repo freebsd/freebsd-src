@@ -94,15 +94,15 @@ static struct	vnode *savacctp;
  */
 static int acctsuspend = 2;	/* stop accounting when < 2% free space left */
 SYSCTL_INT(_kern, OID_AUTO, acct_suspend, CTLFLAG_RW,
-	&acctsuspend, 0, "");
+	&acctsuspend, 0, "percentage of free disk space below which accounting stops");
 
 static int acctresume = 4;	/* resume when free space risen to > 4% */
 SYSCTL_INT(_kern, OID_AUTO, acct_resume, CTLFLAG_RW,
-	&acctresume, 0, "");
+	&acctresume, 0, "percentage of free disk space above which accounting resumes");
 
 static int acctchkfreq = 15;	/* frequency (in seconds) to check space */
 SYSCTL_INT(_kern, OID_AUTO, acct_chkfreq, CTLFLAG_RW,
-	&acctchkfreq, 0, "");
+	&acctchkfreq, 0, "frequency for checking the free space");
 
 /*
  * Accounting system call.  Written based on the specification and
