@@ -1349,6 +1349,16 @@ mac_mls_check_cred_relabel(struct ucred *cred, struct label *newlabel)
 	 */
 	if (new->mm_flags & MAC_MLS_FLAGS_BOTH) {
 		/*
+		 * If the change request modifies both the MLS label single
+		 * and range, check that the new single will be in the
+		 * new range.
+		 */
+		if ((new->mm_flags & MAC_MLS_FLAGS_BOTH) ==
+		    MAC_MLS_FLAGS_BOTH &&
+		    !mac_mls_single_in_range(new, new))
+			return (EINVAL);
+
+		/*
 		 * To change the MLS single label on a credential, the
 		 * new single label must be in the current range.
 		 */
@@ -1358,7 +1368,7 @@ mac_mls_check_cred_relabel(struct ucred *cred, struct label *newlabel)
 
 		/*
 		 * To change the MLS range label on a credential, the
-		 * new range label must be in the current range.
+		 * new range must be in the current range.
 		 */
 		if (new->mm_flags & MAC_MLS_FLAG_RANGE &&
 		    !mac_mls_range_in_range(new, subj))
@@ -1374,11 +1384,6 @@ mac_mls_check_cred_relabel(struct ucred *cred, struct label *newlabel)
 			if (error)
 				return (error);
 		}
-
-		/*
-		 * XXXMAC: Additional consistency tests regarding the single
-		 * and range of the new label might be performed here.
-		 */
 	}
 
 	return (0);
