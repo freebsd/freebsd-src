@@ -48,8 +48,6 @@ __FBSDID("$FreeBSD$");
 #define	MAXALIASES	35
 #define	MAXADDRS	35
 
-extern int h_errno;
-
 #ifdef YP
 static char *host_aliases[MAXALIASES];
 static char hostaddr[MAXADDRS];

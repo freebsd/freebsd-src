@@ -101,14 +101,15 @@ __FBSDID("$FreeBSD$");
 #include "un-namespace.h"
 
 #include "res_config.h"
+#include "res_send_private.h"
 
-static int s = -1;		/* socket used for communications */
-static int connected = 0;	/* is the socket connected */
-static int vc = 0;		/* is the socket a virtual circuit? */
-static int af = 0;		/* address family of socket */
-static res_send_qhook Qhook = NULL;
-static res_send_rhook Rhook = NULL;
 
+#define	s		___res_send_private()->s
+#define	connected	___res_send_private()->connected
+#define	vc		___res_send_private()->vc
+#define	af		___res_send_private()->af
+#define	Qhook		___res_send_private()->Qhook
+#define	Rhook		___res_send_private()->Rhook
 
 #define CAN_RECONNECT 1
 
@@ -123,8 +124,6 @@ static res_send_rhook Rhook = NULL;
 			fprintf args;\
 			__fp_nquery(query, size, stdout);\
 		} else {}
-static char abuf[NI_MAXHOST];
-static char pbuf[NI_MAXSERV];
 static void Aerror(FILE *, char *, int, struct sockaddr *);
 static void Perror(FILE *, char *, int);
 
@@ -138,6 +137,9 @@ static void Perror(FILE *, char *, int);
 	int save = errno;
 
 	if (_res.options & RES_DEBUG) {
+		char abuf[NI_MAXHOST];
+		char pbuf[NI_MAXSERV];
+
 		if (getnameinfo(address, address->sa_len, abuf, sizeof(abuf),
 		    pbuf, sizeof(pbuf),
 		    NI_NUMERICHOST|NI_NUMERICSERV|NI_WITHSCOPEID) != 0) {
@@ -388,6 +390,7 @@ res_send(buf, buflen, ans, anssiz)
 	 */
 	for (try = 0; try < _res.retry; try++) {
 	    for (ns = 0; ns < _res.nscount; ns++) {
+		char abuf[NI_MAXHOST];
 		struct sockaddr *nsap = get_nsaddr(ns);
 		socklen_t salen;
 
