@@ -36,6 +36,7 @@
 
 #include <errno.h>
 #include <resolv.h>
+#include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
 #include <termios.h>

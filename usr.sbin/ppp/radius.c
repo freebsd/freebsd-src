@@ -49,6 +49,7 @@
 #ifndef NODES
 #include <md5.h>
 #endif
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
