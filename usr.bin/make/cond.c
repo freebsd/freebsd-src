@@ -356,7 +356,7 @@ CondDoExists(int argLen, char *arg)
     char    *path;
 
     arg[argLen] = '\0';
-    path = Dir_FindFile(arg, &dirSearchPath);
+    path = Path_FindFile(arg, &dirSearchPath);
     if (path != NULL) {
 	result = TRUE;
 	free(path);

@@ -45,13 +45,14 @@
 
 struct GNode;
 struct Lst;
+struct Path;
 
 ReturnStatus Arch_ParseArchive(char **, struct Lst *, struct GNode *);
 void Arch_Touch(struct GNode *);
 void Arch_TouchLib(struct GNode *);
 int Arch_MTime(struct GNode *);
 int Arch_MemMTime(struct GNode *);
-void Arch_FindLib(struct GNode *, struct Lst *);
+void Arch_FindLib(struct GNode *, struct Path *);
 Boolean Arch_LibOODate(struct GNode *);
 void Arch_Init(void);
 

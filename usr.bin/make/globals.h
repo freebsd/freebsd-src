@@ -52,6 +52,7 @@
 
 struct GNode;
 struct IFile;
+struct Path;
 
 /*
  * The list of target names specified on the command line.
@@ -60,12 +61,15 @@ struct IFile;
 extern Lst create;
 
 /* The list of directories to search when looking for targets */
-extern Lst dirSearchPath;
+extern struct Path dirSearchPath;
 
 extern struct IFile curFile;	/* current makefile */
 
 /* The list of directories to search when looking for includes */
-extern Lst parseIncPath;
+extern struct Path parseIncPath;
+
+/* The system include path. */
+extern struct Path sysIncPath;
 
 extern Boolean	jobsRunning;	/* True if jobs are running */
 extern Boolean	compatMake;	/* True if we are make compatible */
@@ -115,9 +119,6 @@ extern char	var_Error[];
 extern time_t	now;
 
 extern Boolean	oldVars;	/* Do old-style variable substitution */
-
-/* The system include path. */
-extern Lst	sysIncPath;
 
 extern int debug;
 

@@ -90,6 +90,7 @@ __FBSDID("$FreeBSD$");
  *	    	  	    	if the target had no implicit sources.
  */
 
+#include <sys/queue.h>
 #include <assert.h>
 #include <string.h>
 #include <stdlib.h>
@@ -134,7 +135,7 @@ typedef struct Suff {
 #define	SUFF_INCLUDE	0x01	/* One which is #include'd */
 #define	SUFF_LIBRARY	0x02	/* One which contains a library */
 #define	SUFF_NULL	0x04	/* The empty suffix */
-	Lst	searchPath;	/* Path for files with this suffix */
+	struct Path searchPath;	/* Path for files with this suffix */
 	int	sNum;		/* The suffix number */
 	int	refCount;	/* Reference count of list membership */
 	Lst	parents;	/* Suffixes we have a transformation to */
@@ -696,7 +697,7 @@ Suff_AddSuffix(char *str)
 
 	s->name = estrdup(str);
 	s->nameLen = strlen(s->name);
-	Lst_Init(&s->searchPath);
+	TAILQ_INIT(&s->searchPath);
 	Lst_Init(&s->children);
 	Lst_Init(&s->parents);
 	Lst_Init(&s->ref);
@@ -727,7 +728,7 @@ Suff_AddSuffix(char *str)
  *	None
  *-----------------------------------------------------------------------
  */
-Lst *
+struct Path *
 Suff_GetPath(char *sname)
 {
 	Suff	*s;
@@ -762,42 +763,37 @@ Suff_DoPaths(void)
 	Suff	*s;
 	LstNode	*ln;
 	char	*ptr;
-	Lst	inIncludes;	/* Cumulative .INCLUDES path */
-	Lst	inLibs;		/* Cumulative .LIBS path */
+	struct Path inIncludes;	/* Cumulative .INCLUDES path */
+	struct Path inLibs;	/* Cumulative .LIBS path */
 
-	Lst_Init(&inIncludes);
-	Lst_Init(&inLibs);
+	TAILQ_INIT(&inIncludes);
+	TAILQ_INIT(&inLibs);
 
 	for (ln = Lst_First(&sufflist); ln != NULL; ln = Lst_Succ(ln)) {
 		s = Lst_Datum(ln);
-		if (!Lst_IsEmpty(&s->searchPath)) {
 #ifdef INCLUDES
-			if (s->flags & SUFF_INCLUDE) {
-				Dir_Concat(&inIncludes, &s->searchPath);
-			}
+		if (s->flags & SUFF_INCLUDE) {
+			Path_Concat(&inIncludes, &s->searchPath);
+		}
 #endif /* INCLUDES */
 #ifdef LIBRARIES
-			if (s->flags & SUFF_LIBRARY) {
-				Dir_Concat(&inLibs, &s->searchPath);
-			}
-#endif /* LIBRARIES */
-			Dir_Concat(&s->searchPath, &dirSearchPath);
-		} else {
-			Lst_Destroy(&s->searchPath, Dir_Destroy);
-			Lst_Duplicate(&s->searchPath, &dirSearchPath,
-			    Dir_CopyDir);
+		if (s->flags & SUFF_LIBRARY) {
+			Path_Concat(&inLibs, &s->searchPath);
 		}
+#endif /* LIBRARIES */
+		Path_Concat(&s->searchPath, &dirSearchPath);
 	}
 
-	Var_Set(".INCLUDES", ptr = Dir_MakeFlags("-I", &inIncludes),
-	    VAR_GLOBAL);
-	free(ptr);
-	Var_Set(".LIBS", ptr = Dir_MakeFlags("-L", &inLibs),
-	    VAR_GLOBAL);
+	ptr = Path_MakeFlags("-I", &inIncludes);
+	Var_Set(".INCLUDES", ptr, VAR_GLOBAL);
 	free(ptr);
 
-	Lst_Destroy(&inIncludes, Dir_Destroy);
-	Lst_Destroy(&inLibs, Dir_Destroy);
+	ptr = Path_MakeFlags("-L", &inLibs);
+	Var_Set(".LIBS", ptr, VAR_GLOBAL);
+	free(ptr);
+
+	Path_Clear(&inIncludes);
+	Path_Clear(&inLibs);
 }
 
 /*-
@@ -1041,7 +1037,7 @@ SuffFindThem(Lst *srcs, Lst *slst)
 			break;
 		}
 
-		if ((ptr = Dir_FindFile(s->file,
+		if ((ptr = Path_FindFile(s->file,
 		    &s->suff->searchPath)) != NULL) {
 			rs = s;
 #ifdef DEBUG_SRC
@@ -1247,7 +1243,7 @@ SuffExpandWildcards(GNode *child, Lst *members)
 	char	*cp;
 	Lst	exp;	/* List of expansions */
 	LstNode	*ln;
-	Lst	*path;	/* Search path along which to expand */
+	struct Path *path;	/* Search path along which to expand */
 
 	Lst_Init(members);
 
@@ -1282,7 +1278,7 @@ SuffExpandWildcards(GNode *child, Lst *members)
 	 * Expand the word along the chosen path
 	 */
 	Lst_Init(&exp);
-	Dir_Expand(child->name, path, &exp);
+	Path_Expand(child->name, path, &exp);
 
 	while (!Lst_IsEmpty(&exp)) {
 		/*
@@ -1812,7 +1808,7 @@ SuffFindNormalDeps(GNode *gn, Lst *slst)
 		 */
 		if (OP_NOP(gn->type) || (Lst_IsEmpty(&gn->children) &&
 		    Lst_IsEmpty(&gn->commands))) {
-			gn->path = Dir_FindFile(gn->name,
+			gn->path = Path_FindFile(gn->name,
 			    (targ == NULL ? &dirSearchPath :
 			    &targ->suff->searchPath));
 			if (gn->path != NULL) {
@@ -2149,8 +2145,8 @@ Suff_Init(void)
 
 	suffNull->name = estrdup("");
 	suffNull->nameLen = 0;
-	Lst_Init(&suffNull->searchPath);
-	Dir_Concat(&suffNull->searchPath, &dirSearchPath);
+	TAILQ_INIT(&suffNull->searchPath);
+	Path_Concat(&suffNull->searchPath, &dirSearchPath);
 	Lst_Init(&suffNull->children);
 	Lst_Init(&suffNull->parents);
 	Lst_Init(&suffNull->ref);
@@ -2195,7 +2191,7 @@ Suff_PrintAll(void)
 			printf("`%s' ", ((const Suff *)Lst_Datum(tln))->name);
 
 		printf("\n#\tSearch Path: ");
-		Dir_PrintPath(&s->searchPath);
+		Path_Print(&s->searchPath);
 
 		printf("\n");
 	}

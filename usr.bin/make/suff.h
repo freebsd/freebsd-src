@@ -42,13 +42,14 @@
 #define	suff_h_2d5a821c
 
 struct GNode;
+struct Path;
 
 void Suff_ClearSuffixes(void);
 Boolean Suff_IsTransform(char *);
 struct GNode *Suff_AddTransform(char *);
 void Suff_EndTransform(const struct GNode *);
 void Suff_AddSuffix(char *);
-Lst *Suff_GetPath(char *);
+struct Path *Suff_GetPath(char *);
 void Suff_DoPaths(void);
 void Suff_AddInclude(char *);
 void Suff_AddLib(char *);
