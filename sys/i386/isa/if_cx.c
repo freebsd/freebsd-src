@@ -54,9 +54,6 @@ extern struct cdevsw cx_cdevsw;
 #include <machine/cronyx.h>
 #include <i386/isa/cxreg.h>
 
-/* XXX exported. */
-void cxswitch (cx_chan_t *c, cx_soft_opt_t new);
-
 static int cxprobe __P((struct isa_device *id));
 static int cxattach __P((struct isa_device *id));
 static void cxput __P((cx_chan_t *c, char b));
@@ -821,20 +818,3 @@ cxinput (cx_chan_t *c, void *buf, unsigned len)
 	sppp_input (c->master, m);
 }
 
-void cxswitch (cx_chan_t *c, cx_soft_opt_t new)
-{
-	new.ext = 0;
-	if (! new.ext) {
-		struct sppp *sp = (struct sppp*) c->ifp;
-
-		if (new.cisco)
-			sp->pp_flags |= PP_CISCO;
-		else
-			sp->pp_flags &= ~PP_CISCO;
-		if (new.keepalive)
-			sp->pp_flags |= PP_KEEPALIVE;
-		else
-			sp->pp_flags &= ~PP_KEEPALIVE;
-	}
-	c->sopt = new;
-}
