@@ -48,6 +48,7 @@ static const char rcsid[] =
  *
  */
 
+int
 roll(ndie, nsides)
 int	ndie, nsides; {
 

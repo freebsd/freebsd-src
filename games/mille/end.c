@@ -45,10 +45,16 @@ static const char rcsid[] =
  * @(#)end.c	1.1 (Berkeley) 4/1/82
  */
 
+#ifndef EXTRAP
+void extrapolate __P((PLAY *));
+void undoex __P((void));
+#endif
+
 /*
  *	print out the score as if it was final, and add the totals for
  * the end-of-games points to the user who deserves it (if any).
  */
+void
 finalscore(pp)
 	PLAY	*pp; {
 
@@ -93,6 +99,7 @@ static int	Last_tot[2];	/* last tot used for extrapolate	*/
  *	print out the score as if it was final, and add the totals for
  * the end-of-games points to the user who deserves it (if any).
  */
+void
 extrapolate(pp)
 	PLAY	*pp; {
 
@@ -137,6 +144,7 @@ extrapolate(pp)
 	Last_tot[num] = tot;
 }
 
+void
 undoex() {
 
 	reg PLAY	*pp;

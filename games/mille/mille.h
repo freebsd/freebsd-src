@@ -36,10 +36,12 @@
  */
 
 # include	<sys/types.h>
+# include	<sys/uio.h>
 # include	<ctype.h>
 # include	<curses.h>
 # include	<string.h>
 # include       <stdlib.h>
+# include	<unistd.h>
 
 /*
  * @(#)mille.h	1.1 (Berkeley) 4/1/82
@@ -230,4 +232,37 @@ extern WINDOW	*Board, *Miles, *Score;
  * functions
  */
 
-CARD	getcard();
+void	account __P((CARD));
+void	calcmove __P((void));
+bool	canplay __P((PLAY *, PLAY *, CARD));
+bool	check_ext __P((bool));
+void	check_more __P((void));
+void	die __P((int));
+void	domove __P((void));
+bool	error __P((char *, ...));
+#ifdef EXTRAP
+void	extrapolate __P((PLAY *));
+#endif
+void	finalscore __P((PLAY *));
+CARD	getcard __P((void));
+bool	getyn __P((int));
+void	init __P((void));
+int	isrepair __P((CARD));
+void	newboard __P((void));
+void	newscore __P((void));
+bool	onecard __P((PLAY *));
+void	prboard __P((void));
+void	prompt __P((int));
+void	prscore __P((bool));
+char	readch __P((void));
+bool	rest_f __P((char *));
+int	roll __P((int, int));
+void	rub __P((int));
+CARD	safety __P((CARD));
+bool	save __P((void));
+void	shuffle __P((void));
+void	sort __P((CARD *));
+void	varpush __P((int, int (*)()));
+#ifdef EXTRAP
+void	undoex __P((void));
+#endif

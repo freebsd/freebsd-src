@@ -58,9 +58,6 @@ static const char rcsid[] =
  * @(#)mille.c	1.3 (Berkeley) 5/10/83
  */
 
-void check_more __P((void));
-void die __P((int));
-void	rub();
 static void usage __P((void));
 
 int
@@ -153,7 +150,8 @@ usage()
  * quit.
  */
 void
-rub() {
+rub(sig)
+int sig; {
 
 	(void)signal(SIGINT, SIG_IGN);
 	if (getyn(REALLYPROMPT))

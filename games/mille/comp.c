@@ -47,6 +47,7 @@ static const char rcsid[] =
 
 # define	V_VALUABLE	40
 
+void
 calcmove()
 {
 	CARD		card;
@@ -76,7 +77,7 @@ calcmove()
 		switch (card) {
 		  case C_STOP:	case C_CRASH:
 		  case C_FLAT:	case C_EMPTY:
-			if (playit[i] = canplay(pp, op, card))
+			if ((playit[i] = canplay(pp, op, card)) != NULL)
 				canstop = TRUE;
 			goto norm;
 		  case C_LIMIT:
@@ -402,6 +403,7 @@ play_it:
 /*
  * Return true if the given player could conceivably win with his next card.
  */
+bool
 onecard(pp)
 PLAY	*pp;
 {
@@ -412,7 +414,7 @@ PLAY	*pp;
 	card = -1;
 	if (pp->can_go || ((isrepair(bat) || bat == C_STOP || spd == C_LIMIT) &&
 			   Numseen[S_RIGHT_WAY] != 0) ||
-	    bat >= 0 && Numseen[safety(bat)] != 0)
+	    (bat >= 0 && Numseen[safety(bat)] != 0))
 		switch (End - pp->mileage) {
 		  case 200:
 			if (pp->nummiles[C_200] == 2)
@@ -434,6 +436,7 @@ PLAY	*pp;
 	return FALSE;
 }
 
+bool
 canplay(pp, op, card)
 PLAY	*pp, *op;
 CARD	card;

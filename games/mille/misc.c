@@ -40,10 +40,10 @@ static const char rcsid[] =
 #endif /* not lint */
 
 #include <sys/file.h>
+#include <stdarg.h>
 #include <termios.h>
 
 #include	"mille.h"
-#include	<unctrl.h>
 
 
 # ifdef	attron
@@ -58,11 +58,15 @@ static const char rcsid[] =
 #define	NUMSAFE	4
 
 /* VARARGS1 */
-error(str, arg)
-char	*str;
+bool
+error(char *str, ...)
 {
+	va_list arg;
+
+	va_start(arg, str);
 	stdscr = Score;
 	mvprintw(ERR_Y, ERR_X, str, arg);
+	va_end(arg);
 	clrtoeol();
 	putchar('\07');
 	refresh();
@@ -119,6 +123,7 @@ cont:		;
 	}
 }
 
+bool
 check_ext(forcomp)
 bool	forcomp; {
 
@@ -173,6 +178,7 @@ done:
  *	Get a yes or no answer to the given question.  Saves are
  * also allowed.  Return TRUE if the answer was yes, FALSE if no.
  */
+bool
 getyn(promptno)
 int	promptno; {
 
@@ -245,6 +251,7 @@ check_more()
 	die(0);
 }
 
+char
 readch()
 {
 	int		cnt;
