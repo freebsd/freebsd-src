@@ -90,9 +90,6 @@ extern void srandomdev __P((void));
 /*
  * variables set up by front end.
  */
-extern int	mfs;		/* run as the memory based filesystem */
-extern char	*mfs_mtpt;	/* mount point for mfs          */ 
-extern struct stat mfs_mtstat;	/* stat prior to mount          */
 extern int	Nflag;		/* run mkfs without writing file system */
 extern int	Oflag;		/* format as an 4.3BSD file system */
 extern int	Uflag;		/* enable soft updates for file system */
@@ -159,16 +156,12 @@ void wtfs __P((daddr_t, int, char *));
 void wtfsflush __P((void));
 
 #ifndef STANDALONE
-void get_memleft __P((void));
-void raise_data_limit __P((void));
 #else
 void free __P((char *));
 char * calloc __P((u_long, u_long));
 caddr_t malloc __P((u_long));
 caddr_t realloc __P((char *, u_long));
 #endif
-
-int mfs_ppid = 0;
 
 void
 mkfs(pp, fsys, fi, fo)
@@ -182,10 +175,8 @@ mkfs(pp, fsys, fi, fo)
 	off_t usedb;
 	long mapcramped, inodecramped;
 	long postblsize, rotblsize, totalsbsize;
-	int status, fd;
 	time_t utime;
 	quad_t sizepb;
-	void started();
 	int width;
 	char tmpbuf[100];	/* XXX this will break in about 2,500 years */
 
@@ -198,55 +189,6 @@ mkfs(pp, fsys, fi, fo)
 		srandomdev();
 	}
 #endif
-	if (mfs) {
-		mfs_ppid = getpid();
-		(void) signal(SIGUSR1, started);
-		if ((i = fork())) {
-			if (i == -1)
-				err(10, "mfs");
-			if (waitpid(i, &status, 0) != -1 && WIFEXITED(status))
-				exit(WEXITSTATUS(status));
-			exit(11);
-			/* NOTREACHED */
-		}
-#ifdef STANDALONE
-		(void)malloc(0);
-#else
-		raise_data_limit();
-#endif
-		if(filename) {
-			unsigned char buf[BUFSIZ];
-			unsigned long l,l1;
-			fd = open(filename,O_RDWR|O_TRUNC|O_CREAT,0644);
-			if(fd < 0)
-				err(12, "%s", filename);
-			for(l=0;l< fssize * sectorsize;l += l1) {
-				l1 = fssize * sectorsize;
-				if (BUFSIZ < l1)
-					l1 = BUFSIZ;
-				if (l1 != write(fd,buf,l1))
-					err(12, "%s", filename);
-			}
-			membase = mmap(
-				0,
-				fssize * sectorsize,
-				PROT_READ|PROT_WRITE,
-				MAP_SHARED,
-				fd,
-				0);
-			if(membase == MAP_FAILED)
-				err(12, "mmap");
-			close(fd);
-		} else {
-#ifndef STANDALONE
-			get_memleft();
-#endif
-			if (fssize * sectorsize > (memleft - 131072))
-				fssize = (memleft - 131072) / sectorsize;
-			if ((membase = malloc(fssize * sectorsize)) == NULL)
-				errx(13, "malloc failed");
-		}
-	}
 	fsi = fi;
 	fso = fo;
 	if (Oflag) {
@@ -637,7 +579,7 @@ next:
 		    NSPF(&sblock);
 		warn = 0;
 	}
-	if (warn && !mfs) {
+	if (warn) {
 		printf("Warning: %d sector(s) in last cylinder unallocated\n",
 		    sblock.fs_spc -
 		    (fssize * NSPF(&sblock) - (sblock.fs_ncyl - 1)
@@ -684,32 +626,27 @@ next:
 	/*
 	 * Dump out summary information about file system.
 	 */
-	if (!mfs) {
-		printf("%s:\t%d sectors in %d %s of %d tracks, %d sectors\n",
-		    fsys, sblock.fs_size * NSPF(&sblock), sblock.fs_ncyl,
-		    "cylinders", sblock.fs_ntrak, sblock.fs_nsect);
+	printf("%s:\t%d sectors in %d %s of %d tracks, %d sectors\n",
+	    fsys, sblock.fs_size * NSPF(&sblock), sblock.fs_ncyl,
+	    "cylinders", sblock.fs_ntrak, sblock.fs_nsect);
 #define B2MBFACTOR (1 / (1024.0 * 1024.0))
-		printf(
-		    "\t%.1fMB in %d cyl groups (%d c/g, %.2fMB/g, %d i/g)%s\n",
-		    (float)sblock.fs_size * sblock.fs_fsize * B2MBFACTOR,
-		    sblock.fs_ncg, sblock.fs_cpg,
-		    (float)sblock.fs_fpg * sblock.fs_fsize * B2MBFACTOR,
-		    sblock.fs_ipg,
-		    sblock.fs_flags & FS_DOSOFTDEP ? " SOFTUPDATES" : "");
+	printf(
+	    "\t%.1fMB in %d cyl groups (%d c/g, %.2fMB/g, %d i/g)%s\n",
+	    (float)sblock.fs_size * sblock.fs_fsize * B2MBFACTOR,
+	    sblock.fs_ncg, sblock.fs_cpg,
+	    (float)sblock.fs_fpg * sblock.fs_fsize * B2MBFACTOR,
+	    sblock.fs_ipg,
+	    sblock.fs_flags & FS_DOSOFTDEP ? " SOFTUPDATES" : "");
 #undef B2MBFACTOR
-	}
 	/*
 	 * Now build the cylinders group blocks and
 	 * then print out indices of cylinder groups.
 	 */
-	if (!mfs)
-		printf("super-block backups (for fsck -b #) at:\n");
+	printf("super-block backups (for fsck -b #) at:\n");
 	i = 0;
 	width = charsperline();
 	for (cylno = 0; cylno < sblock.fs_ncg; cylno++) {
 		initcg(cylno, utime);
-		if (mfs)
-			continue;
 		j = snprintf(tmpbuf, sizeof(tmpbuf), " %ld%s",
 		    fsbtodb(&sblock, cgsblock(&sblock, cylno)),
 		    cylno < (sblock.fs_ncg-1) ? "," : "" );
@@ -721,9 +658,8 @@ next:
 		printf("%s", tmpbuf);
 		fflush(stdout);
 	}
-	if (!mfs)
-		printf("\n");
-	if (Nflag && !mfs)
+	printf("\n");
+	if (Nflag)
 		exit(0);
 	/*
 	 * Now construct the initial file system,
@@ -752,18 +688,6 @@ next:
 	pp->p_fsize = sblock.fs_fsize;
 	pp->p_frag = sblock.fs_frag;
 	pp->p_cpg = sblock.fs_cpg;
-	/*
-	 * Notify parent process of success.
-	 * Dissociate from session and tty.
-	 */
-	if (mfs) {
-		kill(mfs_ppid, SIGUSR1);
-		(void) setsid();
-		(void) close(0);
-		(void) close(1);
-		(void) close(2);
-		(void) chdir("/");
-	}
 }
 
 /*
@@ -1009,10 +933,7 @@ fsinit(utime)
 	/*
 	 * create the root directory
 	 */
-	if (mfs)
-		node.di_mode = IFDIR | 01777;
-	else
-		node.di_mode = IFDIR | UMASK;
+	node.di_mode = IFDIR | UMASK;
 	node.di_nlink = PREDEFDIR;
 	if (Oflag)
 		node.di_size = makedir((struct direct *)oroot_dir, PREDEFDIR);
@@ -1178,34 +1099,6 @@ iput(ip, ino)
 	wtfs(d, sblock.fs_bsize, (char *)buf);
 }
 
-/*
- * Notify parent process that the filesystem has created itself successfully.
- *
- * We have to wait until the mount has actually completed!
- */
-void
-started()
-{
-	int retry = 100;	/* 10 seconds, 100ms */
-
-	while (mfs_ppid && retry) {
-		struct stat st;
-
-		if (
-		    stat(mfs_mtpt, &st) < 0 ||
-		    st.st_dev != mfs_mtstat.st_dev
-		) {
-			break;
-		}
-		usleep(100*1000);
-		--retry;
-	}
-	if (retry == 0) {
-		fatal("mfs mount failed waiting for mount to go active");
-	}
-	exit(0);
-}
-
 #ifdef STANDALONE
 /*
  * Replace libc function with one suited to our needs.
@@ -1285,18 +1178,6 @@ free(ptr)
 
 #else   /* !STANDALONE */
 
-void
-raise_data_limit()
-{
-	struct rlimit rlp;
-
-	if (getrlimit(RLIMIT_DATA, &rlp) < 0)
-		warn("getrlimit");
-	rlp.rlim_cur = rlp.rlim_max;
-	if (setrlimit(RLIMIT_DATA, &rlp) < 0)
-		warn("setrlimit");
-}
-
 #ifdef __ELF__
 extern char *_etext;
 #define etext _etext
@@ -1304,23 +1185,6 @@ extern char *_etext;
 extern char *etext;
 #endif
 
-void
-get_memleft()
-{
-	static u_long pgsz;
-	struct rlimit rlp;
-	u_long freestart;
-	u_long dstart;
-	u_long memused;
-
-	pgsz = getpagesize() - 1;
-	dstart = ((u_long)&etext) &~ pgsz;
-	freestart = ((u_long)(sbrk(0) + pgsz) &~ pgsz);
-	if (getrlimit(RLIMIT_DATA, &rlp) < 0)
-		warn("getrlimit");
-	memused = freestart - dstart;
-	memleft = rlp.rlim_cur - memused;
-}
 #endif  /* STANDALONE */
 
 /*
@@ -1335,10 +1199,6 @@ rdfs(bno, size, bf)
 	int n;
 
 	wtfsflush();
-	if (mfs) {
-		memmove(bf, membase + bno * sectorsize, size);
-		return;
-	}
 	if (lseek(fsi, (off_t)bno * sectorsize, 0) < 0) {
 		printf("seek error: %ld\n", (long)bno);
 		err(33, "rdfs");
@@ -1388,10 +1248,6 @@ wtfs(bno, size, bf)
 	int n;
 	int done;
 
-	if (mfs) {
-		memmove(membase + bno * sectorsize, bf, size);
-		return;
-	}
 	if (Nflag)
 		return;
 	done = 0;

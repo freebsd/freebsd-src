@@ -69,11 +69,6 @@ static const char rcsid[] =
 #include <syslog.h>
 #include <unistd.h>
 
-#ifdef MFS
-#include <sys/types.h>
-#include <sys/mman.h>
-#endif
-
 #if __STDC__
 #include <stdarg.h>
 #else
@@ -166,9 +161,6 @@ void	fatal();
 #define NTRACKS		1	/* number of heads */
 #define NSECTORS	4096	/* number of sectors */
 
-int	mfs;			/* run as the memory based filesystem */
-char	*mfs_mtpt;		/* mount point for mfs		*/
-struct stat mfs_mtstat;		/* stat prior to mount		*/
 int	Nflag;			/* run without writing file system */
 int	Oflag;			/* format as an 4.3BSD file system */
 int	Uflag;			/* enable soft updates for file system */
@@ -216,6 +208,7 @@ char	*progname;
 
 extern void mkfs __P((struct partition *, char *, int, int));
 static void usage __P((void));
+static void rewritelabel __P((char *s, int fd, register struct disklabel *lp));
 
 int
 main(argc, argv)
@@ -225,18 +218,12 @@ main(argc, argv)
 	register int ch;
 	register struct partition *pp;
 	register struct disklabel *lp;
-	struct disklabel mfsfakelabel;
 	struct disklabel *getdisklabel();
 	struct partition oldpartition;
 	struct stat st;
 	struct statfs *mp;
 	int fsi, fso, len, n, vflag;
 	char *cp, *s1, *s2, *special, *opstring;
-#ifdef MFS
-	struct vfsconf vfc;
-	int error;
-	char buf[BUFSIZ];
-#endif
 
 	vflag = 0;
 	if ((progname = strrchr(*argv, '/')))
@@ -244,18 +231,7 @@ main(argc, argv)
 	else
 		progname = *argv;
 
-	if (strstr(progname, "mfs")) {
-		mfs = 1;
-		Nflag++;
-		fprintf(stderr,
-"WARNING: MFS is being phased out in preference for md devices\n"
-"WARNING: Please see mdconfig(8) for details\n");
-		exit(1);
-	}
-
-	opstring = mfs ?
-	    "NF:T:Ua:b:c:d:e:f:g:h:i:m:o:s:" :
-	    "NOS:T:Ua:b:c:d:e:f:g:h:i:k:l:m:n:o:p:r:s:t:u:vx:";
+	opstring = "NOS:T:Ua:b:c:d:e:f:g:h:i:k:l:m:n:o:p:r:s:t:u:vx:";
 	while ((ch = getopt(argc, argv, opstring)) != -1)
 		switch (ch) {
 		case 'N':
@@ -338,16 +314,12 @@ main(argc, argv)
 				nrpos = 1;
 			break;
 		case 'o':
-			if (mfs)
-				getmntopts(optarg, mopts, &mntflags, 0);
-			else {
-				if (strcmp(optarg, "space") == 0)
-					opt = FS_OPTSPACE;
-				else if (strcmp(optarg, "time") == 0)
-					opt = FS_OPTTIME;
-				else
+			if (strcmp(optarg, "space") == 0)
+				opt = FS_OPTSPACE;
+			else if (strcmp(optarg, "time") == 0)
+				opt = FS_OPTTIME;
+			else
 	fatal("%s: unknown optimization preference: use `space' or `time'", optarg);
-			}
 			break;
 		case 'p':
 			if ((trackspares = atoi(optarg)) < 0)
@@ -387,39 +359,10 @@ main(argc, argv)
 	argc -= optind;
 	argv += optind;
 
-	if (argc != 2 && (mfs || argc != 1))
+	if (argc != 2 && argc != 1)
 		usage();
 
 	special = argv[0];
-	/* Copy the NetBSD way of faking up a disk label */
-        if (mfs && !strcmp(special, "swap")) {
-                /* 
-                 * it's an MFS, mounted on "swap."  fake up a label.
-                 * XXX XXX XXX
-                 */
-                fso = -1;       /* XXX; normally done below. */
- 
-                memset(&mfsfakelabel, 0, sizeof(mfsfakelabel));
-                mfsfakelabel.d_secsize = 512;
-                mfsfakelabel.d_nsectors = 64;
-                mfsfakelabel.d_ntracks = 16;
-                mfsfakelabel.d_ncylinders = 16; 
-                mfsfakelabel.d_secpercyl = 1024;
-                mfsfakelabel.d_secperunit = 16384;
-                mfsfakelabel.d_rpm = 3600;
-                mfsfakelabel.d_interleave = 1;
-                mfsfakelabel.d_npartitions = 1;
-                mfsfakelabel.d_partitions[0].p_size = 16384;
-                mfsfakelabel.d_partitions[0].p_fsize = 1024;
-                mfsfakelabel.d_partitions[0].p_frag = 8;
-                mfsfakelabel.d_partitions[0].p_cpg = 16;
-
-                lp = &mfsfakelabel;
-                pp = &mfsfakelabel.d_partitions[0];
-
-                goto havelabel;
-        }
-
 	cp = strrchr(special, '/');
 	if (cp == 0) {
 		/*
@@ -457,47 +400,39 @@ main(argc, argv)
 			++mp;
 		}
 	}
-	if (mfs && disktype != NULL) {
-		lp = (struct disklabel *)getdiskbyname(disktype);
-		if (lp == NULL)
-			fatal("%s: unknown disk type", disktype);
-		pp = &lp->d_partitions[1];
-	} else {
-		fsi = open(special, O_RDONLY);
-		if (fsi < 0)
-			fatal("%s: %s", special, strerror(errno));
-		if (fstat(fsi, &st) < 0)
-			fatal("%s: %s", special, strerror(errno));
-		if ((st.st_mode & S_IFMT) != S_IFCHR && !mfs)
-			printf("%s: %s: not a character-special device\n",
-			    progname, special);
- 		cp = strchr(argv[0], '\0');
- 		if (cp == argv[0])
- 			fatal("null special file name");
- 		cp--;
- 		if (!vflag && (*cp < 'a' || *cp > 'h') && !isdigit(*cp))
-			fatal("%s: can't figure out file system partition",
-			    argv[0]);
+	fsi = open(special, O_RDONLY);
+	if (fsi < 0)
+		fatal("%s: %s", special, strerror(errno));
+	if (fstat(fsi, &st) < 0)
+		fatal("%s: %s", special, strerror(errno));
+	if ((st.st_mode & S_IFMT) != S_IFCHR)
+		printf("%s: %s: not a character-special device\n",
+		    progname, special);
+	cp = strchr(argv[0], '\0');
+	if (cp == argv[0])
+		fatal("null special file name");
+	cp--;
+	if (!vflag && (*cp < 'a' || *cp > 'h') && !isdigit(*cp))
+		fatal("%s: can't figure out file system partition",
+		    argv[0]);
 #ifdef COMPAT
-		if (!mfs && disktype == NULL)
-			disktype = argv[1];
+	if (disktype == NULL)
+		disktype = argv[1];
 #endif
-		lp = getdisklabel(special, fsi);
-		if (vflag || isdigit(*cp))
-			pp = &lp->d_partitions[0];
-		else
-			pp = &lp->d_partitions[*cp - 'a'];
-		if (pp->p_size == 0)
-			fatal("%s: `%c' partition is unavailable",
-			    argv[0], *cp);
-		if (pp->p_fstype == FS_BOOT)
-			fatal("%s: `%c' partition overlaps boot program",
-			      argv[0], *cp);
-	}
-havelabel:
+	lp = getdisklabel(special, fsi);
+	if (vflag || isdigit(*cp))
+		pp = &lp->d_partitions[0];
+	else
+		pp = &lp->d_partitions[*cp - 'a'];
+	if (pp->p_size == 0)
+		fatal("%s: `%c' partition is unavailable",
+		    argv[0], *cp);
+	if (pp->p_fstype == FS_BOOT)
+		fatal("%s: `%c' partition overlaps boot program",
+		      argv[0], *cp);
 	if (fssize == 0)
 		fssize = pp->p_size;
-	if (fssize > pp->p_size && !mfs)
+	if (fssize > pp->p_size)
 	       fatal("%s: maximum file system size on the `%c' partition is %d",
 			argv[0], *cp, pp->p_size);
 	if (rpm == 0) {
@@ -610,15 +545,6 @@ havelabel:
 		pp->p_size *= secperblk;
 	}
 #endif
-	if (mfs) {
-		mfs_mtpt = argv[1];
-		if (
-		    stat(mfs_mtpt, &mfs_mtstat) < 0 ||
-		    !S_ISDIR(mfs_mtstat.st_mode)
-		) {
-			fatal("mount point not dir: %s", mfs_mtpt);
-		}
-	}
 	mkfs(pp, special, fsi, fso);
 #ifdef tahoe
 	if (realsectorsize != DEV_BSIZE)
@@ -632,37 +558,6 @@ havelabel:
 	if (!Nflag)
 		close(fso);
 	close(fsi);
-#ifdef MFS
-	if (mfs) {
-		struct mfs_args args;
-
-		snprintf(buf, sizeof(buf), "mfs:%d", getpid());
-		args.fspec = buf;
-		args.export.ex_root = -2;
-		if (mntflags & MNT_RDONLY)
-			args.export.ex_flags = MNT_EXRDONLY;
-		else
-			args.export.ex_flags = 0;
-		args.base = membase;
-		args.size = fssize * sectorsize;
-
-		error = getvfsbyname("mfs", &vfc);
-		if (error && vfsisloadable("mfs")) {
-			if (vfsload("mfs"))
-				fatal("vfsload(mfs)");
-			endvfsent();	/* flush cache */
-			error = getvfsbyname("mfs", &vfc);
-		}
-		if (error)
-			fatal("mfs filesystem not available");
-
-		if (mount(vfc.vfc_name, argv[1], mntflags, &args) < 0)
-			fatal("%s: %s", argv[1], strerror(errno));
-		if(filename) {
-			munmap(membase,fssize * sectorsize);
-		}
-	}
-#endif
 	exit(0);
 }
 
@@ -697,6 +592,7 @@ getdisklabel(s, fd)
 	return (&lab);
 }
 
+void
 rewritelabel(s, fd, lp)
 	char *s;
 	int fd;
@@ -746,18 +642,13 @@ fatal(fmt, va_alist)
 static void
 usage()
 {
-	if (mfs) {
-		fprintf(stderr,
-		    "usage: %s [ -fsoptions ] special-device mount-point\n",
-			progname);
-	} else
-		fprintf(stderr,
-		    "usage: %s [ -fsoptions ] special-device%s\n",
-		    progname,
+	fprintf(stderr,
+	    "usage: %s [ -fsoptions ] special-device%s\n",
+	    progname,
 #ifdef COMPAT
-		    " [device-type]");
+	    " [device-type]");
 #else
-		    "");
+	    "");
 #endif
 	fprintf(stderr, "where fsoptions are:\n");
 	fprintf(stderr,
