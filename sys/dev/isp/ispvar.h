@@ -54,7 +54,7 @@
 #endif
 
 #define	ISP_CORE_VERSION_MAJOR	2
-#define	ISP_CORE_VERSION_MINOR	1
+#define	ISP_CORE_VERSION_MINOR	2
 
 /*
  * Vector for bus specific code to provide specific services.
@@ -179,17 +179,21 @@ typedef struct {
 	u_int8_t	isp_retry_count;
 	u_int8_t	isp_retry_delay;
 	struct {
-		u_int	dev_enable	:	1,	/* ignored */
+		u_int32_t	
+			exc_throttle	:	8,
 					:	1,
+			dev_enable	:	1,	/* ignored */
 			dev_update	:	1,
 			dev_refresh	:	1,
-			exc_throttle	:	8,
-			cur_offset	:	4,
-			sync_offset	:	4;
-		u_int8_t	cur_period;	/* current sync period */
-		u_int8_t	sync_period;	/* goal sync period */
-		u_int16_t	dev_flags;	/* goal device flags */
-		u_int16_t	cur_dflags;	/* current device flags */
+			actv_offset	:	4,
+			goal_offset	:	4,
+			nvrm_offset	:	4;
+		u_int8_t	actv_period;	/* current sync period */
+		u_int8_t	goal_period;	/* goal sync period */
+		u_int8_t	nvrm_period;	/* nvram sync period */
+		u_int16_t	actv_flags;	/* current device flags */
+		u_int16_t	goal_flags;	/* goal device flags */
+		u_int16_t	nvrm_flags;	/* nvram device flags */
 	} isp_devparam[MAX_TARGETS];
 } sdparam;
 
