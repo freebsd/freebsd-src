@@ -140,7 +140,7 @@ STRICTTMPPATH=	${WORLDTMP}/usr/sbin:${WORLDTMP}/usr/bin:${WORLDTMP}/usr/games
 TMPPATH=	${STRICTTMPPATH}:${PATH}
 OBJFORMAT_PATH?=	/usr/libexec
 
-INSTALLTMP!=	mktemp -d -u -t install
+INSTALLTMP!=	/usr/bin/mktemp -d -u -t install
 
 #
 # Building a world goes through the following stages
