@@ -9,7 +9,7 @@
  * Modified by Bill Fenner, PARC, April 1995
  *
  * MROUTING Revision: 3.5
- * $Id: ip_mroute.c,v 1.21 1995/07/26 18:05:11 wollman Exp $
+ * $Id: ip_mroute.c,v 1.22 1995/08/23 18:20:15 wollman Exp $
  */
 
 
@@ -499,7 +499,7 @@ ip_mrouter_init(so, m)
     int i;
 
     if (mrtdebug)
-	log(LOG_DEBUG,"ip_mrouter_init: so_type = %d, pr_protocol = %d",
+	log(LOG_DEBUG,"ip_mrouter_init: so_type = %d, pr_protocol = %d\n",
 		so->so_type, so->so_proto->pr_protocol);
 
     if (so->so_type != SOCK_RAW ||
@@ -524,7 +524,7 @@ ip_mrouter_init(so, m)
     timeout(expire_upcalls, (caddr_t)NULL, EXPIRE_TIMEOUT);
 
     if (mrtdebug)
-	log(LOG_DEBUG, "ip_mrouter_init");
+	log(LOG_DEBUG, "ip_mrouter_init\n");
 
     return 0;
 }
@@ -601,7 +601,7 @@ X_ip_mrouter_done()
     splx(s);
 
     if (mrtdebug)
-	log(LOG_DEBUG, "ip_mrouter_done");
+	log(LOG_DEBUG, "ip_mrouter_done\n");
 
     return 0;
 }
@@ -701,7 +701,7 @@ add_vif(vifcp)
 		 */
 		bzero(&vifp->v_route, sizeof(vifp->v_route));
 	} else {
-	    log(LOG_ERR, "Source routed tunnels not supported.");
+	    log(LOG_ERR, "source routed tunnels not supported\n");
 	    return EOPNOTSUPP;
 	}
     } else {
@@ -748,7 +748,7 @@ add_vif(vifcp)
     if (numvifs <= vifcp->vifc_vifi) numvifs = vifcp->vifc_vifi + 1;
 
     if (mrtdebug)
-	log(LOG_DEBUG, "add_vif #%d, lcladdr %x, %s %x, thresh %x, rate %d",
+	log(LOG_DEBUG, "add_vif #%d, lcladdr %x, %s %x, thresh %x, rate %d\n",
 	    vifcp->vifc_vifi, 
 	    ntohl(vifcp->vifc_lcl_addr.s_addr),
 	    (vifcp->vifc_flags & VIFF_TUNNEL) ? "rmtaddr" : "mask",
@@ -810,7 +810,7 @@ del_vif(vifip)
     splx(s);
 
     if (mrtdebug)
-      log(LOG_DEBUG, "del_vif %d, numvifs %d", *vifip, numvifs);
+      log(LOG_DEBUG, "del_vif %d, numvifs %d\n", *vifip, numvifs);
 
     return 0;
 }
@@ -836,7 +836,7 @@ add_mfc(mfccp)
     /* If an entry already exists, just update the fields */
     if (rt) {
 	if (mrtdebug & DEBUG_MFC)
-	    log(LOG_DEBUG,"add_mfc update o %x g %x p %x",
+	    log(LOG_DEBUG,"add_mfc update o %x g %x p %x\n",
 		ntohl(mfccp->mfcc_origin.s_addr),
 		ntohl(mfccp->mfcc_mcastgrp.s_addr),
 		mfccp->mfcc_parent);
@@ -862,14 +862,14 @@ add_mfc(mfccp)
 	    (mb_rt->m_act != NULL)) {
   
 	    if (nstl++)
-		log(LOG_ERR, "add_mfc %s o %x g %x p %x dbx %x",
+		log(LOG_ERR, "add_mfc %s o %x g %x p %x dbx %x\n",
 		    "multiple kernel entries",
 		    ntohl(mfccp->mfcc_origin.s_addr),
 		    ntohl(mfccp->mfcc_mcastgrp.s_addr),
 		    mfccp->mfcc_parent, mb_rt->m_act);
 
 	    if (mrtdebug & DEBUG_MFC)
-		log(LOG_DEBUG,"add_mfc o %x g %x p %x dbg %x",
+		log(LOG_DEBUG,"add_mfc o %x g %x p %x dbg %x\n",
 		    ntohl(mfccp->mfcc_origin.s_addr),
 		    ntohl(mfccp->mfcc_mcastgrp.s_addr),
 		    mfccp->mfcc_parent, mb_rt->m_act);
@@ -910,7 +910,7 @@ add_mfc(mfccp)
      */
     if (nstl == 0) {
 	if (mrtdebug & DEBUG_MFC)
-	    log(LOG_DEBUG,"add_mfc no upcall h %d o %x g %x p %x",
+	    log(LOG_DEBUG,"add_mfc no upcall h %d o %x g %x p %x\n",
 		hash, ntohl(mfccp->mfcc_origin.s_addr),
 		ntohl(mfccp->mfcc_mcastgrp.s_addr),
 		mfccp->mfcc_parent);
@@ -1015,7 +1015,7 @@ del_mfc(mfccp)
     hash = MFCHASH(origin.s_addr, mcastgrp.s_addr);
 
     if (mrtdebug & DEBUG_MFC)
-	log(LOG_DEBUG,"del_mfc orig %x mcastgrp %x",
+	log(LOG_DEBUG,"del_mfc orig %x mcastgrp %x\n",
 	    ntohl(origin.s_addr), ntohl(mcastgrp.s_addr));
 
     s = splnet();
@@ -1095,7 +1095,7 @@ X_ip_mforward(ip, ifp, m, imo)
     struct vif *vifp;
 
     if (mrtdebug & DEBUG_FORWARD)
-	log(LOG_DEBUG, "ip_mforward: src %x, dst %x, ifp %x",
+	log(LOG_DEBUG, "ip_mforward: src %x, dst %x, ifp %x\n",
 	    ntohl(ip->ip_src.s_addr), ntohl(ip->ip_dst.s_addr), ifp);
 
     if (ip->ip_hl < (IP_HDR_LEN + TUNNEL_LEN) >> 2 ||
@@ -1110,7 +1110,7 @@ X_ip_mforward(ip, ifp, m, imo)
 	 * Source-route tunnels are no longer supported.
 	 */
 	if ((srctun++ % 1000) == 0)
-	    log(LOG_ERR, "ip_mforward: received source-routed packet from %x",
+	    log(LOG_ERR, "ip_mforward: received source-routed packet from %x\n",
 		ntohl(ip->ip_src.s_addr));
 
 	return 1;
@@ -1175,7 +1175,7 @@ X_ip_mforward(ip, ifp, m, imo)
 
 	mrtstat.mrts_no_route++;
 	if (mrtdebug & (DEBUG_FORWARD | DEBUG_MFC))
-	    log(LOG_DEBUG, "ip_mforward: no rte s %x g %x",
+	    log(LOG_DEBUG, "ip_mforward: no rte s %x g %x\n",
 		ntohl(ip->ip_src.s_addr),
 		ntohl(ip->ip_dst.s_addr));
 
@@ -1243,7 +1243,7 @@ X_ip_mforward(ip, ifp, m, imo)
 	    mrtstat.mrts_upcalls++;
 
 	    if (socket_send(ip_mrouter, mm, &k_igmpsrc) < 0) {
-		log(LOG_WARNING, "ip_mforward: ip_mrouter socket queue full");
+		log(LOG_WARNING, "ip_mforward: ip_mrouter socket queue full\n");
 		++mrtstat.mrts_upq_sockfull;
 		m_free(mb_ntry);
 		m_freem(mb0);
@@ -1335,7 +1335,7 @@ expire_upcalls(void *unused)
 	        mfc->mfc_expire != 0 &&
 		--mfc->mfc_expire == 0) {
 		if (mrtdebug & DEBUG_EXPIRE)
-		    log(LOG_DEBUG, "expire_upcalls: expiring (%x %x)",
+		    log(LOG_DEBUG, "expire_upcalls: expiring (%x %x)\n",
 			ntohl(mfc->mfc_origin.s_addr),
 			ntohl(mfc->mfc_mcastgrp.s_addr));
 		/*
@@ -1408,7 +1408,7 @@ ip_mdq(m, ifp, rt, xmt_vif)
     if ((vifi >= numvifs) || (viftable[vifi].v_ifp != ifp)) {
 	/* came in the wrong interface */
 	if (mrtdebug & DEBUG_FORWARD)
-	    log(LOG_DEBUG, "wrong if: ifp %x vifi %d vififp %x",
+	    log(LOG_DEBUG, "wrong if: ifp %x vifi %d vififp %x\n",
 		ifp, vifi, viftable[vifi].v_ifp); 
 	++mrtstat.mrts_wrong_if;
 	++rt->mfc_wrong_if;
@@ -1666,7 +1666,7 @@ ipip_input(m, iphlen)
 	mrtstat.mrts_cant_tunnel++; /*XXX*/
 	m_freem(m);
 	if (mrtdebug)
-          log(LOG_DEBUG, "ip_mforward: no tunnel with %x",
+          log(LOG_DEBUG, "ip_mforward: no tunnel with %x\n",
 		ntohl(ip->ip_src.s_addr));
 	return;
     }
@@ -1907,7 +1907,8 @@ tbf_send_packet(vifp, m)
 			  IP_FORWARDING, &imo);
 
 	if (mrtdebug & DEBUG_XMIT)
-	    log(LOG_DEBUG, "phyint_send on vif %d err %d", vifp-viftable, error);
+	    log(LOG_DEBUG, "phyint_send on vif %d err %d\n", 
+		vifp - viftable, error);
     }
     splx(s);
 }
@@ -1980,7 +1981,7 @@ priority(vifp, ip)
 		break;
 	}
 	if (tbfdebug > 1)
-		log(LOG_DEBUG, "port %x prio%d", ntohs(udp->uh_dport), prio);
+		log(LOG_DEBUG, "port %x prio%d\n", ntohs(udp->uh_dport), prio);
     } else {
 	    prio = 50;
     }
