@@ -2262,12 +2262,13 @@ dc_attach(dev)
 	/*
 	 * Call MI attach routine.
 	 */
-	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
+	ether_ifattach(ifp, eaddr);
 
 	/*
 	 * Tell the upper layer(s) we support long frames.
 	 */
 	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
+	ifp->if_capabilities |= IFCAP_VLAN_MTU;
 
 	callout_init(&sc->dc_stat_ch, IS_MPSAFE);
 
@@ -2322,7 +2323,7 @@ dc_detach(dev)
 	ifp = &sc->arpcom.ac_if;
 
 	dc_stop(sc);
-	ether_ifdetach(ifp, ETHER_BPF_SUPPORTED);
+	ether_ifdetach(ifp);
 
 	bus_generic_detach(dev);
 	device_delete_child(dev, sc->dc_miibus);
@@ -2609,7 +2610,6 @@ static void
 dc_rxeof(sc)
 	struct dc_softc		*sc;
 {
-	struct ether_header	*eh;
 	struct mbuf		*m;
 	struct ifnet		*ifp;
 	struct dc_desc		*cur_rx;
@@ -2708,11 +2708,7 @@ dc_rxeof(sc)
 		}
 
 		ifp->if_ipackets++;
-		eh = mtod(m, struct ether_header *);
-
-		/* Remove header from mbuf and pass it on. */
-		m_adj(m, sizeof(struct ether_header));
-		ether_input(ifp, eh, m);
+		(*ifp->if_input)(ifp, m);
 	}
 
 	sc->dc_cdata.dc_rx_prod = i;
@@ -3260,8 +3256,7 @@ dc_start(ifp)
 		 * If there's a BPF listener, bounce a copy of this frame
 		 * to him.
 		 */
-		if (ifp->if_bpf)
-			bpf_mtap(ifp, m_head);
+		BPF_MTAP(ifp, m_head);
 
 		if (sc->dc_flags & DC_TX_ONE) {
 			ifp->if_flags |= IFF_OACTIVE;
@@ -3542,11 +3537,6 @@ dc_ioctl(ifp, command, data)
 	DC_LOCK(sc);
 
 	switch(command) {
-	case SIOCSIFADDR:
-	case SIOCGIFADDR:
-	case SIOCSIFMTU:
-		error = ether_ioctl(ifp, command, data);
-		break;
 	case SIOCSIFFLAGS:
 		if (ifp->if_flags & IFF_UP) {
 			if (ifp->if_flags & IFF_RUNNING &&
@@ -3583,7 +3573,7 @@ dc_ioctl(ifp, command, data)
 #endif
 		break;
 	default:
-		error = EINVAL;
+		error = ether_ioctl(ifp, command, data);
 		break;
 	}
 

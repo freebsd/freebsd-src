@@ -1125,12 +1125,13 @@ sis_attach(dev)
 	/*
 	 * Call MI attach routine.
 	 */
-	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
+	ether_ifattach(ifp, eaddr);
 	
 	/*
 	 * Tell the upper layer(s) we support long frames.
 	 */
 	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
+	ifp->if_capabilities |= IFCAP_VLAN_MTU;
 
 	callout_handle_init(&sc->sis_stat_ch);
 	return(0);
@@ -1154,7 +1155,7 @@ sis_detach(dev)
 
 	sis_reset(sc);
 	sis_stop(sc);
-	ether_ifdetach(ifp, ETHER_BPF_SUPPORTED);
+	ether_ifdetach(ifp);
 
 	bus_generic_detach(dev);
 	device_delete_child(dev, sc->sis_miibus);
@@ -1364,7 +1365,9 @@ sis_rxeof(sc)
 		}
 
 		ifp->if_ipackets++;
-		ether_input(ifp, NULL, m);
+		m->m_pkthdr.rcvif = ifp;
+
+		(*ifp->if_input)(ifp, m);
 	}
 
 	sc->sis_cdata.sis_rx_prod = i;
@@ -1687,8 +1690,7 @@ sis_start(ifp)
 		 * If there's a BPF listener, bounce a copy of this frame
 		 * to him.
 		 */
-		if (ifp->if_bpf)
-			bpf_mtap(ifp, m_head);
+		BPF_MTAP(ifp, m_head);
 
 	}
 
@@ -1933,11 +1935,6 @@ sis_ioctl(ifp, command, data)
 	int			error = 0;
 
 	switch(command) {
-	case SIOCSIFADDR:
-	case SIOCGIFADDR:
-	case SIOCSIFMTU:
-		error = ether_ioctl(ifp, command, data);
-		break;
 	case SIOCSIFFLAGS:
 		if (ifp->if_flags & IFF_UP) {
 			sis_init(sc);
@@ -1965,7 +1962,7 @@ sis_ioctl(ifp, command, data)
 		SIS_UNLOCK(sc);
 		break;
 	default:
-		error = EINVAL;
+		error = ether_ioctl(ifp, command, data);
 		break;
 	}
 

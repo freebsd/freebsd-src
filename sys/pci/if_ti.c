@@ -2127,7 +2127,7 @@ ti_attach(dev)
 
 	mtx_init(&sc->ti_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
 	    MTX_DEF | MTX_RECURSE);
-	sc->arpcom.ac_if.if_capabilities = IFCAP_HWCSUM;
+	sc->arpcom.ac_if.if_capabilities = IFCAP_HWCSUM | IFCAP_VLAN_HWTAGGING;
 	sc->arpcom.ac_if.if_capenable = sc->arpcom.ac_if.if_capabilities;
 
 	/*
@@ -2366,7 +2366,7 @@ ti_attach(dev)
 	/*
 	 * Call MI attach routine.
 	 */
-	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
+	ether_ifattach(ifp, sc->arpcom.ac_enaddr);
 	return(0);
 
 fail:
@@ -2416,7 +2416,7 @@ ti_detach(dev)
 	TI_LOCK(sc);
 	ifp = &sc->arpcom.ac_if;
 
-	ether_ifdetach(ifp, ETHER_BPF_SUPPORTED);
+	ether_ifdetach(ifp);
 	ti_stop(sc);
 
 	bus_teardown_intr(dev, sc->ti_irq, sc->ti_intrhand);
@@ -2593,9 +2593,6 @@ ti_rxeof(sc)
 		eh = mtod(m, struct ether_header *);
 		m->m_pkthdr.rcvif = ifp;
 
-		/* Remove header from mbuf and pass it on. */
-		m_adj(m, sizeof(struct ether_header));
-
 		if (ifp->if_hwassist) {
 			m->m_pkthdr.csum_flags |= CSUM_IP_CHECKED |
 			    CSUM_DATA_VALID;
@@ -2605,15 +2602,12 @@ ti_rxeof(sc)
 		}
 
 		/*
-		 * If we received a packet with a vlan tag, pass it
-		 * to vlan_input() instead of ether_input().
+		 * If we received a packet with a vlan tag,
+		 * tag it before passing the packet upward.
 		 */
-		if (have_tag) {
-			VLAN_INPUT_TAG(eh, m, vlan_tag);
-			have_tag = vlan_tag = 0;
-			continue;
-		}
-		ether_input(ifp, eh, m);
+		if (have_tag)
+			VLAN_INPUT_TAG(ifp, m, vlan_tag, continue);
+		(*ifp->if_input)(ifp, m);
 	}
 
 	/* Only necessary on the Tigon 1. */
@@ -2754,12 +2748,7 @@ ti_encap(sc, m_head, txidx)
 	struct mbuf		*m;
 	u_int32_t		frag, cur, cnt = 0;
 	u_int16_t		csum_flags = 0;
-	struct ifvlan		*ifv = NULL;
-
-	if ((m_head->m_flags & (M_PROTO1|M_PKTHDR)) == (M_PROTO1|M_PKTHDR) &&
-	    m_head->m_pkthdr.rcvif != NULL &&
-	    m_head->m_pkthdr.rcvif->if_type == IFT_L2VLAN)
-		ifv = m_head->m_pkthdr.rcvif->if_softc;
+	struct m_tag		*mtag;
 
 	m = m_head;
 	cur = frag = *txidx;
@@ -2774,6 +2763,9 @@ ti_encap(sc, m_head, txidx)
 		else if (m_head->m_flags & M_FRAG)
 			csum_flags |= TI_BDFLAG_IP_FRAG;
 	}
+
+	mtag = VLAN_OUTPUT_TAG(&sc->arpcom.ac_if, m);
+
 	/*
  	 * Start packing the mbufs in this chain into
 	 * the fragment pointers. Stop when we run out
@@ -2803,9 +2795,9 @@ ti_encap(sc, m_head, txidx)
 			f->ti_len = m->m_len;
 			f->ti_flags = csum_flags;
 
-			if (ifv != NULL) {
+			if (mtag != NULL) {
 				f->ti_flags |= TI_BDFLAG_VLAN_TAG;
-				f->ti_vlan_tag = ifv->ifv_tag & 0xfff;
+				f->ti_vlan_tag = VLAN_TAG_VALUE(mtag) & 0xfff;
 			} else {
 				f->ti_vlan_tag = 0;
 			}
@@ -2896,8 +2888,7 @@ ti_start(ifp)
 		 * If there's a BPF listener, bounce a copy of this frame
 		 * to him.
 		 */
-		if (ifp->if_bpf)
-			bpf_mtap(ifp, m_head);
+		BPF_MTAP(ifp, m_head);
 	}
 
 	/* Transmit */
@@ -3188,10 +3179,6 @@ ti_ioctl(ifp, command, data)
 	TI_LOCK(sc);
 
 	switch(command) {
-	case SIOCSIFADDR:
-	case SIOCGIFADDR:
-		error = ether_ioctl(ifp, command, data);
-		break;
 	case SIOCSIFMTU:
 		if (ifr->ifr_mtu > TI_JUMBO_MTU)
 			error = EINVAL;
@@ -3254,7 +3241,7 @@ ti_ioctl(ifp, command, data)
 		error = 0;
 		break;
 	default:
-		error = EINVAL;
+		error = ether_ioctl(ifp, command, data);
 		break;
 	}
 
