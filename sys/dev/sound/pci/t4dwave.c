@@ -29,9 +29,9 @@
 #include "pci.h"
 #include "pcm.h"
 
-#include <dev/pcm/sound.h>
-#include <dev/pcm/ac97.h>
-#include <dev/pcm/pci/t4dwave.h>
+#include <dev/sound/pcm/sound.h>
+#include <dev/sound/pcm/ac97.h>
+#include <dev/sound/pci/t4dwave.h>
 
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>

@@ -29,7 +29,7 @@
 
 #include "opt_devfs.h"
 
-#include <dev/pcm/sound.h>
+#include <dev/sound/pcm/sound.h>
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif /* DEVFS */

@@ -27,7 +27,7 @@
  * $FreeBSD$
  */
 
-#include <dev/pcm/sound.h>
+#include <dev/sound/pcm/sound.h>
 
 #define MIN_CHUNK_SIZE 		256	/* for uiomove etc. */
 #define	DMA_ALIGN_THRESHOLD	4

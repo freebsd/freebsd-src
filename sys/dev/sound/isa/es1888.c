@@ -26,8 +26,8 @@
  *	$FreeBSD$
  */
 
-#include <dev/pcm/sound.h>
-#include <dev/pcm/isa/sb.h>
+#include <dev/sound/pcm/sound.h>
+#include <dev/sound/isa/sb.h>
 
 #if NPCM > 0
 
