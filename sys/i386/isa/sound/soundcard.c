@@ -549,7 +549,7 @@ sound_mem_init (void)
 	  if (sound_dsp_dmachan[dev] > 3 && sound_buffsizes[dev] > 65536)
 	    dma_pagesize = 131072;	/* 128k */
 	  else
-	    dma_pagesize = 65536;
+	    dma_pagesize = /* 65536; */ 4096;	/* Be conservative for now! */
 
 	  /* More sanity checks */
 
