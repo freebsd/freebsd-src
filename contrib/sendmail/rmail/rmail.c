@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2000 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2001 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -19,7 +19,7 @@ static char copyright[] =
 #endif /* ! lint */
 
 #ifndef lint
-static char id[] = "@(#)$Id: rmail.c,v 8.39.4.9 2000/11/17 08:42:56 gshapiro Exp $";
+static char id[] = "@(#)$Id: rmail.c,v 8.39.4.11 2001/02/14 04:07:25 gshapiro Exp $";
 #endif /* ! lint */
 
 /* $FreeBSD$ */
@@ -99,9 +99,9 @@ static char id[] = "@(#)$Id: rmail.c,v 8.39.4.9 2000/11/17 08:42:56 gshapiro Exp
 # define memmove(d, s, l)	(bcopy((s), (d), (l)))
 #endif /* defined(sun) && !defined(BSD) && !defined(SOLARIS) && !defined(__svr4__) && !defined(__SVR4) */
 
-#if !HASSNPRINTF
+#if !HASSNPRINTF && !SFIO
 extern int	snprintf __P((char *, size_t, const char *, ...));
-#endif /* !HASSNPRINTF */
+#endif /* !HASSNPRINTF && !SFIO */
 
 #if defined(BSD4_4) || defined(__osf__) || defined(__GNU_LIBRARY__) || defined(IRIX64) || defined(IRIX5) || defined(IRIX6)
 # ifndef HASSTRERROR
