@@ -426,9 +426,10 @@ pmap_bootstrap(firstaddr, loadaddr)
 		for (j = 0; j < mp_napics; j++) {
 			/* same page frame as a previous IO apic? */
 			if (((vm_offset_t)SMPpt[NPTEPG-2-j] & PG_FRAME) ==
-			    (io_apic_address[0] & PG_FRAME)) {
+			    (io_apic_address[i] & PG_FRAME)) {
 				ioapic[i] = (ioapic_t *)((u_int)SMP_prvspace
-					+ (NPTEPG-2-j)*PAGE_SIZE);
+					+ (NPTEPG-2-j) * PAGE_SIZE
+					+ (io_apic_address[i] & PAGE_MASK));
 				break;
 			}
 			/* use this slot if available */
@@ -436,7 +437,8 @@ pmap_bootstrap(firstaddr, loadaddr)
 				SMPpt[NPTEPG-2-j] = (pt_entry_t)(PG_V | PG_RW |
 				    pgeflag | (io_apic_address[i] & PG_FRAME));
 				ioapic[i] = (ioapic_t *)((u_int)SMP_prvspace
-					+ (NPTEPG-2-j)*PAGE_SIZE);
+					+ (NPTEPG-2-j) * PAGE_SIZE
+					+ (io_apic_address[i] & PAGE_MASK));
 				break;
 			}
 		}
