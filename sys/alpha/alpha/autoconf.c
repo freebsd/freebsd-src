@@ -84,6 +84,8 @@ configure_finish()
 {
 }
 
+#if 0
+
 static int
 atoi(const char *s)
 {
@@ -135,8 +137,6 @@ bootdev_unit(void)
 	return atoi(bootdev_field(5));
 }
 
-#if 0
-
 static int
 bootdev_bus(void)
 {
@@ -168,18 +168,6 @@ bootdev_ctrl_dev_type(void)
 }
 
 #endif
-
-void
-alpha_register_pci_scsi(int bus, int slot, struct cam_sim *sim)
-{
-	if (!strcmp(bootdev_protocol(), "SCSI")) {
-		int boot_slot = bootdev_slot();
-		if (((bus == boot_slot / 1000 )
-		     || (bus == 1 && (boot_slot < 1000)))
-		    && slot == boot_slot % 1000)
-			boot_sim = sim;
-	}
-}
 
 /*
  * Determine i/o configuration for a machine.
