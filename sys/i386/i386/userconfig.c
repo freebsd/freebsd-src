@@ -403,7 +403,7 @@ static DEV_INFO device_info[] = {
 {"cy",          "Cyclades multiport async adapter",	0,		CLS_COMMS},
 {"cyy",         "Cyclades Ye/PCI multiport async adapter",FLG_INVISIBLE,CLS_COMMS},
 {"dgb",         "Digiboard PC/Xe, PC/Xi async adapter",	0,		CLS_COMMS},
-{"si",          "Specialix SI/XIO async adapter",	0,		CLS_COMMS},
+{"si",          "Specialix SI/XIO/SX async adapter",	0,		CLS_COMMS},
 {"stl",         "Stallion EasyIO/Easy Connection 8/32 async adapter",0,	CLS_COMMS},
 {"stli",        "Stallion intelligent async adapter"	,0,		CLS_COMMS},
 {"lpt",         "Parallel printer port",		0,		CLS_COMMS},
