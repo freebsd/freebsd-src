@@ -54,20 +54,25 @@ extern "C" {
 /* The word size used by BFD on the host.  This may be 64 with a 32
    bit target if the host is 64 bit, or if other 64 bit targets have
    been selected with --enable-targets, or if --enable-64-bit-bfd.  */
-#define BFD_ARCH_SIZE 32
+#define BFD_ARCH_SIZE 64
 
+
+#if defined(__i386__) || defined(__powerpc__) || defined(__arm__)
 /* The word size of the default bfd target.  */
 #define BFD_DEFAULT_TARGET_SIZE 32
-
-#if defined(__alpha__) || defined(__sparc64__) || defined(__amd64__) || defined(__ia64__)
+#define BFD_HOST_64BIT_LONG 0
+#define BFD_HOST_64_BIT long long
+#define BFD_HOST_U_64_BIT unsigned long long
+#elif defined(__alpha__) || defined(__sparc64__) || defined(__amd64__) || defined(__ia64__)
+/* The word size of the default bfd target.  */
+#define BFD_DEFAULT_TARGET_SIZE 64
 #define BFD_HOST_64BIT_LONG 1
 #define BFD_HOST_64_BIT long
 #define BFD_HOST_U_64_BIT unsigned long
 #else
-#define BFD_HOST_64BIT_LONG 0
-#define BFD_HOST_64_BIT long long
-#define BFD_HOST_U_64_BIT unsigned long long
+#error Unsupported architecture/platform.
 #endif /* 64-bit host */
+
 #define BFD_HOST_LONG_LONG 1
 typedef BFD_HOST_64_BIT bfd_int64_t;
 typedef BFD_HOST_U_64_BIT bfd_uint64_t;
