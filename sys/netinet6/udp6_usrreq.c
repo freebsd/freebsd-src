@@ -261,7 +261,7 @@ udp6_input(mp, offp, proto)
 				/*
 				 * Check AH/ESP integrity.
 				 */
-				if (ipsec6_in_reject(m, last))
+				if (ipsec6_in_reject_so(m, last->inp_socket))
 					ipsec6stat.in_polvio++;
 					/* do not inject data into pcb */
 				else
@@ -327,7 +327,7 @@ udp6_input(mp, offp, proto)
 		/*
 		 * Check AH/ESP integrity.
 		 */
-		if (ipsec6_in_reject(m, last)) {
+		if (ipsec6_in_reject_so(m, last->inp_socket)) {
 			ipsec6stat.in_polvio++;
 			goto bad;
 		}
@@ -383,7 +383,7 @@ udp6_input(mp, offp, proto)
 	/*
 	 * Check AH/ESP integrity.
 	 */
-	if (ipsec6_in_reject(m, in6p)) {
+	if (ipsec6_in_reject_so(m, in6p->inp_socket)) {
 		ipsec6stat.in_polvio++;
 		goto bad;
 	}

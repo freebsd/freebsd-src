@@ -880,6 +880,13 @@ send:
 					       : NULL);
 
 		/* TODO: IPv6 IP6TOS_ECT bit on */
+#ifdef IPSEC
+		if (ipsec_setsocket(m, so) != 0) {
+			m_freem(m);
+			error = ENOBUFS;
+			goto out;
+		}
+#endif /*IPSEC*/
 		error = ip6_output(m,
 			    tp->t_inpcb->in6p_outputopts,
 			    &tp->t_inpcb->in6p_route,

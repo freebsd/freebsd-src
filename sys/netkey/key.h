@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: key.h,v 1.21 2001/07/27 03:51:30 itojun Exp $	*/
+/*	$KAME: key.h,v 1.32 2003/09/07 05:25:20 itojun Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
@@ -35,7 +35,12 @@
 
 #ifdef _KERNEL
 
+#include <sys/queue.h>
+
 extern struct key_cb key_cb;
+
+extern TAILQ_HEAD(_satailq, secasvar) satailq;
+extern TAILQ_HEAD(_sptailq, secpolicy) sptailq;
 
 struct secpolicy;
 struct secpolicyindex;
@@ -46,22 +51,24 @@ struct socket;
 struct sadb_msg;
 struct sadb_x_policy;
 
-extern struct secpolicy *key_allocsp(struct secpolicyindex *, u_int);
+extern struct secpolicy *key_allocsp(u_int16_t, struct secpolicyindex *,
+	u_int);
 extern struct secpolicy *key_gettunnel(struct sockaddr *,
 	struct sockaddr *, struct sockaddr *, struct sockaddr *);
 extern int key_checkrequest
 	(struct ipsecrequest *isr, struct secasindex *);
 extern struct secasvar *key_allocsa(u_int, caddr_t, caddr_t, u_int, u_int32_t);
 extern void key_freesp(struct secpolicy *);
-extern void key_freeso(struct socket *);
 extern void key_freesav(struct secasvar *);
-extern struct secpolicy *key_newsp(void);
+extern struct secpolicy *key_newsp(u_int32_t);
 extern struct secpolicy *key_msg2sp(struct sadb_x_policy *, size_t, int *);
 extern struct mbuf *key_sp2msg(struct secpolicy *);
-extern int key_ismyaddr(struct sockaddr *);
+extern int key_cmpspidx_exactly
+	(struct secpolicyindex *, struct secpolicyindex *);
+extern int key_cmpspidx_withmask
+	(struct secpolicyindex *, struct secpolicyindex *);
 extern int key_spdacquire(struct secpolicy *);
-extern void key_timehandler(void);
-extern u_long key_random(void);
+extern void key_timehandler(void *);
 extern void key_randomfill(void *, size_t);
 extern void key_freereg(struct socket *);
 extern int key_parse(struct mbuf *, struct socket *);

@@ -1970,6 +1970,10 @@ nd6_output(ifp, origifp, m0, dst, rt0)
 	return (0);
 
   sendpkt:
+#ifdef IPSEC
+	/* clean ipsec history once it goes out of the node */
+	ipsec_delaux(m);
+#endif
 
 #ifdef MAC
 	mac_create_mbuf_linklayer(ifp, m);
