@@ -53,7 +53,7 @@ jail_start()
 		eval jail_hostname=\"\$jail_${_jail}_hostname\"
 		eval jail_ip=\"\$jail_${_jail}_ip\"
 		eval jail_exec=\"\$jail_${_jail}_exec\"
-		[ -z ${jail_exec} ] && jail_exec="/bin/sh /etc/rc"
+		[ -z "${jail_exec}" ] && jail_exec="/bin/sh /etc/rc"
 		
 		jail ${jail_rootdir} ${jail_hostname} ${jail_ip} ${jail_exec}
 	done
