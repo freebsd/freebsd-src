@@ -629,6 +629,8 @@ interpret:
 	 * to locking the proc lock.
 	 */
 	textvp = p->p_textvp;
+	if (textvp)
+		VN_KNOTE_LOCKED(textvp, NOTE_STOPEXEC | p->p_pid);
 	p->p_textvp = ndp->ni_vp;
 
 	/*
@@ -636,6 +638,7 @@ interpret:
 	 * as we're now a bona fide freshly-execed process.
 	 */
 	KNOTE_LOCKED(&p->p_klist, NOTE_EXEC);
+	VN_KNOTE_LOCKED(p->p_textvp, NOTE_STARTEXEC | p->p_pid);
 	p->p_flag &= ~P_INEXEC;
 
 	/*
@@ -948,11 +951,8 @@ exec_copyin_args(struct image_args *args, char *fname,
 	error = (segflg == UIO_SYSSPACE) ?
 	    copystr(fname, args->fname, PATH_MAX, &length) :
 	    copyinstr(fname, args->fname, PATH_MAX, &length);
-	if (error != 0) {
-		if (error == ENAMETOOLONG)
-			return (E2BIG);
+	if (error != 0)
 		return (error);
-	}
 
 	/*
 	 * extract arguments first
