@@ -1,4 +1,4 @@
-#	$Id: options.pc98,v 1.59 1998/04/20 13:52:44 kato Exp $
+#	$Id: options.pc98,v 1.60 1998/05/12 09:31:44 kato Exp $
 BOUNCEPAGES		opt_bounce.h
 DISABLE_PSE
 USER_LDT
@@ -126,6 +126,7 @@ OVERRIDE_TUNER		opt_bktr.h
 
 # bs driver options
 SCSI_BOUNCE_SIZE	opt_bs.h
+BS_TARG_SAFEMODE	opt_bs.h
 
 # npx options
 FPU_ERROR_BROKEN	opt_npx.h
