@@ -60,8 +60,10 @@ dnl Dialup users should uncomment and define this appropriately
 dnl define(`SMART_HOST', `your.isp.mail.server')dnl
 FEATURE(local_lmtp)dnl
 define(`LOCAL_MAILER_FLAGS', LOCAL_MAILER_FLAGS`'P)dnl
-dnl Uncomment to change the location of the default /etc/mail/local-host-names
+dnl Uncomment the first line to change the location of the default
+dnl /etc/mail/local-host-names and comment out the second line.
 dnl define(`confCW_FILE', `-o /etc/mail/sendmail.cw')dnl
+define(`confCW_FILE', `-o /etc/mail/local-host-names')dnl
 define(`confNO_RCPT_ACTION', `add-to-undisclosed')dnl
 define(`confMAX_MIME_HEADER_LENGTH', `256/128')dnl
 MAILER(local)dnl
