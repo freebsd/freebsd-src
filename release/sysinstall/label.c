@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: label.c,v 1.32.2.29 1995/11/08 07:09:30 jkh Exp $
+ * $Id: label.c,v 1.32.2.30 1995/12/11 16:30:25 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -198,8 +198,8 @@ check_conflict(char *name)
     int i;
 
     for (i = 0; label_chunk_info[i].c; i++)
-	if (label_chunk_info[i].type == PART_FILESYSTEM && label_chunk_info[i].c->private
-	    && !strcmp(((PartInfo *)label_chunk_info[i].c->private)->mountpoint, name))
+	if (label_chunk_info[i].type == PART_FILESYSTEM && label_chunk_info[i].c->private_data
+	    && !strcmp(((PartInfo *)label_chunk_info[i].c->private_data)->mountpoint, name))
 	    return TRUE;
     return FALSE;
 }
@@ -312,8 +312,8 @@ get_mountpoint(struct chunk *old)
     char *val;
     PartInfo *tmp;
 
-    if (old && old->private)
-	tmp = old->private;
+    if (old && old->private_data)
+	tmp = old->private_data;
     else
 	tmp = NULL;
     val = msgGetInput(tmp ? tmp->mountpoint : NULL, "Please specify a mount point for the partition");
@@ -321,8 +321,8 @@ get_mountpoint(struct chunk *old)
 	if (!old)
 	    return NULL;
 	else {
-	    free(old->private);
-	    old->private = NULL;
+	    free(old->private_data);
+	    old->private_data = NULL;
 	}
 	return NULL;
     }
@@ -354,7 +354,7 @@ get_mountpoint(struct chunk *old)
     safe_free(tmp);
     tmp = new_part(val, TRUE, 0);
     if (old) {
-	old->private = tmp;
+	old->private_data = tmp;
 	old->private_free = safe_free;
     }
     return tmp;
@@ -469,7 +469,7 @@ scriptLabel(char *str)
 			break;
 		    }
 		    else {
-			tmp->private = new_part(mpoint, TRUE, sz);
+			tmp->private_data = new_part(mpoint, TRUE, sz);
 			tmp->private_free = safe_free;
 			status = RET_SUCCESS;
 		    }
@@ -491,13 +491,13 @@ scriptLabel(char *str)
 		    continue;
 		}
 		newfs = toupper(nwfs[0]) == 'Y' ? TRUE : FALSE;
-		if (c1->private) {
-		    p = c1->private;
+		if (c1->private_data) {
+		    p = c1->private_data;
 		    p->newfs = newfs;
 		    strcpy(p->mountpoint, mpoint);
 		}
 		else {
-		    c1->private = new_part(mpoint, newfs, 0);
+		    c1->private_data = new_part(mpoint, newfs, 0);
 		    c1->private_free = safe_free;
 		}
 		if (!strcmp(mpoint, "/"))
@@ -578,17 +578,17 @@ print_label_chunks(void)
 	    }
 	    memcpy(onestr + PART_PART_COL, label_chunk_info[i].c->name, strlen(label_chunk_info[i].c->name));
 	    /* If it's a filesystem, display the mountpoint */
-	    if (label_chunk_info[i].c->private
+	    if (label_chunk_info[i].c->private_data
 		&& (label_chunk_info[i].type == PART_FILESYSTEM || label_chunk_info[i].type == PART_FAT))
-	        mountpoint = ((PartInfo *)label_chunk_info[i].c->private)->mountpoint;
+	        mountpoint = ((PartInfo *)label_chunk_info[i].c->private_data)->mountpoint;
 	    else
 	        mountpoint = "<none>";
 
 	    /* Now display the newfs field */
 	    if (label_chunk_info[i].type == PART_FAT)
 	        newfs = "DOS";
-	    else if (label_chunk_info[i].c->private && label_chunk_info[i].type == PART_FILESYSTEM)
-		newfs = ((PartInfo *)label_chunk_info[i].c->private)->newfs ? "UFS Y" : "UFS N";
+	    else if (label_chunk_info[i].c->private_data && label_chunk_info[i].type == PART_FILESYSTEM)
+		newfs = ((PartInfo *)label_chunk_info[i].c->private_data)->newfs ? "UFS Y" : "UFS N";
 	    else if (label_chunk_info[i].type == PART_SWAP)
 		newfs = "SWAP";
 	    else
@@ -739,7 +739,7 @@ diskLabel(char *str)
 		msgConfirm("Unable to create the root partition. Too big?");
 		break;
 	    }
-	    tmp->private = new_part("/", TRUE, tmp->size);
+	    tmp->private_data = new_part("/", TRUE, tmp->size);
 	    tmp->private_free = safe_free;
 	    record_label_chunks(devs);
 	    
@@ -763,7 +763,7 @@ diskLabel(char *str)
 		break;
 	    }
 	    
-	    tmp->private = 0;
+	    tmp->private_data = 0;
 	    tmp->private_free = safe_free;
 	    record_label_chunks(devs);
 	    
@@ -777,7 +777,7 @@ diskLabel(char *str)
 			   "partition your disk manually with a custom install!", (cp ? atoi(cp) : VAR_MIN_SIZE));
 		break;
 	    }
-	    tmp->private = new_part("/var", TRUE, tmp->size);
+	    tmp->private_data = new_part("/var", TRUE, tmp->size);
 	    tmp->private_free = safe_free;
 	    record_label_chunks(devs);
 	    
@@ -804,7 +804,7 @@ diskLabel(char *str)
 	    }
 	    /* At this point, we're reasonably "labelled" */
 	    variable_set2(DISK_LABELLED, "yes");
-	    tmp->private = new_part("/usr", TRUE, tmp->size);
+	    tmp->private_data = new_part("/usr", TRUE, tmp->size);
 	    tmp->private_free = safe_free;
 	    record_label_chunks(devs);
 	}
@@ -907,11 +907,11 @@ diskLabel(char *str)
 		}
 		if (type != PART_SWAP) {
 		    /* This is needed to tell the newfs -u about the size */
-		    tmp->private = new_part(p->mountpoint, p->newfs, tmp->size);
+		    tmp->private_data = new_part(p->mountpoint, p->newfs, tmp->size);
 		    tmp->private_free = safe_free;
 		    safe_free(p);
 		} else {
-		    tmp->private = p;
+		    tmp->private_data = p;
 		}
 		tmp->private_free = safe_free;
 		variable_set2(DISK_LABELLED, "yes");
@@ -945,7 +945,7 @@ diskLabel(char *str)
 
 	    case PART_FAT:
 	    case PART_FILESYSTEM:
-		oldp = label_chunk_info[here].c->private;
+		oldp = label_chunk_info[here].c->private_data;
 		p = get_mountpoint(label_chunk_info[here].c);
 		if (p) {
 		    if (!oldp)
@@ -968,17 +968,17 @@ diskLabel(char *str)
 	    break;
 
 	case 'N':	/* Set newfs options */
-	    if (label_chunk_info[here].c->private &&
-		((PartInfo *)label_chunk_info[here].c->private)->newfs)
-		getNewfsCmd(label_chunk_info[here].c->private);
+	    if (label_chunk_info[here].c->private_data &&
+		((PartInfo *)label_chunk_info[here].c->private_data)->newfs)
+		getNewfsCmd(label_chunk_info[here].c->private_data);
 	    else
 		msg = MSG_NOT_APPLICABLE;
 	    break;
 
 	case 'T':	/* Toggle newfs state */
 	    if (label_chunk_info[here].type == PART_FILESYSTEM) {
-		    PartInfo *pi = ((PartInfo *)label_chunk_info[here].c->private);
-		    label_chunk_info[here].c->private = new_part(pi ? pi->mountpoint : NULL, pi ? !pi->newfs : TRUE, label_chunk_info[here].c->size);
+		    PartInfo *pi = ((PartInfo *)label_chunk_info[here].c->private_data);
+		    label_chunk_info[here].c->private_data = new_part(pi ? pi->mountpoint : NULL, pi ? !pi->newfs : TRUE, label_chunk_info[here].c->size);
 		    safe_free(pi);
 		    label_chunk_info[here].c->private_free = safe_free;
 		    variable_set2(DISK_LABELLED, "yes");

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.16.2.41 1995/11/11 11:44:26 jkh Exp $
+ * $Id: config.c,v 1.16.2.42 1995/11/12 10:35:58 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -58,14 +58,14 @@ chunk_compare(Chunk *c1, Chunk *c2)
 	return 1;
     else if (c1 && !c2)
 	return -1;
-    else if (!c1->private && !c2->private)
+    else if (!c1->private_data && !c2->private_data)
 	return 0;
-    else if (c1->private && !c2->private)
+    else if (c1->private_data && !c2->private_data)
 	return 1;
-    else if (!c1->private && c2->private)
+    else if (!c1->private_data && c2->private_data)
 	return -1;
     else
-	return strcmp(((PartInfo *)(c1->private))->mountpoint, ((PartInfo *)(c2->private))->mountpoint);
+	return strcmp(((PartInfo *)(c1->private_data))->mountpoint, ((PartInfo *)(c2->private_data))->mountpoint);
 }
 
 static void
@@ -105,7 +105,7 @@ mount_point(Chunk *c1)
     if (c1->type == part && c1->subtype == FS_SWAP)
 	return "none";
     else if (c1->type == part || c1->type == fat)
-	return ((PartInfo *)c1->private)->mountpoint;
+	return ((PartInfo *)c1->private_data)->mountpoint;
     return "/bogus";
 }
 
@@ -183,11 +183,11 @@ configFstab(void)
 	for (c1 = disk->chunks->part; c1; c1 = c1->next) {
 	    if (c1->type == freebsd) {
 		for (c2 = c1->part; c2; c2 = c2->next) {
-		    if (c2->type == part && (c2->subtype == FS_SWAP || c2->private))
+		    if (c2->type == part && (c2->subtype == FS_SWAP || c2->private_data))
 			chunk_list[nchunks++] = c2;
 		}
 	    }
-	    else if (c1->type == fat && c1->private)
+	    else if (c1->type == fat && c1->private_data)
 		chunk_list[nchunks++] = c1;
 	}
     }
