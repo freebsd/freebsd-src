@@ -59,7 +59,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_glue.c,v 1.3 1994/08/02 07:55:19 davidg Exp $
+ * $Id: vm_glue.c,v 1.4 1994/08/04 03:06:43 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -383,7 +383,6 @@ scheduler()
 
 loop:
 	ntries = 0;
-	vmmeter();
 
 	curidle = cp_time[CP_IDLE];
 	currun = cp_time[CP_USER] + cp_time[CP_SYS] + cp_time[CP_NICE];
