@@ -45,7 +45,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)ping.c	8.1 (Berkeley) 6/5/93";
 */
 static const char rcsid[] =
-	"$Id: ping.c,v 1.31 1998/04/02 01:12:55 eivind Exp $";
+	"$Id: ping.c,v 1.32 1998/04/02 04:33:18 imp Exp $";
 #endif /* not lint */
 
 /*
@@ -592,7 +592,7 @@ pinger(void)
 			warn("sendto");
 		} else {
 			warn("%s: partial write: %d of %d bytes",
-			     hostname, cc, i);
+			     hostname, i, cc);
 		}
 	}
 	ntransmitted++;
