@@ -30,7 +30,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: fsdbutil.c,v 1.7 1998/06/15 07:12:20 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -125,7 +125,7 @@ printstat(cp, inum, dp)
 	puts("fifo");
 	break;
     }
-    printf("I=%lu MODE=%o SIZE=%qu", inum, dp->di_mode, dp->di_size);
+    printf("I=%lu MODE=%o SIZE=%qu", (u_long)inum, dp->di_mode, dp->di_size);
     t = dp->di_mtime;
     p = ctime(&t);
     printf("\n\tMTIME=%15.15s %4.4s [%d nsec]", &p[4], &p[20],

@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: modload.c,v 1.19 1997/06/29 20:38:38 bde Exp $
+ *	$Id: modload.c,v 1.20 1997/08/21 22:33:59 jlemon Exp $
  */
 
 #include <stdio.h>
@@ -389,7 +389,7 @@ main(argc, argv)
 		err(15, "error fetching module stats for post-install");
 	    sprintf(id, "%d", sbuf.id);
 	    sprintf(type, "0x%x", sbuf.type);
-	    sprintf(offset, "%d", sbuf.offset);
+	    sprintf(offset, "%lu", sbuf.offset);
 	    /* XXX the modload docs say that drivers can install bdevsw &
 	       cdevsw, but the interface only supports one at a time.  sigh. */
 
