@@ -1,7 +1,7 @@
 <!--
   $FreeBSD$
-  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/alpha/proc-alpha.sgml,v 1.4.2.7 2002/05/26 10:25:57 ue Exp $
-  basiert auf: 1.13.2.22
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/alpha/proc-alpha.sgml,v 1.4.2.10 2002/10/12 09:36:57 mheinen Exp $
+  basiert auf: 1.13.2.23
 -->
 
 <sect1>
@@ -665,7 +665,7 @@ cpu     EV4</programlisting>
       <para>Die Multia hat nur einen 32 Bit PCI Steckplatz, der nur f&uuml;r
       eine kleine PCI-Karte genutzt werden kann.  Wenn Sie darauf
       verzichten, k&ouml;nnen Sie eine 3.5&quot; Festplatte einbauen.
-      Das Montagematerial k&ouml;nnte Ihrer Multia beliegen.
+      Das Montagematerial k&ouml;nnte Ihrer Multia beiliegen.
       Allerdings sollten Sie auf den Einbau der Festplatte
       <emphasis>verzichten</emphasis>, da das Netzteil und die
       K&uuml;hlung unterdimensioniert sind.</para>
@@ -722,7 +722,7 @@ cpu     EV4</programlisting>
         (<quote>Pizzaschachtel</quote>).  Es ist eine sehr gute Idee,
         den L&uuml;fter durch ein leistungsst&auml;rkeres Modell zu
         ersetzen.  Weiterhin k&ouml;nnen Sie eines der Kabel zum
-        Temperatursensor durchscheiden.  Danach wird der L&uuml;fter
+        Temperatursensor durchschneiden.  Danach wird der L&uuml;fter
         mit voller Drehzahl (und Lautst&auml;rke) betrieben.
         H&uuml;ten Sie sich vor PCI-Karten, die sehr viel Strom
         brauchen.  Falls Ihr System trotzdem sterben sollten,
@@ -1044,6 +1044,11 @@ device  sbc0</programlisting>
         sollten diese Tatsache im Hinterkopf behalten, wenn Sie
         f&uuml;r Ihr Einsatzgebiet extrem schnelle 64 Bit PCI Karten
         ben&ouml;tigen.</para>
+
+      <para>Obwohl es m&ouml;glich ist, bis zu 1.5 GByte Speicher
+        einzubauen, kann &os; nur 1 GByte nutzen, da die DMA-Routinen
+        den Speicher oberhalb 1 GByte nicht korrekt
+        ansprechen.</para>
 
       <para>Der Wechsel zu einer schnelleren CPU ist einfach, wechseln
         Sie die CPU, und stellen an dem DIP-Schalter f&uuml;r den
@@ -1735,9 +1740,11 @@ cpu     EV4</programlisting>
         breiten Speicher.  Nat&uuml;rlich m&uuml;ssen alle 8 SIMMs vom
         gleichen Typ sein, damit dies funktioniert; au&szlig;erdem
         mu&szlig; das System explizit auf die Nutzung des 8 SIMM Modus
-        konfiguriert werden.  Sie m&uuml;ssen 8 SIMMs benutzen,
-        4 SIMMs auf 2 B&auml;nke verteilt funktioniert
-        nicht.</para>
+        konfiguriert werden.  Sie m&uuml;ssen 8 SIMMs benutzen, 4
+        SIMMs auf 2 B&auml;nke verteilt funktioniert nicht.  Bei der
+        PC164 kann mit 8 128 MByte SIMMs ein maximaler Speicherausbau
+        von 1 GByte erreicht werden.  Das Handbuch behauptet, der
+        maximale Speicherausbau betrage 512 MByte.</para>
 
       <para>Der SRM kann von Qlogic 10xx Karten oder dem Symbios
         53C810[A] booten.  Neuere Versionen des Symbios 810 wie der
@@ -1881,7 +1888,7 @@ cpu             EV5</programlisting>
             </listitem>
 
             <listitem>
-              <para>in zwei Viergruppen (Modell 250)</para>
+              <para>in zwei Vierergruppen (Modell 250)</para>
             </listitem>
 
             <listitem>
@@ -2194,14 +2201,14 @@ cd0: 250.000MB/s transfers (250.000 MHz, offset 12)</programlisting>
         internen Ger&auml;te, der andere ist f&uuml;r die externen
         SCSI Ger&auml;te zust&auml;ndig.</para>
 
-      <para>Die DIMMs werden bei der AS500 in Viergruppen installiert,
+      <para>Die DIMMs werden bei der AS500 in Vierergruppen installiert,
         allerdings sind die B&auml;nke ineinander verzahnt
         (<quote>physically interleaved layout</quote>). Eine Gruppe
         von 4 DIMMs besteht also <emphasis>nicht</emphasis> aus vier
         nebeneinanderliegenden DIMMs.</para>
 
       <para>Bei der AS600 sind die SIMMs auf zwei speziellen
-        Speicherkarten untergebraucht.  Die SIMM m&uuml;ssen in
+        Speicherkarten untergebracht.  Die SIMM m&uuml;ssen in
         Achtergruppen installiert werden und beide Speicherkarten
         m&uuml;ssen identisch best&uuml;ckt werden.</para>
 

@@ -1,22 +1,22 @@
 <!-- -*- sgml -*-
 
      $FreeBSD$
-     $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/share/sgml/release.ent,v 1.1.2.1 2002/03/12 17:57:15 ue Exp $
+     $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/share/sgml/release.ent,v 1.1.2.2 2002/10/12 13:52:08 mheinen Exp $
      basiert auf: 1.1.2.8
 
      OS Release Information -->
 
 <!-- Version of the OS we're describing.  This needs to be updated
      with each new release. -->
-<!ENTITY release.current "4.5-STABLE">
+<!ENTITY release.current "4.7-RELEASE">
 
 <!-- The previous version used for comparison in the "What's New"
      section.  For -STABLE, we might point back to the last
      branchpoint. -->
-<!ENTITY release.prev "4.5-RELEASE">
+<!ENTITY release.prev "4.6-RELEASE">
 
 <!-- The next version to be released, usually used for snapshots. -->
-<!ENTITY release.next "4.6-RELEASE">
+<!ENTITY release.next "4.8-RELEASE">
 
 <!-- The name of this branch. -->
 <!ENTITY release.branch "4-STABLE">
