@@ -1723,7 +1723,7 @@ SBP_DEBUG(1)
 				ccb->ccb_h.func_code);
 END_DEBUG
 
-			ccb->ccb_h.status = CAM_TID_INVALID;
+			ccb->ccb_h.status = CAM_DEV_NOT_THERE;
 			xpt_done(ccb);
 			return;
 		}
@@ -1743,7 +1743,7 @@ SBP_DEBUG(0)
 				ccb->ccb_h.target_id, ccb->ccb_h.target_lun,
 				ccb->ccb_h.func_code);
 END_DEBUG
-			ccb->ccb_h.status = CAM_TID_INVALID;
+			ccb->ccb_h.status = CAM_DEV_NOT_THERE;
 			xpt_done(ccb);
 			return;
 		}
