@@ -313,6 +313,12 @@ isint:				cs[2] = '\0';
 				case 4:
 					pr->bcnt = 4;
 					break;
+				case sizeof(long double):
+					cs[2] = '\0';
+					cs[1] = cs[0];
+					cs[0] = 'L';
+					pr->bcnt = sizeof(long double);
+					break;
 				default:
 					p1[1] = '\0';
 					badcnt(p1);
