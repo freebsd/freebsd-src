@@ -1,3 +1,5 @@
+
+
 /*
  * Listener loop for subsystem library libss.a.
  *
@@ -15,8 +17,11 @@
 #include <setjmp.h>
 #include <signal.h>
 #include <sys/param.h>
-#ifdef BSD
+#if defined(BSD) && !defined(POSIX)
 #include <sgtty.h>
+#endif
+#ifdef POSIX
+#include <termios.h>
 #endif
 
 #ifndef	lint
@@ -37,14 +42,23 @@ static jmp_buf listen_jmpb;
 
 static sigtype print_prompt()
 {
-#ifdef BSD
     /* put input into a reasonable mode */
+#if defined(BSD) && !defined(POSIX)
     struct sgttyb ttyb;
     if (ioctl(fileno(stdin), TIOCGETP, &ttyb) != -1) {
 	if (ttyb.sg_flags & (CBREAK|RAW)) {
 	    ttyb.sg_flags &= ~(CBREAK|RAW);
 	    (void) ioctl(0, TIOCSETP, &ttyb);
 	}
+#endif
+#ifdef POSIX
+    struct termios tio;
+    if (tcgetattr(fileno(stdin), &tio) != -1) {
+	tio.c_oflag |= (OPOST|ONLCR);
+	tio.c_iflag &= ~(IGNCR|INLCR);
+	tio.c_iflag |= (ICRNL);
+	tio.c_lflag |= (ICANON);
+	(void) tcsetattr(0, TCSADRAIN, &tio);
     }
 #endif
     (void) fputs(current_info->prompt, stdout);
