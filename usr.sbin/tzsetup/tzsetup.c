@@ -34,7 +34,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: tzsetup.c,v 1.10 1998/01/10 15:55:11 steve Exp $";
+	"$Id: tzsetup.c,v 1.12 1999/02/02 20:26:31 wollman Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -644,7 +644,7 @@ main(int argc, char **argv)
 		}
 	}
 
-	if (optind != argc)
+	if (argc - optind > 1)
 		usage();
 
 	read_iso3166_table();
@@ -668,8 +668,21 @@ main(int argc, char **argv)
 		}
 	}
 	dialog_clear_norefresh();
+	if (optind == argc - 1) {
+		char *msg;
+		asprintf(&msg, "\nUse the default `%s' zone?", argv[optind]);
+		if (!dialog_yesno("Default timezone provided", msg, 7, 72)) {
+			install_zone_file(argv[optind]);
+			dialog_clear();
+			end_dialog();
+			return 0;
+		}
+		free(msg);
+		dialog_clear_norefresh();
+	}
 	dialog_menu("Time Zone Selector", "Select a region", -1, -1, 
 		    NCONTINENTS, -NCONTINENTS, continents, 0, NULL, NULL);
+
 	dialog_clear();
 	end_dialog();
 	return 0;

@@ -22,47 +22,94 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $Id: tzsetup.8,v 1.7 1997/06/23 04:52:11 steve Exp $
-
+.\" $Id: tzsetup.8,v 1.9 1999/02/02 20:26:30 wollman Exp $
 .Dd January 24, 1996
 .Dt TZSETUP 8
 .Os FreeBSD
-
 .Sh NAME
 .Nm tzsetup
 .Nd set local timezone
-
 .Sh SYNOPSIS
 .Nm tzsetup
 .Op Fl n
-
+.Op Ar default
 .Sh DESCRIPTION
-.Nm Tzsetup
-is a menu based program to set your local time zone.  Pick the continent
-and a city (e.g. your capital) that best describes your location and
+The
 .Nm
-do all the work for you.
+program reads a database of timezone information and presents a menu
+allowing the user to select a specific zone without knowing the details
+of the database layout.  The selected zone is installed as the system
+default zone.
+.Nm
+also determines whether any adjustment is necessary for systems where
+the hardware clock does not keep
+.Tn UTC .
 .Pp
 The following option is available:
-.Bl -tag -width indent
+.Bl -tag -offset indent -width Fl
 .It Fl n
-Do not really do anything.
+Do not create or copy files.
 .El
-
+.Pp
+It is possible to short-circuit the menu system by specifying a
+.Ar default
+on the command line; this is intended mainly for pre-configured
+installation scripts.
+.Sh TIMEZONE DATABASE
+The contents of the timezone database are indexed by
+.Pa /usr/share/zoneinfo/zone.tab .
+This file lists, for each timezone data file, the
+.Tn ISO
+3166 territory code, approximate geographical coordinates
+.Pq in Tn ISO No 6709 format ,
+and location within the territory.
+.Pp
+The maintainers of the database maintain the following policies:
+.Bl -enum -offset indent
+.It
+At least one zone for every country or inhabited geographical territory.
+.It
+One zone for every distinct, documented timezone history since the
+beginning of the
+.Ux
+epoch (January 1, 1970,
+.Tn GMT ) .
+.It
+Each zone is named for the most populous city therein.  (Where possible,
+the database includes pre-1970 history for its city.)
+.El
+The source code to the database
+.Pq Pa /usr/src/share/zoneinfo/[a-z]*
+contains many additional comments and documentation references for the
+historically minded.
 .Sh BUGS
-You need to reboot the machine for changes to take effect.
-
+Programs which are already running when
+.Nm
+creates or updates
+.Pa /etc/localtime
+will not reflect the updated timezone.
+When the system is first configured for a
+.Pf non- Tn UTC
+hardware clock, it is necessary to run
+.Xr adjkerntz 8
+(which normally happens as a part of system startup) in order to update
+the kernel's idea of the correct timezone offset.
 .Sh FILES
-.Bl -tag -width /etc/wall_cmos_clock -compact
+.Bl -tag -width /usr/share/zoneinfo/zone.tab -compact
 .It Pa /etc/localtime
 current time zone file
-.It Pa /usr/share/zoneinfo
-directory for zoneinfo files
 .It Pa /etc/wall_cmos_clock
 see
 .Xr adjkerntz 8 .
+.It Pa /usr/share/misc/iso3166
+mapping of 
+.Tn ISO
+3166 territory codes to names
+.It Pa /usr/share/zoneinfo
+directory for zoneinfo files
+.It Pa /usr/share/zoneinfo/zone.tab
+mapping of timezone file to country and location
 .El
-
 .Sh SEE ALSO
 .Xr date 1 ,
 .Xr adjtime 2 ,
@@ -72,3 +119,9 @@ see
 .Xr adjkerntz 8 ,
 .Xr zdump 8 ,
 .Xr zic 8 .
+.Sh DISCLAIMER
+The representation of certain localities as being associated with certain
+countries and/or territories is for the purposes of identification only,
+and does not imply any endorsement or rejection on the part of the
+.Tn FreeeBSD
+Project of the territorial claims of any entity.
