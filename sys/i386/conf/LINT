@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.593 1999/05/05 12:22:31 jb Exp $
+#	$Id: LINT,v 1.594 1999/05/06 18:08:23 peter Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -66,15 +66,6 @@ options		PQ_LARGECACHE		# color for 512k/16k cache
 #    strings -aout -n 3 /kernel | grep ^___ | sed -e 's/^___//' > MYKERNEL
 #
 options         INCLUDE_CONFIG_FILE     # Include this file in kernel
-
-#
-# This directive defines a number of things:
-#  - The compiled kernel is to be called `kernel'
-#  - The root filesystem might be on partition wd0a
-#  - Crash dumps will be written to wd0b, if possible.  Specifying the
-#    dump device here is not recommended.  Use dumpon(8).
-#
-config		kernel	root on wd0 dumps on wd0
 
 
 #####################################################################
@@ -351,6 +342,9 @@ options		UCONSOLE
 options		USERCONFIG		#boot -c editor
 options		INTRO_USERCONFIG	#imply -c and show intro screen
 options		VISUAL_USERCONFIG	#visual boot -c editor
+
+# XXX - neither does this
+options		ROOTDEVNAME=\"da0s2e\"
 
 #####################################################################
 # NETWORKING OPTIONS
