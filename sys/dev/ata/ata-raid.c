@@ -80,10 +80,11 @@ MALLOC_DEFINE(M_AR, "AR driver", "ATA RAID driver");
   
 /* defines */
 #define PRINT_AD(adp) \
-        printf("  ad%d: %luMB <%.40s> [%d/%d/%d] at ata%d-%s %s%s\n", \
-               adp->lun, adp->total_secs / ((1024L * 1024L) / DEV_BSIZE), \
+        printf("  ad%d: %lluMB <%.40s> [%lld/%d/%d] at ata%d-%s %s%s\n", \
+               adp->lun, \
+	       (unsigned long long)adp->total_secs / ((1024L*1024L)/DEV_BSIZE),\
 	       adp->controller->dev_param[ATA_DEV(adp->unit)]->model, \
-	       adp->total_secs / (adp->heads * adp->sectors), \
+	       (unsigned long long)adp->total_secs / (adp->heads*adp->sectors),\
                adp->heads, adp->sectors, device_get_unit(adp->controller->dev),\
                (adp->unit == ATA_MASTER) ? "master" : "slave", \
                (adp->flags & AD_F_TAG_ENABLED) ? "tagged " : "", \
@@ -534,9 +535,8 @@ int
 ar_read(struct ad_softc *adp, u_int32_t lba, int count, char *data)
 {
     if (ata_command(adp->controller, adp->unit | ATA_D_LBA, 
-	(count > DEV_BSIZE) ? ATA_C_READ_MUL : ATA_C_READ,
-	(lba >> 8) & 0xffff, (lba >> 24) & 0xff, lba & 0xff,
-	count / DEV_BSIZE, 0, ATA_WAIT_INTR)) {
+		    (count > DEV_BSIZE) ? ATA_C_READ_MUL : ATA_C_READ,
+		    lba, count / DEV_BSIZE, 0, ATA_WAIT_INTR)) {
 	ata_printf(adp->controller, adp->unit, "RAID read config failed\n");
 	return 1;
     }

@@ -111,7 +111,6 @@ ad_attach(struct ata_softc *scp, int device)
 {
     struct ad_softc *adp;
     dev_t dev;
-    int secsperint;
 
 
     if (!(adp = malloc(sizeof(struct ad_softc), M_AD, M_NOWAIT | M_ZERO))) {
@@ -129,37 +128,44 @@ ad_attach(struct ata_softc *scp, int device)
     adp->heads = AD_PARAM->heads;
     adp->sectors = AD_PARAM->sectors;
     adp->total_secs = AD_PARAM->cylinders * adp->heads * adp->sectors;	
-    if (AD_PARAM->cylinders == 16383 && adp->total_secs < AD_PARAM->lbasize)
-	adp->total_secs = AD_PARAM->lbasize;
     
-    if (ad_version(AD_PARAM->versmajor) && 
-	AD_PARAM->atavalid & ATA_FLAG_54_58 && AD_PARAM->lbasize)
-	adp->flags |= AD_F_LBA_ENABLED;
+    /* does this device need oldstyle CHS addressing */
+    if (!ad_version(AD_PARAM->version_major) || 
+	!(AD_PARAM->atavalid & ATA_FLAG_54_58) || !AD_PARAM->lba_size)
+	adp->flags |= AD_F_CHS_USED;
+
+    /* use the 28bit LBA size if valid */
+    if (AD_PARAM->cylinders == 16383 && adp->total_secs < AD_PARAM->lba_size)
+	adp->total_secs = AD_PARAM->lba_size;
+
+    /* use the 48bit LBA size if valid */
+    if (AD_PARAM->support.address48)
+	adp->total_secs = AD_PARAM->lba_size48;
 
     /* use multiple sectors/interrupt if device supports it */
     adp->transfersize = DEV_BSIZE;
-    if (ad_version(AD_PARAM->versmajor)) {
-	secsperint = max(1, min(AD_PARAM->nsecperint, 16));
+    if (ad_version(AD_PARAM->version_major)) {
+	int secsperint = max(1, min(AD_PARAM->sectors_intr, 16));
 	if (!ata_command(adp->controller, adp->unit, ATA_C_SET_MULTI,
-			 0, 0, 0, secsperint, 0, ATA_WAIT_INTR) &&
+			 0, secsperint, 0, ATA_WAIT_INTR) &&
             !ata_wait(adp->controller, adp->unit, 0))
         adp->transfersize *= secsperint;
     }
 
     /* enable read/write cacheing if not default on device */
     if (ata_command(adp->controller, adp->unit, ATA_C_SETFEATURES,
-		    0, 0, 0, 0, ATA_C_F_ENAB_RCACHE, ATA_WAIT_INTR))
+		    0, 0, ATA_C_F_ENAB_RCACHE, ATA_WAIT_INTR))
 	printf("ad%d: enabling readahead cache failed\n", adp->lun);
 
     /* enable write cacheing if allowed and not default on device */
     if (ata_wc || ata_tags) {
 	if (ata_command(adp->controller, adp->unit, ATA_C_SETFEATURES,
-			0, 0, 0, 0, ATA_C_F_ENAB_WCACHE, ATA_WAIT_INTR))
+			0, 0, ATA_C_F_ENAB_WCACHE, ATA_WAIT_INTR))
 	ata_printf(scp, device, "enabling write cache failed\n");
     }
     else {
 	if (ata_command(adp->controller, adp->unit, ATA_C_SETFEATURES,
-			0, 0, 0, 0, ATA_C_F_DIS_WCACHE, ATA_WAIT_INTR))
+			0, 0, ATA_C_F_DIS_WCACHE, ATA_WAIT_INTR))
 	ata_printf(scp, device, "disabling write cache failed\n");
     }
 
@@ -176,10 +182,10 @@ ad_attach(struct ata_softc *scp, int device)
 	adp->flags |= AD_F_TAG_ENABLED;
 	adp->controller->flags |= ATA_QUEUED;
 	if (ata_command(adp->controller, adp->unit, ATA_C_SETFEATURES,
-			0, 0, 0, 0, ATA_C_F_DIS_RELIRQ, ATA_WAIT_INTR))
+			0, 0, ATA_C_F_DIS_RELIRQ, ATA_WAIT_INTR))
 	    printf("ad%d: disabling release interrupt failed\n", adp->lun);
 	if (ata_command(adp->controller, adp->unit, ATA_C_SETFEATURES,
-			0, 0, 0, 0, ATA_C_F_DIS_SRVIRQ, ATA_WAIT_INTR))
+			0, 0, ATA_C_F_DIS_SRVIRQ, ATA_WAIT_INTR))
 	    printf("ad%d: disabling service interrupt failed\n", adp->lun);
     }
 
@@ -198,13 +204,14 @@ ad_attach(struct ata_softc *scp, int device)
     if (bootverbose) {
 	printf("ad%d: <%.40s/%.8s> ATA-%d disk at ata%d-%s\n", 
 	       adp->lun, AD_PARAM->model, AD_PARAM->revision,
-	       ad_version(AD_PARAM->versmajor), device_get_unit(scp->dev),
+	       ad_version(AD_PARAM->version_major), device_get_unit(scp->dev),
 	       (adp->unit == ATA_MASTER) ? "master" : "slave");
 
-	 printf("ad%d: %luMB (%u sectors), %u cyls, %u heads, %u S/T, %u B/S\n",
-	       adp->lun, adp->total_secs / ((1024L * 1024L)/DEV_BSIZE),
-	       adp->total_secs, 
-	       adp->total_secs / (adp->heads * adp->sectors),
+	printf("ad%d: %lluMB (%llu sectors), %llu cyls, %u heads, %u S/T, %u B/S\n",
+	       adp->lun,
+	       (unsigned long long)adp->total_secs / ((1024L*1024L)/DEV_BSIZE),
+	       (unsigned long long)adp->total_secs, 
+	       (unsigned long long)adp->total_secs / (adp->heads*adp->sectors),
 	       adp->heads, adp->sectors, DEV_BSIZE);
 
 	printf("ad%d: %d secs/int, %d depth queue, %s%s\n", 
@@ -214,15 +221,17 @@ ad_attach(struct ata_softc *scp, int device)
 
 	printf("ad%d: piomode=%d dmamode=%d udmamode=%d cblid=%d\n",
 	       adp->lun, ata_pmode(AD_PARAM), ata_wmode(AD_PARAM), 
-	       ata_umode(AD_PARAM), AD_PARAM->cblid);
+	       ata_umode(AD_PARAM), AD_PARAM->hwres_cblid);
 
     }
 
     /* if this disk belongs to an ATA RAID dont print the probe */
     if (ar_probe(adp))
-	printf("ad%d: %luMB <%.40s> [%d/%d/%d] at ata%d-%s %s%s\n",
-	       adp->lun, adp->total_secs / ((1024L * 1024L) / DEV_BSIZE),
-	       AD_PARAM->model, adp->total_secs / (adp->heads * adp->sectors),
+	printf("ad%d: %lluMB <%.40s> [%lld/%d/%d] at ata%d-%s %s%s\n",
+	       adp->lun,
+	       (unsigned long long)adp->total_secs / ((1024L*1024L)/DEV_BSIZE),
+	       AD_PARAM->model,
+	       (unsigned long long)adp->total_secs / (adp->heads*adp->sectors),
 	       adp->heads, adp->sectors, device_get_unit(scp->dev),
 	       (adp->unit == ATA_MASTER) ? "master" : "slave",
 	       (adp->flags & AD_F_TAG_ENABLED) ? "tagged " : "",
@@ -404,14 +413,16 @@ int
 ad_transfer(struct ad_request *request)
 {
     struct ad_softc *adp;
-    u_int32_t blkno, secsprcyl;
-    u_int32_t cylinder, head, sector, count, cmd;
+    u_int64_t lba;
+    u_int16_t count;
+    u_int8_t cmd;
+    int flags = ATA_IMMEDIATE;
 
     /* get request params */
     adp = request->device;
 
     /* calculate transfer details */
-    blkno = request->blockaddr + (request->donecount / DEV_BSIZE);
+    lba = request->blockaddr + (request->donecount / DEV_BSIZE);
    
     if (request->donecount == 0) {
 
@@ -422,7 +433,7 @@ ad_transfer(struct ad_request *request)
 	    request->timeout_handle = 
 		timeout((timeout_t*)ad_timeout, request, 10 * hz);
 
-	/* setup transfer parameters */
+	/* setup transfer parameters !! 65536 for 48bit SOS XXX */
 	count = howmany(request->bytecount, DEV_BSIZE);
 	if (count > 256) {
 	    count = 256;
@@ -430,16 +441,13 @@ ad_transfer(struct ad_request *request)
 		   adp->lun, count);
 	}
 
-	if (adp->flags & AD_F_LBA_ENABLED) {
-	    sector = (blkno >> 0) & 0xff; 
-	    cylinder = (blkno >> 8) & 0xffff;
-	    head = ((blkno >> 24) & 0xf) | ATA_D_LBA; 
-	}
-	else {
-	    secsprcyl = adp->sectors * adp->heads;
-	    cylinder = blkno / secsprcyl;
-	    head = (blkno % secsprcyl) / adp->sectors;
-	    sector = (blkno % adp->sectors) + 1;
+	if (adp->flags & AD_F_CHS_USED) {
+	    int sector = (lba % adp->sectors) + 1;
+	    int cylinder = lba / (adp->sectors * adp->heads);
+	    int head = (lba % (adp->sectors * adp->heads)) / adp->sectors;
+
+	    lba = (sector&0xff) | ((cylinder&0xffff)<<8) | ((head&0xf)<<24);
+	    flags |= ATA_USE_CHS;
 	}
 
 	/* setup first transfer length */
@@ -460,9 +468,8 @@ ad_transfer(struct ad_request *request)
 	    	cmd = (request->flags & ADR_F_READ) ?
 		    ATA_C_READ_DMA_QUEUED : ATA_C_WRITE_DMA_QUEUED;
 
-		if (ata_command(adp->controller, adp->unit, cmd, 
-		    		cylinder, head, sector, request->tag << 3,
-				count, ATA_IMMEDIATE)) {
+		if (ata_command(adp->controller, adp->unit, cmd, lba,
+		    		request->tag << 3, count, flags)) {
 		    printf("ad%d: error executing command", adp->lun);
 		    goto transfer_failed;
 		}
@@ -474,16 +481,15 @@ ad_transfer(struct ad_request *request)
 
 		/* if ATA bus RELEASE check for SERVICE */
 		if (adp->flags & AD_F_TAG_ENABLED &&
-		    inb(adp->controller->ioaddr + ATA_IREASON) & ATA_I_RELEASE){
+		    inb(adp->controller->ioaddr + ATA_IREASON) & ATA_I_RELEASE)
 		    return ad_service(adp, 1);
-		}
 	    }
 	    else {
 	    	cmd = (request->flags & ADR_F_READ) ?
 		    ATA_C_READ_DMA : ATA_C_WRITE_DMA;
 
-		if (ata_command(adp->controller, adp->unit, cmd, cylinder, 
-		    		head, sector, count, 0, ATA_IMMEDIATE)) {
+		if (ata_command(adp->controller, adp->unit,
+				cmd, lba, count, 0, flags)) {
 		    printf("ad%d: error executing command", adp->lun);
 		    goto transfer_failed;
 		}
@@ -518,8 +524,7 @@ ad_transfer(struct ad_request *request)
 	else
 	    cmd = request->flags&ADR_F_READ ? ATA_C_READ : ATA_C_WRITE;
 
-	if (ata_command(adp->controller, adp->unit, cmd, 
-			cylinder, head, sector, count, 0, ATA_IMMEDIATE)) {
+	if (ata_command(adp->controller, adp->unit, cmd, lba, count, 0, flags)){
 	    printf("ad%d: error executing command", adp->lun);
 	    goto transfer_failed;
 	}
@@ -687,7 +692,7 @@ ad_interrupt(struct ad_request *request)
     if (request->bp->b_flags & B_ORDERED) {
 	request->flags |= ADR_F_FLUSHCACHE;
 	if (ata_command(adp->controller, adp->unit, ATA_C_FLUSHCACHE,
-			0, 0, 0, 0, 0, ATA_IMMEDIATE))
+			0, 0, 0, ATA_IMMEDIATE))
 	    printf("ad%d: flushing cache failed\n", adp->lun);
 	else
 	    return ATA_OP_CONTINUES;
@@ -751,7 +756,7 @@ ad_service(struct ad_softc *adp, int change)
 
 	/* issue SERVICE cmd */
 	if (ata_command(adp->controller, adp->unit, ATA_C_SERVICE, 
-	    		0, 0, 0, 0, 0, ATA_IMMEDIATE)) {
+	    		0, 0, 0, ATA_IMMEDIATE)) {
 	    printf("ad%d: problem executing SERVICE cmd\n", adp->lun);
 	    ad_invalidatequeue(adp, NULL);
 	    return ATA_OP_FINISHED;
@@ -820,7 +825,7 @@ ad_invalidatequeue(struct ad_softc *adp, struct ad_request *request)
 	    TAILQ_INSERT_HEAD(&adp->controller->ata_queue, tmpreq, chain);
 	}
 	if (ata_command(adp->controller, adp->unit, ATA_C_NOP,
-			0, 0, 0, 0, ATA_C_F_FLUSHQUEUE, ATA_WAIT_READY))
+			0, 0, ATA_C_F_FLUSHQUEUE, ATA_WAIT_READY))
 	    printf("ad%d: flushing queue failed\n", adp->lun);
 	adp->outstanding = 0;
     }
@@ -842,7 +847,7 @@ ad_tagsupported(struct ad_softc *adp)
 
     /* check that drive does DMA, has tags enabled, and is one we know works */
     if (adp->controller->mode[ATA_DEV(adp->unit)] >= ATA_DMA &&
-	AD_PARAM->supqueued && AD_PARAM->enabqueued) {
+	AD_PARAM->support.queued && AD_PARAM->enabled.queued) {
 	while (drives[i] != NULL) {
 	    if (!strncmp(AD_PARAM->model, drives[i], strlen(drives[i])))
 		return 1;
@@ -904,7 +909,7 @@ ad_reinit(struct ad_softc *adp)
 {
     /* reinit disk parameters */
     ad_invalidatequeue(adp, NULL);
-    ata_command(adp->controller, adp->unit, ATA_C_SET_MULTI, 0, 0, 0,
+    ata_command(adp->controller, adp->unit, ATA_C_SET_MULTI, 0,
 		adp->transfersize / DEV_BSIZE, 0, ATA_WAIT_READY);
     if (adp->controller->mode[ATA_DEV(adp->unit)] >= ATA_DMA)
 	ata_dmainit(adp->controller, adp->unit, ata_pmode(AD_PARAM),

@@ -81,14 +81,14 @@ atapi_attach(struct ata_softc *scp, int device)
 	ata_printf(scp, device, 
 		   "piomode=%d dmamode=%d udmamode=%d dmaflag=%d\n",
 		   ata_pmode(ATP_PARAM), ata_wmode(ATP_PARAM),
-		   ata_umode(ATP_PARAM), ATP_PARAM->dmaflag);
+		   ata_umode(ATP_PARAM), ATP_PARAM->support_dma);
 
-    if (atapi_dma && !(ATP_PARAM->drqtype == ATAPI_DRQT_INTR)) {
+    if (atapi_dma && !(ATP_PARAM->drq_type == ATAPI_DRQT_INTR)) {
 	ata_dmainit(atp->controller, atp->unit,
 		    (ata_pmode(ATP_PARAM) < 0) ? 
-		    (ATP_PARAM->dmaflag ? 4 : 0) : ata_pmode(ATP_PARAM),
+		    (ATP_PARAM->support_dma ? 4 : 0) : ata_pmode(ATP_PARAM),
 		    (ata_wmode(ATP_PARAM) < 0) ? 
-		    (ATP_PARAM->dmaflag ? 2 : 0) : ata_wmode(ATP_PARAM),
+		    (ATP_PARAM->support_dma ? 2 : 0) : ata_wmode(ATP_PARAM),
 		    ata_umode(ATP_PARAM));
     }
     else
@@ -96,7 +96,7 @@ atapi_attach(struct ata_softc *scp, int device)
 	ata_dmainit(atp->controller, atp->unit,
 		    ata_pmode(ATP_PARAM)<0 ? 0 : ata_pmode(ATP_PARAM), -1, -1);
 
-    switch (ATP_PARAM->device_type) {
+    switch (ATP_PARAM->type) {
 #if NATAPICD > 0
     case ATAPI_TYPE_CDROM:
 	if (acdattach(atp))
@@ -119,7 +119,7 @@ notfound:
     default:
 	ata_printf(scp, device, "<%.40s/%.8s> %s device - NO DRIVER!\n",
 		   ATP_PARAM->model, ATP_PARAM->revision, 
-		   atapi_type(ATP_PARAM->device_type));
+		   atapi_type(ATP_PARAM->type));
 	free(atp, M_ATAPI);
 	atp = NULL;
     }
@@ -130,7 +130,7 @@ notfound:
 void
 atapi_detach(struct atapi_softc *atp)
 {
-    switch (ATP_PARAM->device_type) {
+    switch (ATP_PARAM->type) {
 #if NATAPICD > 0
     case ATAPI_TYPE_CDROM:
 	acddetach(atp);
@@ -169,7 +169,7 @@ atapi_queue_cmd(struct atapi_softc *atp, int8_t *ccb, caddr_t data,
     request->bytecount = count;
     request->flags = flags;
     request->timeout = timeout * hz;
-    request->ccbsize = (ATP_PARAM->cmdsize) ? 16 : 12;
+    request->ccbsize = (ATP_PARAM->packet_size) ? 16 : 12;
     bcopy(ccb, request->ccb, request->ccbsize);
     if (callback) {
 	request->callback = callback;
@@ -221,7 +221,7 @@ atapi_queue_cmd(struct atapi_softc *atp, int8_t *ccb, caddr_t data,
 void
 atapi_start(struct atapi_softc *atp)
 {
-    switch (ATP_PARAM->device_type) {
+    switch (ATP_PARAM->type) {
 #if NATAPICD > 0
     case ATAPI_TYPE_CDROM:
 	acd_start(atp);
@@ -297,7 +297,7 @@ atapi_transfer(struct atapi_request *request)
 
     /* start ATAPI operation */
     if (ata_command(atp->controller, atp->unit, ATA_C_PACKET_CMD, 
-		    request->bytecount, 0, 0, 0, 
+		    (request->bytecount << 8), 0,
 		    (request->flags & ATPR_F_DMA_USED) ? ATA_F_DMA : 0,
 		    ATA_IMMEDIATE))
 	printf("%s: failure to send ATAPI packet command\n", atp->devname);
@@ -307,7 +307,7 @@ atapi_transfer(struct atapi_request *request)
 		     request->dmatab, request->flags & ATPR_F_READ);
 
     /* command interrupt device ? just return */
-    if (ATP_PARAM->drqtype == ATAPI_DRQT_INTR)
+    if (ATP_PARAM->drq_type == ATAPI_DRQT_INTR)
 	return;
 
     /* ready to write ATAPI command */
@@ -500,9 +500,9 @@ atapi_reinit(struct atapi_softc *atp)
      if (atp->controller->mode[ATA_DEV(atp->unit)] >= ATA_DMA)
 	ata_dmainit(atp->controller, atp->unit,
 		    (ata_pmode(ATP_PARAM) < 0) ?
-		    (ATP_PARAM->dmaflag ? 4 : 0) : ata_pmode(ATP_PARAM),
+		    (ATP_PARAM->support_dma ? 4 : 0) : ata_pmode(ATP_PARAM),
 		    (ata_wmode(ATP_PARAM) < 0) ? 
-		    (ATP_PARAM->dmaflag ? 2 : 0) : ata_wmode(ATP_PARAM),
+		    (ATP_PARAM->support_dma ? 2 : 0) : ata_wmode(ATP_PARAM),
 		    ata_umode(ATP_PARAM));
     else
 	ata_dmainit(atp->controller, atp->unit,
