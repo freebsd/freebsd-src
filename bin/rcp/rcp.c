@@ -74,6 +74,7 @@ static const char rcsid[] =
 #ifdef KERBEROS
 #include <des.h>
 #include <krb.h>
+#include "bsd_locl.h"
 
 char	dst_realm_buf[REALM_SZ];
 char	*dest_realm = NULL;
