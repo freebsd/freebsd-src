@@ -579,7 +579,11 @@ struct xl_softc {
 	struct resource		*xl_fres;
 	bus_space_handle_t	xl_fhandle;
 	bus_space_tag_t		xl_ftag;
+	struct mtx		xl_mtx;
 };
+
+#define XL_LOCK(_sc)		mtx_enter(&(_sc)->xl_mtx, MTX_DEF)
+#define XL_UNLOCK(_sc)		mtx_exit(&(_sc)->xl_mtx, MTX_DEF)
 
 #define xl_rx_goodframes(x) \
 	((x.xl_upper_frames_ok & 0x03) << 8) | x.xl_rx_frames_ok

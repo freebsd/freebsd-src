@@ -109,6 +109,7 @@
 #include <machine/bus_memio.h>
 #include <machine/bus.h>
 #include <machine/resource.h>
+#include <machine/mutex.h>
 #include <sys/bus.h>
 #include <sys/rman.h>
 
@@ -555,9 +556,9 @@ static int dc_mii_readreg(sc, frame)
 	struct dc_mii_frame	*frame;
 	
 {
-	int			i, ack, s;
+	int			i, ack;
 
-	s = splimp();
+	DC_LOCK(sc);
 
 	/*
 	 * Set up frame for RX.
@@ -612,7 +613,7 @@ fail:
 	dc_mii_writebit(sc, 0);
 	dc_mii_writebit(sc, 0);
 
-	splx(s);
+	DC_UNLOCK(sc);
 
 	if (ack)
 		return(1);
@@ -627,9 +628,7 @@ static int dc_mii_writereg(sc, frame)
 	struct dc_mii_frame	*frame;
 	
 {
-	int			s;
-
-	s = splimp();
+	DC_LOCK(sc);
 	/*
 	 * Set up frame for TX.
 	 */
@@ -654,7 +653,7 @@ static int dc_mii_writereg(sc, frame)
 	dc_mii_writebit(sc, 0);
 	dc_mii_writebit(sc, 0);
 
-	splx(s);
+	DC_UNLOCK(sc);
 
 	return(0);
 }
@@ -1626,15 +1625,13 @@ static void dc_parse_21143_srom(sc)
 static int dc_attach(dev)
 	device_t		dev;
 {
-	int			s, tmp = 0;
+	int			tmp = 0;
 	u_char			eaddr[ETHER_ADDR_LEN];
 	u_int32_t		command;
 	struct dc_softc		*sc;
 	struct ifnet		*ifp;
 	u_int32_t		revision;
 	int			unit, error = 0, rid, mac_offset;
-
-	s = splimp();
 
 	sc = device_get_softc(dev);
 	unit = device_get_unit(dev);
@@ -1701,7 +1698,9 @@ static int dc_attach(dev)
 		printf("dc%d: couldn't set up irq\n", unit);
 		goto fail;
 	}
-	
+
+	mtx_init(&sc->dc_mtx, "dc", MTX_DEF);
+	DC_LOCK(sc);
 	/* Need this info to decide on a chip type. */
 	sc->dc_info = dc_devtype(dev);
 	revision = pci_read_config(dev, DC_PCI_CFRV, 4) & 0x000000FF;
@@ -1966,10 +1965,12 @@ static int dc_attach(dev)
 	}
 #endif
 
+	DC_UNLOCK(sc);
+	return(0);
 
 fail:
-	splx(s);
-
+	DC_UNLOCK(sc);
+	mtx_destroy(&sc->dc_mtx);
 	return(error);
 }
 
@@ -1978,12 +1979,12 @@ static int dc_detach(dev)
 {
 	struct dc_softc		*sc;
 	struct ifnet		*ifp;
-	int			s;
 	struct dc_mediainfo	*m;
 
-	s = splimp();
-
 	sc = device_get_softc(dev);
+
+	DC_LOCK(sc);
+
 	ifp = &sc->arpcom.ac_if;
 
 	dc_stop(sc);
@@ -2006,7 +2007,8 @@ static int dc_detach(dev)
 		sc->dc_mi = m;
 	}
 
-	splx(s);
+	DC_UNLOCK(sc);
+	mtx_destroy(&sc->dc_mtx);
 
 	return(0);
 }
@@ -2457,12 +2459,10 @@ static void dc_tick(xsc)
 	struct dc_softc		*sc;
 	struct mii_data		*mii;
 	struct ifnet		*ifp;
-	int			s;
 	u_int32_t		r;
 
-	s = splimp();
-
 	sc = xsc;
+	DC_LOCK(sc);
 	ifp = &sc->arpcom.ac_if;
 	mii = device_get_softc(sc->dc_miibus);
 
@@ -2526,7 +2526,7 @@ static void dc_tick(xsc)
 	else
 		sc->dc_stat_ch = timeout(dc_tick, sc, hz);
 
-	splx(s);
+	DC_UNLOCK(sc);
 
 	return;
 }
@@ -2539,12 +2539,14 @@ static void dc_intr(arg)
 	u_int32_t		status;
 
 	sc = arg;
+	DC_LOCK(sc);
 	ifp = &sc->arpcom.ac_if;
 
 	/* Supress unwanted interrupts */
 	if (!(ifp->if_flags & IFF_UP)) {
 		if (CSR_READ_4(sc, DC_ISR) & DC_INTRS)
 			dc_stop(sc);
+		DC_UNLOCK(sc);
 		return;
 	}
 
@@ -2620,6 +2622,8 @@ static void dc_intr(arg)
 
 	if (ifp->if_snd.ifq_head != NULL)
 		dc_start(ifp);
+
+	DC_UNLOCK(sc);
 
 	return;
 }
@@ -2737,11 +2741,17 @@ static void dc_start(ifp)
 
 	sc = ifp->if_softc;
 
-	if (!sc->dc_link)
-		return;
+	DC_LOCK(sc);
 
-	if (ifp->if_flags & IFF_OACTIVE)
+	if (!sc->dc_link) {
+		DC_UNLOCK(sc);
 		return;
+	}
+
+	if (ifp->if_flags & IFF_OACTIVE) {
+		DC_UNLOCK(sc);
+		return;
+	}
 
 	idx = sc->dc_cdata.dc_tx_prod;
 
@@ -2787,6 +2797,8 @@ static void dc_start(ifp)
 	 */
 	ifp->if_timer = 5;
 
+	DC_UNLOCK(sc);
+
 	return;
 }
 
@@ -2796,9 +2808,8 @@ static void dc_init(xsc)
 	struct dc_softc		*sc = xsc;
 	struct ifnet		*ifp = &sc->arpcom.ac_if;
 	struct mii_data		*mii;
-	int			s;
 
-	s = splimp();
+	DC_LOCK(sc);
 
 	mii = device_get_softc(sc->dc_miibus);
 
@@ -2876,7 +2887,7 @@ static void dc_init(xsc)
 		printf("dc%d: initialization failed: no "
 		    "memory for rx buffers\n", sc->dc_unit);
 		dc_stop(sc);
-		(void)splx(s);
+		DC_UNLOCK(sc);
 		return;
 	}
 
@@ -2929,8 +2940,6 @@ static void dc_init(xsc)
 	ifp->if_flags |= IFF_RUNNING;
 	ifp->if_flags &= ~IFF_OACTIVE;
 
-	(void)splx(s);
-
 	/* Don't start the ticker if this is a homePNA link. */
 	if (IFM_SUBTYPE(mii->mii_media.ifm_media) == IFM_homePNA)
 		sc->dc_link = 1;
@@ -2950,6 +2959,7 @@ static void dc_init(xsc)
 		sc->dc_srm_media = 0;
 	}
 #endif
+	DC_UNLOCK(sc);
 	return;
 }
 
@@ -3013,9 +3023,9 @@ static int dc_ioctl(ifp, command, data)
 	struct dc_softc		*sc = ifp->if_softc;
 	struct ifreq		*ifr = (struct ifreq *) data;
 	struct mii_data		*mii;
-	int			s, error = 0;
+	int			error = 0;
 
-	s = splimp();
+	DC_LOCK(sc);
 
 	switch(command) {
 	case SIOCSIFADDR:
@@ -3063,7 +3073,7 @@ static int dc_ioctl(ifp, command, data)
 		break;
 	}
 
-	(void)splx(s);
+	DC_UNLOCK(sc);
 
 	return(error);
 }
@@ -3075,6 +3085,8 @@ static void dc_watchdog(ifp)
 
 	sc = ifp->if_softc;
 
+	DC_LOCK(sc);
+
 	ifp->if_oerrors++;
 	printf("dc%d: watchdog timeout\n", sc->dc_unit);
 
@@ -3084,6 +3096,8 @@ static void dc_watchdog(ifp)
 
 	if (ifp->if_snd.ifq_head != NULL)
 		dc_start(ifp);
+
+	DC_UNLOCK(sc);
 
 	return;
 }
@@ -3097,6 +3111,8 @@ static void dc_stop(sc)
 {
 	register int		i;
 	struct ifnet		*ifp;
+
+	DC_LOCK(sc);
 
 	ifp = &sc->arpcom.ac_if;
 	ifp->if_timer = 0;
@@ -3140,6 +3156,8 @@ static void dc_stop(sc)
 		sizeof(sc->dc_ldata->dc_tx_list));
 
 	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
+
+	DC_UNLOCK(sc);
 
 	return;
 }

@@ -648,10 +648,10 @@ static int tl_mii_readreg(sc, frame)
 	struct tl_mii_frame	*frame;
 	
 {
-	int			i, ack, s;
+	int			i, ack;
 	int			minten = 0;
 
-	s = splimp();
+	TL_LOCK(sc);
 
 	tl_mii_sync(sc);
 
@@ -731,7 +731,7 @@ fail:
 		tl_dio_setbit(sc, TL_NETSIO, TL_SIO_MINTEN);
 	}
 
-	splx(s);
+	TL_UNLOCK(sc);
 
 	if (ack)
 		return(1);
@@ -743,12 +743,12 @@ static int tl_mii_writereg(sc, frame)
 	struct tl_mii_frame	*frame;
 	
 {
-	int			s;
 	int			minten;
+
+	TL_LOCK(sc);
 
 	tl_mii_sync(sc);
 
-	s = splimp();
 	/*
 	 * Set up frame for TX.
 	 */
@@ -789,7 +789,7 @@ static int tl_mii_writereg(sc, frame)
 	if (minten)
 		tl_dio_setbit(sc, TL_NETSIO, TL_SIO_MINTEN);
 
-	splx(s);
+	TL_UNLOCK(sc);
 
 	return(0);
 }
@@ -837,6 +837,7 @@ static void tl_miibus_statchg(dev)
 	struct mii_data		*mii;
 
 	sc = device_get_softc(dev);
+	TL_LOCK(sc);
 	mii = device_get_softc(sc->tl_miibus);
 
 	if ((mii->mii_media_active & IFM_GMASK) == IFM_FDX) {
@@ -844,6 +845,7 @@ static void tl_miibus_statchg(dev)
 	} else {
 		tl_dio_clrbit(sc, TL_NETCMD, TL_CMD_DUPLEX);
 	}
+	TL_UNLOCK(sc);
 
 	return;
 }
@@ -1105,15 +1107,13 @@ static int tl_probe(dev)
 static int tl_attach(dev)
 	device_t		dev;
 {
-	int			s, i;
+	int			i;
 	u_int32_t		command;
 	u_int16_t		did, vid;
 	struct tl_type		*t;
 	struct ifnet		*ifp;
 	struct tl_softc		*sc;
 	int			unit, error = 0, rid;
-
-	s = splimp();
 
 	vid = pci_get_vendor(dev);
 	did = pci_get_device(dev);
@@ -1245,6 +1245,9 @@ static int tl_attach(dev)
 	if (t->tl_vid == OLICOM_VENDORID)
 		sc->tl_eeaddr = TL_EEPROM_EADDR_OC;
 
+	mtx_init(&sc->tl_mtx, "tl", MTX_DEF);
+	TL_LOCK(sc);
+
 	/* Reset the adapter. */
 	tl_softreset(sc, 1);
 	tl_hardreset(dev);
@@ -1338,9 +1341,12 @@ static int tl_attach(dev)
 	 * Call MI attach routine.
 	 */
 	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
+	TL_UNLOCK(sc);
+	return(0);
 
 fail:
-	splx(s);
+	TL_UNLOCK(sc);
+	mtx_destroy(&sc->tl_mtx);
 	return(error);
 }
 
@@ -1349,11 +1355,9 @@ static int tl_detach(dev)
 {
 	struct tl_softc		*sc;
 	struct ifnet		*ifp;
-	int			s;
-
-	s = splimp();
 
 	sc = device_get_softc(dev);
+	TL_LOCK(sc);
 	ifp = &sc->arpcom.ac_if;
 
 	tl_stop(sc);
@@ -1370,7 +1374,8 @@ static int tl_detach(dev)
 	bus_release_resource(dev, SYS_RES_IRQ, 0, sc->tl_irq);
 	bus_release_resource(dev, TL_RES, TL_RID, sc->tl_res);
 
-	splx(s);
+	TL_UNLOCK(sc);
+	mtx_destroy(&sc->tl_mtx);
 
 	return(0);
 }
@@ -1722,6 +1727,7 @@ static void tl_intr(xsc)
 	u_int8_t		ivec = 0;
 
 	sc = xsc;
+	TL_LOCK(sc);
 
 	/* Disable interrupts */
 	ints = CSR_READ_2(sc, TL_HOST_INT);
@@ -1780,6 +1786,8 @@ static void tl_intr(xsc)
 	if (ifp->if_snd.ifq_head != NULL)
 		tl_start(ifp);
 
+	TL_UNLOCK(sc);
+
 	return;
 }
 
@@ -1791,13 +1799,11 @@ static void tl_stats_update(xsc)
 	struct tl_stats		tl_stats;
 	struct mii_data		*mii;
 	u_int32_t		*p;
-	int			s;
-
-	s = splimp();
 
 	bzero((char *)&tl_stats, sizeof(struct tl_stats));
 
 	sc = xsc;
+	TL_LOCK(sc);
 	ifp = &sc->arpcom.ac_if;
 
 	p = (u_int32_t *)&tl_stats;
@@ -1838,7 +1844,7 @@ static void tl_stats_update(xsc)
 		mii_tick(mii);
 	}
 
-	splx(s);
+	TL_UNLOCK(sc);
 
 	return;
 }
@@ -1953,6 +1959,7 @@ static void tl_start(ifp)
 	struct tl_chain		*prev = NULL, *cur_tx = NULL, *start_tx;
 
 	sc = ifp->if_softc;
+	TL_LOCK(sc);
 
 	/*
 	 * Check for an available queue slot. If there are none,
@@ -1960,6 +1967,7 @@ static void tl_start(ifp)
 	 */
 	if (sc->tl_cdata.tl_tx_free == NULL) {
 		ifp->if_flags |= IFF_OACTIVE;
+		TL_UNLOCK(sc);
 		return;
 	}
 
@@ -1997,8 +2005,10 @@ static void tl_start(ifp)
 	/*
 	 * If there are no packets queued, bail.
 	 */
-	if (cur_tx == NULL)
+	if (cur_tx == NULL) {
+		TL_UNLOCK(sc);
 		return;
+	}
 
 	/*
 	 * That's all we can stands, we can't stands no more.
@@ -2028,6 +2038,7 @@ static void tl_start(ifp)
 	 * Set a timeout in case the chip goes out to lunch.
 	 */
 	ifp->if_timer = 5;
+	TL_UNLOCK(sc);
 
 	return;
 }
@@ -2037,10 +2048,9 @@ static void tl_init(xsc)
 {
 	struct tl_softc		*sc = xsc;
 	struct ifnet		*ifp = &sc->arpcom.ac_if;
-        int			s;
 	struct mii_data		*mii;
 
-	s = splimp();
+	TL_LOCK(sc);
 
 	ifp = &sc->arpcom.ac_if;
 
@@ -2085,6 +2095,7 @@ static void tl_init(xsc)
 		printf("tl%d: initialization failed: no "
 			"memory for rx buffers\n", sc->tl_unit);
 		tl_stop(sc);
+		TL_UNLOCK(sc);
 		return;
 	}
 
@@ -2111,10 +2122,9 @@ static void tl_init(xsc)
 	ifp->if_flags |= IFF_RUNNING;
 	ifp->if_flags &= ~IFF_OACTIVE;
 
-	(void)splx(s);
-
 	/* Start the stats update counter */
 	sc->tl_stat_ch = timeout(tl_stats_update, sc, hz);
+	TL_UNLOCK(sc);
 
 	return;
 }
@@ -2266,6 +2276,8 @@ static void tl_stop(sc)
 	register int		i;
 	struct ifnet		*ifp;
 
+	TL_LOCK(sc);
+
 	ifp = &sc->arpcom.ac_if;
 
 	/* Stop the stats updater. */
@@ -2316,6 +2328,7 @@ static void tl_stop(sc)
 		sizeof(sc->tl_ldata->tl_tx_list));
 
 	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
+	TL_UNLOCK(sc);
 
 	return;
 }

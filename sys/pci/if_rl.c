@@ -401,9 +401,9 @@ static int rl_mii_readreg(sc, frame)
 	struct rl_mii_frame	*frame;
 	
 {
-	int			i, ack, s;
+	int			i, ack;
 
-	s = splimp();
+	RL_LOCK(sc);
 
 	/*
 	 * Set up frame for RX.
@@ -479,7 +479,7 @@ fail:
 	MII_SET(RL_MII_CLK);
 	DELAY(1);
 
-	splx(s);
+	RL_UNLOCK(sc);
 
 	if (ack)
 		return(1);
@@ -494,9 +494,8 @@ static int rl_mii_writereg(sc, frame)
 	struct rl_mii_frame	*frame;
 	
 {
-	int			s;
+	RL_LOCK(sc);
 
-	s = splimp();
 	/*
 	 * Set up frame for TX.
 	 */
@@ -530,7 +529,7 @@ static int rl_mii_writereg(sc, frame)
 	 */
 	MII_CLR(RL_MII_DIR);
 
-	splx(s);
+	RL_UNLOCK(sc);
 
 	return(0);
 }
@@ -545,11 +544,14 @@ static int rl_miibus_readreg(dev, phy, reg)
 	u_int16_t		rl8139_reg = 0;
 
 	sc = device_get_softc(dev);
+	RL_LOCK(sc);
 
 	if (sc->rl_type == RL_8139) {
 		/* Pretend the internal PHY is only at address 0 */
-		if (phy)
+		if (phy) {
+			RL_UNLOCK(sc);
 			return(0);
+		}
 		switch(reg) {
 		case MII_BMCR:
 			rl8139_reg = RL_BMCR;
@@ -568,13 +570,16 @@ static int rl_miibus_readreg(dev, phy, reg)
 			break;
 		case MII_PHYIDR1:
 		case MII_PHYIDR2:
+			RL_UNLOCK(sc);
 			return(0);
 			break;
 		default:
 			printf("rl%d: bad phy register\n", sc->rl_unit);
+			RL_UNLOCK(sc);
 			return(0);
 		}
 		rval = CSR_READ_2(sc, rl8139_reg);
+		RL_UNLOCK(sc);
 		return(rval);
 	}
 
@@ -583,6 +588,7 @@ static int rl_miibus_readreg(dev, phy, reg)
 	frame.mii_phyaddr = phy;
 	frame.mii_regaddr = reg;
 	rl_mii_readreg(sc, &frame);
+	RL_UNLOCK(sc);
 
 	return(frame.mii_data);
 }
@@ -596,11 +602,14 @@ static int rl_miibus_writereg(dev, phy, reg, data)
 	u_int16_t		rl8139_reg = 0;
 
 	sc = device_get_softc(dev);
+	RL_LOCK(sc);
 
 	if (sc->rl_type == RL_8139) {
 		/* Pretend the internal PHY is only at address 0 */
-		if (phy)
+		if (phy) {
+			RL_UNLOCK(sc);
 			return(0);
+		}
 		switch(reg) {
 		case MII_BMCR:
 			rl8139_reg = RL_BMCR;
@@ -619,13 +628,16 @@ static int rl_miibus_writereg(dev, phy, reg, data)
 			break;
 		case MII_PHYIDR1:
 		case MII_PHYIDR2:
+			RL_UNLOCK(sc);
 			return(0);
 			break;
 		default:
 			printf("rl%d: bad phy register\n", sc->rl_unit);
+			RL_UNLOCK(sc);
 			return(0);
 		}
 		CSR_WRITE_2(sc, rl8139_reg, data);
+		RL_UNLOCK(sc);
 		return(0);
 	}
 
@@ -637,6 +649,7 @@ static int rl_miibus_writereg(dev, phy, reg, data)
 
 	rl_mii_writereg(sc, &frame);
 
+	RL_UNLOCK(sc);
 	return(0);
 }
 
@@ -776,15 +789,12 @@ static int rl_probe(dev)
 static int rl_attach(dev)
 	device_t		dev;
 {
-	int			s;
 	u_char			eaddr[ETHER_ADDR_LEN];
 	u_int32_t		command;
 	struct rl_softc		*sc;
 	struct ifnet		*ifp;
 	u_int16_t		rl_did = 0;
 	int			unit, error = 0, rid;
-
-	s = splimp();
 
 	sc = device_get_softc(dev);
 	unit = device_get_unit(dev);
@@ -877,6 +887,9 @@ static int rl_attach(dev)
 
 	callout_handle_init(&sc->rl_stat_ch);
 
+	mtx_init(&sc->rl_mtx, "rl", MTX_DEF);
+	RL_LOCK(sc);
+
 	/* Reset the adapter. */
 	rl_reset(sc);
 
@@ -959,9 +972,12 @@ static int rl_attach(dev)
 	 * Call MI attach routine.
 	 */
 	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
+	RL_UNLOCK(sc);
+	return(0);
 
 fail:
-	splx(s);
+	RL_UNLOCK(sc);
+	mtx_destroy(&sc->rl_mtx);
 	return(error);
 }
 
@@ -970,11 +986,9 @@ static int rl_detach(dev)
 {
 	struct rl_softc		*sc;
 	struct ifnet		*ifp;
-	int			s;
-
-	s = splimp();
 
 	sc = device_get_softc(dev);
+	RL_LOCK(sc);
 	ifp = &sc->arpcom.ac_if;
 
 	ether_ifdetach(ifp, ETHER_BPF_SUPPORTED);
@@ -989,7 +1003,8 @@ static int rl_detach(dev)
 
 	contigfree(sc->rl_cdata.rl_rx_buf, RL_RXBUFLEN + 32, M_DEVBUF);
 
-	splx(s);
+	RL_UNLOCK(sc);
+	mtx_destroy(&sc->rl_mtx);
 
 	return(0);
 }
@@ -1231,18 +1246,15 @@ static void rl_tick(xsc)
 {
 	struct rl_softc		*sc;
 	struct mii_data		*mii;
-	int			s;
-
-	s = splimp();
 
 	sc = xsc;
+	RL_LOCK(sc);
 	mii = device_get_softc(sc->rl_miibus);
 
 	mii_tick(mii);
 
-	splx(s);
-
 	sc->rl_stat_ch = timeout(rl_tick, sc, hz);
+	RL_UNLOCK(sc);
 
 	return;
 }
@@ -1255,6 +1267,7 @@ static void rl_intr(arg)
 	u_int16_t		status;
 
 	sc = arg;
+	RL_LOCK(sc);
 	ifp = &sc->arpcom.ac_if;
 
 	/* Disable interrupts. */
@@ -1290,6 +1303,8 @@ static void rl_intr(arg)
 
 	if (ifp->if_snd.ifq_head != NULL)
 		rl_start(ifp);
+
+	RL_UNLOCK(sc);
 
 	return;
 }
@@ -1360,6 +1375,7 @@ static void rl_start(ifp)
 	struct mbuf		*m_head = NULL;
 
 	sc = ifp->if_softc;
+	RL_LOCK(sc);
 
 	while(RL_CUR_TXMBUF(sc) == NULL) {
 		IF_DEQUEUE(&ifp->if_snd, m_head);
@@ -1403,6 +1419,7 @@ static void rl_start(ifp)
 	 * Set a timeout in case the chip goes out to lunch.
 	 */
 	ifp->if_timer = 5;
+	RL_UNLOCK(sc);
 
 	return;
 }
@@ -1413,11 +1430,10 @@ static void rl_init(xsc)
 	struct rl_softc		*sc = xsc;
 	struct ifnet		*ifp = &sc->arpcom.ac_if;
 	struct mii_data		*mii;
-	int			s, i;
+	int			i;
 	u_int32_t		rxcfg = 0;
 
-	s = splimp();
-
+	RL_LOCK(sc);
 	mii = device_get_softc(sc->rl_miibus);
 
 	/*
@@ -1497,9 +1513,8 @@ static void rl_init(xsc)
 	ifp->if_flags |= IFF_RUNNING;
 	ifp->if_flags &= ~IFF_OACTIVE;
 
-	(void)splx(s);
-
 	sc->rl_stat_ch = timeout(rl_tick, sc, hz);
+	RL_UNLOCK(sc);
 
 	return;
 }
@@ -1548,9 +1563,9 @@ static int rl_ioctl(ifp, command, data)
 	struct rl_softc		*sc = ifp->if_softc;
 	struct ifreq		*ifr = (struct ifreq *) data;
 	struct mii_data		*mii;
-	int			s, error = 0;
+	int			error = 0;
 
-	s = splimp();
+	RL_LOCK(sc);
 
 	switch(command) {
 	case SIOCSIFADDR:
@@ -1582,7 +1597,7 @@ static int rl_ioctl(ifp, command, data)
 		break;
 	}
 
-	(void)splx(s);
+	RL_UNLOCK(sc);
 
 	return(error);
 }
@@ -1593,13 +1608,14 @@ static void rl_watchdog(ifp)
 	struct rl_softc		*sc;
 
 	sc = ifp->if_softc;
-
+	RL_LOCK(sc);
 	printf("rl%d: watchdog timeout\n", sc->rl_unit);
 	ifp->if_oerrors++;
 
 	rl_txeof(sc);
 	rl_rxeof(sc);
 	rl_init(sc);
+	RL_UNLOCK(sc);
 
 	return;
 }
@@ -1614,6 +1630,7 @@ static void rl_stop(sc)
 	register int		i;
 	struct ifnet		*ifp;
 
+	RL_LOCK(sc);
 	ifp = &sc->arpcom.ac_if;
 	ifp->if_timer = 0;
 
@@ -1634,7 +1651,7 @@ static void rl_stop(sc)
 	}
 
 	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
-
+	RL_UNLOCK(sc);
 	return;
 }
 

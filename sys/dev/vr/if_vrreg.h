@@ -411,7 +411,11 @@ struct vr_softc {
 	struct vr_list_data	*vr_ldata;
 	struct vr_chain_data	vr_cdata;
 	struct callout_handle	vr_stat_ch;
+	struct mtx		vr_mtx;
 };
+
+#define	VR_LOCK(_sc)		mtx_enter(&(_sc)->vr_mtx, MTX_DEF)
+#define	VR_UNLOCK(_sc)		mtx_exit(&(_sc)->vr_mtx, MTX_DEF)
 
 /*
  * register space access macros

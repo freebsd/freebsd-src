@@ -531,9 +531,9 @@ static int sf_ioctl(ifp, command, data)
 	struct sf_softc		*sc = ifp->if_softc;
 	struct ifreq		*ifr = (struct ifreq *) data;
 	struct mii_data		*mii;
-	int			s, error = 0;
+	int			error = 0;
 
-	s = splimp();
+	SF_LOCK(sc);
 
 	switch(command) {
 	case SIOCSIFADDR:
@@ -575,7 +575,7 @@ static int sf_ioctl(ifp, command, data)
 		break;
 	}
 
-	(void)splx(s);
+	SF_UNLOCK(sc);
 
 	return(error);
 }
@@ -670,13 +670,11 @@ static int sf_probe(dev)
 static int sf_attach(dev)
 	device_t		dev;
 {
-	int			s, i;
+	int			i;
 	u_int32_t		command;
 	struct sf_softc		*sc;
 	struct ifnet		*ifp;
 	int			unit, rid, error = 0;
-
-	s = splimp();
 
 	sc = device_get_softc(dev);
 	unit = device_get_unit(dev);
@@ -768,7 +766,8 @@ static int sf_attach(dev)
 	}
 
 	callout_handle_init(&sc->sf_stat_ch);
-
+	mtx_init(&sc->sf_mtx, "sf", MTX_DEF);
+	SF_LOCK(sc);
 	/* Reset the adapter. */
 	sf_reset(sc);
 
@@ -832,9 +831,12 @@ static int sf_attach(dev)
 	 * Call MI attach routine.
 	 */
 	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
+	SF_UNLOCK(sc);
+	return(0);
 
 fail:
-	splx(s);
+	SF_UNLOCK(sc);
+	mtx_destroy(&sc->sf_mtx);
 	return(error);
 }
 
@@ -843,11 +845,9 @@ static int sf_detach(dev)
 {
 	struct sf_softc		*sc;
 	struct ifnet		*ifp;
-	int			s;
-
-	s = splimp();
 
 	sc = device_get_softc(dev);
+	SF_LOCK(sc);
 	ifp = &sc->arpcom.ac_if;
 
 	ether_ifdetach(ifp, ETHER_BPF_SUPPORTED);
@@ -862,7 +862,8 @@ static int sf_detach(dev)
 
 	contigfree(sc->sf_ldata, sizeof(struct sf_list_data), M_DEVBUF);
 
-	splx(s);
+	SF_UNLOCK(sc);
+	mtx_destroy(&sc->sf_mtx);
 
 	return(0);
 }
@@ -1086,10 +1087,14 @@ static void sf_intr(arg)
 	u_int32_t		status;
 
 	sc = arg;
+	SF_LOCK(sc);
+
 	ifp = &sc->arpcom.ac_if;
 
-	if (!(csr_read_4(sc, SF_ISR_SHADOW) & SF_ISR_PCIINT_ASSERTED))
+	if (!(csr_read_4(sc, SF_ISR_SHADOW) & SF_ISR_PCIINT_ASSERTED)) {
+		SF_UNLOCK(sc);
 		return;
+	}
 
 	/* Disable interrupts. */
 	csr_write_4(sc, SF_IMR, 0x00000000);
@@ -1124,6 +1129,7 @@ static void sf_intr(arg)
 	if (ifp->if_snd.ifq_head != NULL)
 		sf_start(ifp);
 
+	SF_UNLOCK(sc);
 	return;
 }
 
@@ -1133,11 +1139,10 @@ static void sf_init(xsc)
 	struct sf_softc		*sc;
 	struct ifnet		*ifp;
 	struct mii_data		*mii;
-	int			i, s;
-
-	s = splimp();
+	int			i;
 
 	sc = xsc;
+	SF_LOCK(sc);
 	ifp = &sc->arpcom.ac_if;
 	mii = device_get_softc(sc->sf_miibus);
 
@@ -1162,7 +1167,7 @@ static void sf_init(xsc)
 	if (sf_init_rx_ring(sc) == ENOBUFS) {
 		printf("sf%d: initialization failed: no "
 		    "memory for rx buffers\n", sc->sf_unit);
-		(void)splx(s);
+		SF_UNLOCK(sc);
 		return;
 	}
 
@@ -1237,7 +1242,7 @@ static void sf_init(xsc)
 
 	sc->sf_stat_ch = timeout(sf_stats_update, sc, hz);
 
-	splx(s);
+	SF_UNLOCK(sc);
 
 	return;
 }
@@ -1314,12 +1319,17 @@ static void sf_start(ifp)
 	int			i, txprod;
 
 	sc = ifp->if_softc;
+	SF_LOCK(sc);
 
-	if (!sc->sf_link)
+	if (!sc->sf_link) {
+		SF_UNLOCK(sc);
 		return;
+	}
 
-	if (ifp->if_flags & IFF_OACTIVE)
+	if (ifp->if_flags & IFF_OACTIVE) {
+		SF_UNLOCK(sc);
 		return;
+	}
 
 	txprod = csr_read_4(sc, SF_TXDQ_PRODIDX);
 	i = SF_IDX_HI(txprod) >> 4;
@@ -1345,8 +1355,10 @@ static void sf_start(ifp)
 			break;
 	}
 
-	if (cur_tx == NULL)
+	if (cur_tx == NULL) {
+		SF_UNLOCK(sc);
 		return;
+	}
 
 	/* Transmit */
 	csr_write_4(sc, SF_TXDQ_PRODIDX,
@@ -1354,6 +1366,8 @@ static void sf_start(ifp)
 	    ((i << 20) & 0xFFFF0000));
 
 	ifp->if_timer = 5;
+
+	SF_UNLOCK(sc);
 
 	return;
 }
@@ -1363,6 +1377,8 @@ static void sf_stop(sc)
 {
 	int			i;
 	struct ifnet		*ifp;
+
+	SF_LOCK(sc);
 
 	ifp = &sc->arpcom.ac_if;
 
@@ -1396,6 +1412,7 @@ static void sf_stop(sc)
 	}
 
 	ifp->if_flags &= ~(IFF_RUNNING|IFF_OACTIVE);
+	SF_UNLOCK(sc);
 
 	return;
 }
@@ -1415,11 +1432,10 @@ static void sf_stats_update(xsc)
 	struct mii_data		*mii;
 	struct sf_stats		stats;
 	u_int32_t		*ptr;
-	int			i, s;
-
-	s = splimp();
+	int			i;
 
 	sc = xsc;
+	SF_LOCK(sc);
 	ifp = &sc->arpcom.ac_if;
 	mii = device_get_softc(sc->sf_miibus);
 
@@ -1447,7 +1463,7 @@ static void sf_stats_update(xsc)
 
 	sc->sf_stat_ch = timeout(sf_stats_update, sc, hz);
 
-	splx(s);
+	SF_UNLOCK(sc);
 
 	return;
 }
@@ -1459,6 +1475,8 @@ static void sf_watchdog(ifp)
 
 	sc = ifp->if_softc;
 
+	SF_LOCK(sc);
+
 	ifp->if_oerrors++;
 	printf("sf%d: watchdog timeout\n", sc->sf_unit);
 
@@ -1468,6 +1486,8 @@ static void sf_watchdog(ifp)
 
 	if (ifp->if_snd.ifq_head != NULL)
 		sf_start(ifp);
+
+	SF_UNLOCK(sc);
 
 	return;
 }

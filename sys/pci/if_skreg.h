@@ -1179,7 +1179,13 @@ struct sk_softc {
 	u_int32_t		sk_intrmask;
 	struct sk_if_softc	*sk_if[2];
 	device_t		sk_devs[2];
+	struct mtx		sk_mtx;
 };
+
+#define	SK_LOCK(_sc)		mtx_enter(&(_sc)->sk_mtx, MTX_DEF)
+#define	SK_UNLOCK(_sc)		mtx_exit(&(_sc)->sk_mtx, MTX_DEF)
+#define	SK_IF_LOCK(_sc)		mtx_enter(&(_sc)->sk_softc->sk_mtx, MTX_DEF)
+#define	SK_IF_UNLOCK(_sc)	mtx_exit(&(_sc)->sk_softc->sk_mtx, MTX_DEF)
 
 /* Softc for each logical interface */
 struct sk_if_softc {
