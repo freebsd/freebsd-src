@@ -303,7 +303,7 @@ static	swihand_t siopoll;
 static	int	sioprobe	__P((device_t dev, int xrid));
 static	int	sio_isa_probe	__P((device_t dev));
 static	void	siosettimeout	__P((void));
-static	int	siosetwater	__P((struct com_s *com, speed_t speed));
+static	int	siosetwater	__P((struct com_s *com, speed_t speed, int locked));
 static	void	comstart	__P((struct tty *tp));
 static	void	comstop		__P((struct tty *tp, int rw));
 static	timeout_t comwakeup;
@@ -1181,7 +1181,7 @@ sioattach(dev, xrid)
 		com->it_in.c_ispeed = com->it_in.c_ospeed = comdefaultrate;
 	} else
 		com->it_in.c_ispeed = com->it_in.c_ospeed = TTYDEF_SPEED;
-	if (siosetwater(com, com->it_in.c_ispeed) != 0) {
+	if (siosetwater(com, com->it_in.c_ispeed, 0) != 0) {
 		/*
 		 * Leave i/o resources allocated if this is a `cn'-level
 		 * console, so that other devices can't snarf them.
@@ -2417,7 +2417,7 @@ comparam(tp, t)
 	disable_intr();
 	COM_LOCK();
 
-	(void) siosetwater(com, t->c_ispeed);
+	(void) siosetwater(com, t->c_ispeed, 1);
 
 	if (divisor != 0) {
 		sio_setreg(com, com_cfcr, cfcr | CFCR_DLAB);
@@ -2516,9 +2516,10 @@ comparam(tp, t)
 }
 
 static int
-siosetwater(com, speed)
+siosetwater(com, speed, locked)
 	struct com_s	*com;
 	speed_t		speed;
+	int		locked;
 {
 	int		cp4ticks;
 	u_char		*ibuf;
@@ -2562,7 +2563,8 @@ siosetwater(com, speed)
 	 */
 	intrsave = save_intr();
 	disable_intr();
-	COM_LOCK();
+	if (!locked)
+		COM_LOCK();
 	if (com->iptr != com->ibuf)
 		sioinput(com);
 
@@ -2581,7 +2583,8 @@ siosetwater(com, speed)
 	com->ibufend = ibuf + ibufsize;
 	com->ierroff = ibufsize;
 	com->ihighwater = ibuf + 3 * ibufsize / 4;
-	COM_UNLOCK();
+	if (!locked)
+		COM_UNLOCK();
 	restore_intr(intrsave);
 	return (0);
 }
