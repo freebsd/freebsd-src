@@ -140,12 +140,16 @@ A command line with no addresses selects every pattern space.
 A command line with one address selects all of the pattern spaces
 that match the address.
 .Pp
-A command line with two addresses selects the inclusive range from
-the first pattern space that matches the first address through the next
-pattern space that matches the second.
-(If the second address is a number less than or equal to the line number
-first selected, only that line is selected.)
-Starting at the first line following the selected range,
+A command line with two addresses selects an inclusive range.  This
+range starts with the first pattern space that matches the first
+address.  The end of the range is the next following pattern space
+that matches the second address.  If the second address is a number
+less than or equal to the line number first selected, only that
+line is selected.  In the case when the second address is a context
+address, sed does not re-match the second address against the
+pattern space that matched the first address.  Starting at the
+first line following the selected range, sed starts looking again
+for the first address.
 .Nm
 starts looking again for the first address.
 .Pp
