@@ -177,8 +177,12 @@ lock_name (repository, name)
 	assert (CVSroot_directory != NULL);
 	assert (strncmp (repository, CVSroot_directory,
 			 strlen (CVSroot_directory)) == 0);
-	short_repos = repository + strlen (CVSroot_directory);
-	assert (*short_repos++ == '/');
+	short_repos = repository + strlen (CVSroot_directory) + 1;
+
+	if (strcmp (repository, CVSroot_directory) == 0)
+	    short_repos = ".";
+	else
+	    assert (short_repos[-1] == '/');
 
 	retval = xmalloc (strlen (lock_dir)
 			  + strlen (short_repos)
@@ -762,8 +766,8 @@ set_lock (lock, will_wait)
 	if (errno != EEXIST)
 	{
 	    error (0, errno,
-		   "failed to create lock directory in repository `%s'",
-		   lock->repository);
+		   "failed to create lock directory for `%s' (%s)",
+		   lock->repository, masterlock);
 	    return (L_ERROR);
 	}
 

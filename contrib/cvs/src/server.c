@@ -187,6 +187,7 @@ static int fd_buffer_input PROTO((void *, char *, int, int, int *));
 static int fd_buffer_output PROTO((void *, const char *, int, int *));
 static int fd_buffer_flush PROTO((void *));
 static int fd_buffer_block PROTO((void *, int));
+static int fd_buffer_shutdown PROTO((void *));
 
 /* Initialize a buffer built on a file descriptor.  FD is the file
    descriptor.  INPUT is nonzero if this is for input, zero if this is
@@ -208,7 +209,7 @@ fd_buffer_initialize (fd, input, memory)
 			   input ? NULL : fd_buffer_output,
 			   input ? NULL : fd_buffer_flush,
 			   fd_buffer_block,
-			   (int (*) PROTO((void *))) NULL,
+			   fd_buffer_shutdown,
 			   memory,
 			   n);
 }
@@ -342,6 +343,16 @@ fd_buffer_block (closure, block)
 
     fd->blocking = block;
 
+    return 0;
+}
+
+/* The buffer shutdown function for a buffer built on a file descriptor.  */
+
+static int
+fd_buffer_shutdown (closure)
+     void *closure;
+{
+    free (closure);
     return 0;
 }
 
@@ -742,8 +753,6 @@ serve_root (arg)
 {
     char *env;
     char *path;
-    int save_errno;
-    char *arg_dup;
     
     if (error_pending()) return;
 
@@ -785,14 +794,7 @@ E Protocol error: Root says \"%s\" but pserver says \"%s\"",
 	}
     }
 #endif
-    arg_dup = malloc (strlen (arg) + 1);
-    if (arg_dup == NULL)
-    {
-	pending_error = ENOMEM;
-	return;
-    }
-    strcpy (arg_dup, arg);
-    set_local_cvsroot (arg_dup);
+    set_local_cvsroot (arg);
 
     /* For pserver, this will already have happened, and the call will do
        nothing.  But for rsh, we need to do it now.  */
@@ -803,7 +805,6 @@ E Protocol error: Root says \"%s\" but pserver says \"%s\"",
 
     path = malloc (strlen (CVSroot_directory)
 		   + sizeof (CVSROOTADM)
-		   + sizeof (CVSROOTADM_HISTORY)
 		   + 10);
     if (path == NULL)
     {
@@ -813,21 +814,9 @@ E Protocol error: Root says \"%s\" but pserver says \"%s\"",
     (void) sprintf (path, "%s/%s", CVSroot_directory, CVSROOTADM);
     if (!isaccessible (path, R_OK | X_OK))
     {
-	save_errno = errno;
-	pending_error_text = malloc (80 + strlen (path));
-	if (pending_error_text != NULL)
+	int save_errno = errno;
+	if (alloc_pending (80 + strlen (path)))
 	    sprintf (pending_error_text, "E Cannot access %s", path);
-	pending_error = save_errno;
-    }
-    (void) strcat (path, "/");
-    (void) strcat (path, CVSROOTADM_HISTORY);
-    if (readonlyfs == 0 && isfile (path) && !isaccessible (path, R_OK | W_OK))
-    {
-	save_errno = errno;
-	pending_error_text = malloc (80 + strlen (path));
-	if (pending_error_text != NULL)
-	    sprintf (pending_error_text, "E \
-Sorry, you don't have read/write access to the history file %s", path);
 	pending_error = save_errno;
     }
     free (path);
@@ -1043,9 +1032,9 @@ dirswitch (dir, repos)
     if (status != 0
 	&& status != EEXIST)
     {
-	pending_error = status;
 	if (alloc_pending (80 + strlen (dir_name)))
 	    sprintf (pending_error_text, "E cannot mkdir %s", dir_name);
+	pending_error = status;
 	return;
     }
 
@@ -1058,17 +1047,18 @@ dirswitch (dir, repos)
     status = create_adm_p (server_temp_dir, dir);
     if (status != 0)
     {
-	pending_error = status;
 	if (alloc_pending (80 + strlen (dir_name)))
 	    sprintf (pending_error_text, "E cannot create_adm_p %s", dir_name);
+	pending_error = status;
 	return;
     }
 
     if ( CVS_CHDIR (dir_name) < 0)
     {
-	pending_error = errno;
+	int save_errno = errno;
 	if (alloc_pending (80 + strlen (dir_name)))
 	    sprintf (pending_error_text, "E cannot change to %s", dir_name);
+	pending_error = save_errno;
 	return;
     }
     /*
@@ -1077,10 +1067,14 @@ dirswitch (dir, repos)
      */
     if ((CVS_MKDIR (CVSADM, 0777) < 0) && (errno != EEXIST))
     {
-	pending_error = errno;
+	int save_errno = errno;
+	if (alloc_pending (80 + strlen (dir_name) + strlen (CVSADM)))
+	    sprintf (pending_error_text,
+		     "E cannot mkdir %s/%s", dir_name, CVSADM);
+	pending_error = save_errno;
 	return;
     }
-    
+
     /* The following will overwrite the contents of CVSADM_REP.  This
        is the correct behavior -- mkdir_p may have written a
        placeholder value to this file and we need to insert the
@@ -1089,12 +1083,20 @@ dirswitch (dir, repos)
     f = CVS_FOPEN (CVSADM_REP, "w");
     if (f == NULL)
     {
-	pending_error = errno;
+	int save_errno = errno;
+	if (alloc_pending (80 + strlen (dir_name) + strlen (CVSADM_REP)))
+	    sprintf (pending_error_text,
+		     "E cannot open %s/%s", dir_name, CVSADM_REP);
+	pending_error = save_errno;
 	return;
     }
     if (fprintf (f, "%s", repos) < 0)
     {
-	pending_error = errno;
+	int save_errno = errno;
+	if (alloc_pending (80 + strlen (dir_name) + strlen (CVSADM_REP)))
+	    sprintf (pending_error_text,
+		     "E error writing %s/%s", dir_name, CVSADM_REP);
+	pending_error = save_errno;
 	fclose (f);
 	return;
     }
@@ -1107,20 +1109,32 @@ dirswitch (dir, repos)
     {
         if (fprintf (f, "/.") < 0)
 	{
-	    pending_error = errno;
+	    int save_errno = errno;
+	    if (alloc_pending (80 + strlen (dir_name) + strlen (CVSADM_REP)))
+		sprintf (pending_error_text,
+			 "E error writing %s/%s", dir_name, CVSADM_REP);
+	    pending_error = save_errno;
 	    fclose (f);
 	    return;
 	}
     }
     if (fprintf (f, "\n") < 0)
     {
-	pending_error = errno;
+	int save_errno = errno;
+	if (alloc_pending (80 + strlen (dir_name) + strlen (CVSADM_REP)))
+	    sprintf (pending_error_text,
+		     "E error writing %s/%s", dir_name, CVSADM_REP);
+	pending_error = save_errno;
 	fclose (f);
 	return;
     }
     if (fclose (f) == EOF)
     {
-	pending_error = errno;
+	int save_errno = errno;
+	if (alloc_pending (80 + strlen (dir_name) + strlen (CVSADM_REP)))
+	    sprintf (pending_error_text,
+		     "E error closing %s/%s", dir_name, CVSADM_REP);
+	pending_error = save_errno;
 	return;
     }
     /* We open in append mode because we don't want to clobber an
@@ -1128,16 +1142,18 @@ dirswitch (dir, repos)
     f = CVS_FOPEN (CVSADM_ENT, "a");
     if (f == NULL)
     {
-	pending_error = errno;
+	int save_errno = errno;
 	if (alloc_pending (80 + strlen (CVSADM_ENT)))
 	    sprintf (pending_error_text, "E cannot open %s", CVSADM_ENT);
+	pending_error = save_errno;
 	return;
     }
     if (fclose (f) == EOF)
     {
-	pending_error = errno;
+	int save_errno = errno;
 	if (alloc_pending (80 + strlen (CVSADM_ENT)))
 	    sprintf (pending_error_text, "E cannot close %s", CVSADM_ENT);
+	pending_error = save_errno;
 	return;
     }
 }
@@ -1146,10 +1162,7 @@ static void
 serve_repository (arg)
     char *arg;
 {
-    pending_error_text = malloc (80);
-    if (pending_error_text == NULL)
-	pending_error = ENOMEM;
-    else
+    if (alloc_pending (80))
 	strcpy (pending_error_text,
 		"E Repository request is obsolete; aborted");
     return;
@@ -1165,9 +1178,8 @@ serve_directory (arg)
     status = buf_read_line (buf_from_net, &repos, (int *) NULL);
     if (status == 0)
     {
-	if (outside_root (repos))
-	    return;
-	dirswitch (arg, repos);
+	if (!outside_root (repos))
+	    dirswitch (arg, repos);
 	free (repos);
     }
     else if (status == -2)
@@ -1206,16 +1218,18 @@ serve_static_directory (arg)
     f = CVS_FOPEN (CVSADM_ENTSTAT, "w+");
     if (f == NULL)
     {
-	pending_error = errno;
+	int save_errno = errno;
 	if (alloc_pending (80 + strlen (CVSADM_ENTSTAT)))
 	    sprintf (pending_error_text, "E cannot open %s", CVSADM_ENTSTAT);
+	pending_error = save_errno;
 	return;
     }
     if (fclose (f) == EOF)
     {
-	pending_error = errno;
+	int save_errno = errno;
 	if (alloc_pending (80 + strlen (CVSADM_ENTSTAT)))
 	    sprintf (pending_error_text, "E cannot close %s", CVSADM_ENTSTAT);
+	pending_error = save_errno;
 	return;
     }
 }
@@ -1231,23 +1245,26 @@ serve_sticky (arg)
     f = CVS_FOPEN (CVSADM_TAG, "w+");
     if (f == NULL)
     {
-	pending_error = errno;
+	int save_errno = errno;
 	if (alloc_pending (80 + strlen (CVSADM_TAG)))
 	    sprintf (pending_error_text, "E cannot open %s", CVSADM_TAG);
+	pending_error = save_errno;
 	return;
     }
     if (fprintf (f, "%s\n", arg) < 0)
     {
-	pending_error = errno;
+	int save_errno = errno;
 	if (alloc_pending (80 + strlen (CVSADM_TAG)))
 	    sprintf (pending_error_text, "E cannot write to %s", CVSADM_TAG);
+	pending_error = save_errno;
 	return;
     }
     if (fclose (f) == EOF)
     {
-	pending_error = errno;
+	int save_errno = errno;
 	if (alloc_pending (80 + strlen (CVSADM_TAG)))
 	    sprintf (pending_error_text, "E cannot close %s", CVSADM_TAG);
+	pending_error = save_errno;
 	return;
     }
 }
@@ -1306,10 +1323,10 @@ receive_partial_file (size, file)
 	    nwrote = write (file, data, nread);
 	    if (nwrote < 0)
 	    {
-		pending_error_text = malloc (40);
-		if (pending_error_text != NULL)
-		    sprintf (pending_error_text, "E unable to write");
-		pending_error = errno;
+	        int save_errno = errno;
+		if (alloc_pending (40))
+		    strcpy (pending_error_text, "E unable to write");
+		pending_error = save_errno;
 
 		/* Read and discard the file data.  */
 		while (size > 0)
@@ -1345,10 +1362,10 @@ receive_file (size, file, gzipped)
     fd = CVS_OPEN (arg, O_WRONLY | O_CREAT | O_TRUNC, 0600);
     if (fd < 0)
     {
-	pending_error_text = malloc (40 + strlen (arg));
-	if (pending_error_text)
+	int save_errno = errno;
+	if (alloc_pending (40 + strlen (arg)))
 	    sprintf (pending_error_text, "E cannot open %s", arg);
-	pending_error = errno;
+	pending_error = save_errno;
 	return;
     }
 
@@ -1414,7 +1431,7 @@ receive_file (size, file, gzipped)
 	    goto out;
 	}
 
-	if (gunzip_and_write (fd, file, filebuf, size))
+	if (gunzip_and_write (fd, file, (unsigned char *) filebuf, size))
 	{
 	    if (alloc_pending (80))
 		sprintf (pending_error_text,
@@ -1440,10 +1457,10 @@ receive_file (size, file, gzipped)
  out:
     if (close (fd) < 0 && !error_pending ())
     {
-	pending_error_text = malloc (40 + strlen (arg));
-	if (pending_error_text)
+	int save_errno = errno;
+	if (alloc_pending (40 + strlen (arg)))
 	    sprintf (pending_error_text, "E cannot close %s", arg);
-	pending_error = errno;
+	pending_error = save_errno;
 	return;
     }
 }
@@ -1522,10 +1539,11 @@ serve_modified (arg)
 		{
 		    sprintf (pending_error_text,
 			     "E error reading size for %s", arg);
-		    pending_error = errno;
+		    pending_error = status;
 		}
 	    }
 	}
+	free (mode_text);
 	return;
     }
     if (size_text[0] == 'z')
@@ -1550,16 +1568,24 @@ serve_modified (arg)
 		return;
 	    size -= nread;
 	}
+	free (mode_text);
 	return;
     }
 
     if (outside_dir (arg))
+    {
+	free (mode_text);
 	return;
+    }
 
     if (size >= 0)
     {
 	receive_file (size, arg, gzipped);
-	if (error_pending ()) return;
+	if (error_pending ())
+	{
+	    free (mode_text);
+	    return;
+	}
     }
 
     if (checkin_time_valid)
@@ -1570,9 +1596,11 @@ serve_modified (arg)
 	t.modtime = t.actime = checkin_time;
 	if (utime (arg, &t) < 0)
 	{
-	    pending_error = errno;
+	    int save_errno = errno;
 	    if (alloc_pending (80 + strlen (arg)))
 		sprintf (pending_error_text, "E cannot utime %s", arg);
+	    pending_error = save_errno;
+	    free (mode_text);
 	    return;
 	}
 	checkin_time_valid = 0;
@@ -1583,8 +1611,7 @@ serve_modified (arg)
 	free (mode_text);
 	if (status)
 	{
-	    pending_error_text = malloc (40 + strlen (arg));
-	    if (pending_error_text)
+	    if (alloc_pending (40 + strlen (arg)))
 		sprintf (pending_error_text,
 			 "E cannot change mode for %s", arg);
 	    pending_error = status;
@@ -1859,9 +1886,10 @@ server_write_entries ()
 	f = CVS_FOPEN (CVSADM_ENT, "a");
 	if (f == NULL)
 	{
-	    pending_error = errno;
+	    int save_errno = errno;
 	    if (alloc_pending (80 + strlen (CVSADM_ENT)))
 		sprintf (pending_error_text, "E cannot open %s", CVSADM_ENT);
+	    pending_error = save_errno;
 	}
     }
     for (p = entries; p != NULL;)
@@ -1870,10 +1898,11 @@ server_write_entries ()
 	{
 	    if (fprintf (f, "%s\n", p->entry) < 0)
 	    {
-		pending_error = errno;
+		int save_errno = errno;
 		if (alloc_pending (80 + strlen(CVSADM_ENT)))
 		    sprintf (pending_error_text,
 			     "E cannot write to %s", CVSADM_ENT);
+		pending_error = save_errno;
 	    }
 	}
 	free (p->entry);
@@ -1884,9 +1913,10 @@ server_write_entries ()
     entries = NULL;
     if (f != NULL && fclose (f) == EOF && !error_pending ())
     {
-	pending_error = errno;
+	int save_errno = errno;
 	if (alloc_pending (80 + strlen (CVSADM_ENT)))
 	    sprintf (pending_error_text, "E cannot close %s", CVSADM_ENT);
+	pending_error = save_errno;
     }
 }
 
@@ -1918,8 +1948,8 @@ static void
 serve_notify (arg)
     char *arg;
 {
-    struct notify_note *new;
-    char *data;
+    struct notify_note *new = NULL;
+    char *data = NULL;
     int status;
 
     if (error_pending ()) return;
@@ -1927,27 +1957,26 @@ serve_notify (arg)
     if (outside_dir (arg))
 	return;
 
+    if (dir_name == NULL)
+	goto error;
+
     new = (struct notify_note *) malloc (sizeof (struct notify_note));
     if (new == NULL)
     {
 	pending_error = ENOMEM;
 	return;
     }
-    if (dir_name == NULL)
-	goto error;
     new->dir = malloc (strlen (dir_name) + 1);
-    if (new->dir == NULL)
+    new->filename = malloc (strlen (arg) + 1);
+    if (new->dir == NULL || new->filename == NULL)
     {
 	pending_error = ENOMEM;
+	if (new->dir != NULL)
+	    free (new->dir);
+	free (new);
 	return;
     }
     strcpy (new->dir, dir_name);
-    new->filename = malloc (strlen (arg) + 1);
-    if (new->filename == NULL)
-    {
-	pending_error = ENOMEM;
-	return;
-    }
     strcpy (new->filename, arg);
 
     status = buf_read_line (buf_from_net, &data, (int *) NULL);
@@ -1973,6 +2002,9 @@ serve_notify (arg)
 		}
 	    }
 	}
+	free (new->filename);
+	free (new->dir);
+	free (new);
     }
     else
     {
@@ -2020,11 +2052,18 @@ serve_notify (arg)
     }
     return;
   error:
-    pending_error_text = malloc (80);
-    if (pending_error_text)
+    pending_error = 0;
+    if (alloc_pending (80))
 	strcpy (pending_error_text,
 		"E Protocol error; misformed Notify request");
-    pending_error = 0;
+    if (data != NULL)
+	free (data);
+    if (new != NULL)
+    {
+	free (new->filename);
+	free (new->dir);
+	free (new);
+    }
     return;
 }
 
@@ -2067,6 +2106,7 @@ server_notify ()
 	buf_append_char (buf_to_net, '/');
 	buf_output0 (buf_to_net, notify_list->filename);
 	buf_append_char (buf_to_net, '\n');
+	free (repos);
 
 	p = notify_list->next;
 	free (notify_list->filename);
@@ -2654,22 +2694,26 @@ error  \n");
 
     if (pipe (stdout_pipe) < 0)
     {
+	buf_output0 (buf_to_net, "E pipe failed\n");
 	print_error (errno);
 	goto error_exit;
     }
     if (pipe (stderr_pipe) < 0)
     {
+	buf_output0 (buf_to_net, "E pipe failed\n");
 	print_error (errno);
 	goto error_exit;
     }
     if (pipe (protocol_pipe) < 0)
     {
+	buf_output0 (buf_to_net, "E pipe failed\n");
 	print_error (errno);
 	goto error_exit;
     }
 #ifdef SERVER_FLOWCONTROL
     if (pipe (flowcontrol_pipe) < 0)
     {
+	buf_output0 (buf_to_net, "E pipe failed\n");
 	print_error (errno);
 	goto error_exit;
     }
@@ -2680,6 +2724,7 @@ error  \n");
     dev_null_fd = CVS_OPEN (DEVNULL, O_RDONLY);
     if (dev_null_fd < 0)
     {
+	buf_output0 (buf_to_net, "E open /dev/null failed\n");
 	print_error (errno);
 	goto error_exit;
     }
@@ -2707,6 +2752,7 @@ error  \n");
     command_pid = fork ();
     if (command_pid < 0)
     {
+	buf_output0 (buf_to_net, "E fork failed\n");
 	print_error (errno);
 	goto error_exit;
     }
@@ -2740,8 +2786,11 @@ error  \n");
 	    error (1, errno, "can't set up pipes");
 	if (dup2 (stderr_pipe[1], STDERR_FILENO) < 0)
 	    error (1, errno, "can't set up pipes");
+	close (dev_null_fd);
 	close (stdout_pipe[0]);
+	close (stdout_pipe[1]);
 	close (stderr_pipe[0]);
+	close (stderr_pipe[1]);
 	close (protocol_pipe[0]);
 #ifdef SERVER_FLOWCONTROL
 	close (flowcontrol_pipe[1]);
@@ -2776,6 +2825,7 @@ error  \n");
 	 * When we exit, that will close the pipes, giving an EOF to
 	 * the parent.
 	 */
+	buf_free (protocol);
 	exit (exitstatus);
     }
 
@@ -2832,6 +2882,7 @@ error  \n");
 
 	if (close (stdout_pipe[1]) < 0)
 	{
+	    buf_output0 (buf_to_net, "E close failed\n");
 	    print_error (errno);
 	    goto error_exit;
 	}
@@ -2839,6 +2890,7 @@ error  \n");
 
 	if (close (stderr_pipe[1]) < 0)
 	{
+	    buf_output0 (buf_to_net, "E close failed\n");
 	    print_error (errno);
 	    goto error_exit;
 	}
@@ -2846,6 +2898,7 @@ error  \n");
 
 	if (close (protocol_pipe[1]) < 0)
 	{
+	    buf_output0 (buf_to_net, "E close failed\n");
 	    print_error (errno);
 	    goto error_exit;
 	}
@@ -2854,6 +2907,7 @@ error  \n");
 #ifdef SERVER_FLOWCONTROL
 	if (close (flowcontrol_pipe[0]) < 0)
 	{
+	    buf_output0 (buf_to_net, "E close failed\n");
 	    print_error (errno);
 	    goto error_exit;
 	}
@@ -2862,6 +2916,7 @@ error  \n");
 
 	if (close (dev_null_fd) < 0)
 	{
+	    buf_output0 (buf_to_net, "E close failed\n");
 	    print_error (errno);
 	    goto error_exit;
 	}
@@ -2929,6 +2984,7 @@ error  \n");
 		if (numfds < 0
 		    && errno != EINTR)
 		{
+		    buf_output0 (buf_to_net, "E select failed\n");
 		    print_error (errno);
 		    goto error_exit;
 		}
@@ -2936,48 +2992,6 @@ error  \n");
 	    
 	    if (FD_ISSET (STDOUT_FILENO, &writefds))
 	    {
-		/* What should we do with errors?  syslog() them?  */
-		buf_send_output (buf_to_net);
-	    }
-
-	    if (stdout_pipe[0] >= 0
-		&& (FD_ISSET (stdout_pipe[0], &readfds)))
-	    {
-	        int status;
-
-	        status = buf_input_data (stdoutbuf, (int *) NULL);
-
-		buf_copy_lines (buf_to_net, stdoutbuf, 'M');
-
-		if (status == -1)
-		    stdout_pipe[0] = -1;
-		else if (status > 0)
-		{
-		    print_error (status);
-		    goto error_exit;
-		}
-
-		/* What should we do with errors?  syslog() them?  */
-		buf_send_output (buf_to_net);
-	    }
-
-	    if (stderr_pipe[0] >= 0
-		&& (FD_ISSET (stderr_pipe[0], &readfds)))
-	    {
-	        int status;
-
-	        status = buf_input_data (stderrbuf, (int *) NULL);
-
-		buf_copy_lines (buf_to_net, stderrbuf, 'E');
-
-		if (status == -1)
-		    stderr_pipe[0] = -1;
-		else if (status > 0)
-		{
-		    print_error (status);
-		    goto error_exit;
-		}
-
 		/* What should we do with errors?  syslog() them?  */
 		buf_send_output (buf_to_net);
 	    }
@@ -2992,9 +3006,13 @@ error  \n");
 		status = buf_input_data (protocol_inbuf, &count_read);
 
 		if (status == -1)
+		{
+		    close (protocol_pipe[0]);
 		    protocol_pipe[0] = -1;
+		}
 		else if (status > 0)
 		{
+		    buf_output0 (buf_to_net, "E buf_input_data failed\n");
 		    print_error (status);
 		    goto error_exit;
 		}
@@ -3031,6 +3049,56 @@ error  \n");
 		    }
 		}
 	    }
+
+	    if (stdout_pipe[0] >= 0
+		&& (FD_ISSET (stdout_pipe[0], &readfds)))
+	    {
+	        int status;
+
+	        status = buf_input_data (stdoutbuf, (int *) NULL);
+
+		buf_copy_lines (buf_to_net, stdoutbuf, 'M');
+
+		if (status == -1)
+		{
+		    close (stdout_pipe[0]);
+		    stdout_pipe[0] = -1;
+		}
+		else if (status > 0)
+		{
+		    buf_output0 (buf_to_net, "E buf_input_data failed\n");
+		    print_error (status);
+		    goto error_exit;
+		}
+
+		/* What should we do with errors?  syslog() them?  */
+		buf_send_output (buf_to_net);
+	    }
+
+	    if (stderr_pipe[0] >= 0
+		&& (FD_ISSET (stderr_pipe[0], &readfds)))
+	    {
+	        int status;
+
+	        status = buf_input_data (stderrbuf, (int *) NULL);
+
+		buf_copy_lines (buf_to_net, stderrbuf, 'E');
+
+		if (status == -1)
+		{
+		    close (stderr_pipe[0]);
+		    stderr_pipe[0] = -1;
+		}
+		else if (status > 0)
+		{
+		    buf_output0 (buf_to_net, "E buf_input_data failed\n");
+		    print_error (status);
+		    goto error_exit;
+		}
+
+		/* What should we do with errors?  syslog() them?  */
+		buf_send_output (buf_to_net);
+	    }
 	}
 
 	/*
@@ -3051,6 +3119,11 @@ error  \n");
 	if (! buf_empty_p (protocol_inbuf))
 	    buf_output0 (buf_to_net,
 			 "E Protocol error: uncounted data discarded\n");
+
+#ifdef SERVER_FLOWCONTROL
+	close (flowcontrol_pipe[1]);
+	flowcontrol_pipe[1] = -1;
+#endif /* SERVER_FLOWCONTROL */
 
 	errs = 0;
 
@@ -3106,6 +3179,12 @@ E CVS locks may need cleaning up.\n");
 	 */
 	set_block (buf_to_net);
 	buf_flush (buf_to_net, 1);
+	buf_shutdown (protocol_inbuf);
+	buf_free (protocol_inbuf);
+	buf_shutdown (stderrbuf);
+	buf_free (stderrbuf);
+	buf_shutdown (stdoutbuf);
+	buf_free (stdoutbuf);
     }
 
     if (errs)
@@ -3136,6 +3215,10 @@ E CVS locks may need cleaning up.\n");
     close (stderr_pipe[1]);
     close (stdout_pipe[0]);
     close (stdout_pipe[1]);
+#ifdef SERVER_FLOWCONTROL
+    close (flowcontrol_pipe[0]);
+    close (flowcontrol_pipe[1]);
+#endif /* SERVER_FLOWCONTROL */
 
  free_args_and_return:
     /* Now free the arguments.  */
@@ -3191,6 +3274,7 @@ server_pause_check()
 	    if (numfds < 0
 		&& errno != EINTR)
 	    {
+		buf_output0 (buf_to_net, "E select failed\n");
 		print_error (errno);
 		return;
 	    }
@@ -3631,23 +3715,29 @@ serve_editors (arg)
     do_cvs_command ("editors", editors);
 }
 
-static int noop PROTO ((int, char **));
-
-static int
-noop (argc, argv)
-    int argc;
-    char **argv;
-{
-    return 0;
-}
-
 static void serve_noop PROTO ((char *));
 
 static void
 serve_noop (arg)
     char *arg;
 {
-    do_cvs_command ("noop", noop);
+
+    server_write_entries ();
+    if (!print_pending_error ())
+    {
+	(void) server_notify ();
+	buf_output0 (buf_to_net, "ok\n");
+    }
+    buf_flush (buf_to_net, 1);
+}
+
+static void serve_version PROTO ((char *));
+
+static void
+serve_version (arg)
+    char *arg;
+{
+    do_cvs_command ("version", version);
 }
 
 static void serve_init PROTO ((char *));
@@ -4024,7 +4114,7 @@ CVS server internal error: unhandled case in server_updated");
 
 	if (file != NULL)
 	{
-	    buf_output (protocol, file, file_used);
+	    buf_output (protocol, (char *) file, file_used);
 	    free (file);
 	    file = NULL;
 	}
@@ -4321,9 +4411,9 @@ serve_ignore (arg)
 }
 
 static int
-expand_proc (pargc, argv, where, mwhere, mfile, shorten,
+expand_proc (argc, argv, where, mwhere, mfile, shorten,
 	     local_specified, omodule, msg)
-    int *pargc;
+    int argc;
     char **argv;
     char *where;
     char *mwhere;
@@ -4362,7 +4452,7 @@ expand_proc (pargc, argv, where, mwhere, mfile, shorten,
     {
 	/* We may not need to do this anymore -- check the definition
            of aliases before removing */
-	if (*pargc == 1)
+	if (argc == 1)
 	{
 	    buf_output0 (buf_to_net, "Module-expansion ");
 	    if (server_dir != NULL)
@@ -4375,7 +4465,7 @@ expand_proc (pargc, argv, where, mwhere, mfile, shorten,
 	}
 	else
 	{
-	    for (i = 1; i < *pargc; ++i)
+	    for (i = 1; i < argc; ++i)
 	    {
 	        buf_output0 (buf_to_net, "Module-expansion ");
 		if (server_dir != NULL)
@@ -4467,24 +4557,27 @@ serve_checkin_prog (arg)
     f = CVS_FOPEN (CVSADM_CIPROG, "w+");
     if (f == NULL)
     {
-	pending_error = errno;
+	int save_errno = errno;
 	if (alloc_pending (80 + strlen (CVSADM_CIPROG)))
 	    sprintf (pending_error_text, "E cannot open %s", CVSADM_CIPROG);
+	pending_error = save_errno;
 	return;
     }
     if (fprintf (f, "%s\n", arg) < 0)
     {
-	pending_error = errno;
+	int save_errno = errno;
 	if (alloc_pending (80 + strlen (CVSADM_CIPROG)))
 	    sprintf (pending_error_text,
 		     "E cannot write to %s", CVSADM_CIPROG);
+	pending_error = save_errno;
 	return;
     }
     if (fclose (f) == EOF)
     {
-	pending_error = errno;
+	int save_errno = errno;
 	if (alloc_pending (80 + strlen (CVSADM_CIPROG)))
 	    sprintf (pending_error_text, "E cannot close %s", CVSADM_CIPROG);
+	pending_error = save_errno;
 	return;
     }
 }
@@ -4510,23 +4603,26 @@ E Flag -u in modules not allowed in readonly mode");
     f = CVS_FOPEN (CVSADM_UPROG, "w+");
     if (f == NULL)
     {
-	pending_error = errno;
+	int save_errno = errno;
 	if (alloc_pending (80 + strlen (CVSADM_UPROG)))
 	    sprintf (pending_error_text, "E cannot open %s", CVSADM_UPROG);
+	pending_error = save_errno;
 	return;
     }
     if (fprintf (f, "%s\n", arg) < 0)
     {
-	pending_error = errno;
+	int save_errno = errno;
 	if (alloc_pending (80 + strlen (CVSADM_UPROG)))
 	    sprintf (pending_error_text, "E cannot write to %s", CVSADM_UPROG);
+	pending_error = save_errno;
 	return;
     }
     if (fclose (f) == EOF)
     {
-	pending_error = errno;
+	int save_errno = errno;
 	if (alloc_pending (80 + strlen (CVSADM_UPROG)))
 	    sprintf (pending_error_text, "E cannot close %s", CVSADM_UPROG);
+	pending_error = save_errno;
 	return;
     }
 }
@@ -4579,7 +4675,7 @@ struct request requests[] =
   REQ_LINE("Case", serve_case, 0),
   REQ_LINE("Argument", serve_argument, RQ_ESSENTIAL),
   REQ_LINE("Argumentx", serve_argumentx, RQ_ESSENTIAL),
-  REQ_LINE("Global_option", serve_global_option, 0),
+  REQ_LINE("Global_option", serve_global_option, RQ_ROOTLESS),
   REQ_LINE("Gzip-stream", serve_gzip_stream, 0),
   REQ_LINE("wrapper-sendme-rcsOptions",
            serve_wrapper_sendme_rcs_options,
@@ -4623,7 +4719,8 @@ struct request requests[] =
   REQ_LINE("editors", serve_editors, 0),
   REQ_LINE("init", serve_init, RQ_ROOTLESS),
   REQ_LINE("annotate", serve_annotate, 0),
-  REQ_LINE("noop", serve_noop, 0),
+  REQ_LINE("noop", serve_noop, RQ_ROOTLESS),
+  REQ_LINE("version", serve_version, RQ_ROOTLESS),
   REQ_LINE(NULL, NULL, 0)
 
 #undef REQ_LINE
@@ -4847,16 +4944,10 @@ server (argc, argv)
 	   for that case.  */
 	if (!isabsolute (Tmpdir))
 	{
-	    pending_error_text = malloc (80 + strlen (Tmpdir));
-	    if (pending_error_text == NULL)
-	    {
-		pending_error = ENOMEM;
-	    }
-	    else
-	    {
+	    if (alloc_pending (80 + strlen (Tmpdir)))
 		sprintf (pending_error_text,
 			 "E Value of %s for TMPDIR is not absolute", Tmpdir);
-	    }
+
 	    /* FIXME: we would like this error to be persistent, that
 	       is, not cleared by print_pending_error.  The current client
 	       will exit as soon as it gets an error, but the protocol spec
@@ -4865,6 +4956,7 @@ server (argc, argv)
 	else
 	{
 	    int status;
+	    int i = 0;
 
 	    server_temp_dir = malloc (strlen (Tmpdir) + 80);
 	    if (server_temp_dir == NULL)
@@ -4911,12 +5003,21 @@ error ENOMEM Virtual memory exhausted.\n");
 	    /* Create the temporary directory, and set the mode to
                700, to discourage random people from tampering with
                it.  */
-	    status = mkdir_p (server_temp_dir);
-	    if (status != 0 && status != EEXIST)
+	    while ((status = mkdir_p (server_temp_dir)) == EEXIST)
 	    {
-		if (alloc_pending (80))
-		    strcpy (pending_error_text,
-			    "E can't create temporary directory");
+	        static const char suffix[] = "abcdefghijklmnopqrstuvwxyz";
+
+	        if (i >= sizeof suffix - 1) break;
+		if (i == 0) p = server_temp_dir + strlen (server_temp_dir);
+		p[0] = suffix[i++];
+		p[1] = '\0';
+	    }
+	    if (status != 0)
+	    {
+		if (alloc_pending (80 + strlen (server_temp_dir)))
+		    sprintf (pending_error_text,
+			    "E can't create temporary directory %s",
+			    server_temp_dir);
 		pending_error = status;
 	    }
 #ifndef CHMOD_BROKEN
@@ -4925,9 +5026,10 @@ error ENOMEM Virtual memory exhausted.\n");
 		if (chmod (server_temp_dir, S_IRWXU) < 0)
 		{
 		    int save_errno = errno;
-		    if (alloc_pending (80))
-			strcpy (pending_error_text, "\
-E cannot change permissions on temporary directory");
+		    if (alloc_pending (80 + strlen (server_temp_dir)))
+			sprintf (pending_error_text,
+"E cannot change permissions on temporary directory %s",
+				server_temp_dir);
 		    pending_error = save_errno;
 		}
 	    }
@@ -4935,6 +5037,9 @@ E cannot change permissions on temporary directory");
 	}
     }
 
+#ifdef SIGABRT
+    (void) SIG_register (SIGABRT, server_cleanup);
+#endif
 #ifdef SIGHUP
     (void) SIG_register (SIGHUP, server_cleanup);
 #endif
@@ -5114,7 +5219,7 @@ error 0 %s: no such user\n", username);
 	if (setgid (getegid ()) < 0)
 	{
 	    /* See comments at setuid call below for more discussion.  */
-	    printf ("error 0 setuid failed: %s\n", strerror (errno));
+	    printf ("error 0 setgid failed: %s\n", strerror (errno));
 	    /* Don't worry about server_cleanup;
 	       server_active isn't set yet.  */
 	    error_exit ();
@@ -5126,7 +5231,7 @@ error 0 %s: no such user\n", username);
 	if (setgid (pw->pw_gid) < 0)
 	{
 	    /* See comments at setuid call below for more discussion.  */
-	    printf ("error 0 setuid failed: %s\n", strerror (errno));
+	    printf ("error 0 setgid failed: %s\n", strerror (errno));
 	    /* Don't worry about server_cleanup;
 	       server_active isn't set yet.  */
 	    error_exit ();
@@ -5151,6 +5256,12 @@ error 0 %s: no such user\n", username);
        the client.  */
     umask (0);
 
+#ifdef AUTH_SERVER_SUPPORT
+    /* Make sure our CVS_Username has been set. */
+    if (CVS_Username == NULL)
+	CVS_Username = xstrdup (username);
+#endif
+      
 #if HAVE_PUTENV
     /* Set LOGNAME and USER in the environment, in case they are
        already set to something else.  */
@@ -5176,14 +5287,15 @@ extern char *crypt PROTO((const char *, const char *));
 
 /* 
  * 0 means no entry found for this user.
- * 1 means entry found and password matches.
+ * 1 means entry found and password matches (or found password is empty)
  * 2 means entry found, but password does not match.
  *
- * If success, host_user_ptr will be set to point at the system
+ * If 1, host_user_ptr will be set to point at the system
  * username (i.e., the "real" identity, which may or may not be the
  * CVS username) of this user; caller may free this.  Global
  * CVS_Username will point at an allocated copy of cvs username (i.e.,
  * the username argument below).
+ * kff todo: FIXME: last sentence is not true, it applies to caller.
  */
 static int
 check_repository_password (username, password, repository, host_user_ptr)
@@ -5236,21 +5348,72 @@ check_repository_password (username, password, repository, host_user_ptr)
     if (fclose (fp) < 0)
 	error (0, errno, "cannot close %s", filename);
 
-    /* If found_it != 0, then linebuf contains the information we need. */
+    /* If found_it, then linebuf contains the information we need. */
     if (found_it)
     {
-	char *found_password, *host_user_tmp = NULL;
-	char *linebufp = linebuf;
+	char *found_password, *host_user_tmp;
+        char *non_cvsuser_portion;
 
-	strsep (&linebufp, ":");
-	found_password = strsep (&linebufp, ": \n");
-	if (found_password)
-	    host_user_tmp = strsep (&linebufp, ": \n");
+        /* We need to make sure lines such as 
+         *
+         *    "username::sysuser\n"
+         *    "username:\n"
+         *    "username:  \n"
+         *
+         * all result in a found_password of NULL, but we also need to
+         * make sure that
+         *
+         *    "username:   :sysuser\n"
+         *    "username: <whatever>:sysuser\n"
+         *
+         * continues to result in an impossible password.  That way,
+         * an admin would be on safe ground by going in and tacking a
+         * space onto the front of a password to disable the account
+         * (a technique some people use to close accounts
+         * temporarily).
+         */
+
+        /* Make `non_cvsuser_portion' contain everything after the CVS
+           username, but null out any final newline. */
+	non_cvsuser_portion = linebuf + namelen;
+        strtok (non_cvsuser_portion, "\n");
+
+        /* If there's a colon now, we just want to inch past it. */
+        if (strchr (non_cvsuser_portion, ':') == non_cvsuser_portion)
+            non_cvsuser_portion++;
+
+        /* Okay, after this conditional chain, found_password and
+           host_user_tmp will have useful values: */
+
+        if ((non_cvsuser_portion == NULL)
+            || (strlen (non_cvsuser_portion) == 0)
+            || ((strspn (non_cvsuser_portion, " \t"))
+                == strlen (non_cvsuser_portion)))
+        {
+            found_password = NULL;
+            host_user_tmp = NULL;
+        }
+        else if (strncmp (non_cvsuser_portion, ":", 1) == 0)
+        {
+            found_password = NULL;
+            host_user_tmp = non_cvsuser_portion + 1;
+            if (strlen (host_user_tmp) == 0)
+                host_user_tmp = NULL;
+        }
+        else
+        {
+            found_password = strtok (non_cvsuser_portion, ":");
+            host_user_tmp = strtok (NULL, ":");
+        }
+
+        /* Of course, maybe there was no system user portion... */
 	if (host_user_tmp == NULL)
             host_user_tmp = username;
 
-	if (found_password == NULL || *found_password == '\0' ||
-	    strcmp (found_password, crypt (password, found_password)) == 0)
+        /* Verify blank passwords directly, otherwise use crypt(). */
+        if ((found_password == NULL)
+            || ((strcmp (found_password, crypt (password, found_password))
+                 == 0)))
         {
             /* Give host_user_ptr permanent storage. */
             *host_user_ptr = xstrdup (host_user_tmp);
@@ -5262,7 +5425,7 @@ check_repository_password (username, password, repository, host_user_ptr)
 	    retval         = 2;
         }
     }
-    else
+    else     /* Didn't find this user, so deny access. */
     {
 	*host_user_ptr = NULL;
 	retval = 0;
@@ -5348,14 +5511,14 @@ error 0 %s: no such user\n", username);
 	    /* user exists and has a password */
 	    host_user = ((! strcmp (found_passwd,
                                     crypt (password, found_passwd)))
-                         ? username : NULL);
+                         ? xstrdup (username) : NULL);
             goto handle_return;
         }
 	else if (password && *password)
         {
 	    /* user exists and has no system password, but we got
 	       one as parameter */
-	    host_user = username;
+	    host_user = xstrdup (username);
             goto handle_return;
         }
 	else
@@ -5485,7 +5648,7 @@ pserver_authenticate_connection ()
 #endif
 
     /* Make sure the protocol starts off on the right foot... */
-    if (getline (&tmp, &tmp_allocated, stdin) < 0)
+    if (getline_safe (&tmp, &tmp_allocated, stdin, PATH_MAX) < 0)
 	/* FIXME: what?  We could try writing error/eof, but chances
 	   are the network connection is dead bidirectionally.  log it
 	   somewhere?  */
@@ -5516,9 +5679,9 @@ pserver_authenticate_connection ()
 
     /* Get the three important pieces of information in order. */
     /* See above comment about error handling.  */
-    getline (&repository, &repository_allocated, stdin);
-    getline (&username, &username_allocated, stdin);
-    getline (&password, &password_allocated, stdin);
+    getline_safe (&repository, &repository_allocated, stdin, PATH_MAX);
+    getline_safe (&username, &username_allocated, stdin, PATH_MAX);
+    getline_safe (&password, &password_allocated, stdin, PATH_MAX);
 
     /* Make them pure. */ 
     strip_trailing_newlines (repository);
@@ -5527,7 +5690,7 @@ pserver_authenticate_connection ()
 
     /* ... and make sure the protocol ends on the right foot. */
     /* See above comment about error handling.  */
-    getline (&tmp, &tmp_allocated, stdin);
+    getline_safe (&tmp, &tmp_allocated, stdin, PATH_MAX);
     if (strcmp (tmp,
 		verify_and_exit ?
 		"END VERIFICATION REQUEST\n" : "END AUTH REQUEST\n")
@@ -5589,6 +5752,7 @@ pserver_authenticate_connection ()
 
     /* Switch to run as this user. */
     switch_to_user (host_user);
+    free (host_user);
     free (tmp);
     free (repository);
     free (username);
