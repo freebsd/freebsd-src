@@ -33,6 +33,7 @@ static const char rcsid[] =
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <err.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <ctype.h>
@@ -534,10 +535,8 @@ assign_driver(struct slot *sp, struct card *cp)
 			}
 			res.min = i;
 			res.max = i;
-			if (ioctl(sp->fd, PIOCSRESOURCE, &res) < 0) {
-				perror("ioctl (PIOCSRESOURCE)");
-				exit(1);
-			}
+			if (ioctl(sp->fd, PIOCSRESOURCE, &res) < 0)
+				err(1, "ioctl (PIOCSRESOURCE)");
 			if (res.resource_addr == ~0ul)
 				continue;
 			conf->irq = res.resource_addr;
@@ -550,10 +549,8 @@ assign_driver(struct slot *sp, struct card *cp)
 		}
 	} else {
 		res.min = res.max = conf->irq;
-		if (ioctl(sp->fd, PIOCSRESOURCE, &res) < 0) {
-			perror("ioctl (PIOCSRESOURCE)");
-			exit(1);
-		}
+		if (ioctl(sp->fd, PIOCSRESOURCE, &res) < 0)
+			err(1, "ioctl (PIOCSRESOURCE)");
 		if (res.resource_addr == ~0ul) {
 			logmsg("Failed to verify IRQ for %s\n", cp->manuf);
 			return (NULL);
@@ -591,12 +588,10 @@ assign_card_index(struct slot *sp, struct cis * cis)
 			res.size = cio->size;
 			res.min = cio->addr;
 			res.max = res.min + cio->size - 1;
-			if (ioctl(sp->fd, PIOCSRESOURCE, &res) < 0) {
-				perror("ioctl (PIOCSRESOURCE)");
-			       exit(1);
-			}
+			if (ioctl(sp->fd, PIOCSRESOURCE, &res) < 0)
+				err(1, "ioctl (PIOCSRESOURCE)");
 			if (res.resource_addr != cio->addr)
-					goto next;
+				goto next;
 			for (i = cio->addr; i < cio->addr + cio->size - 1; i++)
 				if (!bit_test(io_avail, i))
 					goto next;
@@ -761,12 +756,12 @@ memskip:
 				for (i = 0; i < IOPORTS; i++) {
 					j = bit_fns(io_avail, IOPORTS, i,
 							sio->size, sio->size);
+					if ((j & (sio->size - 1)) != 0)
+						continue;
 					res.min = j;
 					res.max = j + sio->size - 1;
-					if (ioctl(sp->fd, PIOCSRESOURCE, &res) < 0) {
-						perror("ioctl (PIOCSRESOURCE)");
-						exit(1);
-					}
+					if (ioctl(sp->fd, PIOCSRESOURCE, &res) < 0)
+						err(1, "ioctl (PIOCSRESOURCE)");
 					if (res.resource_addr == j)
 						break;
 				}
