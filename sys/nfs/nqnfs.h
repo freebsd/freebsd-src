@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nqnfs.h	8.1 (Berkeley) 6/10/93
- * $Id: nqnfs.h,v 1.2 1994/08/02 07:52:28 davidg Exp $
+ * $Id: nqnfs.h,v 1.3 1994/08/21 06:50:14 paul Exp $
  */
 
 #ifndef _NFS_NQNFS_H_
@@ -200,5 +200,10 @@ extern u_long nqfheadhash;
 #define	NQNFS_EXPIRED	500
 #define	NQNFS_TRYLATER	501
 #define NQNFS_AUTHERR	502
+
+#ifdef KERNEL
+void nfs_lease_check __P((struct vnode *, struct proc *, struct ucred *, int));
+void nfs_lease_updatetime __P((int));
+#endif
 
 #endif
