@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)ps.1	8.3 (Berkeley) 4/18/94
-.\"	$Id: ps.1,v 1.17 1998/05/15 06:29:16 charnier Exp $
+.\"	$Id: ps.1,v 1.18 1998/06/04 06:46:13 jkoshy Exp $
 .\"
 .Dd April 18, 1994
 .Dt PS 1
@@ -90,7 +90,7 @@ no effect).
 Display the environment as well.
 .It Fl f
 Show commandline and environment information about swapped out processes.
-This option is honored only if effective uid is 0.
+This option is honored only if the uid of the user is 0.
 .It Fl h
 Repeat the information header as often as necessary to guarantee one
 header per page of information.
@@ -310,7 +310,7 @@ The process is being traced or debugged.
 An abbreviation for the pathname of the controlling terminal, if any.
 The abbreviation consists of the three letters following
 .Pa /dev/tty ,
-or, for the console, ``co''.
+or, for the console, ``con''.
 This is followed by a ``-'' if the process can no longer reach that
 controlling terminal (i.e., it has been revoked).
 .It wchan
