@@ -213,6 +213,7 @@ i386/isa/joy.c			optional	joy
 i386/isa/labpc.c		optional	labpc
 i386/isa/loran.c		optional	loran
 i386/isa/matcd/matcd.c		optional	matcd
+i386/isa/mca_machdep.c		optional	mca
 i386/isa/mcd.c			optional	mcd
 pc98/pc98/mse.c			optional	mse
 pc98/pc98/npx.c			mandatory	npx
