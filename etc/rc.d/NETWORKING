@@ -5,7 +5,7 @@
 #
 
 # PROVIDE: NETWORKING NETWORK
-# REQUIRE: network dhclient altqd network1 network2 network_ipv6 ppp-user
+# REQUIRE: network dhclient altqd network1 network2 network_ipv6 isdnd ppp-user
 # KEYWORD: FreeBSD NetBSD
 
 #	This is a dummy dependency, for services which require networking
