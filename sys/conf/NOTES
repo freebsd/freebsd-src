@@ -362,6 +362,8 @@ options 	IPX			#IPX/SPX communications protocols
 options 	IPXIP			#IPX in IP encapsulation (not available)
 options 	IPTUNNEL		#IP in IPX encapsulation (not available)
 
+options		NCP			#NetWare Core protocol
+
 options 	NETATALK		#Appletalk communications protocols
 
 # These are currently broken but are shipped due to interest.
@@ -564,6 +566,7 @@ options 	KERNFS			#Kernel filesystem
 options 	MSDOSFS			#MS DOS File System
 options 	NTFS			#NT File System
 options 	NULLFS			#NULL filesystem
+options		NWFS			#NetWare filesystem
 options 	PORTAL			#Portal filesystem
 options 	PROCFS			#Process filesystem
 options 	UMAPFS			#UID map filesystem
