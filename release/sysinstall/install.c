@@ -472,6 +472,9 @@ installExpress(dialogMenuItem *self)
 
     if (DITEM_STATUS((i = installCommit(self))) == DITEM_SUCCESS) {
 	i |= DITEM_LEAVE_MENU;
+	/* Set default security level */
+	configSecurityModerate(NULL);
+
 	/* Give user the option of one last configuration spree */
 	installConfigure();
     }
@@ -560,10 +563,12 @@ nodisks:
 		 "between interfaces)?"))
 	variable_set2("gateway_enable", "YES", 1);
 
+    dialog_clear_norefresh();
     if (msgYesNo("Do you want to grant only normal users FTP access to this\n"
 	         "host (e.g. no anonymous FTP connections)?"))
 	configAnonFTP(self);
 
+    dialog_clear_norefresh();
     if (!msgYesNo("Do you want to configure this machine as an NFS server?"))
 	configNFSServer(self);
 
@@ -571,6 +576,13 @@ nodisks:
     if (!msgYesNo("Do you want to configure this machine as an NFS client?"))
 	variable_set2("nfs_client_enable", "YES", 1);
 
+    if (msgYesNo("Do you want to select a default security profile for\n"
+	         "this host (\"medium\" security being the default)?"))
+	configSecurityProfile(self);
+    else
+	configSecurityModerate(self);
+
+    dialog_clear_norefresh();
     if (!msgYesNo("Would you like to customize your system console settings?"))
 	dmenuOpenSimple(&MenuSyscons, FALSE);
 
@@ -632,6 +644,9 @@ installCustomCommit(dialogMenuItem *self)
 
     i = installCommit(self);
     if (DITEM_STATUS(i) == DITEM_SUCCESS) {
+	/* Set default security level */
+	configSecurityModerate(NULL);
+
 	/* Give user the option of one last configuration spree */
 	installConfigure();
 	return i;
