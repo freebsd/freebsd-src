@@ -15,7 +15,7 @@
 .\"
 .\"
 .\"     @(#)pkg_create.1
-.\"	$Id: pkg_create.1,v 1.15 1996/02/12 04:56:38 mpp Exp $	
+.\"	$Id: pkg_create.1,v 1.16 1996/04/08 04:17:54 mpp Exp $	
 .\"
 .\" hacked up by John Kohl for NetBSD--fixed a few bugs, extended keywords,
 .\" added dependency tracking, etc.
@@ -213,11 +213,12 @@ Note:
 .Cm @cd
 is also an alias for this command.
 .It Cm @srcdir Ar directory
-Sets the internal directory pointer for _creation only_ to
-.Ar directory .
-That is to say that it overrides
+Behaves just like
 .Cm @cwd
-for package creation but not extraction.
+during creation, but will be ignored during extraction
+or listing.
+This allows the creation of a package from its build directory
+rather than as installed.
 .It Cm @exec Ar command
 Execute
 .Ar command
