@@ -129,12 +129,12 @@ for shared libraries.
 .It Fl v
 Switch on verbose mode.
 .El
-.Sh Security
+.Sh SECURITY
 Special care must be taken when loading shared libraries into the address
 space of
 .Ev set-user-Id
 programs.
-Whenever such a program is run,
+Whenever such a program is run by any user except the owner of the program,
 the dynamic linker
 will only load shared libraries from the hints
 file.
