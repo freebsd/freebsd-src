@@ -145,7 +145,7 @@ struct	proc {
 	LIST_ENTRY(proc) p_list;	/* (d) List of all processes. */
 
 	/* substructures: */
-	struct	pcred *p_cred;		/* (b) Process owner's identity. */
+	struct	pcred *p_cred;		/* (c) Process owner's identity. */
 	struct	filedesc *p_fd;		/* (b) Ptr to open files structure. */
 	struct	pstats *p_stats;	/* (b) Accounting/statistics (CPU). */
 	struct	plimit *p_limit;	/* (m) Process limits. */
