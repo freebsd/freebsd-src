@@ -36,7 +36,7 @@
 #define ACPIIO_SETSLPSTATE	_IOW('P', 3, int)
 
 struct acpi_battdesc {
-    int	 type;				/* battery type: e.g. CMBAT */
+    int	 type;				/* battery type */
     int	 phys_unit;			/* physical unit of devclass */
 };
 
@@ -45,7 +45,7 @@ struct acpi_battdesc {
 
 struct acpi_battinfo {
     int	 cap;				/* percent */
-    int	 min;				/* remaining time */
+    int	 min;				/* remaining time (in minutes) */
     int	 state;				/* battery state */
 };
 
@@ -80,24 +80,26 @@ struct acpi_bst {
 #define ACPI_BATT_STAT_MAX		0x0007
 
 union acpi_battery_ioctl_arg {
-    int	 unit;			/* argument: logical unit (-1 = overall) */
+    int			 unit;	/* argument: logical unit (-1 = overall) */
 
-    struct acpi_battdesc	battdesc; 
-    struct acpi_battinfo	battinfo; 
+    struct acpi_battdesc battdesc; 
+    struct acpi_battinfo battinfo; 
 
-    struct acpi_bif	bif;	/* for acpi_cmbat */
-    struct acpi_bst	bst;	/* for acpi_cmbat */
+    struct acpi_bif	 bif;
+    struct acpi_bst	 bst;
 };
 
-/* Common battery ioctl */
+/* Common battery ioctls */
 #define ACPIIO_BATT_GET_UNITS	  _IOR('B', 0x01, int)
 #define ACPIIO_BATT_GET_TYPE	  _IOR('B', 0x02, union acpi_battery_ioctl_arg)
 #define ACPIIO_BATT_GET_BATTINFO _IOWR('B', 0x03, union acpi_battery_ioctl_arg)
 #define ACPIIO_BATT_GET_BATTDESC _IOWR('B', 0x04, union acpi_battery_ioctl_arg)
+#define ACPIIO_BATT_GET_BIF	 _IOWR('B', 0x10, union acpi_battery_ioctl_arg)
+#define ACPIIO_BATT_GET_BST	 _IOWR('B', 0x11, union acpi_battery_ioctl_arg)
 
-/* Cotrol Method battery ioctl */
-#define ACPIIO_CMBAT_GET_BIF	 _IOWR('B', 0x10, union acpi_battery_ioctl_arg)
-#define ACPIIO_CMBAT_GET_BST	 _IOWR('B', 0x11, union acpi_battery_ioctl_arg)
+/* Control Method battery ioctls (deprecated) */
+#define ACPIIO_CMBAT_GET_BIF	 ACPIIO_BATT_GET_BIF
+#define ACPIIO_CMBAT_GET_BST	 ACPIIO_BATT_GET_BST
 
 /* Get AC adapter status. */
 #define ACPIIO_ACAD_GET_STATUS	  _IOR('A', 1, int)
