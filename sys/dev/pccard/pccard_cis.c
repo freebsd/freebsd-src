@@ -109,7 +109,7 @@ pccard_scan_cis(device_t dev, int (*fct)(struct pccard_tuple *, void *),
 	struct pccard_tuple tuple;
 	int longlink_present;
 	int longlink_common;
-	u_long longlink_addr;
+	u_long longlink_addr;		/* Type suspect */
 	int mfc_count;
 	int mfc_index;
 	struct {
