@@ -36,7 +36,7 @@
 .\" $Whistle: ng_iface.8,v 1.5 1999/01/25 23:46:26 archie Exp $
 .\"
 .Dd January 19, 1999
-.Dt NG_IFACE 8
+.Dt NG_IFACE 4
 .Os FreeBSD
 .Sh NAME
 .Nm ng_iface
@@ -118,9 +118,9 @@ Set the interface to broadcast mode.
 The interface must not currently be up.
 .It Dv NGM_CISCO_GET_IPADDR
 This message is defined by the
-.Xr ng_cisco 8
+.Xr ng_cisco 4
 node type; see
-.Xr ng_cisco 8
+.Xr ng_cisco 4
 for a description.
 .El
 .Sh SHUTDOWN
@@ -141,8 +141,8 @@ control message is required.
 .Sh SEE ALSO
 .Xr bpf 4 ,
 .Xr netgraph 4 ,
+.Xr ng_cisco 4 ,
 .Xr ifconfig 8 ,
-.Xr ng_cisco 8 ,
 .Xr ngctl 8
 .Sh HISTORY
 The

@@ -35,7 +35,7 @@
 .\" $FreeBSD$
 .\"
 .Dd November 15, 1999
-.Dt NG_KSOCKET 8
+.Dt NG_KSOCKET 4
 .Os FreeBSD
 .Sh NAME
 .Nm ng_ksocket
@@ -51,7 +51,7 @@ node type allows one to open a socket inside the kernel and have
 it appear as a Netgraph node.  The
 .Nm
 node type is the reverse of the socket node type (see
-.Xr ng_socket 8 ) :
+.Xr ng_socket 4 ) :
 whereas the socket node type enables the user-level manipulation (via
 a socket) of what is normally a kernel-level entity (the associated
 Netgraph node), the
@@ -176,8 +176,8 @@ Shutdown of the node closes the associated socket.
 .Sh SEE ALSO
 .Xr socket 2 ,
 .Xr netgraph 4 ,
-.Xr ng_socket 8 ,
-.Xr ngctl 8 .
+.Xr ng_socket 4 ,
+.Xr ngctl 8
 .Sh HISTORY
 The
 .Nm

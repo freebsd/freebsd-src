@@ -3,6 +3,6 @@
 
 KMOD=		ng_echo
 SRCS= 		ng_echo.c
-MAN8=		ng_echo.8
+MAN4=		ng_echo.4
 
 .include "${.CURDIR}/../../../conf/kmod.mk"

@@ -36,7 +36,7 @@
 .\" $Whistle: ng_lmi.8,v 1.4 1999/01/25 23:46:27 archie Exp $
 .\"
 .Dd January 19, 1999
-.Dt NG_LMI 8
+.Dt NG_LMI 4
 .Os FreeBSD
 .Sh NAME
 .Nm ng_lmi
@@ -56,7 +56,7 @@ To enable a specific LMI type, connect the corresponding hook (
 or
 .Dv group4 ")"
 to DLCI 0 or 1023 of a
-.Xr ng_frame_relay 8
+.Xr ng_frame_relay 4
 node.
 Typically, Annex A and Annex D live on DLCI 0 while Group-of-four
 lives on DLCI 1023.
@@ -118,8 +118,8 @@ This node shuts down upon receipt of a
 control message, or when all hooks have been disconnected.
 .Sh SEE ALSO
 .Xr netgraph 4 ,
-.Xr ng_frame_relay 8 ,
-.Xr ngctl 8 .
+.Xr ng_frame_relay 4 ,
+.Xr ngctl 8
 .Rs
 .%T "ANSI T1.617-1991 Annex D"
 .Re
