@@ -8,7 +8,7 @@ $FreeBSD$
 Introduction
 ============
 
-FAITH is a IPv6-to-IPv4 TCP relay.  It performs tcp relay just as some of
+FAITH is a IPv6-to-IPv4 TCP relay.  It performs TCP relay just as some of
 firewall-oriented gateway does, but between IPv6 and IPv4 with address
 translation.
 TCP connections has to be made from IPv6 node to IPv4 node.  FAITH will
@@ -34,7 +34,7 @@ FAITH will make it possible to make a IPv6 TCP connection From IPv6 node
 "src", toward IPv4 node "dest", by specifying FAITH-mapped address
 3ffe:0501:1234:ffff::123.4.5.6
 (which is, 3ffe:0501:1234:ffff:0000:0000:7b04:0506).
-The address mapping can be performed by hand:-), by speical nameserver on
+The address mapping can be performed by hand:-), by special nameserver on
 the network, or by special resolver on the source node.
 
 
@@ -42,7 +42,7 @@ Setup
 =====
 
 The following example assumes:
-- You have assigned 3ffe:0501:1234:ffff:: as FAITH adderss prefix.
+- You have assigned 3ffe:0501:1234:ffff:: as FAITH address prefix.
 - You are willing to provide IPv6-to IPv4 TCP relay for telnet.
 
 <<On the translating router on which faithd runs>>
@@ -100,7 +100,7 @@ There are two ways to translate IPv4 address to IPv6 address:
       KAME package. KAME package is obtained from www.kame.net.
 
 (5.b) Add an entry into /etc/hosts so that you can resolve hostname into
-faked IPv6 addrss.  For example, add the following line for www.freebsd.org:
+faked IPv6 address.  For example, add the following line for www.freebsd.org:
 
 	3ffe:0501:1234:ffff::204.216.27.21	www.freebsd.org
 
@@ -125,7 +125,7 @@ want to do the following:
 
 By this way, you can restrict IPv4 destination to 123.0.0.0/8.
 You may also want to reject packets toward 3ffe:0501:1234:ffff::/64 which
-is not in 3ffe:0501:1234:ffff::123.0.0.0/104.  This will be left as excerside
+is not in 3ffe:0501:1234:ffff::123.0.0.0/104.  This will be left as exercise
 for the reader.
 
 By doing this, you will be able to provide your IPv4 web server to outside
