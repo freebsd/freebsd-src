@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: //depot/aic7xxx/freebsd/dev/aic7xxx/ahd_pci.c#10 $
+ * $Id: //depot/aic7xxx/freebsd/dev/aic7xxx/ahd_pci.c#12 $
  *
  * $FreeBSD$
  */
@@ -119,7 +119,8 @@ ahd_pci_attach(device_t dev)
 				   : BUS_SPACE_MAXADDR_32BIT,
 				   /*highaddr*/BUS_SPACE_MAXADDR,
 				   /*filter*/NULL, /*filterarg*/NULL,
-				   /*maxsize*/MAXBSIZE, /*nsegments*/AHD_NSEG,
+				   /*maxsize*/BUS_SPACE_MAXSIZE_32BIT,
+				   /*nsegments*/AHD_NSEG,
 				   /*maxsegsz*/AHD_MAXTRANSFER_SIZE,
 				   /*flags*/BUS_DMA_ALLOCNOW,
 				   &ahd->parent_dmat);
