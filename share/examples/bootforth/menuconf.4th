@@ -80,20 +80,20 @@
 			1 25 at-xy cr
 			." Loading /boot/stable.conf. Please wait..." cr
 			s" /boot/stable.conf" read-conf
-			boot-conf exit
+			0 boot-conf exit
 		then
 		dup 50 = if
 			drop
 			1 25 at-xy cr
 			." Loading /boot/current.conf. Please wait..." cr
 			s" /boot/current.conf" read-conf
-			boot-conf exit
+			0 boot-conf exit
 		then
 		dup 51 = if
 			drop
 			1 25 at-xy cr
 			." Proceeding with standard boot. Please wait..." cr
-			boot-conf exit
+			0 boot-conf exit
 		then
 		dup 52 = if
 			drop
