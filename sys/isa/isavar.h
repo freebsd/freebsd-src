@@ -111,9 +111,9 @@ enum isa_device_ivars {
 	ISA_IVAR_MADDR,
 	ISA_IVAR_MADDR_0 = ISA_IVAR_MADDR,
 	ISA_IVAR_MADDR_1,
-	ISA_IVAR_MSIZE,
-	ISA_IVAR_MSIZE_0 = ISA_IVAR_MSIZE,
-	ISA_IVAR_MSIZE_1,
+	ISA_IVAR_MEMSIZE,
+	ISA_IVAR_MEMSIZE_0 = ISA_IVAR_MEMSIZE,
+	ISA_IVAR_MEMSIZE_1,
 	ISA_IVAR_IRQ,
 	ISA_IVAR_IRQ_0 = ISA_IVAR_IRQ,
 	ISA_IVAR_IRQ_1,
@@ -137,27 +137,15 @@ enum isa_device_ivars {
 /*
  * Simplified accessors for isa devices
  */
-#define ISA_ACCESSOR(A, B, T)						\
-									\
-static __inline T isa_get_ ## A(device_t dev)				\
-{									\
-	uintptr_t v;							\
-	BUS_READ_IVAR(device_get_parent(dev), dev, ISA_IVAR_ ## B, &v);	\
-	return (T) v;							\
-}									\
-									\
-static __inline void isa_set_ ## A(device_t dev, T t)			\
-{									\
-	u_long v = (u_long) t;						\
-	BUS_WRITE_IVAR(device_get_parent(dev), dev, ISA_IVAR_ ## B, v);	\
-}
+#define ISA_ACCESSOR(var, ivar, type)					\
+	__BUS_ACCESSOR(isa, var, ISA, ivar, type)
 
 ISA_ACCESSOR(port, PORT, int)
 ISA_ACCESSOR(portsize, PORTSIZE, int)
 ISA_ACCESSOR(irq, IRQ, int)
 ISA_ACCESSOR(drq, DRQ, int)
 ISA_ACCESSOR(maddr, MADDR, int)
-ISA_ACCESSOR(msize, MSIZE, int)
+ISA_ACCESSOR(msize, MEMSIZE, int)
 ISA_ACCESSOR(vendorid, VENDORID, int)
 ISA_ACCESSOR(serial, SERIAL, int)
 ISA_ACCESSOR(logicalid, LOGICALID, int)

@@ -744,7 +744,7 @@ isa_read_ivar(device_t bus, device_t dev, int index, uintptr_t * result)
 			*result = -1;
 		break;
 
-	case ISA_IVAR_MSIZE_0:
+	case ISA_IVAR_MEMSIZE_0:
 		rle = resource_list_find(rl, SYS_RES_MEMORY, 0);
 		if (rle)
 			*result = rle->count;
@@ -752,7 +752,7 @@ isa_read_ivar(device_t bus, device_t dev, int index, uintptr_t * result)
 			*result = 0;
 		break;
 
-	case ISA_IVAR_MSIZE_1:
+	case ISA_IVAR_MEMSIZE_1:
 		rle = resource_list_find(rl, SYS_RES_MEMORY, 1);
 		if (rle)
 			*result = rle->count;
@@ -832,8 +832,8 @@ isa_write_ivar(device_t bus, device_t dev,
 	case ISA_IVAR_PORTSIZE_1:
 	case ISA_IVAR_MADDR_0:
 	case ISA_IVAR_MADDR_1:
-	case ISA_IVAR_MSIZE_0:
-	case ISA_IVAR_MSIZE_1:
+	case ISA_IVAR_MEMSIZE_0:
+	case ISA_IVAR_MEMSIZE_1:
 	case ISA_IVAR_IRQ_0:
 	case ISA_IVAR_IRQ_1:
 	case ISA_IVAR_DRQ_0:
