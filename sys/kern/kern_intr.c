@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: kern_intr.c,v 1.1 1997/05/26 14:37:43 se Exp $
+ * $Id: kern_intr.c,v 1.2 1997/05/28 22:11:00 se Exp $
  *
  */
 
@@ -40,7 +40,7 @@
 #include <i386/isa/isa_device.h>
 #include <sys/interrupt.h> /* XXX needs inthand2_t from isa_device.h */
 
-#include <machine/spl.h>
+#include <machine/ipl.h>
 
 #include <stddef.h>
 
@@ -52,10 +52,10 @@
  * defined as a ".long" in /sys/i386/isa/icu.s
  */
 
-static inline intrmask
-splq(intrmask mask)
+static inline intrmask_t
+splq(intrmask_t mask)
 {
-	intrmask tmp = cpl;
+	intrmask_t tmp = cpl;
 	cpl |= mask;
 	return (tmp);
 }
@@ -135,9 +135,9 @@ update_mux_masks(void)
 }
 
 static void
-update_masks(intrmask *maskptr, int irq)
+update_masks(intrmask_t *maskptr, int irq)
 {
-	intrmask mask = 1 << irq;
+	intrmask_t mask = 1 << irq;
 
 	if (maskptr == NULL)
 		return;
@@ -242,7 +242,7 @@ intr_connect(intrec *idesc)
 #endif /* RESOURCE_CHECK */
 	{
 		/* block this irq */
-		intrmask oldspl = splq(1 << irq);
+		intrmask_t oldspl = splq(1 << irq);
 
 		/* add irq to class selected by maskptr */
 		errcode = add_intrdesc(idesc);
@@ -288,7 +288,7 @@ intr_disconnect(intrec *idesc)
 
 	/* now check whether the element we removed was the list head */
 	if (idesc == head) {
-		intrmask oldspl = splq(1 << irq);
+		intrmask_t oldspl = splq(1 << irq);
 
 		/* we want to remove the list head, which was known to intr_mux */
 		icu_unset(irq, intr_mux);
@@ -341,7 +341,7 @@ intr_disconnect(intrec *idesc)
 
 intrec *
 intr_create(void *dev_instance, int irq, inthand2_t handler, void *arg,
-	     intrmask *maskptr, int flags)
+	     intrmask_t *maskptr, int flags)
 {
 	intrec *idesc;
 
