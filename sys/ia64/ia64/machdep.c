@@ -1112,9 +1112,15 @@ set_mcontext(struct thread *td, const mcontext_t *mc)
 	struct trapframe *tf;
 
 	tf = td->td_frame;
+
+	KASSERT((tf->tf_special.ndirty & ~PAGE_MASK) == 0,
+	    ("Whoa there! We have more than 8KB of dirty registers!"));
+
 	s = mc->mc_special;
 	/* Only copy the user mask from the new context. */
 	s.psr = (s.psr & 0x1f) | (tf->tf_special.psr & ~0x1f);
+	/* We don't have any dirty registers of the new context. */
+	s.ndirty = 0;
 	if (mc->mc_flags & _MC_FLAGS_ASYNC_CONTEXT) {
 		tf->tf_scratch = mc->mc_scratch;
 		tf->tf_scratch_fp = mc->mc_scratch_fp;
@@ -1171,67 +1177,46 @@ void
 exec_setregs(struct thread *td, u_long entry, u_long stack, u_long ps_strings)
 {
 	struct trapframe *tf;
-	uint64_t bspst, kstack, ndirty;
-	size_t rssz;
+	uint64_t *ksttop, *kst;
 
 	tf = td->td_frame;
-	kstack = td->td_kstack;
+	ksttop = (uint64_t*)(td->td_kstack + tf->tf_special.ndirty);
 
 	/*
-	 * RSE magic: We have ndirty registers of the process on the kernel
-	 * stack which don't belong to the new image. Discard them. Note
-	 * that for the "legacy" syscall support we need to keep 3 registers
-	 * worth of dirty bytes. These 3 registers are the initial arguments
-	 * to the newly executing program.
-	 * However, we cannot discard all the ndirty registers by simply
-	 * moving the kernel related registers to the bottom of the kernel
-	 * stack and lowering the current bspstore, because we get into
-	 * trouble with the NaT collections. We need to keep that in sync
-	 * with the registers. Hence, we can only copy a multiple of 512
-	 * bytes. Consequently, we may end up with some registers of the
-	 * previous image on the kernel stack. This we ignore by making
-	 * sure we mask-off the lower 9 bits of the bspstore value just
-	 * prior to saving it in ar.k6.
+	 * We can ignore up to 8KB of dirty registers by masking off the
+	 * lower 13 bits in exception_restore() or epc_syscall(). This
+	 * should be enough for a couple of years, but if there are more
+	 * than 8KB of dirty registers, we lose track of the bottom of
+	 * the kernel stack. The solution is to copy the active part of
+	 * the kernel stack down 1 page (or 2, but not more than that)
+	 * so that we always have less than 8KB of dirty registers.
 	 */
-	ndirty = tf->tf_special.ndirty & ~0x1ff;
-	if (ndirty > 0) {
-		__asm __volatile("mov	ar.rsc=0;;");
-		__asm __volatile("mov	%0=ar.bspstore" : "=r"(bspst));
-		/*
-		 * Make sure we have all the user registers written out.
-		 * We're doing culculations with ndirty and ar.bspstore
-		 * and we better make sure ar.bspstore >= ndirty.
-		 */
-		rssz = bspst - kstack;
-		if (rssz < ndirty) {
-			__asm __volatile("flushrs;;");
-			__asm __volatile("mov   %0=ar.bspstore" : "=r"(bspst));
-			rssz = bspst - kstack;
-		}
-		bcopy((void*)(kstack + ndirty), (void*)kstack, rssz - ndirty);
-		bspst -= ndirty;
-		__asm __volatile("mov	ar.bspstore=%0;;" :: "r"(bspst));
-		__asm __volatile("mov	ar.rsc=3");
-		tf->tf_special.ndirty -= ndirty;
-	}
-	ndirty = tf->tf_special.ndirty;
+	KASSERT((tf->tf_special.ndirty & ~PAGE_MASK) == 0,
+	    ("Whoa there! We have more than 8KB of dirty registers!"));
 
 	bzero(&tf->tf_special, sizeof(tf->tf_special));
-
 	if ((tf->tf_flags & FRAME_SYSCALL) == 0) {	/* break syscalls. */
 		bzero(&tf->tf_scratch, sizeof(tf->tf_scratch));
 		bzero(&tf->tf_scratch_fp, sizeof(tf->tf_scratch_fp));
 		tf->tf_special.iip = entry;
 		tf->tf_special.cfm = (1UL<<63) | (3UL<<7) | 3UL;
 		tf->tf_special.bspstore = td->td_md.md_bspstore;
-		tf->tf_special.ndirty = 24;
 		/*
 		 * Copy the arguments onto the kernel register stack so that
-		 * they get loaded by the loadrs instruction.
+		 * they get loaded by the loadrs instruction. Skip over the
+		 * NaT collection points.
 		 */
-		*(uint64_t*)(kstack + ndirty - 24) = stack;
-		*(uint64_t*)(kstack + ndirty - 16) = ps_strings;
-		*(uint64_t*)(kstack + ndirty - 8) = 0;
+		kst = ksttop - 1;
+		if (((uintptr_t)kst & 0x1ff) == 0x1f8)
+			*kst-- = 0;
+		*kst-- = 0;
+		if (((uintptr_t)kst & 0x1ff) == 0x1f8)
+			*kst-- = 0;
+		*kst-- = ps_strings;
+		if (((uintptr_t)kst & 0x1ff) == 0x1f8)
+			*kst-- = 0;
+		*kst = stack;
+		tf->tf_special.ndirty = (ksttop - kst) << 3;
 	} else {				/* epc syscalls (default). */
 		tf->tf_special.rp = entry;
 		tf->tf_special.pfs = (3UL<<62) | (3UL<<7) | 3UL;
