@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_file.c,v 1.1 1995/06/25 17:32:34 sos Exp $
+ *  $Id: linux_file.c,v 1.2 1995/08/28 00:50:08 swallace Exp $
  */
 
 #include <i386/linux/linux.h>
@@ -359,7 +359,7 @@ linux_readdir(struct proc *p, struct linux_readdir_args *args, int *retval)
 
     if ((error = VOP_GETATTR(vp, &va, p->p_ucred, p))) {
 	return error;
-      }
+    }
 
     nbytes = args->count;
     if (nbytes == 1) {
@@ -370,8 +370,9 @@ linux_readdir(struct proc *p, struct linux_readdir_args *args, int *retval)
 	justone = 0;
 
     off = fp->f_offset;
-    blockoff = off % va.va_blocksize;
-    buflen = max(va.va_blocksize, (nbytes + blockoff));
+    blockoff = off % DIRBLKSIZ;
+    buflen = max(DIRBLKSIZ, nbytes + blockoff);
+    buflen = min(buflen, MAXBSIZE);
     buf = malloc(buflen, M_TEMP, M_WAITOK);
     VOP_LOCK(vp);
 again:
@@ -385,7 +386,7 @@ again:
     auio.uio_resid = buflen;
     auio.uio_offset = off - (off_t)blockoff;
 
-    error = VOP_READDIR(vp, &auio, fp->f_cred, &eofflag, (u_long *) 0, 0);
+    error = VOP_READDIR(vp, &auio, fp->f_cred, &eofflag, 0, 0);
     if (error) {
 	goto out;
 }
@@ -407,9 +408,9 @@ again:
 	    goto out;
 	}
   
-	off += reclen;
 	if (bdp->d_fileno == 0) {
 	    inp += reclen;
+	    off += reclen;
 	    len -= reclen;
 	    continue;
 	}
@@ -426,6 +427,7 @@ again:
 	    goto out;
 	  }
 	inp += reclen;
+	off += reclen;
 	outp += linuxreclen;
 	resid -= linuxreclen;
 	len -= reclen;
