@@ -34,9 +34,11 @@ struct link;
 struct bundle;
 
 extern int ip_PushPacket(struct link *, struct bundle *);
-extern int PacketCheck(struct bundle *, unsigned char *, int, struct filter *,
-                       const char *, unsigned *secs);
-extern void ip_Enqueue(struct ipcp *, int, char *, int);
-extern struct mbuf *ip_Input(struct bundle *, struct link *, struct mbuf *);
-extern void ip_DeleteQueue(struct ipcp *);
-extern size_t ip_QueueLen(struct ipcp *);
+extern int PacketCheck(struct bundle *, u_int32_t, const unsigned char *, int,
+                          struct filter *, const char *, unsigned *secs);
+extern int FilterCheck(const unsigned char *, u_int32_t, const struct filter *,
+                       unsigned *);
+extern struct mbuf *ipv4_Input(struct bundle *, struct link *, struct mbuf *);
+#ifndef NOINET6
+extern struct mbuf *ipv6_Input(struct bundle *, struct link *, struct mbuf *);
+#endif

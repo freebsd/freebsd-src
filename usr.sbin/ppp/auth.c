@@ -32,6 +32,7 @@
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
+#include <sys/socket.h>
 #include <sys/un.h>
 
 #include <pwd.h>
@@ -51,6 +52,8 @@
 #include "slcompress.h"
 #include "lqr.h"
 #include "hdlc.h"
+#include "ncpaddr.h"
+#include "ip.h"
 #include "ipcp.h"
 #include "auth.h"
 #include "systems.h"
@@ -70,6 +73,8 @@
 #include "async.h"
 #include "physical.h"
 #include "datalink.h"
+#include "ipv6cp.h"
+#include "ncp.h"
 #include "bundle.h"
 
 const char *
