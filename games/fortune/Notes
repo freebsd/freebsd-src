@@ -18,7 +18,7 @@ Warning:
 	By default, fortune retrieves its fortune files from the directory
 /usr/share/games/fortune.  A fortune file has two parts: the source file
 (which contains the fortunes themselves) and the data file which describes
-the fortunes.  The data fil always has the same name as the fortune file
+the fortunes.  The data file always has the same name as the fortune file
 with the string ".dat" concatenated, i.e. "fort" is the standard fortune
 database, and "fort.dat" is the data file which describes it.  See
 strfile(8) for more information on creating the data files.
