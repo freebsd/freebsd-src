@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)queue.h	8.5 (Berkeley) 8/20/94
- * $Id: queue.h,v 1.17 1997/08/25 20:21:54 phk Exp $
+ * $Id: queue.h,v 1.18 1997/09/21 22:09:20 gibbs Exp $
  */
 
 #ifndef _SYS_QUEUE_H_
@@ -389,7 +389,7 @@ struct {								\
 /*
  * Circular queue functions.
  */
-#define CIRCLEQ_EMPTY(head) ((head)->cqh_first == (head)->cqh_last)
+#define CIRCLEQ_EMPTY(head) ((head)->cqh_first == (void *)(head))
 
 #define CIRCLEQ_FIRST(head) ((head)->cqh_first)
 
