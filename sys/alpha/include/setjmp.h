@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: setjmp.h,v 1.1 1998/01/10 23:00:06 jb Exp $ */
 /* From: NetBSD: setjmp.h,v 1.2 1997/04/06 08:47:41 cgd Exp */
 
 /*
@@ -33,3 +33,14 @@
  */
 
 #define _JBLEN  81              /* size, in longs, of a jmp_buf */
+
+/*
+ * jmp_buf and sigjmp_buf are encapsulated in different structs to force
+ * compile-time diagnostics for mismatches.  The structs are the same
+ * internally to avoid some run-time errors for mismatches.
+ */
+#ifndef _ANSI_SOURCE
+typedef struct { long _sjb[_JBLEN + 1]; } sigjmp_buf[1];
+#endif /* not ANSI */
+
+typedef struct { long _jb[_JBLEN + 1]; } jmp_buf[1];
