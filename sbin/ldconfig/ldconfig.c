@@ -117,13 +117,16 @@ char	*argv[];
 	hints_file = is_aout ? _PATH_LD_HINTS : _PATH_ELF_HINTS;
 	if (argc == 1)
 		rescan = 1;
-	else while((c = getopt(argc, argv, "Rf:mrsv")) != -1) {
+	else while((c = getopt(argc, argv, "Rf:imrsv")) != -1) {
 		switch (c) {
 		case 'R':
 			rescan = 1;
 			break;
 		case 'f':
 			hints_file = optarg;
+			break;
+		case 'i':
+			insecure = 1;
 			break;
 		case 'm':
 			merge = 1;
@@ -152,6 +155,7 @@ char	*argv[];
 		return 0;
 	}
 
+	/* Here begins the aout libs processing */
 	dir_list = strdup("");
 
 	if (justread || merge || rescan) {
@@ -209,7 +213,7 @@ static void
 usage()
 {
 	fprintf(stderr,
-	"usage: ldconfig [-aout | -elf] [-Rmrsv] [-f hints_file] [dir | file ...]\n");
+	"usage: ldconfig [-aout | -elf] [-Rimrsv] [-f hints_file] [dir | file ...]\n");
 	exit(1);
 }
 	
@@ -259,7 +263,6 @@ int	silent;
 {
 	DIR		*dd;
 	struct dirent	*dp;
-	struct stat	stbuf;
 	char		name[MAXPATHLEN];
 	int		dewey[MAXDEWEY], ndewey;
 
@@ -267,20 +270,6 @@ int	silent;
 		if (silent && errno == ENOENT)	/* Ignore the error */
 			return 0;
 		warn("%s", dir);
-		return -1;
-	}
-
-	/* Do some security checks */
-	if (fstat(dirfd(dd), &stbuf) == -1) {
-		warn("%s", dir);
-		return -1;
-	}
-	if (stbuf.st_uid != 0) {
-		warnx("%s: not owned by root", dir);
-		return -1;
-	}
-	if ((stbuf.st_mode & S_IWOTH) != 0) {
-		warnx("%s: ignoring world-writable directory", dir);
 		return -1;
 	}
 
