@@ -314,6 +314,8 @@ g_cancel_event(void *ref)
 				break;
 			if (ep->ref[n] == ref) {
 				TAILQ_REMOVE(&g_events, ep, events);
+				if (ep->event == EV_CALL_ME)
+					ep->func(ep->arg, EV_CANCEL);
 				g_free(ep);
 				break;
 			}
