@@ -102,108 +102,119 @@ doing so will cause probelms.  Often when no interrupts appear to be routed\n\
 setting this tunable to 1 will resolve the problem.  PCI Cards will almost\n\
 always require this, while builtin bridges need it less often");
 
+typedef void (*init_t)(device_t);
+
+static void pcic_pci_cardbus_init(device_t);
+static void pcic_pci_oz67xx_init(device_t);
+static void pcic_pci_oz68xx_init(device_t);
+static void pcic_pci_pd67xx_init(device_t);
+static void pcic_pci_pd683x_init(device_t);
+static void pcic_pci_ricoh_init(device_t);
+static void pcic_pci_ti_init(device_t);
+static void pcic_pci_topic_init(device_t);
+
 struct pcic_pci_table
 {
 	u_int32_t	devid;
 	const char	*descr;
 	int		type;
 	u_int32_t	flags;
-	int		revision;
+	init_t		init;
 } pcic_pci_devs[] = {
 	{ PCI_DEVICE_ID_PCIC_CLPD6729,
 	  "Cirrus Logic PD6729/6730 PC-Card Controller",
-	  PCIC_PD672X, PCIC_PD_POWER },
+	  PCIC_PD672X, PCIC_PD_POWER, pcic_pci_pd67xx_init },
 	{ PCI_DEVICE_ID_PCIC_CLPD6832,
 	  "Cirrus Logic PD6832 PCI-CardBus Bridge",
-	  PCIC_PD672X, PCIC_PD_POWER },
+	  PCIC_PD672X, PCIC_PD_POWER, pcic_pci_pd683x_init },
 	{ PCI_DEVICE_ID_PCIC_CLPD6833,
 	  "Cirrus Logic PD6833 PCI-CardBus Bridge",
-	  PCIC_PD672X, PCIC_PD_POWER },
+	  PCIC_PD672X, PCIC_PD_POWER, pcic_pci_pd683x_init },
 	{ PCI_DEVICE_ID_PCIC_OZ6729,
 	  "O2micro OZ6729 PC-Card Bridge",
-	  PCIC_I82365, PCIC_AB_POWER },
+	  PCIC_I82365, PCIC_AB_POWER, pcic_pci_oz67xx_init },
 	{ PCI_DEVICE_ID_PCIC_OZ6730,
 	  "O2micro OZ6730 PC-Card Bridge",
-	  PCIC_I82365, PCIC_AB_POWER },
+	  PCIC_I82365, PCIC_AB_POWER, pcic_pci_oz67xx_init },
 	{ PCI_DEVICE_ID_PCIC_OZ6832,
 	  "O2micro 6832/6833 PCI-Cardbus Bridge",
-	  PCIC_I82365, PCIC_AB_POWER },
+	  PCIC_I82365, PCIC_AB_POWER, pcic_pci_oz68xx_init },
 	{ PCI_DEVICE_ID_PCIC_OZ6860,
 	  "O2micro 6860/6836 PCI-Cardbus Bridge",
-	  PCIC_I82365, PCIC_AB_POWER },
+	  PCIC_I82365, PCIC_AB_POWER, pcic_pci_oz68xx_init },
 	{ PCI_DEVICE_ID_PCIC_OZ6872,
 	  "O2micro 6812/6872 PCI-Cardbus Bridge",
-	  PCIC_I82365, PCIC_AB_POWER },
+	  PCIC_I82365, PCIC_AB_POWER, pcic_pci_oz68xx_init },
 	{ PCI_DEVICE_ID_RICOH_RL5C465,
 	  "Ricoh RL5C465 PCI-CardBus Bridge",
-	  PCIC_RF5C296, PCIC_RICOH_POWER },
+	  PCIC_RF5C296, PCIC_RICOH_POWER, pcic_pci_ricoh_init },
 	{ PCI_DEVICE_ID_RICOH_RL5C475,
 	  "Ricoh RL5C475 PCI-CardBus Bridge",
-	  PCIC_RF5C296, PCIC_RICOH_POWER },
+	  PCIC_RF5C296, PCIC_RICOH_POWER, pcic_pci_ricoh_init },
 	{ PCI_DEVICE_ID_RICOH_RL5C476,
 	  "Ricoh RL5C476 PCI-CardBus Bridge",
-	  PCIC_RF5C296, PCIC_RICOH_POWER },
+	  PCIC_RF5C296, PCIC_RICOH_POWER, pcic_pci_ricoh_init },
 	{ PCI_DEVICE_ID_RICOH_RL5C477,
 	  "Ricoh RL5C477 PCI-CardBus Bridge",
-	  PCIC_RF5C296, PCIC_RICOH_POWER },
+	  PCIC_RF5C296, PCIC_RICOH_POWER, pcic_pci_ricoh_init },
 	{ PCI_DEVICE_ID_RICOH_RL5C478,
 	  "Ricoh RL5C478 PCI-CardBus Bridge",
-	  PCIC_RF5C296, PCIC_RICOH_POWER },
+	  PCIC_RF5C296, PCIC_RICOH_POWER, pcic_pci_ricoh_init },
 	{ PCI_DEVICE_ID_PCIC_TI1031,
 	  "TI PCI-1031 PCI-PCMCIA Bridge",
-	  PCIC_I82365SL_DF, PCIC_DF_POWER },
+	  PCIC_I82365SL_DF, PCIC_DF_POWER, pcic_pci_ti_init },
 	{ PCI_DEVICE_ID_PCIC_TI1130,
 	  "TI PCI-1130 PCI-CardBus Bridge",
-	  PCIC_I82365SL_DF, PCIC_DF_POWER },
+	  PCIC_I82365SL_DF, PCIC_DF_POWER, pcic_pci_ti_init },
 	{ PCI_DEVICE_ID_PCIC_TI1131,
 	  "TI PCI-1131 PCI-CardBus Bridge",
-	  PCIC_I82365SL_DF, PCIC_DF_POWER },
+	  PCIC_I82365SL_DF, PCIC_DF_POWER, pcic_pci_ti_init },
 	{ PCI_DEVICE_ID_PCIC_TI1211,
 	  "TI PCI-1211 PCI-CardBus Bridge",
-	  PCIC_I82365SL_DF, PCIC_DF_POWER },
+	  PCIC_I82365SL_DF, PCIC_DF_POWER, pcic_pci_ti_init },
 	{ PCI_DEVICE_ID_PCIC_TI1220,
 	  "TI PCI-1220 PCI-CardBus Bridge",
-	  PCIC_I82365SL_DF, PCIC_DF_POWER },
+	  PCIC_I82365SL_DF, PCIC_DF_POWER, pcic_pci_ti_init },
 	{ PCI_DEVICE_ID_PCIC_TI1221,
 	  "TI PCI-1221 PCI-CardBus Bridge",
-	  PCIC_I82365SL_DF, PCIC_DF_POWER },
+	  PCIC_I82365SL_DF, PCIC_DF_POWER, pcic_pci_ti_init },
 	{ PCI_DEVICE_ID_PCIC_TI1225,
 	  "TI PCI-1225 PCI-CardBus Bridge",
-	  PCIC_I82365SL_DF, PCIC_DF_POWER },
+	  PCIC_I82365SL_DF, PCIC_DF_POWER, pcic_pci_ti_init },
 	{ PCI_DEVICE_ID_PCIC_TI1250,
 	  "TI PCI-1250 PCI-CardBus Bridge",
-	  PCIC_I82365SL_DF, PCIC_DF_POWER },
+	  PCIC_I82365SL_DF, PCIC_DF_POWER, pcic_pci_ti_init },
 	{ PCI_DEVICE_ID_PCIC_TI1251,
 	  "TI PCI-1251 PCI-CardBus Bridge",
-	  PCIC_I82365SL_DF, PCIC_DF_POWER },
+	  PCIC_I82365SL_DF, PCIC_DF_POWER, pcic_pci_ti_init },
 	{ PCI_DEVICE_ID_PCIC_TI1251B,
 	  "TI PCI-1251B PCI-CardBus Bridge",
-	  PCIC_I82365SL_DF, PCIC_DF_POWER },
+	  PCIC_I82365SL_DF, PCIC_DF_POWER, pcic_pci_ti_init },
 	{ PCI_DEVICE_ID_PCIC_TI1410,
 	  "TI PCI-1410 PCI-CardBus Bridge",
-	  PCIC_I82365SL_DF, PCIC_DF_POWER },
+	  PCIC_I82365SL_DF, PCIC_DF_POWER, pcic_pci_ti_init },
 	{ PCI_DEVICE_ID_PCIC_TI1420,
 	  "TI PCI-1420 PCI-CardBus Bridge",
-	  PCIC_I82365SL_DF, PCIC_DF_POWER },
+	  PCIC_I82365SL_DF, PCIC_DF_POWER, pcic_pci_ti_init },
 	{ PCI_DEVICE_ID_PCIC_TI1450,
 	  "TI PCI-1450 PCI-CardBus Bridge",
-	  PCIC_I82365SL_DF, PCIC_DF_POWER },
+	  PCIC_I82365SL_DF, PCIC_DF_POWER, pcic_pci_ti_init },
 	{ PCI_DEVICE_ID_PCIC_TI1451,
 	  "TI PCI-1451 PCI-CardBus Bridge",
-	  PCIC_I82365SL_DF, PCIC_DF_POWER },
+	  PCIC_I82365SL_DF, PCIC_DF_POWER, pcic_pci_ti_init },
 	{ PCI_DEVICE_ID_PCIC_TI4451,
 	  "TI PCI-4451 PCI-CardBus Bridge",
-	  PCIC_I82365SL_DF, PCIC_DF_POWER },
+	  PCIC_I82365SL_DF, PCIC_DF_POWER, pcic_pci_ti_init },
 	{ PCI_DEVICE_ID_TOSHIBA_TOPIC95,
 	  "Toshiba ToPIC95 PCI-CardBus Bridge",
-	  PCIC_I82365, PCIC_AB_POWER },
+	  PCIC_I82365, PCIC_AB_POWER, pcic_pci_topic_init },
 	{ PCI_DEVICE_ID_TOSHIBA_TOPIC97,
 	  "Toshiba ToPIC97 PCI-CardBus Bridge",
-	  PCIC_I82365, PCIC_AB_POWER },
+	  PCIC_I82365, PCIC_AB_POWER, pcic_pci_topic_init },
 	{ PCI_DEVICE_ID_TOSHIBA_TOPIC100,
 	  "Toshiba ToPIC100 PCI-CardBus Bridge",
-	  PCIC_I82365, PCIC_AB_POWER },
-	{ 0, NULL, 0, 0 }
+	  PCIC_I82365, PCIC_AB_POWER, pcic_pci_topic_init },
+	{ 0, NULL, 0, 0, NULL }
 };
 
 /*
@@ -236,6 +247,35 @@ pcic_pci_lookup(u_int32_t devid, struct pcic_pci_table *tbl)
 		tbl++;
 	}
 	return (NULL);
+}
+
+static void
+pcic_pci_oz67xx_init(device_t dev)
+{
+	/*
+	 * This is almost certainly incomplete.
+	 */
+	device_printf(dev, "Warning: O2micro OZ67xx chips may not work\n");
+	pcic_pci_cardbus_init(dev);
+}
+
+static void
+pcic_pci_oz68xx_init(device_t dev)
+{
+	/*
+	 * This is almost certainly incomplete.
+	 */
+	device_printf(dev, "Warning: O2micro OZ68xx chips may not work\n");
+	pcic_pci_cardbus_init(dev);
+}
+
+static void
+pcic_pci_pd67xx_init(device_t dev)
+{
+	/*
+	 * This is incomplete.
+	 */
+	device_printf(dev, "Warning: CL-PD67xx chips may not work\n");
 }
 
 /*
@@ -280,6 +320,29 @@ pcic_pci_pd683x_init(device_t dev)
 			cm1 |= CLPD6833_CM1_MGMT_EXCA_ENA;
 		pci_write_config(dev, CLPD6833_CFG_MISC_1, cm1, 4);
 	}
+	pcic_pci_cardbus_init(dev);
+}
+
+static void
+pcic_pci_ricoh_init(device_t dev)
+{
+	u_int16_t	brgcntl;
+	u_int32_t	device_id = pci_get_devid(dev);
+
+	switch (device_id) {
+	case PCI_DEVICE_ID_RICOH_RL5C465:
+	case PCI_DEVICE_ID_RICOH_RL5C466:
+		/*
+		 * Ricoh chips have a legacy bridge enable different than most
+		 * Code cribbed from NEWBUS's bridge code since I can't find a
+		 * datasheet for them that has register definitions.
+		 */
+		brgcntl = pci_read_config(dev, CB_PCI_BRIDGE_CTRL, 2);
+		brgcntl &= ~(CB_BCR_RL_3E2_EN | CB_BCR_RL_3E0_EN);
+		pci_write_config(dev, CB_PCI_BRIDGE_CTRL, brgcntl, 2);
+		break;
+	}
+	pcic_pci_cardbus_init(dev);
 }
 
 /*
@@ -389,6 +452,17 @@ pcic_pci_ti_init(device_t dev)
 			break;
 	}
 	printf("\n");
+	pcic_pci_cardbus_init(dev);
+}
+
+static void
+pcic_pci_topic_init(device_t dev)
+{
+	/*
+	 * This is almost certainly incomplete.
+	 */
+	device_printf(dev, "Warning: Toshiba ToPIC chips may not work\n");
+	pcic_pci_cardbus_init(dev);
 }
 
 static void
@@ -432,23 +506,6 @@ pcic_pci_cardbus_init(device_t dev)
 	pci_write_config(dev, CB_PCI_IOLIMIT1, 0, 4);
 
 	return;
-}
-
-static void
-pcic_pci_ricoh_init(device_t dev, int old)
-{
-	u_int16_t	brgcntl;
-
-	/*
-	 * Ricoh chips have a legacy bridge enable different than most
-	 * Code cribbed from NEWBUS's bridge code since I can't find a
-	 * datasheet for them that has register definitions.
-	 */
-	if (old) {
-		brgcntl = pci_read_config(dev, CB_PCI_BRIDGE_CTRL, 2);
-		brgcntl &= ~(CB_BCR_RL_3E2_EN | CB_BCR_RL_3E0_EN);
-		pci_write_config(dev, CB_PCI_BRIDGE_CTRL, brgcntl, 2);
-	}
 }
 
 static const char *
@@ -658,6 +715,7 @@ pcic_pci_attach(device_t dev)
 		sp->controller = PCIC_PD672X;
 		sp->revision = 0;
 		sc->flags = PCIC_PD_POWER;
+		itm = pcic_pci_lookup(device_id, &pcic_pci_devs[0]);
 	} else {
 		sc->memrid = CB_PCI_SOCKET_BASE;
 		sc->memres = bus_alloc_resource(dev, SYS_RES_MEMORY,
@@ -672,7 +730,7 @@ pcic_pci_attach(device_t dev)
 		itm = pcic_pci_lookup(device_id, &pcic_pci_devs[0]);
 		if (itm != NULL) {
 			sp->controller = itm->type;
-			sp->revision = itm->revision;
+			sp->revision = 0;
 			sc->flags  = itm->flags;
 		} else {
 			/* By default, assume we're a D step compatible */
@@ -686,50 +744,21 @@ pcic_pci_attach(device_t dev)
 	sc->csc_route = pcic_intr_path;
 	sc->func_route = pcic_intr_path;
 
-	switch (device_id) {
-	case PCI_DEVICE_ID_RICOH_RL5C465:
-	case PCI_DEVICE_ID_RICOH_RL5C466:
-		pcic_pci_ricoh_init(dev, 1);
+	/*
+	 * Turn off the power to the slot before we do anything
+	 * with it.
+	 */
+	sp->putb(sp, PCIC_INT_GEN, 0);
+	sp->putb(sp, PCIC_POWER, 0);
+
+	/* Ack any pending interrupts */
+	bus_space_write_4(sp->bst, sp->bsh, 0, 0xffffffff);
+	sp->getb(sp, PCIC_STAT_CHG);
+
+	if (itm && itm->init)
+		itm->init(dev);
+	else
 		pcic_pci_cardbus_init(dev);
-		break;
-	case PCI_DEVICE_ID_RICOH_RL5C475:
-	case PCI_DEVICE_ID_RICOH_RL5C476:
-	case PCI_DEVICE_ID_RICOH_RL5C477:
-	case PCI_DEVICE_ID_RICOH_RL5C478:
-		pcic_pci_ricoh_init(dev, 0);
-		pcic_pci_cardbus_init(dev);
-		break;
-	case PCI_DEVICE_ID_PCIC_TI1031:
-	case PCI_DEVICE_ID_PCIC_TI1130:
-	case PCI_DEVICE_ID_PCIC_TI1131:
-	case PCI_DEVICE_ID_PCIC_TI1211:
-	case PCI_DEVICE_ID_PCIC_TI1220:
-	case PCI_DEVICE_ID_PCIC_TI1221:
-	case PCI_DEVICE_ID_PCIC_TI1225:
-	case PCI_DEVICE_ID_PCIC_TI1250:
-	case PCI_DEVICE_ID_PCIC_TI1251:
-	case PCI_DEVICE_ID_PCIC_TI1251B:
-	case PCI_DEVICE_ID_PCIC_TI1410:
-	case PCI_DEVICE_ID_PCIC_TI1420:
-	case PCI_DEVICE_ID_PCIC_TI1450:
-	case PCI_DEVICE_ID_PCIC_TI1451:
-	case PCI_DEVICE_ID_PCIC_TI4451:
-		pcic_pci_ti_init(dev);
-		pcic_pci_cardbus_init(dev);
-		break;
-	case PCI_DEVICE_ID_PCIC_CLPD6832:
-	case PCI_DEVICE_ID_PCIC_CLPD6833:
-		pcic_pci_pd683x_init(dev);
-		pcic_pci_cardbus_init(dev);
-		break;
-#ifdef notyet
-	case PCI_DEVICE_ID_PCIC_CLPD6729:
-		pcic_pci_pd6729_init(dev);
-#endif
-	default:
-		pcic_pci_cardbus_init(dev);
-		break;
-	}
 
 	if (sc->csc_route == pcic_iw_pci) {
 		start = 0;
