@@ -5,6 +5,8 @@
 static char rcsid[] = "yp.x,v 1.1 1994/08/04 19:01:55 wollman Exp";
 #endif /* not lint */
 
+extern void Perror __P((const char *, ...));
+
 struct {
         union {
         int (*encoder)(char *, int, char **, int *, char **, int *);
@@ -197,7 +199,7 @@ __xdr_ypresp_all(XDR *xdrs, ypresp_all *objp)
             return (FALSE);
          }
          if (!__xdr_ypresp_key_val(xdrs, &objp->ypresp_all_u.val)) {
-            printf("__xdr_ypresp_key_val failed\n");
+            Perror("__xdr_ypresp_key_val failed\n");
             return (FALSE);
          }
          if (objp->ypresp_all_u.val.stat!=YP_TRUE) {

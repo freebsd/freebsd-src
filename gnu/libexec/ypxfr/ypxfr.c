@@ -18,7 +18,7 @@
 
     Modified for use with FreeBSD 2.x by Bill Paul (wpaul@ctr.columbia.edu)
 
-	$Id: ypxfr.c,v 1.3 1995/03/30 04:14:46 wpaul Exp $
+	$Id: ypxfr.c,v 1.2 1995/02/06 23:35:49 wpaul Exp $
 */
 
 #include <stdio.h>
@@ -70,6 +70,11 @@ struct dom_binding {
  */
 extern int _yp_bind(struct sockaddr_in *, char *);
 extern int _yp_clear( char *);
+extern void Perror  __P((const char *, ...));
+int logflag = 0;
+char *progname;
+#include <errno.h>
+#include <syslog.h>
 #include <netdb.h>
 #include <fcntl.h>
 #include <ctype.h>
@@ -115,7 +120,7 @@ ypxfr_foreach(int status, char *key, int keylen, char *val, int vallen,
 		return 0;
 	if (status!=YP_TRUE) {
 		int s=ypprot_err(status);
-		fprintf(stderr, "%s\n", yperr_string(s));
+		Perror("%s\n",yperr_string(s));
 		return 1;
 	}
 
@@ -194,8 +199,8 @@ ypxfr(char *mapName) {
 		sprintf(dbName, "%s%s/%s", _PATH_YP, TargetDomain, mapName);
 		if ((db = dbopen(dbName,O_RDWR|O_EXCL, PERM_SECURE,
 				DB_HASH, &openinfo)) == NULL) {
-			perror("dbopen");
-			fprintf(stderr, "%s: cannot open - ignored.\n", dbName);
+			Perror("dbopen: %s\n", strerror(errno));
+			Perror("%s: cannot open - ignored.\n", dbName);
 			localOrderNum=0;
 		} else {
 			inKey.data="YP_LAST_MODIFIED"; inKey.size=strlen(inKey.data);
@@ -219,7 +224,7 @@ ypxfr(char *mapName) {
 	sprintf(dbName, "%s%s/%s~", _PATH_YP, TargetDomain, mapName);
 	if ((db = dbopen(dbName,O_RDWR|O_EXCL|O_CREAT, PERM_SECURE, DB_HASH,
 			&openinfo)) == NULL) {
-		fprintf(stderr, "%s: Cannot open\n", dbName);
+		Perror("%s: Cannot open\n", dbName);
 		return YPXFR_DBM;
 	}
 
@@ -238,6 +243,13 @@ ypxfr(char *mapName) {
 
 	callback.foreach = ypxfr_foreach;
 	callback.data = NULL;
+
+	/*
+	 * We have to use our own private version of yp_all() here since
+	 * the yp_all() in libc doesn't allow us to specify the server that
+	 * we want to talk to: it's imperative that we transfer data from
+	 * the NIS master server and no one else.
+	 */
 	y=__yp_all(SourceDomain, mapName, &callback);
 
 	(void)(db->close)(db);
@@ -259,7 +271,7 @@ ypxfr(char *mapName) {
 void usage(progname)
 char *progname;
 {
-	fprintf(stderr, "usage: %s [-f] [-c] [-d target domain] \
+	fprintf(stderr,"usage: %s [-f] [-c] [-d target domain] \
 [-h source host]\n	[-s source domain] \
 [-C taskid program-number ipaddr port] mapname\n", progname);
 }
@@ -267,18 +279,12 @@ char *progname;
 void
 main (int argc, char **argv)
 {
-	if (!isatty(0)) {
-		int fd;
-		char logfile[MAXPATHLEN];
-		sprintf (logfile, "%sypxfr.log", _PATH_YP);
-		if ((fd = open(logfile, O_CREAT|O_WRONLY|O_APPEND, 0644))) {
-			close(0);
-			dup(fd);
-			close(1);
-			dup(fd);
-			close(2);
-			dup(fd);
-		}
+
+	progname = argv[0];
+
+	if (!isatty(2)) {
+		openlog(argv[0], LOG_PID, LOG_DAEMON);
+		logflag = 1;
 	}
 
 	if (argc < 2)
@@ -330,7 +336,7 @@ main (int argc, char **argv)
 	for (; *argv; argv++) {
 		enum ypxfrstat y;
 		if ((y=ypxfr(*argv))!=YPXFR_SUCC) {
-			fprintf(stderr, "%s\n", ypxfr_err_string(y));
+			Perror("%s\n", ypxfr_err_string(y));
 		}
 		if (TaskId) {
 			struct sockaddr_in addr;
