@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: intr_machdep.c,v 1.19 1999/04/21 07:26:27 peter Exp $
+ *	$Id: intr_machdep.c,v 1.20 1999/04/23 21:01:19 peter Exp $
  */
 /*
  * This file contains an aggregated module marked:
@@ -521,7 +521,7 @@ icu_unset(intr, handler)
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: intr_machdep.c,v 1.19 1999/04/21 07:26:27 peter Exp $
+ * $Id: intr_machdep.c,v 1.20 1999/04/23 21:01:19 peter Exp $
  *
  */
 
@@ -868,7 +868,7 @@ register_intr(int intr, int device_id, u_int flags,
 	if (irec == NULL)
 		return NULL;
 	bzero(irec, sizeof *irec);
-	irec->id_unit = device_id;
+	irec->id_unit = unit;
 	irec->id_handler = handler;
 
 	flags |= INTR_EXCL;
