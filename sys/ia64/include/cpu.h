@@ -136,6 +136,7 @@ void	trap(int vector, int imm, struct trapframe *framep);
 void	ia64_probe_sapics(void);
 int	ia64_count_cpus(void);
 void	map_pal_code(void);
+void	map_port_space(void);
 void	cpu_mp_add(uint, uint, uint);
 
 /*
