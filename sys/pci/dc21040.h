@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: dc21040.h,v 1.9 1996/12/01 06:00:58 rgrimes Exp $
+ * $Id: dc21040.h,v 1.8.2.1 1996/12/03 10:52:45 phk Exp $
  */
 
 #if !defined(_DC21040_H)
@@ -269,6 +269,9 @@ typedef struct {
 #define	TULIP_OUI_SMC_0			0x00
 #define	TULIP_OUI_SMC_1			0x00
 #define	TULIP_OUI_SMC_2			0xC0
+#define	TULIP_OUI_SMC2_0		0x00
+#define	TULIP_OUI_SMC2_1		0xE0
+#define	TULIP_OUI_SMC2_2		0x29
 
 /*
  * There are the definitions used for the DEC DE500
