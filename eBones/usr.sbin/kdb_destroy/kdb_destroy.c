@@ -4,12 +4,12 @@
  * <Copyright.MIT>.
  *
  *	from: kdb_destroy.c,v 4.0 89/01/24 21:49:02 jtkohl Exp $
- *	$Id: kdb_destroy.c,v 1.2 1995/01/25 19:57:27 ache Exp $
+ *	$Id: kdb_destroy.c,v 1.3 1995/08/02 23:08:14 pst Exp $
  */
 
 #ifndef	lint
 static char rcsid[] =
-"$Id: kdb_destroy.c,v 1.2 1995/01/25 19:57:27 ache Exp $";
+"$Id: kdb_destroy.c,v 1.3 1995/08/02 23:08:14 pst Exp $";
 #endif	lint
 
 #include <strings.h>
@@ -33,7 +33,7 @@ main()
 #endif
 
     strcpy(dbm, DBM_FILE);
-#ifdef __FreeBSD__
+#ifdef DB
     file = strcat(dbm, ".db");
 #else
     strcpy(dbm1, DBM_FILE);
