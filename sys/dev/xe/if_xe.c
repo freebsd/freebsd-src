@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_xe.c,v 1.15 1999/03/05 12:11:40 root Exp $
+ *	$Id: if_xe.c,v 1.16 1999/03/08 16:28:50 root Exp $
  */
 
 /*
@@ -1112,8 +1112,8 @@ xe_card_intr(struct pccard_devinfo *devi) {
 	    mbp->m_data += ETHER_HDR_LEN;	/* Strip off Ethernet header */
 	    ether_input(ifp, ehp, mbp);		/* Send the packet on its way */
 	    ifp->if_ipackets++;			/* Success! */
-	    XE_OUTW(XE_DOR, 0x8000);		/* skip_rx_packet command */
 	  }
+	  XE_OUTW(XE_DOR, 0x8000);		/* skip_rx_packet command */
 	}
       }
       else if (rsr & XE_RSR_LONG_PKT) {		/* Packet length >1518 bytes */
@@ -1829,8 +1829,10 @@ xe_pio_write_packet(struct xe_softc *scp, struct mbuf *mbp) {
   if (scp->ce3)
     XE_OUTB(XE_CR, XE_CR_TX_PACKET|XE_CR_ENABLE_INTR);
   else
-    while (pad > 0)
-      XE_OUTW(XE_EDP, 0xfeed);
+    while (pad > 0) {
+      XE_OUTW(XE_EDP, 0xdead);
+      pad--;
+    }
 
   return 0;
 }
