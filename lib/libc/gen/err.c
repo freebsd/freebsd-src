@@ -34,7 +34,7 @@
 
 #if defined(LIBC_RCS) && !defined(lint)
 static const char rcsid[] =
-	"$Id$";
+	"$Id: err.c,v 1.4 1998/09/12 21:02:22 wollman Exp $";
 #endif /* LIBC_RCS and not lint */
 
 #include <err.h>
@@ -190,7 +190,7 @@ warnx(const char *fmt, ...)
 {
 	va_list ap;
 	va_start(ap, fmt);
-	vwarn(fmt, ap);
+	vwarnx(fmt, ap);
 	va_end(ap);
 }
 
