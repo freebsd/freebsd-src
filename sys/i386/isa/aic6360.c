@@ -31,7 +31,7 @@
  */
 
 /*
- * $Id: aic6360.c,v 1.29 1997/03/24 11:23:38 bde Exp $
+ * $Id: aic6360.c,v 1.30 1997/07/20 14:09:50 bde Exp $
  *
  * Acknowledgements: Many of the algorithms used in this driver are
  * inspired by the work of Julian Elischer (julian@tfs.com) and
@@ -933,13 +933,15 @@ aic_init(aic)
 		aic->state = AIC_CLEANING;
 		if (aic->nexus != NULL) {
 			aic->nexus->xs->error = XS_DRIVER_STUFFUP;
-			untimeout(aic_timeout, (caddr_t)aic->nexus);
+			untimeout(aic_timeout, (caddr_t)aic->nexus,
+				  aic->nexus->xs->timeout_ch);
 			aic_done(aic->nexus);
 		}
 		aic->nexus = NULL;
 		while (acb = aic->nexus_list.tqh_first) {
 			acb->xs->error = XS_DRIVER_STUFFUP;
-			untimeout(aic_timeout, (caddr_t)acb);
+			untimeout(aic_timeout, (caddr_t)aic->nexus,
+				  aic->nexus->xs->timeout_ch);
 			aic_done(acb);
 		}
 	}
@@ -1038,7 +1040,8 @@ aic_scsi_cmd(xs)
 		s = splbio();
 
 	TAILQ_INSERT_TAIL(&aic->ready_list, acb, chain);
-	timeout(aic_timeout, (caddr_t)acb, (xs->timeout*hz)/1000);
+	xs->timeout_ch = timeout(aic_timeout, (caddr_t)acb,
+				 (xs->timeout*hz)/1000);
 
 	if (aic->state == AIC_IDLE)
 		aic_sched(aic);
@@ -1462,7 +1465,8 @@ aic_msgin(aic)
 			}
 			acb->xs->resid = acb->dleft = aic->dleft;
 			aic->flags |= AIC_BUSFREE_OK;
-			untimeout(aic_timeout, (caddr_t)acb);
+			untimeout(aic_timeout, (caddr_t)acb,
+				  acb->xs->timeout_ch);
 			aic_done(acb);
 			break;
 		case MSG_MESSAGE_REJECT:
@@ -2122,7 +2126,8 @@ aicintr(int unit)
 				 */
 				printf("aic: unexpected busfree\n");
 				acb->xs->error = XS_DRIVER_STUFFUP;
-				untimeout(aic_timeout, (caddr_t)acb);
+				untimeout(aic_timeout, (caddr_t)acb,
+					  acb->xs->timeout_ch);
 				aic_done(acb);
 			}
 			LOGLINE(aic);
@@ -2144,7 +2149,8 @@ aicintr(int unit)
 			outb(CLRSINT1, CLRSELTIMO);
 			aic->state = AIC_IDLE;
 			acb->xs->error = XS_TIMEOUT;
-			untimeout(aic_timeout, (caddr_t)acb);
+			untimeout(aic_timeout, (caddr_t)acb,
+				  acb->xs->timeout_ch);
 			aic_done(acb);
 			LOGLINE(aic);
 			outb(DMACNTRL0, INTEN);
@@ -2226,7 +2232,8 @@ aicintr(int unit)
 			Debugger("aic6360");
 			fatal_if_no_DDB();
 			acb->xs->error = XS_DRIVER_STUFFUP;
-			untimeout(aic_timeout, (caddr_t)acb);
+			untimeout(aic_timeout, (caddr_t)acb,
+				  acb->xs->timeout_ch);
 			aic_done(acb);
 			aic_init(aic);
 			return;
@@ -2244,7 +2251,8 @@ aicintr(int unit)
 			Debugger("aic6360");
 			fatal_if_no_DDB();
 			acb->xs->error = XS_DRIVER_STUFFUP;
-			untimeout(aic_timeout, (caddr_t)acb);
+			untimeout(aic_timeout, (caddr_t)acb,
+				  acb->xs->timeout_ch);
 			aic_done(acb);
 			aic_init(aic);
 			return;

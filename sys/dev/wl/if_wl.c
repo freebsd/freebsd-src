@@ -1,4 +1,4 @@
-/* $Id: if_wl.c,v 1.7 1997/08/02 05:19:32 msmith Exp $ */
+/* $Id: if_wl.c,v 1.8 1997/08/25 22:34:25 bde Exp $ */
 /* 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -247,6 +247,7 @@ struct wl_softc{
     short	mode;
     u_char      chan24;         /* 2.4 Gz: channel number/EEPROM Area # */
     u_short     freq24;         /* 2.4 Gz: resulting frequency  */
+    struct	callout_handle watchdog_ch;
 #ifdef WLCACHE
     int 	w_sigitems;     /* number of cached entries */
     /*  array of cache entries */
@@ -447,6 +448,7 @@ wlattach(struct isa_device *id)
     sc->flags = 0;
     sc->mode = 0;
     sc->hacr = HACR_RESET;
+    callout_handle_init(&sc->watchdog_ch);
     CMD(unit);				/* reset the board */
     DELAY(DELAYCONST);	                /* >> 4 clocks at 6MHz */
 	
@@ -696,7 +698,7 @@ wlinit(void *xsc)
 		
 	sc->flags |= DSF_RUNNING;
 	sc->tbusy = 0;
-	untimeout(wlwatchdog, sc);
+	untimeout(wlwatchdog, sc, sc->watchdog_ch);
 		
 	wlstart(ifp);
     } else {
@@ -867,7 +869,7 @@ wlstart(struct ifnet *ifp)
 	if((scb_status & 0x0700) == SCB_CUS_IDLE &&
 	   (cu_status & AC_SW_B) == 0){
 	    sc->tbusy = 0;
-	    untimeout(wlwatchdog, sc);
+	    untimeout(wlwatchdog, sc, sc->watchdog_ch);
 	    sc->wl_ac.ac_if.if_flags &= ~IFF_OACTIVE;
 	    /*
 	     * This is probably just a race.  The xmt'r is just
@@ -906,7 +908,7 @@ wlstart(struct ifnet *ifp)
 	 * fails to interrupt we will restart
 	 */
 	/* try 10 ticks, not very long */
-	timeout(wlwatchdog, sc, 10);
+	sc->watchdog_ch = timeout(wlwatchdog, sc, 10);
 	sc->wl_ac.ac_if.if_flags |= IFF_OACTIVE;
 	sc->wl_if.if_opackets++;
 	wlxmt(unit, m);
@@ -1605,7 +1607,7 @@ int unit;
 		}
 	    }
 	    sc->tbusy = 0;
-	    untimeout(wlwatchdog, sc);
+	    untimeout(wlwatchdog, sc, sc->watchdog_ch);
 	    sc->wl_ac.ac_if.if_flags &= ~IFF_OACTIVE;
 	    wlstart(&(sc->wl_if));
 	}

@@ -140,6 +140,11 @@ struct ctlr
 	 */
 	u_char dcr_val, dcr_is;
 
+	/*
+	 * Handle for canceling our timeout.
+	 */
+	struct callout_handle ch;
+
 	/* Device configuration structure:
 	 */
 #ifdef DEVFS
@@ -314,7 +319,7 @@ done_and_start_next(struct ctlr *ctlr, struct buf *bp, int err)
 	ctlr->start_queue.b_actf = bp->b_actf;
 	bp_done(bp, err);
 
-	untimeout(tmo_stop, ctlr);
+	untimeout(tmo_stop, ctlr, ctlr->ch);
 
 	start(ctlr);
 }
@@ -388,7 +393,6 @@ labpcinit(void)
 	if (labpcs)
 	{
 		bzero(labpcs, NLABPC * sizeof(struct cltr *));
-		return 1;
 	}
 	return 0;
 }
@@ -464,6 +468,7 @@ labpcattach(struct isa_device *dev)
 {
 	struct ctlr *ctlr = labpcs[dev->id_unit];
 
+	callout_handle_init(&ctlr->ch);
 	ctlr->sample_us = (1000000.0 / (double)LABPC_DEFAULT_HERZ) + .50;
 	reset(ctlr);
 
@@ -796,7 +801,7 @@ start(struct ctlr *ctlr)
 		(*ctlr->intr)(ctlr);
 	}
 
-	timeout(tmo_stop, ctlr, ctlr->tmo);
+	ctlr->ch = timeout(tmo_stop, ctlr, ctlr->tmo);
 }
 
 static void

@@ -36,7 +36,7 @@
  *
  *	@(#)ipl.s
  *
- *	$Id: ipl.s,v 1.21 1997/09/07 21:47:45 smp Exp smp $
+ *	$Id: ipl.s,v 1.13 1997/09/07 22:02:56 fsmp Exp $
  */
 
 
@@ -55,9 +55,11 @@ _cpl:	.long	HWI_MASK | SWI_MASK
 	.globl	_tty_imask
 _tty_imask:	.long	0
 	.globl	_bio_imask
-_bio_imask:	.long	0
+_bio_imask:	.long	SWI_CAMBIO_MASK
+	.globl	_cam_imask
+_cam_imask:	.long	SWI_CAMBIO_MASK | SWI_CAMNET_MASK
 	.globl	_net_imask
-_net_imask:	.long	0
+_net_imask:	.long	SWI_CAMNET_MASK
 	.globl	_soft_imask
 _soft_imask:	.long	SWI_MASK
 	.globl	_softnet_imask
@@ -340,6 +342,11 @@ swi_net_done:
 dummynetisr:
 	MCOUNT
 	ret	
+
+	ALIGN_TEXT
+dummycamisr:
+	MCOUNT
+	ret
 
 /*
  * XXX there should be a registration function to put the handler for the

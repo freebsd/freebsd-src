@@ -250,6 +250,8 @@ static struct tw_sc {
   u_char sc_buf[TW_SIZE];	/* We buffer our own input */
   int sc_nextin;		/* Next free slot in circular buffer */
   int sc_nextout;		/* First used slot in circular buffer */
+				/* Callout for canceling our abortrcv timeout */
+  struct callout_handle abortrcv_ch;
 #ifdef HIRESTIME
   int sc_xtimes[22];		/* Times for bits in current xmit packet */
   int sc_rtimes[22];		/* Times for bits in current rcv packet */
@@ -391,6 +393,7 @@ static int twattach(idp)
   sc->sc_port = idp->id_iobase;
   sc->sc_state = 0;
   sc->sc_rcount = 0;
+  callout_handle_init(&sc->abortrcv_ch);
 
 #ifdef DEVFS
 	sc->devfs_token = 
@@ -948,13 +951,13 @@ int unit;
     sc->sc_bits = 0;
     sc->sc_rphase = newphase;
     /* 3 cycles of silence = 3/60 = 1/20 = 50 msec */
-    timeout(twabortrcv, (caddr_t)sc, hz/20);
+    sc->abortrcv_ch = timeout(twabortrcv, (caddr_t)sc, hz/20);
     sc->sc_rcv_time[0] = tv.tv_usec;
     sc->sc_no_rcv = 1;
     return;
   }
-  untimeout(twabortrcv, (caddr_t)sc);
-  timeout(twabortrcv, (caddr_t)sc, hz/20);
+  untimeout(twabortrcv, (caddr_t)sc, sc->abortrcv_ch);
+  sc->abortrcv_ch = timeout(twabortrcv, (caddr_t)sc, hz/20);
   newphase = inb(port + tw_zcport) & tw_zcmask;
 
   /* enforce a minimum delay since the last interrupt */
@@ -988,7 +991,7 @@ int unit;
        */
       sc->sc_state &= ~TWS_RCVING;
       sc->sc_flags |= TW_RCV_ERROR;
-      untimeout(twabortrcv, (caddr_t)sc);
+      untimeout(twabortrcv, (caddr_t)sc, sc->abortrcv_ch);
       log(LOG_ERR, "TWRCV: Invalid start code\n");
       twdebugtimes(sc);
       sc->sc_no_rcv = 0;
@@ -1076,7 +1079,7 @@ int unit;
     }
     sc->sc_state &= ~TWS_RCVING;
     twputpkt(sc, pkt);
-    untimeout(twabortrcv, (caddr_t)sc);
+    untimeout(twabortrcv, (caddr_t)sc, sc->abortrcv_ch);
     if(sc->sc_flags & TW_RCV_ERROR) {
       log(LOG_ERR, "TWRCV: invalid packet: (%d, %x) %c %d\n",
 	  sc->sc_rcount, sc->sc_bits, 'A' + pkt[1], X10_KEY_LABEL[pkt[2]]);
