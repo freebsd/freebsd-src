@@ -86,6 +86,8 @@ int	 fnmatch(const char *, const char *, int);
 int	 locc(int, char *, u_int);
 void	 qsort(void *base, size_t nmemb, size_t size,
 	    int (*compar)(const void *, const void *));
+void	 qsort_r(void *base, size_t nmemb, size_t size, void *thunk,
+	    int (*compar)(void *, const void *, const void *));
 u_long	 random(void);
 char	*index(const char *, int);
 char	*rindex(const char *, int);
