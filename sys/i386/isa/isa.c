@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: isa.c,v 1.95 1997/07/20 14:10:03 bde Exp $
+ *	$Id: isa.c,v 1.96 1997/07/24 05:27:39 msmith Exp $
  */
 
 /*
@@ -905,8 +905,9 @@ int
 isa_dmastatus(int chan)
 {
 	u_long	cnt = 0;
-	int	ffport, waport, s;
+	int	ffport, waport;
 	u_long	low, high, low2, high2;
+	u_long	ef;
 
 	/* channel active? */
 	if (dma_inuse & (1 << chan) == 0) {
@@ -927,14 +928,15 @@ isa_dmastatus(int chan)
 		waport = DMA2_CHN(chan - 4) + 2;
 	}
 
-	s = splhigh();			/* no interrupts Mr Jones! */
+	ef = read_eflags();		/* get current flags */
+	disable_intr();			/* no interrupts Mr Jones! */
 	outb(ffport, 0);		/* clear register LSB flipflop */
 	low = inb(waport);
 	high = inb(waport);
 	outb(ffport, 0);		/* clear again (paranoia?) */
 	low2 = inb(waport);
 	high2 = inb(waport);
-	splx(s);
+	write_eflags(ef);		/* restore flags */
 
 	/* now decide if a wrap has tried to skew our results */
 	if (low >= low2) {
