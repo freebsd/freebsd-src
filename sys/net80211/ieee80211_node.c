@@ -758,17 +758,20 @@ ieee80211_sta_join(struct ieee80211com *ic, struct ieee80211_node *selbs)
 			return 0;
 		}
 		/*
-		 * Create the neighbor table.
+		 * Create the neighbor table; it will already
+		 * exist if we are simply switching mastership.
 		 */
-		ic->ic_sta = ieee80211_node_table_alloc(ic,
+		if (ic->ic_sta == NULL) {
+			ic->ic_sta = ieee80211_node_table_alloc(ic,
 					"neighbor", ic->ic_inact_run,
 					ieee80211_timeout_stations);
-		if (ic->ic_sta == NULL) {
-			/*
-			 * Should remain in SCAN state and retry.
-			 */
-			/* XXX stat+msg */
-			return 0;
+			if (ic->ic_sta == NULL) {
+				/*
+				 * Should remain in SCAN state and retry.
+				 */
+				/* XXX stat+msg */
+				return 0;
+			}
 		}
 	}
 
