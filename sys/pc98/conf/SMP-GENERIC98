@@ -11,7 +11,7 @@
 # device lines is present in the ./LINT configuration file. If you are 
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-#	$Id$
+#	$Id: SMP-GENERIC98,v 1.1 1998/05/04 07:58:36 kato Exp $
 
 # GENERIC98 -- Generic PC98 machine with WD/SCSI disks
 
@@ -98,6 +98,7 @@ device		wcd0	#IDE CD-ROM
 # A single entry for any of these controllers (ncr, ahb, ahc) is sufficient
 # for any number of installed devices.
 controller	ncr0
+controller	amd0
 controller	ahc0
 controller	isp0
 
