@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.45 1995/09/08 14:29:48 se Exp $
+**  $Id: ncr.c,v 1.46 1995/09/08 19:30:11 se Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -977,6 +977,7 @@ struct ncb {
 	**	A copy of the script, relocated for this ncb.
 	*/
 	struct script	*script;
+	u_long		p_script;
 
 	/*
 	**	The SCSI address of the host adapter.
@@ -1258,7 +1259,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 1.45 1995/09/08 14:29:48 se Exp $\n";
+	"\n$Id: ncr.c,v 1.46 1995/09/08 19:30:11 se Exp $\n";
 
 u_long	ncr_version = NCR_VERSION	* 11
 	+ (u_long) sizeof (struct ncb)	*  7
@@ -2982,8 +2983,15 @@ static void ncr_script_copy_and_bind (struct script *script, ncb_p np)
 	ncrcmd	*src, *dst, *start, *end;
 	int relocs;
 
+#ifndef __NetBSD__
 	np->script = (struct script*) vm_page_alloc_contig 
 	(round_page(sizeof (struct script)), 0x100000, 0xffffffff, PAGE_SIZE);
+#else  /* !__NetBSD___ */
+	np->script = (struct script *)
+		malloc (sizeof (struct script), M_DEVBUF, M_WAITOK);
+#endif /* __NetBSD__ */
+
+	np->p_script = vtophys(np->script);
 
 	src = script->start;
 	dst = np->script->start;
@@ -3429,11 +3437,11 @@ static	void ncr_attach (pcici_t config_id, int unit)
 #else /* !__NetBSD__ */
 	np->sc_link.adapter_unit = unit;
 	np->sc_link.adapter_targ = np->myaddr;
+	np->sc_link.fordriver	 = 0;
 #endif /* !__NetBSD__ */
 	np->sc_link.adapter      = &ncr_switch;
 	np->sc_link.device       = &ncr_dev;
 	np->sc_link.flags	 = 0;
-	np->sc_link.fordriver	 = 0;
 
 #ifdef __NetBSD__
 	config_found(self, &np->sc_link, ncr_print);
