@@ -3,7 +3,7 @@
 #
 # modified for PC-9801
 #
-#	$Id: files.pc98,v 1.42 1997/11/27 10:14:54 kato Exp $
+#	$Id: files.pc98,v 1.43 1997/12/02 08:20:34 kato Exp $
 #
 #
 # The long compile-with and dependency lines are required because of
@@ -98,6 +98,7 @@ i386/isa/bs/bshw.c		optional	bs	device-driver
 i386/isa/bs/bsif.c		optional	bs	device-driver
 i386/isa/aha1542.c		optional	aha	device-driver
 i386/isa/aic6360.c		optional	aic	device-driver
+i386/isa/alog.c                 optional        alog    device-driver
 i386/isa/b004.c		optional	bqu	device-driver
 i386/isa/bt742a.c		optional	bt	device-driver
 i386/isa/bt5xx-445.c		optional	bt	device-driver
