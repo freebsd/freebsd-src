@@ -117,7 +117,10 @@
     <sect3>
       <title>Processor/Motherboard Support</title>
 
-      <para></para>
+      <para arch="i386">Support for the AMD &Eacute;lan SC520 has been
+	added; this requires the <literal>CPU_ELAN</literal> option in
+	the kernel configuration file.</para>
+
     </sect3>
 
     <sect3>
@@ -200,6 +203,9 @@
         correctly.  This fixes numerous <literal>READ_BIG</literal>
         and other errors that occurred when accessing certain ATA
         devices.</para>
+
+      <para>The &man.ata.4; driver now has support for the Sil 0680
+        and VIA 8233/8235 controllers.</para>
 
       <para arch="i386,alpha">The mpt driver, for
 	supporting the LSI Logic Fusion/MP architecture Fiber Channel
