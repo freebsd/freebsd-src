@@ -206,10 +206,10 @@ ac97_setrate(struct ac97_info *codec, int which, int rate)
 	u_int16_t v;
 
 	switch(which) {
-	case AC97_REGEXT_FDACRATE:
+	case AC97_REGEXT_FDACRATE: 
 	case AC97_REGEXT_SDACRATE:
 	case AC97_REGEXT_LDACRATE:
-	case AC97_REGEXT_LADCRATE:
+	case AC97_REGEXT_LADCRATE: 
 	case AC97_REGEXT_MADCRATE:
 		break;
 
@@ -235,8 +235,11 @@ int
 ac97_setextmode(struct ac97_info *codec, u_int16_t mode)
 {
 	mode &= AC97_EXTCAPS;
-	if ((mode & ~codec->extcaps) != 0)
+	if ((mode & ~codec->extcaps) != 0) {
+		device_printf(codec->dev, "ac97 invalid mode set 0x%04x\n", 
+			      mode);
 		return -1;
+	}
 	snd_mtxlock(codec->lock);
 	wrcd(codec, AC97_REGEXT_STAT, mode);
 	codec->extstat = rdcd(codec, AC97_REGEXT_STAT) & AC97_EXTCAPS;
