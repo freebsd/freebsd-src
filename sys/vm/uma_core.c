@@ -1123,15 +1123,15 @@ zone_dtor(void *arg, int size, void *udata)
 
 	zone = (uma_zone_t)arg;
 
-	mtx_lock(&uma_mtx);
-	LIST_REMOVE(zone, uz_link);
-	mtx_unlock(&uma_mtx);
-
 	ZONE_LOCK(zone);
 	zone->uz_wssize = 0;
 	ZONE_UNLOCK(zone);
 
+	mtx_lock(&uma_mtx);
+	LIST_REMOVE(zone, uz_link);
 	zone_drain(zone);
+	mtx_unlock(&uma_mtx);
+
 	ZONE_LOCK(zone);
 	if (zone->uz_free != 0)
 		printf("Zone %s was not empty.  Lost %d pages of memory.\n",
