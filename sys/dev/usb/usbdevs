@@ -567,6 +567,9 @@ product CREATIVE NOMAD_II	0x1002	Nomad II MP3 player
 
 /* Crystalfontz products */
 product FTDI CFA_631		0xfc0c	Crystalfontz CFA-631 USB LCD
+product FTDI CFA_632		0xfc08	Crystalfontz CFA-632 USB LCD
+product FTDI CFA_633		0xfc0b	Crystalfontz CFA-633 USB LCD
+product FTDI CFA_634		0xfc09	Crystalfontz CFA-634 USB LCD
 
 /* Cambridge Silicon Radio Ltd. products */
 product CSR BT_DONGLE		0x0001	Bluetooth USB dongle
