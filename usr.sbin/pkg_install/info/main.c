@@ -28,7 +28,7 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif
 
-static char Options[] = "acdDe:fgGhiIkl:LmopqrRst:vW:x";
+static char Options[] = "acdDe:fgGhiIkl:LmopqrRst:vVW:x";
 
 int	Flags		= 0;
 match_t	MatchType	= MATCH_GLOB;
@@ -134,6 +134,10 @@ main(int argc, char **argv)
 	    Flags |= SHOW_ORIGIN;
 	    break;
 
+	case 'V':
+	    Flags |= SHOW_FMTREV;
+	    break;
+
 	case 'l':
 	    InfoPrefix = optarg;
 	    break;
@@ -216,7 +220,7 @@ static void
 usage()
 {
     fprintf(stderr, "%s\n%s\n%s\n",
-	"usage: pkg_info [-cdDfGiIkLmopqrRsvx] [-e package] [-l prefix]",
+	"usage: pkg_info [-cdDfGiIkLmopqrRsvVx] [-e package] [-l prefix]",
 	"                [-t template] [-W filename] [pkg-name ...]",
 	"       pkg_info -a [flags]");
     exit(1);
