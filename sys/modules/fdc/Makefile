@@ -3,12 +3,16 @@
 .if ${MACHINE} == "pc98"
 .PATH:  ${.CURDIR}/../../pc98/pc98
 .else
-.PATH:  ${.CURDIR}/../../isa
+.PATH:  ${.CURDIR}/../../dev/fdc
 .endif
 
 KMOD=	fdc
-SRCS=	fd.c \
-	opt_fdc.h card.h \
+.if ${MACHINE} == "pc98"
+SRCS=	fd.c
+.else
+SRCS=	fdc.c
+.endif
+SRCS+=	opt_fdc.h card.h \
 	bus_if.h card_if.h device_if.h isa_if.h
 
 FDC_DEBUG?=	0	# 0/1
