@@ -1677,8 +1677,8 @@ void *ifp;
 	for (is = ips_list; is; is = is->is_next) {
 		for (i = 0; i < 4; i++) {
 			if (is->is_ifp[i] == ifp) {
-				is->is_ifpin = GETUNIT(is->is_ifname[i],
-						       is->is_v);
+				is->is_ifp[i] = GETUNIT(is->is_ifname[i],
+							is->is_v);
 				if (!is->is_ifp[i])
 					is->is_ifp[i] = (void *)-1;
 			}
@@ -1845,17 +1845,41 @@ int dir, fsm;
 			state[dir] = TCPS_SYN_SENT;
 			newage = fr_tcptimeout;
 		}
+		
+		/* 
+		 * It is apparently possible that a hosts sends two syncs
+		 * before the remote party is able to respond with a SA. In
+		 * such a case the remote server sometimes ACK's the second
+		 * sync, and then responds with a SA. The following code
+		 * is used to prevent this ack from being blocked.
+		 *
+		 * We do not reset the timeout here to fr_tcptimeout because
+		 * a connection connect timeout does not renew after every
+		 * packet that is sent.  We need to set newage to something
+		 * to indicate the packet has passed the check for its flags
+		 * being valid in the TCP FSM.
+		 */
+		else if ((ostate == TCPS_SYN_SENT) &&
+		         ((flags & (TH_FIN|TH_SYN|TH_RST|TH_ACK)) == TH_ACK)) {
+			newage = *age;
+		}
+
 		/*
 		 * The next piece of code makes it possible to get
 		 * already established connections into the state table
 		 * after a restart or reload of the filter rules; this
 		 * does not work when a strict 'flags S keep state' is
-		 * used for tcp connections of course
+		 * used for tcp connections of course, however, use a
+		 * lower time-out so the state disappears quickly if
+		 * the other side does not pick it up.
 		 */
-		if (!fsm && (flags & (TH_FIN|TH_SYN|TH_RST|TH_ACK)) == TH_ACK) {
+		else if (!fsm &&
+			 (flags & (TH_FIN|TH_SYN|TH_RST|TH_ACK)) == TH_ACK) {
 			/* we saw an A, guess 'dir' is in ESTABLISHED mode */
-			if (state[1 - dir] == TCPS_CLOSED ||
-			    state[1 - dir] == TCPS_ESTABLISHED) {
+			if (ostate == TCPS_CLOSED) {
+				state[dir] = TCPS_ESTABLISHED;
+				newage = fr_tcptimeout;
+			} else if (ostate == TCPS_ESTABLISHED) {
 				state[dir] = TCPS_ESTABLISHED;
 				newage = fr_tcpidletimeout;
 			}
