@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.38 1997/09/20 05:28:02 kato Exp $
+ *	$Id: sio.c,v 1.39 1997/09/22 12:23:49 kato Exp $
  */
 
 #include "opt_comconsole.h"
@@ -131,13 +131,13 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/reboot.h>
+#include <sys/malloc.h>
 #include <sys/tty.h>
 #include <sys/proc.h>
 #include <sys/conf.h>
 #include <sys/dkstat.h>
 #include <sys/fcntl.h>
 #include <sys/kernel.h>
-#include <sys/malloc.h>
 #include <sys/syslog.h>
 #include <sys/sysctl.h>
 #ifdef DEVFS
