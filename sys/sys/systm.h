@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)systm.h	8.4 (Berkeley) 2/23/94
- * $Id: systm.h,v 1.4 1994/08/04 06:15:10 davidg Exp $
+ * $Id: systm.h,v 1.5 1994/08/05 09:28:55 davidg Exp $
  */
 
 #include <machine/cpufunc.h>
@@ -113,9 +113,11 @@ int	seltrue __P((dev_t dev, int which, struct proc *p));
 void	*hashinit __P((int count, int type, u_long *hashmask));
 
 #ifdef __GNUC__
-volatile void	panic __P((const char *, ...));
+__dead void	panic __P((const char *, ...)) __dead2;
+__dead void	boot __P((int)) __dead2;
 #else
 void	panic __P((const char *, ...));
+void	boot __P((int));
 #endif
 void	tablefull __P((const char *));
 void	addlog __P((const char *, ...));
