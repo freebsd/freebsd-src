@@ -38,48 +38,35 @@
 
 #define	POSIX1E_CAPABILITY_EXTATTR_NAME	"$posix1e.cap"
 
-#define	__CAP_MASK_LEN	2
-
 typedef int	cap_flag_t;
 typedef int	cap_flag_value_t;
-typedef u_int	cap_value_t;
+typedef u_int64_t	cap_value_t;
 
 struct cap {
-	u_int	c_effective[__CAP_MASK_LEN];
-	u_int	c_permitted[__CAP_MASK_LEN];
-	u_int	c_inheritable[__CAP_MASK_LEN];
+	u_int64_t	c_effective;
+	u_int64_t	c_permitted;
+	u_int64_t	c_inheritable;
 };
 typedef struct cap	*cap_t;
 
-#define	CAP_TYPE_MASK		0xff
-#define	CAP_MIN_TYPE		POSIX1E_CAPABILITY
-#define	POSIX1E_CAPABILITY	0x00
-#define	SYSTEM_CAPABILITY	0x01
-#define	CAP_MAX_TYPE		SYSTEM_CAPABILITY
-
 #define	SET_CAPABILITY(mask, cap) do { \
-	(mask)[(cap) & CAP_TYPE_MASK] |= (cap) & ~CAP_TYPE_MASK; \
+	(mask) |= cap; \
 	} while (0)
 
 #define	UNSET_CAPABILITY(mask, cap) do { \
-	(mask)[(cap) & CAP_TYPE_MASK] &= ~(cap) & ~CAP_TYPE_MASK; \
+	(mask) &= ~(cap); \
 	} while (0)
 
 #define	IS_CAP_SET(mask, cap) \
-	((mask)[(cap) & CAP_TYPE_MASK] & (cap) & ~CAP_TYPE_MASK)
+	((mask) & (cap))
 
 /*
  * Is (tcap) a logical subset of (scap)?
  */
 #define	CAP_SUBSET(scap,tcap) \
-	((((scap).c_permitted[0] | (tcap).c_permitted[0]) \
-	 == (scap).c_permitted[0]) && \
-	 (((tcap.c_permitted[0] | (tcap).c_effective[0]) \
-	 == (tcap).c_permitted[0]) && \
-	 (((scap).c_permitted[1] | (tcap).c_permitted[1]) \
-	 == (scap).c_permitted[1])  && \
-	 (((tcap).c_permitted[1] | (tcap).c_effective[1]) \
-	 == (tcap).c_permitted[1]))
+	(((scap).c_permitted | (tcap).c_permitted == (scap).c_permitted) && \
+	((scap).c_effective | (tcap).c_effective == (scap).c_effective) && \
+	((scap).c_inheritable | (tcap).c_inheritable == (scap).c_inheritable))
 
 /*
  * Possible flags for a particular capability.
@@ -97,71 +84,92 @@ typedef struct cap	*cap_t;
 /*
  * Possible capability values, both BSD/LINUX and POSIX.1e.
  */
-#define	CAP_CHOWN		(0x00000100 | POSIX1E_CAPABILITY)
-#define	CAP_DAC_EXECUTE		(0x00000200 | POSIX1E_CAPABILITY)
-#define	CAP_DAC_WRITE		(0x00000400 | POSIX1E_CAPABILITY)
-#define	CAP_DAC_READ_SEARCH	(0x00000800 | POSIX1E_CAPABILITY)
-#define	CAP_FOWNER		(0x00001000 | POSIX1E_CAPABILITY)
-#define	CAP_FSETID		(0x00002000 | POSIX1E_CAPABILITY)
-#define	CAP_KILL		(0x00004000 | POSIX1E_CAPABILITY)
-#define	CAP_LINK_DIR		(0x00008000 | POSIX1E_CAPABILITY)
-#define	CAP_SETFCAP		(0x00010000 | POSIX1E_CAPABILITY)
-#define	CAP_SETGID		(0x00020000 | POSIX1E_CAPABILITY)
-#define	CAP_SETUID		(0x00040000 | POSIX1E_CAPABILITY)
-#define	CAP_MAC_DOWNGRADE	(0x00080000 | POSIX1E_CAPABILITY)
-#define	CAP_MAC_READ		(0x00100000 | POSIX1E_CAPABILITY)
-#define	CAP_MAC_RELABEL_SUBJ	(0x00200000 | POSIX1E_CAPABILITY)
-#define	CAP_MAC_UPGRADE		(0x00400000 | POSIX1E_CAPABILITY)
-#define	CAP_MAC_WRITE		(0x00800000 | POSIX1E_CAPABILITY)
-#define	CAP_INF_NOFLOAT_OBJ	(0x01000000 | POSIX1E_CAPABILITY)
-#define	CAP_INF_NOFLOAT_SUBJ	(0x02000000 | POSIX1E_CAPABILITY)
-#define	CAP_INF_RELABEL_OBJ	(0x04000000 | POSIX1E_CAPABILITY)
-#define	CAP_INF_RELABEL_SUBJ	(0x08000000 | POSIX1E_CAPABILITY)
-#define	CAP_AUDIT_CONTROL	(0x10000000 | POSIX1E_CAPABILITY)
-#define	CAP_AUDIT_WRITE		(0x20000000 | POSIX1E_CAPABILITY)
+#define	CAP_CHOWN		(0x0000000000000001)
+#define	CAP_DAC_EXECUTE		(0x0000000000000002)
+#define	CAP_DAC_WRITE		(0x0000000000000004)
+#define	CAP_DAC_READ_SEARCH	(0x0000000000000008)
+#define	CAP_FOWNER		(0x0000000000000010)
+#define	CAP_FSETID		(0x0000000000000020)
+#define	CAP_KILL		(0x0000000000000040)
+#define	CAP_LINK_DIR		(0x0000000000000080)
+#define	CAP_SETFCAP		(0x0000000000000100)
+#define	CAP_SETGID		(0x0000000000000200)
+#define	CAP_SETUID		(0x0000000000000400)
+#define	CAP_MAC_DOWNGRADE	(0x0000000000000800)
+#define	CAP_MAC_READ		(0x0000000000001000)
+#define	CAP_MAC_RELABEL_SUBJ	(0x0000000000002000)
+#define	CAP_MAC_UPGRADE		(0x0000000000004000)
+#define	CAP_MAC_WRITE		(0x0000000000008000)
+#define	CAP_INF_NOFLOAT_OBJ	(0x0000000000010000)
+#define	CAP_INF_NOFLOAT_SUBJ	(0x0000000000020000)
+#define	CAP_INF_RELABEL_OBJ	(0x0000000000040000)
+#define	CAP_INF_RELABEL_SUBJ	(0x0000000000080000)
+#define	CAP_AUDIT_CONTROL	(0x0000000000100000)
+#define	CAP_AUDIT_WRITE		(0x0000000000200000)
 
 /*
  * The following capability, borrowed from Linux, is unsafe
  */
-#define	CAP_SETPCAP		(0x00000100 | SYSTEM_CAPABILITY)
+#define	CAP_SETPCAP		(0x0000000000400000)
+/* This is unallocated: */
+#define	CAP_XXX_INVALID1	(0x0000000000800000)
+#define	CAP_SYS_SETFFLAG	(0x0000000001000000)
 /*
- * The following capability, borrowed from Linux, is not appropriate
- * in the BSD file environment
- * #define	CAP_LINUX_IMMUTABLE	(0x00000200 | SYSTEM_CAPABILITY)
+ * The CAP_LINUX_IMMUTABLE flag approximately maps into the
+ * general file flag setting capability in BSD.  Therfore, for
+ * compatibility, map the constants.
  */
-#define	CAP_BSD_SETFFLAG	(0x00000200 | SYSTEM_CAPABILITY)
-#define	CAP_NET_BIND_SERVICE	(0x00000400 | SYSTEM_CAPABILITY)
-#define	CAP_NET_BROADCAST	(0x00000800 | SYSTEM_CAPABILITY)
-#define	CAP_NET_ADMIN		(0x00001000 | SYSTEM_CAPABILITY)
-#define	CAP_NET_RAW		(0x00002000 | SYSTEM_CAPABILITY)
-#define	CAP_IPC_LOCK		(0x00004000 | SYSTEM_CAPABILITY)
-#define	CAP_IPC_OWNER		(0x00008000 | SYSTEM_CAPABILITY)
+#define	CAP_LINUX_IMMUTABLE	CAP_SYS_SETFFLAG
+#define	CAP_NET_BIND_SERVICE	(0x0000000002000000)
+#define	CAP_NET_BROADCAST	(0x0000000004000000)
+#define	CAP_NET_ADMIN		(0x0000000008000000)
+#define	CAP_NET_RAW		(0x0000000010000000)
+#define	CAP_IPC_LOCK		(0x0000000020000000)
+#define	CAP_IPC_OWNER		(0x0000000040000000)
 /*
  * The following capabilities, borrowed from Linux, are unsafe in a
  * secure environment.
  *
- * #define	CAP_SYS_MODULE		(0x00010000 | SYSTEM_CAPABILITY)
- * #define	CAP_SYS_RAWIO		(0x00020000 | SYSTEM_CAPABILITY)
- * #define	CAP_SYS_CHROOT		(0x00040000 | SYSTEM_CAPABILITY)
- * #define	CAP_SYS_PTRACE		(0x00080000 | SYSTEM_CAPABILITY)
  */
-#define	CAP_SYS_PACCT		(0x00100000 | SYSTEM_CAPABILITY)
-#define	CAP_SYS_ADMIN		(0x00200000 | SYSTEM_CAPABILITY)
-#define	CAP_SYS_BOOT		(0x00400000 | SYSTEM_CAPABILITY)
-#define	CAP_SYS_NICE		(0x00800000 | SYSTEM_CAPABILITY)
-#define	CAP_SYS_RESOURCE	(0x01000000 | SYSTEM_CAPABILITY)
-#define	CAP_SYS_TIME		(0x02000000 | SYSTEM_CAPABILITY)
-#define	CAP_SYS_TTY_CONFIG	(0x04000000 | SYSTEM_CAPABILITY)
+#define	CAP_SYS_MODULE		(0x0000000080000000)
+#define	CAP_SYS_RAWIO		(0x0000000100000000)
+#define	CAP_SYS_CHROOT		(0x0000000200000000)
+#define	CAP_SYS_PTRACE		(0x0000000400000000)
+#define	CAP_SYS_PACCT		(0x0000000800000000)
+#define	CAP_SYS_ADMIN		(0x0000001000000000)
+/*
+ * Back to the safe ones, again
+ */
+#define	CAP_SYS_BOOT		(0x0000002000000000)
+#define	CAP_SYS_NICE		(0x0000004000000000)
+#define	CAP_SYS_RESOURCE	(0x0000008000000000)
+#define	CAP_SYS_TIME		(0x0000010000000000)
+#define	CAP_SYS_TTY_CONFIG	(0x0000020000000000)
+#define	CAP_MKNOD		(0x0000040000000000)
+#define	CAP_MAX_ID		CAP_MKNOD
+
+#define	CAP_ALL_ON	(CAP_CHOWN | CAP_DAC_EXECUTE | CAP_DAC_WRITE | \
+    CAP_DAC_READ_SEARCH | CAP_FOWNER | CAP_FSETID | CAP_KILL | CAP_LINK_DIR | \
+    CAP_SETFCAP | CAP_SETGID | CAP_SETUID | CAP_MAC_DOWNGRADE | \
+    CAP_MAC_READ | CAP_MAC_RELABEL_SUBJ | CAP_MAC_UPGRADE | \
+    CAP_MAC_WRITE | CAP_INF_NOFLOAT_OBJ | CAP_INF_NOFLOAT_SUBJ | \
+    CAP_INF_RELABEL_OBJ | CAP_INF_RELABEL_SUBJ | CAP_AUDIT_CONTROL | \
+    CAP_AUDIT_WRITE | CAP_SETPCAP | CAP_SYS_SETFFLAG | CAP_NET_BIND_SERVICE | \
+    CAP_NET_BROADCAST | CAP_NET_ADMIN | CAP_NET_RAW | CAP_IPC_LOCK | \
+    CAP_IPC_OWNER | CAP_SYS_MODULE | CAP_SYS_RAWIO | CAP_SYS_CHROOT | \
+    CAP_SYS_PTRACE | CAP_SYS_PACCT | CAP_SYS_ADMIN | CAP_SYS_BOOT | \
+    CAP_SYS_NICE | CAP_SYS_RESOURCE | CAP_SYS_TIME | CAP_SYS_TTY_CONFIG | \
+    CAP_MKNOD)
+#define	CAP_ALL_OFF	(0)
 
 #ifdef _KERNEL
 
 struct proc;
 struct ucred;
 struct vnode;
-int	cap_check(struct proc *, cap_value_t);
-int	cap_check_xxx(struct ucred *, struct proc *, cap_value_t, int);
+int	cap_check(const struct ucred *, const struct proc *, cap_value_t, int);
 int	cap_change_on_inherit(struct cap *cap_p);
-void	cap_inherit(struct vnode *vp, struct proc *p);
+int	cap_inherit(struct vnode *vp, struct proc *p);
 void	cap_init_proc0(struct cap *);
 void	cap_init_proc1(struct cap *);
 
