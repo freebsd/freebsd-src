@@ -222,7 +222,6 @@ cardbus_attach_card(device_t cbdev)
 
 			cardbus_device_setup_regs(brdev, bus, slot, func,
 			    &dinfo->pci.cfg);
-			pci_print_verbose(&dinfo->pci);
 			dinfo->pci.cfg.dev = device_add_child(cbdev, NULL, -1);
 			if (!dinfo->pci.cfg.dev) {
 				DEVPRINTF((cbdev, "Cannot add child!\n"));
@@ -232,6 +231,7 @@ cardbus_attach_card(device_t cbdev)
 			resource_list_init(&dinfo->pci.resources);
 			device_set_ivars(dinfo->pci.cfg.dev, dinfo);
 			cardbus_do_cis(cbdev, dinfo->pci.cfg.dev);
+			pci_print_verbose(&dinfo->pci);
 			if (device_probe_and_attach(dinfo->pci.cfg.dev) != 0)
 				cardbus_release_all_resources(cbdev, dinfo);
 			else
