@@ -135,6 +135,9 @@ copy_hierarchy(char *dir, char *fname, Boolean to)
     }
     else
 	sprintf(cmd, "tar cf - %s | tar xpf - -C %s", fname, dir);
+#ifdef DEBUG
+    printf("Using '%s' to copy trees.\n", cmd);
+#endif
     if (system(cmd))
 	barf("copy_file: Couldn't perform '%s'", cmd);
 }

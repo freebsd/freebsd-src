@@ -94,6 +94,38 @@ in_plist(Package *pkg, plist_t type)
     return FALSE;
 }
     
+/*
+ * Delete plist item 'type' in the list (if 'name' is non-null, match it
+ * too.)  If 'all' is set, delete all items, not just the first occurance.
+ */
+void
+delete_plist(Package *pkg, Boolean all, plist_t type, char *name)
+{
+    PackingList p = pkg->head;
+
+    while (p) {
+	PackingList pnext = p->next;
+
+	if (p->type == type && (!name || !strcmp(name, p->name))) {
+	    free(p->name);
+	    if (p->prev)
+		p->prev->next = pnext;
+	    else
+		pkg->head = pnext;
+	    if (pnext)
+		pnext->prev = p->prev;
+	    else
+		pkg->tail = p->prev;
+	    free(p);
+	    if (!all)
+		return;
+	    p = pnext;
+	}
+	else
+	    p = p->next;
+    }
+}
+    
 /* Allocate a new packing list entry */
 PackingList
 new_plist_entry(void)
