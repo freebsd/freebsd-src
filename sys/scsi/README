@@ -32,7 +32,6 @@ scsi/cd.c
 i386/conf/SCSITEST
 i386/isa/aha1542.c
 
-README.AHA1742
 i386/conf/AHBTEST
 i386/isa/aha1742.c
 
