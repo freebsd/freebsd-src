@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *      $Id: wfd.c,v 1.2 1998/01/16 22:43:33 pst Exp $
+ *      $Id: wfd.c,v 1.3 1998/01/27 16:49:35 msmith Exp $
  */
 
 /*
@@ -246,7 +246,7 @@ wfdattach (struct atapi *ata, int unit, struct atapi_params *ap, int debug)
 	 */
 	if (!strcmp(ap->model, "IOMEGA  ZIP 100       ATAPI")) {
 		printf("wfd%d: buggy Zip drive, 64-block transfer limit set\n",
-		       unit);
+		       t->lun);
 		t->maxblks = 64;
 	} else {
 		t->maxblks = 0;	/* no limit */
@@ -255,13 +255,13 @@ wfdattach (struct atapi *ata, int unit, struct atapi_params *ap, int debug)
 	
 
 #ifdef DEVFS
-	mynor = dkmakeminor(unit, WHOLE_DISK_SLICE, RAW_PART);
+	mynor = dkmakeminor(t->lun, WHOLE_DISK_SLICE, RAW_PART);
 	t->bdevs = devfs_add_devswf(&wfd_bdevsw, mynor, 
 				    DV_BLK, UID_ROOT, GID_OPERATOR, 0640,
-				    "wfd%d", unit);
+				    "wfd%d", t->lun);
 	t->cdevs = devfs_add_devswf(&wfd_cdevsw, mynor, 
 				    DV_CHR, UID_ROOT, GID_OPERATOR, 0640,
-				    "rwfd%d", unit);
+				    "rwfd%d", t->lun);
 #endif /* DEVFS */
 	return (1);
 }
