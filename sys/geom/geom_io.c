@@ -109,8 +109,6 @@ g_bioq_enqueue_tail(struct bio *bp, struct g_bioq *rq)
 	g_bioq_unlock(rq);
 }
 
-MALLOC_DEFINE(M_GEOMBIO, "GEOM bio", "Geom bio");
-
 struct bio *
 g_new_bio(void)
 {
@@ -120,7 +118,7 @@ g_new_bio(void)
 	bp = g_bioq_first(&g_bio_idle);
 	g_bioq_unlock(&g_bio_idle);
 	if (bp == NULL)
-		bp = malloc(sizeof *bp, M_GEOMBIO, M_NOWAIT | M_ZERO);
+		bp = g_malloc(sizeof *bp, M_NOWAIT | M_ZERO);
 	/* g_trace(G_T_BIO, "g_new_bio() = %p", bp); */
 	return (bp);
 }
@@ -129,13 +127,9 @@ void
 g_destroy_bio(struct bio *bp)
 {
 
-#if 0
 	/* g_trace(G_T_BIO, "g_destroy_bio(%p)", bp); */
 	bzero(bp, sizeof *bp);
 	g_bioq_enqueue_tail(bp, &g_bio_idle);
-#else
-	free(bp, M_GEOMBIO);
-#endif
 }
 
 struct bio *
