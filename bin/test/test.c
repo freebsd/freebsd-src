@@ -21,6 +21,7 @@ static const char rcsid[] =
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
+#include <inttypes.h>
 #include <limits.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -170,7 +171,7 @@ static int	binop(void);
 static int	equalf(const char *, const char *);
 static int	filstat(char *, enum token);
 static int	getn(const char *);
-static long long	getq(const char *);
+static intmax_t	getq(const char *);
 static int	intcmp(const char *, const char *);
 static int	isoperand(void);
 static int	newerf(const char *, const char *);
@@ -474,14 +475,14 @@ getn(const char *s)
 }
 
 /* atoi with error detection and 64 bit range */
-static long long
+static intmax_t
 getq(const char *s)
 {
 	char *p;
-	long long r;
+	intmax_t r;
 
 	errno = 0;
-	r = strtoll(s, &p, 10);
+	r = strtoimax(s, &p, 10);
 
 	if (s == p)
 		error("%s: bad number", s);
@@ -502,7 +503,7 @@ getq(const char *s)
 static int
 intcmp (const char *s1, const char *s2)
 {
-	long long q1, q2;
+	intmax_t q1, q2;
 
 
 	q1 = getq(s1);
