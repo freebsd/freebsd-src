@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumrequest.c,v 1.22 1999/01/17 06:15:46 grog Exp grog $
+ * $Id: vinumrequest.c,v 1.23 1999/03/20 21:58:38 grog Exp grog $
  */
 
 #define REALLYKERNEL
@@ -343,7 +343,7 @@ launch_requests(struct request *rq, int reviveok)
     rq->active = 0;					    /* nothing yet */
     /* XXX This is probably due to a bug */
     if (rq->rqg == NULL) {				    /* no request */
-	log(LOG_ERR, "vinum: null rqg");
+	log(LOG_ERR, "vinum: null rqg\n");
 	abortrequest(rq, EINVAL);
 	return -1;
     }
@@ -591,7 +591,7 @@ bre(struct request *rq,
 
 
     default:
-	log(LOG_ERR, "vinum: invalid plex type %d in bre", plex->organization);
+	log(LOG_ERR, "vinum: invalid plex type %d in bre\n", plex->organization);
     }
 
     return status;
