@@ -1,74 +1,47 @@
-/* $Header: util.h,v 2.0 86/09/17 15:40:06 lwall Exp $
- *
- * $Log:	util.h,v $
- * Revision 2.0  86/09/17  15:40:06  lwall
- * Baseline for netwide release.
+/*	$OpenBSD: util.h,v 1.12 2003/10/31 20:20:45 millert Exp $	*/
+
+/*
+ * patch - a program to apply diffs to original files
  * 
+ * Copyright 1986, Larry Wall
+ * 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following condition is met:
+ * 1. Redistributions of source code must retain the above copyright notice,
+ * this condition and the following disclaimer.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY
+ * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
+ * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ * 
+ * -C option added in 1998, original code by Marc Espie, based on FreeBSD
+ * behaviour
  */
 
-/* and for those machine that can't handle a variable argument list */
-
-#ifdef CANVARARG
-
-#define say1 say
-#define say2 say
-#define say3 say
-#define say4 say
-#define ask1 ask
-#define ask2 ask
-#define ask3 ask
-#define ask4 ask
-#define fatal1 fatal
-#define fatal2 fatal
-#define fatal3 fatal
-#define fatal4 fatal
-
-#else /* hope they allow multi-line macro actual arguments */
-
-#ifdef lint
-
-#define say1(a) say(a, 0, 0, 0)
-#define say2(a,b) say(a, (b)==(b), 0, 0)
-#define say3(a,b,c) say(a, (b)==(b), (c)==(c), 0)
-#define say4(a,b,c,d) say(a, (b)==(b), (c)==(c), (d)==(d))
-#define ask1(a) ask(a, 0, 0, 0)
-#define ask2(a,b) ask(a, (b)==(b), 0, 0)
-#define ask3(a,b,c) ask(a, (b)==(b), (c)==(c), 0)
-#define ask4(a,b,c,d) ask(a, (b)==(b), (c)==(c), (d)==(d))
-#define fatal1(a) fatal(a, 0, 0, 0)
-#define fatal2(a,b) fatal(a, (b)==(b), 0, 0)
-#define fatal3(a,b,c) fatal(a, (b)==(b), (c)==(c), 0)
-#define fatal4(a,b,c,d) fatal(a, (b)==(b), (c)==(c), (d)==(d))
-
-#else /* lint */
-    /* if this doesn't work, try defining CANVARARG above */
-#define say1(a) say(a, Nullch, Nullch, Nullch)
-#define say2(a,b) say(a, b, Nullch, Nullch)
-#define say3(a,b,c) say(a, b, c, Nullch)
-#define say4 say
-#define ask1(a) ask(a, Nullch, Nullch, Nullch)
-#define ask2(a,b) ask(a, b, Nullch, Nullch)
-#define ask3(a,b,c) ask(a, b, c, Nullch)
-#define ask4 ask
-#define fatal1(a) fatal(a, Nullch, Nullch, Nullch)
-#define fatal2(a,b) fatal(a, b, Nullch, Nullch)
-#define fatal3(a,b,c) fatal(a, b, c, Nullch)
-#define fatal4 fatal
-
-#endif /* lint */
-
-/* if neither of the above work, join all multi-line macro calls. */
-#endif
-
-EXT char serrbuf[BUFSIZ];		/* buffer for stderr */
-
-char *fetchname();
-int move_file();
-void copy_file();
-void say();
-void fatal();
-void ask();
-char *savestr();
-void set_signals();
-void ignore_signals();
-void makedirs();
+char		*fetchname(const char *, bool *, int);
+char		*checked_in(char *);
+int		backup_file(const char *);
+int		move_file(const char *, const char *);
+int		copy_file(const char *, const char *);
+void		say(const char *, ...)
+		    __attribute__((__format__(__printf__, 1, 2)));
+void		fatal(const char *, ...)
+		    __attribute__((__format__(__printf__, 1, 2)));
+void		pfatal(const char *, ...)
+		    __attribute__((__format__(__printf__, 1, 2)));
+void		ask(const char *, ...)
+		    __attribute__((__format__(__printf__, 1, 2)));
+char		*savestr(const char *);
+void		set_signals(int);
+void		ignore_signals(void);
+void		makedirs(const char *, bool);
+void		version(void);
+void            my_exit(int) __attribute__((noreturn));

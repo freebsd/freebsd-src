@@ -1,339 +1,425 @@
-#include "EXTERN.h"
+/*	$OpenBSD: util.c,v 1.27 2003/10/31 20:20:45 millert Exp $	*/
+
+/*
+ * patch - a program to apply diffs to original files
+ * 
+ * Copyright 1986, Larry Wall
+ * 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following condition is met:
+ * 1. Redistributions of source code must retain the above copyright notice,
+ * this condition and the following disclaimer.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY
+ * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
+ * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ * 
+ * -C option added in 1998, original code by Marc Espie, based on FreeBSD
+ * behaviour
+ */
+
+#ifndef lint
+static const char     rcsid[] = "$OpenBSD: util.c,v 1.27 2003/10/31 20:20:45 millert Exp $";
+#endif /* not lint */
+
+#include <sys/param.h>
+#include <sys/stat.h>
+
+#include <ctype.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <libgen.h>
+#include <paths.h>
+#include <stdarg.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+
 #include "common.h"
-#include "INTERN.h"
 #include "util.h"
+#include "backupfile.h"
+#include "pathnames.h"
+
 
 /* Rename a file, copying it if necessary. */
 
 int
-move_file(from,to)
-char *from, *to;
+move_file(const char *from, const char *to)
 {
-    char bakname[512];
-    Reg1 char *s;
-    Reg2 int i;
-    Reg3 int fromfd;
+	int	fromfd;
+	ssize_t	i;
 
-    /* to stdout? */
+	/* to stdout? */
 
-    if (strEQ(to, "-")) {
+	if (strEQ(to, "-")) {
+#ifdef DEBUGGING
+		if (debug & 4)
+			say("Moving %s to stdout.\n", from);
+#endif
+		fromfd = open(from, O_RDONLY);
+		if (fromfd < 0)
+			pfatal("internal error, can't reopen %s", from);
+		while ((i = read(fromfd, buf, sizeof buf)) > 0)
+			if (write(STDOUT_FILENO, buf, i) != i)
+				pfatal("write failed");
+		close(fromfd);
+		return 0;
+	}
+	if (backup_file(to) < 0) {
+		say("Can't backup %s, output is in %s: %s\n", to, from,
+		    strerror(errno));
+		return -1;
+	}
 #ifdef DEBUGGING
 	if (debug & 4)
-	    say2("Moving %s to stdout.\n", from);
+		say("Moving %s to %s.\n", from, to);
 #endif
-	fromfd = open(from, 0);
-	if (fromfd < 0)
-	    fatal2("patch: internal error, can't reopen %s\n", from);
-	while ((i=read(fromfd, buf, sizeof buf)) > 0)
-	    if (write(1, buf, i) != 1)
-		fatal1("patch: write failed\n");
-	Close(fromfd);
+	if (rename(from, to) < 0) {
+		if (errno != EXDEV || copy_file(from, to) < 0) {
+			say("Can't create %s, output is in %s: %s\n",
+			    to, from, strerror(errno));
+			return -1;
+		}
+	}
 	return 0;
-    }
+}
 
-    Strcpy(bakname, to);
-    Strcat(bakname, origext?origext:ORIGEXT);
-    if (stat(to, &filestat) >= 0) {	/* output file exists */
-	dev_t to_device = filestat.st_dev;
-	ino_t to_inode  = filestat.st_ino;
-	char *simplename = bakname;
-	
-	for (s=bakname; *s; s++) {
-	    if (*s == '/')
-		simplename = s+1;
+/* Backup the original file.  */
+
+int
+backup_file(const char *orig)
+{
+	struct stat	filestat;
+	char		bakname[MAXPATHLEN], *s, *simplename;
+	dev_t		orig_device;
+	ino_t		orig_inode;
+
+	if (backup_type == none || stat(orig, &filestat) != 0)
+		return 0;			/* nothing to do */
+	orig_device = filestat.st_dev;
+	orig_inode = filestat.st_ino;
+
+	if (origprae) {
+		if (strlcpy(bakname, origprae, sizeof(bakname)) >= sizeof(bakname) ||
+		    strlcat(bakname, orig, sizeof(bakname)) >= sizeof(bakname))
+			fatal("filename %s too long for buffer\n", origprae);
+	} else {
+		if ((s = find_backup_file_name(orig)) == NULL)
+			fatal("out of memory\n");
+		if (strlcpy(bakname, s, sizeof(bakname)) >= sizeof(bakname))
+			fatal("filename %s too long for buffer\n", s);
+		free(s);
 	}
-	/* find a backup name that is not the same file */
-	while (stat(bakname, &filestat) >= 0 &&
-		to_device == filestat.st_dev && to_inode == filestat.st_ino) {
-	    for (s=simplename; *s && !islower(*s); s++) ;
-	    if (*s)
-		*s = toupper(*s);
-	    else
-		Strcpy(simplename, simplename+1);
+
+	if ((simplename = strrchr(bakname, '/')) != NULL)
+		simplename = simplename + 1;
+	else
+		simplename = bakname;
+
+	/*
+	 * Find a backup name that is not the same file. Change the
+	 * first lowercase char into uppercase; if that isn't
+	 * sufficient, chop off the first char and try again.
+	 */
+	while (stat(bakname, &filestat) == 0 &&
+	    orig_device == filestat.st_dev && orig_inode == filestat.st_ino) {
+		/* Skip initial non-lowercase chars.  */
+		for (s = simplename; *s && !islower(*s); s++)
+			;
+		if (*s)
+			*s = toupper(*s);
+		else
+			memmove(simplename, simplename + 1,
+			    strlen(simplename + 1) + 1);
 	}
-	while (unlink(bakname) >= 0) ;	/* while() is for benefit of Eunice */
 #ifdef DEBUGGING
 	if (debug & 4)
-	    say3("Moving %s to %s.\n", to, bakname);
+		say("Moving %s to %s.\n", orig, bakname);
 #endif
-	if (link(to, bakname) < 0) {
-	    say3("patch: can't backup %s, output is in %s\n",
-		to, from);
-	    return -1;
+	if (rename(orig, bakname) < 0) {
+		if (errno != EXDEV || copy_file(orig, bakname) < 0)
+			return -1;
 	}
-	while (unlink(to) >= 0) ;
-    }
-#ifdef DEBUGGING
-    if (debug & 4)
-	say3("Moving %s to %s.\n", from, to);
-#endif
-    if (link(from, to) < 0) {		/* different file system? */
-	Reg4 int tofd;
-	
-	tofd = creat(to, 0666);
-	if (tofd < 0) {
-	    say3("patch: can't create %s, output is in %s.\n",
-	      to, from);
-	    return -1;
-	}
-	fromfd = open(from, 0);
+	return 0;
+}
+
+/*
+ * Copy a file.
+ */
+int
+copy_file(const char *from, const char *to)
+{
+	int	tofd, fromfd;
+	ssize_t	i;
+
+	tofd = open(to, O_CREAT|O_TRUNC|O_WRONLY, 0666);
+	if (tofd < 0)
+		return -1;
+	fromfd = open(from, O_RDONLY, 0);
 	if (fromfd < 0)
-	    fatal2("patch: internal error, can't reopen %s\n", from);
-	while ((i=read(fromfd, buf, sizeof buf)) > 0)
-	    if (write(tofd, buf, i) != i)
-		fatal1("patch: write failed\n");
-	Close(fromfd);
-	Close(tofd);
-    }
-    Unlink(from);
-    return 0;
+		pfatal("internal error, can't reopen %s", from);
+	while ((i = read(fromfd, buf, sizeof buf)) > 0)
+		if (write(tofd, buf, i) != i)
+			pfatal("write to %s failed", to);
+	close(fromfd);
+	close(tofd);
+	return 0;
 }
 
-/* Copy a file. */
-
-void
-copy_file(from,to)
-char *from, *to;
-{
-    Reg3 int tofd;
-    Reg2 int fromfd;
-    Reg1 int i;
-    
-    tofd = creat(to, 0666);
-    if (tofd < 0)
-	fatal2("patch: can't create %s.\n", to);
-    fromfd = open(from, 0);
-    if (fromfd < 0)
-	fatal2("patch: internal error, can't reopen %s\n", from);
-    while ((i=read(fromfd, buf, sizeof buf)) > 0)
-	if (write(tofd, buf, i) != i)
-	    fatal2("patch: write (%s) failed\n", to);
-    Close(fromfd);
-    Close(tofd);
-}
-
-/* Allocate a unique area for a string. */
-
+/*
+ * Allocate a unique area for a string.
+ */
 char *
-savestr(s)
-Reg1 char *s;
+savestr(const char *s)
 {
-    Reg3 char *rv;
-    Reg2 char *t;
+	char	*rv;
 
-    if (!s)
-	s = "Oops";
-    t = s;
-    while (*t++);
-    rv = malloc((MEM) (t - s));
-    if (rv == Nullch) {
-	if (using_plan_a)
-	    out_of_mem = TRUE;
-	else
-	    fatal1("patch: out of memory (savestr)\n");
-    }
-    else {
-	t = rv;
-	while (*t++ = *s++);
-    }
-    return rv;
-}
-
-#if defined(lint) && defined(CANVARARG)
-
-/*VARARGS ARGSUSED*/
-say(pat) char *pat; { ; }
-/*VARARGS ARGSUSED*/
-fatal(pat) char *pat; { ; }
-/*VARARGS ARGSUSED*/
-ask(pat) char *pat; { ; }
-
-#else
-
-/* Vanilla terminal output (buffered). */
-
-void
-say(pat,arg1,arg2,arg3)
-char *pat;
-int arg1,arg2,arg3;
-{
-    fprintf(stderr, pat, arg1, arg2, arg3);
-    Fflush(stderr);
-}
-
-/* Terminal output, pun intended. */
-
-void				/* very void */
-fatal(pat,arg1,arg2,arg3)
-char *pat;
-int arg1,arg2,arg3;
-{
-    void my_exit();
-
-    say(pat, arg1, arg2, arg3);
-    my_exit(1);
-}
-
-/* Get a response from the user, somehow or other. */
-
-void
-ask(pat,arg1,arg2,arg3)
-char *pat;
-int arg1,arg2,arg3;
-{
-    int ttyfd;
-    int r;
-    bool tty2 = isatty(2);
-
-    Sprintf(buf, pat, arg1, arg2, arg3);
-    Fflush(stderr);
-    write(2, buf, strlen(buf));
-    if (tty2) {				/* might be redirected to a file */
-	r = read(2, buf, sizeof buf);
-    }
-    else if (isatty(1)) {		/* this may be new file output */
-	Fflush(stdout);
-	write(1, buf, strlen(buf));
-	r = read(1, buf, sizeof buf);
-    }
-    else if ((ttyfd = open("/dev/tty", 2)) >= 0 && isatty(ttyfd)) {
-					/* might be deleted or unwriteable */
-	write(ttyfd, buf, strlen(buf));
-	r = read(ttyfd, buf, sizeof buf);
-	Close(ttyfd);
-    }
-    else if (isatty(0)) {		/* this is probably patch input */
-	Fflush(stdin);
-	write(0, buf, strlen(buf));
-	r = read(0, buf, sizeof buf);
-    }
-    else {				/* no terminal at all--default it */
-	buf[0] = '\n';
-	r = 1;
-    }
-    if (r <= 0)
-	buf[0] = 0;
-    else
-	buf[r] = '\0';
-    if (!tty2)
-	say1(buf);
-}
-#endif lint
-
-/* How to handle certain events when not in a critical region. */
-
-void
-set_signals()
-{
-    void my_exit();
-
-#ifndef lint
-    if (signal(SIGHUP, SIG_IGN) != SIG_IGN)
-	Signal(SIGHUP, my_exit);
-    if (signal(SIGINT, SIG_IGN) != SIG_IGN)
-	Signal(SIGINT, my_exit);
-#endif
-}
-
-/* How to handle certain events when in a critical region. */
-
-void
-ignore_signals()
-{
-#ifndef lint
-    Signal(SIGHUP, SIG_IGN);
-    Signal(SIGINT, SIG_IGN);
-#endif
-}
-
-/* Make sure we'll have the directories to create a file. */
-
-void
-makedirs(filename,striplast)
-Reg1 char *filename;
-bool striplast;
-{
-    char tmpbuf[256];
-    Reg2 char *s = tmpbuf;
-    char *dirv[20];
-    Reg3 int i;
-    Reg4 int dirvp = 0;
-
-    while (*filename) {
-	if (*filename == '/') {
-	    filename++;
-	    dirv[dirvp++] = s;
-	    *s++ = '\0';
+	if (!s)
+		s = "Oops";
+	rv = strdup(s);
+	if (rv == NULL) {
+		if (using_plan_a)
+			out_of_mem = true;
+		else
+			fatal("out of memory\n");
 	}
-	else {
-	    *s++ = *filename++;
-	}
-    }
-    *s = '\0';
-    dirv[dirvp] = s;
-    if (striplast)
-	dirvp--;
-    if (dirvp < 0)
-	return;
-    strcpy(buf, "mkdir");
-    s = buf;
-    for (i=0; i<=dirvp; i++) {
-	while (*s) s++;
-	*s++ = ' ';
-	strcpy(s, tmpbuf);
-	*dirv[i] = '/';
-    }
-    system(buf);
+	return rv;
 }
 
-/* Make filenames more reasonable. */
+/*
+ * Vanilla terminal output (buffered).
+ */
+void
+say(const char *fmt, ...)
+{
+	va_list	ap;
 
+	va_start(ap, fmt);
+	vfprintf(stderr, fmt, ap);
+	va_end(ap);
+	fflush(stderr);
+}
+
+/*
+ * Terminal output, pun intended.
+ */
+void
+fatal(const char *fmt, ...)
+{
+	va_list	ap;
+
+	va_start(ap, fmt);
+	fprintf(stderr, "patch: **** ");
+	vfprintf(stderr, fmt, ap);
+	va_end(ap);
+	my_exit(2);
+}
+
+/*
+ * Say something from patch, something from the system, then silence . . .
+ */
+void
+pfatal(const char *fmt, ...)
+{
+	va_list	ap;
+	int	errnum = errno;
+
+	fprintf(stderr, "patch: **** ");
+	va_start(ap, fmt);
+	vfprintf(stderr, fmt, ap);
+	va_end(ap);
+	fprintf(stderr, ": %s\n", strerror(errnum));
+	my_exit(2);
+}
+
+/*
+ * Get a response from the user via /dev/tty
+ */
+void
+ask(const char *fmt, ...)
+{
+	va_list	ap;
+	ssize_t	nr;
+	static	int ttyfd = -1;
+
+	va_start(ap, fmt);
+	vfprintf(stdout, fmt, ap);
+	va_end(ap);
+	fflush(stdout);
+	if (ttyfd < 0)
+		ttyfd = open(_PATH_TTY, O_RDONLY);
+	if (ttyfd >= 0) {
+		if ((nr = read(ttyfd, buf, sizeof(buf))) > 0 &&
+		    buf[nr - 1] == '\n')
+			buf[nr - 1] = '\0';
+	}
+	if (ttyfd < 0 || nr <= 0) {
+		/* no tty or error reading, pretend user entered 'return' */
+		putchar('\n');
+		buf[0] = '\0';
+	}
+}
+
+/*
+ * How to handle certain events when not in a critical region.
+ */
+void
+set_signals(int reset)
+{
+	static sig_t	hupval, intval;
+
+	if (!reset) {
+		hupval = signal(SIGHUP, SIG_IGN);
+		if (hupval != SIG_IGN)
+			hupval = (sig_t) my_exit;
+		intval = signal(SIGINT, SIG_IGN);
+		if (intval != SIG_IGN)
+			intval = (sig_t) my_exit;
+	}
+	signal(SIGHUP, hupval);
+	signal(SIGINT, intval);
+}
+
+/*
+ * How to handle certain events when in a critical region.
+ */
+void
+ignore_signals(void)
+{
+	signal(SIGHUP, SIG_IGN);
+	signal(SIGINT, SIG_IGN);
+}
+
+/*
+ * Make sure we'll have the directories to create a file. If `striplast' is
+ * true, ignore the last element of `filename'.
+ */
+
+void
+makedirs(const char *filename, bool striplast)
+{
+	char	*tmpbuf;
+
+	if ((tmpbuf = strdup(filename)) == NULL)
+		fatal("out of memory\n");
+
+	if (striplast) {
+		char	*s = strrchr(tmpbuf, '/');
+		if (s == NULL)
+			return;	/* nothing to be done */
+		*s = '\0';
+	}
+	if (snprintf(buf, sizeof(buf), "%s -p %s", _PATH_MKDIR, tmpbuf)
+	    >= sizeof(buf))
+		fatal("buffer too small to hold %.20s...\n", tmpbuf);
+
+	if (system(buf))
+		pfatal("%.40s failed", buf);
+}
+
+/*
+ * Make filenames more reasonable.
+ */
 char *
-fetchname(at,strip_leading,assume_exists)
-char *at;
-int strip_leading;
-int assume_exists;
+fetchname(const char *at, bool *exists, int strip_leading)
 {
-    char *s;
-    char *name;
-    Reg1 char *t;
-    char tmpbuf[200];
+	char		*fullname, *name, *t;
+	int		sleading;
+	struct stat	filestat;
 
-    if (!at)
-	return Nullch;
-    s = savestr(at);
-    for (t=s; isspace(*t); t++) ;
-    name = t;
+	if (at == NULL || *at == '\0')
+		return NULL;
+	while (isspace(*at))
+		at++;
 #ifdef DEBUGGING
-    if (debug & 128)
-	say4("fetchname %s %d %d\n",name,strip_leading,assume_exists);
+	if (debug & 128)
+		say("fetchname %s %d\n", at, strip_leading);
 #endif
-    if (strnEQ(name, "/dev/null", 9))	/* so files can be created by diffing */
-	return Nullch;			/*   against /dev/null. */
-    for (; *t && !isspace(*t); t++)
-	if (*t == '/')
-	    if (--strip_leading >= 0)
-		name = t+1;
-    *t = '\0';
-    if (name != s && *s != '/') {
-	name[-1] = '\0';
-	if (stat(s, &filestat) && filestat.st_mode & S_IFDIR) {
-	    name[-1] = '/';
-	    name=s;
+	/* So files can be created by diffing against /dev/null.  */
+	if (strnEQ(at, _PATH_DEVNULL, sizeof(_PATH_DEVNULL) - 1))
+		return NULL;
+	name = fullname = t = savestr(at);
+
+	/* Strip off up to `strip_leading' path components and NUL terminate. */
+	for (sleading = strip_leading; *t != '\0' && !isspace(*t); t++) {
+		if (t[0] == '/' && t[1] != '/' && t[1] != '\0')
+			if (--sleading >= 0)
+				name = t + 1;
 	}
-    }
-    name = savestr(name);
-    Sprintf(tmpbuf, "RCS/%s", name);
-    free(s);
-    if (stat(name, &filestat) < 0 && !assume_exists) {
-	Strcat(tmpbuf, RCSSUFFIX);
-	if (stat(tmpbuf, &filestat) < 0 && stat(tmpbuf+4, &filestat) < 0) {
-	    Sprintf(tmpbuf, "SCCS/%s%s", SCCSPREFIX, name);
-	    if (stat(tmpbuf, &filestat) < 0 && stat(tmpbuf+5, &filestat) < 0) {
-		free(name);
-		name = Nullch;
-	    }
+	*t = '\0';
+
+	/*
+	 * If no -p option was given (957 is the default value!), we were
+	 * given a relative pathname, and the leading directories that we
+	 * just stripped off all exist, put them back on.
+	 */
+	if (strip_leading == 957 && name != fullname && *fullname != '/') {
+		name[-1] = '\0';
+		if (stat(fullname, &filestat) == 0 && S_ISDIR(filestat.st_mode)) {
+			name[-1] = '/';
+			name = fullname;
+		}
 	}
-    }
-    return name;
+	name = savestr(name);
+	free(fullname);
+
+	*exists = stat(name, &filestat) == 0;
+	return name;
+}
+
+/*
+ * Takes the name returned by fetchname and looks in RCS/SCCS directories
+ * for a checked in version.
+ */
+char *
+checked_in(char *file)
+{
+	char		*filebase, *filedir, tmpbuf[MAXPATHLEN];
+	struct stat	filestat;
+
+	filebase = basename(file);
+	filedir = dirname(file);
+
+#define try(f, a1, a2, a3) \
+(snprintf(tmpbuf, sizeof tmpbuf, f, a1, a2, a3), stat(tmpbuf, &filestat) == 0)
+
+	if (try("%s/RCS/%s%s", filedir, filebase, RCSSUFFIX) ||
+	    try("%s/RCS/%s%s", filedir, filebase, "") ||
+	    try("%s/%s%s", filedir, filebase, RCSSUFFIX) ||
+	    try("%s/SCCS/%s%s", filedir, SCCSPREFIX, filebase) ||
+	    try("%s/%s%s", filedir, SCCSPREFIX, filebase))
+		return file;
+
+	return NULL;
+}
+
+void
+version(void)
+{
+	fprintf(stderr, "Patch version 2.0-12u8-OpenBSD\n");
+	my_exit(EXIT_SUCCESS);
+}
+
+/*
+ * Exit with cleanup.
+ */
+void
+my_exit(int status)
+{
+	unlink(TMPINNAME);
+	if (!toutkeep)
+		unlink(TMPOUTNAME);
+	if (!trejkeep)
+		unlink(TMPREJNAME);
+	unlink(TMPPATNAME);
+	exit(status);
 }

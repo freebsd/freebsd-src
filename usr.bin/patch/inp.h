@@ -1,18 +1,31 @@
-/* $Header: inp.h,v 2.0 86/09/17 15:37:25 lwall Exp $
- *
- * $Log:	inp.h,v $
- * Revision 2.0  86/09/17  15:37:25  lwall
- * Baseline for netwide release.
+/*	$OpenBSD: inp.h,v 1.8 2003/08/15 08:00:51 otto Exp $	*/
+
+/*
+ * patch - a program to apply diffs to original files
  * 
+ * Copyright 1986, Larry Wall
+ * 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following condition is met:
+ * 1. Redistributions of source code must retain the above copyright notice,
+ * this condition and the following disclaimer.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY
+ * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
+ * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ * 
+ * -C option added in 1998, original code by Marc Espie, based on FreeBSD
+ * behaviour
  */
 
-EXT LINENUM input_lines INIT(0);	/* how long is input file in lines */
-EXT LINENUM last_frozen_line INIT(0);	/* how many input lines have been */
-					/* irretractibly output */
-
-bool rev_in_string();
-void scan_input();
-bool plan_a();			/* returns false if insufficient memory */
-void plan_b();
-char *ifetch();
-
+void		re_input(void);
+void		scan_input(const char *);
+char		*ifetch(LINENUM, int);
