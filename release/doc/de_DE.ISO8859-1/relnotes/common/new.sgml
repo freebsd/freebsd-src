@@ -1,6 +1,6 @@
 <!--
-  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/relnotes/common/new.sgml,v 1.151 2002/11/15 07:21:38 ue Exp $
-  basiert auf: 1.452
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/relnotes/common/new.sgml,v 1.152 2002/11/20 07:01:44 ue Exp $
+  basiert auf: 1.453
 -->
 <articleinfo>
   <title>&os;/&arch; &release.current; Release Notes</title>
