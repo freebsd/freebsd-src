@@ -1893,6 +1893,10 @@ xl_list_rx_init(sc)
 	cd = &sc->xl_cdata;
 	ld = &sc->xl_ldata;
 
+	error = bus_dmamap_create(sc->xl_mtag, 0, &sc->xl_tmpmap);
+	if (error)
+		return(error);
+
 	for (i = 0; i < XL_RX_LIST_CNT; i++) {
 		cd->xl_rx_chain[i].xl_ptr = &ld->xl_rx_list[i];
 		error = bus_dmamap_create(sc->xl_mtag, 0,
@@ -1920,6 +1924,8 @@ xl_list_rx_init(sc)
 
 /*
  * Initialize an RX descriptor and attach an MBUF cluster.
+ * If we fail to do so, we need to leave the old mbuf and
+ * the old DMA map untouched so that it can be reused.
  */
 static int
 xl_newbuf(sc, c)
@@ -1927,6 +1933,7 @@ xl_newbuf(sc, c)
 	struct xl_chain_onefrag	*c;
 {
 	struct mbuf		*m_new = NULL;
+	bus_dmamap_t		map;
 	int			error;
 	u_int32_t		baddr;
 
@@ -1945,17 +1952,21 @@ xl_newbuf(sc, c)
 	/* Force longword alignment for packet payload. */
 	m_adj(m_new, ETHER_ALIGN);
 
-	c->xl_mbuf = m_new;
-	c->xl_ptr->xl_frag.xl_len = htole32(m_new->m_len | XL_LAST_FRAG);
-	c->xl_ptr->xl_status = 0;
-
-	error = bus_dmamap_load(sc->xl_mtag, c->xl_map, mtod(m_new, void *),
+	error = bus_dmamap_load(sc->xl_mtag, sc->xl_tmpmap, mtod(m_new, void *),
 	    MCLBYTES, xl_dma_map_addr, &baddr, 0);
 	if (error) {
 		m_freem(m_new);
 		printf("xl%d: can't map mbuf (error %d)\n", sc->xl_unit, error);
 		return(error);
 	}
+
+	bus_dmamap_unload(sc->xl_mtag, c->xl_map);
+	map = c->xl_map;
+	c->xl_map = sc->xl_tmpmap;
+	sc->xl_tmpmap = map;
+	c->xl_mbuf = m_new;
+	c->xl_ptr->xl_frag.xl_len = htole32(m_new->m_len | XL_LAST_FRAG);
+	c->xl_ptr->xl_status = 0;
 	c->xl_ptr->xl_frag.xl_addr = htole32(baddr);
 	bus_dmamap_sync(sc->xl_mtag, c->xl_map, BUS_DMASYNC_PREREAD);
 	return(0);
@@ -2040,7 +2051,6 @@ again:
 		/* No errors; receive the packet. */	
 		bus_dmamap_sync(sc->xl_mtag, cur_rx->xl_map,
 		    BUS_DMASYNC_POSTREAD);
-		bus_dmamap_unload(sc->xl_mtag, cur_rx->xl_map);
 		m = cur_rx->xl_mbuf;
 		total_len = le32toh(cur_rx->xl_ptr->xl_status) &
 		    XL_RXSTAT_LENMASK;
@@ -3191,6 +3201,7 @@ xl_stop(sc)
 			sc->xl_cdata.xl_rx_chain[i].xl_mbuf = NULL;
 		}
 	}
+	bus_dmamap_destroy(sc->xl_mtag, sc->xl_tmpmap);
 	bzero(sc->xl_ldata.xl_rx_list, XL_RX_LIST_SZ);
 	/*
 	 * Free the TX list buffers.
