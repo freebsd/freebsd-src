@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: options.c,v 1.15 1995/10/19 18:37:49 jkh Exp $
+ * $Id: options.c,v 1.16 1995/10/20 07:02:46 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -71,6 +71,12 @@ resetLogo(char *str)
 }
 
 static char *
+debugCheck(char *str)
+{
+    return isDebug() ? "ON" : "OFF";
+}
+
+static char *
 mediaCheck(Option opt)
 {
     if (mediaDevice) {
@@ -113,7 +119,7 @@ static Option Options[] = {
 { "NFS Slow",		"User is using a slow PC or ethernet card",
       OPT_IS_FLAG,	&OptFlags,	(void *)OPT_SLOW_ETHER,		NULL		},
 { "Debugging",		"Emit extra debugging output on VTY2 (ALT-F2)",
-      OPT_IS_FLAG,	&OptFlags,	(void *)OPT_DEBUG,		NULL		},
+      OPT_IS_FLAG,	&OptFlags,	(void *)OPT_DEBUG,		debugCheck	},
 { "Yes to All",		"Assume \"Yes\" answers to all non-critical dialogs",
       OPT_IS_FLAG,	&OptFlags,	(void *)OPT_NO_CONFIRM,		NULL		},
 { "FTP Abort",		"On transfer failure, abort the installation of a distribution",
