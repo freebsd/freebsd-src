@@ -29,30 +29,33 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id: reboot.c,v 1.5 1997/06/16 06:43:13 charnier Exp $
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1980, 1986, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)reboot.c	8.1 (Berkeley) 6/5/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/reboot.h>
+#include <sys/types.h>
 #include <signal.h>
-#include <pwd.h>
-#include <errno.h>
-#include <syslog.h>
-#include <unistd.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include <err.h>
+#include <errno.h>
+#include <libutil.h>
+#include <pwd.h>
+#include <syslog.h>
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
 
 void usage __P((void));
 
@@ -178,6 +181,6 @@ restart:
 void
 usage()
 {
-	(void)fprintf(stderr, "usage: %s [-nq]\n", dohalt ? "halt" : "reboot");
+	(void)fprintf(stderr, "usage: %s [-npq]\n", dohalt ? "halt" : "reboot");
 	exit(1);
 }

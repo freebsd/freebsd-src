@@ -36,7 +36,7 @@
 .\"
 .\"     @(#)boot_i386.8	8.2 (Berkeley) 4/19/94
 .\"
-.\" $Id: boot_i386.8,v 1.11 1998/04/26 18:15:38 phk Exp $
+.\" $Id: boot_i386.8,v 1.12 1998/07/09 06:24:21 phk Exp $
 .\"
 .Dd April 19, 1994
 .Dt BOOT 8 i386
@@ -112,7 +112,7 @@ The unit number of the drive on the interface being used.
 0 for the first drive, 1 for the second drive, etc.
 .It part
 The partition letter inside the BSD portion of the disk.  See
-.Xr disklabel 8  .
+.Xr disklabel 8 .
 By convention, only partition
 .Ql a
 contains a bootable image.  If sliced disks are used
@@ -131,7 +131,7 @@ Boot flags:
 during kernel initialization,
 ask for the device to mount as as the root file system.
 .It Fl b
-puts the screen in 800x600x4 mode (Vesa mode 0x102).
+put the screen in 800x600x4 mode (Vesa mode 0x102).
 This is useful on laptops whose graphics
 chips are not supported by XFree86 by the XF86_VGA16 server.
 You need to have a 8x16 font compiled into syscons or loaded as
@@ -192,7 +192,7 @@ that the kernel was loaded from.
 boot into single-user mode; if the console is marked as
 .Dq insecure
 .Pq see Xr ttys 5 ,
-the root password must be entered
+the root password must be entered.
 .It Fl v
 be verbose during device probing (and later).
 .El
