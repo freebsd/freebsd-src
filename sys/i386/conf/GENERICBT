@@ -1,7 +1,7 @@
 #
 # GENERICBT -- Generic machine with WD/BTx family disks
 #
-#	$Id: GENERICBT,v 1.17 1993/12/12 12:22:26 davidg Exp $
+#	$Id: GENERICBT,v 1.18 1993/12/19 00:49:49 wollman Exp $
 #
 
 machine		"i386"
@@ -32,11 +32,14 @@ controller	fd0	at isa? port "IO_FD1" bio irq 6 drq 2 vector fdintr
 disk		fd0	at fd0 drive 0
 disk		fd1	at fd0 drive 1
 
-controller	wd0	at isa? port "IO_WD1" bio irq 14 vector wdintr
-disk		wd0	at wd0 drive 0
-disk		wd1	at wd0 drive 1
+controller	wdc0	at isa? port "IO_WD1" bio irq 14 vector wdintr
+disk		wd0	at wdc0 drive 0
+disk		wd1	at wdc0 drive 1
 
-controller	bt0	at isa? port "IO_BT0" bio irq 12  vector btintr
+controller	wdc1	at isa? port "IO_WD2" bio irq 15 vector wdintr
+disk		wd2	at wdc1 drive 0
+disk		wd3	at wdc1 drive 1
+
 controller	uha0	at isa? port "IO_UHA0" bio irq 14 drq 5 vector uhaintr
 controller	scbus0
 
