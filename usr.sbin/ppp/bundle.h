@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.h,v 1.1.2.40 1998/05/15 23:58:15 brian Exp $
+ *	$Id: bundle.h,v 1.1.2.41 1998/05/16 23:47:21 brian Exp $
  */
 
 #define	PHASE_DEAD		0	/* Link is dead */
@@ -85,6 +85,13 @@ struct bundle {
     unsigned opt;             /* Uses OPT_ bits from above */
     char label[50];           /* last thing `load'ed */
     u_short mtu;              /* Interface mtu */
+
+    struct {                  /* We need/don't need another link when  */
+      struct {                /* more/less than                        */
+        int packets;          /* this number of packets are queued for */
+        int timeout;          /* this number of seconds                */
+      } max, min;
+    } autoload;
   } cfg;
 
   struct {
@@ -107,6 +114,13 @@ struct bundle {
   struct {
     int fd;                     /* write status here */
   } notify;
+
+  struct {
+    struct pppTimer timer;
+    time_t done;
+    unsigned running : 1;
+    unsigned comingup : 1;
+  } autoload;
 };
 
 #define descriptor2bundle(d) \
@@ -131,7 +145,6 @@ extern int bundle_ShowStatus(struct cmdargs const *);
 extern void bundle_StartIdleTimer(struct bundle *);
 extern void bundle_SetIdleTimer(struct bundle *, int);
 extern void bundle_StopIdleTimer(struct bundle *);
-extern int bundle_RemainingIdleTime(struct bundle *);
 extern int bundle_IsDead(struct bundle *);
 extern struct datalink *bundle2datalink(struct bundle *, const char *);
 

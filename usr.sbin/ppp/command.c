@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.131.2.86 1998/05/16 23:47:41 brian Exp $
+ * $Id: command.c,v 1.131.2.87 1998/05/19 19:58:18 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -85,25 +85,26 @@
 #define	VAR_DIAL	1
 #define	VAR_LOGIN	2
 #define	VAR_AUTHNAME	3
-#define	VAR_WINSIZE	4
-#define	VAR_DEVICE	5
-#define	VAR_ACCMAP	6
-#define	VAR_MRRU	7
-#define	VAR_MRU		8
-#define	VAR_MTU		9
-#define	VAR_OPENMODE	10
-#define	VAR_PHONE	11
-#define	VAR_HANGUP	12
-#define	VAR_IDLETIMEOUT	13
-#define	VAR_LQRPERIOD	14
-#define	VAR_LCPRETRY	15
-#define	VAR_CHAPRETRY	16
-#define	VAR_PAPRETRY	17
-#define	VAR_CCPRETRY	18
-#define	VAR_IPCPRETRY	19
-#define	VAR_DNS		20
-#define	VAR_NBNS	21
-#define	VAR_MODE	22
+#define	VAR_AUTOLOAD	4
+#define	VAR_WINSIZE	5
+#define	VAR_DEVICE	6
+#define	VAR_ACCMAP	7
+#define	VAR_MRRU	8
+#define	VAR_MRU		9
+#define	VAR_MTU		10
+#define	VAR_OPENMODE	11
+#define	VAR_PHONE	12
+#define	VAR_HANGUP	13
+#define	VAR_IDLETIMEOUT	14
+#define	VAR_LQRPERIOD	15
+#define	VAR_LCPRETRY	16
+#define	VAR_CHAPRETRY	17
+#define	VAR_PAPRETRY	18
+#define	VAR_CCPRETRY	19
+#define	VAR_IPCPRETRY	20
+#define	VAR_DNS		21
+#define	VAR_NBNS	22
+#define	VAR_MODE	23
 
 /* ``accept|deny|disable|enable'' masks */
 #define NEG_HISMASK (1)
@@ -123,7 +124,7 @@
 #define NEG_DNS		50
 
 const char Version[] = "2.0-beta";
-const char VersionDate[] = "$Date: 1998/05/16 23:47:41 $";
+const char VersionDate[] = "$Date: 1998/05/19 19:58:18 $";
 
 static int ShowCommand(struct cmdargs const *);
 static int TerminalCommand(struct cmdargs const *);
@@ -1196,6 +1197,23 @@ SetVariable(struct cmdargs const *arg)
       log_Printf(LogWARN, err);
     }
     break;
+  case VAR_AUTOLOAD:
+    if (arg->argc == arg->argn + 2 || arg->argc == arg->argn + 4) {
+      arg->bundle->autoload.running = 1;
+      arg->bundle->cfg.autoload.max.timeout = atoi(arg->argv[arg->argn]);
+      arg->bundle->cfg.autoload.max.packets = atoi(arg->argv[arg->argn + 1]);
+      if (arg->argc == arg->argn + 4) {
+        arg->bundle->cfg.autoload.min.timeout = atoi(arg->argv[arg->argn + 2]);
+        arg->bundle->cfg.autoload.min.packets = atoi(arg->argv[arg->argn + 3]);
+      } else {
+        arg->bundle->cfg.autoload.min.timeout = 0;
+        arg->bundle->cfg.autoload.min.packets = 0;
+      }
+    } else {
+      err = "Set autoload requires two or four arguments\n";
+      log_Printf(LogWARN, err);
+    }
+    break;
   case VAR_DIAL:
     strncpy(cx->cfg.script.dial, argp, sizeof cx->cfg.script.dial - 1);
     cx->cfg.script.dial[sizeof cx->cfg.script.dial - 1] = '\0';
@@ -1412,6 +1430,9 @@ static struct cmdtab const SetCommands[] = {
   "authentication key", "set authkey|key key", (const void *)VAR_AUTHKEY},
   {"authname", NULL, SetVariable, LOCAL_AUTH,
   "authentication name", "set authname name", (const void *)VAR_AUTHNAME},
+  {"autoload", NULL, SetVariable, LOCAL_AUTH,
+  "auto link [de]activation", "set autoload maxtime maxload mintime minload",
+  (const void *)VAR_AUTOLOAD},
   {"ccpretry", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX_OPT,
   "FSM retry period", "set ccpretry value", (const void *)VAR_CCPRETRY},
   {"chapretry", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX,

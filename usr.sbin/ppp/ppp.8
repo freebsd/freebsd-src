@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.97.2.36 1998/05/18 23:24:24 brian Exp $
+.\" $Id: ppp.8,v 1.97.2.37 1998/05/19 19:58:21 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -2472,6 +2472,36 @@ is logged as
 for security reasons.
 .It set authname Ar id
 This sets the authentication id used in client mode PAP or CHAP negotiation.
+.It set autoload Ar maxduration maxload Op Ar minduration minload
+These settings apply only in multilink mode and all default to zero.
+When more than one
+.Ar demand-dial
+.Pq also known as Fl auto
+mode link is available, only the first link is made active when
+.Nm
+first reads data from the tun device.  The next
+.Ar demand-dial
+link will be opened only when at least
+.Ar maxload
+packets have been in the send queue for
+.Ar maxduration
+seconds.  Because both values default to zero,
+.Ar demand-dial
+links will simply come up one at a time by default.
+.Pp
+If two or more links are open, at least one of which is a
+.Ar demand-dial
+link, a
+.Ar demand-dial
+link will be closed when there is less than
+.Ar minpackets
+in the queue for more than
+.Ar minduration .
+If
+.Ar minduration
+is zero, this timer is disabled.  Because both values default to zero,
+.Ar demand-dial
+links will stay active until the bundle idle timer expires.
 .It set ctsrts|crtscts on|off
 This sets hardware flow control.  Hardware flow control is
 .Ar on
