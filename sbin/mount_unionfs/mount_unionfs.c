@@ -76,27 +76,27 @@ main(argc, argv)
 	int argc;
 	char *argv[];
 {
-	struct union_args args;
-	int ch, mntflags;
+	struct iovec iov[8];
+	int ch, mntflags, unionflags;
 	char source[MAXPATHLEN];
 	char target[MAXPATHLEN];
 	struct vfsconf vfc;
 	int error;
 
 	mntflags = 0;
-	args.mntflags = UNMNT_ABOVE;
+	unionflags = UNMNT_ABOVE;
 	while ((ch = getopt(argc, argv, "bo:r")) != -1)
 		switch (ch) {
 		case 'b':
-			args.mntflags &= ~UNMNT_OPMASK;
-			args.mntflags |= UNMNT_BELOW;
+			unionflags &= ~UNMNT_OPMASK;
+			unionflags |= UNMNT_BELOW;
 			break;
 		case 'o':
 			getmntopts(optarg, mopts, &mntflags, 0);
 			break;
 		case 'r':
-			args.mntflags &= ~UNMNT_OPMASK;
-			args.mntflags |= UNMNT_REPLACE;
+			unionflags &= ~UNMNT_OPMASK;
+			unionflags |= UNMNT_REPLACE;
 			break;
 		case '?':
 		default:
@@ -117,8 +117,6 @@ main(argc, argv)
 		errx(EX_USAGE, "%s (%s) and %s (%s) are not distinct paths",
 		    argv[0], target, argv[1], source);
 
-	args.target = target;
-
 	error = getvfsbyname("unionfs", &vfc);
 	if (error && vfsisloadable("unionfs")) {
 		if (vfsload("unionfs"))
@@ -129,7 +127,23 @@ main(argc, argv)
 	if (error)
 		errx(EX_OSERR, "union filesystem is not available");
 
-	if (mount(vfc.vfc_name, source, mntflags, &args))
+	iov[0].iov_base = "fstype";
+	iov[0].iov_len = sizeof("fstype");
+	iov[1].iov_base = vfc.vfc_name;
+	iov[1].iov_len = strlen(vfc.vfc_name) + 1;
+	iov[2].iov_base = "fspath";
+	iov[2].iov_len = sizeof("fspath");
+	iov[3].iov_base = source;
+	iov[3].iov_len = strlen(source) + 1;
+	iov[4].iov_base = "target";
+	iov[4].iov_len = sizeof("target");
+	iov[5].iov_base = target;
+	iov[5].iov_len = strlen(target) + 1;
+	iov[6].iov_base = "unionflags";
+	iov[6].iov_len = sizeof("unionflags");
+	iov[7].iov_base = (char *)&unionflags;
+	iov[7].iov_len = sizeof(unionflags);
+	if (nmount(iov, 8, mntflags))
 		err(EX_OSERR, "%s", target);
 	exit(0);
 }
