@@ -420,6 +420,7 @@ static void
 nexus_pcib_identify(driver_t *driver, device_t parent)
 {
 	pcicfgregs probe;
+	int found = 0;
 
 	if (pci_cfgopen() == 0)
 		return;
@@ -455,8 +456,21 @@ nexus_pcib_identify(driver_t *driver, device_t parent)
 				child = BUS_ADD_CHILD(parent, 100,
 						      "pcib", busnum);
 				device_set_desc(child, s);
+				found = 1;
 			}
 		}
+	}
+
+	/*
+	 * Make sure we add at least one bridge since some old
+	 * hardware doesn't actually have a host-pci bridge device.
+	 * Note that pci_cfgopen() thinks we have PCI devices..
+	 */
+	if (!found) {
+		if (bootverbose)
+			printf(
+	"nexus_pcib_identify: no bridge found, adding pcib0 anyway\n");
+		BUS_ADD_CHILD(parent, 100, "pcib", 0);
 	}
 }
 
