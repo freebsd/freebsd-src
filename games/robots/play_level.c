@@ -67,7 +67,7 @@ play_level()
 	move(Max.y, Max.x);
 	addch(inch());
 	standend();
-# endif DEBUG
+# endif /* DEBUG */
 	setjmp(End_move);
 	flush_in();
 	while (!Dead && Num_robots > 0) {
