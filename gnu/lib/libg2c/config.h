@@ -1,3 +1,5 @@
+/* $FreeBSD$ */
+
 /* config.h.  Generated automatically by configure.  */
 /* config.hin.  Generated automatically from configure.in by autoheader.  */
 
@@ -33,6 +35,12 @@
 
 /* Define as the path of the `chmod' program. */
 #define CHMOD_PATH "/bin/chmod"
+
+/* Define if your gettimeofday takes only one argument. */
+/* #undef GETTIMEOFDAY_ONE_ARGUMENT */
+
+/* Define if your gettimeofday takes a time zome argument. */
+#define HAVE_TIMEZONE 1
 
 /* Define if you have the alarm function.  */
 #define HAVE_ALARM 1
@@ -105,3 +113,16 @@
 
 /* Define if you have the <unistd.h> header file.  */
 #define HAVE_UNISTD_H 1
+
+/* Get Single Unix Specification semantics */
+#define _XOPEN_SOURCE 600L
+
+/* Get Single Unix Specification semantics */
+#define _XOPEN_SOURCE_EXTENDED 1
+
+/* Solaris extensions */
+#define __EXTENSIONS__ 1
+
+/* Get 64-bit file size support */
+#define _FILE_OFFSET_BITS 64
+
