@@ -75,6 +75,8 @@ open_drive(struct drive *drive, struct proc *p, int verbose)
     /* Find the device */
     if (bcmp(dname, "ad", 2) == 0)			    /* IDE disk */
 	devmajor = 116;
+    else if (bcmp(dname, "wd", 2) == 0)			    /* IDE disk */
+	devmajor = 3;
     else if (bcmp(dname, "da", 2) == 0)
 	devmajor = 13;
     else if (bcmp(dname, "vn", 2) == 0)
@@ -118,11 +120,6 @@ open_drive(struct drive *drive, struct proc *p, int verbose)
     if (drive->dev == NULL)				    /* didn't find anything */
 	return ENODEV;
 
-    /*
-     * XXX This doesn't really belong here, but we
-     * get rude remarks from the drivers if we don't
-     * set it.  phk, where are you when I need you?
-     */
     drive->dev->si_iosize_max = DFLTPHYS;
     drive->lasterror = (*devsw(drive->dev)->d_open) (drive->dev, FWRITE, 0, NULL);
 
@@ -469,6 +466,8 @@ format_config(char *config, int len)
 		"volume %s state %s",
 		vol->name,
 		volume_state(vol->state));
+	    while (*s)
+		s++;					    /* find the end */
 	    if (vol->preferred_plex >= 0)		    /* preferences, */
 		snprintf(s,
 		    configend - s,
@@ -694,8 +693,8 @@ get_volume_label(char *name, int plexes, u_int64_t size, struct disklabel *lp)
     lp->d_flags = 0;
 
     /*
-     * Fitting unto the vine, a vinum has a single
-     * track with all its sectors.
+     * A Vinum volume has a single track with all
+     * its sectors.
      */
     lp->d_secsize = DEV_BSIZE;				    /* bytes per sector */
     lp->d_nsectors = size;				    /* data sectors per track */
