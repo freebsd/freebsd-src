@@ -32,9 +32,10 @@
 
 #include <sys/param.h>
 #include <sys/event.h>
+#include <sys/file.h>
+#include <sys/filedesc.h>
 #include <sys/filio.h>
 #include <sys/fcntl.h>
-#include <sys/file.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -50,6 +51,25 @@
 #include <sys/unistd.h>
 #include <sys/vnode.h>
 #include <fs/fifofs/fifo.h>
+
+static fo_rdwr_t        fifo_read_f;
+static fo_rdwr_t        fifo_write_f;
+static fo_ioctl_t       fifo_ioctl_f;
+static fo_poll_t        fifo_poll_f;
+static fo_kqfilter_t    fifo_kqfilter_f;
+static fo_stat_t        fifo_stat_f;
+static fo_close_t       fifo_close_f;
+
+struct fileops fifo_ops_f = {
+	.fo_read =      fifo_read_f,
+	.fo_write =     fifo_write_f,
+	.fo_ioctl =     fifo_ioctl_f,
+	.fo_poll =      fifo_poll_f,
+	.fo_kqfilter =  fifo_kqfilter_f,
+	.fo_stat =      fifo_stat_f,
+	.fo_close =     fifo_close_f,
+	.fo_flags =     DFLAG_PASSABLE | DFLAG_SEEKABLE
+};
 
 /*
  * This structure is associated with the FIFO vnode and stores
@@ -168,7 +188,16 @@ fifo_open(ap)
 	struct thread *td = ap->a_td;
 	struct ucred *cred = ap->a_cred;
 	struct socket *rso, *wso;
+	struct file *fp;
 	int error;
+	static int once, fifofs_fops;
+
+	if (!once) {
+		TUNABLE_INT_FETCH("vfs.fifofs.fops", &fifofs_fops);
+		if (fifofs_fops)
+			printf("WARNING: FIFOFS uses fops\n");
+		once = 1;
+	}
 
 	if ((fip = vp->v_fifoinfo) == NULL) {
 		MALLOC(fip, struct fifoinfo *, sizeof(*fip), M_VNODE, M_WAITOK);
@@ -279,6 +308,11 @@ fail1:
 		}
 	}
 	mtx_unlock(&fifo_mtx);
+	fp = ap->a_td->td_proc->p_fd->fd_ofiles[ap->a_fdidx];
+	if (fifofs_fops && fp->f_ops == &badfileops) {
+		fp->f_ops = &fifo_ops_f;
+		fp->f_data = fip;
+	}
 	return (0);
 }
 
@@ -648,3 +682,132 @@ fifo_advlock(ap)
 
 	return (ap->a_flags & F_FLOCK ? EOPNOTSUPP : EINVAL);
 }
+
+static int
+fifo_close_f(struct file *fp, struct thread *td)
+{
+
+	return (vnops.fo_close(fp, td));
+}
+
+static int
+fifo_ioctl_f(struct file *fp, u_long com, void *data, struct ucred *cred, struct thread *td)
+{
+
+	return (vnops.fo_ioctl(fp, com, data, cred, td));
+}
+
+static int
+fifo_kqfilter_f(struct file *fp, struct knote *kn)
+{
+	struct fifoinfo *fi;
+	struct socket *so;
+	struct sockbuf *sb;
+
+	fi = fp->f_data;
+	switch (kn->kn_filter) {
+	case EVFILT_READ:
+		kn->kn_fop = &fiforead_filtops;
+		so = fi->fi_readsock;
+		sb = &so->so_rcv;
+		break;
+	case EVFILT_WRITE:
+		kn->kn_fop = &fifowrite_filtops;
+		so = fi->fi_writesock;
+		sb = &so->so_snd;
+		break;
+	default:
+		return (1);
+	}
+
+	kn->kn_hook = (caddr_t)so;
+
+	SOCKBUF_LOCK(sb);
+	knlist_add(&sb->sb_sel.si_note, kn, 1);
+	sb->sb_flags |= SB_KNOTE;
+	SOCKBUF_UNLOCK(sb);
+
+	return (0);
+}
+
+static int
+fifo_poll_f(struct file *fp, int events, struct ucred *cred, struct thread *td)
+{
+	struct fifoinfo *fip;
+	struct file filetmp;
+	int levents, revents = 0;
+
+	fip = fp->f_data;
+	levents = events &
+	    (POLLIN | POLLINIGNEOF | POLLPRI | POLLRDNORM | POLLRDBAND);
+	if (levents) {
+		/*
+		 * If POLLIN or POLLRDNORM is requested and POLLINIGNEOF is
+		 * not, then convert the first two to the last one.  This
+		 * tells the socket poll function to ignore EOF so that we
+		 * block if there is no writer (and no data).  Callers can
+		 * set POLLINIGNEOF to get non-blocking behavior.
+		 */
+		if (levents & (POLLIN | POLLRDNORM) &&
+		    !(levents & POLLINIGNEOF)) {
+			levents &= ~(POLLIN | POLLRDNORM);
+			levents |= POLLINIGNEOF;
+		}
+
+		filetmp.f_data = fip->fi_readsock;
+		filetmp.f_cred = cred;
+		if (filetmp.f_data)
+			revents |= soo_poll(&filetmp, levents, cred, td);
+
+		/* Reverse the above conversion. */
+		if ((revents & POLLINIGNEOF) && !(events & POLLINIGNEOF)) {
+			revents |= (events & (POLLIN | POLLRDNORM));
+			revents &= ~POLLINIGNEOF;
+		}
+	}
+	levents = events & (POLLOUT | POLLWRNORM | POLLWRBAND);
+	if (events) {
+		filetmp.f_data = fip->fi_writesock;
+		filetmp.f_cred = cred;
+		if (filetmp.f_data) {
+			revents |= soo_poll(&filetmp, events, cred, td);
+		}
+	}
+	return (revents);
+}
+
+static int
+fifo_read_f(struct file *fp, struct uio *uio, struct ucred *cred, int flags, struct thread *td)
+{
+	struct fifoinfo *fip;
+	int error, sflags;
+
+	fip = fp->f_data;
+	KASSERT(uio->uio_rw == UIO_READ,("fifo_read mode"));
+	if (uio->uio_resid == 0)
+		return (0);
+	sflags = (fp->f_flag & FNONBLOCK) ? MSG_NBIO : 0;
+	error = soreceive(fip->fi_readsock, NULL, uio, NULL, NULL, &sflags);
+	return (error);
+}
+
+static int
+fifo_stat_f(struct file *fp, struct stat *sb, struct ucred *cred, struct thread *td)
+{
+
+	return (vnops.fo_stat(fp, sb, cred, td));
+}
+
+static int
+fifo_write_f(struct file *fp, struct uio *uio, struct ucred *cred, int flags, struct thread *td)
+{
+	struct fifoinfo *fip;
+	int error, sflags;
+
+	fip = fp->f_data;
+	KASSERT(uio->uio_rw == UIO_WRITE,("fifo_write mode"));
+	sflags = (fp->f_flag & FNONBLOCK) ? MSG_NBIO : 0;
+	error = sosend(fip->fi_writesock, NULL, uio, 0, NULL, sflags, td);
+	return (error);
+}
+
