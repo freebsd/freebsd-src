@@ -66,12 +66,12 @@
 
 
 
-static int i386_get_ldt	(struct thread *, char *);
-static int i386_set_ldt	(struct thread *, char *);
-static int i386_get_ioperm	(struct thread *, char *);
-static int i386_set_ioperm	(struct thread *, char *);
+static int i386_get_ldt(struct thread *, char *);
+static int i386_set_ldt(struct thread *, char *);
+static int i386_get_ioperm(struct thread *, char *);
+static int i386_set_ioperm(struct thread *, char *);
 #ifdef SMP
-static void set_user_ldt_rv	(struct thread *);
+static void set_user_ldt_rv(struct thread *);
 #endif
 
 #ifndef _SYS_SYSPROTO_H_
