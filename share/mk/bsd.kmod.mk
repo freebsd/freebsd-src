@@ -1,5 +1,5 @@
 #	From: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.kmod.mk,v 1.43 1998/02/01 17:19:54 bde Exp $
+#	$Id: bsd.kmod.mk,v 1.44 1998/02/20 15:52:49 bde Exp $
 #
 # The include file <bsd.kmod.mk> handles installing Loadable Kernel Modules.
 #
@@ -125,7 +125,7 @@ OBJS+=  ${SRCS:N*.h:R:S/$/.o/g}
 PROG=	${KMOD}.o
 .endif
 
-${PROG}: ${DPSRCS} ${OBJS} ${DPADD} 
+${PROG}: ${OBJS} ${DPADD} 
 	${LD} -r ${LDFLAGS} -o tmp.o ${OBJS}
 .if defined(EXPORT_SYMS)
 	@rm -f symb.tmp
@@ -149,9 +149,9 @@ all-man:
 _ILINKS=@ machine
 
 .MAIN: all
-all: ${_ILINKS} objwarn ${PROG} all-man _SUBDIR
+all: objwarn ${PROG} all-man _SUBDIR
 
-beforedepend: ${_ILINKS}
+beforedepend ${OBJS}: ${_ILINKS}
 
 # The search for the link targets works best if we are in a normal src
 # tree, and not too deeply below src/lkm.  If we are near "/", then
@@ -233,8 +233,11 @@ KERN=	${.CURDIR}/../../sys/kern
 vnode_if.h:	${KERN}/vnode_if.sh ${KERN}/vnode_if.src
 	sh ${KERN}/vnode_if.sh ${KERN}/vnode_if.src
 
-./vnode_if.h:	vnode_if.h
-
 .include <bsd.obj.mk>
 .include <bsd.dep.mk>
+
+.if !exists(${DEPENDFILE})
+${OBJS}: ${DPSRCS}
+.endif
+
 .include <bsd.kern.mk>
