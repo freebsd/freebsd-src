@@ -59,7 +59,6 @@ static driver_t uart_i80321_driver = {
 	sizeof(struct uart_softc),
 };
 
-extern struct uart_class uart_i8251_class;
 extern SLIST_HEAD(uart_devinfo_list, uart_devinfo) uart_sysdevs;
 static int
 uart_i80321_probe(device_t dev)
@@ -68,7 +67,7 @@ uart_i80321_probe(device_t dev)
 
 	sc = device_get_softc(dev);
 	sc->sc_sysdev = SLIST_FIRST(&uart_sysdevs);
-	sc->sc_class = &uart_i8251_class;
+	sc->sc_class = &uart_ns8250_class;
 	bcopy(&sc->sc_sysdev->bas, &sc->sc_bas, sizeof(sc->sc_bas));
 	return(uart_bus_probe(dev, 0, 0, 0, 0));
 }
