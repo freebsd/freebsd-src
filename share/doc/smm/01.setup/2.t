@@ -30,6 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)2.t	8.1 (Berkeley) 7/27/93
+.\"	$Id$
 .\"
 .ds lq ``
 .ds rq ''
@@ -1652,7 +1653,7 @@ If
 .Xr tar
 images were written instead of doing a dump, you should
 be sure to use its `\-p' option when reading the files back.  No matter
-how you restore a filesystem, be sure to unmount it and and check its
+how you restore a filesystem, be sure to unmount it and check its
 integrity with
 .Xr fsck (8)
 when the job is complete.

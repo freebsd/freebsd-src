@@ -1,4 +1,4 @@
-<!-- $Id: install.sgml,v 1.36 1996/09/21 17:51:46 jkh Exp $ -->
+<!-- $Id: install.sgml,v 1.37 1996/10/04 22:54:05 wosch Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -713,7 +713,7 @@ ftp://foo.bar.com:1234/pub/FreeBSD
 
 	<enum>
 	  <item>Boot the boot floppy.  After a boot sequence
-	    which can take anywhere from from 30 seconds to 3
+	    which can take anywhere from 30 seconds to 3
 	    minutes, depending on your hardware, you should be
 	    presented with a menu of initial choices.  If the
 	    floppy does not boot at all, or the boot hangs at some

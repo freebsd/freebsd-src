@@ -30,6 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)fsinterface.ms	1.4 (Berkeley) 4/16/91
+.\"	$Id$
 .\"
 .if \nv .rm CM
 .de UX
@@ -250,7 +251,7 @@ otherwise, the inode describes the next directory to be searched.
 The inode returned may be used in various ways by the caller;
 it may be examined, the file may be read or written,
 types and access may be checked, and fields may be modified.
-Modified inodes are automatically written back the the filesystem
+Modified inodes are automatically written back the filesystem
 on disk when the last reference is released with \fIiput\fP.
 Although the details are considerably different,
 the same general scheme is used in the faster filesystem in 4.2BSD
@@ -578,7 +579,7 @@ and they may be accessed using short offsets from a base pointer
 .PP
 The proposed filesystem interface is described very tersely here.
 For the most part, data structures and procedures are analogous
-to those used by VFS, and only the changes will be be treated here.
+to those used by VFS, and only the changes will be treated here.
 See [Kleiman86] for complete descriptions of the vfs and vnode operations
 in Sun's interface.
 .PP

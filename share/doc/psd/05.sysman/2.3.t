@@ -30,6 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)2.3.t	8.1 (Berkeley) 6/8/93
+.\"	$Id$
 .\"
 .sh "Interprocess communications
 .NH 3
@@ -392,7 +393,7 @@ provide IP source routing or security options.
 The 32-bit address is composed of network and host parts;
 the network part is variable in size and is frequency encoded.
 The host part may optionally be interpreted as a subnet field
-plus the host on subnet; this is is enabled by setting a network address
+plus the host on subnet; this is enabled by setting a network address
 mask at boot time.
 .NH 4
 Access rights transmission
