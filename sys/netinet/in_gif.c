@@ -154,7 +154,11 @@ in_gif_output(ifp, family, m, rt)
 	iphdr.ip_src = sin_src->sin_addr;
 #ifdef INET6
 	/* XXX: temporal stf support hack */
-	if (bcmp(ifp->if_name, "stf", 3) == 0 && ip6 != NULL) {
+	if (bcmp(ifp->if_name, "stf", 3) == 0) {
+		if (ip6 == NULL) {
+			m_freem(m);
+			return ENETUNREACH;
+		}
 		if (IN6_IS_ADDR_6TO4(&ip6->ip6_dst))
 			iphdr.ip_dst = *GET_V4(&ip6->ip6_dst);
 		else if (rt && rt->rt_gateway->sa_family == AF_INET6) {
@@ -309,6 +313,13 @@ in_gif_input(struct mbuf *m, int off, int proto)
 	case IPPROTO_IPV4:
 	    {
 		struct ip *ip;
+
+#ifdef INET6
+		if (bcmp(gifp->if_name, "stf", 3) == 0) {
+			m_freem(m);
+			return;
+		}
+#endif
 		af = AF_INET;
 		if (m->m_len < sizeof(*ip)) {
 			m = m_pullup(m, sizeof(*ip));
