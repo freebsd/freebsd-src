@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)swapgeneric.c	5.5 (Berkeley) 5/9/91
- *	$Id: swapgeneric.c,v 1.8 1995/04/02 23:02:17 wpaul Exp $
+ *	$Id: swapgeneric.c,v 1.9 1995/04/03 00:25:06 wpaul Exp $
  */
 
 #include <sys/param.h>
@@ -51,6 +51,7 @@
 #include "wd.h"
 #include "fd.h"
 #include "sd.h"
+#include "vn.h"
 #include "cd.h"
 #include "mcd.h"
 #include "scd.h"
@@ -64,12 +65,19 @@ dev_t	dumpdev = NODEV;
 
 int	nswap;
 struct	swdevt swdevt[] = {
-	{ 1,		0,	0 },
+	{ makedev (0xFF, 0x00000001),	0,	0 },
+#if NVN > 0
+	{ makedev (15, 0x00000001),	0,	0 },
+#endif
 	{ NODEV,	0,	0 }, /* For NFS diskless */
 	{ NODEV,	0,	0 },
 };
-long	dumplo;
 int	dmmin, dmmax, dmtext;
+
+#ifdef NFS
+extern int (*mountroot)  __P((void));
+extern int nfs_mountroot __P((void));
+#endif
 
 extern struct kern_devconf *dc_list;
 void gets __P((char *));
@@ -134,6 +142,17 @@ bad:
 		printf("use dk%%d\n");
 		goto retry;
 	}
+#ifdef NFS
+	if (mountroot == nfs_mountroot) {
+		/*
+		 * The NFS code in nfs_vfsops.c handles root and swap
+		 * for us if we're booting diskless. This is just to
+		 * make swapconf() happy.
+		 */
+		dumplo = -1;
+		return;
+	}
+#endif
 	unit = 0;
 	for (gc = genericconf; gc->gc_name; gc++) {
 		kdc = dc_list;
