@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: if_ray.c,v 1.4 2000/02/27 19:52:29 dmlb Exp $
  *
  */
 
@@ -491,7 +491,11 @@ ray_pccard_intr (dev_p)
 	RAY_HCS_CLEAR_INTR(sc);
 
     RAY_DPRINTF(("ray%d: interrupt %s handled\n",
-    		sc->unit, handled?"was":"not"));
+	    sc->unit, handled?"was":"not"));
+
+    /* Send any packets lying around */
+    if (!(sc->sc_if.if_flags & IFF_OACTIVE) && (ifp->if_snd.ifq_head != NULL))
+    	ray_start(ifp);
 
     return(handled);
 }
@@ -622,7 +626,7 @@ ray_attach (dev_p)
     ifp->if_ioctl = ray_ioctl;
     ifp->if_watchdog = ray_watchdog;
     ifp->if_init = ray_init;
-    ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
+    ifp->if_snd.ifq_maxlen = RAY_CCS_TX_LAST;
 
     /*
      * If this logical interface has already been attached,
@@ -653,20 +657,27 @@ ray_attach (dev_p)
 /*
  * Network start.
  *
+ *XXX from if_xe
  * Start output on interface.  We make two assumptions here:
  *  1) that the current priority is set to splimp _before_ this code
  *     is called *and* is returned to the appropriate priority after
  *     return
  *  2) that the IFF_OACTIVE flag is checked before this code is called
  *     (i.e. that the output part of the interface is idle)
+ *XXX from if_xe so maybe we can ignore? see start_join_net_done
  */
 static void
 ray_start (ifp)
     register struct ifnet	*ifp;
 {
-    struct ray_softc *sc;
+    struct ray_softc		*sc;
+    struct mbuf			*m;
 
     RAY_DPRINTF(("ray%d: Network start\n", ifp->if_unit));
+/* XXX mark output queue full so the kernel waits */
+ifp->if_flags |= IFF_OACTIVE;
+return;
+/* XXX mark output queue full so the kernel waits */
 
     sc = ifp->if_softc;
     RAY_MAP_CM(sc);
@@ -676,10 +687,73 @@ ray_start (ifp)
 	return;
     }
 
-/* XXX mark output queue full so the kernel waits */
-ifp->if_flags |= IFF_OACTIVE;
+    if ((ifp->if_flags & IFF_RUNNING) == 0 || !sc->sc_havenet)
+	return;
 
-/* XXX if_xe code is clean but if_ed does more checks at top */
+    /* We only deal with one packet at a time */
+/* XXX is this actually true? I don't think so there are 16 ccs */
+    if (ifp->if_flags & IFF_OACTIVE)
+	return;
+
+#if XXX
+netbsd
+
+driver uses a loop
+    repeat
+	get a ccs
+	get a mbuf
+	translate and send packet to shared ram
+    until (no more ccs's) || (no more mbuf's)
+
+    send ccs chain to card
+
+    exit
+
+Linux
+
+driver is simple single shot packet (with a lot of spinlocks!)
+
+general
+
+why 14 CCS reserved for TX in Linux+NetBSD? Is it simply that there are
+that many ethernet+80211header packets in the TX memory space? probably
+
+the tx space is 0x7000 = 28kB, and TX  buffer size is 2048? so there
+can be 14 requests at 2kB each
+
+from this 2k we have to remove the TIB - whatever that is - for data
+
+
+netbsd:
+	we need to call _start after receiveing a packet to see
+	if any packets were queued whilst in the interrupt
+
+	there is a potential race in obtaining ccs's for the tx, in that
+	we might be in _start synchronously and then an rx interrupt
+	occurs. the rx will call _start and steal tx ccs from underneath
+	the interrupted entry.
+
+	toptions
+		don't call _start from rx interrupt
+
+		find a safe way of locking
+
+		find a better way of obtaining ccs using next free avilable?
+
+		look at other drivers
+
+		use tsleep/wakeup
+
+		some form of ring to hold ccs
+
+		free lsit
+
+
+#endif
+
+    IF_DEQUEUE(&ifp->if_snd, m);
+    if (m == NULL)
+	return;
  
     return;
 }
@@ -1044,13 +1118,16 @@ ray_ccs_done (sc, ccs)
 
 	case RAY_CMD_START_ASSOC:
 	    RAY_DPRINTF(("ray%d: ray_ccs_done got START_ASSOC\n", sc->unit));
+	    sc->sc_havenet = 1; /* Should not be here but in function */
 	    XXX;
 	    break;
 
 	case RAY_CMD_TX_REQ:
 	    RAY_DPRINTF(("ray%d: ray_ccs_done got TX_REQ\n", sc->unit));
-	    XXX;
-	    break;
+	    SRAM_WRITE_FIELD_1(sc, ccs, ray_cmd, c_status, RAY_CCS_STATUS_FREE);
+	    if (sc->sc_if.if_flags & IFF_OACTIVE)
+		sc->sc_if.if_flags &= ~IFF_OACTIVE;
+	    return;
 
 	case RAY_CMD_TEST_MEM:
 	    printf("ray%d: ray_ccs_done got TEST_MEM - why?\n", sc->unit);
@@ -1114,6 +1191,7 @@ ray_rcs_intr (sc, rcs)
 
 	case RAY_ECMD_ROAM_START:
 	    RAY_DPRINTF(("ray%d: ray_rcs_intr got ROAM_START\n", sc->unit));
+	    sc->sc_havenet = 0; /* Should not be here but in function */
 	    XXX;
 	    break;
 
@@ -1669,6 +1747,7 @@ ray_start_join_done (sc, ccs, status)
     	case RAY_CCS_STATUS_FAIL:
 	    printf("ray%d: ray_start_join_done status is FAIL - why?\n",
 	    		sc->unit);
+	    sc->sc_havenet = 0;
 #if XXX
 	    restart ray_start_join sequence 
 	    may need to split download_done for this
@@ -1681,57 +1760,64 @@ ray_start_join_done (sc, ccs, status)
 	    break;
     }
 
+    if (status != RAY_CCS_STATUS_COMPLETE)
+	return;
+
     /*
      * If the command completed correctly, get a few network parameters
-     * from the ccs and active the nextwork.
+     * from the ccs and active the network.
      */
-    if (status == RAY_CCS_STATUS_COMPLETE) {
+    ray_read_region(sc, ccs, &sc->sc_cnet_1, sizeof(struct ray_cmd_net));
 
-        ray_read_region(sc, ccs, &sc->sc_cnet_1, sizeof(struct ray_cmd_net));
+    /* adjust values for buggy build 4 */
+    if (sc->sc_def_txrate == 0x55)
+	    sc->sc_def_txrate = RAY_MIB_BASIC_RATE_SET_1500K;
+    if (sc->sc_encrypt == 0x55)
+	    sc->sc_encrypt = 0;
 
-	/* adjust values for buggy build 4 */
-	if (sc->sc_def_txrate == 0x55)
-		sc->sc_def_txrate = RAY_MIB_BASIC_RATE_SET_1500K;
-	if (sc->sc_encrypt == 0x55)
-		sc->sc_encrypt = 0;
-
-	/* card is telling us to update the network parameters */
-	if (sc->sc_upd_param) {
-	    RAY_DPRINTF(("ray%d: ray_start_join_done card request update of network parameters\n", sc->unit));
-	    o_net_type = sc->sc_net_type;
-	    ray_read_region(sc, RAY_HOST_TO_ECF_BASE,
+    /* card is telling us to update the network parameters */
+    if (sc->sc_upd_param) {
+	RAY_DPRINTF(("ray%d: sj_done card updating parameters - why?\n",
+		sc->unit));
+	o_net_type = sc->sc_net_type;
+	ray_read_region(sc, RAY_HOST_TO_ECF_BASE,
 		&sc->sc_cnet_2, sizeof(struct ray_net_params));
-	    if (sc->sc_net_type != o_net_type) {
-		printf("ray%d: ray_start_join_done card request change of network type - why?\n", sc->unit);
+	if (sc->sc_net_type != o_net_type) {
+	    printf("ray%d: sj_done card changing network type - why?\n",
+	    	sc->unit);
 #if XXX
-    restart ray_start_join sequence ?
-    may need to split download_timo for this
+restart ray_start_join sequence ?
+may need to split download_timo for this
+panic?
 #endif
-	    }
 	}
-	RAY_DNET_DUMP(sc, " after start/join network completed.");
+    }
+    RAY_DNET_DUMP(sc, " after start/join network completed.");
 
+    /*
+     * Hurrah! The network is now active
+     */
+#if XXX_MCASTPROM
+    ray_cmd_schedule(sc, SCP_UPD_MCAST|SCP_UPD_PROMISC);
+#endif /* XXX_MCASTPROM */
+    if (SRAM_READ_FIELD_1(sc, ccs, ray_cmd, c_cmd) == RAY_CMD_JOIN_NET)
 #if XXX
-	netbsd has already cleared OACTIVE so packets may be queued
-	need to know interrupt level before calling ray_start
-
-	is ray_intr_start === ray_start?
-		yup apart from groking the sc from the ifp
-
-	/* network is now active */
-	ray_cmd_schedule(sc, SCP_UPD_MCAST|SCP_UPD_PROMISC);
-	if (cmd == RAY_CMD_JOIN_NET)
-		return (ray_start_assoc);
-	else {
-		sc->sc_havenet = 1;
-		return (ray_intr_start);
-	}
-#endif
-
+	ray_start_assoc(sc);
+#else
+	RAY_DPRINTF(("wanted to join a NET!\n"));
+#endif /* XXX */
+    else {
+	sc->sc_havenet = 1; /* XXX need to check havenet setting/clearing */
+#if XXX
+    ray_start needs OACTIVE clear and more than splimp
+	NetBSD has already cleared OACTIVE
+	need to know interrupt level we enter ray_pccard_intr at
+	ray_start(&sc->arpcom.ac_if);
+#endif /* XXX */
     }
 
     return;
-};
+}
 
 #if RAY_NEED_STARTJOIN_TIMO
 /*
