@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.160 1998/08/25 17:48:42 brian Exp $
+ * $Id: command.c,v 1.161 1998/08/26 17:39:37 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -126,7 +126,7 @@
 #define NEG_DNS		50
 
 const char Version[] = "2.0";
-const char VersionDate[] = "$Date: 1998/08/25 17:48:42 $";
+const char VersionDate[] = "$Date: 1998/08/26 17:39:37 $";
 
 static int ShowCommand(struct cmdargs const *);
 static int TerminalCommand(struct cmdargs const *);
@@ -1792,7 +1792,8 @@ AliasEnable(struct cmdargs const *arg)
 static int
 AliasOption(struct cmdargs const *arg)
 {
-  unsigned param = (unsigned)arg->cmd->args;
+  long param = (long)arg->cmd->args;
+
   if (arg->argc == arg->argn+1) {
     if (strcasecmp(arg->argv[arg->argn], "yes") == 0) {
       if (arg->bundle->AliasEnabled) {
