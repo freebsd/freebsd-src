@@ -570,9 +570,10 @@ syscall(struct trapframe *tf)
 
 	narg = callp->sy_narg & SYF_ARGMASK;
 
-	if (narg <= regcnt)
+	if (narg <= regcnt) {
 		argp = &tf->tf_out[reg];
-	else {
+		error = 0;
+	} else {
 		KASSERT(narg <= sizeof(args) / sizeof(args[0]),
 		    ("Too many syscall arguments!"));
 		argp = args;
@@ -580,8 +581,6 @@ syscall(struct trapframe *tf)
 		error = copyin((void *)(tf->tf_out[6] + SPOFF +
 		    offsetof(struct frame, fr_pad[6])),
 		    &args[regcnt], (narg - regcnt) * sizeof(args[0]));
-		if (error != 0)
-			goto bad;
 	}
 
 	CTR5(KTR_SYSC, "syscall: td=%p %s(%#lx, %#lx, %#lx)", td,
@@ -595,23 +594,21 @@ syscall(struct trapframe *tf)
 		mtx_lock(&Giant);
 
 #ifdef KTRACE
-	/*
-	 * We have to obtain the MP lock no matter what if 
-	 * we are ktracing
-	 */
-	if (KTRPOINT(p, KTR_SYSCALL)) {
-		ktrsyscall(p->p_tracep, code, narg, argp);
-	}
+	if (KTRPOINT(td, KTR_SYSCALL))
+		ktrsyscall(code, narg, argp);
 #endif
-	td->td_retval[0] = 0;
-	td->td_retval[1] = 0;
+	if (error == 0) {
+		td->td_retval[0] = 0;
+		td->td_retval[1] = 0;
 
-	STOPEVENT(p, S_SCE, narg);	/* MP aware */
+		STOPEVENT(p, S_SCE, narg);	/* MP aware */
 
-	error = (*callp->sy_call)(td, argp);
+		error = (*callp->sy_call)(td, argp);
 
-	CTR5(KTR_SYSC, "syscall: p=%p error=%d %s return %#lx %#lx ", p,
-	    error, syscallnames[code], td->td_retval[0], td->td_retval[1]);
+		CTR5(KTR_SYSC, "syscall: p=%p error=%d %s return %#lx %#lx ", p,
+		    error, syscallnames[code], td->td_retval[0],
+		    td->td_retval[1]);
+	}
 	
 	/*
 	 * MP SAFE (we may or may not have the MP lock at this point)
@@ -636,7 +633,6 @@ syscall(struct trapframe *tf)
 		break;
 
 	default:
-bad:
  		if (p->p_sysent->sv_errsize) {
  			if (error >= p->p_sysent->sv_errsize)
   				error = -1;	/* XXX */
@@ -653,12 +649,6 @@ bad:
 	 */
 	userret(td, tf, sticks);
 
-#ifdef KTRACE
-	if (KTRPOINT(p, KTR_SYSRET)) {
-		ktrsysret(p->p_tracep, code, error, td->td_retval[0]);
-	}
-#endif
-
 	/*
 	 * Release Giant if we had to get it.  Don't use mtx_owned(),
 	 * we want to catch broken syscalls.
@@ -666,6 +656,10 @@ bad:
 	if ((callp->sy_narg & SYF_MPSAFE) == 0)
 		mtx_unlock(&Giant);
 
+#ifdef KTRACE
+	if (KTRPOINT(td, KTR_SYSRET))
+		ktrsysret(code, error, td->td_retval[0]);
+#endif
 	/*
 	 * This works because errno is findable through the
 	 * register set.  If we ever support an emulation where this
