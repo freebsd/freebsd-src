@@ -37,7 +37,7 @@ __FBSDID("$FreeBSD$");
 #define PRVERBOSE(fmt, arg...)	if (bootverbose) printf(fmt, ##arg);
 
 struct pps_data {
-	struct	ppb_device pps_dev;	
+	struct	ppb_device pps_dev;
 	struct	pps_state pps[9];
 	struct cdev *devs[9];
 	device_t ppsdev;
@@ -215,7 +215,7 @@ ppsopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 
 		i = IRQENABLE | PCD | nINIT | SELECTIN;
 		ppb_wctr(ppbus, i);
-	} 
+	}
 	if (subdev > 0 && !(sc->busy & ~1)) {
 		sc->timeout = timeout(ppshcpoll, sc, 1);
 		sc->lastdata = ppb_rdtr(sc->ppbus);
@@ -232,7 +232,7 @@ ppsclose(struct cdev *dev, int flags, int fmt, struct thread *td)
 
 	sc->pps[subdev].ppsparam.mode = 0;	/* PHK ??? */
 	sc->busy &= ~(1 << subdev);
-	if (subdev > 0 && !(sc->busy & ~1)) 
+	if (subdev > 0 && !(sc->busy & ~1))
 		untimeout(ppshcpoll, sc, sc->timeout);
 	if (!sc->busy) {
 		device_t ppsdev = sc->ppsdev;
