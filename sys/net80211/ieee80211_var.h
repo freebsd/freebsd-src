@@ -70,7 +70,8 @@ enum ieee80211_opmode {
 	IEEE80211_M_STA		= 1,	/* infrastructure station */
 	IEEE80211_M_IBSS 	= 0,	/* IBSS (adhoc) station */
 	IEEE80211_M_AHDEMO	= 3,	/* Old lucent compatible adhoc demo */
-	IEEE80211_M_HOSTAP	= 6	/* Software Access Point */
+	IEEE80211_M_HOSTAP	= 6,	/* Software Access Point */
+	IEEE80211_M_MONITOR	= 8	/* Monitor mode */
 };
 
 /*
@@ -222,6 +223,7 @@ struct ieee80211com {
 #define	IEEE80211_C_TXPMGT	0x00000040	/* CAPABILITY: tx power mgmt */
 #define	IEEE80211_C_SHSLOT	0x00000080	/* CAPABILITY: short slottime */
 #define	IEEE80211_C_SHPREAMBLE	0x00000100	/* CAPABILITY: short preamble */
+#define	IEEE80211_C_MONITOR	0x00000200	/* CAPABILITY: monitor mode */
 
 /* flags for ieee80211_fix_rate() */
 #define	IEEE80211_F_DOSORT	0x00000001	/* sort rate list */

@@ -138,6 +138,9 @@ ieee80211_input(struct ifnet *ifp, struct mbuf *m,
 				ni = ieee80211_ref_node(ic->ic_bss);
 			}
 			break;
+		case IEEE80211_M_MONITOR:
+			/* NB: this should collect everything */
+			goto out;
 		default:
 			/* XXX catch bad values */
 			break;
@@ -211,6 +214,8 @@ ieee80211_input(struct ifnet *ifp, struct mbuf *m,
 				goto err;
 			}
 			ieee80211_unref_node(&ni);
+			break;
+		case IEEE80211_M_MONITOR:
 			break;
 		}
 		if (wh->i_fc[1] & IEEE80211_FC1_WEP) {
@@ -828,6 +833,8 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0, int subtype,
 			}
 			ieee80211_new_state(ic, IEEE80211_S_ASSOC,
 			    wh->i_fc[0] & IEEE80211_FC0_SUBTYPE_MASK);
+			break;
+		case IEEE80211_M_MONITOR:
 			break;
 		}
 		break;
