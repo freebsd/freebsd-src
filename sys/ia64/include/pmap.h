@@ -114,8 +114,6 @@ typedef struct pv_entry {
 	TAILQ_ENTRY(pv_entry)	pv_plist;
 } *pv_entry_t;
 
-#define	PV_ENTRY_NULL	((pv_entry_t) 0)
-
 #ifdef	_KERNEL
 
 extern vm_offset_t avail_end;
@@ -133,7 +131,6 @@ int	pmap_uses_prom_console(void);
 void	*pmap_mapdev(vm_offset_t, vm_size_t);
 void	pmap_unmapdev(vm_offset_t, vm_size_t);
 unsigned *pmap_pte(pmap_t, vm_offset_t) __pure2;
-vm_page_t pmap_use_pt(pmap_t, vm_offset_t);
 void	pmap_set_opt	(unsigned *);
 void	pmap_set_opt_bsp	(void);
 struct pmap *pmap_install(struct pmap *pmap);
