@@ -41,7 +41,6 @@ static char sccsid[] = "@(#)gets.c	8.1 (Berkeley) 6/4/93";
 __FBSDID("$FreeBSD$");
 
 #include "namespace.h"
-#include <unistd.h>
 #include <stdio.h>
 #include <sys/cdefs.h>
 #include "un-namespace.h"
@@ -56,16 +55,9 @@ gets(buf)
 {
 	int c;
 	char *s;
-	static int warned;
-	static char w[] =
-	    "warning: this program uses gets(), which is unsafe.\n";
 
 	FLOCKFILE(stdin);
 	ORIENT(stdin, -1);
-	if (!warned) {
-		(void) _write(STDERR_FILENO, w, sizeof(w) - 1);
-		warned = 1;
-	}
 	for (s = buf; (c = __sgetc(stdin)) != '\n';)
 		if (c == EOF)
 			if (s == buf) {
