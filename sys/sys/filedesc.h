@@ -37,7 +37,10 @@
 #ifndef _SYS_FILEDESC_H_
 #define	_SYS_FILEDESC_H_
 
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/queue.h>
+#include <sys/sx.h>
 
 /*
  * This structure is used for the management of descriptors.  It may be
@@ -63,8 +66,8 @@ struct filedesc {
 	struct	vnode *fd_rdir;		/* root directory */
 	struct	vnode *fd_jdir;		/* jail root directory */
 	int	fd_nfiles;		/* number of open files allocated */
-	u_short	fd_lastfile;		/* high-water mark of fd_ofiles */
-	u_short	fd_freefile;		/* approx. next free file */
+	int	fd_lastfile;		/* high-water mark of fd_ofiles */
+	int	fd_freefile;		/* approx. next free file */
 	u_short	fd_cmask;		/* mask for file creation */
 	u_short	fd_refcnt;		/* reference count */
 
@@ -72,6 +75,7 @@ struct filedesc {
 	struct	klist *fd_knlist;	/* list of attached knotes */
 	u_long	fd_knhashmask;		/* size of knhash */
 	struct	klist *fd_knhash;	/* hash table for attached knotes */
+	struct mtx	fd_mtx;		/* mtx to protect the members of struct filedesc */
 };
 
 /*
@@ -125,6 +129,27 @@ struct sigio {
 SLIST_HEAD(sigiolst, sigio);
 
 #ifdef _KERNEL
+
+/* Lock a file descriptor table. */
+/*#define FILEDESC_LOCK_DEBUG*/
+#ifdef FILEDESC_LOCK_DEBUG
+#define FILEDESC_LOCK(fd)					\
+	do {							\
+		printf("FD_LCK: %p %s %d\n", &(fd)->fd_mtx, __FILE__, __LINE__);	\
+		mtx_lock(&(fd)->fd_mtx);			\
+	} while (0)
+#define FILEDESC_UNLOCK(fd)					\
+	do {							\
+		printf("FD_REL: %p %s %d\n", &(fd)->fd_mtx, __FILE__, __LINE__);	\
+		mtx_unlock(&(fd)->fd_mtx);			\
+	} while (0)
+#else
+#define FILEDESC_LOCK(fd)	mtx_lock(&(fd)->fd_mtx)
+#define FILEDESC_UNLOCK(fd)	mtx_unlock(&(fd)->fd_mtx)
+#endif
+#define	FILEDESC_LOCKED(fd)	mtx_owned(&(fd)->fd_mtx)
+#define	FILEDESC_LOCK_ASSERT(fd, type)	mtx_assert(&(fd)->fd_mtx, (type))
+
 int	closef __P((struct file *fp, struct thread *p));
 int	dupfdopen __P((struct thread *td, struct filedesc *fdp, int indx, int dfd, int mode,
 		       int error));

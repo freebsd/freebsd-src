@@ -316,11 +316,15 @@ ibcs2_getdents(td, uap)
 
 	if ((error = getvnode(td->td_proc->p_fd, SCARG(uap, fd), &fp)) != 0)
 		return (error);
-	if ((fp->f_flag & FREAD) == 0)
+	if ((fp->f_flag & FREAD) == 0) {
+		fdrop(fp, td);
 		return (EBADF);
+	}
 	vp = (struct vnode *)fp->f_data;
-	if (vp->v_type != VDIR)	/* XXX  vnode readdir op should do this */
+	if (vp->v_type != VDIR) {	/* XXX  vnode readdir op should do this */
+		fdrop(fp, td);
 		return (EINVAL);
+	}
 
 	off = fp->f_offset;
 #define	DIRBLKSIZ	512		/* XXX we used to use ufs's DIRBLKSIZ */
@@ -427,9 +431,10 @@ again:
 eof:
 	td->td_retval[0] = SCARG(uap, nbytes) - resid;
 out:
+	VOP_UNLOCK(vp, 0, td);
+	fdrop(fp, td);
 	if (cookies)
 		free(cookies, M_TEMP);
-	VOP_UNLOCK(vp, 0, td);
 	free(buf, M_TEMP);
 	return (error);
 }
@@ -462,15 +467,22 @@ ibcs2_read(td, uap)
 		else
 			return error;
 	}
-	if ((fp->f_flag & FREAD) == 0)
+	if ((fp->f_flag & FREAD) == 0) {
+		fdrop(fp, td);
 		return (EBADF);
+	}
 	vp = (struct vnode *)fp->f_data;
+	if (vp->v_type != VDIR) {
+		fdrop(fp, td);
+		return read(td, (struct read_args *)uap);
+	}
+
+	off = fp->f_offset;
 	if (vp->v_type != VDIR)
 		return read(td, (struct read_args *)uap);
 
 	DPRINTF(("ibcs2_read: read directory\n"));
 
-	off = fp->f_offset;
 	buflen = max(DIRBLKSIZ, SCARG(uap, nbytes));
 	buflen = min(buflen, MAXBSIZE);
 	buf = malloc(buflen, M_TEMP, M_WAITOK);
@@ -578,9 +590,10 @@ again:
 eof:
 	td->td_retval[0] = SCARG(uap, nbytes) - resid;
 out:
+	VOP_UNLOCK(vp, 0, td);
+	fdrop(fp, td);
 	if (cookies)
 		free(cookies, M_TEMP);
-	VOP_UNLOCK(vp, 0, td);
 	free(buf, M_TEMP);
 	return (error);
 }

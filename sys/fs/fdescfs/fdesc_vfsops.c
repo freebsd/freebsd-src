@@ -175,6 +175,7 @@ fdesc_statfs(mp, sbp, td)
 	 */
 	lim = td->td_proc->p_rlimit[RLIMIT_NOFILE].rlim_cur;
 	fdp = td->td_proc->p_fd;
+	FILEDESC_LOCK(fdp);
 	last = min(fdp->fd_nfiles, lim);
 	freefd = 0;
 	for (i = fdp->fd_freefile; i < last; i++)
@@ -187,6 +188,7 @@ fdesc_statfs(mp, sbp, td)
 	 */
 	if (fdp->fd_nfiles < lim)
 		freefd += (lim - fdp->fd_nfiles);
+	FILEDESC_UNLOCK(fdp);
 
 	sbp->f_flags = 0;
 	sbp->f_bsize = DEV_BSIZE;

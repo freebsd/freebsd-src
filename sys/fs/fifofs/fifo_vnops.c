@@ -344,23 +344,29 @@ fifo_ioctl(ap)
 	} */ *ap;
 {
 	struct file filetmp;
-	int error;
+	int error = 0;
 
 	if (ap->a_command == FIONBIO)
 		return (0);
+	mtx_init(&filetmp.f_mtx, "struct file", MTX_DEF);
+	filetmp.f_count = 1;
 	if (ap->a_fflag & FREAD) {
+		/* filetmp is local, hence not need be locked. */
 		filetmp.f_data = (caddr_t)ap->a_vp->v_fifoinfo->fi_readsock;
 		error = soo_ioctl(&filetmp, ap->a_command, ap->a_data, ap->a_td);
 		if (error)
-			return (error);
+			goto err;
 	}
 	if (ap->a_fflag & FWRITE) {
+		/* filetmp is local, hence not need be locked. */
 		filetmp.f_data = (caddr_t)ap->a_vp->v_fifoinfo->fi_writesock;
 		error = soo_ioctl(&filetmp, ap->a_command, ap->a_data, ap->a_td);
 		if (error)
-			return (error);
+			goto err;
 	}
-	return (0);
+err:
+	mtx_destroy(&filetmp.f_mtx);
+	return (error);
 }
 
 /* ARGSUSED */
@@ -459,6 +465,8 @@ fifo_poll(ap)
 	struct file filetmp;
 	int revents = 0;
 
+	mtx_init(&filetmp.f_mtx, "struct file", MTX_DEF);
+	filetmp.f_count = 1;
 	if (ap->a_events & (POLLIN | POLLPRI | POLLRDNORM | POLLRDBAND)) {
 		filetmp.f_data = (caddr_t)ap->a_vp->v_fifoinfo->fi_readsock;
 		if (filetmp.f_data)
@@ -471,6 +479,7 @@ fifo_poll(ap)
 			revents |= soo_poll(&filetmp, ap->a_events, ap->a_cred,
 			    ap->a_td);
 	}
+	mtx_destroy(&filetmp.f_mtx);
 	return (revents);
 }
 

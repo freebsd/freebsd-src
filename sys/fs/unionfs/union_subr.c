@@ -1048,10 +1048,13 @@ union_vn_create(vpp, un, td)
 	struct vattr *vap = &vat;
 	int fmode = FFLAGS(O_WRONLY|O_CREAT|O_TRUNC|O_EXCL);
 	int error;
-	int cmode = UN_FILEMODE & ~td->td_proc->p_fd->fd_cmask;
+	int cmode;
 	struct componentname cn;
 
 	*vpp = NULLVP;
+	FILEDESC_LOCK(td->td_proc->p_fd);
+	cmode = UN_FILEMODE & ~td->td_proc->p_fd->fd_cmask;
+	FILEDESC_UNLOCK(td->td_proc->p_fd);
 
 	/*
 	 * Build a new componentname structure (for the same
@@ -1323,8 +1326,10 @@ union_dircheck(struct thread *td, struct vnode **vp, struct file *fp)
 				return (error);
 			}
 			VOP_UNLOCK(lvp, 0, td);
+			FILE_LOCK(fp);
 			fp->f_data = (caddr_t) lvp;
 			fp->f_offset = 0;
+			FILE_UNLOCK(fp);
 			error = vn_close(*vp, FREAD, fp->f_cred, td);
 			if (error)
 				return (error);

@@ -144,11 +144,13 @@ namei(ndp)
 	/*
 	 * Get starting point for the translation.
 	 */
+	FILEDESC_LOCK(fdp);
 	ndp->ni_rootdir = fdp->fd_rdir;
 	ndp->ni_topdir = fdp->fd_jdir;
 
 	dp = fdp->fd_cdir;
 	VREF(dp);
+	FILEDESC_UNLOCK(fdp);
 	for (;;) {
 		/*
 		 * Check if root directory should replace current directory.

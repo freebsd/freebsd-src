@@ -716,9 +716,11 @@ __getcwd(td, uap)
 	*bp = '\0';
 	fdp = td->td_proc->p_fd;
 	slash_prefixed = 0;
+	FILEDESC_LOCK(fdp);
 	for (vp = fdp->fd_cdir; vp != fdp->fd_rdir && vp != rootvnode;) {
 		if (vp->v_flag & VROOT) {
 			if (vp->v_mount == NULL) {	/* forced unmount */
+				FILEDESC_UNLOCK(fdp);
 				free(buf, M_TEMP);
 				return (EBADF);
 			}
@@ -726,23 +728,27 @@ __getcwd(td, uap)
 			continue;
 		}
 		if (vp->v_dd->v_id != vp->v_ddid) {
+			FILEDESC_UNLOCK(fdp);
 			numcwdfail1++;
 			free(buf, M_TEMP);
 			return (ENOTDIR);
 		}
 		ncp = TAILQ_FIRST(&vp->v_cache_dst);
 		if (!ncp) {
+			FILEDESC_UNLOCK(fdp);
 			numcwdfail2++;
 			free(buf, M_TEMP);
 			return (ENOENT);
 		}
 		if (ncp->nc_dvp != vp->v_dd) {
+			FILEDESC_UNLOCK(fdp);
 			numcwdfail3++;
 			free(buf, M_TEMP);
 			return (EBADF);
 		}
 		for (i = ncp->nc_nlen - 1; i >= 0; i--) {
 			if (bp == buf) {
+				FILEDESC_UNLOCK(fdp);
 				numcwdfail4++;
 				free(buf, M_TEMP);
 				return (ENOMEM);
@@ -750,6 +756,7 @@ __getcwd(td, uap)
 			*--bp = ncp->nc_name[i];
 		}
 		if (bp == buf) {
+			FILEDESC_UNLOCK(fdp);
 			numcwdfail4++;
 			free(buf, M_TEMP);
 			return (ENOMEM);
@@ -758,6 +765,7 @@ __getcwd(td, uap)
 		slash_prefixed = 1;
 		vp = vp->v_dd;
 	}
+	FILEDESC_UNLOCK(fdp);
 	if (!slash_prefixed) {
 		if (bp == buf) {
 			numcwdfail4++;
@@ -811,9 +819,11 @@ vn_fullpath(struct thread *td, struct vnode *vn, char **retbuf, char **freebuf)
 	*bp = '\0';
 	fdp = td->td_proc->p_fd;
 	slash_prefixed = 0;
+	FILEDESC_LOCK(fdp);
 	for (vp = vn; vp != fdp->fd_rdir && vp != rootvnode;) {
 		if (vp->v_flag & VROOT) {
 			if (vp->v_mount == NULL) {	/* forced unmount */
+				FILEDESC_UNLOCK(fdp);
 				free(buf, M_TEMP);
 				return (EBADF);
 			}
@@ -821,23 +831,27 @@ vn_fullpath(struct thread *td, struct vnode *vn, char **retbuf, char **freebuf)
 			continue;
 		}
 		if (vp != vn && vp->v_dd->v_id != vp->v_ddid) {
+			FILEDESC_UNLOCK(fdp);
 			numfullpathfail1++;
 			free(buf, M_TEMP);
 			return (ENOTDIR);
 		}
 		ncp = TAILQ_FIRST(&vp->v_cache_dst);
 		if (!ncp) {
+			FILEDESC_UNLOCK(fdp);
 			numfullpathfail2++;
 			free(buf, M_TEMP);
 			return (ENOENT);
 		}
 		if (vp != vn && ncp->nc_dvp != vp->v_dd) {
+			FILEDESC_UNLOCK(fdp);
 			numfullpathfail3++;
 			free(buf, M_TEMP);
 			return (EBADF);
 		}
 		for (i = ncp->nc_nlen - 1; i >= 0; i--) {
 			if (bp == buf) {
+				FILEDESC_UNLOCK(fdp);
 				numfullpathfail4++;
 				free(buf, M_TEMP);
 				return (ENOMEM);
@@ -845,6 +859,7 @@ vn_fullpath(struct thread *td, struct vnode *vn, char **retbuf, char **freebuf)
 			*--bp = ncp->nc_name[i];
 		}
 		if (bp == buf) {
+			FILEDESC_UNLOCK(fdp);
 			numfullpathfail4++;
 			free(buf, M_TEMP);
 			return (ENOMEM);
@@ -855,12 +870,14 @@ vn_fullpath(struct thread *td, struct vnode *vn, char **retbuf, char **freebuf)
 	}
 	if (!slash_prefixed) {
 		if (bp == buf) {
+			FILEDESC_UNLOCK(fdp);
 			numfullpathfail4++;
 			free(buf, M_TEMP);
 			return (ENOMEM);
 		}
 		*--bp = '/';
 	}
+	FILEDESC_UNLOCK(fdp);
 	numfullpathfound++;
 	*retbuf = bp; 
 	*freebuf = buf;

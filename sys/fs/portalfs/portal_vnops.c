@@ -402,12 +402,18 @@ portal_open(ap)
 	 * Check that the mode the file is being opened for is a subset
 	 * of the mode of the existing descriptor.
 	 */
- 	fp = td->td_proc->p_fd->fd_ofiles[fd];
+	fp = ffind_hold(td, fd);
+	if (fp == NULL) {
+		error = EBADF;
+		goto bad;
+	}
 	if (((ap->a_mode & (FREAD|FWRITE)) | fp->f_flag) != fp->f_flag) {
+		fdrop(fp, td);
 		portal_closefd(td, fd);
 		error = EACCES;
 		goto bad;
 	}
+	fdrop(fp, td);
 
 	/*
 	 * Save the dup fd in the proc structure then return the

@@ -263,15 +263,20 @@ svr4_sys_getdents64(td, uap)
 		return (error);
 	}
 
-	if ((fp->f_flag & FREAD) == 0)
+	if ((fp->f_flag & FREAD) == 0) {
+		fdrop(fp, td);
 		return (EBADF);
+	}
 
 	vp = (struct vnode *) fp->f_data;
 
-	if (vp->v_type != VDIR)
+	if (vp->v_type != VDIR) {
+		fdrop(fp, td);
 		return (EINVAL);
+	}
 
 	if ((error = VOP_GETATTR(vp, &va, td->td_proc->p_ucred, td))) {
+		fdrop(fp, td);
 		return error;
 	}
 
@@ -400,9 +405,10 @@ again:
 eof:
 	td->td_retval[0] = nbytes - resid;
 out:
+	VOP_UNLOCK(vp, 0, td);
+	fdrop(fp, td);
 	if (cookies)
 		free(cookies, M_TEMP);
-	VOP_UNLOCK(vp, 0, td);
 	free(buf, M_TEMP);
 	return error;
 }
@@ -431,12 +437,16 @@ svr4_sys_getdents(td, uap)
 	if ((error = getvnode(td->td_proc->p_fd, SCARG(uap, fd), &fp)) != 0)
 		return (error);
 
-	if ((fp->f_flag & FREAD) == 0)
+	if ((fp->f_flag & FREAD) == 0) {
+		fdrop(fp, td);
 		return (EBADF);
+	}
 
 	vp = (struct vnode *)fp->f_data;
-	if (vp->v_type != VDIR)
+	if (vp->v_type != VDIR) {
+		fdrop(fp, td);
 		return (EINVAL);
+	}
 
 	buflen = min(MAXBSIZE, SCARG(uap, nbytes));
 	buf = malloc(buflen, M_TEMP, M_WAITOK);
@@ -458,8 +468,9 @@ again:
          */
 	error = VOP_READDIR(vp, &auio, fp->f_cred, &eofflag, &ncookies,
 	    &cookiebuf);
-	if (error)
+	if (error) {
 		goto out;
+	}
 
 	inp = buf;
 	outp = SCARG(uap, buf);
@@ -515,6 +526,7 @@ eof:
 	*retval = SCARG(uap, nbytes) - resid;
 out:
 	VOP_UNLOCK(vp, 0, td);
+	fdrop(fp, td);
 	if (cookiebuf)
 		free(cookiebuf, M_TEMP);
 	free(buf, M_TEMP);
@@ -607,11 +619,17 @@ svr4_sys_fchroot(td, uap)
 		error = VOP_ACCESS(vp, VEXEC, td->td_proc->p_ucred, td);
 	VOP_UNLOCK(vp, 0, td);
 	if (error)
+		fdrop(fp, td);
 		return error;
+	}
 	VREF(vp);
-	if (fdp->fd_rdir != NULL)
-		vrele(fdp->fd_rdir);
+	FILEDESC_LOCK(fdp);
+	vpold = fdp->fd_rdir;
 	fdp->fd_rdir = vp;
+	FILEDESC_UNLOCK(fdp);
+	if (vpold != NULL)
+		vrele(vpold);
+	fdrop(fp, td);
 	return 0;
 }
 
@@ -1221,15 +1239,16 @@ loop:
 	nfound = 0;
 	sx_slock(&proctree_lock);
 	LIST_FOREACH(q, &td->td_proc->p_children, p_sibling) {
+		PROC_LOCK(q);
 		if (SCARG(uap, id) != WAIT_ANY &&
 		    q->p_pid != SCARG(uap, id) &&
 		    q->p_pgid != -SCARG(uap, id)) {
+			PROC_UNLOCK(q);
 			DPRINTF(("pid %d pgid %d != %d\n", q->p_pid,
 				 q->p_pgid, SCARG(uap, id)));
 			continue;
 		}
 		nfound++;
-		PROC_LOCK(q);
 		mtx_lock_spin(&sched_lock);
 		if (q->p_stat == SZOMB && 
 		    ((SCARG(uap, options) & (SVR4_WEXITED|SVR4_WTRAPPED)))) {

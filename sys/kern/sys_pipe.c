@@ -205,27 +205,33 @@ pipe(td, uap)
 	 * to avoid races against processes which manage to dup() the read
 	 * side while we are blocked trying to allocate the write side.
 	 */
+	FILE_LOCK(rf);
 	rf->f_flag = FREAD | FWRITE;
 	rf->f_type = DTYPE_PIPE;
 	rf->f_data = (caddr_t)rpipe;
 	rf->f_ops = &pipeops;
+	FILE_UNLOCK(rf);
 	error = falloc(td, &wf, &fd);
 	if (error) {
+		FILEDESC_LOCK(fdp);
 		if (fdp->fd_ofiles[td->td_retval[0]] == rf) {
 			fdp->fd_ofiles[td->td_retval[0]] = NULL;
+			FILEDESC_UNLOCK(fdp);
 			fdrop(rf, td);
-		}
+		} else
+			FILEDESC_UNLOCK(fdp);
 		fdrop(rf, td);
 		/* rpipe has been closed by fdrop(). */
 		pipeclose(wpipe);
 		return (error);
 	}
+	FILE_LOCK(wf);
 	wf->f_flag = FREAD | FWRITE;
 	wf->f_type = DTYPE_PIPE;
 	wf->f_data = (caddr_t)wpipe;
 	wf->f_ops = &pipeops;
+	FILE_UNLOCK(wf);
 	td->td_retval[1] = fd;
-
 	rpipe->pipe_peer = wpipe;
 	wpipe->pipe_peer = rpipe;
 	fdrop(rf, td);
@@ -495,9 +501,12 @@ pipe_read(fp, uio, cred, flags, td)
 			 * Handle non-blocking mode operation or
 			 * wait for more data.
 			 */
+			FILE_LOCK(fp);
 			if (fp->f_flag & FNONBLOCK) {
+				FILE_UNLOCK(fp);
 				error = EAGAIN;
 			} else {
+				FILE_UNLOCK(fp);
 				rpipe->pipe_state |= PIPE_WANTR;
 				if ((error = tsleep(rpipe, PRIBIO | PCATCH,
 				    "piperd", 0)) == 0)
@@ -825,15 +834,18 @@ pipe_write(fp, uio, cred, flags, td)
 		 * The direct write mechanism will detect the reader going
 		 * away on us.
 		 */
+		FILE_LOCK(fp);
 		if ((uio->uio_iov->iov_len >= PIPE_MINDIRECT) &&
 		    (fp->f_flag & FNONBLOCK) == 0 &&
 			(wpipe->pipe_map.kva || (amountpipekva < LIMITPIPEKVA)) &&
 			(uio->uio_iov->iov_len >= PIPE_MINDIRECT)) {
+			FILE_UNLOCK(fp);
 			error = pipe_direct_write( wpipe, uio);
 			if (error)
 				break;
 			continue;
-		}
+		} else
+			FILE_UNLOCK(fp);
 #endif
 
 		/*
@@ -961,10 +973,13 @@ pipe_write(fp, uio, cred, flags, td)
 			/*
 			 * don't block on non-blocking I/O
 			 */
+			FILE_LOCK(fp);
 			if (fp->f_flag & FNONBLOCK) {
+				FILE_UNLOCK(fp);
 				error = EAGAIN;
 				break;
 			}
+			FILE_UNLOCK(fp);
 
 			/*
 			 * We have no more space and have something to offer,
@@ -1236,8 +1251,9 @@ pipeclose(cpipe)
 static int
 pipe_kqfilter(struct file *fp, struct knote *kn)
 {
-	struct pipe *cpipe = (struct pipe *)kn->kn_fp->f_data;
+	struct pipe *cpipe;
 
+	cpipe = (struct pipe *)kn->kn_fp->f_data;
 	switch (kn->kn_filter) {
 	case EVFILT_READ:
 		kn->kn_fop = &pipe_rfiltops;
