@@ -2173,7 +2173,7 @@ tagcontrol(struct cam_device *device, int argc, char **argv,
 	}
 
 	bzero(&(&ccb->ccb_h)[1],
-	      sizeof(struct ccb_getdev) - sizeof(struct ccb_hdr));
+	      sizeof(struct ccb_getdevstats) - sizeof(struct ccb_hdr));
 
 	ccb->ccb_h.func_code = XPT_GDEV_STATS;
 
