@@ -67,61 +67,54 @@
 #include <machine/asm.h>
 
 /*
- * void cpu_switch()
- * Find a runnable thread and switch to it.
+ * void cpu_switch(struct thread *old, struct thread *new)
+ *
+ * Switch to a new thread saving the current state in the old thread.
  */
 ENTRY(cpu_switch)
-	mfsprg	%r3,0			/* Get the pcpu pointer */
-	lwz	%r4,PC_CURTHREAD(%r3)	/* Get the current thread */
-	lwz	%r3,TD_PCB(%r4)		/* Get a pointer to the PCB */
+	lwz	%r5,TD_PCB(%r3)		/* Get the old thread's PCB ptr */
 
-	mr	%r12,%r2
-	stmw	%r12,PCB_CONTEXT(%r3)	/* Save the non-volatile GP regs */
-	mr	%r14,%r3		/* Copy the current pcb pointer */
-	mr	%r15,%r4		/* ... and the curthread pointer */
+	mr	%r12,%r2	
+	stmw	%r12,PCB_CONTEXT(%r5)	/* Save the non-volatile GP regs.
+					   These can now be used for scratch */
+
 	mfcr	%r16			/* Save the condition register */
-	stw	%r16,PCB_CR(%r3)
+	stw	%r16,PCB_CR(%r5)
 	mflr	%r16			/* Save the link register */
-	stw	%r16,PCB_LR(%r3)
+	stw	%r16,PCB_LR(%r5)
 	mfsr	%r16,USER_SR		/* Save USER_SR for copyin/out */
 	isync
-	stw	%r16,PCB_USR(%r3)
-	stw	%r1,PCB_SP(%r3)		/* Save the stack pointer */
+	stw	%r16,PCB_USR(%r5)
+	stw	%r1,PCB_SP(%r5)		/* Save the stack pointer */
 
-	lwz	%r5,PCB_FLAGS(%r3)	/* Save FPU context if needed */
-	andi.	%r5, %r5, PCB_FPU
+	mr	%r14,%r3		/* Copy the old thread ptr... */
+	mr	%r15,%r4		/* and the new thread ptr in scratch */
+	
+	lwz	%r6,PCB_FLAGS(%r5)	/* Save FPU context if needed */
+	andi.	%r6, %r6, PCB_FPU
 	beq	.L1
-	mr	%r3,%r15
 	bl	save_fpu
-
+	mr	%r3,%r14		/* restore old thread ptr */
 .L1:
-	bl	choosethread		/* Find a new thread to run */
-	cmplw	0,%r3,%r15		/* Compare to curthread */
-	beq	.L2			/* If it's the same, we're done */
-
-	mr	%r16,%r3		/* Save off the (struct thread *) */
-
-	mr	%r3,%r15
 	bl	pmap_deactivate		/* Deactivate the current pmap */
 
-	mr	%r3,%r16
+	mr	%r3,%r15		/* Get new thread ptr */
 	bl	pmap_activate		/* Activate the new address space */
 
-	mfsprg	%r4,0			/* Get the pcpu pointer */
-	stw	%r16,PC_CURTHREAD(%r4)	/* Store new current thread */
-	mr	%r3,%r16		/*   and save in r3 */
-	lwz	%r17,TD_PCB(%r16)	/* Store new current PCB */
-	stw	%r17,PC_CURPCB(%r4)
+	mfsprg	%r7,0			/* Get the pcpu pointer */
+	stw	%r15,PC_CURTHREAD(%r7)	/* Store new current thread */
+	lwz	%r17,TD_PCB(%r15)	/* Store new current PCB */
+	stw	%r17,PC_CURPCB(%r7)
 
-	lwz	%r5, PCB_FLAGS(%r17)	/* Restore FPU context if needed */
-	andi.	%r5, %r5, PCB_FPU
+	lwz	%r6, PCB_FLAGS(%r17)	/* Restore FPU context if needed */
+	andi.	%r6, %r6, PCB_FPU
 	beq	.L2
+	mr	%r3,%r15		/* Pass curthread to enable_fpu */
 	bl	enable_fpu
-	mr	%r3,%r16		/* Recover new curthread */
 
 	/* thread to restore is in r3 */
 .L2:
-	lwz	%r3, TD_PCB(%r3)
+	mr	%r3,%r17		/* Recover PCB ptr */
 	lmw	%r12,PCB_CONTEXT(%r3)	/* Load the non-volatile GP regs */
 	mr	%r2,%r12
 	lwz	%r5,PCB_CR(%r3)		/* Load the condition register */
