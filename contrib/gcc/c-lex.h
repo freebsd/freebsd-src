@@ -1,5 +1,5 @@
 /* Define constants for communication with c-parse.y.
-   Copyright (C) 1987, 1992 Free Software Foundation, Inc.
+   Copyright (C) 1987, 1992, 1998 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -40,6 +40,7 @@ enum rid
   RID_TYPEDEF,
   RID_SIGNED,
   RID_CONST,
+  RID_RESTRICT,
   RID_VOLATILE,
   RID_INLINE,
   RID_NOALIAS,
@@ -50,6 +51,7 @@ enum rid
   RID_OUT,
   RID_INOUT,
   RID_BYCOPY,
+  RID_BYREF,
   RID_ONEWAY,
   RID_ID,
 
@@ -79,7 +81,7 @@ extern void position_after_white_space PROTO((void));
 extern int check_newline PROTO((void));
 
 extern int yylex PROTO((void));
-extern void yyerror PROTO((char *));
+extern void yyerror PROTO((const char *));
 
 extern void forget_protocol_qualifiers PROTO((void));
 extern void remember_protocol_qualifiers PROTO((void));

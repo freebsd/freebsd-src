@@ -1,5 +1,5 @@
 /* Output variables, constants and external declarations, for GNU compiler.
-   Copyright (C) 1987, 88, 89, 92-97, 1998 Free Software Foundation, Inc.
+   Copyright (C) 1987, 88, 89, 92-98, 1999 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -72,14 +72,6 @@ Boston, MA 02111-1307, USA.  */
 #endif
 #define CHKR_PREFIX_SIZE (sizeof (CHKR_PREFIX) - 1)
 
-/* This macro gets just the user-specified name
-   out of the string in a SYMBOL_REF.  On most machines,
-   we discard the * if any and that's all.  */
-#ifndef STRIP_NAME_ENCODING
-#define STRIP_NAME_ENCODING(VAR,SYMBOL_NAME) \
-  (VAR) = ((SYMBOL_NAME) + ((SYMBOL_NAME)[0] == '*'))
-#endif
-
 /* File in which assembler code is being written.  */
 
 extern FILE *asm_out_file;
@@ -116,20 +108,6 @@ int size_directive_output;
 
 tree last_assemble_variable_decl;
 
-
-#ifdef HANDLE_PRAGMA_WEAK
-/* Any weak symbol declarations waiting to be emitted.  */
-
-struct weak_syms
-{
-  struct weak_syms *next;
-  char *name;
-  char *value;
-};
-
-static struct weak_syms *weak_decls;
-#endif
-
 /* Nonzero if at least one function definition has been seen.  */
 
 static int function_defined;
@@ -139,7 +117,7 @@ struct constant_descriptor;
 struct rtx_const;
 struct pool_constant;
 
-static char *strip_reg_name		PROTO((char *));
+static const char *strip_reg_name	PROTO((const char *));
 static int contains_pointers_p		PROTO((tree));
 static void decode_addr_const		PROTO((tree, struct addr_const *));
 static int const_hash			PROTO((tree));
@@ -163,6 +141,7 @@ static void mark_constants		PROTO((rtx));
 static int output_addressed_constants	PROTO((tree));
 static void output_after_function_constants PROTO((void));
 static void output_constructor		PROTO((tree, int));
+static void remove_from_pending_weak_list	PROTO ((char *));
 #ifdef ASM_OUTPUT_BSS
 static void asm_output_bss		PROTO((FILE *, tree, char *, int, int));
 #endif
@@ -230,6 +209,15 @@ data_section ()
       in_section = in_data;
     }
 }
+/* Tell assembler to ALWAYS switch to data section, in case
+   it's not sure where it it.  */
+
+void
+force_data_section ()
+{
+  in_section = no_section;
+  data_section ();
+}
 
 /* Tell assembler to switch to read-only data section.  This is normally
    the text section.  */
@@ -268,8 +256,8 @@ in_data_section ()
 void
 named_section (decl, name, reloc)
      tree decl;
-     char *name;
-     int reloc;
+     const char *name;
+     int reloc ATTRIBUTE_UNUSED;
 {
   if (decl != NULL_TREE
       && TREE_CODE_CLASS (TREE_CODE (decl)) != 'd')
@@ -554,9 +542,9 @@ make_function_rtl (decl)
 
 /* Given NAME, a putative register name, discard any customary prefixes.  */
 
-static char *
+static const char *
 strip_reg_name (name)
-     char *name;
+  const char *name;
 {
 #ifdef REGISTER_PREFIX
   if (!strncmp (name, REGISTER_PREFIX, strlen (REGISTER_PREFIX)))
@@ -577,7 +565,7 @@ strip_reg_name (name)
 
 int
 decode_reg_name (asmspec)
-     char *asmspec;
+  const char *asmspec;
 {
   if (asmspec != 0)
     {
@@ -606,10 +594,10 @@ decode_reg_name (asmspec)
 
 #ifdef ADDITIONAL_REGISTER_NAMES
       {
-	static struct { char *name; int number; } table[]
+	static struct { const char *name; int number; } table[]
 	  = ADDITIONAL_REGISTER_NAMES;
 
-	for (i = 0; i < sizeof (table) / sizeof (table[0]); i++)
+	for (i = 0; i < (int)(sizeof (table) / sizeof (table[0])); i++)
 	  if (! strcmp (asmspec, table[i].name))
 	    return table[i].number;
       }
@@ -638,7 +626,7 @@ decode_reg_name (asmspec)
 void
 make_decl_rtl (decl, asmspec, top_level)
      tree decl;
-     char *asmspec;
+     const char *asmspec;
      int top_level;
 {
   register char *name = 0;
@@ -774,13 +762,17 @@ make_decl_rtl (decl, asmspec, top_level)
 	  if (flag_volatile_global && TREE_CODE (decl) == VAR_DECL
 	      && TREE_PUBLIC (decl))
 	    TREE_SIDE_EFFECTS (decl) = 1;
+	  else if (flag_volatile_static && TREE_CODE (decl) == VAR_DECL
+	       && (TREE_PUBLIC (decl) || TREE_STATIC (decl)))
+	    TREE_SIDE_EFFECTS (decl) = 1;
+
 	  if (TREE_SIDE_EFFECTS (decl))
 	    MEM_VOLATILE_P (DECL_RTL (decl)) = 1;
 
 	  if (TREE_READONLY (decl))
 	    RTX_UNCHANGING_P (DECL_RTL (decl)) = 1;
-	  MEM_IN_STRUCT_P (DECL_RTL (decl))
-	    = AGGREGATE_TYPE_P (TREE_TYPE (decl));
+	  MEM_SET_IN_STRUCT_P (DECL_RTL (decl),
+			       AGGREGATE_TYPE_P (TREE_TYPE (decl)));
 
 	  /* Optionally set flags or add text to the name to record information
 	     such as that it is a function name.
@@ -1021,7 +1013,13 @@ assemble_start_function (decl, fnname)
 
 #ifdef ASM_WEAKEN_LABEL
       if (DECL_WEAK (decl))
-	ASM_WEAKEN_LABEL (asm_out_file, fnname);
+	{
+	  ASM_WEAKEN_LABEL (asm_out_file, fnname);
+	  /* Remove this function from the pending weak list so that
+	     we do not emit multiple .weak directives for it.  */
+	  remove_from_pending_weak_list
+	    (IDENTIFIER_POINTER (DECL_ASSEMBLER_NAME (decl)));
+	}
       else
 #endif
       ASM_GLOBALIZE_LABEL (asm_out_file, fnname);
@@ -1063,6 +1061,10 @@ void
 assemble_zeros (size)
      int size;
 {
+  /* Do no output if -fsyntax-only.  */
+  if (flag_syntax_only)
+    return;
+
 #ifdef ASM_NO_SKIP_IN_TEXT
   /* The `space' pseudo in the text section outputs nop insns rather than 0s,
      so we must output 0s explicitly in the text section.  */
@@ -1113,7 +1115,7 @@ assemble_align (align)
 
 void
 assemble_string (p, size)
-     char *p;
+     const char *p;
      int size;
 {
   int pos = 0;
@@ -1148,7 +1150,7 @@ assemble_string (p, size)
 void
 assemble_variable (decl, top_level, at_end, dont_output_data)
      tree decl;
-     int top_level;
+     int top_level ATTRIBUTE_UNUSED;
      int at_end;
      int dont_output_data;
 {
@@ -1168,6 +1170,10 @@ assemble_variable (decl, top_level, at_end, dont_output_data)
       if (TREE_ASM_WRITTEN (decl))
 	return;
       TREE_ASM_WRITTEN (decl) = 1;
+
+      /* Do no output if -fsyntax-only.  */
+      if (flag_syntax_only)
+	return;
 
 #if defined (DBX_DEBUGGING_INFO) || defined (XCOFF_DEBUGGING_INFO)
       /* File-scope global variables are output here.  */
@@ -1235,6 +1241,10 @@ assemble_variable (decl, top_level, at_end, dont_output_data)
     return;
 
   TREE_ASM_WRITTEN (decl) = 1;
+
+  /* Do no output if -fsyntax-only.  */
+  if (flag_syntax_only)
+    return;
 
   app_disable ();
 
@@ -1319,6 +1329,7 @@ assemble_variable (decl, top_level, at_end, dont_output_data)
 #if ! defined (ASM_OUTPUT_BSS) && ! defined (ASM_OUTPUT_ALIGNED_BSS)
       && DECL_COMMON (decl)
 #endif
+      && DECL_SECTION_NAME (decl) == 0
       && ! dont_output_data)
     {
       int size = TREE_INT_CST_LOW (size_tree);
@@ -1441,8 +1452,14 @@ assemble_variable (decl, top_level, at_end, dont_output_data)
   if (TREE_PUBLIC (decl) && DECL_NAME (decl))
     {
 #ifdef ASM_WEAKEN_LABEL
-      if (DECL_WEAK (decl))
-	ASM_WEAKEN_LABEL (asm_out_file, name);
+      if (DECL_WEAK (decl)) 
+	{
+	  ASM_WEAKEN_LABEL (asm_out_file, name);
+	   /* Remove this variable from the pending weak list so that
+	      we do not emit multiple .weak directives for it.  */
+	  remove_from_pending_weak_list
+	    (IDENTIFIER_POINTER (DECL_ASSEMBLER_NAME (decl)));
+	}
       else
 #endif
       ASM_GLOBALIZE_LABEL (asm_out_file, name);
@@ -1464,7 +1481,9 @@ assemble_variable (decl, top_level, at_end, dont_output_data)
     reloc = output_addressed_constants (DECL_INITIAL (decl));
 
 #ifdef ASM_OUTPUT_SECTION_NAME
-  if (UNIQUE_SECTION_P (decl))
+  if ((flag_data_sections != 0
+       && DECL_SECTION_NAME (decl) == NULL_TREE)
+      || UNIQUE_SECTION_P (decl))
     UNIQUE_SECTION (decl, reloc);
 #endif
 
@@ -1597,7 +1616,7 @@ contains_pointers_p (type)
 
 void
 assemble_external (decl)
-     tree decl;
+     tree decl ATTRIBUTE_UNUSED;
 {
 #ifdef ASM_OUTPUT_EXTERNAL
   if (TREE_CODE_CLASS (TREE_CODE (decl)) == 'd'
@@ -1620,7 +1639,7 @@ assemble_external (decl)
 
 void
 assemble_external_libcall (fun)
-     rtx fun;
+     rtx fun ATTRIBUTE_UNUSED;
 {
 #ifdef ASM_OUTPUT_EXTERNAL_LIBCALL
   /* Declare library function name external when first used, if nec.  */
@@ -1714,9 +1733,11 @@ assemble_static_space (size)
   {
     /* Round size up to multiple of BIGGEST_ALIGNMENT bits
        so that each uninitialized object starts on such a boundary.  */
-    int rounded = ((size + (BIGGEST_ALIGNMENT / BITS_PER_UNIT) - 1)
-		   / (BIGGEST_ALIGNMENT / BITS_PER_UNIT)
-		   * (BIGGEST_ALIGNMENT / BITS_PER_UNIT));
+    /* Variable `rounded' might or might not be used in ASM_OUTPUT_LOCAL. */
+    int rounded ATTRIBUTE_UNUSED
+      = ((size + (BIGGEST_ALIGNMENT / BITS_PER_UNIT) - 1)
+	 / (BIGGEST_ALIGNMENT / BITS_PER_UNIT)
+	 * (BIGGEST_ALIGNMENT / BITS_PER_UNIT));
     ASM_OUTPUT_LOCAL (asm_out_file, name, size, rounded);
   }
 #endif
@@ -2563,6 +2584,7 @@ compare_constant_1 (exp, p)
 
     case PLUS_EXPR:
     case MINUS_EXPR:
+    case RANGE_EXPR:
       p = compare_constant_1 (TREE_OPERAND (exp, 0), p);
       if (p == 0)
 	return 0;
@@ -2739,6 +2761,7 @@ record_constant_1 (exp)
 
     case PLUS_EXPR:
     case MINUS_EXPR:
+    case RANGE_EXPR:
       record_constant_1 (TREE_OPERAND (exp, 0));
       record_constant_1 (TREE_OPERAND (exp, 1));
       return;
@@ -2965,7 +2988,7 @@ output_constant_def (exp)
     = gen_rtx_MEM (TYPE_MODE (TREE_TYPE (exp)), def);
   RTX_UNCHANGING_P (TREE_CST_RTL (exp)) = 1;
   if (AGGREGATE_TYPE_P (TREE_TYPE (exp)))
-    MEM_IN_STRUCT_P (TREE_CST_RTL (exp)) = 1;
+    MEM_SET_IN_STRUCT_P (TREE_CST_RTL (exp), 1);
 
   pop_obstacks ();
 
@@ -3011,7 +3034,12 @@ output_constant_def (exp)
 	    }
 	}
       else
-	output_constant_def_contents (exp, reloc, const_labelno++);
+	{
+	  /* Do no output if -fsyntax-only.  */
+	  if (! flag_syntax_only)
+	    output_constant_def_contents (exp, reloc, const_labelno);
+	  ++const_labelno;
+	}
     }
 
   return TREE_CST_RTL (exp);
@@ -3582,8 +3610,8 @@ get_pool_size ()
 
 void
 output_constant_pool (fnname, fndecl)
-     char *fnname;
-     tree fndecl;
+  char *fnname ATTRIBUTE_UNUSED;
+  tree fndecl ATTRIBUTE_UNUSED;
 {
   struct pool_constant *pool;
   rtx x;
@@ -3592,8 +3620,7 @@ output_constant_pool (fnname, fndecl)
   /* It is possible for gcc to call force_const_mem and then to later
      discard the instructions which refer to the constant.  In such a
      case we do not need to output the constant.  */
-  if (optimize >= 0 && flag_expensive_optimizations)
-    mark_constant_pool ();
+  mark_constant_pool ();
 
 #ifdef ASM_OUTPUT_POOL_PROLOGUE
   ASM_OUTPUT_POOL_PROLOGUE (asm_out_file, fnname, fndecl, pool_offset);
@@ -3633,7 +3660,7 @@ output_constant_pool (fnname, fndecl)
 #endif
 
       if (pool->align > 1)
-	ASM_OUTPUT_ALIGN (asm_out_file, exact_log2 (pool->align));
+	ASM_OUTPUT_ALIGN (asm_out_file, floor_log2 (pool->align));
 
       /* Output the label.  */
       ASM_OUTPUT_INTERNAL_LABEL (asm_out_file, "LC", pool->labelno);
@@ -3696,6 +3723,33 @@ mark_constant_pool ()
        insn = XEXP (insn, 1))
     if (GET_RTX_CLASS (GET_CODE (insn)) == 'i')
       mark_constants (PATTERN (insn));
+
+  /* It's possible that the only reference to a symbol is in a symbol
+     that's in the constant pool.  This happens in Fortran under some
+     situations.  (When the constant contains the address of another
+     constant, and only the first is used directly in an insn.) 
+     This is potentially suboptimal if there's ever a possibility of
+     backwards (in pool order) 2'd level references.  However, it's
+     not clear that 2'd level references can happen. */
+  for (pool = first_pool; pool; pool = pool->next)
+    {
+      struct pool_sym *sym;
+      char *label;
+
+      /* skip unmarked entries; no insn refers to them. */
+      if (!pool->mark)
+	  continue;
+
+      label = XSTR (pool->constant, 0);
+
+      /* Be sure the symbol's value is marked. */
+      for (sym = const_rtx_sym_hash_table[SYMHASH (label)]; sym; 
+           sym = sym->next)
+	  if (sym->label == label)
+	    sym->pool->mark = 1;
+      /* If we didn't find it, there's something truly wrong here, but it
+	 will be announced by the assembler. */
+    }
 }
 
 static void
@@ -3848,7 +3902,14 @@ output_constant (exp, size)
 {
   register enum tree_code code = TREE_CODE (TREE_TYPE (exp));
 
-  if (size == 0)
+  /* Some front-ends use constants other than the standard
+     language-indepdent varieties, but which may still be output
+     directly.  Give the front-end a chance to convert EXP to a
+     language-independent representation.  */
+  if (lang_expand_constant)
+    exp = (*lang_expand_constant) (exp);
+
+  if (size == 0 || flag_syntax_only)
     return;
 
   /* Eliminate the NON_LVALUE_EXPR_EXPR that makes a cast not be an lvalue.
@@ -3992,7 +4053,11 @@ output_constructor (exp, size)
      FIELD goes through the structure fields, if the constant is a structure.
      if the constant is a union, then we override this,
      by getting the field from the TREE_LIST element.
-     But the constant could also be an array.  Then FIELD is zero.  */
+     But the constant could also be an array.  Then FIELD is zero.
+
+     There is always a maximum of one element in the chain LINK for unions
+     (even if the initializer in a source program incorrectly contains
+     more one). */
   for (link = CONSTRUCTOR_ELTS (exp);
        link;
        link = TREE_CHAIN (link),
@@ -4242,37 +4307,30 @@ output_constructor (exp, size)
     assemble_zeros (size - total_bytes);
 }
 
-/* Output asm to handle ``#pragma weak'' */
-
-void
-handle_pragma_weak (what, name, value)
-     enum pragma_state what;
-     char *name, *value;
-{
 #ifdef HANDLE_PRAGMA_WEAK
-  if (what == ps_name || what == ps_value)
-    {
-      struct weak_syms *weak =
-	(struct weak_syms *)permalloc (sizeof (struct weak_syms));
-      weak->next = weak_decls;
-      weak->name = permalloc (strlen (name) + 1);
-      strcpy (weak->name, name);
+/* Add function NAME to the weak symbols list.  VALUE is a weak alias
+   associatd with NAME.  */
+   
+int
+add_weak (name, value)
+     char *name;
+     char *value;
+{
+  struct weak_syms *weak;
 
-      if (what != ps_value)
-	weak->value = NULL_PTR;
+  weak = (struct weak_syms *) permalloc (sizeof (struct weak_syms));
 
-      else
-	{
-	  weak->value = permalloc (strlen (value) + 1);
-	  strcpy (weak->value, value);
-	}
+  if (weak == NULL)
+    return 0;
 
-      weak_decls = weak;
-    }
-  else if (! (what == ps_done || what == ps_start))
-    warning ("malformed `#pragma weak'");
-#endif /* HANDLE_PRAGMA_WEAK */
+  weak->next = weak_decls;
+  weak->name = name;
+  weak->value = value;
+  weak_decls = weak;
+
+  return 1;
 }
+#endif /* HANDLE_PRAGMA_WEAK */
 
 /* Declare DECL to be a weak symbol.  */
 
@@ -4286,16 +4344,16 @@ declare_weak (decl)
     error_with_decl (decl, "weak declaration of `%s' must precede definition");
   else if (SUPPORTS_WEAK)
     DECL_WEAK (decl) = 1;
-
 #ifdef HANDLE_PRAGMA_WEAK
-  /* Make sure this function name gets on the weak declaration list.  */
-  handle_pragma_weak (ps_name,
-		      IDENTIFIER_POINTER (DECL_ASSEMBLER_NAME (decl)),
-		      NULL);
+   add_weak (IDENTIFIER_POINTER (DECL_ASSEMBLER_NAME (decl)), NULL);
 #endif
 }
 
 /* Emit any pending weak declarations.  */
+
+#ifdef HANDLE_PRAGMA_WEAK
+struct weak_syms * weak_decls;
+#endif
 
 void
 weak_finish ()
@@ -4306,9 +4364,32 @@ weak_finish ()
       struct weak_syms *t;
       for (t = weak_decls; t; t = t->next)
 	{
-	  ASM_WEAKEN_LABEL (asm_out_file, t->name);
-	  if (t->value)
-	    ASM_OUTPUT_DEF (asm_out_file, t->name, t->value);
+	  if (t->name)
+	    {
+	      ASM_WEAKEN_LABEL (asm_out_file, t->name);
+	      if (t->value)
+		ASM_OUTPUT_DEF (asm_out_file, t->name, t->value);
+	    }
+	}
+    }
+#endif
+}
+
+/* Remove NAME from the pending list of weak symbols.  This prevents
+   the compiler from emitting multiple .weak directives which confuses
+   some assemblers.  */
+static void
+remove_from_pending_weak_list (name)
+     char *name;
+{
+#ifdef HANDLE_PRAGMA_WEAK
+  if (HANDLE_PRAGMA_WEAK)
+    {
+      struct weak_syms *t;
+      for (t = weak_decls; t; t = t->next)
+	{
+	  if (t->name && strcmp (name, t->name) == 0)
+	    t->name = NULL;
 	}
     }
 #endif
@@ -4316,7 +4397,7 @@ weak_finish ()
 
 void
 assemble_alias (decl, target)
-     tree decl, target;
+     tree decl, target ATTRIBUTE_UNUSED;
 {
   char *name;
 
@@ -4330,7 +4411,13 @@ assemble_alias (decl, target)
     {
 #ifdef ASM_WEAKEN_LABEL
       if (DECL_WEAK (decl))
-	ASM_WEAKEN_LABEL (asm_out_file, name);
+ 	{
+	  ASM_WEAKEN_LABEL (asm_out_file, name);
+	  /* Remove this function from the pending weak list so that
+	     we do not emit multiple .weak directives for it.  */
+	  remove_from_pending_weak_list
+	    (IDENTIFIER_POINTER (DECL_ASSEMBLER_NAME (decl)));
+	}
       else
 #endif
 	ASM_GLOBALIZE_LABEL (asm_out_file, name);

@@ -1,5 +1,5 @@
 /* Loop optimization definitions for GNU C-Compiler
-   Copyright (C) 1991, 1995 Free Software Foundation, Inc.
+   Copyright (C) 1991, 1995, 1998, 1999 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -17,6 +17,8 @@ You should have received a copy of the GNU General Public License
 along with GNU CC; see the file COPYING.  If not, write to
 the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
+
+#include "varray.h"
 
 /* Get the luid of an insn.  Catch the error of trying to reference the LUID
    of an insn added during loop, since these don't have LUIDs.  */
@@ -54,6 +56,8 @@ struct induction
 				   For a DEST_ADDR type giv, this is 0.  */
   rtx *location;		/* Place in the insn where this giv occurs.
 				   If GIV_TYPE is DEST_REG, this is 0.  */
+				/* For a biv, this is the place where add_val
+				   was found.  */
   enum machine_mode mode;	/* The mode of this biv or giv */
   enum machine_mode mem_mode;	/* For DEST_ADDR, mode of the memory object. */
   rtx mult_val;			/* Multiplicative factor for src_reg.  */
@@ -63,6 +67,9 @@ struct induction
 				   final value could be calculated, it is put
 				   here, and the giv is made replaceable.  Set
 				   the giv to this value before the loop.  */
+  unsigned combined_with;	/* The number of givs this giv has been
+				   combined with.  If nonzero, this giv
+				   cannot combine with any other giv.  */
   unsigned replaceable : 1;	/* 1 if we can substitute the strength-reduced
 				   variable for the original variable.
 				   0 means they must be kept separate and the
@@ -85,8 +92,6 @@ struct induction
 				   another giv.  This occurs in many cases
 				   where a giv's lifetime spans an update to
 				   a biv. */
-  unsigned combined_with : 1;	/* 1 if this giv has been combined with.  It
-				   then cannot combine with any other giv.  */
   unsigned maybe_dead : 1;	/* 1 if this giv might be dead.  In that case,
 				   we won't use it to eliminate a biv, it
 				   would probably lose. */
@@ -95,8 +100,8 @@ struct induction
   unsigned unrolled : 1;	/* 1 if new register has been allocated and
 				   initialized in unrolled loop.  */
   unsigned shared : 1;
+  unsigned no_const_addval : 1; /* 1 if add_val does not contain a const. */
   int lifetime;			/* Length of life of this giv */
-  int times_used;		/* # times this giv is used. */
   rtx derive_adjustment;	/* If nonzero, is an adjustment to be
 				   subtracted from add_val when this giv
 				   derives another.  This occurs when the
@@ -108,14 +113,20 @@ struct induction
   struct induction *same;	/* If this giv has been combined with another
 				   giv, this points to the base giv.  The base
 				   giv will have COMBINED_WITH non-zero.  */
+  struct induction *derived_from;/* For a giv, if we decided to derive this
+				   giv from another one.  */
   HOST_WIDE_INT const_adjust;	/* Used by loop unrolling, when an address giv
 				   is split, and a constant is eliminated from
 				   the address, the -constant is stored here
 				   for later use. */
+  int ix;			/* Used by recombine_givs, as n index into
+				   the stats array.  */
   struct induction *same_insn;	/* If there are multiple identical givs in
 				   the same insn, then all but one have this
 				   field set, and they all point to the giv
 				   that doesn't have this field set.  */
+  rtx last_use;			/* For a giv made from a biv increment, this is
+				   a substitute for the lifetime information. */
 };
 
 /* A `struct iv_class' is created for each biv.  */
@@ -142,6 +153,45 @@ struct iv_class {
 				   biv controls. */
 };
 
+/* Information required to calculate the number of loop iterations. 
+   This is set by loop_iterations.  */
+
+struct loop_info
+{
+  /* Register or constant initial loop value.  */
+  rtx initial_value;
+  /* Register or constant value used for comparison test.  */
+  rtx comparison_value;
+  /* Register or constant approximate final value.  */
+  rtx final_value;
+  /* Register or constant initial loop value with term common to
+     final_value removed.  */
+  rtx initial_equiv_value;
+  /* Register or constant final loop value with term common to
+     initial_value removed.  */
+  rtx final_equiv_value;
+  /* Register corresponding to iteration variable.  */
+  rtx iteration_var;
+  /* Constant loop increment.  */
+  rtx increment;
+  enum rtx_code comparison_code;
+  /* Holds the number of loop iterations.  It is zero if the number
+     could not be calculated.  Must be unsigned since the number of
+     iterations can be as high as 2^wordsize - 1.  For loops with a
+     wider iterator, this number will be zero if the number of loop
+     iterations is too large for an unsigned integer to hold.  */
+  unsigned HOST_WIDE_INT n_iterations;
+  /* The loop unrolling factor.
+     Potential values:
+     0: unrolled
+     1: not unrolled.
+     -1: completely unrolled
+     >0: holds the unroll exact factor.  */
+  unsigned int unroll_number;
+  /* Non-zero if the loop has a NOTE_INSN_LOOP_VTOP.  */
+  rtx vtop;
+};
+
 /* Definitions used by the basic induction variable discovery code.  */
 enum iv_mode { UNKNOWN_INDUCT, BASIC_INDUCT, NOT_BASIC_INDUCT,
 		 GENERAL_INDUCT };
@@ -154,38 +204,46 @@ extern int *uid_loop_num;
 extern int *loop_outer_loop;
 extern rtx *loop_number_exit_labels;
 extern int *loop_number_exit_count;
-extern unsigned HOST_WIDE_INT loop_n_iterations;
 extern int max_reg_before_loop;
 
 extern FILE *loop_dump_stream;
 
-extern enum iv_mode *reg_iv_type;
-extern struct induction **reg_iv_info;
+extern varray_type reg_iv_type;
+extern varray_type reg_iv_info;
+
+#define REG_IV_TYPE(n) \
+  (*(enum iv_mode *) &VARRAY_INT(reg_iv_type, (n)))
+#define REG_IV_INFO(n) \
+  (*(struct induction **) &VARRAY_GENERIC_PTR(reg_iv_info, (n)))
+
 extern struct iv_class **reg_biv_class;
 extern struct iv_class *loop_iv_list;
+
+extern int first_increment_giv, last_increment_giv;
 
 /* Forward declarations for non-static functions declared in loop.c and
    unroll.c.  */
 int invariant_p PROTO((rtx));
 rtx get_condition_for_loop PROTO((rtx));
 void emit_iv_add_mult PROTO((rtx, rtx, rtx, rtx, rtx));
+rtx express_from PROTO((struct induction *, struct induction *));
+
+void unroll_loop PROTO((rtx, int, rtx, rtx, struct loop_info *, int));
+rtx biv_total_increment PROTO((struct iv_class *, rtx, rtx));
+unsigned HOST_WIDE_INT loop_iterations PROTO((rtx, rtx, struct loop_info *));
+int precondition_loop_p PROTO((rtx, struct loop_info *, 
+			       rtx *, rtx *, rtx *, 
+			       enum machine_mode *mode));
+rtx final_biv_value PROTO((struct iv_class *, rtx, rtx,
+			   unsigned HOST_WIDE_INT));
+rtx final_giv_value PROTO((struct induction *, rtx, rtx,
+			   unsigned HOST_WIDE_INT));
+void emit_unrolled_add PROTO((rtx, rtx, rtx));
+int back_branch_in_range_p PROTO((rtx, rtx, rtx));
+int loop_insn_first_p PROTO((rtx, rtx));
+
+extern int *loop_unroll_number;
 
 /* Forward declarations for non-static functions declared in stmt.c.  */
 void find_loop_tree_blocks PROTO((void));
 void unroll_block_trees PROTO((void));
-
-void unroll_loop PROTO((rtx, int, rtx, rtx, int));
-rtx biv_total_increment PROTO((struct iv_class *, rtx, rtx));
-unsigned HOST_WIDE_INT loop_iterations PROTO((rtx, rtx));
-rtx final_biv_value PROTO((struct iv_class *, rtx, rtx));
-rtx final_giv_value PROTO((struct induction *, rtx, rtx));
-void emit_unrolled_add PROTO((rtx, rtx, rtx));
-int back_branch_in_range_p PROTO((rtx, rtx, rtx));
-
-extern int *loop_unroll_factor;
-#ifdef HAIFA
-/* variables for interaction between unroll.c and loop.c, for
-   the insertion of branch-on-count instruction. */
-extern rtx *loop_start_value;
-#endif  /* HAIFA */
-

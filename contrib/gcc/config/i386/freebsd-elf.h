@@ -3,6 +3,7 @@
    Contributed by Eric Youngdale.
    Modified for stabs-in-ELF by H.J. Lu.
    Adapted from GNU/Linux version by John Polstra.
+   Continued development by David O'Brien <obrien@freebsd.org>
 
 This file is part of GNU CC.
 
@@ -34,6 +35,23 @@ Boston, MA 02111-1307, USA.  */
    libraries compiled with the native cc, so undef it. */
 #undef NO_DOLLAR_IN_LABEL
 
+/* Use more efficient ``thunks'' to implement C++ vtables. */
+#undef DEFAULT_VTABLE_THUNKS
+#define DEFAULT_VTABLE_THUNKS 1
+
+/* Override the default comment-starter of "/".  */
+#undef ASM_COMMENT_START
+#define ASM_COMMENT_START "#"
+
+#undef ASM_APP_ON
+#define ASM_APP_ON "#APP\n"
+
+#undef ASM_APP_OFF
+#define ASM_APP_OFF "#NO_APP\n"
+
+#undef SET_ASM_OP
+#define SET_ASM_OP	".set"
+
 /* This is how to output an element of a case-vector that is relative.
    This is only used for PIC code.  See comments by the `casesi' insn in
    i386.md for an explanation of the expression this outputs. */
@@ -44,6 +62,10 @@ Boston, MA 02111-1307, USA.  */
 /* Indicate that jump tables go in the text section.  This is
    necessary when compiling PIC code.  */
 #define JUMP_TABLES_IN_TEXT_SECTION (flag_pic)
+
+/* Use stabs instead of DWARF debug format.  */
+#undef PREFERRED_DEBUGGING_TYPE
+#define PREFERRED_DEBUGGING_TYPE DBX_DEBUG
 
 /* Copy this from the svr4 specifications... */
 /* Define the register numbers to be used in Dwarf debugging information.
@@ -113,23 +135,15 @@ Boston, MA 02111-1307, USA.  */
  : ((n) >= FIRST_STACK_REG && (n) <= LAST_STACK_REG) ? (n)+3 \
  : (-1))
 
-/* Output assembler code to FILE to increment profiler label # LABELNO
-   for profiling a function entry.  */
+/* Tell final.c that we don't need a label passed to mcount.  */
 
 #undef FUNCTION_PROFILER
 #define FUNCTION_PROFILER(FILE, LABELNO)  \
 {									\
   if (flag_pic)								\
-    {									\
-      fprintf (FILE, "\tleal %sP%d@GOTOFF(%%ebx),%%edx\n",		\
-	       LPREFIX, (LABELNO));					\
-      fprintf (FILE, "\tcall *mcount@GOT(%%ebx)\n");			\
-    }									\
+      fprintf (FILE, "\tcall *.mcount@GOT(%%ebx)\n");			\
   else									\
-    {									\
-      fprintf (FILE, "\tmovl $%sP%d,%%edx\n", LPREFIX, (LABELNO));	\
-      fprintf (FILE, "\tcall mcount\n");				\
-    }									\
+      fprintf (FILE, "\tcall .mcount\n");				\
 }
 
 #undef SIZE_TYPE
@@ -140,6 +154,9 @@ Boston, MA 02111-1307, USA.  */
   
 #undef WCHAR_TYPE
 #define WCHAR_TYPE "int"
+
+#undef WCHAR_UNSIGNED
+#define WCHAR_UNSIGNED 0
    
 #undef WCHAR_TYPE_SIZE
 #define WCHAR_TYPE_SIZE BITS_PER_WORD
@@ -150,21 +167,53 @@ Boston, MA 02111-1307, USA.  */
 #undef CPP_SPEC
 #define CPP_SPEC "%(cpp_cpu) %{fPIC:-D__PIC__ -D__pic__} %{fpic:-D__PIC__ -D__pic__} %{posix:-D_POSIX_SOURCE}"
 
-#undef	LIB_SPEC
-#if 1
-/* We no longer link with libc_p.a or libg.a by default. If you
- * want to profile or debug the C library, please add
- * -lc_p or -ggdb to LDFLAGS at the link time, respectively.
- */
-#define LIB_SPEC \
-  "%{!shared: %{mieee-fp:-lieee} %{p:-lgmon} %{pg:-lgmon} \
-     %{!ggdb:-lc} %{ggdb:-lg}}"
-#else
-#define LIB_SPEC \
+/* This defines which switch letters take arguments.  On FreeBSD, most of
+   the normal cases (defined in gcc.c) apply, and we also have -h* and
+   -z* options (for the linker) (comming from svr4).
+   We also have -R (alias --rpath), no -z, --soname (-h), --assert etc. */
+
+#undef SWITCH_TAKES_ARG
+#define SWITCH_TAKES_ARG(CHAR) \
+  (DEFAULT_SWITCH_TAKES_ARG (CHAR) \
+   || (CHAR) == 'h' \
+   || (CHAR) == 'z' \
+   || (CHAR) == 'R')
+
+/* Provide a STARTFILE_SPEC appropriate for FreeBSD.  Here we add
+   the magical crtbegin.o file (see crtstuff.c) which provides part 
+	of the support for getting C++ file-scope static object constructed 
+	before entering `main'. */
+   
+#undef	STARTFILE_SPEC
+#define STARTFILE_SPEC \
   "%{!shared: \
-     %{mieee-fp:-lieee} %{p:-lgmon -lc_p} %{pg:-lgmon -lc_p} \
-       %{!p:%{!pg:%{!g*:-lc} %{g*:-lg}}}}"
-#endif
+     %{pg:gcrt1.o%s} %{!pg:%{p:gcrt1.o%s} \
+		       %{!p:%{profile:gcrt1.o%s} \
+			 %{!profile:crt1.o%s}}}} \
+   crti.o%s %{!shared:crtbegin.o%s} %{shared:crtbeginS.o%s}"
+
+/* Provide a ENDFILE_SPEC appropriate for FreeBSD.  Here we tack on
+   the magical crtend.o file (see crtstuff.c) which provides part of 
+	the support for getting C++ file-scope static object constructed 
+	before entering `main', followed by a normal "finalizer" file, 
+	`crtn.o'.  */
+
+#undef	ENDFILE_SPEC
+#define ENDFILE_SPEC \
+  "%{!shared:crtend.o%s} %{shared:crtendS.o%s} crtn.o%s"
+
+/* Provide a LIB_SPEC appropriate for FreeBSD.  Just select the appropriate
+   libc, depending on whether we're doing profiling or need threads support.
+   (simular to the default, except no -lg, and no -p.  */
+
+#undef LIB_SPEC
+#define LIB_SPEC "%{!shared: \
+   %{!pg:%{!pthread:%{!kthread:-lc} \
+     %{kthread:-lpthread -lc}} \
+     %{pthread:-lc_r}} \
+   %{pg:%{!pthread:%{!kthread:-lc_p} \
+     %{kthread:-lpthread_p -lc_p}} \
+     %{pthread:-lc_r_p}}}"
 
 /* Provide a LINK_SPEC appropriate for FreeBSD.  Here we provide support
    for the special GCC options -static and -shared, which allow us to
@@ -181,15 +230,17 @@ Boston, MA 02111-1307, USA.  */
    done.  */
 
 #undef	LINK_SPEC
-#define LINK_SPEC "-m elf_i386 %{shared:-shared} \
-  %{!shared: \
-    %{!ibcs: \
+#define LINK_SPEC "-m elf_i386 \
+  %{Wl,*:%*} \
+  %{v:-V} \
+  %{assert*} %{R*} %{rpath*} %{defsym*} \
+  %{shared:-Bshareable %{h*} %{soname*}} \
+    %{!shared: \
       %{!static: \
-	%{rdynamic:-export-dynamic} \
+        %{rdynamic:-export-dynamic} \
 	%{!dynamic-linker:-dynamic-linker /usr/libexec/ld-elf.so.1}} \
-	%{static:-static}}}"
-
-/* Get perform_* macros to build libgcc.a.  */
+    %{static:-Bstatic}} \
+  %{symbolic:-Bsymbolic}"
 
 /* A C statement to output to the stdio stream FILE an assembler
    command to advance the location counter to a multiple of 1<<LOG
@@ -199,7 +250,8 @@ Boston, MA 02111-1307, USA.  */
 
 #ifdef HAVE_GAS_MAX_SKIP_P2ALIGN
 #define ASM_OUTPUT_MAX_SKIP_ALIGN(FILE,LOG,MAX_SKIP) \
-  if ((LOG)!=0) \
-    if ((MAX_SKIP)==0) fprintf ((FILE), "\t.p2align %d\n", (LOG)); \
-    else fprintf ((FILE), "\t.p2align %d,,%d\n", (LOG), (MAX_SKIP))
+  if ((LOG) != 0) {\
+    if ((MAX_SKIP) == 0) fprintf ((FILE), "\t.p2align %d\n", (LOG)); \
+    else fprintf ((FILE), "\t.p2align %d,,%d\n", (LOG), (MAX_SKIP)); \
+  }
 #endif

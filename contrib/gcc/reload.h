@@ -50,11 +50,10 @@ extern int memory_move_secondary_cost PROTO ((enum machine_mode, enum reg_class,
 /* Maximum number of reloads we can need.  */
 #define MAX_RELOADS (2 * MAX_RECOG_OPERANDS * (MAX_REGS_PER_ADDRESS + 1))
 
-extern enum reg_class reload_address_base_reg_class;
-extern enum reg_class reload_address_index_reg_class;
 extern rtx reload_in[MAX_RELOADS];
 extern rtx reload_out[MAX_RELOADS];
 extern rtx reload_in_reg[MAX_RELOADS];
+extern rtx reload_out_reg[MAX_RELOADS];
 extern enum reg_class reload_reg_class[MAX_RELOADS];
 extern enum machine_mode reload_inmode[MAX_RELOADS];
 extern enum machine_mode reload_outmode[MAX_RELOADS];
@@ -134,12 +133,93 @@ extern char indirect_symref_ok;
 /* Nonzero if an address (plus (reg frame_pointer) (reg ...)) is valid.  */
 extern char double_reg_address_ok;
 
+extern int num_not_at_initial_offset;
+
 #ifdef MAX_INSN_CODE
 /* These arrays record the insn_code of insns that may be needed to
    perform input and output reloads of special objects.  They provide a
    place to pass a scratch register.  */
 extern enum insn_code reload_in_optab[];
 extern enum insn_code reload_out_optab[];
+#endif
+
+struct needs
+{
+  /* [0] is normal, [1] is nongroup.  */
+  short regs[2][N_REG_CLASSES];
+  short groups[N_REG_CLASSES];
+};
+
+#if defined SET_HARD_REG_BIT && defined CLEAR_REG_SET
+/* This structure describes instructions which are relevant for reload.
+   Apart from all regular insns, this also includes CODE_LABELs, since they
+   must be examined for register elimination.  */
+struct insn_chain 
+{
+  /* Links to the neighbour instructions.  */
+  struct insn_chain *next, *prev;
+
+  /* Link through a chains set up by calculate_needs_all_insns, containing
+     all insns that need reloading.  */
+  struct insn_chain *next_need_reload;
+
+  /* The basic block this insn is in.  */
+  int block;
+  /* The rtx of the insn.  */
+  rtx insn;
+  /* Register life information: record all live hard registers, and all
+     live pseudos that have a hard register.
+     This information is recorded for the point immediately before the insn
+     (in live_before), and for the point within the insn at which all
+     outputs have just been written to (in live_after).  */
+  regset live_before;
+  regset live_after;
+
+  /* For each class, size of group of consecutive regs
+     that is needed for the reloads of this class.  */
+  char group_size[N_REG_CLASSES];
+  /* For each class, the machine mode which requires consecutive
+     groups of regs of that class.
+     If two different modes ever require groups of one class,
+     they must be the same size and equally restrictive for that class,
+     otherwise we can't handle the complexity.  */
+  enum machine_mode group_mode[N_REG_CLASSES];
+
+  /* Indicates if a register was counted against the need for
+     groups.  0 means it can count against max_nongroup instead.  */
+  HARD_REG_SET counted_for_groups;
+
+  /* Indicates if a register was counted against the need for
+     non-groups.  0 means it can become part of a new group.
+     During choose_reload_regs, 1 here means don't use this reg
+     as part of a group, even if it seems to be otherwise ok.  */
+  HARD_REG_SET counted_for_nongroups;
+
+  /* Indicates which registers have already been used for spills.  */
+  HARD_REG_SET used_spill_regs;
+
+  /* Describe the needs for reload registers of this insn.  */
+  struct needs need;
+
+  /* Nonzero if find_reloads said the insn requires reloading.  */
+  unsigned int need_reload:1;
+  /* Nonzero if find_reloads needs to be run during reload_as_needed to
+     perform modifications on any operands.  */
+  unsigned int need_operand_change:1;
+  /* Nonzero if eliminate_regs_in_insn said it requires eliminations.  */
+  unsigned int need_elim:1;
+  /* Nonzero if this insn was inserted by perform_caller_saves.  */
+  unsigned int is_caller_save_insn:1;
+};
+
+/* A chain of insn_chain structures to describe all non-note insns in
+   a function.  */
+extern struct insn_chain *reload_insn_chain;
+
+/* Allocate a new insn_chain structure.  */
+extern struct insn_chain *new_insn_chain	PROTO((void));
+
+extern void compute_use_by_pseudos		PROTO((HARD_REG_SET *, regset));
 #endif
 
 /* Functions from reload.c:  */
@@ -157,16 +237,16 @@ extern void clear_secondary_mem PROTO((void));
    reload TO.  */
 extern void transfer_replacements PROTO((int, int));
 
-/* Remove all replacements in reload FROM.  */
-extern void remove_replacements PROTO((int));
+/* IN_RTX is the value loaded by a reload that we now decided to inherit,
+   or a subpart of it.  If we have any replacements registered for IN_RTX,
+   chancel the reloads that were supposed to load them.
+   Return non-zero if we chanceled any reloads.  */
+extern int remove_address_replacements PROTO((rtx in_rtx));
 
 /* Like rtx_equal_p except that it allows a REG and a SUBREG to match
    if they are the same hard reg, and has special hacks for
    autoincrement and autodecrement.  */
 extern int operands_match_p PROTO((rtx, rtx));
-
-/* Return the number of times character C occurs in string S.  */
-extern int n_occurrences PROTO((int, char *));
 
 /* Return 1 if altering OP will not modify the value of CLOBBER. */
 extern int safe_from_earlyclobber PROTO((rtx, rtx));
@@ -174,7 +254,7 @@ extern int safe_from_earlyclobber PROTO((rtx, rtx));
 /* Search the body of INSN for values that need reloading and record them
    with push_reload.  REPLACE nonzero means record also where the values occur
    so that subst_reloads can be used.  */
-extern void find_reloads PROTO((rtx, int, int, int, short *));
+extern int find_reloads PROTO((rtx, int, int, int, short *));
 
 /* Compute the sum of X and Y, making canonicalizations assumed in an
    address, namely: sum constant integers, surround the sum of two
@@ -243,6 +323,9 @@ extern rtx eliminate_regs PROTO((rtx, enum machine_mode, rtx));
    OPNUM with reload type TYPE.  */
 extern rtx gen_reload PROTO((rtx, rtx, int, enum reload_type));
 
+/* Deallocate the reload register used by reload number R.  */
+extern void deallocate_reload_reg PROTO((int r));
+
 /* Functions in caller-save.c:  */
 
 /* Initialize for caller-save.  */
@@ -252,7 +335,10 @@ extern void init_caller_save PROTO((void));
 extern void init_save_areas PROTO((void));
 
 /* Allocate save areas for any hard registers that might need saving.  */
-extern int setup_save_areas PROTO((int *));
+extern void setup_save_areas PROTO((void));
 
 /* Find the places where hard regs are live across calls and save them.  */
-extern void save_call_clobbered_regs PROTO((enum machine_mode));
+extern void save_call_clobbered_regs PROTO((void));
+
+/* Replace (subreg (reg)) with the appropriate (reg) for any operands.  */
+extern void cleanup_subreg_operands PROTO ((rtx));

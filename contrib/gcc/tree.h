@@ -1,5 +1,5 @@
 /* Front-end tree definitions for GNU compiler.
-   Copyright (C) 1989, 93, 94, 95, 96, 97, 1998 Free Software Foundation, Inc.
+   Copyright (C) 1989, 93-98, 1999 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -101,7 +101,6 @@ enum built_in_function
   BUILT_IN_FRAME_ADDRESS,
   BUILT_IN_RETURN_ADDRESS,
   BUILT_IN_AGGREGATE_INCOMING_ADDRESS,
-  BUILT_IN_CALLER_RETURN_ADDRESS,
   BUILT_IN_APPLY_ARGS,
   BUILT_IN_APPLY,
   BUILT_IN_RETURN,
@@ -110,16 +109,13 @@ enum built_in_function
   BUILT_IN_TRAP,
 
   /* Various hooks for the DWARF 2 __throw routine.  */
-  BUILT_IN_FP, BUILT_IN_SP,
   BUILT_IN_UNWIND_INIT,
+  BUILT_IN_DWARF_CFA,
   BUILT_IN_DWARF_FP_REGNUM,
   BUILT_IN_DWARF_REG_SIZE,
   BUILT_IN_FROB_RETURN_ADDR,
   BUILT_IN_EXTRACT_RETURN_ADDR,
-  BUILT_IN_SET_RETURN_ADDR_REG,
-  BUILT_IN_EH_STUB_OLD,
-  BUILT_IN_EH_STUB,
-  BUILT_IN_SET_EH_REGS,
+  BUILT_IN_EH_RETURN,
 
   /* C++ extensions */
   BUILT_IN_NEW,
@@ -227,6 +223,8 @@ struct tree_common
            VAR_DECL or FUNCTION_DECL
        TREE_VIA_PUBLIC in
            TREE_LIST or TREE_VEC
+       EXPR_WFL_EMIT_LINE_NOTE in
+           EXPR_WITH_FILE_LOCATION
 
    private_flag:
 
@@ -329,8 +327,8 @@ struct tree_common
 
 #include "tree-check.h"
 
-#define TYPE_CHECK(t)          DO_CHECK (tree_class_check, t, 't')
-#define TYPE_CHECK1(t)         DO_CHECK1 (tree_class_check, t, 't')
+#define TYPE_CHECK(tree)       DO_CHECK (tree_class_check, tree, 't')
+#define TYPE_CHECK1(tree)      DO_CHECK1 (tree_class_check, tree, 't')
 #define DECL_CHECK(t)          DO_CHECK (tree_class_check, t, 'd')
 #define DECL_CHECK1(t)         DO_CHECK1 (tree_class_check, t, 'd')
 #define CST_CHECK(t)           DO_CHECK (tree_class_check, t, 'c')
@@ -686,7 +684,18 @@ struct tree_vec
 #define TREE_OPERAND(NODE, I) (EXPR_CHECK (NODE)->exp.operands[I])
 #define TREE_COMPLEXITY(NODE) (EXPR_CHECK (NODE)->exp.complexity)
 
-/* In expression with file location information.  */
+/* In a LABELED_BLOCK_EXPR node.  */
+#define LABELED_BLOCK_LABEL(NODE) TREE_OPERAND (NODE, 0)
+#define LABELED_BLOCK_BODY(NODE) TREE_OPERAND (NODE, 1)
+
+/* In a EXIT_BLOCK_EXPR node.  */
+#define EXIT_BLOCK_LABELED_BLOCK(NODE) TREE_OPERAND (NODE, 0)
+#define EXIT_BLOCK_RETURN(NODE) TREE_OPERAND (NODE, 1)
+
+/* In a LOOP_EXPR node.  */
+#define LOOP_EXPR_BODY(NODE) TREE_OPERAND (NODE, 0)
+
+/* In a EXPR_WITH_FILE_LOCATION node.  */
 #define EXPR_WFL_NODE(NODE) TREE_OPERAND((NODE), 0)
 #define EXPR_WFL_FILENAME(NODE) (IDENTIFIER_POINTER ((NODE)->common.chain))
 #define EXPR_WFL_FILENAME_NODE(NODE) ((NODE)->common.chain)
@@ -695,7 +704,7 @@ struct tree_vec
 #define EXPR_WFL_LINECOL(NODE) (EXPR_CHECK (NODE)->exp.complexity)
 #define EXPR_WFL_SET_LINECOL(NODE, LINE, COL) \
   (EXPR_WFL_LINECOL(NODE) = ((LINE) << 12) | ((COL) & 0xfff))
-#define EXPR_WFL_EMIT_LINE_NOTE(NODE) ((NODE)->common.lang_flag_0)
+#define EXPR_WFL_EMIT_LINE_NOTE(NODE) ((NODE)->common.public_flag)
 
 struct tree_exp
 {
@@ -778,11 +787,15 @@ struct tree_block
 #define TYPE_NAME(NODE) (TYPE_CHECK (NODE)->type.name)
 #define TYPE_NEXT_VARIANT(NODE) (TYPE_CHECK (NODE)->type.next_variant)
 #define TYPE_MAIN_VARIANT(NODE) (TYPE_CHECK (NODE)->type.main_variant)
-#define TYPE_BINFO(NODE) (TYPE_CHECK (NODE)->type.binfo)
 #define TYPE_NONCOPIED_PARTS(NODE) (TYPE_CHECK (NODE)->type.noncopied_parts)
 #define TYPE_CONTEXT(NODE) (TYPE_CHECK (NODE)->type.context)
 #define TYPE_OBSTACK(NODE) (TYPE_CHECK (NODE)->type.obstack)
 #define TYPE_LANG_SPECIFIC(NODE) (TYPE_CHECK (NODE)->type.lang_specific)
+
+/* For aggregate types, information about this type, as a base type
+   for itself.  Used in a language-dependent way for types that are
+   neither a RECORD_TYPE, QUAL_UNION_TYPE, nor a UNION_TYPE.  */
+#define TYPE_BINFO(NODE) (TYPE_CHECK (NODE)->type.binfo)
 
 /* The (language-specific) typed-based alias set for this type.
    Objects whose TYPE_ALIAS_SETs are different cannot alias each
@@ -816,6 +829,25 @@ struct tree_block
 
 /* Means this type is const-qualified.  */
 #define TYPE_READONLY(NODE) ((NODE)->common.readonly_flag)
+
+/* If nonzero, this type is `restrict'-qualified, in the C sense of
+   the term.  */
+#define TYPE_RESTRICT(NODE) (TYPE_CHECK (NODE)->type.restrict_flag)
+
+/* There is a TYPE_QUAL value for each type qualifier.  They can be
+   combined by bitwise-or to form the complete set of qualifiers for a
+   type.  */
+
+#define TYPE_UNQUALIFIED   0x0
+#define TYPE_QUAL_CONST    0x1
+#define TYPE_QUAL_VOLATILE 0x2
+#define TYPE_QUAL_RESTRICT 0x4
+
+/* The set of type qualifiers for this type.  */
+#define TYPE_QUALS(NODE)			\
+  ((TYPE_READONLY(NODE) * TYPE_QUAL_CONST) |	\
+   (TYPE_VOLATILE(NODE) * TYPE_QUAL_VOLATILE) |	\
+   (TYPE_RESTRICT(NODE) * TYPE_QUAL_RESTRICT))
 
 /* These flags are available for each language front end to use internally.  */
 #define TYPE_LANG_FLAG_0(NODE) (TYPE_CHECK (NODE)->type.lang_flag_0)
@@ -868,6 +900,8 @@ struct tree_type
   unsigned needs_constructing_flag : 1;
   unsigned transparent_union_flag : 1;
   unsigned packed_flag : 1;
+  unsigned restrict_flag : 1;
+
   unsigned lang_flag_0 : 1;
   unsigned lang_flag_1 : 1;
   unsigned lang_flag_2 : 1;
@@ -875,7 +909,7 @@ struct tree_type
   unsigned lang_flag_4 : 1;
   unsigned lang_flag_5 : 1;
   unsigned lang_flag_6 : 1;
-  /* room for 4 more bits */
+  /* room for 3 more bits */
 
   unsigned int align;
   union tree_node *pointer_to;
@@ -978,6 +1012,8 @@ struct tree_type
 
 /* Define fields and accessors for nodes representing declared names.  */
 
+/* Nonzero if DECL represents a decl.  */
+#define DECL_P(DECL)	(TREE_CODE_CLASS (TREE_CODE (DECL)) == 'd')
 /* This is the name of the object as written by the user.
    It is an IDENTIFIER_NODE.  */
 #define DECL_NAME(NODE) (DECL_CHECK (NODE)->decl.name)
@@ -1088,6 +1124,11 @@ struct tree_type
    definition.  */
 #define DECL_ABSTRACT_ORIGIN(NODE) (DECL_CHECK (NODE)->decl.abstract_origin)
 
+/* Like DECL_ABSTRACT_ORIGIN, but returns NODE if there's no abstract
+   origin.  This is useful when setting the DECL_ABSTRACT_ORIGIN.  */
+#define DECL_ORIGIN(NODE) \
+  (DECL_ABSTRACT_ORIGIN (NODE) ? DECL_ABSTRACT_ORIGIN (NODE) : NODE)
+
 /* Nonzero for any sort of ..._DECL node means this decl node represents
    an inline instance of some original (abstract) decl from an inline function;
    suppress any warnings about shadowing some other variable.  */
@@ -1121,6 +1162,12 @@ struct tree_type
    nonzero means external reference:
    do not allocate storage, and refer to a definition elsewhere.  */
 #define DECL_EXTERNAL(NODE) (DECL_CHECK (NODE)->decl.external_flag)
+
+/* In a VAR_DECL for a RECORD_TYPE, sets number for non-init_priority
+   initializatons. */
+#define DEFAULT_INIT_PRIORITY 65535
+#define MAX_INIT_PRIORITY 65535
+#define MAX_RESERVED_INIT_PRIORITY 100
 
 /* In a TYPE_DECL
    nonzero means the detail info about this type is not dumped into stabs.
@@ -1199,6 +1246,25 @@ struct tree_type
    multiple translation units should be merged.  */
 #define DECL_ONE_ONLY(NODE) (DECL_CHECK (NODE)->decl.transparent_union)
 
+/* Used in a DECL to indicate that, even if it TREE_PUBLIC, it need
+   not be put out unless it is needed in this translation unit.
+   Entities like this are shared across translation units (like weak
+   entities), but are guaranteed to be generated by any translation
+   unit that needs them, and therefore need not be put out anywhere
+   where they are not needed.  DECL_COMDAT is just a hint to the
+   back-end; it is up to front-ends which set this flag to ensure
+   that there will never be any harm, other than bloat, in putting out
+   something which is DECL_COMDAT.  */
+#define DECL_COMDAT(NODE) (DECL_CHECK (NODE)->decl.comdat_flag)
+
+/* Used in FUNCTION_DECLs to indicate that function entry and exit should
+   be instrumented with calls to support routines.  */
+#define DECL_NO_INSTRUMENT_FUNCTION_ENTRY_EXIT(NODE) ((NODE)->decl.no_instrument_function_entry_exit)
+
+/* Used in FUNCTION_DECLs to indicate that in this function,
+   check-memory-usage should be disabled.  */
+#define DECL_NO_CHECK_MEMORY_USAGE(NODE) ((NODE)->decl.no_check_memory_usage)
+
 /* Additional flags for language-specific uses.  */
 #define DECL_LANG_FLAG_0(NODE) (DECL_CHECK (NODE)->decl.lang_flag_0)
 #define DECL_LANG_FLAG_1(NODE) (DECL_CHECK (NODE)->decl.lang_flag_1)
@@ -1212,6 +1278,16 @@ struct tree_type
 /* Used to indicate that the pointer to this DECL cannot be treated as
    an address constant.  */
 #define DECL_NON_ADDR_CONST_P(NODE) (DECL_CHECK (NODE)->decl.non_addr_const_p)
+
+/* Used to indicate an alias set for the memory pointed to by this
+   particular FIELD_DECL, PARM_DECL, or VAR_DECL, which must have
+   pointer (or reference) type.  */
+#define DECL_POINTER_ALIAS_SET(NODE) \
+  (DECL_CHECK (NODE)->decl.pointer_alias_set)
+
+/* Nonzero if an alias set has been assigned to this declaration.  */
+#define DECL_POINTER_ALIAS_SET_KNOWN_P(NODE) \
+  (DECL_POINTER_ALIAS_SET (NODE) != - 1)
 
 struct tree_decl
 {
@@ -1243,7 +1319,6 @@ struct tree_decl
   unsigned static_dtor_flag : 1;
   unsigned artificial_flag : 1;
   unsigned weak_flag : 1;
-  /* room for no more */
 
   unsigned lang_flag_0 : 1;
   unsigned lang_flag_1 : 1;
@@ -1255,6 +1330,9 @@ struct tree_decl
   unsigned lang_flag_7 : 1;
 
   unsigned non_addr_const_p : 1;
+  unsigned no_instrument_function_entry_exit : 1;
+  unsigned no_check_memory_usage : 1;
+  unsigned comdat_flag : 1;
 
   /* For a FUNCTION_DECL, if inline, this is the size of frame needed.
      If built-in, this is the code for which built-in function.
@@ -1284,6 +1362,7 @@ struct tree_decl
     HOST_WIDE_INT i;
   } saved_insns;
   union tree_node *vindex;
+  int pointer_alias_set;
   /* Points to a structure whose details depend on the language in use.  */
   struct lang_decl *lang_specific;
 };
@@ -1308,8 +1387,6 @@ union tree_node
   struct tree_block block;
  };
 
-#include "gansidecl.h"
-
 #define NULL_TREE (tree) NULL
 
 /* The following functions accept a wide integer argument.  Rather than
@@ -1322,21 +1399,6 @@ union tree_node
 #endif
 extern int exact_log2_wide             PROTO((unsigned HOST_WIDE_INT));
 extern int floor_log2_wide             PROTO((unsigned HOST_WIDE_INT));
-
-#if 0
-/* At present, don't prototype xrealloc, since all of the callers don't
-   cast their pointers to char *, and all of the xrealloc's don't use
-   void * yet.  */
-extern char *xmalloc			PROTO((size_t));
-extern char *xcalloc			PROTO((size_t, size_t));
-extern char *xrealloc			PROTO((void *, size_t));
-#else
-extern char *xmalloc ();
-extern char *xcalloc ();
-extern char *xrealloc ();
-#endif
-
-extern char *xstrdup			PROTO((char *));
 
 extern char *oballoc			PROTO((int));
 extern char *permalloc			PROTO((int));
@@ -1366,13 +1428,13 @@ extern tree make_tree_vec		PROTO((int));
 /* Return the (unique) IDENTIFIER_NODE node for a given name.
    The name is supplied as a char *.  */
 
-extern tree get_identifier		PROTO((char *));
+extern tree get_identifier		PROTO((const char *));
 
 /* If an identifier with the name TEXT (a null-terminated string) has
    previously been referred to, return that node; otherwise return
    NULL_TREE.  */
 
-extern tree maybe_get_identifier	PROTO((char *));
+extern tree maybe_get_identifier	PROTO((const char *));
 
 /* Construct various types of nodes.  */
 
@@ -1387,14 +1449,14 @@ extern tree build_int_2_wide		PROTO((HOST_WIDE_INT, HOST_WIDE_INT));
 extern tree build_real			PROTO((tree, REAL_VALUE_TYPE));
 extern tree build_real_from_int_cst 	PROTO((tree, tree));
 extern tree build_complex		PROTO((tree, tree, tree));
-extern tree build_string		PROTO((int, char *));
+extern tree build_string		PROTO((int, const char *));
 extern tree build1			PROTO((enum tree_code, tree, tree));
 extern tree build_tree_list		PROTO((tree, tree));
 extern tree build_decl_list		PROTO((tree, tree));
 extern tree build_expr_list		PROTO((tree, tree));
 extern tree build_decl			PROTO((enum tree_code, tree, tree));
 extern tree build_block			PROTO((tree, tree, tree, tree, tree));
-extern tree build_expr_wfl              PROTO((tree, char *, int, int));
+extern tree build_expr_wfl              PROTO((tree, const char *, int, int));
 
 /* Construct various nodes representing data types.  */
 
@@ -1459,25 +1521,35 @@ extern int valid_machine_attribute	PROTO((tree, tree, tree, tree));
 /* Given a tree node and a string, return non-zero if the tree node is
    a valid attribute name for the string.  */
 
-extern int is_attribute_p		PROTO((char *, tree));
+extern int is_attribute_p		PROTO((const char *, tree));
 
 /* Given an attribute name and a list of attributes, return the list element
    of the attribute or NULL_TREE if not found.  */
 
-extern tree lookup_attribute		PROTO((char *, tree));
+extern tree lookup_attribute		PROTO((const char *, tree));
 
 /* Given two attributes lists, return a list of their union.  */
 
 extern tree merge_attributes		PROTO((tree, tree));
 
-/* Given a type node TYPE, and CONSTP and VOLATILEP, return a type
-   for the same kind of data as TYPE describes.
-   Variants point to the "main variant" (which has neither CONST nor VOLATILE)
-   via TYPE_MAIN_VARIANT, and it points to a chain of other variants
-   so that duplicate variants are never made.
-   Only main variants should ever appear as types of expressions.  */
+/* Given a type node TYPE and a TYPE_QUALIFIER_SET, return a type for
+   the same kind of data as TYPE describes.  Variants point to the
+   "main variant" (which has no qualifiers set) via TYPE_MAIN_VARIANT,
+   and it points to a chain of other variants so that duplicate
+   variants are never made.  Only main variants should ever appear as
+   types of expressions.  */
 
-extern tree build_type_variant		PROTO((tree, int, int));
+extern tree build_qualified_type        PROTO((tree, int));
+
+/* Like build_qualified_type, but only deals with the `const' and
+   `volatile' qualifiers.  This interface is retained for backwards
+   compatiblity with the various front-ends; new code should use
+   build_qualified_type instead.  */
+
+#define build_type_variant(TYPE, CONST_P, VOLATILE_P)			\
+  build_qualified_type (TYPE,						\
+			((CONST_P) ? TYPE_QUAL_CONST : 0)		\
+			| ((VOLATILE_P) ? TYPE_QUAL_VOLATILE : 0))
 
 /* Make a copy of a type node.  */
 
@@ -1612,7 +1684,7 @@ extern int staticp			PROTO((tree));
 /* Gets an error if argument X is not an lvalue.
    Also returns 1 if X is an lvalue, 0 if not.  */
 
-extern int lvalue_or_else		PROTO((tree, char *));
+extern int lvalue_or_else		PROTO((tree, const char *));
 
 /* save_expr (EXP) returns an expression equivalent to EXP
    but it can be used multiple times within context CTX
@@ -1745,7 +1817,7 @@ extern tree decl_type_context		PROTO((tree));
    Otherwise return a warning message with a single %s
    for the function's name.  */
 
-extern char *function_cannot_inline_p 	PROTO((tree));
+extern const char *function_cannot_inline_p 	PROTO((tree));
 
 /* Return 1 if EXPR is the real constant zero.  */
 extern int real_zerop PROTO((tree));
@@ -1837,10 +1909,12 @@ extern void (*incomplete_decl_finalize_hook)	PROTO((tree));
 /* In tree.c */
 extern char *perm_calloc			PROTO((int, long));
 extern tree get_file_function_name		PROTO((int));
+extern tree get_file_function_name_long 	PROTO((const char *));
 extern tree get_set_constructor_bits		PROTO((tree, char *, int));
 extern tree get_set_constructor_bytes		PROTO((tree,
 						       unsigned char *, int));
 extern int get_alias_set                        PROTO((tree));
+extern int new_alias_set			PROTO((void));
 extern int (*lang_get_alias_set)                PROTO((tree));
 
 /* In stmt.c */
@@ -1871,6 +1945,7 @@ extern int expand_exit_something		PROTO((void));
 
 extern void expand_null_return			PROTO((void));
 extern void expand_return			PROTO((tree));
+extern int optimize_tail_recursion		PROTO((tree, struct rtx_def *));
 extern void expand_start_bindings		PROTO((int));
 extern void expand_end_bindings			PROTO((tree, int, int));
 extern void start_cleanup_deferral		PROTO((void));
@@ -1883,7 +1958,7 @@ extern tree last_cleanup_this_contour		PROTO((void));
 extern int expand_dhc_cleanup			PROTO((tree));
 extern int expand_dcc_cleanup			PROTO((tree));
 extern void expand_start_case			PROTO((int, tree, tree,
-						       char *));
+						       const char *));
 extern void expand_end_case			PROTO((tree));
 extern int pushcase				PROTO((tree,
 						       tree (*) (tree, tree),
@@ -1892,6 +1967,7 @@ extern int pushcase_range			PROTO((tree, tree,
 						       tree (*) (tree, tree),
 						       tree, tree *));
 extern void using_eh_for_cleanups		PROTO((void));
+extern int stmt_loop_nest_empty			PROTO((void));
 
 /* In fold-const.c */
 
@@ -2089,9 +2165,10 @@ extern void rtl_in_current_obstack	PROTO ((void));
 extern void rtl_in_saveable_obstack	PROTO ((void));
 extern void init_tree_codes		PROTO ((void));
 extern void dump_tree_statistics	PROTO ((void));
-extern void print_obstack_statistics	PROTO ((char *, struct obstack *));
+extern void print_obstack_statistics	PROTO ((const char *,
+						struct obstack *));
 #ifdef BUFSIZ
-extern void print_obstack_name		PROTO ((char *, FILE *, char *));
+extern void print_obstack_name		PROTO ((char *, FILE *, const char *));
 #endif
 extern void expand_function_end		PROTO ((char *, int, int));
 extern void expand_function_start	PROTO ((tree, int));
@@ -2101,9 +2178,12 @@ extern void start_identifier_warnings	PROTO ((void));
 extern void gcc_obstack_init		PROTO ((struct obstack *));
 extern void init_obstacks		PROTO ((void));
 extern void obfree			PROTO ((char *));
-extern tree tree_check                  PROTO ((tree, enum tree_code, char*, int, int));
-extern tree tree_class_check            PROTO ((tree, char, char*, int, int));
-extern tree expr_check                  PROTO ((tree, int, char*, int, int));
+extern tree tree_check                  PROTO ((tree, enum tree_code,
+						const char *, int, int));
+extern tree tree_class_check            PROTO ((tree, char, const char *,
+						int, int));
+extern tree expr_check                  PROTO ((tree, int, const char *,
+						int, int));
 
 /* In function.c */
 extern void setjmp_protect_args		PROTO ((void));
@@ -2141,8 +2221,8 @@ extern void print_rtl			PROTO ((FILE *, struct rtx_def *));
 /* In print-tree.c */
 extern void debug_tree			PROTO ((tree));
 #ifdef BUFSIZ
-extern void print_node			PROTO ((FILE *, char *, tree, int));
-extern void print_node_brief		PROTO ((FILE *, char *, tree, int));
+extern void print_node			PROTO ((FILE *, const char *, tree, int));
+extern void print_node_brief		PROTO ((FILE *, const char *, tree, int));
 extern void indent_to			PROTO ((FILE *, int));
 #endif
 
@@ -2198,7 +2278,7 @@ extern void set_yydebug			PROTO ((int));
 extern void fixup_signed_type		PROTO ((tree));
 
 /* varasm.c */
-extern void make_decl_rtl		PROTO ((tree, char *, int));
+extern void make_decl_rtl		PROTO ((tree, const char *, int));
 extern void make_decl_one_only		PROTO ((tree));
 extern int supports_one_only		PROTO ((void));
 extern void variable_section		PROTO ((tree, int));

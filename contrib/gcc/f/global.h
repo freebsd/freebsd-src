@@ -1,6 +1,6 @@
 /* global.h -- Public #include File (module.h template V1.0)
    Copyright (C) 1995, 1997 Free Software Foundation, Inc.
-   Contributed by James Craig Burley (burley@gnu.org).
+   Contributed by James Craig Burley.
 
 This file is part of GNU Fortran.
 
@@ -128,14 +128,14 @@ struct _ffeglobal_
 
 /* Declare functions with prototypes. */
 
-void ffeglobal_drive (ffeglobal (*fn) ());
+void ffeglobal_drive (ffeglobal (*fn) (ffeglobal));
 void ffeglobal_init_1 (void);
 void ffeglobal_init_common (ffesymbol s, ffelexToken t);
 void ffeglobal_new_progunit_ (ffesymbol s, ffelexToken t, ffeglobalType type);
 void ffeglobal_new_common (ffesymbol s, ffelexToken t, bool blank);
 void ffeglobal_pad_common (ffesymbol s, ffetargetAlign pad, ffewhereLine wl,
 			   ffewhereColumn wc);
-void ffeglobal_proc_def_arg (ffesymbol s, int argno, char *name, ffeglobalArgSummary as,
+void ffeglobal_proc_def_arg (ffesymbol s, int argno, const char *name, ffeglobalArgSummary as,
 			     ffeinfoBasictype bt, ffeinfoKindtype kt,
 			     bool array);
 void ffeglobal_proc_def_nargs (ffesymbol s, int n_args);

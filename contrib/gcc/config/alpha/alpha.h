@@ -1,5 +1,5 @@
 /* Definitions of target machine for GNU compiler, for DEC Alpha.
-   Copyright (C) 1992, 93, 94, 95, 96, 97, 1998 Free Software Foundation, Inc.
+   Copyright (C) 1992, 93-98, 1999 Free Software Foundation, Inc.
    Contributed by Richard Kenner (kenner@vlsi1.ultra.nyu.edu)
 
 This file is part of GNU CC.
@@ -95,73 +95,76 @@ extern enum alpha_fp_trap_mode alpha_fptm;
 
 /* This means that floating-point support exists in the target implementation
    of the Alpha architecture.  This is usually the default.  */
-
-#define MASK_FP		1
+#define MASK_FP		(1 << 0)
 #define TARGET_FP	(target_flags & MASK_FP)
 
 /* This means that floating-point registers are allowed to be used.  Note
    that Alpha implementations without FP operations are required to
    provide the FP registers.  */
 
-#define MASK_FPREGS	2
+#define MASK_FPREGS	(1 << 1)
 #define TARGET_FPREGS	(target_flags & MASK_FPREGS)
 
 /* This means that gas is used to process the assembler file.  */
 
-#define MASK_GAS 4
+#define MASK_GAS	(1 << 2)
 #define TARGET_GAS	(target_flags & MASK_GAS)
 
 /* This means that we should mark procedures as IEEE conformant. */
 
-#define MASK_IEEE_CONFORMANT 8
+#define MASK_IEEE_CONFORMANT (1 << 3)
 #define TARGET_IEEE_CONFORMANT	(target_flags & MASK_IEEE_CONFORMANT)
 
 /* This means we should be IEEE-compliant except for inexact.  */
 
-#define MASK_IEEE	16
+#define MASK_IEEE	(1 << 4)
 #define TARGET_IEEE	(target_flags & MASK_IEEE)
 
 /* This means we should be fully IEEE-compliant.  */
 
-#define MASK_IEEE_WITH_INEXACT 32
+#define MASK_IEEE_WITH_INEXACT (1 << 5)
 #define TARGET_IEEE_WITH_INEXACT (target_flags & MASK_IEEE_WITH_INEXACT)
 
 /* This means we must construct all constants rather than emitting
    them as literal data.  */
 
-#define MASK_BUILD_CONSTANTS 128
+#define MASK_BUILD_CONSTANTS (1 << 6)
 #define TARGET_BUILD_CONSTANTS (target_flags & MASK_BUILD_CONSTANTS)
 
 /* This means we handle floating points in VAX F- (float)
    or G- (double) Format.  */
 
-#define MASK_FLOAT_VAX 512
+#define MASK_FLOAT_VAX	(1 << 7)
 #define TARGET_FLOAT_VAX (target_flags & MASK_FLOAT_VAX)
 
 /* This means that the processor has byte and half word loads and stores
    (the BWX extension).  */
 
-#define MASK_BWX 1024
+#define MASK_BWX	(1 << 8)
 #define TARGET_BWX	(target_flags & MASK_BWX)
 
-/* This means that the processor has the CIX extension.  */
-#define MASK_CIX 2048
-#define TARGET_CIX	(target_flags & MASK_CIX)
-
 /* This means that the processor has the MAX extension.  */
-#define MASK_MAX 4096
+#define MASK_MAX	(1 << 9)
 #define TARGET_MAX	(target_flags & MASK_MAX)
+
+/* This means that the processor has the FIX extension.  */
+#define MASK_FIX	(1 << 10)
+#define TARGET_FIX	(target_flags & MASK_FIX)
+
+/* This means that the processor has the CIX extension.  */
+#define MASK_CIX	(1 << 11)
+#define TARGET_CIX	(target_flags & MASK_CIX)
 
 /* This means that the processor is an EV5, EV56, or PCA56.  This is defined
    only in TARGET_CPU_DEFAULT.  */
-#define MASK_CPU_EV5 8192
+#define MASK_CPU_EV5	(1 << 28)
 
 /* Likewise for EV6.  */
-#define MASK_CPU_EV6 16384
+#define MASK_CPU_EV6	(1 << 29)
 
 /* This means we support the .arch directive in the assembler.  Only
    defined in TARGET_CPU_DEFAULT.  */
-#define MASK_SUPPORT_ARCH 32768
+#define MASK_SUPPORT_ARCH (1 << 30)
 #define TARGET_SUPPORT_ARCH	(target_flags & MASK_SUPPORT_ARCH)
 
 /* These are for target os support and cannot be changed at runtime.  */
@@ -185,26 +188,32 @@ extern enum alpha_fp_trap_mode alpha_fptm;
    where VALUE is the bits to set or minus the bits to clear.
    An empty string NAME is used to identify the default VALUE.  */
 
-#define TARGET_SWITCHES				\
-  { {"no-soft-float", MASK_FP},			\
-    {"soft-float", - MASK_FP},			\
-    {"fp-regs", MASK_FPREGS},			\
-    {"no-fp-regs", - (MASK_FP|MASK_FPREGS)},	\
-    {"alpha-as", -MASK_GAS},			\
-    {"gas", MASK_GAS},				\
-    {"ieee-conformant", MASK_IEEE_CONFORMANT},	\
-    {"ieee", MASK_IEEE|MASK_IEEE_CONFORMANT},	\
-    {"ieee-with-inexact", MASK_IEEE_WITH_INEXACT|MASK_IEEE_CONFORMANT}, \
-    {"build-constants", MASK_BUILD_CONSTANTS},  \
-    {"float-vax", MASK_FLOAT_VAX},		\
-    {"float-ieee", -MASK_FLOAT_VAX},		\
-    {"bwx", MASK_BWX},				\
-    {"no-bwx", -MASK_BWX},			\
-    {"cix", MASK_CIX},				\
-    {"no-cix", -MASK_CIX},			\
-    {"max", MASK_MAX},				\
-    {"no-max", -MASK_MAX},			\
-    {"", TARGET_DEFAULT | TARGET_CPU_DEFAULT} }
+#define TARGET_SWITCHES							\
+  { {"no-soft-float", MASK_FP, "Use hardware fp"},			\
+    {"soft-float", - MASK_FP, "Do not use hardware fp"},		\
+    {"fp-regs", MASK_FPREGS, "Use fp registers"},			\
+    {"no-fp-regs", - (MASK_FP|MASK_FPREGS), "Do not use fp registers"},	\
+    {"alpha-as", -MASK_GAS, "Do not assume GAS"},			\
+    {"gas", MASK_GAS, "Assume GAS"},					\
+    {"ieee-conformant", MASK_IEEE_CONFORMANT,				\
+     "Request IEEE-conformant math library routines (OSF/1)"},		\
+    {"ieee", MASK_IEEE|MASK_IEEE_CONFORMANT,				\
+     "Emit IEEE-conformant code, without inexact exceptions"},		\
+    {"ieee-with-inexact", MASK_IEEE_WITH_INEXACT|MASK_IEEE_CONFORMANT,	\
+     "Emit IEEE-conformant code, with inexact exceptions"},		\
+    {"build-constants", MASK_BUILD_CONSTANTS,				\
+     "Do not emit complex integer constants to read-only memory"},	\
+    {"float-vax", MASK_FLOAT_VAX, "Use VAX fp"},			\
+    {"float-ieee", -MASK_FLOAT_VAX, "Do not use VAX fp"},		\
+    {"bwx", MASK_BWX, "Emit code for the byte/word ISA extension"},	\
+    {"no-bwx", -MASK_BWX, ""},						\
+    {"max", MASK_MAX, "Emit code for the motion video ISA extension"},	\
+    {"no-max", -MASK_MAX, ""},						\
+    {"fix", MASK_FIX, "Emit code for the fp move and sqrt ISA extension"}, \
+    {"no-fix", -MASK_FIX, ""},						\
+    {"cix", MASK_CIX, "Emit code for the counting ISA extension"},	\
+    {"no-cix", -MASK_CIX, ""},						\
+    {"", TARGET_DEFAULT | TARGET_CPU_DEFAULT, ""} }
 
 #define TARGET_DEFAULT MASK_FP|MASK_FPREGS
 
@@ -229,19 +238,24 @@ extern enum alpha_fp_trap_mode alpha_fptm;
 	extern char *m88k_short_data;
 	#define TARGET_OPTIONS { { "short-data-", &m88k_short_data } }  */
 
-extern char *alpha_cpu_string;  /* For -mcpu= */
-extern char *alpha_fprm_string;	/* For -mfp-rounding-mode=[n|m|c|d] */
-extern char *alpha_fptm_string;	/* For -mfp-trap-mode=[n|u|su|sui]  */
-extern char *alpha_tp_string;	/* For -mtrap-precision=[p|f|i] */
-extern char *alpha_mlat_string;	/* For -mmemory-latency= */
+extern const char *alpha_cpu_string;	/* For -mcpu= */
+extern const char *alpha_fprm_string;	/* For -mfp-rounding-mode=[n|m|c|d] */
+extern const char *alpha_fptm_string;	/* For -mfp-trap-mode=[n|u|su|sui]  */
+extern const char *alpha_tp_string;	/* For -mtrap-precision=[p|f|i] */
+extern const char *alpha_mlat_string;	/* For -mmemory-latency= */
 
-#define TARGET_OPTIONS				\
-{						\
-  {"cpu=",		&alpha_cpu_string},	\
-  {"fp-rounding-mode=",	&alpha_fprm_string},	\
-  {"fp-trap-mode=",	&alpha_fptm_string},	\
-  {"trap-precision=",	&alpha_tp_string},	\
-  {"memory-latency=",	&alpha_mlat_string},	\
+#define TARGET_OPTIONS					\
+{							\
+  {"cpu=",		&alpha_cpu_string,		\
+   "Generate code for a given CPU"},			\
+  {"fp-rounding-mode=",	&alpha_fprm_string,		\
+   "Control the generated fp rounding mode"},		\
+  {"fp-trap-mode=",	&alpha_fptm_string,		\
+   "Control the IEEE trap mode"},			\
+  {"trap-precision=",	&alpha_tp_string,		\
+   "Control the precision given to fp exceptions"},	\
+  {"memory-latency=",	&alpha_mlat_string,		\
+   "Tune expected memory latency"},			\
 }
 
 /* Attempt to describe CPU characteristics to the preprocessor.  */
@@ -249,6 +263,7 @@ extern char *alpha_mlat_string;	/* For -mmemory-latency= */
 /* Corresponding to amask... */
 #define CPP_AM_BWX_SPEC	"-D__alpha_bwx__ -Acpu(bwx)"
 #define CPP_AM_MAX_SPEC	"-D__alpha_max__ -Acpu(max)"
+#define CPP_AM_FIX_SPEC	"-D__alpha_fix__ -Acpu(fix)"
 #define CPP_AM_CIX_SPEC	"-D__alpha_cix__ -Acpu(cix)"
 
 /* Corresponding to implver... */
@@ -261,7 +276,7 @@ extern char *alpha_mlat_string;	/* For -mmemory-latency= */
 #define CPP_CPU_EV5_SPEC	"%(cpp_im_ev5)"
 #define CPP_CPU_EV56_SPEC	"%(cpp_im_ev5) %(cpp_am_bwx)"
 #define CPP_CPU_PCA56_SPEC	"%(cpp_im_ev5) %(cpp_am_bwx) %(cpp_am_max)"
-#define CPP_CPU_EV6_SPEC	"%(cpp_im_ev6) %(cpp_am_bwx) %(cpp_am_max) %(cpp_am_cix)"
+#define CPP_CPU_EV6_SPEC	"%(cpp_im_ev6) %(cpp_am_bwx) %(cpp_am_max) %(cpp_am_fix)"
 
 #ifndef CPP_CPU_DEFAULT_SPEC
 # if TARGET_CPU_DEFAULT & MASK_CPU_EV6
@@ -311,6 +326,7 @@ extern char *alpha_mlat_string;	/* For -mmemory-latency= */
 #define EXTRA_SPECS				\
   { "cpp_am_bwx", CPP_AM_BWX_SPEC },		\
   { "cpp_am_max", CPP_AM_MAX_SPEC },		\
+  { "cpp_am_fix", CPP_AM_FIX_SPEC },		\
   { "cpp_am_cix", CPP_AM_CIX_SPEC },		\
   { "cpp_im_ev4", CPP_IM_EV4_SPEC },		\
   { "cpp_im_ev5", CPP_IM_EV5_SPEC },		\
@@ -483,7 +499,7 @@ extern void override_options ();
    Alpha we'll get better performance by aligning on an octaword
    boundary.  */
 
-#define ALIGN_LABEL_AFTER_BARRIER(FILE)	\
+#define LABEL_ALIGN_AFTER_BARRIER(FILE)	\
   (optimize > 0 && write_symbols != SDB_DEBUG ? 4 : 0)
 
 /* No data type wants to be aligned rounder than this.  */
@@ -613,17 +629,20 @@ extern void override_options ();
    registers can hold 32-bit and 64-bit integers as well, but not 16-bit
    or 8-bit values.  */
 
-#define HARD_REGNO_MODE_OK(REGNO, MODE) 			\
-  ((REGNO) < 32 || ((MODE) != QImode && (MODE) != HImode))
+#define HARD_REGNO_MODE_OK(REGNO, MODE) 				\
+  ((REGNO) >= 32 && (REGNO) <= 62 					\
+   ? GET_MODE_UNIT_SIZE (MODE) == 8 || GET_MODE_UNIT_SIZE (MODE) == 4	\
+   : 1)
 
-/* Value is 1 if it is a good idea to tie two pseudo registers
-   when one has mode MODE1 and one has mode MODE2.
-   If HARD_REGNO_MODE_OK could produce different values for MODE1 and MODE2,
-   for any hard reg, then this must be 0 for correct output.  */
+/* A C expression that is nonzero if a value of mode
+   MODE1 is accessible in mode MODE2 without copying.
+
+   This asymmetric test is true when MODE1 could be put
+   in an FP register but MODE2 could not.  */
 
 #define MODES_TIEABLE_P(MODE1, MODE2) 				\
-  ((MODE1) == QImode || (MODE1) == HImode			\
-   ? (MODE2) == QImode || (MODE2) == HImode			\
+  (HARD_REGNO_MODE_OK (32, (MODE1))				\
+   ? HARD_REGNO_MODE_OK (32, (MODE2))				\
    : 1)
 
 /* Specify the registers used for certain standard purposes.
@@ -771,11 +790,12 @@ enum reg_class { NO_REGS, GENERAL_REGS, FLOAT_REGS, ALL_REGS,
    'S' is a 6-bit constant (valid for a shift insn).  */
 
 #define EXTRA_CONSTRAINT(OP, C)				\
-  ((C) == 'Q' ? GET_CODE (OP) == MEM && GET_CODE (XEXP (OP, 0)) != AND	\
+  ((C) == 'Q' ? normal_memory_operand (OP, VOIDmode)			\
    : (C) == 'R' ? current_file_function_operand (OP, Pmode)		\
    : (C) == 'S' ? (GET_CODE (OP) == CONST_INT				\
 		   && (unsigned HOST_WIDE_INT) INTVAL (OP) < 64)	\
    : 0)
+extern int normal_memory_operand ();
 
 /* Given an rtx X being reloaded into a reg required to be
    in class CLASS, return the class of reg to actually use.
@@ -807,7 +827,7 @@ enum reg_class { NO_REGS, GENERAL_REGS, FLOAT_REGS, ALL_REGS,
   && (((CLASS) == FLOAT_REGS						\
        && ((MODE) == SImode || (MODE) == HImode || (MODE) == QImode))	\
       || (((MODE) == QImode || (MODE) == HImode)			\
-	  && ! TARGET_BWX && unaligned_memory_operand (IN, MODE)))) \
+	  && ! TARGET_BWX && ! aligned_memory_operand (IN, MODE))))	\
  ? GENERAL_REGS								\
  : ((CLASS) == FLOAT_REGS && GET_CODE (IN) == MEM			\
     && GET_CODE (XEXP (IN, 0)) == AND) ? GENERAL_REGS			\
@@ -835,10 +855,10 @@ enum reg_class { NO_REGS, GENERAL_REGS, FLOAT_REGS, ALL_REGS,
  : NO_REGS)
 
 /* If we are copying between general and FP registers, we need a memory
-   location unless the CIX extension is available.  */
+   location unless the FIX extension is available.  */
 
 #define SECONDARY_MEMORY_NEEDED(CLASS1,CLASS2,MODE) \
- (! TARGET_CIX && (CLASS1) != (CLASS2))
+ (! TARGET_FIX && (CLASS1) != (CLASS2))
 
 /* Specify the mode to be used for memory when a secondary memory
    location is needed.  If MODE is floating-point, use it.  Otherwise,
@@ -871,7 +891,7 @@ enum reg_class { NO_REGS, GENERAL_REGS, FLOAT_REGS, ALL_REGS,
 #define REGISTER_MOVE_COST(CLASS1, CLASS2)		\
   (((CLASS1) == FLOAT_REGS) == ((CLASS2) == FLOAT_REGS)	\
    ? 2							\
-   : TARGET_CIX ? 3 : 4+2*alpha_memory_latency)
+   : TARGET_FIX ? 3 : 4+2*alpha_memory_latency)
 
 /* A C expressions returning the cost of moving data of MODE from a register to
    or from memory.
@@ -989,26 +1009,25 @@ extern int alpha_memory_latency;
    On Alpha the value is found in $0 for integer functions and
    $f0 for floating-point functions.  */
 
-#define FUNCTION_VALUE(VALTYPE, FUNC)	\
-  gen_rtx (REG,							\
-	   ((INTEGRAL_TYPE_P (VALTYPE)				\
-	     && TYPE_PRECISION (VALTYPE) < BITS_PER_WORD)	\
-	    || POINTER_TYPE_P (VALTYPE))			\
-	   ? word_mode : TYPE_MODE (VALTYPE),			\
-	   ((TARGET_FPREGS					\
-	     && (TREE_CODE (VALTYPE) == REAL_TYPE		\
-		 || TREE_CODE (VALTYPE) == COMPLEX_TYPE))	\
-	    ? 32 : 0))
+#define FUNCTION_VALUE(VALTYPE, FUNC)				\
+  gen_rtx_REG (((INTEGRAL_TYPE_P (VALTYPE)			\
+	         && TYPE_PRECISION (VALTYPE) < BITS_PER_WORD)	\
+	        || POINTER_TYPE_P (VALTYPE))			\
+	       ? word_mode : TYPE_MODE (VALTYPE),		\
+	       ((TARGET_FPREGS					\
+	         && (TREE_CODE (VALTYPE) == REAL_TYPE		\
+		     || TREE_CODE (VALTYPE) == COMPLEX_TYPE))	\
+	        ? 32 : 0))
 
 /* Define how to find the value returned by a library function
    assuming the value has mode MODE.  */
 
-#define LIBCALL_VALUE(MODE)	\
-   gen_rtx (REG, MODE,						\
-	    (TARGET_FPREGS					\
-	     && (GET_MODE_CLASS (MODE) == MODE_FLOAT		\
-		 || GET_MODE_CLASS (MODE) == MODE_COMPLEX_FLOAT) \
-	     ? 32 : 0))
+#define LIBCALL_VALUE(MODE)					\
+   gen_rtx_REG (MODE,						\
+	        (TARGET_FPREGS					\
+	         && (GET_MODE_CLASS (MODE) == MODE_FLOAT	\
+		     || GET_MODE_CLASS (MODE) == MODE_COMPLEX_FLOAT) \
+	         ? 32 : 0))
 
 /* The definition of this macro implies that there are cases where
    a scalar value cannot be returned in registers.
@@ -1182,6 +1201,10 @@ extern struct rtx_def *alpha_builtin_saveregs ();
 extern struct rtx_def *alpha_compare_op0, *alpha_compare_op1;
 extern int alpha_compare_fp_p;
 
+/* Define the information needed to modify the epilogue for EH.  */
+
+extern struct rtx_def *alpha_eh_epilogue_sp_ofs;
+
 /* Make (or fake) .linkage entry for function call.
    IS_LOCAL is 0 if name is used in call, 1 if name is used in definition.  */
 extern void alpha_need_linkage ();
@@ -1293,6 +1316,7 @@ do {						\
 
 #define INITIALIZE_TRAMPOLINE(TRAMP, FNADDR, CXT) \
   alpha_initialize_trampoline (TRAMP, FNADDR, CXT, 16, 24, 8)
+extern void alpha_initialize_trampoline ();
 
 /* A C expression whose value is RTL representing the value of the return
    address for the frame COUNT steps up from the current frame.
@@ -1302,6 +1326,9 @@ do {						\
 #define RETURN_ADDR_RTX  alpha_return_addr
 extern struct rtx_def *alpha_return_addr ();
 
+/* Before the prologue, RA lives in $26. */
+#define INCOMING_RETURN_ADDR_RTX  gen_rtx_REG (Pmode, 26)
+
 /* Initialize data used by insn expanders.  This is called from insn_emit,
    once for every function before code is generated.  */
 
@@ -1310,11 +1337,11 @@ extern void alpha_init_expanders ();
 
 /* Addressing modes, and classification of registers for them.  */
 
-/* #define HAVE_POST_INCREMENT */
-/* #define HAVE_POST_DECREMENT */
+/* #define HAVE_POST_INCREMENT 0 */
+/* #define HAVE_POST_DECREMENT 0 */
 
-/* #define HAVE_PRE_DECREMENT */
-/* #define HAVE_PRE_INCREMENT */
+/* #define HAVE_PRE_DECREMENT 0 */
+/* #define HAVE_PRE_INCREMENT 0 */
 
 /* Macros to check register numbers against specific register classes.  */
 
@@ -1365,17 +1392,31 @@ extern void alpha_init_expanders ();
 /* Nonzero if X is a hard reg that can be used as an index
    or if it is a pseudo reg.  */
 #define REG_OK_FOR_INDEX_P(X) 0
+
 /* Nonzero if X is a hard reg that can be used as a base reg
    or if it is a pseudo reg.  */
 #define REG_OK_FOR_BASE_P(X)  \
   (REGNO (X) < 32 || REGNO (X) == 63 || REGNO (X) >= FIRST_PSEUDO_REGISTER)
 
+/* ??? Nonzero if X is the frame pointer, or some virtual register
+   that may eliminate to the frame pointer.  These will be allowed to
+   have offsets greater than 32K.  This is done because register
+   elimination offsets will change the hi/lo split, and if we split
+   before reload, we will require additional instructions.   */
+#define REG_OK_FP_BASE_P(X)			\
+  (REGNO (X) == 31 || REGNO (X) == 63		\
+   || (REGNO (X) >= FIRST_PSEUDO_REGISTER	\
+       && REGNO (X) < LAST_VIRTUAL_REGISTER))
+
 #else
 
 /* Nonzero if X is a hard reg that can be used as an index.  */
 #define REG_OK_FOR_INDEX_P(X) REGNO_OK_FOR_INDEX_P (REGNO (X))
+
 /* Nonzero if X is a hard reg that can be used as a base reg.  */
 #define REG_OK_FOR_BASE_P(X) REGNO_OK_FOR_BASE_P (REGNO (X))
+
+#define REG_OK_FP_BASE_P(X) 0
 
 #endif
 
@@ -1391,16 +1432,34 @@ extern void alpha_init_expanders ();
 
    First define the basic valid address.  */
 
-#define GO_IF_LEGITIMATE_SIMPLE_ADDRESS(MODE, X, ADDR) \
-{ if (REG_P (X) && REG_OK_FOR_BASE_P (X))	\
-    goto ADDR;					\
-  if (CONSTANT_ADDRESS_P (X))			\
-    goto ADDR;					\
-  if (GET_CODE (X) == PLUS			\
-      && REG_P (XEXP (X, 0))			\
-      && REG_OK_FOR_BASE_P (XEXP (X, 0))	\
-      && CONSTANT_ADDRESS_P (XEXP (X, 1)))	\
-    goto ADDR;					\
+#define GO_IF_LEGITIMATE_SIMPLE_ADDRESS(MODE, X, ADDR)			\
+{									\
+  rtx tmp = (X);							\
+  if (GET_CODE (tmp) == SUBREG						\
+      && (GET_MODE_SIZE (GET_MODE (tmp))				\
+	  < GET_MODE_SIZE (GET_MODE (SUBREG_REG (tmp)))))		\
+    tmp = SUBREG_REG (tmp);						\
+  if (REG_P (tmp) && REG_OK_FOR_BASE_P (tmp))				\
+    goto ADDR;								\
+  if (CONSTANT_ADDRESS_P (X))						\
+    goto ADDR;								\
+  if (GET_CODE (X) == PLUS)						\
+    {									\
+      tmp = XEXP (X, 0);						\
+      if (GET_CODE (tmp) == SUBREG					\
+          && (GET_MODE_SIZE (GET_MODE (tmp))				\
+	      < GET_MODE_SIZE (GET_MODE (SUBREG_REG (tmp)))))		\
+        tmp = SUBREG_REG (tmp);						\
+      if (REG_P (tmp))							\
+	{								\
+	  if (REG_OK_FP_BASE_P (tmp)					\
+	      && GET_CODE (XEXP (X, 1)) == CONST_INT)			\
+	    goto ADDR;							\
+	  if (REG_OK_FOR_BASE_P (tmp)					\
+	      && CONSTANT_ADDRESS_P (XEXP (X, 1)))			\
+	    goto ADDR;							\
+	}								\
+    }									\
 }
 
 /* Now accept the simple address, or, for DImode only, an AND of a simple
@@ -1596,9 +1655,11 @@ do {									\
 
 #define MOVE_MAX 8
 
-/* Controls how many units are moved by expr.c before resorting to movstr.
-   Without byte/word accesses, we want no more than one; with, several single
-   byte accesses are better.   */
+/* If a memory-to-memory move would take MOVE_RATIO or more simple
+   move-instruction pairs, we will do a movstr or libcall instead.
+
+   Without byte/word accesses, we want no more than four instructions;
+   with, several single byte accesses are better.   */
 
 #define MOVE_RATIO  (TARGET_BWX ? 7 : 2)
 
@@ -1692,6 +1753,12 @@ do {									\
 
 /* The EV4 is dual issue; EV5/EV6 are quad issue.  */
 #define ISSUE_RATE  (alpha_cpu == PROCESSOR_EV4 ? 2 : 4)
+
+/* Describe the fact that MULTI instructions are multiple instructions
+   and so to assume they don't pair with anything.  */
+#define MD_SCHED_VARIABLE_ISSUE(DUMP, SCHED_VERBOSE, INSN, CAN_ISSUE_MORE) \
+  if (recog_memoized (INSN) < 0 || get_attr_type (INSN) == TYPE_MULTI)	   \
+     (CAN_ISSUE_MORE) = 0
 
 /* Compute the cost of computing a constant rtl expression RTX
    whose rtx-code is CODE.  The body of this macro is a portion
@@ -1970,7 +2037,7 @@ literal_section ()						\
    This is suitable for output with `assemble_name'.  */
 
 #define ASM_GENERATE_INTERNAL_LABEL(LABEL,PREFIX,NUM)	\
-  sprintf (LABEL, "*$%s%d", PREFIX, NUM)
+  sprintf ((LABEL), "*$%s%ld", (PREFIX), (long)(NUM))
 
 /* Check a floating-point value for validity for a particular machine mode.  */
 
@@ -2077,6 +2144,11 @@ literal_section ()						\
     }									      \
   }									      \
   while (0)
+
+/* To get unaligned data, we have to turn off auto alignment.  */
+#define UNALIGNED_SHORT_ASM_OP		".align 0\n\t.word"
+#define UNALIGNED_INT_ASM_OP		".align 0\n\t.long"
+#define UNALIGNED_DOUBLE_INT_ASM_OP	".align 0\n\t.quad"
 
 /* This is how to output an insn to push a register on the stack.
    It need not be very fast code.  */
@@ -2237,41 +2309,22 @@ do {									\
 
 /* Print a memory address as an operand to reference that memory location.  */
 
-#define PRINT_OPERAND_ADDRESS(FILE, ADDR)		\
-{ rtx addr = (ADDR);					\
-  int basereg = 31;					\
-  HOST_WIDE_INT offset = 0;				\
-							\
-  if (GET_CODE (addr) == AND)				\
-    addr = XEXP (addr, 0);				\
-							\
-  if (GET_CODE (addr) == REG)				\
-    basereg = REGNO (addr);				\
-  else if (GET_CODE (addr) == CONST_INT)		\
-    offset = INTVAL (addr);				\
-  else if (GET_CODE (addr) == PLUS			\
-	   && GET_CODE (XEXP (addr, 0)) == REG		\
-	   && GET_CODE (XEXP (addr, 1)) == CONST_INT)	\
-    basereg = REGNO (XEXP (addr, 0)), offset = INTVAL (XEXP (addr, 1)); \
-  else							\
-    abort ();						\
-							\
-  fprintf (FILE, HOST_WIDE_INT_PRINT_DEC, offset);		\
-  fprintf (FILE, "($%d)", basereg);		\
-}
+#define PRINT_OPERAND_ADDRESS(FILE, ADDR) \
+  print_operand_address((FILE), (ADDR))
+
 /* Define the codes that are matched by predicates in alpha.c.  */
 
 #define PREDICATE_CODES 						\
   {"reg_or_0_operand", {SUBREG, REG, CONST_INT}},			\
-  {"reg_or_6bit_operand", {SUBREG, REG, CONST_INT, CONSTANT_P_RTX}},	\
-  {"reg_or_8bit_operand", {SUBREG, REG, CONST_INT, CONSTANT_P_RTX}},	\
-  {"cint8_operand", {CONST_INT, CONSTANT_P_RTX}},                       \
-  {"reg_or_cint_operand", {SUBREG, REG, CONST_INT, CONSTANT_P_RTX}},	\
-  {"add_operand", {SUBREG, REG, CONST_INT, CONSTANT_P_RTX}},		\
-  {"sext_add_operand", {SUBREG, REG, CONST_INT, CONSTANT_P_RTX}},	\
+  {"reg_or_6bit_operand", {SUBREG, REG, CONST_INT}},			\
+  {"reg_or_8bit_operand", {SUBREG, REG, CONST_INT}},			\
+  {"cint8_operand", {CONST_INT}},					\
+  {"reg_or_cint_operand", {SUBREG, REG, CONST_INT}},			\
+  {"add_operand", {SUBREG, REG, CONST_INT}},				\
+  {"sext_add_operand", {SUBREG, REG, CONST_INT}},			\
   {"const48_operand", {CONST_INT}},					\
-  {"and_operand", {SUBREG, REG, CONST_INT, CONSTANT_P_RTX}},		\
-  {"or_operand", {SUBREG, REG, CONST_INT, CONSTANT_P_RTX}},		\
+  {"and_operand", {SUBREG, REG, CONST_INT}},				\
+  {"or_operand", {SUBREG, REG, CONST_INT}},				\
   {"mode_mask_operand", {CONST_INT}},					\
   {"mul8_operand", {CONST_INT}},					\
   {"mode_width_operand", {CONST_INT}},					\
@@ -2284,14 +2337,16 @@ do {									\
   {"current_file_function_operand", {SYMBOL_REF}},			\
   {"call_operand", {REG, SYMBOL_REF}},					\
   {"input_operand", {SUBREG, REG, MEM, CONST_INT, CONST_DOUBLE,		\
-		     SYMBOL_REF, CONST, LABEL_REF, CONSTANT_P_RTX}},	\
+		     SYMBOL_REF, CONST, LABEL_REF}},			\
   {"some_operand", {SUBREG, REG, MEM, CONST_INT, CONST_DOUBLE,		\
-		    SYMBOL_REF, CONST, LABEL_REF, CONSTANT_P_RTX}},	\
+		    SYMBOL_REF, CONST, LABEL_REF}},			\
   {"aligned_memory_operand", {MEM}},					\
   {"unaligned_memory_operand", {MEM}},					\
   {"reg_or_unaligned_mem_operand", {SUBREG, REG, MEM}},			\
   {"any_memory_operand", {MEM}},					\
-  {"hard_fp_register_operand", {SUBREG, REG}},
+  {"hard_fp_register_operand", {SUBREG, REG}},				\
+  {"reg_not_elim_operand", {SUBREG, REG}},				\
+  {"reg_no_subreg_operand", {REG}},
 
 /* Tell collect that the object format is ECOFF.  */
 #define OBJECT_FORMAT_COFF
@@ -2462,6 +2517,7 @@ extern int current_file_function_operand ();
 extern int alpha_sa_size ();
 extern int alpha_adjust_cost ();
 extern void print_operand ();
+extern void print_operand_address ();
 extern int reg_or_0_operand ();
 extern int reg_or_8bit_operand ();
 extern int mul8_operand ();
@@ -2482,6 +2538,7 @@ extern int divmod_operator ();
 extern int call_operand ();
 extern int reg_or_cint_operand ();
 extern int hard_fp_register_operand ();
+extern int reg_not_elim_operand ();
 extern void alpha_set_memflags ();
 extern int aligned_memory_operand ();
 extern void get_aligned_mem ();

@@ -31,6 +31,11 @@ Boston, MA 02111-1307, USA.  */
 #define OBSD_OLD_GAS
 #include <openbsd.h>
 
+/* This goes away when the math-emulator is fixed */
+#undef TARGET_DEFAULT
+#define TARGET_DEFAULT \
+  (MASK_80387 | MASK_IEEE_FP | MASK_FLOAT_RETURNS | MASK_NO_FANCY_MATH_387)
+
 /* Run-time target specifications */
 #define CPP_PREDEFINES "-D__unix__ -D__i386__ -D__OpenBSD__ -Asystem(unix) -Asystem(OpenBSD) -Acpu(i386) -Amachine(i386)"
 
@@ -120,9 +125,10 @@ Boston, MA 02111-1307, USA.  */
 #ifdef HAVE_GAS_MAX_SKIP_P2ALIGN
 #define ASM_OUTPUT_MAX_SKIP_ALIGN(FILE,LOG,MAX_SKIP)			\
   do {									\
-    if ((LOG) != 0)							\
+    if ((LOG) != 0) {							\
       if ((MAX_SKIP) == 0) fprintf ((FILE), "\t.p2align %d\n", (LOG));	\
       else fprintf ((FILE), "\t.p2align %d,,%d\n", (LOG), (MAX_SKIP));	\
+    }									\
   } while (0)
 #endif
 

@@ -1,17 +1,64 @@
 /* system.h - Get common system includes and various definitions and
    declarations based on autoconf macros.
-   Copyright (C) 1998 Free Software Foundation, Inc.
+   Copyright (C) 1998, 1999 Free Software Foundation, Inc.
 
- */
+This file is part of GNU CC.
+
+GNU CC is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2, or (at your option)
+any later version.
+
+GNU CC is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with GNU CC; see the file COPYING.  If not, write to
+the Free Software Foundation, 59 Temple Place - Suite 330,
+Boston, MA 02111-1307, USA.  */
 
 #ifndef __GCC_SYSTEM_H__
 #define __GCC_SYSTEM_H__
+
+/* We must include stdarg.h/varargs.h before stdio.h. */
+#ifdef ANSI_PROTOTYPES
+#include <stdarg.h>
+#else
+#include <varargs.h>
+#endif
 
 #include <stdio.h>
 
 /* Define a generic NULL if one hasn't already been defined.  */
 #ifndef NULL
 #define NULL 0
+#endif
+
+/* The compiler is not a multi-threaded application and therefore we
+   do not have to use the locking functions.
+
+   NEED_DECLARATION_PUTC_UNLOCKED actually indicates whether or not
+   the IO code is multi-thread safe by default.  If it is not declared,
+   then do not worry about using the _unlocked functions.
+   
+   fputs_unlocked is an extension and needs to be prototyped specially.  */
+
+#if defined HAVE_PUTC_UNLOCKED && !defined NEED_DECLARATION_PUTC_UNLOCKED
+# undef putc
+# define putc(C, Stream) putc_unlocked (C, Stream)
+#endif
+#if defined HAVE_FPUTC_UNLOCKED && !defined NEED_DECLARATION_PUTC_UNLOCKED
+# undef fputc
+# define fputc(C, Stream) fputc_unlocked (C, Stream)
+#endif
+#if defined HAVE_FPUTS_UNLOCKED && !defined NEED_DECLARATION_PUTC_UNLOCKED
+# undef fputs
+# define fputs(String, Stream) fputs_unlocked (String, Stream)
+# ifdef NEED_DECLARATION_FPUTS_UNLOCKED
+extern int fputs_unlocked PROTO ((const char *, FILE *));
+# endif
 #endif
 
 #include <ctype.h>
@@ -81,11 +128,16 @@
 extern int errno;
 #endif
 
-#ifdef HAVE_STRING_H
+#ifdef STRING_WITH_STRINGS
 # include <string.h>
+# include <strings.h>
 #else
-# ifdef HAVE_STRINGS_H
-#  include <strings.h>
+# ifdef HAVE_STRING_H
+#  include <string.h>
+# else
+#  ifdef HAVE_STRINGS_H
+#   include <strings.h>
+#  endif
 # endif
 #endif
 
@@ -104,6 +156,34 @@ extern int errno;
 #if HAVE_LIMITS_H
 # include <limits.h>
 #endif
+
+/* Find HOST_WIDEST_INT and set its bit size, type and print macros.
+   It will be the largest integer mode supported by the host which may
+   (or may not) be larger than HOST_WIDE_INT.  This must appear after
+   <limits.h> since we only use `long long' if its bigger than a
+   `long' and also if it is supported by macros in limits.h.  For old
+   hosts which don't have a limits.h (and thus won't include it in
+   stage2 cause we don't rerun configure) we assume gcc supports long
+   long.)  Note, you won't get these defined if you don't include
+   {ht}config.h before this file to set the HOST_BITS_PER_* macros. */
+
+#ifndef HOST_WIDEST_INT
+# if defined (HOST_BITS_PER_LONG) && defined (HOST_BITS_PER_LONGLONG)
+#  if (HOST_BITS_PER_LONGLONG > HOST_BITS_PER_LONG) && (defined (LONG_LONG_MAX) || defined (LONGLONG_MAX) || defined (LLONG_MAX) || defined (__GNUC__))
+#   define HOST_BITS_PER_WIDEST_INT HOST_BITS_PER_LONGLONG
+#   define HOST_WIDEST_INT long long
+#   define HOST_WIDEST_INT_PRINT_DEC "%lld"
+#   define HOST_WIDEST_INT_PRINT_UNSIGNED "%llu"
+#   define HOST_WIDEST_INT_PRINT_HEX "0x%llx"
+#  else
+#   define HOST_BITS_PER_WIDEST_INT HOST_BITS_PER_LONG
+#   define HOST_WIDEST_INT long
+#   define HOST_WIDEST_INT_PRINT_DEC "%ld"
+#   define HOST_WIDEST_INT_PRINT_UNSIGNED "%lu"
+#   define HOST_WIDEST_INT_PRINT_HEX "0x%lx"
+#  endif /*(long long>long) && (LONG_LONG_MAX||LONGLONG_MAX||LLONG_MAX||GNUC)*/
+# endif /* defined(HOST_BITS_PER_LONG) && defined(HOST_BITS_PER_LONGLONG) */
+#endif /* ! HOST_WIDEST_INT */
 
 #ifdef TIME_WITH_SYS_TIME
 # include <sys/time.h>
@@ -144,6 +224,35 @@ extern int errno;
 # define O_WRONLY 1
 #endif
 
+/* Some systems define these in, e.g., param.h.  We undefine these names
+   here to avoid the warnings.  We prefer to use our definitions since we
+   know they are correct.  */
+
+#undef MIN
+#undef MAX
+#define MIN(X,Y) ((X) < (Y) ? (X) : (Y))
+#define MAX(X,Y) ((X) > (Y) ? (X) : (Y))
+
+#ifdef HAVE_SYS_WAIT_H
+#include <sys/wait.h>
+#endif
+
+#ifndef WIFSIGNALED
+#define WIFSIGNALED(S) (((S) & 0xff) != 0 && ((S) & 0xff) != 0x7f)
+#endif
+#ifndef WTERMSIG
+#define WTERMSIG(S) ((S) & 0x7f)
+#endif
+#ifndef WIFEXITED
+#define WIFEXITED(S) (((S) & 0xff) == 0)
+#endif
+#ifndef WEXITSTATUS
+#define WEXITSTATUS(S) (((S) & 0xff00) >> 8)
+#endif
+#ifndef WSTOPSIG
+#define WSTOPSIG WEXITSTATUS
+#endif
+
 
 
 #ifndef bcopy
@@ -152,7 +261,7 @@ extern int errno;
 extern void bcopy ();
 #  endif
 # else /* ! HAVE_BCOPY */
-#  define bcopy(src,dst,len) memcpy ((dst),(src),(len))
+#  define bcopy(src,dst,len) memmove((dst),(src),(len))
 # endif
 #endif
 
@@ -224,6 +333,10 @@ extern char *getwd ();
 extern char *sbrk ();
 #endif
 
+#ifdef NEED_DECLARATION_STRSTR
+extern char *strstr ();
+#endif
+
 #ifdef HAVE_STRERROR
 # ifdef NEED_DECLARATION_STRERROR
 #  ifndef strerror
@@ -234,6 +347,20 @@ extern char *strerror ();
 extern int sys_nerr;
 extern char *sys_errlist[];
 #endif /* HAVE_STRERROR */
+
+#ifdef HAVE_STRSIGNAL
+# ifdef NEED_DECLARATION_STRSIGNAL
+#  ifndef strsignal
+extern char * strsignal ();
+#  endif
+# endif
+#else /* ! HAVE_STRSIGNAL */
+# ifndef SYS_SIGLIST_DECLARED
+#  ifndef NO_SYS_SIGLIST
+extern char * sys_siglist[];
+#  endif
+# endif
+#endif /* HAVE_STRSIGNAL */
 
 #ifdef HAVE_GETRLIMIT
 # ifdef NEED_DECLARATION_GETRLIMIT
@@ -258,38 +385,27 @@ extern int setrlimit ();
 #endif
 
 /* Redefine abort to report an internal error w/o coredump, and reporting the
-   location of the error in the source file.  */
-#ifndef abort
-#ifndef __STDC__
-#ifndef __GNUC__
-#ifndef USE_SYSTEM_ABORT
-#define USE_SYSTEM_ABORT
-#endif /* !USE_SYSTEM_ABORT */
-#endif /* !__GNUC__ */
-#endif /* !__STDC__ */
-
-#ifdef USE_SYSTEM_ABORT
-# ifdef NEED_DECLARATION_ABORT
+   location of the error in the source file.
+   Some files undefine abort again, so we must prototype the real thing
+   for their sake.  */
+#ifdef NEED_DECLARATION_ABORT
 extern void abort ();
-# endif
-#else
+#endif
+extern void fatal PVPROTO((const char *, ...)) ATTRIBUTE_PRINTF_1 ATTRIBUTE_NORETURN;
+
 #if __GNUC__ < 2 || (__GNUC__ == 2 && __GNUC_MINOR__ < 7)
-#define abort()								\
-(fprintf (stderr,							\
-	  "%s:%d: Internal compiler error\n", __FILE__, __LINE__),	\
- exit (FATAL_EXIT_CODE))
-
+#define abort() fatal ("Internal compiler error at %s:%d\n", \
+		       trim_filename (__FILE__), __LINE__)
 #else
-#define abort()								\
-(fprintf (stderr,							\
-	  "%s:%d: Internal compiler error in function %s\n",		\
-	  __FILE__, __LINE__, __PRETTY_FUNCTION__),			\
- exit (FATAL_EXIT_CODE))
-
+#define abort() fatal ("Internal compiler error in `%s', at %s:%d\n"	\
+  "Please submit a full bug report.\n"	\
+  "See <URL:http://www.gnu.org/software/gcc/faq.html#bugreport> for instructions.", \
+  __PRETTY_FUNCTION__, trim_filename (__FILE__), __LINE__)
 #endif /* recent gcc */
-#endif /* USE_SYSTEM_ABORT */
-#endif /* !abort */
 
+/* trim_filename is in toplev.c.  Define a stub macro for files that
+   don't link toplev.c.  toplev.h will reset it to the real version.  */
+#define trim_filename(x) (x)
 
 /* Define a STRINGIFY macro that's right for ANSI or traditional C.
    HAVE_CPP_STRINGIFY only refers to the stage1 compiler.  Assume that
@@ -308,9 +424,70 @@ extern void abort ();
 # endif
 #endif /* ! STRINGIFY */
 
+#if HAVE_SYS_STAT_H
+# include <sys/stat.h>
+#endif
 
-/* These macros are here in preparation for the use of gettext in egcs.  */
-#define _(String) String
-#define N_(String) String
+/* Test if something is a normal file.  */
+#ifndef S_ISREG
+#define S_ISREG(m) (((m) & S_IFMT) == S_IFREG)
+#endif
+
+/* Test if something is a directory.  */
+#ifndef S_ISDIR
+#define S_ISDIR(m) (((m) & S_IFMT) == S_IFDIR)
+#endif
+
+/* Test if something is a character special file.  */
+#ifndef S_ISCHR
+#define S_ISCHR(m) (((m) & S_IFMT) == S_IFCHR)
+#endif
+
+/* Test if something is a socket.  */
+#ifndef S_ISSOCK
+# ifdef S_IFSOCK
+#   define S_ISSOCK(m) (((m) & S_IFMT) == S_IFSOCK)
+# else
+#   define S_ISSOCK(m) 0
+# endif
+#endif
+
+/* Test if something is a FIFO.  */
+#ifndef S_ISFIFO
+# ifdef S_IFIFO
+#  define S_ISFIFO(m) (((m) & S_IFMT) == S_IFIFO)
+# else
+#  define S_ISFIFO(m) 0
+# endif
+#endif
+
+/* Approximate O_NONBLOCK.  */
+#ifndef O_NONBLOCK
+#define O_NONBLOCK O_NDELAY
+#endif
+
+/* Approximate O_NOCTTY.  */
+#ifndef O_NOCTTY
+#define O_NOCTTY 0
+#endif
+
+/* Define well known filenos if the system does not define them.  */
+#ifndef STDIN_FILENO
+# define STDIN_FILENO   0
+#endif
+#ifndef STDOUT_FILENO
+# define STDOUT_FILENO  1
+#endif
+#ifndef STDERR_FILENO
+# define STDERR_FILENO  2
+#endif
+
+/* Some systems have mkdir that takes a single argument. */
+#ifdef MKDIR_TAKES_ONE_ARG
+# define mkdir(a,b) mkdir(a)
+#endif
+
+/* Get libiberty declarations. */
+#include "libiberty.h"
 
 #endif /* __GCC_SYSTEM_H__ */

@@ -16,7 +16,8 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with GNU CC; see the file COPYING.  If not, write to
-the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
+the Free Software Foundation, 59 Temple Place - Suite 330,
+Boston, MA 02111-1307, USA.  */
 
 /* for now, we are just like the sysv4 version with a
    few hacks
@@ -25,7 +26,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include "i386/sysv4.h"
 
 #ifndef VERSION_INFO2
-#define VERSION_INFO2   "$Revision: 1.3 $"
+#define VERSION_INFO2   "$Revision: 1.6 $"
 #endif
 
 #ifndef VERSION_STRING
@@ -46,7 +47,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #define MASK_NOLEGEND		0x20000000 /* Discard legend information */
 #define MASK_EXTERNAL_LEGEND	0x10000000 /* Make external legends */
 #define MASK_IDENTIFY_REVISION  0x08000000 /* Emit 'ident' to .s */
-#define MASK_WARN_PASS_STRUCT   0x04000000 /* Emit 'ident' to .s */
+#define MASK_WARN_PASS_STRUCT   0x04000000 /* Warn when structures are passed */
 
 #define TARGET_STANDARD		  (target_flags & MASK_STANDARD)
 #define TARGET_NOLEGEND		  (target_flags & MASK_NOLEGEND)
@@ -56,12 +57,12 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #undef  SUBTARGET_SWITCHES
 #define SUBTARGET_SWITCHES \
-    { "standard",			 MASK_STANDARD },          \
-    { "legend",				-MASK_NOLEGEND },          \
-    { "no-legend",			 MASK_NOLEGEND },          \
-    { "external-legend",		 MASK_EXTERNAL_LEGEND },   \
-    { "identify-revision", 		 MASK_IDENTIFY_REVISION }, \
-    { "warn-passed-structs", 		 MASK_WARN_PASS_STRUCT },
+    { "standard",			 MASK_STANDARD, "Retain standard MXDB information" },          \
+    { "legend",				-MASK_NOLEGEND, "Retain legend information" },          \
+    { "no-legend",			 MASK_NOLEGEND, "" },          \
+    { "external-legend",		 MASK_EXTERNAL_LEGEND, "Generate external legend information" },   \
+    { "identify-revision", 		 MASK_IDENTIFY_REVISION, "Emit identifying info in .s file" }, \
+    { "warn-passed-structs", 		 MASK_WARN_PASS_STRUCT, "Warn when a function arg is a structure" },
 
 #undef  DWARF_DEBUGGING_INFO
 #define DWARF_DEBUGGING_INFO
@@ -123,7 +124,6 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
   do {							\
     extern int flag_signed_bitfields;			\
     flag_signed_bitfields = 0;				\
-    abort_helper ();					\
     optimization_options (LEVEL,SIZE);			\
   } while (0)
 
@@ -218,23 +218,6 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #define ENDFILE_SPEC "crtend.o%s %{pg:gcrtn.o}%{!pg:/lib/crtn.o}"
 
 #endif /* CROSS_COMPILE */
-
-#if !defined (no_abort) || defined (CRT_BEGIN) || defined (CRT_END)
-#undef abort
-
-char insn; int insn_; char * file_; int line_;
-#define abort()			\
-  (insn_ = (int) insn,		\
-   file_ = __FILE__,		\
-   line_ = __LINE__,		\
-   fancy_abort ())
-#define abort_helper()		\
-  do {				\
-    extern void abort_aux ();	\
-    atexit (abort_aux);		\
-  } while (0)
-#define _abort_aux
-#endif /* no abort */
 
 /* The maximum alignment which the object file format can support.
    page alignment would seem to be enough */

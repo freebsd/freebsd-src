@@ -2,7 +2,7 @@
    hosting on Windows32, using GNU tools and the Windows32 API Library,
    as distinct from winnt.h, which is used to build GCC for use with a
    windows style library and tool set and uses the Microsoft tools.
-   Copyright (C) 1997, 1998 Free Software Foundation, Inc.
+   Copyright (C) 1997, 1998, 1999 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -21,17 +21,17 @@ along with GNU CC; see the file COPYING.  If not, write to
 the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA. */
 
-/* Most of this is the same as for Cygwin32, except for changing some
+/* Most of this is the same as for cygwin, except for changing some
    specs.  */
 
-#include "i386/cygwin32.h"
+#include "i386/cygwin.h"
 
 /* Please keep changes to CPP_PREDEFINES in sync with i386/crtdll. The
    only difference between the two should be __MSVCRT__ needed to 
    distinguish MSVC from CRTDLL runtime in mingw headers. */
 #undef CPP_PREDEFINES
 #define CPP_PREDEFINES "-Di386 -D_WIN32 -DWIN32 -D__WIN32__ \
-  -D__MINGW32__ -D__MSVCRT__ -DWINNT  -D_X86_=1 -D__STDC__=1\
+  -D__MINGW32__=0.2 -D__MSVCRT__ -DWINNT  -D_X86_=1 -D__STDC__=1\
   -D__stdcall=__attribute__((__stdcall__)) \
   -D_stdcall=__attribute__((__stdcall__)) \
   -D__cdecl=__attribute__((__cdecl__)) \
@@ -44,25 +44,24 @@ Boston, MA 02111-1307, USA. */
 
 #define STANDARD_INCLUDE_COMPONENT "MINGW32"
 
+#undef CPP_SPEC
+#define CPP_SPEC "-remap %(cpp_cpu) %{posix:-D_POSIX_SOURCE}"
+
 /* For Windows applications, include more libraries, but always include
    kernel32.  */
 #undef LIB_SPEC
-#define LIB_SPEC \
-"%{mwindows:-luser32 -lgdi32 -lcomdlg32} -lkernel32 -ladvapi32 -lshell32"
+#define LIB_SPEC "%{mwindows:-lgdi32 -lcomdlg32} \
+                  -luser32 -lkernel32 -ladvapi32 -lshell32"
 
 /* Include in the mingw32 libraries with libgcc */
 #undef LIBGCC_SPEC
 #define LIBGCC_SPEC "-lmingw32 -lgcc -lmoldname -lmsvcrt"
 
-/* Specify a different entry point when linking a DLL */
-#undef LINK_SPEC
-#define LINK_SPEC \
-"%{mwindows:--subsystem windows} %{mdll:--dll -e _DllMainCRTStartup@12}"
-
 #undef STARTFILE_SPEC
 #define STARTFILE_SPEC "%{mdll:dllcrt2%O%s} %{!mdll:crt2%O%s}"
 
-#define MATH_LIBRARY "-lmsvcrt"
+/* MS runtime does not need a separate math library. */
+#define MATH_LIBRARY ""
 
 /* Output STRING, a string representing a filename, to FILE.  We canonicalize
    it to be in MS-DOS format.  */

@@ -1,5 +1,5 @@
 /* Machine-independent I/O routines for gcov.
-   Copyright (C) 1996, 1997 Free Software Foundation, Inc.
+   Copyright (C) 1996, 1997, 1998 Free Software Foundation, Inc.
    Contributed by Bob Manson <manson@cygnus.com>.
 
 This file is part of GNU CC.
@@ -24,7 +24,7 @@ Boston, MA 02111-1307, USA.  */
 #include <stdio.h>
 #include <sys/types.h>
 
-static int __fetch_long		PROTO ((long *, char *, int));
+static int __fetch_long		PROTO ((long *, char *, size_t));
 static int __store_long		PROTO ((long, char *, size_t));
 static int __read_long		PROTO ((long *, FILE *, size_t));
 static int __write_long		PROTO ((long, FILE *, size_t));
@@ -74,17 +74,17 @@ static int
 __fetch_long (dest, source, bytes)
      long *dest;
      char *source;
-     int bytes;
+     size_t bytes;
 {
   long value = 0;
   int i;
 
-  for (i = bytes - 1; i > (sizeof (*dest) - 1); i--)
-    if (source[i] & (i == (bytes - 1) ? 127 : 255 ))
+  for (i = bytes - 1; (size_t) i > (sizeof (*dest) - 1); i--)
+    if (source[i] & ((size_t) i == (bytes - 1) ? 127 : 255 ))
       return 1;
 
   for (; i >= 0; i--)
-    value = value * 256 + (source[i] & (i == (bytes - 1) ? 127 : 255));
+    value = value * 256 + (source[i] & ((size_t)i == (bytes - 1) ? 127 : 255));
 
   if ((source[bytes - 1] & 128) && (value > 0))
     value = - value;

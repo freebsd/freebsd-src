@@ -28,6 +28,13 @@ Boston, MA 02111-1307, USA.  */
 #include "toplev.h"
 #include "output.h"
 
+#if USE_CPPLIB
+#include "cpplib.h"
+extern char *yy_cur;
+extern cpp_reader  parse_in;
+extern cpp_options parse_options;
+#endif
+
 /* Each of the functions defined here
    is an alternative to a function in objc-actions.c.  */
    
@@ -42,17 +49,25 @@ lang_decode_option (argc, argv)
 void
 lang_init_options ()
 {
+#if USE_CPPLIB
+  cpp_reader_init (&parse_in);
+  parse_in.opts = &parse_options;
+  cpp_options_init (&parse_options);
+#endif
 }
 
 void
 lang_init ()
 {
-#if !USE_CPPLIB
   /* the beginning of the file is a new line; check for # */
   /* With luck, we discover the real source file's name from that
      and put it in input_filename.  */
+#if !USE_CPPLIB
   ungetc (check_newline (), finput);
-#endif
+#else
+  check_newline ();
+  yy_cur--;
+#endif 
 }
 
 void
@@ -134,7 +149,7 @@ recognize_objc_keyword ()
 tree
 build_objc_string (len, str)
     int len ATTRIBUTE_UNUSED;
-    char *str ATTRIBUTE_UNUSED;
+    const char *str ATTRIBUTE_UNUSED;
 {
   abort ();
   return NULL_TREE;

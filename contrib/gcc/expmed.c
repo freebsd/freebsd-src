@@ -22,6 +22,7 @@ Boston, MA 02111-1307, USA.  */
 
 #include "config.h"
 #include "system.h"
+#include "toplev.h"
 #include "rtl.h"
 #include "tree.h"
 #include "flags.h"
@@ -211,10 +212,10 @@ negate_rtx (mode, x)
 /* ??? Note that there are two different ideas here for how
    to determine the size to count bits within, for a register.
    One is BITS_PER_WORD, and the other is the size of operand 3
-   of the insv pattern.  (The latter assumes that an n-bit machine
-   will be able to insert bit fields up to n bits wide.)
-   It isn't certain that either of these is right.
-   extract_bit_field has the same quandary.  */
+   of the insv pattern.
+
+   If operand 3 of the insv pattern is VOIDmode, then we will use BITS_PER_WORD
+   else, we use the mode of operand 3.  */
 
 rtx
 store_bit_field (str_rtx, bitsize, bitnum, fieldmode, value, align, total_size)
@@ -230,6 +231,14 @@ store_bit_field (str_rtx, bitsize, bitnum, fieldmode, value, align, total_size)
   register int offset = bitnum / unit;
   register int bitpos = bitnum % unit;
   register rtx op0 = str_rtx;
+#ifdef HAVE_insv
+  int insv_bitsize;
+
+  if (insn_operand_mode[(int) CODE_FOR_insv][3] == VOIDmode)
+    insv_bitsize = GET_MODE_BITSIZE (word_mode);
+  else
+    insv_bitsize = GET_MODE_BITSIZE (insn_operand_mode[(int) CODE_FOR_insv][3]);
+#endif
 
   if (GET_CODE (str_rtx) == MEM && ! MEM_IN_STRUCT_P (str_rtx))
     abort ();
@@ -252,6 +261,21 @@ store_bit_field (str_rtx, bitsize, bitnum, fieldmode, value, align, total_size)
 	 right after the loop.  */
       op0 = SUBREG_REG (op0);
     }
+
+  /* Make sure we are playing with integral modes.  Pun with subregs
+     if we aren't.  */
+  {
+    enum machine_mode imode = int_mode_for_mode (GET_MODE (op0));
+    if (imode != GET_MODE (op0))
+      {
+	if (GET_CODE (op0) == MEM)
+	  op0 = change_address (op0, imode, NULL_RTX);
+	else if (imode != BLKmode)
+	  op0 = gen_lowpart (imode, op0);
+	else
+	  abort ();
+      }
+  }
 
   /* If OP0 is a register, BITPOS must count within a word.
      But as we have it, it counts within whatever size OP0 now has.
@@ -279,6 +303,18 @@ store_bit_field (str_rtx, bitsize, bitnum, fieldmode, value, align, total_size)
 	 can be done with just SUBREG.  */
       if (GET_MODE (op0) != fieldmode)
 	{
+	  if (GET_CODE (op0) == SUBREG)
+	    {
+	      if (GET_MODE (SUBREG_REG (op0)) == fieldmode
+		  || GET_MODE_CLASS (fieldmode) == MODE_INT
+		  || GET_MODE_CLASS (fieldmode) == MODE_PARTIAL_INT)
+		op0 = SUBREG_REG (op0);
+	      else
+		/* Else we've got some float mode source being extracted into
+		   a different float mode destination -- this combination of
+		   subregs results in Severe Tire Damage.  */
+		abort ();
+	    }
 	  if (GET_CODE (op0) == REG)
 	    op0 = gen_rtx_SUBREG (fieldmode, op0, offset);
 	  else
@@ -312,8 +348,22 @@ store_bit_field (str_rtx, bitsize, bitnum, fieldmode, value, align, total_size)
       else
 	{
 	  int icode = movstrict_optab->handlers[(int) fieldmode].insn_code;
-	  if(! (*insn_operand_predicate[icode][1]) (value, fieldmode))
+	  if (! (*insn_operand_predicate[icode][1]) (value, fieldmode))
 	    value = copy_to_mode_reg (fieldmode, value);
+
+	  if (GET_CODE (op0) == SUBREG)
+	    {
+	      if (GET_MODE (SUBREG_REG (op0)) == fieldmode
+		  || GET_MODE_CLASS (fieldmode) == MODE_INT
+		  || GET_MODE_CLASS (fieldmode) == MODE_PARTIAL_INT)
+		op0 = SUBREG_REG (op0);
+	      else
+		/* Else we've got some float mode source being extracted into
+		   a different float mode destination -- this combination of
+		   subregs results in Severe Tire Damage.  */
+		abort ();
+	    }
+
 	  emit_insn (GEN_FCN (icode)
 		   (gen_rtx_SUBREG (fieldmode, op0, offset), value));
 	}
@@ -368,12 +418,27 @@ store_bit_field (str_rtx, bitsize, bitnum, fieldmode, value, align, total_size)
   /* OFFSET is the number of words or bytes (UNIT says which)
      from STR_RTX to the first word or byte containing part of the field.  */
 
-  if (GET_CODE (op0) == REG)
+  if (GET_CODE (op0) != MEM)
     {
       if (offset != 0
 	  || GET_MODE_SIZE (GET_MODE (op0)) > UNITS_PER_WORD)
-	op0 = gen_rtx_SUBREG (TYPE_MODE (type_for_size (BITS_PER_WORD, 0)),
-		       op0, offset);
+	{
+	  if (GET_CODE (op0) != REG)
+	    {
+	      /* Since this is a destination (lvalue), we can't copy it to a
+		 pseudo.  We can trivially remove a SUBREG that does not
+		 change the size of the operand.  Such a SUBREG may have been
+		 added above.  Otherwise, abort.  */
+	      if (GET_CODE (op0) == SUBREG
+		  && (GET_MODE_SIZE (GET_MODE (op0))
+		      == GET_MODE_SIZE (GET_MODE (SUBREG_REG (op0)))))
+		op0 = SUBREG_REG (op0);
+	      else
+		abort ();
+	    }
+	  op0 = gen_rtx_SUBREG (mode_for_size (BITS_PER_WORD, MODE_INT, 0),
+		                op0, offset);
+	}
       offset = 0;
     }
   else
@@ -400,21 +465,22 @@ store_bit_field (str_rtx, bitsize, bitnum, fieldmode, value, align, total_size)
       && GET_MODE (value) != BLKmode
       && !(bitsize == 1 && GET_CODE (value) == CONST_INT)
       /* Ensure insv's size is wide enough for this field.  */
-      && (GET_MODE_BITSIZE (insn_operand_mode[(int) CODE_FOR_insv][3])
-	  >= bitsize)
+      && (insv_bitsize >= bitsize)
       && ! ((GET_CODE (op0) == REG || GET_CODE (op0) == SUBREG)
-	    && (bitsize + bitpos
-		> GET_MODE_BITSIZE (insn_operand_mode[(int) CODE_FOR_insv][3]))))
+	    && (bitsize + bitpos > insv_bitsize)))
     {
       int xbitpos = bitpos;
       rtx value1;
       rtx xop0 = op0;
       rtx last = get_last_insn ();
       rtx pat;
-      enum machine_mode maxmode
-	= insn_operand_mode[(int) CODE_FOR_insv][3];
-
+      enum machine_mode maxmode;
       int save_volatile_ok = volatile_ok;
+
+      maxmode = insn_operand_mode[(int) CODE_FOR_insv][3];
+      if (maxmode == VOIDmode)
+	maxmode = word_mode;
+
       volatile_ok = 1;
 
       /* If this machine's insv can only insert into a register, copy OP0
@@ -503,7 +569,7 @@ store_bit_field (str_rtx, bitsize, bitnum, fieldmode, value, align, total_size)
 		{
 		  /* Avoid making subreg of a subreg, or of a mem.  */
 		  if (GET_CODE (value1) != REG)
-		value1 = copy_to_reg (value1);
+		    value1 = copy_to_reg (value1);
 		  value1 = gen_rtx_SUBREG (maxmode, value1, 0);
 		}
 	      else
@@ -894,6 +960,27 @@ extract_bit_field (str_rtx, bitsize, bitnum, unsignedp,
   register rtx op0 = str_rtx;
   rtx spec_target = target;
   rtx spec_target_subreg = 0;
+#ifdef HAVE_extv
+  int extv_bitsize;
+#endif
+#ifdef HAVE_extzv
+  int extzv_bitsize;
+#endif
+
+#ifdef HAVE_extv
+  if (insn_operand_mode[(int) CODE_FOR_extv][0] == VOIDmode)
+    extv_bitsize = GET_MODE_BITSIZE (word_mode);
+  else
+    extv_bitsize = GET_MODE_BITSIZE (insn_operand_mode[(int) CODE_FOR_extv][0]);
+#endif
+
+#ifdef HAVE_extzv
+  if (insn_operand_mode[(int) CODE_FOR_extzv][0] == VOIDmode)
+    extzv_bitsize = GET_MODE_BITSIZE (word_mode);
+  else
+    extzv_bitsize
+      = GET_MODE_BITSIZE (insn_operand_mode[(int) CODE_FOR_extzv][0]);
+#endif
 
   /* Discount the part of the structure before the desired byte.
      We need to know how many bytes are safe to reference after it.  */
@@ -925,6 +1012,21 @@ extract_bit_field (str_rtx, bitsize, bitnum, unsignedp,
       op0 = SUBREG_REG (op0);
     }
 
+  /* Make sure we are playing with integral modes.  Pun with subregs
+     if we aren't.  */
+  {
+    enum machine_mode imode = int_mode_for_mode (GET_MODE (op0));
+    if (imode != GET_MODE (op0))
+      {
+	if (GET_CODE (op0) == MEM)
+	  op0 = change_address (op0, imode, NULL_RTX);
+	else if (imode != BLKmode)
+	  op0 = gen_lowpart (imode, op0);
+	else
+	  abort ();
+      }
+  }
+
   /* ??? We currently assume TARGET is at least as big as BITSIZE.
      If that's wrong, the solution is to test for it and set TARGET to 0
      if needed.  */
@@ -943,7 +1045,7 @@ extract_bit_field (str_rtx, bitsize, bitnum, unsignedp,
      So too extracting a subword value in
      the least significant part of the register.  */
 
-  if (((GET_CODE (op0) == REG
+  if (((GET_CODE (op0) != MEM
 	&& TRULY_NOOP_TRUNCATION (GET_MODE_BITSIZE (mode),
 				  GET_MODE_BITSIZE (GET_MODE (op0))))
        || (GET_CODE (op0) == MEM
@@ -953,6 +1055,10 @@ extract_bit_field (str_rtx, bitsize, bitnum, unsignedp,
       && ((bitsize >= BITS_PER_WORD && bitsize == GET_MODE_BITSIZE (mode)
 	   && bitpos % BITS_PER_WORD == 0)
 	  || (mode_for_size (bitsize, GET_MODE_CLASS (tmode), 0) != BLKmode
+	      /* ??? The big endian test here is wrong.  This is correct
+		 if the value is in a register, and if mode_for_size is not
+		 the same mode as op0.  This causes us to get unnecessarily
+		 inefficient code from the Thumb port when -mbig-endian.  */
 	      && (BYTES_BIG_ENDIAN
 		  ? bitpos + bitsize == BITS_PER_WORD
 		  : bitpos == 0))))
@@ -962,6 +1068,18 @@ extract_bit_field (str_rtx, bitsize, bitnum, unsignedp,
 
       if (mode1 != GET_MODE (op0))
 	{
+	  if (GET_CODE (op0) == SUBREG)
+	    {
+	      if (GET_MODE (SUBREG_REG (op0)) == mode1
+		  || GET_MODE_CLASS (mode1) == MODE_INT
+		  || GET_MODE_CLASS (mode1) == MODE_PARTIAL_INT)
+		op0 = SUBREG_REG (op0);
+	      else
+		/* Else we've got some float mode source being extracted into
+		   a different float mode destination -- this combination of
+		   subregs results in Severe Tire Damage.  */
+		abort ();
+	    }
 	  if (GET_CODE (op0) == REG)
 	    op0 = gen_rtx_SUBREG (mode1, op0, offset);
 	  else
@@ -1054,12 +1172,16 @@ extract_bit_field (str_rtx, bitsize, bitnum, unsignedp,
   /* OFFSET is the number of words or bytes (UNIT says which)
      from STR_RTX to the first word or byte containing part of the field.  */
 
-  if (GET_CODE (op0) == REG)
+  if (GET_CODE (op0) != MEM)
     {
       if (offset != 0
 	  || GET_MODE_SIZE (GET_MODE (op0)) > UNITS_PER_WORD)
-	op0 = gen_rtx_SUBREG (TYPE_MODE (type_for_size (BITS_PER_WORD, 0)),
-		       op0, offset);
+	{
+	  if (GET_CODE (op0) != REG)
+	    op0 = copy_to_reg (op0);
+	  op0 = gen_rtx_SUBREG (mode_for_size (BITS_PER_WORD, MODE_INT, 0),
+		                op0, offset);
+	}
       offset = 0;
     }
   else
@@ -1073,11 +1195,9 @@ extract_bit_field (str_rtx, bitsize, bitnum, unsignedp,
     {
 #ifdef HAVE_extzv
       if (HAVE_extzv
-	  && (GET_MODE_BITSIZE (insn_operand_mode[(int) CODE_FOR_extzv][0])
-	      >= bitsize)
+	  && (extzv_bitsize >= bitsize)
 	  && ! ((GET_CODE (op0) == REG || GET_CODE (op0) == SUBREG)
-		&& (bitsize + bitpos
-		    > GET_MODE_BITSIZE (insn_operand_mode[(int) CODE_FOR_extzv][0]))))
+		&& (bitsize + bitpos > extzv_bitsize)))
 	{
 	  int xbitpos = bitpos, xoffset = offset;
 	  rtx bitsize_rtx, bitpos_rtx;
@@ -1087,8 +1207,11 @@ extract_bit_field (str_rtx, bitsize, bitnum, unsignedp,
 	  rtx xspec_target = spec_target;
 	  rtx xspec_target_subreg = spec_target_subreg;
 	  rtx pat;
-	  enum machine_mode maxmode
-	    = insn_operand_mode[(int) CODE_FOR_extzv][0];
+	  enum machine_mode maxmode;
+
+	  maxmode = insn_operand_mode[(int) CODE_FOR_extzv][0];
+	  if (maxmode == VOIDmode)
+	    maxmode = word_mode;
 
 	  if (GET_CODE (xop0) == MEM)
 	    {
@@ -1213,11 +1336,9 @@ extract_bit_field (str_rtx, bitsize, bitnum, unsignedp,
     {
 #ifdef HAVE_extv
       if (HAVE_extv
-	  && (GET_MODE_BITSIZE (insn_operand_mode[(int) CODE_FOR_extv][0])
-	      >= bitsize)
+	  && (extv_bitsize >= bitsize)
 	  && ! ((GET_CODE (op0) == REG || GET_CODE (op0) == SUBREG)
-		&& (bitsize + bitpos
-		    > GET_MODE_BITSIZE (insn_operand_mode[(int) CODE_FOR_extv][0]))))
+		&& (bitsize + bitpos > extv_bitsize)))
 	{
 	  int xbitpos = bitpos, xoffset = offset;
 	  rtx bitsize_rtx, bitpos_rtx;
@@ -1226,8 +1347,11 @@ extract_bit_field (str_rtx, bitsize, bitnum, unsignedp,
 	  rtx xspec_target = spec_target;
 	  rtx xspec_target_subreg = spec_target_subreg;
 	  rtx pat;
-	  enum machine_mode maxmode
-	    = insn_operand_mode[(int) CODE_FOR_extv][0];
+	  enum machine_mode maxmode;
+
+	  maxmode = insn_operand_mode[(int) CODE_FOR_extv][0];
+	  if (maxmode == VOIDmode)
+	    maxmode = word_mode;
 
 	  if (GET_CODE (xop0) == MEM)
 	    {
@@ -1764,7 +1888,8 @@ expand_shift (code, mode, shifted, amount, target, unsignedp)
   if (SHIFT_COUNT_TRUNCATED)
     {
       if (GET_CODE (op1) == CONST_INT
-          && (unsigned HOST_WIDE_INT) INTVAL (op1) >= GET_MODE_BITSIZE (mode))
+          && ((unsigned HOST_WIDE_INT) INTVAL (op1) >=
+	      (unsigned HOST_WIDE_INT) GET_MODE_BITSIZE (mode)))
         op1 = GEN_INT ((unsigned HOST_WIDE_INT) INTVAL (op1)
 		       % GET_MODE_BITSIZE (mode));
       else if (GET_CODE (op1) == SUBREG
@@ -1939,7 +2064,7 @@ synth_mult (alg_out, t, cost_limit)
 {
   int m;
   struct algorithm *alg_in, *best_alg;
-  unsigned int cost;
+  int cost;
   unsigned HOST_WIDE_INT q;
 
   /* Indicate that no algorithm is yet found.  If no algorithm
@@ -2349,10 +2474,10 @@ expand_mult (mode, op0, op1, target, unsignedp)
 		 multiplication sequences.  */
 
 	      insn = get_last_insn ();
-	      REG_NOTES (insn)
-		= gen_rtx_EXPR_LIST (REG_EQUAL,
-				     gen_rtx_MULT (mode, op0, GEN_INT (val_so_far)),
-				     REG_NOTES (insn));
+	      set_unique_reg_note (insn, 
+	      			   REG_EQUAL,
+				   gen_rtx_MULT (mode, op0, 
+				   	         GEN_INT (val_so_far)));
 	    }
 
 	  if (variant == negate_variant)
@@ -2728,6 +2853,27 @@ expand_mult_highpart (mode, op0, cnst1, target, unsignedp, max_cost)
    This could optimize to a bfexts instruction.
    But C doesn't use these operations, so their optimizations are
    left for later.  */
+/* ??? For modulo, we don't actually need the highpart of the first product,
+   the low part will do nicely.  And for small divisors, the second multiply
+   can also be a low-part only multiply or even be completely left out.
+   E.g. to calculate the remainder of a division by 3 with a 32 bit
+   multiply, multiply with 0x55555556 and extract the upper two bits;
+   the result is exact for inputs up to 0x1fffffff.
+   The input range can be reduced by using cross-sum rules.
+   For odd divisors >= 3, the following table gives right shift counts
+   so that if an number is shifted by an integer multiple of the given
+   amount, the remainder stays the same:
+   2, 4, 3, 6, 10, 12, 4, 8, 18, 6, 11, 20, 18, 0, 5, 10, 12, 0, 12, 20,
+   14, 12, 23, 21, 8, 0, 20, 18, 0, 0, 6, 12, 0, 22, 0, 18, 20, 30, 0, 0,
+   0, 8, 0, 11, 12, 10, 36, 0, 30, 0, 0, 12, 0, 0, 0, 0, 44, 12, 24, 0,
+   20, 0, 7, 14, 0, 18, 36, 0, 0, 46, 60, 0, 42, 0, 15, 24, 20, 0, 0, 33,
+   0, 20, 0, 0, 18, 0, 60, 0, 0, 0, 0, 0, 40, 18, 0, 0, 12
+
+   Cross-sum rules for even numbers can be derived by leaving as many bits
+   to the right alone as the divisor has zeros to the right.
+   E.g. if x is an unsigned 32 bit number:
+   (x mod 12) == (((x & 1023) + ((x >> 8) & ~3)) * 0x15555558 >> 2 * 3) >> 28
+   */
 
 #define EXACT_POWER_OF_2_OR_ZERO_P(x) (((x) & ((x) - 1)) == 0)
 
@@ -3025,10 +3171,9 @@ expand_divmod (rem_flag, code, mode, op0, op1, target, unsignedp)
 		if (insn != last
 		    && (set = single_set (insn)) != 0
 		    && SET_DEST (set) == quotient)
-		  REG_NOTES (insn)
-		    = gen_rtx_EXPR_LIST (REG_EQUAL,
-					 gen_rtx_UDIV (compute_mode, op0, op1),
-					 REG_NOTES (insn));
+		  set_unique_reg_note (insn, 
+		  		       REG_EQUAL,
+				       gen_rtx_UDIV (compute_mode, op0, op1));
 	      }
 	    else		/* TRUNC_DIV, signed */
 	      {
@@ -3101,13 +3246,14 @@ expand_divmod (rem_flag, code, mode, op0, op1, target, unsignedp)
 			insn = get_last_insn ();
 			if (insn != last
 			    && (set = single_set (insn)) != 0
-			    && SET_DEST (set) == quotient)
-			  REG_NOTES (insn)
-			    = gen_rtx_EXPR_LIST (REG_EQUAL,
-						 gen_rtx_DIV (compute_mode,
-							      op0,
-							      GEN_INT (abs_d)),
-				       REG_NOTES (insn));
+			    && SET_DEST (set) == quotient
+			    && abs_d < ((unsigned HOST_WIDE_INT) 1
+					<< (HOST_BITS_PER_WIDE_INT - 1)))
+			  set_unique_reg_note (insn, 
+			  		       REG_EQUAL,
+					       gen_rtx_DIV (compute_mode,
+							    op0,
+							    GEN_INT (abs_d)));
 
 			quotient = expand_unop (compute_mode, neg_optab,
 						quotient, quotient, 0);
@@ -3172,10 +3318,9 @@ expand_divmod (rem_flag, code, mode, op0, op1, target, unsignedp)
 		if (insn != last
 		    && (set = single_set (insn)) != 0
 		    && SET_DEST (set) == quotient)
-		  REG_NOTES (insn)
-		    = gen_rtx_EXPR_LIST (REG_EQUAL,
-					 gen_rtx_DIV (compute_mode, op0, op1),
-					 REG_NOTES (insn));
+		  set_unique_reg_note (insn, 
+		  		       REG_EQUAL,
+				       gen_rtx_DIV (compute_mode, op0, op1));
 	      }
 	    break;
 	  }
@@ -3588,12 +3733,11 @@ expand_divmod (rem_flag, code, mode, op0, op1, target, unsignedp)
 				     NULL_RTX, unsignedp);
 
 	    insn = get_last_insn ();
-	    REG_NOTES (insn)
-	      = gen_rtx_EXPR_LIST (REG_EQUAL,
-				   gen_rtx_fmt_ee (unsignedp ? UDIV : DIV,
-						   compute_mode,
-						   op0, op1),
-				   REG_NOTES (insn));
+	    set_unique_reg_note (insn,
+	    			 REG_EQUAL,
+				 gen_rtx_fmt_ee (unsignedp ? UDIV : DIV,
+						 compute_mode,
+						 op0, op1));
 	  }
 	break;
 
@@ -3639,8 +3783,8 @@ expand_divmod (rem_flag, code, mode, op0, op1, target, unsignedp)
 		remainder = expand_binop (compute_mode, sub_optab, op0, tem,
 					  remainder, 0, OPTAB_LIB_WIDEN);
 	      }
-	    abs_rem = expand_abs (compute_mode, remainder, NULL_RTX, 0, 0);
-	    abs_op1 = expand_abs (compute_mode, op1, NULL_RTX, 0, 0);
+	    abs_rem = expand_abs (compute_mode, remainder, NULL_RTX, 0);
+	    abs_op1 = expand_abs (compute_mode, op1, NULL_RTX, 0);
 	    tem = expand_shift (LSHIFT_EXPR, compute_mode, abs_rem,
 				build_int_2 (1, 0), NULL_RTX, 1);
 	    do_cmp_and_jump (tem, abs_op1, LTU, compute_mode, label);
@@ -3673,10 +3817,22 @@ expand_divmod (rem_flag, code, mode, op0, op1, target, unsignedp)
 
       if (rem_flag)
 	{
-	  /* Try to produce the remainder directly without a library call.  */
-	  remainder = sign_expand_binop (compute_mode, umod_optab, smod_optab,
-					 op0, op1, target,
-					 unsignedp, OPTAB_WIDEN);
+	  /* Try to produce the remainder without producing the quotient.
+	     If we seem to have a divmod patten that does not require widening,
+	     don't try windening here.  We should really have an WIDEN argument
+	     to expand_twoval_binop, since what we'd really like to do here is
+	     1) try a mod insn in compute_mode
+	     2) try a divmod insn in compute_mode
+	     3) try a div insn in compute_mode and multiply-subtract to get
+	        remainder
+	     4) try the same things with widening allowed.  */
+	  remainder
+	    = sign_expand_binop (compute_mode, umod_optab, smod_optab,
+				 op0, op1, target,
+				 unsignedp,
+				 ((optab2->handlers[(int) compute_mode].insn_code
+				   != CODE_FOR_nothing)
+				  ? OPTAB_DIRECT : OPTAB_WIDEN));
 	  if (remainder == 0)
 	    {
 	      /* No luck there.  Can we do remainder and divide at once
@@ -3767,7 +3923,9 @@ make_tree (type, x)
     {
     case CONST_INT:
       t = build_int_2 (INTVAL (x),
-		       TREE_UNSIGNED (type) || INTVAL (x) >= 0 ? 0 : -1);
+		       (TREE_UNSIGNED (type)
+			&& (GET_MODE_BITSIZE (TYPE_MODE (type)) < HOST_BITS_PER_WIDE_INT))
+		       || INTVAL (x) >= 0 ? 0 : -1);
       TREE_TYPE (t) = type;
       return t;
 
@@ -4188,7 +4346,7 @@ emit_store_flag (target, code, op0, op1, mode, unsignedp, normalizep)
 
       else if (GET_MODE_BITSIZE (mode) <= HOST_BITS_PER_WIDE_INT
 	       && ((STORE_FLAG_VALUE & GET_MODE_MASK (mode))
-		   == (HOST_WIDE_INT) 1 << (GET_MODE_BITSIZE (mode) - 1)))
+		   == (unsigned HOST_WIDE_INT) 1 << (GET_MODE_BITSIZE (mode) - 1)))
 	;
       else
 	return 0;
@@ -4415,9 +4573,6 @@ do_cmp_and_jump (arg1, arg2, op, mode, label)
     }
   else
     {
-      emit_cmp_insn(arg1, arg2, op, NULL_RTX, mode, 0, 0);
-      if (bcc_gen_fctn[(int) op] == 0)
-	abort ();
-      emit_jump_insn ((*bcc_gen_fctn[(int) op]) (label));
+      emit_cmp_and_jump_insns (arg1, arg2, op, NULL_RTX, mode, 0, 0, label);
     }
 }
