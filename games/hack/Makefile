@@ -20,11 +20,13 @@ CFLAGS+= -fwritable-strings -I${.CURDIR} -I.
 HIDEGAME=hidegame
 CLEANFILES+= hack.onames.h makedefs
 
+build-tools: makedefs
+
 hack.onames.h: makedefs def.objects.h
 	./makedefs ${.CURDIR}/def.objects.h > hack.onames.h
 
-makedefs: makedefs.c
-	${CC} ${CFLAGS} -o ${.TARGET} ${.CURDIR}/${.PREFIX}.c
+makedefs: makedefs.o
+	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.ALLSRC}
 
 beforeinstall:
 	${INSTALL} -c -o bin -g bin -m ${NOBINMODE} /dev/null \
@@ -34,9 +36,9 @@ beforeinstall:
 	${INSTALL} -c -o bin -g ${BINGRP} -m 440 ${.CURDIR}/rumors \
 	    ${DESTDIR}/var/games/hackdir/rumors
 	${INSTALL} -c -o bin -g bin -m ${NOBINMODE} \
-		${.CURDIR}/help  ${.CURDIR}/hh ${.CURDIR}/data \
-		${DESTDIR}/var/games/hackdir
+	    ${.CURDIR}/help  ${.CURDIR}/hh ${.CURDIR}/data \
+	    ${DESTDIR}/var/games/hackdir
 	rm -f ${DESTDIR}/var/games/hackdir/bones* \
-	      ${DESTDIR}/var/games/hackdir/save/*
+	    ${DESTDIR}/var/games/hackdir/save/*
 
 .include <bsd.prog.mk>
