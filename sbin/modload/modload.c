@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: modload.c,v 1.5 1994/09/24 03:18:32 wollman Exp $
+ *	$Id: modload.c,v 1.6 1995/01/23 04:07:57 wollman Exp $
  */
 
 #include <stdio.h>
@@ -116,7 +116,7 @@ linkcmd(kernel, entry, outfile, address, object)
 	}
 
 	if(WEXITSTATUS(status) != 0) {
-		errx(1, "%s: return code %d", WEXITSTATUS(status));
+		errx(1, "%s: return code %d", _PATH_LD, WEXITSTATUS(status));
 	}
 
 }
