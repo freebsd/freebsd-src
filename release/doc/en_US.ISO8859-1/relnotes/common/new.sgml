@@ -118,7 +118,9 @@
     <sect3>
       <title>Network Interface Support</title>
 
-      <para></para>
+      <para>The &man.an.4; driver now supports Cisco LEAP, as well as
+        the <quote>Home</quote> WEP key.  The Linux Aironet
+        utilities are now supported under emulation.</para>
     </sect3>
 
     <sect3>
