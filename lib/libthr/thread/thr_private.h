@@ -60,6 +60,7 @@
 #include <spinlock.h>
 #include <stdio.h>
 #include <ucontext.h>
+#include <unistd.h>
 
 #include <machine/atomic.h>
 #include <sys/thr.h>
@@ -68,8 +69,18 @@
 /*
  * Kernel fatal error handler macro.
  */
-#define PANIC(string)   _thread_exit(__FILE__,__LINE__,string)
-
+#ifndef _PTHREADS_INVARIANTS
+#define PANIC(string)		_thread_exit(__FILE__, __LINE__, (string))
+#else /* _PTHREADS_INVARIANTS */
+#define PANIC(string)							     \
+	do {								     \
+		_thread_printf(STDOUT_FILENO, (string));		     \
+		_thread_printf(STDOUT_FILENO,				     \
+		    "\nAbnormal termination, file: %s, line: %d\n",	     \
+		    __FILE__, __LINE__);				     \
+		abort();						     \
+	} while (0)
+#endif /* !_PTHREADS_INVARIANTS */
 
 /* Output debug messages like this: */
 #define stdout_debug(args...)	_thread_printf(STDOUT_FILENO, args)
