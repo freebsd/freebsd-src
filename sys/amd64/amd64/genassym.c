@@ -34,8 +34,10 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)genassym.c	5.11 (Berkeley) 5/10/91
- *	$Id: genassym.c,v 1.47 1997/06/07 04:36:09 bde Exp $
+ *	$Id: genassym.c,v 1.48 1997/08/09 00:02:32 dyson Exp $
  */
+
+#include "opt_vm86.h"
 
 #include <stdio.h>
 #include <sys/param.h>
