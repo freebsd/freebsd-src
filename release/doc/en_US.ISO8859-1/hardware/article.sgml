@@ -181,29 +181,11 @@
         </listitem>
       </itemizedlist>
     </para>
-    <para arch="i386,pc98,amd64">AdvanSys SCSI controllers (all models, &man.adv.4;
-    and &man.adw.4; drivers)
-      <itemizedlist>
-        <listitem arch="pc98">
-           <para>MELCO IFC-USP, RATOC REX-PCI30 and @Nifty FNECHARD
-           IFC-USUP-TX (&man.adv.4; driver)</para>
-        </listitem>
-      </itemizedlist>
-    </para>
+    &hwlist.adv;
 
     &hwlist.adw;
 
-    <para arch="i386,amd64">BusLogic MultiMaster <quote>W</quote>,
-      <quote>C</quote>, <quote>S</quote>, and <quote>A</quote> Series
-      Host Adapters (&man.bt.4; driver)
-
-      <note arch="i386">
-        <para>The Buslogic/Bustek BT-640 and Storage Dimensions
-	  SDC3211B and SDC3211F Microchannel (MCA) bus adapters are
-	  also supported.</para>
-      </note>
-
-      </para>
+    &hwlist.bt;
 
     &hwlist.dpt;
 
@@ -250,44 +232,30 @@
     driver)
     </para>
 
-    <para arch="i386,pc98">TMC 18C30, 18C50 and 36C70 (AIC-6820) based ISA/PC-Card SCSI host
-    adapters (&man.stg.4; driver)
-    </para>
+    &hwlist.stg;
 
     &hwlist.isp;
 
     <para arch="i386,amd64">DTC 3290 EISA SCSI controller in 1542 emulation mode.</para>
 
-    <para arch="i386,pc98,amd64">Tekram DC390 and DC390T controllers, maybe other
-    cards based on the AMD 53c974 as well (&man.amd.4; driver)
-      <itemizedlist arch="pc98">
-        <listitem arch="pc98">
-           <para>MELCO IFC-DP</para>
-        </listitem>
-      </itemizedlist>
-    </para>
+    &hwlist.amd;
 
-    <para arch="i386,pc98">Workbit Ninja SCSI-3 based PC-Card SCSI host
-    adapters (&man.nsp.4; driver)
-    </para>
+    &hwlist.nsp;
 
     <para arch="i386">Adaptec AIC-7110 Parallel to SCSI interfaces (&man.vpo.4; driver)
     </para>
 
-    <para arch="i386">Compaq Intelligent Drive Array Controllers
-      (&man.ida.4; driver)
-    </para>
+    &hwlist.ida;
 
     &hwlist.ciss;
 
-    <para arch="i386,amd64">Intel Integrated RAID Controllers (&man.iir.4; driver)
-    </para>
+    &hwlist.iir;
 
     <para arch="i386">Promise SuperTrak ATA RAID controllers (&man.pst.4;
     driver)
     </para>
 
-    <para arch="i386,amd64">IBM / Adaptec ServeRAID series (&man.ips.4; driver)</para>
+    &hwlist.ips;
 
     <para arch="i386,alpha,pc98,sparc64,ia64,amd64">LSI Logic Fusion/MP
 	architecture Fiber Channel controllers (&man.mpt.4; driver)</para>
@@ -1355,7 +1323,7 @@
       linkend="bluetooth">Bluetooth</link> section.</para>
     </note>
 
-    <para arch="i386,pc98,alpha,ia64,amd64">OHCI 1.0-compliant host controllers (&man.ohci.4; driver)</para>
+    &hwlist.ohci;
 
     <para arch="i386,pc98,alpha,ia64,amd64">UHCI 1.1-compliant host controllers (&man.uhci.4; driver)</para>
 
