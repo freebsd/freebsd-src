@@ -25,6 +25,8 @@
 #include "uwx_scoreboard.h"
 #include "uwx_trace.h"
 
+#ifdef UWX_TRACE_ENABLE
+
 void uwx_trace_init(struct uwx_env *env)
 {
     char *tstr;
@@ -136,3 +138,4 @@ void uwx_dump_scoreboard(
 	uwx_dump_rstate(i, scoreboard->rstate[i]);
 }
 
+#endif /* UWX_TRACE_ENABLE */
