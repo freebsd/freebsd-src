@@ -46,7 +46,7 @@ acl_set_file(const char *path_p, acl_type_t type, acl_t acl)
 {
 	int	error;
 
-	if (acl_posix1e(acl)) {
+	if (acl_posix1e(acl, type)) {
 		error = acl_sort(acl);
 		if (error) {
 			errno = error;
@@ -57,13 +57,26 @@ acl_set_file(const char *path_p, acl_type_t type, acl_t acl)
 	return (__acl_set_file(path_p, type, acl));
 }
 
-
 int
-acl_set_fd(int fd, acl_t acl, acl_type_t type)
+acl_set_fd(int fd, acl_t acl)
 {
 	int	error;
 
-	if (acl_posix1e(acl)) {
+	error = acl_sort(acl);
+	if (error) {
+		errno = error;
+		return(-1);
+	}
+
+	return (__acl_set_fd(fd, ACL_TYPE_ACCESS, acl));
+}
+
+int
+acl_set_fd_np(int fd, acl_t acl, acl_type_t type)
+{
+	int	error;
+
+	if (acl_posix1e(acl, type)) {
 		error = acl_sort(acl);
 		if (error) {
 			errno = error;
