@@ -335,7 +335,6 @@ static void pmap_insert_entry(pmap_t pmap, vm_offset_t va,
 
 static vm_page_t pmap_allocpte(pmap_t pmap, vm_offset_t va);
 
-static int pmap_release_free_page(pmap_t pmap, vm_page_t p);
 static vm_page_t _pmap_allocpte(pmap_t pmap, unsigned ptepindex);
 static int pmap_unuse_pt(pmap_t, vm_offset_t, vm_page_t);
 #ifdef SMP
@@ -1024,25 +1023,16 @@ pmap_pinit(pmap)
 	PMAP_LOCK_INIT(pmap);
 
 	/*
-	 * allocate object for the ptes
-	 */
-	if (pmap->pm_pteobj == NULL)
-		pmap->pm_pteobj = vm_object_allocate(OBJT_DEFAULT, NUSERLEV3MAPS + NUSERLEV2MAPS + 1);
-
-	/*
 	 * allocate the page directory page
 	 */
-	VM_OBJECT_LOCK(pmap->pm_pteobj);
-	lev1pg = vm_page_grab(pmap->pm_pteobj, NUSERLEV3MAPS + NUSERLEV2MAPS,
-	    VM_ALLOC_NORMAL | VM_ALLOC_RETRY | VM_ALLOC_WIRED | VM_ALLOC_ZERO);
-
-	vm_page_lock_queues();
-	vm_page_flag_clear(lev1pg, PG_BUSY);
-	lev1pg->valid = VM_PAGE_BITS_ALL;
-	vm_page_unlock_queues();
-	VM_OBJECT_UNLOCK(pmap->pm_pteobj);
+	while ((lev1pg = vm_page_alloc(NULL, NUSERLEV3MAPS + NUSERLEV2MAPS, VM_ALLOC_NOOBJ |
+	    VM_ALLOC_NORMAL | VM_ALLOC_WIRED | VM_ALLOC_ZERO)) == NULL)
+		VM_WAIT;
 
 	pmap->pm_lev1 = (pt_entry_t*) ALPHA_PHYS_TO_K0SEG(VM_PAGE_TO_PHYS(lev1pg));
+
+	if ((lev1pg->flags & PG_ZERO) == 0)
+		bzero(pmap->pm_lev1, PAGE_SIZE);
 
 	/* install self-referential address mapping entry (not PG_ASM) */
 	pmap->pm_lev1[PTLEV1I] = pmap_phys_to_pte(VM_PAGE_TO_PHYS(lev1pg))
@@ -1062,74 +1052,6 @@ pmap_pinit(pmap)
 	bcopy(PTlev1 + K1SEGLEV1I, pmap->pm_lev1 + K1SEGLEV1I, nklev2 * PTESIZE);
 }
 
-static int
-pmap_release_free_page(pmap_t pmap, vm_page_t p)
-{
-	pt_entry_t* pte;
-	pt_entry_t* l2map;
-
-	if (p->pindex >= NUSERLEV3MAPS + NUSERLEV2MAPS)
-		/* level 1 page table */
-		pte = &pmap->pm_lev1[PTLEV1I];
-	else if (p->pindex >= NUSERLEV3MAPS)
-		/* level 2 page table */
-		pte = &pmap->pm_lev1[p->pindex - NUSERLEV3MAPS];
-	else {
-		/* level 3 page table */
-		pte = &pmap->pm_lev1[p->pindex >> ALPHA_PTSHIFT];
-		l2map = (pt_entry_t*) ALPHA_PHYS_TO_K0SEG(pmap_pte_pa(pte));
-		pte = &l2map[p->pindex & ((1 << ALPHA_PTSHIFT) - 1)];
-	}
-
-	/*
-	 * This code optimizes the case of freeing non-busy
-	 * page-table pages.  Those pages are zero now, and
-	 * might as well be placed directly into the zero queue.
-	 */
-	vm_page_lock_queues();
-	if (vm_page_sleep_if_busy(p, FALSE, "pmaprl"))
-		return 0;
-
-	vm_page_busy(p);
-
-	/*
-	 * Remove the page table page from the processes address space.
-	 */
-	*pte = 0;
-	pmap->pm_stats.resident_count--;
-
-#ifdef PMAP_DEBUG
-	if (p->hold_count)  {
-		panic("pmap_release: freeing held page table page");
-	}
-#endif
-	/*
-	 * Level1  pages need to have the kernel
-	 * stuff cleared, so they can go into the zero queue also.
-	 */
-	if (p->pindex == NUSERLEV3MAPS + NUSERLEV2MAPS)
-		bzero(pmap->pm_lev1 + K1SEGLEV1I, nklev2 * PTESIZE);
-
-	if (pmap->pm_ptphint == p)
-		pmap->pm_ptphint = NULL;
-
-#ifdef PMAP_DEBUG
-	{
-	    u_long *lp = (u_long*) ALPHA_PHYS_TO_K0SEG(VM_PAGE_TO_PHYS(p));
-	    u_long *ep = (u_long*) ((char*) lp + PAGE_SIZE);
-	    for (; lp < ep; lp++)
-		if (*lp != 0)
-		    panic("pmap_release_free_page: page not zero");
-	}
-#endif
-
-	p->wire_count--;
-	atomic_subtract_int(&cnt.v_wire_count, 1);
-	vm_page_free_zero(p);
-	vm_page_unlock_queues();
-	return 1;
-}
-
 /*
  * this routine is called if the page table page is not
  * mapped correctly.
@@ -1142,15 +1064,22 @@ _pmap_allocpte(pmap, ptepindex)
 	pt_entry_t* pte;
 	vm_offset_t ptepa;
 	vm_page_t m;
-	int is_object_locked;
 
 	/*
 	 * Find or fabricate a new pagetable page
 	 */
-	if (!(is_object_locked = VM_OBJECT_LOCKED(pmap->pm_pteobj)))
-		VM_OBJECT_LOCK(pmap->pm_pteobj);
-	m = vm_page_grab(pmap->pm_pteobj, ptepindex,
-	    VM_ALLOC_WIRED | VM_ALLOC_ZERO | VM_ALLOC_RETRY);
+	if ((m = vm_page_alloc(NULL, ptepindex, VM_ALLOC_NOOBJ |
+	    VM_ALLOC_WIRED | VM_ALLOC_ZERO)) == NULL) {
+		VM_WAIT;
+
+		/*
+		 * Indicate the need to retry.  While waiting, the page table
+		 * page may have been allocated.
+		 */
+		return (NULL);
+	}
+	if ((m->flags & PG_ZERO) == 0)
+		pmap_zero_page(m);
 
 	KASSERT(m->queue == PQ_NONE,
 		("_pmap_allocpte: %p->queue != PQ_NONE", m));
@@ -1176,9 +1105,15 @@ _pmap_allocpte(pmap, ptepindex)
 		int l1index = ptepindex >> ALPHA_PTSHIFT;
 		pt_entry_t* l1pte = &pmap->pm_lev1[l1index];
 		pt_entry_t* l2map;
-		if (!pmap_pte_v(l1pte))
-			_pmap_allocpte(pmap, NUSERLEV3MAPS + l1index);
-		else {
+		if (!pmap_pte_v(l1pte)) {
+			if (_pmap_allocpte(pmap, NUSERLEV3MAPS + l1index) == NULL) {
+				vm_page_lock_queues();
+				vm_page_unhold(m);
+				vm_page_free(m);
+				vm_page_unlock_queues();
+				return (NULL);
+			}
+		} else {
 			vm_page_t l2page;
 
 			l2page = PHYS_TO_VM_PAGE(pmap_pte_pa(l1pte));
@@ -1195,13 +1130,6 @@ _pmap_allocpte(pmap, ptepindex)
 	 */
 	pmap->pm_ptphint = m;
 
-	vm_page_lock_queues();
-	m->valid = VM_PAGE_BITS_ALL;
-	vm_page_wakeup(m);
-	vm_page_unlock_queues();
-	if (!is_object_locked)
-		VM_OBJECT_UNLOCK(pmap->pm_pteobj);
-
 	return m;
 }
 
@@ -1216,7 +1144,7 @@ pmap_allocpte(pmap_t pmap, vm_offset_t va)
 	 * Calculate pagetable page index
 	 */
 	ptepindex = va >> (PAGE_SHIFT + ALPHA_PTSHIFT);
-
+retry:
 	/*
 	 * Get the level2 entry
 	 */
@@ -1239,12 +1167,16 @@ pmap_allocpte(pmap_t pmap, vm_offset_t va)
 			pmap->pm_ptphint = m;
 		}
 		m->hold_count++;
-		return m;
+	} else {
+		/*
+		 * Here if the pte page isn't mapped, or if it has been
+		 * deallocated.
+		 */
+		m = _pmap_allocpte(pmap, ptepindex);
+		if (m == NULL)
+			goto retry;
 	}
-	/*
-	 * Here if the pte page isn't mapped, or if it has been deallocated.
-	 */
-	return _pmap_allocpte(pmap, ptepindex);
+	return (m);
 }
 
 
@@ -1260,52 +1192,35 @@ pmap_allocpte(pmap_t pmap, vm_offset_t va)
 void
 pmap_release(pmap_t pmap)
 {
-	vm_page_t p,n,lev1pg;
-	vm_object_t object = pmap->pm_pteobj;
-	int curgeneration;
+	vm_page_t lev1pg;
 
-#if defined(DIAGNOSTIC)
-	if (object->ref_count != 1)
-		panic("pmap_release: pteobj reference count != 1");
-#endif
-	
-	lev1pg = NULL;
-retry:
-	curgeneration = object->generation;
-	for (p = TAILQ_FIRST(&object->memq); p != NULL; p = n) {
-		n = TAILQ_NEXT(p, listq);
-		if (p->pindex >= NUSERLEV3MAPS) {
-			continue;
-		}
-		while (1) {
-			if (!pmap_release_free_page(pmap, p) &&
-				(object->generation != curgeneration))
-				goto retry;
-		}
-	}
-	for (p = TAILQ_FIRST(&object->memq); p != NULL; p = n) {
-		n = TAILQ_NEXT(p, listq);
-		if (p->pindex < NUSERLEV3MAPS) {
-			/* can this happen?  maybe panic */
-			goto retry;
-		}
-		if (p->pindex >= NUSERLEV3MAPS + NUSERLEV2MAPS) {
-			lev1pg = p;
-			continue;
-		}
-		while (1) {
-			if (!pmap_release_free_page(pmap, p) &&
-				(object->generation != curgeneration))
-				goto retry;
-		}
-	}
+	KASSERT(pmap->pm_stats.resident_count == 0,
+	    ("pmap_release: pmap resident count %ld != 0",
+	    pmap->pm_stats.resident_count));
 
-	if (lev1pg && !pmap_release_free_page(pmap, lev1pg))
-		goto retry;
+	lev1pg = PHYS_TO_VM_PAGE(pmap_pte_pa(&pmap->pm_lev1[PTLEV1I]));
+	KASSERT(lev1pg->pindex == NUSERLEV3MAPS + NUSERLEV2MAPS,
+	    ("pmap_release: PTLEV1I page has unexpected pindex %ld",
+	    lev1pg->pindex));
+
 	mtx_lock_spin(&allpmaps_lock);
 	LIST_REMOVE(pmap, pm_list);
 	mtx_unlock_spin(&allpmaps_lock);
+
+	/*
+	 * Level1  pages need to have the kernel
+	 * stuff cleared, so they can go into the zero queue also.
+	 */
+	bzero(pmap->pm_lev1 + K1SEGLEV1I, nklev2 * PTESIZE);
+	pmap->pm_lev1[PTLEV1I] = 0;
+
 	PMAP_LOCK_DESTROY(pmap);
+
+	vm_page_lock_queues();
+	lev1pg->wire_count--;
+	atomic_subtract_int(&cnt.v_wire_count, 1);
+	vm_page_free_zero(lev1pg);
+	vm_page_unlock_queues();
 }
 
 /*
@@ -1934,6 +1849,7 @@ pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_page_t mpte)
 		if (mpte && (mpte->pindex == ptepindex)) {
 			mpte->hold_count++;
 		} else {
+	retry:
 			/*
 			 * Get the level 2 entry
 			 */
@@ -1954,6 +1870,8 @@ pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_page_t mpte)
 				mpte->hold_count++;
 			} else {
 				mpte = _pmap_allocpte(pmap, ptepindex);
+				if (mpte == NULL)
+					goto retry;
 			}
 		}
 	} else {
