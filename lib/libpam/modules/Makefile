@@ -29,9 +29,15 @@ SUBDIR+=	pam_deny
 .if defined(MAKE_KERBEROS4) && !defined(NOCRYPT)
 SUBDIR+=	pam_kerberosIV
 .endif
+.if defined(MAKE_KERBEROS5) && !defined(NOCRYPT)
+SUBDIR+=	pam_kerberos5
+.endif
 SUBDIR+=	pam_permit
 SUBDIR+=	pam_radius
 SUBDIR+=	pam_skey
+.if !defined(NO_OPENSSL)
+SUBDIR+=	pam_ssh
+.endif
 SUBDIR+=	pam_tacplus
 SUBDIR+=	pam_unix
 
