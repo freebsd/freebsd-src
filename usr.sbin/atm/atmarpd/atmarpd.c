@@ -294,8 +294,7 @@ daemon_bypass:
 	/*
 	 * Set up signal handlers
 	 */
-	rc = (int)signal(SIGINT, atmarp_sigint);
-	if (rc == -1) {
+	if (signal(SIGINT, atmarp_sigint) == SIG_ERR) {
 		atmarp_log(LOG_ERR, "SIGINT signal setup failed");
 		exit(1);
 	}
