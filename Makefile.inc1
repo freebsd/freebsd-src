@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile.inc1,v 1.39 1998/11/05 07:54:05 msmith Exp $
+#	$Id: Makefile.inc1,v 1.40 1998/11/13 00:59:00 jdp Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -630,7 +630,6 @@ lib-tools:
 		${_aout_strip}		\
 		gnu/usr.bin/binutils	\
 		usr.bin/uudecode	\
-		share/info		\
 		usr.bin/objformat
 	cd ${.CURDIR}/$d; ${MAKE} ${MK_FLAGS} ${_DEPEND}; \
 		${MAKE} ${MK_FLAGS} all; \
