@@ -74,6 +74,7 @@ cpu		HAMMER			# aka K8, aka Opteron & Athlon64
 # accurate scheduling of the CPU time between kernel network processing
 # and other activities.  The drawback is a moderate (up to 1/HZ seconds)
 # potential increase in response times.
+# DEVICE_POLLING does not work with SMP.
 # It is strongly recommended to use HZ=1000 or 2000 with DEVICE_POLLING
 # to achieve smoother behaviour.
 # Additionally, you can enable/disable polling at runtime with the
