@@ -225,7 +225,6 @@
 #define _get_mplock			get_mplock
 #define _get_syscall_lock		get_syscall_lock
 #define _idle				idle
-#define _idle_poll 			idle_poll
 #define _ihandlers			ihandlers
 #define _imen				imen
 #define _imen_lock			imen_lock

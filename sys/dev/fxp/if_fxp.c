@@ -170,6 +170,9 @@ static int		fxp_suspend(device_t dev);
 static int		fxp_resume(device_t dev);
 
 static void		fxp_intr(void *xsc);
+static __inline void	fxp_intr_body(struct fxp_softc *sc,
+				u_int8_t statack, int count);
+
 static void 		fxp_init(void *xsc);
 static void 		fxp_tick(void *xsc);
 static void		fxp_powerstate_d0(device_t dev);
@@ -1150,39 +1153,6 @@ tbdinit:
 	}
 }
 
-static void fxp_intr_body(struct fxp_softc *sc, u_int8_t statack, int count);
-
-#ifdef DEVICE_POLLING
-poll_handler_t fxp_poll;
-
-void
-fxp_poll(struct ifnet *ifp, int cmd, int count)
-{
-	struct fxp_softc *sc = ifp->if_softc;
-	u_int8_t statack;
-
-	if (cmd == 2) {         /* final call, enable interrupts */
-		CSR_WRITE_1(sc, FXP_CSR_SCB_INTRCNTL, 0);
-		return;
-	}
-	statack = FXP_SCB_STATACK_CXTNO | FXP_SCB_STATACK_CNA |
-	    FXP_SCB_STATACK_FR;
-	if (cmd == 1) {
-		u_int8_t tmp;
-
-		tmp = CSR_READ_1(sc, FXP_CSR_SCB_STATACK);
-		if (tmp == 0xff || tmp == 0)
-			return; /* nothing to do */
-		tmp &= ~statack;
-		/* ack what we can */
-		if (tmp != 0)
-			CSR_WRITE_1(sc, FXP_CSR_SCB_STATACK, tmp);
-		statack |= tmp;
-	}
-	fxp_intr_body(sc, statack, count);
-}
-#endif /* DEVICE_POLLING */
-
 /*
  * Process interface interrupts.
  */
@@ -1191,19 +1161,6 @@ fxp_intr(void *xsc)
 {
 	struct fxp_softc *sc = xsc;
 	u_int8_t statack;
-
-#ifdef DEVICE_POLLING
-	struct ifnet *ifp = &sc->sc_if;
-
-	if (ifp->if_ipending & IFF_POLLING)
-		return;
-	if (ether_poll_register(fxp_poll, ifp)) {
-		/* disable interrupts */
-		CSR_WRITE_1(sc, FXP_CSR_SCB_INTRCNTL, FXP_SCB_INTR_DISABLE);
-		fxp_poll(ifp, 0, poll_burst);
-		return;
-	}
-#endif
 
 	if (sc->suspended) {
 		return;
@@ -1227,7 +1184,7 @@ fxp_intr(void *xsc)
 	}
 }
 
-static void
+static __inline void
 fxp_intr_body(struct fxp_softc *sc, u_int8_t statack, int count)
 {
 	struct ifnet *ifp = &sc->sc_if;
@@ -1282,9 +1239,6 @@ rcvloop:
 			rfa = (struct fxp_rfa *)(m->m_ext.ext_buf +
 			    RFA_ALIGNMENT_FUDGE);
 
-#ifdef DEVICE_POLLING /* loop at most count times if count >=0 */
-			if (count < 0 || count-- > 0)
-#endif /* DEVICE_POLLING */
 			if (rfa->rfa_status & FXP_RFA_STATUS_C) {
 				/*
 				 * Remove first packet from the chain.
@@ -1746,15 +1700,6 @@ fxp_init(void *xsc)
 	/*
 	 * Enable interrupts.
 	 */
-#ifdef DEVICE_POLLING
-	/*
-	 * ... but only do that if we are not polling. And because (presumably)
-	 * the default is interrupts on, we need to disable them explicitly!
-	 */
-	if ( ifp->if_ipending & IFF_POLLING )
-		CSR_WRITE_1(sc, FXP_CSR_SCB_INTRCNTL, FXP_SCB_INTR_DISABLE);
-	else
-#endif /* DEVICE_POLLING */
 	CSR_WRITE_1(sc, FXP_CSR_SCB_INTRCNTL, 0);
 	splx(s);
 
