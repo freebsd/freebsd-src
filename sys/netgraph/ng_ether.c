@@ -226,13 +226,8 @@ ng_ether_output(struct ifnet *ifp, struct mbuf **mp)
 		return (0);
 
 	/* Send it out "upper" hook */
-	NG_SEND_DATA_RET(error, priv->upper, *mp, meta);
-
-	/* If we got a reflected packet back, handle it */
-	if (error == 0 && *mp != NULL) {
-		error = ng_ether_rcv_upper(node, *mp, meta);
-		*mp = NULL;
-	}
+	NG_SEND_DATA(error, priv->upper, *mp, meta);
+	*mp = NULL;
 	return (error);
 }
 
@@ -427,8 +422,8 @@ ng_ether_newhook(node_p node, hook_p hook, const char *name)
  * Receive an incoming control message.
  */
 static int
-ng_ether_rcvmsg(node_p node, struct ng_mesg *msg, const char *retaddr,
-		struct ng_mesg **rptr, hook_p lasthook)
+ng_ether_rcvmsg(node_p node, struct ng_mesg *msg,
+	const char *retaddr, struct ng_mesg **rptr)
 {
 	const priv_p priv = node->private;
 	struct ng_mesg *resp = NULL;
@@ -475,8 +470,7 @@ ng_ether_rcvmsg(node_p node, struct ng_mesg *msg, const char *retaddr,
  * Receive data on a hook.
  */
 static int
-ng_ether_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
-		struct mbuf **ret_m, meta_p *ret_meta)
+ng_ether_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
 {
 	const node_p node = hook->node;
 	const priv_p priv = node->private;

@@ -325,8 +325,10 @@ extern	struct ifaddr **ifnet_addrs;
 
 void	ether_ifattach __P((struct ifnet *));
 void	ether_input __P((struct ifnet *, struct ether_header *, struct mbuf *));
+void	ether_demux __P((struct ifnet *, struct ether_header *, struct mbuf *));
 int	ether_output __P((struct ifnet *,
 	   struct mbuf *, struct sockaddr *, struct rtentry *));
+int	ether_output_frame __P((struct ifnet *, struct mbuf *));
 int	ether_ioctl __P((struct ifnet *, int, caddr_t));
 
 int	if_addmulti __P((struct ifnet *, struct sockaddr *,
