@@ -3,7 +3,7 @@
 
     $FreeBSD$
 
-    Original revision: 1.292
+    Original revision: 1.296
 -->
 
 <articleinfo>
@@ -273,7 +273,7 @@
     <para arch="i386">&man.puc.4; (PCI <quote>Universal</quote>
       Communications) ドライバが追加されました.
       このドライバは PCI ベースのシリアルポートを &man.sio.4; ドライバに
-      接続します.</para>
+      接続します. &merged;</para>
 
     <para>&man.random.4; デバイスが
       <application>Yarrow</application>
@@ -782,6 +782,10 @@
       <para>&man.vlan.4; デバイスがロード/アンロード/クローニングに
 	対応しました. &merged;</para>
 
+      <para>&man.wi.4; ドライバが Prism II, Prism 2.5 ベースの NIC
+	に対応しました.  104/128 ビット WEP も Prism カードで動くように
+	なりました. &merged;</para>
+
       <para>&man.xl.4; ドライバが
         ラップトップで使われている 3Com 3C556 および
         3C556B MiniPCI アダプタに対応しました.
@@ -891,6 +895,9 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
       <para>IP マルチキャストが VLAN デバイス上で動作するようになりました.
         また, VLAN コードにあったいくつかのバグも修正されています.</para>
+
+      <para>IPv4 において入ってくる SPD のチェックが無視されてしまう
+	という IPSec 処理中のバグが修正されました. &merged;</para>
 
       <para>&man.ipfw.4; が TCP セグメント内に
         ECN ビットを含む場合にも正しくフィルタ動作を行なうようになりました.
@@ -1091,6 +1098,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
       <para>&man.ata.4; ドライバは Hardware Notes にも載っているように
 	様々な SiS チップセットに対応しました. &merged;</para>
+
+      <para>&man.ata.4; ドライバは &man.atacontrol.8; を使って
+	RAID1 構成の故障したドライブを再構築することができるように
+	なりました.</para>
 
       <para>ATAPI CD-R ドライブの BurnProof(TM) 機能に対応しました.
         &merged;</para>
@@ -1856,6 +1867,15 @@ hw.pcic.irq="0"</programlisting>
       与えられたことのあるプロセスが, 再び獲得することができました.
       このバグは修正されています.
       (セキュリティ勧告 FreeBSD-SA-02:07 参照). &merged;</para>
+
+    <para>An <quote>off-by-one</quote> bug has been fixed in
+      <application>OpenSSH</application>'s multiplexing code.  This bug
+      could have allowed a connecting SSH client to execute arbitrary
+      code with the privileges of the client user.  (See security
+      advisory <ulink
+        url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:13.openssh.asc">FreeBSD-SA-02:13</ulink>.)
+      &merged;</para>
+
   </sect2>
 
   <sect2 id="userland">
@@ -2048,6 +2068,17 @@ hw.pcic.irq="0"</programlisting>
       が追加されました. これは (オプション <option>-p</option>
       で指定される) quota プロトタイプの設定対象を,
       一つのファイルシステムに限定するために使われます. &merged;</para>
+
+    <para><filename>/etc/rc.firewall</filename> と
+      <filename>/etc/rc.firewall6</filename> は,
+      <varname>firewall_type</varname> 変数にルールファイルが設定されている
+      場合や, 存在しないファイアウォールタイプを設定した場合に, 独自の
+      ハードコードされたルールを追加しないようになりました.
+      (これはサイトのファイアウォールポリシを仮定して動作することを
+      やめるためのものです.)
+      加えて, <literal>closed</literal> ファイアウォールタイプは
+      &man.rc.firewall.8; マニュアルページに記述されているように
+      動作するようになりました. &merged;</para>
 
     <para>ローカルのカスタマイズや管理を楽にするために,
       <filename>/etc/security</filename> の機能は &man.periodic.8;
@@ -2599,6 +2630,11 @@ hw.pcic.irq="0"</programlisting>
       ファイルで行われるようになりました.
       <filename>/etc/pam.d/README</filename> に詳細があります.</para>
 
+    <para>いくつもの新しい <application>PAM</application>
+      モジュールが追加されました.</para>
+
+<!-- XXX List new PAM modules -->
+
     <para>&man.passwd.1; および &man.pw.8; で
       パスワードハッシュアルゴリズムを切り替えられるようになりました.
       <filename>/etc/login.conf</filename> にある
@@ -2727,7 +2763,7 @@ hw.pcic.irq="0"</programlisting>
 
     <para>&man.rpc.lockd.8; が NetBSD から import されました.
       このデーモンは
-      NFS ファイルシステムにおけるロックを実現するためのものです.</para>
+      クライアント側の NFS ロックを提供するためのものです.</para>
 
     <para>ELF 動的リンカである &man.rtld.1; のパフォーマンスが向上しました.
       &merged;</para>
@@ -3200,18 +3236,6 @@ hw.pcic.irq="0"</programlisting>
       <para><application>lint</application> は NetBSD &man.lint.1; の
 	2002/03/03 版スナップショットに更新されました.</para>
 
-      <para><application>Linux-PAM</application> がバージョン
-        0.75 に更新されました.
-        &merged;</para>
-
-      <para>たくさんの新しい <application>Linux-PAM</application>
-        モジュール, <filename>pam_ftp</filename>,
-        <filename>pam_krb5</filename>,
-        <filename>pam_nologin</filename>,
-        <filename>pam_rootok</filename>,
-        <filename>pam_securetty</filename>,
-        <filename>pam_wheel</filename> が追加されました.</para>
-
       <para>&os; の &man.ftp.1; プログラムが
 	<application>lukemftp</application> (NetBSD からの FTP クライアント)
 	に置き換えられました.
@@ -3229,6 +3253,11 @@ hw.pcic.irq="0"</programlisting>
 
       <para><application>NTP</application> プログラムスイートがバージョン
         4.1.0 に更新されました. &merged;</para>
+
+      <para><application>OpenPAM</application>
+        (<quote>Celandine</quote> リリース) が
+	<application>Linux-PAM</application> に代わって
+	import されました.</para>
 
       <para><application>OPIE</application>
         ワンタイムパスワードスイートがバージョン 2.32 に更新されました.
