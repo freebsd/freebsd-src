@@ -826,7 +826,7 @@ getcmds()
 			if ((bp = el_gets(el, &num)) == NULL || num == 0)
 				return;
 
-			len = (num > MAX_CMDLINE) ? MAX_CMDLINE : num;
+			len = (num > MAXLINE) ? MAXLINE : num;
 			memcpy(line, bp, len);
 			line[len] = 0;
 			history(hist, H_ENTER, bp);
