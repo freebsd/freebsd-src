@@ -1883,8 +1883,11 @@ ipsec4_hdrsiz(m, dir, inp)
 	/* sanity check */
 	if (m == NULL)
 		return 0;	/* XXX should be panic ? */
+#if 0
+	/* this is possible in TIME_WAIT state */
 	if (inp != NULL && inp->inp_socket == NULL)
 		panic("ipsec4_hdrsize: why is socket NULL but there is PCB.");
+#endif
 
 	/* get SP for this packet.
 	 * When we are called from ip_forward(), we call
