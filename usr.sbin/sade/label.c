@@ -364,54 +364,39 @@ record_label_chunks(Device **devs, Device *dev)
 
 /* A new partition entry */
 static PartInfo *
-new_part(char *mpoint, Boolean newfs)
+new_part(PartType type, char *mpoint, Boolean newfs)
 {
     PartInfo *pi;
 
     if (!mpoint)
-	mpoint = "/change_me";
+	mpoint = (type == PART_EFI) ? "/efi" : "/change_me";
 
     pi = (PartInfo *)safe_malloc(sizeof(PartInfo));
     sstrncpy(pi->mountpoint, mpoint, FILENAME_MAX);
 
     pi->do_newfs = newfs;
 
-    pi->newfs_type = NEWFS_UFS;
-    strcpy(pi->newfs_data.newfs_ufs.user_options, "");
-    pi->newfs_data.newfs_ufs.acls = FALSE;
-    pi->newfs_data.newfs_ufs.multilabel = FALSE;
-    pi->newfs_data.newfs_ufs.softupdates = strcmp(mpoint, "/");
+    if (type == PART_EFI) {
+	pi->newfs_type = NEWFS_MSDOS;
+    } else {
+	pi->newfs_type = NEWFS_UFS;
+	strcpy(pi->newfs_data.newfs_ufs.user_options, "");
+	pi->newfs_data.newfs_ufs.acls = FALSE;
+	pi->newfs_data.newfs_ufs.multilabel = FALSE;
+	pi->newfs_data.newfs_ufs.softupdates = strcmp(mpoint, "/");
 #ifdef PC98
-    pi->newfs_data.newfs_ufs.ufs1 = TRUE;
+	pi->newfs_data.newfs_ufs.ufs1 = TRUE;
 #else
-    pi->newfs_data.newfs_ufs.ufs1 = FALSE;
+	pi->newfs_data.newfs_ufs.ufs1 = FALSE;
 #endif
+    }
 
     return pi;
 }
-
-#if defined(__ia64__)
-static PartInfo *
-new_efi_part(char *mpoint, Boolean newfs)
-{
-    PartInfo *pi;
-
-    if (!mpoint)
-	mpoint = "/efi";
-
-    pi = (PartInfo *)safe_malloc(sizeof(PartInfo));
-    sstrncpy(pi->mountpoint, mpoint, FILENAME_MAX);
-
-    pi->do_newfs = newfs;
-    pi->newfs_type = NEWFS_MSDOS;
-
-    return pi;
-}
-#endif
 
 /* Get the mountpoint for a partition and save it away */
 static PartInfo *
-get_mountpoint(struct chunk *old)
+get_mountpoint(PartType type, struct chunk *old)
 {
     char *val;
     PartInfo *tmp;
@@ -421,7 +406,8 @@ get_mountpoint(struct chunk *old)
 	tmp = old->private_data;
     else
 	tmp = NULL;
-    val = msgGetInput(tmp ? tmp->mountpoint : NULL, "Please specify a mount point for the partition");
+    val = (tmp != NULL) ? tmp->mountpoint : (type == PART_EFI) ? "/efi" : NULL;
+    val = msgGetInput(val, "Please specify a mount point for the partition");
     if (!val || !*val) {
 	if (!old)
 	    return NULL;
@@ -462,7 +448,7 @@ get_mountpoint(struct chunk *old)
     	safe_free(tmp);
     }
     val = string_skipwhite(string_prune(val));
-    tmp = new_part(val, newfs);
+    tmp = new_part(type, val, newfs);
     if (old) {
 	old->private_data = tmp;
 	old->private_free = safe_free;
@@ -1069,7 +1055,7 @@ diskLabel(Device *dev)
 		}
 
 		if (type == PART_FILESYSTEM || type == PART_EFI) {
-		    if ((p = get_mountpoint(NULL)) == NULL) {
+		    if ((p = get_mountpoint(type, NULL)) == NULL) {
 			clear_wins();
 			beep();
 			break;
@@ -1188,7 +1174,7 @@ diskLabel(Device *dev)
 	    case PART_EFI:
 	    case PART_FILESYSTEM:
 		oldp = label_chunk_info[here].c->private_data;
-		p = get_mountpoint(label_chunk_info[here].c);
+		p = get_mountpoint(label_chunk_info[here].type, label_chunk_info[here].c);
 		if (p) {
 		    if (!oldp)
 		    	p->do_newfs = FALSE;
@@ -1238,7 +1224,8 @@ diskLabel(Device *dev)
 	    break;
 
 	case 'T':	/* Toggle newfs state */
-	    if ((label_chunk_info[here].type == PART_FILESYSTEM) &&
+	    if ((label_chunk_info[here].type == PART_FILESYSTEM ||
+		 label_chunk_info[here].type == PART_EFI) &&
 	        (label_chunk_info[here].c->private_data)) {
 		PartInfo *pi = ((PartInfo *)label_chunk_info[here].c->private_data);
 		if (!pi->do_newfs)
@@ -1247,7 +1234,7 @@ diskLabel(Device *dev)
 		    label_chunk_info[here].c->flags &= ~CHUNK_NEWFS;
 
 		label_chunk_info[here].c->private_data =
-		    new_part(pi ? pi->mountpoint : NULL, pi ? !pi->do_newfs
+		    new_part(label_chunk_info[here].type, pi ? pi->mountpoint : NULL, pi ? !pi->do_newfs
 		    : TRUE);
 		if (pi != NULL &&
 		    pi->newfs_type == NEWFS_UFS) {
@@ -1260,25 +1247,6 @@ diskLabel(Device *dev)
 		if (variable_cmp(DISK_LABELLED, "written"))
 		    variable_set2(DISK_LABELLED, "yes", 0);
 	    }
-#if defined(__ia64__)
-	    else if (label_chunk_info[here].type == PART_EFI &&
-	      label_chunk_info[here].c->private_data) {
-		PartInfo *pi =
-		    ((PartInfo *)label_chunk_info[here].c->private_data);
-
-		if (!pi->do_newfs)
-		    label_chunk_info[here].c->flags |= CHUNK_NEWFS;
-		else
-		    label_chunk_info[here].c->flags &= ~CHUNK_NEWFS;
-
-		label_chunk_info[here].c->private_data =
-		    new_efi_part(pi->mountpoint, !pi->do_newfs);
-		safe_free(pi);
-		label_chunk_info[here].c->private_free = safe_free;
-		if (variable_cmp(DISK_LABELLED, "written"))
-		    variable_set2(DISK_LABELLED, "yes", 0);
-	    }
-#endif
 	    else
 		msg = MSG_NOT_APPLICABLE;
 	    break;
@@ -1447,7 +1415,7 @@ try_auto_label(Device **devs, Device *dev, int perc, int *req)
 	    msg = "Unable to create the root partition. Too big?";
 	    goto done;
 	}
-	root_chunk->private_data = new_part("/", TRUE);
+	root_chunk->private_data = new_part(PART_FILESYSTEM, "/", TRUE);
 	root_chunk->private_free = safe_free;
 	root_chunk->flags |= CHUNK_NEWFS;
 	record_label_chunks(devs, dev);
@@ -1494,7 +1462,7 @@ try_auto_label(Device **devs, Device *dev, int perc, int *req)
 		   "partition your disk manually with a custom install!";
 	    goto done;
 	}
-	var_chunk->private_data = new_part("/var", TRUE);
+	var_chunk->private_data = new_part(PART_FILESYSTEM, "/var", TRUE);
 	var_chunk->private_free = safe_free;
 	var_chunk->flags |= CHUNK_NEWFS;
 	record_label_chunks(devs, dev);
@@ -1511,7 +1479,7 @@ try_auto_label(Device **devs, Device *dev, int perc, int *req)
 		   "partition your disk manually with a custom install!";
 	    goto done;
 	}
-	tmp_chunk->private_data = new_part("/tmp", TRUE);
+	tmp_chunk->private_data = new_part(PART_FILESYSTEM, "/tmp", TRUE);
 	tmp_chunk->private_free = safe_free;
 	tmp_chunk->flags |= CHUNK_NEWFS;
 	record_label_chunks(devs, dev);
@@ -1536,7 +1504,7 @@ try_auto_label(Device **devs, Device *dev, int perc, int *req)
 			   "You will need to partition your disk manually with a custom install!";
 		goto done;
 	    }
-	    usr_chunk->private_data = new_part("/usr", TRUE);
+	    usr_chunk->private_data = new_part(PART_FILESYSTEM, "/usr", TRUE);
 	    usr_chunk->private_free = safe_free;
 	    usr_chunk->flags |= CHUNK_NEWFS;
 	    record_label_chunks(devs, dev);
@@ -1563,7 +1531,7 @@ try_auto_label(Device **devs, Device *dev, int perc, int *req)
 			   "You will need to partition your disk manually with a custom install!";
 		goto done;
 	    }
-	    home_chunk->private_data = new_part("/home", TRUE);
+	    home_chunk->private_data = new_part(PART_FILESYSTEM, "/home", TRUE);
 	    home_chunk->private_free = safe_free;
 	    home_chunk->flags |= CHUNK_NEWFS;
 	    record_label_chunks(devs, dev);
@@ -1665,7 +1633,7 @@ diskLabelNonInteractive(Device *dev)
 			break;
 		    } else {
 			PartInfo *pi;
-			pi = tmp->private_data = new_part(mpoint, TRUE);
+			pi = tmp->private_data = new_part(PART_FILESYSTEM, mpoint, TRUE);
 			tmp->private_free = safe_free;
 			pi->newfs_data.newfs_ufs.softupdates = soft;
 		    }
@@ -1691,7 +1659,7 @@ diskLabelNonInteractive(Device *dev)
 		    strcpy(p->mountpoint, mpoint);
 		}
 		else {
-		    c1->private_data = new_part(mpoint, newfs);
+		    c1->private_data = new_part(PART_FILESYSTEM, mpoint, newfs);
 		    c1->private_free = safe_free;
 		}
 		if (!strcmp(mpoint, "/"))
