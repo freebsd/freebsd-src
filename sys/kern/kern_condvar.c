@@ -170,12 +170,28 @@ cv_wait_sig(struct cv *cvp, struct mtx *mp)
 		 * procs or panic below, in case this is the idle process and
 		 * already asleep.
 		 */
-		return 0;
+		return (0);
 	}
 
 	sq = sleepq_lookup(cvp);
 
-	/* XXX: Missing the threading checks from msleep! */
+	/*
+	 * Don't bother sleeping if we are exiting and not the exiting
+	 * thread or if our thread is marked as interrupted.
+	 */
+	mtx_lock_spin(&sched_lock);
+	if (p->p_flag & P_SA || p->p_numthreads > 1) {
+		if ((p->p_flag & P_SINGLE_EXIT) && p->p_singlethread != td)
+			rval = EINTR;
+		else if (td->td_flags & TDF_INTERRUPT)
+			rval = td->td_intrval;
+		if (rval != 0) {
+			mtx_unlock_spin(&sched_lock);
+			sleepq_release(cvp);
+			return (rval);
+		}
+	}
+	mtx_unlock_spin(&sched_lock);
 
 	cvp->cv_waiters++;
 	DROP_GIANT();
@@ -183,19 +199,15 @@ cv_wait_sig(struct cv *cvp, struct mtx *mp)
 
 	sleepq_add(sq, cvp, mp, cvp->cv_description, SLEEPQ_CONDVAR);
 	sig = sleepq_catch_signals(cvp);
-	/*
-	 * XXX: Missing magic return value handling for no signal
-	 * caught but thread woken up during check.
-	 */
-	rval = sleepq_wait_sig(cvp);
+	if (sig == 0 && !TD_ON_SLEEPQ(td)) {
+		mtx_lock_spin(&sched_lock);
+		td->td_flags &= ~TDF_SINTR;
+		mtx_unlock_spin(&sched_lock);
+		sleepq_wait(cvp);
+	} else       
+		rval = sleepq_wait_sig(cvp);
 	if (rval == 0)
 		rval = sleepq_calc_signal_retval(sig);
-
-	/* XXX: Part of missing threading checks? */
-	PROC_LOCK(p);
-	if (p->p_flag & P_WEXIT)
-		rval = EINTR;
-	PROC_UNLOCK(p);
 
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_CSW))
@@ -303,6 +315,24 @@ cv_timedwait_sig(struct cv *cvp, struct mtx *mp, int timo)
 
 	sq = sleepq_lookup(cvp);
 
+	/*
+	 * Don't bother sleeping if we are exiting and not the exiting
+	 * thread or if our thread is marked as interrupted.
+	 */
+	mtx_lock_spin(&sched_lock);
+	if (p->p_flag & P_SA || p->p_numthreads > 1) {
+		if ((p->p_flag & P_SINGLE_EXIT) && p->p_singlethread != td)
+			rval = EINTR;
+		else if (td->td_flags & TDF_INTERRUPT)
+			rval = td->td_intrval;
+		if (rval != 0) {
+			mtx_unlock_spin(&sched_lock);
+			sleepq_release(cvp);
+			return (rval);
+		}
+	}
+	mtx_unlock_spin(&sched_lock);
+
 	cvp->cv_waiters++;
 	DROP_GIANT();
 	mtx_unlock(mp);
@@ -310,19 +340,15 @@ cv_timedwait_sig(struct cv *cvp, struct mtx *mp, int timo)
 	sleepq_add(sq, cvp, mp, cvp->cv_description, SLEEPQ_CONDVAR);
 	sleepq_set_timeout(cvp, timo);
 	sig = sleepq_catch_signals(cvp);
-	/*
-	 * XXX: Missing magic return value handling for no signal
-	 * caught but thread woken up during check.
-	 */
-	rval = sleepq_timedwait_sig(cvp, sig != 0);
+	if (sig == 0 && !TD_ON_SLEEPQ(td)) {
+		mtx_lock_spin(&sched_lock);
+		td->td_flags &= ~TDF_SINTR;
+		mtx_unlock_spin(&sched_lock);
+		rval = sleepq_timedwait(cvp);
+	} else       
+		rval = sleepq_timedwait_sig(cvp, sig != 0);
 	if (rval == 0)
 		rval = sleepq_calc_signal_retval(sig);
-
-	/* XXX: Part of missing threading checks? */
-	PROC_LOCK(p);
-	if (p->p_flag & P_WEXIT)
-		rval = EINTR;
-	PROC_UNLOCK(p);
 
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_CSW))
