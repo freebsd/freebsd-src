@@ -222,7 +222,7 @@ static device_method_t wb_methods[] = {
 };
 
 static driver_t wb_driver = {
-	"wb",
+	"if_wb",
 	wb_methods,
 	sizeof(struct wb_softc)
 };

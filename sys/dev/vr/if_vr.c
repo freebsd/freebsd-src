@@ -195,7 +195,7 @@ static device_method_t vr_methods[] = {
 };
 
 static driver_t vr_driver = {
-	"vr",
+	"if_vr",
 	vr_methods,
 	sizeof(struct vr_softc)
 };

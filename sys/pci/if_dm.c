@@ -183,7 +183,7 @@ static device_method_t dm_methods[] = {
 };
 
 static driver_t dm_driver = {
-	"dm",
+	"if_dm",
 	dm_methods,
 	sizeof(struct dm_softc)
 };
