@@ -1,5 +1,5 @@
 /*
-   Tests the generated perfect has function.
+   Tests the generated perfect hash function.
    The -v option prints diagnostics as to whether a word is in 
    the set or not.  Without -v the program is useful for timing.
 */ 
@@ -8,16 +8,10 @@
 
 #define MAX_LEN 80
 
-#ifdef __STDC__
-int in_word_set (char *, unsigned int);
-int 
-main (int argc, char *argv[])
-#else
 int 
 main (argc, argv) 
      int   argc;
      char *argv[];
-#endif
 {
   int  verbose = argc > 1 ? 1 : 0;
   char buf[MAX_LEN];
