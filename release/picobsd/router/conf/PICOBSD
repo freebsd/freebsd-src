@@ -1,5 +1,5 @@
 #
-#	$Id: PICOBSD,v 1.4 1998/09/19 21:45:18 abial Exp $
+#	$Id: PICOBSD,v 1.5 1998/09/23 15:20:55 abial Exp $
 #
 
 machine		"i386"
@@ -30,8 +30,8 @@ options		PCI_QUIET
 options		NO_LKM
 options		NO_SWAPPING
 # Support for bridging and bandwidth limiting
-options	DUMMYNET
-options	BRIDGE
+#options	DUMMYNET
+#options	BRIDGE
 
 config		kernel	root on fd0
 
