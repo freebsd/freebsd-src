@@ -3,7 +3,6 @@
 
 PROG=	ls
 SRCS=	cmp.c lomac.c ls.c print.c util.c
-WARNS?=	0
 DPADD=	${LIBM}
 LDADD=	-lm
 

@@ -47,7 +47,7 @@ void	 printcol(DISPLAY *);
 void	 printlong(DISPLAY *);
 void	 printscol(DISPLAY *);
 void	 usage(void);
-int	 len_octal(const char *, int);
+size_t	 len_octal(const char *, int);
 int	 prn_octal(const char *);
 int	 prn_printable(const char *);
 #ifdef COLORLS
