@@ -163,6 +163,8 @@ typedef struct {
 #define SHT_SHLIB	10		/* reserved - purpose unknown */
 #define SHT_DYNSYM	11		/* dynamic symbol table section */ 
 #define SHT_NUM		12		/* number of section types */
+#define SHT_LOOS	0x60000000	/* First of OS specific semantics */
+#define SHT_HIOS	0x6fffffff	/* Last of OS specific semantics */
 #define SHT_LOPROC	0x70000000	/* reserved range for processor */
 #define SHT_HIPROC	0x7fffffff	/* specific section header types */
 #define SHT_LOUSER	0x80000000	/* reserved range for application */
@@ -182,9 +184,12 @@ typedef struct {
 #define PT_NOTE		4	/* Auxiliary information. */
 #define PT_SHLIB	5	/* Reserved (not used). */
 #define PT_PHDR		6	/* Location of program header itself. */
+#define	PT_TLS		7	/* Thread local storage segment */
 
-#define PT_COUNT	7	/* Number of defined p_type values. */
+#define PT_COUNT	8	/* Number of defined p_type values. */
 
+#define	PT_LOOS		0x60000000	/* OS-specific */
+#define	PT_HIOS		0x6fffffff	/* OS-specific */
 #define PT_LOPROC	0x70000000	/* First processor-specific type. */
 #define PT_HIPROC	0x7fffffff	/* Last processor-specific type. */
 
@@ -211,18 +216,59 @@ typedef struct {
 #define DT_FINI		13	/* Address of finalization function. */
 #define DT_SONAME	14	/* String table offset of shared object
 				   name. */
-#define DT_RPATH	15	/* String table offset of library path. */
-#define DT_SYMBOLIC	16	/* Indicates "symbolic" linking. */
+#define DT_RPATH	15	/* String table offset of library path. [sup] */
+#define DT_SYMBOLIC	16	/* Indicates "symbolic" linking. [sup] */
 #define DT_REL		17	/* Address of ElfNN_Rel relocations. */
 #define DT_RELSZ	18	/* Total size of ElfNN_Rel relocations. */
 #define DT_RELENT	19	/* Size of each ElfNN_Rel relocation. */
 #define DT_PLTREL	20	/* Type of relocation used for PLT. */
 #define DT_DEBUG	21	/* Reserved (not used). */
 #define DT_TEXTREL	22	/* Indicates there may be relocations in
-				   non-writable segments. */
+				   non-writable segments. [sup] */
 #define DT_JMPREL	23	/* Address of PLT relocations. */
+#define	DT_BIND_NOW	24	/* [sup] */
+#define	DT_INIT_ARRAY	25	/* Address of the array of pointers to
+				   initialization functions */
+#define	DT_FINI_ARRAY	26	/* Address of the array of pointers to
+				   termination functions */
+#define	DT_INIT_ARRAYSZ	27	/* Size in bytes of the array of
+				   initialization functions. */
+#define	DT_FINI_ARRAYSZ	28	/* Size in bytes of the array of
+				   terminationfunctions. */
+#define	DT_RUNPATH	29	/* String table offset of a null-terminated
+				   library search path string. */
+#define	DT_FLAGS	30	/* Object specific flag values.
+#define	DT_ENCODING	32	/* Values greater than or equal to DT_ENCODING
+				   and less than DT_LOOS follow the rules for
+				   the interpretation of the d_un union
+				   as follows: even == 'd_ptr', even == 'd_val'
+				   or none */
+#define	DT_PREINIT_ARRAY 32	/* Address of the array of pointers to
+				   pre-initialization functions. */
+#define	DT_PREINIT_ARRAYSZ 33	/* Size in bytes of the array of
+				   pre-initialization functions. */
 
-#define DT_COUNT	24	/* Number of defined d_tag values. */
+#define	DT_COUNT	33	/* Number of defined d_tag values. */
+
+#define	DT_LOOS		0x6000000d	/* First OS-specific */
+#define	DT_HIOS		0x6fff0000	/* Last OS-specific */
+#define	DT_LOPROC	0x70000000	/* First processor-specific type. */
+#define	DT_HIPROC	0x7fffffff	/* Last processor-specific type. */
+
+/* Values for DT_FLAGS */
+#define	DF_ORIGIN	0x0001	/* Indicates that the object being loaded may
+				   make reference to the $ORIGIN substitution
+				   string */
+#define	DF_SYMBOLIC	0x0002	/* Indicates "symbolic" linking. */
+#define	DF_TEXTREL	0x0004	/* Indicates there may be relocations in
+				   non-writable segments. */
+#define	DF_BIND_NOW	0x0008	/* Indicates that the dynamic linker should
+				   process all relocations for the object
+				   containing this entry before transferring
+				   control to the program. */
+#define	DF_STATIC_TLS	0x0010	/* Indicates that the shared object or
+				   executable contains code using a static
+				   thread-local storage scheme. */
 
 /* Values for n_type.  Used in core files. */
 #define NT_PRSTATUS	1	/* Process status. */
