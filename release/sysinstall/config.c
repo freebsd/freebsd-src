@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.33 1996/05/29 01:35:25 jkh Exp $
+ * $Id: config.c,v 1.34 1996/06/08 07:02:18 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -327,14 +327,25 @@ configSysconfig(void)
 int
 configSaverTimeout(dialogMenuItem *self)
 {
-    return variable_get_value(VAR_BLANKTIME, "Enter time-out period in seconds for screen saver") ?
-	DITEM_SUCCESS : DITEM_FAILURE;
+    if (variable_get(VAR_BLANKTIME)) {
+	variable_unset(VAR_BLANKTIME);
+	return DITEM_SUCCESS | DITEM_REDRAW;
+    }
+    else
+	return variable_get_value(VAR_BLANKTIME, "Enter time-out period in seconds for screen saver")
+	    ? DITEM_SUCCESS : DITEM_FAILURE;
 }
 
 int
 configNTP(dialogMenuItem *self)
 {
-    return variable_get_value(VAR_NTPDATE, "Enter the name of an NTP server") ? DITEM_SUCCESS : DITEM_FAILURE;
+    if (variable_get(VAR_NTPDATE)) {
+	variable_unset(VAR_NTPDATE);
+	return DITEM_SUCCESS | DITEM_REDRAW;
+    }
+    else
+	return variable_get_value(VAR_NTPDATE, "Enter the name of an NTP server")
+	    ? DITEM_SUCCESS : DITEM_FAILURE;
 }
 
 int
@@ -409,9 +420,14 @@ skip:
 int
 configRoutedFlags(dialogMenuItem *self)
 {
-    return variable_get_value(VAR_ROUTEDFLAGS, 
-			      "Specify the flags for routed; -q is the default, -s is\n"
-			      "a good choice for gateway machines.") ? DITEM_SUCCESS : DITEM_FAILURE;
+    if (variable_get(VAR_ROUTEDFLAGS)) {
+	variable_unset(VAR_ROUTEDFLAGS);
+	return DITEM_SUCCESS | DITEM_REDRAW;
+    }
+    else
+	return variable_get_value(VAR_ROUTEDFLAGS, 
+				  "Specify the flags for routed; -q is the default, -s is\n"
+				  "a good choice for gateway machines.") ? DITEM_SUCCESS : DITEM_FAILURE;
 }
 
 int
@@ -554,23 +570,31 @@ configPorts(dialogMenuItem *self)
 int
 configGated(dialogMenuItem *self)
 {
-    int ret;
+    int ret = DITEM_SUCCESS;
 
-    ret = package_add("gated-3.5a11");
-    if (DITEM_STATUS(ret) == DITEM_SUCCESS)
-	variable_set2("gated", "YES");
-    return ret;
+    if (variable_get(VAR_GATED))
+	variable_unset(VAR_GATED);
+    else {
+	ret = package_add("gated-3.5a11");
+	if (DITEM_STATUS(ret) == DITEM_SUCCESS)
+	    variable_set2(VAR_GATED, "YES");
+   }
+   return ret;
 }
 
 /* Load pcnfsd package */
 int
 configPCNFSD(dialogMenuItem *self)
 {
-    int ret;
+    int ret = DITEM_SUCCESS;
 
-    ret = package_add("pcnfsd-93.02.16");
-    if (DITEM_STATUS(ret) == DITEM_SUCCESS)
-	variable_set2("pcnfsd", "YES");
+    if (variable_get(VAR_PCNFSD))
+	variable_unset(VAR_PCNFSD);
+    else {
+	ret = package_add("pcnfsd-93.02.16");
+	if (DITEM_STATUS(ret) == DITEM_SUCCESS)
+	    variable_set2(VAR_PCNFSD, "YES");
+    }
     return ret;
 }
 
@@ -600,7 +624,11 @@ configNFSServer(dialogMenuItem *self)
 	dialog_clear();
 	systemExecute(cmd);
 	restorescr(w);
+	variable_set2(VAR_NFS_SERVER, "YES");
     }
-    variable_set2("nfs_server", "YES");
+    else if (variable_get(VAR_NFS_SERVER)) { /* We want to turn it off again? */
+	unlink("/etc/exports");
+	variable_unset(VAR_NFS_SERVER);
+    }
     return DITEM_SUCCESS;
 }
