@@ -57,7 +57,6 @@ struct	reg;
 struct	fpreg;
 struct  dbreg;
 
-void	bcopyb(const void *from, void *to, size_t len);
 void	busdma_swi(void);
 void	cpu_halt(void);
 void	cpu_reset(void);
