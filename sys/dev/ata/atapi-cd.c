@@ -1132,7 +1132,11 @@ acd_start(struct atapi_softc *atp)
 	lastlba = cdp->disk_size;
     }
 
-    count = (bp->bio_bcount + (blocksize - 1)) / blocksize;
+    if (bp->bio_bcount % blocksize != 0) {
+	biofinish(bp, NULL, EINVAL);
+	return;
+    }
+    count = bp->bio_bcount / blocksize;
 
     if (bp->bio_cmd == BIO_READ) {
 	/* if transfer goes beyond range adjust it to be within limits */
