@@ -1,4 +1,4 @@
-/*	$NetBSD: ohci.c,v 1.101 2001/02/20 15:20:32 minoura Exp $	*/
+/*	$NetBSD: ohci.c,v 1.111 2001/11/20 21:12:46 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -1055,6 +1055,9 @@ int
 ohci_intr(void *p)
 {
 	ohci_softc_t *sc = p;
+
+	if (sc->sc_dying)
+		return (0);
 
 	/* If we get an interrupt while polling, then just ignore it. */
 	if (sc->sc_bus.use_polling) {
