@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vnode_pager.c	7.5 (Berkeley) 4/20/91
- *	$Id: vnode_pager.c,v 1.6 1994/08/07 13:10:43 davidg Exp $
+ *	$Id: vnode_pager.c,v 1.7 1994/08/29 06:23:19 davidg Exp $
  */
 
 /*
@@ -1376,8 +1376,10 @@ retryoutput:
 	 * and map the pages to be read into the kva
 	 */
 	pmap_qenter(kva, m, count);
+#if 0
 	printf("vnode: writing foff: %d, devoff: %d, size: %d\n",
 		foff, reqaddr, size);
+#endif
 
 	/*
 	 * next invalidate the incore vfs_bio data
