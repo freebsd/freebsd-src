@@ -181,32 +181,31 @@
  *	reported via raycontrol
  * start_join_done needs a restart in download_done - done
  *	now use netbsd style start up
+ * ioctls - done
+ *	use raycontrol
+ *	translation, BSS_ID, countrycode, changing mode
  *
  * shutdown
  * ifp->if_hdr length
  * _reset - check where needed
  * apm
- * ioctls - translation, BSS_ID, countrycode, changing mode
  * faster TX routine
  * more translations
  * infrastructure mode - maybe need some of the old stuff for checking?
  * differeniate between parameters set in attach and init
  * spinning in ray_issue_cmd
  * fix the XXX code in start_join_done
- *
- * callout handles need rationalising. can probably remove timerh and
- * use ccs_timerh for download and sj_timerh
- *
- * ray_update_params_done needs work
- *
  * make RAY_DEBUG a knob somehow - either sysctl or IFF_DEBUG
- *
+ * ray_update_params_done needs work
+ * do an rx level and antenna cache, the antenna can be used to set c_antenna
+ *   for tx
+ * callout handles need rationalising. can probably remove timerh and
+ *   use ccs_timerh for download and sj_timerh
  */
 
 #define XXX		0
 #define XXX_NETBSDTX	0
 #define XXX_PROM	0
-#define XXX_IOCTL	0
 
 /*
  * XXX build options - move to LINT
@@ -236,8 +235,6 @@
 #define RAY_NEED_CM_FIXUP	1	/* Needed until pccardd hacks for ed drivers are removed (pccardd forces 16bit memory and 0x4000 size) THIS IS A DANGEROUS THING TO USE IF YOU USE OTHER MEMORY MAPPED PCCARDS */
 
 #define RAY_NEED_CM_REMAPPING	1	/* Needed until pccard maps more than one memory area */
-
-#define RAY_DUMP_CM_ON_GIFMEDIA	1	/* Dump some common memory when the SIOCGIFMEDIA ioctl is issued - a nasty hack for debugging and will be placed by an ioctl and control program */
 
 #define RAY_RESET_TIMEOUT	(5*hz)	/* Timeout for resetting the card */
 
@@ -1042,9 +1039,9 @@ ray_init (xsc)
     see the ray_attach section for stuff to move
 #endif
     sc->sc_d.np_upd_param = 0;
-    bzero(sc->sc_d.np_bss_id, sizeof(sc->sc_d.np_bss_id));
+    bzero(sc->sc_d.np_bss_id, ETHER_ADDR_LEN);
     sc->sc_d.np_inited = 0;
-    sc->sc_d.np_def_txrate = RAY_MIB_BASIC_RATE_SET_2000K;
+    sc->sc_d.np_def_txrate = RAY_MIB_BASIC_RATE_SET_DEFAULT;
     sc->sc_d.np_encrypt = 0;
 
     sc->sc_d.np_ap_status = RAY_MIB_AP_STATUS_DEFAULT;
@@ -1325,7 +1322,11 @@ ray_ioctl (ifp, command, data)
 
 	case SIOCSRAYPARAM:
 	    RAY_DPRINTFN(30, ("ray%d: ioctl called for SRAYPARAM\n", sc->unit));
-	    error = EINVAL;
+	    if ((error = copyin(ifr->ifr_data, &pr, sizeof(pr))))
+		break;
+	    error = ray_user_update_params(sc, &pr);
+	    error2 = copyout(&pr, ifr->ifr_data, sizeof(pr));
+	    error = error2 ? error2 : error;
 	    break;
 
 	case SIOCGRAYPARAM:
@@ -1371,10 +1372,6 @@ ray_ioctl (ifp, command, data)
 
 	case SIOCGIFMEDIA:
 	    RAY_DPRINTFN(30, ("ray%d: ioctl called for GIFMEDIA\n", sc->unit));
-#if RAY_DUMP_CM_ON_GIFMEDIA
-	    RAY_DPRINTFN(10, ("ray%d: RAY_STATUS\n", sc->unit));
-	    RAY_DNET_DUMP(sc, ".");
-#endif /* RAY_DUMP_CM_ON_GIFMEDIA */
 	    error = EINVAL;
 	    break;
 
@@ -1497,8 +1494,8 @@ ray_start_sc (sc)
      * Reserve and fill the ccs - must do the length later.
      *
      * Even though build 4 and build 5 have different fields all these
-     * are common apart from tx_rate. This will be overwritten later if
-     * needed.
+     * are common apart from tx_rate. Neither the NetBSD driver or Linux
+     * driver bother to overwrite this for build 4 cards.
      */
     ccs = RAY_CCS_ADDRESS(i);
     bufp = RAY_TX_BASE + i * RAY_TX_BUF_SIZE;
@@ -1508,8 +1505,8 @@ ray_start_sc (sc)
     SRAM_WRITE_FIELD_1(sc, ccs, ray_cmd_tx, c_link, RAY_CCS_LINK_NULL);
     SRAM_WRITE_FIELD_2(sc, ccs, ray_cmd_tx, c_bufp, bufp);
     SRAM_WRITE_FIELD_1(sc, ccs, ray_cmd_tx, c_tx_rate, sc->sc_c.np_def_txrate);
-    SRAM_WRITE_FIELD_1(sc, ccs, ray_cmd_tx, c_apm_mode, 0);
-    SRAM_WRITE_FIELD_1(sc, ccs, ray_cmd_tx, c_antenna, 0);
+    SRAM_WRITE_FIELD_1(sc, ccs, ray_cmd_tx, c_apm_mode, 0); /* XXX */
+    SRAM_WRITE_FIELD_1(sc, ccs, ray_cmd_tx, c_antenna, 0); /* XXX */
     bufp += sizeof(struct ray_tx_phy_header);
     
     /*
@@ -1792,7 +1789,7 @@ ray_start_wrhdr (sc, eh, bufp)
 }
 
 /*
- * recevice a packet from the card
+ * receive a packet from the card
  */
 static void
 ray_rx (sc, rcs)
@@ -2963,9 +2960,9 @@ PUT2(MIB5(mib_cw_min),			  RAY_MIB_CW_MIN_V5);
      MIB5(mib_test_min_chan)		= RAY_MIB_TEST_MIN_CHAN_DEFAULT;
      MIB5(mib_test_max_chan)		= RAY_MIB_TEST_MAX_CHAN_DEFAULT;
      MIB5(mib_allow_probe_resp)		= RAY_MIB_ALLOW_PROBE_RESP_DEFAULT;
-     MIB5(mib_privacy_must_start)	= RAY_MIB_PRIVACY_MUST_START_DEFAULT;
-     MIB5(mib_privacy_can_join)		= sc->sc_d.np_priv_start;
-     MIB5(mib_basic_rate_set[0])	= sc->sc_d.np_priv_join;
+     MIB5(mib_privacy_must_start)	= sc->sc_d.np_priv_start;
+     MIB5(mib_privacy_can_join)		= sc->sc_d.np_priv_join;
+     MIB5(mib_basic_rate_set[0])	= sc->sc_d.np_def_txrate;
 
     if (!RAY_ECF_READY(sc)) {
     	printf("ray%d: ray_download_params something is already happening\n",
@@ -3376,6 +3373,48 @@ ray_user_update_params(struct ray_softc *sc, struct ray_param_req *pr)
 		return (EIO);
 	}
 
+	if (pr->r_paramid > RAY_MIB_MAX) {
+		return (EINVAL);
+	}
+
+	/*
+	 * Handle certain parameters specially
+	 */
+	switch (pr->r_paramid) {
+	case RAY_MIB_NET_TYPE:
+		if (sc->sc_c.np_net_type == *pr->r_data)
+			return (0);
+		sc->sc_d.np_net_type = *pr->r_data;
+		if (ifp->if_flags & IFF_RUNNING)
+			ray_start_join_net(sc);
+		return (0);
+
+	case RAY_MIB_SSID:
+		if (!bcmp(sc->sc_c.np_ssid, pr->r_data, IEEE80211_NWID_LEN))
+			return (0);
+		bcopy(pr->r_data, sc->sc_d.np_ssid, IEEE80211_NWID_LEN);
+		if (ifp->if_flags & IFF_RUNNING)
+			ray_start_join_net(sc);
+		return (0);
+
+	case RAY_MIB_BASIC_RATE_SET:
+		sc->sc_d.np_def_txrate = *pr->r_data;
+		break;
+
+	case RAY_MIB_AP_STATUS:	/* Unsupported */
+	case RAY_MIB_MAC_ADDR:	/* XXX Need interface up */
+	case RAY_MIB_PROMISC:	/* BPF */
+		return (EINVAL);
+		break;
+
+	default:
+		break;
+	}
+
+	if (pr->r_paramid > RAY_MIB_LASTUSER) {
+		return (EINVAL);
+	}
+
 	/* wait to be able to issue the command */
 	rv = 0;
 	while (ray_cmd_is_running(sc, SCP_UPD_UPDATEPARAMS) ||
@@ -3410,6 +3449,7 @@ static int
 ray_user_report_params(struct ray_softc *sc, struct ray_param_req *pr)
 {
 	struct ifnet *ifp;
+	int mib_sizes[] = RAY_MIB_SIZES;
 	int rv;
 
 	RAY_DPRINTFN(5, ("ray%d: ray_user_report_params\n", sc->unit));
@@ -3422,6 +3462,76 @@ ray_user_report_params(struct ray_softc *sc, struct ray_param_req *pr)
 		return (EIO);
 	}
 	
+	/* test for illegal values or immediate responses */
+	if (pr->r_paramid > RAY_MIB_LASTUSER) {
+	    	switch (pr->r_paramid) {
+
+		case  RAY_MIB_VERSION:
+			if (sc->sc_version == RAY_ECFS_BUILD_4)
+			    *pr->r_data = 4;
+			else
+			    *pr->r_data = 5;
+			break;
+
+		case  RAY_MIB_CUR_BSSID:
+		    	bcopy(sc->sc_c.np_bss_id, pr->r_data, ETHER_ADDR_LEN);
+			break;
+		case  RAY_MIB_CUR_INITED:
+		    	*pr->r_data = sc->sc_c.np_inited;
+			break;
+		case  RAY_MIB_CUR_DEF_TXRATE:
+		    	*pr->r_data = sc->sc_c.np_def_txrate;
+			break;
+		case  RAY_MIB_CUR_ENCRYPT:
+		    	*pr->r_data = sc->sc_c.np_encrypt;
+			break;
+		case  RAY_MIB_CUR_NET_TYPE:
+		    	*pr->r_data = sc->sc_c.np_net_type;
+			break;
+		case  RAY_MIB_CUR_SSID:
+		    	bcopy(sc->sc_c.np_ssid, pr->r_data, IEEE80211_NWID_LEN);
+			break;
+		case  RAY_MIB_CUR_PRIV_START:
+		    	*pr->r_data = sc->sc_c.np_priv_start;
+			break;
+		case  RAY_MIB_CUR_PRIV_JOIN:
+		    	*pr->r_data = sc->sc_c.np_priv_join;
+			break;
+
+		case  RAY_MIB_DES_BSSID:
+		    	bcopy(sc->sc_d.np_bss_id, pr->r_data, ETHER_ADDR_LEN);
+			break;
+		case  RAY_MIB_DES_INITED:
+		    	*pr->r_data = sc->sc_d.np_inited;
+			break;
+		case  RAY_MIB_DES_DEF_TXRATE:
+		    	*pr->r_data = sc->sc_d.np_def_txrate;
+			break;
+		case  RAY_MIB_DES_ENCRYPT:
+		    	*pr->r_data = sc->sc_d.np_encrypt;
+			break;
+		case  RAY_MIB_DES_NET_TYPE:
+		    	*pr->r_data = sc->sc_d.np_net_type;
+			break;
+		case  RAY_MIB_DES_SSID:
+		    	bcopy(sc->sc_d.np_ssid, pr->r_data, IEEE80211_NWID_LEN);
+			break;
+		case  RAY_MIB_DES_PRIV_START:
+		    	*pr->r_data = sc->sc_d.np_priv_start;
+			break;
+		case  RAY_MIB_DES_PRIV_JOIN:
+		    	*pr->r_data = sc->sc_d.np_priv_join;
+			break;
+
+		default:
+		    	return (EINVAL);
+			break;
+		}
+		pr->r_failcause = 0;
+		pr->r_len = mib_sizes[pr->r_paramid];
+		return (0);
+	}
+
 	/* wait to be able to issue the command */
 	rv = 0;
 	while (ray_cmd_is_running(sc, SCP_REPORTPARAMS)
