@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.139 1999/01/21 08:29:11 dillon Exp $
+ * $Id: vm_object.c,v 1.140 1999/01/21 09:46:55 dillon Exp $
  */
 
 /*
@@ -682,6 +682,8 @@ vm_object_deactivate_pages(object)
 }
 #endif
 
+#if 0
+
 /*
  *	vm_object_pmap_copy:
  *
@@ -711,10 +713,20 @@ vm_object_pmap_copy(object, start, end)
 	vm_object_clear_flag(object, OBJ_WRITEABLE);
 }
 
+#endif
+
 /*
- * Same as vm_object_pmap_copy_1, except range checking really
+ * Same as vm_object_pmap_copy, except range checking really
  * works, and is meant for small sections of an object.
+ *
+ * This code protects resident pages by making them read-only
+ * and is typically called on a fork or split when a page
+ * is converted to copy-on-write.  
+ *
+ * NOTE: If the page is already at VM_PROT_NONE, calling
+ * vm_page_protect will have no effect.
  */
+
 void
 vm_object_pmap_copy_1(object, start, end)
 	register vm_object_t object;
