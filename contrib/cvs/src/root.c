@@ -191,13 +191,13 @@ root_allow_add (arg)
 	{
 	    root_allow_size = 1;
 	    root_allow_vector =
-		(char **) malloc (root_allow_size * sizeof (char *));
+		(char **) xmalloc (root_allow_size * sizeof (char *));
 	}
 	else
 	{
 	    root_allow_size *= 2;
 	    root_allow_vector =
-		(char **) realloc (root_allow_vector,
+		(char **) xrealloc (root_allow_vector,
 				   root_allow_size * sizeof (char *));
 	}
 
@@ -212,7 +212,7 @@ error ENOMEM Virtual memory exhausted.\n");
 	    error_exit ();
 	}
     }
-    p = malloc (strlen (arg) + 1);
+    p = xmalloc (strlen (arg) + 1);
     if (p == NULL)
 	goto no_memory;
     strcpy (p, arg);

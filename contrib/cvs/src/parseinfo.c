@@ -234,7 +234,7 @@ parse_config (cvsroot)
 	return 0;
     parsed = 1;
 
-    infopath = malloc (strlen (cvsroot)
+    infopath = xmalloc (strlen (cvsroot)
 			+ sizeof (CVSROOTADM_CONFIG)
 			+ sizeof (CVSROOTADM)
 			+ 10);
@@ -385,7 +385,7 @@ warning: this CVS does not support PreservePermissions");
 	{
 	    if (strcmp (p, "all") != 0)
 	    {
-		logHistory=malloc(strlen (p) + 1);
+		logHistory=xmalloc(strlen (p) + 1);
 		strcpy (logHistory, p);
 	    }
 	}

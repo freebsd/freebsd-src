@@ -1,7 +1,22 @@
-Changes since 1.11.2:
+Changes since 1.11.4:
+
+* Fixed a security hole by which users with read only access could gain
+write access.  The Common Vulnerabilities and Exposures project (cve.mitre.org)
+has assigned the name CAN-2003-0015 to this issue.  See
+<http://cve.mitre.org/cgi-bin/cvename.cgi?name=CAN-2003-0015> for more
+information.
+
+Changes from 1.11.3 to 1.11.4:
+
+* Some minor changes to allow the code to compile on Windows platforms.
+
+Changes from 1.11.2 to 1.11.3:
 
 * When waiting for another user's lock, the message timestamps are now
 in UTC rather than the server's local time.
+
+* The options.h file is no longer used.  This fixes a bug that occurred when
+1.11.2 was compiled on Windows platforms.
 
 * We've standardized on Automake version 1.6.3 and Autoconf version 2.53.
 They are cleaner, less bug prone, and will hopfully allow me to start updating

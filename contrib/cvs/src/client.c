@@ -2175,7 +2175,7 @@ update_entries (data_arg, ent_list, short_pathname, filename)
 	 * date.  Create a dummy timestamp which will never compare
 	 * equal to the timestamp of the file.
 	 */
-	if (vn[0] == '\0' || vn[0] == '0' || vn[0] == '-')
+	if (vn[0] == '\0' || strcmp (vn, "0") == 0 || vn[0] == '-')
 	    local_timestamp = "dummy timestamp";
 	else if (local_timestamp == NULL)
 	{
@@ -3001,7 +3001,7 @@ send_a_repository (dir, repository, update_dir)
 		    && (strcmp (repository + repository_len - update_dir_len,
 				update_dir) == 0)
 		    /* TOPLEVEL_REPOS shouldn't be above current_parsed_root->directory */
-		    && ((repository_len - update_dir_len)
+		    && ((size_t)(repository_len - update_dir_len)
 			> strlen (current_parsed_root->directory)))
 		{
 		    /* The repository name contains UPDATE_DIR.  Set
@@ -5631,7 +5631,7 @@ send_files (argc, argv, local, aflag, flags)
     err = start_recursion
 	(send_fileproc, send_filesdoneproc,
 	 send_dirent_proc, send_dirleave_proc, (void *) &args,
-	 argc, argv, local, W_LOCAL, aflag, LOCK_NONE, (char *)NULL, 0);
+	 argc, argv, local, W_LOCAL, aflag, CVS_LOCK_NONE, (char *)NULL, 0);
     if (err)
 	error_exit ();
     if (toplevel_repos == NULL)
