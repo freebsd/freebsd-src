@@ -1,12 +1,9 @@
 /*
- * $FreeBSD$
  * This code is ported to FreeBSD by a group of Chinese FreeBSD Enthusiast:
  * Robin Hu <huxw@knight.6test.edu.cn>
  * Kang Liu <liukang@bjpu.edu.cn>
  * Xin Li <delphij@frontfree.net>
  * Shen Chuan-Hsing <statue@freebsd.sinica.edu.tw>
- *
- * $NetBSD: zh_CN.GB18030.src,v 1.2 2003/04/06 18:33:23 tshiozak Exp $ */
  *
  * Copyright (c)2003 Citrus Project,
  * All rights reserved.
@@ -31,6 +28,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 ENCODING	"GB18030"
