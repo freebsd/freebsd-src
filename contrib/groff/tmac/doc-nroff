@@ -97,13 +97,13 @@
 .\" NS doc-header-space global register
 .\" NS   the space between header and body
 .
-.nr doc-header-space 0
+.nr doc-header-space 0.5i
 .
 .
 .\" NS doc-footer-space global register
 .\" NS   the space between body and footer
 .
-.nr doc-footer-space 0
+.nr doc-footer-space 0.5i
 .
 .
 .\" NS doc-display-vertical global register
@@ -117,13 +117,8 @@
 .\" NS
 .\" NS modifies:
 .\" NS   doc-display-vertical
-.\" NS   doc-footer-space
-.\" NS   doc-header-space
 .
 .de doc-setup-page-layout
-.  nr doc-header-space .5i
-.  nr doc-footer-space .5i
-.
 .  ie r LL \
 .    ll \n[LL]u
 .  el \
