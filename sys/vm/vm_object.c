@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.16 1995/01/11 20:00:09 davidg Exp $
+ * $Id: vm_object.c,v 1.17 1995/01/11 20:19:20 davidg Exp $
  */
 
 /*
@@ -1319,17 +1319,22 @@ vm_object_collapse(object)
 		 */
 		if (object == NULL)
 			return;
-		if (object->paging_in_progress != 0) {
-			if (object->shadow)
-				vm_object_qcollapse(object);
-			return;
-		}
-		/*
-		 * There is a backing object, and
-		 */
 
+		/*
+		 * Make sure there is a backing object.
+		 */
 		if ((backing_object = object->shadow) == NULL)
 			return;
+
+		if (object->paging_in_progress != 0) {
+			if (backing_object) {
+				if (vm_object_lock_try(backing_object)) {
+					vm_object_qcollapse(object);
+					vm_object_unlock(backing_object);
+				}
+			}
+			return;
+		}
 
 		vm_object_lock(backing_object);
 		/*
