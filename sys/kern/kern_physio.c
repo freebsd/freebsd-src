@@ -41,6 +41,8 @@ physio(dev_t dev, struct uio *uio, int ioflag)
 	u_int iolen;
 	struct buf *bp;
 
+	/* We cannot trust the device driver to hold Giant for us */
+	mtx_lock(&Giant);
 	/* Keep the process UPAGES from being swapped. XXX: why ? */
 	PHOLD(curproc);
 
@@ -122,5 +124,6 @@ physio(dev_t dev, struct uio *uio, int ioflag)
 doerror:
 	relpbuf(bp, NULL);
 	PRELE(curproc);
+	mtx_unlock(&Giant);
 	return (error);
 }
