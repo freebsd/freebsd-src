@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.h	8.1 (Berkeley) 6/10/93
- *	$Id: if.h,v 1.52 1999/05/08 07:00:04 phk Exp $
+ *	$Id: if.h,v 1.53 1999/06/06 09:17:51 phk Exp $
  */
 
 #ifndef _NET_IF_H_
@@ -197,6 +197,20 @@ struct ifmediareq {
 	int	ifm_count;		/* # entries in ifm_ulist array */
 	int	*ifm_ulist;		/* media words */
 };
+
+/* 
+ * Structure used to retrieve aux status data from interfaces.
+ * kernel suppliers to this interface should respect the formatting
+ * needed by ifconfig(8): each line starts with a TAB and ends with
+ * a newline.  The canonical example to copy&past is in if_tun.c
+ */
+
+#define IFSTATMAX	800		/* 10 lines of text */
+struct ifstat {
+	char	ifs_name[IFNAMSIZ];		/* if name, e.g. "en0" */
+	char ascii[IFSTATMAX+1];
+};
+
 /*
  * Structure used in SIOCGIFCONF request.
  * Used to retrieve interface configuration
