@@ -816,7 +816,7 @@ ad_wait_init(struct mss_info *mss, int x)
 {
     	int arg = x, n = 0; /* to shut up the compiler... */
     	for (; x > 0; x--)
-		if ((n = io_rd(mss, MSS_INDEX)) & MSS_IDXBUSY) DELAY(10000);
+		if ((n = io_rd(mss, MSS_INDEX)) & MSS_IDXBUSY) DELAY(10);
 		else return n;
     	printf("AD_WAIT_INIT FAILED %d 0x%02x\n", arg, n);
     	return n;
