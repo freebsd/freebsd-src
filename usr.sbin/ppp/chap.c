@@ -549,7 +549,7 @@ chap_Success(struct authinfo *authp)
 #endif
     msg = "Welcome!!";
 
-  ChapOutput(authp->physical, CHAP_SUCCESS, authp->id, msg, strlen(msg) + 1,
+  ChapOutput(authp->physical, CHAP_SUCCESS, authp->id, msg, strlen(msg),
              NULL);
 
   authp->physical->link.lcp.auth_ineed = 0;
