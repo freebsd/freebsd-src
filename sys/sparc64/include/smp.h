@@ -64,7 +64,6 @@ struct ipi_cache_args {
 
 struct ipi_tlb_args {
 	u_int	ita_mask;
-	u_long	ita_tlb;
 	struct	pmap *ita_pmap;
 	u_long	ita_start;
 	u_long	ita_end;
@@ -157,7 +156,7 @@ ipi_tlb_context_demap(struct pmap *pm)
 }
 
 static __inline void *
-ipi_tlb_page_demap(u_int tlb, struct pmap *pm, vm_offset_t va)
+ipi_tlb_page_demap(struct pmap *pm, vm_offset_t va)
 {
 	struct ipi_tlb_args *ita;
 	u_int cpus;
@@ -168,7 +167,6 @@ ipi_tlb_page_demap(u_int tlb, struct pmap *pm, vm_offset_t va)
 		return (NULL);
 	ita = &ipi_tlb_args;
 	ita->ita_mask = cpus | PCPU_GET(cpumask);
-	ita->ita_tlb = tlb;
 	ita->ita_pmap = pm;
 	ita->ita_va = va;
 	cpu_ipi_selected(cpus, 0, (u_long)tl_ipi_tlb_page_demap, (u_long)ita);
@@ -229,7 +227,7 @@ ipi_tlb_context_demap(struct pmap *pm)
 }
 
 static __inline void *
-ipi_tlb_page_demap(u_int tlb, struct pmap *pm, vm_offset_t va)
+ipi_tlb_page_demap(struct pmap *pm, vm_offset_t va)
 {
 	return (NULL);
 }

@@ -94,8 +94,6 @@
 
 #define	TTE_GET_PA(tp) \
 	((tp)->tte_data & (TD_PA_MASK << TD_PA_SHIFT))
-#define	TTE_GET_TLB(tp) \
-	(((tp)->tte_data & TD_EXEC) ? (TLB_DTLB | TLB_ITLB) : TLB_DTLB)
 #define	TTE_GET_VA(tp) \
 	((tp)->tte_vpn << PAGE_SHIFT)
 #define	TTE_GET_PMAP(tp) \

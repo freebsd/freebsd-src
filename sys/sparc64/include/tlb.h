@@ -62,9 +62,6 @@
 #define	TLB_CTX_USER_MIN		(1)
 #define	TLB_CTX_USER_MAX		(8192)
 
-#define	TLB_DTLB			(1 << 0)
-#define	TLB_ITLB			(1 << 1)
-
 #define	MMU_SFSR_ASI_SHIFT		(16)
 #define	MMU_SFSR_FT_SHIFT		(7)
 #define	MMU_SFSR_E_SHIFT		(6)
@@ -88,11 +85,8 @@ extern struct tlb_entry *kernel_tlbs;
 extern int tlb_slot_count;
 
 void	tlb_context_demap(struct pmap *pm);
-void	tlb_page_demap(u_int tlb, struct pmap *pm, vm_offset_t va);
+void	tlb_page_demap(struct pmap *pm, vm_offset_t va);
 void	tlb_range_demap(struct pmap *pm, vm_offset_t start, vm_offset_t end);
 void	tlb_dump(void);
-
-#define	tlb_tte_demap(tp, pm) \
-	tlb_page_demap(TTE_GET_TLB(tp), pm, TTE_GET_VA(tp))
 
 #endif /* !_MACHINE_TLB_H_ */
