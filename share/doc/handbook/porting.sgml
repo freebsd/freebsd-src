@@ -55,7 +55,7 @@ the ports collection.
 </verb></tscreen>
 
       <p>to the proper place in the <tt>.c</tt> file.  We believe that every
-        system that defineds these to symbols has sys/param.h.  If you find
+        system that defines these to symbols has sys/param.h.  If you find
         a system that doesn't, we would like to know.  Please send mail to
         <htmlurl url='mailto:ports@FreeBSD.org' name='ports@FreeBSD.org'>.
 	  <p>Or you can use the GNU Autoconf style of doing this:
