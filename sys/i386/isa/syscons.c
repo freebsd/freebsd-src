@@ -3018,7 +3018,16 @@ next_code:
 		metas = 1;
 		break;
 	    case NEXT:
-		switch_scr(cur_console, (get_scr_num() + 1) % MAXCONS);
+		{
+		int next, this = get_scr_num();
+		for (next = this+1; next != this; next = (next+1)%MAXCONS) {
+		    struct tty *tp = VIRTUAL_TTY(next);
+		    if (tp->t_state & TS_ISOPEN) {
+			switch_scr(cur_console, next);
+			break;
+		    }
+		}
+		}
 		break;
 	    case BTAB:
 		return(BKEY);
