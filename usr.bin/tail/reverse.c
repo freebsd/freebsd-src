@@ -79,11 +79,7 @@ static void r_reg(FILE *, enum STYLE, off_t, struct stat *);
  *	NOREG	cyclically read input into a linked list of buffers
  */
 void
-reverse(fp, style, off, sbp)
-	FILE *fp;
-	enum STYLE style;
-	off_t off;
-	struct stat *sbp;
+reverse(FILE *fp, enum STYLE style, off_t off, struct stat *sbp)
 {
 	if (style != REVERSE && off == 0)
 		return;
@@ -112,11 +108,7 @@ reverse(fp, style, off, sbp)
  * r_reg -- display a regular file in reverse order by line.
  */
 static void
-r_reg(fp, style, off, sbp)
-	FILE *fp;
-	enum STYLE style;
-	off_t off;
-	struct stat *sbp;
+r_reg(FILE *fp, enum STYLE style, off_t off, struct stat *sbp)
 {
 	struct mapinfo map;
 	off_t curoff, size, lineend;
@@ -196,8 +188,7 @@ typedef struct bf {
  * user warned).
  */
 static void
-r_buf(fp)
-	FILE *fp;
+r_buf(FILE *fp)
 {
 	BF *mark, *tl, *tr;
 	int ch, len, llen;
