@@ -104,7 +104,7 @@ for the first time, callers should ensure that unused bits of the
 structure are set to zero.  On subsequent calls,
 .Fn rtalloc
 returns without performing a lookup if
-.Va ro->ro_rt
+.Fa ro->ro_rt
 is non-null and the
 .Dv RTF_UP
 flag is set in the route's
