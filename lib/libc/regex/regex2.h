@@ -35,6 +35,8 @@
  * SUCH DAMAGE.
  *
  *	@(#)regex2.h	8.4 (Berkeley) 3/20/94
+ *
+ * $FreeBSD$
  */
 
 /*
@@ -160,6 +162,9 @@ struct re_guts {
 	int ncategories;	/* how many character categories */
 	cat_t *categories;	/* ->catspace[-CHAR_MIN] */
 	char *must;		/* match must contain this string */
+	int moffset;		/* latest point at which must may be located */
+	int *charjump;		/* Boyer-Moore char jump table */
+	int *matchjump;		/* Boyer-Moore match jump table */
 	int mlen;		/* length of must */
 	size_t nsub;		/* copy of re_nsub */
 	int backrefs;		/* does it use back references? */

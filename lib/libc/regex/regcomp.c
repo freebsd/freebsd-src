@@ -35,6 +35,8 @@
  * SUCH DAMAGE.
  *
  *	@(#)regcomp.c	8.5 (Berkeley) 3/20/94
+ *
+ * $FreeBSD$
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
@@ -122,6 +124,9 @@ static void dofwd __P((struct parse *p, sopno pos, sop value));
 static void enlarge __P((struct parse *p, sopno size));
 static void stripsnug __P((struct parse *p, struct re_guts *g));
 static void findmust __P((struct parse *p, struct re_guts *g));
+static int altoffset __P((sop *scan, int offset, int mccs));
+static void computejumps __P((struct parse *p, struct re_guts *g));
+static void computematchjumps __P((struct parse *p, struct re_guts *g));
 static sopno pluscount __P((struct parse *p, struct re_guts *g));
 
 #ifdef __cplusplus
@@ -166,6 +171,9 @@ static int never = 0;		/* for use in asserts; shuts lint up */
 #else
 #define	never	0		/* some <assert.h>s have bugs too */
 #endif
+
+/* Macro used by computejump()/computematchjump() */
+#define MIN(a,b)	((a)<(b)?(a):(b))
 
 /*
  - regcomp - interface for parser and compilation
@@ -239,6 +247,9 @@ int cflags;
 	g->nbol = 0;
 	g->neol = 0;
 	g->must = NULL;
+	g->moffset = -1;
+	g->charjump = NULL;
+	g->matchjump = NULL;
 	g->mlen = 0;
 	g->nsub = 0;
 	g->ncategories = 1;	/* category 0 is "everything else" */
@@ -262,6 +273,17 @@ int cflags;
 	categorize(p, g);
 	stripsnug(p, g);
 	findmust(p, g);
+	/* only use Boyer-Moore algorithm if the pattern is bigger
+	 * than three characters
+	 */
+	if(g->mlen > 3) {
+		computejumps(p, g);
+		computematchjumps(p, g);
+		if(g->matchjump == NULL && g->charjump != NULL) {
+			free(g->charjump);
+			g->charjump = NULL;
+		}
+	}
 	g->nplus = pluscount(p, g);
 	g->magic = MAGIC2;
 	preg->re_nsub = g->nsub;
@@ -1675,13 +1697,23 @@ register struct re_guts *g;
 	register sop s;
 	register char *cp;
 	register sopno i;
+	int offset;
+	int cs, mccs;
 
 	/* avoid making error situations worse */
 	if (p->error != 0)
 		return;
 
+	/* Find out if we can handle OANYOF or not */
+	mccs = 0;
+	for (cs = 0; cs < g->ncsets; cs++)
+		if (g->sets[cs].multis != NULL)
+			mccs = 1;
+
 	/* find the longest OCHAR sequence in strip */
 	newlen = 0;
+	offset = 0;
+	g->moffset = 0;
 	scan = g->strip + 1;
 	do {
 		s = *scan++;
@@ -1697,6 +1729,7 @@ register struct re_guts *g;
 			break;
 		case OQUEST_:		/* things that must be skipped */
 		case OCH_:
+			offset = altoffset(scan, offset, mccs);
 			scan--;
 			do {
 				scan += OPND(s);
@@ -1709,23 +1742,97 @@ register struct re_guts *g;
 				}
 			} while (OP(s) != O_QUEST && OP(s) != O_CH);
 			/* fallthrough */
-		default:		/* things that break a sequence */
+		case OBOW:		/* things that break a sequence */
+		case OEOW:
+		case OBOL:
+		case OEOL:
+		case O_QUEST:
+		case O_CH:
+		case OEND:
 			if (newlen > g->mlen) {		/* ends one */
 				start = newstart;
 				g->mlen = newlen;
+				if (offset > -1) {
+					g->moffset += offset;
+					offset = newlen;
+				} else
+					g->moffset = offset;
+			} else {
+				if (offset > -1)
+					offset += newlen;
 			}
+			newlen = 0;
+			break;
+		case OANY:
+			if (newlen > g->mlen) {		/* ends one */
+				start = newstart;
+				g->mlen = newlen;
+				if (offset > -1) {
+					g->moffset += offset;
+					offset = newlen;
+				} else
+					g->moffset = offset;
+			} else {
+				if (offset > -1)
+					offset += newlen;
+			}
+			if (offset > -1)
+				offset++;
+			newlen = 0;
+			break;
+		case OANYOF:		/* may or may not invalidate offset */
+			/* First, everything as OANY */
+			if (newlen > g->mlen) {		/* ends one */
+				start = newstart;
+				g->mlen = newlen;
+				if (offset > -1) {
+					g->moffset += offset;
+					offset = newlen;
+				} else
+					g->moffset = offset;
+			} else {
+				if (offset > -1)
+					offset += newlen;
+			}
+			if (offset > -1)
+				offset++;
+			newlen = 0;
+			/* And, now, if we found out we can't deal with
+			 * it, make offset = -1.
+			 */
+			if (mccs)
+				offset = -1;
+			break;
+		default:
+			/* Anything here makes it impossible or too hard
+			 * to calculate the offset -- so we give up;
+			 * save the last known good offset, in case the
+			 * must sequence doesn't occur later.
+			 */
+			if (newlen > g->mlen) {		/* ends one */
+				start = newstart;
+				g->mlen = newlen;
+				if (offset > -1)
+					g->moffset += offset;
+				else
+					g->moffset = offset;
+			}
+			offset = -1;
 			newlen = 0;
 			break;
 		}
 	} while (OP(s) != OEND);
 
-	if (g->mlen == 0)		/* there isn't one */
+	if (g->mlen == 0) {		/* there isn't one */
+		g->moffset = -1;
 		return;
+	}
 
 	/* turn it into a character string */
 	g->must = malloc((size_t)g->mlen + 1);
 	if (g->must == NULL) {		/* argh; just forget it */
 		g->mlen = 0;
+		g->moffset = -1;
 		return;
 	}
 	cp = g->must;
@@ -1738,6 +1845,210 @@ register struct re_guts *g;
 	}
 	assert(cp == g->must + g->mlen);
 	*cp++ = '\0';		/* just on general principles */
+}
+
+/*
+ - altoffset - choose biggest offset among multiple choices
+ == static int altoffset(sop *scan, int offset, int mccs);
+ *
+ * Compute, recursively if necessary, the largest offset among multiple
+ * re paths.
+ */
+static int
+altoffset(scan, offset, mccs)
+sop *scan;
+int offset;
+int mccs;
+{
+	int largest;
+	int try;
+	sop s;
+
+	/* If we gave up already on offsets, return */
+	if (offset == -1)
+		return -1;
+
+	largest = 0;
+	try = 0;
+	s = *scan++;
+	while (OP(s) != O_QUEST && OP(s) != O_CH) {
+		switch (OP(s)) {
+		case OOR1:
+			if (try > largest)
+				largest = try;
+			try = 0;
+			break;
+		case OQUEST_:
+		case OCH_:
+			try = altoffset(scan, try, mccs);
+			if (try == -1)
+				return -1;
+			scan--;
+			do {
+				scan += OPND(s);
+				s = *scan;
+				if (OP(s) != O_QUEST && OP(s) != O_CH &&
+							OP(s) != OOR2)
+					return -1;
+			} while (OP(s) != O_QUEST && OP(s) != O_CH);
+			/* We must skip to the next position, or we'll
+			 * leave altoffset() too early.
+			 */
+			scan++;
+			break;
+		case OANYOF:
+			if (mccs)
+				return -1;
+		case OCHAR:
+		case OANY:
+			try++;
+		case OBOW:
+		case OEOW:
+		case OLPAREN:
+		case ORPAREN:
+		case OOR2:
+			break;
+		default:
+			try = -1;
+			break;
+		}
+		if (try == -1)
+			return -1;
+		s = *scan++;
+	}
+
+	if (try > largest)
+		largest = try;
+
+	return largest+offset;
+}
+
+/*
+ - computejumps - compute char jumps for BM scan
+ == static void computejumps(register struct parse *p, register struct re_guts *g);
+ *
+ * This algorithm assumes g->must exists and is has size greater than
+ * zero. It's based on the algorithm found on Computer Algorithms by
+ * Sara Baase.
+ *
+ * A char jump is the number of characters one needs to jump based on
+ * the value of the character from the text that was mismatched.
+ */
+static void
+computejumps(p, g)
+struct parse *p;
+struct re_guts *g;
+{
+	int ch;
+	int mindex;
+
+	/* Avoid making errors worse */
+	if (p->error != 0)
+		return;
+
+	g->charjump = (int*) malloc((NC + 1) * sizeof(int));
+	if (g->charjump == NULL)	/* Not a fatal error */
+		return;
+	/* Adjust for signed chars, if necessary */
+	g->charjump = &g->charjump[-(CHAR_MIN)];
+
+	/* If the character does not exist in the pattern, the jump
+	 * is equal to the number of characters in the pattern.
+	 */
+	for (ch = CHAR_MIN; ch < (CHAR_MAX + 1); ch++)
+		g->charjump[ch] = g->mlen;
+
+	/* If the character does exist, compute the jump that would
+	 * take us to the last character in the pattern equal to it
+	 * (notice that we match right to left, so that last character
+	 * is the first one that would be matched).
+	 */
+	for (mindex = 0; mindex < g->mlen; mindex++)
+		g->charjump[g->must[mindex]] = g->mlen - mindex - 1;
+}
+
+/*
+ - computematchjumps - compute match jumps for BM scan
+ == static void computematchjumps(register struct parse *p, register struct re_guts *g);
+ *
+ * This algorithm assumes g->must exists and is has size greater than
+ * zero. It's based on the algorithm found on Computer Algorithms by
+ * Sara Baase.
+ *
+ * A match jump is the number of characters one needs to advance based
+ * on the already-matched suffix.
+ * Notice that all values here are minus (g->mlen-1), because of the way
+ * the search algorithm works.
+ */
+static void
+computematchjumps(p, g)
+struct parse *p;
+struct re_guts *g;
+{
+	int mindex;		/* General "must" iterator */
+	int suffix;		/* Keeps track of matching suffix */
+	int ssuffix;		/* Keeps track of suffixes' suffix */
+	int* pmatches;		/* pmatches[k] points to the next i
+				 * such that i+1...mlen is a substring
+				 * of k+1...k+mlen-i-1
+				 */
+
+	/* Avoid making errors worse */
+	if (p->error != 0)
+		return;
+
+	pmatches = (int*) malloc(g->mlen * sizeof(unsigned int));
+	if (pmatches == NULL) {
+		g->matchjump = NULL;
+		return;
+	}
+
+	g->matchjump = (int*) malloc(g->mlen * sizeof(unsigned int));
+	if (g->matchjump == NULL)	/* Not a fatal error */
+		return;
+
+	/* Set maximum possible jump for each character in the pattern */
+	for (mindex = 0; mindex < g->mlen; mindex++)
+		g->matchjump[mindex] = 2*g->mlen - mindex - 1;
+
+	/* Compute pmatches[] */
+	for (mindex = g->mlen - 1, suffix = g->mlen; mindex >= 0;
+	    mindex--, suffix--) {
+		pmatches[mindex] = suffix;
+
+		/* If a mismatch is found, interrupting the substring,
+		 * compute the matchjump for that position. If no
+		 * mismatch is found, then a text substring mismatched
+		 * against the suffix will also mismatch against the
+		 * substring.
+		 */
+		while (suffix < g->mlen
+		    && g->must[mindex] != g->must[suffix]) {
+			g->matchjump[suffix] = MIN(g->matchjump[suffix],
+			    g->mlen - mindex - 1);
+			suffix = pmatches[suffix];
+		}
+	}
+
+	/* Compute the matchjump up to the last substring found to jump
+	 * to the beginning of the largest must pattern prefix matching
+	 * it's own suffix.
+	 */
+	for (mindex = 0; mindex <= suffix; mindex++)
+		g->matchjump[mindex] = MIN(g->matchjump[mindex],
+		    g->mlen + suffix - mindex);
+
+        ssuffix = pmatches[suffix];
+        while (suffix < g->mlen) {
+                while (suffix <= ssuffix && suffix < g->mlen) {
+                        g->matchjump[suffix] = MIN(g->matchjump[suffix],
+			    g->mlen + ssuffix - suffix);
+                        suffix++;
+                }
+                ssuffix = pmatches[ssuffix];
+        }
+
+	free(pmatches);
 }
 
 /*

@@ -35,6 +35,8 @@
  * SUCH DAMAGE.
  *
  *	@(#)regfree.c	8.3 (Berkeley) 3/20/94
+ *
+ * $FreeBSD$
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
@@ -44,6 +46,7 @@ static char sccsid[] = "@(#)regfree.c	8.3 (Berkeley) 3/20/94";
 #include <sys/types.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <limits.h>
 #include <regex.h>
 
 #include "utils.h"
@@ -76,5 +79,9 @@ regex_t *preg;
 		free((char *)g->setbits);
 	if (g->must != NULL)
 		free(g->must);
+	if (g->charjump != NULL)
+		free(&g->charjump[CHAR_MIN]);
+	if (g->matchjump != NULL)
+		free(g->matchjump);
 	free((char *)g);
 }
