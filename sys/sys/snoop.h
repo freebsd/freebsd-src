@@ -24,7 +24,7 @@
 #include <sys/ioccom.h>
 
 /*
- * Theese are snoop io controls
+ * These are snoop io controls
  * SNPSTTY accepts 'struct snptty' as input.
  * If ever type or  unit set to -1,snoop device
  * detached from its current tty.
@@ -34,7 +34,7 @@
 #define SNPGTTY       _IOR('T', 89, dev_t)
 
 /*
- * Theese values would be returned by FIONREAD ioctl
+ * These values would be returned by FIONREAD ioctl
  * instead of number of characters in buffer in case
  * of specific errors.
  */
