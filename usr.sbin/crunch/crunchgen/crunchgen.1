@@ -35,6 +35,7 @@
 .Op Fl foql
 .Op Fl h Ar makefile-header-name
 .Op Fl m Ar makefile-name
+.Op Fl p Ar obj-prefix
 .Op Fl c Ar c-file-name
 .Op Fl e Ar exec-file-name
 .Op Ar conf-file
@@ -145,6 +146,16 @@ The default name is
 Add
 .Dq Li make obj
 rules to each program make target.
+.It Fl p Ar obj-prefix
+Set the pathname to be prepended to the
+.Dq srcdir
+when computing the
+.Dq objdir .
+If this option is not present, then the prefix used
+is the content of the
+.Dq MAKEOBJDIRPREFIX
+environment variable, or
+.Dq /usr/obj .
 .It Fl q
 Quiet operation.
 Status messages are suppressed.
@@ -224,11 +235,17 @@ Set the
 .Dq obj
 directory for
 .Ar progname .
-This is normally calculated by looking for a directory named
-.Pa obj
-under the
-.Ic srcdir ,
-and if that is not found, the
+The
+.Dq obj
+directory is normally calculated by looking for a directory
+whose name is that of the source directory prepended by
+one of the following components, in order of priority:
+the -p argument passed to the command line; or,
+the value of the
+.Dq MAKEOBJDIRPREFIX
+environment variable, or
+.Dq /usr/obj .
+If the directory is not found, the
 .Ic srcdir
 itself becomes the
 .Ic objdir .
