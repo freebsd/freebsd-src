@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.165 1996/09/06 23:08:09 phk Exp $
+ *  $Id: syscons.c,v 1.166 1996/09/06 23:35:54 pst Exp $
  */
 
 #include "sc.h"
@@ -2215,7 +2215,7 @@ scinit(void)
     was = *cp;
     *cp = (u_short) 0xA55A;
     if (*cp == 0xA55A) {
-	Crtat = (u_short *)cp;
+	Crtat = (u_short *)CGA_BUF;
 	crtc_addr = COLOR_BASE;
     }
     *cp = was;
