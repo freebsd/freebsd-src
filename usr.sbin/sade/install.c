@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.239 1999/07/06 08:45:36 jkh Exp $
+ * $Id: install.c,v 1.240 1999/07/06 09:19:35 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -1031,6 +1031,7 @@ installVarDefaults(dialogMenuItem *self)
     variable_set2(VAR_TAPE_BLOCKSIZE,		DEFAULT_TAPE_BLOCKSIZE, 0);
     variable_set2(VAR_INSTALL_ROOT,		"/", 0);
     variable_set2(VAR_INSTALL_CFG,		"install.cfg", 0);
+    variable_set2(VAR_TRY_DHCP,			"NO", 0);	/* For now */
     cp = getenv("EDITOR");
     if (!cp)
 	cp = "/usr/bin/ee";
@@ -1039,7 +1040,7 @@ installVarDefaults(dialogMenuItem *self)
     variable_set2(VAR_BROWSER_PACKAGE,		"lynx", 0);
     variable_set2(VAR_BROWSER_BINARY,		"/usr/local/bin/lynx", 0);
     variable_set2(VAR_FTP_STATE,		"passive", 0);
-    variable_set2(VAR_NFS_SECURE,		"YES", 0);
+    variable_set2(VAR_NFS_SECURE,		"NO", -1);
     variable_set2(VAR_PKG_TMPDIR,		"/usr/tmp", 0);
     variable_set2(VAR_MEDIA_TIMEOUT,		itoa(MEDIA_TIMEOUT), 0);
     if (getpid() != 1)
