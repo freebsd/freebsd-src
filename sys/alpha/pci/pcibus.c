@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pcibus.c,v 1.5 1998/10/06 14:18:40 dfr Exp $
+ * $Id: pcibus.c,v 1.6 1998/11/15 18:25:16 dfr Exp $
  *
  */
 
@@ -145,7 +145,7 @@ intr_create(void *dev_instance, int irq, inthand2_t handler, void *arg,
 	int zero = 0;
 	void *cookie;
 
-	res = BUS_ALLOC_RESOURCE(pcib, pcib, SYS_RES_IRQ, &zero,
+	res = BUS_ALLOC_RESOURCE(pcib, NULL, SYS_RES_IRQ, &zero,
 				irq, irq, 1, RF_SHAREABLE | RF_ACTIVE);
 	if (BUS_SETUP_INTR(pcib, pcib, res, (driver_intr_t *)handler, arg, &cookie))
 		return 0;
