@@ -2109,3 +2109,12 @@ alpha_fpstate_switch(struct proc *p)
 
 	p->p_md.md_flags |= MDP_FPUSED;
 }
+
+/*
+ * dummy version of read_random() until the random driver is ported.
+ */
+int
+read_random()
+{
+	return (0);
+}
