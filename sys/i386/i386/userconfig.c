@@ -40,7 +40,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.27 1995/05/08 06:14:16 jkh Exp $
+ *      $Id: userconfig.c,v 1.28 1995/05/30 07:59:44 rgrimes Exp $
  */
 
 #include <sys/param.h>
@@ -145,7 +145,8 @@ static Cmd CmdList[] = {
     { "ir",	set_device_irq,		int_parms },	/* irq dev #	*/
     { "l",	list_devices,		NULL },		/* ls, list	*/
     { "po",	set_device_ioaddr,	int_parms },	/* port dev addr */
-    { "pr",	device_probe,		dev_parms },	/* probe dev */
+    { "pr",	device_probe,		dev_parms },	/* probe dev	*/
+    { "res",	(CmdFunc)cpu_reset,	NULL },		/* reset CPU	*/
     { "q", 	quitfunc, 		NULL },		/* quit		*/
 #if NSCBUS > 0
     { "s",	list_scsi,		NULL },		/* scsi */
@@ -400,6 +401,7 @@ helpfunc(CmdParm *parms)
     printf("probe <devname>\t\tReturn results of device probe\n");
     printf("disable <devname>\tDisable device (will not be probed)\n");
     printf("quit\t\t\tExit this configuration utility\n");
+    printf("reset\t\t\tReset CPU\n");
     printf("help\t\t\tThis message\n\n");
     printf("Commands may be abbreviated to a unique prefix\n");
     return 0;
