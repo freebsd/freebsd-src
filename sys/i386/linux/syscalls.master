@@ -1,4 +1,4 @@
-	$Id: syscalls.master,v 1.16.2.1 1999/08/17 09:34:29 marcel Exp $
+	$Id: syscalls.master,v 1.16.2.2 1999/08/17 13:14:35 marcel Exp $
 
 ;	@(#)syscalls.master	8.1 (Berkeley) 7/19/93
 ; System call name/number master file (or rather, slave, from LINUX).
@@ -224,8 +224,9 @@
 154	NOPROTO	POSIX	{ int sched_setparam (pid_t pid, const struct sched_param *param); }
 155	NOPROTO	POSIX	{ int sched_getparam (pid_t pid, struct sched_param *param); }
 
-156	NOPROTO	POSIX	{ int sched_setscheduler (pid_t pid, int policy, const struct sched_param *param); }
-157	NOPROTO	POSIX	{ int sched_getscheduler (pid_t pid); }
+156	STD	POSIX	{ int linux_sched_setscheduler(pid_t pid, int policy, \
+				const struct sched_param *param); }
+157	STD	POSIX	{ int linux_sched_getscheduler(pid_t pid); }
 
 158	NOPROTO	POSIX	{ int sched_yield (void); }
 159	NOPROTO	POSIX	{ int sched_get_priority_max (int policy); }
