@@ -293,7 +293,7 @@ check_label(struct sun_disklabel *sl)
 		if (havevtoc) {
 			if (sl->sl_vtoc_map[i].svtoc_tag == VTOC_BACKUP) {
 				warnx("only partition c is allowed to have "
-				      "tag \"backup\"");
+				    "tag \"backup\"");
 				return (1);
 			}
 		}
@@ -573,18 +573,18 @@ parse_label(struct sun_disklabel *sl, const char *file)
 		if (strncmp(bp, "text:", strlen("text:")) == 0) {
 			bp += strlen("text:");
 			rv = sscanf(bp,
-				    " %s cyl %u alt %u hd %u sec %u",
-				    text, &cyl, &alt, &hd, &sec);
+			    " %s cyl %u alt %u hd %u sec %u",
+			    text, &cyl, &alt, &hd, &sec);
 			if (rv != 5) {
 				warnx("%s, line %d: text label does not "
-				      "contain required fields",
-				      file, line + 1);
+				    "contain required fields",
+				    file, line + 1);
 				fclose(fp);
 				return (1);
 			}
 			if (alt != 2) {
 				warnx("%s, line %d: # alt must be equal 2",
-				      file, line + 1);
+				    file, line + 1);
 				fclose(fp);
 				return (1);
 			}
@@ -593,7 +593,7 @@ parse_label(struct sun_disklabel *sl, const char *file)
 				nr = cyl;
 			unreasonable:
 				warnx("%s, line %d: # %s %d unreasonable",
-				      file, line + 1, what, nr);
+				    file, line + 1, what, nr);
 				fclose(fp);
 				return (1);
 			}
@@ -609,14 +609,14 @@ parse_label(struct sun_disklabel *sl, const char *file)
 			}
 			if (mediasize == 0)
 				warnx("unit size unknown, no sector count "
-				      "check could be done");
+				    "check could be done");
 			else if ((uintmax_t)(cyl + alt) * sec * hd >
 				 (uintmax_t)mediasize / sectorsize) {
 				warnx("%s, line %d: sector count %ju exceeds "
-				      "unit size %ju",
-				      file, line + 1,
-				      (uintmax_t)(cyl + alt) * sec * hd,
-				      (uintmax_t)mediasize / sectorsize);
+				    "unit size %ju",
+				    file, line + 1,
+				    (uintmax_t)(cyl + alt) * sec * hd,
+				    (uintmax_t)mediasize / sectorsize);
 				fclose(fp);
 				return (1);
 			}
@@ -627,8 +627,8 @@ parse_label(struct sun_disklabel *sl, const char *file)
 			sl1.sl_ntracks = hd;
 			memset(sl1.sl_text, 0, sizeof(sl1.sl_text));
 			snprintf(sl1.sl_text, sizeof(sl1.sl_text),
-				 "%s cyl %u alt %u hd %u sec %u",
-				 text, cyl, alt, hd, sec);
+			    "%s cyl %u alt %u hd %u sec %u",
+			    text, cyl, alt, hd, sec);
 			continue;
 		}
 		if (strlen(bp) < 2 || bp[1] != ':') {
@@ -636,7 +636,7 @@ parse_label(struct sun_disklabel *sl, const char *file)
 			continue;
 		}
 		rv = sscanf(bp, "%c: %30s %30s %30s %30s",
-			    &part, size, offset, tag, flag);
+		    &part, size, offset, tag, flag);
 		if (rv < 3) {
 		syntaxerr:
 			warnx("%s: syntax error on line %d",
@@ -760,8 +760,8 @@ print_label(struct sun_disklabel *sl, const char *disk, FILE *out)
 	    secpercyl);
 	if (eflag)
 		fprintf(out,
-			"# max sectors/unit (including alt cylinders): %ju\n",
-			(uintmax_t)mediasize / sectorsize);
+		    "# max sectors/unit (including alt cylinders): %ju\n",
+		    (uintmax_t)mediasize / sectorsize);
 	fprintf(out,
 "sectors/unit: %ju\n"
 "\n"
@@ -776,8 +776,8 @@ print_label(struct sun_disklabel *sl, const char *disk, FILE *out)
 "  Use %%d%c, %%dK, %%dM or %%dG to specify in %s,\n"
 "# kilobytes, megabytes or gigabytes respectively, or '*' to specify rest of\n"
 "# disk.\n",
-				cflag? 's': 'c',
-				cflag? "sectors": "cylinders");
+			    cflag? 's': 'c',
+			    cflag? "sectors": "cylinders");
 		else
 			putc('\n', out);
 		fprintf(out, "# Offset is in cylinders.");
@@ -804,21 +804,23 @@ print_label(struct sun_disklabel *sl, const char *disk, FILE *out)
 			continue;
 		if (hflag) {
 			fprintf(out, "  %c: %10s",
-				'a' + i,
-				make_h_number((uintmax_t)sl->sl_part[i].sdkp_nsectors * 512));
+			    'a' + i,
+			    make_h_number((uintmax_t)
+				sl->sl_part[i].sdkp_nsectors * 512));
 			fprintf(out, " %10s",
-				make_h_number((uintmax_t)sl->sl_part[i].sdkp_cyloffset *
-					      512 * secpercyl));
+			    make_h_number((uintmax_t)
+				sl->sl_part[i].sdkp_cyloffset * 512
+				* secpercyl));
 		} else {
 			fprintf(out, "  %c: %10ju %10u",
-				'a' + i,
-				sl->sl_part[i].sdkp_nsectors / (cflag? secpercyl: 1),
-				sl->sl_part[i].sdkp_cyloffset);
+			    'a' + i,
+			    sl->sl_part[i].sdkp_nsectors / (cflag? secpercyl: 1),
+			    sl->sl_part[i].sdkp_cyloffset);
 		}
 		if (havevtoc)
 			fprintf(out, " %11s %5s",
-				tagname(sl->sl_vtoc_map[i].svtoc_tag),
-				flagname(sl->sl_vtoc_map[i].svtoc_flag));
+			    tagname(sl->sl_vtoc_map[i].svtoc_tag),
+			    flagname(sl->sl_vtoc_map[i].svtoc_flag));
 		putc('\n', out);
 	}
 }
