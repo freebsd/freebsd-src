@@ -55,6 +55,7 @@
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/poll.h>
+#include <sys/resourcevar.h>
 #include <sys/selinfo.h>
 #include <sys/sysctl.h>
 #include <sys/sysent.h>
@@ -857,14 +858,21 @@ poll(p, uap)
 	caddr_t bits;
 	char smallbits[32 * sizeof(struct pollfd)];
 	struct timeval atv, rtv, ttv;
-	int s, ncoll, error = 0, timo;
+	int s, ncoll, error = 0, timo, lim, nfds;
 	size_t ni;
 
-	if (SCARG(uap, nfds) > p->p_fd->fd_nfiles) {
-		/* forgiving; slightly wrong */
-		SCARG(uap, nfds) = p->p_fd->fd_nfiles;
-	}
-	ni = SCARG(uap, nfds) * sizeof(struct pollfd);
+	nfds = SCARG(uap, nfds);
+	/*
+	 * This is kinda bogus.  We have fd limits, but that doesn't
+	 * map too well to the size of the pfd[] array.  Make sure
+	 * we let the process use at least FD_SETSIZE entries.
+	 * The specs say we only have to support OPEN_MAX entries (64).
+	 */
+	lim = min((int)p->p_rlimit[RLIMIT_NOFILE].rlim_cur, maxfilesperproc);
+	lim = min(lim, FD_SETSIZE);
+	if (nfds > lim)
+		return (EINVAL);
+	ni = nfds * sizeof(struct pollfd);
 	if (ni > sizeof(smallbits))
 		bits = malloc(ni, M_TEMP, M_WAITOK);
 	else
@@ -891,7 +899,7 @@ retry:
 	ncoll = nselcoll;
 	p->p_flag |= P_SELECT;
 	PROC_UNLOCK(p);
-	error = pollscan(p, (struct pollfd *)bits, SCARG(uap, nfds));
+	error = pollscan(p, (struct pollfd *)bits, nfds);
 	PROC_LOCK(p);
 	if (error || p->p_retval[0])
 		goto done;
