@@ -21,12 +21,16 @@ INFOSECTION?=   Miscellaneous
 
 IFILENS= ${INFO:S/$/.info/g}
 
+.if !defined(NOINFO)
 .if !defined(NOINFOCOMPRESS)
 IFILES=	${INFO:S/$/.info.gz/g}
 all: ${IFILES} _SUBDIR
 .else
 IFILES=	${IFILENS}
 all: ${IFILES} _SUBDIR
+.endif
+.else
+all:
 .endif
 
 GZIPCMD?=	gzip
@@ -68,9 +72,13 @@ depend: _SUBDIR
 clean: _SUBDIR
 	rm -f ${INFO:S/$/.info*/g} Errs errs mklog ${CLEANFILES}
 
+.if !defined(NOINFO)
 install: ${INSTALLINFODIRS} _SUBDIR
 	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
 		${IFILES} ${DESTDIR}${BINDIR}
+.else
+install:
+.endif
 
 .if !target(maninstall)
 maninstall: _SUBDIR
