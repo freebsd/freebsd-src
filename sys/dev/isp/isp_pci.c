@@ -304,9 +304,7 @@ isp_pci_attach(device_t dev)
 	struct ispmdvec *mdvp;
 	bus_size_t lim;
 	char *sptr;
-#ifdef	ISP_SMPLOCK
 	int locksetup = 0;
-#endif
 
 	/*
 	 * Figure out if we're supposed to skip this one.
@@ -611,23 +609,19 @@ isp_pci_attach(device_t dev)
         (void) resource_int_value(device_get_name(dev), device_get_unit(dev),
             "debug", &isp_debug);
 
-#ifdef	ISP_SMPLOCK
 	/* Make sure the lock is set up. */
 	mtx_init(&isp->isp_osinfo.lock, "isp", MTX_DEF);
 	locksetup++;
 
-	if (bus_setup_intr(dev, irq, INTR_TYPE_CAM | INTR_MPSAFE | INTR_ENTROPY,
-	    isp_pci_intr, isp, &pcs->ih)) {
-		device_printf(dev, "could not setup interrupt\n");
-		goto bad;
-	}
+#ifdef	ISP_SMPLOCK
+#define	INTR_FLAGS	INTR_TYPE_CAM | INTR_MPSAFE | INTR_ENTROPY
 #else
-	if (bus_setup_intr(dev, irq, INTR_TYPE_CAM | INTR_ENTROPY,
-	    isp_pci_intr, isp, &pcs->ih)) {
+#define	INTR_FLAGS	INTR_TYPE_CAM | INTR_ENTROPY
+#endif
+	if (bus_setup_intr(dev, irq, INTR_FLAGS, isp_pci_intr, isp, &pcs->ih)) {
 		device_printf(dev, "could not setup interrupt\n");
 		goto bad;
 	}
-#endif
 
 	/*
 	 * Set up logging levels.
@@ -674,11 +668,9 @@ bad:
 		(void) bus_teardown_intr(dev, irq, pcs->ih);
 	}
 
-#ifdef	ISP_SMPLOCK
 	if (locksetup && isp) {
 		mtx_destroy(&isp->isp_osinfo.lock);
 	}
-#endif
 
 	if (irq) {
 		(void) bus_release_resource(dev, SYS_RES_IRQ, iqd, irq);
@@ -1280,7 +1272,7 @@ tdma_mkfc(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 	u_int16_t scsi_status, send_status, send_sense, handle;
 	u_int32_t totxfr, datalen;
 	u_int8_t sense[QLTM_SENSELEN];
-	int nctios;
+	int nctios, j;
 
 	mp = (mush_t *) arg;
 	if (error) {
@@ -1309,9 +1301,9 @@ tdma_mkfc(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 		 */
 		cto->ct_flags |= CT2_NO_DATA;
 		if (cto->ct_resid > 0)
-			cto->ct_flags |= CT2_DATA_UNDER;
+			cto->rsp.m1.ct_scsi_status |= CT2_DATA_UNDER;
 		else if (cto->ct_resid < 0)
-			cto->ct_flags |= CT2_DATA_OVER;
+			cto->rsp.m1.ct_scsi_status |= CT2_DATA_OVER;
 		cto->ct_seg_count = 0;
 		cto->ct_reloff = 0;
 		ISP_TDQE(mp->isp, "dma2_tgt_fc[no data]", *mp->iptrp, cto);
@@ -1351,9 +1343,10 @@ tdma_mkfc(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 
 	handle = cto->ct_syshandle;
 	cto->ct_syshandle = 0;
+	send_status = (cto->ct_flags & CT2_SENDSTATUS) != 0;
 
-	if ((send_status = (cto->ct_flags & CT2_SENDSTATUS)) != 0) {
-		cto->ct_flags &= ~CT2_SENDSTATUS;
+	if (send_status) {
+		cto->ct_flags &= ~(CT2_SENDSTATUS|CT2_CCINCR);
 
 		/*
 		 * Preserve residual, which is actually the total count.
@@ -1385,7 +1378,7 @@ tdma_mkfc(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 
 	totxfr = cto->ct_resid = 0;
 	cto->rsp.m0.ct_scsi_status = 0;
-	bzero(&cto->rsp, sizeof (cto->rsp));
+	MEMZERO(&cto->rsp, sizeof (cto->rsp));
 
 	pci = (struct isp_pcisoftc *)mp->isp;
 	dp = &pci->dmaps[isp_handle_index(handle)];
@@ -1456,8 +1449,13 @@ tdma_mkfc(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 			cto->ct_header.rqs_seqno = 1;
 
 			if (send_status) {
+				/*
+				 * Get 'real' residual and set flags based
+				 * on it.
+				 */
+				cto->ct_resid = datalen - totxfr;
 				if (send_sense) {
-					bcopy(sense, cto->rsp.m1.ct_resp,
+					MEMCPY(cto->rsp.m1.ct_resp, sense,
 					    QLTM_SENSELEN);
 					cto->rsp.m1.ct_senselen =
 					    QLTM_SENSELEN;
@@ -1466,21 +1464,26 @@ tdma_mkfc(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 					    scsi_status;
 					cto->ct_flags &= CT2_FLAG_MMASK;
 					cto->ct_flags |= CT2_FLAG_MODE1 |
-					    CT2_NO_DATA| CT2_SENDSTATUS;
+					    CT2_NO_DATA | CT2_SENDSTATUS |
+					    CT2_CCINCR;
+					if (cto->ct_resid > 0)
+						cto->rsp.m1.ct_scsi_status |=
+						    CT2_DATA_UNDER;
+					else if (cto->ct_resid < 0)
+						cto->rsp.m1.ct_scsi_status |=
+						    CT2_DATA_OVER;
 				} else {
 					cto->rsp.m0.ct_scsi_status =
 					    scsi_status;
-					cto->ct_flags |= CT2_SENDSTATUS;
+					cto->ct_flags |=
+					    CT2_SENDSTATUS | CT2_CCINCR;
+					if (cto->ct_resid > 0)
+						cto->rsp.m0.ct_scsi_status |=
+						    CT2_DATA_UNDER;
+					else if (cto->ct_resid < 0)
+						cto->rsp.m0.ct_scsi_status |=
+						    CT2_DATA_OVER;
 				}
-				/*
-				 * Get 'real' residual and set flags based
-				 * on it.
-				 */
-				cto->ct_resid = datalen - totxfr;
-				if (cto->ct_resid > 0)
-					cto->ct_flags |= CT2_DATA_UNDER;
-				else if (cto->ct_resid < 0)
-					cto->ct_flags |= CT2_DATA_OVER;
 			}
 			ISP_TDQE(mp->isp, "last dma2_tgt_fc", *mp->iptrp, cto);
 			isp_prt(mp->isp, ISP_LOGTDEBUG1,
@@ -1509,6 +1512,7 @@ tdma_mkfc(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 			 */
 			cto = (ct2_entry_t *)
 			    ISP_QUEUE_ENTRY(mp->isp->isp_rquest, *mp->iptrp);
+			j = *mp->iptrp;
 			*mp->iptrp =
 			    ISP_NXT_QENTRY(*mp->iptrp, RQUEST_QUEUE_LEN(isp));
 			if (*mp->iptrp == mp->optr) {
@@ -1540,8 +1544,9 @@ tdma_mkfc(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 			 * just finished filling out.
 			 */
 			cto->ct_reloff += octo->rsp.m0.ct_xfrlen;
-			bzero(&cto->rsp, sizeof (cto->rsp));
-			ISP_SWIZ_CTIO2(isp, cto, cto);
+			MEMZERO(&cto->rsp, sizeof (cto->rsp));
+			ISP_SWIZ_CTIO2(isp, octo, octo);
+			ISP_ADD_REQUEST(mp->isp, j);
 		}
 	}
 }
