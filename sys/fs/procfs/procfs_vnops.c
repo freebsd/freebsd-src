@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_vnops.c	8.18 (Berkeley) 5/21/95
  *
- *	$Id: procfs_vnops.c,v 1.32 1997/09/14 02:57:58 peter Exp $
+ *	$Id: procfs_vnops.c,v 1.33 1997/09/21 04:23:23 dyson Exp $
  */
 
 /*
@@ -968,54 +968,47 @@ atopid(b, len)
  */
 vop_t **procfs_vnodeop_p;
 static struct vnodeopv_entry_desc procfs_vnodeop_entries[] = {
-	{ &vop_default_desc, (vop_t *)vn_default_error },
-	{ &vop_lookup_desc, (vop_t *)procfs_lookup },		/* lookup */
-/* XXX: vop_cachedlookup */
-	{ &vop_create_desc, (vop_t *)procfs_create },		/* create */
-/* XXX: vop_whiteout */
-	{ &vop_mknod_desc, (vop_t *)procfs_mknod },		/* mknod */
-	{ &vop_open_desc, (vop_t *)procfs_open },		/* open */
-	{ &vop_close_desc, (vop_t *)procfs_close },		/* close */
-	{ &vop_access_desc, (vop_t *)procfs_access },		/* access */
-	{ &vop_getattr_desc, (vop_t *)procfs_getattr },		/* getattr */
-	{ &vop_setattr_desc, (vop_t *)procfs_setattr },		/* setattr */
-	{ &vop_read_desc, (vop_t *)procfs_read },		/* read */
-	{ &vop_write_desc, (vop_t *)procfs_write },		/* write */
-/* XXX: vop_lease */
-	{ &vop_ioctl_desc, (vop_t *)procfs_ioctl },		/* ioctl */
-	{ &vop_poll_desc, (vop_t *)procfs_poll },		/* poll */
-	{ &vop_mmap_desc, (vop_t *)procfs_mmap },		/* mmap */
-	{ &vop_revoke_desc, (vop_t *)procfs_revoke },		/* revoke */
-	{ &vop_fsync_desc, (vop_t *)procfs_fsync },		/* fsync */
-	{ &vop_seek_desc, (vop_t *)procfs_seek },		/* seek */
-	{ &vop_remove_desc, (vop_t *)procfs_remove },		/* remove */
-	{ &vop_link_desc, (vop_t *)procfs_link },		/* link */
-	{ &vop_rename_desc, (vop_t *)procfs_rename },		/* rename */
-	{ &vop_mkdir_desc, (vop_t *)procfs_mkdir },		/* mkdir */
-	{ &vop_rmdir_desc, (vop_t *)procfs_rmdir },		/* rmdir */
-	{ &vop_symlink_desc, (vop_t *)procfs_symlink },		/* symlink */
-	{ &vop_readdir_desc, (vop_t *)procfs_readdir },		/* readdir */
-	{ &vop_readlink_desc, (vop_t *)procfs_readlink },	/* readlink */
-	{ &vop_abortop_desc, (vop_t *)procfs_abortop },		/* abortop */
-	{ &vop_inactive_desc, (vop_t *)procfs_inactive },	/* inactive */
-	{ &vop_reclaim_desc, (vop_t *)procfs_reclaim },		/* reclaim */
-	{ &vop_lock_desc, (vop_t *)procfs_lock },		/* lock */
-	{ &vop_unlock_desc, (vop_t *)procfs_unlock },		/* unlock */
-	{ &vop_bmap_desc, (vop_t *)procfs_bmap },		/* bmap */
-	{ &vop_strategy_desc, (vop_t *)procfs_strategy },	/* strategy */
-	{ &vop_print_desc, (vop_t *)procfs_print },		/* print */
-	{ &vop_islocked_desc, (vop_t *)procfs_islocked },	/* islocked */
-	{ &vop_pathconf_desc, (vop_t *)procfs_pathconf },	/* pathconf */
-	{ &vop_advlock_desc, (vop_t *)procfs_advlock },		/* advlock */
-	{ &vop_blkatoff_desc, (vop_t *)procfs_blkatoff },	/* blkatoff */
-	{ &vop_valloc_desc, (vop_t *)procfs_valloc },		/* valloc */
-/* XXX: vop_reallocblks */
-	{ &vop_vfree_desc, (vop_t *)procfs_vfree },		/* vfree */
-	{ &vop_truncate_desc, (vop_t *)procfs_truncate },	/* truncate */
-	{ &vop_update_desc, (vop_t *)procfs_update },		/* update */
-/* XXX: vop_getpages */
-/* XXX: vop_putpages */
-/* XXX: vop_bwrite */
+	{ &vop_default_desc,		(vop_t *) vn_default_error },
+	{ &vop_abortop_desc,		(vop_t *) procfs_abortop },
+	{ &vop_access_desc,		(vop_t *) procfs_access },
+	{ &vop_advlock_desc,		(vop_t *) procfs_advlock },
+	{ &vop_blkatoff_desc,	(vop_t *) procfs_blkatoff },
+	{ &vop_bmap_desc,		(vop_t *) procfs_bmap },
+	{ &vop_close_desc,		(vop_t *) procfs_close },
+	{ &vop_create_desc,		(vop_t *) procfs_create },
+	{ &vop_fsync_desc,		(vop_t *) procfs_fsync },
+	{ &vop_getattr_desc,		(vop_t *) procfs_getattr },
+	{ &vop_inactive_desc,	(vop_t *) procfs_inactive },
+	{ &vop_ioctl_desc,		(vop_t *) procfs_ioctl },
+	{ &vop_islocked_desc,	(vop_t *) procfs_islocked },
+	{ &vop_link_desc,		(vop_t *) procfs_link },
+	{ &vop_lock_desc,		(vop_t *) procfs_lock },
+	{ &vop_lookup_desc,		(vop_t *) procfs_lookup },
+	{ &vop_mkdir_desc,		(vop_t *) procfs_mkdir },
+	{ &vop_mknod_desc,		(vop_t *) procfs_mknod },
+	{ &vop_mmap_desc,		(vop_t *) procfs_mmap },
+	{ &vop_open_desc,		(vop_t *) procfs_open },
+	{ &vop_pathconf_desc,	(vop_t *) procfs_pathconf },
+	{ &vop_poll_desc,		(vop_t *) procfs_poll },
+	{ &vop_print_desc,		(vop_t *) procfs_print },
+	{ &vop_read_desc,		(vop_t *) procfs_read },
+	{ &vop_readdir_desc,		(vop_t *) procfs_readdir },
+	{ &vop_readlink_desc,	(vop_t *) procfs_readlink },
+	{ &vop_reclaim_desc,		(vop_t *) procfs_reclaim },
+	{ &vop_remove_desc,		(vop_t *) procfs_remove },
+	{ &vop_rename_desc,		(vop_t *) procfs_rename },
+	{ &vop_revoke_desc,		(vop_t *) procfs_revoke },
+	{ &vop_rmdir_desc,		(vop_t *) procfs_rmdir },
+	{ &vop_seek_desc,		(vop_t *) procfs_seek },
+	{ &vop_setattr_desc,		(vop_t *) procfs_setattr },
+	{ &vop_strategy_desc,	(vop_t *) procfs_strategy },
+	{ &vop_symlink_desc,		(vop_t *) procfs_symlink },
+	{ &vop_truncate_desc,	(vop_t *) procfs_truncate },
+	{ &vop_unlock_desc,		(vop_t *) procfs_unlock },
+	{ &vop_update_desc,		(vop_t *) procfs_update },
+	{ &vop_valloc_desc,		(vop_t *) procfs_valloc },
+	{ &vop_vfree_desc,		(vop_t *) procfs_vfree },
+	{ &vop_write_desc,		(vop_t *) procfs_write },
 	{ NULL, NULL }
 };
 static struct vnodeopv_desc procfs_vnodeop_opv_desc =
