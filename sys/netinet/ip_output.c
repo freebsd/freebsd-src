@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_output.c	8.3 (Berkeley) 1/21/94
- *	$Id: ip_output.c,v 1.66 1998/03/21 11:34:20 peter Exp $
+ *	$Id: ip_output.c,v 1.67 1998/05/25 10:37:47 julian Exp $
  */
 
 #define _IP_VHL
@@ -371,7 +371,7 @@ sendit:
 	 */
 	if (ip_fw_chk_ptr) {
 #ifdef IPDIVERT
-#ifndef IPFW_DIVERT_RESTART
+#ifdef IPFW_DIVERT_OLDRESTART
 		ip_divert_port = (*ip_fw_chk_ptr)(&ip,
 		    hlen, ifp, ip_divert_ignore, &m);
 		ip_divert_ignore = 0;
@@ -380,7 +380,7 @@ sendit:
 		ip_divert_port = (*ip_fw_chk_ptr)(&ip,
 		    hlen, ifp, ip_divert_out_cookie, &m);
 		ip_divert_out_cookie = 0;
-#endif /* IPFW_DIVERT_RESTART */
+#endif /* IPFW_DIVERT_OLDRESTART */
 		if (ip_divert_port) {		/* Divert packet */
 			(*inetsw[ip_protox[IPPROTO_DIVERT]].pr_input)(m, 0);
 			goto done;

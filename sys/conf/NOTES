@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.434 1998/05/21 03:22:20 wpaul Exp $
+#	$Id: LINT,v 1.435 1998/05/30 18:28:12 phk Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -433,6 +433,7 @@ options		IPFILTER		#kernel ipfilter support
 options		IPFILTER_LOG		#ipfilter logging
 #options	IPFILTER_LKM		#kernel support for ip_fil.o LKM
 options		TCPDEBUG
+#options	IPFW_DIVERT_OLDRESTART	# old (broken) divert/restart semantics
 
 
 #####################################################################
