@@ -67,10 +67,10 @@ main(argc, argv)
 	int argc;
 	char *argv[];
 {
-	register int i;
 	struct passwd *pw;
-	int ch, howto, lflag, nflag, qflag, pflag, sverrno;
-	char *p, *user;
+	int ch, howto, i, lflag, nflag, qflag, pflag, sverrno;
+	char *p;
+	const char *user;
 
 	if (strstr((p = rindex(*argv, '/')) ? p + 1 : *argv, "halt")) {
 		dohalt = 1;

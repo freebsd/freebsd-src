@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=   adjkerntz
+WARNS?=	2
 MAN=	adjkerntz.8
-CFLAGS+= -Wall
 
 .include <bsd.prog.mk>
