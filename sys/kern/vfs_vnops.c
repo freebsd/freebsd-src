@@ -112,11 +112,6 @@ vn_open_cred(ndp, flagp, cmode, cred, fdidx)
 	struct vattr *vap = &vat;
 	int mode, fmode, error;
 	int vfslocked;
-#ifdef LOOKUP_SHARED
-	int exclusive;	/* The current intended lock state */
-
-	exclusive = 0;
-#endif
 
 restart:
 	vfslocked = 0;
@@ -168,9 +163,6 @@ restart:
 			ASSERT_VOP_LOCKED(ndp->ni_vp, "create");
 			fmode &= ~O_TRUNC;
 			vp = ndp->ni_vp;
-#ifdef LOOKUP_SHARED
-			exclusive = 1;
-#endif
 		} else {
 			if (ndp->ni_dvp == ndp->ni_vp)
 				vrele(ndp->ni_dvp);
@@ -186,15 +178,9 @@ restart:
 		}
 	} else {
 		ndp->ni_cnd.cn_nameiop = LOOKUP;
-#ifdef LOOKUP_SHARED
 		ndp->ni_cnd.cn_flags =
 		    ((fmode & O_NOFOLLOW) ? NOFOLLOW : FOLLOW) |
 		    LOCKSHARED | LOCKLEAF | MPSAFE;
-#else
-		ndp->ni_cnd.cn_flags =
-		    ((fmode & O_NOFOLLOW) ? NOFOLLOW : FOLLOW) |
-		    LOCKLEAF | MPSAFE;
-#endif
 		if ((error = namei(ndp)) != 0)
 			return (error);
 		ndp->ni_cnd.cn_flags &= ~MPSAFE;
