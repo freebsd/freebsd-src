@@ -485,6 +485,12 @@
       has been moved to <varname>kern.sched.quantum</varname>
       for consistency.</para>
 
+    <para arch="alpha">The <devicename>tga</devicename> driver has 
+      been removed from GENERIC as it needs major work to stop it from
+      causing panics on kernel startup.  The use of a serial console
+      or a plain <devicename>vga</devicename> card is suggested as
+      an alternative.</para>
+
     <para arch="alpha,amd64,i386">For the &man.uart.4; device,
       the <varname>hw.uart.console</varname> and
       <varname>hw.uart.dbgport</varname> kernel environment variables
