@@ -636,9 +636,11 @@ release.9:
 	    ${.CURDIR}/${TARGET}/drivers.conf \
 	    ${RD}/trees/base/boot/kernel ${RD}/driversfd
 	-@rmdir ${RD}/driversfd
-	[ -d ${RD}/driversfd ] && sh -e ${.CURDIR}/scripts/doFS.sh \
-	    ${RD}/floppies/drivers.flp ${RD} ${MNT} ${BOOTSIZE} \
-	    ${RD}/driversfd ${BOOTINODE} ${BOOTLABEL}
+	if [ -d ${RD}/driversfd ]; then \
+	    sh -e ${.CURDIR}/scripts/doFS.sh \
+		${RD}/floppies/drivers.flp ${RD} ${MNT} ${BOOTSIZE} \
+		${RD}/driversfd ${BOOTINODE} ${BOOTLABEL}; \
+	fi
 .endif
 	sh -e ${.CURDIR}/scripts/doFS.sh -s mfsroot ${RD} ${MNT} \
 		${MFSSIZE} ${RD}/mfsfd ${MFSINODE} ${MFSLABEL}
