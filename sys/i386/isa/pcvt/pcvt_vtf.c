@@ -35,7 +35,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *
- * @(#)pcvt_vtf.c, 3.20, Last Edit-Date: [Wed Mar 29 20:45:48 1995]
+ * @(#)pcvt_vtf.c, 3.20, Last Edit-Date: [Wed Apr  5 18:08:50 1995]
  */
 
 /*---------------------------------------------------------------------------*
@@ -53,6 +53,7 @@
  *	-jw/hm	fixing bug in roll_up() and roll_down()
  *	-hm	fastscroll/Crtat bugfix from Lon Willett
  *	-hm	patch for non-XSERVER/UCONSOLE compiles from Rafal Boni
+ *	-hm	bugfix: PCVT_USL_COMPAT renamed to PCVT_USL_VT_COMPAT ...
  *
  *---------------------------------------------------------------------------*/
 
@@ -1947,7 +1948,7 @@ roll_up(struct video_state *svsp, int n)
 	{
 		u_short *Memory =
 
-#if defined(PCVT_USL_COMPAT)
+#if PCVT_USL_VT_COMPAT
 		    (vsp != svsp || (vsp->vt_status & VT_GRAFX)) ?
 #else
 		    (vsp != svsp) ?
@@ -1968,7 +1969,7 @@ roll_up(struct video_state *svsp, int n)
 			svsp->Crtat += n * svsp->maxcol;
 		}
 
-#if defined(PCVT_USL_COMPAT)
+#if PCVT_USL_VT_COMPAT
 		if(vsp == svsp && !(vsp->vt_status & VT_GRAFX))
 #else
 		if(vsp == svsp)
@@ -2014,7 +2015,7 @@ roll_down(struct video_state *svsp, int n)
 	{
 		u_short *Memory = 
 
-#if defined(PCVT_USL_COMPAT)
+#if PCVT_USL_VT_COMPAT
 		    (vsp != svsp || (vsp->vt_status & VT_GRAFX)) ?
 #else
 		    (vsp != svsp) ?
@@ -2034,7 +2035,7 @@ roll_down(struct video_state *svsp, int n)
 			svsp->Crtat -= n * svsp->maxcol;
 		}
 
-#if defined(PCVT_USL_COMPAT)
+#if PCVT_USL_VT_COMPAT
 		if(vsp == svsp && !(vsp->vt_status & VT_GRAFX))
 #else
 		if(vsp == svsp)

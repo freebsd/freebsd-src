@@ -35,7 +35,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *
- * @(#)pcvt_ext.c, 3.20, Last Edit-Date: [Fri Mar 24 20:58:28 1995]
+ * @(#)pcvt_ext.c, 3.20, Last Edit-Date: [Thu Apr  6 10:07:45 1995]
  *
  */
 
@@ -61,6 +61,9 @@
  *	-hm	multiple X server bugfixes from Lon Willett
  *	-hm	patch from John Kohl fixing tsleep bug in usl_vt_ioctl()
  *	-hm	bugfix: clear 25th line when switching to a force 24 lines vt
+ *	-jw	add some forward declarations
+ *	-hm	fixing MDA re-init when leaving X
+ *	-hm	patch from John Kohl fixing potential divide by 0 problem
  *
  *---------------------------------------------------------------------------*/
 
@@ -70,7 +73,6 @@
 #include "pcvt_hdr.h"		/* global include */
 
 static int  s3testwritable( void );
-
 static int  et4000_col( int );
 static int  wd90c11_col( int );
 static int  tri9000_col( int );
@@ -2187,19 +2189,25 @@ switch_screen(int n, int oldgrafx, int newgrafx)
 		/* re-initialize lost MDA information */
 		if(adaptor_type == MDA_ADAPTOR)
 		{
-			/*
-			 * Due to the fact that HGC registers are
-			 * write-only, the Xserver can only make
-			 * guesses about the state the HGC adaptor
-			 * has been before turning on X mode. Thus,
-			 * the display must be re-enabled now, and
-			 * the cursor shape and location restored.
-			 */
-			/* enable display, text mode */
-			outb(GN_DMCNTLM, 0x28);
+		    /*
+		     * Due to the fact that HGC registers are write-only,
+		     * the Xserver can only make guesses about the state
+		     * the HGC adaptor has been before turning on X mode.
+		     * Thus, the display must be re-enabled now, and the
+		     * cursor shape and location restored.
+		     */
+		    outb(GN_DMCNTLM, 0x28); /* enable display, text mode */
+		    outb(addr_6845, CRTC_CURSORH); /* select high register */
+		    outb(addr_6845+1,
+			 ((vsp->Crtat + vsp->cur_offset) - Crtat) >> 8);
+		    outb(addr_6845, CRTC_CURSORL); /* select low register */
+		    outb(addr_6845+1,
+			 ((vsp->Crtat + vsp->cur_offset) - Crtat));
 
-/* XXX - something missing here ? Joerg ??? */
-
+		    outb(addr_6845, CRTC_CURSTART); /* select high register */
+		    outb(addr_6845+1, vsp->cursor_start);
+		    outb(addr_6845, CRTC_CUREND); /* select low register */
+		    outb(addr_6845+1, vsp->cursor_end);
 		}
 
 		/* make status display happy */
@@ -2743,7 +2751,11 @@ usl_vt_ioctl(Dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 			int pitch = *(int *)data & 0xffff;
 
 #if PCVT_NETBSD			
-			sysbeep(PCVT_SYSBEEPF / pitch, duration * hz / 1000);
+			if(pitch != 0)
+			{
+			    sysbeep(PCVT_SYSBEEPF / pitch,
+				    duration * hz / 1000);
+			}
 #else /* PCVT_NETBSD */
 			sysbeep(pitch, duration * hz / 3000);
 #endif /* PCVT_NETBSD */

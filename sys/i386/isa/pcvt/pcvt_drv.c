@@ -41,7 +41,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *
- * @(#)pcvt_drv.c, 3.20, Last Edit-Date: [Thu Mar 23 20:37:05 1995]
+ * @(#)pcvt_drv.c, 3.20, Last Edit-Date: [Sun Apr  2 19:09:19 1995]
  *
  */
 
@@ -72,6 +72,7 @@
  *	-hm	multiple X server bugfixes from Lon Willett
  *	-hm	patch from joerg - pcdevtotty for FreeBSD pre-2.1
  *	-hm	delay patch from Martin Husemann after port-i386 ml-discussion
+ *	-jw	add some code to provide more FreeBSD pre-2.1 support
  *
  *---------------------------------------------------------------------------*/
 
@@ -104,13 +105,15 @@ static char vt_description[];
 #define VT_DESCR_LEN 40
 #endif /* PCVT_FREEBSD > 205 */
 
-int
 #if PCVT_NETBSD > 100	/* NetBSD-current Feb 20 1995 */
+int
 pcprobe(struct device *parent, void *match, void *aux)
 #else
 #if PCVT_NETBSD > 9
+int
 pcprobe(struct device *parent, struct device *self, void *aux)
 #else
+int
 pcprobe(struct isa_device *dev)
 #endif /* PCVT_NETBSD > 9 */
 #endif /* PCVT_NETBSD > 100 */
@@ -468,8 +471,10 @@ pcopen(Dev_t dev, int flag, int mode, struct proc *p)
 
 #if PCVT_FREEBSD > 205
 	if(retval == 0)
+	{
 		/* XXX currently, only one vt device is supported */
 		kdc_vt[0].kdc_state = DC_BUSY;
+	}
 #endif
 	
 	return(retval);
@@ -518,10 +523,12 @@ pcclose(Dev_t dev, int flag, int mode, struct proc *p)
 	
 #if PCVT_FREEBSD > 205
 	if(!pcvt_is_console)
+	{
 		/* XXX currently, only one vt device is supported */
 		kdc_vt[0].kdc_state = DC_IDLE;
+	}
 #endif
-	
+
 	return(0);
 }
 
@@ -751,12 +758,15 @@ vt_registerdev(struct isa_device *id, const char *name)
 {
     if(id->id_unit)
 	kdc_vt[id->id_unit] = kdc_vt[0];
+
     kdc_vt[id->id_unit].kdc_unit = id->id_unit;
     kdc_vt[id->id_unit].kdc_isa = id;
+
     /* XXX only vt0 currently allowed */
     strncpy(vt_descr + sizeof("Graphics console: ") - 1,
 	    name,
 	    VT_DESCR_LEN - sizeof("Graphics console: "));
+
     dev_attach(&kdc_vt[id->id_unit]);
 }
 
@@ -859,11 +869,7 @@ pcrint(void)
 	{
 		ret = 1;				/* got something */
 
-#if PCVT_NETBSD > 9
-		delay(6);				/* Gateway 2000 fix */
-#elif PCVT_FREEBSD || (PCVT_NETBSD <= 9)
-		DELAY(6);				/* Gateway 2000 fix */
-#endif
+		PCVT_KBD_DELAY();			/* 7 us delay */
 
 		dt = inb(CONTROLLER_DATA);		/* get it 8042 data */
 
@@ -1087,9 +1093,12 @@ pccnprobe(struct consdev *cp)
 		if ((u_int)cdevsw[maj].d_open == (u_int)pcopen)
 			break;
 	}
+
 	if (maj == nchrdev)
+	{
 		/* we are not in cdevsw[], give up */
 		panic("pcvt is not in cdevsw[]");
+	}
 	
 	/* initialize required fields */
 
@@ -1220,27 +1229,6 @@ pcparam(struct tty *tp, struct termios *t)
 
 	return(0);
 }
-
-#if PCVT_NEEDPG    /* this is moved to cons.c in patchkit 0.2.2 and higher */
-
-int
-pg (char *p,
-    int q, int r, int s, int t, int u,
-    int v, int w, int x, int y, int z)
-{
-	
-#if !PCVT_USL_VT_COMPAT
-	vgapage(0);
-#else
-	switch_screen(0, 0);
-#endif /* !PCVT_USL_VT_COMPAT */
-
-	printf(p,q,r,s,t,u,v,w,x,y,z);
-	printf("\n");
-	return(getchar());
-}
-
-#endif /* PCVT_NEEDPG */
 
 /* special characters */
 #define bs	8
@@ -1535,11 +1523,6 @@ pcvt_xmode_set(int on, struct proc *p)
 	return 0;
 }
 #endif	/* XSERVER && !PCVT_USL_VT_COMPAT */
-
-#if PCVT_386BSD		/* dummies required to work with patchkit 0.2.4 */
-void cons_highlight (void) {}
-void cons_normal (void) {}
-#endif /* PCVT_386BSD */
 
 #endif	/* NVT > 0 */
 

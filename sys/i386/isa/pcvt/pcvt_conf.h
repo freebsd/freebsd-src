@@ -32,7 +32,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *
- * @(#)pcvt_conf.h, 3.20, Last Edit-Date: [Sun Feb 26 12:48:45 1995]
+ * @(#)pcvt_conf.h, 3.20, Last Edit-Date: [Sun Apr  2 18:57:45 1995]
  *
  */
 
@@ -137,14 +137,6 @@
  *		PCVT_FREEBSD = 115	for FreeBSD 1.1.5.1-Release
  *		PCVT_FREEBSD = 200	for FreeBSD 2.0-Release
  *		PCVT_FREEBSD = 210	for FreeBSD 2.1-Release
- *
- *======================================================================*
- *			3 8 6 B S D					*
- *======================================================================*
- *		
- *	options "PCVT_386BSD" enables support for 386BSD + pk 0.2.4
- *                            NOTE: the 386BSD pcvt is unsupported and
- *                            will be removed in a future release
  *
  */
 	
@@ -284,6 +276,14 @@
 # define PCVT_NO_LED_UPDATE 1	/* wards. If you experience Problems	*/
 #endif				/* like this, try to enable this option	*/
 
+#if !defined PCVT_PORTIO_DELAY  /* ---------- DEFAULT: ON ------------- */
+# define PCVT_PORTIO_DELAY 1	/* Defining PCVT_PORTIO_DELAY lets pcvt */
+#elif PCVT_PORTIO_DELAY != 0	/* use multiple accesses to port 0x84   */
+# undef PCVT_PORTIO_DELAY	/* to produce a delay of 7 us needed for*/
+# define PCVT_PORTIO_DELAY 1	/* accessing the keyboard controller,   */
+#endif				/* otherwise the system delay functions */
+				/* are used.                            */
+				
 #if !defined PCVT_PCBURST	/* ---------- DEFAULT: 256 ------------ */
 # define PCVT_PCBURST 256	/* NETBSD and FreeBSD >= 2.0 only: this */
 #endif				/* is the number of output characters	*/
@@ -345,13 +345,6 @@
 				/* e.g. in isa.h; but it used to be in 	*/
 				/* each driver, sometimes even with	*/
 				/* different values (:-)		*/
-
-#if !defined PCVT_NEEDPG	/* ---------- DEFAULT: OFF ------------ */
-# define PCVT_NEEDPG 0		/* pg moved out to cons.c with pk 0.2.2	*/
-#elif PCVT_NEEDPG != 0		/* if you run a system with patchkit	*/
-# undef PCVT_NEEDPG		/* 0.2.1 or earlier you must define this*/
-# define PCVT_NEEDPG 1		/*   OBSOLETE, just for 386BSD 0.1 !!   */
-#endif				/* will be removed in a future release  */
 
 #if !defined PCVT_SETCOLOR	/* ---------- DEFAULT: OFF ------------ */
 # define PCVT_SETCOLOR 0	/* enable making colors settable. this	*/
