@@ -20,9 +20,6 @@ FILES=	a.out.h ar.h assert.h bitstring.h complex.h ctype.h db.h \
 	signal.h stab.h stdbool.h stddef.h stdio.h stdlib.h \
 	string.h stringlist.h strings.h struct.h sysexits.h tar.h time.h \
 	timers.h ttyent.h unistd.h utime.h utmp.h vis.h wchar.h wctype.h
-.if defined(WANT_CSRG_LIBM)
-FILES+=	math.h
-.endif
 
 ARPAFILES=	ftp.h inet.h nameser.h nameser_compat.h telnet.h tftp.h
 
