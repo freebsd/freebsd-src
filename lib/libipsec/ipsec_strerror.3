@@ -30,18 +30,17 @@
 .\"
 .Dd May 6, 1998
 .Dt IPSEC_STRERROR 3
-.Os KAME
-.\"
+.Os
 .Sh NAME
 .Nm ipsec_strerror
 .Nd error code for IPsec policy manipulation library
-.\"
+.Sh LIBRARY
+.Lb libipsec
 .Sh SYNOPSIS
 .Fd #include <sys/types.h>
 .Fd #include <netinet6/ipsec.h>
 .Ft "char *"
 .Fn ipsec_strerror void
-.\"
 .Sh DESCRIPTION
 .Pa netinet6/ipsec.h
 declares
@@ -52,7 +51,6 @@ which is used to pass error code from IPsec policy manipulation library
 to user program.
 .Fn ipsec_strerror
 can be used to obtain error message string for the error code.
-.\"
 .Sh RETURN VALUES
 .Fn ipsec_strerror
 always return a pointer to C string.
@@ -62,6 +60,6 @@ The C string must not be overwritten by user programs.
 .\"
 .Sh HISTORY
 The functions first appeared in WIDE/KAME IPv6 protocol stack kit.
-.\"
-.\" .Sh BUGS
-.\" (to be written)
+IPv6 and IPsec support based on the KAME Project (http://www.kame.net/) stack
+was initialy integrated into
+.Fx 4.0
