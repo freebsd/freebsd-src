@@ -82,7 +82,7 @@ struct pccard_mem_handle {
 
 struct pccard_config_entry {
 	int		number;
-	u_int32_t	flags;
+	uint32_t	flags;
 	int		iftype;
 	int		num_iospace;
 
@@ -96,7 +96,7 @@ struct pccard_config_entry {
 		u_long	length;
 		u_long	start;
 	} iospace[4];		/* XXX this could be as high as 16 */
-	u_int16_t	irqmask;
+	uint16_t	irqmask;
 	int		num_memspace;
 	struct {
 		u_long	length;
@@ -119,7 +119,7 @@ struct pccard_funce_disk {
 
 struct pccard_funce_lan {
 	int pfl_nidlen;
-	u_int8_t pfl_nid[8];
+	uint8_t pfl_nid[8];
 };
 
 union pccard_funce {
@@ -180,7 +180,7 @@ struct pccard_card {
 	int32_t		product;
 #define	PCMCIA_PRODUCT_INVALID		-1
 	int16_t		prodext;
-	u_int16_t	error;
+	uint16_t	error;
 #define	PCMCIA_CIS_INVALID		{ NULL, NULL, NULL, NULL }
 	STAILQ_HEAD(, pccard_function) pf_head;
 };
@@ -229,10 +229,10 @@ struct pccard_tuple {
 
 struct pccard_product {
 	const char	*pp_name;		/* NULL if end of table */
-#define PCCARD_VENDOR_ANY ((u_int32_t) -1)
-	u_int32_t	pp_vendor;
-#define PCCARD_PRODUCT_ANY ((u_int32_t) -1)
-	u_int32_t	pp_product;
+#define PCCARD_VENDOR_ANY (0xffffffff)
+	uint32_t	pp_vendor;
+#define PCCARD_PRODUCT_ANY (0xffffffff)
+	uint32_t	pp_product;
 	int		pp_expfunc;
 	const char	*pp_cis[4];
 };
@@ -349,12 +349,12 @@ pccard_get_ ## A(device_t dev, T *t)					\
 	    PCCARD_IVAR_ ## B, (uintptr_t *) t);			\
 }
 
-PCCARD_ACCESSOR(ether,		ETHADDR,		u_int8_t)
-PCCARD_ACCESSOR(vendor,		VENDOR,			u_int32_t)
-PCCARD_ACCESSOR(product,	PRODUCT,		u_int32_t)
-PCCARD_ACCESSOR(prodext,	PRODEXT,		u_int16_t)
-PCCARD_ACCESSOR(function_number,FUNCTION_NUMBER,	u_int32_t)
-PCCARD_ACCESSOR(function,	FUNCTION,		u_int32_t)
+PCCARD_ACCESSOR(ether,		ETHADDR,		uint8_t)
+PCCARD_ACCESSOR(vendor,		VENDOR,			uint32_t)
+PCCARD_ACCESSOR(product,	PRODUCT,		uint32_t)
+PCCARD_ACCESSOR(prodext,	PRODEXT,		uint16_t)
+PCCARD_ACCESSOR(function_number,FUNCTION_NUMBER,	uint32_t)
+PCCARD_ACCESSOR(function,	FUNCTION,		uint32_t)
 PCCARD_ACCESSOR(vendor_str,	VENDOR_STR,		char *)
 PCCARD_ACCESSOR(product_str,	PRODUCT_STR,		char *)
 PCCARD_ACCESSOR(cis3_str,	CIS3_STR,		char *)
