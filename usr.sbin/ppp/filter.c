@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: filter.c,v 1.22.2.8 1998/03/16 22:52:04 brian Exp $
+ * $Id: filter.c,v 1.22.2.9 1998/03/16 22:53:42 brian Exp $
  *
  *	TODO: Shoud send ICMP error message when we discard packets.
  */
@@ -45,13 +45,16 @@
 #include "throughput.h"
 #include "lqr.h"
 #include "hdlc.h"
-#include "link.h"
 #include "fsm.h"
+#include "lcp.h"
+#include "ccp.h"
+#include "link.h"
 #include "slcompress.h"
 #include "ipcp.h"
 #include "filter.h"
 #include "descriptor.h"
 #include "prompt.h"
+#include "mp.h"
 #include "bundle.h"
 
 static const u_long netmasks[33] = {

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: server.c,v 1.16.2.8 1998/02/23 00:38:42 brian Exp $
+ *	$Id: server.c,v 1.16.2.9 1998/03/20 19:48:23 brian Exp $
  */
 
 #include <sys/param.h>
@@ -58,7 +58,6 @@ server_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)
 {
   struct server *s = descriptor2server(d);
 
-  LogPrintf(LogDEBUG, "descriptor2server; %p -> %p\n", d, s);
   if (r && s->fd >= 0) {
     if (*n < s->fd + 1)
       *n = s->fd + 1;
@@ -72,8 +71,6 @@ static int
 server_IsSet(struct descriptor *d, const fd_set *fdset)
 {
   struct server *s = descriptor2server(d);
-
-  LogPrintf(LogDEBUG, "descriptor2server; %p -> %p\n", d, s);
   return s->fd >= 0 && FD_ISSET(s->fd, fdset);
 }
 
@@ -89,8 +86,6 @@ server_Read(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
   struct sockaddr *sa = (struct sockaddr *)hisaddr;
   struct sockaddr_in *sin = (struct sockaddr_in *)hisaddr;
   int ssize = ADDRSZ, wfd;
-
-  LogPrintf(LogDEBUG, "descriptor2server; %p -> %p\n", d, s);
 
   wfd = accept(s->fd, sa, &ssize);
   if (wfd < 0) {

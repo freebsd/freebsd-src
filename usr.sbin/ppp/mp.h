@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1997 Brian Somers <brian@Awfulhak.org>
+ * Copyright (c) 1998 Brian Somers <brian@Awfulhak.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -23,26 +23,40 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: throughput.h,v 1.2.4.1 1998/02/10 03:23:48 brian Exp $
+ *	$Id$
  */
 
-#define SAMPLE_PERIOD 5
+struct mp {
+  struct link link;
 
-struct pppThroughput {
-  time_t uptime;
-  u_long OctetsIn;
-  u_long OctetsOut;
-  u_long SampleOctets[SAMPLE_PERIOD];
-  int OctetsPerSecond;
-  int BestOctetsPerSecond;
-  int nSample;
-  struct pppTimer Timer;
+  unsigned active : 1;
+  unsigned is12bit : 1;        /* 12 / 24bit seq nos */
+
+  struct {
+    u_int32_t out;            /* next outgoing seq */
+    u_int32_t min_in;         /* minimum received incoming seq */
+    u_int32_t next_in;        /* next incoming seq to process */
+  } seq;
+  struct mbuf *inbufs;        /* Received fragments */
+
+  struct fsm_parent fsmp;     /* Our callback functions */
+
+  struct bundle *bundle;
 };
 
-extern void throughput_init(struct pppThroughput *);
-extern void throughput_disp(struct pppThroughput *);
-extern void throughput_log(struct pppThroughput *, int, const char *);
-extern void throughput_start(struct pppThroughput *, const char *);
-extern void throughput_stop(struct pppThroughput *);
-extern void throughput_addin(struct pppThroughput *, int);
-extern void throughput_addout(struct pppThroughput *, int);
+struct mp_link {
+  u_int32_t seq;              /* 12 or 24 bit incoming seq */
+  int weight;                 /* bytes to send with each write */
+};
+
+struct mp_header {
+  unsigned begin : 1;
+  unsigned end : 1;
+  u_int32_t seq;
+};
+
+extern void mp_Init(struct mp *, struct bundle *);
+extern void mp_linkInit(struct mp_link *);
+extern void mp_Input(struct mp *, struct mbuf *, struct physical *);
+extern int mp_FillQueues(struct bundle *);
+extern int mp_SetDatalinkWeight(struct cmdargs const *);

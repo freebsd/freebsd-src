@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ip.c,v 1.38.2.15 1998/03/20 19:48:02 brian Exp $
+ * $Id: ip.c,v 1.38.2.16 1998/03/24 18:47:04 brian Exp $
  *
  *	TODO:
  *		o Return ICMP message for filterd packet
@@ -63,9 +63,12 @@
 #include "ipcp.h"
 #include "filter.h"
 #include "descriptor.h"
+#include "lcp.h"
+#include "ccp.h"
+#include "link.h"
+#include "mp.h"
 #include "bundle.h"
 #include "vjcomp.h"
-#include "lcp.h"
 #include "modem.h"
 #include "tun.h"
 #include "ip.h"
@@ -451,15 +454,15 @@ ip_QueueLen()
   return result;
 }
 
-void
-IpStartOutput(struct link *l, struct bundle *bundle)
+int
+IpFlushPacket(struct link *l, struct bundle *bundle)
 {
   struct mqueue *queue;
   struct mbuf *bp;
   int cnt;
 
   if (bundle->ncp.ipcp.fsm.state != ST_OPENED)
-    return;
+    return 0;
 
   for (queue = &IpOutputQueues[PRI_FAST]; queue >= IpOutputQueues; queue--)
     if (queue->top) {
@@ -472,8 +475,9 @@ IpStartOutput(struct link *l, struct bundle *bundle)
         if (!(FilterCheck(pip, &bundle->filter.alive) & A_DENY))
           bundle_StartIdleTimer(bundle);
         ipcp_AddOutOctets(&bundle->ncp.ipcp, cnt);
-	break;
+	return 1;
       }
     }
 
+  return 0;
 }

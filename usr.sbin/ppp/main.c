@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.121.2.38 1998/03/25 18:38:24 brian Exp $
+ * $Id: main.c,v 1.121.2.39 1998/03/25 18:38:59 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -64,6 +64,8 @@
 #include "ipcp.h"
 #include "filter.h"
 #include "descriptor.h"
+#include "link.h"
+#include "mp.h"
 #include "bundle.h"
 #include "loadalias.h"
 #include "vars.h"
@@ -77,7 +79,6 @@
 #include "pathnames.h"
 #include "tun.h"
 #include "route.h"
-#include "link.h"
 #include "physical.h"
 #include "server.h"
 #include "prompt.h"
@@ -104,7 +105,7 @@ Cleanup(int excode)
 {
   SignalBundle->CleaningUp = 1;
   if (bundle_Phase(SignalBundle) != PHASE_DEAD)
-    bundle_Close(SignalBundle, NULL, 0);
+    bundle_Close(SignalBundle, NULL, 1);
 }
 
 void
@@ -125,10 +126,12 @@ static void
 CloseConnection(int signo)
 {
   /* NOTE, these are manual, we've done a setsid() */
+  struct datalink *dl;
+
   pending_signal(SIGINT, SIG_IGN);
-  LogPrintf(LogPHASE, "Caught signal %d, abort connection\n", signo);
-  /* XXX close 'em all ! */
-  link_Close(bundle2link(SignalBundle, NULL), SignalBundle, 0, 1);
+  LogPrintf(LogPHASE, "Caught signal %d, abort connection(s)\n", signo);
+  for (dl = SignalBundle->links; dl; dl = dl->next)
+    datalink_Down(dl, 1);
   pending_signal(SIGINT, CloseConnection);
 }
 
@@ -366,11 +369,9 @@ main(int argc, char **argv)
   pending_signal(SIGTERM, CloseSession);
   pending_signal(SIGINT, CloseConnection);
   pending_signal(SIGQUIT, CloseSession);
+  pending_signal(SIGALRM, SIG_IGN);
 #ifdef SIGPIPE
   signal(SIGPIPE, SIG_IGN);
-#endif
-#ifdef SIGALRM
-  pending_signal(SIGALRM, SIG_IGN);
 #endif
   if (mode & MODE_INTER) {
 #ifdef SIGTSTP
@@ -514,7 +515,7 @@ DoLoop(struct bundle *bundle)
   if (mode & (MODE_DIRECT|MODE_DEDICATED|MODE_BACKGROUND))
     bundle_Open(bundle, NULL);
 
-  while (!bundle->CleaningUp || bundle_Phase(SignalBundle) != PHASE_DEAD) {
+  while (!bundle_IsDead(bundle)) {
     nfds = 0;
     FD_ZERO(&rfds);
     FD_ZERO(&wfds);
@@ -536,7 +537,7 @@ DoLoop(struct bundle *bundle)
 
     descriptor_UpdateSet(&prompt.desc, &rfds, &wfds, &efds, &nfds);
 
-    if (bundle->CleaningUp && bundle_Phase(bundle) == PHASE_DEAD)
+    if (bundle_IsDead(bundle))
       /* Don't select - we'll be here forever */
       break;
 
@@ -630,5 +631,6 @@ DoLoop(struct bundle *bundle)
       }
     }
   }
+  prompt_Printf(&prompt, "\n");
   LogPrintf(LogDEBUG, "Job (DoLoop) done.\n");
 }

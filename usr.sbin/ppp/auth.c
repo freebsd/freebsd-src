@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: auth.c,v 1.27.2.14 1998/03/16 22:51:43 brian Exp $
+ * $Id: auth.c,v 1.27.2.15 1998/03/16 22:53:28 brian Exp $
  *
  *	TODO:
  *		o Implement check against with registered IP addresses.
@@ -51,12 +51,14 @@
 #include "lqr.h"
 #include "hdlc.h"
 #include "async.h"
+#include "ccp.h"
 #include "link.h"
 #include "descriptor.h"
 #include "physical.h"
 #include "chat.h"
 #include "lcpproto.h"
 #include "filter.h"
+#include "mp.h"
 #include "bundle.h"
 
 const char *
@@ -262,6 +264,7 @@ StartAuthChallenge(struct authinfo *authp, struct physical *physical,
   authp->physical = physical;
   StopTimer(&authp->authtimer);
   authp->authtimer.func = AuthTimeout;
+  authp->authtimer.name = "auth";
   authp->authtimer.load = VarRetryTimeout * SECTICKS;
   authp->authtimer.state = TIMER_STOPPED;
   authp->authtimer.arg = (void *) authp;

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.1.2.32 1998/03/25 00:59:28 brian Exp $
+ *	$Id: bundle.c,v 1.1.2.33 1998/03/25 18:38:38 brian Exp $
  */
 
 #include <sys/param.h>
@@ -58,10 +58,8 @@
 #include "throughput.h"
 #include "slcompress.h"
 #include "ipcp.h"
-#include "link.h"
 #include "filter.h"
 #include "descriptor.h"
-#include "bundle.h"
 #include "loadalias.h"
 #include "vars.h"
 #include "arp.h"
@@ -69,6 +67,9 @@
 #include "route.h"
 #include "lcp.h"
 #include "ccp.h"
+#include "link.h"
+#include "mp.h"
+#include "bundle.h"
 #include "async.h"
 #include "physical.h"
 #include "modem.h"
@@ -176,10 +177,6 @@ static void
 bundle_LayerStart(void *v, struct fsm *fp)
 {
   /* The given FSM is about to start up ! */
-  struct bundle *bundle = (struct bundle *)v;
-
-  if (fp->proto == PROTO_LCP && bundle_Phase(bundle) == PHASE_DEAD)
-    bundle_NewPhase(bundle, PHASE_ESTABLISH);
 }
 
 
@@ -195,27 +192,37 @@ bundle_Notify(struct bundle *bundle, char c)
     bundle->notify.fd = -1;
   }
 }
+
 static void
-bundle_LayerUp(void *v, struct fsm *fp)
+bundle_vLayerUp(void *v, struct fsm *fp)
+{
+  bundle_LayerUp((struct bundle *)v, fp);
+}
+
+void
+bundle_LayerUp(struct bundle *bundle, struct fsm *fp)
 {
   /*
    * The given fsm is now up
-   * If it's a datalink, adjust our mtu enter network phase
-   * If it's the first NCP, start the idle timer.
+   * If it's an LCP (including MP initialisation), set our mtu
+   * (This routine is also called from mp_Init() with it's LCP)
    * If it's an NCP, tell our background mode parent to go away.
+   * If it's the first NCP, start the idle timer.
    */
 
-  struct bundle *bundle = (struct bundle *)v;
-
   if (fp->proto == PROTO_LCP) {
-    struct lcp *lcp = fsm2lcp(fp);
+    if (bundle->ncp.mp.active) {
+      int speed;
+      struct datalink *dl;
 
-    /* XXX Should figure out what the optimum mru and speed are */
-    tun_configure(bundle, lcp->his_mru, modem_Speed(link2physical(fp->link)));
-    bundle_NewPhase(bundle, PHASE_NETWORK);
-  }
-
-  if (fp->proto == PROTO_IPCP) {
+      for (dl = bundle->links, speed = 0; dl; dl = dl->next)
+        speed += modem_Speed(dl->physical);
+      if (speed)
+        tun_configure(bundle, bundle->ncp.mp.link.lcp.his_mru, speed);
+    } else
+      tun_configure(bundle, fsm2lcp(fp)->his_mru,
+                    modem_Speed(link2physical(fp->link)));
+  } else if (fp->proto == PROTO_IPCP) {
     bundle_StartIdleTimer(bundle);
     bundle_Notify(bundle, EX_NORMAL);
   }
@@ -227,12 +234,32 @@ bundle_LayerDown(void *v, struct fsm *fp)
   /*
    * The given FSM has been told to come down.
    * If it's our last NCP, stop the idle timer.
+   * If it's our last NCP *OR* LCP, enter TERMINATE phase.
+   * If it's an LCP and we're in multilink mode, adjust our tun speed.
    */
 
   struct bundle *bundle = (struct bundle *)v;
 
-  if (fp->proto == PROTO_IPCP)
+  if (fp->proto == PROTO_IPCP) {
     bundle_StopIdleTimer(bundle);
+    bundle_NewPhase(bundle, PHASE_TERMINATE);
+  } else if (fp->proto == PROTO_LCP) {
+    int speed, others_active;
+    struct datalink *dl;
+
+    others_active = 0;
+    for (dl = bundle->links, speed = 0; dl; dl = dl->next)
+      if (fp != &dl->physical->link.lcp.fsm &&
+          dl->state != DATALINK_CLOSED && dl->state != DATALINK_HANGUP) {
+        speed += modem_Speed(dl->physical);
+        others_active++;
+      }
+    if (bundle->ncp.mp.active && speed)
+      tun_configure(bundle, bundle->ncp.mp.link.lcp.his_mru, speed);
+
+    if (!others_active)
+      bundle_NewPhase(bundle, PHASE_TERMINATE);
+  }
 }
 
 static void
@@ -241,23 +268,31 @@ bundle_LayerFinish(void *v, struct fsm *fp)
   /* The given fsm is now down (fp cannot be NULL)
    *
    * If it's the last LCP, FsmDown all NCPs
-   * If it's the last NCP, FsmClose all LCPs and enter TERMINATE phase.
+   * If it's the last NCP, FsmClose all LCPs
    */
 
   struct bundle *bundle = (struct bundle *)v;
+  struct datalink *dl;
 
   if (fp->proto == PROTO_IPCP) {
-    struct datalink *dl;
-
-    bundle_NewPhase(bundle, PHASE_TERMINATE);
-
     for (dl = bundle->links; dl; dl = dl->next)
-      datalink_Close(dl, 1);
-  }
+      datalink_Close(dl, 0);
+    FsmDown(fp);
+    FsmClose(fp);
+  } else if (fp->proto == PROTO_LCP) {
+    int others_active;
 
-  /* when either the LCP or IPCP is down, drop IPCP */
-  FsmDown(&bundle->ncp.ipcp.fsm);
-  FsmClose(&bundle->ncp.ipcp.fsm);		/* ST_INITIAL please */
+    others_active = 0;
+    for (dl = bundle->links; dl; dl = dl->next)
+      if (fp != &dl->physical->link.lcp.fsm &&
+          dl->state != DATALINK_CLOSED && dl->state != DATALINK_HANGUP)
+        others_active++;
+
+    if (!others_active) {
+      FsmDown(&bundle->ncp.ipcp.fsm);
+      FsmClose(&bundle->ncp.ipcp.fsm);		/* ST_INITIAL please */
+    }
+  }
 }
 
 int
@@ -271,33 +306,52 @@ bundle_Close(struct bundle *bundle, const char *name, int staydown)
 {
   /*
    * Please close the given datalink.
-   *
-   * If name == NULL or name is the last datalink, enter TERMINATE phase.
-   *
-   * If name == NULL, FsmClose all NCPs.
-   *
-   * If name is the last datalink, FsmClose all NCPs.
-   *
-   * If isn't the last datalink, just Close that datalink.
+   * If name == NULL or name is the last datalink, enter TERMINATE phase
+   * and FsmClose all NCPs (except our MP)
+   * If it isn't the last datalink, just Close that datalink.
    */
 
-  struct datalink *dl;
+  struct datalink *dl, *this_dl;
+  int others_active;
 
-  if (bundle->ncp.ipcp.fsm.state > ST_CLOSED ||
-      bundle->ncp.ipcp.fsm.state == ST_STARTING) {
-    bundle_NewPhase(bundle, PHASE_TERMINATE);
-    FsmClose(&bundle->ncp.ipcp.fsm);
-    if (staydown)
-      for (dl = bundle->links; dl; dl = dl->next)
+  if (bundle->phase == PHASE_TERMINATE || bundle->phase == PHASE_DEAD)
+    return;
+
+  others_active = 0;
+  this_dl = NULL;
+
+  for (dl = bundle->links; dl; dl = dl->next) {
+    if (name && !strcasecmp(name, dl->name))
+      this_dl = dl;
+    if (name == NULL || this_dl == dl) {
+      if (staydown)
         datalink_StayDown(dl);
-  } else {
-    if (bundle->ncp.ipcp.fsm.state > ST_INITIAL) {
-      FsmClose(&bundle->ncp.ipcp.fsm);
-      FsmDown(&bundle->ncp.ipcp.fsm);
-    }
-    for (dl = bundle->links; dl; dl = dl->next)
-      datalink_Close(dl, staydown);
+    } else if (dl->state != DATALINK_CLOSED && dl->state != DATALINK_HANGUP)
+      others_active++;
   }
+
+  if (name && this_dl == NULL) {
+    LogPrintf(LogWARN, "%s: Invalid datalink name\n", name);
+    return;
+  }
+
+  if (!others_active) {
+    if (bundle->ncp.ipcp.fsm.state > ST_CLOSED ||
+        bundle->ncp.ipcp.fsm.state == ST_STARTING)
+      FsmClose(&bundle->ncp.ipcp.fsm);
+    else {
+      /* This shouldn't happen ! */
+      LogPrintf(LogWARN, "Tidying up hung FSMs\n");
+      if (bundle->ncp.ipcp.fsm.state > ST_INITIAL) {
+        FsmClose(&bundle->ncp.ipcp.fsm);
+        FsmDown(&bundle->ncp.ipcp.fsm);
+      }
+      for (dl = bundle->links; dl; dl = dl->next)
+        datalink_Close(dl, staydown);
+    }
+  } else if (this_dl && this_dl->state != DATALINK_CLOSED &&
+             this_dl->state != DATALINK_HANGUP)
+    datalink_Close(this_dl, staydown);
 }
 
 static int
@@ -353,7 +407,7 @@ bundle_DescriptorWrite(struct descriptor *d, struct bundle *bundle,
 #define MAX_TUN 256
 /*
  * MAX_TUN is set at 256 because that is the largest minor number
- * we can use (certainly with mknod(1) anyway.  The search for a
+ * we can use (certainly with mknod(1) anyway).  The search for a
  * device aborts when it reaches the first `Device not configured'
  * (ENXIO) or the third `No such file or directory' (ENOENT) error.
  */
@@ -448,7 +502,7 @@ bundle_Create(const char *prefix)
   bundle.CleaningUp = 0;
 
   bundle.fsm.LayerStart = bundle_LayerStart;
-  bundle.fsm.LayerUp = bundle_LayerUp;
+  bundle.fsm.LayerUp = bundle_vLayerUp;
   bundle.fsm.LayerDown = bundle_LayerDown;
   bundle.fsm.LayerFinish = bundle_LayerFinish;
   bundle.fsm.object = &bundle;
@@ -539,7 +593,6 @@ bundle_Destroy(struct bundle *bundle)
     dl = datalink_Destroy(dl);
 
   bundle_Notify(bundle, EX_ERRDEAD);
-
   bundle->ifname = NULL;
 }
 
@@ -684,23 +737,30 @@ bundle_LinkClosed(struct bundle *bundle, struct datalink *dl)
   /*
    * Our datalink has closed.
    * If it's DIRECT or BACKGROUND, delete it.
-   * If it's the last data link,
+   * If it's the last data link, enter phase DEAD.
    */
 
-  if (mode & (MODE_BACKGROUND|MODE_DIRECT))
-     bundle->CleaningUp = 1;
+  struct datalink *odl;
+  int other_links;
 
-  if (!(mode & MODE_AUTO))
-    bundle_DownInterface(bundle);
+  if (mode & (MODE_DIRECT|MODE_BACKGROUND)) {
+    struct datalink **dlp;
+    for (dlp = &bundle->links; *dlp; dlp = &(*dlp)->next)
+      if (*dlp == dl)
+        *dlp = datalink_Destroy(*dlp);
+  }
 
-  if (mode & MODE_DDIAL)
-    datalink_Up(dl, 1, 1);
-  else
+  other_links = 0;
+  for (odl = bundle->links; odl; odl = odl->next)
+    if (odl != dl && odl->state != DATALINK_CLOSED)
+      other_links++;
+
+  if (!other_links) {
+    if (!(mode & MODE_AUTO))
+      bundle_DownInterface(bundle);
     bundle_NewPhase(bundle, PHASE_DEAD);
-
-  if (mode & MODE_INTER)
     prompt_Display(&prompt, bundle);
-    
+  }
 }
 
 void
@@ -719,8 +779,6 @@ bundle_Open(struct bundle *bundle, const char *name)
       if (name != NULL)
         break;
     }
-  if (bundle_Phase(bundle) == PHASE_DEAD)
-    bundle_NewPhase(bundle, PHASE_ESTABLISH);
 }
 
 struct datalink *
@@ -745,24 +803,6 @@ bundle2physical(struct bundle *bundle, const char *name)
   return dl ? dl->physical : NULL;
 }
 
-struct ccp *
-bundle2ccp(struct bundle *bundle, const char *name)
-{
-  struct datalink *dl = bundle2datalink(bundle, name);
-  if (dl)
-    return &dl->ccp;
-  return NULL;
-}
-
-struct lcp *
-bundle2lcp(struct bundle *bundle, const char *name)
-{
-  struct datalink *dl = bundle2datalink(bundle, name);
-  if (dl)
-    return &dl->lcp;
-  return NULL;
-}
-
 struct authinfo *
 bundle2pap(struct bundle *bundle, const char *name)
 {
@@ -781,31 +821,23 @@ bundle2chap(struct bundle *bundle, const char *name)
   return NULL;
 }
 
-struct link *
-bundle2link(struct bundle *bundle, const char *name)
-{
-  struct physical *physical = bundle2physical(bundle, name);
-  return physical ? &physical->link : NULL;
-}
-
 int
 bundle_FillQueues(struct bundle *bundle)
 {
-  struct datalink *dl;
-  int packets, total;
+  int total;
 
-  total = 0;
-  for (dl = bundle->links; dl; dl = dl->next) {
-    packets = link_QueueLen(&dl->physical->link);
-    if (packets == 0) {
-      IpStartOutput(&dl->physical->link, bundle);
-      packets = link_QueueLen(&dl->physical->link);
-    }
-    total += packets;
+  if (bundle->ncp.mp.active) {
+    total = mp_FillQueues(bundle);
+  } else {
+    struct datalink *dl;
+
+    dl = bundle2datalink(bundle, NULL);
+    total = link_QueueLen(&dl->physical->link);
+    if (total == 0 && dl->physical->out == NULL)
+      total = IpFlushPacket(&dl->physical->link, bundle);
   }
-  total += ip_QueueLen();
 
-  return total;
+  return total + ip_QueueLen();
 }
 
 int
@@ -843,6 +875,7 @@ bundle_StartIdleTimer(struct bundle *bundle)
   if (!(mode & (MODE_DEDICATED | MODE_DDIAL)) && bundle->cfg.idle_timeout) {
     StopTimer(&bundle->idle.timer);
     bundle->idle.timer.func = bundle_IdleTimeout;
+    bundle->idle.timer.name = "idle";
     bundle->idle.timer.load = bundle->cfg.idle_timeout * SECTICKS;
     bundle->idle.timer.state = TIMER_STOPPED;
     bundle->idle.timer.arg = bundle;
@@ -871,4 +904,10 @@ bundle_RemainingIdleTime(struct bundle *bundle)
   if (bundle->idle.done)
     return bundle->idle.done - time(NULL);
   return -1;
+}
+
+int
+bundle_IsDead(struct bundle *bundle)
+{
+  return !bundle->links || (bundle->phase == PHASE_DEAD && bundle->CleaningUp);
 }

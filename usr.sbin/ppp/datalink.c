@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.c,v 1.1.2.27 1998/03/20 19:47:54 brian Exp $
+ *	$Id: datalink.c,v 1.1.2.28 1998/03/25 00:59:33 brian Exp $
  */
 
 #include <sys/param.h>
@@ -51,15 +51,16 @@
 #include "hdlc.h"
 #include "async.h"
 #include "throughput.h"
+#include "ccp.h"
 #include "link.h"
 #include "physical.h"
 #include "iplist.h"
 #include "slcompress.h"
 #include "ipcp.h"
 #include "filter.h"
+#include "mp.h"
 #include "bundle.h"
 #include "chat.h"
-#include "ccp.h"
 #include "auth.h"
 #include "main.h"
 #include "modem.h"
@@ -93,6 +94,7 @@ datalink_StartDialTimer(struct datalink *dl, int Timeout)
     else
       dl->dial_timer.load = (random() % DIAL_TIMEOUT) * SECTICKS;
     dl->dial_timer.func = datalink_OpenTimeout;
+    dl->dial_timer.name = "dial";
     dl->dial_timer.arg = dl;
     StartTimer(&dl->dial_timer);
     if (dl->state == DATALINK_OPENING)
@@ -107,13 +109,17 @@ datalink_HangupDone(struct datalink *dl)
   modem_Close(dl->physical);
   dl->phone.chosen = "[N/A]";
 
-  if (!dl->dial_tries || (dl->dial_tries < 0 && !dl->reconnect_tries)) {
+  if (dl->bundle->CleaningUp ||
+      (mode & MODE_DIRECT) ||
+      ((!dl->dial_tries || (dl->dial_tries < 0 && !dl->reconnect_tries)) &&
+       !(mode & (MODE_DDIAL|MODE_DEDICATED)))) {
     LogPrintf(LogPHASE, "%s: Entering CLOSED state\n", dl->name);
     dl->state = DATALINK_CLOSED;
     dl->dial_tries = -1;
     dl->reconnect_tries = 0;
     bundle_LinkClosed(dl->bundle, dl);
-    datalink_StartDialTimer(dl, dl->cfg.dial_timeout);
+    if (!dl->bundle->CleaningUp)
+      datalink_StartDialTimer(dl, dl->cfg.dial_timeout);
   } else {
     LogPrintf(LogPHASE, "%s: Re-entering OPENING state\n", dl->name);
     dl->state = DATALINK_OPENING;
@@ -170,13 +176,17 @@ datalink_LoginDone(struct datalink *dl)
   } else {
     dl->dial_tries = -1;
 
-    lcp_Setup(&dl->lcp, dl->state == DATALINK_READY ? 0 : VarOpenMode);
-    ccp_Setup(&dl->ccp);
+    hdlc_Init(&dl->physical->hdlc);
+    async_Init(&dl->physical->async);
+
+    lcp_Setup(&dl->physical->link.lcp,
+              dl->state == DATALINK_READY ? 0 : VarOpenMode);
+    ccp_Setup(&dl->physical->link.ccp);
 
     LogPrintf(LogPHASE, "%s: Entering LCP state\n", dl->name);
     dl->state = DATALINK_LCP;
-    FsmUp(&dl->lcp.fsm);
-    FsmOpen(&dl->lcp.fsm);
+    FsmUp(&dl->physical->link.lcp.fsm);
+    FsmOpen(&dl->physical->link.lcp.fsm);
   }
 }
 
@@ -215,14 +225,17 @@ datalink_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
           else
             LogPrintf(LogCHAT, "Failed to open modem\n");
 
-          if (!(mode & MODE_DDIAL) && dl->cfg.max_dial && dl->dial_tries == 0) {
+          if (dl->bundle->CleaningUp ||
+              (!(mode & (MODE_DDIAL|MODE_DEDICATED)) &&
+               dl->cfg.max_dial && dl->dial_tries == 0)) {
             LogPrintf(LogPHASE, "%s: Entering CLOSED state\n", dl->name);
             dl->state = DATALINK_CLOSED;
             dl->reconnect_tries = 0;
             dl->dial_tries = -1;
             bundle_LinkClosed(dl->bundle, dl);
           }
-          datalink_StartDialTimer(dl, dl->cfg.dial_timeout);
+          if (!dl->bundle->CleaningUp)
+            datalink_StartDialTimer(dl, dl->cfg.dial_timeout);
         }
       }
       break;
@@ -387,17 +400,17 @@ datalink_LayerUp(void *v, struct fsm *fp)
   struct datalink *dl = (struct datalink *)v;
 
   if (fp->proto == PROTO_LCP) {
-    dl->lcp.auth_ineed = dl->lcp.want_auth;
-    dl->lcp.auth_iwait = dl->lcp.his_auth;
-    if (dl->lcp.his_auth || dl->lcp.want_auth) {
-      if (bundle_Phase(dl->bundle) == PHASE_DEAD ||
-          bundle_Phase(dl->bundle) == PHASE_ESTABLISH)
+    dl->physical->link.lcp.auth_ineed = dl->physical->link.lcp.want_auth;
+    dl->physical->link.lcp.auth_iwait = dl->physical->link.lcp.his_auth;
+    if (dl->physical->link.lcp.his_auth || dl->physical->link.lcp.want_auth) {
+      if (bundle_Phase(dl->bundle) == PHASE_ESTABLISH)
         bundle_NewPhase(dl->bundle, PHASE_AUTHENTICATE);
       LogPrintf(LogPHASE, "%s: his = %s, mine = %s\n", dl->name,
-                Auth2Nam(dl->lcp.his_auth), Auth2Nam(dl->lcp.want_auth));
-      if (dl->lcp.his_auth == PROTO_PAP)
+                Auth2Nam(dl->physical->link.lcp.his_auth),
+                Auth2Nam(dl->physical->link.lcp.want_auth));
+      if (dl->physical->link.lcp.his_auth == PROTO_PAP)
         StartAuthChallenge(&dl->pap, dl->physical, SendPapChallenge);
-      if (dl->lcp.want_auth == PROTO_CHAP)
+      if (dl->physical->link.lcp.want_auth == PROTO_CHAP)
         StartAuthChallenge(&dl->chap.auth, dl->physical, SendChapChallenge);
     } else
       datalink_AuthOk(dl);
@@ -407,17 +420,20 @@ datalink_LayerUp(void *v, struct fsm *fp)
 void
 datalink_AuthOk(struct datalink *dl)
 {
-  FsmUp(&dl->ccp.fsm);
-  FsmOpen(&dl->ccp.fsm);
+  /* XXX: Connect to another ppp instance HERE */
+
+  FsmUp(&dl->physical->link.ccp.fsm);
+  FsmOpen(&dl->physical->link.ccp.fsm);
   dl->state = DATALINK_OPEN;
-  (*dl->parent->LayerUp)(dl->parent->object, &dl->lcp.fsm);
+  bundle_NewPhase(dl->bundle, PHASE_NETWORK);
+  (*dl->parent->LayerUp)(dl->parent->object, &dl->physical->link.lcp.fsm);
 }
 
 void
 datalink_AuthNotOk(struct datalink *dl)
 {
   dl->state = DATALINK_LCP;
-  FsmClose(&dl->lcp.fsm);
+  FsmClose(&dl->physical->link.lcp.fsm);
 }
 
 static void
@@ -429,8 +445,8 @@ datalink_LayerDown(void *v, struct fsm *fp)
   if (fp->proto == PROTO_LCP) {
     switch (dl->state) {
       case DATALINK_OPEN:
-        FsmDown(&dl->ccp.fsm);
-        FsmClose(&dl->ccp.fsm);
+        FsmDown(&dl->physical->link.ccp.fsm);
+        FsmClose(&dl->physical->link.ccp.fsm);
         (*dl->parent->LayerDown)(dl->parent->object, fp);
         /* fall through */
 
@@ -484,6 +500,7 @@ datalink_Create(const char *name, struct bundle *bundle,
   dl->phone.chosen = "N/A";
   dl->script.run = 1;
   dl->script.packetmode = 1;
+  mp_linkInit(&dl->mp);
 
   dl->bundle = bundle;
   dl->next = NULL;
@@ -500,25 +517,22 @@ datalink_Create(const char *name, struct bundle *bundle,
   dl->cfg.reconnect_timeout = RECONNECT_TIMEOUT;
 
   dl->name = strdup(name);
-  if ((dl->physical = modem_Create(dl->name, dl)) == NULL) {
+  dl->parent = parent;
+  dl->fsmp.LayerStart = datalink_LayerStart;
+  dl->fsmp.LayerUp = datalink_LayerUp;
+  dl->fsmp.LayerDown = datalink_LayerDown;
+  dl->fsmp.LayerFinish = datalink_LayerFinish;
+  dl->fsmp.object = dl;
+
+  authinfo_Init(&dl->pap);
+  authinfo_Init(&dl->chap.auth);
+
+  if ((dl->physical = modem_Create(dl)) == NULL) {
     free(dl->name);
     free(dl);
     return NULL;
   }
   chat_Init(&dl->chat, dl->physical, NULL, 1, NULL);
-
-  dl->parent = parent;
-  dl->fsm.LayerStart = datalink_LayerStart;
-  dl->fsm.LayerUp = datalink_LayerUp;
-  dl->fsm.LayerDown = datalink_LayerDown;
-  dl->fsm.LayerFinish = datalink_LayerFinish;
-  dl->fsm.object = dl;
-
-  lcp_Init(&dl->lcp, dl->bundle, dl->physical, &dl->fsm);
-  ccp_Init(&dl->ccp, dl->bundle, &dl->physical->link, &dl->fsm);
-
-  authinfo_Init(&dl->pap);
-  authinfo_Init(&dl->chap.auth);
 
   LogPrintf(LogPHASE, "%s: Created in CLOSED state\n", dl->name);
 
@@ -536,7 +550,7 @@ datalink_Destroy(struct datalink *dl)
 
   result = dl->next;
   chat_Destroy(&dl->chat);
-  link_Destroy(&dl->physical->link);
+  modem_Destroy(dl->physical);
   free(dl->name);
   free(dl);
 
@@ -549,6 +563,9 @@ datalink_Up(struct datalink *dl, int runscripts, int packetmode)
   switch (dl->state) {
     case DATALINK_CLOSED:
       LogPrintf(LogPHASE, "%s: Entering OPENING state\n", dl->name);
+      if (bundle_Phase(dl->bundle) == PHASE_DEAD ||
+          bundle_Phase(dl->bundle) == PHASE_TERMINATE)
+        bundle_NewPhase(dl->bundle, PHASE_ESTABLISH);
       dl->state = DATALINK_OPENING;
       dl->reconnect_tries = dl->cfg.max_reconnect;
       dl->dial_tries = dl->cfg.max_dial;
@@ -579,13 +596,13 @@ datalink_Close(struct datalink *dl, int stay)
   /* Please close */
   switch (dl->state) {
     case DATALINK_OPEN:
-      FsmDown(&dl->ccp.fsm);
-      FsmClose(&dl->ccp.fsm);
+      FsmDown(&dl->physical->link.ccp.fsm);
+      FsmClose(&dl->physical->link.ccp.fsm);
       /* fall through */
 
     case DATALINK_AUTH:
     case DATALINK_LCP:
-      FsmClose(&dl->lcp.fsm);
+      FsmClose(&dl->physical->link.lcp.fsm);
       if (stay) {
         dl->dial_tries = -1;
         dl->reconnect_tries = 0;
@@ -603,17 +620,17 @@ datalink_Down(struct datalink *dl, int stay)
   /* Carrier is lost */
   switch (dl->state) {
     case DATALINK_OPEN:
-      FsmDown(&dl->ccp.fsm);
-      FsmClose(&dl->ccp.fsm);
+      FsmDown(&dl->physical->link.ccp.fsm);
+      FsmClose(&dl->physical->link.ccp.fsm);
       /* fall through */
 
     case DATALINK_AUTH:
     case DATALINK_LCP:
-      FsmDown(&dl->lcp.fsm);
+      FsmDown(&dl->physical->link.lcp.fsm);
       if (stay)
-        FsmClose(&dl->lcp.fsm);
+        FsmClose(&dl->physical->link.lcp.fsm);
       else
-        FsmOpen(&dl->ccp.fsm);
+        FsmOpen(&dl->physical->link.ccp.fsm);
       /* fall through */
 
     default:

@@ -16,7 +16,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- *  $Id: physical.c,v 1.1.2.18 1998/03/16 22:54:18 brian Exp $
+ *  $Id: physical.c,v 1.1.2.19 1998/03/20 19:48:16 brian Exp $
  *
  */
 
@@ -55,6 +55,7 @@
 #include "fsm.h"
 #include "lcp.h"
 #include "async.h"
+#include "ccp.h"
 #include "link.h"
 
 #include "descriptor.h"
@@ -65,6 +66,12 @@
 #include "slcompress.h"
 #include "ipcp.h"
 #include "filter.h"
+#include "mp.h"
+#include "auth.h"
+#include "chap.h"
+#include "pap.h"
+#include "chat.h"
+#include "datalink.h"
 #include "bundle.h"
 #include "log.h"
 #include "id.h"
@@ -184,20 +191,11 @@ Physical_Write(struct physical *phys, const void *buf, size_t nbytes) {
 }
 
 int
-Physical_ReportProtocolStatus(struct cmdargs const *arg)
-{
-  link_ReportProtocolStatus(bundle2link(arg->bundle, NULL));
-  return 0;
-}
-
-int
 Physical_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
                    int *n, int force)
 {
   struct physical *p = descriptor2physical(d);
   int sets;
-
-  LogPrintf(LogDEBUG, "descriptor2physical; %p -> %p\n", d, p);
 
   sets = 0;
   if (p->fd >= 0) {
@@ -224,19 +222,7 @@ int
 Physical_IsSet(struct descriptor *d, const fd_set *fdset)
 {
   struct physical *p = descriptor2physical(d);
-
-  LogPrintf(LogDEBUG, "descriptor2physical; %p -> %p\n", d, p);
   return p->fd >= 0 && FD_ISSET(p->fd, fdset);
-}
-
-void
-Physical_DescriptorWrite(struct descriptor *d, struct bundle *bundle,
-                         const fd_set *fdset)
-{
-  struct physical *p = descriptor2physical(d);
-
-  LogPrintf(LogDEBUG, "descriptor2physical; %p -> %p\n", d, p);
-  link_StartOutput(&p->link, bundle);
 }
 
 void

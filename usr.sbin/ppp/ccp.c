@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ccp.c,v 1.30.2.27 1998/03/20 19:47:44 brian Exp $
+ * $Id: ccp.c,v 1.30.2.28 1998/03/24 18:46:37 brian Exp $
  *
  *	TODO:
  *		o Support other compression protocols
@@ -51,14 +51,17 @@
 #include "ipcp.h"
 #include "filter.h"
 #include "descriptor.h"
-#include "bundle.h"
 #include "prompt.h"
 #include "lqr.h"
 #include "hdlc.h"
 #include "link.h"
+#include "mp.h"
+#include "bundle.h"
 #include "chat.h"
 #include "auth.h"
 #include "chap.h"
+#include "async.h"
+#include "physical.h"
 #include "datalink.h"
 
 static void CcpSendConfigReq(struct fsm *);
@@ -132,7 +135,7 @@ static const struct ccp_algorithm *algorithm[] = {
 int
 ccp_ReportStatus(struct cmdargs const *arg)
 {
-  struct ccp *ccp = arg->cx ? &arg->cx->ccp : bundle2ccp(arg->bundle, NULL);
+  struct ccp *ccp = &ChooseLink(arg)->ccp;
 
   prompt_Printf(&prompt, "%s [%s]\n", ccp->fsm.name,
                 State2Nam(ccp->fsm.state));
@@ -149,8 +152,11 @@ ccp_Init(struct ccp *ccp, struct bundle *bundle, struct link *l,
          const struct fsm_parent *parent)
 {
   /* Initialise ourselves */
-  fsm_Init(&ccp->fsm, "CCP", PROTO_CCP, CCP_MAXCODE, 10, LogCCP,
-           bundle, l, parent, &ccp_Callbacks);
+  static const char *timer_names[] =
+    {"CCP restart", "CCP openmode", "CCP stopped"};
+
+  fsm_Init(&ccp->fsm, "CCP", PROTO_CCP, 1, CCP_MAXCODE, 10, LogCCP,
+           bundle, l, parent, &ccp_Callbacks, timer_names);
   ccp->cfg.deflate.in.winsize = 0;
   ccp->cfg.deflate.out.winsize = 15;
   ccp_Setup(ccp);
@@ -483,8 +489,8 @@ CcpRecvResetAck(struct fsm *fp, u_char id)
 }
 
 int
-ccp_Output(struct ccp *ccp, struct link *l, int pri, u_short proto,
-           struct mbuf *m)
+ccp_Compress(struct ccp *ccp, struct link *l, int pri, u_short proto,
+             struct mbuf *m)
 {
   /* Compress outgoing Network Layer data */
   if ((proto & 0xfff1) == 0x21 && ccp->fsm.state == ST_OPENED &&

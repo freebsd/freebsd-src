@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *  $Id: link.h,v 1.1.2.5 1998/02/21 01:45:18 brian Exp $
+ *  $Id: link.h,v 1.1.2.6 1998/02/23 00:38:34 brian Exp $
  *
  */
 
@@ -32,7 +32,7 @@
 #define MP_LINK       2
 
 #define LINK_QUEUES (PRI_MAX + 1)
-#define NPROTOSTAT 11
+#define NPROTOSTAT 12
 
 struct bundle;
 
@@ -47,11 +47,8 @@ struct link {
   u_long proto_in[NPROTOSTAT];            /* outgoing protocol stats */
   u_long proto_out[NPROTOSTAT];           /* incoming protocol stats */
 
-  /* Implementation routines for use by link_ routines */
-  void (*StartOutput)(struct link *, struct bundle *); /* send queued data */
-  int (*IsActive)(struct link *);         /* Are we active ? */
-  void (*Close)(struct link *, int);      /* Close the link */
-  void (*Destroy)(struct link *);         /* Destructor */
+  struct lcp lcp;                         /* Our line control FSM */
+  struct ccp ccp;                         /* Our compression FSM */
 };
 
 extern void link_AddInOctets(struct link *, int);
@@ -59,6 +56,7 @@ extern void link_AddOutOctets(struct link *, int);
 
 extern void link_SequenceQueue(struct link *);
 extern int link_QueueLen(struct link *);
+extern int link_QueueBytes(struct link *);
 extern struct mbuf *link_Dequeue(struct link *);
 extern void link_Write(struct link *, int, const char *, int);
 extern void link_StartOutput(struct link *, struct bundle *);
@@ -68,7 +66,3 @@ extern void link_Output(struct link *, int, struct mbuf *);
 #define PROTO_OUT 2
 extern void link_ProtocolRecord(struct link *, u_short, int);
 extern void link_ReportProtocolStatus(struct link *);
-
-extern int link_IsActive(struct link *);
-extern void link_Close(struct link *, struct bundle *, int, int);
-extern void link_Destroy(struct link *);

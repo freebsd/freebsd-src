@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.h,v 1.1.2.11 1998/03/09 19:24:56 brian Exp $
+ *	$Id: datalink.h,v 1.1.2.12 1998/03/13 21:07:03 brian Exp $
  */
 
 #define DATALINK_CLOSED  (0)
@@ -78,13 +78,13 @@ struct datalink {
 
   char *name;			/* Our name */
 
-  struct fsm_parent fsm;	   /* Our callback functions */
+  struct fsm_parent fsmp;	   /* Our callback functions */
   const struct fsm_parent *parent; /* Our parent */
-  struct lcp lcp;		   /* Our line control FSM */
-  struct ccp ccp;		   /* Our compression FSM */
 
   struct authinfo pap;             /* Authentication using pap */
   struct chap chap;                /* Authentication using chap */
+
+  struct mp_link mp;               /* multilink data */
 
   struct bundle *bundle;	   /* for the moment */
   struct datalink *next;	   /* Next in the list */

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: throughput.c,v 1.4 1997/12/21 12:11:09 brian Exp $
+ *	$Id: throughput.c,v 1.4.4.1 1998/02/10 03:23:43 brian Exp $
  */
 
 #include <sys/param.h>
@@ -53,6 +53,7 @@ throughput_init(struct pppThroughput *t)
   for (f = 0; f < SAMPLE_PERIOD; f++)
     t->SampleOctets[f] = 0;
   t->OctetsPerSecond = t->BestOctetsPerSecond = t->nSample = 0;
+  t->Timer.name = "throughput";
   throughput_stop(t);
 }
 
@@ -124,7 +125,7 @@ throughput_sampler(void *v)
 }
 
 void
-throughput_start(struct pppThroughput *t)
+throughput_start(struct pppThroughput *t, const char *name)
 {
   throughput_init(t);
   time(&t->uptime);
@@ -132,6 +133,7 @@ throughput_start(struct pppThroughput *t)
     t->Timer.state = TIMER_STOPPED;
     t->Timer.load = SECTICKS;
     t->Timer.func = throughput_sampler;
+    t->Timer.name = name;
     t->Timer.arg = t;
     StartTimer(&t->Timer);
   }

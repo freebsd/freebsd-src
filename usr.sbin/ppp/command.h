@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.h,v 1.12.2.4 1998/02/17 19:27:54 brian Exp $
+ * $Id: command.h,v 1.12.2.5 1998/03/17 22:29:07 brian Exp $
  *
  *	TODO:
  */
@@ -61,3 +61,4 @@ extern int IsInteractive(int);
 extern void InterpretCommand(char *, int, int *, char ***);
 extern void RunCommand(struct bundle *, int, char const *const *, const char *);
 extern void DecodeCommand(struct bundle *, char *, int, const char *);
+extern struct link *ChooseLink(struct cmdargs const *);

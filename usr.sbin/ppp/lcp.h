@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.h,v 1.16.2.14 1998/03/13 21:07:07 brian Exp $
+ * $Id: lcp.h,v 1.16.2.15 1998/03/20 19:46:58 brian Exp $
  *
  *	TODO:
  */
@@ -50,6 +50,7 @@ struct lcp {
 };
 
 #define	LCP_MAXCODE	CODE_DISCREQ
+#define	LCP_MINMPCODE	CODE_CODEREJ
 
 #define	TY_MRU		1	/* Maximum-Receive-Unit */
 #define	TY_ACCMAP	2	/* Async-Control-Character-Map */
@@ -79,9 +80,8 @@ struct lcp_opt {
 struct physical;
 
 #define fsm2lcp(fp) (fp->proto == PROTO_LCP ? (struct lcp *)fp : NULL)
-#define lcp2ccp(lcp) (&link2physical((lcp)->fsm.link)->dl->ccp)
 
-extern void lcp_Init(struct lcp *, struct bundle *, struct physical *,
+extern void lcp_Init(struct lcp *, struct bundle *, struct link *,
                      const struct fsm_parent *);
 extern void lcp_Setup(struct lcp *, int);
 

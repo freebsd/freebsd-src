@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.131.2.42 1998/03/20 19:47:51 brian Exp $
+ * $Id: command.c,v 1.131.2.43 1998/03/24 18:46:43 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -67,7 +67,6 @@
 #include "systems.h"
 #include "filter.h"
 #include "descriptor.h"
-#include "bundle.h"
 #include "main.h"
 #include "route.h"
 #include "ccp.h"
@@ -76,6 +75,8 @@
 #include "async.h"
 #include "link.h"
 #include "physical.h"
+#include "mp.h"
+#include "bundle.h"
 #include "server.h"
 #include "prompt.h"
 #include "chat.h"
@@ -88,7 +89,6 @@ static int ShowCommand(struct cmdargs const *);
 static int TerminalCommand(struct cmdargs const *);
 static int QuitCommand(struct cmdargs const *);
 static int CloseCommand(struct cmdargs const *);
-static int DialCommand(struct cmdargs const *);
 static int DownCommand(struct cmdargs const *);
 static int AllowCommand(struct cmdargs const *);
 static int SetCommand(struct cmdargs const *);
@@ -448,21 +448,28 @@ ShowTimeout(struct cmdargs const *arg)
 }
 
 static int
+ShowTimerList(struct cmdargs const *arg)
+{
+  ShowTimers(0);
+  return 0;
+}
+
+static int
 ShowStopped(struct cmdargs const *arg)
 {
   prompt_Printf(&prompt, " Stopped Timer:  LCP: ");
-  if (!arg->cx->lcp.fsm.StoppedTimer.load)
+  if (!arg->cx->physical->link.lcp.fsm.StoppedTimer.load)
     prompt_Printf(&prompt, "Disabled");
   else
     prompt_Printf(&prompt, "%ld secs",
-                  arg->cx->lcp.fsm.StoppedTimer.load / SECTICKS);
+                  arg->cx->physical->link.lcp.fsm.StoppedTimer.load / SECTICKS);
 
   prompt_Printf(&prompt, ", CCP: ");
-  if (!arg->cx->ccp.fsm.StoppedTimer.load)
+  if (!arg->cx->physical->link.ccp.fsm.StoppedTimer.load)
     prompt_Printf(&prompt, "Disabled");
   else
     prompt_Printf(&prompt, "%ld secs",
-                  arg->cx->ccp.fsm.StoppedTimer.load / SECTICKS);
+                  arg->cx->physical->link.ccp.fsm.StoppedTimer.load / SECTICKS);
 
   prompt_Printf(&prompt, "\n");
 
@@ -503,6 +510,14 @@ ShowPreferredMTU(struct cmdargs const *arg)
     prompt_Printf(&prompt, " Preferred MTU: unspecified\n");
   return 0;
 }
+
+int
+ShowProtocolStats(struct cmdargs const *arg)
+{
+  link_ReportProtocolStatus(ChooseLink(arg));
+  return 0;
+}
+
 
 static int
 ShowReconnect(struct cmdargs const *arg)
@@ -572,7 +587,7 @@ static struct cmdtab const ShowCommands[] = {
   "Show packet filters", "show filter [in|out|dial|alive]"},
   {"ipcp", NULL, ReportIpcpStatus, LOCAL_AUTH,
   "Show IPCP status", "show ipcp"},
-  {"lcp", NULL, lcp_ReportStatus, LOCAL_AUTH | LOCAL_CX,
+  {"lcp", NULL, lcp_ReportStatus, LOCAL_AUTH | LOCAL_CX_OPT,
   "Show LCP status", "show lcp"},
   {"links", "link", bundle_ShowLinks, LOCAL_AUTH,
   "Show available link names", "show links"},
@@ -592,7 +607,7 @@ static struct cmdtab const ShowCommands[] = {
 #endif
   {"mtu", NULL, ShowPreferredMTU, LOCAL_AUTH,
   "Show Preferred MTU", "show mtu"},
-  {"proto", NULL, Physical_ReportProtocolStatus, LOCAL_AUTH,
+  {"proto", NULL, ShowProtocolStats, LOCAL_AUTH | LOCAL_CX_OPT,
   "Show protocol summary", "show proto"},
   {"reconnect", NULL, ShowReconnect, LOCAL_AUTH | LOCAL_CX,
   "Show reconnect timer", "show reconnect"},
@@ -602,6 +617,8 @@ static struct cmdtab const ShowCommands[] = {
   "Show routing table", "show route"},
   {"timeout", NULL, ShowTimeout, LOCAL_AUTH,
   "Show Idle timeout", "show timeout"},
+  {"timers", NULL, ShowTimerList, LOCAL_AUTH,
+  "Show alarm timers", "show timers"},
   {"stopped", NULL, ShowStopped, LOCAL_AUTH | LOCAL_CX,
   "Show STOPPED timeout", "show stopped"},
   {"version", NULL, ShowVersion, LOCAL_NO_AUTH | LOCAL_AUTH,
@@ -781,9 +798,9 @@ ShowCommand(struct cmdargs const *arg)
 static int
 TerminalCommand(struct cmdargs const *arg)
 {
-  if (arg->cx->lcp.fsm.state > ST_CLOSED) {
+  if (arg->cx->physical->link.lcp.fsm.state > ST_CLOSED) {
     prompt_Printf(&prompt, "LCP state is [%s]\n",
-                  State2Nam(arg->cx->lcp.fsm.state));
+                  State2Nam(arg->cx->physical->link.lcp.fsm.state));
     return 1;
   }
 
@@ -821,7 +838,7 @@ CloseCommand(struct cmdargs const *arg)
 static int
 DownCommand(struct cmdargs const *arg)
 {
-  link_Close(&arg->cx->physical->link, arg->bundle, 0, 1);
+  datalink_Down(arg->cx, 1);
   return 0;
 }
 
@@ -925,13 +942,15 @@ SetRedialTimeout(struct cmdargs const *arg)
 static int
 SetStoppedTimeout(struct cmdargs const *arg)
 {
-  arg->cx->lcp.fsm.StoppedTimer.load = 0;
-  arg->cx->ccp.fsm.StoppedTimer.load = 0;
+  struct link *l = &arg->cx->physical->link;
+
+  l->lcp.fsm.StoppedTimer.load = 0;
+  l->ccp.fsm.StoppedTimer.load = 0;
   if (arg->argc <= 2) {
     if (arg->argc > 0) {
-      arg->cx->lcp.fsm.StoppedTimer.load = atoi(arg->argv[0]) * SECTICKS;
+      l->lcp.fsm.StoppedTimer.load = atoi(arg->argv[0]) * SECTICKS;
       if (arg->argc > 1)
-        arg->cx->ccp.fsm.StoppedTimer.load = atoi(arg->argv[1]) * SECTICKS;
+        l->ccp.fsm.StoppedTimer.load = atoi(arg->argv[1]) * SECTICKS;
     }
     return 0;
   }
@@ -1316,23 +1335,25 @@ SetVariable(struct cmdargs const *arg)
     break;
   case VAR_WINSIZE:
     if (arg->argc > 0) {
-      cx->ccp.cfg.deflate.out.winsize = atoi(arg->argv[0]);
-      if (cx->ccp.cfg.deflate.out.winsize < 8 ||
-          cx->ccp.cfg.deflate.out.winsize > 15) {
+      struct link *l = ChooseLink(arg);
+
+      l->ccp.cfg.deflate.out.winsize = atoi(arg->argv[0]);
+      if (l->ccp.cfg.deflate.out.winsize < 8 ||
+          l->ccp.cfg.deflate.out.winsize > 15) {
           LogPrintf(LogWARN, "%d: Invalid outgoing window size\n",
-                    cx->ccp.cfg.deflate.out.winsize);
-          cx->ccp.cfg.deflate.out.winsize = 15;
+                    l->ccp.cfg.deflate.out.winsize);
+          l->ccp.cfg.deflate.out.winsize = 15;
       }
       if (arg->argc > 1) {
-        cx->ccp.cfg.deflate.in.winsize = atoi(arg->argv[1]);
-        if (cx->ccp.cfg.deflate.in.winsize < 8 ||
-            cx->ccp.cfg.deflate.in.winsize > 15) {
+        l->ccp.cfg.deflate.in.winsize = atoi(arg->argv[1]);
+        if (l->ccp.cfg.deflate.in.winsize < 8 ||
+            l->ccp.cfg.deflate.in.winsize > 15) {
             LogPrintf(LogWARN, "%d: Invalid incoming window size\n",
-                      cx->ccp.cfg.deflate.in.winsize);
-            cx->ccp.cfg.deflate.in.winsize = 15;
+                      l->ccp.cfg.deflate.in.winsize);
+            l->ccp.cfg.deflate.in.winsize = 15;
         }
       } else
-        cx->ccp.cfg.deflate.in.winsize = 0;
+        l->ccp.cfg.deflate.in.winsize = 0;
     }
     break;
   case VAR_DEVICE:
@@ -1406,7 +1427,7 @@ static struct cmdtab const SetCommands[] = {
   "Set authentication name", "set authname name", (const void *) VAR_AUTHNAME},
   {"ctsrts", NULL, SetCtsRts, LOCAL_AUTH | LOCAL_CX,
   "Use CTS/RTS modem signalling", "set ctsrts [on|off]"},
-  {"deflate", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX,
+  {"deflate", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX_OPT,
   "Set deflate window sizes", "set deflate out-winsize in-winsize",
   (const void *) VAR_WINSIZE},
   {"device", "line", SetVariable, LOCAL_AUTH | LOCAL_CX,
@@ -1462,6 +1483,8 @@ static struct cmdtab const SetCommands[] = {
   "Set Idle timeout", "set timeout idle LQR FSM-resend"},
   {"vj", NULL, SetInitVJ, LOCAL_AUTH,
   "Set vj values", "set vj slots|slotcomp"},
+  {"weight", NULL, mp_SetDatalinkWeight, LOCAL_AUTH | LOCAL_CX,
+  "Set datalink weighting", "set weight n"},
   {"help", "?", HelpCommand, LOCAL_AUTH | LOCAL_NO_AUTH,
   "Display this message", "set help|? [command]", SetCommands},
   {NULL, NULL, NULL},
@@ -1678,4 +1701,17 @@ LinkCommand(struct cmdargs const *arg)
   }
 
   return 0;
+}
+
+struct link *
+ChooseLink(struct cmdargs const *arg)
+{
+  if (arg->cx)
+    return &arg->cx->physical->link;
+  else if (arg->bundle->ncp.mp.active)
+    return &arg->bundle->ncp.mp.link;
+  else {
+    struct physical *p = bundle2physical(arg->bundle, NULL);
+    return p ? &p->link : NULL;
+  }
 }

@@ -17,16 +17,16 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: timer.c,v 1.26 1997/12/29 22:23:52 brian Exp $
+ * $Id: timer.c,v 1.27 1998/01/21 02:15:29 brian Exp $
  *
  *  TODO:
  */
 
-#include <signal.h>
-#ifdef SIGALRM
 #include <errno.h>
-#endif
+#include <signal.h>
+#include <stdio.h>
 #include <sys/time.h>
+#include <termios.h>
 #include <unistd.h>
 
 #include "command.h"
@@ -34,24 +34,32 @@
 #include "log.h"
 #include "sig.h"
 #include "timer.h"
+#include "descriptor.h"
+#include "prompt.h"
 
 static struct pppTimer *TimerList = NULL;
 
 static void StopTimerNoBlock(struct pppTimer *);
 static void InitTimerService(void);
 
+static const char *
+tState2Nam(u_int state)
+{
+  static const char *StateNames[] = { "stopped", "running", "expired" };
+
+  if (state >= sizeof StateNames / sizeof StateNames[0])
+    return "unknown";
+  return StateNames[state];
+}
+
 void
 StopTimer(struct pppTimer * tp)
 {
-#ifdef SIGALRM
   int omask;
 
   omask = sigblock(sigmask(SIGALRM));
-#endif
   StopTimerNoBlock(tp);
-#ifdef SIGALRM
   sigsetmask(omask);
-#endif
 }
 
 void
@@ -59,25 +67,20 @@ StartTimer(struct pppTimer * tp)
 {
   struct pppTimer *t, *pt;
   u_long ticks = 0;
-
-#ifdef SIGALRM
   int omask;
 
   omask = sigblock(sigmask(SIGALRM));
-#endif
 
   if (tp->state != TIMER_STOPPED) {
     StopTimerNoBlock(tp);
   }
   if (tp->load == 0) {
-    LogPrintf(LogDEBUG, "timer %x has 0 load!\n", tp);
+    LogPrintf(LogDEBUG, "%s timer[%p] has 0 load!\n", tp->name, tp);
     sigsetmask(omask);
     return;
   }
   pt = NULL;
   for (t = TimerList; t; t = t->next) {
-    LogPrintf(LogDEBUG, "StartTimer: %x(%d):  ticks: %d, rest: %d\n",
-	      t, t->state, ticks, t->rest);
     if (ticks + t->rest >= tp->load)
       break;
     ticks += t->rest;
@@ -86,8 +89,13 @@ StartTimer(struct pppTimer * tp)
 
   tp->state = TIMER_RUNNING;
   tp->rest = tp->load - ticks;
-  LogPrintf(LogDEBUG, "StartTimer: Inserting %x before %x, rest = %d\n",
-	    tp, t, tp->rest);
+
+  if (t)
+    LogPrintf(LogDEBUG, "StartTimer: Inserting %s timer[%p] before %s "
+              "timer[%p], delta = %d\n", tp->name, tp, t->name, t, tp->rest);
+  else
+    LogPrintf(LogDEBUG, "StartTimer: Inserting %s timer[%p]\n", tp->name, tp);
+
   /* Insert given *tp just before *t */
   tp->next = t;
   if (pt) {
@@ -99,9 +107,7 @@ StartTimer(struct pppTimer * tp)
   if (t)
     t->rest -= tp->rest;
 
-#ifdef SIGALRM
   sigsetmask(omask);
-#endif
 }
 
 static void
@@ -114,8 +120,6 @@ StopTimerNoBlock(struct pppTimer * tp)
    * already removing TimerList. So just marked as TIMER_STOPPED. Do not
    * change tp->enext!! (Might be Called by expired proc)
    */
-  LogPrintf(LogDEBUG, "StopTimer: %x, next = %x state=%x\n",
-	    tp, tp->next, tp->state);
   if (tp->state != TIMER_RUNNING) {
     tp->next = NULL;
     tp->state = TIMER_STOPPED;
@@ -146,8 +150,14 @@ TimerService()
 {
   struct pppTimer *tp, *exp, *wt;
 
-  if (LogIsKept(LogDEBUG))
-    ShowTimers();
+  if (LogIsKept(LogDEBUG)) {
+    static time_t t;
+    time_t n = time(NULL);  /* Only show timers every second */
+
+    if (n > t)
+      ShowTimers(LogDEBUG);
+    t = n;
+  }
   tp = TimerList;
   if (tp) {
     tp->rest--;
@@ -162,15 +172,12 @@ TimerService()
 	wt = tp->next;
 	tp->enext = exp;
 	exp = tp;
-	LogPrintf(LogDEBUG, "TimerService: Add %x to exp\n", tp);
 	tp = wt;
       } while (tp && (tp->rest == 0));
 
       TimerList = tp;
       if (TimerList == NULL)	/* No timers ? */
 	TermTimerService();	/* Terminate Timer Service */
-      LogPrintf(LogDEBUG, "TimerService: next is %x(%d)\n",
-		TimerList, TimerList ? TimerList->rest : 0);
 
       /*
        * Process all expired timers.
@@ -193,18 +200,32 @@ TimerService()
 }
 
 void
-ShowTimers()
+ShowTimers(int LogLevel)
 {
   struct pppTimer *pt;
+  int rest = 0;
 
-  LogPrintf(LogDEBUG, "---- Begin of Timer Service List---\n");
-  for (pt = TimerList; pt; pt = pt->next)
-    LogPrintf(LogDEBUG, "%x: load = %d, rest = %d, state =%x\n",
-	      pt, pt->load, pt->rest, pt->state);
-  LogPrintf(LogDEBUG, "---- End of Timer Service List ---\n");
+#define SECS(val)	((val) / SECTICKS)
+#define HSECS(val)	(((val) % SECTICKS) * 100 / SECTICKS)
+#define DISP								\
+  "%s timer[%p]: freq = %d.%02ds, next = %d.%02ds, state = %s\n",	\
+  pt->name, pt, SECS(pt->load), HSECS(pt->load), SECS(rest),		\
+  HSECS(rest), tState2Nam(pt->state)
+
+  if (LogIsKept(LogLevel))
+    LogPrintf(LogLevel, "---- Begin of Timer Service List---\n");
+
+  for (pt = TimerList; pt; pt = pt->next) {
+    rest += pt->rest;
+    if (LogIsKept(LogLevel))
+      LogPrintf(LogLevel, DISP);
+    else if (LogLevel < LogMIN)
+      prompt_Printf(&prompt, DISP);
+  }
+
+  if (LogIsKept(LogLevel))
+    LogPrintf(LogLevel, "---- End of Timer Service List ---\n");
 }
-
-#ifdef SIGALRM
 
 static void
 nointr_dosleep(u_int sec, u_int usec)
@@ -285,5 +306,3 @@ TermTimerService(void)
     LogPrintf(LogERROR, "Unable to set itimer.\n");
   pending_signal(SIGALRM, SIG_IGN);
 }
-
-#endif

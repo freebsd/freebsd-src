@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *  $Id: link.c,v 1.1.2.13 1998/03/16 22:54:05 brian Exp $
+ *  $Id: link.c,v 1.1.2.14 1998/03/20 19:48:08 brian Exp $
  *
  */
 
@@ -46,13 +46,17 @@
 #include "lcpproto.h"
 #include "loadalias.h"
 #include "vars.h"
-#include "link.h"
 #include "fsm.h"
 #include "iplist.h"
 #include "slcompress.h"
 #include "ipcp.h"
 #include "filter.h"
 #include "descriptor.h"
+#include "async.h"
+#include "lcp.h"
+#include "ccp.h"
+#include "link.h"
+#include "mp.h"
 #include "bundle.h"
 #include "prompt.h"
 
@@ -85,6 +89,25 @@ link_QueueLen(struct link *l)
     len += l->Queue[i].qlen;
 
   return len;
+}
+
+int
+link_QueueBytes(struct link *l)
+{
+  int i, len, bytes;
+  struct mbuf *m;
+
+  bytes = 0;
+  for (i = 0, len = 0; i < LINK_QUEUES; i++) {
+    len = l->Queue[i].qlen;
+    m = l->Queue[i].top;
+    while (len--) {
+      bytes += plength(m);
+      m = m->pnext;
+    }
+  }
+
+  return bytes;
 }
 
 struct mbuf *
@@ -123,12 +146,6 @@ link_Write(struct link *l, int pri, const char *ptr, int count)
 }
 
 void
-link_StartOutput(struct link *l, struct bundle *bundle)
-{
-  (*l->StartOutput)(l, bundle);
-}
-
-void
 link_Output(struct link *l, int pri, struct mbuf *bp)
 {
   struct mbuf *wp;
@@ -141,25 +158,6 @@ link_Output(struct link *l, int pri, struct mbuf *bp)
   wp = mballoc(len, MB_LINK);
   mbread(bp, MBUF_CTOP(wp), len);
   Enqueue(l->Queue + pri, wp);
-}
-
-int
-link_IsActive(struct link *l)
-{
-  return (*l->IsActive)(l);
-}
-
-void
-link_Close(struct link *l, struct bundle *bundle, int dedicated_force, int stay)
-{
-  (*l->Close)(l, dedicated_force);
-  bundle_LinkLost(bundle, l, stay);
-}
-
-void
-link_Destroy(struct link *l)
-{
-  (*l->Destroy)(l);
 }
 
 static struct protostatheader {
@@ -176,6 +174,7 @@ static struct protostatheader {
   { PROTO_PAP, "PAP" },
   { PROTO_LQR, "LQR" },
   { PROTO_CHAP, "CHAP" },
+  { PROTO_MP, "MULTILINK" },
   { 0, "Others" }
 };
 
@@ -207,6 +206,6 @@ link_ReportProtocolStatus(struct link *l)
     if ((i % 2) == 0)
       prompt_Printf(&prompt, "\n");
   }
-  if (i % 2)
+  if (!(i % 2))
     prompt_Printf(&prompt, "\n");
 }

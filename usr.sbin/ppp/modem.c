@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.77.2.40 1998/03/20 19:48:14 brian Exp $
+ * $Id: modem.c,v 1.77.2.41 1998/03/21 22:58:43 brian Exp $
  *
  *  TODO:
  */
@@ -66,12 +66,13 @@
 #include "ipcp.h"
 #include "filter.h"
 #include "descriptor.h"
-#include "bundle.h"
+#include "ccp.h"
 #include "link.h"
 #include "physical.h"
+#include "mp.h"
+#include "bundle.h"
 #include "prompt.h"
 #include "chat.h"
-#include "ccp.h"
 #include "auth.h"
 #include "chap.h"
 #include "datalink.h"
@@ -83,17 +84,16 @@
 #endif
 #endif
 
-static void modem_StartOutput(struct link *, struct bundle *);
-static int modem_IsActive(struct link *);
-static void modem_Hangup(struct link *, int);
-static void modem_Destroy(struct link *);
+static void modem_Hangup(struct physical *, int);
+static void modem_DescriptorWrite(struct descriptor *, struct bundle *,
+                                  const fd_set *);
 static void modem_DescriptorRead(struct descriptor *, struct bundle *,
                                  const fd_set *);
 static int modem_UpdateSet(struct descriptor *, fd_set *, fd_set *, fd_set *,
                            int *);
 
 struct physical *
-modem_Create(const char *name, struct datalink *dl)
+modem_Create(struct datalink *dl)
 {
   struct physical *p;
 
@@ -102,23 +102,19 @@ modem_Create(const char *name, struct datalink *dl)
     return NULL;
 
   p->link.type = PHYSICAL_LINK;
-  p->link.name = strdup(name);
+  p->link.name = dl->name;
   p->link.len = sizeof *p;
-  memset(&p->link.throughput, '\0', sizeof p->link.throughput);
+  throughput_init(&p->link.throughput);
   memset(&p->link.Timer, '\0', sizeof p->link.Timer);
   memset(p->link.Queue, '\0', sizeof p->link.Queue);
   memset(p->link.proto_in, '\0', sizeof p->link.proto_in);
   memset(p->link.proto_out, '\0', sizeof p->link.proto_out);
-  p->link.StartOutput = modem_StartOutput;
-  p->link.IsActive = modem_IsActive;
-  p->link.Close = modem_Hangup;
-  p->link.Destroy = modem_Destroy;
 
   p->desc.type = PHYSICAL_DESCRIPTOR;
   p->desc.UpdateSet = modem_UpdateSet;
   p->desc.IsSet = Physical_IsSet;
   p->desc.Read = modem_DescriptorRead;
-  p->desc.Write = Physical_DescriptorWrite;
+  p->desc.Write = modem_DescriptorWrite;
 
   hdlc_Init(&p->hdlc);
   async_Init(&p->async);
@@ -142,6 +138,12 @@ modem_Create(const char *name, struct datalink *dl)
   p->cfg.parity = CS8;
   strncpy(p->cfg.devlist, MODEM_LIST, sizeof p->cfg.devlist - 1);
   p->cfg.devlist[sizeof p->cfg.devlist - 1] = '\0';
+
+  hdlc_Init(&p->hdlc);
+  async_Init(&p->async);
+
+  lcp_Init(&p->link.lcp, dl->bundle, &p->link, &dl->fsmp);
+  ccp_Init(&p->link.ccp, dl->bundle, &p->link, &dl->fsmp);
 
   return p;
 }
@@ -291,7 +293,8 @@ modem_Timeout(void *data)
     if (to->modem->fd >= 0) {
       if (ioctl(to->modem->fd, TIOCMGET, &to->modem->mbits) < 0) {
 	LogPrintf(LogPHASE, "ioctl error (%s)!\n", strerror(errno));
-        link_Close(&to->modem->link, to->bundle, 0, 0);
+        modem_Hangup(to->modem, 0);
+        bundle_LinkLost(to->bundle, &to->modem->link, 0);
 	return;
       }
     } else
@@ -306,7 +309,8 @@ modem_Timeout(void *data)
 	 */
       } else {
         LogPrintf(LogDEBUG, "modem_Timeout: online -> offline\n");
-        link_Close(&to->modem->link, to->bundle, 0, 0);
+        modem_Hangup(to->modem, 0);
+        bundle_LinkLost(to->bundle, &to->modem->link, 0);
       }
     }
     else
@@ -332,6 +336,7 @@ modem_StartTimer(struct bundle *bundle, struct physical *modem)
   ModemTimer->state = TIMER_STOPPED;
   ModemTimer->load = SECTICKS;
   ModemTimer->func = modem_Timeout;
+  ModemTimer->name = "modem CD";
   ModemTimer->arg = &to;
   LogPrintf(LogDEBUG, "ModemTimer using modem_Timeout() - %p\n", modem_Timeout);
   StartTimer(ModemTimer);
@@ -492,7 +497,7 @@ modem_Unlock(struct physical *modem)
 static void
 modem_Found(struct physical *modem)
 {
-  throughput_start(&modem->link.throughput);
+  throughput_start(&modem->link.throughput, "modem throughput");
   modem->connect_count++;
   LogPrintf(LogPHASE, "Connected!\n");
 }
@@ -764,10 +769,9 @@ modem_PhysicalClose(struct physical *modem)
 static int force_hack;
 
 static void
-modem_Hangup(struct link *l, int dedicated_force)
+modem_Hangup(struct physical *modem, int dedicated_force)
 {
   /* We're about to close (pre hangup script) */
-  struct physical *modem = (struct physical *)l;
 
   force_hack = dedicated_force;
   if (modem->fd >= 0) {
@@ -801,14 +805,13 @@ modem_Offline(struct physical *modem)
 void
 modem_Close(struct physical *modem)
 {
-  LogPrintf(LogDEBUG, "Close modem (%s)\n",
-            modem->fd >= 0 ? "open" : "closed");
-
   if (modem->fd < 0)
     return;
 
+  LogPrintf(LogDEBUG, "Close modem\n");
+
   if (modem->link.Timer.load)
-    modem_Hangup(&modem->link, force_hack);
+    modem_Hangup(modem, force_hack);
 
   if (!isatty(modem->fd)) {
     modem_PhysicalClose(modem);
@@ -837,16 +840,11 @@ modem_Close(struct physical *modem)
   }
 }
 
-static void
-modem_Destroy(struct link *l)
+void
+modem_Destroy(struct physical *modem)
 {
-  struct physical *p;
-
-  p = link2physical(l);
-  if (p->fd != -1)
-    modem_Close(p);
-  free(l->name);
-  free(p);
+  modem_Close(modem);
+  free(modem);
 }
 
 static void
@@ -861,46 +859,34 @@ modem_LogicalClose(struct physical *modem)
 }
 
 static void
-modem_StartOutput(struct link *l, struct bundle *bundle)
+modem_DescriptorWrite(struct descriptor *d, struct bundle *bundle,
+                      const fd_set *fdset)
 {
-  struct physical *modem = (struct physical *)l;
+  struct physical *modem = descriptor2physical(d);
   int nb, nw;
 
-  if (modem->out == NULL) {
-    if (link_QueueLen(l) == 0)
-      IpStartOutput(l, bundle);
-
-    modem->out = link_Dequeue(l);
-  }
+  if (modem->out == NULL)
+    modem->out = link_Dequeue(&modem->link);
 
   if (modem->out) {
     nb = modem->out->cnt;
     nw = write(modem->fd, MBUF_CTOP(modem->out), nb);
-    LogPrintf(LogDEBUG, "modem_StartOutput: wrote: %d(%d) to %d\n",
+    LogPrintf(LogDEBUG, "modem_DescriptorWrite: wrote: %d(%d) to %d\n",
               nw, nb, modem->fd);
     if (nw > 0) {
-      LogDumpBuff(LogDEBUG, "modem_StartOutput: modem write",
-		  MBUF_CTOP(modem->out), nw);
       modem->out->cnt -= nw;
       modem->out->offset += nw;
-      if (modem->out->cnt == 0) {
+      if (modem->out->cnt == 0)
 	modem->out = mbfree(modem->out);
-	LogPrintf(LogDEBUG, "modem_StartOutput: mbfree\n");
-      }
     } else if (nw < 0) {
       if (errno != EAGAIN) {
 	LogPrintf(LogERROR, "modem write (%d): %s\n", modem->fd,
 		  strerror(errno));
-        link_Close(&modem->link, bundle, 0, 0);
+        modem_Hangup(modem, 0);
+        bundle_LinkLost(bundle, &modem->link, 0);
       }
     }
   }
-}
-
-static int
-modem_IsActive(struct link *l)
-{
-  return ((struct physical *)l)->fd >= 0;
 }
 
 int
@@ -990,19 +976,18 @@ modem_DescriptorRead(struct descriptor *d, struct bundle *bundle,
   u_char rbuff[MAX_MRU], *cp;
   int n;
 
-  LogPrintf(LogDEBUG, "descriptor2physical; %p -> %p\n", d, p);
-
   /* something to read from modem */
-  if (p->dl->lcp.fsm.state <= ST_CLOSED)
+  if (p->link.lcp.fsm.state <= ST_CLOSED)
     nointr_usleep(10000);
 
   n = Physical_Read(p, rbuff, sizeof rbuff);
-  if ((mode & MODE_DIRECT) && n <= 0)
-    link_Close(&p->link, bundle, 0, 1);
-  else
+  if ((mode & MODE_DIRECT) && n <= 0) {
+    modem_Hangup(p, 0);
+    bundle_LinkLost(bundle, &p->link, 1);
+  } else
     LogDumpBuff(LogASYNC, "ReadFromModem", rbuff, n);
 
-  if (p->dl->lcp.fsm.state <= ST_CLOSED) {
+  if (p->link.lcp.fsm.state <= ST_CLOSED) {
     /* In dedicated mode, we just discard input until LCP is started */
     if (!(mode & MODE_DEDICATED)) {
       cp = HdlcDetect(p, rbuff, n);

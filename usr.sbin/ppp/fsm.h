@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: fsm.h,v 1.16.2.11 1998/03/20 19:46:46 brian Exp $
+ * $Id: fsm.h,v 1.16.2.12 1998/03/24 18:46:59 brian Exp $
  *
  *	TODO:
  */
@@ -79,12 +79,13 @@ struct fsm_parent {
 struct fsm {
   const char *name;		/* Name of protocol */
   u_short proto;		/* Protocol number */
+  u_short min_code;
   u_short max_code;
   int open_mode;		/* Delay before config REQ (-1 forever) */
   int state;			/* State of the machine */
   u_char reqid;			/* Next request id */
   int restart;			/* Restart counter value */
-  int maxconfig;		/* Max config REQ (overridden in Init funcs) */
+  int maxconfig;		/* Max config REQ before a close() */
 
   struct pppTimer FsmTimer;	/* Restart Timer */
   struct pppTimer OpenTimer;	/* Delay before opening */
@@ -139,9 +140,9 @@ struct fsmconfig {
   u_char length;
 };
 
-extern void fsm_Init(struct fsm *, const char *, u_short, int, int, int,
+extern void fsm_Init(struct fsm *, const char *, u_short, int, int, int, int,
                      struct bundle *, struct link *, const  struct fsm_parent *,
-                     struct fsm_callbacks *);
+                     struct fsm_callbacks *, const char *[3]);
 extern void FsmOutput(struct fsm *, u_int, u_int, u_char *, int);
 extern void FsmOpen(struct fsm *);
 extern void FsmUp(struct fsm *);

@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: defs.h,v 1.29.2.6 1998/03/09 19:26:37 brian Exp $
+ * $Id: defs.h,v 1.29.2.7 1998/03/25 18:38:49 brian Exp $
  *
  *	TODO:
  */
@@ -41,6 +41,8 @@
 #define LINE_LEN SCRIPT_LEN 	/* Size of login scripts */
 #define MAXARGS 40		/* How many args per config line */
 #define NCP_IDLE_TIMEOUT 180		/* Drop all links */
+
+#define LINK_MINWEIGHT 20
 
 #define	CONFFILE 	"ppp.conf"
 #define	LINKUPFILE 	"ppp.linkup"

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.55.2.32 1998/03/20 19:48:06 brian Exp $
+ * $Id: lcp.c,v 1.55.2.33 1998/03/24 18:47:17 brian Exp $
  *
  * TODO:
  *	o Limit data field length by MRU
@@ -56,7 +56,6 @@
 #include "lcpproto.h"
 #include "filter.h"
 #include "descriptor.h"
-#include "bundle.h"
 #include "lqr.h"
 #include "hdlc.h"
 #include "ccp.h"
@@ -72,6 +71,8 @@
 #include "tun.h"
 #include "link.h"
 #include "physical.h"
+#include "mp.h"
+#include "bundle.h"
 #include "prompt.h"
 #include "chat.h"
 #include "datalink.h"
@@ -142,20 +143,22 @@ static const char *cftypes[] = {
 int
 lcp_ReportStatus(struct cmdargs const *arg)
 {
-  prompt_Printf(&prompt, "%s [%s]\n", arg->cx->lcp.fsm.name,
-                State2Nam(arg->cx->lcp.fsm.state));
+  struct lcp *lcp = &ChooseLink(arg)->lcp;
+
+  prompt_Printf(&prompt, "%s [%s]\n", lcp->fsm.name,
+                State2Nam(lcp->fsm.state));
   prompt_Printf(&prompt,
 	        " his side: MRU %d, ACCMAP %08lx, PROTOCOMP %d, ACFCOMP %d,\n"
 	        "           MAGIC %08lx, REJECT %04x\n",
-	        arg->cx->lcp.his_mru, (u_long)arg->cx->lcp.his_accmap,
-                arg->cx->lcp.his_protocomp, arg->cx->lcp.his_acfcomp,
-                (u_long)arg->cx->lcp.his_magic, arg->cx->lcp.his_reject);
+	        lcp->his_mru, (u_long)lcp->his_accmap,
+                lcp->his_protocomp, lcp->his_acfcomp,
+                (u_long)lcp->his_magic, lcp->his_reject);
   prompt_Printf(&prompt,
 	        " my  side: MRU %d, ACCMAP %08lx, PROTOCOMP %d, ACFCOMP %d,\n"
                 "           MAGIC %08lx, REJECT %04x\n",
-                arg->cx->lcp.want_mru, (u_long)arg->cx->lcp.want_accmap,
-                arg->cx->lcp.want_protocomp, arg->cx->lcp.want_acfcomp,
-                (u_long)arg->cx->lcp.want_magic, arg->cx->lcp.my_reject);
+                lcp->want_mru, (u_long)lcp->want_accmap,
+                lcp->want_protocomp, lcp->want_acfcomp,
+                (u_long)lcp->want_magic, lcp->my_reject);
   prompt_Printf(&prompt, "\nDefaults:   MRU = %d, ACCMAP = %08lx\t",
                 VarMRU, (u_long)VarAccmap);
   prompt_Printf(&prompt, "Open Mode: %s",
@@ -175,25 +178,24 @@ GenerateMagic(void)
 }
 
 void
-lcp_Init(struct lcp *lcp, struct bundle *bundle, struct physical *physical,
+lcp_Init(struct lcp *lcp, struct bundle *bundle, struct link *l,
          const struct fsm_parent *parent)
 {
   /* Initialise ourselves */
-  fsm_Init(&lcp->fsm, "LCP", PROTO_LCP, LCP_MAXCODE, 10, LogLCP, bundle,
-           &physical->link, parent, &lcp_Callbacks);
+  int mincode = parent ? 1 : LCP_MINMPCODE;
+  static const char *timer_names[] =
+    {"LCP restart", "LCP openmode", "LCP stopped"};
+
+  fsm_Init(&lcp->fsm, "LCP", PROTO_LCP, mincode, LCP_MAXCODE, 10, LogLCP,
+           bundle, l, parent, &lcp_Callbacks, timer_names);
   lcp_Setup(lcp, 1);
 }
 
 void
 lcp_Setup(struct lcp *lcp, int openmode)
 {
-  struct physical *p = link2physical(lcp->fsm.link);
-
   lcp->fsm.open_mode = openmode;
   lcp->fsm.maxconfig = 10;
-
-  hdlc_Init(&p->hdlc);
-  async_Init(&p->async);
 
   lcp->his_mru = DEF_MRU;
   lcp->his_accmap = 0xffffffff;
@@ -214,6 +216,7 @@ lcp_Setup(struct lcp *lcp, int openmode)
 
   lcp->his_reject = lcp->my_reject = 0;
   lcp->auth_iwait = lcp->auth_ineed = 0;
+  lcp->LcpFailedMagic = 0;
 }
 
 static void
@@ -333,13 +336,9 @@ LcpLayerUp(struct fsm *fp)
   struct lcp *lcp = fsm2lcp(fp);
 
   LogPrintf(LogLCP, "LcpLayerUp\n");
-
-  if (p) {
-    async_SetLinkParams(&p->async, lcp);
-    StartLqm(lcp);
-    hdlc_StartTimer(&p->hdlc);
-  } else
-    LogPrintf(LogERROR, "LcpLayerUp: Not a physical link !\n");
+  async_SetLinkParams(&p->async, lcp);
+  StartLqm(lcp);
+  hdlc_StartTimer(&p->hdlc);
 }
 
 static void

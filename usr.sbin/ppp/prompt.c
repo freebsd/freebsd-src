@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: prompt.c,v 1.1.2.15 1998/03/16 22:54:22 brian Exp $
+ *	$Id: prompt.c,v 1.1.2.16 1998/03/20 19:48:19 brian Exp $
  */
 
 #include <sys/param.h>
@@ -55,15 +55,16 @@
 #include "slcompress.h"
 #include "ipcp.h"
 #include "filter.h"
-#include "bundle.h"
 #include "lqr.h"
 #include "hdlc.h"
 #include "async.h"
 #include "mbuf.h"
+#include "ccp.h"
 #include "link.h"
 #include "physical.h"
+#include "mp.h"
+#include "bundle.h"
 #include "chat.h"
-#include "ccp.h"
 #include "chap.h"
 #include "datalink.h"
 
@@ -74,8 +75,6 @@ prompt_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)
 {
   struct prompt *p = descriptor2prompt(d);
   int sets;
-
-  LogPrintf(LogDEBUG, "descriptor2prompt; %p -> %p\n", d, p);
 
   sets = 0;
   if (p->fd_in >= 0) {
@@ -98,7 +97,6 @@ static int
 prompt_IsSet(struct descriptor *d, const fd_set *fdset)
 {
   struct prompt *p = descriptor2prompt(d);
-  LogPrintf(LogDEBUG, "descriptor2prompt; %p -> %p\n", d, p);
   return p->fd_in >= 0 && FD_ISSET(p->fd_in, fdset);
 }
 
@@ -110,8 +108,8 @@ prompt_ShowHelp(struct prompt *p)
   prompt_Printf(p, " ~p\tEnter Packet mode\r\n");
   prompt_Printf(p, " ~-\tDecrease log level\r\n");
   prompt_Printf(p, " ~+\tIncrease log level\r\n");
-  prompt_Printf(p, " ~t\tShow timers (only in \"log debug\" mode)\r\n");
-  prompt_Printf(p, " ~m\tShow memory map (only in \"log debug\" mode)\r\n");
+  prompt_Printf(p, " ~t\tShow timers\r\n");
+  prompt_Printf(p, " ~m\tShow memory map\r\n");
   prompt_Printf(p, " ~.\tTerminate program\r\n");
   prompt_Printf(p, " ~?\tThis help\r\n");
 }
@@ -125,7 +123,6 @@ prompt_Read(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
   static int ttystate;
   char linebuff[LINE_LEN];
 
-  LogPrintf(LogDEBUG, "descriptor2prompt; %p -> %p\n", d, p);
   LogPrintf(LogDEBUG, "termode = %p, p->fd_in = %d, mode = %d\n",
 	    p->TermMode, p->fd_in, mode);
 
@@ -136,9 +133,9 @@ prompt_Read(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
         linebuff[--n] = '\0';
       else
         linebuff[n] = '\0';
+      prompt_nonewline = 1;	/* In case DecodeCommand does a prompt */
       if (n)
         DecodeCommand(bundle, linebuff, n, IsInteractive(0) ? NULL : "Client");
-      prompt_nonewline = 1;
       prompt_Display(&prompt, bundle);
     } else if (n <= 0) {
       LogPrintf(LogPHASE, "Client connection closed.\n");
@@ -201,15 +198,11 @@ prompt_Read(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
         prompt_Display(&prompt, bundle);
 	break;
       case 't':
-	if (LogIsKept(LogDEBUG)) {
-	  ShowTimers();
-	  break;
-	}
+	ShowTimers(0);
+	break;
       case 'm':
-	if (LogIsKept(LogDEBUG)) {
-	  ShowMemMap(NULL);
-	  break;
-	}
+	ShowMemMap(NULL);
+	break;
       default:
 	if (Physical_Write(bundle2physical(bundle, NULL), &ch, n) < 0)
 	  LogPrintf(LogERROR, "error writing to modem.\n");
@@ -270,7 +263,7 @@ prompt_Display(struct prompt *p, struct bundle *bundle)
 {
   const char *pconnect, *pauth;
 
-  if (!p->Term || p->TermMode != NULL || bundle->CleaningUp)
+  if (!p->Term || p->TermMode != NULL)
     return;
 
   if (prompt_nonewline)

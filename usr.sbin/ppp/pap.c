@@ -18,7 +18,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: pap.c,v 1.20.2.18 1998/03/16 22:52:35 brian Exp $
+ * $Id: pap.c,v 1.20.2.19 1998/03/16 22:54:16 brian Exp $
  *
  *	TODO:
  */
@@ -55,6 +55,7 @@
 #include "lcpproto.h"
 #include "async.h"
 #include "throughput.h"
+#include "ccp.h"
 #include "link.h"
 #include "descriptor.h"
 #include "physical.h"
@@ -62,9 +63,9 @@
 #include "slcompress.h"
 #include "ipcp.h"
 #include "filter.h"
+#include "mp.h"
 #include "bundle.h"
 #include "chat.h"
-#include "ccp.h"
 #include "chap.h"
 #include "datalink.h"
 
@@ -163,10 +164,10 @@ PapInput(struct bundle *bundle, struct mbuf *bp, struct physical *physical)
 	cp = (u_char *) (php + 1);
 	if (PapValidate(bundle, cp, cp + *cp + 1, physical)) {
 	  SendPapCode(php->id, PAP_ACK, "Greetings!!", physical);
-	  dl->lcp.auth_ineed = 0;
+	  dl->physical->link.lcp.auth_ineed = 0;
           Physical_Login(physical, cp + 1);
 
-          if (dl->lcp.auth_iwait == 0)
+          if (dl->physical->link.lcp.auth_iwait == 0)
             /*
              * Either I didn't need to authenticate, or I've already been
              * told that I got the answer right.
@@ -184,9 +185,9 @@ PapInput(struct bundle *bundle, struct mbuf *bp, struct physical *physical)
 	len = *cp++;
 	cp[len] = 0;
 	LogPrintf(LogPHASE, "Received PAP_ACK (%s)\n", cp);
-	if (dl->lcp.auth_iwait == PROTO_PAP) {
-	  dl->lcp.auth_iwait = 0;
-	  if (dl->lcp.auth_ineed == 0)
+	if (dl->physical->link.lcp.auth_iwait == PROTO_PAP) {
+	  dl->physical->link.lcp.auth_iwait = 0;
+	  if (dl->physical->link.lcp.auth_ineed == 0)
             /*
              * We've succeeded in our ``login''
              * If we're not expecting  the peer to authenticate (or he already

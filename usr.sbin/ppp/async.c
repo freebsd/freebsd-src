@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: async.c,v 1.15.2.7 1998/02/18 19:35:07 brian Exp $
+ * $Id: async.c,v 1.15.2.8 1998/03/13 00:43:50 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -42,6 +42,7 @@
 #include "vars.h"
 #include "async.h"
 #include "throughput.h"
+#include "ccp.h"
 #include "link.h"
 #include "descriptor.h"
 #include "physical.h"

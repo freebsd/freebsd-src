@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: chat.c,v 1.44.2.16 1998/03/13 21:07:59 brian Exp $
+ *	$Id: chat.c,v 1.44.2.17 1998/03/20 19:47:47 brian Exp $
  */
 
 #include <sys/param.h>
@@ -55,6 +55,7 @@
 #include "throughput.h"
 #include "fsm.h"
 #include "lcp.h"
+#include "ccp.h"
 #include "link.h"
 #include "async.h"
 #include "descriptor.h"
@@ -84,6 +85,7 @@ chat_Pause(struct chat *c, u_long load)
   c->pause.state = TIMER_STOPPED;
   c->pause.load += load;
   c->pause.func = chat_PauseTimer;
+  c->pause.name = "chat pause";
   c->pause.arg = c;
   StartTimer(&c->pause);
 }
@@ -104,6 +106,7 @@ chat_SetTimeout(struct chat *c)
   if (c->TimeoutSec > 0) {
     c->timeout.load = SECTICKS * c->TimeoutSec;
     c->timeout.func = chat_TimeoutTimer;
+    c->timeout.name = "chat timeout";
     c->timeout.arg = c;
     StartTimer(&c->timeout);
   }

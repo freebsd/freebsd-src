@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: vars.c,v 1.45.2.16 1998/03/20 19:47:07 brian Exp $
+ * $Id: vars.c,v 1.45.2.17 1998/03/24 18:47:27 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -41,13 +41,14 @@
 #include "lcp.h"
 #include "async.h"
 #include "throughput.h"
+#include "ccp.h"
 #include "link.h"
 #include "descriptor.h"
 #include "physical.h"
 #include "prompt.h"
 
 char VarVersion[] = "PPP Version 2.0-beta";
-char VarLocalVersion[] = "$Date: 1998/03/20 19:47:07 $";
+char VarLocalVersion[] = "$Date: 1998/03/24 18:47:27 $";
 
 /*
  * Order of conf option is important. See vars.h.

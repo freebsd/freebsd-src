@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.50.2.26 1998/03/20 19:48:04 brian Exp $
+ * $Id: ipcp.c,v 1.50.2.27 1998/03/24 18:47:10 brian Exp $
  *
  *	TODO:
  *		o More RFC1772 backwoard compatibility
@@ -54,7 +54,6 @@
 #include "ipcp.h"
 #include "filter.h"
 #include "descriptor.h"
-#include "bundle.h"
 #include "loadalias.h"
 #include "vars.h"
 #include "vjcomp.h"
@@ -63,8 +62,11 @@
 #include "lqr.h"
 #include "hdlc.h"
 #include "async.h"
+#include "ccp.h"
 #include "link.h"
 #include "physical.h"
+#include "mp.h"
+#include "bundle.h"
 #include "id.h"
 #include "arp.h"
 #include "systems.h"
@@ -209,9 +211,11 @@ ipcp_Init(struct ipcp *ipcp, struct bundle *bundle, struct link *l,
 {
   struct hostent *hp;
   char name[MAXHOSTNAMELEN];
+  static const char *timer_names[] =
+    {"IPCP restart", "IPCP openmode", "IPCP stopped"};
 
-  fsm_Init(&ipcp->fsm, "IPCP", PROTO_IPCP, IPCP_MAXCODE, 10, LogIPCP,
-           bundle, l, parent, &ipcp_Callbacks);
+  fsm_Init(&ipcp->fsm, "IPCP", PROTO_IPCP, 1, IPCP_MAXCODE, 10, LogIPCP,
+           bundle, l, parent, &ipcp_Callbacks, timer_names);
 
   ipcp->cfg.VJInitSlots = DEF_VJ_STATES;
   ipcp->cfg.VJInitComp = 1;
@@ -561,7 +565,7 @@ IpcpLayerUp(struct fsm *fp)
     } else
       SelectSystem(fp->bundle, "MYADDR", LINKUPFILE);
 
-  throughput_start(&ipcp->throughput);
+  throughput_start(&ipcp->throughput, "IPCP throughput");
   prompt_Display(&prompt, fp->bundle);
 }
 

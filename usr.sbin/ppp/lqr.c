@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lqr.c,v 1.22.2.16 1998/03/20 19:47:30 brian Exp $
+ * $Id: lqr.c,v 1.22.2.17 1998/03/25 18:37:51 brian Exp $
  *
  *	o LQR based on RFC1333
  *
@@ -47,6 +47,7 @@
 #include "hdlc.h"
 #include "async.h"
 #include "throughput.h"
+#include "ccp.h"
 #include "link.h"
 #include "descriptor.h"
 #include "physical.h"
@@ -54,6 +55,7 @@
 #include "slcompress.h"
 #include "ipcp.h"
 #include "filter.h"
+#include "mp.h"
 #include "bundle.h"
 #include "loadalias.h"
 #include "vars.h"
@@ -235,6 +237,7 @@ StartLqm(struct lcp *lcp)
     physical->hdlc.lqm.timer.state = TIMER_STOPPED;
     physical->hdlc.lqm.timer.load = lcp->want_lqrperiod * SECTICKS / 100;
     physical->hdlc.lqm.timer.func = SendLqrReport;
+    physical->hdlc.lqm.timer.name = "lqm";
     physical->hdlc.lqm.timer.arg = lcp;
     SendLqrReport(lcp);
   } else {

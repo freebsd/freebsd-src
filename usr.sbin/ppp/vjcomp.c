@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: vjcomp.c,v 1.16.2.9 1998/03/16 22:54:32 brian Exp $
+ * $Id: vjcomp.c,v 1.16.2.10 1998/03/20 19:48:28 brian Exp $
  *
  *  TODO:
  */
@@ -47,6 +47,7 @@
 #include "link.h"
 #include "filter.h"
 #include "descriptor.h"
+#include "mp.h"
 #include "bundle.h"
 #include "vjcomp.h"
 
@@ -58,7 +59,6 @@ SendPppFrame(struct link *l, struct mbuf * bp, struct bundle *bundle)
   int type;
   u_short proto;
   u_short cproto = bundle->ncp.ipcp.peer_compproto >> 16;
-  struct ccp *ccp = bundle2ccp(bundle, l->name);
 
   LogPrintf(LogDEBUG, "SendPppFrame: proto = %x\n",
             bundle->ncp.ipcp.peer_compproto);
@@ -87,7 +87,7 @@ SendPppFrame(struct link *l, struct mbuf * bp, struct bundle *bundle)
   } else
     proto = PROTO_IP;
 
-  if (!ccp_Output(ccp, l, PRI_NORMAL, proto, bp))
+  if (!ccp_Compress(&l->ccp, l, PRI_NORMAL, proto, bp))
     HdlcOutput(l, PRI_NORMAL, proto, bp);
 }
 

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: chap.c,v 1.28.2.17 1998/03/16 22:51:52 brian Exp $
+ * $Id: chap.c,v 1.28.2.18 1998/03/16 22:53:34 brian Exp $
  *
  *	TODO:
  */
@@ -60,15 +60,16 @@
 #include "chap.h"
 #include "async.h"
 #include "throughput.h"
-#include "link.h"
 #include "descriptor.h"
-#include "physical.h"
 #include "iplist.h"
 #include "slcompress.h"
 #include "ipcp.h"
 #include "filter.h"
-#include "bundle.h"
 #include "ccp.h"
+#include "link.h"
+#include "physical.h"
+#include "mp.h"
+#include "bundle.h"
 #include "chat.h"
 #include "datalink.h"
 
@@ -242,7 +243,7 @@ RecvChapTalk(struct bundle *bundle, struct fsmheader *chp, struct mbuf *bp,
 	ChapOutput(physical, CHAP_SUCCESS, chp->id, "Welcome!!", 10);
         Physical_Login(physical, name);
 
-        if (dl->lcp.auth_iwait == 0)
+        if (dl->physical->link.lcp.auth_iwait == 0)
           /*
            * Either I didn't need to authenticate, or I've already been
            * told that I got the answer right.
@@ -272,9 +273,9 @@ RecvChapResult(struct bundle *bundle, struct fsmheader *chp, struct mbuf *bp,
   len = ntohs(chp->length);
   LogPrintf(LogDEBUG, "RecvChapResult: length: %d\n", len);
   if (chp->code == CHAP_SUCCESS) {
-    if (dl->lcp.auth_iwait == PROTO_CHAP) {
-      dl->lcp.auth_iwait = 0;
-      if (dl->lcp.auth_ineed == 0)
+    if (dl->physical->link.lcp.auth_iwait == PROTO_CHAP) {
+      dl->physical->link.lcp.auth_iwait = 0;
+      if (dl->physical->link.lcp.auth_ineed == 0)
         /*
          * We've succeeded in our ``login''
          * If we're not expecting  the peer to authenticate (or he already

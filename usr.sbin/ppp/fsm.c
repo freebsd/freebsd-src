@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: fsm.c,v 1.27.2.23 1998/03/20 19:46:43 brian Exp $
+ * $Id: fsm.c,v 1.27.2.24 1998/03/24 18:46:55 brian Exp $
  *
  *  TODO:
  *		o Refer loglevel for log output
@@ -55,6 +55,7 @@
 #include "slcompress.h"
 #include "ipcp.h"
 #include "filter.h"
+#include "mp.h"
 #include "bundle.h"
 #include "auth.h"
 #include "chat.h"
@@ -128,19 +129,24 @@ StoppedTimeout(void *v)
               fp->name);
     StopTimer(&fp->OpenTimer);
   }
-  if (link_IsActive(fp->link))
-    link_Close(fp->link, fp->bundle, 0, 1);
+  if (fp->state == ST_STOPPED) {
+    /* Force ourselves back to initial */
+    FsmDown(fp);
+    FsmClose(fp);
+  }
 }
 
 void
-fsm_Init(struct fsm *fp, const char *name, u_short proto, int maxcode,
-         int maxcfg, int LogLevel, struct bundle *bundle, struct link *l,
-         const struct fsm_parent *parent, struct fsm_callbacks *fn)
+fsm_Init(struct fsm *fp, const char *name, u_short proto, int mincode,
+         int maxcode, int maxcfg, int LogLevel, struct bundle *bundle,
+         struct link *l, const struct fsm_parent *parent,
+         struct fsm_callbacks *fn, const char *timer_names[3])
 {
   fp->name = name;
   fp->proto = proto;
+  fp->min_code = mincode;
   fp->max_code = maxcode;
-  fp->state = ST_INITIAL;
+  fp->state = fp->min_code > CODE_TERMACK ? ST_OPENED : ST_INITIAL;
   fp->reqid = 1;
   fp->restart = 1;
   fp->maxconfig = maxcfg;
@@ -152,6 +158,9 @@ fsm_Init(struct fsm *fp, const char *name, u_short proto, int maxcode,
   fp->bundle = bundle;
   fp->parent = parent;
   fp->fn = fn;
+  fp->FsmTimer.name = timer_names[0];
+  fp->OpenTimer.name = timer_names[1];
+  fp->StoppedTimer.name = timer_names[2];
 }
 
 static void
@@ -763,7 +772,7 @@ FsmRecvProtoRej(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
     break;
   case PROTO_CCP:
     if (fp->proto == PROTO_LCP) {
-      fp = &lcp2ccp(fsm2lcp(fp))->fsm;
+      fp = &fp->link->ccp.fsm;
       (*fp->fn->LayerFinish)(fp);
       switch (fp->state) {
       case ST_CLOSED:
@@ -879,9 +888,15 @@ FsmInput(struct fsm *fp, struct mbuf *bp)
     return;
   }
   lhp = (struct fsmheader *) MBUF_CTOP(bp);
-  if (lhp->code == 0 || lhp->code > fp->max_code ||
+  if (lhp->code < fp->min_code || lhp->code > fp->max_code ||
       lhp->code > sizeof FsmCodes / sizeof *FsmCodes) {
-    pfree(bp);			/* XXX: Should send code reject */
+    /*
+     * Use a private id.  This is really a response-type packet, but we
+     * MUST send a unique id for each REQ....
+     */
+    static u_char id;
+    FsmOutput(fp, CODE_CODEREJ, id++, MBUF_CTOP(bp), bp->cnt);
+    pfree(bp);
     return;
   }
   bp->offset += sizeof(struct fsmheader);

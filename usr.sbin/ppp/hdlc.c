@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: hdlc.c,v 1.28.2.20 1998/03/16 22:52:15 brian Exp $
+ * $Id: hdlc.c,v 1.28.2.21 1998/03/16 22:53:50 brian Exp $
  *
  *	TODO:
  */
@@ -59,6 +59,7 @@
 #include "physical.h"
 #include "prompt.h"
 #include "chat.h"
+#include "mp.h"
 #include "datalink.h"
 #include "filter.h"
 #include "bundle.h"
@@ -164,7 +165,7 @@ HdlcOutput(struct link *l, int pri, u_short proto, struct mbuf *bp)
   mhp = mballoc(4, MB_HDLCOUT);
   mhp->cnt = 0;
   cp = MBUF_CTOP(mhp);
-  if (proto == PROTO_LCP || p->dl->lcp.his_acfcomp == 0) {
+  if (proto == PROTO_LCP || p->link.lcp.his_acfcomp == 0) {
     *cp++ = HDLC_ADDR;
     *cp++ = HDLC_UI;
     mhp->cnt += 2;
@@ -173,7 +174,7 @@ HdlcOutput(struct link *l, int pri, u_short proto, struct mbuf *bp)
   /*
    * If possible, compress protocol field.
    */
-  if (p->dl->lcp.his_protocomp && (proto & 0xff00) == 0) {
+  if (p->link.lcp.his_protocomp && (proto & 0xff00) == 0) {
     *cp++ = proto;
     mhp->cnt++;
   } else {
@@ -196,7 +197,7 @@ HdlcOutput(struct link *l, int pri, u_short proto, struct mbuf *bp)
     /* Overwrite the entire packet */
     struct lqrdata lqr;
 
-    lqr.MagicNumber = p->dl->lcp.want_magic;
+    lqr.MagicNumber = p->link.lcp.want_magic;
     lqr.LastOutLQRs = p->hdlc.lqm.lqr.peer.PeerOutLQRs;
     lqr.LastOutPackets = p->hdlc.lqm.lqr.peer.PeerOutPackets;
     lqr.LastOutOctets = p->hdlc.lqm.lqr.peer.PeerOutOctets;
@@ -368,23 +369,22 @@ hdlc_Protocol2Nam(u_short proto)
   return "unrecognised protocol";
 }
 
-static void
-DecodePacket(struct bundle *bundle, u_short proto, struct mbuf * bp,
-             struct link *l)
+void
+hdlc_DecodePacket(struct bundle *bundle, u_short proto, struct mbuf * bp,
+                  struct link *l)
 {
   struct physical *p = link2physical(l);
-  struct datalink *dl = bundle2datalink(bundle, l->name);
   u_char *cp;
 
   LogPrintf(LogDEBUG, "DecodePacket: proto = 0x%04x\n", proto);
 
   /* decompress everything.  CCP needs uncompressed data too */
-  if ((bp = ccp_Decompress(&dl->ccp, &proto, bp)) == NULL)
+  if ((bp = ccp_Decompress(&l->ccp, &proto, bp)) == NULL)
     return;
 
   switch (proto) {
   case PROTO_LCP:
-    LcpInput(&dl->lcp, bp);
+    LcpInput(&l->lcp, bp);
     break;
   case PROTO_PAP:
     if (p)
@@ -424,19 +424,31 @@ DecodePacket(struct bundle *bundle, u_short proto, struct mbuf * bp,
     IpcpInput(&bundle->ncp.ipcp, bp);
     break;
   case PROTO_CCP:
-    CcpInput(&dl->ccp, bundle, bp);
+    CcpInput(&l->ccp, bundle, bp);
     break;
+  case PROTO_MP:
+    if (bundle->ncp.mp.active) {
+      if (p)
+        mp_Input(&bundle->ncp.mp, bp, p);
+      else {
+        LogPrintf(LogERROR, "DecodePacket: MP inside MP ?!\n");
+        pfree(bp);
+      }
+      break;
+    }
+    /* Fall through */
   default:
-    LogPrintf(LogPHASE, "Unknown protocol 0x%04x (%s)\n",
+    LogPrintf(LogPHASE, "%s protocol 0x%04x (%s)\n",
+              proto == PROTO_MP ? "Unexpected" : "Unknown",
               proto, hdlc_Protocol2Nam(proto));
     bp->offset -= 2;
     bp->cnt += 2;
     cp = MBUF_CTOP(bp);
-    if (p)
-      lcp_SendProtoRej(&dl->lcp, cp, bp->cnt);
-    /* XXX: Eeek - how to we proto-reject something at the bundle level ? */
-    p->hdlc.lqm.SaveInDiscards++;
-    p->hdlc.stats.unknownproto++;
+    lcp_SendProtoRej(&l->lcp, cp, bp->cnt);
+    if (p) {
+      p->hdlc.lqm.SaveInDiscards++;
+      p->hdlc.stats.unknownproto++;
+    }
     pfree(bp);
     break;
   }
@@ -473,7 +485,7 @@ HdlcInput(struct bundle *bundle, struct mbuf * bp, struct physical *physical)
   }
   cp = MBUF_CTOP(bp);
 
-  if (!physical->dl->lcp.want_acfcomp) {
+  if (!physical->link.lcp.want_acfcomp) {
     /*
      * We expect that packet is not compressed.
      */
@@ -505,7 +517,7 @@ HdlcInput(struct bundle *bundle, struct mbuf * bp, struct physical *physical)
     bp->offset += 2;
     bp->cnt -= 2;
   }
-  if (physical->dl->lcp.want_protocomp) {
+  if (physical->link.lcp.want_protocomp) {
     proto = 0;
     cp--;
     do {
@@ -525,7 +537,7 @@ HdlcInput(struct bundle *bundle, struct mbuf * bp, struct physical *physical)
   link_ProtocolRecord(physical2link(physical), proto, PROTO_IN);
   physical->hdlc.lqm.SaveInPackets++;
 
-  DecodePacket(bundle, proto, bp, physical2link(physical));
+  hdlc_DecodePacket(bundle, proto, bp, physical2link(physical));
 }
 
 /*
@@ -604,6 +616,7 @@ hdlc_StartTimer(struct hdlc *hdlc)
   hdlc->ReportTimer.load = 60 * SECTICKS;
   hdlc->ReportTimer.arg = hdlc;
   hdlc->ReportTimer.func = hdlc_ReportTime;
+  hdlc->ReportTimer.name = "hdlc";
   StartTimer(&hdlc->ReportTimer);
 }
 
