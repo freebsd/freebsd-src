@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_sl.c	8.6 (Berkeley) 2/1/94
- * $Id: if_sl.c,v 1.13 1995/03/16 18:14:27 bde Exp $
+ * $Id: if_sl.c,v 1.14 1995/03/20 19:20:43 wollman Exp $
  */
 
 /*
@@ -182,6 +182,8 @@ struct sl_softc sl_softc[NSL];
 
 static int slinit __P((struct sl_softc *));
 static struct mbuf *sl_btom __P((struct sl_softc *, int));
+static void sl_keepalive __P((struct sl_softc *));
+static void sl_outfill __P((struct sl_softc *));
 
 
 #define ttyerrio ((int (*) __P((struct tty *, struct uio *, int)))enodev)
@@ -320,7 +322,16 @@ slclose(tp,flag)
 	tp->t_line = 0;
 	sc = (struct sl_softc *)tp->t_sc;
 	if (sc != NULL) {
+		if (sc->sc_outfill) {
+			sc->sc_outfill = 0;
+			untimeout((timeout_func_t) sl_outfill, (caddr_t) sc);
+		}
+		if (sc->sc_keepalive) {
+			sc->sc_keepalive = 0;
+			untimeout((timeout_func_t) sl_keepalive, (caddr_t) sc);
+		}
 		if_down(&sc->sc_if);
+		sc->sc_flags = 0;
 		sc->sc_ttyp = NULL;
 		tp->t_sc = NULL;
 		MCLFREE((caddr_t)(sc->sc_ep - SLBUFSIZE));
@@ -346,15 +357,49 @@ sltioctl(tp, cmd, data, flag, p)
 	struct proc *p;
 {
 	struct sl_softc *sc = (struct sl_softc *)tp->t_sc;
+	int s;
 
+	s = splimp();
 	switch (cmd) {
 	case SLIOCGUNIT:
 		*(int *)data = sc->sc_if.if_unit;
 		break;
 
+	case SLIOCSKEEPAL:
+		sc->sc_keepalive = *(u_int *)data * hz;
+		if (sc->sc_keepalive) {
+			sc->sc_flags |= SC_KEEPALIVE;
+			timeout((timeout_func_t) sl_keepalive, (caddr_t) sc, sc->sc_keepalive);
+		} else {
+			sc->sc_flags &= ~SC_KEEPALIVE;
+			untimeout((timeout_func_t) sl_keepalive, (caddr_t) sc);
+		}
+		break;
+
+	case SLIOCGKEEPAL:
+		*(int *)data = sc->sc_keepalive / hz;
+		break;
+
+	case SLIOCSOUTFILL:
+		sc->sc_outfill = *(u_int *)data * hz;
+		if (sc->sc_outfill) {
+			sc->sc_flags |= SC_OUTWAIT;
+			timeout((timeout_func_t) sl_outfill, (caddr_t) sc, sc->sc_outfill);
+		} else {
+			sc->sc_flags &= ~SC_OUTWAIT;
+			untimeout((timeout_func_t) sl_outfill, (caddr_t) sc);
+		}
+		break;
+
+	case SLIOCGOUTFILL:
+		*(int *)data = sc->sc_outfill / hz;
+		break;
+
 	default:
-		return (-1);
+		splx(s);
+		return (ENOTTY);
 	}
+	splx(s);
 	return (0);
 }
 
@@ -448,6 +493,8 @@ slstart(tp)
 		 * it would.
 		 */
 		if (tp->t_outq.c_cc != 0) {
+			if (sc != NULL)
+				sc->sc_flags &= ~SC_OUTWAIT;
 			(*tp->t_oproc)(tp);
 			if (tp->t_outq.c_cc > SLIP_HIWAT)
 				return 0;
@@ -470,6 +517,7 @@ slstart(tp)
 		splx(s);
 		if (m == NULL)
 			return 0;
+		sc->sc_flags &= ~SC_OUTWAIT;
 
 		/*
 		 * We do the header compression here rather than in sloutput
@@ -728,6 +776,7 @@ slinput(c, tp)
 		return 0;
 
 	case FRAME_END:
+		sc->sc_flags &= ~SC_KEEPALIVE;
 		if(sc->sc_flags & SC_ERROR) {
 			sc->sc_flags &= ~SC_ERROR;
 			goto newpack;
@@ -901,4 +950,42 @@ slioctl(ifp, cmd, data)
 	splx(s);
 	return (error);
 }
+
+static void sl_keepalive (sc)
+	struct sl_softc *sc;
+{
+	if (sc->sc_keepalive) {
+		if (sc->sc_flags & SC_KEEPALIVE)
+			pgsignal (sc->sc_ttyp->t_pgrp, SIGURG, 1);
+		else
+			sc->sc_flags |= SC_KEEPALIVE;
+		timeout ((timeout_func_t) sl_keepalive, (caddr_t) sc, sc->sc_keepalive);
+	} else {
+		sc->sc_flags &= ~SC_KEEPALIVE;
+		untimeout ((timeout_func_t) sl_keepalive, (caddr_t) sc);
+	}
+}
+
+static void sl_outfill (sc)
+	struct sl_softc *sc;
+{
+	register struct tty *tp = sc->sc_ttyp;
+	int s;
+
+	if (sc->sc_outfill && tp != NULL) {
+		if (sc->sc_flags & SC_OUTWAIT) {
+			s = splimp ();
+			++sc->sc_if.if_obytes;
+			putc(FRAME_END, tp->t_out);
+			(*tp->t_oproc)(tp);
+			splx (s);
+		} else
+			sc->sc_flags |= SC_OUTWAIT;
+		timeout ((timeout_func_t) sl_outfill, (caddr_t) sc, sc->sc_outfill);
+	} else {
+		sc->sc_flags &= ~SC_OUTWAIT;
+		untimeout ((timeout_func_t) sl_outfill, (caddr_t) sc);
+	}
+}
+
 #endif
