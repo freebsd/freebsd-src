@@ -42,7 +42,7 @@ static char const copyright[] =
 static char sccsid[] = "@(#)date.c	8.2 (Berkeley) 4/28/95";
 #endif
 static const char rcsid[] =
-	"$Id: date.c,v 1.25 1998/05/13 07:31:39 charnier Exp $";
+	"$Id: date.c,v 1.27 1999/03/09 09:38:54 brian Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -278,7 +278,7 @@ usage()
 {
 	(void)fprintf(stderr, "%s\n%s\n",
 	    "usage: date [-nu] [-d dst] [-r seconds] [-t west] "
-	    "[-v[+|-]val[ymwdHM]] ... ",
+	    "[-v[+|-]val[ymwdHMS]] ... ",
 	    "            [-f fmt date | [[[[yy]mm]dd]HH]MM[.ss]] [+format]");
 	exit(1);
 }
