@@ -195,7 +195,7 @@ Static void		ohci_device_isoc_done (usbd_xfer_handle);
 Static usbd_status	ohci_device_setintr(ohci_softc_t *sc, 
 			    struct ohci_pipe *pipe, int ival);
 
-Static int		ohci_str(usb_string_descriptor_t *, int, char *);
+Static int		ohci_str(usb_string_descriptor_t *, int, const char *);
 
 Static void		ohci_timeout(void *);
 Static void		ohci_rhsc_able(ohci_softc_t *, int);
@@ -2002,7 +2002,7 @@ Static int
 ohci_str(p, l, s)
 	usb_string_descriptor_t *p;
 	int l;
-	char *s;
+	const char *s;
 {
 	int i;
 
