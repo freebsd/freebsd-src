@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $Id: init_main.c,v 1.74 1997/11/07 08:52:53 phk Exp $
+ * $Id: init_main.c,v 1.75 1997/11/24 18:35:04 bde Exp $
  */
 
 #include "opt_devfs.h"
@@ -457,17 +457,6 @@ SYSINIT(p0post, SI_SUB_INTRINSIC_POST, SI_ORDER_FIRST, proc0_post, NULL)
  ****
  ***************************************************************************
  */
-/* ARGSUSED */
-static void sched_setup __P((void *dummy));
-static void
-sched_setup(dummy)
-	void *dummy;
-{
-	/* Kick off timeout driven events by calling first time. */
-	roundrobin(NULL);
-	schedcpu(NULL);
-}
-SYSINIT(sched_setup, SI_SUB_KICK_SCHEDULER, SI_ORDER_FIRST, sched_setup, NULL)
 
 /* ARGSUSED */
 static void root_conf __P((void *dummy));
@@ -478,36 +467,6 @@ root_conf(dummy)
 	cpu_rootconf();
 }
 SYSINIT(root_conf, SI_SUB_ROOT_CONF, SI_ORDER_FIRST, root_conf, NULL)
-
-/* ARGSUSED */
-static void dump_conf __P((void *dummy));
-static void
-dump_conf(dummy)
-	void *dummy;
-{
-	cpu_dumpconf();
-}
-SYSINIT(dump_conf, SI_SUB_DUMP_CONF, SI_ORDER_FIRST, dump_conf, NULL)
-
-/* ARGSUSED*/
-static void xxx_vfs_mountroot __P((void *fsnamep));
-#ifdef BOOTP
-extern void bootpc_init __P((void));
-#endif
-static void
-xxx_vfs_mountroot(fsnamep)
-	void *fsnamep;
-{
-  /* XXX Add a separate SYSINIT entry */
-#ifdef BOOTP
-	bootpc_init();
-#endif
-	/* Mount the root file system. */
-	if (vfs_mountrootfs(*((char **) fsnamep)))
-		panic("cannot mount root");
-}
-SYSINIT(mountroot, SI_SUB_MOUNT_ROOT, SI_ORDER_FIRST, xxx_vfs_mountroot,
-	&mountrootfsname)
 
 /* ARGSUSED*/
 static void xxx_vfs_root_fdtab __P((void *dummy));

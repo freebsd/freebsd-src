@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_shutdown.c	8.3 (Berkeley) 1/21/94
- * $Id: kern_shutdown.c,v 1.25 1997/11/06 19:29:13 phk Exp $
+ * $Id: kern_shutdown.c,v 1.26 1997/11/18 15:16:43 bde Exp $
  */
 
 #include "opt_ddb.h"
@@ -328,6 +328,16 @@ static int	dumpsize = 0;		/* also for savecore */
 
 static int	dodump = 1;
 SYSCTL_INT(_machdep, OID_AUTO, do_dump, CTLFLAG_RW, &dodump, 0, "");
+
+/* ARGSUSED */
+static void dump_conf __P((void *dummy));
+static void
+dump_conf(dummy)
+	void *dummy;
+{
+	cpu_dumpconf();
+}
+SYSINIT(dump_conf, SI_SUB_DUMP_CONF, SI_ORDER_FIRST, dump_conf, NULL)
 
 /*
  * Doadump comes here after turning off memory management and
