@@ -86,6 +86,7 @@ static struct tcpstat curstat, initstat, oldstat;
 17999999999 keepalive probes         999999999 - acks
 18999999999 - timeouts               999999999 - window probes
 19                                   999999999 - window updates
+20                                   999999999 - bad checksum
 --0123456789012345678901234567890123456789012345678901234567890123456789012345
 --0         1         2         3         4         5         6         7
 */
@@ -132,6 +133,7 @@ labeltcp(void)
 	L(17, "keepalive probes");	R(17, "- acks");
 	L(18, "- timeouts");		R(18, "- window probes");
 	R(19, "- window updates");
+	R(20, "- bad checksum");
 #undef L
 #undef R
 }
@@ -253,6 +255,7 @@ showtcp(void)
 	L(17, tcps_keepprobe);		R(17, tcps_rcvackpack);
 	L(18, tcps_keeptimeo);		R(18, tcps_rcvwinprobe);
 	R(19, tcps_rcvwinupd);
+	R(20, tcps_rcvbadsum);
 #undef DO
 #undef L
 #undef R
