@@ -19,7 +19,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: aic7870.c,v 1.21 1996/01/03 06:34:10 gibbs Exp $
+ *	$Id: aic7870.c,v 1.22 1996/01/07 19:26:11 gibbs Exp $
  */
 
 #include <pci.h>
@@ -307,9 +307,6 @@ aic7870_attach(config_id, unit)
 		pci_conf_write(config_id, CSIZE_LATTIME, csize_lattime);
 		
 	}
-
-	/* Enable cache sized transfers, memory, and data parity checking */
-	outb(DSCOMMAND + io_port, CACHETHEN|DPARCKEN|MPARCKEN);
 
 	if(!(ahc = ahc_alloc(unit, io_port, ahc_t, ahc_f)))
 		return;  /* XXX PCI code should take return status */
