@@ -29,7 +29,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id$
+.\"	$Id: ypserv.8,v 1.1 1995/02/04 21:32:04 wpaul Exp $
 .\"
 .Dd February 4, 1995
 .Dt YPSERV 8
@@ -64,7 +64,7 @@ Each client in an NIS domain must have its domainname set to
 one of the domains served by
 .Nm ypserv
 using the
-.Xr domainname 2
+.Xr domainname 1
 command. The clients must also run
 .Xr ypbind 8
 in order to attach to a particular server, since it is possible to
@@ -79,7 +79,7 @@ where
 is the name of the domain being served. There can be several
 such directories with different domainnames, and
 .Nm ypserv
-cam handle them all.
+can handle them all.
 .Pp
 The databases, or
 .Pa maps
