@@ -27,6 +27,7 @@ int	op_snmpd_config(struct snmp_context *, struct snmp_value *, u_int, u_int, en
 # define LEAF_begemotSnmpdReceiveBuffer 2
 # define LEAF_begemotSnmpdCommunityDisable 3
 # define LEAF_begemotSnmpdTrap1Addr 4
+# define LEAF_begemotSnmpdVersionEnable 5
 int	op_trapsink(struct snmp_context *, struct snmp_value *, u_int, u_int, enum snmp_op);
 # define LEAF_begemotTrapSinkStatus 3
 # define LEAF_begemotTrapSinkComm 4
@@ -48,9 +49,13 @@ int	op_debug(struct snmp_context *, struct snmp_value *, u_int, u_int, enum snmp
 # define LEAF_begemotSnmpdDebugDumpPdus 1
 # define LEAF_begemotSnmpdDebugSnmpTrace 2
 # define LEAF_begemotSnmpdDebugSyslogPri 3
-int	op_local_port(struct snmp_context *, struct snmp_value *, u_int, u_int, enum snmp_op);
+int	op_lsock_port(struct snmp_context *, struct snmp_value *, u_int, u_int, enum snmp_op);
 # define LEAF_begemotSnmpdLocalPortStatus 2
+# define LEAF_begemotSnmpdLocalPortType 3
+int	op_transport_table(struct snmp_context *, struct snmp_value *, u_int, u_int, enum snmp_op);
+# define LEAF_begemotSnmpdTransportStatus 2
+# define LEAF_begemotSnmpdTransportOid 3
 int	op_snmp_set(struct snmp_context *, struct snmp_value *, u_int, u_int, enum snmp_op);
 # define LEAF_snmpSetSerialNo 1
-#define CTREE_SIZE 40
+#define CTREE_SIZE 44
 extern const struct snmp_node ctree[];

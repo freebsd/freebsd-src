@@ -24,3 +24,12 @@
 #define OID_authenticationFailure	5
 #define OIDLEN_authenticationFailure	10
 #define OIDX_authenticationFailure	{ 10, { 1, 3, 6, 1, 6, 3, 1, 1, 5, 5, } }
+#define OID_begemotSnmpdTransUdp	2
+#define OIDLEN_begemotSnmpdTransUdp	12
+#define OIDX_begemotSnmpdTransUdp	{ 12, { 1, 3, 6, 1, 4, 1, 12325, 1, 1, 1, 10, 2, } }
+#define OID_begemotSnmpdTransLsock	3
+#define OIDLEN_begemotSnmpdTransLsock	12
+#define OIDX_begemotSnmpdTransLsock	{ 12, { 1, 3, 6, 1, 4, 1, 12325, 1, 1, 1, 10, 3, } }
+#define OID_begemotSnmpdLocalPortTable	9
+#define OIDLEN_begemotSnmpdLocalPortTable	11
+#define OIDX_begemotSnmpdLocalPortTable	{ 11, { 1, 3, 6, 1, 4, 1, 12325, 1, 1, 1, 9, } }
