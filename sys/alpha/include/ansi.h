@@ -119,11 +119,6 @@ typedef _BSD_VA_LIST_ __gnuc_va_list;		/* compatibility w/GNU headers*/
 #define	_BSD_CLOCKS_PER_SEC_	100
 
 /*
- * We define this here since both <stddef.h> and <sys/types.h> needs it.
- */
-#define __offsetof(type, field) ((size_t)(&((type *)0)->field))
-
-/*
  * Internal names for basic integral types.  Omit the typedef if
  * not possible for a machine/compiler combination.
  */

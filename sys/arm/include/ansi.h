@@ -111,11 +111,6 @@ typedef _BSD_VA_LIST_ __gnuc_va_list;		/* compatibility w/GNU headers*/
 #define	_BSD_CLOCKS_PER_SEC_	100
 
 /*
- * We define this here since both <stddef.h> and <sys/types.h> needs it.
- */
-#define __offsetof(type, field) ((size_t)(&((type *)0)->field))
-
-/*
  * XXX this paragraph is very out of date.
  * Typedefs for especially magic types.  #define's wouldn't work in the
  * __GNUC__ case, since __attribute__(()) only works in certain contexts.
