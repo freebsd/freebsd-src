@@ -135,7 +135,7 @@ void
 usage()
 {
 	(void)fprintf(stderr, 
-		      "usage: calendar [-a] [-A days] [-B days] [-f calendarfile]\n");
+		      "usage: calendar [-a] [-A days] [-B days] [-f calendarfile] [-t dd[.mm[.year]]]\n");
 	exit(1);
 }
 
