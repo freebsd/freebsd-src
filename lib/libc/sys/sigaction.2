@@ -281,13 +281,15 @@ is possible on a descriptor (see
 .It Dv SIGUSR2 No "	terminate process" "	User defined signal 2"
 .El
 .Sh NOTE
-The mask specified in 
+The
+.Fa sa_mask
+field specified in 
 .Fa act
 is not allowed to block
 .Dv SIGKILL
 or
 .Dv SIGSTOP .
-Attempting to do so will cause the call to fail.
+Any attempt to do so will be silently ignored.
 .Sh RETURN VALUES
 A 0 value indicated that the call succeeded.  A \-1 return value
 indicates an error occurred and
