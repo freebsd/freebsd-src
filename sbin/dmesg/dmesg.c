@@ -45,7 +45,9 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif /* not lint */
 
+#include <sys/types.h>
 #include <sys/msgbuf.h>
+#include <sys/sysctl.h>
 
 #include <err.h>
 #include <fcntl.h>
@@ -81,6 +83,8 @@ main(argc, argv)
 	char buf[5];
 	int all = 0;
 	int pri;
+	size_t buflen;
+	int bufpos;
 
 	(void) setlocale(LC_CTYPE, "");
 	memf = nlistf = NULL;
@@ -102,33 +106,43 @@ main(argc, argv)
 	argc -= optind;
 	argv += optind;
 
-	/*
-	 * Discard setgid privileges if not the running kernel so that bad
-	 * guys can't print interesting stuff from kernel memory.
-	 */
-	if (memf != NULL || nlistf != NULL)
-		setgid(getgid());
-
-	/* Read in kernel message buffer, do sanity checks. */
-	if ((kd = kvm_open(nlistf, memf, NULL, O_RDONLY, "dmesg")) == NULL)
-		exit (1);
-	if (kvm_nlist(kd, nl) == -1)
-		errx(1, "kvm_nlist: %s", kvm_geterr(kd));
-	if (nl[X_MSGBUF].n_type == 0)
-		errx(1, "%s: msgbufp not found", nlistf ? nlistf : "namelist");
-	if (KREAD(nl[X_MSGBUF].n_value, bufp) || KREAD((long)bufp, cur))
-		errx(1, "kvm_read: %s", kvm_geterr(kd));
-	if (cur.msg_magic != MSG_MAGIC)
-		errx(1, "kernel message buffer has different magic number");
-	bp = malloc(cur.msg_size);
-	if (!bp)
-		errx(1, "malloc failed");
-	if (kvm_read(kd, (long)cur.msg_ptr, bp, cur.msg_size) !=
-	    cur.msg_size)
-		errx(1, "kvm_read: %s", kvm_geterr(kd));
-	if (cur.msg_bufx >= cur.msg_size)
-		cur.msg_bufx = 0;
-	kvm_close(kd);
+	if (memf == NULL && nlistf == NULL) {
+		/* Running kernel. Use sysctl. */
+		if (sysctlbyname("machdep.msgbuf", NULL, &buflen, NULL, 0) == -1)
+			err(1, "sysctl machdep.msgbuf");
+		if ((bp = malloc(buflen)) == NULL)
+			errx(1, "malloc failed");
+		if (sysctlbyname("machdep.msgbuf", bp, &buflen, NULL, 0) == -1)
+			err(1, "sysctl machdep.msgbuf");
+		/* We get a dewrapped buffer using sysctl. */
+		bufpos = 0;
+	} else {
+		/* Read in kernel message buffer, do sanity checks. */
+		kd = kvm_open(nlistf, memf, NULL, O_RDONLY, "dmesg");
+		if (kd == NULL)
+			exit (1);
+		if (kvm_nlist(kd, nl) == -1)
+			errx(1, "kvm_nlist: %s", kvm_geterr(kd));
+		if (nl[X_MSGBUF].n_type == 0)
+			errx(1, "%s: msgbufp not found",
+			    nlistf ? nlistf : "namelist");
+		if (KREAD(nl[X_MSGBUF].n_value, bufp) || KREAD((long)bufp, cur))
+			errx(1, "kvm_read: %s", kvm_geterr(kd));
+		if (cur.msg_magic != MSG_MAGIC)
+			errx(1, "kernel message buffer has different magic "
+			    "number");
+		bp = malloc(cur.msg_size);
+		if (!bp)
+			errx(1, "malloc failed");
+		if (kvm_read(kd, (long)cur.msg_ptr, bp, cur.msg_size) !=
+		    cur.msg_size)
+			errx(1, "kvm_read: %s", kvm_geterr(kd));
+		kvm_close(kd);
+		buflen = cur.msg_size;
+		bufpos = cur.msg_bufx;
+		if (bufpos >= buflen)
+			bufpos = 0;
+	}
 
 	/*
 	 * The message buffer is circular.  If the buffer has wrapped, the
@@ -137,11 +151,11 @@ main(argc, argv)
 	 * buffer starting at the write pointer and ignore nulls so that
 	 * we effectively start at the oldest data.
 	 */
-	p = bp + cur.msg_bufx;
-	ep = (cur.msg_bufx == 0 ? bp + cur.msg_size : p);
+	p = bp + bufpos;
+	ep = (bufpos == 0 ? bp + buflen : p);
 	newl = skip = 0;
 	do {
-		if (p == bp + cur.msg_size)
+		if (p == bp + buflen)
 			p = bp;
 		ch = *p;
 		/* Skip "\n<.*>" syslog sequences. */
@@ -180,6 +194,6 @@ main(argc, argv)
 void
 usage()
 {
-	(void)fprintf(stderr, "usage: dmesg [-M core] [-N system]\n");
+	(void)fprintf(stderr, "usage: dmesg [-a] [-M core] [-N system]\n");
 	exit(1);
 }
