@@ -584,7 +584,8 @@ fetch(char *URL, const char *path)
 	/* suck in the data */
 	signal(SIGINFO, sig_handler);
 	while (!sigint) {
-		if (us.size != -1 && us.size - count < B_size)
+		if (us.size != -1 && us.size - count < B_size &&
+		    us.size - count >= 0)
 			size = us.size - count;
 		else
 			size = B_size;
