@@ -820,7 +820,9 @@ kse_sched_multi(struct kse *curkse)
 	kse_check_signals(curkse);
 	KSE_SCHED_LOCK(curkse, curkse->k_kseg);
 
+#ifdef DEBUG_THREAD_KERN
 	dump_queues(curkse);
+#endif
 
 	/* Check if there are no threads ready to run: */
 	while (((curthread = KSE_RUNQ_FIRST(curkse)) == NULL) &&
