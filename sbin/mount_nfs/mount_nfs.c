@@ -351,7 +351,7 @@ main(argc, argv)
 	argv += optind;
 
 	if (argc != 2)
-		error = 1;
+		usage();
 
 	spec = *argv++;
 	name = *argv;
@@ -571,6 +571,7 @@ getnfsargs(spec, nfsargsp)
 	if (nfhret.stat) {
 		if (opflags & ISBGRND)
 			exit(1);
+		errno = nfhret.stat;
 		warn("can't access %s", spec);
 		return (0);
 	}
