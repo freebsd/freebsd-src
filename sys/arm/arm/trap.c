@@ -928,16 +928,16 @@ syscall(struct thread *td, trapframe_t *frame, u_int32_t insn)
 	switch (error) {
 	case 0: 
 #ifdef __ARMEB__
-		if ((frame->fixreg[0] == SYS___syscall) &&
+		if ((insn & 0x000fffff) &&
 		    (code != SYS_lseek)) {
 			/*
 			 * 64-bit return, 32-bit syscall. Fixup byte order
 			 */
-			tf->tf_r0 = 0;
-			tf->rf_r1 = td->td_retval[0];
+			frame->tf_r0 = 0;
+			frame->tf_r1 = td->td_retval[0];
 		} else {
-                        tf->tf_r0 = td->td_retval[0];
-                        tf->tf_r1 = td->td_retval[1];
+                        frame->tf_r0 = td->td_retval[0];
+                        frame->tf_r1 = td->td_retval[1];
 		}
 #else
       		frame->tf_r0 = td->td_retval[0];
