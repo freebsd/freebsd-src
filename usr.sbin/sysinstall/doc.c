@@ -47,6 +47,7 @@ docBrowser(char *junk)
 	return RET_FAIL;
     }
     if (!file_executable(variable_get(VAR_BROWSER_BINARY))) {
+	dialog_clear();
 	if (!msgYesNo("Hmmm.  The %s package claims to have installed, but I can't\n"
 		      "find its binary in %s!  You may wish to try a different\n"
 		      "location to load the package from (go to Media menu) and see if that\n"
