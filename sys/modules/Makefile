@@ -10,7 +10,7 @@ SUBDIR=	aha amr an aue ccd cd9660 coda cue dc fdesc fxp if_disc if_ef if_ppp \
 
 # XXX some of these can move to the general case when de-i386'ed
 .if ${MACHINE_ARCH} == "i386"
-SUBDIR+=bktr coff fpu gnufpu ibcs2 linprocfs linux splash streams \
+SUBDIR+=bktr coff fpu gnufpu ibcs2 linux splash streams \
 	svr4 syscons vesa vinum wi
 .endif
 
