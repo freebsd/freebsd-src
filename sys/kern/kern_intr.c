@@ -318,27 +318,3 @@ swi_net(void *dummy)
 		bits &= ~(1 << i);
 	}
 }
-
-/*
- * Dummy spl calls.  The only reason for these is to not break
- * all the code which expects to call them.
- */
-void spl0 (void) {}
-void splx (intrmask_t x) {}
-intrmask_t  splq(intrmask_t mask) { return 0; }
-intrmask_t  splbio(void) { return 0; }
-intrmask_t  splcam(void) { return 0; }
-intrmask_t  splclock(void) { return 0; }
-intrmask_t  splhigh(void) { return 0; }
-intrmask_t  splimp(void) { return 0; }
-intrmask_t  splnet(void) { return 0; }
-intrmask_t  splsoftcam(void) { return 0; }
-intrmask_t  splsoftcambio(void) { return 0; }
-intrmask_t  splsoftcamnet(void) { return 0; }
-intrmask_t  splsoftclock(void) { return 0; }
-intrmask_t  splsofttty(void) { return 0; }
-intrmask_t  splsoftvm(void) { return 0; }
-intrmask_t  splsofttq(void) { return 0; }
-intrmask_t  splstatclock(void) { return 0; }
-intrmask_t  spltty(void) { return 0; }
-intrmask_t  splvm(void) { return 0; }

@@ -28,8 +28,3 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-
-unsigned int bio_imask;		/* XXX */
-unsigned int cam_imask;		/* XXX */
-unsigned int net_imask;		/* XXX */
-unsigned int tty_imask;		/* XXX */
