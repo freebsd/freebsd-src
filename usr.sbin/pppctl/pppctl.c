@@ -623,6 +623,11 @@ main(int argc, char **argv)
                         start = ++next;
                 } while (next && *next);
                 if (verbose)
+                    write(1, "quit\n", 5);
+                write(fd, "quit\n", 5);
+                while (Receive(fd, verbose | REC_SHOW) == 0)
+                    ;
+                if (verbose)
                     puts("");
             }
             break;
