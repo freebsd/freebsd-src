@@ -17,6 +17,19 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 5.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20040724:
+	The rc.d/loclpkg script now "does the right thing" with respect
+	to ports rc.d scripts. The most disruptive change is that scripts
+	ending in *.sh are sourced in the same shell as rc.d/localpkg (as
+	opposed to a subshell) and may cause the script to end prematurely
+	if a script calls exit. Some broken scripts may not recognize the
+	'fast' prefix to a command. The first problem can be fixed by simply
+	renaming the script so that it doesn't have a '.sh' ending. Another
+	temporary work-arround is to completely remove the 'PROVIDE' line
+	from the script. If you notice a broken ports rc.d script please
+	notify the maintainer. Legacy scripts should not be affected.
+	__FreeBSD_version bumped to 502124.
+
 20040716:
 	The sound device drivers are renamed.  `sound' is always required,
 	while `snd_*' should be configured accordingly to your hardware.
