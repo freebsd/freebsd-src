@@ -28,13 +28,10 @@
  * $FreeBSD$
  *
  */
-#include "joy.h"
 
-#if NJOY > 0
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
-#include <sys/kernel.h>
 #include <sys/uio.h>
 
 #include <machine/clock.h>
@@ -284,6 +281,3 @@ joy_mod (struct lkm_table *lkmtp, int cmd, int ver)
 }
 
 #endif /* JOY_MODULE */
-
-
-#endif /* NJOY > 0 */
