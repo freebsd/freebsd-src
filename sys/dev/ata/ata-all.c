@@ -170,8 +170,10 @@ ata_attach(device_t dev)
 	return ENXIO;
     }
     if ((error = bus_setup_intr(dev, ch->r_irq, INTR_TYPE_BIO | INTR_ENTROPY,
-				ata_intr, ch, &ch->ih)))
+				ata_intr, ch, &ch->ih))) {
+	ata_printf(ch, -1, "unable to setup interrupt\n");
 	return error;
+    }
 
     /*
      * do not attach devices if we are in early boot, this is done later 
@@ -203,7 +205,6 @@ ata_attach(device_t dev)
 	if (ch->devices & ATA_ATAPI_SLAVE)
 	    atapi_attach(&ch->device[SLAVE]);
 #endif
-	/* we should probe & attach RAID's here as well SOS XXX */
     }
     return 0;
 }
@@ -222,12 +223,6 @@ ata_detach(device_t dev)
     while (!atomic_cmpset_int(&ch->active, ATA_IDLE, ATA_CONTROL))
 	tsleep((caddr_t)&s, PRIBIO, "atarel", hz/4);
     splx(s);
-
-    /* disable interrupts on devices */
-    ATA_OUTB(ch->r_io, ATA_DRIVE, ATA_D_IBM | ATA_MASTER);
-    ATA_OUTB(ch->r_altio, ATA_ALTSTAT, ATA_A_IDS | ATA_A_4BIT);
-    ATA_OUTB(ch->r_io, ATA_DRIVE, ATA_D_IBM | ATA_SLAVE);
-    ATA_OUTB(ch->r_altio, ATA_ALTSTAT, ATA_A_IDS | ATA_A_4BIT);
 
 #ifdef DEV_ATADISK
     if (ch->devices & ATA_ATA_MASTER && ch->device[MASTER].driver)
@@ -282,52 +277,46 @@ ataioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct thread *td)
     struct ata_cmd *iocmd = (struct ata_cmd *)addr;
     struct ata_device *atadev;
     struct ata_channel *ch;
-    device_t device;
-    int error;
+    device_t device = devclass_get_device(ata_devclass, iocmd->channel);
+    caddr_t buf;
+    int error, s;
 
     if (cmd != IOCATA)
 	return ENOTTY;
     
-    if (iocmd->device < -1 || iocmd->device > SLAVE || iocmd->channel < 0 ||
-	iocmd->channel >= devclass_get_maxunit(ata_devclass))
+    if (iocmd->channel < -1 || iocmd->device < -1 || iocmd->device > SLAVE)
 	return ENXIO;
 
-    if (!(device = devclass_get_device(ata_devclass, iocmd->channel)))
-	return ENODEV;
-
     switch (iocmd->cmd) {
-	case ATAATTACH: {
+	case ATAATTACH:
 	    /* should enable channel HW on controller that can SOS XXX */   
 	    error = ata_probe(device);
 	    if (!error)
 		error = ata_attach(device);
 	    return error;
-	}
 
-	case ATADETACH: {
+	case ATADETACH:
 	    error = ata_detach(device);
 	    /* should disable channel HW on controller that can SOS XXX */   
 	    return error;
-	}
 
-	case ATAREINIT: {
-	    int s;
+	case ATAREINIT:
+	    if (!device || !(ch = device_get_softc(device)))
+		return ENXIO;
 
-	    if (!(ch = device_get_softc(device)))
-		return ENODEV;
-
-	    /* make sure channel is not busy */
 	    s = splbio();
 	    while (!atomic_cmpset_int(&ch->active, ATA_IDLE, ATA_ACTIVE))
 		tsleep((caddr_t)&s, PRIBIO, "atarin", hz/4);
 	    error = ata_reinit(ch);
 	    splx(s);
 	    return error;
-	}
+
+	case ATAREBUILD:
+	    return ata_raid_rebuild(iocmd->channel);
 
 	case ATAGMODE:
-	    if (!(ch = device_get_softc(device)))
-		return ENODEV;
+	    if (!device || !(ch = device_get_softc(device)))
+		return ENXIO;
 
 	    if ((iocmd->device == MASTER || iocmd->device == -1) &&
 		ch->device[MASTER].driver)
@@ -343,8 +332,8 @@ ataioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct thread *td)
 	    return 0;
 
 	case ATASMODE:
-	    if (!(ch = device_get_softc(device)))
-		return ENODEV;
+	    if (!device || !(ch = device_get_softc(device)))
+		return ENXIO;
 
 	    if ((iocmd->device == MASTER || iocmd->device == -1) &&
 		iocmd->u.mode.mode[MASTER] >= 0 && ch->device[MASTER].param) {
@@ -361,12 +350,11 @@ ataioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct thread *td)
 	    }
 	    else
 		iocmd->u.mode.mode[SLAVE] = -1;
-
 	    return 0;
 
 	case ATAGPARM:
-	    if (!(ch = device_get_softc(device)))
-		return ENODEV;
+	    if (!device || !(ch = device_get_softc(device)))
+		return ENXIO;
 
 	    iocmd->u.param.type[MASTER] = 
 		ch->devices & (ATA_ATA_MASTER | ATA_ATAPI_MASTER);
@@ -384,17 +372,13 @@ ataioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct thread *td)
 	    if (ch->device[SLAVE].param)
 		bcopy(ch->device[SLAVE].param, &iocmd->u.param.params[SLAVE],
 		      sizeof(struct ata_params));
-
 	    return 0;
 
 #if defined(DEV_ATAPICD) || defined(DEV_ATAPIFD) || defined(DEV_ATAPIST)
-	case ATAPICMD: {
-	    caddr_t buf;
+	case ATAPICMD:
 
-	    ch = device_get_softc(device);
-	    if (!ch)
-		return ENODEV;
-
+	    if (!device || !(ch = device_get_softc(device)))
+		return ENXIO;
 
 	    if (!(atadev = &ch->device[iocmd->device]) ||
 		!(ch->devices & (iocmd->device == MASTER ?
@@ -425,8 +409,8 @@ ataioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct thread *td)
 
 	    free(buf, M_ATA);
 	    return error;
-	}
 #endif
+	default:
     }
     return ENOTTY;
 }
@@ -827,11 +811,13 @@ ata_reinit(struct ata_channel *ch)
 	    atapi_detach(&ch->device[SLAVE]);
 #endif
 	if (misdev & ATA_ATA_MASTER || misdev & ATA_ATAPI_MASTER) {
-	    free(ch->device[MASTER].param, M_ATA);
+	    if (ch->device[MASTER].param)
+		free(ch->device[MASTER].param, M_ATA);
 	    ch->device[MASTER].param = NULL;
 	}
 	if (misdev & ATA_ATA_SLAVE || misdev & ATA_ATAPI_SLAVE) {
-	    free(ch->device[SLAVE].param, M_ATA);
+	    if (ch->device[SLAVE].param)
+		free(ch->device[SLAVE].param, M_ATA);
 	    ch->device[SLAVE].param = NULL;
 	}
     }
