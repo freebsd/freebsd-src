@@ -3,6 +3,8 @@
 
 ITANIUM			opt_global.h
 
+IA32			opt_ia32.h
+
 PAGE_SIZE_4K		opt_global.h
 PAGE_SIZE_8K		opt_global.h
 PAGE_SIZE_16K		opt_global.h
