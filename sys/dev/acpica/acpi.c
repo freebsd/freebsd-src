@@ -44,8 +44,9 @@
 #include <sys/ctype.h>
 
 #include <machine/clock.h>
-
 #include <machine/resource.h>
+
+#include <isa/isavar.h>
 
 #include "acpi.h"
 
@@ -110,6 +111,7 @@ static int	acpi_get_resource(device_t dev, device_t child, int type, int rid, u_
 static struct resource *acpi_alloc_resource(device_t bus, device_t child, int type, int *rid,
 					    u_long start, u_long end, u_long count, u_int flags);
 static int	acpi_release_resource(device_t bus, device_t child, int type, int rid, struct resource *r);
+static int	acpi_isa_pnp_probe(device_t bus, device_t child, struct isa_pnp_id *ids);
 
 static void	acpi_probe_children(device_t bus);
 static ACPI_STATUS acpi_probe_child(ACPI_HANDLE handle, UINT32 level, void *context, void **status);
@@ -146,6 +148,9 @@ static device_method_t acpi_methods[] = {
     DEVMETHOD(bus_deactivate_resource,	bus_generic_deactivate_resource),
     DEVMETHOD(bus_setup_intr,		bus_generic_setup_intr),
     DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
+
+    /* ISA emulation */
+    DEVMETHOD(isa_pnp_probe,		acpi_isa_pnp_probe),
 
     {0, 0}
 };
@@ -594,6 +599,60 @@ acpi_release_resource(device_t bus, device_t child, int type, int rid, struct re
 }
 
 /*
+ * Handle ISA-like devices probing for a PnP ID to match.
+ */
+#define PNP_EISAID(s)				\
+	((((s[0] - '@') & 0x1f) << 2)		\
+	 | (((s[1] - '@') & 0x18) >> 3)		\
+	 | (((s[1] - '@') & 0x07) << 13)	\
+	 | (((s[2] - '@') & 0x1f) << 8)		\
+	 | (PNP_HEXTONUM(s[4]) << 16)		\
+	 | (PNP_HEXTONUM(s[3]) << 20)		\
+	 | (PNP_HEXTONUM(s[6]) << 24)		\
+	 | (PNP_HEXTONUM(s[5]) << 28))
+
+int
+acpi_isa_pnp_probe(device_t bus, device_t child, struct isa_pnp_id *ids)
+{
+    ACPI_HANDLE		h;
+    ACPI_DEVICE_INFO	devinfo;
+    ACPI_STATUS		error;
+    u_int32_t		pnpid;
+    int			result;
+
+    FUNCTION_TRACE(__func__);
+
+    /*
+     * ISA-style drivers attached to ACPI may persist and
+     * probe manually if we return ENOENT.  We never want
+     * that to happen, so don't ever return it.
+     */
+    result = ENXIO;
+    ACPI_LOCK;
+
+    /* fetch and validate the HID */
+    if ((h = acpi_get_handle(child)) == NULL)
+	goto out;
+    if ((error = AcpiGetObjectInfo(h, &devinfo)) != AE_OK)
+	goto out;
+    if (!(devinfo.Valid & ACPI_VALID_HID))
+	goto out;
+
+    /* scan the supplied IDs for a match */
+    pnpid = PNP_EISAID(devinfo.HardwareId);
+    while (ids && ids->ip_id) {
+	if (pnpid == ids->ip_id) {
+	    result = 0;
+	    goto out;
+	}
+	ids++;
+    }
+ out:
+    ACPI_UNLOCK;
+    return_VALUE(result);
+}
+
+/*
  * Scan relevant portions of the ACPI namespace and attach child devices.
  *
  * Note that we only expect to find devices in the \_PR_, \_TZ_, \_SI_ and \_SB_ scopes, 
@@ -642,6 +701,7 @@ acpi_probe_children(device_t bus)
     ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "second bus_generic_attach\n"));
     bus_generic_attach(bus);
 
+    ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "done attaching children\n"));
     return_VOID;
 }
 
@@ -677,7 +737,20 @@ acpi_probe_child(ACPI_HANDLE handle, UINT32 level, void *context, void **status)
 	     */
 	    ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "scanning '%s'\n", acpi_name(handle)));
 	    child = BUS_ADD_CHILD(bus, level * 10, NULL, -1);
+	    if (child == NULL)
+		break;
 	    acpi_set_handle(child, handle);
+
+	    /*
+	     * Get the device's resource settings and attach them.
+	     * Note that if the device has _PRS but no _CRS, we need
+	     * to decide when it's appropriate to try to configure the
+	     * device.  Ignore the return value here; it's OK for the
+	     * device not to have any resources.
+	     */
+	    acpi_parse_resources(child, handle, &acpi_res_parse_set);
+
+	    /* if we're debugging, probe/attach now rather than later */
 	    DEBUG_EXEC(device_probe_and_attach(child));
 	    break;
 	}
