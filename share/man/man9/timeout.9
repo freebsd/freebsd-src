@@ -40,7 +40,12 @@
 .Dt TIMEOUT 9
 .Os FreeBSD
 .Sh NAME
-.Nm timeout
+.Nm timeout ,
+.Nm untimeout ,
+.Nm callout_handle_init ,
+.Nm callout_init ,
+.Nm callout_stop ,
+.Nm callout_reset
 .Nd execute a function after a specified length of time
 .Sh SYNOPSIS
 .Fd #include <sys/types.h>
