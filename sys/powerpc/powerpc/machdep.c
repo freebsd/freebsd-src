@@ -772,71 +772,101 @@ exec_setregs(struct thread *td, u_long entry, u_long stack, u_long ps_strings)
 	td->td_pcb->pcb_flags = 0;
 }
 
-/* XXX: dummy {fill,set}_[fp]regs */
 int
 fill_regs(struct thread *td, struct reg *regs)
 {
+	struct trapframe *tf;
 
-	return (ENOSYS);
+	tf = td->td_frame;
+	memcpy(regs, tf, sizeof(struct reg));
+
+	return (0);
 }
 
 int
 fill_dbregs(struct thread *td, struct dbreg *dbregs)
 {
-
+	/* No debug registers on PowerPC */
 	return (ENOSYS);
 }
 
 int
 fill_fpregs(struct thread *td, struct fpreg *fpregs)
 {
+	struct pcb *pcb;
 
-	return (ENOSYS);
+	pcb = td->td_pcb;
+
+	if ((pcb->pcb_flags & PCB_FPU) == 0)
+		memset(fpregs, 0, sizeof(struct fpreg));
+	else
+		memcpy(fpregs, &pcb->pcb_fpu, sizeof(struct fpreg));
+
+	return (0);
 }
 
 int
 set_regs(struct thread *td, struct reg *regs)
 {
+	struct trapframe *tf;
 
-	return (ENOSYS);
+	tf = td->td_frame;
+	memcpy(tf, regs, sizeof(struct reg));
+	
+	return (0);
 }
 
 int
 set_dbregs(struct thread *td, struct dbreg *dbregs)
 {
-
+	/* No debug registers on PowerPC */
 	return (ENOSYS);
 }
 
 int
 set_fpregs(struct thread *td, struct fpreg *fpregs)
 {
+	struct pcb *pcb;
 
-	return (ENOSYS);
+	pcb = td->td_pcb;
+	if ((pcb->pcb_flags & PCB_FPU) == 0)
+		enable_fpu(td);
+	memcpy(&pcb->pcb_fpu, fpregs, sizeof(struct fpreg));
+
+	return (0);
 }
 
 int
 ptrace_set_pc(struct thread *td, unsigned long addr)
 {
+	struct trapframe *tf;
 
-	/* XXX: coming soon... */
-	return (ENOSYS);
+	tf = td->td_frame;
+	tf->srr0 = (register_t)addr;
+
+	return (0);
 }
 
 int
 ptrace_single_step(struct thread *td)
 {
+	struct trapframe *tf;
+	
+	tf = td->td_frame;
+	tf->srr1 |= PSL_SE;
 
-	/* XXX: coming soon... */
-	return (ENOSYS);
+	return (0);
 }
 
 int
 ptrace_clear_single_step(struct thread *td)
 {
+	struct trapframe *tf;
 
-	/* XXX: coming soon... */
-	return (ENOSYS);
+	tf = td->td_frame;
+	tf->srr1 &= ~PSL_SE;
+
+	return (0);
 }
 
 /*
