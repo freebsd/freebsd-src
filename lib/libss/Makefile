@@ -1,6 +1,9 @@
 # $FreeBSD$
 
 LIB=	ss
+SHLIB_MAJOR=	3
+SHLIB_MINOR=	0
+
 SRCS=	data.c error.c execute_cmd.c help.c invocation.c list_rqs.c \
 	listen.c pager.c parse.c prompt.c request_tbl.c requests.c \
 	ss_err.c ss_err.h std_rqs.c

@@ -62,7 +62,7 @@ fork(void)
 		_thread_sys_close(_thread_kern_pipe[1]);
 
 		/* Reset signals pending for the running thread: */
-		_thread_run->sigpend = 0;
+		sigemptyset(&_thread_run->sigpend);
 
 		/*
 		 * Create a pipe that is written to by the signal handler to
