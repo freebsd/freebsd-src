@@ -66,7 +66,7 @@ ia64/ia64/swtch.s		standard
 ia64/ia64/sys_machdep.c		standard
 ia64/ia64/trap.c		standard
 ia64/ia64/unaligned.c		standard
-ia64/ia64/unwind.c		optional	ddb
+ia64/ia64/unwind.c		standard
 ia64/ia64/vm_machdep.c		standard
 ia64/isa/isa.c			optional	isa
 ia64/isa/isa_dma.c		optional	isa
