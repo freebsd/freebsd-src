@@ -72,12 +72,15 @@ pass1()
 		cgd = cgdmin(&sblock, c);
 		if (c == 0) {
 			i = cgbase(&sblock, c);
-			cgd += howmany(sblock.fs_cssize, sblock.fs_fsize);
 		} else
 			i = cgsblock(&sblock, c);
 		for (; i < cgd; i++)
 			setbmap(i);
 	}
+	i = sblock.fs_csaddr;
+	cgd = i+ howmany(sblock.fs_cssize, sblock.fs_fsize);
+	for (; i < cgd; i++)
+		setbmap(i);
 	/*
 	 * Find all allocated blocks.
 	 */
