@@ -116,8 +116,6 @@ __FBSDID("$FreeBSD$");
 #else
 #define UND_STACK_SIZE	1
 #endif
-#define	KERNEL_VM_BASE		(KERNBASE + 0x00c00000)
-#define	KERNEL_VM_SIZE		0x05000000
 
 extern u_int data_abort_handler_address;
 extern u_int prefetch_abort_handler_address;
@@ -183,15 +181,6 @@ static const struct pmap_devmap iq80321_devmap[] = {
 		    VM_PROT_READ|VM_PROT_WRITE,
 		    PTE_NOCACHE,
 	    },
-#if 0
-	    {
-		    0x80000000,
-		    0x80000000,
-		    0x08000000,
-		    VM_PROT_READ|VM_PROT_WRITE,
-		    PTE_NOCACHE,
-	    },
-#endif
 	    {
 		    0,
 		    0,
@@ -202,17 +191,14 @@ static const struct pmap_devmap iq80321_devmap[] = {
 };
 
 #define SDRAM_START 0xa0000000
-void DO_corb(void);
 
 extern vm_offset_t xscale_cache_clean_addr;
 
 void *
 initarm(void *arg, void *arg2)
 {
-	struct pcpu *pc;
 	struct pv_addr  kernel_l1pt;
 	struct pv_addr	proc0_uarea;
-	struct pv_addr	altkern[KERNEL_PT_KERNEL_NUM];
 	int loop;
 	u_int kerneldatasize, symbolsize;
 	u_int l1pagetable;
@@ -224,6 +210,7 @@ initarm(void *arg, void *arg2)
 
 	i80321_calibrate_delay();
 	cninit();
+	i = 0;
 	set_cpufuncs();
 	/*
 	 * Fetch the SDRAM start/size from the i80321 SDRAM configration
@@ -241,17 +228,17 @@ initarm(void *arg, void *arg2)
 	i += 2;
 	fake_preload[i++] = MODINFO_ADDR;
 	fake_preload[i++] = sizeof(vm_offset_t);
-	fake_preload[i++] = KERNBASE;
+	fake_preload[i++] = KERNBASE + 0x00200000;
 	fake_preload[i++] = MODINFO_SIZE;
 	fake_preload[i++] = sizeof(uint32_t);
-	fake_preload[i++] = (uint32_t)&end - KERNBASE;
+	fake_preload[i++] = (uint32_t)&end - KERNBASE - 0x00200000;
 	fake_preload[i++] = 0;
 	fake_preload[i] = 0;
 	preload_metadata = (void *)fake_preload;
 
 	physmem = memsize / PAGE_SIZE;
-	pc = &__pcpu;
-	pcpu_init(pc, 0, sizeof(struct pcpu));
+
+	pcpu_init(pcpup, 0, sizeof(struct pcpu));
 	PCPU_SET(curthread, &thread0);
 
 	physical_start = (vm_offset_t) SDRAM_START;
@@ -277,10 +264,6 @@ initarm(void *arg, void *arg2)
 	for (loop = 0; loop < NUM_KERNEL_PTS; ++loop) {
 		valloc_pages(kernel_pt_table[loop],
 		    L2_TABLE_SIZE / PAGE_SIZE);
-	}
-
-	for (loop = 0; loop < KERNEL_PT_KERNEL_NUM; loop++) {
-		valloc_pages(altkern[loop], L2_TABLE_SIZE / PAGE_SIZE);
 	}
 
 	/*
@@ -314,7 +297,7 @@ initarm(void *arg, void *arg2)
 	 * We start by mapping the L2 page tables into the L1.
 	 * This means that we can replace L1 mappings later on if necessary
 	 */
-	l1pagetable = kernel_l1pt.pv_pa;
+	l1pagetable = kernel_l1pt.pv_va;
 
 
 	/* Map the L2 pages tables in the L1 page table */
@@ -323,19 +306,15 @@ initarm(void *arg, void *arg2)
 	for (i = 0; i < KERNEL_PT_KERNEL_NUM; i++) {
 		pmap_link_l2pt(l1pagetable, KERNBASE + i * 0x00400000,
 	    &kernel_pt_table[KERNEL_PT_KERNEL + i]);
-		pmap_link_l2pt(l1pagetable, 0xa0000000 + i * 0x00400000,
-		    &altkern[i]);
 	}
 	for (loop = 0; loop < KERNEL_PT_VMDATA_NUM; ++loop)
-		pmap_link_l2pt(l1pagetable, KERNBASE + (KERNEL_PT_KERNEL_NUM + loop) * 0x00400000,
+		pmap_link_l2pt(l1pagetable, KERNBASE + (i + loop) * 0x00400000,
 		    &kernel_pt_table[KERNEL_PT_VMDATA + loop]);
 	pmap_link_l2pt(l1pagetable, IQ80321_IOPXS_VBASE,
 	                &kernel_pt_table[KERNEL_PT_IOPXS]);
 	pmap_map_chunk(l1pagetable, KERNBASE + 0x200000, SDRAM_START + 0x200000,
 	   (((uint32_t)(&end) - KERNBASE - 0x200000) + PAGE_SHIFT) & ~PAGE_SHIFT,
 	    VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
-	pmap_map_chunk(l1pagetable, KERNPHYSADDR, KERNPHYSADDR,
-	    (((uint32_t)(&end) - KERNBASE - 0x200000) + PAGE_SHIFT) & ~PAGE_SHIFT, VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
 	/* Map the stack pages */
 	pmap_map_chunk(l1pagetable, irqstack.pv_va, irqstack.pv_pa,
 	    IRQ_STACK_SIZE * PAGE_SIZE, VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
@@ -356,11 +335,6 @@ initarm(void *arg, void *arg2)
 	for (loop = 0; loop < NUM_KERNEL_PTS; ++loop) {
 		pmap_map_chunk(l1pagetable, kernel_pt_table[loop].pv_va,
 		    kernel_pt_table[loop].pv_pa, L2_TABLE_SIZE,
-		    VM_PROT_READ|VM_PROT_WRITE, PTE_PAGETABLE);
-	}
-	for (loop = 0; loop < 4; loop++) {
-		pmap_map_chunk(l1pagetable, altkern[loop].pv_va,
-		    altkern[loop].pv_pa, L2_TABLE_SIZE,
 		    VM_PROT_READ|VM_PROT_WRITE, PTE_PAGETABLE);
 	}
 	/* Map the Mini-Data cache clean area. */
