@@ -194,8 +194,12 @@ static int		fxp_add_rfabuf(struct fxp_softc *sc, struct mbuf *oldm);
 static void		fxp_mc_setup(struct fxp_softc *sc);
 static u_int16_t	fxp_eeprom_getword(struct fxp_softc *sc, int offset,
 			    int autosize);
+static void 		fxp_eeprom_putword(struct fxp_softc *sc, int offset,
+			    u_int16_t data);
 static void		fxp_autosize_eeprom(struct fxp_softc *sc);
 static void		fxp_read_eeprom(struct fxp_softc *sc, u_short *data,
+			    int offset, int words);
+static void		fxp_write_eeprom(struct fxp_softc *sc, u_short *data,
 			    int offset, int words);
 static int		fxp_ifmedia_upd(struct ifnet *ifp);
 static void		fxp_ifmedia_sts(struct ifnet *ifp,
@@ -270,7 +274,7 @@ fxp_scb_wait(struct fxp_softc *sc)
 	while (CSR_READ_1(sc, FXP_CSR_SCB_COMMAND) && --i)
 		DELAY(2);
 	if (i == 0)
-		device_printf(sc->dev, "SCB timeout: 0x%x, 0x%x, 0x%x 0x%x\n",
+		device_printf(sc->dev, "SCB timeout: 0x%x 0x%x 0x%x 0x%x\n",
 		    CSR_READ_1(sc, FXP_CSR_SCB_COMMAND),
 		    CSR_READ_1(sc, FXP_CSR_SCB_STATACK),
 		    CSR_READ_1(sc, FXP_CSR_SCB_RUSCUS),
@@ -488,10 +492,57 @@ fxp_attach(device_t dev)
 
 	/*
 	 * Enable workarounds for certain chip revision deficiencies.
+	 *
+	 * Systems based on the ICH2/ICH2-M chip from Intel have a defect
+	 * where the chip can cause a PCI protocol violation if it receives
+	 * a CU_RESUME command when it is entering the IDLE state.  The 
+	 * workaround is to disable Dynamic Standby Mode, so the chip never
+	 * deasserts CLKRUN#, and always remains in an active state.
+	 *
+	 * See Intel 82801BA/82801BAM Specification Update, Errata #30.
 	 */
 	i = pci_get_device(dev);
-	if (i == 0x2449 || (i > 0x1030 && i < 0x1039))
-		sc->flags |= FXP_FLAG_CU_RESUME_BUG;
+	if (i == 0x2449 || (i > 0x1030 && i < 0x1039)) {
+		fxp_read_eeprom(sc, &data, 10, 1);
+		if (data & 0x02) {			/* STB enable */
+			u_int16_t cksum;
+			int i;
+
+			device_printf(dev,
+		    "*** DISABLING DYNAMIC STANDBY MODE IN EEPROM ***\n");
+			data &= ~0x02;
+			fxp_write_eeprom(sc, &data, 10, 1);
+			device_printf(dev, "New EEPROM ID: 0x%x\n", data);
+			cksum = 0;
+			for (i = 0; i < (1 << sc->eeprom_size) - 1; i++) {
+				fxp_read_eeprom(sc, &data, i, 1);
+				cksum += data;
+			}
+			i = (1 << sc->eeprom_size) - 1;
+			cksum = 0xBABA - cksum;
+			fxp_read_eeprom(sc, &data, i, 1);
+			fxp_write_eeprom(sc, &cksum, i, 1);
+			device_printf(dev,
+			    "EEPROM checksum @ 0x%x: 0x%x -> 0x%x\n",
+			    i, data, cksum);
+			/*
+			 * We need to do a full PCI reset here.  A software 
+			 * reset to the port doesn't cut it, but let's try
+			 * anyway.
+			 */
+			CSR_WRITE_4(sc, FXP_CSR_PORT, FXP_PORT_SOFTWARE_RESET);
+			DELAY(50);
+			device_printf(dev,
+	    "*** PLEASE REBOOT THE SYSTEM NOW FOR CORRECT OPERATION ***\n");
+#if 1
+			/*
+			 * If the user elects to continue, try the software
+			 * workaround, as it is better than nothing.
+			 */
+			sc->flags |= FXP_FLAG_CU_RESUME_BUG;
+#endif
+		}
+	}
 
 	/*
 	 * If we are not a 82557 chip, we can enable extended features.
@@ -748,6 +799,29 @@ fxp_resume(device_t dev)
 	return (0);
 }
 
+static void 
+fxp_eeprom_shiftin(struct fxp_softc *sc, int data, int length)
+{
+	u_int16_t reg;
+	int x;
+
+	/*
+	 * Shift in data.
+	 */
+	for (x = 1 << (length - 1); x; x >>= 1) {
+		if (data & x)
+			reg = FXP_EEPROM_EECS | FXP_EEPROM_EEDI;
+		else
+			reg = FXP_EEPROM_EECS;
+		CSR_WRITE_2(sc, FXP_CSR_EEPROMCONTROL, reg);
+		DELAY(1);
+		CSR_WRITE_2(sc, FXP_CSR_EEPROMCONTROL, reg | FXP_EEPROM_EESK);
+		DELAY(1);
+		CSR_WRITE_2(sc, FXP_CSR_EEPROMCONTROL, reg);
+		DELAY(1);
+	}
+}
+
 /*
  * Read from the serial EEPROM. Basically, you manually shift in
  * the read opcode (one bit at a time) and then shift in the address,
@@ -765,18 +839,7 @@ fxp_eeprom_getword(struct fxp_softc *sc, int offset, int autosize)
 	/*
 	 * Shift in read opcode.
 	 */
-	for (x = 1 << 2; x; x >>= 1) {
-		if (FXP_EEPROM_OPC_READ & x)
-			reg = FXP_EEPROM_EECS | FXP_EEPROM_EEDI;
-		else
-			reg = FXP_EEPROM_EECS;
-		CSR_WRITE_2(sc, FXP_CSR_EEPROMCONTROL, reg);
-		DELAY(1);
-		CSR_WRITE_2(sc, FXP_CSR_EEPROMCONTROL, reg | FXP_EEPROM_EESK);
-		DELAY(1);
-		CSR_WRITE_2(sc, FXP_CSR_EEPROMCONTROL, reg);
-		DELAY(1);
-	}
+	fxp_eeprom_shiftin(sc, FXP_EEPROM_OPC_READ, 3);
 	/*
 	 * Shift in address.
 	 */
@@ -818,6 +881,50 @@ fxp_eeprom_getword(struct fxp_softc *sc, int offset, int autosize)
 	return (data);
 }
 
+static void
+fxp_eeprom_putword(struct fxp_softc *sc, int offset, u_int16_t data)
+{
+	int i;
+
+	/*
+	 * Erase/write enable.
+	 */
+	CSR_WRITE_2(sc, FXP_CSR_EEPROMCONTROL, FXP_EEPROM_EECS);
+	fxp_eeprom_shiftin(sc, 0x4, 3);
+	fxp_eeprom_shiftin(sc, 0x03 << (sc->eeprom_size - 2), sc->eeprom_size);
+	CSR_WRITE_2(sc, FXP_CSR_EEPROMCONTROL, 0);
+	DELAY(1);
+	/*
+	 * Shift in write opcode, address, data.
+	 */
+	CSR_WRITE_2(sc, FXP_CSR_EEPROMCONTROL, FXP_EEPROM_EECS);
+	fxp_eeprom_shiftin(sc, FXP_EEPROM_OPC_WRITE, 3);
+	fxp_eeprom_shiftin(sc, offset, sc->eeprom_size);
+	fxp_eeprom_shiftin(sc, data, 16);
+	CSR_WRITE_2(sc, FXP_CSR_EEPROMCONTROL, 0);
+	DELAY(1);
+	/*
+	 * Wait for EEPROM to finish up.
+	 */
+	CSR_WRITE_2(sc, FXP_CSR_EEPROMCONTROL, FXP_EEPROM_EECS);
+	DELAY(1);
+	for (i = 0; i < 1000; i++) {
+		if (CSR_READ_2(sc, FXP_CSR_EEPROMCONTROL) & FXP_EEPROM_EEDO)
+			break;
+		DELAY(50);
+	}
+	CSR_WRITE_2(sc, FXP_CSR_EEPROMCONTROL, 0);
+	DELAY(1);
+	/*
+	 * Erase/write disable.
+	 */
+	CSR_WRITE_2(sc, FXP_CSR_EEPROMCONTROL, FXP_EEPROM_EECS);
+	fxp_eeprom_shiftin(sc, 0x4, 3);
+	fxp_eeprom_shiftin(sc, 0, sc->eeprom_size);
+	CSR_WRITE_2(sc, FXP_CSR_EEPROMCONTROL, 0);
+	DELAY(1);
+}
+
 /*
  * From NetBSD:
  *
@@ -837,14 +944,6 @@ fxp_eeprom_getword(struct fxp_softc *sc, int offset, int autosize)
  * having shifted in a bit. If the bit is zero, we assume we've
  * shifted enough address bits. The data-out should be tri-state,
  * before this, which should translate to a logical one.
- *
- * Other ways to do this would be to try to read a register with known
- * contents with a varying number of address bits, but no such
- * register seem to be available. The high bits of register 10 are 01
- * on the 558 and 559, but apparently not on the 557.
- * 
- * The Linux driver computes a checksum on the EEPROM data, but the
- * value of this checksum is not very well documented.
  */
 static void
 fxp_autosize_eeprom(struct fxp_softc *sc)
@@ -864,6 +963,15 @@ fxp_read_eeprom(struct fxp_softc *sc, u_short *data, int offset, int words)
 
 	for (i = 0; i < words; i++)
 		data[i] = fxp_eeprom_getword(sc, offset + i, 0);
+}
+
+static void
+fxp_write_eeprom(struct fxp_softc *sc, u_short *data, int offset, int words)
+{
+	int i;
+
+	for (i = 0; i < words; i++)
+		fxp_eeprom_putword(sc, offset + i, data[i]);
 }
 
 /*
@@ -1274,7 +1382,6 @@ fxp_stop(struct fxp_softc *sc)
 	struct ifnet *ifp = &sc->sc_if;
 	struct fxp_cb_tx *txp;
 	int i;
-
 
 	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
 	ifp->if_timer = 0;
