@@ -156,10 +156,10 @@ nsgphy_attach(device_t dev)
 	mii_phy_reset(sc);
 
 	device_printf(dev, " ");
-	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_1000_TX, IFM_FDX, sc->mii_inst),
+	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_1000_T, IFM_FDX, sc->mii_inst),
 	    BMCR_S1000|BMCR_FDX);
 	PRINT("1000baseTX-FDX");
-	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_1000_TX, 0, sc->mii_inst),
+	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_1000_T, 0, sc->mii_inst),
 	    BMCR_S1000);
 	PRINT("1000baseTX");
 	sc->mii_capabilities =
@@ -245,7 +245,7 @@ nsgphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 #endif
 			(void) nsgphy_mii_phy_auto(sc, 0);
 			break;
-		case IFM_1000_TX:
+		case IFM_1000_T:
 			if ((ife->ifm_media & IFM_GMASK) == IFM_FDX) {
 				PHY_WRITE(sc, MII_BMCR,
 				    BMCR_FDX|BMCR_SPEED1);
@@ -373,9 +373,9 @@ nsgphy_status(struct mii_softc *sc)
 		anlpar = PHY_READ(sc, MII_ANLPAR);
 		gstat = PHY_READ(sc, MII_100T2SR);
 		if (gstat & GTSR_LP_1000TFDX)
-			mii->mii_media_active |= IFM_1000_TX|IFM_FDX;
+			mii->mii_media_active |= IFM_1000_T|IFM_FDX;
 		else if (gstat & GTSR_LP_1000THDX)
-			mii->mii_media_active |= IFM_1000_TX|IFM_HDX;
+			mii->mii_media_active |= IFM_1000_T|IFM_HDX;
 		else if (anlpar & ANLPAR_T4)
 			mii->mii_media_active |= IFM_100_T4;
 		else if (anlpar & ANLPAR_TX_FD)
@@ -393,7 +393,7 @@ nsgphy_status(struct mii_softc *sc)
 
 	switch(bmcr & (BMCR_SPEED1|BMCR_SPEED0)) {
 	case BMCR_S1000:
-		mii->mii_media_active |= IFM_1000_TX;
+		mii->mii_media_active |= IFM_1000_T;
 		break;
 	case BMCR_S100:
 		mii->mii_media_active |= IFM_100_TX;

@@ -1316,7 +1316,7 @@ static int sk_attach(dev)
 		sc->sk_pmd = IFM_1000_CX;
 		break;
 	case SK_PMD_1000BASETX:
-		sc->sk_pmd = IFM_1000_TX;
+		sc->sk_pmd = IFM_1000_T;
 		break;
 	default:
 		printf("skc%d: unknown media type: 0x%x\n",
