@@ -636,8 +636,8 @@ emupchan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel 
 	snd_mtxlock(sc->lock);
 	ch->master = emu_valloc(sc);
 	ch->slave = emu_valloc(sc);
-	r = (emu_vinit(sc, ch->master, ch->slave, sc->bufsz, ch->buffer))? NULL : ch;
 	snd_mtxunlock(sc->lock);
+	r = (emu_vinit(sc, ch->master, ch->slave, sc->bufsz, ch->buffer))? NULL : ch;
 
 	return r;
 }
