@@ -86,6 +86,9 @@ typedef struct callout usb_callout_t;
 #define usb_callout(h, t, f, d) ((h) = timeout((f), (d), (t)))
 #define usb_uncallout(h, f, d) untimeout((f), (d))
 
+#define usb_kthread_create1	kthread_create1
+#define usb_kthread_create	kthread_create
+
 typedef int usb_malloc_type;
 
 #define logprintf printf
@@ -179,8 +182,8 @@ typedef struct proc *usb_proc_ptr;
 #define	memcpy(d, s, l)		bcopy((s),(d),(l))
 #define	memset(d, v, l)		bzero((d),(l))
 #define bswap32(x)		swap32(x)
-#define kthread_create1		kthread_create
-#define kthread_create		kthread_create_deferred
+#define usb_kthread_create1	kthread_create
+#define usb_kthread_create	kthread_create_deferred
 
 #define	config_pending_incr()
 #define	config_pending_decr()
@@ -194,7 +197,7 @@ typedef int usb_malloc_type;
 #define PWR_RESUME 0
 #define PWR_SUSPEND 1
 
-typedef struct device device_ptr_t;
+typedef struct device *device_ptr_t;
 #define USBBASEDEVICE struct device
 #define USBDEV(bdev) (&(bdev))
 #define USBDEVNAME(bdev) ((bdev).dv_xname)
@@ -322,8 +325,9 @@ typedef struct thread *usb_proc_ptr;
 /* XXX Change this when FreeBSD has memset */
 #define	memcpy(d, s, l)		bcopy((s),(d),(l))
 #define	memset(d, v, l)		bzero((d),(l))
-#define kthread_create1(f, s, p, a0, a1) \
+#define usb_kthread_create1(f, s, p, a0, a1) \
 		kthread_create((f), (s), (p), RFHIGHPID, (a0), (a1))
+#define usb_kthread_create	kthread_create
 
 #define	config_pending_incr()
 #define	config_pending_decr()
