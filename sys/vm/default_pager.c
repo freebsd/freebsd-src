@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: default_pager.c,v 1.6 1996/01/19 03:59:36 dyson Exp $
+ *	$Id: default_pager.c,v 1.7 1996/05/24 05:14:44 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -125,12 +125,10 @@ default_pager_putpages(object, m, c, sync, rtvals)
 	object->type = OBJT_SWAP;
 
 	if (swap_pager_swp_alloc(object, M_KERNEL) != 0) {
-		if (swap_pager_swp_alloc(object, M_NOWAIT) != 0) {
-			object->type = OBJT_DEFAULT;
-			for (i = 0; i < c; i++)
-				rtvals[i] = VM_PAGER_FAIL;
-			return VM_PAGER_FAIL;
-		}
+		object->type = OBJT_DEFAULT;
+		for (i = 0; i < c; i++)
+			rtvals[i] = VM_PAGER_FAIL;
+		return VM_PAGER_FAIL;
 	}
 
 	return swap_pager_putpages(object, m, c, sync, rtvals);
@@ -144,4 +142,14 @@ default_pager_haspage(object, pindex, before, after)
 	int *after;
 {
 	return FALSE;
+}
+
+void
+default_pager_convert_to_swap(object)
+	vm_object_t object;
+{
+	object->type = OBJT_SWAP;
+	if (swap_pager_swp_alloc(object, M_KERNEL) != 0) {
+		object->type = OBJT_DEFAULT;
+	}
 }
