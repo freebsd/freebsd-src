@@ -1,4 +1,8 @@
 Changes in release 2.1
+[2.0.22]
+* `od -t f8' works once again [bug introduced in textutils-2.0.8]
+* various portability fixes, and general clean-up
+* various minor, corner-case bug fixes
 [2.0.21]
 * split accepts new option -a or --suffix-length.
 * split no longer generates longer suffixes than requested; instead, it reports
@@ -142,6 +146,7 @@ Changes in release 2.1
   so e.g., `tail -fn 2 file' works again.
 * tail no longer refuses to operate on certain types of files
 * fixed bug in tsort's handling of cycles
+
 Changes in release 2.0
 [1.22q]
 * HPUX portability fix: md5sum would dump core due to use of libc's getline
