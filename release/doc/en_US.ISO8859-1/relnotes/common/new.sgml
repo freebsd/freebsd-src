@@ -239,7 +239,9 @@
 
       <para>The &man.wx.4; driver is now deprecated; it is now
       officially unmaintained.  Users with Intel Pro/1000 Gigabit
-      Ethernet interfaces should use the &man.gx.4; driver.</para>
+      Ethernet interfaces should use either the &man.em.4; or
+      &man.gx.4; driver. (The &man.em.4; driver only works on the i386
+      architectures.)</para>
 
       <para>The &man.xl.4; driver now supports send- and receive-side TCP/IP
       checksum offloading for NICs implementing this feature, such as
@@ -349,12 +351,20 @@
       <para>The <literal>UFS_DIRHASH</literal> hash-based lookup
       optimization for large directories is now enabled by default in
       the <filename>GENERIC</filename> kernel.</para>
+
+      <para>A number of bugs in the filesystem code, discovered
+      through the use of a filesystem test tool, have been fixed.
+      Under certain circumstances (primarily related to use of NFS),
+      these bugs could cause data corruption or kernel panics.</para>
     </sect3>
 
     <sect3>
       <title>PCCARD Support</title>
 
-      <para></para>
+      <para arch="i386">Various features have been merged from the
+      &os; CURRENT version of the &man.pcic.4; driver, including
+      improved support for ToPIC-based laptops, 3.3V support for some
+      controllers, and bugfixes.</para>
     </sect3>
 
     <sect3>
