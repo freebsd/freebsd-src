@@ -260,8 +260,7 @@ dorespond(msgvec)
 		head.h_cc = NULL;
 	head.h_bcc = NULL;
 	head.h_smopts = NULL;
-	if ((head.h_replyto = getenv("REPLYTO")) == NULL)
-		head.h_replyto = NULL;
+	head.h_replyto = value("REPLYTO");
 	head.h_inreplyto = skin(hfield("message-id", mp));
 	mail1(&head, 1);
 	return (0);
@@ -626,8 +625,7 @@ doRespond(msgvec)
 	head.h_cc = NULL;
 	head.h_bcc = NULL;
 	head.h_smopts = NULL;
-	if ((head.h_replyto = getenv("REPLYTO")) == NULL)
-		head.h_replyto = NULL;
+	head.h_replyto = value("REPLYTO");
 	head.h_inreplyto = mid;
 	mail1(&head, 1);
 	return (0);
