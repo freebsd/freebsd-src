@@ -6,11 +6,12 @@
 # but the library makes it much easier to modularize them.
 #
 LIB=		lpr
-SRCS=		common.c ctlinfo.c displayq.c net.c printcap.c request.c \
-		rmjob.c startdaemon.c
-NOMAN=		noman
 NOPROFILE=	noprofile
 NOPIC=		nopic
+NOMAN=		noman
+SRCS=		common.c ctlinfo.c displayq.c net.c printcap.c request.c \
+		rmjob.c startdaemon.c
+
 CFLAGS+=	${CWARNFLAGS}
 
 install:

@@ -1,8 +1,8 @@
 # $FreeBSD$
 
-SUBDIR = koi2alt koi2855
+SUBDIR=	koi2alt koi2855
 
-SAMPLES=bjc-240.sh.sample
+SAMPLES= bjc-240.sh.sample
 
 afterinstall:
 	cd ${.CURDIR} && \
@@ -11,4 +11,3 @@ afterinstall:
 
 .include "Makefile.inc"
 .include <bsd.prog.mk>
-

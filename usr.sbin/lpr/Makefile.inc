@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-CFLAGS+=-DINET6
+CFLAGS+= -DINET6
 CWARNFLAGS=	-Wall -Wnested-externs -Wmissing-prototypes -Wno-unused -Wredundant-decls -Wstrict-prototypes
 
 .if exists(${.OBJDIR}/../common_source)
