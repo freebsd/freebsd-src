@@ -1,4 +1,4 @@
-#	$Id: options,v 1.130 1999/03/17 01:48:34 mjacob Exp $
+#	$Id: options,v 1.131 1999/04/08 17:58:07 n_hibma Exp $
 #
 #        On the handling of kernel options   
 # 
@@ -126,6 +126,7 @@ UNION
 
 # Options used only in param.c.
 HZ		opt_param.h
+MAXFILES	opt_param.h
 MAXUSERS	opt_param.h
 MSGMNB		opt_param.h
 MSGMNI		opt_param.h
