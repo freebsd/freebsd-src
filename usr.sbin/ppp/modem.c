@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.77.2.65 1998/05/03 11:24:16 brian Exp $
+ * $Id: modem.c,v 1.77.2.66 1998/05/05 03:01:28 brian Exp $
  *
  *  TODO:
  */
@@ -142,7 +142,7 @@ modem_Create(struct datalink *dl, int type)
 
 static void modem_LogicalClose(struct physical *);
 
-static struct speeds {
+static const struct speeds {
   int nspeed;
   speed_t speed;
 } speeds[] = {
@@ -226,7 +226,7 @@ static struct speeds {
 static int
 SpeedToInt(speed_t speed)
 {
-  struct speeds *sp;
+  const struct speeds *sp;
 
   for (sp = speeds; sp->nspeed; sp++) {
     if (sp->speed == speed) {
@@ -239,7 +239,7 @@ SpeedToInt(speed_t speed)
 speed_t
 IntToSpeed(int nspeed)
 {
-  struct speeds *sp;
+  const struct speeds *sp;
 
   for (sp = speeds; sp->nspeed; sp++) {
     if (sp->nspeed == nspeed) {
@@ -319,7 +319,7 @@ modem_StartTimer(struct bundle *bundle, struct physical *modem)
   timer_Start(ModemTimer);
 }
 
-static struct parity {
+static const struct parity {
   const char *name;
   const char *name1;
   int set;
@@ -333,7 +333,7 @@ static struct parity {
 static int
 GetParityValue(const char *str)
 {
-  struct parity *pp;
+  const struct parity *pp;
 
   for (pp = validparity; pp->name; pp++) {
     if (strcasecmp(pp->name, str) == 0 ||

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.1.2.71 1998/05/05 03:01:24 brian Exp $
+ *	$Id: bundle.c,v 1.1.2.72 1998/05/05 23:29:55 brian Exp $
  */
 
 #include <sys/types.h>
@@ -73,6 +73,7 @@
 #include "async.h"
 #include "physical.h"
 #include "modem.h"
+#include "loadalias.h"
 #include "auth.h"
 #include "lcpproto.h"
 #include "chap.h"
@@ -235,30 +236,22 @@ bundle_LayerDown(void *v, struct fsm *fp)
   /*
    * The given FSM has been told to come down.
    * If it's our last NCP, stop the idle timer.
-   * If it's our last NCP *OR* LCP, enter TERMINATE phase.
    * If it's an LCP and we're in multilink mode, adjust our tun speed.
    */
 
   struct bundle *bundle = (struct bundle *)v;
 
-  if (fp->proto == PROTO_IPCP) {
+  if (fp->proto == PROTO_IPCP)
     bundle_StopIdleTimer(bundle);
-  } else if (fp->proto == PROTO_LCP) {
-    int speed, others_active;
+  else if (fp->proto == PROTO_LCP && bundle->ncp.mp.active) {
+    int speed;
     struct datalink *dl;
 
-    others_active = 0;
     for (dl = bundle->links, speed = 0; dl; dl = dl->next)
-      if (fp != &dl->physical->link.lcp.fsm &&
-          dl->state != DATALINK_CLOSED && dl->state != DATALINK_HANGUP) {
+      if (fp != &dl->physical->link.lcp.fsm && dl->state == DATALINK_OPEN)
         speed += modem_Speed(dl->physical);
-        others_active++;
-      }
-    if (bundle->ncp.mp.active && speed)
+    if (speed)
       tun_configure(bundle, bundle->ncp.mp.link.lcp.his_mru, speed);
-
-    if (!others_active)
-      bundle_NewPhase(bundle, PHASE_TERMINATE);
   }
 }
 
@@ -369,6 +362,14 @@ bundle_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)
   for (desc = bundle->desc.next; desc; desc = desc->next)
     result += descriptor_UpdateSet(desc, r, w, e, n);
 
+  /* If there are aren't many packets queued, look for some more. */
+  if (bundle_FillQueues(bundle) < 20) {
+    if (*n < bundle->tun_fd + 1)
+      *n = bundle->tun_fd + 1;
+    FD_SET(bundle->tun_fd, r);
+    result++;
+  }
+
   return result;
 }
 
@@ -387,7 +388,7 @@ bundle_IsSet(struct descriptor *d, const fd_set *fdset)
     if (descriptor_IsSet(desc, fdset))
       return 1;
 
-  return 0;
+  return FD_ISSET(bundle->tun_fd, fdset);
 }
 
 static void
@@ -404,6 +405,83 @@ bundle_DescriptorRead(struct descriptor *d, struct bundle *bundle,
   for (desc = bundle->desc.next; desc; desc = desc->next)
     if (descriptor_IsSet(desc, fdset))
       descriptor_Read(desc, bundle, fdset);
+
+  if (FD_ISSET(bundle->tun_fd, fdset)) {
+    struct tun_data tun;
+    int n, pri;
+
+    /* something to read from tun */
+    n = read(bundle->tun_fd, &tun, sizeof tun);
+    if (n < 0) {
+      log_Printf(LogERROR, "read from tun: %s\n", strerror(errno));
+      return;
+    }
+    n -= sizeof tun - sizeof tun.data;
+    if (n <= 0) {
+      log_Printf(LogERROR, "read from tun: Only %d bytes read\n", n);
+      return;
+    }
+    if (!tun_check_header(tun, AF_INET))
+      return;
+
+    if (((struct ip *)tun.data)->ip_dst.s_addr ==
+        bundle->ncp.ipcp.my_ip.s_addr) {
+      /* we've been asked to send something addressed *to* us :( */
+      if (Enabled(bundle, OPT_LOOPBACK)) {
+        pri = PacketCheck(bundle, tun.data, n, &bundle->filter.in);
+        if (pri >= 0) {
+          struct mbuf *bp;
+
+#ifndef NOALIAS
+          if (alias_IsEnabled()) {
+            (*PacketAlias.In)(tun.data, sizeof tun.data);
+            n = ntohs(((struct ip *)tun.data)->ip_len);
+          }
+#endif
+          bp = mbuf_Alloc(n, MB_IPIN);
+          memcpy(MBUF_CTOP(bp), tun.data, n);
+          ip_Input(bundle, bp);
+          log_Printf(LogDEBUG, "Looped back packet addressed to myself\n");
+        }
+        return;
+      } else
+        log_Printf(LogDEBUG, "Oops - forwarding packet addressed to myself\n");
+    }
+
+    /*
+     * Process on-demand dialup. Output packets are queued within tunnel
+     * device until IPCP is opened.
+     */
+
+    if (bundle_Phase(bundle) == PHASE_DEAD) {
+      /*
+       * Note, we must be in AUTO mode :-/ otherwise our interface should
+       * *not* be UP and we can't receive data
+       */
+      if ((pri = PacketCheck(bundle, tun.data, n, &bundle->filter.dial)) >= 0)
+        bundle_Open(bundle, NULL, PHYS_DEMAND);
+      else
+        /*
+         * Drop the packet.  If we were to queue it, we'd just end up with
+         * a pile of timed-out data in our output queue by the time we get
+         * around to actually dialing.  We'd also prematurely reach the 
+         * threshold at which we stop select()ing to read() the tun
+         * device - breaking auto-dial.
+         */
+        return;
+    }
+
+    pri = PacketCheck(bundle, tun.data, n, &bundle->filter.out);
+    if (pri >= 0) {
+#ifndef NOALIAS
+      if (alias_IsEnabled()) {
+        (*PacketAlias.Out)(tun.data, sizeof tun.data);
+        n = ntohs(((struct ip *)tun.data)->ip_len);
+      }
+#endif
+      ip_Enqueue(pri, tun.data, n);
+    }
+  }
 }
 
 static void

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.121.2.53 1998/04/30 23:53:48 brian Exp $
+ * $Id: main.c,v 1.121.2.54 1998/05/01 19:25:16 brian Exp $
  *
  *	TODO:
  */
@@ -483,17 +483,13 @@ static void
 DoLoop(struct bundle *bundle, struct prompt *prompt)
 {
   fd_set rfds, wfds, efds;
-  int pri, i, n, nfds;
-  int qlen;
-  struct tun_data tun;
+  int i, nfds;
 
   do {
     nfds = 0;
     FD_ZERO(&rfds);
     FD_ZERO(&wfds);
     FD_ZERO(&efds);
-
-    qlen = bundle_FillQueues(bundle);
 
     sig_Handle();
 
@@ -503,13 +499,6 @@ DoLoop(struct bundle *bundle, struct prompt *prompt)
     descriptor_UpdateSet(&bundle->desc, &rfds, &wfds, &efds, &nfds);
     descriptor_UpdateSet(&server.desc, &rfds, &wfds, &efds, &nfds);
 
-    /* If there are aren't many packets queued, look for some more. */
-    if (qlen < 20 && bundle->tun_fd >= 0) {
-      if (bundle->tun_fd + 1 > nfds)
-	nfds = bundle->tun_fd + 1;
-      FD_SET(bundle->tun_fd, &rfds);
-    }
-
     if (bundle_IsDead(bundle))
       /* Don't select - we'll be here forever */
       break;
@@ -518,12 +507,9 @@ DoLoop(struct bundle *bundle, struct prompt *prompt)
 
     if (i == 0)
       continue;
-
-    if (i < 0) {
-      if (errno == EINTR) {
-	sig_Handle();
+    else if (i < 0) {
+      if (errno == EINTR)
 	continue;
-      }
       log_Printf(LogERROR, "DoLoop: select(): %s\n", strerror(errno));
       break;
     }
@@ -545,78 +531,6 @@ DoLoop(struct bundle *bundle, struct prompt *prompt)
 
     if (descriptor_IsSet(&bundle->desc, &rfds))
       descriptor_Read(&bundle->desc, bundle, &rfds);
-
-    if (bundle->tun_fd >= 0 && FD_ISSET(bundle->tun_fd, &rfds)) {
-      /* something to read from tun */
-      n = read(bundle->tun_fd, &tun, sizeof tun);
-      if (n < 0) {
-	log_Printf(LogERROR, "read from tun: %s\n", strerror(errno));
-	continue;
-      }
-      n -= sizeof tun - sizeof tun.data;
-      if (n <= 0) {
-	log_Printf(LogERROR, "read from tun: Only %d bytes read\n", n);
-	continue;
-      }
-      if (!tun_check_header(tun, AF_INET))
-          continue;
-      if (((struct ip *)tun.data)->ip_dst.s_addr ==
-          bundle->ncp.ipcp.my_ip.s_addr) {
-	/* we've been asked to send something addressed *to* us :( */
-        if (Enabled(bundle, OPT_LOOPBACK)) {
-	  pri = PacketCheck(bundle, tun.data, n, &bundle->filter.in);
-	  if (pri >= 0) {
-	    struct mbuf *bp;
-
-#ifndef NOALIAS
-            if (alias_IsEnabled()) {
-	      (*PacketAlias.In)(tun.data, sizeof tun.data);
-	      n = ntohs(((struct ip *)tun.data)->ip_len);
-	    }
-#endif
-	    bp = mbuf_Alloc(n, MB_IPIN);
-	    memcpy(MBUF_CTOP(bp), tun.data, n);
-	    ip_Input(bundle, bp);
-	    log_Printf(LogDEBUG, "Looped back packet addressed to myself\n");
-	  }
-	  continue;
-	} else
-	  log_Printf(LogDEBUG, "Oops - forwarding packet addressed to myself\n");
-      }
-
-      /*
-       * Process on-demand dialup. Output packets are queued within tunnel
-       * device until IPCP is opened.
-       */
-      if (bundle_Phase(bundle) == PHASE_DEAD) {
-        /*
-         * Note, we must be in AUTO mode :-/ otherwise our interface should
-         * *not* be UP and we can't receive data
-         */
-        if ((pri = PacketCheck(bundle, tun.data, n, &bundle->filter.dial)) >= 0)
-          bundle_Open(bundle, NULL, PHYS_DEMAND);
-        else
-          /*
-           * Drop the packet.  If we were to queue it, we'd just end up with
-           * a pile of timed-out data in our output queue by the time we get
-           * around to actually dialing.  We'd also prematurely reach the 
-           * threshold at which we stop select()ing to read() the tun
-           * device - breaking auto-dial.
-           */
-          continue;
-      }
-
-      pri = PacketCheck(bundle, tun.data, n, &bundle->filter.out);
-      if (pri >= 0) {
-#ifndef NOALIAS
-        if (alias_IsEnabled()) {
-	  (*PacketAlias.Out)(tun.data, sizeof tun.data);
-	  n = ntohs(((struct ip *)tun.data)->ip_len);
-	}
-#endif
-	ip_Enqueue(pri, tun.data, n);
-      }
-    }
   } while (bundle_CleanDatalinks(bundle), !bundle_IsDead(bundle));
 
   log_Printf(LogDEBUG, "DoLoop done.\n");

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.c,v 1.1.2.53 1998/05/01 19:24:23 brian Exp $
+ *	$Id: datalink.c,v 1.1.2.54 1998/05/02 21:57:44 brian Exp $
  */
 
 #include <sys/types.h>
@@ -463,9 +463,9 @@ datalink_AuthOk(struct datalink *dl)
         return;
       case MP_UP:
         auth_Select(dl->bundle, dl->peer.authname, dl->physical);
-        /* Fall through */
+        break;
       case MP_ADDED:
-        /* We're in multilink mode ! */
+        /* We were already in multilink mode ! */
         break;
       case MP_FAILED:
         datalink_AuthNotOk(dl);
@@ -654,7 +654,7 @@ datalink_Clone(struct datalink *odl, const char *name)
 
   chat_Init(&dl->chat, dl->physical, NULL, 1, NULL);
 
-  log_Printf(LogPHASE, "%s: Created in CLOSED state\n", dl->name);
+  log_Printf(LogPHASE, "%s: Cloned in CLOSED state\n", dl->name);
 
   return dl;
 }
