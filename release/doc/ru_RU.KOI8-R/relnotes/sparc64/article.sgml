@@ -2,7 +2,7 @@
      The FreeBSD Russian Documentation Project
 
      $FreeBSD$
-     $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/relnotes/sparc64/article.sgml,v 1.5 2004/08/11 10:04:31 den Exp $
+     $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/relnotes/sparc64/article.sgml,v 1.7 2004/08/12 08:31:38 den Exp $
 
      Original revision: 1.6
 -->
@@ -11,7 +11,7 @@
 
 <!ENTITY release.url "ftp://ftp.FreeBSD.org/pub/FreeBSD/development/sparc64/">
 
-<!ENTITY % articles.ent PUBLIC "-//FreeBSD//ENTITIES DocBook FreeBSD Articles Entity Set//RU">
+<!ENTITY % articles.ent PUBLIC "-//FreeBSD//ENTITIES DocBook FreeBSD Articles Entity Set//EN">
 %articles.ent;
 
 <!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
