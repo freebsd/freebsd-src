@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_alloc.c	8.8 (Berkeley) 2/21/94
- * $Id: ffs_alloc.c,v 1.24 1996/05/08 04:29:07 gpalmer Exp $
+ * $Id: ffs_alloc.c,v 1.25 1996/07/12 04:12:14 bde Exp $
  */
 
 #include "opt_quota.h"
@@ -1509,6 +1509,8 @@ ffs_fserr(fs, uid, cp)
 	u_int uid;
 	char *cp;
 {
+	struct proc *p = curproc;	/* XXX */
 
-	log(LOG_ERR, "uid %d on %s: %s\n", uid, fs->fs_fsmnt, cp);
+	log(LOG_ERR, "pid %d (%s), uid %d on %s: %s\n", p ? p->p_pid : -1,
+			p ? p->p_comm : "-", uid, fs->fs_fsmnt, cp);
 }
