@@ -1,18 +1,16 @@
 #
 # site-specific startup actions, daemons
 #
-#	$Id: rc.local,v 1.18 1995/03/30 06:26:10 rgrimes Exp $
+#	$Id: rc.local,v 1.19 1995/03/30 06:34:46 rgrimes Exp $
 #
 
 T=/tmp/_motd
 rm -f $T
 uname -v | sed -e 's,^\([^#]*\) #\(.*199[0-9]\).*/\([^\]*\) $,\1 (\3) #\2,' > $T
-echo "" >> $T
-sed '1,/^$/d' < /etc/motd >> $T
+awk '{if (NR == 1) {if ($1 == "FreeBSD") {next} else {print "\n"$0}} else {print}}' < /etc/motd >> $T
 cp $T /etc/motd
 chmod 644 /etc/motd
 rm -f $T
-_HOST=`hostname`
 
 echo -n 'starting local daemons:'
 
