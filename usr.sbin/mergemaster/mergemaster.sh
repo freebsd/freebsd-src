@@ -105,7 +105,8 @@ diff_loop () {
 
   HANDLE_COMPFILE=v
 
-  while [ "${HANDLE_COMPFILE}" = "v" -o "${HANDLE_COMPFILE}" = "V" -o "${HANDLE_COMPFILE}" = "NOT V" ]; do
+  while [ "${HANDLE_COMPFILE}" = "v" -o "${HANDLE_COMPFILE}" = "V" -o \
+    "${HANDLE_COMPFILE}" = "NOT V" ]; do
     if [ -f "${DESTDIR}${COMPFILE#.}" -a -f "${COMPFILE}" ]; then
       if [ "${HANDLE_COMPFILE}" = "v" -o "${HANDLE_COMPFILE}" = "V" ]; then
         (
@@ -404,7 +405,8 @@ case "${RERUN}" in
         esac
         ;;
       *)
-        # If this is an auto-run, try a hopefully safe alternative then re-test anyway
+        # If this is an auto-run, try a hopefully safe alternative then
+        # re-test anyway.
         TEMPROOT=/var/tmp/temproot.`date +%m%d.%H.%M.%S`
         ;;
       esac
@@ -448,14 +450,14 @@ case "${RERUN}" in
     make DESTDIR=${TEMPROOT} distrib-dirs &&
     make DESTDIR=${TEMPROOT} -DNO_MAKEDEV_RUN distribution;} ||
   { echo '';
-    echo "  *** FATAL ERROR: Cannot 'cd' to ${SOURCEDIR} and install files to the";
-    echo "      temproot environment";
+    echo "  *** FATAL ERROR: Cannot 'cd' to ${SOURCEDIR} and install files to";
+    echo "      the temproot environment";
     echo '';
     exit 1;}
 
-  # Doing the inventory and removing files that we don't want to compare only makes
-  # sense if we are not doing a rerun, since we have no way of knowing what happened
-  # to the files during previous incarnations.
+  # Doing the inventory and removing files that we don't want to compare only
+  # makes sense if we are not doing a rerun, since we have no way of knowing
+  # what happened to the files during previous incarnations.
   case "${VERBOSE}" in
   '') ;;
   *)
@@ -577,11 +579,13 @@ mm_install () {
   esac
 
   if [ -n "${DESTDIR}${INSTALL_DIR}" -a ! -d "${DESTDIR}${INSTALL_DIR}" ]; then
-    DIR_MODE=`perl -e 'printf "%04o\n", (((stat("$ARGV[0]"))[2] & 07777) &~ oct("$ARGV[1]"))' "${TEMPROOT}/${INSTALL_DIR}" "${CONFIRMED_UMASK}"`
+    DIR_MODE=`perl -e 'printf "%04o\n", (((stat("$ARGV[0]"))[2] & 07777) &~ \
+      oct("$ARGV[1]"))' "${TEMPROOT}/${INSTALL_DIR}" "${CONFIRMED_UMASK}"`
     install -d -o root -g wheel -m "${DIR_MODE}" "${DESTDIR}${INSTALL_DIR}"
   fi
 
-  FILE_MODE=`perl -e 'printf "%04o\n", (((stat("$ARGV[0]"))[2] & 07777) &~ oct("$ARGV[1]"))' "${1}" "${CONFIRMED_UMASK}"`
+  FILE_MODE=`perl -e 'printf "%04o\n", (((stat("$ARGV[0]"))[2] & 07777) &~ \
+      oct("$ARGV[1]"))' "${1}" "${CONFIRMED_UMASK}"`
 
   if [ ! -x "${1}" ]; then
     case "${1#.}" in
@@ -715,8 +719,9 @@ for COMPFILE in `find . -type f -size +0`; do
       echo " *** Temp ${COMPFILE} and installed are the same, deleting"
       rm "${COMPFILE}"
     else
-      # Ok, the files are different, so show the user where they differ.  Use user's
-      # choice of diff methods; and user's pager if they have one.  Use more if not.
+      # Ok, the files are different, so show the user where they differ.
+      # Use user's choice of diff methods; and user's pager if they have one.
+      # Use more if not.
       # Use unified diffs by default.  Context diffs give me a headache. :)
       #
       case "${AUTO_RUN}" in
@@ -772,15 +777,15 @@ case "${AUTO_INSTALLED_FILES}" in
   '')
     (
       echo ''
-      echo '*** You chose the automatic install option for files that did not exist'
-      echo '    on your system.  The following files were installed for you:'
+      echo '*** You chose the automatic install option for files that did not'
+      echo '    exist on your system.  The following were installed for you:'
       echo "${AUTO_INSTALLED_FILES}"
     ) | ${PAGER}
     ;;
   *)
     echo ''
-    echo '*** You chose the automatic install option for files that did not exist'
-    echo '    on your system.  The following files were installed for you:'
+    echo '*** You chose the automatic install option for files that did not'
+    echo '    exist on your system.  The following were installed for you:'
     echo "${AUTO_INSTALLED_FILES}"
     ;;
   esac
