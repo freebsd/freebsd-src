@@ -81,6 +81,7 @@
 #include <sys/cdefs.h>
 #include <sys/errno.h>
 #include <sys/time.h>
+#include <sys/priority.h>
 
 #define	FALSE	0
 #define	TRUE	1
@@ -96,24 +97,6 @@
 #ifndef _KERNEL
 #include <machine/limits.h>
 #endif
-
-/*
- * Priorities.  Note that with 32 run queues, differences less than 4 are
- * insignificant.
- */
-#define	PSWP	0
-#define	PVM	4
-#define	PINOD	8
-#define	PRIBIO	16
-#define	PVFS	20
-#define	PZERO	22		/* No longer magic, shouldn't be here.  XXX */
-#define	PSOCK	24
-#define	PWAIT	32
-#define	PCONFIG	32
-#define	PLOCK	36
-#define	PPAUSE	40
-#define	PUSER	48
-#define	MAXPRI	127		/* Priorities range from 0 through MAXPRI. */
 
 #define	PRIMASK	0x0ff
 #define	PCATCH	0x100		/* OR'd with pri for tsleep to check signals */

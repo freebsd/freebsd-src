@@ -115,8 +115,8 @@ struct tty {
 #define	t_ospeed	t_termios.c_ospeed
 #define	t_time		t_termios.c_time
 
-#define	TTIPRI	25			/* Sleep priority for tty reads. */
-#define	TTOPRI	26			/* Sleep priority for tty writes. */
+#define	TTIPRI		(PSOCK + 1)	/* Sleep priority for tty reads. */
+#define	TTOPRI		(PSOCK + 2)	/* Sleep priority for tty writes. */
 
 /*
  * User data unfortunately has to be copied through buffers on the way to

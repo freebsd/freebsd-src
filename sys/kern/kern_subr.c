@@ -379,7 +379,7 @@ uio_yield()
 	s = splhigh();
 	mtx_lock_spin(&sched_lock);
 	DROP_GIANT_NOSWITCH();
-	p->p_priority = p->p_usrpri;
+	p->p_pri.pri_level = p->p_pri.pri_user;
 	setrunqueue(p);
 	p->p_stats->p_ru.ru_nivcsw++;
 	mi_switch();

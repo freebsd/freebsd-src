@@ -1271,8 +1271,8 @@ runfast:
 	 * Raise priority to at least PUSER.
 	 */
 	mtx_lock_spin(&sched_lock);
-	if (p->p_priority > PUSER)
-		p->p_priority = PUSER;
+	if (p->p_pri.pri_level > PUSER)
+		p->p_pri.pri_level = PUSER;
 run:
 	/* If we jump here, sched_lock has to be owned. */
 	mtx_assert(&sched_lock, MA_OWNED | MA_NOTRECURSED);

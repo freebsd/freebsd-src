@@ -73,9 +73,9 @@
  * fill_kinfo_proc and in lib/libkvm/kvm_proc.c in the function kvm_proclist.
  */
 #ifdef	__alpha__
-#define	KINFO_PROC_SIZE	904		/* the correct size for kinfo_proc */
+#define	KINFO_PROC_SIZE	912		/* the correct size for kinfo_proc */
 #else
-#define	KINFO_PROC_SIZE	640		/* the correct size for kinfo_proc */
+#define	KINFO_PROC_SIZE	644		/* the correct size for kinfo_proc */
 #endif
 #define	WMESGLEN	8		/* size of returned wchan message */
 #define	MTXNAMELEN	8		/* size of returned mutex name */
@@ -127,9 +127,6 @@ struct kinfo_proc {
 	long	ki_flag;		/* P_* flags */
 	long	ki_kiflag;		/* KI_* flags (below) */
 	int	ki_traceflag;		/* Kernel trace points */
-	u_char	ki_priority;		/* Process priority */
-	u_char	ki_usrpri;		/* User-priority based on p_cpu */
-	u_char	ki_nativepri;		/* Priority before propogation */
 	char	ki_stat;		/* S* process status */
 	char	ki_nice;		/* Process "nice" value */
 	char	ki_lock;		/* Process lock (prevent swap) count */
@@ -141,10 +138,10 @@ struct kinfo_proc {
 	char	ki_login[MAXLOGNAME+1];	/* setlogin name */
 	char	ki_mtxname[MTXNAMELEN+1]; /* mutex name */
 	char	ki_sparestrings[102];	/* spare string space */
-	struct	rtprio ki_rtprio;	/* Realtime priority */
 	struct	rusage ki_rusage;	/* process rusage statistics */
 	long	ki_sflag;		/* PS_* flags */
-	long	ki_spare[24];		/* spare constants */
+	struct	priority ki_pri;	/* process priority */
+	long	ki_spare[25];		/* spare constants */
 };
 void fill_kinfo_proc __P((struct proc *, struct kinfo_proc *));
 

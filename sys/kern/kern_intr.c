@@ -121,13 +121,13 @@ ithread_update(struct ithd *ithd)
 	strncpy(p->p_comm, ithd->it_name, sizeof(ithd->it_name));
 	ih = TAILQ_FIRST(&ithd->it_handlers);
 	if (ih == NULL) {
-		p->p_rtprio.prio = RTP_PRIO_MAX;
+		p->p_pri.pri_level = PRI_MAX_ITHD;
 		ithd->it_flags &= ~IT_ENTROPY;
 		return;
 	}
 
 	entropy = 0;
-	p->p_rtprio.prio = ih->ih_pri;
+	p->p_pri.pri_level = ih->ih_pri;
 	TAILQ_FOREACH(ih, &ithd->it_handlers, ih_next) {
 		if (strlen(p->p_comm) + strlen(ih->ih_name) + 1 <
 		    sizeof(p->p_comm)) {
@@ -179,8 +179,8 @@ ithread_create(struct ithd **ithread, int vector, int flags,
 		free(ithd, M_ITHREAD);
 		return (error);
 	}
-	p->p_rtprio.type = RTP_PRIO_ITHREAD;
-	p->p_rtprio.prio = RTP_PRIO_MAX;
+	p->p_pri.pri_class = PRI_ITHD;
+	p->p_pri.pri_level = PRI_MAX_ITHD;
 	p->p_stat = SWAIT;
 	ithd->it_proc = p;
 	p->p_ithd = ithd;
@@ -320,8 +320,8 @@ swi_add(struct ithd **ithdp, const char *name, driver_intr_t handler,
 		if (ithdp != NULL)
 			*ithdp = ithd;
 	}
-	return (ithread_add_handler(ithd, name, handler, arg, pri + PI_SOFT,
-		    flags, cookiep));
+	return (ithread_add_handler(ithd, name, handler, arg,
+		    (pri * RQ_PPQ) + PI_SOFT, flags, cookiep));
 }
 
 
