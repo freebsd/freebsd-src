@@ -1157,6 +1157,8 @@ swapmode()
 	 * need to bother with totals.
 	 */
 	used = avail - nfree;
+	free(sw);
+	free(perdev);
 	if (totalflag) {
 		(void)printf("%dM/%dM swap space\n", used / 2048, avail / 2048);
 		return;
