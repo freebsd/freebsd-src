@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.19.2.29 1997/09/21 13:10:53 brian Exp $
+.\" $Id: ppp.8,v 1.19.2.30 1997/09/23 00:01:26 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -192,7 +192,10 @@ To make output go to this file, put the following lines in the
 file:
 
 .Dl !ppp
-.Dl *.* /var/log/ppp.log
+.Dl *.*<TAB>/var/log/ppp.log
+
+Make sure you use actual TABs here.  If you use spaces, the line will be
+silently ignored.
 
 It is possible to have more than one ppp log file by creating a link
 to the ppp executable:
