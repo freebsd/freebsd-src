@@ -93,6 +93,8 @@ format
 .It "lf	str" Ta Pa /dev/console Ta No "error logging file name"
 .It "lo	str" Ta Pa lock Ta No "name of lock file"
 .It "lp	str" Ta Pa /dev/lp Ta No "device name to open for output"
+.It "mc	num	0	maximum number of copies which can be requested on"
+.Xr lpr 1 , zero = unlimited
 .It "ms	str" Ta Dv NULL Ta No "if lp is a tty, a comma-separated,"
 .Xr stty 1 Ns -like
 list describing the tty modes
@@ -169,6 +171,7 @@ Each two-letter capability has a human-readable alternate name.
 .It "sr	stat.recv"
 .It "ss	stat.send"
 .It "st	spool.status"
+.It "tf	filt.troff"
 .It "tr	job.trailer"
 .It "vf	filt.raster"
 .El
@@ -385,6 +388,7 @@ feed appended to them, rather than just a line feed.
 .Xr lprm 1 ,
 .Xr hosts.lpd 5 ,
 .Xr termcap 5 ,
+.Xr chkprintcap 8 ,
 .Xr lpc 8 ,
 .Xr lpd 8 ,
 .Xr pac 8
