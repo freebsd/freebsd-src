@@ -513,7 +513,8 @@ struct ocg {
 	    ? (fs)->fs_bsize \
 	    : (fragroundup(fs, blkoff(fs, (ip)->i_size))))
 #define dblksize(fs, dip, lbn) \
-	(((lbn) >= NDADDR || (dip)->di_size >= smalllblktosize(fs, (lbn) + 1)) \
+	(((lbn) >= NDADDR || \
+	  (dip)->di_size >= (u_int64_t)smalllblktosize(fs, (lbn) + 1)) \
 	    ? (fs)->fs_bsize \
 	    : (fragroundup(fs, blkoff(fs, (dip)->di_size))))
 #define sblksize(fs, size, lbn) \

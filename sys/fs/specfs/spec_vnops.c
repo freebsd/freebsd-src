@@ -455,8 +455,8 @@ spec_strategy(ap)
 		bp->b_flags &= ~B_VALIDSUSPWRT;
 		if (LIST_FIRST(&bp->b_dep) != NULL)
 			buf_start(bp);
-		if ((vp->v_flag & VCOPYONWRITE) &&
-		    (error = VOP_COPYONWRITE(vp, bp)) != 0 &&
+		if ((vp->v_flag & VCOPYONWRITE) && vp->v_rdev->si_copyonwrite &&
+		    (error = (*vp->v_rdev->si_copyonwrite)(vp, bp)) != 0 &&
 		    error != EOPNOTSUPP) {
 			bp->b_io.bio_error = error;
 			bp->b_io.bio_flags |= BIO_ERROR;

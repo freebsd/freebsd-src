@@ -179,6 +179,7 @@ allocdev(void)
 		si->si_flags |= SI_STASHED;
 	}
 	LIST_INIT(&si->si_names);
+	TAILQ_INIT(&si->si_snapshots);
 	return (si);
 }
 
