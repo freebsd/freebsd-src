@@ -36,10 +36,11 @@
 
 #ifndef lint
 static char sccsid[] = "@(#)cmd6.c	8.1 (Berkeley) 6/6/93";
+static char rcsid[] = "@(#)$FreeBSD$";
 #endif /* not lint */
 
 #include "defs.h"
-#include "string.h"
+#include "mystring.h"
 #include "char.h"
 
 /*
@@ -87,7 +88,7 @@ c_debug()
 debug_str()
 {
 	register struct ww *w;
-	struct string *s;
+	struct mystring *s;
 
 	if ((w = openiwin(wwnrow - 3, "Allocated Strings")) == 0) {
 		error("Can't open string window: %s.", wwerror());
