@@ -51,7 +51,8 @@ DVIFILES = standards.dvi configure.dvi
 
 all:
 
-install:
+# We want install to imply install-info as per GNU standards.
+install: install-info
 
 uninstall:
 

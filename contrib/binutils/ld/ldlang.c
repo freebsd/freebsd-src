@@ -2492,10 +2492,10 @@ print_wild_statement (w, os)
       if (sec->spec.exclude_name_list != NULL)
 	{
 	  name_list *tmp;
-	  minfo ("EXCLUDE_FILE ( %s", sec->spec.exclude_name_list->name);
+	  minfo ("EXCLUDE_FILE(%s", sec->spec.exclude_name_list->name);
 	  for (tmp = sec->spec.exclude_name_list->next; tmp; tmp = tmp->next)
-	    minfo (", %s", tmp->name);
-	  minfo (")");
+	    minfo (" %s", tmp->name);
+	  minfo (") ");
 	}
       if (sec->spec.name != NULL)
 	minfo ("%s", sec->spec.name);
@@ -2503,6 +2503,8 @@ print_wild_statement (w, os)
 	minfo ("*");
       if (sec->spec.sorted)
 	minfo (")");
+      if (sec->next)
+	minfo (" ");
     }
   minfo (")");
 
