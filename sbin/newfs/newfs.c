@@ -525,8 +525,6 @@ main(argc, argv)
 	if (realsectorsize != DEV_BSIZE)
 		pp->p_size *= DEV_BSIZE / realsectorsize;
 #endif
-	if (!Nflag && bcmp(pp, &oldpartition, sizeof(oldpartition)))
-		rewritelabel(special, fso, lp);
 	if (!Nflag)
 		close(fso);
 	close(fsi);
@@ -582,56 +580,6 @@ getdisklabel(s, fd)
 		fatal(lmsg, s);
 	}
 	return (&lab);
-}
-
-rewritelabel(s, fd, lp)
-	char *s;
-	int fd;
-	register struct disklabel *lp;
-{
-#ifdef COMPAT
-	if (unlabeled)
-		return;
-#endif
-	lp->d_checksum = 0;
-	lp->d_checksum = dkcksum(lp);
-	if (ioctl(fd, DIOCWDINFO, (char *)lp) < 0) {
-		warn("ioctl (WDINFO)");
-		fatal("%s: can't rewrite disk label", s);
-	}
-#if vax
-	if (lp->d_type == DTYPE_SMD && lp->d_flags & D_BADSECT) {
-		register i;
-		int cfd;
-		daddr_t alt;
-		char specname[64];
-		char blk[1024];
-		char *cp;
-
-		/*
-		 * Make name for 'c' partition.
-		 */
-		strcpy(specname, s);
-		cp = specname + strlen(specname) - 1;
-		if (!isdigit(*cp))
-			*cp = 'c';
-		cfd = open(specname, O_WRONLY);
-		if (cfd < 0)
-			fatal("%s: %s", specname, strerror(errno));
-		bzero(blk, sizeof(blk));
-		*(struct disklabel *)(blk + LABELOFFSET) = *lp;
-		alt = lp->d_ncylinders * lp->d_secpercyl - lp->d_nsectors;
-		for (i = 1; i < 11 && i < lp->d_nsectors; i += 2) {
-			if (lseek(cfd, (off_t)(alt + i) * lp->d_secsize,
-			    L_SET) == -1)
-				fatal("lseek to badsector area: %s",
-				    strerror(errno));
-			if (write(cfd, blk, lp->d_secsize) < lp->d_secsize)
-				warn("alternate label %d write", i/2);
-		}
-		close(cfd);
-	}
-#endif
 }
 
 /*VARARGS*/
