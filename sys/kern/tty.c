@@ -38,7 +38,7 @@ static volatile int ttyverbose = 0;
  * SUCH DAMAGE.
  *
  *	@(#)tty.c	8.8 (Berkeley) 1/21/94
- * $Id: tty.c,v 1.103 1998/05/17 20:08:05 bde Exp $
+ * $Id: tty.c,v 1.104 1998/06/07 17:11:41 dfr Exp $
  */
 
 /*-
@@ -2234,25 +2234,25 @@ ttyinfo(tp)
 		calcru(pick, &utime, &stime, NULL);
 
 		/* Print user time. */
-		ttyprintf(tp, "%d.%02du ",
+		ttyprintf(tp, "%ld.%02ldu ",
 		    utime.tv_sec, utime.tv_usec / 10000);
 
 		/* Print system time. */
-		ttyprintf(tp, "%d.%02ds ",
+		ttyprintf(tp, "%ld.%02lds ",
 		    stime.tv_sec, stime.tv_usec / 10000);
 
 #define	pgtok(a)	(((a) * PAGE_SIZE) / 1024)
 		/* Print percentage cpu, resident set size. */
 		tmp = (pick->p_pctcpu * 10000 + FSCALE / 2) >> FSHIFT;
-		ttyprintf(tp, "%d%% %dk\n",
+		ttyprintf(tp, "%d%% %ldk\n",
 		    tmp / 100,
 		    pick->p_stat == SIDL || pick->p_stat == SZOMB ? 0 :
 #ifdef pmap_resident_count
-			pgtok(pmap_resident_count(&pick->p_vmspace->vm_pmap))
+		    (long)pgtok(pmap_resident_count(&pick->p_vmspace->vm_pmap))
 #else
-			pgtok(pick->p_vmspace->vm_rssize)
+		    (long)pgtok(pick->p_vmspace->vm_rssize)
 #endif
-			);
+		    );
 	}
 	tp->t_rocount = 0;	/* so pending input will be retyped if BS */
 }
