@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp.c,v 1.1.2.12 1998/04/24 19:15:45 brian Exp $
+ *	$Id: mp.c,v 1.1.2.13 1998/04/24 19:16:09 brian Exp $
  */
 
 #include <sys/types.h>
@@ -683,10 +683,10 @@ mp_SetEnddisc(struct cmdargs const *arg)
       strcpy(mp->cfg.enddisc.address, arg->bundle->cfg.label);
       mp->cfg.enddisc.len = strlen(mp->cfg.enddisc.address);
     } else if (!strcasecmp(arg->argv[arg->argn], "ip")) {
-      if (arg->bundle->ncp.ipcp.my_ifip.s_addr == INADDR_ANY)
-        addr = arg->bundle->ncp.ipcp.my_ip;
+      if (arg->bundle->ncp.ipcp.my_ip.s_addr == INADDR_ANY)
+        addr = arg->bundle->ncp.ipcp.cfg.my_range.ipaddr;
       else
-        addr = arg->bundle->ncp.ipcp.my_ifip;
+        addr = arg->bundle->ncp.ipcp.my_ip;
       memcpy(mp->cfg.enddisc.address, &addr.s_addr, sizeof addr.s_addr);
       mp->cfg.enddisc.class = ENDDISC_IP;
       mp->cfg.enddisc.len = sizeof arg->bundle->ncp.ipcp.my_ip.s_addr;
@@ -694,10 +694,10 @@ mp_SetEnddisc(struct cmdargs const *arg)
       struct sockaddr_dl hwaddr;
       int s;
 
-      if (arg->bundle->ncp.ipcp.my_ifip.s_addr == INADDR_ANY)
-        addr = arg->bundle->ncp.ipcp.my_ip;
+      if (arg->bundle->ncp.ipcp.my_ip.s_addr == INADDR_ANY)
+        addr = arg->bundle->ncp.ipcp.cfg.my_range.ipaddr;
       else
-        addr = arg->bundle->ncp.ipcp.my_ifip;
+        addr = arg->bundle->ncp.ipcp.my_ip;
 
       s = ID0socket(AF_INET, SOCK_DGRAM, 0);
       if (s < 0) {
@@ -711,7 +711,7 @@ mp_SetEnddisc(struct cmdargs const *arg)
         mp->cfg.enddisc.len = hwaddr.sdl_alen;
       } else {
         LogPrintf(LogWARN, "set enddisc: Can't locate MAC address for %s\n",
-                  inet_ntoa(arg->bundle->ncp.ipcp.cfg.my_range.ipaddr));
+                  inet_ntoa(addr));
         close(s);
         return 4;
       }
