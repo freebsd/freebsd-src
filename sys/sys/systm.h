@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)systm.h	8.4 (Berkeley) 2/23/94
- * $Id: systm.h,v 1.29 1996/01/01 17:05:07 peter Exp $
+ * $Id: systm.h,v 1.30 1996/01/13 18:02:41 phk Exp $
  */
 
 #ifndef _SYS_SYSTM_H_
@@ -170,7 +170,6 @@ extern void nchinit(void);
 /* Finalize the world. */
 void	shutdown_nice __P((void));
 
-
 /*
  * Kernel to clock driver interface.
  */
@@ -185,5 +184,12 @@ typedef timeout_t *timeout_func_t; /* a pointer to this type */
 void timeout(timeout_func_t, void *, int);
 void untimeout(timeout_func_t, void *);
 void	logwakeup __P((void));
+
+/* BCD conversions */
+extern u_char _bcd2bin[], _bin2bcd[];
+extern char _hex2ascii[];
+#define bcd2bin(foo) _bcd2bin[foo]
+#define bin2bcd(foo) _bin2bcd[foo]
+#define hex2ascii(foo) _hex2ascii[foo]
 
 #endif /* !_SYS_SYSTM_H_ */
