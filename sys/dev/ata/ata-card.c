@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998 - 2004 Søren Schmidt <sos@FreeBSD.org>
+ * Copyright (c) 1998 - 2005 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -61,8 +61,6 @@ static const struct pccard_product ata_pccard_products[] = {
 	{NULL}
 };
 
-MALLOC_DECLARE(M_ATA);
-
 static int
 ata_pccard_match(device_t dev)
 {
@@ -86,18 +84,6 @@ ata_pccard_match(device_t dev)
 	return (0);
     }
     return(ENXIO);
-}
-
-static int
-ata_pccard_locknoop(struct ata_channel *ch, int type)
-{
-    return ch->unit;
-}
-
-static void
-ata_pccard_setmode(struct ata_device *atadev, int mode)
-{
-    atadev->mode = ata_limit_mode(atadev, mode, ATA_PIO_MAX);
 }
 
 static int
@@ -145,8 +131,6 @@ ata_pccard_probe(device_t dev)
     /* initialize softc for this channel */
     ch->unit = 0;
     ch->flags |= (ATA_USE_16BIT | ATA_NO_SLAVE);
-    ch->locking = ata_pccard_locknoop;
-    ch->device[MASTER].setmode = ata_pccard_setmode;
     ata_generic_hw(ch);
     return ata_probe(dev);
 }
@@ -157,8 +141,6 @@ ata_pccard_detach(device_t dev)
     struct ata_channel *ch = device_get_softc(dev);
     int i;
 
-    free(ch->device[MASTER].param, M_ATA);
-    ch->device[MASTER].param = NULL;
     ata_detach(dev);
     if (ch->r_io[ATA_ALTSTAT].res != ch->r_io[ATA_DATA].res)
 	bus_release_resource(dev, SYS_RES_IOPORT, ATA_ALTADDR_RID,
@@ -172,14 +154,14 @@ ata_pccard_detach(device_t dev)
 
 static device_method_t ata_pccard_methods[] = {
     /* device interface */
-    DEVMETHOD(device_probe,	pccard_compat_probe),
-    DEVMETHOD(device_attach,	pccard_compat_attach),
-    DEVMETHOD(device_detach,	ata_pccard_detach),
+    DEVMETHOD(device_probe,     pccard_compat_probe),
+    DEVMETHOD(device_attach,    pccard_compat_attach),
+    DEVMETHOD(device_detach,    ata_pccard_detach),
 
-    /* Card interface */
-    DEVMETHOD(card_compat_match,	ata_pccard_match),
-    DEVMETHOD(card_compat_probe,	ata_pccard_probe),
-    DEVMETHOD(card_compat_attach,	ata_attach),
+    /* card interface */
+    DEVMETHOD(card_compat_match,        ata_pccard_match),
+    DEVMETHOD(card_compat_probe,        ata_pccard_probe),
+    DEVMETHOD(card_compat_attach,       ata_attach),
     { 0, 0 }
 };
 
@@ -190,3 +172,4 @@ static driver_t ata_pccard_driver = {
 };
 
 DRIVER_MODULE(ata, pccard, ata_pccard_driver, ata_devclass, 0, 0);
+MODULE_DEPEND(ata, ata, 1, 1, 1);

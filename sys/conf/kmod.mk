@@ -298,8 +298,9 @@ ${_src}:
 .endfor
 .endif
 
-MFILES?= dev/acpica/acpi_if.m dev/eisa/eisa_if.m dev/iicbus/iicbb_if.m \
-	dev/iicbus/iicbus_if.m dev/mii/miibus_if.m dev/ofw/ofw_bus_if.m \
+MFILES?= dev/acpica/acpi_if.m dev/ata/ata_if.m dev/eisa/eisa_if.m \
+	dev/iicbus/iicbb_if.m dev/iicbus/iicbus_if.m \
+	dev/mii/miibus_if.m dev/ofw/ofw_bus_if.m \
 	dev/pccard/card_if.m dev/pccard/power_if.m dev/pci/pci_if.m \
 	dev/pci/pcib_if.m dev/ppbus/ppbus_if.m dev/smbus/smbus_if.m \
 	dev/sound/pcm/ac97_if.m dev/sound/pcm/channel_if.m \
