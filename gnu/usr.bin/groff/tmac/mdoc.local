@@ -32,6 +32,7 @@
 .ds doc-volume-operating-system FreeBSD
 .
 .\" FreeBSD .Lb values
+.ds doc-str-Lb-libarchive  Streaming Archive Library (libarchive, \-larchive)
 .ds doc-str-Lb-libbluetooth Bluetooth User Library (libbluetooth, \-lbluetooth)
 .ds doc-str-Lb-libc_r      Reentrant C\~Library (libc_r, \-lc_r)
 .ds doc-str-Lb-libcalendar Calendar Arithmetic Library (libcalendar, \-lcalendar)
