@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.128 1995/12/10 15:54:50 bde Exp $
+ *	$Id: sio.c,v 1.129 1995/12/10 20:54:38 bde Exp $
  */
 
 #include "sio.h"
@@ -60,7 +60,7 @@
 #include <sys/devconf.h>
 #ifdef DEVFS
 #include <sys/devfsext.h>
-#endif /*DEVFS*/
+#endif
 
 #include <machine/clock.h>
 
@@ -69,6 +69,13 @@
 #include <i386/isa/isa_device.h>
 #include <i386/isa/sioreg.h>
 #include <i386/isa/ic/ns16550.h>
+
+#include "crd.h"
+#if NCRD > 0
+#include <pccard/card.h>
+#include <pccard/driver.h>
+#include <pccard/slot.h>
+#endif /* NCRD > 0 */
 
 #define	LOTS_OF_EVENTS	64	/* helps separate urgent events from input */
 #define	RB_I_HIGH_WATER	(TTYHOG - 2 * RS_IBUFSIZE)
@@ -96,15 +103,6 @@
 #define	COM_VERBOSE(dev)	((dev)->id_flags & 0x80)
 
 #define	com_scr		7	/* scratch register for 16450-16550 (R/W) */
-
-
-
-#include "crd.h"
-#if NCRD > 0
-#include <pccard/card.h>
-#include <pccard/driver.h>
-#include <pccard/slot.h>
-#endif /* NCRD > 0 */
 
 /*
  * Input buffer watermarks.
@@ -172,7 +170,7 @@ struct com_s {
 	u_char	state;		/* miscellaneous flag bits */
 	bool_t  active_out;	/* nonzero if the callout device is open */
 	u_char	cfcr_image;	/* copy of value written to CFCR */
-	u_char	ftl;		/* current rx fifo trigger level */
+	u_char	fifo_image;	/* copy of value written to FIFO */
 	bool_t	hasfifo;	/* nonzero for 16550 UARTs */
 	bool_t	loses_outints;	/* nonzero if device loses output interrupts */
 	u_char	mcr_image;	/* copy of value written to MCR */
@@ -308,11 +306,12 @@ static	d_stop_t	siostop;
 static	d_devtotty_t	siodevtotty;
 
 #define CDEV_MAJOR 28
-static struct cdevsw sio_cdevsw = 
-	{ sioopen,	sioclose,	sioread,	siowrite,	/*28*/
-	  sioioctl,	siostop,	noreset,	siodevtotty,/* sio */
-	  ttselect,	nommap,		NULL,	driver_name,	NULL,	-1 };
-
+static struct cdevsw sio_cdevsw = {
+	sioopen,	sioclose,	sioread,	siowrite,
+	sioioctl,	siostop,	noreset,	siodevtotty,
+	ttselect,	nommap,		NULL,		driver_name,
+	NULL,		-1,
+};
 
 static	int	comconsole = -1;
 static	speed_t	comdefaultrate = TTYDEF_SPEED;
@@ -710,10 +709,11 @@ sioattach(isdp)
 	struct isa_device	*isdp;
 {
 	struct com_s	*com;
+	dev_t		dev;
 	Port_t		iobase;
+	char		name[32];
 	int		s;
 	int		unit;
-	char		name[32];
 
 	isdp->id_ri_flags |= RI_FAST;
 	iobase = isdp->id_iobase;
@@ -828,6 +828,7 @@ sioattach(isdp)
 		  "Serial port: maybe National 16550";
 		break;
 	case FIFO_RX_HIGH:
+		printf(" 16550A");
 		if (COM_NOFIFO(isdp)) {
 			printf(" fifo disabled");
 			kdc_sio[unit].kdc_description =
@@ -838,6 +839,7 @@ sioattach(isdp)
 			kdc_sio[unit].kdc_description =
 			  "Serial port: National 16550A or compatible";
 		}
+#if 0
 		/*
 		 * Check for the Startech ST16C650 chip.
 		 * it has a shadow register under the com_iir,
@@ -863,6 +865,7 @@ sioattach(isdp)
 		if (!com->tx_fifo_size)
 			printf(" fifo disabled");
 		}
+#endif
 		break;
 	}
 	outb(iobase + com_fifo, 0);
@@ -921,37 +924,33 @@ determined_type: ;
 	com_addr(unit) = com;
 	splx(s);
 
+	dev = makedev(CDEV_MAJOR, 0);
+	cdevsw_add(&dev, &sio_cdevsw, NULL);
 #ifdef DEVFS
-/*	path	name	devsw		minor	type   uid gid perm*/
-	sprintf(name,"ttyd%c",chardev[unit]);
-	com->devfs_token_ttyd = devfs_add_devsw(
-		"/", name, &sio_cdevsw, unit,
-		DV_CHR, 0, 0, 0600);
-	sprintf(name,"ttyid%c",chardev[unit]);
-	com->devfs_token_ttyi = devfs_add_devsw(
-		"/", name, &sio_cdevsw, unit+32,
-		DV_CHR, 0, 0, 0600);
-	sprintf(name,"ttyld%c",chardev[unit]);
-	com->devfs_token_ttyl = devfs_add_devsw(
-		"/", name, &sio_cdevsw, unit+64,
-		DV_CHR, 0, 0, 0600);
-	sprintf(name,"cuaa%c",chardev[unit]);
-	com->devfs_token_cuaa = devfs_add_devsw(
-		"/", name, &sio_cdevsw, unit+128,
-		DV_CHR, 0, 0, 0600);
-	sprintf(name,"cuaia%c",chardev[unit]);
-	com->devfs_token_cuai = devfs_add_devsw(
-		"/", name, &sio_cdevsw, unit+160,
-		DV_CHR, 0, 0, 0600);
-	sprintf(name,"cuala%c",chardev[unit]);
-	com->devfs_token_cual = devfs_add_devsw(
-		"/", name, &sio_cdevsw, unit+192,
-		DV_CHR, 0, 0, 0600);
+		/* path, name, devsw, minor, type, uid, gid, perm */
+	sprintf(name, "ttyd%c", chardev[unit]);
+	com->devfs_token_ttyd = devfs_add_devsw("/", name, &sio_cdevsw,
+		unit, DV_CHR, 0, 0, 0600);
+	sprintf(name, "ttyid%c", chardev[unit]);
+	com->devfs_token_ttyi = devfs_add_devsw("/", name, &sio_cdevsw,
+		unit | CONTROL_INIT_STATE, DV_CHR, 0, 0, 0600);
+	sprintf(name, "ttyld%c", chardev[unit]);
+	com->devfs_token_ttyl = devfs_add_devsw("/", name, &sio_cdevsw,
+		unit | CONTROL_LOCK_STATE, DV_CHR, 0, 0, 0600);
+	sprintf(name, "cuaa%c", chardev[unit]);
+	com->devfs_token_cuaa = devfs_add_devsw("/", name, &sio_cdevsw,
+		unit | CALLOUT_MASK, DV_CHR, 0, 0, 0660);
+	sprintf(name, "cuaia%c", chardev[unit]);
+	com->devfs_token_cuai = devfs_add_devsw("/", name, &sio_cdevsw,
+		unit | CALLOUT_MASK | CONTROL_INIT_STATE, DV_CHR, 0, 0, 0660);
+	sprintf(name, "cuala%c", chardev[unit]);
+	com->devfs_token_cual = devfs_add_devsw("/", name, &sio_cdevsw,
+		unit | CALLOUT_MASK | CONTROL_LOCK_STATE, DV_CHR, 0, 0, 0660);
 #endif
 	return (1);
 }
 
-static	int
+static int
 sioopen(dev, flag, mode, p)
 	dev_t		dev;
 	int		flag;
@@ -1061,7 +1060,8 @@ open_top:
 			 */
 			while (TRUE) {
 				outb(iobase + com_fifo,
-				     FIFO_RCV_RST | FIFO_XMT_RST | com->ftl);
+				     FIFO_RCV_RST | FIFO_XMT_RST
+				     | com->fifo_image);
 				DELAY(100);
 				if (!(inb(com->line_status_port) & LSR_RXRDY))
 					break;
@@ -1121,7 +1121,7 @@ out:
 	return (error);
 }
 
-static	int
+static int
 sioclose(dev, flag, mode, p)
 	dev_t		dev;
 	int		flag;
@@ -1216,7 +1216,7 @@ comhardclose(com)
 	splx(s);
 }
 
-static	int
+static int
 sioread(dev, uio, flag)
 	dev_t		dev;
 	struct uio	*uio;
@@ -1236,7 +1236,7 @@ sioread(dev, uio, flag)
 	return ((*linesw[tp->t_line].l_read)(tp, uio, flag));
 }
 
-static	int
+static int
 siowrite(dev, uio, flag)
 	dev_t		dev;
 	struct uio	*uio;
@@ -1495,7 +1495,7 @@ cont:
 	}
 }
 
-static	int
+static int
 sioioctl(dev, cmd, data, flag, p)
 	dev_t		dev;
 	int		cmd;
@@ -1896,9 +1896,9 @@ comparam(tp, t)
 		 * protocols shouldn't expect anything better since modem
 		 * latencies are larger.
 		 */
-		com->ftl = t->c_ospeed <= 4800
-			   ? 0 : FIFO_ENABLE | FIFO_RX_HIGH;
-		outb(iobase + com_fifo, com->ftl);
+		com->fifo_image = t->c_ospeed != 0 && t->c_ospeed <= 4800
+				  ? FIFO_ENABLE : FIFO_ENABLE | FIFO_RX_HIGH;
+		outb(iobase + com_fifo, com->fifo_image);
 	}
 
 	/*
@@ -2076,7 +2076,7 @@ comstart(tp)
 	splx(s);
 }
 
-static	void
+static void
 siostop(tp, rw)
 	struct tty	*tp;
 	int		rw;
@@ -2105,7 +2105,7 @@ siostop(tp, rw)
 	/* XXX should clear h/w fifos too. */
 }
 
-static	struct tty *
+static struct tty *
 siodevtotty(dev)
 	dev_t	dev;
 {
@@ -2592,19 +2592,3 @@ error:
     return EIO;
 }
 #endif /* DSI_SOFT_MODEM */
-
-static sio_devsw_installed = 0;
-
-static void 	sio_drvinit(void *unused)
-{
-	dev_t dev;
-
-	if( ! sio_devsw_installed ) {
-		dev = makedev(CDEV_MAJOR, 0);
-		cdevsw_add(&dev,&sio_cdevsw, NULL);
-		sio_devsw_installed = 1;
-    	}
-}
-
-SYSINIT(siodev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,sio_drvinit,NULL)
-
