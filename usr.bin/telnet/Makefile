@@ -56,18 +56,4 @@ NOCRYPT_DIR=${.CURDIR}/Nocrypt
 .include <bsd.prog.mk>
 
 nocrypt:
-#ifdef	ENCRYPTION
-	@for i in ${CRYPT_SRC}; do \
-	    if [ ! -d ${NOCRYPT_DIR} ]; then \
-		echo Creating subdirectory ${NOCRYPT_DIR}; \
-		mkdir ${NOCRYPT_DIR}; \
-	    fi; \
-	    echo ${NOCRYPT_DIR}/$$i; \
-	    unifdef -UENCRYPTION ${.CURDIR}/$$i | \
-		sed "s/ || defined(ENCRYPTION)//" > ${NOCRYPT_DIR}/$$i; \
-	done
-
-placeholder:
-#else	/* ENCRYPTION */
 	@echo "Encryption code already removed."
-#endif	/* ENCRYPTION */
