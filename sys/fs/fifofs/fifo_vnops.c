@@ -107,6 +107,7 @@ static struct vnodeopv_entry_desc fifo_vnodeop_entries[] = {
 	{ &vop_open_desc,		(vop_t *) fifo_open },
 	{ &vop_pathconf_desc,		(vop_t *) fifo_pathconf },
 	{ &vop_poll_desc,		(vop_t *) fifo_poll },
+	{ &vop_getwritemount_desc, 	(vop_t *) vop_stdgetwritemount },
 	{ &vop_print_desc,		(vop_t *) fifo_print },
 	{ &vop_read_desc,		(vop_t *) fifo_read },
 	{ &vop_readdir_desc,		(vop_t *) fifo_badop },

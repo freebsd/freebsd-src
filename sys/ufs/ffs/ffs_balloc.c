@@ -125,6 +125,8 @@ ffs_balloc(ap)
 	 * The first NDADDR blocks are direct blocks
 	 */
 	if (lbn < NDADDR) {
+		if (flags & B_METAONLY)
+			panic("ffs_balloc: B_METAONLY for direct block");
 		nb = ip->i_db[lbn];
 		if (nb != 0 && ip->i_size >= smalllblktosize(fs, lbn + 1)) {
 			error = bread(vp, lbn, fs->fs_bsize, NOCRED, &bp);
@@ -287,6 +289,13 @@ ffs_balloc(ap)
 				bp->b_flags |= B_CLUSTEROK;
 			bdwrite(bp);
 		}
+	}
+	/*
+	 * If asked only for the indirect block, then return it.
+	 */
+	if (flags & B_METAONLY) {
+		*ap->a_bpp = bp;
+		return (0);
 	}
 	/*
 	 * Get the data block, allocating if necessary.

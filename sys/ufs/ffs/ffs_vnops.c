@@ -95,6 +95,7 @@ vop_t **ffs_specop_p;
 static struct vnodeopv_entry_desc ffs_specop_entries[] = {
 	{ &vop_default_desc,		(vop_t *) ufs_vnoperatespec },
 	{ &vop_fsync_desc,		(vop_t *) ffs_fsync },
+	{ &vop_copyonwrite_desc,	(vop_t *) ffs_copyonwrite },
 	{ NULL, NULL }
 };
 static struct vnodeopv_desc ffs_specop_opv_desc =
@@ -129,11 +130,20 @@ ffs_fsync(ap)
 	} */ *ap;
 {
 	struct vnode *vp = ap->a_vp;
+	struct inode *ip = VTOI(vp);
 	struct buf *bp;
 	struct buf *nbp;
 	int s, error, wait, passes, skipmeta;
 	daddr_t lbn;
 
+	/*
+	 * Snapshots have to be unlocked so they do not deadlock
+	 * checking whether they need to copy their written buffers.
+	 * We always hold a reference, so they cannot be removed
+	 * out from underneath us.
+	 */
+	if (ip->i_flags & SF_SNAPSHOT)
+		VOP_UNLOCK(vp, 0, ap->a_p);
 	wait = (ap->a_waitfor == MNT_WAIT);
 	if (vn_isdisk(vp, NULL)) {
 		lbn = INT_MAX;
@@ -141,8 +151,6 @@ ffs_fsync(ap)
 		    (vp->v_specmountpoint->mnt_flag & MNT_SOFTDEP))
 			softdep_fsync_mountdev(vp);
 	} else {
-		struct inode *ip;
-		ip = VTOI(vp);
 		lbn = lblkno(ip->i_fs, (ip->i_size + ip->i_fs->fs_bsize - 1));
 	}
 
@@ -279,5 +287,7 @@ loop:
 	}
 	splx(s);
 	error = UFS_UPDATE(vp, wait);
+	if (ip->i_flags & SF_SNAPSHOT)
+		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, ap->a_p);
 	return (error);
 }

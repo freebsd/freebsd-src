@@ -247,6 +247,7 @@ fd_revoke(p, fd)
 	struct filedesc *fdp = p->p_fd;
 	struct file *fp;
 	struct vnode *vp;
+	struct mount *mp;
 	struct vattr vattr;
 	int error, *retval;
 
@@ -271,8 +272,11 @@ fd_revoke(p, fd)
 	    (error = suser(p)) != 0)
 		goto out;
 
+	if ((error = vn_start_write(vp, &mp, V_WAIT | PCATCH)) != 0)
+		goto out;
 	if (vcount(vp) > 1)
 		VOP_REVOKE(vp, REVOKEALL);
+	vn_finished_write(mp);
 out:
 	vrele(vp);
 	return error;

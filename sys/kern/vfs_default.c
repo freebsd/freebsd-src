@@ -500,6 +500,21 @@ vop_noislocked(ap)
 	return (lockstatus(vp->v_vnlock, ap->a_p));
 }
 
+/*
+ * Return our mount point, as we will take charge of the writes.
+ */
+int
+vop_stdgetwritemount(ap)
+	struct vop_getwritemount_args /* {
+		struct vnode *a_vp;
+		struct mount **a_mpp;
+	} */ *ap;
+{
+
+	*(ap->a_mpp) = ap->a_vp->v_mount;
+	return (0);
+}
+
 /* 
  * vfs default ops
  * used to fill the vfs fucntion table to get reasonable default return values.
