@@ -163,7 +163,7 @@ struct vnode {
 #define	VXLOCK		0x00100	/* vnode is locked to change underlying type */
 #define	VXWANT		0x00200	/* process is waiting for vnode */
 #define	VBWAIT		0x00400	/* waiting for output to complete */
-/* open for business    0x00800 */
+#define	VNOSYNC		0x01000	/* unlinked, stop syncing */
 /* open for business    0x01000 */
 #define	VOBJBUF		0x02000	/* Allocate buffers in VM object */
 #define	VCOPYONWRITE    0x04000 /* vnode is doing copy-on-write */

@@ -758,6 +758,8 @@ ufs_remove(ap)
 		goto out;
 	}
 	error = ufs_dirremove(dvp, ip, ap->a_cnp->cn_flags, 0);
+	if (ip->i_nlink <= 0)
+		vp->v_flag |= VNOSYNC;
 	VN_KNOTE(vp, NOTE_DELETE);
 	VN_KNOTE(dvp, NOTE_WRITE);
 out:
