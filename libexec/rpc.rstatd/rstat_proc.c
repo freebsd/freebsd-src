@@ -33,7 +33,7 @@ static char sccsid[] = "from: @(#)rpc.rstatd.c 1.1 86/09/25 Copyr 1984 Sun Micro
 static char sccsid[] = "from: @(#)rstat_proc.c	2.2 88/08/01 4.0 RPCSRC";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: rstat_proc.c,v 1.8 1997/11/26 07:34:55 charnier Exp $";
 #endif
 
 /*
@@ -43,7 +43,6 @@ static const char rcsid[] =
  */
 
 #include <sys/types.h>
-#include <sys/param.h>
 #include <sys/dkstat.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
@@ -54,7 +53,6 @@ static const char rcsid[] =
 #include <fcntl.h>
 #include <kvm.h>
 #include <limits.h>
-#include <nlist.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -64,8 +62,6 @@ static const char rcsid[] =
 
 #include <net/if.h>
 #include <net/if_mib.h>
-
-#include <rpc/rpc.h>
 
 #undef FSHIFT			 /* Use protocol's shift and scale values */
 #undef FSCALE
