@@ -797,7 +797,7 @@ pccard/pcic.c		optional pcic card
 pci/amd.c		optional amd
 pci/pcic_p.c		optional pcic pci
 dev/bktr/bktr_core.c	optional bktr pci
-dev/bktr/bktr_i2c.c	optional bktr pci
+dev/bktr/bktr_i2c.c	optional bktr pci smbus
 dev/bktr/bktr_card.c	optional bktr pci
 dev/bktr/bktr_tuner.c	optional bktr pci
 dev/bktr/bktr_audio.c	optional bktr pci
