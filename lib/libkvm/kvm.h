@@ -83,12 +83,12 @@ struct kinfo_proc *
 int	  kvm_getswapinfo(kvm_t *, struct kvm_swap *, int, int);
 int	  kvm_nlist(kvm_t *, struct nlist *);
 kvm_t	 *kvm_open
-(const char *, const char *, const char *, int, const char *);
+	    (const char *, const char *, const char *, int, const char *);
 kvm_t	 *kvm_openfiles
-(const char *, const char *, const char *, int, char *);
+	    (const char *, const char *, const char *, int, char *);
 ssize_t	  kvm_read(kvm_t *, unsigned long, void *, size_t);
 ssize_t	  kvm_uread
-(kvm_t *, struct kinfo_proc *, unsigned long, char *, size_t);
+	    (kvm_t *, struct kinfo_proc *, unsigned long, char *, size_t);
 ssize_t	  kvm_write(kvm_t *, unsigned long, const void *, size_t);
 __END_DECLS
 
