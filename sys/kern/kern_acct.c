@@ -297,7 +297,7 @@ acct_process(td)
 	if (p->p_limit->p_refcnt > 1) {
 		p->p_limit->p_refcnt--;
 		p->p_limit = limcopy(p->p_limit);
-	} 
+	}
 	p->p_rlimit[RLIMIT_FSIZE].rlim_cur = RLIM_INFINITY;
 
 	VOP_LEASE(vp, td, uc, LEASE_WRITE);
@@ -366,7 +366,7 @@ acctwatch(a)
 	/*
 	 * XXX arr: Need to fix the issue of holding acct_mtx over
 	 * the below vnode operations.
-	 */ 
+	 */
 
 	if (savacctp != NULLVP) {
 		if (savacctp->v_type == VBAD) {
