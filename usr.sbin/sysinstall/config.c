@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.28 1996/04/28 20:53:52 jkh Exp $
+ * $Id: config.c,v 1.29 1996/04/28 22:54:15 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -595,7 +595,7 @@ configNFSServer(dialogMenuItem *self)
 	vsystem("echo '#' >> /etc/exports");
 	vsystem("echo '# You should replace these lines with your actual exported filesystems.' >> /etc/exports");
 	vsystem("echo >> /etc/exports");
-	vsprintf(cmd, "%s /etc/exports", variable_get(VAR_EDITOR));
+	sprintf(cmd, "%s /etc/exports", variable_get(VAR_EDITOR));
 	dialog_clear();
 	systemExecute(cmd);
 	restorescr(w);
