@@ -34,7 +34,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *	From: if_ep.c,v 1.9 1994/01/25 10:46:29 deraadt Exp $
- *	$Id: if_zp.c,v 1.26.2.4 1996/12/23 18:42:38 nate Exp $
+ *	$Id: if_zp.c,v 1.26.2.5 1997/02/13 22:46:43 bde Exp $
  */
 /*-
  * TODO:
@@ -290,6 +290,7 @@ zp_find_adapter(unsigned char *scratch, int reconfig)
 		}
 		pcic_power_on(slot);
 		pcic_reset(slot);
+		DELAY(50000);
 		/* map the card's attribute memory and examine its card
 		 * information structure tuples for something we recognize. */
 		pcic_map_memory(slot, 0, kvtop(scratch), 0L,
