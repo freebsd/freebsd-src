@@ -39,16 +39,6 @@
 
 #include <sys/cdefs.h>
 
-#if !defined(_ANSI_SOURCE) && !defined(_POSIX_SOURCE)
-typedef	struct _physadr {
-	long	r[1];
-} *physadr;
-
-typedef	struct label_t {
-	long	val[10];
-} label_t;
-#endif
-
 typedef	unsigned int	vm_offset_t;
 typedef	__int64_t	vm_ooffset_t;
 typedef	__uint64_t	vm_pindex_t;
