@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: cond.c,v 1.7 1997/02/22 19:27:07 peter Exp $
  */
 
 #ifndef lint
@@ -103,7 +103,7 @@ static int CondStrMatch __P((ClientData, ClientData));
 static Boolean CondDoMake __P((int, char *));
 static Boolean CondDoExists __P((int, char *));
 static Boolean CondDoTarget __P((int, char *));
-static Boolean CondCvtArg __P((char *, double *));
+static char * CondCvtArg __P((char *, double *));
 static Token CondToken __P((Boolean));
 static Token CondT __P((Boolean));
 static Token CondF __P((Boolean));
@@ -427,7 +427,8 @@ CondDoTarget (argLen, arg)
  *
  * Results:
  *	Sets 'value' to double value of string.
- *	Returns true if the string was a valid number, false o.w.
+ *	Returns address of the first character after the last valid
+ *	character of the converted number.
  *
  * Side Effects:
  *	Can change 'value' even if string is not a valid number.
@@ -435,7 +436,7 @@ CondDoTarget (argLen, arg)
  *
  *-----------------------------------------------------------------------
  */
-static Boolean
+static char *
 CondCvtArg(str, value)
     register char    	*str;
     double		*value;
@@ -443,23 +444,23 @@ CondCvtArg(str, value)
     if ((*str == '0') && (str[1] == 'x')) {
 	register long i;
 
-	for (str += 2, i = 0; *str; str++) {
+	for (str += 2, i = 0; ; str++) {
 	    int x;
 	    if (isdigit((unsigned char) *str))
 		x  = *str - '0';
 	    else if (isxdigit((unsigned char) *str))
 		x = 10 + *str - isupper((unsigned char) *str) ? 'A' : 'a';
-	    else
-		return FALSE;
+	    else {
+		*value = (double) i;
+		return str;
+	    }
 	    i = (i << 4) + x;
 	}
-	*value = (double) i;
-	return TRUE;
     }
     else {
 	char *eptr;
 	*value = strtod(str, &eptr);
-	return *eptr == '\0';
+	return eptr;
     }
 }
 
@@ -685,7 +686,7 @@ do_string_compare:
 		    double  	left, right;
 		    char    	*string;
 
-		    if (!CondCvtArg(lhs, &left))
+		    if (*CondCvtArg(lhs, &left) != '\0')
 			goto do_string_compare;
 		    if (*rhs == '$') {
 			int 	len;
@@ -695,7 +696,7 @@ do_string_compare:
 			if (string == var_Error) {
 			    right = 0.0;
 			} else {
-			    if (!CondCvtArg(string, &right)) {
+			    if (*CondCvtArg(string, &right) != '\0') {
 				if (freeIt)
 				    free(string);
 				goto do_string_compare;
@@ -706,7 +707,7 @@ do_string_compare:
 				condExpr += len;
 			}
 		    } else {
-			if (!CondCvtArg(rhs, &right))
+			if (CondCvtArg(rhs, &right) == rhs)
 			    goto do_string_compare;
 			if (rhs == condExpr) {
 			    /*
