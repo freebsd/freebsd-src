@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vfsops.c	8.31 (Berkeley) 5/20/95
- * $Id: ffs_vfsops.c,v 1.55 1997/09/07 16:20:59 bde Exp $
+ * $Id: ffs_vfsops.c,v 1.56 1997/09/27 13:40:08 kato Exp $
  */
 
 #include "opt_quota.h"
@@ -160,7 +160,7 @@ ffs_mount( mp, path, data, ndp, p)
 			mp->mnt_flag |= MNT_NOCLUSTERR;
 		if (bdevsw[major(rootdev)]->d_flags & D_NOCLUSTERW)
 			mp->mnt_flag |= MNT_NOCLUSTERW;
-		if( ( err = ffs_mountfs(rootvp, mp, p)) != 0) {
+		if( ( err = ffs_mountfs(rootvp, mp, p, M_FFSNODE)) != 0) {
 			/* fs specific cleanup (if any)*/
 			goto error_1;
 		}
@@ -308,7 +308,7 @@ ffs_mount( mp, path, data, ndp, p)
 				&size);				/* real size*/
 		bzero( mp->mnt_stat.f_mntfromname + size, MNAMELEN - size);
 
-		err = ffs_mountfs(devvp, mp, p);
+		err = ffs_mountfs(devvp, mp, p, M_FFSNODE);
 	}
 	if (err) {
 		goto error_2;
@@ -476,10 +476,11 @@ loop:
  * Common code for mount and mountroot
  */
 int
-ffs_mountfs(devvp, mp, p)
+ffs_mountfs(devvp, mp, p, malloctype)
 	register struct vnode *devvp;
 	struct mount *mp;
 	struct proc *p;
+	struct malloc_type *malloctype;
 {
 	register struct ufsmount *ump;
 	struct buf *bp;
@@ -549,6 +550,7 @@ ffs_mountfs(devvp, mp, p)
 	}
 	ump = malloc(sizeof *ump, M_UFSMNT, M_WAITOK);
 	bzero((caddr_t)ump, sizeof *ump);
+	ump->um_malloctype = malloctype;
 	ump->um_fs = malloc((u_long)fs->fs_sbsize, M_UFSMNT,
 	    M_WAITOK);
 	bcopy(bp->b_data, ump->um_fs, (u_int)fs->fs_sbsize);
@@ -916,7 +918,7 @@ ffs_vget(mp, ino, vpp)
 	struct buf *bp;
 	struct vnode *vp;
 	dev_t dev;
-	int type, error;
+	int error;
 
 	ump = VFSTOUFS(mp);
 	dev = ump->um_dev;
@@ -945,8 +947,8 @@ restart:
 	 * which will cause a panic because ffs_sync() blindly
 	 * dereferences vp->v_data (as well it should).
 	 */
-	type = ump->um_devvp->v_tag == VT_MFS ? M_MFSNODE : M_FFSNODE; /* XXX */
-	MALLOC(ip, struct inode *, sizeof(struct inode), type, M_WAITOK);
+	MALLOC(ip, struct inode *, sizeof(struct inode), 
+	    ump->um_malloctype, M_WAITOK);
 
 	/* Allocate a new vnode/inode. */
 	error = getnewvnode(VT_UFS, mp, ffs_vnodeop_p, &vp);
@@ -955,7 +957,7 @@ restart:
 			wakeup(&ffs_inode_hash_lock);
 		ffs_inode_hash_lock = 0;
 		*vpp = NULL;
-		FREE(ip, type);
+		FREE(ip, ump->um_malloctype);
 		return (error);
 	}
 	bzero((caddr_t)ip, sizeof(struct inode));
