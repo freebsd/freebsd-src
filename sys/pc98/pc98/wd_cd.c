@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998 Søren Schmidt
+ * Copyright (c) 1998, 1999 Søren Schmidt
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: atapi-cd.c,v 1.7 1999/01/02 17:11:45 hoek Exp $
+ *	$Id: atapi-cd.c,v 1.8 1999/01/30 12:21:43 phk Exp $
  */
 
 #include "wdc.h"
@@ -42,6 +42,7 @@
 #include <sys/malloc.h>
 #include <sys/buf.h>
 #include <sys/disklabel.h>
+#include <sys/devicestat.h>
 #include <sys/cdio.h>
 #include <sys/wormio.h>
 #include <sys/fcntl.h>
@@ -88,7 +89,8 @@ static int acdnlun = 0;     	/* Number of configured drives */
 static
 #endif
 int acdattach(struct atapi *, int, struct atapi_params *, int);
-static struct acd *acd_init_lun(struct atapi *, int, struct atapi_params *,int);
+static struct acd *acd_init_lun(struct atapi *, int, struct atapi_params *, int,
+struct devstat *);
 static void acd_start(struct acd *);
 static void acd_done(struct acd *, struct buf *, int, struct atapires);
 static int acd_read_toc(struct acd *);
@@ -108,7 +110,8 @@ static void atapi_dump(int ctrlr, int lun, char *label, void *data, int len);
 static void atapi_error(struct atapi *ata, int unit, struct atapires result);
 
 struct acd *
-acd_init_lun(struct atapi *ata, int unit, struct atapi_params *ap, int lun)
+acd_init_lun(struct atapi *ata, int unit, struct atapi_params *ap, int lun,
+	     struct devstat *device_stats)
 {
     struct acd *ptr;
 
@@ -126,6 +129,13 @@ acd_init_lun(struct atapi *ata, int unit, struct atapi_params *ap, int lun)
     ptr->refcnt = 0;
     ptr->slot = -1;
     ptr->changer_info = NULL;
+    if (device_stats == NULL) {
+        if (!(ptr->device_stats = malloc(sizeof(struct devstat), 
+					 M_TEMP, M_NOWAIT)))
+            return NULL;
+    }
+    else
+	ptr->device_stats = device_stats;
 #ifdef DEVFS
     ptr->ra_devfs_token =
         devfs_add_devswf(&acd_cdevsw, dkmakeminor(lun, 0, 0),
@@ -166,7 +176,7 @@ acdattach(struct atapi *ata, int unit, struct atapi_params *ap, int debug)
         printf("acd: configuration error, ATAPI code not present!\n");
         return 0;
     }
-    if ((cdp = acd_init_lun(ata, unit, ap, acdnlun)) == NULL) {
+    if ((cdp = acd_init_lun(ata, unit, ap, acdnlun, NULL)) == NULL) {
         printf("acd: out of memory\n");
         return 0;
     }
@@ -206,6 +216,9 @@ acdattach(struct atapi *ata, int unit, struct atapi_params *ap, int debug)
     }
     /* If this is a changer device, allocate the neeeded lun's */
     if (cdp->cap.mech == MST_MECH_CHANGER) {
+	char string[16];
+    	struct acd *tmpcdp = cdp;
+
         chp = malloc(sizeof(struct changer), M_TEMP, M_NOWAIT);
         if (chp == NULL) {
             printf("acd: out of memory\n");
@@ -230,25 +243,35 @@ acdattach(struct atapi *ata, int unit, struct atapi_params *ap, int debug)
             chp->table_length = htons(chp->table_length);
             for (i = 0; i < chp->slots && acdnlun < NUNIT; i++) {
                 if (i > 0) {
-                    cdp = acd_init_lun(ata, unit, ap, acdnlun);
-                    if (cdp == NULL) {
+                    tmpcdp = acd_init_lun(ata, unit, ap, acdnlun, 
+					  cdp->device_stats);
+		    if (!tmpcdp) {
                         printf("acd: out of memory\n");
                         return 0;
                     }
                 }
-                cdp->slot = i;
-                cdp->changer_info = chp;
+                tmpcdp->slot = i;
+                tmpcdp->changer_info = chp;
                 printf("acd%d: changer slot %d %s\n", acdnlun, i,
 		       (chp->slot[i].present ? "disk present" : "no disk"));
-                acdtab[acdnlun++] = cdp;
+                acdtab[acdnlun++] = tmpcdp;
             }
             if (acdnlun >= NUNIT) {
                 printf("acd: too many units\n");
                 return 0;
             }
         }
-    } else
+	sprintf(string, "acd%d-", cdp->lun);
+        devstat_add_entry(cdp->device_stats, string, tmpcdp->lun, DEV_BSIZE,
+                          DEVSTAT_NO_ORDERED_TAGS,
+                          DEVSTAT_TYPE_CDROM | DEVSTAT_TYPE_IF_IDE);
+    }
+    else {
         acdnlun++;
+        devstat_add_entry(cdp->device_stats, "acd", cdp->lun, DEV_BSIZE,
+                          DEVSTAT_NO_ORDERED_TAGS,
+                          DEVSTAT_TYPE_CDROM | DEVSTAT_TYPE_IF_IDE);
+    }
     return 1;
 }
 
@@ -503,6 +526,7 @@ acd_start(struct acd *cdp)
         biodone(bp);
         return;
     }
+
     acd_select_slot(cdp);
 
     if ((bp->b_flags & B_READ) == B_WRITE) {
@@ -541,6 +565,8 @@ acd_start(struct acd *cdp)
         count = bp->b_bcount;
     }
 
+    devstat_start_transaction(cdp->device_stats);
+
     atapi_request_callback(cdp->ata, cdp->unit, cmd, 0,
         		   lba>>24, lba>>16, lba>>8, lba, 0, 
 			   blocks>>8, blocks, 0, 0, 0, 0, 0, 0, 0, 
@@ -551,6 +577,10 @@ acd_start(struct acd *cdp)
 static void 
 acd_done(struct acd *cdp, struct buf *bp, int resid, struct atapires result)
 {
+
+    devstat_end_transaction(cdp->device_stats, bp->b_bcount - resid,
+                            DEVSTAT_TAG_NONE,
+                            (bp->b_flags&B_READ) ? DEVSTAT_READ:DEVSTAT_WRITE);  
     if (result.code) {
         atapi_error(cdp->ata, cdp->unit, result);
         bp->b_error = EIO;
@@ -687,8 +717,8 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 
             if (te->data_len < sizeof(toc->tab[0]) || 
 		(te->data_len % sizeof(toc->tab[0])) != 0 || 
-		te->address_format != CD_MSF_FORMAT &&
-		te->address_format != CD_LBA_FORMAT)
+		(te->address_format != CD_MSF_FORMAT &&
+		te->address_format != CD_LBA_FORMAT))
                 return EINVAL;
 
             if (!starting_track)
