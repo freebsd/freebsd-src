@@ -44,7 +44,7 @@ struct uio {
 	int	uio_resid;
 	enum	uio_seg uio_segflg;
 	enum	uio_rw uio_rw;
-	struct	proc *uio_procp;
+	struct	thread *uio_td;
 };
 .Ed
 .Ft int
@@ -102,10 +102,10 @@ The direction of the desired transfer, either
 .Dv UIO_READ ,
 or
 .Dv UIO_WRITE .
-.It Dv uio_procp
+.It Dv uio_td
 The pointer to a
-.Li struct proc
-for the associated process; used if
+.Li struct thread
+for the associated thread; used if
 .Dv uio_segflg
 indicates that the transfer is to be made from/to a process's address
 space.
