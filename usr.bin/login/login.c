@@ -42,7 +42,7 @@ static char copyright[] =
 static char sccsid[] = "@(#)login.c	8.4 (Berkeley) 4/2/94";
 #endif
 static const char rcsid[] =
-	"$Id: login.c,v 1.35 1998/06/01 08:47:04 amurai Exp $";
+	"$Id: login.c,v 1.36 1998/07/22 04:33:12 jdp Exp $";
 #endif /* not lint */
 
 /*
@@ -446,8 +446,6 @@ main(argc, argv)
 			}
 		}
 #else /* !LOGIN_CAP_AUTH */
-		(void)signal(SIGINT, SIG_DFL);
-		(void)signal(SIGQUIT, SIG_DFL);
 #ifdef SKEY
 		permit_passwd = skeyaccess(username, tty,
 					   hostname ? full_hostname : NULL,
@@ -458,8 +456,6 @@ main(argc, argv)
 		p = getpass("Password:");
 		ep = crypt(p, salt);
 #endif/* SKEY */
-		(void)signal(SIGINT, SIG_IGN);
-		(void)signal(SIGQUIT, SIG_IGN);
 
 		if (pwd) {
 			if (!p[0] && pwd->pw_passwd[0])
