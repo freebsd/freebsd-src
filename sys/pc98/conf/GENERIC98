@@ -11,7 +11,7 @@
 # device lines is present in the ./LINT configuration file. If you are 
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-#	$Id: GENERIC98,v 1.78 1999/07/04 11:53:18 nyan Exp $
+#	$Id: GENERIC98,v 1.79 1999/07/06 19:23:17 des Exp $
 
 # GENERIC98 -- Generic PC98 machine with WD/SCSI disks
 
@@ -185,18 +185,19 @@ device		olpt0	at isa? port IO_LPT
 #
 # The following Ethernet NICs are all PCI devices.
 #
-device ax0		# ASIX AX88140A
-device de0		# DEC/Intel DC21x4x (``Tulip'')
-device fxp0		# Intel EtherExpress PRO/100B (82557, 82558)
-device mx0		# Macronix 98713/98715/98725 (``PMAC'')
-device pn0		# Lite-On 82c168/82c169 (``PNIC'')
-device rl0		# RealTek 8129/8139
-device tl0		# Texas Instruments ThunderLAN
-device tx0		# SMC 9432TX (83c170 ``EPIC'')
-device vr0		# VIA Rhine, Rhine II
-device vx0		# 3Com 3c590, 3c595 (``Vortex'')
-device wb0		# Winbond W89C840F
-device xl0		# 3Com 3c90x (``Boomerang'', ``Cyclone'')
+device		ax0		# ASIX AX88140A
+device		de0		# DEC/Intel DC21x4x (``Tulip'')
+device		fxp0		# Intel EtherExpress PRO/100B (82557, 82558)
+device		mx0		# Macronix 98713/98715/98725 (``PMAC'')
+device		pn0		# Lite-On 82c168/82c169 (``PNIC'')
+device		rl0		# RealTek 8129/8139
+device		sf0		# Adaptec AIC-6915 (``Starfire'')
+device		tl0		# Texas Instruments ThunderLAN
+device		tx0		# SMC 9432TX (83c170 ``EPIC'')
+device		vr0		# VIA Rhine, Rhine II
+device		vx0		# 3Com 3c590, 3c595 (``Vortex'')
+device		wb0		# Winbond W89C840F
+device		xl0		# 3Com 3c90x (``Boomerang'', ``Cyclone'')
 
 #
 # DP8390 NIC
