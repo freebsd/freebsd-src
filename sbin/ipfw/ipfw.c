@@ -644,7 +644,6 @@ int i;
 	unit=(short)atoi(sptr);
 
 	sprintf(buf,"%s%d",name,unit);
-printf("%s %s\n",buf,str);
 	if (strcmp(str,buf))
 		return 1;
 
