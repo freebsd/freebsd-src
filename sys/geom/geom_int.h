@@ -51,14 +51,6 @@ extern int g_debugflags;
 #define G_F_DISKIOCTL	64
 #define G_F_CTLDUMP	128
 
-/*
- * We actually have a number of drivers sharing the same major number
- * so we coordinate the major/minor usage here
- */
-#define GEOM_MAJOR		4
-#define GEOM_MINOR_STATS	0
-#define GEOM_MINOR_PROVIDERS	10
-
 /* geom_dump.c */
 void g_confxml(void *, int flag);
 void g_conf_specific(struct sbuf *sb, struct g_class *mp, struct g_geom *gp, struct g_provider *pp, struct g_consumer *cp);
