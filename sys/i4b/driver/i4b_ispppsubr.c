@@ -1497,6 +1497,16 @@ sppp_cp_input(const struct cp *cp, struct sppp *sp, struct mbuf *m)
 			/* fall through... */
 		case STATE_ACK_SENT:
 		case STATE_REQ_SENT:
+			/*
+			 * sppp_cp_change_state() have the side effect of
+			 * restarting the timeouts. We want to avoid that
+			 * if the state don't change, otherwise we won't
+			 * ever timeout and resend a configuration request
+			 * that got lost.
+			 */
+			if (sp->state[cp->protoidx] == (rv ? STATE_ACK_SENT:
+			    STATE_REQ_SENT))
+				break;
 			sppp_cp_change_state(cp, sp, rv?
 					     STATE_ACK_SENT: STATE_REQ_SENT);
 			break;
