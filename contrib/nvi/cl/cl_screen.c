@@ -5,6 +5,8 @@
  *	Keith Bostic.  All rights reserved.
  *
  * See the LICENSE file for redistribution information.
+ *
+ * $FreeBSD$
  */
 
 #include "config.h"
@@ -368,6 +370,8 @@ cl_vi_init(sp)
 
 fast:	/* Set the terminal modes. */
 	if (tcsetattr(STDIN_FILENO, TCSASOFT | TCSADRAIN, &clp->vi_enter)) {
+		if (errno == EINTR)
+			goto fast;
 		msgq(sp, M_SYSERR, "tcsetattr");
 err:		(void)cl_vi_end(sp->gp);
 		return (1);
@@ -486,6 +490,8 @@ cl_ex_init(sp)
 #endif
 
 fast:	if (tcsetattr(STDIN_FILENO, TCSADRAIN | TCSASOFT, &clp->ex_enter)) {
+		if (errno == EINTR)
+			goto fast;
 		msgq(sp, M_SYSERR, "tcsetattr");
 		return (1);
 	}
