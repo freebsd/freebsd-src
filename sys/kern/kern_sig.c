@@ -1108,8 +1108,11 @@ psignal(p, sig)
 	 * Defer further processing for signals which are held,
 	 * except that stopped processes must be continued by SIGCONT.
 	 */
-	if (action == SIG_HOLD && (!(prop & SA_CONT) || p->p_stat != SSTOP))
+	mtx_enter(&sched_lock, MTX_SPIN);
+	if (action == SIG_HOLD && (!(prop & SA_CONT) || p->p_stat != SSTOP)) {
+		mtx_exit(&sched_lock, MTX_SPIN);
 		return;
+	}
 	s = splhigh();
 	switch (p->p_stat) {
 
@@ -1242,6 +1245,7 @@ runfast:
 run:
 	setrunnable(p);
 out:
+	mtx_exit(&sched_lock, MTX_SPIN);
 	splx(s);
 }
 
@@ -1417,9 +1421,11 @@ stop(p)
 	register struct proc *p;
 {
 
+	mtx_enter(&sched_lock, MTX_SPIN);
 	p->p_stat = SSTOP;
 	p->p_flag &= ~P_WAITED;
 	wakeup((caddr_t)p->p_pptr);
+	mtx_exit(&sched_lock, MTX_SPIN);
 }
 
 /*
