@@ -45,7 +45,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)ping.c	8.1 (Berkeley) 6/5/93";
 */
 static const char rcsid[] =
-	"$Id: ping.c,v 1.17 1997/03/01 20:19:18 wollman Exp $";
+	"$Id: ping.c,v 1.18 1997/03/02 06:32:40 imp Exp $";
 #endif /* not lint */
 
 /*
@@ -138,6 +138,7 @@ char BSPACE = '\b';		/* characters written for flood */
 char DOT = '.';
 char *hostname;
 int ident;			/* process id to identify our packets */
+int uid;			/* cached uid for micro-optimization */
 
 /* counters */
 long npackets;			/* max packets to transmit */
@@ -201,6 +202,7 @@ main(argc, argv)
 	sockerrno = errno;
 
 	setuid(getuid());
+	uid = getuid();
 
 	preload = 0;
 
@@ -671,7 +673,7 @@ pr_pack(buf, cc, from)
 #endif
 		struct icmp *oicmp = (struct icmp *)(oip + 1);
 
-		if (((options & F_VERBOSE) && getuid() == 0) ||
+		if (((options & F_VERBOSE) && uid == 0) ||
 		    (!(options & F_QUIET2) &&
 		     (oip->ip_dst.s_addr ==
 			 ((struct sockaddr_in *)&whereto)->sin_addr.s_addr) &&
@@ -1171,7 +1173,7 @@ usage(argv0)
 		argv0 = strrchr(argv0,'/') + 1;
 	fprintf(stderr,
 		"usage: %s [-QRadfnqrv] [-c count] [-i wait] [-l preload] "
-		"[-p pattern]\n\t\t[-s packetsize] "
+		"[-p pattern]\n       [-s packetsize] "
 		"[host | [-L] [-I iface] [-T ttl] mcast-group]\n",
 		argv0);
 	exit(EX_USAGE);

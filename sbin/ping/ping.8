@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)ping.8	8.2 (Berkeley) 12/11/93
-.\"	$Id: ping.8,v 1.8 1997/03/01 20:19:18 wollman Exp $
+.\"	$Id: ping.8,v 1.9 1997/03/02 06:32:42 imp Exp $
 .\"
 .Dd March 1, 1997
 .Dt PING 8
@@ -120,6 +120,7 @@ is specified,
 .Nm ping
 sends that many packets as fast as possible before falling into its normal
 mode of behavior.
+Only the super-user may use this option.
 .It Fl L
 Suppress loopback of multicast packets.
 This flag only applies if the ping destination is a multicast address.
