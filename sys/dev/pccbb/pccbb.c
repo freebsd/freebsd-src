@@ -202,7 +202,7 @@ SYSCTL_NODE(_hw, OID_AUTO, cbb, CTLFLAG_RD, 0, "CBB parameters");
 /* There's no way to say TUNEABLE_LONG to get the right types */
 u_long pccbb_start_mem = PCCBB_START_MEM;
 TUNABLE_INT("hw.cbb.start_memory", (int *)&pccbb_start_mem);
-SYSCTL_ULONG(_hw_cbb, OID_AUTO, start_mem, CTLFLAG_RW,
+SYSCTL_ULONG(_hw_cbb, OID_AUTO, start_memory, CTLFLAG_RW,
     &pccbb_start_mem, PCCBB_START_MEM,
     "Starting address for memory allocations");
 
