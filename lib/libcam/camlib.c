@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: camlib.c,v 1.1 1998/09/15 06:16:46 gibbs Exp $
+ *	$Id: camlib.c,v 1.2 1998/10/12 21:54:00 ken Exp $
  */
 
 #include <sys/types.h>
@@ -586,7 +586,7 @@ cam_real_open_device(const char *path, int flags, struct cam_device *device,
 
 	if ((fd = open(path, flags)) < 0) {
 		sprintf(cam_errbuf, "%s: couldn't open passthrough device %s\n"
-			"%s: %s", func_name, newpath, func_name,
+			"%s: %s", func_name, path, func_name,
 			strerror(errno));
 		goto crod_bailout;
 	}
