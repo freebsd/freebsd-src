@@ -58,8 +58,6 @@ static void reseed(int);
 static void random_harvest_internal(struct timespec *, void *, u_int, u_int, u_int, enum esource);
 
 static void random_kthread(void *);
-void random_set_wakeup(int *, int);
-void random_set_wakeup_exit(int *, int, int);
 
 /* Structure holding the entropy state */
 struct random_state random_state;
