@@ -1,6 +1,6 @@
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.i386	7.1 5/10/91
-#	$Id: Makefile.i386,v 1.29 1994/08/18 22:34:36 wollman Exp $
+#	$Id: Makefile.i386,v 1.30 1994/08/23 04:21:21 jkh Exp $
 #
 # Makefile for FreeBSD
 #
@@ -83,12 +83,13 @@ PROFILE_C=	${CC} -S -c ${CFLAGS} $< ; \
 LIBKERNP=$S/libkern/obj
 .else
 LIBKERNP=$S/libkern
-.fi
+.endif
+
 .if defined(PROF)
 LIBKERN=${LIBKERNP}/libkern_p.a
 .else
 LIBKERN=${LIBKERNP}/libkern.a
-.fi
+.endif
 
 libkern.a: ${LIBKERN}
 	ln -s ${LIBKERN} libkern.a
