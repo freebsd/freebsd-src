@@ -1,69 +1,64 @@
 # $FreeBSD$
 
-MAN=	BUF_LOCK.9 BUF_LOCKFREE.9 BUF_LOCKINIT.9 \
-	BUF_REFCNT.9 BUF_TIMELOCK.9 BUF_UNLOCK.9 \
-	CONDSPLASSERT.9 DECLARE_MODULE.9 DELAY.9 DEV_MODULE.9 KASSERT.9 MD5.9 \
-	MODULE_DEPEND.9 MODULE_VERSION.9 SPLASSERT.9 SYSCALL_MODULE.9 \
-	VFS.9 VFS_FHTOVP.9 VFS_INIT.9 VFS_MOUNT.9 VFS_QUOTACTL.9 \
-	VFS_ROOT.9 VFS_START.9 VFS_STATFS.9 VFS_SYNC.9 VFS_UNMOUNT.9 \
-	VFS_VGET.9 VFS_VPTOFH.9 VFS_CHECKEXP.9 \
-	VOP_ACCESS.9 VOP_ADVLOCK.9 VOP_ATTRIB.9 \
-	VOP_BWRITE.9 VOP_CREATE.9 VOP_FSYNC.9 VOP_LEASE.9 \
-	VOP_GETPAGES.9 VOP_GETVOBJECT.9 VOP_INACTIVE.9 VOP_IOCTL.9 VOP_LINK.9 \
-	VOP_LOCK.9 VOP_LOOKUP.9 VOP_OPENCLOSE.9 \
+MAN=	BUF_LOCK.9 BUF_LOCKFREE.9 BUF_LOCKINIT.9 BUF_REFCNT.9 \
+	BUF_TIMELOCK.9 BUF_UNLOCK.9 BUS_PRINT_CHILD.9 BUS_READ_IVAR.9 \
+	BUS_SETUP_INTR.9 \
+	CONDSPLASSERT.9 \
+	DECLARE_MODULE.9 DELAY.9 DEVICE_ATTACH.9 DEVICE_DETACH.9 \
+	DEVICE_IDENTIFY.9 DEVICE_PROBE.9 DEVICE_SHUTDOWN.9 \
+	DEV_MODULE.9 DRIVER_MODULE.9 \
+	KASSERT.9 \
+	MD5.9 MODULE_DEPEND.9 MODULE_VERSION.9 \
+	SPLASSERT.9 SYSCALL_MODULE.9 \
+	VFS.9 VFS_CHECKEXP.9 VFS_FHTOVP.9 VFS_INIT.9 VFS_MOUNT.9 \
+	VFS_QUOTACTL.9 VFS_ROOT.9 VFS_START.9 VFS_STATFS.9 \
+	VFS_SYNC.9 VFS_UNMOUNT.9 VFS_VGET.9 VFS_VPTOFH.9 VOP_ACCESS.9 \
+	VOP_ACLCHECK.9 VOP_ADVLOCK.9 VOP_ATTRIB.9 VOP_BWRITE.9 \
+	VOP_CREATE.9 VOP_FSYNC.9 VOP_GETACL.9 VOP_GETEXTATTR.9 \
+	VOP_GETPAGES.9 VOP_GETVOBJECT.9 VOP_INACTIVE.9 VOP_IOCTL.9 \
+	VOP_LEASE.9 VOP_LINK.9 VOP_LOCK.9 VOP_LOOKUP.9 VOP_OPENCLOSE.9 \
 	VOP_PATHCONF.9 VOP_PRINT.9 VOP_RDWR.9 VOP_READDIR.9 \
 	VOP_READLINK.9 VOP_REALLOCBLKS.9 VOP_REMOVE.9 VOP_RENAME.9 \
-	VOP_STRATEGY.9 \
-	accf_data.9 accf_http.9 at_exit.9 at_fork.9 atomic.9 \
-	bios.9 boot.9 buf.9 \
-	cd.9 condvar.9 copy.9 critical_enter.9 \
-	devstat.9 \
-	devtoname.9 \
+	VOP_SETACL.9 VOP_SETEXTATTR.9 VOP_STRATEGY.9 \
+	accept_filter.9 accf_data.9 accf_http.9 acl.9 at_exit.9 \
+	at_fork.9 atomic.9 \
+	bios.9 boot.9 buf.9 bus_alloc_resource.9 bus_generic_attach.9 \
+	bus_generic_detach.9 bus_generic_map_intr.9 \
+	bus_generic_print_child.9 bus_generic_read_ivar.9 \
+	bus_generic_shutdown.9 bus_release_resource.9 \
+	cd.9 cdevsw_add.9 cdevsw_remove.9 condvar.9 copy.9 \
+	critical_enter.9 \
+	devclass.9 devclass_add_driver.9 devclass_find.9 \
+	devclass_get_device.9 devclass_get_devices.9 \
+	devclass_get_maxunit.9 devclass_get_name.9 devclass_get_softc.9 \
+	device.9 device_add_child.9 device_delete_child.9 \
+	device_enable.9 device_find_child.9 device_get_children.9 \
+	device_get_devclass.9 device_get_driver.9 device_get_ivars.9 \
+	device_get_softc.9 device_get_state.9 device_get_unit.9 \
+	device_probe_and_attach.9 device_quiet.9 device_set_desc.9 \
+	device_set_flags.9 devstat.9 devsw.9 devtoname.9 driver.9 \
+	extattr.9 \
 	fetch.9 \
 	get_cyclecounter.9 \
 	ifnet.9 inittodr.9 intro.9 ithread.9 \
-	kernacc.9 kthread.9 ktr.9 \
-	lockcount.9 lockdestroy.9 lockmgr.9 lockmgr_printinfo.9 lockstatus.9 \
-	malloc.9 make_dev.9 mbuf.9 mbchain.9 mdchain.9 \
-	microseq.9 microtime.9 microuptime.9 \
-	mi_switch.9 module.9 mutex.9 \
+	kernacc.9 kobj.9 kthread.9 ktr.9 \
+	lockcount.9 lockdestroy.9 lockmgr.9 lockmgr_printinfo.9 \
+	lockstatus.9 \
+	major.9 make_dev.9 malloc.9 mbchain.9 mbuf.9 mdchain.9 \
+	mi_switch.9 microseq.9 microtime.9 microuptime.9 minor.9 \
+	module.9 mutex.9 \
 	namei.9 \
 	panic.9 pfil.9 physio.9 posix4.9 printf.9 psignal.9 \
-	random.9 resettodr.9 rtalloc.9 rtentry.9 runqueue.9 \
-	scheduler.9 sleep.9 sleepqueue.9 spl.9 store.9 style.9 suser.9 swi.9 \
-	sx.9 time.9 timeout.9 tvtohz.9 \
-	uio.9 \
-	vcount.9 vfs_busy.9 vfs_mount.9 vfs_unbusy.9 \
-	vget.9 vinvalbuf.9 vnode.9 vput.9 vref.9 vrele.9 vslock.9
-
-MAN+=	device.9 device_add_child.9 device_delete_child.9 device_enable.9 \
-	device_find_child.9 device_get_children.9 \
-	device_get_devclass.9 device_get_driver.9 \
-	device_get_ivars.9 device_get_softc.9 device_get_state.9 \
-	device_get_unit.9 device_probe_and_attach.9 device_quiet.9 \
-	device_set_desc.9 device_set_flags.9 driver.9 \
-	devclass.9 devclass_add_driver.9 devclass_find.9 \
-	devclass_get_device.9 devclass_get_devices.9 devclass_get_maxunit.9 \
-	devclass_get_name.9 devclass_get_softc.9 \
-	DEVICE_ATTACH.9 DEVICE_DETACH.9 DEVICE_IDENTIFY.9 DEVICE_PROBE.9 \
-	DEVICE_SHUTDOWN.9 \
-	DRIVER_MODULE.9 BUS_PRINT_CHILD.9 BUS_SETUP_INTR.9 \
-	BUS_READ_IVAR.9 \
-	bus_generic_attach.9 bus_generic_detach.9 bus_generic_map_intr.9 \
-	bus_generic_print_child.9 bus_generic_read_ivar.9 \
-	bus_generic_shutdown.9 \
-	bus_alloc_resource.9 bus_release_resource.9 \
-	VOP_ACLCHECK.9 VOP_GETACL.9 VOP_GETEXTATTR.9 VOP_SETACL.9 \
-	VOP_SETEXTATTR.9 acl.9 extattr.9 kobj.9 taskqueue.9 accept_filter.9 \
-	sbuf.9 resource_int_value.9 resource_query_string.9 \
-	zone.9 \
-	sysctl_add_oid.9 sysctl_ctx_init.9
-
-MAN+=	cdevsw_add.9 cdevsw_remove.9 \
-	devsw.9 \
-	major.9 minor.9 \
-	umajor.9 uminor.9 \
-	vn_isdisk.9
+	random.9 resettodr.9 resource_int_value.9 resource_query_string.9 \
+	rtalloc.9 rtentry.9 runqueue.9 \
+	sbuf.9 scheduler.9 sleep.9 sleepqueue.9 spl.9 store.9 \
+	style.9 suser.9 swi.9 sx.9 sysctl_add_oid.9 sysctl_ctx_init.9 \
+	taskqueue.9 time.9 timeout.9 tvtohz.9 \
+	uio.9 umajor.9 uminor.9 \
+	vcount.9 vfs_busy.9 vfs_mount.9 vfs_unbusy.9 vget.9 \
+	vinvalbuf.9 vn_isdisk.9 vnode.9 vput.9 vref.9 vrele.9 \
+	vslock.9 \
+	zone.9
 
 MLINKS+=MD5.9 MD5Init.9 MD5.9 MD5Transform.9
 MLINKS+=VOP_ATTRIB.9 VOP_GETATTR.9
