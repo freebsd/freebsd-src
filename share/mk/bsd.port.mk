@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.215 1996/06/26 21:12:28 gpalmer Exp $
+# $Id: bsd.port.mk,v 1.216 1996/07/05 06:12:12 jkh Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -685,12 +685,12 @@ do-patch:
 
 .if !target(do-configure)
 do-configure:
-	@if [ -f ${SCRIPTDIR}/configure ]; then \
+	@if [ -f ${SCRIPTDIR}/${CONFIGURE_SCRIPT} ]; then \
 		cd ${.CURDIR} && ${SETENV} CURDIR=${.CURDIR} DISTDIR=${DISTDIR}\
 		  WRKDIR=${WRKDIR} WRKSRC=${WRKSRC} PATCHDIR=${PATCHDIR} \
 		  SCRIPTDIR=${SCRIPTDIR} FILESDIR=${FILESDIR} \
 		  PORTSDIR=${PORTSDIR} PREFIX=${PREFIX} DEPENDS="${DEPENDS}" \
-		  X11BASE=${X11BASE} /bin/sh ${SCRIPTDIR}/configure; \
+		  X11BASE=${X11BASE} /bin/sh ${SCRIPTDIR}/${CONFIGURE_SCRIPT}; \
 	fi
 .if defined(HAS_CONFIGURE)
 	@(cd ${WRKSRC} && CC="${CC}" ac_cv_path_CC="${CC}" CFLAGS="${CFLAGS}" \
