@@ -31,6 +31,8 @@ ddb/db_variables.c	optional ddb
 ddb/db_watch.c		optional ddb
 ddb/db_write_cmd.c	optional ddb
 dev/ccd/ccd.c		optional ccd device-driver
+dev/dpt/dpt_control.c	optional dpt device-driver
+dev/dpt/dpt_scsi.c	optional dpt device-driver
 dev/en/midway.c		optional en device-driver
 dev/pdq/pdq.c		optional fea device-driver
 dev/pdq/pdq_ifsubr.c	optional fea device-driver
@@ -362,6 +364,7 @@ pci/aic7870.c		optional ahc device-driver			\
 	dependency	"aic7xxx_reg.h $S/pci/aic7870.c"
 pci/brooktree848.c	optional bktr device-driver
 pci/bt9xx.c		optional bt device-driver
+pci/dpt_pci.c		optional dpt device-driver
 pci/cy_pci.c		optional cy device-driver
 pci/if_de.c		optional de device-driver
 pci/if_ed_p.c		optional ed device-driver
@@ -447,4 +450,3 @@ vm/vm_pager.c		standard
 vm/vm_swap.c		standard
 vm/vm_unix.c		standard
 vm/vnode_pager.c	standard
-vm/vm_zone.c		standard
