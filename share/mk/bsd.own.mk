@@ -1,4 +1,4 @@
-#	$Id: bsd.own.mk,v 1.13 1998/03/19 13:32:43 bde Exp $
+#	$Id: bsd.own.mk,v 1.14 1998/05/26 20:12:54 sos Exp $
 #
 # The include file <bsd.own.mk> set common variables for owner,
 # group, mode, and directories. Defaults are in brackets.
@@ -28,6 +28,8 @@
 #		own install script so that the entire system can be made
 #		stripped/not-stripped using a single knob. [-s]
 #
+#
+# BINFORMAT	Default executable format. [elf on alpha, aout otherwise]
 #
 #
 # BINOWN	Binary owner. [bin]
@@ -115,6 +117,17 @@
 # NLSMODE	National Language Support files mode. [${NONBINMODE}]
 #
 # INCLUDEDIR	Base path for standard C include files [/usr/include]
+
+# This is only here for bootstrapping and is not officially exported
+# from here.  It has normally already been defined in sys.mk.
+MACHINE_ARCH?=	i386
+
+# Default executable format
+.if ${MACHINE_ARCH} == "alpha"
+BINFORMAT?=	elf
+.else
+BINFORMAT?=	aout
+.endif
 
 # Binaries
 BINOWN?=	bin
