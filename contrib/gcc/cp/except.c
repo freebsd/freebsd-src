@@ -1,5 +1,5 @@
 /* Handle exceptional things in C++.
-   Copyright (C) 1989, 92-97, 1998 Free Software Foundation, Inc.
+   Copyright (C) 1989, 92-97, 1998, 1999 Free Software Foundation, Inc.
    Contributed by Michael Tiemann <tiemann@cygnus.com>
    Rewritten by Mike Stump <mrs@cygnus.com>, based upon an
    initial re-implementation courtesy Tad Hunt.
@@ -20,6 +20,8 @@ You should have received a copy of the GNU General Public License
 along with GNU CC; see the file COPYING.  If not, write to
 the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
+
+/* $FreeBSD$ */
 
 
 #include "config.h"
@@ -52,12 +54,13 @@ static tree call_eh_info PROTO((void));
 static void push_eh_info PROTO((void));
 static tree get_eh_info PROTO((void));
 static tree get_eh_value PROTO((void));
+#if 0
 static tree get_eh_type PROTO((void));
 static tree get_eh_caught PROTO((void));
 static tree get_eh_handlers PROTO((void));
+#endif
 static tree do_pop_exception PROTO((void));
 static void process_start_catch_block PROTO((tree, tree));
-static void process_start_catch_block_old PROTO((tree, tree));
 static tree build_eh_type_type_ref PROTO((tree));
 static tree build_terminate_handler PROTO((void));
 static tree alloc_eh_object PROTO((tree));
@@ -248,14 +251,14 @@ call_eh_info ()
 {
   tree fn;
 
-  fn = get_identifier ("__cp_eh_info");
+  fn = get_identifier ("__start_cp_handler");
   if (IDENTIFIER_GLOBAL_VALUE (fn))
     fn = IDENTIFIER_GLOBAL_VALUE (fn);
   else
     {
       tree t1, t, fields[7];
 
-      /* Declare cp_eh_info * __cp_eh_info (void),
+      /* Declare cp_eh_info * __start_cp_handler (void),
 	 as defined in exception.cc. */
       push_obstacks_nochange ();
       end_temporary_allocation ();
@@ -269,9 +272,11 @@ call_eh_info ()
                     get_identifier ("dynamic_handler_chain"), ptr_type_node);
       fields[2] = build_lang_field_decl (FIELD_DECL, 
                     get_identifier ("info"), ptr_type_node);
+      fields[3] = build_lang_field_decl (FIELD_DECL, 
+                    get_identifier ("table_index"), ptr_type_node);
       /* N.B.: The fourth field LEN is expected to be
 	 the number of fields - 1, not the total number of fields.  */
-      finish_builtin_type (t1, "eh_context", fields, 2, ptr_type_node);
+      finish_builtin_type (t1, "eh_context", fields, 3, ptr_type_node);
       t1 = build_pointer_type (t1);
 
       t1= make_lang_type (RECORD_TYPE);
@@ -315,9 +320,9 @@ call_eh_info ()
       DECL_ARTIFICIAL (fn) = 1;
       pushdecl_top_level (fn);
       make_function_rtl (fn);
-      assemble_external (fn);
       pop_obstacks ();
     }
+  mark_used (fn);
   return build_function_call (fn, NULL_TREE);
 }
 
@@ -360,6 +365,7 @@ get_eh_value ()
 
 /* Returns a reference to the current exception type.  */
 
+#if 0
 static tree
 get_eh_type ()
 {
@@ -386,6 +392,7 @@ get_eh_handlers ()
   return build_component_ref (get_eh_info (), get_identifier ("handlers"),
 			      NULL_TREE, 0);
 }
+#endif
 
 /* Build a type value for use at runtime for a type that is matched
    against by the exception handling system.  */
@@ -394,7 +401,7 @@ static tree
 build_eh_type_type (type)
      tree type;
 {
-  char *typestring;
+  const char *typestring;
   tree exp;
 
   if (type == error_mark_node)
@@ -408,9 +415,7 @@ build_eh_type_type (type)
   type = TYPE_MAIN_VARIANT (type);
 
   if (flag_rtti)
-    {
-      return build1 (ADDR_EXPR, ptr_type_node, get_typeid (type));
-    }
+    return build1 (ADDR_EXPR, ptr_type_node, get_typeid_1 (type));
 
   typestring = build_overload_name (type, 1, 1);
   exp = combine_strings (build_string (strlen (typestring)+1, typestring));
@@ -424,7 +429,7 @@ static tree
 build_eh_type_type_ref (type)
      tree type;
 {
-  char *typestring;
+  const char *typestring;
   tree exp;
 
   if (type == error_mark_node)
@@ -528,10 +533,10 @@ do_pop_exception ()
       DECL_ARTIFICIAL (fn) = 1;
       pushdecl_top_level (fn);
       make_function_rtl (fn);
-      assemble_external (fn);
       pop_obstacks ();
     }
 
+  mark_used (fn);
   /* Arrange to do a dynamically scoped cleanup upon exit from this region.  */
   cleanup = lookup_name (get_identifier ("__exception_info"), 0);
   cleanup = build_function_call (fn, expr_tree_cons
@@ -545,9 +550,6 @@ static void
 push_eh_cleanup ()
 {
   int yes;
-
-  expand_expr (build_unary_op (PREINCREMENT_EXPR, get_eh_handlers (), 1),
-	       const0_rtx, VOIDmode, EXPAND_NORMAL);
 
   yes = suspend_momentary ();
   /* All cleanups must last longer than normal.  */
@@ -597,135 +599,14 @@ expand_start_catch_block (declspecs, declarator)
   if (! doing_eh (1))
     return;
 
-  if (flag_new_exceptions)
-    process_start_catch_block (declspecs, declarator);
-  else
-    process_start_catch_block_old (declspecs, declarator);
+  process_start_catch_block (declspecs, declarator);
 }
 
-
-/* This function performs the expand_start_catch_block functionality for 
-   exceptions implemented in the old style, where catch blocks were all
-   called, and had to check the runtime information themselves. */
-
-static void 
-process_start_catch_block_old (declspecs, declarator)
-     tree declspecs, declarator;
-{
-  rtx false_label_rtx;
-  tree decl = NULL_TREE;
-  tree init;
-
-  /* Create a binding level for the eh_info and the exception object
-     cleanup.  */
-  pushlevel (0);
-  expand_start_bindings (0);
-
-  false_label_rtx = gen_label_rtx ();
-  push_label_entry (&false_label_stack, false_label_rtx, NULL_TREE);
-
-  emit_line_note (input_filename, lineno);
-
-  push_eh_info ();
-
-  if (declspecs)
-    {
-      decl = grokdeclarator (declarator, declspecs, CATCHPARM, 1, NULL_TREE);
-
-      if (decl == NULL_TREE)
-	error ("invalid catch parameter");
-    }
-
-  if (decl)
-    {
-      tree exp;
-      rtx call_rtx, return_value_rtx;
-      tree init_type;
-
-      /* Make sure we mark the catch param as used, otherwise we'll get
-	 a warning about an unused ((anonymous)).  */
-      TREE_USED (decl) = 1;
-
-      /* Figure out the type that the initializer is.  */
-      init_type = TREE_TYPE (decl);
-      if (TREE_CODE (init_type) != REFERENCE_TYPE
-	  && TREE_CODE (init_type) != POINTER_TYPE)
-	init_type = build_reference_type (init_type);
-
-      exp = get_eh_value ();
-
-      /* Since pointers are passed by value, initialize a reference to
-	 pointer catch parm with the address of the value slot.  */
-      if (TREE_CODE (init_type) == REFERENCE_TYPE
-	  && TREE_CODE (TREE_TYPE (init_type)) == POINTER_TYPE)
-	exp = build_unary_op (ADDR_EXPR, exp, 1);
-
-      exp = expr_tree_cons (NULL_TREE,
-		       build_eh_type_type (TREE_TYPE (decl)),
-		       expr_tree_cons (NULL_TREE,
-				  get_eh_type (),
-				  expr_tree_cons (NULL_TREE, exp, NULL_TREE)));
-      exp = build_function_call (CatchMatch, exp);
-      call_rtx = expand_call (exp, NULL_RTX, 0);
-
-      return_value_rtx = hard_function_value (ptr_type_node, exp);
-
-      /* did the throw type match function return TRUE? */
-      emit_cmp_insn (return_value_rtx, const0_rtx, EQ, NULL_RTX,
-		    GET_MODE (return_value_rtx), 0, 0);
-
-      /* if it returned FALSE, jump over the catch block, else fall into it */
-      emit_jump_insn (gen_beq (false_label_rtx));
-
-      push_eh_cleanup ();
-
-      /* Create a binding level for the parm.  */
-      pushlevel (0);
-      expand_start_bindings (0);
-
-      init = convert_from_reference (make_tree (init_type, call_rtx));
-
-      /* If the constructor for the catch parm exits via an exception, we
-         must call terminate.  See eh23.C.  */
-      if (TYPE_NEEDS_CONSTRUCTING (TREE_TYPE (decl)))
-	{
-	  /* Generate the copy constructor call directly so we can wrap it.
-	     See also expand_default_init.  */
-	  init = ocp_convert (TREE_TYPE (decl), init,
-			      CONV_IMPLICIT|CONV_FORCE_TEMP, 0);
-	  init = build (TRY_CATCH_EXPR, TREE_TYPE (init), init,
-			build_terminate_handler ());
-	}
-
-      /* Let `cp_finish_decl' know that this initializer is ok.  */
-      DECL_INITIAL (decl) = init;
-      decl = pushdecl (decl);
-
-      start_decl_1 (decl);
-      cp_finish_decl (decl, DECL_INITIAL (decl),
-		      NULL_TREE, 0, LOOKUP_ONLYCONVERTING);
-    }
-  else
-    {
-      push_eh_cleanup ();
-
-      /* Create a binding level for the parm.  */
-      pushlevel (0);
-      expand_start_bindings (0);
-
-      /* Fall into the catch all section.  */
-    }
-
-  init = build_modify_expr (get_eh_caught (), NOP_EXPR, integer_one_node);
-  expand_expr (init, const0_rtx, VOIDmode, EXPAND_NORMAL);
-
-  emit_line_note (input_filename, lineno);
-}
 
 /* This function performs the expand_start_catch_block functionality for 
    exceptions implemented in the new style. __throw determines whether
    a handler needs to be called or not, so the handler itself has to do
-   nothing additionaal. */
+   nothing additional. */
 
 static void 
 process_start_catch_block (declspecs, declarator)
@@ -806,7 +687,9 @@ process_start_catch_block (declspecs, declarator)
       DECL_INITIAL (decl) = init;
       decl = pushdecl (decl);
 
-      cp_finish_decl (decl, init, NULL_TREE, 0, LOOKUP_ONLYCONVERTING);
+      start_decl_1 (decl);
+      cp_finish_decl (decl, init, NULL_TREE, 0,
+		      LOOKUP_ONLYCONVERTING|DIRECT_BIND);
     }
   else
     {
@@ -819,12 +702,8 @@ process_start_catch_block (declspecs, declarator)
       /* Fall into the catch all section.  */
     }
 
-  init = build_modify_expr (get_eh_caught (), NOP_EXPR, integer_one_node);
-  expand_expr (init, const0_rtx, VOIDmode, EXPAND_NORMAL);
-
   emit_line_note (input_filename, lineno);
 }
-
 
 
 /* Call this to end a catch block.  Its responsible for emitting the
@@ -850,10 +729,7 @@ expand_end_catch_block ()
      documentation.  */
   expand_goto (top_label_entry (&caught_return_label_stack));
 
-  /* label we emit to jump to if this catch block didn't match.  */
-  /* This the closing } in the `if (eq) {' of the documentation.  */
-  if (! flag_new_exceptions)
-    emit_label (pop_label_entry (&false_label_stack));
+  end_catch_handler ();
 }
 
 /* An exception spec is implemented more or less like:
@@ -895,7 +771,7 @@ expand_end_eh_spec (raises)
   TREE_HAS_CONSTRUCTOR (types) = 1;
 
   /* We can't pass the CONSTRUCTOR directly, so stick it in a variable.  */
-  tmp = build_array_type (const_ptr_type_node, NULL_TREE);
+  tmp = build_cplus_array_type (const_ptr_type_node, NULL_TREE);
   decl = build_decl (VAR_DECL, NULL_TREE, tmp);
   DECL_ARTIFICIAL (decl) = 1;
   DECL_INITIAL (decl) = types;
@@ -923,10 +799,10 @@ expand_end_eh_spec (raises)
       TREE_THIS_VOLATILE (fn) = 1;
       pushdecl_top_level (fn);
       make_function_rtl (fn);
-      assemble_external (fn);
       pop_obstacks ();
     }
 
+  mark_used (fn);
   tmp = expr_tree_cons (NULL_TREE, build_int_2 (count, 0), expr_tree_cons
 			(NULL_TREE, decl, NULL_TREE));
   tmp = build_call (fn, TREE_TYPE (TREE_TYPE (fn)), tmp);
@@ -1065,10 +941,10 @@ alloc_eh_object (type)
       DECL_ARTIFICIAL (fn) = 1;
       pushdecl_top_level (fn);
       make_function_rtl (fn);
-      assemble_external (fn);
       pop_obstacks ();
     }
 
+  mark_used (fn);
   exp = build_function_call (fn, expr_tree_cons
 			     (NULL_TREE, size_in_bytes (type), NULL_TREE));
   exp = build1 (NOP_EXPR, build_pointer_type (type), exp);
@@ -1118,11 +994,8 @@ expand_throw (exp)
 	  pop_obstacks ();
 	}
 
-      if (TREE_CODE (TREE_TYPE (exp)) == POINTER_TYPE)
-	{
-	  throw_type = build_eh_type (exp);
-	  exp = build_reinterpret_cast (ptr_type_node, exp);
-	}
+      if (TYPE_PTR_P (TREE_TYPE (exp)))
+	throw_type = build_eh_type (exp);
       else
 	{
 	  tree object, ptr;
@@ -1153,13 +1026,11 @@ expand_throw (exp)
 	     ourselves into expand_call.  */
 	  if (TREE_SIDE_EFFECTS (exp))
 	    {
-	      tree temp = build (VAR_DECL, TREE_TYPE (exp));
+	      tree temp = build_decl (VAR_DECL, NULL_TREE, TREE_TYPE (exp));
 	      DECL_ARTIFICIAL (temp) = 1;
-	      layout_decl (temp, 0);
 	      DECL_RTL (temp) = assign_temp (TREE_TYPE (exp), 2, 0, 1);
-	      expand_expr (build (INIT_EXPR, TREE_TYPE (exp), temp, exp),
-			   NULL_RTX, VOIDmode, 0);
-	      expand_decl_cleanup (NULL_TREE, maybe_build_cleanup (temp));
+	      DECL_INITIAL (temp) = exp;
+	      cp_finish_decl (temp, exp, NULL_TREE, 0, LOOKUP_ONLYCONVERTING);
 	      exp = temp;
 	    }
 #endif
@@ -1196,6 +1067,10 @@ expand_throw (exp)
 	  exp = ptr;
 	}
 
+      /* Cast EXP to `void *' so that it will match the prototype for
+	 __cp_push_exception.  */
+      exp = convert (ptr_type_node, exp);
+
       if (cleanup == NULL_TREE)
 	{
 	  cleanup = build_int_2 (0, 0);
@@ -1223,10 +1098,10 @@ expand_throw (exp)
 	  DECL_ARTIFICIAL (fn) = 1;
 	  pushdecl_top_level (fn);
 	  make_function_rtl (fn);
-	  assemble_external (fn);
 	  pop_obstacks ();
 	}
 
+      mark_used (fn);
       e = expr_tree_cons (NULL_TREE, exp, expr_tree_cons
 			  (NULL_TREE, throw_type, expr_tree_cons
 			   (NULL_TREE, cleanup, NULL_TREE)));
@@ -1254,10 +1129,10 @@ expand_throw (exp)
 	  DECL_ARTIFICIAL (fn) = 1;
 	  pushdecl_top_level (fn);
 	  make_function_rtl (fn);
-	  assemble_external (fn);
 	  pop_obstacks ();
 	}
 
+      mark_used (fn);
       exp = build_function_call (fn, NULL_TREE);
       expand_expr (exp, const0_rtx, VOIDmode, EXPAND_NORMAL);
     }
@@ -1277,11 +1152,8 @@ build_throw (e)
   if (processing_template_decl)
     return build_min (THROW_EXPR, void_type_node, e);
 
-  if (! flag_ansi && e == null_node)
-    {
-      cp_warning ("throwing NULL");
-      e = integer_zero_node;
-    }
+  if (e == null_node)
+    cp_warning ("throwing NULL, which has integral, not pointer type");
 
   e = build1 (THROW_EXPR, void_type_node, e);
   TREE_SIDE_EFFECTS (e) = 1;
