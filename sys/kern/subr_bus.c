@@ -132,6 +132,7 @@ struct device_op_desc {
 };
 
 static MALLOC_DEFINE(M_BUS, "bus", "Bus data structures");
+static MALLOC_DEFINE(M_BUS_SC, "bus-sc", "Bus data structures, softc");
 
 #ifdef BUS_DEBUG
 
@@ -1257,7 +1258,7 @@ void
 device_set_softc(device_t dev, void *softc)
 {
 	if (dev->softc && !(dev->flags & DF_EXTERNALSOFTC))
-		free(dev->softc, M_BUS);
+		free(dev->softc, M_BUS_SC);
 	dev->softc = softc;
 	if (dev->softc)
 		dev->flags |= DF_EXTERNALSOFTC;
@@ -1396,7 +1397,7 @@ device_set_driver(device_t dev, driver_t *driver)
 		return (0);
 
 	if (dev->softc && !(dev->flags & DF_EXTERNALSOFTC)) {
-		free(dev->softc, M_BUS);
+		free(dev->softc, M_BUS_SC);
 		dev->softc = NULL;
 	}
 	kobj_delete((kobj_t) dev, 0);
@@ -1404,7 +1405,7 @@ device_set_driver(device_t dev, driver_t *driver)
 	if (driver) {
 		kobj_init((kobj_t) dev, (kobj_class_t) driver);
 		if (!(dev->flags & DF_EXTERNALSOFTC) && driver->size > 0) {
-			dev->softc = malloc(driver->size, M_BUS,
+			dev->softc = malloc(driver->size, M_BUS_SC,
 			    M_NOWAIT | M_ZERO);
 			if (!dev->softc) {
 				kobj_delete((kobj_t) dev, 0);
