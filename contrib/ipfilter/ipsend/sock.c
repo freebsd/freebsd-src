@@ -22,7 +22,9 @@ static const char rcsid[] = "@(#)$Id: sock.c,v 2.0.2.9.2.1 1997/11/28 03:36:01 d
 #ifndef	ultrix
 #include <fcntl.h>
 #endif
+#ifndef __FreeBSD__
 #include <sys/dir.h>
+#endif
 #define _KERNEL
 #define	KERNEL
 #ifdef	ultrix

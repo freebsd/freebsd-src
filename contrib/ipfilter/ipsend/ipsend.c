@@ -32,6 +32,7 @@ static const char rcsid[] = "@(#)$Id: ipsend.c,v 2.0.2.19 1997/10/12 09:48:38 da
 #ifndef	linux
 #include <netinet/ip_var.h>
 #endif
+#include <netinet/ip_compat.h>
 #include "ipsend.h"
 #include "ipf.h"
 
