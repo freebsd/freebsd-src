@@ -212,7 +212,7 @@ matchbyorigin(const char *origin, int *retval)
 		continue;
 	    cmd = plist_cmd(tmp + 1, &cp);
 	    if (cmd == PLIST_ORIGIN) {
-		if (strncmp(origin, cp, strlen(origin)) == 0)
+		if (strcmp(origin, cp) == 0)
 		    storeappend(store, installed[i]);
 		break;
 	    }
