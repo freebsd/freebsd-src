@@ -1476,6 +1476,12 @@ int * const		okayp;
 	*/
 	bits = TYPE_BIT(time_t) - 1;
 	/*
+	 * Limit to 32 bits or the things go crazy
+	 * when it tries to figure out times near 2^62 etc.
+	 */
+	if (bits > 31)
+		bits = 31;
+	/*
 	** If time_t is signed, then 0 is just above the median,
 	** assuming two's complement arithmetic.
 	** If time_t is unsigned, then (1 << bits) is just above the median.
