@@ -5,6 +5,16 @@ directly to him.  See end of file for further details.  For commonly
 done items, please see the end of the file.  Search for 'COMMON
 ITEMS:'
 
+20000904:
+	A new issue with the sendmail upgrade has come to light.
+	/etc/aliases has moved to /etc/mail/aliases.  Mergemaster will 
+	incorrectly install the default aliases in /etc/mail rather than
+	move the old one from /etc.  So you'll need to manually move the
+	file, create a symbolic link, remove the old /etc/aliases.db and
+	run newaliases.  For safety sake, you should stop sendmail
+	while doing this and run the upgrade when locally sourced email
+	is not likely to be generated.
+
 20000825:
 	/boot/device.hints is now required for installkernel to
 	succeed.  You should copy GENERIC.hints for your architecture
