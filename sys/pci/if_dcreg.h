@@ -710,13 +710,14 @@ struct dc_softc {
 	u_int8_t		dc_pmode;
 	u_int8_t		dc_link;
 	u_int8_t		dc_cachesize;
+	int			dc_romwidth;
 	int			dc_pnic_rx_bug_save;
 	unsigned char		*dc_pnic_rx_buf;
 	int			dc_if_flags;
 	int			dc_if_media;
 	u_int32_t		dc_flags;
 	u_int32_t		dc_txthresh;
-	u_int8_t		dc_srom[1024];
+	u_int8_t		*dc_srom;
 	struct dc_mediainfo	*dc_mi;
 	struct dc_list_data	*dc_ldata;
 	struct dc_chain_data	dc_cdata;

@@ -229,6 +229,7 @@ static void dc_eeprom_getword_pnic
 				(struct dc_softc *, int, u_int16_t *);
 static void dc_eeprom_getword_xircom
 				(struct dc_softc *, int, u_int16_t *);
+static void dc_eeprom_width	(struct dc_softc *);
 static void dc_read_eeprom	(struct dc_softc *, caddr_t, int, int, int);
 
 static void dc_mii_writebit	(struct dc_softc *, int);
@@ -256,6 +257,7 @@ static void dc_reset		(struct dc_softc *);
 static int dc_list_rx_init	(struct dc_softc *);
 static int dc_list_tx_init	(struct dc_softc *);
 
+static void dc_read_srom	(struct dc_softc *, int);
 static void dc_parse_21143_srom	(struct dc_softc *);
 static void dc_decode_leaf_sia	(struct dc_softc *, struct dc_eblock_sia *);
 static void dc_decode_leaf_mii	(struct dc_softc *, struct dc_eblock_mii *);
@@ -330,6 +332,70 @@ dc_delay(sc)
 		CSR_READ_4(sc, DC_BUSCTL);
 }
 
+void dc_eeprom_width(sc)
+	struct dc_softc		*sc;
+{
+	int i;
+
+	/* Force EEPROM to idle state. */
+	dc_eeprom_idle(sc);
+
+	/* Enter EEPROM access mode. */
+	CSR_WRITE_4(sc, DC_SIO, DC_SIO_EESEL);
+	dc_delay(sc);
+	DC_SETBIT(sc, DC_SIO, DC_SIO_ROMCTL_READ);
+	dc_delay(sc);
+	DC_CLRBIT(sc, DC_SIO, DC_SIO_EE_CLK);
+	dc_delay(sc);
+	DC_SETBIT(sc, DC_SIO, DC_SIO_EE_CS);
+	dc_delay(sc);
+
+	for (i = 3; i--;) {
+		if (6 & (1 << i))
+			DC_SETBIT(sc, DC_SIO, DC_SIO_EE_DATAIN);
+		else
+			DC_CLRBIT(sc, DC_SIO, DC_SIO_EE_DATAIN);
+		dc_delay(sc);
+		DC_SETBIT(sc, DC_SIO, DC_SIO_EE_CLK);
+		dc_delay(sc);
+		DC_CLRBIT(sc, DC_SIO, DC_SIO_EE_CLK);
+		dc_delay(sc);
+	}
+
+	for (i = 1; i <= 12; i++) {
+		DC_SETBIT(sc, DC_SIO, DC_SIO_EE_CLK);
+		dc_delay(sc);
+		if (!(CSR_READ_4(sc, DC_SIO) & DC_SIO_EE_DATAOUT)) {
+			DC_CLRBIT(sc, DC_SIO, DC_SIO_EE_CLK);
+			dc_delay(sc);
+			break;
+		}
+		DC_CLRBIT(sc, DC_SIO, DC_SIO_EE_CLK);
+		dc_delay(sc);
+	}
+
+	/* Turn off EEPROM access mode. */
+	dc_eeprom_idle(sc);
+
+	if (i < 4 || i > 12)
+		sc->dc_romwidth = 6;
+	else
+		sc->dc_romwidth = i;
+
+	/* Enter EEPROM access mode. */
+	CSR_WRITE_4(sc, DC_SIO, DC_SIO_EESEL);
+	dc_delay(sc);
+	DC_SETBIT(sc, DC_SIO, DC_SIO_ROMCTL_READ);
+	dc_delay(sc);
+	DC_CLRBIT(sc, DC_SIO, DC_SIO_EE_CLK);
+	dc_delay(sc);
+	DC_SETBIT(sc, DC_SIO, DC_SIO_EE_CS);
+	dc_delay(sc);
+
+	/* Turn off EEPROM access mode. */
+	dc_eeprom_idle(sc);
+}
+
 static void
 dc_eeprom_idle(sc)
 	struct dc_softc		*sc;
@@ -371,21 +437,24 @@ dc_eeprom_putbyte(sc, addr)
 {
 	register int		d, i;
 
-	/*
-	 * The AN985 has a 93C66 EEPROM on it instead of
-	 * a 93C46. It uses a different bit sequence for
-	 * specifying the "read" opcode.
-	 */
-	if (DC_IS_CENTAUR(sc) || DC_IS_CONEXANT(sc))
-		d = addr | (DC_EECMD_READ << 2);
-	else
-		d = addr | DC_EECMD_READ;
+	d = DC_EECMD_READ >> 6;
+	for (i = 3; i--; ) {
+		if (d & (1 << i))
+			DC_SETBIT(sc, DC_SIO, DC_SIO_EE_DATAIN);
+		else
+			DC_CLRBIT(sc, DC_SIO, DC_SIO_EE_DATAIN);
+		dc_delay(sc);
+		DC_SETBIT(sc, DC_SIO, DC_SIO_EE_CLK);
+		dc_delay(sc);
+		DC_CLRBIT(sc, DC_SIO, DC_SIO_EE_CLK);
+		dc_delay(sc);
+	}
 
 	/*
 	 * Feed in each bit and strobe the clock.
 	 */
-	for (i = 0x400; i; i >>= 1) {
-		if (d & i) {
+	for (i = sc->dc_romwidth; i--;) {
+		if (addr & (1 << i)) {
 			SIO_SET(DC_SIO_EE_DATAIN);
 		} else {
 			SIO_CLR(DC_SIO_EE_DATAIN);
@@ -1767,6 +1836,17 @@ dc_decode_leaf_mii(sc, l)
 	return;
 }
 
+void dc_read_srom(sc, bits)
+	struct dc_softc		*sc;
+	int			bits;
+{
+	int size;
+
+	size = 2 << bits;
+	sc->dc_srom = malloc(size, M_DEVBUF, M_NOWAIT);
+	dc_read_eeprom(sc, (caddr_t)sc->dc_srom, 0, (size / 2), 0);
+}
+
 static void
 dc_parse_21143_srom(sc)
 	struct dc_softc		*sc;
@@ -1901,7 +1981,8 @@ dc_attach(dev)
 		sc->dc_flags |= DC_TX_POLL|DC_TX_USE_TX_INTR;
 		sc->dc_flags |= DC_REDUCED_MII_POLL;
 		/* Save EEPROM contents so we can parse them later. */
-		dc_read_eeprom(sc, (caddr_t)&sc->dc_srom, 0, 512, 0);
+		dc_eeprom_width(sc);
+		dc_read_srom(sc, sc->dc_romwidth);
 		break;
 	case DC_DEVICEID_DM9100:
 	case DC_DEVICEID_DM9102:
@@ -1920,6 +2001,8 @@ dc_attach(dev)
 		sc->dc_flags |= DC_TX_USE_TX_INTR;
 		sc->dc_flags |= DC_TX_ADMTEK_WAR;
 		sc->dc_pmode = DC_PMODE_MII;
+		dc_eeprom_width(sc);
+		dc_read_srom(sc, sc->dc_romwidth);
 		break;
 	case DC_DEVICEID_AN985:
 	case DC_DEVICEID_FE2500:
@@ -1928,6 +2011,8 @@ dc_attach(dev)
 		sc->dc_flags |= DC_TX_USE_TX_INTR;
 		sc->dc_flags |= DC_TX_ADMTEK_WAR;
 		sc->dc_pmode = DC_PMODE_MII;
+		dc_eeprom_width(sc);
+		dc_read_srom(sc, sc->dc_romwidth);
 		break;
 	case DC_DEVICEID_98713:
 	case DC_DEVICEID_98713_CP:
@@ -1990,13 +2075,16 @@ dc_attach(dev)
 		 * it to obtain a double word aligned buffer.
 		 * The DC_TX_COALESCE flag is required.
 		 */
+		sc->dc_pmode = DC_PMODE_MII;
+		/* XXX Call the cardbus function to get nic from the CIS */
 		break;
 	case DC_DEVICEID_RS7112:
 		sc->dc_type = DC_TYPE_CONEXANT;
 		sc->dc_flags |= DC_TX_INTR_ALWAYS;
 		sc->dc_flags |= DC_REDUCED_MII_POLL;
 		sc->dc_pmode = DC_PMODE_MII;
-		dc_read_eeprom(sc, (caddr_t)&sc->dc_srom, 0, 256, 0);
+		dc_eeprom_width(sc);
+		dc_read_srom(sc, sc->dc_romwidth);
 		break;
 	default:
 		printf("dc%d: unknown device: %x\n", sc->dc_unit,
@@ -2060,13 +2148,15 @@ dc_attach(dev)
 		break;
 	case DC_TYPE_AL981:
 	case DC_TYPE_AN985:
+		bcopy(&sc->dc_srom[DC_AL_EE_NODEADDR], (caddr_t)&eaddr,
+		    ETHER_ADDR_LEN);
 		dc_read_eeprom(sc, (caddr_t)&eaddr, DC_AL_EE_NODEADDR, 3, 0);
 		break;
 	case DC_TYPE_CONEXANT:
 		bcopy(sc->dc_srom + DC_CONEXANT_EE_NODEADDR, &eaddr, 6);
 		break;
 	case DC_TYPE_XIRCOM:
-		dc_read_eeprom(sc, (caddr_t)&eaddr, 3, 3, 0);
+
 		break;
 	default:
 		dc_read_eeprom(sc, (caddr_t)&eaddr, DC_EE_NODEADDR, 3, 0);
