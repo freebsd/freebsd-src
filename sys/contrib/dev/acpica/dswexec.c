@@ -2,7 +2,7 @@
  *
  * Module Name: dswexec - Dispatcher method execution callbacks;
  *                        dispatch to interpreter.
- *              $Revision: 94 $
+ *              $Revision: 95 $
  *
  *****************************************************************************/
 
@@ -417,7 +417,6 @@ AcpiDsExecBeginOp (
 }
 
 
-
 /*****************************************************************************
  *
  * FUNCTION:    AcpiDsExecEndOp
@@ -660,7 +659,7 @@ AcpiDsExecEndOp (
 
             case AML_INT_EVAL_SUBTREE_OP:
 
-                Status = AcpiDsEvalDataObjectOperands (WalkState, Op, 
+                Status = AcpiDsEvalDataObjectOperands (WalkState, Op,
                                 AcpiNsGetAttachedObject (Op->Common.Parent->Common.Node));
                 break;
 

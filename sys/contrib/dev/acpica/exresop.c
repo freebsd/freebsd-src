@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exresop - AML Interpreter operand/object resolution
- *              $Revision: 54 $
+ *              $Revision: 55 $
  *
  *****************************************************************************/
 
@@ -201,8 +201,8 @@ AcpiExCheckObjectType (
  *              target operator.
  *
  *      Each 5-bit group in ArgTypes represents one required
- *      operand and indicates the required Type. The corresponding operand 
- *      will be converted to the required type if possible, otherwise we 
+ *      operand and indicates the required Type. The corresponding operand
+ *      will be converted to the required type if possible, otherwise we
  *      abort with an exception.
  *
  ******************************************************************************/

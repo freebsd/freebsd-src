@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: nssearch - Namespace search
- *              $Revision: 86 $
+ *              $Revision: 89 $
  *
  ******************************************************************************/
 
@@ -163,7 +163,7 @@ AcpiNsSearchNode (
     ACPI_FUNCTION_TRACE ("NsSearchNode");
 
 
-#ifdef ACPI_DEBUG
+#ifdef ACPI_DEBUG_OUTPUT
     if (ACPI_LV_NAMES & AcpiDbgLevel)
     {
         NATIVE_CHAR         *ScopeName;
@@ -306,7 +306,7 @@ AcpiNsSearchParentTree (
 
         if (AcpiNsLocal (Type))
         {
-            ACPI_DEBUG_PRINT ((ACPI_DB_NAMES, 
+            ACPI_DEBUG_PRINT ((ACPI_DB_NAMES,
                 "[%4.4s] type [%s] must be local to this scope (no parent search)\n",
                 (char *) &TargetName, AcpiUtGetTypeName (Type)));
         }
@@ -395,10 +395,10 @@ AcpiNsSearchAndEnter (
 
     if (!Node || !TargetName || !ReturnNode)
     {
-        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Null param-  Table %p Name %X Return %p\n",
+        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Null param: Node %p Name %X ReturnNode %p\n",
             Node, TargetName, ReturnNode));
 
-        ACPI_REPORT_ERROR (("NsSearchAndEnter: bad (null) parameter\n"));
+        ACPI_REPORT_ERROR (("NsSearchAndEnter: Null parameter\n"));
         return_ACPI_STATUS (AE_BAD_PARAMETER);
     }
 

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: acparser.h - AML Parser subcomponent prototypes and defines
- *       $Revision: 60 $
+ *       $Revision: 61 $
  *
  *****************************************************************************/
 
@@ -177,7 +177,7 @@ AcpiPsGetNextSimpleArg (
     UINT32                  ArgType,
     ACPI_PARSE_OBJECT       *Arg);
 
-void
+ACPI_STATUS
 AcpiPsGetNextNamepath (
     ACPI_PARSE_STATE        *ParserState,
     ACPI_PARSE_OBJECT       *Arg,
@@ -188,11 +188,12 @@ ACPI_PARSE_OBJECT *
 AcpiPsGetNextField (
     ACPI_PARSE_STATE        *ParserState);
 
-ACPI_PARSE_OBJECT *
+ACPI_STATUS
 AcpiPsGetNextArg (
     ACPI_PARSE_STATE        *ParserState,
     UINT32                  ArgType,
-    UINT32                  *ArgCount);
+    UINT32                  *ArgCount,
+    ACPI_PARSE_OBJECT       **ReturnArg);
 
 
 /* psfind */

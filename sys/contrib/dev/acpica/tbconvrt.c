@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: tbconvrt - ACPI Table conversion utilities
- *              $Revision: 42 $
+ *              $Revision: 43 $
  *
  *****************************************************************************/
 
@@ -195,7 +195,7 @@ AcpiTbConvertToXsdt (
 
     /* Compute size of the converted XSDT */
 
-    TableSize = ((ACPI_SIZE) AcpiGbl_RsdtTableCount * sizeof (UINT64)) + 
+    TableSize = ((ACPI_SIZE) AcpiGbl_RsdtTableCount * sizeof (UINT64)) +
                     sizeof (ACPI_TABLE_HEADER);
 
     /* Allocate an XSDT */
@@ -240,7 +240,6 @@ AcpiTbConvertToXsdt (
 
     return (AE_OK);
 }
-
 
 
 /*******************************************************************************
@@ -365,49 +364,49 @@ AcpiTbConvertFadt2 (
 
     if (!(ACPI_GET_ADDRESS (LocalFadt->XPm1aEvtBlk.Address)))
     {
-        ASL_BUILD_GAS_FROM_V1_ENTRY (LocalFadt->XPm1aEvtBlk, 
+        ASL_BUILD_GAS_FROM_V1_ENTRY (LocalFadt->XPm1aEvtBlk,
             LocalFadt->Pm1EvtLen,  LocalFadt->V1_Pm1aEvtBlk);
     }
 
     if (!(ACPI_GET_ADDRESS (LocalFadt->XPm1bEvtBlk.Address)))
     {
-        ASL_BUILD_GAS_FROM_V1_ENTRY (LocalFadt->XPm1bEvtBlk, 
+        ASL_BUILD_GAS_FROM_V1_ENTRY (LocalFadt->XPm1bEvtBlk,
             LocalFadt->Pm1EvtLen,  LocalFadt->V1_Pm1bEvtBlk);
     }
 
     if (!(ACPI_GET_ADDRESS (LocalFadt->XPm1aCntBlk.Address)))
     {
-        ASL_BUILD_GAS_FROM_V1_ENTRY (LocalFadt->XPm1aCntBlk, 
+        ASL_BUILD_GAS_FROM_V1_ENTRY (LocalFadt->XPm1aCntBlk,
             LocalFadt->Pm1CntLen,  LocalFadt->V1_Pm1aCntBlk);
     }
 
     if (!(ACPI_GET_ADDRESS (LocalFadt->XPm1bCntBlk.Address)))
     {
-        ASL_BUILD_GAS_FROM_V1_ENTRY (LocalFadt->XPm1bCntBlk, 
+        ASL_BUILD_GAS_FROM_V1_ENTRY (LocalFadt->XPm1bCntBlk,
             LocalFadt->Pm1CntLen,  LocalFadt->V1_Pm1bCntBlk);
     }
 
     if (!(ACPI_GET_ADDRESS (LocalFadt->XPm2CntBlk.Address)))
     {
-        ASL_BUILD_GAS_FROM_V1_ENTRY (LocalFadt->XPm2CntBlk,  
+        ASL_BUILD_GAS_FROM_V1_ENTRY (LocalFadt->XPm2CntBlk,
             LocalFadt->Pm2CntLen,  LocalFadt->V1_Pm2CntBlk);
     }
 
     if (!(ACPI_GET_ADDRESS (LocalFadt->XPmTmrBlk.Address)))
     {
-        ASL_BUILD_GAS_FROM_V1_ENTRY (LocalFadt->XPmTmrBlk,   
+        ASL_BUILD_GAS_FROM_V1_ENTRY (LocalFadt->XPmTmrBlk,
             LocalFadt->PmTmLen,    LocalFadt->V1_PmTmrBlk);
     }
 
     if (!(ACPI_GET_ADDRESS (LocalFadt->XGpe0Blk.Address)))
     {
-        ASL_BUILD_GAS_FROM_V1_ENTRY (LocalFadt->XGpe0Blk,    
+        ASL_BUILD_GAS_FROM_V1_ENTRY (LocalFadt->XGpe0Blk,
             LocalFadt->Gpe0BlkLen, LocalFadt->V1_Gpe0Blk);
     }
 
     if (!(ACPI_GET_ADDRESS (LocalFadt->XGpe1Blk.Address)))
     {
-        ASL_BUILD_GAS_FROM_V1_ENTRY (LocalFadt->XGpe1Blk,    
+        ASL_BUILD_GAS_FROM_V1_ENTRY (LocalFadt->XGpe1Blk,
             LocalFadt->Gpe1BlkLen, LocalFadt->V1_Gpe1Blk);
     }
 }
@@ -449,7 +448,7 @@ AcpiTbConvertTableFadt (void)
     {
         return_ACPI_STATUS (AE_NO_MEMORY);
     }
-    
+
     /*
      * FADT length and version validation.  The table must be at least as
      * long as the version 1.0 FADT
@@ -466,7 +465,7 @@ AcpiTbConvertTableFadt (void)
         {
             /* Length is too short to be a V2.0 table */
 
-            ACPI_REPORT_WARNING (("Inconsistent FADT length (0x%X) and revision (0x%X), using FADT V1.0 portion of table\n", 
+            ACPI_REPORT_WARNING (("Inconsistent FADT length (0x%X) and revision (0x%X), using FADT V1.0 portion of table\n",
                         AcpiGbl_FADT->Header.Length, AcpiGbl_FADT->Header.Revision));
 
             AcpiTbConvertFadt1 (LocalFadt, (void *) AcpiGbl_FADT);
@@ -545,7 +544,7 @@ AcpiTbBuildCommonFacs (
 
     if (AcpiGbl_FACS->Length < 64)
     {
-        ACPI_REPORT_WARNING (("FACS is shorter than the ACPI specification allows: 0x%X, using anyway\n", 
+        ACPI_REPORT_WARNING (("FACS is shorter than the ACPI specification allows: 0x%X, using anyway\n",
             AcpiGbl_FACS->Length));
     }
 

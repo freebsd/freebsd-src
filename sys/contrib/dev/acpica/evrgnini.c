@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: evrgnini- ACPI AddressSpace (OpRegion) init
- *              $Revision: 62 $
+ *              $Revision: 63 $
  *
  *****************************************************************************/
 
@@ -303,7 +303,7 @@ AcpiEvPciConfigRegionSetup (
     Status = AcpiUtEvaluateNumericObject (METHOD_NAME__ADR, Node, &Temp);
 
     /*
-     * The default is zero, and since the allocation above zeroed 
+     * The default is zero, and since the allocation above zeroed
      * the data, just do nothing on failure.
      */
     if (ACPI_SUCCESS (Status))

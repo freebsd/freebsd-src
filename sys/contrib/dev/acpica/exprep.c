@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exprep - ACPI AML (p-code) execution - field prep utilities
- *              $Revision: 118 $
+ *              $Revision: 119 $
  *
  *****************************************************************************/
 
@@ -303,17 +303,17 @@ AcpiExPrepCommonFieldObject (
      * two pieces of information - the width of each field access and the
      * necessary ByteAlignment (address granularity) of the access.
      *
-     * For AnyAcc, the AccessBitWidth is the largest width that is both 
+     * For AnyAcc, the AccessBitWidth is the largest width that is both
      * necessary and possible in an attempt to access the whole field in one
-     * I/O operation.  However, for AnyAcc, the ByteAlignment is always one 
+     * I/O operation.  However, for AnyAcc, the ByteAlignment is always one
      * byte.
      *
      * For all Buffer Fields, the ByteAlignment is always one byte.
      *
-     * For all other access types (Byte, Word, Dword, Qword), the Bitwidth is 
+     * For all other access types (Byte, Word, Dword, Qword), the Bitwidth is
      * the same (equivalent) as the ByteAlignment.
      */
-    AccessBitWidth = AcpiExDecodeFieldAccess (ObjDesc, FieldFlags, 
+    AccessBitWidth = AcpiExDecodeFieldAccess (ObjDesc, FieldFlags,
                                 &ByteAlignment);
     if (!AccessBitWidth)
     {
@@ -322,26 +322,26 @@ AcpiExPrepCommonFieldObject (
 
     /* Setup width (access granularity) fields */
 
-    ObjDesc->CommonField.AccessByteWidth = (UINT8) 
+    ObjDesc->CommonField.AccessByteWidth = (UINT8)
             ACPI_DIV_8 (AccessBitWidth); /* 1,  2,  4,  8 */
 
     /*
-     * BaseByteOffset is the address of the start of the field within the 
-     * region.  It is the byte address of the first *datum* (field-width data 
-     * unit) of the field. (i.e., the first datum that contains at least the 
+     * BaseByteOffset is the address of the start of the field within the
+     * region.  It is the byte address of the first *datum* (field-width data
+     * unit) of the field. (i.e., the first datum that contains at least the
      * first *bit* of the field.)
      *
-     * Note: ByteAlignment is always either equal to the AccessBitWidth or 8 
-     * (Byte access), and it defines the addressing granularity of the parent 
+     * Note: ByteAlignment is always either equal to the AccessBitWidth or 8
+     * (Byte access), and it defines the addressing granularity of the parent
      * region or buffer.
      */
-    NearestByteAddress = 
+    NearestByteAddress =
             ACPI_ROUND_BITS_DOWN_TO_BYTES (FieldBitPosition);
-    ObjDesc->CommonField.BaseByteOffset = 
+    ObjDesc->CommonField.BaseByteOffset =
             ACPI_ROUND_DOWN (NearestByteAddress, ByteAlignment);
 
     /*
-     * StartFieldBitOffset is the offset of the first bit of the field within 
+     * StartFieldBitOffset is the offset of the first bit of the field within
      * a field datum.
      */
     ObjDesc->CommonField.StartFieldBitOffset = (UINT8)
@@ -349,24 +349,24 @@ AcpiExPrepCommonFieldObject (
 
     /*
      * Valid bits -- the number of bits that compose a partial datum,
-     * 1) At the end of the field within the region (arbitrary starting bit 
+     * 1) At the end of the field within the region (arbitrary starting bit
      *    offset)
-     * 2) At the end of a buffer used to contain the field (starting offset 
+     * 2) At the end of a buffer used to contain the field (starting offset
      *    always zero)
      */
-    ObjDesc->CommonField.EndFieldValidBits   = (UINT8) 
+    ObjDesc->CommonField.EndFieldValidBits   = (UINT8)
         ((ObjDesc->CommonField.StartFieldBitOffset + FieldBitLength) %
                                                             AccessBitWidth);
     /* StartBufferBitOffset always = 0 */
 
-    ObjDesc->CommonField.EndBufferValidBits  = (UINT8) 
+    ObjDesc->CommonField.EndBufferValidBits  = (UINT8)
         (FieldBitLength % AccessBitWidth);
 
     /*
-     * DatumValidBits is the number of valid field bits in the first 
+     * DatumValidBits is the number of valid field bits in the first
      * field datum.
      */
-    ObjDesc->CommonField.DatumValidBits      = (UINT8) 
+    ObjDesc->CommonField.DatumValidBits      = (UINT8)
         (AccessBitWidth - ObjDesc->CommonField.StartFieldBitOffset);
 
     /*
@@ -482,11 +482,11 @@ AcpiExPrepFieldValue (
         AcpiUtAddReference (ObjDesc->BankField.RegionObj);
         AcpiUtAddReference (ObjDesc->BankField.BankObj);
 
-        ACPI_DEBUG_PRINT ((ACPI_DB_BFIELD, 
+        ACPI_DEBUG_PRINT ((ACPI_DB_BFIELD,
             "Bank Field: BitOff=%X Off=%X Gran=%X Region %p BankReg %p\n",
-            ObjDesc->BankField.StartFieldBitOffset, 
+            ObjDesc->BankField.StartFieldBitOffset,
             ObjDesc->BankField.BaseByteOffset,
-            ObjDesc->Field.AccessByteWidth, 
+            ObjDesc->Field.AccessByteWidth,
             ObjDesc->BankField.RegionObj,
             ObjDesc->BankField.BankObj));
         break;
@@ -496,7 +496,7 @@ AcpiExPrepFieldValue (
 
         ObjDesc->IndexField.IndexObj = AcpiNsGetAttachedObject (Info->RegisterNode);
         ObjDesc->IndexField.DataObj  = AcpiNsGetAttachedObject (Info->DataRegisterNode);
-        ObjDesc->IndexField.Value    = (UINT32) 
+        ObjDesc->IndexField.Value    = (UINT32)
             (Info->FieldBitPosition / ACPI_MUL_8 (ObjDesc->Field.AccessByteWidth));
 
         if (!ObjDesc->IndexField.DataObj || !ObjDesc->IndexField.IndexObj)
@@ -510,11 +510,11 @@ AcpiExPrepFieldValue (
         AcpiUtAddReference (ObjDesc->IndexField.DataObj);
         AcpiUtAddReference (ObjDesc->IndexField.IndexObj);
 
-        ACPI_DEBUG_PRINT ((ACPI_DB_BFIELD, 
+        ACPI_DEBUG_PRINT ((ACPI_DB_BFIELD,
             "IndexField: bitoff=%X off=%X gran=%X Index %p Data %p\n",
-            ObjDesc->IndexField.StartFieldBitOffset, 
+            ObjDesc->IndexField.StartFieldBitOffset,
             ObjDesc->IndexField.BaseByteOffset,
-            ObjDesc->Field.AccessByteWidth, 
+            ObjDesc->Field.AccessByteWidth,
             ObjDesc->IndexField.IndexObj,
             ObjDesc->IndexField.DataObj));
         break;

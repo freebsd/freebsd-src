@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exmisc - ACPI AML (p-code) execution - specific opcodes
- *              $Revision: 107 $
+ *              $Revision: 108 $
  *
  *****************************************************************************/
 
@@ -191,7 +191,7 @@ AcpiExGetObjectReference (
 
     case ACPI_DESC_TYPE_NAMED:
 
-        /* 
+        /*
          * A named reference that has already been resolved to a Node
          */
         ReferencedObj = ObjDesc;
@@ -354,7 +354,7 @@ AcpiExDoConcatenate (
 
     /*
      * There are three cases to handle:
-     * 
+     *
      * 1) Two Integers concatenated to produce a new Buffer
      * 2) Two Strings concatenated to produce a new String
      * 3) Two Buffers concatenated to produce a new Buffer
