@@ -73,11 +73,10 @@ mac_pipe_label_alloc(void)
 }
 
 void
-mac_init_pipe(struct pipe *pipe)
+mac_init_pipe(struct pipepair *pp)
 {
 
-	pipe->pipe_label = pipe->pipe_peer->pipe_label =
-	    mac_pipe_label_alloc();
+	pp->pp_label = mac_pipe_label_alloc();
 }
 
 void
@@ -90,11 +89,11 @@ mac_pipe_label_free(struct label *label)
 }
 
 void
-mac_destroy_pipe(struct pipe *pipe)
+mac_destroy_pipe(struct pipepair *pp)
 {
 
-	mac_pipe_label_free(pipe->pipe_label);
-	pipe->pipe_label = NULL;
+	mac_pipe_label_free(pp->pp_label);
+	pp->pp_label = NULL;
 }
 
 void
@@ -126,123 +125,125 @@ mac_internalize_pipe_label(struct label *label, char *string)
 }
 
 void
-mac_create_pipe(struct ucred *cred, struct pipe *pipe)
+mac_create_pipe(struct ucred *cred, struct pipepair *pp)
 {
 
-	MAC_PERFORM(create_pipe, cred, pipe, pipe->pipe_label);
+	MAC_PERFORM(create_pipe, cred, pp, pp->pp_label);
 }
 
 static void
-mac_relabel_pipe(struct ucred *cred, struct pipe *pipe, struct label *newlabel)
+mac_relabel_pipe(struct ucred *cred, struct pipepair *pp,
+    struct label *newlabel)
 {
 
-	MAC_PERFORM(relabel_pipe, cred, pipe, pipe->pipe_label, newlabel);
+	MAC_PERFORM(relabel_pipe, cred, pp, pp->pp_label, newlabel);
 }
 
 int
-mac_check_pipe_ioctl(struct ucred *cred, struct pipe *pipe, unsigned long cmd,
-    void *data)
+mac_check_pipe_ioctl(struct ucred *cred, struct pipepair *pp,
+    unsigned long cmd, void *data)
 {
 	int error;
 
-	PIPE_LOCK_ASSERT(pipe, MA_OWNED);
+	mtx_assert(&pp->pp_mtx, MA_OWNED);
 
 	if (!mac_enforce_pipe)
 		return (0);
 
-	MAC_CHECK(check_pipe_ioctl, cred, pipe, pipe->pipe_label, cmd, data);
+	MAC_CHECK(check_pipe_ioctl, cred, pp, pp->pp_label, cmd, data);
 
 	return (error);
 }
 
 int
-mac_check_pipe_poll(struct ucred *cred, struct pipe *pipe)
+mac_check_pipe_poll(struct ucred *cred, struct pipepair *pp)
 {
 	int error;
 
-	PIPE_LOCK_ASSERT(pipe, MA_OWNED);
+	mtx_assert(&pp->pp_mtx, MA_OWNED);
 
 	if (!mac_enforce_pipe)
 		return (0);
 
-	MAC_CHECK(check_pipe_poll, cred, pipe, pipe->pipe_label);
+	MAC_CHECK(check_pipe_poll, cred, pp, pp->pp_label);
 
 	return (error);
 }
 
 int
-mac_check_pipe_read(struct ucred *cred, struct pipe *pipe)
+mac_check_pipe_read(struct ucred *cred, struct pipepair *pp)
 {
 	int error;
 
-	PIPE_LOCK_ASSERT(pipe, MA_OWNED);
+	mtx_assert(&pp->pp_mtx, MA_OWNED);
 
 	if (!mac_enforce_pipe)
 		return (0);
 
-	MAC_CHECK(check_pipe_read, cred, pipe, pipe->pipe_label);
+	MAC_CHECK(check_pipe_read, cred, pp, pp->pp_label);
 
 	return (error);
 }
 
 static int
-mac_check_pipe_relabel(struct ucred *cred, struct pipe *pipe,
+mac_check_pipe_relabel(struct ucred *cred, struct pipepair *pp,
     struct label *newlabel)
 {
 	int error;
 
-	PIPE_LOCK_ASSERT(pipe, MA_OWNED);
+	mtx_assert(&pp->pp_mtx, MA_OWNED);
 
 	if (!mac_enforce_pipe)
 		return (0);
 
-	MAC_CHECK(check_pipe_relabel, cred, pipe, pipe->pipe_label, newlabel);
+	MAC_CHECK(check_pipe_relabel, cred, pp, pp->pp_label, newlabel);
 
 	return (error);
 }
 
 int
-mac_check_pipe_stat(struct ucred *cred, struct pipe *pipe)
+mac_check_pipe_stat(struct ucred *cred, struct pipepair *pp)
 {
 	int error;
 
-	PIPE_LOCK_ASSERT(pipe, MA_OWNED);
+	mtx_assert(&pp->pp_mtx, MA_OWNED);
 
 	if (!mac_enforce_pipe)
 		return (0);
 
-	MAC_CHECK(check_pipe_stat, cred, pipe, pipe->pipe_label);
+	MAC_CHECK(check_pipe_stat, cred, pp, pp->pp_label);
 
 	return (error);
 }
 
 int
-mac_check_pipe_write(struct ucred *cred, struct pipe *pipe)
+mac_check_pipe_write(struct ucred *cred, struct pipepair *pp)
 {
 	int error;
 
-	PIPE_LOCK_ASSERT(pipe, MA_OWNED);
+	mtx_assert(&pp->pp_mtx, MA_OWNED);
 
 	if (!mac_enforce_pipe)
 		return (0);
 
-	MAC_CHECK(check_pipe_write, cred, pipe, pipe->pipe_label);
+	MAC_CHECK(check_pipe_write, cred, pp, pp->pp_label);
 
 	return (error);
 }
 
 int
-mac_pipe_label_set(struct ucred *cred, struct pipe *pipe, struct label *label)
+mac_pipe_label_set(struct ucred *cred, struct pipepair *pp,
+    struct label *label)
 {
 	int error;
 
-	PIPE_LOCK_ASSERT(pipe, MA_OWNED);
+	mtx_assert(&pp->pp_mtx, MA_OWNED);
 
-	error = mac_check_pipe_relabel(cred, pipe, label);
+	error = mac_check_pipe_relabel(cred, pp, label);
 	if (error)
 		return (error);
 
-	mac_relabel_pipe(cred, pipe, label);
+	mac_relabel_pipe(cred, pp, label);
 
 	return (0);
 }
