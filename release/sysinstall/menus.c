@@ -285,7 +285,7 @@ DMenu MenuIndex = {
 /* The initial installation menu */
 DMenu MenuInitial = {
     DMENU_NORMAL_TYPE,
-    "/stand/sysinstall Main Menu",			/* title */
+    "sysinstall Main Menu",				/* title */
     "Welcome to the FreeBSD installation and configuration tool.  Please\n" /* prompt */
     "select one of the options below by using the arrow keys or typing the\n"
     "first character of the option name you're interested in.  Invoke an\n"
