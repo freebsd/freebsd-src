@@ -61,17 +61,14 @@
 #include <sys/syslog.h>
 #include <sys/tty.h>
 
+#include <ddb/ddb.h>
+
 #include <ofw/openfirm.h>
 #include <sparc64/ebus/ebusvar.h>
 
 #include <dev/sab/sab82532reg.h>
 
-#define	KTR_SAB		KTR_CT3
-
 #define	CDEV_MAJOR		168
-
-#define	SABTTY_RBUF_SIZE	1024
-#define	SABTTY_XBUF_SIZE	1024
 
 #define	SAB_READ(sc, r) \
 	bus_space_read_1((sc)->sc_bt, (sc)->sc_bh, (r))
@@ -88,27 +85,22 @@ struct sabtty_softc {
 	bus_space_handle_t	sc_bh;
 	dev_t			sc_si;
 	struct tty		*sc_tty;
-	uint8_t			*sc_rend;
-	uint8_t			*sc_rput;
-	uint8_t			*sc_rget;
-	uint8_t			*sc_xend;
-	uint8_t			*sc_xput;
-	uint8_t			*sc_xget;
-	int			sc_xc;
-	int			sc_openflags;
-	int			sc_flags;
-#define	SABTTYF_STOP		0x01
-#define	SABTTYF_DONE		0x02
-#define	SABTTYF_RBUF_OVERFLOW	0x04
-#define	SABTTYF_CDCHG		0x08
-#define	SABTTYF_CONS		0x10
+	int			sc_channel;
+	int			sc_icnt;
+	uint8_t			*sc_iput;
+	uint8_t			*sc_iget;
+	int			sc_ocnt;
+	uint8_t			*sc_oget;
+	int			sc_alt_break_state;
+	struct mtx		sc_mtx;
+	uint8_t			sc_console;
+	uint8_t			sc_tx_done;
 	uint8_t			sc_pvr_dtr;
 	uint8_t			sc_pvr_dsr;
 	uint8_t			sc_imr0;
 	uint8_t			sc_imr1;
-	struct mtx		sc_mtx;
-	uint8_t			sc_rbuf[SABTTY_RBUF_SIZE];
-	uint8_t			sc_xbuf[SABTTY_XBUF_SIZE];
+	uint8_t			sc_ibuf[CBLOCK];
+	uint8_t			sc_obuf[CBLOCK];
 };
 
 struct sab_softc {
@@ -380,9 +372,9 @@ sab_detach(device_t dev)
 }
 
 static void
-sab_intr(void *vsc)
+sab_intr(void *v)
 {
-	struct sab_softc *sc = vsc;
+	struct sab_softc *sc = v;
 	int needsoft = 0;
 	uint8_t gis;
 
@@ -401,18 +393,18 @@ sab_intr(void *vsc)
 }
 
 static void
-sab_softintr(void *vsc)
+sab_softintr(void *v)
 {
-	struct sab_softc *sc = vsc;
+	struct sab_softc *sc = v;
 
 	sabtty_softintr(sc->sc_child[0]);
 	sabtty_softintr(sc->sc_child[1]);
 }
 
 static void
-sab_shutdown(void *vsc)
+sab_shutdown(void *v)
 {
-	struct sab_softc *sc = vsc;
+	struct sab_softc *sc = v;
 
 	SAB_WRITE(sc, SAB_IPC, SAB_IPC_ICPL | SAB_IPC_VIS);
 	SAB_WRITE(sc, SAB_RFC, SAB_READ(sc, SAB_RFC) & ~SAB_RFC_RFDF);
@@ -422,22 +414,10 @@ static int
 sabtty_probe(device_t dev)
 {
 
-	switch (device_get_unit(dev)) {
-	case 0:
-		if (sabtty_console(dev, NULL, 0))
-			device_set_desc(dev, "Channel A, console");
-		else
-			device_set_desc(dev, "Channel A");
-		break;
-	case 1:
-		if (sabtty_console(dev, NULL, 0))
-			device_set_desc(dev, "Channel B, console");
-		else
-			device_set_desc(dev, "Channel B");
-		break;
-	default:
-		return (ENXIO);
-	}
+	if ((device_get_unit(dev) & 1) == 0)
+		device_set_desc(dev, "ttya");
+	else
+		device_set_desc(dev, "ttyb");
 	return (0);
 }
 
@@ -458,12 +438,11 @@ sabtty_attach(device_t dev)
 	sc->sc_dev = dev;
 	sc->sc_parent = device_get_softc(device_get_parent(dev));
 	sc->sc_bt = sc->sc_parent->sc_bt;
-	sc->sc_rput = sc->sc_rget = sc->sc_rbuf;
-	sc->sc_rend = sc->sc_rbuf + SABTTY_RBUF_SIZE;
-	sc->sc_xput = sc->sc_xget = sc->sc_xbuf;
-	sc->sc_xend = sc->sc_xbuf + SABTTY_XBUF_SIZE;
+	sc->sc_channel = device_get_unit(dev) & 1;
+	sc->sc_iput = sc->sc_iget = sc->sc_ibuf;
+	sc->sc_oget = sc->sc_obuf;
 
-	switch (device_get_unit(dev)) {
+	switch (sc->sc_channel) {
 	case 0:	/* port A */
 		sc->sc_pvr_dtr = SAB_PVR_DTR_A;
 		sc->sc_pvr_dsr = SAB_PVR_DSR_A;
@@ -480,7 +459,7 @@ sabtty_attach(device_t dev)
 
 	tp = ttymalloc(NULL);
 	sc->sc_si = make_dev(&sabtty_cdevsw, device_get_unit(dev),
-	    UID_ROOT, GID_WHEEL, 0600, "tty%c", 'a' + device_get_unit(dev));
+	    UID_ROOT, GID_WHEEL, 0600, "%s", device_get_desc(dev));
 	sc->sc_si->si_drv1 = sc;
 	sc->sc_si->si_tty = tp;
 	tp->t_dev = sc->sc_si;
@@ -528,7 +507,8 @@ sabtty_attach(device_t dev)
 			if (stop == 2)
 				tp->t_cflag |= CSTOPB;
 		}
-		sc->sc_flags |= SABTTYF_CONS;
+		device_printf(dev, "console %s\n", mode);
+		sc->sc_console = 1;
 		sabtty_cons = sc;
 	}
 
@@ -539,19 +519,25 @@ static int
 sabtty_detach(device_t dev)
 {
 
-	return (0);
+	return (bus_generic_detach(dev));
 }
 
 static int
 sabtty_intr(struct sabtty_softc *sc)
 {
-	uint8_t isr0, isr1;
-	int i, len = 0, needsoft = 0, clearfifo = 0;
-#if defined(DDB) && defined(ALT_BREAK_TO_DEBUGGER)
-	int brk = 0;
-#endif
-	uint8_t data;
-	uint8_t *ptr;
+	int clearfifo;
+	int needsoft;
+	uint8_t isr0;
+	uint8_t isr1;
+	uint8_t c;
+	int brk;
+	int len;
+	int i;
+
+	brk = 0;
+	len = 0;
+	clearfifo = 0;
+	needsoft = 0;
 
 	SABTTY_LOCK(sc);
 
@@ -570,58 +556,19 @@ sabtty_intr(struct sabtty_softc *sc)
 		sabtty_cec_wait(sc);
 		SAB_WRITE(sc, SAB_CMDR, SAB_CMDR_RFRD);
 	}
-	if (isr0 & SAB_ISR0_RFO) {
-		sc->sc_flags |= SABTTYF_RBUF_OVERFLOW;
+	if (isr0 & SAB_ISR0_RFO)
 		clearfifo = 1;
-	}
 	if (len != 0) {
-		ptr = sc->sc_rput;
 		for (i = 0; i < len; i++) {
-			data = SAB_READ(sc, SAB_RFIFO);
+			c = SAB_READ(sc, SAB_RFIFO);
 #if defined(DDB) && defined(ALT_BREAK_TO_DEBUGGER)
-			/*
-			 * Solaris implements a new BREAK which is initiated
-			 * by a character sequence CR ~ ^b which is similar
-			 * to a familiar pattern used on Sun servers by the
-			 * Remote Console.
-			 */
-#define	KEY_CR		13	/* CR '\r' */
-#define	KEY_TILDE	126	/* ~ */
-#define	KEY_CRTLB	2	/* ^B */
-
-			if ((sc->sc_flags & SABTTYF_CONS) != 0 &&
-			    (i & 1) == 0) {
-				static int state;
-				switch (data) {
-				case KEY_CR:
-					state = KEY_TILDE;
-					break;
-				case KEY_TILDE:
-					if (state == KEY_TILDE)
-						state = KEY_CRTLB;
-					else
-						state = 0;
-					break;
-				case KEY_CRTLB:
-					if (state == KEY_CRTLB)
-						brk = 1;
-				default:
-					state = 0;
-					break;
-				}
-			}
+			if (sc->sc_console != 0 && (i & 1) == 0)
+				brk = db_alt_break(c, &sc->sc_alt_break_state);
 #endif
-			*ptr++ = data;
-			if (ptr == sc->sc_rend)
-				ptr = sc->sc_rbuf;
-			if (ptr == sc->sc_rget) {
-				if (ptr == sc->sc_rbuf)
-					ptr = sc->sc_rend;
-				ptr--;
-				sc->sc_flags |= SABTTYF_RBUF_OVERFLOW;
-			}
+			*sc->sc_iput++ = c;
+			if (sc->sc_iput == sc->sc_ibuf + sizeof(sc->sc_ibuf))
+				sc->sc_iput = sc->sc_ibuf;
 		}
-		sc->sc_rput = ptr;
 		needsoft = 1;
 	}
 
@@ -630,33 +577,23 @@ sabtty_intr(struct sabtty_softc *sc)
 		SAB_WRITE(sc, SAB_CMDR, SAB_CMDR_RMC);
 	}
 
-	if (isr0 & SAB_ISR0_CDSC) {
-		sc->sc_flags |= SABTTYF_CDCHG;
-		needsoft = 1;
-	}
-
 	if (isr1 & SAB_ISR1_ALLS) {
-		sc->sc_flags |= SABTTYF_DONE;
+		sc->sc_tx_done = 1;
 		sc->sc_imr1 |= SAB_IMR1_ALLS;
 		SAB_WRITE(sc, SAB_IMR1, sc->sc_imr1);
 		needsoft = 1;
 	}
 
 	if (isr1 & SAB_ISR1_XPR) {
-		ptr = sc->sc_xget;
-		len = min(sc->sc_xc, 32);
-		for (i = 0; i < len; i++) {
-			SAB_WRITE(sc, SAB_XFIFO + i, *ptr++);
-			if (ptr == sc->sc_xend)
-				ptr = sc->sc_xbuf;
-		}
-		if (i != 0) {
+		if (sc->sc_ocnt > 0) {
+			len = min(sc->sc_ocnt, 32);
+			for (i = 0; i < len; i++)
+				SAB_WRITE(sc, SAB_XFIFO + i, *sc->sc_oget++);
+			sc->sc_ocnt -= len;
 			sabtty_cec_wait(sc);
 			SAB_WRITE(sc, SAB_CMDR, SAB_CMDR_XF);
 		}
-		sc->sc_xget = ptr;
-		sc->sc_xc -= len;
-		if (sc->sc_xc == 0) {
+		if (sc->sc_ocnt == 0) {
 			sc->sc_imr1 |= SAB_IMR1_XPR;
 			sc->sc_imr1 &= ~SAB_IMR1_ALLS;
 			SAB_WRITE(sc, SAB_IMR1, sc->sc_imr1);
@@ -665,10 +602,8 @@ sabtty_intr(struct sabtty_softc *sc)
 
 	SABTTY_UNLOCK(sc);
 
-#if defined(DDB) && defined(ALT_BREAK_TO_DEBUGGER)
-	if (brk)
+	if (brk != 0)
 		breakpoint();
-#endif
 	
 	return (needsoft);
 }
@@ -677,48 +612,27 @@ static void
 sabtty_softintr(struct sabtty_softc *sc)
 {
 	struct tty *tp = sc->sc_tty;
-	int s, flags;
-	uint8_t r;
+	int data;
+	int stat;
 
 	if ((tp->t_state & TS_ISOPEN) == 0)
 		return;
 
-	while (sc->sc_rget != sc->sc_rput) {
-		int data;
-		u_int8_t stat;
-
-		data = sc->sc_rget[0];
-		stat = sc->sc_rget[1];
-		sc->sc_rget += 2;
+	while (sc->sc_iget != sc->sc_iput) {
+		data = *sc->sc_iget++;
+		stat = *sc->sc_iget++;
 		if (stat & SAB_RSTAT_PE)
 			data |= TTY_PE;
 		if (stat & SAB_RSTAT_FE)
 			data |= TTY_FE;
-		if (sc->sc_rget == sc->sc_rend)
-			sc->sc_rget = sc->sc_rbuf;
+		if (sc->sc_iget == sc->sc_ibuf + sizeof(sc->sc_ibuf))
+			sc->sc_iget = sc->sc_ibuf;
 
 		(*linesw[tp->t_line].l_rint)(data, tp);
 	}
 
-	SABTTY_LOCK(sc);
-	flags = sc->sc_flags;
-	sc->sc_flags &= ~(SABTTYF_DONE | SABTTYF_CDCHG |
-	    SABTTYF_RBUF_OVERFLOW);
-	SABTTY_UNLOCK(sc);
-
-	if (flags & SABTTYF_CDCHG) {
-		s = spltty();
-		r = SAB_READ(sc, SAB_VSTR) & SAB_VSTR_CD;
-		splx(s);
-
-		(*linesw[tp->t_line].l_modem)(tp, r);
-	}
-
-	if (flags & SABTTYF_RBUF_OVERFLOW)
-		log(LOG_WARNING, "%s: rbuf overflow\n",
-		    device_get_name(sc->sc_dev));
-
-	if (flags & SABTTYF_DONE) {
+	if (sc->sc_tx_done != 0) {
+		sc->sc_tx_done = 0;
 		tp->t_state &= ~TS_BUSY;
 		(*linesw[tp->t_line].l_start)(tp);
 	}
@@ -730,26 +644,39 @@ sabttyopen(dev_t dev, int flags, int mode, struct thread *td)
 	struct sabtty_softc *sc;
 	struct tty *tp;
 	int error;
-	int s;
 
 	sc = dev->si_drv1;
 	tp = dev->si_tty;
 
+	if ((tp->t_state & TS_ISOPEN) != 0 &&
+	    (tp->t_state & TS_XCLUDE) != 0 &&
+	    !suser(td))
+		return (EBUSY);
+
 	if ((tp->t_state & TS_ISOPEN) == 0) {
+		struct termios t;
+
+		sc->sc_iput = sc->sc_iget = sc->sc_ibuf;
+
+		/*
+		 * Initialize the termios status to the defaults.  Add in the
+		 * sticky bits from TIOCSFLAGS.
+		 */
+		t.c_ispeed = 0;
+		t.c_ospeed = TTYDEF_SPEED;
+		t.c_cflag = TTYDEF_CFLAG;
+		/* Make sure zstty_param() will do something. */
+		tp->t_ospeed = 0;
+		(void)sabtty_param(sc, tp, &t);
+		tp->t_iflag = TTYDEF_IFLAG;
+		tp->t_oflag = TTYDEF_OFLAG;
+		tp->t_lflag = TTYDEF_LFLAG;
 		ttychars(tp);
-
-		sc->sc_rput = sc->sc_rget = sc->sc_rbuf;
-		sc->sc_xput = sc->sc_xget = sc->sc_xbuf;
-		sc->sc_xc = 0;
-
-		s = spltty();
-
 		ttsetwater(tp);
 
 		SABTTY_LOCK(sc);
 
 		sabtty_reset(sc);
-		sabtty_param(sc, tp, &tp->t_termios);
 		sc->sc_parent->sc_ipc = SAB_IPC_ICPL;
 		SAB_WRITE(sc->sc_parent, SAB_IPC, sc->sc_parent->sc_ipc);
 		sc->sc_imr0 = SAB_IMR0_PERR | SAB_IMR0_FERR | SAB_IMR0_PLLA;
@@ -768,54 +695,33 @@ sabttyopen(dev_t dev, int flags, int mode, struct thread *td)
 
 		SABTTY_UNLOCK(sc);
 
-		if (SAB_READ(sc, SAB_VSTR) & SAB_VSTR_CD)
-			tp->t_state |= TS_CARR_ON;
-		else
-			tp->t_state &= ~TS_CARR_ON;
-	} else {
-		if ((tp->t_state & TS_XCLUDE) && (!suser(td)))
-			return (EBUSY);
+		/* XXX turn on DTR */
+
+		/* XXX handle initial DCD */
 	}
 
-	s = spltty();
-	if ((flags & O_NONBLOCK) == 0) {
-		while ((tp->t_cflag & CLOCAL) == 0 &&
-		    (tp->t_state & TS_CARR_ON) == 0) {
-			int error;
-
-			error = ttysleep(tp, &tp->t_rawq, TTIPRI | PCATCH,
-			    "sabttycd", 0);
-			if (error != 0) {
-				splx(s);
-				return (error);
-			}
-		}
-	}
-	splx(s);
-
-	error = (*linesw[tp->t_line].l_open)(dev, tp);
-	if (error != 0 && (tp->t_state & TS_ISOPEN) != 0)
+	error = ttyopen(dev, tp);
+	if (error != 0)
 		return (error);
 
-	if (tp->t_cflag & HUPCL) {
-		sabtty_mdmctrl(sc, 0, DMSET);
-		(void)tsleep(sc, TTIPRI, "ttclos", hz);
-	}
+	error = (*linesw[tp->t_line].l_open)(dev, tp);
+	if (error != 0)
+		return (error);
 
-	return (error);
+	return (0);
 }
 
 static int
 sabttyclose(dev_t dev, int flags, int mode, struct thread *td)
 {
-	struct sabtty_softc *sc;
 	struct tty *tp;
 
-	sc = dev->si_drv1;
 	tp = dev->si_tty;
 
+	if ((tp->t_state & TS_ISOPEN) == 0)
+		return (0);
+
 	(*linesw[tp->t_line].l_close)(tp, flags);
-	sabttystop(tp, FREAD | FWRITE);
 	ttyclose(tp);
 
 	return (0);
@@ -831,7 +737,6 @@ sabttyioctl(dev_t dev, u_long cmd, caddr_t data, int flags, struct thread *td)
 	sc = dev->si_drv1;
 	tp = dev->si_tty;
 
-
 	error = (*linesw[tp->t_line].l_ioctl)(tp, cmd, data, flags, td);
 	if (error != ENOIOCTL)
 		return (error);
@@ -841,7 +746,6 @@ sabttyioctl(dev_t dev, u_long cmd, caddr_t data, int flags, struct thread *td)
 		return (error);
 
 	error = 0;
-
 	switch (cmd) {
 	case TIOCSBRK:
 		SAB_WRITE(sc, SAB_DAFO,
@@ -881,50 +785,66 @@ static void
 sabttystart(struct tty *tp)
 {
 	struct sabtty_softc *sc;
-	int len;
-	int nb;
-	int s;
 
 	sc = tp->t_dev->si_drv1;
 
-	s = spltty();
-	if ((tp->t_state & (TS_TTSTOP | TS_TIMEOUT)) == 0) {
-		if (tp->t_outq.c_cc) {
-			SABTTY_LOCK(sc);
-			while (tp->t_outq.c_cc != 0 &&
-			    sc->sc_xc < sizeof(sc->sc_xbuf)) {
-				len = sc->sc_xget <= sc->sc_xput ?
-				    sc->sc_xend - sc->sc_xput :
-				    sc->sc_xget - sc->sc_xput;
-				nb = q_to_b(&tp->t_outq, sc->sc_xput, len);
-				sc->sc_xput += nb;
-				sc->sc_xc += nb;
-				if (sc->sc_xput == sc->sc_xend)
-					sc->sc_xput = sc->sc_xbuf;
+	if ((tp->t_state & TS_TBLOCK) != 0)
+		/* XXX clear RTS */;
+	else
+		/* XXX set RTS */;
+
+	if ((tp->t_state & (TS_BUSY | TS_TIMEOUT | TS_TTSTOP)) != 0) {
+		ttwwakeup(tp);
+		return;
+	}
+
+	if (tp->t_outq.c_cc <= tp->t_olowat) {
+		if ((tp->t_state & TS_SO_OLOWAT) != 0) {
+			tp->t_state &= ~TS_SO_OLOWAT;
+			wakeup(TSA_OLOWAT(tp));
+		}
+		selwakeup(&tp->t_wsel);
+		if (tp->t_outq.c_cc == 0) {
+			if ((tp->t_state & (TS_BUSY | TS_SO_OCOMPLETE)) ==
+			    TS_SO_OCOMPLETE && tp->t_outq.c_cc == 0) {
+				tp->t_state &= ~TS_SO_OCOMPLETE;
+				wakeup(TSA_OCOMPLETE(tp));
 			}
-			tp->t_state |= TS_BUSY;
-			sc->sc_imr1 &= ~SAB_IMR1_XPR;
-			SAB_WRITE(sc, SAB_IMR1, sc->sc_imr1);
-			SABTTY_UNLOCK(sc);
+			return;
 		}
 	}
+
+	sc->sc_ocnt = q_to_b(&tp->t_outq, sc->sc_obuf, sizeof(sc->sc_obuf));
+	if (sc->sc_ocnt == 0)
+		return;
+	sc->sc_oget = sc->sc_obuf;
+
+	tp->t_state |= TS_BUSY;
+
+	sc->sc_imr1 &= ~SAB_IMR1_XPR;
+	SAB_WRITE(sc, SAB_IMR1, sc->sc_imr1);
+
 	ttwwakeup(tp);
-	splx(s);
 }
 
 static void
-sabttystop(struct tty *tp, int rw)
+sabttystop(struct tty *tp, int flag)
 {
 	struct sabtty_softc *sc;
 
 	sc = tp->t_dev->si_drv1;
 
-	tp->t_state &= ~TS_BUSY;
-	sc->sc_rput = sc->sc_rget = sc->sc_rbuf;
-	sc->sc_xput = sc->sc_xget = sc->sc_xbuf;
-	sc->sc_imr1 |= SAB_IMR1_ALLS | SAB_IMR1_XPR;
-	SAB_WRITE(sc, SAB_IMR1, sc->sc_imr1);
-	sabttystart(tp);
+	if ((flag & FREAD) != 0) {
+		/* XXX stop reading, anything to do? */;
+	}
+
+	if ((flag & FWRITE) != 0) {
+		if ((tp->t_state & TS_BUSY) != 0) {
+			/* XXX do what? */
+			if ((tp->t_state & TS_TTSTOP) == 0)
+				tp->t_state |= TS_FLUSH;
+		}
+	}
 }
 
 static int
@@ -940,9 +860,7 @@ int
 sabtty_mdmctrl(struct sabtty_softc *sc, int bits, int how)
 {
 	u_int8_t r;
-	int s;
 
-	s = spltty();
 	switch (how) {
 	case DMGET:
 		bits = 0;
@@ -1003,14 +921,13 @@ sabtty_mdmctrl(struct sabtty_softc *sc, int bits, int how)
 		}
 		break;
 	}
-	splx(s);
 	return (bits);
 }
 
 int
 sabtty_param(struct sabtty_softc *sc, struct tty *tp, struct termios *t)
 {
-	int s, ospeed;
+	int ospeed;
 	tcflag_t cflag;
 	u_int8_t dafo, r;
 
@@ -1018,7 +935,14 @@ sabtty_param(struct sabtty_softc *sc, struct tty *tp, struct termios *t)
 	if (ospeed < 0 || (t->c_ispeed && t->c_ispeed != t->c_ospeed))
 		return (EINVAL);
 
-	s = spltty();
+	/*
+	 * If there were no changes, don't do anything.  This avoids dropping
+	 * input and improves performance when all we did was frob things like
+	 * VMIN and VTIME.
+	 */
+	if (tp->t_ospeed == t->c_ospeed &&
+	    tp->t_cflag == t->c_cflag)
+		return (0);
 
 	/* hang up line if ospeed is zero, otherwise raise dtr */
 	sabtty_mdmctrl(sc, TIOCM_DTR,
@@ -1028,7 +952,7 @@ sabtty_param(struct sabtty_softc *sc, struct tty *tp, struct termios *t)
 
 	cflag = t->c_cflag;
 
-	if ((sc->sc_flags & SABTTYF_CONS) != 0) {
+	if (sc->sc_console != 0) {
 		cflag |= CLOCAL;
 		cflag &= ~HUPCL;
 	}
@@ -1063,6 +987,14 @@ sabtty_param(struct sabtty_softc *sc, struct tty *tp, struct termios *t)
 	} else
 		dafo |= SAB_DAFO_PAR_NONE;
 
+	tp->t_ispeed = 0;
+	tp->t_ospeed = t->c_ospeed;
+	tp->t_cflag = cflag;
+
+	ttsetwater(tp);
+
+	SABTTY_LOCK(sc);
+
 	if (ospeed != 0) {
 		SAB_WRITE(sc, SAB_BGR, ospeed & 0xff);
 		r = SAB_READ(sc, SAB_CCR2);
@@ -1085,9 +1017,8 @@ sabtty_param(struct sabtty_softc *sc, struct tty *tp, struct termios *t)
 	SAB_WRITE(sc, SAB_MODE, r);
 	SAB_WRITE(sc, SAB_IMR1, sc->sc_imr1);
 
-	tp->t_cflag = cflag;
+	SABTTY_UNLOCK(sc);
 
-	splx(s);
 	return (0);
 }
 
@@ -1318,18 +1249,27 @@ sabtty_cnputc(struct sabtty_softc *sc, int c)
 static int
 sabtty_console(device_t dev, char *mode, int len)
 {
+	device_t parent;
+	phandle_t chosen;
 	phandle_t options;
+	ihandle_t stdin;
+	ihandle_t stdout;
 	char output[32];
 	char input[32];
 	char name[32];
 
-	sprintf(name, "tty%c", 'a' + device_get_unit(dev));
+	parent = device_get_parent(dev);
+	chosen = OF_finddevice("/chosen");
 	options = OF_finddevice("/options");
-	if (OF_getprop(options, "input-device", input, sizeof(input)) == -1 ||
+	if (OF_getprop(chosen, "stdin", &stdin, sizeof(stdin)) == -1 ||
+	    OF_getprop(chosen, "stdout", &stdout, sizeof(stdout)) == -1 ||
+	    OF_getprop(options, "input-device", input, sizeof(input)) == -1 ||
 	    OF_getprop(options, "output-device", output, sizeof(output)) == -1)
 		return (0);
-	if (strcmp(input, output) == 0 &&
-	    strcmp(input, name) == 0) {
+	if (ebus_get_node(parent) == OF_instance_to_package(stdin) &&
+	    ebus_get_node(parent) == OF_instance_to_package(stdout) &&
+	    strcmp(input, device_get_desc(dev)) == 0 &&
+	    strcmp(output, device_get_desc(dev)) == 0) {
 		if (mode != NULL) {
 			sprintf(name, "%s-mode", input);
 			return (OF_getprop(options, name, mode, len) != -1);
