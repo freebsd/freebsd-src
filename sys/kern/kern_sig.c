@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sig.c	8.7 (Berkeley) 4/18/94
- * $Id: kern_sig.c,v 1.24 1996/05/01 02:42:57 bde Exp $
+ * $Id: kern_sig.c,v 1.25 1996/07/09 18:12:37 ache Exp $
  */
 
 #include "opt_ktrace.h"
@@ -1224,20 +1224,13 @@ coredump(p)
 	register struct proc *p;
 {
 	register struct vnode *vp;
-	register struct pcred *pcred = p->p_cred;
-	register struct ucred *cred = pcred->pc_ucred;
+	register struct ucred *cred = p->p_cred->pc_ucred;
 	register struct vmspace *vm = p->p_vmspace;
 	struct nameidata nd;
 	struct vattr vattr;
 	int error, error1;
 	char name[MAXCOMLEN+6];		/* progname.core */
 
-	/*
-	 * If we are setuid/setgid, or if we've changed uid's in the past,
-	 * we may be holding privileged information.  We must not core!
-	 */
-	if (pcred->p_svuid != pcred->p_ruid || pcred->p_svgid != pcred->p_rgid)
-		return (EFAULT);
 	if (p->p_flag & P_SUGID)
 		return (EFAULT);
 	if (ctob(UPAGES + vm->vm_dsize + vm->vm_ssize) >=
