@@ -60,18 +60,6 @@
 
 #ifndef _KERNEL
 #include <sys/cdefs.h>
-
-__BEGIN_DECLS
-__uint32_t	__htonl __P((__uint32_t));
-__uint16_t	__htons __P((__uint16_t));
-__uint32_t	__ntohl __P((__uint32_t));
-__uint16_t	__ntohs __P((__uint16_t));
-__END_DECLS
 #endif /* _KERNEL */
-
-#define	__htonl(x)	(x)
-#define	__htons(x)	(x)
-#define	__ntohl(x)	(x)
-#define	__ntohs(x)	(x)
 
 #endif /* !_MACHINE_ENDIAN_H_ */

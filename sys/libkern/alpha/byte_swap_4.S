@@ -30,8 +30,8 @@
 
 #include <machine/asm.h>
 
-#if !defined(ALIAS) || !defined(NAME)
-#error ALIAS or NAME not defined
+#ifndef NAME
+#error NAME not defined
 #endif
 
 /*
@@ -39,7 +39,6 @@
  *
  * Argument is an unsigned 4-byte integer (u_int32_t).
  */
-XLEAF(ALIAS, 1)
 LEAF(NAME, 1)			/* a0 contains 0x01234567 */
 	extbl	a0, 0, t0	/* t0 = 0x      67 */
 	extbl	a0, 1, t1	/* t1 = 0x      45 */

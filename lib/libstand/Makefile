@@ -33,6 +33,10 @@ SRCS+=	__main.c assert.c bcd.c bswap.c environment.c getopt.c gets.c \
 # private (pruned) versions of libc string functions
 SRCS+=	strcasecmp.c
 
+# byte order functions from libc
+.PATH: ${.CURDIR}/../libc/${MACHINE_ARCH}/net
+SRCS+= htons.S ntohs.S htonl.S ntohl.S
+
 # string functions from libc
 .PATH:	${.CURDIR}/../libc/string
 .if ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "powerpc" || \
@@ -49,9 +53,6 @@ SRCS+=	bcmp.c bcopy.S bzero.S ffs.S index.c memccpy.c memchr.c memcmp.c \
 	strcmp.c strcpy.c strcspn.c strlen.c \
 	strncat.c strncmp.c strncpy.c strpbrk.c strrchr.c strsep.c \
 	strspn.c strstr.c strtok.c swab.c
-
-.PATH: ${.CURDIR}/../libc/alpha/net
-SRCS+= htons.S ntohs.S htonl.S ntohl.S
 
 SRCS+= __divqu.S __divq.S __divlu.S __divl.S
 SRCS+= __remqu.S __remq.S __remlu.S __reml.S
@@ -99,9 +100,6 @@ SRCS+=	bcmp.c bcopy.S bzero.S ffs.S index.c memccpy.c memchr.c memcmp.c \
 	strcmp.c strcpy.c strcspn.c strlen.c \
 	strncat.c strncmp.c strncpy.c strpbrk.c strrchr.c strsep.c \
 	strspn.c strstr.c strtok.c swab.c
-
-.PATH: ${.CURDIR}/../libc/ia64/net
-SRCS+= htons.S ntohs.S htonl.S ntohl.S
 
 .PATH: ${.CURDIR}/../libc/ia64/gen
 SRCS+= __divdi3.S __divsi3.S __moddi3.S __modsi3.S

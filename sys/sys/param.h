@@ -188,28 +188,92 @@
 #define	MAX(a,b) (((a)>(b))?(a):(b))
 #endif
 
+#ifdef _KERNEL
 /*
- * Kernel exposed versions of byteorder(3) functions.
- *
- * XXX this section should only be defined in the kernel, but some userland
- * software utilizes it.
+ * Extended byte order support functions, for kernel use only currently.
+ * First, generic implementation of the byte swapping functions for those
+ * architectures that do not have optimized variants of each.
  */
-#ifndef _BYTEORDER_FUNC_DEFINED
-#define	_BYTEORDER_FUNC_DEFINED
-#define	htonl(x)	__htonl(x)
-#define	htons(x)	__htons(x)
-#define	ntohl(x)	__ntohl(x)
-#define	ntohs(x)	__ntohs(x)
+#ifndef _BSWAP16_DEFINED
+#define	_BSWAP16_DEFINED
+static __inline __uint16_t
+__bswap16(__uint16_t x)
+{
+	return ((x >> 8) | ((x << 8) & 0xff00U));
+}
 #endif
+
+#ifndef _BSWAP32_DEFINED
+#define	_BSWAP32_DEFINED
+static __inline __uint32_t
+__bswap32(__uint32_t x)
+{
+	return ((x >> 24) | ((x >> 8) & 0xff00U) | ((x << 8) & 0xff0000U) |
+	    ((x << 24) & 0xff000000U));
+}
+#endif
+
+#ifndef _BSWAP64_DEFINED
+#define	_BSWAP64_DEFINED
+static __inline __uint64_t
+__bswap64(__uint64_t x)
+{
+	return ((x >> 56) | ((x >> 40) & 0xff00UL) | ((x >> 24) & 0xff0000UL) |
+	    ((x >> 8) & 0xff000000UL) | ((x << 8) & 0xff00000000UL) |
+	    ((x << 24) & 0xff0000000000UL) | ((x << 40) & 0xff000000000000UL) |
+	    ((x << 56)));
+}
+#endif
+
+#define	bswap16(x)	__bswap16(x)
+#define	bswap32(x)	__bswap32(x)
+#define	bswap64(x)	__bswap64(x)
+
+#if BYTE_ORDER == LITTLE_ENDIAN
+#define	htobe16(x)	bswap16((x))
+#define	htobe32(x)	bswap32((x))
+#define	htobe64(x)	bswap64((x))
+#define	htole16(x)	((__uint16_t)(x))
+#define	htole32(x)	((__uint32_t)(x))
+#define	htole64(x)	((__uint64_t)(x))
+
+#define	be16toh(x)	bswap16((x))
+#define	be32toh(x)	bswap32((x))
+#define	be64toh(x)	bswap64((x))
+#define	le16toh(x)	((__uint16_t)(x))
+#define	le32toh(x)	((__uint32_t)(x))
+#define	le64toh(x)	((__uint64_t)(x))
+#else /* BYTE_ORDER != LITTLE_ENDIAN */
+#define	htobe16(x)	((__uint16_t)(x))
+#define	htobe32(x)	((__uint32_t)(x))
+#define	htobe64(x)	((__uint64_t)(x))
+#define	htole16(x)	bswap16((x))
+#define	htole32(x)	bswap32((x))
+#define	htole64(x)	bswap64((x))
+
+#define	be16toh(x)	((__uint16_t)(x))
+#define	be32toh(x)	((__uint32_t)(x))
+#define	be64toh(x)	((__uint64_t)(x))
+#define	le16toh(x)	bswap16((x))
+#define	le32toh(x)	bswap32((x))
+#define	le64toh(x)	bswap64((x))
+#endif /* BYTE_ORDER */
+
+#define	htonl(x)	htobe32((x))
+#define	htons(x)	htobe16((x))
+#define	ntohl(x)	be32toh((x))
+#define	ntohs(x)	be16toh((x))
+
+#endif /* _KERNEL */
 
 /*
  * XXX deprecated uppercase variants for byteorder(3) functions.
  */
 #ifndef _POSIX_SOURCE
-#define	NTOHL(x)	((x) = __ntohl(x))
-#define	NTOHS(x)	((x) = __ntohs(x))
-#define	HTONL(x)	((x) = __htonl(x))
-#define	HTONS(x)	((x) = __htons(x))
+#define	NTOHL(x)	((x) = ntohl(x))
+#define	NTOHS(x)	((x) = ntohs(x))
+#define	HTONL(x)	((x) = htonl(x))
+#define	HTONS(x)	((x) = htons(x))
 #endif /* _POSIX_SOURCE */
 
 /*

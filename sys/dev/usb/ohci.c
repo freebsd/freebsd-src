@@ -96,20 +96,6 @@ int ohcidebug = 1;
 #define DPRINTFN(n,x)
 #endif
 
-/*
- * The OHCI controller is little endian, so on big endian machines
- * the data strored in memory needs to be swapped.
- */
-#if defined(__FreeBSD__)
-#if BYTE_ORDER == BIG_ENDIAN
-#define htole32(x) (bswap32(x))
-#define le32toh(x) (bswap32(x))
-#else
-#define htole32(x) (x)
-#define le32toh(x) (x)
-#endif
-#endif
-
 struct ohci_pipe;
 
 Static ohci_soft_ed_t  *ohci_alloc_sed(ohci_softc_t *);
