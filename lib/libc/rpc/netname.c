@@ -26,6 +26,8 @@
  * Sun Microsystems, Inc.
  * 2550 Garcia Avenue
  * Mountain View, California  94043
+ *
+ * $FreeBSD$
  */
 #if !defined(lint) && defined(SCCSIDS)
 static char sccsid[] = "@(#)netname.c 1.8 91/03/11 Copyr 1986 Sun Micro";
@@ -90,7 +92,7 @@ user2netname(netname, uid, domain)
 {
 	char *dfltdom;
 
-#define MAXIPRINT	(11)	/* max length of printed integer */
+#define MAXIPRINT	(20)	/* max length of printed integer */
 
 	if (domain == NULL) {
 		if (_rpc_get_default_domain(&dfltdom) != 0) {
@@ -98,7 +100,7 @@ user2netname(netname, uid, domain)
 		}
 		domain = dfltdom;
 	}
-	if (strlen(domain) + 1 + MAXIPRINT > MAXNETNAMELEN) {
+	if (strlen(domain) + 1 + MAXIPRINT + 1 + strlen(OPSYS) > MAXNETNAMELEN) {
 		return (0);
 	}
 	(void) sprintf(netname, "%s.%ld@%s", OPSYS, (u_long)uid, domain);	
@@ -128,7 +130,7 @@ host2netname(netname, host, domain)
 		(void) gethostname(hostname, sizeof(hostname));
 		host = hostname;
 	}
-	if (strlen(domain) + 1 + strlen(host) > MAXNETNAMELEN) {
+	if (strlen(domain) + 1 + strlen(host) + 1 + strlen(OPSYS) > MAXNETNAMELEN) {
 		return (0);
 	} 
 	(void) sprintf(netname, "%s.%s@%s", OPSYS, host, domain);
