@@ -934,10 +934,14 @@ sendorfree:
 	for (m = m0; m; m = m0) {
 		m0 = m->m_nextpkt;
 		m->m_nextpkt = 0;
-		if (error == 0)
+		if (error == 0) {
+			/* Record statistics for this interface address. */
+			ia->ia_ifa.if_opackets++;
+			ia->ia_ifa.if_obytes += m->m_pkthdr.len;
+			
 			error = (*ifp->if_output)(ifp, m,
 			    (struct sockaddr *)dst, ro->ro_rt);
-		else
+		} else
 			m_freem(m);
 	}
 
