@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: pw.8,v 1.12 1998/02/14 18:33:37 steve Exp $
+.\"	$Id: pw.8,v 1.13 1998/03/23 08:28:12 charnier Exp $
 .\"
 .Dd December 9, 1996
 .Dt PW 8
@@ -127,11 +127,13 @@
 .Op Fl Y
 .Nm pw
 .Ar groupdel
+.Op group|gid
 .Op Fl n Ar name
 .Op Fl g Ar gid
 .Op Fl Y
 .Nm pw
 .Ar groupmod
+.Op group|gid
 .Op Fl C Ar config
 .Op Fl q
 .Op Fl F
@@ -146,6 +148,7 @@
 .Op Fl Y
 .Nm pw
 .Ar groupshow
+.Op group|gid
 .Op Fl n Ar name
 .Op Fl g Ar gid
 .Op Fl F
