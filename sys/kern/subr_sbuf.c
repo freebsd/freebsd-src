@@ -57,23 +57,25 @@ MALLOC_DEFINE(M_SBUF, "sbuf", "string buffers");
  */
 #ifdef INVARIANTS
 static void
-assert_sbuf_integrity(struct sbuf *s)
+_assert_sbuf_integrity(char *fun, struct sbuf *s)
 {
 	KASSERT(s != NULL,
-	    (__FUNCTION__ " called with a NULL sbuf pointer"));
+	    ("%s called with a NULL sbuf pointer", fun));
 	KASSERT(s->s_buf != NULL,
-	    (__FUNCTION__ " called with unitialized or corrupt sbuf"));
+	    ("%s called with unitialized or corrupt sbuf", fun));
 	KASSERT(s->s_len < s->s_size,
 	    ("wrote past end of sbuf (%d >= %d)", s->s_len, s->s_size));
 }
 
 static void
-assert_sbuf_state(struct sbuf *s, int state)
+_assert_sbuf_state(char *fun, struct sbuf *s, int state)
 {
 	KASSERT((s->s_flags & SBUF_FINISHED) == state,
-	    (__FUNCTION__ " called with %sfinished or corrupt sbuf",
+	    ("%s called with %sfinished or corrupt sbuf", fun,
 	    (state ? "un" : "")));
 }
+#define assert_sbuf_integrity(s) _assert_sbuf_integrity(__FUNCTION__, (s))
+#define assert_sbuf_state(s, i)	 _assert_sbuf_state(__FUNCTION__, (s), (i))
 #else
 #define assert_sbuf_integrity(s) do { } while (0)
 #define assert_sbuf_state(s, i)	 do { } while (0)
@@ -181,17 +183,7 @@ sbuf_cpy(struct sbuf *s, char *str)
 static void
 _sbuf_pchar(int c, void *v)
 {
-	struct sbuf *s = (struct sbuf *)v;
-
-	assert_sbuf_integrity(s);
-	assert_sbuf_state(s, 0);
-	
-	if (SBUF_HASOVERFLOWED(s))
-		return;
-	if (SBUF_HASROOM(s))
-		s->s_buf[s->s_len++] = c;
-	else
-		SBUF_SETFLAG(s, SBUF_OVERFLOWED);
+	sbuf_putc((struct sbuf *)v, c);
 }
 
 /*
@@ -240,7 +232,8 @@ sbuf_putc(struct sbuf *s, int c)
 		SBUF_SETFLAG(s, SBUF_OVERFLOWED);
 		return (-1);
 	}
-	s->s_buf[s->s_len++] = c;
+	if (c != '\0')
+	    s->s_buf[s->s_len++] = c;
 	return (0);
 }
 
@@ -262,7 +255,7 @@ sbuf_finish(struct sbuf *s)
 	assert_sbuf_integrity(s);
 	assert_sbuf_state(s, 0);
 	
-	s->s_buf[s->s_len++] = '\0';
+	s->s_buf[s->s_len] = '\0';
 	SBUF_CLEARFLAG(s, SBUF_OVERFLOWED);
 	SBUF_SETFLAG(s, SBUF_FINISHED);
 }
