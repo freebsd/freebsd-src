@@ -81,12 +81,12 @@ isdn:
 # When phone calls become free (say 0:00 Saturday morning), we may want
 # this in crontab (``crontab -l'', not /etc/crontab):
 #
-#     1 0 0 0 6 /usr/sbin/pppctl /tmp/ppp-isdn link \* set mode ddial
+#     1 0 0 0 6 /usr/sbin/pppctl /var/run/ppp/ppp-isdn link \* set mode ddial
 #
 # and when we have to pay again (say 23:59 Sunday night), we may want
 # this:
 #
-#     54 23 0 0 0 /usr/sbin/pppctl /tmp/ppp-isdn link \* set mode auto
+#     54 23 0 0 0 /usr/sbin/pppctl /var/run/ppp/ppp-isdn link \* set mode auto
 #
 # And of course just in case of a weekend reboot, add
 # /usr/local/etc/rc.d/ppp.sh:
@@ -94,5 +94,5 @@ isdn:
 #   #! /bin/sh
 #   [ ."$1" != .start ] && exit 0
 #   case `date +%w` in
-#   6|0) /usr/sbin/pppctl /tmp/ppp-isdn link \* set mode ddial;;
+#   6|0) /usr/sbin/pppctl /var/run/ppp/ppp-isdn link \* set mode ddial;;
 #   esac
