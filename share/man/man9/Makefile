@@ -41,6 +41,7 @@ MAN=	accept_filter.9 \
 	cr_seeotheruids.9 \
 	crypto.9 \
 	CTASSERT.9 \
+	DECLARE_GEOM_CLASS.9 \
 	DECLARE_MODULE.9 \
 	DELAY.9 \
 	devclass.9 \
@@ -90,6 +91,15 @@ MAN=	accept_filter.9 \
 	get_cyclecount.9 \
 	getnewvnode.9 \
 	groupmember.9 \
+	g_attach.9 \
+	g_bio.9 \
+	g_consumer.9 \
+	g_data.9 \
+	g_event.9 \
+	g_geom.9 \
+	g_provider.9 \
+	g_provider_by_name.9 \
+	g_wither_geom.9 \
 	hexdump.9 \
 	ifnet.9 \
 	inittodr.9 \
@@ -422,6 +432,22 @@ MLINKS+=fetch.9 fubyte.9 \
 	fetch.9 fuswintr.9 \
 	fetch.9 fusword.9 \
 	fetch.9 fuword.9
+MLINKS+=g_attach.9 g_detach.9
+MLINKS+=g_bio.9 g_clone_bio.9 \
+	g_bio.9 g_destroy_bio.9 \
+	g_bio.9 g_new_bio.9
+MLINKS+=g_consumer.9 g_destroy_consumer.9 \
+	g_consumer.9 g_new_consumer.9
+MLINKS+=g_data.9 g_read_data.9 \
+	g_data.9 g_write_data.9
+MLINKS+=g_event.9 g_cancel_event.9 \
+	g_event.9 g_post_event.9 \
+	g_event.9 g_waitfor_event.9
+MLINKS+=g_geom.9 g_destroy_geom.9 \
+	g_geom.9 g_new_geomf.9
+MLINKS+=g_provider.9 g_destroy_provider.9 \
+	g_provider.9 g_error_provider.9 \
+	g_provider.9 g_new_providerf.9
 MLINKS+=ifnet.9 ifaddr.9 \
 	ifnet.9 if_data.9 \
 	ifnet.9 ifqueue.9
