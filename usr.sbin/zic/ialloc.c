@@ -1,6 +1,6 @@
 #ifndef lint
 #ifndef NOID
-static char	elsieid[] = "@(#)ialloc.c	8.29";
+static const char	elsieid[] = "@(#)ialloc.c	8.29";
 #endif /* !defined NOID */
 #endif /* !defined lint */
 
