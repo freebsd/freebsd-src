@@ -35,13 +35,14 @@ char	deck[ROTORSZ];
 char	buf[13];
 
 void	shuffle(char *);
+void	setup(char *);
 
 void
 setup(pw)
 	char *pw;
 {
 	int ic, i, k, temp, pf[2], pid;
-	unsigned random;
+	unsigned rnd;
 	long seed;
 
 	strncpy(buf, pw, 8);
@@ -92,15 +93,15 @@ setup(pw)
 			else
 				seed &= 0x7FFFFFFF;
 		}
-		random = seed % 65521;
+		rnd = seed % 65521;
 		k = ROTORSZ-1 - i;
-		ic = (random&MASK)%(k+1);
-		random >>= 8;
+		ic = (rnd&MASK)%(k+1);
+		rnd >>= 8;
 		temp = t1[k];
 		t1[k] = t1[ic];
 		t1[ic] = temp;
 		if(t3[k]!=0) continue;
-		ic = (random&MASK) % k;
+		ic = (rnd&MASK) % k;
 		while(t3[ic]!=0) ic = (ic+1) % k;
 		t3[k] = ic;
 		t3[ic] = k;
@@ -111,6 +112,7 @@ setup(pw)
 
 int
 main(argc, argv)
+	int argc;
 	char *argv[];
 {
 	register int i, n1, n2, nr1, nr2;
@@ -169,20 +171,20 @@ main(argc, argv)
 }
 
 void
-shuffle(deck)
-	char deck[];
+shuffle(deckary)
+	char deckary[];
 {
 	int i, ic, k, temp;
-	unsigned random;
+	unsigned rnd;
 	static long seed = 123;
 
 	for(i=0;i<ROTORSZ;i++) {
 		seed = 5*seed + buf[i%13];
-		random = seed % 65521;
+		rnd = seed % 65521;
 		k = ROTORSZ-1 - i;
-		ic = (random&MASK)%(k+1);
-		temp = deck[k];
-		deck[k] = deck[ic];
-		deck[ic] = temp;
+		ic = (rnd&MASK)%(k+1);
+		temp = deckary[k];
+		deckary[k] = deckary[ic];
+		deckary[ic] = temp;
 	}
 }

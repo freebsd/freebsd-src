@@ -55,6 +55,7 @@ static const char rcsid[] =
 #include <string.h>
 #include <unistd.h>
 
+int	main __P((int, char *[]));
 void	current __P((void));
 void	pline __P((struct passwd *));
 void	pretty __P((struct passwd *));
@@ -205,7 +206,7 @@ current()
 	struct passwd *pw;
 	int cnt, id, eid, lastid, ngroups;
 	gid_t groups[NGROUPS];
-	char *fmt;
+	const char *fmt;
 
 	id = getuid();
 	(void)printf("uid=%u", id);
@@ -241,10 +242,10 @@ current()
 
 void
 user(pw)
-	register struct passwd *pw;
+	struct passwd *pw;
 {
-	register struct group *gr;
-	register char *fmt;
+	struct group *gr;
+	const char *fmt;
 	int cnt, gid, lastgid, ngroups, groups[NGROUPS + 1];
 
 	(void)printf("uid=%u(%s)", pw->pw_uid, pw->pw_name);
@@ -275,7 +276,7 @@ group(pw, nflag)
 	struct group *gr;
 	int cnt, id, lastid, ngroups;
 	gid_t groups[NGROUPS + 1];
-	char *fmt;
+	const char *fmt;
 
 	if (pw) {
 		ngroups = NGROUPS + 1;
