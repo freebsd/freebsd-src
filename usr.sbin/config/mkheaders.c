@@ -52,6 +52,7 @@ static const char rcsid[] =
 #include "y.tab.h"
 
 static void do_header(char *, int);
+static void nocount(char *);
 static char *toheader(char *);
 static char *tomacro(char *);
 
@@ -61,7 +62,9 @@ headers(void)
 	struct file_list *fl;
 	struct device *dp;
 	int match;
+	int errors;
 
+	errors = 0;
 	for (fl = ftab; fl != 0; fl = fl->f_next) {
 		if (fl->f_needs != 0) {
 			match = 0;
@@ -76,10 +79,32 @@ headers(void)
 		}
 	}
 	for (dp = dtab; dp != 0; dp = dp->d_next) {
-		if (!(dp->d_done & DEVDONE))
-			errx(1, "Error: device \"%s\" is unknown",
+		if (!(dp->d_done & DEVDONE)) {
+			warnx("Error: device \"%s\" is unknown",
 			       dp->d_name);
+			       errors++;
+			}
+		if (dp->d_count == UNKNOWN)
+			continue;
+		match = 0;
+		for (fl = ftab; fl != 0; fl = fl->f_next) {
+			if (fl->f_needs == 0)
+				continue;
+			if ((fl->f_flags & NEED_COUNT) == 0)
+				continue;
+			if (eq(dp->d_name, fl->f_needs)) {
+				match++;
+				break;
+			}
+		}
+		if (match == 0) {
+			warnx("Error: device \"%s\" does not take a count",
+			    dp->d_name);
+			errors++;
+		}
 	}
+	if (errors)
+		errx(1, "%d errors", errors);
 }
 
 static void
