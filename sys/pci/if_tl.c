@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_tl.c,v 1.30 1998/09/24 16:26:02 wpaul Exp $
+ *	$Id: if_tl.c,v 1.28 1998/09/24 16:26:56 wpaul Exp $
  */
 
 /*
@@ -187,18 +187,41 @@
 #include <sys/malloc.h>
 #include <sys/kernel.h>
 #include <sys/socket.h>
+#include <sys/syslog.h>
 
 #include <net/if.h>
 #include <net/if_arp.h>
 #include <net/ethernet.h>
 #include <net/if_dl.h>
+#include <net/if_mib.h>
 #include <net/if_media.h>
+#include <net/if_types.h>
+
+#ifdef INET
+#include <netinet/in.h>
+#include <netinet/in_systm.h>
+#include <netinet/in_var.h>
+#include <netinet/ip.h>
+#include <netinet/if_ether.h>
+#endif
+
+#ifdef IPX
+#include <netipx/ipx.h>
+#include <netipx/ipx_if.h>
+#endif
+
+#ifdef NS
+#include <netns/ns.h>
+#include <netns/ns_if.h>
+#endif
 
 #if NBPFILTER > 0
 #include <net/bpf.h>
+#include <net/bpfdesc.h>
 #endif
 
 #include <vm/vm.h>              /* for vtophys */
+#include <vm/vm_param.h>        /* for vtophys */
 #include <vm/pmap.h>            /* for vtophys */
 #include <machine/clock.h>      /* for DELAY */
 
@@ -211,7 +234,7 @@
 
 #ifndef lint
 static char rcsid[] =
-	"$Id: if_tl.c,v 1.30 1998/09/24 16:26:02 wpaul Exp $";
+	"$Id: if_tl.c,v 1.28 1998/09/24 16:26:56 wpaul Exp $";
 #endif
 
 #ifdef TL_DEBUG
@@ -327,7 +350,7 @@ static int tl_encap		__P((struct tl_softc *, struct tl_chain *,
 
 static void tl_intr		__P((void *));
 static void tl_start		__P((struct ifnet *));
-static int tl_ioctl		__P((struct ifnet *, u_long, caddr_t));
+static int tl_ioctl		__P((struct ifnet *, int, caddr_t));
 static void tl_init		__P((void *));
 static void tl_stop		__P((struct tl_softc *));
 static void tl_watchdog		__P((struct ifnet *));
@@ -1170,30 +1193,16 @@ static void tl_setfilt(sc, addr, slot)
 	return;
 }
 
-/*
- * XXX In FreeBSD 3.0, multicast addresses are managed using a doubly
- * linked list. This is fine, except addresses are added from the head
- * end of the list. We want to arrange for 224.0.0.1 (the "all hosts")
- * group to always be in the perfect filter, but as more groups are added,
- * the 224.0.0.1 entry (which is always added first) gets pushed down
- * the list and ends up at the tail. So after 3 or 4 multicast groups
- * are added, the all-hosts entry gets pushed out of the perfect filter
- * and into the hash table.
- *
- * Because the multicast list is a doubly-linked list as opposed to a
- * circular queue, we don't have the ability to just grab the tail of
- * the list and traverse it backwards. Instead, we have to traverse
- * the list once to find the tail, then traverse it again backwards to
- * update the multicast filter.
- */
 static void tl_setmulti(sc)
 	struct tl_softc		*sc;
 {
 	struct ifnet		*ifp;
 	u_int32_t		hashes[2] = { 0, 0 };
 	int			h, i;
-	struct ifmultiaddr	*ifma;
-	u_int8_t		dummy[] = { 0, 0, 0, 0, 0 ,0 };
+	struct ether_multi	*enm;
+	struct ether_multistep	step;
+	u_int8_t		dummy[] = { 0, 0, 0, 0, 0, 0 };
+
 	ifp = &sc->arpcom.ac_if;
 
 	/* First, zot all the existing filters. */
@@ -1208,35 +1217,32 @@ static void tl_setmulti(sc)
 		hashes[1] = 0xFFFFFFFF;
 	} else {
 		i = 1;
-		/* First find the tail of the list. */
-		for (ifma = ifp->if_multiaddrs.lh_first; ifma != NULL;
-					ifma = ifma->ifma_link.le_next) {
-			if (ifma->ifma_link.le_next == NULL)
+		ETHER_FIRST_MULTI(step, &sc->arpcom, enm);
+		while(enm != NULL) {
+			if (bcmp(enm->enm_addrlo, enm->enm_addrhi,
+						ETHER_ADDR_LEN)) {
+				hashes[0] = 0xFFFFFFFF;
+				hashes[1] = 0xFFFFFFFF;
 				break;
-		}
-		/* Now traverse the list backwards. */
-		for (; ifma != NULL && ifma != (void *)&ifp->if_multiaddrs;
-			ifma = (struct ifmultiaddr *)ifma->ifma_link.le_prev) {
-			if (ifma->ifma_addr->sa_family != AF_LINK)
-				continue;
-			/*
-			 * Program the first three multicast groups
-			 * into the perfect filter. For all others,
-			 * use the hash table.
-			 */
-			if (i < 4) {
-				tl_setfilt(sc,
-			LLADDR((struct sockaddr_dl *)ifma->ifma_addr), i);
-				i++;
-				continue;
-			}
+			} else {
+				/*
+				 * Program the first three multicast groups
+				 * into the perfect filter. For all others,
+				 * use the hash table.
+				 */
+				if (i < 4) {
+					tl_setfilt(sc, enm->enm_addrlo, i);
+                                	i++;
+					continue;
+				}
 
-			h = tl_calchash(
-				LLADDR((struct sockaddr_dl *)ifma->ifma_addr));
-			if (h < 32)
-				hashes[0] |= (1 << h);
-			else
-				hashes[1] |= (1 << (h - 32));
+				h = tl_calchash(enm->enm_addrlo);
+				if (h < 32)
+					hashes[0] |= (1 << h);
+				else
+					hashes[1] |= (1 << (h - 32));
+			}
+			ETHER_NEXT_MULTI(step, enm);
 		}
 	}
 
@@ -1539,8 +1545,8 @@ tl_attach(config_id, unit)
 
 	s = splimp();
 
-	vid = pci_cfgread(config_id, PCIR_VENDOR, 2);
-	did = pci_cfgread(config_id, PCIR_DEVICE, 2);
+	vid = pci_conf_read(config_id, PCI_ID_REG) & 0xFFFF;
+	did = (pci_conf_read(config_id, PCI_ID_REG) >> 16) & 0xFFFF;
 
 	t = tl_devs;
 	while(t->tl_name != NULL) {
@@ -1567,12 +1573,13 @@ tl_attach(config_id, unit)
 	 * Map control/status registers.
 	 */
 	command = pci_conf_read(config_id, PCI_COMMAND_STATUS_REG);
-	command |= (PCIM_CMD_PORTEN|PCIM_CMD_MEMEN|PCIM_CMD_BUSMASTEREN);
+	command |= (PCI_COMMAND_IO_ENABLE|PCI_COMMAND_MEM_ENABLE|
+			PCI_COMMAND_MASTER_ENABLE);
 	pci_conf_write(config_id, PCI_COMMAND_STATUS_REG, command);
 	command = pci_conf_read(config_id, PCI_COMMAND_STATUS_REG);
 
 #ifdef TL_USEIOSPACE
-	if (!(command & PCIM_CMD_PORTEN)) {
+	if (!(command & PCI_COMMAND_IO_ENABLE)) {
 		printf("tl%d: failed to enable I/O ports!\n", unit);
 		free(sc, M_DEVBUF);
 		goto fail;
@@ -1580,7 +1587,7 @@ tl_attach(config_id, unit)
 
 	sc->iobase = pci_conf_read(config_id, TL_PCI_LOIO) & 0xFFFFFFFC;
 #else
-	if (!(command & PCIM_CMD_MEMEN)) {
+	if (!(command & PCI_COMMAND_MEM_ENABLE)) {
 		printf("tl%d: failed to enable memory mapping!\n", unit);
 		goto fail;
 	}
@@ -1711,7 +1718,6 @@ tl_attach(config_id, unit)
 	ifp->if_watchdog = tl_watchdog;
 	ifp->if_init = tl_init;
 	ifp->if_mtu = ETHERMTU;
-	callout_handle_init(&sc->tl_stat_ch);
 
 	/* Reset the adapter again. */
 	tl_softreset(sc, 1);
@@ -2269,9 +2275,7 @@ static void tl_stats_update(xsc)
 			    tl_rx_overrun(tl_stats);
 	ifp->if_oerrors += tl_tx_underrun(tl_stats);
 
-	sc->tl_stat_ch = timeout(tl_stats_update, sc, hz);
-
-	return;
+	timeout(tl_stats_update, sc, hz);
 }
 
 /*
@@ -2579,7 +2583,7 @@ static void tl_init(xsc)
 	(void)splx(s);
 
 	/* Start the stats update counter */
-	sc->tl_stat_ch = timeout(tl_stats_update, sc, hz);
+	timeout(tl_stats_update, sc, hz);
 
 	return;
 }
@@ -2649,7 +2653,7 @@ static void tl_ifmedia_sts(ifp, ifmr)
 
 static int tl_ioctl(ifp, command, data)
 	struct ifnet		*ifp;
-	u_long			command;
+	int			command;
 	caddr_t			data;
 {
 	struct tl_softc		*sc = ifp->if_softc;
@@ -2676,8 +2680,14 @@ static int tl_ioctl(ifp, command, data)
 		break;
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
-		tl_setmulti(sc);
-		error = 0;
+		if (command == SIOCADDMULTI)
+			error = ether_addmulti(ifr, &sc->arpcom);
+		else
+			error = ether_delmulti(ifr, &sc->arpcom);
+		if (error == ENETRESET) {
+			tl_setmulti(sc);
+			error = 0;
+		}
 		break;
 	case SIOCSIFMEDIA:
 	case SIOCGIFMEDIA:
@@ -2739,7 +2749,7 @@ static void tl_stop(sc)
 	ifp = &sc->arpcom.ac_if;
 
 	/* Stop the stats updater. */
-	untimeout(tl_stats_update, sc, sc->tl_stat_ch);
+	untimeout(tl_stats_update, sc);
 
 	/* Stop the transmitter */
 	CMD_CLR(sc, TL_CMD_RT);
