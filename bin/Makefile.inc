@@ -2,7 +2,6 @@
 # $FreeBSD$
 
 BINDIR?=	/bin
-CFLAGS+=	-Wall -Wformat
 NOSHARED?=	YES
 WARNS?=		2
 WFORMAT?=	1
