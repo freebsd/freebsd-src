@@ -1,4 +1,4 @@
-<!-- $Id: linuxemu.sgml,v 1.7 1996/05/21 04:06:00 jkh Exp $ -->
+<!-- $Id: linuxemu.sgml,v 1.8 1996/05/24 19:33:32 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>Linux Emulation<label id="linuxemu"></heading>
@@ -47,7 +47,7 @@ linux loadable kernel module (LKM).
 (c.f. /sys/i386/conf/LINT):
 <tscreen>
 <verb>
-options "COMPAT_LINUX"
+options COMPAT_LINUX
 </verb>
 </tscreen>
 If you want to run doom or other applications
@@ -124,8 +124,8 @@ linux
 
 <sect1><heading>Installing Linux Emulation in 2.2-CURRENT</heading>
 
-<p>In -current it is no longer necessary to specify options "LINUX" 
-or options "COMPAT_LINUX".  Linux emulation is done with an LKM 
+<p>In -current it is no longer necessary to specify ``options LINUX''
+or ``options COMPAT_LINUX''.  Linux emulation is done with an LKM 
 (``Loadable Kernel Module'') so it can be installed on the fly without
 having to reboot.  You will need the following things in your startup files, 
 however:
