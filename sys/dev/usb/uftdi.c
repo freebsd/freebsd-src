@@ -294,8 +294,8 @@ USB_ATTACH(uftdi)
 		int addr, dir, attr;
 		ed = usbd_interface2endpoint_descriptor(iface, i);
 		if (ed == NULL) {
-			printf("%s: could not read endpoint descriptor"
-			       ": %s\n", devname, usbd_errstr(err));
+			printf("%s: could not read endpoint descriptor\n",
+			    devname);
 			goto bad;
 		}
 
