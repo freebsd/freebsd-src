@@ -921,7 +921,6 @@ ccdctlioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 {
 	struct ccd_ioctl *ccio;
 	u_int unit;
-	dev_t dev2;
 	int error;
 
 	switch (cmd) {
@@ -978,7 +977,6 @@ ccdctlioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 
 		if (!IS_ALLOCATED(unit))
 			return (ENXIO);
-		dev2 = makedev(CDEV_MAJOR, unit * 8 + 2);
 		cs = ccdfind(unit);
 		if (!IS_INITED(cs))
 			return (ENXIO);
