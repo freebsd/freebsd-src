@@ -236,7 +236,7 @@ g_destroy_geom(struct g_geom *gp)
 	    gp->name, LIST_FIRST(&gp->consumer)));
 	KASSERT(LIST_EMPTY(&gp->provider),
 	    ("g_destroy_geom(%s) with provider(s) [%p]",
-	    gp->name, LIST_FIRST(&gp->consumer)));
+	    gp->name, LIST_FIRST(&gp->provider)));
 	g_cancel_event(gp);
 	LIST_REMOVE(gp, geom);
 	TAILQ_REMOVE(&geoms, gp, geoms);
