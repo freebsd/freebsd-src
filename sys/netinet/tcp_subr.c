@@ -1115,21 +1115,17 @@ tcp6_ctlinput(cmd, sa, d)
 tcp_seq
 tcp_new_isn()
 {
-	if ((tcp_seq_genscheme > 1) || (tcp_seq_genscheme < 0))
+
+	if (tcp_seq_genscheme > 1 || tcp_seq_genscheme < 0)
 		tcp_seq_genscheme = 1;
 
 	switch (tcp_seq_genscheme) {
-		case 0:	/*
-			 * Random positive increments
-			 */
-			tcp_iss += TCP_ISSINCR/2;
-			return tcp_iss;
-		case 1:	/*
-			 * OpenBSD randomized scheme
-			 */
-			return tcp_rndiss_next();
+	case 0:			/* Random positive increments */
+		tcp_iss += TCP_ISSINCR/2;
+		return tcp_iss;
+	case 1:			/* OpenBSD randomized scheme */
+		return tcp_rndiss_next();
 	}
-
 }
 
 #define TCP_RNDISS_ROUNDS	16
