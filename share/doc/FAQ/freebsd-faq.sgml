@@ -4,7 +4,7 @@
 
 <title>Frequently Asked Questions for FreeBSD 2.X
 <author>The FreeBSD FAQ Team, <tt/FAQ@FreeBSD.ORG/
-<date> $Id: freebsd-faq.sgml,v 1.12 1995/08/20 15:21:31 gclarkii Exp $
+<date> $Id: freebsd-faq.sgml,v 1.13 1995/08/28 20:34:59 jfieber Exp $
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
 assumed to be relevant to FreeBSD 2.0.5+, unless otherwise noted.
@@ -744,7 +744,7 @@ sea32550N|Seagate 32550N:\
           to add the following line to the kernel config file and recompile
           for the Logitech and ATI mice:
           <verb>
-            device        mse0    at isa? port 0x23c tty irq6 vector mseintr
+            device        mse0    at isa? port 0x23c tty irq5 vector mseintr
           </verb>
           
       <sect1>
