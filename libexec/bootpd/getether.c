@@ -101,7 +101,7 @@ getether(ifname, eap)
 #endif /* SUNOS */
 
 
-#if defined(__386BSD__) || defined(__NetBSD__)
+#if defined(__FreeBSD__) || defined(__NetBSD__)
 /* Thanks to John Brezak <brezak@ch.hp.com> for this code. */
 #include <sys/ioctl.h>
 #include <net/if.h>

@@ -5,7 +5,7 @@
 #include <ctype.h>
 #include <stdlib.h>
 
-#ifdef __386BSD__
+#ifdef __FreeBSD__
 #define srand48 srandom
 #define lrand48 random
 #endif
