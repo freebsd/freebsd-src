@@ -1,4 +1,4 @@
-/*	$Id$	*/
+/*	$Id: ftp_var.h,v 1.6 1997/12/13 20:38:18 pst Exp $	*/
 /*	$NetBSD: ftp_var.h,v 1.20.2.1 1997/11/18 01:01:37 mellon Exp $	*/
 
 /*
@@ -43,6 +43,7 @@
 #include <sys/param.h>
 #include <setjmp.h>
 #include <stringlist.h>
+#include <netinet/in.h>
 
 #ifndef SMALL
 #include <histedit.h>
@@ -140,6 +141,9 @@ int	unix_proxy;		/* proxy is unix, can use binary for ascii */
 u_int16_t	ftpport;	/* port number to use for ftp connections */
 u_int16_t	httpport;	/* port number to use for http connections */
 u_int16_t	gateport;	/* port number to use for gateftp connections */
+
+int	dobind;			/* bind to specific address */
+struct sockaddr_in bindto;	/* address to bind to */
 
 jmp_buf	toplevel;		/* non-local goto stuff for cmd scanner */
 
