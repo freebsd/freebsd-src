@@ -56,6 +56,8 @@ fdc_pccard_probe(device_t dev)
 	int	error;
 	struct	fdc_data *fdc;
 
+	return ENXIO;
+
 	fdc = device_get_softc(dev);
 	bzero(fdc, sizeof *fdc);
 	fdc->fdc_dev = dev;
