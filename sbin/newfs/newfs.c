@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)newfs.c	8.13 (Berkeley) 5/1/95";
 #endif
 static const char rcsid[] =
-	"$Id: newfs.c,v 1.23 1998/09/11 06:26:08 grog Exp $";
+	"$Id: newfs.c,v 1.24 1998/09/29 23:20:04 grog Exp $";
 #endif /* not lint */
 
 /*
@@ -459,7 +459,6 @@ main(argc, argv)
  			fatal("null special file name");
  		cp--;
  		if (!vflag && (*cp < 'a' || *cp > 'h') && !isdigit(*cp))
-		    ((*cp < 'a' || *cp > 'h') && !isdigit(*cp))))
 			fatal("%s: can't figure out file system partition",
 			    argv[0]);
 #ifdef COMPAT
