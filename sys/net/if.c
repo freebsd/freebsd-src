@@ -656,10 +656,13 @@ if_clone_destroy(name)
 	struct if_clone *ifc;
 	struct ifnet *ifp;
 	int bytoff, bitoff;
-	int err, unit;
+	int unit;
 
 	ifc = if_clone_lookup(name, &unit);
 	if (ifc == NULL)
+		return (EINVAL);
+
+	if (unit < ifc->ifc_minifs)
 		return (EINVAL);
 
 	ifp = ifunit(name);
@@ -669,9 +672,7 @@ if_clone_destroy(name)
 	if (ifc->ifc_destroy == NULL)
 		return (EOPNOTSUPP);
 
-	err = (*ifc->ifc_destroy)(ifp);
-	if (err != 0)
-		return (err);
+	(*ifc->ifc_destroy)(ifp);
 
 	/*
 	 * Compute offset in the bitmap and deallocate the unit.
@@ -734,8 +735,15 @@ void
 if_clone_attach(ifc)
 	struct if_clone *ifc;
 {
+	int bytoff, bitoff;
+	int err;
 	int len, maxclone;
+	int unit;
 
+	KASSERT(ifc->ifc_minifs - 1 <= ifc->ifc_maxunit,
+	    ("%s: %s requested more units then allowed (%d > %d)",
+	    __func__, ifc->ifc_name, ifc->ifc_minifs,
+	    ifc->ifc_maxunit + 1));
 	/*
 	 * Compute bitmap size and allocate it.
 	 */
@@ -745,8 +753,21 @@ if_clone_attach(ifc)
 		len++;
 	ifc->ifc_units = malloc(len, M_CLONE, M_WAITOK | M_ZERO);
 	ifc->ifc_bmlen = len;
+
 	LIST_INSERT_HEAD(&if_cloners, ifc, ifc_list);
 	if_cloners_count++;
+
+	for (unit = 0; unit < ifc->ifc_minifs; unit++) {
+		err = (*ifc->ifc_create)(ifc, unit);
+		KASSERT(err == 0,
+		    ("%s: failed to create required interface %s%d",
+		    __func__, ifc->ifc_name, unit));
+
+		/* Allocate the unit in the bitmap. */
+		bytoff = unit >> 3;
+		bitoff = unit - (bytoff << 3);
+		ifc->ifc_units[bytoff] |= (1 << bitoff);
+	}
 }
 
 /*
