@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.32 1995/03/01 22:08:55 davidg Exp $
+ * $Id: vfs_bio.c,v 1.33 1995/03/03 22:13:00 davidg Exp $
  */
 
 /*
@@ -462,8 +462,10 @@ brelse(struct buf * bp)
 						(m->flags & PG_REFERENCED) == 0 &&
 							!pmap_is_referenced(VM_PAGE_TO_PHYS(m)))
 						vm_page_cache(m);
-					else if( (m->flags & PG_ACTIVE) == 0)
+					else if ((m->flags & PG_ACTIVE) == 0) {
 						vm_page_activate(m);
+						m->act_count = 0;
+					}
 				}
 			}
 			bufspace -= bp->b_bufsize;
@@ -994,8 +996,10 @@ allocbuf(struct buf * bp, int size, int vmio)
 						if (!vm_page_is_valid(m, toff + off, bytesinpage)) {
 							bp->b_flags &= ~B_CACHE;
 						}
-						if ((m->flags & PG_ACTIVE) == 0)
+						if ((m->flags & PG_ACTIVE) == 0) {
 							vm_page_activate(m);
+							m->act_count = 0;
+						}
 						continue;
 					}
 					m = vm_page_lookup(obj, objoff);
@@ -1023,6 +1027,7 @@ allocbuf(struct buf * bp, int size, int vmio)
 						}
 						m->valid = 0;
 						vm_page_activate(m);
+						m->act_count = 0;
 					} else if ((m->valid == 0) || (m->flags & PG_BUSY)) {
 						int j;
 						int bufferdestroyed = 0;
@@ -1083,8 +1088,10 @@ allocbuf(struct buf * bp, int size, int vmio)
 						if (!vm_page_is_valid(m, toff + off, bytesinpage)) {
 							bp->b_flags &= ~B_CACHE;
 						}
-						if ((m->flags & PG_ACTIVE) == 0)
+						if ((m->flags & PG_ACTIVE) == 0) {
 							vm_page_activate(m);
+							m->act_count = 0;
+						}
 						m->flags |= PG_BUSY;
 					}
 					bp->b_pages[pageindex] = m;
