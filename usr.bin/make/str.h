@@ -41,8 +41,9 @@
 #ifndef str_h_44db59e6
 #define	str_h_44db59e6
 
-#include "buf.h"
 #include "sprite.h"
+
+struct Buffer;
 
 /*
  * These constants are all used by the Str_Concat function to decide how the
@@ -61,6 +62,6 @@ char *MAKEFLAGS_quote(const char *);
 char **MAKEFLAGS_break(const char *, int *);
 int Str_Match(const char *, const char *);
 const char *Str_SYSVMatch(const char *, const char *, int *);
-void Str_SYSVSubst(Buffer, const char *, const char *, int);
+void Str_SYSVSubst(struct Buffer *, const char *, const char *, int);
 
 #endif /* str_h_44db59e6 */

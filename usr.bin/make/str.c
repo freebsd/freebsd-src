@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 
+#include "buf.h"
 #include "globals.h"
 #include "str.h"
 #include "util.h"
@@ -507,7 +508,7 @@ Str_SYSVMatch(const char *word, const char *pattern, int *len)
  *-----------------------------------------------------------------------
  */
 void
-Str_SYSVSubst(Buffer buf, const char *pat, const char *src, int len)
+Str_SYSVSubst(Buffer *buf, const char *pat, const char *src, int len)
 {
     const char *m;
 

@@ -75,14 +75,14 @@ __FBSDID("$FreeBSD$");
 
 static int  	  forLevel = 0;  	/* Nesting level	*/
 static char	 *forVar;		/* Iteration variable	*/
-static Buffer	  forBuf;		/* Commands in loop	*/
+static Buffer	 *forBuf;		/* Commands in loop	*/
 static Lst	forLst;		/* List of items	*/
 
 /*
  * State of a for loop.
  */
 typedef struct _For {
-    Buffer	  buf;			/* Unexpanded buffer	*/
+    Buffer	  *buf;			/* Unexpanded buffer	*/
     char*	  var;			/* Index name		*/
     Lst  	  lst;			/* List of variables	*/
     int  	  lineno;		/* Line #		*/
@@ -117,7 +117,7 @@ For_Eval(char *line)
 
 
     if (forLevel == 0) {
-	Buffer	    buf;
+	Buffer	    *buf;
 	size_t varlen;
 
 	for (ptr++; *ptr && isspace((unsigned char)*ptr); ptr++)
