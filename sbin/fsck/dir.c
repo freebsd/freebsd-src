@@ -472,8 +472,18 @@ linkup(orphan, parentdir)
 		inodirty();
 		lncntp[lfdir]++;
 		pwarn("DIR I=%lu CONNECTED. ", orphan);
-		if (parentdir != (ino_t)-1)
+		if (parentdir != (ino_t)-1) {
 			printf("PARENT WAS I=%lu\n", parentdir);
+		/*
+			 * The parent directory, because of the ordering
+			 * guarantees, has had the link count incremented
+			 * for the child, but no entry was made.  This
+			 * fixes the parent link count so that fsck does
+			 * not need to be rerun.
+			 */
+			lncntp[parentdir]++;
+
+		}
 		if (preen == 0)
 			printf("\n");
 	}
