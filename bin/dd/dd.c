@@ -54,7 +54,6 @@ static const char rcsid[] =
 #include <sys/conf.h>
 #include <sys/disklabel.h>
 #include <sys/filio.h>
-#include <sys/time.h>
 
 #include <ctype.h>
 #include <err.h>
@@ -78,8 +77,8 @@ IO	in, out;		/* input/output state */
 STAT	st;			/* statistics */
 void	(*cfunc)(void);		/* conversion function */
 u_quad_t cpy_cnt;		/* # of blocks to copy */
-off_t	pending = 0;		/* pending seek if sparse */
-u_int	ddflags;		/* conversion options */
+static off_t	pending = 0;	/* pending seek if sparse */
+u_int	ddflags = 0;		/* conversion options */
 size_t	cbsz;			/* conversion block size */
 quad_t	files_cnt = 1;		/* # of files to copy */
 const	u_char *ctab;		/* conversion table */

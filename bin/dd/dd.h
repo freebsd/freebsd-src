@@ -59,10 +59,6 @@ typedef struct {
 	int		fd;		/* file descriptor */
 	off_t		offset;		/* # of blocks to skip */
 
-	u_quad_t	f_stats;	/* # of full blocks processed */
-	u_quad_t	p_stats;	/* # of partial blocks processed */
-	u_quad_t	s_stats;	/* # of odd swab blocks */
-	u_quad_t	t_stats;	/* # of truncations */
 } IO;
 
 typedef struct {

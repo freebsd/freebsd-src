@@ -29,6 +29,7 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif /* not lint */
 
+#include <sys/cdefs.h>
 #include <err.h>
 #include <time.h>
 #include <string.h>
@@ -37,7 +38,7 @@ static const char rcsid[] =
 
 struct trans {
   int val;
-  char *str;
+  const char *str;
 };
 
 static struct trans trans_mon[] = {
@@ -203,14 +204,14 @@ adjmon(struct tm *t, char type, int val, int istext, int mk)
 static int
 adjday(struct tm *t, char type, int val, int mk)
 {
-  int mdays;
+  int lmdays;
 
   switch (type) {
     case '+':
       while (val) {
-        mdays = daysinmonth(t);
-        if (val > mdays - t->tm_mday) {
-          val -= mdays - t->tm_mday + 1;
+        lmdays = daysinmonth(t);
+        if (val > lmdays - t->tm_mday) {
+          val -= lmdays - t->tm_mday + 1;
           t->tm_mday = 1;
           if (!adjmon(t, '+', 1, 0, 0))
             return 0;
@@ -413,7 +414,7 @@ vary_apply(const struct vary *v, struct tm *t)
   char type;
   char which;
   char *arg;
-  int len;
+  size_t len;
   int val;
 
   for (; v; v = v->next) {
