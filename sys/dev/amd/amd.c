@@ -2497,3 +2497,4 @@ static driver_t amd_driver = {
 
 static devclass_t amd_devclass;
 DRIVER_MODULE(amd, pci, amd_driver, amd_devclass, 0, 0);
+MODULE_DEPEND(amd, cam, 1, 1, 1);
