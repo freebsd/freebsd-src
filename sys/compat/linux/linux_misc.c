@@ -697,8 +697,8 @@ linux_newuname(struct thread *td, struct linux_newuname_args *args)
 		printf(ARGS(newuname, "*"));
 #endif
 
-	linux_get_osname(td->td_proc, osname);
-	linux_get_osrelease(td->td_proc, osrelease);
+	linux_get_osname(td, osname);
+	linux_get_osrelease(td, osrelease);
 
 	bzero(&utsname, sizeof(utsname));
 	strlcpy(utsname.sysname, osname, LINUX_MAX_UTSNAME);
