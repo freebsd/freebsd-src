@@ -45,12 +45,17 @@ AcpiOsTableOverride (
 {
     caddr_t                 acpi_dsdt, p;
 
-    if (NewTable == NULL)
+    if (ExistingTable == NULL || NewTable == NULL)
     {
         return(AE_BAD_PARAMETER);
     }
 
     (*NewTable) = NULL;
+
+    if (strncmp(ExistingTable->Signature, "DSDT", 4) != 0)
+    {
+        return(AE_OK);
+    }
 
     if ((acpi_dsdt = preload_search_by_type("acpi_dsdt")) == NULL)
     {

@@ -387,6 +387,11 @@ acpi_attach(device_t dev)
 	goto out;
     }
 
+    if (ACPI_FAILURE(status = AcpiInitializeObjects(flags))) {
+	device_printf(dev, "could not initialize ACPI objects: %s\n", AcpiFormatException(status));
+	goto out;
+    }
+
     /*
      * Setup our sysctl tree.
      *

@@ -126,6 +126,7 @@
 /* FreeBSD uses GCC */
 
 #include "acgcc.h"
+#include <machine/acpica_machdep.h>
 
 #ifdef _KERNEL
 #include "opt_acpi.h"
@@ -135,160 +136,6 @@
 #include <sys/systm.h>
 #include <sys/libkern.h>
 #include <machine/stdarg.h>
-
-#ifdef __ia64__
-#define _IA64
-
-/*
- * Calling conventions:
- *
- * ACPI_SYSTEM_XFACE        - Interfaces to host OS (handlers, threads)
- * ACPI_EXTERNAL_XFACE      - External ACPI interfaces 
- * ACPI_INTERNAL_XFACE      - Internal ACPI interfaces
- * ACPI_INTERNAL_VAR_XFACE  - Internal variable-parameter list interfaces
- */
-#define ACPI_SYSTEM_XFACE
-#define ACPI_EXTERNAL_XFACE
-#define ACPI_INTERNAL_XFACE
-#define ACPI_INTERNAL_VAR_XFACE
-
-/* Asm macros */
-
-#define ACPI_ASM_MACROS
-#define BREAKPOINT3
-#define ACPI_DISABLE_IRQS() disable_intr()
-#define ACPI_ENABLE_IRQS()  enable_intr()
-
-#define ACPI_FLUSH_CPU_CACHE()	/* XXX ia64_fc()? */
-
-/*! [Begin] no source code translation */
-
-#define ACPI_ACQUIRE_GLOBAL_LOCK(GLptr, Acq) \
-    do { \
-    __asm__ volatile ("1:  ld4      r29=%1\n"  \
-        ";;\n"                  \
-        "mov    ar.ccv=r29\n"   \
-        "mov    r2=r29\n"       \
-        "shr.u  r30=r29,1\n"    \
-        "and    r29=-4,r29\n"   \
-        ";;\n"                  \
-        "add    r29=2,r29\n"    \
-        "and    r30=1,r30\n"    \
-        ";;\n"                  \
-        "add    r29=r29,r30\n"  \
-        ";;\n"                  \
-        "cmpxchg4.acq   r30=%1,r29,ar.ccv\n" \
-        ";;\n"                  \
-        "cmp.eq p6,p7=r2,r30\n" \
-        "(p7) br.dpnt.few 1b\n" \
-        "cmp.gt p8,p9=3,r29\n"  \
-        ";;\n"                  \
-        "(p8) mov %0=-1\n"      \
-        "(p9) mov %0=r0\n"      \
-        :"=r"(Acq):"m"(GLptr):"r2","r29","r30","memory"); \
-    } while (0)
-
-#define ACPI_RELEASE_GLOBAL_LOCK(GLptr, Acq) \
-    do { \
-    __asm__ volatile ("1:  ld4      r29=%1\n" \
-        ";;\n"                  \
-        "mov    ar.ccv=r29\n"   \
-        "mov    r2=r29\n"       \
-        "and    r29=-4,r29\n"   \
-        ";;\n"                  \
-        "cmpxchg4.acq   r30=%1,r29,ar.ccv\n" \
-        ";;\n"                  \
-        "cmp.eq p6,p7=r2,r30\n" \
-        "(p7) br.dpnt.few 1b\n" \
-        "and    %0=1,r2\n"      \
-        ";;\n"                  \
-        :"=r"(Acq):"m"(GLptr):"r2","r29","r30","memory"); \
-    } while (0)
-/*! [End] no source code translation !*/
-
-
-#else /* DO IA32 */
-
-/*
- * Calling conventions:
- *
- * ACPI_SYSTEM_XFACE        - Interfaces to host OS (handlers, threads)
- * ACPI_EXTERNAL_XFACE      - External ACPI interfaces 
- * ACPI_INTERNAL_XFACE      - Internal ACPI interfaces
- * ACPI_INTERNAL_VAR_XFACE  - Internal variable-parameter list interfaces
- */
-#define ACPI_SYSTEM_XFACE
-#define ACPI_EXTERNAL_XFACE
-#define ACPI_INTERNAL_XFACE
-#define ACPI_INTERNAL_VAR_XFACE
-
-/* Asm macros */
-
-#define ACPI_ASM_MACROS
-#define BREAKPOINT3
-#define ACPI_DISABLE_IRQS() disable_intr()
-#define ACPI_ENABLE_IRQS()  enable_intr()
-
-#define ACPI_FLUSH_CPU_CACHE()	wbinvd()
-
-#define asm         __asm
-/*! [Begin] no source code translation
- *
- * A brief explanation as GNU inline assembly is a bit hairy
- *  %0 is the output parameter in EAX ("=a")
- *  %1 and %2 are the input parameters in ECX ("c")
- *  and an immediate value ("i") respectively
- *  All actual register references are preceded with "%%" as in "%%edx"
- *  Immediate values in the assembly are preceded by "$" as in "$0x1"
- *  The final asm parameter are the operation altered non-output registers.
- */
-#define ACPI_ACQUIRE_GLOBAL_LOCK(GLptr, Acq) \
-    do { \
-        int dummy; \
-        asm("1:     movl (%1),%%eax;" \
-            "movl   %%eax,%%edx;" \
-            "andl   %2,%%edx;" \
-            "btsl   $0x1,%%edx;" \
-            "adcl   $0x0,%%edx;" \
-            "lock;  cmpxchgl %%edx,(%1);" \
-            "jnz    1b;" \
-            "cmpb   $0x3,%%dl;" \
-            "sbbl   %%eax,%%eax" \
-            :"=a"(Acq),"=c"(dummy):"c"(GLptr),"i"(~1L):"dx"); \
-    } while(0)
-
-#define ACPI_RELEASE_GLOBAL_LOCK(GLptr, Acq) \
-    do { \
-        int dummy; \
-        asm("1:     movl (%1),%%eax;" \
-            "movl   %%eax,%%edx;" \
-            "andl   %2,%%edx;" \
-            "lock;  cmpxchgl %%edx,(%1);" \
-            "jnz    1b;" \
-            "andl   $0x1,%%eax" \
-            :"=a"(Acq),"=c"(dummy):"c"(GLptr),"i"(~3L):"dx"); \
-    } while(0)
-
-
-/*
- * Math helper asm macros
- */
-#define ACPI_DIV_64_BY_32(n_hi, n_lo, d32, q32, r32) \
-        asm("divl %2;"        \
-        :"=a"(q32), "=d"(r32) \
-        :"r"(d32),            \
-        "0"(n_lo), "1"(n_hi))
-
-
-#define ACPI_SHIFT_RIGHT_64(n_hi, n_lo) \
-    asm("shrl   $1,%2;"             \
-        "rcrl   $1,%3;"             \
-        :"=r"(n_hi), "=r"(n_lo)     \
-        :"0"(n_hi), "1"(n_lo))
-
-/*! [End] no source code translation !*/
-
-#endif /* IA 32 */
 
 #ifdef DEBUGGER_THREADING
 #undef DEBUGGER_THREADING
@@ -348,16 +195,5 @@ strstr(char *s, char *find)
     return ((char *)s);
 }
 #endif /* _KERNEL */
-
-#if defined(__ia64__) || defined(__x86_64__)
-#define ACPI_MACHINE_WIDTH             64
-#define COMPILER_DEPENDENT_INT64       long
-#define COMPILER_DEPENDENT_UINT64      unsigned long
-#else
-#define ACPI_MACHINE_WIDTH             32
-#define COMPILER_DEPENDENT_INT64       long long
-#define COMPILER_DEPENDENT_UINT64      unsigned long long
-#define ACPI_USE_NATIVE_DIVIDE
-#endif
 
 #endif /* __ACFREEBSD_H__ */
