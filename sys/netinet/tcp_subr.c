@@ -1357,7 +1357,7 @@ tcp_isn_tick(xtp)
 	u_int32_t projected_offset;
 
 	INP_INFO_WLOCK(&tcbinfo);
-	projected_offset = isn_offset_old + ISN_BYTES_PER_SECOND / hz;
+	projected_offset = isn_offset_old + ISN_BYTES_PER_SECOND / 100;
 
 	if (projected_offset > isn_offset)
 		isn_offset = projected_offset;
