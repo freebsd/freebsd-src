@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.180.2.18 1999/05/11 10:25:34 jkh Exp $
+ * $Id: menus.c,v 1.180.2.19 1999/05/12 04:53:11 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -435,8 +435,8 @@ DMenu MenuXF86Config = {
     "a more simplistic shell-script based tool and less friendly to\n"
     "new users, but it may work in situations where the fancier one\n"
     "does not.",
-    "Press F1 to read the XFree86 release notes for FreeBSD",
-    "XF86",
+    NULL,
+    NULL,
     { { "XF86Setup",	"Fully graphical XFree86 configuration tool.",
 	NULL, dmenuSetVariable, NULL, VAR_XF86_CONFIG "=XF86Setup" },
       { "xf86config",	"Shell-script based XFree86 configuration tool.",
@@ -900,8 +900,8 @@ DMenu MenuXF86Select = {
     "XFree86 3.3.3.1 Distribution",
     "Please select the components you need from the XFree86 3.3.3.1\n"
     "distribution sets.",
-    "Press F1 to read the XFree86 release notes for FreeBSD",
-    "XF86",
+    NULL,
+    NULL,
     { { "Basic",	"Basic component menu (required)",	NULL, dmenuSubmenu, NULL, &MenuXF86SelectCore },
       { "Server",	"X server menu",			NULL, dmenuSubmenu, NULL, &MenuXF86SelectServer },
       { "Fonts",	"Font set menu",			NULL, dmenuSubmenu, NULL, &MenuXF86SelectFonts },
@@ -916,8 +916,8 @@ DMenu MenuXF86SelectCore = {
     "XFree86 3.3.3.1 base distribution types",
     "Please check off the basic XFree86 components you wish to install.\n"
     "Bin, lib, and set are recommended for a minimum installaion.",
-    "Press F1 to read the XFree86 release notes for FreeBSD",
-    "XF86",
+    NULL,
+    NULL,
     { { "bin",		"Client applications and shared libs",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_BIN },
       { "cfg",		"Configuration files",
@@ -960,8 +960,8 @@ DMenu MenuXF86SelectFonts = {
 install.  At the minimum, you should install the standard\n\
 75 DPI and misc fonts if you're also installing a server\n\
 (these are selected by default).",
-    "Press F1 to read the XFree86 release notes for FreeBSD",
-    "XF86",
+    NULL,
+    NULL,
     { { "fnts",		"Standard 75 DPI and miscellaneous fonts",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86FontDists, '[', 'X', ']', DIST_XF86_FONTS_MISC },
       { "f100",		"100 DPI fonts",
@@ -990,8 +990,8 @@ DMenu MenuXF86SelectServer = {
     "If you are unsure as to which server will work for your graphics card,\n"
     "it is recommended that try the SVGA or VGA16 servers or, for PC98\n"
     "machines, the 9EGC or 9840 servers.",
-    "Press F1 to read the XFree86 release notes for FreeBSD",
-    "XF86",
+    NULL,
+    NULL,
     { { "SVGA",		"Standard VGA or Super VGA card",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86ServerDists, '[', 'X', ']', DIST_XF86_SERVER_SVGA },
       { "VGA16",	"Standard 16 color VGA card",
@@ -1038,8 +1038,8 @@ DMenu MenuXF86SelectPC98Server = {
 If you are unsure as to which server will work for your graphics card,\n\
 it is recommended that try the SVGA or VGA16 servers (the VGA16 and\n\
 Mono servers are particularly well-suited to most LCD displays).",
-    "Press F1 to read the XFree86 release notes for FreeBSD",
-    "XF86",
+    NULL,
+    NULL,
     { { "9480",		"PC98 8-bit (256 color) PEGC-480 card",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86ServerDists, '[', 'X', ']', DIST_XF86_SERVER_9480 },
       { "9EGC",		"PC98 4-bit (16 color) EGC card",
