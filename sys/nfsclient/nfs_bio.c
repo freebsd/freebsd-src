@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_bio.c	8.9 (Berkeley) 3/30/95
- * $Id: nfs_bio.c,v 1.73 1999/06/16 23:27:46 mckusick Exp $
+ * $Id: nfs_bio.c,v 1.74 1999/06/26 02:46:29 mckusick Exp $
  */
 
 
@@ -802,6 +802,8 @@ again:
 
 			bcount = on;
 			bp = nfs_getcacheblk(vp, lbn, bcount, p);
+			if (!bp)
+				return (EINTR);
 			save = bp->b_flags & B_CACHE;
 
 			np->n_size = uio->uio_offset + n;
@@ -821,6 +823,8 @@ again:
 			if ((off_t)(lbn + 1) * biosize > np->n_size) 
 				bcount = np->n_size - (off_t)lbn * biosize;
 			bp = nfs_getcacheblk(vp, lbn, bcount, p);
+			if (!bp)
+				return (EINTR);
 		}
 
 		/*
