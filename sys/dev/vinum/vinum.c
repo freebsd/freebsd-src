@@ -299,6 +299,9 @@ vinumopen(dev_t dev,
     case VINUM_PLEX_TYPE:
 	if (Volno(dev) >= vinum_conf.volumes_allocated)
 	    return ENXIO;
+	/* FALLTHROUGH */
+
+    case VINUM_RAWPLEX_TYPE:
 	index = Plexno(dev);				    /* get plex index in vinum_conf */
 	if (index >= vinum_conf.plexes_allocated)
 	    return ENXIO;				    /* no such device */
