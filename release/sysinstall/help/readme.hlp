@@ -1,14 +1,14 @@
    -----------------------------------------
-       FreeBSD 2.2.6  ---  STABLE Version              ,        ,
+      FreeBSD 2.2.7  ---  RELEASE Version              ,        ,
    -----------------------------------------          /(        )`
                                                       \ \___   / |
-Welcome to the 2.2.6-STABLE  version of FreeBSD!      /- _  `-/  '
+Welcome to the 2.2.7-RELEASE version of FreeBSD!      /- _  `-/  '
                                                      (/\/ \ \   /\
 This is a full release to follow 2.2.6-RELEASE,      / /   | `    \
 which was released in March, 1998.  Many bugs        O O   ) /    |
-are  fixed and the general stability of the system   `-^--'`<     '
-enhanced, a conservative set of subsystem upgrades  (_.)  _  )   /
-and new features going into what will become 2.2.7.  `.___/`    /
+were fixed and the general stability of the system   `-^--'`<     '
+enhanced.  For more information on these changes,   (_.)  _  )   /
+please see the release notes (RELNOTES.TXT).         `.___/`    /
                                                        `-----' /
 Feedback or offers to help with anything  <----.     __ / __   \
 you see in this release are most welcome  <----|====O)))==) \) /====
@@ -18,9 +18,9 @@ ABOUT.TXT file for more information.                    \       /       /\
                                                    ______( (_  / \______/
                                                  ,'  ,-----'   |
                                                  `--{__________)
-                                            
 
-            Most files here are also in the Documentation 
+
+            Most files here are also in the Documentation
                     Menu of the boot floppy
 
 ROAD MAP:
@@ -29,12 +29,12 @@ ROAD MAP:
 
   ABOUT.TXT     All about FreeBSD, including contact information
 
-  RELNOTES.TXT  Release Notes - what's new & different in this 
+  RELNOTES.TXT  Release Notes - what's new & different in this
                 release
 
   LAYOUT.TXT    Information about the layout of the release
                 directory. If you are installing from floppies,
-                it is especially important that you 
+                it is especially important that you
                 *read this section!*
 
   ERRATA.TXT    Any late-breaking errata information for this
@@ -46,7 +46,7 @@ ROAD MAP:
   HARDWARE.TXT  Information about the configuration of the
                 GENERIC kernel and supported hardware
 
-  INSTALL.TXT   How to make a new installation of FreeBSD 
+  INSTALL.TXT   How to make a new installation of FreeBSD
                 on your PC using the data you see here
 
   UPGRADE.TXT   How to upgrade an existing FreeBSD
@@ -64,33 +64,33 @@ o If you are upgrading from a previous FreeBSD version,
 o It is also important to check the ERRATA.TXT file for any
   late-breaking issues with this release. This file contains
   the latest information on upgrade, security or other problems
-  which an administrator should be aware of. 
+  which an administrator should be aware of.
 
-o Information regarding problems which arise after the CD 
+o Information regarding problems which arise after the CD
   is printed can be found at:
-  ftp://ftp.freebsd.org/pub/FreeBSD/2.2.6-RELEASE/ERRATA.TXT
+  ftp://ftp.freebsd.org/pub/FreeBSD/2.2.7-RELEASE/ERRATA.TXT
 
-For the most up-to-date software along the RELENG_2_2 branch
-(also known as -Stable) which is now proceeding onwards toward
-the release of FreeBSD 2.2.7, please install from:
+For the most up-to-date software along the RELENG_2_2 branch (also
+known as -Stable) which is now proceeding onwards toward the release
+of FreeBSD 2.2.8, please install from:
 
         ftp://releng22.freebsd.org/pub/FreeBSD/
 
-Or for the latest 3.0-Current (HEAD branch) snapshot releases,
-please install from:
+Or for the latest 3.0-Current (HEAD branch) snapshot releases, please
+install from:
 
         ftp://current.freebsd.org/pub/FreeBSD
 
-If you plan to run either -Stable or -Current you MUST be
-subscribed to the appropriate mailing list, either
-freebsd-stable or freebsd-current. For information on
-subscribing to either list (or both), send an e-mail to 
-majordomo@freebsd.org with the following in the body, not 
-the subject of the letter as appropriate:
+If you plan to run either -Stable or -Current you MUST be subscribed
+to the appropriate mailing list, either freebsd-stable or
+freebsd-current. For information on subscribing to either list (or
+both), send an e-mail to majordomo@freebsd.org with the following in
+the body, not the subject of the letter as appropriate:
 
 subscribe freebsd-stable
 subscribe freebsd-current
 end
 
-We hope you enjoy using FreeBSD as much as we enjoyed 
-creating it. :)
+We hope you enjoy using FreeBSD as much as we enjoyed creating it!
+
+- The FreeBSD Project
