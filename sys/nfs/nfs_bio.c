@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_bio.c	8.5 (Berkeley) 1/4/94
- * $Id: nfs_bio.c,v 1.15 1995/06/27 11:06:34 dfr Exp $
+ * $Id: nfs_bio.c,v 1.16 1995/07/07 11:01:30 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -125,7 +125,7 @@ nfs_bioread(vp, uio, ioflag, cred)
 	 * attributes this could be forced by setting n_attrstamp to 0 before
 	 * the VOP_GETATTR() call.
 	 */
-	if ((nmp->nm_flag & NFSMNT_NQNFS) == 0 && vp->v_type != VLNK) {
+	if ((nmp->nm_flag & NFSMNT_NQNFS) == 0) {
 		if (np->n_flag & NMODIFIED) {
 			if (vp->v_type != VREG) {
 				if (vp->v_type != VDIR)
