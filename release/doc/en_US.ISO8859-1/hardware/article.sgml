@@ -47,7 +47,7 @@
 
   <sect2>
     <title>Disk Controllers</title>
-      <para arch="i386,alpha,sparc64,ia64">IDE/ATA controllers (&man.ata.4 driver)
+      <para arch="i386,alpha,sparc64,ia64">IDE/ATA controllers (&man.ata.4; driver)
         <itemizedlist>
 	   <listitem>
 	     <para>Acerlabs Aladdin</para>
@@ -1381,7 +1381,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,alpha,ia64">Intel 82557- or 82559-based Fast Ethernet NICs (&man.fxp.4 driver)
+    <para arch="i386,alpha,ia64">Intel 82557- or 82559-based Fast Ethernet NICs (&man.fxp.4; driver)
       <itemizedlist>
         <listitem>
 	  <para>Intel EtherExpress Pro/100B PCI Fast Ethernet</para>
@@ -2416,7 +2416,7 @@
 
     <para arch="i386,alpha">Parallel ports (&man.ppc.4; driver)</para>
 
-    <para arch="i386">PC-compatible joysticks (&man.joy.4 driver)</para>
+    <para arch="i386">PC-compatible joysticks (&man.joy.4; driver)</para>
 
     <para arch="i386">PHS Data Communication Card/PCCARD
       <itemizedlist>
@@ -2434,7 +2434,7 @@
 
     <para arch="i386,alpha,ia64">Serial ports (&man.sio.4; driver)</para>
 
-    <para arch="i386">X-10 power controllers (&man.tw.4 driver)</para>
+    <para arch="i386">X-10 power controllers (&man.tw.4; driver)</para>
 
     <para arch="i386">Xilinx XC6200-based reconfigurable hardware cards compatible
     with the HOT1 from <ulink url="http://www.vcc.com/">Virtual
