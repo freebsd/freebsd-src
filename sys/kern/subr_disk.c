@@ -221,6 +221,8 @@ diskdumpconf(u_int onoff, dev_t dev, struct disk *dp)
 	    dp->d_slice->dss_slices[dkslice(dev)].ds_offset) * DEV_BSIZE;
 	di.mediasize =
 	    (off_t)(dl->d_partitions[dkpart(dev)].p_size) * DEV_BSIZE;
+	if (di.mediasize == 0)
+		return (EINVAL);
 	return(set_dumper(&di));
 }
 
