@@ -43,7 +43,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.54 1995/03/16 18:11:59 bde Exp $
+ *	$Id: fd.c,v 1.55 1995/03/26 19:28:18 rgrimes Exp $
  *
  */
 
@@ -262,7 +262,7 @@ void ftstrategy(struct buf *);
 int ftioctl(dev_t, int, caddr_t, int, struct proc *);
 int ftdump(dev_t);
 int ftsize(dev_t);
-int ftattach(struct isa_device *, struct isa_device *);
+int ftattach(struct isa_device *, struct isa_device *, int);
 #endif
 
 /* autoconfig functions */
@@ -549,7 +549,7 @@ fdattach(struct isa_device *dev)
 	fdcu_t	fdcu = dev->id_unit;
 	fdc_p	fdc = fdc_data + fdcu;
 	fd_p	fd;
-	int	fdsu, st0, st3, i;
+	int	fdsu, st0, st3, i, unithasfd;
 	struct isa_device *fdup;
 	int ic_type = 0;
 
@@ -591,7 +591,14 @@ fdattach(struct isa_device *dev)
 #if NFT > 0
 			/* If BIOS says no floppy, or > 2nd device */
 			/* Probe for and attach a floppy tape.     */
-			if ((dev->id_flags & FT_PROBE) && ftattach(dev, fdup))
+			/* Tell FT if there was already a disk     */
+			/* with this unit number found.            */
+
+			unithasfd = 0;
+			if (fdu < NFD && fd->type != NO_TYPE)
+				unithasfd = 1;
+			if ((dev->id_flags & FT_PROBE) &&
+			    ftattach(dev, fdup, unithasfd))
 				continue;
 			if (fdsu < DRVS_PER_CTLR) 
 				fd->type = NO_TYPE;
