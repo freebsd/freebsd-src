@@ -3133,6 +3133,7 @@ ng_free_item(item_p item)
 		_NGI_ARG1(item) = NULL;
 		_NGI_ARG2(item) = 0;
 	case NGQF_UNDEF:
+		break;
 	}
 	/* If we still have a node or hook referenced... */
 	_NGI_CLR_NODE(item);
