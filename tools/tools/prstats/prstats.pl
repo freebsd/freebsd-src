@@ -52,7 +52,7 @@ use vars qw($TTY %MONTH %PR @EVENTS %STATE %CATEGORY @COUNT);
 
 sub GNATS_DIR			{ "/home/gnats" }
 sub GNATS_TZ			{ "America/Los_Angeles" }
-sub DATFILE			{ "/tmp/prstats.dat" }
+sub DATFILE			{ "/tmp/prstats.dat.$$" }
 sub GNUPLOT			{ "|/usr/local/bin/gnuplot /dev/stdin" }
 sub TIMEFMT			{ "%Y-%m-%d/%H:%M:%S" }
 
@@ -68,26 +68,6 @@ sub parse_date($) {
 
     $date =~ s/\s+/ /g;
     $date =~ s/^(Mon|Tue|Wed|Thu|Fri|Sat|Sun)\w*\s*//;
-#      $date =~ s/mi$/96/; # XXX bin/129
-#      $date =~ s/ed$/96/; # XXX bin/184
-#      $date =~ s/ug$/96/; # XXX bin/323
-#      $date =~ s/-u$/96/; # XXX bin/636
-#      $date =~ s/ow$/96/; # XXX bin/657
-#      $date =~ s/:f$/96/; # XXX gnu/1047
-#      $date =~ s/rs$/96/; # XXX bin/1132
-#      $date =~ s/ca$/96/; # XXX bin/1158
-#      $date =~ s/s:$/96/; # XXX gnu/1209
-#      $date =~ s/:c$/96/; # XXX bin/1215
-#      $date =~ s/io$/96/; # XXX bin/1279
-#      $date =~ s/d-$/96/; # XXX bin/1385
-#      $date =~ s/bs$/96/; # XXX bin/1403
-#      $date =~ s/-b$/96/; # XXX gnu/1471
-#      $date =~ s/sd$/96/; # XXX gnu/1472
-#      $date =~ s/al$/96/; # XXX bin/1785
-#      $date =~ s/eb$/96/; # XXX bin/1823
-#      $date =~ s/it$/96/; # XXX bin/1832
-#      $date =~ s/re$/96/; # XXX gnu/1835
-#      $date =~ s/ri$/97/; # XXX gnu/3247
     if ($date =~ m/^(\w{3}) (\d\d?) (\d\d):(\d\d):(\d\d) [A-Z ]*(\d{4})$/) {
 	($month, $day, $hour, $minute, $second, $year) =
 	    ($1, $2, $3, $4, $5, $6);
@@ -298,5 +278,5 @@ MAIN:{
 		   "Open FreeBSD problem reports (project history)");
     graph_open_prs(&DATFILE, "drive.png", mktime(0, 0, 0, 29, 4, 101), $now,
 		   "Open FreeBSD problem reports (drive progress)");
-    #unlink(&DATFILE);
+    unlink(&DATFILE);
 }
