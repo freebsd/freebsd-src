@@ -319,6 +319,8 @@ main(int argc, char *argv[])
 	child_pid = fork();
 	switch (child_pid) {
 	default:
+		setpgid(child_pid, child_pid);
+		tcsetpgrp(1, child_pid);
 		while ((ret_pid = waitpid(child_pid, &statusp, WUNTRACED)) != -1) {
 			if (WIFSTOPPED(statusp)) {
 				child_pgrp = tcgetpgrp(1);
