@@ -1,4 +1,4 @@
-<!-- $Id:$ -->
+<!-- $Id: relnotes.sgml,v 1.1 1995/06/14 18:38:56 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -9,7 +9,7 @@
 
 	<p>Since our first release of FreeBSD 1.0 nearly two
 	  years ago, FreeBSD has changed dramatically.  Since
-	  releas 2.0, FreeBSD has been based on the Berkeley BSD
+	  release 2.0, FreeBSD has been based on the Berkeley BSD
 	  4.4-lite code rather than the Net2 code used for
 	  previous versions.  In addition to clearing the legal
 	  issues that surrounded the Net2 code, the port to 4.4
