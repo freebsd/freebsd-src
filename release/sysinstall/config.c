@@ -234,10 +234,10 @@ configFstab(void)
     fprintf(fstab, "# Device\t\tMountpoint\tFStype\tOptions\t\tDump?\tfsck pass#\n");
     fprintf(fstab, "#\t\t\t\t\t\t\t\t\t(0=no) (0=no fsck)\n");
     for (i = 0; i < nchunks; i++)
-	fprintf(fstab, "/dev/%s\t\t%s\t%s\t%s\t\t%d\t%d\n", name_of(chunk_list[i]), mount_point(chunk_list[i]),
+	fprintf(fstab, "/dev/%s\t\t%s\t\t%s\t%s\t\t%d\t%d\n", name_of(chunk_list[i]), mount_point(chunk_list[i]),
 		fstype(chunk_list[i]), fstype_short(chunk_list[i]), seq_num(chunk_list[i]), seq_num(chunk_list[i]));
     Mkdir("/proc");
-    fprintf(fstab, "proc\t\t/proc\tprocfs\t\trw\t0\t0\n");
+    fprintf(fstab, "proc\t\t\t/proc\t\tprocfs\t\trw\t0\t0\n");
 
     /* Now look for the CDROMs */
     devs = deviceFind(NULL, DEVICE_TYPE_CDROM);
@@ -305,7 +305,7 @@ readConfig(char *config, char **lines, int max)
 void
 configEnvironment(char *config)
 {
-    char *lines[MAX_LINES], *cp;
+    char *lines[MAX_LINES], *cp, *cp2;
     int i, j, nlines;
 
     nlines = readConfig(config, lines, MAX_LINES);
@@ -321,12 +321,13 @@ configEnvironment(char *config)
 	*cp++ = '\0';
 	(void)string_prune(lines[i]);
 	cp = string_skipwhite(string_prune(cp));
-	if (*cp == '"')	/* Eliminate leading quote if it's quoted */
-	    ++cp;
-	j = strlen(cp);
+	if ((cp2 = index(cp, '"')))	/* Eliminate leading quote if it's quoted */
+	    cp = cp2 + 1;
+	j = strlen(cp) - 1;
 	if (cp[j] == '"') /* And trailing one */
 	    cp[j] = '\0';
-	variable_set2(lines[i], cp);
+	if (strlen(cp))
+	    variable_set2(lines[i], cp);
 	free(lines[i]);
     }
 }
