@@ -36,36 +36,36 @@ struct ia32_sigaltstack {
 };
 
 struct ia32_mcontext {
-	int	mc_onstack;		/* XXX - sigcontext compat. */
-	int	mc_gs;			/* machine state (struct trapframe) */
-	int	mc_fs;
-	int	mc_es;
-	int	mc_ds;
-	int	mc_edi;
-	int	mc_esi;
-	int	mc_ebp;
-	int	mc_isp;
-	int	mc_ebx;
-	int	mc_edx;
-	int	mc_ecx;
-	int	mc_eax;
-	int	mc_trapno;
-	int	mc_err;
-	int	mc_eip;
-	int	mc_cs;
-	int	mc_eflags;
-	int	mc_esp;
-	int	mc_ss;
-	int	mc_len;			/* sizeof(struct ia32_mcontext) */
+	u_int32_t	mc_onstack;		/* XXX - sigcontext compat. */
+	u_int32_t	mc_gs;			/* machine state (struct trapframe) */
+	u_int32_t	mc_fs;
+	u_int32_t	mc_es;
+	u_int32_t	mc_ds;
+	u_int32_t	mc_edi;
+	u_int32_t	mc_esi;
+	u_int32_t	mc_ebp;
+	u_int32_t	mc_isp;
+	u_int32_t	mc_ebx;
+	u_int32_t	mc_edx;
+	u_int32_t	mc_ecx;
+	u_int32_t	mc_eax;
+	u_int32_t	mc_trapno;
+	u_int32_t	mc_err;
+	u_int32_t	mc_eip;
+	u_int32_t	mc_cs;
+	u_int32_t	mc_eflags;
+	u_int32_t	mc_esp;
+	u_int32_t	mc_ss;
+	u_int32_t	mc_len;			/* sizeof(struct ia32_mcontext) */
 	/* We use the same values for fpformat and ownedfp */
-	int	mc_fpformat;
-	int	mc_ownedfp;
-	int	mc_spare1[1];		/* align next field to 16 bytes */
+	u_int32_t	mc_fpformat;
+	u_int32_t	mc_ownedfp;
+	u_int32_t	mc_spare1[1];		/* align next field to 16 bytes */
 	/*
 	 * See <i386/include/npx.h> for the internals of mc_fpstate[].
 	 */
-	int	mc_fpstate[128] __aligned(16);
-	int	mc_spare2[8];
+	u_int32_t	mc_fpstate[128] __aligned(16);
+	u_int32_t	mc_spare2[8];
 };
 
 struct ia32_ucontext {
@@ -73,35 +73,35 @@ struct ia32_ucontext {
 	struct ia32_mcontext	uc_mcontext;
 	u_int32_t		uc_link;
 	struct ia32_sigaltstack	uc_stack;
-	int			uc_flags;
-	int			__spare__[4];
+	u_int32_t		uc_flags;
+	u_int32_t		__spare__[4];
 };
 
 
 #if defined(COMPAT_FREEBSD4)
 struct ia32_mcontext4 {
-	int	mc_onstack;		/* XXX - sigcontext compat. */
-	int	mc_gs;			/* machine state (struct trapframe) */
-	int	mc_fs;
-	int	mc_es;
-	int	mc_ds;
-	int	mc_edi;
-	int	mc_esi;
-	int	mc_ebp;
-	int	mc_isp;
-	int	mc_ebx;
-	int	mc_edx;
-	int	mc_ecx;
-	int	mc_eax;
-	int	mc_trapno;
-	int	mc_err;
-	int	mc_eip;
-	int	mc_cs;
-	int	mc_eflags;
-	int	mc_esp;	
-	int	mc_ss;
-	int	mc_fpregs[28];
-	int	__spare__[17];
+	u_int32_t	mc_onstack;		/* XXX - sigcontext compat. */
+	u_int32_t	mc_gs;			/* machine state (struct trapframe) */
+	u_int32_t	mc_fs;
+	u_int32_t	mc_es;
+	u_int32_t	mc_ds;
+	u_int32_t	mc_edi;
+	u_int32_t	mc_esi;
+	u_int32_t	mc_ebp;
+	u_int32_t	mc_isp;
+	u_int32_t	mc_ebx;
+	u_int32_t	mc_edx;
+	u_int32_t	mc_ecx;
+	u_int32_t	mc_eax;
+	u_int32_t	mc_trapno;
+	u_int32_t	mc_err;
+	u_int32_t	mc_eip;
+	u_int32_t	mc_cs;
+	u_int32_t	mc_eflags;
+	u_int32_t	mc_esp;	
+	u_int32_t	mc_ss;
+	u_int32_t	mc_fpregs[28];
+	u_int32_t	__spare__[17];
 };
 
 struct ia32_ucontext4 {
@@ -109,33 +109,33 @@ struct ia32_ucontext4 {
 	struct ia32_mcontext4	uc_mcontext;
 	u_int32_t		uc_link;
 	struct ia32_sigaltstack	uc_stack;
-	int			__spare__[8];
+	u_int32_t		__spare__[8];
 };
 #endif
 
 #ifdef COMPAT_FREEBSD3
 struct ia32_sigcontext3 {
-	int	sc_onstack;
-	u_int32_t sc_mask;
-	int	sc_esp;	
-	int	sc_ebp;
-	int	sc_isp;
-	int	sc_eip;
-	int	sc_eflags;
-	int	sc_es;
-	int	sc_ds;
-	int	sc_cs;
-	int	sc_ss;
-	int	sc_edi;
-	int	sc_esi;
-	int	sc_ebx;
-	int	sc_edx;
-	int	sc_ecx;
-	int	sc_eax;
-	int	sc_gs;
-	int	sc_fs;
-	int	sc_trapno;
-	int	sc_err;
+	u_int32_t	sc_onstack;
+	u_int32_t	sc_mask;
+	u_int32_t	sc_esp;	
+	u_int32_t	sc_ebp;
+	u_int32_t	sc_isp;
+	u_int32_t	sc_eip;
+	u_int32_t	sc_eflags;
+	u_int32_t	sc_es;
+	u_int32_t	sc_ds;
+	u_int32_t	sc_cs;
+	u_int32_t	sc_ss;
+	u_int32_t	sc_edi;
+	u_int32_t	sc_esi;
+	u_int32_t	sc_ebx;
+	u_int32_t	sc_edx;
+	u_int32_t	sc_ecx;
+	u_int32_t	sc_eax;
+	u_int32_t	sc_gs;
+	u_int32_t	sc_fs;
+	u_int32_t	sc_trapno;
+	u_int32_t	sc_err;
 };
 #endif
 
