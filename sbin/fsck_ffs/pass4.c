@@ -50,7 +50,7 @@ static const char rcsid[] =
 #include "fsck.h"
 
 void
-pass4()
+pass4(void)
 {
 	ino_t inumber;
 	struct zlncnt *zlnp;
@@ -121,8 +121,7 @@ pass4()
 }
 
 int
-pass4check(idesc)
-	struct inodesc *idesc;
+pass4check(struct inodesc *idesc)
 {
 	struct dups *dlp;
 	int nfrags, res = KEEPON;

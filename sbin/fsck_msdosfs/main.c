@@ -44,11 +44,7 @@ static const char rcsid[] =
 #include <stdio.h>
 #include <unistd.h>
 #include <errno.h>
-#if __STDC__
 #include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
 
 #include "fsutil.h"
 #include "ext.h"
@@ -58,8 +54,7 @@ int alwaysyes;		/* assume "yes" for all questions */
 int preen;		/* set when preening */
 int rdonly;		/* device is opened read only (supersedes above) */
 
-static void usage __P((void));
-int main __P((int, char **));
+static void usage(void) __dead2;
 
 static void
 usage()
@@ -68,9 +63,7 @@ usage()
 }
 
 int
-main(argc, argv)
-	int argc;
-	char **argv;
+main(int argc, char **argv)
 {
 	int ret = 0, erg;
 	int ch;
@@ -125,14 +118,7 @@ main(argc, argv)
 
 /*VARARGS*/
 int
-#if __STDC__
 ask(int def, const char *fmt, ...)
-#else
-ask(def, fmt, va_alist)
-	int def;
-	char *fmt;
-	va_dcl
-#endif
 {
 	va_list ap;
 
@@ -147,11 +133,7 @@ ask(def, fmt, va_alist)
 		return def;
 	}
 
-#if __STDC__
 	va_start(ap, fmt);
-#else
-	va_start(ap);
-#endif
 	vsnprintf(prompt, sizeof(prompt), fmt, ap);
 	if (alwaysyes || rdonly) {
 		printf("%s? %s\n", prompt, rdonly ? "no" : "yes");

@@ -64,18 +64,14 @@ static const char rcsid[] =
 
 int returntosingle;
 
-static void usage __P((void));
-static int argtoi __P((int flag, char *req, char *str, int base));
-static int docheck __P((struct fstab *fsp));
-static int checkfilesys __P((char *filesys, char *mntpt, long auxdata,
-		int child));
-static struct statfs *getmntpt __P((const char *));
-int main __P((int argc, char *argv[]));
+static void usage(void) __dead2;
+static int argtoi(int flag, char *req, char *str, int base);
+static int docheck(struct fstab *fsp);
+static int checkfilesys(char *filesys, char *mntpt, long auxdata, int child);
+static struct statfs *getmntpt(const char *);
 
 int
-main(argc, argv)
-	int	argc;
-	char	*argv[];
+main(int argc, char *argv[])
 {
 	int ch;
 	struct rlimit rlimit;
@@ -162,10 +158,7 @@ main(argc, argv)
 }
 
 static int
-argtoi(flag, req, str, base)
-	int flag;
-	char *req, *str;
-	int base;
+argtoi(int flag, char *req, char *str, int base)
 {
 	char *cp;
 	int ret;
@@ -181,10 +174,7 @@ argtoi(flag, req, str, base)
  */
 /* ARGSUSED */
 static int
-checkfilesys(filesys, mntpt, auxdata, child)
-	char *filesys, *mntpt;
-	long auxdata;
-	int child;
+checkfilesys(char *filesys, char *mntpt, long auxdata, int child)
 {
 	ufs_daddr_t n_ffree, n_bfree;
 	struct dups *dp;
@@ -374,8 +364,7 @@ checkfilesys(filesys, mntpt, auxdata, child)
  * Get the directory that the device is mounted on.
  */
 static struct statfs *
-getmntpt(name)
-	const char *name;
+getmntpt(const char *name)
 {
 	struct stat devstat, mntdevstat;
 	char device[sizeof(_PATH_DEV) - 1 + MNAMELEN];
@@ -404,7 +393,7 @@ getmntpt(name)
 }
 
 static void
-usage()
+usage(void)
 {
         extern char *__progname;
 

@@ -93,20 +93,20 @@ static const char rcsid[] =
 
 
 /* dir.c */
-static struct dosDirEntry *newDosDirEntry __P((void));
-static void freeDosDirEntry __P((struct dosDirEntry *));
-static struct dirTodoNode *newDirTodo __P((void));
-static void freeDirTodo __P((struct dirTodoNode *));
-static char *fullpath __P((struct dosDirEntry *));
-static u_char calcShortSum __P((u_char *));
-static int delete __P((int, struct bootblock *, struct fatEntry *, cl_t, int,
-    cl_t, int, int));
-static int removede __P((int, struct bootblock *, struct fatEntry *, u_char *,
-    u_char *, cl_t, cl_t, cl_t, char *, int));
-static int checksize __P((struct bootblock *, struct fatEntry *, u_char *,
-    struct dosDirEntry *));
-static int readDosDirSection __P((int, struct bootblock *, struct fatEntry *,
-    struct dosDirEntry *));
+static struct dosDirEntry *newDosDirEntry(void);
+static void freeDosDirEntry(struct dosDirEntry *);
+static struct dirTodoNode *newDirTodo(void);
+static void freeDirTodo(struct dirTodoNode *);
+static char *fullpath(struct dosDirEntry *);
+static u_char calcShortSum(u_char *);
+static int delete(int, struct bootblock *, struct fatEntry *, cl_t, int,
+    cl_t, int, int);
+static int removede(int, struct bootblock *, struct fatEntry *, u_char *,
+    u_char *, cl_t, cl_t, cl_t, char *, int);
+static int checksize(struct bootblock *, struct fatEntry *, u_char *,
+    struct dosDirEntry *);
+static int readDosDirSection(int, struct bootblock *, struct fatEntry *,
+    struct dosDirEntry *);
 
 /*
  * Manage free dosDirEntry structures.
@@ -114,7 +114,7 @@ static int readDosDirSection __P((int, struct bootblock *, struct fatEntry *,
 static struct dosDirEntry *freede;
 
 static struct dosDirEntry *
-newDosDirEntry()
+newDosDirEntry(void)
 {
 	struct dosDirEntry *de;
 
@@ -127,8 +127,7 @@ newDosDirEntry()
 }
 
 static void
-freeDosDirEntry(de)
-	struct dosDirEntry *de;
+freeDosDirEntry(struct dosDirEntry *de)
 {
 	de->next = freede;
 	freede = de;
@@ -140,7 +139,7 @@ freeDosDirEntry(de)
 static struct dirTodoNode *freedt;
 
 static struct dirTodoNode *
-newDirTodo()
+newDirTodo(void)
 {
 	struct dirTodoNode *dt;
 
@@ -153,8 +152,7 @@ newDirTodo()
 }
 
 static void
-freeDirTodo(dt)
-	struct dirTodoNode *dt;
+freeDirTodo(struct dirTodoNode *dt)
 {
 	dt->next = freedt;
 	freedt = dt;
@@ -169,8 +167,7 @@ struct dirTodoNode *pendingDirectories = NULL;
  * Return the full pathname for a directory entry.
  */
 static char *
-fullpath(dir)
-	struct dosDirEntry *dir;
+fullpath(struct dosDirEntry *dir)
 {
 	static char namebuf[MAXPATHLEN + 1];
 	char *cp, *np;
@@ -197,8 +194,7 @@ fullpath(dir)
  * Calculate a checksum over an 8.3 alias name
  */
 static u_char
-calcShortSum(p)
-	u_char *p;
+calcShortSum(u_char *p)
 {
 	u_char sum = 0;
 	int i;
@@ -225,9 +221,7 @@ static struct dosDirEntry *lostDir;
  * Init internal state for a new directory scan.
  */
 int
-resetDosDirSection(boot, fat)
-	struct bootblock *boot;
-	struct fatEntry *fat;
+resetDosDirSection(struct bootblock *boot, struct fatEntry *fat)
 {
 	int b1, b2;
 	cl_t cl;
@@ -280,7 +274,7 @@ resetDosDirSection(boot, fat)
  * Cleanup after a directory scan
  */
 void
-finishDosDirSection()
+finishDosDirSection(void)
 {
 	struct dirTodoNode *p, *np;
 	struct dosDirEntry *d, *nd;
@@ -310,15 +304,8 @@ finishDosDirSection()
  * Delete directory entries between startcl, startoff and endcl, endoff.
  */
 static int
-delete(f, boot, fat, startcl, startoff, endcl, endoff, notlast)
-	int f;
-	struct bootblock *boot;
-	struct fatEntry *fat;
-	cl_t startcl;
-	int startoff;
-	cl_t endcl;
-	int endoff;
-	int notlast;
+delete(int f, struct bootblock *boot, struct fatEntry *fat, cl_t startcl,
+    int startoff, cl_t endcl, int endoff, int notlast)
 {
 	u_char *s, *e;
 	off_t off;
@@ -357,17 +344,8 @@ delete(f, boot, fat, startcl, startoff, endcl, endoff, notlast)
 }
 
 static int
-removede(f, boot, fat, start, end, startcl, endcl, curcl, path, type)
-	int f;
-	struct bootblock *boot;
-	struct fatEntry *fat;
-	u_char *start;
-	u_char *end;
-	cl_t startcl;
-	cl_t endcl;
-	cl_t curcl;
-	char *path;
-	int type;
+removede(int f, struct bootblock *boot, struct fatEntry *fat, u_char *start,
+    u_char *end, cl_t startcl, cl_t endcl, cl_t curcl, char *path, int type)
 {
 	switch (type) {
 	case 0:
@@ -401,11 +379,8 @@ removede(f, boot, fat, start, end, startcl, endcl, curcl, path, type)
  * Check an in-memory file entry
  */
 static int
-checksize(boot, fat, p, dir)
-	struct bootblock *boot;
-	struct fatEntry *fat;
-	u_char *p;
-	struct dosDirEntry *dir;
+checksize(struct bootblock *boot, struct fatEntry *fat, u_char *p,
+    struct dosDirEntry *dir)
 {
 	/*
 	 * Check size on ordinary files
@@ -456,11 +431,8 @@ checksize(boot, fat, p, dir)
  *   - push directories onto the todo-stack
  */
 static int
-readDosDirSection(f, boot, fat, dir)
-	int f;
-	struct bootblock *boot;
-	struct fatEntry *fat;
-	struct dosDirEntry *dir;
+readDosDirSection(int f, struct bootblock *boot, struct fatEntry *fat,
+    struct dosDirEntry *dir)
 {
 	struct dosDirEntry dirent, *d;
 	u_char *p, *vallfn, *invlfn, *empty;
@@ -879,10 +851,7 @@ readDosDirSection(f, boot, fat, dir)
 }
 
 int
-handleDirTree(dosfs, boot, fat)
-	int dosfs;
-	struct bootblock *boot;
-	struct fatEntry *fat;
+handleDirTree(int dosfs, struct bootblock *boot, struct fatEntry *fat)
 {
 	int mod;
 
@@ -923,11 +892,7 @@ static cl_t lfcl;
 static off_t lfoff;
 
 int
-reconnect(dosfs, boot, fat, head)
-	int dosfs;
-	struct bootblock *boot;
-	struct fatEntry *fat;
-	cl_t head;
+reconnect(int dosfs, struct bootblock *boot, struct fatEntry *fat, cl_t head)
 {
 	struct dosDirEntry d;
 	u_char *p;
@@ -1009,7 +974,7 @@ reconnect(dosfs, boot, fat, head)
 }
 
 void
-finishlf()
+finishlf(void)
 {
 	if (lfbuf)
 		free(lfbuf);

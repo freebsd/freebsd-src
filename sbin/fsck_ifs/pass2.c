@@ -51,11 +51,11 @@ static const char rcsid[] =
 
 #define MINDIRSIZE	(sizeof (struct dirtemplate))
 
-static int blksort __P((const void *, const void *));
-static int pass2check __P((struct inodesc *));
+static int blksort(const void *, const void *);
+static int pass2check(struct inodesc *);
 
 void
-pass2()
+pass2(void)
 {
 	struct dinode *dp;
 	struct inoinfo **inpp, *inp;
@@ -213,8 +213,7 @@ pass2()
 }
 
 static int
-pass2check(idesc)
-	struct inodesc *idesc;
+pass2check(struct inodesc *idesc)
 {
 	struct direct *dirp = idesc->id_dirp;
 	struct inoinfo *inp;
@@ -477,8 +476,7 @@ again:
  * Routine to sort disk blocks.
  */
 static int
-blksort(arg1, arg2)
-	const void *arg1, *arg2;
+blksort(const void *arg1, const void *arg2)
 {
 
 	return ((*(struct inoinfo **)arg1)->i_blks[0] -

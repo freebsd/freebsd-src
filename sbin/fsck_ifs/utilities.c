@@ -60,8 +60,7 @@ static const char rcsid[] =
 
 
 char *
-blockcheck(origname)
-	char *origname;
+blockcheck(char *origname)
 {
 	struct stat stslash, stblock, stchar;
 	char *newname, *raw;

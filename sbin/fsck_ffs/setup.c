@@ -60,9 +60,9 @@ struct bufarea asblk;
 #define altsblock (*asblk.b_un.b_fs)
 #define POWEROF2(num)	(((num) & ((num) - 1)) == 0)
 
-static void badsb __P((int listerr, char *s));
-static int calcsb __P((char *dev, int devfd, struct fs *fs));
-static struct disklabel *getdisklabel __P((char *s, int fd));
+static void badsb(int listerr, char *s);
+static int calcsb(char *dev, int devfd, struct fs *fs);
+static struct disklabel *getdisklabel(char *s, int fd);
 
 /*
  * Read in a superblock finding an alternate if necessary.
@@ -70,8 +70,7 @@ static struct disklabel *getdisklabel __P((char *s, int fd));
  * is already clean (preen mode only).
  */
 int
-setup(dev)
-	char *dev;
+setup(char *dev)
 {
 	long cg, asked, i, j;
 	long bmapsize;
@@ -360,8 +359,7 @@ badsb:
  * Read in the super block and its summary info.
  */
 int
-readsb(listerr)
-	int listerr;
+readsb(int listerr)
 {
 	ufs_daddr_t super = bflag ? bflag : SBOFF / dev_bsize;
 
@@ -468,9 +466,7 @@ readsb(listerr)
 }
 
 static void
-badsb(listerr, s)
-	int listerr;
-	char *s;
+badsb(int listerr, char *s)
 {
 
 	if (!listerr)
@@ -481,7 +477,7 @@ badsb(listerr, s)
 }
 
 void
-sblock_init()
+sblock_init(void)
 {
 	struct disklabel *lp;
 
@@ -507,10 +503,7 @@ sblock_init()
  * their needed information is available!
  */
 static int
-calcsb(dev, devfd, fs)
-	char *dev;
-	int devfd;
-	struct fs *fs;
+calcsb(char *dev, int devfd, struct fs *fs)
 {
 	struct disklabel *lp;
 	struct partition *pp;
@@ -568,9 +561,7 @@ calcsb(dev, devfd, fs)
 }
 
 static struct disklabel *
-getdisklabel(s, fd)
-	char *s;
-	int	fd;
+getdisklabel(char *s, int fd)
 {
 	static struct disklabel lab;
 
