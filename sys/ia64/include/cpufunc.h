@@ -35,11 +35,15 @@
 #include <machine/ia64_cpu.h>
 #include <machine/vmparam.h>
 
+#ifndef _SYS_CDEFS_H_
+#error this file needs sys/cdefs.h as a prerequisite
+#endif
+
 struct thread;
 
 #define	IA64_FIXED_BREAK	0x84B5D
 
-#ifdef __GNUC__
+#ifdef __GNUCLIKE_ASM
 
 static __inline void
 breakpoint(void)
@@ -49,8 +53,6 @@ breakpoint(void)
 
 #define	HAVE_INLINE_FFS
 #define	ffs(x)	__builtin_ffs(x)
-
-#endif
 
 extern uint64_t ia64_port_base;
 #define	__MEMIO_ADDR(x)		(__volatile void*)(IA64_PHYS_TO_RR6(x))
@@ -207,6 +209,8 @@ intr_restore(register_t ie)
 	if (ie)
 		enable_intr();
 }
+
+#endif /* __GNUCLIKE_ASM */
 
 #endif /* _KERNEL */
 

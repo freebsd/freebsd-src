@@ -39,10 +39,13 @@
 #define	_SYS_IOCTL_H_
 
 #ifdef _KERNEL
-#if defined(__GNUC__) || defined(__INTEL_COMPILER)
+#ifndef _SYS_CDEFS_H_
+#error this file needs sys/cdefs.h as a prerequisite
+#endif
+#ifdef __CC_SUPPORTS_WARNING
 #warning "Don't #include ioctl.h in the kernel.  Include xxxio.h instead."
 #endif
-#endif
+#endif /* _KERNEL */
 
 #include <sys/ttycom.h>
 

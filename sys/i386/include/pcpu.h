@@ -29,6 +29,10 @@
 #ifndef _MACHINE_PCPU_H_
 #define _MACHINE_PCPU_H_
 
+#ifndef _SYS_CDEFS_H_
+#error this file needs sys/cdefs.h as a prerequisite
+#endif
+
 #ifdef _KERNEL
 
 #include <machine/segments.h>
@@ -59,7 +63,8 @@ extern struct pcpu *pcpup;
 #define PCPU_PTR(member)        (&pcpup->pc_ ## member)
 #define PCPU_SET(member,value)  (pcpup->pc_ ## member = (value))
  
-#elif defined(__GNUC__) || defined (__INTEL_COMPILER)
+#elif defined(__GNUCLIKE_ASM) && defined(__GNUCLIKE___TYPEOF) \
+    && defined(__GNUCLIKE___OFFSETOF)
 
 /*
  * Evaluates to the byte offset of the per-cpu variable name.
@@ -162,7 +167,7 @@ __curthread(void)
 #define	curthread (__curthread())
 
 #else
-#error gcc or lint is required to use this file
+#error this file needs to be ported to your compiler
 #endif
 
 #endif	/* _KERNEL */

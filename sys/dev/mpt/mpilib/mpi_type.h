@@ -46,6 +46,9 @@
 #ifndef MPI_TYPE_H
 #define MPI_TYPE_H
 
+#ifndef _SYS_CDEFS_H_
+#error this file needs sys/cdefs.h as a prerequisite
+#endif
 
 /*******************************************************************************
  * Define MPI_POINTER if it hasn't already been defined. By default MPI_POINTER
@@ -68,7 +71,8 @@ typedef unsigned char   U8;
 typedef signed   short  S16;
 typedef unsigned short  U16;
 
-#if defined(unix) || defined(__arm) || defined(ALPHA) || defined(__GNUC__) || defined(__INTEL_COMPILER)
+#if defined(unix) || defined(__arm) || defined(ALPHA) \
+    || defined(__CC_INT_IS_32BIT)
 
     typedef signed   int   S32;
     typedef unsigned int   U32;

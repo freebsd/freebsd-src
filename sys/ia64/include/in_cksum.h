@@ -45,7 +45,7 @@
  * in the normal case (where there are no options and the header length is
  * therefore always exactly five 32-bit words.
  */
-#ifdef __GNUC__
+#ifdef __CC_SUPPORTS___INLINE
 
 static __inline void
 in_cksum_update(struct ip *ip)

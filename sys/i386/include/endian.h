@@ -67,17 +67,7 @@ extern "C" {
 #define	BYTE_ORDER	_BYTE_ORDER
 #endif
 
-#if defined(__INTEL_COMPILER)
-#if defined(__cplusplus)
-#if __INTEL_COMPILER >= 800
-#define __INTEL_COMPILER_with_FreeBSD_endian 1
-#endif
-#else
-#define __INTEL_COMPILER_with_FreeBSD_endian 1
-#endif
-#endif
-
-#if defined(__GNUC__) || defined(__INTEL_COMPILER_with_FreeBSD_endian)
+#if defined(__GNUCLIKE_ASM) && defined(__GNUCLIKE_BUILTIN_CONSTANT_P)
 
 #define __word_swap_int_var(x) \
 __extension__ ({ register __uint32_t __X = (x); \
@@ -168,7 +158,7 @@ __bswap16(__uint16_t _x)
 #define	__ntohl(x)	__bswap32(x)
 #define	__ntohs(x)	__bswap16(x)
 
-#else /* !(__GNUC__ || __INTEL_COMPILER_with_FreeBSD_endian) */
+#else /* !(__GNUCLIKE_ASM && __GNUCLIKE_BUILTIN_CONSTANT_P) */
 
 /*
  * No optimizations are available for this compiler.  Fall back to
@@ -177,7 +167,7 @@ __bswap16(__uint16_t _x)
  */
 #define	_BYTEORDER_FUNC_DEFINED
 
-#endif /* __GNUC__ || __INTEL_COMPILER_with_FreeBSD_endian */
+#endif /* __GNUCLIKE_ASM && __GNUCLIKE_BUILTIN_CONSTANT_P */
 
 #ifdef __cplusplus
 }

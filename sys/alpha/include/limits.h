@@ -34,7 +34,9 @@
 #ifndef _MACHINE_LIMITS_H_
 #define	_MACHINE_LIMITS_H_
 
-#if __GNUC__
+#include <sys/cdefs.h>
+
+#ifdef __CC_SUPPORTS_WARNING
 #warning "machine/limits.h is deprecated.  Include sys/limits.h instead."
 #endif
 

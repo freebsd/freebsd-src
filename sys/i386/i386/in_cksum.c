@@ -57,7 +57,11 @@ __FBSDID("$FreeBSD$");
 
 #undef	ADDCARRY
 #define ADDCARRY(x)     if ((x) > 0xffff) (x) -= 0xffff
-#if !defined(__GNUC__) || defined(__INTEL_COMPILER)
+/*
+ * icc needs to be special cased here, as the asm code below results
+ * in broken code if compiled with icc.
+ */
+#if !defined(__GNUCLIKE_ASM) || defined(__INTEL_COMPILER)
 /* non gcc parts stolen from sys/alpha/alpha/in_cksum.c */
 #define REDUCE32							  \
     {									  \
@@ -74,7 +78,7 @@ __FBSDID("$FreeBSD$");
 #endif
 #define REDUCE          {sum = (sum & 0xffff) + (sum >> 16); ADDCARRY(sum);}
 
-#if !defined(__GNUC__) || defined(__INTEL_COMPILER)
+#if !defined(__GNUCLIKE_ASM) || defined(__INTEL_COMPILER)
 static const u_int32_t in_masks[] = {
 	/*0 bytes*/ /*1 byte*/	/*2 bytes*/ /*3 bytes*/
 	0x00000000, 0x000000FF, 0x0000FFFF, 0x00FFFFFF,	/* offset 0 */

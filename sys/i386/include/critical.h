@@ -46,7 +46,7 @@ __BEGIN_DECLS
  */
 void cpu_critical_fork_exit(void);
 
-#if defined(__GNUC__) || defined(__INTEL_COMPILER)
+#ifdef __CC_SUPPORTS___INLINE
 
 /*
  *	cpu_critical_enter:
@@ -81,12 +81,12 @@ cpu_critical_exit(struct thread *td)
 	intr_restore(td->td_md.md_savecrit);
 }
 
-#else /* !(__GNUC__ || __INTEL_COMPILER) */
+#else /* !__CC_SUPPORTS___INLINE */
 
 void cpu_critical_enter(struct thread *td);
 void cpu_critical_exit(struct thread *td);
 
-#endif        /* __GNUC__ || __INTEL_COMPILER */
+#endif        /* __CC_SUPPORTS___INLINE */
 
 __END_DECLS
 

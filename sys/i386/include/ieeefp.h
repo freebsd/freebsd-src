@@ -41,6 +41,10 @@
 #ifndef _MACHINE_IEEEFP_H_
 #define _MACHINE_IEEEFP_H_
 
+#ifndef _SYS_CDEFS_H_
+#error this file needs sys/cdefs.h as a prerequisite
+#endif
+
 /*
  * FP rounding modes
  */
@@ -98,7 +102,7 @@ typedef enum {
 #define FP_RND_OFF	10	/* round control offset */
 #define FP_STKY_OFF	0	/* sticky flags offset */
 
-#if defined(__GNUC__) || defined(__INTEL_COMPILER)
+#ifdef __GNUCLIKE_ASM
 
 #define	__fldenv(addr)	__asm __volatile("fldenv %0" : : "m" (*(addr)))
 #define	__fnstenv(addr)	__asm __volatile("fnstenv %0" : "=m" (*(addr)))
@@ -151,7 +155,7 @@ __fpsetreg(int _m, int _reg, int _fld, int _off)
 	return _p;
 }
 
-#endif /* __GNUC__ || __INTEL_COMPILER */
+#endif /* __GNUCLIKE_ASM */
 
 /*
  * SysV/386 FP control interface
