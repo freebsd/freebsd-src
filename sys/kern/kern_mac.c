@@ -34,9 +34,11 @@
  * SUCH DAMAGE.
  */
 
-/*
- * Framework for extensible kernel access control.  Kernel and userland
- * interface to the framework, policy registration and composition.
+/*-
+ * Framework for extensible kernel access control.  This file contains
+ * Kernel and userland interface to the framework, policy registration
+ * and composition.  Per-object interfaces, controls, and labeling may be
+ * found in src/sys/mac/.  Sample policies may be found in src/sys/mac*.
  */
 
 #include <sys/cdefs.h>
@@ -182,6 +184,7 @@ struct mac_policy_list_head mac_static_policy_list;
 void
 mac_policy_grab_exclusive(void)
 {
+
 	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL,
  	    "mac_policy_grab_exclusive() at %s:%d", __FILE__, __LINE__);
 	mtx_lock(&mac_policy_mtx);
@@ -192,6 +195,7 @@ mac_policy_grab_exclusive(void)
 void
 mac_policy_assert_exclusive(void)
 {
+
 	mtx_assert(&mac_policy_mtx, MA_OWNED);
 	KASSERT(mac_policy_count == 0,
 	    ("mac_policy_assert_exclusive(): not exclusive"));
@@ -210,6 +214,7 @@ mac_policy_release_exclusive(void)
 void
 mac_policy_list_busy(void)
 {
+
 	mtx_lock(&mac_policy_mtx);
 	mac_policy_count++;
 	mtx_unlock(&mac_policy_mtx);
@@ -233,6 +238,7 @@ mac_policy_list_conditional_busy(void)
 void
 mac_policy_list_unbusy(void)
 {
+
 	mtx_lock(&mac_policy_mtx);
 	mac_policy_count--;
 	KASSERT(mac_policy_count >= 0, ("MAC_POLICY_LIST_LOCK"));
