@@ -749,6 +749,9 @@ ses_type(void *buf, int buflen)
 {
 	unsigned char *iqd = buf;
 
+	if (buflen == 0)
+		buflen = 256;	/* per SPC-2 */
+
 	if (buflen < 8+SEN_ID_LEN)
 		return (SES_NONE);
 
