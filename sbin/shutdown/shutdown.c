@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)shutdown.c	8.4 (Berkeley) 4/28/95";
 #endif
 static const char rcsid[] =
-	"$Id: shutdown.c,v 1.16 1998/12/11 11:21:47 bde Exp $";
+	"$Id: shutdown.c,v 1.17 1999/06/18 14:26:07 ru Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -151,10 +151,14 @@ main(argc, argv)
 	if (argc < 1)
 		usage();
 
-	if (doreboot + dohalt + dopower > 1) {
-		warnx("incompatible switches -h, -p and -r");
+	if (killflg + doreboot + dohalt + dopower > 1) {
+		warnx("incompatible switches -h, -k, -p and -r");
 		usage();
 	}
+
+	if (killflg && nosync)
+		warnx("option -n ignored with -k");
+
 	getoffset(*argv++);
 
 	if (*argv) {
@@ -383,12 +387,14 @@ getoffset(timearg)
 	time_t now;
 	int this_year;
 
+	(void)time(&now);
+
 	if (!strcasecmp(timearg, "now")) {		/* now */
 		offset = 0;
+		shuttime = now;
 		return;
 	}
 
-	(void)time(&now);
 	if (*timearg == '+') {				/* +minutes */
 		if (!isdigit(*++timearg))
 			badtime();
