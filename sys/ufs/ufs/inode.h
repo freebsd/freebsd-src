@@ -36,12 +36,13 @@
  * SUCH DAMAGE.
  *
  *	@(#)inode.h	8.9 (Berkeley) 5/14/95
- * $Id: inode.h,v 1.17 1997/10/14 18:46:45 phk Exp $
+ * $Id: inode.h,v 1.18 1997/10/17 12:36:19 phk Exp $
  */
 
 #ifndef _UFS_UFS_INODE_H_
 #define	_UFS_UFS_INODE_H_
 
+#include <sys/lock.h>
 #include <ufs/ufs/dinode.h>
 
 /*
