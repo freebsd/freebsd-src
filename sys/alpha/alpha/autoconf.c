@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: autoconf.c,v 1.11 1998/10/06 08:38:04 dfr Exp $
+ *	$Id: autoconf.c,v 1.12 1998/10/30 01:36:40 jkh Exp $
  */
 
 #include "opt_bootp.h"
@@ -58,24 +58,17 @@
 #include <cam/cam_xpt_sim.h>
 #include <cam/cam_debug.h>
 
-#include "scbus.h"
-
 static void	configure __P((void *));
-SYSINIT(configure, SI_SUB_CONFIGURE, SI_ORDER_FIRST, configure, NULL)
+SYSINIT(configure, SI_SUB_CONFIGURE, SI_ORDER_THIRD, configure, NULL)
 
 static void	configure_finish __P((void));
 static void	configure_start __P((void));
 device_t	isa_bus_device = 0;
 struct cam_sim *boot_sim = 0;
 
-extern void xpt_init __P((void));
-
 static void
 configure_start()
 {
-#if NSCBUS > 0
-	xpt_init();
-#endif
 }
 
 static void
