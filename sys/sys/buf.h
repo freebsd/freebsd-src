@@ -304,6 +304,7 @@ do {						\
 	lockdestroy(&(bp)->b_lock);		\
 } while (0)
 
+#ifdef _SYS_PROC_H_	/* Avoid #include <sys/proc.h> pollution */
 /*
  * When initiating asynchronous I/O, change ownership of the lock to the
  * kernel. Once done, the lock may legally released by biodone. The
@@ -320,6 +321,7 @@ BUF_KERNPROC(struct buf *bp)
 		p->p_locks--;
 	bp->b_lock.lk_lockholder = LK_KERNPROC;
 }
+#endif
 /*
  * Find out the number of references to a lock.
  */
