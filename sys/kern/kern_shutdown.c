@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_mac.h"
 #include "opt_panic.h"
 #include "opt_show_busybufs.h"
+#include "opt_sched.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>

@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_ddb.h"
 #include "opt_mprof.h"
 #include "opt_mutex_wake_all.h"
+#include "opt_sched.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
