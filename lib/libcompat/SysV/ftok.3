@@ -23,7 +23,7 @@
 .\" OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 .\" ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"	$Id: ftok.3,v 1.1 1995/05/01 08:53:16 joerg Exp $
+.\"	$Id: ftok.3,v 1.1.4.1 1996/01/30 18:16:04 mpp Exp $
 .Dd June 24, 1994
 .Os
 .Dt ftok 3
@@ -34,7 +34,7 @@
 .Fd #include <sys/types.h>
 .Fd #include <sys/ipc.h>
 .Ft key_t
-.Fn ftok "const char *path" "char id" ;
+.Fn ftok "const char *path" "int id" ;
 .Sh DESCRIPTION
 .Bf -symbolic
 This function is available from the compatibility library, libcompat.
@@ -70,19 +70,16 @@ does not exist or if it cannot be accessed by the calling process.
 .Sh HISTORY
 The
 .Fn ftok
-function originate with System V and is typically used by programs
+function originates with System V and is typically used by programs
 that use the System V IPC routines.
 .Sh AUTHOR
 .Bl -tag
 Thorsten Lockert <tholo@sigmasoft.com>
 .El
 .Sh BUGS
-The returned key is computed based on the device and inode of the
+The returned key is computed based on the device minor number and inode of the
 specified
 .Fa path
-in combination with the given
+in combination with the lower 8 bits of the given
 .Fa id .
-Thus is is quite possible for the routine to return duplicate keys
-given that those fields are not 8- and 16-bit quantities like they
-were on System V based systems where this library routine's ancestor
-were originally created.
+Thus is is quite possible for the routine to return duplicate keys.
