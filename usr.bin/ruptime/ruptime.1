@@ -44,7 +44,7 @@
 .Sh DESCRIPTION
 .Nm Ruptime
 gives a status line like
-.Ar uptime
+.Xr uptime 1
 for each machine on the local network; these are formed from packets
 broadcast by each host on the network once every three minutes.
 .Pp
@@ -55,13 +55,12 @@ report has been received for 4 days are not shown in the list at all.
 The options are as follows:
 .Bl -tag -width Ds
 .It Fl a
-Users idle an hour or more are not counted unless the
-.Fl a
-flag is given.
+Include all users.  By default, if a user hasn't typed to the system for
+an hour or more, then the user will be omitted from the output.
 .It Fl l
 Sort by load average.
 .It Fl r
-Reverses the sort order.
+Reverse the sort order.
 .It Fl t
 Sort by uptime.
 .It Fl u
