@@ -60,11 +60,11 @@ ishead(linebuf)
 	struct headline hl;
 	char parbuf[BUFSIZ];
 
-	if (strncmp(linebuf, "From ", 5))
+	if (strncmp(linebuf, "From ", 5) != 0)
 		return (0);
 	parse(linebuf, &hl, parbuf);
-	if (hl.l_from == NULL || hl.l_date == NULL) {
-		fail(linebuf, "No from or date field");
+	if (hl.l_date == NULL) {
+		fail(linebuf, "No date field");
 		return (0);
 	}
 	if (!isdate(hl.l_date)) {
@@ -113,10 +113,17 @@ parse(line, hl, pbuf)
 	 * Skip over "From" first.
 	 */
 	cp = nextword(cp, word);
+	/*
+	 * Check for missing return-path.
+	 */
+	if (isdate(cp)) {
+		hl->l_date = copyin(cp, &sp);
+		return;
+	}
 	cp = nextword(cp, word);
-	if (*word != '\0')
+	if (strlen(word) > 0)
 		hl->l_from = copyin(word, &sp);
-	if (cp != NULL && cp[0] == 't' && cp[1] == 't' && cp[2] == 'y') {
+	if (cp != NULL && strncmp(cp, "tty", 3) == 0) {
 		cp = nextword(cp, word);
 		hl->l_tty = copyin(word, &sp);
 	}
