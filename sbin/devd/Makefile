@@ -1,0 +1,16 @@
+# $FreeBSD$
+
+PROG=	devd
+SRCS=	devd.c token.l parse.y y.tab.h
+MAN=	devd.8
+WARNS?=	5
+
+DPADD=	${LIBL}
+LDADD=	-ll
+
+YFLAGS+=-v
+CFLAGS+=-I. -I${.CURDIR}
+
+CLEANFILES= y.output
+
+.include <bsd.prog.mk>
