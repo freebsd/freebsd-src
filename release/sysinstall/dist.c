@@ -440,15 +440,20 @@ distExtract(char *parent, Distribution *me)
 		continue;
 	}
 	else if (fp == (FILE *)IO_ERROR || intr) {	/* Hard error, can't continue */
-	    msgConfirm("Unable to open %s: %s.\nReinitializing media.",
-		       buf, !intr ? "I/O error." : "User interrupt.");
-	    mediaDevice->shutdown(mediaDevice);
-	    if (!mediaDevice->init(mediaDevice)) {
+	    if (!msgYesNo("Unable to open %s: %s.\nReinitialize media?",
+			  buf, !intr ? "I/O error." : "User interrupt.")) {
+		mediaDevice->shutdown(mediaDevice);
+		if (!mediaDevice->init(mediaDevice)) {
+		    status = FALSE;
+		    goto done;
+		}
+		else
+		    goto getinfo;
+	    }
+	    else {
 		status = FALSE;
 		goto done;
 	    }
-	    else
-		goto getinfo;
 	}
 	else {
 	    /* Try to get the distribution as a single file */
