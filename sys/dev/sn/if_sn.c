@@ -78,8 +78,7 @@
  * Multicast support by Kei TANAKA <kei@pal.xerox.com>
  * Special thanks to itojun@itojun.org
  */
-
-#undef	SN_DEBUG	/* (by hosokawa) */
+#define	SN_DEBUG
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -361,6 +360,7 @@ snstart(struct ifnet *ifp)
 	u_short         numPages;
 	u_char          packet_no;
 	int             time_out;
+	int		junk = 0;
 
 	s = splimp();
 
@@ -443,7 +443,7 @@ startagain:
 			break;
 	} while (--time_out);
 
-	if (!time_out) {
+	if (!time_out || junk > 10) {
 
 		/*
 		 * No memory now.  Oh well, wait until the chip finds memory
@@ -469,7 +469,8 @@ startagain:
 	 */
 	packet_no = inb(BASE + ALLOC_RESULT_REG_B);
 	if (packet_no & ARR_FAILED) {
-		printf("sn%d: Memory allocation failed\n", ifp->if_unit);
+		if (junk++ > 10)
+			printf("sn%d: Memory allocation failed\n", ifp->if_unit);
 		goto startagain;
 	}
 	/*
@@ -1243,9 +1244,8 @@ sn_activate(device_t dev)
 	sc->port_res = bus_alloc_resource(dev, SYS_RES_IOPORT, &sc->port_rid,
 	    0, ~0, SMC_IO_EXTENT, RF_ACTIVE);
 	if (!sc->port_res) {
-#ifdef SN_DEBUG
-		device_printf(dev, "Cannot allocate ioport\n");
-#endif		
+		if (bootverbose)
+			device_printf(dev, "Cannot allocate ioport\n");
 		return ENOMEM;
 	}
 
@@ -1253,9 +1253,8 @@ sn_activate(device_t dev)
 	sc->irq_res = bus_alloc_resource(dev, SYS_RES_IRQ, &sc->irq_rid, 
 	    0, ~0, 1, RF_ACTIVE);
 	if (!sc->irq_res) {
-#ifdef SN_DEBUG
-		device_printf(dev, "Cannot allocate irq\n");
-#endif
+		if (bootverbose)
+			device_printf(dev, "Cannot allocate irq\n");
 		sn_deactivate(dev);
 		return ENOMEM;
 	}
@@ -1317,7 +1316,9 @@ sn_probe(device_t dev, int pccard)
 		return err;
 
 	ioaddr = sc->sn_io_addr;
-
+#ifdef SN_DEBUG
+	device_printf(dev, "ioaddr is 0x%x\n", ioaddr);
+#endif
 	/*
 	 * First, see if the high byte is 0x33
 	 */
@@ -1361,11 +1362,6 @@ sn_probe(device_t dev, int pccard)
 		 * Well, the base address register didn't match.  Must not
 		 * have been a SMC chip after all.
 		 */
-		/*
-		 * printf("sn: ioaddr %x doesn't match card configuration
-		 * (%x)\n", ioaddr, base_address_register >> 3 & 0x3E0 );
-		 */
-
 #ifdef	SN_DEBUG
 		device_printf(dev, "test3 failed ioaddr = 0x%x, "
 		    "base_address_register = 0x%x\n", ioaddr,
@@ -1373,6 +1369,7 @@ sn_probe(device_t dev, int pccard)
 #endif
 		goto error;
 	}
+
 	/*
 	 * Check if the revision register is something that I recognize.
 	 * These might need to be added to later, as future revisions could
@@ -1390,6 +1387,7 @@ sn_probe(device_t dev, int pccard)
 #endif
 		goto error;
 	}
+
 	/*
 	 * at this point I'll assume that the chip is an SMC9xxx. It might be
 	 * prudent to check a listing of MAC addresses against the hardware

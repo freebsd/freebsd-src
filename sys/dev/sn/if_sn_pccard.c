@@ -55,13 +55,22 @@
 #include <dev/sn/if_snvar.h>
 #include <dev/pccard/pccardvar.h>
 
+#include <dev/pccard/pccarddevs.h>
+
+#include "card_if.h"
+
 /*
  * Initialize the device - called from Slot manager.
  */
 static int
 sn_pccard_probe(device_t dev)
 {
-	return (sn_probe(dev, 1));
+	int err;
+
+	printf ("Probing sn driver\n");
+	err = sn_probe(dev, 1);
+	printf("sn_probe says %d\n", err);
+	return (err);
 }
 
 static int
@@ -80,7 +89,6 @@ sn_pccard_attach(device_t dev)
 		sc->pccard_enaddr = 1;
 		bcopy(ether_addr, sc->arpcom.ac_enaddr, ETHER_ADDR_LEN);
 	}
-
 	return (sn_attach(dev));
 }
 
@@ -95,11 +103,22 @@ sn_pccard_detach(device_t dev)
 	return 0;
 }
 
+static int
+sn_pccard_match(device_t dev)
+{
+	return EIO;
+}
+
 static device_method_t sn_pccard_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		sn_pccard_probe),
-	DEVMETHOD(device_attach,	sn_pccard_attach),
+	DEVMETHOD(device_probe,		pccard_compat_probe),
+	DEVMETHOD(device_attach,	pccard_compat_attach),
 	DEVMETHOD(device_detach,	sn_pccard_detach),
+
+	/* Card interface */
+	DEVMETHOD(card_compat_match,	sn_pccard_match),
+	DEVMETHOD(card_compat_probe,	sn_pccard_probe),
+	DEVMETHOD(card_compat_attach,	sn_pccard_attach),
 
 	{ 0, 0 }
 };
@@ -112,4 +131,6 @@ static driver_t sn_pccard_driver = {
 
 extern devclass_t sn_devclass;
 
-DRIVER_MODULE(sn, pccard, sn_pccard_driver, sn_devclass, 0, 0);
+DRIVER_MODULE(if_sn, pccard, sn_pccard_driver, sn_devclass, 0, 0);
+MODULE_DEPEND(if_sn, pccard, 1, 1, 1);
+MODULE_DEPEND(if_sn, pcic, 1, 1, 1);	/* XXX */
