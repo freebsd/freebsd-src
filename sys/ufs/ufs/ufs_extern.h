@@ -75,7 +75,7 @@ int	 ufs_dirrewrite(struct inode *, struct inode *, ino_t, int, int);
 int	 ufs_getlbns(struct vnode *, ufs_daddr_t, struct indir *, int *);
 int	 ufs_ihashget(dev_t, ino_t, int, struct vnode **);
 void	 ufs_ihashinit(void);
-void	 ufs_ihashins(struct inode *);
+int	 ufs_ihashins(struct inode *, int, struct vnode **);
 struct vnode *
 	 ufs_ihashlookup(dev_t, ino_t);
 void	 ufs_ihashrem(struct inode *);
