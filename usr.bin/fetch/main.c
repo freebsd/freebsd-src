@@ -308,8 +308,7 @@ display(struct fetch_state *fs, off_t size, ssize_t n)
 		     size ? "" : " [appending]");
 	else
 	    asprintf (&s, "Receiving %s", fs->fs_outputfile);
-	printf ("%s", s);
-	fflush (stdout);
+	fprintf (stderr, "%s", s);
 	bytestart = bytes = n;
 	return;
     }
@@ -317,19 +316,20 @@ display(struct fetch_state *fs, off_t size, ssize_t n)
     if (n == -1) {
 	if(stdoutatty) {
 	    if (size > 0) 
-		printf ("\r%s: 100%%", s);
+		fprintf (stderr, "\r%s: 100%%", s);
 	    else
-		printf ("\r%s: %qd Kbytes", s, (quad_t)bytes/1024);
+		fprintf (stderr, "\r%s: %qd Kbytes", s, (quad_t)bytes/1024);
 	}
 	bytes -= bytestart;
 	d = t.tv_sec + t.tv_usec/1.e6 - t_start.tv_sec - t_start.tv_usec/1.e6;
-	printf ("\n%qd bytes transfered in %.1f seconds", (quad_t)bytes, d); 
+	fprintf (stderr, "\n%qd bytes transfered in %.1f seconds",
+	    (quad_t)bytes, d); 
 	d = bytes/d;
 	if (d < 1000)
-	    printf ("  (%.0f bytes/s)\n", d);
+	    fprintf (stderr, "  (%.0f bytes/s)\n", d);
 	else {
 	    d /=1024;
-	    printf ("  (%.2f kB/s)\n", d);
+	    fprintf (stderr, "  (%.2f kB/s)\n", d);
 	}
 	free(s);
 	init = 0;
@@ -343,12 +343,11 @@ display(struct fetch_state *fs, off_t size, ssize_t n)
     pr++;
     if(stdoutatty) {
 	if (size > 1000000) 
-	    printf ("\r%s: %2qd%%", s, (quad_t)bytes/(size/100));
+	    fprintf (stderr, "\r%s: %2qd%%", s, (quad_t)bytes/(size/100));
 	else if (size > 0) 
-	    printf ("\r%s: %2qd%%", s, (quad_t)100*bytes/size);
+	    fprintf (stderr, "\r%s: %2qd%%", s, (quad_t)100*bytes/size);
 	else
-	    printf ("\r%s: %qd kB", s, (quad_t)bytes/1024);
+	    fprintf (stderr, "\r%s: %qd kB", s, (quad_t)bytes/1024);
     }
-    fflush (stdout);
 }
 
