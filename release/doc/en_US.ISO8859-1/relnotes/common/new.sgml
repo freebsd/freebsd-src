@@ -497,7 +497,7 @@
     provides increased performance, at the expense of some wasted disk
     space.</para>
 
-    <para>&man.newsyslog.8; now has the ability to ability to compress
+    <para>&man.newsyslog.8; now has the ability to compress
     log files using &man.bzip2.1;.</para>
 
     <para>&man.nl.1;, a line numbering filter program, has been added.</para>
