@@ -41,29 +41,36 @@ static char sccsid[] = "@(#)sleep.c	8.1 (Berkeley) 6/4/93";
 #ifdef  _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
-#else
+#endif
 
+#if !defined(_THREAD_SAFE) && !defined(USE_NANOSLEEP)
 #define	setvec(vec, a) \
 	vec.sv_handler = a; vec.sv_mask = vec.sv_onstack = 0
 
 static int ringring;
+
+static void
+sleephandler()
+{
+	ringring = 1;
+}
 #endif
 
 unsigned int
 sleep(seconds)
 	unsigned int seconds;
 {
-#ifdef  _THREAD_SAFE
-    struct timespec time_to_sleep;
-    struct timespec time_remaining;
+#if defined(_THREAD_SAFE) || defined(USE_NANOSLEEP)
+	struct timespec time_to_sleep;
+	struct timespec time_remaining;
 
-    if (seconds) {
-        time_to_sleep.tv_sec = seconds;
-        time_to_sleep.tv_nsec = 0;
-        nanosleep(&time_to_sleep,&time_remaining);
-        seconds = time_remaining.tv_sec;
-    }
-    return(seconds);
+	if (seconds != 0) {
+		time_to_sleep.tv_sec = seconds;
+		time_to_sleep.tv_nsec = 0;
+		nanosleep(&time_to_sleep, &time_remaining);
+		seconds = time_remaining.tv_sec;
+	}
+	return (seconds);
 #else
 	register struct itimerval *itp;
 	struct itimerval itv, oitv;
@@ -107,11 +114,3 @@ sleep(seconds)
 	return 0;
 #endif
 }
-
-#ifndef  _THREAD_SAFE
-static void
-sleephandler()
-{
-	ringring = 1;
-}
-#endif
