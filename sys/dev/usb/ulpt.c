@@ -528,8 +528,14 @@ ulptopen(dev_t dev, int flag, int mode, usb_proc_ptr p)
 	error = 0;
 	sc->sc_refcnt++;
 
-	if ((flags & ULPT_NOPRIME) == 0)
+	if ((flags & ULPT_NOPRIME) == 0) {
 		ulpt_reset(sc);
+		if (sc->sc_dying) {
+			error = ENXIO;
+			sc->sc_state = 0;
+			goto done;
+		}
+	}
 
 	for (spin = 0; (ulpt_status(sc) & LPS_SELECT) == 0; spin += STEP) {
 		DPRINTF(("ulpt_open: waiting a while\n"));
