@@ -1,6 +1,8 @@
-FILES=	Acknowledgements Bibliography BugList ChangeLog CharGen \
+# $FreeBSD$
+
+FILES=	Acknowledgements Bibliography CharGen \
 	Charsets EscapeSequences Keyboard.HP Keyboard.VT \
-	Manifest NotesAndHints TestedHardware ToDo
+	NotesAndHints
 
 beforeinstall:
 	for file in ${FILES}; \
