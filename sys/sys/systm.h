@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)systm.h	8.7 (Berkeley) 3/29/95
- * $Id: systm.h,v 1.78 1998/10/30 05:41:15 msmith Exp $
+ * $Id: systm.h,v 1.79 1998/12/03 04:45:57 archie Exp $
  */
 
 #ifndef _SYS_SYSTM_H_
@@ -295,6 +295,8 @@ extern watchdog_tickle_fn	wdog_tickler;
  * less often.
  */
 int	tsleep __P((void *chan, int pri, const char *wmesg, int timo));
+int	asleep __P((void *chan, int pri, const char *wmesg, int timo));
+int	await  __P((int pri, int timo));
 void	wakeup __P((void *chan));
 
 #endif /* !_SYS_SYSTM_H_ */
