@@ -41,7 +41,7 @@ static char     numempty[] = { CHAR_MAX, '\0'};
 static const struct lc_monetary_T _C_monetary_locale = {
 	empty ,		/* int_curr_symbol */
 	empty ,		/* currency_symbol */
-	"." , 		/* mon_decimal_point */
+	empty ,		/* mon_decimal_point */
 	empty ,		/* mon_thousands_sep */
 	numempty ,	/* mon_grouping */
 	empty ,		/* positive_sign */
