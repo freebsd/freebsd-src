@@ -7,6 +7,7 @@ SECTIONS
   /* Read-only sections, merged into text segment: */
   . = 0;
   ImageBase = .;
+  . += 4096;
   .text :
   {
     *(.text)
