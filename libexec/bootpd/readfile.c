@@ -577,7 +577,8 @@ read_entry(fp, buffer, bufsiz)
 			case '\\':
 				if ((c = fgetc(fp)) < 0) {	/* Backslash */
 					goto done;	/* EOF. . . .*/
-				}				/* else fall through */
+				}
+				/* FALLTHROUGH */
 			default:
 				*buffer++ = c;	/* Other character, store it */
 				length++;
@@ -608,7 +609,7 @@ read_entry(fp, buffer, bufsiz)
 				goto top;		/* Backslash-newline continuation */
 			}
 		}
-		/* fall through if "other" character */
+		/* FALLTHROUGH if "other" character */
 	default:
 		*buffer++ = c;			/* Store other characters */
 		length++;

@@ -1114,7 +1114,7 @@ int	operation;
 	case A_NEAR:	/* pick random coordinates near */
 	    xnew = Player.p_x + ROLL(1.0, 5.0);
 	    ynew = Player.p_y - ROLL(1.0, 5.0);
-	    /* fall through for check */
+	    /* FALLTHROUGH for check */
 
 	case A_SPECIFIC:	/* just move player */
 	    if (Beyond && fabs(xnew) < D_BEYOND && fabs(ynew) < D_BEYOND)

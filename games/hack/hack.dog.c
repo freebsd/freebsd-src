@@ -1,6 +1,8 @@
 /* Copyright (c) Stichting Mathematisch Centrum, Amsterdam, 1985. */
 /* hack.dog.c - version 1.0.3 */
-/* $FreeBSD$ */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include	"hack.h"
 #include	"hack.mfndpos.h"
@@ -96,7 +98,7 @@ dogfood(obj) struct obj *obj; {
 	    );
 	default:
 	    if(!obj->cursed) return(APPORT);
-	    /* fall into next case */
+	    /* FALLTHROUGH */
 	case BALL_SYM:
 	case CHAIN_SYM:
 	case ROCK_SYM:
@@ -180,7 +182,7 @@ int info[9];
 
 	/* first we look for food */
 	gtyp = UNDEF;	/* no goal as yet */
-#ifdef LINT
+#ifdef lint
 	gx = gy = 0;	/* suppress 'used before set' message */
 #endif /* LINT */
 	for(obj = fobj; obj; obj = obj->nobj) {

@@ -727,7 +727,7 @@ supply(struct sockaddr_in *dst,
 
 	case OUT_QUERY:
 		ws.state |= WS_ST_QUERY;
-		/* fall through */
+		/* FALLTHROUGH */
 	case OUT_BROADCAST:
 	case OUT_UNICAST:
 		v2buf.type = (vers == RIPv2) ? type : NO_OUT_RIPV2;
