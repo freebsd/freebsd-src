@@ -94,17 +94,22 @@ Backward space
 .Ar count
 setmarks.
 .It Cm rdhpos
-Read Hardware block position. Some drives do not support this. The block
-number reported is specific for that hardware only. The count argument is
+Read Hardware block position. Some drives do not support this.
+The block
+number reported is specific for that hardware only.
+The count argument is
 ignored.
 .It Cm rdspos
-Read SCSI logical block position. Some drives do not support this. The
+Read SCSI logical block position. Some drives do not support this.
+The
 count argument is ignored.
 .It Cm sethpos
-Set Hardware block position. Some drives do not support this. The count
+Set Hardware block position. Some drives do not support this.
+The count
 argument is interpreted as a hardware block to which to position the tape.
 .It Cm setspos
-Set SCSI logical block position. Some drives do not support this. The count
+Set SCSI logical block position. Some drives do not support this.
+The count
 argument is interpreted as a SCSI logical block to which to position the tape.
 .It Cm rewind
 Rewind the tape
@@ -119,20 +124,26 @@ A count of 0 disables long erase, which is on by default.
 Re-tension the tape
 (one full wind forth and back, Count is ignored).
 .It Cm status
-Print status information about the tape unit. For SCSI magnetic tape devices,
+Print status information about the tape unit.
+For SCSI magnetic tape devices,
 the current operating modes of density, blocksize, and whether compression
-is enabled is reported. The current state of the driver (what it thinks that
-it is doing with the device) is reported. If the driver knows the relative
-position from BOT (in terms of filemarks and records), it prints that. Note
+is enabled is reported.
+The current state of the driver (what it thinks that
+it is doing with the device) is reported.
+If the driver knows the relative
+position from BOT (in terms of filemarks and records), it prints that.
+Note
 that this information is not definitive (only BOT, End of Recorded Media, and
 hardware or SCSI logical block position (if the drive supports such) are
 considered definitive tape positions).
 .It Cm errstat
-Print (and clear) error status information about this device. For every normal
+Print (and clear) error status information about this device.
+For every normal
 operation (e.g., a read or a write) and every control operation (e.g,, a
 rewind), the driver stores up the last command executed and it's associated
 status and any residual counts (if any). This command retrieves and prints this
-information. If possible, this also clears any latched error information.
+information.
+If possible, this also clears any latched error information.
 .It Cm blocksize
 Set the block size for the tape unit.  Zero means variable-length
 blocks.
@@ -147,18 +158,21 @@ given string and the resulting canonical density name do not match
 exactly, an informational message is printed about what the given
 string has been taken for.
 .It Cm geteotmodel
-Fetch and print out the current EOT filemark model. The model states how
+Fetch and print out the current EOT filemark model.
+The model states how
 many filemarks will be written at close if a tape was being written.
 .It Cm seteotmodel
 Set (from the
 .Ar count
 argument)
-and print out the current and EOT filemark model. Typically this will be
+and print out the current and EOT filemark model.
+Typically this will be
 .Ar 2
 filemarks, but some devices (typically QIC cartridge drives) can
 only write
 .Ar 1
-filemark. Currently you can only choose a value of
+filemark.
+Currently you can only choose a value of
 .Ar 1
 or
 .Ar 2 .
@@ -282,7 +296,7 @@ NOTES
 2. Parallel recorded.
 3. Old format known as QIC-11.
 5. Helical scan.
-6. This is not an American National Standard. The reference is based on
+6. This is not an American National Standard.  The reference is based on
    an industry standard definition of the media format.
 .Ed
 

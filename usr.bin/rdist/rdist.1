@@ -90,7 +90,8 @@ If no names are specified on the command line,
 will update all of the files and directories listed in
 .Ar distfile  .
 Otherwise, the argument is taken to be the name of a file to be updated
-or the label of a command to execute. If label and file names conflict,
+or the label of a command to execute.
+If label and file names conflict,
 it is assumed to be a label.
 These may be used together to update specific files
 using specific commands.
@@ -141,7 +142,8 @@ option is used to define or override variable definitions in the
 can be the empty string, one name, or a list of names surrounded by
 parentheses and separated by tabs and/or spaces.
 .It Fl h
-Follow symbolic links. Copy the file that the link points to rather than the
+Follow symbolic links.
+Copy the file that the link points to rather than the
 link itself.
 .It Fl i
 Ignore unresolved links.
@@ -149,42 +151,53 @@ Ignore unresolved links.
 will normally try to maintain the link structure of files being transferred
 and warn the user if all the links cannot be found.
 .It Fl m Ar host
-Limit which machines are to be updated. Multiple
+Limit which machines are to be updated.
+Multiple
 .Fl m
 arguments can be given to limit updates to a subset of the hosts listed in the
 .Ar distfile  .
 .It Fl n
-Print the commands without executing them. This option is
+Print the commands without executing them.
+This option is
 useful for debugging
 .Ar distfile  .
 .It Fl q
-Quiet mode. Files that are being modified are normally
-printed on standard output. The
+Quiet mode.
+Files that are being modified are normally
+printed on standard output.
+The
 .Fl q
 option suppresses this.
 .It Fl R
-Remove extraneous files. If a directory is being updated, any files that exist
+Remove extraneous files.
+If a directory is being updated, any files that exist
 on the remote host that do not exist in the master directory are removed.
 This is useful for maintaining truly identical copies of directories.
 .It Fl v
-Verify that the files are up to date on all the hosts. Any files
+Verify that the files are up to date on all the hosts.
+Any files
 that are out of date will be displayed but no files will be changed
 nor any mail sent.
 .It Fl w
-Whole mode. The whole file name is appended to the destination directory
-name. Normally, only the last component of a name is used when renaming files.
+Whole mode.
+The whole file name is appended to the destination directory
+name.
+Normally, only the last component of a name is used when renaming files.
 This will preserve the directory structure of the files being
-copied instead of flattening the directory structure. For example,
+copied instead of flattening the directory structure.
+For example,
 renaming a list of files such as ( dir1/f1 dir2/f2 ) to dir3 would create
 files dir3/dir1/f1 and dir3/dir2/f2 instead of dir3/f1 and dir3/f2.
 .It Fl y
-Younger mode. Files are normally updated if their
+Younger mode.
+Files are normally updated if their
 .Ar mtime
 and
 .Ar size
 (see
 .Xr stat  2  )
-disagree. The
+disagree.
+The
 .Fl y
 option causes
 .Nm
@@ -199,7 +212,8 @@ Debug mode.
 .Ar Distfile
 contains a sequence of entries that specify the files
 to be copied, the destination hosts, and what operations to perform
-to do the updating. Each entry has one of the following formats.
+to do the updating.
+Each entry has one of the following formats.
 .Pp
 .Bd -literal -offset indent -compact
 <variable name> `=' <name list>
@@ -223,10 +237,12 @@ copied.  Each file in the source list is added to a list of changes
 if the file is out of date on the host which is being updated (second format) or
 the file is newer than the time stamp file (third format).
 .Pp
-Labels are optional. They are used to identify a command for partial updates.
+Labels are optional.
+They are used to identify a command for partial updates.
 .Pp
 Newlines, tabs, and blanks are only used as separators and are
-otherwise ignored. Comments begin with `#' and end with a newline.
+otherwise ignored.
+Comments begin with `#' and end with a newline.
 .Pp
 Variables to be expanded begin with `$' followed by one character or
 a name enclosed in curly braces (see the examples at the end).

@@ -16,12 +16,14 @@ The
 .Nm
 command is a special-purpose program to generate assembler
 symbols from C code and is used to interface the low-level
-assembly code with the C code. This, for example, is used
+assembly code with the C code.
+This, for example, is used
 to build a FreeBSD kernel or module.
 Its
 .Ar objfile
 argument is the name of an ELF object file that holds the
-symbol definitions. These definitions are extracted from
+symbol definitions.
+These definitions are extracted from
 the object file and written to standard output or to the
 file specified with
 .Ar outfile ,
@@ -33,7 +35,8 @@ command only extracts symbols from the object file if they
 are prefixed by
 .Nm assym_
 and are global data types, whose value is the value given
-to the symbol. The following C declaration
+to the symbol.
+The following C declaration
 .Bd -literal -offset indent -compact
 int assym_MY_SYMBOL = 3;
 .Ed
@@ -57,10 +60,12 @@ and was based on the
 command.
 .Sh BUGS
 Not all linkers store the size of the symbol in the ELF
-object file. The GNU linker for Alpha has this bug for
+object file.
+The GNU linker for Alpha has this bug for
 example (binutils 2.9.1). In those cases the size of the
 symbol is assumed to be equal to the word size of the ELF
-object file. For Alpha this is 64 bits and for i386 this
+object file.
+For Alpha this is 64 bits and for i386 this
 is 32 bits.
 .Sh HISTORY
 The
