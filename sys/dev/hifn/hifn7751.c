@@ -171,7 +171,7 @@ SYSCTL_INT(_hw_hifn, OID_AUTO, debug, CTLFLAG_RW, &hifn_debug,
 static	struct hifn_stats hifnstats;
 SYSCTL_STRUCT(_hw_hifn, OID_AUTO, stats, CTLFLAG_RD, &hifnstats,
 	    hifn_stats, "driver statistics");
-static	int hifn_maxbatch = 5;
+static	int hifn_maxbatch = 1;
 SYSCTL_INT(_hw_hifn, OID_AUTO, maxbatch, CTLFLAG_RW, &hifn_maxbatch,
 	    0, "max ops to batch w/o interrupt");
 
