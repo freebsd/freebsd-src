@@ -339,7 +339,8 @@ _eintrnames:
 	.asciz	"netisr_ip"
 	.asciz	"netisr_imp"
 	.asciz	"netisr_ns"
-	.asciz	"softclock"
+	.asciz	"netisr_iso"
+	.asciz	"softclock"		/* 10 */
 	.asciz	"trap"
 	.asciz	"doreti_exit2"
 	.asciz	"splbio"
@@ -349,17 +350,16 @@ _eintrnames:
 	.asciz	"splnet"
 	.asciz	"splsoftclock"
 	.asciz	"spltty"
-	.asciz	"spl0"
+	.asciz	"spl0"			/* 20 */
 	.asciz	"netisr_raw2"
 	.asciz	"netisr_ip2"
+	.asciz	"netisr_imp2"
+	.asciz	"netisr_ns2"
+	.asciz	"netisr_iso2"
 	.asciz	"splx"
 	.asciz	"splx!0"
 	.asciz	"unpend_V"
-	.asciz	"spl25"		/* spl25-spl31 are spares */
-	.asciz	"spl26"
-	.asciz	"spl27"
-	.asciz	"spl28"
-	.asciz	"spl29"
+	.asciz	"spl29"		/* spl29-spl31 are spares */
 	.asciz	"spl30"
 	.asciz	"spl31"
 /*
