@@ -121,10 +121,7 @@ struct vnode {
 	union {
 		struct mount	*vu_mountedhere;/* v ptr to mounted vfs (VDIR) */
 		struct socket	*vu_socket;	/* v unix ipc (VSOCK) */
-		struct {
-			struct cdev	*vu_cdev; /* v device (VCHR, VBLK) */
-			SLIST_ENTRY(vnode) vu_specnext;	/* s device aliases */
-		} vu_spec;
+		struct cdev	*vu_cdev; /* v device (VCHR, VBLK) */
 		struct fifoinfo	*vu_fifoinfo;	/* v fifo (VFIFO) */
 	} v_un;
 	TAILQ_ENTRY(vnode) v_freelist;		/* f vnode freelist */
@@ -153,8 +150,7 @@ struct vnode {
 
 #define	v_mountedhere	v_un.vu_mountedhere
 #define	v_socket	v_un.vu_socket
-#define	v_rdev		v_un.vu_spec.vu_cdev
-#define	v_specnext	v_un.vu_spec.vu_specnext
+#define	v_rdev		v_un.vu_cdev
 #define	v_fifoinfo	v_un.vu_fifoinfo
 
 /* XXX: These are temporary to avoid a source sweep at this time */

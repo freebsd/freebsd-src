@@ -51,6 +51,7 @@ struct disk;
 struct vnode;
 struct buf;
 struct snapdata;
+struct devfs_dirent;
 
 struct cdev {
 	u_int		si_flags;
@@ -71,7 +72,7 @@ struct cdev {
 	LIST_ENTRY(cdev)	si_list;
 	LIST_ENTRY(cdev)	si_clone;
 	LIST_ENTRY(cdev)	si_hash;
-	SLIST_HEAD(, vnode)	si_hlist;
+	LIST_HEAD(,devfs_dirent)si_alist;
 	LIST_HEAD(, cdev)	si_children;
 	LIST_ENTRY(cdev)	si_siblings;
 	struct cdev *si_parent;
@@ -258,7 +259,7 @@ const char *devtoname(struct cdev *_dev);
 int	dev_named(struct cdev *_pdev, const char *_name);
 void	dev_depends(struct cdev *_pdev, struct cdev *_cdev);
 void	dev_ref(struct cdev *dev);
-void	dev_rel(struct vnode *vp);
+void	dev_rel(struct cdev *dev);
 void	dev_strategy(struct cdev *dev, struct buf *bp);
 struct cdev *makebdev(int _maj, int _min);
 struct cdev *make_dev(struct cdevsw *_devsw, int _minor, uid_t _uid, gid_t _gid,

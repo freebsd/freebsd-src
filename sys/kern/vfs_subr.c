@@ -2394,8 +2394,6 @@ vgonel(struct vnode *vp, struct thread *td)
 	 * if it is on one.
 	 */
 	VI_LOCK(vp);
-	if (vp->v_type == VCHR && vp->v_rdev != NULL) 
-		dev_rel(vp);
 
 	/*
 	 * If it is on the freelist and not already at the head,

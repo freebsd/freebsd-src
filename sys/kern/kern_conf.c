@@ -61,6 +61,7 @@ static LIST_HEAD(, cdev) dev_hash[DEVT_HASH];
 static struct mtx devmtx;
 static void freedev(struct cdev *dev);
 static struct cdev *newdev(int x, int y, struct cdev *);
+static void destroy_devl(struct cdev *dev);
 
 void
 dev_lock(void)
@@ -86,21 +87,17 @@ dev_ref(struct cdev *dev)
 }
 
 void
-dev_rel(struct vnode *vp)
+dev_rel(struct cdev *dev)
 {
-	struct cdev *dev;
-	int flag;
+	int flag = 0;
 
-	dev = vp->v_rdev;
 	mtx_assert(&devmtx, MA_NOTOWNED);
 	dev_lock();
-	SLIST_REMOVE(&dev->si_hlist, vp, vnode, v_specnext);
-	dev->si_usecount -= vp->v_usecount;
-	vp->v_rdev = NULL;
 	dev->si_refcount--;
 	KASSERT(dev->si_refcount >= 0,
 	    ("dev_rel(%s) gave negative count", devtoname(dev)));
-	flag = 0;
+	if (dev->si_usecount == 0 &&
+	    (dev->si_flags & SI_CHEAPCLONE) && (dev->si_flags & SI_NAMED))
 	if (dev->si_devsw == NULL && dev->si_refcount == 0) {
 		LIST_REMOVE(dev, si_list);
 		flag = 1;
@@ -108,7 +105,6 @@ dev_rel(struct vnode *vp)
 	dev_unlock();
 	if (flag)
 		freedev(dev);
-	return;
 }
 
 struct cdevsw *
@@ -287,6 +283,7 @@ allocdev(void)
 	si = malloc(sizeof *si, M_DEVT, M_USE_RESERVE | M_ZERO | M_WAITOK);
 	si->si_name = si->__si_namebuf;
 	LIST_INIT(&si->si_children);
+	LIST_INIT(&si->si_alist);
 	return (si);
 }
 
@@ -547,10 +544,11 @@ make_dev_alias(struct cdev *pdev, const char *fmt, ...)
 }
 
 static void
-idestroy_dev(struct cdev *dev)
+destroy_devl(struct cdev *dev)
 {
 	struct cdevsw *csw;
 
+	mtx_assert(&devmtx, MA_OWNED);
 	KASSERT(dev->si_flags & SI_NAMED,
 	    ("WARNING: Driver mistake: destroy_dev on %d/%d\n",
 	    major(dev), minor(dev)));
@@ -568,7 +566,7 @@ idestroy_dev(struct cdev *dev)
 
 	/* Kill our children */
 	while (!LIST_EMPTY(&dev->si_children))
-		idestroy_dev(LIST_FIRST(&dev->si_children));
+		destroy_devl(LIST_FIRST(&dev->si_children));
 
 	/* Remove from clone list */
 	if (dev->si_flags & SI_CLONELIST) {
@@ -615,7 +613,7 @@ destroy_dev(struct cdev *dev)
 {
 
 	dev_lock();
-	idestroy_dev(dev);
+	destroy_devl(dev);
 	dev_unlock();
 }
 
@@ -796,7 +794,7 @@ clone_cleanup(struct clonedevs **cdp)
 		    ("Dev %p(%s) should be on clonelist", dev, dev->si_name));
 		KASSERT(dev->si_flags & SI_NAMED,
 		    ("Driver has goofed in cloning underways udev %x", dev->si_udev));
-		idestroy_dev(dev);
+		destroy_devl(dev);
 	}
 	dev_unlock();
 	free(cd, M_DEVBUF);
