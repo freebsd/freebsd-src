@@ -12,7 +12,7 @@
 . /etc/rc.subr
 
 name="yppasswdd"
-command="/usr/sbin/rpc.{name}"
+command="/usr/sbin/rpc.${name}"
 start_precmd="yppasswdd_precmd"
 
 case ${OSTYPE} in
