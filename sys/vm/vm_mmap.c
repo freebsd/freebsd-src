@@ -299,7 +299,8 @@ mmap(p, uap)
 		 * XXX hack to handle use of /dev/zero to map anon memory (ala
 		 * SunOS).
 		 */
-		if (vp->v_type == VCHR && iszerodev(vp->v_rdev)) {
+		if ((vp->v_type == VCHR) && 
+		    (vp->v_rdev->si_devsw->d_flags & D_MMAP_ANON)) {
 			handle = NULL;
 			maxprot = VM_PROT_ALL;
 			flags |= MAP_ANON;
