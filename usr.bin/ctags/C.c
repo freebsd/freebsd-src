@@ -239,7 +239,11 @@ c_entries()
 				sp = tok;
 			}
 			else if (sp != tok || begtoken(c)) {
-				*sp++ = c;
+				if (sp == tok + sizeof tok - 1)
+					/* Too long -- truncate it */
+					*sp = EOS;
+				else 
+					*sp++ = c;
 				token = YES;
 			}
 			continue;
@@ -337,7 +341,11 @@ hash_entry()
 			return;
 		if (iswhite(c))
 			break;
-		*sp++ = c;
+		if (sp == tok + sizeof tok - 1)
+			/* Too long -- truncate it */
+			*sp = EOS;
+		else 
+			*sp++ = c;
 	}
 	*sp = EOS;
 	if (memcmp(tok, "define", 6))	/* only interested in #define's */
@@ -349,7 +357,11 @@ hash_entry()
 			break;
 	}
 	for (sp = tok;;) {		/* get next token */
-		*sp++ = c;
+		if (sp == tok + sizeof tok - 1)
+			/* Too long -- truncate it */
+			*sp = EOS;
+		else 
+			*sp++ = c;
 		if (GETC(==, EOF))
 			return;
 		/*
@@ -391,7 +403,11 @@ str_entry(c)
 	if (c == '{')		/* it was "struct {" */
 		return (YES);
 	for (sp = tok;;) {		/* get next token */
-		*sp++ = c;
+		if (sp == tok + sizeof tok - 1)
+			/* Too long -- truncate it */
+			*sp = EOS;
+		else 
+			*sp++ = c;
 		if (GETC(==, EOF))
 			return (NO);
 		if (!intoken(c))
