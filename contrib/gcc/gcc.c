@@ -21,6 +21,8 @@ Boston, MA 02111-1307, USA.
 This paragraph is here to try to keep Sun CC from dying.
 The number of chars here seems crucial!!!!  */
 
+/* $FreeBSD$ */
+
 /* This program is the user interface to the C compiler and possibly to
 other compilers.  It is used because compilation is a complicated procedure
 which involves running several programs and passing temporary files between
@@ -4680,6 +4682,7 @@ is_directory (path1, path2, linker)
   *cp++ = '.';
   *cp = '\0';
 
+#ifndef FREEBSD_NATIVE
   /* Exclude directories that the linker is known to search.  */
   if (linker
       && ((cp - path == 6
@@ -4690,6 +4693,7 @@ is_directory (path1, path2, linker)
 				       dir_separator_str, "lib", 
 				       dir_separator_str, ".", NULL_PTR)) == 0)))
     return 0;
+#endif /* FREEBSD_NATIVE */
 
   return (stat (path, &st) >= 0 && S_ISDIR (st.st_mode));
 }
