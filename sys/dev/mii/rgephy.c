@@ -298,8 +298,8 @@ setit:
 		/*
 		 * Only retry autonegotiation every 5 seconds.
 		 */
-		if (++sc->mii_ticks != 5/*10*/)
-			return (0);
+		if (++sc->mii_ticks <= 5/*10*/)
+			break;
 		
 		sc->mii_ticks = 0;
 		rgephy_mii_phy_auto(sc);
@@ -317,9 +317,9 @@ setit:
 	if (sc->mii_media_active != mii->mii_media_active || 
 	    sc->mii_media_status != mii->mii_media_status ||
 	    cmd == MII_MEDIACHG) {
-		mii_phy_update(sc, cmd);
 		rgephy_load_dspcode(sc);
 	}
+	mii_phy_update(sc, cmd);
 	return (0);
 }
 

@@ -324,7 +324,7 @@ dcphy_service(sc, mii, cmd)
 		 * successful autonegotation is never recognised on
 		 * these chips.
                  */
-                if (++sc->mii_ticks != 50)
+                if (++sc->mii_ticks <= 50)
 			break;
 
 		sc->mii_ticks = 0;

@@ -362,8 +362,8 @@ setit:
 		/*
 		 * Only retry autonegotiation every 5 seconds.
 		 */
-		if (++sc->mii_ticks != 5)
-			return (0);
+		if (++sc->mii_ticks <= 5)
+			break;
 		
 		sc->mii_ticks = 0;
 		brgphy_mii_phy_auto(sc);
@@ -381,7 +381,6 @@ setit:
 	if (sc->mii_media_active != mii->mii_media_active || 
 	    sc->mii_media_status != mii->mii_media_status ||
 	    cmd == MII_MEDIACHG) {
-		mii_phy_update(sc, cmd);
 		switch (brgphy_mii_model) {
 		case MII_MODEL_xxBROADCOM_BCM5401:
 			bcm5401_load_dspcode(sc);
@@ -391,6 +390,7 @@ setit:
 			break;
 		}
 	}
+	mii_phy_update(sc, cmd);
 	return (0);
 }
 

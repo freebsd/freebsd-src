@@ -325,8 +325,8 @@ tlphy_service(self, mii, cmd)
 		/*
 		 * Only retry autonegotiation every 5 seconds.
 		 */
-		if (++sc->sc_mii.mii_ticks != 5)
-			return (0);
+		if (++sc->sc_mii.mii_ticks <= 5)
+			break;
 
 		sc->sc_mii.mii_ticks = 0;
 		mii_phy_reset(&sc->sc_mii);
