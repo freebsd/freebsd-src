@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mfs_vnops.c	8.3 (Berkeley) 9/21/93
- * $Id: mfs_vnops.c,v 1.13 1995/12/17 21:10:01 phk Exp $
+ * $Id: mfs_vnops.c,v 1.14 1996/04/08 07:54:50 phk Exp $
  */
 
 #include <sys/param.h>
@@ -193,7 +193,7 @@ mfs_strategy(ap)
 	} else if (mfsp->mfs_pid == p->p_pid) {
 		mfs_doio(bp, mfsp->mfs_baseoff);
 	} else {
-		TAILQ_INSERT_TAIL(&mfsp->buf_queue, bp, b_act);
+		bufq_insert_tail(&mfsp->buf_queue, bp);
 		wakeup((caddr_t)vp);
 	}
 	return (0);
@@ -264,8 +264,8 @@ mfs_close(ap)
 	/*
 	 * Finish any pending I/O requests.
 	 */
-	while (bp = TAILQ_FIRST(&mfsp->buf_queue)) {
-		TAILQ_REMOVE(&mfsp->buf_queue, bp, b_act)
+	while (bp = bufq_first(&mfsp->buf_queue)) {
+		bufq_remove(&mfsp->buf_queue, bp);
 		mfs_doio(bp, mfsp->mfs_baseoff);
 		wakeup((caddr_t)bp);
 	}
@@ -282,7 +282,7 @@ mfs_close(ap)
 	 */
 	if (vp->v_usecount > 1)
 		printf("mfs_close: ref count %d > 1\n", vp->v_usecount);
-	if (vp->v_usecount > 1 || !TAILQ_EMPTY(&mfsp->buf_queue))
+	if (vp->v_usecount > 1 || (bufq_first(&mfsp->buf_queue) != NULL))
 		panic("mfs_close");
 	/*
 	 * Send a request to the filesystem server to exit.
@@ -304,9 +304,9 @@ mfs_inactive(ap)
 {
 	register struct mfsnode *mfsp = VTOMFS(ap->a_vp);
 
-	if (!TAILQ_EMPTY(&mfsp->buf_queue))
+	if (bufq_first(&mfsp->buf_queue) != NULL)
 		panic("mfs_inactive: not inactive (next buffer %p)",
-			TAILQ_FIRST(&mfsp->buf_queue));
+			bufq_first(&mfsp->buf_queue));
 	return (0);
 }
 
