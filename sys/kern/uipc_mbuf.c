@@ -1468,6 +1468,33 @@ m_dup_pkthdr(struct mbuf *to, struct mbuf *from, int how)
 	return (m_tag_copy_chain(to, from, how));
 }
 
+u_int
+m_fixhdr(struct mbuf *m0)
+{
+        u_int len;
+
+        len = m_length(m0, NULL);
+        m0->m_pkthdr.len = len;
+        return (len);
+}
+
+u_int
+m_length(struct mbuf *m0, struct mbuf **last)
+{
+        struct mbuf *m;
+        u_int len;
+
+        len = 0;
+        for (m = m0; m != NULL; m = m->m_next) {
+                len += m->m_len;
+                if (m->m_next == NULL)
+                        break;
+        }
+        if (last != NULL)
+                *last = m;
+        return (len);
+}
+
 /*
  * Defragment a mbuf chain, returning the shortest possible
  * chain of mbufs and clusters.  If allocation fails and

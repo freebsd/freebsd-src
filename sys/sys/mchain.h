@@ -111,8 +111,6 @@ struct mdchain {
 	u_char *	md_pos;		/* offset in the current mbuf */
 };
 
-int  m_fixhdr(struct mbuf *m);
-
 int  mb_init(struct mbchain *mbp);
 void mb_initm(struct mbchain *mbp, struct mbuf *m);
 void mb_done(struct mbchain *mbp);
