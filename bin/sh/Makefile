@@ -21,7 +21,7 @@ LFLAGS= -8	# 8-bit lex scanner for arithmetic
 CFLAGS+=-DSHELL -I. -I${.CURDIR}
 # for debug:
 # CFLAGS+= -g -DDEBUG=2
-WARNS=	0
+WARNS?=	0
 WFORMAT=0
 
 .PATH:	${.CURDIR}/bltin \
