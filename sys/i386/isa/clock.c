@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.35 1995/06/11 19:31:18 rgrimes Exp $
+ *	$Id: clock.c,v 1.36 1995/08/25 19:24:56 bde Exp $
  */
 
 /*
@@ -95,6 +95,8 @@ int	disable_rtc_set	= 0;	/* disable resettodr() if != 0 */
 u_int	idelayed;
 #ifdef I586_CPU
 int	pentium_mhz;
+long long	i586_ctr_bias;
+long long	i586_last_tick;
 #endif
 u_int	stat_imask = SWI_CLOCK_MASK;
 int 	timer0_max_count;
@@ -279,8 +281,6 @@ getit(void)
 }
 
 #ifdef I586_CPU
-static long long cycles_per_sec = 0;
-
 /*
  * Figure out how fast the cyclecounter runs.  This must be run with
  * clock interrupts disabled, but with the timer/counter programmed
@@ -293,15 +293,15 @@ calibrate_cyclecounter(void)
 	 * Don't need volatile; should always use unsigned if 2's
 	 * complement arithmetic is desired.
 	 */
-	unsigned long long count, last_count;
+	unsigned long long count;
 
-	__asm __volatile(".byte 0xf,0x31" : "=A" (last_count));
+	__asm __volatile(".byte 0x0f, 0x30" : : "A"(0LL), "c" (0x10));
 	DELAY(1000000);
 	__asm __volatile(".byte 0xf,0x31" : "=A" (count));
 	/*
 	 * XX lose if the clock rate is not nearly a multiple of 1000000.
 	 */
-	pentium_mhz = ((count - last_count) + 500000) / 1000000;
+	pentium_mhz = (count + 500000) / 1000000;
 }
 #endif
 
@@ -569,6 +569,15 @@ cpu_initclocks()
 		      /* XXX */ (inthand2_t *)clkintr, &clk_imask,
 		      /* unit */ 0);
 	INTREN(IRQ0);
+#ifdef I586_CPU
+	/*
+	 * Finish setting up anti-jitter measures.
+	 */
+	if (pentium_mhz) {
+		I586_CYCLECTR(i586_last_tick);
+		i586_ctr_bias = i586_last_tick;
+	}
+#endif
 
 	/* Initialize RTC. */
 	writertc(RTC_STATUSA, rtc_statusa);
