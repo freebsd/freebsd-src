@@ -114,6 +114,7 @@ multilib.h:
 	echo 'static const char *const multilib_matches_raw[] = { \
 	    "maout maout;", "melf melf;", NULL };'	>> ${.TARGET}
 	echo 'static const char *multilib_extra = "";'	>> ${.TARGET}
+	echo 'static const char *multilib_options = "";'>> ${.TARGET}
 	echo 'static const char *const multilib_exclusions_raw[] = { \
 	    NULL };'					>> ${.TARGET}
 
