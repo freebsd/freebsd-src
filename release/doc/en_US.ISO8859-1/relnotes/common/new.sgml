@@ -271,6 +271,11 @@
       <para>The pcii driver has been added to support GPIB-PCIIA IEEE-488
 	cards.</para>
 
+      <para>The &man.atkbd.4; driver now supports a <literal>0x8</literal>
+	(bit 3) flag to disable testing the keyboard port during
+	the device probe as this can cause hangs on some machines,
+	specifically Compaq R3000Z series amd64 laptops.</para>
+
       <para arch="i386">The &man.pbio.4; driver,
 	which supports direct access to
 	the Intel 8255A programmable peripheral interface (PPI)
@@ -422,6 +427,9 @@
 	Note that &man.ipfw.8; rules have to be carefully crafted to
 	make sure that things like PMTU discovery do not break. &merged;</para>
 
+      <para>&man.ipnat.8; now allows redirect rules to
+	work for non-TCP/UDP packets.  &merged;</para>
+
       <para>Ongoing work is reducing the use of the Giant lock by the
 	network protocol stack and improving the locking
 	strategies.</para>
@@ -431,6 +439,8 @@
 
       <para>The &man.sppp.4; driver now includes Frame Relay
 	support. &merged;</para>
+
+      <para>The &man.sppp.4; driver is now MPSAFE.</para>
 
       <para>A bug in TCP that sometimes caused RST packets to
 	be ignored if the receive window was zero bytes has been
@@ -686,7 +696,7 @@
     <para>Two bugs in the &man.pppd.8; program has been fixed.
       They may result in an incorrect CBCP response
       which violates the Microsoft PPP Callback Control Protocol
-      section 3.2.</para>
+      section 3.2.  &merged;</para>
 
     <para>The &man.rescue.8; utilities in the <filename>/rescue</filename>
       directory now includes &man.bsdtar.1; instead of GNU tar.</para>
