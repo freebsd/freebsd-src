@@ -563,10 +563,12 @@ The bit mask is composed of the following values:
 .It DEBUG_ADDRESSES (1)
 .br
 Show buffer information during requests
+.ig
 .It DEBUG_NUMOUTPUT (2)
 .br
 Show the value of
 .Dv vp->v_numoutput.
+..
 .It DEBUG_RESID (4)
 .br
 Go into debugger in
@@ -1280,9 +1282,21 @@ removes the
 .Nm
 kld and stops
 .Xr vinum 8 .
-This can only be done if no objects are active, In particular, the
+This can only be done if no objects are active.  In particular, the
 .Fl f
-flag does not override this requirement.  This command can only work if
+flag does not override this requirement.  Normally, the
+.Nm stop
+command writes the current configuration back to the drives before terminating.
+This will not be possible if configuration updates are disabled, so
+.Nm
+will not stop if configuration updates are disabled.  You can override this by
+specifying the
+.Fl f
+flag.
+.Pp
+The
+.Nm stop
+command can only work if
 .Nm
 has been loaded as a kld, since it is not possible to unload a statically
 configured driver.
@@ -2406,12 +2420,31 @@ section above.
 .Bl -enum
 .It
 .Nm
-will not create a device on UFS partitions.  Instead, it will return an error
-message 
-.if t ``wrong partition type''.  
-.if n "wrong partition type".  
-The partition type must be
+drives are UNIX disk partitions and must have the partition type
 .Ar vinum .
+This is different from
+.Nm ccd ,
+which expects partitions of type
+.Ar 4.2BSD .
+This behaviour of ccd is an invitation to shoot yourself in the foot: with
+.Nm ccd 
+you can easily overwrite a file system.  
+.Nm
+will not permit this.
+.Pp
+For similar reasons, the
+.Nm vinum Ar start
+command will not accept a drive on partition
+.Ar c .
+Partition
+.Ar c
+is used by the system to represent the whole disk, and must be of type
+.Ar unused .
+Clearly there is a conflict here, which
+.Nm
+resolves by not using the
+.Ar c
+partition.
 .It
 When you create a volume with multiple plexes,
 .Nm
@@ -2491,33 +2524,6 @@ vinumioctl: invalid ioctl from process 247 (vinum): c0e44642
 .Ed
 .Pp
 This error may also occur if you use old versions of kld or userland program.
-.It
-.Nm
-drives are UNIX disk partitions and should have the partition type
-.Ar vinum .
-This is different from
-.Nm ccd ,
-which expects partitions of type
-.Ar 4.2BSD .
-This behaviour of ccd is an invitation to shoot yourself in the foot: with
-.Nm ccd 
-you can easily overwrite a file system.  
-.Nm
-will not permit this.
-.Pp
-For similar reasons, the
-.Nm vinum Ar start
-command will not accept a drive on partition
-.Ar c .
-Partition
-.Ar c
-is used by the system to represent the whole disk, and must be of type
-.Ar unused .
-Clearly there is a conflict here, which
-.Nm
-resolves by not using the
-.Ar c
-partition.
 .It
 The
 .Nm vinum Ar read
