@@ -31,12 +31,8 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa_device.h	7.1 (Berkeley) 5/9/91
- *	$Id: isa_device.h,v 1.29 1996/04/08 19:38:57 smpatel Exp $
+ *	$Id: isa_device.h,v 1.30 1996/06/14 11:01:19 asami Exp $
  */
-
-#ifdef PC98
-#error isa_device.h is included from PC-9801 source
-#endif
 
 #ifndef _I386_ISA_ISA_DEVICE_H_
 #define	_I386_ISA_ISA_DEVICE_H_
