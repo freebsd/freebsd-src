@@ -35,11 +35,16 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: hash.c,v 1.6 1997/02/22 19:27:10 peter Exp $
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)hash.c	8.1 (Berkeley) 6/6/93";
+#else
+static const char rcsid[] =
+	"$Id";
+#endif
 #endif /* not lint */
 
 /* hash.c --

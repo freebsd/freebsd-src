@@ -35,11 +35,16 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: make.c,v 1.8 1997/02/22 19:27:16 peter Exp $
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)make.c	8.1 (Berkeley) 6/6/93";
+#else
+static const char rcsid[] =
+	"$Id$";
+#endif
 #endif /* not lint */
 
 /*-
@@ -70,7 +75,7 @@ static char sccsid[] = "@(#)make.c	8.1 (Berkeley) 6/6/93";
  *
  *	Make_OODate 	    	Determine if a target is out-of-date.
  *
- *	Make_HandleUse	    	See if a child is a .USE node for a parent
+ *	Make_HandleUse		See if a child is a .USE node for a parent
  *				and perform the .USE actions if so.
  */
 
@@ -291,12 +296,13 @@ MakeAddChild (gnp, lp)
 {
     GNode          *gn = (GNode *) gnp;
     Lst            l = (Lst) lp;
+
     if (!gn->make && !(gn->type & OP_USE)) {
 	(void)Lst_EnQueue (l, (ClientData)gn);
     }
     return (0);
 }
-
+
 /*-
  *-----------------------------------------------------------------------
  * Make_HandleUse --
@@ -325,7 +331,7 @@ Make_HandleUse (cgn, pgn)
     register GNode	*cgn;	/* The .USE node */
     register GNode   	*pgn;	/* The target of the .USE node */
 {
-    register GNode	*gn;	/* A child of the .USE node */
+    register GNode	*gn; 	/* A child of the .USE node */
     register LstNode	ln; 	/* An element in the children list */
 
     if (cgn->type & (OP_USE|OP_TRANSFORM)) {
@@ -360,7 +366,7 @@ Make_HandleUse (cgn, pgn)
 	 * whether to queue the parent or examine its children...
 	 */
 	if (cgn->type & OP_USE) {
-	    pgn->unmade -= 1;
+	    pgn->unmade--;
 	}
     }
     return (0);
@@ -408,8 +414,7 @@ Make_Update (cgn)
     char *p1;
 
     cname = Var_Value (TARGET, cgn, &p1);
-    if (p1)
-	free(p1);
+    efree(p1);
 
     /*
      * If the child was actually made, see what its modification time is
@@ -538,8 +543,7 @@ Make_Update (cgn)
 		Var_Set (PREFIX, cpref, pgn);
 	    }
 	}
-	if (p1)
-	    free(p1);
+	efree(p1);
 	Lst_Close (cgn->iParents);
     }
 }
@@ -610,8 +614,7 @@ MakeAddAllSrc (cgnp, pgnp)
 	     */
 	    Var_Append(OODATE, child, pgn);
 	}
-	if (p1)
-	    free(p1);
+	efree(p1);
     }
     return (0);
 }
@@ -654,8 +657,7 @@ Make_DoAllVar (gn)
     if (gn->type & OP_JOIN) {
 	char *p1;
 	Var_Set (TARGET, Var_Value (ALLSRC, gn, &p1), gn);
-	if (p1)
-	    free(p1);
+	efree(p1);
     }
 }
 

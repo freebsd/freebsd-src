@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)make.h	8.3 (Berkeley) 6/13/95
- *	$Id: make.h,v 1.8 1998/11/14 16:15:04 dg Exp $
+ *	$Id: make.h,v 1.9 1999/07/31 20:53:02 hoek Exp $
  */
 
 /*-
@@ -48,21 +48,32 @@
 #define _MAKE_H_
 
 #include <sys/types.h>
+#include <sys/param.h>
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
-#if !defined(MAKE_BOOTSTRAP) && defined(BSD)
-#include <sys/cdefs.h>
+
+#if !defined(MAKE_BOOTSTRAP) && defined(BSD4_4)
+# include <sys/cdefs.h>
 #else
-#ifndef __P
-#if defined(__STDC__) || defined(__cplusplus)
-#define	__P(protos)	protos		/* full-blown ANSI C */
-#else
-#define	__P(protos)	()		/* traditional C preprocessor */
+# ifndef __P
+#  if defined(__STDC__) || defined(__cplusplus)
+#   define	__P(protos)	protos		/* full-blown ANSI C */
+#  else
+#   define	__P(protos)	()		/* traditional C preprocessor */
+#  endif
+# endif
+# ifndef __STDC__
+#  ifndef const
+#   define const
+#  endif
+#  ifndef volatile
+#   define volatile
+#  endif
+# endif
 #endif
-#endif
-#endif
-#if __STDC__
+
+#ifdef __STDC__
 #include <stdlib.h>
 #include <unistd.h>
 #endif
@@ -108,7 +119,7 @@ typedef struct GNode {
     Boolean         make;      	/* TRUE if this target needs to be remade */
     enum {
 	UNMADE, BEINGMADE, MADE, UPTODATE, ERROR, ABORTED,
-	CYCLE, ENDCYCLE,
+	CYCLE, ENDCYCLE
     }	    	    made;    	/* Set to reflect the state of processing
 				 * on this node:
 				 *  UNMADE - Not examined yet

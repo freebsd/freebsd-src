@@ -30,11 +30,16 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: for.c,v 1.7 1997/02/22 19:27:09 peter Exp $
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)for.c	8.1 (Berkeley) 6/6/93";
+#else
+static const char rcsid[] =
+	"$Id";
+#endif
 #endif /* not lint */
 
 /*-
