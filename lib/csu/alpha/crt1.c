@@ -30,7 +30,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *      $Id: crt1.c,v 1.1.1.2 1998/03/11 20:36:09 jb Exp $
+ *      $Id: crt1.c,v 1.2 1998/08/20 21:37:22 jb Exp $
  */
 
 #ifndef __GNUC__
@@ -80,8 +80,12 @@ _start(char **ap,
 	argv = ap + 1;
 	env  = ap + 2 + argc;
 	environ = env;
-	if(argc > 0)
-		__progname = argv[0];
+	if(argc > 0 && argv[0] != NULL) {
+		char *s;
+		for (s = __progname; *s != '\0'; s++)
+			if (*s == '/')
+				__progname = s + 1;
+	}
 
 	if (&_DYNAMIC != NULL) {
 		if ((obj == NULL) || (obj->magic != RTLD_MAGIC))
