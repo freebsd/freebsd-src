@@ -24,6 +24,12 @@
 .Brq Cm delete | zero | resetlog
 .Op Cm set
 .Op Ar number ...
+.Nm
+.Cm enable
+.Brq Cm firewall | one_pass | debug | verbose | dyn_keepalive
+.Nm
+.Cm disable
+.Brq Cm firewall | one_pass | debug | verbose | dyn_keepalive
 .Pp
 .Nm
 .Cm set Oo Cm disable Ar number ... Oc Op Cm enable Ar number ...
@@ -306,6 +312,16 @@ and
 commands are used to configure the traffic shaper, as shown in the
 .Sx TRAFFIC SHAPER (DUMMYNET) CONFIGURATION
 Section below.
+.Pp
+If the world and the kernel get out of sync the
+.Nm
+ABI may break, preventing you from being able to add any rules.  This can
+adversely effect the booting process.  You can use
+.Nm
+.Cm disable
+.Cm firewall
+to temporarily disable the firewall to regain access to the network,
+allowing you to fix the problem.
 .Sh PACKET FLOW
 A packet is checked against the active ruleset in multiple places
 in the protocol stack, under control of several sysctl variables.
