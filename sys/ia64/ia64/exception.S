@@ -522,7 +522,7 @@ ENTRY(exception_restore, 0)
 	// the backing store.
 {	.mmi
 	mov		ar.rsc=r31		// setup for loadrs
-(p15)	mov		ar.k7=r16
+	mov		ar.k7=r16
 (p15)	mov		r13=r29
 	;;
 }
@@ -542,7 +542,7 @@ exception_restore_restart:
 	;;
 }
 {	.mmb
-(p15)	mov		ar.k6=r31
+	mov		ar.k6=r31
 	mov		ar.rnat=r21
 	nop		0
 	;;
