@@ -1,12 +1,12 @@
 .\" Copyright (c) 2001 Networks Associates Technology, Inc.
 .\" All rights reserved.
-.\" 
+.\"
 .\" This software was developed for the FreeBSD Project by Chris
 .\" Costello at Safeport Network Services and NAI Labs, the Security
 .\" Research Division of Network Associates, Inc. under DARPA/SPAWAR
 .\" contract N66001-01-C-8035 ("CBOSS"), as part of the DARPA CHATS
 .\" research program.
-.\" 
+.\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
 .\" are met:
@@ -18,7 +18,7 @@
 .\" 3. The name of the author may not be used to endorse or promote
 .\"    products derived from this software without specific prior written
 .\"    permission.
-.\" 
+.\"
 .\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
 .\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 .\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -30,8 +30,9 @@
 .\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
-.\" 
+.\"
 .\" $FreeBSD$
+.\"
 .Dd December 21, 2001
 .Dt MAC_SET 3
 .Sh NAME
@@ -61,8 +62,9 @@ to the file referenced to by
 .Fa path_p ,
 or to the file descriptor
 .Fa fd ,
-respectively.  Note this function will
-fail on socket descriptors.  For information on
+respectively.
+Note that this function will fail on socket descriptors.
+For information on
 setting MAC labels on socket descriptors see
 .Xr setsockopt 2 .
 The
@@ -74,7 +76,7 @@ to the calling process.
 .Pp
 A process is allowed to set a label for a file
 only if it has MAC write access to the file,
-and its effective user id is equal to
+and its effective user ID is equal to
 the owner of the file,
 or has appropriate privileges.
 .Sh RETURN VALUES
@@ -117,8 +119,9 @@ A component of the pathname
 referenced by
 .Fa path_p
 is not a directory.
+.El
 .Sh SEE_ALSO
 .Xr mac 3 ,
 .Xr mac_free 3 ,
-.Xr mac_text 3 ,
-.Xr mac_get 3
+.Xr mac_get 3 ,
+.Xr mac_text 3
