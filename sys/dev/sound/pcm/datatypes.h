@@ -120,6 +120,8 @@ struct _pcm_channel {
 	u_int32_t flags;
 	u_int32_t format, hwfmt;
 	u_int32_t blocksize;
+	u_int32_t blocksize2nd;
+	u_int32_t fragments;
 
 	int direction;
 	snd_dbuf buffer;
