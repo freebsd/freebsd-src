@@ -2,9 +2,6 @@
 # $FreeBSD$
 #
 # Doing a make install builds /usr/include
-#
-# The ``rm -rf''s used below are safe because rm doesn't follow symbolic
-# links.
 
 CLEANFILES= osreldate.h version vers.c
 SUBDIR= rpcsvc
@@ -35,24 +32,14 @@ MFILES=	float.h floatingpoint.h stdarg.h varargs.h
 # posix4/aio.h conflicts with dysons and isn't installed:
 PFILES=	mqueue.h sched.h semaphore.h # aio.h
 
-# Only for default SHARED=copies case
-SFILES=	soundcard.h joystick.h
+SFILES=	joystick.h soundcard.h
 
 LFILES=	aio.h errno.h fcntl.h inttypes.h linker_set.h poll.h syslog.h \
 	termios.h ucontext.h
 
-LDIRS=	cam msdosfs net netatalk netatm netgraph netinet netinet6 \
-	netipx netkey netncp netns nfs ntfs nwfs pccard posix4 sys vm
-
-LNOHEADERDIRS=	isofs ufs
-LSUBDIRS=	isofs/cd9660 ufs/ffs ufs/mfs ufs/ufs cam/scsi
-
-# Define SHARED to indicate whether you want symbolic links to the system
-# source (``symlinks''), or a separate copy (``copies'').  ``symlinks'' is
-# probably only useful for developers and should be avoided if you do not
-# wish to tie your /usr/include and /usr/src together.
-#SHARED=	symlinks
-SHARED?=	copies
+LDIRS=	cam cam/scsi isofs/cd9660 msdosfs net netatalk netatm netgraph \
+	netinet netinet6 netipx netkey netncp netns nfs ntfs nwfs pccard \
+	posix4 sys ufs/ffs ufs/mfs ufs/ufs vm
 
 all:	osreldate.h
 
@@ -65,23 +52,31 @@ osreldate.h:	${.CURDIR}/../sys/conf/newvers.sh \
 	echo \#'undef __FreeBSD_version' >> osreldate.h;	\
 	echo \#'define __FreeBSD_version' $$RELDATE >> osreldate.h
 
-beforeinstall: ${SHARED}
-	@rm -f ${DESTDIR}/usr/include/timepps.h
-	cd ${.CURDIR}; \
-		${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
-		${FILES} ${DESTDIR}/usr/include
-	cd ${.CURDIR}/arpa; \
-		${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
-		${ARPAFILES} ${DESTDIR}/usr/include/arpa
-	cd ${.CURDIR}/protocols; \
-		${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
-		${PROTOFILES} ${DESTDIR}/usr/include/protocols
-	cd ${.CURDIR}/rpc; \
-		${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
-		${RPCFILES} ${DESTDIR}/usr/include/rpc
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
-		${.OBJDIR}/osreldate.h \
+beforeinstall:
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${.OBJDIR}/osreldate.h \
 		${DESTDIR}/usr/include
+	cd ${.CURDIR}; \
+		${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${FILES} \
+			${DESTDIR}/usr/include
+	cd ${.CURDIR}/arpa; \
+		${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${ARPAFILES} \
+			${DESTDIR}/usr/include/arpa
+	cd ${.CURDIR}/protocols; \
+		${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${PROTOFILES} \
+			${DESTDIR}/usr/include/protocols
+	cd ${.CURDIR}/rpc; \
+		${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${RPCFILES} \
+			${DESTDIR}/usr/include/rpc
+.for i in ${LDIRS}
+	cd ${.CURDIR}/../sys; \
+		${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 $i/*.h \
+			${DESTDIR}/usr/include/$i
+.endfor
+.if exists(${.CURDIR}/../sys/${MACHINE_ARCH}/include)
+	cd ${.CURDIR}/../sys/${MACHINE_ARCH}/include; \
+		${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
+			${DESTDIR}/usr/include/machine
+.endif
 .for i in ${LFILES}
 	ln -sf sys/$i ${DESTDIR}/usr/include/$i
 .endfor
@@ -91,36 +86,8 @@ beforeinstall: ${SHARED}
 .for i in ${PFILES}
 	ln -sf posix4/$i ${DESTDIR}/usr/include/$i
 .endfor
-
-copies:
-.for i in ${LDIRS} ${LNOHEADERDIRS} machine
-	if [ -h ${DESTDIR}/usr/include/$i ]; then \
-		rm -f ${DESTDIR}/usr/include/$i; \
-	fi
-.endfor
-	mtree -deU -f ${.CURDIR}/../etc/mtree/BSD.include.dist \
-		-p ${DESTDIR}/usr/include
-.for i in ${LDIRS} ${LSUBDIRS}
-	cd ${.CURDIR}/../sys; \
-		${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 $i/*.h \
-		${DESTDIR}/usr/include/$i
-.endfor
-.if exists(${.CURDIR}/../sys/${MACHINE_ARCH}/include)
-	cd ${.CURDIR}/../sys/${MACHINE_ARCH}/include; \
-		${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
-		${DESTDIR}/usr/include/machine
-.endif
 .for i in ${SFILES}
 	ln -sf ../sys/$i ${DESTDIR}/usr/include/machine/$i
 .endfor
-
-symlinks:
-	@${ECHO} "Setting up symlinks to kernel source tree..."
-.for i in ${LDIRS} ${LNOHEADERDIRS}
-	rm -rf ${DESTDIR}/usr/include/$i
-	ln -s ../../sys/$i ${DESTDIR}/usr/include/$i
-.endfor
-	rm -rf ${DESTDIR}/usr/include/machine
-	ln -s ../../sys/${MACHINE_ARCH}/include ${DESTDIR}/usr/include/machine
 
 .include <bsd.prog.mk>
