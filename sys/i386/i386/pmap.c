@@ -925,8 +925,12 @@ pmap_page_lookup(vm_object_t object, vm_pindex_t pindex)
 
 retry:
 	m = vm_page_lookup(object, pindex);
-	if (m && vm_page_sleep_busy(m, FALSE, "pplookp"))
-		goto retry;
+	if (m != NULL) {
+		vm_page_lock_queues();
+		if (vm_page_sleep_if_busy(m, FALSE, "pplookp"))
+			goto retry;
+		vm_page_unlock_queues();
+	}
 	return m;
 }
 
@@ -1258,15 +1262,15 @@ static int
 pmap_release_free_page(pmap_t pmap, vm_page_t p)
 {
 	pd_entry_t *pde = pmap->pm_pdir;
+
 	/*
 	 * This code optimizes the case of freeing non-busy
 	 * page-table pages.  Those pages are zero now, and
 	 * might as well be placed directly into the zero queue.
 	 */
-	if (vm_page_sleep_busy(p, FALSE, "pmaprl"))
-		return 0;
-
 	vm_page_lock_queues();
+	if (vm_page_sleep_if_busy(p, FALSE, "pmaprl"))
+		return (0);
 	vm_page_busy(p);
 
 	/*
@@ -2322,10 +2326,12 @@ pmap_object_init_pt(pmap_t pmap, vm_offset_t addr,
 
 retry:
 		p = vm_page_lookup(object, pindex);
-		if (p && vm_page_sleep_busy(p, FALSE, "init4p"))
-			goto retry;
-
-		if (p == NULL) {
+		if (p != NULL) {
+			vm_page_lock_queues();
+			if (vm_page_sleep_if_busy(p, FALSE, "init4p"))
+				goto retry;
+			vm_page_unlock_queues();
+		} else {
 			p = vm_page_alloc(object, pindex, VM_ALLOC_NORMAL);
 			if (p == NULL)
 				return;
