@@ -274,7 +274,12 @@ acpi_cmbat_notify_handler(ACPI_HANDLE h, UINT32 notify, void *context)
 
     acpi_UserNotify("CMBAT", h, notify);
 
-    ACPI_SERIAL_BEGIN(cmbat);
+    /*
+     * Clear the appropriate last updated time.  The next call to retrieve
+     * the battery status will get the new value for us.  We don't need to
+     * acquire a lock since we are only clearing the time stamp and since
+     * calling _BST/_BIF can trigger a notify, we could deadlock also.
+     */
     switch (notify) {
     case ACPI_NOTIFY_DEVICE_CHECK:
     case ACPI_BATTERY_BST_CHANGE:
@@ -287,7 +292,6 @@ acpi_cmbat_notify_handler(ACPI_HANDLE h, UINT32 notify, void *context)
     default:
 	break;
     }
-    ACPI_SERIAL_END(cmbat);
 }
 
 static int
