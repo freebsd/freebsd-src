@@ -19,6 +19,8 @@ refer=			/usr/bin/refer
 grap=			# no grap
 pic=			/usr/bin/pic
 zcat=			/usr/bin/zcat
+compress=		gzip -c
+compext=		.gz
 
 # For scripts.
 .if !target(obj)

@@ -524,11 +524,15 @@ convert_name (name, to_cat)
   if (to_cat)
     {
       int len = strlen (name) + 3;
+      int cextlen = strlen(COMPRESS_EXT);
+
       to_name = (char *) malloc (len);
       if (to_name == NULL)
 	gripe_alloc (len, "to_name");
       strcpy (to_name, name);
-      strcat (to_name, ".Z");
+      /* Avoid tacking it on twice */
+      if (strcmp(name + (len - (3 + cextlen)), COMPRESS_EXT))
+      	strcat (to_name, COMPRESS_EXT);
     }
   else
     to_name = strdup (name);
@@ -660,43 +664,30 @@ make_name (path, section, name, cat)
   return &names[0];
 }
 
-#ifdef DO_UNCOMPRESS
 char *
 get_expander (file)
      char *file;
 {
-  char *expander = NULL;
-  int len = strlen (file);
+  char *end = file + (strlen (file) - 1);
 
-  if (file[len - 2] == '.')
-    {
-      switch (file[len - 1])
-	{
+  while (end > file && end[-1] != '.')
+    --end;
+  if (end == file)
+    return NULL;
 #ifdef FCAT
-	case 'F':
-	  if (strcmp (FCAT, "") != 0)
-	    expander = strdup (FCAT);
-	  break;
-#endif
+  if (*end == 'F')
+    return FCAT;
+#endif	/* FCAT */
 #ifdef YCAT
-	case 'Y':
-	  if (strcmp (YCAT, "") != 0)
-	    expander = strdup (YCAT);
-	  break;
-#endif
+  if (*end == 'Y')
+    return YCAT;
+#endif	/* YCAT */
 #ifdef ZCAT
-	case 'Z':
-	  if (strcmp (ZCAT, "") != 0)
-	    expander = strdup (ZCAT);
-	  break;
-#endif
-	default:
-	  break;
-	}
-    }
-  return expander;
+  if (*end == 'Z' || !strcmp(end, "gz"))
+    return ZCAT;
+#endif	/* ZCAT */
+  return NULL;
 }
-#endif
 
 /*
  * Simply display the preformatted page.
@@ -712,16 +703,12 @@ display_cat_file (file)
 
   if (access (file, R_OK) == 0)
     {
-#ifdef DO_UNCOMPRESS
       char *expander = get_expander (file);
 
       if (expander != NULL)
 	sprintf (command, "%s %s | %s", expander, file, pager);
       else
 	sprintf (command, "%s %s", pager, file);
-#else
-      sprintf (command, "%s %s", pager, file);
-#endif
 
       found = do_system_command (command);
     }
@@ -911,7 +898,6 @@ parse_roff_directive (cp, file, buf)
       strcat (buf, " | ");
       strcat (buf, NROFF);
     }
-
   if (tbl_found && !troff && strcmp (COL, "") != 0)
     {
       strcat (buf, " | ");
@@ -992,22 +978,21 @@ make_roff_command (file)
   if (debug)
     fprintf (stderr, "using default preprocessor sequence\n");
 
+  if ((cp = get_expander(file)) == NULL)
+    cp = "cat";
+  sprintf(buf, "%s %s | ", cp, file);
 #ifdef HAS_TROFF
   if (troff)
     {
       if (strcmp (TBL, "") != 0)
 	{
-	  strcpy (buf, TBL);
-	  strcat (buf, " ");
-	  strcat (buf, file);
+	  strcat (buf, TBL);
 	  strcat (buf, " | ");
 	  strcat (buf, TROFF);
 	}
       else
 	{
-	  strcpy (buf, TROFF);
-	  strcat (buf, " ");
-	  strcat (buf, file);
+	  strcat (buf, TROFF);
 	}
     }
   else
@@ -1015,17 +1000,13 @@ make_roff_command (file)
     {
       if (strcmp (TBL, "") != 0)
 	{
-	  strcpy (buf, TBL);
-	  strcat (buf, " ");
-	  strcat (buf, file);
+	  strcat (buf, TBL);
 	  strcat (buf, " | ");
 	  strcat (buf, NROFF);
 	}
       else
 	{
 	  strcpy (buf, NROFF);
-	  strcat (buf, " ");
-	  strcat (buf, file);
 	}
 
       if (strcmp (COL, "") != 0)
@@ -1073,7 +1054,7 @@ make_cat_file (path, man_file, cat_file)
 #endif
       /*
        * Don't let the user interrupt the system () call and screw up
-       * the formmatted man page if we're not done yet.
+       * the formatted man page if we're not done yet.
        */
       fprintf (stderr, "Formatting page, please wait...");
       fflush(stderr);

@@ -22,11 +22,6 @@
  * Austin, Texas  78712
  */
 
-#ifdef COMPRESS
-#define DO_COMPRESS
-#define DO_UNCOMPRESS
-#endif
-
 /*
  * This is the size of a number of internal buffers.  It should
  * probably not be less than 512.
@@ -132,27 +127,26 @@
 /*
  * Define the uncompression program(s) to use for those preformatted
  * pages that end in the given character.  If you add extras here, you
- * may need to change man.c.
+ * may need to change man.c.  [I have no idea what FCAT and YCAT files
+ * are! - I will leave them in for now.. -jkh]
  */
-#ifdef DO_UNCOMPRESS
 /* .F files */
 #define FCAT ""
 /* .Y files */
 #define YCAT ""
 /* .Z files */
 #define ZCAT "%zcat%"
-#endif
 
 /*
  * This is the standard program to use on this system for compressing
  * pages once they have been formatted, and the character to tack on
  * to the end of those files.  The program listed is expected to read
  * from the standard input and write compressed output to the standard
- * output.
+ * output.  These won't actually be used unless compression is enabled.
  */
 #ifdef DO_COMPRESS
-#define COMPRESSOR ""
-#define COMPRESS_EXT ""
+#define COMPRESSOR "%compress%"
+#define COMPRESS_EXT "%compext%"
 #endif
 
 /*

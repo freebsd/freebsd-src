@@ -1,8 +1,15 @@
-obj cleandir clean depend rcsfreeze tags all:
-	@echo -n
+NOMAN=	noman
+CLEANFILES=	catman
 
-install:
-	install -c -o bin -g bin -m 555 catman ${DESTDIR}/usr/bin
+beforeinstall: catman
+	install -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
+	     ${.CURDIR}/catman ${DESTDIR}${BINDIR}
 
-.include "../Makefile.inc"
 .include <bsd.prog.mk>
+
+catman: catman.sh
+	sed -e 's,%compress%,${compress},' \
+	-e 's,%compext%,${compext},' \
+	-e 's,%zcat%,${zcat},' \
+	   ${.CURDIR}/catman.sh > catman
+
