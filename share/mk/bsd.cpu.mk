@@ -154,6 +154,8 @@ MACHINE_CPU = ev45 ev4
 . elif ${CPUTYPE} == "ev4"
 MACHINE_CPU = ev4
 . endif
+.elif ${MACHINE_ARCH} == "x86-64" || ${MACHINE_ARCH} == "x86_64"
+MACHINE_CPU = x86-64 sse2 sse
 .elif ${MACHINE_ARCH} == "ia64"
 . if ${CPUTYPE} == "itanium"
 MACHINE_CPU = itanium
