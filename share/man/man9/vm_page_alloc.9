@@ -31,7 +31,8 @@
 .Os
 .Sh NAME
 .Nm vm_page_alloc
-.Nd "allocate a page for a vm_object"
+.Nd "allocate a page for a"
+.Vt vm_object
 .Sh SYNOPSIS
 .In sys/param.h
 .In vm/vm.h
@@ -69,7 +70,7 @@ The page can be allocated if the cache queue is empty and the free
 page count is above the interrupt reserved water mark.
 If
 .Dv VM_ALLOC_INTERRUPT
-is set the page can be allocated as long as the free page count is
+is set, the page can be allocated as long as the free page count is
 greater than zero.
 This flag should be used only when the system really needs the page.
 .It Dv VM_ALLOC_INTERRUPT
