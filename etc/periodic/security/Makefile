@@ -5,11 +5,13 @@ FILES=	100.chksetuid \
 	300.chkuid0 \
 	400.passwdless \
 	500.ipfwdenied \
+	510.ipfdenied \
 	550.ipfwlimit \
 	600.ip6fwdenied \
 	650.ip6fwlimit \
 	700.kernelmsg \
 	800.loginfail \
-	900.tcpwrap
+	900.tcpwrap \
+	security.functions
 
 .include <bsd.prog.mk>
