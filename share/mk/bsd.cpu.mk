@@ -44,7 +44,7 @@ CPUTYPE = athlon
 
 . if ${MACHINE_ARCH} == "i386"
 .  if ${CPUTYPE} == "athlon-mp" || ${CPUTYPE} == "athlon-xp" || \
-    ${CPUTYPE} == "athlon-4" || ${CPUTYPE} == "athlon-tbird"
+    ${CPUTYPE} == "athlon-4"
 _ICC_CPUCFLAGS = -tpp6 -xiMK
 _CPUCFLAGS = -march=${CPUTYPE}
 .  elif ${CPUTYPE} == "athlon-tbird" || ${CPUTYPE} == "athlon"
