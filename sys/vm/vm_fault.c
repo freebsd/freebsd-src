@@ -66,7 +66,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_fault.c,v 1.29 1995/09/06 05:37:39 dyson Exp $
+ * $Id: vm_fault.c,v 1.30 1995/09/11 00:45:15 dyson Exp $
  */
 
 /*
@@ -1034,7 +1034,7 @@ vm_fault_additional_pages(first_object, first_offset, m, rbehind, raheada, marra
 					if (i < treqpage) {
 						int j;
 						for (j = 0; j < i; j++) {
-								FREE_PAGE(marray[i]);
+							FREE_PAGE(marray[j]);
 						}
 						*reqpage = 0;
 						marray[0] = m;
