@@ -260,37 +260,41 @@ The ACPI CA code will still
 know about the avoided region.
 .Sh OVERRIDING YOUR BIOS BYTECODE
 ACPI interprets bytecode named AML, ACPI Machine Language, provided by the BIOS
-vendor as a memory image at boot time. Sometimes the AML code contains
-a problem that does not appeared in Microsoft implementation.
+vendor as a memory image at boot time.
+Sometimes, the AML code contains
+a problem that does not appear in the Microsoft implementation.
 So we provide a way to override it with your own AML code.
 .Pp
-In order to load your AML code, 
-you must edit 
+In order to load your AML code,
+you must edit
 .Pa /boot/loader.conf
-and 
+and
 include the following lines.
 .Bd -literal -offset indent
 acpi_dsdt_load="YES"
 acpi_dsdt_name="/boot/acpi_dsdt.aml" #You may change the name.
 .Ed
 .Pp
-In order to prepare your AML code, you will require
-.Xr acpidump 8 ,
+In order to prepare your AML code, you will need the
+.Xr acpidump 8
+and
 .Xr iasl 1
-in devel/acpicatools port, and some ACPI knowledge.
+utilities from the
+.Pa devel/acpicatools
+port, and some ACPI knowledge.
 .Sh COMPATIBILITY
 ACPI is only found/supported on Intel platforms (i386/IA32 and IA64).
 .Sh SEE ALSO
-.Xr config 8 ,
 .Xr loader.conf 5 ,
 .Xr acpidump 8 ,
+.Xr config 8 ,
 .Xr acpi 9
 .Rs
-.%A Compaq Computer Corporation
-.%A Intel Corporation
-.%A Microsoft Corporation
-.%A Phoenix Technologies Ltd.
-.%A Toshiba Corporation
+.%A "Compaq Computer Corporation"
+.%A "Intel Corporation"
+.%A "Microsoft Corporation"
+.%A "Phoenix Technologies Ltd."
+.%A "Toshiba Corporation"
 .%D July 27 2000
 .%T "Advanced Configuration and Power Interface Specification"
 .%O http://acpi.info/spec.htm
