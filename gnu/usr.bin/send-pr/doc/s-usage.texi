@@ -184,7 +184,10 @@ send-pr, , Installing @code{send-pr} on your system}.)  If you don't
 know your @samp{>Submitter-Id:}, you can request it using
 @w{@samp{send-pr --request-id}}.  If your organization is not affiliated
 with the site you send Problem Reports to, a good generic
-@samp{>Submitter-Id:} to use is @samp{net}.
+@samp{>Submitter-Id:} to use is @samp{net}. @emph{NOTE:} If you are using
+send-pr to send problem reports to the FreeBSD Project, this version of
+send-pr already has a customer ID in it and you do not need to request a
+new one.
 @end ifset
 
 @cindex bad Problem Reports
