@@ -47,6 +47,10 @@ si_isa_probe(device_t dev)
 	unsigned char *paddr;
 	int unit;
 
+	/* No pnp support */
+	if (isa_get_vendorid(dev))
+		return (ENXIO);
+
 	sc = device_get_softc(dev);
 	unit = device_get_unit(dev);
 
@@ -54,8 +58,10 @@ si_isa_probe(device_t dev)
 	sc->sc_mem_res = bus_alloc_resource(dev, SYS_RES_MEMORY,
 					    &sc->sc_mem_rid,
 					    0, ~0, SIPROBEALLOC, RF_ACTIVE);
-	if (!sc->sc_mem_res)
+	if (!sc->sc_mem_res) {
+		device_printf(dev, "cannot allocate memory resource\n");
 		return ENXIO;
+	}
 	paddr = (caddr_t)rman_get_start(sc->sc_mem_res);/* physical */
 	maddr = rman_get_virtual(sc->sc_mem_res);	/* in kvm */
 
@@ -68,22 +74,19 @@ si_isa_probe(device_t dev)
 	 */
 	if ((caddr_t)paddr < (caddr_t)0xA0000 ||
 	    (caddr_t)paddr >= (caddr_t)0x100000) {
-		printf("si%d: iomem (%p) out of range\n",
-			unit, (void *)paddr);
+		device_printf(dev, "maddr (%p) out of range\n", paddr);
 		goto fail;
 	}
 
 	if (((u_int)paddr & 0x7fff) != 0) {
-		DPRINT((0, DBG_AUTOBOOT|DBG_FAIL,
-			"si%d: iomem (%x) not on 32k boundary\n", unit, paddr));
+		device_printf(dev, "maddr (%p) not on 32k boundary\n", paddr);
 		goto fail;
 	}
 
 	/* Is there anything out there? (0x17 is just an arbitrary number) */
 	*maddr = 0x17;
 	if (*maddr != 0x17) {
-		DPRINT((0, DBG_AUTOBOOT|DBG_FAIL,
-			"si%d: 0x17 check fail at phys 0x%x\n", unit, paddr));
+		device_printf(dev, "0x17 check fail at phys %p\n", paddr);
 		goto fail;
 	}
 	/*
@@ -146,9 +149,8 @@ try_mk1:
 		goto fail;
 	*(maddr+0x7ff8) = 0x17;
 	if (*(maddr+0x7ff8) != (unsigned char)0x17) {
-		DPRINT((0, DBG_AUTOBOOT|DBG_FAIL,
-			"si%d: 0x17 check fail at phys 0x%x = 0x%x\n",
-			unit, paddr+0x77f8, *(maddr+0x77f8)));
+		device_printf(dev, "0x17 check fail at phys %p = 0x%x\n",
+		    paddr+0x77f8, *(maddr+0x77f8));
 		goto fail;
 	}
 
@@ -166,9 +168,9 @@ got_card:
 	ux = maddr + SIRAM;
 	for (i = 0; i < ramsize; i++, ux++) {
 		if ((was = *ux) != (unsigned char)(i&0xff)) {
-			DPRINT((0, DBG_AUTOBOOT|DBG_FAIL,
-				"si%d: match fail at phys 0x%x, was %x should be %x\n",
-				unit, paddr + i, was, i&0xff));
+			device_printf(dev,
+			    "memtest fail at phys %p, was %x should be %x\n",
+			    paddr + i, was, i & 0xff);
 			goto fail;
 		}
 	}
@@ -180,9 +182,8 @@ got_card:
 	ux = maddr + SIRAM;
 	for (i = 0; i < ramsize; i++) {
 		if ((was = *ux++) != 0) {
-			DPRINT((0, DBG_AUTOBOOT|DBG_FAIL,
-				"si%d: clear fail at phys 0x%x, was %x\n",
-				unit, paddr + i, was));
+			device_printf(dev, "clear fail at phys %p, was %x\n",
+			    paddr + i, was);
 			goto fail;
 		}
 	}
@@ -199,10 +200,9 @@ got_card:
 		case 15:
 			break;
 		default:
-bad_irq:
-			DPRINT((0, DBG_AUTOBOOT|DBG_FAIL,
-				"si%d: bad IRQ value - %d\n",
-				unit, isa_get_irq(dev)));
+			device_printf(dev,
+			    "bad IRQ value - %d (11, 12, 15 allowed)\n",
+			    isa_get_irq(dev));
 			goto fail;
 		}
 		sc->sc_memsize = SIHOST2_MEMSIZE;
@@ -214,7 +214,10 @@ bad_irq:
 		case 15:
 			break;
 		default:
-			goto bad_irq;
+			device_printf(dev,
+			    "bad IRQ value - %d (11, 12, 15 allowed)\n",
+			    isa_get_irq(dev));
+			goto fail;
 		}
 		sc->sc_memsize = SIHOST_MEMSIZE;
 		break;
@@ -227,13 +230,16 @@ bad_irq:
 		case 15:
 			break;
 		default:
-			goto bad_irq;
+			device_printf(dev,
+			    "bad IRQ value - %d (9, 10, 11, 12, 15 allowed)\n",
+			    isa_get_irq(dev));
+			goto fail;
 		}
 		sc->sc_memsize = SIJETISA_MEMSIZE;
 		break;
 	case SIMCA:		/* MCA */
 	default:
-		printf("si%d: card type %d not supported\n", unit, type);
+		device_printf(dev, "card type %d not supported\n", type);
 		goto fail;
 	}
 	sc->sc_type = type;
