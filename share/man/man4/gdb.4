@@ -177,7 +177,7 @@ The first node is always the local system, so in this case, node 0 is the remote
 system.
 If there are more than two systems, check from the other end to find which node
 corresponds to the remote system.
-On the other machine, it looks like this:
+On the remote machine, it looks like this:
 .Pp
 .Bd -literal -offset 5m
 # \f(CBfwcontrol\fP
@@ -197,7 +197,7 @@ Next, establish a firewire connection with
 .Pp
 .Ar target-address
 is the EUI64 address of the remote node, in this case
-.Li 0x00c04f3226e88061 .
+.Li 0x000199000003622b .
 When started in this manner, 
 .Nm fwchat
 establishes two local tunnel connections:
@@ -211,8 +211,49 @@ The port numbers can be changed with the
 .Fl p
 flag to
 .Nm fwcontrol .
-.El
 .Pp
+.Nm fwcontrol
+does not return control to the user.  
+You can start it in the background, but sometimes it will produce error
+messages, so it's a good idea to start it in its own window.
+.Pp
+.It
+Finally, establish connection:
+.Bd -literal -offset 5m
+# \f(CBgdb kernel.debug\fP
+GNU gdb 5.2.1 (FreeBSD)
+\&\fI(politcal statements omitted)\fP\/
+Ready to go.  Enter 'tr' to connect to the remote target
+with /dev/cuaa0, 'tr /dev/cuaa1' to connect to a different port
+or 'trf portno' to connect to the remote target with the firewire
+interface.  portno defaults to 5556.
+
+Type 'getsyms' after connection to load kld symbols.
+
+If you're debugging a local system, you can use 'kldsyms' instead
+to load the kld symbols.  That's a less obnoxious interface.
+(gdb) \f(CBtrf\fP
+0xc21bd378 in ?? ()
+.Ed
+.Pp
+.It
+It's currently possible for the two ends of the firewire link to get out of sync
+after a reboot.  
+On the
+.Nm fwchat
+screen you see:
+.Bd -literal -offset 5m
+fwchat: get crom faild
+.Ed
+.Pp
+In this case, stop
+.Nm fwchat
+and perform a firewire bus reset:
+.Pp
+.Bd -literal -offset 5m
+# \f(CBfwcontrol -r\fP
+# \f(CBfwchat -b -t 0x000199000003622b\fP
+.El
 .Sh COMMANDS
 The user interface to
 .Nm
