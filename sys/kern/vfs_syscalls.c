@@ -179,10 +179,10 @@ int
 quotactl(td, uap)
 	struct thread *td;
 	register struct quotactl_args /* {
-		syscallarg(char *) path;
-		syscallarg(int) cmd;
-		syscallarg(int) uid;
-		syscallarg(caddr_t) arg;
+		char *path;
+		int cmd;
+		int uid;
+		caddr_t arg;
 	} */ *uap;
 {
 	struct mount *mp;
@@ -191,7 +191,7 @@ quotactl(td, uap)
 
 	if (jailed(td->td_ucred) && !prison_quotas)
 		return (EPERM);
-	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, SCARG(uap, path), td);
+	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, uap->path, td);
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
@@ -199,8 +199,8 @@ quotactl(td, uap)
 	vrele(nd.ni_vp);
 	if (error)
 		return (error);
-	error = VFS_QUOTACTL(mp, SCARG(uap, cmd), SCARG(uap, uid),
-	    SCARG(uap, arg), td);
+	error = VFS_QUOTACTL(mp, uap->cmd, uap->uid,
+	    uap->arg, td);
 	vn_finished_write(mp);
 	return (error);
 }
@@ -219,8 +219,8 @@ int
 statfs(td, uap)
 	struct thread *td;
 	register struct statfs_args /* {
-		syscallarg(char *) path;
-		syscallarg(struct statfs *) buf;
+		char *path;
+		struct statfs *buf;
 	} */ *uap;
 {
 	register struct mount *mp;
@@ -229,7 +229,7 @@ statfs(td, uap)
 	struct nameidata nd;
 	struct statfs sb;
 
-	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, SCARG(uap, path), td);
+	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, uap->path, td);
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	mp = nd.ni_vp->v_mount;
@@ -250,7 +250,7 @@ statfs(td, uap)
 		sb.f_fsid.val[0] = sb.f_fsid.val[1] = 0;
 		sp = &sb;
 	}
-	return (copyout(sp, SCARG(uap, buf), sizeof(*sp)));
+	return (copyout(sp, uap->buf, sizeof(*sp)));
 }
 
 /*
@@ -267,8 +267,8 @@ int
 fstatfs(td, uap)
 	struct thread *td;
 	register struct fstatfs_args /* {
-		syscallarg(int) fd;
-		syscallarg(struct statfs *) buf;
+		int fd;
+		struct statfs *buf;
 	} */ *uap;
 {
 	struct file *fp;
@@ -277,7 +277,7 @@ fstatfs(td, uap)
 	int error;
 	struct statfs sb;
 
-	if ((error = getvnode(td->td_proc->p_fd, SCARG(uap, fd), &fp)) != 0)
+	if ((error = getvnode(td->td_proc->p_fd, uap->fd, &fp)) != 0)
 		return (error);
 	mp = ((struct vnode *)fp->f_data)->v_mount;
 	fdrop(fp, td);
@@ -298,7 +298,7 @@ fstatfs(td, uap)
 		sb.f_fsid.val[0] = sb.f_fsid.val[1] = 0;
 		sp = &sb;
 	}
-	return (copyout(sp, SCARG(uap, buf), sizeof(*sp)));
+	return (copyout(sp, uap->buf, sizeof(*sp)));
 }
 
 /*
@@ -315,9 +315,9 @@ int
 getfsstat(td, uap)
 	struct thread *td;
 	register struct getfsstat_args /* {
-		syscallarg(struct statfs *) buf;
-		syscallarg(long) bufsize;
-		syscallarg(int) flags;
+		struct statfs *buf;
+		long bufsize;
+		int flags;
 	} */ *uap;
 {
 	register struct mount *mp, *nmp;
@@ -325,8 +325,8 @@ getfsstat(td, uap)
 	caddr_t sfsp;
 	long count, maxcount, error;
 
-	maxcount = SCARG(uap, bufsize) / sizeof(struct statfs);
-	sfsp = (caddr_t)SCARG(uap, buf);
+	maxcount = uap->bufsize / sizeof(struct statfs);
+	sfsp = (caddr_t)uap->buf;
 	count = 0;
 	mtx_lock(&mountlist_mtx);
 	for (mp = TAILQ_FIRST(&mountlist); mp != NULL; mp = nmp) {
@@ -347,8 +347,8 @@ getfsstat(td, uap)
 			 * refresh the fsstat cache. MNT_NOWAIT or MNT_LAZY
 			 * overrides MNT_WAIT.
 			 */
-			if (((SCARG(uap, flags) & (MNT_LAZY|MNT_NOWAIT)) == 0 ||
-			    (SCARG(uap, flags) & MNT_WAIT)) &&
+			if (((uap->flags & (MNT_LAZY|MNT_NOWAIT)) == 0 ||
+			    (uap->flags & MNT_WAIT)) &&
 			    (error = VFS_STATFS(mp, sp, td))) {
 				mtx_lock(&mountlist_mtx);
 				nmp = TAILQ_NEXT(mp, mnt_list);
@@ -389,7 +389,7 @@ int
 fchdir(td, uap)
 	struct thread *td;
 	struct fchdir_args /* {
-		syscallarg(int) fd;
+		int fd;
 	} */ *uap;
 {
 	register struct filedesc *fdp = td->td_proc->p_fd;
@@ -398,7 +398,7 @@ fchdir(td, uap)
 	struct file *fp;
 	int error;
 
-	if ((error = getvnode(fdp, SCARG(uap, fd), &fp)) != 0)
+	if ((error = getvnode(fdp, uap->fd, &fp)) != 0)
 		return (error);
 	vp = (struct vnode *)fp->f_data;
 	VREF(vp);
@@ -448,7 +448,7 @@ int
 chdir(td, uap)
 	struct thread *td;
 	struct chdir_args /* {
-		syscallarg(char *) path;
+		char *path;
 	} */ *uap;
 {
 
@@ -527,7 +527,7 @@ int
 chroot(td, uap)
 	struct thread *td;
 	struct chroot_args /* {
-		syscallarg(char *) path;
+		char *path;
 	} */ *uap;
 {
 	register struct filedesc *fdp = td->td_proc->p_fd;
@@ -539,7 +539,7 @@ chroot(td, uap)
 	if (error)
 		return (error);
 	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF, UIO_USERSPACE,
-	    SCARG(uap, path), td);
+	    uap->path, td);
 	mtx_lock(&Giant);
 	if ((error = change_dir(&nd, td)) != 0)
 		goto error;
@@ -618,9 +618,9 @@ int
 open(td, uap)
 	struct thread *td;
 	register struct open_args /* {
-		syscallarg(char *) path;
-		syscallarg(int) flags;
-		syscallarg(int) mode;
+		char *path;
+		int flags;
+		int mode;
 	} */ *uap;
 {
 
@@ -799,19 +799,19 @@ int
 ocreat(td, uap)
 	struct thread *td;
 	register struct ocreat_args /* {
-		syscallarg(char *) path;
-		syscallarg(int) mode;
+		char *path;
+		int mode;
 	} */ *uap;
 {
 	struct open_args /* {
-		syscallarg(char *) path;
-		syscallarg(int) flags;
-		syscallarg(int) mode;
+		char *path;
+		int flags;
+		int mode;
 	} */ nuap;
 
-	SCARG(&nuap, path) = SCARG(uap, path);
-	SCARG(&nuap, mode) = SCARG(uap, mode);
-	SCARG(&nuap, flags) = O_WRONLY | O_CREAT | O_TRUNC;
+	nuap.path = uap->path;
+	nuap.mode = uap->mode;
+	nuap.flags = O_WRONLY | O_CREAT | O_TRUNC;
 	return (open(td, &nuap));
 }
 #endif /* COMPAT_43 */
@@ -831,9 +831,9 @@ int
 mknod(td, uap)
 	struct thread *td;
 	register struct mknod_args /* {
-		syscallarg(char *) path;
-		syscallarg(int) mode;
-		syscallarg(int) dev;
+		char *path;
+		int mode;
+		int dev;
 	} */ *uap;
 {
 
@@ -943,8 +943,8 @@ int
 mkfifo(td, uap)
 	struct thread *td;
 	register struct mkfifo_args /* {
-		syscallarg(char *) path;
-		syscallarg(int) mode;
+		char *path;
+		int mode;
 	} */ *uap;
 {
 
@@ -1015,8 +1015,8 @@ int
 link(td, uap)
 	struct thread *td;
 	register struct link_args /* {
-		syscallarg(char *) path;
-		syscallarg(char *) link;
+		char *path;
+		char *link;
 	} */ *uap;
 {
 
@@ -1086,8 +1086,8 @@ int
 symlink(td, uap)
 	struct thread *td;
 	register struct symlink_args /* {
-		syscallarg(char *) path;
-		syscallarg(char *) link;
+		char *path;
+		char *link;
 	} */ *uap;
 {
 
@@ -1166,7 +1166,7 @@ int
 undelete(td, uap)
 	struct thread *td;
 	register struct undelete_args /* {
-		syscallarg(char *) path;
+		char *path;
 	} */ *uap;
 {
 	int error;
@@ -1176,7 +1176,7 @@ undelete(td, uap)
 restart:
 	bwillwrite();
 	NDINIT(&nd, DELETE, LOCKPARENT|DOWHITEOUT, UIO_USERSPACE,
-	    SCARG(uap, path), td);
+	    uap->path, td);
 	error = namei(&nd);
 	if (error)
 		return (error);
@@ -1218,11 +1218,11 @@ int
 unlink(td, uap)
 	struct thread *td;
 	struct unlink_args /* {
-		syscallarg(char *) path;
+		char *path;
 	} */ *uap;
 {
 
-	return (kern_unlink(td, SCARG(uap, path), UIO_USERSPACE));
+	return (kern_unlink(td, uap->path, UIO_USERSPACE));
 }
 
 int
@@ -1302,10 +1302,10 @@ int
 lseek(td, uap)
 	struct thread *td;
 	register struct lseek_args /* {
-		syscallarg(int) fd;
-		syscallarg(int) pad;
-		syscallarg(off_t) offset;
-		syscallarg(int) whence;
+		int fd;
+		int pad;
+		off_t offset;
+		int whence;
 	} */ *uap;
 {
 	struct ucred *cred = td->td_ucred;
@@ -1323,8 +1323,8 @@ lseek(td, uap)
 	}
 	vp = (struct vnode *)fp->f_data;
 	noneg = (vp->v_type != VCHR);
-	offset = SCARG(uap, offset);
-	switch (SCARG(uap, whence)) {
+	offset = uap->offset;
+	switch (uap->whence) {
 	case L_INCR:
 		if (noneg &&
 		    (fp->f_offset < 0 ||
@@ -1373,22 +1373,22 @@ int
 olseek(td, uap)
 	struct thread *td;
 	register struct olseek_args /* {
-		syscallarg(int) fd;
-		syscallarg(long) offset;
-		syscallarg(int) whence;
+		int fd;
+		long offset;
+		int whence;
 	} */ *uap;
 {
 	struct lseek_args /* {
-		syscallarg(int) fd;
-		syscallarg(int) pad;
-		syscallarg(off_t) offset;
-		syscallarg(int) whence;
+		int fd;
+		int pad;
+		off_t offset;
+		int whence;
 	} */ nuap;
 	int error;
 
-	SCARG(&nuap, fd) = SCARG(uap, fd);
-	SCARG(&nuap, offset) = SCARG(uap, offset);
-	SCARG(&nuap, whence) = SCARG(uap, whence);
+	nuap.fd = uap->fd;
+	nuap.offset = uap->offset;
+	nuap.whence = uap->whence;
 	error = lseek(td, &nuap);
 	return (error);
 }
@@ -1440,8 +1440,8 @@ int
 access(td, uap)
 	struct thread *td;
 	register struct access_args /* {
-		syscallarg(char *) path;
-		syscallarg(int) flags;
+		char *path;
+		int flags;
 	} */ *uap;
 {
 
@@ -1497,8 +1497,8 @@ int
 eaccess(td, uap)
 	struct thread *td;
 	register struct eaccess_args /* {
-		syscallarg(char *) path;
-		syscallarg(int) flags;
+		char *path;
+		int flags;
 	} */ *uap;
 {
 	struct nameidata nd;
@@ -1506,12 +1506,12 @@ eaccess(td, uap)
 	int error;
 
 	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | NOOBJ, UIO_USERSPACE,
-	    SCARG(uap, path), td);
+	    uap->path, td);
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	vp = nd.ni_vp;
 
-	error = vn_access(vp, SCARG(uap, flags), td->td_ucred, td);
+	error = vn_access(vp, uap->flags, td->td_ucred, td);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vput(vp);
 	return (error);
@@ -1532,8 +1532,8 @@ int
 ostat(td, uap)
 	struct thread *td;
 	register struct ostat_args /* {
-		syscallarg(char *) path;
-		syscallarg(struct ostat *) ub;
+		char *path;
+		struct ostat *ub;
 	} */ *uap;
 {
 	struct stat sb;
@@ -1542,7 +1542,7 @@ ostat(td, uap)
 	struct nameidata nd;
 
 	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | NOOBJ, UIO_USERSPACE,
-	    SCARG(uap, path), td);
+	    uap->path, td);
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
@@ -1551,7 +1551,7 @@ ostat(td, uap)
 	if (error)
 		return (error);
 	cvtstat(&sb, &osb);
-	error = copyout(&osb, SCARG(uap, ub), sizeof (osb));
+	error = copyout(&osb, uap->ub, sizeof (osb));
 	return (error);
 }
 
@@ -1569,8 +1569,8 @@ int
 olstat(td, uap)
 	struct thread *td;
 	register struct olstat_args /* {
-		syscallarg(char *) path;
-		syscallarg(struct ostat *) ub;
+		char *path;
+		struct ostat *ub;
 	} */ *uap;
 {
 	struct vnode *vp;
@@ -1580,7 +1580,7 @@ olstat(td, uap)
 	struct nameidata nd;
 
 	NDINIT(&nd, LOOKUP, NOFOLLOW | LOCKLEAF | NOOBJ, UIO_USERSPACE,
-	    SCARG(uap, path), td);
+	    uap->path, td);
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	vp = nd.ni_vp;
@@ -1590,7 +1590,7 @@ olstat(td, uap)
 	if (error)
 		return (error);
 	cvtstat(&sb, &osb);
-	error = copyout(&osb, SCARG(uap, ub), sizeof (osb));
+	error = copyout(&osb, uap->ub, sizeof (osb));
 	return (error);
 }
 
@@ -1638,8 +1638,8 @@ int
 stat(td, uap)
 	struct thread *td;
 	register struct stat_args /* {
-		syscallarg(char *) path;
-		syscallarg(struct stat *) ub;
+		char *path;
+		struct stat *ub;
 	} */ *uap;
 {
 	struct stat sb;
@@ -1648,10 +1648,10 @@ stat(td, uap)
 
 #ifdef LOOKUP_SHARED
 	NDINIT(&nd, LOOKUP, FOLLOW | LOCKSHARED | LOCKLEAF | NOOBJ,
-	    UIO_USERSPACE, SCARG(uap, path), td);
+	    UIO_USERSPACE, uap->path, td);
 #else
 	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | NOOBJ, UIO_USERSPACE,
-	    SCARG(uap, path), td);
+	    uap->path, td);
 #endif
 	if ((error = namei(&nd)) != 0)
 		return (error);
@@ -1660,7 +1660,7 @@ stat(td, uap)
 	vput(nd.ni_vp);
 	if (error)
 		return (error);
-	error = copyout(&sb, SCARG(uap, ub), sizeof (sb));
+	error = copyout(&sb, uap->ub, sizeof (sb));
 	return (error);
 }
 
@@ -1678,8 +1678,8 @@ int
 lstat(td, uap)
 	struct thread *td;
 	register struct lstat_args /* {
-		syscallarg(char *) path;
-		syscallarg(struct stat *) ub;
+		char *path;
+		struct stat *ub;
 	} */ *uap;
 {
 	int error;
@@ -1688,7 +1688,7 @@ lstat(td, uap)
 	struct nameidata nd;
 
 	NDINIT(&nd, LOOKUP, NOFOLLOW | LOCKLEAF | NOOBJ, UIO_USERSPACE,
-	    SCARG(uap, path), td);
+	    uap->path, td);
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	vp = nd.ni_vp;
@@ -1697,7 +1697,7 @@ lstat(td, uap)
 	vput(vp);
 	if (error)
 		return (error);
-	error = copyout(&sb, SCARG(uap, ub), sizeof (sb));
+	error = copyout(&sb, uap->ub, sizeof (sb));
 	return (error);
 }
 
@@ -1743,8 +1743,8 @@ int
 nstat(td, uap)
 	struct thread *td;
 	register struct nstat_args /* {
-		syscallarg(char *) path;
-		syscallarg(struct nstat *) ub;
+		char *path;
+		struct nstat *ub;
 	} */ *uap;
 {
 	struct stat sb;
@@ -1753,7 +1753,7 @@ nstat(td, uap)
 	struct nameidata nd;
 
 	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | NOOBJ, UIO_USERSPACE,
-	    SCARG(uap, path), td);
+	    uap->path, td);
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
@@ -1762,7 +1762,7 @@ nstat(td, uap)
 	if (error)
 		return (error);
 	cvtnstat(&sb, &nsb);
-	error = copyout(&nsb, SCARG(uap, ub), sizeof (nsb));
+	error = copyout(&nsb, uap->ub, sizeof (nsb));
 	return (error);
 }
 
@@ -1780,8 +1780,8 @@ int
 nlstat(td, uap)
 	struct thread *td;
 	register struct nlstat_args /* {
-		syscallarg(char *) path;
-		syscallarg(struct nstat *) ub;
+		char *path;
+		struct nstat *ub;
 	} */ *uap;
 {
 	int error;
@@ -1791,7 +1791,7 @@ nlstat(td, uap)
 	struct nameidata nd;
 
 	NDINIT(&nd, LOOKUP, NOFOLLOW | LOCKLEAF | NOOBJ, UIO_USERSPACE,
-	    SCARG(uap, path), td);
+	    uap->path, td);
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	vp = nd.ni_vp;
@@ -1801,7 +1801,7 @@ nlstat(td, uap)
 	if (error)
 		return (error);
 	cvtnstat(&sb, &nsb);
-	error = copyout(&nsb, SCARG(uap, ub), sizeof (nsb));
+	error = copyout(&nsb, uap->ub, sizeof (nsb));
 	return (error);
 }
 
@@ -1819,15 +1819,15 @@ int
 pathconf(td, uap)
 	struct thread *td;
 	register struct pathconf_args /* {
-		syscallarg(char *) path;
-		syscallarg(int) name;
+		char *path;
+		int name;
 	} */ *uap;
 {
 	int error;
 	struct nameidata nd;
 
 	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | NOOBJ, UIO_USERSPACE,
-	    SCARG(uap, path), td);
+	    uap->path, td);
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
@@ -1856,9 +1856,9 @@ int
 readlink(td, uap)
 	struct thread *td;
 	register struct readlink_args /* {
-		syscallarg(char *) path;
-		syscallarg(char *) buf;
-		syscallarg(int) count;
+		char *path;
+		char *buf;
+		int count;
 	} */ *uap;
 {
 
@@ -1965,18 +1965,18 @@ int
 chflags(td, uap)
 	struct thread *td;
 	register struct chflags_args /* {
-		syscallarg(char *) path;
-		syscallarg(int) flags;
+		char *path;
+		int flags;
 	} */ *uap;
 {
 	int error;
 	struct nameidata nd;
 
-	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, SCARG(uap, path), td);
+	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, uap->path, td);
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
-	error = setfflags(td, nd.ni_vp, SCARG(uap, flags));
+	error = setfflags(td, nd.ni_vp, uap->flags);
 	vrele(nd.ni_vp);
 	return error;
 }
@@ -1988,18 +1988,18 @@ int
 lchflags(td, uap)
 	struct thread *td;
 	register struct lchflags_args /* {
-		syscallarg(char *) path;
-		syscallarg(int) flags;
+		char *path;
+		int flags;
 	} */ *uap;
 {
 	int error;
 	struct nameidata nd;
 
-	NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_USERSPACE, SCARG(uap, path), td);
+	NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_USERSPACE, uap->path, td);
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
-	error = setfflags(td, nd.ni_vp, SCARG(uap, flags));
+	error = setfflags(td, nd.ni_vp, uap->flags);
 	vrele(nd.ni_vp);
 	return error;
 }
@@ -2018,16 +2018,16 @@ int
 fchflags(td, uap)
 	struct thread *td;
 	register struct fchflags_args /* {
-		syscallarg(int) fd;
-		syscallarg(int) flags;
+		int fd;
+		int flags;
 	} */ *uap;
 {
 	struct file *fp;
 	int error;
 
-	if ((error = getvnode(td->td_proc->p_fd, SCARG(uap, fd), &fp)) != 0)
+	if ((error = getvnode(td->td_proc->p_fd, uap->fd, &fp)) != 0)
 		return (error);
-	error = setfflags(td, (struct vnode *) fp->f_data, SCARG(uap, flags));
+	error = setfflags(td, (struct vnode *) fp->f_data, uap->flags);
 	fdrop(fp, td);
 	return (error);
 }
@@ -2075,8 +2075,8 @@ int
 chmod(td, uap)
 	struct thread *td;
 	register struct chmod_args /* {
-		syscallarg(char *) path;
-		syscallarg(int) mode;
+		char *path;
+		int mode;
 	} */ *uap;
 {
 
@@ -2112,18 +2112,18 @@ int
 lchmod(td, uap)
 	struct thread *td;
 	register struct lchmod_args /* {
-		syscallarg(char *) path;
-		syscallarg(int) mode;
+		char *path;
+		int mode;
 	} */ *uap;
 {
 	int error;
 	struct nameidata nd;
 
-	NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_USERSPACE, SCARG(uap, path), td);
+	NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_USERSPACE, uap->path, td);
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
-	error = setfmode(td, nd.ni_vp, SCARG(uap, mode));
+	error = setfmode(td, nd.ni_vp, uap->mode);
 	vrele(nd.ni_vp);
 	return error;
 }
@@ -2142,18 +2142,18 @@ int
 fchmod(td, uap)
 	struct thread *td;
 	register struct fchmod_args /* {
-		syscallarg(int) fd;
-		syscallarg(int) mode;
+		int fd;
+		int mode;
 	} */ *uap;
 {
 	struct file *fp;
 	struct vnode *vp;
 	int error;
 
-	if ((error = getvnode(td->td_proc->p_fd, SCARG(uap, fd), &fp)) != 0)
+	if ((error = getvnode(td->td_proc->p_fd, uap->fd, &fp)) != 0)
 		return (error);
 	vp = (struct vnode *)fp->f_data;
-	error = setfmode(td, (struct vnode *)fp->f_data, SCARG(uap, mode));
+	error = setfmode(td, (struct vnode *)fp->f_data, uap->mode);
 	fdrop(fp, td);
 	return (error);
 }
@@ -2205,9 +2205,9 @@ int
 chown(td, uap)
 	struct thread *td;
 	register struct chown_args /* {
-		syscallarg(char *) path;
-		syscallarg(int) uid;
-		syscallarg(int) gid;
+		char *path;
+		int uid;
+		int gid;
 	} */ *uap;
 {
 
@@ -2245,9 +2245,9 @@ int
 lchown(td, uap)
 	struct thread *td;
 	register struct lchown_args /* {
-		syscallarg(char *) path;
-		syscallarg(int) uid;
-		syscallarg(int) gid;
+		char *path;
+		int uid;
+		int gid;
 	} */ *uap;
 {
 
@@ -2285,20 +2285,20 @@ int
 fchown(td, uap)
 	struct thread *td;
 	register struct fchown_args /* {
-		syscallarg(int) fd;
-		syscallarg(int) uid;
-		syscallarg(int) gid;
+		int fd;
+		int uid;
+		int gid;
 	} */ *uap;
 {
 	struct file *fp;
 	struct vnode *vp;
 	int error;
 
-	if ((error = getvnode(td->td_proc->p_fd, SCARG(uap, fd), &fp)) != 0)
+	if ((error = getvnode(td->td_proc->p_fd, uap->fd, &fp)) != 0)
 		return (error);
 	vp = (struct vnode *)fp->f_data;
 	error = setfown(td, (struct vnode *)fp->f_data,
-		SCARG(uap, uid), SCARG(uap, gid));
+		uap->uid, uap->gid);
 	fdrop(fp, td);
 	return (error);
 }
@@ -2392,8 +2392,8 @@ int
 utimes(td, uap)
 	struct thread *td;
 	register struct utimes_args /* {
-		syscallarg(char *) path;
-		syscallarg(struct timeval *) tptr;
+		char *path;
+		struct timeval *tptr;
 	} */ *uap;
 {
 
@@ -2434,8 +2434,8 @@ int
 lutimes(td, uap)
 	struct thread *td;
 	register struct lutimes_args /* {
-		syscallarg(char *) path;
-		syscallarg(struct timeval *) tptr;
+		char *path;
+		struct timeval *tptr;
 	} */ *uap;
 {
 
@@ -2476,8 +2476,8 @@ int
 futimes(td, uap)
 	struct thread *td;
 	register struct futimes_args /* {
-		syscallarg(int ) fd;
-		syscallarg(struct timeval *) tptr;
+		int  fd;
+		struct timeval *tptr;
 	} */ *uap;
 {
 
@@ -2516,9 +2516,9 @@ int
 truncate(td, uap)
 	struct thread *td;
 	register struct truncate_args /* {
-		syscallarg(char *) path;
-		syscallarg(int) pad;
-		syscallarg(off_t) length;
+		char *path;
+		int pad;
+		off_t length;
 	} */ *uap;
 {
 
@@ -2579,9 +2579,9 @@ int
 ftruncate(td, uap)
 	struct thread *td;
 	register struct ftruncate_args /* {
-		syscallarg(int) fd;
-		syscallarg(int) pad;
-		syscallarg(off_t) length;
+		int fd;
+		int pad;
+		off_t length;
 	} */ *uap;
 {
 	struct mount *mp;
@@ -2592,7 +2592,7 @@ ftruncate(td, uap)
 
 	if (uap->length < 0)
 		return(EINVAL);
-	if ((error = getvnode(td->td_proc->p_fd, SCARG(uap, fd), &fp)) != 0)
+	if ((error = getvnode(td->td_proc->p_fd, uap->fd, &fp)) != 0)
 		return (error);
 	if ((fp->f_flag & FWRITE) == 0) {
 		fdrop(fp, td);
@@ -2614,7 +2614,7 @@ ftruncate(td, uap)
 #endif
 	else if ((error = vn_writechk(vp)) == 0) {
 		VATTR_NULL(&vattr);
-		vattr.va_size = SCARG(uap, length);
+		vattr.va_size = uap->length;
 		error = VOP_SETATTR(vp, &vattr, fp->f_cred, td);
 	}
 	VOP_UNLOCK(vp, 0, td);
@@ -2638,18 +2638,18 @@ int
 otruncate(td, uap)
 	struct thread *td;
 	register struct otruncate_args /* {
-		syscallarg(char *) path;
-		syscallarg(long) length;
+		char *path;
+		long length;
 	} */ *uap;
 {
 	struct truncate_args /* {
-		syscallarg(char *) path;
-		syscallarg(int) pad;
-		syscallarg(off_t) length;
+		char *path;
+		int pad;
+		off_t length;
 	} */ nuap;
 
-	SCARG(&nuap, path) = SCARG(uap, path);
-	SCARG(&nuap, length) = SCARG(uap, length);
+	nuap.path = uap->path;
+	nuap.length = uap->length;
 	return (truncate(td, &nuap));
 }
 
@@ -2667,18 +2667,18 @@ int
 oftruncate(td, uap)
 	struct thread *td;
 	register struct oftruncate_args /* {
-		syscallarg(int) fd;
-		syscallarg(long) length;
+		int fd;
+		long length;
 	} */ *uap;
 {
 	struct ftruncate_args /* {
-		syscallarg(int) fd;
-		syscallarg(int) pad;
-		syscallarg(off_t) length;
+		int fd;
+		int pad;
+		off_t length;
 	} */ nuap;
 
-	SCARG(&nuap, fd) = SCARG(uap, fd);
-	SCARG(&nuap, length) = SCARG(uap, length);
+	nuap.fd = uap->fd;
+	nuap.length = uap->length;
 	return (ftruncate(td, &nuap));
 }
 #endif /* COMPAT_43 || COMPAT_SUNOS */
@@ -2696,7 +2696,7 @@ int
 fsync(td, uap)
 	struct thread *td;
 	struct fsync_args /* {
-		syscallarg(int) fd;
+		int fd;
 	} */ *uap;
 {
 	struct vnode *vp;
@@ -2707,7 +2707,7 @@ fsync(td, uap)
 
 	GIANT_REQUIRED;
 
-	if ((error = getvnode(td->td_proc->p_fd, SCARG(uap, fd), &fp)) != 0)
+	if ((error = getvnode(td->td_proc->p_fd, uap->fd, &fp)) != 0)
 		return (error);
 	vp = (struct vnode *)fp->f_data;
 	if ((error = vn_start_write(vp, &mp, V_WAIT | PCATCH)) != 0) {
@@ -2744,8 +2744,8 @@ int
 rename(td, uap)
 	struct thread *td;
 	register struct rename_args /* {
-		syscallarg(char *) from;
-		syscallarg(char *) to;
+		char *from;
+		char *to;
 	} */ *uap;
 {
 
@@ -2874,8 +2874,8 @@ int
 mkdir(td, uap)
 	struct thread *td;
 	register struct mkdir_args /* {
-		syscallarg(char *) path;
-		syscallarg(int) mode;
+		char *path;
+		int mode;
 	} */ *uap;
 {
 
@@ -2958,7 +2958,7 @@ int
 rmdir(td, uap)
 	struct thread *td;
 	struct rmdir_args /* {
-		syscallarg(char *) path;
+		char *path;
 	} */ *uap;
 {
 
@@ -3046,10 +3046,10 @@ int
 ogetdirentries(td, uap)
 	struct thread *td;
 	register struct ogetdirentries_args /* {
-		syscallarg(int) fd;
-		syscallarg(char *) buf;
-		syscallarg(u_int) count;
-		syscallarg(long *) basep;
+		int fd;
+		char *buf;
+		u_int count;
+		long *basep;
 	} */ *uap;
 {
 	struct vnode *vp;
@@ -3062,9 +3062,9 @@ ogetdirentries(td, uap)
 	long loff;
 
 	/* XXX arbitrary sanity limit on `count'. */
-	if (SCARG(uap, count) > 64 * 1024)
+	if (uap->count > 64 * 1024)
 		return (EINVAL);
-	if ((error = getvnode(td->td_proc->p_fd, SCARG(uap, fd), &fp)) != 0)
+	if ((error = getvnode(td->td_proc->p_fd, uap->fd, &fp)) != 0)
 		return (error);
 	if ((fp->f_flag & FREAD) == 0) {
 		fdrop(fp, td);
@@ -3076,14 +3076,14 @@ unionread:
 		fdrop(fp, td);
 		return (EINVAL);
 	}
-	aiov.iov_base = SCARG(uap, buf);
-	aiov.iov_len = SCARG(uap, count);
+	aiov.iov_base = uap->buf;
+	aiov.iov_len = uap->count;
 	auio.uio_iov = &aiov;
 	auio.uio_iovcnt = 1;
 	auio.uio_rw = UIO_READ;
 	auio.uio_segflg = UIO_USERSPACE;
 	auio.uio_td = td;
-	auio.uio_resid = SCARG(uap, count);
+	auio.uio_resid = uap->count;
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 	loff = auio.uio_offset = fp->f_offset;
 #ifdef MAC
@@ -3105,14 +3105,14 @@ unionread:
 		kuio = auio;
 		kuio.uio_iov = &kiov;
 		kuio.uio_segflg = UIO_SYSSPACE;
-		kiov.iov_len = SCARG(uap, count);
-		MALLOC(dirbuf, caddr_t, SCARG(uap, count), M_TEMP, M_WAITOK);
+		kiov.iov_len = uap->count;
+		MALLOC(dirbuf, caddr_t, uap->count, M_TEMP, M_WAITOK);
 		kiov.iov_base = dirbuf;
 		error = VOP_READDIR(vp, &kuio, fp->f_cred, &eofflag,
 			    NULL, NULL);
 		fp->f_offset = kuio.uio_offset;
 		if (error == 0) {
-			readcnt = SCARG(uap, count) - kuio.uio_resid;
+			readcnt = uap->count - kuio.uio_resid;
 			edp = (struct dirent *)&dirbuf[readcnt];
 			for (dp = (struct dirent *)dirbuf; dp < edp; ) {
 #				if (BYTE_ORDER == LITTLE_ENDIAN)
@@ -3150,7 +3150,7 @@ unionread:
 		fdrop(fp, td);
 		return (error);
 	}
-	if (SCARG(uap, count) == auio.uio_resid) {
+	if (uap->count == auio.uio_resid) {
 		if (union_dircheckp) {
 			error = union_dircheckp(td, &vp, fp);
 			if (error == -1)
@@ -3177,9 +3177,9 @@ unionread:
 		}
 		VOP_UNLOCK(vp, 0, td);
 	}
-	error = copyout(&loff, SCARG(uap, basep), sizeof(long));
+	error = copyout(&loff, uap->basep, sizeof(long));
 	fdrop(fp, td);
-	td->td_retval[0] = SCARG(uap, count) - auio.uio_resid;
+	td->td_retval[0] = uap->count - auio.uio_resid;
 	return (error);
 }
 #endif /* COMPAT_43 */
@@ -3199,10 +3199,10 @@ int
 getdirentries(td, uap)
 	struct thread *td;
 	register struct getdirentries_args /* {
-		syscallarg(int) fd;
-		syscallarg(char *) buf;
-		syscallarg(u_int) count;
-		syscallarg(long *) basep;
+		int fd;
+		char *buf;
+		u_int count;
+		long *basep;
 	} */ *uap;
 {
 	struct vnode *vp;
@@ -3212,7 +3212,7 @@ getdirentries(td, uap)
 	long loff;
 	int error, eofflag;
 
-	if ((error = getvnode(td->td_proc->p_fd, SCARG(uap, fd), &fp)) != 0)
+	if ((error = getvnode(td->td_proc->p_fd, uap->fd, &fp)) != 0)
 		return (error);
 	if ((fp->f_flag & FREAD) == 0) {
 		fdrop(fp, td);
@@ -3224,14 +3224,14 @@ unionread:
 		fdrop(fp, td);
 		return (EINVAL);
 	}
-	aiov.iov_base = SCARG(uap, buf);
-	aiov.iov_len = SCARG(uap, count);
+	aiov.iov_base = uap->buf;
+	aiov.iov_len = uap->count;
 	auio.uio_iov = &aiov;
 	auio.uio_iovcnt = 1;
 	auio.uio_rw = UIO_READ;
 	auio.uio_segflg = UIO_USERSPACE;
 	auio.uio_td = td;
-	auio.uio_resid = SCARG(uap, count);
+	auio.uio_resid = uap->count;
 	/* vn_lock(vp, LK_SHARED | LK_RETRY, td); */
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 	loff = auio.uio_offset = fp->f_offset;
@@ -3247,7 +3247,7 @@ unionread:
 		fdrop(fp, td);
 		return (error);
 	}
-	if (SCARG(uap, count) == auio.uio_resid) {
+	if (uap->count == auio.uio_resid) {
 		if (union_dircheckp) {
 			error = union_dircheckp(td, &vp, fp);
 			if (error == -1)
@@ -3274,10 +3274,10 @@ unionread:
 		}
 		VOP_UNLOCK(vp, 0, td);
 	}
-	if (SCARG(uap, basep) != NULL) {
-		error = copyout(&loff, SCARG(uap, basep), sizeof(long));
+	if (uap->basep != NULL) {
+		error = copyout(&loff, uap->basep, sizeof(long));
 	}
-	td->td_retval[0] = SCARG(uap, count) - auio.uio_resid;
+	td->td_retval[0] = uap->count - auio.uio_resid;
 	fdrop(fp, td);
 	return (error);
 }
@@ -3292,9 +3292,9 @@ int
 getdents(td, uap)
 	struct thread *td;
 	register struct getdents_args /* {
-		syscallarg(int) fd;
-		syscallarg(char *) buf;
-		syscallarg(u_int) count;
+		int fd;
+		char *buf;
+		u_int count;
 	} */ *uap;
 {
 	struct getdirentries_args ap;
@@ -3319,7 +3319,7 @@ int
 umask(td, uap)
 	struct thread *td;
 	struct umask_args /* {
-		syscallarg(int) newmask;
+		int newmask;
 	} */ *uap;
 {
 	register struct filedesc *fdp;
@@ -3327,7 +3327,7 @@ umask(td, uap)
 	FILEDESC_LOCK(td->td_proc->p_fd);
 	fdp = td->td_proc->p_fd;
 	td->td_retval[0] = fdp->fd_cmask;
-	fdp->fd_cmask = SCARG(uap, newmask) & ALLPERMS;
+	fdp->fd_cmask = uap->newmask & ALLPERMS;
 	FILEDESC_UNLOCK(td->td_proc->p_fd);
 	return (0);
 }
@@ -3346,7 +3346,7 @@ int
 revoke(td, uap)
 	struct thread *td;
 	register struct revoke_args /* {
-		syscallarg(char *) path;
+		char *path;
 	} */ *uap;
 {
 	struct mount *mp;
@@ -3355,7 +3355,7 @@ revoke(td, uap)
 	int error;
 	struct nameidata nd;
 
-	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF, UIO_USERSPACE, SCARG(uap, path),
+	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF, UIO_USERSPACE, uap->path,
 	    td);
 	if ((error = namei(&nd)) != 0)
 		return (error);
@@ -3484,8 +3484,8 @@ int
 fhopen(td, uap)
 	struct thread *td;
 	struct fhopen_args /* {
-		syscallarg(const struct fhandle *) u_fhp;
-		syscallarg(int) flags;
+		const struct fhandle *u_fhp;
+		int flags;
 	} */ *uap;
 {
 	struct proc *p = td->td_proc;
@@ -3508,11 +3508,11 @@ fhopen(td, uap)
 	if (error)
 		return (error);
 
-	fmode = FFLAGS(SCARG(uap, flags));
+	fmode = FFLAGS(uap->flags);
 	/* why not allow a non-read/write open for our lockd? */
 	if (((fmode & (FREAD | FWRITE)) == 0) || (fmode & O_CREAT))
 		return (EINVAL);
-	error = copyin(SCARG(uap,u_fhp), &fhp, sizeof(fhp));
+	error = copyin(uap->u_fhp, &fhp, sizeof(fhp));
 	if (error)
 		return(error);
 	/* find the mount point */
@@ -3686,8 +3686,8 @@ int
 fhstat(td, uap)
 	struct thread *td;
 	register struct fhstat_args /* {
-		syscallarg(struct fhandle *) u_fhp;
-		syscallarg(struct stat *) sb;
+		struct fhandle *u_fhp;
+		struct stat *sb;
 	} */ *uap;
 {
 	struct stat sb;
@@ -3703,7 +3703,7 @@ fhstat(td, uap)
 	if (error)
 		return (error);
 	
-	error = copyin(SCARG(uap, u_fhp), &fh, sizeof(fhandle_t));
+	error = copyin(uap->u_fhp, &fh, sizeof(fhandle_t));
 	if (error)
 		return (error);
 
@@ -3715,7 +3715,7 @@ fhstat(td, uap)
 	vput(vp);
 	if (error)
 		return (error);
-	error = copyout(&sb, SCARG(uap, sb), sizeof(sb));
+	error = copyout(&sb, uap->sb, sizeof(sb));
 	return (error);
 }
 
@@ -3732,8 +3732,8 @@ int
 fhstatfs(td, uap)
 	struct thread *td;
 	struct fhstatfs_args /* {
-		syscallarg(struct fhandle) *u_fhp;
-		syscallarg(struct statfs) *buf;
+		struct fhandle *u_fhp;
+		struct statfs *buf;
 	} */ *uap;
 {
 	struct statfs *sp;
@@ -3750,7 +3750,7 @@ fhstatfs(td, uap)
 	if (error)
 		return (error);
 
-	if ((error = copyin(SCARG(uap, u_fhp), &fh, sizeof(fhandle_t))) != 0)
+	if ((error = copyin(uap->u_fhp, &fh, sizeof(fhandle_t))) != 0)
 		return (error);
 
 	if ((mp = vfs_getvfs(&fh.fh_fsid)) == NULL)
@@ -3773,7 +3773,7 @@ fhstatfs(td, uap)
 		sb.f_fsid.val[0] = sb.f_fsid.val[1] = 0;
 		sp = &sb;
 	}
-	return (copyout(sp, SCARG(uap, buf), sizeof(*sp)));
+	return (copyout(sp, uap->buf, sizeof(*sp)));
 }
 
 /*
@@ -3791,11 +3791,11 @@ int
 extattrctl(td, uap)
 	struct thread *td;
 	struct extattrctl_args /* {
-		syscallarg(const char *) path;
-		syscallarg(int) cmd;
-		syscallarg(const char *) filename;
-		syscallarg(int) attrnamespace;
-		syscallarg(const char *) attrname;
+		const char *path;
+		int cmd;
+		const char *filename;
+		int attrnamespace;
+		const char *attrname;
 	} */ *uap;
 {
 	struct vnode *filename_vp;
@@ -3923,11 +3923,11 @@ int
 extattr_set_fd(td, uap)
 	struct thread *td;
 	struct extattr_set_fd_args /* {
-		syscallarg(int) fd;
-		syscallarg(int) attrnamespace;
-		syscallarg(const char *) attrname;
-		syscallarg(void *) data;
-		syscallarg(size_t) nbytes;
+		int fd;
+		int attrnamespace;
+		const char *attrname;
+		void *data;
+		size_t nbytes;
 	} */ *uap;
 {
 	struct file *fp;
@@ -3953,11 +3953,11 @@ int
 extattr_set_file(td, uap)
 	struct thread *td;
 	struct extattr_set_file_args /* {
-		syscallarg(const char *) path;
-		syscallarg(int) attrnamespace;
-		syscallarg(const char *) attrname;
-		syscallarg(void *) data;
-		syscallarg(size_t) nbytes;
+		const char *path;
+		int attrnamespace;
+		const char *attrname;
+		void *data;
+		size_t nbytes;
 	} */ *uap;
 {
 	struct nameidata nd;
@@ -3985,11 +3985,11 @@ int
 extattr_set_link(td, uap)
 	struct thread *td;
 	struct extattr_set_link_args /* {
-		syscallarg(const char *) path;
-		syscallarg(int) attrnamespace;
-		syscallarg(const char *) attrname;
-		syscallarg(void *) data;
-		syscallarg(size_t) nbytes;
+		const char *path;
+		int attrnamespace;
+		const char *attrname;
+		void *data;
+		size_t nbytes;
 	} */ *uap;
 {
 	struct nameidata nd;
@@ -4087,11 +4087,11 @@ int
 extattr_get_fd(td, uap)
 	struct thread *td;
 	struct extattr_get_fd_args /* {
-		syscallarg(int) fd;
-		syscallarg(int) attrnamespace;
-		syscallarg(const char *) attrname;
-		syscallarg(void *) data;
-		syscallarg(size_t) nbytes;
+		int fd;
+		int attrnamespace;
+		const char *attrname;
+		void *data;
+		size_t nbytes;
 	} */ *uap;
 {
 	struct file *fp;
@@ -4117,11 +4117,11 @@ int
 extattr_get_file(td, uap)
 	struct thread *td;
 	struct extattr_get_file_args /* {
-		syscallarg(const char *) path;
-		syscallarg(int) attrnamespace;
-		syscallarg(const char *) attrname;
-		syscallarg(void *) data;
-		syscallarg(size_t) nbytes;
+		const char *path;
+		int attrnamespace;
+		const char *attrname;
+		void *data;
+		size_t nbytes;
 	} */ *uap;
 {
 	struct nameidata nd;
@@ -4149,11 +4149,11 @@ int
 extattr_get_link(td, uap)
 	struct thread *td;
 	struct extattr_get_link_args /* {
-		syscallarg(const char *) path;
-		syscallarg(int) attrnamespace;
-		syscallarg(const char *) attrname;
-		syscallarg(void *) data;
-		syscallarg(size_t) nbytes;
+		const char *path;
+		int attrnamespace;
+		const char *attrname;
+		void *data;
+		size_t nbytes;
 	} */ *uap;
 {
 	struct nameidata nd;
@@ -4221,9 +4221,9 @@ int
 extattr_delete_fd(td, uap)
 	struct thread *td;
 	struct extattr_delete_fd_args /* {
-		syscallarg(int) fd;
-		syscallarg(int) attrnamespace;
-		syscallarg(const char *) attrname;
+		int fd;
+		int attrnamespace;
+		const char *attrname;
 	} */ *uap;
 {
 	struct file *fp;
@@ -4249,9 +4249,9 @@ int
 extattr_delete_file(td, uap)
 	struct thread *td;
 	struct extattr_delete_file_args /* {
-		syscallarg(const char *) path;
-		syscallarg(int) attrnamespace;
-		syscallarg(const char *) attrname;
+		const char *path;
+		int attrnamespace;
+		const char *attrname;
 	} */ *uap;
 {
 	struct nameidata nd;
@@ -4277,9 +4277,9 @@ int
 extattr_delete_link(td, uap)
 	struct thread *td;
 	struct extattr_delete_link_args /* {
-		syscallarg(const char *) path;
-		syscallarg(int) attrnamespace;
-		syscallarg(const char *) attrname;
+		const char *path;
+		int attrnamespace;
+		const char *attrname;
 	} */ *uap;
 {
 	struct nameidata nd;

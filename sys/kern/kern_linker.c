@@ -754,7 +754,7 @@ kldload(struct thread *td, struct kldload_args *uap)
 		goto out;
 
 	pathname = malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
-	if ((error = copyinstr(SCARG(uap, file), pathname, MAXPATHLEN,
+	if ((error = copyinstr(uap->file, pathname, MAXPATHLEN,
 	    NULL)) != 0)
 		goto out;
 
@@ -800,7 +800,7 @@ kldunload(struct thread *td, struct kldunload_args *uap)
 	if ((error = suser(td)) != 0)
 		goto out;
 
-	lf = linker_find_file_by_id(SCARG(uap, fileid));
+	lf = linker_find_file_by_id(uap->fileid);
 	if (lf) {
 		KLD_DPF(FILE, ("kldunload: lf->userrefs=%d\n", lf->userrefs));
 		if (lf->userrefs == 0) {
@@ -841,7 +841,7 @@ kldfind(struct thread *td, struct kldfind_args *uap)
 	td->td_retval[0] = -1;
 
 	pathname = malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
-	if ((error = copyinstr(SCARG(uap, file), pathname, MAXPATHLEN,
+	if ((error = copyinstr(uap->file, pathname, MAXPATHLEN,
 	    NULL)) != 0)
 		goto out;
 
@@ -875,7 +875,7 @@ kldnext(struct thread *td, struct kldnext_args *uap)
 
 	mtx_lock(&Giant);
 
-	if (SCARG(uap, fileid) == 0) {
+	if (uap->fileid == 0) {
 		mtx_lock(&kld_mtx);
 		if (TAILQ_FIRST(&linker_files))
 			td->td_retval[0] = TAILQ_FIRST(&linker_files)->id;
@@ -884,7 +884,7 @@ kldnext(struct thread *td, struct kldnext_args *uap)
 		mtx_unlock(&kld_mtx);
 		goto out;
 	}
-	lf = linker_find_file_by_id(SCARG(uap, fileid));
+	lf = linker_find_file_by_id(uap->fileid);
 	if (lf) {
 		if (TAILQ_NEXT(lf, link))
 			td->td_retval[0] = TAILQ_NEXT(lf, link)->id;
@@ -916,12 +916,12 @@ kldstat(struct thread *td, struct kldstat_args *uap)
 
 	mtx_lock(&Giant);
 
-	lf = linker_find_file_by_id(SCARG(uap, fileid));
+	lf = linker_find_file_by_id(uap->fileid);
 	if (lf == NULL) {
 		error = ENOENT;
 		goto out;
 	}
-	stat = SCARG(uap, stat);
+	stat = uap->stat;
 
 	/*
 	 * Check the version of the user's structure.
@@ -970,7 +970,7 @@ kldfirstmod(struct thread *td, struct kldfirstmod_args *uap)
 #endif
 
 	mtx_lock(&Giant);
-	lf = linker_find_file_by_id(SCARG(uap, fileid));
+	lf = linker_find_file_by_id(uap->fileid);
 	if (lf) {
 		MOD_SLOCK;
 		mp = TAILQ_FIRST(&lf->modules);
@@ -1006,18 +1006,18 @@ kldsym(struct thread *td, struct kldsym_args *uap)
 
 	mtx_lock(&Giant);
 
-	if ((error = copyin(SCARG(uap, data), &lookup, sizeof(lookup))) != 0)
+	if ((error = copyin(uap->data, &lookup, sizeof(lookup))) != 0)
 		goto out;
 	if (lookup.version != sizeof(lookup) ||
-	    SCARG(uap, cmd) != KLDSYM_LOOKUP) {
+	    uap->cmd != KLDSYM_LOOKUP) {
 		error = EINVAL;
 		goto out;
 	}
 	symstr = malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
 	if ((error = copyinstr(lookup.symname, symstr, MAXPATHLEN, NULL)) != 0)
 		goto out;
-	if (SCARG(uap, fileid) != 0) {
-		lf = linker_find_file_by_id(SCARG(uap, fileid));
+	if (uap->fileid != 0) {
+		lf = linker_find_file_by_id(uap->fileid);
 		if (lf == NULL) {
 			error = ENOENT;
 			goto out;
@@ -1026,7 +1026,7 @@ kldsym(struct thread *td, struct kldsym_args *uap)
 		    LINKER_SYMBOL_VALUES(lf, sym, &symval) == 0) {
 			lookup.symvalue = (uintptr_t) symval.value;
 			lookup.symsize = symval.size;
-			error = copyout(&lookup, SCARG(uap, data),
+			error = copyout(&lookup, uap->data,
 			    sizeof(lookup));
 		} else
 			error = ENOENT;
@@ -1037,7 +1037,7 @@ kldsym(struct thread *td, struct kldsym_args *uap)
 			    LINKER_SYMBOL_VALUES(lf, sym, &symval) == 0) {
 				lookup.symvalue = (uintptr_t)symval.value;
 				lookup.symsize = symval.size;
-				error = copyout(&lookup, SCARG(uap, data),
+				error = copyout(&lookup, uap->data,
 				    sizeof(lookup));
 				break;
 			}
