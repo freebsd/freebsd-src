@@ -1,5 +1,5 @@
 #
-# Copyright (c) 1998-2002 Sendmail, Inc. and its suppliers.
+# Copyright (c) 1998-2003 Sendmail, Inc. and its suppliers.
 #	All rights reserved.
 # Copyright (c) 1983, 1995 Eric P. Allman.  All rights reserved.
 # Copyright (c) 1988, 1993
@@ -307,4 +307,4 @@ define(`confMILTER_MACROS_ENVRCPT', ``{rcpt_mailer}, {rcpt_host}, {rcpt_addr}'')
 
 
 divert(0)dnl
-VERSIONID(`$Id: cfhead.m4,v 8.108.2.2 2003/03/11 21:24:20 ca Exp $')
+VERSIONID(`$Id: cfhead.m4,v 8.108.2.3 2003/04/03 17:51:51 ca Exp $')
