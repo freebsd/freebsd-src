@@ -1,6 +1,7 @@
 /*
  * Copyright 1993 by Holger Veit (data part)
  * Copyright 1993 by Brian Moore (audio part)
+ * Changes Copyright 1993 by Gary Clark II 
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -40,7 +41,7 @@
  * the manufacturer or anyone else might provide better documentation,
  * so this file (and the driver) will then have a better quality.
  *
- *	$Id$
+ *	$Id: mcdreg.h,v 1.1 1993/10/12 06:08:31 rgrimes Exp $
  */
 
 #ifndef MCD_H
@@ -67,8 +68,8 @@ typedef unsigned char	bcd_t;
 #define	mcd_reset	1
 #define	mcd_xfer	1
 #define	mcd_ctl2	2 /* XXX Is this right? */
-
 #define	mcd_config	3
+
 #define	MCD_MASK_DMA	0x07	/* bits 2-0 = DMA channel */
 #define	MCD_MASK_IRQ	0x70	/* bits 6-4 = INT number */
 				/* 001 = int 2,9 */
@@ -77,8 +78,15 @@ typedef unsigned char	bcd_t;
 				/* 100 = int 10 */
 				/* 101 = int 11 */
 /* flags */
-#define	STATUS_AVAIL	0xb
-#define	DATA_AVAIL	0xf
+#define	STATUS_AVAIL	0xB
+#define	DATA_AVAIL	0xF
+
+/* New Flags */
+#define M_STATUS_AVAIL       	0xFB 
+#define M_DATA_AVAIL		0xFD
+
+/* New Commands */
+#define M_RESET		0x00
 
 /* ports */
 #define	MCD_DATA	0
