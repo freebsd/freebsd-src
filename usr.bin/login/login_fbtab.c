@@ -35,7 +35,7 @@
 	    whitespace: a login device (/dev/console), an octal
 	    permission number (0600), and a ":"-delimited list of
 	    devices (/dev/kbd:/dev/mouse). All device names are
-	    absolute paths. A path that ends in "/*" refers to all
+	    absolute paths. A path that ends in "*" refers to all
 	    directory entries except "." and "..".
 
 	    If the tty argument (relative path) matches a login device
