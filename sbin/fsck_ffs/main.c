@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <errno.h>
 #include <fstab.h>
+#include <grp.h>
 #include <paths.h>
 #include <stdint.h>
 #include <string.h>
@@ -189,6 +190,8 @@ checkfilesys(char *filesys)
 	struct dups *dp;
 	struct statfs *mntp;
 	struct zlncnt *zlnp;
+	struct stat snapdir;
+	struct group *grp;
 	ufs2_daddr_t blks;
 	int cylno, ret;
 	ino_t files;
@@ -269,8 +272,34 @@ checkfilesys(char *filesys)
 			close(fsreadfd);
 		}
 		if (bkgrdflag) {
-			snprintf(snapname, sizeof snapname, "%s/.fsck_snapshot",
+			snprintf(snapname, sizeof snapname, "%s/.snap",
 			    mntp->f_mntonname);
+			if (stat(snapname, &snapdir) < 0) {
+				if (errno != ENOENT) {
+					bkgrdflag = 0;
+					pfatal("CANNOT FIND %s %s: %s, %s\n",
+					    "SNAPSHOT DIRECTORY",
+					    snapname, strerror(errno),
+					    "CANNOT RUN IN BACKGROUND");
+				} else if ((grp = getgrnam("operator")) == 0 ||
+				    mkdir(snapname, 0770) < 0 ||
+				    chown(snapname, -1, grp->gr_gid) < 0 ||
+				    chmod(snapname, 0770) < 0) {
+					bkgrdflag = 0;
+					pfatal("CANNOT CREATE %s %s: %s, %s\n",
+					    "SNAPSHOT DIRECTORY",
+					    snapname, strerror(errno),
+					    "CANNOT RUN IN BACKGROUND");
+				}
+			} else if (!S_ISDIR(snapdir.st_mode)) {
+				bkgrdflag = 0;
+				pfatal("%s IS NOT A DIRECTORY, %s\n", snapname,
+				    "CANNOT RUN IN BACKGROUND");
+			}
+		}
+		if (bkgrdflag) {
+			snprintf(snapname, sizeof snapname,
+			    "%s/.snap/fsck_snapshot", mntp->f_mntonname);
 			args.fspec = snapname;
 			while (mount("ffs", mntp->f_mntonname,
 			    mntp->f_flags | MNT_UPDATE | MNT_SNAPSHOT,
