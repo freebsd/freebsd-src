@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	From: @(#)sysctl.8	8.1 (Berkeley) 6/6/93
-.\"	$Id: sysctl.8,v 1.13 1997/08/30 02:28:00 kato Exp $
+.\"	$Id: sysctl.8,v 1.14 1997/10/20 12:53:54 charnier Exp $
 .\"
 .Dd September 23, 1994
 .Dt SYSCTL 8
@@ -140,6 +140,7 @@ privilege can change the value.
 .It kern.update	integer	yes
 .It kern.osreldate	string	no
 .It kern.bootfile	string	yes
+.It kern.corefile	string	yes
 .It vm.loadavg	struct	no
 .It hw.machine	string	no
 .It hw.model	string	no
