@@ -26,12 +26,11 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ide_pci.c,v 1.28 1999/01/17 05:46:25 bde Exp $
+ *	$Id: ide_pci.c,v 1.29 1999/03/28 05:05:12 grog Exp $
  */
 
 #include "pci.h"
 #if NPCI > 0
-#include "opt_wd.h"
 #include "wd.h"
 
 #if NWDC > 0
@@ -1387,16 +1386,12 @@ ide_pci_probe(pcici_t tag, pcidi_t type)
 			return ("Acer Aladdin IV/V (M5229) Bus-master IDE controller");
 	        if (type == 0x55131039)
 			return ("SiS 5591 Bus-master IDE Controller");
+		if (type == 0x06401095)		/* CMD 640B IDE */
+			return NULL;		/* Let wdc_p "find" it. */
 		if (data & 0x8000)
 			return ("PCI IDE controller (busmaster capable)");
-#ifndef CMD640
-		/*
-		 * XXX the CMD640B hack should be better integrated, or
-		 * something.
-		 */
 		else
 			return ("PCI IDE controller (not busmaster capable)");
-#endif
 	};
 	return ((char*)0);
 }

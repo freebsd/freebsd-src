@@ -268,37 +268,21 @@ extern struct atapidrv atapi_drvtab[4]; /* delayed attach info */
 extern int atapi_ndrv;                  /* the number of potential drives */
 extern struct atapi *atapi_tab;         /* the table of atapi controllers */
 
-#ifndef ATAPI_STATIC
-#   define atapi_start             (*atapi_start_ptr)
-#   define atapi_intr              (*atapi_intr_ptr)
-#   define atapi_debug             (*atapi_debug_ptr)
-#   define atapi_request_wait      (*atapi_request_wait_ptr)
-#   define atapi_request_callback  (*atapi_request_callback_ptr)
-#   define atapi_request_immediate (*atapi_request_immediate_ptr)
-#endif
-
-#ifndef ATAPI_MODULE
 int atapi_attach (int ctlr, int unit, int port);
-#endif
-
-/*
- * These "functions" are declared with archaic `extern's because they are
- * actually pointers in the !ATAPI_STATIC case.
- */
-extern int atapi_start (int ctrlr);
-extern int atapi_intr (int ctrlr);
-extern void atapi_debug (struct atapi *ata, int on);
-extern struct atapires atapi_request_wait (struct atapi *ata, int unit,
+int atapi_start (int ctrlr);
+int atapi_intr (int ctrlr);
+void atapi_debug (struct atapi *ata, int on);
+struct atapires atapi_request_wait (struct atapi *ata, int unit,
 	u_char cmd, u_char a1, u_char a2, u_char a3, u_char a4,
 	u_char a5, u_char a6, u_char a7, u_char a8, u_char a9,
 	u_char a10, u_char a11, u_char a12, u_char a13, u_char a14, u_char a15,
 	char *addr, int count);
-extern void atapi_request_callback (struct atapi *ata, int unit,
+void atapi_request_callback (struct atapi *ata, int unit,
 	u_char cmd, u_char a1, u_char a2, u_char a3, u_char a4,
 	u_char a5, u_char a6, u_char a7, u_char a8, u_char a9,
 	u_char a10, u_char a11, u_char a12, u_char a13, u_char a14, u_char a15,
 	char *addr, int count, atapi_callback_t *done, void *x, void *y);
-extern struct atapires atapi_request_immediate (struct atapi *ata, int unit,
+struct atapires atapi_request_immediate (struct atapi *ata, int unit,
 	u_char cmd, u_char a1, u_char a2, u_char a3, u_char a4,
 	u_char a5, u_char a6, u_char a7, u_char a8, u_char a9,
 	u_char a10, u_char a11, u_char a12, u_char a13, u_char a14, u_char a15,

@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *      $Id: wfd.c,v 1.18 1999/01/30 12:21:44 phk Exp $
+ *      $Id: wfd.c,v 1.19 1999/02/10 00:03:37 ken Exp $
  */
 
 /*
@@ -32,9 +32,8 @@
 
 #include "wdc.h"
 #include "wfd.h"
-#include "opt_atapi.h"
 
-#if NWFD > 0 && NWDC > 0 && defined (ATAPI)
+#if NWFD > 0 && NWDC > 0
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -70,9 +69,6 @@ static struct cdevsw wfd_cdevsw = {
 	  NULL,		-1,		nodump,		nopsize,
 	  D_DISK,	0,		-1 };
 
-#ifndef ATAPI_STATIC
-static
-#endif
 int  wfdattach(struct atapi*, int, struct atapi_params*, int);
 
 #define NUNIT   (NWDC*2)                /* Max. number of devices */
@@ -173,9 +169,6 @@ static void wfd_dump (int lun, char *label, void *data, int len)
 	printf ("\n");
 }
 
-#ifndef ATAPI_STATIC
-static
-#endif
 int 
 wfdattach (struct atapi *ata, int unit, struct atapi_params *ap, int debug)
 {
@@ -771,104 +764,6 @@ static int wfd_eject (struct wfd *t, int closeit)
 		0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0);
 }
 
-#ifdef WFD_MODULE
-/*
- * Loadable ATAPI Floppy driver stubs.
- */
-#include <sys/exec.h>
-#include <sys/sysent.h>
-#include <sys/lkm.h>
-
-/*
- * Construct lkm_dev structures (see lkm.h).
- * Our bdevsw/cdevsw slot numbers are 19/69.
- */
-
-
-MOD_DEV(wfd, LM_DT_BLOCK, BDEV_MAJOR, &wfd_cdevsw);
-MOD_DEV(rwfd, LM_DT_CHAR, CDEV_MAJOR, &wfd_cdevsw);
-
-/*
- * Function called when loading the driver.
- */
-int wfd_load (struct lkm_table *lkmtp, int cmd)
-{
-	struct atapi *ata;
-	int n, u;
-
-	if (! atapi_start)
-		/* No ATAPI driver available. */
-		return EPROTONOSUPPORT;
-	n = 0;
-	for (ata=atapi_tab; ata<atapi_tab+2; ++ata)
-		if (ata->port)
-			for (u=0; u<2; ++u)
-				/* Probing controller ata->ctrlr, unit u. */
-				if (ata->params[u] && ! ata->attached[u] &&
-				    wfdattach (ata, u, ata->params[u],
-				    ata->debug) >= 0)
-				{
-					/* Drive found. */
-					ata->attached[u] = 1;
-					++n;
-				}
-	if (! n)
-		/* No IDE Floppies found. */
-		return ENXIO;
-	return 0;
-}
-
-/*
- * Function called when unloading the driver.
- */
-int wfd_unload (struct lkm_table *lkmtp, int cmd)
-{
-	struct wfd **t;
-
-	for (t=wfdtab; t<wfdtab+wfdnlun; ++t)
-		if (((*t)->flags & F_BOPEN) || (*t)->refcnt)
-			/* The device is opened, cannot unload the driver. */
-			return EBUSY;
-	for (t=wfdtab; t<wfdtab+wfdnlun; ++t) {
-		(*t)->ata->attached[(*t)->unit] = 0;
-		free (*t, M_TEMP);
-	}
-	wfdnlun = 0;
-	bzero (wfdtab, sizeof(wfdtab));
-	return 0;
-}
-
-/*
- * Dispatcher function for the module (load/unload/stat).
- */
-int wfd_mod (struct lkm_table *lkmtp, int cmd, int ver)
-{
-	int err = 0;
-
-	if (ver != LKM_VERSION)
-		return EINVAL;
-
-	if (cmd == LKM_E_LOAD)
-		err = wfd_load (lkmtp, cmd);
-	else if (cmd == LKM_E_UNLOAD)
-		err = wfd_unload (lkmtp, cmd);
-	if (err)
-		return err;
-
-	/* XXX Poking around in the LKM internals like this is bad.
-	 */
-	/* Register the cdevsw entry. */
-	lkmtp->private.lkm_dev = & MOD_PRIVATE(rwfd);
-	err = lkmdispatch (lkmtp, cmd);
-	if (err)
-		return err;
-
-	/* Register the bdevsw entry. */
-	lkmtp->private.lkm_dev = & MOD_PRIVATE(wfd);
-	return lkmdispatch (lkmtp, cmd);
-}
-#endif /* WFD_MODULE */
-
 static wfd_devsw_installed = 0;
 
 static void 	wfd_drvinit(void *unused)
@@ -882,4 +777,4 @@ static void 	wfd_drvinit(void *unused)
 SYSINIT(wfddev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,wfd_drvinit,NULL)
 
 
-#endif /* NWFD && NWDC && ATAPI */
+#endif /* NWFD && NWDC */
