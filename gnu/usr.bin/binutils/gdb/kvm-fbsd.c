@@ -52,10 +52,11 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #endif
 #include <machine/frame.h>
 
-#if __FreeBSD_version >= 500032 && defined(i386)
 #define _KERNEL
 #include <sys/pcpu.h>
 #undef _KERNEL
+
+#include <assert.h>
 
 static void kcore_files_info PARAMS ((struct target_ops *));
 
@@ -113,8 +114,8 @@ static struct kinfo_proc * kvm_getprocs PARAMS ((int cfd, int op,
 extern struct target_ops kcore_ops;	/* Forward decl */
 
 /* Non-zero means we are debugging a kernel core file */
-int kernel_debugging = 0;
-int kernel_writablecore = 0;
+int kernel_debugging;
+int kernel_writablecore;
 
 static char *core_file;
 static int core_kd = -1;
@@ -176,7 +177,7 @@ struct frame_info *fr;
        switch (frametype) {
        case tf_normal:
                return (this_saved_pc);
-
+#ifdef __i386__
 #define oEIP   offsetof(struct trapframe, tf_eip)
 
        case tf_trap:
@@ -188,6 +189,7 @@ struct frame_info *fr;
        case tf_syscall:
                return (read_memory_integer (fr->frame + 8 + oEIP, 4));
 #undef oEIP
+#endif
        }
 }
 
@@ -897,16 +899,28 @@ kvtophys (fd, addr)
       current_ptd = PTD;
     }
   else
+#ifdef __i386__
     current_ptd = pcb.pcb_cr3;
+#else
+  	assert(0);
+#endif
 
   /*
    * Read the first-level page table (ptd).
    */
+#ifdef __i386__
   v = current_ptd + ( (unsigned)addr >> PDRSHIFT) * sizeof pte;
+#else
+  v = current_ptd + ( (unsigned)addr            ) * sizeof pte;
+#endif
   if (physrd (fd, v, (char *)&pte, sizeof pte) < 0 || (pte&PG_V) == 0)
     return (~0);
 
+#ifdef __i386__
   if (pte & PG_PS)
+#else
+  if (pte        )
+#endif
     {
       /*
        * No second-level page table; ptd describes one 4MB page.
@@ -914,7 +928,11 @@ kvtophys (fd, addr)
        * it cr0, and that the kernel doesn't support 36-bit physical
        * addresses).
        */
+#ifdef __i386__
 #define	PAGE4M_MASK	(NBPDR - 1)
+#else
+#define	PAGE4M_MASK	0
+#endif
 #define	PG_FRAME4M	(~PAGE4M_MASK)
       addr = (pte & PG_FRAME4M) + (addr & PAGE4M_MASK);
     }
@@ -923,11 +941,19 @@ kvtophys (fd, addr)
       /*
        * Read the second-level page table.
        */
+#ifdef __i386__
       v = (pte&PG_FRAME) + ((addr >> PAGE_SHIFT)&(NPTEPG-1)) * sizeof pte;
+#else
+      v = (pte         ) + ((addr >> PAGE_SHIFT)&(NPTEPG-1)) * sizeof pte;
+#endif
       if (physrd (fd, v, (char *) &pte, sizeof (pte)) < 0 || (pte&PG_V) == 0)
 	return (~0);
 
+#ifdef __i386__
       addr = (pte & PG_FRAME) + (addr & PAGE_MASK);
+#else
+      addr = (pte           ) + (addr & PAGE_MASK);
+#endif
     }
 #if 0
   printf ("vtophys (%x) -> %x\n", oldaddr, addr);
@@ -967,15 +993,19 @@ read_pcb (fd, uaddr)
   noreg = 0;
   for (i = 0; i < 3; ++i)		/* eax,ecx,edx */
     supply_register (i, (char *)&noreg);
+#ifdef __i386__
   supply_register (3, (char *)&pcb.pcb_ebx);
   supply_register (SP_REGNUM, (char *)&pcb.pcb_esp);
   supply_register (FP_REGNUM, (char *)&pcb.pcb_ebp);
   supply_register (6, (char *)&pcb.pcb_esi);
   supply_register (7, (char *)&pcb.pcb_edi);
   supply_register (PC_REGNUM, (char *)&pcb.pcb_eip);
+#endif
   for (i = 9; i < 14; ++i)		/* eflags, cs, ss, ds, es, fs */
     supply_register (i, (char *)&noreg);
+#ifdef __i386__
   supply_register (15, (char *)&pcb.pcb_gs);
+#endif
 
   /* XXX 80387 registers? */
 }
@@ -1024,14 +1054,9 @@ kernel_core_file_hook (fd, addr, buf, len)
 
 static struct target_ops kcore_ops;
 
-#else
-int kernel_debugging = 0;
-#endif
-
 void
 _initialize_kcorelow()
 {
-#if __FreeBSD_version >= 500032 && defined(i386)
   kcore_ops.to_shortname = "kcore";
   kcore_ops.to_longname = "Kernel core dump file";
   kcore_ops.to_doc =
@@ -1053,5 +1078,4 @@ _initialize_kcorelow()
   add_target (&kcore_ops);
   add_com ("proc", class_obscure, set_proc_cmd, "Set current process context");
   add_com ("cpu", class_obscure, set_cpu_cmd, "Set current cpu");
-#endif
 }
