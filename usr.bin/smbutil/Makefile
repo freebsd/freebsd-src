@@ -7,7 +7,7 @@ DPADD=	${LIBSMB}
 LDADD=	-lsmb
 
 CONTRIBDIR=	${.CURDIR}/../../contrib/smbfs
-CFLAGS+=	-DSMB_CFG_FILE=\"/etc/nsmb.conf\" -I${CONTRIBDIR}/include
+CFLAGS+=	-I${CONTRIBDIR}/include
 
 .PATH:	${CONTRIBDIR}/smbutil
 

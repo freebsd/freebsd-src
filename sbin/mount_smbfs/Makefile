@@ -8,8 +8,7 @@ MAN=	mount_smbfs.8
 
 MOUNTDIR=	${.CURDIR}/../mount
 CONTRIBDIR=	${.CURDIR}/../../contrib/smbfs
-CFLAGS+=	-DSMB_CFG_FILE=\"/etc/nsmb.conf\" -DSMBFS -I${MOUNTDIR} \
-		-I${CONTRIBDIR}/include
+CFLAGS+=	-DSMBFS -I${MOUNTDIR} -I${CONTRIBDIR}/include
 
 LDADD+= -lsmb
 DPADD+= ${LIBSMB}
