@@ -237,6 +237,9 @@ m_mballoc(int nmb, int how)
 	int i;
 	int nbytes;
 
+	nbytes = round_page(nmb * MSIZE);
+	nmb = nbytes / MSIZE;
+
 	/*
 	 * If we've hit the mbuf limit, stop allocating from mb_map.
 	 * Also, once we run out of map space, it will be impossible to
@@ -253,8 +256,6 @@ m_mballoc(int nmb, int how)
 		return (0);
 	}
 
-	nbytes = round_page(nmb * MSIZE);
-
 	mtx_unlock(&mmbfree.m_mtx);
 	p = (caddr_t)kmem_malloc(mb_map, nbytes, M_NOWAIT);
 	if (p == NULL && how == M_TRYWAIT) {
@@ -269,8 +270,6 @@ m_mballoc(int nmb, int how)
 	 */
 	if (p == NULL)
 		return (0);
-
-	nmb = nbytes / MSIZE;
 
 	/*
 	 * We don't let go of the mutex in order to avoid a race.
@@ -361,7 +360,10 @@ m_clalloc(int ncl, int how)
 {
 	caddr_t p;
 	int i;
-	int npg;
+	int npg_sz;
+
+	npg_sz = round_page(ncl * MCLBYTES);
+	ncl = npg_sz / MCLBYTES;
 
 	/*
 	 * If the map is now full (nothing will ever be freed to it).
@@ -373,11 +375,9 @@ m_clalloc(int ncl, int how)
 		return (0);
 	}
 
-	npg = ncl;
 	mtx_unlock(&mclfree.m_mtx);
-	p = (caddr_t)kmem_malloc(mb_map, ctob(npg),
+	p = (caddr_t)kmem_malloc(mb_map, npg_sz,
 				 how == M_TRYWAIT ? M_WAITOK : M_NOWAIT);
-	ncl = ncl * PAGE_SIZE / MCLBYTES;
 	mtx_lock(&mclfree.m_mtx);
 
 	/*
