@@ -1,5 +1,5 @@
 .\" 
-.\"  Copyright (c) 1992, 1995 Hellmuth Michaelis, Brian Dunford-Shore,
+.\"  Copyright (c) 1992, 2000 Hellmuth Michaelis, Brian Dunford-Shore,
 .\"                           Joerg Wunsch and Holger Veit.
 .\" 
 .\"  All rights reserved.
@@ -30,19 +30,14 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" @(#)pcvt.4, 3.20, Last Edit-Date: [Sun Apr  2 18:23:39 1995]
+.\" Last Edit-Date: [Sun Jan  9 09:43:04 2000]
+.\"
 .\" $FreeBSD$
 .\"
 .\" Man page pcvt(4) created after pcvt_ioctl.h on 13-Jan-93
 .\" by Joerg Wunsch
 .\"
-.\" updated for rel 2.10 (-hm)
-.\" updated for rel 2.20 (-hm)
-.\" updated for rel 3.00 (-jw)
-.\" updated for final rel 3.00 (-hm)
-.\" removed references to 386BSD (-hm)
-.\"
-.Dd February 27, 1994
+.Dd January 9, 2000
 .Dt PCVT 4
 .Sh NAME
 .Nm pcvt ,
@@ -155,6 +150,18 @@ support
 .It
 Help you to make money...
 .El
+
+.Ss Scrollback
+Each virtual
+.Nm
+virtual terminal now has 8 pages of memory attached which are used as a 
+scrollback buffer (definition of SCROLLBACK_PAGES).
+.Pp
+By using
+.Em SHIFT-PageUp
+and
+.Em SHIFT-PageDown
+it is possible to scroll the screen back and forward.
 
 .Ss Configuration
 The
@@ -842,7 +849,7 @@ that no further development on pcvt is done for 386BSD 0.1 after release 3.00,
 in fact, 386BSD support was dropped with release 3.20.
 .Sh AUTHORS
 Written by
-.An Hellmuth Michaelis Aq hm@hcshh.hcs.de
+.An Hellmuth Michaelis Aq hm@hcs.de
 with much help from
 .An Brian Dunford-Shore Aq brian@morpheus.wustl.edu
 .br
