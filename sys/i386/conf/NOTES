@@ -425,6 +425,7 @@ device		acpi
 options 	ACPI_DEBUG
 options 	ACPI_MAX_THREADS=1
 #!options 	ACPI_NO_SEMAPHORES
+#!options 	ACPI_NO_RESET_VIDEO
 #!options 	ACPICA_PEDANTIC
 
 # DRM options:
