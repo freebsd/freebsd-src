@@ -1,4 +1,4 @@
-<!-- $Id: hw.sgml,v 1.6.2.3 1996/06/19 20:27:49 jkh Exp $ -->
+<!-- $Id: hw.sgml,v 1.6.2.4 1996/07/05 11:30:17 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -840,7 +840,7 @@ an exabyte 2 GB 8mm tape drive.  8mm drives are reliable,
 convienent and quiet.  Cartidges are inexpensive and small (4.8 x
 3.3 x 0.6 inches; 122 x 84 x 15 mm).  One downside of 8mm tape is
 relatively short head and tape life due to the high rate of
-relative motion of the tape accross the heads.
+relative motion of the tape across the heads.
 
 <!--spec-->
  	<p>Data thruput ranges from ~250kB/s to ~500kB/s.  Data
@@ -857,7 +857,7 @@ heads are positioned at an angle to the media (approximately 6
 degrees).  The tape wraps around 270 degrees of the spool that
 holds the heads.  The spool spins while the tape slides over the
 spool.  The result is a high density of data and closely packed
-tracks that angle accross the tape from one edge to the other.
+tracks that angle across the tape from one edge to the other.
  
 
      <sect3><heading><label id="hw:storage:tapebackups:qic">
@@ -975,7 +975,7 @@ overridden on the command line to utilize the capacity of current
 tape drives.
 
 	<p><tt>rdump(8)</tt> and <tt>rrestore(8)</tt> backup data
-accross the network to a tape drive attached to another computer.
+aross the network to a tape drive attached to another computer.
 Both programs rely upon <tt>rcmd(3)</tt> and <tt>ruserok(3)</tt>
 to access the remote tape drive.  Therefore, the user performing
 the backup must have <tt>rhosts</tt> access to the remote
@@ -983,7 +983,7 @@ computer.  The arguments to <tt>rdump(8)</tt> and
 <tt>rrestore(8)</tt> must suitable to use on the remote computer.
 (e.g. When <tt>rdump</tt>'ing from a FreeBSD computer to an
 Exabyte tape drive connected to a Sun called komodo, use: <tt>/sbin/rdump
-0dsbfu 54000 13000 126 komodo:/dev/nrst8 /dev/rsd0a 2>&1</tt>)
+0dsbfu 54000 13000 126 komodo:/dev/nrst8 /dev/rsd0a 2>&amp;1</tt>)
 Beware:  there are security implications to allowing
 <tt>rhosts</tt> commands.  Evaluate your situation carefully.
 
@@ -999,7 +999,7 @@ that are available from <tt>cpio(1)</tt>, but <tt>tar(1)</tt>
 does not require the unusual command pipeline that
 <tt>cpio(1)</tt> uses.  
 
-	<p><tt>tar(1)</tt> does not support backups accross the
+	<p><tt>tar(1)</tt> does not support backups across the
 network.  You can use a pipeline and <tt>rsh(1)</tt> to send the
 data to a remote tape drive. (XXX add an example command)
 
@@ -1013,7 +1013,7 @@ This last feature makes <tt>cpio(1)</tt> and excellent choice for
 installation media.  <tt>cpio(1)</tt> does not know how to walk
 the directory tree and a list of files must be provided thru <tt>STDIN</tt>.
 
-	<p><tt>cpio(1)</tt> does not support backups accross the
+	<p><tt>cpio(1)</tt> does not support backups across the
 network.  You can use a pipeline and <tt>rsh(1)</tt> to send the
 data to a remote tape drive. (XXX add an example command)
 

@@ -1,4 +1,4 @@
-<!-- $Id: submitters.sgml,v 1.2.4.2 1995/10/12 03:16:37 jfieber Exp $ -->
+<!-- $Id: submitters.sgml,v 1.2.4.3 1996/06/19 20:28:25 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>Contributing to FreeBSD<label id="submitters"></heading>
@@ -115,19 +115,21 @@ some kind of symbol table in the kernel.
 your hardware in a sane manner, keeps only the LKMs required for
 your hardware, etc.
 </itemize>
-<item>PCMCIA/PCCARD.  Coordinator: &a.phk
+<item>PCMCIA/PCCARD.  Coordinators: &a.nate and &a.phk
 <itemize>
-<item>Reliable operation of the pcic driver.
-<item>Recognizer and handler for sio.c
-<item>Recognizer and handler for ed.c
-<item>Recognizer and handler for ep.c
-<item>User-mode recognizer and handler.
+<item>Documentation!
+<item>Reliable operation of the pcic driver (needs testing).
+<item>Recognizer and handler for sio.c (mostly done).
+<item>Recognizer and handler for ed.c (mostly done).
+<item>Recognizer and handler for ep.c (mostly done).
+<item>User-mode recognizer and handler (partially done).
 </itemize>
-<item>Advanced Power Management.  Coordinator: &a.phk
+<item>Advanced Power Management.  Coordinators: &a.nate and &a.phk
 <itemize>
-<item>APM sub-driver.
-<item>IDE/ATA disk sub-driver.
+<item>APM sub-driver (mostly done).
+<item>IDE/ATA disk sub-driver (partially done).
 <item>syscons/pcvt sub-driver.
+<item>Integration with the PCMCIA/PCCARD drivers (suspend/resume).
 </itemize>
 </enum>
 
@@ -399,7 +401,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-	$Id: submitters.sgml,v 1.2.4.2 1995/10/12 03:16:37 jfieber Exp $
+	$Id: submitters.sgml,v 1.2.4.3 1996/06/19 20:28:25 jkh Exp $
 </verb></tscreen>
 For your convenience, a copy of this text can be found in
 <tt>/usr/share/examples/etc/bsd-style-copyright</tt>.

@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.15.2.9 1996/06/26 09:23:56 jkh Exp $ -->
+<!-- $Id: contrib.sgml,v 1.15.2.10 1996/07/03 01:39:23 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>FreeBSD contributor list<label id="contrib"></heading>
@@ -167,6 +167,7 @@
 	  <item>Andrew McRae &lt;amcrae@cisco.com&gt;
 	  <item>Andrew Moore &lt;alm@FreeBSD.org&gt;
 	  <item>Andrew V. Stesin &lt;stesin@elvisti.kiev.ua&gt;
+	  <item>Andrey Zakhvatov &lt;andy@cgu.chel.su&gt;
 	  <item>Anthony Yee-Hang Chan &lt;yeehang@netcom.com&gt;
 	  <item>Bernd Rosauer &lt;br@netland.inka.de&gt;
 	  <item>Bob Wilcox &lt;bob@obiwan.uucp&gt;
@@ -190,8 +191,10 @@
 	  <item>Daniel Baker &lt;dbaker@crash.ops.neosoft.com&gt;
 	  <item>Daniel M. Eischen &lt;deischen@iworks.InterWorks.org&gt;
 	  <item>Danny J. Zerkel &lt;dzerkel@feephi.phofarm.com&gt;
+	  <item>Dave Bodenstab &lt;imdave@synet.net&gt;
 	  <item>Dave Burgess &lt;burgess@hrd769.brooks.af.mil&gt;
 	  <item>Dave Chapeskie &lt;dchapes@zeus.leitch.com&gt;
+	  <item>Dave Edmondson &lt;davided@sco.com&gt;
 	  <item>Dave Rivers &lt;rivers@ponds.uucp&gt;
 	  <item>David Dawes &lt;dawes@physics.su.OZ.AU&gt;
 	  <item>David O'Brien &lt;obrien@cs.ucdavis.edu&gt;
@@ -222,6 +225,7 @@
 	  <item>Jian-Da Li &lt;jdli@FreeBSD.csie.NCTU.edu.tw&gt;
 	  <item>Jim Lowe &lt;james@miller.cs.uwm.edu&gt;
 	  <item>Jim Wilson &lt;wilson@moria.cygnus.com&gt;
+          <item>Johann Tonsing &lt;jtonsing@mikom.csir.co.za&gt;
 	  <item>John Capo &lt;jc@irbs.com&gt;
           <item>John Perry &lt;perry@vishnu.alias.net&gt;
 	  <item>Juergen Lock &lt;nox@jelal.hb.north.de&gt;

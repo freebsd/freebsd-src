@@ -1,4 +1,4 @@
-<!-- $Id: eresources.sgml,v 1.2.4.4 1996/01/31 14:32:17 mpp Exp $ -->
+<!-- $Id: eresources.sgml,v 1.2.4.5 1996/06/19 20:27:40 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt>
@@ -53,7 +53,6 @@ freebsd-chat             Non-technical items related to the FreeBSD community
 freebsd-current          Discussion concerning the use of FreeBSD-current
 freebsd-stable           Discussion concerning the use of FreeBSD-stable
 freebsd-isp              Issues for Internet Service Providers using FreeBSD
-freebsd-policy           General policy issues and suggestions
 freebsd-questions        User questions
 </verb>
 
@@ -251,14 +250,6 @@ development and their support within FreeBSD
 <tag/FREEBSD-PLATFORMS/ <em>Porting to Non-Intel
 platforms</em><newline> Cross-platform freebsd issues, general
 discussion and proposals for non-Intel FreeBSD ports.
-
-<tag/FREEBSD-POLICY/ <em>Policy issues and
-suggestions</em><newline> This is a forum for policy discussions
-related to FreeBSD.  This includes where FreeBSD is going, how to
-set up a consortium, whether or not and how to make FreeBSD pay
-for itself, how to attract more users, and so on.  When a topic
-relates directly to FreeBSD but has little or no technical
-content then it should be sent to this list.
 
 <tag/FREEBSD-PORTS/ <em>Discussion of "ports"</em><newline> 
 Discussions concerning FreeBSD's "ports collection" (/usr/ports), proposed
