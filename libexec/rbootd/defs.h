@@ -42,6 +42,8 @@
  *
  * From: Utah Hdr: defs.h 3.1 92/07/06
  * Author: Jeff Forys, University of Utah CSS
+ *
+ * $FreeBSD$
  */
 
 #include "rmp.h"
@@ -56,7 +58,7 @@
  *  This may be defined in <sys/param.h>, if not, it's defined here.
  */
 #ifndef	MAXHOSTNAMELEN
-#define	MAXHOSTNAMELEN 64
+#define	MAXHOSTNAMELEN 256
 #endif
 
 /*
