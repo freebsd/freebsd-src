@@ -41,7 +41,6 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #include <sys/types.h>
-#include <sys/endian.h>
 #include <sys/stat.h>
 
 #include <errno.h>
@@ -50,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 
+#include "endian.h"
 #include "extern.h"
 
 #if (defined(NLIST_ELF32) && (ELFSIZE == 32)) || \
