@@ -1,4 +1,4 @@
-Hardware Documentation Guide:  $Id: hardware.hlp,v 1.6 1996/07/05 01:24:38 jkh Exp $
+Hardware Documentation Guide:  $Id: hardware.hlp,v 1.7 1996/07/10 09:41:18 jkh Exp $
 
 Contents last changed:  July 4th, 1996
 
@@ -89,7 +89,7 @@ lpt1    dyn     dyn     n/a     n/a     Printer Port 1
 de0     n/a     n/a     n/a     n/a     DEC DC21x40 PCI based cards
                                         (including 21140 100bT cards)
 ed0     280     5       dyn     d8000   WD & SMC 80xx; Novell NE1000 &
-                                        NE2000; 3Com 3C503
+                                        NE2000; 3Com 3C503; HP PC Lan+
 ed1     300     5       dyn     d8000   Same as ed0
 eg0     310     5       dyn     dyn     3Com 3C505
 ep0     300     10      dyn     dyn     3Com 3C509

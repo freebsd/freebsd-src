@@ -1,9 +1,13 @@
                                  RELEASE NOTES
                           FreeBSD Release 2.2 SNAPSHOT
 
-
-0. What's new since 2.2-960501-SNAP?
+0. What's new since 2.2-960801-SNAP?
 ------------------------------------
+Support for HP PC Lan+ cards (model numbers: 27247B and 27252A)
+
+
+1. What's New since 2.1.0-RELEASE?
+----------------------------------
 A considerable number of changes to the VM system have been made
 to increase the stability under certain types of load.  If you
 had panics under the last snapshot, try this one and see if they
@@ -14,12 +18,6 @@ gracefully.
 
 More cosmetic work on the installation, /stand/sysinstall now genuinely
 useful after installation time (though still missing a man page - urk!).
-
-Basically, lots-o-fixes.
-
-
-1. What's New since 2.1.0-RELEASE?
-----------------------------------
 
 Early support for APM (automated power management) and PCCARD
 (formerly PCMCIA) features of laptops.  Many PCCARD devices
@@ -511,4 +509,4 @@ We sincerely hope you enjoy this release of FreeBSD!
 
                         The FreeBSD Core Team
 
-$Id: relnotes.hlp,v 1.9 1996/06/27 07:13:45 jkh Exp $
+$Id: relnotes.hlp,v 1.10 1996/07/05 01:24:40 jkh Exp $

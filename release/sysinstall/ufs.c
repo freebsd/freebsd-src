@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: ufs.c,v 1.7 1996/03/02 07:31:58 jkh Exp $
+ * $Id: ufs.c,v 1.8 1996/04/13 13:32:14 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -47,7 +47,8 @@ mediaGetUFS(Device *dev, char *file, Boolean probe)
 {
     char		buf[PATH_MAX];
 
-    msgDebug("Request for %s from UFS\n", file);
+    if (isDebug())
+	msgDebug("Request for %s from UFS\n", file);
     snprintf(buf, PATH_MAX, "%s/%s", dev->private, file);
     if (file_readable(buf))
 	return open(buf, O_RDONLY);
