@@ -1,12 +1,12 @@
 #
-# $Id: ppp.conf.filter.sample,v 1.1.1.1 1995/01/31 06:24:33 amurai Exp $
+# $Id: ppp.conf.filter.sample,v 1.2 1995/02/26 12:16:35 amurai Exp $
 #
-# An example of packet filter definition.
-#
+# An example of packet filter definitions.  Merge whatever rules you
+# want into your ppp.conf file.
 #
 filterd:
 #       
-# Don't keep Alive with ICMP,DNS and RIP packet
+# Don't keep Alive with ICMP,DNS and RIP packets
 #
  set afilter 0 deny icmp
  set afilter 1 deny udp src eq 53
@@ -15,17 +15,17 @@ filterd:
  set afilter 4 deny udp dst eq 520
  set afilter 5 permit 0/0 0/0
 #
-# Don't dial with ICMP packet
+# Don't let ICMP packets cause us to dial
 #
  set dfilter 0 deny icmp
  set dfilter 1 permit 0/0 0/0
 #
-# Allow ident packet pass through
+# Allow ident packets to pass through
 #
  set ifilter 0 permit tcp dst eq 113
  set ofilter 0 permit tcp src eq 113
 #
-# Allow telnet connection to the Internet
+# Allow telnet connections to the Internet
 #
  set ifilter 1 permit tcp src eq 23 estab
  set ofilter 1 permit tcp dst eq 23
@@ -37,7 +37,7 @@ filterd:
  set ifilter 3 permit tcp src eq 20 dst gt 1023
  set ofilter 3 permit tcp dst eq 20
 #
-# Allow access to DNS
+# Allow access to any DNS
 #
  set ifilter 4 permit udp src eq 53
  set ofilter 4 permit udp dst eq 53
@@ -54,5 +54,5 @@ filterd:
  set ifilter 7 permit udp dst gt 33433
  set ofilter 7 permit udp dst gt 33433
 #
-# If none of above rules matches, then packet is blockd.
+# If none of the above rules matche, then the packet is blocked.
 #

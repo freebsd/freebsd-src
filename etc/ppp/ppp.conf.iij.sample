@@ -10,7 +10,7 @@
 #	   In all cases, you can use same username and password assigned
 #	   from IIJ.
 #
-#  $Id: ppp.conf.iij,v 1.2 1996/01/31 15:03:04 mpp Exp $
+#  $Id: ppp.conf.iij.sample,v 1.1 1996/10/18 03:45:14 jkh Exp $
 #
 #############################################################################
 #
@@ -38,7 +38,6 @@ iij-pap:
  set authkey  MyPassword
  set login "TIMEOUT 5 login:-\\r-login:"
  set timeout 0
- set openmode active
  dial
 #
 #  Use "% ppp iij-chap" for CHAP authentication
@@ -51,7 +50,6 @@ iij-chap:
  set authkey  MyPassword
  set login "TIMEOUT 5 login:-\\r-login:"
  set timeout 0
- set openmode active
  dial
 #
 # Here, we assume that IIJ server has 192.244.177.2 as their address.
@@ -65,8 +63,8 @@ iij-chap:
 #	% ping 192.244.177.2
 #
 iij-demand:
- set debug lcp
+ set log lcp
  set phone 0355118852
  set login "TIMEOUT 5 login:-\\r-login: MyUserName word: MyPassword PPP"
- set ifaddr 0 192.244.177.2/20
+ set ifaddr 10.10.10.10/0 192.244.177.2/20
  add 0 0 192.244.177.2
