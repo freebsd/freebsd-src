@@ -43,7 +43,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ie.c,v 1.12 1994/09/02 22:13:31 ats Exp $
+ *	$Id: if_ie.c,v 1.13 1994/09/02 23:23:57 ats Exp $
  */
 
 /*
@@ -220,6 +220,7 @@ enum ie_hardware {
   IE_EN100,
   IE_SLFIBER,
   IE_3C507,
+  IE_NI5210,
   IE_UNKNOWN
 };
 
@@ -228,6 +229,7 @@ const char *ie_hardware_names[] = {
   "EN100",
   "StarLAN Fiber",
   "3C507",
+  "NI5210",
   "Unknown"
 };
 
@@ -273,6 +275,7 @@ struct ie_softc {
   caddr_t iomem;
   caddr_t iomembot;
   unsigned iosize;
+  int bus_use;		/* 0 means 16bit, 1 means 8 bit adapter */
   
   int want_mcsetup;
   int promisc;
@@ -305,6 +308,7 @@ struct ie_softc {
 
 static int sl_probe(struct isa_device *);
 static int el_probe(struct isa_device *);
+static int ni_probe(struct isa_device *);
 
 /* This routine written by Charles Martin Hannum. */
 int ieprobe(dvp)
@@ -314,6 +318,7 @@ int ieprobe(dvp)
 
   ret = sl_probe(dvp);
   if(!ret) ret = el_probe(dvp);
+  if(!ret) ret = ni_probe(dvp);
   return(ret);
 }
 
@@ -326,6 +331,7 @@ static int sl_probe(dvp)
   ie_softc[unit].port = dvp->id_iobase;
   ie_softc[unit].iomembot = dvp->id_maddr;
   ie_softc[unit].iomem = 0;
+  ie_softc[unit].bus_use = 0;
 
   c = inb(PORT + IEATT_REVISION);
   switch(SL_BOARD(c)) {
@@ -393,6 +399,7 @@ static int el_probe(dvp)
   
   sc->port = dvp->id_iobase;
   sc->iomembot = dvp->id_maddr;
+  sc->bus_use = 0;
   
   /* Need this for part of the probe. */
   sc->ie_reset_586 = el_reset_586;
@@ -448,7 +455,7 @@ static int el_probe(dvp)
   /*
    * Divine memory size on-board the card.
    */
-  find_ie_mem_size(dvp->id_unit);
+  find_ie_mem_size(unit);
   
   if (!sc->iosize) {
     printf("ie%d: can't find shared memory\n", unit);
@@ -472,6 +479,63 @@ static int el_probe(dvp)
   
   return 16;
 }
+
+
+static int ni_probe(dvp)
+	struct isa_device *dvp;
+{
+  int unit = dvp->id_unit;
+  int boardtype, c;
+
+struct ie_softc *ie = &ie_softc[unit];
+
+  ie_softc[unit].port = dvp->id_iobase;
+  ie_softc[unit].iomembot = dvp->id_maddr;
+  ie_softc[unit].iomem = 0;
+  ie_softc[unit].bus_use = 1;
+
+  boardtype = inb(PORT + IEATT_REVISION);
+  c = inb(PORT + IEATT_REVISION + 1);
+  boardtype = boardtype + (c << 8);
+  switch(boardtype) {
+  case 0x5500:		/* This is the magic cookie for the NI5210 */
+    ie_softc[unit].hard_type = IE_NI5210;
+    ie_softc[unit].ie_reset_586 = sl_reset_586;
+    ie_softc[unit].ie_chan_attn = sl_chan_attn;
+    break;
+
+    /*
+     * Anything else is not recognized or cannot be used.
+     */
+  default:
+    return 0;
+  }
+
+  ie_softc[unit].hard_vers = 0;
+
+  /*
+   * Divine memory size on-board the card.  Either 8 or 16k.
+   */
+  find_ie_mem_size(unit);
+
+  if(!ie_softc[unit].iosize) {
+    return 0; 
+  }
+
+  if(!dvp->id_msize)
+    dvp->id_msize = ie_softc[unit].iosize;
+  else if (dvp->id_msize != ie_softc[unit].iosize) {
+    printf("ie%d: kernel configured msize %d doesn't match board configured msize %d\n",
+	   unit, dvp->id_msize, ie_softc[unit].iosize);
+    return 0;
+  }
+
+  sl_read_ether(unit, ie_softc[unit].arpcom.ac_enaddr);
+
+  return 8;
+
+}
+
 
 /*
  * Taken almost exactly from Bill's if_is.c, then modified beyond recognition.
@@ -1308,7 +1372,7 @@ int check_ie_present(unit, where, size)
   scb = (volatile struct ie_sys_ctl_block *)where;
   bzero((char *)scb, sizeof *scb); /* ignore cast-qual */
 
-  scp->ie_bus_use = 0;		/* 16-bit */
+  scp->ie_bus_use = ie_softc[unit].bus_use;	/* 8-bit or 16-bit */
   scp->ie_iscp_ptr = (caddr_t)((volatile caddr_t)iscp - /* ignore cast-qual */
 			       (volatile caddr_t)realbase);
 
@@ -1375,7 +1439,7 @@ static void find_ie_mem_size(unit)
 
   ie_softc[unit].iosize = 0;
 
-  for(size = 65536; size >= 16384; size -= 16384) {
+  for(size = 65536; size >= 8192; size -= 8192) {
     if(check_ie_present(unit, ie_softc[unit].iomembot, size)) {
       return;
     }
