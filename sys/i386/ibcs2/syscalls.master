@@ -34,9 +34,9 @@
 1	MNOPROTO { void sys_exit(int rval); } exit sys_exit_args void
 2	MNOPROTO { int fork(void); }
 3	STD	{ int ibcs2_read(int fd, char *buf, u_int nbytes); }
-4	NOPROTO	{ int write(int fd, char *buf, u_int nbytes); }
+4	MNOPROTO { int write(int fd, char *buf, u_int nbytes); }
 5	STD	{ int ibcs2_open(char *path, int flags, int mode); }
-6	NOPROTO	{ int close(int fd); }
+6	MNOPROTO { int close(int fd); }
 7	STD	{ int ibcs2_wait(int a1, int a2, int a3); }
 8	STD	{ int ibcs2_creat(char *path, int mode); }
 9	NOPROTO	{ int link(char *path, char *link); }
@@ -50,39 +50,39 @@
 17	NOPROTO	{ int obreak(caddr_t nsize); }
 18	STD	{ int ibcs2_stat(char* path, struct ibcs2_stat *st); }
 19	STD	{ long ibcs2_lseek(int fd, long offset, int whence); }
-20	NOPROTO	{ pid_t getpid(void); }
+20	MNOPROTO { pid_t getpid(void); }
 21	STD	{ int ibcs2_mount(char *special, char *dir, int flags, \
 		    int fstype, char *data, int len); }
 22	STD	{ int ibcs2_umount(char *name); }
-23	STD	{ int ibcs2_setuid(int uid); }
-24	NOPROTO	{ uid_t getuid(void); }
+23	MSTD	{ int ibcs2_setuid(int uid); }
+24	MNOPROTO { uid_t getuid(void); }
 25	STD	{ int ibcs2_stime(long *timep); }
-26	NOPROTO	{ int ptrace(int req, pid_t pid, caddr_t addr, int data); }
+26	MNOPROTO { int ptrace(int req, pid_t pid, caddr_t addr, int data); }
 27	STD	{ int ibcs2_alarm(unsigned sec); }
 28	STD	{ int ibcs2_fstat(int fd, struct ibcs2_stat *st); }
-29	STD	{ int ibcs2_pause(void); }
+29	MSTD	{ int ibcs2_pause(void); }
 30	STD	{ int ibcs2_utime(char *path, struct ibcs2_utimbuf *buf); }
 31	STD	{ int ibcs2_stty(int fd, struct sgttyb *buf); }
 32	STD	{ int ibcs2_gtty(int fd, struct sgttyb *buf); }
 33	STD	{ int ibcs2_access(char *path, int flags); }
-34	STD	{ int ibcs2_nice(int incr); }
+34	MSTD	{ int ibcs2_nice(int incr); }
 35	STD	{ int ibcs2_statfs(char *path, struct ibcs2_statfs *buf, \
 		    int len, int fstype); }
 36	NOPROTO	{ int sync(void); }
-37	STD	{ int ibcs2_kill(int pid, int signo); }
+37	MSTD	{ int ibcs2_kill(int pid, int signo); }
 38	STD	{ int ibcs2_fstatfs(int fd, struct ibcs2_statfs *buf, \
 		    int len, int fstype); }
-39	STD	{ int ibcs2_pgrpsys(int type, caddr_t dummy, int pid, \
+39	MSTD	{ int ibcs2_pgrpsys(int type, caddr_t dummy, int pid, \
 		    int pgid); }
 40	STD	{ int ibcs2_xenix(int a1, int a2, int a3, int a4, int a5); }
-41	NOPROTO	{ int dup(u_int fd); }
-42	NOPROTO	{ int pipe(void); }
+41	MNOPROTO { int dup(u_int fd); }
+42	MNOPROTO { int pipe(void); }
 43	STD	{ int ibcs2_times(struct tms *tp); }
 44	MNOPROTO { int profil(caddr_t samples, u_int size, u_int offset, \
 		    u_int scale); }
 45	STD	{ int ibcs2_plock(int cmd); }
-46	STD	{ int ibcs2_setgid(int gid); }
-47	NOPROTO	{ gid_t getgid(void); }
+46	MSTD	{ int ibcs2_setgid(int gid); }
+47	MNOPROTO { gid_t getgid(void); }
 48	STD	{ int ibcs2_sigsys(int sig, ibcs2_sig_t fp); }
 49	STD	{ int ibcs2_msgsys(int which, int a2, int a3, int a4, int a5, \
 		    int a6); }
@@ -96,7 +96,7 @@
 57	STD	{ int ibcs2_utssys(int a1, int a2, int flag); }
 58      NOPROTO { int fsync(int fd); }
 59	STD	{ int ibcs2_execve(char *path, char **argp, char **envp); }
-60	NOPROTO	{ int umask(int newmask); }
+60	MNOPROTO { int umask(int newmask); }
 61	NOPROTO	{ int chroot(char *path); }
 62	STD	{ int ibcs2_fcntl(int fd, int cmd, char *arg); }
 63	MSTD	{ long ibcs2_ulimit(int cmd, int newlimit); }
@@ -143,7 +143,7 @@
 100	UNIMPL	nosys
 101	UNIMPL	nosys
 102	UNIMPL	nosys
-103	NOPROTO	{ int sigreturn(struct sigcontext *sigcntxp); }
+103	MNOPROTO { int sigreturn(struct sigcontext *sigcntxp); }
 104	UNIMPL	nosys
 105	STD	{ int ibcs2_isc(void); }
 106	UNIMPL	nosys
