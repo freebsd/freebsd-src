@@ -60,6 +60,7 @@
 #define _MUTEX_ASSERT_NOT_OWNED(m)
 #endif
 
+
 /*
  * Prototypes
  */
@@ -131,144 +132,82 @@ int
 _pthread_mutex_init(pthread_mutex_t * mutex,
 		   const pthread_mutexattr_t * mutex_attr)
 {
-	enum pthread_mutextype	type;
-	int		protocol;
-	int		ceiling;
-	int		flags;
-	pthread_mutex_t	pmutex;
-	int		ret = 0;
+	struct pthread_mutex_attr default_attr = {PTHREAD_MUTEX_ERRORCHECK,
+	    PTHREAD_PRIO_NONE, PTHREAD_MAX_PRIORITY, 0 };
+	struct pthread_mutex_attr *attr;
 
-	if (mutex == NULL)
-		ret = EINVAL;
-
-	/* Check if default mutex attributes: */
-	if (mutex_attr == NULL || *mutex_attr == NULL) {
-		/* Default to a (error checking) POSIX mutex: */
-		type = PTHREAD_MUTEX_ERRORCHECK;
-		protocol = PTHREAD_PRIO_NONE;
-		ceiling = PTHREAD_MAX_PRIORITY;
-		flags = 0;
+	if (mutex_attr == NULL) {
+		attr = &default_attr;
+	} else {
+		/*
+		 * Check that the given mutex attribute is valid.
+		 */
+		if (((*mutex_attr)->m_type < PTHREAD_MUTEX_ERRORCHECK) ||
+		    ((*mutex_attr)->m_type >= MUTEX_TYPE_MAX))
+			return (EINVAL);
+		else if (((*mutex_attr)->m_protocol < PTHREAD_PRIO_NONE) ||
+		    ((*mutex_attr)->m_protocol > PTHREAD_MUTEX_RECURSIVE))
+			return (EINVAL);
+		attr = *mutex_attr;
 	}
+	if ((*mutex =
+	    (pthread_mutex_t)malloc(sizeof(struct pthread_mutex))) == NULL)
+		return (ENOMEM);
+	memset((void *)(*mutex), 0, sizeof(struct pthread_mutex));
 
-	/* Check mutex type: */
-	else if (((*mutex_attr)->m_type < PTHREAD_MUTEX_ERRORCHECK) ||
-	    ((*mutex_attr)->m_type >= MUTEX_TYPE_MAX))
-		/* Return an invalid argument error: */
-		ret = EINVAL;
-
-	/* Check mutex protocol: */
-	else if (((*mutex_attr)->m_protocol < PTHREAD_PRIO_NONE) ||
-	    ((*mutex_attr)->m_protocol > PTHREAD_MUTEX_RECURSIVE))
-		/* Return an invalid argument error: */
-		ret = EINVAL;
-
-	else {
-		/* Use the requested mutex type and protocol: */
-		type = (*mutex_attr)->m_type;
-		protocol = (*mutex_attr)->m_protocol;
-		ceiling = (*mutex_attr)->m_ceiling;
-		flags = (*mutex_attr)->m_flags;
-	}
-
-	/* Check no errors so far: */
-	if (ret == 0) {
-		if ((pmutex = (pthread_mutex_t)
-		    malloc(sizeof(struct pthread_mutex))) == NULL)
-			ret = ENOMEM;
-		else {
-			/* Set the mutex flags: */
-			pmutex->m_flags = flags;
-
-			/* Process according to mutex type: */
-			switch (type) {
-			/* case PTHREAD_MUTEX_DEFAULT: */
-			case PTHREAD_MUTEX_ERRORCHECK:
-			case PTHREAD_MUTEX_NORMAL:
-				/* Nothing to do here. */
-				break;
-
-			/* Single UNIX Spec 2 recursive mutex: */
-			case PTHREAD_MUTEX_RECURSIVE:
-				/* Reset the mutex count: */
-				pmutex->m_data.m_count = 0;
-				break;
-
-			/* Trap invalid mutex types: */
-			default:
-				/* Return an invalid argument error: */
-				ret = EINVAL;
-				break;
-			}
-			if (ret == 0) {
-				/* Initialise the rest of the mutex: */
-				TAILQ_INIT(&pmutex->m_queue);
-				pmutex->m_flags |= MUTEX_FLAGS_INITED;
-				pmutex->m_owner = NULL;
-				pmutex->m_type = type;
-				pmutex->m_protocol = protocol;
-				pmutex->m_refcount = 0;
-				if (protocol == PTHREAD_PRIO_PROTECT)
-					pmutex->m_prio = ceiling;
-				else
-					pmutex->m_prio = 0;
-				pmutex->m_saved_prio = 0;
-				_MUTEX_INIT_LINK(pmutex);
-				memset(&pmutex->lock, 0, sizeof(pmutex->lock));
-				*mutex = pmutex;
-			} else {
-				free(pmutex);
-				*mutex = NULL;
-			}
-		}
-	}
-	/* Return the completion status: */
-	return (ret);
+	/* Initialise the rest of the mutex: */
+	TAILQ_INIT(&(*mutex)->m_queue);
+	_MUTEX_INIT_LINK(*mutex);
+	(*mutex)->m_protocol = attr->m_protocol;
+	(*mutex)->m_flags = (attr->m_flags | MUTEX_FLAGS_INITED);
+	(*mutex)->m_type = attr->m_type;
+	if ((*mutex)->m_protocol == PTHREAD_PRIO_PROTECT)
+		(*mutex)->m_prio = attr->m_ceiling;
+	return (0);
 }
 
 int
 _pthread_mutex_destroy(pthread_mutex_t * mutex)
 {
-	int	ret = 0;
+	if (mutex == NULL)
+		return (EINVAL);
 
-	if (mutex == NULL || *mutex == NULL)
-		ret = EINVAL;
-	else {
-		/* Lock the mutex structure: */
-		_SPINLOCK(&(*mutex)->lock);
+	/*
+	 * If this mutex was statically initialized, don't bother
+	 * initializing it in order to destroy it immediately.
+	 */
+	if (*mutex == PTHREAD_MUTEX_INITIALIZER)
+		return (0);
 
-		/*
-		 * Check to see if this mutex is in use:
-		 */
-		if (((*mutex)->m_owner != NULL) ||
-		    (TAILQ_FIRST(&(*mutex)->m_queue) != NULL) ||
-		    ((*mutex)->m_refcount != 0)) {
-			ret = EBUSY;
+	/* Lock the mutex structure: */
+	_SPINLOCK(&(*mutex)->lock);
 
-			/* Unlock the mutex structure: */
-			_SPINUNLOCK(&(*mutex)->lock);
-		}
-		else {
-			/*
-			 * Free the memory allocated for the mutex
-			 * structure:
-			 */
-			_MUTEX_ASSERT_NOT_OWNED(*mutex);
-
-			/* Unlock the mutex structure: */
-			_SPINUNLOCK(&(*mutex)->lock);
-
-			free(*mutex);
-
-			/*
-			 * Leave the caller's pointer NULL now that
-			 * the mutex has been destroyed:
-			 */
-			*mutex = NULL;
-		}
+	/*
+	 * Check to see if this mutex is in use:
+	 */
+	if (((*mutex)->m_owner != NULL) ||
+	    (TAILQ_FIRST(&(*mutex)->m_queue) != NULL) ||
+	    ((*mutex)->m_refcount != 0)) {
+		/* Unlock the mutex structure: */
+		_SPINUNLOCK(&(*mutex)->lock);
+		return (EBUSY);
 	}
 
-	/* Return the completion status: */
-	return (ret);
+	/*
+	 * Free the memory allocated for the mutex
+	 * structure:
+	 */
+	_MUTEX_ASSERT_NOT_OWNED(*mutex);
+	_SPINUNLOCK(&(*mutex)->lock);
+	free(*mutex);
+
+	/*
+	 * Leave the caller's pointer NULL now that
+	 * the mutex has been destroyed:
+	 */
+	*mutex = NULL;
+
+	return (0);
 }
 
 static int
