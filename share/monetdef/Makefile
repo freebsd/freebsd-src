@@ -82,5 +82,7 @@ afterinstall:
 	ln -sf ../${CH_SRC}.ISO8859-1/LC_MONETARY \
 		${LOCALEDIR}/${link}.ISO8859-1/LC_MONETARY
 .endfor
+	ln -sf ../ja_JP.eucJP/LC_MONETARY \
+		${LOCALEDIR}/ja_JP.SJIS/LC_MONETARY
 
 .include <bsd.prog.mk>

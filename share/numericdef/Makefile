@@ -114,5 +114,7 @@ afterinstall:
 	ln -sf ../${link}.ISO8859-1/LC_NUMERIC \
 		${LOCALEDIR}/${link}.US-ASCII/LC_NUMERIC
 .endfor
+	ln -sf ../ja_JP.eucJP/LC_NUMERIC \
+		${LOCALEDIR}/ja_JP.SJIS/LC_NUMERIC
 
 .include <bsd.prog.mk>
