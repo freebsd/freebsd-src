@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_socket2.c	8.1 (Berkeley) 6/10/93
- * $Id: uipc_socket2.c,v 1.16.2.1 1996/11/11 23:40:32 phk Exp $
+ * $Id: uipc_socket2.c,v 1.16.2.2 1997/04/03 06:24:34 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -972,7 +972,50 @@ struct pr_usrreqs pru_oldstyle = {
  * supported by a protocol.  Fill in as needed.
  */
 int
+pru_accept_notsupp(struct socket *so, struct mbuf *nam)
+{
+	return EOPNOTSUPP;
+}
+
+int
 pru_connect2_notsupp(struct socket *so1, struct socket *so2)
 {
 	return EOPNOTSUPP;
 }
+
+int
+pru_control_notsupp(struct socket *so, int cmd, caddr_t data,
+		    struct ifnet *ifp)
+{
+	return EOPNOTSUPP;
+}
+
+int
+pru_listen_notsupp(struct socket *so)
+{
+	return EOPNOTSUPP;
+}
+
+int
+pru_rcvd_notsupp(struct socket *so, int flags)
+{
+	return EOPNOTSUPP;
+}
+
+int
+pru_rcvoob_notsupp(struct socket *so, struct mbuf *m, int flags)
+{
+	return EOPNOTSUPP;
+}
+
+/*
+ * This isn't really a ``null'' operation, but it's the default one
+ * and doesn't do anything destructive.
+ */
+int
+pru_sense_null(struct socket *so, struct stat *sb)
+{
+	sb->st_blksize = so->so_snd.sb_hiwat;
+	return 0;
+}
+
