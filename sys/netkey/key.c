@@ -1214,17 +1214,33 @@ key_getspi(type, vers, src, dst, lowval, highval, spi)
 	secassoc->vers = vers;
 	secassoc->spi = val;
 	secassoc->state |= K_LARVAL;
-	if (my_addr(secassoc->dst))
+	if (my_addr(dst))
 	  secassoc->state |= K_INBOUND;
-	if (my_addr(secassoc->src))
+	if (my_addr(src))
 	  secassoc->state |= K_OUTBOUND;
 
+	KMALLOC(secassoc->src, struct sockaddr *, src->sa_len);
+	if (!secassoc->src) {
+	  DPRINTF(IDL_ERROR,("key_getspi: can't allocate memory\n"));
+	  KFREE(secassoc);
+	  CRITICAL_END;
+	  return(ENOBUFS);
+	}
 	bcopy((char *)src, (char *)secassoc->src, src->sa_len);
+	KMALLOC(secassoc->dst, struct sockaddr *, dst->sa_len);
+	if (!secassoc->dst) {
+	  DPRINTF(IDL_ERROR,("key_getspi: can't allocate memory\n"));
+	  KFREE(secassoc->src);
+	  KFREE(secassoc);
+	  CRITICAL_END;
+	  return(ENOBUFS);
+	}
 	bcopy((char *)dst, (char *)secassoc->dst, dst->sa_len);
 
 	/* We fill this in with a plausable value now to insure
 	   that other routines don't break. These will get
 	   overwritten later with the correct values. */
+#if 0
 #ifdef INET6
 	secassoc->from->sa_family = AF_INET6;
 	secassoc->from->sa_len = sizeof(struct sockaddr_in6);
@@ -1232,6 +1248,7 @@ key_getspi(type, vers, src, dst, lowval, highval, spi)
 	secassoc->from->sa_family = AF_INET;
 	secassoc->from->sa_len = sizeof(struct sockaddr_in);
 #endif /* INET6 */
+#endif
 
 	/* 
 	 * We need to add code to age these larval key table
