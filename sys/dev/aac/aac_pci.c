@@ -275,7 +275,7 @@ aac_pci_attach(device_t dev)
 			   BUS_SPACE_MAXADDR,		/* lowaddr */
 			   BUS_SPACE_MAXADDR, 		/* highaddr */
 			   NULL, NULL, 			/* filter, filterarg */
-			   AAC_FIB_COUNT *
+			   8192 + AAC_FIB_COUNT *	/* XXX dma hack */
 			   sizeof(struct aac_fib), 1,	/* maxsize, nsegments */
 			   BUS_SPACE_MAXSIZE_32BIT,	/* maxsegsize */
 			   0,				/* flags */
