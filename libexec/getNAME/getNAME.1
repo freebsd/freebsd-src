@@ -1,0 +1,68 @@
+.\"
+.\" Copyright (C) July 1996, Berlin.
+.\"	Wolfram Schneider <wosch@freebsd.org>. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the author nor the names of any co-contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY Wolfram Schneider ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL [your name] OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id: $
+
+.Dd July 8, 1996
+.Dt getNAME 1
+.Os FreeBSD 2.2
+.Sh NAME
+.Nm getNAME
+.Nd get name sections from manual pages
+.Sh SYNOPSIS
+.Nm /usr/libexec/getNAME
+.Op Fl itw
+.Ar files ...
+.Sh DESCRIPTION
+The
+.Nm
+utility 
+get name sections from manual pages. Without options
+.Nm 
+building
+.Xr apropos 1
+database entries.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl i
+for building intro entries.
+.It Fl t
+for building toc.
+.It Fl w
+print type of manual page (OLD, NEW, UNKNOWN).
+.El
+.\" .Sh BUGS
+.Sh SEE ALSO
+.Xr man 1 ,
+.Xr makewhatis 1 ,
+.Xr apropos 1 .
+.Sh HISTORY
+The manual page for
+.Nm
+command appeared in FreeBSD 2.2.

@@ -29,6 +29,9 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $Id: $
+ *
  */
 
 #ifndef lint
@@ -81,7 +84,6 @@ main(argc, argv)
 		case 'w':
 			typeflag = 1;
 			break;
-		case '?':
 		default:
 			usage();
 		}
@@ -334,6 +336,6 @@ again:
 void
 usage()
 {
-	(void)fprintf(stderr, "usage: getNAME [-it] file ...\n");
+	(void)fprintf(stderr, "usage: getNAME [-itw] file ...\n");
 	exit(1);
 }
