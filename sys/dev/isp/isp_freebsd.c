@@ -308,6 +308,41 @@ ispioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 		ISP_UNLOCK(isp);
 		break;
 	}
+	case ISP_GET_STATS:
+	{
+		isp_stats_t *sp = (isp_stats_t *) addr;
+
+		MEMZERO(sp, sizeof (*sp));
+		sp->isp_stat_version = ISP_STATS_VERSION;
+		sp->isp_type = isp->isp_type;
+		sp->isp_revision = isp->isp_revision;
+		ISP_LOCK(isp);
+		sp->isp_stats[ISP_INTCNT] = isp->isp_intcnt;
+		sp->isp_stats[ISP_INTBOGUS] = isp->isp_intbogus;
+		sp->isp_stats[ISP_INTMBOXC] = isp->isp_intmboxc;
+		sp->isp_stats[ISP_INGOASYNC] = isp->isp_intoasync;
+		sp->isp_stats[ISP_RSLTCCMPLT] = isp->isp_rsltccmplt;
+		sp->isp_stats[ISP_FPHCCMCPLT] = isp->isp_fphccmplt;
+		sp->isp_stats[ISP_RSCCHIWAT] = isp->isp_rscchiwater;
+		sp->isp_stats[ISP_FPCCHIWAT] = isp->isp_fpcchiwater;
+		ISP_UNLOCK(isp);
+		retval = 0;
+		break;
+	}
+	case ISP_CLR_STATS:
+		ISP_LOCK(isp);
+		isp->isp_intcnt = 0;
+		isp->isp_intbogus = 0;
+		isp->isp_intmboxc = 0;
+		isp->isp_intoasync = 0;
+		isp->isp_rsltccmplt = 0;
+		isp->isp_fphccmplt = 0;
+		isp->isp_rscchiwater = 0;
+		isp->isp_fpcchiwater = 0;
+		ISP_UNLOCK(isp);
+		retval = 0;
+		break;
+
 	default:
 		break;
 	}
@@ -1664,7 +1699,7 @@ isp_watchdog(void *arg)
 			isp_destroy_handle(isp, handle);
 			xpt_print_path(xs->ccb_h.path);
 			isp_prt(isp, ISP_LOGWARN,
-			    "watchdog timeout for handle %x", handle);
+			    "watchdog timeout for handle 0x%x", handle);
 			XS_SETERR(xs, CAM_CMD_TIMEOUT);
 			XS_CMD_C_WDOG(xs);
 			isp_done(xs);
