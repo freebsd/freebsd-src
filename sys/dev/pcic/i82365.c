@@ -65,7 +65,6 @@ int	pcic_debug = 0;
 
 #define DETACH_FORCE	0x1
 
-
 #define	PCIC_VENDOR_UNKNOWN		0
 #define	PCIC_VENDOR_I82365SLR0		1
 #define	PCIC_VENDOR_I82365SLR1		2
@@ -99,6 +98,10 @@ static void	pcic_wait_ready(struct pcic_handle *);
 
 static u_int8_t st_pcic_read(struct pcic_handle *, int);
 static void st_pcic_write(struct pcic_handle *, int, u_int8_t);
+
+/* XXX Should really be dynamic XXX */
+static struct pcic_handle *handles[20];
+static struct pcic_handle **lasthandle = handles;
 
 int
 pcic_ident_ok(int ident)
@@ -377,9 +380,6 @@ pcic_create_event_thread(void *arg)
 		    "cannot create event thread for sock 0x%02x\n", h->sock);
 		panic("pcic_create_event_thread");
 	}
-	config_intrhook_disestablish(h->hook);
-	free(h->hook, M_TEMP);
-	h->hook = 0;
 }
 
 void
@@ -474,26 +474,11 @@ pcic_init_socket(struct pcic_handle *h)
 {
 	int reg;
 	struct pcic_softc *sc = (struct pcic_softc *)(h->ph_parent);
-	struct intr_config_hook *hook;
 
 	/*
 	 * queue creation of a kernel thread to handle insert/removal events.
 	 */
-#ifdef DIAGNOSTIC
-	if (h->event_thread != NULL)
-		panic("pcic_init_socket: event thread");
-#endif
-	hook = 
-	    (struct intr_config_hook *)malloc(sizeof(struct intr_config_hook),
-		M_TEMP, M_NOWAIT);
-	if (!hook) {
-		printf("ini socket failed\n");
-		return;
-	}
-	hook->ich_func = pcic_create_event_thread;
-	hook->ich_arg = h;
-	h->hook = hook;
-	config_intrhook_establish(hook);
+	*lasthandle++ = h;
 
 	/* set up the card to interrupt on card detect */
 
@@ -1391,3 +1376,15 @@ pcic_release_resource(device_t dev, device_t child, int type, int rid,
 	}
 	return bus_generic_release_resource(dev, child, type, rid, r);
 }
+
+static void
+pcic_start_threads(void *arg)
+{
+	struct pcic_handle **walker;
+	walker = handles;
+	while (*walker) {
+		pcic_create_event_thread(*walker++);
+	}
+}
+
+SYSINIT(pcic, SI_SUB_KTHREAD_IDLE, SI_ORDER_ANY, pcic_start_threads, 0);
