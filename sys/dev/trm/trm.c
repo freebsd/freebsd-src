@@ -3057,7 +3057,7 @@ trm_initSRB(PACB pACB)
 	}
 	pSRB->TagNumber = i;
     }
-	return (0);
+    return (0);
 }
 
 
