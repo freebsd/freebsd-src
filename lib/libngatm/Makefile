@@ -16,15 +16,17 @@ CFLAGS+= -I${LIBBASE} -I${.OBJDIR} -I${CTRB}/libngatm
 # CFLAGS+= -DSSCOP_DEBUG -DSSCFU_DEBUG -DUNI_DEBUG
 
 .PATH: ${LIBBASE}/netnatm ${LIBBASE}/netnatm/saal ${LIBBASE}/netnatm/misc \
-	${LIBBASE}/netnatm/msg
+	${LIBBASE}/netnatm/msg ${LIBBASE}/netnatm/sig
 .PATH: ${CTRB}/libngatm ${CTRB}/man
 
 SRCS=	unimsg.c unimsg_common.c straddr.c				\
 	traffic.c uni_ie.c uni_msg.c					\
-	saal_sscop.c saal_sscfu.c
+	saal_sscop.c saal_sscfu.c					\
+	sig_call.c sig_coord.c sig_party.c sig_print.c sig_reset.c	\
+	sig_uni.c sig_unimsgcpy.c sig_verify.c
 
 # Includes
-INCSGROUPS= INCSATM INCSSAAL INCSMSG
+INCSGROUPS= INCSATM INCSSAAL INCSMSG INCSSIG
 
 # common files
 INCSATMDIR= $(INCLUDEDIR)/netnatm
@@ -38,5 +40,9 @@ INCSSAAL= saal/sscfu.h saal/sscfudef.h saal/sscop.h saal/sscopdef.h
 INCSMSGDIR= $(INCLUDEDIR)/netnatm/msg
 INCSMSG= msg/uni_config.h msg/uni_hdr.h msg/uni_ie.h msg/uni_msg.h	\
 	 msg/unimsglib.h msg/uniprint.h msg/unistruct.h
+
+# signaling layer
+INCSSIGDIR= $(INCLUDEDIR)/netnatm/sig
+INCSSIG= sig/uni.h sig/unidef.h sig/unisig.h
 
 .include <bsd.lib.mk>
