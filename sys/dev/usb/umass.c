@@ -1133,6 +1133,15 @@ USB_DETACH(umass)
 
 	sc->flags |= UMASS_FLAGS_GONE;
 
+	/* abort all the pipes in case there are transfers active. */
+	usbd_abort_default_pipe(sc->sc_udev);
+	if (sc->bulkout_pipe)
+		usbd_abort_pipe(sc->bulkout_pipe);
+	if (sc->bulkin_pipe)
+		usbd_abort_pipe(sc->bulkin_pipe);
+	if (sc->intrin_pipe)
+		usbd_abort_pipe(sc->intrin_pipe);
+
 	usb_uncallout_drain(sc->cam_scsi_rescan_ch, umass_cam_rescan, sc);
 	if ((sc->proto & UMASS_PROTO_SCSI) ||
 	    (sc->proto & UMASS_PROTO_ATAPI) ||
@@ -1443,6 +1452,14 @@ umass_bbb_state(usbd_xfer_handle xfer, usbd_private_handle priv,
 	DPRINTF(UDMASS_BBB, ("%s: Handling BBB state %d (%s), xfer=%p, %s\n",
 		USBDEVNAME(sc->sc_dev), sc->transfer_state,
 		states[sc->transfer_state], xfer, usbd_errstr(err)));
+
+	/* Give up if the device has detached. */
+	if (sc->flags & UMASS_FLAGS_GONE) {
+		sc->transfer_state = TSTATE_IDLE;
+		sc->transfer_cb(sc, sc->transfer_priv, sc->transfer_datalen,
+		    STATUS_CMD_FAILED);
+		return;
+	}
 
 	switch (sc->transfer_state) {
 
@@ -1896,6 +1913,14 @@ umass_cbi_state(usbd_xfer_handle xfer, usbd_private_handle priv,
 	DPRINTF(UDMASS_CBI, ("%s: Handling CBI state %d (%s), xfer=%p, %s\n",
 		USBDEVNAME(sc->sc_dev), sc->transfer_state,
 		states[sc->transfer_state], xfer, usbd_errstr(err)));
+
+	/* Give up if the device has detached. */
+	if (sc->flags & UMASS_FLAGS_GONE) {
+		sc->transfer_state = TSTATE_IDLE;
+		sc->transfer_cb(sc, sc->transfer_priv, sc->transfer_datalen,
+		    STATUS_CMD_FAILED);
+		return;
+	}
 
 	switch (sc->transfer_state) {
 
@@ -2608,6 +2633,13 @@ umass_cam_cb(struct umass_softc *sc, void *priv, int residue, int status)
 	union ccb *ccb = (union ccb *) priv;
 	struct ccb_scsiio *csio = &ccb->csio;		/* deref union */
 
+	/* If the device is gone, just fail the request. */
+	if (sc->flags & UMASS_FLAGS_GONE) {
+		ccb->ccb_h.status = CAM_TID_INVALID;
+		xpt_done(ccb);
+		return;
+	}
+
 	csio->resid = residue;
 
 	switch (status) {
@@ -2684,6 +2716,12 @@ umass_cam_sense_cb(struct umass_softc *sc, void *priv, int residue, int status)
 	struct ccb_scsiio *csio = &ccb->csio;		/* deref union */
 	unsigned char *rcmd;
 	int rcmdlen;
+
+	if (sc->flags & UMASS_FLAGS_GONE) {
+		ccb->ccb_h.status = CAM_AUTOSENSE_FAIL;
+		xpt_done(ccb);
+		return;
+	}
 
 	switch (status) {
 	case STATUS_CMD_OK:
@@ -2778,6 +2816,12 @@ umass_cam_quirk_cb(struct umass_softc *sc, void *priv, int residue, int status)
 
 	DPRINTF(UDMASS_SCSI, ("%s: Test unit ready returned status %d\n",
 	USBDEVNAME(sc->sc_dev), status));
+
+	if (sc->flags & UMASS_FLAGS_GONE) {
+		ccb->ccb_h.status = CAM_TID_INVALID;
+		xpt_done(ccb);
+		return;
+	}
 #if 0
 	ccb->ccb_h.status = CAM_REQ_CMP;
 #endif
