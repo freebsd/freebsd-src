@@ -40,6 +40,7 @@
 #define	PCIC_PD6710	4
 #define	PCIC_CL6729	5
 #define	PCIC_VG468	6
+#define	PCIC_VG469	7
 /*
  *	Address of the controllers. Each controller can manage
  *	two PCMCIA slots. Up to 8 slots are supported in total.
