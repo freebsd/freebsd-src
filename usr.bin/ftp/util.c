@@ -528,7 +528,6 @@ remotemodtime(file, noisy)
 		 * characters.
 		 */
 		if (sscanf(reply_string, "%*s %16s", mtbuf) == 1) {
-			bzero(&timebuf, sizeof(timebuf));
 			fmt = NULL;
 			len = strlen(mtbuf);
 			y2kbug = 0;
@@ -538,6 +537,7 @@ remotemodtime(file, noisy)
 			} else if (len == 14)
 				fmt = "%04d%02d%02d%02d%02d%02d";
 			if (fmt != NULL)
+				memset(&timebuf, 0, sizeof(timebuf));
 				if (sscanf(mtbuf, fmt, &year, &month,
 				    &timebuf.tm_mday, &timebuf.tm_hour,
 				    &timebuf.tm_min, &timebuf.tm_sec) == 6) {
