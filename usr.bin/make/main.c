@@ -182,6 +182,10 @@ MainParseArgs(argc, argv)
 #endif
 rearg:	while((c = getopt(argc, argv, OPTFLAGS)) != -1) {
 		switch(c) {
+		case 'C':
+			if (chdir(optarg) == -1)
+				err(1, "chdir %s", optarg);
+			break;
 		case 'D':
 			Var_Set(optarg, "1", VAR_GLOBAL);
 			Var_Append(MAKEFLAGS, "-D", VAR_GLOBAL);
