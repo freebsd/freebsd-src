@@ -940,6 +940,10 @@ crypto/rijndael/rijndael-api-fst.c	optional geom_bde
 crypto/sha2/sha2.c		optional geom_bde
 geom/concat/g_concat.c	optional geom_concat
 geom/gate/g_gate.c	optional geom_gate
+geom/label/g_label.c	optional geom_label
+geom/label/g_label_iso9660.c	optional geom_label
+geom/label/g_label_msdosfs.c	optional geom_label
+geom/label/g_label_ufs.c	optional geom_label
 geom/nop/g_nop.c	optional geom_nop
 geom/stripe/g_stripe.c	optional geom_stripe
 geom/geom_aes.c		optional geom_aes

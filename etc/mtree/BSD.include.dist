@@ -84,6 +84,8 @@
         ..
         gate
         ..
+        label
+        ..
         nop
         ..
         stripe
