@@ -1,0 +1,304 @@
+@ignore
+This file documents the user interface to the GNU History library.
+
+Copyright (C) 1988, 1991, 1996 Free Software Foundation, Inc.
+Authored by Brian Fox and Chet Ramey.
+
+Permission is granted to make and distribute verbatim copies of this manual
+provided the copyright notice and this permission notice are preserved on
+all copies.
+
+Permission is granted to process this file through Tex and print the
+results, provided the printed document carries copying permission notice
+identical to this one except for the removal of this paragraph (this
+paragraph not being relevant to the printed manual).
+
+Permission is granted to copy and distribute modified versions of this
+manual under the conditions for verbatim copying, provided also that the
+GNU Copyright statement is available to the distributee, and provided that
+the entire resulting derived work is distributed under the terms of a
+permission notice identical to this one.
+
+Permission is granted to copy and distribute translations of this manual
+into another language, under the above conditions for modified versions.
+@end ignore
+
+@node Using History Interactively
+@chapter Using History Interactively
+
+@ifset BashFeatures
+This chapter describes how to use the GNU History Library interactively,
+from a user's standpoint.  It should be considered a user's guide.  For
+information on using the GNU History Library in your own programs,
+see the GNU Readline Library Manual.
+@end ifset
+@ifclear BashFeatures
+This chapter describes how to use the GNU History Library interactively,
+from a user's standpoint.  It should be considered a user's guide.  For
+information on using the GNU History Library in your own programs,
+@pxref{Programming with GNU History}.
+@end ifclear
+
+@ifset BashFeatures
+@menu
+* Bash History Facilities::	How Bash lets you manipulate your command
+				history.
+* History Interaction::		What it feels like using History as a user.
+@end menu
+@end ifset
+@ifclear BashFeatures
+@menu
+* History Interaction::		What it feels like using History as a user.
+@end menu
+@end ifclear
+
+@ifset BashFeatures
+@node Bash History Facilities
+@section Bash History Facilities
+@cindex command history
+@cindex history list
+
+When the @samp{-o history} option to the @code{set} builtin
+is enabled (@pxref{The Set Builtin}),
+the shell provides access to the @var{command history},
+the list of commands previously typed.  The text of the last
+@code{HISTSIZE}
+commands (default 500) is saved in a history list.  The shell
+stores each command in the history list prior to parameter and
+variable expansion
+but after history expansion is performed, subject to the
+values of the shell variables
+@code{HISTIGNORE} and @code{HISTCONTROL}.
+When the shell starts up, the history is initialized from the
+file named by the @code{HISTFILE} variable (default @file{~/.bash_history}).
+@code{HISTFILE} is truncated, if necessary, to contain no more than
+the number of lines specified by the value of the @code{HISTFILESIZE}
+variable.  When an interactive shell exits, the last
+@code{HISTSIZE} lines are copied from the history list to @code{HISTFILE}.
+If the @code{histappend} shell option is set (@pxref{Bash Builtins}),
+the lines are appended to the history file,
+otherwise the history file is overwritten.
+If @code{HISTFILE}
+is unset, or if the history file is unwritable, the history is
+not saved.  After saving the history, the history file is truncated
+to contain no more than @code{$HISTFILESIZE}
+lines.  If @code{HISTFILESIZE} is not set, no truncation is performed.
+
+The builtin command @code{fc} (@pxref{Korn Shell Builtins})
+may be used to list or edit and re-execute a portion of
+the history list.  The @code{history} builtin (@pxref{C Shell Builtins})
+can be used to display or modify the history list and
+manipulate the history file.
+When using the command-line editing, search commands
+are available in each editing mode that provide access to the
+history list.
+
+The shell allows control over which commands are saved on the history
+list.  The @code{HISTCONTROL} and @code{HISTIGNORE}
+variables may be set to cause the shell to save only a subset of the
+commands entered.
+The @code{cmdhist}
+shell option, if enabled, causes the shell to attempt to save each
+line of a multi-line command in the same history entry, adding
+semicolons where necessary to preserve syntactic correctness.
+The @code{lithist}
+shell option causes the shell to save the command with embedded newlines
+instead of semicolons.
+@xref{Bash Builtins} for a description of @code{shopt}.
+@end ifset
+
+@node History Interaction
+@section Interactive History Expansion
+@cindex history expansion
+
+The History library provides a history expansion feature that is similar
+to the history expansion provided by @code{csh}.  This section
+describes the syntax used to manipulate the history information.
+
+History expansions introduce words from the history list into
+the input stream, making it easy to repeat commands, insert the
+arguments to a previous command into the current input line, or
+fix errors in previous commands quickly.
+
+History expansion takes place in two parts.  The first is to determine
+which line from the previous history should be used during substitution.
+The second is to select portions of that line for inclusion into the
+current one.  The line selected from the previous history is called the
+@dfn{event}, and the portions of that line that are acted upon are
+called @dfn{words}.  Various @dfn{modifiers} are available to manipulate
+the selected words.  The line is broken into words in the same fashion
+that Bash does, so that several English (or Unix) words
+surrounded by quotes are considered as one word.
+History expansions are introduced by the appearance of the
+history expansion character, which is @samp{!} by default.
+@ifset BashFeatures
+Only @samp{\} and @samp{'} may be used to escape the history expansion
+character.
+@end ifset
+
+@ifset BashFeatures
+Several shell options settable with the @code{shopt}
+builtin (@pxref{Bash Builtins}) may be used to tailor
+the behavior of history expansion.  If the
+@code{histverify} shell option is enabled, and Readline
+is being used, history substitutions are not immediately passed to
+the shell parser.
+Instead, the expanded line is reloaded into the Readline
+editing buffer for further modification.
+If Readline is being used, and the @code{histreedit}
+shell option is enabled, a failed history expansion will be
+reloaded into the Readline editing buffer for correction.
+The @samp{-p} option to the @code{history} builtin command
+may be used to see what a history expansion will do before using it.
+The @samp{-s} option to the @code{history} builtin may be used to
+add commands to the end of the history list without actually executing
+them, so that they are available for subsequent recall.
+
+The shell allows control of the various characters used by the
+history expansion mechanism with the @code{histchars} variable.
+@end ifset
+
+@menu
+* Event Designators::	How to specify which history line to use.
+* Word Designators::	Specifying which words are of interest.
+* Modifiers::		Modifying the results of substitution.
+@end menu
+
+@node Event Designators
+@subsection Event Designators
+@cindex event designators
+
+An event designator is a reference to a command line entry in the
+history list.
+@cindex history events
+
+@table @asis
+
+@item @code{!}
+Start a history substitution, except when followed by a space, tab,
+the end of the line, @key{=} or @key{(}.
+
+@item @code{!@var{n}}
+Refer to command line @var{n}.
+
+@item @code{!-@var{n}}
+Refer to the command @var{n} lines back.
+
+@item @code{!!}
+Refer to the previous command.  This is a synonym for @samp{!-1}.
+
+@item @code{!@var{string}}
+Refer to the most recent command starting with @var{string}.
+
+@item @code{!?@var{string}[?]}
+Refer to the most recent command containing @var{string}.  The trailing
+@samp{?} may be omitted if the @var{string} is followed immediately by
+a newline.
+
+@item @code{^@var{string1}^@var{string2}^}
+Quick Substitution.  Repeat the last command, replacing @var{string1}
+with @var{string2}.  Equivalent to
+@code{!!:s/@var{string1}/@var{string2}/}.
+
+@item @code{!#}
+The entire command line typed so far.
+
+@end table
+
+@node Word Designators
+@subsection Word Designators
+
+Word designators are used to select desired words from the event.
+A @samp{:} separates the event specification from the word designator.  It
+can be omitted if the word designator begins with a @samp{^}, @samp{$},
+@samp{*}, @samp{-}, or @samp{%}.  Words are numbered from the beginning
+of the line, with the first word being denoted by 0 (zero).  Words are
+inserted into the current line separated by single spaces.
+
+@table @code
+
+@item 0 (zero)
+The @code{0}th word.  For many applications, this is the command word.
+
+@item @var{n}
+The @var{n}th word.
+
+@item ^
+The first argument; that is, word 1.
+
+@item $
+The last argument.
+
+@item %
+The word matched by the most recent @samp{?@var{string}?} search.
+
+@item @var{x}-@var{y}
+A range of words; @samp{-@var{y}} abbreviates @samp{0-@var{y}}.
+
+@item *
+All of the words, except the @code{0}th.  This is a synonym for @samp{1-$}.
+It is not an error to use @samp{*} if there is just one word in the event;
+the empty string is returned in that case.
+
+@item @var{x}*
+Abbreviates @samp{@var{x}-$}
+
+@item @var{x}-
+Abbreviates @samp{@var{x}-$} like @samp{@var{x}*}, but omits the last word.
+
+@end table
+
+If a word designator is supplied without an event specification, the
+previous command is used as the event.
+
+@node Modifiers
+@subsection Modifiers
+
+After the optional word designator, you can add a sequence of one or more
+of the following modifiers, each preceded by a @samp{:}.
+
+@table @code
+
+@item h
+Remove a trailing pathname component, leaving only the head.
+
+@item t
+Remove all leading  pathname  components, leaving the tail.
+
+@item r
+Remove a trailing suffix of the form @samp{.@var{suffix}}, leaving
+the basename.
+
+@item e
+Remove all but the trailing suffix.
+
+@item p
+Print the new command but do not execute it.
+
+@ifset BashFeatures
+@item q
+Quote the substituted words, escaping further substitutions.
+
+@item x
+Quote the substituted words as with @samp{q},
+but break into words at spaces, tabs, and newlines.
+@end ifset
+
+@item s/@var{old}/@var{new}/
+Substitute @var{new} for the first occurrence of @var{old} in the
+event line.  Any delimiter may be used in place of @samp{/}.
+The delimiter may be quoted in @var{old} and @var{new}
+with a single backslash.  If @samp{&} appears in @var{new},
+it is replaced by @var{old}.  A single backslash will quote
+the @samp{&}.  The final delimiter is optional if it is the last
+character on the input line.
+
+@item &
+Repeat the previous substitution.
+
+@item g
+Cause changes to be applied over the entire event line.  Used in
+conjunction with @samp{s}, as in @code{gs/@var{old}/@var{new}/},
+or with @samp{&}.
+
+@end table
