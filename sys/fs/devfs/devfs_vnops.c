@@ -914,7 +914,7 @@ devfs_read_f(struct file *fp, struct uio *uio, struct ucred *cred, int flags, st
 		return (error);
 	resid = uio->uio_resid;
 	ioflag = 0;
-	if (fp->f_flag & FNONBLOCK)
+	if (fp->f_flag & O_NONBLOCK)
 		ioflag |= IO_NDELAY;
 	if (fp->f_flag & O_DIRECT)
 		ioflag |= IO_DIRECT;
