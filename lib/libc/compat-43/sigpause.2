@@ -75,6 +75,20 @@ set to
 .Xr sigprocmask 2 ,
 .Xr sigsuspend 2 ,
 .Xr sigvec 2
+.Sh STANDARDS
+The
+.Fn sigpause
+function is implemented for compatibility with historic
+.Bx 4.3
+applications.
+An incompatible interface by the same name, which used a single signal number
+rather than a mask, was present in
+.At V ,
+and was copied from there into the
+.Sy X/Open System Interfaces
+.Pq Tn XSI
+option of
+.St -p1003.1-2001 .
 .Sh HISTORY
 The
 .Fn sigpause
