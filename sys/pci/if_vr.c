@@ -1690,7 +1690,6 @@ vr_stop(struct vr_softc *sc)
 static void
 vr_shutdown(device_t dev)
 {
-	struct vr_softc		*sc = device_get_softc(dev);
 
 	vr_detach(dev);
 }
