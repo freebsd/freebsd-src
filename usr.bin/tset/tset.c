@@ -32,24 +32,28 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1980, 1991, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)tset.c	8.1 (Berkeley) 6/9/93";
+#endif
+static const char rcdif[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/types.h>
 #include <sys/ioctl.h>
-#include <termios.h>
-#include <errno.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <stdio.h>
 #include <ctype.h>
+#include <err.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
+#include <termios.h>
 #include "extern.h"
 
 void	obsolete __P((char *[]));
@@ -74,15 +78,15 @@ main(argc, argv)
 	struct winsize win;
 #endif
 	int ch, noinit, noset, quiet, Sflag, sflag, showterm, usingupper;
-	char savech, *p, *t, *tcapbuf, *ttype;
+	char *p, *t, *tcapbuf, *ttype;
 
 	if (tcgetattr(STDERR_FILENO, &mode) < 0)
-		err("standard error: %s", strerror(errno));
+		err(1, "standard error");
 
 	oldmode = mode;
 	Ospeed = cfgetospeed(&mode);
 
-	if (p = strrchr(*argv, '/'))
+	if ((p = strrchr(*argv, '/')))
 		++p;
 	else
 		p = *argv;
@@ -262,9 +266,9 @@ obsolete(argv)
 	char *argv[];
 {
 	for (; *argv; ++argv) {
-		if (argv[0][0] != '-' || argv[1] && argv[1][0] != '-' ||
-		    argv[0][1] != 'e' && argv[0][1] != 'i' &&
-		    argv[0][1] != 'k' || argv[0][2] != '\0')
+		if (argv[0][0] != '-' || (argv[1] && argv[1][0] != '-') ||
+		    (argv[0][1] != 'e' && argv[0][1] != 'i' && argv[0][1] != 'k') ||
+			argv[0][2] != '\0')
 			continue;
 		switch(argv[0][1]) {
 		case 'e':
@@ -283,7 +287,9 @@ obsolete(argv)
 void
 usage()
 {
-	(void)fprintf(stderr,
-"usage: tset [-IQrSs] [-] [-e ch] [-i ch] [-k ch] [-m mapping] [terminal]\n");
+	(void)fprintf(stderr, "%s\n%s\n",
+"usage: tset  [-IQrSs] [-] [-e ch] [-i ch] [-k ch] [-m mapping] [terminal]",
+"       reset [-IQrSs] [-] [-e ch] [-i ch] [-k ch] [-m mapping] [terminal]");
 	exit(1);
 }
+
