@@ -65,7 +65,7 @@ the standard input, if no files are specified, in a user specified
 format.
 .Pp
 The options are as follows:
-.Bl -tag -width Fl
+.Bl -tag -width indent
 .It Fl b
 .Em One-byte octal display .
 Display the input offset in hexadecimal, followed by sixteen
@@ -137,9 +137,7 @@ or
 .Li 1048576 ,
 respectively.
 .It Fl v
-The
-.Fl v
-option causes
+Cause
 .Nm
 to display all input data.
 Without the
@@ -248,7 +246,9 @@ Output characters in the default character set.
 Nonprinting characters are displayed as a single
 .Dq Cm \&. .
 .It Cm _u
-Output US ASCII characters, with the exception that control characters are
+Output US
+.Tn ASCII
+characters, with the exception that control characters are
 displayed using the following, lower-case, names.
 Characters greater than 0xff, hexadecimal, are displayed as hexadecimal
 strings.
@@ -276,7 +276,7 @@ Four byte default, one, two and four byte counts supported.
 .Li \&%E , \&%e , \&%f ,
 .Li \&%G , \&%g
 .Xc
-Eight byte default, four byte counts supported.
+Eight byte default, four and twelve byte counts supported.
 .El
 .Pp
 The amount of data interpreted by each format string is the sum of the

@@ -32,7 +32,7 @@
 .\"	@(#)od.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd May 27, 1994
+.Dd April 17, 2002
 .Os
 .Dt OD 1
 .Sh NAME
@@ -40,7 +40,11 @@
 .Nd octal, decimal, hex, ASCII dump
 .Sh SYNOPSIS
 .Nm
-.Op Fl aBbcDdeFfHhIiLlOovXx
+.Op Fl aBbcDdeFfHhIiLlOosvXx
+.Op Fl A Ar base
+.Op Fl j Ar skip
+.Op Fl N Ar length
+.Op Fl t Ar type
 .Sm off
 .Oo
 .Op Cm \&+
@@ -49,37 +53,202 @@
 .Op Cm Bb
 .Oc
 .Sm on
-.Ar file
+.Op Ar
 .Sh DESCRIPTION
 The
 .Nm
-utility has been deprecated in favor of
-.Xr hexdump 1 .
+utility is a filter which displays the specified files, or standard
+input if no files are specified, in a user specified format.
 .Pp
-The
-.Nm hexdump
-utility, if called as
-.Nm ,
-provides compatibility for the options listed above.
-.Pp
-It does not provide compatibility for the
-.Fl s
-option (see
-.Xr strings 1 )
-or the
-.Fl P ,
-.Fl p ,
+The options are as follows:
+.Bl -tag -width ".Fl I , L , l"
+.It Fl A Ar base
+Specify the input address base.
+.Ar base
+may be one of
+.Cm d ,
+.Cm o ,
+.Cm x
 or
-.Fl w
-options, nor is compatibility provided for the ``label'' component
-of the offset syntax.
+.Cm n ,
+which specify decimal, octal, hexadecimal
+addresses or no address, respectively.
+.It Fl a
+Output named characters.
+Equivalent to
+.Fl t Ar a .
+.It Fl B , o
+Output octal shorts.
+Equivalent to
+.Fl t Ar o2 .
+.It Fl b
+Output octal bytes.
+Equivalent to
+.Fl t Ar o1 .
+.It Fl c
+Output C-style escaped characters.
+Equivalent to
+.Fl t Ar c .
+.It Fl D
+Output unsigned decimal ints.
+Equivalent to
+.Fl t Ar u4 .
+.It Fl e , F
+Output double-precision floating point numbers.
+Equivalent to
+.Fl t Ar fD .
+.It Fl f
+Output single-precision floating point numbers.
+Equivalent to
+.Fl t Ar fF .
+.It Fl H , X
+Output hexadecimal ints.
+Equivalent to
+.Fl t Ar x4 .
+.It Fl h , x
+Output hexadecimal shorts.
+Equivalent to
+.Fl t Ar x2 .
+.It Fl I , L , l
+Output signed decimal longs.
+Equivalent to
+.Fl t Ar dL .
+.It Fl i
+Output signed decimal ints.
+Equivalent to
+.Fl t Ar dI .
+.It Fl j Ar skip
+Skip
+.Ar skip
+bytes of the combined input before dumping.
+The number may be followed by one
+of
+.Cm b , k
+or
+.Cm m
+which specify the units of the number as blocks (512 bytes), kilobytes and
+megabytes, respectively.
+.It Fl N Ar length
+Dump at most
+.Ar length
+bytes of input.
+.It Fl O
+Output octal ints.
+Equivalent to
+.Fl t Ar o4 .
+.It Fl s
+Output signed decimal shorts.
+Equivalent to
+.Fl t Ar d2 .
+.It Fl t Ar type
+Specify the output format.
+.Ar type
+is a string containing one or more of the following kinds of type specifiers:
+.Bl -tag -width indent
+.It Cm a
+Named characters
+.Pq Tn ASCII .
+Control characters are displayed using the following names:
+.Bl -column "000 nul" "001 soh" "002 stx" "003 etx" "004 eot" "005 enq"
+.It "000 nul	001 soh	002 stx	003 etx	004 eot	005 enq"
+.It "006 ack	007 bel	008 bs	009 ht	00A nl	00B vt"
+.It "00C ff	00D cr	00E so	00F si	010 dle	011 dc1"
+.It "012 dc2	013 dc3	014 dc4	015 nak	016 syn	017 etb"
+.It "018 can	019 em	01A sub	01B esc	01C fs	01D gs"
+.It "01E rs	01F us	020 sp	0FF del"
+.El
+.It Cm c
+Characters in the default character set.
+Non-printing characters are
+represented as 3-digit octal character codes, except the following
+characters, which are represented as C escapes:
+.Pp
+.Bl -tag -width carriage-return -compact
+.It NUL
+\e0
+.It alert
+\ea
+.It backspace
+\eb
+.It newline
+\en
+.It carriage-return
+\er
+.It tab
+\et
+.It vertical tab
+\ev
+.El
+.It Xo
+.Sm off
+.Op Cm d | o | u | x
+.Op Cm C | S | I | L | Ar n
+.Sm on
+.Xc
+Signed decimal
+.Pq Cm d ,
+octal
+.Pq Cm o ,
+unsigned decimal
+.Pq Cm u
+or
+hexadecimal
+.Pq Cm x .
+Followed by an optional size specifier, which may be either
+.Cm C
+.Pq Vt char ,
+.Cm S
+.Pq Vt short ,
+.Cm I
+.Pq Vt int ,
+.Cm L
+.Pq Vt long ,
+or a byte count as a decimal integer.
+.It Xo
+.Sm off
+.Cm f
+.Op Cm F | D | L | Ar n
+.Sm on
+.Xc
+Floating-point number.
+Followed by an optional size specifier, which may be either
+.Cm F
+.Pq Vt float ,
+.Cm D
+.Pq Vt double
+or
+.Cm L
+.Pq Vt "long double" .
+.El
+.It Fl v
+Write all input data, instead of replacing lines of duplicate values with a
+.Ql * .
+.El
+.Pp
+Multiple options that specify output format may be used; the output will
+contain one line for each format.
+.Pp
+If no output format is specified,
+.Fl t Ar oS
+is assumed.
+.Sh DIAGNOSTICS
+.Ex -std
+.Sh COMPATIBILITY
+The traditional
+.Fl s
+option to extract string constants is not supported; consider using
+.Xr strings 1
+instead.
 .Sh SEE ALSO
 .Xr hexdump 1 ,
 .Xr strings 1
-.Sh BUGS
-Quite a few.
+.Sh STANDARDS
+The
+.Nm
+utility conforms to
+.St -p1003.1-2001 .
 .Sh HISTORY
-A
+An
 .Nm
 command appeared in
 .At v1 .
