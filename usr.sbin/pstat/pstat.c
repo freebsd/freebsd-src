@@ -124,10 +124,10 @@ main(int argc, char *argv[])
 	if (!strcmp(opts, "swapinfo")) {
 		swapflag = 1;
 		opts = "kM:N:";
-		usagestr = "swapinfo [-k] [-M core] [-N system]";
+		usagestr = "swapinfo [-k] [-M core [-N system]]";
 	} else {
 		opts = "TM:N:fknst";
-		usagestr = "pstat [-Tfknst] [-M core] [-N system]";
+		usagestr = "pstat [-Tfknst] [-M core [-N system]]";
 	}
 
 	while ((ch = getopt(argc, argv, opts)) != -1)
