@@ -382,6 +382,11 @@ msdosfs/msdosfs_fat.c		optional msdosfs
 msdosfs/msdosfs_lookup.c	optional msdosfs
 msdosfs/msdosfs_vfsops.c	optional msdosfs
 msdosfs/msdosfs_vnops.c		optional msdosfs
+ntfs/ntfs_vfsops.c		optional ntfs
+ntfs/ntfs_vnops.c		optional ntfs
+ntfs/ntfs_subr.c		optional ntfs
+ntfs/ntfs_compr.c		optional ntfs
+ntfs/ntfs_ihash.c		optional ntfs
 net/bpf.c		optional bpfilter
 net/bpf_filter.c	optional bpfilter
 net/bridge.c		optional bridge
