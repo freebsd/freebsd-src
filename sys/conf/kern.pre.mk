@@ -18,6 +18,8 @@ SIZE?=		size
 
 .if ${CC} == "icc"
 COPTFLAGS?=-O
+.elif ${MACHINE_ARCH} == "amd64"
+COPTFLAGS?=-O2 -fno-strict-aliasing -frename-registers -pipe
 .else
 COPTFLAGS?=-O -pipe
 . if ${COPTFLAGS:M-O[23s]} != ""
