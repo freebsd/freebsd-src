@@ -202,14 +202,16 @@ findid(name)
 		 * one specific to this host.  If none found, try for
 		 * a generic one.
 		 */
-		(void)snprintf(loginfile, sizeof(loginfile), "%s.%s", _PATH_LOGIN, name);
+		(void)snprintf(loginfile, sizeof(loginfile), "%s.%s", 
+		    _PATH_SLIP_LOGIN, name);
 		if (access(loginfile, R_OK|X_OK) != 0) {
-			(void)strncpy(loginfile, _PATH_LOGIN, sizeof(loginfile)-1);
-			loginfile[sizeof(loginfile)-1] = '\0';
+			(void)strncpy(loginfile, _PATH_SLIP_LOGIN,
+			    sizeof(loginfile) - 1);
+			loginfile[sizeof(loginfile) - 1] = '\0';
 			if (access(loginfile, R_OK|X_OK)) {
 				syslog(LOG_ERR,
 				       "access denied for %s - no %s\n",
-				       name, _PATH_LOGIN);
+				       name, _PATH_SLIP_LOGIN);
 				exit(5);
 			}
 		}
@@ -307,10 +309,12 @@ hup_handler(s)
 
 	(void) close(0);
 	seteuid(0);
-	(void)snprintf(logoutfile, sizeof(logoutfile), "%s.%s", _PATH_LOGOUT, loginname);
+	(void)snprintf(logoutfile, sizeof(logoutfile), "%s.%s",
+	    _PATH_SLIP_LOGOUT, loginname);
 	if (access(logoutfile, R_OK|X_OK) != 0) {
-		(void)strncpy(logoutfile, _PATH_LOGOUT, sizeof(logoutfile)-1);
-		logoutfile[sizeof(logoutfile)-1] = '\0';
+		(void)strncpy(logoutfile, _PATH_SLIP_LOGOUT,
+		    sizeof(logoutfile) - 1);
+		logoutfile[sizeof(logoutfile) - 1] = '\0';
 	}
 	if (access(logoutfile, R_OK|X_OK) == 0) {
 		char logincmd[2*MAXPATHLEN+32];
