@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1997 Doug Rabson
+ * Copyright (c) 1997,1998 Doug Rabson
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: bus.h,v 1.1 1998/06/10 10:57:21 dfr Exp $
  */
 
 #ifndef _SYS_BUS_H_
@@ -34,15 +34,13 @@
 /*
  * Forward declarations
  */
-typedef struct bus	*bus_t;
-typedef struct device	*device_t;
-typedef struct driver	driver_t;
-typedef struct devclass *devclass_t;
+typedef struct device		*device_t;
+typedef struct driver		driver_t;
+typedef struct device_method	device_method_t;
+typedef struct devclass		*devclass_t;
+typedef struct device_ops	*device_ops_t;
+typedef struct device_op_desc	*device_op_desc_t;
 
-typedef int driver_probe_t(bus_t bus, device_t dev);
-typedef int driver_attach_t(bus_t bus, device_t dev);
-typedef int driver_detach_t(bus_t bus, device_t dev);
-typedef int driver_shutdown_t(bus_t bus, device_t dev);
 typedef void driver_intr_t(void*);
 
 typedef enum driver_type {
@@ -53,100 +51,62 @@ typedef enum driver_type {
     MAX_DRIVER_TYPE
 } driver_type_t;
 
+typedef int (*devop_t)(void);
+
+struct device_method {
+    device_op_desc_t	desc;
+    devop_t		func;
+};
+
 struct driver {
-    const char		*name;
-    driver_probe_t	*probe;
-    driver_attach_t	*attach;
-    driver_detach_t	*detach;
-    driver_shutdown_t	*shutdown;
+    const char		*name;		/* driver name */
+    device_method_t	*methods;	/* method table */
     driver_type_t	type;
-    size_t		softc;	/* size of device softc struct */
-    TAILQ_ENTRY(driver) link;	/* list of devices on bus */
-    void		*buspriv; /* private data for the owning bus */
+    size_t		softc;		/* size of device softc struct */
+    TAILQ_ENTRY(driver) link;		/* list of devices on bus */
+    device_ops_t	ops;		/* compiled method table */
 };
 
 typedef enum device_state device_state_t;
 enum device_state {
-    DS_NOTPRESENT,		/* not probed or probe failed */
-    DS_ALIVE,			/* probe succeeded */
-    DS_ATTACHED,		/* attach method called */
-    DS_BUSY			/* device is open */
+    DS_NOTPRESENT,			/* not probed or probe failed */
+    DS_ALIVE,				/* probe succeeded */
+    DS_ATTACHED,			/* attach method called */
+    DS_BUSY				/* device is open */
 };
-
-/*
- * Busses - containers of devices.
- */
-typedef void bus_print_device_t(bus_t bus, device_t dev);
-typedef int bus_read_ivar_t(bus_t bus, device_t dev,
-			    int index, u_long *result);
-typedef int bus_write_ivar_t(bus_t bus, device_t dev,
-			     int index, u_long value);
-typedef int bus_map_intr_t(bus_t bus, device_t dev,
-			   driver_intr_t *intr, void *arg);
-
-typedef struct bus_ops {
-    bus_print_device_t		*print_device;
-    bus_read_ivar_t		*read_ivar;
-    bus_write_ivar_t		*write_ivar;
-    bus_map_intr_t		*map_intr;
-} bus_ops_t;
-
-typedef TAILQ_HEAD(device_list, device) device_list_t;
-
-struct bus {
-    bus_ops_t			*ops;
-    device_t			dev; /* device instance in parent bus */
-    device_list_t		devices;
-};
-
-/*
- * Bus priorities.  This determines the order in which busses are probed.
- */
-#define BUS_PRIORITY_HIGH	1
-#define BUS_PRIORITY_MEDIUM	2
-#define BUS_PRIORITY_LOW	3
 
 /*
  * The root bus, to which all top-level busses are attached.
  */
-extern bus_t root_bus;
+extern device_t root_bus;
 extern devclass_t root_devclass;
 void root_bus_configure(void);
 
 /*
- * Access functions for bus.
+ * Access functions for busses.
  */
-device_t bus_get_device(bus_t bus);
-void bus_print_device(bus_t bus, device_t dev);
-int bus_read_ivar(bus_t bus, device_t dev,
-		  int index, u_long *result);
-int bus_write_ivar(bus_t bus, device_t dev,
-		   int index, u_long value);
-int bus_map_intr(bus_t bus, device_t dev, driver_intr_t *intr, void *arg);
-device_t bus_add_device(bus_t bus, const char *name,
-			int unit, void *ivars);
-device_t bus_add_device_after(bus_t bus, device_t place, const char *name,
-			      int unit, void *ivars);
-int bus_delete_device(bus_t bus, device_t dev);
-device_t bus_find_device(bus_t bus, const char *classname, int unit);
+device_t device_add_child(device_t dev, const char *name,
+			  int unit, void *ivars);
+device_t device_add_child_after(device_t dev, device_t place, const char *name,
+				int unit, void *ivars);
+int device_delete_child(device_t dev, device_t child);
+device_t device_find_child(device_t dev, const char *classname, int unit);
 
 /*
  * Useful functions for implementing busses.
  */
-void bus_init(bus_t bus, device_t dev, bus_ops_t *ops);
-driver_attach_t bus_generic_attach;
-driver_detach_t bus_generic_detach;
-driver_shutdown_t bus_generic_shutdown;
-bus_print_device_t null_print_device;
-bus_read_ivar_t null_read_ivar;
-bus_write_ivar_t null_write_ivar;
-bus_map_intr_t null_map_intr;
-extern bus_ops_t null_bus_ops;
+int bus_generic_attach(device_t dev);
+int bus_generic_detach(device_t dev);
+int bus_generic_shutdown(device_t dev);
+void bus_generic_print_child(device_t dev, device_t child);
+int bus_generic_read_ivar(device_t dev, device_t child, int which, u_long *result);
+int bus_generic_write_ivar(device_t dev, device_t child, int which, u_long value);
+int bus_generic_map_intr(device_t dev, device_t child, driver_intr_t *intr, void *arg);
 
 /*
  * Access functions for device.
  */
-bus_t device_get_parent(device_t dev);
+device_t device_get_parent(device_t dev);
 driver_t *device_get_driver(device_t dev);
 devclass_t device_get_devclass(device_t dev);
 int device_set_devclass(device_t dev, const char *classname);
@@ -181,6 +141,17 @@ void *devclass_get_softc(devclass_t dc, int unit);
 int devclass_get_devices(devclass_t dc, device_t **devlistp, int *devcountp);
 int devclass_get_maxunit(devclass_t dc);
 
+/*
+ * Shorthand for constructing method tables.
+ */
+#define DEVMETHOD(NAME, FUNC) { &NAME##_desc, (devop_t) FUNC }
+
+/*
+ * Some common device interfaces.
+ */
+#include "device_if.h"
+#include "bus_if.h"
+
 #ifdef _SYS_MODULE_H_
 
 /*
@@ -194,7 +165,7 @@ struct driver_module_data {
     devclass_t*		devclass;
 };
 
-int driver_module_handler __P((module_t, modeventtype_t, void*));
+int driver_module_handler(module_t, modeventtype_t, void*);
 
 #define DRIVER_MODULE(name, busname, driver, devclass, evh, arg)	\
 									\

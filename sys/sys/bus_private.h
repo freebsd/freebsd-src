@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1997 Doug Rabson
+ * Copyright (c) 1997,1998 Doug Rabson
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: bus_private.h,v 1.1 1998/06/10 10:57:23 dfr Exp $
  */
 
 #ifndef _SYS_BUS_PRIVATE_H_
@@ -36,6 +36,7 @@
  */
 typedef TAILQ_HEAD(devclass_list, devclass) devclass_list_t;
 typedef TAILQ_HEAD(driver_list, driver) driver_list_t;
+typedef TAILQ_HEAD(device_list, device) device_list_t;
 
 struct devclass {
     TAILQ_ENTRY(devclass) link;
@@ -47,11 +48,40 @@ struct devclass {
 };
 
 /*
+ * Compiled device methods.
+ */
+struct device_ops {
+    int maxoffset;
+    devop_t methods[1];
+};
+
+/*
+ * Helpers for device method wrappers.
+ */
+#define DEVOPDESC(OP)	(&OP##_##desc)
+
+#define DEVOPOFF(DEV, OP)				\
+	((DEVOPDESC(OP)->offset >= DEV->ops->maxoffset	\
+	  || !DEV->ops->methods[DEVOPDESC(OP)->offset])	\
+	 ? 0 : DEVOPDESC(OP)->offset)
+
+#define DEVOPMETH(DEV, OP) (DEV->ops->methods[DEVOPOFF(DEV, OP)])
+
+/*
  * Implementation of device.
  */
 struct device {
-    TAILQ_ENTRY(device)	link;	/* list of devices on a bus */
-    bus_t		parent;
+    /*
+     * Device hierarchy.
+     */
+    TAILQ_ENTRY(device)	link;	/* list of devices in parent */
+    device_t		parent;
+    device_list_t	children; /* list of subordinate devices */
+
+    /*
+     * Details of this device.
+     */
+    device_ops_t	ops;
     driver_t		*driver;
     devclass_t		devclass; /* device class which we are in */
     int			unit;
@@ -66,6 +96,9 @@ struct device {
     void		*softc;
 };
 
-
+struct device_op_desc {
+    unsigned int	offset;	/* offset in driver ops */
+    const char*		name;	/* unique name (for registration) */
+};
 
 #endif /* !_SYS_BUS_PRIVATE_H_ */

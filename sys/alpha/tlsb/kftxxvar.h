@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: kftxxvar.h,v 1.2 1998/06/10 20:48:03 dfr Exp $
  */
 
 /*
@@ -45,7 +45,7 @@ enum kft_dev_ivars {
 static __inline T kft_get_ ## A(device_t dev)				 \
 {									 \
 	u_long v;							 \
-	bus_read_ivar(device_get_parent(dev), dev, KFT_IVAR_ ## B, &v);  \
+	BUS_READ_IVAR(device_get_parent(dev), dev, KFT_IVAR_ ## B, &v);  \
 	return (T) v;							 \
 }
 

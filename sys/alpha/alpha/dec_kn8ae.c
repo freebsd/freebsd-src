@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: dec_kn8ae.c,v 1.1 1998/06/10 10:52:30 dfr Exp $ */
 /* $NetBSD: dec_kn8ae.c,v 1.15 1998/02/13 00:12:50 thorpej Exp $ */
 
 /*
@@ -44,6 +44,7 @@
 
 #include <alpha/tlsb/tlsbreg.h>
 #include <alpha/tlsb/gbusreg.h>
+#include <alpha/tlsb/zsvar.h>
 
 void dec_kn8ae_init(int);
 static void dec_kn8ae_cons_init(void);

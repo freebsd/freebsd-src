@@ -1,4 +1,4 @@
-/* $Id: vmparam.h,v 1.1.1.1 1998/03/09 05:43:16 jb Exp $ */
+/* $Id: vmparam.h,v 1.2 1998/06/10 10:55:30 dfr Exp $ */
 /* From: NetBSD: vmparam.h,v 1.6 1997/09/23 23:23:23 mjacob Exp */
 #ifndef	_ALPHA_VMPARAM_H
 #define	_ALPHA_VMPARAM_H
@@ -133,11 +133,11 @@
  */
 
 /* user/kernel map constants */
-#define VM_MIN_ADDRESS		((vm_offset_t)ALPHA_USEG_BASE) /* 0 */
-#define VM_MAXUSER_ADDRESS	((vm_offset_t)(ALPHA_USEG_END + 1L))
+#define VM_MIN_ADDRESS		(ALPHA_USEG_BASE) /* 0 */
+#define VM_MAXUSER_ADDRESS	((ALPHA_USEG_END + 1LL))
 #define VM_MAX_ADDRESS		VM_MAXUSER_ADDRESS
-#define VM_MIN_KERNEL_ADDRESS	((vm_offset_t)ALPHA_K1SEG_BASE)
-#define VM_MAX_KERNEL_ADDRESS	((vm_offset_t)ALPHA_K1SEG_END)
+#define VM_MIN_KERNEL_ADDRESS	(ALPHA_K1SEG_BASE)
+#define VM_MAX_KERNEL_ADDRESS	(ALPHA_K1SEG_END)
 
 /* virtual sizes (bytes) for various kernel submaps */
 #ifndef VM_KMEM_SIZE
@@ -159,5 +159,5 @@
 #endif
 
 /* some Alpha-specific constants */
-#define	VPTBASE		((vm_offset_t)0xfffffffe00000000) /* Virt. pg table */
+#define	VPTBASE		(0xfffffffe00000000LL) /* Virt. pg table */
 #endif	/* !_ALPHA_VMPARAM_H */

@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: clock.c,v 1.1 1998/06/10 10:52:13 dfr Exp $ */
 /* $NetBSD: clock.c,v 1.20 1998/01/31 10:32:47 ross Exp $ */
 
 /*
@@ -52,8 +52,7 @@
 #include <sys/bus.h>
 
 #include <machine/cpuconf.h>
-
-#include <dev/dec/clockvar.h>
+#include <machine/clockvar.h>
 
 #define	SECMIN	((unsigned)60)			/* seconds per minute */
 #define	SECHOUR	((unsigned)(60*SECMIN))		/* seconds per hour */
@@ -63,13 +62,12 @@
 #define	LEAPYEAR(year)	(((year) % 4) == 0)
 
 device_t clockdev;
-const struct clockfns *clockfns;
 int clockinitted;
 int tickfix;
 int tickfixinterval;
 int	wall_cmos_clock;	/* wall	CMOS clock assumed if != 0 */
 
-extern cycles_per_sec;
+extern int cycles_per_sec;
 
 static timecounter_get_t	alpha_get_timecount;
 static timecounter_pps_t	alpha_poll_pps;
@@ -103,18 +101,15 @@ static u_int32_t last_time;
 static void handleclock(void* arg);
 
 void
-clockattach(dev, fns)
-	struct device *dev;
-	const struct clockfns *fns;
+clockattach(device_t dev)
 {
 
 	/*
 	 * Just bookkeeping.
 	 */
-	if (clockfns != NULL)
+	if (clockdev)
 		panic("clockattach: multiple clocks");
 	clockdev = dev;
-	clockfns = fns;
 #ifdef EVCNT_COUNTERS
 	evcnt_attach(dev, "intr", &clock_intr_evcnt);
 #endif
@@ -140,7 +135,7 @@ clockattach(dev, fns)
 void
 cpu_initclocks()
 {
-	if (clockfns == NULL)
+	if (clockdev == NULL)
 		panic("cpu_initclocks: no clock attached");
 
 	tick = 1000000 / hz;	/* number of microseconds between interrupts */
@@ -177,7 +172,7 @@ cpu_initclocks()
 	/*
 	 * Get the clock started.
 	 */
-	(*clockfns->cf_init)(clockdev);
+	CLOCK_INIT(clockdev);
 }
 
 static void
@@ -241,7 +236,7 @@ inittodr(base)
 	} else
 		badbase = 0;
 
-	(*clockfns->cf_get)(clockdev, base, &ct);
+	CLOCK_GET(clockdev, base, &ct);
 	clockinitted = 1;
 
 	/* simple sanity checks */
@@ -344,7 +339,7 @@ resettodr()
 	ct.min = t / SECMIN;
 	ct.sec = t % SECMIN;
 
-	(*clockfns->cf_set)(clockdev, &ct);
+	CLOCK_SET(clockdev, &ct);
 }
 
 static unsigned

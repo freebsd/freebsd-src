@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1997 Doug Rabson
+ * Copyright (c) 1997,1998 Doug Rabson
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: subr_bus.c,v 1.1 1998/06/10 10:56:45 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -34,44 +34,97 @@
 #include <sys/bus_private.h>
 #include <sys/systm.h>
 
-device_t
-bus_get_device(bus_t bus)
+/*
+ * Method table handling
+ */
+
+static int next_method_offset = 1;
+static int methods_count = 0;
+static int methods_size = 0;
+
+struct method {
+    int offset;
+    char* name;
+};
+
+static struct method *methods = 0;
+
+static void
+register_method(struct device_op_desc *desc)
 {
-    return bus->dev;
+    int i;
+    struct method* m;
+
+    for (i = 0; i < methods_count; i++)
+	if (!strcmp(methods[i].name, desc->name)) {
+	    desc->offset = methods[i].offset;
+	    return;
+	}
+
+    if (methods_count == methods_size) {
+	struct method* p;
+
+	methods_size += 10;
+	p = (struct method*) malloc(methods_size * sizeof(struct method),
+				     M_DEVBUF, M_NOWAIT);
+	if (!p)
+	    panic("register_method: out of memory");
+	if (methods) {
+	    bcopy(methods, p, methods_count * sizeof(struct method));
+	    free(methods, M_DEVBUF);
+	}
+	methods = p;
+    }
+    m = &methods[methods_count++];
+    m->name = malloc(strlen(desc->name) + 1, M_DEVBUF, M_NOWAIT);
+    if (!m->name)
+	    panic("register_method: out of memory");
+    strcpy(m->name, desc->name);
+    desc->offset = m->offset = next_method_offset++;
 }
 
-void
-bus_print_device(bus_t bus, device_t dev)
+static int error_method(void)
 {
-    printf("%s%d", device_get_name(dev), device_get_unit(dev));
-    if (device_is_alive(dev)) {
-	if (device_get_desc(dev))
-	    printf(": <%s>", device_get_desc(dev));
-	bus->ops->print_device(bus, dev);
-    } else
-	printf(" not found");
-    printf("\n");
+    return ENXIO;
 }
 
-int
-bus_read_ivar(bus_t bus, device_t dev,
-	      int index, u_long *result)
+static struct device_ops null_ops = {
+    1, 
+    { error_method }
+};
+
+static void
+compile_methods(driver_t *driver)
 {
-    return bus->ops->read_ivar(bus, dev, index, result);
+    device_ops_t ops;
+    struct device_method *m;
+    int i;
+
+    /*
+     * First register any methods which need it.
+     */
+    for (i = 0, m = driver->methods; m->desc; i++, m++)
+	if (!m->desc->offset)
+	    register_method(m->desc);
+
+    /*
+     * Then allocate the compiled op table.
+     */
+    ops = malloc(sizeof(struct device_ops) + (next_method_offset-1) * sizeof(devop_t),
+		 M_DEVBUF, M_NOWAIT);
+    if (!ops)
+	panic("compile_methods: out of memory");
+    ops->maxoffset = next_method_offset;
+    for (i = 0; i < next_method_offset; i++)
+	ops->methods[i] = error_method;
+    for (i = 0, m = driver->methods; m->desc; i++, m++)
+	ops->methods[m->desc->offset] = m->func;
+    driver->ops = ops;
 }
 
-int
-bus_write_ivar(bus_t bus, device_t dev,
-	       int index, u_long value)
-{
-    return bus->ops->write_ivar(bus, dev, index, value);
-}
-
-int
-bus_map_intr(bus_t bus, device_t dev, driver_intr_t *intr, void *arg)
-{
-    return bus->ops->map_intr(bus, dev, intr, arg);
-}
+/*
+ * Devclass implementation
+ */
 
 static devclass_list_t devclasses;
 
@@ -117,6 +170,11 @@ int
 devclass_add_driver(devclass_t dc, driver_t *driver)
 {
     /*
+     * Compile the drivers methods.
+     */
+    compile_methods(driver);
+
+    /*
      * Make sure the devclass which the driver is implementing exists.
      */
     devclass_find_internal(driver->name, TRUE);
@@ -129,7 +187,7 @@ devclass_add_driver(devclass_t dc, driver_t *driver)
 int
 devclass_delete_driver(devclass_t dc, driver_t *driver)
 {
-    bus_t bus;
+    device_t bus;
     device_t dev;
     int i;
     int error;
@@ -140,11 +198,11 @@ devclass_delete_driver(devclass_t dc, driver_t *driver)
      */
     for (i = 0; i < dc->maxunit; i++) {
 	if (dc->devices[i]) {
-	    bus = dc->devices[i]->softc;
-	    for (dev = TAILQ_FIRST(&bus->devices); dev;
+	    bus = dc->devices[i]->parent;
+	    for (dev = TAILQ_FIRST(&bus->children); dev;
 		 dev = TAILQ_NEXT(dev, link))
 		if (dev->driver == driver) {
-		    if (error = device_detach(dev))
+		    if (error = DEVICE_DETACH(dev))
 			return error;
 		    device_set_driver(dev, NULL);
 		}
@@ -305,7 +363,7 @@ devclass_delete_device(devclass_t dc, device_t dev)
 }
 
 static device_t
-make_device(bus_t bus, const char *name,
+make_device(device_t parent, const char *name,
 	    int unit, void *ivars)
 {
     driver_t *driver;
@@ -329,7 +387,9 @@ make_device(bus_t bus, const char *name,
     if (!dev)
 	return 0;
 
-    dev->parent = bus;
+    dev->parent = parent;
+    TAILQ_INIT(&dev->children);
+    dev->ops = &null_ops;
     dev->driver = NULL;
     dev->devclass = dc;
     dev->unit = unit;
@@ -351,53 +411,58 @@ make_device(bus_t bus, const char *name,
     return dev;
 }
 
-void
-bus_init(bus_t bus, device_t dev, bus_ops_t *ops)
+static void
+device_print_child(device_t dev, device_t child)
 {
-	bus->ops = ops;
-	bus->dev = dev;
-	TAILQ_INIT(&bus->devices);
+    printf("%s%d", device_get_name(child), device_get_unit(child));
+    if (device_is_alive(child)) {
+	if (device_get_desc(child))
+	    printf(": <%s>", device_get_desc(child));
+	BUS_PRINT_CHILD(dev, child);
+    } else
+	printf(" not found");
+    printf("\n");
 }
 
 device_t
-bus_add_device(bus_t bus, const char *name, int unit, void *ivars)
+device_add_child(device_t dev, const char *name, int unit, void *ivars)
 {
-    device_t dev;
+    device_t child;
 
-    dev = make_device(bus, name, unit, ivars);
+    child = make_device(dev, name, unit, ivars);
 
-    TAILQ_INSERT_TAIL(&bus->devices, dev, link);
+    TAILQ_INSERT_TAIL(&dev->children, child, link);
 
-    return dev;
+    return child;
 }
 
 device_t
-bus_add_device_after(bus_t bus, device_t place, const char *name,
-		     int unit, void *ivars)
+device_add_child_after(device_t dev, device_t place, const char *name,
+		       int unit, void *ivars)
 {
-    device_t dev;
+    device_t child;
 
-    dev = make_device(bus, name, unit, ivars);
+    child = make_device(dev, name, unit, ivars);
 
     if (place) {
-	TAILQ_INSERT_AFTER(&bus->devices, place, dev, link);
+	TAILQ_INSERT_AFTER(&dev->children, place, dev, link);
     } else {
-	TAILQ_INSERT_HEAD(&bus->devices, dev, link);
+	TAILQ_INSERT_HEAD(&dev->children, dev, link);
     }
 
-    return dev;
+    return child;
 }
 
 int
-bus_delete_device(bus_t bus, device_t dev)
+device_delete_child(device_t dev, device_t child)
 {
     int error;
 
-    if (error = device_detach(dev))
+    if (error = DEVICE_DETACH(child))
 	return error;
-    if (dev->devclass)
-	devclass_delete_device(dev->devclass, dev);
-    TAILQ_REMOVE(&bus->devices, dev, link);
+    if (child->devclass)
+	devclass_delete_device(child->devclass, child);
+    TAILQ_REMOVE(&dev->children, child, link);
     free(dev, M_DEVBUF);
 
     return 0;
@@ -407,18 +472,18 @@ bus_delete_device(bus_t bus, device_t dev)
  * Find only devices attached to this bus.
  */
 device_t
-bus_find_device(bus_t bus, const char *classname, int unit)
+device_find_child(device_t dev, const char *classname, int unit)
 {
     devclass_t dc;
-    device_t dev;
+    device_t child;
 
     dc = devclass_find(classname);
     if (!dc)
 	return NULL;
 
-    dev = devclass_get_device(dc, unit);
-    if (dev && dev->parent == bus)
-	return dev;
+    child = devclass_get_device(dc, unit);
+    if (child && child->parent == dev)
+	return child;
     return NULL;
 }
 
@@ -446,27 +511,27 @@ next_matching_driver(devclass_t dc, device_t dev, driver_t *last)
 }
 
 static int
-bus_probe_device(bus_t bus, device_t dev)
+device_probe_child(device_t dev, device_t child)
 {
     devclass_t dc;
     driver_t *driver;
     void *softc;
 
-    dc = bus->dev->devclass;
+    dc = dev->devclass;
     if (dc == NULL)
-	panic("bus_probe_device: bus' device has no devclass");
+	panic("device_probe_child: parent device has no devclass");
 
-    if (dev->state == DS_ALIVE)
+    if (child->state == DS_ALIVE)
 	return 0;
 
-    for (driver = first_matching_driver(dc, dev);
+    for (driver = first_matching_driver(dc, child);
 	 driver;
-	 driver = next_matching_driver(dc, dev, driver)) {
-	device_set_driver(dev, driver);
-	if (driver->probe(bus, dev) == 0) {
-	    if (!dev->devclass)
-		device_set_devclass(dev, driver->name);
-	    dev->state = DS_ALIVE;
+	 driver = next_matching_driver(dc, child, driver)) {
+	device_set_driver(child, driver);
+	if (DEVICE_PROBE(child) == 0) {
+	    if (!child->devclass)
+		device_set_devclass(child, driver->name);
+	    child->state = DS_ALIVE;
 	    return 0;
 	}
     }
@@ -474,51 +539,7 @@ bus_probe_device(bus_t bus, device_t dev)
     return ENXIO;
 }
 
-int
-bus_generic_attach(bus_t parent, device_t busdev)
-{
-    bus_t bus = busdev->softc;
-    device_t dev;
-    int error;
-
-    for (dev = TAILQ_FIRST(&bus->devices);
-	 dev; dev = TAILQ_NEXT(dev, link))
-	device_probe_and_attach(dev);
-
-    return 0;
-}
-
-int
-bus_generic_detach(bus_t parent, device_t busdev)
-{
-    bus_t bus = busdev->softc;
-    device_t dev;
-    int error;
-
-    if (busdev->state != DS_ATTACHED)
-	return EBUSY;
-
-    for (dev = TAILQ_FIRST(&bus->devices);
-	 dev; dev = TAILQ_NEXT(dev, link))
-	device_detach(dev);
-
-    return 0;
-}
-
-int
-bus_generic_shutdown(bus_t parent, device_t busdev)
-{
-    bus_t bus = busdev->softc;
-    device_t dev;
-
-    for (dev = TAILQ_FIRST(&bus->devices);
-	 dev; dev = TAILQ_NEXT(dev, link))
-	device_shutdown(dev);
-
-    return 0;
-}
-
-bus_t
+device_t
 device_get_parent(device_t dev)
 {
     return dev->parent;
@@ -598,7 +619,7 @@ device_busy(device_t dev)
     if (dev->state < DS_ATTACHED)
 	panic("device_busy: called for unattached device");
     if (dev->busy == 0 && dev->parent)
-	device_busy(dev->parent->dev);
+	device_busy(dev->parent);
     dev->busy++;
     dev->state = DS_BUSY;
 }
@@ -610,8 +631,8 @@ device_unbusy(device_t dev)
 	panic("device_unbusy: called for non-busy device");
     dev->busy--;
     if (dev->busy == 0) {
-	if (dev->parent->dev)
-	    device_unbusy(dev->parent->dev);
+	if (dev->parent)
+	    device_unbusy(dev->parent);
 	dev->state = DS_ATTACHED;
     }
 }
@@ -658,8 +679,10 @@ device_set_driver(device_t dev, driver_t *driver)
 	free(dev->softc, M_DEVBUF);
 	dev->softc = NULL;
     }
+    dev->ops = &null_ops;
     dev->driver = driver;
     if (driver) {
+	dev->ops = driver->ops;
 	dev->softc = malloc(driver->softc, M_DEVBUF, M_NOWAIT);
 	bzero(dev->softc, driver->softc);
     }
@@ -669,17 +692,17 @@ device_set_driver(device_t dev, driver_t *driver)
 int
 device_probe_and_attach(device_t dev)
 {
-    bus_t bus = dev->parent;
+    device_t bus = dev->parent;
     int error;
 
     if (dev->state >= DS_ALIVE)
 	return 0;
 
     if (dev->flags & DF_ENABLED) {
-	bus_probe_device(bus, dev);
-	bus_print_device(bus, dev);
+	device_probe_child(bus, dev);
+	device_print_child(bus, dev);
 	if (dev->state == DS_ALIVE) {
-	    error = dev->driver->attach(bus, dev);
+	    error = DEVICE_ATTACH(dev);
 	    if (!error)
 		dev->state = DS_ATTACHED;
 	    else {
@@ -706,11 +729,8 @@ device_detach(device_t dev)
     if (dev->state != DS_ATTACHED)
 	return 0;
 
-    if (dev->driver->detach) {
-	if (error = dev->driver->detach(dev->parent, dev))
+    if (error = DEVICE_DETACH(dev))
 	    return error;
-    } else
-	return EBUSY;
 
     if (!(dev->flags & DF_FIXEDCLASS))
 	devclass_delete_device(dev->devclass, dev);
@@ -726,67 +746,108 @@ device_shutdown(device_t dev)
 {
     if (dev->state < DS_ATTACHED)
 	return 0;
-    if (dev->driver->shutdown)
-	return dev->driver->shutdown(dev->parent, dev);
-    else
-	return 0;
+    return DEVICE_SHUTDOWN(dev);
+}
+
+/*
+ * Some useful method implementations to make life easier for bus drivers.
+ */
+int
+bus_generic_attach(device_t dev)
+{
+    device_t child;
+    int error;
+
+    for (child = TAILQ_FIRST(&dev->children);
+	 child; child = TAILQ_NEXT(child, link))
+	device_probe_and_attach(child);
+
+    return 0;
+}
+
+int
+bus_generic_detach(device_t dev)
+{
+    device_t child;
+    int error;
+
+    if (dev->state != DS_ATTACHED)
+	return EBUSY;
+
+    for (child = TAILQ_FIRST(&dev->children);
+	 child; child = TAILQ_NEXT(child, link))
+	DEVICE_DETACH(child);
+
+    return 0;
+}
+
+int
+bus_generic_shutdown(device_t dev)
+{
+    device_t child;
+
+    for (child = TAILQ_FIRST(&dev->children);
+	 child; child = TAILQ_NEXT(child, link))
+	DEVICE_SHUTDOWN(child);
+
+    return 0;
 }
 
 void
-null_print_device(bus_t bus, device_t dev)
+bus_generic_print_child(device_t dev, device_t child)
 {
 }
 
 int
-null_read_ivar(bus_t bus, device_t dev, int index, u_long* result)
-{
-    return ENOENT;
-}
-
-int
-null_write_ivar(bus_t bus, device_t dev, int index, u_long value)
+bus_generic_read_ivar(device_t dev, device_t child, int index, u_long* result)
 {
     return ENOENT;
 }
 
 int
-null_map_intr(bus_t bus, device_t dev, driver_intr_t *intr, void *arg)
+bus_generic_write_ivar(device_t dev, device_t child, int index, u_long value)
+{
+    return ENOENT;
+}
+
+int
+bus_generic_map_intr(device_t dev, device_t child, driver_intr_t *intr, void *arg)
 {
     /* Propagate up the bus hierarchy until someone handles it. */
-    if (bus->dev)
-	return bus_map_intr(bus->dev->parent, bus->dev, intr, arg);
+    if (dev->parent)
+	return BUS_MAP_INTR(dev->parent, dev, intr, arg);
     else
 	return EINVAL;
 }
 
-bus_ops_t null_bus_ops = {
-    null_print_device,
-    null_read_ivar,
-    null_write_ivar,
-    null_map_intr,
-};
-
-static void
-root_bus_print_device(bus_t bus, device_t dev)
+static int root_map_intr(device_t dev, device_t child,
+			 driver_intr_t *intr, void *arg)
 {
-}
-
-static int root_bus_map_intr(bus_t bus, device_t dev,
-			     driver_intr_t *intr, void *arg)
-{
+    /*
+     * If an interrupt mapping gets to here something bad has happened.
+     * Should probably panic.
+     */
     return EINVAL;
 }
 
-static bus_ops_t root_bus_ops = {
-    root_bus_print_device,
-    null_read_ivar,
-    null_write_ivar,
-    root_bus_map_intr,
+static device_method_t root_methods[] = {
+	/* Bus interface */
+	DEVMETHOD(bus_print_child,	bus_generic_print_child),
+	DEVMETHOD(bus_read_ivar,	bus_generic_read_ivar),
+	DEVMETHOD(bus_write_ivar,	bus_generic_write_ivar),
+	DEVMETHOD(bus_map_intr,		root_map_intr),
+
+	{ 0, 0 }
 };
 
-static struct bus the_root_bus;
-bus_t root_bus = &the_root_bus;
-device_t root_device;
+static driver_t root_driver = {
+	"root",
+	root_methods,
+	DRIVER_TYPE_MISC,
+	1,			/* no softc */
+};
+
+device_t root_bus;
 devclass_t root_devclass;
 
 static int
@@ -795,9 +856,11 @@ root_bus_module_handler(module_t mod, modeventtype_t what, void* arg)
     switch (what) {
     case MOD_LOAD:
 	devclass_init();
-	root_device = make_device(NULL, "root", 0, NULL);
-	root_device->state = DS_ATTACHED;
-	bus_init(root_bus, root_device, &root_bus_ops);
+	compile_methods(&root_driver);
+	root_bus = make_device(NULL, "root", 0, NULL);
+	root_bus->ops = root_driver.ops;
+	root_bus->driver = &root_driver;
+	root_bus->state = DS_ATTACHED;
 	root_devclass = devclass_find("root");
 	return 0;
     }
@@ -818,7 +881,7 @@ root_bus_configure()
     device_t dev;
     int error;
 
-    for (dev = TAILQ_FIRST(&root_bus->devices); dev;
+    for (dev = TAILQ_FIRST(&root_bus->children); dev;
 	 dev = TAILQ_NEXT(dev, link)) {
 	device_probe_and_attach(dev);
     }

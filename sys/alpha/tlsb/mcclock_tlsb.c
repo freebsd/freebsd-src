@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: mcclock_tlsb.c,v 1.1 1998/06/10 10:55:52 dfr Exp $ */
 /* $NetBSD: mcclock_tlsb.c,v 1.8 1998/05/13 02:50:29 thorpej Exp $ */
 
 /*
@@ -37,7 +37,7 @@
 #include <sys/module.h>
 #include <sys/bus.h>
 
-#include <dev/dec/clockvar.h>
+#include <machine/clockvar.h>
 #include <dev/dec/mcclockvar.h>
 
 #include <alpha/tlsb/gbusvar.h>
@@ -53,71 +53,73 @@
 #define	REGSHIFT	6
 
 struct mcclock_tlsb_softc {
-	struct mcclock_softc	sc_mcclock;
 	unsigned long regbase;
 };
 
-static int mcclock_tlsb_probe(bus_t, device_t);
-static int mcclock_tlsb_attach(bus_t, device_t);
+static int	mcclock_tlsb_probe(device_t dev);
+static int	mcclock_tlsb_attach(device_t dev);
+static void	mcclock_tlsb_write(device_t, u_int, u_int);
+static u_int	mcclock_tlsb_read(device_t, u_int);
+
+static device_method_t mcclock_tlsb_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		mcclock_tlsb_probe),
+	DEVMETHOD(device_attach,	mcclock_tlsb_attach),
+
+	/* mcclock interface */
+	DEVMETHOD(mcclock_write,	mcclock_tlsb_write),
+	DEVMETHOD(mcclock_read,		mcclock_tlsb_read),
+
+	/* clock interface */
+	DEVMETHOD(clock_init,		mcclock_init),
+	DEVMETHOD(clock_get,		mcclock_get),
+	DEVMETHOD(clock_set,		mcclock_set),
+
+	{ 0, 0 }
+};
+
+static driver_t mcclock_tlsb_driver = {
+	"mcclock",
+	mcclock_tlsb_methods,
+	DRIVER_TYPE_MISC,
+	sizeof(struct mcclock_tlsb_softc),
+};
 
 static devclass_t mcclock_devclass;
 
-driver_t mcclock_tlsb_driver = {
-	"mcclock",
-	mcclock_tlsb_probe,
-	mcclock_tlsb_attach,
-	NULL,
-	NULL,
-	DRIVER_TYPE_MISC,
-	sizeof(struct mcclock_tlsb_softc),
-	NULL,
-};
-
-static void	mcclock_tlsb_write __P((struct mcclock_softc *, u_int, u_int));
-static u_int	mcclock_tlsb_read __P((struct mcclock_softc *, u_int));
-
-const struct mcclock_busfns mcclock_tlsb_busfns = {
-	mcclock_tlsb_write, mcclock_tlsb_read,
-};
-
 int
-mcclock_tlsb_probe(bus_t bus, device_t dev)
+mcclock_tlsb_probe(device_t dev)
 {
 	device_set_desc(dev, "MC146818A real time clock");
 	return 0;
 }
 
 int
-mcclock_tlsb_attach(bus_t bus, device_t dev)
+mcclock_tlsb_attach(device_t dev)
 {
 	struct mcclock_tlsb_softc *sc = device_get_softc(dev);
 
 	/* XXX Should be bus.h'd, so we can accomodate the kn7aa. */
 
-	sc->sc_mcclock.sc_dev = dev;
 	sc->regbase = TLSB_GBUS_BASE + gbus_get_offset(dev);
 
-	mcclock_attach(&sc->sc_mcclock, &mcclock_tlsb_busfns);
+	mcclock_attach(dev);
 	return 0;
 }
 
 static void
-mcclock_tlsb_write(mcsc, reg, val)
-	struct mcclock_softc *mcsc;
-	u_int reg, val;
+mcclock_tlsb_write(device_t dev, u_int reg, u_int val)
 {
-	struct mcclock_tlsb_softc *sc = (struct mcclock_tlsb_softc *)mcsc;
+	struct mcclock_tlsb_softc *sc = device_get_softc(dev);
 	unsigned char *ptr = (unsigned char *)
 		KV(sc->regbase + (reg << REGSHIFT));
 	*ptr = val;
 }
 
 static u_int
-mcclock_tlsb_read(mcsc, reg)
-	struct mcclock_softc *mcsc;
-	u_int reg;
+mcclock_tlsb_read(device_t dev, u_int reg)
 {
-	struct mcclock_tlsb_softc *sc = (struct mcclock_tlsb_softc *)mcsc;
+	struct mcclock_tlsb_softc *sc = device_get_softc(dev);
 	unsigned char *ptr = (unsigned char *)
 		KV(sc->regbase + (reg << REGSHIFT));
 	return *ptr;
