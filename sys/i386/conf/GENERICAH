@@ -1,7 +1,7 @@
 #
 # GENERICAH -- Generic machine with WD/AHx family disks
 #
-#	$Id: GENERICAH,v 1.20 1994/01/04 20:10:30 nate Exp $
+#	$Id: GENERICAH,v 1.21 1994/01/05 14:56:46 rgrimes Exp $
 #
 
 machine		"i386"
@@ -60,13 +60,6 @@ device		mcd0	at isa? port 0x300 bio irq 10 vector mcdintr
 device		pc0	at isa? port "IO_KBD" tty irq 1 vector pcrint
 device		npx0	at isa? port "IO_NPX" irq 13 vector npxintr
 
-#The old drivers are rarely needed anymore...
-#device		com0	at isa? port "IO_COM1" tty irq 4 vector comintr
-#device		com1	at isa? port "IO_COM2" tty irq 3 vector comintr
-#device		com2	at isa? port "IO_COM3" tty irq 5 vector comintr
-#device		com3	at isa? port "IO_COM4" tty irq 9 vector comintr
-
-#For high speed serial lines.
 device		sio0	at isa? port "IO_COM1" tty irq 4 vector siointr
 device		sio1	at isa? port "IO_COM2" tty irq 3 vector siointr
 device		sio2	at isa? port "IO_COM3" tty irq 5 vector siointr
