@@ -56,6 +56,7 @@ static const char rcsid[] =
 #include <net/route.h>
 #include <net/if_dl.h>
 #include <netinet/in.h>
+#include <netinet/if_ether.h>
 #include <netatalk/at.h>
 #ifdef NS
 #include <netns/ns.h>
@@ -94,6 +95,7 @@ union	sockunion {
 	struct	sockaddr_ns sns;
 #endif
 	struct	sockaddr_dl sdl;
+	struct	sockaddr_inarp sinarp;
 	struct	sockaddr_storage ss; /* added to avoid memory overrun */
 } so_dst, so_gate, so_mask, so_genmask, so_ifa, so_ifp;
 
@@ -185,7 +187,6 @@ main(argc, argv)
 		case K_ADD:
 		case K_DELETE:
 			newroute(argc, argv);
-			exit(0);
 			/* NOTREACHED */
 
 		case K_MONITOR:
@@ -348,13 +349,8 @@ routename(sa)
 		if (cp) {
 			strncpy(line, cp, sizeof(line) - 1);
 			line[sizeof(line) - 1] = '\0';
-		} else {
-			/* XXX - why not inet_ntoa()? */
-#define C(x)	(unsigned)((x) & 0xff)
-			in.s_addr = ntohl(in.s_addr);
-			(void) sprintf(line, "%u.%u.%u.%u", C(in.s_addr >> 24),
-			   C(in.s_addr >> 16), C(in.s_addr >> 8), C(in.s_addr));
-		}
+		} else
+			(void) sprintf(line, "%s", inet_ntoa(in));
 		break;
 	    }
 
@@ -472,6 +468,7 @@ netname(sa)
 			if (np)
 				cp = np->n_name;
 		}
+#define C(x)	(unsigned)((x) & 0xff)
 		if (cp)
 			strncpy(line, cp, sizeof(line));
 		else if ((in.s_addr & 0xffffff) == 0)
@@ -486,6 +483,7 @@ netname(sa)
 			(void) sprintf(line, "%u.%u.%u.%u", C(in.s_addr >> 24),
 			    C(in.s_addr >> 16), C(in.s_addr >> 8),
 			    C(in.s_addr));
+#undef C
 		break;
 	    }
 
@@ -585,7 +583,7 @@ newroute(argc, argv)
 	register char **argv;
 {
 	char *cmd, *dest = "", *gateway = "", *err;
-	int ishost = 0, ret, attempts, oerrno, flags = RTF_STATIC;
+	int ishost = 0, proxy = 0, ret, attempts, oerrno, flags = RTF_STATIC;
 	int key;
 	struct hostent *hp = 0;
 
@@ -656,6 +654,9 @@ newroute(argc, argv)
 				break;
 			case K_PROTO2:
 				flags |= RTF_PROTO2;
+				break;
+			case K_PROXY:
+				proxy = 1;
 				break;
 			case K_CLONING:
 				flags |= RTF_CLONING;
@@ -735,6 +736,7 @@ newroute(argc, argv)
 				(void) getaddr(RTA_GATEWAY, *argv, &hp);
 			} else {
 				(void) getaddr(RTA_NETMASK, *argv, 0);
+				forcenet = 1;
 			}
 		}
 	}
@@ -754,6 +756,10 @@ newroute(argc, argv)
 		flags |= RTF_HOST;
 	if (iflag == 0)
 		flags |= RTF_GATEWAY;
+	if (proxy) {
+		so_dst.sinarp.sin_other = SIN_PROXY;
+		flags |= RTF_ANNOUNCE;
+	}
 	for (attempts = 1; ; attempts++) {
 		errno = 0;
 		if ((ret = rtmsg(*cmd, flags)) == 0)
@@ -777,9 +783,10 @@ newroute(argc, argv)
 		    (void) printf(" (%s)",
 			inet_ntoa(((struct sockaddr_in *)&route.rt_gateway)->sin_addr));
 	}
-	if (ret == 0)
+	if (ret == 0) {
 		(void) printf("\n");
-	else {
+		exit(0);
+	} else {
 		switch (oerrno) {
 		case ESRCH:
 			err = "not in table";
@@ -790,11 +797,15 @@ newroute(argc, argv)
 		case ENOBUFS:
 			err = "routing table overflow";
 			break;
+		case EDQUOT: /* handle recursion avoidance in rt_setgate() */
+			err = "gateway uses the same route";
+			break;
 		default:
 			err = strerror(oerrno);
 			break;
 		}
 		(void) printf(": %s\n", err);
+		exit(1);
 	}
 }
 
@@ -807,10 +818,7 @@ inet_makenetandmask(net, sin, bits)
 	register char *cp;
 
 	rtm_addrs |= RTA_NETMASK;
-	if (bits) {
-		addr = net;
-		mask = 0xffffffff << (32 - bits);
-	} else if (net == 0)
+	if (net == 0)
 		mask = addr = 0;
 	else if (net < 128) {
 		addr = net << IN_CLASSA_NSHIFT;
@@ -832,6 +840,8 @@ inet_makenetandmask(net, sin, bits)
 		else
 			mask = -1;
 	}
+	if (bits)
+		mask = 0xffffffff << (32 - bits);
 	sin->sin_addr.s_addr = htonl(addr);
 	sin = &so_mask.sin;
 	sin->sin_addr.s_addr = htonl(mask);
@@ -1013,16 +1023,16 @@ getaddr(which, s, hpp)
 	q = strchr(s,'/');
 	if (q && which == RTA_DST) {
 		*q = '\0';
-		if ((val = inet_addr(s)) != INADDR_NONE) {
+		if ((val = inet_network(s)) != INADDR_NONE) {
 			inet_makenetandmask(
-				ntohl(val), &su->sin, strtoul(q+1, 0, 0));
+				val, &su->sin, strtoul(q+1, 0, 0));
 			return (0);
 		}
 		*q = '/';
 	}
 	if ((which != RTA_DST || forcenet == 0) &&
-	    (val = inet_addr(s)) != INADDR_NONE) {
-		su->sin.sin_addr.s_addr = val;
+	    inet_aton(s, &su->sin.sin_addr)) {
+		val = su->sin.sin_addr.s_addr;
 		if (which != RTA_DST ||
 		    inet_lnaof(su->sin.sin_addr) != INADDR_ANY)
 			return (1);
