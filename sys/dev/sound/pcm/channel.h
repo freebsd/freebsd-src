@@ -26,6 +26,11 @@
  * $FreeBSD$
  */
 
+struct pcmchan_children {
+	SLIST_ENTRY(pcmchan_children) link;
+	struct pcm_channel *channel;
+};
+
 struct pcmchan_caps {
 	u_int32_t minspeed, maxspeed;
 	u_int32_t *fmtlist;
@@ -36,6 +41,8 @@ struct pcmchan_caps {
 struct pcm_channel {
 	kobj_t methods;
 
+	pid_t pid;
+	int refcount;
 	struct pcm_feeder *feeder;
 	u_int32_t align;
 
@@ -48,10 +55,12 @@ struct pcm_channel {
 
 	int direction;
 	struct snd_dbuf *bufhard, *bufsoft;
-	struct snddev_info *parent;
+	struct snddev_info *parentsnddev;
+	struct pcm_channel *parentchannel;
 	void *devinfo;
 	char name[CHN_NAMELEN];
 	void *lock;
+	SLIST_HEAD(, pcmchan_children) children;
 };
 
 #include "channel_if.h"
@@ -86,12 +95,15 @@ int chn_abort(struct pcm_channel *c);
 void chn_wrupdate(struct pcm_channel *c);
 void chn_rdupdate(struct pcm_channel *c);
 
+int chn_notify(struct pcm_channel *c, u_int32_t flags);
+
 #define CHN_LOCK(c) mtx_lock((struct mtx *)((c)->lock))
 #define CHN_UNLOCK(c) mtx_unlock((struct mtx *)((c)->lock))
 #define CHN_LOCKASSERT(c)
 
 int fmtvalid(u_int32_t fmt, u_int32_t *fmtlist);
 
+#define PCMDIR_VIRTUAL 2
 #define PCMDIR_PLAY 1
 #define PCMDIR_REC -1
 
@@ -114,7 +126,15 @@ int fmtvalid(u_int32_t fmt, u_int32_t *fmtlist);
 #define CHN_F_DEAD		0x00020000
 #define CHN_F_BADSETTING	0x00040000
 
-#define CHN_F_RESET		(CHN_F_BUSY | CHN_F_DEAD)
+#define	CHN_F_VIRTUAL		0x10000000  /* not backed by hardware */
+
+#define CHN_F_RESET		(CHN_F_BUSY | CHN_F_DEAD | CHN_F_VIRTUAL)
+
+#define CHN_N_RATE		0x00000001
+#define CHN_N_FORMAT		0x00000002
+#define CHN_N_VOLUME		0x00000004
+#define CHN_N_BLOCKSIZE		0x00000008
+#define CHN_N_TRIGGER		0x00000010
 
 /*
  * This should be large enough to hold all pcm data between

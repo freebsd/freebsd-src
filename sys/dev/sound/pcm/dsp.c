@@ -33,22 +33,6 @@
 
 #define OLDPCM_IOCTL
 
-static int getchns(struct snddev_info *d, int chan, struct pcm_channel **rdch, struct pcm_channel **wrch);
-
-static struct pcm_channel *
-allocchn(struct snddev_info *d, int direction)
-{
-	struct pcm_channel *chns = (direction == PCMDIR_PLAY)? d->play : d->rec;
-	int i, cnt = (direction == PCMDIR_PLAY)? d->playcount : d->reccount;
-	for (i = 0; i < cnt; i++) {
-		if (!(chns[i].flags & (CHN_F_BUSY | CHN_F_DEAD))) {
-			chns[i].flags |= CHN_F_BUSY;
-			return &chns[i];
-		}
-	}
-	return NULL;
-}
-
 static int
 getchns(struct snddev_info *d, int chan, struct pcm_channel **rdch, struct pcm_channel **wrch)
 {
@@ -75,35 +59,54 @@ setchns(struct snddev_info *d, int chan)
 }
 
 int
-dsp_open(struct snddev_info *d, int chan, int oflags, int devtype)
+dsp_open(struct snddev_info *d, int chan, int oflags, int devtype, pid_t pid)
 {
 	struct pcm_channel *rdch, *wrch;
 	u_int32_t fmt;
 
-	if (chan >= d->chancount) return ENODEV;
-	if ((d->flags & SD_F_SIMPLEX) && (d->ref[chan] > 0)) return EBUSY;
+	if (chan >= d->chancount)
+		return ENODEV;
+	if ((d->flags & SD_F_SIMPLEX) && (d->arec[chan] || d->aplay[chan]))
+		return EBUSY;
 
 	rdch = d->arec[chan];
 	wrch = d->aplay[chan];
+
 	if (oflags & FREAD) {
 		if (rdch == NULL) {
-			rdch = allocchn(d, PCMDIR_REC);
-			if (!rdch) return EBUSY;
-		} else return EBUSY;
+			rdch = pcm_chnalloc(d, PCMDIR_REC);
+			if (!rdch)
+				return EBUSY;
+			rdch->pid = pid;
+		} else
+			return EBUSY;
 	}
+
 	if (oflags & FWRITE) {
 		if (wrch == NULL) {
-			wrch = allocchn(d, PCMDIR_PLAY);
+			wrch = pcm_chnalloc(d, PCMDIR_PLAY);
 			if (!wrch) {
 				if (rdch && (oflags & FREAD))
-					rdch->flags &= ~CHN_F_BUSY;
+					pcm_chnfree(rdch);
 				return EBUSY;
 			}
-		} else return EBUSY;
+			wrch->pid = pid;
+		} else
+			return EBUSY;
 	}
+
+	if (rdch) {
+		CHN_LOCK(rdch);
+		pcm_chnref(rdch, 1);
+	}
+	if (wrch) {
+		CHN_LOCK(wrch);
+		pcm_chnref(wrch, 1);
+	}
+
 	d->aplay[chan] = wrch;
 	d->arec[chan] = rdch;
-	d->ref[chan]++;
+
 	switch (devtype) {
 	case SND_DEV_DSP16:
 		fmt = AFMT_S16_LE;
@@ -124,10 +127,6 @@ dsp_open(struct snddev_info *d, int chan, int oflags, int devtype)
 	default:
 		return ENXIO;
 	}
-	if (rdch)
-		CHN_LOCK(rdch);
-	if (wrch)
-		CHN_LOCK(wrch);
 
 	if (rdch && (oflags & FREAD)) {
 	        chn_reset(rdch, fmt);
@@ -149,28 +148,38 @@ dsp_close(struct snddev_info *d, int chan, int devtype)
 {
 	struct pcm_channel *rdch, *wrch;
 
-	d->ref[chan]--;
-	if (d->ref[chan]) return 0;
-	d->flags &= ~SD_F_TRANSIENT;
 	rdch = d->arec[chan];
 	wrch = d->aplay[chan];
+
+	if (rdch && pcm_chnref(rdch, -1))
+		return 0;
+	if (wrch && pcm_chnref(wrch, -1))
+		return 0;
+
+	d->aplay[chan] = NULL;
+	d->arec[chan] = NULL;
+
+	d->flags &= ~SD_F_TRANSIENT;
 
 	if (rdch) {
 		CHN_LOCK(rdch);
 		chn_abort(rdch);
-		rdch->flags &= ~(CHN_F_BUSY | CHN_F_RUNNING | CHN_F_MAPPED | CHN_F_DEAD);
+		rdch->flags &= ~(CHN_F_RUNNING | CHN_F_MAPPED | CHN_F_DEAD);
 		chn_reset(rdch, 0);
+		rdch->pid = -1;
+		pcm_chnfree(rdch);
 		CHN_UNLOCK(rdch);
 	}
 	if (wrch) {
 		CHN_LOCK(wrch);
 		chn_flush(wrch);
-		wrch->flags &= ~(CHN_F_BUSY | CHN_F_RUNNING | CHN_F_MAPPED | CHN_F_DEAD);
+		wrch->flags &= ~(CHN_F_RUNNING | CHN_F_MAPPED | CHN_F_DEAD);
 		chn_reset(wrch, 0);
+		wrch->pid = -1;
+		pcm_chnfree(wrch);
 		CHN_UNLOCK(wrch);
 	}
-	d->aplay[chan] = NULL;
-	d->arec[chan] = NULL;
+
 	return 0;
 }
 

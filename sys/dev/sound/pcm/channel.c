@@ -121,6 +121,7 @@ chn_dmaupdate(struct pcm_channel *c)
 	struct snd_dbuf *b = c->bufhard;
 	unsigned int delta, old, hwptr, amt;
 
+	KASSERT(sndbuf_getsize(b) > 0, ("bufsize == 0"));
 	CHN_LOCKASSERT(c);
 	old = sndbuf_gethwptr(b);
 	hwptr = chn_getptr(c);
@@ -130,7 +131,7 @@ chn_dmaupdate(struct pcm_channel *c)
 	DEB(
 	if (delta >= ((sndbuf_getsize(b) * 15) / 16)) {
 		if (!(c->flags & (CHN_F_CLOSING | CHN_F_ABORTING)))
-			device_printf(c->parent->dev, "hwptr went backwards %d -> %d\n", old, hwptr);
+			device_printf(c->parentsnddev->dev, "hwptr went backwards %d -> %d\n", old, hwptr);
 	}
 	);
 
@@ -231,13 +232,13 @@ chn_write(struct pcm_channel *c, struct uio *buf)
 	 * the write operation avoids blocking.
 	 */
 	if ((c->flags & CHN_F_NBIO) && buf->uio_resid > sndbuf_getblksz(bs)) {
-		DEB(device_printf(c->parent->dev, "broken app, nbio and tried to write %d bytes with fragsz %d\n",
+		DEB(device_printf(c->parentsnddev->dev, "broken app, nbio and tried to write %d bytes with fragsz %d\n",
 			buf->uio_resid, sndbuf_getblksz(bs)));
 		newsize = 16;
 		while (newsize < min(buf->uio_resid, CHN_2NDBUFMAXSIZE / 2))
 			newsize <<= 1;
 		chn_setblocksize(c, sndbuf_getblkcnt(bs), newsize);
-		DEB(device_printf(c->parent->dev, "frags reset to %d x %d\n", sndbuf_getblkcnt(bs), sndbuf_getblksz(bs)));
+		DEB(device_printf(c->parentsnddev->dev, "frags reset to %d x %d\n", sndbuf_getblkcnt(bs), sndbuf_getblksz(bs)));
 	}
 
 	ret = 0;
@@ -271,7 +272,7 @@ chn_write(struct pcm_channel *c, struct uio *buf)
 
 	if (count <= 0) {
 		c->flags |= CHN_F_DEAD;
-		device_printf(c->parent->dev, "play interrupt timeout, channel dead\n");
+		device_printf(c->parentsnddev->dev, "play interrupt timeout, channel dead\n");
 	}
 
 	return ret;
@@ -391,7 +392,7 @@ chn_read(struct pcm_channel *c, struct uio *buf)
 
 	if (count <= 0) {
 		c->flags |= CHN_F_DEAD;
-		device_printf(c->parent->dev, "record interrupt timeout, channel dead\n");
+		device_printf(c->parentsnddev->dev, "record interrupt timeout, channel dead\n");
 	}
 
 	return ret;
@@ -423,8 +424,19 @@ chn_start(struct pcm_channel *c, int force)
 	i = (c->direction == PCMDIR_PLAY)? sndbuf_getready(bs) : sndbuf_getfree(bs);
 	if (force || (i >= sndbuf_getblksz(b))) {
 		c->flags |= CHN_F_TRIGGERED;
-		if (c->direction == PCMDIR_PLAY)
-			chn_wrfeed(c);
+		/*
+		 * if we're starting because a vchan started, don't feed any data
+		 * or it becomes impossible to start vchans synchronised with the
+		 * first one.  the hardbuf should be empty so we top it up with
+		 * silence to give it something to chew.  the real data will be
+		 * fed at the first irq.
+		 */
+		if (c->direction == PCMDIR_PLAY) {
+			if (SLIST_EMPTY(&c->children))
+				chn_wrfeed(c);
+			else
+				sndbuf_fillsilence(b);
+		}
 		sndbuf_setrun(b, 1);
 	    	chn_trigger(c, PCMTRIG_START);
 		return 0;
@@ -458,7 +470,6 @@ chn_sync(struct pcm_channel *c, int threshold)
 
 	CHN_LOCKASSERT(c);
     	for (;;) {
-		chn_wrupdate(c);
 		rdy = (c->direction == PCMDIR_PLAY)? sndbuf_getfree(bs) : sndbuf_getready(bs);
 		if (rdy <= threshold) {
 	    		ret = chn_sleep(c, "pcmsyn", 1);
@@ -495,7 +506,7 @@ chn_poll(struct pcm_channel *c, int ev, struct proc *p)
  * chn_abort terminates a running dma transfer.  it may sleep up to 200ms.
  * it returns the number of bytes that have not been transferred.
  *
- * called from: dsp_close, dsp_ioctl, with both bufhards locked
+ * called from: dsp_close, dsp_ioctl, with channel locked
  */
 int
 chn_abort(struct pcm_channel *c)
@@ -509,7 +520,10 @@ chn_abort(struct pcm_channel *c)
 		return 0;
 	c->flags |= CHN_F_ABORTING;
 
-	/* wait up to 200ms for the secondary bufhard to empty */
+	/*
+	 * wait up to 200ms for the secondary buffer to empty-
+	 * a vchan will never have data in the secondary buffer so we won't sleep
+	 */
 	cnt = 10;
 	while ((sndbuf_getready(bs) > 0) && (cnt-- > 0)) {
 		chn_sleep(c, "pcmabr", hz / 50);
@@ -649,7 +663,7 @@ chn_init(struct pcm_channel *c, void *devinfo, int dir)
 		sndbuf_destroy(b);
 		return ENODEV;
 	}
-	if (sndbuf_getsize(b) == 0) {
+	if ((sndbuf_getsize(b) == 0) && ((c->flags & CHN_F_VIRTUAL) == 0)) {
 		sndbuf_destroy(bs);
 		sndbuf_destroy(b);
 		return ENOMEM;
@@ -714,6 +728,7 @@ chn_tryspeed(struct pcm_channel *c, int speed)
 	int r, delta;
 
 	CHN_LOCKASSERT(c);
+	DEB(printf("setspeed, channel %s\n", c->name));
 	DEB(printf("want speed %d, ", speed));
 	if (speed <= 0)
 		return EINVAL;
@@ -724,7 +739,7 @@ chn_tryspeed(struct pcm_channel *c, int speed)
 		RANGE(speed, chn_getcaps(c)->minspeed, chn_getcaps(c)->maxspeed);
 		DEB(printf("try speed %d, ", speed));
 		sndbuf_setspd(b, CHANNEL_SETSPEED(c->methods, c->devinfo, speed));
-		DEB(printf("got speed %d, ", sndbuf_getspd(b)));
+		DEB(printf("got speed %d\n", sndbuf_getspd(b)));
 
 		delta = sndbuf_getspd(b) - sndbuf_getspd(bs);
 		if (delta < 0)
@@ -762,6 +777,7 @@ chn_tryspeed(struct pcm_channel *c, int speed)
 		r = FEEDER_SET(f, FEEDRATE_DST, sndbuf_getspd(b));
 		DEB(printf("feeder_set(FEEDRATE_DST, %d) = %d\n", sndbuf_getspd(b), r));
 out:
+		DEB(printf("setspeed done, r = %d\n", r));
 		return r;
 	} else
 		return EINVAL;
@@ -957,17 +973,32 @@ chn_buildfeeder(struct pcm_channel *c)
 
 	c->align = sndbuf_getalign(c->bufsoft);
 
-	fc = feeder_getclass(NULL);
-	if (fc == NULL) {
-		DEB(printf("can't find root feeder\n"));
-		return EINVAL;
+	if (SLIST_EMPTY(&c->children)) {
+		fc = feeder_getclass(NULL);
+		if (fc == NULL) {
+			DEB(printf("can't find root feeder\n"));
+			return EINVAL;
+		}
+		if (chn_addfeeder(c, fc, NULL)) {
+			DEB(printf("can't add root feeder\n"));
+			return EINVAL;
+		}
+		c->feeder->desc->out = c->format;
+	} else {
+		desc.type = FEEDER_MIXER;
+		desc.in = 0;
+		desc.out = c->format;
+		desc.flags = 0;
+		fc = feeder_getclass(&desc);
+		if (fc == NULL) {
+			DEB(printf("can't find vchan feeder\n"));
+			return EINVAL;
+		}
+		if (chn_addfeeder(c, fc, &desc)) {
+			DEB(printf("can't add vchan feeder\n"));
+			return EINVAL;
+		}
 	}
-	if (chn_addfeeder(c, fc, NULL)) {
-		DEB(printf("can't add root feeder\n"));
-		return EINVAL;
-	}
-	c->feeder->desc->out = c->format;
-
 	flags = c->feederflags;
 
 	if ((c->flags & CHN_F_MAPPED) && (flags != 0)) {
@@ -1020,3 +1051,63 @@ chn_buildfeeder(struct pcm_channel *c)
 	return 0;
 }
 
+int
+chn_notify(struct pcm_channel *c, u_int32_t flags)
+{
+	struct pcmchan_children *pce;
+	struct pcm_channel *child;
+
+	if (SLIST_EMPTY(&c->children))
+		return ENODEV;
+
+	if (flags & CHN_N_RATE) {
+		/*
+		 * we could do something here, like scan children and decide on
+		 * the most appropriate rate to mix at, but we don't for now
+		 */
+	}
+	if (flags & CHN_N_FORMAT) {
+		/*
+		 * we could do something here, like scan children and decide on
+		 * the most appropriate mixer feeder to use, but we don't for now
+		 */
+	}
+	if (flags & CHN_N_VOLUME) {
+		/*
+		 * we could do something here but we don't for now
+		 */
+	}
+	if (flags & CHN_N_BLOCKSIZE) {
+		int blksz;
+		/*
+		 * scan the children, find the lowest blocksize and use that
+		 * for the hard blocksize
+		 */
+		blksz = sndbuf_getmaxsize(c->bufhard) / 2;
+		SLIST_FOREACH(pce, &c->children, link) {
+			child = pce->channel;
+			if (sndbuf_getblksz(child->bufhard) < blksz)
+				blksz = sndbuf_getblksz(child->bufhard);
+		}
+		chn_setblocksize(c, 2, blksz);
+	}
+	if (flags & CHN_N_TRIGGER) {
+		int run;
+		/*
+		 * scan the children, and figure out if any are running
+		 * if so, we need to be running, otherwise we need to be stopped
+		 * if we aren't in our target sstate, move to it
+		 */
+		run = 0;
+		SLIST_FOREACH(pce, &c->children, link) {
+			child = pce->channel;
+			if (child->flags & CHN_F_TRIGGERED)
+				run = 1;
+		}
+		if (run && !(c->flags & CHN_F_TRIGGERED))
+			chn_start(c, 1);
+		if (!run && (c->flags & CHN_F_TRIGGERED))
+			chn_abort(c);
+	}
+	return 0;
+}
