@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aic7870.c,v 1.11.2.18 1996/10/06 16:42:35 gibbs Exp $
+ *	$Id: aic7870.c,v 1.40 1996/10/25 06:43:10 gibbs Exp $
  */
 
 #if defined(__FreeBSD__)
@@ -80,10 +80,12 @@
 
 #endif /* defined(__NetBSD__) */
 
+#define PCI_DEVICE_ID_ADAPTEC_398XU	0x83789004ul
 #define PCI_DEVICE_ID_ADAPTEC_3940U	0x82789004ul
 #define PCI_DEVICE_ID_ADAPTEC_2944U	0x84789004ul
 #define PCI_DEVICE_ID_ADAPTEC_2940U	0x81789004ul
 #define PCI_DEVICE_ID_ADAPTEC_2940AU	0x61789004ul
+#define PCI_DEVICE_ID_ADAPTEC_398X	0x73789004ul
 #define PCI_DEVICE_ID_ADAPTEC_3940	0x72789004ul
 #define PCI_DEVICE_ID_ADAPTEC_2944	0x74789004ul
 #define PCI_DEVICE_ID_ADAPTEC_2940	0x71789004ul
@@ -92,6 +94,7 @@
 #define PCI_DEVICE_ID_ADAPTEC_AIC7860	0x60789004ul
 #define PCI_DEVICE_ID_ADAPTEC_AIC7855	0x55789004ul
 #define PCI_DEVICE_ID_ADAPTEC_AIC7850	0x50789004ul
+#define PCI_DEVICE_ID_ADAPTEC_AIC7810	0x10789004ul
 
 #define	DEVCONFIG		0x40
 #define		MPORTMODE	0x00000400ul	/* aic7870 only */
@@ -176,11 +179,13 @@ struct seeprom_config {
   u_int16_t checksum;		/* word 31 */
 };
 
-static void load_seeprom __P((struct ahc_data *ahc));
+static void load_seeprom __P((struct ahc_softc *ahc));
 static int acquire_seeprom __P((struct seeprom_descriptor *sd));
 static void release_seeprom __P((struct seeprom_descriptor *sd));
 
-static u_char aic3940_count;
+static int aic3940_count;
+static int aic398X_count;
+static struct ahc_softc *first_398X;
 
 #if defined(__FreeBSD__)
 
@@ -201,8 +206,14 @@ static  char*
 aic7870_probe (pcici_t tag, pcidi_t type)
 {
 	switch (type) {
+	case PCI_DEVICE_ID_ADAPTEC_398XU:
+		return ("Adaptec 398X Ultra SCSI RAID adapter");
+		break;
 	case PCI_DEVICE_ID_ADAPTEC_3940U:
 		return ("Adaptec 3940 Ultra SCSI host adapter");
+		break;
+	case PCI_DEVICE_ID_ADAPTEC_398X:
+		return ("Adaptec 398X SCSI RAID adapter");
 		break;
 	case PCI_DEVICE_ID_ADAPTEC_3940:
 		return ("Adaptec 3940 SCSI host adapter");
@@ -237,6 +248,9 @@ aic7870_probe (pcici_t tag, pcidi_t type)
 	case PCI_DEVICE_ID_ADAPTEC_AIC7850:
 		return ("Adaptec aic7850 SCSI host adapter");
 		break;
+	case PCI_DEVICE_ID_ADAPTEC_AIC7810:
+		return ("Adaptec aic7810 RAID memory controller");
+		break;
 	default:
 		break;
 	}
@@ -250,7 +264,7 @@ int ahc_pci_probe __P((struct device *, void *, void *));
 void ahc_pci_attach __P((struct device *, struct device *, void *));
 
 struct cfattach ahc_pci_ca = {
-	sizeof(struct ahc_data), ahc_pci_probe, ahc_pci_attach
+	sizeof(struct ahc_softc), ahc_pci_probe, ahc_pci_attach
 };
 
 int
@@ -261,10 +275,12 @@ ahc_pci_probe(parent, match, aux)
         struct pci_attach_args *pa = aux;
 
 	switch (pa->pa_id) {
+	case PCI_DEVICE_ID_ADAPTEC_398XU:
 	case PCI_DEVICE_ID_ADAPTEC_3940U:
 	case PCI_DEVICE_ID_ADAPTEC_2944U:
 	case PCI_DEVICE_ID_ADAPTEC_2940U:
 	case PCI_DEVICE_ID_ADAPTEC_2940AU:
+	case PCI_DEVICE_ID_ADAPTEC_398X:
 	case PCI_DEVICE_ID_ADAPTEC_3940:
 	case PCI_DEVICE_ID_ADAPTEC_2944:
 	case PCI_DEVICE_ID_ADAPTEC_2940:
@@ -273,6 +289,7 @@ ahc_pci_probe(parent, match, aux)
 	case PCI_DEVICE_ID_ADAPTEC_AIC7860:
 	case PCI_DEVICE_ID_ADAPTEC_AIC7855:
 	case PCI_DEVICE_ID_ADAPTEC_AIC7850:
+	case PCI_DEVICE_ID_ADAPTEC_AIC7810:
 		return 1;
 	}
 	return 0;
@@ -293,10 +310,10 @@ ahc_pci_attach(parent, self, aux)
 {
 #if defined(__FreeBSD__)
 	u_int16_t io_port;
-	struct	  ahc_data *ahc;
+	struct	  ahc_softc *ahc;
 #elif defined(__NetBSD__)
 	struct pci_attach_args *pa = aux;
-	struct ahc_data *ahc = (void *)self;
+	struct ahc_softc *ahc = (void *)self;
 	int unit = ahc->sc_dev.dv_unit;
 	bus_io_addr_t iobase;
 	bus_io_size_t iosize;
@@ -305,6 +322,7 @@ ahc_pci_attach(parent, self, aux)
 	const char *intrstr;
 #endif
 	u_int32_t id;
+	struct scb_data *shared_scb_data;
 	int opri = 0;
 	ahc_type  ahc_t = AHC_NONE;
 	ahc_flag  ahc_f = AHC_FNONE;
@@ -313,12 +331,17 @@ ahc_pci_attach(parent, self, aux)
 	u_int8_t    ultra_enb = 0;
 	u_int8_t    our_id = 0;
 
+	shared_scb_data = NULL;
 #if defined(__FreeBSD__)
 	if (pci_map_port(config_id, PCI_BASEADR0, &io_port) == 0)
 		return;
-
+#ifdef AHC_FORCE_PIO
+	vaddr = NULL;
+	paddr = NULL;
+#else
 	if (pci_map_mem(config_id, PCI_BASEADR1, &vaddr, &paddr) == 0)
 		return;
+#endif
 #elif defined(__NetBSD__)
 	if (pci_io_find(pa->pa_pc, pa->pa_tag, PCI_BASEADR0, &iobase, &iosize))
 		return;
@@ -331,16 +354,40 @@ ahc_pci_attach(parent, self, aux)
 #elif defined(__NetBSD__)
 	switch (id = pa->pa_id) {
 #endif
+		case PCI_DEVICE_ID_ADAPTEC_398XU:
+		case PCI_DEVICE_ID_ADAPTEC_398X:
+			if (id == PCI_DEVICE_ID_ADAPTEC_398XU)
+				ahc_t = AHC_398U;
+			else
+				ahc_t = AHC_398;
+			switch (aic398X_count) {
+			case 0:
+				break;
+			case 1:
+				ahc_f |= AHC_CHNLB;
+				break;
+			case 2:
+				ahc_f |= AHC_CHNLC;
+				break;
+			default:
+				break;
+			}
+			aic398X_count++; 
+			if (first_398X != NULL)
+#ifdef AHC_SHARE_SCBS
+				shared_scb_data = first_398X->scb_data;
+#endif
+			break;
 	case PCI_DEVICE_ID_ADAPTEC_3940U:
 	case PCI_DEVICE_ID_ADAPTEC_3940:
 		if (id == PCI_DEVICE_ID_ADAPTEC_3940U)
 			ahc_t = AHC_394U;
 		else
 			ahc_t = AHC_394;
-		aic3940_count++;
-		if ((aic3940_count & 0x01) == 0)
-			/* Even count implies second channel */
+		if ((aic3940_count & 0x01) != 0)
+			/* Odd count implies second channel */
 			ahc_f |= AHC_CHNLB;
+		aic3940_count++;
 		break;
 	case PCI_DEVICE_ID_ADAPTEC_2944U:
 	case PCI_DEVICE_ID_ADAPTEC_2940U:
@@ -366,6 +413,15 @@ ahc_pci_attach(parent, self, aux)
 	case PCI_DEVICE_ID_ADAPTEC_AIC7850:
 		ahc_t = AHC_AIC7850;
 		break;
+	case PCI_DEVICE_ID_ADAPTEC_AIC7810:
+		/*
+		 * This is the first device probed on a RAID
+		 * controller, so reset our counts.
+		 */
+		aic398X_count = 0;
+		first_398X = NULL;
+		printf("RAID functionality unsupported\n");
+		return;
 	default:
 		break;
 	}
@@ -399,11 +455,19 @@ ahc_pci_attach(parent, self, aux)
 			pci_conf_read(pa->pa_pc, pa->pa_tag, DEVCONFIG);
 #endif
 
+#ifdef AHC_SHARE_SCBS
 		if (devconfig & (RAMPSM)) {
-			/*
-			 * XXX What about EXTSCBTIME and EXTSCBPEN???
-			 * They are probably card dependant.
+			/* XXX Assume 9bit SRAM and enable parity checking */
+			devconfig |= EXTSCBPEN;
+
+			/* XXX Assume fast SRAM and only enable 2 cycle
+			 * access if we are sharing the SRAM across mutiple
+			 * adapters (398X adapter).
 			 */
+			if ((devconfig & MPORTMODE) == 0)
+				/* Multi-user mode */
+				devconfig |= EXTSCBTIME;
+
 			devconfig &= ~SCBRAMSEL;
 #if defined(__FreeBSD__)
 			pci_conf_write(config_id, DEVCONFIG, devconfig);
@@ -412,10 +476,12 @@ ahc_pci_attach(parent, self, aux)
 				       DEVCONFIG, devconfig);
 #endif
 		}
+#endif
 	}
 
 #if defined(__FreeBSD__)
-	if ((ahc = ahc_alloc(unit, io_port, vaddr, ahc_t, ahc_f)) == NULL)
+	if ((ahc = ahc_alloc(unit, io_port, vaddr, ahc_t, ahc_f,
+	     shared_scb_data)) == NULL)
 		return;  /* XXX PCI code should take return status */
 
 	if (!(pci_map_int(config_id, ahc_intr, (void *)ahc, &bio_imask))) {
@@ -465,12 +531,14 @@ ahc_pci_attach(parent, self, aux)
 		char	 *id_string;
 
 		switch(ahc->type) {
+		case AHC_398U:
 		case AHC_394U:
 		case AHC_294U:
 		case AHC_AIC7880:
 			id_string = "aic7880 ";
 			load_seeprom(ahc);
 			break;
+		case AHC_398:
 		case AHC_394:
 		case AHC_294:
 		case AHC_AIC7870:
@@ -560,6 +628,12 @@ ahc_pci_attach(parent, self, aux)
 		splx(opri);
 		return; /* XXX PCI code should take return status */
 	}
+
+	if ((ahc->type & AHC_398) == AHC_398) {
+		/* Only set this once we've successfully probed */
+		if (shared_scb_data == NULL)
+			first_398X = ahc;
+	}
 	splx(opri);
 
 	ahc_attach(ahc);
@@ -570,23 +644,32 @@ ahc_pci_attach(parent, self, aux)
  */
 void
 load_seeprom(ahc)
-	struct	ahc_data *ahc;
+	struct	ahc_softc *ahc;
 {
-	struct	seeprom_descriptor sd;
-	struct	seeprom_config sc;
-	u_short *scarray = (u_short *)&sc;
-	u_short	checksum = 0;
-	u_char	scsi_conf;
-	u_char	host_id;
-	int	have_seeprom;
+	struct	  seeprom_descriptor sd;
+	struct	  seeprom_config sc;
+	u_int16_t *scarray = (u_int16_t *)&sc;
+	u_int16_t checksum = 0;
+	u_int8_t  scsi_conf;
+	u_int8_t  host_id;
+	int	  have_seeprom;
                  
 #if defined(__FreeBSD__)
+#ifdef AHC_FORCE_PIO
+	sd.sd_maddr = NULL;
+#else
 	sd.sd_maddr = ahc->maddr + SEECTL;
+#endif
+	sd.sd_iobase = ahc->baseport + SEECTL;
 #elif defined(__NetBSD__)
 	sd.sd_bc = ahc->sc_bc;
 	sd.sd_ioh = ahc->sc_ioh;
 	sd.sd_offset = SEECTL;
 #endif
+	if ((ahc->type & AHC_398) == AHC_398)
+		sd.sd_chip = C56_66;
+	else
+		sd.sd_chip = C46;
 	sd.sd_MS = SEEMS;
 	sd.sd_RDY = SEERDY;
 	sd.sd_CS = SEECS;
@@ -600,7 +683,7 @@ load_seeprom(ahc)
 	if (have_seeprom) {
 		have_seeprom = read_seeprom(&sd,
 					    (u_int16_t *)&sc,
-					    ahc->flags & AHC_CHNLB,
+					    ahc->flags & (AHC_CHNLB|AHC_CHNLC),
 					    sizeof(sc)/2);
 		release_seeprom(&sd);
 		if (have_seeprom) {
