@@ -1,7 +1,39 @@
-.\" This module is believed to contain source code proprietary to AT&T.
-.\" Use and redistribution is subject to the Berkeley Software License
-.\" Agreement and your Software Agreement with AT&T (Western Electric).
-.\"
+.\" Copyright (C) Caldera International Inc. 2001-2002.  All rights reserved.
+.\" 
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are
+.\" met:
+.\" 
+.\" Redistributions of source code and documentation must retain the above
+.\" copyright notice, this list of conditions and the following
+.\" disclaimer.
+.\" 
+.\" Redistributions in binary form must reproduce the above copyright
+.\" notice, this list of conditions and the following disclaimer in the
+.\" documentation and/or other materials provided with the distribution.
+.\" 
+.\" All advertising materials mentioning features or use of this software
+.\" must display the following acknowledgement:
+.\" 
+.\" This product includes software developed or owned by Caldera
+.\" International, Inc.  Neither the name of Caldera International, Inc.
+.\" nor the names of other contributors may be used to endorse or promote
+.\" products derived from this software without specific prior written
+.\" permission.
+.\" 
+.\" USE OF THE SOFTWARE PROVIDED FOR UNDER THIS LICENSE BY CALDERA
+.\" INTERNATIONAL, INC.  AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL CALDERA INTERNATIONAL, INC. BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+.\" BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+.\" OR OTHERWISE) RISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+.\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\" 
 .\"	@(#)Clang.ms	8.1 (Berkeley) 6/8/93
 .\"
 .\" $FreeBSD$
@@ -17,6 +49,9 @@ Murray Hill, NJ 07974
 This manual is a reprint, with updates to the current C standard, from 
 \fIThe C Programming Language\fR,
 by Brian W. Kernighan and Dennis M. Richie, Prentice-Hall, Inc., 1978.
+.PP
+\fBThis document is of historical interest only.  Do not use it as a reference
+for modern implementations of C.\fP
 .EH 'PSD:6-%''The C Programming Language - Reference Manual'
 .OH 'The C Programming Language - Reference Manual''PSD:6-%'
 .NH 1
@@ -327,7 +362,7 @@ float range	   \(+-10	\(+-38	   \(+-10	\(+-38	    \(+-10	\(+-38
 double range	   \(+-10	\(+-38	   \(+-10	\(+-38	    \(+-10	\(+-308
 \^	\^		\^		\^
 .TE
-.FG 4 4 1 "DEC PDP-11 HARDWARE CHARACTERISTICS"
+.\" .FG 4 4 1 "DEC PDP-11 HARDWARE CHARACTERISTICS"
 .DE
 .PP
 .NH 1 
@@ -370,17 +405,19 @@ found in the identifier's storage.
 .NH 2 
 Storage Class
 .PP
+.\" The original text had borrowed BL, LI and LE from the mm macros.
+.\" That way madness lies.
 There are four declarable storage classes:
-.BL 6 1
-.LI
-Automatic
-.LI
-Static
-.LI
-External
-.LI
-Register.
-.LE
+.RS
+.br
+\(bu Automatic
+.br
+\(bu Static
+.br
+\(bu External
+.br
+\(bu Register.
+.RE
 .PP
 Automatic variables are local to each invocation of
 a block (see ``Compound Statement or Block'' in 
@@ -501,24 +538,17 @@ generate no value.
 Besides the fundamental arithmetic types, there is a
 conceptually infinite class of derived types constructed
 from the fundamental types in the following ways:
-.BL 6 1
-.LI
-\fIArrays\fR
+.IP \fIArrays\fR
 of objects of most types
-.LI
-\fIFunctions\fR
+.IP \fIFunctions\fR
 which return objects of a given type
-.LI
-\fIPointers\fR
+.IP \fIPointers\fR
 to objects of a given type
-.LI
-\fIStructures\fR
+.IP \fIStructures\fR
 containing a sequence of objects of various types
-.LI
-\fIUnions\fR
+.IP \fIUnions\fR
 capable of containing any one of several objects of various types.
-.LE
-.PP
+.LP
 In general these methods
 of constructing objects can
 be applied recursively.
@@ -715,8 +745,7 @@ Arithmetic Conversions
 A great many operators cause conversions
 and yield result types in a similar way.
 This pattern will be called the ``usual arithmetic conversions.''
-.AL 1 6 
-.LI
+.IP 1.
 First, any operands of type
 .B
 char
@@ -730,7 +759,7 @@ are converted to
 and any operands of type \fBunsigned char\fR
 or \fBunsigned short\fR are converted
 to \fBunsigned int\fR.
-.LI
+.IP 2.
 Then, if either operand is
 .B
 double,
@@ -740,11 +769,11 @@ the other is converted to
 double
 .R
 and that is the type of the result.
-.LI
+.IP 3.
 Otherwise, if either operand is \fBunsigned long\fR,
 the other is converted to \fBunsigned long\fR and that
 is the type of the result.
-.LI
+.IP 4.
 Otherwise, if either operand is
 \fBlong\fR,
 the other is converted to
@@ -752,12 +781,12 @@ the other is converted to
 long
 .R
 and that is the type of the result.
-.LI
+.IP 5.
 Otherwise, if one operand is \fBlong\fR, and
 the other is \fBunsigned int\fR, they are both
 converted to \fBunsigned long\fR and that is
 the type of the result.
-.LI
+.IP 6.
 Otherwise, if either operand is
 .B
 unsigned,
@@ -767,11 +796,11 @@ the other is converted to
 unsigned
 .R
 and that is the type of the result.
-.LI
+.IP 7.
 Otherwise, both operands must be
 \fBint\fR,
 and that is the type of the result.
-.LE
+.LP
 .NH 2 
 Void
 .PP
@@ -2492,12 +2521,12 @@ For example,
 .DS L 
 \fBenum color { chartreuse, burgundy, claret=20, winedark };
 \&...
-enum color \(\(**\(**cp, col;
+enum color *cp, col;
 \&...
 col = claret;
 cp = &col;
 \&...
-if (\(\(**\(**cp == burgundy) ...\fR
+if (*cp == burgundy) ...\fR
 .DE
 .LP 
 makes
@@ -4543,4 +4572,4 @@ Preprocessor
              \fB#line\fI constant \fB"\fIfilename\|\fB"
 .sp 5
 .DE
-.TC 2 1 3 0
+.\" .TC 2 1 3 0
