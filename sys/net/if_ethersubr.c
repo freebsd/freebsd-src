@@ -212,6 +212,8 @@ ether_output(ifp, m, dst, rt0)
 		struct llc llc;
 
 		M_PREPEND(m, LLC_SNAPFRAMELEN, M_TRYWAIT);
+		if (m == NULL)
+			senderr(ENOBUFS);
 		llc.llc_dsap = llc.llc_ssap = LLC_SNAP_LSAP;
 		llc.llc_control = LLC_UI;
 		bcopy(at_org_code, llc.llc_snap_org_code, sizeof(at_org_code));
@@ -249,7 +251,7 @@ ether_output(ifp, m, dst, rt0)
 	 * allocate another.
 	 */
 	M_PREPEND(m, ETHER_HDR_LEN, M_DONTWAIT);
-	if (m == 0)
+	if (m == NULL)
 		senderr(ENOBUFS);
 	eh = mtod(m, struct ether_header *);
 	(void)memcpy(&eh->ether_type, &type,
