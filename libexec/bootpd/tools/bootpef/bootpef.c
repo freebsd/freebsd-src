@@ -37,11 +37,7 @@ SOFTWARE.
 
 
 
-#ifdef	__STDC__
 #include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
 
 #include <sys/types.h>
 #include <sys/time.h>
@@ -89,17 +85,8 @@ SOFTWARE.
  * Externals, forward declarations, and global variables
  */
 
-#ifdef	__STDC__
-#define P(args) args
-#else
-#define P(args) ()
-#endif
-
-static void mktagfile P((struct host *));
-static void usage P((void));
-
-#undef P
-
+static void mktagfile(struct host *);
+static void usage(void);
 
 /*
  * General
