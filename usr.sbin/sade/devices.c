@@ -109,7 +109,9 @@ static struct _devname {
     { DEVICE_TYPE_NETWORK,	"nge",		"NatSemi PCI gigabit ethernet card"				},
     { DEVICE_TYPE_NETWORK,	"pcn",		"AMD Am79c79x PCI ethernet card"				},
     { DEVICE_TYPE_NETWORK,	"ray",		"Raytheon Raylink 802.11 wireless adaptor"			},
+    { DEVICE_TYPE_NETWORK,	"re",		"RealTek 8139C+/8169/8169S/8110S PCI ethernet card"				},
     { DEVICE_TYPE_NETWORK,	"rl",		"RealTek 8129/8139 PCI ethernet card"				},
+    { DEVICE_TYPE_NETWORK,	"rue",		"RealTek USB ethernet card"				},
     { DEVICE_TYPE_NETWORK,	"sf",		"Adaptec AIC-6915 PCI ethernet card"				},
     { DEVICE_TYPE_NETWORK,	"sis",		"SiS 900/SiS 7016 PCI ethernet card"				},
 #ifdef PC98
