@@ -12,9 +12,12 @@
  * Department of Chemical Engineering
  * The University of Texas at Austin
  * Austin, Texas  78712
- *
- * $FreeBSD$
  */
+
+#ifndef lint
+static const char rcsid[] =
+  "$FreeBSD$";
+#endif /* not lint */
 
 #define MAN_MAIN
 
