@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: machdep.c,v 1.2 1998/06/10 19:59:40 dfr Exp $
+ *	$Id: machdep.c,v 1.3 1998/06/10 20:35:10 dfr Exp $
  */
 /*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -128,6 +128,7 @@
 #include <machine/prom.h>
 #include <machine/chipset.h>
 #include <machine/vmparam.h>
+#include <machine/elf.h>
 #include <ddb/ddb.h>
 
 #ifdef SYSVSHM
@@ -367,10 +368,11 @@ again:
 
 #if defined(USERCONFIG)
 #if defined(USERCONFIG_BOOT)
-	if (1) {
+	if (1)
 #else
-        if (boothowto & RB_CONFIG) {
+        if (boothowto & RB_CONFIG)
 #endif
+	{
 		userconfig();
 		cninit();	/* the preferred console may have changed */
 	}
@@ -527,8 +529,20 @@ alpha_init(pfn, ptb, bim, bip, biv)
 	} else {
 		bootinfo_msg = "boot program did not pass bootinfo";
 	nobootinfo:
-		bootinfo.ssym = (u_long)_end;
-		bootinfo.esym = (u_long)_end;
+		bootinfo.ssym = (u_long)&_end;
+		bootinfo.esym = (u_long)&_end;
+#ifdef SIMOS
+		{
+			char* p = (char*)bootinfo.ssym + 8;
+			if (p[EI_MAG0] == ELFMAG0
+			    && p[EI_MAG1] == ELFMAG1
+			    && p[EI_MAG2] == ELFMAG2
+			    && p[EI_MAG3] == ELFMAG3) {
+				bootinfo.ssym = (u_long) p;
+				bootinfo.esym = (u_long)p + *(u_long*)(p - 8);
+			}
+		}
+#endif
 		bootinfo.hwrpb_phys = ((struct rpb *)HWRPB_ADDR)->rpb_phys;
 		bootinfo.hwrpb_size = ((struct rpb *)HWRPB_ADDR)->rpb_size;
 		init_prom_interface((struct rpb *)HWRPB_ADDR);
