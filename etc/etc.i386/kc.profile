@@ -5,13 +5,15 @@
 PATH=/bin:/sbin
 export PATH
 
-#test=echo
-
 reboot_it() {
 	echo    ""
 	echo    "halting the machine..."
 	
-	${test} halt
+	halt
+	sync
+	sync
+	echo "Halt failed!  Try power-cycling the machine..."
+	exit 1
 }
 
 bail_out() {
@@ -31,54 +33,50 @@ echo -n "kc> "
 
 read todo
 
-if [ "$todo"X = copyX ]; then
+if [ X"$todo" = Xcopy ]; then
 	echo    ""
 	echo    "what disk partition should the kernel be installed on?"
 	echo    "(e.g. "wd0a", "sd0a", etc.)"
 	echo    ""
 	echo -n "copy kernel to> "
-	
-	read diskpart
-
+	while :; do
+		read diskpart junk
+		[ -c /dev/r$diskpart ] && break
+		echo "$diskpart: invalid partition"
+		echo
+		echo -n "copy kernel to> "
+	done
 	echo    ""
 	echo    "checking the filesystem on $diskpart..."
-
-	${test} fsck -y /dev/r$diskpart
+	fsck -y /dev/r$diskpart
 	if [ $? -ne 0 ]; then
 		echo ""
 		echo "fsck failed...  sorry, can't copy kernel..."
 		bail_out
 	fi
-
 	echo    ""
 	echo    "mounting $diskpart on /mnt..."
-
-	${test} mount /dev/$diskpart /mnt
+	mount /dev/$diskpart /mnt
 	if [ $? -ne 0 ]; then
 		echo ""
 		echo "mount failed...  sorry, can't copy kernel..."
 		bail_out
 	fi
-
 	echo    ""
 	echo    "copying kernel..."
-
-	${test} cp /386bsd /mnt/386bsd
+	cp /386bsd /mnt/386bsd
 	if [ $? -ne 0 ]; then
 		echo ""
 		echo "copy failed...  (?!?!?!)"
 		bail_out
 	fi
-
 	echo    ""
 	echo    "unmounting $diskpart..."
-
-	${test} umount /mnt > /dev/null 2>&1
+	umount /mnt > /dev/null 2>&1
 	if [ $? -ne 0 ]; then
 		echo ""
 		echo "unmount failed...  shouldn't be a problem..."
 	fi
-
 	bail_out
 fi
 

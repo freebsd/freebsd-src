@@ -97,18 +97,15 @@ umask 0
 set_tmp_dir()
 {
 	def_tmp_dir=`pwd`
-	if [ "$def_tmp_dir" = "/" ]; then
-		def_tmp_dir=/usr/distrib
-	fi
-	echo -n "what dir should be used for temporary files? [$def_tmp_dir] "
+	[ "$def_tmp_dir" = "/" ] && def_tmp_dir=/usr/distrib
+	echo -n "Copy files to which directory? [${def_tmp_dir}] "
 	read tmp_dir
-	if [ "$tmp_dir" = "" ]; then
-		tmp_dir=$def_tmp_dir
-	fi
+	[ ! "$tmp_dir" ] && tmp_dir=$def_tmp_dir
 	if [ ! -d "$tmp_dir" ]; then
 		/bin/rm -rf $tmp_dir
 		mkdir -p $tmp_dir
 	fi
+	echo
 }
 tmp_dir()
 {
@@ -122,11 +119,11 @@ load_fd()
 	tmp_dir
 	drive=
 	altdrive=
+	subdir=
 	while [ -z "$drive" ]; do
-		echo -n "Read from which floppy drive? (? for help) [a] "
+		echo -n "Read from which drive (a, b, c or ? for help)? [c] "
 		read answer junk
-		[ ! "$answer" ] && answer=a
-		case "$answer" in
+		case "${answer:-c}" in
 		a*b|A*B)	
 			drive=A; altdrive=B
 			;;
@@ -139,6 +136,32 @@ load_fd()
 		b*|B*)	
 			drive=B; altdrive=B
 			;;
+		c*|C*)
+			while read data; do
+				msdos_device=`expr X"$data" : 'X[ 	]*\([^ 	]*\)[^M]*pcfs'`
+				msdos_dir=`expr X"$data" : 'X[ 	]*[^ 	]*[ 	]*\([^ 	]*\)'`
+				[ "${msdos_device}" ] && break
+			done </etc/fstab
+			if [ ! "$msdos_device" ]; then
+				echo
+				echo	"Cannot find MS-DOS in filesystem table"
+				continue
+			fi
+			drive=C; altdrive=C
+			while :; do
+				echo
+				echo -n "Read from which MS-DOS drive C: directory? [/] "
+				read resp junk
+				newdir=$(echo "${resp:-/}" | \
+				awk '{ sub(/^[Cc]*:*/, ""); gsub(/\\/, "/"); gsub(/^\/*/, ""); gsub(/\/*$/, ""); print $0 }')
+				if [ -d ${msdos_dir}/${newdir} ]; then
+					subdir=$newdir
+					break
+				else
+					echo "C:/${newdir}: No such directory"
+				fi
+			done
+			;;
 		q*|Q*)	
 			drive=q
 			;;
@@ -148,6 +171,7 @@ load_fd()
 			echo "------		---"
 			echo "  a		Read from floppy drive A:"
 			echo "  b		Read from floppy drive B:"
+			echo "  c		Read from MS-DOS hard drive C:"
 			echo "  ab		Alternate between A: and B:, starting with A:"
 			echo "  ba		Alternate between A: and B:, starting with B:"
 			echo "  q		Quit"
@@ -157,75 +181,127 @@ load_fd()
 	done
 	verbose=-v
 	interactive=-i
-	dir=/tmp/floppy
-	umount $dir >/dev/null 2>&1
-	rm -f $dir
-	mkdir -p $dir
+	if [ "$drive" = "C" ]; then
+		dir=${msdos_dir}
+	elif [ "$drive" != "q" ]; then
+		dir=/tmp/floppy
+		[ -d $dir ] && umount $dir >/dev/null 2>&1
+		[ -f $dir ] && rm -f $dir
+		mkdir -p $dir
+	fi
 	while [ "$drive" != "q" ]
 	do
 		device=/dev/fd0a
 		[ "$drive" = "B" ] && device=/dev/fd1a
-		echo; echo "Insert floppy in drive $drive: and press RETURN,"
-		echo -n "or enter option (? for help): "
+		[ "$drive" = "C" ] && device=${msdos_device}
+		echo; 
+		if [ "$drive" != "C" ]; then
+			echo	"Insert floppy in drive $drive:, then press RETURN to copy files,"
+			echo -n "or enter option (? for help): "
+		else
+			echo -n "Press RETURN to copy files, or enter option (? for help): "
+		fi
 		read answer junk
-		[ ! "$answer" ] && answer=c
-		case "$answer" in
-		c*|C*)	
-			if mount -t pcfs $verbose $device $dir; then 
+		case "${answer:-g}" in
+		c*|C*)
+			if [ "$drive" != "C" ]; then
+				echo "Cannot change directory: not reading from MS-DOS drive C:"
+			else
+				echo
+				echo -n "Read from which MS-DOS drive C: directory? [/${subdir}] "
+				read resp junk
+				[ ! "$resp" ] && resp="/$subdir"
+				absolute=`expr X"$resp" : 'X[Cc]*:*\([/\]\)'`
+				subsub=$(echo "${resp}" | \
+				awk '{ sub(/^[Cc]*:*/, ""); gsub(/\\/, "/"); gsub(/^\/*/, ""); gsub(/\/*$/, ""); print $0 }')
+				if [ "$absolute" -o ! "$subdir" ]; then
+					newsub=$subsub
+				else
+					newsub=$subdir/$subsub
+				fi
+				if [ -d ${dir}/${newsub} ]; then
+					subdir=$newsub
+				else
+					echo "C:/${newsub}: No such directory"
+				fi
+			fi
+			;;
+		g*|G*)	
+			sync
+			if [ "$drive" = "C" ]; then
+				[ "$verbose" ] &&
+				{ echo; echo "Please wait.  Copying files from MS-DOS C:/${subdir}"; }
+				cp ${msdos_dir}/${subdir}/* .
+				sync
+			elif mount -t pcfs $verbose $device $dir; then 
 				[ "$verbose" ] && 
-				echo "Please wait.  Copying to disk..."
+				{ echo; echo "Please wait.  Copying files to disk..."; }
 				cp $interactive $dir/* .
 				sync
 				umount $dir
 				tmp=$drive; drive=$altdrive; altdrive=$tmp
 			fi
 			;;
+		i*|I*)	
+			tmp=$interactive; interactive=; [ -z "$tmp" ] && interactive=-i
+			tmp=on; [ -z "$interactive" ] && tmp=off
+			echo "interactive mode is $tmp"
+			;;
+		l*|L*)
+			sync
+			[ "$verbose" ] && echo "Directory of ${drive}:/${subdir}"
+			if [ "$drive" = "C" ]; then
+				ls -l $dir/${subdir}
+			else
+				umount $dir >/dev/null 2>&1
+				if mount -t pcfs $device $dir; then 
+					ls -l $dir/${subdir}
+					umount $dir
+				fi
+			fi
+			;;
 		o*|O*)	
 			tmp=$drive; drive=$altdrive; altdrive=$tmp
+			;;
+		q*|Q*)	
+			drive=q
+			;;
+		s*|S*)	
+			echo; echo -n "tmp_dir is set to $tmp_dir"
+			[ "$tmp_dir" != "`pwd`" ] && echo -n " (physically `pwd`)"
+			echo; echo "Free space in tmp_dir:"
+			df -k .
+			echo -n "Reading from drive $drive:"
+			[ "$drive" != "$altdrive" ] && echo -n " and drive $altdrive:"
+			echo
+			tmp=on; [ -z "$verbose" ] && tmp=off
+			echo "Verbose mode is $tmp"
+			tmp=on; [ -z "$interactive" ] && tmp=off
+			echo "Interactive mode is $tmp"
 			;;
 		v*|V*)	
 			tmp=$verbose; verbose=; [ -z "$tmp" ] && verbose=-v
 			tmp=on; [ -z "$verbose" ] && tmp=off
 			echo "verbose mode is $tmp"
 			;;
-		i*|I*)	
-			tmp=$interactive; interactive=; [ -z "$tmp" ] && interactive=-i
-			tmp=on; [ -z "$interactive" ] && tmp=off
-			echo "interactive mode is $tmp"
-			;;
-		s*|S*)	
-			echo; echo -n "tmp_dir is set to $tmp_dir"
-			[ "$tmp_dir" != "`pwd`" ] && echo -n " (physically `pwd`)"
-			echo; echo "free space in tmp_dir:"
-			df -k .
-			echo -n "you are loading from drive $drive:"
-			[ "$drive" != "$altdrive" ] && echo -n " and drive $altdrive:"
-			echo
-			tmp=on; [ -z "$verbose" ] && tmp=off
-			echo "verbose mode is $tmp"
-			tmp=on; [ -z "$interactive" ] && tmp=off
-			echo "interactive mode is $tmp"
-			;;
-		q*|Q*)	
-			drive=q
-			;;
 		\?)	
 			echo
 			echo "Enter:		To:"
 			echo "-----		---"
-			echo "(just RETURN)	Copy the contents of the floppy to $tmp_dir"
-			[ "$drive" != "$altdrive" ] &&
-			echo "  o		Read from alternate drive"
-			echo "  v		Toggle verbose mode"
+			echo "(just RETURN)	Copy files from ${drive}:/${subdir} to $tmp_dir"
+			echo "  c		Change directory of MS-DOS drive C:"
 			echo "  i		Toggle interactive mode (cp -i)"
-			echo "  s		Display status"
+			echo "  l		List directory of current drive"
+			echo "  o		Read from alternate floppy drive"
 			echo "  q		Quit"
+			echo "  s		Show status"
+			echo "  v		Toggle verbose mode"
 			echo 
 			;;
 		esac
 	done
-	echo goodbye.
-	unset verbose answer drive altdrive device dir tmp interactive
+	echo "Working directory: `pwd`"
+	unset verbose answer drive altdrive device dir subdir tmp interactive
 }
 load_qic_tape()
 {
