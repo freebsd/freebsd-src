@@ -564,6 +564,8 @@ struct ciss_bmic_id_lstatus {
     u_int8_t	spare_to_replace_map[CISS_BIG_MAP_ENTRIES];
     u_int8_t	replaced_marked_ok_map[CISS_BIG_MAP_ENTRIES / 8];
     u_int8_t	drive_rebuilding;
+    u_int64_t	big_blocks_to_recover;
+    u_int8_t	res4[28];
 } __packed;
 
 /* CISS_BMIC_ID_CTLR */
