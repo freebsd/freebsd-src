@@ -1239,7 +1239,7 @@ ipsec_hdrsiz_tcp(tp)
 		th = (struct tcphdr *)(ip6 + 1);
 		m->m_pkthdr.len = m->m_len =
 			sizeof(struct ip6_hdr) + sizeof(struct tcphdr);
-		bcopy((caddr_t)&tp->t_template->tt_ipgen, (caddr_t)ip6,
+		bcopy((caddr_t)tp->t_template->tt_ipgen, (caddr_t)ip6,
 		      sizeof(struct ip6_hdr));
 		bcopy((caddr_t)&tp->t_template->tt_t, (caddr_t)th,
 		      sizeof(struct tcphdr));
@@ -1250,7 +1250,7 @@ ipsec_hdrsiz_tcp(tp)
 	ip = mtod(m, struct ip *);
 	th = (struct tcphdr *)(ip + 1);
 	m->m_pkthdr.len = m->m_len = sizeof(struct tcpiphdr);
-	bcopy((caddr_t)&tp->t_template->tt_ipgen, (caddr_t)ip,
+	bcopy((caddr_t)tp->t_template->tt_ipgen, (caddr_t)ip,
 	      sizeof(struct ip));
 	bcopy((caddr_t)&tp->t_template->tt_t, (caddr_t)th,
 	      sizeof(struct tcphdr));
