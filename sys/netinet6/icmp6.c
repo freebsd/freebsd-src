@@ -2577,7 +2577,7 @@ icmp6_redirect_output(m0, rt)
 			bcopy(LLADDR(sdl), lladdr, ifp->if_addrlen);
 			p += len;
 		}
-    }
+	}
 nolladdropt:;
 
 	m->m_pkthdr.len = m->m_len = p - (u_char *)ip6;
