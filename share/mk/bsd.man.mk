@@ -1,4 +1,4 @@
-#	$Id: bsd.man.mk,v 1.5 1995/10/02 20:01:49 wollman Exp $
+#	$Id: bsd.man.mk,v 1.6 1995/10/14 08:16:04 bde Exp $
 
 .if exists(${.CURDIR}/../Makefile.inc)
 .include "${.CURDIR}/../Makefile.inc"
@@ -17,10 +17,18 @@ ZEXTENSION=	.gz
 
 SECTIONS=	1 2 3 3f 4 5 6 7 8
 
+.for sect in ${SECTIONS}
+.if defined(MAN${sect}) && !empty(MAN${sect})
+.SUFFIXES: .${sect}
+.PATH.${sect}: ${MANSRC}
+.endif
+.endfor
+
 all-man: ${MANDEPEND}
 
 .if defined(NOMANCOMPRESS)
 
+COPY=		-c
 ZEXT=
 
 .else
@@ -30,8 +38,6 @@ ZEXT=		${ZEXTENSION}
 .for sect in ${SECTIONS}
 .if defined(MAN${sect}) && !empty(MAN${sect})
 CLEANFILES+=	${MAN${sect}:T:S/$/${ZEXTENSION}/g}
-.SUFFIXES: .${sect}
-.PATH.${sect}: ${MANSRC}
 .for page in ${MAN${sect}}
 .for target in ${page:T:S/$/${ZEXTENSION}/}
 all-man: ${target}
@@ -44,13 +50,14 @@ ${target}: ${page}
 
 .endif
 
-maninstall:
+maninstall::
 .for sect in ${SECTIONS}
 .if defined(MAN${sect}) && !empty(MAN${sect})
+maninstall:: ${MAN${sect}}
 .if defined(NOMANCOMPRESS)
-	${MINSTALL} ${MAN${sect}} ${DESTDIR}${MANDIR}${sect}${MANSUBDIR}
+	${MINSTALL} ${.ALLSRC} ${DESTDIR}${MANDIR}${sect}${MANSUBDIR}
 .else
-	${MINSTALL} ${MAN${sect}:T:S/$/${ZEXTENSION}/g} \
+	${MINSTALL} ${.ALLSRC:T:S/$/${ZEXTENSION}/g} \
 		${DESTDIR}${MANDIR}${sect}${MANSUBDIR}
 .endif
 .endif
