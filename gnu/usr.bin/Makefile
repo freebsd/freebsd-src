@@ -1,8 +1,6 @@
-#	$Id: Makefile,v 1.24 1995/03/18 01:23:06 pst Exp $
+#	$Id: Makefile,v 1.25 1995/03/22 19:39:45 nate Exp $
 
-# Disabled until it compiles:	gdb
-
-SUBDIR= as awk bc cc cpio cvs dc dialog diff diff3 gdb \
+SUBDIR= as awk bc cc cpio dc dialog diff diff3 gdb \
 	grep groff gzip ld man mkisofs patch perl ptx rcs sdiff send-pr \
 	sort tar texinfo yppush
 
