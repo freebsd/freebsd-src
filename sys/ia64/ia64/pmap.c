@@ -1959,7 +1959,7 @@ pmap_prefault(pmap, addra, entry)
 	vm_page_t m, mpte;
 	vm_object_t object;
 
-	if (!curproc || (pmap != vmspace_pmap(curproc->p_vmspace)))
+	if (!curthread || (pmap != vmspace_pmap(curthread->td_proc->p_vmspace)))
 		return;
 
 	object = entry->object.vm_object;
@@ -2192,7 +2192,7 @@ pmap_remove_pages(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 	int s;
 
 #ifdef PMAP_REMOVE_PAGES_CURPROC_ONLY
-	if (!curproc || (pmap != vmspace_pmap(curproc->p_vmspace))) {
+	if (!curthread || (pmap != vmspace_pmap(curthread->td_proc->p_vmspace))) {
 		printf("warning: pmap_remove_pages called with non-current pmap\n");
 		return;
 	}
