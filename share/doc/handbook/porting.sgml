@@ -1,4 +1,4 @@
-<!-- $Id: porting.sgml,v 1.48 1996/12/09 08:47:03 obrien Exp $ -->
+<!-- $Id: porting.sgml,v 1.49 1996/12/18 00:10:02 obrien Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect1><heading>Porting an existing piece of free software<label id="porting"></heading>
@@ -1217,8 +1217,8 @@ lib/libtcl.so.7.3
  # Whom:			Satoshi Asami <asami@FreeBSD.ORG>
  #
  # &dollar;Id&dollar;
- [ ^^^^ do not worry about this, it will be automatically filled in by
-  CVS when it is committed to our repository]
+ [ ^^^^ This will be automatically replaced with RCS ID string by CVS 
+  when it is committed to our repository.]
  #
  
  [section to describe the port itself and the master site - DISTNAME
