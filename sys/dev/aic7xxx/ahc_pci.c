@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ahc_pci.c,v 1.11 1999/05/14 05:09:24 gibbs Exp $
+ *	$Id: ahc_pci.c,v 1.12 1999/05/14 17:38:07 gibbs Exp $
  */
 
 #include <pci.h>
@@ -83,6 +83,8 @@ ahc_compose_id(u_int device, u_int vendor, u_int subdevice, u_int subvendor)
 	return (id);
 }
 
+#define ID_ALL_MASK		0xFFFFFFFFFFFFFFFFull
+#define ID_DEV_VENDOR_MASK	0xFFFFFFFF00000000ull
 #define ID_AIC7850		0x5078900400000000ull
 #define ID_AHA_2910_15_20_30C	0x5078900478509004ull
 #define ID_AIC7855		0x5578900400000000ull
@@ -114,7 +116,7 @@ ahc_compose_id(u_int device, u_int vendor, u_int subdevice, u_int subvendor)
 #define ID_AHA_2940U_CN		0x0078900478009004ull
 
 #define ID_AIC7895		0x7895900478959004ull
-#define ID_AIC7895C		0x7893900478939004ull /* RAID Port */
+#define ID_AIC7895_RAID_PORT	0x7893900478939004ull
 #define ID_AHA_2940U_DUAL	0x7895900478919004ull
 #define ID_AHA_3940AU		0x7895900478929004ull
 #define ID_AHA_3944AU		0x7895900478949004ull
@@ -155,235 +157,271 @@ static ahc_device_setup_t ahc_aha398XX_setup;
 
 struct ahc_pci_identity {
 	u_int64_t		 full_id;
+	u_int64_t		 id_mask;
 	char			*name;
 	ahc_device_setup_t	*setup;
 };
 
 struct ahc_pci_identity ahc_pci_ident_table [] =
 {
-	{
-		ID_AIC7850,
-		"Adaptec aic7850 SCSI adapter",
-		ahc_aic7850_setup
-	},
+	/* aic7850 based controllers */
 	{
 		ID_AHA_2910_15_20_30C,
+		ID_ALL_MASK,
 		"Adaptec 2910/15/20/30C SCSI adapter",
 		ahc_aic7850_setup
 	},
+	/* aic7860 based controllers */
 	{
-		ID_AIC7855,
-		"Adaptec aic7855 SCSI adapter",
-		ahc_aic7850_setup
-	},
-	{
-		ID_AIC7860,
-		"Adaptec aic7860 SCSI adapter",
-		ahc_aic7860_setup
-	},
-	{
-		ID_AIC7860C,
-		"Adaptec aic7860 SCSI adapter",
-		ahc_aic7860_setup
-	},
-	{
-		ID_AHA_2940AU_0,
-		"Adaptec 2940A Ultra SCSI adapter",
-		ahc_aic7860_setup
-	},
-	{
-		ID_AHA_2940AU_1,
+		ID_AHA_2940AU_0 & ID_DEV_VENDOR_MASK,
+		ID_DEV_VENDOR_MASK,
 		"Adaptec 2940A Ultra SCSI adapter",
 		ahc_aic7860_setup
 	},
 	{
 		ID_AHA_2930C_VAR,
+		ID_ALL_MASK,
 		"Adaptec 2930C SCSI adapter (VAR)",
 		ahc_aic7860_setup
 	},
-	{
-		ID_AIC7870,
-		"Adaptec aic7870 SCSI adapter",
-		ahc_aic7870_setup
-	},
+	/* aic7870 based controllers */
 	{
 		ID_AHA_2940,
+		ID_ALL_MASK,
 		"Adaptec 2940 SCSI adapter",
 		ahc_aic7870_setup
 	},
 	{
 		ID_AHA_3940,
+		ID_ALL_MASK,
 		"Adaptec 3940 SCSI adapter",
 		ahc_aha394X_setup
 	},
 	{
 		ID_AHA_398X,
+		ID_ALL_MASK,
 		"Adaptec 398X SCSI RAID adapter",
 		ahc_aha398X_setup
 	},
 	{
 		ID_AHA_2944,
+		ID_ALL_MASK,
 		"Adaptec 2944 SCSI adapter",
 		ahc_aic7870_setup
 	},
 	{
 		ID_AHA_3944,
+		ID_ALL_MASK,
 		"Adaptec 3944 SCSI adapter",
 		ahc_aha394X_setup
 	},
-	{
-		ID_AIC7880,
-		"Adaptec aic7880 Ultra SCSI adapter",
-		ahc_aic7880_setup
-	},
-	{
-		ID_AIC7880_B,
-		"Adaptec aic7880 Ultra SCSI adapter",
-		ahc_aic7880_setup
-	},
+	/* aic7880 based controllers */
 	{
 		ID_AHA_2940AU_CN,
+		ID_ALL_MASK,
 		"Adaptec 2940A/CN Ultra SCSI adapter",
 		ahc_aic7880_setup
 	},
 	{
 		ID_AHA_2940U,
+		ID_ALL_MASK,
 		"Adaptec 2940 Ultra SCSI adapter",
 		ahc_aic7880_setup
 	},
 	{
 		ID_AHA_3940U,
+		ID_ALL_MASK,
 		"Adaptec 3940 Ultra SCSI adapter",
 		ahc_aha394XU_setup
 	},
 	{
 		ID_AHA_2944U,
+		ID_ALL_MASK,
 		"Adaptec 2944 Ultra SCSI adapter",
 		ahc_aic7880_setup
 	},
 	{
 		ID_AHA_3944U,
+		ID_ALL_MASK,
 		"Adaptec 3944 Ultra SCSI adapter",
 		ahc_aha394XU_setup
 	},
 	{
 		ID_AHA_398XU,
+		ID_ALL_MASK,
 		"Adaptec 398X Ultra SCSI RAID adapter",
 		ahc_aha398XU_setup
 	},
 	{
 		/* XXX Don't know the slot numbers so can't identify channels */
 		ID_AHA_4944U,
+		ID_ALL_MASK,
 		"Adaptec 4944 Ultra SCSI adapter",
 		ahc_aic7880_setup
 	},
 	{
 		ID_AHA_2940UB,
+		ID_ALL_MASK,
 		"Adaptec 2940B Ultra SCSI adapter",
 		ahc_aic7880_setup
 	},
 	{
 		ID_AHA_2930U,
+		ID_ALL_MASK,
 		"Adaptec 2930 Ultra SCSI adapter",
 		ahc_aic7880_setup
 	},
 	{
 		ID_AHA_2940U_PRO,
+		ID_ALL_MASK,
 		"Adaptec 2940 Pro Ultra SCSI adapter",
 		ahc_aic7880_setup
 	},
 	{
 		ID_AHA_2940U_CN,
+		ID_ALL_MASK,
 		"Adaptec 2940/CN Ultra SCSI adapter",
 		ahc_aic7880_setup
 	},
-	{
-		ID_AIC7890,
-		"Adaptec aic7890/91 Ultra2 SCSI adapter",
-		ahc_aic7890_setup
-	},
+	/* aic7890 based controllers */
 	{
 		ID_AHA_2930U2,
+		ID_ALL_MASK,
 		"Adaptec 2930 Ultra2 SCSI adapter",
 		ahc_aic7890_setup
 	},
 	{
 		ID_AHA_2940U2B,
+		ID_ALL_MASK,
 		"Adaptec 2940B Ultra2 SCSI adapter",
 		ahc_aic7890_setup
 	},
 	{
 		ID_AHA_2940U2_OEM,
+		ID_ALL_MASK,
 		"Adaptec 2940 Ultra2 SCSI adapter (OEM)",
 		ahc_aic7890_setup
 	},
 	{
 		ID_AHA_2940U2,
+		ID_ALL_MASK,
 		"Adaptec 2940 Ultra2 SCSI adapter",
 		ahc_aic7890_setup
 	},
 	{
-		ID_AHA_2940U2,
+		ID_AHA_2950U2B,
+		ID_ALL_MASK,
 		"Adaptec 2950 Ultra2 SCSI adapter",
 		ahc_aic7890_setup
 	},
-	{
-		ID_AIC7895,
-		"Adaptec aic7895 Ultra SCSI adapter",
-		ahc_aic7895_setup
-	},
-	{
-		ID_AIC7895C,
-		"Adaptec aic7895 Ultra SCSI adapter",
-		ahc_aic7895_setup
-	},
+	/* aic7895 based controllers */	
 	{
 		ID_AHA_2940U_DUAL,
+		ID_ALL_MASK,
 		"Adaptec 2940/DUAL Ultra SCSI adapter",
 		ahc_aic7895_setup
 	},
 	{
 		ID_AHA_3940AU,
+		ID_ALL_MASK,
 		"Adaptec 3940A Ultra SCSI adapter",
 		ahc_aic7895_setup
 	},
 	{
 		ID_AHA_3944AU,
+		ID_ALL_MASK,
 		"Adaptec 3944A Ultra SCSI adapter",
 		ahc_aic7895_setup
 	},
-	{
-		ID_AIC7896,
-		"Adaptec aic7896/97 Ultra2 SCSI adapter",
-		ahc_aic7896_setup
-	},
+	/* aic7896/97 based controllers */	
 	{
 		ID_AHA_3950U2B_0,
+		ID_ALL_MASK,
 		"Adaptec 3950B Ultra2 SCSI adapter",
 		ahc_aic7896_setup
 	},
 	{
 		ID_AHA_3950U2B_1,
+		ID_ALL_MASK,
 		"Adaptec 3950B Ultra2 SCSI adapter",
 		ahc_aic7896_setup
 	},
 	{
 		ID_AHA_3950U2D_0,
+		ID_ALL_MASK,
 		"Adaptec 3950D Ultra2 SCSI adapter",
 		ahc_aic7896_setup
 	},
 	{
 		ID_AHA_3950U2D_1,
+		ID_ALL_MASK,
 		"Adaptec 3950D Ultra2 SCSI adapter",
 		ahc_aic7896_setup
 	},
+	/* Generic chip probes for devices we don't know 'exactly' */
 	{
-		ID_AIC7810,
+		ID_AIC7850 & ID_DEV_VENDOR_MASK,
+		ID_DEV_VENDOR_MASK,
+		"Adaptec aic7850 SCSI adapter",
+		ahc_aic7850_setup
+	},
+	{
+		ID_AIC7855 & ID_DEV_VENDOR_MASK,
+		ID_DEV_VENDOR_MASK,
+		"Adaptec aic7855 SCSI adapter",
+		ahc_aic7850_setup
+	},
+	{
+		ID_AIC7860 & ID_DEV_VENDOR_MASK,
+		ID_DEV_VENDOR_MASK,
+		"Adaptec aic7860 SCSI adapter",
+		ahc_aic7860_setup
+	},
+	{
+		ID_AIC7870 & ID_DEV_VENDOR_MASK,
+		ID_DEV_VENDOR_MASK,
+		"Adaptec aic7870 SCSI adapter",
+		ahc_aic7870_setup
+	},
+	{
+		ID_AIC7880 & ID_DEV_VENDOR_MASK,
+		ID_DEV_VENDOR_MASK,
+		"Adaptec aic7880 Ultra SCSI adapter",
+		ahc_aic7880_setup
+	},
+	{
+		ID_AIC7890 & ID_DEV_VENDOR_MASK,
+		ID_DEV_VENDOR_MASK,
+		"Adaptec aic7890/91 Ultra2 SCSI adapter",
+		ahc_aic7890_setup
+	},
+	{
+		ID_AIC7895 & ID_DEV_VENDOR_MASK,
+		ID_DEV_VENDOR_MASK,
+		"Adaptec aic7895 Ultra SCSI adapter",
+		ahc_aic7895_setup
+	},
+	{
+		ID_AIC7895_RAID_PORT & ID_DEV_VENDOR_MASK,
+		ID_DEV_VENDOR_MASK,
+		"Adaptec aic7895 Ultra SCSI adapter (RAID PORT)",
+		ahc_aic7895_setup
+	},
+	{
+		ID_AIC7896 & ID_DEV_VENDOR_MASK,
+		ID_DEV_VENDOR_MASK,
+		"Adaptec aic7896/97 Ultra2 SCSI adapter",
+		ahc_aic7896_setup
+	},
+	{
+		ID_AIC7810 & ID_DEV_VENDOR_MASK,
+		ID_DEV_VENDOR_MASK,
 		"Adaptec aic7810 RAID memory controller",
 		ahc_raid_setup
 	},
 	{
-		ID_AIC7815,
+		ID_AIC7815 & ID_DEV_VENDOR_MASK,
+		ID_DEV_VENDOR_MASK,
 		"Adaptec aic7815 RAID memory controller",
 		ahc_raid_setup
 	}
@@ -417,6 +455,7 @@ static const int ahc_num_pci_devs =
 #define		CACHESIZE	0x0000003ful	/* only 5 bits */
 #define		LATTIME		0x0000ff00ul
 
+static struct ahc_pci_identity *ahc_find_pci_device(device_t dev);
 static void check_extport(struct ahc_softc *ahc, u_int *sxfrctl1);
 static void configure_termination(struct ahc_softc *ahc,
 				  struct seeprom_config *sc,
@@ -467,8 +506,8 @@ static devclass_t ahc_devclass;
 
 DRIVER_MODULE(ahc, pci, ahc_pci_driver, ahc_devclass, 0, 0);
 
-static int
-ahc_pci_probe(device_t dev)
+static struct ahc_pci_identity *
+ahc_find_pci_device(device_t dev)
 {
 	u_int64_t  full_id;
 	struct	   ahc_pci_identity *entry;
@@ -481,10 +520,21 @@ ahc_pci_probe(device_t dev)
 
 	for (i = 0; i < ahc_num_pci_devs; i++) {
 		entry = &ahc_pci_ident_table[i];
-		if (entry->full_id == full_id) {
-			device_set_desc(dev, entry->name);
-			return (0);
-		}
+		if (entry->full_id == (full_id & entry->id_mask))
+			return (entry);
+	}
+	return (NULL);
+}
+
+static int
+ahc_pci_probe(device_t dev)
+{
+	struct	   ahc_pci_identity *entry;
+
+	entry = ahc_find_pci_device(dev);
+	if (entry != NULL) {
+		device_set_desc(dev, entry->name);
+		return (0);
 	}
 	return (ENXIO);
 }
@@ -493,10 +543,10 @@ static int
 ahc_pci_attach(device_t dev)
 {
 	bus_dma_tag_t	   parent_dmat;
+	struct		   ahc_pci_identity *entry;
 	struct		   resource *regs;
 	struct		   ahc_softc *ahc;
-	u_int64_t	   full_id;
-	u_int32_t	   command;
+	u_int		   command;
 	struct scb_data   *shared_scb_data;
 	ahc_chip	   ahc_t = AHC_NONE;
 	ahc_feature	   ahc_fe = AHC_FENONE;
@@ -506,32 +556,18 @@ ahc_pci_attach(device_t dev)
 	u_int		   our_id = 0;
 	u_int		   sxfrctl1;
 	u_int		   scsiseq;
-	u_int		   i;
 	int		   error;
 	int		   zero;
 	char		   channel;
 
 	shared_scb_data = NULL;
 	command = pci_read_config(dev, PCIR_COMMAND, /*bytes*/1);
-
-	full_id = ahc_compose_id(pci_get_device(dev),
-				 pci_get_vendor(dev),
-				 pci_get_subdevice(dev),
-				 pci_get_subvendor(dev));
-	for (i = 0; i < ahc_num_pci_devs; i++) {
-		struct ahc_pci_identity *entry;
-
-		entry = &ahc_pci_ident_table[i];
-		if (entry->full_id == full_id) {
-			int error;
-
-			error = entry->setup(dev, &channel, &ahc_t,
-					     &ahc_fe, &ahc_f);
-			if (error != 0)
-				return (error);
-			break;
-		}
-	}
+	entry = ahc_find_pci_device(dev);
+	if (entry == NULL)
+		return (ENXIO);
+	error = entry->setup(dev, &channel, &ahc_t, &ahc_fe, &ahc_f);
+	if (error != 0)
+		return (error);
 
 	regs = NULL;
 	regs_type = 0;
@@ -1283,7 +1319,7 @@ acquire_seeprom(struct ahc_softc *ahc, struct seeprom_descriptor *sd)
 
 	if ((ahc->features & AHC_SPIOCAP) != 0
 	 && (ahc_inb(ahc, SPIOCAP) & SEEPROM) == 0)
-			return (0);
+		return (0);
 
 	/*
 	 * Request access of the memory port.  When access is
