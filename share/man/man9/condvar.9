@@ -73,11 +73,11 @@ to occur.
 Condition variables are created with
 .Fn cv_init ,
 where
-.Ar cvp
+.Fa cvp
 is a pointer to space for a
-.Dv struct cv ,
+.Vt struct cv ,
 and
-.Ar desc
+.Fa desc
 is a pointer to a null-terminated character string that describes the condition
 variable.
 Condition variables are destroyed with
@@ -97,15 +97,15 @@ to unblock all waiters.
 removes a waiting thread from a condition variable wait queue, if it is on one.
 .Fn cv_waitq_empty
 reports whether there are any waiters on
-.Ar cvp .
+.Fa cvp .
 .Fn cv_wmesg
 returns the description string of
-.Ar cvp ,
+.Fa cvp ,
 as set by the initial call to
 .Fn cv_init .
 .Pp
 A thread must hold
-.Ar mp
+.Fa mp
 before calling
 .Fn cv_wait ,
 .Fn cv_wait_sig ,
@@ -113,15 +113,15 @@ before calling
 or
 .Fn cv_timedwait_sig .
 When a thread waits on a condition,
-.Ar mp
+.Fa mp
 is atomically released before the thread is blocked, then atomically reacquired
 before the function call returns.
 All waiters must pass the same
-.Ar mp
+.Fa mp
 in conjunction with
-.Ar cvp .
+.Fa cvp .
 A thread must hold
-.Ar mp
+.Fa mp
 while calling
 .Fn cv_signal
 or
@@ -139,7 +139,7 @@ unblock, their calling threads are made runnable.
 and
 .Fn cv_timedwait_sig
 wait for at most
-.Ar timo
+.Fa timo
 /
 .Dv HZ
 seconds before being unblocked and returning
