@@ -767,7 +767,7 @@ sioprobe(dev, xrid, noprobe)
 		"sio%d: configured irq %ld not in bitmap of probed irqs %#x\n",
 		    device_get_unit(dev), xirq, irqs);
 		printf(
-		"sio%d: port may not be enabled in BIOS\n",
+		"sio%d: port may not be enabled\n",
 		    device_get_unit(dev));
 	}
 	if (bootverbose)
