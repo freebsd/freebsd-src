@@ -172,3 +172,9 @@
 # 0	lelong&0xFF00FFFF 0xC000301	ld86 NS16K executable
 # 0	lelong&0xFF00FFFF 0x17000301	ld86 SPARC executable
 
+# SYSLINUX boot logo files (from 'ppmtolss16' sources)
+# http://syslinux.zytor.com/
+#
+0	lelong	=0x1413f33d		SYSLINUX' LSS16 image data
+>4	leshort	x			\b, width %d
+>6	leshort	x			\b, height %d

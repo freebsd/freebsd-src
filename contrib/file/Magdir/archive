@@ -128,7 +128,9 @@
 #  version (not tested)]
 #0	byte		0x1a		RISC OS archive
 #>1	string		archive		(ArcFS format)
-0	string		\032archive	RISC OS archive (ArcFS format)
+#0	string		\032archive	RISC OS archive (ArcFS format)
+0       string          \032            RISC OS archive (spark format)
+0       string          Archive\000     RISC OS archive (ArcFS format)
 
 # ARJ archiver (jason@jarthur.Claremont.EDU)
 0	leshort		0xea60		ARJ archive data
