@@ -969,6 +969,10 @@ pmap_set_pv(pmap_t pmap, pv_entry_t pv, vm_offset_t pa,
 	}
 
 	pv->pv_pte.pte_p = 1;		/* set to valid */
+
+	/*
+	 * Only track access/modify for managed pages.
+	 */
 	if (m) {
 		pv->pv_pte.pte_a = 0;
 		pv->pv_pte.pte_d = 0;
@@ -976,10 +980,9 @@ pmap_set_pv(pmap_t pmap, pv_entry_t pv, vm_offset_t pa,
 		pv->pv_pte.pte_a = 1;
 		pv->pv_pte.pte_d = 1;
 	}
-	pv->pv_pte.pte_a = 1;	/* XXX remove this after implementing trap */
-	pv->pv_pte.pte_d = 1;
-	pv->pv_pte.pte_pl = prot & 3;	/* privilege level 0 */
-	pv->pv_pte.pte_ar = prot >> 2;	/* read/write/execute */
+
+	pv->pv_pte.pte_pl = prot & 3;	/* privilege level */
+	pv->pv_pte.pte_ar = prot >> 2;	/* access rights */
 	pv->pv_pte.pte_ppn = pa >> 12;	/* physical address */
 
 	if (m) {
