@@ -666,8 +666,8 @@ struct proc {
 #define	PS_ALRMPEND	0x00020	/* Pending SIGVTALRM needs to be posted. */
 #define	PS_PROFPEND	0x00040	/* Pending SIGPROF needs to be posted. */
 #define	PS_SWAPINREQ	0x00100	/* Swapin request due to wakeup. */
-#define	PS_SWAPPING	0x00200	/* Process is being swapped. */
-#define	PS_SWAPPINGIN	0x04000	/* Swapin in progress. */
+#define	PS_SWAPPINGOUT	0x00200	/* Process is being swapped out. */
+#define	PS_SWAPPINGIN	0x04000	/* Process is being swapped in. */
 #define	PS_MACPEND	0x08000	/* Ast()-based MAC event pending. */
 
 /* used only in legacy conversion code */
@@ -775,11 +775,9 @@ MALLOC_DECLARE(M_ZOMBIE);
 } while (0)
 #define	_PHOLD(p) do {							\
 	PROC_LOCK_ASSERT((p), MA_OWNED);				\
-	if ((p)->p_lock++ == 0) {					\
-		mtx_lock_spin(&sched_lock);				\
+	(p)->p_lock++;							\
+	if (((p)->p_sflag & PS_INMEM) == 0)				\
 		faultin((p));						\
-		mtx_unlock_spin(&sched_lock);				\
-	}								\
 } while (0)
 
 #define	PRELE(p) do {							\
