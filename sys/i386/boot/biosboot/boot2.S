@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:35:26  rpd
- *	$Id$
+ *	$Id: boot2.S,v 1.2 1993/10/16 19:11:33 rgrimes Exp $
  */
 
 #include	"asm.h"
@@ -128,10 +128,12 @@ ENTRY(boot2)
 	mov	%ax, %es
 
 	/* fix up IDT entries for bdb */
-	movl	%es: -2(%ebx), %eax	/* actually movw to %ax */
+	subl	$2, %ebx
+	movl	%es: (%ebx), %eax	/* actually movw to %ax */
 	addr32
 	movl	%eax, EXT(Idt)+8*DEBUG_VECTOR	/* actually movw %ax */
-	movl	%es: -2(%ecx), %eax	/* actually movw to %ax */
+	subl	$2, %ecx
+	movl	%es: (%ecx), %eax	/* actually movw to %ax */
 	addr32
 	movl	%eax, EXT(Idt)+8*BREAKPOINT_VECTOR	/* actually movw %ax */
 
