@@ -96,15 +96,16 @@ typedef enum { NONE, KILO, MEGA, GIGA, TERA, PETA, UNIT_MAX } unit_t;
 
 int unitp [] = { NONE, KILO, MEGA, GIGA, TERA, PETA };
 
+int	  bread __P((off_t, void *, int));
 int	  checkvfsname __P((const char *, char **));
+char	 *getmntpt __P((char *));
+int	  main __P((int, char *[]));
 char	 *makenetvfslist __P((void));
 char	**makevfslist __P((char *));
-long	  regetmntinfo __P((struct statfs **, long, char **));
-int	  bread __P((off_t, void *, int));
-char	 *getmntpt __P((char *));
 void	  prthuman __P((struct statfs *, long));
 void	  prthumanval __P((double));
 void	  prtstat __P((struct statfs *, int));
+long	  regetmntinfo __P((struct statfs **, long, char **));
 int	  ufs_df __P((char *, int));
 unit_t	  unit_adjust __P((double *));
 void	  usage __P((void));
@@ -119,9 +120,12 @@ main(argc, argv)
 {
 	struct stat stbuf;
 	struct statfs statfsbuf, *mntbuf;
+	const char *fstype;
+	char *mntpath, *mntpt, **vfslist;
 	long mntsize;
-	int ch, err, i, maxwidth, rv, width;
-	char *mntpt, *mntpath, **vfslist;
+	int ch, i, maxwidth, rv, width;
+
+	fstype = "ufs";
 
 	vfslist = NULL;
 	while ((ch = getopt(argc, argv, "abgHhiklmnPt:")) != -1)
@@ -169,6 +173,7 @@ main(argc, argv)
 		case 't':
 			if (vfslist != NULL)
 				errx(1, "only one -t option may be specified.");
+			fstype = optarg;
 			vfslist = makevfslist(optarg);
 			break;
 		case '?':
@@ -206,16 +211,12 @@ main(argc, argv)
 
 	for (; *argv; argv++) {
 		if (stat(*argv, &stbuf) < 0) {
-			err = errno;
 			if ((mntpt = getmntpt(*argv)) == 0) {
 				warn("%s", *argv);
 				rv = 1;
 				continue;
 			}
-		} else if ((stbuf.st_mode & S_IFMT) == S_IFCHR) {
-			rv = ufs_df(*argv, maxwidth) || rv;
-			continue;
-		} else if ((stbuf.st_mode & S_IFMT) == S_IFBLK) {
+		} else if (S_ISCHR(stbuf.st_mode)) {
 			if ((mntpt = getmntpt(*argv)) == 0) {
 				mdev.fspec = *argv;
 				mntpath = strdup("/tmp/df.XXXXXX");
@@ -231,7 +232,7 @@ main(argc, argv)
 					free(mntpath);
 					continue;
 				}
-				if (mount("ufs", mntpt, MNT_RDONLY,
+				if (mount(fstype, mntpt, MNT_RDONLY,
 				    &mdev) != 0) {
 					rv = ufs_df(*argv, maxwidth) || rv;
 					(void)rmdir(mntpt);
@@ -385,7 +386,7 @@ prtstat(sfsp, maxwidth)
 {
 	static long blocksize;
 	static int headerlen, timesthrough;
-	static char *header;
+	static const char *header;
 	long used, availblks, inodes;
 
 	if (maxwidth < 11)
@@ -452,7 +453,7 @@ ufs_df(file, maxwidth)
 {
 	struct statfs statfsbuf;
 	struct statfs *sfsp;
-	char *mntpt;
+	const char *mntpt;
 	static int synced;
 
 	if (synced++ == 0)
@@ -482,8 +483,8 @@ ufs_df(file, maxwidth)
 	sfsp->f_fsid.val[1] = 0;
 	if ((mntpt = getmntpt(file)) == 0)
 		mntpt = "";
-	memmove(&sfsp->f_mntonname[0], mntpt, MNAMELEN);
-	memmove(&sfsp->f_mntfromname[0], file, MNAMELEN);
+	memmove(&sfsp->f_mntonname[0], mntpt, (size_t)MNAMELEN);
+	memmove(&sfsp->f_mntfromname[0], file, (size_t)MNAMELEN);
 	prtstat(sfsp, maxwidth);
 	(void)close(rfd);
 	return (0);
@@ -495,14 +496,14 @@ bread(off, buf, cnt)
 	void *buf;
 	int cnt;
 {
-	int nr;
+	ssize_t nr;
 
 	(void)lseek(rfd, off, SEEK_SET);
-	if ((nr = read(rfd, buf, cnt)) != cnt) {
+	if ((nr = read(rfd, buf, (size_t)cnt)) != (ssize_t)cnt) {
 		/* Probably a dismounted disk if errno == EIO. */
 		if (errno != EIO)
-			(void)fprintf(stderr, "\ndf: %qd: %s\n",
-			    off, strerror(nr > 0 ? EIO : errno));
+			(void)fprintf(stderr, "\ndf: %lld: %s\n",
+			    (long long)off, strerror(nr > 0 ? EIO : errno));
 		return (0);
 	}
 	return (1);
@@ -517,44 +518,47 @@ usage()
 	exit(EX_USAGE);
 }
 
-char *makenetvfslist()
+char *
+makenetvfslist()
 {
 	char *str, *strptr, **listptr;
-	int mib[3], maxvfsconf, miblen, cnt=0, i;
+	int mib[3], maxvfsconf, cnt=0, i;
+	size_t miblen;
 	struct ovfsconf *ptr;
 
 	mib[0] = CTL_VFS; mib[1] = VFS_GENERIC; mib[2] = VFS_MAXTYPENUM;
 	miblen=sizeof(maxvfsconf);
-	if (sysctl(mib, sizeof(mib)/sizeof(mib[0]), &maxvfsconf, &miblen, NULL, 0)) {
+	if (sysctl(mib, (unsigned int)(sizeof(mib) / sizeof(mib[0])),
+	    &maxvfsconf, &miblen, NULL, 0)) {
 		warnx("sysctl failed");
 		return (NULL);
 	}
 
-	if ((listptr=malloc(sizeof(char*) * maxvfsconf)) == NULL) {
+	if ((listptr = malloc(sizeof(char*) * maxvfsconf)) == NULL) {
 		warnx("malloc failed");
 		return (NULL);
 	}
 
-	for (ptr=getvfsent();ptr;ptr=getvfsent())
+	for (ptr = getvfsent(); ptr; ptr = getvfsent())
 		if (ptr->vfc_flags & VFCF_NETWORK) {
-			listptr[cnt++] = strdup (ptr->vfc_name);
-			if (! listptr[cnt-1]) {
+			listptr[cnt++] = strdup(ptr->vfc_name);
+			if (listptr[cnt-1] == NULL) {
 				warnx("malloc failed");
 				return (NULL);
 			}
 		}
 
-	if ((str = malloc(sizeof(char)*(32*cnt+cnt+2))) == NULL) {
+	if ((str = malloc(sizeof(char) * (32 * cnt + cnt + 2))) == NULL) {
 		warnx("malloc failed");
 		free(listptr);
 		return (NULL);
 	}
 
-	*str = 'n'; *(str+1) = 'o';
-	for (i = 0,strptr=str+2; i < cnt; i++,strptr++) {
-		strncpy (strptr, listptr[i], 32);
-		strptr+=strlen(listptr[i]);
-		*strptr=',';
+	*str = 'n'; *(str + 1) = 'o';
+	for (i = 0, strptr = str + 2; i < cnt; i++, strptr++) {
+		strncpy(strptr, listptr[i], 32);
+		strptr += strlen(listptr[i]);
+		*strptr = ',';
 		free(listptr[i]);
 	}
 	*(--strptr) = NULL;
