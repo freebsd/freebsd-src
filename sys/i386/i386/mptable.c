@@ -27,6 +27,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_mptable_force_htt.h"
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
@@ -159,7 +160,9 @@ static u_char	intentry_trigger(int_entry_ptr intr);
 static int	lookup_bus_type(char *name);
 static void	mptable_count_items(void);
 static void	mptable_count_items_handler(u_char *entry, void *arg);
+#ifdef MPTABLE_FORCE_HTT
 static void	mptable_hyperthread_fixup(u_int id_mask);
+#endif
 static void	mptable_parse_apics_and_busses(void);
 static void	mptable_parse_apics_and_busses_handler(u_char *entry,
     void *arg);
@@ -297,7 +300,9 @@ mptable_probe_cpus(void)
 	} else {
 		cpu_mask = 0;
 		mptable_walk_table(mptable_probe_cpus_handler, &cpu_mask);
+#ifdef MPTABLE_FORCE_HTT
 		mptable_hyperthread_fixup(cpu_mask);
+#endif
 	}
 	return (0);
 }
@@ -781,6 +786,7 @@ mptable_parse_ints(void)
 		mptable_walk_table(mptable_parse_ints_handler, NULL);
 }
 
+#ifdef MPTABLE_FORCE_HTT
 /*
  * Perform a hyperthreading "fix-up" to enumerate any logical CPU's
  * that aren't already listed in the table.
@@ -837,6 +843,7 @@ mptable_hyperthread_fixup(u_int id_mask)
 		id_mask &= ~(1 << id);
 	}
 }
+#endif /* MPTABLE_FORCE_HTT */
 
 /*
  * Support code for routing PCI interrupts using the MP Table.

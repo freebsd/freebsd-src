@@ -39,9 +39,22 @@ profile         2
 # MP table or MADT may claim to do so.  That is why mixed mode is
 # enabled by default.
 #
+# HTT CPUs should only be used if they are enabled in the BIOS.  For
+# the ACPI case, ACPI only correctly tells us about any HTT CPUs if
+# they are enabled.  However, most HTT systems do not list HTT CPUs
+# in the MP Table if they are enabled, thus we guess at the HTT CPUs
+# for the MP Table case.  However, we shouldn't try to guess and use
+# these CPUs if HTTT is disabled.  Thus, HTT guessing is only enabled
+# for the MP Table if the user explicitly asks for it via the
+# MPTABLE_FORCE_HTT option.  Do NOT use this option if you have HTT
+# disabled in your BIOS.
+#
 
 # Mandatory:
 device		apic			# I/O apic
+
+# Optional:
+options		MPTABLE_FORCE_HTT	# Enable HTT CPUs with the MP Table
 options 	NO_MIXED_MODE		# Disable use of mixed mode
 
 
