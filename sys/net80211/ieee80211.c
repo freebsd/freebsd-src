@@ -158,13 +158,13 @@ ieee80211_ifattach(struct ieee80211com *ic)
 	if ((ic->ic_modecaps & (1<<ic->ic_curmode)) == 0)
 		ic->ic_curmode = IEEE80211_MODE_AUTO;
 	ic->ic_des_chan = IEEE80211_CHAN_ANYC;	/* any channel is ok */
-
+#if 0
 	/*
 	 * Enable WME by default if we're capable.
 	 */
 	if (ic->ic_caps & IEEE80211_C_WME)
 		ic->ic_flags |= IEEE80211_F_WME;
-
+#endif
 	(void) ieee80211_setmode(ic, ic->ic_curmode);
 
 	if (ic->ic_lintval == 0)
