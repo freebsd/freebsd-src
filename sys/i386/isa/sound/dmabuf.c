@@ -1187,7 +1187,8 @@ DMAbuf_outputintr(int dev, int event_type)
 		   dev, dmap->qlen, dmap->nbufs);
 	    return;
 	}
-	isa_dmadone(0, 0, 0, audio_devs[dev]->dmachan1);
+	if (!(audio_devs[dev]->flags & DMA_DISABLE))
+	  isa_dmadone(0, 0, 0, audio_devs[dev]->dmachan1);
 
 	dmap->qlen--;
 	dmap->qhead = (dmap->qhead + 1) % dmap->nbufs;
@@ -1253,6 +1254,7 @@ DMAbuf_inputintr(int dev)
 #ifdef OS_DMA_INTR
     sound_dma_intr(dev, audio_devs[dev]->dmap_in, audio_devs[dev]->dmachan2);
 #endif
+    if (!(audio_devs[dev]->flags & DMA_DISABLE))
       isa_dmadone(0, 0, 0, audio_devs[dev]->dmachan2);
 
 #ifdef ALLOW_BUFFER_MAPPING

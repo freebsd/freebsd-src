@@ -135,6 +135,7 @@ struct audio_operations {
 #define NEEDS_RESTART		1
 #define DMA_AUTOMODE		2
 #define DMA_DUPLEX		4
+#define DMA_DISABLE		8
 	int	format_mask;	/* Bitmask for supported audio formats */
 	void    *devc;	/* Driver specific info */
 	int     (*open) (int dev, int mode);
@@ -396,6 +397,11 @@ struct driver_info sound_drivers[] = {
 		attach_pnp_ad1848, probe_pnp_ad1848},
 #endif
 
+#ifdef CONFIG_NSS
+    {"NSS", 0, SNDCARD_NSS, "NEC PC-9801-86 Sound System",
+		attach_nss, probe_nss},
+#endif
+
     {NULL, 0, 0, "*?*", NULL, NULL}
 };
 
@@ -524,6 +530,10 @@ struct card_info snd_installed_cards[] = {
 
 #ifdef CONFIG_YM3812
     {SNDCARD_ADLIB, {FM_MONO, 0, 0, -1}, SND_DEFAULT_ENABLE},
+#endif
+
+#ifdef CONFIG_NSS
+    {SNDCARD_NSS, {NSS_BASE, NSS_IRQ, 0, -1}, SND_DEFAULT_ENABLE},
 #endif
     /* Define some expansion space */
     {0, {0}, 0},

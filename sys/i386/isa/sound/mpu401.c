@@ -79,17 +79,23 @@ struct mpu_config {
 	sound_os_info  *osp;
 };
 
+#ifdef PC98
+#define	DATAPORT(base)   (base)
+#define	COMDPORT(base)   (base+2)
+#define	STATPORT(base)   (base+2)
+#else
 #define	DATAPORT(base)   (base)
 #define	COMDPORT(base)   (base+1)
 #define	STATPORT(base)   (base+1)
+#endif /* PC98 */
 
-#define mpu401_status(devc)		inb( STATPORT(devc->base))
+#define mpu401_status(devc)		inb( STATPORT((devc)->base))
 #define input_avail(devc)		(!(mpu401_status(devc)&INPUT_AVAIL))
 #define output_ready(devc)		(!(mpu401_status(devc)&OUTPUT_READY))
-#define write_command(devc, cmd)	outb( COMDPORT(devc->base),  cmd)
-#define read_data(devc)		inb( DATAPORT(devc->base))
+#define write_command(devc, cmd)	outb( COMDPORT((devc)->base),  cmd)
+#define read_data(devc)		inb( DATAPORT((devc)->base))
 
-#define write_data(devc, byte)	outb( DATAPORT(devc->base),  byte)
+#define write_data(devc, byte)	outb( DATAPORT((devc)->base),  byte)
 
 #define	OUTPUT_READY	0x40
 #define	INPUT_AVAIL	0x80
@@ -526,7 +532,11 @@ mpu401_out(int dev, u_char midi_byte)
      * ready (After reset). Normally it takes just about 10 loops.
      */
 
+#ifdef PC98
+    for (timeout = 23000; timeout > 0 && !output_ready(devc); timeout--);
+#else
     for (timeout = 3000; timeout > 0 && !output_ready(devc); timeout--);
+#endif
 
     flags = splhigh();
     if (!output_ready(devc)) {
@@ -564,7 +574,11 @@ mpu401_command(int dev, mpu_command_rec * cmd)
      * ready (After reset). Normally it takes just about 10 loops.
      */
 
+#ifdef PC98
+    timeout = 50000;
+#else
     timeout = 30000;
+#endif
 retry:
     if (timeout-- <= 0) {
 	printf("MPU-401: Command (0x%x) timeout\n", (int) cmd->cmd);
@@ -1129,7 +1143,7 @@ probe_mpu401(struct address_info * hw_config)
     if (hw_config->always_detect)
 	return 1;
 
-    if (inb(hw_config->io_base + 1) == 0xff) {
+    if (mpu401_status(&tmp_devc) == 0xff) {
 	DDB(printf("MPU401: Port %x looks dead.\n", hw_config->io_base));
 	return 0;	/* Just bus float? */
     }
