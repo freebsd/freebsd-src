@@ -37,12 +37,16 @@
  *
  */
 
-#if !defined(NO_RSA) && defined(PIC)
-#include <dlfcn.h>
+#ifndef NO_RSA
+
 #include <stdio.h>
 
-#define RSA_SHLIB	"librsaref.so"	/* be more exact if you need to */
 #define VERBOSE_STUBS	/* undef if you don't want missing rsaref reported */
+
+#ifdef PIC
+#include <dlfcn.h>
+
+#define RSA_SHLIB	"librsaref.so"	/* be more exact if you need to */
 
 static void *
 getsym(const char *sym)
@@ -65,7 +69,6 @@ getsym(const char *sym)
      return ret;
 }
 
-#pragma weak RSAPrivateDecrypt=RSAPrivateDecrypt_stub
 int
 RSAPrivateDecrypt_stub(unsigned char *output, unsigned int *outlen,
     unsigned char *input, int inputlen, void *RSAkey)
@@ -76,8 +79,9 @@ RSAPrivateDecrypt_stub(unsigned char *output, unsigned int *outlen,
 	return sym(output, outlen, input, inputlen, RSAkey);
     return 0;
 }
+__weak_reference(RSAPrivateDecrypt_stub, RSAPrivateDecrypt);
 
-#pragma weak RSAPrivateEncrypt=RSAPrivateEncrypt_stub
+
 int
 RSAPrivateEncrypt_stub(unsigned char *output, unsigned int *outlen,
     unsigned char *input, int inputlen, void *RSAkey)
@@ -88,8 +92,8 @@ RSAPrivateEncrypt_stub(unsigned char *output, unsigned int *outlen,
 	return sym(output, outlen, input, inputlen, RSAkey);
     return 0;
 }
+__weak_reference(RSAPrivateEncrypt_stub, RSAPrivateEncrypt);
 
-#pragma weak RSAPublicDecrypt=RSAPublicDecrypt_stub
 int
 RSAPublicDecrypt_stub(unsigned char *output, unsigned int *outlen,
     unsigned char *input, int inputlen, void *RSAkey)
@@ -100,8 +104,8 @@ RSAPublicDecrypt_stub(unsigned char *output, unsigned int *outlen,
 	return sym(output, outlen, input, inputlen, RSAkey);
     return 0;
 }
+__weak_reference(RSAPublicDecrypt_stub, RSAPublicDecrypt);
 
-#pragma weak RSAPublicEncrypt=RSAPublicEncrypt_stub
 int
 RSAPublicEncrypt_stub(unsigned char *output, unsigned int *outlen,
     unsigned char *input, int inputlen, void *RSAkey, void *randomStruct)
@@ -113,8 +117,8 @@ RSAPublicEncrypt_stub(unsigned char *output, unsigned int *outlen,
 	return sym(output, outlen, input, inputlen, RSAkey, randomStruct);
     return 0;
 }
+__weak_reference(RSAPublicEncrypt_stub, RSAPublicEncrypt);
 
-#pragma weak R_GetRandomBytesNeeded=R_GetRandomBytesNeeded_stub
 int
 R_GetRandomBytesNeeded_stub(unsigned int *bytesNeeded, void *randomStruct) 
 {
@@ -124,8 +128,8 @@ R_GetRandomBytesNeeded_stub(unsigned int *bytesNeeded, void *randomStruct)
 	return sym(bytesNeeded, randomStruct);
     return 0;
 }
+__weak_reference(R_GetRandomBytesNeeded_stub, R_GetRandomBytesNeeded);
 
-#pragma weak R_RandomFinal=R_RandomFinal_stub
 void
 R_RandomFinal_stub(void *randomStruct)
 {
@@ -134,8 +138,8 @@ R_RandomFinal_stub(void *randomStruct)
     if (sym || (sym = getsym("R_RandomFinal")))
 	sym(randomStruct);
 }
+__weak_reference(R_RandomFinal_stub, R_RandomFinal);
 
-#pragma weak R_RandomInit=R_RandomInit_stub
 int
 R_RandomInit_stub(void *randomStruct)
 {
@@ -145,8 +149,8 @@ R_RandomInit_stub(void *randomStruct)
 	sym(randomStruct);
     return 0;
 }
+__weak_reference(R_RandomInit_stub, R_RandomInit);
 
-#pragma weak R_RandomUpdate=R_RandomUpdate_stub
 int
 R_RandomUpdate_stub(void *randomStruct,
     unsigned char *block, unsigned int blockLen) 
@@ -157,5 +161,14 @@ R_RandomUpdate_stub(void *randomStruct,
 	sym(randomStruct, block, blockLen);
     return 0;
 }
+__weak_reference(R_RandomUpdate_stub, R_RandomUpdate);
 
-#endif	/* !NO_RSA && PIC */
+#else	/* !PIC */
+
+/* Failsafe glue for static linking.  Link but complain like hell. */
+
+/* actually, this creates all sorts of ld(1) problems, forget it for now */
+
+#endif	/* !PIC */
+
+#endif	/* !NO_RSA */
