@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)main.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: main.c,v 1.29 1999/04/11 03:40:10 grog Exp $";
+	"$Id: main.c,v 1.30 1999/04/17 14:41:40 peter Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -153,15 +153,12 @@ main(argc, argv)
 
 	case MACHINE_I386:
 	case MACHINE_PC98:
-		i386_ioconf();		/* Print ioconf.c */
-		break;
-
 	case MACHINE_ALPHA:
-		alpha_ioconf();
+		newbus_ioconf();	/* Print ioconf.c */
 		break;
 
 	default:
-		printf("Specify machine type, e.g. ``machine vax''\n");
+		printf("Specify machine type, e.g. ``machine i386''\n");
 		exit(1);
 	}
 	/*
@@ -216,13 +213,14 @@ begin:
 		escaped_nl = 1;
 		goto begin;
 	}
-	if (ch == '\n')
+	if (ch == '\n') {
 		if (escaped_nl){
 			escaped_nl = 0;
 			goto begin;
 		}
 		else
 			return (NULL);
+	}
 	cp = line;
 	*cp++ = ch;
 	while ((ch = getc(fp)) != EOF) {
@@ -261,13 +259,14 @@ begin:
 		escaped_nl = 1;
 		goto begin;
 	}
-	if (ch == '\n')
+	if (ch == '\n') {
 		if (escaped_nl){
 			escaped_nl = 0;
 			goto begin;
 		}
 		else
 			return (NULL);
+	}
 	cp = line;
 	if (ch == '"' || ch == '\'') {
 		register int quote = ch;

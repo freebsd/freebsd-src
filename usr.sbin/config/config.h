@@ -147,8 +147,8 @@ struct config {
 /*
  * Config has a global notion of which machine type is
  * being used.  It uses the name of the machine in choosing
- * files and directories.  Thus if the name of the machine is ``vax'',
- * it will build from ``Makefile.vax'' and use ``../vax/inline''
+ * files and directories.  Thus if the name of the machine is ``i386'',
+ * it will build from ``Makefile.i386'' and use ``../i386/inline''
  * in the makerules, etc.
  */
 int	machine;
@@ -188,23 +188,24 @@ struct opt_list {
 extern char	*ident;
 extern int	do_trace;
 
-char	*ns();
-char	*tc();
-char	*get_word();
-char	*get_quoted_word();
-char	*path();
-char	*raisestr();
-void	moveifchanged();
-dev_t	nametodev();
-char	*devtoname();
+char	*get_word __P((FILE *));
+char	*get_quoted_word __P((FILE *));
+char	*path __P((char *));
+char	*raisestr __P((char *));
+void	moveifchanged __P((const char *, const char *));
+dev_t	nametodev __P((char *, int, int, char));
+char	*devtoname __P((dev_t));
 void	init_dev __P((struct device *));       
+void	newbus_ioconf __P((void));
+int	yyparse __P((void));
+int	yylex __P((void));
+void	options __P((void));
+void	makefile __P((void));
+void	headers __P((void));
+void	swapconf __P((void));
 
 
-#if MACHINE_I386
-extern int	seen_isa;
 extern int	seen_scbus;
-#endif
-
 extern struct	device *dtab;
 
 extern char	errbuf[80];

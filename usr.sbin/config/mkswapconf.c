@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)mkswapconf.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: mkswapconf.c,v 1.16 1999/04/15 14:52:22 bde Exp $";
+	"$Id: mkswapconf.c,v 1.17 1999/04/17 14:41:40 peter Exp $";
 #endif /* not lint */
 
 /*
@@ -44,7 +44,6 @@ static const char rcsid[] =
  */
 #include <err.h>
 #include <unistd.h>
-#include "config.h"
 
 #include <sys/disklabel.h>
 #include <sys/diskslice.h>
@@ -52,6 +51,8 @@ static const char rcsid[] =
 #include <ctype.h>
 #include <stdio.h>
 #include <string.h>
+
+#include "config.h"
 
 #define ns(s) strdup(s)
 

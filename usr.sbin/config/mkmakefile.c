@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)mkmakefile.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: mkmakefile.c,v 1.37 1999/04/13 18:22:57 peter Exp $";
+	"$Id: mkmakefile.c,v 1.38 1999/04/17 14:41:40 peter Exp $";
 #endif /* not lint */
 
 /*
@@ -71,7 +71,6 @@ static const char rcsid[] =
 #define ns(s) strdup(s)
 
 static struct file_list *fcur;
-extern int old_config_present;
 
 static char *tail __P((char *));
 static void do_swapspec __P((FILE *, char *));
@@ -86,7 +85,6 @@ static void do_before_depend __P((FILE *));
 static struct file_list *do_systemspec __P((FILE *, struct file_list *, int));
 static int opteq __P((char *, char *));
 static void read_files __P((void));
-void makefile __P((void));
 
 /*
  * Lookup a file, by name.
@@ -263,6 +261,7 @@ read_files()
 	    imp_rule, no_obj, before_depend, mandatory;
 
 	ftab = 0;
+	save_dp = NULL;
 	(void) snprintf(fname, sizeof fname, "../../conf/files");
 openit:
 	fp = fopen(fname, "r");
@@ -475,7 +474,6 @@ doneparam:
 		exit(1);
 	}
 
-save:
 	if (wd) {
 		printf("%s: syntax error describing %s\n",
 		    fname, this);
@@ -742,7 +740,7 @@ do_rules(f)
 		tp = tail(np);
 		special = ftp->f_special;
 		if (special == 0) {
-			char *ftype;
+			char *ftype = NULL;
 			static char cmd[128];
 
 			switch (ftp->f_type) {
