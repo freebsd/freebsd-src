@@ -43,6 +43,9 @@ atm_pass1() {
 		hfa[0-9] | hfa[0-9][0-9])
 			echo "${dev} "
 			;;
+		proatm[0-9] | proatm[0-9][0-9])
+			echo "${dev} "
+			;;
 		*)
 			continue
 			;;
