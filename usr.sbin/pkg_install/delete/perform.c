@@ -69,7 +69,7 @@ pkg_perform(char **pkgs)
 		 * Another iteration requred to check if new pkgs[i]
 		 * itself has any packages that depend on it
 		 */
-		j--;
+		j = i + 1;
 	    }
 	}
 	err_cnt += pkg_do(pkgs[i]);
