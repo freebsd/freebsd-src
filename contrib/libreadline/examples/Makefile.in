@@ -1,6 +1,6 @@
 # This is the Makefile for the examples subdirectory of readline. -*- text -*-
 #
-SHELL = /bin/sh
+SHELL = @MAKE_SHELL@
 RM = rm -f
 
 srcdir = @srcdir@
@@ -14,7 +14,7 @@ CFLAGS = @CFLAGS@
 LOCAL_CFLAGS = @LOCAL_CFLAGS@
 CPPFLAGS = @CPPFLAGS@
 
-INCLUDES = -I $(srcdir) -I $(top_srcdir) -I..
+INCLUDES = -I$(srcdir) -I$(top_srcdir) -I..
 
 CCFLAGS  = $(DEFS) $(LOCAL_CFLAGS) $(CPPFLAGS) $(INCLUDES) $(CFLAGS)
 LDFLAGS = -g -L..
@@ -22,10 +22,11 @@ LDFLAGS = -g -L..
 TERMCAP_LIB = @TERMCAP_LIB@
 
 .c.o:
+	${RM} $@
 	$(CC) $(CCFLAGS) -c $<
 
-EXECUTABLES = fileman rltest rl
-OBJECTS = fileman.o rltest.o rl.o
+EXECUTABLES = fileman rltest rl rlversion
+OBJECTS = fileman.o rltest.o rl.o rlversion.o
 
 all: $(EXECUTABLES)
 
@@ -38,6 +39,9 @@ fileman: fileman.o
 rltest: rltest.o
 	$(CC) $(LDFLAGS) -o $@ rltest.o -lreadline $(TERMCAP_LIB)
 
+rlversion: rlversion.o
+	$(CC) $(LDFLAGS) -o $@ rlversion.o -lreadline $(TERMCAP_LIB)
+
 clean mostlyclean:
 	$(RM) $(OBJECTS)
 	$(RM) $(EXECUTABLES)
@@ -48,3 +52,4 @@ distclean maintainer-clean: clean
 fileman.o: fileman.c
 rltest.o: rltest.c
 rl.o: rl.c
+rlversion.o: rlversion.c
