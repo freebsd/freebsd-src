@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ip_divert.c,v 1.23 1998/05/15 20:11:33 wollman Exp $
+ *	$Id: ip_divert.c,v 1.24 1998/05/25 07:41:23 julian Exp $
  */
 
 #include "opt_inet.h"
@@ -160,6 +160,7 @@ div_input(struct mbuf *m, int hlen)
 	divsrc.sin_addr.s_addr = 0;
 	if (hlen) {
 		struct ifaddr *ifa;
+		char	name[32];
 
 #ifdef DIAGNOSTIC
 		/* Sanity check */
@@ -170,7 +171,7 @@ div_input(struct mbuf *m, int hlen)
 		/* More fields affected by ip_input() */
 		HTONS(ip->ip_id);
 
-		/* Find IP address for recieve interface */
+		/* Find IP address for receive interface */
 		for (ifa = m->m_pkthdr.rcvif->if_addrhead.tqh_first;
 		    ifa != NULL; ifa = ifa->ifa_link.tqe_next) {
 			if (ifa->ifa_addr == NULL)
@@ -181,6 +182,27 @@ div_input(struct mbuf *m, int hlen)
 			    ((struct sockaddr_in *) ifa->ifa_addr)->sin_addr;
 			break;
 		}
+		/*
+		 * Hide the actual interface name in there in the 
+		 * sin_zero array. XXX This needs to be moved to a
+		 * different sockaddr type for divert, e.g.
+		 * sockaddr_div with multiple fields like 
+		 * sockaddr_dl. Presently we have only 7 bytes
+		 * but that will do for now as most interfaces
+		 * are 4 or less + 2 or less bytes for unit.
+		 * There is probably a faster way of doing this,
+		 * possibly taking it from the sockaddr_dl on the iface.
+		 * This solves the problem of a P2P link and a LAN interface
+		 * having the same address, which can result in the wrong
+		 * interface being assigned to the packet when fed back
+		 * into the divert socket. Theoretically if the daemon saves
+		 * and re-uses the sockaddr_in as suggested in the man pages,
+		 * this iface name will come along for the ride.
+		 * (see div_output for the other half of this.)
+		 */ 
+		sprintf(name, "%s%d",
+			m->m_pkthdr.rcvif->if_name, m->m_pkthdr.rcvif->if_unit);
+		strncpy(divsrc.sin_zero, name, 7);
 	}
 
 	/* Put packet on socket queue, if any */
@@ -254,15 +276,35 @@ div_output(so, m, addr, control)
 			(so->so_options & SO_DONTROUTE) |
 			IP_ALLOWBROADCAST | IP_RAWOUTPUT, inp->inp_moptions);
 	} else {
-		struct ifaddr *ifa;
+		struct	ifnet *ifp = NULL;
+		struct	ifaddr *ifa;
+		int	len = 0;
+		char	*c = sin->sin_zero;
 
-		/* Find receive interface with the given IP address */
 		sin->sin_port = 0;
-		if ((ifa = ifa_ifwithaddr((struct sockaddr *) sin)) == 0) {
-			error = EADDRNOTAVAIL;
-			goto cantsend;
+		/*
+		 * Find receive interface with the given name or IP address.
+		 * The name is user supplied data so don't trust it's size or 
+		 * that it is zero terminated. The name has priority.
+		 * We are presently assuming that the sockaddr_in 
+		 * has not been replaced by a sockaddr_div, so we limit it
+		 * to 16 bytes in total. the name is stuffed (if it exists)
+		 * in the sin_zero[] field.
+		 */
+		while (*c++ && (len++ < sizeof(sin->sin_zero)));
+		if ((len > 0) && (len < sizeof(sin->sin_zero)))
+			ifp = ifunit(sin->sin_zero);
+
+		/* If no luck with the name. check by IP address.  */
+		if (ifp) {
+			m->m_pkthdr.rcvif = ifp;
+		} else {
+			if (!(ifa = ifa_ifwithaddr((struct sockaddr *) sin))) {
+				error = EADDRNOTAVAIL;
+				goto cantsend;
+			}
+			m->m_pkthdr.rcvif = ifa->ifa_ifp;
 		}
-		m->m_pkthdr.rcvif = ifa->ifa_ifp;
 
 		/* Send packet to input processing */
 		ip_input(m);
