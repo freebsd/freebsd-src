@@ -173,7 +173,7 @@ enum {
 #define ENOTHER_DRAIN	0x02		/* almost free (drain DRQ dma) */
 #define ENOTHER_SWSL	0x08		/* in software service list */
 
-SYSCTL_NODE(_hw, OID_AUTO, en, CTLFLAG_RW, 0, "ENI 155p");
+SYSCTL_DECL(_hw_atm);
 
 /*
  * dma tables
@@ -2767,7 +2767,7 @@ en_attach(struct en_softc *sc)
 	sysctl_ctx_init(&sc->sysctl_ctx);
 
 	if ((sc->sysctl_tree = SYSCTL_ADD_NODE(&sc->sysctl_ctx,
-	    SYSCTL_STATIC_CHILDREN(_hw_en), OID_AUTO,
+	    SYSCTL_STATIC_CHILDREN(_hw_atm), OID_AUTO,
 	    device_get_nameunit(sc->dev), CTLFLAG_RD, 0, "")) == NULL)
 		goto fail;
 
@@ -2877,7 +2877,6 @@ en_attach(struct en_softc *sc)
 	/*
 	 * final commit
 	 */
-	if_attach(ifp);
 	atm_ifattach(ifp); 
 
 #ifdef ENABLE_BPF
