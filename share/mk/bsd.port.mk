@@ -1,7 +1,7 @@
 #-*- mode: Fundamental; tab-width: 4; -*-
 # ex:ts=4
 #
-#	$Id: bsd.port.mk,v 1.268 1998/01/02 10:37:14 asami Exp $
+#	$Id: bsd.port.mk,v 1.269 1998/01/31 20:59:30 obrien Exp $
 #	$NetBSD: $
 #
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
@@ -114,6 +114,9 @@ OpenBSD_MAINTAINER=	imp@OpenBSD.ORG
 # NO_EXTRACT	- Use a dummy (do-nothing) extract target.
 # NO_INSTALL	- Use a dummy (do-nothing) install target.
 # NO_PACKAGE	- Use a dummy (do-nothing) package target.
+# NO_LATEST_LINK - Do not install the "Latest" link for package.  Define this
+#				  if this port is a beta version of another stable port
+#				  which is also in the tree.
 # NO_PKG_REGISTER - Don't register a port install as a package.
 # NO_WRKSUBDIR	- Assume port unpacks directly into ${WRKDIR}.
 # NO_WRKDIR		- There's no work directory at all; port does this someplace
@@ -565,7 +568,7 @@ MASTER_SITE_TEX_CTAN+=  \
         ftp://ftp.cdrom.com/pub/tex/ctan/%SUBDIR%/  \
         ftp://wuarchive.wustl.edu/packages/TeX/%SUBDIR%/  \
         ftp://ftp.funet.fi/pub/TeX/CTAN/%SUBDIR%/  \
-        ftp://ftp.tex.ac.uk/public/ctan/tex-archive/%SUBDIR%/  \
+        ftp://ftp.tex.ac.uk/tex-archive/%SUBDIR%/  \
         ftp://ftp.dante.de/tex-archive/%SUBDIR%/
 
 MASTER_SITE_SUNSITE+=	\
@@ -759,6 +762,23 @@ _MANPAGES:=	${_MANPAGES:S/$/.gz/}
 # Don't build a port if it's broken.
 ################################################################
 
+OLDSYSTCL!=	${ECHO} /usr/include/tcl.h /usr/lib/libtcl??.so.*.*
+OLDTCL=		${LOCALBASE}/include/tcl.h ${LOCALBASE}/lib/tclConfig.sh
+OLDTK=		${LOCALBASE}/include/tk.h ${LOCALBASE}/lib/tkConfig.sh
+
+.if !defined(NO_IGNORE)
+.for file in ${OLDSYSTCL} ${OLDTCL}
+.if exists(${file})
+IGNORE=	": You have an old file \(${file}\) that could cause problems for some ports to compile.  Please remove it and try again.  You may have to reinstall tcl from the ports tree afterwards"
+.endif
+.endfor
+.for file in ${OLDTK}
+.if exists(${file})
+IGNORE=	": You have an old file \(${file}\) that could cause problems for some ports to compile.  Please remove it and try again.  You may have to reinstall tk from the ports tree afterwards"
+.endif
+.endfor
+.endif
+
 .if !defined(NO_IGNORE)
 .if (defined(IS_INTERACTIVE) && defined(BATCH))
 IGNORE=	"is an interactive port"
@@ -774,12 +794,6 @@ IGNORE=	"may not be placed on a CDROM: ${NO_CDROM}"
 IGNORE=	"is restricted: ${RESTRICTED}"
 .elif (defined(USE_X11) && !exists(${X11BASE}))
 IGNORE=	"uses X11, but ${X11BASE} not found"
-.elif exists(/usr/include/tcl.h)
-IGNORE=	": You have an old tcl installation on your machine.  Remove everything that matches '/usr/*/*tcl*' first"
-.elif exists(${LOCALBASE}/include/tcl.h) || exists(${LOCALBASE}/lib/tclConfig.sh)
-IGNORE=	": You have an old tcl installation on your machine.  Remove everything that matches '${PREFIX}/*/*tcl*' first"
-.elif exists(${LOCALBASE}/include/tk.h) || exists(${LOCALBASE}/lib/tkConfig.sh)
-IGNORE=	": You have an old tk installation on your machine.  Remove everything that matches '${PREFIX}/*/*tk*' first"
 .elif defined(BROKEN)
 IGNORE=	"is marked as broken: ${BROKEN}"
 .endif
@@ -1119,6 +1133,7 @@ package-links:
 		fi; \
 		${LN} -s ../${PKGREPOSITORYSUBDIR}/${PKGNAME}${PKG_SUFX} ${PACKAGES}/$$cat; \
 	done
+.if !defined(NO_LATEST_LINK)
 	@if [ ! -d ${PKGLATESTREPOSITORY} ]; then \
 		if ! ${MKDIR} ${PKGLATESTREPOSITORY}; then \
 			${ECHO_MSG} ">> Can't create directory ${PKGLATESTREPOSITORY}."; \
@@ -1126,6 +1141,7 @@ package-links:
 		fi; \
 	fi
 	@${LN} -s ../${PKGREPOSITORYSUBDIR}/${PKGNAME}${PKG_SUFX} ${PKGLATESTFILE}
+.endif
 .endif
 
 .if !target(delete-package-links)
@@ -1328,7 +1344,7 @@ reinstall:
 .if !target(deinstall)
 deinstall:
 	@${ECHO_MSG} "===> Deinstalling for ${PKGNAME}"
-	@pkg_delete -f `make package-name`
+	@pkg_delete -f ${PKGNAME}
 	@${RM} -f ${INSTALL_COOKIE} ${PACKAGE_COOKIE}
 .endif
 
