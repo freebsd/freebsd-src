@@ -48,11 +48,12 @@
 #include <string.h>
 #include <unistd.h>
 
-extern char	*optarg;
-extern int	optind;
+int initattr(int argc, char *argv[]);
+long num_inodes_by_path(char *path);
+void usage(void);
 
 void
-usage(void)
+usage()
 {
 
 	fprintf(stderr,
@@ -176,7 +177,6 @@ main(int argc, char *argv[])
 			perror("extattrctl start");
 			return (-1);
 		}
-		return (0);
 	} else if (!strcmp(argv[1], "stop")) {
 		if (argc != 3)
 			usage();
@@ -186,7 +186,6 @@ main(int argc, char *argv[])
 			perror("extattrctl stop");
 			return (-1);
 		}
-		return (0);
 	} else if (!strcmp(argv[1], "enable")) {
 		if (argc != 6)
 			usage();
@@ -201,7 +200,6 @@ main(int argc, char *argv[])
 			perror("extattrctl enable");
 			return (-1);
 		}
-		return (0);
 	} else if (!strcmp(argv[1], "disable")) {
 		if (argc != 5)
 			usage();
@@ -216,14 +214,14 @@ main(int argc, char *argv[])
 			perror("extattrctl disable");
 			return (-1);
 		}
-		return (0);
 	} else if (!strcmp(argv[1], "initattr")) {
 		argc -= 2;
 		argv += 2;
 		error = initattr(argc, argv);
 		if (error)
 			return (-1);
-		return (0);
 	} else
 		usage();
+
+	return (0);
 }
