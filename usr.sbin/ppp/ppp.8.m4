@@ -4450,7 +4450,8 @@ will attempt to load it using
 .Xr kldload 2 .
 If this fails, an external program must be used such as the
 .Xr pppoe 8
-program available under OpenBSD.
+program available under
+.Ox .
 The given
 .Ar provider
 is passed as the service name in the PPPoE Discovery Initiation (PADI)
