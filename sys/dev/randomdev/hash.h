@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2000 Mark R. V. Murray
+ * Copyright (c) 2000 Mark R V Murray
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,17 +26,21 @@
  * $FreeBSD$
  */
 
-#ifndef	_SYS_RANDOM_H_
-#define	_SYS_RANDOM_H_
+#define KEYSIZE		32	/* 32 bytes == 256 bits */
 
-#ifdef _KERNEL
+struct yarrowhash {		/* Big! Make static! */
+	BF_KEY hashkey;		/* Data cycles through here */
+	u_char ivec[8];		/* Blowfish Internal */
+	u_char hash[KEYSIZE];	/* Repeatedly encrypted */
+};
 
-u_int read_random(struct proc *, void *, u_int);
+struct yarrowkey {		/* Big! Make static! */
+	BF_KEY key;		/* Key schedule */
+	u_char ivec[8];		/* Blowfish Internal */
+};
 
-enum esource { RANDOM_WRITE, RANDOM_KEYBOARD, RANDOM_MOUSE, RANDOM_NET, \
-		ENTROPYSOURCE };
-void random_harvest(void *, u_int, u_int, u_int, enum esource);
-
-#endif
-
-#endif /* _SYS_RANDOM_H_ */
+void yarrow_hash_init(struct yarrowhash *, void *, size_t);
+void yarrow_hash_iterate(struct yarrowhash *, void *, size_t);
+void yarrow_hash_finish(struct yarrowhash *, void *);
+void yarrow_encrypt_init(struct yarrowkey *, void *, size_t);
+void yarrow_encrypt(struct yarrowkey *context, void *, void *, size_t);

@@ -35,12 +35,11 @@
 
 #define ENTROPYBIN	256	/* buckets to harvest entropy events  */
 #define TIMEBIN		16	/* max value for Pt/t */
-#define KEYSIZE		32	/* 32 bytes == 256 bits */
 
 #define FAST		0
 #define SLOW		1
 
-void random_init(void);
+int random_init(void);
 void random_deinit(void);
 void random_init_harvester(void (*)(struct timespec *, void *, u_int, u_int, u_int, enum esource));
 void random_deinit_harvester(void);
@@ -54,25 +53,19 @@ void write_random(void *, u_int);
  */
 struct random_state {
 	u_int64_t counter;	/* C */
-	BF_KEY key;		/* K */
+	struct yarrowkey key;	/* K */
 	int gengateinterval;	/* Pg */
 	int bins;		/* Pt/t */
-	u_char ivec[8];		/* Blowfish internal */
 	int outputblocks;	/* count output blocks for gates */
 	u_int slowoverthresh;	/* slow pool overthreshhold reseed count */
 	struct pool {
 		struct source {
-			struct entropy {
-				struct timespec	nanotime;
-				u_int64_t data;
-			} entropy[ENTROPYBIN];	/* entropy units - must each
-					   	be <= KEYSIZE */
 			u_int bits;	/* estimated bits of entropy */
 			u_int frac;	/* fractional bits of entropy
 					   (given as 1024/n) */
-			u_int current;	/* next insertion point */
 		} source[ENTROPYSOURCE];
 		u_int thresh;	/* pool reseed threshhold */
+		struct yarrowhash hash;	/* accumulated entropy */
 	} pool[2];		/* pool[0] is fast, pool[1] is slow */
 	int which;		/* toggle - shows the current insertion pool */
 };
