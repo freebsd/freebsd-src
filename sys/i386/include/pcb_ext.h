@@ -45,7 +45,7 @@ struct pcb_ext {
 
 #ifdef _KERNEL
 
-int i386_extend_pcb __P((struct thread *));
+int i386_extend_pcb(struct thread *);
 
 #endif
 

@@ -50,7 +50,7 @@ struct dvcfg_hwsel {
 
 #define	DVCFG_HWSEL_SZ(array)	(sizeof(array) / sizeof(dvcfg_hw_t))
 
-static __inline dvcfg_hw_t dvcfg_hw __P((struct dvcfg_hwsel *, u_int));
+static __inline dvcfg_hw_t dvcfg_hw(struct dvcfg_hwsel *, u_int);
 
 static __inline dvcfg_hw_t
 dvcfg_hw(selp, num)

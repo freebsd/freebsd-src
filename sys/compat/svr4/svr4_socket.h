@@ -48,9 +48,9 @@ struct svr4_sockaddr_in {
         u_char         sin_zero[8];
 };
 
-struct sockaddr_un *svr4_find_socket __P((struct thread *, struct file *,
-    udev_t, ino_t));
-void svr4_delete_socket __P((struct proc *, struct file *));
-int svr4_add_socket __P((struct thread *, const char *, struct stat *));
+struct sockaddr_un *svr4_find_socket(struct thread *, struct file *,
+    udev_t, ino_t);
+void svr4_delete_socket(struct proc *, struct file *);
+int svr4_add_socket(struct thread *, const char *, struct stat *);
 
 #endif /* _SVR4_SOCKET_H_ */

@@ -80,7 +80,7 @@ struct md_coredump {
 };
 
 #ifdef _KERNEL
-void	savectx __P((struct pcb *));
+void	savectx(struct pcb *);
 #endif
 
 #endif /* _I386_PCB_H_ */

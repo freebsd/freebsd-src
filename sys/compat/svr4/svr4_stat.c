@@ -72,10 +72,10 @@ struct svr4_ustat_args {
 	struct svr4_ustat * name;
 };
 
-static void bsd_to_svr4_xstat __P((struct stat *, struct svr4_xstat *));
-static void bsd_to_svr4_stat64 __P((struct stat *, struct svr4_stat64 *));
-int svr4_ustat __P((struct thread *, struct svr4_ustat_args *));
-static int svr4_to_bsd_pathconf __P((int));
+static void bsd_to_svr4_xstat(struct stat *, struct svr4_xstat *);
+static void bsd_to_svr4_stat64(struct stat *, struct svr4_stat64 *);
+int svr4_ustat(struct thread *, struct svr4_ustat_args *);
+static int svr4_to_bsd_pathconf(int);
 
 /*
  * SVR4 uses named pipes as named sockets, so we tell programs
@@ -85,7 +85,7 @@ static int svr4_to_bsd_pathconf __P((int));
 
 
 #ifndef SVR4_NO_OSTAT
-static void bsd_to_svr4_stat __P((struct stat *, struct svr4_stat *));
+static void bsd_to_svr4_stat(struct stat *, struct svr4_stat *);
 
 static void
 bsd_to_svr4_stat(st, st4)

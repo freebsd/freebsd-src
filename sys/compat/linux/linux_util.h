@@ -74,7 +74,7 @@ stackgap_alloc(sgp, sz)
 
 extern const char linux_emul_path[];
 
-int linux_emul_find __P((struct thread *, caddr_t *, char *, char **, int));
+int linux_emul_find(struct thread *, caddr_t *, char *, char **, int);
 
 #define CHECKALT(p, sgp, path, i) 					\
 	do {								\

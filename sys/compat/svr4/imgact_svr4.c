@@ -54,7 +54,7 @@
 
 #include <compat/svr4/svr4.h>
 
-static int	exec_svr4_imgact __P((struct image_params *iparams));
+static int	exec_svr4_imgact(struct image_params *iparams);
 
 static int
 exec_svr4_imgact(imgp)

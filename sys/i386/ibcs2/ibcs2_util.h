@@ -84,8 +84,8 @@ stackgap_alloc(sgp, sz)
 
 extern const char ibcs2_emul_path[];
 
-int ibcs2_emul_find __P((struct thread *, caddr_t *, const char *, char *,
-			char **, int));
+int ibcs2_emul_find(struct thread *, caddr_t *, const char *, char *,
+			char **, int);
 
 #define CHECKALTEXIST(p, sgp, path) \
     ibcs2_emul_find(td, sgp, ibcs2_emul_path, path, &(path), 0)
@@ -94,7 +94,7 @@ int ibcs2_emul_find __P((struct thread *, caddr_t *, const char *, char *,
     ibcs2_emul_find(td, sgp, ibcs2_emul_path, path, &(path), 1)
 
 #ifdef SPX_HACK
-int spx_open __P((struct thread *td, void *uap));
+int spx_open(struct thread *td, void *uap);
 #endif
 
 #endif /* !_IBCS2_UTIL_H_ */

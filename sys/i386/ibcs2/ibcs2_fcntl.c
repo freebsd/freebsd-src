@@ -44,11 +44,11 @@
 #include <i386/ibcs2/ibcs2_proto.h>
 #include <i386/ibcs2/ibcs2_util.h>
 
-static void cvt_iflock2flock __P((struct ibcs2_flock *, struct flock *));
-static void cvt_flock2iflock __P((struct flock *, struct ibcs2_flock *));
-static int  cvt_o_flags      __P((int));
-static int  oflags2ioflags   __P((int));
-static int  ioflags2oflags   __P((int));
+static void cvt_iflock2flock(struct ibcs2_flock *, struct flock *);
+static void cvt_flock2iflock(struct flock *, struct ibcs2_flock *);
+static int  cvt_o_flags(int);
+static int  oflags2ioflags(int);
+static int  ioflags2oflags(int);
 
 static int
 cvt_o_flags(flags)

@@ -141,11 +141,11 @@ union	savefpu {
 #define	__INITIAL_NPXCW__	0x127F
 
 #ifdef _KERNEL
-int	npxdna __P((void));
-void	npxexit __P((struct thread *td));
-void	npxinit __P((int control));
-void	npxsave __P((union savefpu *addr));
-int	npxtrap __P((void));
+int	npxdna(void);
+void	npxexit(struct thread *td);
+void	npxinit(int control);
+void	npxsave(union savefpu *addr);
+int	npxtrap(void);
 #endif
 
 #endif /* !_MACHINE_NPX_H_ */

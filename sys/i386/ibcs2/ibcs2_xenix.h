@@ -82,23 +82,23 @@ struct	ibcs2_rename_args {
 struct	xenix_utsname_args {
 	long	addr;	char addr_[PAD_(long)];
 };
-int	xenix_rdchk __P((struct thread *, struct xenix_rdchk_args *));
-int	xenix_chsize __P((struct thread *, struct xenix_chsize_args *));
-int	xenix_ftime __P((struct thread *, struct xenix_ftime_args *));
-int	xenix_nap __P((struct thread *, struct xenix_nap_args *));
-int	xenix_scoinfo __P((struct thread *, struct xenix_scoinfo_args *));
-int	xenix_eaccess __P((struct thread *, struct xenix_eaccess_args *));
-int	ibcs2_sigaction __P((struct thread *, struct ibcs2_sigaction_args *));
-int	ibcs2_sigprocmask __P((struct thread *, struct ibcs2_sigprocmask_args *));
-int	ibcs2_sigpending __P((struct thread *, struct ibcs2_sigpending_args *));
-int	ibcs2_sigsuspend __P((struct thread *, struct ibcs2_sigsuspend_args *));
-int	ibcs2_getgroups __P((struct thread *, struct ibcs2_getgroups_args *));
-int	ibcs2_setgroups __P((struct thread *, struct ibcs2_setgroups_args *));
-int	ibcs2_sysconf __P((struct thread *, struct ibcs2_sysconf_args *));
-int	ibcs2_pathconf __P((struct thread *, struct ibcs2_pathconf_args *));
-int	ibcs2_fpathconf __P((struct thread *, struct ibcs2_fpathconf_args *));
-int	ibcs2_rename __P((struct thread *, struct ibcs2_rename_args *));
-int	xenix_utsname __P((struct thread *, struct xenix_utsname_args *));
+int	xenix_rdchk(struct thread *, struct xenix_rdchk_args *);
+int	xenix_chsize(struct thread *, struct xenix_chsize_args *);
+int	xenix_ftime(struct thread *, struct xenix_ftime_args *);
+int	xenix_nap(struct thread *, struct xenix_nap_args *);
+int	xenix_scoinfo(struct thread *, struct xenix_scoinfo_args *);
+int	xenix_eaccess(struct thread *, struct xenix_eaccess_args *);
+int	ibcs2_sigaction(struct thread *, struct ibcs2_sigaction_args *);
+int	ibcs2_sigprocmask(struct thread *, struct ibcs2_sigprocmask_args *);
+int	ibcs2_sigpending(struct thread *, struct ibcs2_sigpending_args *);
+int	ibcs2_sigsuspend(struct thread *, struct ibcs2_sigsuspend_args *);
+int	ibcs2_getgroups(struct thread *, struct ibcs2_getgroups_args *);
+int	ibcs2_setgroups(struct thread *, struct ibcs2_setgroups_args *);
+int	ibcs2_sysconf(struct thread *, struct ibcs2_sysconf_args *);
+int	ibcs2_pathconf(struct thread *, struct ibcs2_pathconf_args *);
+int	ibcs2_fpathconf(struct thread *, struct ibcs2_fpathconf_args *);
+int	ibcs2_rename(struct thread *, struct ibcs2_rename_args *);
+int	xenix_utsname(struct thread *, struct xenix_utsname_args *);
 
 #ifdef COMPAT_43
 

@@ -50,19 +50,19 @@
 # endif
 #endif
 
-static u_long bsd_to_svr4_speed __P((u_long, u_long));
-static u_long svr4_to_bsd_speed __P((u_long, u_long));
-static void svr4_to_bsd_termios __P((const struct svr4_termios *, 
-				     struct termios *, int));
-static void bsd_to_svr4_termios __P((const struct termios *, 
-				     struct svr4_termios *));
-static void svr4_termio_to_termios __P((const struct svr4_termio *,
-					struct svr4_termios *));
-static void svr4_termios_to_termio __P((const struct svr4_termios *,
-					struct svr4_termio *));
+static u_long bsd_to_svr4_speed(u_long, u_long);
+static u_long svr4_to_bsd_speed(u_long, u_long);
+static void svr4_to_bsd_termios(const struct svr4_termios *, 
+				     struct termios *, int);
+static void bsd_to_svr4_termios(const struct termios *, 
+				     struct svr4_termios *);
+static void svr4_termio_to_termios(const struct svr4_termio *,
+					struct svr4_termios *);
+static void svr4_termios_to_termio(const struct svr4_termios *,
+					struct svr4_termio *);
 #ifdef DEBUG_SVR4
-static void print_svr4_termios __P((const struct svr4_termios *));
-static void print_bsd_termios __P((const struct termios *));
+static void print_svr4_termios(const struct svr4_termios *);
+static void print_bsd_termios(const struct termios *);
 #endif /* DEBUG_SVR4 */
 
 #define undefined_char(a,b)				/**/

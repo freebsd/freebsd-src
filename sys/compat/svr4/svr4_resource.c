@@ -88,7 +88,7 @@
 #include <compat/svr4/svr4_proto.h>
 #include <compat/svr4/svr4_util.h>
 
-static __inline int svr4_to_native_rl __P((int));
+static __inline int svr4_to_native_rl(int);
 
 static __inline int
 svr4_to_native_rl(rl)

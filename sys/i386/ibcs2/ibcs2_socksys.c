@@ -47,10 +47,10 @@ struct setipdomainname_args {
 };
 
 /* Local prototypes */
-static int ibcs2_getipdomainname __P((struct thread *,
-				      struct getipdomainname_args *));
-static int ibcs2_setipdomainname __P((struct thread *,
-				      struct setipdomainname_args *));
+static int ibcs2_getipdomainname(struct thread *,
+				      struct getipdomainname_args *);
+static int ibcs2_setipdomainname(struct thread *,
+				      struct setipdomainname_args *);
 
 /*
  * iBCS2 socksys calls.

@@ -60,11 +60,11 @@
 #include <compat/linux/linux_util.h>
 
 static int
-linux_getcwd_scandir __P((struct vnode **, struct vnode **,
-    char **, char *, struct thread *));
+linux_getcwd_scandir(struct vnode **, struct vnode **,
+    char **, char *, struct thread *);
 static int
-linux_getcwd_common __P((struct vnode *, struct vnode *,
-		   char **, char *, int, int, struct thread *));
+linux_getcwd_common(struct vnode *, struct vnode *,
+		   char **, char *, int, int, struct thread *);
 
 #define DIRENT_MINSIZE (sizeof(struct dirent) - (MAXNAMLEN+1) + 4)
 

@@ -68,8 +68,8 @@ stackgap_alloc(sgp, sz)
 }
 
 extern const char svr4_emul_path[];
-int svr4_emul_find __P((struct thread *, caddr_t *, const char *, char *,
-			char **, int));
+int svr4_emul_find(struct thread *, caddr_t *, const char *, char *,
+			char **, int);
 
 #define CHECKALT(p, sgp, path, i)					\
 	do {								\
