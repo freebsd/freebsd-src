@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: swtch.s,v 1.18 1994/12/03 10:02:22 bde Exp $
+ *	$Id: swtch.s,v 1.19 1995/01/21 15:20:23 bde Exp $
  */
 
 #include "npx.h"	/* for NNPX */
@@ -249,6 +249,26 @@ _idle:
 
 	ALIGN_TEXT
 idle_loop:
+#if NAPM > 0 
+#if APM_SLOWSTART <=0 || !defined(APM_SLOWSTART)
+	movl	_apm_slowstart, %eax
+	orl	%eax, %eax
+	jz	1f
+	xorl	%eax, %eax
+	incl	%eax
+	movl	%eax, _apm_slowstart_stat
+	movl	_apm_ss_cnt, %eax
+	cmpl	$ APM_SLOWSTART, %eax
+	jae	2f
+	incl	%eax
+	movl	%eax, _apm_ss_cnt
+	call	_apm_cpu_idle
+	jmp	1f
+2:
+	call	_apm_cpu_busy
+1:	
+#endif
+#endif 
 	cli
 	movb	$1,_intr_nesting_level		/* charge Intr if we leave */
 	cmpl	$0,_whichrtqs			/* real-time queue */
@@ -258,11 +278,27 @@ idle_loop:
 	cmpl	$0,_whichidqs			/* 'idle' queue */
 	jne	idqr
 	movb	$0,_intr_nesting_level		/* charge Idle for this loop */
-#ifdef APM
+#if NAPM > 0
+#if APM_SLOWSTART <= 0 || !defined(APM_SLOWSTART)
 	/*
 	 * XXX it breaks the rules to call a function while interrupts are
 	 * disabled.  How long before apm enables them?
 	 */
+	call    _apm_cpu_idle
+	call    _apm_cpu_busy
+#else
+	movl    _apm_slowstart, %eax
+	orl     %eax, %eax
+	jz      1f
+	xorl    %eax, %eax
+	movl    %eax, _apm_ss_cnt
+	movl    %eax, _apm_slowstart_stat
+1:
+        call    _apm_cpu_idle
+        call    _apm_cpu_busy
+#endif
+
+
 	call	_apm_cpu_idle
 	call	_apm_cpu_busy
 #else

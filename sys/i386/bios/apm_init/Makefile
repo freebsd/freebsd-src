@@ -1,9 +1,9 @@
 #
-# LP (Laptop Package)
+# APM (Advanced Power Management) BIOS Device Driver
 #
-# (C) 1994 by HOSOKAWA, Tatsumi <hosokawa@mt.cs.keio.ac.jp>
+# Copyright (c) 1994-1995 by HOSOKAWA, Tatsumi <hosokawa@mt.cs.keio.ac.jp>
 #
-# This software may be used, modified, copied, and distributed in
+# This software may be used, modified, copied, and distributed, in
 # both source and binary form provided that the above copyright and
 # these terms are retained. Under no circumstances is the author 
 # responsible for the proper functioning of this software, nor does 
@@ -12,7 +12,7 @@
 #
 # Sep., 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
 #
-#	$Id$
+#	$Id: Makefile,v 1.2 1994/10/01 05:12:29 davidg Exp $
 #
 
 OBJS = apm_init.o real_prot.o table.o
