@@ -347,7 +347,7 @@ allocate_driver(struct slot *slt, struct dev_desc *desc)
 	int err, irq = 0;
 	device_t child;
 
-	pccarddev = devclass_get_device(pccard_devclass, 0);
+	pccarddev = devclass_get_device(pccard_devclass, slt->slotnum);
 	irq = ffs(desc->irqmask) - 1;
 	MALLOC(devi, struct pccard_devinfo *, sizeof(*devi), M_DEVBUF, M_WAITOK);
 	bzero(devi, sizeof(*devi));
