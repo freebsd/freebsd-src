@@ -463,8 +463,8 @@ umountfs(char *mntfromname, char *mntonname, char *type)
 		clp->cl_auth = authsys_create_default();
 		try.tv_sec = 20;
 		try.tv_usec = 0;
-		clnt_stat = clnt_call(clp, RPCMNT_UMOUNT, xdr_dir,
-		    nfsdirname, xdr_void, (caddr_t)0, try);
+		clnt_stat = clnt_call(clp, RPCMNT_UMOUNT, (xdrproc_t)xdr_dir,
+		    nfsdirname, (xdrproc_t)xdr_void, (caddr_t)0, try);
 		if (clnt_stat != RPC_SUCCESS) {
 			warnx("%s: %s", hostp,
 			    clnt_sperror(clp, "RPCMNT_UMOUNT"));
