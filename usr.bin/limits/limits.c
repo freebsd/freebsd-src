@@ -256,7 +256,7 @@ main(int argc, char *argv[])
     }
 
     optarg = NULL;
-    while ((ch = getopt(argc, argv, ":EeC:U:BSHabc:d:f:l:m:n:s:t:u:v:")) != -1) {
+    while ((ch = getopt(argc, argv, ":EeC:U:BSHab:c:d:f:l:m:n:s:t:u:v:")) != -1) {
 	switch(ch) {
 	case 'a':
 	    doall = 1;
@@ -535,6 +535,7 @@ resource_num(int which, int ch, const char *str)
 	case RLIMIT_CORE:
 	case RLIMIT_RSS:
 	case RLIMIT_MEMLOCK:
+	case RLIMIT_SBSIZE:
 	case RLIMIT_VMEM:
 	    errno = 0;
 	    res = 0;
