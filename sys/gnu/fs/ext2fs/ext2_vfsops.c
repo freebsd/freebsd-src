@@ -213,6 +213,11 @@ ext2_mount(mp, path, data, ndp, p)
 				return (EBUSY);
 			error = ext2_flushfiles(mp, flags, p);
 			vfs_unbusy(mp, p);
+			if (!error && fs->s_wasvalid) {
+				fs->s_es->s_state |= EXT2_VALID_FS;
+				ext2_sbupdate(ump, MNT_WAIT);
+			}
+			fs->s_rd_only = 1;
 		}
 		if (!error && (mp->mnt_flag & MNT_RELOAD))
 			error = ext2_reload(mp, ndp->ni_cnd.cn_cred, p);
@@ -234,12 +239,22 @@ ext2_mount(mp, path, data, ndp, p)
 				VOP_UNLOCK(devvp, 0, p);
 			}
 
-			fs->s_rd_only = 0;
-		}
-		if (fs->s_rd_only == 0) {
-			/* don't say it's clean */
+			if ((fs->s_es->s_state & EXT2_VALID_FS) == 0 ||
+			    (fs->s_es->s_state & EXT2_ERROR_FS)) {
+				if (mp->mnt_flag & MNT_FORCE) {
+					printf(
+"WARNING: %s was not properly dismounted\n",
+					    fs->fs_fsmnt);
+				} else {
+					printf(
+"WARNING: R/W mount of %s denied.  Filesystem is not clean - run fsck\n",
+					    fs->fs_fsmnt);
+					return (EPERM);
+				}
+			}
 			fs->s_es->s_state &= ~EXT2_VALID_FS;
 			ext2_sbupdate(ump, MNT_WAIT);
+			fs->s_rd_only = 0;
 		}
 		if (args.fspec == 0) {
 			/*
@@ -629,6 +644,18 @@ ext2_mountfs(devvp, mp, p)
 		error = EINVAL;		/* XXX needs translation */
 		goto out;
 	}
+	if ((es->s_state & EXT2_VALID_FS) == 0 ||
+	    (es->s_state & EXT2_ERROR_FS)) {
+		if (ronly || (mp->mnt_flag & MNT_FORCE)) {
+			printf(
+"WARNING: Filesystem was not properly dismounted\n");
+		} else {
+			printf(
+"WARNING: R/W mount denied.  Filesystem is not clean - run fsck\n");
+			error = EPERM;
+			goto out;
+		}
+	}
 	ump = bsd_malloc(sizeof *ump, M_UFSMNT, M_WAITOK);
 	bzero((caddr_t)ump, sizeof *ump);
 	ump->um_malloctype = M_EXT2NODE;
@@ -654,13 +681,10 @@ ext2_mountfs(devvp, mp, p)
 	bp = NULL;
 	fs = ump->um_e2fs;
 	fs->s_rd_only = ronly;	/* ronly is set according to mnt_flags */
-	if (!(fs->s_es->s_state & EXT2_VALID_FS)) {
-		printf("WARNING: %s was not properly dismounted\n",
-			fs->fs_fsmnt);
-	}
 	/* if the fs is not mounted read-only, make sure the super block is 
 	   always written back on a sync()
 	 */
+	fs->s_wasvalid = fs->s_es->s_state & EXT2_VALID_FS ? 1 : 0;
 	if (ronly == 0) {
 		fs->s_dirt = 1;		/* mark it modified */
 		fs->s_es->s_state &= ~EXT2_VALID_FS;	/* set fs invalid */
@@ -721,8 +745,9 @@ ext2_unmount(mp, mntflags, p)
 	ump = VFSTOUFS(mp);
 	fs = ump->um_e2fs;
 	ronly = fs->s_rd_only;
-	if (!ronly) {
-		fs->s_es->s_state |= EXT2_VALID_FS;	/* was fs_clean = 1 */
+	if (ronly == 0) {
+		if (fs->s_wasvalid)
+			fs->s_es->s_state |= EXT2_VALID_FS;
 		ext2_sbupdate(ump, MNT_WAIT);
 	}
 
