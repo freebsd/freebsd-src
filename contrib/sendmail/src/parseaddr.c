@@ -700,7 +700,11 @@ prescan(addr, delim, pvpbuf, pvpbsize, delimptr, toktab)
 						addr[MAXNAME] = '\0';
 	returnnull:
 					if (delimptr != NULL)
+					{
+						if (p > addr)
+							p--;
 						*delimptr = p;
+					}
 					CurEnv->e_to = saveto;
 					return NULL;
 				}
