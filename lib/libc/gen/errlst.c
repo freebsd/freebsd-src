@@ -146,6 +146,9 @@ const char *const sys_errlist[] = {
 	"Operation canceled",			/* 85 - ECANCELED */
 	"Illegal byte sequence",		/* 86 - EILSEQ */
 	"Attribute not found",			/* 87 - ENOATTR */
+
+/* General */
+	"Programming error",			/* 88 - EDOFUS */
 };
 int errno;
 const int sys_nerr = sizeof(sys_errlist) / sizeof(sys_errlist[0]);
