@@ -447,6 +447,8 @@ if_attach(struct ifnet *ifp)
 	if (domains)
 		if_attachdomain1(ifp);
 
+	EVENTHANDLER_INVOKE(ifnet_arrival_event, ifp);
+
 	/* Announce the interface. */
 	rt_ifannouncemsg(ifp, IFAN_ARRIVAL);
 }
@@ -513,6 +515,7 @@ if_detach(struct ifnet *ifp)
 	int i;
 	struct domain *dp;
 
+	EVENTHANDLER_INVOKE(ifnet_departure_event, ifp);
 	/*
 	 * Remove routes and flush queues.
 	 */
@@ -843,6 +846,7 @@ if_clone_attach(struct if_clone *ifc)
 		bitoff = unit - (bytoff << 3);
 		ifc->ifc_units[bytoff] |= (1 << bitoff);
 	}
+	EVENTHANDLER_INVOKE(if_clone_event, ifc);
 }
 
 /*
@@ -1378,6 +1382,7 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 		if (ifunit(new_name) != NULL)
 			return (EEXIST);
 		
+		EVENTHANDLER_INVOKE(ifnet_departure_event, ifp);
 		/* Announce the departure of the interface. */
 		rt_ifannouncemsg(ifp, IFAN_DEPARTURE);
 
@@ -1404,6 +1409,7 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 			sdl->sdl_data[--namelen] = 0xff;
 		IFA_UNLOCK(ifa);
 
+		EVENTHANDLER_INVOKE(ifnet_arrival_event, ifp);
 		/* Announce the return of the interface. */
 		rt_ifannouncemsg(ifp, IFAN_ARRIVAL);
 		break;

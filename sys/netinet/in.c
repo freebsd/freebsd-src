@@ -363,6 +363,8 @@ in_control(so, cmd, data, ifp, td)
 		    (struct sockaddr_in *) &ifr->ifr_addr, 1);
 		if (error != 0 && iaIsNew)
 			break;
+		if (error == 0)
+			EVENTHANDLER_INVOKE(ifaddr_event, ifp);
 		return (0);
 
 	case SIOCSIFNETMASK:
@@ -405,6 +407,8 @@ in_control(so, cmd, data, ifp, td)
 		if ((ifp->if_flags & IFF_BROADCAST) &&
 		    (ifra->ifra_broadaddr.sin_family == AF_INET))
 			ia->ia_broadaddr = ifra->ifra_broadaddr;
+		if (error == 0)
+			EVENTHANDLER_INVOKE(ifaddr_event, ifp);
 		return (error);
 
 	case SIOCDIFADDR:
@@ -427,6 +431,7 @@ in_control(so, cmd, data, ifp, td)
 			in_pcbpurgeif0(&ripcbinfo, ifp);
 			in_pcbpurgeif0(&udbinfo, ifp);
 		}
+		EVENTHANDLER_INVOKE(ifaddr_event, ifp);
 		error = 0;
 		break;
 
