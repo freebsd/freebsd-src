@@ -17,7 +17,6 @@ MAN=	sshd.8 sshd_config.5
 CFLAGS+=-I${SSHDIR}
 
 .if defined(MAKE_KERBEROS5)
-DISTRIBUTION=krb5
 CFLAGS+= -DKRB5 -DHEIMDAL
 SRCS+=	auth-krb5.c
 LDADD+=	 -lkrb5 -lasn1 -lcom_err -lmd -L${.OBJDIR}/../../../kerberos5/lib/libroken -lroken
