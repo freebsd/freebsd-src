@@ -122,8 +122,8 @@ main(argc, argv)
 	if (argc < 2)
 		usage();
 
-	fts_options = FTS_PHYSICAL;
 	if (Rflag) {
+		fts_options = FTS_PHYSICAL;
 		if (hflag && (Lflag || Hflag))
 			errx(1, "the -R and -h options may not be specified together");
 		if (Hflag)
@@ -132,7 +132,8 @@ main(argc, argv)
 			fts_options &= ~FTS_PHYSICAL;
 			fts_options |= FTS_LOGICAL;
 		}
-	}
+	} else
+		fts_options = FTS_LOGICAL;
 
 	uid = gid = -1;
 	if (ischown) {
