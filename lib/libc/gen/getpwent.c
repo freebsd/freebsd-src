@@ -82,7 +82,6 @@ static struct passwd _pw_passwd = { "", "", 0, 0, 0, "", "", "", "", 0, 0 };
 static DB *_pw_db;			/* password database */
 static int _pw_keynum;			/* key counter. no more records if -1 */
 static int _pw_stayopen;		/* keep fd's open */
-static int _pw_flags;			/* password flags */
 
 static int __hashpw __P((DBT *));
 static int __initdb __P((void));
@@ -184,7 +183,9 @@ __pwexclude_is(name)
 }
 
 /*
- * setup the compat mode prototype template
+ * Setup the compat mode prototype template that may be used in
+ * __pwparse.  Only pw_passwd, pw_uid, pw_gid, pw_gecos, pw_dir, and
+ * pw_shell are used.  The other fields are zero'd.
  */
 static void
 __pwproto_set()
@@ -198,36 +199,23 @@ __pwproto_set()
 	/* first allocate the struct. */
 	__pwproto = (struct passwd *)(void *)ptr;
 	ptr += sizeof(struct passwd);
+	memset(__pwproto, 0, sizeof(*__pwproto));
 
-	/* name */
-	if(pw->pw_name && (pw->pw_name)[0]) {
-		ptr = (char *)ALIGN((u_long)ptr);
-		memmove(ptr, pw->pw_name, strlen(pw->pw_name) + 1);
-		__pwproto->pw_name = ptr;
-		ptr += (strlen(pw->pw_name) + 1);
-	} else
-		__pwproto->pw_name = (char *)NULL;
-	
+	__pwproto_flags = 0;
+
 	/* password */
 	if(pw->pw_passwd && (pw->pw_passwd)[0]) {
 		ptr = (char *)ALIGN((u_long)ptr);
 		memmove(ptr, pw->pw_passwd, strlen(pw->pw_passwd) + 1);
 		__pwproto->pw_passwd = ptr;
 		ptr += (strlen(pw->pw_passwd) + 1);
-	} else
-		__pwproto->pw_passwd = (char *)NULL;
+		__pwproto_flags |= _PWF_PASSWD;
+	} 
 
-	/* uid */
+	/* uid, gid */
 	__pwproto->pw_uid = pw->pw_uid;
-
-	/* gid */
 	__pwproto->pw_gid = pw->pw_gid;
-
-	/* change (ignored anyway) */
-	__pwproto->pw_change = pw->pw_change;
-
-	/* class (ignored anyway) */
-	__pwproto->pw_class = "";
+	__pwproto_flags |= _PWF_UID | _PWF_GID;
 
 	/* gecos */
 	if(pw->pw_gecos && (pw->pw_gecos)[0]) {
@@ -235,8 +223,8 @@ __pwproto_set()
 		memmove(ptr, pw->pw_gecos, strlen(pw->pw_gecos) + 1);
 		__pwproto->pw_gecos = ptr;
 		ptr += (strlen(pw->pw_gecos) + 1);
-	} else
-		__pwproto->pw_gecos = (char *)NULL;
+		__pwproto_flags |= _PWF_GECOS;
+	}
 	
 	/* dir */
 	if(pw->pw_dir && (pw->pw_dir)[0]) {
@@ -244,8 +232,8 @@ __pwproto_set()
 		memmove(ptr, pw->pw_dir, strlen(pw->pw_dir) + 1);
 		__pwproto->pw_dir = ptr;
 		ptr += (strlen(pw->pw_dir) + 1);
-	} else
-		__pwproto->pw_dir = (char *)NULL;
+		__pwproto_flags |= _PWF_DIR;
+	}
 
 	/* shell */
 	if(pw->pw_shell && (pw->pw_shell)[0]) {
@@ -253,14 +241,8 @@ __pwproto_set()
 		memmove(ptr, pw->pw_shell, strlen(pw->pw_shell) + 1);
 		__pwproto->pw_shell = ptr;
 		ptr += (strlen(pw->pw_shell) + 1);
-	} else
-		__pwproto->pw_shell = (char *)NULL;
-
-	/* expire (ignored anyway) */
-	__pwproto->pw_expire = pw->pw_expire;
-
-	/* flags */
-	__pwproto_flags = _pw_flags;
+		__pwproto_flags |= _PWF_SHELL;
+	}
 }
 
 static int
