@@ -199,6 +199,7 @@ sub tinderbox($$$) {
     my $arch = shift;
     my $machine = shift;
 
+    my $config = expand('CONFIG');
     my $start = time();
 
     $CONFIG{'BRANCH'} = $branch;
@@ -206,7 +207,8 @@ sub tinderbox($$$) {
     $CONFIG{'MACHINE'} = $machine;
 
     # Open log files: one for the full log and one for the summary
-    my $logfile = expand('LOGDIR') . "/tinderbox-$branch-$arch-$machine";
+    my $logfile = expand('LOGDIR') .
+	"/tinderbox-$config-$branch-$arch-$machine";
     local (*FULL, *BRIEF);
     if (!open(FULL, ">", "$logfile.full.$$")) {
 	warn("$logfile.full.$$: $!\n");
@@ -460,6 +462,11 @@ MAIN:{
 	$etcdir = $1;
 	chdir($etcdir)
 	    or die("$etcdir: $!\n");
+    }
+    for (my $n = 0; $n < @configs; ++$n) {
+	$configs[$n] =~ m/^(\w+)$/
+	    or die("invalid config: $configs[$n]\n");
+	$configs[$n] = $1;
     }
 
     # Run all specified or implied configurations
