@@ -12,25 +12,14 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/sysctl.h>
-#include <sys/kernel.h>
 #include <sys/buf.h>
-#include <sys/malloc.h>
 #include <sys/conf.h>
-#include <sys/disk.h>
 #include <sys/devicestat.h>
+#include <sys/disk.h>
+#include <sys/kernel.h>
+#include <sys/malloc.h>
 #include <sys/module.h>
-#include <machine/bus.h>
-#include <machine/clock.h>
-#include <machine/resource.h>
-
-#include <vm/vm.h>
-#include <vm/pmap.h>
-#include <vm/vm_param.h>
-
-#include <sys/bus.h>
-#include <isa/isareg.h>
-#include <isa/isavar.h>
+#include <sys/sysctl.h>
 
 #ifndef MDNSECT
 #define MDNSECT (10000 * 2)
@@ -185,7 +174,7 @@ mdstrategy(struct buf *bp)
 				secval = 0;
 			}
 			if (md_debug > 2)
-				printf("%x %p %p %d\n", bp->b_flags, secpp, secp, secval);
+				printf("%lx %p %p %d\n", bp->b_flags, secpp, secp, secval);
 
 			if (bp->b_flags & B_FREEBUF) {
 				if (secpp) {
