@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)write.1	8.1 (Berkeley) 6/6/93
-.\"	$Id$
+.\"	$Id: write.1,v 1.4 1997/02/22 19:57:53 peter Exp $
 .\"
 .Dd June 6, 1993
 .Dt WRITE 1
@@ -72,11 +72,6 @@ You can prevent people (other than the super-user) from writing to you
 with the
 .Xr mesg 1
 command.
-Some commands, for example
-.Xr nroff 1
-and
-.Xr pr 1 ,
-disallow writing automatically, so that your output isn't overwritten.
 .Pp
 If the user you want to write to is logged in on more than one terminal,
 you can specify which terminal to write to by specifying the terminal
