@@ -37,6 +37,7 @@
 #define AR_WAIT		0x04
 #define AR_STRATEGY(x)	(x)->b_dev->si_disk->d_devsw->d_strategy((x))
 #define AD_SOFTC(x)	((struct ad_softc *)(x.device->driver))
+#define ATA_MAGIC	"FreeBSD ATA driver RAID "
 
 struct ar_disk {
     struct ata_device	*device;
@@ -62,6 +63,7 @@ struct ar_softc {
 #define AR_F_REBUILDING		0x0400
 #define AR_F_PROMISE_RAID	0x1000
 #define AR_F_HIGHPOINT_RAID	0x2000
+#define AR_F_FREEBSD_RAID	0x4000
     
     int			total_disks;	/* number of disks in this array */
     int			generation;	/* generation of this array */
@@ -71,7 +73,7 @@ struct ar_softc {
     u_int16_t		sectors;
     u_int32_t		cylinders;
     u_int64_t		total_sectors;
-    int			interleave;	/* interleave in bytes */
+    int			interleave;	/* interleave in blocks */
     int			reserved;	/* sectors that are NOT to be used */
     int			offset;		/* offset from start of disk */
     u_int64_t		lock_start;	/* start of locked area for rebuild */
@@ -101,9 +103,9 @@ struct highpoint_raid_conf {
     u_int32_t		magic_0;
     u_int32_t		magic_1;
     u_int32_t		order;
-#define HPT_O_OK		0x01
+#define HPT_O_RAID0		0x01
 #define HPT_O_RAID1		0x02
-#define HPT_O_RAID0		0x04
+#define HPT_O_OK		0x04
 
     u_int8_t		array_width;
     u_int8_t		stripe_shift;
@@ -224,5 +226,7 @@ int ata_raiddisk_probe(struct ad_softc *);
 int ata_raiddisk_attach(struct ad_softc *);
 int ata_raiddisk_detach(struct ad_softc *);
 void ata_raid_attach(void);
+int ata_raid_create(struct raid_setup *);
+int ata_raid_delete(int);
 int ata_raid_rebuild(int);
 
