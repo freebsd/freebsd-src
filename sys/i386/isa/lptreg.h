@@ -6,7 +6,7 @@
  * William Jolitz.
  *
  *      form: @(#)lptreg.h	1.1 (Berkeley) 12/19/90
- *	$Id: lptreg.h,v 1.2 1993/10/16 13:46:12 rgrimes Exp $
+ *	$Id: lptreg.h,v 1.2.16.1 1996/11/09 21:08:45 phk Exp $
  */
 
 /*
@@ -53,5 +53,5 @@
 #define	LPC_AUTOL		0x02	/* automatic linefeed */
 #define	LPC_NINIT		0x04	/* initialize printer */
 #define	LPC_SEL			0x08	/* printer selected */
+#define	LPC_ENA			0x10	/* enable IRQ */
 #endif
-#define	LPC_ENA			0x10	/* printer out of paper */

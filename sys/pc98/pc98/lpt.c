@@ -46,7 +46,7 @@
  * SUCH DAMAGE.
  *
  *	from: unknown origin, 386BSD 0.1
- *	$Id: lpt.c,v 1.5.2.1 1996/11/09 21:13:58 phk Exp $
+ *	$Id: lpt.c,v 1.5.2.2 1996/12/04 16:01:15 phk Exp $
  */
 
 /*
@@ -991,6 +991,10 @@ lpioctl (struct ifnet *ifp, int cmd, caddr_t data)
 	    ifp->if_flags &= ~IFF_RUNNING;
 	    break;
 	}
+#ifdef PC98
+	/* XXX */
+	return ENOBUFS;
+#else
 	if (((ifp->if_flags & IFF_UP)) && (!(ifp->if_flags & IFF_RUNNING))) {
 	    if (lpinittables())
 		return ENOBUFS;
@@ -1003,7 +1007,7 @@ lpioctl (struct ifnet *ifp, int cmd, caddr_t data)
 	    ifp->if_flags |= IFF_RUNNING;
 	}
 	break;
-
+#endif
     case SIOCSIFMTU:
 	ptr = sc->sc_ifbuf;
 	sc->sc_ifbuf = malloc(ifr->ifr_mtu+MLPIPHDRLEN, M_DEVBUF, M_NOWAIT);
@@ -1264,8 +1268,10 @@ lpoutput (struct ifnet *ifp, struct mbuf *m,
 
     s = splhigh();
 
+#ifndef PC98
     /* Suspend (on laptops) or receive-errors might have taken us offline */
     outb(lpt_ctrl_port, LPC_ENA);
+#endif
 
     if (ifp->if_flags & IFF_LINK0) {
 
