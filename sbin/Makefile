@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.5 (Berkeley) 3/31/94
-#	$Id: Makefile,v 1.67 1999/03/12 15:38:53 brian Exp $
+#	$Id: Makefile,v 1.68 1999/04/18 15:56:19 peter Exp $
 
 # XXX MISSING:		icheck ncheck
 
@@ -57,6 +57,7 @@ SUBDIR=	adjkerntz \
 	slattach \
 	spppcontrol \
 	startslip \
+	sysctl \
 	swapon \
 	tunefs \
 	umount \
