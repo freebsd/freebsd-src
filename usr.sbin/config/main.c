@@ -189,7 +189,7 @@ usage:		fputs("usage: config [-gpn] sysname\n", stderr);
 	makefile();			/* build Makefile */
 	headers();			/* make a lot of .h files */
 	swapconf();			/* swap config files */
-	printf("Don't forget to run \"make depend\"\n");
+	printf("Kernel build directory is %s\n", p);
 	exit(0);
 }
 
