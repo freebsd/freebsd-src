@@ -446,12 +446,14 @@ sabtty_attach(device_t dev)
 	case 0:	/* port A */
 		sc->sc_pvr_dtr = SAB_PVR_DTR_A;
 		sc->sc_pvr_dsr = SAB_PVR_DSR_A;
-		sc->sc_bh = sc->sc_parent->sc_bh + SAB_CHAN_A;
+		bus_space_subregion(sc->sc_bt, sc->sc_parent->sc_bh,
+		    SAB_CHAN_A, SAB_CHANLEN, &sc->sc_bh);
 		break;
 	case 1:	/* port B */
 		sc->sc_pvr_dtr = SAB_PVR_DTR_B;
 		sc->sc_pvr_dsr = SAB_PVR_DSR_B;
-		sc->sc_bh = sc->sc_parent->sc_bh + SAB_CHAN_B;
+		bus_space_subregion(sc->sc_bt, sc->sc_parent->sc_bh,
+		    SAB_CHAN_B, SAB_CHANLEN, &sc->sc_bh);
 		break;
 	default:
 		return (ENXIO);

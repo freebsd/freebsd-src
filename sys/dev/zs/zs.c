@@ -446,10 +446,12 @@ zstty_attach(device_t dev)
 
 	switch (sc->sc_channel) {
 	case 0:
-		sc->sc_bh = sc->sc_parent->sc_bh + ZS_CHAN_A;
+		bus_space_subregion(sc->sc_bt, sc->sc_parent->sc_bh,
+		    ZS_CHAN_A, ZS_CHANLEN, &sc->sc_bh);
 		break;
 	case 1:
-		sc->sc_bh = sc->sc_parent->sc_bh + ZS_CHAN_B;
+		bus_space_subregion(sc->sc_bt, sc->sc_parent->sc_bh,
+		    ZS_CHAN_B, ZS_CHANLEN, &sc->sc_bh);
 		break;
 	}
 
