@@ -45,7 +45,7 @@ static char const copyright[] =
 static char sccsid[] = "@(#)cat.c	8.2 (Berkeley) 4/27/95";
 #endif
 static const char rcsid[] =
-	"$Id: cat.c,v 1.10 1998/05/06 06:49:16 charnier Exp $";
+	"$Id: cat.c,v 1.11 1998/05/13 07:16:37 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -61,7 +61,7 @@ static const char rcsid[] =
 
 int bflag, eflag, nflag, sflag, tflag, vflag;
 int rval;
-char *filename;
+const char *filename;
 
 void cook_args __P((char *argv[]));
 void cook_buf __P((FILE *));
@@ -69,11 +69,8 @@ void raw_args __P((char *argv[]));
 void raw_cat __P((int));
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char **argv)
 {
-	extern int optind;
 	int ch;
 
 	setlocale(LC_CTYPE, "");
@@ -237,8 +234,9 @@ void
 raw_cat(rfd)
 	register int rfd;
 {
-	register int nr, nw, off, wfd;
-	static int bsize;
+	register int off, wfd;
+	ssize_t nr, nw;
+	static size_t bsize;
 	static char *buf;
 	struct stat sbuf;
 
@@ -252,7 +250,7 @@ raw_cat(rfd)
 	}
 	while ((nr = read(rfd, buf, bsize)) > 0)
 		for (off = 0; nr; nr -= nw, off += nw)
-			if ((nw = write(wfd, buf + off, nr)) < 0)
+			if ((nw = write(wfd, buf + off, (size_t) nr)) < 0)
 				err(1, "stdout");
 	if (nr < 0) {
 		warn("%s", filename);
