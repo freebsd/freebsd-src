@@ -160,6 +160,7 @@ char	*machinename;
 #define MACHINE_LUNA68K	7
 #define MACHINE_NEWS3400	8
 #define MACHINE_PC98	9
+#define MACHINE_ALPHA	10
 
 /*
  * For each machine, a set of CPU's may be specified as supported.
