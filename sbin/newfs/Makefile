@@ -3,7 +3,6 @@
 
 PROG=	newfs
 SRCS=	newfs.c mkfs.c
-CFLAGS+=-DFSIRAND
 WARNS?=	2
 MAN=	newfs.8
 

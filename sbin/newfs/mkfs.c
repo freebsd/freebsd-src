@@ -59,11 +59,6 @@ static const char rcsid[] =
 #include <sys/mman.h>
 #include <sys/ioctl.h>
 
-#ifdef FSIRAND
-extern long random (void);
-extern void srandomdev (void);
-#endif
-
 /*
  * make file system for cylinder-group style file systems
  */
@@ -129,9 +124,7 @@ union {
 struct dinode zino[MAXBSIZE / sizeof(struct dinode)];
 
 int	fsi, fso;
-#ifdef FSIRAND
 int     randinit;
-#endif
 daddr_t	alloc();
 long	calcipg();
 static int charsperline();
@@ -164,12 +157,10 @@ mkfs(pp, fsys, fi, fo)
 	char tmpbuf[100];	/* XXX this will break in about 2,500 years */
 
 	time(&utime);
-#ifdef FSIRAND
 	if (!randinit) {
 		randinit = 1;
 		srandomdev();
 	}
-#endif
 	fsi = fi;
 	fso = fo;
 	if (Oflag) {
@@ -600,10 +591,8 @@ next:
 	sblock.fs_fmod = 0;
 	sblock.fs_ronly = 0;
 	sblock.fs_clean = 1;
-#ifdef FSIRAND
 	sblock.fs_id[0] = (long)utime;
 	sblock.fs_id[1] = random();
-#endif
 
 	/*
 	 * Dump out summary information about file system.
@@ -682,11 +671,8 @@ initcg(cylno, utime)
 	time_t utime;
 {
 	daddr_t cbase, d, dlower, dupper, dmax, blkno;
-	long i;
 	struct csum *cs;
-#ifdef FSIRAND
-	long j;
-#endif
+	long i, j;
 
 	/*
 	 * Determine block bounds for cylinder group.
@@ -746,10 +732,8 @@ initcg(cylno, utime)
 			acg.cg_cs.cs_nifree--;
 		}
 	for (i = 0; i < sblock.fs_ipg / INOPF(&sblock); i += sblock.fs_frag) {
-#ifdef FSIRAND
 		for (j = 0; j < sblock.fs_bsize / sizeof(struct dinode); j++)
 			zino[j].di_gen = random();
-#endif
 		wtfs(fsbtodb(&sblock, cgimin(&sblock, cylno) + i),
 		    sblock.fs_bsize, (char *)zino);
 	}
@@ -1058,9 +1042,7 @@ iput(ip, ino)
 	daddr_t d;
 	int c;
 
-#ifdef FSIRAND
 	ip->di_gen = random();
-#endif
 	c = ino_to_cg(&sblock, ino);
 	rdfs(fsbtodb(&sblock, cgtod(&sblock, 0)), sblock.fs_cgsize,
 	    (char *)&acg);
