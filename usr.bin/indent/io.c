@@ -295,7 +295,8 @@ compute_code_target(void)
 
     if (ps.paren_level)
 	if (!lineup_to_parens)
-	    target_col += continuation_indent * ps.paren_level;
+	    target_col += continuation_indent
+		* (2 * continuation_indent == ps.ind_size ? 1 : ps.paren_level);
 	else {
 	    int w;
 	    int t = paren_target;
