@@ -142,6 +142,7 @@ typedef struct Struct_Obj_Entry {
     bool textrel;		/* True if there are relocations to text seg */
     bool symbolic;		/* True if generated with "-Bsymbolic" */
     bool traced;		/* Already printed in ldd trace output */
+    bool jmpslots_done;		/* Already have relocated the jump slots */
 
     struct link_map linkmap;	/* for GDB */
     Objlist dldags;		/* Object belongs to these dlopened DAGs (%) */
@@ -176,7 +177,8 @@ void lockdflt_release(void *);
 void obj_free(Obj_Entry *);
 Obj_Entry *obj_new(void);
 int reloc_non_plt(Obj_Entry *, Obj_Entry *);
-int reloc_plt(Obj_Entry *, bool);
+int reloc_plt(Obj_Entry *);
+int reloc_jmpslots(Obj_Entry *);
 void _rtld_bind_start(void);
 const Elf_Sym *symlook_obj(const char *, unsigned long,
   const Obj_Entry *, bool);
