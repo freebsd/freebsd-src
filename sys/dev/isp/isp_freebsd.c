@@ -1954,31 +1954,29 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 		xpt_done(ccb);
 		break;
 	}
+#ifdef	CAM_NEW_TRAN_CODE
+#define	IS_CURRENT_SETTINGS(c)	(c->type == CTS_TYPE_CURRENT_SETTINGS)
+#else
+#define	IS_CURRENT_SETTINGS(c)	(c->flags & CCB_TRANS_CURRENT_SETTINGS)
+#endif
 	case XPT_SET_TRAN_SETTINGS:	/* Nexus Settings */
-
 		cts = &ccb->cts;
 		tgt = cts->ccb_h.target_id;
 		CAMLOCK_2_ISPLOCK(isp);
 		if (IS_SCSI(isp)) {
+#ifndef	CAM_NEW_TRAN_CODE
 			sdparam *sdp = isp->isp_param;
 			u_int16_t *dptr;
 
 			bus = cam_sim_bus(xpt_path_sim(cts->ccb_h.path));
 
 			sdp += bus;
-#if	0
-			if (cts->flags & CCB_TRANS_CURRENT_SETTINGS)
-				dptr = &sdp->isp_devparam[tgt].cur_dflags;
-			else
-				dptr = &sdp->isp_devparam[tgt].dev_flags;
-#else
 			/*
 			 * We always update (internally) from dev_flags
 			 * so any request to change settings just gets
 			 * vectored to that location.
 			 */
 			dptr = &sdp->isp_devparam[tgt].dev_flags;
-#endif
 
 			/*
 			 * Note that these operations affect the
@@ -2025,26 +2023,87 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 				*dptr &= ~DPARM_SYNC;
 			}
 			*dptr |= DPARM_SAFE_DFLT;
+#else
+			struct ccb_trans_settings_scsi *scsi =
+			    &cts->proto_specific.scsi;
+			struct ccb_trans_settings_spi *spi =
+			    &cts->xport_specific.spi;
+			sdparam *sdp = isp->isp_param;
+			u_int16_t *dptr;
+
+			bus = cam_sim_bus(xpt_path_sim(cts->ccb_h.path));
+			sdp += bus;
+			/*
+			 * We always update (internally) from dev_flags
+			 * so any request to change settings just gets
+			 * vectored to that location.
+			 */
+			dptr = &sdp->isp_devparam[tgt].dev_flags;
+
+			if ((spi->valid & CTS_SPI_VALID_DISC) != 0) {
+				if ((spi->flags & CTS_SPI_FLAGS_DISC_ENB) != 0)
+					*dptr |= DPARM_DISC;
+				else
+					*dptr &= ~DPARM_DISC;
+			}
+
+			if ((scsi->valid & CTS_SCSI_VALID_TQ) != 0) {
+				if ((scsi->flags & CTS_SCSI_FLAGS_TAG_ENB) != 0)
+					*dptr |= DPARM_TQING;
+				else
+					*dptr &= ~DPARM_TQING;
+			}
+
+			if ((spi->valid & CTS_SPI_VALID_BUS_WIDTH) != 0) {
+				if (spi->bus_width == MSG_EXT_WDTR_BUS_16_BIT)
+					*dptr |= DPARM_WIDE;
+				else
+					*dptr &= ~DPARM_WIDE;
+			}
+
+			/*
+			 * XXX: FIX ME
+			 */
+			if ((spi->valid & CTS_SPI_VALID_SYNC_OFFSET) &&
+			    (spi->valid & CTS_SPI_VALID_SYNC_RATE)) {
+				*dptr |= DPARM_SYNC;
+				isp_prt(isp, ISP_LOGDEBUG0,
+				   "enabling synchronous mode, but ignoring "
+				   "setting to period 0x%x offset 0x%x",
+				   spi->sync_period, spi->sync_offset);
+			} else if (spi->sync_period && spi->sync_offset) {
+				*dptr |= DPARM_SYNC;
+				isp_prt(isp, ISP_LOGDEBUG0,
+				   "enabling synchronous mode (1), but ignoring"
+				   " setting to period 0x%x offset 0x%x",
+				   spi->sync_period, spi->sync_offset);
+			} else {
+				*dptr &= ~DPARM_SYNC;
+			}
+#endif
 			isp_prt(isp, ISP_LOGDEBUG0,
 			    "%d.%d set %s period 0x%x offset 0x%x flags 0x%x",
-			    bus, tgt, (cts->flags & CCB_TRANS_CURRENT_SETTINGS)?
-			    "current" : "user", 
-			    sdp->isp_devparam[tgt].sync_period,
+			    bus, tgt, IS_CURRENT_SETTINGS(cts)?  "current" :
+			    "user", sdp->isp_devparam[tgt].sync_period,
 			    sdp->isp_devparam[tgt].sync_offset,
 			    sdp->isp_devparam[tgt].dev_flags);
 			sdp->isp_devparam[tgt].dev_update = 1;
 			isp->isp_update |= (1 << bus);
+		} else {
+			/*
+			 * What, if anything, are we supposed to do?
+			 */
 		}
 		ISPLOCK_2_CAMLOCK(isp);
 		ccb->ccb_h.status = CAM_REQ_CMP;
 		xpt_done(ccb);
 		break;
-
 	case XPT_GET_TRAN_SETTINGS:
-
 		cts = &ccb->cts;
 		tgt = cts->ccb_h.target_id;
+		CAMLOCK_2_ISPLOCK(isp);
 		if (IS_FC(isp)) {
+#ifndef	CAM_NEW_TRAN_CODE
 			/*
 			 * a lot of normal SCSI things don't make sense.
 			 */
@@ -2058,14 +2117,41 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 			 * (above) a 'base' transfer speed to be gigabit.
 			 */
 			cts->bus_width = MSG_EXT_WDTR_BUS_8_BIT;
-		} else {
-			sdparam *sdp = isp->isp_param;
-			u_int16_t dval, pval, oval;
-			int bus = cam_sim_bus(xpt_path_sim(cts->ccb_h.path));
+#else
+			fcparam *fcp = isp->isp_param;
+			struct ccb_trans_settings_fc *fc =
+			    &cts->xport_specific.fc;
 
-			CAMLOCK_2_ISPLOCK(isp);
+			cts->protocol = PROTO_SCSI;
+			cts->protocol_version = SCSI_REV_2;
+			cts->transport = XPORT_FC;
+			cts->transport_version = 0;
+
+			fc->valid = CTS_FC_VALID_SPEED;
+			fc->bitrate = 100000;
+			if (tgt > 0 && tgt < MAX_FC_TARG) {
+				struct lportdb *lp = &fcp->portdb[tgt];
+				fc->wwnn = lp->node_wwn;
+				fc->wwpn = lp->port_wwn;
+				fc->port = lp->portid;
+				fc->valid |= CTS_FC_VALID_WWNN |
+				    CTS_FC_VALID_WWPN | CTS_FC_VALID_PORT;
+			}
+#endif
+		} else {
+#ifdef	CAM_NEW_TRAN_CODE
+			struct ccb_trans_settings_scsi *scsi =
+			    &cts->proto_specific.scsi;
+			struct ccb_trans_settings_spi *spi =
+			    &cts->xport_specific.spi;
+#endif
+			sdparam *sdp = isp->isp_param;
+			int bus = cam_sim_bus(xpt_path_sim(cts->ccb_h.path));
+			u_int16_t dval, pval, oval;
+
 			sdp += bus;
-			if (cts->flags & CCB_TRANS_CURRENT_SETTINGS) {
+
+			if (IS_CURRENT_SETTINGS(cts)) {
 				sdp->isp_devparam[tgt].dev_refresh = 1;
 				isp->isp_update |= (1 << bus);
 				(void) isp_control(isp, ISPCTL_UPDATE_PARAMS,
@@ -2079,6 +2165,7 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 				pval = sdp->isp_devparam[tgt].sync_period;
 			}
 
+#ifndef	CAM_NEW_TRAN_CODE
 			cts->flags &= ~(CCB_TRANS_DISC_ENB|CCB_TRANS_TAG_ENB);
 
 			if (dval & DPARM_DISC) {
@@ -2102,12 +2189,45 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 				    CCB_TRANS_SYNC_RATE_VALID |
 				    CCB_TRANS_SYNC_OFFSET_VALID;
 			}
-			ISPLOCK_2_CAMLOCK(isp);
+#else
+			cts->protocol = PROTO_SCSI;
+			cts->protocol_version = SCSI_REV_2;
+			cts->transport = XPORT_SPI;
+			cts->transport_version = 2;
+
+			scsi->flags &= ~CTS_SCSI_FLAGS_TAG_ENB;
+			spi->flags &= ~CTS_SPI_FLAGS_DISC_ENB;
+			if (dval & DPARM_DISC) {
+				spi->flags |= CTS_SPI_FLAGS_DISC_ENB;
+			}
+			if (dval & DPARM_TQING) {
+				scsi->flags |= CTS_SCSI_FLAGS_TAG_ENB;
+			}
+			if ((dval & DPARM_SYNC) && oval != 0) {
+				spi->sync_offset = oval;
+				spi->sync_period = pval;
+				spi->valid |= CTS_SPI_VALID_SYNC_OFFSET;
+				spi->valid |= CTS_SPI_VALID_SYNC_RATE;
+			}
+			spi->valid |= CTS_SPI_VALID_BUS_WIDTH;
+			if (dval & DPARM_WIDE) {
+				spi->bus_width = MSG_EXT_WDTR_BUS_16_BIT;
+			} else {
+				spi->bus_width = MSG_EXT_WDTR_BUS_8_BIT;
+			}
+			if (cts->ccb_h.target_lun != CAM_LUN_WILDCARD) {
+				scsi->valid = CTS_SCSI_VALID_TQ;
+				spi->valid |= CTS_SPI_VALID_DISC;
+			} else {
+				scsi->valid = 0;
+			}
+#endif
 			isp_prt(isp, ISP_LOGDEBUG0,
 			    "%d.%d get %s period 0x%x offset 0x%x flags 0x%x",
-			    bus, tgt, (cts->flags & CCB_TRANS_CURRENT_SETTINGS)?
-			    "current" : "user", pval, oval, dval);
+			    bus, tgt, IS_CURRENT_SETTINGS(cts)? "current" :
+			    "user", pval, oval, dval);
 		}
+		ISPLOCK_2_CAMLOCK(isp);
 		ccb->ccb_h.status = CAM_REQ_CMP;
 		xpt_done(ccb);
 		break;
@@ -2193,6 +2313,10 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 			 */
 			cpi->base_transfer_speed = 100000;
 			cpi->hba_inquiry = PI_TAG_ABLE;
+#ifdef	CAM_NEW_TRAN_CODE
+			cpi->transport = XPORT_FC;
+			cpi->transport_version = 0;	/* WHAT'S THIS FOR? */
+#endif
 		} else {
 			sdparam *sdp = isp->isp_param;
 			sdp += cam_sim_bus(xpt_path_sim(cpi->ccb_h.path));
@@ -2200,7 +2324,15 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 			cpi->hba_misc = 0;
 			cpi->initiator_id = sdp->isp_initiator_id;
 			cpi->base_transfer_speed = 3300;
+#ifdef	CAM_NEW_TRAN_CODE
+			cpi->transport = XPORT_SPI;
+			cpi->transport_version = 2;	/* WHAT'S THIS FOR? */
+#endif
 		}
+#ifdef	CAM_NEW_TRAN_CODE
+		cpi->protocol = PROTO_SCSI;
+		cpi->protocol_version = SCSI_REV_2;
+#endif
 		strncpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
 		strncpy(cpi->hba_vid, "Qlogic", HBA_IDLEN);
 		strncpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);
@@ -2301,10 +2433,16 @@ isp_async(struct ispsoftc *isp, ispasync_t cmd, void *arg)
 	switch (cmd) {
 	case ISPASYNC_NEW_TGT_PARAMS:
 	{
+#ifdef	CAM_NEW_TRAN_CODE
+		struct ccb_trans_settings_scsi *scsi;
+		struct ccb_trans_settings_spi *spi;
+#endif
 		int flags, tgt;
 		sdparam *sdp = isp->isp_param;
-		struct ccb_trans_settings neg;
+		struct ccb_trans_settings cts;
 		struct cam_path *tmppath;
+
+		bzero(&cts, sizeof (struct ccb_trans_settings));
 
 		tgt = *((int *)arg);
 		bus = (tgt >> 16) & 0xffff;
@@ -2320,29 +2458,63 @@ isp_async(struct ispsoftc *isp, ispasync_t cmd, void *arg)
 			break;
 		}
 		flags = sdp->isp_devparam[tgt].cur_dflags;
-		neg.valid = CCB_TRANS_DISC_VALID | CCB_TRANS_TQ_VALID;
+#ifdef	CAM_NEW_TRAN_CODE
+		cts.type = CTS_TYPE_CURRENT_SETTINGS;
+		cts.protocol = PROTO_SCSI;
+		cts.transport = XPORT_SPI;
+
+		scsi = &cts.proto_specific.scsi;
+		spi = &cts.xport_specific.spi;
+
+		if (flags & DPARM_TQING) {
+			scsi->valid |= CTS_SCSI_VALID_TQ;
+			scsi->flags |= CTS_SCSI_FLAGS_TAG_ENB;
+			spi->flags |= CTS_SPI_FLAGS_TAG_ENB;
+		}
+
 		if (flags & DPARM_DISC) {
-			neg.flags |= CCB_TRANS_DISC_ENB;
+			spi->valid |= CTS_SPI_VALID_DISC;
+			spi->flags |= CTS_SPI_FLAGS_DISC_ENB;
+		}
+		spi->flags |= CTS_SPI_VALID_BUS_WIDTH;
+		if (flags & DPARM_WIDE) {
+			spi->bus_width = MSG_EXT_WDTR_BUS_16_BIT;
+		} else {
+			spi->bus_width = MSG_EXT_WDTR_BUS_8_BIT;
+		}
+		if (flags & DPARM_SYNC) {
+			spi->valid |= CTS_SPI_VALID_SYNC_RATE;
+			spi->valid |= CTS_SPI_VALID_SYNC_OFFSET;
+			spi->sync_period = sdp->isp_devparam[tgt].cur_period;
+			spi->sync_offset = sdp->isp_devparam[tgt].cur_offset;
+		}
+#else
+		cts.flags = CCB_TRANS_CURRENT_SETTINGS;
+		cts.valid = CCB_TRANS_DISC_VALID | CCB_TRANS_TQ_VALID;
+		if (flags & DPARM_DISC) {
+			cts.flags |= CCB_TRANS_DISC_ENB;
 		}
 		if (flags & DPARM_TQING) {
-			neg.flags |= CCB_TRANS_TAG_ENB;
+			cts.flags |= CCB_TRANS_TAG_ENB;
 		}
-		neg.valid |= CCB_TRANS_BUS_WIDTH_VALID;
-		neg.bus_width = (flags & DPARM_WIDE)?
+		cts.valid |= CCB_TRANS_BUS_WIDTH_VALID;
+		cts.bus_width = (flags & DPARM_WIDE)?
 		    MSG_EXT_WDTR_BUS_8_BIT : MSG_EXT_WDTR_BUS_16_BIT;
-		neg.sync_period = sdp->isp_devparam[tgt].cur_period;
-		neg.sync_offset = sdp->isp_devparam[tgt].cur_offset;
+		cts.sync_period = sdp->isp_devparam[tgt].cur_period;
+		cts.sync_offset = sdp->isp_devparam[tgt].cur_offset;
 		if (flags & DPARM_SYNC) {
-			neg.valid |=
+			cts.valid |=
 			    CCB_TRANS_SYNC_RATE_VALID |
 			    CCB_TRANS_SYNC_OFFSET_VALID;
 		}
+#endif
 		isp_prt(isp, ISP_LOGDEBUG2,
 		    "NEW_TGT_PARAMS bus %d tgt %d period %x offset %x flags %x",
-		    bus, tgt, neg.sync_period, neg.sync_offset, flags);
-		xpt_setup_ccb(&neg.ccb_h, tmppath, 1);
+		    bus, tgt, sdp->isp_devparam[tgt].cur_period,
+		    sdp->isp_devparam[tgt].cur_offset, flags);
+		xpt_setup_ccb(&cts.ccb_h, tmppath, 1);
 		ISPLOCK_2_CAMLOCK(isp);
-		xpt_async(AC_TRANSFER_NEG, tmppath, &neg);
+		xpt_async(AC_TRANSFER_NEG, tmppath, &cts);
 		CAMLOCK_2_ISPLOCK(isp);
 		xpt_free_path(tmppath);
 		break;
@@ -2410,6 +2582,7 @@ isp_async(struct ispsoftc *isp, ispasync_t cmd, void *arg)
 		break;
 	case ISPASYNC_PROMENADE:
 	{
+		struct cam_path *tmppath;
 		const char *fmt = "Target %d (Loop 0x%x) Port ID 0x%x "
 		    "(role %s) %s\n Port WWN 0x%08x%08x\n Node WWN 0x%08x%08x";
 		static const char *roles[4] = {
@@ -2426,6 +2599,21 @@ isp_async(struct ispsoftc *isp, ispasync_t cmd, void *arg)
 		    (u_int32_t) (lp->port_wwn & 0xffffffffLL),
 		    (u_int32_t) (lp->node_wwn >> 32),
 		    (u_int32_t) (lp->node_wwn & 0xffffffffLL));
+
+		if (xpt_create_path(&tmppath, NULL, cam_sim_path(isp->isp_sim),
+		    (target_id_t)tgt, CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
+                        break;
+                }
+		if (lp->valid && (lp->roles &
+		    (SVC3_INI_ROLE >> SVC3_ROLE_SHIFT))) {
+			ISPLOCK_2_CAMLOCK(isp);
+			xpt_async(AC_FOUND_DEVICE, tmppath, NULL);
+		} else {
+			ISPLOCK_2_CAMLOCK(isp);
+			xpt_async(AC_LOST_DEVICE, tmppath, NULL);
+		}
+		CAMLOCK_2_ISPLOCK(isp);
+		xpt_free_path(tmppath);
 		break;
 	}
 	case ISPASYNC_CHANGE_NOTIFY:
@@ -2598,6 +2786,21 @@ isp_async(struct ispsoftc *isp, ispasync_t cmd, void *arg)
 		}
 		break;
 #endif
+	case ISPASYNC_FW_CRASH:
+	{
+		u_int16_t mbox1, mbox6;
+		mbox1 = ISP_READ(isp, OUTMAILBOX1);
+		if (IS_DUALBUS(isp)) { 
+			mbox6 = ISP_READ(isp, OUTMAILBOX6);
+		} else {
+			mbox6 = 0;
+		}
+                isp_prt(isp, ISP_LOGERR,
+                    "Internal Firmware on bus %d Error @ RISC Address 0x%x",
+                    mbox6, mbox1);
+		isp_reinit(isp);
+		break;
+	}
 	default:
 		isp_prt(isp, ISP_LOGERR, "unknown isp_async event %d", cmd);
 		rv = -1;
