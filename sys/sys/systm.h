@@ -44,6 +44,7 @@
 
 #include <machine/atomic.h>
 #include <machine/cpufunc.h>
+#include <machine/ipl.h>
 #include <sys/callout.h>
 
 extern int securelevel;		/* system security level (see init(8)) */
@@ -75,8 +76,13 @@ extern int bootverbose;		/* nonzero to print verbose messages */
 
 #ifdef	INVARIANTS		/* The option is always available */
 #define	KASSERT(exp,msg)	do { if (!(exp)) panic msg; } while (0)
+#define SPLSTRINGIZE(a) #a
+#define SPLASSERT(level, msg)						\
+	KASSERT(is_spl##level(), ("%s: not spl%s, cpl == 0x%08x\n",	\
+		(msg), SPLSTRINGIZE(level), cpl))					
 #else
 #define	KASSERT(exp,msg)
+#define SPLASSERT(level, msg)
 #endif
 
 /*
@@ -124,6 +130,7 @@ u_quad_t strtouq __P((const char *, char **, int));
 
 void	bcopy __P((const void *from, void *to, size_t len));
 void	ovbcopy __P((const void *from, void *to, size_t len));
+
 #ifdef __i386__
 extern void	(*bzero) __P((void *buf, size_t len));
 #else
@@ -227,6 +234,26 @@ intrmask_t	splsoftvm __P((void));
 intrmask_t	splstatclock __P((void));
 intrmask_t	spltty __P((void));
 intrmask_t	splvm __P((void));
+#if defined (INVARIANT_SUPPORT)
+/* 
+ * The Alpha has all of these as static __inline.
+ */
+int		is_splbio __P((void));
+int		is_splcam __P((void));
+int		is_splclock __P((void));
+int		is_splhigh __P((void));
+int		is_splimp __P((void));
+int		is_splnet __P((void));
+int		is_splsoftcam __P((void));
+int		is_splsoftcambio __P((void));
+int		is_splsoftcamnet __P((void));
+int		is_splsoftclock __P((void));
+int		is_splsofttty __P((void));
+int		is_splsoftvm __P((void));
+int		is_splstatclock __P((void));
+int		is_spltty __P((void));
+int		is_splvm __P((void));
+#endif /* INVARIANT_SUPPORT */
 void		splx __P((intrmask_t ipl));
 void		splz __P((void));
 #endif /* __i386__ */
