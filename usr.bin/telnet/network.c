@@ -128,10 +128,6 @@ netflush()
 {
     register int n, n1;
 
-#ifdef	ENCRYPTION
-    if (encrypt_output)
-	ring_encrypt(&netoring, encrypt_output);
-#endif	/* ENCRYPTION */
     if ((n1 = n = ring_full_consecutive(&netoring)) > 0) {
 	if (!ring_at_mark(&netoring)) {
 	    n = send(net, (char *)netoring.consume, n, 0); /* normal write */

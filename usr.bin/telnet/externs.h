@@ -162,10 +162,6 @@ extern char
     wont[],
     options[],		/* All the little options */
     *hostname;		/* Who are we connected to? */
-#ifdef	ENCRYPTION
-extern void (*encrypt_output) P((unsigned char *, int));
-extern int (*decrypt_input) P((int));
-#endif	/* ENCRYPTION */
 
 /*
  * We keep track of each side of the option negotiation.
