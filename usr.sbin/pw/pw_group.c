@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: pw_group.c,v 1.1.1.2 1996/12/09 23:55:25 joerg Exp $
+ *	$Id: pw_group.c,v 1.1.1.3 1996/12/10 23:59:01 joerg Exp $
  */
 
 #include <unistd.h>
@@ -119,7 +119,7 @@ pw_group(struct userconf * cnf, int mode, struct cargs * args)
 			grp->gr_gid = (gid_t) atoi(a_gid->val);
 
 		if ((arg = getarg(args, 'l')) != NULL)
-			grp->gr_name = arg->val;
+			grp->gr_name = pw_checkname((u_char *)arg->val, 0);
 	} else {
 		if (a_name == NULL)	/* Required */
 			cmderr(EX_DATAERR, "group name required\n");
@@ -128,7 +128,7 @@ pw_group(struct userconf * cnf, int mode, struct cargs * args)
 
 		memset(members, 0, sizeof members);
 		grp = &fakegroup;
-		grp->gr_name = a_name->val;
+		grp->gr_name = pw_checkname((u_char *)a_name->val, 0);
 		grp->gr_passwd = "*";
 		grp->gr_gid = gr_gidpolicy(cnf, args);
 		grp->gr_mem = members;
