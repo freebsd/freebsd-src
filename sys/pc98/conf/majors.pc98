@@ -1,4 +1,4 @@
-$Id: majors.pc98,v 1.60 1999/07/08 12:07:14 kato Exp $
+$Id: majors.pc98,v 1.61 1999/08/01 16:03:31 kato Exp $
 
 Hopefully, this list will one day be obsoleted by DEVFS, but for now
 this is the current allocation of device major numbers.
@@ -46,7 +46,6 @@ blkdev	name		comments
 31	acd		ATAPI CDROM
 32	afd		ATAPI floppy
 33	ast		ATAPI tape
-34	arla		Arla (AFS-clone) driver
 100	??		entries from 100-127 are reserved for local use
 127	??		entries from 100-127 are reserved for local use
 
