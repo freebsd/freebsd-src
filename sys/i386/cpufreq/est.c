@@ -717,15 +717,14 @@ est_settings(device_t dev, struct cf_setting *sets, int *count)
 		return (E2BIG);
 
 	i = 0;
-	for (f = sc->freq_list; f->freq != 0; f++) {
+	for (f = sc->freq_list; f->freq != 0; f++, i++) {
 		sets[i].freq = f->freq;
 		sets[i].volts = f->volts;
 		sets[i].power = CPUFREQ_VAL_UNKNOWN;
 		sets[i].lat = EST_TRANS_LAT;
 		sets[i].dev = dev;
-		i++;
 	}
-	*count = i + 1;
+	*count = i;
 
 	return (0);
 }
@@ -751,7 +750,7 @@ est_set(device_t dev, const struct cf_setting *set)
 	msr = (msr & ~0xffff) | f->id16;
 	wrmsr(MSR_PERF_CTL, msr);
 
-	/* Wait a short while for the new setting.  Is this necessary? */
+	/* Wait a short while for the new setting.  XXX Is this necessary? */
 	DELAY(EST_TRANS_LAT);
 
 	return (0);
