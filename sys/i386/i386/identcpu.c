@@ -591,7 +591,7 @@ printcpuinfo(void)
 			"\033SSE2"	/* Streaming SIMD Extensions #2 */
 			"\034SS"	/* Self snoop */
 			"\035HTT"	/* Hyperthreading (see EBX bit 16-23) */
-			"\036TM"	/* Thermal Monintor clock slowdown */
+			"\036TM"	/* Thermal Monitor clock slowdown */
 			"\035<b28>"
 			"\036ACC"	/* Auto Clock Correction (TCC/ACPI) */
 			"\037<b30>"
