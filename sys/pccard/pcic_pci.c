@@ -1015,7 +1015,7 @@ pcic_pci_probe(device_t dev)
 		if (subclass == PCIS_BRIDGE_PCMCIA && progif == 0)
 			desc = "Generic PCI-PCMCIA Bridge";
 		if (subclass == PCIS_BRIDGE_CARDBUS && progif == 0)
-			desc = "YENTA PCI-CARDBUS Bridge";
+			desc = "YENTA PCI-CardBus Bridge";
 		if (bootverbose && desc)
 			printf("Found unknown %s devid 0x%x\n", desc, device_id);
 	}
