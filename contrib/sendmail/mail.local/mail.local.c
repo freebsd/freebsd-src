@@ -239,7 +239,7 @@ main(argc, argv)
 	char *argv[];
 {
 	struct passwd *pw;
-	int ch, fd, nobiff, nofsync;
+	int ch, fd, nobiff, dofsync;
 	uid_t uid;
 	char *from;
 	extern char *optarg;
@@ -260,7 +260,7 @@ main(argc, argv)
 
 	from = NULL;
 	nobiff = 0;
-	nofsync = 0;
+	dofsync = 0;
 	while ((ch = getopt(argc, argv, "bdf:r:ls")) != -1)
 		switch(ch) {
 		case 'b':
@@ -280,7 +280,7 @@ main(argc, argv)
 			lmtpmode++;
 			break;
 		case 's':
-			nofsync++;
+			dofsync++;
 			break;
 		case '?':
 		default:
@@ -290,7 +290,7 @@ main(argc, argv)
 	argv += optind;
 
 	if (lmtpmode)
-		dolmtp(nobiff, nofsync);
+		dolmtp(nobiff, dofsync);
 
 	if (!*argv)
 		usage();
@@ -315,7 +315,7 @@ main(argc, argv)
 	 * at the expense of repeated failures and multiple deliveries.
 	 */
 	for (fd = store(from, 0); *argv; ++argv)
-		deliver(fd, *argv, nobiff, nofsync);
+		deliver(fd, *argv, nobiff, dofsync);
 	exit(eval);
 }
 
@@ -431,8 +431,8 @@ process_recipient(addr)
 #define RCPT_GROW	30
 
 void
-dolmtp(nobiff, nofsync)
-	int nobiff, nofsync;
+dolmtp(nobiff, dofsync)
+	int nobiff, dofsync;
 {
 	char *return_path = NULL;
 	char **rcpt_addr = NULL;
@@ -477,7 +477,7 @@ dolmtp(nobiff, nofsync)
 					if (p != NULL)
 						*p++ = '\0';
 					deliver(msgfd, rcpt_addr[i], nobiff,
-					    nofsync);
+					    dofsync);
 				}
 				close(msgfd);
 				goto rset;
@@ -680,10 +680,10 @@ store(from, lmtprcpts)
 }
 
 void
-deliver(fd, name, nobiff, nofsync)
+deliver(fd, name, nobiff, dofsync)
 	int fd;
 	char *name;
-	int nobiff, nofsync;
+	int nobiff, dofsync;
 {
 	struct stat fsb, sb;
 	struct passwd *pw;
@@ -851,7 +851,7 @@ tryagain:
 	}
 
 	/* Flush to disk, don't wait for update. */
-	if (!nofsync && fsync(mbfd)) {
+	if (dofsync && fsync(mbfd)) {
 		mailerr("450 4.2.0", "%s: %s", path, strerror(errno));
 err3:
 		if (setreuid(0, 0) < 0) {
