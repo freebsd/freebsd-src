@@ -538,9 +538,6 @@ mp_Assemble(struct mp *mp, struct mbuf *m, struct physical *p)
         len = mp_ReadHeader(mp, *frag, &h);
         if (first == -1)
           first = h.seq;
-        (*frag)->m_offset += len;
-        (*frag)->m_len -= len;
-        (*frag)->m_nextpkt = NULL;
         if (frag == &q && !h.begin) {
           log_Printf(LogWARN, "Oops - MP frag %lu should have a begin flag\n",
                     (u_long)h.seq);
@@ -551,7 +548,7 @@ mp_Assemble(struct mp *mp, struct mbuf *m, struct physical *p)
                     (u_long)h.seq - 1);
           /*
            * Stuff our fragment back at the front of the queue and zap
-           * our half-assembed packet.
+           * our half-assembled packet.
            */
           (*frag)->m_nextpkt = mp->inbufs;
           mp->inbufs = *frag;
@@ -560,10 +557,14 @@ mp_Assemble(struct mp *mp, struct mbuf *m, struct physical *p)
           q = NULL;
           frag = &q;
           h.end = 0;	/* just in case it's a whole packet */
-        } else
+        } else {
+          (*frag)->m_offset += len;
+          (*frag)->m_len -= len;
+          (*frag)->m_nextpkt = NULL;
           do
             frag = &(*frag)->m_next;
           while (*frag != NULL);
+        }
       } while (!h.end);
 
       if (q) {
@@ -662,11 +663,12 @@ mp_FillQueues(struct bundle *bundle)
   struct mp *mp = &bundle->ncp.mp;
   struct datalink *dl, *fdl;
   size_t total, add, len;
-  int thislink, nlinks;
+  int thislink, nlinks, nopenlinks, sendasip;
   u_int32_t begin, end;
   struct mbuf *m, *mo;
+  struct link *bestlink;
 
-  thislink = nlinks = 0;
+  thislink = nlinks = nopenlinks = 0;
   for (fdl = NULL, dl = bundle->links; dl; dl = dl->next) {
     /* Include non-open links here as mp->out.link will stay more correct */
     if (!fdl) {
@@ -676,6 +678,8 @@ mp_FillQueues(struct bundle *bundle)
         thislink++;
     }
     nlinks++;
+    if (dl->state == DATALINK_OPEN)
+      nopenlinks++;
   }
 
   if (!fdl) {
@@ -707,7 +711,6 @@ mp_FillQueues(struct bundle *bundle)
     }
 
     if (!link_QueueLen(&mp->link)) {
-      struct datalink *other;
       int mrutoosmall;
 
       /*
@@ -716,12 +719,10 @@ mp_FillQueues(struct bundle *bundle)
        * link's protocol stack rather than using the MP link.  This results
        * in the outbound traffic going out as PROTO_IP rather than PROTO_MP.
        */
-      for (other = dl->next; other; other = other->next)
-        if (other->state == DATALINK_OPEN)
-          break;
 
       mrutoosmall = 0;
-      if (!other) {
+      sendasip = nopenlinks < 2;
+      if (sendasip) {
         if (dl->physical->link.lcp.his_mru < mp->peer_mrru) {
           /*
            * Actually, forget it.  This test is done against the MRRU rather
@@ -730,20 +731,21 @@ mp_FillQueues(struct bundle *bundle)
            * too likely to upset some ppp implementations.
            */
           mrutoosmall = 1;
-          other = dl;
+          sendasip = 0;
         }
       }
 
-      if (!ip_PushPacket(other ? &mp->link : &dl->physical->link, bundle))
+      bestlink = sendasip ? &dl->physical->link : &mp->link;
+      if (!ip_PushPacket(bestlink, bundle))
         /* Nothing else to send */
         break;
 
       if (mrutoosmall)
         log_Printf(LogDEBUG, "Don't send data as PROTO_IP, MRU < MRRU\n");
-      else if (!other)
+      else if (sendasip)
         log_Printf(LogDEBUG, "Sending data as PROTO_IP, not PROTO_MP\n");
 
-      if (!other) {
+      if (sendasip) {
         add = link_QueueLen(&dl->physical->link);
         if (add) {
           /* this link has got stuff already queued.  Let it continue */
