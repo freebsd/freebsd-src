@@ -66,7 +66,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_fault.c,v 1.10 1994/10/22 02:18:01 davidg Exp $
+ * $Id: vm_fault.c,v 1.11 1994/10/23 06:15:03 davidg Exp $
  */
 
 /*
@@ -83,6 +83,7 @@
 #include <vm/vm.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pageout.h>
+#include <vm/vm_kern.h>
 
 int	vm_fault_additional_pages __P((vm_object_t, vm_offset_t, vm_page_t, int, int, vm_page_t *, int *));
 
@@ -422,14 +423,21 @@ vm_fault(map, vaddr, fault_type, change_wiring)
 			 *	that we are.
 			 */
 
+			if (rv == VM_PAGER_ERROR)
+				printf("vm_fault: pager input (probably hardware) error, PID %d failure\n",
+				curproc->p_pid);
 			vm_object_lock(object);
 			/*
-			 * Data outside the range of the pager; an error
+			 * Data outside the range of the pager or an I/O error
 			 */
-			if ((rv == VM_PAGER_ERROR) || (rv == VM_PAGER_BAD)) {
+			/*
+			 * XXX - the check for kernel_map is a kludge to work around
+			 * having the machine panic on a kernel space fault w/ I/O error.
+			 */
+			if (((map != kernel_map) && (rv == VM_PAGER_ERROR)) || (rv == VM_PAGER_BAD)) {
 				FREE_PAGE(m);
 				UNLOCK_AND_DEALLOCATE;
-				return(KERN_PROTECTION_FAILURE); /* XXX */
+				return ((rv == VM_PAGER_ERROR) ? KERN_FAILURE : KERN_PROTECTION_FAILURE);
 			}
 			if (object != first_object) {
 				FREE_PAGE(m);

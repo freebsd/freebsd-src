@@ -39,7 +39,7 @@
  * from: Utah $Hdr: swap_pager.c 1.4 91/04/30$
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
- * $Id: swap_pager.c,v 1.15 1994/10/22 02:17:59 davidg Exp $
+ * $Id: swap_pager.c,v 1.16 1994/10/25 07:06:20 davidg Exp $
  */
 
 /*
@@ -1105,7 +1105,7 @@ swap_pager_input(swp, m, count, reqpage)
 	if (bp->b_flags & B_ERROR) {
 		printf("swap_pager: I/O error - pagein failed; blkno %d, size %d, error %d\n",
 		    bp->b_blkno, bp->b_bcount, bp->b_error);
-		rv = VM_PAGER_FAIL;
+		rv = VM_PAGER_ERROR;
 	} else {
 		rv = VM_PAGER_OK;
 	}
@@ -1506,7 +1506,7 @@ retrygetspace:
 	if (bp->b_flags & B_ERROR) {
 		printf("swap_pager: I/O error - pageout failed; blkno %d, size %d, error %d\n",
 		    bp->b_blkno, bp->b_bcount, bp->b_error);
-		rv = VM_PAGER_FAIL;
+		rv = VM_PAGER_ERROR;
 	} else {
 		rv = VM_PAGER_OK;
 	}
@@ -1632,7 +1632,7 @@ swap_pager_finish(spc)
 	 */
 	if (spc->spc_flags & SPC_ERROR) {
 		for(i=0;i<spc->spc_count;i++) {
-			printf("swap_pager_finish: clean of page %lx failed\n",
+			printf("swap_pager_finish: I/O error, clean of page %lx failed\n",
 			       (u_long)VM_PAGE_TO_PHYS(spc->spc_m[i]));
 			spc->spc_m[i]->flags |= PG_LAUNDRY;
 		}

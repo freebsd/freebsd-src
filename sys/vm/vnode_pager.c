@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vnode_pager.c	7.5 (Berkeley) 4/20/91
- *	$Id: vnode_pager.c,v 1.13 1994/10/14 12:26:18 davidg Exp $
+ *	$Id: vnode_pager.c,v 1.14 1994/10/15 13:33:09 davidg Exp $
  */
 
 /*
@@ -688,7 +688,7 @@ nextblock:
 	}
 	vm_pager_unmap_page(kva);
 	if (error) {
-		return VM_PAGER_FAIL;
+		return VM_PAGER_ERROR;
 	}
 	pmap_clear_modify(VM_PAGE_TO_PHYS(m));
 	m->flags |= PG_CLEAN;
@@ -754,7 +754,7 @@ vnode_pager_input_old(vnp, m)
 	pmap_clear_modify(VM_PAGE_TO_PHYS(m));
 	m->flags |= PG_CLEAN;
 	m->flags &= ~PG_LAUNDRY;
-	return error ? VM_PAGER_FAIL : VM_PAGER_OK;
+	return error ? VM_PAGER_ERROR : VM_PAGER_OK;
 }
 
 /*
@@ -1137,9 +1137,9 @@ finishup:
 		}
 	}
 	if (error) {
-		printf("vnode_pager_input: read error\n");
+		printf("vnode_pager_input: I/O read error\n");
 	}
-	return (error ? VM_PAGER_FAIL : VM_PAGER_OK);
+	return (error ? VM_PAGER_ERROR : VM_PAGER_OK);
 }
 
 /*
@@ -1193,7 +1193,7 @@ vnode_pager_output_old(vnp, m)
 			}
 		}
 		vm_pager_unmap_page(kva);
-		return error ? VM_PAGER_FAIL : VM_PAGER_OK;
+		return error ? VM_PAGER_ERROR: VM_PAGER_OK;
 	}
 }
 
@@ -1283,7 +1283,7 @@ vnode_pager_output_smlfs(vnp, m)
 	}
 	vm_pager_unmap_page(kva);
 	if (error)
-		return VM_PAGER_FAIL;
+		return VM_PAGER_ERROR;
 	else
 		return VM_PAGER_OK;
 }
@@ -1502,7 +1502,7 @@ retryoutput:
 		goto retryoutput;
 	}
 	if (error) {
-		printf("vnode_pager_output: write error\n");
+		printf("vnode_pager_output: I/O write error\n");
 	}
-	return (error ? VM_PAGER_FAIL : VM_PAGER_OK);
+	return (error ? VM_PAGER_ERROR: VM_PAGER_OK);
 }
