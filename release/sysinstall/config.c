@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.16.2.28 1995/10/27 02:12:46 jkh Exp $
+ * $Id: config.c,v 1.16.2.29 1995/10/27 03:07:06 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -320,6 +320,7 @@ configResolv(void)
 {
     FILE *fp;
     char *cp, *hp;
+    static Boolean hostsAppended = FALSE;
 
     if (!RunningAsInit && file_readable("/etc/resolv.conf"))
 	return;
@@ -353,6 +354,8 @@ configResolv(void)
 
 skip:
     /* Tack ourselves at the end of /etc/hosts */
+    if (hostsAppended)
+	return;
     cp = variable_get(VAR_IPADDR);
     if (cp && *cp != '0' && (hp = variable_get(VAR_HOSTNAME))) {
 	char cp2[255];
@@ -369,20 +372,15 @@ skip:
 	fclose(fp);
 	if (isDebug())
 	    msgDebug("Appended entry for %s to /etc/hosts\n", cp);
+	hostsAppended = TRUE;
     }
 }
 
 int
 configNetworking(char *str)
 {
-    int i;
-
-    if (dmenuOpenSimple(&MenuNetworking)) {
-	i = installNetworking(str);
-	if (i != RET_FAIL)
-	    configSysconfig();
-	return i;
-    }
+    if (dmenuOpenSimple(&MenuNetworking))
+	return installNetworking(str);
     else
 	return RET_FAIL;
 }
