@@ -1,4 +1,4 @@
-/* $Id: isp_freebsd.c,v 1.19 1999/05/12 19:00:16 mjacob Exp $ */
+/* $Id: isp_freebsd.c,v 1.20 1999/07/02 23:12:58 mjacob Exp $ */
 /* release_6_2_99 */
 /*
  * Platform (FreeBSD) dependent common attachment code for Qlogic adapters.
@@ -573,7 +573,12 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 			cpi->initiator_id =
 			    ((fcparam *)isp->isp_param)->isp_loopid;
 #ifdef	ISP2100_SCCLUN
+#if	0
+			/* Too much breakage as yet... */
 			cpi->max_lun = (1 << 16) - 1;
+#else
+			cpi->max_lun = (1 << 4) - 1;
+#endif
 #else
 			cpi->max_lun = (1 << 4) - 1;
 #endif
