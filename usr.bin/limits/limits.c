@@ -19,9 +19,10 @@
  *    conditions are met.
  *
  * Display/change(+runprogram)/eval resource limits.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <err.h>
 #include <stdio.h>

@@ -35,9 +35,9 @@
 #if 0
 static char sccsid[] = "@(#)names.c	8.1 (Berkeley) 6/6/93";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * Mail -- a mail program
