@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: subr_bus.c,v 1.2 1998/06/14 13:45:58 dfr Exp $
+ *	$Id: subr_bus.c,v 1.3 1998/07/12 16:20:52 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -748,6 +748,128 @@ device_shutdown(device_t dev)
 	return 0;
     return DEVICE_SHUTDOWN(dev);
 }
+
+/*
+ * Access functions for device resources.
+ */
+extern struct config_device devtab[];
+extern int devtab_count;
+
+static int
+resource_match_string(int i, char *resname, char *value)
+{
+	int j;
+	struct resource *res;
+
+	for (j = 0, res = devtab[i].resources;
+	     j < devtab[i].resource_count; j++, res++)
+		if (!strcmp(res->name, resname)
+		    && res->type == RES_STRING
+		    && !strcmp(res->u.stringval, value))
+			return TRUE;
+	return FALSE;
+}
+
+static int
+resource_find(const char *name, int unit, char *resname, struct resource **result)
+{
+	int i, j;
+	struct resource *res;
+
+	/*
+	 * First check specific instances, then generic.
+	 */
+	for (i = 0; i < devtab_count; i++) {
+		if (devtab[i].unit < 0)
+			continue;
+		if (!strcmp(devtab[i].name, name) && devtab[i].unit == unit) {
+			res = devtab[i].resources;
+			for (j = 0; j < devtab[i].resource_count; j++, res++)
+				if (!strcmp(res->name, resname)) {
+					*result = res;
+					return 0;
+				}
+		}
+	}
+	for (i = 0; i < devtab_count; i++) {
+		if (devtab[i].unit >= 0)
+			continue;
+		if (!strcmp(devtab[i].name, name) && devtab[i].unit == unit) {
+			res = devtab[i].resources;
+			for (j = 0; j < devtab[i].resource_count; j++, res++)
+				if (!strcmp(res->name, resname)) {
+					*result = res;
+					return 0;
+				}
+		}
+	}
+	return ENOENT;
+}
+
+int
+resource_int_value(const char *name, int unit, char *resname, int *result)
+{
+	int error;
+	struct resource *res;
+	if ((error = resource_find(name, unit, resname, &res)) != 0)
+		return error;
+	if (res->type != RES_INT)
+		return EFTYPE;
+	*result = res->u.intval;
+	return 0;
+}
+
+int
+resource_long_value(const char *name, int unit, char *resname, long *result)
+{
+	int error;
+	struct resource *res;
+	if ((error = resource_find(name, unit, resname, &res)) != 0)
+		return error;
+	if (res->type != RES_LONG)
+		return EFTYPE;
+	*result = res->u.longval;
+	return 0;
+}
+
+int
+resource_string_value(const char *name, int unit, char *resname, char **result)
+{
+	int error;
+	struct resource *res;
+	if ((error = resource_find(name, unit, resname, &res)) != 0)
+		return error;
+	if (res->type != RES_STRING)
+		return EFTYPE;
+	*result = res->u.stringval;
+	return 0;
+}
+
+int
+resource_query_string(int i, char *resname, char *value)
+{
+	if (i < 0)
+		i = 0;
+	else
+		i = i + 1;
+	for (; i < devtab_count; i++)
+		if (resource_match_string(i, resname, value))
+			return i;
+	return -1;
+}
+
+char *
+resource_query_name(int i)
+{
+	return devtab[i].name;
+}
+
+int
+resource_query_unit(int i)
+{
+	return devtab[i].unit;
+}
+
 
 /*
  * Some useful method implementations to make life easier for bus drivers.
