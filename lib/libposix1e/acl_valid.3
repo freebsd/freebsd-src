@@ -58,7 +58,7 @@ allow an ACL to be checked in the context of a specific acl type,
 .Va type ,
 and file system object.  In environments where additional ACL types are
 supported than just POSIX.1e, this makes more sense.
-
+.Pp
 For POSIX.1e semantics, the checks include:
 .Bd -literal -offset indent
 The three required entries (ACL_USER_OBJ, ACL_GROUP_OBJ,
@@ -67,14 +67,14 @@ the ACL contains any ACL_USER, ACL_GROUP, or any other
 implementation-defined entries in the file group class
 then one ACL_MASK entry shall also be required.  The ACL
 shall contain at most on ACL_MASK entry.
-
+.Pp
 The qualifier field shall be unique among all entries of
 the same POSIX.1e ACL facility defined tag type.  The 
 tag type field shall contain valid values including any
 implementation-defined values.  Validation of the values
 of the qualifier field is implementation-defined.
 .Ed
-
+.Pp
 The POSIX.1e
 .Fn acl_valid
 function may reorder the ACL for the purposes of verification; the
@@ -105,12 +105,12 @@ argument is not a valid file descriptor.
 Argument
 .Va acl
 does not point to a valid ACL.
-
+.Pp
 One or more of the required ACL entries is not present in
 .Va acl .
-
+.Pp
 The ACL contains entries that are not unique.
-
+.Pp
 The file system rejects the ACL based on fs-specific semantics issues.
 .It Bq Er ENAMETOOLONG
 A component of a pathname exceeded 255 characters, or an

@@ -63,18 +63,17 @@ is actually a
 .Dv DISPLAY
 specification of the form
 .Sm off
-.Ar host No . Ar domain No : Ns
-.Sm on
-.Ar \&nn Oo
-.No . Ns Ar \&nn
+.Ar host . domain : nn Oo .
+.Ar nn
 .Oc
+.Sm on
 and the domain name is the same as the local domain name,
 .Fn trimdomain
 will remove the embedded domain name, copying the screen and display
 numbers to the end of the base host name and resulting in
-.Ar host No : Ns Ar \&nn Oo
-.No . Ns Ar \&nn
-.Oc .
+.Sm off
+.Ar host : nn Op . Ar nn .
+.Sm on
 .Sh RETURN VALUES
 .Fn trimdomain
 does not return a value.
