@@ -75,23 +75,8 @@ SYSCTL_INT(_hw_pcic, OID_AUTO, ignore_function_1, CTLFLAG_RD,
  */
 static int pcic_intr_path = (int)pcic_iw_pci;
 TUNABLE_INT("hw.pcic.intr_path", &pcic_intr_path);
-
-static int
-sysctl_hw_pcic_intr_path(SYSCTL_HANDLER_ARGS)
-{
-	char type[4];
-	int error;
-
-	if (pcic_intr_path == pcic_iw_isa)
-		strcpy(type, "isa");
-	else
-		strcpy(type, "pci");
-	error = sysctl_handle_string(oidp, type, sizeof(type), req);
-	return (error);
-}
-
-SYSCTL_PROC(_hw_pcic, OID_AUTO, intr_path, CTLTYPE_STRING | CTLFLAG_RD, 0, 0,
-    sysctl_hw_pcic_intr_path, "A", "Which path to send the interrupts over.");
+SYSCTL_INT(_hw_pcic, OID_AUTO, intr_path, CTLFLAG_RD, &pcic_intr_path, 0,
+    "Which path to send the interrupts over.");
 
 static int pcic_init_routing = 0;
 TUNABLE_INT("hw.pcic.init_routing", &pcic_init_routing);
@@ -615,14 +600,14 @@ pcic_pci_probe(device_t dev)
 	struct resource	*res;
 	int		rid;
 
-	if (pcic_ignore_function_1 && pci_get_function(dev) == 1) {
-		PRVERB((dev, "Ignoring function 1\n"));
-		return (ENXIO);
-	}
-
 	device_id = pci_get_devid(dev);
 	desc = NULL;
 	itm = pcic_pci_lookup(device_id, &pcic_pci_devs[0]);
+	if (pcic_ignore_function_1 && pci_get_function(dev) == 1) {
+		if (itm != NULL)
+			PRVERB((dev, "Ignoring function 1\n"));
+		return (ENXIO);
+	}
 	if (itm != NULL)
 		desc = itm->descr;
 	if (desc == NULL && pci_get_class(dev) == PCIC_BRIDGE) {
@@ -637,7 +622,6 @@ pcic_pci_probe(device_t dev)
 		return (ENXIO);
 	device_set_desc(dev, desc);
 
-#if __FreeBSD_version >= 430002
 	/*
 	 * Take us out of power down mode.
 	 */
@@ -647,7 +631,6 @@ pcic_pci_probe(device_t dev)
 		    "-- setting to D0\n", pci_get_powerstate(dev));
 		pci_set_powerstate(dev, PCI_POWERSTATE_D0);
 	}
-#endif
 
 	/*
 	 * Allocated/deallocate interrupt.  This forces the PCI BIOS or
@@ -716,10 +699,10 @@ pcic_pci_attach(device_t dev)
 	u_int32_t sockbase;
 	struct pcic_pci_table *itm;
 	int rid;
-	struct resource *r;
+	struct resource *r = NULL;
 	int error;
-	u_long start;
-	u_long end;
+	u_long irq = 0;
+	driver_intr_t *intr = NULL;
 
 	/*
 	 * In sys/pci/pcireg.h, PCIR_COMMAND must be separated
@@ -773,39 +756,66 @@ pcic_pci_attach(device_t dev)
 			sc->flags = PCIC_DF_POWER;
 		}
 	}
-	sp->slt = (struct slot *) 1;
 	sc->dev = dev;
 	sc->csc_route = pcic_intr_path;
 	sc->func_route = pcic_intr_path;
+	sp->slt = (struct slot *) 1;
 
+	if (sc->csc_route == pcic_iw_pci) {
+		rid = 0;
+		r = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1, 
+		    RF_ACTIVE | RF_SHAREABLE);
+		if (r == NULL) {
+			sc->csc_route = pcic_iw_isa;
+			sc->func_route = pcic_iw_isa;
+			device_printf(dev,
+			    "No PCI interrupt routed, trying ISA.\n");
+		}
+		intr = pcic_pci_intr;
+		irq = rman_get_start(r);
+	}
+	if (sc->csc_route == pcic_iw_isa) {
+		rid = 0;
+		irq = pcic_override_irq;
+		if (irq != 0) {
+			r = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, irq,
+			    irq, 1, RF_ACTIVE);
+			if (r == NULL) {
+				device_printf(dev,
+				    "Can't route ISA CSC interrupt.\n");
+				pcic_dealloc(dev);
+				return (ENXIO);
+			}
+			intr = pcic_isa_intr;
+		} else {
+			sc->slot_poll = pcic_timeout;
+			sc->timeout_ch = timeout(sc->slot_poll, sc, hz/2);
+			device_printf(dev, "Polling mode\n");
+			intr = NULL;
+		}
+	}
+
+	/*
+	 * Initialize AFTER we figure out what kind of interrupt we're
+	 * going to be using, if any.
+	 */
 	if (itm && itm->init)
 		itm->init(dev);
 	else
 		pcic_pci_cardbus_init(dev);
 
-	if (sc->csc_route == pcic_iw_pci) {
-		start = 0;
-		end = ~0;
-	} else {
-		start = pcic_override_irq;
-		end = pcic_override_irq;
-	}
-	rid = 0;
-	r = NULL;
-	r = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, start, end, 1, 
-	    RF_ACTIVE | RF_SHAREABLE);
-	if (r == NULL) {
-		device_printf(dev, "Failed to allocate managment irq\n");
-		return (EIO);
-	}
+	/*
+	 * Now install the interrupt handler, if necessary.
+	 */
 	sc->irqrid = rid;
 	sc->irqres = r;
-	sc->irq = rman_get_start(r);
-	error = bus_setup_intr(dev, r, INTR_TYPE_AV, pcic_pci_intr,
-	    (void *) sc, &sc->ih);
-	if (error) {
-		pcic_dealloc(dev);
-		return (error);
+	sc->irq = irq;
+	if (intr) {
+		error = bus_setup_intr(dev, r, INTR_TYPE_AV, intr, sc, &sc->ih);
+		if (error) {
+			pcic_dealloc(dev);
+			return (error);
+		}
 	}
 
 	return (pcic_attach(dev));
