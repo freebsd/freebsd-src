@@ -333,11 +333,11 @@ USB connectors. If yes, it is a MiataGL.
 
 System designations look like "Personal Workstation 433a". Personal
 Workstation, being a bit of a mouthful, is often abbreviated to PWS.
-This means it has a 433 MHz CPU, and started life as a WinNT workstation
-(the trailing 'a'). Systems designated from day 1 to run Tru64
+This means it has a 433 MHz CPU, and started life as a WinNT workstation 
+(the trailing 'a'). Systems designated from day 1 to run Tru64 
 Unix or OpenVMS will sport '433au'. WinNT-Miatas are likely
 to come pre-configured with an IDE CDROM drive. So, in general systems
-are named like PWS[433,500,600]a[u].
+are named like PWS[433,500,600]a[u]. 
 
 There was also a Miata model with a special cooling system by Kryotech. 
 That one has a different enclosure.
@@ -463,7 +463,7 @@ really high speed things with 64 bit PCI adapters.
 
 Keyboard:
 If you experience SRM errors like "ERROR: scancode 0xa3 not supported
-on PCXAL" after halting FreeBSD you should update your SRM firmware
+on PCXAL" after halting FreeBSD you should update your SRM firmware 
 to V7.2-1 or later. This SRM version is first available on the Firmware
 Update CD V5.7, or on www.compaq.com The problem is fixed on both Miata MX5
 and Miata GL.
@@ -670,7 +670,8 @@ So you are stuck with old Qlogic bits too. I have had quite some problems
 when I wanted to use Ultra-SCSI drives on the Alpine/Qlogic. The
 FreeBSD/alpha kernel can be compiled to include a much newer Qlogic firmware
 revision. This is not the default because it adds hundreds of kBytes worth
-of bloat to the kernel. All of this might mean that you need to use a
+of bloat to the kernel. In FreeBSD 4.1 and later the isp firmware is contained 
+in a kernel loadable module. All of this might mean that you need to use a
 non-Qlogic adapter to boot from. 
 
 For the EB64+ class machines the kernel config file must contain:
@@ -1153,7 +1154,6 @@ Contrary to expectation there is no 'cpu EV6' defined for inclusion in the
 kernel config file. The 'cpu EV5' is mandatory to keep config(8) happy.
 
 ** AlphaPC 264DP / UP2000
-	<need more info on this one; please check for correctness>
 
 Features:
 - 21264 EV6 CPU at 670 MHz
@@ -1194,6 +1194,127 @@ The kernel config file must contain:
 
 Contrary to expectation there is no 'cpu EV6' defined for inclusion in the
 kernel config file. The 'cpu EV5' is mandatory to keep config(8) happy.
+
+*
+* AlphaServer 2000 ("DemiSable"), 2100 ("Sable"), 2100A ("Lynx")
+*
+
+The AlphaServer 2[01]00 machines are aimed as departmental servers.
+This is medium iron, not a hobbyist system. These are multi-CPU machines, 
+up to 2 CPUs (AS2000) or 4 CPUs (2100[A]) can be in a single machine. 
+Both floorstanding and 19" rackmount boxes exist. Rackmount variations have
+different numbers of I/O expansion slots, different max number of CPUs and
+different maximum memory size. Some of the boxes come with an integral
+StorageWorks shelf to house hotswap SCSI disks. 
+
+Features:
+- 21064 EV4 CPU[s] at 200, 233, 275 MHz
+- 21164 EV5 CPU[s]s at 250, 300, 375 MHz
+- cache: varies in size with the CPU model; 1, 4 or 8Mbyte per CPU
+- embedded floppy controller
+- embedded 10Mbit 21040 ethernet
+- 2 serial ports
+- 1 parallel port
+- PS/2 style keyboard & mouse port
+
+NOTE: Lynx support is currently flagged as experimental due to lack of
+      testing / test hardware.
+
+CPU:
+The CPUs spec-ed as 200 Mhz are in reality running at 190 MHz.
+Currently FreeBSD only uses one CPU in a multiprocessor machine.
+
+Memory:
+The machines use dedicated memory boards. These boards live on a 128 bit 
+C-bus shared with the CPU boards. DemiSable supports up to 1Gb, Sable up 
+to 2Gb. One of the memory bus slots can either hold a CPU or a memory card.
+Some memory board modules house SIMMs. There are also memory modules that
+have soldered-on memory chips instead of SIMMs. SIMM boards are used in sets 
+of eight 72-pin 36 bit FPM memory of 70ns or faster. SIMM types supported 
+are 1Mb x36 bit (4 Mbyte) and 4Mb x36 bit (16 Mbyte). Each memory board 
+can house 4 banks of SIMMs. SIMM sizes can not be mixed on a single memory
+board.
+
+Embedded SCSI:
+Both Sable, DemiSable and Lynx have NCR810 based Fast SCSI onboard.
+
+Expansion:
+DemiSable has 7 EISA slots and 3 PCI slots. Sable has 8 EISA and 3 PCI
+slots. Lynx, being newer, has 8 PCI and 3 EISA slots. Make sure you run the
+EISA Configuration Utility (from floppy) when adding/change expansion cards
+in EISA slots.
+
+	NOTE: EISA slots are currently unsupported, but the Compaq Qvision
+	      EISA VGA adapter is treated as an ISA device. It therefore
+	      works OK as a console.
+
+Power:
+The machines can be equipped with redundant power supplies.
+
+The kernel config file must contain:
+       options         DEC_2100_A500
+       cpu             EV4
+       cpu	       EV5
+
+*
+* AlphaServer 4100 ("Rawhide")
+*
+
+The AlphaServer 4100 machine is aimed as an enterprise server.
+Expect a 30" high pedestal cabinet or alternatively the same system box in a
+19" rack. This is medium iron, not a hobbyist system. 
+These are multi-CPU machines, up to 4 CPUs can be in a single
+machine.  Basic disk storage is housed in one or two StorageWorks shelves
+at the bottom of the pedestal. The Rawhides intended for the NT market are
+designated DIGITAL Server 7300 (5/400 CPU), DIGITAL Server 7305 (5/533 CPU).
+A trailing R on the partnumber means a rackmount variant.
+
+Features:
+- 21164 EV5 CPUs at 266, 300 MHz
+  21164A EV56 CPUs at 400, 466, 533 and 600 Mhz
+- cache: 4 Mbytes per CPU (EV5 300 MHz was also available cache-less)
+	 8 Mbytes (EV5 600Mhz only)
+- memory bus: 128 bit with ECC
+- embedded floppy controller
+- 2 serial ports
+- 1 parallel port
+- PS/2 style keyboard & mouse port
+
+CPU:
+Rawhide is very much a multiprocessor machine. Currently FreeBSD only
+uses one CPU.
+
+Memory:
+Rawhide uses a maximum of 8 RAM modules. These modules are used in pairs
+and supply 72 bits to the bus (this includes ECC bits). Memory can be EDO
+RAM or synchronous DRAM. A fully populated Rawhide has 4 pairs of memory
+modules. Given the choice use SDRAM for best performance. The highest 
+capacity memory board must be in memory slot 0. A mix of memory board sizes
+is allowed. A mix of EDO and SDRAM is also reported as working (assuming you
+don't try to mix EDO and SDRAM in one module pair).
+
+Embedded SCSI:
+Rawhide has an embedded NCR810 Fast SCSI bus.
+
+Expansion:
+Rawhides are available with a 8 64-bit PCI / 3 EISA slot expansion backplanes
+(called 'Saddle' modules). There are 2 seperate PCI buses, PCI0 and PCI1.
+PCI0 has 1 dedicated PCI slot and (shared) 3 PCI/EISA slots. PCI0 also has a
+PCI/EISA bridge that drives things like the serial and parallel ports,
+keyboard/mouse etc. PCI1 has 4 PCI slots and an NCR810 SCSI chip.
+
+	NOTE: EISA slots are currently unsupported, but the Compaq Qvision
+	      EISA VGA adapter is treated as an ISA device. It therefore
+	      works OK as a console.
+
+Power:
+The system employs an I2C based power controller system. If you want to be
+sure all power is removed from the system pull the mains cables from the
+system.
+
+The kernel config file must contain:
+       options         DEC_KN300
+       cpu             EV5
 
 *
 * AlphaServer 8200 and 8400 ("TurboLaser")
@@ -1281,6 +1402,68 @@ For the AlphaServer 8x00 machines the kernel config file must
 contain:
 	options         DEC_KN8AE	# Alpha 8200/8400 (Turbolaser)
         cpu             EV5 
+
+*
+* Alpha Processor Inc. UP1000
+*
+
+The UP1000 is an ATX mainboard based on the 21264a CPU which itself lives in
+a Slot B module. It is normally housed in a ATX [mini]tower enclosure.
+
+Features:
+- 21264a Alpha CPU at 600 or 700 MHz in a Slot B module (includes cooling fans)
+- memory bus: 128 bits to the L2 cache, 64 bits from Slot B to the AMD-751
+- on-board Bcache / L2 cache: 2Mb (600Mhz) or 4Mb (700Mhz) cache
+- AMD AMD-751 ('Irongate') system controller chip
+- Acer Labs M1543C PCI-ISA bridge controller / super-IO chip
+- PS/2 mouse & keyboard port 
+- memory: 168-pin PC100 unbuffered SDRAM DIMMS
+	  3 DIMM slots
+	  DIMM sizes supported are 64, 128 or 256 Mb in size
+- 2x 16550A serial port
+- 1x ECP/EPP parallel port
+- floppy interface
+- 2x embedded Ultra DMA33 IDE interface
+- 2x USB port
+- expansion: 4 32 bit PCI slots 
+             2 ISA slots 
+	     1 AGP slot
+
+Slot B:
+Slot B is a box-like enclosure that houses a daughterboard for the CPU and
+cache. It has 2 small fans for cooling. Loud ones too..
+
+Memory:
+The machine needs ECC capable DIMMs, so 72 bit ones. This does not appear to
+be documented in the UP1000 docs. The system accesses the serial EEPROM on
+the DIMMs via the SM bus. Note that if only a single DIMM is used it must be
+installed in slot *2*. This is a bit counter-intuitive.
+
+Power
+The UP1000 needs a 400Watt ATX power supply according to the manufacturer. 
+This might be a bit overly conservative/pessimistic judging from the power
+consumption of the board & cpu. But as always you will have to take your
+expansion cards and peripherals into account. The M1543C chip contains power 
+management functionality & temperature monitoring (via I2C / SM bus).
+
+Console
+Chances are that your UP1000 comes by default with AlphaBios only. The SRM
+console firmware is available from the Alpha Processor Inc. website. It is
+currently available in a beta version which was successfully used during the 
+port of FreeBSD to the UP1000.
+
+EIDE:
+The embedded Ultra DMA EIDE ports are bootable by the SRM console.
+
+SCSI:
+UP1000 SRM can boot off an Adaptec 294x adapter. Under high I/O load conditions
+machine lockups have been observed using the Adaptec 294x. A Symbios 875 
+based card works just fine, using either the ncr or sym driver. The sym driver 
+is the newest and most actively maintained one. Most likely other cards 
+based on the Symbios chips that the sym driver supports will work as well.
+
+USB:
+Is disabled by the SRM console and has not (yet) been tested with FreeBSD.
 
 Supported hardware overview
 ---------------------------
