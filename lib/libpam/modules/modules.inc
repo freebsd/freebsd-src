@@ -7,9 +7,6 @@ MODULES		+= pam_exec
 MODULES		+= pam_ftp
 MODULES		+= pam_ftpusers
 MODULES		+= pam_group
-.if defined(MAKE_KERBEROS4) && !defined(NOCRYPT) && !defined(NO_OPENSSL)
-MODULES		+= pam_kerberosIV
-.endif
 .if defined(MAKE_KERBEROS5) && !defined(NOCRYPT) && !defined(NO_OPENSSL)
 MODULES		+= pam_krb5
 MODULES		+= pam_ksu
