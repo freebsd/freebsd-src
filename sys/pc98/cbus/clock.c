@@ -1554,7 +1554,6 @@ sysctl_machdep_i8254_freq(SYSCTL_HANDLER_ARGS)
 			return (EBUSY);	/* too much trouble to handle */
 		set_timer_freq(freq, hz);
 		i8254_timecounter.tc_frequency = freq;
-		tc_update(&i8254_timecounter);
 	}
 	return (error);
 }
@@ -1575,7 +1574,6 @@ sysctl_machdep_tsc_freq(SYSCTL_HANDLER_ARGS)
 	if (error == 0 && req->newptr != NULL) {
 		tsc_freq = freq;
 		tsc_timecounter.tc_frequency = tsc_freq;
-		tc_update(&tsc_timecounter);
 	}
 	return (error);
 }
