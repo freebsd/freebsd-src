@@ -1226,7 +1226,7 @@ static int
 mac_mls_check_pipe_ioctl(struct ucred *cred, struct pipe *pipe,
     struct label *pipelabel, unsigned long cmd, void /* caddr_t */ *data)
 {
-	
+
 	if(!mac_mls_enabled)
 		return (0);
 
@@ -1365,13 +1365,13 @@ static int
 mac_mls_check_proc_sched(struct ucred *cred, struct proc *proc)
 {
 	struct mac_mls *subj, *obj;
- 
+
 	if (!mac_mls_enabled)
 		return (0);
 
 	subj = SLOT(&cred->cr_label);
 	obj = SLOT(&proc->p_ucred->cr_label);
- 
+
 	/* XXX: range checks */
 	if (!mac_mls_dominate_single(subj, obj))
 		return (ESRCH);
@@ -1385,13 +1385,13 @@ static int
 mac_mls_check_proc_signal(struct ucred *cred, struct proc *proc, int signum)
 {
 	struct mac_mls *subj, *obj;
- 
+
 	if (!mac_mls_enabled)
 		return (0);
 
 	subj = SLOT(&cred->cr_label);
 	obj = SLOT(&proc->p_ucred->cr_label);
- 
+
 	/* XXX: range checks */
 	if (!mac_mls_dominate_single(subj, obj))
 		return (ESRCH);
@@ -1627,21 +1627,21 @@ mac_mls_check_vnode_getextattr(struct ucred *cred, struct vnode *vp,
 }
 
 static int
-mac_mls_check_vnode_lookup(struct ucred *cred, struct vnode *dvp,  
+mac_mls_check_vnode_lookup(struct ucred *cred, struct vnode *dvp,
     struct label *dlabel, struct componentname *cnp)
 {
 	struct mac_mls *subj, *obj;
- 
+
 	if (!mac_mls_enabled)
 		return (0);
-   
+
 	subj = SLOT(&cred->cr_label);
 	obj = SLOT(dlabel);
- 
+
 	if (!mac_mls_dominate_single(subj, obj))
 		return (EACCES);
 
-	return (0);   
+	return (0);
 }
 
 static int
