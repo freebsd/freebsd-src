@@ -94,6 +94,9 @@ The
 .Fn bind
 call will fail if:
 .Bl -tag -width EADDRNOTAVA
+.It Bq Er EAGAIN
+Kernel resources to complete the request are 
+temporarily unavilable.
 .It Bq Er EBADF
 .Fa S
 is not a valid descriptor.
