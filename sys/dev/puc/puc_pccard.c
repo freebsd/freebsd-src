@@ -52,8 +52,8 @@ const struct puc_device_description rscom_devices = {
 		{	0,	0,	0,	0	},
 		{	0,	0,	0,	0	},
 	{
-		{ PUC_PORT_TYPE_COM, 0x0, 0x00, DEFAULT_RCLK },
-		{ PUC_PORT_TYPE_COM, 0x1, 0x00, DEFAULT_RCLK },
+		{ PUC_PORT_TYPE_COM, 0x0, 0x00, DEFAULT_RCLK, 0x100000 },
+		{ PUC_PORT_TYPE_COM, 0x1, 0x00, DEFAULT_RCLK, 0 },
 	}
 };
 
