@@ -76,8 +76,14 @@ static void ata_init(void);
 /* sysctl vars */
 SYSCTL_NODE(_hw, OID_AUTO, ata, CTLFLAG_RD, 0, "ATA driver parameters");
 TUNABLE_INT("hw.ata.ata_dma", &ata_dma);
+SYSCTL_INT(_hw_ata, OID_AUTO, ata_dma, CTLFLAG_RDTUN, &ata_dma, 0,
+	   "ATA disk DMA mode control");
 TUNABLE_INT("hw.ata.wc", &ata_wc);
+SYSCTL_INT(_hw_ata, OID_AUTO, wc, CTLFLAG_RDTUN, &ata_wc, 0,
+	   "ATA disk write caching");
 TUNABLE_INT("hw.ata.atapi_dma", &atapi_dma);
+SYSCTL_INT(_hw_ata, OID_AUTO, atapi_dma, CTLFLAG_RDTUN, &atapi_dma, 0,
+	   "ATAPI device DMA mode control");
 int ata_dma = 1;
 int ata_wc = 1;	 
 int atapi_dma = 0;
