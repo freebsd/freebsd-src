@@ -69,6 +69,7 @@ void	 pri(KINFO *, VARENT *);
 void	 printheader(void);
 void	 priorityr(KINFO *, VARENT *);
 void	 rgroupname(KINFO *, VARENT *);
+void	 rss(KINFO *, VARENT *);
 void	 runame(KINFO *, VARENT *);
 void	 rvar(KINFO *, VARENT *);
 int	 s_rgroupname(KINFO *);
