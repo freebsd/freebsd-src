@@ -181,9 +181,17 @@ cpu		I686_CPU		# aka Pentium Pro(tm)
 # I/O clock delay time on Cyrix 5x86 and 6x86 are 0 and 7,respectively
 # (no clock delay).
 #
+# CPU_L2_LATENCY specifed the L2 cache latency value.  This option is used
+# only when CPU_PPRO2CELERON is defined and Mendocino Celeron is detected.
+# The default value is 5.
+#
 # CPU_LOOP_EN prevents flushing the prefetch buffer if the destination
 # of a jump is already present in the prefetch buffer on Cyrix 5x86(NOTE
 # 1).
+#
+# CPU_PPRO2CELERON enables L2 cache of Mendocino Celeron CPUs.  This option
+# is useful when you use Socket 8 to Socket 370 converter, because most Pentium
+# Pro BIOSs do not enable L2 cache of Mendocino Celeron CPUs.
 #
 # CPU_RSTK_EN enables return stack on Cyrix 5x86 (NOTE 1).
 #
@@ -228,7 +236,9 @@ options 	CPU_DISABLE_5X86_LSSER
 options 	CPU_FASTER_5X86_FPU
 options 	CPU_I486_ON_386
 options 	CPU_IORT
+options 	CPU_L2_LATENCY=5
 options 	CPU_LOOP_EN
+options 	CPU_PPRO2CELERON
 options 	CPU_RSTK_EN
 options 	CPU_SUSP_HLT
 options 	CPU_WT_ALLOC
