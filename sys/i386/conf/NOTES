@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.184 1995/05/28 13:24:16 rgrimes Exp $
+#	$Id: LINT,v 1.185 1995/06/22 10:56:47 dfr Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -392,10 +392,10 @@ options		BOUNCE_BUFFERS
 #options	"BROKEN_KEYBOARD_RESET"
 
 # Enable this and PCVT_FREEBSD for pcvt vt220 compatible console driver
-#device		vt0	at isa? port "IO_KBD" tty irq 1 vector pcrint
-#options		"PCVT_FREEBSD=210"	# pcvt running on FreeBSD 2.0.5
-#options		XSERVER			# include code for XFree86
-#options		FAT_CURSOR		# start with block cursor
+device		vt0	at isa? port "IO_KBD" tty irq 1 vector pcrint
+options		"PCVT_FREEBSD=210"	# pcvt running on FreeBSD 2.0.5
+options		XSERVER			# include code for XFree86
+options		FAT_CURSOR		# start with block cursor
 
 # The syscons console driver (sco color console compatible) - default.
 device		sc0	at isa? port "IO_KBD" tty irq 1 vector scintr
