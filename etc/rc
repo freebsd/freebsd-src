@@ -312,9 +312,12 @@ purgedir() {
 			cd "$dir" && for file in .* *
 			do
 				[ ."$file" = .. -o ."$file" = ... ] && continue
-				[ -d "$file" -a ! -L "$file" ] &&
+				if [ -d "$file" -a ! -L "$file" ]
+				then
 					purgedir "$file"
-				[ -f "$file" -o -S "$file" ] && rm -f -- "$file"
+				else
+					rm -f -- "$file"
+				fi
 			done
 		)
 		done
