@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.12 1993/12/30 18:19:17 jkh Exp $
+#	$Id: rc,v 1.13 1994/01/04 18:06:18 ache Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -72,8 +72,6 @@ adjkerntz -i
 # set hostname, turn on network
 echo 'starting network'
 . /etc/netstart
-
-mount -a -t nfs >/dev/null 2>&1 &	# XXX shouldn't need background
 
 # clean up left-over files
 rm -f /etc/nologin
@@ -200,6 +198,8 @@ fi
 
 echo -n ' inetd';		inetd
 echo '.'
+
+mount -a -t nfs >/dev/null 2>&1 &	# XXX shouldn't need background
 
 sh /etc/rc.local
 
