@@ -15,12 +15,13 @@ ifdef(`MAIL11_MAILER_PATH',, `define(`MAIL11_MAILER_PATH', /usr/etc/mail11)')
 ifdef(`MAIL11_MAILER_FLAGS',, `define(`MAIL11_MAILER_FLAGS', nsFx)')
 ifdef(`MAIL11_MAILER_ARGS',, `define(`MAIL11_MAILER_ARGS', mail11 $g $x $h $u)')
 define(`_USE_DECNET_SYNTAX_')
+define(`_LOCAL_', ifdef(`confLOCAL_MAILER', confLOCAL_MAILER, `local'))
 
 POPDIVERT
 
 PUSHDIVERT(3)
 # DECNET delivery
-R$* < @ $=w .DECNET. >		$#local $: $1			local DECnet
+R$* < @ $=w .DECNET. >		$#_LOCAL_ $: $1			local DECnet
 R$+ < @ $+ .DECNET. >		$#mail11 $@ $2 $: $1		DECnet user
 POPDIVERT
 
@@ -32,7 +33,7 @@ POPDIVERT
 ###   UTK-MAIL11 Mailer specification   ###
 ###########################################
 
-VERSIONID(`@(#)mail11.m4	8.1 (Berkeley) 5/23/95')
+VERSIONID(`@(#)mail11.m4	8.4 (Berkeley) 3/18/97')
 
 Mmail11, P=MAIL11_MAILER_PATH, F=MAIL11_MAILER_FLAGS, S=15, R=25,
 	A=MAIL11_MAILER_ARGS

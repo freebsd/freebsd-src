@@ -1,4 +1,4 @@
-#	@(#)Makefile	8.7 (Berkeley) 10/31/95
+#	@(#)Makefile	8.8 (Berkeley) 3/28/97
 
 #########################################################################
 #  This Makefile is for 4.4BSD only!!!  For all other systems, use	#
@@ -25,14 +25,14 @@ CFLAGS+=-I${.CURDIR} ${DBMDEF} ${NIS} #-DNETISO
 
 SRCS=	alias.c arpadate.c clock.c collect.c conf.c convtime.c daemon.c \
 	deliver.c domain.c envelope.c err.c headers.c macro.c main.c map.c \
-	mci.c mime.c parseaddr.c queue.c readcf.c recipient.c savemail.c \
-	srvrsmtp.c stab.c stats.c sysexits.c trace.c udb.c usersmtp.c \
-	util.c version.c
+	mci.c mime.c parseaddr.c queue.c readcf.c recipient.c safefile.c \
+	savemail.c srvrsmtp.c stab.c stats.c sysexits.c trace.c udb.c \
+	usersmtp.c util.c version.c
 DPADD=	${LIBUTIL}
 LDADD=	-lutil
 MAN1=	mailq.1 newaliases.1
 MAN5=	aliases.5
-MAN8=	sendmail.8
+MAN8=	sendmail.8 
 LINKS=	/usr/sbin/sendmail /usr/bin/newaliases \
 	/usr/sbin/sendmail /usr/bin/mailq \
 	/usr/sbin/sendmail /usr/bin/hoststat \

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1983, 1995, 1996 Eric P. Allman
+ * Copyright (c) 1983, 1995-1997 Eric P. Allman
  * Copyright (c) 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -36,9 +36,9 @@
 
 #ifndef lint
 #if QUEUE
-static char sccsid[] = "@(#)queue.c	8.153 (Berkeley) 1/14/97 (with queueing)";
+static char sccsid[] = "@(#)queue.c	8.174 (Berkeley) 7/23/97 (with queueing)";
 #else
-static char sccsid[] = "@(#)queue.c	8.153 (Berkeley) 1/14/97 (without queueing)";
+static char sccsid[] = "@(#)queue.c	8.174 (Berkeley) 7/23/97 (without queueing)";
 #endif
 #endif /* not lint */
 
@@ -99,7 +99,8 @@ queueup(e, announce)
 	register char *p;
 	MAILER nullmailer;
 	MCI mcibuf;
-	char buf[MAXLINE], tf[MAXLINE];
+	char tf[MAXQFNAME];
+	char buf[MAXLINE];
 	extern void printctladdr __P((ADDRESS *, FILE *));
 
 	/*
@@ -125,21 +126,19 @@ queueup(e, announce)
 			{
 				if (errno != EEXIST)
 					break;
-#ifdef LOG
 				if (LogLevel > 0 && (i % 32) == 0)
-					syslog(LOG_ALERT, "queueup: cannot create %s, uid=%d: %s",
+					sm_syslog(LOG_ALERT, e->e_id,
+						"queueup: cannot create %s, uid=%d: %s",
 						tf, geteuid(), errstring(errno));
-#endif
 			}
 			else
 			{
 				if (lockfile(fd, tf, NULL, LOCK_EX|LOCK_NB))
 					break;
-#ifdef LOG
 				else if (LogLevel > 0 && (i % 32) == 0)
-					syslog(LOG_ALERT, "queueup: cannot lock %s: %s",
+					sm_syslog(LOG_ALERT, e->e_id,
+						"queueup: cannot lock %s: %s",
 						tf, errstring(errno));
-#endif
 				close(fd);
 			}
 
@@ -192,7 +191,7 @@ queueup(e, announce)
 	if (!bitset(EF_HAS_DF, e->e_flags))
 	{
 		register FILE *dfp = NULL;
-		char dfname[20];
+		char dfname[MAXQFNAME];
 		struct stat stbuf;
 
 		strcpy(dfname, queuename(e, 'd'));
@@ -247,6 +246,11 @@ queueup(e, announce)
 	if (e->e_bodytype != NULL)
 		fprintf(tfp, "B%s\n", denlstring(e->e_bodytype, TRUE, FALSE));
 
+#if _FFR_SAVE_CHARSET
+	if (e->e_charset != NULL)
+		fprintf(tfp, "X%s\n", denlstring(e->e_charset, TRUE, FALSE));
+#endif
+
 	/* message from envelope, if it exists */
 	if (e->e_message != NULL)
 		fprintf(tfp, "M%s\n", denlstring(e->e_message, TRUE, FALSE));
@@ -296,9 +300,9 @@ queueup(e, announce)
 		{
 #if XDEBUG
 			if (bitset(QQUEUEUP, q->q_flags))
-				syslog(LOG_DEBUG,
-					"dropenvelope: %s: q_flags = %x, paddr = %s",
-					e->e_id, q->q_flags, q->q_paddr);
+				sm_syslog(LOG_DEBUG, e->e_id,
+					"dropenvelope: q_flags = %x, paddr = %s",
+					q->q_flags, q->q_paddr);
 #endif
 			continue;
 		}
@@ -427,7 +431,9 @@ queueup(e, announce)
 
 	fprintf(tfp, ".\n");
 
-	if (fflush(tfp) < 0 || fsync(fileno(tfp)) < 0 || ferror(tfp))
+	if (fflush(tfp) < 0 ||
+	    (SuperSafe && fsync(fileno(tfp)) < 0) ||
+	    ferror(tfp))
 	{
 		if (newid)
 			syserr("!552 Error writing control file %s", tf);
@@ -453,11 +459,9 @@ queueup(e, announce)
 	errno = 0;
 	e->e_flags |= EF_INQUEUE;
 
-# ifdef LOG
 	/* save log info */
 	if (LogLevel > 79)
-		syslog(LOG_DEBUG, "%s: queueup, qf=%s", e->e_id, qf);
-# endif /* LOG */
+		sm_syslog(LOG_DEBUG, e->e_id, "queueup, qf=%s", qf);
 
 	if (tTd(40, 1))
 		printf("<<<<< done queueing %s <<<<<\n\n", e->e_id);
@@ -537,6 +541,7 @@ printctladdr(a, tfp)
 */
 
 ENVELOPE	QueueEnvelope;		/* the queue run envelope */
+extern int	get_num_procs_online __P((void));
 
 bool
 runqueue(forkflag, verbose)
@@ -546,10 +551,12 @@ runqueue(forkflag, verbose)
 	register ENVELOPE *e;
 	int njobs;
 	int sequenceno = 0;
+	time_t current_la_time;
 	extern ENVELOPE BlankEnvelope;
 	extern void clrdaemon __P((void));
-	extern void runqueueevent __P((bool));
-	extern void drop_privileges __P((void));
+	extern void runqueueevent __P((void));
+
+	DoQueueRun = FALSE;
 
 	/*
 	**  If no work will ever be selected, don't even bother reading
@@ -557,19 +564,31 @@ runqueue(forkflag, verbose)
 	*/
 
 	CurrentLA = getla();	/* get load average */
+	current_la_time = curtime();
 
-	if (CurrentLA >= QueueLA)
+	if (shouldqueue(WkRecipFact, current_la_time))
 	{
 		char *msg = "Skipping queue run -- load average too high";
 
 		if (verbose)
 			message("458 %s\n", msg);
-#ifdef LOG
 		if (LogLevel > 8)
-			syslog(LOG_INFO, "runqueue: %s", msg);
-#endif
+			sm_syslog(LOG_INFO, NOQID,
+				"runqueue: %s",
+				msg);
 		if (forkflag && QueueIntvl != 0)
-			(void) setevent(QueueIntvl, runqueueevent, TRUE);
+			(void) setevent(QueueIntvl, runqueueevent, 0);
+		return FALSE;
+	}
+
+	/*
+	**  See if we already have too many children.
+	*/
+
+	if (forkflag && QueueIntvl != 0 &&
+	    MaxChildren > 0 && CurChildren >= MaxChildren)
+	{
+		(void) setevent(QueueIntvl, runqueueevent, 0);
 		return FALSE;
 	}
 
@@ -596,12 +615,12 @@ runqueue(forkflag, verbose)
 
 			if (verbose)
 				message("458 %s: %s\n", msg, err);
-#ifdef LOG
 			if (LogLevel > 8)
-				syslog(LOG_INFO, "runqueue: %s: %s", msg, err);
-#endif
+				sm_syslog(LOG_INFO, NOQID,
+					"runqueue: %s: %s",
+					msg, err);
 			if (QueueIntvl != 0)
-				(void) setevent(QueueIntvl, runqueueevent, TRUE);
+				(void) setevent(QueueIntvl, runqueueevent, 0);
 			(void) releasesignal(SIGCHLD);
 			return FALSE;
 		}
@@ -617,7 +636,7 @@ runqueue(forkflag, verbose)
 			releasesignal(SIGCHLD);
 #endif /* SIGCHLD */
 			if (QueueIntvl != 0)
-				(void) setevent(QueueIntvl, runqueueevent, TRUE);
+				(void) setevent(QueueIntvl, runqueueevent, 0);
 			return TRUE;
 		}
 		/* child -- double fork and clean up signals */
@@ -634,11 +653,10 @@ runqueue(forkflag, verbose)
 
 	setproctitle("running queue: %s", QueueDir);
 
-# ifdef LOG
 	if (LogLevel > 69)
-		syslog(LOG_DEBUG, "runqueue %s, pid=%d, forkflag=%d",
+		sm_syslog(LOG_DEBUG, NOQID,
+			"runqueue %s, pid=%d, forkflag=%d",
 			QueueDir, getpid(), forkflag);
-# endif /* LOG */
 
 	/*
 	**  Release any resources used by the daemon code.
@@ -653,7 +671,7 @@ runqueue(forkflag, verbose)
 
 	/* drop privileges */
 	if (geteuid() == (uid_t) 0)
-		drop_privileges();
+		(void) drop_privileges(FALSE);
 
 	/*
 	**  Create ourselves an envelope
@@ -665,7 +683,10 @@ runqueue(forkflag, verbose)
 
 	/* make sure we have disconnected from parent */
 	if (forkflag)
+	{
 		disconnect(1, e);
+		QuickAbort = FALSE;
+	}
 
 	/*
 	**  Make sure the alias database is open.
@@ -705,17 +726,52 @@ runqueue(forkflag, verbose)
 
 		/*
 		**  Ignore jobs that are too expensive for the moment.
+		**
+		**	Get new load average every 30 seconds.
 		*/
 
+		if (current_la_time < curtime() - 30)
+		{
+			CurrentLA = getla();
+			current_la_time = curtime();
+		}
+		if (shouldqueue(WkRecipFact, current_la_time))
+		{
+			char *msg = "Aborting queue run: load average too high";
+
+			if (Verbose)
+				message("%s", msg);
+			if (LogLevel > 8)
+				sm_syslog(LOG_INFO, NOQID,
+					"runqueue: %s",
+					msg);
+			break;
+		}
 		sequenceno++;
 		if (shouldqueue(w->w_pri, w->w_ctime))
 		{
 			if (Verbose)
-			{
 				message("");
+			if (QueueSortOrder == QS_BYPRIORITY)
+			{
+				if (Verbose)
+					message("Skipping %s (sequence %d of %d) and flushing rest of queue",
+						w->w_name + 2,
+						sequenceno,
+						njobs);
+				if (LogLevel > 8)
+					sm_syslog(LOG_INFO, NOQID,
+						"runqueue: Flushing queue from %s (pri %ld, LA %d, %d of %d)",
+						w->w_name + 2,
+						w->w_pri,
+						CurrentLA,
+						sequenceno,
+						njobs);
+				break;
+			}
+			else if (Verbose)
 				message("Skipping %s (sequence %d of %d)",
 					w->w_name + 2, sequenceno, njobs);
-			}
 		}
 		else
 		{
@@ -752,10 +808,9 @@ runqueue(forkflag, verbose)
 */
 
 void
-runqueueevent(forkflag)
-	bool forkflag;
+runqueueevent()
 {
-	(void) runqueue(forkflag, FALSE);
+	DoQueueRun = TRUE;
 }
 /*
 **  ORDERQ -- order the work queue.
@@ -843,6 +898,9 @@ orderq(doall)
 		if (d->d_name[0] != 'q' || d->d_name[1] != 'f')
 			continue;
 
+		if (strlen(d->d_name) > MAXQFNAME)
+			continue;
+
 		if (QueueLimitId != NULL &&
 		    !strcontainedin(QueueLimitId, d->d_name))
 			continue;
@@ -866,11 +924,10 @@ orderq(doall)
 		{
 			if (Verbose)
 				printf("orderq: bogus qf name %s\n", d->d_name);
-# ifdef LOG
 			if (LogLevel > 0)
-				syslog(LOG_ALERT, "orderq: bogus qf name %s",
+				sm_syslog(LOG_ALERT, NOQID,
+					"orderq: bogus qf name %s",
 					d->d_name);
-# endif
 			if (strlen(d->d_name) > (SIZE_T) MAXNAME)
 				d->d_name[MAXNAME] = '\0';
 			strcpy(lbuf, d->d_name);
@@ -883,11 +940,10 @@ orderq(doall)
 		/* open control file (if not too many files) */
 		if (++wn >= MaxQueueRun && MaxQueueRun > 0)
 		{
-# ifdef LOG
 			if (wn == MaxQueueRun && LogLevel > 0)
-				syslog(LOG_ALERT, "WorkList for %s maxed out at %d",
-						QueueDir, MaxQueueRun);
-# endif
+				sm_syslog(LOG_ALERT, NOQID,
+					"WorkList for %s maxed out at %d",
+					QueueDir, MaxQueueRun);
 			continue;
 		}
 		if (wn >= WorkListSize)
@@ -930,7 +986,19 @@ orderq(doall)
 		while (i != 0 && fgets(lbuf, sizeof lbuf, cf) != NULL)
 		{
 			int qfver = 0;
+			char *p;
+			int c;
 			extern bool strcontainedin();
+
+			p = strchr(lbuf, '\n');
+			if (p != NULL)
+				*p = '\0';
+			else
+			{
+				/* flush rest of overly long line */
+				while ((c = getc(cf)) != EOF && c != '\n')
+					continue;
+			}
 
 			switch (lbuf[0])
 			{
@@ -1140,18 +1208,18 @@ grow_wlist()
 		{
 			WorkListSize = newsize;
 			WorkList = newlist;
-# ifdef LOG
 			if (LogLevel > 1)
 			{
-				syslog(LOG_NOTICE, "grew WorkList for %s to %d",
-						QueueDir, WorkListSize);
+				sm_syslog(LOG_NOTICE, NOQID,
+					"grew WorkList for %s to %d",
+					QueueDir, WorkListSize);
 			}
 		}
 		else if (LogLevel > 0)
 		{
-			syslog(LOG_ALERT, "FAILED to grow WorkList for %s to %d",
-					QueueDir, newsize);
-# endif
+			sm_syslog(LOG_ALERT, NOQID,
+				"FAILED to grow WorkList for %s to %d",
+				QueueDir, newsize);
 		}
 	}
 	if (tTd(41, 1))
@@ -1347,6 +1415,11 @@ dowork(id, forkflag, requeueflag, e)
 			/* parent -- clean out connection cache */
 			mci_flush(FALSE, NULL);
 		}
+		else
+		{
+			/* child -- error messages to the transcript */
+			QuickAbort = OnlyOneError = FALSE;
+		}
 	}
 	else
 	{
@@ -1378,11 +1451,10 @@ dowork(id, forkflag, requeueflag, e)
 			OpMode = MD_DELIVER;
 		}
 		setproctitle("%s: from queue", id);
-# ifdef LOG
 		if (LogLevel > 76)
-			syslog(LOG_DEBUG, "%s: dowork, pid=%d", e->e_id,
-			       getpid());
-# endif /* LOG */
+			sm_syslog(LOG_DEBUG, e->e_id,
+				"dowork, pid=%d",
+				getpid());
 
 		/* don't use the headers from sendmail.cf... */
 		e->e_header = NULL;
@@ -1392,6 +1464,7 @@ dowork(id, forkflag, requeueflag, e)
 		{
 			if (tTd(40, 4))
 				printf("readqf(%s) failed\n", e->e_id);
+			e->e_id = NULL;
 			if (forkflag)
 				exit(EX_OK);
 			else
@@ -1443,7 +1516,7 @@ readqf(e)
 	register char *p;
 	char *orcpt = NULL;
 	bool nomore = FALSE;
-	char qf[20];
+	char qf[MAXQFNAME];
 	char buf[MAXLINE];
 	extern ADDRESS *setctluser __P((char *, int));
 
@@ -1468,10 +1541,8 @@ readqf(e)
 		/* being processed by another queuer */
 		if (Verbose || tTd(40, 8))
 			printf("%s: locked\n", e->e_id);
-# ifdef LOG
 		if (LogLevel > 19)
-			syslog(LOG_DEBUG, "%s: locked", e->e_id);
-# endif /* LOG */
+			sm_syslog(LOG_DEBUG, e->e_id, "locked");
 		(void) fclose(qfp);
 		return FALSE;
 	}
@@ -1493,13 +1564,12 @@ readqf(e)
 	if ((st.st_uid != geteuid() && geteuid() != RealUid) ||
 	    bitset(S_IWOTH|S_IWGRP, st.st_mode))
 	{
-# ifdef LOG
 		if (LogLevel > 0)
 		{
-			syslog(LOG_ALERT, "%s: bogus queue file, uid=%d, mode=%o",
-				e->e_id, st.st_uid, st.st_mode);
+			sm_syslog(LOG_ALERT, e->e_id,
+				"bogus queue file, uid=%d, mode=%o",
+				st.st_uid, st.st_mode);
 		}
-# endif /* LOG */
 		if (tTd(40, 8))
 			printf("readqf(%s): bogus file\n", qf);
 		loseqfile(e, "bogus file uid in mqueue");
@@ -1509,11 +1579,14 @@ readqf(e)
 
 	if (st.st_size == 0)
 	{
-		/* must be a bogus file -- just remove it */
-		qf[0] = 'd';
-		(void) unlink(qf);
-		qf[0] = 'q';
-		(void) unlink(qf);
+		/* must be a bogus file -- if also old, just remove it */
+		if (st.st_ctime + 10 * 60 < curtime())
+		{
+			qf[0] = 'd';
+			(void) unlink(qf);
+			qf[0] = 'q';
+			(void) unlink(qf);
+		}
 		fclose(qfp);
 		return FALSE;
 	}
@@ -1636,6 +1709,7 @@ readqf(e)
 			hdrsize += strlen(&bp[1]);
 			break;
 
+		  case 'L':		/* Solaris Content-Length: */
 		  case 'M':		/* message */
 			/* ignore this; we want a new message next time */
 			break;
@@ -1647,6 +1721,12 @@ readqf(e)
 		  case 'B':		/* body type */
 			e->e_bodytype = newstr(&bp[1]);
 			break;
+
+#if _FFR_SAVE_CHARSET
+		  case 'X':		/* character set */
+			e->e_charset = newstr(&bp[1]);
+			break;
+#endif
 
 		  case 'D':		/* data file name */
 			/* obsolete -- ignore */
@@ -1669,7 +1749,7 @@ readqf(e)
 
 			/* if this has been tried recently, let it be */
 			if (e->e_ntries > 0 &&
-			    (curtime() - e->e_dtime) < MinQueueAge)
+			    curtime() < e->e_dtime + MinQueueAge)
 			{
 				char *howlong = pintvl(curtime() - e->e_dtime, TRUE);
 				extern void unlockqueue();
@@ -1677,11 +1757,10 @@ readqf(e)
 				if (Verbose || tTd(40, 8))
 					printf("%s: too young (%s)\n",
 						e->e_id, howlong);
-#ifdef LOG
 				if (LogLevel > 19)
-					syslog(LOG_DEBUG, "%s: too young (%s)",
-						e->e_id, howlong);
-#endif
+					sm_syslog(LOG_DEBUG, e->e_id,
+						"too young (%s)",
+						howlong);
 				e->e_id = NULL;
 				unlockqueue(e);
 				return FALSE;
@@ -1822,7 +1901,7 @@ printqueue()
 		struct stat st;
 # ifdef NGROUPS_MAX
 		int n;
-		GIDSET_T gidset[NGROUPS_MAX];
+		extern GIDSET_T InitialGidSet[NGROUPS_MAX];
 # endif
 
 		if (stat(QueueDir, &st) < 0)
@@ -1831,10 +1910,10 @@ printqueue()
 			return;
 		}
 # ifdef NGROUPS_MAX
-		n = getgroups(NGROUPS_MAX, gidset);
+		n = NGROUPS_MAX;
 		while (--n >= 0)
 		{
-			if (gidset[n] == st.st_gid)
+			if (InitialGidSet[n] == st.st_gid)
 				break;
 		}
 		if (n < 0 && RealGid != st.st_gid)
@@ -2037,7 +2116,7 @@ queuename(e, type)
 
 	if (e->e_id == NULL)
 	{
-		char qf[20];
+		char qf[MAXQFNAME];
 
 		/* find a unique id */
 		if (pid != getpid())
@@ -2100,10 +2179,8 @@ queuename(e, type)
 			printf("  lockfd=");
 			dumpfd(fileno(e->e_lockfp), TRUE, FALSE);
 		}
-# ifdef LOG
 		if (LogLevel > 93)
-			syslog(LOG_DEBUG, "%s: assigned id", e->e_id);
-# endif /* LOG */
+			sm_syslog(LOG_DEBUG, e->e_id, "assigned id");
 	}
 
 	if (type == '\0')
@@ -2144,10 +2221,8 @@ unlockqueue(e)
 		return;
 
 	/* remove the transcript */
-# ifdef LOG
 	if (LogLevel > 87)
-		syslog(LOG_DEBUG, "%s: unlock", e->e_id);
-# endif /* LOG */
+		sm_syslog(LOG_DEBUG, e->e_id, "unlock");
 	if (!tTd(51, 104))
 		xunlink(queuename(e, 'x'));
 
@@ -2252,18 +2327,21 @@ loseqfile(e, why)
 	char *why;
 {
 	char *p;
-	char buf[40];
+	char buf[MAXQFNAME + 1];
 
 	if (e == NULL || e->e_id == NULL)
 		return;
-	if (strlen(e->e_id) > (SIZE_T) sizeof buf - 4)
+	p = queuename(e, 'q');
+	if (strlen(p) > MAXQFNAME)
+	{
+		syserr("loseqfile: queuename (%s) too long", p);
 		return;
-	strcpy(buf, queuename(e, 'q'));
+	}
+	strcpy(buf, p);
 	p = queuename(e, 'Q');
 	if (rename(buf, p) < 0)
 		syserr("cannot rename(%s, %s), uid=%d", buf, p, geteuid());
-#ifdef LOG
 	else if (LogLevel > 0)
-		syslog(LOG_ALERT, "Losing %s: %s", buf, why);
-#endif
+		sm_syslog(LOG_ALERT, e->e_id,
+			"Losing %s: %s", buf, why);
 }

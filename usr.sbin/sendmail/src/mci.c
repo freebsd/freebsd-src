@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 1996 Eric P. Allman
+ * Copyright (c) 1995-1997 Eric P. Allman
  * Copyright (c) 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)mci.c	8.54 (Berkeley) 12/1/96";
+static char sccsid[] = "@(#)mci.c	8.66 (Berkeley) 8/2/97";
 #endif /* not lint */
 
 #include "sendmail.h"
@@ -116,12 +116,10 @@ mci_cache(mci)
 	if (tTd(42, 5))
 		printf("mci_cache: caching %lx (%s) in slot %d\n",
 			(u_long) mci, mci->mci_host, mcislot - MciCache);
-#ifdef LOG
 	if (tTd(91, 100))
-		syslog(LOG_DEBUG, "%s: mci_cache: caching %x (%.100s) in slot %d",
-			CurEnv->e_id ? CurEnv->e_id : "NOQUEUE",
+		sm_syslog(LOG_DEBUG, CurEnv->e_id,
+			"mci_cache: caching %x (%.100s) in slot %d",
 			mci, mci->mci_host, mcislot - MciCache);
-#endif
 
 	*mcislot = mci;
 	mci->mci_flags |= MCIF_CACHED;
@@ -216,12 +214,10 @@ mci_uncache(mcislot, doquit)
 	if (tTd(42, 5))
 		printf("mci_uncache: uncaching %lx (%s) from slot %d (%d)\n",
 			(u_long) mci, mci->mci_host, mcislot - MciCache, doquit);
-#ifdef LOG
 	if (tTd(91, 100))
-		syslog(LOG_DEBUG, "%s: mci_uncache: uncaching %x (%.100s) from slot %d (%d)",
-			CurEnv->e_id ? CurEnv->e_id : "NOQUEUE",
+		sm_syslog(LOG_DEBUG, CurEnv->e_id,
+			"mci_uncache: uncaching %x (%.100s) from slot %d (%d)",
 			mci, mci->mci_host, mcislot - MciCache, doquit);
-#endif
 
 #if SMTP
 	if (doquit)
@@ -334,10 +330,10 @@ mci_get(host, m)
 		{
 			/* get peer host address for logging reasons only */
 			/* (this should really be in the mci struct) */
-			int socksize = sizeof CurHostAddr;
+			SOCKADDR_LEN_T socklen = sizeof CurHostAddr;
 
 			(void) getpeername(fileno(mci->mci_in),
-				(struct sockaddr *) &CurHostAddr, &socksize);
+				(struct sockaddr *) &CurHostAddr, &socklen);
 		}
 # endif
 	}
@@ -485,11 +481,9 @@ mci_dump(mci, logit)
 		mci->mci_host == NULL ? "NULL" : mci->mci_host,
 		ctime(&mci->mci_lastuse));
 printit:
-#ifdef LOG
 	if (logit)
-		syslog(LOG_DEBUG, "%.1000s", buf);
+		sm_syslog(LOG_DEBUG, CurEnv->e_id, "%.1000s", buf);
 	else
-#endif
 		printf("%s\n", buf);
 }
 /*
@@ -577,8 +571,8 @@ mci_lock_host_statfile(mci)
 		goto cleanup;
 	}
 
-	if ((mci->mci_statfile = fopen(fname, "r+")) == NULL)
-		mci->mci_statfile = fopen(fname, "w");
+	mci->mci_statfile = safefopen(fname, O_RDWR, FileMode,
+		   SFF_NOLOCK|SFF_NOLINK|SFF_OPENASROOT|SFF_REGONLY|SFF_CREAT);
 
 	if (mci->mci_statfile == NULL)
 	{
@@ -699,7 +693,8 @@ mci_load_persistent(mci)
 		goto cleanup;
 	}
 
-	fp = fopen(fname, "r");
+	fp = safefopen(fname, O_RDONLY, FileMode,
+		       SFF_NOLINK|SFF_OPENASROOT|SFF_REGONLY);
 	if (fp == NULL)
 	{
 		/* I can't think of any reason this should ever happen */
@@ -744,6 +739,7 @@ mci_read_persistent(fp, mci)
 {
 	int ver;
 	register char *p;
+	int saveLineNumber = LineNumber;
 	char buf[MAXLINE];
 
 	if (fp == NULL)
@@ -763,8 +759,10 @@ mci_read_persistent(fp, mci)
 
 	rewind(fp);
 	ver = -1;
+	LineNumber = 0;
 	while (fgets(buf, sizeof buf, fp) != NULL)
 	{
+		LineNumber++;
 		p = strchr(buf, '\n');
 		if (p != NULL)
 			*p = '\0';
@@ -806,9 +804,11 @@ mci_read_persistent(fp, mci)
 
 		  default:
 			syserr("Unknown host status line \"%s\"", buf);
+			LineNumber = saveLineNumber;
 			return -1;
 		}
 	}
+	LineNumber = saveLineNumber;
 	if (ver < 0)
 		return -1;
 	return 0;
@@ -1053,7 +1053,8 @@ mci_print_persistent(pathname, hostname)
 		printf(" -------------- Hostname --------------- How long ago ---------Results---------\n");
 	}
 
-	fp = fopen(pathname, "r+");
+	fp = safefopen(pathname, O_RDWR, FileMode,
+		       SFF_NOLOCK|SFF_NOLINK|SFF_OPENASROOT|SFF_REGONLY);
 
 	if (fp == NULL)
 	{
@@ -1063,16 +1064,19 @@ mci_print_persistent(pathname, hostname)
 		return 0;
 	}
 
+	FileName = pathname;
 	bzero(&mcib, sizeof mcib);
 	if (mci_read_persistent(fp, &mcib) < 0)
 	{
 		syserr("%s: could not read status file", pathname);
 		fclose(fp);
+		FileName = NULL;
 		return 0;
 	}
 
 	locked = !lockfile(fileno(fp), pathname, "", LOCK_EX|LOCK_NB);
 	fclose(fp);
+	FileName = NULL;
 
 	printf("%c%-39s %12s ",
 		locked ? '*' : ' ', hostname,
@@ -1193,12 +1197,21 @@ mci_generate_persistent_path(host, path, pathlen, createflag)
 	*/
 
 	if (host == NULL)
+	{
 		syserr("mci_generate_persistent_path: null host");
+		return -1;
+	}
 	if (path == NULL)
+	{
 		syserr("mci_generate_persistent_path: null path");
+		return -1;
+	}
 
 	if (tTd(56, 80))
 		printf("mci_generate_persistent_path(%s): ", host);
+
+	if (*host == '\0')
+		return -1;
 
 	/* make certain this is not a bracketed host number */
 	if (strlen(host) > sizeof t_host - 1)
@@ -1214,16 +1227,19 @@ mci_generate_persistent_path(host, path, pathlen, createflag)
 	*/
 
 	elem = t_host + strlen(t_host);
-	while (elem > t_host && (elem[-1] == '.' || elem[-1] == ']'))
+	while (elem > t_host &&
+	       (elem[-1] == '.' || (host[0] == '[' && elem[-1] == ']')))
 		*--elem = '\0';
 
 	/* check for what will be the final length of the path */
 	len = strlen(HostStatDir) + 2;
 	for (p = (char *) host; *p != '\0'; p++)
 	{
-		if (*p == '|' || *p != '.')
+		if (*p == '|' || *p == '.')
 			len++;
 		len++;
+		if (p[0] == '.' && p[1] == '.')
+			return -1;
 	}
 	if (len > pathlen)
 		return -1;

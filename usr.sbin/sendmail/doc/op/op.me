@@ -30,7 +30,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	@(#)op.me	8.103 (Berkeley) 12/13/96
+.\"	@(#)op.me	8.105 (Berkeley) 7/3/97
 .\"
 .\" eqn op.me | pic | troff -me
 .eh 'SMM:08-%''Sendmail Installation and Operation Guide'
@@ -67,7 +67,7 @@
 Eric Allman
 eric@Sendmail.ORG
 .sp
-Version 8.103
+Version 8.105
 .sp
 For Sendmail Version 8.8
 .)l
@@ -675,7 +675,7 @@ routines preset the mode reasonably,
 so this step can be skipped.
 The actual path of this file
 is defined in the
-.b A
+.b AliasFile
 option of the
 .i sendmail.cf
 file.
@@ -1178,6 +1178,32 @@ may reimplement
 and the other system routines that would be necessary
 to make this work seamlessly.
 .sh 2 "The Alias Database"
+.pp
+After recipient addresses are read from the SMTP connection
+or command line
+they are parsed by ruleset 0,
+which must resolve to a
+{\c
+.i mailer ,
+.i host ,
+.i user }
+triple.
+If the flags selected by the
+.i mailer
+includes the
+.b A
+(aliasable) flag,
+the
+.i user
+part of the triple is looked up as the key
+(i.e., the left hand side)
+into the alias database
+If there is a match, the address is deleted from the send queue
+and all addresses on the right hand side of the alias
+are added in place of the alias that was found.
+This is a recursive operation,
+so aliases found in the right hand side of the alias
+are similarly expanded.
 .pp
 The alias database exists in two forms.
 One is a text form,
@@ -7020,17 +7046,15 @@ These are then added to the routine
 .pp
 The initialization function is called as
 .(b
-\fIxxx\fP_map_init(MAP *map, char *mapname, char *args)
+\fIxxx\fP_map_init(MAP *map, char *args)
 .)b
 The
 .i map
 is an internal data structure.
 The
-.i mapname
-is the name of the map (used for error messages).
-The
 .i args
-is a pointer to the rest of the configuration file line;
+is a pointer to the portion of the configuration file line
+following the map class name;
 flags and filenames can be extracted from this line.
 The initialization function must return
 .sm TRUE
@@ -7040,16 +7064,14 @@ otherwise.
 .pp
 The lookup function is called as
 .(b
-\fIxxx\fP_map_lookup(MAP *map, char buf[], int bufsize, char **av, int *statp)
+\fIxxx\fP_map_lookup(MAP *map, char buf[], char **av, int *statp)
 .)b
 The
 .i map
 defines the map internally.
-The parameters
+The
 .i buf
-and
-.i bufsize
-have the input key.
+has the input key.
 This may be (and often is) used destructively.
 The
 .i av
@@ -8163,7 +8185,7 @@ replace it with a blank sheet for double-sided output.
 .\".sz 10
 .\"Eric Allman
 .\".sp
-.\"Version 8.103
+.\"Version 8.105
 .\".ce 0
 .bp 3
 .ce

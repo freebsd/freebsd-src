@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1983, 1995, 1996 Eric P. Allman
+ * Copyright (c) 1983, 1995-1997 Eric P. Allman
  * Copyright (c) 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)util.c	8.115 (Berkeley) 1/5/97";
+static char sccsid[] = "@(#)util.c	8.133 (Berkeley) 8/1/97";
 #endif /* not lint */
 
 # include "sendmail.h"
@@ -449,352 +449,6 @@ buildfname(gecos, login, buf, buflen)
 	*bp = '\0';
 }
 /*
-**  SAFEFILE -- return true if a file exists and is safe for a user.
-**
-**	Parameters:
-**		fn -- filename to check.
-**		uid -- user id to compare against.
-**		gid -- group id to compare against.
-**		uname -- user name to compare against (used for group
-**			sets).
-**		flags -- modifiers:
-**			SFF_MUSTOWN -- "uid" must own this file.
-**			SFF_NOSLINK -- file cannot be a symbolic link.
-**		mode -- mode bits that must match.
-**		st -- if set, points to a stat structure that will
-**			get the stat info for the file.
-**
-**	Returns:
-**		0 if fn exists, is owned by uid, and matches mode.
-**		An errno otherwise.  The actual errno is cleared.
-**
-**	Side Effects:
-**		none.
-*/
-
-#include <grp.h>
-
-#ifndef S_IXOTH
-# define S_IXOTH	(S_IEXEC >> 6)
-#endif
-
-#ifndef S_IXGRP
-# define S_IXGRP	(S_IEXEC >> 3)
-#endif
-
-#ifndef S_IXUSR
-# define S_IXUSR	(S_IEXEC)
-#endif
-
-#define ST_MODE_NOFILE	0171147		/* unlikely to occur */
-
-int
-safefile(fn, uid, gid, uname, flags, mode, st)
-	char *fn;
-	UID_T uid;
-	GID_T gid;
-	char *uname;
-	int flags;
-	int mode;
-	struct stat *st;
-{
-	register char *p;
-	register struct group *gr = NULL;
-	int file_errno = 0;
-	struct stat stbuf;
-	struct stat fstbuf;
-
-	if (tTd(44, 4))
-		printf("safefile(%s, uid=%d, gid=%d, flags=%x, mode=%o):\n",
-			fn, (int) uid, (int) gid, flags, mode);
-	errno = 0;
-	if (st == NULL)
-		st = &fstbuf;
-
-	/* first check to see if the file exists at all */
-#ifdef HASLSTAT
-	if ((bitset(SFF_NOSLINK, flags) ? lstat(fn, st)
-					: stat(fn, st)) < 0)
-#else
-	if (stat(fn, st) < 0)
-#endif
-	{
-		file_errno = errno;
-	}
-	else if (bitset(SFF_SETUIDOK, flags) &&
-		 !bitset(S_IXUSR|S_IXGRP|S_IXOTH, st->st_mode) &&
-		 S_ISREG(st->st_mode))
-	{
-		/*
-		**  If final file is setuid, run as the owner of that
-		**  file.  Gotta be careful not to reveal anything too
-		**  soon here!
-		*/
-
-#ifdef SUID_ROOT_FILES_OK
-		if (bitset(S_ISUID, st->st_mode))
-#else
-		if (bitset(S_ISUID, st->st_mode) && st->st_uid != 0)
-#endif
-		{
-			uid = st->st_uid;
-			uname = NULL;
-		}
-#ifdef SUID_ROOT_FILES_OK
-		if (bitset(S_ISGID, st->st_mode))
-#else
-		if (bitset(S_ISGID, st->st_mode) && st->st_gid != 0)
-#endif
-			gid = st->st_gid;
-	}
-
-	if (!bitset(SFF_NOPATHCHECK, flags) ||
-	    (uid == 0 && !bitset(SFF_ROOTOK, flags)))
-	{
-		/* check the path to the file for acceptability */
-		for (p = fn; (p = strchr(++p, '/')) != NULL; *p = '/')
-		{
-			*p = '\0';
-			if (stat(fn, &stbuf) < 0)
-				break;
-			if (uid == 0 && bitset(S_IWGRP|S_IWOTH, stbuf.st_mode))
-				message("051 WARNING: writable directory %s",
-					fn);
-			if (uid == 0 && !bitset(SFF_ROOTOK, flags))
-			{
-				if (bitset(S_IXOTH, stbuf.st_mode))
-					continue;
-				break;
-			}
-			if (stbuf.st_uid == uid &&
-			    bitset(S_IXUSR, stbuf.st_mode))
-				continue;
-			if (stbuf.st_gid == gid &&
-			    bitset(S_IXGRP, stbuf.st_mode))
-				continue;
-#ifndef NO_GROUP_SET
-			if (uname != NULL && !DontInitGroups &&
-			    ((gr != NULL && gr->gr_gid == stbuf.st_gid) ||
-			     (gr = getgrgid(stbuf.st_gid)) != NULL))
-			{
-				register char **gp;
-
-				for (gp = gr->gr_mem; gp != NULL && *gp != NULL; gp++)
-					if (strcmp(*gp, uname) == 0)
-						break;
-				if (gp != NULL && *gp != NULL &&
-				    bitset(S_IXGRP, stbuf.st_mode))
-					continue;
-			}
-#endif
-			if (!bitset(S_IXOTH, stbuf.st_mode))
-				break;
-		}
-		if (p != NULL)
-		{
-			int ret = errno;
-
-			if (ret == 0)
-				ret = EACCES;
-			if (tTd(44, 4))
-				printf("\t[dir %s] %s\n", fn, errstring(ret));
-			*p = '/';
-			return ret;
-		}
-	}
-
-	/*
-	**  If the target file doesn't exist, check the directory to
-	**  ensure that it is writable by this user.
-	*/
-
-	if (file_errno != 0)
-	{
-		int ret = file_errno;
-
-		if (tTd(44, 4))
-			printf("\t%s\n", errstring(ret));
-
-		errno = 0;
-		if (!bitset(SFF_CREAT, flags))
-			return ret;
-
-		/* check to see if legal to create the file */
-		p = strrchr(fn, '/');
-		if (p == NULL)
-			return ENOTDIR;
-		*p = '\0';
-		if (stat(fn, &stbuf) >= 0)
-		{
-			int md = S_IWRITE|S_IEXEC;
-			if (stbuf.st_uid != uid)
-				md >>= 6;
-			if ((stbuf.st_mode & md) != md)
-				errno = EACCES;
-		}
-		ret = errno;
-		if (tTd(44, 4))
-			printf("\t[final dir %s uid %d mode %lo] %s\n",
-				fn, (int) stbuf.st_uid, (u_long) stbuf.st_mode,
-				errstring(ret));
-		*p = '/';
-		st->st_mode = ST_MODE_NOFILE;
-		return ret;
-	}
-
-#ifdef S_ISLNK
-	if (bitset(SFF_NOSLINK, flags) && S_ISLNK(st->st_mode))
-	{
-		if (tTd(44, 4))
-			printf("\t[slink mode %o]\tEPERM\n", st->st_mode);
-		return EPERM;
-	}
-#endif
-	if (bitset(SFF_REGONLY, flags) && !S_ISREG(st->st_mode))
-	{
-		if (tTd(44, 4))
-			printf("\t[non-reg mode %o]\tEPERM\n", st->st_mode);
-		return EPERM;
-	}
-	if (bitset(S_IWUSR|S_IWGRP|S_IWOTH, mode) &&
-	    bitset(S_IXUSR|S_IXGRP|S_IXOTH, st->st_mode))
-	{
-		if (tTd(44, 4))
-			printf("\t[exec bits %o]\tEPERM]\n", st->st_mode);
-		return EPERM;
-	}
-	if (st->st_nlink > 1)
-	{
-		if (tTd(44, 4))
-			printf("\t[link count %d]\tEPERM\n", st->st_nlink);
-		return EPERM;
-	}
-
-	if (uid == 0 && bitset(SFF_OPENASROOT, flags))
-		;
-	else if (uid == 0 && !bitset(SFF_ROOTOK, flags))
-		mode >>= 6;
-	else if (st->st_uid != uid)
-	{
-		mode >>= 3;
-		if (st->st_gid == gid)
-			;
-#ifndef NO_GROUP_SET
-		else if (uname != NULL && !DontInitGroups &&
-			 ((gr != NULL && gr->gr_gid == st->st_gid) ||
-			  (gr = getgrgid(st->st_gid)) != NULL))
-		{
-			register char **gp;
-
-			for (gp = gr->gr_mem; *gp != NULL; gp++)
-				if (strcmp(*gp, uname) == 0)
-					break;
-			if (*gp == NULL)
-				mode >>= 3;
-		}
-#endif
-		else
-			mode >>= 3;
-	}
-	if (tTd(44, 4))
-		printf("\t[uid %d, nlink %d, stat %lo, mode %lo] ",
-			(int) st->st_uid, (int) st->st_nlink,
-			(u_long) st->st_mode, (u_long) mode);
-	if ((st->st_uid == uid || st->st_uid == 0 ||
-	     !bitset(SFF_MUSTOWN, flags)) &&
-	    (st->st_mode & mode) == mode)
-	{
-		if (tTd(44, 4))
-			printf("\tOK\n");
-		return 0;
-	}
-	if (tTd(44, 4))
-		printf("\tEACCES\n");
-	return EACCES;
-}
-/*
-**  SAFEFOPEN -- do a file open with extra checking
-**
-**	Parameters:
-**		fn -- the file name to open.
-**		omode -- the open-style mode flags.
-**		cmode -- the create-style mode flags.
-**		sff -- safefile flags.
-**
-**	Returns:
-**		Same as fopen.
-*/
-
-#ifndef O_ACCMODE
-# define O_ACCMODE	(O_RDONLY|O_WRONLY|O_RDWR)
-#endif
-
-FILE *
-safefopen(fn, omode, cmode, sff)
-	char *fn;
-	int omode;
-	int cmode;
-	int sff;
-{
-	int rval;
-	FILE *fp;
-	int smode;
-	struct stat stb, sta;
-
-	if (bitset(O_CREAT, omode))
-		sff |= SFF_CREAT;
-	smode = 0;
-	switch (omode & O_ACCMODE)
-	{
-	  case O_RDONLY:
-		smode = S_IREAD;
-		break;
-
-	  case O_WRONLY:
-		smode = S_IWRITE;
-		break;
-
-	  case O_RDWR:
-		smode = S_IREAD|S_IWRITE;
-		break;
-
-	  default:
-		smode = 0;
-		break;
-	}
-	if (bitset(SFF_OPENASROOT, sff))
-		rval = safefile(fn, 0, 0, NULL, sff, smode, &stb);
-	else
-		rval = safefile(fn, RealUid, RealGid, RealUserName,
-				sff, smode, &stb);
-	if (rval != 0)
-	{
-		errno = rval;
-		return NULL;
-	}
-	if (stb.st_mode == ST_MODE_NOFILE)
-		omode |= O_EXCL;
-
-	fp = dfopen(fn, omode, cmode);
-	if (fp == NULL)
-		return NULL;
-	if (bitset(O_EXCL, omode))
-		return fp;
-	if (fstat(fileno(fp), &sta) < 0 ||
-	    sta.st_nlink != stb.st_nlink ||
-	    sta.st_dev != stb.st_dev ||
-	    sta.st_ino != stb.st_ino ||
-	    sta.st_uid != stb.st_uid ||
-	    sta.st_gid != stb.st_gid)
-	{
-		syserr("554 cannot open: file %s changed after open", fn);
-		fclose(fp);
-		errno = EPERM;
-		return NULL;
-	}
-	return fp;
-}
-/*
 **  FIXCRLF -- fix <CR><LF> in line.
 **
 **	Looks for the <CR><LF> combination and turns it into the
@@ -830,80 +484,6 @@ fixcrlf(line, stripnl)
 	*p = '\0';
 }
 /*
-**  DFOPEN -- determined file open
-**
-**	This routine has the semantics of fopen, except that it will
-**	keep trying a few times to make this happen.  The idea is that
-**	on very loaded systems, we may run out of resources (inodes,
-**	whatever), so this tries to get around it.
-*/
-
-struct omodes
-{
-	int	mask;
-	int	mode;
-	char	*farg;
-} OpenModes[] =
-{
-	{ O_ACCMODE,		O_RDONLY,		"r"	},
-	{ O_ACCMODE|O_APPEND,	O_WRONLY,		"w"	},
-	{ O_ACCMODE|O_APPEND,	O_WRONLY|O_APPEND,	"a"	},
-	{ O_TRUNC,		0,			"w+"	},
-	{ O_APPEND,		O_APPEND,		"a+"	},
-	{ 0,			0,			"r+"	},
-};
-
-FILE *
-dfopen(filename, omode, cmode)
-	char *filename;
-	int omode;
-	int cmode;
-{
-	register int tries;
-	int fd;
-	register struct omodes *om;
-	struct stat st;
-
-	for (om = OpenModes; om->mask != 0; om++)
-		if ((omode & om->mask) == om->mode)
-			break;
-
-	for (tries = 0; tries < 10; tries++)
-	{
-		sleep((unsigned) (10 * tries));
-		errno = 0;
-		fd = open(filename, omode, cmode);
-		if (fd >= 0)
-			break;
-		switch (errno)
-		{
-		  case ENFILE:		/* system file table full */
-		  case EINTR:		/* interrupted syscall */
-#ifdef ETXTBSY
-		  case ETXTBSY:		/* Apollo: net file locked */
-#endif
-			continue;
-		}
-		break;
-	}
-	if (fd >= 0 && fstat(fd, &st) >= 0 && S_ISREG(st.st_mode))
-	{
-		int locktype;
-
-		/* lock the file to avoid accidental conflicts */
-		if ((omode & O_ACCMODE) != O_RDONLY)
-			locktype = LOCK_EX;
-		else
-			locktype = LOCK_SH;
-		(void) lockfile(fd, filename, NULL, locktype);
-		errno = 0;
-	}
-	if (fd < 0)
-		return NULL;
-	else
-		return fdopen(fd, om->farg);
-}
-/*
 **  PUTLINE -- put a line like fputs obeying SMTP conventions
 **
 **	This routine always guarantees outputing a newline (or CRLF,
@@ -925,7 +505,7 @@ putline(l, mci)
 	register char *l;
 	register MCI *mci;
 {
-	putxline(l, mci, PXLF_MAPFROM);
+	putxline(l, strlen(l), mci, PXLF_MAPFROM);
 }
 /*
 **  PUTXLINE -- putline with flags bits.
@@ -935,6 +515,7 @@ putline(l, mci)
 **
 **	Parameters:
 **		l -- line to put.
+**		len -- the length of the line.
 **		mci -- the mailer connection information.
 **		pxflags -- flag bits:
 **		    PXLF_MAPFROM -- map From_ to >From_.
@@ -948,30 +529,33 @@ putline(l, mci)
 */
 
 void
-putxline(l, mci, pxflags)
+putxline(l, len, mci, pxflags)
 	register char *l;
+	size_t len;
 	register MCI *mci;
 	int pxflags;
 {
-	register char *p;
-	register char svchar;
+	register char *p, *end;
 	int slop = 0;
 
 	/* strip out 0200 bits -- these can look like TELNET protocol */
 	if (bitset(MCIF_7BIT, mci->mci_flags) ||
 	    bitset(PXLF_STRIP8BIT, pxflags))
 	{
+		register char svchar;
+
 		for (p = l; (svchar = *p) != '\0'; ++p)
 			if (bitset(0200, svchar))
 				*p = svchar &~ 0200;
 	}
 
+	end = l + len;
 	do
 	{
 		/* find the end of the line */
-		p = strchr(l, '\n');
+		p = memchr(l, '\n', end - l);
 		if (p == NULL)
-			p = &l[strlen(l)];
+			p = end;
 
 		if (TrafficLogFile != NULL)
 			fprintf(TrafficLogFile, "%05d >>> ", (int) getpid());
@@ -980,10 +564,9 @@ putxline(l, mci, pxflags)
 		while (mci->mci_mailer->m_linelimit > 0 &&
 		       (p - l + slop) > mci->mci_mailer->m_linelimit)
 		{
+			char *l_base = l;
 			register char *q = &l[mci->mci_mailer->m_linelimit - slop - 1];
 
-			svchar = *q;
-			*q = '\0';
 			if (l[0] == '.' && slop == 0 &&
 			    bitnset(M_XDOT, mci->mci_mailer->m_flags))
 			{
@@ -1000,15 +583,18 @@ putxline(l, mci, pxflags)
 				if (TrafficLogFile != NULL)
 					(void) putc('>', TrafficLogFile);
 			}
-			fputs(l, mci->mci_out);
+			while (l < q)
+				(void) putc(*l++, mci->mci_out);
 			(void) putc('!', mci->mci_out);
 			fputs(mci->mci_mailer->m_eol, mci->mci_out);
 			(void) putc(' ', mci->mci_out);
 			if (TrafficLogFile != NULL)
-				fprintf(TrafficLogFile, "%s!\n%05d >>>  ",
-					l, (int) getpid());
-			*q = svchar;
-			l = q;
+			{
+				for (l = l_base; l < q; l++)
+					(void) putc(*l, TrafficLogFile);
+				fprintf(TrafficLogFile, "!\n%05d >>>  ",
+					(int) getpid());
+			}
 			slop = 1;
 		}
 
@@ -1029,12 +615,16 @@ putxline(l, mci, pxflags)
 			if (TrafficLogFile != NULL)
 				(void) putc('>', TrafficLogFile);
 		}
-		if (TrafficLogFile != NULL)
-			fprintf(TrafficLogFile, "%.*s\n", p - l, l);
 		for ( ; l < p; ++l)
+		{
+			if (TrafficLogFile != NULL)
+				(void) putc(*l, TrafficLogFile);
 			(void) putc(*l, mci->mci_out);
+		}
+		if (TrafficLogFile != NULL)
+			(void) putc('\n', TrafficLogFile);
 		fputs(mci->mci_mailer->m_eol, mci->mci_out);
-		if (*l == '\n')
+		if (l < end && *l == '\n')
 		{
 			if (*++l != ' ' && *l != '\t' && *l != '\0')
 			{
@@ -1043,7 +633,7 @@ putxline(l, mci, pxflags)
 					(void) putc(' ', TrafficLogFile);
 			}
 		}
-	} while (l[0] != '\0');
+	} while (l < end);
 }
 /*
 **  XUNLINK -- unlink a file, doing logging as appropriate.
@@ -1064,16 +654,16 @@ xunlink(f)
 {
 	register int i;
 
-# ifdef LOG
 	if (LogLevel > 98)
-		syslog(LOG_DEBUG, "%s: unlink %s", CurEnv->e_id, f);
-# endif /* LOG */
+		sm_syslog(LOG_DEBUG, CurEnv->e_id,
+			"unlink %s",
+			f);
 
 	i = unlink(f);
-# ifdef LOG
 	if (i < 0 && LogLevel > 97)
-		syslog(LOG_DEBUG, "%s: unlink-fail %d", f, errno);
-# endif /* LOG */
+		sm_syslog(LOG_DEBUG, CurEnv->e_id,
+			"%s: unlink-fail %d",
+			f, errno);
 }
 /*
 **  XFCLOSE -- close a file, doing logging as appropriate.
@@ -1147,20 +737,19 @@ sfgets(buf, siz, fp, timeout, during)
 	{
 		if (setjmp(CtxReadTimeout) != 0)
 		{
-# ifdef LOG
 			if (LogLevel > 1)
-				syslog(LOG_NOTICE,
+				sm_syslog(LOG_NOTICE, CurEnv->e_id,
 				       "timeout waiting for input from %.100s during %s",
 				       CurHostName ? CurHostName : "local",
 				       during);
-# endif
 			errno = 0;
-			usrerr("451 timeout waiting for input during %s",
-				during);
 			buf[0] = '\0';
 #if XDEBUG
 			checkfd012(during);
 #endif
+			if (TrafficLogFile != NULL)
+				fprintf(TrafficLogFile, "%05d <<< [TIMEOUT]\n",
+					(int) getpid());
 			return (NULL);
 		}
 		ev = setevent(timeout, readtimeout, 0);
@@ -1365,46 +954,6 @@ atooct(s)
 	return (i);
 }
 /*
-**  WAITFOR -- wait for a particular process id.
-**
-**	Parameters:
-**		pid -- process id to wait for.
-**
-**	Returns:
-**		status of pid.
-**		-1 if pid never shows up.
-**
-**	Side Effects:
-**		none.
-*/
-
-int
-waitfor(pid)
-	pid_t pid;
-{
-#ifdef WAITUNION
-	union wait st;
-#else
-	auto int st;
-#endif
-	pid_t i;
-
-	do
-	{
-		errno = 0;
-		i = wait(&st);
-		if (i > 0)
-			proc_list_drop(i);
-	} while ((i >= 0 || errno == EINTR) && i != pid);
-	if (i < 0)
-		return -1;
-#ifdef WAITUNION
-	return st.w_status;
-#else
-	return st;
-#endif
-}
-/*
 **  BITINTERSECT -- tell if two bitmaps intersect
 **
 **	Parameters:
@@ -1512,21 +1061,7 @@ checkfd012(where)
 	struct stat stbuf;
 
 	for (i = 0; i < 3; i++)
-	{
-		if (fstat(i, &stbuf) < 0 && errno == EBADF)
-		{
-			/* oops.... */
-			int fd;
-
-			syserr("%s: fd %d not open", where, i);
-			fd = open("/dev/null", i == 0 ? O_RDONLY : O_WRONLY, 0666);
-			if (fd != i)
-			{
-				(void) dup2(fd, i);
-				(void) close(fd);
-			}
-		}
-	}
+		fill_fd(i, where);
 #endif /* XDEBUG */
 }
 /*
@@ -1606,7 +1141,9 @@ checkfds(where)
 			continue;
 		if (printhdr)
 		{
-			syslog(LOG_DEBUG, "%s: changed fds:", where);
+			sm_syslog(LOG_DEBUG, CurEnv->e_id,
+				"%s: changed fds:",
+				where);
 			printhdr = FALSE;
 		}
 		dumpfd(fd, TRUE, TRUE);
@@ -1658,7 +1195,8 @@ dumpfd(fd, printclosed, logit)
 #ifdef S_IFSOCK
 	SOCKADDR sa;
 #endif
-	auto int slen;
+	auto SOCKADDR_LEN_T slen;
+	int i;
 	struct stat st;
 	char buf[200];
 	extern char *hostnamebyanyaddr();
@@ -1683,10 +1221,10 @@ dumpfd(fd, printclosed, logit)
 		return;
 	}
 
-	slen = fcntl(fd, F_GETFL, NULL);
-	if (slen != -1)
+	i = fcntl(fd, F_GETFL, NULL);
+	if (i != -1)
 	{
-		snprintf(p, SPACELEFT(buf, p), "fl=0x%x, ", slen);
+		snprintf(p, SPACELEFT(buf, p), "fl=0x%x, ", i);
 		p += strlen(p);
 	}
 
@@ -1772,11 +1310,10 @@ defprint:
 	}
 
 printit:
-#ifdef LOG
 	if (logit)
-		syslog(LOG_DEBUG, "%.800s", buf);
+		sm_syslog(LOG_DEBUG, CurEnv->e_id,
+			"%.800s", buf);
 	else
-#endif
 		printf("%s\n", buf);
 }
 /*
@@ -2084,10 +1621,8 @@ cleanstrcpy(t, f, l)
 	register char *f;
 	int l;
 {
-#ifdef LOG
 	/* check for newlines and log if necessary */
 	(void) denlstring(f, TRUE, TRUE);
-#endif
 
 	l--;
 	while (l > 0 && *f != '\0')
@@ -2146,19 +1681,22 @@ denlstring(s, strict, logattacks)
 	for (p = bp; (p = strchr(p, '\n')) != NULL; )
 		*p++ = ' ';
 
-#ifdef LOG
 	if (logattacks)
 	{
-		syslog(LOG_NOTICE, "POSSIBLE ATTACK from %.100s: newline in string \"%s\"",
+		sm_syslog(LOG_NOTICE, CurEnv->e_id,
+			"POSSIBLE ATTACK from %.100s: newline in string \"%s\"",
 			RealHostName == NULL ? "[UNKNOWN]" : RealHostName,
 			shortenstring(bp, 203));
 	}
-#endif
 
 	return bp;
 }
 /*
 **  PATH_IS_DIR -- check to see if file exists and is a directory.
+**
+**	There are some additional checks for security violations in
+**	here.  This routine is intended to be used for the host status
+**	support.
 **
 **	Parameters:
 **		pathname -- pathname to check for directory-ness.
@@ -2176,7 +1714,11 @@ path_is_dir(pathname, createflag)
 {
 	struct stat statbuf;
 
+#if HASLSTAT
+	if (lstat(pathname, &statbuf) < 0)
+#else
 	if (stat(pathname, &statbuf) < 0)
+#endif
 	{
 		if (errno != ENOENT || !createflag)
 			return FALSE;
@@ -2189,6 +1731,14 @@ path_is_dir(pathname, createflag)
 		errno = ENOTDIR;
 		return FALSE;
 	}
+
+	/* security: don't allow writable directories */
+	if (bitset(S_IWGRP|S_IWOTH, statbuf.st_mode))
+	{
+		errno = EACCES;
+		return FALSE;
+	}
+
 	return TRUE;
 }
 /*
@@ -2320,15 +1870,130 @@ proc_list_probe()
 			continue;
 		if (kill(ProcListVec[i], 0) < 0)
 		{
-#ifdef LOG
 			if (LogLevel > 3)
-				syslog(LOG_DEBUG, "proc_list_probe: lost pid %d",
+				sm_syslog(LOG_DEBUG, CurEnv->e_id,
+					"proc_list_probe: lost pid %d",
 					ProcListVec[i]);
-#endif
 			ProcListVec[i] = NO_PID;
 			CurChildren--;
 		}
 	}
 	if (CurChildren < 0)
 		CurChildren = 0;
+}
+/*
+**  SM_STRCASECMP -- 8-bit clean version of strcasecmp
+**
+**	Thank you, vendors, for making this all necessary.
+*/
+
+/*
+ * Copyright (c) 1987, 1993
+ *	The Regents of the University of California.  All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *	This product includes software developed by the University of
+ *	California, Berkeley and its contributors.
+ * 4. Neither the name of the University nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ */
+
+#if defined(LIBC_SCCS) && !defined(lint)
+static char sccsid[] = "@(#)strcasecmp.c	8.1 (Berkeley) 6/4/93";
+#endif /* LIBC_SCCS and not lint */
+
+/*
+ * This array is designed for mapping upper and lower case letter
+ * together for a case independent comparison.  The mappings are
+ * based upon ascii character sequences.
+ */
+static const u_char charmap[] = {
+	0000, 0001, 0002, 0003, 0004, 0005, 0006, 0007,
+	0010, 0011, 0012, 0013, 0014, 0015, 0016, 0017,
+	0020, 0021, 0022, 0023, 0024, 0025, 0026, 0027,
+	0030, 0031, 0032, 0033, 0034, 0035, 0036, 0037,
+	0040, 0041, 0042, 0043, 0044, 0045, 0046, 0047,
+	0050, 0051, 0052, 0053, 0054, 0055, 0056, 0057,
+	0060, 0061, 0062, 0063, 0064, 0065, 0066, 0067,
+	0070, 0071, 0072, 0073, 0074, 0075, 0076, 0077,
+	0100, 0141, 0142, 0143, 0144, 0145, 0146, 0147,
+	0150, 0151, 0152, 0153, 0154, 0155, 0156, 0157,
+	0160, 0161, 0162, 0163, 0164, 0165, 0166, 0167,
+	0170, 0171, 0172, 0133, 0134, 0135, 0136, 0137,
+	0140, 0141, 0142, 0143, 0144, 0145, 0146, 0147,
+	0150, 0151, 0152, 0153, 0154, 0155, 0156, 0157,
+	0160, 0161, 0162, 0163, 0164, 0165, 0166, 0167,
+	0170, 0171, 0172, 0173, 0174, 0175, 0176, 0177,
+	0200, 0201, 0202, 0203, 0204, 0205, 0206, 0207,
+	0210, 0211, 0212, 0213, 0214, 0215, 0216, 0217,
+	0220, 0221, 0222, 0223, 0224, 0225, 0226, 0227,
+	0230, 0231, 0232, 0233, 0234, 0235, 0236, 0237,
+	0240, 0241, 0242, 0243, 0244, 0245, 0246, 0247,
+	0250, 0251, 0252, 0253, 0254, 0255, 0256, 0257,
+	0260, 0261, 0262, 0263, 0264, 0265, 0266, 0267,
+	0270, 0271, 0272, 0273, 0274, 0275, 0276, 0277,
+	0300, 0301, 0302, 0303, 0304, 0305, 0306, 0307,
+	0310, 0311, 0312, 0313, 0314, 0315, 0316, 0317,
+	0320, 0321, 0322, 0323, 0324, 0325, 0326, 0327,
+	0330, 0331, 0332, 0333, 0334, 0335, 0336, 0337,
+	0340, 0341, 0342, 0343, 0344, 0345, 0346, 0347,
+	0350, 0351, 0352, 0353, 0354, 0355, 0356, 0357,
+	0360, 0361, 0362, 0363, 0364, 0365, 0366, 0367,
+	0370, 0371, 0372, 0373, 0374, 0375, 0376, 0377,
+};
+
+int
+sm_strcasecmp(s1, s2)
+	const char *s1, *s2;
+{
+	register const u_char *cm = charmap,
+			*us1 = (const u_char *)s1,
+			*us2 = (const u_char *)s2;
+
+	while (cm[*us1] == cm[*us2++])
+		if (*us1++ == '\0')
+			return (0);
+	return (cm[*us1] - cm[*--us2]);
+}
+
+int
+sm_strncasecmp(s1, s2, n)
+	const char *s1, *s2;
+	register size_t n;
+{
+	if (n != 0) {
+		register const u_char *cm = charmap,
+				*us1 = (const u_char *)s1,
+				*us2 = (const u_char *)s2;
+
+		do {
+			if (cm[*us1] != cm[*us2++])
+				return (cm[*us1] - cm[*--us2]);
+			if (*us1++ == '\0')
+				break;
+		} while (--n != 0);
+	}
+	return (0);
 }

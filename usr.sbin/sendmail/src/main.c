@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1983, 1995, 1996 Eric P. Allman
+ * Copyright (c) 1983, 1995-1997 Eric P. Allman
  * Copyright (c) 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -39,7 +39,7 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)main.c	8.230 (Berkeley) 1/17/97";
+static char sccsid[] = "@(#)main.c	8.249 (Berkeley) 7/25/97";
 #endif /* not lint */
 
 #define	_DEFINE
@@ -62,13 +62,8 @@ char	edata, end;
 **	turn calls a bunch of mail servers that do the real work of
 **	delivering the mail.
 **
-**	Sendmail is driven by tables read in from /usr/lib/sendmail.cf
-**	(read by readcf.c).  Some more static configuration info,
-**	including some code that you may want to tailor for your
-**	installation, is in conf.c.  You may also want to touch
-**	daemon.c (if you have some other IPC mechanism), acct.c
-**	(to change your accounting), names.c (to adjust the name
-**	server mechanism).
+**	Sendmail is driven by settings read in from /etc/sendmail.cf
+**	(read by readcf.c).
 **
 **	Usage:
 **		/usr/lib/sendmail [flags] addr ...
@@ -82,7 +77,7 @@ char	edata, end;
 **			     International Computer Science Institute
 **				(11/88 - 9/89).
 **			     UCB/Mammoth Project (10/89 - 7/95).
-**			     InReference, Inc. (8/95 - present).
+**			     InReference, Inc. (8/95 - 1/97).
 **		The support of the my employers is gratefully acknowledged.
 **			Few of them (Britton-Lee in particular) have had
 **			anything to gain from my involvement in this project.
@@ -98,6 +93,11 @@ ADDRESS		NullAddress =	/* a null address */
 char		*CommandLineArgs;	/* command line args for pid file */
 bool		Warn_Q_option = FALSE;	/* warn about Q option use */
 char		**SaveArgv;	/* argument vector for re-execing */
+int		MissingFds = 0;	/* bit map of fds missing on startup */
+
+#ifdef NGROUPS_MAX
+GIDSET_T	InitialGidSet[NGROUPS_MAX];
+#endif
 
 static void	obsolete();
 extern void	printmailer __P((MAILER *));
@@ -165,7 +165,6 @@ main(argc, argv, envp)
 	extern void printqueue __P((void));
 	extern void sendtoargv __P((char **, ENVELOPE *));
 	extern void resetlimits __P((void));
-	extern void drop_privileges __P((void));
 
 	/*
 	**  Check to see if we reentered.
@@ -186,11 +185,6 @@ main(argc, argv, envp)
 	/* do machine-dependent initializations */
 	init_md(argc, argv);
 
-#ifdef SIGUSR1
-	/* arrange to dump state on user-1 signal */
-	setsignal(SIGUSR1, sigusr1);
-#endif
-
 	/* in 4.4BSD, the table can be huge; impose a reasonable limit */
 	DtableSize = getdtsize();
 	if (DtableSize > 256)
@@ -201,15 +195,9 @@ main(argc, argv, envp)
 	**	But also be sure that 0, 1, & 2 are open.
 	*/
 
-	i = open("/dev/null", O_RDWR, 0);
-	if (fstat(STDIN_FILENO, &stb) < 0 && errno != EOPNOTSUPP)
-		(void) dup2(i, STDIN_FILENO);
-	if (fstat(STDOUT_FILENO, &stb) < 0 && errno != EOPNOTSUPP)
-		(void) dup2(i, STDOUT_FILENO);
-	if (fstat(STDERR_FILENO, &stb) < 0 && errno != EOPNOTSUPP)
-		(void) dup2(i, STDERR_FILENO);
-	if (i != STDIN_FILENO && i != STDOUT_FILENO && i != STDERR_FILENO)
-		(void) close(i);
+	fill_fd(STDIN_FILENO, NULL);
+	fill_fd(STDOUT_FILENO, NULL);
+	fill_fd(STDERR_FILENO, NULL);
 
 	i = DtableSize;
 	while (--i > 0)
@@ -219,7 +207,7 @@ main(argc, argv, envp)
 	}
 	errno = 0;
 
-#ifdef LOG
+#if LOG
 # ifdef LOG_MAIL
 	openlog("sendmail", LOG_PID, LOG_MAIL);
 # else
@@ -227,10 +215,46 @@ main(argc, argv, envp)
 # endif
 #endif 
 
+	if (MissingFds != 0)
+	{
+		char mbuf[MAXLINE];
+
+		mbuf[0] = '\0';
+		if (bitset(1 << STDIN_FILENO, MissingFds))
+			strcat(mbuf, ", stdin");
+		if (bitset(1 << STDOUT_FILENO, MissingFds))
+			strcat(mbuf, ", stdout");
+		if (bitset(1 << STDERR_FILENO, MissingFds))
+			strcat(mbuf, ", stderr");
+		syserr("File descriptors missing on startup: %s", &mbuf[2]);
+	}
+
+	/* reset status from syserr() calls for missing file descriptors */
+	Errors = 0;
+	ExitStat = EX_OK;
+
+#if XDEBUG
+	checkfd012("after openlog");
+#endif
+
 	tTsetup(tTdvect, sizeof tTdvect, "0-99.1");
 
+#ifdef NGROUPS_MAX
+	/* save initial group set for future checks */
+	i = getgroups(NGROUPS_MAX, InitialGidSet);
+	if (i == 0)
+		InitialGidSet[0] = (GID_T) -1;
+	while (i < NGROUPS_MAX)
+		InitialGidSet[i++] = InitialGidSet[0];
+#endif
+
 	/* drop group id privileges (RunAsUser not yet set) */
-	drop_privileges();
+	(void) drop_privileges(FALSE);
+
+#ifdef SIGUSR1
+	/* arrange to dump state on user-1 signal */
+	setsignal(SIGUSR1, sigusr1);
+#endif
 
 	/* Handle any non-getoptable constructions. */
 	obsolete(argv);
@@ -292,6 +316,17 @@ main(argc, argv, envp)
 	else
 		(void) snprintf(rnamebuf, sizeof rnamebuf, "Unknown UID %d", RealUid);
 	RealUserName = rnamebuf;
+
+	/* if running non-setuid binary, pretend we are the RunAsUid */
+	if (geteuid() == RealUid)
+	{
+		if (tTd(47, 1))
+			printf("Non-setuid binary: RunAsUid = RealUid = %d\n",
+				RealUid);
+		RunAsUid = RealUid;
+	}
+	if (getegid() == RealGid)
+		RunAsGid = RealGid;
 
 	/* save command line arguments */
 	i = 0;
@@ -489,9 +524,6 @@ main(argc, argv, envp)
 #endif
 	}
 
-	/* probe interfaces and locate any additional names */
-	load_if_names();
-
 	/* current time */
 	define('b', arpadate((char *) NULL), CurEnv);
 
@@ -567,9 +599,7 @@ main(argc, argv, envp)
 			if (RealUid != 0)
 				warn_C_flag = TRUE;
 			ConfFile = optarg;
-			endpwent();
-			(void) setgid(RealGid);
-			(void) setuid(RealUid);
+			(void) drop_privileges(TRUE);
 			safecf = FALSE;
 			break;
 
@@ -721,9 +751,7 @@ main(argc, argv, envp)
 			break;
 
 		  case 'X':	/* traffic log file */
-			endpwent();
-			setgid(RealGid);
-			setuid(RealUid);
+			(void) drop_privileges(TRUE);
 			TrafficLogFile = fopen(optarg, "a");
 			if (TrafficLogFile == NULL)
 			{
@@ -810,7 +838,7 @@ main(argc, argv, envp)
 	if (OpMode != MD_DAEMON && OpMode != MD_FGDAEMON)
 	{
 		/* drop privileges -- daemon mode done after socket/bind */
-		drop_privileges();
+		(void) drop_privileges(FALSE);
 	}
 
 	/*
@@ -827,6 +855,10 @@ main(argc, argv, envp)
 	/* set up the $=m class now, after .cf has a chance to redefine $m */
 	expand("\201m", jbuf, sizeof jbuf, CurEnv);
 	setclass('m', jbuf);
+
+	/* probe interfaces and locate any additional names */
+	if (!DontProbeInterfaces)
+		load_if_names();
 
 	if (tTd(0, 1))
 	{
@@ -880,6 +912,10 @@ main(argc, argv, envp)
 		setuserenv("TZ", NULL);
 	tzset();
 
+	/* be sure we don't pick up bogus HOSTALIASES environment variable */
+	if (queuemode && RealUid != 0)
+		(void) unsetenv("HOSTALIASES");
+
 	/* check for sane configuration level */
 	if (ConfigLevel > MAXCONFIGLEVEL)
 	{
@@ -904,13 +940,12 @@ main(argc, argv, envp)
 	/* check for permissions */
 	if ((OpMode == MD_DAEMON || OpMode == MD_PURGESTAT) && RealUid != 0)
 	{
-#ifdef LOG
 		if (LogLevel > 1)
-			syslog(LOG_ALERT, "user %d attempted to %s",
+			sm_syslog(LOG_ALERT, NOQID,
+				"user %d attempted to %s",
 				RealUid,
 				OpMode == MD_DAEMON ? "run daemon"
 						    : "purge host status");
-#endif
 		usrerr("Permission denied");
 		exit(EX_USAGE);
 	}
@@ -923,6 +958,8 @@ main(argc, argv, envp)
 	  case MD_TEST:
 		/* don't have persistent host status in test mode */
 		HostStatDir = NULL;
+		Verbose = 2;
+		CurEnv->e_errormode = EM_PRINT;
 		break;
 
 	  case MD_FGDAEMON:
@@ -938,10 +975,9 @@ main(argc, argv, envp)
 		GrabTo = FALSE;
 
 		/* arrange to restart on hangup signal */
-#ifdef LOG
 		if (SaveArgv[0] == NULL || SaveArgv[0][0] != '/')
-			syslog(LOG_WARNING, "daemon invoked without full pathname; kill -1 won't work");
-#endif
+			sm_syslog(LOG_WARNING, NOQID,
+				"daemon invoked without full pathname; kill -1 won't work");
 		setsignal(SIGHUP, sighup);
 
 		/* workaround: can't seem to release the signal in the parent */
@@ -949,7 +985,8 @@ main(argc, argv, envp)
 		break;
 
 	  case MD_INITALIAS:
-		Verbose = TRUE;
+		Verbose = 2;
+		CurEnv->e_errormode = EM_PRINT;
 		/* fall through... */
 
 	  case MD_PRINT:
@@ -1088,17 +1125,23 @@ main(argc, argv, envp)
 #endif
 
 	/* operate in queue directory */
-	if (OpMode == MD_TEST)
-		/* nothing -- just avoid further if clauses */ ;
-	else if (QueueDir == NULL)
+	if (QueueDir == NULL)
 	{
-		syserr("QueueDirectory (Q) option must be set");
-		ExitStat = EX_CONFIG;
+		if (OpMode != MD_TEST)
+		{
+			syserr("QueueDirectory (Q) option must be set");
+			ExitStat = EX_CONFIG;
+		}
 	}
-	else if (chdir(QueueDir) < 0)
+	else
 	{
-		syserr("cannot chdir(%s)", QueueDir);
-		ExitStat = EX_CONFIG;
+		/* test path to get warning messages */
+		(void) safedirpath(QueueDir, (uid_t) 0, (gid_t) 0, NULL, SFF_ANYFILE);
+		if (OpMode != MD_TEST && chdir(QueueDir) < 0)
+		{
+			syserr("cannot chdir(%s)", QueueDir);
+			ExitStat = EX_CONFIG;
+		}
 	}
 
 	/* check host status directory for validity */
@@ -1226,7 +1269,7 @@ main(argc, argv, envp)
 		SIGFUNC_DECL intindebug __P((int));
 
 		if (isatty(fileno(stdin)))
-			Verbose = TRUE;
+			Verbose = 2;
 
 		if (Verbose)
 		{
@@ -1261,7 +1304,6 @@ main(argc, argv, envp)
 
 	if (queuemode && OpMode != MD_DAEMON && QueueIntvl == 0)
 	{
-		(void) unsetenv("HOSTALIASES");
 		(void) runqueue(FALSE, Verbose);
 		finis();
 	}
@@ -1305,9 +1347,8 @@ main(argc, argv, envp)
 		if (tTd(0, 1))
 			strcat(dtype, "+debugging");
 
-#ifdef LOG
-		syslog(LOG_INFO, "starting daemon (%s): %s", Version, dtype + 1);
-#endif
+		sm_syslog(LOG_INFO, NOQID,
+			"starting daemon (%s): %s", Version, dtype + 1);
 #ifdef XLA
 		xla_create_file();
 #endif
@@ -1317,8 +1358,14 @@ main(argc, argv, envp)
 		{
 			(void) runqueue(TRUE, FALSE);
 			if (OpMode != MD_DAEMON)
+			{
 				for (;;)
+				{
 					pause();
+					if (DoQueueRun)
+						(void) runqueue(TRUE, FALSE);
+				}
+			}
 		}
 # endif /* QUEUE */
 		dropenvelope(CurEnv, TRUE);
@@ -1327,7 +1374,7 @@ main(argc, argv, envp)
 		nullserver = getrequests(CurEnv);
 
 		/* drop privileges */
-		drop_privileges();
+		(void) drop_privileges(FALSE);
 
 		/* at this point we are in a child: reset state */
 		(void) newenvelope(CurEnv, CurEnv);
@@ -1402,7 +1449,7 @@ main(argc, argv, envp)
 
 		/* collect body for UUCP return */
 		if (OpMode != MD_VERIFY)
-			collect(InChannel, FALSE, FALSE, NULL, CurEnv);
+			collect(InChannel, FALSE, NULL, CurEnv);
 		finis();
 	}
 
@@ -1423,8 +1470,21 @@ main(argc, argv, envp)
 	CurEnv->e_to = NULL;
 	if (OpMode != MD_VERIFY || GrabTo)
 	{
+		long savedflags = CurEnv->e_flags & EF_FATALERRS;
+
 		CurEnv->e_flags |= EF_GLOBALERRS;
-		collect(InChannel, FALSE, FALSE, NULL, CurEnv);
+		CurEnv->e_flags &= ~EF_FATALERRS;
+		collect(InChannel, FALSE, NULL, CurEnv);
+
+		/* bail out if there were fatal errors in collect */
+		if (OpMode != MD_VERIFY && bitset(EF_FATALERRS, CurEnv->e_flags))
+		{
+			CurEnv->e_flags |= EF_CLRQUEUE;
+			finis();
+			/*NOTREACHED*/
+			return -1;
+		}
+		CurEnv->e_flags |= savedflags;
 	}
 	errno = 0;
 
@@ -1443,6 +1503,7 @@ main(argc, argv, envp)
 		printaddr(&CurEnv->e_from, FALSE);
 	}
 	CurEnv->e_to = NULL;
+	CurrentLA = getla();
 	sendall(CurEnv, SM_DEFAULT);
 
 	/*
@@ -1493,6 +1554,13 @@ finis()
 	if (tTd(2, 9))
 		printopenfds(FALSE);
 
+	/* if we fail in finis(), just exit */
+	if (setjmp(TopFrame) != 0)
+	{
+		/* failed -- just give it up */
+		goto forceexit;
+	}
+
 	/* clean up temp files */
 	CurEnv->e_to = NULL;
 	if (CurEnv->e_id != NULL)
@@ -1507,10 +1575,11 @@ finis()
 # endif
 
 	/* and exit */
-# ifdef LOG
+  forceexit:
 	if (LogLevel > 78)
-		syslog(LOG_DEBUG, "finis, pid=%d", getpid());
-# endif /* LOG */
+		sm_syslog(LOG_DEBUG, CurEnv->e_id,
+			"finis, pid=%d",
+			getpid());
 	if (ExitStat == EX_TEMPFAIL || CurEnv->e_errormode == EM_BERKNET)
 		ExitStat = EX_OK;
 
@@ -1540,11 +1609,8 @@ SIGFUNC_DECL
 intsig(sig)
 	int sig;
 {
-#ifdef LOG
 	if (LogLevel > 79)
-		syslog(LOG_DEBUG, "%s: interrupt",
-			CurEnv->e_id == NULL ? "[NOQUEUE]" : CurEnv->e_id);
-#endif
+		sm_syslog(LOG_DEBUG, CurEnv->e_id, "interrupt");
 	FileName = NULL;
 	unlockqueue(CurEnv);
 #ifdef XLA
@@ -1665,11 +1731,10 @@ disconnect(droplev, e)
 		printf("don't\n");
 		return;
 	}
-#ifdef LOG
 	if (LogLevel > 93)
-		syslog(LOG_DEBUG, "%s: disconnect level %d",
-			e->e_id == NULL ? "[NOQUEUE]" : e->e_id, droplev);
-#endif
+		sm_syslog(LOG_DEBUG, e->e_id,
+			"disconnect level %d",
+			droplev);
 
 	/* be sure we don't get nasty signals */
 	(void) setsignal(SIGINT, SIG_IGN);
@@ -1678,7 +1743,7 @@ disconnect(droplev, e)
 	/* we can't communicate with our caller, so.... */
 	HoldErrs = TRUE;
 	CurEnv->e_errormode = EM_MAIL;
-	Verbose = FALSE;
+	Verbose = 0;
 	DisConnected = TRUE;
 
 	/* all input from /dev/null */
@@ -1719,10 +1784,10 @@ disconnect(droplev, e)
 	checkfd012("disconnect");
 #endif
 
-# ifdef LOG
 	if (LogLevel > 71)
-		syslog(LOG_DEBUG, "in background, pid=%d", getpid());
-# endif /* LOG */
+		sm_syslog(LOG_DEBUG, e->e_id,
+			"in background, pid=%d",
+			getpid());
 
 	errno = 0;
 }
@@ -1822,11 +1887,10 @@ auth_warning(e, msg, va_alist)
 		vsnprintf(p, SPACELEFT(buf, p), msg, ap);
 		VA_END;
 		addheader("X-Authentication-Warning", buf, &e->e_header);
-#ifdef LOG
 		if (LogLevel > 3)
-			syslog(LOG_INFO, "%s: Authentication-Warning: %.400s",
-				e->e_id == NULL ? "[NOQUEUE]" : e->e_id, buf);
-#endif
+			sm_syslog(LOG_INFO, e->e_id,
+				"Authentication-Warning: %.400s",
+				buf);
 	}
 }
 /*
@@ -1916,22 +1980,23 @@ void
 dumpstate(when)
 	char *when;
 {
-#ifdef LOG
 	register char *j = macvalue('j', CurEnv);
 	int rs;
 
-	syslog(LOG_DEBUG, "--- dumping state on %s: $j = %s ---",
+	sm_syslog(LOG_DEBUG, CurEnv->e_id,
+		"--- dumping state on %s: $j = %s ---",
 		when,
 		j == NULL ? "<NULL>" : j);
 	if (j != NULL)
 	{
 		if (!wordinclass(j, 'w'))
-			syslog(LOG_DEBUG, "*** $j not in $=w ***");
+			sm_syslog(LOG_DEBUG, CurEnv->e_id,
+				"*** $j not in $=w ***");
 	}
-	syslog(LOG_DEBUG, "CurChildren = %d", CurChildren);
-	syslog(LOG_DEBUG, "--- open file descriptors: ---");
+	sm_syslog(LOG_DEBUG, CurEnv->e_id, "CurChildren = %d", CurChildren);
+	sm_syslog(LOG_DEBUG, CurEnv->e_id, "--- open file descriptors: ---");
 	printopenfds(TRUE);
-	syslog(LOG_DEBUG, "--- connection cache: ---");
+	sm_syslog(LOG_DEBUG, CurEnv->e_id, "--- connection cache: ---");
 	mci_dump_all(TRUE);
 	rs = strtorwset("debug_dumpstate", NULL, ST_FIND);
 	if (rs > 0)
@@ -1942,14 +2007,13 @@ dumpstate(when)
 
 		pv[0] = NULL;
 		stat = rewrite(pv, rs, 0, CurEnv);
-		syslog(LOG_DEBUG,
+		sm_syslog(LOG_DEBUG, CurEnv->e_id,
 		       "--- ruleset debug_dumpstate returns stat %d, pv: ---",
 		       stat);
 		for (pvp = pv; *pvp != NULL; pvp++)
-			syslog(LOG_DEBUG, "%s", *pvp);
+			sm_syslog(LOG_DEBUG, CurEnv->e_id, "%s", *pvp);
 	}
-	syslog(LOG_DEBUG, "--- end of state dump ---");
-#endif
+	sm_syslog(LOG_DEBUG, CurEnv->e_id, "--- end of state dump ---");
 }
 
 
@@ -1968,57 +2032,115 @@ sighup(sig)
 {
 	if (SaveArgv[0][0] != '/')
 	{
-#ifdef LOG
 		if (LogLevel > 3)
-			syslog(LOG_INFO, "could not restart: need full path");
-#endif
+			sm_syslog(LOG_INFO, NOQID, "could not restart: need full path");
 		exit(EX_OSFILE);
 	}
-#ifdef LOG
 	if (LogLevel > 3)
-		syslog(LOG_INFO, "restarting %s on signal", SaveArgv[0]);
-#endif
+		sm_syslog(LOG_INFO, NOQID, "restarting %s on signal", SaveArgv[0]);
+	alarm(0);
 	releasesignal(SIGHUP);
-	if (setgid(RealGid) < 0 || setuid(RealUid) < 0)
+	if (drop_privileges(TRUE) != EX_OK)
 	{
-#ifdef LOG
 		if (LogLevel > 0)
-			syslog(LOG_ALERT, "could not set[ug]id(%d, %d): %m",
-				RealUid, RealGid);
-#endif
+			sm_syslog(LOG_ALERT, NOQID, "could not set[ug]id(%d, %d): %m",
+				RunAsUid, RunAsGid);
 		exit(EX_OSERR);
 	}
 	execv(SaveArgv[0], (ARGV_T) SaveArgv);
-#ifdef LOG
 	if (LogLevel > 0)
-		syslog(LOG_ALERT, "could not exec %s: %m", SaveArgv[0]);
-#endif
+		sm_syslog(LOG_ALERT, NOQID, "could not exec %s: %m", SaveArgv[0]);
 	exit(EX_OSFILE);
 }
 /*
 **  DROP_PRIVILEGES -- reduce privileges to those of the RunAsUser option
 **
 **	Parameters:
-**		none.
+**		to_real_uid -- if set, drop to the real uid instead
+**			of the RunAsUser.
 **
 **	Returns:
-**		none.
+**		EX_OSERR if the setuid failed.
+**		EX_OK otherwise.
 */
 
-void
-drop_privileges()
+int
+drop_privileges(to_real_uid)
+	bool to_real_uid;
 {
+	int rval = EX_OK;
+#ifdef NGROUPS_MAX
+	GIDSET_T emptygidset[NGROUPS_MAX];
+#endif
+
+	if (tTd(47, 1))
+		printf("drop_privileges(%d): Real[UG]id=%d:%d, RunAs[UG]id=%d:%d\n",
+			to_real_uid, RealUid, RealGid, RunAsUid, RunAsGid);
+
+	if (to_real_uid)
+	{
+		RunAsUserName = RealUserName;
+		RunAsUid = RealUid;
+		RunAsGid = RealGid;
+	}
+
+	/* make sure no one can grab open descriptors for secret files */
+	endpwent();
+
 #ifdef NGROUPS_MAX
 	/* reset group permissions; these can be set later */
-	GIDSET_T emptygidset[NGROUPS_MAX];
-
 	emptygidset[0] = RunAsGid == 0 ? getegid() : RunAsGid;
 	(void) setgroups(1, emptygidset);
 #endif
-	if (RunAsGid != 0)
-		(void) setgid(RunAsGid);
-	if (RunAsUid != 0)
-		(void) setuid(RunAsUid);
+
+	/* reset primary group and user id */
+	if (RunAsGid != 0 && setgid(RunAsGid) < 0)
+		rval = EX_OSERR;
+	if (RunAsUid != 0 && setuid(RunAsUid) < 0)
+		rval = EX_OSERR;
+	return rval;
+}
+/*
+**  FILL_FD -- make sure a file descriptor has been properly allocated
+**
+**	Used to make sure that stdin/out/err are allocated on startup
+**
+**	Parameters:
+**		fd -- the file descriptor to be filled.
+**		where -- a string used for logging.  If NULL, this is
+**			being called on startup, and logging should
+**			not be done.
+**
+**	Returns:
+**		none
+*/
+
+void
+fill_fd(fd, where)
+	int fd;
+	char *where;
+{
+	int i;
+	struct stat stbuf;
+
+	if (fstat(fd, &stbuf) >= 0 || errno != EBADF)
+		return;
+
+	if (where != NULL)
+		syserr("fill_fd: %s: fd %d not open", where, fd);
+	else
+		MissingFds |= 1 << fd;
+	i = open("/dev/null", fd == 0 ? O_RDONLY : O_WRONLY, 0666);
+	if (i < 0)
+	{
+		syserr("!fill_fd: %s: cannot open /dev/null",
+			where == NULL ? "startup" : where);
+	}
+	if (fd != i)
+	{
+		(void) dup2(i, fd);
+		(void) close(i);
+	}
 }
 /*
 **  TESTMODELINE -- process a test mode input line
@@ -2283,6 +2405,11 @@ testmodeline(line, e)
 			if (map == NULL)
 			{
 				printf("Map named \"%s\" not found\n", p);
+				return;
+			}
+			if (!bitset(MF_OPEN, map->s_map.map_mflags))
+			{
+				printf("Map named \"%s\" not open\n", p);
 				return;
 			}
 			printf("map_lookup: %s (%s) ", p, q);

@@ -52,9 +52,12 @@
 42	mci.c		mci_get
 43	mime.c		mime8to7
 44	recipient.c	writeable
-44	util.c		safefile
+44	safefile.c	safefile, safedirpath, filechanged
 45	envelope.c	setsender
 46	envelope.c	openxscript
+47	main.c		drop_privileges
+48	parseaddr.c	rscheck
+48	conf.c		validate_connection
 49	conf.c		checkcompat
 50	envelope.c	dropenvelope
 51	queue.c		unlockqueue
@@ -70,4 +73,5 @@
 80			content length
 81			sun remote mode
 91	mci.c		syslogging of MCI cache information
+94	srvrsmtp.c	cause commands to fail (for protocol testing)
 99	main.c		avoid backgrounding (no printed output)

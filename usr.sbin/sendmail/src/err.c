@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1983, 1995, 1996 Eric P. Allman
+ * Copyright (c) 1983, 1995-1997 Eric P. Allman
  * Copyright (c) 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)err.c	8.52 (Berkeley) 12/1/96";
+static char sccsid[] = "@(#)err.c	8.64 (Berkeley) 7/25/97";
 #endif /* not lint */
 
 # include "sendmail.h"
@@ -42,8 +42,7 @@ static char sccsid[] = "@(#)err.c	8.52 (Berkeley) 12/1/96";
 /*
 **  SYSERR -- Print error message.
 **
-**	Prints an error message via printf to the diagnostic
-**	output.  If LOG is defined, it logs it also.
+**	Prints an error message via printf to the diagnostic output.
 **
 **	If the first character of the syserr message is `!' it will
 **	log this as an ALERT message and exit immediately.  This can
@@ -90,16 +89,17 @@ syserr(fmt, va_alist)
 	register char *p;
 	int olderrno = errno;
 	bool panic;
-#ifdef LOG
 	char *uname;
 	struct passwd *pw;
 	char ubuf[80];
-#endif
 	VA_LOCAL_DECL
 
 	panic = *fmt == '!';
 	if (panic)
+	{
 		fmt++;
+		HoldErrs = FALSE;
+	}
 
 	/* format and output the error message */
 	if (olderrno == 0)
@@ -112,7 +112,7 @@ syserr(fmt, va_alist)
 	puterrmsg(MsgBuf);
 
 	/* save this message for mailq printing */
-	if (!panic)
+	if (!panic && CurEnv != NULL)
 	{
 		if (CurEnv->e_message != NULL)
 			free(CurEnv->e_message);
@@ -130,7 +130,6 @@ syserr(fmt, va_alist)
 			printf("syserr: ExitStat = %d\n", ExitStat);
 	}
 
-# ifdef LOG
 	pw = sm_getpwuid(getuid());
 	if (pw != NULL)
 		uname = pw->pw_name;
@@ -141,10 +140,10 @@ syserr(fmt, va_alist)
 	}
 
 	if (LogLevel > 0)
-		syslog(panic ? LOG_ALERT : LOG_CRIT, "%s: SYSERR(%s): %.900s",
-			CurEnv->e_id == NULL ? "NOQUEUE" : CurEnv->e_id,
-			uname, &MsgBuf[4]);
-# endif /* LOG */
+		sm_syslog(panic ? LOG_ALERT : LOG_CRIT,
+			  CurEnv == NULL ? NOQID : CurEnv->e_id,
+			  "SYSERR(%s): %.900s",
+			  uname, &MsgBuf[4]);
 	switch (olderrno)
 	{
 	  case EBADF:
@@ -251,12 +250,10 @@ usrerr(fmt, va_alist)
 
 	puterrmsg(MsgBuf);
 
-# ifdef LOG
 	if (LogLevel > 3 && LogUsrErrs)
-		syslog(LOG_NOTICE, "%s: %.900s",
-			CurEnv->e_id == NULL ? "NOQUEUE" : CurEnv->e_id,
+		sm_syslog(LOG_NOTICE, CurEnv->e_id,
+			"%.900s",
 			&MsgBuf[4]);
-# endif /* LOG */
 
 	if (QuickAbort)
 		longjmp(TopFrame, 1);
@@ -401,13 +398,14 @@ putoutmsg(msg, holdmsg, heldmsg)
 		msg[0] = '4';
 
 	/* output to transcript if serious */
-	if (!heldmsg && CurEnv->e_xfp != NULL && strchr("45", msg[0]) != NULL)
+	if (!heldmsg && CurEnv != NULL && CurEnv->e_xfp != NULL &&
+	    strchr("45", msg[0]) != NULL)
 		fprintf(CurEnv->e_xfp, "%s\n", msg);
 
-#ifdef LOG
 	if (LogLevel >= 15 && (OpMode == MD_SMTP || OpMode == MD_DAEMON))
-		syslog(LOG_INFO, "--> %s%s", msg, holdmsg ? " (held)" : "");
-#endif
+		sm_syslog(LOG_INFO, CurEnv->e_id,
+			"--> %s%s",
+			msg, holdmsg ? " (held)" : "");
 
 	if (msgcode == '8')
 		msg[0] = '0';
@@ -425,6 +423,9 @@ putoutmsg(msg, holdmsg, heldmsg)
 
 	(void) fflush(stdout);
 
+	if (OutChannel == NULL)
+		return;
+	
 	/* if DisConnected, OutChannel now points to the transcript */
 	if (!DisConnected &&
 	    (OpMode == MD_SMTP || OpMode == MD_DAEMON || OpMode == MD_ARPAFTP))
@@ -445,19 +446,17 @@ putoutmsg(msg, holdmsg, heldmsg)
 	**	rude servers don't read result.
 	*/
 
-	if (feof(InChannel) || ferror(InChannel) || strncmp(msg, "221", 3) == 0)
+	if (InChannel == NULL || feof(InChannel) || ferror(InChannel) ||
+	    strncmp(msg, "221", 3) == 0)
 		return;
 
 	/* can't call syserr, 'cause we are using MsgBuf */
 	HoldErrs = TRUE;
-#ifdef LOG
 	if (LogLevel > 0)
-		syslog(LOG_CRIT,
-			"%s: SYSERR: putoutmsg (%s): error on output channel sending \"%s\": %s",
-			CurEnv->e_id == NULL ? "NOQUEUE" : CurEnv->e_id,
+		sm_syslog(LOG_CRIT, CurEnv->e_id,
+			"SYSERR: putoutmsg (%s): error on output channel sending \"%s\": %s",
 			CurHostName == NULL ? "NO-HOST" : CurHostName,
 			shortenstring(msg, 203), errstring(errno));
-#endif
 }
 /*
 **  PUTERRMSG -- like putoutmsg, but does special processing for error messages
@@ -481,8 +480,16 @@ puterrmsg(msg)
 	/* output the message as usual */
 	putoutmsg(msg, HoldErrs, FALSE);
 
+	/* be careful about multiple error messages */
+	if (OnlyOneError)
+		HoldErrs = TRUE;
+
 	/* signal the error */
 	Errors++;
+
+	if (CurEnv == NULL)
+		return;
+	
 	if (msgcode == '6')
 	{
 		/* notify the postmaster */
@@ -522,7 +529,6 @@ fmtmsg(eb, to, num, eno, fmt, ap)
 	va_list ap;
 {
 	char del;
-	char *meb;
 	int l;
 	int spaceleft = sizeof MsgBuf;
 
@@ -558,8 +564,6 @@ fmtmsg(eb, to, num, eno, fmt, ap)
 		while (*eb != '\0')
 			*eb++ &= 0177;
 	}
-
-	meb = eb;
 
 	/* output the message */
 	(void) vsnprintf(eb, spaceleft, fmt, ap);
@@ -627,7 +631,7 @@ errstring(errnum)
 	char *dnsmsg;
 	char *bp;
 	static char buf[MAXLINE];
-# ifndef ERRLIST_PREDEFINED
+# if !HASSTRERROR && !defined(ERRLIST_PREDEFINED)
 	extern char *sys_errlist[];
 	extern int sys_nerr;
 # endif
@@ -648,7 +652,11 @@ errstring(errnum)
 	  case ETIMEDOUT:
 	  case ECONNRESET:
 		bp = buf;
+#if HASSTRERROR
+		snprintf(bp, SPACELEFT(buf, bp), "%s", strerror(errnum));
+#else
 		snprintf(bp, SPACELEFT(buf, bp), "%s", sys_errlist[errnum]);
+#endif
 		bp += strlen(bp);
 		if (CurHostName != NULL)
 		{
@@ -690,9 +698,6 @@ errstring(errnum)
 		return (buf);
 # endif
 
-	  case EOPENTIMEOUT:
-		return "Timeout on file open";
-
 # if NAMED_BIND
 	  case HOST_NOT_FOUND + E_DNSBASE:
 		dnsmsg = "host not found";
@@ -714,6 +719,40 @@ errstring(errnum)
 	  case EPERM:
 		/* SunOS gives "Not owner" -- this is the POSIX message */
 		return "Operation not permitted";
+
+	/*
+	**  Error messages used internally in sendmail.
+	*/
+
+	  case E_SM_OPENTIMEOUT:
+		return "Timeout on file open";
+
+	  case E_SM_NOSLINK:
+		return "Symbolic links not allowed";
+
+	  case E_SM_NOHLINK:
+		return "Hard links not allowed";
+
+	  case E_SM_REGONLY:
+		return "Regular files only";
+
+	  case E_SM_ISEXEC:
+		return "Executable files not allowed";
+
+	  case E_SM_WWDIR:
+		return "World writable directory";
+
+	  case E_SM_GWDIR:
+		return "Group writable directory";
+
+	  case E_SM_FILECHANGE:
+		return "File changed after open";
+
+	  case E_SM_WWFILE:
+		return "World writable file";
+
+	  case E_SM_GWFILE:
+		return "Group writable file";
 	}
 
 	if (dnsmsg != NULL)
@@ -731,9 +770,13 @@ errstring(errnum)
 		return buf;
 	}
 
+#if HASSTRERROR
+	return strerror(errnum);
+#else
 	if (errnum > 0 && errnum < sys_nerr)
 		return (sys_errlist[errnum]);
 
 	(void) snprintf(buf, sizeof buf, "Error %d", errnum);
 	return (buf);
+#endif
 }

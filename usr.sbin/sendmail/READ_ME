@@ -1,5 +1,5 @@
 /*-
- *	@(#)READ_ME	8.29 (Berkeley) 9/24/96
+ *	@(#)READ_ME	8.32 (Berkeley) 7/6/97
  */
 
 			SENDMAIL RELEASE 8
@@ -164,9 +164,9 @@ RFC1035.
 IF YOU WANT TO RUN THE NEW BERKELEY DB SOFTWARE:  ****  DO NOT  ****
 use the version that was on the Net2 tape -- it has a number of
 nefarious bugs that were bad enough when I got them; you shouldn't have
-to go through the same thing.  Instead, get a new version via public
-FTP from ftp.CS.Berkeley.EDU, file ucb/4bsd/db.tar.Z.  This software
-is highly recommended; it gets rid of several stupid limits, it's much
+to go through the same thing.  Instead, get a new version via the web at
+http://www.sleepycat.com/packages/db.1.85.tar.gz.  This software is
+highly recommended; it gets rid of several stupid limits, it's much
 faster, and the interface is nicer to animals and plants.  You will
 also probably find that you have to add -I/where/you/put/db/include
 to the sendmail makefile to get db.h to work properly.
@@ -251,6 +251,34 @@ on many public FTP archives).  This version should also interpret old
 Makefiles, so you could drop it in as your default make.
 
 For more details, see src/READ_ME.
+
+
++-----------------------+
+| DIRECTORY PERMISSIONS |
++-----------------------+
+
+Sendmail often gets blamed for many problems that are actually the
+result of other problems, such as overly permissive modes on directories.
+For this reason, sendmail checks the modes on system directories and
+files to determine if they have been trusted.  For sendmail to run
+without complaining, you MUST execute the following command:
+
+	chmod go-w / /etc /usr /var /var/spool /var/spool/mqueue
+
+You will probably have to tweak this for your environment (for example,
+some systems put the spool directory into /usr/spool instead of
+/var/spool).  As a general rule, after you have compiled sendmail,
+run the command
+
+	sendmail -v -bi
+
+to initialize the alias database.  If it gives messages such as
+
+	WARNING: writable directory /etc
+	WARNING: writable directory /usr/spool/mqueue
+
+then the directories listed have inappropriate write permissions and
+should be secured to avoid various possible security attacks.
 
 
 +---------------------+

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1983, 1995, 1996 Eric P. Allman
+ * Copyright (c) 1983, 1995-1997 Eric P. Allman
  * Copyright (c) 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)parseaddr.c	8.115 (Berkeley) 11/24/96";
+static char sccsid[] = "@(#)parseaddr.c	8.130 (Berkeley) 8/2/97";
 #endif /* not lint */
 
 # include "sendmail.h"
@@ -220,6 +220,11 @@ invalidaddr(addr, delimptr)
 		if (savedelim != '\0')
 			*delimptr = '\0';
 	}
+	if (strlen(addr) > TOBUFSIZE - 2)
+	{
+		usrerr("553 Address too long (%d bytes max)", TOBUFSIZE - 2);
+		goto failure;
+	}
 	for (; *addr != '\0'; addr++)
 	{
 		if ((*addr & 0340) == 0200)
@@ -233,6 +238,7 @@ invalidaddr(addr, delimptr)
 	}
 	setstat(EX_USAGE);
 	usrerr("553 Address contained invalid control characters");
+failure:
 	if (delimptr != NULL && savedelim != '\0')
 		*delimptr = savedelim;
 	return TRUE;
@@ -756,6 +762,7 @@ rewrite(pvp, ruleset, reclevel, e)
 	struct match mlist[MAXMATCH];	/* stores match on LHS */
 	char *npvp[MAXATOM+1];		/* temporary space for rebuild */
 	extern int callsubr __P((char**, int, ENVELOPE *));
+	extern int sm_strcasecmp __P((char *, char *));
 
 	if (OpMode == MD_TEST || tTd(21, 1))
 	{
@@ -930,7 +937,7 @@ rewrite(pvp, ruleset, reclevel, e)
 
 			  default:
 				/* must have exact match */
-				if (strcasecmp(rp, ap))
+				if (sm_strcasecmp(rp, ap))
 					goto backup;
 				avp++;
 				break;
@@ -1436,7 +1443,7 @@ map_lookup(map, key, argvect, pstat, e)
 				map->s_name, key, errno);
 		if (e->e_message == NULL)
 		{
-			char mbuf[300];
+			char mbuf[320];
 
 			snprintf(mbuf, sizeof mbuf,
 				"%.80s map: lookup (%s): deferred",
@@ -2106,6 +2113,10 @@ remotename(name, m, flags, pstat, e)
 **		none.
 */
 
+#define Q_COPYFLAGS	(QPRIMARY|QBOGUSSHELL|QUNSAFEADDR|\
+			 Q_PINGFLAGS|QHASNOTIFY|\
+			 QRELAYED|QEXPANDED|QDELIVERED|QDELAYED)
+
 void
 maplocaluser(a, sendq, aliaslevel, e)
 	register ADDRESS *a;
@@ -2127,6 +2138,10 @@ maplocaluser(a, sendq, aliaslevel, e)
 	if (pvp == NULL)
 		return;
 
+	define('h', a->q_host, e);
+	define('u', a->q_user, e);
+	define('z', a->q_home, e);
+ 
 	if (rewrite(pvp, 5, 0, e) == EX_TEMPFAIL)
 	{
 		a->q_flags |= QQUEUEUP;
@@ -2139,7 +2154,16 @@ maplocaluser(a, sendq, aliaslevel, e)
 	/* if non-null, mailer destination specified -- has it changed? */
 	a1 = buildaddr(pvp, NULL, 0, e);
 	if (a1 == NULL || sameaddr(a, a1))
+	{
+		if (a1 != NULL)
+			free(a1);
 		return;
+	}
+
+	/* make new address take on flags and print attributes of old */
+	a1->q_flags &= ~Q_COPYFLAGS;
+	a1->q_flags |= a->q_flags & Q_COPYFLAGS;
+	a1->q_paddr = a->q_paddr;
 
 	/* mark old address as dead; insert new address */
 	a->q_flags |= QDONTSEND;
@@ -2324,6 +2348,7 @@ rscheck(rwset, p1, p2, e)
 	int rsno;
 	auto ADDRESS a1;
 	bool saveQuickAbort = QuickAbort;
+	bool saveSuprErrs = SuprErrs;
 	char buf0[MAXLINE];
 	char pvpbuf[PSBUFSIZE];
 	extern char MsgBuf[];
@@ -2360,44 +2385,65 @@ rscheck(rwset, p1, p2, e)
 		}
 		(void) snprintf(buf, bufsize, "%s", p1);
 	}
+	SuprErrs = TRUE;
+	QuickAbort = FALSE;
 	pvp = prescan(buf, '\0', pvpbuf, sizeof pvpbuf, NULL, NULL);
+	SuprErrs = saveSuprErrs;
 	if (pvp == NULL)
 	{
+		syserr("rscheck: cannot prescan input: \"%s\"",
+			shortenstring(buf, 203));
 		rstat = EX_DATAERR;
 		goto finis;
 	}
 	(void) rewrite(pvp, rsno, 0, e);
 	if (pvp[0] == NULL || (pvp[0][0] & 0377) != CANONNET ||
 	    pvp[1] == NULL || strcmp(pvp[1], "error") != 0)
-		return EX_OK;
+	{
+		rstat = EX_OK;
+		goto finis;
+	}
 
 	/* got an error -- process it */
 	saveexitstat = ExitStat;
-	QuickAbort = FALSE;
 	(void) buildaddr(pvp, &a1, 0, e);
-	QuickAbort = saveQuickAbort;
 	rstat = ExitStat;
 	ExitStat = saveexitstat;
 
-#ifdef LOG
 	if (LogLevel >= 4)
 	{
-		if (p2 == NULL)
-			syslog(LOG_NOTICE, "Ruleset %s (%s) rejection: %s",
-				rwset, p1, MsgBuf);
-		else
-			syslog(LOG_NOTICE, "Ruleset %s (%s, %s) rejection: %s",
-				rwset, p1, p2, MsgBuf);
+		char *relay;
+		char *p;
+		char lbuf[MAXLINE];
+
+		p = lbuf;
+		if (p2 != NULL)
+		{
+			snprintf(p, SPACELEFT(lbuf, p),
+				", arg2=%s",
+				p2);
+			p += strlen(p);
+		}
+		if ((relay = macvalue('_', e)) != NULL)
+		{
+			snprintf(p, SPACELEFT(lbuf, p),
+				", relay=%s", relay);
+			p += strlen(p);
+		}
+		*p = '\0';
+		sm_syslog(LOG_NOTICE, e->e_id,
+			"ruleset=%s, arg1=%s%s, reject=%s",
+			rwset, p1, lbuf, MsgBuf);
 	}
-#endif
 
-	if (QuickAbort)
-		longjmp(TopFrame, 2);
-
-	/* clean up */
  finis:
+	/* clean up */
+	QuickAbort = saveQuickAbort;
 	setstat(rstat);
 	if (buf != buf0)
 		free(buf);
+
+	if (rstat != EX_OK && QuickAbort)
+		longjmp(TopFrame, 2);
 	return rstat;
 }

@@ -34,7 +34,7 @@ divert(-1)
 #
 divert(0)
 
-VERSIONID(`@(#)nullrelay.m4	8.12 (Berkeley) 10/12/96')
+VERSIONID(`@(#)nullrelay.m4	8.13 (Berkeley) 4/30/97')
 
 #
 #  This configuration applies only to relay-only hosts.  They send
@@ -68,7 +68,8 @@ R$* :: $* <@>		$: $1 :: $2			unmark node::addr
 R:`include': $* <@>	$: :`include': $1			unmark :`include':...
 R$* : $* <@>		$: $2				strip colon if marked
 R$* <@>			$: $1				unmark
-R$* ;			$: $1				strip trailing semi
+R$* ;			   $1				strip trailing semi
+R$* < $* ; >		   $1 < $2 >			bogus bracketed semi
 
 # null input now results from list:; syntax
 R$@			$@ :; <@>

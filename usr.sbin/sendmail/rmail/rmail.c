@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $Id: rmail.c,v 1.5 1997/03/31 05:11:22 imp Exp $
  */
 
 #ifndef lint
@@ -105,7 +105,7 @@ main(argc, argv)
 
 	debug = 0;
 	domain = "UUCP";		/* Default "domain". */
-	while ((ch = getopt(argc, argv, "D:T")) != EOF)
+	while ((ch = getopt(argc, argv, "D:T")) != -1)
 		switch (ch) {
 		case 'T':
 			debug = 1;

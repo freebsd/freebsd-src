@@ -24,7 +24,15 @@ RM=	rm -f
 	(cd ${.CURDIR} && $(M4) ${CFDIR}/m4/cf.m4 ${@:R}.mc) > $@
 	$(CHMOD) $(ROMODE) $@
 
-ALL=	freebsd.cf freefall.cf
+ALL=	freebsd.cf
+
+# Local sendmail.cf, may be set in /etc/make.conf.  Warning! If set, this
+# causes 'make install' to always copy it over /etc/sendmail.cf!!!
+# Caveat emptor!  Be sure you want this before you enable it.
+.if defined(SENDMAIL_CF)
+ALL+=	${SENDMAIL_CF}
+.endif
+
 CLEANFILES+=$(ALL)
 
 #We dont build the generic stuff...
@@ -40,7 +48,19 @@ CLEANFILES+=$(ALL)
 
 all: $(ALL)
 
-depend install:
+depend:
+
+install:
+.if defined(SENDMAIL_CF)
+	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 644 ${SENDMAIL_CF} \
+		${DESTDIR}/etc/sendmail.cf
+.endif
+	
+
+# Helper for src/etc/Makefile
+etc-sendmail.cf:
+	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 644 freebsd.cf \
+		${DESTDIR}/etc/sendmail.cf
 
 # this is overkill, but....
 M4FILES=\

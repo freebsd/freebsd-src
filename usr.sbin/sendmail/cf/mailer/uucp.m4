@@ -44,7 +44,7 @@ POPDIVERT
 ###   UUCP Mailer specification   ###
 #####################################
 
-VERSIONID(`@(#)uucp.m4	8.24 (Berkeley) 9/5/95')
+VERSIONID(`@(#)uucp.m4	8.25 (Berkeley) 3/16/97')
 
 #
 #  There are innumerable variations on the UUCP mailer.  It really
@@ -110,7 +110,7 @@ S22
 R:; <@>				$@
 
 R$* < @ $* . > $*		$1 < @ $2 > $3		strip trailing dots
-R$* < @ $j >			$1			strip local name
+R$* < @ $=w >			$1			strip local name
 R<@ $- . UUCP > : $+		$1 ! $2			convert to UUCP format
 R<@ $+ > : $+			$1 ! $2			convert to UUCP format
 R$* < @ $- . UUCP >		$2 ! $1			convert to UUCP format
@@ -125,7 +125,7 @@ S42
 R:; <@>				$@
 
 R$* < @ $* . > $*		$1 < @ $2 > $3		strip trailing dots
-R$* < @ $j >			$1			strip local name
+R$* < @ $=w >			$1			strip local name
 R<@ $- . UUCP > : $+		$1 ! $2			convert to UUCP format
 R<@ $+ > : $+			$1 ! $2			convert to UUCP format
 R$* < @ $- . UUCP >		$2 ! $1			convert to UUCP format

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1983, 1995, 1996 Eric P. Allman
+ * Copyright (c) 1983, 1995-1997 Eric P. Allman
  * Copyright (c) 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -36,9 +36,9 @@
 
 #ifndef lint
 #if SMTP
-static char sccsid[] = "@(#)usersmtp.c	8.80 (Berkeley) 1/18/97 (with SMTP)";
+static char sccsid[] = "@(#)usersmtp.c	8.87 (Berkeley) 6/3/97 (with SMTP)";
 #else
-static char sccsid[] = "@(#)usersmtp.c	8.80 (Berkeley) 1/18/97 (without SMTP)";
+static char sccsid[] = "@(#)usersmtp.c	8.87 (Berkeley) 6/3/97 (without SMTP)";
 #endif
 #endif /* not lint */
 
@@ -389,7 +389,7 @@ smtpmailfrom(m, mci, e)
 		    !bitset(EF_DONT_MIME, e->e_flags) &&
 		    !bitnset(M_8BITS, m->m_flags))
 			bodytype = "8BITMIME";
-		if (bodytype != NULL)
+		if (bodytype != NULL && strlen(bodytype) + 7 < l)
 		{
 			strcat(optbuf, " BODY=");
 			strcat(optbuf, bodytype);
@@ -524,6 +524,8 @@ smtpmailfrom(m, mci, e)
 	{
 		/* exceeded storage allocation */
 		mci_setstat(mci, EX_NOTSTICKY, "5.2.2", SmtpReplyBuffer);
+		if (bitset(MCIF_SIZE, mci->mci_flags))
+			e->e_flags |= EF_NO_BODY_RETN;
 		return EX_UNAVAILABLE;
 	}
 	else if (REPLYTYPE(r) == 5)
@@ -533,14 +535,13 @@ smtpmailfrom(m, mci, e)
 		return EX_UNAVAILABLE;
 	}
 
-#ifdef LOG
 	if (LogLevel > 1)
 	{
-		syslog(LOG_CRIT, "%s: %.100s: SMTP MAIL protocol error: %s",
-			e->e_id, mci->mci_host,
+		sm_syslog(LOG_CRIT, e->e_id,
+			"%.100s: SMTP MAIL protocol error: %s",
+			mci->mci_host,
 			shortenstring(SmtpReplyBuffer, 403));
 	}
-#endif
 
 	/* protocol error -- close up */
 	mci_setstat(mci, EX_PROTOCOL, "5.5.1", SmtpReplyBuffer);
@@ -651,14 +652,13 @@ smtprcpt(to, m, mci, e)
 		return EX_UNAVAILABLE;
 	}
 
-#ifdef LOG
 	if (LogLevel > 1)
 	{
-		syslog(LOG_CRIT, "%s: %.100s: SMTP RCPT protocol error: %s",
-			e->e_id, mci->mci_host,
+		sm_syslog(LOG_CRIT, e->e_id,
+			"%.100s: SMTP RCPT protocol error: %s",
+			mci->mci_host,
 			shortenstring(SmtpReplyBuffer, 403));
 	}
-#endif
 
 	mci_setstat(mci, EX_PROTOCOL, "5.5.1", SmtpReplyBuffer);
 	return EX_PROTOCOL;
@@ -718,14 +718,13 @@ smtpdata(m, mci, e)
 	}
 	else if (r != 354)
 	{
-#ifdef LOG
 		if (LogLevel > 1)
 		{
-			syslog(LOG_CRIT, "%s: %.100s: SMTP DATA-1 protocol error: %s",
-				e->e_id, mci->mci_host,
+			sm_syslog(LOG_CRIT, e->e_id,
+				"%.100s: SMTP DATA-1 protocol error: %s",
+				mci->mci_host,
 				shortenstring(SmtpReplyBuffer, 403));
 		}
-#endif
 		smtprset(m, mci, e);
 		mci_setstat(mci, EX_PROTOCOL, "5.5.1", SmtpReplyBuffer);
 		return (EX_PROTOCOL);
@@ -800,8 +799,6 @@ smtpdata(m, mci, e)
 	xstat = EX_NOTSTICKY;
 	if (r == 452)
 		rstat = EX_TEMPFAIL;
-	else if (r == 552)
-		rstat = EX_UNAVAILABLE;
 	else if (REPLYTYPE(r) == 4)
 		rstat = xstat = EX_TEMPFAIL;
 	else if (REPLYCLASS(r) != 5)
@@ -809,7 +806,7 @@ smtpdata(m, mci, e)
 	else if (REPLYTYPE(r) == 2)
 		rstat = xstat = EX_OK;
 	else if (REPLYTYPE(r) == 5)
-		rstat = xstat = EX_UNAVAILABLE;
+		rstat = EX_UNAVAILABLE;
 	else
 		rstat = EX_PROTOCOL;
 	mci_setstat(mci, xstat, smtptodsn(r), SmtpReplyBuffer);
@@ -818,14 +815,13 @@ smtpdata(m, mci, e)
 	e->e_statmsg = newstr(&SmtpReplyBuffer[4]);
 	if (rstat != EX_PROTOCOL)
 		return rstat;
-#ifdef LOG
 	if (LogLevel > 1)
 	{
-		syslog(LOG_CRIT, "%s: %.100s: SMTP DATA-2 protocol error: %s",
-			e->e_id, mci->mci_host,
+		sm_syslog(LOG_CRIT, e->e_id,
+			"%.100s: SMTP DATA-2 protocol error: %s",
+			mci->mci_host,
 			shortenstring(SmtpReplyBuffer, 403));
 	}
-#endif
 	return rstat;
 }
 
@@ -877,14 +873,13 @@ smtpgetstat(m, mci, e)
 	else if (REPLYTYPE(r) == 5)
 		stat = EX_UNAVAILABLE;
 	mci_setstat(mci, stat, smtptodsn(r), SmtpReplyBuffer);
-#ifdef LOG
 	if (LogLevel > 1 && stat == EX_PROTOCOL)
 	{
-		syslog(LOG_CRIT, "%s: %.100s: SMTP DATA-3 protocol error: %s",
-			e->e_id, mci->mci_host,
+		sm_syslog(LOG_CRIT, e->e_id,
+			"%.100s: SMTP DATA-3 protocol error: %s",
+			mci->mci_host,
 			shortenstring(SmtpReplyBuffer, 403));
 	}
-#endif
 	return stat;
 }
 
@@ -929,10 +924,7 @@ smtpquit(m, mci, e)
 		(void) reply(m, mci, e, TimeOuts.to_quit, NULL);
 		SuprErrs = oldSuprErrs;
 		if (mci->mci_state == MCIS_CLOSED)
-		{
-			SuprErrs = oldSuprErrs;
 			return;
-		}
 	}
 
 	/* now actually close the connection and pick up the zombie */
@@ -1025,7 +1017,8 @@ reply(m, mci, e, timeout, pfunc)
 	**  Read the input line, being careful not to hang.
 	*/
 
-	for (bufp = SmtpReplyBuffer;; bufp = junkbuf)
+	bufp = SmtpReplyBuffer;
+	for (;;)
 	{
 		register char *p;
 		extern time_t curtime();
@@ -1120,26 +1113,32 @@ reply(m, mci, e, timeout, pfunc)
 		if (Verbose)
 			nmessage("050 %s", bufp);
 
+		/* ignore improperly formated input */
+		if (!(isascii(bufp[0]) && isdigit(bufp[0])) ||
+		    !(isascii(bufp[1]) && isdigit(bufp[1])) ||
+		    !(isascii(bufp[2]) && isdigit(bufp[2])) ||
+		    !(bufp[3] == ' ' || bufp[3] == '-'))
+			continue;
+
 		/* process the line */
 		if (pfunc != NULL)
 			(*pfunc)(bufp, firstline, m, mci, e);
 
 		firstline = FALSE;
 
-		/* if continuation is required, we can go on */
-		if (bufp[3] == '-')
-			continue;
-
-		/* ignore improperly formated input */
-		if (!(isascii(bufp[0]) && isdigit(bufp[0])))
-			continue;
-
 		/* decode the reply code */
 		r = atoi(bufp);
 
 		/* extra semantics: 0xx codes are "informational" */
-		if (r >= 100)
+		if (r < 100)
+			continue;
+
+		/* if no continuation lines, return this line */
+		if (bufp[3] != '-')
 			break;
+
+		/* first line of real reply -- ignore rest */
+		bufp = junkbuf;
 	}
 
 	/*

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $Id: mail.local.c,v 1.10 1997/08/04 05:07:41 peter Exp $
  */
 
 #ifndef lint
@@ -40,7 +40,7 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)mail.local.c	8.34 (Berkeley) 11/24/96";
+static char sccsid[] = "@(#)mail.local.c	8.43 (Berkeley) 8/2/97";
 #endif /* not lint */
 
 /*
@@ -88,6 +88,7 @@ static char sccsid[] = "@(#)mail.local.c	8.34 (Berkeley) 11/24/96";
 
 #if defined(_AIX)
 # define USE_LOCKF	1
+# define USET_SETEUID	1
 # define USE_VSYSLOG	0
 #endif
 
@@ -144,14 +145,22 @@ static char sccsid[] = "@(#)mail.local.c	8.34 (Berkeley) 11/24/96";
 # endif
 #endif
 
-#ifndef BSD4_4
+#ifdef BSD4_4
+# define HAS_ST_GEN	1
+#else
 # define _BSD_VA_LIST_	va_list
 #endif
 
-#if !defined(BSD4_4) && !defined(linux)
+#if defined(BSD4_4) || defined(linux)
+# define HASSNPRINTF	1
+#else
 extern char	*strerror __P((int));
-extern int	snprintf __P((char *, int, const char *, ...));
+extern int	snprintf __P((char *, size_t, const char *, ...));
 extern FILE	*fdopen __P((int, const char *));
+#endif
+
+#if SOLARIS >= 20600 || (SOLARIS < 10000 && SOLARIS >= 206)
+# define HASSNPRINTF	1		/* has snprintf starting in 2.6 */
 #endif
 
 /*
@@ -215,7 +224,7 @@ main(argc, argv)
 	from = NULL;
 	nobiff = 0;
 	nofsync = 0;
-	while ((ch = getopt(argc, argv, "bdf:r:s")) != EOF)
+	while ((ch = getopt(argc, argv, "bdf:r:s")) != -1)
 		switch(ch) {
 		case 'b':
 			nobiff++;
@@ -384,9 +393,17 @@ deliver(fd, name, nobiff, nofsync)
 	 */
 tryagain:
 	lockmbox(path);
-	if (lstat(path, &sb)) {
+	if (lstat(path, &sb) < 0) {
 		mbfd = open(path,
 		    O_APPEND|O_CREAT|O_EXCL|O_WRONLY, S_IRUSR|S_IWUSR);
+		if (lstat(path, &sb) < 0)
+		{
+			eval = EX_CANTCREAT;
+			warn("%s: lstat: file changed after open", path);
+			goto err1;
+		}
+		else
+			sb.st_uid = pw->pw_uid;
 		if (mbfd == -1) {
 			if (errno == EEXIST)
 				goto tryagain;
@@ -405,20 +422,25 @@ tryagain:
 		goto err0;
 	} else {
 		mbfd = open(path, O_APPEND|O_WRONLY, 0);
-		if (mbfd != -1 &&
-		    (fstat(mbfd, &fsb) || fsb.st_nlink != 1 ||
-		    !S_ISREG(fsb.st_mode) || sb.st_dev != fsb.st_dev ||
-		    sb.st_ino != fsb.st_ino || sb.st_uid != fsb.st_uid)) {
-			eval = EX_CANTCREAT;
-			warn("%s: file changed after open", path);
-			goto err1;
-		}
 	}
 
 	if (mbfd == -1) {
 		e_to_sys(errno);
 		warn("%s: %s", path, strerror(errno));
 		goto err0;
+	} else if (fstat(mbfd, &fsb) < 0 ||
+	    fsb.st_nlink != 1 ||
+	    sb.st_nlink != 1 ||
+	    !S_ISREG(fsb.st_mode) ||
+	    sb.st_dev != fsb.st_dev ||
+	    sb.st_ino != fsb.st_ino ||
+#if HAS_ST_GEN && 0		/* AFS returns random values for st_gen */
+	    sb.st_gen != fsb.st_gen ||
+#endif
+	    sb.st_uid != fsb.st_uid) {
+		eval = EX_TEMPFAIL;
+		warn("%s: fstat: file changed after open", path);
+		goto err1;
 	}
 
 	/* Wait until we can get a lock on the file. */
@@ -486,9 +508,9 @@ err0:		unlockmbox();
 	if (close(mbfd)) {
 		e_to_sys(errno);
 		warn("%s: %s", path, strerror(errno));
-		unlockmbox();
-		return;
-	}
+		truncate(path, curoff);
+	} else if (!nobiff)
+		notifybiff(biffmsg);
 
 	if (setreuid(0, 0) < 0) {
 		e_to_sys(errno);
@@ -498,8 +520,6 @@ err0:		unlockmbox();
 	printf("reset euid = %d\n", geteuid());
 #endif
 	unlockmbox();
-	if (!nobiff)
-		notifybiff(biffmsg);
 }
 
 /*
@@ -519,6 +539,8 @@ lockmbox(path)
 	int statfailed = 0;
 
 	if (locked)
+		return;
+	if (strlen(path) + 6 > sizeof lockname)
 		return;
 	sprintf(lockname, "%s.lock", path);
 	for (;; sleep(5)) {
@@ -774,16 +796,16 @@ strerror(eno)
 	return ebuf;
 }
 
-# endif
+#endif /* !defined(BSD4_4) && !defined(__osf__) */
 
-#if !defined(BSD4_4) && !defined(linux)
+#if !HASSNPRINTF
 
 # if __STDC__
-snprintf(char *buf, int bufsiz, const char *fmt, ...)
+snprintf(char *buf, size_t bufsiz, const char *fmt, ...)
 # else
 snprintf(buf, bufsiz, fmt, va_alist)
 	char *buf;
-	int bufsiz;
+	size_t bufsiz;
 	const char *fmt;
 	va_dcl
 # endif
@@ -799,7 +821,7 @@ snprintf(buf, bufsiz, fmt, va_alist)
 	va_end(ap);
 }
 
-#endif
+#endif /* !HASSNPRINTF */
 
 #ifdef ultrix
 
@@ -892,7 +914,7 @@ _gettemp(path, doopen)
 			break;
 		if (*trv == '/') {
 			*trv = '\0';
-			if (stat(path, &sbuf))
+			if (stat(path, &sbuf) < 0)
 				return(0);
 			if (!S_ISDIR(sbuf.st_mode)) {
 				errno = ENOTDIR;
@@ -911,7 +933,7 @@ _gettemp(path, doopen)
 			if (errno != EEXIST)
 				return(0);
 		}
-		else if (stat(path, &sbuf))
+		else if (stat(path, &sbuf) < 0)
 			return(errno == ENOENT ? 1 : 0);
 
 		/* tricky little algorithm for backward compatibility */
@@ -932,4 +954,4 @@ _gettemp(path, doopen)
 	/*NOTREACHED*/
 }
 
-#endif
+#endif /* ultrix */

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1983, 1995, 1996 Eric P. Allman
+ * Copyright (c) 1983, 1995-1997 Eric P. Allman
  * Copyright (c) 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -36,9 +36,9 @@
 
 #ifndef lint
 #if USERDB
-static char sccsid [] = "@(#)udb.c	8.47 (Berkeley) 12/6/96 (with USERDB)";
+static char sccsid [] = "@(#)udb.c	8.51 (Berkeley) 5/29/97 (with USERDB)";
 #else
-static char sccsid [] = "@(#)udb.c	8.47 (Berkeley) 12/6/96 (without USERDB)";
+static char sccsid [] = "@(#)udb.c	8.51 (Berkeley) 5/29/97 (without USERDB)";
 #endif
 #endif
 
@@ -120,7 +120,7 @@ struct option
 	char	*val;
 };
 
-extern int _udbx_init __P((void));
+extern int _udbx_init __P((ENVELOPE *));
 /*
 **  UDBEXPAND -- look up user in database and expand
 **
@@ -173,7 +173,7 @@ udbexpand(a, sendq, aliaslevel, e)
 	/* on first call, locate the database */
 	if (!UdbInitialized)
 	{
-		if (_udbx_init() == EX_TEMPFAIL)
+		if (_udbx_init(e) == EX_TEMPFAIL)
 			return EX_TEMPFAIL;
 	}
 
@@ -259,14 +259,19 @@ udbexpand(a, sendq, aliaslevel, e)
 				breakout = TRUE;
 				if (info.size >= userleft - 1)
 				{
-					char *nuser = xalloc(usersize + MEMCHUNKSIZE);
+					char *nuser;
+					int size = MEMCHUNKSIZE;
+
+					if (info.size > MEMCHUNKSIZE)
+						size = info.size;
+					nuser = xalloc(usersize + size);
 
 					bcopy(user, nuser, usersize);
 					if (user != userbuf)
 						free(user);
 					user = nuser;
-					usersize += MEMCHUNKSIZE;
-					userleft += MEMCHUNKSIZE;
+					usersize += size;
+					userleft += size;
 				}
 				p = &user[strlen(user)];
 				if (p != user)
@@ -287,12 +292,11 @@ udbexpand(a, sendq, aliaslevel, e)
 				break;
 
 			message("expanded to %s", user);
-#ifdef LOG
 			if (LogLevel >= 10)
-				syslog(LOG_INFO, "%s: expand %.100s => %s",
-					e->e_id, e->e_to,
+				sm_syslog(LOG_INFO, e->e_id,
+					"expand %.100s => %s",
+					e->e_to,
 					shortenstring(user, 203));
-#endif
 			naddrs = sendtolist(user, a, sendq, aliaslevel + 1, e);
 			if (naddrs > 0 && !bitset(QSELFREF, a->q_flags))
 			{
@@ -417,12 +421,11 @@ udbexpand(a, sendq, aliaslevel, e)
 			user[info.size] = '\0';
 
 			message("hesioded to %s", user);
-#ifdef LOG
 			if (LogLevel >= 10)
-				syslog(LOG_INFO, "%s: hesiod %.100s => %s",
-					e->e_id, e->e_to,
+				sm_syslog(LOG_INFO, e->e_id,
+					"hesiod %.100s => %s",
+					e->e_to,
 					shortenstring(user, 203));
-#endif
 			naddrs = sendtolist(user, a, sendq, aliaslevel + 1, e);
 
 			if (naddrs > 0 && !bitset(QSELFREF, a->q_flags))
@@ -539,7 +542,7 @@ udbmatch(user, field)
 
 	if (!UdbInitialized)
 	{
-		if (_udbx_init() == EX_TEMPFAIL)
+		if (_udbx_init(CurEnv) == EX_TEMPFAIL)
 			return NULL;
 	}
 
@@ -552,7 +555,10 @@ udbmatch(user, field)
 		return NULL;
 
 	/* long names can never match and are a pain to deal with */
-	if ((strlen(user) + strlen(field)) > sizeof keybuf - 4)
+	i = strlen(field);
+	if (i < sizeof "maildrop")
+		i = sizeof "maildrop";
+	if ((strlen(user) + i) > sizeof keybuf - 4)
 		return NULL;
 
 	/* names beginning with colons indicate metadata */
@@ -785,7 +791,7 @@ udb_map_lookup(map, name, av, statp)
 **  _UDBX_INIT -- parse the UDB specification, opening any valid entries.
 **
 **	Parameters:
-**		none.
+**		e -- the current envelope.
 **
 **	Returns:
 **		EX_TEMPFAIL -- if it appeared it couldn't get hold of a
@@ -800,7 +806,8 @@ udb_map_lookup(map, name, av, statp)
 #define MAXUDBOPTS	27
 
 int
-_udbx_init()
+_udbx_init(e)
+	ENVELOPE *e;
 {
 	register char *p;
 	register struct udbent *up;
@@ -957,19 +964,18 @@ _udbx_init()
 				{
 					int saveerrno = errno;
 
-					printf("dbopen(%s): %s",
+					printf("dbopen(%s): %s\n",
 						up->udb_dbname,
 						errstring(errno));
 					errno = saveerrno;
 				}
 				if (errno != ENOENT && errno != EACCES)
 				{
-#ifdef LOG
 					if (LogLevel > 2)
-						syslog(LOG_ERR, "dbopen(%s): %s",
+						sm_syslog(LOG_ERR, e->e_id,
+							"dbopen(%s): %s",
 							up->udb_dbname,
 							errstring(errno));
-#endif
 					up->udb_type = UDB_EOLIST;
 					if (up->udb_dbname != spec)
 						free(up->udb_dbname);

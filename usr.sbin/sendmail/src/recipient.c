@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1983, 1995, 1996 Eric P. Allman
+ * Copyright (c) 1983, 1995-1997 Eric P. Allman
  * Copyright (c) 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)recipient.c	8.118 (Berkeley) 12/1/96";
+static char sccsid[] = "@(#)recipient.c	8.130 (Berkeley) 5/29/97";
 #endif /* not lint */
 
 # include "sendmail.h"
@@ -76,7 +76,6 @@ sendtolist(list, ctladdr, sendq, aliaslevel, e)
 {
 	register char *p;
 	register ADDRESS *al;	/* list of addresses to send to */
-	bool firstone;		/* set on first address sent */
 	char delimiter;		/* the address delimiter */
 	int naddrs;
 	int i;
@@ -105,7 +104,6 @@ sendtolist(list, ctladdr, sendq, aliaslevel, e)
 	if (!bitset(EF_OLDSTYLE, e->e_flags) || ctladdr != NULL)
 		delimiter = ',';
 
-	firstone = TRUE;
 	al = NULL;
 	naddrs = 0;
 
@@ -185,7 +183,6 @@ sendtolist(list, ctladdr, sendq, aliaslevel, e)
 		}
 
 		al = a;
-		firstone = FALSE;
 	}
 
 	/* arrange to send to everyone on the local send list */
@@ -303,8 +300,12 @@ recipient(a, sendq, aliaslevel, e)
 		{
 			a->q_flags |= QBADADDR;
 			a->q_status = "5.7.1";
-			usrerr("550 User %s@%s doesn't have a valid shell for mailing to programs",
-				a->q_alias->q_ruser, MyHostName);
+			if (a->q_alias->q_ruser == NULL)
+				usrerr("550 UID %d is an unknown user: cannot mail to programs",
+					a->q_alias->q_uid);
+			else
+				usrerr("550 User %s@%s doesn't have a valid shell for mailing to programs",
+					a->q_alias->q_ruser, MyHostName);
 		}
 		else if (bitset(QUNSAFEADDR, a->q_alias->q_flags))
 		{
@@ -378,13 +379,11 @@ recipient(a, sendq, aliaslevel, e)
 			ret = include(a->q_user, FALSE, a, sendq, aliaslevel, e);
 			if (transienterror(ret))
 			{
-#ifdef LOG
 				if (LogLevel > 2)
-					syslog(LOG_ERR, "%s: include %s: transient error: %s",
-						e->e_id == NULL ? "NOQUEUE" : e->e_id,
+					sm_syslog(LOG_ERR, e->e_id,
+						"include %s: transient error: %s",
 						shortenstring(a->q_user, 203),
 						errstring(ret));
-#endif
 				a->q_flags |= QQUEUEUP;
 				a->q_flags &= ~QDONTSEND;
 				usrerr("451 Cannot open %s: %s",
@@ -416,8 +415,12 @@ recipient(a, sendq, aliaslevel, e)
 		{
 			a->q_flags |= QBADADDR;
 			a->q_status = "5.7.1";
-			usrerr("550 User %s@%s doesn't have a valid shell for mailing to files",
-				a->q_alias->q_ruser, MyHostName);
+			if (a->q_alias->q_ruser == NULL)
+				usrerr("550 UID %d is an unknown user: cannot mail to files",
+					a->q_alias->q_uid);
+			else
+				usrerr("550 User %s@%s doesn't have a valid shell for mailing to files",
+					a->q_alias->q_ruser, MyHostName);
 		}
 		else if (bitset(QUNSAFEADDR, a->q_alias->q_flags))
 		{
@@ -425,6 +428,10 @@ recipient(a, sendq, aliaslevel, e)
 			a->q_status = "5.7.1";
 			usrerr("550 Address %s is unsafe for mailing to files",
 				a->q_alias->q_paddr);
+		}
+		else if (strcmp(buf, "/dev/null") == 0)
+		{
+			/* /dev/null is always accepted */
 		}
 		else if (!writable(buf, a->q_alias, SFF_CREAT))
 		{
@@ -451,12 +458,10 @@ recipient(a, sendq, aliaslevel, e)
 			a->q_flags |= QQUEUEUP;
 			if (e->e_message == NULL)
 				e->e_message = newstr("Deferred: user database error");
-# ifdef LOG
 			if (LogLevel > 8)
-				syslog(LOG_INFO, "%s: deferred: udbexpand: %s",
-					e->e_id == NULL ? "NOQUEUE" : e->e_id,
+				sm_syslog(LOG_INFO, e->e_id,
+					"deferred: udbexpand: %s",
 					errstring(errno));
-# endif
 			message("queued (user database error): %s",
 				errstring(errno));
 			e->e_nrcpts++;
@@ -808,7 +813,13 @@ writable(filename, ctladdr, flags)
 	**  File does exist -- check that it is writable.
 	*/
 
-	if (ctladdr != NULL && geteuid() == 0)
+	if (geteuid() != 0)
+	{
+		euid = geteuid();
+		egid = getegid();
+		uname = NULL;
+	}
+	else if (ctladdr != NULL)
 	{
 		euid = ctladdr->q_uid;
 		egid = ctladdr->q_gid;
@@ -844,6 +855,7 @@ writable(filename, ctladdr, flags)
 	if (geteuid() == 0 &&
 	    (ctladdr == NULL || !bitset(QGOODUID, ctladdr->q_flags)))
 		flags |= SFF_SETUIDOK;
+	flags |= SFF_NOLINK;
 
 	errno = safefile(filename, euid, egid, uname, flags, S_IWRITE, NULL);
 	return errno == 0;
@@ -908,25 +920,11 @@ include(fname, forwarding, ctladdr, sendq, aliaslevel, e)
 	char *volatile uname;
 	int rval = 0;
 	volatile int sfflags = SFF_REGONLY;
+	register char *p;
+	bool safechown = FALSE;
+	bool safedir = FALSE;
 	struct stat st;
 	char buf[MAXLINE];
-#ifdef _POSIX_CHOWN_RESTRICTED
-# if _POSIX_CHOWN_RESTRICTED == -1
-#  define safechown	FALSE
-# else
-#  define safechown	TRUE
-# endif
-#else
-# ifdef _PC_CHOWN_RESTRICTED
-	bool safechown;
-# else
-#  ifdef BSD
-#   define safechown	TRUE
-#  else
-#   define safechown	FALSE
-#  endif
-# endif
-#endif
 	extern bool chownsafe();
 
 	if (tTd(27, 2))
@@ -1000,7 +998,7 @@ include(fname, forwarding, ctladdr, sendq, aliaslevel, e)
 		errno = 0;
 
 		/* return pseudo-error code */
-		rval = EOPENTIMEOUT;
+		rval = E_SM_OPENTIMEOUT;
 		goto resetuid;
 	}
 	if (TimeOuts.to_fileopen > 0)
@@ -1008,8 +1006,25 @@ include(fname, forwarding, ctladdr, sendq, aliaslevel, e)
 	else
 		ev = NULL;
 
-	/* the input file must be marked safe */
-	rval = safefile(fname, uid, gid, uname, sfflags, S_IREAD, NULL);
+	/* check for writable parent directory */
+	p = strrchr(fname, '/');
+	if (p != NULL)
+	{
+		*p = '\0';
+		if (safedirpath(fname, uid, gid, uname, sfflags|SFF_SAFEDIRPATH) == 0)
+		{
+			/* in safe directory: relax chown & link rules */
+			safedir = TRUE;
+			sfflags |= SFF_NOPATHCHECK;
+		}
+		*p = '/';
+	}
+
+	/* allow links only in unwritable directories */
+	if (!safedir)
+		sfflags |= SFF_NOLINK;
+
+	rval = safefile(fname, uid, gid, uname, sfflags, S_IREAD, &st);
 	if (rval != 0)
 	{
 		/* don't use this :include: file */
@@ -1017,15 +1032,17 @@ include(fname, forwarding, ctladdr, sendq, aliaslevel, e)
 			printf("include: not safe (uid=%d): %s\n",
 				(int) uid, errstring(rval));
 	}
-	else
+	else if ((fp = fopen(fname, "r")) == NULL)
 	{
-		fp = fopen(fname, "r");
-		if (fp == NULL)
-		{
-			rval = errno;
-			if (tTd(27, 4))
-				printf("include: open: %s\n", errstring(rval));
-		}
+		rval = errno;
+		if (tTd(27, 4))
+			printf("include: open: %s\n", errstring(rval));
+	}
+	else if (filechanged(fname, fileno(fp), &st, sfflags))
+	{
+		rval = E_SM_FILECHANGE;
+		if (tTd(27, 4))
+			printf("include: file changed after open\n");
 	}
 	if (ev != NULL)
 		clrevent(ev);
@@ -1058,7 +1075,7 @@ resetuid:
 		printf("include: reset uid = %d/%d\n",
 		       (int) getuid(), (int) geteuid());
 
-	if (rval == EOPENTIMEOUT)
+	if (rval == E_SM_OPENTIMEOUT)
 		usrerr("451 open timeout on %s", fname);
 
 	if (fp == NULL)
@@ -1071,9 +1088,14 @@ resetuid:
 		return rval;
 	}
 
-#ifndef safechown
-	safechown = chownsafe(fileno(fp));
-#endif
+	/* if path was writable, check to avoid file giveaway tricks */
+	safechown = chownsafe(fileno(fp), safedir);
+	if (tTd(27, 6))
+		printf("include: parent of %s is %s, chown is %ssafe\n",
+			fname,
+			safedir ? "safe" : "dangerous",
+			safechown ? "" : "un");
+
 	if (ca == NULL && safechown)
 	{
 		ctladdr->q_uid = st.st_uid;
@@ -1104,13 +1126,12 @@ resetuid:
 				sh = "/SENDMAIL/ANY/SHELL/";
 			if (!usershellok(pw->pw_name, sh))
 			{
-#ifdef LOG
 				if (LogLevel >= 12)
-					syslog(LOG_INFO, "%s: user %s has bad shell %s, marked %s",
+					sm_syslog(LOG_INFO, e->e_id,
+						"%s: user %s has bad shell %s, marked %s",
 						shortenstring(fname, 203),
 						pw->pw_name, sh,
 						safechown ? "bogus" : "unsafe");
-#endif
 				if (safechown)
 					ctladdr->q_flags |= QBOGUSSHELL;
 				else
@@ -1141,13 +1162,12 @@ resetuid:
 
 	if (bitset(S_IWOTH | (UnsafeGroupWrites ? S_IWGRP : 0), st.st_mode))
 	{
-#ifdef LOG
 		if (LogLevel >= 12)
-			syslog(LOG_INFO, "%s: %s writable %s file, marked unsafe",
+			sm_syslog(LOG_INFO, e->e_id,
+				"%s: %s writable %s file, marked unsafe",
 				shortenstring(fname, 203),
 				bitset(S_IWOTH, st.st_mode) ? "world" : "group",
 				forwarding ? "forward" : ":include:");
-#endif
 		ctladdr->q_flags |= QUNSAFEADDR;
 	}
 
@@ -1184,12 +1204,10 @@ resetuid:
 		e->e_to = NULL;
 		message("%s to %s",
 			forwarding ? "forwarding" : "sending", buf);
-#ifdef LOG
 		if (forwarding && LogLevel > 9)
-			syslog(LOG_INFO, "%s: forward %.200s => %s",
-				e->e_id == NULL ? "NOQUEUE" : e->e_id,
+			sm_syslog(LOG_INFO, e->e_id,
+				"forward %.200s => %s",
 				oldto, shortenstring(buf, 203));
-#endif
 
 		nincludes += sendtolist(buf, ctladdr, sendq, aliaslevel + 1, e);
 	}

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1983, 1995, 1996 Eric P. Allman
+ * Copyright (c) 1983, 1995-1997 Eric P. Allman
  * Copyright (c) 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)stab.c	8.10 (Berkeley) 11/23/96";
+static char sccsid[] = "@(#)stab.c	8.13 (Berkeley) 4/19/97";
 #endif /* not lint */
 
 # include "sendmail.h"
@@ -131,11 +131,7 @@ stab(name, type, op)
 		printf("entered\n");
 
 	/* determine size of new entry */
-#ifdef _FFR_MEMORY_MISER
-	if (type >= ST_MCI)
-		len = sizeof s->s_mci;
-	else
-		len = -1;
+#if _FFR_MEMORY_MISER
 	switch (type)
 	{
 	  case ST_CLASS:
@@ -180,11 +176,20 @@ stab(name, type, op)
 	  case ST_SERVICE:
 		len = sizeof s->s_service;
 		break;
-	}
-	if (len < 0)
-	{
-		syserr("stab: unknown symbol type %d", type);
-		len = sizeof s->s_value;
+
+	  case ST_HEADER:
+		len = sizeof s->s_header;
+		break;
+
+	  default:
+		if (type >= ST_MCI)
+			len = sizeof s->s_mci;
+		else
+		{
+			syserr("stab: unknown symbol type %d", type);
+			len = sizeof s->s_value;
+		}
+		break;
 	}
 	len += sizeof *s - sizeof s->s_value;
 #else
