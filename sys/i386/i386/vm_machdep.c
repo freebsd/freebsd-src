@@ -481,7 +481,6 @@ vunmapbuf(bp)
 {
 	int pidx;
 	int npages;
-	vm_page_t *m;
 
 	GIANT_REQUIRED;
 
@@ -491,9 +490,10 @@ vunmapbuf(bp)
 	npages = bp->b_npages;
 	pmap_qremove(trunc_page((vm_offset_t)bp->b_data),
 		     npages);
-	m = bp->b_pages;
+	vm_page_lock_queues();
 	for (pidx = 0; pidx < npages; pidx++)
-		vm_page_unhold(*m++);
+		vm_page_unhold(bp->b_pages[pidx]);
+	vm_page_unlock_queues();
 
 	bp->b_data = bp->b_saveaddr;
 }
