@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_sysvec.c,v 1.25 1998/02/11 01:46:50 eivind Exp $
+ *  $Id: linux_sysvec.c,v 1.26 1998/02/13 07:34:52 bde Exp $
  */
 
 /* XXX we use functions that might not exist. */
@@ -77,7 +77,7 @@ static int bsd_to_linux_errno[ELAST] = {
 	-100,-101,-102,-103,-104,-105,-106,-107,-108,-109,
 	-110,-111, -40, -36,-112,-113, -39, -11, -87,-122,
 	-116, -66,  -6,  -6,  -6,  -6,  -6, -37, -38,  -9,
-  	-6, 
+  	-6, -43, -42
 };
 
 int bsd_to_linux_signal[NSIG] = {
