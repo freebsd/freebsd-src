@@ -186,7 +186,9 @@ vfs_mountroot_try(char *mountfrom)
 		goto done;
 
 	/* allocate a root mount */
-	if ((error = vfs_rootmountalloc(vfsname, ROOTNAME, &mp))) {
+	error = vfs_rootmountalloc(vfsname, path[0] != 0 ? path : ROOTNAME,
+				   &mp);
+	if (error != 0) {
 		printf("Can't allocate root mount for filesystem '%s': %d\n",
 		       vfsname, error);
 		goto done;
@@ -201,7 +203,6 @@ vfs_mountroot_try(char *mountfrom)
 	if (devsw(rootdev) && (devsw(rootdev)->d_flags & D_MEMDISK))
 		mp->mnt_flag &= ~MNT_RDONLY;
 
-	strcpy(mp->mnt_stat.f_mntfromname, path);
 	error = VFS_MOUNT(mp, NULL, NULL, NULL, curproc);
 
 done:
@@ -210,8 +211,10 @@ done:
 	if (path != NULL)
 		free(path, M_MOUNT);
 	if (error != 0) {
-		if (mp != NULL)
+		if (mp != NULL) {
+			vfs_unbusy(mp, curproc);
 			free(mp, M_MOUNT);
+		}
 		printf("Root mount failed: %d\n", error);
 	} else {
 
@@ -222,9 +225,8 @@ done:
 
 		/* sanity check system clock against root filesystem timestamp */
 		inittodr(mp->mnt_time);
-	}
-	if (mp != NULL)
 		vfs_unbusy(mp, curproc);
+	}
 	return(error);
 }
 
@@ -318,8 +320,6 @@ setrootbyname(char *name)
 	if (cp != NULL) {
 		name = cp + 1;
 	}
-	if (*name == 'r')
-		name++;
 	cp = name;
 	while (cp != '\0' && (*cp < '0' || *cp > '9'))
 		cp++;
