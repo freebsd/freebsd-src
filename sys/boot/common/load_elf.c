@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: load_elf.c,v 1.6 1998/10/14 00:41:17 peter Exp $
+ *	$Id: load_elf.c,v 1.7 1998/10/15 21:56:47 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -40,7 +40,7 @@
 
 #include "bootstrap.h"
 
-static int	elf_loadimage(struct loaded_module *mp, int fd, vm_offset_t loadaddr, Elf_Ehdr *ehdr, int kernel);
+static int	elf_loadimage(struct loaded_module *mp, int fd, vm_offset_t loadaddr, Elf_Ehdr *ehdr, Elf_Phdr *phdr, int kernel);
 
 char	*elf_kerneltype = "elf kernel";
 char	*elf_moduletype = "elf module";
@@ -55,12 +55,14 @@ elf_loadmodule(char *filename, vm_offset_t dest, struct loaded_module **result)
 {
     struct loaded_module	*mp, *kmp;
     Elf_Ehdr			ehdr;
+    Elf_Phdr			*phdr;
     int				fd;
     int				err, kernel;
     u_int			pad;
     char			*s;
 
     mp = NULL;
+    phdr = NULL;
     
     /*
      * Open the image, read and validate the ELF header 
@@ -162,7 +164,31 @@ elf_loadmodule(char *filename, vm_offset_t dest, struct loaded_module **result)
     printf("%s ", filename);
 #endif
 
-    mp->m_size = elf_loadimage(mp, fd, dest, &ehdr, kernel);
+    phdr = malloc(ehdr.e_phnum * sizeof(*phdr));
+    if (phdr == NULL) {
+	err = ENOMEM;
+	goto out;
+    }
+
+    if (lseek(fd, ehdr.e_phoff, SEEK_SET) == -1) {
+	printf("elf_loadexec: lseek for phdr failed\n");
+	goto ioerr;
+    }
+    if (read(fd, phdr, ehdr.e_phnum * sizeof(*phdr)) !=
+	ehdr.e_phnum * sizeof(*phdr)) {
+	printf("elf_loadmodule: cannot read program header\n");
+	goto ioerr;
+    }
+    if (lseek(fd, 0, SEEK_SET) == -1) {
+	close(fd);
+	if ((fd = open(filename, O_RDONLY)) == -1) {
+	    printf("elf_loadmodule: cannot reset file position\n");
+	    mod_discard(mp);
+	    return errno;
+	}
+    }
+
+    mp->m_size = elf_loadimage(mp, fd, dest, &ehdr, phdr, kernel);
     if (mp->m_size == 0 || mp->m_addr == 0)
 	goto ioerr;
 
@@ -179,6 +205,8 @@ elf_loadmodule(char *filename, vm_offset_t dest, struct loaded_module **result)
  oerr:
     mod_discard(mp);
  out:
+    if (phdr)
+	free(phdr);
     close(fd);
     return(err);
 }
@@ -189,10 +217,9 @@ elf_loadmodule(char *filename, vm_offset_t dest, struct loaded_module **result)
  */
 static int
 elf_loadimage(struct loaded_module *mp, int fd, vm_offset_t off,
-	      Elf_Ehdr *ehdr, int kernel)
+	      Elf_Ehdr *ehdr, Elf_Phdr *phdr, int kernel)
 {
     int 	i, j;
-    Elf_Phdr	*phdr;
     Elf_Shdr	*shdr;
     int		ret;
     vm_offset_t firstaddr;
@@ -223,20 +250,6 @@ elf_loadimage(struct loaded_module *mp, int fd, vm_offset_t off,
 #else
 	off = 0;		/* alpha is direct mapped for kernels */
 #endif
-    }
-
-    phdr = malloc(ehdr->e_phnum * sizeof(*phdr));
-    if (phdr == NULL)
-	goto out;
-
-    if (lseek(fd, ehdr->e_phoff, SEEK_SET) == -1) {
-	printf("elf_loadexec: lseek for phdr failed\n");
-	goto out;
-    }
-    if (read(fd, phdr, ehdr->e_phnum * sizeof(*phdr)) !=
-	ehdr->e_phnum * sizeof(*phdr)) {
-	printf("elf_loadexec: cannot read program header\n");
-	goto out;
     }
 
     for (i = 0; i < ehdr->e_phnum; i++) {
@@ -379,7 +392,7 @@ elf_loadimage(struct loaded_module *mp, int fd, vm_offset_t off,
 #else
 	if (i == symstrindex)
 	    printf("+");
-	printf("0x%lx+0x%lx", sizeof(size), size);
+	printf("0x%lx+0x%lx", (long)sizeof(size), size);
 #endif
 
 	if (lseek(fd, shdr[i].sh_offset, SEEK_SET) == -1) {
@@ -503,7 +516,5 @@ out:
 	free(dp);
     if (shdr)
 	free(shdr);
-    if (phdr)
-	free(phdr);
     return ret;
 }
