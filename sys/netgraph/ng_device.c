@@ -31,9 +31,9 @@
  */
 
 #if 0
-#define DBG printf("ng_device: %s\n", __func__ )
+#define	DBG do { printf("ng_device: %s\n", __func__ ); } while (0)
 #else
-#define DBG
+#define	DBG do {} while (0)
 #endif
 
 #include <sys/param.h>
