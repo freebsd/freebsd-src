@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_output.c	8.3 (Berkeley) 1/21/94
- * $Id: ip_output.c,v 1.13 1995/03/16 18:14:59 bde Exp $
+ * $Id: ip_output.c,v 1.14 1995/03/20 18:11:31 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -852,7 +852,7 @@ ip_setmoptions(optname, imop, m)
 		 * IP address.  Find the interface and confirm that
 		 * it supports multicasting.
 		 */
-		s = splnet();
+		s = splimp();
 		INADDR_TO_IFP(addr, ifp);
 		if (ifp == NULL || (ifp->if_flags & IFF_MULTICAST) == 0) {
 			error = EADDRNOTAVAIL;
@@ -900,7 +900,7 @@ ip_setmoptions(optname, imop, m)
 			error = EINVAL;
 			break;
 		}
-		s = splnet();
+		s = splimp();
 		/*
 		 * If no interface address was provided, use the interface of
 		 * the route to the given multicast address.
@@ -982,7 +982,7 @@ ip_setmoptions(optname, imop, m)
 			break;
 		}
 
-		s = splnet();
+		s = splimp();
 		/*
 		 * If an interface address was specified, get a pointer
 		 * to its ifnet structure.
