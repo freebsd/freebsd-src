@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.146 1997/10/13 11:45:36 jkh Exp $
+ * $Id: menus.c,v 1.147 1997/10/14 18:17:33 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -1101,7 +1101,7 @@ DMenu MenuConfigure = {
 	NULL,	dmenuSubmenu, NULL, &MenuMouse, NULL },
       { "6 Networking",	"Configure additional network services",
 	NULL,	dmenuSubmenu, NULL, &MenuNetworking },
-      { "6 Startup",	"Configure system startup services",
+      { "7 Startup",	"Configure system startup services",
 	NULL,	dmenuSubmenu, NULL, &MenuStartup },
       { "8 Options",	"View/Set various installation options",
 	NULL, optionsEditor },
