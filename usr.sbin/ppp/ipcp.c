@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.8 1996/05/11 20:48:26 phk Exp $
+ * $Id: ipcp.c,v 1.9 1996/10/06 13:32:28 jkh Exp $
  *
  *	TODO:
  *		o More RFC1772 backwoard compatibility
@@ -35,6 +35,7 @@
 #include "os.h"
 #include "phase.h"
 #include "vars.h"
+#include "alias.h"
 
 extern void PutConfValue();
 extern void Prompt();
@@ -274,6 +275,8 @@ struct fsm *fp;
   OsLinkup();
   IpcpStartReport();
   StartIdleTimer();
+  if (mode & MODE_ALIAS)
+    SetAliasAddress(IpcpInfo.want_ipaddr);
 }
 
 void

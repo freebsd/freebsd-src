@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ip.c,v 1.9 1996/05/11 20:48:25 phk Exp $
+ * $Id: ip.c,v 1.10 1996/12/03 21:38:45 nate Exp $
  *
  *	TODO:
  *		o Return ICMP message for filterd packet
@@ -34,6 +34,7 @@
 #include <arpa/inet.h>
 #include "vars.h"
 #include "filter.h"
+#include "alias.h"
 
 extern void SendPppFrame();
 extern void LcpClose();
@@ -329,6 +330,11 @@ struct mbuf *bp;		/* IN: Pointer to IP pakcet */
     bcopy(MBUF_CTOP(wp), cp, wp->cnt);
     cp += wp->cnt;
     nb += wp->cnt;
+  }
+
+  if (mode & MODE_ALIAS) {
+    PacketAliasIn(tunbuff);
+    nb = ntohs(((struct ip *) tunbuff)->ip_len);
   }
 
   if ( PacketCheck(tunbuff, nb, FL_IN ) < 0) {
