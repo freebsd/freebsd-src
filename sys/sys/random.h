@@ -37,6 +37,17 @@ enum esource { RANDOM_WRITE, RANDOM_KEYBOARD, RANDOM_MOUSE, RANDOM_NET,
 		RANDOM_INTERRUPT, ENTROPYSOURCE };
 void random_harvest(void *, u_int, u_int, u_int, enum esource);
 
+/* Allow the sysadmin to select the broad category of
+ * entropy types to harvest
+ */
+struct harvest_select {
+	int ethernet;
+	int point_to_point;
+	int interrupt;
+};
+
+extern struct harvest_select harvest;
+
 #endif
 
 #endif /* _SYS_RANDOM_H_ */
