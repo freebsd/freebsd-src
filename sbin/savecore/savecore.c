@@ -102,8 +102,10 @@ struct nlist dump_nl[] = {	/* Name list for dumped system. */
 };
 
 /* Types match kernel declarations. */
+u_long	dumpmag;			/* magic number in dump */
+
+/* Based on kernel variables, but with more convenient types. */
 off_t	dumplo;				/* where dump starts on dumpdev */
-int	dumpmag;			/* magic number in dump */
 off_t	dumpsize;			/* amount of memory dumped */
 
 char	*kernel;			/* user-specified kernel */
@@ -579,12 +581,12 @@ get_crashtime()
 void
 get_dumpsize()
 {
-	unsigned int dumppages;
+	int kdumpsize;
 
 	/* Read the dump size. */
-	DumpRead(dumpfd, &dumppages, sizeof(dumppages),
+	DumpRead(dumpfd, &kdumpsize, sizeof(kdumpsize),
 	    (off_t)(dumplo + ok(dump_nl[X_DUMPSIZE].n_value)), L_SET);
-	dumpsize = dumppages * getpagesize();
+	dumpsize = kdumpsize * getpagesize();
 }
 
 /*
