@@ -93,12 +93,12 @@
 	   </listitem>
       </itemizedlist>
     </para>
-    <para>Adaptec SCSI Controllers
+    <para arch="i386,alpha">Adaptec SCSI Controllers
       <itemizedlist>
-        <listitem>
+        <listitem arch="i386">
 	  <para>Adaptec 1535 ISA SCSI controllers</para>
 	</listitem>
-	<listitem>
+	<listitem arch="i386">
 	  <para>Adaptec 154x series ISA SCSI controllers 
 	  (&man.aha.4; driver)</para>
 	</listitem>
@@ -188,10 +188,10 @@
       </itemizedlist>
     </para>
 
-    <para>AdvanSys SCSI controllers (all models, &man.adv.4; and
+    <para arch="i386">AdvanSys SCSI controllers (all models, &man.adv.4; and
     &man.adw.4; drivers)</para>
 
-    <para>BusLogic MultiMaster <quote>W</quote> Series Host Adapters
+    <para arch="i386">BusLogic MultiMaster <quote>W</quote> Series Host Adapters
     (&man.bt.4; driver):
       <itemizedlist>
 	<listitem>
@@ -206,7 +206,7 @@
       </itemizedlist>
     </para>
 
-    <para>BusLogic MultiMaster <quote>C</quote> Series Host Adapters
+    <para arch="i386">BusLogic MultiMaster <quote>C</quote> Series Host Adapters
     (&man.bt.4; driver):
       <itemizedlist>
         <listitem>
@@ -239,7 +239,7 @@
       </itemizedlist>
     </para>
 
-    <para>BusLogic MultiMaster <quote>S</quote> Series Host Adapters
+    <para arch="i386">BusLogic MultiMaster <quote>S</quote> Series Host Adapters
     (&man.bt.4; driver):
       <itemizedlist>
 	<listitem>
@@ -272,7 +272,7 @@
       </itemizedlist>
     </para>
     
-    <para>BusLogic MultiMaster <quote>A</quote> Series Host Adapters
+    <para arch="i386">BusLogic MultiMaster <quote>A</quote> Series Host Adapters
     (&man.bt.4; driver):
       <itemizedlist>
         <listitem>
@@ -284,11 +284,11 @@
       </itemizedlist>
     </para>
 
-    <note>
+    <note arch="i386">
       <para>BusLogic/Mylex <quote>Flashpoint</quote> adapters are not yet
       supported.</para>
     </note>
-    <note>
+    <note arch="i386">
       <para>AMI FastDisk controllers that are true BusLogic
       MultiMaster clones are also supported.</para>
     </note>
@@ -299,7 +299,7 @@
       supported.</para>
     </note>
 
-    <para>DPT SmartCACHE Plus, SmartCACHE III, SmartRAID III, SmartCACHE IV and
+    <para arch="i386">DPT SmartCACHE Plus, SmartCACHE III, SmartRAID III, SmartCACHE IV and
     SmartRAID IV SCSI/RAID controllers (&man.dpt.4; driver)</para>
 
     <para arch="i386">DPT SmartRAID V and VI SCSI RAID controllers
@@ -469,9 +469,9 @@
       </note>
     </para>
 
-    <para>3ware Escalade ATA RAID controllers (&man.twe.4; driver)
+    <para arch="i386">3ware Escalade ATA RAID controllers (&man.twe.4; driver)
       <itemizedlist>
-        <listitem>
+        <listitem arch="i386">
           <para>5000 series</para>
 	</listitem>
 
@@ -748,7 +748,7 @@
     <para arch="i386">Allied-Telesis AT1700 and RE2000 cards
     (&man.fe.4; driver)</para>
 
-    <para>Alteon Networks PCI Gigabit Ethernet NICs based on the Tigon
+    <para arch="i386">Alteon Networks PCI Gigabit Ethernet NICs based on the Tigon
     1 and Tigon 2 chipsets (&man.ti.4; driver)
       <itemizedlist>
 	<listitem>
@@ -787,7 +787,7 @@
       </itemizedlist>
     </para>
 
-    <para>AMD PCnet NICs (&man.lnc.4; and &man.pcn.4; drivers)
+    <para arch="i386,alpha">AMD PCnet NICs (&man.lnc.4; and &man.pcn.4; drivers)
       <itemizedlist>
         <listitem>
           <para>AMD PCnet/PCI (79c970 & 53c974 or 79c974)</para>
@@ -795,6 +795,12 @@
         <listitem>
           <para>AMD PCnet/FAST</para>
         </listitem>
+	<listitem>
+	  <para>Isolan AT 4141-0 (16 bit)</para>
+	</listitem>
+	<listitem>
+	  <para>Isolink 4110 (8 bit)</para>
+	</listitem>
         <listitem>
           <para>PCnet/FAST+</para>
         </listitem>
@@ -821,7 +827,7 @@
       </itemizedlist>
     </para>
 
-    <para>National Semiconductor DS8390-based Ethernet NICs, including
+    <para arch="i386,alpha">National Semiconductor DS8390-based Ethernet NICs, including
     Novell NE2000 and clones
     (&man.ed.4; driver)
       <itemizedlist>
@@ -1086,7 +1092,7 @@
       </itemizedlist>
     </para>
 
-    <para>National Semiconductor DP83820 and DP83821 Gigabit Ethernet
+    <para arch="i386">National Semiconductor DP83820 and DP83821 Gigabit Ethernet
     NICs (&man.nge.4 driver)
       <itemizedlist>
         <listitem>
@@ -1122,7 +1128,7 @@
       </itemizedlist>
     </para>
 
-    <para>SysKonnect SK-984x PCI Gigabit Ethernet cards (&man.sk.4 drivers)
+    <para arch="i386,alpha">SysKonnect SK-984x PCI Gigabit Ethernet cards (&man.sk.4 drivers)
       <itemizedlist>
         <listitem>
 	  <para>SK-9821 1000baseT copper, single port</para>
@@ -1409,10 +1415,6 @@
       </itemizedlist>
     </para>
 
-    <para>Isolan AT 4141-0 (16 bit)</para>
-
-    <para>Isolink 4110 (8 bit)</para>
-
     <para arch="i386">3Com 3C5x9 Etherlink III NICs (&man.ep.4; driver)
       <itemizedlist>
         <listitem>
@@ -1537,7 +1539,7 @@
       </itemizedlist>
     </para>
 
-    <para>Gigabit Ethernet cards based on the Level 1
+    <para arch="i386">Gigabit Ethernet cards based on the Level 1
     LXT1001 NetCellerator controller (&man.lge.4; driver)
       <itemizedlist>
         <listitem>
@@ -1589,7 +1591,7 @@
       </itemizedlist>
     </para>
 
-    <para>Gigabit Ethernet NICs based on the Intel 82542 and 82543
+    <para arch="i386,alpha">Gigabit Ethernet NICs based on the Intel 82542 and 82543
     controller chips (&man.wx.4;, &man.gx.4; and &man.em.4; drivers)
       <itemizedlist>
 	<listitem>
@@ -1729,7 +1731,7 @@
       </itemizedlist>
     </para>
 
-    <para>Aironet 802.11 wireless adapters (&man.an.4; driver)
+    <para arch="i386">Aironet 802.11 wireless adapters (&man.an.4; driver)
       <itemizedlist>
         <listitem>
 	  <para>Aironet 4500/4800 series
@@ -1756,7 +1758,7 @@
       </itemizedlist>
     </para>
 
-    <para>AMD Am79C930 and Harris (Intersil) based 802.11 cards (awi driver)
+    <para arch="i386">AMD Am79C930 and Harris (Intersil) based 802.11 cards (awi driver)
       <itemizedlist>
         <listitem>
 	  <para>BayStack 650 and 660</para>
@@ -1877,7 +1879,7 @@
 
   <sect2>
     <title>Multi-port Serial Interfaces</title>
-    <para>AST 4 port serial card using shared IRQ</para>
+    <para arch="i386,alpha">AST 4 port serial card using shared IRQ</para>
 
     <para arch="i386">ARNET serial cards (&man.ar.4; driver)
       <itemizedlist>
@@ -1890,7 +1892,7 @@
       </itemizedlist>
     </para>
     
-    <para>Boca multi-port serial cards
+    <para arch="i386">Boca multi-port serial cards
       <itemizedlist>
         <listitem>
 	  <para>Boca BB1004 4-Port serial card (Modems
@@ -1913,9 +1915,9 @@
 
     <para arch="i386">Cyclades Cyclom-y serial board (&man.cy.4; driver)</para>
 
-    <para>STB 4 port card using shared IRQ</para>
+    <para arch="i386">STB 4 port card using shared IRQ</para>
 
-    <para>DigiBoard intelligent serial cards (&man.dgb.4; driver)
+    <para arch="i386">DigiBoard intelligent serial cards (&man.dgb.4; driver)
       <itemizedlist>
         <listitem>
 	  <para>DigiBoard PC/Xe series</para>
@@ -1958,7 +1960,7 @@
       </itemizedlist>
     </para>
 
-    <para>Specialix SI/XIO/SX multiport serial cards, with both the
+    <para arch="i386">Specialix SI/XIO/SX multiport serial cards, with both the
     older SIHOST2.x and the new <quote>enhanced</quote> (transputer
     based, aka JET) host cards (ISA, EISA and PCI are supported)
     (&man.si.4; driver)</para>
@@ -1966,7 +1968,7 @@
   </sect2>
   <sect2>
     <title>Audio Devices</title>
-    <para>Advance (&man.sbc.4; driver)
+    <para arch="i386">Advance (&man.sbc.4; driver)
       <itemizedlist>
         <listitem>
 	  <para>Asound 100 and 110</para>
@@ -1976,14 +1978,14 @@
 	</listitem>
       </itemizedlist>
     </para>
-    <para>CMedia sound chips
+    <para arch="i386">CMedia sound chips
       <itemizedlist>
         <listitem>
 	  <para>CMI8338/CMI8738</para>
         </listitem>
       </itemizedlist>
     </para>
-    <para>Crystal Semiconductor (&man.csa.4; driver)
+    <para arch="i386">Crystal Semiconductor (&man.csa.4; driver)
       <itemizedlist>
         <listitem>
 	  <para>CS461x/462x Audio Accelerator</para>
@@ -1993,14 +1995,14 @@
 	</listitem>
       </itemizedlist>
     </para>
-    <para>ENSONIQ (&man.pcm.4; driver)
+    <para arch="i386">ENSONIQ (&man.pcm.4; driver)
       <itemizedlist>
         <listitem>
 	  <para>AudioPCI ES1370/1371</para>
 	</listitem>
       </itemizedlist>
     </para>
-    <para>ESS
+    <para arch="i386,alpha">ESS
       <itemizedlist>
         <listitem>
 	  <para>ES1868, ES1869, ES1879 and ES1888 (&man.sbc.4; driver)</para>
@@ -2021,8 +2023,8 @@
 	</listitem>
       </itemizedlist>
     </para>
-    <para>ForteMedia fm801</para>
-    <para>Gravis (&man.gusc.4; driver)
+    <para arch="i386">ForteMedia fm801</para>
+    <para arch="i386">Gravis (&man.gusc.4; driver)
       <itemizedlist>
         <listitem>
 	  <para>UltraSound MAX</para>
@@ -2034,11 +2036,11 @@
     </para>
     <para arch="i386">Intel 443MX, 810, 815, and 815E integrated sound
     devices (&man.pcm.4; driver)</para>
-    <para>MSS/WSS Compatible DSPs (&man.pcm.4; driver)</para>
-    <para>NeoMagic 256AV/ZX (&man.pcm.4; driver)</para>
-    <para>OPTi 931/82C931 (&man.pcm.4; driver)</para>
-    <para>S3 Sonicvibes</para>
-    <para>Creative Technologies SoundBlaster series (&man.sbc.4; driver)
+    <para arch="i386,alpha">MSS/WSS Compatible DSPs (&man.pcm.4; driver)</para>
+    <para arch="i386">NeoMagic 256AV/ZX (&man.pcm.4; driver)</para>
+    <para arch="i386">OPTi 931/82C931 (&man.pcm.4; driver)</para>
+    <para arch="i386">S3 Sonicvibes</para>
+    <para arch="i386,alpha">Creative Technologies SoundBlaster series (&man.sbc.4; driver)
       <itemizedlist>
         <listitem>
 	  <para>SoundBlaster</para>
@@ -2060,9 +2062,9 @@
 	</listitem>
       </itemizedlist>
     </para>
-    <para>Trident 4DWave DX/NX (&man.pcm.4; driver)</para>
-    <para>VIA Technologies VT82C686A</para>
-    <para>Yamaha
+    <para arch="i386">Trident 4DWave DX/NX (&man.pcm.4; driver)</para>
+    <para arch="i386">VIA Technologies VT82C686A</para>
+    <para arch="i386">Yamaha
       <itemizedlist>
         <listitem>
 	  <para>DS1</para>
@@ -2101,7 +2103,7 @@
         </listitem>
       </itemizedlist>
     </para>      
-    <para>Connectix QuickCam</para>
+    <para arch="i386">Connectix QuickCam</para>
     <para arch="i386">Cortex1 frame grabber (ctx driver)</para>
     <para arch="i386">Creative Labs Video Spigot frame grabber (spigot driver)</para>
     <para arch="i386">Matrox Meteor Video frame grabber (&man.meteor.4; driver)</para>
@@ -2168,7 +2170,7 @@
 	</listitem>
       </itemizedlist>
     </para>
-    <para>USB host controllers (PCI)
+    <para arch="i386">USB host controllers (PCI)
       <itemizedlist>
         <listitem>
 	  <para>ADS Electronics PCI plug-in card (2 ports)</para>
@@ -2213,7 +2215,7 @@
 	</listitem>
       </itemizedlist>
     </para>
-    <para>Miscellaneous
+    <para arch="i386">Miscellaneous
       <itemizedlist>
         <listitem>
 	  <para>ActiveWire I/O Board</para>
@@ -2286,7 +2288,7 @@
 	</listitem>
       </itemizedlist>
     </para>
-    <para>Scanners (through SANE) (&man.uscanner.4; driver)
+    <para arch="i386">Scanners (through SANE) (&man.uscanner.4; driver)
       <itemizedlist>
         <listitem>
 	  <para>Perfection 636U</para>
@@ -2331,15 +2333,15 @@
       </itemizedlist>
     </para>
 
-    <para>Floppy drives (&man.fd.4; driver)</para>
+    <para arch="i386,alpha">Floppy drives (&man.fd.4; driver)</para>
     <para arch="i386">Genius and Mustek hand scanners</para>
     <para arch="i386">GPB and Transputer drivers</para>
     <para>Keyboards including:
       <itemizedlist>
-        <listitem>
+        <listitem arch="i386,alpha">
 	  <para>AT-style keyboards</para>
 	</listitem>
-        <listitem>
+        <listitem arch="i386,alpha,ia64">
 	  <para>PS/2 keyboards</para>
 	</listitem>
         <listitem arch="i386,alpha">
@@ -2354,7 +2356,7 @@
         <listitem arch="i386">
 	  <para>Bus mice (&man.mse.4; driver)</para>
 	</listitem>
-        <listitem>
+        <listitem arch="i386,alpha,ia64">
 	  <para>PS/2 mice (&man.psm.4; driver)</para>
 	</listitem>
         <listitem>
