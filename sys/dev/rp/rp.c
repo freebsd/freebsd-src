@@ -36,33 +36,25 @@
  * rp.c - for RocketPort FreeBSD
  */
 
-#include "opt_compat.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
 #include <sys/fcntl.h>
 #include <sys/malloc.h>
 #include <sys/tty.h>
 #include <sys/proc.h>
+#include <sys/dkstat.h>
 #include <sys/conf.h>
+#include <sys/kernel.h>
+#include <machine/resource.h>
+#include <machine/bus.h>
 #include <sys/bus.h>
-
-#include <i386/isa/isa_device.h>
-
-#include <pci/pcivar.h>
+#include <sys/rman.h>
 
 #define ROCKET_C
-#include <i386/isa/rpreg.h>
-#include <i386/isa/rpvar.h>
+#include <dev/rp/rpreg.h>
+#include <dev/rp/rpvar.h>
 
-#ifndef TRUE
-#define TRUE 1
-#endif
-
-#ifndef FALSE
-#define FALSE 0
-#endif
+static const char RocketPortVersion[] = "3.02";
 
 static Byte_t RData[RDATASIZE] =
 {
@@ -103,14 +95,6 @@ static Byte_t RRegData[RREGDATASIZE]=
    0x22, 0x09, 0x0a, 0x0a	       /* 30: Rx FIFO Enable */
 };
 
-static CONTROLLER_T sController[CTL_SIZE] =
-{
-   {-1,-1,0,0,0,0,0,0,0,0,0,{0,0,0,0},{0,0,0,0},{-1,-1,-1,-1},{0,0,0,0}},
-   {-1,-1,0,0,0,0,0,0,0,0,0,{0,0,0,0},{0,0,0,0},{-1,-1,-1,-1},{0,0,0,0}},
-   {-1,-1,0,0,0,0,0,0,0,0,0,{0,0,0,0},{0,0,0,0},{-1,-1,-1,-1},{0,0,0,0}},
-   {-1,-1,0,0,0,0,0,0,0,0,0,{0,0,0,0},{0,0,0,0},{-1,-1,-1,-1},{0,0,0,0}}
-};
-
 #if 0
 /* IRQ number to MUDBAC register 2 mapping */
 Byte_t sIRQMap[16] =
@@ -119,222 +103,47 @@ Byte_t sIRQMap[16] =
 };
 #endif
 
-static Byte_t sBitMapClrTbl[8] =
+Byte_t rp_sBitMapClrTbl[8] =
 {
    0xfe,0xfd,0xfb,0xf7,0xef,0xdf,0xbf,0x7f
 };
 
-static Byte_t sBitMapSetTbl[8] =
+Byte_t rp_sBitMapSetTbl[8] =
 {
    0x01,0x02,0x04,0x08,0x10,0x20,0x40,0x80
 };
 
-/***************************************************************************
-Function: sInitController
-Purpose:  Initialization of controller global registers and controller
-	  structure.
-Call:	  sInitController(CtlP,CtlNum,MudbacIO,AiopIOList,AiopIOListSize,
-			  IRQNum,Frequency,PeriodicOnly)
-	  CONTROLLER_T *CtlP; Ptr to controller structure
-	  int CtlNum; Controller number
-	  ByteIO_t MudbacIO; Mudbac base I/O address.
-	  ByteIO_t *AiopIOList; List of I/O addresses for each AIOP.
-	     This list must be in the order the AIOPs will be found on the
-	     controller.  Once an AIOP in the list is not found, it is
-	     assumed that there are no more AIOPs on the controller.
-	  int AiopIOListSize; Number of addresses in AiopIOList
-	  int IRQNum; Interrupt Request number.  Can be any of the following:
-			 0: Disable global interrupts
-			 3: IRQ 3
-			 4: IRQ 4
-			 5: IRQ 5
-			 9: IRQ 9
-			 10: IRQ 10
-			 11: IRQ 11
-			 12: IRQ 12
-			 15: IRQ 15
-	  Byte_t Frequency: A flag identifying the frequency
-		   of the periodic interrupt, can be any one of the following:
-		      FREQ_DIS - periodic interrupt disabled
-		      FREQ_137HZ - 137 Hertz
-		      FREQ_69HZ - 69 Hertz
-		      FREQ_34HZ - 34 Hertz
-		      FREQ_17HZ - 17 Hertz
-		      FREQ_9HZ - 9 Hertz
-		      FREQ_4HZ - 4 Hertz
-		   If IRQNum is set to 0 the Frequency parameter is
-		   overidden, it is forced to a value of FREQ_DIS.
-	  int PeriodicOnly: TRUE if all interrupts except the periodic
-			       interrupt are to be blocked.
-			    FALSE is both the periodic interrupt and
-			       other channel interrupts are allowed.
-			    If IRQNum is set to 0 the PeriodicOnly parameter is
-			       overidden, it is forced to a value of FALSE.
-Return:   int: Number of AIOPs on the controller, or CTLID_NULL if controller
-	       initialization failed.
-
-Comments:
-	  If periodic interrupts are to be disabled but AIOP interrupts
-	  are allowed, set Frequency to FREQ_DIS and PeriodicOnly to FALSE.
-
-	  If interrupts are to be completely disabled set IRQNum to 0.
-
-	  Setting Frequency to FREQ_DIS and PeriodicOnly to TRUE is an
-	  invalid combination.
-
-	  This function performs initialization of global interrupt modes,
-	  but it does not actually enable global interrupts.  To enable
-	  and disable global interrupts use functions sEnGlobalInt() and
-	  sDisGlobalInt().  Enabling of global interrupts is normally not
-	  done until all other initializations are complete.
-
-	  Even if interrupts are globally enabled, they must also be
-	  individually enabled for each channel that is to generate
-	  interrupts.
-
-Warnings: No range checking on any of the parameters is done.
-
-	  No context switches are allowed while executing this function.
-
-	  After this function all AIOPs on the controller are disabled,
-	  they can be enabled with sEnAiop().
-*/
-int sInitController(	CONTROLLER_T *CtlP,
-			int CtlNum,
-			ByteIO_t MudbacIO,
-			ByteIO_t *AiopIOList,
-			int AiopIOListSize,
-			int IRQNum,
-			Byte_t Frequency,
-			int PeriodicOnly)
-{
-	int		i;
-	ByteIO_t	io;
-
-   CtlP->CtlNum = CtlNum;
-   CtlP->BusType = isISA;
-   CtlP->CtlID = CTLID_0001;	    /* controller release 1 */
-
-   CtlP->MBaseIO = MudbacIO;
-   CtlP->MReg1IO = MudbacIO + 1;
-   CtlP->MReg2IO = MudbacIO + 2;
-   CtlP->MReg3IO = MudbacIO + 3;
-#if 1
-   CtlP->MReg2 = 0;		    /* interrupt disable */
-   CtlP->MReg3 = 0;		    /* no periodic interrupts */
-#else
-   if(sIRQMap[IRQNum] == 0)	       /* interrupts globally disabled */
-   {
-      CtlP->MReg2 = 0;		       /* interrupt disable */
-      CtlP->MReg3 = 0;		       /* no periodic interrupts */
-   }
-   else
-   {
-      CtlP->MReg2 = sIRQMap[IRQNum];   /* set IRQ number */
-      CtlP->MReg3 = Frequency;	       /* set frequency */
-      if(PeriodicOnly)		       /* periodic interrupt only */
-      {
-	 CtlP->MReg3 |= PERIODIC_ONLY;
-      }
-   }
-#endif
-   sOutB(CtlP->MReg2IO,CtlP->MReg2);
-   sOutB(CtlP->MReg3IO,CtlP->MReg3);
-   sControllerEOI(CtlP);	       /* clear EOI if warm init */
-
-   /* Init AIOPs */
-   CtlP->NumAiop = 0;
-   for(i=0; i < AiopIOListSize; i++)
-   {
-      io = AiopIOList[i];
-      CtlP->AiopIO[i] = (WordIO_t)io;
-      CtlP->AiopIntChanIO[i] = io + _INT_CHAN;
-      sOutB(CtlP->MReg2IO,CtlP->MReg2 | (i & 0x03)); /* AIOP index */
-      sOutB(MudbacIO,(Byte_t)(io >> 6));	/* set up AIOP I/O in MUDBAC */
-      sEnAiop(CtlP,i);			       /* enable the AIOP */
-
-      CtlP->AiopID[i] = sReadAiopID(io);       /* read AIOP ID */
-      if(CtlP->AiopID[i] == AIOPID_NULL)       /* if AIOP does not exist */
-      {
-	 sDisAiop(CtlP,i);		       /* disable AIOP */
-	 break; 			       /* done looking for AIOPs */
-      }
-
-      CtlP->AiopNumChan[i] = sReadAiopNumChan((WordIO_t)io); /* num channels in AIOP */
-      sOutW((WordIO_t)io + _INDX_ADDR,_CLK_PRE);      /* clock prescaler */
-      sOutB(io + _INDX_DATA,CLOCK_PRESC);
-      CtlP->NumAiop++;			       /* bump count of AIOPs */
-      sDisAiop(CtlP,i); 		       /* disable AIOP */
-   }
-
-   if(CtlP->NumAiop == 0)
-      return(-1);
-   else
-      return(CtlP->NumAiop);
-}
-
-int sPCIInitController( CONTROLLER_T *CtlP,
-			int CtlNum,
-			ByteIO_t *AiopIOList,
-			int AiopIOListSize,
-			int IRQNum,
-			Byte_t Frequency,
-			int PeriodicOnly)
-{
-	int		i;
-	ByteIO_t	io;
-
-   CtlP->CtlNum = CtlNum;
-   CtlP->BusType = isPCI;
-   CtlP->CtlID = CTLID_0001;	    /* controller release 1 */
-   CtlP->PCIIO = (WordIO_t)((ByteIO_t)AiopIOList[0] + _PCI_INT_FUNC);
-
-   sPCIControllerEOI(CtlP);
-
-   /* Init AIOPs */
-   CtlP->NumAiop = 0;
-   for(i=0; i < AiopIOListSize; i++)
-   {
-      io = AiopIOList[i];
-      CtlP->AiopIO[i] = (WordIO_t)io;
-      CtlP->AiopIntChanIO[i] = io + _INT_CHAN;
-
-      CtlP->AiopID[i] = sReadAiopID(io);       /* read AIOP ID */
-      if(CtlP->AiopID[i] == AIOPID_NULL)       /* if AIOP does not exist */
-      {
-	 break; 			       /* done looking for AIOPs */
-      }
-
-      CtlP->AiopNumChan[i] = sReadAiopNumChan((WordIO_t)io); /* num channels in AIOP */
-      sOutW((WordIO_t)io + _INDX_ADDR,_CLK_PRE);      /* clock prescaler */
-      sOutB(io + _INDX_DATA,CLOCK_PRESC);
-      CtlP->NumAiop++;			       /* bump count of AIOPs */
-   }
-
-   if(CtlP->NumAiop == 0)
-      return(-1);
-   else
-      return(CtlP->NumAiop);
-}
+struct termios deftermios = {
+	TTYDEF_IFLAG,
+	TTYDEF_OFLAG,
+	TTYDEF_CFLAG,
+	TTYDEF_LFLAG,
+	{ CEOF, CEOL, CEOL, CERASE, CWERASE, CKILL, CREPRINT,
+	_POSIX_VDISABLE, CINTR, CQUIT, CSUSP, CDSUSP, CSTART, CSTOP, CLNEXT,
+	CDISCARD, CMIN, CTIME, CSTATUS, _POSIX_VDISABLE },
+	TTYDEF_SPEED,
+	TTYDEF_SPEED
+};
 
 /***************************************************************************
 Function: sReadAiopID
 Purpose:  Read the AIOP idenfication number directly from an AIOP.
-Call:	  sReadAiopID(io)
-	  ByteIO_t io: AIOP base I/O address
+Call:	  sReadAiopID(CtlP, aiop)
+	  CONTROLLER_T *CtlP; Ptr to controller structure
+	  int aiop: AIOP index
 Return:   int: Flag AIOPID_XXXX if a valid AIOP is found, where X
 		 is replace by an identifying number.
 	  Flag AIOPID_NULL if no valid AIOP is found
 Warnings: No context switches are allowed while executing this function.
 
 */
-int sReadAiopID(ByteIO_t io)
+int sReadAiopID(CONTROLLER_T *CtlP, int aiop)
 {
    Byte_t AiopID;		/* ID byte from AIOP */
 
-   sOutB(io + _CMD_REG,RESET_ALL);     /* reset AIOP */
-   sOutB(io + _CMD_REG,0x0);
-   AiopID = sInB(io + _CHN_STAT0) & 0x07;
+   rp_writeaiop1(CtlP, aiop, _CMD_REG, RESET_ALL);     /* reset AIOP */
+   rp_writeaiop1(CtlP, aiop, _CMD_REG, 0x0);
+   AiopID = rp_readaiop1(CtlP, aiop, _CHN_STAT0) & 0x07;
    if(AiopID == 0x06)
       return(1);
    else 			       /* AIOP does not exist */
@@ -345,8 +154,9 @@ int sReadAiopID(ByteIO_t io)
 Function: sReadAiopNumChan
 Purpose:  Read the number of channels available in an AIOP directly from
 	  an AIOP.
-Call:	  sReadAiopNumChan(io)
-	  WordIO_t io: AIOP base I/O address
+Call:	  sReadAiopNumChan(CtlP, aiop)
+	  CONTROLLER_T *CtlP; Ptr to controller structure
+	  int aiop: AIOP index
 Return:   int: The number of channels available
 Comments: The number of channels is determined by write/reads from identical
 	  offsets within the SRAM address spaces for channels 0 and 4.
@@ -354,15 +164,16 @@ Comments: The number of channels is determined by write/reads from identical
 	  AIOP, otherwise it is an 8 channel.
 Warnings: No context switches are allowed while executing this function.
 */
-int sReadAiopNumChan(WordIO_t io)
+int sReadAiopNumChan(CONTROLLER_T *CtlP, int aiop)
 {
-   Word_t x;
+   Word_t x, y;
 
-   sOutDW((DWordIO_t)io + _INDX_ADDR,0x12340000L); /* write to chan 0 SRAM */
-   sOutW(io + _INDX_ADDR,0);	   /* read from SRAM, chan 0 */
-   x = sInW(io + _INDX_DATA);
-   sOutW(io + _INDX_ADDR,0x4000);  /* read from SRAM, chan 4 */
-   if(x != sInW(io + _INDX_DATA))  /* if different must be 8 chan */
+   rp_writeaiop4(CtlP, aiop, _INDX_ADDR,0x12340000L); /* write to chan 0 SRAM */
+   rp_writeaiop2(CtlP, aiop, _INDX_ADDR,0);	   /* read from SRAM, chan 0 */
+   x = rp_readaiop2(CtlP, aiop, _INDX_DATA);
+   rp_writeaiop2(CtlP, aiop, _INDX_ADDR,0x4000);  /* read from SRAM, chan 4 */
+   y = rp_readaiop2(CtlP, aiop, _INDX_DATA);
+   if(x != y)  /* if different must be 8 chan */
       return(8);
    else
       return(4);
@@ -388,11 +199,8 @@ int sInitChan(	CONTROLLER_T *CtlP,
 		int AiopNum,
 		int ChanNum)
 {
-   int i;
-   WordIO_t AiopIO;
-   WordIO_t ChIOOff;
+   int i, ChOff;
    Byte_t *ChR;
-   Word_t ChOff;
    static Byte_t R[4];
 
    if(ChanNum >= CtlP->AiopNumChan[AiopNum])
@@ -404,21 +212,6 @@ int sInitChan(	CONTROLLER_T *CtlP,
    ChP->AiopNum = AiopNum;
    ChP->ChanNum = ChanNum;
 
-   /* Global direct addresses */
-   AiopIO = CtlP->AiopIO[AiopNum];
-   ChP->Cmd = (ByteIO_t)AiopIO + _CMD_REG;
-   ChP->IntChan = (ByteIO_t)AiopIO + _INT_CHAN;
-   ChP->IntMask = (ByteIO_t)AiopIO + _INT_MASK;
-   ChP->IndexAddr = (DWordIO_t)AiopIO + _INDX_ADDR;
-   ChP->IndexData = AiopIO + _INDX_DATA;
-
-   /* Channel direct addresses */
-   ChIOOff = AiopIO + ChP->ChanNum * 2;
-   ChP->TxRxData = ChIOOff + _TD0;
-   ChP->ChanStat = ChIOOff + _CHN_STAT0;
-   ChP->TxRxCount = ChIOOff + _FIFO_CNT0;
-   ChP->IntID = (ByteIO_t)AiopIO + ChP->ChanNum + _INT_ID0;
-
    /* Initialize the channel from the RData array */
    for(i=0; i < RDATASIZE; i+=4)
    {
@@ -426,7 +219,7 @@ int sInitChan(	CONTROLLER_T *CtlP,
       R[1] = RData[i+1] + 0x10 * ChanNum;
       R[2] = RData[i+2];
       R[3] = RData[i+3];
-      sOutDW(ChP->IndexAddr,*((DWord_t *)&R[0]));
+      rp_writech4(ChP,_INDX_ADDR,*((DWord_t *)&R[0]));
    }
 
    ChR = ChP->R;
@@ -445,66 +238,66 @@ int sInitChan(	CONTROLLER_T *CtlP,
    ChP->BaudDiv[1] = (Byte_t)((ChOff + _BAUD) >> 8);
    ChP->BaudDiv[2] = (Byte_t)BRD9600;
    ChP->BaudDiv[3] = (Byte_t)(BRD9600 >> 8);
-   sOutDW(ChP->IndexAddr,*(DWord_t *)&ChP->BaudDiv[0]);
+   rp_writech4(ChP,_INDX_ADDR,*(DWord_t *)&ChP->BaudDiv[0]);
 
    ChP->TxControl[0] = (Byte_t)(ChOff + _TX_CTRL);
    ChP->TxControl[1] = (Byte_t)((ChOff + _TX_CTRL) >> 8);
    ChP->TxControl[2] = 0;
    ChP->TxControl[3] = 0;
-   sOutDW(ChP->IndexAddr,*(DWord_t *)&ChP->TxControl[0]);
+   rp_writech4(ChP,_INDX_ADDR,*(DWord_t *)&ChP->TxControl[0]);
 
    ChP->RxControl[0] = (Byte_t)(ChOff + _RX_CTRL);
    ChP->RxControl[1] = (Byte_t)((ChOff + _RX_CTRL) >> 8);
    ChP->RxControl[2] = 0;
    ChP->RxControl[3] = 0;
-   sOutDW(ChP->IndexAddr,*(DWord_t *)&ChP->RxControl[0]);
+   rp_writech4(ChP,_INDX_ADDR,*(DWord_t *)&ChP->RxControl[0]);
 
    ChP->TxEnables[0] = (Byte_t)(ChOff + _TX_ENBLS);
    ChP->TxEnables[1] = (Byte_t)((ChOff + _TX_ENBLS) >> 8);
    ChP->TxEnables[2] = 0;
    ChP->TxEnables[3] = 0;
-   sOutDW(ChP->IndexAddr,*(DWord_t *)&ChP->TxEnables[0]);
+   rp_writech4(ChP,_INDX_ADDR,*(DWord_t *)&ChP->TxEnables[0]);
 
    ChP->TxCompare[0] = (Byte_t)(ChOff + _TXCMP1);
    ChP->TxCompare[1] = (Byte_t)((ChOff + _TXCMP1) >> 8);
    ChP->TxCompare[2] = 0;
    ChP->TxCompare[3] = 0;
-   sOutDW(ChP->IndexAddr,*(DWord_t *)&ChP->TxCompare[0]);
+   rp_writech4(ChP,_INDX_ADDR,*(DWord_t *)&ChP->TxCompare[0]);
 
    ChP->TxReplace1[0] = (Byte_t)(ChOff + _TXREP1B1);
    ChP->TxReplace1[1] = (Byte_t)((ChOff + _TXREP1B1) >> 8);
    ChP->TxReplace1[2] = 0;
    ChP->TxReplace1[3] = 0;
-   sOutDW(ChP->IndexAddr,*(DWord_t *)&ChP->TxReplace1[0]);
+   rp_writech4(ChP,_INDX_ADDR,*(DWord_t *)&ChP->TxReplace1[0]);
 
    ChP->TxReplace2[0] = (Byte_t)(ChOff + _TXREP2);
    ChP->TxReplace2[1] = (Byte_t)((ChOff + _TXREP2) >> 8);
    ChP->TxReplace2[2] = 0;
    ChP->TxReplace2[3] = 0;
-   sOutDW(ChP->IndexAddr,*(DWord_t *)&ChP->TxReplace2[0]);
+   rp_writech4(ChP,_INDX_ADDR,*(DWord_t *)&ChP->TxReplace2[0]);
 
    ChP->TxFIFOPtrs = ChOff + _TXF_OUTP;
    ChP->TxFIFO = ChOff + _TX_FIFO;
 
-   sOutB(ChP->Cmd,(Byte_t)ChanNum | RESTXFCNT); /* apply reset Tx FIFO count */
-   sOutB(ChP->Cmd,(Byte_t)ChanNum);  /* remove reset Tx FIFO count */
-   sOutW((WordIO_t)ChP->IndexAddr,ChP->TxFIFOPtrs); /* clear Tx in/out ptrs */
-   sOutW(ChP->IndexData,0);
+   rp_writech1(ChP,_CMD_REG,(Byte_t)ChanNum | RESTXFCNT); /* apply reset Tx FIFO count */
+   rp_writech1(ChP,_CMD_REG,(Byte_t)ChanNum);  /* remove reset Tx FIFO count */
+   rp_writech2(ChP,_INDX_ADDR,ChP->TxFIFOPtrs); /* clear Tx in/out ptrs */
+   rp_writech2(ChP,_INDX_DATA,0);
    ChP->RxFIFOPtrs = ChOff + _RXF_OUTP;
    ChP->RxFIFO = ChOff + _RX_FIFO;
 
-   sOutB(ChP->Cmd,(Byte_t)ChanNum | RESRXFCNT); /* apply reset Rx FIFO count */
-   sOutB(ChP->Cmd,(Byte_t)ChanNum);  /* remove reset Rx FIFO count */
-   sOutW((WordIO_t)ChP->IndexAddr,ChP->RxFIFOPtrs); /* clear Rx out ptr */
-   sOutW(ChP->IndexData,0);
-   sOutW((WordIO_t)ChP->IndexAddr,ChP->RxFIFOPtrs + 2); /* clear Rx in ptr */
-   sOutW(ChP->IndexData,0);
+   rp_writech1(ChP,_CMD_REG,(Byte_t)ChanNum | RESRXFCNT); /* apply reset Rx FIFO count */
+   rp_writech1(ChP,_CMD_REG,(Byte_t)ChanNum);  /* remove reset Rx FIFO count */
+   rp_writech2(ChP,_INDX_ADDR,ChP->RxFIFOPtrs); /* clear Rx out ptr */
+   rp_writech2(ChP,_INDX_ADDR,0);
+   rp_writech2(ChP,_INDX_ADDR,ChP->RxFIFOPtrs + 2); /* clear Rx in ptr */
+   rp_writech2(ChP,_INDX_ADDR,0);
    ChP->TxPrioCnt = ChOff + _TXP_CNT;
-   sOutW((WordIO_t)ChP->IndexAddr,ChP->TxPrioCnt);
-   sOutB(ChP->IndexData,0);
+   rp_writech2(ChP,_INDX_ADDR,ChP->TxPrioCnt);
+   rp_writech1(ChP,_INDX_ADDR,0);
    ChP->TxPrioPtr = ChOff + _TXP_PNTR;
-   sOutW((WordIO_t)ChP->IndexAddr,ChP->TxPrioPtr);
-   sOutB(ChP->IndexData,0);
+   rp_writech2(ChP,_INDX_ADDR,ChP->TxPrioPtr);
+   rp_writech1(ChP,_INDX_ADDR,0);
    ChP->TxPrioBuf = ChOff + _TXP_BUF;
    sEnRxProcessor(ChP); 	       /* start the Rx processor */
 
@@ -537,7 +330,7 @@ void sStopRxProcessor(CHANNEL_T *ChP)
    R[1] = ChP->R[1];
    R[2] = 0x0a;
    R[3] = ChP->R[3];
-   sOutDW(ChP->IndexAddr,*(DWord_t *)&R[0]);
+   rp_writech4(ChP, _INDX_ADDR,*(DWord_t *)&R[0]);
 }
 
 /***************************************************************************
@@ -569,16 +362,16 @@ void sFlushRxFIFO(CHANNEL_T *ChP)
       RxFIFOEnabled = TRUE;
       sDisRxFIFO(ChP);		       /* disable it */
       for(i=0; i < 2000/200; i++)	/* delay 2 uS to allow proc to disable FIFO*/
-	 sInB(ChP->IntChan);		/* depends on bus i/o timing */
+	 rp_readch1(ChP,_INT_CHAN);		/* depends on bus i/o timing */
    }
    sGetChanStatus(ChP); 	 /* clear any pending Rx errors in chan stat */
    Ch = (Byte_t)sGetChanNum(ChP);
-   sOutB(ChP->Cmd,Ch | RESRXFCNT);     /* apply reset Rx FIFO count */
-   sOutB(ChP->Cmd,Ch);		       /* remove reset Rx FIFO count */
-   sOutW((WordIO_t)ChP->IndexAddr,ChP->RxFIFOPtrs); /* clear Rx out ptr */
-   sOutW(ChP->IndexData,0);
-   sOutW((WordIO_t)ChP->IndexAddr,ChP->RxFIFOPtrs + 2); /* clear Rx in ptr */
-   sOutW(ChP->IndexData,0);
+   rp_writech1(ChP,_CMD_REG,Ch | RESRXFCNT);     /* apply reset Rx FIFO count */
+   rp_writech1(ChP,_CMD_REG,Ch);		       /* remove reset Rx FIFO count */
+   rp_writech2(ChP,_INDX_ADDR,ChP->RxFIFOPtrs); /* clear Rx out ptr */
+   rp_writech2(ChP,_INDX_DATA,0);
+   rp_writech2(ChP,_INDX_ADDR,ChP->RxFIFOPtrs + 2); /* clear Rx in ptr */
+   rp_writech2(ChP,_INDX_DATA,0);
    if(RxFIFOEnabled)
       sEnRxFIFO(ChP);		       /* enable Rx FIFO */
 }
@@ -614,12 +407,12 @@ void sFlushTxFIFO(CHANNEL_T *ChP)
    }
    sStopRxProcessor(ChP);	       /* stop Rx processor */
    for(i = 0; i < 4000/200; i++)	 /* delay 4 uS to allow proc to stop */
-      sInB(ChP->IntChan);	/* depends on bus i/o timing */
+      rp_readch1(ChP,_INT_CHAN);	/* depends on bus i/o timing */
    Ch = (Byte_t)sGetChanNum(ChP);
-   sOutB(ChP->Cmd,Ch | RESTXFCNT);     /* apply reset Tx FIFO count */
-   sOutB(ChP->Cmd,Ch);		       /* remove reset Tx FIFO count */
-   sOutW((WordIO_t)ChP->IndexAddr,ChP->TxFIFOPtrs); /* clear Tx in/out ptrs */
-   sOutW(ChP->IndexData,0);
+   rp_writech1(ChP,_CMD_REG,Ch | RESTXFCNT);     /* apply reset Tx FIFO count */
+   rp_writech1(ChP,_CMD_REG,Ch);		       /* remove reset Tx FIFO count */
+   rp_writech2(ChP,_INDX_ADDR,ChP->TxFIFOPtrs); /* clear Tx in/out ptrs */
+   rp_writech2(ChP,_INDX_DATA,0);
    if(TxEnabled)
       sEnTransmit(ChP); 	       /* enable transmitter */
    sStartRxProcessor(ChP);	       /* restart Rx processor */
@@ -642,30 +435,28 @@ int sWriteTxPrioByte(CHANNEL_T *ChP, Byte_t Data)
 {
    Byte_t DWBuf[4];		/* buffer for double word writes */
    Word_t *WordPtr;	     /* must be far because Win SS != DS */
-   register DWordIO_t IndexAddr;
 
    if(sGetTxCnt(ChP) > 1)	       /* write it to Tx priority buffer */
    {
-      IndexAddr = ChP->IndexAddr;
-      sOutW((WordIO_t)IndexAddr,ChP->TxPrioCnt); /* get priority buffer status */
-      if(sInB((ByteIO_t)ChP->IndexData) & PRI_PEND) /* priority buffer busy */
+      rp_writech2(ChP,_INDX_ADDR,ChP->TxPrioCnt); /* get priority buffer status */
+      if(rp_readch1(ChP,_INDX_DATA) & PRI_PEND) /* priority buffer busy */
 	 return(0);		       /* nothing sent */
 
       WordPtr = (Word_t *)(&DWBuf[0]);
       *WordPtr = ChP->TxPrioBuf;       /* data byte address */
 
       DWBuf[2] = Data;		       /* data byte value */
-      sOutDW(IndexAddr,*((DWord_t *)(&DWBuf[0]))); /* write it out */
+      rp_writech4(ChP,_INDX_ADDR,*((DWord_t *)(&DWBuf[0]))); /* write it out */
 
       *WordPtr = ChP->TxPrioCnt;       /* Tx priority count address */
 
       DWBuf[2] = PRI_PEND + 1;	       /* indicate 1 byte pending */
       DWBuf[3] = 0;		       /* priority buffer pointer */
-      sOutDW(IndexAddr,*((DWord_t *)(&DWBuf[0]))); /* write it out */
+      rp_writech4(ChP,_INDX_ADDR,*((DWord_t *)(&DWBuf[0]))); /* write it out */
    }
    else 			       /* write it to Tx FIFO */
    {
-      sWriteTxByte(sGetTxRxDataIO(ChP),Data);
+      sWriteTxByte(ChP,sGetTxRxDataIO(ChP),Data);
    }
    return(1);			       /* 1 byte sent */
 }
@@ -709,16 +500,16 @@ void sEnInterrupts(CHANNEL_T *ChP,Word_t Flags)
    ChP->RxControl[2] |=
       ((Byte_t)Flags & (RXINT_EN | SRCINT_EN | MCINT_EN));
 
-   sOutDW(ChP->IndexAddr,*(DWord_t *)&ChP->RxControl[0]);
+   rp_writech4(ChP,_INDX_ADDR,*(DWord_t *)&ChP->RxControl[0]);
 
    ChP->TxControl[2] |= ((Byte_t)Flags & TXINT_EN);
 
-   sOutDW(ChP->IndexAddr,*(DWord_t *)&ChP->TxControl[0]);
+   rp_writech4(ChP,_INDX_ADDR,*(DWord_t *)&ChP->TxControl[0]);
 
    if(Flags & CHANINT_EN)
    {
-      Mask = sInB(ChP->IntMask) | sBitMapSetTbl[ChP->ChanNum];
-      sOutB(ChP->IntMask,Mask);
+      Mask = rp_readch1(ChP,_INT_MASK) | rp_sBitMapSetTbl[ChP->ChanNum];
+      rp_writech1(ChP,_INT_MASK,Mask);
    }
 }
 
@@ -753,14 +544,14 @@ void sDisInterrupts(CHANNEL_T *ChP,Word_t Flags)
 
    ChP->RxControl[2] &=
 	 ~((Byte_t)Flags & (RXINT_EN | SRCINT_EN | MCINT_EN));
-   sOutDW(ChP->IndexAddr,*(DWord_t *)&ChP->RxControl[0]);
+   rp_writech4(ChP,_INDX_ADDR,*(DWord_t *)&ChP->RxControl[0]);
    ChP->TxControl[2] &= ~((Byte_t)Flags & TXINT_EN);
-   sOutDW(ChP->IndexAddr,*(DWord_t *)&ChP->TxControl[0]);
+   rp_writech4(ChP,_INDX_ADDR,*(DWord_t *)&ChP->TxControl[0]);
 
    if(Flags & CHANINT_EN)
    {
-      Mask = sInB(ChP->IntMask) & sBitMapClrTbl[ChP->ChanNum];
-      sOutB(ChP->IntMask,Mask);
+      Mask = rp_readch1(ChP,_INT_MASK) & rp_sBitMapClrTbl[ChP->ChanNum];
+      rp_writech1(ChP,_INT_MASK,Mask);
    }
 }
 
@@ -768,51 +559,25 @@ void sDisInterrupts(CHANNEL_T *ChP,Word_t Flags)
   Begin FreeBsd-specific driver code
 **********************************************************************/
 
-static int rpprobe __P((struct isa_device *));
-static int rpattach __P((struct isa_device *));
-
-static const char* rp_pciprobe(pcici_t tag, pcidi_t type);
-static void rp_pciattach(pcici_t tag, int unit);
-static u_long	rp_pcicount;
-
-static struct pci_device rp_pcidevice = {
-	"rp",
-	rp_pciprobe,
-	rp_pciattach,
-	&rp_pcicount,
-	NULL
-};
-
-COMPAT_PCI_DRIVER (rp_pci, rp_pcidevice);
-
 static timeout_t rpdtrwakeup;
-
-struct isa_driver rpdriver = {
-	INTR_TYPE_TTY,
-	rpprobe,
-	rpattach,
-	"rp"
-};
-COMPAT_ISA_DRIVER(rp, rpdriver);
-
-static	char	driver_name[] = "rp";
 
 static	d_open_t	rpopen;
 static	d_close_t	rpclose;
+static	d_read_t	rpread;
 static	d_write_t	rpwrite;
 static	d_ioctl_t	rpioctl;
 
 #define	CDEV_MAJOR	81
-static struct cdevsw rp_cdevsw = {
+struct cdevsw rp_cdevsw = {
 	/* open */	rpopen,
 	/* close */	rpclose,
-	/* read */	ttyread,
+	/* read */	rpread,
 	/* write */	rpwrite,
 	/* ioctl */	rpioctl,
 	/* poll */	ttypoll,
 	/* mmap */	nommap,
 	/* strategy */	nostrategy,
-	/* name */	driver_name,
+	/* name */	"rp",
 	/* maj */	CDEV_MAJOR,
 	/* dump */	nodump,
 	/* psize */	nopsize,
@@ -820,13 +585,9 @@ static struct cdevsw rp_cdevsw = {
 	/* bmaj */	-1
 };
 
-static int rp_controller_port = 0;
-static int rp_num_ports_open = 0;
-static int	ndevs = 0;
+static int	rp_num_ports_open = 0;
+static int	rp_ndevs = 0;
 static int	minor_to_unit[128];
-#if 0
-static	struct	tty	rp_tty[128];
-#endif
 
 static int rp_num_ports[4];	/* Number of ports on each controller */
 
@@ -860,15 +621,14 @@ static	int	rpparam __P((struct tty *, struct termios *));
 static	void	rpstart __P((struct tty *));
 static	void	rpstop __P((struct tty *, int));
 static	void	rphardclose	__P((struct rp_port *));
-static	void	rp_disc_optim	__P((struct tty *tp, struct termios *t,
-						struct rp_port	*rp));
+static	void	rp_disc_optim	__P((struct tty *tp, struct termios *t));
 
 static _INLINE_ void rp_do_receive(struct rp_port *rp, struct tty *tp,
 			CHANNEL_t *cp, unsigned int ChanStatus)
 {
 	int	spl;
 	unsigned	int	CharNStat;
-	int	ToRecv, ch;
+	int	ToRecv, wRecv, ch, ttynocopy;
 
 	ToRecv = sGetRxCnt(cp);
 	if(ToRecv == 0)
@@ -895,7 +655,7 @@ static _INLINE_ void rp_do_receive(struct rp_port *rp, struct tty *tp,
 			if(tp->t_state & TS_TBLOCK) {
 				break;
 			}
-			CharNStat = sInW(sGetTxRxDataIO(cp));
+			CharNStat = rp_readch2(cp,sGetTxRxDataIO(cp));
 			ch = CharNStat & 0xff;
 
 			if((CharNStat & STMBREAK) || (CharNStat & STMFRAMEH))
@@ -912,19 +672,44 @@ static _INLINE_ void rp_do_receive(struct rp_port *rp, struct tty *tp,
 	After emtying FIFO in status mode, turn off status mode
 */
 
-	if(sGetRxCnt(cp) == 0)
-		sDisRxStatusMode(cp);
-	}
-	else {
-		while (ToRecv) {
-			if(tp->t_state & TS_TBLOCK) {
-				break;
+		if(sGetRxCnt(cp) == 0)
+			sDisRxStatusMode(cp);
+	} else {
+		/*
+		 * Avoid the grotesquely inefficient lineswitch routine
+		 * (ttyinput) in "raw" mode.  It usually takes about 450
+		 * instructions (that's without canonical processing or echo!).
+		 * slinput is reasonably fast (usually 40 instructions plus
+		 * call overhead).
+		 */
+		ToRecv = sGetRxCnt(cp);
+		if ( tp->t_state & TS_CAN_BYPASS_L_RINT ) {
+			if ( ToRecv > RXFIFO_SIZE ) {
+				ToRecv = RXFIFO_SIZE;
 			}
-			ch = (u_char) sInB(sGetTxRxDataIO(cp));
-			spl = spltty();
-			(*linesw[tp->t_line].l_rint)(ch, tp);
-			splx(spl);
-			ToRecv--;
+			wRecv = ToRecv >> 1;
+			if ( wRecv ) {
+				rp_readmultich2(cp,sGetTxRxDataIO(cp),(u_int16_t *)rp->RxBuf,wRecv);
+			}
+			if ( ToRecv & 1 ) {
+				rp->RxBuf[(ToRecv-1)] = (u_char) rp_readch1(cp,sGetTxRxDataIO(cp));
+			}
+			tk_nin += ToRecv;
+			tk_rawcc += ToRecv;
+			tp->t_rawcc += ToRecv;
+			ttynocopy = b_to_q((char *)rp->RxBuf, ToRecv, &tp->t_rawq);
+			ttwakeup(tp);
+		} else {
+			while (ToRecv) {
+				if(tp->t_state & TS_TBLOCK) {
+					break;
+				}
+				ch = (u_char) rp_readch1(cp,sGetTxRxDataIO(cp));
+				spl = spltty();
+				(*linesw[tp->t_line].l_rint)(ch, tp);
+				splx(spl);
+				ToRecv--;
+			}
 		}
 	}
 }
@@ -934,7 +719,6 @@ static _INLINE_ void rp_handle_port(struct rp_port *rp)
 	CHANNEL_t	*cp;
 	struct	tty	*tp;
 	unsigned	int	IntMask, ChanStatus;
-     /*	int	oldcts; */
 
 	if(!rp)
 		return;
@@ -978,13 +762,10 @@ static void rp_do_poll(void *not_used)
 	int	unit, aiop, ch, line, count;
 	unsigned char	CtlMask, AiopMask;
 
-	for(unit = 0; unit <= ndevs; unit++) {
+	for(unit = 0; unit < rp_ndevs; unit++) {
 	rp = rp_addr(unit);
 	ctl = rp->rp_ctlp;
-	if(ctl->BusType == isPCI)
-		CtlMask = sPCIGetControllerIntStatus(ctl);
-	else
-		CtlMask = sGetControllerIntStatus(ctl);
+	CtlMask = ctl->ctlmask(ctl);
 	for(aiop=0; CtlMask; CtlMask >>=1, aiop++) {
 		if(CtlMask & 1) {
 			AiopMask = sGetAiopIntStatus(ctl, aiop);
@@ -1016,103 +797,30 @@ static void rp_do_poll(void *not_used)
 		timeout(rp_do_poll, (void *)NULL, POLL_INTERVAL);
 }
 
-static const char*
-rp_pciprobe(pcici_t tag, pcidi_t type)
-{
-	int	vendor_id;
-
-	vendor_id = type & 0xffff;
-	switch(vendor_id)
-	case 0x11fe:
-		return("rp");
-	return(NULL);
-}
-
-static
 int
-rpprobe(dev)
-struct isa_device *dev;
+rp_attachcommon(CONTROLLER_T *ctlp, int num_aiops, int num_ports)
 {
-	int controller, unit;
-	int aiop, num_aiops;
-	unsigned int aiopio[MAX_AIOPS_PER_BOARD];
-	CONTROLLER_t *ctlp;
-
-	unit = dev->id_unit;
-	if (dev->id_unit >= 4) {
-		printf("rpprobe: unit number %d invalid.\n", dev->id_unit);
-		return 1;
-	}
-	printf("probing for RocketPort(ISA) unit %d\n", unit);
-	if (rp_controller_port)
-		controller = rp_controller_port;
-	else {
-		controller = dev->id_iobase + 0x40;
-	}
-
-	for (aiop=0; aiop<MAX_AIOPS_PER_BOARD; aiop++)
-		aiopio[aiop]= dev->id_iobase + (aiop * 0x400);
-
-	ctlp = sCtlNumToCtlPtr(dev->id_unit);
-	num_aiops = sInitController(ctlp, dev->id_unit,
-				controller + ((unit-rp_pcicount)*0x400),
-				aiopio, MAX_AIOPS_PER_BOARD, 0,
-				FREQ_DIS, 0);
-	if (num_aiops <= 0) {
-		printf("board%d init failed\n", unit);
-		return 0;
-	}
-
-	if (rp_controller_port) {
-		dev->id_msize = 64;
-	} else {
-		dev->id_msize = 68;
-		rp_controller_port = controller;
-	}
-
-	dev->id_irq = 0;
-
-	return 1;
-}
-
-static void
-rp_pciattach(pcici_t tag, int unit)
-{
-	int	success, oldspl;
-	u_short iobase;
-	int	num_ports, num_chan, num_aiops;
+	int	oldspl, unit;
+	int	num_chan;
 	int	aiop, chan, port;
 	int	ChanStatus, line, i, count;
-	unsigned int	aiopio[MAX_AIOPS_PER_BOARD];
+	int	retval;
 	struct	rp_port *rp;
 	struct	tty	*tty;
-	CONTROLLER_t	*ctlp;
+	dev_t	*dev_nodes;
 
-	success = pci_map_port(tag, 0x10, &iobase);
-	if(!success)
-		printf("ioaddr mapping failed for RocketPort(PCI)\n");
+	unit = device_get_unit(ctlp->dev);
 
-	for(aiop=0; aiop < MAX_AIOPS_PER_BOARD; aiop++)
-		aiopio[aiop] = iobase + (aiop * 0x40);
-
-	ctlp = sCtlNumToCtlPtr(unit);
-	num_aiops = sPCIInitController(ctlp, unit,
-				aiopio, MAX_AIOPS_PER_BOARD, 0,
-				FREQ_DIS, 0);
-
-	num_ports = 0;
-	for(aiop=0; aiop < num_aiops; aiop++) {
-		sResetAiopByNum(ctlp, aiop);
-		num_ports += sGetAiopNumChan(ctlp, aiop);
-	}
-	printf("RocketPort%d = %d ports\n", unit, num_ports);
+	printf("RocketPort%d (Version %s) %d ports.\n", unit,
+		RocketPortVersion, num_ports);
 	rp_num_ports[unit] = num_ports;
 
-	rp = (struct rp_port *)
+	ctlp->rp = rp = (struct rp_port *)
 		malloc(sizeof(struct rp_port) * num_ports, M_TTYS, M_NOWAIT);
-	if(rp == 0) {
-		printf("rp_attach: Could not malloc rp_ports structures\n");
-		return;
+	if (rp == NULL) {
+		device_printf(ctlp->dev, "rp_attachcommon: Could not malloc rp_ports structures.\n");
+		retval = ENOMEM;
+		goto nogo;
 	}
 
 	count = unit * 32;      /* board times max ports per card SG */
@@ -1120,11 +828,12 @@ rp_pciattach(pcici_t tag, int unit)
 		minor_to_unit[i] = unit;
 
 	bzero(rp, sizeof(struct rp_port) * num_ports);
-	tty = (struct tty *)
+	ctlp->tty = tty = (struct tty *)
 		malloc(sizeof(struct tty) * num_ports, M_TTYS, M_NOWAIT);
-	if(tty == 0) {
-		printf("rp_attach: Could not malloc tty structures\n");
-		return;
+	if(tty == NULL) {
+		device_printf(ctlp->dev, "rp_attachcommon: Could not malloc tty structures.\n");
+		retval = ENOMEM;
+		goto nogo;
 	}
 	bzero(tty, sizeof(struct tty) * num_ports);
 
@@ -1132,7 +841,34 @@ rp_pciattach(pcici_t tag, int unit)
 	rp_addr(unit) = rp;
 	splx(oldspl);
 
-	cdevsw_add(&rp_cdevsw);
+	dev_nodes = ctlp->dev_nodes = malloc(sizeof(*(ctlp->dev_nodes)) * rp_num_ports[unit] * 6, M_DEVBUF, M_NOWAIT);
+	if(ctlp->dev_nodes == NULL) {
+		device_printf(ctlp->dev, "rp_attachcommon: Could not malloc device node structures.\n");
+		retval = ENOMEM;
+		goto nogo;
+	}
+	bzero(dev_nodes, sizeof(*(ctlp->dev_nodes)) * rp_num_ports[unit] * 6);
+
+	for (i = 0 ; i < rp_num_ports[unit] ; i++) {
+		*(dev_nodes++) = make_dev(&rp_cdevsw, ((unit + 1) << 16) | i,
+					  UID_ROOT, GID_WHEEL, 0666, "ttyR%c",
+					  i <= 9 ? '0' + i : 'a' + i - 10);
+		*(dev_nodes++) = make_dev(&rp_cdevsw, ((unit + 1) << 16) | i | 0x20,
+					  UID_ROOT, GID_WHEEL, 0666, "ttyiR%c",
+					  i <= 9 ? '0' + i : 'a' + i - 10);
+		*(dev_nodes++) = make_dev(&rp_cdevsw, ((unit + 1) << 16) | i | 0x40,
+					  UID_ROOT, GID_WHEEL, 0666, "ttylR%c",
+					  i <= 9 ? '0' + i : 'a' + i - 10);
+		*(dev_nodes++) = make_dev(&rp_cdevsw, ((unit + 1) << 16) | i | 0x80,
+					  UID_ROOT, GID_WHEEL, 0666, "cuaR%c",
+					  i <= 9 ? '0' + i : 'a' + i - 10);
+		*(dev_nodes++) = make_dev(&rp_cdevsw, ((unit + 1) << 16) | i | 0xa0,
+					  UID_ROOT, GID_WHEEL, 0666, "cuaiR%c",
+					  i <= 9 ? '0' + i : 'a' + i - 10);
+		*(dev_nodes++) = make_dev(&rp_cdevsw, ((unit + 1) << 16) | i | 0xc0,
+					  UID_ROOT, GID_WHEEL, 0666, "cualR%c",
+					  i <= 9 ? '0' + i : 'a' + i - 10);
+	}
 
 	port = 0;
 	for(aiop=0; aiop < num_aiops; aiop++) {
@@ -1161,11 +897,14 @@ rp_pciattach(pcici_t tag, int unit)
 
 			rp->rp_intmask = RXF_TRIG | TXFIFO_MT | SRC_INT |
 				DELTA_CD | DELTA_CTS | DELTA_DSR;
+#if notdef
 			ChanStatus = sGetChanStatus(&rp->rp_channel);
+#endif /* notdef */
 			if(sInitChan(ctlp, &rp->rp_channel, aiop, chan) == 0) {
-				printf("RocketPort sInitChan(%d, %d, %d) failed
-					\n", unit, aiop, chan);
-				return;
+				device_printf(ctlp->dev, "RocketPort sInitChan(%d, %d, %d) failed.\n",
+					      unit, aiop, chan);
+				retval = ENXIO;
+				goto nogo;
 			}
 			ChanStatus = sGetChanStatus(&rp->rp_channel);
 			rp->rp_cts = (ChanStatus & CTS_ACT) != 0;
@@ -1173,111 +912,45 @@ rp_pciattach(pcici_t tag, int unit)
 			rp_table(line) = rp;
 		}
 	}
+
+	rp_ndevs++;
+	return (0);
+
+nogo:
+	rp_releaseresource(ctlp);
+
+	return (retval);
 }
 
-static
-int
-rpattach(dev)
-struct	isa_device	*dev;
+void
+rp_releaseresource(CONTROLLER_t *ctlp)
 {
-	int	iobase, unit, /*rpmajor,*/ oldspl;
-	int	num_ports, num_chan, num_aiops;
-	int	aiop, chan, port;
-	int	ChanStatus, line, i, count;
-	unsigned int	aiopio[MAX_AIOPS_PER_BOARD];
-	struct	rp_port *rp;
-	struct	tty	*tty;
-	CONTROLLER_t	*ctlp;
+	int i, s, unit;
 
-	iobase = dev->id_iobase;
-	unit = dev->id_unit;
-	ndevs = unit;
+	unit = device_get_unit(ctlp->dev);
 
-	for(aiop=0; aiop < MAX_AIOPS_PER_BOARD; aiop++)
-		aiopio[aiop] = iobase + (aiop * 0x400);
-
-	ctlp = sCtlNumToCtlPtr(unit);
-	num_aiops = sInitController(ctlp, unit,
-				rp_controller_port + ((unit-rp_pcicount) * 0x400),
-				aiopio, MAX_AIOPS_PER_BOARD, 0,
-				FREQ_DIS, 0);
-
-	num_ports = 0;
-	for(aiop=0; aiop < num_aiops; aiop++) {
-		sResetAiopByNum(ctlp, aiop);
-		sEnAiop(ctlp, aiop);
-		num_ports += sGetAiopNumChan(ctlp, aiop);
+	if (ctlp->rp != NULL) {
+		s = spltty();
+		for (i = 0 ; i < sizeof(p_rp_addr) / sizeof(*p_rp_addr) ; i++)
+			if (p_rp_addr[i] == ctlp->rp)
+				p_rp_addr[i] = NULL;
+		for (i = 0 ; i < sizeof(p_rp_table) / sizeof(*p_rp_table) ; i++)
+			if (p_rp_table[i] == ctlp->rp)
+				p_rp_table[i] = NULL;
+		splx(s);
+		free(ctlp->rp, M_DEVBUF);
+		ctlp->rp = NULL;
 	}
-	printf("RocketPort%d = %d ports\n", unit, num_ports);
-	rp_num_ports[unit] = num_ports;
-
-	rp = (struct rp_port *)
-		malloc(sizeof(struct rp_port) * num_ports, M_TTYS, M_NOWAIT);
-	if(rp == 0) {
-		printf("rp_attach: Could not malloc rp_ports structures\n");
-		return(0);
+	if (ctlp->tty != NULL) {
+		free(ctlp->tty, M_DEVBUF);
+		ctlp->tty = NULL;
 	}
-
-	count = unit * 32;    /* board # times max ports per card  SG */
-	for(i=count;i < (count + rp_num_ports[unit]);i++)
-		minor_to_unit[i] = unit;
-
-	bzero(rp, sizeof(struct rp_port) * num_ports);
-	tty = (struct tty *)
-		malloc(sizeof(struct tty) * num_ports, M_TTYS, M_NOWAIT);
-	if(tty == 0) {
-		printf("rp_attach: Could not malloc tty structures\n");
-		return(0);
+	if (ctlp->dev != NULL) {
+		for (i = 0 ; i < rp_num_ports[unit] * 6 ; i++)
+			destroy_dev(ctlp->dev_nodes[i]);
+		free(ctlp->dev_nodes, M_DEVBUF);
+		ctlp->dev = NULL;
 	}
-	bzero(tty, sizeof(struct tty) * num_ports);
-
-	oldspl = spltty();
-	rp_addr(unit) = rp;
-	splx(oldspl);
-
-	cdevsw_add(&rp_cdevsw);
-
-	port = 0;
-	for(aiop=0; aiop < num_aiops; aiop++) {
-		num_chan = sGetAiopNumChan(ctlp, aiop);
-		for(chan=0; chan < num_chan; chan++, port++, rp++, tty++) {
-			rp->rp_tty = tty;
-			rp->rp_port = port;
-			rp->rp_ctlp = ctlp;
-			rp->rp_unit = unit;
-			rp->rp_chan = chan;
-			rp->rp_aiop = aiop;
-
-			tty->t_line = 0;
-	/*		tty->t_termios = deftermios;
-	*/
-			rp->dtr_wait = 3 * hz;
-			rp->it_in.c_iflag = 0;
-			rp->it_in.c_oflag = 0;
-			rp->it_in.c_cflag = TTYDEF_CFLAG;
-			rp->it_in.c_lflag = 0;
-			termioschars(&rp->it_in);
-	/*		termioschars(&tty->t_termios);
-	*/
-			rp->it_in.c_ispeed = rp->it_in.c_ospeed = TTYDEF_SPEED;
-			rp->it_out = rp->it_in;
-
-			rp->rp_intmask = RXF_TRIG | TXFIFO_MT | SRC_INT |
-				DELTA_CD | DELTA_CTS | DELTA_DSR;
-			ChanStatus = sGetChanStatus(&rp->rp_channel);
-			if(sInitChan(ctlp, &rp->rp_channel, aiop, chan) == 0) {
-				printf("RocketPort sInitChan(%d, %d, %d) failed
-					\n", unit, aiop, chan);
-				return(0);
-			}
-			ChanStatus = sGetChanStatus(&rp->rp_channel);
-			rp->rp_cts = (ChanStatus & CTS_ACT) != 0;
-			line = (unit << 5) | (aiop << 3) | chan;
-			rp_table(line) = rp;
-		}
-	}
-
-	return(1);
 }
 
 int
@@ -1297,6 +970,8 @@ rpopen(dev, flag, mode, p)
 	port  = (minor(dev) & 0x1f);                /* SG */
 	mynor = (port + umynor);                    /* SG */
 	unit = minor_to_unit[mynor];
+	if (rp_addr(unit) == NULL)
+		return (ENXIO);
 	if(IS_CONTROL(dev))
 		return(0);
 	rp = rp_addr(unit) + port;
@@ -1333,10 +1008,10 @@ open_top:
 				goto open_top;
 			}
 		}
-		if(tp->t_state & TS_XCLUDE &&
-		    suser(p)) {
+		if(tp->t_state & TS_XCLUDE && suser(p) != 0) {
 			splx(oldspl);
-			return(EBUSY);
+			error = EBUSY;
+			goto out2;
 		}
 	}
 	else {
@@ -1346,13 +1021,16 @@ open_top:
 		tp->t_stop = rpstop;
 		tp->t_line = 0;
 		tp->t_termios = IS_CALLOUT(dev) ? rp->it_out : rp->it_in;
+		tp->t_ififosize = 512;
+		tp->t_ispeedwat = (speed_t)-1;
+		tp->t_ospeedwat = (speed_t)-1;
 		flags = 0;
 		flags |= SET_RTS;
 		flags |= SET_DTR;
 		rp->rp_channel.TxControl[3] =
 			((rp->rp_channel.TxControl[3]
 			& ~(SET_RTS | SET_DTR)) | flags);
-		sOutDW(rp->rp_channel.IndexAddr,
+		rp_writech4(&rp->rp_channel,_INDX_ADDR,
 			*(DWord_t *) &(rp->rp_channel.TxControl[0]));
 		sSetRxTrigger(&rp->rp_channel, TRIG_1);
 		sDisRxStatusMode(&rp->rp_channel);
@@ -1416,7 +1094,7 @@ open_top:
 	}
 	error = (*linesw[tp->t_line].l_open)(dev, tp);
 
-	rp_disc_optim(tp, &tp->t_termios, rp);
+	rp_disc_optim(tp, &tp->t_termios);
 	if(tp->t_state & TS_ISOPEN && IS_CALLOUT(dev))
 		rp->active_out = TRUE;
 
@@ -1428,6 +1106,9 @@ out:
 	if(!(tp->t_state & TS_ISOPEN) && rp->wopeners == 0) {
 		rphardclose(rp);
 	}
+out2:
+	if (error == 0)
+		device_busy(rp->rp_ctlp->dev);
 	return(error);
 }
 
@@ -1455,7 +1136,7 @@ rpclose(dev, flag, mode, p)
 
 	oldspl = spltty();
 	(*linesw[tp->t_line].l_close)(tp, flag);
-	rp_disc_optim(tp, &tp->t_termios, rp);
+	rp_disc_optim(tp, &tp->t_termios);
 	rpstop(tp, FREAD | FWRITE);
 	rphardclose(rp);
 
@@ -1463,6 +1144,8 @@ rpclose(dev, flag, mode, p)
 	ttyclose(tp);
 
 	splx(oldspl);
+
+	device_unbusy(rp->rp_ctlp->dev);
 
 	return(0);
 }
@@ -1501,6 +1184,30 @@ rphardclose(struct rp_port *rp)
 	rp->active_out = FALSE;
 	wakeup(&rp->active_out);
 	wakeup(TSA_CARR_ON(tp));
+}
+
+static
+int
+rpread(dev, uio, flag)
+	dev_t	dev;
+	struct	uio	*uio;
+	int	flag;
+{
+	struct	rp_port *rp;
+	struct	tty	*tp;
+	int	unit, mynor, umynor, port, error = 0; /* SG */
+
+   umynor = (((minor(dev) >> 16) -1) * 32);    /* SG */
+	port  = (minor(dev) & 0x1f);                /* SG */
+	mynor = (port + umynor);                    /* SG */
+   unit = minor_to_unit[mynor];                /* SG */
+
+	if(IS_CONTROL(dev))
+		return(ENODEV);
+	rp = rp_addr(unit) + port;
+	tp = rp->rp_tty;
+	error = (*linesw[tp->t_line].l_read)(tp, uio, flag);
+	return(error);
 }
 
 static
@@ -1559,8 +1266,7 @@ rpioctl(dev, cmd, data, flag, p)
 	int	oldspl;
 	int	error = 0;
 	int	arg, flags, result, ChanStatus;
-	int	oldcmd;
-	struct	termios term, *t;
+	struct	termios *t;
 
    umynor = (((minor(dev) >> 16) -1) * 32);    /* SG */
 	port  = (minor(dev) & 0x1f);                /* SG */
@@ -1630,7 +1336,7 @@ rpioctl(dev, cmd, data, flag, p)
 		dt->c_lflag = (tp->t_lflag & lt->c_lflag)
 				| (dt->c_lflag & ~lt->c_lflag);
 		for(cc = 0; cc < NCCS; ++cc)
-			if((lt->c_cc[cc] = tp->t_cc[cc]) != 0)
+			if(lt->c_cc[cc] != 0)
 				dt->c_cc[cc] = tp->t_cc[cc];
 		if(lt->c_ispeed != 0)
 			dt->c_ispeed = tp->t_ispeed;
@@ -1650,7 +1356,7 @@ rpioctl(dev, cmd, data, flag, p)
 
 	error = ttioctl(tp, cmd, data, flag);
 	flags = rp->rp_channel.TxControl[3];
-	rp_disc_optim(tp, &tp->t_termios, rp);
+	rp_disc_optim(tp, &tp->t_termios);
 	if(error != ENOIOCTL) {
 		splx(oldspl);
 		return(error);
@@ -1683,7 +1389,7 @@ rpioctl(dev, cmd, data, flag, p)
 		rp->rp_channel.TxControl[3] =
 			((rp->rp_channel.TxControl[3]
 			& ~(SET_RTS | SET_DTR)) | flags);
-		sOutDW(rp->rp_channel.IndexAddr,
+		rp_writech4(&rp->rp_channel,_INDX_ADDR,
 			*(DWord_t *) &(rp->rp_channel.TxControl[0]));
 		break;
 	case TIOCMBIS:
@@ -1694,7 +1400,7 @@ rpioctl(dev, cmd, data, flag, p)
 		if(arg & TIOCM_DTR)
 			flags |= SET_DTR;
 			rp->rp_channel.TxControl[3] |= flags;
-		sOutDW(rp->rp_channel.IndexAddr,
+		rp_writech4(&rp->rp_channel,_INDX_ADDR,
 			*(DWord_t *) &(rp->rp_channel.TxControl[0]));
 		break;
 	case TIOCMBIC:
@@ -1705,7 +1411,7 @@ rpioctl(dev, cmd, data, flag, p)
 		if(arg & TIOCM_DTR)
 			flags |= SET_DTR;
 		rp->rp_channel.TxControl[3] &= ~flags;
-		sOutDW(rp->rp_channel.IndexAddr,
+		rp_writech4(&rp->rp_channel,_INDX_ADDR,
 			*(DWord_t *) &(rp->rp_channel.TxControl[0]));
 		break;
 
@@ -1747,15 +1453,15 @@ rpioctl(dev, cmd, data, flag, p)
 }
 
 static struct speedtab baud_table[] = {
-	B0,	0,		B50,	BRD50,		B75,	BRD75,
-	B110,	BRD110, 	B134,	BRD134, 	B150,	BRD150,
-	B200,	BRD200, 	B300,	BRD300, 	B600,	BRD600,
-	B1200,	BRD1200,	B1800,	BRD1800,	B2400,	BRD2400,
-	B4800,	BRD4800,	B9600,	BRD9600,	B19200, BRD19200,
-	B38400, BRD38400,	B7200,	BRD7200,	B14400, BRD14400,
-				B57600, BRD57600,	B76800, BRD76800,
-	B115200, BRD115200,	B230400, BRD230400,
-	-1,	-1
+	{B0,	0},		{B50,	BRD50},		{B75,	BRD75},
+	{B110,	BRD110}, 	{B134,	BRD134}, 	{B150,	BRD150},
+	{B200,	BRD200}, 	{B300,	BRD300}, 	{B600,	BRD600},
+	{B1200,	BRD1200},	{B1800,	BRD1800},	{B2400,	BRD2400},
+	{B4800,	BRD4800},	{B9600,	BRD9600},	{B19200, BRD19200},
+	{B38400, BRD38400},	{B7200,	BRD7200},	{B14400, BRD14400},
+				{B57600, BRD57600},	{B76800, BRD76800},
+	{B115200, BRD115200},	{B230400, BRD230400},
+	{-1,	-1}
 };
 
 static int
@@ -1768,6 +1474,9 @@ rpparam(tp, t)
 	int	unit, mynor, port, umynor;               /* SG */
 	int	oldspl, cflag, iflag, oflag, lflag;
 	int	ospeed;
+#ifdef RPCLOCAL
+	int	devshift;
+#endif
 
 
    umynor = (((minor(tp->t_dev) >> 16) -1) * 32);    /* SG */
@@ -1780,6 +1489,13 @@ rpparam(tp, t)
 	oldspl = spltty();
 
 	cflag = t->c_cflag;
+#ifdef RPCLOCAL
+	devshift = umynor / 32;
+	devshift = 1 << devshift;
+	if ( devshift & RPCLOCAL ) {
+		cflag |= CLOCAL;
+	}
+#endif
 	iflag = t->c_iflag;
 	oflag = t->c_oflag;
 	lflag = t->c_lflag;
@@ -1860,7 +1576,7 @@ rpparam(tp, t)
 	} else {
 		sDisRTSFlowCtl(cp);
 	}
-	rp_disc_optim(tp, t, rp);
+	rp_disc_optim(tp, t);
 
 	if((cflag & CLOCAL) || (sGetChanStatusLo(cp) & CD_ACT)) {
 		tp->t_state |= TS_CARR_ON;
@@ -1880,10 +1596,9 @@ rpparam(tp, t)
 }
 
 static void
-rp_disc_optim(tp, t, rp)
+rp_disc_optim(tp, t)
 struct	tty	*tp;
 struct	termios *t;
-struct	rp_port *rp;
 {
 	if(!(t->c_iflag & (ICRNL | IGNCR | IMAXBEL | INLCR | ISTRIP | IXON))
 		&&(!(t->c_iflag & BRKINT) || (t->c_iflag & IGNBRK))
@@ -1904,9 +1619,9 @@ rpstart(tp)
 	CHANNEL_t	*cp;
 	struct	clist	*qp;
 	int	unit, mynor, port, umynor;               /* SG */
-	char	ch, flags;
+	char	flags;
 	int	spl, xmit_fifo_room;
-	int	count;
+	int	count, wcount;
 
 
    umynor = (((minor(tp->t_dev) >> 16) -1) * 32);    /* SG */
@@ -1939,15 +1654,16 @@ rpstart(tp)
 	}
 	xmit_fifo_room = TXFIFO_SIZE - sGetTxCnt(cp);
 	qp = &tp->t_outq;
-	count = 0;
 	if(xmit_fifo_room > 0 && qp->c_cc > 0) {
 		tp->t_state |= TS_BUSY;
-	}
-	while(xmit_fifo_room > 0 && qp->c_cc > 0) {
-		ch = getc(qp);
-		sOutB(sGetTxRxDataIO(cp), ch);
-		xmit_fifo_room--;
-		count++;
+		count = q_to_b( qp, rp->TxBuf, xmit_fifo_room );
+		wcount = count >> 1;
+		if ( wcount ) {
+			rp_writemultich2(cp, sGetTxRxDataIO(cp), (u_int16_t *)rp->TxBuf, wcount);
+		}
+		if ( count & 1 ) {
+			rp_writech1(cp, sGetTxRxDataIO(cp), rp->TxBuf[(count-1)]);
+		}
 	}
 	rp->rp_restart = (qp->c_cc > 0) ? rp->rp_fifo_lw : 0;
 

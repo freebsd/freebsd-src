@@ -45,13 +45,77 @@ typedef unsigned int WordIO_t;
 typedef unsigned long DWord_t;
 typedef unsigned int DWordIO_t;
 
-#define sOutB(a, b) outb(a, b)
-#define sOutW(a, b) outw(a, b)
-#define sOutDW(a, b) outl(a, b)
-#define sInB(a) (inb(a))
-#define sInW(a) (inw(a))
-#define sOutStrW(port, addr, count) outsw(port, addr, count)
-#define sInStrW(port, addr, count) insw(port, addr, count)
+#define rp_readio(size, ctlp, rid, offset) \
+	(bus_space_read_##size(rman_get_bustag(ctlp->io[rid]), rman_get_bushandle(ctlp->io[rid]), offset))
+#define rp_readmultiio(size, ctlp, rid, offset, addr, count) \
+	(bus_space_read_multi_##size(rman_get_bustag(ctlp->io[rid]), rman_get_bushandle(ctlp->io[rid]), offset, addr, count))
+#define rp_writeio(size, ctlp, rid, offset, data) \
+	(bus_space_write_##size(rman_get_bustag(ctlp->io[rid]), rman_get_bushandle(ctlp->io[rid]), offset, data))
+#define rp_writemultiio(size, ctlp, rid, offset, addr, count) \
+	(bus_space_write_multi_##size(rman_get_bustag(ctlp->io[rid]), rman_get_bushandle(ctlp->io[rid]), offset, addr, count))
+
+#define rp_readio1(ctlp, rid, offset)				rp_readio(1, ctlp, rid, offset)
+#define rp_readio2(ctlp, rid, offset)				rp_readio(2, ctlp, rid, offset)
+#define rp_readio4(ctlp, rid, offset)				rp_readio(4, ctlp, rid, offset)
+#define rp_writeio1(ctlp, rid, offset, data)			rp_writeio(1, ctlp, rid, offset, data)
+#define rp_writeio2(ctlp, rid, offset, data)			rp_writeio(2, ctlp, rid, offset, data)
+#define rp_writeio4(ctlp, rid, offset, data)			rp_writeio(4, ctlp, rid, offset, data)
+#define rp_readmultiio1(ctlp, rid, offset, addr, count)		rp_readmultiio(1, ctlp, rid, offset, addr, count) 
+#define rp_readmultiio2(ctlp, rid, offset, addr, count)		rp_readmultiio(2, ctlp, rid, offset, addr, count) 
+#define rp_readmultiio4(ctlp, rid, offset, addr, count)		rp_readmultiio(4, ctlp, rid, offset, addr, count) 
+#define rp_writemultiio1(ctlp, rid, offset, addr, count)	rp_writemultiio(1, ctlp, rid, offset, addr, count) 
+#define rp_writemultiio2(ctlp, rid, offset, addr, count)	rp_writemultiio(2, ctlp, rid, offset, addr, count) 
+#define rp_writemultiio4(ctlp, rid, offset, addr, count)	rp_writemultiio(4, ctlp, rid, offset, addr, count) 
+
+#define rp_readaiop1(ctlp, aiop, offset) \
+	(rp_readio1((ctlp), (ctlp)->aiop2rid(aiop, offset), (ctlp)->aiop2off(aiop, offset)))
+#define rp_readaiop2(ctlp, aiop, offset) \
+	(rp_readio2((ctlp), (ctlp)->aiop2rid(aiop, offset), (ctlp)->aiop2off(aiop, offset)))
+#define rp_readaiop4(ctlp, aiop, offset) \
+	(rp_readio4((ctlp), (ctlp)->aiop2rid(aiop, offset), (ctlp)->aiop2off(aiop, offset)))
+#define rp_readmultiaiop1(ctlp, aiop, offset, addr, count) \
+	(rp_readmultiio1((ctlp), (ctlp)->aiop2rid(aiop, offset), (ctlp)->aiop2off(aiop, offset), addr, count))
+#define rp_readmultiaiop2(ctlp, aiop, offset, addr, count) \
+	(rp_readmultiio2((ctlp), (ctlp)->aiop2rid(aiop, offset), (ctlp)->aiop2off(aiop, offset), addr, count))
+#define rp_readmultiaiop4(ctlp, aiop, offset, addr, count) \
+	(rp_readmultiio4((ctlp), (ctlp)->aiop2rid(aiop, offset), (ctlp)->aiop2off(aiop, offset), addr, count))
+#define rp_writeaiop1(ctlp, aiop, offset, data) \
+	(rp_writeio1((ctlp), (ctlp)->aiop2rid(aiop, offset), (ctlp)->aiop2off(aiop, offset), data))
+#define rp_writeaiop2(ctlp, aiop, offset, data) \
+	(rp_writeio2((ctlp), (ctlp)->aiop2rid(aiop, offset), (ctlp)->aiop2off(aiop, offset), data))
+#define rp_writeaiop4(ctlp, aiop, offset, data) \
+	(rp_writeio4((ctlp), (ctlp)->aiop2rid(aiop, offset), (ctlp)->aiop2off(aiop, offset), data))
+#define rp_writemultiaiop1(ctlp, aiop, offset, addr, count) \
+	(rp_writemultiio1((ctlp), (ctlp)->aiop2rid(aiop, offset), (ctlp)->aiop2off(aiop, offset), addr, count))
+#define rp_writemultiaiop2(ctlp, aiop, offset, addr, count) \
+	(rp_writemultiio2((ctlp), (ctlp)->aiop2rid(aiop, offset), (ctlp)->aiop2off(aiop, offset), addr, count))
+#define rp_writemultiaiop4(ctlp, aiop, offset, addr, count) \
+	(rp_writemultiio4((ctlp), (ctlp)->aiop2rid(aiop, offset), (ctlp)->aiop2off(aiop, offset), addr, count))
+
+#define rp_readch1(chp, offset) \
+	(rp_readaiop1((chp)->CtlP, (chp)->AiopNum, offset))
+#define rp_readch2(chp, offset) \
+	(rp_readaiop2((chp)->CtlP, (chp)->AiopNum, offset))
+#define rp_readch4(chp, offset) \
+	(rp_readaiop4((chp)->CtlP, (chp)->AiopNum, offset))
+#define rp_readmultich1(chp, offset, addr, count) \
+	(rp_readmultiaiop1((chp)->CtlP, (chp)->AiopNum, offset, addr, count))
+#define rp_readmultich2(chp, offset, addr, count) \
+	(rp_readmultiaiop2((chp)->CtlP, (chp)->AiopNum, offset, addr, count))
+#define rp_readmultich4(chp, offset, addr, count) \
+	(rp_readmultiaiop4((chp)->CtlP, (chp)->AiopNum, offset, addr, count))
+#define rp_writech1(chp, offset, data) \
+	(rp_writeaiop1((chp)->CtlP, (chp)->AiopNum, offset, data))
+#define rp_writech2(chp, offset, data) \
+	(rp_writeaiop2((chp)->CtlP, (chp)->AiopNum, offset, data))
+#define rp_writech4(chp, offset, data) \
+	(rp_writeaiop4((chp)->CtlP, (chp)->AiopNum, offset, data))
+#define rp_writemultich1(chp, offset, addr, count) \
+	(rp_writemultiaiop1((chp)->CtlP, (chp)->AiopNum, offset, addr, count))
+#define rp_writemultich2(chp, offset, addr, count) \
+	(rp_writemultiaiop2((chp)->CtlP, (chp)->AiopNum, offset, addr, count))
+#define rp_writemultich4(chp, offset, addr, count) \
+	(rp_writemultiaiop4((chp)->CtlP, (chp)->AiopNum, offset, addr, count))
 
 /*
  * End of OS-specific defines
@@ -66,21 +130,9 @@ typedef unsigned int DWordIO_t;
 #define MAX_AIOPS_PER_BOARD 4
 #define MAX_PORTS_PER_BOARD 32
 
-/* Bus Type ID */
-#define isISA	0
-#define isPCI	1
-#define isMC	2
-
 /* Controller ID numbers */
 #define CTLID_NULL  -1		    /* no controller exists */
 #define CTLID_0001  0x0001	    /* controller release 1 */
-
-/* PCI IDs  */
-#define RP_VENDOR_ID		0x11FE
-#define RP_DEVICE_ID_8OCTA	0x0001
-#define RP_DEVICE_ID_8INTF	0x0002
-#define RP_DEVICE_ID_16INTF	0x0003
-#define RP_DEVICE_ID_32INTF	0x0004
 
 /* AIOP ID numbers, identifies AIOP type implementing channel */
 #define AIOPID_NULL -1		    /* no AIOP or channel exists */
@@ -267,16 +319,6 @@ Channel Register Offsets - Indexed - Internal - Fixed
 #define INTR_EN   0x08	      /* allow interrupts to host */
 #define INT_STROB 0x04	      /* strobe and clear interrupt line (EOI) */
 
-/**************************************************************************
-  MUDBAC remapped for PCI
-**************************************************************************/
-
-#define _CFG_INT_PCI	0x40
-#define _PCI_INT_FUNC	0x3A
-
-#define PCI_STROB	0x2000
-#define INTR_EN_PCI	0x0010
-
 #define CHAN3_EN  0x08	      /* enable AIOP 3 */
 #define CHAN2_EN  0x04	      /* enable AIOP 2 */
 #define CHAN1_EN  0x02	      /* enable AIOP 1 */
@@ -295,46 +337,60 @@ Channel Register Offsets - Indexed - Internal - Fixed
 #define RDATASIZE 72
 #define RREGDATASIZE 52
 
+#ifndef TRUE
+#define TRUE 1
+#endif
+
+#ifndef FALSE
+#define FALSE 0
+#endif
+
+struct CONTROLLER_str;
+struct CHANNEL_str;
+
+/* The types of bus-specific methods */
+typedef int rp_aiop2rid_t(int, int);
+typedef int rp_aiop2off_t(int, int);
+typedef unsigned char rp_ctlmask_t(struct CONTROLLER_str *);
+
 /* Controller level information structure */
-typedef struct
+struct CONTROLLER_str
 {
 	int		CtlID;
-	int		CtlNum;
-	int		BusType;
-	WordIO_t	PCIIO;
-	ByteIO_t	MBaseIO;
-	ByteIO_t	MReg1IO;
-	ByteIO_t	MReg2IO;
-	ByteIO_t	MReg3IO;
-	Byte_t		MReg2;
-	Byte_t		MReg3;
 	int		NumAiop;
-	WordIO_t	AiopIO[AIOP_CTL_SIZE];
-	ByteIO_t	AiopIntChanIO[AIOP_CTL_SIZE];
 	int		AiopID[AIOP_CTL_SIZE];
 	int		AiopNumChan[AIOP_CTL_SIZE];
-} CONTROLLER_T;
 
+	/* Device and resource management */
+	device_t		dev;		/* device */
+	int			io_num;		/* Number of IO resources */
+	int			*io_rid;	/* IO resource IDs */
+	struct resource		**io;		/* IO resources */
+
+	struct rp_port		*rp;		/* port */
+	struct tty		*tty;		/* tty */
+
+	/* Device nodes */
+	dev_t			*dev_nodes;
+
+	/* Bus-specific properties */
+	void			*bus_ctlp;
+
+	/* Bus-specific methods */
+	rp_aiop2rid_t		*aiop2rid;	/* (aiop, offset) -> rid */
+	rp_aiop2off_t		*aiop2off;	/* (aiop, offset) -> off */
+	rp_ctlmask_t		*ctlmask;	/* Int status */
+};
+typedef struct CONTROLLER_str CONTROLLER_T;
 typedef CONTROLLER_T CONTROLLER_t;
 
 /* Channel level information structure */
-typedef struct
+struct CHANNEL_str
 {
-	CONTROLLER_T	*CtlP;
+	CONTROLLER_t	*CtlP;
 	int		AiopNum;
 	int		ChanID;
 	int		ChanNum;
-
-	ByteIO_t	Cmd;
-	ByteIO_t	IntChan;
-	ByteIO_t	IntMask;
-	DWordIO_t	IndexAddr;
-	WordIO_t	IndexData;
-
-	WordIO_t	TxRxData;
-	WordIO_t	ChanStat;
-	WordIO_t	TxRxCount;
-	ByteIO_t	IntID;
 
 	Word_t		TxFIFO;
 	Word_t		TxFIFOPtrs;
@@ -353,10 +409,16 @@ typedef struct
 	Byte_t		TxCompare[4];
 	Byte_t		TxReplace1[4];
 	Byte_t		TxReplace2[4];
-} CHANNEL_T;
+};
 
+typedef struct CHANNEL_str CHANNEL_T;
 typedef CHANNEL_T CHANNEL_t;
 typedef CHANNEL_T * CHANPTR_T;
+
+#define CHNOFF_TXRXDATA(chp)	((chp)->ChanNum * 2 + _TD0)
+#define CHNOFF_CHANSTAT(chp)	((chp)->ChanNum * 2 + _CHN_STAT0)
+#define CHNOFF_TXRXCOUNT(chp)	((chp)->ChanNum * 2 + _FIFO_CNT0)
+#define CHNOFF_INTID(chp)	((chp)->ChanNum     + _INT_ID0)
 
 /***************************************************************************
 Function: sClrBreak
@@ -367,7 +429,7 @@ Call:	  sClrBreak(ChP)
 #define sClrBreak(ChP) \
 { \
    (ChP)->TxControl[3] &= ~SETBREAK; \
-   sOutDW((ChP)->IndexAddr,*(DWord_t *)&(ChP)->TxControl[0]); \
+   rp_writech4(ChP,_INDX_ADDR,*(DWord_t *)&(ChP)->TxControl[0]); \
 }
 
 /***************************************************************************
@@ -379,7 +441,7 @@ Call:	  sClrDTR(ChP)
 #define sClrDTR(ChP) \
 { \
    (ChP)->TxControl[3] &= ~SET_DTR; \
-   sOutDW((ChP)->IndexAddr,*(DWord_t *)&(ChP)->TxControl[0]); \
+   rp_writech4(ChP,_INDX_ADDR,*(DWord_t *)&(ChP)->TxControl[0]); \
 }
 
 /***************************************************************************
@@ -391,7 +453,7 @@ Call:	  sClrRTS(ChP)
 #define sClrRTS(ChP) \
 { \
    (ChP)->TxControl[3] &= ~SET_RTS; \
-   sOutDW((ChP)->IndexAddr,*(DWord_t *)&(ChP)->TxControl[0]); \
+   rp_writech4(ChP,_INDX_ADDR,*(DWord_t *)&(ChP)->TxControl[0]); \
 }
 
 /***************************************************************************
@@ -402,47 +464,8 @@ Call:	  sClrTxXOFF(ChP)
 */
 #define sClrTxXOFF(ChP) \
 { \
-   sOutB((ChP)->Cmd,TXOVERIDE | (Byte_t)(ChP)->ChanNum); \
-   sOutB((ChP)->Cmd,(Byte_t)(ChP)->ChanNum); \
-}
-
-/***************************************************************************
-Function: sCtlNumToCtlPtr
-Purpose:  Convert a controller number to controller structure pointer
-Call:	  sCtlNumToCtlPtr(CtlNum)
-	  int CtlNum; Controller number
-Return:   CONTROLLER_T *: Ptr to controller structure
-*/
-#define sCtlNumToCtlPtr(CTLNUM) &sController[CTLNUM]
-
-/***************************************************************************
-Function: sControllerEOI
-Purpose:  Strobe the MUDBAC's End Of Interrupt bit.
-Call:	  sControllerEOI(CtlP)
-	  CONTROLLER_T *CtlP; Ptr to controller structure
-*/
-#define sControllerEOI(CTLP) sOutB((CTLP)->MReg2IO,(CTLP)->MReg2 | INT_STROB)
-
-
-/***************************************************************************
-Function: sPCIControllerEOI
-Purpose:  Strobe the MUDBAC's End Of Interrupt bit.
-Call:	  sPCIControllerEOI(CtlP)
-	  CONTROLLER_T *CtlP; Ptr to controller structure
-*/
-#define sPCIControllerEOI(CTLP) sOutW((CTLP)->PCIIO, PCI_STROB)
-
-/***************************************************************************
-Function: sDisAiop
-Purpose:  Disable I/O access to an AIOP
-Call:	  sDisAiop(CltP)
-	  CONTROLLER_T *CtlP; Ptr to controller structure
-	  int AiopNum; Number of AIOP on controller
-*/
-#define sDisAiop(CTLP,AIOPNUM) \
-{ \
-   (CTLP)->MReg3 &= sBitMapClrTbl[AIOPNUM]; \
-   sOutB((CTLP)->MReg3IO,(CTLP)->MReg3); \
+   rp_writech1(ChP,_CMD_REG,TXOVERIDE | (Byte_t)(ChP)->ChanNum); \
+   rp_writech1(ChP,_CMD_REG,(Byte_t)(ChP)->ChanNum); \
 }
 
 /***************************************************************************
@@ -454,7 +477,7 @@ Call:	  sDisCTSFlowCtl(ChP)
 #define sDisCTSFlowCtl(ChP) \
 { \
    (ChP)->TxControl[2] &= ~CTSFC_EN; \
-   sOutDW((ChP)->IndexAddr,*(DWord_t *)&(ChP)->TxControl[0]); \
+   rp_writech4(ChP,_INDX_ADDR,*(DWord_t *)&(ChP)->TxControl[0]); \
 }
 
 /***************************************************************************
@@ -468,7 +491,7 @@ Comments: Function sSetParity() can be used in place of functions sEnParity(),
 #define sDisParity(ChP) \
 { \
    (ChP)->TxControl[2] &= ~PARITY_EN; \
-   sOutDW((ChP)->IndexAddr,*(DWord_t *)&(ChP)->TxControl[0]); \
+   rp_writech4(ChP,_INDX_ADDR,*(DWord_t *)&(ChP)->TxControl[0]); \
 }
 
 /***************************************************************************
@@ -480,7 +503,7 @@ Call:	  sDisRxFIFO(ChP)
 #define sDisRxFIFO(ChP) \
 { \
    (ChP)->R[0x32] = 0x0a; \
-   sOutDW((ChP)->IndexAddr,*(DWord_t *)&(ChP)->R[0x30]); \
+   rp_writech4(ChP,_INDX_ADDR,*(DWord_t *)&(ChP)->R[0x30]); \
 }
 
 /***************************************************************************
@@ -492,7 +515,7 @@ Comments: This takes the channel out of the receive status mode.  All
 	  subsequent reads of receive data using sReadRxWord() will return
 	  two data bytes.
 */
-#define sDisRxStatusMode(ChP) sOutW((ChP)->ChanStat,0)
+#define sDisRxStatusMode(ChP) rp_writech2(ChP,CHNOFF_CHANSTAT(ChP),0)
 
 /***************************************************************************
 Function: sDisTransmit
@@ -507,7 +530,7 @@ Call:	  sDisTransmit(ChP)
 #define sDisTransmit(ChP) \
 { \
    (ChP)->TxControl[3] &= ~TX_ENABLE; \
-   sOutDW((ChP)->IndexAddr,*(DWord_t *)&(ChP)->TxControl[0]); \
+   rp_writech4(ChP,_INDX_ADDR,*(DWord_t *)&(ChP)->TxControl[0]); \
 }
 
 /***************************************************************************
@@ -519,20 +542,7 @@ Call:	  sDisTxSoftFlowCtl(ChP)
 #define sDisTxSoftFlowCtl(ChP) \
 { \
    (ChP)->R[0x06] = 0x8a; \
-   sOutDW((ChP)->IndexAddr,*(DWord_t *)&(ChP)->R[0x04]); \
-}
-
-/***************************************************************************
-Function: sEnAiop
-Purpose:  Enable I/O access to an AIOP
-Call:	  sEnAiop(CltP)
-	  CONTROLLER_T *CtlP; Ptr to controller structure
-	  int AiopNum; Number of AIOP on controller
-*/
-#define sEnAiop(CTLP,AIOPNUM) \
-{ \
-   (CTLP)->MReg3 |= sBitMapSetTbl[AIOPNUM]; \
-   sOutB((CTLP)->MReg3IO,(CTLP)->MReg3); \
+   rp_writech4(ChP,_INDX_ADDR,*(DWord_t *)&(ChP)->R[0x04]); \
 }
 
 /***************************************************************************
@@ -544,7 +554,7 @@ Call:	  sEnCTSFlowCtl(ChP)
 #define sEnCTSFlowCtl(ChP) \
 { \
    (ChP)->TxControl[2] |= CTSFC_EN; \
-   sOutDW((ChP)->IndexAddr,*(DWord_t *)&(ChP)->TxControl[0]); \
+   rp_writech4(ChP,_INDX_ADDR,*(DWord_t *)&(ChP)->TxControl[0]); \
 }
 
 /***************************************************************************
@@ -561,7 +571,7 @@ Warnings: Before enabling parity odd or even parity should be chosen using
 #define sEnParity(ChP) \
 { \
    (ChP)->TxControl[2] |= PARITY_EN; \
-   sOutDW((ChP)->IndexAddr,*(DWord_t *)&(ChP)->TxControl[0]); \
+   rp_writech4(ChP,_INDX_ADDR,*(DWord_t *)&(ChP)->TxControl[0]); \
 }
 
 /***************************************************************************
@@ -572,9 +582,9 @@ Return: void
 { \
 	(ChP)->TxControl[2] &= ~RTSTOG_EN; \
 	(ChP)->TxControl[3] &= ~SET_RTS; \
-   sOutDW((ChP)->IndexAddr,*(DWord_t *)&(ChP)->TxControl[0]); \
+   rp_writech4(ChP,_INDX_ADDR,*(DWord_t *)&(ChP)->TxControl[0]); \
 	(ChP)->RxControl[2] |= RTSFC_EN; \
-   sOutDW((ChP)->IndexAddr,*(DWord_t *)&(ChP)->RxControl[0]); \
+   rp_writech4(ChP,_INDX_ADDR,*(DWord_t *)&(ChP)->RxControl[0]); \
 }
 
 /***************************************************************************
@@ -584,7 +594,7 @@ Return: void
 #define sDisRTSFlowCtl(ChP) \
 { \
 	(ChP)->RxControl[2] &= ~RTSFC_EN; \
-   sOutDW((ChP)->IndexAddr,*(DWord_t *)&(ChP)->RxControl[0]); \
+   rp_writech4(ChP,_INDX_ADDR,*(DWord_t *)&(ChP)->RxControl[0]); \
 }
 
 /***************************************************************************
@@ -596,7 +606,7 @@ Call:	  sEnRxFIFO(ChP)
 #define sEnRxFIFO(ChP) \
 { \
    (ChP)->R[0x32] = 0x08; \
-   sOutDW((ChP)->IndexAddr,*(DWord_t *)&(ChP)->R[0x30]); \
+   rp_writech4(ChP,_INDX_ADDR,*(DWord_t *)&(ChP)->R[0x30]); \
 }
 
 /***************************************************************************
@@ -617,7 +627,7 @@ Warnings: This function must be called after valid microcode has been
 #define sEnRxProcessor(ChP) \
 { \
    (ChP)->RxControl[2] |= RXPROC_EN; \
-   sOutDW((ChP)->IndexAddr,*(DWord_t *)&(ChP)->RxControl[0]); \
+   rp_writech2(ChP,_INDX_ADDR,*(DWord_t *)&(ChP)->RxControl[0]); \
 }
 
 /***************************************************************************
@@ -630,7 +640,7 @@ Comments: This places the channel in the receive status mode.  All subsequent
 	  in the low word and a status byte in the high word.
 
 */
-#define sEnRxStatusMode(ChP) sOutW((ChP)->ChanStat,STATMODE)
+#define sEnRxStatusMode(ChP) rp_writech2(ChP,CHNOFF_CHANSTAT(ChP),STATMODE)
 
 /***************************************************************************
 Function: sEnTransmit
@@ -641,7 +651,7 @@ Call:	  sEnTransmit(ChP)
 #define sEnTransmit(ChP) \
 { \
    (ChP)->TxControl[3] |= TX_ENABLE; \
-   sOutDW((ChP)->IndexAddr,*(DWord_t *)&(ChP)->TxControl[0]); \
+   rp_writech4(ChP,_INDX_ADDR,*(DWord_t *)&(ChP)->TxControl[0]); \
 }
 
 /***************************************************************************
@@ -654,7 +664,7 @@ Return:   Byte_t: The AIOP interrupt status.  Bits 0 through 7
 			 represent channels 0 through 7 respectively.  If a
 			 bit is set that channel is interrupting.
 */
-#define sGetAiopIntStatus(CTLP,AIOPNUM) sInB((CTLP)->AiopIntChanIO[AIOPNUM])
+#define sGetAiopIntStatus(CtlP,AIOPNUM) rp_readaiop1(CtlP,AIOPNUM,_INT_CHAN)
 
 /***************************************************************************
 Function: sGetAiopNumChan
@@ -664,7 +674,7 @@ Call:	  sGetAiopNumChan(CtlP,AiopNum)
 	  int AiopNum; AIOP number
 Return:   int: The number of channels supported by the AIOP
 */
-#define sGetAiopNumChan(CTLP,AIOPNUM) (CTLP)->AiopNumChan[AIOPNUM]
+#define sGetAiopNumChan(CtlP,AIOPNUM) CtlP->AiopNumChan[AIOPNUM]
 
 /***************************************************************************
 Function: sGetChanIntID
@@ -680,7 +690,7 @@ Return:   Byte_t: The channel interrupt ID.  Can be any
 		DELTA_CTS:    CTS change interrupt
 		DELTA_DSR:    DSR change interrupt
 */
-#define sGetChanIntID(ChP) (sInB((ChP)->IntID) & (RXF_TRIG | TXFIFO_MT | SRC_INT | DELTA_CD | DELTA_CTS | DELTA_DSR))
+#define sGetChanIntID(ChP) (rp_readch1(ChP,(ChP)->ChanNum+_INT_ID0) & (RXF_TRIG | TXFIFO_MT | SRC_INT | DELTA_CD | DELTA_CTS | DELTA_DSR))
 
 /***************************************************************************
 Function: sGetChanNum
@@ -718,7 +728,7 @@ Return:   Word_t: The channel status.  Can be any combination of
 Warnings: This function will clear the high byte flags in the Channel
 	  Status Register.
 */
-#define sGetChanStatus(ChP) sInW((ChP)->ChanStat)
+#define sGetChanStatus(ChP) rp_readch2(ChP,CHNOFF_CHANSTAT(ChP))
 
 /***************************************************************************
 Function: sGetChanStatusLo
@@ -734,33 +744,7 @@ Return:   Byte_t: The channel status low byte.	Can be any combination
 		TXSHRMT:      Tx shift register is empty
 		RDA:	      Rx data available
 */
-#define sGetChanStatusLo(ChP) sInB((ByteIO_t)(ChP)->ChanStat)
-
-/***************************************************************************
-Function: sGetControllerIntStatus
-Purpose:  Get the controller interrupt status
-Call:	  sGetControllerIntStatus(CtlP)
-	  CONTROLLER_T *CtlP; Ptr to controller structure
-Return:   Byte_t: The controller interrupt status in the lower 4
-			 bits.	Bits 0 through 3 represent AIOP's 0
-			 through 3 respectively.  If a bit is set that
-			 AIOP is interrupting.	Bits 4 through 7 will
-			 always be cleared.
-*/
-#define sGetControllerIntStatus(CTLP) (sInB((CTLP)->MReg1IO) & 0x0f)
-
-/***************************************************************************
-Function: sPCIGetControllerIntStatus
-Purpose:  Get the controller interrupt status
-Call:	  sPCIGetControllerIntStatus(CtlP)
-	  CONTROLLER_T *CtlP; Ptr to controller structure
-Return:   Byte_t: The controller interrupt status in the lower 4
-			 bits.	Bits 0 through 3 represent AIOP's 0
-			 through 3 respectively.  If a bit is set that
-			 AIOP is interrupting.	Bits 4 through 7 will
-			 always be cleared.
-*/
-#define sPCIGetControllerIntStatus(CTLP) ((sInW((CTLP)->PCIIO) >> 8) & 0x1f)
+#define sGetChanStatusLo(ChP) rp_readch1(ChP,CHNOFF_CHANSTAT(ChP))
 
 /***************************************************************************
 Function: sGetRxCnt
@@ -771,7 +755,7 @@ Return:   int: The number of data bytes in the Rx FIFO.
 Comments: Byte read of count register is required to obtain Rx count.
 
 */
-#define sGetRxCnt(ChP) sInW((ChP)->TxRxCount)
+#define sGetRxCnt(ChP) rp_readch2(ChP,CHNOFF_TXRXCOUNT(ChP))
 
 /***************************************************************************
 Function: sGetTxCnt
@@ -782,16 +766,16 @@ Return:   Byte_t: The number of data bytes in the Tx FIFO.
 Comments: Byte read of count register is required to obtain Tx count.
 
 */
-#define sGetTxCnt(ChP) sInB((ByteIO_t)(ChP)->TxRxCount)
+#define sGetTxCnt(ChP) rp_readch1(ChP,CHNOFF_TXRXCOUNT(ChP))
 
 /*****************************************************************************
 Function: sGetTxRxDataIO
-Purpose:  Get the I/O address of a channel's TxRx Data register
+Purpose:  Get the offset of a channel's TxRx Data register
 Call:	  sGetTxRxDataIO(ChP)
 	  CHANNEL_T *ChP; Ptr to channel structure
-Return:   WordIO_t: I/O address of a channel's TxRx Data register
+Return:   WordIO_t: offset of a channel's TxRx Data register
 */
-#define sGetTxRxDataIO(ChP) (ChP)->TxRxData
+#define sGetTxRxDataIO(ChP) CHNOFF_TXRXDATA(ChP)
 
 /***************************************************************************
 Function: sInitChanDefaults
@@ -819,8 +803,8 @@ Call:	  sResetAiopByNum(CTLP,AIOPNUM)
 */
 #define sResetAiopByNum(CTLP,AIOPNUM) \
 { \
-   sOutB((CTLP)->AiopIO[(AIOPNUM)]+_CMD_REG,RESET_ALL); \
-   sOutB((CTLP)->AiopIO[(AIOPNUM)]+_CMD_REG,0x0); \
+   rp_writeaiop1(CTLP,AIOPNUM,_CMD_REG,RESET_ALL); \
+   rp_writeaiop1(CTLP,AIOPNUM,_CMD_REG,0x0); \
 }
 
 /***************************************************************************
@@ -832,7 +816,7 @@ Call:	  sSendBreak(ChP)
 #define sSendBreak(ChP) \
 { \
    (ChP)->TxControl[3] |= SETBREAK; \
-   sOutDW((ChP)->IndexAddr,*(DWord_t *)&(ChP)->TxControl[0]); \
+   rp_writech4(ChP,_INDX_ADDR,*(DWord_t *)&(ChP)->TxControl[0]); \
 }
 
 /***************************************************************************
@@ -846,7 +830,7 @@ Call:	  sSetBaud(ChP,Divisor)
 { \
    (ChP)->BaudDiv[2] = (Byte_t)(DIVISOR); \
    (ChP)->BaudDiv[3] = (Byte_t)((DIVISOR) >> 8); \
-   sOutDW((ChP)->IndexAddr,*(DWord_t *)&(ChP)->BaudDiv[0]); \
+   rp_writech4(ChP,_INDX_ADDR,*(DWord_t *)&(ChP)->BaudDiv[0]); \
 }
 
 /***************************************************************************
@@ -858,7 +842,7 @@ Call:	  sSetData7(ChP)
 #define sSetData7(ChP) \
 { \
    (ChP)->TxControl[2] &= ~DATA8BIT; \
-   sOutDW((ChP)->IndexAddr,*(DWord_t *)&(ChP)->TxControl[0]); \
+   rp_writech4(ChP,_INDX_ADDR,*(DWord_t *)&(ChP)->TxControl[0]); \
 }
 
 /***************************************************************************
@@ -870,7 +854,7 @@ Call:	  sSetData8(ChP)
 #define sSetData8(ChP) \
 { \
    (ChP)->TxControl[2] |= DATA8BIT; \
-   sOutDW((ChP)->IndexAddr,*(DWord_t *)&(ChP)->TxControl[0]); \
+   rp_writech4(ChP,_INDX_ADDR,*(DWord_t *)&(ChP)->TxControl[0]); \
 }
 
 /***************************************************************************
@@ -882,7 +866,7 @@ Call:	  sSetDTR(ChP)
 #define sSetDTR(ChP) \
 { \
    (ChP)->TxControl[3] |= SET_DTR; \
-   sOutDW((ChP)->IndexAddr,*(DWord_t *)&(ChP)->TxControl[0]); \
+   rp_writech4(ChP,_INDX_ADDR,*(DWord_t *)&(ChP)->TxControl[0]); \
 }
 
 /***************************************************************************
@@ -899,7 +883,7 @@ Warnings: This function has no effect unless parity is enabled with function
 #define sSetEvenParity(ChP) \
 { \
    (ChP)->TxControl[2] |= EVEN_PAR; \
-   sOutDW((ChP)->IndexAddr,*(DWord_t *)&(ChP)->TxControl[0]); \
+   rp_writech4(ChP,_INDX_ADDR,*(DWord_t *)&(ChP)->TxControl[0]); \
 }
 
 /***************************************************************************
@@ -916,7 +900,7 @@ Warnings: This function has no effect unless parity is enabled with function
 #define sSetOddParity(ChP) \
 { \
    (ChP)->TxControl[2] &= ~EVEN_PAR; \
-   sOutDW((ChP)->IndexAddr,*(DWord_t *)&(ChP)->TxControl[0]); \
+   rp_writech4(ChP,_INDX_ADDR,*(DWord_t *)&(ChP)->TxControl[0]); \
 }
 
 /***************************************************************************
@@ -928,7 +912,7 @@ Call:	  sSetRTS(ChP)
 #define sSetRTS(ChP) \
 { \
    (ChP)->TxControl[3] |= SET_RTS; \
-   sOutDW((ChP)->IndexAddr,*(DWord_t *)&(ChP)->TxControl[0]); \
+   rp_writech4(ChP,_INDX_ADDR,*(DWord_t *)&(ChP)->TxControl[0]); \
 }
 
 /***************************************************************************
@@ -954,7 +938,7 @@ Comments: An interrupt will be generated when the trigger level is reached
 { \
    (ChP)->RxControl[2] &= ~TRIG_MASK; \
    (ChP)->RxControl[2] |= LEVEL; \
-   sOutDW((ChP)->IndexAddr,*(DWord_t *)&(ChP)->RxControl[0]); \
+   rp_writech4(ChP,_INDX_ADDR,*(DWord_t *)&(ChP)->RxControl[0]); \
 }
 
 /***************************************************************************
@@ -966,7 +950,7 @@ Call:	  sSetStop1(ChP)
 #define sSetStop1(ChP) \
 { \
    (ChP)->TxControl[2] &= ~STOP2; \
-   sOutDW((ChP)->IndexAddr,*(DWord_t *)&(ChP)->TxControl[0]); \
+   rp_writech4(ChP,_INDX_ADDR,*(DWord_t *)&(ChP)->TxControl[0]); \
 }
 
 /***************************************************************************
@@ -978,7 +962,7 @@ Call:	  sSetStop2(ChP)
 #define sSetStop2(ChP) \
 { \
    (ChP)->TxControl[2] |= STOP2; \
-   sOutDW((ChP)->IndexAddr,*(DWord_t *)&(ChP)->TxControl[0]); \
+   rp_writech4(ChP,_INDX_ADDR,*(DWord_t *)&(ChP)->TxControl[0]); \
 }
 
 /***************************************************************************
@@ -991,38 +975,22 @@ Comments: This function is used to start a Rx processor after it was
 	  will restart both the Rx processor and software input flow control.
 
 */
-#define sStartRxProcessor(ChP) sOutDW((ChP)->IndexAddr,*(DWord_t *)&(ChP)->R[0])
+#define sStartRxProcessor(ChP) rp_writech4(ChP,_INDX_ADDR,*(DWord_t *)&(ChP)->R[0])
 
 /***************************************************************************
 Function: sWriteTxByte
 Purpose:  Write a transmit data byte to a channel.
+	  CHANNEL_T *ChP; Ptr to channel structure
 	  ByteIO_t io: Channel transmit register I/O address.  This can
 			   be obtained with sGetTxRxDataIO().
 	  Byte_t Data; The transmit data byte.
 Warnings: This function writes the data byte without checking to see if
 	  sMaxTxSize is exceeded in the Tx FIFO.
 */
-#define sWriteTxByte(IO,DATA) sOutB(IO,DATA)
+#define sWriteTxByte(ChP,IO,DATA) rp_writech1(ChP,IO,DATA)
 
-int sInitController(	CONTROLLER_T *CtlP,
-			int CtlNum,
-			ByteIO_t MudbacIO,
-			ByteIO_t *AiopIOList,
-			int AiopIOListSize,
-			int IRQNum,
-			Byte_t Frequency,
-			int PeriodicOnly);
-
-int sPCIInitController( CONTROLLER_T *CtlP,
-			int CtlNum,
-			ByteIO_t *AiopIOList,
-			int AiopIOListSize,
-			int IRQNum,
-			Byte_t Frequency,
-			int PeriodicOnly);
-
-int sReadAiopID(ByteIO_t io);
-int sReadAiopNumChan(WordIO_t io);
+int sReadAiopID(CONTROLLER_T *CtlP, int aiop);
+int sReadAiopNumChan(CONTROLLER_T *CtlP, int aiop);
 int sInitChan(	CONTROLLER_T *CtlP,
 		CHANNEL_T *ChP,
 		int AiopNum,
@@ -1035,11 +1003,13 @@ void sFlushTxFIFO(CHANNEL_T *ChP);
 int sWriteTxPrioByte(CHANNEL_T *ChP, Byte_t Data);
 void sEnInterrupts(CHANNEL_T *ChP,Word_t Flags);
 void sDisInterrupts(CHANNEL_T *ChP,Word_t Flags);
+int rp_attachcommon(CONTROLLER_T *ctlp, int num_aiops, int num_ports);
+void rp_releaseresource(CONTROLLER_t *ctlp);
 
 #ifndef ROCKET_C
 extern Byte_t R[RDATASIZE];
 extern CONTROLLER_T sController[CTL_SIZE];
 extern Byte_t sIRQMap[16];
-extern Byte_t sBitMapClrTbl[8];
-extern Byte_t sBitMapSetTbl[8];
 #endif
+extern Byte_t rp_sBitMapClrTbl[8];
+extern Byte_t rp_sBitMapSetTbl[8];
