@@ -1792,6 +1792,9 @@ write your rulesets in a more efficient way.
 does not support the -n flag (only test syntax),
 nor it allows spaces after commas or supports all
 rule fields in a single argument.
+.Nm ipfw1
+does not allow the -f flag (force) in conjunction with
+the -p flag (preprocessor).
 .It Handling of non-IPv4 packets
 .Nm ipfw1
 will silently accept all non-IPv4 packets (which
