@@ -549,16 +549,7 @@ or
 environment variables as appropriate.
 .Pp
 .Nm libfetch
-does not attempt to interpret and respond to authentication requests
-from the HTTP server or proxy (code 401 and 407 respectively).
-.Pp
-.Nm libfetch
 does not understand or obey 305 (Use Proxy) replies.
-.Pp
-No attempt is made to encode spaces etc. within URLs.
-Spaces in the
-document part of an URLshould be replaced with "%20" in HTTP URLs and
-"\\ " in FTP URLs.
 .Pp
 Error numbers are unique only within a certain context; the error
 codes used for FTP and HTTP overlap, as do those used for resolver and
@@ -570,13 +561,9 @@ implemented, superfluous at this site" in an FTP context and
 .Fn fetchStatFTP
 does not check that the result of an MDTM command is a valid date.
 .Pp
-The HTTP code needs a complete rewrite, or at least a serious cleanup.
-.Pp
 The man page is incomplete, poorly written and produces badly
 formatted text.
 .Pp
 The error reporting mechanism is unsatisfactory.
 .Pp
 Some parts of the code are not fully reentrant.
-.Pp
-Tons of other stuff.
