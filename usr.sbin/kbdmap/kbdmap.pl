@@ -210,7 +210,9 @@ sub menu_read {
 
     # sort menu, font 8x8 is less than 8x14 and 8x16
     foreach $e (sort(keys %keymap)) {
-	push(@a, "\"$keymap{$e}\" \"\"");
+	if ($keymap{$e}) {
+	    push(@a, "\"$keymap{$e}\" \"\"");
+	}
     }
     # side effects to @a
     grep(s/8x8/8x08/, @a);
