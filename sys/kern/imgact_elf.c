@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: imgact_elf.c,v 1.2 1996/03/10 22:37:34 peter Exp $
+ *	$Id: imgact_elf.c,v 1.3 1996/03/10 23:44:40 peter Exp $
  */
 
 #include <sys/param.h>
@@ -154,7 +154,7 @@ map_pages(struct vnode *vp, vm_offset_t offset,
 			    size,
 			    VM_PROT_READ,
 			    VM_PROT_READ,
-			    MAP_FILE,
+			    0,
 			    (caddr_t)vp,
 			    offset))
 		return error;
@@ -272,7 +272,7 @@ elf_load_section(struct vmspace *vmspace, struct vnode *vp, vm_offset_t offset, 
 			     map_len,
 			     prot,
 			     VM_PROT_ALL,
-			     MAP_FILE | MAP_PRIVATE | MAP_FIXED,
+			     MAP_PRIVATE | MAP_FIXED,
 			     (caddr_t)vp,
 			     trunc_page(offset)))
 		return error;
@@ -301,7 +301,7 @@ elf_load_section(struct vmspace *vmspace, struct vnode *vp, vm_offset_t offset, 
 			    PAGE_SIZE,
 			    VM_PROT_READ,
 			    VM_PROT_READ,
-			    MAP_FILE,
+			    0,
 			    (caddr_t)vp,
 			    trunc_page(offset + filsz)))
 		return error;
