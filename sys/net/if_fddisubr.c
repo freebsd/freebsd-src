@@ -547,7 +547,6 @@ fddi_ifattach(ifp)
 #ifdef IFF_NOTRAILERS
 	ifp->if_flags |= IFF_NOTRAILERS;
 #endif
-	ifp->if_broadcastaddr = fddibroadcastaddr;
 #if defined(__FreeBSD__)
 	ifa = ifnet_addrs[ifp->if_index - 1];
 	sdl = (struct sockaddr_dl *)ifa->ifa_addr;

@@ -95,7 +95,6 @@ iso88025_ifattach(struct ifnet *ifp)
         ifp->if_baudrate = TR_16MBPS; /* 16Mbit should be a safe default */
     if (ifp->if_mtu == 0)
         ifp->if_mtu = ISO88025_DEFAULT_MTU;
-    ifp->if_broadcastaddr = etherbroadcastaddr;
 
         ifa = ifnet_addrs[ifp->if_index - 1];
         if (ifa == 0) {

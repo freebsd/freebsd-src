@@ -79,8 +79,6 @@ MODULE_VERSION(arcnet, 1);
 
 static struct mbuf *arc_defrag __P((struct ifnet *, struct mbuf *));
 
-u_int8_t  arcbroadcastaddr = 0;
-
 #define senderr(e) { error = (e); goto bad;}
 #define SIN(s) ((struct sockaddr_in *)s)
 
@@ -693,8 +691,6 @@ arc_ifattach(ifp, lla)
 		   ifp->if_name, ifp->if_unit, ifp->if_name, ifp->if_unit);
 	}
 	arc_storelladdr(ifp, lla);
-
-	ifp->if_broadcastaddr = &arcbroadcastaddr;
 
 	bpfattach(ifp, DLT_ARCNET, ARC_HDRLEN);
 }

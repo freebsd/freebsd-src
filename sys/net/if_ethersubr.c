@@ -699,7 +699,6 @@ ether_ifattach(ifp, bpf)
 	ifp->if_resolvemulti = ether_resolvemulti;
 	if (ifp->if_baudrate == 0)
 	    ifp->if_baudrate = 10000000;
-	ifp->if_broadcastaddr = etherbroadcastaddr;
 	ifa = ifnet_addrs[ifp->if_index - 1];
 	KASSERT(ifa != NULL, ("%s: no lladdr!\n", __FUNCTION__));
 	sdl = (struct sockaddr_dl *)ifa->ifa_addr;
