@@ -93,6 +93,7 @@ struct timecounter {
 #ifdef _KERNEL
 extern struct timecounter *volatile timecounter;
 
+u_int32_t tc_getfrequency(void);
 void	tc_init(struct timecounter *tc);
 void	tc_setclock(struct timespec *ts);
 #endif /* !_KERNEL */
