@@ -168,7 +168,7 @@ parse(int tk) /* tk: the code for the construct scanned */
 	    ps.p_stack[ps.tos] = stmt;
 	}
 	else
-	    diag2(1, "Stmt nesting error.");
+	    diag2(1, "Statement nesting error.");
 	break;
 
     case swstmt:		/* had switch (...) */

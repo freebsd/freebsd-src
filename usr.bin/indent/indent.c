@@ -84,7 +84,7 @@ main(int argc, char **argv)
     int i;		/* local loop counter */
     int         scase;		/* set to true when we see a case, so we will
 				 * know what to do with the following colon */
-    int         sp_sw;		/* when true, we are in the expressin of
+    int         sp_sw;		/* when true, we are in the expression of
 				 * if(...), while(...), etc. */
     int         squest;		/* when this is positive, we have seen a ?
 				 * without the matching : in a <c>?<s>:<s>
@@ -359,7 +359,7 @@ main(int argc, char **argv)
 			fill_buffer();
 		    break;
 		}
-	    default:		/* it is the start of a normal statment */
+	    default:		/* it is the start of a normal statement */
 		if (flushed_nl)	/* if we flushed a newline, make sure it is
 				 * put back */
 		    force_nl = true;
@@ -1104,7 +1104,7 @@ check_type:
 		     */
 		    if (match_state[ifdef_level].tos >= 0
 			  && bcmp(&ps, &match_state[ifdef_level], sizeof ps))
-			diag2(0, "Syntactically inconsistant #ifdef alternatives.");
+			diag2(0, "Syntactically inconsistent #ifdef alternatives.");
 #endif
 		}
 		if (blanklines_around_conditional_compilation) {
