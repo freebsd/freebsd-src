@@ -284,6 +284,11 @@ fifo_read(ap)
 	VOP_UNLOCK(ap->a_vp, 0, td);
 	error = soreceive(rso, (struct sockaddr **)0, uio, (struct mbuf **)0,
 	    (struct mbuf **)0, (int *)0);
+	/*
+	 * Clear EOF indication after first such return.
+	 */
+	if (uio->uio_resid == startresid)
+		rso->so_state &= ~SS_CANTRCVMORE;
 	vn_lock(ap->a_vp, LK_EXCLUSIVE | LK_RETRY, td);
 	if (ap->a_ioflag & IO_NDELAY)
 		rso->so_state &= ~SS_NBIO;
