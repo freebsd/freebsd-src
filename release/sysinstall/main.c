@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: main.c,v 1.25 1996/07/22 18:43:21 jkh Exp $
+ * $Id: main.c,v 1.26 1996/09/08 01:39:24 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -113,6 +113,9 @@ main(int argc, char **argv)
 /* If we have a compiled-in startup config file name, look for it and try to load it on startup */
 #if defined(LOAD_CONFIG_FILE)
     else {
+	extern char *distWanted;
+
+	distWanted = (char *)1;	/* Tell mediaSetFloppy() to try floppy now */
 	/* Try to open the floppy drive if we can do that first */
 	if (DITEM_STATUS(mediaSetFloppy(NULL)) != DITEM_FAILURE && mediaDevice->init(mediaDevice)) {
 	    int fd;
