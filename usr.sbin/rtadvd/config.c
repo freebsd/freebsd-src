@@ -602,7 +602,7 @@ makeentry(buf, len, id, string, add)
 {
 	char *ep = buf + len;
 
-	strcpy(buf, string);
+	strlcpy(buf, string, len);
 	if (add) {
 		char *cp;
 
