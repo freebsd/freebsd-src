@@ -310,7 +310,6 @@ __BEGIN_DECLS
 int	 asprintf __P((char **, const char *, ...)) __printflike(2, 3);
 char	*ctermid_r __P((char *));
 char	*fgetln __P((FILE *, size_t *));
-#ifdef __GNUC__
 #if __GNUC__ == 2 && __GNUC_MINOR__ >= 7 || __GNUC__ >= 3
 #define	__ATTR_FORMAT_ARG	__attribute__((__format_arg__(2)))
 #else
