@@ -753,8 +753,19 @@ add_rcs_file (message, rcs, user, vtag, targc, targv)
     if (noexec)
 	return (0);
 
-    fprcs = open_file (rcs, "w+");
-    fpuser = open_file (user, "r");
+    /* open the user file first, before we change the RCS files... */
+    fpuser = fopen (user, "r");
+    if (fpuser == NULL) {
+	/* not fatal, continue the import */
+	fperror (logfp, 0, errno, "ERROR: cannot read file %s", user);
+	error (0, errno, "ERROR: cannot read file %s", user);
+	goto read_error;
+    }
+    fprcs = fopen (rcs, "w+");
+    if (fprcs == NULL) {
+	ierrno = errno;
+	goto write_error_noclose;
+    }
 
     /*
      * putadmin()
@@ -908,6 +919,7 @@ write_error_noclose:
 	fperror (logfp, 0, 0, "ERROR: out of space - aborting");
 	error (1, 0, "ERROR: out of space - aborting");
     }
+read_error:
     return (err + 1);
 }
 
