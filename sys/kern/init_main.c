@@ -85,7 +85,6 @@ void mi_startup(void);				/* Should be elsewhere */
 static struct session session0;
 static struct pgrp pgrp0;
 struct	proc proc0;
-static struct pcred cred0;
 static struct procsig procsig0;
 static struct filedesc0 filedesc0;
 static struct plimit limit0;
@@ -333,12 +332,10 @@ proc0_init(void *dummy __unused)
 	callout_init(&p->p_slpcallout, 1);
 
 	/* Create credentials. */
-	cred0.p_refcnt = 1;
-	cred0.p_uidinfo = uifind(0);
-	p->p_cred = &cred0;
 	p->p_ucred = crget();
 	p->p_ucred->cr_ngroups = 1;	/* group 0 */
 	p->p_ucred->cr_uidinfo = uifind(0);
+	p->p_ucred->cr_ruidinfo = uifind(0);
 	p->p_ucred->cr_prison = NULL;	/* Don't jail it. */
 
 	/* Create procsig. */
@@ -394,7 +391,7 @@ proc0_init(void *dummy __unused)
 	/*
 	 * Charge root for one process.
 	 */
-	(void)chgproccnt(cred0.p_uidinfo, 1, 0);
+	(void)chgproccnt(p->p_ucred->cr_ruidinfo, 1, 0);
 }
 SYSINIT(p0init, SI_SUB_INTRINSIC, SI_ORDER_FIRST, proc0_init, NULL)
 

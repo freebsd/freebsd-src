@@ -222,8 +222,8 @@ acct_process(p)
 	acct.ac_io = encode_comp_t(r->ru_inblock + r->ru_oublock, 0);
 
 	/* (6) The UID and GID of the process */
-	acct.ac_uid = p->p_cred->p_ruid;
-	acct.ac_gid = p->p_cred->p_rgid;
+	acct.ac_uid = p->p_ucred->cr_ruid;
+	acct.ac_gid = p->p_ucred->cr_rgid;
 
 	/* (7) The terminal from which the process was started */
 	if ((p->p_flag & P_CONTROLT) && p->p_pgrp->pg_session->s_ttyp)

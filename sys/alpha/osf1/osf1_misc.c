@@ -1054,29 +1054,32 @@ osf1_setuid(p, uap)
 {
 	int error;
 	uid_t uid;
-	register struct pcred *pc;
+	struct ucred *newcred, oldcred;
 
 	uid = SCARG(uap, uid);
-	pc = p->p_cred;
+	oldcred = p->p_ucred;
 
 	if ((error = suser(p)) != 0 &&
-	    uid != pc->p_ruid && uid != pc->p_svuid)
+	    uid != oldcred->cr_ruid && uid != oldcred->cr_svuid)
 		return (error);
 
+	newcred = crdup(oldcred);
 	if (error == 0) {
-		if (uid != pc->p_ruid) {
-			change_ruid(p, uid);
+		if (uid != oldcred->cr_ruid) {
+			change_ruid(newcred, uid);
 			setsugid(p);
 		}
-		if (pc->p_svuid != uid) {
-			pc->p_svuid = uid;
+		if (oldcred->cr_svuid != uid) {
+			change_svuid(newcred, uid);
 			setsugid(p);
 		}
 	}
-	if (pc->pc_ucred->cr_uid != uid) {
-		change_euid(p, uid);
+	if (newcred->cr_uid != uid) {
+		change_euid(newcred, uid);
 		setsugid(p);
 	}
+	p->p_ucred = newcred;
+	crfree(oldcred);
 	return (0);
 }
 
@@ -1095,22 +1098,32 @@ osf1_setgid(p, uap)
 {
 	int error;
 	gid_t gid;
-	register struct pcred *pc;
+	struct ucred *newcred, *oldcred;
 
 	gid = SCARG(uap, gid);
-	pc = p->p_cred;
+	oldcred = p->p_ucred;
 
 	if (((error = suser(p)) != 0 ) &&
-		gid != pc->p_rgid && gid != pc->p_svgid)
+		gid != oldcred->cr_rgid && gid != oldcred->cr_svgid)
 		return (error);
 
-	pc->pc_ucred = crcopy(pc->pc_ucred);
-	pc->pc_ucred->cr_gid = gid;
+	newcred = crdup(oldcred);
 	if (error == 0) {
-		pc->p_rgid = gid;
-		pc->p_svgid = gid;
+		if (gid != oldcred->cr_rgid) {
+			change_rgid(newcred, gid);
+			setsugid(p);
+		}
+		if (oldcred->cr_svgid != gid) {
+			change_svgid(newcred, gid);
+			setsugid(p);
+		}
 	}
-	setsugid(p);
+	if (newcred->cr_groups[0] != gid) {
+		change_egid(newcred, gid);
+		setsugid(p);
+	}
+	p->p_ucred = newcred;
+	crfree(oldcred);
 	return (0);
 }
 

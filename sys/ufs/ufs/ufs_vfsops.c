@@ -108,14 +108,14 @@ ufs_quotactl(mp, cmds, uid, arg, p)
 	int cmd, type, error;
 
 	if (uid == -1)
-		uid = p->p_cred->p_ruid;
+		uid = p->p_ucred->cr_ruid;
 	cmd = cmds >> SUBCMDSHIFT;
 
 	switch (cmd) {
 	case Q_SYNC:
 		break;
 	case Q_GETQUOTA:
-		if (uid == p->p_cred->p_ruid)
+		if (uid == p->p_ucred->cr_ruid)
 			break;
 		/* fall through */
 	default:

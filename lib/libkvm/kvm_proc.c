@@ -114,7 +114,6 @@ kvm_proclist(kd, what, arg, p, bp, maxcnt)
 	struct tty tty;
 	struct vmspace vmspace;
 	struct procsig procsig;
-	struct pcred pcred;
 	struct pstats pstats;
 	struct ucred ucred;
 	struct proc proc;
@@ -127,12 +126,11 @@ kvm_proclist(kd, what, arg, p, bp, maxcnt)
 			_kvm_err(kd, kd->program, "can't read proc at %x", p);
 			return (-1);
 		}
-		if (KREAD(kd, (u_long)proc.p_cred, &pcred) == 0) {
-			kp->ki_ruid = pcred.p_ruid;
-			kp->ki_svuid = pcred.p_svuid;
-			kp->ki_rgid = pcred.p_rgid;
-			kp->ki_svgid = pcred.p_svgid;
-			(void)(KREAD(kd, (u_long)pcred.pc_ucred, &ucred));
+		if (KREAD(kd, (u_long)proc.p_ucred, &ucred) == 0) {
+			kp->ki_ruid = ucred.cr_ruid;
+			kp->ki_svuid = ucred.cr_svuid;
+			kp->ki_rgid = ucred.cr_rgid;
+			kp->ki_svgid = ucred.cr_svgid;
 			kp->ki_ngroups = ucred.cr_ngroups;
 			bcopy(ucred.cr_groups, kp->ki_groups,
 			    NGROUPS * sizeof(gid_t));

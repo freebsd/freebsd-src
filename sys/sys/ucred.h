@@ -50,9 +50,14 @@
 struct ucred {
 	u_int	cr_ref;			/* reference count */
 	uid_t	cr_uid;			/* effective user id */
+	uid_t	cr_ruid;		/* real user id */
+	uid_t	cr_svuid;		/* saved user id */
 	short	cr_ngroups;		/* number of groups */
 	gid_t	cr_groups[NGROUPS];	/* groups */
-	struct	uidinfo *cr_uidinfo;	/* per uid resource consumption */
+	gid_t	cr_rgid;		/* real group id */
+	gid_t	cr_svgid;		/* saved user id */
+	struct	uidinfo *cr_uidinfo;	/* per euid resource consumption */
+	struct	uidinfo *cr_ruidinfo;	/* per ruid resource consumption */
 	struct	prison *cr_prison;	/* jail(4) */
 	struct	mtx cr_mtx;		/* protect refcount */
 };
@@ -77,8 +82,12 @@ struct xucred {
 
 struct proc;
 
-void		change_euid __P((struct proc *p, uid_t euid));
-void		change_ruid __P((struct proc *p, uid_t ruid));
+void		change_egid __P((struct ucred *newcred, gid_t egid));
+void		change_euid __P((struct ucred *newcred, uid_t euid));
+void		change_rgid __P((struct ucred *newcred, gid_t rgid));
+void		change_ruid __P((struct ucred *newcred, uid_t ruid));
+void		change_svgid __P((struct ucred *newcred, gid_t svgid));
+void		change_svuid __P((struct ucred *newcred, uid_t svuid));
 struct ucred	*crcopy __P((struct ucred *cr));
 struct ucred	*crdup __P((struct ucred *cr));
 void		crfree __P((struct ucred *cr));
