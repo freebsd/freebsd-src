@@ -74,6 +74,7 @@
 #include <i386/isa/intr_machdep.h>
 #include <i386/isa/isa.h>
 #endif
+#include <isa/isavar.h>
 
 /*
  * 387 and 287 Numeric Coprocessor Extension (NPX) Driver.
@@ -926,3 +927,46 @@ static devclass_t npx_devclass;
  * doesn't describe the processor as being `on isa'.
  */
 DRIVER_MODULE(npx, nexus, npx_driver, npx_devclass, 0, 0);
+
+/*
+ * This sucks up the legacy ISA support assignments from PNPBIOS.
+ */
+static struct isa_pnp_id npxisa_ids[] = {
+	{ 0x040cd041, "Legacy ISA coprocessor support" }, /* PNP0C04 */
+	{ 0 }
+};
+
+static int
+npxisa_probe(device_t dev)
+{
+	return (ISA_PNP_PROBE(device_get_parent(dev), dev, npxisa_ids));
+}
+
+static int
+npxisa_attach(device_t dev)
+{
+	return (0);
+}
+
+static device_method_t npxisa_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		npxisa_probe),
+	DEVMETHOD(device_attach,	npxisa_attach),
+	DEVMETHOD(device_detach,	bus_generic_detach),
+	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
+	DEVMETHOD(device_suspend,	bus_generic_suspend),
+	DEVMETHOD(device_resume,	bus_generic_resume),
+	
+	{ 0, 0 }
+};
+
+static driver_t npxisa_driver = {
+	"npxisa",
+	npxisa_methods,
+	1,			/* no softc */
+};
+
+static devclass_t npxisa_devclass;
+
+DRIVER_MODULE(npxisa, isa, npxisa_driver, npxisa_devclass, 0, 0);
+
