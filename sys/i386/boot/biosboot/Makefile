@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.38 1996/03/08 06:29:05 bde Exp $
+#	$Id: Makefile,v 1.39 1996/04/07 14:27:55 bde Exp $
 #
 
 PROG=	boot
@@ -21,11 +21,17 @@ CFLAGS+=	-DBOOTSEG=${BOOTSEG} -DBOOTSTACK=${BOOTSTACK}
 #CFLAGS+=	-DFORCE_COMCONSOLE
 
 # Bias the conversion from the BIOS drive number to the FreeBSD unit number
-# for hard disks to save typing.  E.g., BOOT_HD_BIAS=1 makes BIOS drive 1
-# correspond to 1:sd(0,a) instead of 1:sd(1,a).
-# This may be useful for people booting in a mixed IDE/SCSI environment
-# (set BOOT_HD_BIAS to the number of IDE drives).
+# for hard disks.  This may be useful for people booting in a mixed IDE/SCSI
+# environment (set BOOT_HD_BIAS to the number of IDE drives).
 #CFLAGS+=	-DBOOT_HD_BIAS=1
+#
+# Details: this only applies if BOOT_HD_BIAS > 0.  If the BIOS drive number
+# for the boot drive is >= BOOT_HD_BIAS, then the boot drive is assumed to
+# be SCSI and have unit number (BIOS_drive_number - BOOT_HD_BIAS).  E.g.,
+# BOOT_HD_BIAS=1 makes BIOS drive 1 correspond to 1:sd(0,a) instead of
+# 1:wd(1,a).  If `sd' is given explicitly, then the drive is assumed to be
+# SCSI and have BIOS drive number (sd_unit_number + BOOT_HD_BIAS).  E.g.,
+# BOOT_HD_BIAS=1 makes sd(0,a) correspond to 1:sd(0,a) instead of 0:sd(0,a).
 
 CLEANFILES+=	boot.nohdr boot.strip boot1 boot2 sizetest
 DPADD=		${LIBC}
