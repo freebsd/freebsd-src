@@ -99,6 +99,8 @@ extern int fallback_elf_brand;
 struct	vnode *rootvp;
 int	boothowto = 0;		/* initialized so that it can be patched */
 SYSCTL_INT(_debug, OID_AUTO, boothowto, CTLFLAG_RD, &boothowto, 0, "");
+int	bootverbose;
+SYSCTL_INT(_debug, OID_AUTO, bootverbose, CTLFLAG_RW, &bootverbose, 0, "");
 
 /*
  * This ensures that there is at least one entry so that the sysinit_set
@@ -239,6 +241,16 @@ print_caddr_t(void *data __unused)
 	printf("%s", (char *)data);
 }
 SYSINIT(announce, SI_SUB_COPYRIGHT, SI_ORDER_FIRST, print_caddr_t, copyright)
+SYSINIT(version, SI_SUB_COPYRIGHT, SI_ORDER_SECOND, print_caddr_t, version)
+
+static void
+set_boot_verbose(void *data __unused)
+{
+
+	if (boothowto & RB_VERBOSE)
+		bootverbose++;
+}
+SYSINIT(boot_verbose, SI_SUB_TUNABLES, SI_ORDER_ANY, set_boot_verbose, NULL)
 
 /*
  ***************************************************************************
