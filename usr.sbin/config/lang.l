@@ -167,7 +167,7 @@ WORD	[A-Za-z_][-A-Za-z_]*
 			return SEMICOLON;
 		}
 #.*		{	/* Ignored (comment) */;	}
-[ \t]*		{	/* Ignored (white space) */;	}
+[ \t\f]*	{	/* Ignored (white space) */;	}
 ";"		{	return SEMICOLON;		}
 ","		{	return COMMA;			}
 "="		{	return EQUALS;			}
