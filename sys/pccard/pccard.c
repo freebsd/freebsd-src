@@ -112,8 +112,6 @@ static struct	apmhook r_hook[MAXSLOT];	/* APM resume */
 #endif	/* NAPM > 0 */
 
 static struct slot	*pccard_slots[MAXSLOT];	/* slot entries */
-static struct slot	*slot_list;
-static struct slot_ctrl *cont_list;
 
 /*
  *	The driver interface for read/write uses a block
@@ -303,15 +301,11 @@ pccard_alloc_slot(struct slot_ctrl *ctrl)
 	slt->ctrl = ctrl;
 	slt->slotnum = slotno;
 	pccard_slots[slotno] = slt;
-	slt->next = slot_list;
-	slot_list = slt;
 	/*
 	 *	If this controller hasn't been seen before, then
 	 *	link it into the list of controllers.
 	 */
 	if (ctrl->slots++ == 0) {
-		ctrl->next = cont_list;
-		cont_list = ctrl;
 		if (ctrl->maxmem > NUM_MEM_WINDOWS)
 			ctrl->maxmem = NUM_MEM_WINDOWS;
 		if (ctrl->maxio > NUM_IO_WINDOWS)
