@@ -624,6 +624,10 @@
 428	MSTD	BSD	{ int __acl_aclcheck_link(const char *path, \
 			    acl_type_t type, struct acl *aclp); }
 429	MSTD	NOHIDE	{ int sigwait(const sigset_t *set, int *sig); }
+430	STD	BSD	{ int thr_create(ucontext_t *ctx, thr_id_t *id, int flags); }
+431	STD	BSD	{ void thr_exit(void); }
+432	STD	BSD	{ int thr_self(thr_id_t *id); }
+433	STD	BSD	{ int thr_kill(thr_id_t id, int sig); }
 
 ; Please copy any additions and changes to the following compatability tables:
 ; sys/ia64/ia32/syscalls.master  (take a best guess)
