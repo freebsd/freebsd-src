@@ -21,7 +21,7 @@
 
 #ifndef lint
 static char rcsid[] =
-    "$Id: /home/ncvs/src/usr.sbin/tcpdump/tcpdump/print-udp.c,v 1.3 1995/03/08 12:52:45 olah Exp $";
+    "$Id: print-udp.c,v 1.4 1995/08/29 19:48:11 wollman Exp $";
 #endif
 
 #include <sys/param.h>
@@ -57,7 +57,7 @@ static char rcsid[] =
 #include "addrtoname.h"
 #include "appletalk.h"
 
-#include "nfsv2.h"
+#include "nfs.h"
 #include "bootp.h"
 
 extern int packettype;
