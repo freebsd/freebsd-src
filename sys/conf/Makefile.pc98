@@ -261,14 +261,14 @@ kernel-install kernel-install.debug:
 	mv ${DESTDIR}${KODIR} ${DESTDIR}${KODIR}.old
 .endif
 	mkdir -p ${DESTDIR}${KODIR}
-	@if [ -f ${DESTDIR}${KODIR}/${KERNEL_KO} ] ; then \
+	@-if [ -f ${DESTDIR}${KODIR}/${KERNEL_KO} ] ; then \
 	    chflags noschg ${DESTDIR}${KODIR}/${KERNEL_KO} ; \
 	fi
 	install -c -m 555 -o root -g wheel -fschg \
 		${KERNEL_KO}${.TARGET:S/kernel-install//} ${DESTDIR}${KODIR}
 
 kernel-reinstall kernel-reinstall.debug:
-	@if [ -f ${DESTDIR}${KODIR}/${KERNEL_KO} ] ; then \
+	@-if [ -f ${DESTDIR}${KODIR}/${KERNEL_KO} ] ; then \
 	    chflags noschg ${DESTDIR}${KODIR}/${KERNEL_KO} ; \
 	fi
 	install -c -m 555 -o root -g wheel -fschg \
