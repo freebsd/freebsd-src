@@ -116,7 +116,7 @@ void	exception_restore __P((void));				/* MAGIC */
 void	frametoreg __P((struct trapframe *, struct reg *));
 long	fswintrberr __P((void));				/* MAGIC */
 int	ia64_pa_access __P((u_long));
-void	ia64_init __P((void));
+void	ia64_init __P((u_int64_t, u_int64_t));
 void	ia64_fpstate_check __P((struct thread *p));
 void	ia64_fpstate_save __P((struct thread *p, int write));
 void	ia64_fpstate_drop __P((struct thread *p));
