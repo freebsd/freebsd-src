@@ -1954,7 +1954,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     change leads to better &man.fsck.8; performance and reduced
     fragmentation. &merged;</para>
 
-    <para>The default block and fragment sizes for new filesystems created
+    <para><anchor id="newfs-block-frag-sizes">The default block and fragment sizes for new filesystems created
     by &man.newfs.8; are now 16384 and 2048 bytes, respectively (the
     old defaults were 8192 and 1024 bytes).  This change generally
     provides increased performance, at the expense of some wasted disk
@@ -2191,6 +2191,17 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     reasonable defaults for the sizes of partitions that are created;
     auto-sized partitions can now also recover the space that becomes
     available when other partitions are deleted.</para>
+
+    <para arch="alpha">Filesystems created from within
+    &man.sysinstall.8; continue to use the old default block and
+    fragment sizes of 8192 and 1024 bytes respectively, overriding the
+    &man.newfs.8; defaults.  The &man.newfs.8; default parameters were
+    changed in &os; &release.current; (see the <link
+    linkend="newfs-block-frag-sizes">corresponding release note</link>
+    in this document), but the &arch; bootstrap code assumes a block
+    size of 8192 bytes for the root filesystem.  This change ensures
+    that the parameters for the root filesystem are set correctly for
+    new installs. &merged;</para>
 
     <para>&man.syslogd.8; can take a <option>-n</option> option to
     disable DNS queries for every request. &merged;</para>
