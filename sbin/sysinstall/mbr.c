@@ -155,8 +155,7 @@ clear_mbr(struct mbr *mbr, char *bootcode)
      * then clobber any existing bootcode.
      */
     
-    sprintf(scratch, "\nLoading MBR code from %s\n", bootcode);
-    dialog_msgbox(TITLE, scratch, 5, 60, 0);
+    TellEm("Loading MBR code from %s", bootcode);
     fd = open(bootcode, O_RDONLY);
     if (fd < 0) {
 	sprintf(errmsg, "Couldn't open boot file %s\n", bootcode);
@@ -245,7 +244,7 @@ get_geom_values(int disk)
 
 	keypad(window, TRUE);
 
-	dialog_clear();
+	dialog_clear_norefresh();
 	draw_box(window, 0, 0, 9, 40, dialog_attr, border_attr);
 
 	while (key != ESC) {
@@ -304,22 +303,20 @@ edit_mbr(int disk)
 		while (!ok) {
 			AskAbort(scratch);
 			if (!dialog_yesno(TITLE,
-									"Are you sure you wish to proceed ?",
-									10, 75)) {
-				dialog_clear();
+						"Are you sure you wish to proceed ?",
+						-1, -1)) {
 				if (dedicated_mbr(mbr, boot1, &disk_list[disk].lbl) == -1) {
 					sprintf(scratch, "\n\nCouldn't create new master boot record.\n\n%s", errmsg);
 					return(-1);
 				}
 				ok = 1;
 			}
-			dialog_clear();
 		}
 	}
 
 	sprintf(scratch, "Do you wish to dedicate the whole disk to FreeBSD?\n\nDoing so will overwrite any existing data on the disk.");
-	dialog_clear();
-	if (!dialog_yesno(TITLE, scratch, 10, 75))
+	dialog_clear_norefresh();
+	if (!dialog_yesno(TITLE, scratch, -1, -1))
 		if (dedicated_mbr(mbr, boot1, &disk_list[disk].lbl) == -1) {
 			sprintf(scratch, "\n\nCouldn't dedicate disk to FreeBSD.\n\n %s", errmsg);
 			return(-1);
@@ -335,7 +332,7 @@ edit_mbr(int disk)
 
 	keypad(window, TRUE); 
 
-	dialog_clear();
+	dialog_clear_norefresh();
 	draw_box(window, 0, 0, 24, 79, dialog_attr, border_attr);
 
 	cur_field = 1;
@@ -380,11 +377,11 @@ edit_mbr(int disk)
 			beep();
 		else
 			cur_field = next;
-} 
+	}
 
 	sprintf(scratch, "Writing a new master boot record can erase the current disk contents.\n\n Are you sure you want to write the new MBR?");
-	dialog_clear();
-	if (!dialog_yesno("Write new MBR?", scratch, 10, 75)) {
+	dialog_clear_norefresh();
+	if (!dialog_yesno("Write new MBR?", scratch, -1, -1)) {
 		sprintf(scratch, "/dev/r%s%dd", disk_list[disk].devconf->dc_name,
 											     disk_list[disk].devconf->dc_unit);
 		if (write_mbr(scratch, mbr) == -1) {
