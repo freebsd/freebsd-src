@@ -44,7 +44,7 @@ SRCS+=	nargs.s insque.s remque.s
 .endif
 
 # XXX MISSING:	ecvt.0
-MAN3+=	4.3/insque.3 4.3/lsearch.3 4.3/re_comp.3 4.3/rexec.3
+MAN3+=  4.3/cfree.3 4.3/insque.3 4.3/lsearch.3 4.3/re_comp.3 4.3/rexec.3
 
 # XXX MISSING:	ecvt.3, so can't MLINK
 #MLINKS+=ecvt.3 fcvt.3 ecvt.3 gcvt.3
