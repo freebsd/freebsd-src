@@ -1150,6 +1150,8 @@ witness_warn(int flags, struct lock_object *lock, const char *fmt, ...)
 #ifdef DDB
 	else if (witness_ddb && n)
 		Debugger(__func__);
+	else if (witness_trace && n)
+		backtrace();
 #endif
 	return (n);
 }
