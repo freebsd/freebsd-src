@@ -2056,13 +2056,6 @@ em_dma_malloc(struct adapter *adapter, bus_size_t size,
                 goto fail_0;
         }
 
-        r = bus_dmamap_create(dma->dma_tag, BUS_DMA_NOWAIT, &dma->dma_map);
-        if (r != 0) {
-                printf("em%d: em_dma_malloc: bus_dmamap_create failed; "
-                        "error %u\n", adapter->unit, r);
-                goto fail_1;
-        }
-
         r = bus_dmamem_alloc(dma->dma_tag, (void**) &dma->dma_vaddr,
                              BUS_DMA_NOWAIT, &dma->dma_map);
         if (r != 0) {
@@ -2090,8 +2083,6 @@ fail_3:
         bus_dmamap_unload(dma->dma_tag, dma->dma_map);
 fail_2:
         bus_dmamem_free(dma->dma_tag, dma->dma_vaddr, dma->dma_map);
-fail_1:
-        bus_dmamap_destroy(dma->dma_tag, dma->dma_map);
         bus_dma_tag_destroy(dma->dma_tag);
 fail_0:
         dma->dma_map = NULL;
@@ -2104,7 +2095,6 @@ em_dma_free(struct adapter *adapter, struct em_dma_alloc *dma)
 {
         bus_dmamap_unload(dma->dma_tag, dma->dma_map);
         bus_dmamem_free(dma->dma_tag, dma->dma_vaddr, dma->dma_map);
-        bus_dmamap_destroy(dma->dma_tag, dma->dma_map);
         bus_dma_tag_destroy(dma->dma_tag);
 }
 
@@ -2145,7 +2135,7 @@ em_setup_transmit_structures(struct adapter * adapter)
          * Setup DMA descriptor areas.
          */
         if (bus_dma_tag_create(NULL,                    /* parent */
-                               PAGE_SIZE, 0,            /* alignment, bounds */
+                               1, 0,                    /* alignment, bounds */
                                BUS_SPACE_MAXADDR,       /* lowaddr */ 
                                BUS_SPACE_MAXADDR,       /* highaddr */
                                NULL, NULL,              /* filter, filterarg */
@@ -2523,7 +2513,7 @@ em_allocate_receive_structures(struct adapter * adapter)
               sizeof(struct em_buffer) * adapter->num_rx_desc);
 
         error = bus_dma_tag_create(NULL,                /* parent */
-                               PAGE_SIZE, 0,            /* alignment, bounds */
+                               1, 0,                    /* alignment, bounds */
                                BUS_SPACE_MAXADDR,       /* lowaddr */
                                BUS_SPACE_MAXADDR,       /* highaddr */
                                NULL, NULL,              /* filter, filterarg */
