@@ -35,7 +35,7 @@
 
 #include <machine/psl.h>
 
-#define	CRITICAL_FORK	(mfmsr() | PSL_EE)
+#define	CRITICAL_FORK	(mfmsr() | PSL_EE | PSL_RI)
 
 #ifdef __GNUC__
 
@@ -93,7 +93,7 @@ disable_intr(void)
 	unsigned int	msr;
 
 	msr = mfmsr();
-	mtmsr(msr & ~PSL_EE);
+	mtmsr(msr & ~(PSL_EE|PSL_RI));
 }
 
 static __inline void
@@ -102,7 +102,7 @@ enable_intr(void)
 	unsigned int	msr;
 
 	msr = mfmsr();
-	mtmsr(msr | PSL_EE);
+	mtmsr(msr | PSL_EE | PSL_RI);
 }
 
 static __inline unsigned int
@@ -118,8 +118,15 @@ save_intr(void)
 static __inline critical_t
 cpu_critical_enter(void)
 {
+	u_int		msr;
+	critical_t	crit;
 
-	return ((critical_t)save_intr());
+	msr = mfmsr();
+	crit = (critical_t)msr;
+	msr &= ~(PSL_EE | PSL_RI);
+	mtmsr(msr);
+	
+	return (crit);
 }
 
 static __inline void
@@ -133,7 +140,7 @@ static __inline void
 cpu_critical_exit(critical_t msr)
 {
 
-	return (restore_intr((unsigned int)msr));
+	mtmsr(msr);
 }
 
 static __inline void
