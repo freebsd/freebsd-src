@@ -41,7 +41,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumioctl.c,v 1.21 2003/05/04 05:23:09 grog Exp grog $
+ * $Id: vinumioctl.c,v 1.22 2003/05/07 03:31:45 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -303,9 +303,6 @@ vinum_super_ioctl(dev_t dev,
 	return error;
 
     case VINUM_READCONFIG:
-	error = lock_config();				    /* get the config for us alone */
-	if (error)					    /* can't do it, */
-	    return error;				    /* give up */
 	if (((char *) data)[0] == '\0')
 	    ioctl_reply->error = vinum_scandisk(NULL);	    /* built your own list */
 	else
@@ -317,7 +314,6 @@ vinum_super_ioctl(dev_t dev,
 		strcpy(ioctl_reply->msg, "no drives found");
 	} else if (ioctl_reply->error)
 	    strcpy(ioctl_reply->msg, "can't read configuration information, see log file");
-	unlock_config();
 	return 0;					    /* must be 0 to return the real error info */
 
     case VINUM_INIT:
