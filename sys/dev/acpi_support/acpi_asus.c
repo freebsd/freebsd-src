@@ -146,6 +146,17 @@ static struct acpi_asus_model acpi_asus_models[] = {
 		.disp_set	= "SDSP"
 	},
 	{
+		.name		= "L4R",
+		.mled_set	= "MLED",
+		.wled_set	= "WLED",
+		.brn_get	= "GPLV",
+		.brn_set	= "SPLV",
+		.lcd_get	= "\\_SB.PCI0.SBSM.SEO4",
+		.lcd_set	= "\\_SB.PCI0.SBRG.EC0._Q10",
+		.disp_get	= "\\_SB.PCI0.P0P1.VGA.GETD",
+		.disp_set	= "SDSP"
+	},
+	{
 		.name		= "L8L"
 		/* Only has hotkeys, apparantly */
 	},
@@ -176,6 +187,17 @@ static struct acpi_asus_model acpi_asus_models[] = {
 		.brn_get	= "GPLV",
 		.disp_set	= "SDSP",
 		.disp_get	= "\\SSTE"
+	},
+	{
+		.name		= "M6R",
+		.mled_set	= "MLED",
+		.wled_set	= "WLED",
+		.brn_get	= "GPLV",
+		.brn_set	= "SPLV",
+		.lcd_get	= "\\_SB.PCI0.SBSM.SEO4",
+		.lcd_set	= "\\_SB.PCI0.SBRG.EC0._Q10",
+		.disp_get	= "\\SSTE",
+		.disp_set	= "SDSP"
 	},
 
 	{ .name = NULL }
