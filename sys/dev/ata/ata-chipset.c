@@ -605,6 +605,8 @@ ata_highpoint_ident(device_t dev)
      { ATA_HPT366, 0x02, HPT366, 0x00,	 ATA_UDMA4, "HighPoint HPT368" },
      { ATA_HPT366, 0x00, HPT366, HPTOLD, ATA_UDMA4, "HighPoint HPT366" },
      { ATA_HPT372, 0x01, HPT372, 0x00,	 ATA_UDMA6, "HighPoint HPT372" },
+     { ATA_HPT302, 0x01, HPT372, 0x00,	 ATA_UDMA6, "HighPoint HPT302" },
+     { ATA_HPT371, 0x01, HPT372, 0x00,	 ATA_UDMA6, "HighPoint HPT371" },
      { ATA_HPT374, 0x07, HPT374, 0x00,	 ATA_UDMA6, "HighPoint HPT374" },
      { 0, 0, 0, 0, 0, 0}};
     char buffer[64];
