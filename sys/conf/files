@@ -957,6 +957,7 @@ geom/mirror/g_mirror_ctl.c	optional geom_mirror
 geom/nop/g_nop.c	optional geom_nop
 geom/raid3/g_raid3.c		optional geom_raid3
 geom/raid3/g_raid3_ctl.c	optional geom_raid3
+geom/shsec/g_shsec.c	optional geom_shsec
 geom/stripe/g_stripe.c	optional geom_stripe
 geom/uzip/g_uzip.c	optional geom_uzip
 geom/geom_aes.c		optional geom_aes

@@ -131,6 +131,7 @@ options 	GEOM_MIRROR		# Disk mirroring.
 options 	GEOM_NOP		# Test class.
 options 	GEOM_PC98		# NEC PC9800 partitioning
 options 	GEOM_RAID3		# RAID3 functionality.
+options 	GEOM_SHSEC		# Shared secret.
 options 	GEOM_STRIPE		# Disk striping.
 options 	GEOM_SUNLABEL		# Sun/Solaris partitioning
 options 	GEOM_UZIP		# Read-only compressed disks

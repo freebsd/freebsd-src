@@ -39,7 +39,7 @@ LSUBDIRS=	cam/scsi dev/an dev/bktr dev/firewire dev/ic dev/iicbus \
 	fs/fdescfs fs/fifofs fs/msdosfs fs/ntfs fs/nullfs fs/nwfs fs/portalfs \
 	fs/procfs fs/smbfs fs/udf fs/umapfs fs/unionfs \
 	geom/concat geom/gate geom/label geom/mirror geom/nop geom/raid3 \
-	geom/stripe \
+	geom/shsec geom/stripe \
 	isofs/cd9660 netatm/ipatm netatm/sigpvc netatm/spans netatm/uni \
 	netgraph/atm netgraph/netflow \
 	security/mac_biba security/mac_bsdextended \
