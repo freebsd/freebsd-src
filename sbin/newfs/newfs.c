@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)newfs.c	8.13 (Berkeley) 5/1/95";
 #endif
 static const char rcsid[] =
-	"$Id: newfs.c,v 1.24 1998/09/29 23:20:04 grog Exp $";
+	"$Id: newfs.c,v 1.25 1998/09/30 07:53:52 grog Exp $";
 #endif /* not lint */
 
 /*
@@ -601,8 +601,10 @@ havelabel:
 	if (realsectorsize != DEV_BSIZE)
 		pp->p_size /= realsectorsize /DEV_BSIZE;
 #endif
+#if 0	/* XXX this shouldn't fail, but it returns ENXDEV right now - pure workaround, this */
 	if (!Nflag && bcmp(pp, &oldpartition, sizeof(oldpartition)))
 		rewritelabel(special, fso, lp);
+#endif
 	if (!Nflag)
 		close(fso);
 	close(fsi);
