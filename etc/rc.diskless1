@@ -62,6 +62,10 @@ chkerr() {
 	esac
 }
 
+mount_md() {
+	/sbin/mount_mfs -s $1 -T qp120at dummy $2
+}
+
 # DEBUGGING
 #
 # set -v
@@ -93,21 +97,12 @@ echo "Interface ${bootp_ifc} IP-Address ${bootp_ipa} Broadcast ${bootp_ipbca}"
 # Create an MFS /tmp to temporarily hold files from /etc until we
 # can bootstrap /etc as an MFS.
 
-/sbin/mount_mfs -s 4096 -T qp120at dummy /tmp
-chkerr $? "MFS mount on /tmp"
-/bin/cp -Rp /etc /tmp
-chkerr $? "cp /etc to /tmp/etc MFS"
-
-/sbin/mount_mfs -s 4096 -T qp120at dummy /etc
+mount_md 4096 /etc 0
 chkerr $? "MFS mount on /etc"
 /bin/chmod 755 /etc
 
-/bin/cp -Rp /tmp/etc/* /etc
-chkerr $? "cp /tmp/etc to /etc MFS"
-
-rm -rf /tmp/etc
-/sbin/umount /tmp
-
+/bin/cp -Rp /conf/default/etc/* /etc
+chkerr $? "cp /conf/default/etc to /etc MFS"
 
 # Allow for override files to replace files in /etc.  Use /conf/*/etc
 # to find the override files.  First choice is default files that
@@ -119,7 +114,7 @@ rm -rf /tmp/etc
 # on separate subnets.
 #
 
-for i in default ${bootp_ipbca} ${bootp_ipa} ; do
+for i in ${bootp_ipbca} ${bootp_ipa} ; do
 	if [ -d /conf/${i}/etc ]; then
 		cp -Rp /conf/${i}/etc/* /etc
 	fi
