@@ -335,7 +335,7 @@ firewire_xfer_timeout(struct firewire_comm *fc)
 	struct tlabel *tl;
 	struct timeval tv;
 	struct timeval split_timeout;
-	int i;
+	int i, s;
 
 	split_timeout.tv_sec = 6;
 	split_timeout.tv_usec = 0;
@@ -343,6 +343,7 @@ firewire_xfer_timeout(struct firewire_comm *fc)
 	microtime(&tv);
 	timevalsub(&tv, &split_timeout);
 
+	s = splfw();
 	for (i = 0; i < 0x40; i ++) {
 		while ((tl = STAILQ_FIRST(&fc->tlabels[i])) != NULL) {
 			xfer = tl->xfer;
@@ -365,6 +366,7 @@ firewire_xfer_timeout(struct firewire_comm *fc)
 			}
 		}
 	}
+	splx(s);
 }
 
 static void
@@ -1641,9 +1643,11 @@ fw_attach_dev(struct firewire_comm *fc)
 	if (i > 0)
 		printf("fw_attach_dev: %d pending handlers called\n", i);
 	if (fc->retry_count > 0) {
-		printf("retry_count = %d\n", fc->retry_count);
+		printf("probe failed for %d node\n", fc->retry_count);
+#if 0
 		callout_reset(&fc->retry_probe_callout, hz*2,
 					(void *)fc->ibr, (void *)fc);
+#endif
 	}
 	return;
 }
