@@ -46,7 +46,7 @@
  * SUCH DAMAGE.
  *
  *	from: unknown origin, 386BSD 0.1
- *	$Id: lpt.c,v 1.18 1994/09/15 02:37:11 phk Exp $
+ *	$Id: lpt.c,v 1.19 1994/09/18 06:12:45 phk Exp $
  */
 
 /*
@@ -654,7 +654,7 @@ lptwrite(dev_t dev, struct uio * uio)
 	}
 
 	sc->sc_state &= ~INTERRUPTED;
-	while (n = min(BUFSIZE, uio->uio_resid)) {
+	while ((n = min(BUFSIZE, uio->uio_resid)) != 0) {
 		sc->sc_cp = sc->sc_inbuf->b_un.b_addr ;
 		uiomove(sc->sc_cp, n, uio);
 		sc->sc_xfercnt = n ;
@@ -841,7 +841,6 @@ lpinittables()
 static int
 lpioctl(struct ifnet *ifp, int cmd, caddr_t data)
 {
-    struct proc *p = curproc;
     struct lpt_softc *sc = lpt_sc + ifp->if_unit;
     struct ifaddr *ifa = (struct ifaddr *)data;
     struct ifreq *ifr = (struct ifreq *)data; 

@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: aha1542.c,v 1.34 1994/08/27 16:14:16 davidg Exp $
+ *      $Id: aha1542.c,v 1.35 1994/09/21 18:17:56 davidg Exp $
  */
 
 /*
@@ -356,6 +356,10 @@ static int ahaunit = 0;
 	outb(AHA_CMD_DATA_PORT, AHA_START_SCSI);
 
 #define AHA_RESET_TIMEOUT	2000	/* time to wait for reset (mSec) */
+
+int	aha_poll __P((int, struct scsi_xfer *, struct aha_ccb *));
+int	aha_init __P((int));
+
 #ifndef	KERNEL
 main()
 {
@@ -762,7 +766,6 @@ aha_done(unit, ccb)
 	int	unit;
 	struct	aha_ccb *ccb;
 {
-	struct aha_data *aha = ahadata[unit];
 	struct scsi_sense_data *s1, *s2;
 	struct scsi_xfer *xs = ccb->xfer;
 
@@ -1063,16 +1066,12 @@ aha_scsi_cmd(xs)
 	struct scsi_link *sc_link = xs->sc_link;
 	int     unit = sc_link->adapter_unit;
 	struct aha_data *aha = ahadata[unit];
-	struct scsi_sense_data *s1, *s2;
 	struct aha_ccb *ccb;
 	struct aha_scat_gath *sg;
 	int     seg;		/* scatter gather seg being worked on */
-	int     i = 0;
-	int     rc = 0;
 	int     thiskv;
 	int     thisphys, nextphys;
 	int     bytes_this_seg, bytes_this_page, datalen, flags;
-	struct iovec *iovp;
 	int     s;
 
 	SC_DEBUG(xs->sc_link, SDEV_DB2, ("aha_scsi_cmd\n"));
@@ -1243,7 +1242,6 @@ aha_poll(unit, xs, ccb)
 	struct aha_ccb *ccb;
 {
 	struct aha_data *aha = ahadata[unit];
-	int     done = 0;
 	int     count = xs->timeout;
 	u_char  stat;
 
