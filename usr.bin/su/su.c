@@ -82,7 +82,7 @@ main(argc, argv)
 {
 	extern char **environ;
 	struct passwd *pwd;
-	char *p, **g, *user, *shell, *username, *cleanenv[2], *nargv[4], **np;
+	char *p, **g, *user, *shell, *username, *cleanenv[20], *nargv[4], **np;
 	struct group *gr;
 	uid_t ruid;
 	int asme, ch, asthem, fastlogin, prio;
@@ -219,9 +219,9 @@ main(argc, argv)
 	if (!asme) {
 		if (asthem) {
 			p = getenv("TERM");
-			cleanenv[0] = _PATH_DEFPATH;
-			cleanenv[1] = NULL;
+			cleanenv[0] = NULL;
 			environ = cleanenv;
+			(void)setenv("PATH", _PATH_DEFPATH, 1);
 			(void)setenv("TERM", p, 1);
 			if (chdir(pwd->pw_dir) < 0)
 				errx(1, "no directory");
