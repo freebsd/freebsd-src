@@ -419,8 +419,10 @@ retry:
 	 */
 	for (i = 0; i < size; i += PAGE_SIZE) {
 		m = vm_page_lookup(kmem_object, OFF_TO_IDX(offset + i));
+		vm_page_lock_queues();
 		vm_page_wire(m);
 		vm_page_wakeup(m);
+		vm_page_unlock_queues();
 		/*
 		 * Because this is kernel_pmap, this call will not block.
 		 */

@@ -328,12 +328,14 @@ vm_proc_swapin(struct proc *p)
 	}
 	if (upobj->resident_page_count != UAREA_PAGES)
 		panic("vm_proc_swapin: lost pages from upobj");
+	vm_page_lock_queues();
 	TAILQ_FOREACH(m, &upobj->memq, listq) {
 		m->valid = VM_PAGE_BITS_ALL;
 		vm_page_wire(m);
 		vm_page_wakeup(m);
 		vm_page_flag_set(m, PG_MAPPED | PG_WRITEABLE);
 	}
+	vm_page_unlock_queues();
 	up = (vm_offset_t)p->p_uarea;
 	pmap_qenter(up, ma, UAREA_PAGES);
 }
