@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 
 #include <fcntl.h>
 #include <libutil.h>
+#include <paths.h>
 #include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -90,6 +91,10 @@ pam_sm_open_session(pam_handle_t *pamh, int flags,
 		return (pam_err);
 	if (tty == NULL)
 		return (PAM_SERVICE_ERR);
+	if (strncmp(tty, _PATH_DEV, strlen(_PATH_DEV)))
+		tty += strlen(_PATH_DEV);
+	if (*tty == '\0')
+		return (PAM_SERVICE_ERR);
 
 	fd = open(_PATH_LASTLOG, O_RDWR|O_CREAT, 0644);
 	if (fd == -1) {
@@ -104,15 +109,14 @@ pam_sm_open_session(pam_handle_t *pamh, int flags,
 	if (lseek(fd, llpos, L_SET) != llpos)
 		goto file_err;
 	if ((flags & PAM_SILENT) == 0) {
-		if (read(fd, &ll, sizeof(ll)) == sizeof(ll) &&
-		    ll.ll_time != 0) {
-			pam_info(pamh, "Last login: %.*s ", 24 - 5,
-			    ctime(&ll.ll_time));
+		if (read(fd, &ll, sizeof ll) == sizeof ll && ll.ll_time != 0) {
 			if (*ll.ll_host != '\0')
-				pam_info(pamh, "from %.*s\n",
+				pam_info(pamh, "Last login: %.*s from %.*s",
+				    24 - 5, ctime(&ll.ll_time),
 				    (int)sizeof(ll.ll_host), ll.ll_host);
 			else
-				pam_info(pamh, "on %.*s\n",
+				pam_info(pamh, "Last login: %.*s on %.*s",
+				    24 - 5, ctime(&ll.ll_time),
 				    (int)sizeof(ll.ll_line), ll.ll_line);
 		}
 		if (lseek(fd, llpos, L_SET) != llpos)
