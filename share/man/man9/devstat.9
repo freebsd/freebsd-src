@@ -103,7 +103,7 @@ below for details.
 .It device_type
 The device type.  This is broken into three sections:  base device type
 (e.g. direct access, CDROM, sequential access), interface type (IDE, SCSI
-or other) and a passthrough flag to indicate pasthrough devices.  See below
+or other) and a pass-through flag to indicate pas-through devices.  See below
 for a complete list of types.
 .It priority
 The device priority.  The priority is used to determine how devices are
@@ -246,7 +246,7 @@ to userland programs that decipher the statistics.
 .It device_type
 This is the device type.  It consists of three parts:  the device type
 (e.g. direct access, CDROM, sequential access, etc.), the interface (IDE,
-SCSI or other) and whether or not the device in question is a passthrough
+SCSI or other) and whether or not the device in question is a pass-through
 driver.  See below for a complete list of device types.
 .It priority
 This is the priority.  This is the first parameter used to determine where
@@ -256,9 +256,9 @@ list.  The second parameter is attach order.  See below for a list of
 available priorities.
 .El
 .Pp
-Each device is given a device type.  Passthrough devices have the same
+Each device is given a device type.  Pass-through devices have the same
 underlying device type and interface as the device they provide an
-interface for, but they also have the passthrough flag set.  The base
+interface for, but they also have the pass-through flag set.  The base
 device types are identical to the
 .Tn SCSI
 device type numbers, so with
@@ -266,7 +266,7 @@ device type numbers, so with
 peripherals, the device type returned from an inquiry is usually ORed with
 the
 .Tn SCSI
-interface type and the passthrough flag if appropriate.  The device type
+interface type and the pass-through flag if appropriate.  The device type
 flags are as follows:
 .Bd -literal -offset indent
 typedef enum {
