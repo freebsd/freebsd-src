@@ -80,8 +80,6 @@
 # else
 #  include <net/ethertypes.h>
 # endif
-#else
-# error Huh? sppp without INET?
 #endif
 
 #ifdef IPX
@@ -586,6 +584,34 @@ sppp_input(struct ifnet *ifp, struct mbuf *m)
 			}
 			do_account++;
 			break;
+		case PPP_VJ_COMP:
+			if (sp->state[IDX_IPCP] == STATE_OPENED) {
+				if ((len =
+				     sl_uncompress_tcp((u_char **)&m->m_data,
+						       m->m_len,
+						       TYPE_COMPRESSED_TCP,
+						       sp->pp_comp)) <= 0)
+					goto drop;
+				m->m_len = m->m_pkthdr.len = len;
+				schednetisr (NETISR_IP);
+				inq = &ipintrq;
+			}
+			do_account++;
+			break;
+		case PPP_VJ_UCOMP:
+			if (sp->state[IDX_IPCP] == STATE_OPENED) {
+				if ((len =
+				     sl_uncompress_tcp((u_char **)&m->m_data,
+						       m->m_len,
+						       TYPE_UNCOMPRESSED_TCP,
+						       sp->pp_comp)) <= 0)
+					goto drop;
+				m->m_len = m->m_pkthdr.len = len;
+				schednetisr (NETISR_IP);
+				inq = &ipintrq;
+			}
+			do_account++;
+			break;
 #endif
 #ifdef INET6
 		case PPP_IPV6CP:
@@ -600,32 +626,6 @@ sppp_input(struct ifnet *ifp, struct mbuf *m)
 				inq = &ip6intrq;
 			}
 			do_account++;
-			break;
-		case PPP_VJ_COMP:
-			if (sp->state[IDX_IPCP] == STATE_OPENED) {
-				if ((len =
-				     sl_uncompress_tcp((u_char **)&m->m_data,
-						       m->m_len,
-						       TYPE_COMPRESSED_TCP,
-						       &sp->pp_comp)) <= 0)
-					goto drop;
-				m->m_len = m->m_pkthdr.len = len;
-				schednetisr (NETISR_IP);
-				inq = &ipintrq;
-			}
-			break;
-		case PPP_VJ_UCOMP:
-			if (sp->state[IDX_IPCP] == STATE_OPENED) {
-				if ((len =
-				     sl_uncompress_tcp((u_char **)&m->m_data,
-						       m->m_len,
-						       TYPE_UNCOMPRESSED_TCP,
-						       &sp->pp_comp)) <= 0)
-					goto drop;
-				m->m_len = m->m_pkthdr.len = len;
-				schednetisr (NETISR_IP);
-				inq = &ipintrq;
-			}
 			break;
 #endif
 #ifdef IPX
@@ -814,7 +814,7 @@ sppp_output(struct ifnet *ifp, struct mbuf *m,
 		 */
 		if (sp->pp_mode != IFF_CISCO && (sp->ipcp.flags & IPCP_VJ) &&
 		    ip->ip_p == IPPROTO_TCP)
-			switch (sl_compress_tcp(m, ip, &sp->pp_comp,
+			switch (sl_compress_tcp(m, ip, sp->pp_comp,
 						sp->ipcp.compress_cid)) {
 			case TYPE_COMPRESSED_TCP:
 				ipproto = PPP_VJ_COMP;
@@ -974,9 +974,10 @@ sppp_attach(struct ifnet *ifp)
 	sp->pp_down = lcp.Down;
 	mtx_init(&sp->pp_cpq.ifq_mtx, "sppp_cpq", MTX_DEF);
 	mtx_init(&sp->pp_fastq.ifq_mtx, "sppp_fastq", MTX_DEF);
-	sp->enable_vj = 1;
 	sp->pp_last_recv = sp->pp_last_sent = time_second;
-	sl_compress_init(&sp->pp_comp, -1);
+	sp->enable_vj = 1;
+	sp->pp_comp = malloc(sizeof(struct slcompress), M_TEMP, M_WAIT);
+	sl_compress_init(sp->pp_comp, -1);
 	sppp_lcp_init(sp);
 	sppp_ipcp_init(sp);
 	sppp_ipv6cp_init(sp);
@@ -2931,7 +2932,7 @@ sppp_ipcp_RCR(struct sppp *sp, struct lcp_header *h, int len)
 				if (debug)
 					log(-1, "VJ [ack] ");
 				sp->ipcp.flags |= IPCP_VJ;
-				sl_compress_init(&sp->pp_comp, p[4]);
+				sl_compress_init(sp->pp_comp, p[4]);
 				sp->ipcp.max_state = p[4];
 				sp->ipcp.compress_cid = p[5];
 				continue;
@@ -3108,7 +3109,7 @@ sppp_ipcp_RCN_nak(struct sppp *sp, struct lcp_header *h, int len)
 					log(-1, "[wantcomp %#04x] ",
 						desiredcomp);
 				if (desiredcomp == IPCP_COMP_VJ) {
-					sl_compress_init(&sp->pp_comp, p[4]);
+					sl_compress_init(sp->pp_comp, p[4]);
 					sp->ipcp.max_state = p[4];
 					sp->ipcp.compress_cid = p[5];
 					if (debug)
@@ -4782,7 +4783,7 @@ sppp_set_ip_addr(struct sppp *sp, u_long src)
 		}
 #endif
 	}
-}			
+}
 
 #ifdef INET6
 /*

@@ -154,7 +154,7 @@ struct sppp {
 	struct sipcp ipv6cp;		/* IPv6CP params */
 	struct sauth myauth;		/* auth params, i'm peer */
 	struct sauth hisauth;		/* auth params, i'm authenticator */
-	struct slcompress pp_comp;	/* for VJ compression */
+	struct slcompress *pp_comp;	/* for VJ compression */
 	/*
 	 * These functions are filled in by sppp_attach(), and are
 	 * expected to be used by the lower layer (hardware) drivers
