@@ -85,7 +85,7 @@ extern const struct ah_algorithm *ah_algorithm_lookup __P((int));
 extern int ah_hdrlen __P((struct secasvar *));
 
 extern size_t ah_hdrsiz __P((struct ipsecrequest *));
-extern void ah4_input __P((struct mbuf *, ...));
+extern void ah4_input __P((struct mbuf *, int));
 extern int ah4_output __P((struct mbuf *, struct ipsecrequest *));
 extern int ah4_calccksum __P((struct mbuf *, caddr_t, size_t,
 	const struct ah_algorithm *, struct secasvar *));

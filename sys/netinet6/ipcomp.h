@@ -64,7 +64,7 @@ struct ipcomp_algorithm {
 
 struct ipsecrequest;
 extern const struct ipcomp_algorithm *ipcomp_algorithm_lookup __P((int));
-extern void ipcomp4_input __P((struct mbuf *, ...));
+extern void ipcomp4_input __P((struct mbuf *, int));
 extern int ipcomp4_output __P((struct mbuf *, struct ipsecrequest *));
 #endif /*KERNEL*/
 
