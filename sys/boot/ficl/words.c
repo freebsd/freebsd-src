@@ -1943,7 +1943,7 @@ static void base(FICL_VM *pVM)
 #endif
 
 	pBase = (CELL *)(&pVM->base);
-	PUSH(*pBase);
+	PUSHPTR(pBase);
 }
 
 
