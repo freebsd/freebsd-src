@@ -26,19 +26,21 @@
  * $FreeBSD$
  */
 
+#include "opt_bus.h"
+
 #include <sys/param.h>
 #include <sys/queue.h>
 #include <sys/malloc.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
+#ifdef DEVICE_SYSCTLS
 #include <sys/sysctl.h>
+#endif
 #include <sys/bus_private.h>
 #include <sys/systm.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
 #include <machine/stdarg.h>	/* for device_printf() */
-
-#include "opt_bus.h"
 
 MALLOC_DEFINE(M_BUS, "bus", "Bus data structures");
 

@@ -42,7 +42,6 @@
 #include <sys/malloc.h>		/* XXX must be before <sys/file.h> */
 #include <sys/file.h>
 #include <sys/filedesc.h>
-#include <sys/lock.h>
 #include <sys/mbuf.h>
 #include <sys/namei.h>
 #include <sys/proc.h>

@@ -41,7 +41,6 @@
 #include <sys/systm.h>
 #include <sys/sysctl.h>
 #include <sys/libkern.h>
-#include <machine/bootinfo.h>
 
 char	*kern_envp;
 

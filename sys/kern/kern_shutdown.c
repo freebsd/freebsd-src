@@ -51,7 +51,6 @@
 #include <sys/reboot.h>
 #include <sys/proc.h>
 #include <sys/vnode.h>
-#include <sys/malloc.h>
 #include <sys/kernel.h>
 #include <sys/mount.h>
 #include <sys/queue.h>

@@ -28,13 +28,11 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
 #include <sys/proc.h>
 #include <sys/kthread.h>
 #include <sys/unistd.h>
 #include <sys/wait.h>
 
-#include <machine/cpu.h>
 #include <machine/stdarg.h>
 
 /*

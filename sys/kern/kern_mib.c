@@ -46,7 +46,6 @@
 #include <sys/sysctl.h>
 #include <sys/proc.h>
 #include <sys/jail.h>
-#include <sys/unistd.h>
 
 #if defined(SMP)
 #include <machine/smp.h>
