@@ -14,18 +14,29 @@ fi
 case "$monthly_accounting_enable" in
     [Yy][Ee][Ss])
 	W=/var/log/wtmp
+	rc=0
+	remove=NO
 	if [ ! -f $W.0 ]
 	then
-	    echo '$monthly_accounting_enable is set but' \
-		"$W.0 doesn't exist"
-	    rc=2
-	else
+	    if [ -f $W.0.gz ]
+	    then
+		remove=YES
+		zcat $W.0.gz > $W.0 || rc=1
+	    else
+		echo '$monthly_accounting_enable is set but' \
+		    "$W.0 doesn't exist"
+		rc=2
+	    fi
+	fi
+	if [ $rc -eq 0 ]
+	then
 	    echo ""
 	    echo "Doing login accounting:"
 
 	    rc=$(ac -p -w $W.0 | sort -nr +1 | tee /dev/stderr | wc -l)
 	    [ $rc -gt 0 ] && rc=1
-	fi;;
+	fi
+	[ $remove = YES ] && rm -f $W.0;;
 
     *)  rc=0;;
 esac
