@@ -159,12 +159,7 @@ enum	{
 int	rflag;
 int	disable_write;   /* set to disable writing to disk label */
 
-#ifdef DEBUG
-int	debug;
-#define OPTIONS	"BNRWb:denrs:w"
-#else
 #define OPTIONS	"BNRWb:enrs:w"
-#endif
 
 int
 main(int argc, char *argv[])
@@ -220,11 +215,6 @@ main(int argc, char *argv[])
 					usage();
 				op = WRITE;
 				break;
-#ifdef DEBUG
-			case 'd':
-				debug++;
-				break;
-#endif
 			case '?':
 			default:
 				usage();
@@ -628,11 +618,6 @@ makebootarea(char *boot, struct disklabel *dp, int f)
 		}
 #endif
 	}
-#ifdef DEBUG
-	if (debug)
-		fprintf(stderr, "bootstraps: xxboot = %s, bootxx = %s\n",
-			xxboot, bootxx ? bootxx : "NONE");
-#endif
 
 	/*
 	 * Strange rules:
