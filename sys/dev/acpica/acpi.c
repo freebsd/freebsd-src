@@ -2422,7 +2422,6 @@ acpi_parse_debug(char *cp, struct debugtag *tag, UINT32 *flag)
 		    *flag |= tag[i].value;
 		else
 		    *flag &= ~tag[i].value;
-		printf("ACPI_DEBUG: set '%s'\n", tag[i].name);
 	    }
 	}
 	cp = ep;
@@ -2432,26 +2431,32 @@ acpi_parse_debug(char *cp, struct debugtag *tag, UINT32 *flag)
 static void
 acpi_set_debugging(void *junk)
 {
-    char	*cp;
+    char	*layer, *level;
 
     if (cold) {
 	AcpiDbgLayer = 0;
 	AcpiDbgLevel = 0;
     }
 
-    if ((cp = getenv("debug.acpi.layer")) != NULL) {
-	acpi_parse_debug(cp, &dbg_layer[0], &AcpiDbgLayer);
-	freeenv(cp);
-    }
-    if ((cp = getenv("debug.acpi.level")) != NULL) {
-	acpi_parse_debug(cp, &dbg_level[0], &AcpiDbgLevel);
-	freeenv(cp);
-    }
+    layer = getenv("debug.acpi.layer");
+    level = getenv("debug.acpi.level");
+    if (layer == NULL && level == NULL)
+	return;
 
-    if (cold) {
-	printf("ACPI debug layer 0x%x debug level 0x%x\n",
-	       AcpiDbgLayer, AcpiDbgLevel);
+    printf("ACPI set debug");
+    if (layer != NULL) {
+	if (strcmp("NONE", layer) != 0)
+	    printf(" layer '%s'", layer);
+	acpi_parse_debug(layer, &dbg_layer[0], &AcpiDbgLayer);
+	freeenv(layer);
     }
+    if (level != NULL) {
+	if (strcmp("NONE", level) != 0)
+	    printf(" level '%s'", level);
+	acpi_parse_debug(level, &dbg_level[0], &AcpiDbgLevel);
+	freeenv(level);
+    }
+    printf("\n");
 }
 SYSINIT(acpi_debugging, SI_SUB_TUNABLES, SI_ORDER_ANY, acpi_set_debugging,
 	NULL);
@@ -2485,7 +2490,8 @@ acpi_debug_sysctl(SYSCTL_HANDLER_ARGS)
     sbuf_trim(&sb);
     sbuf_finish(&sb);
 
-    error = sysctl_handle_string(oidp, sbuf_data(&sb), sbuf_len(&sb), req);
+    /* Copy out the old values to the user. */
+    error = SYSCTL_OUT(req, sbuf_data(&sb), sbuf_len(&sb));
     sbuf_delete(&sb);
 
     /* If the user is setting a string, parse it. */
