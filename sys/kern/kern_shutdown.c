@@ -257,7 +257,7 @@ boot(int howto)
 {
 	static int first_buf_printf = 1;
 
-#if defined(SMP) && (defined(__i386__) || defined(__amd64__))
+#if defined(SMP)
 	/*
 	 * Bind us to CPU 0 so that all shutdown code runs there.  Some
 	 * systems don't shutdown properly (i.e., ACPI power off) if we
