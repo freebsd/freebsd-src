@@ -357,8 +357,7 @@ loop1:
 	 * MARK/SCAN initialization to avoid infinite loops
 	 */
 	s = splbio();
-        for (bp = TAILQ_FIRST(&vp->v_dirtyblkhd); bp;
-             bp = TAILQ_NEXT(bp, b_vnbufs)) {
+        TAILQ_FOREACH(bp, &vp->v_dirtyblkhd, b_vnbufs) {
                 bp->b_flags &= ~B_SCANNED;
 	}
 	splx(s);

@@ -459,8 +459,7 @@ in_pcbladdr(inp, nam, plocal_sin)
 			imo = inp->inp_moptions;
 			if (imo->imo_multicast_ifp != NULL) {
 				ifp = imo->imo_multicast_ifp;
-				for (ia = TAILQ_FIRST(&in_ifaddrhead); ia;
-				     ia = TAILQ_NEXT(ia, ia_link))
+				TAILQ_FOREACH(ia, &in_ifaddrhead, ia_link)
 					if (ia->ia_ifp == ifp)
 						break;
 				if (ia == 0)
@@ -858,8 +857,7 @@ in_pcblookup_local(pcbinfo, laddr, lport_arg, wild_okay)
 			 * Port is in use by one or more PCBs. Look for best
 			 * fit.
 			 */
-			for (inp = LIST_FIRST(&phd->phd_pcblist); inp != NULL;
-			    inp = LIST_NEXT(inp, inp_portlist)) {
+			LIST_FOREACH(inp, &phd->phd_pcblist, inp_portlist) {
 				wildcard = 0;
 #ifdef INET6
 				if ((inp->inp_vflag & INP_IPV4) == 0)

@@ -574,8 +574,7 @@ linker_file_lookup_symbol(linker_file_t file, const char* name, int deps)
 	 */
 	struct common_symbol* cp;
 
-	for (cp = STAILQ_FIRST(&file->common); cp;
-	     cp = STAILQ_NEXT(cp, link))
+	STAILQ_FOREACH(cp, &file->common, link)
 	    if (!strcmp(cp->name, name)) {
 		KLD_DPF(SYM, ("linker_file_lookup_symbol: old common value=%x\n", cp->address));
 		return cp->address;

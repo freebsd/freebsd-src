@@ -208,8 +208,7 @@ cam_periph_find(struct cam_path *path, char *name)
 			continue;
 
 		s = splsoftcam();
-		for (periph = TAILQ_FIRST(&(*p_drv)->units); periph != NULL;
-		     periph = TAILQ_NEXT(periph, unit_links)) {
+		TAILQ_FOREACH(periph, &(*p_drv)->units, unit_links) {
 			if (xpt_path_comp(periph->path, path) == 0) {
 				splx(s);
 				return(periph);
