@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mman.h	8.1 (Berkeley) 6/2/93
- * $Id$
+ * $Id: mman.h,v 1.2 1994/08/02 07:53:14 davidg Exp $
  */
 
 /*
@@ -62,6 +62,7 @@
 /*
  * Mapping type; default is map from file.
  */
+#define MAP_FILE	0x0000	/* for backward source compatibility */
 #define	MAP_ANON	0x1000	/* allocated from memory, swap space */
 
 /*
