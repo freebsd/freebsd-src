@@ -37,19 +37,10 @@ static char sccsid[] = "@(#)tputs.c	8.1 (Berkeley) 6/4/93";
 
 #include <sgtty.h>
 #include <ctype.h>
+#include <unistd.h>
 
-/*
- * The following array gives the number of tens of milliseconds per
- * character for each speed as returned by gtty.  Thus since 300
- * baud returns a 7, there are 33.3 milliseconds per char at 300 baud.
- */
-static
-short	tmspc10[] = {
-	0, 2000, 1333, 909, 743, 666, 500, 333, 166, 83, 55, 41, 20, 10, 5
-};
-
-short	ospeed;
-char	PC;
+short   ospeed; /* not needed, only for compatibility */
+char    PC;     /* not needed, only for compatibility */
 
 /*
  * Put the character string cp out, with padding.
@@ -101,23 +92,10 @@ tputs(cp, affcnt, outc)
 		(*outc)(*cp++);
 
 	/*
-	 * If no delay needed, or output speed is
-	 * not comprehensible, then don't try to delay.
+	 * If no delay needed, then don't try to delay.
 	 */
 	if (i == 0)
 		return;
-	if (ospeed <= 0 || ospeed >= (sizeof tmspc10 / sizeof tmspc10[0]))
-		return;
 
-	/*
-	 * Round up by a half a character frame,
-	 * and then do the delay.
-	 * Too bad there are no user program accessible programmed delays.
-	 * Transmitting pad characters slows many
-	 * terminals down and also loads the system.
-	 */
-	mspc10 = tmspc10[ospeed];
-	i += mspc10 / 2;
-	for (i /= mspc10; i > 0; i--)
-		(*outc)(PC);
+	usleep((u_int) i * 100);        /* already * 10 */
 }
