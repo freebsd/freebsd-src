@@ -298,7 +298,8 @@ typeerr:		LABEL;
 	}
 #endif /* RMD160 */
 
-	if (s->flags & F_SLINK && strcmp(cp = rlink(name), s->slink)) {
+	if (s->flags & F_SLINK &&
+	    strcmp(cp = rlink(p->fts_accpath), s->slink)) {
 		LABEL;
 		(void)printf("%slink ref (%s, %s)\n", tab, cp, s->slink);
 	}
