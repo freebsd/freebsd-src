@@ -222,11 +222,7 @@ in6_pcbbind(inp, nam, cred)
 					     ntohl(t->inp_faddr.s_addr) ==
 					      INADDR_ANY) &&
 					    (so->so_cred->cr_uid !=
-					     t->inp_socket->so_cred->cr_uid) &&
-					    (ntohl(t->inp_laddr.s_addr) !=
-					     INADDR_ANY ||
-					     INP_SOCKAF(so) ==
-					     INP_SOCKAF(t->inp_socket)))
+					     t->inp_socket->so_cred->cr_uid))
 						return (EADDRINUSE);
 				}
 			}
