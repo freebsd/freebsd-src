@@ -355,6 +355,7 @@ static u_short levels[SOUND_MIXER_NRDEVICES] =
 0x4b4b};			/* Output gain */
 #endif				/* SM_GAMES */
 
+#if 0
 static u_char sb16_recmasks_L[SOUND_MIXER_NRDEVICES] =
 {
 	0x00,			/* SOUND_MIXER_VOLUME	 */
@@ -390,6 +391,7 @@ static u_char sb16_recmasks_R[SOUND_MIXER_NRDEVICES] =
 	0x00,			/* SOUND_MIXER_IGAIN	 */
 	0x00			/* SOUND_MIXER_OGAIN	 */
 };
+#endif
 
 /*
  * Recording sources (SB Pro)
