@@ -64,46 +64,18 @@ ENTRY(bzero)
 
 /* Address: %rdi */
 ENTRY(pagezero)
-	movq	$512, %rcx
-	cld
-
-	ALIGN_TEXT
+	lea	4096(%rdi),%rsi
+	xorq	%rax,%rax
 1:
-	xorq	%rax, %rax
-	repe
-	scasq
-	jnz	2f
-
-	ret
-
-	ALIGN_TEXT
-
-2:
-	incq	%rcx
-	subq	$8, %rdi
-
-	movq	%rcx, %rdx
-	cmpq	$16, %rcx
-
-	jge	3f
-
-	movq	%rdi, %r8
-	andq	$0x7f, %r8
-	shrq	$3, %r8
-	movq	$16, %rcx
-	subq	%r8, %rcx
-
-3:
-	subq	%rcx, %rdx
-	rep
-	stosq
-
-	movq	%rdx, %rcx
-	testq	%rdx, %rdx
-	jnz	1b
-
-	ret
-
+	movnti	%rax,(%rdi)
+	movnti	%rax,8(%rdi)
+	movnti	%rax,16(%rdi)
+	movnti	%rax,24(%rdi)
+	addq	$32,%rdi
+	cmpq	%rsi,%rdi
+	jne	1b
+	sfence
+	retq
 
 ENTRY(bcmp)
 	xorq	%rax,%rax
