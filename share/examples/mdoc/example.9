@@ -277,13 +277,13 @@ Programming error.
 .El
 .Sh LOCKING
 The
-.Dv example_lock
+.Va example_lock
 lock must be held before
 .Fn example
 is called.
 .Pp
 Since
-.Fn example_lock
+.Va example_lock
 is a
 .Xr mutex 9 ,
 no sleepable locks (i.e.,
