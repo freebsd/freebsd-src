@@ -769,6 +769,8 @@
         tabset
         ..
         tmac
+	    locale
+            ..
             mdoc
             ..
             mm
