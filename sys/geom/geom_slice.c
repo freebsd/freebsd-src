@@ -206,6 +206,12 @@ g_slice_dumpconf(struct sbuf *sb, char *indent, struct g_geom *gp, struct g_cons
 	struct g_slicer *gsp;
 
 	gsp = gp->softc;
+	if (indent == NULL) {
+		sbuf_printf(sb, " i %u", pp->index);
+		sbuf_printf(sb, " o %ju", 
+		    (uintmax_t)gsp->slices[pp->index].offset);
+		return;
+	}
 	if (gp != NULL && (pp == NULL && cp == NULL)) {
 		sbuf_printf(sb, "%s<frontstuff>%ju</frontstuff>\n",
 		    indent, (intmax_t)gsp->frontstuff);

@@ -116,6 +116,50 @@ g_confdot(void *p)
 	wakeup(p);
 }
 
+static void
+g_conftxt_geom(struct sbuf *sb, struct g_geom *gp, int level)
+{
+	struct g_provider *pp;
+	struct g_consumer *cp;
+
+	LIST_FOREACH(pp, &gp->provider, provider) {
+		sbuf_printf(sb, "%d %s %s %ju %u", level, gp->class->name,
+		    pp->name, (uintmax_t)pp->mediasize, pp->sectorsize);
+		gp->dumpconf(sb, NULL, gp, NULL, pp);
+		sbuf_printf(sb, "\n");
+		LIST_FOREACH(cp, &pp->consumers, consumers)
+			g_conftxt_geom(sb, cp->geom, level + 1);
+	}
+}
+
+static void
+g_conftxt_class(struct sbuf *sb, struct g_class *mp)
+{
+	struct g_geom *gp;
+
+	LIST_FOREACH(gp, &mp->geom, geom)
+		g_conftxt_geom(sb, gp, 0);
+}
+
+void
+g_conftxt(void *p)
+{
+	struct g_class *mp;
+	struct sbuf *sb;
+
+	sb = p;
+	g_topology_assert();
+	LIST_FOREACH(mp, &g_classes, class)
+		if (!strcmp(mp->name, "DISK"))
+			break;
+	if (mp != NULL)
+		g_conftxt_class(sb, mp);
+	else
+		printf("no DISK\n");
+	sbuf_finish(sb);
+	wakeup(p);
+}
+
 
 static void
 g_conf_consumer(struct sbuf *sb, struct g_consumer *cp)
