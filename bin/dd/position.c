@@ -67,8 +67,8 @@ pos_in()
 	ssize_t nr;
 	size_t bcnt;
 
-	/* If not a character, pipe or tape device, try to seek on it. */
-	if (!(in.flags & (ISCHR|ISPIPE|ISTAPE)) || in.flags & ISSEEK) {
+	/* If known to be seekable, try to seek on it. */
+	if (in.flags & ISSEEK) {
 		errno = 0;
 		if (lseek(in.fd, in.offset * in.dbsz, SEEK_CUR) == -1 &&
 		    errno != 0)
@@ -125,8 +125,12 @@ pos_out()
 	off_t cnt;
 	ssize_t n;
 
-	/* If not a character, pipe or tape device, try to seek on it. */
-	if (!(out.flags & (ISCHR|ISPIPE|ISTAPE)) || out.flags & ISSEEK) {
+	/*
+	 * If not a tape, try seeking on the file.  Seeking on a pipe is
+	 * going to fail, but don't protect the user -- they shouldn't
+	 * have specified the seek operand.
+	 */
+	if (!(out.flags & ISTAPE)) {
 		errno = 0;
 		if (lseek(out.fd, out.offset * out.dbsz, SEEK_SET) == -1 &&
 		    errno != 0)

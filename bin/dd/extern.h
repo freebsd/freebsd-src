@@ -64,5 +64,5 @@ extern quad_t files_cnt;
 extern const u_char *ctab;
 extern const u_char a2e_32V[], a2e_POSIX[];
 extern const u_char e2a_32V[], e2a_POSIX[];
-static const u_char a2ibm_32V[], a2ibm_POSIX[];
+extern const u_char a2ibm_32V[], a2ibm_POSIX[];
 extern u_char casetab[];

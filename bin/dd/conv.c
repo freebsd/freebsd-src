@@ -108,7 +108,7 @@ block()
 	const u_char *t;
 	size_t cnt, maxlen;
 	static int intrunc;
-	int ch = -1;
+	int ch;
 
 	/*
 	 * Record truncation can cross block boundaries.  If currently in a
