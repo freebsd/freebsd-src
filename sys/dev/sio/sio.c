@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.99 1995/05/30 08:03:06 rgrimes Exp $
+ *	$Id: sio.c,v 1.100 1995/06/25 04:51:01 bde Exp $
  */
 
 #include "sio.h"
@@ -1651,6 +1651,7 @@ comparam(tp, t)
 	Port_t		iobase;
 	int		s;
 	int		unit;
+	int		txtimeout;
 
 	/* do historical conversions */
 	if (t->c_ispeed == 0)
@@ -1720,11 +1721,17 @@ comparam(tp, t)
 	disable_intr();
 retry:
 	com->state &= ~CS_TTGO;
+	txtimeout = tp->t_timeout;
 	enable_intr();
 	while ((inb(com->line_status_port) & (LSR_TSRE | LSR_TXRDY))
 	       != (LSR_TSRE | LSR_TXRDY)) {
 		error = ttysleep(tp, TSA_OCOMPLETE(tp), TTIPRI | PCATCH,
 				 "siotx", hz / 100);
+		if (   txtimeout != 0
+		    && (!error || error	== EAGAIN)
+		    && (txtimeout -= hz	/ 100) <= 0
+		   )
+			error = EIO;
 		if (error != 0 && error != EAGAIN) {
 			if (!(tp->t_state & TS_TTSTOP)) {
 				disable_intr();
