@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.15.2.7 1995/05/31 23:51:14 jkh Exp $
+ * $Id: config.c,v 1.15.2.8 1995/06/01 05:13:18 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -315,9 +315,9 @@ configResolv(void)
 skip:
     /* Tack ourselves at the end of /etc/hosts */
     cp = getenv(VAR_IPADDR);
-    if (cp && cp[0] != '0' && !hostsModified) {
+    if (cp && *cp != '0' && !hostsModified) {
 	fp = fopen("/etc/hosts", "a");
-	fprintf(fp, "%s\t\t%s\n", getenv(VAR_IPADDR), getenv(VAR_HOSTNAME));
+	fprintf(fp, "%s\t\t%s\n", cp, getenv(VAR_HOSTNAME));
 	fclose(fp);
 	hostsModified = TRUE;
     }
