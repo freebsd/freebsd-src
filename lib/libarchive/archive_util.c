@@ -84,6 +84,7 @@ archive_set_error(struct archive *a, int error_number, const char *fmt, ...)
 {
 	va_list ap;
 	char errbuff[512];
+	char *errp;
 
 	a->archive_error_number = error_number;
 	if (fmt == NULL) {
@@ -95,8 +96,16 @@ archive_set_error(struct archive *a, int error_number, const char *fmt, ...)
 	archive_string_vsprintf(&(a->error_string), fmt, ap);
 	if(error_number > 0) {
 		archive_strcat(&(a->error_string), ": ");
+#if defined(HAVE_GLIBC_STRERROR_R)
+		errp = strerror_r(error_number, errbuff, sizeof(errbuff));
+#elif defined(HAVE_POSIX_STRERROR_R)
 		strerror_r(error_number, errbuff, sizeof(errbuff));
-		archive_strcat(&(a->error_string), errbuff);
+		errp = errbuff;
+#else
+		/* Note: this is not threadsafe! */
+		errp = strerror(error_number);
+#endif
+		archive_strcat(&(a->error_string), errp);
 	}
 	a->error = a->error_string.s;
 	va_end(ap);
