@@ -125,7 +125,7 @@ extern void dec_2100_a500_init __P((int));
 #ifdef API_UP1000
 extern void api_up1000_init __P((int));
 #else
-#define     api_up1000_init(n) platform_not_configured((n) + API_ST_BASE)
+#define     api_up1000_init platform_not_configured
 #endif
 
 struct cpuinit cpuinit[] = {
