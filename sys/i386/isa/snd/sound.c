@@ -54,6 +54,11 @@
 
 #if NPCM > 0	/* from "snd.h" */
 
+#include "snd.h"
+#if NSND > 0
+#error Can't have both Luigi's (pcm0) and voxware (snd0) at the same time.
+#endif
+
 #define SNDSTAT_BUF_SIZE        4000
 static char status_buf[SNDSTAT_BUF_SIZE] ;
 static int status_len = 0 ;
