@@ -147,12 +147,12 @@
 
     <para>More information on &os; release engineering processes can be found
       on the <ulink
-      url="http://www.FreeBSD.org/releng/index.html">Release
+      url="&url.base;/releng/index.html">Release
       Engineering Web pages</ulink> and in the <ulink
-      url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/articles/releng/index.html"><quote>&os; Release
+      url="&url.articles.releng;/index.html"><quote>&os; Release
       Engineering</quote></ulink> article.  Specific issues for the upcoming
       5-STABLE development branch can be found in <ulink
-      url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/articles/5-roadmap/index.html"><quote>The
+      url="&url.articles.5-roadmap;/index.html"><quote>The
       Roadmap for 5-STABLE</quote></ulink>.</para>
 
   </sect1>
@@ -176,7 +176,7 @@
  	  kernel subsystems to increase the number of threads of
  	  execution that can be running in the kernel.  More
  	  information can be found on the
-	  <ulink url="http://www.FreeBSD.org/smp/">FreeBSD SMP
+	  <ulink url="&url.base;/smp/index.html">FreeBSD SMP
  	  Project</ulink> page.</para>
       </listitem>
 
@@ -322,9 +322,9 @@
 
       <listitem>
 	<para>Documentation (such as the &os; <ulink
-          url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/index.html">Handbook</ulink>
+          url="&url.books.handbook;/index.html">Handbook</ulink>
           and <ulink
-          url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/faq/index.html">FAQ</ulink>)
+          url="&url.books.faq;/index.html">FAQ</ulink>)
           may not reflect changes recently made to &os; &release.5x;.</para>
       </listitem>
 
@@ -377,7 +377,7 @@
     <para>The &a.security-officer; will continue to support releases
       made from the 4-STABLE branch in accordance with their published
       policies, which can be found on the <ulink
-      url="http://www.FreeBSD.org/security/index.html">Security
+      url="&url.base;/security/index.html">Security
       page</ulink> on the &os; web site.  Generally, the two most
       recent releases from any branch will be supported with respect
       to security advisories and security fixes.  At its discretion,
