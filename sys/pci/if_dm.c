@@ -190,7 +190,7 @@ static driver_t dm_driver = {
 
 static devclass_t dm_devclass;
 
-DRIVER_MODULE(dm, pci, dm_driver, dm_devclass, 0, 0);
+DRIVER_MODULE(if_dm, pci, dm_driver, dm_devclass, 0, 0);
 DRIVER_MODULE(miibus, dm, miibus_driver, miibus_devclass, 0, 0);
 
 #define DM_SETBIT(sc, reg, x)				\
