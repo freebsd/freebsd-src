@@ -31,7 +31,16 @@
 .Dt DEVSTAT 3
 .Os FreeBSD 3.0
 .Sh NAME
-.Nm devstat
+.Nm devstat ,
+.Nm getnumdevs ,
+.Nm getgeneration ,
+.Nm getversion ,
+.Nm checkversion ,
+.Nm getdevs ,
+.Nm selectdevs ,
+.Nm buildmatch ,
+.Nm compute_stats ,
+.Nm compute_etime
 .Nd device statistics utility library
 .Sh SYNOPSIS
 .Fd #include <sys/dkstat.h>
@@ -500,8 +509,7 @@ The
 statistics system first appeared in
 .Fx 3.0 .
 .Sh AUTHORS
-Kenneth Merry
-.Aq ken@FreeBSD.ORG
+.An Kenneth Merry Aq ken@FreeBSD.ORG
 .Sh BUGS
 There should probably be an interface to de-allocate memory allocated by
 .Fn getdevs ,
