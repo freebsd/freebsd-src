@@ -277,7 +277,8 @@ vm_page_startup(vm_offset_t starta, vm_offset_t enda, vm_offset_t vaddr)
 void
 vm_page_flag_set(vm_page_t m, unsigned short bits)
 {
-	GIANT_REQUIRED;
+
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	m->flags |= bits;
 } 
 
@@ -411,39 +412,6 @@ vm_page_free_zero(vm_page_t m)
 {
 	vm_page_flag_set(m, PG_ZERO);
 	vm_page_free_toq(m);
-}
-
-/*
- *	vm_page_sleep_busy:
- *
- *	Wait until page is no longer PG_BUSY or (if also_m_busy is TRUE)
- *	m->busy is zero.  Returns TRUE if it had to sleep ( including if
- *	it almost had to sleep and made temporary spl*() mods), FALSE
- *	otherwise.
- *
- *	This routine assumes that interrupts can only remove the busy
- *	status from a page, not set the busy status or change it from
- *	PG_BUSY to m->busy or vise versa (which would create a timing
- *	window).
- */
-int
-vm_page_sleep_busy(vm_page_t m, int also_m_busy, const char *msg)
-{
-	GIANT_REQUIRED;
-	if ((m->flags & PG_BUSY) || (also_m_busy && m->busy))  {
-		int s = splvm();
-		if ((m->flags & PG_BUSY) || (also_m_busy && m->busy)) {
-			/*
-			 * Page is busy. Wait and retry.
-			 */
-			vm_page_flag_set(m, PG_WANTED | PG_REFERENCED);
-			tsleep(m, PVM, msg, 0);
-		}
-		splx(s);
-		return (TRUE);
-		/* not reached */
-	}
-	return (FALSE);
 }
 
 /*
