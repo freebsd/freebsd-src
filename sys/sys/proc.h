@@ -42,7 +42,6 @@
 #ifndef _SYS_PROC_H_
 #define	_SYS_PROC_H_
 
-#include <machine/proc.h>		/* Machine-dependent proc substruct. */
 #include <sys/callout.h>		/* For struct callout. */
 #include <sys/event.h>			/* For struct klist. */
 #include <sys/filedesc.h>
@@ -53,6 +52,7 @@
 #include <sys/time.h>			/* For structs itimerval, timeval. */
 #endif
 #include <sys/ucred.h>
+#include <machine/proc.h>		/* Machine-dependent proc substruct. */
 
 /*
  * One structure allocated per session.

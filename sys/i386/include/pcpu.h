@@ -29,9 +29,6 @@
 #ifndef _MACHINE_GLOBALDATA_H_
 #define _MACHINE_GLOBALDATA_H_
 
-#include <vm/vm.h>
-#include <vm/pmap.h>
-#include <machine/pmap.h>
 #include <machine/segments.h>
 #include <machine/tss.h>
 
@@ -69,14 +66,6 @@ struct globaldata {
 	u_int		gd_cpuid;
 	u_int		gd_cpu_lockid;
 	u_int		gd_other_cpus;
-	pt_entry_t	*gd_prv_CMAP1;
-	pt_entry_t	*gd_prv_CMAP2;
-	pt_entry_t	*gd_prv_CMAP3;
-	pt_entry_t	*gd_prv_PMAP1;
-	caddr_t		gd_prv_CADDR1;
-	caddr_t		gd_prv_CADDR2;
-	caddr_t		gd_prv_CADDR3;
-	unsigned	*gd_prv_PADDR1;
 	u_int		gd_astpending;
 	SLIST_ENTRY(globaldata) gd_allcpu;
 	int		gd_witness_spin_check;
