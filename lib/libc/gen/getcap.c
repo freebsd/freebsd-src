@@ -79,8 +79,7 @@ static int	nfcmp(char *, char *);
  * virtual database. 0 is returned on success, -1 on failure.
  */
 int
-cgetset(ent)
-	char *ent;
+cgetset(const char *ent)
 {
 	if (ent == NULL) {
 		if (toprec)
@@ -112,9 +111,7 @@ cgetset(ent)
  * return NULL.
  */
 char *
-cgetcap(buf, cap, type)
-	char *buf, *cap;
-	int type;
+cgetcap(char *buf, const char *cap, int type)
 {
 	char *bp, *cp;
 
@@ -164,8 +161,7 @@ cgetcap(buf, cap, type)
  * reference loop is detected.
  */
 int
-cgetent(buf, db_array, name)
-	char **buf, **db_array, *name;
+cgetent(char **buf, char **db_array, const char *name)
 {
 	u_int dummy;
 
@@ -191,10 +187,8 @@ cgetent(buf, db_array, name)
  *	  MAX_RECURSION.
  */
 static int
-getent(cap, len, db_array, fd, name, depth, nfield)
-	char **cap, **db_array, *name, *nfield;
-	u_int *len;
-	int fd, depth;
+getent(char **cap, u_int *len, char **db_array, int fd, char *name, int depth,
+    char *nfield)
 {
 	DB *capdbp;
 	char *r_end, *rp, **db_p;
@@ -538,9 +532,7 @@ tc_exp:	{
 }
 
 static int
-cdbget(capdbp, bp, name)
-	DB *capdbp;
-	char **bp, *name;
+cdbget(DB *capdbp, char **bp, char *name)
 {
 	DBT key, data;
 
@@ -573,8 +565,7 @@ cdbget(capdbp, bp, name)
  * record buf, -1 if not.
  */
 int
-cgetmatch(buf, name)
-	char *buf, *name;
+cgetmatch(const char *buf, const char *name)
 {
 	char *np, *bp;
 
@@ -615,8 +606,7 @@ cgetmatch(buf, name)
 
 
 int
-cgetfirst(buf, db_array)
-	char **buf, **db_array;
+cgetfirst(char **buf, char **db_array)
 {
 	(void)cgetclose();
 	return (cgetnext(buf, db_array));
@@ -627,7 +617,7 @@ static int slash;
 static char **dbp;
 
 int
-cgetclose()
+cgetclose(void)
 {
 	if (pfp != NULL) {
 		(void)fclose(pfp);
@@ -645,9 +635,7 @@ cgetclose()
  * upon returning an entry with more remaining, and -1 if an error occurs.
  */
 int
-cgetnext(bp, db_array)
-	char **bp;
-	char **db_array;
+cgetnext(char **bp, char **db_array)
 {
 	size_t len;
 	int done, hadreaderr, i, savederrno, status;
@@ -785,9 +773,7 @@ cgetnext(bp, db_array)
  * allocation failure).
  */
 int
-cgetstr(buf, cap, str)
-	char *buf, *cap;
-	char **str;
+cgetstr(char *buf, const char *cap, char **str)
 {
 	u_int m_room;
 	char *bp, *mp;
@@ -914,8 +900,7 @@ cgetstr(buf, cap, str)
  * error was encountered (storage allocation failure).
  */
 int
-cgetustr(buf, cap, str)
-	char *buf, *cap, **str;
+cgetustr(char *buf, const char *cap, char **str)
 {
 	u_int m_room;
 	char *bp, *mp;
@@ -983,9 +968,7 @@ cgetustr(buf, cap, str)
  * numeric capability couldn't be found.
  */
 int
-cgetnum(buf, cap, num)
-	char *buf, *cap;
-	long *num;
+cgetnum(char *buf, const char *cap, long *num)
 {
 	long n;
 	int base, digit;
@@ -1047,8 +1030,7 @@ cgetnum(buf, cap, num)
  * Compare name field of record.
  */
 static int
-nfcmp(nf, rec)
-	char *nf, *rec;
+nfcmp(char *nf, char *rec)
 {
 	char *cp, tmp;
 	int ret;
