@@ -6195,6 +6195,67 @@
 ..
 .
 .
+.\" NS Ex user macro
+.\" NS   exit status
+.\" NS
+.\" NS width register `Ex' set in doc-common
+.\" NS
+.\" NS local variables:
+.\" NS   doc-str-Ex-std-prefix
+.\" NS   doc-str-Ex-std-suffix
+.
+.ds doc-str-Ex-std-prefix "The
+.ds doc-str-Ex-std-suffix "utility exits\~0 on success,
+.as doc-str-Ex-std-suffix " and\~>0 if an error occurs.
+.
+.ds doc-str-Ex-stds-prefix "The
+.als doc-str-Ex-stds-and doc-str-Rv-stds-and
+.ds doc-str-Ex-stds-suffix "utilities exit\~0 on success,
+.as doc-str-Ex-stds-suffix " and\~>0 if an error occurs.
+.
+.de Ex
+.
+.\" XXX: what does this function without `-std'?
+.
+.  if \n[doc-arg-limit] \{\
+.    tm Usage: .Ex not callable by other macros (#\n[.c])
+.    doc-reset-args
+.    return
+.  \}
+.
+.  if !\n[.$] \{\
+.    tm Usage: .Ex [-std] [<utility> ...] (#\n[.c])
+.    return
+.  \}
+.
+.  if "\$1"-std" \{\
+.    nr doc-reg-Ex \*[doc-section]
+.    if !((\n[doc-reg-Ex] == 1) : (\n[doc-reg-Ex] == 6) : (\n[doc-reg-Ex] == 8)) \
+.      tm Usage: .Ex -std in sections 1, 6 and 8 only (#\n[.c])
+.    br
+.    shift
+.    ie (\n[.$] > 1) \{\
+.      nop \)\*[doc-str-Ex-stds-prefix]
+.      nr doc-reg-Ex 1
+.      while (\n[doc-reg-Ex] < \n[.$]) \{\
+.        ie (\n[.$] > 2) \
+.          Nm \$\n[doc-reg-Ex] ,
+.        el \
+.          Nm \$\n[doc-reg-Ex]
+.        nr doc-reg-Ex +1
+.      \}
+.      nop \)\*[doc-str-Ex-stds-and]
+.      Nm \$\n[.$]
+.      nop \)\*[doc-str-Ex-stds-suffix]
+.    \}
+.    el \{\
+.      nop \)\*[doc-str-Ex-std-prefix]
+.      Nm \$1
+.      nop \)\*[doc-str-Ex-std-suffix]
+.  \}\}
+..
+.
+.
 .\" NS Mt user macro
 .\" NS   mailto (for conversion to HTML)
 .
@@ -6258,9 +6319,6 @@
 .als Db doc-defunct-macro
 .
 .als Ds doc-defunct-macro
-.
-.als Ex doc-defunct-macro
-.ds doc-Ex-usage use .D1
 .
 .als Or doc-defunct-macro
 .ds doc-Or-usage use `|'
