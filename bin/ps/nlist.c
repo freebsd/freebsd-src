@@ -36,6 +36,12 @@
 
 #include <stddef.h>
 
+#ifndef lint
+static const char rcsid[] =
+  "$FreeBSD$";
+#endif /* not lint */
+
+
 fixpt_t	ccpu;				/* kernel _ccpu variable */
 int	nlistread;			/* if nlist already read. */
 int	mempages;			/* number of pages of phys. memory */
