@@ -96,8 +96,7 @@ static char * cwexec PARAMS((kwset_t, char *, size_t, struct kwsmatch *));
 /* Allocate and initialize a keyword set object, returning an opaque
    pointer to it.  Return NULL if memory is not available. */
 kwset_t
-kwsalloc(trans)
-     char *trans;
+kwsalloc (char *trans)
 {
   struct kwset *kwset;
 
@@ -132,10 +131,7 @@ kwsalloc(trans)
 /* Add the given string to the contents of the keyword set.  Return NULL
    for success, an error message otherwise. */
 char *
-kwsincr(kws, text, len)
-     kwset_t kws;
-     char *text;
-     size_t len;
+kwsincr (kwset_t kws, char *text, size_t len)
 {
   struct kwset *kwset;
   register struct trie *trie;
@@ -292,9 +288,7 @@ kwsincr(kws, text, len)
 /* Enqueue the trie nodes referenced from the given tree in the
    given queue. */
 static void
-enqueue(tree, last)
-     struct tree *tree;
-     struct trie **last;
+enqueue (struct tree *tree, struct trie **last)
 {
   if (!tree)
     return;
@@ -307,10 +301,7 @@ enqueue(tree, last)
    from the given tree, given the failure function for their parent as
    well as a last resort failure node. */
 static void
-treefails(tree, fail, recourse)
-     register struct tree *tree;
-     struct trie *fail;
-     struct trie *recourse;
+treefails (register struct tree *tree, struct trie *fail, struct trie *recourse)
 {
   register struct tree *link;
 
@@ -344,10 +335,9 @@ treefails(tree, fail, recourse)
 /* Set delta entries for the links of the given tree such that
    the preexisting delta value is larger than the current depth. */
 static void
-treedelta(tree, depth, delta)
-     register struct tree *tree;
-     register unsigned int depth;
-     unsigned char delta[];
+treedelta (register struct tree *tree,
+	   register unsigned int depth,
+	   unsigned char delta[])
 {
   if (!tree)
     return;
@@ -359,9 +349,7 @@ treedelta(tree, depth, delta)
 
 /* Return true if A has every label in B. */
 static int
-hasevery(a, b)
-     register struct tree *a;
-     register struct tree *b;
+hasevery (register struct tree *a, register struct tree *b)
 {
   if (!b)
     return 1;
@@ -380,9 +368,7 @@ hasevery(a, b)
 /* Compute a vector, indexed by character code, of the trie nodes
    referenced from the given tree. */
 static void
-treenext(tree, next)
-     struct tree *tree;
-     struct trie *next[];
+treenext (struct tree *tree, struct trie *next[])
 {
   if (!tree)
     return;
@@ -394,8 +380,7 @@ treenext(tree, next)
 /* Compute the shift for each trie node, as well as the delta
    table and next cache for the given keyword set. */
 char *
-kwsprep(kws)
-     kwset_t kws;
+kwsprep (kwset_t kws)
 {
   register struct kwset *kwset;
   register int i;
@@ -513,10 +498,7 @@ kwsprep(kws)
 
 /* Fast boyer-moore search. */
 static char *
-bmexec(kws, text, size)
-     kwset_t kws;
-     char *text;
-     size_t size;
+bmexec (kwset_t kws, char *text, size_t size)
 {
   struct kwset *kwset;
   register unsigned char *d1;
@@ -599,11 +581,7 @@ bmexec(kws, text, size)
 
 /* Hairy multiple string search. */
 static char *
-cwexec(kws, text, len, kwsmatch)
-     kwset_t kws;
-     char *text;
-     size_t len;
-     struct kwsmatch *kwsmatch;
+cwexec (kwset_t kws, char *text, size_t len, struct kwsmatch *kwsmatch)
 {
   struct kwset *kwset;
   struct trie **next, *trie, *accept;
@@ -764,11 +742,7 @@ cwexec(kws, text, len, kwsmatch)
    in the referenced location the index number of the particular
    keyword matched. */
 char *
-kwsexec(kws, text, size, kwsmatch)
-     kwset_t kws;
-     char *text;
-     size_t size;
-     struct kwsmatch *kwsmatch;
+kwsexec (kwset_t kws, char *text, size_t size, struct kwsmatch *kwsmatch)
 {
   struct kwset *kwset;
   char *ret;
@@ -791,8 +765,7 @@ kwsexec(kws, text, size, kwsmatch)
 
 /* Free the components of the given keyword set. */
 void
-kwsfree(kws)
-     kwset_t kws;
+kwsfree (kwset_t kws)
 {
   struct kwset *kwset;
 

@@ -126,7 +126,13 @@ This document was produced for version @value{VERSION} of @sc{gnu}
 for lines containing a match to a given
 pattern list.  When it finds a match in a line, it copies the line to standard
 output (by default), or does whatever other sort of output you have requested
-with options.  @command{grep} expects to do the matching on text.
+with options.
+
+Though @command{grep} expects to do the matching on text,
+it has no limits on input line length other than available memory,
+and it can match arbitrary characters within a line.
+If the final byte of an input file is not a newline,
+@command{grep} silently supplies one.
 Since newline is also a separator for the list of patterns, there
 is no way to match newline characters in a text.
 
@@ -283,9 +289,10 @@ data, assume that the file is of type @var{type}.  By default,
 @var{type} is @samp{binary}, and @command{grep} normally outputs either
 a one-line message saying that a binary file matches, or no message if
 there is no match.  If @var{type} is @samp{without-match},
-@command{grep} assumes that a binary file does not match.  If @var{type}
+@command{grep} assumes that a binary file does not match;
+this is equivalent to the @samp{-I} option.  If @var{type}
 is @samp{text}, @command{grep} processes a binary file as if it were
-text; this is equivalent to the @samp{-a} or @samp{--text} option.
+text; this is equivalent to the @samp{-a} option.
 @emph{Warning:} @samp{--binary-files=text} might output binary garbage,
 which can have nasty side effects if the output is a terminal and if the
 terminal driver interprets some of it as commands.
@@ -346,6 +353,10 @@ The scanning of every file will stop on the first match.
 @cindex binary files
 Process a binary file as if it were text; this is equivalent to the
 @samp{--binary-files=text} option.
+
+@item -I
+Process a binary file as if it did not contain matching data; this is
+equivalent to the @samp{--binary-files=without-match} option.
 
 @item -w
 @itemx --word-regexp
@@ -457,9 +468,10 @@ Grep's behavior is affected by the following environment variables.
 @vindex GREP_OPTIONS
 @cindex default options environment variable
 This variable specifies default options to be placed in front of any
-explicit options.  For example, if @code{GREP_OPTIONS} is @samp{--text
---directories=skip}, @command{grep} behaves as if the two options
-@samp{--text} and @samp{--directories=skip} had been specified before
+explicit options.  For example, if @code{GREP_OPTIONS} is
+@samp{--binary-files=without-match --directories=skip}, @command{grep}
+behaves as if the two options @samp{--binary-files=without-match} and
+@samp{--directories=skip} had been specified before
 any explicit options.  Option specifications are separated by
 whitespace.  A backslash escapes the next character, so it can be used to
 specify an option containing whitespace or a backslash.
@@ -595,7 +607,7 @@ single character in that list; if the first character of the list is the
 caret @samp{^}, then it
 matches any character @strong{not} in the list.  For example, the regular
 expression @samp{[0123456789]} matches any single digit.
-A range of @sc{ascii} characters may be specified by giving the first
+A range of characters may be specified by giving the first
 and last characters, separated by a hyphen.
 
 Finally, certain named classes of characters are predefined, as follows.
@@ -610,74 +622,83 @@ if no @code{LC_CTYPE} locale is specified.
 @item [:alnum:]
 @opindex alnum
 @cindex alphanumeric characters
-Any of @samp{[:digit:]} or @samp{[:alpha:]}
+Alphanumeric characters:
+@samp{[:alpha:]} and @samp{[:digit:]}.
 
 @item [:alpha:]
 @opindex alpha
 @cindex alphabetic characters
-Any letter:@*
-@code{a b c d e f g h i j k l m n o p q r s t u v w x y z},@*
-@code{A B C D E F G H I J K L M N O P Q R S T U V W X Y Z}.
+Alphabetic characters:
+@samp{[:lower:]} and @samp{[:upper:]}.
 
 @item [:blank:]
 @opindex blank
 @cindex blank characters
-Space or tab.
+Blank characters:
+space and tab.
 
 @item [:cntrl:]
 @opindex cntrl
 @cindex control characters
-Any character with octal codes 000 through 037, or @code{DEL} (octal
-code 177).
+Control characters.  In @sc{ascii}, these characters have octal codes 000
+through 037, and 177 (@code{DEL}).  In other character sets, these are
+the equivalent characters, if any.
 
 @item [:digit:]
 @opindex digit
 @cindex digit characters
 @cindex numeric characters
-Any one of @code{0 1 2 3 4 5 6 7 8 9}.
+Digits: @code{0 1 2 3 4 5 6 7 8 9}.
 
 @item [:graph:]
 @opindex graph
 @cindex graphic characters
-Anything that is not a @samp{[:alnum:]} or @samp{[:punct:]}.
+Graphical characters:
+@samp{[:alnum:]} and @samp{[:punct:]}.
 
 @item [:lower:]
 @opindex lower
-@cindex lower-case alphabetic characters
-Any one of @code{a b c d e f g h i j k l m n o p q r s t u v w x y z}.
+@cindex lower-case letters
+Lower-case letters:
+@code{a b c d e f g h i j k l m n o p q r s t u v w x y z}.
 
 @item [:print:]
 @opindex print
 @cindex printable characters
-Any character from the @samp{[:space:]} class, and any character that is
-@strong{not} in the @samp{[:graph:]} class.
+Printable characters:
+@samp{[:alnum:]}, @samp{[:punct:]}, and space.
 
 @item [:punct:]
 @opindex punct
 @cindex punctuation characters
-Any one of @code{!@: " # $ % & ' ( ) * + , - .@: / : ; < = > ?@: @@ [ \ ] ^ _ ` @{ | @} ~}.
+Punctuation characters:
+@code{!@: " # $ % & ' ( ) * + , - .@: / : ; < = > ?@: @@ [ \ ] ^ _ ` @{ | @} ~}.
 
 @item [:space:]
 @opindex space
 @cindex space characters
 @cindex whitespace characters
-Any one of @code{CR FF HT NL VT SPACE}.
+Space characters:
+tab, newline, vertical tab, form feed, carriage return, and space.
 
 @item [:upper:]
 @opindex upper
-@cindex upper-case alphabetic characters
-Any one of @code{A B C D E F G H I J K L M N O P Q R S T U V W X Y Z}.
+@cindex upper-case letters
+Upper-case letters:
+@code{A B C D E F G H I J K L M N O P Q R S T U V W X Y Z}.
 
 @item [:xdigit:]
 @opindex xdigit
 @cindex xdigit class
 @cindex hexadecimal digits
-Any one of @code{a b c d e f A B C D E F 0 1 2 3 4 5 6 7 8 9}.
+Hexadecimal digits:
+@code{0 1 2 3 4 5 6 7 8 9 A B C D E F a b c d e f}.
 
 @end table
 For example, @samp{[[:alnum:]]} means @samp{[0-9A-Za-z]}, except the latter
-form is dependent upon the @sc{ascii} character encoding, whereas the
-former is portable.  (Note that the brackets in these class names are
+depends upon the @sc{posix} locale and the @sc{ascii} character
+encoding, whereas the former is independent of locale and character set.
+(Note that the brackets in these class names are
 part of the symbolic names, and must be included in addition to
 the brackets delimiting the bracket list.)  Most metacharacters lose
 their special meaning inside lists.  To include a literal @samp{]}, place it
@@ -897,7 +918,9 @@ would probably generate output that is not useful, and it might even
 muck up your display.  So @sc{gnu} @command{grep} suppresses output from
 files that appear to be binary files.  To force @sc{gnu} @command{grep}
 to output lines even from files that appear to be binary, use the
-@samp{-a} or @samp{--text} option.
+@samp{-a} or @samp{--binary-files=text} option.  To eliminate the
+``Binary file matches'' messages, use the @samp{-I} or
+@samp{--binary-files=without-match} option.
 
 @item
 Why doesn't @samp{grep -lv} print nonmatching file names?
