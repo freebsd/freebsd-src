@@ -31,9 +31,6 @@
 #include "opt_syscons.h"
 #include "opt_splash.h"
 #include "opt_ddb.h"
-#ifdef __i386__
-#include "opt_apm.h"
-#endif
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -53,11 +50,12 @@
 #include <sys/signalvar.h>
 #include <sys/sysctl.h>
 #include <sys/tty.h>
+#include <sys/power.h>
 
 #include <machine/clock.h>
-#include <machine/psl.h>
 #include <machine/pc/display.h>
 #ifdef __i386__
+#include <machine/psl.h>
 #include <machine/apm_bios.h>
 #include <machine/frame.h>
 #endif
@@ -3249,18 +3247,12 @@ next_code:
 #endif
 		break;
 
-#ifdef DEV_APM
 	    case SUSP:
-		apm_suspend(PMST_SUSPEND);
+		power_pm_suspend(POWER_SLEEP_STATE_SUSPEND);
 		break;
 	    case STBY:
-		apm_suspend(PMST_STANDBY);
+		power_pm_suspend(POWER_SLEEP_STATE_STANDBY);
 		break;
-#else
-	    case SUSP:
-	    case STBY:
-		break;
-#endif
 
 	    case DBG:
 #ifndef SC_DISABLE_DDBKEY
