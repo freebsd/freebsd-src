@@ -14,7 +14,7 @@
 .Os
 .Sh NAME
 .Nm sbread , sbwrite
-.Nd read and write superblocks of a UFS filesystem
+.Nd read and write superblocks of a UFS file system
 .Sh LIBRARY
 .Lb libufs
 .Sh SYNOPSIS
@@ -41,19 +41,15 @@ The
 and
 .Fn sbwrite
 functions operate on the superblock field,
-.Fa d_sb ,
+.Va d_sb ,
 associated with a given userland UFS disk structure.
 Additionally, the
 .Fn sbwrite
 function will write to all superblock locations if the
 .Fa all
 value is non-zero.
-.Pp
-The
-.Fn sbread
-and
-.Fn sbwrite
-functions return 0 on success or -1 on error.
+.Sh RETURN VALUES
+.Rv -std sbread sbwrite
 .Sh ERRORS
 The function
 .Fn sbread
