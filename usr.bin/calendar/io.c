@@ -222,7 +222,7 @@ getfield(p, endp, flags)
 	return (val);
 }
 
-char path[MAXPATHLEN + 1];
+char path[MAXPATHLEN];
 
 FILE *
 opencal()
