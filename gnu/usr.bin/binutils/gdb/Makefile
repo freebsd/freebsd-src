@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.24 1997/05/01 00:18:50 pst Exp $
+#	$Id: Makefile,v 1.25 1997/05/01 00:26:43 pst Exp $
 
 PROG = gdb
 
@@ -30,8 +30,7 @@ XSRCS = annotate.c blockframe.c breakpoint.c buildsym.c c-lang.c \
 	scm-valprint.c f-typeprint.c f-valprint.c nlmread.c \
 	callback.c
 XSRCS+= i386-dis.c dis-buf.c disassemble.c
-SRCS=	${.OBJDIR}/init.c ${XSRCS}
-CLEANFILES+= init.c
+SRCS=	init.c ${XSRCS}
 
 CFLAGS+= -I$(.CURDIR) -I${DESTDIR}/usr/include/readline -I$(.CURDIR)/../bfd
 # use phkmalloc
@@ -39,8 +38,8 @@ CFLAGS+= -DNO_MMALLOC
 # uncomment the next line if you want to debug gdb
 #CFLAGS+= -g
 
-CLEANFILES+=	c-exp.c f-exp.c m2-exp.c y.tab.h
-beforedepend:	c-exp.c f-exp.c m2-exp.c
+CLEANFILES+=	c-exp.c f-exp.c m2-exp.c init.c y.tab.h 
+beforedepend:	c-exp.c f-exp.c m2-exp.c init.c
 
 .if exists(${.OBJDIR}/../bfd)
 LDADD+=   -L${.OBJDIR}/../bfd -lbfd
@@ -83,13 +82,14 @@ DPADD+=   ${.CURDIR}/../libiberty/libiberty.a
 # of the functions might change, so this files needs to depend on all the
 # object files that will be linked into gdb.
 
-${.OBJDIR}/init.c: ${XSRCS}
+init.c: ${XSRCS}
 	@echo Making init.c
+	echo ${.ALLSRC}
 	@rm -f init.c-tmp
 	@echo '/* Do not modify this file.  */' >init.c-tmp
 	@echo '/* It is created automatically by the Makefile.  */'>>init.c-tmp
 	@echo 'void initialize_all_files () {' >>init.c-tmp
-	@for i in ${XSRCS} ; do \
+	@for i in ${.ALLSRC} ; do \
 	  filename=`echo $$i | sed \
 	    -e '/^Onindy.c/d' \
 	    -e '/^nindy.c/d' \
@@ -105,15 +105,14 @@ ${.OBJDIR}/init.c: ${XSRCS}
 	    -e '/[a-z0-9A-Z_]*-exp.tab.c/d'` ; \
 	  case $$filename in \
 	    "") ;; \
-	    *) fn=${.CURDIR}/$$filename ; \
-	       test -f $$fn || fn=${GDBDIR}/gdb/$$filename ; \
-	       test -f $$fn || fn=${GDBDIR}/opcodes/$$filename ; \
-	       sed <$$fn >>init.c-tmp -n \
+	    *) sed <$$filename >>init.c-tmp -n \
 	-e '/^_initialize_[a-z_0-9A-Z]* *(/s/^\([a-z_0-9A-Z]*\).*/  {extern void \1 (); \1 ();}/p' ; ;; \
 	  esac ; \
 	done
 	@echo '}' >>init.c-tmp
 	@mv init.c-tmp init.c
+
+CLEANFILES+=	init.c-tmp
 
 .PRECIOUS: init.c
 
