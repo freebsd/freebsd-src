@@ -131,7 +131,7 @@ ip_output(m0, opt, ro, flags, imo)
 	int hlen = sizeof (struct ip);
 	int len, off, error = 0;
 	struct sockaddr_in *dst;
-	struct in_ifaddr *ia;
+	struct in_ifaddr *ia = NULL;
 	int isbroadcast, sw_csum;
 #ifdef IPSEC
 	struct route iproute;
@@ -179,6 +179,8 @@ ip_output(m0, opt, ro, flags, imo)
 #endif
             ip = mtod(m, struct ip *);
             hlen = IP_VHL_HL(ip->ip_vhl) << 2 ;
+            if (ro->ro_rt != NULL)
+                ia = (struct in_ifaddr *)ro->ro_rt->rt_ifa;
             goto sendit;
         } else
             rule = NULL ;
@@ -787,7 +789,7 @@ skip_ipsec:
 		}
 
 		/* Record statistics for this interface address. */
-		if (!(flags & IP_FORWARDING)) {
+		if (!(flags & IP_FORWARDING) && ia != NULL) {
 			ia->ia_ifa.if_opackets++;
 			ia->ia_ifa.if_obytes += m->m_pkthdr.len;
 		}
@@ -922,8 +924,10 @@ sendorfree:
 		m->m_nextpkt = 0;
 		if (error == 0) {
 			/* Record statistics for this interface address. */
-			ia->ia_ifa.if_opackets++;
-			ia->ia_ifa.if_obytes += m->m_pkthdr.len;
+			if (ia != NULL) {
+				ia->ia_ifa.if_opackets++;
+				ia->ia_ifa.if_obytes += m->m_pkthdr.len;
+			}
 			
 			error = (*ifp->if_output)(ifp, m,
 			    (struct sockaddr *)dst, ro->ro_rt);
