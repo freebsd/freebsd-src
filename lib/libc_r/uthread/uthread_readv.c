@@ -40,7 +40,7 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-__weak_reference(_readv, readv);
+__weak_reference(__readv, readv);
 
 ssize_t
 _readv(int fd, const struct iovec * iov, int iovcnt)
@@ -91,4 +91,16 @@ _readv(int fd, const struct iovec * iov, int iovcnt)
 		_FD_UNLOCK(fd, FD_READ);
 	}
 	return (ret);
+}
+
+ssize_t
+__readv(int fd, const struct iovec *iov, int iovcnt)
+{
+	ssize_t ret;
+
+	_thread_enter_cancellation_point();
+	ret = _readv(fd, iov, iovcnt);
+	_thread_leave_cancellation_point();
+
+	return ret;
 }

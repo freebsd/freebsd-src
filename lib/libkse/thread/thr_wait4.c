@@ -38,7 +38,7 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-__weak_reference(_wait4, wait4);
+__weak_reference(__wait4, wait4);
 
 pid_t
 _wait4(pid_t pid, int *istat, int options, struct rusage * rusage)
@@ -67,4 +67,16 @@ _wait4(pid_t pid, int *istat, int options, struct rusage * rusage)
 	_thread_kern_sig_undefer();
 
 	return (ret);
+}
+
+pid_t
+__wait4(pid_t pid, int *istat, int options, struct rusage *rusage)
+{
+	pid_t ret;
+
+	_thread_enter_cancellation_point();
+	ret = _wait4(pid, istat, options, rusage);
+	_thread_leave_cancellation_point();
+
+	return ret;
 }
