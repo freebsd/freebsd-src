@@ -1,11 +1,11 @@
-<!-- $Id: jmembers.sgml,v 1.1.1.1 1996/11/15 05:14:44 asami Exp $ -->
+<!-- $Id: jmembers.sgml,v 1.2 1996/11/18 23:06:20 max Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
 
 <!-- 
 翻訳者及び査読者の名前及び電子メールアドレス
 -->
 
-<!ENTITY a.doc-jp "FreeBSD 日本語ドキュメントメーリングリスト
+<!ENTITY a.doc-jp "FreeBSD 日本語ドキュメンテーションプロジェクト
   <tt><htmlurl url='mailto:doc-jp@jp.FreeBSD.ORG'
   name='&lt;doc-jp@jp.FreeBSD.ORG&gt;'></tt>">
 
