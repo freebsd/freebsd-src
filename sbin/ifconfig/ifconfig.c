@@ -113,7 +113,7 @@ struct	in6_aliasreq	in6_addreq =
 struct	sockaddr_in	netmask;
 struct	netrange	at_nr;		/* AppleTalk net range */
 
-char	name[32];
+char	name[IFNAMSIZ];
 int	flags;
 int	setaddr;
 int	setipdst;
@@ -596,8 +596,9 @@ main(int argc, char *argv[])
 			addrcount++;
 			next += nextifm->ifm_msglen;
 		}
-		strncpy(name, sdl->sdl_data, sdl->sdl_nlen);
-		name[sdl->sdl_nlen] = '\0';
+		strlcpy(name, sdl->sdl_data,
+		    sizeof(name) <= sdl->sdl_nlen ?
+		    sizeof(name) : sdl->sdl_nlen + 1);
 
 		if (all || namesonly) {
 			if (uponly)
