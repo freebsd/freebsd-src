@@ -243,6 +243,7 @@ int mountdlockfd;
 #define	OP_NET		0x10
 #define	OP_ALLDIRS	0x40
 #define	OP_HAVEMASK	0x80	/* A mask was specified or inferred. */
+#define	OP_QUIET	0x100
 #define OP_MASKLEN	0x200
 
 #ifdef DEBUG
@@ -1240,7 +1241,8 @@ getexp_err(ep, grp)
 {
 	struct grouplist *tgrp;
 
-	syslog(LOG_ERR, "bad exports list line %s", line);
+	if (!(opt_flags & OP_QUIET))
+		syslog(LOG_ERR, "bad exports list line %s", line);
 	if (ep && (ep->ex_flag & EX_LINKED) == 0)
 		free_exp(ep);
 	while (grp) {
@@ -1580,6 +1582,8 @@ do_opt(cpp, endcpp, ep, grp, has_hostp, exflagsp, cr)
 			opt_flags |= OP_MAPALL;
 		} else if (cpoptarg && !strcmp(cpopt, "index")) {
 			ep->ex_indexfile = strdup(cpoptarg);
+		} else if (!strcmp(cpopt, "quiet")) {
+			opt_flags |= OP_QUIET;
 		} else {
 			syslog(LOG_ERR, "bad opt %s", cpopt);
 			return (1);
@@ -1812,6 +1816,8 @@ do_mount(ep, grp, exflags, anoncrp, dirp, dirplen, fsb)
 				*cp-- = savedc;
 			else
 				cp = dirp + dirplen - 1;
+			if (opt_flags & OP_QUIET)
+				return (1);
 			if (errno == EPERM) {
 				if (debug)
 					warnx("can't change attributes for %s",
@@ -1821,8 +1827,14 @@ do_mount(ep, grp, exflags, anoncrp, dirp, dirplen, fsb)
 				return (1);
 			}
 			if (opt_flags & OP_ALLDIRS) {
-				syslog(LOG_ERR, "could not remount %s: %m",
-					dirp);
+				if (errno == EINVAL)
+					syslog(LOG_ERR,
+		"-alldirs requested but %s is not a filesystem mountpoint",
+						dirp);
+				else
+					syslog(LOG_ERR,
+						"could not remount %s: %m",
+						dirp);
 				return (1);
 			}
 			/* back up over the last component */

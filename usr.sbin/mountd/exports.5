@@ -207,6 +207,15 @@ or
 .Fl webnfs
 flags.
 .Pp
+Specifying the
+.Fl quiet
+option will inhibit some of the syslog diagnostics for bad lines in
+.Pa /etc/exports .
+This can be useful to avoid annoying error messages for known possible
+problems (see
+.Sx EXAMPLES
+below).
+.Pp
 The third component of a line specifies the host set to which the line applies.
 The set may be specified in three ways.
 The first way is to list the host name(s) separated by white space.
@@ -237,8 +246,34 @@ and optionally
 If the mask is not specified, it will default to the mask for that network
 class (A, B or C; see
 .Xr inet 4 ) .
+See the
+.Sx EXAMPLES
+section below.
 .Pp
-For example:
+The
+.Xr mountd 8
+utility can be made to re-read the
+.Nm
+file by sending it a hangup signal as follows:
+.Bd -literal -offset indent
+kill -s HUP `cat /var/run/mountd.pid`
+.Ed
+.Pp
+After sending the
+.Dv SIGHUP ,
+check the
+.Xr syslogd 8
+output to see whether
+.Xr mountd 8
+logged any parsing errors in the
+.Nm
+file.
+.Sh FILES
+.Bl -tag -width /etc/exports -compact
+.It Pa /etc/exports
+the default remote mount-point file
+.El
+.Sh EXAMPLES
 .Bd -literal -offset indent
 /usr /usr/local -maproot=0:10 friends
 /usr -maproot=daemon grumpy.cis.uoguelph.ca 131.104.48.16
@@ -246,6 +281,7 @@ For example:
 /u -maproot=bin: -network 131.104.48 -mask 255.255.255.0
 /u2 -maproot=root friends
 /u2 -alldirs -kerb -network cis-net -mask cis-mask
+/cdrom -alldirs,quiet,ro -network 192.168.33.0 -mask 255.255.255.0
 .Ed
 .Pp
 Given that
@@ -284,29 +320,37 @@ it is exported to all hosts on network ``cis-net'' allowing mounts at any
 directory within /u2 and mapping all uids to credentials for the principal
 that is authenticated by a Kerberos ticket.
 .Pp
+The filesystem rooted at
+.Sy /cdrom
+will exported read-only to the entire network 192.168.33.0/24, including
+all its subdirectories.
+Since
+.Sy /cdrom
+is the conventional mountpoint for a CD-ROM device, this export will
+fail if no CD-ROM medium is currently mounted there since that line
+would then attempt to export a subdirectory of the root filesystem
+with the
+.Fl alldirs
+option which is not allowed.
 The
+.Fl quiet
+option will then suppress the error message for this condition that
+would normally be syslogged.
+As soon as an actual CD-ROM is going to be mounted,
+.Xr mount 8
+will notify
 .Xr mountd 8
-utility can be made to re-read the
-.Nm
-file by sending it a hangup signal as follows:
-.Bd -literal -offset indent
-kill -s HUP `cat /var/run/mountd.pid`
-.Ed
-.Pp
-After sending the
-.Dv SIGHUP ,
-check the
-.Xr syslogd 8
-output to see whether
-.Xr mountd 8
-logged any parsing errors in the
-.Nm
-file.
-.Sh FILES
-.Bl -tag -width /etc/exports -compact
-.It Pa /etc/exports
-the default remote mount-point file
-.El
+about this situation, and the
+.Sy /cdrom
+filesystem will be exported as intented.
+Note that without using the
+.Fl alldirs
+option, the export would always succeed.
+While there is no CD-ROM medium mounted under
+.Sy /cdrom ,
+it would export the (normally empty) directory
+.Sy /cdrom
+of the root filesystem instead.
 .Sh SEE ALSO
 .Xr netgroup 5 ,
 .Xr mountd 8 ,
