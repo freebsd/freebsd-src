@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media.c,v 1.66 1996/12/09 08:22:15 jkh Exp $
+ * $Id: media.c,v 1.67 1996/12/11 09:35:03 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -349,7 +349,6 @@ mediaSetFTP(dialogMenuItem *self)
     ftpDevice.type = DEVICE_TYPE_FTP;
     ftpDevice.init = mediaInitFTP;
     ftpDevice.get = mediaGetFTP;
-    ftpDevice.close = NULL;
     ftpDevice.shutdown = mediaShutdownFTP;
     ftpDevice.private = mediaDevice; /* Set to network device by tcpDeviceSelect() */
     mediaDevice = &ftpDevice;
