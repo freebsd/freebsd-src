@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.51 1996/04/23 01:29:28 jkh Exp $
+ * $Id: menus.c,v 1.52 1996/04/25 17:31:23 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -417,35 +417,9 @@ for an ethernet installation.",
     { { NULL } },
 };
 
-static int
-whichMedia(dialogMenuItem *self)
-{
-    if (!mediaDevice)
-	return FALSE;
-    if (!strcmp(self->prompt, "1 CDROM") && mediaDevice->type == DEVICE_TYPE_CDROM)
-	return TRUE;
-    else if (!strcmp(self->prompt, "2 DOS") && mediaDevice->type == DEVICE_TYPE_DOS)
-	return TRUE;
-    else if (!strcmp(self->prompt, "3 File System") && mediaDevice->type == DEVICE_TYPE_UFS)
-	return TRUE;
-    else if (!strcmp(self->prompt, "4 Floppy") && mediaDevice->type == DEVICE_TYPE_FLOPPY)
-	return TRUE;
-    else if (!strcmp(self->prompt, "5 FTP") && mediaDevice->type == DEVICE_TYPE_FTP &&
-	     !strcmp(variable_get(VAR_FTP_STATE), "active"))
-	return TRUE;
-    else if (!strcmp(self->prompt, "6 FTP Passive") && mediaDevice->type == DEVICE_TYPE_FTP &&
-	     !strcmp(variable_get(VAR_FTP_STATE), "passive"))
-	return TRUE;
-    else if (!strcmp(self->prompt, "7 NFS") && mediaDevice->type == DEVICE_TYPE_NFS)
-	return TRUE;
-    else if (!strcmp(self->prompt, "8 Tape") && mediaDevice->type == DEVICE_TYPE_TAPE)
-	return TRUE;
-    return FALSE;
-}
-
 /* The media selection menu */
 DMenu MenuMedia = {
-    DMENU_RADIO_TYPE | DMENU_SELECTION_RETURNS,
+    DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
     "Choose Installation Media",
     "FreeBSD can be installed from a variety of different installation\n\
 media, ranging from floppies to an Internet FTP server.  If you're\n\
@@ -455,21 +429,21 @@ media.",
     "Press F1 for more information on the various media types",
     "media",
 { { "1 CDROM",		"Install from a FreeBSD CDROM",
-    whichMedia, mediaSetCDROM },
+    NULL, mediaSetCDROM },
   { "2 DOS",		"Install from a DOS partition",
-    whichMedia, mediaSetDOS },
+    NULL, mediaSetDOS },
   { "3 File System",	"Install from an existing filesystem",
-    whichMedia, mediaSetUFS },
+    NULL, mediaSetUFS },
   { "4 Floppy",		"Install from a floppy disk set",
-    whichMedia, mediaSetFloppy },
+    NULL, mediaSetFloppy },
   { "5 FTP",		"Install from an FTP server",
-    whichMedia, mediaSetFTPActive },
+    NULL, mediaSetFTPActive },
   { "6 FTP Passive",	"Install from an FTP server through a firewall",
-    whichMedia, mediaSetFTPPassive },
+    NULL, mediaSetFTPPassive },
   { "7 NFS",		"Install over NFS",
-    whichMedia, mediaSetNFS },
+    NULL, mediaSetNFS },
   { "8 Tape",		"Install from SCSI or QIC tape",
-    whichMedia, mediaSetTape },
+    NULL, mediaSetTape },
   { NULL } },
 };
 
@@ -929,7 +903,7 @@ aspects of your system's network configuration.",
 };
 
 DMenu MenuNTP = {
-    DMENU_RADIO_TYPE | DMENU_SELECTION_RETURNS,
+    DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
     "NTPDATE Server Selection",
     "There are a number of time syncronization servers available\n\
 for public use around the Internet.  Please select one reasonably\n\

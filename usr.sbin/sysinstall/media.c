@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media.c,v 1.33 1996/04/23 01:29:26 jkh Exp $
+ * $Id: media.c,v 1.34 1996/04/25 17:31:22 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -51,7 +51,7 @@ genericHook(dialogMenuItem *self, DeviceType type)
     devs = deviceFind(self->prompt, type);
     if (devs)
 	mediaDevice = devs[0];
-    return devs ? DITEM_SUCCESS : DITEM_FAILURE;
+    return (devs ? DITEM_LEAVE_MENU : DITEM_FAILURE);
 }
 
 static int
@@ -492,9 +492,10 @@ mediaExtractDist(char *dir, int fd)
 int
 mediaGetType(dialogMenuItem *self)
 {
-    if (!dmenuOpenSimple(&MenuMedia))
-	return DITEM_FAILURE | DITEM_RESTORE | DITEM_RECREATE;
-    return DITEM_SUCCESS | DITEM_RESTORE | DITEM_RECREATE;
+    int i;
+
+    i = dmenuOpenSimple(&MenuMedia) ? DITEM_SUCCESS : DITEM_FAILURE;
+    return i | DITEM_RESTORE | DITEM_RECREATE;
 }
 
 /* Return TRUE if all the media variables are set up correctly */
