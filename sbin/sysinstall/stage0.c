@@ -24,7 +24,7 @@
 
 #include "sysinstall.h"
 
-static char *welcome[] = {
+static unsigned char *welcome[] = {
     "View 'READ ME FIRST' File.",
     "View FreeBSD Copyright Information.",
     "Proceed with installation.",
@@ -39,7 +39,7 @@ stage0()
 
 	if (!access(README_FILE, R_OK)) {
 	    dialog_clear();
-	    dialog_textbox("READ ME FIRST", README_FILE, 24, 80);
+	    dialog_textbox("READ ME FIRST", README_FILE, LINES-1, COLS);
 	}
     return;
 
@@ -54,14 +54,14 @@ stage0()
     case 1:	/* View readme */
 	if (!access(README_FILE, R_OK)) {
 	    dialog_clear();
-	    dialog_textbox("READ ME FIRST", README_FILE, 24, 80);
+	    dialog_textbox("READ ME FIRST", README_FILE, LINES-1, COLS);
 	}
 	break;
 
     case 2:	/* View copyrights */
 	if (!access(COPYRIGHT_FILE, R_OK)) {
 	    dialog_clear();
-	    dialog_textbox("COPYRIGHT", COPYRIGHT_FILE, 24, 80);
+	    dialog_textbox("COPYRIGHT", COPYRIGHT_FILE, LINES-1, COLS);
 	}
 	break;
 
