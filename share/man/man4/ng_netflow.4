@@ -71,12 +71,17 @@ and the same number of hooks named
 etc.,
 plus a single hook named
 .Va export .
-The node reads data on
+The node does NetFlow accounting of data received on
 .Va iface*
 hooks.
 If corresponding
 .Va out
 hook is connected, unmodified data is bypassed to it, otherwise data is freed.
+If data is received on
+.Va out
+hook, it is bypassed to corresponding
+.Va iface
+hook without any processing.
 When full export datagram is built it is sent to the
 .Va export
 hook.
@@ -235,6 +240,7 @@ we don't use tee, but send packets back to ether node.
 SEQ
 .Ed
 .Sh SEE ALSO
+.Xr flowctl 8 ,
 .Xr netgraph 4 ,
 .Xr ng_ksocket 4 ,
 .Xr ng_tee 4 ,
