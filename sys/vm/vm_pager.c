@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pager.c,v 1.3 1994/08/02 07:55:35 davidg Exp $
+ * $Id: vm_pager.c,v 1.4 1994/08/06 09:15:40 davidg Exp $
  */
 
 /*
@@ -280,8 +280,8 @@ vm_pager_map_page(m)
 	vm_offset_t kva;
 
 	kva = kmem_alloc_wait(pager_map, PAGE_SIZE);
-	pmap_enter(vm_map_pmap(pager_map), kva, VM_PAGE_TO_PHYS(m),
-		   VM_PROT_DEFAULT, TRUE);
+	pmap_kenter(kva, VM_PAGE_TO_PHYS(m));
+	pmap_update();
 	return(kva);
 }
 
@@ -289,6 +289,7 @@ void
 vm_pager_unmap_page(kva)
 	vm_offset_t	kva;
 {
+	pmap_kremove(kva);
 	kmem_free_wakeup(pager_map, kva, PAGE_SIZE);
 }
 
@@ -298,7 +299,7 @@ vm_pager_atop(kva)
 {
 	vm_offset_t pa;
 
-	pa = pmap_extract(vm_map_pmap(pager_map), kva);
+	pa = pmap_kextract( kva);
 	if (pa == 0)
 		panic("vm_pager_atop");
 	return (PHYS_TO_VM_PAGE(pa));
@@ -353,7 +354,6 @@ getpbuf() {
 
 	s = splbio();
 	/* get a bp from the swap buffer header pool */
-tryagain:
 	while ((bp = bswlist.tqh_first) == NULL) {
 		bswneeded = 1;
 		tsleep((caddr_t)&bswneeded, PVM, "wswbuf", 0); 
