@@ -259,7 +259,7 @@ draw:
 		else
 		    i = choice - 1;
 	    }
-	    else if (KEY_IS_DOWN(key))
+	    else if (KEY_IS_DOWN(key)) {
 		if (choice == max_choice - 1) {
 		    if (scroll + choice < item_no - 1) {
 			/* Scroll menu up */
@@ -285,6 +285,7 @@ draw:
 		}
 		else
 		    i = choice + 1;
+	    }
 	    
 	    if (i != choice) {
 		/* De-highlight current item */

@@ -1719,7 +1719,7 @@ set_ordering (register const char *s, struct keyfield *key,
   return (char *) s;
 }
 
-void
+int
 main (int argc, char **argv)
 {
   struct keyfield *key = NULL, gkey;
