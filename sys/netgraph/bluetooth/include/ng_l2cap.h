@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: ng_l2cap.h,v 1.13 2002/09/08 23:35:51 max Exp $
+ * $Id: ng_l2cap.h,v 1.2 2003/04/27 00:52:26 max Exp $
  * $FreeBSD$
  */
 
@@ -610,14 +610,17 @@ typedef u_int16_t	ng_l2cap_node_debug_ep;
 #define NGM_L2CAP_NODE_HOOK_INFO	0x409	/* L2CAP -> Upper */
 /* bdaddr_t bdaddr; -- local (source BDADDR) */
 
-#define NGM_L2CAP_NODE_GET_CON_LIST	0x40a	/* User -> L2CAP */
+#define NGM_L2CAP_NODE_GET_CON_LIST	0x40a	/* L2CAP -> User */
 typedef struct {
 	u_int32_t	num_connections; /* number of connections */
 } ng_l2cap_node_con_list_ep;
 
 /* Connection flags */
-#define NG_L2CAP_CON_TX	(1 << 0)    /* sending data */
-#define NG_L2CAP_CON_RX	(1 << 1)    /* receiving data */
+#define NG_L2CAP_CON_TX			(1 << 0) /* sending data */
+#define NG_L2CAP_CON_RX			(1 << 1) /* receiving data */
+#define NG_L2CAP_CON_OUTGOING		(1 << 2) /* outgoing connection */
+#define NG_L2CAP_CON_LP_TIMO		(1 << 3) /* LP timeout */
+#define NG_L2CAP_CON_AUTO_DISCON_TIMO	(1 << 4) /* auto discon. timeout */
 
 typedef struct {
 	u_int8_t	state;      /* connection state */
@@ -630,7 +633,7 @@ typedef struct {
 #define NG_L2CAP_MAX_CON_NUM \
 	((0xffff - sizeof(ng_l2cap_node_con_list_ep))/sizeof(ng_l2cap_node_con_ep))
 
-#define NGM_L2CAP_NODE_GET_CHAN_LIST	0x40b	/* User -> L2CAP */
+#define NGM_L2CAP_NODE_GET_CHAN_LIST	0x40b	/* L2CAP -> User */
 typedef struct {
 	u_int32_t	num_channels;	/* number of channels */
 } ng_l2cap_node_chan_list_ep;
@@ -650,6 +653,10 @@ typedef struct {
 
 #define NG_L2CAP_MAX_CHAN_NUM \
 	((0xffff - sizeof(ng_l2cap_node_chan_list_ep))/sizeof(ng_l2cap_node_chan_ep))
+
+#define NGM_L2CAP_NODE_GET_AUTO_DISCON_TIMO 0x40c /* L2CAP -> User */
+#define NGM_L2CAP_NODE_SET_AUTO_DISCON_TIMO 0x40d /* User -> L2CAP */
+typedef u_int16_t	ng_l2cap_node_auto_discon_ep;
 
 #endif /* ndef _NETGRAPH_L2CAP_H_ */
 

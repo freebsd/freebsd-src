@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: ng_hci_evnt.c,v 1.18 2002/11/12 22:35:39 max Exp $
+ * $Id: ng_hci_evnt.c,v 1.5 2003/04/01 18:15:25 max Exp $
  * $FreeBSD$
  */
 
@@ -60,6 +60,7 @@ static int inquiry_result             (ng_hci_unit_p, struct mbuf *);
 static int con_compl                  (ng_hci_unit_p, struct mbuf *);
 static int con_req                    (ng_hci_unit_p, struct mbuf *);
 static int discon_compl               (ng_hci_unit_p, struct mbuf *);
+static int encryption_change          (ng_hci_unit_p, struct mbuf *);
 static int read_remote_features_compl (ng_hci_unit_p, struct mbuf *);
 static int qos_setup_compl            (ng_hci_unit_p, struct mbuf *);
 static int hardware_error             (ng_hci_unit_p, struct mbuf *);
@@ -100,18 +101,15 @@ ng_hci_process_event(ng_hci_unit_p unit, struct mbuf *event)
 
 	switch (hdr->event) {
 	case NG_HCI_EVENT_INQUIRY_COMPL:
-/*	case NG_HCI_EVENT_MODE_CHANGE: */
 	case NG_HCI_EVENT_RETURN_LINK_KEYS:
 	case NG_HCI_EVENT_PIN_CODE_REQ:
 	case NG_HCI_EVENT_LINK_KEY_REQ:
 	case NG_HCI_EVENT_LINK_KEY_NOTIFICATION:
 	case NG_HCI_EVENT_LOOPBACK_COMMAND:
 	case NG_HCI_EVENT_AUTH_COMPL:
-	case NG_HCI_EVENT_ENCRYPTION_CHANGE:
 	case NG_HCI_EVENT_CHANGE_CON_LINK_KEY_COMPL:
 	case NG_HCI_EVENT_MASTER_LINK_KEY_COMPL:
 	case NG_HCI_EVENT_FLUSH_OCCUR:	/* XXX Do we have to handle it? */
-/*	case NG_HCI_EVENT_ROLE_CHANGE: */
 	case NG_HCI_EVENT_MAX_SLOT_CHANGE:
 	case NG_HCI_EVENT_CON_PKT_TYPE_CHANGED:
 	case NG_HCI_EVENT_BT_LOGO:
@@ -136,6 +134,10 @@ ng_hci_process_event(ng_hci_unit_p unit, struct mbuf *event)
 
 	case NG_HCI_EVENT_DISCON_COMPL:
 		error = discon_compl(unit, event);
+		break;
+
+	case NG_HCI_EVENT_ENCRYPTION_CHANGE:
+		error = encryption_change(unit, event);
 		break;
 
 	case NG_HCI_EVENT_READ_REMOTE_FEATURES_COMPL:
@@ -518,7 +520,8 @@ con_compl(ng_hci_unit_p unit, struct mbuf *event)
 				lp->cp.con_handle = ep->con_handle;
 
 				lp->cp.settings = 0;
-				if (unit->features[0] & NG_HCI_LMP_SWITCH)
+				if ((unit->features[0] & NG_HCI_LMP_SWITCH) &&
+				    unit->role_switch)
 					lp->cp.settings |= 0x1;
 				if (unit->features[0] & NG_HCI_LMP_HOLD_MODE)
 					lp->cp.settings |= 0x2;
@@ -665,6 +668,50 @@ discon_compl(ng_hci_unit_p unit, struct mbuf *event)
 
 	return (error);
 } /* discon_compl */
+
+/* Encryption change event */
+static int
+encryption_change(ng_hci_unit_p unit, struct mbuf *event)
+{
+	ng_hci_encryption_change_ep	*ep = NULL;
+	ng_hci_unit_con_p		 con = NULL;
+	int				 error = 0;
+
+	NG_HCI_M_PULLUP(event, sizeof(*ep));
+	if (event == NULL)
+		return (ENOBUFS);
+
+	ep = mtod(event, ng_hci_encryption_change_ep *);
+
+	if (ep->status == 0) {
+		u_int16_t	h = NG_HCI_CON_HANDLE(le16toh(ep->con_handle));
+
+		con = ng_hci_con_by_handle(unit, h);
+		if (con == NULL) {
+			NG_HCI_ALERT(
+"%s: %s - invalid connection handle=%d\n",
+				__func__, NG_NODE_NAME(unit->node), h);
+			error = ENOENT;
+		} else if (con->link_type != NG_HCI_LINK_ACL) {
+			NG_HCI_ALERT(
+"%s: %s - invalid link type=%d\n",
+				__func__, NG_NODE_NAME(unit->node), 
+				con->link_type);
+			error = EINVAL;
+		} else if (ep->encryption_enable)
+			/* XXX is that true? */
+			con->encryption_mode = NG_HCI_ENCRYPTION_MODE_P2P;
+		else
+			con->encryption_mode = NG_HCI_ENCRYPTION_MODE_NONE;
+	} else
+		NG_HCI_ERR(
+"%s: %s - failed to change encryption mode, status=%d\n",
+			__func__, NG_NODE_NAME(unit->node), ep->status);
+
+	NG_FREE_M(event);
+
+	return (error);
+} /* encryption_change */
 
 /* Read remote feature complete event */
 static int

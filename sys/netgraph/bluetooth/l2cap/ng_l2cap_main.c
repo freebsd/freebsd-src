@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: ng_l2cap_main.c,v 1.24 2002/09/04 21:38:38 max Exp $
+ * $Id: ng_l2cap_main.c,v 1.2 2003/04/28 21:44:59 max Exp $
  * $FreeBSD$
  */
 
@@ -120,6 +120,7 @@ ng_l2cap_constructor(node_p node)
 
 	l2cap->node = node;
 	l2cap->debug = NG_L2CAP_WARN_LEVEL;
+	l2cap->discon_timo = 5; /* sec */
 
 	LIST_INIT(&l2cap->con_list);
 	LIST_INIT(&l2cap->chan_list);
@@ -574,6 +575,7 @@ ng_l2cap_default_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			LIST_FOREACH(con, &l2cap->con_list, next) {
 				e2->state = con->state;
 
+				e2->flags = con->flags;
 				if (con->tx_pkt != NULL)
 					e2->flags |= NG_L2CAP_CON_TX;
 				if (con->rx_pkt != NULL)
@@ -636,6 +638,26 @@ ng_l2cap_default_rcvmsg(node_p node, item_p item, hook_p lasthook)
 					break;
 			}
 			} break;
+
+		case NGM_L2CAP_NODE_GET_AUTO_DISCON_TIMO:
+			NG_MKRESPONSE(rsp, msg,
+				sizeof(ng_l2cap_node_auto_discon_ep), M_NOWAIT);
+			if (rsp == NULL)
+				error = ENOMEM;
+			else
+				*((ng_l2cap_node_auto_discon_ep *)(rsp->data)) =
+					l2cap->discon_timo;
+			break;
+
+		case NGM_L2CAP_NODE_SET_AUTO_DISCON_TIMO:
+			if (msg->header.arglen !=
+					sizeof(ng_l2cap_node_auto_discon_ep))
+				error = EMSGSIZE;
+			else
+				l2cap->discon_timo =
+					*((ng_l2cap_node_auto_discon_ep *)
+							(msg->data));
+			break;
 
 		default:
 			error = EINVAL;
@@ -714,12 +736,13 @@ ng_l2cap_cleanup(ng_l2cap_p l2cap)
 	while (!LIST_EMPTY(&l2cap->con_list)) {
 		con = LIST_FIRST(&l2cap->con_list);
 
-		if (con->state == NG_L2CAP_W4_LP_CON_CFM)
+		if (con->flags & NG_L2CAP_CON_LP_TIMO)
 			ng_l2cap_lp_untimeout(con);
+		else if (con->flags & NG_L2CAP_CON_AUTO_DISCON_TIMO)
+			ng_l2cap_discon_untimeout(con);
 
-		con->state = NG_L2CAP_CON_CLOSED;
+		/* Connection terminated by local host */
 		ng_l2cap_con_fail(con, 0x16);
-				/* Connection terminated by local host */
 	}
 } /* ng_l2cap_cleanup */
 

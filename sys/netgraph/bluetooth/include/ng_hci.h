@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: ng_hci.h,v 1.13 2002/11/12 22:35:39 max Exp $
+ * $Id: ng_hci.h,v 1.2 2003/03/18 00:09:37 max Exp $
  * $FreeBSD$
  */
 
@@ -597,6 +597,10 @@ typedef u_int16_t	ng_hci_node_link_policy_mask_ep;
 #define NGM_HCI_NODE_GET_PACKET_MASK		116 /* HCI -> User */
 #define NGM_HCI_NODE_SET_PACKET_MASK		117 /* User -> HCI */
 typedef u_int16_t	ng_hci_node_packet_mask_ep;
+
+#define NGM_HCI_NODE_GET_ROLE_SWITCH		118 /* HCI -> User */
+#define NGM_HCI_NODE_SET_ROLE_SWITCH		119 /* User -> HCI */
+typedef u_int16_t	ng_hci_node_role_switch_ep;
 
 /**************************************************************************
  **************************************************************************

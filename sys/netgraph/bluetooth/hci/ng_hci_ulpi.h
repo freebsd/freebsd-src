@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: ng_hci_ulpi.h,v 1.4 2002/09/04 21:36:52 max Exp $
+ * $Id: ng_hci_ulpi.h,v 1.2 2003/04/26 22:35:21 max Exp $
  * $FreeBSD$
  */
 
@@ -47,7 +47,6 @@ int  ng_hci_lp_qos_cfm                   (ng_hci_unit_con_p, int);
 int  ng_hci_lp_qos_ind                   (ng_hci_unit_con_p);
 
 void ng_hci_process_con_timeout          (node_p, hook_p, void *, int);
-void ng_hci_process_con_watchdog_timeout (node_p, hook_p, void *, int);
 
 #endif /* ndef _NETGRAPH_HCI_ULPI_H_ */
 

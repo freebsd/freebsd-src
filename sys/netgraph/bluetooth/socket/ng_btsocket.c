@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: ng_btsocket.c,v 1.20 2002/09/13 17:56:58 max Exp $
+ * $Id: ng_btsocket.c,v 1.3 2003/01/19 00:19:04 max Exp $
  * $FreeBSD$
  */
 
@@ -40,6 +40,7 @@
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
+#include <sys/taskqueue.h>
 #include <bitstring.h>
 #include <netgraph/ng_message.h>
 #include <netgraph/netgraph.h>
@@ -49,6 +50,7 @@
 #include "ng_btsocket.h"
 #include "ng_btsocket_hci_raw.h"
 #include "ng_btsocket_l2cap.h"
+#include "ng_btsocket_rfcomm.h"
 
 static int			ng_btsocket_modevent (module_t, int, void *);
 extern struct domain		ng_btsocket_domain;
@@ -134,6 +136,33 @@ static struct pr_usrreqs	ng_btsocket_l2cap_usrreqs = {
 	sopoll
 };
 
+/*
+ * Bluetooth STREAM RFCOMM sockets
+ */
+
+static struct pr_usrreqs	ng_btsocket_rfcomm_usrreqs = {
+	ng_btsocket_rfcomm_abort,	/* abort */
+	ng_btsocket_rfcomm_accept,	/* accept */
+	ng_btsocket_rfcomm_attach,	/* attach */
+	ng_btsocket_rfcomm_bind,	/* bind */
+	ng_btsocket_rfcomm_connect,	/* connect */
+	pru_connect2_notsupp,		/* connect2 */
+	ng_btsocket_rfcomm_control,	/* control */
+	ng_btsocket_rfcomm_detach,	/* detach */
+	ng_btsocket_rfcomm_disconnect,	/* disconnect */
+        ng_btsocket_rfcomm_listen,	/* listen */
+	ng_btsocket_rfcomm_peeraddr,	/* peeraddr */
+	pru_rcvd_notsupp,		/* rcvd */
+	pru_rcvoob_notsupp,		/* rcvoob */
+	ng_btsocket_rfcomm_send,	/* send */
+	pru_sense_null,			/* send */
+	NULL,				/* shutdown */
+	ng_btsocket_rfcomm_sockaddr,	/* sockaddr */
+	sosend,
+	soreceive,
+	sopoll
+};
+
 /* 
  * Definitions of protocols supported in the BLUETOOTH domain 
  */
@@ -177,6 +206,19 @@ static struct protosw		ng_btsocket_protosw[] = {
 	NULL, NULL, NULL,		/* fasttimeo, slowtimo, drain */
 	&ng_btsocket_l2cap_usrreqs,	/* usrreq table (above) */
 	/* { NULL } */			/* pfh (protocol filter head?) */
+},
+{
+	SOCK_STREAM,			/* protocol type */
+	&ng_btsocket_domain,		/* backpointer to domain */
+	BLUETOOTH_PROTO_RFCOMM,		/* protocol */
+	PR_ATOMIC | PR_CONNREQUIRED,	/* flags */
+	NULL, NULL, NULL,		/* input, output, ctlinput */
+	ng_btsocket_rfcomm_ctloutput,	/* ctloutput */
+	NULL,				/* ousrreq() */
+	ng_btsocket_rfcomm_init,	/* init */
+	NULL, NULL, NULL,		/* fasttimeo, slowtimo, drain */
+	&ng_btsocket_rfcomm_usrreqs,	/* usrreq table (above) */
+	/* { NULL } */			/* pfh (protocol filter head?) */
 }
 };
 #define ng_btsocket_protosw_size \
@@ -210,6 +252,8 @@ SYSCTL_NODE(_net_bluetooth_hci, OID_AUTO, sockets, CTLFLAG_RW,
 	0, "Bluetooth HCI sockets family");
 SYSCTL_NODE(_net_bluetooth_l2cap, OID_AUTO, sockets, CTLFLAG_RW,
 	0, "Bluetooth L2CAP sockets family");
+SYSCTL_NODE(_net_bluetooth_rfcomm, OID_AUTO, sockets, CTLFLAG_RW,
+	0, "Bluetooth RFCOMM sockets family");
 
 /* 
  * Module 

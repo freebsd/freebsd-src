@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: ng_hci_misc.h,v 1.8 2002/09/04 21:36:52 max Exp $
+ * $Id: ng_hci_misc.h,v 1.2 2003/04/26 22:35:21 max Exp $
  * $FreeBSD$
  */
 
@@ -51,8 +51,6 @@ void              ng_hci_command_timeout        (ng_hci_unit_p);
 void              ng_hci_command_untimeout      (ng_hci_unit_p);
 void              ng_hci_con_timeout            (ng_hci_unit_con_p);
 void              ng_hci_con_untimeout          (ng_hci_unit_con_p);
-void              ng_hci_con_watchdog_timeout   (ng_hci_unit_con_p);
-void              ng_hci_con_watchdog_untimeout (ng_hci_unit_con_p);
 
 #endif /* ndef _NETGRAPH_HCI_MISC_H_ */
 

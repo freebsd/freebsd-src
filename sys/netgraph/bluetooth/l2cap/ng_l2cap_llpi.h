@@ -25,24 +25,25 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: ng_l2cap_llpi.h,v 1.6 2002/04/16 00:43:57 max Exp $
+ * $Id: ng_l2cap_llpi.h,v 1.2 2003/04/28 21:44:59 max Exp $
  * $FreeBSD$
  */
 
 #ifndef _NETGRAPH_L2CAP_LLPI_H_
 #define _NETGRAPH_L2CAP_LLPI_H_
 
-int  ng_l2cap_lp_con_req         (ng_l2cap_p, bdaddr_p);
-int  ng_l2cap_lp_con_cfm         (ng_l2cap_p, struct ng_mesg *);
-int  ng_l2cap_lp_con_ind         (ng_l2cap_p, struct ng_mesg *);
-int  ng_l2cap_lp_discon_ind      (ng_l2cap_p, struct ng_mesg *);
-int  ng_l2cap_lp_qos_req         (ng_l2cap_p, u_int16_t, ng_l2cap_flow_p);
-int  ng_l2cap_lp_qos_cfm         (ng_l2cap_p, struct ng_mesg *);
-int  ng_l2cap_lp_qos_ind         (ng_l2cap_p, struct ng_mesg *);
-int  ng_l2cap_lp_send            (ng_l2cap_con_p, u_int16_t,struct mbuf *);
-int  ng_l2cap_lp_receive         (ng_l2cap_p, struct mbuf *);
-void ng_l2cap_lp_deliver         (ng_l2cap_con_p);
-void ng_l2cap_process_lp_timeout (node_p, hook_p, void *, int);
+int  ng_l2cap_lp_con_req             (ng_l2cap_p, bdaddr_p);
+int  ng_l2cap_lp_con_cfm             (ng_l2cap_p, struct ng_mesg *);
+int  ng_l2cap_lp_con_ind             (ng_l2cap_p, struct ng_mesg *);
+int  ng_l2cap_lp_discon_ind          (ng_l2cap_p, struct ng_mesg *);
+int  ng_l2cap_lp_qos_req             (ng_l2cap_p, u_int16_t, ng_l2cap_flow_p);
+int  ng_l2cap_lp_qos_cfm             (ng_l2cap_p, struct ng_mesg *);
+int  ng_l2cap_lp_qos_ind             (ng_l2cap_p, struct ng_mesg *);
+int  ng_l2cap_lp_send                (ng_l2cap_con_p, u_int16_t,struct mbuf *);
+int  ng_l2cap_lp_receive             (ng_l2cap_p, struct mbuf *);
+void ng_l2cap_lp_deliver             (ng_l2cap_con_p);
+void ng_l2cap_process_lp_timeout     (node_p, hook_p, void *, int);
+void ng_l2cap_process_discon_timeout (node_p, hook_p, void *, int);
 
 #endif /* ndef _NETGRAPH_L2CAP_LLPI_H_ */
 

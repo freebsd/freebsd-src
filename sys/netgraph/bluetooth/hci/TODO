@@ -1,6 +1,5 @@
-# $FreeBSD$
-
-$Id: TODO,v 1.10 2002/09/06 21:03:57 max Exp $
+$Id: TODO,v 1.2 2003/04/26 22:36:29 max Exp $
+$FreeBSD$
 
 FIXME/TODO list
 
@@ -12,30 +11,18 @@ This is a list of open issues for HCI node
 	it should be fine as long as Netgraph is SMP safe. Just need to 
 	verify it.
 
-3) HCI QoS handling
+2) HCI QoS handling
 
 	Some code exists, but i have no idea how it should work. Will 
 	understand and fix later. I only have CSR based hardware and
 	it does not support QoS.
 
-4) Add proper handling for some HCI commands
+3) Add proper handling for some HCI commands
 
 	HCI testing commands is one example. Also might implement Host to 
 	Host Controller flow control (not sure if it is required).
 
-5) Link security
-
-	Manage link keys and PINs. Options:
-
-	1) manage keys inside HCI node/unit itself
-	2) use user space daemon.
-	3) Mix option 1 and option 2.
-
-6) Implement watchdog routine for HCI connections
-
-	Some code exists, but it is not used
-
-7) Code cleanup
+4) Code cleanup
 
 	Verify return codes from functions
 	Remove some waringns/errors

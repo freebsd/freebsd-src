@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: ng_l2cap_misc.h,v 1.6 2002/04/16 00:43:57 max Exp $
+ * $Id: ng_l2cap_misc.h,v 1.2 2003/04/28 21:44:59 max Exp $
  * $FreeBSD$
  */
 
@@ -39,6 +39,8 @@ void           ng_l2cap_send_hook_info (node_p, hook_p, void *, int);
  */
 
 ng_l2cap_con_p ng_l2cap_new_con       (ng_l2cap_p, bdaddr_p);
+void           ng_l2cap_con_ref       (ng_l2cap_con_p);
+void           ng_l2cap_con_unref     (ng_l2cap_con_p);
 ng_l2cap_con_p ng_l2cap_con_by_addr   (ng_l2cap_p, bdaddr_p);
 ng_l2cap_con_p ng_l2cap_con_by_handle (ng_l2cap_p, u_int16_t);
 void           ng_l2cap_free_con      (ng_l2cap_con_p);
@@ -58,11 +60,13 @@ void            ng_l2cap_free_chan    (ng_l2cap_chan_p);
 #define ng_l2cap_link_cmd(con, cmd) \
 do { \
 	TAILQ_INSERT_TAIL(&(con)->cmd_list, (cmd), next); \
+	ng_l2cap_con_ref((con)); \
 } while (0)
 
 #define ng_l2cap_unlink_cmd(cmd) \
 do { \
 	TAILQ_REMOVE(&((cmd)->con->cmd_list), (cmd), next); \
+	ng_l2cap_con_unref((cmd)->con); \
 } while (0)
 
 #define ng_l2cap_free_cmd(cmd) \
@@ -84,6 +88,8 @@ u_int8_t       ng_l2cap_get_ident    (ng_l2cap_con_p);
  * Timeout
  */
 
+void ng_l2cap_discon_timeout    (ng_l2cap_con_p);
+void ng_l2cap_discon_untimeout  (ng_l2cap_con_p);
 void ng_l2cap_lp_timeout        (ng_l2cap_con_p);
 void ng_l2cap_lp_untimeout      (ng_l2cap_con_p);
 void ng_l2cap_command_timeout   (ng_l2cap_cmd_p, int);

@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: ng_ubt_var.h,v 1.1 2002/11/09 19:09:02 max Exp $
+ * $Id: ng_ubt_var.h,v 1.2 2003/03/22 23:44:36 max Exp $
  * $FreeBSD$
  */
 
@@ -62,6 +62,13 @@ struct ubt_softc {
 #define UBT_CMD_XMIT		(1 << 1)	/* CMD xmit in progress */
 #define UBT_ACL_XMIT		(1 << 2)	/* ACL xmit in progress */
 #define UBT_SCO_XMIT		(1 << 3)	/* SCO xmit in progress */
+#define UBT_EVT_RECV		(1 << 4)	/* EVN recv in progress */
+#define UBT_ACL_RECV		(1 << 5)	/* ACL recv in progress */
+#define UBT_SCO_RECV		(1 << 6)	/* SCO recv in progress */
+#define UBT_CTRL_DEV		(1 << 7)	/* ctrl device is open */
+#define UBT_INTR_DEV		(1 << 8)	/* intr device is open */
+#define UBT_BULK_DEV		(1 << 9)	/* bulk device is open */
+#define UBT_ANY_DEV		(UBT_CTRL_DEV|UBT_INTR_DEV|UBT_BULK_DEV)
 
 	ng_ubt_node_stat_ep	 sc_stat;	/* statistic */
 #define NG_UBT_STAT_PCKTS_SENT(s)	(s).pckts_sent ++
@@ -79,21 +86,16 @@ struct ubt_softc {
 	usbd_interface_handle	 sc_iface0;	/* USB interface 0 */
 	usbd_interface_handle	 sc_iface1;	/* USB interface 1 */
 
-	struct ifqueue		 sc_inq;	/* incoming queue */
-	void			*sc_ith;	/* SWI interrupt handler */
-
 	/* Interrupt pipe (HCI events) */
 	int			 sc_intr_ep;	/* interrupt endpoint */
 	usbd_pipe_handle	 sc_intr_pipe;	/* interrupt pipe handle */
 	usbd_xfer_handle	 sc_intr_xfer;	/* intr xfer */
-	u_int8_t		*sc_intr_buffer; /* interrupt buffer */
-#define UBT_INTR_BUFFER_SIZE \
-		(sizeof(ng_hci_event_pkt_t) + NG_HCI_EVENT_PKT_SIZE)
+	struct mbuf		*sc_intr_buffer; /* interrupt buffer */
 
 	/* Control pipe (HCI commands) */
 	usbd_xfer_handle	 sc_ctrl_xfer;	/* control xfer handle */
 	void			*sc_ctrl_buffer; /* control buffer */
-	struct ifqueue		 sc_cmdq;	/* HCI command queue */
+	struct ng_bt_mbufq	 sc_cmdq;	/* HCI command queue */
 #define UBT_CTRL_BUFFER_SIZE \
 		(sizeof(ng_hci_cmd_pkt_t) + NG_HCI_CMD_PKT_SIZE)
 
@@ -101,16 +103,16 @@ struct ubt_softc {
 	int			 sc_bulk_in_ep;	/* bulk-in enpoint */
 	usbd_pipe_handle	 sc_bulk_in_pipe; /* bulk-in pipe */
 	usbd_xfer_handle	 sc_bulk_in_xfer; /* bulk-in xfer */
-	void			*sc_bulk_in_buffer; /* bulk-in buffer */
+	struct mbuf		*sc_bulk_in_buffer; /* bulk-in buffer */
 
 	/* Bulk out pipe (ACL data) */
 	int			 sc_bulk_out_ep; /* bulk-out endpoint */
 	usbd_pipe_handle	 sc_bulk_out_pipe; /* bulk-out pipe */
 	usbd_xfer_handle	 sc_bulk_out_xfer; /* bulk-out xfer */
 	void			*sc_bulk_out_buffer; /* bulk-out buffer */
-	struct ifqueue		 sc_aclq;	/* ACL data queue */
+	struct ng_bt_mbufq	 sc_aclq;	/* ACL data queue */
 #define UBT_BULK_BUFFER_SIZE \
-		512	/* XXX should be big enough to hold one frame */
+		MCLBYTES /* XXX should be big enough to hold one frame */
 
 	/* Isoc. in pipe (SCO data) */
 	int			 sc_isoc_in_ep; /* isoc-in endpoint */
@@ -125,7 +127,7 @@ struct ubt_softc {
 	usbd_xfer_handle	 sc_isoc_out_xfer; /* isoc-out xfer */
 	void			*sc_isoc_out_buffer; /* isoc-in buffer */
 	u_int16_t		*sc_isoc_out_frlen; /* isoc-out. frame length */
-	struct ifqueue		 sc_scoq;	/* SCO data queue */
+	struct ng_bt_mbufq	 sc_scoq;	/* SCO data queue */
 
 	int			 sc_isoc_size; /* max. size of isoc. packet */
 	u_int32_t		 sc_isoc_nframes; /* num. isoc. frames */
@@ -135,6 +137,14 @@ struct ubt_softc {
 	/* Netgraph specific */
 	node_p			 sc_node;	/* pointer back to node */
 	hook_p			 sc_hook;	/* upstream hook */
+
+	/* Device specific */
+	dev_t			 sc_ctrl_dev;	/* control device */
+	dev_t			 sc_intr_dev;	/* interrupt device */
+	dev_t			 sc_bulk_dev;	/* bulk device */
+
+	int			 sc_refcnt;	/* device ref. count */
+	int			 sc_dying;
 };
 typedef struct ubt_softc	ubt_softc_t;
 typedef struct ubt_softc *	ubt_softc_p;
