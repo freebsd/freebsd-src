@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 21, 2004
+.Dd July 28, 2004
 .Dt CM 4
 .Os
 .Sh NAME
@@ -110,18 +110,14 @@ When switching between the two modes, use
 .Dl ifconfig interfacename down up
 to switch the
 .Tn MTU .
-.Sh ERRORS
+.Sh DIAGNOSTICS
 The following driver specific error messages
 may be reported:
-.Bl -tag -width Er
-.It Bq Er ENOENT
-May be returned if the device cannot allocate a port,
-memory resource, or IRQ with the given resource ID.
-.It Bq Er EINVAL
-May be returned if the device is marked as down and is
-still running.
-This error may also be returned if the device is marked as up
-but is not running.
+.Bl -diag
+.It "reset: card reset, link addr = 0x%02x (cm%d)"
+The card is being reset and a new link address assigned.
+.It "srint: restarted rx on buf cm%d"
+The rx buffer has been emptied and will be reset.
 .El
 .Sh SEE ALSO
 .Xr netintro 4 ,
