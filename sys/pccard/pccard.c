@@ -28,7 +28,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: pccard.c,v 1.57 1998/04/08 15:00:02 nate Exp $
+ *	$Id: pccard.c,v 1.58 1998/04/09 14:01:13 nate Exp $
  */
 
 #include "opt_devfs.h"
@@ -379,6 +379,7 @@ slot_suspend(void *arg)
 	if (slt->state == filled) {
 		int s = splhigh();
 		disable_slot(slt);
+		slt->laststate = filled;
 		slt->state = suspend;
 		splx(s);
 		printf("Card disabled, slot %d\n", slt->slotnum);
@@ -396,6 +397,7 @@ slot_resume(void *arg)
 		slt->ctrl->resume(slt);
 	/* This code stolen from pccard_event:card_inserted */
 	if (slt->state == suspend) {
+		slt->laststate = suspend;
 		slt->state = empty;
 		slt->insert_seq = 1;
 		slt->insert_ch = timeout(inserted, (void *)slt, hz/4);
@@ -881,6 +883,7 @@ crdioctl(dev_t dev, int cmd, caddr_t data, int fflag, struct proc *p)
 	case PIOCGSTATE:
 		s = splhigh();
 		((struct slotstate *)data)->state = slt->state;
+		((struct slotstate *)data)->laststate = slt->laststate;
 		slt->laststate = slt->state;
 		splx(s);
 		((struct slotstate *)data)->maxmem = slt->ctrl->maxmem;
