@@ -217,8 +217,8 @@ char *telopts[NTELOPTS+1] = {
  * For backwards compatibility, we define SLC_NAMES to be the
  * list of names if SLC_NAMES is not defined.
  */
-#define	SLC_NAMELIST	"0", "SYNCH", "BRK", "IP", "AO", "AYT", "EOR", \
-			"ABORT", "EOF", "SUSP", "EC", "EL", "EW", "RP", \
+#define	SLC_NAMELIST	"0", "SYNCH", "BRK", "IP", "AO", "AYT", "EOR",	\
+			"ABORT", "EOF", "SUSP", "EC", "EL", "EW", "RP",	\
 			"LNEXT", "XON", "XOFF", "FORW1", "FORW2",	\
 			"MCL", "MCR", "MCWL", "MCWR", "MCBOL",		\
 			"MCEOL", "INSRT", "OVER", "ECR", "EWR",		\
@@ -281,7 +281,7 @@ extern char *slc_names[];
 #define	AUTHTYPE_KERBEROS_V5	2
 #define	AUTHTYPE_SPX		3
 #define	AUTHTYPE_MINK		4
-#define AUTHTYPE_SRA		6
+#define	AUTHTYPE_SRA		6
 #define	AUTHTYPE_CNT		7
 
 #define	AUTHTYPE_TEST		99
