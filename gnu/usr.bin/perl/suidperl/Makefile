@@ -1,15 +1,14 @@
-#
 # $FreeBSD$
-#
 
 PROG=	suidperl
 NOMAN=	true
 CFLAGS+=-I${PERL5SRC} -I${.OBJDIR} -DIAMSUID
 SRCS=	perlmain.c sperl.c config.h
 NOSHARED= no
+LDFLAGS=-Wl,-E
 DYNALOADER= lib/auto/DynaLoader/DynaLoader.a
 DPADD=	${DYNALOADER} ${LIBPERL} ${LIBM} ${LIBCRYPT} ${LIBMD} ${LIBXPG4}
-LDADD=	-Wl,-E ${DYNALOADER} -lperl -lm -lcrypt -lmd -lxpg4
+LDADD=	${DYNALOADER} -lperl -lm -lcrypt -lmd -lxpg4
 BINOWN=	root
 BINMODE=4511
 LINKS=	${BINDIR}/${PROG} ${BINDIR}/sperl5.00503

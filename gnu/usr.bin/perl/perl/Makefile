@@ -1,15 +1,14 @@
-#
 # $FreeBSD$
-#
 
 PROG=	perl
 NOMAN=	true
 CFLAGS+=-I${PERL5SRC} -I${.OBJDIR}
 SRCS=	perlmain.c config.h
 NOSHARED= no
+LDFLAGS=-Wl,-E
 DYNALOADER= lib/auto/DynaLoader/DynaLoader.a
 DPADD=	${DYNALOADER} ${LIBPERL} ${LIBM} ${LIBCRYPT} ${LIBMD} ${LIBXPG4}
-LDADD=	-Wl,-E ${DYNALOADER} -lperl -lm -lcrypt -lmd -lxpg4
+LDADD=	${DYNALOADER} -lperl -lm -lcrypt -lmd -lxpg4
 LINKS=	${BINDIR}/${PROG} ${BINDIR}/perl5 \
 	${BINDIR}/${PROG} ${BINDIR}/perl5.00503
 
