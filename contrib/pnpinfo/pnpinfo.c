@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: pnpinfo.c,v 1.4 1999/05/04 16:59:42 luoqi Exp $
+ *      $Id: pnpinfo.c,v 1.5 1999/05/22 17:35:43 dfr Exp $
  */
 
 #include <sys/time.h>
@@ -36,7 +36,7 @@
 
 #include <machine/cpufunc.h>
 
-#include <i386/isa/pnp.h>
+#include <isa/pnpreg.h>
 
 #ifdef DEBUG
 #define	DEB(x) x
@@ -112,7 +112,7 @@ send_Initiation_LFSR()
 {
     int cur, i;
 
-    pnp_write(CONFIG_CONTROL, 0x2);
+    pnp_write(PNP_CONFIG_CONTROL, 0x2);
 
     /* Reset the LSFR */
     outb(_PNP_ADDRESS, 0);
@@ -169,7 +169,7 @@ get_resource_info(u_char *buffer, int len)
     int i, j;
 
     for (i = 0; i < len; i++) {
-	outb(_PNP_ADDRESS, STATUS);
+	outb(_PNP_ADDRESS, PNP_STATUS);
 	for (j = 0; j < 100; j++) {
 	    if ((inb((rd_port << 2) | 0x3)) & 0x1)
 		break;
@@ -179,7 +179,7 @@ get_resource_info(u_char *buffer, int len)
 	    printf("PnP device failed to report resource data\n");
 	    return 0;
 	}
-	outb(_PNP_ADDRESS, RESOURCE_DATA);
+	outb(_PNP_ADDRESS, PNP_RESOURCE_DATA);
 	buffer[i] = inb((rd_port << 2) | 0x3);
 	DEB(printf("--- get_resource_info: got 0x%02x\n",(unsigned)buffer[i]));
     }
@@ -303,11 +303,11 @@ handle_small_res(u_char *resinfo, int item, int len)
     default:
 	printf("*** ITEM 0x%02x detected\n", item);
 	break;
-    case PNP_VERSION:
+    case PNP_TAG_VERSION:
 	printf("PnP Version %d.%d, Vendor Version %d\n",
 	    resinfo[0] >> 4, resinfo[0] & (0xf), resinfo[1]);
 	break;
-    case LOG_DEVICE_ID:
+    case PNP_TAG_LOGICAL_DEVICE:
 	printf("\nLogical Device ID: %c%c%c%02x%02x 0x%08x #%d\n",
 		((resinfo[0] & 0x7c) >> 2) + 64,
 		(((resinfo[0] & 0x03) << 3) |
@@ -327,7 +327,7 @@ handle_small_res(u_char *resinfo, int item, int len)
 	if (len == 6)
 	    printf("\tVendor register funcs %02x\n", resinfo[5]);
 	break;
-    case COMP_DEVICE_ID:
+    case PNP_TAG_COMPAT_DEVICE:
 	printf("Compatible Device ID: %c%c%c%02x%02x (%08x)\n",
 		((resinfo[0] & 0x7c) >> 2) + 64,
 		(((resinfo[0] & 0x03) << 3) |
@@ -335,7 +335,7 @@ handle_small_res(u_char *resinfo, int item, int len)
 		(resinfo[1] & 0x1f) + 64,
 		resinfo[2], resinfo[3], *(int *)resinfo);
 	break;
-    case IRQ_FORMAT:
+    case PNP_TAG_IRQ_FORMAT:
 	printf("    IRQ: ");
 
 	for (i = 0; i < 8; i++)
@@ -357,7 +357,7 @@ handle_small_res(u_char *resinfo, int item, int len)
 	    printf(" - only one type (true/edge)\n");
 	}
 	break;
-    case DMA_FORMAT:
+    case PNP_TAG_DMA_FORMAT:
 	printf("    DMA: channel(s) ");
 	for (i = 0; i < 8; i++)
 	    if (resinfo[0] & (1<<i))
@@ -365,7 +365,7 @@ handle_small_res(u_char *resinfo, int item, int len)
 	printf ("\n");
 	report_dma_info (resinfo[1]);
 	break;
-    case START_DEPEND_FUNC:
+    case PNP_TAG_START_DEPENDANT:
 	printf("TAG Start DF\n");
 	if (len == 1) {
 	    switch (resinfo[0]) {
@@ -381,10 +381,10 @@ handle_small_res(u_char *resinfo, int item, int len)
 	    }
 	}
 	break;
-    case END_DEPEND_FUNC:
+    case PNP_TAG_END_DEPENDANT:
 	printf("TAG End DF\n");
 	break;
-    case IO_PORT_DESC:
+    case PNP_TAG_IO_RANGE:
 	printf("    I/O Range 0x%x .. 0x%x, alignment 0x%x, len 0x%x\n",
 	    resinfo[1] + (resinfo[2] << 8),
 	    resinfo[3] + (resinfo[4] << 8),
@@ -394,20 +394,20 @@ handle_small_res(u_char *resinfo, int item, int len)
 	else
 	    printf("\t[not 16-bit addr]\n");
 	break;
-    case FIXED_IO_PORT_DESC:
+    case PNP_TAG_IO_FIXED:
 	printf ("    FIXED I/O base address 0x%x length 0x%x\n",
 	    resinfo[0] + ( (resinfo[1] & 3 ) << 8), /* XXX */
 	    resinfo[2]);
 	break;
 #ifdef DIAGNOSTIC
-    case SM_RES_RESERVED:
+    case PNP_TAG_RESERVED:
 	printf("Reserved Tag Detected\n");
 	break;
 #endif
-    case SM_VENDOR_DEFINED:
+    case PNP_TAG_VENDOR:
 	printf("*** Small Vendor Tag Detected\n");
 	break;
-    case END_TAG:
+    case PNP_TAG_END:
 	printf("End Tag\n\n");
 	/* XXX Record and Verify Checksum */
 	return 1;
@@ -424,7 +424,7 @@ handle_large_res(u_char *resinfo, int item, int len)
 
     DEB(printf("*** Large ITEM %d len %d found\n", item, len));
     switch (item) {
-    case MEMORY_RANGE_DESC:
+    case PNP_TAG_MEMORY_RANGE:
 	report_memory_info(resinfo[0]);
 	printf("Memory range minimum address: 0x%x\n",
 		(resinfo[1] << 8) + (resinfo[2] << 16));
@@ -435,7 +435,7 @@ handle_large_res(u_char *resinfo, int item, int len)
 	printf("Memory range length: 0x%x\n",
 		(resinfo[7] + (resinfo[8] << 8)) * 256);
 	break;
-    case ID_STRING_ANSI:
+    case PNP_TAG_ID_ANSI:
 	printf("Device Description: ");
 
 	for (i = 0; i < len; i++) {
@@ -444,21 +444,23 @@ handle_large_res(u_char *resinfo, int item, int len)
 	}
 	printf("\n");
 	break;
-    case ID_STRING_UNICODE:
+    case PNP_TAG_ID_UNICODE:
 	printf("ID String Unicode Detected (Undefined)\n");
 	break;
-    case LG_VENDOR_DEFINED:
+    case PNP_TAG_LARGE_VENDOR:
 	printf("Large Vendor Defined Detected\n");
 	break;
-    case _32BIT_MEM_RANGE_DESC:
+    case PNP_TAG_MEMORY32_RANGE:
 	printf("32bit Memory Range Desc Unimplemented\n");
 	break;
-    case _32BIT_FIXED_LOC_DESC:
+    case PNP_TAG_MEMORY32_FIXED:
 	printf("32bit Fixed Location Desc Unimplemented\n");
 	break;
-    case LG_RES_RESERVED:
+#ifdef DIAGNOSTIC
+    case PNP_TAG_LARGE_RESERVED:
 	printf("Large Reserved Tag Detected\n");
 	break;
+#endif
     }
 }
 
@@ -481,8 +483,8 @@ dump_resdata(u_char *data, int csn)
 	    *(int *)&(data[0]),
 	    *(int *)&(data[4]));
 
-    pnp_write(SET_CSN, csn); /* Move this out of this function XXX */
-    outb(_PNP_ADDRESS, STATUS);
+    pnp_write(PNP_SET_CSN, csn); /* Move this out of this function XXX */
+    outb(_PNP_ADDRESS, PNP_STATUS);
 
     /* Allows up to 1kb of Resource Info,  Should be plenty */
     for (i = 0; i < 1024; i++) {
@@ -516,7 +518,7 @@ dump_resdata(u_char *data, int csn)
     }
     printf("Successfully got %d resources, %d logical fdevs\n", i,
 	    logdevs);
-    printf("-- card select # 0x%04x\n", pnp_read(SET_CSN));
+    printf("-- card select # 0x%04x\n", pnp_read(PNP_SET_CSN));
     printf("\nCSN %c%c%c%02x%02x (0x%08x), Serial Number 0x%08x\n",
 	    ((data[0] & 0x7c) >> 2) + 64,
 	    (((data[0] & 0x03) << 3) | ((data[1] & 0xe0) >> 5)) + 64,
@@ -527,18 +529,19 @@ dump_resdata(u_char *data, int csn)
     for (i=0; i<logdevs; i++) {
 	int j;
 
-	pnp_write(SET_LDN, i);
+	pnp_write(PNP_SET_LDN, i);
 
-	printf("\nLogical device #%d\n", pnp_read(SET_LDN) );
+	printf("\nLogical device #%d\n", pnp_read(PNP_SET_LDN) );
 	printf("IO: ");
 	for (j=0; j<8; j++)
-	    printf(" 0x%04x", pnp_readw(IO_CONFIG_BASE + j*2));
+	    printf(" 0x%02x%02x", pnp_read(PNP_IO_BASE_HIGH(i)),
+		pnp_read(PNP_IO_BASE_LOW(i)));
 	printf("\nIRQ %d %d\n",
-	    pnp_read(IRQ_CONFIG), pnp_read(IRQ_CONFIG+2) );
+	    pnp_read(PNP_IRQ_LEVEL(0)), pnp_read(PNP_IRQ_LEVEL(1)) );
 	printf("DMA %d %d\n",
-	    pnp_read(DRQ_CONFIG), pnp_read(DRQ_CONFIG+1) );
+	    pnp_read(PNP_DMA_CHANNEL(0)), pnp_read(PNP_DMA_CHANNEL(1)) );
 	printf("IO range check 0x%02x activate 0x%02x\n",
-	    pnp_read(IO_RANGE_CHECK), pnp_read(ACTIVATE) );
+	    pnp_read(PNP_IO_RANGE_CHECK), pnp_read(PNP_ACTIVATE) );
     }
 }
 
@@ -559,14 +562,14 @@ isolation_protocol()
     send_Initiation_LFSR();
 
     /* Reset CSN for All Cards */
-    pnp_write(CONFIG_CONTROL, 0x04);
+    pnp_write(PNP_CONFIG_CONTROL, 0x04);
 
-    for (csn = 1; (csn < MAX_PNP_CARDS); csn++) {
+    for (csn = 1; (csn < PNP_MAX_CARDS); csn++) {
 	/* Wake up cards without a CSN */
 	logdevs = 0 ;
-	pnp_write(WAKE, 0);
-	pnp_write(SET_RD_DATA, rd_port);
-	outb(_PNP_ADDRESS, SERIAL_ISOLATION);
+	pnp_write(PNP_WAKE, 0);
+	pnp_write(PNP_SET_RD_DATA, rd_port);
+	outb(_PNP_ADDRESS, PNP_SERIAL_ISOLATION);
 	DELAY(1000);	/* Delay 1 msec */
 
 	if (get_serial(data))
