@@ -10,9 +10,7 @@
  * $FreeBSD$
  */
 
-#include <sys/param.h>
 #include <sys/types.h>
-#include <sys/proc.h>
 #include <sys/random.h>
 #include <sys/libkern.h>
 
