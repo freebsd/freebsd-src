@@ -250,7 +250,7 @@ IcmpAliasIn1(struct ip *pip)
     ic = (struct icmp *) ((char *) pip + (pip->ip_hl << 2));
 
 /* Get source address from ICMP data field and restore original data */
-    link = FindIcmpIn(pip->ip_src, pip->ip_dst, ic->icmp_id);
+    link = FindIcmpIn(pip->ip_src, pip->ip_dst, ic->icmp_id, 1);
     if (link != NULL)
     {
         u_short original_id;
@@ -306,14 +306,14 @@ IcmpAliasIn2(struct ip *pip)
     if (ip->ip_p == IPPROTO_UDP)
         link = FindUdpTcpIn(ip->ip_dst, ip->ip_src,
                             ud->uh_dport, ud->uh_sport,
-                            IPPROTO_UDP);
+                            IPPROTO_UDP, 0);
     else if (ip->ip_p == IPPROTO_TCP)
         link = FindUdpTcpIn(ip->ip_dst, ip->ip_src,
                             tc->th_dport, tc->th_sport,
-                            IPPROTO_TCP);
+                            IPPROTO_TCP, 0);
     else if (ip->ip_p == IPPROTO_ICMP) {
         if (ic2->icmp_type == ICMP_ECHO || ic2->icmp_type == ICMP_TSTAMP)
-            link = FindIcmpIn(ip->ip_dst, ip->ip_src, ic2->icmp_id);
+            link = FindIcmpIn(ip->ip_dst, ip->ip_src, ic2->icmp_id, 0);
         else
             link = NULL;
     } else
@@ -443,7 +443,7 @@ IcmpAliasOut1(struct ip *pip)
     ic = (struct icmp *) ((char *) pip + (pip->ip_hl << 2));
 
 /* Save overwritten data for when echo packet returns */
-    link = FindIcmpOut(pip->ip_src, pip->ip_dst, ic->icmp_id);
+    link = FindIcmpOut(pip->ip_src, pip->ip_dst, ic->icmp_id, 1);
     if (link != NULL)
     {
         u_short alias_id;
@@ -500,14 +500,14 @@ IcmpAliasOut2(struct ip *pip)
     if (ip->ip_p == IPPROTO_UDP)
         link = FindUdpTcpOut(ip->ip_dst, ip->ip_src,
                             ud->uh_dport, ud->uh_sport,
-                            IPPROTO_UDP);
+                            IPPROTO_UDP, 0);
     else if (ip->ip_p == IPPROTO_TCP)
         link = FindUdpTcpOut(ip->ip_dst, ip->ip_src,
                             tc->th_dport, tc->th_sport,
-                            IPPROTO_TCP);
+                            IPPROTO_TCP, 0);
     else if (ip->ip_p == IPPROTO_ICMP) {
         if (ic2->icmp_type == ICMP_ECHO || ic2->icmp_type == ICMP_TSTAMP)
-            link = FindIcmpOut(ip->ip_dst, ip->ip_src, ic2->icmp_id);
+            link = FindIcmpOut(ip->ip_dst, ip->ip_src, ic2->icmp_id, 0);
         else
             link = NULL;
     } else
@@ -717,7 +717,7 @@ UdpAliasIn(struct ip *pip)
 
     link = FindUdpTcpIn(pip->ip_src, pip->ip_dst,
                         ud->uh_sport, ud->uh_dport,
-                        IPPROTO_UDP);
+                        IPPROTO_UDP, 1);
     if (link != NULL)
     {
         struct in_addr alias_address;
@@ -791,7 +791,7 @@ UdpAliasOut(struct ip *pip)
 
     link = FindUdpTcpOut(pip->ip_src, pip->ip_dst,
                          ud->uh_sport, ud->uh_dport,
-                         IPPROTO_UDP);
+                         IPPROTO_UDP, 1);
     if (link != NULL)
     {
         u_short alias_port;
@@ -857,7 +857,8 @@ TcpAliasIn(struct ip *pip)
 
     link = FindUdpTcpIn(pip->ip_src, pip->ip_dst,
                         tc->th_sport, tc->th_dport,
-                        IPPROTO_TCP);
+                        IPPROTO_TCP,
+                        !(packetAliasMode & PKT_ALIAS_PROXY_ONLY));
     if (link != NULL)
     {
         struct in_addr alias_address;
@@ -1012,7 +1013,7 @@ TcpAliasOut(struct ip *pip, int maxpacketsize)
 
     link = FindUdpTcpOut(pip->ip_src, pip->ip_dst,
                          tc->th_sport, tc->th_dport,
-                         IPPROTO_TCP);
+                         IPPROTO_TCP, 1);
     if (link !=NULL)
     {
         u_short alias_port;
@@ -1438,15 +1439,15 @@ PacketUnaliasOut(char *ptr,           /* valid IP packet */
 
     /* Find a link */
     if (pip->ip_p == IPPROTO_UDP)
-        link = QueryUdpTcpIn(pip->ip_dst, pip->ip_src,
+        link = FindUdpTcpIn(pip->ip_dst, pip->ip_src,
                             ud->uh_dport, ud->uh_sport,
-                            IPPROTO_UDP);
+                            IPPROTO_UDP, 0);
     else if (pip->ip_p == IPPROTO_TCP)
-        link = QueryUdpTcpIn(pip->ip_dst, pip->ip_src,
+        link = FindUdpTcpIn(pip->ip_dst, pip->ip_src,
                             tc->th_dport, tc->th_sport,
-                            IPPROTO_TCP);
+                            IPPROTO_TCP, 0);
     else if (pip->ip_p == IPPROTO_ICMP) 
-        link = FindIcmpIn(pip->ip_dst, pip->ip_src, ic->icmp_id);
+        link = FindIcmpIn(pip->ip_dst, pip->ip_src, ic->icmp_id, 0);
     else
         link = NULL;
 

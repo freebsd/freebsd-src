@@ -78,10 +78,10 @@ void DifferentialChecksum(u_short *, u_short *, u_short *, int);
 
 /* Internal data access */
 struct alias_link *
-FindIcmpIn(struct in_addr, struct in_addr, u_short);
+FindIcmpIn(struct in_addr, struct in_addr, u_short, int);
 
 struct alias_link *
-FindIcmpOut(struct in_addr, struct in_addr, u_short);
+FindIcmpOut(struct in_addr, struct in_addr, u_short, int);
 
 struct alias_link *
 FindFragmentIn1(struct in_addr, struct in_addr, u_short);
@@ -102,10 +102,10 @@ struct alias_link *
 FindProtoOut(struct in_addr, struct in_addr, u_char);
 
 struct alias_link *
-FindUdpTcpIn (struct in_addr, struct in_addr, u_short, u_short, u_char);
+FindUdpTcpIn (struct in_addr, struct in_addr, u_short, u_short, u_char, int);
 
 struct alias_link *
-FindUdpTcpOut(struct in_addr, struct in_addr, u_short, u_short, u_char);
+FindUdpTcpOut(struct in_addr, struct in_addr, u_short, u_short, u_char, int);
 
 struct alias_link *
 AddPptp(struct in_addr, struct in_addr, struct in_addr, u_int16_t);
@@ -121,12 +121,6 @@ FindPptpOutByPeerCallId(struct in_addr, struct in_addr, u_int16_t);
 
 struct alias_link *
 FindPptpInByPeerCallId(struct in_addr, struct in_addr, u_int16_t);
-
-struct alias_link *
-QueryUdpTcpIn (struct in_addr, struct in_addr, u_short, u_short, u_char);
-
-struct alias_link *
-QueryUdpTcpOut(struct in_addr, struct in_addr, u_short, u_short, u_char);
 
 struct alias_link *
 FindRtspOut(struct in_addr, struct in_addr, u_short, u_short, u_char);
