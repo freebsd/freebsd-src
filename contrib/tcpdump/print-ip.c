@@ -20,8 +20,8 @@
  */
 
 #ifndef lint
-static char rcsid[] =
-    "@(#) $Header: print-ip.c,v 1.56 96/07/23 14:17:24 leres Exp $ (LBL)";
+static const char rcsid[] =
+    "@(#) $Header: print-ip.c,v 1.62 96/12/10 23:20:31 leres Exp $ (LBL)";
 #endif
 
 #include <sys/param.h>
@@ -64,17 +64,17 @@ struct tr_query {
 	u_int  tr_src;			/* traceroute source */
 	u_int  tr_dst;			/* traceroute destination */
 	u_int  tr_raddr;		/* traceroute response address */
-#if defined(BYTE_ORDER) && (BYTE_ORDER == LITTLE_ENDIAN)
-	struct {
-		u_int	qid : 24;	/* traceroute query id */
-		u_int	ttl : 8;	/* traceroute response ttl */
-	} q;
-#else
+#ifdef WORDS_BIGENDIAN
 	struct {
 		u_int   ttl : 8;	/* traceroute response ttl */
 		u_int   qid : 24;	/* traceroute query id */
 	} q;
-#endif /* BYTE_ORDER */
+#else
+	struct {
+		u_int	qid : 24;	/* traceroute query id */
+		u_int	ttl : 8;	/* traceroute response ttl */
+	} q;
+#endif
 };
 
 #define tr_rttl q.ttl
@@ -121,7 +121,7 @@ struct tr_resp {
 
 static void print_mtrace(register const u_char *bp, register u_int len)
 {
-	register struct tr_query* tr = (struct tr_query*)(bp + 8);
+	register struct tr_query *tr = (struct tr_query *)(bp + 8);
 
 	printf("mtrace %d: %s to %s reply-to %s", tr->tr_qid,
 		ipaddr_string(&tr->tr_src), ipaddr_string(&tr->tr_dst),
@@ -132,7 +132,7 @@ static void print_mtrace(register const u_char *bp, register u_int len)
 
 static void print_mresp(register const u_char *bp, register u_int len)
 {
-	register struct tr_query* tr = (struct tr_query*)(bp + 8);
+	register struct tr_query *tr = (struct tr_query *)(bp + 8);
 
 	printf("mresp %d: %s to %s reply-to %s", tr->tr_qid,
 		ipaddr_string(&tr->tr_src), ipaddr_string(&tr->tr_dst),
@@ -209,12 +209,12 @@ igmp_print(register const u_char *bp, register u_int len,
 		/* Check the IGMP checksum */
 		u_int32_t sum = 0;
 		int count;
-		const u_short *sp = (u_short*)bp;
+		const u_short *sp = (u_short *)bp;
 		
 		for (count = len / 2; --count >= 0; )
 			sum += *sp++;
 		if (len & 1)
-			sum += ntohs(*(unsigned char*) sp << 8);
+			sum += ntohs(*(u_char *) sp << 8);
 		while (sum >> 16)
 			sum = (sum & 0xffff) + (sum >> 16);
 		sum = 0xffff & ~sum;
@@ -460,6 +460,22 @@ ip_print(register const u_char *bp, register u_int length)
 				return;
 			}
 			break;
+
+#ifndef IPPROTO_GRE
+#define IPPROTO_GRE 47
+#endif
+		case IPPROTO_GRE:
+			if (vflag)
+				(void)printf("gre %s > %s: ",
+					     ipaddr_string(&ip->ip_src),
+					     ipaddr_string(&ip->ip_dst));
+			/* do it */
+			gre_print(cp, len);
+			if (! vflag) {
+				printf(" (gre encap)");
+				return;
+  			}
+  			break;
 
 		default:
 			(void)printf("%s > %s:", ipaddr_string(&ip->ip_src),

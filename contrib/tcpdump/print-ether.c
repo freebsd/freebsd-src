@@ -19,8 +19,8 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 #ifndef lint
-static char rcsid[] =
-    "@(#) $Header: print-ether.c,v 1.42 96/07/23 14:17:23 leres Exp $ (LBL)";
+static const char rcsid[] =
+    "@(#) $Header: print-ether.c,v 1.43 96/09/26 23:36:43 leres Exp $ (LBL)";
 #endif
 
 #include <sys/param.h>

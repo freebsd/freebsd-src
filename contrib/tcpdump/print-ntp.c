@@ -24,8 +24,8 @@
  */
 
 #ifndef lint
-static char rcsid[] =
-    "@(#) $Header: print-ntp.c,v 1.23 96/07/23 14:17:26 leres Exp $ (LBL)";
+static const char rcsid[] =
+    "@(#) $Header: print-ntp.c,v 1.25 96/11/05 13:30:37 leres Exp $ (LBL)";
 #endif
 
 #include <sys/param.h>
@@ -71,7 +71,7 @@ ntp_print(register const u_char *cp, u_int length)
 
 	TCHECK(bp->status);
 
-	version = (bp->status & VERSIONMASK) >> 3;
+	version = (int)(bp->status & VERSIONMASK) >> 3;
 	printf(" v%d", version);
 
 	leapind = bp->status & LEAPMASK;

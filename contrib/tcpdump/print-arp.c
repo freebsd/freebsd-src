@@ -20,8 +20,8 @@
  */
 
 #ifndef lint
-static char rcsid[] =
-    "@(#) $Header: print-arp.c,v 1.39 96/07/17 14:56:17 leres Exp $ (LBL)";
+static const char rcsid[] =
+    "@(#) $Header: print-arp.c,v 1.41 96/10/27 14:54:50 leres Exp $ (LBL)";
 #endif
 
 #include <sys/param.h>
@@ -127,5 +127,5 @@ arp_print(register const u_char *bp, u_int length, u_int caplen)
 		return;
 	}
 	if (hrd != ARPHRD_ETHER)
-		printf(" hardware #%d", ap->arp_hrd);
+		printf(" hardware #%d", hrd);
 }

@@ -20,8 +20,8 @@
  */
 
 #ifndef lint
-static char rcsid[] =
-    "@(#) $Header: print-nfs.c,v 1.56 96/07/23 14:17:25 leres Exp $ (LBL)";
+static const char rcsid[] =
+    "@(#) $Header: print-nfs.c,v 1.63 96/12/10 23:18:07 leres Exp $ (LBL)";
 #endif
 
 #include <sys/param.h>
@@ -36,15 +36,11 @@ static char rcsid[] =
 #include <netinet/ip.h>
 #include <netinet/ip_var.h>
 
-#ifdef SOLARIS
-#include <tiuser.h>
-#endif
 #include <rpc/rpc.h>
-#include <rpc/pmap_prot.h>
 
 #include <ctype.h>
+#include <pcap.h>
 #include <stdio.h>
-#include <errno.h>
 #include <string.h>
 
 #include "interface.h"
@@ -60,6 +56,8 @@ static int32_t xid_map_find(const struct rpc_msg *, const struct ip *, u_int32_t
 			  u_int32_t *);
 static void interp_reply(const struct rpc_msg *, u_int32_t, u_int32_t, int);
 static const u_int32_t *parse_post_op_attr(const u_int32_t *, int);
+
+static int nfserr;		/* true if we error rather than trunc */
 
 /*
  * Mapping of old NFS Version 2 RPC numbers to generic numbers.
@@ -129,7 +127,6 @@ static struct tok type2str[] = {
 
 int print_int64(const u_int32_t *dp, int how)
 {
-	static char buf[32];
 #ifdef INT64_FORMAT
 	u_int64_t res;
 
@@ -166,51 +163,51 @@ parse_sattr3(const u_int32_t *dp, struct nfsv3_sattr *sa3)
 	register const u_int32_t *ep = (u_int32_t *)snapend;
 
 	if (dp + 1 > ep)
-		return (0);
+		return (NULL);
 	if ((sa3->sa_modeset = ntohl(*dp++))) {
 		if (dp + 1 > ep)
-			return (0);
+			return (NULL);
 		sa3->sa_mode = ntohl(*dp++);
 	}
 
 	if (dp + 1 > ep)
-		return (0);
+		return (NULL);
 	if ((sa3->sa_uidset = ntohl(*dp++))) {
 		if (dp + 1 > ep)
-			return (0);
+			return (NULL);
 		sa3->sa_uid = ntohl(*dp++);
 	}
 
 	if (dp + 1 > ep)
-		return (0);
+		return (NULL);
 	if ((sa3->sa_gidset = ntohl(*dp++))) {
 		if (dp + 1 > ep)
-			return (0);
+			return (NULL);
 		sa3->sa_gid = ntohl(*dp++);
 	}
 
 	if (dp + 1 > ep)
-		return (0);
+		return (NULL);
 	if ((sa3->sa_sizeset = ntohl(*dp++))) {
 		if (dp + 1 > ep)
-			return (0);
+			return (NULL);
 		sa3->sa_size = ntohl(*dp++);
 	}
 
 	if (dp + 1 > ep)
-		return (0);
+		return (NULL);
 	if ((sa3->sa_atimetype = ntohl(*dp++)) == NFSV3SATTRTIME_TOCLIENT) {
 		if (dp + 2 > ep)
-			return (0);
+			return (NULL);
 		sa3->sa_atime.nfsv3_sec = ntohl(*dp++);
 		sa3->sa_atime.nfsv3_nsec = ntohl(*dp++);
 	}
 
 	if (dp + 1 > ep)
-		return (0);
+		return (NULL);
 	if ((sa3->sa_mtimetype = ntohl(*dp++)) == NFSV3SATTRTIME_TOCLIENT) {
 		if (dp + 2 > ep)
-			return (0);
+			return (NULL);
 		sa3->sa_mtime.nfsv3_sec = ntohl(*dp++);
 		sa3->sa_mtime.nfsv3_nsec = ntohl(*dp++);
 	}
@@ -245,6 +242,7 @@ nfsreply_print(register const u_char *bp, u_int length,
 	register const struct ip *ip;
 	u_int32_t proc, vers;
 
+	nfserr = 0;		/* assume no error */
 	rp = (const struct rpc_msg *)bp;
 	ip = (const struct ip *)bp2;
 
@@ -272,37 +270,37 @@ nfsreply_print(register const u_char *bp, u_int length,
 
 /*
  * Return a pointer to the first file handle in the packet.
- * If the packet was truncated, return 0.
+ * If the packet was truncated, return NULL.
  */
 static const u_int32_t *
 parsereq(register const struct rpc_msg *rp, register int length)
 {
-	register const u_int32_t *dp = (u_int32_t *)&rp->rm_call.cb_cred;
-	register const u_int32_t *ep = (u_int32_t *)snapend;
+	register const u_int32_t *dp;
 	register u_int len;
 
-	if (&dp[2] >= ep)
-		return (0);
 	/*
 	 * find the start of the req data (if we captured it)
 	 */
-	len =  ntohl(dp[1]);
-	if (dp < ep && len < length) {
-		dp += (len + (2 * sizeof(u_int32_t) + 3)) / sizeof(u_int32_t);
+	dp = (u_int32_t *)&rp->rm_call.cb_cred;
+	TCHECK(dp[1]);
+	len = ntohl(dp[1]);
+	if (len < length) {
+		dp += (len + (2 * sizeof(*dp) + 3)) / sizeof(*dp);
+		TCHECK(dp[1]);
 		len = ntohl(dp[1]);
-		if ((dp < ep) && (len < length)) {
-			dp += (len + (2 * sizeof(u_int32_t) + 3)) /
-				sizeof(u_int32_t);
-			if (dp < ep)
-				return (dp);
+		if (len < length) {
+			dp += (len + (2 * sizeof(*dp) + 3)) / sizeof(*dp);
+			TCHECK2(dp[0], 0);
+			return (dp);
 		}
 	}
-	return (0);
+trunc:
+	return (NULL);
 }
 
 /*
  * Print out an NFS file handle and return a pointer to following word.
- * If packet was truncated, return 0.
+ * If packet was truncated, return NULL.
  */
 static const u_int32_t *
 parsefh(register const u_int32_t *dp, int v3)
@@ -310,23 +308,23 @@ parsefh(register const u_int32_t *dp, int v3)
 	int len;
 
 	if (v3) {
-		if (dp + 1 > (u_int32_t *)snapend)
-			return (0);
+		TCHECK(dp[0]);
 		len = (int)ntohl(*dp) / 4;
 		dp++;
 	} else
 		len = NFSX_V2FH / 4;
 
-	if (dp + len <= (u_int32_t *)snapend) {
+	if (TTEST2(*dp, len * sizeof(*dp))) {
 		nfs_printfh(dp, len);
 		return (dp + len);
 	}
-	return (0);
+trunc:
+	return (NULL);
 }
 
 /*
  * Print out a file name and return pointer to 32-bit word past it.
- * If packet was truncated, return 0.
+ * If packet was truncated, return NULL.
  */
 static const u_int32_t *
 parsefn(register const u_int32_t *dp)
@@ -336,7 +334,7 @@ parsefn(register const u_int32_t *dp)
 
 	/* Bail if we don't have the string length */
 	if ((u_char *)dp > snapend - sizeof(*dp))
-		return(0);
+		return (NULL);
 
 	/* Fetch string length; convert to host order */
 	len = *dp++;
@@ -346,9 +344,11 @@ parsefn(register const u_int32_t *dp)
 	/* Update 32-bit pointer (NFS filenames padded to 32-bit boundaries) */
 	dp += ((len + 3) & ~3) / sizeof(*dp);
 	if ((u_char *)dp > snapend)
-		return (0);
+		return (NULL);
 	/* XXX seems like we should be checking the length */
+	putchar('"');
 	(void) fn_printn(cp, len, NULL);
+	putchar('"');
 
 	return (dp);
 }
@@ -356,14 +356,14 @@ parsefn(register const u_int32_t *dp)
 /*
  * Print out file handle and file name.
  * Return pointer to 32-bit word past file name.
- * If packet was truncated (or there was some other error), return 0.
+ * If packet was truncated (or there was some other error), return NULL.
  */
 static const u_int32_t *
 parsefhn(register const u_int32_t *dp, int v3)
 {
 	dp = parsefh(dp, v3);
-	if (dp == 0)
-		return (0);
+	if (dp == NULL)
+		return (NULL);
 	putchar(' ');
 	return (parsefn(dp));
 }
@@ -375,14 +375,13 @@ nfsreq_print(register const u_char *bp, u_int length,
 	register const struct rpc_msg *rp;
 	register const struct ip *ip;
 	register const u_int32_t *dp;
-	register const u_char *ep;
 	nfstype type;
 	int proc, v3;
 	struct nfsv3_sattr sa3;
 
+	nfserr = 0;		/* assume no error */
 	rp = (const struct rpc_msg *)bp;
 	ip = (const struct ip *)bp2;
-	ep = snapend;
 	if (!nflag)
 		(void)printf("%s.%x > %s.nfs: %d",
 			     ipaddr_string(&ip->ip_src),
@@ -415,42 +414,42 @@ nfsreq_print(register const u_char *bp, u_int length,
 
 	case NFSPROC_GETATTR:
 		printf(" getattr");
-		if ((dp = parsereq(rp, length)) != 0 && parsefh(dp, v3) != 0)
+		if ((dp = parsereq(rp, length)) != NULL && parsefh(dp, v3) != NULL)
 			return;
 		break;
 
 	case NFSPROC_SETATTR:
 		printf(" setattr");
-		if ((dp = parsereq(rp, length)) != 0 && parsefh(dp, v3) != 0)
+		if ((dp = parsereq(rp, length)) != NULL && parsefh(dp, v3) != NULL)
 			return;
 		break;
 
 	case NFSPROC_LOOKUP:
 		printf(" lookup");
-		if ((dp = parsereq(rp, length)) != 0 && parsefhn(dp, v3) != 0)
+		if ((dp = parsereq(rp, length)) != NULL && parsefhn(dp, v3) != NULL)
 			return;
 		break;
 
 	case NFSPROC_ACCESS:
 		printf(" access");
-		if ((dp = parsereq(rp, length)) != 0 &&
-		    (dp = parsefh(dp, v3)) != 0) {
+		if ((dp = parsereq(rp, length)) != NULL &&
+		    (dp = parsefh(dp, v3)) != NULL) {
 			TCHECK(*dp);
-			printf(" %04x", ntohl(dp[0]));
+			printf(" %04lx", ntohl(dp[0]));
 			return;
 		}
 		break;
 
 	case NFSPROC_READLINK:
 		printf(" readlink");
-		if ((dp = parsereq(rp, length)) != 0 && parsefh(dp, v3) != 0)
+		if ((dp = parsereq(rp, length)) != NULL && parsefh(dp, v3) != NULL)
 			return;
 		break;
 
 	case NFSPROC_READ:
 		printf(" read");
-		if ((dp = parsereq(rp, length)) != 0 &&
-		    (dp = parsefh(dp, v3)) != 0) {
+		if ((dp = parsereq(rp, length)) != NULL &&
+		    (dp = parsefh(dp, v3)) != NULL) {
 			if (v3) {
 				TCHECK2(*dp, 3 * sizeof(*dp));
 				printf(" %lu bytes @ ", ntohl(dp[2]));
@@ -466,8 +465,8 @@ nfsreq_print(register const u_char *bp, u_int length,
 
 	case NFSPROC_WRITE:
 		printf(" write");
-		if ((dp = parsereq(rp, length)) != 0 &&
-		    (dp = parsefh(dp, v3)) != 0) {
+		if ((dp = parsereq(rp, length)) != NULL &&
+		    (dp = parsefh(dp, v3)) != NULL) {
 			if (v3) {
 				TCHECK2(*dp, 3 * sizeof(*dp));
 				printf(" %lu bytes @ ", ntohl(dp[4]));
@@ -490,24 +489,24 @@ nfsreq_print(register const u_char *bp, u_int length,
 
 	case NFSPROC_CREATE:
 		printf(" create");
-		if ((dp = parsereq(rp, length)) != 0 && parsefhn(dp, v3) != 0)
+		if ((dp = parsereq(rp, length)) != NULL && parsefhn(dp, v3) != NULL)
 			return;
 		break;
 
 	case NFSPROC_MKDIR:
 		printf(" mkdir");
-		if ((dp = parsereq(rp, length)) != 0 && parsefhn(dp, v3) != 0)
+		if ((dp = parsereq(rp, length)) != NULL && parsefhn(dp, v3) != NULL)
 			return;
 		break;
 
 	case NFSPROC_SYMLINK:
 		printf(" symlink");
-		if ((dp = parsereq(rp, length)) != 0 &&
-		    (dp = parsefhn(dp, v3)) != 0) {
+		if ((dp = parsereq(rp, length)) != NULL &&
+		    (dp = parsefhn(dp, v3)) != NULL) {
 			fputs(" -> ", stdout);
-			if (v3 && (dp = parse_sattr3(dp, &sa3)) == 0)
+			if (v3 && (dp = parse_sattr3(dp, &sa3)) == NULL)
 				break;
-			if (parsefn(dp) == 0)
+			if (parsefn(dp) == NULL)
 				break;
 			if (v3 && vflag)
 				print_sattr3(&sa3, vflag);
@@ -517,18 +516,18 @@ nfsreq_print(register const u_char *bp, u_int length,
 
 	case NFSPROC_MKNOD:
 		printf(" mknod");
-		if ((dp = parsereq(rp, length)) != 0 &&
-		    (dp = parsefhn(dp, v3)) != 0) {
+		if ((dp = parsereq(rp, length)) != NULL &&
+		    (dp = parsefhn(dp, v3)) != NULL) {
 			if (dp + 1 > (u_int32_t *)snapend)
 				break;
 			type = (nfstype)ntohl(*dp++);
-			if ((dp = parse_sattr3(dp, &sa3)) == 0)
+			if ((dp = parse_sattr3(dp, &sa3)) == NULL)
 				break;
 			printf(" %s", tok2str(type2str, "unk-ft %d", type));
 			if (vflag && (type == NFCHR || type == NFBLK)) {
 				if (dp + 2 > (u_int32_t *)snapend)
 					break;
-				printf(" %u/%u", ntohl(dp[0]), ntohl(dp[1]));
+				printf(" %lu/%lu", ntohl(dp[0]), ntohl(dp[1]));
 				dp += 2;
 			}
 			if (vflag)
@@ -539,40 +538,40 @@ nfsreq_print(register const u_char *bp, u_int length,
 
 	case NFSPROC_REMOVE:
 		printf(" remove");
-		if ((dp = parsereq(rp, length)) != 0 && parsefhn(dp, v3) != 0)
+		if ((dp = parsereq(rp, length)) != NULL && parsefhn(dp, v3) != NULL)
 			return;
 		break;
 
 	case NFSPROC_RMDIR:
 		printf(" rmdir");
-		if ((dp = parsereq(rp, length)) != 0 && parsefhn(dp, v3) != 0)
+		if ((dp = parsereq(rp, length)) != NULL && parsefhn(dp, v3) != NULL)
 			return;
 		break;
 
 	case NFSPROC_RENAME:
 		printf(" rename");
-		if ((dp = parsereq(rp, length)) != 0 &&
-		    (dp = parsefhn(dp, v3)) != 0) {
+		if ((dp = parsereq(rp, length)) != NULL &&
+		    (dp = parsefhn(dp, v3)) != NULL) {
 			fputs(" ->", stdout);
-			if (parsefhn(dp, v3) != 0)
+			if (parsefhn(dp, v3) != NULL)
 				return;
 		}
 		break;
 
 	case NFSPROC_LINK:
 		printf(" link");
-		if ((dp = parsereq(rp, length)) != 0 &&
-		    (dp = parsefh(dp, v3)) != 0) {
+		if ((dp = parsereq(rp, length)) != NULL &&
+		    (dp = parsefh(dp, v3)) != NULL) {
 			fputs(" ->", stdout);
-			if (parsefhn(dp, v3) != 0)
+			if (parsefhn(dp, v3) != NULL)
 				return;
 		}
 		break;
 
 	case NFSPROC_READDIR:
 		printf(" readdir");
-		if ((dp = parsereq(rp, length)) != 0 &&
-		    (dp = parsefh(dp, v3)) != 0) {
+		if ((dp = parsereq(rp, length)) != NULL &&
+		    (dp = parsefh(dp, v3)) != NULL) {
 			if (v3) {
 				TCHECK2(*dp, 20);
 				/*
@@ -582,7 +581,7 @@ nfsreq_print(register const u_char *bp, u_int length,
 				printf(" %lu bytes @ ", ntohl(dp[4]));
 				print_int64(dp, SIGNED);
 				if (vflag)
-					printf(" verf %08lx%08lx", dp[2],
+					printf(" verf %08x%08x", dp[2],
 					       dp[3]);
 			} else {
 				TCHECK2(*dp, 2 * sizeof(*dp));
@@ -599,8 +598,8 @@ nfsreq_print(register const u_char *bp, u_int length,
 
 	case NFSPROC_READDIRPLUS:
 		printf(" readdirplus");
-		if ((dp = parsereq(rp, length)) != 0 &&
-		    (dp = parsefh(dp, v3)) != 0) {
+		if ((dp = parsereq(rp, length)) != NULL &&
+		    (dp = parsefh(dp, v3)) != NULL) {
 			TCHECK2(*dp, 20);
 			/*
 			 * We don't try to interpret the offset
@@ -609,7 +608,7 @@ nfsreq_print(register const u_char *bp, u_int length,
 			printf(" %lu bytes @ ", ntohl(dp[4]));
 			print_int64(dp, SIGNED);
 			if (vflag)
-				printf(" max %lu verf %08lx%08lx",
+				printf(" max %lu verf %08x%08x",
 				       ntohl(dp[5]), dp[2], dp[3]);
 			return;
 		}
@@ -617,7 +616,7 @@ nfsreq_print(register const u_char *bp, u_int length,
 
 	case NFSPROC_FSSTAT:
 		printf(" fsstat");
-		if ((dp = parsereq(rp, length)) != 0 && parsefh(dp, v3) != 0)
+		if ((dp = parsereq(rp, length)) != NULL && parsefh(dp, v3) != NULL)
 			return;
 		break;
 
@@ -631,8 +630,8 @@ nfsreq_print(register const u_char *bp, u_int length,
 
 	case NFSPROC_COMMIT:
 		printf(" commit");
-		if ((dp = parsereq(rp, length)) != 0 &&
-		    (dp = parsefh(dp, v3)) != 0) {
+		if ((dp = parsereq(rp, length)) != NULL &&
+		    (dp = parsefh(dp, v3)) != NULL) {
 			printf(" %lu bytes @ ", ntohl(dp[2]));
 			print_int64(dp, UNSIGNED);
 			return;
@@ -644,7 +643,8 @@ nfsreq_print(register const u_char *bp, u_int length,
 		return;
 	}
 trunc:
-	fputs(" [|nfs]", stdout);
+	if (!nfserr)
+		fputs(" [|nfs]", stdout);
 }
 
 /*
@@ -663,26 +663,23 @@ nfs_printfh(register const u_int32_t *dp, const int len)
 	ino_t ino;
 	char *sfsname = NULL;
 
-	Parse_fh((caddr_t*)dp, len, &fsid, &ino, NULL, &sfsname, 0);
+	Parse_fh((caddr_t *)dp, len, &fsid, &ino, NULL, &sfsname, 0);
 
 	if (sfsname) {
-	    /* file system ID is ASCII, not numeric, for this server OS */
-	    static char temp[NFSX_V3FHMAX+1];
+		/* file system ID is ASCII, not numeric, for this server OS */
+		static char temp[NFSX_V3FHMAX+1];
 
-	    /* Make sure string is null-terminated */
-	    strncpy(temp, sfsname, NFSX_V3FHMAX);
-	    /* Remove trailing spaces */
-	    sfsname = strchr(temp, ' ');
-	    if (sfsname)
-		*sfsname = 0;
+		/* Make sure string is null-terminated */
+		strncpy(temp, sfsname, NFSX_V3FHMAX);
+		/* Remove trailing spaces */
+		sfsname = strchr(temp, ' ');
+		if (sfsname)
+			*sfsname = 0;
 
-	    (void)printf(" fh %s/%u", temp, (u_int32_t)ino);
-	}
-	else {
-	    (void)printf(" fh %u,%u/%u",
-		fsid.fsid_dev.Major,
-		fsid.fsid_dev.Minor,
-		(u_int32_t)ino);
+		(void)printf(" fh %s/%u", temp, (u_int32_t)ino);
+	} else {
+		(void)printf(" fh %u,%u/%u",
+		    fsid.Fsid_dev.Major, fsid.Fsid_dev.Minor, (u_int32_t)ino);
 	}
 }
 
@@ -730,7 +727,10 @@ xid_map_enter(const struct rpc_msg *rp, const struct ip *ip)
 	xmep->vers = ntohl(rp->rm_call.cb_vers);
 }
 
-/* Returns NFSPROC_xxx or -1 on failure */
+/*
+ * Returns 0 and puts NFSPROC_xxx in proc return and
+ * version in vers return, or returns -1 on failure
+ */
 static int
 xid_map_find(const struct rpc_msg *rp, const struct ip *ip, u_int32_t *proc,
 	     u_int32_t *vers)
@@ -758,7 +758,7 @@ xid_map_find(const struct rpc_msg *rp, const struct ip *ip, u_int32_t *proc,
 	} while (i != xid_map_hint);
 
 	/* search failed */
-	return(-1);
+	return (-1);
 }
 
 /*
@@ -767,13 +767,12 @@ xid_map_find(const struct rpc_msg *rp, const struct ip *ip, u_int32_t *proc,
 
 /*
  * Return a pointer to the beginning of the actual results.
- * If the packet was truncated, return 0.
+ * If the packet was truncated, return NULL.
  */
 static const u_int32_t *
 parserep(register const struct rpc_msg *rp, register int length)
 {
 	register const u_int32_t *dp;
-	register const u_int32_t *ep = (const u_int32_t *)snapend;
 	int len;
 	enum accept_stat astat;
 
@@ -793,17 +792,15 @@ parserep(register const struct rpc_msg *rp, register int length)
 	 * which is an "enum" and so occupies one 32-bit word.
 	 */
 	dp = ((const u_int32_t *)&rp->rm_reply) + 1;
-	if (&dp[1] >= ep)
-		return(0);
+	TCHECK2(dp[0], 1);
 	len = ntohl(dp[1]);
 	if (len >= length)
-		return(0);
+		return (NULL);
 	/*
 	 * skip past the ar_verf credentials.
 	 */
 	dp += (len + (2*sizeof(u_int32_t) + 3)) / sizeof(u_int32_t);
-	if (dp >= ep)
-		return(0);
+	TCHECK2(dp[0], 0);
 
 	/*
 	 * now we can check the ar_stat field
@@ -816,66 +813,63 @@ parserep(register const struct rpc_msg *rp, register int length)
 
 	case PROG_UNAVAIL:
 		printf(" PROG_UNAVAIL");
-		return(0);
+		nfserr = 1;		/* suppress trunc string */
+		return (NULL);
 
 	case PROG_MISMATCH:
 		printf(" PROG_MISMATCH");
-		return(0);
+		nfserr = 1;		/* suppress trunc string */
+		return (NULL);
 
 	case PROC_UNAVAIL:
 		printf(" PROC_UNAVAIL");
-		return(0);
+		nfserr = 1;		/* suppress trunc string */
+		return (NULL);
 
 	case GARBAGE_ARGS:
 		printf(" GARBAGE_ARGS");
-		return(0);
+		nfserr = 1;		/* suppress trunc string */
+		return (NULL);
 
 	case SYSTEM_ERR:
 		printf(" SYSTEM_ERR");
-		return(0);
+		nfserr = 1;		/* suppress trunc string */
+		return (NULL);
 
 	default:
 		printf(" ar_stat %d", astat);
-		return(0);
+		nfserr = 1;		/* suppress trunc string */
+		return (NULL);
 	}
 	/* successful return */
-	if ((sizeof(astat) + ((char *)dp)) < (char *)ep)
-		return((u_int32_t *) (sizeof(astat) + ((char *)dp)));
+	if ((sizeof(astat) + ((u_char *)dp)) < snapend)
+		return ((u_int32_t *) (sizeof(astat) + ((char *)dp)));
 
-	return (0);
+trunc:
+	return (NULL);
 }
 
-#define T2CHECK(p, l) if ((u_char *)(p) > ((u_char *)snapend) - l) return(0)
 
-/*
- * Not all systems have strerror().
- */
-static char *
-strerr(int errno)
-{
-
-	return (strerror(errno));
-}
+#define T2CHECK(p, l) if ((u_char *)(p) > ((u_char *)snapend) - l) return(NULL)
 
 static const u_int32_t *
 parsestatus(const u_int32_t *dp, int *er)
 {
-	int errno;
-	T2CHECK(dp, 4);
+	register int errnum;
 
-	errno = ntohl(dp[0]);
+	TCHECK(dp[0]);
+	errnum = ntohl(dp[0]);
 	if (er)
-		*er = errno;
-	if (errno != 0 && !qflag) {
-		char *errmsg;
-
-		errmsg = strerr(errno);
-		if (errmsg)
-			printf(" ERROR: '%s'", errmsg);
-		else
-			printf(" ERROR: %d", errno);
+		*er = errnum;
+	if (errnum != 0) {
+		if (!qflag)
+			printf(" ERROR: %s", pcap_strerror(errnum));
+		nfserr = 1;
+		return (NULL);
 	}
 	return (dp + 1);
+trunc:
+	return (NULL);
 }
 
 static const u_int32_t *
@@ -887,7 +881,7 @@ parsefattr(const u_int32_t *dp, int verbose, int v3)
 
 	fap = (const struct nfs_fattr *)dp;
 	if (verbose) {
-		printf(" %s %o ids %d/%d",
+		printf(" %s %lo ids %ld/%ld",
 		    tok2str(type2str, "unk-ft %d ", ntohl(fap->fa_type)),
 		       ntohl(fap->fa_mode), ntohl(fap->fa_uid),
 		       ntohl(fap->fa_gid));
@@ -899,14 +893,14 @@ parsefattr(const u_int32_t *dp, int verbose, int v3)
 		}
 		else {
 			T2CHECK(dp,  6 * sizeof(*dp));
-			printf(" sz %d ", ntohl(fap->fa2_size));
+			printf(" sz %ld ", ntohl(fap->fa2_size));
 		}
 	}
 	/* print lots more stuff */
 	if (verbose > 1) {
 		if (v3) {
 			T2CHECK(dp, 64);
-			printf("nlink %d rdev %d/%d ",
+			printf("nlink %ld rdev %ld/%ld ",
 			       ntohl(fap->fa_nlink),
 			       ntohl(fap->fa3_rdev.specdata1),
 			       ntohl(fap->fa3_rdev.specdata2));
@@ -914,27 +908,27 @@ parsefattr(const u_int32_t *dp, int verbose, int v3)
 			print_int64((u_int32_t *)&fap->fa2_fsid, HEX);
 			printf(" nodeid ");
 			print_int64((u_int32_t *)&fap->fa2_fileid, HEX);
-			printf(" a/m/ctime %u.%06u ",
+			printf(" a/m/ctime %lu.%06lu ",
 			       ntohl(fap->fa3_atime.nfsv3_sec),
 			       ntohl(fap->fa3_atime.nfsv3_nsec));
-			printf("%u.%06u ",
+			printf("%lu.%06lu ",
 			       ntohl(fap->fa3_mtime.nfsv3_sec),
 			       ntohl(fap->fa3_mtime.nfsv3_nsec));
-			printf("%u.%06u ",
+			printf("%lu.%06lu ",
 			       ntohl(fap->fa3_ctime.nfsv3_sec),
 			       ntohl(fap->fa3_ctime.nfsv3_nsec));
 		} else {
 			T2CHECK(dp, 48);
-			printf("nlink %d rdev %x fsid %x nodeid %x a/m/ctime ",
+			printf("nlink %ld rdev %lx fsid %lx nodeid %lx a/m/ctime ",
 			       ntohl(fap->fa_nlink), ntohl(fap->fa2_rdev),
 			       ntohl(fap->fa2_fsid), ntohl(fap->fa2_fileid));
-			printf("%u.%06u ",
+			printf("%lu.%06lu ",
 			       ntohl(fap->fa2_atime.nfsv2_sec),
 			       ntohl(fap->fa2_atime.nfsv2_usec));
-			printf("%u.%06u ",
+			printf("%lu.%06lu ",
 			       ntohl(fap->fa2_mtime.nfsv2_sec),
 			       ntohl(fap->fa2_mtime.nfsv2_usec));
-			printf("%u.%06u ",
+			printf("%lu.%06lu ",
 			       ntohl(fap->fa2_ctime.nfsv2_sec),
 			       ntohl(fap->fa2_ctime.nfsv2_usec));
 		}
@@ -952,7 +946,7 @@ parseattrstat(const u_int32_t *dp, int verbose, int v3)
 	if (dp == NULL || er)
 		return (0);
 
-	return ((long)parsefattr(dp, verbose, v3));
+	return (parsefattr(dp, verbose, v3) != NULL);
 }
 
 static int
@@ -960,7 +954,8 @@ parsediropres(const u_int32_t *dp)
 {
 	int er;
 
-	if (!(dp = parsestatus(dp, &er)) || er)
+	dp = parsestatus(dp, &er);
+	if (dp == NULL || er)
 		return (0);
 
 	dp = parsefh(dp, 0);
@@ -978,8 +973,10 @@ parselinkres(const u_int32_t *dp, int v3)
 	dp = parsestatus(dp, &er);
 	if (dp == NULL || er)
 		return(0);
-	if (v3 && !(dp = parse_post_op_attr(dp, vflag)))
+
+	if (v3 && ((dp = parse_post_op_attr(dp, vflag)) != NULL))
 		return (0);
+
 	putchar(' ');
 	return (parsefn(dp) != NULL);
 }
@@ -1000,7 +997,7 @@ parsestatfs(const u_int32_t *dp, int v3)
 	if (v3) {
 		if (vflag)
 			printf(" POST:");
-		if (!(dp = parse_post_op_attr(dp, vflag)))
+		if ((dp = parse_post_op_attr(dp, vflag)) == NULL)
 			return (0);
 	}
 
@@ -1025,7 +1022,7 @@ parsestatfs(const u_int32_t *dp, int v3)
 			printf(" invar %lu", ntohl(sfsp->sf_invarsec));
 		}
 	} else {
-		printf(" tsize %d bsize %d blocks %d bfree %d bavail %d",
+		printf(" tsize %ld bsize %ld blocks %ld bfree %ld bavail %ld",
 		       ntohl(sfsp->sf_tsize), ntohl(sfsp->sf_bsize),
 		       ntohl(sfsp->sf_blocks), ntohl(sfsp->sf_bfree),
 		       ntohl(sfsp->sf_bavail));
@@ -1040,13 +1037,13 @@ parserddires(const u_int32_t *dp)
 	int er;
 
 	dp = parsestatus(dp, &er);
-	if (dp == 0 || er)
+	if (dp == NULL || er)
 		return (0);
 	if (qflag)
 		return (1);
 
 	T2CHECK(dp, 12);
-	printf(" offset %x size %d ", ntohl(dp[0]), ntohl(dp[1]));
+	printf(" offset %lx size %ld ", ntohl(dp[0]), ntohl(dp[1]));
 	if (dp[2] != 0)
 		printf("eof");
 
@@ -1058,7 +1055,7 @@ parse_wcc_attr(const u_int32_t *dp)
 {
 	printf(" sz ");
 	print_int64(dp, UNSIGNED);
-	printf(" mtime %u.%06u ctime %u.%06u", ntohl(dp[2]), ntohl(dp[3]),
+	printf(" mtime %lu.%06lu ctime %lu.%06lu", ntohl(dp[2]), ntohl(dp[3]),
 	       ntohl(dp[4]), ntohl(dp[5]));
 	return (dp + 6);
 }
@@ -1103,8 +1100,8 @@ parse_wcc_data(const u_int32_t *dp, int verbose)
 {
 	if (verbose > 1)
 		printf(" PRE:");
-	if (!(dp = parse_pre_op_attr(dp, verbose)))
-		return (0);
+	if ((dp = parse_pre_op_attr(dp, verbose)) == NULL)
+		return (NULL);
 
 	if (verbose)
 		printf(" POST:");
@@ -1116,8 +1113,8 @@ parsecreateopres(const u_int32_t *dp, int verbose)
 {
 	int er;
 
-	if (!(dp = parsestatus(dp, &er)))
-		return (0);
+	if ((dp = parsestatus(dp, &er)) == NULL)
+		return (NULL);
 	if (er)
 		dp = parse_wcc_data(dp, verbose);
 	else {
@@ -1125,11 +1122,11 @@ parsecreateopres(const u_int32_t *dp, int verbose)
 		if (!ntohl(dp[0]))
 			return (dp + 1);
 		dp++;
-		if (!(dp = parsefh(dp, 1)))
-			return (0);
+		if ((dp = parsefh(dp, 1)) == NULL)
+			return (NULL);
 		if (verbose) {
-			if (!(dp = parse_post_op_attr(dp, verbose)))
-				return (0);
+			if ((dp = parse_post_op_attr(dp, verbose)) == NULL)
+				return (NULL);
 			if (vflag > 1) {
 				printf("dir attr:");
 				dp = parse_wcc_data(dp, verbose);
@@ -1144,9 +1141,9 @@ parsewccres(const u_int32_t *dp, int verbose)
 {
 	int er;
 
-	if (!(dp = parsestatus(dp, &er)))
+	if ((dp = parsestatus(dp, &er)) == NULL)
 		return (0);
-	return parse_wcc_data(dp, verbose) != 0;
+	return parse_wcc_data(dp, verbose) != NULL;
 }
 
 static const u_int32_t *
@@ -1154,17 +1151,17 @@ parsev3rddirres(const u_int32_t *dp, int verbose)
 {
 	int er;
 
-	if (!(dp = parsestatus(dp, &er)))
-		return (0);
+	if ((dp = parsestatus(dp, &er)) == NULL)
+		return (NULL);
 	if (vflag)
 		printf(" POST:");
-	if (!(dp = parse_post_op_attr(dp, verbose)))
-		return (0);
+	if ((dp = parse_post_op_attr(dp, verbose)) == NULL)
+		return (NULL);
 	if (er)
 		return dp;
 	if (vflag) {
 		T2CHECK(dp, 8);
-		printf(" verf %08lx%08lx", dp[0], dp[1]);
+		printf(" verf %08x%08x", dp[0], dp[1]);
 		dp += 2;
 	}
 	return dp;
@@ -1176,11 +1173,11 @@ parsefsinfo(const u_int32_t *dp)
 	struct nfsv3_fsinfo *sfp;
 	int er;
 
-	if (!(dp = parsestatus(dp, &er)))
+	if ((dp = parsestatus(dp, &er)) == NULL)
 		return (0);
 	if (vflag)
 		printf(" POST:");
-	if (!(dp = parse_post_op_attr(dp, vflag)))
+	if ((dp = parse_post_op_attr(dp, vflag)) == NULL)
 		return (0);
 	if (er)
 		return (1);
@@ -1196,7 +1193,7 @@ parsefsinfo(const u_int32_t *dp)
 		printf(" rtmult %lu wtmult %lu maxfsz ",
 		       ntohl(sfp->fs_rtmult), ntohl(sfp->fs_wtmult));
 		print_int64((u_int32_t *)&sfp->fs_maxfilesize, UNSIGNED);
-		printf(" delta %u.%06u ", ntohl(sfp->fs_timedelta.nfsv3_sec),
+		printf(" delta %lu.%06lu ", ntohl(sfp->fs_timedelta.nfsv3_sec),
 		       ntohl(sfp->fs_timedelta.nfsv3_nsec));
 	}
 	return (1);
@@ -1208,11 +1205,11 @@ parsepathconf(const u_int32_t *dp)
 	int er;
 	struct nfsv3_pathconf *spp;
 
-	if (!(dp = parsestatus(dp, &er)))
+	if ((dp = parsestatus(dp, &er)) == NULL)
 		return (0);
 	if (vflag)
 		printf(" POST:");
-	if (!(dp = parse_post_op_attr(dp, vflag)))
+	if ((dp = parse_post_op_attr(dp, vflag)) == NULL)
 		return (0);
 	if (er)
 		return (1);
@@ -1236,7 +1233,7 @@ interp_reply(const struct rpc_msg *rp, u_int32_t proc, u_int32_t vers, int lengt
 {
 	register const u_int32_t *dp;
 	register int v3;
-	register const u_char *ep = snapend;
+
 	int er;
 
 	v3 = (vers == NFS_VER3);
@@ -1257,16 +1254,16 @@ interp_reply(const struct rpc_msg *rp, u_int32_t proc, u_int32_t vers, int lengt
 	case NFSPROC_GETATTR:
 		printf(" getattr");
 		dp = parserep(rp, length);
-		if (dp != 0 && parseattrstat(dp, !qflag, v3) != 0)
+		if (dp != NULL && parseattrstat(dp, !qflag, v3) != 0)
 			return;
 		break;
 
 	case NFSPROC_SETATTR:
 		printf(" setattr");
-		if (!(dp = parserep(rp, length)))
+		if ((dp = parserep(rp, length)) == NULL)
 			return;
 		if (v3) {
-			if (parsewccres(dp, vflag))
+			if (parsewccres(dp, vflag) != 0)
 				return;
 		} else {
 			if (parseattrstat(dp, !qflag, 0) != 0)
@@ -1276,10 +1273,10 @@ interp_reply(const struct rpc_msg *rp, u_int32_t proc, u_int32_t vers, int lengt
 
 	case NFSPROC_LOOKUP:
 		printf(" lookup");
-		if (!(dp = parserep(rp, length)))
+		if ((dp = parserep(rp, length)) == NULL)
 			break;
 		if (v3) {
-			if (!(dp = parsestatus(dp, &er)))
+			if ((dp = parsestatus(dp, &er)) == NULL)
 				break;
 			if (er) {
 				if (vflag > 1) {
@@ -1287,15 +1284,15 @@ interp_reply(const struct rpc_msg *rp, u_int32_t proc, u_int32_t vers, int lengt
 					dp = parse_post_op_attr(dp, vflag);
 				}
 			} else {
-				if (!(dp = parsefh(dp, v3)))
+				if ((dp = parsefh(dp, v3)) == NULL)
 					break;
-				if ((dp = parse_post_op_attr(dp, vflag)) &&
-				    vflag > 1) {
+				if (((dp = parse_post_op_attr(dp, vflag)) != NULL) &&
+				    (vflag > 1)) {
 					printf(" post dattr:");
 					dp = parse_post_op_attr(dp, vflag);
 				}
 			}
-			if (dp)
+			if (dp != NULL)
 				return;
 		} else {
 			if (parsediropres(dp) != 0)
@@ -1306,31 +1303,31 @@ interp_reply(const struct rpc_msg *rp, u_int32_t proc, u_int32_t vers, int lengt
 	case NFSPROC_ACCESS:
 		printf(" access");
 		dp = parserep(rp, length);
-		if (!(dp = parsestatus(dp, &er)))
+		if ((dp = parsestatus(dp, &er)) == NULL)
 			break;
 		if (vflag)
 			printf(" attr:");
-		if (!(dp = parse_post_op_attr(dp, vflag)))
+		if ((dp = parse_post_op_attr(dp, vflag)) == NULL)
 			break;
 		if (!er)
-			printf(" c %04x", ntohl(dp[0]));
+			printf(" c %04lx", ntohl(dp[0]));
 		return;
 
 	case NFSPROC_READLINK:
 		printf(" readlink");
 		dp = parserep(rp, length);
-		if (dp != 0 && parselinkres(dp, v3) != 0)
+		if (dp != NULL && parselinkres(dp, v3) != 0)
 			return;
 		break;
 
 	case NFSPROC_READ:
 		printf(" read");
-		if (!(dp = parserep(rp, length)))
+		if ((dp = parserep(rp, length)) == NULL)
 			break;
 		if (v3) {
-			if (!(dp = parsestatus(dp, &er)))
+			if ((dp = parsestatus(dp, &er)) == NULL)
 				break;
-			if (!(dp = parse_post_op_attr(dp, vflag)))
+			if ((dp = parse_post_op_attr(dp, vflag)) == NULL)
 				break;
 			if (er)
 				return;
@@ -1349,12 +1346,12 @@ interp_reply(const struct rpc_msg *rp, u_int32_t proc, u_int32_t vers, int lengt
 
 	case NFSPROC_WRITE:
 		printf(" write");
-		if (!(dp = parserep(rp, length)))
+		if ((dp = parserep(rp, length)) == NULL)
 			break;
 		if (v3) {
-			if (!(dp = parsestatus(dp, &er)))
+			if ((dp = parsestatus(dp, &er)) == NULL)
 				break;
-			if (!(dp = parse_wcc_data(dp, vflag)))
+			if ((dp = parse_wcc_data(dp, vflag)) == NULL)
 				break;
 			if (er)
 				return;
@@ -1376,10 +1373,10 @@ interp_reply(const struct rpc_msg *rp, u_int32_t proc, u_int32_t vers, int lengt
 
 	case NFSPROC_CREATE:
 		printf(" create");
-		if (!(dp = parserep(rp, length)))
+		if ((dp = parserep(rp, length)) == NULL)
 			break;
 		if (v3) {
-			if (parsecreateopres(dp, vflag) != 0)
+			if (parsecreateopres(dp, vflag) != NULL)
 				return;
 		} else {
 			if (parsediropres(dp) != 0)
@@ -1389,10 +1386,10 @@ interp_reply(const struct rpc_msg *rp, u_int32_t proc, u_int32_t vers, int lengt
 
 	case NFSPROC_MKDIR:
 		printf(" mkdir");
-		if (!(dp = parserep(rp, length)))
+		if ((dp = parserep(rp, length)) == NULL)
 			break;
 		if (v3) {
-			if (parsecreateopres(dp, vflag) != 0)
+			if (parsecreateopres(dp, vflag) != NULL)
 				return;
 		} else {
 			if (parsediropres(dp) != 0)
@@ -1402,101 +1399,101 @@ interp_reply(const struct rpc_msg *rp, u_int32_t proc, u_int32_t vers, int lengt
 
 	case NFSPROC_SYMLINK:
 		printf(" symlink");
-		if (!(dp = parserep(rp, length)))
+		if ((dp = parserep(rp, length)) == NULL)
 			break;
 		if (v3) {
-			if (parsecreateopres(dp, vflag) != 0)
+			if (parsecreateopres(dp, vflag) != NULL)
 				return;
 		} else {
-			if (parsestatus(dp, &er) != 0)
+			if (parsestatus(dp, &er) != NULL)
 				return;
 		}
 		break;
 
 	case NFSPROC_MKNOD:
 		printf(" mknod");
-		if (!(dp = parserep(rp, length)))
+		if ((dp = parserep(rp, length)) == NULL)
 			break;
-		if (parsecreateopres(dp, vflag) != 0)
+		if (parsecreateopres(dp, vflag) != NULL)
 			return;
 		break;
 
 	case NFSPROC_REMOVE:
 		printf(" remove");
-		if (!(dp = parserep(rp, length)))
+		if ((dp = parserep(rp, length)) == NULL)
 			break;
 		if (v3) {
-			if (parsewccres(dp, vflag))
+			if (parsewccres(dp, vflag) != 0)
 				return;
 		} else {
-			if (parsestatus(dp, &er) != 0)
+			if (parsestatus(dp, &er) != NULL)
 				return;
 		}
 		break;
 
 	case NFSPROC_RMDIR:
 		printf(" rmdir");
-		if (!(dp = parserep(rp, length)))
+		if ((dp = parserep(rp, length)) == NULL)
 			break;
 		if (v3) {
-			if (parsewccres(dp, vflag))
+			if (parsewccres(dp, vflag) != 0)
 				return;
 		} else {
-			if (parsestatus(dp, &er) != 0)
+			if (parsestatus(dp, &er) != NULL)
 				return;
 		}
 		break;
 
 	case NFSPROC_RENAME:
 		printf(" rename");
-		if (!(dp = parserep(rp, length)))
+		if ((dp = parserep(rp, length)) == NULL)
 			break;
 		if (v3) {
-			if (!(dp = parsestatus(dp, &er)))
+			if ((dp = parsestatus(dp, &er)) == NULL)
 				break;
 			if (vflag) {
 				printf(" from:");
-				if (!(dp = parse_wcc_data(dp, vflag)))
+				if ((dp = parse_wcc_data(dp, vflag)) == NULL)
 					break;
 				printf(" to:");
-				if (!(dp = parse_wcc_data(dp, vflag)))
+				if ((dp = parse_wcc_data(dp, vflag)) == NULL)
 					break;
 			}
 			return;
 		} else {
-			if (parsestatus(dp, &er) != 0)
+			if (parsestatus(dp, &er) != NULL)
 				return;
 		}
 		break;
 
 	case NFSPROC_LINK:
 		printf(" link");
-		if (!(dp = parserep(rp, length)))
+		if ((dp = parserep(rp, length)) == NULL)
 			break;
 		if (v3) {
-			if (!(dp = parsestatus(dp, &er)))
+			if ((dp = parsestatus(dp, &er)) == NULL)
 				break;
 			if (vflag) {
 				printf(" file POST:");
-				if (!(dp = parse_post_op_attr(dp, vflag)))
+				if ((dp = parse_post_op_attr(dp, vflag)) == NULL)
 					break;
 				printf(" dir:");
-				if (!(dp = parse_wcc_data(dp, vflag)))
+				if ((dp = parse_wcc_data(dp, vflag)) == NULL)
 					break;
 				return;
 			}
 		} else {
-			if (parsestatus(dp, &er) != 0)
+			if (parsestatus(dp, &er) != NULL)
 				return;
 		}
 		break;
 
 	case NFSPROC_READDIR:
 		printf(" readdir");
-		if (!(dp = parserep(rp, length)))
+		if ((dp = parserep(rp, length)) == NULL)
 			break;
 		if (v3) {
-			if (parsev3rddirres(dp, vflag))
+			if (parsev3rddirres(dp, vflag) != NULL)
 				return;
 		} else {
 			if (parserddires(dp) != 0)
@@ -1506,45 +1503,46 @@ interp_reply(const struct rpc_msg *rp, u_int32_t proc, u_int32_t vers, int lengt
 
 	case NFSPROC_READDIRPLUS:
 		printf(" readdirplus");
-		if (!(dp = parserep(rp, length)))
+		if ((dp = parserep(rp, length)) == NULL)
 			break;
-		if (parsev3rddirres(dp, vflag))
+		if (parsev3rddirres(dp, vflag) != NULL)
 			return;
 		break;
 
 	case NFSPROC_FSSTAT:
 		printf(" fsstat");
 		dp = parserep(rp, length);
-		if (dp != 0 && parsestatfs(dp, v3) != 0)
+		if (dp != NULL && parsestatfs(dp, v3) != NULL)
 			return;
 		break;
 
 	case NFSPROC_FSINFO:
 		printf(" fsinfo");
 		dp = parserep(rp, length);
-		if (dp != 0 && parsefsinfo(dp) != 0)
+		if (dp != NULL && parsefsinfo(dp) != NULL)
 			return;
 		break;
 
 	case NFSPROC_PATHCONF:
 		printf(" pathconf");
 		dp = parserep(rp, length);
-		if (dp != 0 && parsepathconf(dp) != 0)
+		if (dp != NULL && parsepathconf(dp) != 0)
 			return;
 		break;
 
 	case NFSPROC_COMMIT:
 		printf(" commit");
 		dp = parserep(rp, length);
-		if (dp != 0 && parsewccres(dp, vflag) != 0)
+		if (dp != NULL && parsewccres(dp, vflag) != 0)
 			return;
 		break;
 
 	default:
-		printf(" proc-%lu", proc);
+		printf(" proc-%u", proc);
 		return;
 	}
 
 trunc:
-	fputs(" [|nfs]", stdout);
+	if (!nfserr)
+		fputs(" [|nfs]", stdout);
 }
