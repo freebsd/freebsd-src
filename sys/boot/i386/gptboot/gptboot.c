@@ -224,7 +224,7 @@ main(void)
     int autoboot, i;
     ino_t ino;
 
-    dmadat = (void *)(roundup2(__base + _end, 0x10000) - __base);
+    dmadat = (void *)(roundup2(__base + (int32_t)&_end, 0x10000) - __base);
     v86.ctl = V86_FLAGS;
     dsk.drive = *(uint8_t *)PTOV(ARGS);
     dsk.type = dsk.drive & DRV_HARD ? TYPE_AD : TYPE_FD;
