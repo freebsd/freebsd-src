@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: hdlc.c,v 1.5 1995/07/30 15:18:29 gpalmer Exp $
+ * $Id: hdlc.c,v 1.6 1996/01/10 21:27:45 phk Exp $
  *
  *	TODO:
  */
@@ -27,6 +27,9 @@
 #include "lcp.h"
 #include "lqr.h"
 #include "vars.h"
+#include "pred.h"
+#include "modem.h"
+#include "ccp.h"
 
 struct hdlcstat {
   int	badfcs;
@@ -264,7 +267,7 @@ ReportProtStatus()
   printf("    Protocol     in        out      Protocol      in       out\n");
   do {
     statp++;
-    printf("   %-9s: %8u, %8u",
+    printf("   %-9s: %8lu, %8lu",
       statp->name, statp->in_count, statp->out_count);
     if (++cnt == 2) {
       printf("\n");

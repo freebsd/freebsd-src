@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: arp.c,v 1.2 1995/05/30 03:50:23 rgrimes Exp $
+ * $Id: arp.c,v 1.3 1996/01/10 21:27:35 phk Exp $
  *
  */
 
@@ -53,6 +53,8 @@
 #endif
 
 static int rtm_seq;
+
+static int get_ether_addr __P((int, u_long, struct sockaddr_dl *));
 
 #define BCOPY(s, d, l)		memcpy(d, s, l)
 #define BZERO(s, n)		memset(s, 0, n)

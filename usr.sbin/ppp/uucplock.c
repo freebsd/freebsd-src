@@ -30,12 +30,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: uucplock.c,v 1.5 1995/05/30 03:51:00 rgrimes Exp $
+ * $Id: uucplock.c,v 1.6 1996/01/10 21:28:03 phk Exp $
  *
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)uucplock.c	5.5 (Berkeley) 6/1/90";
+static char const sccsid[] = "@(#)uucplock.c	5.5 (Berkeley) 6/1/90";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -112,6 +112,7 @@ uu_lock(ttyname)
 	return(0);
 }
 
+int
 uu_unlock(ttyname)
 	char *ttyname;
 {

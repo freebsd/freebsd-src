@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: fsm.c,v 1.3 1995/05/30 03:50:32 rgrimes Exp $
+ * $Id: fsm.c,v 1.4 1995/09/09 13:23:53 joerg Exp $
  *
  *  TODO:
  *		o Refer loglevel for log output
@@ -28,13 +28,14 @@
 #include "lqr.h"
 #include "lcpproto.h"
 #include "lcp.h"
+#include "ccp.h"
 
 void FsmSendConfigReq(struct fsm *fp);
 void FsmSendTerminateReq(struct fsm *fp);
 void FsmInitRestartCounter(struct fsm *fp);
 void FsmTimeout(struct fsm *fp);
 
-char *StateNames[] = {
+char const *StateNames[] = {
   "Initial", "Starting", "Closed", "Stopped", "Closing", "Stopping",
   "Req-Sent", "Ack-Rcvd", "Ack-Sent", "Opend",
 };
