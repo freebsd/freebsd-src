@@ -213,7 +213,7 @@ acpi_asus_probe(device_t dev)
 
 	if (!acpi_disabled("asus") &&
 	    acpi_get_type(dev) == ACPI_TYPE_DEVICE &&
-	    acpi_MatchHid(dev, "ATK0100")) {
+	    acpi_MatchHid(acpi_get_handle(dev), "ATK0100")) {
 		sc = device_get_softc(dev);
 		sc->dev = dev;
 		sc->handle = acpi_get_handle(dev);

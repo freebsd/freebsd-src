@@ -212,13 +212,15 @@ TUNABLE_INT("hw.acpi.toshiba.enable_fn_keys", &enable_fn_keys);
 static int
 acpi_toshiba_probe(device_t dev)
 {
+	ACPI_HANDLE h;
 	int ret = ENXIO;
 
+	h = acpi_get_handle(dev);
 	if (!acpi_disabled("toshiba") &&
 	    acpi_get_type(dev) == ACPI_TYPE_DEVICE &&
 	    device_get_unit(dev) == 0 &&
-	    (acpi_MatchHid(dev, "TOS6200") ||
-	     acpi_MatchHid(dev, "TOS6207"))) {
+	    (acpi_MatchHid(h, "TOS6200") ||
+	     acpi_MatchHid(h, "TOS6207"))) {
 		device_set_desc(dev, "Toshiba HCI Extras");
 		ret = 0;
 	}
