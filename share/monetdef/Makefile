@@ -153,8 +153,6 @@ afterinstall:
 	ln -sf ../${CH_SRC}.UTF-8/LC_MONETARY \
 		${LOCALEDIR}/${link}.UTF-8/LC_MONETARY
 .endfor
-	ln -sf ../ko_KR.eucKR/LC_MONETARY \
-		${LOCALEDIR}/ko_KR.UTF-8/LC_MONETARY
 	ln -sf ../zh_TW.Big5/LC_MONETARY \
 		${LOCALEDIR}/zh_TW.UTF-8/LC_MONETARY
 
