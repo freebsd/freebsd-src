@@ -11,7 +11,7 @@ MAN9=	CONDSPLASSERT.9 KASSERT.9 MD5.9 SPLASSERT.9 \
 	VOP_PATHCONF.9 VOP_PRINT.9 VOP_RDWR.9 VOP_READDIR.9 \
 	VOP_READLINK.9 VOP_REALLOCBLKS.9 VOP_REMOVE.9 VOP_RENAME.9 \
 	VOP_STRATEGY.9 \
-	at_exit.9 at_fork.9 bios.9 boot.9 buf.9 cd.9 copy.9 \
+	at_exit.9 at_fork.9 atomic.9 bios.9 boot.9 buf.9 cd.9 copy.9 \
 	devfs_add_devswf.9 devfs_link.9 devfs_remove_dev.9 devstat.9 \
 	devtoname.9 fetch.9 ifnet.9 inittodr.9 intro.9 kernacc.9 malloc.9 \
 	make_dev.9 microseq.9 mi_switch.9 mutex.9 namei.9 panic.9 pfil.9 physio.9 \
@@ -56,6 +56,14 @@ MLINKS+=VOP_OPENCLOSE.9 VOP_OPEN.9
 MLINKS+=VOP_RDWR.9 VOP_READ.9
 MLINKS+=VOP_RDWR.9 VOP_WRITE.9
 MLINKS+=VOP_REMOVE.9 VOP_RMDIR.9
+MLINKS+=atomic.9 atomic_add.9
+MLINKS+=atomic.9 atomic_clear.9
+MLINKS+=atomic.9 atomic_cmpset.9
+MLINKS+=atomic.9 atomic_load.9
+MLINKS+=atomic.9 atomic_readandclear.9
+MLINKS+=atomic.9 atomic_set.9
+MLINKS+=atomic.9 atomic_subtract.9
+MLINKS+=atomic.9 atomic_store.9
 MLINKS+=at_exit.9 rm_at_exit.9
 MLINKS+=at_fork.9 rm_at_fork.9
 MLINKS+=copy.9 copyin.9 copy.9 copyinstr.9 copy.9 copyout.9 copy.9 copystr.9
