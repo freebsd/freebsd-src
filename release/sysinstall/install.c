@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.71.2.8 1995/09/25 05:36:45 jkh Exp $
+ * $Id: install.c,v 1.71.2.9 1995/09/25 05:40:30 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -526,7 +526,7 @@ root_extract(void)
 	        alreadyExtracted = loop_on_root_floppy();
 	    }
 	    else {
-		msgNotify("Loading root image from %s", mediaDevice->name);
+		msgNotify("Loading root image from:\n%s", mediaDevice->name);
 		alreadyExtracted = mediaExtractDist("/", fd);
 		(*mediaDevice->close)(mediaDevice, fd);
 	    }
