@@ -3,7 +3,7 @@
    Subroutines that support dhcp tracing... */
 
 /*
- * Copyright (c) 2001 Internet Software Consortium.
+ * Copyright (c) 2001-2002 Internet Software Consortium.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
