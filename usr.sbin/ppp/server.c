@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: server.c,v 1.16.2.9 1998/03/20 19:48:23 brian Exp $
+ *	$Id: server.c,v 1.16.2.10 1998/04/03 19:21:51 brian Exp $
  */
 
 #include <sys/param.h>
@@ -31,6 +31,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netinet/in_systm.h>
+#include <netinet/ip.h>
 
 #include <errno.h>
 #include <stdio.h>
@@ -52,6 +53,19 @@
 #include "prompt.h"
 #include "timer.h"
 #include "auth.h"
+#include "lqr.h"
+#include "hdlc.h"
+#include "fsm.h"
+#include "lcp.h"
+#include "ccp.h"
+#include "throughput.h"
+#include "link.h"
+#include "mp.h"
+#include "iplist.h"
+#include "slcompress.h"
+#include "ipcp.h"
+#include "filter.h"
+#include "bundle.h"
 
 static int
 server_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)
@@ -78,6 +92,8 @@ server_IsSet(struct descriptor *d, const fd_set *fdset)
 #define UN_SIZE sizeof(struct sockaddr_in)
 #define ADDRSZ (IN_SIZE > UN_SIZE ? IN_SIZE : UN_SIZE)
 
+static char *rm;
+
 static void
 server_Read(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
 {
@@ -86,6 +102,7 @@ server_Read(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
   struct sockaddr *sa = (struct sockaddr *)hisaddr;
   struct sockaddr_in *sin = (struct sockaddr_in *)hisaddr;
   int ssize = ADDRSZ, wfd;
+  struct prompt *p;
 
   wfd = accept(s->fd, sa, &ssize);
   if (wfd < 0) {
@@ -116,13 +133,22 @@ server_Read(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
       return;
   }
 
-  if (!prompt_Init(&prompt, wfd)) {
-    write(wfd, "Connection already in use.\n", 27);
+  if ((p = prompt_Create(s, bundle, wfd)) == NULL) {
+    write(wfd, "Connection refused.\n", 20);
     close(wfd);
   } else {
-    LocalAuthInit();
-    IsInteractive(1);
-    prompt_Display(&prompt, bundle);
+    switch (sa->sa_family) {
+      case AF_LOCAL:
+        snprintf(p->who, sizeof p->who, "local (%s)", rm);
+        break;
+      case AF_INET:
+        snprintf(p->who, sizeof p->who, "TCP (%s:%u)",
+                 inet_ntoa(sin->sin_addr), sin->sin_port);
+        break;
+    }
+    IsInteractive(p);
+    prompt_TtyCommandMode(p);
+    prompt_Required(p);
   }
 }
 
@@ -146,23 +172,11 @@ struct server server = {
 };
 
 static struct sockaddr_un ifsun;
-static char *rm;
 
 int
-ServerLocalOpen(const char *name, mode_t mask)
+ServerLocalOpen(struct bundle *bundle, const char *name, mode_t mask)
 {
   int s;
-
-  if (VarLocalAuth == LOCAL_DENY) {
-    LogPrintf(LogWARN, "Local: Can't open socket %s: No password "
-	      "in ppp.secret\n", name);
-    return 1;
-  }
-
-  if (mode & MODE_INTER) {
-    LogPrintf(LogWARN, "Local: Can't open socket in interactive mode\n");
-    return 1;
-  }
 
   memset(&ifsun, '\0', sizeof ifsun);
   ifsun.sun_len = strlen(name);
@@ -184,9 +198,7 @@ ServerLocalOpen(const char *name, mode_t mask)
   if (bind(s, (struct sockaddr *)&ifsun, sizeof ifsun) < 0) {
     if (mask != (mode_t)-1)
       umask(mask);
-    LogPrintf(LogERROR, "Local: bind: %s\n", strerror(errno));
-    if (errno == EADDRINUSE)
-      prompt_Printf(&prompt, "Wait for a while, then try again.\n");
+    LogPrintf(LogWARN, "Local: bind: %s\n", strerror(errno));
     close(s);
     return 4;
   }
@@ -198,7 +210,7 @@ ServerLocalOpen(const char *name, mode_t mask)
     ID0unlink(name);
     return 5;
   }
-  ServerClose();
+  ServerClose(bundle);
   server.fd = s;
   rm = ifsun.sun_path;
   LogPrintf(LogPHASE, "Listening at local socket %s.\n", name);
@@ -206,21 +218,10 @@ ServerLocalOpen(const char *name, mode_t mask)
 }
 
 int
-ServerTcpOpen(int port)
+ServerTcpOpen(struct bundle *bundle, int port)
 {
   struct sockaddr_in ifsin;
   int s;
-
-  if (VarLocalAuth == LOCAL_DENY) {
-    LogPrintf(LogWARN, "Tcp: Can't open socket %d: No password "
-	      "in ppp.secret\n", port);
-    return 6;
-  }
-
-  if (mode & MODE_INTER) {
-    LogPrintf(LogWARN, "Tcp: Can't open socket in interactive mode\n");
-    return 6;
-  }
 
   s = ID0socket(PF_INET, SOCK_STREAM, 0);
   if (s < 0) {
@@ -233,9 +234,7 @@ ServerTcpOpen(int port)
   ifsin.sin_port = htons(port);
   setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &s, sizeof s);
   if (bind(s, (struct sockaddr *)&ifsin, sizeof ifsin) < 0) {
-    LogPrintf(LogERROR, "Tcp: bind: %s\n", strerror(errno));
-    if (errno == EADDRINUSE)
-      prompt_Printf(&prompt, "Wait for a while, then try again.\n");
+    LogPrintf(LogWARN, "Tcp: bind: %s\n", strerror(errno));
     close(s);
     return 8;
   }
@@ -244,14 +243,14 @@ ServerTcpOpen(int port)
     close(s);
     return 9;
   }
-  ServerClose();
+  ServerClose(bundle);
   server.fd = s;
   LogPrintf(LogPHASE, "Listening at port %d.\n", port);
   return 0;
 }
 
 int
-ServerClose()
+ServerClose(struct bundle *bundle)
 {
   if (server.fd >= 0) {
     close(server.fd);
@@ -260,6 +259,8 @@ ServerClose()
       rm = 0;
     }
     server.fd = -1;
+    /* Drop associated prompts */
+    bundle_DelPromptDescriptors(bundle, &server);
     return 1;
   }
   return 0;

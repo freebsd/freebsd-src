@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: log.c,v 1.25 1998/01/21 02:15:18 brian Exp $
+ *	$Id: log.c,v 1.25.2.1 1998/02/10 03:23:25 brian Exp $
  */
 
 #include <sys/param.h>
@@ -31,6 +31,7 @@
 
 #include <stdarg.h>
 #include <stdio.h>
+#include <string.h>
 #include <syslog.h>
 #include <termios.h>
 
@@ -70,6 +71,36 @@ static const char *LogNames[] = {
 static u_long LogMask = MSK(LogLINK) | MSK(LogCARRIER) | MSK(LogPHASE);
 static u_long LogMaskLocal = MSK(LogERROR) | MSK(LogALERT) | MSK(LogWARN);
 static int LogTunno = -1;
+static struct prompt *logprompt;	/* Where to log local stuff */
+
+void
+log_RegisterPrompt(struct prompt *prompt)
+{
+  if (prompt) {
+    prompt->lognext = logprompt;
+    logprompt = prompt;
+    LogMaskLocal |= prompt->logmask;
+  }
+}
+
+void
+log_UnRegisterPrompt(struct prompt *prompt)
+{
+  if (prompt) {
+    struct prompt **p;
+
+    LogMaskLocal = MSK(LogERROR) | MSK(LogALERT) | MSK(LogWARN);
+    for (p = &logprompt; *p; p = &(*p)->lognext) {
+      if (*p == prompt) {
+        *p = (*p)->lognext;
+        prompt->lognext = NULL;
+        if (!*p)
+          break;
+      }
+      LogMaskLocal |= (*p)->logmask;
+    }
+  }
+}
 
 static int
 syslogLevel(int lev)
@@ -100,10 +131,12 @@ LogKeep(int id)
 }
 
 void
-LogKeepLocal(int id)
+LogKeepLocal(int id, u_long *mask)
 {
-  if (id >= LogMIN && id <= LogMAXCONF)
+  if (id >= LogMIN && id <= LogMAXCONF) {
     LogMaskLocal |= MSK(id);
+    *mask |= MSK(id);
+  }
 }
 
 void
@@ -114,10 +147,12 @@ LogDiscard(int id)
 }
 
 void
-LogDiscardLocal(int id)
+LogDiscardLocal(int id, u_long *mask)
 {
-  if (id >= LogMIN && id <= LogMAXCONF)
+  if (id >= LogMIN && id <= LogMAXCONF) {
     LogMaskLocal &= ~MSK(id);
+    *mask &= ~MSK(id);
+  }
 }
 
 void
@@ -127,9 +162,9 @@ LogDiscardAll()
 }
 
 void
-LogDiscardAllLocal()
+LogDiscardAllLocal(u_long *mask)
 {
-  LogMaskLocal = 0;
+  LogMaskLocal = *mask = MSK(LogERROR) | MSK(LogALERT) | MSK(LogWARN);
 }
 
 int
@@ -141,6 +176,18 @@ LogIsKept(int id)
     return LOG_KEPT_LOCAL | LOG_KEPT_SYSLOG;
 
   return ((LogMaskLocal & MSK(id)) ? LOG_KEPT_LOCAL : 0) |
+    ((LogMask & MSK(id)) ? LOG_KEPT_SYSLOG : 0);
+}
+
+int
+LogIsKeptLocal(int id, u_long mask)
+{
+  if (id < LogMIN || id > LogMAX)
+    return 0;
+  if (id > LogMAXCONF)
+    return LOG_KEPT_LOCAL | LOG_KEPT_SYSLOG;
+
+  return ((mask & MSK(id)) ? LOG_KEPT_LOCAL : 0) |
     ((LogMask & MSK(id)) ? LOG_KEPT_SYSLOG : 0);
 }
 
@@ -167,22 +214,25 @@ void
 LogPrintf(int lev, const char *fmt,...)
 {
   va_list ap;
+  struct prompt *prompt;
 
   va_start(ap, fmt);
   if (LogIsKept(lev)) {
     static char nfmt[200];
 
-    if ((LogIsKept(lev) & LOG_KEPT_LOCAL) && prompt_Active(&prompt)) {
+    if ((LogIsKept(lev) & LOG_KEPT_LOCAL) && logprompt) {
       if ((LogIsKept(LogTUN) & LOG_KEPT_LOCAL) && LogTunno != -1)
         snprintf(nfmt, sizeof nfmt, "tun%d: %s: %s",
 	         LogTunno, LogName(lev), fmt);
       else
         snprintf(nfmt, sizeof nfmt, "%s: %s", LogName(lev), fmt);
-      prompt_vPrintf(&prompt, nfmt, ap);
+  
+      for (prompt = logprompt; prompt; prompt = prompt->lognext)
+        if (lev > LogMAXCONF || (prompt->logmask & MSK(lev)))
+          prompt_vPrintf(prompt, nfmt, ap);
     }
 
-    if ((LogIsKept(lev) & LOG_KEPT_SYSLOG) && (lev != LogWARN ||
-                                               !prompt_Active(&prompt))) {
+    if ((LogIsKept(lev) & LOG_KEPT_SYSLOG) && (lev != LogWARN || !logprompt)) {
       if ((LogIsKept(LogTUN) & LOG_KEPT_SYSLOG) && LogTunno != -1)
         snprintf(nfmt, sizeof nfmt, "tun%d: %s: %s",
 	         LogTunno, LogName(lev), fmt);
@@ -245,4 +295,87 @@ LogDumpBuff(int lev, const char *hdr, const u_char * ptr, int n)
       LogPrintf(lev, buf);
     }
   }
+}
+
+int
+log_ShowLevel(struct cmdargs const *arg)
+{
+  int i;
+
+  prompt_Printf(arg->prompt, "Log:  ");
+  for (i = LogMIN; i <= LogMAX; i++)
+    if (LogIsKept(i) & LOG_KEPT_SYSLOG)
+      prompt_Printf(arg->prompt, " %s", LogName(i));
+
+  prompt_Printf(arg->prompt, "\nLocal:");
+  for (i = LogMIN; i <= LogMAX; i++)
+    if (LogIsKeptLocal(i, arg->prompt->logmask) & LOG_KEPT_LOCAL)
+      prompt_Printf(arg->prompt, " %s", LogName(i));
+
+  prompt_Printf(arg->prompt, "\n");
+
+  return 0;
+}
+
+int
+log_SetLevel(struct cmdargs const *arg)
+{
+  int i, res, argc, local;
+  char const *const *argv, *argp;
+
+  argc = arg->argc;
+  argv = arg->argv;
+  res = 0;
+
+  if (argc == 0 || strcasecmp(argv[0], "local"))
+    local = 0;
+  else {
+    if (arg->prompt == NULL) {
+      LogPrintf(LogWARN, "set log local: Only available on the command line\n");
+      return 1;
+    }
+    argc--;
+    argv++;
+    local = 1;
+  }
+
+  if (argc == 0 || (argv[0][0] != '+' && argv[0][0] != '-'))
+    if (local)
+      LogDiscardAllLocal(&arg->prompt->logmask);
+    else
+      LogDiscardAll();
+
+  while (argc--) {
+    argp = **argv == '+' || **argv == '-' ? *argv + 1 : *argv;
+    for (i = LogMIN; i <= LogMAX; i++)
+      if (strcasecmp(argp, LogName(i)) == 0) {
+	if (**argv == '-')
+          if (local)
+            LogDiscardLocal(i, &arg->prompt->logmask);
+          else
+	    LogDiscard(i);
+	else if (local)
+          LogKeepLocal(i, &arg->prompt->logmask);
+        else
+          LogKeep(i);
+	break;
+      }
+    if (i > LogMAX) {
+      LogPrintf(LogWARN, "%s: Invalid log value\n", argp);
+      res = -1;
+    }
+    argv++;
+  }
+  return res;
+}
+
+int
+log_ShowWho(struct cmdargs const *arg)
+{
+  struct prompt *p;
+
+  for (p = logprompt; p; p = p->lognext)
+    prompt_Printf(arg->prompt, "%s%s\n", p->who, p == arg->prompt ? " *" : "");
+
+  return 0;
 }

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.55.2.34 1998/04/03 19:21:29 brian Exp $
+ * $Id: lcp.c,v 1.55.2.35 1998/04/03 19:24:01 brian Exp $
  *
  * TODO:
  *	o Limit data field length by MRU
@@ -146,31 +146,33 @@ lcp_ReportStatus(struct cmdargs const *arg)
   struct link *l = ChooseLink(arg);
   struct lcp *lcp = &l->lcp;
 
-  prompt_Printf(&prompt, "%s: %s [%s]\n", l->name, lcp->fsm.name,
+  prompt_Printf(arg->prompt, "%s: %s [%s]\n", l->name, lcp->fsm.name,
                 State2Nam(lcp->fsm.state));
-  prompt_Printf(&prompt,
+  prompt_Printf(arg->prompt,
 	        " his side: MRU %d, ACCMAP %08lx, PROTOCOMP %d, ACFCOMP %d,\n"
 	        "           MAGIC %08lx, REJECT %04x\n",
 	        lcp->his_mru, (u_long)lcp->his_accmap,
                 lcp->his_protocomp, lcp->his_acfcomp,
                 (u_long)lcp->his_magic, lcp->his_reject);
-  prompt_Printf(&prompt,
+  prompt_Printf(arg->prompt,
 	        " my  side: MRU %d, ACCMAP %08lx, PROTOCOMP %d, ACFCOMP %d,\n"
                 "           MAGIC %08lx, REJECT %04x\n",
                 lcp->want_mru, (u_long)lcp->want_accmap,
                 lcp->want_protocomp, lcp->want_acfcomp,
                 (u_long)lcp->want_magic, lcp->my_reject);
 
-  prompt_Printf(&prompt, "\n Defaults: MRU = %d, ", lcp->cfg.mru);
+  prompt_Printf(arg->prompt, "\n Defaults: MRU = %d, ", lcp->cfg.mru);
   if (l->lcp.cfg.mtu)
-    prompt_Printf(&prompt, "MTU = %d, ", lcp->cfg.mtu);
-  prompt_Printf(&prompt, "ACCMAP = %08lx\n", (u_long)lcp->cfg.accmap);
-  prompt_Printf(&prompt, "           LQR period = %us, ", lcp->cfg.lqrperiod);
-  prompt_Printf(&prompt, "Open Mode = %s",
+    prompt_Printf(arg->prompt, "MTU = %d, ", lcp->cfg.mtu);
+  prompt_Printf(arg->prompt, "ACCMAP = %08lx\n", (u_long)lcp->cfg.accmap);
+  prompt_Printf(arg->prompt, "           LQR period = %us, ",
+                lcp->cfg.lqrperiod);
+  prompt_Printf(arg->prompt, "Open Mode = %s",
                 lcp->cfg.openmode == OPEN_PASSIVE ? "passive" : "active");
   if (lcp->cfg.openmode > 0)
-    prompt_Printf(&prompt, " (delay %ds)", lcp->cfg.openmode);
-  prompt_Printf(&prompt, "\n           FSM retry = %us\n", lcp->cfg.fsmretry);
+    prompt_Printf(arg->prompt, " (delay %ds)", lcp->cfg.openmode);
+  prompt_Printf(arg->prompt, "\n           FSM retry = %us\n",
+                lcp->cfg.fsmretry);
   return 0;
 }
 

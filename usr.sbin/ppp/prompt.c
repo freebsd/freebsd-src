@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: prompt.c,v 1.1.2.16 1998/03/20 19:48:19 brian Exp $
+ *	$Id: prompt.c,v 1.1.2.17 1998/04/03 19:21:50 brian Exp $
  */
 
 #include <sys/param.h>
@@ -33,6 +33,8 @@
 
 #include <stdarg.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <sys/fcntl.h>
 #include <sys/stat.h>
 #include <termios.h>
@@ -67,8 +69,50 @@
 #include "chat.h"
 #include "chap.h"
 #include "datalink.h"
+#include "server.h"
 
-static int prompt_nonewline = 1;
+static void
+prompt_Display(struct prompt *p)
+{
+  static char shostname[MAXHOSTNAMELEN];
+  const char *pconnect, *pauth;
+
+  if (p->TermMode || !p->needprompt)
+    return;
+
+  p->needprompt = 0;
+
+  if (p->nonewline)
+    p->nonewline = 0;
+  else
+    fprintf(p->Term, "\n");
+
+  if (p->auth == LOCAL_AUTH)
+    pauth = " ON ";
+  else
+    pauth = " on ";
+
+  if (p->bundle->ncp.ipcp.fsm.state == ST_OPENED)
+    pconnect = "PPP";
+  else if (bundle_Phase(p->bundle) == PHASE_NETWORK)
+    pconnect = "PPp";
+  else if (bundle_Phase(p->bundle) == PHASE_AUTHENTICATE)
+    pconnect = "Ppp";
+  else
+    pconnect = "ppp";
+
+  if (*shostname == '\0') {
+    char *p;
+
+    if (gethostname(shostname, sizeof shostname))
+      strcpy(shostname, "localhost");
+    else if ((p = strchr(shostname, '.')))
+      *p = '\0';
+  }
+
+  fprintf(p->Term, "%s%s%s> ", pconnect, pauth, shostname);
+  fflush(p->Term);
+}
 
 static int
 prompt_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)
@@ -89,6 +133,8 @@ prompt_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)
     if (sets && *n < p->fd_in + 1)
       *n = p->fd_in + 1;
   }
+
+  prompt_Display(p);
 
   return sets;
 }
@@ -133,13 +179,14 @@ prompt_Read(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
         linebuff[--n] = '\0';
       else
         linebuff[n] = '\0';
-      prompt_nonewline = 1;	/* In case DecodeCommand does a prompt */
+      p->nonewline = 1;		/* Maybe DecodeCommand does a prompt */
+      prompt_Required(p);
       if (n)
-        DecodeCommand(bundle, linebuff, n, IsInteractive(0) ? NULL : "Client");
-      prompt_Display(&prompt, bundle);
+        DecodeCommand(bundle, linebuff, n, p,
+                      IsInteractive(NULL) ? NULL : "Client");
     } else if (n <= 0) {
       LogPrintf(LogPHASE, "Client connection closed.\n");
-      prompt_Drop(&prompt, 0);
+      prompt_Destroy(p, 0);
     }
     return;
   }
@@ -147,9 +194,9 @@ prompt_Read(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
   switch (p->TermMode->state) {
     case DATALINK_CLOSED:
       prompt_Printf(p, "Link lost, terminal mode.\n");
-      prompt_TtyCommandMode(&prompt);
-      prompt_nonewline = 0;
-      prompt_Display(&prompt, bundle);
+      prompt_TtyCommandMode(p);
+      p->nonewline = 0;
+      prompt_Required(p);
       return;
 
     case DATALINK_READY:
@@ -157,8 +204,8 @@ prompt_Read(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
 
     case DATALINK_OPEN:
       prompt_Printf(p, "\nPacket mode detected.\n");
-      prompt_TtyCommandMode(&prompt);
-      prompt_nonewline = 0;
+      prompt_TtyCommandMode(p);
+      p->nonewline = 0;
       /* We'll get a prompt because of our status change */
       /* Fall through */
 
@@ -190,15 +237,15 @@ prompt_Read(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
       case 'p':
         datalink_Up(p->TermMode, 0, 1);
         prompt_Printf(p, "\nPacket mode.\n");
-	prompt_TtyCommandMode(&prompt);
+	prompt_TtyCommandMode(p);
         break;
       case '.':
-	prompt_TtyCommandMode(&prompt);
-        prompt_nonewline = 0;
-        prompt_Display(&prompt, bundle);
+	prompt_TtyCommandMode(p);
+        p->nonewline = 0;
+        prompt_Required(p);
 	break;
       case 't':
-	ShowTimers(0);
+	ShowTimers(0, p);
 	break;
       case 'm':
 	ShowMemMap(NULL);
@@ -221,97 +268,74 @@ prompt_Write(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
   LogPrintf(LogERROR, "prompt_Write: Internal error: Bad call !\n");
 }
 
-struct prompt prompt = {
-  {
-    PROMPT_DESCRIPTOR,
-    NULL,
-    prompt_UpdateSet,
-    prompt_IsSet,
-    prompt_Read,
-    prompt_Write
-  },
-  -1,
-  -1,
-  NULL
-};
-
-int
-prompt_Init(struct prompt *p, int fd)
+struct prompt *
+prompt_Create(struct server *s, struct bundle *bundle, int fd)
 {
-  if (p->Term && p->Term != stdout)
-    return 0;                       /* must prompt_Drop() first */
+  struct prompt *p = (struct prompt *)malloc(sizeof(struct prompt));
 
-  if (fd == PROMPT_NONE) {
-    p->fd_in = p->fd_out = -1;
-    p->Term = NULL;
-  } else if (fd == PROMPT_STD) {
-    p->fd_in = STDIN_FILENO;
-    p->fd_out = STDOUT_FILENO;
-    p->Term = stdout;
-  } else {
-    p->fd_in = p->fd_out = fd;
-    p->Term = fdopen(fd, "a+");
+  if (p != NULL) {
+    p->desc.type = PROMPT_DESCRIPTOR;
+    p->desc.next = NULL;
+    p->desc.UpdateSet = prompt_UpdateSet;
+    p->desc.IsSet = prompt_IsSet;
+    p->desc.Read = prompt_Read;
+    p->desc.Write = prompt_Write;
+
+    if (fd == PROMPT_STD) {
+      p->fd_in = STDIN_FILENO;
+      p->fd_out = STDOUT_FILENO;
+      p->Term = stdout;
+      p->owner = NULL;
+      p->auth = LOCAL_AUTH;
+      snprintf(p->who, sizeof p->who, "Controller (%s)", ttyname(p->fd_out));
+      tcgetattr(p->fd_in, &p->oldtio);	/* Save original tty mode */
+    } else {
+      p->fd_in = p->fd_out = fd;
+      p->Term = fdopen(fd, "a+");
+      p->owner = s;
+      p->auth = *s->passwd ? LOCAL_NO_AUTH : LOCAL_AUTH;
+      *p->who = '\0';
+    }
+    p->TermMode = NULL;
+    p->nonewline = 1;
+    p->needprompt = 1;
+    p->bundle = bundle;
+    if (p->bundle)
+      bundle_RegisterDescriptor(p->bundle, &p->desc);
+    log_RegisterPrompt(p);
   }
-  p->TermMode = NULL;
-  tcgetattr(STDIN_FILENO, &p->oldtio);	/* Save original tty mode */
 
-  return 1;
+  return p;
 }
 
 void
-prompt_Display(struct prompt *p, struct bundle *bundle)
+prompt_DestroyUnclean(struct prompt *p)
 {
-  const char *pconnect, *pauth;
-
-  if (!p->Term || p->TermMode != NULL)
-    return;
-
-  if (prompt_nonewline)
-    prompt_nonewline = 0;
-  else
-    fprintf(p->Term, "\n");
-
-  if (VarLocalAuth == LOCAL_AUTH)
-    pauth = " ON ";
-  else
-    pauth = " on ";
-
-  if (bundle->ncp.ipcp.fsm.state == ST_OPENED)
-    pconnect = "PPP";
-  else if (bundle_Phase(bundle) == PHASE_NETWORK)
-    pconnect = "PPp";
-  else if (bundle_Phase(bundle) == PHASE_AUTHENTICATE)
-    pconnect = "Ppp";
-  else
-    pconnect = "ppp";
-
-  fprintf(p->Term, "%s%s%s> ", pconnect, pauth, VarShortHost);
-  fflush(p->Term);
+  log_UnRegisterPrompt(p);
+  bundle_UnRegisterDescriptor(p->bundle, &p->desc);
+  free(p);
 }
 
 void
-prompt_Drop(struct prompt *p, int verbose)
+prompt_Destroy(struct prompt *p, int verbose)
 {
-  if (p->Term && p->Term != stdout) {
-    FILE *oVarTerm;
-
-    oVarTerm = p->Term;
-    p->Term = NULL;
-    if (oVarTerm)
-      fclose(oVarTerm);
+  if (p->Term != stdout) {
+    fclose(p->Term);
     close(p->fd_in);
     if (p->fd_out != p->fd_in)
       close(p->fd_out);
-    p->fd_in = p->fd_out = -1;
     if (verbose)
       LogPrintf(LogPHASE, "Client connection dropped.\n");
-  }
+  } else
+    prompt_TtyOldMode(p);
+
+  prompt_DestroyUnclean(p);
 }
 
 void
 prompt_Printf(struct prompt *p, const char *fmt,...)
 {
-  if (p->Term) {
+  if (p) {
     va_list ap;
 
     va_start(ap, fmt);
@@ -324,7 +348,7 @@ prompt_Printf(struct prompt *p, const char *fmt,...)
 void
 prompt_vPrintf(struct prompt *p, const char *fmt, va_list ap)
 {
-  if (p->Term) {
+  if (p) {
     vfprintf(p->Term, fmt, ap);
     fflush(p->Term);
   }
@@ -333,26 +357,30 @@ prompt_vPrintf(struct prompt *p, const char *fmt, va_list ap)
 void
 prompt_TtyInit(struct prompt *p, int DontWantInt)
 {
-  struct termios newtio;
   int stat;
 
   stat = fcntl(p->fd_in, F_GETFL, 0);
   if (stat > 0) {
     stat |= O_NONBLOCK;
-    (void) fcntl(p->fd_in, F_SETFL, stat);
+    fcntl(p->fd_in, F_SETFL, stat);
   }
-  newtio = p->oldtio;
-  newtio.c_lflag &= ~(ECHO | ISIG | ICANON);
-  newtio.c_iflag = 0;
-  newtio.c_oflag &= ~OPOST;
-  newtio.c_cc[VEOF] = _POSIX_VDISABLE;
-  if (DontWantInt)
-    newtio.c_cc[VINTR] = _POSIX_VDISABLE;
-  newtio.c_cc[VMIN] = 1;
-  newtio.c_cc[VTIME] = 0;
-  newtio.c_cflag |= CS8;
-  tcsetattr(p->fd_in, TCSANOW, &newtio);
-  p->comtio = newtio;
+
+  if (p->Term == stdout) {
+    struct termios newtio;
+
+    newtio = p->oldtio;
+    newtio.c_lflag &= ~(ECHO | ISIG | ICANON);
+    newtio.c_iflag = 0;
+    newtio.c_oflag &= ~OPOST;
+    newtio.c_cc[VEOF] = _POSIX_VDISABLE;
+    if (DontWantInt)
+      newtio.c_cc[VINTR] = _POSIX_VDISABLE;
+    newtio.c_cc[VMIN] = 1;
+    newtio.c_cc[VTIME] = 0;
+    newtio.c_cflag |= CS8;
+    tcsetattr(p->fd_in, TCSANOW, &newtio);
+    p->comtio = newtio;
+  }
 }
 
 /*
@@ -364,19 +392,18 @@ prompt_TtyCommandMode(struct prompt *p)
   struct termios newtio;
   int stat;
 
-  if (!(mode & MODE_INTER))
-    return;
-
   tcgetattr(p->fd_in, &newtio);
   newtio.c_lflag |= (ECHO | ISIG | ICANON);
   newtio.c_iflag = p->oldtio.c_iflag;
   newtio.c_oflag |= OPOST;
   tcsetattr(p->fd_in, TCSADRAIN, &newtio);
+
   stat = fcntl(p->fd_in, F_GETFL, 0);
   if (stat > 0) {
     stat |= O_NONBLOCK;
-    (void) fcntl(p->fd_in, F_SETFL, stat);
+    fcntl(p->fd_in, F_SETFL, stat);
   }
+
   p->TermMode = NULL;
 }
 
@@ -388,11 +415,16 @@ prompt_TtyTermMode(struct prompt *p, struct datalink *dl)
 {
   int stat;
 
-  tcsetattr(p->fd_in, TCSADRAIN, &p->comtio);
+  prompt_Printf(p, "Entering terminal mode on %s.\n", dl->name);
+  prompt_Printf(p, "Type `~?' for help.\n");
+
+  if (p->Term == stdout)
+    tcsetattr(p->fd_in, TCSADRAIN, &p->comtio);
+
   stat = fcntl(p->fd_in, F_GETFL, 0);
   if (stat > 0) {
     stat &= ~O_NONBLOCK;
-    (void) fcntl(p->fd_in, F_SETFL, stat);
+    fcntl(p->fd_in, F_SETFL, stat);
   }
   p->TermMode = dl;
 }
@@ -405,13 +437,45 @@ prompt_TtyOldMode(struct prompt *p)
   stat = fcntl(p->fd_in, F_GETFL, 0);
   if (stat > 0) {
     stat &= ~O_NONBLOCK;
-    (void) fcntl(p->fd_in, F_SETFL, stat);
+    fcntl(p->fd_in, F_SETFL, stat);
   }
-  tcsetattr(p->fd_in, TCSADRAIN, &p->oldtio);
+
+  if (p->Term == stdout)
+    tcsetattr(p->fd_in, TCSADRAIN, &p->oldtio);
 }
 
 pid_t
 prompt_pgrp(struct prompt *p)
 {
-  return p->Term ? tcgetpgrp(p->fd_in) : -1;
+  return tcgetpgrp(p->fd_in);
+}
+
+int
+PasswdCommand(struct cmdargs const *arg)
+{
+  const char *pass;
+
+  if (!arg->prompt) {
+    LogPrintf(LogWARN, "passwd: Cannot specify without a prompt\n");
+    return 0;
+  }
+
+  if (arg->prompt->owner == NULL) {
+    LogPrintf(LogWARN, "passwd: Not required\n");
+    return 0;
+  }
+
+  if (arg->argc == 0)
+    pass = "";
+  else if (arg->argc > 1)
+    return -1;
+  else
+    pass = *arg->argv;
+
+  if (!strcmp(arg->prompt->owner->passwd, pass))
+    arg->prompt->auth = LOCAL_AUTH;
+  else
+    arg->prompt->auth = LOCAL_NO_AUTH;
+
+  return 0;
 }

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: slcompress.c,v 1.15.2.3 1998/03/16 22:54:25 brian Exp $
+ * $Id: slcompress.c,v 1.15.2.4 1998/04/03 19:21:52 brian Exp $
  *
  *	Van Jacobson (van@helios.ee.lbl.gov), Dec 31, 1989:
  *	- Initial distribution.
@@ -574,17 +574,17 @@ bad:
 int
 ReportCompress(struct cmdargs const *arg)
 {
-  prompt_Printf(&prompt, "VJ compression statistics:\n");
-  prompt_Printf(&prompt, "  Out:  %d (compress) / %d (total)",
+  prompt_Printf(arg->prompt, "VJ compression statistics:\n");
+  prompt_Printf(arg->prompt, "  Out:  %d (compress) / %d (total)",
 	        arg->bundle->ncp.ipcp.vj.slstat.sls_compressed,
                 arg->bundle->ncp.ipcp.vj.slstat.sls_packets);
-  prompt_Printf(&prompt, "  %d (miss) / %d (search)\n",
+  prompt_Printf(arg->prompt, "  %d (miss) / %d (search)\n",
 	        arg->bundle->ncp.ipcp.vj.slstat.sls_misses,
                 arg->bundle->ncp.ipcp.vj.slstat.sls_searches);
-  prompt_Printf(&prompt, "  In:  %d (compress), %d (uncompress)",
+  prompt_Printf(arg->prompt, "  In:  %d (compress), %d (uncompress)",
 	        arg->bundle->ncp.ipcp.vj.slstat.sls_compressedin,
                 arg->bundle->ncp.ipcp.vj.slstat.sls_uncompressedin);
-  prompt_Printf(&prompt, "  %d (error),  %d (tossed)\n",
+  prompt_Printf(arg->prompt, "  %d (error),  %d (tossed)\n",
 	        arg->bundle->ncp.ipcp.vj.slstat.sls_errorin,
                 arg->bundle->ncp.ipcp.vj.slstat.sls_tossed);
   return 0;

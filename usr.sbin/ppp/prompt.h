@@ -23,14 +23,33 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: prompt.h,v 1.1.2.2 1998/02/16 00:01:00 brian Exp $
+ *	$Id: prompt.h,v 1.1.2.3 1998/02/17 19:28:13 brian Exp $
  */
+
+#define LOCAL_AUTH	0x01
+#define LOCAL_NO_AUTH	0x02
+#define LOCAL_DENY	0x03
+#define LOCAL_CX	0x04	/* OR'd value - require a context */
+#define LOCAL_CX_OPT	0x08	/* OR'd value - optional context */
+
+struct server;
+struct bundle;
 
 struct prompt {
   struct descriptor desc;
   int fd_in, fd_out;
   struct datalink *TermMode;	/* The modem we're talking directly to */
   FILE *Term;			/* sits on top of fd_out */
+  u_char auth;			/* Local Authorized status */
+  struct server *owner;         /* who created me */
+  struct bundle *bundle;	/* who I'm controlling */
+  unsigned nonewline : 1;	/* need a newline before our prompt ? */
+  unsigned needprompt : 1;	/* Show a prompt at the next UpdateSet() */
+
+  char who[40];			/* Where do I come from */
+
+  struct prompt *lognext;	/* Maintained in log.c */
+  u_long logmask;		/* Maintained in log.c */
 
   struct termios oldtio;	/* Original tty mode */
   struct termios comtio;	/* Command level tty mode */
@@ -40,14 +59,11 @@ struct prompt {
 #define descriptor2prompt(d) \
   ((d)->type == PROMPT_DESCRIPTOR ? (struct prompt *)(d) : NULL)
 
-extern struct prompt prompt;
-
-#define prompt_Active(p) ((p)->Term ? 1 : 0)
-#define PROMPT_NONE -2
-#define PROMPT_STD  -1
-extern int  prompt_Init(struct prompt *, int);
-extern void prompt_Display(struct prompt *, struct bundle *);
-extern void prompt_Drop(struct prompt *, int);
+#define PROMPT_STD (-1)
+extern struct prompt *prompt_Create(struct server *, struct bundle *, int);
+extern void prompt_Destroy(struct prompt *, int);
+extern void prompt_DestroyUnclean(struct prompt *);
+extern void prompt_Required(struct prompt *);
 extern void prompt_Printf(struct prompt *, const char *, ...);
 extern void prompt_vPrintf(struct prompt *, const char *, _BSD_VA_LIST_);
 #define PROMPT_DONT_WANT_INT 1
@@ -57,4 +73,7 @@ extern void prompt_TtyCommandMode(struct prompt *);
 extern void prompt_TtyTermMode(struct prompt *, struct datalink *);
 extern void prompt_TtyOldMode(struct prompt *);
 extern pid_t prompt_pgrp(struct prompt *);
-#define prompt_IsTermMode(p) ((p)->TermMode ? 1 : 0)
+extern int PasswdCommand(struct cmdargs const *);
+#define prompt_IsTermMode(p, dl) ((p)->TermMode == (dl) ? 1 : 0)
+#define prompt_IsController(p) (!(p) || (p)->owner ? 0 : 1)
+#define prompt_Required(p) ((p)->needprompt = 1)

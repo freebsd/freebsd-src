@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: filter.c,v 1.22.2.10 1998/04/03 19:21:19 brian Exp $
+ * $Id: filter.c,v 1.22.2.11 1998/04/03 19:25:00 brian Exp $
  *
  *	TODO: Shoud send ICMP error message when we discard packets.
  */
@@ -402,35 +402,35 @@ filter_Action2Nam(int act)
 }
 
 static void
-doShowFilter(struct filterent *fp)
+doShowFilter(struct filterent *fp, struct prompt *prompt)
 {
   int n;
 
   for (n = 0; n < MAXFILTERS; n++, fp++) {
     if (fp->action != A_NONE) {
-      prompt_Printf(&prompt, "  %2d %s", n, filter_Action2Nam(fp->action));
+      prompt_Printf(prompt, "  %2d %s", n, filter_Action2Nam(fp->action));
       if (fp->action & A_UHOST)
-        prompt_Printf(&prompt, "host ");
+        prompt_Printf(prompt, "host ");
       else if (fp->action & A_UPORT)
-        prompt_Printf(&prompt, "port ");
+        prompt_Printf(prompt, "port ");
       else
-        prompt_Printf(&prompt, "     ");
-      prompt_Printf(&prompt, "%s/%d ", inet_ntoa(fp->saddr), fp->swidth);
-      prompt_Printf(&prompt, "%s/%d ", inet_ntoa(fp->daddr), fp->dwidth);
+        prompt_Printf(prompt, "     ");
+      prompt_Printf(prompt, "%s/%d ", inet_ntoa(fp->saddr), fp->swidth);
+      prompt_Printf(prompt, "%s/%d ", inet_ntoa(fp->daddr), fp->dwidth);
       if (fp->proto) {
-	prompt_Printf(&prompt, "%s", filter_Proto2Nam(fp->proto));
+	prompt_Printf(prompt, "%s", filter_Proto2Nam(fp->proto));
 
 	if (fp->opt.srcop)
-	  prompt_Printf(&prompt, " src %s %d", filter_Op2Nam(fp->opt.srcop),
+	  prompt_Printf(prompt, " src %s %d", filter_Op2Nam(fp->opt.srcop),
 		  fp->opt.srcport);
 	if (fp->opt.dstop)
-	  prompt_Printf(&prompt, " dst %s %d", filter_Op2Nam(fp->opt.dstop),
+	  prompt_Printf(prompt, " dst %s %d", filter_Op2Nam(fp->opt.dstop),
 		  fp->opt.dstport);
 	if (fp->opt.estab)
-	  prompt_Printf(&prompt, " estab");
+	  prompt_Printf(prompt, " estab");
 
       }
-      prompt_Printf(&prompt, "\n");
+      prompt_Printf(prompt, "\n");
     }
   }
 }
@@ -454,7 +454,7 @@ ShowFilter(struct cmdargs const *arg)
       filter = &arg->bundle->filter.alive;
     else
       return -1;
-    doShowFilter(filter->rule);
+    doShowFilter(filter->rule, arg->prompt);
   } else {
     struct filter *filter[4];
     int f;
@@ -465,9 +465,9 @@ ShowFilter(struct cmdargs const *arg)
     filter[3] = &arg->bundle->filter.alive;
     for (f = 0; f < 4; f++) {
       if (f)
-        prompt_Printf(&prompt, "\n");
-      prompt_Printf(&prompt, "%s:\n", filter[f]->name);
-      doShowFilter(filter[f]->rule);
+        prompt_Printf(arg->prompt, "\n");
+      prompt_Printf(arg->prompt, "%s:\n", filter[f]->name);
+      doShowFilter(filter[f]->rule, arg->prompt);
     }
   }
 

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.50.2.29 1998/04/03 19:23:59 brian Exp $
+ * $Id: ipcp.c,v 1.50.2.30 1998/04/03 19:25:04 brian Exp $
  *
  *	TODO:
  *		o More RFC1772 backwoard compatibility
@@ -142,40 +142,40 @@ ipcp_AddOutOctets(struct ipcp *ipcp, int n)
 int
 ReportIpcpStatus(struct cmdargs const *arg)
 {
-  prompt_Printf(&prompt, "%s [%s]\n", arg->bundle->ncp.ipcp.fsm.name,
+  prompt_Printf(arg->prompt, "%s [%s]\n", arg->bundle->ncp.ipcp.fsm.name,
           State2Nam(arg->bundle->ncp.ipcp.fsm.state));
   if (arg->bundle->ncp.ipcp.fsm.state == ST_OPENED) {
-    prompt_Printf(&prompt, " His side:               %s, %s\n",
+    prompt_Printf(arg->prompt, " His side:               %s, %s\n",
 	    inet_ntoa(arg->bundle->ncp.ipcp.peer_ip),
             vj2asc(arg->bundle->ncp.ipcp.peer_compproto));
-    prompt_Printf(&prompt, " My side:                %s, %s\n",
+    prompt_Printf(arg->prompt, " My side:                %s, %s\n",
 	    inet_ntoa(arg->bundle->ncp.ipcp.my_ip),
             vj2asc(arg->bundle->ncp.ipcp.my_compproto));
   }
 
-  prompt_Printf(&prompt, "\nDefaults:\n");
-  prompt_Printf(&prompt, " My Address:             %s/%d\n",
+  prompt_Printf(arg->prompt, "\nDefaults:\n");
+  prompt_Printf(arg->prompt, " My Address:             %s/%d\n",
 	  inet_ntoa(arg->bundle->ncp.ipcp.cfg.my_range.ipaddr),
           arg->bundle->ncp.ipcp.cfg.my_range.width);
   if (iplist_isvalid(&arg->bundle->ncp.ipcp.cfg.peer_list))
-    prompt_Printf(&prompt, " His Address:            %s\n",
+    prompt_Printf(arg->prompt, " His Address:            %s\n",
             arg->bundle->ncp.ipcp.cfg.peer_list.src);
   else
-    prompt_Printf(&prompt, " His Address:            %s/%d\n",
+    prompt_Printf(arg->prompt, " His Address:            %s/%d\n",
 	  inet_ntoa(arg->bundle->ncp.ipcp.cfg.peer_range.ipaddr),
           arg->bundle->ncp.ipcp.cfg.peer_range.width);
   if (arg->bundle->ncp.ipcp.cfg.HaveTriggerAddress)
-    prompt_Printf(&prompt, " Negotiation(trigger):   %s\n",
+    prompt_Printf(arg->prompt, " Negotiation(trigger):   %s\n",
             inet_ntoa(arg->bundle->ncp.ipcp.cfg.TriggerAddress));
   else
-    prompt_Printf(&prompt, " Negotiation(trigger):   MYADDR\n");
-  prompt_Printf(&prompt, " Initial VJ slots:       %d\n",
+    prompt_Printf(arg->prompt, " Negotiation(trigger):   MYADDR\n");
+  prompt_Printf(arg->prompt, " Initial VJ slots:       %d\n",
                 arg->bundle->ncp.ipcp.cfg.VJInitSlots);
-  prompt_Printf(&prompt, " Initial VJ compression: %s\n",
+  prompt_Printf(arg->prompt, " Initial VJ compression: %s\n",
           arg->bundle->ncp.ipcp.cfg.VJInitComp ? "on" : "off");
 
-  prompt_Printf(&prompt, "\n");
-  throughput_disp(&arg->bundle->ncp.ipcp.throughput);
+  prompt_Printf(arg->prompt, "\n");
+  throughput_disp(&arg->bundle->ncp.ipcp.throughput, arg->prompt);
 
   return 0;
 }
@@ -529,12 +529,12 @@ IpcpLayerDown(struct fsm *fp)
    * XXX this stuff should really live in the FSM.  Our config should
    * associate executable sections in files with events.
    */
-  if (SelectSystem(fp->bundle, s, LINKDOWNFILE) < 0)
+  if (SelectSystem(fp->bundle, s, LINKDOWNFILE, NULL) < 0)
     if (GetLabel()) {
-       if (SelectSystem(fp->bundle, GetLabel(), LINKDOWNFILE) < 0)
-       SelectSystem(fp->bundle, "MYADDR", LINKDOWNFILE);
+       if (SelectSystem(fp->bundle, GetLabel(), LINKDOWNFILE, NULL) < 0)
+       SelectSystem(fp->bundle, "MYADDR", LINKDOWNFILE, NULL);
     } else
-      SelectSystem(fp->bundle, "MYADDR", LINKDOWNFILE);
+      SelectSystem(fp->bundle, "MYADDR", LINKDOWNFILE, NULL);
 
   if (!(mode & MODE_AUTO))
     IpcpCleanInterface(fp);
@@ -573,15 +573,15 @@ IpcpLayerUp(struct fsm *fp)
    * XXX this stuff should really live in the FSM.  Our config should
    * associate executable sections in files with events.
    */
-  if (SelectSystem(fp->bundle, inet_ntoa(ipcp->my_ifip), LINKUPFILE) < 0)
+  if (SelectSystem(fp->bundle, inet_ntoa(ipcp->my_ifip), LINKUPFILE, NULL) < 0)
     if (GetLabel()) {
-      if (SelectSystem(fp->bundle, GetLabel(), LINKUPFILE) < 0)
-        SelectSystem(fp->bundle, "MYADDR", LINKUPFILE);
+      if (SelectSystem(fp->bundle, GetLabel(), LINKUPFILE, NULL) < 0)
+        SelectSystem(fp->bundle, "MYADDR", LINKUPFILE, NULL);
     } else
-      SelectSystem(fp->bundle, "MYADDR", LINKUPFILE);
+      SelectSystem(fp->bundle, "MYADDR", LINKUPFILE, NULL);
 
   throughput_start(&ipcp->throughput, "IPCP throughput");
-  prompt_Display(&prompt, fp->bundle);
+  bundle_DisplayPrompt(fp->bundle);
 }
 
 static int

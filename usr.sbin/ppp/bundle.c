@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.1.2.34 1998/04/03 19:21:06 brian Exp $
+ *	$Id: bundle.c,v 1.1.2.35 1998/04/03 19:24:56 brian Exp $
  */
 
 #include <sys/param.h>
@@ -115,7 +115,7 @@ bundle_NewPhase(struct bundle *bundle, u_int new)
 
   case PHASE_AUTHENTICATE:
     bundle->phase = new;
-    prompt_Display(&prompt, bundle);
+    bundle_DisplayPrompt(bundle);
     break;
 
   case PHASE_NETWORK:
@@ -126,7 +126,7 @@ bundle_NewPhase(struct bundle *bundle, u_int new)
 
   case PHASE_TERMINATE:
     bundle->phase = new;
-    prompt_Display(&prompt, bundle);
+    bundle_DisplayPrompt(bundle);
     break;
   }
 }
@@ -359,11 +359,15 @@ bundle_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)
 {
   struct bundle *bundle = descriptor2bundle(d);
   struct datalink *dl;
+  struct descriptor *desc;
   int result;
 
   result = 0;
   for (dl = bundle->links; dl; dl = dl->next)
     result += descriptor_UpdateSet(&dl->desc, r, w, e, n);
+
+  for (desc = bundle->desc.next; desc; desc = desc->next)
+    result += descriptor_UpdateSet(desc, r, w, e, n);
 
   return result;
 }
@@ -373,9 +377,14 @@ bundle_IsSet(struct descriptor *d, const fd_set *fdset)
 {
   struct bundle *bundle = descriptor2bundle(d);
   struct datalink *dl;
+  struct descriptor *desc;
 
   for (dl = bundle->links; dl; dl = dl->next)
     if (descriptor_IsSet(&dl->desc, fdset))
+      return 1;
+
+  for (desc = bundle->desc.next; desc; desc = desc->next)
+    if (descriptor_IsSet(desc, fdset))
       return 1;
 
   return 0;
@@ -386,10 +395,15 @@ bundle_DescriptorRead(struct descriptor *d, struct bundle *bundle,
                       const fd_set *fdset)
 {
   struct datalink *dl;
+  struct descriptor *desc;
 
   for (dl = bundle->links; dl; dl = dl->next)
     if (descriptor_IsSet(&dl->desc, fdset))
       descriptor_Read(&dl->desc, bundle, fdset);
+
+  for (desc = bundle->desc.next; desc; desc = desc->next)
+    if (descriptor_IsSet(desc, fdset))
+      descriptor_Read(desc, bundle, fdset);
 }
 
 static void
@@ -397,10 +411,15 @@ bundle_DescriptorWrite(struct descriptor *d, struct bundle *bundle,
                        const fd_set *fdset)
 {
   struct datalink *dl;
+  struct descriptor *desc;
 
   for (dl = bundle->links; dl; dl = dl->next)
     if (descriptor_IsSet(&dl->desc, fdset))
       descriptor_Write(&dl->desc, bundle, fdset);
+
+  for (desc = bundle->desc.next; desc; desc = desc->next)
+    if (descriptor_IsSet(desc, fdset))
+      descriptor_Write(desc, bundle, fdset);
 }
 
 
@@ -412,7 +431,7 @@ bundle_DescriptorWrite(struct descriptor *d, struct bundle *bundle,
  * (ENXIO) or the third `No such file or directory' (ENOENT) error.
  */
 struct bundle *
-bundle_Create(const char *prefix)
+bundle_Create(const char *prefix, struct prompt *prompt)
 {
   int s, enoentcount, err;
   struct ifreq ifrq;
@@ -441,7 +460,7 @@ bundle_Create(const char *prefix)
   }
 
   if (bundle.unit > MAX_TUN) {
-    prompt_Printf(&prompt, "No tunnel device is available (%s).\n",
+    prompt_Printf(prompt, "No tunnel device is available (%s).\n",
                   strerror(err));
     return NULL;
   }
@@ -494,7 +513,7 @@ bundle_Create(const char *prefix)
     return NULL;
   }
 
-  prompt_Printf(&prompt, "Using interface: %s\n", bundle.ifname);
+  prompt_Printf(prompt, "Using interface: %s\n", bundle.ifname);
   LogPrintf(LogPHASE, "Using interface: %s\n", bundle.ifname);
 
   bundle.routing_seq = 0;
@@ -583,6 +602,8 @@ void
 bundle_Destroy(struct bundle *bundle)
 {
   struct datalink *dl;
+  struct descriptor *desc, *ndesc;
+
 
   if (mode & MODE_AUTO) {
     IpcpCleanInterface(&bundle->ncp.ipcp.fsm);
@@ -594,6 +615,18 @@ bundle_Destroy(struct bundle *bundle)
     dl = datalink_Destroy(dl);
 
   bundle_Notify(bundle, EX_ERRDEAD);
+
+  desc = bundle->desc.next;
+  while (desc) {
+    ndesc = desc->next;
+    if (desc->type == PROMPT_DESCRIPTOR)
+      prompt_Destroy((struct prompt *)desc, 1);
+    else
+      LogPrintf(LogERROR, "bundle_Destroy: Don't know how to delete descriptor"
+                " type %d\n", desc->type);
+    desc = ndesc;
+  }
+  bundle->desc.next = NULL;
   bundle->ifname = NULL;
 }
 
@@ -760,7 +793,7 @@ bundle_LinkClosed(struct bundle *bundle, struct datalink *dl)
     if (!(mode & MODE_AUTO))
       bundle_DownInterface(bundle);
     bundle_NewPhase(bundle, PHASE_DEAD);
-    prompt_Display(&prompt, bundle);
+    bundle_DisplayPrompt(bundle);
   }
 }
 
@@ -845,12 +878,12 @@ int
 bundle_ShowLinks(struct cmdargs const *arg)
 {
   if (arg->cx)
-    datalink_Show(arg->cx);
+    datalink_Show(arg->cx, arg->prompt);
   else {
     struct datalink *dl;
 
     for (dl = arg->bundle->links; dl; dl = dl->next)
-      datalink_Show(dl);
+      datalink_Show(dl, arg->prompt);
   }
 
   return 0;
@@ -911,4 +944,82 @@ int
 bundle_IsDead(struct bundle *bundle)
 {
   return !bundle->links || (bundle->phase == PHASE_DEAD && bundle->CleaningUp);
+}
+
+void
+bundle_RegisterDescriptor(struct bundle *bundle, struct descriptor *d)
+{
+  d->next = bundle->desc.next;
+  bundle->desc.next = d;
+}
+
+void
+bundle_UnRegisterDescriptor(struct bundle *bundle, struct descriptor *d)
+{
+  struct descriptor **desc;
+
+  for (desc = &bundle->desc.next; *desc; desc = &(*desc)->next)
+    if (*desc == d) {
+      *desc = d->next;
+      break;
+    }
+}
+
+void
+bundle_DelPromptDescriptors(struct bundle *bundle, struct server *s)
+{
+  struct descriptor **desc;
+  struct prompt *p;
+
+  desc = &bundle->desc.next;
+  while (*desc) {
+    if ((*desc)->type == PROMPT_DESCRIPTOR) {
+      p = (struct prompt *)*desc;
+      if (p->owner == s) {
+        prompt_Destroy(p, 1);
+        desc = &bundle->desc.next;
+        continue;
+      }
+    }
+    desc = &(*desc)->next;
+  }
+}
+
+void
+bundle_DisplayPrompt(struct bundle *bundle)
+{
+  struct descriptor **desc;
+
+  for (desc = &bundle->desc.next; *desc; desc = &(*desc)->next)
+    if ((*desc)->type == PROMPT_DESCRIPTOR)
+      prompt_Required((struct prompt *)*desc);
+}
+
+void
+bundle_WriteTermPrompt(struct bundle *bundle, struct datalink *dl,
+                       const char *data, int len)
+{
+  struct descriptor *desc;
+  struct prompt *p;
+
+  for (desc = bundle->desc.next; desc; desc = desc->next)
+    if (desc->type == PROMPT_DESCRIPTOR) {
+      p = (struct prompt *)desc;
+      if (prompt_IsTermMode(p, dl))
+        prompt_Printf(p, ".*s", len, data);
+    }
+}
+
+void
+bundle_SetTtyCommandMode(struct bundle *bundle, struct datalink *dl)
+{
+  struct descriptor *desc;
+  struct prompt *p;
+
+  for (desc = bundle->desc.next; desc; desc = desc->next)
+    if (desc->type == PROMPT_DESCRIPTOR) {
+      p = (struct prompt *)desc;
+      if (prompt_IsTermMode(p, dl))
+        prompt_TtyCommandMode(p);
+    }
 }

@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.h,v 1.12.2.6 1998/04/03 19:21:15 brian Exp $
+ * $Id: command.h,v 1.12.2.7 1998/04/03 19:23:55 brian Exp $
  *
  *	TODO:
  */
@@ -25,10 +25,11 @@ struct cmdtab;
 struct cmdargs {
   struct cmdtab const *cmdtab;		/* The entire command table */
   struct cmdtab const *cmd;		/* This command entry */
-  int argc;
-  char const *const *argv;
-  struct bundle *bundle;
-  struct datalink *cx;
+  int argc;				/* Number of arguments (excluding cmd */
+  char const *const *argv;		/* Arguments */
+  struct bundle *bundle;		/* Our bundle */
+  struct datalink *cx;			/* Our context */
+  struct prompt *prompt;		/* Who executed us */
 };
 
 struct cmdtab {
@@ -65,8 +66,10 @@ struct cmdtab {
 extern struct in_addr ifnetmask;
 extern int aft_cmd;
 
-extern int IsInteractive(int);
+extern int IsInteractive(struct prompt *);
 extern void InterpretCommand(char *, int, int *, char ***);
-extern void RunCommand(struct bundle *, int, char const *const *, const char *);
-extern void DecodeCommand(struct bundle *, char *, int, const char *);
+extern void RunCommand(struct bundle *, int, char const *const *,
+                       struct prompt *, const char *);
+extern void DecodeCommand(struct bundle *, char *, int, struct prompt *,
+                          const char *);
 extern struct link *ChooseLink(struct cmdargs const *);

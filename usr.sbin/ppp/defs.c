@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: defs.c,v 1.11.4.4 1998/03/24 18:46:49 brian Exp $
+ *	$Id: defs.c,v 1.11.4.5 1998/03/25 18:38:44 brian Exp $
  */
 
 #include <sys/param.h>
@@ -74,21 +74,4 @@ randinit()
 #else
   srandom(time(NULL)^getpid());
 #endif
-}
-
-
-int
-GetShortHost()
-{
-  char *p;
-
-  if (gethostname(VarShortHost, sizeof VarShortHost)) {
-    LogPrintf(LogERROR, "GetShortHost: gethostname: %s\n", strerror(errno));
-    return 0;
-  }
-
-  if ((p = strchr(VarShortHost, '.')))
-    *p = '\0';
-
-  return 1;
 }

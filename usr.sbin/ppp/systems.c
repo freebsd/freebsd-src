@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: systems.c,v 1.35.2.2 1998/02/04 01:03:36 brian Exp $
+ * $Id: systems.c,v 1.35.2.3 1998/02/09 19:24:03 brian Exp $
  *
  *  TODO:
  */
@@ -269,12 +269,11 @@ xgets(char *buf, int buflen, FILE *fp)
 
 static int
 ReadSystem(struct bundle *bundle, const char *name, const char *file,
-           int doexec)
+           int doexec, struct prompt *prompt)
 {
   FILE *fp;
   char *cp, *wp;
   int n, len;
-  u_char olauth;
   char line[LINE_LEN];
   char filename[MAXPATHLEN];
   int linenum;
@@ -311,7 +310,7 @@ ReadSystem(struct bundle *bundle, const char *name, const char *file,
       switch (DecodeCtrlCommand(cp+1, arg)) {
       case CTRL_INCLUDE:
         LogPrintf(LogCOMMAND, "%s: Including \"%s\"\n", filename, arg);
-        n = ReadSystem(bundle, name, arg, doexec);
+        n = ReadSystem(bundle, name, arg, doexec, prompt);
         LogPrintf(LogCOMMAND, "%s: Done include of \"%s\"\n", filename, arg);
         if (!n)
           return 0;	/* got it */
@@ -348,13 +347,8 @@ ReadSystem(struct bundle *bundle, const char *name, const char *file,
           len = strlen(cp);
           InterpretCommand(cp, len, &argc, &argv);
           allowcmd = argc > 0 && !strcasecmp(*argv, "allow");
-          if ((!doexec && allowcmd) || (doexec && !allowcmd)) {
-	    olauth = VarLocalAuth;
-	    if (VarLocalAuth == LOCAL_NO_AUTH)
-	      VarLocalAuth = LOCAL_AUTH;
-	    RunCommand(bundle, argc, (char const *const *)argv, name);
-	    VarLocalAuth = olauth;
-	  }
+          if ((!doexec && allowcmd) || (doexec && !allowcmd))
+	    RunCommand(bundle, argc, (char const *const *)argv, prompt, name);
         }
 
 	fclose(fp);  /* everything read - get out */
@@ -368,7 +362,7 @@ ReadSystem(struct bundle *bundle, const char *name, const char *file,
 }
 
 int
-ValidSystem(const char *name)
+ValidSystem(const char *name, struct prompt *prompt)
 {
   /*
    * Note:  The ReadSystem() calls only result in calls to the Allow*
@@ -378,17 +372,18 @@ ValidSystem(const char *name)
     return userok = modeok = 1;
   userok = 0;
   modeok = 1;
-  ReadSystem(NULL, "default", CONFFILE, 0);
+  ReadSystem(NULL, "default", CONFFILE, 0, prompt);
   if (name != NULL)
-    ReadSystem(NULL, name, CONFFILE, 0);
+    ReadSystem(NULL, name, CONFFILE, 0, prompt);
   return userok && modeok;
 }
 
 int
-SelectSystem(struct bundle *bundle, const char *name, const char *file)
+SelectSystem(struct bundle *bundle, const char *name, const char *file,
+             struct prompt *prompt)
 {
   userok = modeok = 1;
-  return ReadSystem(bundle, name, file, 1);
+  return ReadSystem(bundle, name, file, 1, prompt);
 }
 
 int
@@ -401,10 +396,10 @@ LoadCommand(struct cmdargs const *arg)
   else
     name = "default";
 
-  if (!ValidSystem(name)) {
+  if (!ValidSystem(name, arg->prompt)) {
     LogPrintf(LogERROR, "%s: Label not allowed\n", name);
     return 1;
-  } else if (SelectSystem(arg->bundle, name, CONFFILE) < 0) {
+  } else if (SelectSystem(arg->bundle, name, CONFFILE, arg->prompt) < 0) {
     LogPrintf(LogWARN, "%s: label not found.\n", name);
     return -1;
   } else

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.h,v 1.1.2.22 1998/04/03 19:21:07 brian Exp $
+ *	$Id: bundle.h,v 1.1.2.23 1998/04/03 19:24:41 brian Exp $
  */
 
 #define	PHASE_DEAD		0	/* Link is dead */
@@ -36,6 +36,8 @@
 struct datalink;
 struct physical;
 struct link;
+struct server;
+struct prompt;
 
 struct bundle {
   struct descriptor desc;     /* really all our datalinks */
@@ -85,7 +87,7 @@ struct bundle {
 #define descriptor2bundle(d) \
   ((d)->type == BUNDLE_DESCRIPTOR ? (struct bundle *)(d) : NULL)
 
-extern struct bundle *bundle_Create(const char *);
+extern struct bundle *bundle_Create(const char *, struct prompt *);
 extern void bundle_Destroy(struct bundle *);
 extern const char *bundle_PhaseName(struct bundle *);
 #define bundle_Phase(b) ((b)->phase)
@@ -111,3 +113,12 @@ extern struct physical *bundle2physical(struct bundle *, const char *);
 extern struct datalink *bundle2datalink(struct bundle *, const char *);
 extern struct authinfo *bundle2pap(struct bundle *, const char *);
 extern struct chap *bundle2chap(struct bundle *, const char *);
+
+extern void bundle_RegisterDescriptor(struct bundle *, struct descriptor *);
+extern void bundle_UnRegisterDescriptor(struct bundle *, struct descriptor *);
+
+extern void bundle_DelPromptDescriptors(struct bundle *, struct server *);
+extern void bundle_DisplayPrompt(struct bundle *);
+extern void bundle_WriteTermPrompt(struct bundle *, struct datalink *,
+                                   const char *, int);
+extern void bundle_SetTtyCommandMode(struct bundle *, struct datalink *);

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: timer.c,v 1.27 1998/01/21 02:15:29 brian Exp $
+ * $Id: timer.c,v 1.27.2.1 1998/04/03 19:21:54 brian Exp $
  *
  *  TODO:
  */
@@ -155,7 +155,7 @@ TimerService()
     time_t n = time(NULL);  /* Only show timers every second */
 
     if (n > t)
-      ShowTimers(LogDEBUG);
+      ShowTimers(LogDEBUG, NULL);
     t = n;
   }
   tp = TimerList;
@@ -200,7 +200,7 @@ TimerService()
 }
 
 void
-ShowTimers(int LogLevel)
+ShowTimers(int LogLevel, struct prompt *prompt)
 {
   struct pppTimer *pt;
   int rest = 0;
@@ -212,18 +212,18 @@ ShowTimers(int LogLevel)
   pt->name, pt, SECS(pt->load), HSECS(pt->load), SECS(rest),		\
   HSECS(rest), tState2Nam(pt->state)
 
-  if (LogIsKept(LogLevel))
+  if (!prompt)
     LogPrintf(LogLevel, "---- Begin of Timer Service List---\n");
 
   for (pt = TimerList; pt; pt = pt->next) {
     rest += pt->rest;
-    if (LogIsKept(LogLevel))
+    if (prompt)
+      prompt_Printf(prompt, DISP);
+    else
       LogPrintf(LogLevel, DISP);
-    else if (LogLevel < LogMIN)
-      prompt_Printf(&prompt, DISP);
   }
 
-  if (LogIsKept(LogLevel))
+  if (!prompt)
     LogPrintf(LogLevel, "---- End of Timer Service List ---\n");
 }
 

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.121.2.41 1998/04/03 19:24:17 brian Exp $
+ * $Id: main.c,v 1.121.2.42 1998/04/03 19:25:07 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -94,11 +94,12 @@
 
 static char pid_filename[MAXPATHLEN];
 
-static void DoLoop(struct bundle *);
+static void DoLoop(struct bundle *, struct prompt *);
 static void TerminalStop(int);
 static const char *ex_desc(int);
 
 static struct bundle *SignalBundle;
+static struct prompt *SignalPrompt;
 
 void
 Cleanup(int excode)
@@ -111,11 +112,9 @@ Cleanup(int excode)
 void
 AbortProgram(int excode)
 {
-  prompt_Drop(&prompt, 1);
-  ServerClose();
+  ServerClose(SignalBundle);
   ID0unlink(pid_filename);
   LogPrintf(LogPHASE, "PPP Terminated (%s).\n", ex_desc(excode));
-  prompt_TtyOldMode(&prompt);
   bundle_Close(SignalBundle, NULL, 1);
   bundle_Destroy(SignalBundle);
   LogClose();
@@ -156,20 +155,27 @@ TerminalCont(int signo)
 {
   pending_signal(SIGCONT, SIG_DFL);
   pending_signal(SIGTSTP, TerminalStop);
-  prompt_TtyCommandMode(&prompt);
-  if (getpgrp() == prompt_pgrp(&prompt))
-    prompt_Display(&prompt, SignalBundle);
+  if (getpgrp() == prompt_pgrp(SignalPrompt)) {
+    prompt_TtyCommandMode(SignalPrompt);
+    log_RegisterPrompt(SignalPrompt);
+    SignalPrompt->nonewline = 1;
+    prompt_Required(SignalPrompt);
+  }
 }
 
 static void
 TerminalStop(int signo)
 {
   pending_signal(SIGCONT, TerminalCont);
-  prompt_TtyOldMode(&prompt);
+  if (getpgrp() == prompt_pgrp(SignalPrompt)) {
+    prompt_TtyOldMode(SignalPrompt);
+    log_UnRegisterPrompt(SignalPrompt);
+  }
   pending_signal(SIGTSTP, SIG_DFL);
   kill(getpid(), signo);
 }
 
+#if 0 /* What's our passwd :-O */
 static void
 SetUpServer(int signo)
 {
@@ -181,13 +187,13 @@ SetUpServer(int signo)
     LogPrintf(LogERROR, "SIGUSR1: Failed %d to open port %d\n",
 	      res, SERVER_PORT + SignalBundle->unit);
 }
+#endif
 
 static void
 BringDownServer(int signo)
 {
-  VarHaveLocalAuthKey = 0;
-  LocalAuthInit();
-  ServerClose();
+  /* Drops all child prompts too ! */
+  ServerClose(SignalBundle);
 }
 
 static const char *
@@ -276,6 +282,7 @@ main(int argc, char **argv)
   char *name, *label;
   int nfds;
   struct bundle *bundle;
+  struct prompt *prompt;
 
   nfds = getdtablesize();
   if (nfds >= FD_SETSIZE)
@@ -311,7 +318,11 @@ main(int argc, char **argv)
   }
 #endif
 
-  prompt_Init(&prompt, (mode & MODE_DIRECT) ? PROMPT_NONE : PROMPT_STD);
+  /* Allow output for the moment (except in direct mode) */
+  if (mode & MODE_DIRECT)
+    prompt = NULL;
+  else
+    SignalPrompt = prompt = prompt_Create(NULL, NULL, PROMPT_STD);
 
   ID0init();
   if (ID0realuid() != 0) {
@@ -329,7 +340,7 @@ main(int argc, char **argv)
     } while (ptr >= conf);
   }
 
-  if (!ValidSystem(label)) {
+  if (!ValidSystem(label, prompt)) {
     fprintf(stderr, "You may not use ppp in this mode with this label\n");
     if (mode & MODE_DIRECT) {
       const char *l;
@@ -340,27 +351,25 @@ main(int argc, char **argv)
     return 1;
   }
 
-  if (mode & MODE_INTER)
-    VarLocalAuth = LOCAL_AUTH;
-
-  if ((bundle = bundle_Create("/dev/tun")) == NULL) {
+  if ((bundle = bundle_Create("/dev/tun", prompt)) == NULL) {
     LogPrintf(LogWARN, "bundle_Create: %s\n", strerror(errno));
     return EX_START;
   }
 
-  if (!GetShortHost())
-    return 1;
-  IsInteractive(1);
-
   SignalBundle = bundle;
+  if (prompt) {
+    prompt->bundle = bundle;
+    bundle_RegisterDescriptor(bundle, &prompt->desc);
+    IsInteractive(prompt);
+  }
 
-  if (SelectSystem(bundle, "default", CONFFILE) < 0)
-    prompt_Printf(&prompt,
+  if (SelectSystem(bundle, "default", CONFFILE, prompt) < 0)
+    prompt_Printf(prompt,
                   "Warning: No default entry is given in config file.\n");
 
   if ((mode & MODE_OUTGOING_DAEMON) && !(mode & MODE_DEDICATED))
     if (label == NULL) {
-      prompt_Printf(&prompt, "Destination system must be specified in"
+      prompt_Printf(prompt, "Destination system must be specified in"
 		    " auto, background or ddial mode.\n");
       return EX_START;
     }
@@ -385,8 +394,10 @@ main(int argc, char **argv)
 #endif
   }
   if (!(mode & MODE_INTER)) {
+#if 0 /* What's our passwd :-O */
 #ifdef SIGUSR1
     pending_signal(SIGUSR1, SetUpServer);
+#endif
 #endif
 #ifdef SIGUSR2
     pending_signal(SIGUSR2, BringDownServer);
@@ -394,8 +405,8 @@ main(int argc, char **argv)
   }
 
   if (label) {
-    if (SelectSystem(bundle, label, CONFFILE) < 0) {
-      prompt_Printf(&prompt, "Destination system (%s) not found.\n", label);
+    if (SelectSystem(bundle, label, CONFFILE, prompt) < 0) {
+      prompt_Printf(prompt, "Destination system (%s) not found.\n", label);
       AbortProgram(EX_START);
     }
     /*
@@ -405,7 +416,7 @@ main(int argc, char **argv)
     SetLabel(label);
     if (mode & MODE_AUTO &&
 	bundle->ncp.ipcp.cfg.peer_range.ipaddr.s_addr == INADDR_ANY) {
-      prompt_Printf(&prompt, "You must \"set ifaddr\" in label %s for "
+      prompt_Printf(prompt, "You must \"set ifaddr\" in label %s for "
                     "auto mode.\n", label);
       AbortProgram(EX_START);
     }
@@ -441,13 +452,13 @@ main(int argc, char **argv)
 
 	  /* Wait for our child to close its pipe before we exit */
 	  if (read(bgpipe[0], &c, 1) != 1) {
-	    prompt_Printf(&prompt, "Child exit, no status.\n");
+	    prompt_Printf(prompt, "Child exit, no status.\n");
 	    LogPrintf(LogPHASE, "Parent: Child exit, no status.\n");
 	  } else if (c == EX_NORMAL) {
-	    prompt_Printf(&prompt, "PPP enabled.\n");
+	    prompt_Printf(prompt, "PPP enabled.\n");
 	    LogPrintf(LogPHASE, "Parent: PPP enabled.\n");
 	  } else {
-	    prompt_Printf(&prompt, "Child failed (%s).\n", ex_desc((int) c));
+	    prompt_Printf(prompt, "Child failed (%s).\n", ex_desc((int) c));
 	    LogPrintf(LogPHASE, "Parent: Child failed (%s).\n",
 		      ex_desc((int) c));
 	  }
@@ -460,22 +471,25 @@ main(int argc, char **argv)
       }
     }
 
-    prompt_Init(&prompt, PROMPT_NONE);
-    close(STDOUT_FILENO);
-    close(STDERR_FILENO);
-
-    if (mode & MODE_DIRECT)
+    if (mode & MODE_DIRECT) {
       /* STDIN_FILENO gets used by modem_Open in DIRECT mode */
-      prompt_TtyInit(&prompt, PROMPT_DONT_WANT_INT);
-    else if (mode & MODE_DAEMON) {
-      setsid();
+      prompt = prompt_Create(NULL, bundle, PROMPT_STD);
+      prompt_TtyInit(prompt, PROMPT_DONT_WANT_INT);
+      prompt_DestroyUnclean(prompt);
+      close(STDOUT_FILENO);
+      close(STDERR_FILENO);
+    } else if (mode & MODE_DAEMON) {
+      prompt_Destroy(prompt, 0);
+      close(STDOUT_FILENO);
+      close(STDERR_FILENO);
       close(STDIN_FILENO);
+      setsid();
     }
   } else {
     close(STDERR_FILENO);
-    prompt_TtyInit(&prompt, PROMPT_WANT_INT);
-    prompt_TtyCommandMode(&prompt);
-    prompt_Display(&prompt, bundle);
+    prompt_TtyInit(prompt, PROMPT_WANT_INT);
+    prompt_TtyCommandMode(prompt);
+    prompt_Required(prompt);
   }
 
   snprintf(pid_filename, sizeof pid_filename, "%stun%d.pid",
@@ -495,7 +509,7 @@ main(int argc, char **argv)
 
 
   do
-    DoLoop(bundle);
+    DoLoop(bundle, prompt);
   while (mode & MODE_DEDICATED);
 
   AbortProgram(EX_NORMAL);
@@ -504,7 +518,7 @@ main(int argc, char **argv)
 }
 
 static void
-DoLoop(struct bundle *bundle)
+DoLoop(struct bundle *bundle, struct prompt *prompt)
 {
   fd_set rfds, wfds, efds;
   int pri, i, n, nfds;
@@ -534,8 +548,6 @@ DoLoop(struct bundle *bundle)
       FD_SET(bundle->tun_fd, &rfds);
     }
 
-    descriptor_UpdateSet(&prompt.desc, &rfds, &wfds, &efds, &nfds);
-
     if (bundle_IsDead(bundle))
       /* Don't select - we'll be here forever */
       break;
@@ -562,9 +574,6 @@ DoLoop(struct bundle *bundle)
 
     if (descriptor_IsSet(&server.desc, &rfds))
       descriptor_Read(&server.desc, bundle, &rfds);
-
-    if (descriptor_IsSet(&prompt.desc, &rfds))
-      descriptor_Read(&prompt.desc, bundle, &rfds);
 
     if (descriptor_IsSet(&bundle->desc, &wfds))
       descriptor_Write(&bundle->desc, bundle, &wfds);
@@ -644,6 +653,5 @@ DoLoop(struct bundle *bundle)
       }
     }
   }
-  prompt_Printf(&prompt, "\n");
   LogPrintf(LogDEBUG, "Job (DoLoop) done.\n");
 }

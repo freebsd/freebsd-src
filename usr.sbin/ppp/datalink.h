@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.h,v 1.1.2.12 1998/03/13 21:07:03 brian Exp $
+ *	$Id: datalink.h,v 1.1.2.13 1998/04/03 19:21:18 brian Exp $
  */
 
 #define DATALINK_CLOSED  (0)
@@ -94,6 +94,8 @@ struct datalink {
 #define descriptor2datalink(d) \
   ((d)->type == DATALINK_DESCRIPTOR ? (struct datalink *)(d) : NULL)
 
+struct prompt;
+
 extern struct datalink *datalink_Create(const char *name, struct bundle *,
                                         const struct fsm_parent *);
 extern struct datalink *datalink_Destroy(struct datalink *);
@@ -101,6 +103,6 @@ extern void datalink_Up(struct datalink *, int, int);
 extern void datalink_Close(struct datalink *, int);
 extern void datalink_Down(struct datalink *, int);
 extern void datalink_StayDown(struct datalink *);
-extern void datalink_Show(struct datalink *);
+extern void datalink_Show(struct datalink *, struct prompt *);
 extern void datalink_AuthOk(struct datalink *);
 extern void datalink_AuthNotOk(struct datalink *);

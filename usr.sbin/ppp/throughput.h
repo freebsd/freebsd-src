@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: throughput.h,v 1.2.4.1 1998/02/10 03:23:48 brian Exp $
+ *	$Id: throughput.h,v 1.2.4.2 1998/04/03 19:21:53 brian Exp $
  */
 
 #define SAMPLE_PERIOD 5
@@ -40,7 +40,7 @@ struct pppThroughput {
 };
 
 extern void throughput_init(struct pppThroughput *);
-extern void throughput_disp(struct pppThroughput *);
+extern void throughput_disp(struct pppThroughput *, struct prompt *);
 extern void throughput_log(struct pppThroughput *, int, const char *);
 extern void throughput_start(struct pppThroughput *, const char *);
 extern void throughput_stop(struct pppThroughput *);

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: log.h,v 1.18 1997/12/21 12:11:07 brian Exp $
+ *	$Id: log.h,v 1.18.2.1 1998/02/10 03:23:27 brian Exp $
  */
 
 #define LogMIN		(1)
@@ -54,17 +54,23 @@ struct mbuf;
 /* The first int arg for all of the following is one of the above values */
 extern const char *LogName(int);
 extern void LogKeep(int);
-extern void LogKeepLocal(int);
+extern void LogKeepLocal(int, u_long *);
 extern void LogDiscard(int);
-extern void LogDiscardLocal(int);
+extern void LogDiscardLocal(int, u_long *);
 extern void LogDiscardAll(void);
-extern void LogDiscardAllLocal(void);
+extern void LogDiscardAllLocal(u_long *);
 #define LOG_KEPT_SYSLOG (1)	/* Results of LogIsKept() */
 #define LOG_KEPT_LOCAL  (2)	/* Results of LogIsKept() */
 extern int LogIsKept(int);
+extern int LogIsKeptLocal(int, u_long);
 extern void LogOpen(const char *);
 extern void LogSetTun(int);
 extern void LogClose(void);
 extern void LogPrintf(int, const char *,...);
 extern void LogDumpBp(int, const char *, const struct mbuf *);
 extern void LogDumpBuff(int, const char *, const u_char *, int);
+extern void log_RegisterPrompt(struct prompt *);
+extern void log_UnRegisterPrompt(struct prompt *);
+extern int log_ShowLevel(struct cmdargs const *);
+extern int log_SetLevel(struct cmdargs const *);
+extern int log_ShowWho(struct cmdargs const *);

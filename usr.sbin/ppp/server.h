@@ -23,12 +23,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: server.h,v 1.4 1997/12/21 12:11:08 brian Exp $
+ *	$Id: server.h,v 1.4.2.1 1998/02/09 19:24:02 brian Exp $
  */
 
 struct server {
   struct descriptor desc;
   int fd;
+  char passwd[50];
 };
 
 #define server2descriptor(s) (&(s)->desc)
@@ -37,6 +38,6 @@ struct server {
 
 extern struct server server;
 
-extern int ServerLocalOpen(const char *, mode_t);
-extern int ServerTcpOpen(int);
-extern int ServerClose(void);
+extern int ServerLocalOpen(struct bundle *, const char *, mode_t);
+extern int ServerTcpOpen(struct bundle *, int);
+extern int ServerClose(struct bundle *);

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: auth.c,v 1.27.2.16 1998/04/03 19:21:06 brian Exp $
+ * $Id: auth.c,v 1.27.2.17 1998/04/03 19:23:52 brian Exp $
  *
  *	TODO:
  *		o Implement check against with registered IP addresses.
@@ -73,63 +73,6 @@ Auth2Nam(u_short auth)
     return "none";
   }
   return "unknown";
-}
-
-void
-LocalAuthInit()
-{
-  if (!(mode&MODE_DAEMON))
-    /* We're allowed in interactive mode */
-    VarLocalAuth = LOCAL_AUTH;
-  else if (VarHaveLocalAuthKey)
-    VarLocalAuth = *VarLocalAuthKey == '\0' ? LOCAL_AUTH : LOCAL_NO_AUTH;
-  else
-    switch (LocalAuthValidate(SECRETFILE, VarShortHost, "")) {
-    case NOT_FOUND:
-      VarLocalAuth = LOCAL_DENY;
-      break;
-    case VALID:
-      VarLocalAuth = LOCAL_AUTH;
-      break;
-    case INVALID:
-      VarLocalAuth = LOCAL_NO_AUTH;
-      break;
-    }
-}
-
-LOCAL_AUTH_VALID
-LocalAuthValidate(const char *fname, const char *system, const char *key)
-{
-  FILE *fp;
-  int n;
-  char *vector[3];
-  char buff[LINE_LEN];
-  LOCAL_AUTH_VALID rc;
-
-  rc = NOT_FOUND;		/* No system entry */
-  fp = OpenSecret(fname);
-  if (fp == NULL)
-    return (rc);
-  while (fgets(buff, sizeof buff, fp)) {
-    if (buff[0] == '#')
-      continue;
-    buff[strlen(buff) - 1] = 0;
-    memset(vector, '\0', sizeof vector);
-    n = MakeArgs(buff, vector, VECSIZE(vector));
-    if (n < 1)
-      continue;
-    if (strcmp(vector[0], system) == 0) {
-      if ((vector[1] == (char *) NULL && (key == NULL || *key == '\0')) ||
-          (vector[1] != (char *) NULL && strcmp(vector[1], key) == 0)) {
-	rc = VALID;		/* Valid   */
-      } else {
-	rc = INVALID;		/* Invalid */
-      }
-      break;
-    }
-  }
-  CloseSecret(fp);
-  return (rc);
 }
 
 static int

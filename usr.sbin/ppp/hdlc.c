@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: hdlc.c,v 1.28.2.21 1998/03/16 22:53:50 brian Exp $
+ * $Id: hdlc.c,v 1.28.2.22 1998/04/03 19:21:22 brian Exp $
  *
  *	TODO:
  */
@@ -574,15 +574,17 @@ HdlcDetect(struct physical *physical, u_char *cp, int n)
 int
 hdlc_ReportStatus(struct cmdargs const *arg)
 {
-  prompt_Printf(&prompt, "HDLC level errors:\n");
-  prompt_Printf(&prompt, " Bad Frame Check Sequence fields: %u\n",
-	        arg->cx->physical->hdlc.stats.badfcs);
-  prompt_Printf(&prompt, " Bad address (!= 0x%02x) fields:    %u\n",
-	        HDLC_ADDR, arg->cx->physical->hdlc.stats.badaddr);
-  prompt_Printf(&prompt, " Bad command (!= 0x%02x) fields:    %u\n",
-	        HDLC_UI, arg->cx->physical->hdlc.stats.badcommand);
-  prompt_Printf(&prompt, " Unrecognised protocol fields:    %u\n",
-	        arg->cx->physical->hdlc.stats.unknownproto);
+  struct hdlc *hdlc = &arg->cx->physical->hdlc;
+
+  prompt_Printf(arg->prompt, "HDLC level errors:\n");
+  prompt_Printf(arg->prompt, " Bad Frame Check Sequence fields: %u\n",
+	        hdlc->stats.badfcs);
+  prompt_Printf(arg->prompt, " Bad address (!= 0x%02x) fields:    %u\n",
+	        HDLC_ADDR, hdlc->stats.badaddr);
+  prompt_Printf(arg->prompt, " Bad command (!= 0x%02x) fields:    %u\n",
+	        HDLC_UI, hdlc->stats.badcommand);
+  prompt_Printf(arg->prompt, " Unrecognised protocol fields:    %u\n",
+	        hdlc->stats.unknownproto);
   return 0;
 }
 

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *  $Id: link.c,v 1.1.2.14 1998/03/20 19:48:08 brian Exp $
+ *  $Id: link.c,v 1.1.2.15 1998/04/03 19:21:33 brian Exp $
  *
  */
 
@@ -194,18 +194,18 @@ link_ProtocolRecord(struct link *l, u_short proto, int type)
 }
 
 void
-link_ReportProtocolStatus(struct link *l)
+link_ReportProtocolStatus(struct link *l, struct prompt *prompt)
 {
   int i;
 
-  prompt_Printf(&prompt, "    Protocol     in        out      "
+  prompt_Printf(prompt, "    Protocol     in        out      "
                 "Protocol      in       out\n");
   for (i = 0; i < NPROTOSTAT; i++) {
-    prompt_Printf(&prompt, "   %-9s: %8lu, %8lu",
+    prompt_Printf(prompt, "   %-9s: %8lu, %8lu",
 	    ProtocolStat[i].name, l->proto_in[i], l->proto_out[i]);
     if ((i % 2) == 0)
-      prompt_Printf(&prompt, "\n");
+      prompt_Printf(prompt, "\n");
   }
   if (!(i % 2))
-    prompt_Printf(&prompt, "\n");
+    prompt_Printf(prompt, "\n");
 }

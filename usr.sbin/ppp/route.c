@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: route.c,v 1.42.2.13 1998/03/20 19:48:21 brian Exp $
+ * $Id: route.c,v 1.42.2.14 1998/04/03 19:21:51 brian Exp $
  *
  */
 
@@ -70,7 +70,8 @@
 #include "prompt.h"
 
 static void
-p_sockaddr(struct sockaddr *phost, struct sockaddr *pmask, int width)
+p_sockaddr(struct prompt *prompt, struct sockaddr *phost,
+           struct sockaddr *pmask, int width)
 {
   char buf[29];
   struct sockaddr_in *ihost = (struct sockaddr_in *)phost;
@@ -141,7 +142,7 @@ p_sockaddr(struct sockaddr *phost, struct sockaddr *pmask, int width)
     break;
   }
 
-  prompt_Printf(&prompt, "%-*s ", width-1, buf);
+  prompt_Printf(prompt, "%-*s ", width-1, buf);
 }
 
 static struct bits {
@@ -182,7 +183,7 @@ static struct bits {
 #endif
 
 static void
-p_flags(u_long f, int max)
+p_flags(struct prompt *prompt, u_long f, int max)
 {
   char name[33], *flags;
   register struct bits *p = bits;
@@ -194,7 +195,7 @@ p_flags(u_long f, int max)
     if (p->b_mask & f)
       *flags++ = p->b_val;
   *flags = '\0';
-  prompt_Printf(&prompt, "%-*.*s", max, max, name);
+  prompt_Printf(prompt, "%-*.*s", max, max, name);
 }
 
 const char *
@@ -309,7 +310,8 @@ ShowRoute(struct cmdargs const *arg)
   }
   ep = sp + needed;
 
-  prompt_Printf(&prompt, "%-20s%-20sFlags  Netif\n", "Destination", "Gateway");
+  prompt_Printf(arg->prompt, "%-20s%-20sFlags  Netif\n",
+                "Destination", "Gateway");
   for (cp = sp; cp < ep; cp += rtm->rtm_msglen) {
     rtm = (struct rt_msghdr *) cp;
     wp = (char *)(rtm+1);
@@ -332,11 +334,11 @@ ShowRoute(struct cmdargs const *arg)
     } else
       sa_mask = NULL;
 
-    p_sockaddr(sa_dst, sa_mask, 20);
-    p_sockaddr(sa_gw, NULL, 20);
+    p_sockaddr(arg->prompt, sa_dst, sa_mask, 20);
+    p_sockaddr(arg->prompt, sa_gw, NULL, 20);
 
-    p_flags(rtm->rtm_flags, 6);
-    prompt_Printf(&prompt, " %s\n", Index2Nam(rtm->rtm_index));
+    p_flags(arg->prompt, rtm->rtm_flags, 6);
+    prompt_Printf(arg->prompt, " %s\n", Index2Nam(rtm->rtm_index));
   }
   free(sp);
   return 0;

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.77.2.41 1998/03/21 22:58:43 brian Exp $
+ * $Id: modem.c,v 1.77.2.42 1998/04/03 19:21:40 brian Exp $
  *
  *  TODO:
  */
@@ -777,9 +777,7 @@ modem_Hangup(struct physical *modem, int dedicated_force)
   if (modem->fd >= 0) {
     StopTimer(&modem->link.Timer);
     throughput_stop(&modem->link.throughput);
-
-    if (prompt_IsTermMode(&prompt))
-      prompt_TtyCommandMode(&prompt);
+    bundle_SetTtyCommandMode(modem->dl->bundle, modem->dl);
   }
 }
 
@@ -893,61 +891,62 @@ int
 modem_ShowStatus(struct cmdargs const *arg)
 {
   const char *dev;
+  struct physical *modem = arg->cx->physical;
 #ifdef TIOCOUTQ
   int nb;
 #endif
 
-  dev = *arg->cx->physical->name.full ?
-    arg->cx->physical->name.full : "stdin";
+  dev = *modem->name.full ?
+    modem->name.full : "stdin";
 
-  prompt_Printf(&prompt, "device list:   %s\n", arg->cx->physical->cfg.devlist);
-  prompt_Printf(&prompt, "device:        %s\n               ", dev);
+  prompt_Printf(arg->prompt, "device list:   %s\n", modem->cfg.devlist);
+  prompt_Printf(arg->prompt, "device:        %s\n               ", dev);
   if (Physical_IsSync(arg->cx->physical))
-    prompt_Printf(&prompt, "sync");
+    prompt_Printf(arg->prompt, "sync");
   else
-    prompt_Printf(&prompt, "%dbps", arg->cx->physical->cfg.speed);
+    prompt_Printf(arg->prompt, "%dbps", modem->cfg.speed);
 
-  switch (arg->cx->physical->cfg.parity & CSIZE) {
+  switch (modem->cfg.parity & CSIZE) {
   case CS7:
-    prompt_Printf(&prompt, ", cs7");
+    prompt_Printf(arg->prompt, ", cs7");
     break;
   case CS8:
-    prompt_Printf(&prompt, ", cs8");
+    prompt_Printf(arg->prompt, ", cs8");
     break;
   }
-  if (arg->cx->physical->cfg.parity & PARENB) {
-    if (arg->cx->physical->cfg.parity & PARODD)
-      prompt_Printf(&prompt, ", odd parity");
+  if (modem->cfg.parity & PARENB) {
+    if (modem->cfg.parity & PARODD)
+      prompt_Printf(arg->prompt, ", odd parity");
     else
-      prompt_Printf(&prompt, ", even parity");
+      prompt_Printf(arg->prompt, ", even parity");
   } else
-    prompt_Printf(&prompt, ", no parity");
+    prompt_Printf(arg->prompt, ", no parity");
 
-  prompt_Printf(&prompt, ", CTS/RTS %s\n",
-                (arg->cx->physical->cfg.rts_cts ? "on" : "off"));
+  prompt_Printf(arg->prompt, ", CTS/RTS %s\n",
+                (modem->cfg.rts_cts ? "on" : "off"));
 
   if (LogIsKept(LogDEBUG))
-    prompt_Printf(&prompt, "fd = %d, modem control = %o\n",
-                  arg->cx->physical->fd, arg->cx->physical->mbits);
-  prompt_Printf(&prompt, "connect count: %d\n",
-                arg->cx->physical->connect_count);
+    prompt_Printf(arg->prompt, "fd = %d, modem control = %o\n",
+                  modem->fd, modem->mbits);
+  prompt_Printf(arg->prompt, "connect count: %d\n",
+                modem->connect_count);
 #ifdef TIOCOUTQ
-  if (arg->cx->physical->fd >= 0)
-    if (ioctl(arg->cx->physical->fd, TIOCOUTQ, &nb) >= 0)
-      prompt_Printf(&prompt, "outq:          %d\n", nb);
+  if (modem->fd >= 0)
+    if (ioctl(modem->fd, TIOCOUTQ, &nb) >= 0)
+      prompt_Printf(arg->prompt, "outq:          %d\n", nb);
     else
-      prompt_Printf(&prompt, "outq: ioctl probe failed: %s\n", strerror(errno));
+      prompt_Printf(arg->prompt, "outq: ioctl probe failed: %s\n", strerror(errno));
 #endif
-  prompt_Printf(&prompt, "outq packets:  %d\n",
-                link_QueueLen(&arg->cx->physical->link));
-  prompt_Printf(&prompt, "Dial Script:   %s\n", arg->cx->cfg.script.dial);
-  prompt_Printf(&prompt, "Login Script:  %s\n", arg->cx->cfg.script.login);
-  prompt_Printf(&prompt, "Hangup Script: %s\n", arg->cx->cfg.script.hangup);
-  prompt_Printf(&prompt, "Phone List:    %s\n", arg->cx->cfg.phone.list);
-  prompt_Printf(&prompt, "Phone Number:  %s\n", arg->cx->phone.chosen);
+  prompt_Printf(arg->prompt, "outq packets:  %d\n",
+                link_QueueLen(&modem->link));
+  prompt_Printf(arg->prompt, "Dial Script:   %s\n", arg->cx->cfg.script.dial);
+  prompt_Printf(arg->prompt, "Login Script:  %s\n", arg->cx->cfg.script.login);
+  prompt_Printf(arg->prompt, "Hangup Script: %s\n", arg->cx->cfg.script.hangup);
+  prompt_Printf(arg->prompt, "Phone List:    %s\n", arg->cx->cfg.phone.list);
+  prompt_Printf(arg->prompt, "Phone Number:  %s\n", arg->cx->phone.chosen);
 
-  prompt_Printf(&prompt, "\n");
-  throughput_disp(&arg->cx->physical->link.throughput);
+  prompt_Printf(arg->prompt, "\n");
+  throughput_disp(&modem->link.throughput, arg->prompt);
 
   return 0;
 }
@@ -1000,7 +999,7 @@ modem_DescriptorRead(struct descriptor *d, struct bundle *bundle,
         }
         datalink_Up(bundle2datalink(bundle, p->link.name), 0, 1);
       } else
-        prompt_Printf(&prompt, "%.*s", n, rbuff);
+        bundle_WriteTermPrompt(p->dl->bundle, p->dl, rbuff, n);
     }
   } else if (n > 0)
     async_Input(bundle, rbuff, n, p);

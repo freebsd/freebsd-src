@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: vars.c,v 1.45.2.21 1998/04/03 19:24:36 brian Exp $
+ * $Id: vars.c,v 1.45.2.22 1998/04/03 19:24:48 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -48,7 +48,7 @@
 #include "prompt.h"
 
 char VarVersion[] = "PPP Version 2.0-beta";
-char VarLocalVersion[] = "$Date: 1998/04/03 19:24:36 $";
+char VarLocalVersion[] = "$Date: 1998/04/03 19:24:48 $";
 
 /*
  * Order of conf option is important. See vars.h.
@@ -72,20 +72,18 @@ struct confdesc pppConfs[NCONFS] = {
   {"loopback", CONF_ENABLE, CONF_NONE}
 };
 
-struct pppvars pppVars = {
-  LOCAL_NO_AUTH
-};
+struct pppvars pppVars;
 
 int
 DisplayCommand(struct cmdargs const *arg)
 {
   int f;
 
-  prompt_Printf(&prompt, "Current configuration option settings..\n\n");
-  prompt_Printf(&prompt, "Name\t\tMy Side\t\tHis Side\n");
-  prompt_Printf(&prompt, "----------------------------------------\n");
+  prompt_Printf(arg->prompt, "Current configuration option settings..\n\n");
+  prompt_Printf(arg->prompt, "Name\t\tMy Side\t\tHis Side\n");
+  prompt_Printf(arg->prompt, "----------------------------------------\n");
   for (f = 0; f < NCONFS; f++)
-    prompt_Printf(&prompt, "%-10s\t%s\t\t%s\n", pppConfs[f].name,
+    prompt_Printf(arg->prompt, "%-10s\t%s\t\t%s\n", pppConfs[f].name,
 	          (pppConfs[f].myside == CONF_ENABLE) ? "enable" :
                    (pppConfs[f].myside == CONF_DISABLE ? "disable" : "N/A"),
 	          (pppConfs[f].hisside == CONF_ACCEPT) ? "accept" :
@@ -156,37 +154,4 @@ int
 DenyCommand(struct cmdargs const *arg)
 {
   return ConfigCommand(arg, 0, CONF_DENY);
-}
-
-int
-LocalAuthCommand(struct cmdargs const *arg)
-{
-  const char *pass;
-  if (arg->argc == 0)
-    pass = "";
-  else if (arg->argc > 1)
-    return -1;
-  else
-    pass = *arg->argv;
-
-  if (VarHaveLocalAuthKey)
-    VarLocalAuth = strcmp(VarLocalAuthKey, pass) ? LOCAL_NO_AUTH : LOCAL_AUTH;
-  else
-    switch (LocalAuthValidate(SECRETFILE, VarShortHost, pass)) {
-    case INVALID:
-      VarLocalAuth = LOCAL_NO_AUTH;
-      break;
-    case VALID:
-      VarLocalAuth = LOCAL_AUTH;
-      break;
-    case NOT_FOUND:
-      VarLocalAuth = LOCAL_AUTH;
-      LogPrintf(LogWARN, "WARNING: No Entry for this system\n");
-      break;
-    default:
-      VarLocalAuth = LOCAL_NO_AUTH;
-      LogPrintf(LogERROR, "LocalAuthCommand: Ooops?\n");
-      return 1;
-    }
-  return 0;
 }

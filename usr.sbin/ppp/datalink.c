@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.c,v 1.1.2.29 1998/04/03 19:21:17 brian Exp $
+ *	$Id: datalink.c,v 1.1.2.30 1998/04/03 19:23:56 brian Exp $
  */
 
 #include <sys/param.h>
@@ -645,9 +645,9 @@ datalink_StayDown(struct datalink *dl)
 }
 
 void
-datalink_Show(struct datalink *dl)
+datalink_Show(struct datalink *dl, struct prompt *prompt)
 {
-  prompt_Printf(&prompt, "Link %s: State %s\n", dl->name, datalink_State(dl));
+  prompt_Printf(prompt, "Link %s: State %s\n", dl->name, datalink_State(dl));
 }
 
 static char *states[] = {

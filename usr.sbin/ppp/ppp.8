@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.97.2.9 1998/04/03 19:24:21 brian Exp $
+.\" $Id: ppp.8,v 1.97.2.10 1998/04/03 19:24:31 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -2460,7 +2460,7 @@ or
 packets are sent.  The default is 30 seconds.  You must also use the
 .Dq enable lqr
 command if you wish to send LQR requests to the peer.
-.It set server|socket TcpPort|LocalName|none [password] [mask]
+.It set server|socket TcpPort|LocalName|none password [mask]
 This command tells
 .Nm
 to listen on the given socket or

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: mbuf.c,v 1.13.2.5 1998/02/16 00:00:42 brian Exp $
+ * $Id: mbuf.c,v 1.13.2.6 1998/04/03 19:21:38 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -158,7 +158,7 @@ ShowMemMap(struct cmdargs const *arg)
   int i;
 
   for (i = 0; i <= MB_MAX; i += 2)
-    prompt_Printf(&prompt, "%d: %d   %d: %d\n",
+    prompt_Printf(arg->prompt, "%d: %d   %d: %d\n",
 	    i, MemMap[i].count, i + 1, MemMap[i + 1].count);
 
   return 0;

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.131.2.48 1998/04/03 19:24:45 brian Exp $
+ * $Id: command.c,v 1.131.2.49 1998/04/03 19:24:58 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -109,19 +109,25 @@ HelpCommand(struct cmdargs const *arg)
   struct cmdtab const *cmd;
   int n, cmax, dmax, cols;
 
+  if (!arg->prompt) {
+    LogPrintf(LogWARN, "help: Cannot help without a prompt\n");
+    return 0;
+  }
+
   if (arg->argc > 0) {
     for (cmd = arg->cmdtab; cmd->name || cmd->alias; cmd++)
-      if ((cmd->lauth & VarLocalAuth) &&
+      if ((cmd->lauth & arg->prompt->auth) &&
           ((cmd->name && !strcasecmp(cmd->name, *arg->argv)) ||
            (cmd->alias && !strcasecmp(cmd->alias, *arg->argv)))) {
-	prompt_Printf(&prompt, "%s\n", cmd->syntax);
+	prompt_Printf(arg->prompt, "%s\n", cmd->syntax);
 	return 0;
       }
     return -1;
   }
+
   cmax = dmax = 0;
   for (cmd = arg->cmdtab; cmd->func; cmd++)
-    if (cmd->name && (cmd->lauth & VarLocalAuth)) {
+    if (cmd->name && (cmd->lauth & arg->prompt->auth)) {
       if ((n = strlen(cmd->name)) > cmax)
         cmax = n;
       if ((n = strlen(cmd->helpmes)) > dmax)
@@ -131,20 +137,20 @@ HelpCommand(struct cmdargs const *arg)
   cols = 80 / (dmax + cmax + 3);
   n = 0;
   for (cmd = arg->cmdtab; cmd->func; cmd++)
-    if (cmd->name && (cmd->lauth & VarLocalAuth)) {
-      prompt_Printf(&prompt, " %-*.*s: %-*.*s",
+    if (cmd->name && (cmd->lauth & arg->prompt->auth)) {
+      prompt_Printf(arg->prompt, " %-*.*s: %-*.*s",
               cmax, cmax, cmd->name, dmax, dmax, cmd->helpmes);
       if (++n % cols == 0)
-        prompt_Printf(&prompt, "\n");
+        prompt_Printf(arg->prompt, "\n");
     }
   if (n % cols != 0)
-    prompt_Printf(&prompt, "\n");
+    prompt_Printf(arg->prompt, "\n");
 
   return 0;
 }
 
 int
-IsInteractive(int Display)
+IsInteractive(struct prompt *prompt)
 {
   const char *m = NULL;
 
@@ -154,16 +160,14 @@ IsInteractive(int Display)
     m = "background";
   else if (mode & MODE_AUTO)
     m = "auto";
-  else if (mode & MODE_DIRECT)
-    m = "direct";
   else if (mode & MODE_DEDICATED)
     m = "dedicated";
   else if (mode & MODE_INTER)
     m = "interactive";
-  if (m) {
-    if (Display)
-      prompt_Printf(&prompt, "Working in %s mode\n", m);
-  }
+
+  if (m)
+    prompt_Printf(prompt, "Working in %s mode\n", m);
+
   return mode & MODE_INTER;
 }
 
@@ -207,7 +211,7 @@ ShellCommand(struct cmdargs const *arg, int bg)
    * we want to stop shell commands when we've got a telnet connection to an
    * auto mode ppp
    */
-  if (prompt_Active(&prompt) && !(mode & MODE_INTER)) {
+  if (arg->prompt && !(mode & MODE_INTER)) {
     LogPrintf(LogWARN, "Shell is not allowed interactively in auto mode\n");
     return 1;
   }
@@ -215,7 +219,7 @@ ShellCommand(struct cmdargs const *arg, int bg)
 
   if (arg->argc == 0)
     if (!(mode & MODE_INTER)) {
-      if (prompt_Active(&prompt))
+      if (arg->prompt)
         LogPrintf(LogWARN, "Can't start an interactive shell from"
 		  " a telnet session\n");
       else
@@ -240,8 +244,8 @@ ShellCommand(struct cmdargs const *arg, int bg)
     signal(SIGHUP, SIG_DFL);
     signal(SIGALRM, SIG_DFL);
 
-    if (prompt_Active(&prompt))
-      fd = prompt.fd_out;
+    if (arg->prompt)
+      fd = arg->prompt->fd_out;
     else if ((fd = open("/dev/null", O_RDWR)) == -1) {
       LogPrintf(LogALERT, "Failed to open /dev/null: %s\n", strerror(errno));
       exit(1);
@@ -252,7 +256,7 @@ ShellCommand(struct cmdargs const *arg, int bg)
     for (dtablesize = getdtablesize(), i = 3; i < dtablesize; i++)
       close(i);
 
-    prompt_TtyOldMode(&prompt);
+    prompt_TtyOldMode(arg->prompt);
     setuid(geteuid());
     if (arg->argc > 0) {
       /* substitute pseudo args */
@@ -276,11 +280,11 @@ ShellCommand(struct cmdargs const *arg, int bg)
 	  LogPrintf(LogERROR, "%d: daemon: %s\n", p, strerror(errno));
 	  exit(1);
 	}
-      } else if (prompt_Active(&prompt))
+      } else if (arg->prompt)
         printf("ppp: Pausing until %s finishes\n", arg->argv[0]);
       execvp(argv[0], argv);
     } else {
-      if (prompt_Active(&prompt))
+      if (arg->prompt)
         printf("ppp: Pausing until %s finishes\n", shell);
       execl(shell, shell, NULL);
     }
@@ -297,7 +301,7 @@ ShellCommand(struct cmdargs const *arg, int bg)
     waitpid(shpid, &status, 0);
   }
 
-  prompt_TtyCommandMode(&prompt);
+  prompt_TtyCommandMode(arg->prompt);
 
   return (0);
 }
@@ -353,7 +357,7 @@ static struct cmdtab const Commands[] = {
   "Link specific commands", "link name command ..."},
   {"load", NULL, LoadCommand, LOCAL_AUTH,
   "Load settings", "load [remote]"},
-  {"passwd", NULL, LocalAuthCommand, LOCAL_NO_AUTH,
+  {"passwd", NULL, PasswdCommand, LOCAL_NO_AUTH,
   "Password for manipulation", "passwd LocalPassword"},
   {"quit", "bye", QuitCommand, LOCAL_AUTH | LOCAL_NO_AUTH,
   "Quit PPP program", "quit|bye [all]"},
@@ -373,26 +377,6 @@ static struct cmdtab const Commands[] = {
 };
 
 static int
-ShowLogLevel(struct cmdargs const *arg)
-{
-  int i;
-
-  prompt_Printf(&prompt, "Log:  ");
-  for (i = LogMIN; i <= LogMAX; i++)
-    if (LogIsKept(i) & LOG_KEPT_SYSLOG)
-      prompt_Printf(&prompt, " %s", LogName(i));
-
-  prompt_Printf(&prompt, "\nLocal:");
-  for (i = LogMIN; i <= LogMAX; i++)
-    if (LogIsKept(i) & LOG_KEPT_LOCAL)
-      prompt_Printf(&prompt, " %s", LogName(i));
-
-  prompt_Printf(&prompt, "\n");
-
-  return 0;
-}
-
-static int
 ShowEscape(struct cmdargs const *arg)
 {
   if (arg->cx->physical->async.cfg.EscMap[32]) {
@@ -403,10 +387,10 @@ ShowEscape(struct cmdargs const *arg)
       if (arg->cx->physical->async.cfg.EscMap[code])
 	for (bit = 0; bit < 8; bit++)
 	  if (arg->cx->physical->async.cfg.EscMap[code] & (1 << bit)) {
-	    prompt_Printf(&prompt, "%s0x%02x", sep, (code << 3) + bit);
+	    prompt_Printf(arg->prompt, "%s0x%02x", sep, (code << 3) + bit);
             sep = ", ";
           }
-    prompt_Printf(&prompt, "\n");
+    prompt_Printf(arg->prompt, "\n");
   }
   return 0;
 }
@@ -416,10 +400,11 @@ ShowTimeout(struct cmdargs const *arg)
 {
   int remaining;
 
-  prompt_Printf(&prompt, "Idle Timer: %ds\n", arg->bundle->cfg.idle_timeout);
+  prompt_Printf(arg->prompt, "Idle Timer: %ds\n",
+                arg->bundle->cfg.idle_timeout);
   remaining = bundle_RemainingIdleTime(arg->bundle);
   if (remaining != -1)
-    prompt_Printf(&prompt, "Remaining:  %ds\n", remaining);
+    prompt_Printf(arg->prompt, "Remaining:  %ds\n", remaining);
 
   return 0;
 }
@@ -427,28 +412,28 @@ ShowTimeout(struct cmdargs const *arg)
 static int
 ShowTimerList(struct cmdargs const *arg)
 {
-  ShowTimers(0);
+  ShowTimers(0, arg->prompt);
   return 0;
 }
 
 static int
 ShowStopped(struct cmdargs const *arg)
 {
-  prompt_Printf(&prompt, " Stopped Timer:  LCP: ");
+  prompt_Printf(arg->prompt, " Stopped Timer:  LCP: ");
   if (!arg->cx->physical->link.lcp.fsm.StoppedTimer.load)
-    prompt_Printf(&prompt, "Disabled");
+    prompt_Printf(arg->prompt, "Disabled");
   else
-    prompt_Printf(&prompt, "%ld secs",
+    prompt_Printf(arg->prompt, "%ld secs",
                   arg->cx->physical->link.lcp.fsm.StoppedTimer.load / SECTICKS);
 
-  prompt_Printf(&prompt, ", CCP: ");
+  prompt_Printf(arg->prompt, ", CCP: ");
   if (!arg->cx->physical->link.ccp.fsm.StoppedTimer.load)
-    prompt_Printf(&prompt, "Disabled");
+    prompt_Printf(arg->prompt, "Disabled");
   else
-    prompt_Printf(&prompt, "%ld secs",
+    prompt_Printf(arg->prompt, "%ld secs",
                   arg->cx->physical->link.ccp.fsm.StoppedTimer.load / SECTICKS);
 
-  prompt_Printf(&prompt, "\n");
+  prompt_Printf(arg->prompt, "\n");
 
   return 0;
 }
@@ -456,10 +441,10 @@ ShowStopped(struct cmdargs const *arg)
 static int
 ShowAuthKey(struct cmdargs const *arg)
 {
-  prompt_Printf(&prompt, "AuthName = %s\n", arg->bundle->cfg.auth.name);
-  prompt_Printf(&prompt, "AuthKey  = %s\n", HIDDEN);
+  prompt_Printf(arg->prompt, "AuthName = %s\n", arg->bundle->cfg.auth.name);
+  prompt_Printf(arg->prompt, "AuthKey  = %s\n", HIDDEN);
 #ifdef HAVE_DES
-  prompt_Printf(&prompt, "Encrypt  = %s\n", VarMSChap ? "MSChap" : "MD5" );
+  prompt_Printf(arg->prompt, "Encrypt  = %s\n", VarMSChap ? "MSChap" : "MD5" );
 #endif
   return 0;
 }
@@ -467,7 +452,7 @@ ShowAuthKey(struct cmdargs const *arg)
 static int
 ShowVersion(struct cmdargs const *arg)
 {
-  prompt_Printf(&prompt, "%s - %s \n", VarVersion, VarLocalVersion);
+  prompt_Printf(arg->prompt, "%s - %s \n", VarVersion, VarLocalVersion);
   return 0;
 }
 
@@ -476,8 +461,8 @@ ShowProtocolStats(struct cmdargs const *arg)
 {
   struct link *l = ChooseLink(arg);
 
-  prompt_Printf(&prompt, "%s:\n", l->name);
-  link_ReportProtocolStatus(l);
+  prompt_Printf(arg->prompt, "%s:\n", l->name);
+  link_ReportProtocolStatus(l, arg->prompt);
   return 0;
 }
 
@@ -485,7 +470,7 @@ ShowProtocolStats(struct cmdargs const *arg)
 static int
 ShowReconnect(struct cmdargs const *arg)
 {
-  prompt_Printf(&prompt, "%s: Reconnect Timer:  %d,  %d tries\n",
+  prompt_Printf(arg->prompt, "%s: Reconnect Timer:  %d,  %d tries\n",
                 arg->cx->name, arg->cx->cfg.reconnect_timeout,
                 arg->cx->cfg.max_reconnect);
   return 0;
@@ -494,24 +479,24 @@ ShowReconnect(struct cmdargs const *arg)
 static int
 ShowRedial(struct cmdargs const *arg)
 {
-  prompt_Printf(&prompt, " Redial Timer: ");
+  prompt_Printf(arg->prompt, " Redial Timer: ");
 
   if (arg->cx->cfg.dial_timeout >= 0)
-    prompt_Printf(&prompt, " %d seconds, ", arg->cx->cfg.dial_timeout);
+    prompt_Printf(arg->prompt, " %d seconds, ", arg->cx->cfg.dial_timeout);
   else
-    prompt_Printf(&prompt, " Random 0 - %d seconds, ", DIAL_TIMEOUT);
+    prompt_Printf(arg->prompt, " Random 0 - %d seconds, ", DIAL_TIMEOUT);
 
-  prompt_Printf(&prompt, " Redial Next Timer: ");
+  prompt_Printf(arg->prompt, " Redial Next Timer: ");
 
   if (arg->cx->cfg.dial_next_timeout >= 0)
-    prompt_Printf(&prompt, " %d seconds, ", arg->cx->cfg.dial_next_timeout);
+    prompt_Printf(arg->prompt, " %d seconds, ", arg->cx->cfg.dial_next_timeout);
   else
-    prompt_Printf(&prompt, " Random 0 - %d seconds, ", DIAL_TIMEOUT);
+    prompt_Printf(arg->prompt, " Random 0 - %d seconds, ", DIAL_TIMEOUT);
 
   if (arg->cx->cfg.max_dial)
-    prompt_Printf(&prompt, "%d dial tries", arg->cx->cfg.max_dial);
+    prompt_Printf(arg->prompt, "%d dial tries", arg->cx->cfg.max_dial);
 
-  prompt_Printf(&prompt, "\n");
+  prompt_Printf(arg->prompt, "\n");
 
   return 0;
 }
@@ -520,14 +505,14 @@ ShowRedial(struct cmdargs const *arg)
 static int
 ShowMSExt(struct cmdargs const *arg)
 {
-  prompt_Printf(&prompt, " MS PPP extention values \n");
-  prompt_Printf(&prompt, "   Primary NS     : %s\n",
+  prompt_Printf(arg->prompt, " MS PPP extention values \n");
+  prompt_Printf(arg->prompt, "   Primary NS     : %s\n",
                 inet_ntoa(arg->bundle->ncp.ipcp.cfg.ns_entries[0]));
-  prompt_Printf(&prompt, "   Secondary NS   : %s\n",
+  prompt_Printf(arg->prompt, "   Secondary NS   : %s\n",
                 inet_ntoa(arg->bundle->ncp.ipcp.cfg.ns_entries[1]));
-  prompt_Printf(&prompt, "   Primary NBNS   : %s\n",
+  prompt_Printf(arg->prompt, "   Primary NBNS   : %s\n",
                 inet_ntoa(arg->bundle->ncp.ipcp.cfg.nbns_entries[0]));
-  prompt_Printf(&prompt, "   Secondary NBNS : %s\n",
+  prompt_Printf(arg->prompt, "   Secondary NBNS : %s\n",
                 inet_ntoa(arg->bundle->ncp.ipcp.cfg.nbns_entries[1]));
 
   return 0;
@@ -554,7 +539,7 @@ static struct cmdtab const ShowCommands[] = {
   "Show LCP status", "show lcp"},
   {"links", "link", bundle_ShowLinks, LOCAL_AUTH,
   "Show available link names", "show links"},
-  {"log", NULL, ShowLogLevel, LOCAL_AUTH,
+  {"log", NULL, log_ShowLevel, LOCAL_AUTH,
   "Show log levels", "show log"},
   {"mem", NULL, ShowMemMap, LOCAL_AUTH,
   "Show memory map", "show mem"},
@@ -580,6 +565,8 @@ static struct cmdtab const ShowCommands[] = {
   "Show alarm timers", "show timers"},
   {"version", NULL, ShowVersion, LOCAL_NO_AUTH | LOCAL_AUTH,
   "Show version string", "show version"},
+  {"who", NULL, log_ShowWho, LOCAL_AUTH,
+  "Show client list", "show who"},
   {"help", "?", HelpCommand, LOCAL_NO_AUTH | LOCAL_AUTH,
   "Display this message", "show help|? [command]", ShowCommands},
   {NULL, NULL, NULL},
@@ -619,7 +606,8 @@ FindCommand(struct cmdtab const *cmds, const char *str, int *pmatch)
 
 static int
 FindExec(struct bundle *bundle, struct cmdtab const *cmds, int argc,
-         char const *const *argv, const char *prefix, struct datalink *cx)
+         char const *const *argv, const char *prefix, struct prompt *prompt,
+         struct datalink *cx)
 {
   struct cmdtab const *cmd;
   int val = 1;
@@ -629,7 +617,7 @@ FindExec(struct bundle *bundle, struct cmdtab const *cmds, int argc,
   cmd = FindCommand(cmds, *argv, &nmatch);
   if (nmatch > 1)
     LogPrintf(LogWARN, "%s%s: Ambiguous command\n", prefix, *argv);
-  else if (cmd && (cmd->lauth & VarLocalAuth)) {
+  else if (cmd && (!prompt || (cmd->lauth & prompt->auth))) {
     if ((cmd->lauth & LOCAL_CX) && !cx)
       /* We've got no context, but we require it */
       cx = bundle2datalink(bundle, NULL);
@@ -649,6 +637,7 @@ FindExec(struct bundle *bundle, struct cmdtab const *cmds, int argc,
       arg.argv = argv+1;
       arg.bundle = bundle;
       arg.cx = cx;
+      arg.prompt = prompt;
       val = (cmd->func) (&arg);
     }
   } else
@@ -698,7 +687,7 @@ arghidden(int argc, char const *const *argv, int n)
 
 void
 RunCommand(struct bundle *bundle, int argc, char const *const *argv,
-           const char *label)
+           struct prompt *prompt, const char *label)
 {
   if (argc > 0) {
     if (LogIsKept(LogCOMMAND)) {
@@ -723,31 +712,31 @@ RunCommand(struct bundle *bundle, int argc, char const *const *argv,
       }
       LogPrintf(LogCOMMAND, "%s\n", buf);
     }
-    FindExec(bundle, Commands, argc, argv, "", NULL);
+    FindExec(bundle, Commands, argc, argv, "", prompt, NULL);
   }
 }
 
 void
-DecodeCommand(struct bundle *bundle, char *buff, int nb, const char *label)
+DecodeCommand(struct bundle *bundle, char *buff, int nb, struct prompt *prompt,
+              const char *label)
 {
   int argc;
   char **argv;
 
   InterpretCommand(buff, nb, &argc, &argv);
-  RunCommand(bundle, argc, (char const *const *)argv, label);
+  RunCommand(bundle, argc, (char const *const *)argv, prompt, label);
 }
 
 static int
 ShowCommand(struct cmdargs const *arg)
 {
-  if (!prompt_Active(&prompt))
+  if (!arg->prompt)
     LogPrintf(LogWARN, "show: Cannot show without a prompt\n");
   else if (arg->argc > 0)
-    FindExec(arg->bundle, ShowCommands, arg->argc, arg->argv, "show ", arg->cx);
-  else if (prompt_Active(&prompt))
-    prompt_Printf(&prompt, "Use ``show ?'' to get a list.\n");
+    FindExec(arg->bundle, ShowCommands, arg->argc, arg->argv, "show ",
+             arg->prompt, arg->cx);
   else
-    LogPrintf(LogWARN, "show command must have arguments\n");
+    prompt_Printf(arg->prompt, "Use ``show ?'' to get a list.\n");
 
   return 0;
 }
@@ -755,32 +744,34 @@ ShowCommand(struct cmdargs const *arg)
 static int
 TerminalCommand(struct cmdargs const *arg)
 {
+  if (!arg->prompt) {
+    LogPrintf(LogWARN, "term: Need a prompt\n");
+    return 1;
+  }
+
   if (arg->cx->physical->link.lcp.fsm.state > ST_CLOSED) {
-    prompt_Printf(&prompt, "LCP state is [%s]\n",
+    prompt_Printf(arg->prompt, "LCP state is [%s]\n",
                   State2Nam(arg->cx->physical->link.lcp.fsm.state));
     return 1;
   }
 
-  if (!IsInteractive(1))
+  if (!IsInteractive(arg->prompt))
     return (1);
 
   datalink_Up(arg->cx, 0, 0);
-  prompt_Printf(&prompt, "Entering terminal mode.\n");
-  prompt_Printf(&prompt, "Type `~?' for help.\n");
-  prompt_TtyTermMode(&prompt, arg->cx);
+  prompt_TtyTermMode(arg->prompt, arg->cx);
   return 0;
 }
 
 static int
 QuitCommand(struct cmdargs const *arg)
 {
-  if (prompt_Active(&prompt)) {
-    prompt_Drop(&prompt, 1);
-    if ((mode & MODE_INTER) ||
-        (arg->argc > 0 && !strcasecmp(*arg->argv, "all") &&
-         (VarLocalAuth & LOCAL_AUTH)))
-      Cleanup(EX_NORMAL);
-  }
+  if (!arg->prompt || prompt_IsController(arg->prompt) ||
+      (arg->argc > 0 && !strcasecmp(*arg->argv, "all") &&
+       (arg->prompt->auth & LOCAL_AUTH)))
+    Cleanup(EX_NORMAL);
+  if (arg->prompt)
+    prompt_Destroy(arg->prompt, 1);
 
   return 0;
 }
@@ -927,39 +918,28 @@ SetServer(struct cmdargs const *arg)
 
     /* What's what ? */
     port = arg->argv[0];
-    if (arg->argc == 2)
-      if (ismask(arg->argv[1])) {
-        passwd = NULL;
-        mask = arg->argv[1];
-      } else {
-        passwd = arg->argv[1];
-        mask = NULL;
-      }
-    else if (arg->argc == 3) {
+    if (arg->argc == 2) {
+      passwd = arg->argv[1];
+      mask = NULL;
+    } else if (arg->argc == 3) {
       passwd = arg->argv[1];
       mask = arg->argv[2];
       if (!ismask(mask))
         return -1;
-    } else
-      passwd = mask = NULL;
-
-    if (passwd == NULL)
-      VarHaveLocalAuthKey = 0;
-    else {
-      strncpy(VarLocalAuthKey, passwd, sizeof VarLocalAuthKey - 1);
-      VarLocalAuthKey[sizeof VarLocalAuthKey - 1] = '\0';
-      VarHaveLocalAuthKey = 1;
-    }
-    LocalAuthInit();
-
-    if (strcasecmp(port, "none") == 0) {
+    } else if (strcasecmp(port, "none") == 0) {
       if (mask != NULL || passwd != NULL)
         return -1;
 
-      if (ServerClose())
+      if (ServerClose(arg->bundle))
         LogPrintf(LogPHASE, "Disabled server port.\n");
-      res = 0;
-    } else if (*port == '/') {
+      return 0;
+    } else
+      return -1;
+
+    strncpy(server.passwd, passwd, sizeof server.passwd - 1);
+    server.passwd[sizeof server.passwd - 1] = '\0';
+
+    if (*port == '/') {
       mode_t imask;
 
       if (mask != NULL) {
@@ -971,7 +951,7 @@ SetServer(struct cmdargs const *arg)
           return -1;
       } else
         imask = (mode_t)-1;
-      res = ServerLocalOpen(port, imask);
+      res = ServerLocalOpen(arg->bundle, port, imask);
     } else {
       int iport;
 
@@ -988,7 +968,7 @@ SetServer(struct cmdargs const *arg)
 	  iport = ntohs(s->s_port);
       } else
         iport = atoi(port);
-      res = iport ? ServerTcpOpen(iport) : -1;
+      res = iport ? ServerTcpOpen(arg->bundle, iport) : -1;
     }
   }
 
@@ -999,52 +979,6 @@ static int
 SetModemParity(struct cmdargs const *arg)
 {
   return arg->argc > 0 ? modem_SetParity(arg->cx->physical, *arg->argv) : -1;
-}
-
-static int
-SetLogLevel(struct cmdargs const *arg)
-{
-  int i;
-  int res;
-  int argc;
-  char const *const *argv, *argp;
-  void (*Discard)(int), (*Keep)(int);
-  void (*DiscardAll)(void);
-
-  argc = arg->argc;
-  argv = arg->argv;
-  res = 0;
-  if (argc == 0 || strcasecmp(argv[0], "local")) {
-    Discard = LogDiscard;
-    Keep = LogKeep;
-    DiscardAll = LogDiscardAll;
-  } else {
-    argc--;
-    argv++;
-    Discard = LogDiscardLocal;
-    Keep = LogKeepLocal;
-    DiscardAll = LogDiscardAllLocal;
-  }
-
-  if (argc == 0 || (argv[0][0] != '+' && argv[0][0] != '-'))
-    DiscardAll();
-  while (argc--) {
-    argp = **argv == '+' || **argv == '-' ? *argv + 1 : *argv;
-    for (i = LogMIN; i <= LogMAX; i++)
-      if (strcasecmp(argp, LogName(i)) == 0) {
-	if (**argv == '-')
-	  (*Discard)(i);
-	else
-	  (*Keep)(i);
-	break;
-      }
-    if (i > LogMAX) {
-      LogPrintf(LogWARN, "%s: Invalid log value\n", argp);
-      res = -1;
-    }
-    argv++;
-  }
-  return res;
 }
 
 static int
@@ -1449,7 +1383,7 @@ static struct cmdtab const SetCommands[] = {
   "Set FSM retry period", "set ipcpretry value", (const void *)VAR_IPCPRETRY},
   {"lcpretry", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX,
   "Set FSM retry period", "set lcpretry value", (const void *)VAR_LCPRETRY},
-  {"log", NULL, SetLogLevel, LOCAL_AUTH,
+  {"log", NULL, log_SetLevel, LOCAL_AUTH,
   "Set log level", "set log [local] [+|-]value..."},
   {"login", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX,
   "Set login script", "set login chat-script", (const void *) VAR_LOGIN},
@@ -1498,9 +1432,10 @@ static int
 SetCommand(struct cmdargs const *arg)
 {
   if (arg->argc > 0)
-    FindExec(arg->bundle, SetCommands, arg->argc, arg->argv, "set ", arg->cx);
-  else if (prompt_Active(&prompt))
-    prompt_Printf(&prompt, "Use `set ?' to get a list or `set ? <var>' for"
+    FindExec(arg->bundle, SetCommands, arg->argc, arg->argv, "set ",
+             arg->prompt, arg->cx);
+  else if (arg->prompt)
+    prompt_Printf(arg->prompt, "Use `set ?' to get a list or `set ? <var>' for"
 	    " syntax help.\n");
   else
     LogPrintf(LogWARN, "set command must have arguments\n");
@@ -1606,9 +1541,10 @@ static int
 AliasCommand(struct cmdargs const *arg)
 {
   if (arg->argc > 0)
-    FindExec(arg->bundle, AliasCommands, arg->argc, arg->argv, "alias ", arg->cx);
-  else if (prompt_Active(&prompt))
-    prompt_Printf(&prompt, "Use `alias help' to get a list or `alias help"
+    FindExec(arg->bundle, AliasCommands, arg->argc, arg->argv, "alias ",
+             arg->prompt, arg->cx);
+  else if (arg->prompt)
+    prompt_Printf(arg->prompt, "Use `alias help' to get a list or `alias help"
             " <option>' for syntax help.\n");
   else
     LogPrintf(LogWARN, "alias command must have arguments\n");
@@ -1678,10 +1614,11 @@ AllowCommand(struct cmdargs const *arg)
 {
   /* arg->bundle may be NULL (see ValidSystem()) ! */
   if (arg->argc > 0)
-    FindExec(arg->bundle, AllowCommands, arg->argc, arg->argv, "allow ", arg->cx);
-  else if (prompt_Active(&prompt))
-    prompt_Printf(&prompt, "Use `allow ?' to get a list or `allow ? <cmd>' for"
-	    " syntax help.\n");
+    FindExec(arg->bundle, AllowCommands, arg->argc, arg->argv, "allow ",
+             arg->prompt, arg->cx);
+  else if (arg->prompt)
+    prompt_Printf(arg->prompt, "Use `allow ?' to get a list or `allow ? <cmd>'"
+                  " for syntax help.\n");
   else
     LogPrintf(LogWARN, "allow command must have arguments\n");
 
@@ -1694,7 +1631,8 @@ LinkCommand(struct cmdargs const *arg)
   if (arg->argc > 1) {
     struct datalink *cx = bundle2datalink(arg->bundle, arg->argv[0]);
     if (cx)
-      FindExec(arg->bundle, Commands, arg->argc - 1, arg->argv + 1, "", cx);
+      FindExec(arg->bundle, Commands, arg->argc - 1, arg->argv + 1, "",
+               arg->prompt, cx);
     else {
       LogPrintf(LogWARN, "link: %s: Invalid link name\n", arg->argv[0]);
       return 1;

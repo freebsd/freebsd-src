@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *  $Id: link.h,v 1.1.2.6 1998/02/23 00:38:34 brian Exp $
+ *  $Id: link.h,v 1.1.2.7 1998/04/03 19:21:33 brian Exp $
  *
  */
 
@@ -35,6 +35,7 @@
 #define NPROTOSTAT 12
 
 struct bundle;
+struct prompt;
 
 struct link {
   int type;                               /* _LINK type */
@@ -65,4 +66,4 @@ extern void link_Output(struct link *, int, struct mbuf *);
 #define PROTO_IN  1                       /* third arg to link_ProtocolRecord */
 #define PROTO_OUT 2
 extern void link_ProtocolRecord(struct link *, u_short, int);
-extern void link_ReportProtocolStatus(struct link *);
+extern void link_ReportProtocolStatus(struct link *, struct prompt *);

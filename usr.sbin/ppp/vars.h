@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: vars.h,v 1.42.2.18 1998/04/03 19:24:36 brian Exp $
+ * $Id: vars.h,v 1.42.2.19 1998/04/03 19:24:49 brian Exp $
  *
  *	TODO:
  */
@@ -57,27 +57,12 @@ struct confdesc {
 extern struct confdesc pppConfs[NCONFS];
 
 struct pppvars {
-#define LOCAL_AUTH	0x01
-#define LOCAL_NO_AUTH	0x02
-#define LOCAL_DENY	0x03
-#define LOCAL_CX	0x04	/* OR'd value - require a context */
-#define LOCAL_CX_OPT	0x08	/* OR'd value - optional context */
-  u_char lauth;			/* Local Authorized status */
-
   /* The rest are just default initialized in vars.c */
-  char local_auth_key[50];	/* Local auth passwd */
-  int have_local_auth_key;	/* Local auth passwd specified ? */
   int use_MSChap;		/* Use MSCHAP encryption */
-  char shostname[MAXHOSTNAMELEN]; /* Local short Host Name */
   struct aliasHandlers handler;	/* Alias function pointers */
 };
 
-#define	VarLocalAuth		pppVars.lauth
-
-#define	VarLocalAuthKey		pppVars.local_auth_key
-#define	VarHaveLocalAuthKey	pppVars.have_local_auth_key
 #define	VarMSChap		pppVars.use_MSChap
-#define	VarShortHost		pppVars.shostname
 
 #define VarAliasHandlers	   pppVars.handler
 #define VarPacketAliasGetFragment  (*pppVars.handler.PacketAliasGetFragment)
@@ -100,5 +85,4 @@ extern int EnableCommand(struct cmdargs const *);
 extern int DisableCommand(struct cmdargs const *);
 extern int AcceptCommand(struct cmdargs const *);
 extern int DenyCommand(struct cmdargs const *);
-extern int LocalAuthCommand(struct cmdargs const *);
 extern int DisplayCommand(struct cmdargs const *);
