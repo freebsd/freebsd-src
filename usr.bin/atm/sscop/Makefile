@@ -7,9 +7,9 @@ CONTRIB= ${.CURDIR}/../../../contrib/ngatm/sscop
 PROG=	sscop
 SRCS=	common.c sscop_main.c
 WARNS?=	6
-CFLAGS+= -I${CONTRIB}
+CFLAGS+= -I${CONTRIB} -DUSE_LIBBEGEMOT
 
-DPADD=	${LIBISC} ${LIBNETGRAPH} ${LIBNGATM}
-LDADD=	${LIBISC} ${LIBNETGRAPH} ${LIBNGATM}
+DPADD=	${LIBBEGEMOT} ${LIBNETGRAPH} ${LIBNGATM}
+LDADD=	-lbegemot -lnetgraph -lngatm
 
 .include <bsd.prog.mk>
