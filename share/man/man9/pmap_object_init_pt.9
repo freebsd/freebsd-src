@@ -35,8 +35,10 @@
 .In vm/vm.h
 .In vm/pmap.h
 .Ft void
-.Fn pmap_object_init_pt "pmap_t pmap" "vm_offset_t addr" "vm_object_t object" \
-"vm_pindex_t pindex" "vm_size_t size" "int limit"
+.Fo pmap_object_init_pt
+.Fa "pmap_t pmap" "vm_offset_t addr" "vm_object_t object"
+.Fa "vm_pindex_t pindex" "vm_size_t size" "int limit"
+.Fc
 .Sh DESCRIPTION
 The
 .Fn pmap_object_init_pt

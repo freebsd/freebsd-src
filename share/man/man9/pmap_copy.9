@@ -36,8 +36,10 @@
 .In vm/vm.h
 .In vm/pmap.h
 .Ft void
-.Fn pmap_copy "pmap_t dst_pmap" "pmap_t src_pmap" "vm_offset_t dst_addr" \
-"vm_size_t len" "vm_offset_t src_addr"
+.Fo pmap_copy
+.Fa "pmap_t dst_pmap" "pmap_t src_pmap" "vm_offset_t dst_addr"
+.Fa "vm_size_t len" "vm_offset_t src_addr"
+.Fc
 .Ft void
 .Fn pmap_copy_page "vm_page_t src" "vm_page_t dst"
 .Sh DESCRIPTION

@@ -50,9 +50,9 @@ is responsible for managing hardware-dependent objects such as page tables,
 address maps, TLBs, etc.
 .Pp
 Machine-dependent code must provide the header file
-.Em <machine/pmap.h> .
+.In machine/pmap.h .
 This file contains the definition of the
-.Dv pmap
+.Vt pmap
 structure:
 .Bd -literal -offset indent
 struct pmap {
@@ -66,7 +66,7 @@ This header file may also define other data structures used by the
 implementation.
 .Pp
 The header file
-.Em <vm/pmap.h>
+.In vm/pmap.h
 defines a structure for tracking
 .Nm
 statistics (see below).
@@ -79,11 +79,11 @@ struct pmap_statistics {
 .Ed
 .Pp
 The implementation's
-.Vt struct pmap
+.Vt "struct pmap"
 must contain an instance of this structure having the name
 .Va pm_stats ,
 and it must be updated by the implementation after each relevant
-.Nm pmap
+.Nm
 operation.
 .Sh SEE ALSO
 .Xr pmap 9 ,
