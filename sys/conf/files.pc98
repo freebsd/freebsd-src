@@ -464,6 +464,7 @@ i4b/layer1/itjc/i4b_itjc_l1.c		optional	itjc
 i4b/layer1/itjc/i4b_itjc_l1fsm.c	optional	itjc
 #
 isa/psm.c			optional	psm
+kern/kern_poll.c		optional	device_polling
 kern/md4c.c			optional	netsmb
 kern/subr_diskmbr.c		optional	compat_atdisk
 libkern/divdi3.c		standard
