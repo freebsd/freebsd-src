@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_aout.c,v 1.24 1999/01/27 23:45:37 dillon Exp $
+ *	$Id: db_aout.c,v 1.25 1999/02/12 12:15:07 bde Exp $
  */
 
 /*
@@ -204,9 +204,9 @@ X_db_symbol_values(symtab, sym, namep, valuep)
 	const char	**namep;
 	db_expr_t	*valuep;
 {
-	register struct nlist *sp;
+	register const struct nlist *sp;
 
-	sp = (struct nlist *)sym;
+	sp = (const struct nlist *)sym;
 	if (namep)
 	    *namep = sp->n_un.n_name;
 	if (valuep)
@@ -294,7 +294,7 @@ X_db_sym_numargs(symtab, cursym, nargp, argnamep)
 	if (cursym == NULL)
 		return FALSE;
 
-	addr = ((struct nlist *)cursym)->n_value;
+	addr = ((const struct nlist *)cursym)->n_value;
 	sp = (struct nlist *)symtab->start;
 	ep = (struct nlist *)symtab->end;
 
