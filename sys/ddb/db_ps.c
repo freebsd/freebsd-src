@@ -55,13 +55,13 @@ db_ps(dummy1, dummy2, dummy3, dummy4)
 	db_expr_t	dummy3;
 	char *		dummy4;
 {
-	int np;
-	int nl = 0;
 	volatile struct proc *p, *pp;
 	volatile struct thread *td;
 	char *state;
+	int np, quit;
 
 	np = nprocs;
+	quit = 0;
 
 	/* sx_slock(&allproc_lock); */
 	if (!LIST_EMPTY(&allproc))
@@ -69,32 +69,9 @@ db_ps(dummy1, dummy2, dummy3, dummy4)
 	else
 		p = &proc0;
 
+	db_setup_paging(db_simple_pager, &quit, DB_LINES_PER_PAGE);
 	db_printf("  pid   proc     addr    uid  ppid  pgrp  flag   stat  wmesg    wchan  cmd\n");
-	while (--np >= 0) {
-		/*
-		 * XXX just take 20 for now...
-		 */
-		if (nl++ >= 20) {
-			int c;
-
-			db_printf("--More--");
-			c = cngetc();
-			db_printf("\r");
-			/*
-			 * A whole screenfull or just one line?
-			 */
-			switch (c) {
-			case '\n':		/* just one line */
-				nl = 20;
-				break;
-			case ' ':
-				nl = 0;		/* another screenfull */
-				break;
-			default:		/* exit */
-				db_printf("\n");
-				return;
-			}
-		}
+	while (--np >= 0 && !quit) {
 		if (p == NULL) {
 			printf("oops, ran out of processes early!\n");
 			break;
@@ -131,7 +108,8 @@ db_ps(dummy1, dummy2, dummy3, dummy4)
 			db_printf("(threaded)  %s\n", p->p_comm);
 		FOREACH_THREAD_IN_PROC(p, td) {
 			dumpthread(p, td);
-			nl++;
+			if (quit)
+				break;
 		}
 		/* PROC_UNLOCK(p); */
 
