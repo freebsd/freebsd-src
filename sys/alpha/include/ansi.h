@@ -1,4 +1,4 @@
-/* $Id: ansi.h,v 1.1 1998/01/10 10:13:13 jb Exp $ */
+/* $Id: ansi.h,v 1.2 1998/03/09 05:53:07 jb Exp $ */
 /* From: NetBSD: ansi.h,v 1.9 1997/11/23 20:20:53 kleink Exp */
 
 /*-
@@ -63,6 +63,9 @@ typedef struct {
 #define	_BSD_TIMER_T_		int		/* timer_t */
 #define	_BSD_SUSECONDS_T_	int		/* suseconds_t */
 #define	_BSD_USECONDS_T_	unsigned int	/* useconds_t */
+#define	_BSD_UINT8_T_		unsigned char	/* uint8_t */
+#define	_BSD_UINT16_T_		unsigned short	/* uint16_t */
+#define	_BSD_UINT32_T_		unsigned int	/* uint32_t */
 
 /*
  * Types which are fundamental to the implementation and must be used
