@@ -190,7 +190,7 @@ typedef struct {
 	char name[PAXPATHLEN+1];	/* file name */
 	int ln_nlen;			/* link name length */
 	char ln_name[PAXPATHLEN+1];	/* name to link to (if any) */
-	char *org_name;			/* orig name in filesystem */
+	char *org_name;			/* orig name in file system */
 	PATTERN *pat;			/* ptr to pattern match (if any) */
 	struct stat sb;			/* stat buffer see stat(2) */
 	off_t pad;			/* bytes of padding after file xfer */

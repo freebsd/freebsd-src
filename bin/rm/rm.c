@@ -357,8 +357,8 @@ rm_file(char **argv)
  * XXX
  * This is a cheap way to *really* delete files.  Note that only regular
  * files are deleted, directories (and therefore names) will remain.
- * Also, this assumes a fixed-block filesystem (like FFS, or a V7 or a
- * System V filesystem).  In a logging filesystem, you'll have to have
+ * Also, this assumes a fixed-block file system (like FFS, or a V7 or a
+ * System V file system).  In a logging file system, you'll have to have
  * kernel support.
  */
 void

@@ -511,7 +511,7 @@ tar_wr(ARCHD *arcn)
 	char hdblk[sizeof(HD_TAR)];
 
 	/*
-	 * check for those filesystem types which tar cannot store
+	 * check for those file system types which tar cannot store
 	 */
 	switch(arcn->type) {
 	case PAX_DIR:
@@ -892,7 +892,7 @@ ustar_wr(ARCHD *arcn)
 	char hdblk[sizeof(HD_USTAR)];
 
 	/*
-	 * check for those filesystem types ustar cannot store
+	 * check for those file system types ustar cannot store
 	 */
 	if (arcn->type == PAX_SCK) {
 		paxwarn(1, "Ustar cannot archive a socket %s", arcn->org_name);
