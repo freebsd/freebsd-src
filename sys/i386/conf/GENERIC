@@ -11,7 +11,7 @@
 # device lines is present in the ./LINT configuration file. If you are 
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-#	$Id: GENERIC,v 1.143.2.7 1999/04/16 18:27:48 jkh Exp $
+#	$Id: GENERIC,v 1.143.2.8 1999/04/18 23:37:02 obrien Exp $
 
 machine		"i386"
 cpu		"I386_CPU"
@@ -209,22 +209,3 @@ options		SYSVSEM
 #pseudo-device	bpfilter 4	#Berkeley packet filter
 
 
-# USB support
-#controller    uhci0
-#controller    ohci0
-#controller    usb0
-#
-# for the moment we have to specify the priorities of the device
-# drivers explicitly by the ordering in the list below. This will
-# be changed in the future.
-#
-#device        ums0
-#device        ukbd0
-#device        ulpt0
-#device        uhub0
-#device        hid0
-#device        ugen0
-
-#
-#options       USB_DEBUG
-#options       USBVERBOSE
