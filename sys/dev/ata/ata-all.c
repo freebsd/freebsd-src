@@ -315,9 +315,10 @@ ata_suspend(device_t dev)
 
     if (!dev || !(ch = device_get_softc(dev)))
 	return ENXIO;
-
+    device_printf(dev, "suspend\n");
     ch->locking(ch, ATA_LF_LOCK);
     ATA_SLEEPLOCK_CH(ch);
+    device_printf(dev, "suspend done\n");
     return 0;
 }
 
@@ -330,10 +331,12 @@ ata_resume(device_t dev)
     if (!dev || !(ch = device_get_softc(dev)))
 	return ENXIO;
 
+    device_printf(dev, "resume\n");
     ch->locking(ch, ATA_LF_LOCK);
     error = ata_reinit(ch);
     ch->locking(ch, ATA_LF_UNLOCK);
     ata_start(ch);
+    device_printf(dev, "resume done\n");
     return error;
 }
 
