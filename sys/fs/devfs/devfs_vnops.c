@@ -1412,6 +1412,7 @@ struct vop_vector devfs_specops = {
 	.vop_open =		devfs_open,
 	.vop_pathconf =		devfs_pathconf,
 	.vop_print =		devfs_print,
+	.vop_read =		VOP_PANIC,
 	.vop_readdir =		VOP_PANIC,
 	.vop_readlink =		VOP_PANIC,
 	.vop_reallocblks =	VOP_PANIC,
@@ -1426,4 +1427,5 @@ struct vop_vector devfs_specops = {
 #endif
 	.vop_strategy =		VOP_PANIC,
 	.vop_symlink =		VOP_PANIC,
+	.vop_write =		VOP_PANIC,
 };
