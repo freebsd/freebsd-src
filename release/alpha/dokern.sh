@@ -1,5 +1,7 @@
 #!/bin/sh
 
+# $FreeBSD$
+
 ARCH="`uname -m`"
 
 # First check for the standard x86 PC class.
