@@ -61,6 +61,7 @@ char *l;
 	register char *smap;
 	char touched;
 	unsigned char *p;
+	static unsigned char cbuf[2];
 
 	if (f->ww_fmap == 0)
 		return;
@@ -78,8 +79,14 @@ char *l;
 
 	jj = MIN(w->ww_i.r, f->ww_i.r);
 	j = w->ww_i.l + where;
-	while (j < jj && *l)
-		for (p = unctrl(*l++); j < jj && *p; j++, p++) {
+	while (j < jj && *l) {
+		if (isctrl(*l))
+			p = unctrl(*l);
+		else {
+			cbuf[0] = *l;
+			p = cbuf;
+		}
+		for (l++; j < jj && *p; j++, p++) {
 			/* can't label if not already framed */
 			if (win[j] & WWM_GLS)
 				continue;
@@ -92,5 +99,6 @@ char *l;
 			}
 			fmap[j] |= WWF_LABEL;
 		}
+	}
 	wwtouched[row] = touched;
 }
