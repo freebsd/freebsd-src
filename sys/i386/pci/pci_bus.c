@@ -257,9 +257,20 @@ nexus_pcib_identify(driver_t *driver, device_t parent)
 	int pcifunchigh;
 	int found824xx = 0;
 	device_t child;
+	devclass_t pci_devclass;
 
 	if (pci_cfgregopen() == 0)
 		return;
+	/*
+	 * Check to see if we haven't already had a PCI bus added
+	 * via some other means.  If we have, bail since otherwise
+	 * we're going to end up duplicating it.
+	 */
+	if ((pci_devclass = devclass_find("pci")) && 
+		devclass_get_device(pci_devclass, 0))
+		return;
+
+
 	bus = 0;
  retry:
 	for (slot = 0; slot <= PCI_SLOTMAX; slot++) {
@@ -349,11 +360,20 @@ nexus_pcib_identify(driver_t *driver, device_t parent)
 static int
 nexus_pcib_probe(device_t dev)
 {
+	devclass_t pci_devclass;
 
-	if (pci_cfgregopen() != 0)
-		return 0;
+	if (pci_cfgregopen() == 0)
+		return ENXIO;
+	/*
+	 * Check to see if we haven't already had a PCI bus added
+	 * via some other means.  If we have, bail since otherwise
+	 * we're going to end up duplicating it.
+	 */
+	if ((pci_devclass = devclass_find("pci")) && 
+		devclass_get_device(pci_devclass, 0))
+		return ENXIO;
 
-	return ENXIO;
+	return 0;
 }
 
 static int
