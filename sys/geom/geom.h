@@ -170,6 +170,7 @@ struct g_provider {
 	u_int			nstart, nend;
 	u_int			flags;
 #define G_PF_CANDELETE		0x1
+#define G_PF_WITHER		0x2
 };
 
 /* geom_dev.c */
