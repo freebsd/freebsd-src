@@ -106,7 +106,7 @@ _thread_gc(pthread_addr_t arg)
 			if (pthread == _thread_initial) 
 				continue;
 
-			_SPINLOCK(&pthread->lock);
+			THR_LOCK(&pthread->lock);
 
 			/*
 			 * Check if the stack was not specified by
@@ -128,7 +128,7 @@ _thread_gc(pthread_addr_t arg)
 			 * it on the dead thread list.
 			 */
 			if ((pthread->attr.flags & PTHREAD_DETACHED) == 0) {
-				_SPINUNLOCK(&pthread->lock);
+				THR_UNLOCK(&pthread->lock);
 				continue;
 			}
 
@@ -141,7 +141,7 @@ _thread_gc(pthread_addr_t arg)
 			 */
 			pthread_cln = pthread;
 
-			_SPINUNLOCK(&pthread->lock);
+			THR_UNLOCK(&pthread->lock);
 
 			/*
 		 	 * Retire the architecture specific id so it may be

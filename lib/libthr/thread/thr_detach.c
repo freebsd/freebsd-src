@@ -44,10 +44,10 @@ _pthread_detach(pthread_t pthread)
 	if (pthread == NULL || pthread->magic != PTHREAD_MAGIC)
 		return (EINVAL);
 
-	_SPINLOCK(&pthread->lock);
+	THR_LOCK(&pthread->lock);
 
 	if (pthread->attr.flags & PTHREAD_DETACHED) {
-		_SPINUNLOCK(&pthread->lock);
+		THR_UNLOCK(&pthread->lock);
 		return (EINVAL);
 	}
 
@@ -73,7 +73,7 @@ _pthread_detach(pthread_t pthread)
 		_thread_critical_exit(joiner);
 	}
 
-	_SPINUNLOCK(&pthread->lock);
+	THR_UNLOCK(&pthread->lock);
 
 	return (0);
 }
