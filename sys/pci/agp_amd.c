@@ -49,10 +49,19 @@
 #include <machine/resource.h>
 #include <sys/rman.h>
 
+MALLOC_DECLARE(M_AGP);
+
 #define READ2(off)	bus_space_read_2(sc->bst, sc->bsh, off)
 #define READ4(off)	bus_space_read_4(sc->bst, sc->bsh, off)
 #define WRITE2(off,v)	bus_space_write_2(sc->bst, sc->bsh, off, v)
 #define WRITE4(off,v)	bus_space_write_4(sc->bst, sc->bsh, off, v)
+
+struct agp_amd_gatt {
+	u_int32_t	ag_entries;
+	u_int32_t      *ag_vdir;	/* virtual address of page dir */
+	vm_offset_t	ag_pdir;	/* physical address of page dir */
+	u_int32_t      *ag_virtual;	/* virtual address of gatt */
+};
 
 struct agp_amd_softc {
 	struct agp_softc agp;
@@ -60,8 +69,86 @@ struct agp_amd_softc {
 	bus_space_tag_t bst;	/* bus_space tag */
 	bus_space_handle_t bsh;	/* bus_space handle */
 	u_int32_t	initial_aperture; /* aperture size at startup */
-	struct agp_gatt *gatt;
+	struct agp_amd_gatt *gatt;
 };
+
+static struct agp_amd_gatt *
+agp_amd_alloc_gatt(device_t dev)
+{
+	u_int32_t apsize = AGP_GET_APERTURE(dev);
+	u_int32_t entries = apsize >> AGP_PAGE_SHIFT;
+	struct agp_amd_gatt *gatt;
+	int i, npages;
+
+	if (bootverbose)
+		device_printf(dev,
+			      "allocating GATT for aperture of size %dM\n",
+			      apsize / (1024*1024));
+
+	gatt = malloc(sizeof(struct agp_amd_gatt), M_AGP, M_NOWAIT);
+	if (!gatt)
+		return 0;
+
+	/*
+	 * The AMD751 uses a page directory to map a non-contiguous
+	 * gatt so we don't need to use contigmalloc.
+	 */
+	gatt->ag_entries = entries;
+	gatt->ag_virtual = malloc(entries * sizeof(u_int32_t),
+				  M_AGP, M_NOWAIT);
+	if (!gatt->ag_virtual) {
+		if (bootverbose)
+			device_printf(dev, "allocation failed\n");
+		free(gatt, M_AGP);
+		return 0;
+	}
+	bzero(gatt->ag_virtual, entries * sizeof(u_int32_t));
+
+	/*
+	 * Allocate the page directory.
+	 */
+	gatt->ag_vdir = malloc(AGP_PAGE_SIZE, M_AGP, M_NOWAIT);
+	if (!gatt->ag_vdir) {
+		if (bootverbose)
+			device_printf(dev,
+				      "failed to allocate page directory\n");
+		free(gatt->ag_virtual, M_AGP);
+		free(gatt, M_AGP);
+		return 0;
+	}
+	bzero(gatt->ag_vdir, AGP_PAGE_SIZE);
+	gatt->ag_pdir = vtophys((vm_offset_t) gatt->ag_vdir);
+	gatt->ag_pdir = vtophys(gatt->ag_virtual);
+
+	/*
+	 * Map the pages of the GATT into the page directory.
+	 */
+	npages = ((entries * sizeof(u_int32_t) + AGP_PAGE_SIZE - 1)
+		  >> AGP_PAGE_SHIFT);
+	for (i = 0; i < npages; i++) {
+		vm_offset_t va;
+		vm_offset_t pa;
+
+		va = ((vm_offset_t) gatt->ag_virtual) + i * AGP_PAGE_SIZE;
+		pa = vtophys(va);
+		gatt->ag_vdir[i] = pa | 1;
+	}
+
+	/*
+	 * Make sure the chipset can see everything.
+	 */
+	agp_flush_cache();
+
+	return gatt;
+}
+
+static void
+agp_amd_free_gatt(struct agp_amd_gatt *gatt)
+{
+	free(gatt->ag_virtual, M_AGP);
+	free(gatt->ag_vdir, M_AGP);
+	free(gatt, M_AGP);
+}
 
 static const char*
 agp_amd_match(device_t dev)
@@ -100,7 +187,7 @@ static int
 agp_amd_attach(device_t dev)
 {
 	struct agp_amd_softc *sc = device_get_softc(dev);
-	struct agp_gatt *gatt;
+	struct agp_amd_gatt *gatt;
 	int error, rid;
 
 	error = agp_generic_attach(dev);
@@ -121,7 +208,7 @@ agp_amd_attach(device_t dev)
 	sc->initial_aperture = AGP_GET_APERTURE(dev);
 
 	for (;;) {
-		gatt = agp_alloc_gatt(dev);
+		gatt = agp_amd_alloc_gatt(dev);
 		if (gatt)
 			break;
 
@@ -135,17 +222,24 @@ agp_amd_attach(device_t dev)
 	sc->gatt = gatt;
 
 	/* Install the gatt. */
-	WRITE4(AGP_AMD751_ATTBASE, gatt->ag_physical);
+	WRITE4(AGP_AMD751_ATTBASE, gatt->ag_pdir);
 	
 	/* Enable synchronisation between host and agp. */
-	pci_write_config(dev, AGP_AMD751_MODECTRL, 0x80, 1);
+	pci_write_config(dev,
+			 AGP_AMD751_MODECTRL,
+			 AGP_AMD751_MODECTRL_SYNEN, 1);
+
+	/* Set indexing mode for two-level and enable page dir cache */
+	pci_write_config(dev,
+			 AGP_AMD751_MODECTRL2,
+			 AGP_AMD751_MODECTRL2_GPDCE, 1);
 
 	/* Enable the TLB and flush */
 	WRITE2(AGP_AMD751_STATUS,
 	       READ2(AGP_AMD751_STATUS) | AGP_AMD751_STATUS_GCE);
 	AGP_FLUSH_TLB(dev);
 
-	return agp_generic_attach(dev);
+	return 0;
 }
 
 static int
@@ -166,7 +260,7 @@ agp_amd_detach(device_t dev)
 	/* Put the aperture back the way it started. */
 	AGP_SET_APERTURE(dev, sc->initial_aperture);
 
-	agp_free_gatt(sc->gatt);
+	agp_amd_free_gatt(sc->gatt);
 	return 0;
 }
 

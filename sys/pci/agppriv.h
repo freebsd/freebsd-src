@@ -84,6 +84,7 @@ struct agp_gatt {
 	vm_offset_t	ag_physical;
 };
 
+void			agp_flush_cache(void);
 u_int8_t		agp_find_caps(device_t dev);
 struct agp_gatt	       *agp_alloc_gatt(device_t dev);
 void		        agp_free_gatt(struct agp_gatt *gatt);
