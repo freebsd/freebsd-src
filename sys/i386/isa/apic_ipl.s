@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: apic_ipl.s,v 1.18 1997/07/23 20:18:14 smp Exp smp $
+ *	$Id: apic_ipl.s,v 1.19 1997/07/23 21:18:30 smp Exp smp $
  */
 
 
@@ -254,9 +254,11 @@ bad_mask:	.asciz	"bad mask"
 	ALIGN_TEXT
 	.globl _INTREN
 _INTREN:
+	pushfl				/* save state of EI flag */
+	cli				/* prevent recursion */
 	IMASK_LOCK			/* enter critical reg */
 
-	movl	4(%esp), %eax		/* mask into %eax */
+	movl	8(%esp), %eax		/* mask into %eax */
 	bsfl	%eax, %ecx		/* get pin index */
 	btrl	%ecx, _apic_imen	/* update _apic_imen */
 
@@ -273,6 +275,7 @@ _INTREN:
 	movl	%eax, 16(%edx)		/* write the APIC register data */
 
 	IMASK_UNLOCK			/* exit critical reg */
+	popfl				/* restore old state of EI flag */
 	ret
 
 /*
@@ -285,9 +288,11 @@ _INTREN:
 	ALIGN_TEXT
 	.globl _INTRDIS
 _INTRDIS:
+	pushfl				/* save state of EI flag */
+	cli				/* prevent recursion */
 	IMASK_LOCK			/* enter critical reg */
 
-	movl	4(%esp), %eax		/* mask into %eax */
+	movl	8(%esp), %eax		/* mask into %eax */
 	bsfl	%eax, %ecx		/* get pin index */
 	btsl	%ecx, _apic_imen	/* update _apic_imen */
 
@@ -304,6 +309,7 @@ _INTRDIS:
 	movl	%eax, 16(%edx)		/* write the APIC register data */
 
 	IMASK_UNLOCK			/* exit critical reg */
+	popfl				/* restore old state of EI flag */
 	ret
 
 
