@@ -2461,10 +2461,11 @@ does, along with also turning on
 .B \-finline\-functions.
 .TP
 .B \-Os
-Optimize for size. This enables all
+Optimize for size.
+This enables all
 .B \-O2
-optimizations that do not typically increase code size.  It also performs
-further optimizations designed to reduce code size.
+optimizations that do not typically increase code size.
+It also performs further optimizations designed to reduce code size.
 .TP
 .B \-O0
 Do not optimize.
@@ -3628,17 +3629,19 @@ The choices for CPU TYPE are:
 (pentium),
 .B pentium,
 .B i686
-(pentiumpro), and
+(pentiumpro),
+and
 .B pentiumpro.
 While picking a specific CPU TYPE will schedule things appropriately for that
-particular chip, the compiler will not generate any code that does not run on
-the i386 without the
+particular chip,
+the compiler will not generate any code that does not run on the i386 without
+the
 .B \-march=\fIcpu type\fP
 option being used.
 .TP
 .B \-march=\fIcpu type\fP
-Generate instructions for the machine type CPU TYPE.  The choices for CPU TYPE
-are:
+Generate instructions for the machine type CPU TYPE.
+The choices for CPU TYPE are:
 .B i386,
 .B i486,
 .B pentium,
