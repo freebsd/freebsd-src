@@ -363,7 +363,7 @@ sesregister(struct cam_periph *periph, void *arg)
 		return (CAM_REQ_CMP_ERR);
 	}
 
-	softc->ses_dev = make_dev(&ses_cdevsw, periph->unit_number,
+	softc->ses_dev = make_dev(&ses_cdevsw, unit2minor(periph->unit_number),
 	    UID_ROOT, GID_OPERATOR, 0600, "%s%d",
 	    periph->periph_name, periph->unit_number);
 	softc->ses_dev->si_drv1 = periph;
