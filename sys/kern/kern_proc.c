@@ -335,7 +335,9 @@ int kse_wakeup(struct thread *td, struct kse_wakeup_args *uap)
 int
 kse_new(struct thread *td, struct kse_new_args *uap)
 {
-	struct kse *newkse;
+	struct kse *newke;
+	struct ksegrp *newkg;
+	struct ksegrp *kg;
 	struct proc *p;
 	struct kse_mailbox mbx;
 	int err;
@@ -343,23 +345,34 @@ kse_new(struct thread *td, struct kse_new_args *uap)
 	p = td->td_proc;
 	if ((err = copyin(uap->mbx, &mbx, sizeof(mbx))))
 		return (err);
-	PROC_LOCK(p);
+
+	kg = td->td_ksegrp;
 	/*
 	 * If we have no KSE mode set, just set it, and skip KSE and KSEGRP
 	 * creation.  You cannot request a new group with the first one as
 	 * you are effectively getting one. Instead, go directly to saving
 	 * the upcall info.
 	 */
-	if ((td->td_proc->p_flag & P_KSES) || (uap->new_grp_flag)) {
-
-		return (EINVAL);	/* XXX */
+	if (td->td_proc->p_flag & P_KSES) {
 		/*
 		 * If newgroup then create the new group.
 		 * Check we have the resources for this.
 		 */
-		/* Copy lots of fields from the current KSEGRP.  */
-		/* Create the new KSE */
-		/* Copy lots of fields from the current KSE.  */
+		if (uap->new_grp_flag) {
+			newkg = ksegrp_alloc();
+			bzero(&newkg->kg_startzero, RANGEOF(struct ksegrp,
+			      kg_startzero, kg_endzero)); 
+			bcopy(&kg->kg_startcopy, &newkg->kg_startcopy,
+			      RANGEOF(struct ksegrp, kg_startcopy, kg_endcopy));
+		} else {
+			newkg = kg;
+		}
+		newke = kse_alloc();
+		bzero(&newke->ke_startzero, RANGEOF(struct kse,
+		      ke_startzero, ke_endzero));
+		mtx_lock_spin(&sched_lock);
+		bcopy(&td->td_kse->ke_startcopy, &newke->ke_startcopy,
+		      RANGEOF(struct kse, ke_startcopy, ke_endcopy));
 	} else {
 		/*
 		 * We are switching to KSEs so just
@@ -367,24 +380,33 @@ kse_new(struct thread *td, struct kse_new_args *uap)
 		 * XXXKSE if we have to initialise any fields for KSE
 		 * mode operation, do it here.
 		 */
-		newkse = td->td_kse;
+		mtx_lock_spin(&sched_lock);
+		newke = td->td_kse;
+		newkg = kg;
 	}
 	/*
 	 * Fill out the KSE-mode specific fields of the new kse.
 	 */
-	PROC_UNLOCK(p);
-	mtx_lock_spin(&sched_lock);
 	mi_switch();	/* Save current registers to PCB. */
 	mtx_unlock_spin(&sched_lock);
-	newkse->ke_mailbox = uap->mbx;
-	newkse->ke_upcall = mbx.km_func;
-	bcopy(&mbx.km_stack, &newkse->ke_stack, sizeof(stack_t));
+	newke->ke_mailbox = uap->mbx;
+	newke->ke_upcall = mbx.km_func;
+	bcopy(&mbx.km_stack, &newke->ke_stack, sizeof(stack_t));
 	/* Note that we are the returning syscall */
 	td->td_retval[0] = 0;
 	td->td_retval[1] = 0;
 
-	if ((td->td_proc->p_flag & P_KSES) || (uap->new_grp_flag)) {
-		thread_schedule_upcall(td, newkse);
+	PROC_LOCK(p);
+	if (td->td_proc->p_flag & P_KSES) {
+		mtx_lock_spin(&sched_lock);
+		if (uap->new_grp_flag)
+			ksegrp_link(newkg, p);
+		kse_link(newke, newkg);
+		if (SIGPENDING(p))
+			newke->ke_flags |= KEF_ASTPENDING;
+		PROC_UNLOCK(p);
+		thread_schedule_upcall(td, newke);
+		mtx_unlock_spin(&sched_lock);
 	} else {
 		/*
 		 * Don't set this until we are truly ready, because
@@ -394,6 +416,7 @@ kse_new(struct thread *td, struct kse_new_args *uap)
 		 * asynchronous.
 		 */
 		td->td_proc->p_flag |= P_KSES;
+		PROC_UNLOCK(p);
 	}
 	return (0);
 }
