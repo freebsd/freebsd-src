@@ -109,7 +109,7 @@
 #define	TI113X_DEVCNTL_INTR_NONE	0x00u
 #define	TI113X_DEVCNTL_INTR_ISA		0x02u
 #define	TI113X_DEVCNTL_INTR_SERIAL	0x04u
-/* TI112X specific code */
+/* TI12XX specific code */
 #define	TI12XX_DEVCNTL_INTR_ALLSERIAL	0x06u
 /* Texas Instruments PCI-1130/1131 CardBus Controller */
 #define	TI113X_ExCA_IO_OFFSET0		0x36	/* Offset of I/O window */
