@@ -5,6 +5,7 @@ LCRYPTO_DOC=	${.CURDIR}/../../../crypto/openssl/doc
 
 CFLAGS+=	-DTERMIOS -DANSI_SOURCE
 CFLAGS+=	-I${LCRYPTO_SRC} -I${LCRYPTO_SRC}/crypto -I${.OBJDIR}
+CFLAGS+=	-DOPENSSL_THREADS -pthread
 
 .if !defined(MAKE_IDEA) || ${MAKE_IDEA} != YES
 CFLAGS+=	-DOPENSSL_NO_IDEA
