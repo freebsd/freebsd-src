@@ -82,15 +82,6 @@
 MODULE_DEPEND(fxp, miibus, 1, 1, 1);
 #include "miibus_if.h"
 
-#ifdef KLD_MODULE
-#define NMIIBUS 1
-#else
-#include "miibus.h"
-#endif
-#if NMIIBUS < 1
-#error "You need to add 'device miibus' to your kernel config!"
-#else
-
 /*
  * NOTE!  On the Alpha, we have an alignment constraint.  The
  * card DMAs the packet immediately following the RFA.  However,
@@ -1888,5 +1879,3 @@ fxp_mc_setup(struct fxp_softc *sc)
 	ifp->if_timer = 2;
 	return;
 }
-
-#endif /* NMIIBUS > 0 */
