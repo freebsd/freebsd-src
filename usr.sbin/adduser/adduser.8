@@ -22,34 +22,40 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $Id: adduser.8,v 1.12 1996/08/28 17:54:13 adam Exp $
-
+.\" $Id: adduser.8,v 1.13 1996/11/17 03:51:29 wosch Exp $
 .Dd Jan, 9, 1995
 .Dt ADDUSER 8
 .Os FreeBSD 2.1
 .Sh NAME
 .Nm adduser
 .Nd command for adding new users
-
 .Sh SYNOPSIS
 .Nm adduser
-    [-batch username [group[,group]...] [fullname] [password]]
-    [-check_only] [-config_create] [-dotdir dotdir] 
-    [-group login_group] [-h|-help] [-home home] 
-    [-message message_file] [-noconfig] [-shell shell] 
-    [-s|-silent|-q|-quit] [-uid uid_start] [-v|-verbose]
-
-
+.Ns [ Fl batch Ar username 
+.Op Ar group,[group]... 
+.Op Ar fullname 
+.Op Ar password ]
+.Op Fl check_only
+.Op Fl config_create
+.Op Fl dotdir Ar dotdir
+.Op Fl group Ar login_group
+.Op Fl h | help
+.Op Fl home Ar home
+.Op Fl message Ar message_file
+.Op Fl noconfig
+.Op Fl shell Ar shell
+.Op Fl s | silent | q | quiet
+.Op Fl uid Ar uid_start
+.Op Fl v | verbose
 .Sh DESCRIPTION
 .Nm Adduser 
 is a simple program for adding new users. Adduser checks
-passwd, group and shell database. It creates passwd/group entry,
-HOME-directory, dotfiles and sends new user a welcome message.
-
-.Sh RESTRICTION
+the passwd, group and shell databases. It creates passwd/group entries,
+HOME-directory, dotfiles and sends the new user a welcome message.
+.Sh RESTRICTIONS
 .Bl -tag -width Ds -compact
 .It Sy username
-Login name. Only lowercase characters or digits. Maximum length
+Login name. May contain only  lowercase characters or digits. Maximum length
 is 8 characters (see 
 .Xr setlogin 2
 BUGS section). 
@@ -57,7 +63,11 @@ The reasons for this limit are "Historical".
 Given that people have traditionally wanted to break this
 limit for aesthetic reasons, it's never been of great importance to break
 such a basic fundamental parameter in UNIX.
-You can change UT_NAMESIZE in /usr/include/utmp.h and recompile the
+You can change 
+.Dv UT_NAMESIZE 
+in 
+.Pa /usr/include/utmp.h
+and recompile the
 world; people have done this and it works, but you will have problems
 with any precompiled programs, or source that assumes the 8-character
 name limit and NIS. The NIS protocol mandates an 8-character username.
@@ -66,35 +76,37 @@ you can define an alias in
 .Pa /etc/aliases .
 .It Sy fullname
 Firstname and surname. 
+The
 .Ql Pa \:
-not allowed.
+character is not allowed.
 .It Sy shell
-Only valid shells from shell database or sliplogin and pppd
+Only valid shells from the shell database or sliplogin and pppd
 .It Sy uid
-Automatically generated or your choice, less than 32000.
+Automatically generated or your choice, must be less than 32000.
 .It Sy gid/login group
 Your choice or automatically generated. 
 .It Sy password
-If not empty, password is encoded with crypt.
+If not empty, password is encoded with 
+.Xr crypt 3 .
 .El
-
-.Sh UNIQUE GROUP
-Perhaps you're missing what *can* be done with this scheme that falls apart
+.Sh UNIQUE GROUPS
+Perhaps you're missing what 
+.Em can
+be done with this scheme that falls apart
 with most other schemes.  With each user in his/her own group the user can
 safely run with a umask of 002 and have files created in their home directory
 and not worry about others being able to read them.
-
+.Pp
 For a shared area you create a separate uid/gid (like cvs or ncvs on freefall),
 you place each person that should be able to access this area into that new
 group.
-
+.Pp
 This model of uid/gid administration allows far greater flexibility than lumping
 users into groups and having to muck with the umask when working in a shared
 area.
-
+.Pp
 I have been using this model for almost 10 years and found that it works
 for most situations, and has never gotten in the way.  (Rod Grimes)
-
 .Sh CONFIGURATION
 .Bl -tag -width Ds -compact
 .It Sy 1.
@@ -104,18 +116,14 @@ Read config file (/etc/adduser.conf)
 .It Sy 3.
 Parse command line options
 .El
-
 .Sh OPTIONS
 .Bl -tag -width Ds
 .It Sy -batch username [group[,group]...] [fullname] [password]
 Batch mode.
-
 .It Sy -check_only
 Check /etc/passwd, /etc/group, /etc/shells and exit.
-
 .It Sy -create_config
 Create new config and message file and exit. 
-
 .It Sy -dotdir Ar directory
 Copy files from 
 .Ar directory 
@@ -125,88 +133,87 @@ files renamed to
 .Ql Pa .foo .
 Don't copy files if
 .Ar directory 
-equal with 
+specified is equal to
 .Ar no .
 For security make all files writable and readable for owner,
 don't allow group or world to write files and allow only owner
-to read/execute/write .rhost, .Xauthority, .kermrc, .netrc, Mail,
-prv, iscreen, term.
-
+to read/execute/write 
+.Pa .rhost , 
+.Pa .Xauthority , 
+.Pa .kermrc , 
+.Pa .netrc , 
+.Pa Mail ,
+.Pa prv , 
+.Pa iscreen , 
+.Pa term .
 .It Sy -group Ar login_group
 Login group. 
 .Ar USER
 means use username as login group.
-
 .It Sy -help,-h,-?
 Print options and exit.
-
 .It Sy -home Ar partition
 Default home partition where all users located.
-
 .It Sy -message Ar file
 Send new users a welcome message.
 Don't send message if
 .Ar file 
 equal with
 .Ar no .
-
 .It Sy -noconfig
 Do not read config file.
-
 .It Sy -shell Ar shell 
 Default shell for new users.
-
-.It Sy -silent,-s,-quit,-q
-Few warnings, question, bug reports. 
-
+.It Sy -silent,-s,-quiet,-q
+Few warnings, questions, bug reports. 
 .It Sy -uid Ar uid
 Use uid's from 
 .Ar uid
-up.
-
+on up.
 .It Sy -verbose,-v
-Many warning, question. Recommended for novice users.
-
-
-
+Many warnings, questions. Recommended for novice users.
 .Sh FORMATS
 .Bl -tag -width Ds -compact
 .Ql Pa #
 is a comment.  
-
-.P
 .It Sy config file
 .Nm Adduser
 reads and writes this file. 
-See /etc/adduser.conf for more details.
+See 
+.Pa /etc/adduser.conf
+for more details.
 .It Sy message file
-Eval variables in this file. See /etc/adduser.message for more
+Eval variables in this file. See
+.Pa /etc/adduser.message
+for more
 details.
 .El
-
 .Sh EXAMPLES
 .Pp
 $ adduser
 .Pp
 Start adduser in interactive mode.
-
 .Pp
 $ adduser -batch baerenklau guest,staff,baer 'Teddy II' qwerty7
 .Pp
 Create user 'baerenklau' and  login group 'baerenklau'. Invite user 
 baerenklau into groups guest, staff and baer. Realname (fullname) 
-is 'Teddy II'. Password is 'qwerty7' (don't use such password!). Create
-HOME directory '/home/baerenklau' and copy all files and directories 
-from /usr/share/skel to /home/baerenklau. Send user baerenklau 
+is 'Teddy II'. Password is 'qwerty7' (don't use such passwords!). Create
+HOME directory 
+.Pa /home/baerenklau
+and copy all files and directories 
+from 
+.Pa /usr/share/skel
+to 
+.Pa /home/baerenklau .
+Send user baerenklau 
 a welcome message.
-
 .Pp
 $ adduser -uid 5000 -group guest -message no -batch vehlefanz
 .Pp
-Create user 'vehlefanz'. Login group is guest. Uid is up to
-5000, for instance 5007. No other groups, no realname, no password.
+Create user 'vehlefanz'. Login group is guest. Uid next available uid
+after 5000, for instance 5007. No other groups, no realname, no password.
 Do not send a welcome message.
-
 .Sh FILES
 .Bl -tag -width /etc/master.passwdxx -compact
 .It Pa /etc/master.passwd
@@ -224,7 +231,6 @@ skeletal login directory
 .It Pa /var/log/adduser
 logfile for adduser
 .El
-
 .Sh SEE ALSO
 .Xr chpass 1 ,
 .Xr finger 1 ,
@@ -240,9 +246,7 @@ logfile for adduser
 .Xr rmgroup 8 ,
 .Xr rmuser 8 ,
 .Xr vipw 8
-
 .\" .Sh BUGS
-
 .Sh HISTORY
 The
 .Nm
