@@ -28,7 +28,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_ix.c,v 1.8 1995/09/19 18:55:11 bde Exp $
+ *	$Id: if_ix.c,v 1.9 1995/10/05 03:01:13 davidg Exp $
  */
 
 #include "ix.h"
@@ -577,24 +577,17 @@ ixattach(struct isa_device *dvp) {
 	 *        the = 0;'s
 	 *        Infact we should bzero this just to make sure
 	 *        that something does not get missed.
+	 * Further note by GW:
+	 * 	Actually, it's a complete waste of time to zero any of
+	 *	this stuff because the C language guarantees that it's
+	 *	already zeroed.  If this code is changed to do dynamic
+	 *	allocation, this will have to get revisited.
 	 */
 	bzero(ifp, sizeof(ifp));
 	ifp->if_name = ixdriver.name;
 	ifp->if_unit = unit;
 	ifp->if_mtu = ETHERMTU;
-	ifp->if_flags = IFF_NOTRAILERS | IFF_BROADCAST;
-	/*
-	 * This is commented out to save memory and cpu time
-	 * ifp->if_timer = 0;
-	 * ifp->if_metric = 0;
-	 * ifp->if_addrlist = 0;
-	 * ifp->if_snd.ifq_head = 0;
-	 * ifp->if_snd.ifq_tail = 0;
-	 * ifp->if_snd.ifq_len = 0;
-	 * ifp->if_snd.ifq_maxlen = 0;
-	 * ifp->if_snd.ifq_drops = 0;
-	 * end of commented out block
-	 */
+	ifp->if_flags = IFF_SIMPLEX | IFF_BROADCAST;
 	ifp->if_init = ixinit;
 	ifp->if_output = ether_output;
 	ifp->if_start = ixstart;
@@ -602,34 +595,9 @@ ixattach(struct isa_device *dvp) {
 	ifp->if_ioctl = ixioctl;
 	ifp->if_reset = ixreset;
 	ifp->if_watchdog = ixwatchdog;
-	/*
-	 * This is commented out to save memory and cpu time
-	 * ifp->if_ipackets = 0;
-	 * ifp->if_ierrors = 0;
-	 * ifp->if_opackets = 0;
-	 * ifp->if_oerrors = 0;
-	 * ifp->if_collisions = 0;
-	 * ifp->if_next = 0;
-	 * end of commented out block
-	 */
 	ifp->if_type = IFT_ETHER;
 	ifp->if_addrlen = ETHER_ADDRESS_LENGTH;
 	ifp->if_hdrlen = ETHER_HEADER_LENGTH;
-	/*
-	 * This is commented out to save memory and cpu time
-	 * ifp->if_index = 0;
-	 * ifp->if_lastchange.tv_sec = 0;
-	 * ifp->if_lastchange.tv_usec = 0;
-	 * ifp->if_ibytes = 0;
-	 * ifp->if_obytes = 0;
-	 * ifp->if_imcasts = 0;
-	 * ifp->if_omcasts = 0;
-	 * ifp->if_iqdrops = 0;
-	 * ifp->if_noproto = 0;
-	 * ifp->if_baudrate = 0;
-         * ifp->if_pcount = 0;
-	 * end of commented out block
-	 */
 #ifdef IXCOUNTERS
 	 /*
 	  * ZZZ more counters added, but bzero gets them
