@@ -396,7 +396,7 @@ ng_source_rcvdata(hook_p hook, item_p item)
 
 	/* enque packet */
 	/* XXX should we check IF_QFULL() ? */
-	IF_ENQUEUE(&sc->snd_queue, m);
+	_IF_ENQUEUE(&sc->snd_queue, m);
 	sc->queueOctets += m->m_pkthdr.len;
 
 	return (0);
@@ -539,7 +539,7 @@ ng_source_clr_data (sc_p sc)
 	struct mbuf *m;
 
 	for (;;) {
-		IF_DEQUEUE(&sc->snd_queue, m);
+		_IF_DEQUEUE(&sc->snd_queue, m);
 		if (m == NULL)
 			break;
 		NG_FREE_M(m);
@@ -633,7 +633,7 @@ ng_source_send (sc_p sc, int tosend, int *sent_p)
 	bzero (&tmp_queue, sizeof (tmp_queue));
 	for (sent = 0; error == 0 && sent < tosend; ++sent) {
 		s = splnet();
-		IF_DEQUEUE(&sc->snd_queue, m);
+		_IF_DEQUEUE(&sc->snd_queue, m);
 		splx(s);
 		if (m == NULL)
 			break;
@@ -642,7 +642,7 @@ ng_source_send (sc_p sc, int tosend, int *sent_p)
 		m2 = m_copypacket(m, M_DONTWAIT);
 		if (m2 == NULL) {
 			s = splnet();
-			IF_PREPEND(&sc->snd_queue, m);
+			_IF_PREPEND(&sc->snd_queue, m);
 			splx(s);
 			error = ENOBUFS;
 			break;
@@ -650,17 +650,17 @@ ng_source_send (sc_p sc, int tosend, int *sent_p)
 
 		/* re-enqueue the original packet for us */
 		s = splnet();
-		IF_ENQUEUE(&sc->snd_queue, m);
+		_IF_ENQUEUE(&sc->snd_queue, m);
 		splx(s);
 
 		/* queue the copy for sending at smplimp */
-		IF_ENQUEUE(&tmp_queue, m2);
+		_IF_ENQUEUE(&tmp_queue, m2);
 	}
 
 	sent = 0;
 	s = splimp();
 	for (;;) {
-		IF_DEQUEUE(&tmp_queue, m2);
+		_IF_DEQUEUE(&tmp_queue, m2);
 		if (m2 == NULL)
 			break;
 		if (error == 0) {
