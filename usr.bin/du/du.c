@@ -117,6 +117,7 @@ main(argc, argv)
 	int		depth;
 	int		Hflag, Lflag, Pflag, aflag, sflag, dflag, cflag, hflag, ch, notused, rval;
 	char 		**save;
+	static char	dot[] = ".";
 
 	Hflag = Lflag = Pflag = aflag = sflag = dflag = cflag = hflag = 0;
 	
@@ -225,7 +226,7 @@ main(argc, argv)
 
 	if (!*argv) {
 		argv = save;
-		argv[0] = ".";
+		argv[0] = dot;
 		argv[1] = NULL;
 	}
 

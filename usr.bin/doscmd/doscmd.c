@@ -399,7 +399,7 @@ setup_command(int argc, char *argv[], regcontext_t *REGS)
 	p = getcwd(buffer, sizeof(buffer));
 	if (!p || !*p) p = getenv("PWD");
 	if (!p || !*p) p = "/";
-	init_path(drlton('C'), (u_char *)"/", (u_char *)p);
+	init_path(drlton('C'), "/", p);
 
 	/* look for PATH= already set, learn from it if possible */
 	for (i = 0; i < ecnt; ++i) {
@@ -451,7 +451,7 @@ setup_command(int argc, char *argv[], regcontext_t *REGS)
 
     /* XXX ??? */
     if (dos_getcwd(drlton('R')) == NULL)
-	init_path(drlton('R'), (u_char *)"/", 0);
+	init_path(drlton('R'), "/", 0);
 
     /* get program name */
     strncpy(prog, *argv++, sizeof(prog) -1);
