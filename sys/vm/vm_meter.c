@@ -58,7 +58,7 @@ struct loadavg averunnable =
 
 struct vmmeter cnt;
 
-static int maxslp = MAXSLP;
+int maxslp = MAXSLP;
 
 /*
  * Constants for averages over 1, 5, and 15 minutes
@@ -108,8 +108,6 @@ vmmeter()
 
 	if (time_second % 5 == 0)
 		loadav(&averunnable);
-	if (proc0.p_slptime > maxslp / 2)
-		wakeup(&proc0);
 }
 
 SYSCTL_UINT(_vm, VM_V_FREE_MIN, v_free_min,
