@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: log.h,v 1.21 1998/08/02 13:01:16 brian Exp $
+ *	$Id: log.h,v 1.22 1998/08/07 18:42:49 brian Exp $
  */
 
 #define LogMIN		(1)
@@ -73,8 +73,11 @@ extern void log_Close(void);
 #ifdef __GNUC__
 extern void log_Printf(int, const char *,...)
             __attribute__ ((format (printf, 2, 3)));
+extern void log_WritePrompts(struct datalink *, const char *, ...)
+            __attribute__ ((format (printf, 2, 3)));
 #else
 extern void log_Printf(int, const char *,...);
+extern void log_WritePrompts(struct datalink *, const char *, ...);
 #endif
 extern void log_DumpBp(int, const char *, const struct mbuf *);
 extern void log_DumpBuff(int, const char *, const u_char *, int);
@@ -87,7 +90,6 @@ extern void log_RegisterPrompt(struct prompt *);
 extern void log_UnRegisterPrompt(struct prompt *);
 extern void log_DestroyPrompts(struct server *);
 extern void log_DisplayPrompts(void);
-extern void log_WritePrompts(struct datalink *, const char *, int);
 extern void log_ActivatePrompt(struct prompt *);
 extern void log_DeactivatePrompt(struct prompt *);
 extern void log_SetTtyCommandMode(struct datalink *);

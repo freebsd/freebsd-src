@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.30 1998/08/02 06:56:40 brian Exp $
+ *	$Id: bundle.c,v 1.31 1998/08/07 18:42:47 brian Exp $
  */
 
 #include <sys/param.h>
@@ -1079,6 +1079,8 @@ bundle_LinkClosed(struct bundle *bundle, struct datalink *dl)
 
   struct datalink *odl;
   int other_links;
+
+  log_SetTtyCommandMode(dl);
 
   other_links = 0;
   for (odl = bundle->links; odl; odl = odl->next)

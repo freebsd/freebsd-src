@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: prompt.c,v 1.9 1998/07/04 22:04:12 brian Exp $
+ *	$Id: prompt.c,v 1.10 1998/08/07 18:42:50 brian Exp $
  */
 
 #include <sys/param.h>
@@ -452,9 +452,6 @@ void
 prompt_TtyTermMode(struct prompt *p, struct datalink *dl)
 {
   int stat;
-
-  prompt_Printf(p, "Entering terminal mode on %s.\n", dl->name);
-  prompt_Printf(p, "Type `~?' for help.\n");
 
   if (p->Term == stdout)
     tcsetattr(p->fd_in, TCSADRAIN, &p->comtio);
