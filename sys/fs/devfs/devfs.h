@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
  * Copyright (c) 2000
@@ -35,7 +35,7 @@
  */
 
 #ifndef _FS_DEVFS_DEVFS_H_
-#define _FS_DEVFS_DEVFS_H_
+#define	_FS_DEVFS_DEVFS_H_
 
 #ifdef _KERNEL	/* No userland stuff in here... */
 
@@ -60,7 +60,9 @@
  */
 #define DEVFSINOMOUNT	0x2000000
 
+#ifdef MALLOC_DECLARE
 MALLOC_DECLARE(M_DEVFS);
+#endif
 
 struct devfs_dirent {
 	int	de_inode;
@@ -113,4 +115,5 @@ void devfs_purge (struct devfs_dirent *dd);
 struct devfs_dirent *devfs_vmkdir (char *name, int namelen, struct devfs_dirent *dotdot);
 
 #endif /* _KERNEL */
-#endif /* _FS_DEVFS_DEVFS_H_ */
+
+#endif /* !_FS_DEVFS_DEVFS_H_ */
