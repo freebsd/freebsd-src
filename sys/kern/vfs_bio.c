@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.46 1995/05/30 08:06:27 rgrimes Exp $
+ * $Id: vfs_bio.c,v 1.47 1995/06/28 12:00:54 davidg Exp $
  */
 
 /*
@@ -835,12 +835,7 @@ loop:
 		 * check for size inconsistancies
 		 */
 		if (bp->b_bcount != size) {
-#if defined(VFS_BIO_DEBUG)
-			printf("getblk: invalid buffer size: %ld\n", bp->b_bcount);
-#endif
-			bp->b_flags |= B_NOCACHE;
-			(void) VOP_BWRITE(bp);
-			goto loop;
+			allocbuf(bp, size);
 		}
 		splx(s);
 		return (bp);
