@@ -643,7 +643,7 @@ sched_switch(struct thread *td)
 	p = td->td_proc;
 
 	mtx_assert(&sched_lock, MA_OWNED);
-	KASSERT((ke->ke_state == KES_THREAD), ("mi_switch: kse state?"));
+	KASSERT((ke->ke_state == KES_THREAD), ("sched_switch: kse state?"));
 
 	td->td_lastcpu = td->td_oncpu;
 	td->td_last_kse = ke;
@@ -693,14 +693,14 @@ sched_add(struct thread *td)
 
 	ke = td->td_kse;
 	mtx_assert(&sched_lock, MA_OWNED);
-	KASSERT((ke->ke_thread != NULL), ("runq_add: No thread on KSE"));
+	KASSERT((ke->ke_thread != NULL), ("sched_add: No thread on KSE"));
 	KASSERT((ke->ke_thread->td_kse != NULL),
-	    ("runq_add: No KSE on thread"));
+	    ("sched_add: No KSE on thread"));
 	KASSERT(ke->ke_state != KES_ONRUNQ,
-	    ("runq_add: kse %p (%s) already in run queue", ke,
+	    ("sched_add: kse %p (%s) already in run queue", ke,
 	    ke->ke_proc->p_comm));
 	KASSERT(ke->ke_proc->p_sflag & PS_INMEM,
-	    ("runq_add: process swapped out"));
+	    ("sched_add: process swapped out"));
 	ke->ke_ksegrp->kg_runq_kses++;
 	ke->ke_state = KES_ONRUNQ;
 
@@ -727,8 +727,9 @@ sched_rem(struct thread *td)
 
 	ke = td->td_kse;
 	KASSERT(ke->ke_proc->p_sflag & PS_INMEM,
-	    ("runq_remove: process swapped out"));
-	KASSERT((ke->ke_state == KES_ONRUNQ), ("KSE not on run queue"));
+	    ("sched_rem: process swapped out"));
+	KASSERT((ke->ke_state == KES_ONRUNQ),
+	    ("sched_rem: KSE not on run queue"));
 	mtx_assert(&sched_lock, MA_OWNED);
 
 	runq_remove(ke->ke_sched->ske_runq, ke);
@@ -771,11 +772,11 @@ sched_choose(void)
 		ke->ke_state = KES_THREAD;
 
 		KASSERT((ke->ke_thread != NULL),
-		    ("runq_choose: No thread on KSE"));
+		    ("sched_choose: No thread on KSE"));
 		KASSERT((ke->ke_thread->td_kse != NULL),
-		    ("runq_choose: No KSE on thread"));
+		    ("sched_choose: No KSE on thread"));
 		KASSERT(ke->ke_proc->p_sflag & PS_INMEM,
-		    ("runq_choose: process swapped out"));
+		    ("sched_choose: process swapped out"));
 	}
 	return (ke);
 }
