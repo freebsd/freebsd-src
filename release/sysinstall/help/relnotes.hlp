@@ -24,6 +24,8 @@ The kernel code from 4.4BSD-Lite2 has been (finally) merged.
 The SMP (Symmetric MultiProcessing) branch has been merged into
 -current.
 
+Secure RPC is now supported (and usable with NFS et al).
+
 The default username length has increased to 16 characters.
 Caution:  Old utmp/wtmp files will NOT work with this change since
 the data records will be of the old size.  For a conversion utility
