@@ -10,7 +10,7 @@
 	described by the term.  A term enclosed with [...] is optional,
 	and may not be required by all forms of the command.
 
-	Some commands may not be availalble.  Use the '?' command to list
+	Some commands may not be available.  Use the '?' command to list
 	most available commands.
 
 ################################################################################
@@ -199,7 +199,7 @@
 	set module_path=<path>[;<path>...]
 
 	Sets the list of directories which will be searched in for modules
-	named in a load command or implicitly required by a dependancy. The
+	named in a load command or implicitly required by a dependency. The
 	default module_path is "/;/boot;/modules".
 
 ################################################################################
@@ -225,7 +225,7 @@
 ################################################################################
 # Tset Stunables DSet kernel tunable values
 
-	Various kernel tunable parameters can be overriden by specifying new 
+	Various kernel tunable parameters can be overridden by specifying new 
 	values in the environment.
 
 	set kern.ipc.nmbclusters=<value>	NMBCLUSTERS
