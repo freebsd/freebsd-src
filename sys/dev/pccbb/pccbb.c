@@ -1346,6 +1346,7 @@ done:;
 static int
 cbb_do_power(device_t brdev)
 {
+	struct cbb_softc *sc = device_get_softc(brdev);
 	int voltage;
 
 	/* Don't enable OE */
@@ -1612,6 +1613,7 @@ cbb_cardbus_alloc_resource(device_t brdev, device_t child, int type,
 	struct cbb_softc *sc = device_get_softc(brdev);
 	int tmp;
 	struct resource *res;
+	u_long align;
 
 	switch (type) {
 	case SYS_RES_IRQ:
@@ -1636,9 +1638,14 @@ cbb_cardbus_alloc_resource(device_t brdev, device_t child, int type,
 			start = cbb_start_mem;
 		if (end < start)
 			end = start;
-		if (RF_ALIGNMENT(flags) < CBB_MEMALIGN_BITS)
+		if (RF_ALIGNMENT(flags) < CBB_MEMALIGN_BITS) {
+			if (count < CBB_MEMALIGN)
+				align = CBB_MEMALIGN;
+			else
+				align = count;
 			flags = (flags & ~RF_ALIGNMENT_MASK) |
-			    rman_make_alignment_flags(CBB_MEMALIGN);
+			    rman_make_alignment_flags(align);
+		}
 		break;
 	}
 
