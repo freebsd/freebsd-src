@@ -76,6 +76,7 @@
 #include <net/if_types.h>
 #include <net/route.h>
 #include <net80211/ieee80211.h>
+#include <net80211/ieee80211_crypto.h>
 #include <net80211/ieee80211_ioctl.h>
 
 #include <ctype.h>
@@ -229,7 +230,7 @@ set80211wepkey(const char *val, int d, int s, const struct afswtch *rafp)
 {
 	int		key = 0;
 	int		len;
-	u_int8_t	data[14];
+	u_int8_t	data[IEEE80211_KEYBUF_SIZE];
 
 	if (isdigit(val[0]) && val[1] == ':') {
 		key = atoi(val)-1;
@@ -253,7 +254,7 @@ set80211nwkey(const char *val, int d, int s, const struct afswtch *rafp)
 {
 	int		txkey;
 	int		i, len;
-	u_int8_t	data[14];
+	u_int8_t	data[IEEE80211_KEYBUF_SIZE];
 
 	set80211(s, IEEE80211_IOC_WEP, IEEE80211_WEP_ON, 0, NULL);
 
@@ -427,10 +428,12 @@ ieee80211_status (int s, struct rt_addrinfo *info __unused)
 				warn("WEP support, but can get keys!");
 				goto end;
 			}
-			if (ireq.i_len == 0 || ireq.i_len > 13)
+			if (ireq.i_len == 0 ||
+			    ireq.i_len > IEEE80211_KEYBUF_SIZE)
 				continue;
 			printf("%cwepkey %d:%s", spacer, i+1,
-			    ireq.i_len <= 5 ? "64-bit" : "128-bit");
+			    ireq.i_len <= 5 ? "40-bit" :
+			    ireq.i_len <= 13 ? "104-bit" : "128-bit");
 			if (spacer == '\t')
 				spacer = ' ';
 		}
