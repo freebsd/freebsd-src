@@ -419,7 +419,7 @@ thread_schedule_upcall(struct thread *td, struct kse *ke)
 	}
 	CTR3(KTR_PROC, "thread_schedule_upcall: thread %p (pid %d, %s)",
 	     td, td->td_proc->p_pid, td->td_proc->p_comm);
-	bzero(&td->td_startzero,
+	bzero(&td2->td_startzero,
 	    (unsigned)RANGEOF(struct thread, td_startzero, td_endzero));
 	bcopy(&td->td_startcopy, &td2->td_startcopy,
 	    (unsigned) RANGEOF(struct thread, td_startcopy, td_endcopy));
