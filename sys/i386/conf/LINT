@@ -4,7 +4,7 @@
 #
 #	This kernel is NOT MEANT to be runnable!
 #
-#	$Id: LINT,v 1.47 1994/01/29 03:17:39 ache Exp $
+#	$Id: LINT,v 1.48 1994/01/29 21:41:36 rgrimes Exp $
 #
 
 machine		"i386"
@@ -54,6 +54,8 @@ options		EXCLUDE_CHIP_MIDI	# \  sound driver options
 options		"EXCLUDE_MPU401"	#  \ exclude specified
 options		EXCLUDE_GUS		#  / device or chip
 options		EXCLUDE_SBPRO		# /  from driver
+
+options		USER_LDT		#allow user-level control of i386 ldt
 
 #
 # options that are in sys/conf/files
