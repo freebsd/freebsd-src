@@ -1,5 +1,5 @@
 .\"
-.\" Copyright (c) 1998, 1999, 2000 Kenneth D. Merry.
+.\" Copyright (c) 1998, 1999, 2000, 2002 Kenneth D. Merry.
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -72,10 +72,10 @@
 .Op generic args
 .Nm
 .Ic rescan
-.Aq bus Ns Op :target:lun
+.Aq all | bus Ns Op :target:lun
 .Nm
 .Ic reset
-.Aq bus Ns Op :target:lun
+.Aq all | bus Ns Op :target:lun
 .Nm
 .Ic defects
 .Op device id
@@ -251,12 +251,16 @@ start bit cleared.
 Send the SCSI Start/Stop Unit (0x1B) command to the given device with the
 start bit cleared and the eject bit set.
 .It Ic rescan
-Tell the kernel to scan the given bus (XPT_SCAN_BUS), or bus:target:lun
+Tell the kernel to scan all busses in the system (with the
+.Ar all
+argument), the given bus (XPT_SCAN_BUS), or bus:target:lun
 (XPT_SCAN_LUN) for new devices or devices that have gone away.  The user
-may only specify a bus to scan, or a lun.  Scanning all luns on a target
-isn't supported.
+may specify a scan of all busses, a single bus, or a lun.  Scanning all luns
+on a target isn't supported.
 .It Ic reset
-Tell the kernel to reset the given bus (XPT_RESET_BUS) by issuing a SCSI bus
+Tell the kernel to reset all busses in the system (with the
+.Ar all
+argument) or the given bus (XPT_RESET_BUS) by issuing a SCSI bus
 reset for that bus, or to reset the given bus:target:lun
 (XPT_RESET_DEV), typically by issuing a BUS DEVICE RESET message after
 connecting to that device.
@@ -658,6 +662,11 @@ camcontrol modepage da3 -m 1 -e -P 3
 Edit mode page 1 (the Read-Write Error Recover page) for da3, and save the
 settings on the drive.  Mode page 1 contains a disk drive's auto read and
 write reallocation settings, among other things.
+.Pp
+.Dl camcontrol rescan all
+.Pp
+Rescan all SCSI busses in the system for devices that have been added,
+removed or changed.
 .Pp
 .Dl camcontrol rescan 0
 .Pp
