@@ -10,7 +10,12 @@ CFLAGS+=        -DHAS_CGETENT -DENCRYPTION -DDES_ENCRYPTION -DAUTHENTICATION \
 
 NOPIC=          yes
 
-INCLUDES=       ${TELNETDIR}/arpa/telnet.h 
+INCS=		${TELNETDIR}/arpa/telnet.h
+INCDIR=		/usr/include/arpa
+
+.include <bsd.lib.mk>
+
+.PATH:	${TELNETDIR}/libtelnet
 
 #
 # Before complaining about this, please *double-check* that you have
@@ -22,7 +27,3 @@ INCLUDES=       ${TELNETDIR}/arpa/telnet.h
 #
 beforeinstall:
 	rm -f ${DESTDIR}${LIBDIR}/lib${LIB}.so.${SHLIB_MAJOR}.${SHLIB_MINOR}
-
-.include <bsd.lib.mk>
-
-.PATH:	${TELNETDIR}/libtelnet
