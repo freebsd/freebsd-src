@@ -519,7 +519,7 @@ configXDesktop(dialogMenuItem *self)
 	if (DITEM_STATUS(ret) != DITEM_FAILURE && gotit("gnome-session")) {
 	    ret = package_add("enlightenment");
 	    if (DITEM_STATUS(ret) != DITEM_FAILURE && gotit("enlightenment"))
-		write_root_xprofile("gnome-session &\nexec enlightenment\n");
+		write_root_xprofile("exec gnome-session\n");
 	}
     }
     else if (!strcmp(desk, "afterstep")) {
