@@ -41,7 +41,7 @@ isdn:
 
  set enddisc mac	# Assuming you have a LAN
 
- enable lqr
+ enable lqr echo
  set reconnect 3 5
  set redial 3 10
  set lqrperiod 45
