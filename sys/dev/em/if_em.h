@@ -151,20 +151,12 @@ typedef struct _em_vendor_info_t
 
 
 struct em_tx_buffer {
-	STAILQ_ENTRY(em_tx_buffer) em_tx_entry;
 	struct mbuf    *m_head;
 	u_int32_t       num_tx_desc_used;
 };
 
-
-/* ******************************************************************************
- * This structure stores information about the 2k aligned receive buffer
- * into which the E1000 DMA's frames. 
- * ******************************************************************************/
 struct em_rx_buffer {
-	STAILQ_ENTRY(em_rx_buffer) em_rx_entry;
 	struct mbuf    *m_head;
-	u_int64_t      buffer_addr;
 };
 
 typedef enum _XSUM_CONTEXT_T {
@@ -202,28 +194,36 @@ struct adapter {
 
 	XSUM_CONTEXT_T  active_checksum_context;
 
-	/* Transmit definitions */
-	struct em_tx_desc *first_tx_desc;
-	struct em_tx_desc *last_tx_desc;
-	struct em_tx_desc *next_avail_tx_desc;
-	struct em_tx_desc *oldest_used_tx_desc;
-	struct em_tx_desc *tx_desc_base;
-	volatile u_int16_t num_tx_desc_avail;
-	u_int16_t       num_tx_desc;
-	u_int32_t       txd_cmd;
-	struct em_tx_buffer   *tx_buffer_area;
-	STAILQ_HEAD(__em_tx_buffer_free, em_tx_buffer)  free_tx_buffer_list;
-	STAILQ_HEAD(__em_tx_buffer_used, em_tx_buffer)  used_tx_buffer_list;
+	/*
+         * Transmit definitions
+         *
+         * We have an array of num_tx_desc descriptors (handled
+         * by the controller) paired with an array of tx_buffers
+         * (at tx_buffer_area).
+         * The index of the next available descriptor is next_avail_tx_desc.
+         * The number of remaining tx_desc is num_tx_desc_avail.
+         */
+        struct em_tx_desc *tx_desc_base;
+        u_int32_t          next_avail_tx_desc;
+        volatile u_int16_t num_tx_desc_avail;
+        u_int16_t          num_tx_desc;
+        u_int32_t          txd_cmd;
+        struct em_tx_buffer   *tx_buffer_area;
 
-	/* Receive definitions */
-	struct em_rx_desc *first_rx_desc;
-	struct em_rx_desc *last_rx_desc;
-	struct em_rx_desc *next_rx_desc_to_check;
-	struct em_rx_desc *rx_desc_base;
-	u_int16_t       num_rx_desc;
-	u_int32_t       rx_buffer_len;
-	struct em_rx_buffer   *rx_buffer_area;
-	STAILQ_HEAD(__em_rx_buffer, em_rx_buffer)  rx_buffer_list;
+	/* 
+	 * Receive definitions
+         *
+         * we have an array of num_rx_desc rx_desc (handled by the
+         * controller), and paired with an array of rx_buffers
+         * (at rx_buffer_area).
+         * The next pair to check on receive is at offset next_rx_desc_to_check
+         */
+        struct em_rx_desc *rx_desc_base;
+        u_int32_t          next_rx_desc_to_check;
+        u_int16_t          num_rx_desc;
+        u_int32_t          rx_buffer_len;
+        struct em_rx_buffer   *rx_buffer_area;
+
 
 	/* Jumbo frame */
 	struct mbuf     *fmp;
