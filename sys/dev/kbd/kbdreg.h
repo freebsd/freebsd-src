@@ -90,6 +90,7 @@ struct keyboard {
 #define KB_DELAY2	100
 	unsigned long	kb_count;	/* # of processed key strokes */
 	u_char		kb_lastact[NUM_KEYS/2];
+	dev_t		kb_dev;
 };
 
 #define KBD_IS_VALID(k)		((k)->kb_flags & KB_VALID)
