@@ -64,7 +64,7 @@ prn_printable(const char *s)
 	int n;
 
 	for (n = 0; (c = *s) != '\0'; ++s, ++n)
-		if (isprint(c))
+		if (isprint((unsigned char)c))
 			putchar(c);
 		else
 			putchar('?');
