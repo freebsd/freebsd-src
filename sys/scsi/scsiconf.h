@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *	$Id: scsiconf.h,v 1.31 1995/11/21 12:55:01 bde Exp $
+ *	$Id: scsiconf.h,v 1.32 1995/12/05 07:14:25 julian Exp $
  */
 #ifndef	SCSI_SCSICONF_H
 #define SCSI_SCSICONF_H 1
@@ -232,7 +232,6 @@ extern struct scsi_device_config scsi_dinit[];
 
 #endif
 
-#ifdef NEW_SCSICONF
 /*
  * Define various devices that we know mis-behave in some way,
  * and note how they are bad, so we can correct for them
@@ -272,7 +271,9 @@ typedef struct st_mode st_modes[4];
 #define SD_Q_NO_FAST		SCSI_Q_NO_FAST
 #define SD_Q_NO_WIDE		SCSI_Q_NO_WIDE
 
-#endif
+/* cd specific CD_Q_* */
+#define CD_Q_NO_TOUCH		0x0001
+
 
 /*
  * This structure describes the connection between an adapter driver and
@@ -487,7 +488,6 @@ void ukinit __P((void));
 
 #define SCSI_EXTERNALLEN (sizeof(struct scsi_link))
 
-#ifdef NEW_SCSICONF
 
 /* XXX This belongs in a tape file.
  */
@@ -552,7 +552,8 @@ void ukinit __P((void));
 #define QIC_1320	0x12
 #define DDS		0x13
 #define DAT_1		0x13
-#endif /* NEW_SCSICONF */
+#define	QIC_3080	0x29
+
 
 /* XXX (dufault@hda.com) This is used only by "su" and "sctarg".
  * The minor number field conflicts with the disk slice code,
