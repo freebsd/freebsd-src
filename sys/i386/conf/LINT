@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.184.4.10 1996/01/04 08:51:07 gibbs Exp $
+#	$Id: LINT,v 1.184.4.11 1996/02/12 14:33:55 phk Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -187,9 +187,6 @@ options		HDLC			#X.25 link layer for serial lines
 # IPFIREWALL enables support for IP firewall construction, in
 # conjunction with the `ipfw' program.  IPFIREWALL_VERBOSE does
 # the obvious thing.
-# IPFIREWALL_ORDER_RULES makes the ipfw code sort the rules.  You
-# don't want that, it's only there to be backward compatible.
-# IPACCT enables IP accounting.
 #
 # ARP_PROXYALL enables global proxy ARP.  Beware!  This can burn
 # your house down!  See netinet/if_ether.c for the gory details.
@@ -200,8 +197,6 @@ options		GATEWAY			#internetwork gateway
 options		MROUTING		# Multicast routing
 options         IPFIREWALL              #firewall
 options         IPFIREWALL_VERBOSE      #print information about
-options		IPFIREWALL_ORDER_RULES  # bogusly sort rules.
-options		IPACCT			#ipaccounting
 					# dropped packets
 options		ARP_PROXYALL		# global proxy ARP
 

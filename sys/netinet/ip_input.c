@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_input.c,v 1.25 1995/07/09 14:29:46 davidg Exp $
+ * $Id: ip_input.c,v 1.22.4.2 1995/09/06 10:31:35 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -97,6 +97,25 @@ struct	ifqueue ipintrq;
 struct ipstat ipstat;
 struct ipq ipq;
 
+
+/*
+ * The dummy IP-firewall function, and the pointer we access it through
+ */
+static int 
+dummy_ip_fw_chk(m, ip, rif, dir)
+	struct mbuf *m;
+	struct ip *ip;
+	struct ifnet *rif;
+	int dir;
+{
+	return 1;
+}
+
+int (*ip_fw_chk_ptr)(struct mbuf *, struct ip *, struct ifnet *, int dir) = 
+	dummy_ip_fw_chk;
+
+int (*ip_fw_ctl_ptr)(int, struct mbuf *);
+
 /*
  * We need to save the IP options in case a protocol wants to respond
  * to an incoming packet over the same route if the packet got here
@@ -136,6 +155,9 @@ ip_init()
 	ipq.next = ipq.prev = &ipq;
 	ip_id = time.tv_sec & 0xffff;
 	ipintrq.ifq_maxlen = ipqmaxlen;
+#if defined(IPFIREWALL) || defined(IPACCT)
+	ip_fw_init();
+#endif /* IPFIREWALL */
 }
 
 struct	sockaddr_in ipaddr = { sizeof(ipaddr), AF_INET };
@@ -241,10 +263,9 @@ next:
 	 * - Encapsulate: put it in another IP and send out. <unimp.>
  	 */
 
-        if (ip_fw_chk_ptr!=NULL)
-               if (!(*ip_fw_chk_ptr)(m,ip,m->m_pkthdr.rcvif,ip_fw_chain) ) {
-                       goto next;
-               }
+	if (!(*ip_fw_chk_ptr)(m,ip,m->m_pkthdr.rcvif,0) ) {
+	       goto next;
+	}
 
 	/*
 	 * Process options and, if not destined for us,
@@ -356,17 +377,6 @@ next:
 	goto next;
 
 ours:
-
-		/*
-		 * If packet came to us we count it...
-		 * This way we count all incoming packets which has 
-		 * not been forwarded...
-		 * Do not convert ip_len to host byte order when 
-		 * counting,ppl already made it for us before..
-		 */
-	if (ip_acct_cnt_ptr!=NULL)
-		(*ip_acct_cnt_ptr)(ip,m->m_pkthdr.rcvif,ip_acct_chain,0);
-
 	/*
 	 * If offset or IP_MF are set, must reassemble.
 	 * Otherwise, nothing need be done.

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_output.c	8.3 (Berkeley) 1/21/94
- * $Id: ip_output.c,v 1.23 1995/07/26 18:05:13 wollman Exp $
+ * $Id: ip_output.c,v 1.19.4.2 1995/09/06 10:31:40 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -314,6 +314,14 @@ ip_output(m0, opt, ro, flags, imo)
 
 sendit:
 	/*
+	 * Check with the firewall...
+	 */
+	if (!(*ip_fw_chk_ptr)(m,ip,ifp,1)) {
+		error = 0;
+		goto done;
+	}
+
+	/*
 	 * If small enough for interface, can just send directly.
 	 */
 	if ((u_short)ip->ip_len <= ifp->if_mtu) {
@@ -417,16 +425,6 @@ sendorfree:
 done:
 	if (ro == &iproute && (flags & IP_ROUTETOIF) == 0 && ro->ro_rt)
 		RTFREE(ro->ro_rt);
-	/*
-	 * Count outgoing packet,here we count both our packets and
-	 * those we forward.
-	 * Here we want to convert ip_len to host byte order when counting
-	 * so we set 3rd arg to 1.
-	 * This is locally generated packet so it has not
-	 * incoming interface.
-	 */
-	if (ip_acct_cnt_ptr!=NULL)
-		(*ip_acct_cnt_ptr)(ip,NULL,ip_acct_chain,1);
 
 	return (error);
 bad:
