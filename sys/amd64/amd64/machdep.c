@@ -964,7 +964,9 @@ cpu_setregs(void)
 	unsigned int cr0;
 
 	cr0 = rcr0();
+#ifdef SMP
 	cr0 |= CR0_NE;			/* Done by npxinit() */
+#endif
 	cr0 |= CR0_MP | CR0_TS;		/* Done at every execve() too. */
 #ifndef I386_CPU
 	cr0 |= CR0_WP | CR0_AM;
