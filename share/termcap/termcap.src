@@ -2437,9 +2437,9 @@ pro350|decpro|dec pro console:\
 # SC needed for screen(1)        ache
 vt200|vt220|vt220am|SC|dec-vt220|dec vt200 series with jump scroll:\
 	:@7=\E[4~:kh=\E[1~:kI=\E[2~:k0=\E[10~:\
-	:kD=\E[3~:k1=\EOP:k2=\EOQ:k3=\EOR:k4=\EOS:k5=\E[15~:\
+	:kD=\E[3~:k1=\E[11~:k2=\E[12~:k3=\E[13~:k4=\E[14~:k5=\E[15~:\
 	:k6=\E[17~:k7=\E[18~:k8=\E[19~:k9=\E[20~:k;=\E[21~:F1=\E[22~:\
-	:F2=\E[23~:kP=\E[5~:kN=\E[6~:ue=\E[24m:se=\E[27m:\
+	:F2=\E[23~:kP=\E[5~:kN=\E[6~:\
 	:K1=\EOw:K2=\EOy:K3=\EOu:K4=\EOq:K5=\EOs:\
 	:tc=vt102:
 vt200-nam|dec-vt200-nam|vt200nam|vt200 w/no am:\
