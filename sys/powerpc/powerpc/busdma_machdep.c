@@ -465,7 +465,7 @@ bus_dmamap_load_uio(bus_dma_tag_t dmat, bus_dmamap_t map, struct uio *uio,
 	int nsegs, i, error, first;
 	bus_size_t resid;
 	struct iovec *iov;
-	struct proc *td = NULL;
+	struct thread *td = NULL;
 
 	resid = uio->uio_resid;
 	iov = uio->uio_iov;
