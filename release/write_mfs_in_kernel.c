@@ -63,9 +63,9 @@ main(int argc, char **argv)
 	if (st_fs.st_size != read(fd_fs,buf_fs,st_fs.st_size))
 		{ perror(argv[2]); exit(2); }
 	for(l=0,p=buf_kernel; l < st_kernel.st_size - st_fs.st_size ; l++,p++ )
-		if(*p == 'M' && !strcmp(p,"MD Filesystem goes here"))
+		if(*p == 'M' && !strcmp(p,"MFS Filesystem goes here"))
 			goto found;
-	fprintf(stderr,"MD filesystem signature not found in %s\n",argv[1]);
+	fprintf(stderr,"MFS filesystem signature not found in %s\n",argv[1]);
 	exit(1);
 found:
 	if (!force)
