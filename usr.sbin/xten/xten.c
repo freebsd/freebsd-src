@@ -68,8 +68,8 @@ char *X10cmdnames[] = {
   NULL
 };
 
-int find __P((char *, char *[]));
-static void usage __P((void));
+int find(char *, char *[]);
+static void usage(void);
 
 int
 main(argc, argv)
