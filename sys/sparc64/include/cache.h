@@ -97,6 +97,7 @@ void	icache_flush __P((vm_offset_t, vm_offset_t));
 void	icache_inval_phys __P((vm_offset_t, vm_offset_t));
 void	dcache_flush __P((vm_offset_t, vm_offset_t));
 void	dcache_inval __P((pmap_t, vm_offset_t, vm_offset_t));
+void	dcache_inval_phys __P((vm_offset_t, vm_offset_t));
 void	dcache_blast __P((void));
 void	ecache_flush __P((vm_offset_t, vm_offset_t));
 #if 0
