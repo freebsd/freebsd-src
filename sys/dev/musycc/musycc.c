@@ -339,13 +339,11 @@ static LIST_HEAD(, csoftc) sc_list = LIST_HEAD_INITIALIZER(&sc_list);
 static void
 poke_847x(void *dummy)
 {
-	static int count;
 	int i;
 	struct csoftc *csc;
 
 	timeout(poke_847x, NULL, 1);
 	LIST_FOREACH(csc, &sc_list, list)  {
-		count++;
 		i = (csc->creg >> 24 & 0xf);
 		csc->creg &= ~0xf000000;
 		i++;
@@ -814,6 +812,7 @@ musycc_intr0(void *arg)
 					sc->chan[ch]->short_error++;
 					break;
 				}
+				/* FALLTHROUGH */
 			default:
 				musycc_intr0_tx_eom(sc, ch);
 				musycc_intr0_rx_eom(sc, ch);
@@ -1094,14 +1093,13 @@ musycc_rcvdata(hook_p hook, item_p item)
 	struct csoftc *csc;
 	struct schan *sch;
 	struct mdesc *md, *md0;
-	u_int32_t ch, u, u0, len;
+	u_int32_t u, u0, len;
 	struct mbuf *m2;
 	struct mbuf *m;
 
 	sch = NG_HOOK_PRIVATE(hook);
 	sc = sch->sc;
 	csc = sc->csc;
-	ch = sch->chan;
 
 	if (csc->state != C_RUNNING) {
 		printf("csc->state = %d\n", csc->state);
