@@ -1,4 +1,4 @@
-$Id: MIRROR.SITES,v 1.1.2.3 1995/10/30 18:05:32 jkh Exp $
+$Id: MIRROR.SITES,v 1.1.2.4 1995/11/03 06:21:47 jkh Exp $
 
 Obtaining FreeBSD
    
@@ -63,7 +63,7 @@ Obtaining FreeBSD
 
    Hong Kong
 
-          + ftp://ftp.hk.super.net/pub/FreeBSD
+          + ftp://ftp.hk.super.net/pub/mirror/FreeBSD
             Contact: ftp-admin@HK.Super.NET.
 
    Ireland
