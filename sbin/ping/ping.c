@@ -92,7 +92,7 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 
 #define	INADDR_LEN	((int)sizeof(in_addr_t))
-#define	TIMEVAL_LEN	((int)sizeof(struct timeval))
+#define	TIMEVAL_LEN	((int)sizeof(struct tv32))
 #define	MASK_LEN	(ICMP_MASKLEN - ICMP_MINLEN)
 #define	TS_LEN		(ICMP_TSLEN - ICMP_MINLEN)
 #define	DEFDATALEN	56		/* default data length */
@@ -109,6 +109,11 @@ __FBSDID("$FreeBSD$");
 #define	SET(bit)	(A(bit) |= B(bit))
 #define	CLR(bit)	(A(bit) &= (~B(bit)))
 #define	TST(bit)	(A(bit) & B(bit))
+
+struct tv32 {
+	int32_t tv32_sec;
+	int32_t tv32_usec;
+};
 
 /* various options */
 int options;
@@ -838,6 +843,7 @@ static void
 pinger(void)
 {
 	struct timeval now;
+	struct tv32 tv32;
 	struct ip *ip;
 	struct icmp *icp;
 	int cc, i;
@@ -856,13 +862,15 @@ pinger(void)
 	if ((options & F_TIME) || timing) {
 		(void)gettimeofday(&now, NULL);
 
+		tv32.tv32_sec = htonl(now.tv_sec);
+		tv32.tv32_usec = htonl(now.tv_usec);
 		if (options & F_TIME)
 			icp->icmp_otime = htonl((now.tv_sec % (24*60*60))
 				* 1000 + now.tv_usec / 1000);
 		if (timing)
-			bcopy((void *)&now,
+			bcopy((void *)&tv32,
 			    (void *)&outpack[ICMP_MINLEN + phdr_len],
-			    sizeof(struct timeval));
+			    sizeof(tv32));
 	}
 
 	cc = ICMP_MINLEN + phdr_len + datalen;
@@ -942,6 +950,7 @@ pr_pack(buf, cc, from, tv)
 		triptime = 0.0;
 		if (timing) {
 			struct timeval tv1;
+			struct tv32 tv32;
 #ifndef icmp_data
 			tp = &icp->icmp_ip;
 #else
@@ -951,7 +960,9 @@ pr_pack(buf, cc, from, tv)
 
 			if (cc - ICMP_MINLEN - phdr_len >= sizeof(tv1)) {
 				/* Copy to avoid alignment problems: */
-				memcpy(&tv1, tp, sizeof(tv1));
+				memcpy(&tv32, tp, sizeof(tv32));
+				tv1.tv_sec = ntohl(tv32.tv32_sec);
+				tv1.tv_usec = ntohl(tv32.tv32_usec);
 				tvsub(tv, &tv1);
  				triptime = ((double)tv->tv_sec) * 1000.0 +
  				    ((double)tv->tv_usec) / 1000.0;
