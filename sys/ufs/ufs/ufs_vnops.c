@@ -1261,10 +1261,16 @@ abortit:
 		dp = VTOI(fdvp);
 	} else {
 		/*
-		 * From name has disappeared.
+		 * From name has disappeared.  IN_RENAME is not sufficient
+		 * to protect against directory races due to timing windows,
+		 * so we have to remove the panic.  XXX the only real way
+		 * to solve this issue is at a much higher level.  By the
+		 * time we hit ufs_rename() it's too late.
 		 */
+#if 0
 		if (doingdirectory)
 			panic("ufs_rename: lost dir entry");
+#endif
 		vrele(ap->a_fvp);
 		return (0);
 	}
@@ -1278,8 +1284,17 @@ abortit:
 	 * by a rmdir.
 	 */
 	if (xp != ip) {
+		/*
+		 * From name resolves to a different inode.  IN_RENAME is
+		 * not sufficient protection against timing window races
+		 * so we can't panic here.  XXX the only real way
+		 * to solve this issue is at a much higher level.  By the
+		 * time we hit ufs_rename() it's too late.
+		 */
+#if 0
 		if (doingdirectory)
 			panic("ufs_rename: lost dir entry");
+#endif
 	} else {
 		/*
 		 * If the source is a directory with a
