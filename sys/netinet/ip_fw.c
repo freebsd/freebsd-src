@@ -12,7 +12,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.c,v 1.51.2.6 1997/11/22 13:00:48 alex Exp $
+ *	$Id: ip_fw.c,v 1.51.2.7 1997/12/19 03:50:49 julian Exp $
  */
 
 /*
@@ -738,12 +738,13 @@ zero_entry(struct mbuf *m)
 		}
 	splx(s);
 
-#if 0
-	if ( frwl )
-		printf("ipfw: Entry %d cleared.\n", frwl->fw_number);
-	else
-		printf("ipfw: Accounting cleared.\n");
-#endif
+	if (fw_verbose) {
+		if (frwl)
+			printf("ipfw: Entry %d cleared.\n", frwl->fw_number);
+		else
+			printf("ipfw: Accounting cleared.\n");
+	}
+
 	return(0);
 }
 
