@@ -1,4 +1,4 @@
-.\" $Id: fetch.1,v 1.3 1996/07/18 00:07:59 jkh Exp $
+.\" $Id: fetch.1,v 1.4 1996/08/14 17:50:22 jkh Exp $
 .Dd July 2, 1996
 .Dt FETCH 1
 .Os
@@ -34,6 +34,11 @@ For compatibility with
 the form 
 .Em site.domain:/path/to/the/file
 is also accepted.
+To denote a local filename to be copied or linked to (see
+.Fl l
+flag), the
+.Em file:/path/to/the/file
+URL form is used.
 
 The second form of the command can be used to get a file using the
 .Em ftp
@@ -68,6 +73,17 @@ on the remote host.
 Set the
 .Ar host
 for transfer.
+.It Fl l
+If target is a
+.Ar file:/
+style of URL, make a link to the target rather than trying
+to copy it.
+.It Fl T Ar seconds
+Set timeout value to
+.Ar seconds.
+Overrides
+.Ev FTP_TIMEOUT
+environment variable, if set.
 .It Fl q
 Quiet mode. Do not report transfer progress on the terminal.
 .It Fl r
