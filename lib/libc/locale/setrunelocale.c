@@ -47,9 +47,9 @@ extern int		_none_init __P((_RuneLocale *));
 #ifdef XPG4
 extern int		_UTF2_init __P((_RuneLocale *));
 extern int		_EUC_init __P((_RuneLocale *));
+extern int		_MSKanji_init __P((_RuneLocale *));
 extern int              _xpg4_setrunelocale __P((char *));
 #endif
-extern int		_MSKanji_init __P((_RuneLocale *));
 extern _RuneLocale      *_Read_RuneMagi __P((FILE *));
 
 #ifdef XPG4
@@ -113,21 +113,21 @@ _xpg4_setrunelocale(encoding)
 	fclose(fp);
 
 #ifdef XPG4
-	if (!rl->encoding[0] || !strcmp(rl->encoding, "UTF2")) {
+	if (!rl->encoding[0] || !strcmp(rl->encoding, "UTF2"))
 		return(_UTF2_init(rl));
 #else
-	if (!rl->encoding[0]) {
+	if (!rl->encoding[0])
 		return(EINVAL);
 #endif
-	} else if (!strcmp(rl->encoding, "NONE")) {
+	else if (!strcmp(rl->encoding, "NONE"))
 		return(_none_init(rl));
 #ifdef XPG4
-	} else if (!strcmp(rl->encoding, "EUC")) {
+	else if (!strcmp(rl->encoding, "EUC"))
 		return(_EUC_init(rl));
-#endif
-	} else if (!strcmp(rl->encoding, "MSKanji")) {
+	else if (!strcmp(rl->encoding, "MSKanji"))
 		return(_MSKanji_init(rl));
-	} else
+#endif
+	else
 		return(EINVAL);
 }
 
