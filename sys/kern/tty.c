@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.c	8.8 (Berkeley) 1/21/94
- * $Id: tty.c,v 1.18 1995/01/06 14:56:42 bde Exp $
+ * $Id: tty.c,v 1.19 1995/01/30 06:16:59 bde Exp $
  */
 
 #include <sys/param.h>
@@ -783,8 +783,10 @@ ttioctl(tp, cmd, data, flag)
 				if (!ISSET(tp->t_state, TS_CARR_ON) &&
 				    ISSET(tp->t_cflag, CLOCAL) &&
 				    !ISSET(t->c_cflag, CLOCAL)) {
+#if 0
 					CLR(tp->t_state, TS_ISOPEN);
 					SET(tp->t_state, TS_WOPEN);
+#endif
 					ttwakeup(tp);
 				}
 				tp->t_cflag = t->c_cflag;
