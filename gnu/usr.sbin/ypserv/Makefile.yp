@@ -43,6 +43,7 @@ DBLOAD = /usr/sbin/yp_mkdb -m `hostname`
 MKNETID = /usr/libexec/mknetid
 YPPUSH = /usr/bin/yppush
 DOMAIN = `/bin/domainname`
+REVNETGROUP = /usr/libexec/revnetgroup
 
 YPSRCDIR = /etc
 YPDIR = /var/yp
@@ -161,7 +162,7 @@ bootparams: $(BOOTPARAMS)
 	@if [ ! $(NOPUSH) ]; then echo "Pushed $@ map." ; fi
 
 
-netgroup: $(NETGROUP)
+netgroup: $(NETGROUP) netgroup.byhost netgroup.byuser
 	@echo "Updating $@..."
 	$(RM) $@
 	$(CAT) $(NETGROUP) | \
@@ -171,6 +172,28 @@ netgroup: $(NETGROUP)
 	@if [ ! $(NOPUSH) ]; then $(YPPUSH) -d $(DOMAIN) $@; fi
 	@if [ ! $(NOPUSH) ]; then echo "Pushed $@ map." ; fi
 	@$(MAKE) -f ../Makefile netid
+
+
+netgroup.byhost: $(NETGROUP)
+	@echo "Updating $@..."
+	$(RM) $@
+	$(CAT) $(NETGROUP) | $(REVNETGROUP) -h -f $(NETGROUP) | \
+	$(AWK) '{ if ($$1 != "" && $$1 != "#" && $$1 != "+") \
+		print $$0 }' $^ | $(DBLOAD) -i $(NETGROUP) \
+							-o $(YPMAPDIR)/$@ - $@
+	@if [ ! $(NOPUSH) ]; then $(YPPUSH) -d $(DOMAIN) $@; fi
+	@if [ ! $(NOPUSH) ]; then echo "Pushed $@ map." ; fi
+
+
+netgroup.byuser: $(NETGROUP)
+	@echo "Updating $@..."
+	$(RM) $@
+	$(CAT) $(NETGROUP) | $(REVNETGROUP) -u -f $(NETGROUP) | \
+	$(AWK) '{ if ($$1 != "" && $$1 != "#" && $$1 != "+") \
+		print $$0 }' $^ | $(DBLOAD) -i $(NETGROUP) \
+							-o $(YPMAPDIR)/$@ - $@
+	@if [ ! $(NOPUSH) ]; then $(YPPUSH) -d $(DOMAIN) $@; fi
+	@if [ ! $(NOPUSH) ]; then echo "Pushed $@ map." ; fi
 
 
 hosts.byname: $(HOSTS)
