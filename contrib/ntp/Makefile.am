@@ -29,6 +29,7 @@ EXTRA_DIST = \
 	README.cvs \
 	README.des \
 	README.hackers \
+	README.refclocks \
 	README.rsa \
 	README.versions \
 	TODO \
@@ -78,6 +79,8 @@ $(srcdir)/version: FRC.version
 dist-hook:
 	@find $(distdir) -type d -name CVS -print | xargs rm -rf
 	@find $(distdir) -type d -name SCCS -print | xargs rm -rf
+	@for i in `find $(distdir)/ports/winnt -type f -name '*.ds*' -print`; \
+	   do chmod u+w $$i ; unix2dos $$i $$i; done
 
 .warning:
 	@echo "Compiling with GCC now generates lots of new warnings."
