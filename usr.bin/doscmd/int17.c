@@ -29,7 +29,7 @@
  *
  *	BSDI int17.c,v 2.2 1996/04/08 19:32:48 bostic Exp
  *
- * $Id: int17.c,v 1.1 1997/08/09 01:42:48 dyson Exp $
+ * $Id: int17.c,v 1.2 1998/01/22 02:44:54 msmith Exp $
  */
 
 #include "doscmd.h"
@@ -152,12 +152,13 @@ open_printer(int printer)
     /*
      * If printer is a spooled device then open pipe to spooled device
      */
-    if (queue[printer])
-	strcpy(printer_name, queue[printer]);
-    else
+    if (queue[printer]) {
+	strncpy(printer_name, queue[printer], sizeof(printer_name));
+	printer_name[sizeof(printer_name) - 1] = '\0';
+    } else
 	strcpy(printer_name, "lp");
 
-    sprintf(command, "lpr -P %s", printer_name);
+    snprintf(command, sizeof(command), "lpr -P %s", printer_name);
     debug(D_PRINTER, "opening pipe to %s\n", printer_name);
 
     if ((file = popen(command, "w")) == 0) {
