@@ -248,7 +248,7 @@
 159	UNIMPL	NOHIDE	nosys
 160	UNIMPL	NOHIDE	nosys
 ; 161 is initialized by the NFS code, if present.
-161	NOIMPL	BSD	{ int getfh(char *fname, struct fhandle *fhp); }
+161	STD	BSD	{ int getfh(char *fname, struct fhandle *fhp); }
 162	STD	BSD	{ int getdomainname(char *domainname, int len); }
 163	STD	BSD	{ int setdomainname(char *domainname, int len); }
 164	STD	BSD	{ int uname(struct utsname *name); }

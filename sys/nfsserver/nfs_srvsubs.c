@@ -117,8 +117,6 @@ static sy_call_t *nfs_prev_nfssvc_sy_call;
 #ifndef NFS_NOSERVER
 
 static vop_t *nfs_prev_vop_lease_check;
-static int nfs_prev_getfh_sy_narg;
-static sy_call_t *nfs_prev_getfh_sy_call;
 
 /*
  * Mapping of old NFS Version 2 RPC numbers to generic numbers.
@@ -558,8 +556,6 @@ extern nfstype nfsv3_type[9];
 extern struct nfsnodehashhead *nfsnodehashtbl;
 extern u_long nfsnodehash;
 
-struct getfh_args;
-extern int getfh(struct proc *, struct getfh_args *, int *);
 struct nfssvc_args;
 extern int nfssvc(struct proc *, struct nfssvc_args *, int *);
 
@@ -1184,12 +1180,6 @@ nfs_init(vfsp)
 	sysent[SYS_nfssvc].sy_narg = 2;
 	nfs_prev_nfssvc_sy_call = sysent[SYS_nfssvc].sy_call;
 	sysent[SYS_nfssvc].sy_call = (sy_call_t *)nfssvc;
-#ifndef NFS_NOSERVER
-	nfs_prev_getfh_sy_narg = sysent[SYS_getfh].sy_narg;
-	sysent[SYS_getfh].sy_narg = 2;
-	nfs_prev_getfh_sy_call = sysent[SYS_getfh].sy_call;
-	sysent[SYS_getfh].sy_call = (sy_call_t *)getfh;
-#endif
 
 	nfs_pbuf_freecnt = nswbuf / 2 + 1;
 
@@ -1209,10 +1199,6 @@ nfs_uninit(vfsp)
 	lease_updatetime = nfs_prev_lease_updatetime;
 	sysent[SYS_nfssvc].sy_narg = nfs_prev_nfssvc_sy_narg;
 	sysent[SYS_nfssvc].sy_call = nfs_prev_nfssvc_sy_call;
-#ifndef NFS_NOSERVER
-	sysent[SYS_getfh].sy_narg = nfs_prev_getfh_sy_narg;
-	sysent[SYS_getfh].sy_call = nfs_prev_getfh_sy_call;
-#endif
 	return (0);
 }
 
