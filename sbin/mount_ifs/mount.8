@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)mount.8	8.8 (Berkeley) 6/16/94
-.\"	$Id: mount.8,v 1.16 1997/08/24 02:27:08 steve Exp $
+.\"	$Id: mount.8,v 1.17 1997/08/24 17:51:12 joerg Exp $
 .\"
 .Dd June 16, 1994
 .Dt MOUNT 8
@@ -79,9 +79,11 @@ The options are as follows:
 All the filesystems described in
 .Xr fstab 5
 are mounted.
-Exceptions are those marked as ``noauto'' or are excluded by the
+Exceptions are those marked as ``noauto'', excluded by the
 .Fl t
-flag (see below).
+flag (see below), or if they are already mounted (except the
+root filesystem which is always remounted to preserve
+traditional single user mode behavior).
 .It Fl d
 Causes everything to be done except for the actual system call.
 This option is useful in conjunction with the
