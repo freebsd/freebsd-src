@@ -195,6 +195,12 @@ init_device_poll(void)
 /*
  * Hook from hardclock. Tries to schedule a netisr, but keeps track
  * of lost ticks due to the previous handler taking too long.
+ * Normally, this should not happen, because polling handler should
+ * run for a short time. However, in some cases (e.g. when there are
+ * changes in link status etc.) the drivers take a very long time
+ * (even in the order of milliseconds) to reset and reconfigure the
+ * device, causing apparent lost polls.
+ *
  * The first part of the code is just for debugging purposes, and tries
  * to count how often hardclock ticks are shorter than they should,
  * meaning either stray interrupts or delayed events.
@@ -217,10 +223,11 @@ hardclock_device_poll(void)
 		prev_t = t;
 
 	if (pending_polls > 100) {
-		/* too much, assume it has stalled */
+		/*
+		 * Too much, assume it has stalled (not always true
+		 * see comment above).
+		 */
 		stalled++;
-		printf("poll stalled [%d] in phase %d\n",
-			stalled, phase);
 		pending_polls = 0;
 		phase = 0;
 	}
