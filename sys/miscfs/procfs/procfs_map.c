@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_status.c	8.3 (Berkeley) 2/17/94
  *
- *	$Id: procfs_status.c,v 1.5 1996/02/02 05:19:20 wosch Exp $
+ *	$Id: procfs_map.c,v 1.1 1996/06/17 22:53:27 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -166,4 +166,11 @@ case OBJT_DEVICE:
 	error = uiomove(kbuffer, (kbufferp - kbuffer), uio);
 	kmem_free(kernel_map, (vm_offset_t)kbuffer, MAXKBUFFER);
 	return error;
+}
+
+int
+procfs_validmap(p)
+	struct proc *p;
+{
+	return ((p->p_flag & P_SYSTEM) == 0);
 }

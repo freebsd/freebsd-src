@@ -36,7 +36,7 @@
  *
  *	@(#)procfs.h	8.6 (Berkeley) 2/3/94
  *
- *	$Id: procfs.h,v 1.9 1996/01/24 18:40:37 peter Exp $
+ *	$Id: procfs.h,v 1.10 1996/06/17 22:43:35 dyson Exp $
  */
 
 /*
@@ -53,7 +53,8 @@ typedef enum {
 	Pstatus,	/* process status */
 	Pnote,		/* process notifier */
 	Pnotepg,	/* process group notifier */
-	Pmap		/* memory map */
+	Pmap,		/* memory map */
+	Ptype		/* executable type */
 } pfstype;
 
 /*
@@ -134,11 +135,15 @@ extern int procfs_dofpregs __P((struct proc *, struct proc *, struct pfsnode *pf
 extern int procfs_domem __P((struct proc *, struct proc *, struct pfsnode *pfsp, struct uio *uio));
 extern int procfs_doctl __P((struct proc *, struct proc *, struct pfsnode *pfsp, struct uio *uio));
 extern int procfs_dostatus __P((struct proc *, struct proc *, struct pfsnode *pfsp, struct uio *uio));
+extern int procfs_domap __P((struct proc *, struct proc *, struct pfsnode *pfsp, struct uio *uio));
+extern int procfs_dotype __P((struct proc *, struct proc *, struct pfsnode *pfsp, struct uio *uio));
 
 /* check to see if the process has the "items" (regs/file) */
 int procfs_validfile __P((struct proc *));
 int procfs_validfpregs __P((struct proc *));
 int procfs_validregs __P((struct proc *));
+int procfs_validmap __P((struct proc *));
+int procfs_validtype __P((struct proc *));
 
 #define PROCFS_LOCKED	0x01
 #define PROCFS_WANT	0x02
