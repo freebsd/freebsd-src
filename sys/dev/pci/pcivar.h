@@ -34,7 +34,6 @@
 #define PCI_COMPAT
 #endif
 
-#include <pci/pci_ioctl.h> /* XXX KDM */
 #include <sys/queue.h>
 
 /* some PCI bus constants */

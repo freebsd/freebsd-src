@@ -40,9 +40,7 @@ static const char rcsid[] =
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
-
-#include <pci/pcivar.h>
-#include <pci/pci_ioctl.h>
+#include <sys/pciio.h>
 
 #include "pathnames.h"
 
