@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_fxp.c,v 1.8 1996/01/15 10:12:41 davidg Exp $
+ *	$Id: if_fxp.c,v 1.9 1996/01/23 21:47:03 se Exp $
  */
 
 /*
@@ -290,8 +290,8 @@ fxp_attach(config_id, unit)
 	ifp->if_watchdog = fxp_watchdog;
 
 	fxp_get_macaddr(sc);
-	printf("fxp%d: Ethernet address %s\n", unit,
-	    ether_sprintf(sc->arpcom.ac_enaddr));
+	printf("fxp%d: Ethernet address %6D\n", unit,
+	    sc->arpcom.ac_enaddr, ":");
 
 	/*
 	 * Attach the interface.

@@ -1182,10 +1182,10 @@ lnc_attach(struct isa_device * isa_dev)
 	if_attach(&sc->arpcom.ac_if);
 	sc->kdc.kdc_state = DC_IDLE;
 
-	printf("lnc%d: %s, address %s\n",
+	printf("lnc%d: %s, address %6D\n",
 	       isa_dev->id_unit,
 		   sc->kdc.kdc_description,
-	       ether_sprintf(sc->arpcom.ac_enaddr));
+	       sc->arpcom.ac_enaddr, ":");
 
 #if NBPFILTER > 0
 	bpfattach(&sc->bpf, &sc->arpcom.ac_if, DLT_EN10MB, sizeof(struct ether_header));
