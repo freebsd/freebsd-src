@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: syscons.h,v 1.35 1997/10/23 03:23:50 yokota Exp $
+ *	$Id: syscons.h,v 1.36 1997/11/21 11:37:07 yokota Exp $
  */
 
 #ifndef _I386_ISA_SYSCONS_H_
@@ -48,7 +48,7 @@
 				}
 #define mark_all(scp)		{\
 				    scp->start = 0;\
-				    scp->end = scp->xsize * scp->ysize;\
+				    scp->end = scp->xsize * scp->ysize - 1;\
 				}
 
 /* status flags */
