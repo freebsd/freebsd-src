@@ -9,7 +9,7 @@ CFLAGS+=-I${.CURDIR}/../../lib
 SRCS=	global.c slc.c state.c sys_term.c telnetd.c \
 	termstat.c utility.c
 #SRCS+=	authenc.c
-DPADD=	${LIBUTIL} ${LIBTERM}
+DPADD=	${LIBUTIL} ${LIBTERMCAP}
 LDADD=	-lutil -ltermcap -ltelnet
 #LDADD+=	-lkrb -ldes
 MAN8=	telnetd.8
