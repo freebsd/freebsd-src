@@ -1,9 +1,44 @@
 			SENDMAIL RELEASE NOTES
-	     @(#)RELEASE_NOTES	8.6.10.2 (Berkeley) 2/10/95
+	     @(#)RELEASE_NOTES	8.6.11.1 (Berkeley) 3/8/95
 
 This listing shows the version of the sendmail binary, the version
 of the sendmail configuration files, the date of release, and a
 summary of the changes in that release.
+
+8.6.11/8.6.11	95/03/08
+	The ``possible attack'' message would be logged more often
+		than necessary if you are using Pine as a user agent.
+	The wrong host would be reported in the ``possible attack''
+		message when attempted from IDENT.
+	In some cases the syslog buffer could be overflowed when
+		reporting the ``possible attack'' message.  This can
+		cause denial of service attacks.  Truncate the message
+		to 80 characters to prevent this problem.
+	When reading the IDENT response a loop is needed around the
+		read from the network to ensure that you don't get
+		partial lines.
+	Password entries without any shell listed (that is, a null
+		shell) wouldn't match as "ok".  Problem noted by
+		Rob McMahon.
+	When running BIND 4.9.x a problem could occur because the
+		_res.options field is initialized differently than it
+		was historically -- this requires that sendmail call
+		res_init before it tweaks any bits.
+	Fix an incompatibility in openxscript() between the file open mode
+		and the stdio mode passed to fdopen.  This caused UnixWare
+		2.0 to have conniptions.  Fix from Martin Sohnius of
+		Novell Labs Europe.
+	Fix problem with static linking of local getopt routine when
+		using GNU's ld command.  Fix from John Kennedy of
+		Cal State Chico.
+	It was possible to turn off privacy flags.  Problem noted by
+		*Hobbit*.
+	Be more paranoid about writing files.  Suggestions by *Hobbit*
+		and Liudvikas Bukys.
+	MAKEMAP: fixes for 64 bit machines (DEC Alphas in particular)
+		from Spider Boardman.
+	CONFIG: No changes (version number only, to keep it in sync
+		with the binaries).
 
 8.6.10/8.6.10	95/02/10
 	SECURITY: Diagnose bogus values to some command line flags that
@@ -46,6 +81,8 @@ summary of the changes in that release.
 		some cases, buffers could get trashed by map lookups
 		causing it to do unexpected things.  This also simplifies
 		some of the map code.
+	CONFIG: No changes (version number only, to keep it in sync
+		with the binaries).
 
 8.6.9/8.6.9	94/04/19
 	Do all mail delivery completely disconnected from any terminal.
