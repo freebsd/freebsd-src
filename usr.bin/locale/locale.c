@@ -49,6 +49,7 @@
 
 /* Local prototypes */
 void	init_locales_list(void);
+void	list_charmaps(void);
 void	list_locales(void);
 const char *lookup_localecat(int);
 char	*kwval_lconv(int);
@@ -252,11 +253,8 @@ main(int argc, char *argv[])
 
 	/* process '-m' */
 	if (all_charmaps) {
-		/*
-		 * XXX: charmaps are not supported by FreeBSD now.  It
-		 * need to be implemented as soon as localedef(1) implemented.
-		 */
-		exit(1);
+		list_charmaps();
+		exit(0);
 	}
 
 	/* check for special case '-k list' */
@@ -312,6 +310,50 @@ list_locales(void)
 	}
 }
 
+/*
+ * Output information about all available charmaps
+ *
+ * XXX this function is doing a task in hackish way, i.e. by scaning
+ *     list of locales, spliting their codeset part and building list of
+ *     them.
+ */
+void
+list_charmaps(void)
+{
+	size_t i;
+	char *s, *cs;
+	StringList *charmaps;
+
+	/* initialize StringList */
+	charmaps = sl_init();
+	if (charmaps == NULL)
+		err(1, "could not allocate memory");
+
+	/* fetch locales list */
+	init_locales_list();
+
+	/* split codesets and build their list */
+	for (i = 0; i < locales->sl_cur; i++) {
+		s = locales->sl_str[i];
+		if ((cs = strchr(s, '.')) != NULL) {
+			cs++;
+			if (sl_find(charmaps, cs) == NULL)
+				sl_add(charmaps, cs);
+		}
+	}
+
+	/* add US-ASCII, if not yet added */
+	if (sl_find(charmaps, "US-ASCII") == NULL)
+		sl_add(charmaps, "US-ASCII");
+
+	/* sort the list */
+	qsort(charmaps->sl_str, charmaps->sl_cur, sizeof(char *), scmp);
+
+	/* print results */
+	for (i = 0; i < charmaps->sl_cur; i++) {
+		printf("%s\n", charmaps->sl_str[i]);
+	}
+}
 
 /*
  * qsort() helper function
