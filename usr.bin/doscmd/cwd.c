@@ -696,7 +696,7 @@ get_entries(u_char *path)
 }
 
 /*
- * Return file system statistics for drive.
+ * Return filesystem statistics for drive.
  * Return the DOS errno on failure.
  */
 int

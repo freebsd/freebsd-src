@@ -718,7 +718,7 @@ f_fstype(plan, entry)
 		curdev = entry->fts_statp->st_dev;
 
 		/*
-		 * Statfs follows symlinks; find wants the link's file system,
+		 * Statfs follows symlinks; find wants the link's filesystem,
 		 * not where it points.
 		 */
 		if (entry->fts_info == FTS_SL ||

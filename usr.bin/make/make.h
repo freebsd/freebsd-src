@@ -63,7 +63,7 @@
  * The structure for an individual graph node. Each node has several
  * pieces of data associated with it.
  *	1) the name of the target it describes
- *	2) the location of the target file in the file system.
+ *	2) the location of the target file in the filesystem.
  *	3) the type of operator used to define its sources (qv. parse.c)
  *	4) whether it is involved in this invocation of make
  *	5) whether the target has been remade
