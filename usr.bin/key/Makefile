@@ -7,7 +7,7 @@ MAN1=   key.1
 
 CFLAGS+= -D_SKEY_INTERNAL
 
-DPADD=	${LIBSKEY} ${LIBMD}
-LDADD=	-lskey -lmd
+DPADD=	${LIBSKEY} ${LIBCRYPT} ${LIBMD}
+LDADD=	-lskey -lcrypt -lmd
 
 .include <bsd.prog.mk>
