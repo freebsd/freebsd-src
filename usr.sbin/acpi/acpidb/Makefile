@@ -39,6 +39,7 @@ MAN=	acpidb.8
 CFLAGS+= -DACPI_APPLICATION -DACPI_DEBUG_OUTPUT -DACPI_DEBUGGER \
 	-DACPI_DISASSEMBLER
 
+# The following band-aid is also present in ../iasl/Makefile
 CLEANFILES+= osunixxf-xxx.c
 osunixxf-xxx.c: osunixxf.c
 	cat ${.ALLSRC} | sed -e 's/UINT32 *length/ACPI_SIZE length/g' -e 's/UINT32 *size/ACPI_SIZE size/g' -e 's/(UINT32) where/(uintptr_t)where/g' > ${.TARGET}
