@@ -51,7 +51,9 @@
 .Ar group
 .Ar files ...
 .Sh DESCRIPTION
-The chgrp utility sets the group ID of the file named by each
+The
+.Nm
+utility sets the group ID of the file named by each
 .Ar file
 operand to the
 .Ar group
@@ -63,7 +65,7 @@ Options:
 If the
 .Fl R
 option is specified, symbolic links on the command line are followed.
-(Symbolic links encountered in the tree traversal are not followed.)
+(Symbolic links encountered in the tree traversal are not followed).
 .It Fl L
 If the
 .Fl R
@@ -102,12 +104,12 @@ If a group name is also a numeric group ID, the operand is used as a
 group name.
 .Pp
 The user invoking
-.Nm chgrp
+.Nm
 must belong to the specified group and be the owner of the file,
 or be the super-user.
 .Pp
 The
-.Nm chgrp
+.Nm
 utility exits 0 on success, and >0 if an error occurs.
 .Sh COMPATIBILITY
 In previous versions of this system, symbolic links did not have groups.
@@ -125,5 +127,7 @@ Group ID file
 .Xr chown 8
 .Sh STANDARDS
 The
-.Nm chgrp
-utility is expected to be POSIX 1003.2 compatible.
+.Nm
+utility is expected to be
+.St -p1003.2
+compatible.
