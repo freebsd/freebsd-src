@@ -184,6 +184,84 @@ useracc(addr, len, rw)
 }
 
 /*
+ * MPSAFE
+ */
+int
+vslock(td, addr, size)
+	struct thread *td;
+	vm_offset_t addr;
+	vm_size_t size;
+{
+	vm_offset_t start, end;
+	struct proc *proc = td->td_proc;
+	int error, npages;
+
+	start = trunc_page(addr);
+	end = round_page(addr + size);
+
+	/* disable wrap around */
+	if (end <= start)
+		return (EINVAL);
+
+	npages = atop(end - start);
+
+	if (npages > vm_page_max_wired)
+		return (ENOMEM);
+
+	PROC_LOCK(proc);
+	if (npages + pmap_wired_count(vm_map_pmap(&proc->p_vmspace->vm_map)) >
+	    atop(lim_cur(proc, RLIMIT_MEMLOCK))) {
+		PROC_UNLOCK(proc);
+		return (ENOMEM);
+	}
+	PROC_UNLOCK(proc);
+
+#if 0
+	/*
+	 * XXX - not yet
+	 *
+	 * The limit for transient usage of wired pages should be
+	 * larger than for "permanent" wired pages (mlock()).
+	 *
+	 * Also, the sysctl code, which is the only present user
+	 * of vslock(), does a hard loop on EAGAIN.
+	 */
+	if (npages + cnt.v_wire_count > vm_page_max_wired)
+		return (EAGAIN);
+#endif
+
+	error = vm_map_wire(&proc->p_vmspace->vm_map, start, end,
+	     VM_MAP_WIRE_USER|VM_MAP_WIRE_NOHOLES);
+	
+	/* EINVAL is probably a better error to return than ENOMEM */
+	return (error == KERN_SUCCESS ? 0 : EINVAL);
+}
+
+/*
+ * MPSAFE
+ */
+int
+vsunlock(td, addr, size)
+	struct thread *td;
+	vm_offset_t addr;
+	vm_size_t size;
+{
+	vm_offset_t start, end;
+	int error;
+
+	start = trunc_page(addr);
+	end = round_page(addr + size);
+
+	/* disable wrap around */
+	if (end <= start)
+		return (EINVAL);
+
+	error = vm_map_unwire(&td->td_proc->p_vmspace->vm_map, start, end,
+	    VM_MAP_WIRE_SYSTEM|VM_MAP_WIRE_NOHOLES);
+	return (error == KERN_SUCCESS ? 0 : EINVAL);
+}
+
+/*
  * Create the U area for a new process.
  * This routine directly affects the fork perf for a process.
  */

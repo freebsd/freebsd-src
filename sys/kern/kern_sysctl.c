@@ -1000,7 +1000,7 @@ kernel_sysctl(struct thread *td, int *name, u_int namelen, void *old,
 	error = sysctl_root(0, name, namelen, &req);
 
 	if (req.lock == REQ_WIRED)
-		kern_munlock(req.td, (vm_offset_t)req.oldptr,
+		vsunlock(req.td, (vm_offset_t)req.oldptr,
 		    (vm_size_t)req.wiredlen);
 
 	SYSCTL_UNLOCK();
@@ -1103,7 +1103,7 @@ sysctl_wire_old_buffer(struct sysctl_req *req, size_t len)
 	ret = 0;
 	if (req->lock == REQ_LOCKED && req->oldptr &&
 	    req->oldfunc == sysctl_old_user) {
-		ret = kern_mlock(req->td, (vm_offset_t)req->oldptr,
+		ret = vslock(req->td, (vm_offset_t)req->oldptr,
 		    (vm_size_t)wiredlen);
 		if (ret == 0) {
 			req->lock = REQ_WIRED;
@@ -1320,7 +1320,7 @@ userland_sysctl(struct thread *td, int *name, u_int namelen, void *old,
 
 	req = req2;
 	if (req.lock == REQ_WIRED)
-		kern_munlock(req.td, (vm_offset_t)req.oldptr,
+		vsunlock(req.td, (vm_offset_t)req.oldptr,
 		    (vm_size_t)req.wiredlen);
 
 	SYSCTL_UNLOCK();
