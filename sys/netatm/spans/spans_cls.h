@@ -147,7 +147,7 @@ struct spansarp_hdr {
 #define	ARP_PACKET_LEN	\
 	(sizeof(struct spanscls_hdr) + sizeof(struct spansarp_hdr))
 
-#ifdef ATM_KERNEL
+#ifdef _KERNEL
 /*
  * Macros for manipulating SPANS ARP tables and entries
  */
@@ -183,6 +183,6 @@ struct spansarp_hdr {
 extern struct spanscls		*spanscls_head;
 extern struct spanscls_hdr	spanscls_hdr;
 
-#endif	/* ATM_KERNEL */
+#endif	/* _KERNEL */
 
 #endif	/* _SPANS_SPANSCLS_H */
