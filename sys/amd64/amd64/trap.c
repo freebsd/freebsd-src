@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id$
+ *	$Id: trap.c,v 1.4 1993/10/15 10:34:27 rgrimes Exp $
  */
 
 /*
@@ -278,7 +278,9 @@ copyfault:
 		 * XXX: rude hack to make stack limits "work"
 		 */
 		nss = 0;
-		if ((caddr_t)va >= vm->vm_maxsaddr && map != kernel_map
+		if ((caddr_t)va >= vm->vm_maxsaddr
+			&& (caddr_t)va < (caddr_t)VM_MAXUSER_ADDRESS
+			&& map != kernel_map
 			&& dostacklimits) {
 			nss = clrnd(btoc((unsigned)vm->vm_maxsaddr
 				+ MAXSSIZ - (unsigned)va));
