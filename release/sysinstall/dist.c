@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.36.2.37 1996/07/10 11:48:05 jkh Exp $
+ * $Id: dist.c,v 1.67 1996/07/13 05:44:51 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -423,17 +423,17 @@ distExtract(char *parent, Distribution *me)
 	    msgDebug("Attempting to extract distribution from %u chunks.\n", numchunks);
 
 	total = 0;
+	(void)gettimeofday(&start, (struct timezone *)0);
+
 	/* We have one or more chunks, go pick them up */
 	mediaExtractDistBegin(root_bias(me[i].my_dir), &fd2, &zpid, &cpid);
 	for (chunk = 0; chunk < numchunks; chunk++) {
-	    int n, chunktotal, retval;
+	    int n, retval;
 	    char prompt[80];
 
 	    snprintf(buf, 512, "%s/%s.%c%c", path, dist, (chunk / 26) + 'a', (chunk % 26) + 'a');
 	    if (isDebug())
 		msgDebug("trying for piece %d of %d: %s\n", chunk + 1, numchunks, buf);
-	    chunktotal = 0;
-	    (void)gettimeofday(&start, (struct timezone *)0);
 	    fd = mediaDevice->get(mediaDevice, buf, FALSE);
 	    if (fd < 0) {
 		msgConfirm("failed to retreive piece file %s!\n"
@@ -448,7 +448,7 @@ distExtract(char *parent, Distribution *me)
 		n = read(fd, buf, BUFSIZ);
 		if (n <= 0)
 		    break;
-		total += n, chunktotal += n;
+		total += n;
 
 		/* Print statistics about how we're doing */
 		(void) gettimeofday(&stop, (struct timezone *)0);
@@ -459,8 +459,8 @@ distExtract(char *parent, Distribution *me)
 		seconds = stop.tv_sec + (stop.tv_usec / 1000000.0);
 		if (!seconds)
 		    seconds = 1;
-		msgInfo("%10d bytes read from %s dist, chunk %2d of %2d @ %4.1f KB/sec.",
-			total, dist, chunk + 1, numchunks, (chunktotal / seconds) / 1024.0);
+		msgInfo("%10d bytes read from %s dist, chunk %2d of %2d @ %.1f KB/sec.",
+			total, dist, chunk + 1, numchunks, (total / seconds) / 1024.0);
 		retval = write(fd2, buf, n);
 		if (retval != n) {
 		    mediaDevice->close(mediaDevice, fd);
