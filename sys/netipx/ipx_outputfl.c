@@ -33,17 +33,13 @@
  *
  *	@(#)ipx_outputfl.c
  *
- * $Id: ipx_outputfl.c,v 1.6 1997/02/22 09:41:55 peter Exp $
+ * $Id: ipx_outputfl.c,v 1.7 1997/05/10 09:58:53 jhay Exp $
  */
 
 #include <sys/param.h>
-#include <sys/queue.h>
 #include <sys/systm.h>
-#include <sys/malloc.h>
 #include <sys/mbuf.h>
-#include <sys/errno.h>
 #include <sys/socket.h>
-#include <sys/socketvar.h>
 
 #include <net/if.h>
 #include <net/route.h>

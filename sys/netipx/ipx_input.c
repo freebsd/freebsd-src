@@ -33,48 +33,40 @@
  *
  *	@(#)ipx_input.c
  *
- * $Id: ipx_input.c,v 1.12 1997/02/22 09:41:54 peter Exp $
+ * $Id: ipx_input.c,v 1.13 1997/05/10 09:58:52 jhay Exp $
  */
 
 #include <sys/param.h>
-#include <sys/queue.h>
 #include <sys/systm.h>
-#include <sys/malloc.h>
 #include <sys/mbuf.h>
-#include <sys/domain.h>
 #include <sys/protosw.h>
 #include <sys/socket.h>
-#include <sys/socketvar.h>
-#include <sys/errno.h>
-#include <sys/time.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
 
 #include <net/if.h>
 #include <net/route.h>
 #include <net/netisr.h>
-#include <net/raw_cb.h>
 
 #include <netipx/ipx.h>
 #include <netipx/spx.h>
 #include <netipx/ipx_if.h>
 #include <netipx/ipx_pcb.h>
 #include <netipx/ipx_var.h>
-#include <netipx/ipx_error.h>
 
 int	ipxcksum = 0;
 SYSCTL_INT(_net_ipx_ipx, OID_AUTO, checksum, CTLFLAG_RW,
 	   &ipxcksum, 0, "");
 
-int	ipxprintfs = 0;		/* printing forwarding information */
+static int	ipxprintfs = 0;		/* printing forwarding information */
 SYSCTL_INT(_net_ipx_ipx, OID_AUTO, ipxprintfs, CTLFLAG_RW,
 	   &ipxprintfs, 0, "");
 
-int	ipxforwarding = 0;
+static int	ipxforwarding = 0;
 SYSCTL_INT(_net_ipx_ipx, OID_AUTO, ipxforwarding, CTLFLAG_RW,
 	    &ipxforwarding, 0, "");
 
-int	ipxnetbios = 0;
+static int	ipxnetbios = 0;
 SYSCTL_INT(_net_ipx, OID_AUTO, ipxnetbios, CTLFLAG_RW,
 	   &ipxnetbios, 0, "");
 
@@ -290,37 +282,17 @@ ours:
 			    case IPXPROTO_SPX:
 				    spx_input(m, ipxp);
 				    goto next;
-
-#ifdef IPXERRORMSGS
-			    case IPXPROTO_ERROR:
-				    ipx_err_input(m);
-				    goto next;
-#endif
 			}
 		ipx_input(m, ipxp);
-	} else {
-#ifdef IPXERRORMSGS
-		ipx_error(m, IPX_ERR_NOSOCK, 0);
-#else
+	} else
 		goto bad;
-#endif
-	}
+
 	goto next;
 
 bad:
 	m_freem(m);
 	goto next;
 }
-
-#ifdef IPXERRORMSGS
-u_char ipxctlerrmap[PRC_NCMDS] = {
-	ECONNABORTED,	ECONNABORTED,	0,		0,
-	0,		0,		EHOSTDOWN,	EHOSTUNREACH,
-	ENETUNREACH,	EHOSTUNREACH,	ECONNREFUSED,	ECONNREFUSED,
-	EMSGSIZE,	0,		0,		0,
-	0,		0,		0,		0
-};
-#endif
 
 void
 ipx_ctlinput(cmd, arg_as_sa, dummy)
@@ -330,20 +302,9 @@ ipx_ctlinput(cmd, arg_as_sa, dummy)
 {
 	caddr_t arg = (/* XXX */ caddr_t)arg_as_sa;
 	struct ipx_addr *ipx;
-#ifdef IPXERRORMSGS
-	struct ipxpcb *ipxp;
-	struct ipx_errp *errp;
-	int type;
-#endif
 
 	if (cmd < 0 || cmd > PRC_NCMDS)
 		return;
-#ifdef IPXERRORMSGS
-	if (ipxctlerrmap[cmd] == 0)
-		return;		/* XXX */
-	type = IPX_ERR_UNREACH_HOST;
-	errp = (struct ipx_errp *)arg;
-#endif
 	switch (cmd) {
 		struct sockaddr_ipx *sipx;
 
@@ -357,43 +318,15 @@ ipx_ctlinput(cmd, arg_as_sa, dummy)
 		break;
 
 	default:
-#ifdef IPXERRORMSGS
-		ipx = &errp->ipx_err_ipx.ipx_dna;
-		type = errp->ipx_err_num;
-		type = ntohs((u_short)type);
-#endif
 		printf("ipx_ctlinput: cmd %d.\n", cmd);
 		break;
 	}
-#ifdef IPXERRORMSGS
-	switch (type) {
-
-	case IPX_ERR_UNREACH_HOST:
-		ipx_pcbnotify(ipx, (int)ipxctlerrmap[cmd], ipx_abort, (long)0);
-		break;
-
-	case IPX_ERR_NOSOCK:
-		ipxp = ipx_pcblookup(ipx, errp->ipx_err_ipx.ipx_sna.x_port,
-			IPX_WILDCARD);
-		if(ipxp && ! ipx_nullhost(ipxp->ipxp_faddr))
-			ipx_drop(ipxp, (int)ipxctlerrmap[cmd]);
-	}
-#endif
 }
 
-#ifdef IPXERRORMSGS
-/*
- * Forward a packet.  If some error occurs return the sender
- * an error packet.  Note we can't always generate a meaningful
- * error message because the IPX errors don't have a large enough repetoire
- * of codes and types.
- */
-#else
 /*
  * Forward a packet. If some error occurs drop the packet. IPX don't
  * have a way to return errors to the sender.
  */
-#endif
 
 struct route ipx_droute;
 struct route ipx_sroute;
@@ -404,9 +337,6 @@ struct mbuf *m;
 {
 	register struct ipx *ipx = mtod(m, struct ipx *);
 	register int error;
-#ifdef IPXERRORMSGS
-	int type, code;
-#endif
 	struct mbuf *mcopy = NULL;
 	int agedelta = 1;
 	int flags = IPX_FORWARDING;
@@ -416,43 +346,20 @@ struct mbuf *m;
 	if (ipxforwarding == 0) {
 		/* can't tell difference between net and host */
 		ipxstat.ipxs_cantforward++;
-#ifdef IPXERRORMSGS
-		type = IPX_ERR_UNREACH_HOST, code = 0;
-		goto senderror;
-#else
 		m_freem(m);
 		goto cleanup;
-#endif
 	}
 	ipx->ipx_tc++;
 	if (ipx->ipx_tc > IPX_MAXHOPS) {
 		ipxstat.ipxs_cantforward++;
-#ifdef IPXERRORMSGS
-		type = IPX_ERR_TOO_OLD, code = 0;
-		goto senderror;
-#else
 		m_freem(m);
 		goto cleanup;
-#endif
 	}
-
-#ifdef IPXERRORMSGS
-	/*
-	 * Save at most 42 bytes of the packet in case
-	 * we need to generate an IPX error message to the src.
-	 */
-	mcopy = m_copy(m, 0, imin((int)ntohs(ipx->ipx_len), 42));
-#endif
 
 	if ((ok_there = ipx_do_route(&ipx->ipx_dna,&ipx_droute)) == 0) {
 		ipxstat.ipxs_noroute++;
-#ifdef IPXERRORMSGS
-		type = IPX_ERR_UNREACH_HOST, code = 0;
-		goto senderror;
-#else
 		m_freem(m);
 		goto cleanup;
-#endif
 	}
 	/*
 	 * Here we think about  forwarding  broadcast packets,
@@ -482,13 +389,8 @@ struct mbuf *m;
 			flags |= IPX_ALLOWBROADCAST;
 		} else {
 			ipxstat.ipxs_noroute++;
-#ifdef IPXERRORMSGS
-			type = IPX_ERR_UNREACH_HOST, code = 0;
-			goto senderror;
-#else
 			m_freem(m);
 			goto cleanup;
-#endif
 		}
 	}
 	/* XXX
@@ -531,9 +433,6 @@ struct mbuf *m;
 		}
 	} else if (mcopy != NULL) {
 		ipx = mtod(mcopy, struct ipx *);
-#ifdef IPXERRORMSGS
-		type = IPX_ERR_UNSPEC_T, code = 0;
-#endif
 		switch (error) {
 
 		case ENETUNREACH:
@@ -542,33 +441,18 @@ struct mbuf *m;
 		case ENETDOWN:
 		case EPERM:
 			ipxstat.ipxs_noroute++;
-#ifdef IPXERRORMSGS
-			type = IPX_ERR_UNREACH_HOST;
-#endif
 			break;
 
 		case EMSGSIZE:
 			ipxstat.ipxs_mtutoosmall++;
-#ifdef IPXERRORMSGS
-			type = IPX_ERR_TOO_BIG;
-			code = 576; /* too hard to figure out mtu here */
-#endif
 			break;
 
 		case ENOBUFS:
 			ipxstat.ipxs_odropped++;
-#ifdef IPXERRORMSGS
-			type = IPX_ERR_UNSPEC_T;
-#endif
 			break;
 		}
 		mcopy = NULL;
-#ifdef IPXERRORMSGS
-	senderror:
-		ipx_error(m, type, code);
-#else
 		m_freem(m);
-#endif
 	}
 cleanup:
 	if (ok_there)

@@ -33,7 +33,7 @@
  * 
  *	@(#)ipx_ip.c
  *
- * $Id: ipx_ip.c,v 1.14 1997/05/01 06:21:28 jhay Exp $
+ * $Id: ipx_ip.c,v 1.15 1997/05/10 09:58:52 jhay Exp $
  */
 
 /*
@@ -42,15 +42,11 @@
 
 #ifdef IPXIP
 #include <sys/param.h>
-#include <sys/queue.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
-#include <sys/proc.h>
 #include <sys/protosw.h>
 #include <sys/socket.h>
-#include <sys/socketvar.h>
-#include <sys/errno.h>
 #include <sys/sockio.h>
 
 #include <net/if.h>
@@ -62,8 +58,6 @@
 #include <netinet/in_var.h>
 #include <netinet/ip.h>
 #include <netinet/ip_var.h>
-
-#include <machine/mtpr.h>
 
 #include <netipx/ipx.h>
 #include <netipx/ipx_if.h>
@@ -384,12 +378,11 @@ ipxip_route(so, m, p)
 	ifr_ipxip.ifr_dstaddr = *(struct sockaddr *)ipx_dst;
 	ipx_control(so, (int)SIOCSIFDSTADDR, (caddr_t)&ifr_ipxip,
 			(struct ifnet *)ifn, p);
-	/* use any our address */
-#if XXX_Hmmmm
-	if (ia != NULL)
-		satoipx_addr(ifr_ipxip.ifr_addr).x_host = 
+
+	/* use any of our addresses */
+	satoipx_addr(ifr_ipxip.ifr_addr).x_host = 
 			ipx_ifaddr->ia_addr.sipx_addr.x_host;
-#endif
+
 	return (ipx_control(so, (int)SIOCSIFADDR, (caddr_t)&ifr_ipxip,
 			(struct ifnet *)ifn, p));
 }

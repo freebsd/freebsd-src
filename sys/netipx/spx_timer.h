@@ -33,7 +33,7 @@
  *
  *	@(#)spx_timer.h
  *
- * $Id: spx_timer.h,v 1.7 1997/02/22 09:41:59 peter Exp $
+ * $Id: spx_timer.h,v 1.8 1997/05/10 09:58:57 jhay Exp $
  */
 
 #ifndef _NETIPX_SPX_TIMER_H_
@@ -121,4 +121,4 @@ char *spxtimers[] =
 		(tv) = (tvmax); \
 }
 
-#endif /* _NETIPX_SPX_TIMER_H_ */
+#endif /* !_NETIPX_SPX_TIMER_H_ */

@@ -33,7 +33,7 @@
  *
  *	@(#)spx_debug.h
  *
- * $Id: spx_debug.h,v 1.8 1997/02/22 09:41:59 peter Exp $
+ * $Id: spx_debug.h,v 1.9 1997/05/10 09:58:57 jhay Exp $
  */
 
 #ifndef _NETIPX_SPX_DEBUG_H_
@@ -76,4 +76,4 @@ void	spx_trace __P((int act, int ostate, struct spxpcb *sp, struct spx *si,
 		       int req));
 #endif /* KERNEL */
 
-#endif /* _NETIPX_SPX_DEBUG_H_ */
+#endif /* !_NETIPX_SPX_DEBUG_H_ */

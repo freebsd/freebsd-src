@@ -33,17 +33,12 @@
  *
  *	@(#)ipx_cksum.c
  *
- * $Id: ipx_cksum.c,v 1.5 1997/02/22 09:41:52 peter Exp $
+ * $Id: ipx_cksum.c,v 1.6 1997/05/10 09:58:50 jhay Exp $
  */
 
 #include <sys/param.h>
 #include <sys/mbuf.h>
-#include <sys/socket.h>
-#include <sys/socketvar.h>
 
-#include <net/route.h>
-
-#include <netipx/ipx.h>
 #include <netipx/ipx_var.h>
 
 /*
