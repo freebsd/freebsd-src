@@ -132,6 +132,8 @@ pcm_makelinks(void *dummy)
 	mixer = make_dev_alias(pdev, "mixer");
 }
 
+SYSCTL_NODE(_hw, OID_AUTO, snd, CTLFLAG_RD, 0, "Sound driver");
+
 static int
 sysctl_hw_sndunit(SYSCTL_HANDLER_ARGS)
 {
@@ -145,7 +147,7 @@ sysctl_hw_sndunit(SYSCTL_HANDLER_ARGS)
 	}
 	return (error);
 }
-SYSCTL_PROC(_hw, OID_AUTO, sndunit, CTLTYPE_INT | CTLFLAG_RW,
+SYSCTL_PROC(_hw_snd, OID_AUTO, unit, CTLTYPE_INT | CTLFLAG_RW,
             0, sizeof(int), sysctl_hw_sndunit, "I", "");
 
 int

@@ -63,6 +63,7 @@
 #include <sys/mman.h>
 #include <sys/poll.h>
 #include <sys/soundcard.h>
+#include <sys/sysctl.h>
 #include <isa/isavar.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -162,6 +163,8 @@ int fkchan_kill(pcm_channel *c);
 #ifndef DEB
 #define DEB(x)
 #endif
+
+SYSCTL_DECL(_hw_snd);
 
 int pcm_addchan(device_t dev, int dir, kobj_class_t cls, void *devinfo);
 int pcm_register(device_t dev, void *devinfo, int numplay, int numrec);
