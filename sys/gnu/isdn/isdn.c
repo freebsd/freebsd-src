@@ -1,6 +1,6 @@
-static char     _isdnid[] = "@(#)$Id: isdn.c,v 1.1 1995/02/14 15:00:33 jkh Exp $";
+static char     _isdnid[] = "@(#)$Id: isdn.c,v 1.2 1995/02/15 06:28:29 jkh Exp $";
 /*******************************************************************************
- *  II - Version 0.1 $Revision: 1.1 $   $State: Exp $
+ *  II - Version 0.1 $Revision: 1.2 $   $State: Exp $
  *
  * Copyright 1994 Dietmar Friede
  *******************************************************************************
@@ -10,6 +10,9 @@ static char     _isdnid[] = "@(#)$Id: isdn.c,v 1.1 1995/02/14 15:00:33 jkh Exp $
  *
  *******************************************************************************
  * $Log: isdn.c,v $
+ * Revision 1.2  1995/02/15  06:28:29  jkh
+ * Fix up include paths, nuke some warnings.
+ *
  * Revision 1.1  1995/02/14  15:00:33  jkh
  * An ISDN driver that supports the EDSS1 and the 1TR6 ISDN interfaces.
  * EDSS1 is the "Euro-ISDN", 1TR6 is the soon obsolete german ISDN Interface.
@@ -44,6 +47,7 @@ static char     _isdnid[] = "@(#)$Id: isdn.c,v 1.1 1995/02/14 15:00:33 jkh Exp $
 #include "ioctl.h"
 #include "kernel.h"
 #include "systm.h"
+#include "proc.h"
 
 #include "gnu/isdn/isdn_ioctl.h"
 
@@ -51,14 +55,12 @@ isdn_appl_t     isdn_appl[N_ISDN_APPL];
 isdn_ctrl_t     isdn_ctrl[N_ISDN_CTRL];
 int Isdn_Appl, Isdn_Ctrl, Isdn_Typ;
 
-int             isdn_input(), isdn_output();
 int             ii_input(), ii_out(), ii_connect(), ii_disconnect();
 int             ity_input(), ity_out(), ity_connect(), ity_disconnect();
 int             itel_input(), itel_out(), itel_connect(), itel_disconnect();
 int		ispy_input();
 int		isdn_stat();
 
-void isdn_disconnect();
 static int      o_flags, r_flags, bufind[TYPNR];
 static char     buffer[TYPNR][257];
 static u_char appl_list[TYPNR];

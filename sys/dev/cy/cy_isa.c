@@ -27,7 +27,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: cy.c,v 1.3 1995/02/25 20:09:12 pst Exp $
+ *	$Id: cy.c,v 1.4 1995/02/28 00:20:52 pst Exp $
  */
 
 /*
@@ -88,6 +88,8 @@
 #include <i386/isa/isa_device.h>
 #include <i386/isa/ic/cd1400.h>
 
+#else
+#include <machine/clock.h>
 #define RxFifoThreshold	3	/* 3 characters (out of 12) in the receive
 				 * FIFO before an interrupt is generated
 				 */

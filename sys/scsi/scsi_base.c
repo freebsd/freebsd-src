@@ -8,7 +8,7 @@
  * file.
  * 
  * Written by Julian Elischer (julian@dialix.oz.au)
- *      $Id: scsi_base.c,v 1.23 1995/03/15 14:44:01 dufault Exp $
+ *      $Id: scsi_base.c,v 1.24 1995/03/21 11:21:01 dufault Exp $
  */
 
 #define SPLSD splbio
@@ -542,7 +542,8 @@ retry:
 			break;
 		}
 #ifdef BOUNCE_BUFFERS
-		vm_bounce_kva_alloc_free(xs->data, (datalen + PAGE_SIZE - 1)/PAGE_SIZE, 0);
+		vm_bounce_kva_alloc_free((vm_offset_t) xs->data,
+					 (datalen + PAGE_SIZE - 1)/PAGE_SIZE);
 #else
 		free(xs->data, M_TEMP);
 #endif

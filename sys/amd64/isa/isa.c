@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: isa.c,v 1.40 1995/03/16 17:31:18 se Exp $
+ *	$Id: isa.c,v 1.41 1995/03/25 05:54:33 swallace Exp $
  */
 
 /*
@@ -137,6 +137,8 @@ static inthand_t *slowintr[ICU_LEN] = {
 };
 
 static void config_isadev __P((struct isa_device *isdp, u_int *mp));
+static void config_isadev_c __P((struct isa_device *isdp, u_int *mp,
+				 int reconfig));
 static void conflict __P((struct isa_device *dvp, struct isa_device *tmpdvp,
 			  int item, char const *whatnot, char const *reason,
 			  char const *format));
@@ -365,8 +367,6 @@ isa_configure() {
  * Configure an ISA device.
  */
  
- 
-static void config_isadev_c();
  
 static void
 config_isadev(isdp, mp)

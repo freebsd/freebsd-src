@@ -31,7 +31,7 @@
  */
 
 /*
- * $Id: aic6360.c,v 1.5 1994/11/16 02:45:36 bde Exp $
+ * $Id: aic6360.c,v 1.6 1995/03/01 22:30:47 dufault Exp $
  *
  * Acknowledgements: Many of the algorithms used in this driver are
  * inspired by the work of Julian Elischer (julian@tfs.com) and
@@ -137,6 +137,7 @@
 
 #ifdef __FreeBSD__
 #include <sys/devconf.h>
+#include <machine/clock.h>
 #include <i386/isa/isa_device.h>
 
 #include <sys/kernel.h>

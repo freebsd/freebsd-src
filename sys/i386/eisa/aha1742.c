@@ -14,7 +14,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aha1742.c,v 1.28 1995/03/23 07:31:07 gibbs Exp $
+ *      $Id: aha1742.c,v 1.29 1995/03/23 09:00:18 rgrimes Exp $
  */
 
 #include <sys/types.h>
@@ -29,6 +29,7 @@
 #include <sys/buf.h>
 #include <sys/proc.h>
 #include <sys/user.h>
+#include <machine/clock.h>
 #include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
 #else

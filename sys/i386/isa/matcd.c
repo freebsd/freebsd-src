@@ -189,6 +189,7 @@ static char	MATCDCOPYRIGHT[] = "Matsushita CD-ROM driver, Copr. 1994,1995 Frank 
 #include	"i386/isa/isa.h"
 #include	"i386/isa/isa_device.h"
 #include	"ioctl.h"
+#include	"proc.h"
 #include	"stat.h"
 #include	"uio.h"
 
@@ -391,6 +392,12 @@ static	void	draincmd(int port,int cdrive,int ldrive);
 static	int 	get_error(int port, int ldrive, int cdrive);
 static	int	chk_error(int errnum);
 static	int	msf_to_blk(unsigned char * cd);
+	int	docmd(char *cmd, int ldrive, int cdrive, int controller,
+		      int port);
+	int	get_stat(int port, int ldrive);
+	int	matcd_eject(int ldrive, int cdrive, int controller);
+	int	media_chk(struct matcd_data *cd, int errnum, int ldrive);
+	int	waitforit(int timelimit, int state, int port, char *where);
 #ifdef	FULLDRIVER
 static	int	matcd_playtracks(int ldrive, int cdrive, int controller,
 				 struct ioc_play_track *pt);

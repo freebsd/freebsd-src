@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: aha1542.c,v 1.40 1995/01/19 12:33:10 dufault Exp $
+ *      $Id: aha1542.c,v 1.41 1995/01/31 11:41:36 dufault Exp $
  */
 
 /*
@@ -31,6 +31,7 @@
 #include <sys/buf.h>
 #include <sys/proc.h>
 #include <sys/user.h>
+#include <machine/clock.h>
 #include <i386/isa/isa_device.h>
 #endif	/* KERNEL */
 #include <scsi/scsi_all.h>

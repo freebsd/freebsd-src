@@ -31,13 +31,14 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_vnops.c	8.5 (Berkeley) 12/30/93
- * $Id: lfs_vnops.c,v 1.5 1994/09/22 19:38:39 wollman Exp $
+ * $Id: lfs_vnops.c,v 1.6 1995/01/04 23:46:34 gibbs Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/namei.h>
 #include <sys/resourcevar.h>
+#include <sys/signalvar.h>
 #include <sys/kernel.h>
 #include <sys/file.h>
 #include <sys/stat.h>

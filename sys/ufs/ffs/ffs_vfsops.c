@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vfsops.c	8.8 (Berkeley) 4/18/94
- * $Id: ffs_vfsops.c,v 1.13 1995/03/16 18:16:41 bde Exp $
+ * $Id: ffs_vfsops.c,v 1.14 1995/03/18 18:03:29 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -61,7 +61,6 @@
 #include <ufs/ffs/ffs_extern.h>
 
 int	ffs_sbupdate __P((struct ufsmount *, int));
-int	ffs_flushfiles __P((struct mount *, int, struct proc *));
 int	ffs_reload __P((struct mount *,struct ucred *,struct proc *));
 int	ffs_oldfscompat __P((struct fs *));
 

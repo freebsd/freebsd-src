@@ -31,9 +31,10 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_balloc.c	8.1 (Berkeley) 6/11/93
- * $Id: lfs_balloc.c,v 1.3 1995/01/09 16:05:20 davidg Exp $
+ * $Id: lfs_balloc.c,v 1.4 1995/03/04 03:24:43 davidg Exp $
  */
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/buf.h>
 #include <sys/proc.h>
 #include <sys/vnode.h>
@@ -45,6 +46,7 @@
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>
 #include <ufs/ufs/ufsmount.h>
+#include <ufs/ufs/ufs_extern.h>
 
 #include <ufs/lfs/lfs.h>
 #include <ufs/lfs/lfs_extern.h>

@@ -79,7 +79,6 @@ static void     sb16_dsp_halt (int dev);
 static int      dsp_set_speed (int);
 static int      dsp_set_stereo (int);
 static void     dsp_cleanup (void);
-int             sb_reset_dsp (void);
 
 static struct audio_operations sb16_dsp_operations =
 {

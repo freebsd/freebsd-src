@@ -1,6 +1,6 @@
-static char     _ittyid[] = "@(#)$Id: iitty.c,v 1.3 1995/02/25 20:08:52 pst Exp $";
+static char     _ittyid[] = "@(#)$Id: iitty.c,v 1.4 1995/02/28 00:20:30 pst Exp $";
 /*******************************************************************************
- *  II - Version 0.1 $Revision: 1.3 $   $State: Exp $
+ *  II - Version 0.1 $Revision: 1.4 $   $State: Exp $
  *
  * Copyright 1994 Dietmar Friede
  *******************************************************************************
@@ -10,6 +10,18 @@ static char     _ittyid[] = "@(#)$Id: iitty.c,v 1.3 1995/02/25 20:08:52 pst Exp 
  *
  *******************************************************************************
  * $Log: iitty.c,v $
+ * Revision 1.4  1995/02/28  00:20:30  pst
+ * Incorporate bde's code-review comments.
+ *
+ * (a) bring back ttselect, now that we have xxxdevtotty() it isn't dangerous.
+ * (b) remove all of the wrappers that have been replaced by ttselect
+ * (c) fix formatting in syscons.c and definition in syscons.h
+ * (d) add cxdevtotty
+ *
+ * NOT DONE:
+ * (e) make pcvt work... it was already broken...when someone fixes pcvt to
+ * 	link properly, just rename get_pccons to xxxdevtotty and we're done
+ *
  * Revision 1.3  1995/02/25  20:08:52  pst
  * (a) remove the pointer to each driver's tty structure array from cdevsw
  * (b) add a function callback vector to tty drivers that will return a pointer
@@ -53,7 +65,7 @@ static char     _ittyid[] = "@(#)$Id: iitty.c,v 1.3 1995/02/25 20:08:52 pst Exp 
 
 #include "gnu/isdn/isdn_ioctl.h"
 
-int             ityattach(), ityparam();
+int             ityparam();
 void		itystart();
 
 int             nity = NITY;

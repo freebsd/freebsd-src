@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)buf.h	8.7 (Berkeley) 1/21/94
- * $Id: buf.h,v 1.14 1995/03/25 08:55:02 davidg Exp $
+ * $Id: buf.h,v 1.15 1995/03/26 23:29:06 davidg Exp $
  */
 
 #ifndef _SYS_BUF_H_
@@ -245,6 +245,10 @@ void	pbgetvp __P((struct vnode *, struct buf *));
 void	pbrelvp __P((struct buf *));
 void	reassignbuf __P((struct buf *, struct vnode *));
 struct	buf *trypbuf __P((void));
+void	vm_bounce_alloc __P((struct buf *));
+void	vm_bounce_free __P((struct buf *));
+vm_offset_t	vm_bounce_kva_alloc __P((int));
+void	vm_bounce_kva_alloc_free __P((vm_offset_t, int));
 __END_DECLS
 #endif
 #endif /* !_SYS_BUF_H_ */

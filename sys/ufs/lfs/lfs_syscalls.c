@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_syscalls.c	8.5 (Berkeley) 4/20/94
- * $Id: lfs_syscalls.c,v 1.5 1995/01/04 23:46:33 gibbs Exp $
+ * $Id: lfs_syscalls.c,v 1.6 1995/01/09 16:05:23 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -65,6 +65,8 @@ if (sp->sum_bytes_left < (s)) {		\
 	(void) lfs_writeseg(fs, sp);	\
 }
 struct buf *lfs_fakebuf __P((struct vnode *, int, size_t, caddr_t));
+int lfs_fastvget __P((struct mount *, ino_t, daddr_t, struct vnode **,
+		     struct dinode *));
 
 /*
  * lfs_markv:

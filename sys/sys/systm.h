@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)systm.h	8.4 (Berkeley) 2/23/94
- * $Id: systm.h,v 1.15 1995/03/16 18:16:32 bde Exp $
+ * $Id: systm.h,v 1.16 1995/03/17 06:15:26 phk Exp $
  */
 
 #ifndef _SYS_SYSTM_H_
@@ -199,6 +199,10 @@ void untimeout(timeout_func_t, void *);
 void	logwakeup __P((void));
 
 /* Syscalls that are called internally. */
+struct close_args {
+	int	fd;
+};
+int	close __P((struct proc *, struct close_args *uap, int *retval));
 struct execve_args {
 	char	*fname;
 	char	**argv;
