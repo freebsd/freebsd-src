@@ -41,7 +41,7 @@ struct keycb {
 	int	kp_registered;	/* registered socket */
 };
 
-extern int	key_output __P((struct mbuf *, ...));
+extern int	key_output __P((struct mbuf *, struct socket *));
 extern int	key_usrreq __P((struct socket *, int, struct mbuf *,
 				struct mbuf *, struct mbuf *));
 

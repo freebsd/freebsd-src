@@ -34,6 +34,7 @@
  * $FreeBSD$
  */
 
+#include "opt_ipsec.h"
 #include "opt_tcpdebug.h"
 
 #include <sys/param.h>
@@ -62,6 +63,10 @@
 #ifdef TCPDEBUG
 #include <netinet/tcp_debug.h>
 #endif
+
+#ifdef IPSEC
+#include <netinet6/ipsec.h>
+#endif /*IPSEC*/
 
 /*
  * TCP protocol interface to socket abstraction.
@@ -731,6 +736,13 @@ tcp_attach(so, p)
 	if (error)
 		return (error);
 	inp = sotoinpcb(so);
+#ifdef IPSEC
+	error = ipsec_init_policy(so, &inp->inp_sp);
+	if (error) {
+		in_pcbdetach(inp);
+		return (error);
+	}
+#endif /*IPSEC*/
 	inp->inp_vflag |= INP_IPV4;
 	tp = tcp_newtcpcb(inp);
 	if (tp == 0) {

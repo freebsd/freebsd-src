@@ -146,10 +146,11 @@ find_rti(ifp)
 }
 
 void
-igmp_input(m, iphlen)
+igmp_input(m, off, proto)
 	register struct mbuf *m;
-	register int iphlen;
+	int off, proto;
 {
+	register int iphlen = off;
 	register struct igmp *igmp;
 	register struct ip *ip;
 	register int igmplen;
@@ -335,7 +336,7 @@ igmp_input(m, iphlen)
 	 * Pass all valid IGMP packets up to any process(es) listening
 	 * on a raw IGMP socket.
 	 */
-	rip_input(m, iphlen);
+	rip_input(m, off, proto);
 }
 
 void

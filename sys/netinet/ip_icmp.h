@@ -186,7 +186,7 @@ struct icmp {
 
 #ifdef KERNEL
 void	icmp_error __P((struct mbuf *, int, int, n_long, struct ifnet *));
-void	icmp_input __P((struct mbuf *, int));
+void	icmp_input __P((struct mbuf *, int, int));
 #endif
 
 #endif

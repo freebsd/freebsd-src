@@ -238,6 +238,11 @@ struct ipsecstat {
 }
 
 #ifdef KERNEL
+
+#ifdef SYSCTL_DECL
+SYSCTL_DECL(_net_inet_ipsec);
+#endif
+
 struct ipsec_output_state {
 	struct	mbuf *m;
 	struct	route *ro;
@@ -303,6 +308,7 @@ extern struct	mbuf *ipsec_copypkt __P((struct mbuf *));
 #endif /*KERNEL*/
 
 #ifndef KERNEL
+
 extern caddr_t	 ipsec_set_policy __P((char *policy, int buflen));
 extern int	 ipsec_get_policylen __P((caddr_t buf));
 extern char	*ipsec_dump_policy __P((caddr_t buf, char *delimiter));

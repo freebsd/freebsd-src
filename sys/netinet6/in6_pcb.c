@@ -65,7 +65,7 @@
  * $FreeBSD$
  */
 
-#include "opt_key.h"
+#include "opt_ipsec.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -99,15 +99,15 @@
 
 #ifdef IPSEC
 #include <netinet6/ipsec.h>
+#include <netinet6/ah.h>
 #include <netinet6/ipsec6.h>
+#include <netinet6/ah6.h>
 #include <netkey/key.h>
-#ifdef KEY_DEBUG
+#ifdef IPSEC_DEBUG
 #include <netkey/key_debug.h>
 #else
-#define DPRINTF(lev,arg)
-#define DDO(lev, stmt)
-#define DP(x, y, z)
-#endif /* KEY_DEBUG */
+#define	KEYDEBUG(lev,arg)
+#endif /* IPSEC_DEBUG */
 #endif /* IPSEC */
 
 struct	in6_addr zeroin6_addr;

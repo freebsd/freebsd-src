@@ -55,6 +55,8 @@
 #include <netinet6/ip6_var.h>
 #include <netinet6/in6_gif.h>
 #include <netinet6/ip6.h>
+#include <netinet/ip_ecn.h>
+#include <netinet6/ip6_ecn.h>
 
 #include <net/if_gif.h>
 
@@ -73,6 +75,7 @@ in6_gif_output(ifp, family, m, rt)
 	struct sockaddr_in6 *sin6_dst = (struct sockaddr_in6 *)sc->gif_pdst;
 	struct ip6_hdr *ip6;
 	int proto;
+	u_int8_t itos, otos;
 
 	if (sin6_src == NULL || sin6_dst == NULL ||
 	    sin6_src->sin6_family != AF_INET6 ||
@@ -94,6 +97,7 @@ in6_gif_output(ifp, family, m, rt)
 				return ENOBUFS;
 		}
 		ip = mtod(m, struct ip *);
+		itos = ip->ip_tos;
 		break;
 	    }
 #endif
@@ -107,6 +111,7 @@ in6_gif_output(ifp, family, m, rt)
 				return ENOBUFS;
 		}
 		ip6 = mtod(m, struct ip6_hdr *);
+		itos = (ntohl(ip6->ip6_flow) >> 20) & 0xff;
 		break;
 	    }
 	default:
@@ -153,6 +158,11 @@ in6_gif_output(ifp, family, m, rt)
 			return ENETUNREACH;
 		}
 	}
+	if (ifp->if_flags & IFF_LINK1) {
+		otos = 0;
+		ip_ecn_ingress(ECN_ALLOWED, &otos, &itos);
+		ip6->ip6_flow |= htonl((u_int32_t)otos << 20);
+	}
 
 	if (dst->sin6_family != sin6_dst->sin6_family ||
 	     !IN6_ARE_ADDR_EQUAL(&dst->sin6_addr, &sin6_dst->sin6_addr)) {
@@ -175,9 +185,6 @@ in6_gif_output(ifp, family, m, rt)
 		}
 	}
 
-#ifdef IPSEC
-	m->m_pkthdr.rcvif = NULL;
-#endif /*IPSEC*/
 	return(ip6_output(m, 0, &sc->gif_ro6, 0, 0, NULL));
 }
 
@@ -191,6 +198,7 @@ int in6_gif_input(mp, offp, proto)
 	struct ip6_hdr *ip6;
 	int i;
 	int af = 0;
+	u_int32_t otos;
 
 	ip6 = mtod(m, struct ip6_hdr *);
 
@@ -222,7 +230,8 @@ int in6_gif_input(mp, offp, proto)
 		ip6stat.ip6s_nogif++;
 		return IPPROTO_DONE;
 	}
-
+	
+	otos = ip6->ip6_flow;
 	m_adj(m, *offp);
 
 	switch (proto) {
@@ -230,13 +239,17 @@ int in6_gif_input(mp, offp, proto)
 	case IPPROTO_IPV4:
 	    {
 		struct ip *ip;
+		u_int8_t otos8;
 		af = AF_INET;
+		otos8 = (ntohl(otos) >> 20) & 0xff;
 		if (m->m_len < sizeof(*ip)) {
 			m = m_pullup(m, sizeof(*ip));
 			if (!m)
 				return IPPROTO_DONE;
 		}
 		ip = mtod(m, struct ip *);
+		if (gifp->if_flags & IFF_LINK1)
+			ip_ecn_egress(ECN_ALLOWED, &otos8, &ip->ip_tos);
 		break;
 	    }
 #endif /* INET */
@@ -250,6 +263,8 @@ int in6_gif_input(mp, offp, proto)
 				return IPPROTO_DONE;
 		}
 		ip6 = mtod(m, struct ip6_hdr *);
+		if (gifp->if_flags & IFF_LINK1)
+			ip6_ecn_egress(ECN_ALLOWED, &otos, &ip6->ip6_flow);
 		break;
 	    }
 	default:
