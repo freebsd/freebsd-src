@@ -31,6 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tftp.h	8.1 (Berkeley) 6/2/93
+ * $FreeBSD$
  */
 
 #ifndef _ARPA_TFTP_H_
@@ -50,7 +51,7 @@
 #define	ACK	04			/* acknowledgement */
 #define	ERROR	05			/* error code */
 
-struct	tftphdr {
+struct tftphdr {
 	unsigned short	th_opcode;		/* packet type */
 	union {
 		unsigned short	tu_block;	/* block # */
