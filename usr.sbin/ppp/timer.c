@@ -138,6 +138,24 @@ struct pppTimer *tp;
   tp->state = TIMER_STOPPED;
 }
 
+/*
+  This is used to decide at the top level if it's time for a TimerService()
+  call.  This'll work fine as long as select() is interrupted by the
+  SIGALRM.
+*/
+int TimerServiceRequest = 0;
+
+void
+SetTimerServiceRequest( int Sig )
+{
+  /* Maybe a bit cautious.... */
+  if( TimerServiceRequest >= 0 )
+    TimerServiceRequest++;
+#ifdef DEBUG
+  logprintf( "Setting TimerServiceRequest\n" );
+#endif
+}
+
 void
 TimerService()
 {
@@ -269,7 +287,13 @@ void usleep( u_int usec)
 void InitTimerService( void ) {
   struct itimerval itimer;
 
-  signal(SIGALRM, (void (*)(int))TimerService);
+  /*
+     Let's not do this - it's a bit dangerous (potential recursion into the
+     likes of malloc() etc.
+
+     signal(SIGALRM, (void (*)(int))TimerService);
+  */
+  signal(SIGALRM, SetTimerServiceRequest);
   itimer.it_interval.tv_sec = itimer.it_value.tv_sec = 0;
   itimer.it_interval.tv_usec = itimer.it_value.tv_usec = TICKUNIT;
   setitimer(ITIMER_REAL, &itimer, NULL);
