@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: ahareg.h,v 1.3 1998/10/02 04:37:49 imp Exp $
+ *      $Id: ahareg.h,v 1.4 1998/11/10 06:44:42 gibbs Exp $
  */
 
 #ifndef _AHAREG_H_
@@ -349,6 +349,8 @@ struct aha_softc {
 	LIST_HEAD(,ccb_hdr)	 pending_ccbs;
 	u_int			 active_ccbs;
 	u_int32_t		 aha_ccb_physbase;
+	aha_ccb_opcode_t	 ccb_sg_opcode;
+	aha_ccb_opcode_t	 ccb_ccb_opcode;
 	aha_mbox_in_t		*in_boxes;
 	aha_mbox_out_t		*out_boxes;
 	struct scsi_sense_data	*sense_buffers;
@@ -427,5 +429,19 @@ int			aha_cmd(struct aha_softc *aha, aha_op_t opcode,
 
 #define aha_outb(aha, port, value)			\
 	bus_space_write_1((aha)->tag, (aha)->bsh, port, value)
+
+
+#ifndef EXTRA_AHA
+#if NPNP > 0
+#define EXTRA_AHA MAX_PNP_CARDS
+#else
+#define EXTRA_AHA 0
+#endif
+#endif
+
+#define NAHATOT (NAHA + EXTRA_AHA)
+
+#define AHA1542_PNP		0x42159004	/* ADP1542 */
+#define AHA1542_PNPCOMPAT	0xA000D040	/* PNP00A0 */
 
 #endif	/* _AHA_H_ */
