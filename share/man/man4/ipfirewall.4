@@ -1,16 +1,16 @@
 .Dd November 16, 1994
-.Dt IPFW(4)/IPACCT 4
+.Dt IPFIREWALL 4
 .Os
 .Sh NAME
-
- ipfirewall,ipfw     - IP packets filter.
- ipaccounting,ipacct - IP packets/traffic accounting.
-
+.Nm ipfirewall, 
+.Nm ipfw ,
+.Nm ipaccounting ,
+.Nm ipacct
+.Nd IP packet filter and traffic accounting.
 .Sh SYNOPSIS
-#include <netinet/ip_fw.h>
-
-setsockopt(raw_socket,IPPROTO_IP,<ipfw/ipacct  option>,
-                        <struct ip|struct ipfw>,<size>)
+.Fd #include <netinet/ip_fw.h>
+.Ft int
+.Fn setsockopt raw_socket IPPROTO_IP "ipfw/ipacct  option" "struct ip | struct ipfw" size
 
 Ipfw options:
   IP_FW_ADD_BLK   - add entry to blocking chain. 
@@ -72,20 +72,21 @@ of incoming and/or forwarding packets on the protocol+source/destination
 address/ports base.
 Ipaccounting (later ipacct) is a system facility,which allows counting
 of incoming,outgoing and forwarding traffic by packet/byte count.
-
+.Pp
 Basic idea is that every packet checked against number of entries
-in several chains.There are 3 chains:
+in several chains.  There are 3 chains:
   Blocking - this chain defines whenever packet should be accepted
              ever for local delivery or for forwarding.
   Forwarding - this chain defines whenever packet should be accepted
                for forwarding only.
   Accounting - this chain defines types of packets , which should be
-               counted.
 
-Entries added to chains by means of setsockopt() call on RAW IP socket.
+.Pp
 Options to add/remove specific entries or to flush all entries described
-above. Value passed to setsockopt() is a value of struct ip_fw for
-entry. If entry added , it checked by such rules that when we start 
+above. Value passed to 
+.Fn setsockopt
+is a value of struct ip_fw for
+entry. If an entry is added, it checked by such rules that when we start 
 searching chain for matching entry the first matching is the best match,
 [ or at least one of them :^) ].
  That means:
@@ -94,12 +95,13 @@ searching chain for matching entry the first matching is the best match,
   * Later go entries with wider ranges of ports and addresses.
   * Later entries matching every port for some address range.
   * Later universal entries matching any protocol.
+.Pp
+While deleting entry, every entry which is equal to that passed to 
+.Fn setsockopt
+will be removed.  Flush removes all entries.
+Each entry has several fields by which packets are matched:
 
-While deleting entry , every entry which equal to that passed to 
-setsockopt() will be removed.
-Flush removes all entries.
 
-Every entry have several fields,by which packets matched:
    struct ip_fw *next - next entry in chain.(Set internally)
 
    struct in_addr src - source address to be matched.
@@ -131,55 +133,54 @@ Every entry have several fields,by which packets matched:
    u_long p_cnt - packets count for ipacct entries.
    u_long b_cnt - bytes count for ipacct entries.
 
-Packet matching proceeds in following way:
+Packet matching proceeds in the following manner:
 
 a) If packet entry protocol set to ALL, see c).
 
 b) If entry protocol set to TCP/UDP/ICMP and packet protocol 
-   different - no match,if packet protocol and entry protocol
+   different - no match, if packet protocol and entry protocol
    same - continue.
      
 c) If source address pattern does not equal to packets sources address
-   masked with src_mask , or destination pattern not equal to packets
+   masked with src_mask, or destination pattern not equal to packets
    destination address masked with dst_mask - no match.
    If they does and protocol set to ALL/ICMP - got match.
    If they does and protocol set to TCP/UDP - continue.
 
 d) If src port doesn't match or dst port doesn't match - all
-   packet don't match. If they does - got match.
-
+   packet don't match. If they do - got match.
+.Pp
 In ipfw packet matched consequently against every chain entry.
 Search continues untill first matching entry found.If IP_FW_F_ACCEPT
-flag set - packet accepted.If it is not set - packet denied.
-If no matching entry found , all unmatched packets ever accepted or
+flag set - packet accepted.  If it is not set - packet denied.
+If no matching entry found, all unmatched packets ever accepted or
 denied depending on global policy value. It can be set with
-IP_FW_POLICY raw socket option. Deny value is 0, other values
-(default 1) is accept.
-
+IP_FW_POLICY raw socket option. The value for deny is 0, 
+and 1 for accept.
+.Pp
 Entries can be added with IP_FW_F_PRN flag set.If kernel compiled
 with IPFIREWALL_VERBOSE option,packets matching this entries will
 be printed by kernel printf's.
-
+.Pp
 If some chain is empty,every packet accepted by this chain no
 matter what default policy is.
-
+.Pp
 To check whenever or not packet denied by some chain , checking
 options to setsockopt() can be issued. Then the argument is 
 a buffer representing ip packet,thus it has to be 
 struct ip + struct tcphdr .
 Then setsockopt() return value 0 on accept or another on deny.
-   
+.Pp
 Ipaccounting entries added the same way as ipfw ones.Packet checked
 against all entries in chain and values of p_cnt and b_cnt in matching
 entries rised.p_cnt rises by 1 and b_cnt by ip_len value of ip packet.
 Thus all traffic size counted including IP headers.
-
+.Pp
 If IP_FW_F_BIDIR flag is set in accounting entry,packets counted are
 those which match entry in standard way along with packets which match
 entry while their source and destination addr/port pairs swapped.
-
+.Pp
 Zero option allows all accounting to be cleared.
-
 .Sh DIAGNOSTICS
 
 [EINVAL]  The IP option field was improperly formed; an option
@@ -187,16 +188,16 @@ Zero option allows all accounting to be cleared.
           the option buffer provided.An structural error in 
           ip_fw structure occurred (n_src_p+n_dst_p too big,
           ports set for ALL/ICMP protocols etc.)
-
 .Sh SEE ALSO
-
-ip(4), setsockopt(2), kvm_nlist(3), kvm_read(3)
-
+.Xr setsockopt 2 ,
+.Xr kvm_nlist 3 ,
+.Xr kvm_read 3 ,
+.Xr ip 4
 .Sh BUGS
- Ipfw/ipacct facilities are new and , although serious bugs has
-been tracked,some less important ones expected.
- This man page is mostly out of date and should be rewritten. 
-
+The ipfw/ipacct facilities are new and, although serious bugs have
+been tracked, some less important ones are expected.
+.Pp
+This man page is mostly out of date and should be rewritten. 
 .Sh HISTORY
  Ipfw facility has been initially written as package to BSDI
 by Daniel Boulet <danny@BouletFermat.ab.ca>.
