@@ -542,6 +542,7 @@ product HP 6200C		0x0201	ScanJet 6200C
 product HP S20b			0x0202	PhotoSmart S20
 product HP 3300C		0x0205	ScanJet 3300C
 product HP 5200C		0x0401	Scanjet 5200C
+product HP 3400C		0x0405	ScanJet 3400C
 product HP 6300C		0x0601	Scanjet 6300C
 product HP 5300C		0x0701	Scanjet 5300C
 product HP 970CSE		0x1004	Deskjet 970Cse
