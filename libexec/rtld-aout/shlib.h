@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *-
- * $Id$
+ * $Id: shlib.h,v 1.3 1997/02/22 15:46:24 peter Exp $
  */
 
 /*
@@ -39,5 +39,5 @@ void	std_search_path __P((void));
 int	getdewey __P((int[], char *));
 int	cmpndewey __P((int[], int, int[], int));
 char	*findshlib __P((char *, int *, int *, int));
-char	*find_lib_file __P((char *));
+char	*find_lib_file __P((const char *));
 char	*search_lib_dir __P((char *, char *, int *, int *, int));

@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: shlib.c,v 1.18 1997/02/22 15:46:24 peter Exp $
+ *	$Id: shlib.c,v 1.19 1998/05/26 20:12:49 sos Exp $
  */
 
 #include <sys/param.h>
@@ -214,7 +214,7 @@ int	do_dot_a;
 
 char *
 find_lib_file(name)
-	char	*name;
+	const char	*name;
 {
 	int		i;
 

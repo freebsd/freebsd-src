@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: rtld.c,v 1.52 1998/02/06 16:46:46 jdp Exp $
+ *	$Id: rtld.c,v 1.53 1998/05/26 20:12:51 sos Exp $
  */
 
 #include <sys/param.h>
@@ -242,7 +242,7 @@ static void		init_external_malloc __P((void));
 static int		call_map __P((struct so_map *, char *));
 static char		*findhint __P((char *, int, int *));
 static char		*rtfindlib __P((char *, int, int));
-static char		*rtfindfile __P((char *));
+static char		*rtfindfile __P((const char *));
 void			binder_entry __P((void));
 long			binder __P((jmpslot_t *));
 static struct nzlist	*lookup __P((char *, struct so_map **, int));
@@ -1851,7 +1851,7 @@ rtfindlib(name, major, minor)
  */
 static char *
 rtfindfile(name)
-	char	*name;
+	const char	*name;
 {
 	char	*ld_path = ld_library_path;
 	char	*path = NULL;
@@ -1902,6 +1902,7 @@ __dlopen(path, mode)
 	struct so_map	*old_tail = link_map_tail;
 	struct so_map	*smp;
 	int		bind_now = mode == RTLD_NOW;
+	char		*name;
 
 	/*
 	 * path == NULL is handled by map_object()
@@ -1909,8 +1910,12 @@ __dlopen(path, mode)
 
 	anon_open();
 
+	name = (path && strchr(path, '/') == NULL) ? rtfindfile(path) : (char *)path;
+
 	/* Map the object, and the objects on which it depends */
-	smp = map_object(path, (struct sod *) NULL, (struct so_map *) NULL);
+	smp = map_object(name, (struct sod *) NULL, (struct so_map *) NULL);
+	if (name != path)
+		free(name);
 	if(smp == NULL)		/* Failed */
 		return NULL;
 	LM_PRIVATE(smp)->spd_flags |= RTLD_DL;
