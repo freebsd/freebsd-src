@@ -32,7 +32,7 @@
 .\"     @(#)setreuid.2	8.2 (Berkeley) 4/16/94
 .\" $FreeBSD$
 .\"
-.Dd April 16, 1994
+.Dd February 8, 2001
 .Dt SETREUID 2
 .Os BSD 4
 .Sh NAME
@@ -56,7 +56,7 @@ Unprivileged users may change the real user
 ID to the effective user ID and vice-versa; only the super-user may
 make other changes.
 .Pp
-If the real user ID is changed (i.e.
+If the real user ID is changed (i.e.\&
 .Fa ruid
 is not -1) or the effective user ID is changed to something other than
 the real user ID, then the saved user ID will be set to the effective user ID.
@@ -75,10 +75,7 @@ the standard
 .Fn setuid
 function is preferred.
 .Sh RETURN VALUES
-Upon successful completion, a value of 0 is returned.  Otherwise,
-a value of -1 is returned and
-.Va errno
-is set to indicate the error.
+.Rv -std setreuid 
 .Sh ERRORS
 .Bl -tag -width Er
 .It Bq Er EPERM
