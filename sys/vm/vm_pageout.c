@@ -236,7 +236,7 @@ vm_pageout_clean(m)
 	 * check has been moved up a procedural level.
 	 */
 
-#if 0
+#if 1
 	/*
 	 * If not OBJT_SWAP, additional memory may be needed to do the pageout.
 	 * Try to avoid the deadlock.
