@@ -369,11 +369,10 @@ archive_entry_mtime(struct archive_entry *entry)
 	return (entry->ae_stat.st_mtime);
 }
 
-
 long
 archive_entry_mtime_nsec(struct archive_entry *entry)
 {
-	return (entry->ae_stat.st_mtimespec.tv_nsec);
+	return (ARCHIVE_STAT_MTIME_NANOS(&entry->ae_stat));
 }
 
 const char *
