@@ -87,10 +87,10 @@ The kernel runs with four different levels of security.
 Any superuser process can raise the security level, but only 
 .Nm init
 can lower it.
-Security levels are defined as follows:
+The security levels are:
 .Bl -tag -width flag
 .It Ic -1
-Permanently insecure mode \- always run system in level 0 mode.
+Permanently insecure mode \- always run the system in level 0 mode.
 .It Ic 0
 Insecure mode \- immutable and append-only flags may be turned off.
 All devices may be read or written subject to their permissions.
@@ -100,29 +100,30 @@ disks for mounted filesystems,
 .Pa /dev/mem ,
 and
 .Pa /dev/kmem
-are read-only.
+may not be opened for writing.
 .It Ic 2
-Highly secure mode \- same as secure mode, plus disks are always
-read-only whether mounted or not.
+Highly secure mode \- same as secure mode, plus disks may not be
+opened for writing (except by
+.Xr mount 2 )
+whether mounted or not.
 This level precludes tampering with filesystems by unmounting them,
 but also inhibits running
 .Xr newfs 8
 while the system is multi-user.
 .El
 .Pp
-Normally, the system runs in level 0 mode while single user
+If the security level is initially -1, then
+.Nm init
+leaves it unchanged.
+Otherwise,
+.Nm init
+arranges to run the system in level 0 mode while single user
 and in level 1 mode while multiuser.
-If the level 2 mode is desired while running multiuser,
-it can be set in the startup script
-.Pa /etc/rc
+If level 2 mode is desired while running multiuser,
+it can be set while single user, e.g., in the startup script
+.Pa /etc/rc ,
 using
 .Xr sysctl 8 .
-If it is desired to run the system in level 0 mode while multiuser,
-the administrator must build a kernel with the variable
-.Nm securelevel
-defined in the file
-.Pa /sys/compile/MACHINE/param.c
-and initialize it to -1.
 .Pp
 In multi-user operation, 
 .Nm init
