@@ -10,7 +10,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: instdist.sh,v 1.27 1994/11/23 11:01:41 jkh Exp $
+# $Id: instdist.sh,v 1.28 1994/11/23 11:04:00 jkh Exp $
 
 if [ "$_INSTINST_SH_LOADED_" = "yes" ]; then
 	return 0
@@ -309,6 +309,7 @@ illegally, thanks!  When finished, select <Cancel>." \
 
 media_get_possible_subdir()
 {
+	if [ -f ${MNT}/${media_distribution}/extract.sh ]; then return; fi
 	default_value="$distrib_subdir"
 	title="Distribution Subdirectory"
 	if input \
