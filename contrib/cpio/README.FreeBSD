@@ -8,6 +8,8 @@ GNU cpio 2.4.2
 		bcopy.c         fnmatch.h       mt.c
 		configure       install-sh      rmt.c
 		configure.in    makefile.os2    strdup.c
-		cpio.def        makefile.pc     texinfo.tex
+		cpio.def        makefile.pc     tcexparg.c
+		                                texinfo.tex
+
 
 	obrien@FreeBSD.org
