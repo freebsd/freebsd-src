@@ -1,4 +1,5 @@
 #	@(#)Makefile	8.2 (Berkeley) 4/19/94
+# $FreeBSD$
 
 FILES=	fortunes fortunes2 startrek zippy
 BLDS=	fortunes.dat fortunes2.dat startrek.dat zippy.dat \
@@ -27,16 +28,16 @@ beforeinstall:
 
 .for f in fortunes fortunes2 fortunes2-o limerick startrek zippy
 $f.dat: $f
-	PATH=$$PATH:/usr/games:${.OBJDIR}/../strfile \
-	    strfile -rs ${.ALLSRC} ${.TARGET}
+	PATH={.OBJDIR}/../strfile:$$PATH:/usr/games \
+	    strfile -Crs ${.ALLSRC} ${.TARGET}
 .endfor
 
 fortunes-o.dat: fortunes-o
-	PATH=$$PATH:/usr/games:${.OBJDIR}/../strfile \
-	    strfile -rsx ${.ALLSRC} ${.TARGET}
+	PATH=${.OBJDIR}/../strfile:$$PATH:/usr/games \
+	    strfile -Crsx ${.ALLSRC} ${.TARGET}
 
 fortunes-o: fortunes-o.${TYPE}
-	PATH=$$PATH:/usr/games:${.OBJDIR}/../../caesar \
+	PATH=${.OBJDIR}/../../caesar:$$PATH:/usr/games \
 	    caesar 13 < ${.ALLSRC} > ${.TARGET}
 
 .include <bsd.prog.mk>
