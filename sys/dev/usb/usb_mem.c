@@ -258,7 +258,7 @@ usb_allocmem(usbd_bus_handle bus, size_t size, size_t align, usb_dma_t *p)
 		b->fullblock = 0;
 		/* XXX - override the tag, ok since we never free it */
 		b->tag = tag;
-		KASSERT(sizeof *f <= USB_MEM_SMALL, ("USB_MEM_SMALL(%d) is too small for struct usb_frag_dma(%d)\n",
+		KASSERT(sizeof *f <= USB_MEM_SMALL, ("USB_MEM_SMALL(%d) is too small for struct usb_frag_dma(%zd)\n",
 		    USB_MEM_SMALL, sizeof *f));
 		for (i = 0; i < USB_MEM_BLOCK; i += USB_MEM_SMALL) {
 			f = (struct usb_frag_dma *)((char *)b->kaddr + i);
