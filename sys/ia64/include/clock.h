@@ -18,6 +18,7 @@ extern	int	adjkerntz;
 int	sysbeep __P((int pitch, int period));
 int	acquire_timer2 __P((int mode));
 int	release_timer2 __P((void));
+void	handleclock __P((void *arg));
 
 #endif
 
