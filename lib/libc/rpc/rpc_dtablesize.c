@@ -30,7 +30,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)rpc_dtablesize.c 1.2 87/08/11 Copyr 1987 Sun Micro";*/
 /*static char *sccsid = "from: @(#)rpc_dtablesize.c	2.1 88/07/29 4.0 RPCSRC";*/
-static char *rcsid = "rpc_dtablesize.c,v 1.1 1994/08/07 18:36:02 wollman Exp";
+static char *rcsid = "$Id$";
 #endif
 
 #include <sys/types.h>
@@ -40,12 +40,22 @@ static char *rcsid = "rpc_dtablesize.c,v 1.1 1994/08/07 18:36:02 wollman Exp";
  * Cache the result of getdtablesize(), so we don't have to do an
  * expensive system call every time.
  */
+/*
+ * XXX In FreeBSD 2.x, you can have the maximum number of open file
+ * descriptors be greater than FD_SETSIZE (which us 256 by default).
+ *
+ * Since old programs tend to use this call to determine the first arg
+ * for select(), having this return > FD_SETSIZE is a Bad Idea(TM)!
+ */
 int
-_rpc_dtablesize()
+_rpc_dtablesize(void)
 {
 	static int size;
 
-	if (size == 0)
+	if (size == 0) {
 		size = getdtablesize();
+		if (size > FD_SETSIZE)
+			size = FD_SETSIZE;
+	}
 	return (size);
 }
