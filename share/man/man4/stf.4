@@ -146,6 +146,9 @@ Packets with IPv4 multicast address as outer IPv4 source/destination
 Packets with limited broadcast address as outer IPv4 source/destination
 .Pq Li 255.0.0.0/8
 .It
+Packets with private address as outer IPv4 source/destination
+.Pq Li 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16
+.It
 Packets with subnet broadcast address as outer IPv4 source/destination.
 The check is made against subnet broadcast addresses for
 all of the directly connected subnets.
