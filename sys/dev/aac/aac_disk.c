@@ -232,7 +232,7 @@ aac_disk_attach(device_t dev)
     if (sc->ad_size >= (2 * 1024 * 1024)) {		/* 2GB */
 	sc->ad_heads = 255;
 	sc->ad_sectors = 63;
-    } else if (sc->ad_size >= (2 * 1024 * 1024)) {	/* 1GB */
+    } else if (sc->ad_size >= (1 * 1024 * 1024)) {	/* 1GB */
 	sc->ad_heads = 128;
 	sc->ad_sectors = 32;
     } else {
