@@ -1,3 +1,4 @@
+dnl $Id: Makefile.m4,v 1.3.2.1 2002/06/21 21:58:49 ca Exp $
 include(confBUILDTOOLSDIR`/M4/switch.m4')
 
 bldPRODUCT_START(`executable', `test')

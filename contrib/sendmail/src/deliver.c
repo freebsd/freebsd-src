@@ -14,7 +14,7 @@
 #include <sendmail.h>
 #include <sys/time.h>
 
-SM_RCSID("@(#)$Id: deliver.c,v 8.939 2002/05/25 00:46:00 gshapiro Exp $")
+SM_RCSID("@(#)$Id: deliver.c,v 8.940 2002/06/06 00:03:16 gshapiro Exp $")
 
 #if HASSETUSERCONTEXT
 # include <login_cap.h>
@@ -3282,7 +3282,7 @@ do_transfer:
 				if (i != EX_OK)
 				{
 					markfailure(e, to, mci, i, false);
-					giveresponse(i, to->q_status,  m, mci,
+					giveresponse(i, to->q_status, m, mci,
 						     ctladdr, xstart, e, to);
 					if (i == EX_TEMPFAIL)
 						to->q_state = QS_RETRY;

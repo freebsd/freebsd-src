@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: daemon.c,v 8.612 2002/05/02 19:40:52 ca Exp $")
+SM_RCSID("@(#)$Id: daemon.c,v 8.613 2002/06/05 21:26:35 gshapiro Exp $")
 
 #if defined(SOCK_STREAM) || defined(__GNU_LIBRARY__)
 # define USE_SOCK_STREAM	1
@@ -1710,6 +1710,58 @@ setsockaddroptions(p, d)
 
 #define DEF_LISTENQUEUE	10
 
+struct dflags
+{
+	char	*d_name;
+	int	d_flag;
+};
+
+static struct dflags	DaemonFlags[] =
+{
+	{ "AUTHREQ",		D_AUTHREQ	},
+	{ "BINDIF",		D_BINDIF	},
+	{ "CANONREQ",		D_CANONREQ	},
+	{ "IFNHELO",		D_IFNHELO	},
+	{ "FQMAIL",		D_FQMAIL	},
+	{ "FQRCPT",		D_FQRCPT	},
+#if _FFR_SMTP_SSL
+	{ "SMTPS",		D_SMTPS		},
+#endif /* _FFR_SMTP_SSL */
+	{ "UNQUALOK",		D_UNQUALOK	},
+	{ "NOAUTH",		D_NOAUTH	},
+	{ "NOCANON",		D_NOCANON	},
+	{ "NOETRN",		D_NOETRN	},
+	{ "NOTLS",		D_NOTLS		},
+	{ "ETRNONLY",		D_ETRNONLY	},
+	{ "OPTIONAL",		D_OPTIONAL	},
+	{ "DISABLE",		D_DISABLE	},
+	{ "ISSET",		D_ISSET		},
+	{ NULL,			0		}
+};
+
+static void
+printdaemonflags(d)
+	DAEMON_T *d;
+{
+	register struct dflags *df;
+	bool first = true;
+
+	for (df = DaemonFlags; df->d_name != NULL; df++)
+	{
+		if (!bitnset(df->d_flag, d->d_flags))
+			continue;
+		if (first)
+			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT, "<%s",
+					     df->d_name);
+		else
+			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT, ",%s",
+					     df->d_name);
+		first = false;
+	}
+	if (!first)
+		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT, ">");
+}
+
 bool
 setdaemonoptions(p)
 	register char *p;
@@ -1741,10 +1793,7 @@ setdaemonoptions(p)
 	if (tTd(37, 1))
 	{
 		sm_dprintf("Daemon %s flags: ", Daemons[NDaemons].d_name);
-		if (bitnset(D_ETRNONLY, Daemons[NDaemons].d_flags))
-			sm_dprintf("ETRNONLY ");
-		if (bitnset(D_NOETRN, Daemons[NDaemons].d_flags))
-			sm_dprintf("NOETRN ");
+		printdaemonflags(&Daemons[NDaemons]);
 		sm_dprintf("\n");
 	}
 	++NDaemons;

@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: queue.c,v 8.862 2002/05/09 23:51:53 ca Exp $")
+SM_RCSID("@(#)$Id: queue.c,v 8.863.2.2 2002/06/25 21:34:31 gshapiro Exp $")
 
 #include <dirent.h>
 
@@ -280,7 +280,7 @@ hash_q(p, h)
 **	I	data file's inode number
 **	K	time of last delivery attempt
 **	L	Solaris Content-Length: header (obsolete)
-**	M	message (obsolete)
+**	M	message
 **	N	number of delivery attempts
 **	P	message priority
 **	q	quarantine reason (_FFR_QUARANTINE)
@@ -4203,7 +4203,7 @@ readqf(e, openonly)
 			orcpt = sm_rpool_strdup_x(e->e_rpool, &bp[1]);
 			break;
 
-		  case 'r':		/* original recipient */
+		  case 'r':		/* final recipient */
 			frcpt = sm_rpool_strdup_x(e->e_rpool, &bp[1]);
 			break;
 
