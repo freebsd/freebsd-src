@@ -2241,7 +2241,7 @@ loop:
 		if (vmio) {
 			bp->b_flags |= B_VMIO;
 #if defined(VFS_BIO_DEBUG)
-			if (vp->v_type != VREG && vp->v_type != VBLK)
+			if (vp->v_type != VREG)
 				printf("getblk: vmioing file type %d???\n", vp->v_type);
 #endif
 		} else {
