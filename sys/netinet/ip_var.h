@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_var.h	8.2 (Berkeley) 1/9/95
- *	$Id: ip_var.h,v 1.31 1997/02/22 09:41:36 peter Exp $
+ *	$Id: ip_var.h,v 1.32 1997/04/27 20:01:08 wollman Exp $
  */
 
 #ifndef _NETINET_IP_VAR_H_
@@ -204,8 +204,7 @@ void	ip_rsvp_force_done __P((struct socket *));
 #ifdef IPDIVERT
 void	div_init __P((void));
 void	div_input __P((struct mbuf *, int));
-int	div_usrreq __P((struct socket *,
-		int, struct mbuf *, struct mbuf *, struct mbuf *));
+extern struct pr_usrreqs div_usrreqs;
 extern u_short ip_divert_port;
 extern u_short ip_divert_ignore;
 #endif /* IPDIVERT */
