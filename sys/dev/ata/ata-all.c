@@ -67,6 +67,7 @@ static struct cdevsw ata_cdevsw = {
 
 /* prototypes */
 static void ata_shutdown(void *, int);
+static void ata_interrupt(void *);
 static int ata_getparam(struct ata_device *, u_int8_t);
 static void ata_identify_devices(struct ata_channel *);
 static void ata_boot_attach(void);
@@ -132,7 +133,9 @@ ata_attach(device_t dev)
     ch->device[SLAVE].unit = ATA_SLAVE;
     ch->device[SLAVE].mode = ATA_PIO;
     ch->dev = dev;
-    ch->lock = ATA_IDLE;
+    ch->state = ATA_IDLE;
+    bzero(&ch->state_mtx, sizeof(struct mtx));
+    mtx_init(&ch->state_mtx, "ATA state lock", NULL, MTX_DEF);
 
     /* initialise device(s) on this channel */
     ch->locking(ch, ATA_LF_LOCK);
@@ -147,7 +150,7 @@ ata_attach(device_t dev)
 	return ENXIO;
     }
     if ((error = bus_setup_intr(dev, ch->r_irq, ATA_INTR_FLAGS,
-				ch->hw.interrupt, ch, &ch->ih))) {
+				ata_interrupt, ch, &ch->ih))) {
 	ata_printf(ch, -1, "unable to setup interrupt\n");
 	return error;
     }
@@ -189,7 +192,9 @@ ata_detach(device_t dev)
     ata_fail_requests(ch, NULL);
 
     /* unlock the channel */
-    ATA_UNLOCK_CH(ch);
+    mtx_lock(&ch->state_mtx);
+    ch->state = ATA_IDLE;
+    mtx_unlock(&ch->state_mtx);
     ch->locking(ch, ATA_LF_UNLOCK);
 
     /* detach devices on this channel */
@@ -238,9 +243,17 @@ ata_reinit(struct ata_channel *ch)
     if (bootverbose)
 	ata_printf(ch, -1, "reiniting channel ..\n");
 
-    ATA_FORCELOCK_CH(ch);
+    /* grap the channel lock no matter what */
+    mtx_lock(&ch->state_mtx);
+    ch->state = ATA_ACTIVE;
+    mtx_unlock(&ch->state_mtx);
+
+    if (ch->flags & ATA_IMMEDIATE_MODE)
+	return EIO;
+    else
+	ch->flags |= ATA_IMMEDIATE_MODE;
+
     ata_catch_inflight(ch);
-    ch->flags |= ATA_IMMEDIATE_MODE;
     devices = ch->devices;
 
     ch->hw.reset(ch);
@@ -266,14 +279,28 @@ ata_reinit(struct ata_channel *ch)
 	}
     }
 
-    /* unlock the channel */
-    ATA_UNLOCK_CH(ch);
-    ch->locking(ch, ATA_LF_UNLOCK);
-
     /* identify what is present on the channel now */
     ata_identify_devices(ch);
 
-    /* attach new devices that appeared during reset */
+    /* detach what left the channel during identify */
+    if ((misdev = devices & ~ch->devices)) {
+	if ((misdev & (ATA_ATA_MASTER | ATA_ATAPI_MASTER)) &&
+	    ch->device[MASTER].detach) {
+	    ch->device[MASTER].detach(&ch->device[MASTER]);
+	    ata_fail_requests(ch, &ch->device[MASTER]);
+	    free(ch->device[MASTER].param, M_ATA);
+	    ch->device[MASTER].param = NULL;
+	}
+	if ((misdev & (ATA_ATA_SLAVE | ATA_ATAPI_SLAVE)) &&
+	    ch->device[SLAVE].detach) {
+	    ch->device[SLAVE].detach(&ch->device[SLAVE]);
+	    ata_fail_requests(ch, &ch->device[SLAVE]);
+	    free(ch->device[SLAVE].param, M_ATA);
+	    ch->device[SLAVE].param = NULL;
+	}
+    }
+
+    /* attach new devices */
     if ((newdev = ~devices & ch->devices)) {
 	if ((newdev & (ATA_ATA_MASTER | ATA_ATAPI_MASTER)) &&
 	    ch->device[MASTER].attach)
@@ -289,7 +316,12 @@ ata_reinit(struct ata_channel *ch)
 
     if (bootverbose)
 	ata_printf(ch, -1, "device config done ..\n");
+
     ch->flags &= ~ATA_IMMEDIATE_MODE;
+    mtx_lock(&ch->state_mtx);
+    ch->state = ATA_IDLE;
+    mtx_unlock(&ch->state_mtx);
+
     ata_start(ch);
     return 0;
 }
@@ -298,12 +330,22 @@ int
 ata_suspend(device_t dev)
 {
     struct ata_channel *ch;
+    int gotit = 0;
 
     if (!dev || !(ch = device_get_softc(dev)))
 	return ENXIO;
 
     ch->locking(ch, ATA_LF_LOCK);
-    ATA_SLEEPLOCK_CH(ch);
+
+    while (!gotit) {
+	mtx_lock(&ch->state_mtx);
+	if (ch->state == ATA_IDLE) {
+	    ch->state = ATA_ACTIVE;
+	    gotit = 1;
+	}
+	tsleep(&gotit, PRIBIO, "atasusp", hz/10);
+	mtx_unlock(&ch->state_mtx);
+    }
     return 0;
 }
 
@@ -342,11 +384,66 @@ ata_shutdown(void *arg, int howto)
     }
 }
 
+static void
+ata_interrupt(void *data)
+{
+    struct ata_channel *ch = (struct ata_channel *)data;
+    struct ata_request *request = ch->running;
+    int gotit = 0;
+
+    /* ignore interrupt if there is no running request */
+    if (!request) 
+	return;
+
+    ATA_DEBUG_RQ(request, "interrupt");
+
+    /* ignore interrupt if device is busy */
+    if (ATA_IDX_INB(ch, ATA_ALTSTAT) & ATA_S_BUSY) {
+    	DELAY(100);
+	if (ATA_IDX_INB(ch, ATA_ALTSTAT) & ATA_S_BUSY)
+	    return;
+    }
+
+    ATA_DEBUG_RQ(request, "interrupt accepted");
+
+    mtx_lock(&ch->state_mtx);
+    if (ch->state == ATA_ACTIVE) {
+	ch->state = ATA_INTERRUPT;
+	gotit = 1;
+    }
+    else
+	ata_printf(ch, -1,
+		   "unexpected state in ata_interrupt 0x%02x\n", ch->state);
+    mtx_unlock(&ch->state_mtx);
+
+    /* if we got our locks finish up this request */
+    if (gotit) {
+	request->flags |= ATA_R_INTR_SEEN;
+	if (ch->hw.end_transaction(request) == ATA_OP_CONTINUES) {
+	    request->flags &= ~ATA_R_INTR_SEEN;
+	    mtx_lock(&ch->state_mtx);
+	    ch->state = ATA_ACTIVE;
+	    mtx_unlock(&ch->state_mtx);
+	}
+	else {
+	    ch->running = NULL;
+	    mtx_lock(&ch->state_mtx);
+	    if (ch->flags & ATA_IMMEDIATE_MODE)
+	        ch->state = ATA_ACTIVE;
+	    else
+		ch->state = ATA_IDLE;
+	    mtx_unlock(&ch->state_mtx);
+	    ata_finish(request);
+	}
+    }
+}
+
 /*
  * device related interfaces
  */
 static int
-ata_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int32_t flag, struct thread *td)
+ata_ioctl(struct cdev *dev, u_long cmd, caddr_t addr,
+	  int32_t flag, struct thread *td)
 {
     struct ata_cmd *iocmd = (struct ata_cmd *)addr;
     device_t device = devclass_get_device(ata_devclass, iocmd->channel);
