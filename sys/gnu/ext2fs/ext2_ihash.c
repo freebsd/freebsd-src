@@ -62,8 +62,25 @@ void
 ext2_ihashinit()
 {
 
+	KASSERT(ihashtbl == NULL, ("ext2_ihashinit called twice"));
 	ihashtbl = hashinit(desiredvnodes, M_EXT2IHASH, &ihash);
 	mtx_init(&ext2_ihash_mtx, "ext2 ihash", NULL, MTX_DEF);
+}
+
+/*
+ * Destroy the inode hash table.
+ */
+void
+ext2_ihashuninit()
+{
+	struct ihashhead *hp;
+
+	for (hp = ihashtbl; hp < &ihashtbl[ihash]; hp++)
+		if (!LIST_EMPTY(hp))
+			panic("ext2_ihashuninit: ihash not empty");
+	free(ihashtbl, M_EXT2IHASH);
+	ihashtbl = NULL;
+	mtx_destroy(&ext2_ihash_mtx);
 }
 
 /*
