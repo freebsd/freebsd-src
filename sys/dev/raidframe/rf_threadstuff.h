@@ -78,7 +78,7 @@ typedef void *RF_ThreadArg_t;
 static __inline struct ucred *
 rf_getucred(RF_Thread_t td)
 {
-	return (((struct thread *)td)->td_proc->p_ucred);
+	return (((struct thread *)td)->td_ucred);
 }
 #endif
 
