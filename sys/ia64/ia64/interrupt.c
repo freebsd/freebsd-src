@@ -55,6 +55,7 @@
 #include <machine/frame.h>
 #include <machine/intr.h>
 #include <machine/sapicvar.h>
+#include <machine/smp.h>
 
 #ifdef EVCNT_COUNTERS
 struct evcnt clock_intr_evcnt;	/* event counter for clock intrs. */
@@ -66,6 +67,9 @@ struct evcnt clock_intr_evcnt;	/* event counter for clock intrs. */
 #ifdef DDB
 #include <ddb/ddb.h>
 #endif
+
+extern int mp_ipi_vector[];		/* XXX */
+extern int mp_ipi_test;
 
 volatile int mc_expected, mc_received;
 
@@ -113,9 +117,10 @@ interrupt(u_int64_t vector, struct trapframe *framep)
 		/* divide hz (1024) by 8 to get stathz (128) */
 		if((++schedclk2 & 0x7) == 0)
 			statclock((struct clockframe *)framep);
-	} else {
+	} else if (vector == mp_ipi_vector[IPI_TEST]) {
+		mp_ipi_test++;
+	} else
 		ia64_dispatch_intr(framep, vector);
-	}
 
  out:
 	atomic_subtract_int(&td->td_intr_nesting_level, 1);
