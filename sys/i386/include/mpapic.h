@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mpapic.h,v 1.5 1997/05/25 02:43:42 fsmp Exp $
+ *	$Id: mpapic.h,v 1.6 1997/05/29 05:57:43 fsmp Exp $
  */
 
 #ifndef _MACHINE_MPAPIC_H_
@@ -86,109 +86,25 @@ enum busTypes {
 /*
  * read 'reg' from 'apic'
  */
-#if defined(MULTIPLE_IOAPICS)
-#error MULTIPLE_IOAPICSXXX
-#else
 static __inline u_int32_t
-#if 1  /** XXX APIC_STRUCT */
+/** XXX APIC_STRUCT */
 io_apic_read(int apic, int reg)
 {
 	ioapic[apic].ioregsel = reg;
 	return ioapic[apic].iowin;
-#else
-io_apic_read(int apic __attribute__ ((unused)), int reg)
-{
-	(*io_apic_base) = reg;
-	return (*(io_apic_base + (IOAPIC_WINDOW / sizeof(u_int))));
-#endif  /** XXX APIC_STRUCT */
 }
-#endif /* MULTIPLE_IOAPICS */
 
 
 /*
  * write 'value' to 'reg' of 'apic'
  */
-#if defined(MULTIPLE_IOAPICS)
-#error MULTIPLE_IOAPICSXXX
-#else
 static __inline void
-#if 1  /** XXX APIC_STRUCT */
+/** XXX APIC_STRUCT */
 io_apic_write(int apic, int reg, u_int32_t value)
 {
 	ioapic[apic].ioregsel = reg;
 	ioapic[apic].iowin = value;
-#else
-io_apic_write(int apic __attribute__ ((unused)), int reg, u_int32_t value)
-{
-	(*io_apic_base) = reg;
-	(*(io_apic_base + (IOAPIC_WINDOW / sizeof(u_int)))) = value;
-#endif  /** XXX APIC_STRUCT */
 }
-#endif /* MULTIPLE_IOAPICS */
-
-
-#if defined(READY)
-/*
- * set the IO APIC mask for INT# 'i'
- */
-#if defined(MULTIPLE_IOAPICS)
-#error MULTIPLE_IOAPICSXXX
-#else
-static __inline void
-set_io_apic_mask(int apic, u_int32_t i)
-{
-	int		select;		/* the select register is 8 bits */
-	u_int32_t	low_reg;	/* the window register is 32 bits */
-
-	imen |= (1<<i);			/* set mask variable */
-
-	select = IOAPIC_REDTBL + (i * 2); /* calculate addr */
-	low_reg = io_apic_read(select);	/* read contents */
-
-	low_reg |= IOART_INTMASK;	/* set mask */
-	io_apic_write(select, low_reg);	/* new value */
-}
-#endif /* MULTIPLE_IOAPICS */
-#endif /* READY */
-
-
-#if defined(READY)
-/*
- * clear the IO APIC mask for INT# 'i'
- */
-#if defined(MULTIPLE_IOAPICS)
-#error MULTIPLE_IOAPICSXXX
-#else
-static __inline void
-clr_io_apic_mask(int apic, u_int32_t i)
-{
-	int		select;		/* the select register is 8 bits */
-	u_int32_t	low_reg;	/* the window register is 32 bits */
-
-	imen &= ~(1<<i);		/* clear mask variable */
-
-	select = IOAPIC_REDTBL + (i * 2); /* calculate addr */
-	low_reg = io_apic_read(select);	/* read contents */
-
-	low_reg &= ~IOART_INTMASK;	/* clear mask */
-	io_apic_write(select, low_reg);	/* new value */
-}
-#endif /* MULTIPLE_IOAPICS */
-#endif /* READY */
-
-
-/*
- * read current IRQ0 -IRQ23 masks
- */
-#if defined(MULTIPLE_IOAPICS)
-#error MULTIPLE_IOAPICSXXX
-#else
-static __inline u_int32_t
-read_io_apic_mask24(int apic __attribute__ ((unused)))
-{
-	return (imen & 0x00ffffff);	/* return our global copy */
-}
-#endif /* MULTIPLE_IOAPICS */
 
 
 /*
