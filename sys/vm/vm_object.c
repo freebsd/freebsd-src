@@ -100,7 +100,6 @@ static int msync_flush_flags = MSYNC_FLUSH_HARDSEQ | MSYNC_FLUSH_SOFTSEQ;
 SYSCTL_INT(_vm, OID_AUTO, msync_flush_flags,
         CTLFLAG_RW, &msync_flush_flags, 0, "");
 
-
 static void	vm_object_qcollapse (vm_object_t object);
 static int	vm_object_page_collect_flush(vm_object_t object, vm_page_t p, int curgeneration, int pagerflags);
 
@@ -507,6 +506,9 @@ vm_object_terminate(object)
  *	write out pages with PG_NOSYNC set (originally comes from MAP_NOSYNC),
  *	leaving the object dirty.
  *
+ *	When stuffing pages asynchronously, allow clustering.  XXX we need a
+ *	synchronous clustering mode implementation.
+ *
  *	Odd semantics: if start == end, we clean everything.
  *
  *	The object must be locked.
@@ -531,7 +533,7 @@ vm_object_page_clean(object, start, end, flags)
 		(object->flags & OBJ_MIGHTBEDIRTY) == 0)
 		return;
 
-	pagerflags = (flags & (OBJPC_SYNC | OBJPC_INVAL)) ? VM_PAGER_PUT_SYNC : 0;
+	pagerflags = (flags & (OBJPC_SYNC | OBJPC_INVAL)) ? VM_PAGER_PUT_SYNC : VM_PAGER_CLUSTER_OK;
 	pagerflags |= (flags & OBJPC_INVAL) ? VM_PAGER_PUT_INVAL : 0;
 
 	vp = object->handle;
@@ -563,6 +565,7 @@ vm_object_page_clean(object, start, end, flags)
 		scanreset = object->resident_page_count / EASY_SCAN_FACTOR;
 		if (scanreset < 16)
 			scanreset = 16;
+		pagerflags |= VM_PAGER_IGNORE_CLEANCHK;
 
 		scanlimit = scanreset;
 		tscan = tstart;
@@ -612,6 +615,7 @@ vm_object_page_clean(object, start, end, flags)
 			vm_object_clear_flag(object, OBJ_CLEANING);
 			return;
 		}
+		pagerflags &= ~VM_PAGER_IGNORE_CLEANCHK;
 	}
 
 	/*
@@ -735,7 +739,8 @@ vm_object_page_collect_flush(vm_object_t object, vm_page_t p, int curgeneration,
 
 		if ((tp = vm_page_lookup(object, pi + i)) != NULL) {
 			if ((tp->flags & PG_BUSY) ||
-				(tp->flags & PG_CLEANCHK) == 0 ||
+				((pagerflags & VM_PAGER_IGNORE_CLEANCHK) == 0 && 
+				 (tp->flags & PG_CLEANCHK) == 0) ||
 				(tp->busy != 0))
 				break;
 			if((tp->queue - tp->pc) == PQ_CACHE) {
@@ -762,7 +767,8 @@ vm_object_page_collect_flush(vm_object_t object, vm_page_t p, int curgeneration,
 
 			if ((tp = vm_page_lookup(object, pi - i)) != NULL) {
 				if ((tp->flags & PG_BUSY) ||
-					(tp->flags & PG_CLEANCHK) == 0 ||
+					((pagerflags & VM_PAGER_IGNORE_CLEANCHK) == 0 && 
+					 (tp->flags & PG_CLEANCHK) == 0) ||
 					(tp->busy != 0))
 					break;
 				if((tp->queue - tp->pc) == PQ_CACHE) {
