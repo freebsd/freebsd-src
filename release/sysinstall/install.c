@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.71.2.61 1995/10/27 03:59:33 jkh Exp $
+ * $Id: install.c,v 1.71.2.63 1995/10/27 17:00:21 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -297,6 +297,32 @@ installFixit(char *str)
 int
 installExpress(char *str)
 {
+    if (diskPartitionEditor("express") == RET_FAIL)
+	return RET_FAIL;
+    
+    if (diskLabelEditor("express") == RET_FAIL)
+	return RET_FAIL;
+
+    if (!Dists) {
+	if (!dmenuOpenSimple(&MenuDistributions))
+	    return RET_FAIL;
+    }
+
+    if (!mediaDevice) {
+	if (!dmenuOpenSimple(&MenuMedia) || !mediaDevice)
+	    return RET_FAIL;
+    }
+
+    if (installCommit("express") == RET_FAIL)
+	return RET_FAIL;
+
+    return RET_DONE;
+}
+
+/* Novice mode installation */
+int
+installNovice(char *str)
+{
     dialog_clear();
     msgConfirm("In the next menu, you will need to set up a DOS-style (\"fdisk\") partitioning\n"
 	       "scheme for your hard disk.  If you simply wish to devote all disk space\n"
@@ -305,7 +331,7 @@ installExpress(char *str)
 	       "by a (Q)uit.  If you wish to allocate only free space to FreeBSD, move to a\n"
 	       "partition marked \"unused\" and use the (C)reate command.");
 
-    if (diskPartitionEditor("express") == RET_FAIL)
+    if (diskPartitionEditor("novice") == RET_FAIL)
 	return RET_FAIL;
     
     dialog_clear();
@@ -316,7 +342,7 @@ installExpress(char *str)
 	       "care for the layout chosen by (A)uto, press F1 for more information on\n"
 	       "manual layout.");
 
-    if (diskLabelEditor("express") == RET_FAIL)
+    if (diskLabelEditor("novice") == RET_FAIL)
 	return RET_FAIL;
 
     if (!Dists) {
@@ -341,7 +367,7 @@ installExpress(char *str)
 	    return RET_FAIL;
     }
 
-    if (installCommit("express") == RET_FAIL)
+    if (installCommit("novice") == RET_FAIL)
 	return RET_FAIL;
 
     return RET_DONE;
@@ -359,6 +385,7 @@ int
 installCommit(char *str)
 {
     int i;
+    extern Boolean cdromMounted;
 
     if (!mediaVerify())
 	return RET_FAIL;
@@ -383,26 +410,51 @@ installCommit(char *str)
     if (installFixup(NULL) == RET_FAIL)
 	i = RET_FAIL;
 
-    if (i != RET_FAIL && str && !strcmp(str, "express")) {
+    if (i != RET_FAIL && !strcmp(str, "novice")) {
 	dialog_clear();
-	if (!msgYesNo("Since you're running the express installation, a few post-configuration\n"
-		      "questions will be asked at this point.\n\n"
-		      "The FreeBSD package collection is a collection of over 300 ready-to-run\n"
+	msgConfirm("Since you're running the novice installation, a few post-configuration\n"
+		   "questions will be asked at this point.  For any option you do not wish\n"
+		   "to configure, select Cancel.");
+
+	dialog_clear();
+	if (cdromMounted && !msgYesNo("Would you like to link to the ports tree on your CDROM?\n\n"
+				      "This will require that you have your FreeBSD CD in the CDROM\n"
+				      "drive to use the ports collection, but at substantial savings\n"
+				      "in disk space."))
+	    configPorts(NULL);
+
+	dialog_clear();
+	if (!msgYesNo("Would you like to configure Samba for connecting NETBUI clients to this\n"
+		      "machine?  (that is Windows 95, Windows NT or Windows for Workgroups\n"
+		      "machines or others using compatible protocols)."))
+	    configSamba(NULL);
+
+	dialog_clear();
+	if (!msgYesNo("Will this machine be an IP gateway (e.g. will it forward packets\n"
+		      "between interfaces)?"))
+	    variable_set2("gateway", "YES");
+
+	dialog_clear();
+	if (!msgYesNo("Do you want to allow anonymous FTP connections to this machine?"))
+	    configNFSServer(NULL);
+
+	dialog_clear();
+	if (!msgYesNo("Do you wish to install a WEB server on this machine?"))
+	    configApache(NULL);
+
+	dialog_clear();
+	if (!msgYesNo("The FreeBSD package collection is a collection of over 300 ready-to-run\n"
 		      "applications, from text editors to games to WEB servers.  If you've never\n"
 		      "done so, it's definitely worth browsing through.\n\n"
 		      "Would you like to do so now?"))
 	    configPackages(NULL);
-
-	dialog_clear();
-	if (!msgYesNo("Would you like to configure any additional network devices or services?"))
-	    configNetworking(NULL);
 
 	/* XXX Put whatever other nice configuration questions you'd like to ask the user here XXX */
 	
 	/* Final menu of last resort */
 	dialog_clear();
 	if (!msgYesNo("Would you like to go to the general configuration menu for any last\n"
-		      "additional configuration options?"))
+		      "configuration options (some of which you may have already answered)?"))
 	    dmenuOpenSimple(&MenuConfigure);
     }
 
@@ -411,9 +463,9 @@ installCommit(char *str)
     configSysconfig();
 
     variable_set2(SYSTEM_STATE, i == RET_FAIL ? "installed+errors" : "installed");
-    dialog_clear();
-    /* Don't print this if we're express installing */
-    if (strcmp(str, "express")) {
+
+    /* Don't print this if we're express or novice installing */
+    if (strcmp(str, "express") && strcmp(str, "novice")) {
 	if (Dists || i == RET_FAIL) {
 	    dialog_clear();
 	    msgConfirm("Installation completed with some errors.  You may wish to\n"
@@ -438,7 +490,7 @@ installFixup(char *str)
 
     if (!file_readable("/kernel")) {
 	if (file_readable("/kernel.GENERIC")) {
-	    if (vsystem("ln -f /kernel.GENERIC /kernel")) {
+	    if (vsystem("cp -p /kernel.GENERIC /kernel")) {
 		dialog_clear();
 		msgConfirm("Unable to link /kernel into place!");
 		return RET_FAIL;
@@ -513,7 +565,7 @@ installFilesystems(char *str)
     Chunk *c1, *c2, *rootdev, *swapdev, *usrdev;
     Device **devs;
     PartInfo *root;
-    char dname[40];
+    char dname[80];
     extern int MakeDevChunk(Chunk *c, char *n);
     Boolean upgrade = FALSE;
 
@@ -524,12 +576,13 @@ installFilesystems(char *str)
     command_clear();
     upgrade = str && !strcmp(str, "upgrade");
 
-    /* First, create and mount the root device */
-    sprintf(dname, "/dev/%s", rootdev->name);
+    /* First, create and/or mount the root device */
+    sprintf(dname, "/dev/r%sa", rootdev->disk->name);
+
     if (!MakeDevChunk(rootdev, "/dev") || !file_readable(dname)) {
 	dialog_clear();
 	msgConfirm("Unable to make device node for %s in /dev!\n"
-		   "The writing of filesystems will be aborted.", rootdev->name);
+		   "The writing of filesystems will be aborted.", dname);
 	return RET_FAIL;
     }
 
@@ -541,12 +594,12 @@ installFilesystems(char *str)
     if (root->newfs) {
 	int i;
 
-	msgNotify("Making a new root filesystem on %s", rootdev->name);
-	i = vsystem("%s /dev/r%s", root->newfs_cmd, rootdev->name);
+	msgNotify("Making a new root filesystem on %s", dname);
+	i = vsystem("%s %s", root->newfs_cmd, dname);
 	if (i) {
 	    dialog_clear();
-	    msgConfirm("Unable to make new root filesystem on /dev/r%s!\n"
-		       "Command returned status %d", rootdev->name, i);
+	    msgConfirm("Unable to make new root filesystem on %s!\n"
+		       "Command returned status %d", dname, i);
 	    return RET_FAIL;
 	}
     }
@@ -556,12 +609,12 @@ installFilesystems(char *str)
 	    msgConfirm("Warning:  Root device is selected read-only.  It will be assumed\n"
 		       "that you have the appropriate device entries already in /dev.\n");
 	}
-	msgNotify("Checking integrity of existing %s filesystem.", rootdev->name);
-	i = vsystem("fsck -y /dev/r%s", rootdev->name);
+	msgNotify("Checking integrity of existing %s filesystem.", dname);
+	i = vsystem("fsck -y %s", dname);
 	if (i) {
 	    dialog_clear();
-	    msgConfirm("Warning: fsck returned status of %d for /dev/r%s.\n"
-		       "This partition may be unsafe to use.", i, rootdev->name);
+	    msgConfirm("Warning: fsck returned status of %d for %s.\n"
+		       "This partition may be unsafe to use.", i, dname);
 	}
     }
     if (Mount("/mnt", dname)) {
@@ -654,6 +707,7 @@ installVarDefaults(char *unused)
     variable_set2(VAR_CONFIG_FILE,		"freebsd.cfg");
     variable_set2(VAR_FTP_STATE,		"passive");
     variable_set2(VAR_FTP_ONERROR,		"abort");
+    variable_set2(VAR_FTP_RETRIES,		MAX_FTP_RETRIES);
     if (getpid() != 1)
 	variable_set2(SYSTEM_STATE,		"update");
     else

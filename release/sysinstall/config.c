@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.16.2.30 1995/10/27 03:59:28 jkh Exp $
+ * $Id: config.c,v 1.16.2.31 1995/10/27 16:42:44 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -287,9 +287,11 @@ configSysconfig(void)
     fclose(fp);
     fp = fopen("/etc/sysconfig", "w");
     for (i = 0; i < nlines; i++) {
+	static Boolean firstTime = TRUE;
+
 	fprintf(fp, lines[i]);
 	/* Stand by for bogus special case handling - we try to dump the interface specs here */
-	if (!strncmp(lines[i], VAR_INTERFACES, strlen(VAR_INTERFACES))) {
+	if (firstTime && !strncmp(lines[i], VAR_INTERFACES, strlen(VAR_INTERFACES))) {
 	    Device **devp;
 	    int j, cnt;
 
@@ -303,6 +305,7 @@ configSysconfig(void)
 		    fprintf(fp, "%s=\"%s\"\n", iname, cp);
 		}
 	    }
+	    firstTime = FALSE;
 	}
 	free(lines[i]);
     }
@@ -384,15 +387,6 @@ skip:
 }
 
 int
-configNetworking(char *str)
-{
-    if (dmenuOpenSimple(&MenuNetworking))
-	return installNetworking(str);
-    else
-	return RET_FAIL;
-}
-
-int
 configRoutedFlags(char *str)
 {
     return variable_get_value(VAR_ROUTEDFLAGS, 
@@ -470,47 +464,62 @@ configPorts(char *str)
 {
     char *cp, *dist = NULL; /* Shut up compiler */
 
-    if (file_executable("/usr/X11R6/bin/lndir")) {
-	if (!variable_get(VAR_PORTS_PATH))
-	    variable_set2(VAR_PORTS_PATH, dist = "/cdrom/ports");
-	while (!directoryExists(dist)) {
-	    dist = variable_get_value(VAR_PORTS_PATH,
-				      "Unable to locate a ports tree on CDROM.  Please specify the\n"
-				      "location of the master ports directory you wish to create the\n"
-				      "link tree to.");
-	    if (!dist)
-		break;
+    if (!variable_get(VAR_PORTS_PATH))
+	variable_set2(VAR_PORTS_PATH, dist = "/cdrom/ports");
+    while (!directoryExists(dist)) {
+	dist = variable_get_value(VAR_PORTS_PATH,
+				  "Unable to locate a ports tree on CDROM.  Please specify the\n"
+				  "location of the master ports directory you wish to create the\n"
+				  "link tree to.");
+	if (!dist)
+	    break;
+    }
+    if (dist) {
+	cp = msgGetInput("/usr/ports",
+			 "Where would you like to create the link tree?"
+			 "(press [ENTER] for default location).  The link tree should\n"
+			 "reside in a directory with as much free space as possible,\n"
+			 "as you'll need space to compile any ports.");
+	if (!cp || !*cp)
+	    return RET_FAIL;
+	if (Mkdir(cp, NULL)) {
+	    dialog_clear();
+	    msgConfirm("Unable to make the %s directory!", cp);
+	    return RET_FAIL;
 	}
-	if (dist) {
-	    cp = msgGetInput("/usr/ports",
-			     "Where would you like to create the link tree?"
-			     "(press [ENTER] for default location).");
-	    if (!cp || !*cp)
-		return RET_FAIL;
-	    if (Mkdir(cp, NULL)) {
-		dialog_clear();
-		msgConfirm("Unable to make the %s directory!", cp);
-		return RET_FAIL;
-	    }
-	    else {
-		msgNotify("Making link tree from %s to %s area.", dist, cp);
-		if (vsystem("/usr/X11R6/bin/lndir %s %s", dist, cp)) {
-		    dialog_clear();
-		    msgConfirm("The lndir command returned an error status and may not have.\n"
-			       "successfully generated the link tree.  You may wish to inspect\n"
-			       "%s carefully for any missing link files.");
+	else {
+	    if (strcmp(cp, "/usr/ports")) {
+		unlink("/usr/ports");
+		if (symlink(cp, "/usr/ports") == -1) {
+		    msgConfirm("Unable to create a symlink from /usr/ports to %s!\n"
+			       "I can't continue, sorry!");
+		    return RET_FAIL;
+		}
+		else {
+		    msgConfirm("NOTE: This directory is also now symlinked to /usr/ports\n"
+			       "which, for a variety of reasons, is the directory the ports\n"
+			       "framework expects to find its files in.  You should refer to\n"
+			       "/usr/ports instead of %s directly when you're working in the\n"
+			       "ports collection.");
 		}
 	    }
+	    msgNotify("Making a link tree from %s to %s.", dist, cp);
+	    if (lndir(dist, cp) != RET_SUCCESS) {
+		dialog_clear();
+		msgConfirm("The lndir function returned an error status and may not have.\n"
+			   "successfully generated the link tree.  You may wish to inspect\n"
+			   "the /usr/ports directory carefully for any missing link files.");
+	    }
+	    else {
+		msgConfirm("The /usr/ports directory is now ready to use.  When the system comes\n"
+			   "up fully, you can cd to this directory and type `make' in any sub-\n"
+			   "directory for which you'd like to compile a port.  You can also\n"
+			   "cd to /usr/ports and type `make print-index' for a complete list of all\n"
+			   "ports in the hierarchy.");
+	    }
 	}
-	else
-	    return RET_FAIL;
     }
-    else {
-	dialog_clear();
-	msgConfirm("You are missing the lndir command from /usr/X11R6/bin and\n"
-		   "cannot run this utility.  You may wish to do this manually\n"
-		   "later by extracting just lndir from the X distribution and\n"
-		   "using it to create the link tree.");
-    }
+    else
+	return RET_FAIL;
     return RET_SUCCESS;
 }

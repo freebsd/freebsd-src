@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: ftp_strat.c,v 1.7.2.33 1995/10/24 02:17:47 jkh Exp $
+ * $Id: ftp_strat.c,v 1.7.2.35 1995/10/26 08:55:42 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -56,7 +56,6 @@ Boolean ftpInitted = FALSE;
 static FTP_t ftp;
 extern int FtpPort;
 
-static int reselectCount = 0;
 static char *lastRequest;
 
 static Boolean
@@ -70,8 +69,6 @@ get_new_host(Device *dev, Boolean tentative)
     if (tentative || (cp && strcmp(cp, "reselect")))
 	i = TRUE;
     else {
-	++reselectCount;
-
 	i = FALSE;
 	dialog_clear();
 	msgConfirm("The %s file failed to load from the FTP site you\n"
@@ -82,29 +79,33 @@ get_new_host(Device *dev, Boolean tentative)
 	if (j == RET_SUCCESS) {
 	    /* Bounce the link if necessary */
 	    if (ftpInitted) {
+		msgDebug("Bouncing FTP connection before reselecting new host.\n");
 		dev->shutdown(dev);
 		i = dev->init(dev);
 	    }
+	}
+	else {
+	    msgDebug("User elected not to reselect, shutting down open connection.\n");
+	    dev->shutdown(dev);
 	}
     }
     return i;
 }
 
 /* Should we throw in the towel? */
-static int
+static Boolean
 ftpShouldAbort(Device *dev, int retries)
 {
     char *cp, *cp2;
-    int maxretries, rval = 0;
+    int maxretries, rval = FALSE;
 
     cp = variable_get(VAR_FTP_ONERROR);
     cp2 = variable_get(VAR_FTP_RETRIES);
-    maxretries = cp2 ? atoi(cp2) : MAX_FTP_RETRIES;
-    if (retries >= maxretries || (cp && !strcmp(cp, "abort"))) {
-	rval = 1;
+    maxretries = atoi(cp2);
+    if (retries > maxretries || (cp && !strcmp(cp, "abort"))) {
+	rval = TRUE;
 	msgDebug("Aborting FTP connection.\n");
 	dev->shutdown(dev);
-	reselectCount = 0;
     }
     return rval;
 }
@@ -129,9 +130,6 @@ mediaInitFTP(Device *dev)
 	msgConfirm("FTP initialisation failed!");
 	return FALSE;
     }
-    if (isDebug())
-	msgDebug("Initialized FTP library.\n");
-
     cp = variable_get(VAR_FTP_PATH);
     if (!cp) {
 	dialog_clear();
@@ -181,6 +179,7 @@ mediaInitFTP(Device *dev)
 	strcpy(password, variable_get(VAR_FTP_PASS) ? variable_get(VAR_FTP_PASS) : login_name);
     }
     retries = 0;
+
 retry:
     msgNotify("Logging in as %s..", login_name);
     if (FtpOpen(ftp, hostname, login_name, password) != 0) {
@@ -228,7 +227,7 @@ int
 mediaGetFTP(Device *dev, char *file, Boolean tentative)
 {
     int fd;
-    int i, nretries;
+    int nretries;
     char *fp;
     char buf[PATH_MAX];
 
@@ -246,36 +245,35 @@ mediaGetFTP(Device *dev, char *file, Boolean tentative)
 	    dev->shutdown(dev);
 	    return -2;
 	}
-	else if (tentative)
+	else if (tentative || ftpShouldAbort(dev, ++nretries))
 	    return -1;
-	else if ((i = ftpShouldAbort(dev, ++nretries))) {
-	    if (i == -1) /* hard error */
-		return -2;
-	    else if (!get_new_host(dev, tentative))
-		return -1;
-	    nretries = 0;
-	    fp = file;
-	}
 	else {
-	    /* Try some bogus alternatives */
+	    /* Try some alternatives */
 	    switch (nretries) {
 	    case 1:
 		sprintf(buf, "dists/%s", file);
+		fp = buf;
 		break;
 
 	    case 2:
 		sprintf(buf, "%s/%s", variable_get(VAR_RELNAME), file);
+		fp = buf;
 		break;
 
 	    case 3:
 		sprintf(buf, "%s/dists/%s", variable_get(VAR_RELNAME), file);
+		fp = buf;
 		break;
 
-	    default:
-		strcpy(buf, file);
-		break;
+	    case 4:
+		fp = file;
+		if (get_new_host(dev, tentative)) {
+		    nretries = 0;
+		    continue;
+		}
+		else
+		    break;
 	    }
-	    fp = buf;
 	}
     }
     return fd;

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: label.c,v 1.32.2.23 1995/10/24 02:18:11 jkh Exp $
+ * $Id: label.c,v 1.32.2.25 1995/10/26 08:55:52 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -249,6 +249,7 @@ record_label_chunks(Device **devs)
 	    }
 	}
     }
+
     /* Now run through again and get the FreeBSD partition entries */
     for (i = 0; devs[i]; i++) {
 	if (!devs[i]->enabled)

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.42.2.37 1995/10/27 02:12:52 jkh Exp $
+ * $Id: menus.c,v 1.42.2.38 1995/10/30 08:04:48 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -66,9 +66,11 @@ option by pressing [ENTER].",		/* prompt */
 	DMENU_SUBMENU,		&MenuDocumentation, 0, 0	},
   { "Options",			"Go to options editor",				/* O */
 	DMENU_CALL,		optionsEditor, 0, 0		},
-  { "Express",			"Begin a quick installation",			/* E */
+  { "Novice",			"Begin a novice installation (for beginners)",	/* N */
+	DMENU_CALL,		installNovice, 0, 0		},
+  { "Express",			"Begin a quick installation (for the impatient)", /* E */
 	DMENU_CALL,		installExpress, 0, 0		},
-  { "Custom",			"Begin a custom installation",			/* C */
+  { "Custom",			"Begin a custom installation (for experts)",	/* C */
 	DMENU_SUBMENU,		&MenuInstallCustom, 0, 0	},
   { "Fixit",			"Mount fixit floppy and go into repair mode",	/* F */
 	DMENU_CALL,		installFixit, 0, 0		},
@@ -217,22 +219,18 @@ guaranteed to carry the full range of possible distributions.",
 	DMENU_SET_VARIABLE,	VAR_FTP_PATH "=ftp://ftp.internet-eireann.ie/pub/FreeBSD/", 0, 0	},
   { "Israel",			"orgchem.weizmann.ac.il",
 	DMENU_SET_VARIABLE,	VAR_FTP_PATH "=ftp://orgchem.weizmann.ac.il/pub/FreeBSD/", 0, 0		},
-  { "Japan",			"ftp.sra.co.jp",
-	DMENU_SET_VARIABLE,	VAR_FTP_PATH "=ftp://ftp.sra.co.jp/pub/os/FreeBSD/", 0, 0		},
-  { "Japan #2",			"ftp.mei.co.jp",
-	DMENU_SET_VARIABLE,	VAR_FTP_PATH "=ftp://ftp.mei.co.jp/free/PC-UNIX/FreeBSD/", 0, 0		},
-  { "Japan #3",			"ftp.waseda.ac.jp",
-	DMENU_SET_VARIABLE,	VAR_FTP_PATH "=ftp://ftp.waseda.ac.jp/pub/FreeBSD/", 0, 0		},
-  { "Japan #4",			"ftp.pu-toyama.ac.jp",
-	DMENU_SET_VARIABLE,	VAR_FTP_PATH "=ftp://ftp.pu-toyama.ac.jp/pub/FreeBSD/", 0, 0		},
-  { "Japan #5",			"ftpsv1.u-aizu.ac.jp",
-	DMENU_SET_VARIABLE,	VAR_FTP_PATH "=ftp://ftpsv1.u-aizu.ac.jp/pub/os/FreeBSD/", 0, 0		},
-  { "Japan #6",			"ftp.tut.ac.jp",
-	DMENU_SET_VARIABLE,	"ftp://ftp.tut.ac.jp/FreeBSD/", 0, 0					},
-  { "Japan #7",			"ftp.ee.uec.ac.jp",
+  { "Japan",			"ftp.tokyonet.ad.jp",
+	DMENU_SET_VARIABLE,	VAR_FTP_PATH "=ftp://ftp.tokyonet.ad.jp/pub/FreeBSD/", 0, 0		},
+  { "Japan #2",			"ftp.nisiq.net",
+	DMENU_SET_VARIABLE,	VAR_FTP_PATH "=ftp://ftp.nisiq.net/pub/os/FreeBSD/", 0, 0		},
+  { "Japan #3",			"ftp.iij.ad.jp",
+	DMENU_SET_VARIABLE,	VAR_FTP_PATH "=ftp://ftp.iij.ad.jp/pub/FreeBSD/", 0, 0			},
+  { "Japan #4",			"ftp.kuis.kyoto-u.ac.jp",
+	DMENU_SET_VARIABLE,	VAR_FTP_PATH "=ftp://ftp.kuis.kyoto-u.ac.jp/BSD/FreeBSD/", 0, 0		},
+  { "Japan #5",			"ftp.ee.uec.ac.jp",
 	DMENU_SET_VARIABLE,	VAR_FTP_PATH "=ftp://ftp.ee.uec.ac.jp/pub/os/mirror/ftp.freebsd.org/", 0, 0 },
-  { "Japan #8",			"ftp.tokyonet.ad.jp",
-	DMENU_SET_VARIABLE,	"ftp://ftp.tokyonet.ad.jp/pub/FreeBSD/", 0, 0				},
+  { "Japan #6",			"ftp.u-aizu.ac.jp",
+	DMENU_SET_VARIABLE,	VAR_FTP_PATH "=ftp://ftp.u-aizu.ac.jp/pub/os/FreeBSD/", 0, 0		},
   { "Korea",			"ftp.cau.ac.kr",
 	DMENU_SET_VARIABLE,	VAR_FTP_PATH "=ftp://ftp.cau.ac.kr/pub/FreeBSD/", 0, 0			},
   { "Netherlands",		"ftp.nl.net",
@@ -713,7 +711,7 @@ software not provided in the base distributions.",
       { "Mouse",		"Select the type of mouse you have",
 	DMENU_SUBMENU,		&MenuMouse, 0, 0			},
       { "Networking",		"Configure additional network services",
-	DMENU_CALL, 		configNetworking, 0, 0			},
+	DMENU_SUBMENU, 		&MenuNetworking, 0, 0			},
       { "Options",		"Go to options editor.",
 	DMENU_CALL,		optionsEditor, 0, 0			},
       { "Packages",		"Install pre-packaged software for FreeBSD",
@@ -732,7 +730,7 @@ software not provided in the base distributions.",
 };
 
 DMenu MenuNetworking = {
-    DMENU_MULTIPLE_TYPE | DMENU_SELECTION_RETURNS,
+    DMENU_NORMAL_TYPE,
     "Network Services Menu",
 "You may have already configured one network device (and the other\n\
 various hostname/gateway/name server parameters) in the process\n\
@@ -743,13 +741,13 @@ aspects of your system's network configuration.",
 { { "Interfaces",		"Configure additional network interfaces",
 	DMENU_CALL,		tcpMenuSelect, 0, 0					},
   { "NFS client",		"This machine will be an NFS client",
-	DMENU_SET_VARIABLE,	"nfs_client=YES", 0, 0, dmenuVarCheck			},
+	DMENU_SET_VARIABLE,	"nfs_client=YES", 0, 0, 0				},
   { "NFS server",		"This machine will be an NFS server",
-	DMENU_SET_VARIABLE,	"nfs_server=YES", 0, 0, dmenuVarCheck			},
+	DMENU_CALL,		configNFSServer, 0, 0, 0				},
   { "Gateway",			"This machine will route packets between interfaces",
-	DMENU_SET_VARIABLE,	"gateway=YES", 0, 0, dmenuVarCheck			},
+	DMENU_SET_VARIABLE,	"gateway=YES", 0, 0, 0					},
   { "Gated",			"This machine wants to run gated",
-	DMENU_SET_VARIABLE,	"gated=YES", 0, 0, dmenuVarCheck			},
+	DMENU_SET_VARIABLE,	"gated=YES", 0, 0, 0					},
   { "Ntpdate",			"Select a clock-syncronization server",
 	DMENU_SUBMENU,		&MenuNTP, (int)"ntpdate", 0, dmenuVarCheck		},
   { "Routed",			"Set flags for routed (default: -q)",
@@ -757,13 +755,13 @@ aspects of your system's network configuration.",
   { "Rwhod",			"This machine wants to run the rwho daemon",
 	DMENU_SET_VARIABLE,	"rwhod=YES", 0, 0, dmenuVarCheck			},
   { "Anon FTP",			"This machine wishes to allow anonymous FTP.",
-	DMENU_SET_VARIABLE,	"anon_ftp=YES", 0, 0, dmenuVarCheck			},
+	DMENU_CALL,		configAnonFTP, 0, 0, 0					},
   { "WEB Server",		"This machine wishes to be a WWW server.",
-	DMENU_SET_VARIABLE,	"apache_httpd=YES", 0, 0, dmenuVarCheck			},
+	DMENU_CALL,		configApache, 0, 0, 0					},
   { "Samba",			"Install Samba for LanManager (NETBUI) access.",
-	DMENU_SET_VARIABLE,	"samba=YES", 0, 0, dmenuVarCheck			},
+	DMENU_CALL,		configSamba, 0, 0, 0					},
   { "PCNFSD",			"Run authentication server for clients with PC-NFS.",
-	DMENU_SET_VARIABLE,	"pcnfsd=YES", 0, 0, dmenuVarCheck			},
+	DMENU_SET_VARIABLE,	"pcnfsd=YES", 0, 0, 0					},
   { NULL } },
 };
 
