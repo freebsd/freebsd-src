@@ -87,7 +87,8 @@ sysctl_find_oidname(const char *name, struct sysctl_oid_list *list)
  * Order by number in each list.
  */
 
-void sysctl_register_oid(struct sysctl_oid *oidp)
+void
+sysctl_register_oid(struct sysctl_oid *oidp)
 {
 	struct sysctl_oid_list *parent = oidp->oid_parent;
 	struct sysctl_oid *p;
@@ -135,7 +136,8 @@ void sysctl_register_oid(struct sysctl_oid *oidp)
 		SLIST_INSERT_HEAD(parent, oidp, oid_link);
 }
 
-void sysctl_unregister_oid(struct sysctl_oid *oidp)
+void
+sysctl_unregister_oid(struct sysctl_oid *oidp)
 {
 	SLIST_REMOVE(oidp->oid_parent, oidp, sysctl_oid, oid_link);
 }
@@ -371,7 +373,8 @@ sysctl_add_oid(struct sysctl_ctx_list *clist, struct sysctl_oid_list *parent,
  */
 SET_DECLARE(sysctl_set, struct sysctl_oid);
 
-static void sysctl_register_all(void *arg)
+static void
+sysctl_register_all(void *arg)
 {
 	struct sysctl_oid **oidp;
 
@@ -1084,7 +1087,8 @@ __sysctl(struct proc *p, struct sysctl_args *uap)
  * must be in kernel space.
  */
 int
-userland_sysctl(struct proc *p, int *name, u_int namelen, void *old, size_t *oldlenp, int inkernel, void *new, size_t newlen, size_t *retval)
+userland_sysctl(struct proc *p, int *name, u_int namelen, void *old,
+    size_t *oldlenp, int inkernel, void *new, size_t newlen, size_t *retval)
 {
 	int error = 0;
 	struct sysctl_req req, req2;
