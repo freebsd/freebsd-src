@@ -392,17 +392,16 @@ distMaybeSetDES(dialogMenuItem *self)
     int i = DITEM_SUCCESS | DITEM_REDRAW;
 
     dialog_clear_norefresh();
-    if (!msgYesNo("Do you wish to install DES cryptographic software?\n\n"
+    if (!msgYesNo("Do you wish to install cryptographic software?\n\n"
 		  "If you choose No, FreeBSD will use an MD5 based password scheme which,\n"
 		  "while perhaps more secure, is not interoperable with the traditional\n"
-		  "UNIX DES passwords on other non-FreeBSD systems.\n\n"
+		  "UNIX DES passwords on other Unix systems.  There will also be some\n"
+		  "differences in the type of RSA code you use.\n\n"
 		  "Please do NOT choose Yes at this point if you are outside the\n"
 		  "United States and Canada yet are installing from a U.S. FTP server.\n"
-		  "This will violate U.S. export restrictions and possibly get the\n"
-		  "server site into trouble!  In such cases, install everything but the\n"
-		  "DES distribution from the U.S. server then switch your media type to\n"
-		  "point to an international FTP server, using the Custom installation\n"
-		  "option to select and extract the DES distribution in a second pass.")) {
+		  "Instead, install everything BUT the crypto bits from the U.S. site\n"
+		  "and then switch to an international FTP server to install them on\n"
+		  "a second pass using the Custom Installation option.")) {
 	if (!dmenuOpenSimple(&MenuDESDistributions, FALSE))
 	    i = DITEM_FAILURE;
     }
@@ -415,13 +414,13 @@ distMaybeSetPorts(dialogMenuItem *self)
 {
     dialog_clear_norefresh();
     if (!msgYesNo("Would you like to install the FreeBSD ports collection?\n\n"
-		  "This will give you ready access to over 2000 ported software packages,\n"
-		  "though at a cost of around 90MB of disk space when \"clean\" and possibly\n"
-		  "much more than that if a lot of the distribution tarballs are loaded\n"
+		  "This will give you ready access to over 3000 ported software packages,\n"
+		  "at a cost of around 70MB of disk space when \"clean\" and possibly\n"
+		  "much more than that when a lot of the distribution tarballs are loaded\n"
 		  "(unless you have the extra CDs available from a FreeBSD CDROM distribution\n"
 		  "and can mount them on /cdrom, in which case this is far less of a problem).\n\n"
-		  "The ports collection is a very valuable resource and, if you have at least\n"
-		  "100MB to spare in your /usr partition, well worth having around.\n\n"
+		  "The ports collection is a very valuable resource and well worth having"
+		  "on your /usr partition, so it is advisable to say Yes to this option.\n\n"
 		  "For more information on the ports collection & the latest ports, visit:\n"
 		  "    http://www.freebsd.org/ports\n"))
 	Dists |= DIST_PORTS;
@@ -879,9 +878,12 @@ printSelected(char *buf, int selected, Distribution *me, int *col)
 int
 distExtractAll(dialogMenuItem *self)
 {
-    int old_dists, retries = 0, status = DITEM_SUCCESS, want_x_package = 0;
+    int old_dists, retries = 0, status = DITEM_SUCCESS;
     char buf[512];
     WINDOW *w;
+#ifdef X_AS_PKG
+    int want_x_package = 0;
+#endif
 
     /* paranoia */
     if (!Dists) {

@@ -458,6 +458,7 @@ configLinux(dialogMenuItem *self)
 
     dialog_clear_norefresh();
     variable_set2(VAR_LINUX_ENABLE, "YES", 1);
+    Mkdir("/compat/linux");
     msgNotify("Installing Linux compatibility library...");
     i = package_add("linux_base");
     restorescr(w);
@@ -744,7 +745,7 @@ extern PkgNode Top, Plist;
 int
 configPackages(dialogMenuItem *self)
 {
-    int i;
+    int i, restoreflag = 0;
     PkgNodePtr tmp;
 
     /* Did we get an INDEX? */
@@ -766,6 +767,8 @@ configPackages(dialogMenuItem *self)
 	    if (ret & DITEM_LEAVE_MENU)
 		break;
 	    else if (DITEM_STATUS(ret) != DITEM_FAILURE) {
+		dialog_clear();
+		restoreflag = 1;
 		for (tmp = Plist.kids; tmp && tmp->name; tmp = tmp->next)
 		    (void)index_extract(mediaDevice, &Top, tmp, FALSE);
 		break;
@@ -784,7 +787,7 @@ configPackages(dialogMenuItem *self)
         tmp = tmp2;
     }
     index_init(NULL, &Plist);
-    return DITEM_SUCCESS;
+    return DITEM_SUCCESS | (restoreflag ? DITEM_RESTORE : 0);
 }
 
 /* Load pcnfsd package */
