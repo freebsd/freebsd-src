@@ -664,6 +664,9 @@ struct nge_softc {
 	SLIST_HEAD(__nge_jinusehead, nge_jpool_entry)	nge_jinuse_listhead;
 	u_int8_t		nge_tbi;
 	struct ifmedia		nge_ifmedia;
+#ifdef DEVICE_POLLING
+	int			rxcycles;
+#endif
 };
 
 /*
