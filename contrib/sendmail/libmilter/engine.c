@@ -9,7 +9,7 @@
  */
 
 #ifndef lint
-static char id[] = "@(#)$Id: engine.c,v 8.67.4.12 2000/07/14 06:16:57 msk Exp $";
+static char id[] = "@(#)$Id: engine.c,v 8.67.4.14 2000/08/14 08:27:30 gshapiro Exp $";
 #endif /* ! lint */
 
 #if _FFR_MILTER
@@ -208,7 +208,8 @@ mi_engine(ctx)
 	fi_abort = ctx->ctx_smfi->xxfi_abort;
 	mi_clr_macros(ctx, 0);
 	fix_stm(ctx);
-	do {
+	do
+	{
 		/* call abort only if in a mail transaction */
 		call_abort = ST_IN_MAIL(curstate);
 		timeout.tv_sec = ctx->ctx_timeout;
@@ -226,7 +227,7 @@ mi_engine(ctx)
 		    cmd < SMFIC_VALIDCMD)
 		{
 			if (ctx->ctx_dbg > 5)
-				dprintf("[%d] error (%x)\n",
+				dprintf("[%d] mi_engine: mi_rd_cmd error (%x)\n",
 					(int) ctx->ctx_id, (int) cmd);
 
 			/*
@@ -958,7 +959,8 @@ trans_ok(old, new)
 	int s, n;
 
 	s = old;
-	do {
+	do
+	{
 		/* is this state transition allowed? */
 		if ((MASK(new) & next_states[s]) != 0)
 			return TRUE;

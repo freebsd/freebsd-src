@@ -12,7 +12,7 @@
  */
 
 #ifndef lint
-static char id[] = "@(#)$Id: savemail.c,v 8.212.4.3 2000/06/13 07:16:26 gshapiro Exp $";
+static char id[] = "@(#)$Id: savemail.c,v 8.212.4.5 2000/08/22 22:46:00 gshapiro Exp $";
 #endif /* ! lint */
 
 /* $FreeBSD$ */
@@ -334,7 +334,8 @@ savemail(e, sendbody)
 			{
 				if (e->e_from.q_home != NULL)
 					p = e->e_from.q_home;
-				else if ((pw = sm_getpwnam(e->e_from.q_user)) != NULL)
+				else if ((pw = sm_getpwnam(e->e_from.q_user)) != NULL &&
+					 *pw->pw_dir != '\0')
 					p = pw->pw_dir;
 			}
 			if (p == NULL || e->e_dfp == NULL)
@@ -447,6 +448,7 @@ savemail(e, sendbody)
 		  case ESM_PANIC:
 			/* leave the locked queue & transcript files around */
 			loseqfile(e, "savemail panic");
+			errno = 0;
 			syserr("!554 savemail: cannot save rejected email anywhere");
 		}
 	}

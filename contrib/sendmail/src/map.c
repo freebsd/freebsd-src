@@ -12,7 +12,7 @@
  */
 
 #ifndef lint
-static char id[] = "@(#)$Id: map.c,v 8.414.4.13 2000/07/14 16:48:21 ca Exp $";
+static char id[] = "@(#)$Id: map.c,v 8.414.4.24 2000/09/27 04:11:29 gshapiro Exp $";
 #endif /* ! lint */
 
 #include <sendmail.h>
@@ -568,6 +568,7 @@ openmap(map)
 			map->map_class = &BogusMapClass;
 			map->map_mflags |= MF_OPEN;
 			map->map_pid = getpid();
+			MapOpenErr = TRUE;
 		}
 		else
 		{
@@ -626,7 +627,6 @@ map_close(s, unused)
 
 	if (!bitset(MF_VALID, map->map_mflags) ||
 	    !bitset(MF_OPEN, map->map_mflags) ||
-	    bitset(MF_SHARED, map->map_mflags) ||
 	    map->map_pid != getpid())
 		return;
 
@@ -2810,7 +2810,7 @@ ldapmap_open(map, mode)
 	STAB *s;
 
 	if (tTd(38, 2))
-		dprintf("ldapmap_open(%s, %d)\n", map->map_mname, mode);
+		dprintf("ldapmap_open(%s, %d): ", map->map_mname, mode);
 
 	mode &= O_ACCMODE;
 
@@ -2841,9 +2841,13 @@ ldapmap_open(map, mode)
 	{
 		/* Already have a connection open to this LDAP server */
 		lmap->ldap_ld = s->s_ldap;
-		map->map_mflags |= MF_SHARED;
+		if (tTd(38, 2))
+			dprintf("using cached connection\n");
 		return TRUE;
 	}
+
+	if (tTd(38, 2))
+		dprintf("opening new connection\n");
 
 	/* No connection yet, connect */
 	if (!ldapmap_start(map))
@@ -3142,7 +3146,7 @@ ldapmap_lookup(map, name, av, statp)
 		if (q[1] == 's')
 		{
 			snprintf(fp, SPACELEFT(filter, fp), "%.*s%s",
-				 q - p, p, keybuf);
+				 (int) (q - p), p, keybuf);
 			fp += strlen(fp);
 			p = q + 2;
 		}
@@ -3151,7 +3155,7 @@ ldapmap_lookup(map, name, av, statp)
 			char *k = keybuf;
 
 			snprintf(fp, SPACELEFT(filter, fp), "%.*s",
-				 q - p, p);
+				 (int) (q - p), p);
 			fp += strlen(fp);
 			p = q + 2;
 
@@ -3179,7 +3183,7 @@ ldapmap_lookup(map, name, av, statp)
 		else
 		{
 			snprintf(fp, SPACELEFT(filter, fp), "%.*s",
-				 q - p + 1, p);
+				 (int) (q - p + 1), p);
 			p = q + (q[1] == '%' ? 2 : 1);
 			fp += strlen(fp);
 		}
@@ -3200,13 +3204,24 @@ ldapmap_lookup(map, name, av, statp)
 		if (!bitset(MF_OPTIONAL, map->map_mflags))
 		{
 			if (bitset(MF_NODEFER, map->map_mflags))
-				syserr("Error in ldap_search_st using %s in map %s",
+				syserr("Error in ldap_search using %s in map %s",
 				       filter, map->map_mname);
 			else
-				syserr("421 4.0.0 Error in ldap_search_st using %s in map %s",
+				syserr("421 4.0.0 Error in ldap_search using %s in map %s",
 				       filter, map->map_mname);
 		}
 		*statp = EX_TEMPFAIL;
+#ifdef LDAP_SERVER_DOWN
+		if (errno == LDAP_SERVER_DOWN)
+		{
+			int save_errno = errno;
+
+			/* server disappeared, try reopen on next search */
+			map->map_class->map_close(map);
+			map->map_mflags &= ~(MF_OPEN|MF_WRITABLE);
+			errno = save_errno;
+		}
+#endif /* LDAP_SERVER_DOWN */
 		return NULL;
 	}
 
@@ -3309,7 +3324,7 @@ ldapmap_lookup(map, name, av, statp)
 						}
 						*statp = EX_TEMPFAIL;
 # if USING_NETSCAPE_LDAP
-						ldap_mem_free(attr);
+						ldap_memfree(attr);
 # endif /* USING_NETSCAPE_LDAP */
 						if (lmap->ldap_res != NULL)
 						{
@@ -3355,7 +3370,7 @@ ldapmap_lookup(map, name, av, statp)
 					{
 						vp = newstr(attr);
 # if USING_NETSCAPE_LDAP
-						ldap_mem_free(attr);
+						ldap_memfree(attr);
 # endif /* USING_NETSCAPE_LDAP */
 						break;
 					}
@@ -3364,7 +3379,7 @@ ldapmap_lookup(map, name, av, statp)
 					{
 						ldap_value_free(vals);
 # if USING_NETSCAPE_LDAP
-						ldap_mem_free(attr);
+						ldap_memfree(attr);
 # endif /* USING_NETSCAPE_LDAP */
 						continue;
 					}
@@ -3372,7 +3387,7 @@ ldapmap_lookup(map, name, av, statp)
 					vp = newstr(vals[0]);
 					ldap_value_free(vals);
 # if USING_NETSCAPE_LDAP
-					ldap_mem_free(attr);
+					ldap_memfree(attr);
 # endif /* USING_NETSCAPE_LDAP */
 					break;
 				}
@@ -3394,7 +3409,7 @@ ldapmap_lookup(map, name, av, statp)
 						vp = tmp;
 					}
 # if USING_NETSCAPE_LDAP
-					ldap_mem_free(attr);
+					ldap_memfree(attr);
 # endif /* USING_NETSCAPE_LDAP */
 					continue;
 				}
@@ -3424,7 +3439,7 @@ ldapmap_lookup(map, name, av, statp)
 
 				ldap_value_free(vals);
 # if USING_NETSCAPE_LDAP
-				ldap_mem_free(attr);
+				ldap_memfree(attr);
 # endif /* USING_NETSCAPE_LDAP */
 				if (vp == NULL)
 				{
@@ -3595,8 +3610,10 @@ ldapmap_lookup(map, name, av, statp)
 **  LDAPMAP_FINDCONN -- find an LDAP connection to the server
 **
 **	Cache LDAP connections based on the host, port, bind DN,
-**	and secret so we don't have multiple connections open to
-**	the same server for different maps.
+**	secret, and PID so we don't have multiple connections open to
+**	the same server for different maps.  Need a separate connection
+**	per PID since a parent process may close the map before the
+**	child is done with it.
 **
 **	Parameters:
 **		lmap -- LDAP map information
@@ -3619,16 +3636,17 @@ ldapmap_findconn(lmap)
 		(lmap->ldap_binddn == NULL ? 0 : strlen(lmap->ldap_binddn)) +
 		1 +
 		(lmap->ldap_secret == NULL ? 0 : strlen(lmap->ldap_secret)) +
-		1;
+		8 + 1;
 	nbuf = xalloc(len);
-	snprintf(nbuf, len, "%s%c%d%c%s%c%s",
+	snprintf(nbuf, len, "%s%c%d%c%s%c%s%d",
 		 (lmap->ldap_host == NULL ? "localhost" : lmap->ldap_host),
 		 CONDELSE,
 		 lmap->ldap_port,
 		 CONDELSE,
 		 (lmap->ldap_binddn == NULL ? "" : lmap->ldap_binddn),
 		 CONDELSE,
-		 (lmap->ldap_secret == NULL ? "" : lmap->ldap_secret));
+		 (lmap->ldap_secret == NULL ? "" : lmap->ldap_secret),
+		 getpid());
 	s = stab(nbuf, ST_LDAP, ST_ENTER);
 	free(nbuf);
 	return s;
@@ -4127,7 +4145,8 @@ ldapmap_parseargs(map, args)
 				return FALSE;
 			}
 			lmap->ldap_secret = sfgets(m_tmp, LDAPMAP_MAX_PASSWD,
-						   sfd, 0, "ldapmap_parseargs");
+						   sfd, TimeOuts.to_fileopen,
+						   "ldapmap_parseargs");
 			(void) fclose(sfd);
 			if (lmap->ldap_secret != NULL &&
 			    strlen(m_tmp) > 0)
@@ -4607,6 +4626,23 @@ ph_map_open(map, mode)
 		return FALSE;
 	}
 
+	if (CurEnv != NULL && CurEnv->e_sendmode == SM_DEFER &&
+	    bitset(MF_DEFER, map->map_mflags))
+	{
+		if (tTd(9, 1))
+			dprintf("ph_map_open(%s) => DEFERRED\n",
+			        map->map_mname);
+
+		/*
+		** Unset MF_DEFER here so that map_lookup() returns
+		** a temporary failure using the bogus map and
+		** map->map_tapp instead of the default permanent error.
+		*/
+
+		map->map_mflags &= ~MF_DEFER;
+		return FALSE;
+	}
+
 	pmap = (PH_MAP_STRUCT *)map->map_db1;
 
 	hostlist = newstr(pmap->ph_servers);
@@ -4626,7 +4662,7 @@ ph_map_open(map, mode)
 # ifdef ETIMEDOUT
 				errno = ETIMEDOUT;
 # else /* ETIMEDOUT */
-				errno = 0;
+				errno = EAGAIN;
 # endif /* ETIMEDOUT */
 				goto ph_map_open_abort;
 			}
@@ -4683,15 +4719,17 @@ ph_map_open(map, mode)
 #if !_FFR_PHMAP_TIMEOUT
 	errno = save_errno;
 #endif /* !_FFR_PHMAP_TIMEOUT */
-	if (!bitset(MF_OPTIONAL, map->map_mflags))
+	if (bitset(MF_NODEFER, map->map_mflags))
 	{
-		if (errno == 0 && !bitset(MF_NODEFER,map->map_mflags))
+		if (errno == 0)
 			errno = EAGAIN;
-		syserr("ph_map_open: cannot connect to PH server");
+		syserr("ph_map_open: %s: cannot connect to PH server",
+		       map->map_mname);
 	}
-	else if (LogLevel > 1)
+	else if (!bitset(MF_OPTIONAL, map->map_mflags) && LogLevel > 1)
 		sm_syslog(LOG_NOTICE, CurEnv->e_id,
-			  "ph_map_open: cannot connect to PH server");
+			  "ph_map_open: %s: cannot connect to PH server",
+			  map->map_mname);
 	free(hostlist);
 	return FALSE;
 }

@@ -9,7 +9,7 @@
  */
 
 #ifndef lint
-static char id[] = "@(#)$Id: milter.c,v 8.50.4.30 2000/07/18 07:24:51 gshapiro Exp $";
+static char id[] = "@(#)$Id: milter.c,v 8.50.4.33 2000/09/19 19:40:15 gshapiro Exp $";
 #endif /* ! lint */
 
 #if _FFR_MILTER
@@ -208,7 +208,7 @@ milter_sysread(m, buf, sz, to, e)
 	time_t to;
 	ENVELOPE *e;
 {
-	time_t readstart;
+	time_t readstart = 0;
 	ssize_t len, curl;
 
 	curl = 0;
@@ -288,7 +288,7 @@ milter_read(m, cmd, rlen, to, e)
 	time_t to;
 	ENVELOPE *e;
 {
-	time_t readstart;
+	time_t readstart = 0;
 	ssize_t expl;
 	mi_int32 i;
 	char *buf;
@@ -939,6 +939,8 @@ milter_open(m, parseonly, e)
 
 		/* couldn't connect.... try next address */
 		save_errno = errno;
+		p = CurHostName;
+		CurHostName = at;
 		if (tTd(64, 5))
 			dprintf("milter_open(%s): %s failed: %s\n",
 				m->mf_name, at, errstring(save_errno));
@@ -946,6 +948,7 @@ milter_open(m, parseonly, e)
 			sm_syslog(LOG_INFO, e->e_id,
 				  "milter_open(%s): %s failed: %s",
 				  m->mf_name, at, errstring(save_errno));
+		CurHostName = p;
 		(void) close(sock);
 
 		/* try next address */
@@ -1016,7 +1019,7 @@ milter_setup(line)
 	register struct milter *m;
 	STAB *s;
 
-	/* collect the mailer name */
+	/* collect the filter name */
 	for (p = line;
 	     *p != '\0' && *p != ',' && !(isascii(*p) && isspace(*p));
 	     p++)
@@ -1061,7 +1064,7 @@ milter_setup(line)
 		/* p now points to the field body */
 		p = munchstring(p, &delimptr, ',');
 
-		/* install the field into the mailer struct */
+		/* install the field into the filter struct */
 		switch (fcode)
 		{
 		  case 'S':		/* socket */
@@ -1094,7 +1097,7 @@ milter_setup(line)
 	/* early check for errors */
 	(void) milter_open(m, TRUE, CurEnv);
 
-	/* enter the mailer into the symbol table */
+	/* enter the filter into the symbol table */
 	s = stab(m->mf_name, ST_MILTER, ST_ENTER);
 	if (s->s_milter != NULL)
 		syserr("X%s: duplicate filter definition", m->mf_name);
@@ -1206,7 +1209,7 @@ milter_parse_timeouts(spec, m)
 		/* p now points to the field body */
 		p = munchstring(p, &delimptr, ';');
 
-		/* install the field into the mailer struct */
+		/* install the field into the filter struct */
 		switch (fcode)
 		{
 		  case 'S':

@@ -20,7 +20,7 @@
 #ifdef _DEFINE
 # define EXTERN
 # ifndef lint
-static char SmailId[] =	"@(#)$Id: sendmail.h,v 8.517.4.28 2000/07/18 02:24:44 gshapiro Exp $";
+static char SmailId[] =	"@(#)$Id: sendmail.h,v 8.517.4.37 2000/09/25 07:53:29 gshapiro Exp $";
 # endif /* ! lint */
 #else /* _DEFINE */
 # define EXTERN extern
@@ -542,6 +542,7 @@ extern struct hdrinfo	HdrInfo[];
 #define CHHDR_DEF	0x0001	/* default header */
 #define CHHDR_CHECK	0x0002	/* call ruleset for header */
 #define CHHDR_USER	0x0004	/* header from user */
+#define CHHDR_QUEUE	0x0008	/* header from qf file */
 
 /* functions */
 extern void	addheader __P((char *, char *, int, HDR **));
@@ -589,6 +590,12 @@ struct envelope
 	char		**e_fromdomain;	/* the domain part of the sender */
 	ADDRESS		*e_sendqueue;	/* list of message recipients */
 	ADDRESS		*e_errorqueue;	/* the queue for error responses */
+
+	/*
+	**  Overflow detection is based on < 0, so don't change this
+	**  to unsigned.  We don't use unsigned and == ULONG_MAX because
+	**  some libc's don't have strtoul(), see mail_esmtp_args().
+	*/
 	long		e_msgsize;	/* size of the message in bytes */
 	long		e_flags;	/* flags, see below */
 	int		e_nrcpts;	/* number of recipients */
@@ -656,6 +663,7 @@ struct envelope
 #define EF_IS_MIME	0x0400000L	/* really is a MIME message */
 #define EF_DONT_MIME	0x0800000L	/* never MIME this message */
 #define EF_DISCARD	0x1000000L	/* discard the message */
+#define EF_TOOBIG	0x2000000L	/* message is too big */
 
 /* values for e_if_macros */
 #define EIF_ADDR	0		/* ${if_addr} */
@@ -868,7 +876,6 @@ MAP
 #define MF_DEFER	0x00080000	/* don't lookup map in defer mode */
 #define MF_SINGLEMATCH	0x00100000	/* successful only if match one key */
 #define MF_NOREWRITE	0x00200000	/* don't rewrite result, return as-is */
-#define MF_SHARED	0x00400000	/* map connection is shared */
 
 #define DYNOPENMAP(map) if (!bitset(MF_OPEN, (map)->map_mflags)) \
 	{	\
@@ -1421,12 +1428,15 @@ struct termescape
 */
 
 /* d_flags, see daemon.c */
-/* generic rule: lower case: required, upper case: No */
+/* general rule: lower case: required, upper case: No */
 #define D_AUTHREQ	'a'	/* authentication required */
 #define D_BINDIF	'b'	/* use if_addr for outgoing connection */
 #define D_CANONREQ	'c'	/* canonification required (cf) */
 #define D_IFNHELO	'h'	/* use if name for HELO */
 #define D_FQMAIL	'f'	/* fq sender address required (cf) */
+#if _FFR_TLS_CLT1
+#define D_CLTNOTLS	'S'	/* don't use STARTTLS in client */
+#endif /* _FFR_TLS_CLT1 */
 #define D_FQRCPT	'r'	/* fq recipient address required (cf) */
 #define D_UNQUALOK	'u'	/* unqualified address is ok (cf) */
 #define D_NOCANON	'C'	/* no canonification (cf) */
@@ -1664,6 +1674,7 @@ EXTERN bool	IgnoreHostStatus;	/* ignore long term host status files */
 EXTERN bool	IgnrDot;	/* don't let dot end messages */
 EXTERN bool	InChild;	/* true if running in an SMTP subprocess */
 EXTERN bool	LogUsrErrs;	/* syslog user errors (e.g., SMTP RCPT cmd) */
+EXTERN bool	MapOpenErr;	/* error opening a non-optional map */
 EXTERN bool	MatchGecos;	/* look for user names in gecos field */
 EXTERN bool	MeToo;		/* send to the sender also */
 EXTERN bool	NoAlias;	/* suppress aliasing */
@@ -1863,7 +1874,7 @@ extern int	tls_get_info __P((SSL *, ENVELOPE *, bool, char *));
 extern int	endtls __P((SSL *, char *));
 extern int	endtlsclt __P((MCI *));
 extern void	tlslogerr __P((void));
-extern void	tls_rand_init __P((char *, int));
+extern bool	tls_rand_init __P((char *, int));
 #endif /* STARTTLS */
 
 /* Transcript file */

@@ -9,7 +9,7 @@
 .\" the sendmail distribution.
 .\"
 .\"
-.\"	$Id: op.me,v 8.317.4.25 2000/07/19 18:42:01 ca Exp $
+.\"	$Id: op.me,v 8.317.4.39 2000/09/22 15:01:37 ca Exp $
 .\"
 .\" eqn op.me | pic | troff -me
 .eh 'SMM:08-%''Sendmail Installation and Operation Guide'
@@ -54,7 +54,7 @@ eric@Sendmail.COM
 .de Ve
 Version \\$2
 ..
-.Ve $Revision: 8.317.4.25 $
+.Ve $Revision: 8.317.4.39 $
 .rm Ve
 .sp
 For Sendmail Version 8.11
@@ -911,6 +911,10 @@ The number of envelope recipients for this message
 The message id of the message (from the header).
 .ip proto
 The protocol used to receive this message (e.g., ESMTP or UUCP)
+.ip daemon
+The daemon name from the
+.b DaemonPortOptions
+setting.
 .ip relay
 The machine from which it was received.
 .lp
@@ -933,6 +937,8 @@ The amount of time needed in this delivery attempt
 The name of the mailer used to deliver to this recipient.
 .ip relay
 The name of the host that actually accepted (or rejected) this recipient.
+.ip dsn
+The enhanced error code (RFC2034) if available.
 .ip stat
 The delivery status.
 .lp
@@ -1512,6 +1518,7 @@ If this file exists,
 .i sendmail
 redirects mail for that user
 to the list of addresses listed in the .forward file.
+Note that aliases are fully expanded before forward files are referenced.
 For example, if the home directory for user
 .q mckusick
 has a .forward file with contents:
@@ -1823,7 +1830,7 @@ in the current directory.
 gives up its setuid root permissions
 when you use this flag, so it is common to use a publicly writable directory
 (such as /tmp)
-as the spool directory (QueueDirectory or Q option) while testing.
+as the queue directory (QueueDirectory or Q option) while testing.
 .sh 2 "Logging Traffic"
 .pp
 Many SMTP implementations do not fully implement the protocol.
@@ -2687,7 +2694,7 @@ No special handling.
 Assume that the
 .i chown
 system call is restricted to root.
-Since some versions of Unix permit regular users
+Since some versions of UNIX permit regular users
 to give away their files to other users on some filesystems,
 .i sendmail
 often cannot assume that a given file was created by the owner,
@@ -2707,6 +2714,25 @@ for non-existent forward files.
 Allow the file named in the
 .b ErrorHeader
 option to be in an unsafe directory.
+.ip FileDeliveryToHardLink
+Allow delivery to files that are hard links.
+.ip FileDeliveryToSymLink
+Allow delivery to files that are symbolic links.
+.ip ForwardFileInGroupWritableDirPath
+Allow
+.i \&.forward
+files in group writable directories.
+.ip ForwardFileInUnsafeDirPath
+Allow
+.i \&.forward
+files in unsafe directories.
+.ip ForwardFileInUnsafeDirPathSafe
+Allow a
+.i \&.forward
+file that is in an unsafe directory to include references
+to program and files.
+.ip GroupWritableAliasFile
+Allow group-writable alias files.
 .ip GroupWritableDirPathSafe
 Change the definition of
 .q "unsafe directory"
@@ -2715,40 +2741,23 @@ World-writable directories are always unsafe.
 .ip GroupWritableForwardFileSafe
 Accept group-writable
 .i \&.forward
-files.
+files as safe for program and file delivery.
 .ip GroupWritableIncludeFileSafe
 Accept group-writable
 .i :include:
-files.
-.ip GroupWritableAliasFile
-Allow group-writable alias files.
+files as safe for program and file delivery.
 .ip HelpFileInUnsafeDirPath
 Allow the file named in the
 .b HelpFile
 option to be in an unsafe directory.
-.ip WorldWritableAliasFile
-Accept world-writable alias files.
-.ip ForwardFileInGroupWritableDirPath
-Allow
-.i \&.forward
-files in group writable directories.
 .ip IncludeFileInGroupWritableDirPath
 Allow
 .i :include:
 files in group writable directories.
-.ip ForwardFileInUnsafeDirPath
-Allow
-.i \&.forward
-files in unsafe directories.
 .ip IncludeFileInUnsafeDirPath
 Allow
 .i :include:
 files in unsafe directories.
-.ip ForwardFileInUnsafeDirPathSafe
-Allow a
-.i \&.forward
-file that is in an unsafe directory to include references
-to program and files.
 .ip IncludeFileInUnsafeDirPathSafe
 Allow a
 .i :include:
@@ -2757,14 +2766,6 @@ to program and files.
 .ip InsufficientEntropy
 Try to use STARTTLS even if the PRNG for OpenSSL is not properly seeded
 despite the security problems.
-.ip MapInUnsafeDirPath
-Allow maps (e.g.,
-.i hash ,
-.i btree ,
-and
-.i dbm
-files)
-in unsafe directories.
 .ip LinkedAliasFileInWritableDir
 Allow an alias file that is a link in a writable directory.
 .ip LinkedClassFileInWritableDir
@@ -2782,14 +2783,28 @@ Allow map files that are links in writable directories.
 .ip LinkedServiceSwitchFileInWritableDir
 Allow the service switch file to be a link
 even if the directory is writable.
-.ip FileDeliveryToHardLink
-Allow delivery to files that are hard links.
-.ip FileDeliveryToSymLink
-Allow delivery to files that are symbolic links.
+.ip MapInUnsafeDirPath
+Allow maps (e.g.,
+.i hash ,
+.i btree ,
+and
+.i dbm
+files)
+in unsafe directories.
+.ip NonRootSafeAddr
+Do not mark file and program deliveries as unsafe
+if sendmail is not running with root privileges.
 .ip RunProgramInUnsafeDirPath
 Go ahead and run programs that are in writable directories.
 .ip RunWritableProgram
 Go ahead and run programs that are group- or world-writable.
+.ip TrustStickyBit
+Allow group or world writable directories
+if the sticky bit is set on the directory.
+Do not set this on systems which do not honor
+the sticky bit on directories.
+.ip WorldWritableAliasFile
+Accept world-writable alias files.
 .ip WriteMapToHardLink
 Allow writes to maps that are hard links.
 .ip WriteMapToSymLink
@@ -2798,14 +2813,6 @@ Allow writes to maps that are symbolic links.
 Allow the status file to be a hard link.
 .ip WriteStatsToSymLink
 Allow the status file to be a symbolic link.
-.ip TrustStickyBit
-Allow group or world writable directories
-if the sticky bit is set on the directory.
-Do not set this on systems which do not honor
-the sticky bit on directories.
-.ip NonRootSafeAddr
-Do not mark file and program deliveries as unsafe
-if sendmail is not running with root privileges.
 .sh 2 "Connection Caching"
 .pp
 When processing the queue,
@@ -3820,6 +3827,8 @@ it should not be used lightly.
 .pp
 Macros are named with a single character
 or with a word in {braces}.
+The names ``x'' and ``{x}'' denote the same macro
+for every single character ``x''.
 Single character names may be selected from the entire ASCII set,
 but user-defined macros
 should be selected from the set of upper case letters only.
@@ -4170,12 +4179,17 @@ the name of the header.
 .ip ${if_addr}
 The IP address of the interface of an incoming connection
 unless it is in the loopback net.
+.ip ${if_family}
+The IP family of the interface of an incoming connection
+unless it is in the loopback net.
 .ip ${if_name}
 The name of the interface of an incoming connection.
 This macro can be used for
 SmtpGreetingMessage and HReceived for virtual hosting.
 For example:
-O SmtpGreetingMessage=$?{if_name}${if_name}$|$j$. Sendmail $v/$Z; $b
+.(b
+O SmtpGreetingMessage=$?{if_name}${if_name}$|$j$. MTA
+.)b
 .ip ${mail_addr}
 The address part of the resolved triple of the address given for the
 .sm "SMTP MAIL"
@@ -4191,6 +4205,13 @@ The mailer from the resolved triple of the address given for the
 .sm "SMTP MAIL"
 command.
 Defined in the SMTP server only.
+.ip ${msg_size}
+The value of the SIZE= parameter,
+i.e., usually the size of the message (in an ESMTP dialogue),
+before the message has been collected, thereafter
+the message size as computed by
+.i sendmail 
+(and can be used in check_compat).
 .ip ${ntries}
 The number of delivery attempts.
 .ip ${opMode}
@@ -5261,6 +5282,9 @@ to discard the message
 (as with the other
 .b check_ *
 rulesets).
+The ruleset receives the header field-body as argument,
+i.e., not the header field-name; see also
+${hdr_name} and ${currHeader}.
 The header is treated as a structured field,
 that is,
 comments (in parentheses) are deleted before processing,
@@ -6428,10 +6452,10 @@ Use that form instead of the
 form.
 .ip RandFile
 [no short name]
-Name of file containing random data or the name of the Unix socket
+Name of file containing random data or the name of the UNIX socket
 if EGD is used.
 A (required) prefix "egd:" or "file:" specifies the type.
-STARTTLS requires this filename if the compile flag HASURANDOM is not set
+STARTTLS requires this filename if the compile flag HASURANDOMDEV is not set
 (see sendmail/README).
 .ip ResolverOptions=\fIoptions\fP
 [I]
@@ -6582,7 +6606,7 @@ refuses to deliver to symbolic links.
 .ip SaveFromLine
 [f]
 Save
-Unix-style
+UNIX-style
 .q From
 lines at the front of headers.
 Normally they are assumed redundant
@@ -7988,6 +8012,7 @@ is seven atoms.
 .ip "MAXMAILERS [25]"
 The maximum number of mailers that may be defined
 in the configuration file.
+This value is defined in include/sendmail/sendmail.h.
 .ip "MAXRWSETS [200]"
 The maximum number of rewriting sets
 that may be defined.
@@ -8670,7 +8695,7 @@ Depending on the TLS library you use, it may be required to explicitly
 initialize the PRNG with random data.
 OpenSSL makes use of
 .b /dev/urandom(4)
-if available (this corresponds to the compile flag HASURANDOM).
+if available (this corresponds to the compile flag HASURANDOMDEV).
 On systems which lack this support, a random file must be specified in the
 .i sendmail.cf
 file using the option RandFile.
@@ -9075,7 +9100,7 @@ Encoded second
 .ip N
 Envelope number
 .ip PPPPP
-First five digits of the process ID
+At least five digits of the process ID
 .pp
 All files with the same id collectively define one message.
 If memory-buffered files are available,
@@ -9234,26 +9259,31 @@ Glance over it to get an idea;
 nothing can replace looking at what your own system generates.
 .)f
 .(b
-P835771
-T404261372
+V4
+T711358135
+K904446490
+N0
+P2100941
+$_eric@localhost
+${daemon_flags}
 Seric
-Ceric:sendmail@vangogh.CS.Berkeley.EDU
-Reric@mammoth.Berkeley.EDU
-Rbostic@okeeffe.CS.Berkeley.EDU
-H?P?Return-path: <owner-sendmail@vangogh.CS.Berkeley.EDU>
-HReceived: by vangogh.CS.Berkeley.EDU (5.108/2.7) id AAA06703;
+Ceric:100:1000:sendmail@vangogh.CS.Berkeley.EDU
+RPFD:eric@mammoth.Berkeley.EDU
+RPFD:bostic@okeeffe.CS.Berkeley.EDU
+H?P?Return-path: <^g>
+H??Received: by vangogh.CS.Berkeley.EDU (5.108/2.7) id AAA06703;
 	Fri, 17 Jul 1992 00:28:55 -0700
-HReceived: from mail.CS.Berkeley.EDU by vangogh.CS.Berkeley.EDU (5.108/2.7)
+H??Received: from mail.CS.Berkeley.EDU by vangogh.CS.Berkeley.EDU (5.108/2.7)
 	id AAA06698; Fri, 17 Jul 1992 00:28:54 -0700
-HReceived: from [128.32.31.21] by mail.CS.Berkeley.EDU (5.96/2.5)
+H??Received: from [128.32.31.21] by mail.CS.Berkeley.EDU (5.96/2.5)
 	id AA22777; Fri, 17 Jul 1992 03:29:14 -0400
-HReceived: by foo.bar.baz.de (5.57/Ultrix3.0-C)
+H??Received: by foo.bar.baz.de (5.57/Ultrix3.0-C)
 	id AA22757; Fri, 17 Jul 1992 09:31:25 GMT
 H?F?From: eric@foo.bar.baz.de (Eric Allman)
 H?x?Full-name: Eric Allman
-HMessage-id: <9207170931.AA22757@foo.bar.baz.de>
-HTo: sendmail@vangogh.CS.Berkeley.EDU
-HSubject: this is an example message
+H??Message-id: <9207170931.AA22757@foo.bar.baz.de>
+H??To: sendmail@vangogh.CS.Berkeley.EDU
+H??Subject: this is an example message
 .)b
 This shows
 the person who sent the message,
@@ -9351,7 +9381,7 @@ replace it with a blank sheet for double-sided output.
 .\".sz 10
 .\"Eric Allman
 .\".sp
-.\"Version $Revision: 8.317.4.25 $
+.\"Version $Revision: 8.317.4.39 $
 .\".ce 0
 .bp 3
 .ce

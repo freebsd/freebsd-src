@@ -1,6 +1,6 @@
 $FreeBSD$
 
-sendmail 8.11.0
+sendmail 8.11.1
 	originals can be found at: ftp://ftp.sendmail.org/pub/sendmail/
 
 For the import of sendmail, the following files were removed:
@@ -34,8 +34,8 @@ The following directories were renamed:
 
 Imported using:
 
-	cvs import -m 'Import sendmail 8.11.0' \
-		src/contrib/sendmail SENDMAIL v8_11_0
+	cvs import -m 'Import sendmail 8.11.1' \
+		src/contrib/sendmail SENDMAIL v8_11_1
 
 
 To make local changes to sendmail, simply patch and commit to the main
@@ -46,4 +46,4 @@ All local changes should be submitted to the Sendmail Consortium
 <sendmail@sendmail.org> for inclusion in the next vendor release.
 
 gshapiro@FreeBSD.org
-12-August-2000
+30-September-2000

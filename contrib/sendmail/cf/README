@@ -6,7 +6,7 @@ requires a post-V7 version of m4; if you are running the 4.2bsd, SysV.2, or
 7th Edition version.  SunOS's /usr/5bin/m4 or BSD-Net/2's m4 both work.
 GNU m4 version 1.1 or later also works.  Unfortunately, the M4 on BSDI 1.0
 doesn't work -- you'll have to use a Net/2 or GNU version.  GNU m4 is
-available from ftp://ftp.gnu.org/pub/gnu/m4-1.4.tar.gz (check for the
+available from ftp://ftp.gnu.org/pub/gnu/m4/m4-1.4.tar.gz (check for the
 latset version).  EXCEPTIONS: DEC's m4 on Digital UNIX 4.x is broken (3.x
 is fine).  Use GNU m4 on this platform.
 
@@ -309,13 +309,13 @@ SMTP_MAILER_MAX		[undefined] The maximum size of messages that will
 SMTP_MAILER_MAXMSGS	[undefined] If defined, the maximum number of
 			messages to deliver in a single connection for the
 			smtp, smtp8, esmtp, or dsmtp mailers.
-SMTP_MAILER_ARGS	[IPC $h] The arguments passed to the smtp mailer.
+SMTP_MAILER_ARGS	[TCP $h] The arguments passed to the smtp mailer.
 			About the only reason you would want to change this
 			would be to change the default port.
-ESMTP_MAILER_ARGS	[IPC $h] The arguments passed to the esmtp mailer.
-SMTP8_MAILER_ARGS	[IPC $h] The arguments passed to the smtp8 mailer.
-DSMTP_MAILER_ARGS	[IPC $h] The arguments passed to the dsmtp mailer.
-RELAY_MAILER_ARGS	[IPC $h] The arguments passed to the relay mailer.
+ESMTP_MAILER_ARGS	[TCP $h] The arguments passed to the esmtp mailer.
+SMTP8_MAILER_ARGS	[TCP $h] The arguments passed to the smtp8 mailer.
+DSMTP_MAILER_ARGS	[TCP $h] The arguments passed to the dsmtp mailer.
+RELAY_MAILER_ARGS	[TCP $h] The arguments passed to the relay mailer.
 RELAY_MAILER_MAXMSGS	[undefined] If defined, the maximum number of
 			messages to deliver in a single connection for the
 			relay mailer.
@@ -488,7 +488,7 @@ smtp		The Simple Mail Transport Protocol mailer.  This does
 		demand delivery, and "relay" for transmission to the
 		RELAY_HOST, LUSER_RELAY, or MAIL_HUB.
 
-uucp		The Unix-to-Unix Copy Program mailer.  Actually, this
+uucp		The UNIX-to-UNIX Copy Program mailer.  Actually, this
 		defines two mailers, "uucp-old" (a.k.a. "uucp") and
 		"uucp-new" (a.k.a. "suucp").  The latter is for when you
 		know that the UUCP mailer at the other end can handle
@@ -1227,7 +1227,7 @@ Examples:
 On host grasp.insa-lyon.fr (UUCP host name "grasp"), the following
 summarizes the sender rewriting for various mailers.
 
-Mailer          sender		rewriting in the envelope
+Mailer		sender		rewriting in the envelope
 ------		------		-------------------------
 uucp-{old,new}	wolf		grasp!wolf
 uucp-dom	wolf		wolf@grasp.insa-lyon.fr
@@ -1712,9 +1712,10 @@ The value part of the map can contain:
 			is used for recipients, it affects only
 			the designated recipients, not the whole
 			message.
-	### any text	where ### is an RFC 821 compliant error code
-			and "any text" is a message to return for
-			the command.
+	### any text	where ### is an RFC 821 compliant error code and
+			"any text" is a message to return for the command.
+			The string should be quoted to avoid surprises,
+			e.g., sendmail may remove spaces otherwise.
 	ERROR:### any text
 			as above, but useful to mark error messages as such.
 	ERROR:D.S.N:### any text
@@ -1723,7 +1724,7 @@ The value part of the map can contain:
 
 For example:
 
-	cyberspammer.com	550 We don't accept mail from spammers
+	cyberspammer.com	ERROR:"550 We don't accept mail from spammers"
 	okay.cyberspammer.com	OK
 	sendmail.org		RELAY
 	128.32			RELAY
@@ -1761,7 +1762,7 @@ hosts listed in class {R} to be fully qualified host names.
 You can also use the access database to block sender addresses based on
 the username portion of the address.  For example:
 
-	FREE.STEALTH.MAILER@	550 Spam not accepted
+	FREE.STEALTH.MAILER@	ERROR:550 Spam not accepted
 
 Note that you must include the @ after the username to signify that
 this database entry is for checking only the username portion of the
@@ -1774,9 +1775,9 @@ If you use:
 then you can add entries to the map for local users, hosts in your
 domains, or addresses in your domain which should not receive mail:
 
-	badlocaluser@		550 Mailbox disabled for this username
-	host.mydomain.com	550 That host does not accept mail
-	user@otherhost.mydomain.com	550 Mailbox disabled for this recipient
+	badlocaluser@		ERROR:550 Mailbox disabled for this username
+	host.mydomain.com	ERROR:550 That host does not accept mail
+	user@otherhost.mydomain.com	ERROR:550 Mailbox disabled for this recipient
 
 This would prevent a recipient of badlocaluser@mydomain.com, any
 user at host.mydomain.com, and the single address
@@ -1979,9 +1980,9 @@ probably not be used in production.
 	# Otherwise, reject the mail
 	R$*			$#error $: 553 Header Error
 
-+--------------------------------+
-| STARTTLS                       |
-+--------------------------------+
++----------+
+| STARTTLS |
++----------+
 
 In this text, cert will be used as an abreviation for X.509 certificate,
 DN is the distinguished name of a cert, and CA is a certification authority.
@@ -2099,9 +2100,9 @@ extra line:
 
 (using ${tls_version} with cipher ${cipher} (${cipher_bits} bits) verified ${verify})
 
-+--------------------------------+
-| SMTP AUTHENTICATION            |
-+--------------------------------+
++---------------------+
+| SMTP AUTHENTICATION |
++---------------------+
 
 The macros ${auth_authen}, ${auth_author}, and ${auth_type} can be
 used in anti-relay rulesets to allow relaying for those users that
@@ -2300,13 +2301,15 @@ database version of the mailertable is built using:
 
 The semantics are simple.  Any LHS entry that does not begin with
 a dot matches the full host name indicated.  LHS entries beginning
-with a dot match anything ending with that domain name -- that is,
-they can be thought of as having a leading "*" wildcard.  Matching
-is done in order of most-to-least qualified -- for example, even
-though ".my.domain" is listed first in the above example, an entry
-of "uuhost1.my.domain" will match the second entry since it is
-more explicit.  Note: e-mail to "user@my.domain" does not match
-any entry in the above table. You need to have something like:
+with a dot match anything ending with that domain name (including
+the leading dot) -- that is, they can be thought of as having a
+leading ".+" regular expression pattern for a non-empty sequence of
+characters.  Matching is done in order of most-to-least qualified
+-- for example, even though ".my.domain" is listed first in the
+above example, an entry of "uuhost1.my.domain" will match the second
+entry since it is more explicit.  Note: e-mail to "user@my.domain"
+does not match any entry in the above table.  You need to have
+something like:
 
 	my.domain		esmtp:host.my.domain
 
@@ -2356,7 +2359,7 @@ To build the internal form of the user database, use:
 
 As a general rule, it is an extremely bad idea to using full names
 as e-mail addresses, since they are not in any sense unique.  For
-example, the Unix software-development community has at least two
+example, the UNIX software-development community has at least two
 well-known Peter Deutsches, and at one time Bell Labs had two
 Stephen R. Bournes with offices along the same hallway.  Which one
 will be forced to suffer the indignity of being Stephen_R_Bourne_2?
@@ -3016,10 +3019,11 @@ confCLIENT_KEY		ClientKeyFile	[undefined] File containing the
 confDH_PARAMETERS	DHParameters	[undefined] File containing the
 					DH parameters.
 confRAND_FILE		RandFile	[undefined] File containing random
-					data or the name of the Unix socket
-					if EGD is used.  STARTTLS requires
-					this option if the compile flag
-					HASURANDOM is not set (see
+					data (use prefix file:) or the
+					name of the UNIX socket if EGD is
+					used (use prefix egd:).  STARTTLS
+					requires this option if the compile
+					flag HASURANDOM is not set (see
 					sendmail/README).
 
 See also the description of OSTYPE for some parameters that can be
@@ -3097,7 +3101,7 @@ domain		Definitions describing a particular domain, referenced
 		site dependent; for example, "CS.Berkeley.EDU.m4"
 		describes hosts in the CS.Berkeley.EDU subdomain.
 
-mailer		Descriptions of mailers.   These are referenced using
+mailer		Descriptions of mailers.  These are referenced using
 		the MAILER macro in the .mc file.
 
 sh		Shell files used when building the .cf file from the
@@ -3231,4 +3235,4 @@ M4 DIVERSIONS
    8	DNS based blacklists
    9	special local rulesets (1 and 2)
 
-$Revision: 8.383.2.1.2.15 $, Last updated $Date: 2000/07/19 22:27:29 $
+$Revision: 8.383.2.1.2.24 $, Last updated $Date: 2000/09/24 02:05:54 $

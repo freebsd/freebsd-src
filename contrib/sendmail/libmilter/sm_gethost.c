@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 1999 Sendmail, Inc. and its suppliers.
+ *  Copyright (c) 1999-2000 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -9,7 +9,7 @@
  */
 
 #ifndef lint
-static char id[] = "@(#)$Id: sm_gethost.c,v 8.7 2000/01/20 21:51:52 geir Exp $";
+static char id[] = "@(#)$Id: sm_gethost.c,v 8.7.8.2 2000/09/17 17:04:24 gshapiro Exp $";
 #endif /* ! lint */
 
 #if _FFR_MILTER
@@ -39,7 +39,7 @@ static char id[] = "@(#)$Id: sm_gethost.c,v 8.7 2000/01/20 21:51:52 geir Exp $";
 # endif /* ! AI_ALL */
 
 static struct hostent *
-mi_getipnodebyname(name, family, flags, err)
+getipnodebyname(name, family, flags, err)
 	char *name;
 	int family;
 	int flags;
@@ -87,7 +87,7 @@ mi_gethostbyname(name, family)
 # endif /* NETINET6 */
 
 # if NETINET6
-	h = mi_getipnodebyname(name, family, AI_V4MAPPED|AI_ALL, &err);
+	h = getipnodebyname(name, family, AI_V4MAPPED|AI_ALL, &err);
 	h_errno = err;
 # else /* NETINET6 */
 	h = gethostbyname(name);

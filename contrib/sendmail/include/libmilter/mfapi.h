@@ -7,7 +7,7 @@
  * the sendmail distribution.
  *
  *
- *	$Id: mfapi.h,v 8.13.4.11 2000/07/11 21:45:56 geir Exp $
+ *	$Id: mfapi.h,v 8.13.4.12 2000/09/09 02:11:48 ca Exp $
  */
 
 /*
@@ -128,6 +128,7 @@ LIBMILTER_API int smfi_main __P((void));
 LIBMILTER_API int smfi_setdbg __P((int));
 LIBMILTER_API int smfi_settimeout __P((int));
 LIBMILTER_API int smfi_setconn __P((char *));
+LIBMILTER_API int smfi_stop __P((void));
 
 /*
 **  Continue processing message/connection.

@@ -12,7 +12,7 @@
  */
 
 #ifndef lint
-static char id[] = "@(#)$Id: readcf.c,v 8.382.4.14 2000/07/12 00:00:27 geir Exp $";
+static char id[] = "@(#)$Id: readcf.c,v 8.382.4.27 2000/09/28 01:31:16 gshapiro Exp $";
 #endif /* ! lint */
 
 #include <sendmail.h>
@@ -1134,18 +1134,18 @@ makemailer(line)
 
 	if (strcmp(m->m_mailer, "[TCP]") == 0)
 	{
-#if _FFR_REMOVE_TCP_PATH
+#if _FFR_REMOVE_TCP_MAILER_PATH
 		syserr("M%s: P=[TCP] is deprecated, use P=[IPC] instead\n",
 		       m->m_name);
-#else /* _FFR_REMOVE_TCP_PATH */
+#else /* _FFR_REMOVE_TCP_MAILER_PATH */
 		printf("M%s: Warning: P=[TCP] is deprecated, use P=[IPC] instead\n",
 		       m->m_name);
-#endif /* _FFR_REMOVE_TCP_PATH */
+#endif /* _FFR_REMOVE_TCP_MAILER_PATH */
 	}
 
-	if (strcmp(m->m_mailer, "[IPC]") == 0 ||
+	if (strcmp(m->m_mailer, "[IPC]") == 0
 #if !_FFR_REMOVE_TCP_MAILER_PATH
-	    strcmp(m->m_mailer, "[TCP]") == 0
+	    || strcmp(m->m_mailer, "[TCP]") == 0
 #endif /* !_FFR_REMOVE_TCP_MAILER_PATH */
 	    )
 	{
@@ -1156,12 +1156,12 @@ makemailer(line)
 			syserr("M%s: too few parameters for %s mailer",
 			       m->m_name, m->m_mailer);
 		}
-		if (strcmp(m->m_argv[0], "TCP") != 0 &&
+		if (strcmp(m->m_argv[0], "TCP") != 0
 #if NETUNIX
-		    strcmp(m->m_argv[0], "FILE") != 0 &&
+		    && strcmp(m->m_argv[0], "FILE") != 0
 #endif /* NETUNIX */
 #if !_FFR_DEPRECATE_IPC_MAILER_ARG
-		    strcmp(m->m_argv[0], "IPC") != 0
+		    && strcmp(m->m_argv[0], "IPC") != 0
 #endif /* !_FFR_DEPRECATE_IPC_MAILER_ARG */
 		    )
 		{
@@ -2190,9 +2190,13 @@ setoption(opt, val, safe, sticky, e)
 
 	  case 'Q':		/* queue directory */
 		if (val[0] == '\0')
+		{
 			QueueDir = "mqueue";
+		}
 		else
+		{
 			QueueDir = newstr(val);
+		}
 		if (RealUid != 0 && !safe)
 			Warn_Q_option = TRUE;
 		break;
