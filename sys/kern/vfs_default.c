@@ -773,7 +773,7 @@ loop2:
 		while (vp->v_numoutput) {
 			vp->v_iflag |= VI_BWAIT;
 			msleep((caddr_t)&vp->v_numoutput, VI_MTX(vp),
-			    PRIBIO + 1, "spfsyn", 0);
+			    PRIBIO + 1, "fsync", 0);
 		}
 		if (!TAILQ_EMPTY(&vp->v_dirtyblkhd)) {
 			/*
