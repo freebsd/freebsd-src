@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)ip.4	8.2 (Berkeley) 11/30/93
-.\"	$Id: ip.4,v 1.9 1997/03/19 19:47:33 bde Exp $
+.\"	$Id: ip.4,v 1.10 1999/03/15 00:14:16 alex Exp $
 .\"
 .Dd November 30, 1993
 .Dt IP 4
@@ -144,7 +144,7 @@ possible values:
 use the default range of values, normally
 .Dv IPPORT_RESERVED
 through
-.Dv IPPORT_RESERVED .
+.Dv IPPORT_USERRESERVED .
 This is adjustable through the sysctl setting:
 .Sy net.inet.ip.portrange.first
 and
