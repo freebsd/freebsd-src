@@ -27,6 +27,11 @@ int skeylookup __P((struct skey *mp,char *name));
 
 #define setpriority(x,y,z)	/* nothing */
 
+static char *month[12] = {
+	"Jan", "Feb", "Mar", "Apr", "May", "Jun",
+	"Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+};
+
 /* Look up skey info for user 'name'. If successful, fill in the caller's
  * skey structure and return 0. If unsuccessful (e.g., if name is unknown)
  * return -1. If an optional challenge string buffer is given, update it.
@@ -180,12 +185,14 @@ char *response;
 	char filekey[8];
 	time_t now;
 	struct tm *tm;
-	char tbuf[27];
+	char tbuf[27], fbuf[20];
 	char *cp, *p;
 
 	time(&now);
 	tm = localtime(&now);
-	strftime(tbuf, sizeof(tbuf), " %b %d,%Y %T", tm);
+/* can't use %b here, because it can be in national form */
+	strftime(fbuf, sizeof(fbuf), "%d,%Y %T", tm);
+	sprintf(tbuf, " %s %s", month[tm->tm_mon], fbuf);
 
 	if(response == NULL){
 		fclose(mp->keyfile);
