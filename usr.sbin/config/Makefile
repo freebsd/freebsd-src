@@ -13,3 +13,5 @@ CFLAGS+=-DNO_CLOBBER_EVER
 .endif
 
 .include <bsd.prog.mk>
+
+$(OBJS): configvers.h
