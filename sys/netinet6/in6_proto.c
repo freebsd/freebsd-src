@@ -299,7 +299,9 @@ int	ip6_rr_prune = 5;	/* router renumbering prefix
 				 * walk list every 5 sec.    */
 int	ip6_v6only = 1;
 
+#ifndef RANDOM_IP_ID
 u_int32_t ip6_id = 0UL;
+#endif
 int	ip6_keepfaith = 0;
 time_t	ip6_log_time = (time_t)0L;
 
