@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: ftp_strat.c,v 1.24 1996/10/02 01:30:34 jkh Exp $
+ * $Id: ftp_strat.c,v 1.25 1996/10/02 02:02:16 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -120,10 +120,10 @@ try:
 		      "the release you're trying to fetch or go to the Options\n"
 		      "menu and to set the release name to explicitly match what's\n"
 		      "available on %s (or set to \"none\").\n\n"
-		      "Would you like to select another FTP server?", rel, hostname)) {
-	    dialog_clear_norefresh();
+		      "Would you like to select another FTP server?",
+		      rel, hostname)) {
 	    variable_unset(VAR_FTP_PATH);
-	    if (!dmenuOpenSimple(&MenuMediaFTP, FALSE))
+	    if (DITEM_STATUS(mediaSetFTP(NULL)) == DITEM_FAILURE)
 		goto punt;
 	    else
 		goto try;
