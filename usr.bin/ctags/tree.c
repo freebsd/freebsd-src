@@ -56,7 +56,7 @@ static void	free_tree __P((NODE *));
  */
 void
 pfnote(name, ln)
-	char	*name;
+	const char	*name;
 	int	ln;
 {
 	NODE	*np;
