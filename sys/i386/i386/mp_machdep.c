@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp_machdep.c,v 1.5 1997/05/26 09:12:19 smp Exp smp $
+ *	$Id: mp_machdep.c,v 1.13 1997/05/26 09:23:30 fsmp Exp $
  */
 
 #include "opt_smp.h"
@@ -1058,11 +1058,15 @@ int
 undirect_pci_irq(int rirq)
 {
 #if defined(READY)
-	printf("Freeing redirected PCI irq %d.\n", rirq);
+	if (bootverbose)
+		printf("Freeing redirected PCI irq %d.\n", rirq);
+
 	/** FIXME: tickle the MB redirector chip */
 	return ???;
 #else
-	printf("Freeing (NOT implemented) redirected PCI irq %d.\n", rirq);
+	if (bootverbose)
+		printf("Freeing (NOT implemented) redirected PCI irq %d.\n",
+		       rirq);
 	return 0;
 #endif  /* READY */
 }
