@@ -1,5 +1,5 @@
 #	from: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.prog.mk,v 1.41.2.4 1997/06/21 15:48:18 jkh Exp $
+#	$Id: bsd.prog.mk,v 1.41.2.5 1997/06/28 08:23:09 pst Exp $
 
 .if exists(${.CURDIR}/../Makefile.inc)
 .include "${.CURDIR}/../Makefile.inc"
@@ -19,10 +19,6 @@ STRIP?=	-s
 
 .if defined(NOSHARED) && ( ${NOSHARED} != "no" && ${NOSHARED} != "NO" )
 LDFLAGS+= -static
-.endif
-
-.if defined(DESTDIR)
-LDDESTDIR+=	-L${DESTDIR}/usr/lib
 .endif
 
 .include <bsd.libnames.mk>
