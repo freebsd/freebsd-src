@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.105 1998/01/04 17:21:33 wosch Exp $
+#	$Id: BSD.usr.dist,v 1.106 1998/01/23 20:11:46 jkh Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -33,6 +33,8 @@
     ..
     libexec
         lpr
+		ru
+		..
         ..
 	sm.bin
 	..
