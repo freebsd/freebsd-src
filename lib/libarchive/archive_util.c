@@ -76,6 +76,26 @@ archive_compression_name(struct archive *a)
 	return (a->compression_name);
 }
 
+
+/*
+ * Return a count of the number of compressed bytes processed.
+ */
+int64_t
+archive_position_compressed(struct archive *a)
+{
+	return (a->raw_position);
+}
+
+/*
+ * Return a count of the number of uncompressed bytes processed.
+ */
+int64_t
+archive_position_uncompressed(struct archive *a)
+{
+	return (a->file_position);
+}
+
+
 void
 archive_set_error(struct archive *a, int error_number, const char *fmt, ...)
 {

@@ -131,7 +131,8 @@ archive_compressor_none_write(struct archive *a, const void *vbuff,
 		if (state->avail == 0) {
 			ret = (a->client_writer)(a, a->client_data,
 			    state->buffer, state->buffer_size);
-			/* TODO: if ret < state->buffer_size */
+			/* XXX TODO: if ret < state->buffer_size XXX */
+			a->raw_position += ret;
 			state->next = state->buffer;
 			state->avail = state->buffer_size;
 		}
@@ -145,6 +146,7 @@ archive_compressor_none_write(struct archive *a, const void *vbuff,
 		buff += to_copy;
 		remaining -= to_copy;
 	}
+	a->file_position += length;
 	return (length);
 }
 
