@@ -80,7 +80,6 @@ vop_t **default_vnodeop_p;
 static struct vnodeopv_entry_desc default_vnodeop_entries[] = {
 	{ &vop_default_desc,		(vop_t *) vop_eopnotsupp },
 	{ &vop_advlock_desc,		(vop_t *) vop_einval },
-	{ &vop_bwrite_desc,		(vop_t *) vop_stdbwrite },
 	{ &vop_close_desc,		(vop_t *) vop_null },
 	{ &vop_createvobject_desc,	(vop_t *) vop_stdcreatevobject },
 	{ &vop_destroyvobject_desc,	(vop_t *) vop_stddestroyvobject },
@@ -331,13 +330,6 @@ vop_stdpoll(ap)
 	if ((ap->a_events & ~POLLSTANDARD) == 0)
 		return (ap->a_events & (POLLRDNORM|POLLWRNORM));
 	return (vn_pollrecord(ap->a_vp, ap->a_p, ap->a_events));
-}
-
-int
-vop_stdbwrite(ap)
-	struct vop_bwrite_args *ap;
-{
-	return (bwrite(ap->a_bp));
 }
 
 /*

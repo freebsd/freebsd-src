@@ -484,14 +484,6 @@ vop_freeblks {
 };
 
 #
-#% bwrite	vp	L L L
-#
-vop_bwrite {
-	IN struct vnode *vp;
-	IN struct buf *bp;
-};
-
-#
 #% getacl	vp	L L L
 #
 vop_getacl {

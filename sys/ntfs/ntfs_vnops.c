@@ -875,7 +875,6 @@ struct vnodeopv_entry_desc ntfs_vnodeop_entries[] = {
 	{ &vop_getpages_desc, (vop_t *) ntfs_getpages },
 	{ &vop_putpages_desc, (vop_t *) ntfs_putpages },
 	{ &vop_strategy_desc, (vop_t *)ntfs_strategy },
-	{ &vop_bwrite_desc, (vop_t *)vop_stdbwrite },
 	{ &vop_read_desc, (vop_t *)ntfs_read },
 	{ &vop_write_desc, (vop_t *)ntfs_write },
 
