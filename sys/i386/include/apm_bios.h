@@ -12,7 +12,7 @@
  *
  * Aug, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm_bios.h,v 1.20 1998/07/06 06:29:05 imp Exp $
+ *	$Id: apm_bios.h,v 1.21 1998/10/30 05:41:15 msmith Exp $
  */
 
 #ifndef	_MACHINE_APM_BIOS_H_
@@ -233,6 +233,12 @@ struct apm_bios_arg {
 	u_long edi;
 };
 
+struct apm_event_info { 
+	u_int type;  
+	u_int index;
+	u_int spare[8];
+};
+
 #define APMIO_SUSPEND		_IO('P', 1)
 #define APMIO_GETINFO_OLD	_IOR('P', 2, struct apm_info_old)
 #define APMIO_ENABLE		_IO('P', 5)
@@ -243,6 +249,9 @@ struct apm_bios_arg {
 #define APMIO_BIOS		_IOWR('P', 10, struct apm_bios_arg)
 #define APMIO_GETINFO		_IOR('P', 11, struct apm_info)
 #define APMIO_STANDBY		_IO('P', 12)
+/* for /dev/apmctl */
+#define APMIO_NEXTEVENT		_IOR('A', 100, struct apm_event_info)
+#define APMIO_REJECTLASTREQ	_IO('P', 101)
 
 #endif /* !ASSEMBLER && !INITIALIZER */
 
