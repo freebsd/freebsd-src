@@ -1,4 +1,4 @@
-.\"	$NetBSD: msgsnd.2,v 1.1 1995/10/16 23:49:24 jtc Exp $	
+.\"	$NetBSD: msgsnd.2,v 1.1 1995/10/16 23:49:24 jtc Exp $
 .\"
 .\" Copyright (c) 1995 Frank van der Linden
 .\" All rights reserved.
@@ -46,7 +46,7 @@
 .Ft int
 .Fn msgsnd "int msqid" "void *msgp" "size_t msgsz" "int msgflg"
 .Sh DESCRIPTION
-The 
+The
 .Fn msgsnd
 function sends a message to the message queue specified in
 .Fa msqid .
@@ -62,7 +62,7 @@ consist of the following members:
 .Va mtype
 is an integer greater than 0 that can be used for selecting messages (see
 .Xr msgrcv 3 ) ,
-.Va mtext 
+.Va mtext
 is an array of bytes, with a size up to that of the system limit
 .Pf ( Dv MSGMAX ) .
 .Pp

@@ -66,7 +66,7 @@ is
 .Dv NULL ,
 space is allocated as necessary to store the pathname.
 This space may later be
-.Xr free 3 Ns 'd.
+.Xr free 3 Ns 'd .
 .Pp
 The function
 .Fn getwd
@@ -89,7 +89,7 @@ These routines have traditionally been used by programs to save the
 name of a working directory for the purpose of returning to it.
 A much faster and less error-prone method of accomplishing this is to
 open the current directory
-.Pq Ql \&.
+.Pq Ql .\&
 and use the
 .Xr fchdir 2
 function to return.
@@ -138,7 +138,7 @@ The
 .Fn getcwd
 function
 conforms to
-.St -ansiC .
+.St -isoC .
 The ability to specify a
 .Dv NULL
 pointer and have
@@ -147,7 +147,7 @@ allocate memory as necessary is an extension.
 .Sh HISTORY
 The
 .Fn getwd
-function appeared in 
+function appeared in
 .Bx 4.0 .
 .Sh BUGS
 The

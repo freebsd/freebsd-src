@@ -54,7 +54,7 @@
 .Dt STRTOK 3
 .Os FreeBSD
 .Sh NAME
-.Nm strtok, strtok_r
+.Nm strtok , strtok_r
 .Nd string tokens
 .Sh LIBRARY
 .Lb libc
@@ -86,6 +86,9 @@ from the same string, should pass a null pointer instead.
 The separator string,
 .Fa sep ,
 must be supplied each time, and may change between calls.
+.Pp
+The implementation will behave as if no library function calls
+.Fn strtok .
 .Pp
 The
 .Fn strtok_r
@@ -147,7 +150,7 @@ The
 .Fn strtok
 function
 conforms to
-.St -ansiC .
+.St -isoC .
 .Sh BUGS
 The System V
 .Fn strtok ,
@@ -162,7 +165,9 @@ Since this implementation always alters the next starting point,
 such a sequence of calls would always return
 .Dv NULL .
 .Sh AUTHORS
-.An Wes Peters, Softweyr LLC: Aq wes@softweyr.com
+.An Wes Peters ,
+Softweyr LLC:
+.Aq wes@softweyr.com
 .Pp
 Based on the 
 .Fx 3.0

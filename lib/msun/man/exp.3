@@ -99,7 +99,7 @@ The
 and the
 .Fn logf
 functions compute the value of the natural logarithm of argument 
-.Fa x.
+.Fa x .
 .Pp
 The
 .Fn log10
@@ -257,7 +257,8 @@ and
 .Em NaN
 (the reserved
 operand on a
-.Tn VAX ) .  Previous implementations of pow may
+.Tn VAX ) .
+Previous implementations of pow may
 have defined x**0 to be undefined in some or all of these
 cases.  Here are reasons for returning x**0 = 1 always:
 .Bl -enum -width indent
@@ -284,7 +285,7 @@ Analysts will accept 0**0 = 1 despite that x**y can
 approach anything or nothing as x and y approach 0
 independently.
 The reason for setting 0**0 = 1 anyway is this:
-.Bd -filled -offset indent
+.Bd -ragged -offset indent
 If x(z) and y(z) are
 .Em any
 functions analytic (expandable
