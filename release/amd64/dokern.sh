@@ -13,10 +13,7 @@ fi
 
 if [ "$MFS" = "YES" ]; then
 	sed	-e '/pty/d' \
-		-e '/eisa/d' \
 		-e '/wfd0/d' \
-		-e '/aha0/d' \
-		-e '/ahb0/d' \
 		-e '/mcd0/d' \
 		-e '/matcd0/d' \
 		-e '/scd0/d' \
@@ -26,6 +23,8 @@ if [ "$MFS" = "YES" ]; then
 		-e '/ft0/d' \
 		-e '/ppp/d' \
 		-e '/gzip/d' \
+		-e '/isp0/d' \
+		-e '/NFS/d' \
 		-e '/PROCFS/d' \
 		-e '/SYSVSHM/d' \
 		-e '/KTRACE/d' \
