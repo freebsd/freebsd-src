@@ -290,62 +290,78 @@ to capture the current contents of the video buffer.
 writes version and additional information to the standard
 output, followed by the contents of the terminal device.
 .Pp
-PC video memory is typically arranged in two byte tuples,
+VGA video memory is typically arranged in two byte tuples,
 one per character position.
-In each tuple, the first byte
-will be the character code, and the second byte is the
-character's color attribute.
+In each tuple, the first byte will be the character code,
+and the second byte is the character's color attribute.
 .Pp
-The color attribute byte is further broken down in to the
-low nibble, which specifies which of 16 different foreground
-colors is active, and the high nibble, which specifies which
-of 16 different background colors is active.
+The syscons driver converts the ^[[Nm terminal escapes
+into the corresponding attribute bytes.
+.Pp
+The VGA color attribute byte looks like this:
+.Pp
+.Bl -column "X:X" "<00000000>" "width" "bright foreground color"
+.Sy bits# Ta Ta Sy width Ta Sy meaning
+.Li 7   Ta <X0000000> Ta 1 Ta character blinking
+.Li 6:4 Ta <0XXX0000> Ta 3 Ta background color
+.Li 3   Ta <0000X000> Ta 1 Ta bright foreground color
+.Li 2:0 Ta <00000XXX> Ta 3 Ta foreground color
+.El
+.Pp
+Here is a list of the three bit wide base colors with
+their corresponding ANSI terminal escape codes
+parenthesized (add 10 to get the background code):
 .Pp
 .Bl -hang -offset indent -compact
 .It 0
-Black
+Black (30)
 .It 1
-Blue
+Blue (34)
 .It 2
-Green
+Green (32)
 .It 3
-Cyan
+Cyan (36)
 .It 4
-Red
+Red (31)
 .It 5
-Magenta
+Magenta (35)
 .It 6
-Brown
+Brown (33)
 .It 7
-White
-.It 8
-Grey
-.It 9
-Light Blue
-.It 10
-Light Green
-.It 11
-Light Cyan
-.It 12
-Light Red
-.It 13
-Light Magenta
-.It 14
-Yellow
-.It 15
-White
+Light Grey (37)
 .El
 .Pp
-It can be seen that the last 8 colors are brighter
-versions of the first 8.
+Base colors with bit 3 (the bright foreground flag)
+set.  The terminal escape for successive bright text
+is ^[[1m.
+.Pp
+.Bl -hang -offset indent -compact
+.It 0
+Dark Grey
+.It 1
+Light Blue
+.It 2
+Light Green
+.It 3
+Light Cyan
+.It 4
+Light Red
+.It 5 
+Light Magenta
+.It 6
+Yellow
+.It 7
+White
+.El
+.lt 1
 .Pp
 For example, the two bytes
 .Pp
 .Dl "65 158"
 .Pp
-specify an uppercase A (character code 65), in
-yellow (low nibble 15) on a light blue background
-(high nibble 9).
+specify an uppercase A (character code 65), blinking
+(bit 7 set) in yellow (bits 3:0) on a blue background
+(bits 6:4).
 .Pp
 The
 .Nm
