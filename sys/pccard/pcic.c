@@ -69,6 +69,8 @@ pcic_pci_probe(pcici_t tag, pcidi_t type)
 {
 	if (type == 0xac12104cul) 
 		return ("TI 1130 PCMCIA/CardBus Bridge");
+	if (type == 0xac15104cUL)
+		return ("TI 1131 PCI to PCMCIA/CardBus bridge");
 	return (NULL);
 }
 
