@@ -330,9 +330,11 @@ bundle_LayerDown(void *v, struct fsm *fp)
                    fp->link->name);
     }
 
-    if (!others_active)
+    if (!others_active) {
       /* Down the NCPs.  We don't expect to get fsm_Close()d ourself ! */
       ncp2initial(&bundle->ncp);
+      mp_Down(&bundle->ncp.mp);
+    }
   }
 }
 
@@ -342,6 +344,7 @@ bundle_LayerFinish(void *v, struct fsm *fp)
   /* The given fsm is now down (fp cannot be NULL)
    *
    * If it's the last NCP, fsm_Close all LCPs
+   * If it's the last NCP, bring any MP layer down
    */
 
   struct bundle *bundle = (struct bundle *)v;
@@ -354,6 +357,7 @@ bundle_LayerFinish(void *v, struct fsm *fp)
       if (dl->state == DATALINK_OPEN)
         datalink_Close(dl, CLOSE_STAYDOWN);
     fsm2initial(fp);
+    mp_Down(&bundle->ncp.mp);
   }
 }
 
@@ -400,6 +404,7 @@ bundle_Close(struct bundle *bundle, const char *name, int how)
       ncp_Close(&bundle->ncp);
     else {
       ncp2initial(&bundle->ncp);
+      mp_Down(&bundle->ncp.mp);
       for (dl = bundle->links; dl; dl = dl->next)
         datalink_Close(dl, how);
     }
@@ -934,6 +939,7 @@ bundle_LinkClosed(struct bundle *bundle, struct datalink *dl)
     if (dl->physical->type != PHYS_AUTO)	/* Not in -auto mode */
       bundle_DownInterface(bundle);
     ncp2initial(&bundle->ncp);
+    mp_Down(&bundle->ncp.mp);
     bundle_NewPhase(bundle, PHASE_DEAD);
     bundle_StopIdleTimer(bundle);
   }
