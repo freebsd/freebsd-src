@@ -92,7 +92,7 @@ main(argc, argv)
 static void
 usage()
 {
-	(void)fprintf(stderr, "usage: what [-s] file ...\n");
+	(void)fprintf(stderr, "usage: what [-s] [file ...]\n");
 	exit(1);
 }
 
