@@ -32,11 +32,11 @@
 # XXX - not all options are recognised.
 while [ ! -z $1 ]; do
     case $1 in
-    -C | -c | -D | -M | -p | -s) shift;;
-    -f | -g | -m | -o) shift; shift;;
+    -b | -C | -c | -M | -p | -S | -s) shift;;
+    -B | -f | -g | -m | -o) shift; shift;;
     *) break;
     esac
 done
 
 # the remaining arguments are assumed to be files/dirs only.
-exec install -c -p $*
+exec install -p $*
