@@ -21,6 +21,14 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 6.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20050225:
+	The ifi_epoch member of struct if_data has been changed to
+	contain the uptime at which the interface was created or the
+	statistics zeroed rather then the wall clock time because
+	wallclock time may go backwards.  This should have no impact
+	unless an snmp implementation is using this value (I know of
+	none at this point.)
+
 20050223:
 	The layout of struct image_params has changed. You have to
 	recompile all compatibility modules (linux, svr4, etc) for use
