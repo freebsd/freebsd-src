@@ -144,18 +144,12 @@ idp_output(nsp, m0)
 	register struct mbuf *m;
 	register struct idp *idp;
 	register struct socket *so;
-	register int len = 0;
+	register int len;
 	register struct route *ro;
 	struct mbuf *mprev;
 	extern int idpcksum;
 
-	/*
-	 * Calculate data length.
-	 */
-	for (m = m0; m; m = m->m_next) {
-		mprev = m;
-		len += m->m_len;
-	}
+	len = m_length(m0, &mprev);
 	/*
 	 * Make sure packet is actually of even length.
 	 */
