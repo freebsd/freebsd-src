@@ -436,12 +436,16 @@ mediaSetFTPPassive(dialogMenuItem *self)
 int mediaSetHTTP(dialogMenuItem *self)
 {
     int result;
-    char *cp, *idx, hostname[MAXHOSTNAMELEN];
+    char *cp, *idx, hostname[MAXHOSTNAMELEN], *var_hostname;
     extern int HttpPort;
     int what = DITEM_RESTORE;
 
 
+    var_hostname=variable_get(VAR_NAMESERVER);
+    variable_unset(VAR_NAMESERVER);
     result = mediaSetFTP(self);
+    variable_set2(VAR_NAMESERVER, var_hostname, 0);
+
     if (DITEM_STATUS(result) != DITEM_SUCCESS)
 	return result;
  
