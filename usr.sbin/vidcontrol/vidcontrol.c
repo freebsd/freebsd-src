@@ -402,7 +402,9 @@ video_mode(int argc, char **argv, int *index)
 			if (ioctl(0, KDRASTER, size)) {
 				ioerr = errno;
 				if (cur_mode >= M_VESA_BASE)
-					ioctl(0, _IO('V', cur_mode), NULL);
+					ioctl(0,
+					    _IO('V', cur_mode - M_VESA_BASE),
+					    NULL);
 				else
 					ioctl(0, _IO('S', cur_mode), NULL);
 				warnc(ioerr, "cannot activate raster display");
