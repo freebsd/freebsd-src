@@ -234,6 +234,7 @@ struct ata_pci_controller {
 #define SIS100NEW	4
 #define SIS100OLD	5
 #define SIS66		6
+#define SIS33		7
 
 #define VIA33		0
 #define VIA66		1
