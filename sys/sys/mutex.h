@@ -41,11 +41,6 @@
 #include <machine/bus.h>
 #include <machine/cpufunc.h>
 #include <machine/globals.h>
-#include <sys/proc.h> /* Needed for curproc. */
-#ifndef curproc
-struct proc;
-extern struct proc *curproc;
-#endif
 #endif	/* _KERNEL_ */
 #endif	/* !LOCORE */
 
@@ -138,9 +133,6 @@ struct mtx {
 #define mp_fixme(string)
 
 #ifdef _KERNEL
-/* Misc */
-#define CURTHD	CURPROC	/* Current thread ID */
-
 /* Prototypes */
 void	mtx_init(struct mtx *m, const char *description, int flag);
 void	mtx_enter_hard(struct mtx *, int type, int saveintr);
