@@ -123,7 +123,8 @@ The options are as follows:
 .It Fl i Ar iface Op Fl o
 Display the current settings of the specified Raylink/Webgear interface.
 This retrieves the current card settings from the driver and prints them
-out. The results from this command are a snapshot of the card settings.
+out.
+The results from this command are a snapshot of the card settings.
 Using the additional
 .Fl o
 flag will cause
@@ -143,14 +144,16 @@ legal transmit rate settings and the corresponding transmit speeds:
 4	High (2Mbps)
 .El
 .Pp
-The version 4 firmware may ignore this setting. Note, that the IEEE 802.11
+The version 4 firmware may ignore this setting.
+Note, that the IEEE 802.11
 standard
 only allows 1Mbps or 2Mbps operation, and that the generally accepted
 reading of the IEEE 802.11 standard is that 2Mbps is only allowed in
 infrastructure mode.
 .It Fl i Ar iface Fl n Ar network name
 Set the name of the service set that this station wishes to
-join. The
+join.
+The
 .Ar network name
 can be any text string up to 32 characters in length.
 The default name
@@ -165,7 +168,8 @@ The legal values for
 are 0 (ad-hoc mode) and 1 (infrastructure mode).
 In ad-hoc mode, the station can
 communicate directly with any other stations within direct radio range
-(provided that they are also operating in ad-hoc mode). In inrastructure mode,
+(provided that they are also operating in ad-hoc mode).
+In inrastructure mode,
 hosts must associate with a service set controlled by an access point,
 that relays traffic between end stations.
 The default setting is 0
@@ -257,7 +261,8 @@ Display the cached signal strength information maintained by the
 .Nm ray
 driver.
 The driver retains information about signal strength and
-noise level for packets received from different hosts. For
+noise level for packets received from different hosts.
+For
 infrastructure networks the cache stores the signal strength of the
 access point.
 .Pp
