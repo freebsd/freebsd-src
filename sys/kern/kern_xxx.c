@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_xxx.c	8.2 (Berkeley) 11/14/93
- * $Id: kern_xxx.c,v 1.4 1994/08/08 00:30:04 wollman Exp $
+ * $Id: kern_xxx.c,v 1.5 1994/08/18 22:35:04 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -77,7 +77,7 @@ ogethostname(p, uap, retval)
 	int name;
 
 	name = KERN_HOSTNAME;
-	return (kern_sysctl(&name, 1, uap->hostname, &uap->len, 0, 0));
+	return (kern_sysctl(&name, 1, uap->hostname, &uap->len, 0, 0, p));
 }
 
 struct sethostname_args {
@@ -97,7 +97,7 @@ osethostname(p, uap, retval)
 	if (error = suser(p->p_ucred, &p->p_acflag))
 		return (error);
 	name = KERN_HOSTNAME;
-	return (kern_sysctl(&name, 1, 0, 0, uap->hostname, uap->len));
+	return (kern_sysctl(&name, 1, 0, 0, uap->hostname, uap->len, p));
 }
 
 struct gethostid_args {
