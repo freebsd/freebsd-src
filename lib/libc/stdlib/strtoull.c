@@ -35,6 +35,11 @@
 static char sccsid[] = "@(#)strtouq.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
 
+#ifndef lint
+static const char rcsid[] =
+  "$FreeBSD$";
+#endif
+
 #include <sys/types.h>
 
 #include <limits.h>
@@ -43,21 +48,21 @@ static char sccsid[] = "@(#)strtouq.c	8.1 (Berkeley) 6/4/93";
 #include <stdlib.h>
 
 /*
- * Convert a string to an unsigned quad integer.
+ * Convert a string to an unsigned long long integer.
  *
  * Ignores `locale' stuff.  Assumes that the upper and lower case
  * alphabets and digits are each contiguous.
  */
-u_quad_t
-strtouq(nptr, endptr, base)
+unsigned long long
+strtoull(nptr, endptr, base)
 	const char *nptr;
 	char **endptr;
 	register int base;
 {
 	register const char *s = nptr;
-	register u_quad_t acc;
+	register unsigned long long acc;
 	register unsigned char c;
-	register u_quad_t qbase, cutoff;
+	register unsigned long long qbase, cutoff;
 	register int neg, any, cutlim;
 
 	/*
@@ -84,8 +89,8 @@ strtouq(nptr, endptr, base)
 	if (base == 0)
 		base = c == '0' ? 8 : 10;
 	qbase = (unsigned)base;
-	cutoff = (u_quad_t)UQUAD_MAX / qbase;
-	cutlim = (u_quad_t)UQUAD_MAX % qbase;
+	cutoff = (unsigned long long)ULLONG_MAX / qbase;
+	cutlim = (unsigned long long)ULLONG_MAX % qbase;
 	for (acc = 0, any = 0;; c = *s++) {
 		if (!isascii(c))
 			break;
@@ -106,7 +111,7 @@ strtouq(nptr, endptr, base)
 		}
 	}
 	if (any < 0) {
-		acc = UQUAD_MAX;
+		acc = ULLONG_MAX;
 		errno = ERANGE;
 	} else if (neg)
 		acc = -acc;
