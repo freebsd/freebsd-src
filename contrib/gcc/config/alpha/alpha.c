@@ -1,6 +1,6 @@
 /* Subroutines used for code generation on the DEC Alpha.
    Copyright (C) 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
-   2000, 2001 Free Software Foundation, Inc. 
+   2000, 2001, 2002, 2003 Free Software Foundation, Inc. 
    Contributed by Richard Kenner (kenner@vlsi1.ultra.nyu.edu)
 
 This file is part of GNU CC.
@@ -47,6 +47,7 @@ Boston, MA 02111-1307, USA.  */
 #include "target.h"
 #include "target-def.h"
 #include "debug.h"
+#include "langhooks.h"
 
 /* Specify which cpu to schedule for.  */
 
@@ -68,6 +69,10 @@ enum alpha_fp_rounding_mode alpha_fprm;
 
 enum alpha_fp_trap_mode alpha_fptm;
 
+/* Specify bit size of immediate TLS offsets.  */
+
+int alpha_tls_size = 32;
+
 /* Strings decoded into the above options.  */
 
 const char *alpha_cpu_string;	/* -mcpu= */
@@ -76,13 +81,14 @@ const char *alpha_tp_string;	/* -mtrap-precision=[p|s|i] */
 const char *alpha_fprm_string;	/* -mfp-rounding-mode=[n|m|c|d] */
 const char *alpha_fptm_string;	/* -mfp-trap-mode=[n|u|su|sui] */
 const char *alpha_mlat_string;	/* -mmemory-latency= */
+const char *alpha_tls_size_string; /* -mtls-size=[16|32|64] */
 
 /* Save information from a "cmpxx" operation until the branch or scc is
    emitted.  */
 
 struct alpha_compare alpha_compare;
 
-/* Non-zero if inside of a function, because the Alpha asm can't
+/* Nonzero if inside of a function, because the Alpha asm can't
    handle .files inside of functions.  */
 
 static int inside_function = FALSE;
@@ -112,14 +118,22 @@ int alpha_this_literal_sequence_number;
 int alpha_this_gpdisp_sequence_number;
 
 /* Declarations of static functions.  */
+static int tls_symbolic_operand_1
+  PARAMS ((rtx, enum machine_mode, int, int));
+static enum tls_model tls_symbolic_operand_type
+  PARAMS ((rtx));
 static bool decl_in_text_section
   PARAMS ((tree));
+static bool alpha_in_small_data_p
+  PARAMS ((tree));
+static void alpha_encode_section_info
+  PARAMS ((tree, int));
+static const char *alpha_strip_name_encoding
+  PARAMS ((const char *));
 static int some_small_symbolic_operand_1
   PARAMS ((rtx *, void *));
 static int split_small_symbolic_operand_1
   PARAMS ((rtx *, void *));
-static bool local_symbol_p
-  PARAMS ((rtx));
 static void alpha_set_memflags_1
   PARAMS ((rtx, int, int, int));
 static rtx alpha_emit_set_const_1
@@ -128,9 +142,13 @@ static void alpha_expand_unaligned_load_words
   PARAMS ((rtx *out_regs, rtx smem, HOST_WIDE_INT words, HOST_WIDE_INT ofs));
 static void alpha_expand_unaligned_store_words
   PARAMS ((rtx *out_regs, rtx smem, HOST_WIDE_INT words, HOST_WIDE_INT ofs));
+static void alpha_init_builtins
+  PARAMS ((void));
+static rtx alpha_expand_builtin
+  PARAMS ((tree, rtx, rtx, enum machine_mode, int));
 static void alpha_sa_mask
   PARAMS ((unsigned long *imaskP, unsigned long *fmaskP));
-static int find_lo_sum
+static int find_lo_sum_using_gp
   PARAMS ((rtx *, void *));
 static int alpha_does_function_need_gp
   PARAMS ((void));
@@ -140,6 +158,10 @@ static const char *get_trap_mode_suffix
   PARAMS ((void));
 static const char *get_round_mode_suffix
   PARAMS ((void));
+static const char *get_some_local_dynamic_name
+  PARAMS ((void));
+static int get_some_local_dynamic_name_1
+  PARAMS ((rtx *, void *));
 static rtx set_frame_related_p
   PARAMS ((void));
 static const char *alpha_lookup_xfloating_lib_func
@@ -156,17 +178,30 @@ static int alpha_adjust_cost
   PARAMS ((rtx, rtx, rtx, int));
 static int alpha_issue_rate
   PARAMS ((void));
-static int alpha_variable_issue
-  PARAMS ((FILE *, int, rtx, int));
+static int alpha_use_dfa_pipeline_interface
+  PARAMS ((void));
+static int alpha_multipass_dfa_lookahead
+  PARAMS ((void));
 
-#if TARGET_ABI_UNICOSMK
-static void alpha_init_machine_status
-  PARAMS ((struct function *p));
-static void alpha_mark_machine_status
-  PARAMS ((struct function *p));
-static void alpha_free_machine_status
-  PARAMS ((struct function *p));
+#ifdef OBJECT_FORMAT_ELF
+static void alpha_elf_select_rtx_section
+  PARAMS ((enum machine_mode, rtx, unsigned HOST_WIDE_INT));
 #endif
+
+#if TARGET_ABI_OPEN_VMS
+static bool alpha_linkage_symbol_p
+  PARAMS ((const char *symname));
+static void alpha_write_linkage
+  PARAMS ((FILE *, const char *, tree));
+#endif
+
+#if TARGET_ABI_OSF
+static void alpha_output_mi_thunk_osf
+  PARAMS ((FILE *, tree, HOST_WIDE_INT, HOST_WIDE_INT, tree));
+#endif
+
+static struct machine_function * alpha_init_machine_status
+  PARAMS ((void));
 
 static void unicosmk_output_deferred_case_vectors PARAMS ((FILE *));
 static void unicosmk_gen_dsib PARAMS ((unsigned long *imaskP));
@@ -196,15 +231,27 @@ static void vms_asm_out_destructor PARAMS ((rtx, int));
 # define TARGET_SECTION_TYPE_FLAGS vms_section_type_flags
 #endif
 
+#undef TARGET_IN_SMALL_DATA_P
+#define TARGET_IN_SMALL_DATA_P alpha_in_small_data_p
+#undef TARGET_ENCODE_SECTION_INFO
+#define TARGET_ENCODE_SECTION_INFO alpha_encode_section_info
+#undef TARGET_STRIP_NAME_ENCODING
+#define TARGET_STRIP_NAME_ENCODING alpha_strip_name_encoding
+
 #if TARGET_ABI_UNICOSMK
 static void unicosmk_asm_named_section PARAMS ((const char *, unsigned int));
 static void unicosmk_insert_attributes PARAMS ((tree, tree *));
 static unsigned int unicosmk_section_type_flags PARAMS ((tree, const char *, 
 							 int));
+static void unicosmk_unique_section PARAMS ((tree, int));
 # undef TARGET_INSERT_ATTRIBUTES
 # define TARGET_INSERT_ATTRIBUTES unicosmk_insert_attributes
 # undef TARGET_SECTION_TYPE_FLAGS
 # define TARGET_SECTION_TYPE_FLAGS unicosmk_section_type_flags
+# undef TARGET_ASM_UNIQUE_SECTION
+# define TARGET_ASM_UNIQUE_SECTION unicosmk_unique_section
+# undef TARGET_ASM_GLOBALIZE_LABEL
+# define TARGET_ASM_GLOBALIZE_LABEL hook_FILEptr_constcharptr_void
 #endif
 
 #undef TARGET_ASM_ALIGNED_HI_OP
@@ -223,6 +270,11 @@ static unsigned int unicosmk_section_type_flags PARAMS ((tree, const char *,
 #define TARGET_ASM_UNALIGNED_DI_OP "\t.align 0\n\t.quad\t"
 #endif
 
+#ifdef OBJECT_FORMAT_ELF
+#undef	TARGET_ASM_SELECT_RTX_SECTION
+#define	TARGET_ASM_SELECT_RTX_SECTION  alpha_elf_select_rtx_section
+#endif
+
 #undef TARGET_ASM_FUNCTION_END_PROLOGUE
 #define TARGET_ASM_FUNCTION_END_PROLOGUE alpha_output_function_end_prologue
 
@@ -230,8 +282,27 @@ static unsigned int unicosmk_section_type_flags PARAMS ((tree, const char *,
 #define TARGET_SCHED_ADJUST_COST alpha_adjust_cost
 #undef TARGET_SCHED_ISSUE_RATE
 #define TARGET_SCHED_ISSUE_RATE alpha_issue_rate
-#undef TARGET_SCHED_VARIABLE_ISSUE
-#define TARGET_SCHED_VARIABLE_ISSUE alpha_variable_issue
+#undef TARGET_SCHED_USE_DFA_PIPELINE_INTERFACE
+#define TARGET_SCHED_USE_DFA_PIPELINE_INTERFACE \
+  alpha_use_dfa_pipeline_interface
+#undef TARGET_SCHED_FIRST_CYCLE_MULTIPASS_DFA_LOOKAHEAD
+#define TARGET_SCHED_FIRST_CYCLE_MULTIPASS_DFA_LOOKAHEAD \
+  alpha_multipass_dfa_lookahead
+
+#undef TARGET_HAVE_TLS
+#define TARGET_HAVE_TLS HAVE_AS_TLS
+
+#undef  TARGET_INIT_BUILTINS
+#define TARGET_INIT_BUILTINS alpha_init_builtins
+#undef  TARGET_EXPAND_BUILTIN
+#define TARGET_EXPAND_BUILTIN alpha_expand_builtin
+
+#if TARGET_ABI_OSF
+#undef TARGET_ASM_OUTPUT_MI_THUNK
+#define TARGET_ASM_OUTPUT_MI_THUNK alpha_output_mi_thunk_osf
+#undef TARGET_ASM_CAN_OUTPUT_MI_THUNK
+#define TARGET_ASM_CAN_OUTPUT_MI_THUNK hook_bool_tree_hwi_hwi_tree_true
+#endif
 
 struct gcc_target targetm = TARGET_INITIALIZER;
 
@@ -350,6 +421,18 @@ override_options ()
 	alpha_fptm = ALPHA_FPTM_SUI;
       else
 	error ("bad value `%s' for -mfp-trap-mode switch", alpha_fptm_string);
+    }
+
+  if (alpha_tls_size_string)
+    {
+      if (strcmp (alpha_tls_size_string, "16") == 0)
+	alpha_tls_size = 16;
+      else if (strcmp (alpha_tls_size_string, "32") == 0)
+	alpha_tls_size = 32;
+      else if (strcmp (alpha_tls_size_string, "64") == 0)
+	alpha_tls_size = 64;
+      else
+	error ("bad value `%s' for -mtls-size switch", alpha_tls_size_string);
     }
 
   alpha_cpu
@@ -494,12 +577,16 @@ override_options ()
 
   /* Register variables and functions with the garbage collector.  */
 
-#if TARGET_ABI_UNICOSMK
   /* Set up function hooks.  */
   init_machine_status = alpha_init_machine_status;
-  mark_machine_status = alpha_mark_machine_status;
-  free_machine_status = alpha_free_machine_status;
-#endif
+
+  /* Tell the compiler when we're using VAX floating point.  */
+  if (TARGET_FLOAT_VAX)
+    {
+      real_format_for_mode[SFmode - QFmode] = &vax_f_format;
+      real_format_for_mode[DFmode - QFmode] = &vax_g_format;
+      real_format_for_mode[TFmode - QFmode] = NULL;
+    }
 }
 
 /* Returns 1 if VALUE is a mask that contains full bytes of zero or ones.  */
@@ -526,7 +613,7 @@ reg_or_0_operand (op, mode)
       register rtx op;
       enum machine_mode mode;
 {
-  return op == const0_rtx || register_operand (op, mode);
+  return op == CONST0_RTX (mode) || register_operand (op, mode);
 }
 
 /* Return 1 if OP is a constant in the range of 0-63 (for a shift) or
@@ -553,6 +640,16 @@ reg_or_8bit_operand (op, mode)
   return ((GET_CODE (op) == CONST_INT
 	   && (unsigned HOST_WIDE_INT) INTVAL (op) < 0x100)
 	  || register_operand (op, mode));
+}
+
+/* Return 1 if OP is a constant or any register.  */
+
+int
+reg_or_const_int_operand (op, mode)
+     register rtx op;
+     enum machine_mode mode;
+{
+  return GET_CODE (op) == CONST_INT || register_operand (op, mode);
 }
 
 /* Return 1 if OP is an 8-bit constant.  */
@@ -661,24 +758,26 @@ mode_mask_operand (op, mode)
      register rtx op;
      enum machine_mode mode ATTRIBUTE_UNUSED;
 {
-#if HOST_BITS_PER_WIDE_INT == 32
-  if (GET_CODE (op) == CONST_DOUBLE)
-    return (CONST_DOUBLE_LOW (op) == -1
-	    && (CONST_DOUBLE_HIGH (op) == -1
-		|| CONST_DOUBLE_HIGH (op) == 0));
-#else
-  if (GET_CODE (op) == CONST_DOUBLE)
-    return (CONST_DOUBLE_LOW (op) == -1 && CONST_DOUBLE_HIGH (op) == 0);
-#endif
+  if (GET_CODE (op) == CONST_INT)
+    {
+      HOST_WIDE_INT value = INTVAL (op);
 
-  return (GET_CODE (op) == CONST_INT
-	  && (INTVAL (op) == 0xff
-	      || INTVAL (op) == 0xffff
-	      || INTVAL (op) == (HOST_WIDE_INT)0xffffffff
-#if HOST_BITS_PER_WIDE_INT == 64
-	      || INTVAL (op) == -1
-#endif
-	      ));
+      if (value == 0xff)
+	return 1;
+      if (value == 0xffff)
+	return 1;
+      if (value == 0xffffffff)
+	return 1;
+      if (value == -1)
+	return 1;
+    }
+  else if (HOST_BITS_PER_WIDE_INT == 32 && GET_CODE (op) == CONST_DOUBLE)
+    {
+      if (CONST_DOUBLE_LOW (op) == 0xffffffff && CONST_DOUBLE_HIGH (op) == 0)
+	return 1;
+    }
+
+  return 0;
 }
 
 /* Return 1 if OP is a multiple of 8 less than 64.  */
@@ -693,25 +792,14 @@ mul8_operand (op, mode)
 	  && (INTVAL (op) & 7) == 0);
 }
 
-/* Return 1 if OP is the constant zero in floating-point.  */
+/* Return 1 if OP is the zero constant for MODE.  */
 
 int
-fp0_operand (op, mode)
+const0_operand (op, mode)
      register rtx op;
      enum machine_mode mode;
 {
-  return (GET_MODE (op) == mode
-	  && GET_MODE_CLASS (mode) == MODE_FLOAT && op == CONST0_RTX (mode));
-}
-
-/* Return 1 if OP is the floating-point constant zero or a register.  */
-
-int
-reg_or_fp0_operand (op, mode)
-     register rtx op;
-     enum machine_mode mode;
-{
-  return fp0_operand (op, mode) || register_operand (op, mode);
+  return op == CONST0_RTX (mode);
 }
 
 /* Return 1 if OP is a hard floating-point register.  */
@@ -769,8 +857,15 @@ some_operand (op, mode)
 
   switch (GET_CODE (op))
     {
-    case REG:  case MEM:  case CONST_DOUBLE:  case CONST_INT:  case LABEL_REF:
-    case SYMBOL_REF:  case CONST:  case HIGH:
+    case REG:
+    case MEM:
+    case CONST_INT:
+    case CONST_DOUBLE:
+    case CONST_VECTOR:
+    case LABEL_REF:
+    case SYMBOL_REF:
+    case CONST:
+    case HIGH:
       return 1;
 
     case SUBREG:
@@ -824,7 +919,9 @@ input_operand (op, mode)
 	     symbolic operands to be reconstructed from their high/lo_sum
 	     form.  */
 	  return (small_symbolic_operand (op, mode)
-		  || global_symbolic_operand (op, mode));
+		  || global_symbolic_operand (op, mode)
+		  || gotdtp_symbolic_operand (op, mode)
+		  || gottp_symbolic_operand (op, mode));
 	}
 
       /* This handles both the Windows/NT and OSF cases.  */
@@ -847,7 +944,8 @@ input_operand (op, mode)
 	      && general_operand (op, mode));
 
     case CONST_DOUBLE:
-      return GET_MODE_CLASS (mode) == MODE_FLOAT && op == CONST0_RTX (mode);
+    case CONST_VECTOR:
+      return op == CONST0_RTX (mode);
 
     case CONST_INT:
       return mode == QImode || mode == HImode || add_operand (op, mode);
@@ -911,31 +1009,15 @@ direct_call_operand (op, mode)
 }
 
 /* Return true if OP is a LABEL_REF, or SYMBOL_REF or CONST referencing
-   a variable known to be defined in this file.  */
-
-static bool
-local_symbol_p (op)
-     rtx op;
-{
-  const char *str = XSTR (op, 0);
-
-  /* ??? SYMBOL_REF_FLAG is set for local function symbols, but we
-     run into problems with the rtl inliner in that the symbol was
-     once external, but is local after inlining, which results in
-     unrecognizable insns.  */
-
-  return (CONSTANT_POOL_ADDRESS_P (op)
-	  /* If @, then ENCODE_SECTION_INFO sez it's local.  */
-	  || str[0] == '@'
-	  /* If *$, then ASM_GENERATE_INTERNAL_LABEL sez it's local.  */
-	  || (str[0] == '*' && str[1] == '$'));
-}
+   a (non-tls) variable known to be defined in this file.  */
 
 int
 local_symbolic_operand (op, mode)
      rtx op;
      enum machine_mode mode;
 {
+  const char *str;
+
   if (mode != VOIDmode && GET_MODE (op) != VOIDmode && mode != GET_MODE (op))
     return 0;
 
@@ -950,7 +1032,26 @@ local_symbolic_operand (op, mode)
   if (GET_CODE (op) != SYMBOL_REF)
     return 0;
 
-  return local_symbol_p (op);
+  /* Easy pickings.  */
+  if (CONSTANT_POOL_ADDRESS_P (op) || STRING_POOL_ADDRESS_P (op))
+    return 1;
+
+  /* ??? SYMBOL_REF_FLAG is set for local function symbols, but we
+     run into problems with the rtl inliner in that the symbol was
+     once external, but is local after inlining, which results in
+     unrecognizable insns.  */
+
+  str = XSTR (op, 0);
+
+  /* If @[LS], then alpha_encode_section_info sez it's local.  */
+  if (str[0] == '@' && (str[1] == 'L' || str[1] == 'S'))
+    return 1;
+
+  /* If *$, then ASM_GENERATE_INTERNAL_LABEL sez it's local.  */
+  if (str[0] == '*' && str[1] == '$')
+    return 1;
+
+  return 0;
 }
 
 /* Return true if OP is a SYMBOL_REF or CONST referencing a variable
@@ -982,7 +1083,7 @@ small_symbolic_operand (op, mode)
   else
     {
       str = XSTR (op, 0);
-      return str[0] == '@' && str[1] == 's';
+      return str[0] == '@' && str[1] == 'S';
     }
 }
 
@@ -994,6 +1095,8 @@ global_symbolic_operand (op, mode)
      rtx op;
      enum machine_mode mode;
 {
+  const char *str;
+
   if (mode != VOIDmode && GET_MODE (op) != VOIDmode && mode != GET_MODE (op))
     return 0;
 
@@ -1005,7 +1108,12 @@ global_symbolic_operand (op, mode)
   if (GET_CODE (op) != SYMBOL_REF)
     return 0;
 
-  return ! local_symbol_p (op);
+  if (local_symbolic_operand (op, mode))
+    return 0;
+
+  /* Also verify that it's not a TLS symbol.  */
+  str = XSTR (op, 0);
+  return str[0] != '%' && str[0] != '@';
 }
 
 /* Return 1 if OP is a valid operand for the MEM of a CALL insn.  */
@@ -1056,6 +1164,110 @@ symbolic_operand (op, mode)
       && GET_CODE (XEXP (XEXP (op,0), 1)) == CONST_INT)
     return 1;
   return 0;
+}
+
+/* Return true if OP is valid for a particular TLS relocation.  */
+
+static int
+tls_symbolic_operand_1 (op, mode, size, unspec)
+     rtx op;
+     enum machine_mode mode;
+     int size, unspec;
+{
+  const char *str;
+  int letter;
+
+  if (mode != VOIDmode && GET_MODE (op) != VOIDmode && mode != GET_MODE (op))
+    return 0;
+
+  if (GET_CODE (op) != CONST)
+    return 0;
+  op = XEXP (op, 0);
+
+  if (GET_CODE (op) != UNSPEC || XINT (op, 1) != unspec)
+    return 0;
+  op = XVECEXP (op, 0, 0);
+
+  if (GET_CODE (op) != SYMBOL_REF)
+    return 0;
+  str = XSTR (op, 0);
+
+  if (str[0] == '%')
+    {
+      if (size != 64)
+	return 0;
+    }
+  else if (str[0] == '@')
+    {
+      if (alpha_tls_size > size)
+	return 0;
+    }
+  else
+    return 0;
+
+  letter = (unspec == UNSPEC_DTPREL ? 'D' : 'T');
+
+  return str[1] == letter;
+}
+
+/* Return true if OP is valid for 16-bit DTP relative relocations.  */
+
+int
+dtp16_symbolic_operand (op, mode)
+      rtx op;
+      enum machine_mode mode;
+{
+  return tls_symbolic_operand_1 (op, mode, 16, UNSPEC_DTPREL);
+}
+
+/* Return true if OP is valid for 32-bit DTP relative relocations.  */
+
+int
+dtp32_symbolic_operand (op, mode)
+      rtx op;
+      enum machine_mode mode;
+{
+  return tls_symbolic_operand_1 (op, mode, 32, UNSPEC_DTPREL);
+}
+
+/* Return true if OP is valid for 64-bit DTP relative relocations.  */
+
+int
+gotdtp_symbolic_operand (op, mode)
+      rtx op;
+      enum machine_mode mode;
+{
+  return tls_symbolic_operand_1 (op, mode, 64, UNSPEC_DTPREL);
+}
+
+/* Return true if OP is valid for 16-bit TP relative relocations.  */
+
+int
+tp16_symbolic_operand (op, mode)
+      rtx op;
+      enum machine_mode mode;
+{
+  return tls_symbolic_operand_1 (op, mode, 16, UNSPEC_TPREL);
+}
+
+/* Return true if OP is valid for 32-bit TP relative relocations.  */
+
+int
+tp32_symbolic_operand (op, mode)
+      rtx op;
+      enum machine_mode mode;
+{
+  return tls_symbolic_operand_1 (op, mode, 32, UNSPEC_TPREL);
+}
+
+/* Return true if OP is valid for 64-bit TP relative relocations.  */
+
+int
+gottp_symbolic_operand (op, mode)
+      rtx op;
+      enum machine_mode mode;
+{
+  return tls_symbolic_operand_1 (op, mode, 64, UNSPEC_TPREL);
 }
 
 /* Return 1 if OP is a valid Alpha comparison operator.  Here we know which
@@ -1455,7 +1667,9 @@ alpha_extra_constraint (value, c)
       return GET_CODE (value) == HIGH;
     case 'U':
       return TARGET_ABI_UNICOSMK && symbolic_operand (value, VOIDmode);
-
+    case 'W':
+      return (GET_CODE (value) == CONST_VECTOR
+	      && value == CONST0_RTX (GET_MODE (value)));
     default:
       return false;
     }
@@ -1528,6 +1742,54 @@ alpha_tablejump_best_label (insn)
 
   return best_label ? best_label : const0_rtx;
 }
+
+/* Return the TLS model to use for SYMBOL.  */
+
+static enum tls_model
+tls_symbolic_operand_type (symbol)
+     rtx symbol;
+{
+  const char *str;
+
+  if (GET_CODE (symbol) != SYMBOL_REF)
+    return 0;
+  str = XSTR (symbol, 0);
+
+  if (str[0] == '%')
+    {
+      /* ??? Be prepared for -ftls-model=local-dynamic.  Perhaps we shouldn't
+	 have separately encoded local-ness.  On well, maybe the user will use
+	 attribute visibility next time.  At least we don't crash...  */
+      if (str[1] == 'G' || str[1] == 'D')
+	return TLS_MODEL_GLOBAL_DYNAMIC;
+      if (str[1] == 'T')
+	return TLS_MODEL_INITIAL_EXEC;
+    }
+  else if (str[0] == '@')
+    {
+      if (str[1] == 'D')
+	{
+	  /* Local dynamic is a waste if we're not going to combine
+	     the __tls_get_addr calls.  So avoid it if not optimizing.  */
+	  if (optimize)
+	    return TLS_MODEL_LOCAL_DYNAMIC;
+	  else
+	    return TLS_MODEL_GLOBAL_DYNAMIC;
+	}
+      if (str[1] == 'T')
+	{
+	  /* 64-bit local exec is the same as initial exec except without
+	     the dynamic relocation.  In either case we use a got entry.  */
+	  if (alpha_tls_size == 64)
+	    return TLS_MODEL_INITIAL_EXEC;
+	  else
+	    return TLS_MODEL_LOCAL_EXEC;
+	}
+    }
+
+  return 0;
+}
+
 
 /* Return true if the function DECL will be placed in the default text
    section.  */
@@ -1545,6 +1807,36 @@ decl_in_text_section (decl)
 		    && DECL_ONE_ONLY (decl))));
 }
 
+/* Return true if EXP should be placed in the small data section.  */
+
+static bool
+alpha_in_small_data_p (exp)
+     tree exp;
+{
+  /* We want to merge strings, so we never consider them small data.  */
+  if (TREE_CODE (exp) == STRING_CST)
+    return false;
+
+  if (TREE_CODE (exp) == VAR_DECL && DECL_SECTION_NAME (exp))
+    {
+      const char *section = TREE_STRING_POINTER (DECL_SECTION_NAME (exp));
+      if (strcmp (section, ".sdata") == 0
+	  || strcmp (section, ".sbss") == 0)
+	return true;
+    }
+  else
+    {
+      HOST_WIDE_INT size = int_size_in_bytes (TREE_TYPE (exp));
+
+      /* If this is an incomplete type with size 0, then we can't put it
+	 in sdata because it might be too big when completed.  */
+      if (size > 0 && size <= g_switch_value)
+	return true;
+    }
+
+  return false;
+}
+
 /* If we are referencing a function that is static, make the SYMBOL_REF
    special.  We use this to see indicate we can branch to this function
    without setting PV or restoring GP. 
@@ -1553,25 +1845,38 @@ decl_in_text_section (decl)
    to the name.  If in addition the variable is to go in .sdata/.sbss,
    then add "@s" instead.  */
 
-void
-alpha_encode_section_info (decl)
+static void
+alpha_encode_section_info (decl, first)
      tree decl;
+     int first ATTRIBUTE_UNUSED;
 {
   const char *symbol_str;
-  bool is_local, is_small;
+  bool is_local;
+  char encoding = 0;
+  rtx rtl, symbol;
 
+  rtl = DECL_P (decl) ? DECL_RTL (decl) : TREE_CST_RTL (decl);
+
+  /* Careful not to prod global register variables.  */
+  if (GET_CODE (rtl) != MEM)
+    return;
+  symbol = XEXP (rtl, 0);
+  if (GET_CODE (symbol) != SYMBOL_REF)
+    return;
+    
   if (TREE_CODE (decl) == FUNCTION_DECL)
     {
       /* We mark public functions once they are emitted; otherwise we
 	 don't know that they exist in this unit of translation.  */
       if (TREE_PUBLIC (decl))
 	return;
+
       /* Do not mark functions that are not in .text; otherwise we
 	 don't know that they are near enough for a direct branch.  */
       if (! decl_in_text_section (decl))
 	return;
 
-      SYMBOL_REF_FLAG (XEXP (DECL_RTL (decl), 0)) = 1;
+      SYMBOL_REF_FLAG (symbol) = 1;
       return;
     }
 
@@ -1579,97 +1884,99 @@ alpha_encode_section_info (decl)
   if (! TARGET_EXPLICIT_RELOCS)
     return;
 
-  /* Careful not to prod global register variables.  */
-  if (TREE_CODE (decl) != VAR_DECL
-      || GET_CODE (DECL_RTL (decl)) != MEM
-      || GET_CODE (XEXP (DECL_RTL (decl), 0)) != SYMBOL_REF)
-    return;
-    
-  symbol_str = XSTR (XEXP (DECL_RTL (decl), 0), 0);
+  symbol_str = XSTR (symbol, 0);
 
   /* A variable is considered "local" if it is defined in this module.  */
+  is_local = (*targetm.binds_local_p) (decl);
 
-  if (DECL_EXTERNAL (decl))
-    is_local = false;
-  /* Linkonce and weak data is never local.  */
-  else if (DECL_ONE_ONLY (decl) || DECL_WEAK (decl))
-    is_local = false;
-  else if (! TREE_PUBLIC (decl))
-    is_local = true;
-  /* If PIC, then assume that any global name can be overridden by
-     symbols resolved from other modules.  */
-  else if (flag_pic)
-    is_local = false;
-  /* Uninitialized COMMON variable may be unified with symbols
-     resolved from other modules.  */
-  else if (DECL_COMMON (decl)
-	   && (DECL_INITIAL (decl) == NULL
-	       || DECL_INITIAL (decl) == error_mark_node))
-    is_local = false;
-  /* Otherwise we're left with initialized (or non-common) global data
-     which is of necessity defined locally.  */
-  else
-    is_local = true;
-
-  /* Determine if DECL will wind up in .sdata/.sbss.  */
-
-  is_small = false;
-  if (DECL_SECTION_NAME (decl))
+  /* Care for TLS variables.  */
+  if (TREE_CODE (decl) == VAR_DECL && DECL_THREAD_LOCAL (decl))
     {
-      const char *section = TREE_STRING_POINTER (DECL_SECTION_NAME (decl));
-      if (strcmp (section, ".sdata") == 0
-	  || strcmp (section, ".sbss") == 0)
-	is_small = true;
+      switch (decl_tls_model (decl))
+	{
+	case TLS_MODEL_GLOBAL_DYNAMIC:
+	  encoding = 'G';
+	  break;
+	case TLS_MODEL_LOCAL_DYNAMIC:
+	  encoding = 'D';
+	  break;
+	case TLS_MODEL_INITIAL_EXEC:
+	case TLS_MODEL_LOCAL_EXEC:
+	  encoding = 'T';
+	  break;
+	}
     }
-  else
+  else if (is_local)
     {
-      HOST_WIDE_INT size = int_size_in_bytes (TREE_TYPE (decl));
-
-      /* If the variable has already been defined in the output file, then it
-	 is too late to put it in sdata if it wasn't put there in the first
-	 place.  The test is here rather than above, because if it is already
-	 in sdata, then it can stay there.  */
-
-      if (TREE_ASM_WRITTEN (decl))
-	;
-
-      /* If this is an incomplete type with size 0, then we can't put it in
-	 sdata because it might be too big when completed.  */
-      else if (size > 0 && size <= g_switch_value)
-	is_small = true;
+      /* Determine if DECL will wind up in .sdata/.sbss.  */
+      if (alpha_in_small_data_p (decl))
+	encoding = 'S';
+      else
+	encoding = 'L';
     }
 
   /* Finally, encode this into the symbol string.  */
-  if (is_local)
+  if (encoding)
     {
-      const char *string;
       char *newstr;
       size_t len;
+      char want_prefix = (is_local ? '@' : '%');
+      char other_prefix = (is_local ? '%' : '@');
 
-      if (symbol_str[0] == '@')
+      if (symbol_str[0] == want_prefix)
 	{
-	  if (symbol_str[1] == (is_small ? 's' : 'v'))
+	  if (symbol_str[1] == encoding)
 	    return;
 	  symbol_str += 2;
 	}
+      else if (symbol_str[0] == other_prefix)
+	symbol_str += 2;
 
       len = strlen (symbol_str) + 1;
       newstr = alloca (len + 2);
 
-      newstr[0] = '@';
-      newstr[1] = (is_small ? 's' : 'v');
+      newstr[0] = want_prefix;
+      newstr[1] = encoding;
       memcpy (newstr + 2, symbol_str, len);
 	  
-      string = ggc_alloc_string (newstr, len + 2 - 1);
-      XSTR (XEXP (DECL_RTL (decl), 0), 0) = string;
-    }
-  else if (symbol_str[0] == '@')
-    {
-      /* We're hosed.  This can happen when the user adds a weak
-	 attribute after rtl generation.  They should have gotten
-	 a warning about unspecified behaviour from varasm.c.  */
+      XSTR (symbol, 0) = ggc_alloc_string (newstr, len + 2 - 1);
     }
 }
+
+/* Undo the effects of the above.  */
+
+static const char *
+alpha_strip_name_encoding (str)
+     const char *str;
+{
+  if (str[0] == '@' || str[0] == '%')
+    str += 2;
+  if (str[0] == '*')
+    str++;
+  return str;
+}
+
+#if TARGET_ABI_OPEN_VMS
+static bool
+alpha_linkage_symbol_p (symname)
+     const char *symname;
+{
+  int symlen = strlen (symname);
+
+  if (symlen > 4)
+    return strcmp (&symname [symlen - 4], "..lk") == 0;
+
+  return false;
+}
+
+#define LINKAGE_SYMBOL_REF_P(X) \
+  ((GET_CODE (X) == SYMBOL_REF   \
+    && alpha_linkage_symbol_p (XSTR (X, 0))) \
+   || (GET_CODE (X) == CONST                 \
+       && GET_CODE (XEXP (X, 0)) == PLUS     \
+       && GET_CODE (XEXP (XEXP (X, 0), 0)) == SYMBOL_REF \
+       && alpha_linkage_symbol_p (XSTR (XEXP (XEXP (X, 0), 0), 0))))
+#endif
 
 /* legitimate_address_p recognizes an RTL expression that is a valid
    memory address for an instruction.  The MODE argument is the
@@ -1709,6 +2016,11 @@ alpha_legitimate_address_p (mode, x, strict)
   /* Constant addresses (i.e. +/- 32k) are valid.  */
   if (CONSTANT_ADDRESS_P (x))
     return true;
+
+#if TARGET_ABI_OPEN_VMS
+  if (LINKAGE_SYMBOL_REF_P (x))
+    return true;
+#endif
 
   /* Register plus a small constant offset is valid.  */
   if (GET_CODE (x) == PLUS)
@@ -1765,7 +2077,9 @@ alpha_legitimate_address_p (mode, x, strict)
 	    return false;
 
 	  /* The symbol must be local.  */
-	  if (local_symbolic_operand (ofs, Pmode))
+	  if (local_symbolic_operand (ofs, Pmode)
+	      || dtp32_symbolic_operand (ofs, Pmode)
+	      || tp32_symbolic_operand (ofs, Pmode))
 	    return true;
 	}
     }
@@ -1831,6 +2145,100 @@ alpha_legitimize_address (x, scratch, mode)
   /* If this is a local symbol, split the address into HIGH/LO_SUM parts.  */
   if (TARGET_EXPLICIT_RELOCS && symbolic_operand (x, Pmode))
     {
+      rtx r0, r16, eqv, tga, tp, insn, dest, seq;
+
+      switch (tls_symbolic_operand_type (x))
+	{
+	case TLS_MODEL_GLOBAL_DYNAMIC:
+	  start_sequence ();
+
+	  r0 = gen_rtx_REG (Pmode, 0);
+	  r16 = gen_rtx_REG (Pmode, 16);
+	  tga = gen_rtx_SYMBOL_REF (Pmode, "__tls_get_addr");
+	  dest = gen_reg_rtx (Pmode);
+	  seq = GEN_INT (alpha_next_sequence_number++);
+	  
+	  emit_insn (gen_movdi_er_tlsgd (r16, pic_offset_table_rtx, x, seq));
+	  insn = gen_call_value_osf_tlsgd (r0, tga, seq);
+	  insn = emit_call_insn (insn);
+	  CONST_OR_PURE_CALL_P (insn) = 1;
+	  use_reg (&CALL_INSN_FUNCTION_USAGE (insn), r16);
+
+          insn = get_insns ();
+	  end_sequence ();
+
+	  emit_libcall_block (insn, dest, r0, x);
+	  return dest;
+
+	case TLS_MODEL_LOCAL_DYNAMIC:
+	  start_sequence ();
+
+	  r0 = gen_rtx_REG (Pmode, 0);
+	  r16 = gen_rtx_REG (Pmode, 16);
+	  tga = gen_rtx_SYMBOL_REF (Pmode, "__tls_get_addr");
+	  scratch = gen_reg_rtx (Pmode);
+	  seq = GEN_INT (alpha_next_sequence_number++);
+
+	  emit_insn (gen_movdi_er_tlsldm (r16, pic_offset_table_rtx, seq));
+	  insn = gen_call_value_osf_tlsldm (r0, tga, seq);
+	  insn = emit_call_insn (insn);
+	  CONST_OR_PURE_CALL_P (insn) = 1;
+	  use_reg (&CALL_INSN_FUNCTION_USAGE (insn), r16);
+
+          insn = get_insns ();
+	  end_sequence ();
+
+	  eqv = gen_rtx_UNSPEC (Pmode, gen_rtvec (1, const0_rtx),
+				UNSPEC_TLSLDM_CALL);
+	  emit_libcall_block (insn, scratch, r0, eqv);
+
+	  eqv = gen_rtx_UNSPEC (Pmode, gen_rtvec (1, x), UNSPEC_DTPREL);
+	  eqv = gen_rtx_CONST (Pmode, eqv);
+
+	  if (alpha_tls_size == 64)
+	    {
+	      dest = gen_reg_rtx (Pmode);
+	      emit_insn (gen_rtx_SET (VOIDmode, dest, eqv));
+	      emit_insn (gen_adddi3 (dest, dest, scratch));
+	      return dest;
+	    }
+	  if (alpha_tls_size == 32)
+	    {
+	      insn = gen_rtx_HIGH (Pmode, eqv);
+	      insn = gen_rtx_PLUS (Pmode, scratch, insn);
+	      scratch = gen_reg_rtx (Pmode);
+	      emit_insn (gen_rtx_SET (VOIDmode, scratch, insn));
+	    }
+	  return gen_rtx_LO_SUM (Pmode, scratch, eqv);
+
+	case TLS_MODEL_INITIAL_EXEC:
+	  eqv = gen_rtx_UNSPEC (Pmode, gen_rtvec (1, x), UNSPEC_TPREL);
+	  eqv = gen_rtx_CONST (Pmode, eqv);
+	  tp = gen_reg_rtx (Pmode);
+	  scratch = gen_reg_rtx (Pmode);
+	  dest = gen_reg_rtx (Pmode);
+
+	  emit_insn (gen_load_tp (tp));
+	  emit_insn (gen_rtx_SET (VOIDmode, scratch, eqv));
+	  emit_insn (gen_adddi3 (dest, tp, scratch));
+	  return dest;
+
+	case TLS_MODEL_LOCAL_EXEC:
+	  eqv = gen_rtx_UNSPEC (Pmode, gen_rtvec (1, x), UNSPEC_TPREL);
+	  eqv = gen_rtx_CONST (Pmode, eqv);
+	  tp = gen_reg_rtx (Pmode);
+
+	  emit_insn (gen_load_tp (tp));
+	  if (alpha_tls_size == 32)
+	    {
+	      insn = gen_rtx_HIGH (Pmode, eqv);
+	      insn = gen_rtx_PLUS (Pmode, tp, insn);
+	      tp = gen_reg_rtx (Pmode);
+	      emit_insn (gen_rtx_SET (VOIDmode, tp, insn));
+	    }
+	  return gen_rtx_LO_SUM (Pmode, tp, eqv);
+	}
+
       if (local_symbolic_operand (x, Pmode))
 	{
 	  if (small_symbolic_operand (x, Pmode))
@@ -2156,6 +2564,8 @@ alpha_set_memflags_1 (x, in_struct_p, volatile_p, unchanging_p)
   switch (GET_CODE (x))
     {
     case SEQUENCE:
+      abort ();
+
     case PARALLEL:
       for (i = XVECLEN (x, 0) - 1; i >= 0; i--)
 	alpha_set_memflags_1 (XVECEXP (x, 0, i), in_struct_p, volatile_p,
@@ -2190,11 +2600,11 @@ alpha_set_memflags_1 (x, in_struct_p, volatile_p, unchanging_p)
     }
 }
 
-/* Given INSN, which is either an INSN or a SEQUENCE generated to
-   perform a memory operation, look for any MEMs in either a SET_DEST or
-   a SET_SRC and copy the in-struct, unchanging, and volatile flags from
-   REF into each of the MEMs found.  If REF is not a MEM, don't do
-   anything.  */
+/* Given INSN, which is an INSN list or the PATTERN of a single insn
+   generated to perform a memory operation, look for any MEMs in either
+   a SET_DEST or a SET_SRC and copy the in-struct, unchanging, and
+   volatile flags from REF into each of the MEMs found.  If REF is not
+   a MEM, don't do anything.  */
 
 void
 alpha_set_memflags (insn, ref)
@@ -2555,6 +2965,8 @@ alpha_expand_mov (mode, operands)
       tmp = alpha_legitimize_address (operands[1], operands[0], mode);
       if (tmp)
 	{
+	  if (tmp == operands[0])
+	    return true;
 	  operands[1] = tmp;
 	  return false;
 	}
@@ -2603,7 +3015,7 @@ alpha_expand_mov (mode, operands)
     }
 
   /* Otherwise we've nothing left but to drop the thing to memory.  */
-  operands[1] = force_const_mem (DImode, operands[1]);
+  operands[1] = force_const_mem (mode, operands[1]);
   if (reload_in_progress)
     {
       emit_move_insn (operands[0], XEXP (operands[1], 0));
@@ -2907,7 +3319,7 @@ alpha_emit_conditional_branch (code)
 	}
       else
 	{
-	  /* ??? We mark the the branch mode to be CCmode to prevent the
+	  /* ??? We mark the branch mode to be CCmode to prevent the
 	     compare and branch from being combined, since the compare 
 	     insn follows IEEE rules that the branch does not.  */
 	  branch_mode = CCmode;
@@ -3075,7 +3487,7 @@ alpha_emit_setcc (code)
 /* Rewrite a comparison against zero CMP of the form
    (CODE (cc0) (const_int 0)) so it can be written validly in
    a conditional move (if_then_else CMP ...).
-   If both of the operands that set cc0 are non-zero we must emit
+   If both of the operands that set cc0 are nonzero we must emit
    an insn to perform the compare (it can't be done within
    the conditional move).  */
 rtx
@@ -3107,7 +3519,7 @@ alpha_emit_conditional_move (cmp, mode)
 
       /* If we have fp<->int register move instructions, do a cmov by
 	 performing the comparison in fp registers, and move the
-	 zero/non-zero value to integer registers, where we can then
+	 zero/nonzero value to integer registers, where we can then
 	 use a normal cmov, or vice-versa.  */
 
       switch (code)
@@ -3639,7 +4051,7 @@ alpha_split_tfmode_frobsign (operands, operation)
 
   alpha_split_tfmode_pair (operands);
 
-  /* Detect three flavours of operand overlap.  */
+  /* Detect three flavors of operand overlap.  */
   move = 1;
   if (rtx_equal_p (operands[0], operands[2]))
     move = 0;
@@ -3885,17 +4297,13 @@ alpha_expand_unaligned_store (dst, src, size, ofs)
 	  emit_insn (gen_mskxl_be (dsth, dsth, GEN_INT (0xffff), addr));
 	  break;
 	case 4:
-	  emit_insn (gen_mskxl_be (dsth, dsth, GEN_INT (0xffffffff), addr));
-	  break;
-	case 8:
 	  {
-#if HOST_BITS_PER_WIDE_INT == 32
-	    rtx msk = immed_double_const (0xffffffff, 0xffffffff, DImode);
-#else
-	    rtx msk = constm1_rtx;
-#endif
+	    rtx msk = immed_double_const (0xffffffff, 0, DImode);
 	    emit_insn (gen_mskxl_be (dsth, dsth, msk, addr));
+	    break;
 	  }
+	case 8:
+	  emit_insn (gen_mskxl_be (dsth, dsth, constm1_rtx, addr));
 	  break;
 	}
 
@@ -3932,17 +4340,13 @@ alpha_expand_unaligned_store (dst, src, size, ofs)
 	  emit_insn (gen_mskxl_le (dstl, dstl, GEN_INT (0xffff), addr));
 	  break;
 	case 4:
-	  emit_insn (gen_mskxl_le (dstl, dstl, GEN_INT (0xffffffff), addr));
-	  break;
-	case 8:
 	  {
-#if HOST_BITS_PER_WIDE_INT == 32
-	    rtx msk = immed_double_const (0xffffffff, 0xffffffff, DImode);
-#else
-	    rtx msk = constm1_rtx;
-#endif
+	    rtx msk = immed_double_const (0xffffffff, 0, DImode);
 	    emit_insn (gen_mskxl_le (dstl, dstl, msk, addr));
+	    break;
 	  }
+	case 8:
+	  emit_insn (gen_mskxl_le (dstl, dstl, constm1_rtx, addr));
 	  break;
 	}
     }
@@ -4068,11 +4472,6 @@ alpha_expand_unaligned_store_words (data_regs, dmem, words, ofs)
 {
   rtx const im8 = GEN_INT (-8);
   rtx const i64 = GEN_INT (64);
-#if HOST_BITS_PER_WIDE_INT == 32
-  rtx const im1 = immed_double_const (0xffffffff, 0xffffffff, DImode);
-#else
-  rtx const im1 = constm1_rtx;
-#endif
   rtx ins_tmps[MAX_MOVE_WORDS];
   rtx st_tmp_1, st_tmp_2, dreg;
   rtx st_addr_1, st_addr_2, dmema;
@@ -4136,13 +4535,13 @@ alpha_expand_unaligned_store_words (data_regs, dmem, words, ofs)
   /* Split and merge the ends with the destination data.  */
   if (WORDS_BIG_ENDIAN)
     {
-      emit_insn (gen_mskxl_be (st_tmp_2, st_tmp_2, im1, dreg));
+      emit_insn (gen_mskxl_be (st_tmp_2, st_tmp_2, constm1_rtx, dreg));
       emit_insn (gen_mskxh (st_tmp_1, st_tmp_1, i64, dreg));
     }
   else
     {
       emit_insn (gen_mskxh (st_tmp_2, st_tmp_2, i64, dreg));
-      emit_insn (gen_mskxl_le (st_tmp_1, st_tmp_1, im1, dreg));
+      emit_insn (gen_mskxl_le (st_tmp_1, st_tmp_1, constm1_rtx, dreg));
     }
 
   if (data_regs != NULL)
@@ -4807,6 +5206,75 @@ alpha_expand_block_clear (operands)
 
   return 1;
 }
+
+/* Returns a mask so that zap(x, value) == x & mask.  */
+
+rtx
+alpha_expand_zap_mask (value)
+     HOST_WIDE_INT value;
+{
+  rtx result;
+  int i;
+
+  if (HOST_BITS_PER_WIDE_INT >= 64)
+    {
+      HOST_WIDE_INT mask = 0;
+
+      for (i = 7; i >= 0; --i)
+	{
+	  mask <<= 8;
+	  if (!((value >> i) & 1))
+	    mask |= 0xff;
+	}
+
+      result = gen_int_mode (mask, DImode);
+    }
+  else if (HOST_BITS_PER_WIDE_INT == 32)
+    {
+      HOST_WIDE_INT mask_lo = 0, mask_hi = 0;
+
+      for (i = 7; i >= 4; --i)
+	{
+	  mask_hi <<= 8;
+	  if (!((value >> i) & 1))
+	    mask_hi |= 0xff;
+	}
+
+      for (i = 3; i >= 0; --i)
+	{
+	  mask_lo <<= 8;
+	  if (!((value >> i) & 1))
+	    mask_lo |= 0xff;
+	}
+
+      result = immed_double_const (mask_lo, mask_hi, DImode);
+    }
+  else
+    abort ();
+
+  return result;
+}
+
+void
+alpha_expand_builtin_vector_binop (gen, mode, op0, op1, op2)
+     rtx (*gen) PARAMS ((rtx, rtx, rtx));
+     enum machine_mode mode;
+     rtx op0, op1, op2;
+{
+  op0 = gen_lowpart (mode, op0);
+
+  if (op1 == const0_rtx)
+    op1 = CONST0_RTX (mode);
+  else
+    op1 = gen_lowpart (mode, op1);
+
+  if (op2 == const0_rtx)
+    op2 = CONST0_RTX (mode);
+  else
+    op2 = gen_lowpart (mode, op2);
+
+  emit_insn ((*gen) (op0, op1, op2));
+}
 
 /* Adjust the cost of a scheduling dependency.  Return the new cost of
    a dependency LINK or INSN on DEP_INSN.  COST is the current cost.  */
@@ -4818,15 +5286,13 @@ alpha_adjust_cost (insn, link, dep_insn, cost)
      rtx dep_insn;
      int cost;
 {
-  rtx set, set_src;
   enum attr_type insn_type, dep_insn_type;
 
   /* If the dependence is an anti-dependence, there is no cost.  For an
      output dependence, there is sometimes a cost, but it doesn't seem
      worth handling those few cases.  */
-
   if (REG_NOTE_KIND (link) != 0)
-    return 0;
+    return cost;
 
   /* If we can't recognize the insns, we can't really do anything.  */
   if (recog_memoized (insn) < 0 || recog_memoized (dep_insn) < 0)
@@ -4841,122 +5307,13 @@ alpha_adjust_cost (insn, link, dep_insn, cost)
       || dep_insn_type == TYPE_LDSYM)
     cost += alpha_memory_latency-1;
 
-  switch (alpha_cpu)
-    {
-    case PROCESSOR_EV4:
-      /* On EV4, if INSN is a store insn and DEP_INSN is setting the data
-	 being stored, we can sometimes lower the cost.  */
+  /* Everything else handled in DFA bypasses now.  */
 
-      if ((insn_type == TYPE_IST || insn_type == TYPE_FST)
-	  && (set = single_set (dep_insn)) != 0
-	  && GET_CODE (PATTERN (insn)) == SET
-	  && rtx_equal_p (SET_DEST (set), SET_SRC (PATTERN (insn))))
-	{
-	  switch (dep_insn_type)
-	    {
-	    case TYPE_ILD:
-	    case TYPE_FLD:
-	      /* No savings here.  */
-	      return cost;
-
-	    case TYPE_IMUL:
-	      /* In these cases, we save one cycle.  */
-	      return cost - 1;
-
-	    default:
-	      /* In all other cases, we save two cycles.  */
-	      return MAX (0, cost - 2);
-	    }
-	}
-
-      /* Another case that needs adjustment is an arithmetic or logical
-	 operation.  It's cost is usually one cycle, but we default it to
-	 two in the MD file.  The only case that it is actually two is
-	 for the address in loads, stores, and jumps.  */
-
-      if (dep_insn_type == TYPE_IADD || dep_insn_type == TYPE_ILOG)
-	{
-	  switch (insn_type)
-	    {
-	    case TYPE_ILD:
-	    case TYPE_IST:
-	    case TYPE_FLD:
-	    case TYPE_FST:
-	    case TYPE_JSR:
-	      return cost;
-	    default:
-	      return 1;
-	    }
-	}
-
-      /* The final case is when a compare feeds into an integer branch;
-	 the cost is only one cycle in that case.  */
-
-      if (dep_insn_type == TYPE_ICMP && insn_type == TYPE_IBR)
-	return 1;
-      break;
-
-    case PROCESSOR_EV5:
-      /* And the lord DEC saith:  "A special bypass provides an effective
-	 latency of 0 cycles for an ICMP or ILOG insn producing the test
-	 operand of an IBR or ICMOV insn." */
-
-      if ((dep_insn_type == TYPE_ICMP || dep_insn_type == TYPE_ILOG)
-	  && (set = single_set (dep_insn)) != 0)
-	{
-	  /* A branch only has one input.  This must be it.  */
-	  if (insn_type == TYPE_IBR)
-	    return 0;
-	  /* A conditional move has three, make sure it is the test.  */
-	  if (insn_type == TYPE_ICMOV
-	      && GET_CODE (set_src = PATTERN (insn)) == SET
-	      && GET_CODE (set_src = SET_SRC (set_src)) == IF_THEN_ELSE
-	      && rtx_equal_p (SET_DEST (set), XEXP (set_src, 0)))
-	    return 0;
-	}
-
-      /* "The multiplier is unable to receive data from IEU bypass paths.
-	 The instruction issues at the expected time, but its latency is
-	 increased by the time it takes for the input data to become
-	 available to the multiplier" -- which happens in pipeline stage
-	 six, when results are comitted to the register file.  */
-
-      if (insn_type == TYPE_IMUL)
-	{
-	  switch (dep_insn_type)
-	    {
-	    /* These insns produce their results in pipeline stage five.  */
-	    case TYPE_ILD:
-	    case TYPE_ICMOV:
-	    case TYPE_IMUL:
-	    case TYPE_MVI:
-	      return cost + 1;
-
-	    /* Other integer insns produce results in pipeline stage four.  */
-	    default:
-	      return cost + 2;
-	    }
-	}
-      break;
-
-    case PROCESSOR_EV6:
-      /* There is additional latency to move the result of (most) FP 
-         operations anywhere but the FP register file.  */
-
-      if ((insn_type == TYPE_FST || insn_type == TYPE_FTOI)
-	  && (dep_insn_type == TYPE_FADD ||
-	      dep_insn_type == TYPE_FMUL ||
-	      dep_insn_type == TYPE_FCMOV))
-        return cost + 2;
-
-      break;
-    }
-
-  /* Otherwise, return the default cost.  */
   return cost;
 }
 
-/* Function to initialize the issue rate used by the scheduler.  */
+/* The number of instructions that can be issued per cycle.  */
+
 static int
 alpha_issue_rate ()
 {
@@ -4964,57 +5321,50 @@ alpha_issue_rate ()
 }
 
 static int
-alpha_variable_issue (dump, verbose, insn, cim)
-     FILE *dump ATTRIBUTE_UNUSED;
-     int verbose ATTRIBUTE_UNUSED;
-     rtx insn;
-     int cim;
+alpha_use_dfa_pipeline_interface ()
 {
-    if (recog_memoized (insn) < 0 || get_attr_type (insn) == TYPE_MULTI)
-      return 0;
-
-    return cim - 1;
+  return true;
 }
 
+/* How many alternative schedules to try.  This should be as wide as the
+   scheduling freedom in the DFA, but no wider.  Making this value too
+   large results extra work for the scheduler.
+
+   For EV4, loads can be issued to either IB0 or IB1, thus we have 2
+   alternative schedules.  For EV5, we can choose between E0/E1 and
+   FA/FM.  For EV6, an arithmatic insn can be issued to U0/U1/L0/L1.  */
+
+static int
+alpha_multipass_dfa_lookahead ()
+{
+  return (alpha_cpu == PROCESSOR_EV6 ? 4 : 2);
+}
 
-/* Register global variables and machine-specific functions with the
-   garbage collector.  */
+/* Machine-specific function data.  */
 
-#if TARGET_ABI_UNICOSMK
-static void
-alpha_init_machine_status (p)
-     struct function *p;
+struct machine_function GTY(())
 {
-  p->machine =
-    (struct machine_function *) xcalloc (1, sizeof (struct machine_function));
+  /* For unicosmk. */
+  /* List of call information words for calls from this function.  */
+  struct rtx_def *first_ciw;
+  struct rtx_def *last_ciw;
+  int ciw_count;
 
-  p->machine->first_ciw = NULL_RTX;
-  p->machine->last_ciw = NULL_RTX;
-  p->machine->ciw_count = 0;
-  p->machine->addr_list = NULL_RTX;
-}
+  /* List of deferred case vectors.  */
+  struct rtx_def *addr_list;
 
-static void
-alpha_mark_machine_status (p)
-     struct function *p;
+  /* For OSF. */
+  const char *some_ld_name;
+};
+
+/* How to allocate a 'struct machine_function'.  */
+
+static struct machine_function *
+alpha_init_machine_status ()
 {
-  struct machine_function *machine = p->machine;
-
-  if (machine)
-    {
-      ggc_mark_rtx (machine->first_ciw);
-      ggc_mark_rtx (machine->addr_list);
-    }
+  return ((struct machine_function *) 
+		ggc_alloc_cleared (sizeof (struct machine_function)));
 }
-
-static void
-alpha_free_machine_status (p)
-     struct function *p;
-{
-  free (p->machine);
-  p->machine = NULL;
-}
-#endif /* TARGET_ABI_UNICOSMK */
 
 /* Functions to save and restore alpha_return_addr_rtx.  */
 
@@ -5039,7 +5389,7 @@ alpha_gp_save_rtx ()
 {
   rtx r = get_hard_reg_initial_val (DImode, 29);
   if (GET_CODE (r) != MEM)
-    r = gen_mem_addressof (r, NULL_TREE);
+    r = gen_mem_addressof (r, NULL_TREE, /*rescan=*/true);
   return r;
 }
 
@@ -5158,6 +5508,45 @@ get_round_mode_suffix ()
   abort ();
 }
 
+/* Locate some local-dynamic symbol still in use by this function
+   so that we can print its name in some movdi_er_tlsldm pattern.  */
+
+static const char *
+get_some_local_dynamic_name ()
+{
+  rtx insn;
+
+  if (cfun->machine->some_ld_name)
+    return cfun->machine->some_ld_name;
+
+  for (insn = get_insns (); insn ; insn = NEXT_INSN (insn))
+    if (INSN_P (insn)
+	&& for_each_rtx (&PATTERN (insn), get_some_local_dynamic_name_1, 0))
+      return cfun->machine->some_ld_name;
+
+  abort ();
+}
+
+static int
+get_some_local_dynamic_name_1 (px, data)
+     rtx *px;
+     void *data ATTRIBUTE_UNUSED;
+{
+  rtx x = *px;
+
+  if (GET_CODE (x) == SYMBOL_REF)
+    {
+      const char *str = XSTR (x, 0);
+      if (str[0] == '@' && str[1] == 'D')
+	{
+          cfun->machine->some_ld_name = str;
+          return 1;
+	}
+    }
+
+  return 0;
+}
+
 /* Print an operand.  Recognize special options, documented below.  */
 
 void
@@ -5173,6 +5562,10 @@ print_operand (file, x, code)
     case '~':
       /* Print the assembler name of the current function.  */
       assemble_name (file, alpha_fnname);
+      break;
+
+    case '&':
+      assemble_name (file, get_some_local_dynamic_name ());
       break;
 
     case '/':
@@ -5216,13 +5609,30 @@ print_operand (file, x, code)
       break;
 
     case 'J':
-      if (GET_CODE (x) == CONST_INT)
-	{
-	  if (INTVAL (x) != 0)
-	    fprintf (file, "\t\t!lituse_jsr!%d", (int) INTVAL (x));
-	}
-      else
-	output_operand_lossage ("invalid %%J value");
+      {
+	const char *lituse;
+
+        if (GET_CODE (x) == UNSPEC && XINT (x, 1) == UNSPEC_TLSGD_CALL)
+	  {
+	    x = XVECEXP (x, 0, 0);
+	    lituse = "lituse_tlsgd";
+	  }
+	else if (GET_CODE (x) == UNSPEC && XINT (x, 1) == UNSPEC_TLSLDM_CALL)
+	  {
+	    x = XVECEXP (x, 0, 0);
+	    lituse = "lituse_tlsldm";
+	  }
+	else if (GET_CODE (x) == CONST_INT)
+	  lituse = "lituse_jsr";
+	else
+	  {
+	    output_operand_lossage ("invalid %%J value");
+	    break;
+	  }
+
+	if (x != const0_rtx)
+	  fprintf (file, "\t\t!%s!%d", lituse, (int) INTVAL (x));
+      }
       break;
 
     case 'r':
@@ -5330,31 +5740,40 @@ print_operand (file, x, code)
 
     case 'U':
       /* Similar, except do it from the mask.  */
-      if (GET_CODE (x) == CONST_INT && INTVAL (x) == 0xff)
-	fprintf (file, "b");
-      else if (GET_CODE (x) == CONST_INT && INTVAL (x) == 0xffff)
-	fprintf (file, "w");
-      else if (GET_CODE (x) == CONST_INT && INTVAL (x) == 0xffffffff)
-	fprintf (file, "l");
-#if HOST_BITS_PER_WIDE_INT == 32
-      else if (GET_CODE (x) == CONST_DOUBLE
-	       && CONST_DOUBLE_HIGH (x) == 0
-	       && CONST_DOUBLE_LOW (x) == -1)
-	fprintf (file, "l");
-      else if (GET_CODE (x) == CONST_DOUBLE
-	       && CONST_DOUBLE_HIGH (x) == -1
-	       && CONST_DOUBLE_LOW (x) == -1)
-	fprintf (file, "q");
-#else
-      else if (GET_CODE (x) == CONST_INT && INTVAL (x) == -1)
-	fprintf (file, "q");
-      else if (GET_CODE (x) == CONST_DOUBLE
-	       && CONST_DOUBLE_HIGH (x) == 0
-	       && CONST_DOUBLE_LOW (x) == -1)
-	fprintf (file, "q");
-#endif
-      else
-	output_operand_lossage ("invalid %%U value");
+      if (GET_CODE (x) == CONST_INT)
+	{
+	  HOST_WIDE_INT value = INTVAL (x);
+
+	  if (value == 0xff)
+	    {
+	      fputc ('b', file);
+	      break;
+	    }
+	  if (value == 0xffff)
+	    {
+	      fputc ('w', file);
+	      break;
+	    }
+	  if (value == 0xffffffff)
+	    {
+	      fputc ('l', file);
+	      break;
+	    }
+	  if (value == -1)
+	    {
+	      fputc ('q', file);
+	      break;
+	    }
+	}
+      else if (HOST_BITS_PER_WIDE_INT == 32
+	       && GET_CODE (x) == CONST_DOUBLE
+	       && CONST_DOUBLE_LOW (x) == 0xffffffff
+	       && CONST_DOUBLE_HIGH (x) == 0)
+	{
+	  fputc ('l', file);
+	  break;
+	}
+      output_operand_lossage ("invalid %%U value");
       break;
 
     case 's':
@@ -5456,6 +5875,19 @@ print_operand (file, x, code)
 	fprintf (file, "%s", reg_names[REGNO (x)]);
       else if (GET_CODE (x) == MEM)
 	output_address (XEXP (x, 0));
+      else if (GET_CODE (x) == CONST && GET_CODE (XEXP (x, 0)) == UNSPEC)
+	{
+	  switch (XINT (XEXP (x, 0), 1))
+	    {
+	    case UNSPEC_DTPREL:
+	    case UNSPEC_TPREL:
+	      output_addr_const (file, XVECEXP (XEXP (x, 0), 0, 0));
+	      break;
+	    default:
+	      output_operand_lossage ("unknown relocation unspec");
+	      break;
+	    }
+	}
       else
 	output_addr_const (file, x);
       break;
@@ -5485,7 +5917,36 @@ print_operand_address (file, addr)
 
   if (GET_CODE (addr) == LO_SUM)
     {
-      output_addr_const (file, XEXP (addr, 1));
+      const char *reloc16, *reloclo;
+      rtx op1 = XEXP (addr, 1);
+
+      if (GET_CODE (op1) == CONST && GET_CODE (XEXP (op1, 0)) == UNSPEC)
+	{
+	  op1 = XEXP (op1, 0);
+	  switch (XINT (op1, 1))
+	    {
+	    case UNSPEC_DTPREL:
+	      reloc16 = NULL;
+	      reloclo = (alpha_tls_size == 16 ? "dtprel" : "dtprello");
+	      break;
+	    case UNSPEC_TPREL:
+	      reloc16 = NULL;
+	      reloclo = (alpha_tls_size == 16 ? "tprel" : "tprello");
+	      break;
+	    default:
+	      output_operand_lossage ("unknown relocation unspec");
+	      return;
+	    }
+
+	  output_addr_const (file, XVECEXP (op1, 0, 0));
+	}
+      else
+	{
+	  reloc16 = "gprel";
+	  reloclo = "gprellow";
+	  output_addr_const (file, op1);
+	}
+
       if (offset)
 	{
 	  fputc ('+', file);
@@ -5502,7 +5963,7 @@ print_operand_address (file, addr)
 	abort ();
 
       fprintf (file, "($%d)\t\t!%s", basereg,
-	       (basereg == 29 ? "gprel" : "gprellow"));
+	       (basereg == 29 ? reloc16 : reloclo));
       return;
     }
 
@@ -5513,6 +5974,24 @@ print_operand_address (file, addr)
     basereg = subreg_regno (addr);
   else if (GET_CODE (addr) == CONST_INT)
     offset = INTVAL (addr);
+
+#if TARGET_ABI_OPEN_VMS
+  else if (GET_CODE (addr) == SYMBOL_REF)
+    {
+      fprintf (file, "%s", XSTR (addr, 0));
+      return;
+    }
+  else if (GET_CODE (addr) == CONST
+	   && GET_CODE (XEXP (addr, 0)) == PLUS
+	   && GET_CODE (XEXP (XEXP (addr, 0), 0)) == SYMBOL_REF)
+    {
+      fprintf (file, "%s+%d",
+	       XSTR (XEXP (XEXP (addr, 0), 0), 0),
+	       INTVAL (XEXP (XEXP (addr, 0), 1)));
+      return;
+    }
+#endif
+
   else
     abort ();
 
@@ -5577,7 +6056,7 @@ alpha_initialize_trampoline (tramp, fnaddr, cxt, fnofs, cxtofs, jmpofs)
 
 #ifdef TRANSFER_FROM_TRAMPOLINE
   emit_library_call (gen_rtx_SYMBOL_REF (Pmode, "__enable_execute_stack"),
-		     0, VOIDmode, 1, addr, Pmode);
+		     0, VOIDmode, 1, tramp, Pmode);
 #endif
 
   if (jmpofs >= 0)
@@ -5723,7 +6202,7 @@ alpha_build_va_list ()
   if (TARGET_ABI_OPEN_VMS || TARGET_ABI_UNICOSMK)
     return ptr_type_node;
 
-  record = make_lang_type (RECORD_TYPE);
+  record = (*lang_hooks.types.make_type) (RECORD_TYPE);
   type_decl = build_decl (TYPE_DECL, get_identifier ("__va_list_tag"), record);
   TREE_CHAIN (record) = type_decl;
   TYPE_NAME (record) = type_decl;
@@ -5746,8 +6225,7 @@ alpha_build_va_list ()
 }
 
 void
-alpha_va_start (stdarg_p, valist, nextarg)
-     int stdarg_p;
+alpha_va_start (valist, nextarg)
      tree valist;
      rtx nextarg ATTRIBUTE_UNUSED;
 {
@@ -5758,7 +6236,7 @@ alpha_va_start (stdarg_p, valist, nextarg)
     return;
 
   if (TARGET_ABI_UNICOSMK)
-    std_expand_builtin_va_start (stdarg_p, valist, nextarg);
+    std_expand_builtin_va_start (valist, nextarg);
 
   /* For Unix, SETUP_INCOMING_VARARGS moves the starting address base
      up by 48, storing fp arg registers in the first 48 bytes, and the
@@ -5767,12 +6245,15 @@ alpha_va_start (stdarg_p, valist, nextarg)
 
      If no integer registers need be stored, then we must subtract 48
      in order to account for the integer arg registers which are counted
-     in argsize above, but which are not actually stored on the stack.  */
+     in argsize above, but which are not actually stored on the stack.
+     Must further be careful here about structures straddling the last
+     integer argument register; that futzes with pretend_args_size, 
+     which changes the meaning of AP.  */
 
-  if (NUM_ARGS <= 5 + stdarg_p)
+  if (NUM_ARGS <= 6)
     offset = TARGET_ABI_OPEN_VMS ? UNITS_PER_WORD : 6 * UNITS_PER_WORD;
   else
-    offset = -6 * UNITS_PER_WORD;
+    offset = -6 * UNITS_PER_WORD + current_function_pretend_args_size;
 
   if (TARGET_ABI_OPEN_VMS)
     {
@@ -5897,6 +6378,310 @@ alpha_va_arg (valist, type)
   return addr;
 }
 
+/* Builtins.  */
+
+enum alpha_builtin
+{
+  ALPHA_BUILTIN_CMPBGE,
+  ALPHA_BUILTIN_EXTBL,
+  ALPHA_BUILTIN_EXTWL,
+  ALPHA_BUILTIN_EXTLL,
+  ALPHA_BUILTIN_EXTQL,
+  ALPHA_BUILTIN_EXTWH,
+  ALPHA_BUILTIN_EXTLH,
+  ALPHA_BUILTIN_EXTQH,
+  ALPHA_BUILTIN_INSBL,
+  ALPHA_BUILTIN_INSWL,
+  ALPHA_BUILTIN_INSLL,
+  ALPHA_BUILTIN_INSQL,
+  ALPHA_BUILTIN_INSWH,
+  ALPHA_BUILTIN_INSLH,
+  ALPHA_BUILTIN_INSQH,
+  ALPHA_BUILTIN_MSKBL,
+  ALPHA_BUILTIN_MSKWL,
+  ALPHA_BUILTIN_MSKLL,
+  ALPHA_BUILTIN_MSKQL,
+  ALPHA_BUILTIN_MSKWH,
+  ALPHA_BUILTIN_MSKLH,
+  ALPHA_BUILTIN_MSKQH,
+  ALPHA_BUILTIN_UMULH,
+  ALPHA_BUILTIN_ZAP,
+  ALPHA_BUILTIN_ZAPNOT,
+  ALPHA_BUILTIN_AMASK,
+  ALPHA_BUILTIN_IMPLVER,
+  ALPHA_BUILTIN_RPCC,
+  ALPHA_BUILTIN_THREAD_POINTER,
+  ALPHA_BUILTIN_SET_THREAD_POINTER,
+
+  /* TARGET_MAX */
+  ALPHA_BUILTIN_MINUB8,
+  ALPHA_BUILTIN_MINSB8,
+  ALPHA_BUILTIN_MINUW4,
+  ALPHA_BUILTIN_MINSW4,
+  ALPHA_BUILTIN_MAXUB8,
+  ALPHA_BUILTIN_MAXSB8,
+  ALPHA_BUILTIN_MAXUW4,
+  ALPHA_BUILTIN_MAXSW4,
+  ALPHA_BUILTIN_PERR,
+  ALPHA_BUILTIN_PKLB,
+  ALPHA_BUILTIN_PKWB,
+  ALPHA_BUILTIN_UNPKBL,
+  ALPHA_BUILTIN_UNPKBW,
+
+  /* TARGET_CIX */
+  ALPHA_BUILTIN_CTTZ,
+  ALPHA_BUILTIN_CTLZ,
+  ALPHA_BUILTIN_CTPOP,
+
+  ALPHA_BUILTIN_max
+};
+
+static unsigned int const code_for_builtin[ALPHA_BUILTIN_max] = {
+  CODE_FOR_builtin_cmpbge,
+  CODE_FOR_builtin_extbl,
+  CODE_FOR_builtin_extwl,
+  CODE_FOR_builtin_extll,
+  CODE_FOR_builtin_extql,
+  CODE_FOR_builtin_extwh,
+  CODE_FOR_builtin_extlh,
+  CODE_FOR_builtin_extqh,
+  CODE_FOR_builtin_insbl,
+  CODE_FOR_builtin_inswl,
+  CODE_FOR_builtin_insll,
+  CODE_FOR_builtin_insql,
+  CODE_FOR_builtin_inswh,
+  CODE_FOR_builtin_inslh,
+  CODE_FOR_builtin_insqh,
+  CODE_FOR_builtin_mskbl,
+  CODE_FOR_builtin_mskwl,
+  CODE_FOR_builtin_mskll,
+  CODE_FOR_builtin_mskql,
+  CODE_FOR_builtin_mskwh,
+  CODE_FOR_builtin_msklh,
+  CODE_FOR_builtin_mskqh,
+  CODE_FOR_umuldi3_highpart,
+  CODE_FOR_builtin_zap,
+  CODE_FOR_builtin_zapnot,
+  CODE_FOR_builtin_amask,
+  CODE_FOR_builtin_implver,
+  CODE_FOR_builtin_rpcc,
+  CODE_FOR_load_tp,
+  CODE_FOR_set_tp,
+
+  /* TARGET_MAX */
+  CODE_FOR_builtin_minub8,
+  CODE_FOR_builtin_minsb8,
+  CODE_FOR_builtin_minuw4,
+  CODE_FOR_builtin_minsw4,
+  CODE_FOR_builtin_maxub8,
+  CODE_FOR_builtin_maxsb8,
+  CODE_FOR_builtin_maxuw4,
+  CODE_FOR_builtin_maxsw4,
+  CODE_FOR_builtin_perr,
+  CODE_FOR_builtin_pklb,
+  CODE_FOR_builtin_pkwb,
+  CODE_FOR_builtin_unpkbl,
+  CODE_FOR_builtin_unpkbw,
+
+  /* TARGET_CIX */
+  CODE_FOR_builtin_cttz,
+  CODE_FOR_builtin_ctlz,
+  CODE_FOR_builtin_ctpop
+};
+
+struct alpha_builtin_def
+{
+  const char *name;
+  enum alpha_builtin code;
+  unsigned int target_mask;
+};
+
+static struct alpha_builtin_def const zero_arg_builtins[] = {
+  { "__builtin_alpha_implver",	ALPHA_BUILTIN_IMPLVER,	0 },
+  { "__builtin_alpha_rpcc",	ALPHA_BUILTIN_RPCC,	0 }
+};
+
+static struct alpha_builtin_def const one_arg_builtins[] = {
+  { "__builtin_alpha_amask",	ALPHA_BUILTIN_AMASK,	0 },
+  { "__builtin_alpha_pklb",	ALPHA_BUILTIN_PKLB,	MASK_MAX },
+  { "__builtin_alpha_pkwb",	ALPHA_BUILTIN_PKWB,	MASK_MAX },
+  { "__builtin_alpha_unpkbl",	ALPHA_BUILTIN_UNPKBL,	MASK_MAX },
+  { "__builtin_alpha_unpkbw",	ALPHA_BUILTIN_UNPKBW,	MASK_MAX },
+  { "__builtin_alpha_cttz",	ALPHA_BUILTIN_CTTZ,	MASK_CIX },
+  { "__builtin_alpha_ctlz",	ALPHA_BUILTIN_CTLZ,	MASK_CIX },
+  { "__builtin_alpha_ctpop",	ALPHA_BUILTIN_CTPOP,	MASK_CIX }
+};
+
+static struct alpha_builtin_def const two_arg_builtins[] = {
+  { "__builtin_alpha_cmpbge",	ALPHA_BUILTIN_CMPBGE,	0 },
+  { "__builtin_alpha_extbl",	ALPHA_BUILTIN_EXTBL,	0 },
+  { "__builtin_alpha_extwl",	ALPHA_BUILTIN_EXTWL,	0 },
+  { "__builtin_alpha_extll",	ALPHA_BUILTIN_EXTLL,	0 },
+  { "__builtin_alpha_extql",	ALPHA_BUILTIN_EXTQL,	0 },
+  { "__builtin_alpha_extwh",	ALPHA_BUILTIN_EXTWH,	0 },
+  { "__builtin_alpha_extlh",	ALPHA_BUILTIN_EXTLH,	0 },
+  { "__builtin_alpha_extqh",	ALPHA_BUILTIN_EXTQH,	0 },
+  { "__builtin_alpha_insbl",	ALPHA_BUILTIN_INSBL,	0 },
+  { "__builtin_alpha_inswl",	ALPHA_BUILTIN_INSWL,	0 },
+  { "__builtin_alpha_insll",	ALPHA_BUILTIN_INSLL,	0 },
+  { "__builtin_alpha_insql",	ALPHA_BUILTIN_INSQL,	0 },
+  { "__builtin_alpha_inswh",	ALPHA_BUILTIN_INSWH,	0 },
+  { "__builtin_alpha_inslh",	ALPHA_BUILTIN_INSLH,	0 },
+  { "__builtin_alpha_insqh",	ALPHA_BUILTIN_INSQH,	0 },
+  { "__builtin_alpha_mskbl",	ALPHA_BUILTIN_MSKBL,	0 },
+  { "__builtin_alpha_mskwl",	ALPHA_BUILTIN_MSKWL,	0 },
+  { "__builtin_alpha_mskll",	ALPHA_BUILTIN_MSKLL,	0 },
+  { "__builtin_alpha_mskql",	ALPHA_BUILTIN_MSKQL,	0 },
+  { "__builtin_alpha_mskwh",	ALPHA_BUILTIN_MSKWH,	0 },
+  { "__builtin_alpha_msklh",	ALPHA_BUILTIN_MSKLH,	0 },
+  { "__builtin_alpha_mskqh",	ALPHA_BUILTIN_MSKQH,	0 },
+  { "__builtin_alpha_umulh",	ALPHA_BUILTIN_UMULH,	0 },
+  { "__builtin_alpha_zap",	ALPHA_BUILTIN_ZAP,	0 },
+  { "__builtin_alpha_zapnot",	ALPHA_BUILTIN_ZAPNOT,	0 },
+  { "__builtin_alpha_minub8",	ALPHA_BUILTIN_MINUB8,	MASK_MAX },
+  { "__builtin_alpha_minsb8",	ALPHA_BUILTIN_MINSB8,	MASK_MAX },
+  { "__builtin_alpha_minuw4",	ALPHA_BUILTIN_MINUW4,	MASK_MAX },
+  { "__builtin_alpha_minsw4",	ALPHA_BUILTIN_MINSW4,	MASK_MAX },
+  { "__builtin_alpha_maxub8",	ALPHA_BUILTIN_MAXUB8,	MASK_MAX },
+  { "__builtin_alpha_maxsb8",	ALPHA_BUILTIN_MAXSB8,	MASK_MAX },
+  { "__builtin_alpha_maxuw4",	ALPHA_BUILTIN_MAXUW4,	MASK_MAX },
+  { "__builtin_alpha_maxsw4",	ALPHA_BUILTIN_MAXSW4,	MASK_MAX },
+  { "__builtin_alpha_perr",	ALPHA_BUILTIN_PERR,	MASK_MAX }
+};
+
+static void
+alpha_init_builtins ()
+{
+  const struct alpha_builtin_def *p;
+  tree ftype;
+  size_t i;
+
+  ftype = build_function_type (long_integer_type_node, void_list_node);
+
+  p = zero_arg_builtins;
+  for (i = 0; i < ARRAY_SIZE (zero_arg_builtins); ++i, ++p)
+    if ((target_flags & p->target_mask) == p->target_mask)
+      builtin_function (p->name, ftype, p->code, BUILT_IN_MD,
+			NULL, NULL_TREE);
+
+  ftype = build_function_type_list (long_integer_type_node,
+				    long_integer_type_node, NULL_TREE);
+
+  p = one_arg_builtins;
+  for (i = 0; i < ARRAY_SIZE (one_arg_builtins); ++i, ++p)
+    if ((target_flags & p->target_mask) == p->target_mask)
+      builtin_function (p->name, ftype, p->code, BUILT_IN_MD,
+			NULL, NULL_TREE);
+
+  ftype = build_function_type_list (long_integer_type_node,
+				    long_integer_type_node,
+				    long_integer_type_node, NULL_TREE);
+
+  p = two_arg_builtins;
+  for (i = 0; i < ARRAY_SIZE (two_arg_builtins); ++i, ++p)
+    if ((target_flags & p->target_mask) == p->target_mask)
+      builtin_function (p->name, ftype, p->code, BUILT_IN_MD,
+			NULL, NULL_TREE);
+
+  ftype = build_function_type (ptr_type_node, void_list_node);
+  builtin_function ("__builtin_thread_pointer", ftype,
+		    ALPHA_BUILTIN_THREAD_POINTER, BUILT_IN_MD,
+		    NULL, NULL_TREE);
+
+  ftype = build_function_type_list (void_type_node, ptr_type_node, NULL_TREE);
+  builtin_function ("__builtin_set_thread_pointer", ftype,
+		    ALPHA_BUILTIN_SET_THREAD_POINTER, BUILT_IN_MD,
+		    NULL, NULL_TREE);
+}
+
+/* Expand an expression EXP that calls a built-in function,
+   with result going to TARGET if that's convenient
+   (and in mode MODE if that's convenient).
+   SUBTARGET may be used as the target for computing one of EXP's operands.
+   IGNORE is nonzero if the value is to be ignored.  */
+
+static rtx
+alpha_expand_builtin (exp, target, subtarget, mode, ignore)
+     tree exp;
+     rtx target;
+     rtx subtarget ATTRIBUTE_UNUSED;
+     enum machine_mode mode ATTRIBUTE_UNUSED;
+     int ignore ATTRIBUTE_UNUSED;
+{
+#define MAX_ARGS 2
+
+  tree fndecl = TREE_OPERAND (TREE_OPERAND (exp, 0), 0);
+  unsigned int fcode = DECL_FUNCTION_CODE (fndecl);
+  tree arglist = TREE_OPERAND (exp, 1);
+  enum insn_code icode;
+  rtx op[MAX_ARGS], pat;
+  int arity;
+  bool nonvoid;
+
+  if (fcode >= ALPHA_BUILTIN_max)
+    internal_error ("bad builtin fcode");
+  icode = code_for_builtin[fcode];
+  if (icode == 0)
+    internal_error ("bad builtin fcode");
+
+  nonvoid = TREE_TYPE (TREE_TYPE (fndecl)) != void_type_node;
+
+  for (arglist = TREE_OPERAND (exp, 1), arity = 0;
+       arglist;
+       arglist = TREE_CHAIN (arglist), arity++)
+    {
+      const struct insn_operand_data *insn_op;
+
+      tree arg = TREE_VALUE (arglist);
+      if (arg == error_mark_node)
+	return NULL_RTX;
+      if (arity > MAX_ARGS)
+	return NULL_RTX;
+
+      insn_op = &insn_data[icode].operand[arity + nonvoid];
+
+      op[arity] = expand_expr (arg, NULL_RTX, insn_op->mode, 0);
+
+      if (!(*insn_op->predicate) (op[arity], insn_op->mode))
+	op[arity] = copy_to_mode_reg (insn_op->mode, op[arity]);
+    }
+
+  if (nonvoid)
+    {
+      enum machine_mode tmode = insn_data[icode].operand[0].mode;
+      if (!target
+	  || GET_MODE (target) != tmode
+	  || !(*insn_data[icode].operand[0].predicate) (target, tmode))
+	target = gen_reg_rtx (tmode);
+    }
+
+  switch (arity)
+    {
+    case 0:
+      pat = GEN_FCN (icode) (target);
+      break;
+    case 1:
+      if (nonvoid)
+        pat = GEN_FCN (icode) (target, op[0]);
+      else
+	pat = GEN_FCN (icode) (op[0]);
+      break;
+    case 2:
+      pat = GEN_FCN (icode) (target, op[0], op[1]);
+      break;
+    default:
+      abort ();
+    }
+  if (!pat)
+    return NULL_RTX;
+  emit_insn (pat);
+
+  if (nonvoid)
+    return target;
+  else
+    return const0_rtx;
+}
+
 /* This page contains routines that are used to determine what the function
    prologue and epilogue code will do and write them out.  */
 
@@ -5934,10 +6719,11 @@ alpha_sa_mask (imaskP, fmaskP)
   unsigned int i;
 
   /* Irritatingly, there are two kinds of thunks -- those created with
-     ASM_OUTPUT_MI_THUNK and those with DECL_THUNK_P that go through
-     the regular part of the compiler.  In the ASM_OUTPUT_MI_THUNK case
-     we don't have valid register life info, but assemble_start_function
-     wants to output .frame and .mask directives.  */
+     TARGET_ASM_OUTPUT_MI_THUNK and those with DECL_THUNK_P that go
+     through the regular part of the compiler.  In the
+     TARGET_ASM_OUTPUT_MI_THUNK case we don't have valid register life
+     info, but assemble_start_function wants to output .frame and
+     .mask directives.  */
   if (current_function_is_thunk && !no_new_pseudos)
     {
       *imaskP = 0;
@@ -6012,7 +6798,7 @@ alpha_sa_size ()
 
       alpha_procedure_type
 	= (sa_size || get_frame_size() != 0
-	   || current_function_outgoing_args_size || current_function_varargs
+	   || current_function_outgoing_args_size
 	   || current_function_stdarg || current_function_calls_alloca
 	   || frame_pointer_needed)
 	  ? PT_STACK : PT_REGISTER;
@@ -6111,11 +6897,18 @@ const struct attribute_spec vms_attribute_table[] =
 #endif
 
 static int
-find_lo_sum (px, data)
+find_lo_sum_using_gp (px, data)
      rtx *px;
      void *data ATTRIBUTE_UNUSED;
 {
-  return GET_CODE (*px) == LO_SUM;
+  return GET_CODE (*px) == LO_SUM && XEXP (*px, 0) == pic_offset_table_rtx;
+}
+
+int
+alpha_find_lo_sum_using_gp (insn)
+     rtx insn;
+{
+  return for_each_rtx (&PATTERN (insn), find_lo_sum_using_gp, NULL) > 0;
 }
 
 static int
@@ -6144,15 +6937,9 @@ alpha_does_function_need_gp ()
   for (; insn; insn = NEXT_INSN (insn))
     if (INSN_P (insn)
 	&& GET_CODE (PATTERN (insn)) != USE
-	&& GET_CODE (PATTERN (insn)) != CLOBBER)
-      {
-	enum attr_type type = get_attr_type (insn);
-	if (type == TYPE_LDSYM || type == TYPE_JSR)
-	  return 1;
-	if (TARGET_EXPLICIT_RELOCS
-	    && for_each_rtx (&PATTERN (insn), find_lo_sum, NULL) > 0)
-	  return 1;
-      }
+	&& GET_CODE (PATTERN (insn)) != CLOBBER
+	&& get_attr_usegp (insn))
+      return 1;
 
   return 0;
 }
@@ -6179,22 +6966,30 @@ alpha_write_verstamp (file)
 static rtx
 set_frame_related_p ()
 {
-  rtx seq = gen_sequence ();
+  rtx seq = get_insns ();
+  rtx insn;
+
   end_sequence ();
 
-  if (GET_CODE (seq) == SEQUENCE)
+  if (!seq)
+    return NULL_RTX;
+
+  if (INSN_P (seq))
     {
-      int i = XVECLEN (seq, 0);
-      while (--i >= 0)
-	RTX_FRAME_RELATED_P (XVECEXP (seq, 0, i)) = 1;
-     return emit_insn (seq);
+      insn = seq;
+      while (insn != NULL_RTX)
+	{
+	  RTX_FRAME_RELATED_P (insn) = 1;
+	  insn = NEXT_INSN (insn);
+	}
+      seq = emit_insn (seq);
     }
   else
     {
       seq = emit_insn (seq);
       RTX_FRAME_RELATED_P (seq) = 1;
-      return seq;
     }
+  return seq;
 }
 
 #define FRP(exp)  (start_sequence (), exp, set_frame_related_p ())
@@ -6698,26 +7493,13 @@ alpha_start_function (file, fnname, decl)
     }
 
 #if TARGET_ABI_OPEN_VMS
-  /* Ifdef'ed cause readonly_section and link_section are only
-     available then.  */
-  readonly_section ();
+  /* Ifdef'ed cause link_section are only available then.  */
+  readonly_data_section ();
   fprintf (file, "\t.align 3\n");
   assemble_name (file, fnname); fputs ("..na:\n", file);
   fputs ("\t.ascii \"", file);
   assemble_name (file, fnname);
   fputs ("\\0\"\n", file);
-      
-  link_section ();
-  fprintf (file, "\t.align 3\n");
-  fputs ("\t.name ", file);
-  assemble_name (file, fnname);
-  fputs ("..na\n", file);
-  ASM_OUTPUT_LABEL (file, fnname);
-  fprintf (file, "\t.pdesc ");
-  assemble_name (file, fnname);
-  fprintf (file, "..en,%s\n",
-	   alpha_procedure_type == PT_STACK ? "stack"
-	   : alpha_procedure_type == PT_REGISTER ? "reg" : "null");
   alpha_need_linkage (fnname, 1);
   text_section ();
 #endif
@@ -7003,6 +7785,39 @@ alpha_expand_epilogue ()
         }
     }
 }
+
+#if TARGET_ABI_OPEN_VMS
+#include <splay-tree.h>
+
+/* Structure to collect function names for final output
+   in link section.  */
+
+enum links_kind {KIND_UNUSED, KIND_LOCAL, KIND_EXTERN};
+enum reloc_kind {KIND_LINKAGE, KIND_CODEADDR};
+
+struct alpha_funcs
+{
+  int num;
+  splay_tree links;
+};
+
+struct alpha_links
+{
+  int num;
+  rtx linkage;
+  enum links_kind lkind;
+  enum reloc_kind rkind;
+};
+
+static splay_tree alpha_funcs_tree;
+static splay_tree alpha_links_tree;
+
+static int mark_alpha_links_node	PARAMS ((splay_tree_node, void *));
+static void mark_alpha_links		PARAMS ((void *));
+static int alpha_write_one_linkage	PARAMS ((splay_tree_node, void *));
+
+static int alpha_funcs_num;
+#endif
 
 /* Output the rest of the textual info surrounding the epilogue.  */
 
@@ -7010,7 +7825,7 @@ void
 alpha_end_function (file, fnname, decl)
      FILE *file;
      const char *fnname;
-     tree decl ATTRIBUTE_UNUSED;
+     tree decl;
 {
   /* End the function.  */
   if (!TARGET_ABI_UNICOSMK && !flag_inhibit_size_directive)
@@ -7021,20 +7836,20 @@ alpha_end_function (file, fnname, decl)
     }
   inside_function = FALSE;
 
-  /* Show that we know this function if it is called again. 
+#if TARGET_ABI_OPEN_VMS
+  alpha_write_linkage (file, fnname, decl);
+#endif
 
-     Don't do this for global functions in object files destined for a
-     shared library because the function may be overridden by the application
-     or other libraries.  Similarly, don't do this for weak functions.
+  /* Show that we know this function if it is called again.
+
+     Do this only for functions whose symbols bind locally.
 
      Don't do this for functions not defined in the .text section, as
      otherwise it's not unlikely that the destination is out of range
      for a direct branch.  */
 
-  if (!DECL_WEAK (current_function_decl)
-      && (!flag_pic || !TREE_PUBLIC (current_function_decl))
-      && decl_in_text_section (current_function_decl))
-    SYMBOL_REF_FLAG (XEXP (DECL_RTL (current_function_decl), 0)) = 1;
+  if ((*targetm.binds_local_p) (decl) && decl_in_text_section (decl))
+    SYMBOL_REF_FLAG (XEXP (DECL_RTL (decl), 0)) = 1;
 
   /* Output jump tables and the static subroutine information block.  */
   if (TARGET_ABI_UNICOSMK)
@@ -7044,7 +7859,8 @@ alpha_end_function (file, fnname, decl)
     }
 }
 
-/* Emit a tail call to FUNCTION after adjusting THIS by DELTA. 
+#if TARGET_ABI_OSF
+/* Emit a tail call to FUNCTION after adjusting THIS by DELTA.
 
    In order to avoid the hordes of differences between generated code
    with and without TARGET_EXPLICIT_RELOCS, and to avoid duplicating
@@ -7053,11 +7869,12 @@ alpha_end_function (file, fnname, decl)
 
    Not sure why this idea hasn't been explored before...  */
 
-void
-alpha_output_mi_thunk_osf (file, thunk_fndecl, delta, function)
+static void
+alpha_output_mi_thunk_osf (file, thunk_fndecl, delta, vcall_offset, function)
      FILE *file;
      tree thunk_fndecl ATTRIBUTE_UNUSED;
      HOST_WIDE_INT delta;
+     HOST_WIDE_INT vcall_offset;
      tree function;
 {
   HOST_WIDE_INT hi, lo;
@@ -7092,6 +7909,37 @@ alpha_output_mi_thunk_osf (file, thunk_fndecl, delta, function)
       emit_insn (gen_adddi3 (this, this, tmp));
     }
 
+  /* Add a delta stored in the vtable at VCALL_OFFSET.  */
+  if (vcall_offset)
+    {
+      rtx tmp, tmp2;
+
+      tmp = gen_rtx_REG (Pmode, 0);
+      emit_move_insn (tmp, gen_rtx_MEM (Pmode, this));
+
+      lo = ((vcall_offset & 0xffff) ^ 0x8000) - 0x8000;
+      hi = (((vcall_offset - lo) & 0xffffffff) ^ 0x80000000) - 0x80000000;
+      if (hi + lo == vcall_offset)
+	{
+	  if (hi)
+	    emit_insn (gen_adddi3 (tmp, tmp, GEN_INT (hi)));
+	}
+      else
+	{
+	  tmp2 = alpha_emit_set_long_const (gen_rtx_REG (Pmode, 1),
+					    vcall_offset, -(vcall_offset < 0));
+          emit_insn (gen_adddi3 (tmp, tmp, tmp2));
+	  lo = 0;
+	}
+      if (lo)
+	tmp2 = gen_rtx_PLUS (Pmode, tmp, GEN_INT (lo));
+      else
+	tmp2 = tmp;
+      emit_move_insn (tmp, gen_rtx_MEM (Pmode, tmp2));
+
+      emit_insn (gen_adddi3 (this, this, tmp));
+    }
+
   /* Generate a tail call to the target function.  */
   if (! TREE_USED (function))
     {
@@ -7113,6 +7961,7 @@ alpha_output_mi_thunk_osf (file, thunk_fndecl, delta, function)
   final (insn, file, 1, 0);
   final_end_function ();
 }
+#endif /* TARGET_ABI_OSF */
 
 /* Debugging support.  */
 
@@ -7575,6 +8424,7 @@ alphaev4_insn_pipe (insn)
     case TYPE_MISC:
     case TYPE_IBR:
     case TYPE_JSR:
+    case TYPE_CALLPAL:
     case TYPE_FCPYS:
     case TYPE_FCMOV:
     case TYPE_FADD:
@@ -7617,6 +8467,7 @@ alphaev5_insn_pipe (insn)
 
     case TYPE_IBR:
     case TYPE_JSR:
+    case TYPE_CALLPAL:
       return EV5_E1;
 
     case TYPE_FCPYS:
@@ -8077,82 +8928,25 @@ alpha_reorg (insns)
     }
 }
 
-/* Check a floating-point value for validity for a particular machine mode.  */
+#ifdef OBJECT_FORMAT_ELF
 
-static const char * const float_strings[] =
-{
-  /* These are for FLOAT_VAX.  */
-   "1.70141173319264430e+38", /* 2^127 (2^24 - 1) / 2^24 */
-  "-1.70141173319264430e+38",
-   "2.93873587705571877e-39", /* 2^-128 */
-  "-2.93873587705571877e-39",
-  /* These are for the default broken IEEE mode, which traps
-     on infinity or denormal numbers.  */
-   "3.402823466385288598117e+38", /* 2^128 (1 - 2^-24) */
-  "-3.402823466385288598117e+38",
-   "1.1754943508222875079687e-38", /* 2^-126 */
-  "-1.1754943508222875079687e-38",
-};
+/* Switch to the section to which we should output X.  The only thing
+   special we do here is to honor small data.  */
 
-static REAL_VALUE_TYPE float_values[8];
-static int inited_float_values = 0;
-
-int
-check_float_value (mode, d, overflow)
+static void
+alpha_elf_select_rtx_section (mode, x, align)
      enum machine_mode mode;
-     REAL_VALUE_TYPE *d;
-     int overflow ATTRIBUTE_UNUSED;
+     rtx x;
+     unsigned HOST_WIDE_INT align;
 {
-
-  if (TARGET_IEEE || TARGET_IEEE_CONFORMANT || TARGET_IEEE_WITH_INEXACT)
-    return 0;
-
-  if (inited_float_values == 0)
-    {
-      int i;
-      for (i = 0; i < 8; i++)
-	float_values[i] = REAL_VALUE_ATOF (float_strings[i], DFmode);
-
-      inited_float_values = 1;
-    }
-
-  if (mode == SFmode)
-    {
-      REAL_VALUE_TYPE r;
-      REAL_VALUE_TYPE *fvptr;
-
-      if (TARGET_FLOAT_VAX)
-	fvptr = &float_values[0];
-      else
-	fvptr = &float_values[4];
-
-      memcpy (&r, d, sizeof (REAL_VALUE_TYPE));
-      if (REAL_VALUES_LESS (fvptr[0], r))
-	{
-	  memcpy (d, &fvptr[0], sizeof (REAL_VALUE_TYPE));
-	  return 1;
-	}
-      else if (REAL_VALUES_LESS (r, fvptr[1]))
-	{
-	  memcpy (d, &fvptr[1], sizeof (REAL_VALUE_TYPE));
-	  return 1;
-	}
-      else if (REAL_VALUES_LESS (dconst0, r)
-		&& REAL_VALUES_LESS (r, fvptr[2]))
-	{
-	  memcpy (d, &dconst0, sizeof (REAL_VALUE_TYPE));
-	  return 1;
-	}
-      else if (REAL_VALUES_LESS (r, dconst0)
-		&& REAL_VALUES_LESS (fvptr[3], r))
-	{
-	  memcpy (d, &dconst0, sizeof (REAL_VALUE_TYPE));
-	  return 1;
-	}
-    }
-
-  return 0;
+  if (TARGET_SMALL_DATA && GET_MODE_SIZE (mode) <= g_switch_value)
+    /* ??? Consider using mergable sdata sections.  */
+    sdata_section ();
+  else
+    default_elf_select_rtx_section (mode, x, align);
 }
+
+#endif /* OBJECT_FORMAT_ELF */
 
 #if TARGET_ABI_OPEN_VMS
 
@@ -8189,25 +8983,6 @@ alpha_arg_info_reg_val (cum)
   return GEN_INT (regval);
 }
 
-#include <splay-tree.h>
-
-/* Structure to collect function names for final output
-   in link section.  */
-
-enum links_kind {KIND_UNUSED, KIND_LOCAL, KIND_EXTERN};
-
-struct alpha_links
-{
-  rtx linkage;
-  enum links_kind kind;
-};
-
-static splay_tree alpha_links;
-
-static int mark_alpha_links_node	PARAMS ((splay_tree_node, void *));
-static void mark_alpha_links		PARAMS ((void *));
-static int alpha_write_one_linkage	PARAMS ((splay_tree_node, void *));
-
 /* Protect alpha_links from garbage collection.  */
 
 static int
@@ -8241,46 +9016,67 @@ alpha_need_linkage (name, is_local)
 {
   splay_tree_node node;
   struct alpha_links *al;
+  struct alpha_funcs *cfaf;
 
   if (name[0] == '*')
     name++;
 
-  if (alpha_links)
+  if (is_local)
+    {
+      alpha_funcs_tree = splay_tree_new
+	((splay_tree_compare_fn) splay_tree_compare_pointers, 
+	 (splay_tree_delete_key_fn) free,
+	 (splay_tree_delete_key_fn) free);
+    
+      cfaf = (struct alpha_funcs *) xmalloc (sizeof (struct alpha_funcs));
+
+      cfaf->links = 0;
+      cfaf->num = ++alpha_funcs_num;
+
+      splay_tree_insert (alpha_funcs_tree,
+			 (splay_tree_key) current_function_decl,
+			 (splay_tree_value) cfaf);
+    
+    }
+
+  if (alpha_links_tree)
     {
       /* Is this name already defined?  */
 
-      node = splay_tree_lookup (alpha_links, (splay_tree_key) name);
+      node = splay_tree_lookup (alpha_links_tree, (splay_tree_key) name);
       if (node)
 	{
 	  al = (struct alpha_links *) node->value;
 	  if (is_local)
 	    {
 	      /* Defined here but external assumed.  */
-	      if (al->kind == KIND_EXTERN)
-		al->kind = KIND_LOCAL;
+	      if (al->lkind == KIND_EXTERN)
+		al->lkind = KIND_LOCAL;
 	    }
 	  else
 	    {
 	      /* Used here but unused assumed.  */
-	      if (al->kind == KIND_UNUSED)
-		al->kind = KIND_LOCAL;
+	      if (al->lkind == KIND_UNUSED)
+		al->lkind = KIND_LOCAL;
 	    }
 	  return al->linkage;
 	}
     }
   else
     {
-      alpha_links = splay_tree_new ((splay_tree_compare_fn) strcmp, 
-				    (splay_tree_delete_key_fn) free,
-				    (splay_tree_delete_key_fn) free);
-      ggc_add_root (&alpha_links, 1, 1, mark_alpha_links);
+      alpha_links_tree = splay_tree_new
+	((splay_tree_compare_fn) strcmp, 
+	 (splay_tree_delete_key_fn) free,
+	 (splay_tree_delete_key_fn) free);
+
+      ggc_add_root (&alpha_links_tree, 1, 1, mark_alpha_links);
     }
 
   al = (struct alpha_links *) xmalloc (sizeof (struct alpha_links));
   name = xstrdup (name);
 
   /* Assume external if no definition.  */
-  al->kind = (is_local ? KIND_UNUSED : KIND_EXTERN);
+  al->lkind = (is_local ? KIND_UNUSED : KIND_EXTERN);
 
   /* Ensure we have an IDENTIFIER so assemble_name can mark it used.  */
   get_identifier (name);
@@ -8296,10 +9092,94 @@ alpha_need_linkage (name, is_local)
 				      ggc_alloc_string (linksym, name_len + 5));
   }
 
-  splay_tree_insert (alpha_links, (splay_tree_key) name,
+  splay_tree_insert (alpha_links_tree, (splay_tree_key) name,
 		     (splay_tree_value) al);
 
   return al->linkage;
+}
+
+rtx
+alpha_use_linkage (linkage, cfundecl, lflag, rflag)
+     rtx linkage;
+     tree cfundecl;
+     int lflag;
+     int rflag;
+{
+  splay_tree_node cfunnode;
+  struct alpha_funcs *cfaf;
+  struct alpha_links *al;
+  const char *name = XSTR (linkage, 0);
+
+  cfaf = (struct alpha_funcs *) 0;
+  al = (struct alpha_links *) 0;
+
+  cfunnode = splay_tree_lookup (alpha_funcs_tree, (splay_tree_key) cfundecl);
+  cfaf = (struct alpha_funcs *) cfunnode->value;
+
+  if (cfaf->links)
+    {
+      splay_tree_node lnode;
+
+      /* Is this name already defined?  */
+
+      lnode = splay_tree_lookup (cfaf->links, (splay_tree_key) name);
+      if (lnode)
+	al = (struct alpha_links *) lnode->value;
+    }
+  else
+    {
+      cfaf->links = splay_tree_new
+	((splay_tree_compare_fn) strcmp,
+	 (splay_tree_delete_key_fn) free,
+	 (splay_tree_delete_key_fn) free);
+      ggc_add_root (&cfaf->links, 1, 1, mark_alpha_links);
+    }
+
+  if (!al)
+    {
+      size_t name_len;
+      size_t buflen;
+      char buf [512];
+      char *linksym;
+      splay_tree_node node = 0;
+      struct alpha_links *anl;
+
+      if (name[0] == '*')
+	name++;
+
+      name_len = strlen (name);
+
+      al = (struct alpha_links *) xmalloc (sizeof (struct alpha_links));
+      al->num = cfaf->num;
+
+      node = splay_tree_lookup (alpha_links_tree, (splay_tree_key) name);
+      if (node)
+	{
+	  anl = (struct alpha_links *) node->value;
+	  al->lkind = anl->lkind;
+	}
+
+      sprintf (buf, "$%d..%s..lk", cfaf->num, name);
+      buflen = strlen (buf);
+      linksym = alloca (buflen + 1);
+      memcpy (linksym, buf, buflen + 1);
+
+      al->linkage = gen_rtx_SYMBOL_REF
+	(Pmode, ggc_alloc_string (linksym, buflen + 1));
+
+      splay_tree_insert (cfaf->links, (splay_tree_key) name,
+			 (splay_tree_value) al);
+    }
+
+  if (rflag)
+    al->rkind = KIND_CODEADDR;
+  else
+    al->rkind = KIND_LINKAGE;
+      
+  if (lflag)
+    return gen_rtx_MEM (Pmode, plus_constant (al->linkage, 8));
+  else
+    return al->linkage;
 }
 
 static int
@@ -8308,38 +9188,69 @@ alpha_write_one_linkage (node, data)
      void *data;
 {
   const char *const name = (const char *) node->key;
-  struct alpha_links *links = (struct alpha_links *) node->value;
+  struct alpha_links *link = (struct alpha_links *) node->value;
   FILE *stream = (FILE *) data;
 
-  if (links->kind == KIND_UNUSED
-      || ! TREE_SYMBOL_REFERENCED (get_identifier (name)))
-    return 0;
-
-  fprintf (stream, "$%s..lk:\n", name);
-  if (links->kind == KIND_LOCAL)
+  fprintf (stream, "$%d..%s..lk:\n", link->num, name);
+  if (link->rkind == KIND_CODEADDR)
     {
-      /* Local and used, build linkage pair.  */
-      fprintf (stream, "\t.quad %s..en\n", name);
-      fprintf (stream, "\t.quad %s\n", name);
+      if (link->lkind == KIND_LOCAL)
+	{
+	  /* Local and used */
+	  fprintf (stream, "\t.quad %s..en\n", name);
+	}
+      else
+	{
+	  /* External and used, request code address.  */
+	  fprintf (stream, "\t.code_address %s\n", name);
+	}
     }
   else
     {
-      /* External and used, request linkage pair.  */
-      fprintf (stream, "\t.linkage %s\n", name);
+      if (link->lkind == KIND_LOCAL)
+	{
+	  /* Local and used, build linkage pair.  */
+	  fprintf (stream, "\t.quad %s..en\n", name);
+	  fprintf (stream, "\t.quad %s\n", name);
+	}
+      else
+	{
+	  /* External and used, request linkage pair.  */
+	  fprintf (stream, "\t.linkage %s\n", name);
+	}
     }
 
   return 0;
 }
 
-void
-alpha_write_linkage (stream)
-    FILE *stream;
+static void
+alpha_write_linkage (stream, funname, fundecl)
+     FILE *stream;
+     const char *funname;
+     tree fundecl;
 {
-  if (alpha_links)
+  splay_tree_node node;
+  struct alpha_funcs *func;
+
+  link_section ();
+  fprintf (stream, "\t.align 3\n");
+  node = splay_tree_lookup (alpha_funcs_tree, (splay_tree_key) fundecl);
+  func = (struct alpha_funcs *) node->value;
+
+  fputs ("\t.name ", stream);
+  assemble_name (stream, funname);
+  fputs ("..na\n", stream);
+  ASM_OUTPUT_LABEL (stream, funname);
+  fprintf (stream, "\t.pdesc ");
+  assemble_name (stream, funname);
+  fprintf (stream, "..en,%s\n",
+	   alpha_procedure_type == PT_STACK ? "stack"
+	   : alpha_procedure_type == PT_REGISTER ? "reg" : "null");
+
+  if (func->links)
     {
-      readonly_section ();
-      fprintf (stream, "\t.align 3\n");
-      splay_tree_foreach (alpha_links, alpha_write_one_linkage, stream);
+      splay_tree_foreach (func->links, alpha_write_one_linkage, stream);
+      /* splay_tree_delete (func->links); */
     }
 }
 
@@ -8432,6 +9343,16 @@ alpha_need_linkage (name, is_local)
   return NULL_RTX;
 }
 
+rtx
+alpha_use_linkage (linkage, cfundecl, lflag, rflag)
+     rtx linkage ATTRIBUTE_UNUSED;
+     tree cfundecl ATTRIBUTE_UNUSED;
+     int lflag ATTRIBUTE_UNUSED;
+     int rflag ATTRIBUTE_UNUSED;
+{
+  return NULL_RTX;
+}
+
 #endif /* TARGET_ABI_OPEN_VMS */
 
 #if TARGET_ABI_UNICOSMK
@@ -8495,9 +9416,8 @@ unicosmk_output_module_name (file)
      prefix the module name with a '$' if necessary.  */
 
   if (!ISALPHA (*name))
-    fprintf (file, "$%s", name);
-  else
-    fputs (name, file);
+    putc ('$', file);
+  output_clean_symbol_name (file, name);
 }
 
 /* Output text that to appear at the beginning of an assembler file.  */
@@ -8636,7 +9556,7 @@ unicosmk_section_type_flags (decl, name, reloc)
 /* Generate a section name for decl and associate it with the
    declaration.  */
 
-void
+static void
 unicosmk_unique_section (decl, reloc)
       tree decl;
       int reloc ATTRIBUTE_UNUSED;
@@ -8648,7 +9568,7 @@ unicosmk_unique_section (decl, reloc)
     abort ();
 
   name = IDENTIFIER_POINTER (DECL_ASSEMBLER_NAME (decl));
-  STRIP_NAME_ENCODING (name, name);
+  name = alpha_strip_name_encoding (name);
   len = strlen (name);
 
   if (TREE_CODE (decl) == FUNCTION_DECL)
@@ -8716,7 +9636,7 @@ unicosmk_insert_attributes (decl, attr_ptr)
 {
   if (DECL_P (decl)
       && (TREE_PUBLIC (decl) || TREE_CODE (decl) == FUNCTION_DECL))
-    UNIQUE_SECTION (decl, 0);
+    unicosmk_unique_section (decl, 0);
 }
 
 /* Output an alignment directive. We have to use the macro 'gcc@code@align'
@@ -8879,8 +9799,7 @@ unicosmk_ssib_name ()
   x = XEXP (x, 0);
   if (GET_CODE (x) != SYMBOL_REF)
     abort ();
-  fnname = XSTR (x, 0);
-  STRIP_NAME_ENCODING (fnname, fnname);
+  fnname = alpha_strip_name_encoding (XSTR (x, 0));
 
   len = strlen (fnname);
   if (len + SSIB_PREFIX_LEN > 255)
@@ -9055,7 +9974,7 @@ unicosmk_output_externs (file)
       /* We have to strip the encoding and possibly remove user_label_prefix 
 	 from the identifier in order to handle -fleading-underscore and
 	 explicit asm names correctly (cf. gcc.dg/asm-names-1.c).  */
-      STRIP_NAME_ENCODING (real_name, p->name);
+      real_name = alpha_strip_name_encoding (p->name);
       if (len && p->name[0] == '*'
 	  && !memcmp (real_name, user_label_prefix, len))
 	real_name += len;
@@ -9080,7 +9999,7 @@ unicosmk_add_extern (name)
   struct unicosmk_extern_list *p;
 
   p = (struct unicosmk_extern_list *)
-       permalloc (sizeof (struct unicosmk_extern_list));
+       xmalloc (sizeof (struct unicosmk_extern_list));
   p->next = unicosmk_extern_head;
   p->name = name;
   unicosmk_extern_head = p;
@@ -9162,7 +10081,7 @@ unicosmk_need_dex (x)
       --i;
     }
       
-  dex = (struct unicosmk_dex *) permalloc (sizeof (struct unicosmk_dex));
+  dex = (struct unicosmk_dex *) xmalloc (sizeof (struct unicosmk_dex));
   dex->name = name;
   dex->next = unicosmk_dex_list;
   unicosmk_dex_list = dex;
@@ -9230,3 +10149,6 @@ unicosmk_need_dex (x)
 }
 
 #endif /* TARGET_ABI_UNICOSMK */
+
+#include "gt-alpha.h"
+
