@@ -38,7 +38,7 @@
 static char sccsid[] = "@(#)io.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: io.c,v 1.3 1997/07/15 09:50:59 charnier Exp $";
 #endif /* not lint */
 
 #include <ctype.h>
@@ -84,7 +84,7 @@ dump_line()
     else if (!inhibit_formatting) {
 	suppress_blanklines = 0;
 	ps.bl_line = false;
-	if (prefix_blankline_requested && not_first_line)
+	if (prefix_blankline_requested && not_first_line) {
 	    if (swallow_optional_blanklines) {
 		if (n_real_blanklines == 1)
 		    n_real_blanklines = 0;
@@ -93,6 +93,7 @@ dump_line()
 		if (n_real_blanklines == 0)
 		    n_real_blanklines = 1;
 	    }
+	}
 	while (--n_real_blanklines >= 0)
 	    putc('\n', output);
 	n_real_blanklines = 0;
@@ -238,11 +239,12 @@ dump_line()
 		    e_com--;
 		cur_col = pad_output(cur_col, target);
 		if (!ps.box_com) {
-		    if (star_comment_cont && (com_st[1] != '*' || e_com <= com_st + 1))
+		    if (star_comment_cont && (com_st[1] != '*' || e_com <= com_st + 1)) {
 			if (com_st[1] == ' ' && com_st[0] == ' ' && e_com > com_st + 1)
 			    com_st[1] = '*';
 			else
 			    fwrite(" * ", com_st[0] == '\t' ? 2 : com_st[0] == '*' ? 1 : 3, 1, output);
+		    }
 		}
 		fwrite(com_st, e_com - com_st, 1, output);
 		ps.comment_delta = ps.n_comment_delta;

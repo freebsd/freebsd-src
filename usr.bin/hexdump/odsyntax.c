@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)odsyntax.c	8.2 (Berkeley) 5/4/95";
 #endif
 static const char rcsid[] =
-	"$Id: odsyntax.c,v 1.5 1997/07/10 06:48:21 charnier Exp $";
+	"$Id: odsyntax.c,v 1.6 1997/11/04 05:33:14 ache Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -222,7 +222,7 @@ odoffset(argc, argvp)
 		return;
 	}
 
-	if (*p)
+	if (*p) {
 		if (*p == 'B') {
 			skip *= 1024;
 			++p;
@@ -230,6 +230,7 @@ odoffset(argc, argvp)
 			skip *= 512;
 			++p;
 		}
+	}
 
 	if (*p) {
 		skip = 0;

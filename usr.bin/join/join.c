@@ -46,7 +46,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)join.c	8.6 (Berkeley) 5/4/95";
 #endif
 static const char rcsid[] =
-	"$Id: join.c,v 1.7 1997/07/15 09:57:28 charnier Exp $";
+	"$Id: join.c,v 1.8 1997/08/19 15:58:15 jlemon Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -458,7 +458,7 @@ outfield(lp, fieldno, out_empty)
 {
 	if (needsep++)
 		(void)printf("%c", *tabchar);
-	if (!ferror(stdout))
+	if (!ferror(stdout)) {
 		if (lp->fieldcnt <= fieldno || out_empty) {
 			if (empty != NULL)
 				(void)printf("%s", empty);
@@ -467,6 +467,7 @@ outfield(lp, fieldno, out_empty)
 				return;
 			(void)printf("%s", lp->fields[fieldno]);
 		}
+	}
 	if (ferror(stdout))
 		err(1, "stdout");
 }

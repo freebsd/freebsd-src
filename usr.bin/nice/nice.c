@@ -67,12 +67,13 @@ main(argc, argv)
 	if (argc < 2)
 		usage();
 
-	if (argv[1][0] == '-')
+	if (argv[1][0] == '-') {
 		if (argv[1][1] == '-' || isdigit(argv[1][1])) {
 			niceness = atoi(argv[1] + 1);
 			++argv;
 		} else
 			errx(1, "illegal option -- %s", argv[1]);
+	}
 
 	if (argv[1] == NULL)
 		usage();
