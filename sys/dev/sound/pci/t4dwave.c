@@ -53,6 +53,7 @@ struct tr_chinfo {
 	u_int32_t eso, delta;
 	u_int32_t rvol, cvol;
 	u_int32_t gvsel, pan, vol, ctrl;
+	u_int32_t active:1, was_active:1;
 	int index, bufhalf;
 	struct snd_dbuf *buffer;
 	struct pcm_channel *channel;
@@ -61,6 +62,7 @@ struct tr_chinfo {
 
 struct tr_rchinfo {
 	u_int32_t delta;
+	u_int32_t active:1, was_active:1;
 	struct snd_dbuf *buffer;
 	struct pcm_channel *channel;
 	struct tr_info *parent;
@@ -493,8 +495,11 @@ trpchan_trigger(kobj_t obj, void *data, int go)
    		tr_wrch(ch);
 		tr_enaint(ch, 1);
 		tr_startch(ch);
-	} else
+		ch->active = 1;
+	} else {
 		tr_stopch(ch);
+		ch->active = 0;
+	}
 
 	return 0;
 }
@@ -611,8 +616,11 @@ trrchan_trigger(kobj_t obj, void *data, int go)
 		tr_wr(tr, TR_REG_DMAR4, i | (sndbuf_runsz(ch->buffer) - 1), 4);
 		/* start */
 		tr_wr(tr, TR_REG_SBCTRL, tr_rd(tr, TR_REG_SBCTRL, 1) | 1, 1);
-	} else
+		ch->active = 1;
+	} else {
 		tr_wr(tr, TR_REG_SBCTRL, tr_rd(tr, TR_REG_SBCTRL, 1) & ~7, 1);
+		ch->active = 0;
+	}
 
 	/* return 0 if ok */
 	return 0;
@@ -716,7 +724,6 @@ tr_init(struct tr_info *tr)
 	}
 
 	tr_wr(tr, TR_REG_CIR, TR_CIR_MIDENA | TR_CIR_ADDRENA, 4);
-	tr->playchns = 0;
 	return 0;
 }
 
@@ -778,6 +785,7 @@ tr_pci_attach(device_t dev)
 		device_printf(dev, "unable to initialize the card\n");
 		goto bad;
 	}
+	tr->playchns = 0;
 
 	codec = AC97_CREATE(dev, tr, tr_ac97);
 	if (codec == NULL) goto bad;
@@ -844,12 +852,67 @@ tr_pci_detach(device_t dev)
 	return 0;
 }
 
+static int
+tr_pci_suspend(device_t dev)
+{
+	int i;
+	struct tr_info *tr;
+
+	tr = pcm_getdevinfo(dev);
+
+	for (i = 0; i < tr->playchns; i++) {
+		tr->chinfo[i].was_active = tr->chinfo[i].active;
+		if (tr->chinfo[i].active) {
+			trpchan_trigger(NULL, &tr->chinfo[i], PCMTRIG_STOP);
+		}
+	}
+
+	tr->recchinfo.was_active = tr->recchinfo.active;
+	if (tr->recchinfo.active) {
+		trrchan_trigger(NULL, &tr->recchinfo, PCMTRIG_STOP);
+	}
+
+	return 0;
+}
+
+static int
+tr_pci_resume(device_t dev)
+{
+	int i;
+	struct tr_info *tr;
+
+	tr = pcm_getdevinfo(dev);
+
+	if (tr_init(tr) == -1) {
+		device_printf(dev, "unable to initialize the card\n");
+		return ENXIO;
+	}
+
+	if (mixer_reinit(dev) == -1) {
+		device_printf(dev, "unable to initialize the mixer\n");
+		return ENXIO;
+	}
+
+	for (i = 0; i < tr->playchns; i++) {
+		if (tr->chinfo[i].was_active) {
+			trpchan_trigger(NULL, &tr->chinfo[i], PCMTRIG_START);
+		}
+	}
+
+	if (tr->recchinfo.was_active) {
+		trrchan_trigger(NULL, &tr->recchinfo, PCMTRIG_START);
+	}
+
+	return 0;
+}
+
 static device_method_t tr_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		tr_pci_probe),
 	DEVMETHOD(device_attach,	tr_pci_attach),
 	DEVMETHOD(device_detach,	tr_pci_detach),
-
+	DEVMETHOD(device_suspend,	tr_pci_suspend),
+	DEVMETHOD(device_resume,	tr_pci_resume),
 	{ 0, 0 }
 };
 
