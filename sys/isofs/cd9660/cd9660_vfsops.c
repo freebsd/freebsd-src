@@ -144,6 +144,7 @@ iso_mountroot(mp, td)
 	struct thread *td;
 {
 	struct iso_args args;
+	struct vnode *rootvp;
 	int error;
 
 	if ((error = bdevvp(rootdev, &rootvp))) {
@@ -297,7 +298,7 @@ iso_mountfs(devvp, mp, td, argp)
 	 */
 	if ((error = vfs_mountedon(devvp)))
 		return error;
-	if (vcount(devvp) > 1 && devvp != rootvp)
+	if (vcount(devvp) > 1)
 		return EBUSY;
 	if ((error = vinvalbuf(devvp, V_SAVE, td->td_ucred, td, 0, 0)))
 		return (error);
