@@ -46,10 +46,19 @@
 #include <sys/bus.h>
 #include <machine/bus.h>
 
+#ifdef __DragonFly__
+#include <bus/firewire/firewire.h>
+#include <bus/firewire/firewirereg.h>
+#include <bus/firewire/iec13213.h>
+#include "dcons.h"
+#include "dcons_os.h"
+#else
 #include <dev/firewire/firewire.h>
 #include <dev/firewire/firewirereg.h>
 #include <dev/firewire/iec13213.h>
 #include <dev/dcons/dcons.h>
+#include <dev/dcons/dcons_os.h>
+#endif
 
 #include <sys/cons.h>
 

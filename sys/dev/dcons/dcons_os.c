@@ -294,7 +294,12 @@ dcons_open(DEV dev, int flag, int mode, THREAD *td)
 	s = spltty();
 	if ((tp->t_state & TS_ISOPEN) == 0) {
 		tp->t_state |= TS_CARR_ON;
-		ttyconsolemode(tp, 0);
+		ttychars(tp);
+		tp->t_iflag = TTYDEF_IFLAG;
+		tp->t_oflag = TTYDEF_OFLAG;
+		tp->t_cflag = TTYDEF_CFLAG|CLOCAL;
+		tp->t_lflag = TTYDEF_LFLAG;
+		tp->t_ispeed = tp->t_ospeed = TTYDEF_SPEED;
 		ttsetwater(tp);
 	} else if ((tp->t_state & TS_XCLUDE) && suser(td)) {
 		splx(s);
