@@ -117,22 +117,16 @@ int	fputws(const wchar_t *__restrict, FILE *__restrict);
 int	fwide(FILE *, int);
 wint_t	getwc(FILE *);
 wint_t	getwchar(void);
-#if 0
-/* XXX: not implemented */
 size_t	mbrlen(const char * __restrict, size_t, mbstate_t * __restrict);
 size_t	mbrtowc(wchar_t * __restrict, const char * __restrict, size_t,
 	    mbstate_t * __restrict);
 int	mbsinit(const mbstate_t *);
 size_t	mbsrtowcs(wchar_t * __restrict, const char ** __restrict, size_t,
 	    mbstate_t * __restrict);
-#endif
 wint_t	putwc(wchar_t, FILE *);
 wint_t	putwchar(wchar_t);
 wint_t	ungetwc(wint_t, FILE *);
-#if 0
-/* XXX: not implemented */
 size_t	wcrtomb(char * __restrict, wchar_t, mbstate_t * __restrict);
-#endif
 wchar_t	*wcscat(wchar_t * __restrict, const wchar_t * __restrict);
 wchar_t	*wcschr(const wchar_t *, wchar_t);
 int	wcscmp(const wchar_t *, const wchar_t *);
@@ -147,11 +141,8 @@ int	wcsncmp(const wchar_t *, const wchar_t *, size_t);
 wchar_t	*wcsncpy(wchar_t * __restrict , const wchar_t * __restrict, size_t);
 wchar_t	*wcspbrk(const wchar_t *, const wchar_t *);
 wchar_t	*wcsrchr(const wchar_t *, wchar_t);
-#if 0
-/* XXX: not implemented */
 size_t	wcsrtombs(char * __restrict, const wchar_t ** __restrict, size_t,
 	    mbstate_t * __restrict);
-#endif
 size_t	wcsspn(const wchar_t *, const wchar_t *);
 wchar_t	*wcsstr(const wchar_t *, const wchar_t *);
 #if 0
