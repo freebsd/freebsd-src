@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ethersubr.c	8.1 (Berkeley) 6/10/93
- * $Id: if_ethersubr.c,v 1.52 1998/08/04 23:17:05 julian Exp $
+ * $Id: if_ethersubr.c,v 1.53 1998/12/14 17:58:05 luigi Exp $
  */
 
 #include "opt_atalk.h"
@@ -374,20 +374,20 @@ ether_output(ifp, m0, dst, rt0)
 		} else if (bcmp(eh->ether_dhost,
 		    eh->ether_shost, ETHER_ADDR_LEN) == 0) {
 			(void) if_simloop(ifp, m, dst, hlen);
-			return(0);	/* XXX */
+			return (0);	/* XXX */
 		}
 	}
 #ifdef BRIDGE
 	if (do_bridge) {
-		struct ifnet *old_ifp = ifp ;
 		struct mbuf *m0 = m ;
-		if (m->m_pkthdr.rcvif )
+
+		if (m->m_pkthdr.rcvif)
 			m->m_pkthdr.rcvif = NULL ;
 		ifp = bridge_dst_lookup(m);
 		bdg_forward(&m0, ifp);
 		if (m0)
 			m_freem(m0);
-		return 0 ;
+		return (0);
 	}
 #endif
 	s = splimp();
