@@ -495,10 +495,11 @@ pcic_ioctl(struct slot *slt, int cmd, caddr_t data)
  *	cardbus bridges have minor issues with power via the ExCA registers,
  *	go ahead and do it all via cardbus registers.
  *
- *	An expamination of the code will show the relative
- *	ease that we do Vpp as well.
+ *	An expamination of the code will show the relative ease that we do
+ *	Vpp in comparison to the ExCA case (which may be partially broken).
  *
- *	Too bad it appears to not work.
+ *	Too bad it appears to not work.  When used we seem to be unable to
+ *	read the card's CIS.
  */
 static int
 pcic_cardbus_power(struct pcic_slot *sp, struct slot *slt)
@@ -514,11 +515,56 @@ pcic_cardbus_power(struct pcic_slot *sp, struct slot *slt)
 	printf("old value 0x%x\n", power);
 	power &= ~CB_SP_CLKSTOP;
 
+	/*
+	 * vcc == -1 means automatically detect the voltage of the card.
+	 * Do so and apply the right amount of power.
+	 */
+	if (slt->pwr.vcc == -1) {
+		if (state & CB_SS_5VCARD)
+			slt->pwr.vcc = 50;
+		else if (state & CB_SS_3VCARD)
+			slt->pwr.vcc = 33;
+		else if (state & CB_SS_XVCARD)
+			slt->pwr.vcc = 22;
+		else if (state & CB_SS_YVCARD)
+			slt->pwr.vcc = 11;
+	}
+	switch(slt->pwr.vcc) {
+	default:
+		return (EINVAL);
+	case 0:
+		power |= CB_SP_VCC_0V;
+		break;
+	case 11:
+		power |= CB_SP_VCC_YV;
+		break;
+	case 22:
+		power |= CB_SP_VCC_XV;
+		break;
+	case 33:
+		power |= CB_SP_VCC_3V;
+		break;
+	case 50:
+		power |= CB_SP_VCC_5V;
+		break;
+	}
+
+	/*
+	 * vpp == -1 means use vcc voltage.
+	 */
+	if (slt->pwr.vpp == -1)
+		slt->pwr.vpp = slt->pwr.vcc;
 	switch(slt->pwr.vpp) {
 	default:
 		return (EINVAL);
 	case 0:
 		power |= CB_SP_VPP_0V;
+		break;
+	case 11:
+		power |= CB_SP_VPP_YV;
+		break;
+	case 22:
+		power |= CB_SP_VPP_XV;
 		break;
 	case 33:
 		power |= CB_SP_VPP_3V;
@@ -528,30 +574,6 @@ pcic_cardbus_power(struct pcic_slot *sp, struct slot *slt)
 		break;
 	case 120:
 		power |= CB_SP_VPP_12V;
-		break;
-	}
-
-	switch(slt->pwr.vcc) {
-	default:
-		return (EINVAL);
-	case 0:
-		power |= CB_SP_VCC_0V;
-		break;
-	case 33:
-		power |= CB_SP_VCC_3V;
-		break;
-	case 50:
-		power |= CB_SP_VCC_5V;
-		break;
-	case -1:
-		if (state & CB_SS_5VCARD)
-			power |= CB_SP_VCC_5V;
-		else if (state & CB_SS_3VCARD)
-			power |= CB_SP_VCC_3V;
-		else if (state & CB_SS_XVCARD)
-			power |= CB_SP_VCC_XV;
-		else if (state & CB_SS_YVCARD)
-			power |= CB_SP_VCC_YV;
 		break;
 	}
 	printf("Setting power reg to 0x%x", power);
@@ -572,6 +594,7 @@ pcic_power(struct slot *slt)
 	struct pcic_slot *sp = slt->cdata;
 	struct pcic_slot *sp2;
 	struct pcic_softc *sc = sp->sc;
+	int dodefault = 0;
 
 	/*
 	 * Cardbus power registers are completely different.
@@ -579,6 +602,9 @@ pcic_power(struct slot *slt)
 	if (sc->flags & PCIC_CARDBUS_POWER)
 		return (pcic_cardbus_power(sp, slt));
 
+	if (bootverbose)
+		device_printf(sc->dev, "Power: Vcc=%d Vpp=%d\n", slt->pwr.vcc,
+		    slt->pwr.vpp);
 	/*
 	 * If we're automatically detecting what voltage to use, then we need
 	 * to ask the bridge what type (voltage-wise) the card is.
@@ -647,6 +673,13 @@ pcic_power(struct slot *slt)
 			device_printf(sc->dev, "Autodetected %d.%dV card\n",
 			    slt->pwr.vcc / 10, slt->pwr.vcc %10);
 	}
+	if (slt->pwr.vcc == -1) {
+		if (bootverbose)
+			device_printf(sc->dev,
+			    "Couldn't autodetect voltage, assuming 5.0V\n");
+		dodefault = 1;
+		slt->pwr.vcc = 50;
+	}
 
 	/*
 	 * XXX Note: The Vpp controls varies quit a bit between bridge chips
@@ -655,6 +688,8 @@ pcic_power(struct slot *slt)
 	 * applications want vpp == vcc and the following code does appear
 	 * to do that for all bridge sets.
 	 */
+	if (slt->pwr.vpp == -1)
+		slt->pwr.vpp = slt->pwr.vcc;
 	switch(slt->pwr.vpp) {
 	default:
 		return (EINVAL);
@@ -707,7 +742,6 @@ pcic_power(struct slot *slt)
 		if (sc->flags & PCIC_DF_POWER)
 			reg |= PCIC_VCC_3V;
 		break;
-	case -1:			/* Treat default like 5.0V */
 	case 50:
 		if (sc->flags & PCIC_KING_POWER)
 			reg |= PCIC_VCC_5V_KING;
@@ -728,25 +762,36 @@ pcic_power(struct slot *slt)
 		break;
 	}
 	sp->putb(sp, PCIC_POWER, reg);
+	if (bootverbose)
+		device_printf(sc->dev, "Power applied\n");
 	DELAY(300*1000);
 	if (slt->pwr.vcc) {
 		reg |= PCIC_OUTENA;
 		sp->putb(sp, PCIC_POWER, reg);
+		if (bootverbose)
+			device_printf(sc->dev, "Output enabled\n");
 		DELAY(100*1000);
+		if (bootverbose)
+			device_printf(sc->dev, "Settling complete\n");
 	}
 
 	/*
 	 * Some chipsets will attempt to preclude us from supplying
 	 * 5.0V to cards that only handle 3.3V.  We seem to need to
 	 * try 3.3V to paper over some power handling issues in other
-	 * parts of the system.  I suspect they are in the pccard bus
-	 * driver, but may be in pccardd as well.
+	 * parts of the system.  Maybe the proper detection of 3.3V cards
+	 * now obviates the need for this hack, so put a printf in to
+	 * warn the world about it.
 	 */
-	if (!(sp->getb(sp, PCIC_STATUS) & PCIC_POW) && slt->pwr.vcc == -1) {
+	if (!(sp->getb(sp, PCIC_STATUS) & PCIC_POW) && dodefault) {
 		slt->pwr.vcc = 33;
 		slt->pwr.vpp = 0;
+		device_printf(sc->dev,
+		    "Failed at 5.0V.  Trying 3.3V.  Please report message to mobile@freebsd.org\n");
 		return (pcic_power(slt));
 	}
+	if (bootverbose)
+		printf("Power complete.\n");
 	return (0);
 }
 
@@ -764,7 +809,13 @@ pcic_mapirq(struct slot *slt, int irq)
 }
 
 /*
- *	pcic_reset - Reset the card and enable initial power.
+ *	pcic_reset - Reset the card and enable initial power.  This may
+ *	need to be interrupt driven in the future.  We should likely turn
+ *	the reset on, DELAY for a period of time < 250ms, turn it off and
+ *	tsleep for a while and check it when we're woken up.  I think that
+ *	we're running afoul of the card status interrupt glitching, causing
+ *	an interrupt storm because the card doesn't seem to be able to
+ *	clear this pin while in reset.
  */
 static void
 pcic_reset(void *chan)
@@ -820,7 +871,8 @@ pcic_reset(void *chan)
 }
 
 /*
- *	pcic_disable - Disable the slot.
+ *	pcic_disable - Disable the slot.  I wonder if these operations can
+ *	cause an interrupt we need to acknowledge? XXX
  */
 static void
 pcic_disable(struct slot *slt)
