@@ -1311,6 +1311,6 @@ PrintAddr(a, b)
     void * a;
     void * b __unused;
 {
-    printf("%lx ", (unsigned long) a);
+    printf("%p ", a);
     return 0;
 }
