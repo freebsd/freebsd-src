@@ -93,13 +93,15 @@ sed	-e '/pty/d' \
  	-e '/INVARIANTS/d' \
  	-e '/INVARIANT_SUPPORT/d' \
  	-e '/WITNESS/d' \
-	-e '/MSDOS/d' \
 	-e '/	ncr/d' \
 	-e '/pcm/d' \
 	-e '/atapist/d' \
 	-e '/wds/d' \
 	-e '/lpt/d' \
 	-e '/ppi/d' \
+	-e '/	txp/d' \
+	-e '/	sf/d' \
+	-e '/	ste/d' \
 	-e '/ugen/d' \
 	-e '/uhid/d' \
 	-e '/ulpt/d' \
