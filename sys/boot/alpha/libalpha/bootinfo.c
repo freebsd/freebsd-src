@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bootinfo.c,v 1.3 1998/10/15 21:55:58 dfr Exp $
+ *	$Id: bootinfo.c,v 1.4 1999/03/08 11:05:42 dcs Exp $
  */
 
 #include <stand.h>
@@ -88,10 +88,11 @@ bi_copyenv(vm_offset_t addr)
 }
 
 #define MOD_STR(t, a, s) {			\
+    const char *p = s ? s : "";			\
     COPY32(t, a);				\
-    COPY32(strlen(s) + 1, a);			\
-    alpha_copyin(s, a, strlen(s) + 1);		\
-    a += roundup(strlen(s) + 1, sizeof(u_int64_t));\
+    COPY32(strlen(p) + 1, a);			\
+    alpha_copyin(p, a, strlen(p) + 1);		\
+    a += roundup(strlen(p) + 1, sizeof(u_int64_t));\
 }
 
 #define MOD_NAME(a, s)	MOD_STR(MODINFO_NAME, a, s)
