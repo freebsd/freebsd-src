@@ -86,6 +86,24 @@ main(argc, argv)
 	char *argv[];
 {
 	int ch, rflag;
+	char *p;
+
+	/*
+	 * Test for the special case where the utility is called as
+	 * "unlink", for which the functionality provided is greatly
+	 * simplified.
+	 */
+	if ((p = rindex(argv[0], '/')) == NULL)
+		p = argv[0];
+	else
+		++p;
+	if (strcmp(p, "unlink") == 0) {
+		if (argc == 2) {
+			rm_file(&argv[1]);
+			exit(eval);
+		} else 
+			usage();
+	}
 
 	Pflag = rflag = 0;
 	while ((ch = getopt(argc, argv, "dfiPRrvW")) != -1)
@@ -472,6 +490,8 @@ void
 usage()
 {
 
-	(void)fprintf(stderr, "usage: rm [-f | -i] [-dPRrvW] file ...\n");
+	(void)fprintf(stderr, "%s\n%s\n",
+	    "usage: rm [-f | -i] [-dPRrvW] file ...",
+	    "       unlink file");
 	exit(EX_USAGE);
 }
