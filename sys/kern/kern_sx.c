@@ -74,7 +74,7 @@ sx_init(struct sx *sx, const char *description)
 	lock->lo_type = lock->lo_name = description;
 	lock->lo_flags = LO_WITNESS | LO_RECURSABLE | LO_SLEEPABLE |
 	    LO_UPGRADABLE;
-	sx->sx_lock = mtx_pool_find(sx);
+	sx->sx_lock = mtx_pool_find(mtxpool_lockbuilder, sx);
 	sx->sx_cnt = 0;
 	cv_init(&sx->sx_shrd_cv, description);
 	sx->sx_shrd_wcnt = 0;
