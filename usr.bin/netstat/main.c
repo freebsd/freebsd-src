@@ -327,7 +327,7 @@ main(argc, argv)
 
 	af = AF_UNSPEC;
 
-	while ((ch = getopt(argc, argv, "Aabdf:ghI:lLiM:mN:np:rstuWw:")) != -1)
+	while ((ch = getopt(argc, argv, "Aabdf:gI:iLlM:mN:np:rstuWw:")) != -1)
 		switch(ch) {
 		case 'A':
 			Aflag = 1;
@@ -725,7 +725,7 @@ usage()
 {
 	(void)fprintf(stderr, "%s\n%s\n%s\n%s\n",
 "usage: netstat [-AaLlnW] [-f address_family] [-M core] [-N system]",
-"       netstat [-abdghilmnrs] [-f address_family] [-M core] [-N system]",
+"       netstat [-abdgilmnrs] [-f address_family] [-M core] [-N system]",
 "       netstat [-bdn] [-I interface] [-M core] [-N system] [-w wait]",
 "       netstat [-M core] [-N system] [-p protocol]");
 	exit(1);
