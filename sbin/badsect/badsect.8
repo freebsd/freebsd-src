@@ -39,7 +39,7 @@
 .Nm badsect
 .Nd create files to contain bad sectors
 .Sh SYNOPSIS
-.Nm badsect
+.Nm
 .Ar bbdir sector ...
 .Sh DESCRIPTION
 .Nm Badsect
@@ -120,7 +120,7 @@ A warning is issued if the block is already in use.
 .Sh BUGS
 If more than one sector which comprise a file system fragment are bad,
 you should specify only one of them to
-.Nm Ns ,
+.Nm ,
 as the blocks in the bad sector files actually cover all the sectors in a
 file system fragment.
 .Sh HISTORY

@@ -43,7 +43,7 @@
 .Nm rdisc
 .Nd network RIP and router discovery routing daemon
 .Sh SYNOPSIS
-.Nm routed
+.Nm
 .Op Fl sqdghmpAtv
 .Op Fl T Ar tracefile
 .Oo
@@ -167,7 +167,7 @@ of ICMP Redirect messages are deleted after a while to minimize
 .Em black-holes .
 When a TCP connection suffers a timeout,
 the kernel tells
-.Nm Ns ,
+.Nm ,
 which deletes all redirected routes
 through the gateway involved, advances the age of all RIP routes through
 the gateway to allow an alternate to be chosen, and advances of the
@@ -422,7 +422,7 @@ that another routing process
 will install such a route if necessary,
 and that other routes to that destination should not be installed
 by
-.Nm Ns .
+.Nm .
 Such entries are only required when both routers may learn of routes
 to the same destination.
 .Pp
@@ -469,7 +469,7 @@ or
 or
 .Xr named 8 ,
 must have been started before
-.Nm Ns .)
+.Nm . )
 .Pp
 .Ar Mask
 is an optional number between 1 and 32 indicating the netmask associated

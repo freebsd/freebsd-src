@@ -39,7 +39,7 @@
 .Nm ifconfig
 .Nd configure network interface parameters
 .Sh SYNOPSIS
-.Nm ifconfig
+.Nm
 .Op Fl L
 .Ar interface
 .Op Ar address_family
@@ -48,18 +48,18 @@
 .Op Ar dest_address
 .Oc
 .Op Ar parameters
-.Nm ifconfig
+.Nm
 .Fl a
 .Op Fl L
 .Op Fl d
 .Op Fl u
 .Op Ar address_family
-.Nm ifconfig
+.Nm
 .Fl l
 .Op Fl d
 .Op Fl u
 .Op Ar address_family 
-.Nm ifconfig
+.Nm
 .Op Fl L
 .Op Fl d
 .Op Fl u
@@ -136,7 +136,7 @@ for example,
 .El
 .Pp
 The following parameters may be set with 
-.Nm ifconfig :
+.Nm :
 .Bl -tag -width indent
 .It Cm add
 Another name for the ``alias'' parameter.  Introduced for compatibility
@@ -441,7 +441,7 @@ tried to alter an interface's configuration.
 IPv6 link-local addresses are required for several basic communication
 between IPv6 node.
 If they are deleted by
-.Nm ifconfig
+.Nm
 manually, the kernel might show very strange behavior.
 So, such manual deletions are strongly discouraged.
 .Sh SEE ALSO

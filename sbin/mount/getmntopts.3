@@ -44,7 +44,7 @@
 .Fn getmntopts "char *options" "struct mntopt *mopts" "int *flagp" "int *altflagp"
 .Sh DESCRIPTION
 The
-.Nm getmntopts
+.Fn getmntopts
 function takes a comma separated option list and a list
 of valid option names, and computes the bitmask
 corresponding to the requested set of options.
@@ -64,7 +64,7 @@ or
 field of the option's table entry)
 are updated.
 The flag words are not initialized by
-.Nm getmntopt .
+.Fn getmntopts .
 The table,
 .Dv mopts ,
 has the following format:
@@ -85,7 +85,7 @@ for example
 .Dq suid .
 .It Fa m_inverse
 tells
-.Nm getmntopts
+.Fn getmntopts
 that the name has the inverse meaning of the
 bit.
 For example,
@@ -164,7 +164,7 @@ struct mntopt mopts[] = {
 If the external integer variable
 .Dv getmnt_silent
 is non-zero then the
-.Nm getmntopts
+.Fn getmntopts
 function displays an error message and exits if an
 unrecognized option is encountered.
 By default

@@ -7,14 +7,14 @@
 .Nm fdisk
 .Nd PC partition table maintenance program
 .Sh SYNOPSIS
-.Nm fdisk
+.Nm
 .\" !PC98 .Op Fl BIaistu
 .Op Fl Bastu
 .Op Fl b Ar bootcode
 .Op Fl 1234
 .Op Ar disk
 .Bl -tag -width time
-.Nm fdisk
+.Nm
 .Fl f Ar configfile
 .Op Fl itv
 .Op Ar disk
@@ -41,7 +41,7 @@ program can be used to divide space on the disk into partitions and set one
 .Em active .
 .Sh DESCRIPTION
 The
-.Bx Free
+.Fx
 program
 .Nm
 serves a similar purpose to the DOS program.  The first form is used to
@@ -197,7 +197,7 @@ The second partition overlaps the end of the first.
 .Bl -tag -width "cyl, sector and head"
 .It Em "sysmid"
 is used to label the partition.
-.Bx Free
+.Fx
 reserves the
 magic number 148 decimal (94 in hex).
 .It Em "start and size"
@@ -272,7 +272,7 @@ While the
 .Fl i
 flag is used to "initialize" sector 0;
 it will setup the last BIOS partition to use the whole disk for
-.Bx Free ;
+.Fx ;
 and make it active.
 .Sh NOTES
 The automatic calculation of starting cylinder etc. uses
@@ -285,7 +285,7 @@ that use geometry translation under the BIOS.
 .Pp
 If you hand craft your disk layout,
 please make sure that the
-.Bx Free
+.Fx
 partition starts on a cylinder boundary.
 A number of decisions made later may assume this.
 (This might not be necessary later.)
@@ -344,28 +344,26 @@ This line must occur before any lines that specify partition
 information.
 .Pp
 It is an error if the following is not true:
-.Pp
-.nf
-        1 <= number of cylinders
-        1 <= number of heads <= 256
-        1 <= number of sectors/track < 64
-.fi
+.Bd -literal -offset indent
+1 <= number of cylinders
+1 <= number of heads <= 256
+1 <= number of sectors/track < 64
+.Ed
 .Pp
 The number of cylinders should be less than or equal to 1024, but this
 is not enforced, although a warning will be output.  Note that bootable
-.Bx Free
+.Fx
 partitions (the "/" filesystem) must lie completely within the
 first 1024 cylinders; if this is not true, booting may fail.
 Non-bootable partitions do not have this restriction.
 .Pp
 Example (all of these are equivalent), for a disk with 1019 cylinders,
 39 heads, and 63 sectors:
-.Pp
-.nf
-        g       c1019   h39     s63
-        g       h39     c1019   s63
-        g       s63     h39     c1019
-.fi
+.Bd -literal -offset indent
+g       c1019   h39     s63
+g       h39     c1019   s63
+g       s63     h39     c1019
+.Ed
 .It Xo
 .Ic p
 .No Ar partition
@@ -398,7 +396,7 @@ if one is present.
 The
 .Ar type
 is 165 for
-.Bx Free
+.Fx
 partitions.  Specifying a partition type of zero is
 the same as clearing the partition and marking it as unused; however,
 dummy values (such as "0") must still be specified for
@@ -411,20 +409,18 @@ necessary, and the end offset will be rounded downwards to a cylinder
 boundary if necessary.
 .Pp
 Example: to clear partition 4 and mark it as unused:
-.Pp
-.nf
-        p       4       0       0       0
-.fi
+.Bd -literal -offset indent
+p       4       0       0       0
+.Ed
 .Pp
 Example: to set partition 1 to a
-.Bx Free
+.Fx
 partition, starting at sector 1
 for 2503871 sectors (note: these numbers will be rounded upwards and
 downwards to correspond to head and cylinder boundaries):
-.Pp
-.nf
-        p       1       165     1       2503871
-.fi
+.Bd -literal -offset indent
+p       1       165     1       2503871
+.Ed
 .It Xo
 .Ic a
 .No Ar partition
@@ -435,13 +431,10 @@ the active partition.  Can occur anywhere in the config file, but only
 one must be present.
 .Pp
 Example: to make partition 1 the active partition:
-.Pp
-.nf
-        a       1
-.fi
-
+.Bd -literal -offset indent
+a       1
+.Ed
 .El
-.Pp
 .Sh FILES
 .Bl -tag -width /boot/mbr -compact
 .It Pa /boot/mbr
@@ -462,7 +455,7 @@ is used where it should actually be
 in order to conform with the terms used elsewhere.
 .Pp
 You cannot use this command to completely dedicate a disk to
-.Bx Free .
+.Fx .
 The
 .Xr disklabel 8
 command must be used for this.
