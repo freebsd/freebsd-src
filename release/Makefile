@@ -572,9 +572,10 @@ cdrom.1:
         done
 .if ${MACHINE_ARCH} == "alpha"
 	@echo "Setting up Alpha CD disc1 for booting"
-	@ln -f ${RD}/image.boot/kernel.gz ${CD_DISC1}
 	@cp -Rp ${RD}/image.boot/boot ${CD_DISC1}
-	@cp -p /boot/cdboot ${CD_DISC1}/boot/
+	@ln -f ${CD_DISC2}/boot/cdboot ${CD_DISC1}/boot
+	@ln -f ${CD_DISC1}/boot/loader.rc ${CD_DISC2}/boot
+	@ln -f ${CD_DISC1}/kernel ${CD_DISC2}/kernel
 .endif
 .if !defined(NOPORTS)
 	@-rm -rf /usr/ports/distfiles/*
