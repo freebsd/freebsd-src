@@ -1,5 +1,7 @@
 .\" Copyright (c) 1995-1996 Wolfram Schneider <wosch@FreeBSD.org>. Berlin.
 .\" All rights reserved.
+.\" Copyright (c) 2002 Michael Telahun Makonnen <makonnen@pacbell.net>
+.\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -24,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 9, 1995
+.Dd August 14, 2002
 .Dt ADDUSER 8
 .Os
 .Sh NAME
@@ -33,37 +35,39 @@
 .Sh SYNOPSIS
 .Nm
 .Bk -words
-.Op Fl check_only
-.Op Fl class Ar login_class
-.Op Fl config_create
-.Op Fl dotdir Ar dotdir
-.Op Fl group Ar login_group
-.Op Fl h | help
-.Op Fl home Ar home
-.Op Fl message Ar message_file
-.Op Fl noconfig
-.Op Fl shell Ar shell
-.Op Fl s | silent | q | quiet
-.Op Fl uid Ar uid_start
-.Op Fl v | verbose
+.Op Fl CENhq
+.Op Fl G Ar groups
+.Op Fl L Ar login_class
+.Op Fl d Ar partition
+.Op Fl f Ar file
+.Op Fl k Ar dotdir
+.Op Fl m Ar message_file
+.Op Fl s Ar shell
+.Op Fl u Ar uid_start
+.Op Fl w Ar type
 .Ek
 .Sh DESCRIPTION
 The
-.Nm
-utility is a simple program for adding new users.
-It checks the passwd, group and shell databases.
-It creates passwd/group entries,
-.Ev HOME
-directory, dotfiles and sends the new user a welcome message.
+.Nm adduser
+program is a shell script, implemented around the
+.Xr pw 8
+command, for adding new users.
+It creates passwd/group entries, a home directory,
+copies dotfiles and sends the new user a welcome message.
+It supports two modes of operation. It may be used interactively
+at the command line to add one user at a time or it may be directed
+to get the list of new users from a file and operate in batch mode
+without requiring any user interaction.
 .Sh RESTRICTIONS
 .Bl -tag -width Ds -compact
 .It Sy username
 Login name.
-May contain only lowercase characters or digits.
+The user name is restricted to whatever
+.Xr pw 8
+will accept. Generally this means it
+may contain only lowercase characters or digits.
 Maximum length
-is 16 characters (see
-.Xr setlogin 2
-BUGS section).
+is 16 characters.
 The reasons for this limit are "Historical".
 Given that people have traditionally wanted to break this
 limit for aesthetic reasons, it's never been of great importance to break
@@ -80,20 +84,26 @@ The NIS protocol mandates an 8-character username.
 If you need a longer login name for e-mail addresses,
 you can define an alias in
 .Pa /etc/mail/aliases .
-.It Sy fullname
-Firstname and surname.
+.It Sy full name
+This is typically known as the gecos field and usually contains
+the user's full name. Additionally, it may contain a comma separated
+list of values such as office number and work and home phones. If the
+name contains an amperstand it will be replaced by the capitalized
+login name when displayed by other programs.
 The
 .Ql Pa \&:
 character is not allowed.
 .It Sy shell
-Only valid shells from the shell database or sliplogin and pppd
+Only valid shells from the shell database (/etc/shells) are allowed. In
+addition, only the base name of the shell is necessary, not the full path.
 .It Sy uid
-Automatically generated or your choice, must be less than 32000.
+Automatically generated or your choice. It must be less than 32000.
 .It Sy gid/login group
-Your choice or automatically generated.
+Automatically generated or your choice. It must be less than 32000.
 .It Sy password
-If not empty, password is encoded with
-.Xr crypt 3 .
+You may choose an empty password, disable the password, use a
+randomly generated password or specify your own plaintext password,
+which will be encrypted before being stored in the user database.
 .El
 .Sh UNIQUE GROUPS
 Perhaps you're missing what
@@ -114,96 +124,183 @@ users into groups and having to muck with the umask when working in a shared
 area.
 .Pp
 I have been using this model for almost 10 years and found that it works
-for most situations, and has never gotten in the way.
-(Rod Grimes)
+for most situations, and has never gotten in the way.  (Rod Grimes)
 .Sh CONFIGURATION
-.Bl -enum
-.It
-Read internal variables.
-.It
-Read configuration file (/etc/adduser.conf).
-.It
-Parse command line options.
-.El
+The
+.Nm
+utility reads its configuration information from
+.Ar /etc/adduser.conf .
+If this file does not exist it will use predefined defaults. While
+this file may be edited by hand the safer option is to use the
+.Op Fl C
+command line argument. With this argument
+.Nm
+will start interactive input, save the answers to its prompts in
+.Ar /etc/adduser.conf ,
+and promptly exit without modifying the user
+database. Options specified on the command line will take precedence over
+any values saved in this file.
 .Sh OPTIONS
 .Bl -tag -width Ds
-.It Fl check_only
-Check /etc/passwd, /etc/group, /etc/shells and exit.
-.It Fl class Ar login_class
-Set default login class.
-.It Fl config_create
-Create new configuration and message file and exit.
-.It Fl dotdir Ar directory
+.It Fl C
+Create new configuration file and exit. This option is mutually exclusive
+with the
+.Op Fl f
+option.
+.It Fl d Ar partition
+Home partition. Default partition, under which all user directories
+will be located.
+.It Fl E
+Disable the account. This option will lock the account by prepending
+the string *LOCKED* to the password field. The account may be unlocked
+by the super-user with the
+.Xr pw 8
+command:
+.Pp
+.Dl "pw unlock [name|uid]"
+.It Fl f Ar file
+Get the list of accounts to create from
+.Ar file .
+If
+.Ar file
+is '`-'', then get the list from standard input. If this option
+is specified
+.Nm
+will operate in batch mode and will not seek any user input. If an
+error is encountered while processing an account it will write a
+message to standard error and move to the next account. The format
+of the input file is described below.
+.It Fl G Ar groups
+Additional group(s). By default the user name is used as the login group.
+This option allows the user to specify additional groups to add users to.
+.It Fl h
+Print a summary of options and exit.
+.It Fl k Ar directory
 Copy files from
 .Ar directory
-into the
-.Ev HOME
+into the home
 directory of new users,
 .Ql Pa dot.foo
 will be renamed to
 .Ql Pa .foo .
-Don't copy files if
-.Ar directory
-specified is equal to
-.Ar no .
-For security make all files writable and readable for owner,
-don't allow group or world to write files and allow only owner
-to read/execute/write
-.Pa .rhost ,
-.Pa .Xauthority ,
-.Pa .kermrc ,
-.Pa .netrc ,
-.Pa Mail ,
-.Pa prv ,
-.Pa iscreen ,
-.Pa term .
-.It Fl group Ar login_group
-Login group.
-.Ar USER
-means that the username is to be used as login group.
-.It Fl help , h , \&?
-Print a summary of options and exit.
-.It Fl home Ar partition
-Default home partition where all users located.
-.It Fl message Ar file
+.It Fl L Ar login_class
+Set default login class.
+.It Fl m Ar file
 Send new users a welcome message from
 .Ar file .
 Specifying a value of
 .Ar no
 for
 .Ar file
-causes no message to be sent to new users.
-.It Fl noconfig
+causes no message to be sent to new users. Please note that the message
+file can reference the internal variables of the
+.Nm
+script.
+.It Fl N
 Do not read the default configuration file.
-.It Fl shell Ar shell
-Default shell for new users.
-.It Fl silent , s , quiet , q
-Few warnings, questions, bug reports.
-.It Fl uid Ar uid
+.It Fl q
+Minimal user feedback. In particular, the random password will not be echoed to
+standard output.
+.It Fl s Ar shell
+Default shell for new users. The
+.Ar shell
+argument must be the base name of the shell , NOT the full path.
+It must exist in
+.Ar /etc/shells
+to be considered a valid shell.
+.It Fl u Ar uid
 Use uid's from
 .Ar uid
 on up.
-.It Fl verbose , v
-Many warnings, questions.
-Recommended for novice users.
-.El
-.Sh FORMATS
-.Bl -tag -width Ds -compact
-.Ql Pa #
-is a comment.
-.It Sy configuration file
-The
+.It Fl w Ar type
+Password type. The
 .Nm
-utility reads and writes this file.
-See
-.Pa /etc/adduser.conf
-for more details.
-.It Sy message file
-Eval variables in this file.
-See
-.Pa /etc/adduser.message
-for more
-details.
+utility allows the user to specify what type of password to create.
+The
+.Ar type
+argument may have one of the following values:
+.Bl -tag -width ".Dv random"
+.It Dv no
+Disable the password. Instead of an encrypted string the passowrd field
+will contain a single '`*'' character.
+The user may not login until the super-user
+manually enables the password.
+.It Dv none
+Use an empty string as the password.
+.It Dv yes
+Use a user supplied string as the password. In interactive mode
+the user will be prompted for the password. In batch mode, the
+last (10th) field in the line is assumed to be the password.
+.It Dv random
+Generate a random string and use it as a password. The password will
+be echoed to standard output. In addition it will be available for
+inclusion in the message file in the
+.Ar randompass
+environment variable.
+.El
+.Sh FORMAT
+.Bl -tag -width Ds -compact
+When the
+.Op Fl f
+option is used the account information must be stored in a specific
+format. All empty lines or lines beginning with a
+.Ql Pa #
+will be ignored. All other lines must contain ten colon (:) separated
+fields as described below. Command line options do not take precedence
+over values in the fields. Only the password field may contain a
+.Ql Pa :
+character as part of the string.
+.Pp
+.Dl "name:uid:gid:class:change:expire:gecos:home_dir:shell:password"
+.Bl -tag -width ".Dv password"
+.It Dv name
+Login name. This field may not be empty.
+.It Dv uid
+Numeric login user id. If this field is left empty it will be automatically
+generated.
+.It Dv gid
+Numeric primary group id. If this field is left empty a group with the
+same name as the user name will be created and its gid will be used
+instead.
+.It Dv class
+Login class. This field may be left empty.
+.It Dv change
+Password ageing.
+This field denotes the password change date for the account. The format of this
+field is the same as the format of the
+.Op Fl p
+argument to
+.Xr pw 8 .
+It may be 'dd-mmm-yy[yy]', where 'dd' is for the day, 'mmm' is for the month
+in numeric or alphabetical format: '10 or Oct', and 'yy[yy]' is the four or two digit year.
+To denote a time relative to the current date the format
+is: '+n[mhdwoy]', where 'n' denotes a number, followed by the Minutes, Hours,
+Days, Weeks, Months or Years after which the password must be changed. 
+This field may be left empty to turn it off.
+.It Dv expire
+Account expiration. This field denotes the expiry date of the account. The account may
+not be used after the specified date. The format of this field is the same as that
+for password ageing. This field may be left empty to turn it off.
+.It Dv gecos
+Full name and other extra information about the user.
+.It Dv home_dir
+Home directory. If this field is left empty it will be automatically
+created by appending the username to the home partition.
+.It Dv shell
+Login Shell. This field should contain the full path to a valid login shell.
+.It Dv password
+User password. This field should contain a plaintext string, which will
+be encrypted before being placed in the user database. If the password type is 'yes'
+and this field is empty it is assumed the account will have any empty password. If
+the password type is 'random' and this field is NOT empty its contents will be used
+as a password. This field will be ignored if the
+.Op Fl p
+flag is used with a
+.Ar no
+or
+.Ar none
+argument. Be carefull not to terminate this field with a closing ':' because it will
+be treated as part of the password.
 .El
 .Sh FILES
 .Bl -tag -width /etc/master.passwdxx -compact
@@ -226,9 +323,7 @@ logfile for adduser
 .El
 .Sh SEE ALSO
 .Xr chpass 1 ,
-.Xr finger 1 ,
 .Xr passwd 1 ,
-.Xr setlogin 2 ,
 .Xr aliases 5 ,
 .Xr group 5 ,
 .Xr login.conf 5 ,
@@ -239,9 +334,28 @@ logfile for adduser
 .Xr rmuser 8 ,
 .Xr vipw 8 ,
 .Xr yp 8
-.\" .Sh BUGS
 .Sh HISTORY
 The
 .Nm
-utility appeared in
+command appeared in
 .Fx 2.1 .
+.Sh AUTHORS
+This manual page and the original script, in perl, was written by
+.An Wolfram Schneider <wosch@FreeBSD.org>. The replacement script, written as a Bourne
+shell script with some enhancements, and the man page modification that
+came with it were done by
+.An Mike Makonnen <mtm@identd.net> .
+.Sh BUGS
+In order for
+.Nm
+to correctly expand variables such as $username and $randompass in the message sent
+to new users it must let the shell evaluate each line of the message file. This means
+that shell commands can also be embedded in the message file. The
+.Nm
+utility attemps to mitigate the possibility of an attacker using this feature by
+refusing to evaluate the file if it is not owned and writeable only by the root user.
+In addition, shell special characters and operators will have to be escaped when
+used in the message file.
+.Pp
+Also, password ageing and account expiry times are currently setable only in batch mode.
+The user should be able to set them in interactive mode as well.
