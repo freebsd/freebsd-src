@@ -417,7 +417,7 @@ ufs/ffs/ffs_balloc.c	optional ffs
 ufs/ffs/ffs_balloc.c	optional mfs
 ufs/ffs/ffs_inode.c	optional ffs
 ufs/ffs/ffs_inode.c	optional mfs
-ufs/ffs/ffs_softdep_stub.c	optional ffs
+ufs/ffs/ffs_softdep_stub.c	standard
 ufs/ffs/ffs_softdep.c	optional softupdates
 ufs/ffs/ffs_subr.c	optional ffs
 ufs/ffs/ffs_subr.c	optional mfs
