@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_time.c	8.1 (Berkeley) 6/10/93
- * $Id: kern_time.c,v 1.26 1997/05/10 12:00:03 peter Exp $
+ * $Id: kern_time.c,v 1.27 1997/06/01 09:01:07 peter Exp $
  */
 
 #include <sys/param.h>
@@ -285,8 +285,9 @@ nanosleep(p, uap, retval)
 	error = copyin(SCARG(uap, rqtp), &rqt, sizeof(rqt));
 	if (error)
 		return (error);
-	if (!useracc((caddr_t)SCARG(uap, rmtp), sizeof(rmt), B_WRITE))
-		return (EFAULT);
+	if (SCARG(uap, rmtp))
+		if (!useracc((caddr_t)SCARG(uap, rmtp), sizeof(rmt), B_WRITE))
+			return (EFAULT);
 
 	error = nanosleep1(p, &rqt, &rmt);
 
@@ -321,8 +322,9 @@ signanosleep(p, uap, retval)
 	error = copyin(SCARG(uap, rqtp), &rqt, sizeof(rqt));
 	if (error)
 		return (error);
-	if (!useracc((caddr_t)SCARG(uap, rmtp), sizeof(rmt), B_WRITE))
-		return (EFAULT);
+	if (SCARG(uap, rmtp))
+		if (!useracc((caddr_t)SCARG(uap, rmtp), sizeof(rmt), B_WRITE))
+			return (EFAULT);
 	error = copyin(SCARG(uap, mask), &mask, sizeof(mask));
 	if (error)
 		return (error);
