@@ -790,27 +790,26 @@ g_ccd_create(struct gctl_req *req, struct g_class *mp)
 	sbuf_delete(sb);
 }
 
-static void
-g_ccd_destroy(struct gctl_req *req, struct g_class *mp)
+static int
+g_ccd_destroy_geom(struct gctl_req *req, struct g_class *mp, struct g_geom *gp)
 {
-	struct g_geom *gp;
 	struct g_provider *pp;
 	struct ccd_s *sc;
 
 	g_topology_assert();
-	gp = gctl_get_geom(req, mp, "geom");
-	if (gp == NULL)
-		return;
 	sc = gp->softc;
 	pp = LIST_FIRST(&gp->provider);
+	if (sc == NULL || pp == NULL)
+		return (EBUSY);
 	if (pp->acr != 0 || pp->acw != 0 || pp->ace != 0) {
 		gctl_error(req, "%s is open(r%dw%de%d)", gp->name,
 		    pp->acr, pp->acw, pp->ace);
-		return;
+		return (EBUSY);
 	}
 	g_ccd_freesc(sc);
 	gp->softc = NULL;
 	g_wither_geom(gp, ENXIO);
+	return (0);
 }
 
 static void
@@ -846,12 +845,15 @@ g_ccd_list(struct gctl_req *req, struct g_class *mp)
 static void
 g_ccd_config(struct gctl_req *req, struct g_class *mp, char const *verb)
 {
+	struct g_geom *gp;
 
 	g_topology_assert();
 	if (!strcmp(verb, "create geom")) {
 		g_ccd_create(req, mp);
 	} else if (!strcmp(verb, "destroy geom")) {
-		g_ccd_destroy(req, mp);
+		gp = gctl_get_geom(req, mp, "geom");
+		if (gp != NULL)
+		g_ccd_destroy_geom(req, mp, gp);
 	} else if (!strcmp(verb, "list")) {
 		g_ccd_list(req, mp);
 	} else {
@@ -862,6 +864,7 @@ g_ccd_config(struct gctl_req *req, struct g_class *mp, char const *verb)
 static struct g_class g_ccd_class = {
 	.name = "CCD",
 	.ctlreq = g_ccd_config,
+	.destroy_geom = g_ccd_destroy_geom,
 };
 
 DECLARE_GEOM_CLASS(g_ccd_class, g_ccd);
