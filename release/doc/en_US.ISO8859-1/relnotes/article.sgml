@@ -441,7 +441,7 @@
 
     <para>The ULE scheduler has been added as an additional scheduler.
       Note that the conventional one, which is called 4BSD, is still used
-      as the default schedular in <filename>GENERIC</filename> kernel.
+      as the default scheduler in <filename>GENERIC</filename> kernel.
       For the average user,
       interactivity is reported to be better in many cases.  This
       means less <quote>skipping</quote> and <quote>jerking</quote> in
@@ -1071,7 +1071,7 @@
 	server.</para>
 
       <para>The <literal>MSDOSFS_LARGE</literal> kernel option
-	has been added to support for FAT32 file systems bigger
+	has been added to support FAT32 file systems bigger
 	than 128GB.  This option is disabled by default.  It
 	uses at least 32 bytes of kernel memory for
 	each file on disk; furthermore it is only safe to use in certain
