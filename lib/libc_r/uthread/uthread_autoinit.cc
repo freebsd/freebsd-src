@@ -20,7 +20,7 @@
  * THIS SOFTWARE IS PROVIDED BY JOHN BIRRELL AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -29,6 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * $FreeBSD$
  */
 
 /*
@@ -72,9 +73,9 @@ static _thread_init_invoker the_thread_init_invoker;
  * Namely, we must arrange for this particular module to be pulled in from
  * the archive library at link time.  To accomplish that, we define and
  * initialize a variable, "_thread_autoinit_dummy_decl".  This variable is
- * referenced (as an extern) from the module "uthread_init.c".  So, if
- * that module is used, then it will create a need for this module as well,
- * ensuring that this module will be present in the executable.
+ * referenced (as an extern) from libc/stdlib/exit.c. This will always
+ * create a need for this module, ensuring that it is present in the
+ * executable.
  *
  * We know that, if the user does _anything_ at all with threads, then the
  * "uthread_init.c" module will be linked in.  That is the case because
