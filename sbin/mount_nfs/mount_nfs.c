@@ -241,6 +241,10 @@ set_flags(int* altflags, int* nfsflags, int dir)
 	F(RESVPORT);
 	F(NQNFS);
 	F(SOFT);
+	F(ACREGMIN);
+	F(ACREGMAX);
+	F(ACDIRMIN);
+	F(ACDIRMAX);
 
 #undef F
 #undef F2
