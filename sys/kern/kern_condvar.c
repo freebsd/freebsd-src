@@ -291,9 +291,9 @@ cv_wait_sig(struct cv *cvp, struct mtx *mp)
 		else
 			rval = ERESTART;
 	}
-	PROC_UNLOCK(p);
 	if (p->p_flag & P_WEXIT)
 		rval = EINTR;
+	PROC_UNLOCK(p);
 
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_CSW))
@@ -454,10 +454,9 @@ cv_timedwait_sig(struct cv *cvp, struct mtx *mp, int timo)
 		else
 			rval = ERESTART;
 	}
-	PROC_UNLOCK(p);
-
 	if (p->p_flag & P_WEXIT)
 		rval = EINTR;
+	PROC_UNLOCK(p);
 
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_CSW))
