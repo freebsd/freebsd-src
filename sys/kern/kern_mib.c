@@ -110,13 +110,13 @@ extern int osreldate;
 SYSCTL_INT(_kern, KERN_OSRELDATE, osreldate, CTLFLAG_RD,
     &osreldate, 0, "Kernel release date");
 
-SYSCTL_INT(_kern, KERN_MAXPROC, maxproc, CTLFLAG_RD,
+SYSCTL_INT(_kern, KERN_MAXPROC, maxproc, CTLFLAG_RDTUN,
     &maxproc, 0, "Maximum number of processes");
 
 SYSCTL_INT(_kern, KERN_MAXPROCPERUID, maxprocperuid, CTLFLAG_RW,
     &maxprocperuid, 0, "Maximum processes allowed per userid");
 
-SYSCTL_INT(_kern, OID_AUTO, maxusers, CTLFLAG_RD,
+SYSCTL_INT(_kern, OID_AUTO, maxusers, CTLFLAG_RDTUN,
     &maxusers, 0, "Hint for kernel tuning");
 
 SYSCTL_INT(_kern, KERN_ARGMAX, argmax, CTLFLAG_RD,

@@ -98,7 +98,7 @@ static int pci_allow_unsupported_io_range = 0;
 TUNABLE_INT("hw.pci.allow_unsupported_io_range",
 	(int *)&pci_allow_unsupported_io_range);
 SYSCTL_DECL(_hw_pci);
-SYSCTL_INT(_hw_pci, OID_AUTO, allow_unsupported_io_range, CTLFLAG_RD,
+SYSCTL_INT(_hw_pci, OID_AUTO, allow_unsupported_io_range, CTLFLAG_RDTUN,
 	&pci_allow_unsupported_io_range, 0,
 	"Allows the PCI Bridge to pass through an unsupported memory range "
 	"assigned by the BIOS.");
