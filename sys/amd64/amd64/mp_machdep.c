@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp_machdep.c,v 1.31 1997/07/19 04:00:35 fsmp Exp $
+ *	$Id: mp_machdep.c,v 1.17 1997/07/20 17:43:20 smp Exp smp $
  */
 
 #include "opt_smp.h"
@@ -349,7 +349,7 @@ mp_announce(void)
 	printf(", version: 0x%08x", cpu_apic_versions[0]);
 	printf(", at 0x%08x\n", cpu_apic_address);
 	for (x = 1; x <= mp_naps; ++x) {
-		printf(" cpu%d (AP):  apic id: %d", x, CPU_TO_ID(x));
+		printf(" cpu%d (AP):  apic id: %2d", x, CPU_TO_ID(x));
 		printf(", version: 0x%08x", cpu_apic_versions[x]);
 		printf(", at 0x%08x\n", cpu_apic_address);
 	}
@@ -428,7 +428,7 @@ bsp_apic_configure(void)
         lapic.lvt_lint1 = temp;
 
 	if (bootverbose)
-		apic_dump();
+		apic_dump("bsp_apic_configure()");
 }
 #endif  /* APIC_IO */
 
