@@ -2,7 +2,9 @@ How to setup FTP proxying using the built in proxy code.
 ========================================================
 
 NOTE: Currently, the built-in FTP proxy is only available for use with NAT
-      (i.e. only if you're already using "map" rules with ipnat).
+      (i.e. only if you're already using "map" rules with ipnat).  It does
+      support null-NAT mappings, that is, using the proxy without changing
+      the addresses.
 
 Lets assume your network diagram looks something like this:
 
@@ -37,4 +39,7 @@ where:
 ipaddr-a = 10.1.1.1
 int-c = vx0
 ipaddr-c-net = 203.45.67.91
+
+The "map" rule for this proxy should precede any other NAT rules you are
+using.
 

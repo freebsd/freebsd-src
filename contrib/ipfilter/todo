@@ -39,3 +39,4 @@ return-rst done, to/dup-to/fastroute remain - ip_forward() problems :-(
 * add more docs
 in progress
 
+* fix up where manual pages go for Solaris2

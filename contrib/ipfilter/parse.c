@@ -41,7 +41,7 @@
 
 #if !defined(lint)
 static const char sccsid[] = "@(#)parse.c	1.44 6/5/96 (C) 1993-1996 Darren Reed";
-static const char rcsid[] = "@(#)$Id: parse.c,v 2.1.2.1 1999/09/11 05:32:10 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: parse.c,v 2.1.2.5 1999/12/28 06:06:58 darrenr Exp $";
 #endif
 
 extern	struct	ipopt_names	ionames[], secclass[];
@@ -94,7 +94,7 @@ int     linenum;
 	struct	protoent	*p = NULL;
 	char	*cps[31], **cpp, *endptr;
 	u_char	ch;
-	int	i, cnt = 1;
+	int	i, cnt = 1, j;
 
 	while (*line && isspace(*line))
 		line++;
@@ -133,15 +133,19 @@ int     linenum;
 			fil.fr_flags |= FR_RETICMP;
 		if (fil.fr_flags & FR_RETICMP) {
 			cpp++;
-			if (*(*cpp + 11) == '(') {
-				i = icmpcode(*cpp + 12);
-				if (i == -1) {
+			i = 11;
+			if ((strlen(*cpp) > i) && (*(*cpp + i) != '('))
+				i = 19;
+			if (*(*cpp + i) == '(') {
+				i++;
+				j = icmpcode(*cpp + i);
+				if (j == -1) {
 					fprintf(stderr,
 					"%d: unrecognised icmp code %s\n",
-						linenum, *cpp + 12);
+						linenum, *cpp + 20);
 					return NULL;
 				}
-				fil.fr_icode = i;
+				fil.fr_icode = j;
 			}
 		} else if (!strncasecmp(*(cpp+1), "return-rst", 10)) {
 			fil.fr_flags |= FR_RETRST;
@@ -239,7 +243,11 @@ int     linenum;
 		return NULL;
 
 	if (!strcasecmp("log", *cpp)) {
-		cpp++;
+		if (!*++cpp) {
+			fprintf(stderr, "%d: missing source specification\n",
+				linenum);
+			return NULL;
+		}
 		if (fil.fr_flags & FR_PASS)
 			fil.fr_flags |= FR_LOGP;
 		else if (fil.fr_flags & FR_BLOCK)
@@ -260,6 +268,39 @@ int     linenum;
 				return NULL;
 			}
 			fil.fr_flags |= FR_LOGORBLOCK;
+			cpp++;
+		}
+		if (!strcasecmp(*cpp, "level")) {
+			int fac, pri;
+			char *s;
+
+			fac = 0;
+			pri = 0;
+			cpp++;
+			s = index(*cpp, '.');
+			if (s) {
+				*s++ = '\0';
+				fac = fac_findname(*cpp);
+				if (fac == -1) {
+					fprintf(stderr, "%d: %s %s\n", linenum,
+						"Unknown facility", *cpp);
+					return NULL;
+				}
+				pri = pri_findname(s);
+				if (pri == -1) {
+					fprintf(stderr, "%d: %s %s\n", linenum,
+						"Unknown priority", s);
+					return NULL;
+				}
+			} else {
+				pri = pri_findname(*cpp);
+				if (pri == -1) {
+					fprintf(stderr, "%d: %s %s\n", linenum,
+						"Unknown priority", *cpp);
+					return NULL;
+				}
+			}
+			fil.fr_loglevel = fac|pri;
 			cpp++;
 		}
 	}
@@ -535,8 +576,8 @@ int     linenum;
 		else {
 			fprintf(stderr, "%d: invalid group (%s)\n",
 				linenum, *cpp);
-                        return NULL;
-                }
+			return NULL;
+		}
 		cpp++;
 	}
 
@@ -1376,9 +1417,9 @@ struct	frentry	*fp;
 			if (u == NULL)
 				u = "!!!";
 			if (*s)
-				printf("%s.%s ", s, u);
+				printf("level %s.%s ", s, u);
 			else
-				printf("%s ", u);
+				printf("level %s ", u);
 		}
 			
 	}
