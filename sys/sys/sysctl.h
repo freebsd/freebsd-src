@@ -120,6 +120,11 @@ struct ctlname {
 #define REQ_LOCKED	1	/* locked and not wired */
 #define REQ_WIRED	2	/* locked and wired */
 
+/* definitions for sysctl_req 'flags' member */
+#if defined(__amd64__) || defined(__ia64__)
+#define	SCTL_MASK32	1	/* 32 bit emulation */
+#endif
+
 /*
  * This describes the access space for a sysctl request.  This is needed
  * so that we can use the interface from the kernel or from user-space.
@@ -136,6 +141,7 @@ struct sysctl_req {
 	size_t		newidx;
 	int		(*newfunc)(struct sysctl_req *, void *, size_t);
 	size_t		validlen;
+	int		flags;
 };
 
 SLIST_HEAD(sysctl_oid_list, sysctl_oid);
@@ -617,13 +623,13 @@ int	sysctl_ctx_entry_del(struct sysctl_ctx_list *clist,
 
 int	kernel_sysctl(struct thread *td, int *name, u_int namelen, void *old,
 		      size_t *oldlenp, void *new, size_t newlen,
-		      size_t *retval);
+		      size_t *retval, int flags);
 int	kernel_sysctlbyname(struct thread *td, char *name,
 		void *old, size_t *oldlenp, void *new, size_t newlen,
-		size_t *retval);
+		size_t *retval, int flags);
 int	userland_sysctl(struct thread *td, int *name, u_int namelen, void *old,
 			size_t *oldlenp, int inkernel, void *new, size_t newlen,
-			size_t *retval);
+			size_t *retval, int flags);
 int	sysctl_find_oid(int *name, u_int namelen, struct sysctl_oid **noid,
 			int *nindx, struct sysctl_req *req);
 int	sysctl_wire_old_buffer(struct sysctl_req *req, size_t len);
