@@ -85,17 +85,17 @@ int start_len = LENGTH;
 char lastch;
 char outbuf[BUFSIZ];
  
-void crash __P((void));
-void display __P((struct body *, char));
-void leave __P((int));
-void life __P((void));
-void newpos __P((struct body *));
-void prize __P((void));
-void process __P((char));
-long rnd __P((int));
-void setup __P((void));
-void suspend __P((int));
-void wake __P((int));
+void	crash(void);
+void	display(struct body *, char);
+void	leave(int);
+void	life(void);
+void	newpos(struct body *);
+void	prize(void);
+void	process(char);
+long	rnd(int);
+void	setup(void);
+void	suspend(int);
+void	wake(int);
 
 int
 main(argc, argv)

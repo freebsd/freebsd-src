@@ -61,12 +61,12 @@ pl_main()
 
 initialize()
 {
-	register struct File *fp;
-	register struct ship *sp;
+	struct File *fp;
+	struct ship *sp;
 	char captain[80];
 	char message[60];
 	int load;
-	register int n;
+	int n;
 	char *nameptr;
 	int nat[NNATION];
 

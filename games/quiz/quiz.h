@@ -37,6 +37,10 @@
  *	@(#)quiz.h	8.1 (Berkeley) 5/31/93
  */
 
+#include <sys/defs.h>
+
+__FBSDID("$FreeBSD$");
+
 #define	TRUE		1
 #define	FALSE		0
 
@@ -56,6 +60,6 @@ typedef struct qentry {
 
 extern char rxperr[];
 
-int	 rxp_compile __P((char *));
-char	*rxp_expand __P((void));
-int	 rxp_match __P((char *));
+int	 rxp_compile(char *);
+char	*rxp_expand(void);
+int	 rxp_match(char *);

@@ -1444,7 +1444,7 @@ readmessage()
 error(whichfile)
 	char	*whichfile;
 {
-	int	(*funcp) __P((const char *, ...));
+	int	(*funcp)(const char *, ...);
 
     if (Windows)
 	{

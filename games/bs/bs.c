@@ -141,9 +141,9 @@ static int salvo, blitz, closepack;
 
 #define	PR	(void)addstr
 
-static bool checkplace __P((int, ship_t *, int));
-static int getcoord __P((int));
-int playagain __P((void));
+static bool checkplace(int, ship_t *, int);
+static int getcoord(int);
+int playagain(void);
 
 static void uninitgame(sig)
 /* end the game, either normally or due to signal */

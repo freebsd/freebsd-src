@@ -58,7 +58,7 @@ static const char rcsid[] =
 #include <time.h>
 #include <unistd.h>
 
-void usage __P((void));
+void usage(void);
 
 int
 main(argc, argv)
