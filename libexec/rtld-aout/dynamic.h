@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: dynamic.h,v 1.3 1997/02/22 15:46:18 peter Exp $
  */
 
 #ifndef __DYNAMIC_H__
@@ -279,6 +279,9 @@ extern int		link_mode;
 					   of archives */
 #define SHAREABLE	8		/* Build a shared object */
 #define SILLYARCHIVE	16		/* Process .sa companions, if any */
+#define FORCEDYNAMIC	32		/* Force dynamic output even if no
+					   shared libraries included */
+#define WARNRRSTEXT	64		/* Warn about rrs in text */
 
 extern FILE		*outstream;	/* Output file. */
 extern struct exec	outheader;	/* Output file header. */
