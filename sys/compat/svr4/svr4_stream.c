@@ -80,7 +80,7 @@ __FBSDID("$FreeBSD$");
 #include <compat/svr4/svr4_socket.h>
 
 /* Utils */
-static int clean_pipe(struct thread *, const char *);
+static int clean_pipe(struct thread *, char *);
 static void getparm(struct file *, struct svr4_si_sockparms *);
 static int svr4_do_putmsg(struct thread *, struct svr4_sys_putmsg_args *,
 			       struct file *);
@@ -509,48 +509,26 @@ show_msg(str, fd, ctl, dat, flags)
 static int
 clean_pipe(td, path)
 	struct thread *td;
-	const char *path;
+	char *path;
 {
-	struct lstat_args la;
-	struct unlink_args ua;
 	struct stat st;
 	int error;
-	caddr_t sg = stackgap_init();
-	size_t l = strlen(path) + 1;
-	void *tpath;
 
-	if ((tpath = stackgap_alloc(&sg, l)) == NULL)
-		return ENAMETOOLONG;
-	la.ub = stackgap_alloc(&sg, sizeof(struct stat));
-
-	if ((error = copyout(path, tpath, l)) != 0)
-		return error;
-
-	la.path = tpath;
-
-	if ((error = lstat(td, &la)) != 0)
-		return 0;
-
-	if ((error = copyin(la.ub, &st, sizeof(st))) != 0)
-		return 0;
+	error = kern_lstat(td, path, UIO_SYSSPACE, &st);
 
 	/*
 	 * Make sure we are dealing with a mode 0 named pipe.
 	 */
 	if ((st.st_mode & S_IFMT) != S_IFIFO)
-		return 0;
+		return (0);
 
 	if ((st.st_mode & ALLPERMS) != 0)
-		return 0;
+		return (0);
 
-	ua.path = la.path;
-
-	if ((error = unlink(td, &ua)) != 0) {
+	error = kern_unlink(td, path, UIO_SYSSPACE);
+	if (error)
 		DPRINTF(("clean_pipe: unlink failed %d\n", error));
-		return error;
-	}
-
-	return 0;
+	return (error);
 }
 
 

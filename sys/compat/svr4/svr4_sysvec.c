@@ -44,13 +44,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysent.h>
 #include <sys/imgact.h>
 #include <sys/imgact_elf.h>
-#include <sys/socket.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/namei.h>
+#include <sys/socket.h>
+#include <sys/syscallsubr.h>
 #include <sys/vnode.h>
-#include <sys/module.h>
 #include <vm/vm.h>
 #include <sys/exec.h>
 #include <sys/kernel.h>
@@ -193,6 +194,8 @@ struct sysentvec svr4_sysvec = {
   NULL
 };
 
+const char      svr4_emul_path[] = "/compat/svr4";
+
 Elf32_Brandinfo svr4_brand = {
   ELFOSABI_SYSV,
   EM_386,			/* XXX only implemented for x86 so far. */
@@ -202,8 +205,6 @@ Elf32_Brandinfo svr4_brand = {
   &svr4_sysvec,
   NULL,
 };
-
-const char      svr4_emul_path[] = "/compat/svr4";
 
 static int
 svr4_fixup(register_t **stack_base, struct image_params *imgp)
@@ -249,135 +250,14 @@ svr4_fixup(register_t **stack_base, struct image_params *imgp)
  * If cflag is set, we check if an attempt can be made to create
  * the named file, i.e. we check if the directory it should
  * be in exists.
- *
- * Code shamelessly stolen by Mark Newton from IBCS2 emulation code.
  */
 int
-svr4_emul_find(td, sgp, prefix, path, pbuf, cflag)
-	struct thread	 *td;
-	caddr_t		 *sgp;		/* Pointer to stackgap memory */
-	const char	 *prefix;
-	char		 *path;
-	char		**pbuf;
-	int		  cflag;
+svr4_emul_find(struct thread *td, char *path, enum uio_seg pathseg,
+    char **pbuf, int create)
 {
-	struct nameidata	 nd;
-	struct nameidata	 ndroot;
-	struct vattr		 vat;
-	struct vattr		 vatroot;
-	int			 error;
-	char			*ptr, *buf, *cp;
-	size_t			 sz, len;
 
-	buf = (char *) malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
-	*pbuf = path;
-
-	for (ptr = buf; (*ptr = *prefix) != '\0'; ptr++, prefix++)
-		continue;
-
-	sz = MAXPATHLEN - (ptr - buf);
-
-	/* 
-	 * If sgp is not given then the path is already in kernel space
-	 */
-	if (sgp == NULL)
-		error = copystr(path, ptr, sz, &len);
-	else
-		error = copyinstr(path, ptr, sz, &len);
-
-	if (error) {
-		free(buf, M_TEMP);
-		return error;
-	}
-
-	if (*ptr != '/') {
-		free(buf, M_TEMP);
-		return EINVAL;
-	}
-
-	/*
-	 * We know that there is a / somewhere in this pathname.
-	 * Search backwards for it, to find the file's parent dir
-	 * to see if it exists in the alternate tree. If it does,
-	 * and we want to create a file (cflag is set). We don't
-	 * need to worry about the root comparison in this case.
-	 */
-
-	if (cflag) {
-		for (cp = &ptr[len] - 1; *cp != '/'; cp--);
-		*cp = '\0';
-
-		NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, buf, td);
-
-		if ((error = namei(&nd)) != 0) {
-			free(buf, M_TEMP);
-			return error;
-		}
-		NDFREE(&nd, NDF_ONLY_PNBUF);
-
-		*cp = '/';
-	}
-	else {
-		NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, buf, td);
-
-		if ((error = namei(&nd)) != 0) {
-			free(buf, M_TEMP);
-			return error;
-		}
-		NDFREE(&nd, NDF_ONLY_PNBUF);
-
-		/*
-		 * We now compare the vnode of the svr4_root to the one
-		 * vnode asked. If they resolve to be the same, then we
-		 * ignore the match so that the real root gets used.
-		 * This avoids the problem of traversing "../.." to find the
-		 * root directory and never finding it, because "/" resolves
-		 * to the emulation root directory. This is expensive :-(
-		 */
-		NDINIT(&ndroot, LOOKUP, FOLLOW, UIO_SYSSPACE, svr4_emul_path,
-		       td);
-
-		if ((error = namei(&ndroot)) != 0) {
-			/* Cannot happen! */
-			free(buf, M_TEMP);
-			vrele(nd.ni_vp);
-			return error;
-		}
-		NDFREE(&ndroot, NDF_ONLY_PNBUF);
-
-		if ((error = VOP_GETATTR(nd.ni_vp, &vat, td->td_ucred, td)) != 0) {
-			goto done;
-		}
-
-		if ((error = VOP_GETATTR(ndroot.ni_vp, &vatroot, td->td_ucred, td))
-		    != 0) {
-			goto done;
-		}
-
-		if (vat.va_fsid == vatroot.va_fsid &&
-		    vat.va_fileid == vatroot.va_fileid) {
-			error = ENOENT;
-			goto done;
-		}
-
-	}
-	if (sgp == NULL)
-		*pbuf = buf;
-	else {
-		sz = &ptr[len] - buf;
-		if ((*pbuf = stackgap_alloc(sgp, sz + 1)) != NULL)
-			error = copyout(buf, *pbuf, sz);
-		else
-			error = ENAMETOOLONG;
-		free(buf, M_TEMP);
-	}
-
-
-done:
-	vrele(nd.ni_vp);
-	if (!cflag)
-		vrele(ndroot.ni_vp);
-	return error;
+	return (kern_alternate_path(td, svr4_emul_path, path, pathseg, pbuf,
+	    create));
 }
 
 static int
