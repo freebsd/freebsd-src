@@ -2924,7 +2924,7 @@ ipfw_init(void)
 	layer3_chain.rules = NULL;
 	IPFW_LOCK_INIT(&layer3_chain);
 	IPFW_DYN_LOCK_INIT();
-	callout_init(&ipfw_timeout, CALLOUT_MPSAFE);
+	callout_init(&ipfw_timeout, debug_mpsafenet ? CALLOUT_MPSAFE : 0);
 
 	bzero(&default_rule, sizeof default_rule);
 
