@@ -482,12 +482,19 @@ kse_create(struct thread *td, struct kse_create_args *uap)
 	ncpus = mp_ncpus;
 	if (virtual_cpu != 0)
 		ncpus = virtual_cpu;
-	if (!(mbx.km_flags & KMF_BOUND))
-		sa = TDP_SA;
-	else {
-		if (mbx.km_curthread == NULL)
+	/*
+	 * If the new UTS mailbox says that this
+	 * will be a BOUND lwp, then it had better
+	 * have its thread mailbox already there.
+	 * In addition, this ksegrp will be limited to
+	 * a concurrency of 1. There is more on this later.
+	 */
+	if (mbx.km_flags & KMF_BOUND) {
+		if (mbx.km_curthread == NULL) 
 			return (EINVAL);
 		ncpus = 1;
+	} else {
+		sa = TDP_SA;
 	}
 
 	PROC_LOCK(p);
@@ -496,18 +503,21 @@ kse_create(struct thread *td, struct kse_create_args *uap)
 		p->p_flag |= P_SA;
 	}
 	PROC_UNLOCK(p);
-	if (!sa && !uap->newgroup && !first)
+	/*
+	 * Now pay attention!
+	 * If we are going to be bound, then we need to be either
+	 * a new group, or the first call ever. In either
+	 * case we will be creating (or be) the only thread in a group.
+	 * and the concurrency will be set to 1.
+	 * This is not quite right, as we may still make ourself 
+	 * bound after making other ksegrps but it will do for now.
+	 * The library will only try do this much.
+	 */
+	if (!sa && !(uap->newgroup || first))
 		return (EINVAL);
+
 	kg = td->td_ksegrp;
 	if (uap->newgroup) {
-		/* Have race condition but it is cheap */
-		if (p->p_numksegrps >= max_groups_per_proc)
-			return (EPROCLIM);
-		/*
-		 * If we want a new KSEGRP it doesn't matter whether
-		 * we have already fired up KSE mode before or not.
-		 * We put the process in KSE mode and create a new KSEGRP.
-		 */
 		newkg = ksegrp_alloc();
 		bzero(&newkg->kg_startzero, RANGEOF(struct ksegrp,
 		      kg_startzero, kg_endzero));
@@ -526,47 +536,55 @@ kse_create(struct thread *td, struct kse_create_args *uap)
 		mtx_unlock_spin(&sched_lock);
 		PROC_UNLOCK(p);
 	} else {
-		if (!first && ((td->td_pflags & TDP_SA) ^ sa) != 0)
+		/*
+		 * We want to make a thread in our own ksegrp.
+		 * If we are just the first call, either kind
+		 * is ok, but if not then either we must be 
+		 * already an upcallable thread to make another,
+		 * or a bound thread to make one of those.
+		 * Once again, not quite right but good enough for now.. XXXKSE
+		 */
+		if (!first && ((td->td_pflags & TDP_SA) != sa))
 			return (EINVAL);
 		newkg = kg;
 	}
 
-	/*
-	 * Creating upcalls more than number of physical cpu does
-	 * not help performance.
-	 */
-	if (newkg->kg_numupcalls >= ncpus)
-		return (EPROCLIM);
 
+	/* 
+	 * This test is a bit "indirect".
+	 * It might simplify things if we made a direct way of testing
+	 * if a ksegrp has been worked on before.
+	 * In the case of a bound request and the concurrency being set to 
+	 * one, the concurrency will already be 1 so it's just inefficient
+	 * but not dangerous to call this again. XXX
+	 */
 	if (newkg->kg_numupcalls == 0) {
 		/*
-		 * Initialize KSE group
+		 * Initialize KSE group with the appropriate
+		 * concurrency.
 		 *
-		 * For multiplxed group, create KSEs as many as physical
-		 * cpus. This increases concurrent even if userland
-		 * is not MP safe and can only run on single CPU.
-		 * In ideal world, every physical cpu should execute a thread.
-		 * If there is enough KSEs, threads in kernel can be
-		 * executed parallel on different cpus with full speed,
-		 * Concurrent in kernel shouldn't be restricted by number of
-		 * upcalls userland provides. Adding more upcall structures
-		 * only increases concurrent in userland.
+		 * For a multiplexed group, create as as much concurrency
+		 * as the number of physical cpus.
+		 * This increases concurrency in the kernel even if the
+		 * userland is not MP safe and can only run on a single CPU.
+		 * In an ideal world, every physical cpu should execute a
+		 * thread.  If there is enough concurrency, threads in the
+		 * kernel can be executed parallel on different cpus at
+		 * full speed without being restricted by the number of
+		 * upcalls the userland provides.
+		 * Adding more upcall structures only increases concurrency
+		 * in userland.
 		 *
-		 * For bound thread group, because there is only thread in the
-		 * group, we only create one KSE for the group. Thread in this
-		 * kind of group will never schedule an upcall when blocked,
-		 * this intends to simulate pthread system scope thread.
+		 * For a bound thread group, because there is only one thread
+		 * in the group, we only set the concurrency for the group 
+		 * to 1.  A thread in this kind of group will never schedule
+		 * an upcall when blocked.  This simulates pthread system
+		 * scope thread behaviour.
 		 */
 		while (newkg->kg_kses < ncpus) {
 			newke = kse_alloc();
 			bzero(&newke->ke_startzero, RANGEOF(struct kse,
 			      ke_startzero, ke_endzero));
-#if 0
-			mtx_lock_spin(&sched_lock);
-			bcopy(&ke->ke_startcopy, &newke->ke_startcopy,
-			      RANGEOF(struct kse, ke_startcopy, ke_endcopy));
-			mtx_unlock_spin(&sched_lock);
-#endif
 			mtx_lock_spin(&sched_lock);
 			kse_link(newke, newkg);
 			sched_fork_kse(td, newke);
@@ -575,27 +593,47 @@ kse_create(struct thread *td, struct kse_create_args *uap)
 			mtx_unlock_spin(&sched_lock);
 		}
 	}
+	/* 
+	 * Even bound LWPs get a mailbox and an upcall to hold it.
+	 */
 	newku = upcall_alloc();
 	newku->ku_mailbox = uap->mbx;
 	newku->ku_func = mbx.km_func;
 	bcopy(&mbx.km_stack, &newku->ku_stack, sizeof(stack_t));
 
-	/* For the first call this may not have been set */
+	/*
+	 * For the first call this may not have been set.
+	 * Of course nor may it actually be needed.
+	 */
 	if (td->td_standin == NULL)
 		thread_alloc_spare(td, NULL);
 
+	/*
+	 * Creating upcalls more than number of physical cpu does
+	 * not help performance.
+	 */
 	PROC_LOCK(p);
 	if (newkg->kg_numupcalls >= ncpus) {
 		PROC_UNLOCK(p);
 		upcall_free(newku);
 		return (EPROCLIM);
 	}
+
+	/*
+	 * If we are the first time, and a normal thread,
+	 * then trnasfer all the signals back to the 'process'.
+	 * SA threading will make a special thread to handle them.
 	if (first && sa) {
 		SIGSETOR(p->p_siglist, td->td_siglist);
 		SIGEMPTYSET(td->td_siglist);
 		SIGFILLSET(td->td_sigmask);
 		SIG_CANTMASK(td->td_sigmask);
 	}
+
+	/*
+	 * Make the new upcall available to the ksegrp,.
+	 *  It may or may not use it, but its available.
+	 */
 	mtx_lock_spin(&sched_lock);
 	PROC_UNLOCK(p);
 	upcall_link(newku, newkg);
@@ -608,14 +646,15 @@ kse_create(struct thread *td, struct kse_create_args *uap)
 	 */
 	if (uap->newgroup) {
 		/*
-		 * Because new ksegrp hasn't thread,
+		 * Because the new ksegrp hasn't a thread,
 		 * create an initial upcall thread to own it.
 		 */
 		newtd = thread_schedule_upcall(td, newku);
 	} else {
 		/*
-		 * If current thread hasn't an upcall structure,
+		 * If the current thread hasn't an upcall structure,
 		 * just assign the upcall to it.
+		 * It'll just return.
 		 */
 		if (td->td_upcall == NULL) {
 			newku->ku_owner = td;
@@ -629,20 +668,55 @@ kse_create(struct thread *td, struct kse_create_args *uap)
 		}
 	}
 	mtx_unlock_spin(&sched_lock);
+
+	/*
+	 * Let the UTS instance know its LWPID.
+	 * It doesn't really care. But the debugger will.
+	 */
 	suword32(&newku->ku_mailbox->km_lwp, newtd->td_tid);
+
+	/*
+	 * In the same manner, if the UTS has a current user thread, 
+	 * then it is also running on this LWP so set it as well.
+	 * The library could do that of course.. but why not..
+	 */
 	if (mbx.km_curthread)
 		suword32(&mbx.km_curthread->tm_lwp, newtd->td_tid);
-	if (!sa) {
-		newtd->td_mailbox = mbx.km_curthread;
+
+	
+	if (sa) {
+		newtd->td_pflags |= TDP_SA;
+	} else {
 		newtd->td_pflags &= ~TDP_SA;
+
+		/*
+		 * Since a library will use the mailbox pointer to 
+		 * identify even a bound thread, and the mailbox pointer
+		 * will never be allowed to change after this syscall
+		 * for a bound thread, set it here so the library can
+		 * find the thread after the syscall returns.
+		 */
+		newtd->td_mailbox = mbx.km_curthread;
+
 		if (newtd != td) {
+			/*
+			 * If we did create a new thread then
+			 * make sure it goes to the right place
+			 * when it starts up, and make sure that it runs 
+			 * at full speed when it gets there. 
+			 * thread_schedule_upcall() copies all cpu state
+			 * to the new thread, so we should clear single step
+			 * flag here.
+			 */
 			cpu_set_upcall_kse(newtd, newku);
 			if (p->p_flag & P_TRACED)
 				ptrace_clear_single_step(newtd);
 		}
-	} else {
-		newtd->td_pflags |= TDP_SA;
 	}
+	
+	/* 
+	 * If we are starting a new thread, kick it off.
+	 */
 	if (newtd != td) {
 		mtx_lock_spin(&sched_lock);
 		setrunqueue(newtd);
