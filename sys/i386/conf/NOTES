@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.605 1999/06/01 18:18:36 jlemon Exp $
+#	$Id: LINT,v 1.606 1999/06/15 13:14:40 des Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -152,7 +152,7 @@ cpu		I686_CPU		# aka Pentium Pro(tm)
 # CPU_I486_ON_386 enables CPU cache on i486 based CPU upgrade products
 # for i386 machines. 
 #
-# CPU_IORT defines I/O clock delay time (NOTE 1).  Default vaules of
+# CPU_IORT defines I/O clock delay time (NOTE 1).  Default values of
 # I/O clock delay time on Cyrix 5x86 and 6x86 are 0 and 7,respectively
 # (no clock delay).
 #
@@ -185,7 +185,7 @@ cpu		I686_CPU		# aka Pentium Pro(tm)
 # occupied by an ISA memory hole.
 #
 # NOTE 1: The options, CPU_BTB_EN, CPU_LOOP_EN, CPU_IORT,
-# CPU_LOOP_ENand CPU_RSTK_EN should not be used becasue of CPU bugs.
+# CPU_LOOP_EN and CPU_RSTK_EN should not be used because of CPU bugs.
 # These options may crash your system. 
 #
 # NOTE 2: If CYRIX_CACHE_REALLY_WORKS is not set, CPU cache is enabled
@@ -594,7 +594,7 @@ options		CD9660_ROOTDELAY=20
 # users, using SAMBA or Netatalk, you may consider setting this option
 # and keeping all those users' directories on a filesystem that is
 # mounted with the suiddir option. This gives new files the same
-# ownership as the directory (similiar to group). It's a security hole
+# ownership as the directory (similar to group). It's a security hole
 # if you let these users run programs, so confine it to file-servers
 # (but it'll save you lots of headaches in those cases). Root owned
 # directories are exempt and X bits are cleared. The suid bit must be
@@ -639,7 +639,7 @@ options		EXT2FS
 #####################################################################
 # POSIX P1003.1B
 
-# Real time extensions added int the 1993 Posix
+# Real time extensions added in the 1993 Posix
 # P1003_1B: Infrastructure
 # _KPOSIX_PRIORITY_SCHEDULING: Build in _POSIX_PRIORITY_SCHEDULING
 # _KPOSIX_VERSION:             Version kernel is built for
@@ -863,7 +863,7 @@ options		PPS_SYNC
 
 options		NTIMECOUNTER=20
 
-# Enable PnP support in the kernel.  This allows you to automaticly
+# Enable PnP support in the kernel.  This allows you to automatically
 # attach to PnP cards for drivers that support it and allows you to
 # configure cards from USERCONFIG.  See pnp(4) for more info.
 controller	pnp0
@@ -950,7 +950,7 @@ options		SC_DISABLE_REBOOT	# disable reboot key sequence
 #       0x02    Use a 'blink' cursor
 #       0x04    Use a 'underline' cursor
 #       0x06    Use a 'blinking underline' (destructive) cursor
-#	0x40	Make the bell quiet if it is rung in the backgroud vty.
+#	0x40	Make the bell quiet if it is rung in the background vty.
 
 #
 # The Numeric Processing eXtension driver.  This should be configured if
@@ -1260,7 +1260,7 @@ options		NATM			#native ATM
 # uart: stand-alone 6850 UART for MIDI
 # mpu: Roland MPU-401 stand-alone card
 #
-# Note: It has been reprted that ISA DMA with the SoundBlaster will
+# Note: It has been reported that ISA DMA with the SoundBlaster will
 # lock up the machine (PR docs/5358).  If this happens to you,
 # turning off USWC write posting in your machine's BIOS may fix
 # the problem.
@@ -1301,7 +1301,7 @@ options		NATM			#native ATM
 # PAS16: The order of the pas0/sb0/opl0 is important since the
 #	sb emulation is enabled in the pas-16 attach.
 #
-# To overide the GUS defaults use:
+# To override the GUS defaults use:
 # options GUS_DMA2
 # options GUS_DMA
 # options GUS_IRQ
@@ -1544,7 +1544,7 @@ options	EISA_SLOTS=12
 #
 # The 'rl' device provides support for PCI fast ethernet adapters based
 # on the RealTek 8129/8139 chipset. Note that the RealTek driver defaults
-# to useing programmed I/O to do register accesses because memory mapped
+# to using programmed I/O to do register accesses because memory mapped
 # mode seems to cause severe lockups on SMP hardware. This driver also
 # supports the Accton EN1207D `Cheetah' adapter, which uses a chip called
 # the MPX 5030/5038, which is either a RealTek in disguise or a RealTek
@@ -1995,7 +1995,7 @@ options		NSFBUFS=1024
 
 #
 # Enable extra debugging code for locks.  This stores the filename and
-# line of whatever aquired the lock in the lock itself, and change a
+# line of whatever acquired the lock in the lock itself, and change a
 # number of function calls to pass around the relevant data.  This is
 # not at all useful unless you are debugging lock code.  Also note
 # that it is likely to break e.g. fstat(1) unless you recompile your
@@ -2070,8 +2070,8 @@ options		ENABLE_ALART
 # See sys/dev/dpt for debugging and other subtle options.
 #   DPT_VERIFY_HINTR        Performs some strict hardware interrupts testing.
 #                           Only use if you suspect PCI bus corruption problems
-#   DPT_RESTRICTED_FREELIST Normally, the freelisat used by the DPT for queue
-#                           will grow to accomodate increased use.  This growth
+#   DPT_RESTRICTED_FREELIST Normally, the freelist used by the DPT for queue
+#                           will grow to accommodate increased use. This growth
 #                           will NOT shrink.  To restrict the number of queue
 #                           slots to exactly what the DPT can hold at one time,
 #                           enable this option.
