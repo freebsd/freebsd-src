@@ -8,11 +8,12 @@
 #include	<sys/types.h>
 #include	<sys/signal.h>
 #include	<stdio.h>
+#include        <stdlib.h>
+#include        <unistd.h>
 #include "hack.h"
 extern int CO, LI;	/* usually COLNO and ROWNO+2 */
 extern char *CD;
 extern char quitchars[];
-extern char *getenv(), *getlogin();
 void done1();
 
 dowhatis()
@@ -380,6 +381,7 @@ child(wt) {
 		settty((char *) 0);		/* also calls end_screen() */
 		/* revoke */
 		setgid(getgid());
+		setuid(getuid());
 #ifdef CHDIR
 		(void) chdir(getenv("HOME"));
 #endif CHDIR
