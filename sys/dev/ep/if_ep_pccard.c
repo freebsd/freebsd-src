@@ -217,8 +217,6 @@ ep_pccard_detach(device_t dev)
 {
 	struct ep_softc *sc = device_get_softc(dev);
 
-	printf("detach\n");
-
 	if (sc->gone) {
 		device_printf(dev, "already unloaded\n");
 		return (0);
