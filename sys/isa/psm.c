@@ -793,7 +793,6 @@ psmprobe(device_t dev)
 {
     int unit = device_get_unit(dev);
     struct psm_softc *sc = device_get_softc(dev);
-    uintptr_t port;
     uintptr_t irq;
     uintptr_t flags;
     int stat[3];
@@ -812,11 +811,10 @@ psmprobe(device_t dev)
 	return ENXIO;
 #endif
 
-    BUS_READ_IVAR(device_get_parent(dev), dev, KBDC_IVAR_PORT, &port);
     BUS_READ_IVAR(device_get_parent(dev), dev, KBDC_IVAR_IRQ, &irq);
     BUS_READ_IVAR(device_get_parent(dev), dev, KBDC_IVAR_FLAGS, &flags);
 
-    sc->kbdc = kbdc_open(port);
+    sc->kbdc = atkbdc_open(device_get_unit(device_get_parent(dev)));
     sc->config = flags & PSM_CONFIG_FLAGS;
     /* XXX: for backward compatibility */
 #if defined(PSM_HOOKRESUME) || defined(PSM_HOOKAPM)

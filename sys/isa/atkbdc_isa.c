@@ -33,6 +33,7 @@
 #include <sys/kernel.h>
 #include <sys/bus.h>
 #include <sys/malloc.h>
+#include <machine/bus_pio.h>
 #include <machine/bus.h>
 #include <machine/resource.h>
 #include <sys/rman.h>
@@ -47,8 +48,11 @@ MALLOC_DEFINE(M_ATKBDDEV, "atkbddev", "AT Keyboard device");
 /* children */
 typedef struct atkbdc_device {
 	int flags;	/* configuration flags */
-	int port;	/* port number (same as the controller's) */
 	int irq;	/* ISA IRQ mask */
+	u_int32_t vendorid;
+	u_int32_t serial;
+	u_int32_t logicalid;
+	u_int32_t compatid;
 } atkbdc_device_t;
 
 /* kbdc */
@@ -87,32 +91,54 @@ static driver_t atkbdc_driver = {
 	sizeof(atkbdc_softc_t *),
 };
 
+static struct isa_pnp_id atkbdc_ids[] = {
+	{ 0x0303d041, "Keyboard controller (i8042)" },	/* PNP0303 */
+	{ 0 }
+};
+
 static int
 atkbdc_probe(device_t dev)
 {
-	int error;
-	int rid;
-	struct resource *port;
+	struct resource	*port0;
+	struct resource	*port1;
+	int		error;
+	int		rid;
 
-	/* Check isapnp ids */
-	if (isa_get_vendorid(dev))
-		return (ENXIO);
-
-	device_set_desc(dev, "keyboard controller (i8042)");
-	rid = 0;
-	port = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
-				  0, ~0, IO_KBDSIZE, RF_ACTIVE);
-	if (!port)
+	/* check PnP IDs */
+	if (ISA_PNP_PROBE(device_get_parent(dev), dev, atkbdc_ids) == ENXIO)
 		return ENXIO;
-	error = atkbdc_probe_unit(device_get_unit(dev), rman_get_start(port));
-	bus_release_resource(dev, SYS_RES_IOPORT, rid, port);
+
+	device_set_desc(dev, "Keyboard controller (i8042)");
+
+	rid = 0;
+	port0 = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0, 1,
+				   RF_ACTIVE);
+	if (port0 == NULL)
+		return ENXIO;
+	/* XXX */
+	if (bus_get_resource_start(dev, SYS_RES_IOPORT, 1) <= 0) {
+		bus_set_resource(dev, SYS_RES_IOPORT, 1,
+				 rman_get_start(port0) + KBD_STATUS_PORT, 1);
+	}
+	rid = 1;
+	port1 = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0, 1,
+				   RF_ACTIVE);
+	if (port1 == NULL) {
+		bus_release_resource(dev, SYS_RES_IOPORT, 0, port0);
+		return ENXIO;
+	}
+
+	error = atkbdc_probe_unit(device_get_unit(dev), port0, port1);
+
+	bus_release_resource(dev, SYS_RES_IOPORT, 0, port0);
+	bus_release_resource(dev, SYS_RES_IOPORT, 1, port1);
+
 	return error;
 }
 
 static void
 atkbdc_add_device(device_t dev, const char *name, int unit)
 {
-	atkbdc_softc_t	*sc = *(atkbdc_softc_t **)device_get_softc(dev);
 	atkbdc_device_t	*kdev;
 	device_t	child;
 	int		t;
@@ -124,8 +150,6 @@ atkbdc_add_device(device_t dev, const char *name, int unit)
 	if (!kdev)
 		return;
 	bzero(kdev, sizeof *kdev);
-
-	kdev->port = sc->port;
 
 	if (resource_int_value(name, unit, "irq", &t) == 0)
 		kdev->irq = t;
@@ -145,7 +169,6 @@ static int
 atkbdc_attach(device_t dev)
 {
 	atkbdc_softc_t	*sc;
-	struct resource *port;
 	int		unit;
 	int		error;
 	int		rid;
@@ -166,23 +189,33 @@ atkbdc_attach(device_t dev)
 			return ENOMEM;
 	}
 
-	/* XXX should track resource in softc */
 	rid = 0;
-	port = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
-				  0, ~0, IO_KBDSIZE, RF_ACTIVE);
-	if (!port)
+	sc->port0 = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0, 1,
+				       RF_ACTIVE);
+	if (sc->port0 == NULL)
 		return ENXIO;
-	error = atkbdc_attach_unit(unit, sc, rman_get_start(port));
-	if (error)
+	rid = 1;
+	sc->port1 = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0, 1,
+				       RF_ACTIVE);
+	if (sc->port1 == NULL) {
+		bus_release_resource(dev, SYS_RES_IOPORT, 0, sc->port0);
+		return ENXIO;
+	}
+
+	error = atkbdc_attach_unit(unit, sc, sc->port0, sc->port1);
+	if (error) {
+		bus_release_resource(dev, SYS_RES_IOPORT, 0, sc->port0);
+		bus_release_resource(dev, SYS_RES_IOPORT, 1, sc->port1);
 		return error;
+	}
 	*(atkbdc_softc_t **)device_get_softc(dev) = sc;
 
 	/*
 	 * Add all devices configured to be attached to atkbdc0.
 	 */
-	for (i = resource_query_string(-1, "at", "atkbdc0");
+	for (i = resource_query_string(-1, "at", device_get_nameunit(dev));
 	     i != -1;
-	     i = resource_query_string(i, "at", "atkbdc0")) {
+	     i = resource_query_string(i, "at", device_get_nameunit(dev))) {
 		atkbdc_add_device(dev, resource_query_name(i),
 				  resource_query_unit(i));
 	}
@@ -190,9 +223,9 @@ atkbdc_attach(device_t dev)
 	/*
 	 * and atkbdc?
 	 */
-	for (i = resource_query_string(-1, "at", "atkbdc");
+	for (i = resource_query_string(-1, "at", device_get_name(dev));
 	     i != -1;
-	     i = resource_query_string(i, "at", "atkbdc")) {
+	     i = resource_query_string(i, "at", device_get_name(dev))) {
 		atkbdc_add_device(dev, resource_query_name(i),
 				  resource_query_unit(i));
 	}
@@ -227,14 +260,23 @@ atkbdc_read_ivar(device_t bus, device_t dev, int index, u_long *val)
 
 	ivar = (atkbdc_device_t *)device_get_ivars(dev);
 	switch (index) {
-	case KBDC_IVAR_PORT:
-		*val = (u_long)ivar->port;
-		break;
 	case KBDC_IVAR_IRQ:
 		*val = (u_long)ivar->irq;
 		break;
 	case KBDC_IVAR_FLAGS:
 		*val = (u_long)ivar->flags;
+		break;
+	case KBDC_IVAR_VENDORID:
+		*val = (u_long)ivar->vendorid;
+		break;
+	case KBDC_IVAR_SERIAL:
+		*val = (u_long)ivar->serial;
+		break;
+	case KBDC_IVAR_LOGICALID:
+		*val = (u_long)ivar->logicalid;
+		break;
+	case KBDC_IVAR_COMPATID:
+		*val = (u_long)ivar->compatid;
 		break;
 	default:
 		return ENOENT;
@@ -249,14 +291,23 @@ atkbdc_write_ivar(device_t bus, device_t dev, int index, u_long val)
 
 	ivar = (atkbdc_device_t *)device_get_ivars(dev);
 	switch (index) {
-	case KBDC_IVAR_PORT:
-		ivar->port = (int)val;
-		break;
 	case KBDC_IVAR_IRQ:
 		ivar->irq = (int)val;
 		break;
 	case KBDC_IVAR_FLAGS:
 		ivar->flags = (int)val;
+		break;
+	case KBDC_IVAR_VENDORID:
+		ivar->vendorid = (u_int32_t)val;
+		break;
+	case KBDC_IVAR_SERIAL:
+		ivar->serial = (u_int32_t)val;
+		break;
+	case KBDC_IVAR_LOGICALID:
+		ivar->logicalid = (u_int32_t)val;
+		break;
+	case KBDC_IVAR_COMPATID:
+		ivar->compatid = (u_int32_t)val;
 		break;
 	default:
 		return ENOENT;
