@@ -440,10 +440,10 @@ extern void stopevent(struct proc*, unsigned int, unsigned int);
 	} while (0)
 
 /* hold process U-area in memory, normally for ptrace/procfs work */
-#define PHOLD(p) {							\
-	if ((p)->p_lock++ == 0 && ((p)->p_flag & P_INMEM) == 0)	\
+#define PHOLD(p) do {							\
+	if ((p)->p_lock++ == 0 && ((p)->p_flag & P_INMEM) == 0)		\
 		faultin(p);						\
-}
+} while(0)
 #define PRELE(p)	(--(p)->p_lock)
 
 #define	PIDHASH(pid)	(&pidhashtbl[(pid) & pidhash])
