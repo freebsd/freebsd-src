@@ -43,7 +43,7 @@
  * The following is horrible; there must be a better way. I need to
  * play with brk(2) a bit more.
  */
-#ifdef i386
+#ifdef __i386__
 /*
  * I cannot load the interpreter after the data segment because brk(2)
  * breaks. I have to load it somewhere before. Programs start at
