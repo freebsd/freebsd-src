@@ -85,6 +85,7 @@ static const struct scanner_id {
 	{ USB_VENDOR_ACERP, USB_PRODUCT_ACERP_ACERSCAN_320U },
 	{ USB_VENDOR_ACERP, USB_PRODUCT_ACERP_ACERSCAN_640U },
 	{ USB_VENDOR_ACERP, USB_PRODUCT_ACERP_ACERSCAN_620U },
+	{ USB_VENDOR_ACERP, USB_PRODUCT_ACERP_ACERSCAN_C310U },
 
 	/* AGFA */
 	{ USB_VENDOR_AGFA, USB_PRODUCT_AGFA_SNAPSCAN1212U },
@@ -650,12 +651,6 @@ uscannerpoll(dev, events, p)
 		   (POLLIN | POLLRDNORM | POLLOUT | POLLWRNORM);
 
 	return (revents);
-}
-
-int
-uscannerioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
-{
-	return (EINVAL);
 }
 
 #if defined(__FreeBSD__)
