@@ -41,7 +41,7 @@
 	.set	kernbase,KERNBASE
 
 /*
- * void _start(caddr_t metadata, u_int *state, u_int mid, u_int bootmid,
+ * void _start(caddr_t metadata, u_long o1, u_long o2, u_long o3,
  *	       u_long ofw_vec)
  *
  * XXX: in am smp system the other cpus are started in the loader, but since
@@ -59,19 +59,6 @@ ENTRY(_start)
 	wrpr	%g0, 0, %cleanwin
 	wrpr	%g0, 0, %pil
 	wr	%g0, 0, %fprs
-
-#ifdef SMP
-	/*
-	 * If we're not the boot processor, go do other stuff.
-	 */
-	cmp	%o2, %o3
-	be	%xcc, 1f
-	 nop
-	call	_mp_start
-	 nop
-	sir
-1:
-#endif
 
 	/*
 	 * Get onto our per-cpu panic stack, which precedes the struct pcpu in
@@ -109,8 +96,7 @@ END(_start)
  * void cpu_setregs(struct pcpu *pc)
  */
 ENTRY(cpu_setregs)
-	ldx	[%o0 + PC_CURTHREAD], %o1
-	ldx	[%o1 + TD_PCB], %o1
+	ldx	[%o0 + PC_CURPCB], %o1
 
 	/*
 	 * Disable interrupts, normal globals.
