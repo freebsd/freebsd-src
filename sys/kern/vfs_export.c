@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.139 1998/03/14 02:55:01 tegge Exp $
+ * $Id: vfs_subr.c,v 1.140 1998/03/14 19:50:36 dyson Exp $
  */
 
 /*
@@ -113,7 +113,9 @@ SYSCTL_INT(_debug, OID_AUTO, freevnodes, CTLFLAG_RD, &freevnodes, 0, "");
 
 int vfs_ioopt = 0;
 #ifdef REALLYBADBUG
+#ifdef ENABLE_VFS_IOOPT
 SYSCTL_INT(_vfs, OID_AUTO, ioopt, CTLFLAG_RW, &vfs_ioopt, 0, "");
+#endif
 #endif
 
 struct mntlist mountlist;	/* mounted filesystem list */
@@ -631,6 +633,7 @@ vinvalbuf(vp, flags, cred, p, slpflag, slptimeo)
 				break;
 			}
 			bp->b_flags |= (B_INVAL|B_NOCACHE|B_RELBUF);
+			bp->b_flags &= ~B_ASYNC;
 			brelse(bp);
 		}
 	}
@@ -660,6 +663,90 @@ vinvalbuf(vp, flags, cred, p, slpflag, slptimeo)
 	if (!(flags & V_SAVEMETA) &&
 	    (vp->v_dirtyblkhd.lh_first || vp->v_cleanblkhd.lh_first))
 		panic("vinvalbuf: flush failed");
+	return (0);
+}
+
+/*
+ * Truncate a file's buffer and pages to a specified length.  This
+ * is in lieu of the old vinvalbuf mechanism, which performed unneeded
+ * sync activity.
+ */
+int
+vtruncbuf(vp, cred, p, length, blksize)
+	register struct vnode *vp;
+	struct ucred *cred;
+	struct proc *p;
+	off_t length;
+	int blksize;
+{
+	register struct buf *bp;
+	struct buf *nbp, *blist;
+	int s, error, anyfreed;
+	vm_object_t object;
+	int trunclbn;
+
+	/*
+	 * Round up to the *next* lbn.
+	 */
+	trunclbn = ((length + blksize - 1) / blksize) * blksize;
+
+	s = splbio();
+restart:
+	anyfreed = 1;
+	for (;anyfreed;) {
+		anyfreed = 0;
+		for ( bp = LIST_FIRST(&vp->v_cleanblkhd); bp; bp = nbp) {
+
+			nbp = LIST_NEXT(bp, b_vnbufs);
+
+			if (bp->b_lblkno >= trunclbn) {
+				if (bp->b_flags & B_BUSY) {
+					bp->b_flags |= B_WANTED;
+					tsleep((caddr_t) bp, PRIBIO, "vtrb1", 0);
+					nbp = bp;
+				} else {
+					bremfree(bp);
+					bp->b_flags |= (B_BUSY|B_INVAL|B_NOCACHE|B_RELBUF);
+					bp->b_flags &= ~B_ASYNC;
+					brelse(bp);
+					anyfreed = 1;
+				}
+				if (nbp && 
+					((LIST_NEXT(nbp, b_vnbufs) == NOLIST) || (nbp->b_vp != vp) ||
+					 (nbp->b_flags & B_DELWRI))) {
+					goto restart;
+				}
+			}
+		}
+
+		for (bp = LIST_FIRST(&vp->v_dirtyblkhd); bp; bp = nbp) {
+
+			nbp = LIST_NEXT(bp, b_vnbufs);
+
+			if (bp->b_lblkno >= trunclbn) {
+				if (bp->b_flags & B_BUSY) {
+					bp->b_flags |= B_WANTED;
+					tsleep((caddr_t) bp, PRIBIO, "vtrb2", 0);
+					nbp = bp;
+				} else {
+					bremfree(bp);
+					bp->b_flags |= (B_BUSY|B_INVAL|B_NOCACHE|B_RELBUF);
+					bp->b_flags &= ~B_ASYNC;
+					brelse(bp);
+					anyfreed = 1;
+				}
+				if (nbp && 
+					((LIST_NEXT(nbp, b_vnbufs) == NOLIST) || (nbp->b_vp != vp) ||
+					 (nbp->b_flags & B_DELWRI) == 0)) {
+					goto restart;
+				}
+			}
+		}
+	}
+	splx(s);
+
+	vnode_pager_setsize(vp, length);
+
 	return (0);
 }
 

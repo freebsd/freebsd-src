@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.117 1998/03/08 06:25:59 dyson Exp $
+ * $Id: vm_object.c,v 1.118 1998/03/08 18:05:59 dyson Exp $
  */
 
 /*
@@ -436,7 +436,14 @@ vm_object_terminate(object)
 		vp = (struct vnode *) object->handle;
 		vinvalbuf(vp, V_SAVE, NOCRED, NULL, 0, 0);
 
-	} else if (object->type != OBJT_DEAD) {
+		/*
+		 * Let the pager know object is dead.
+		 */
+		vm_pager_deallocate(object);
+
+	}
+
+	if ((object->type != OBJT_VNODE) && (object->ref_count == 0)) {
 
 		/*
 		 * Now free the pages. For internal objects, this also removes them
@@ -451,20 +458,15 @@ vm_object_terminate(object)
 			vm_page_free(p);
 			cnt.v_pfree++;
 		}
-
-	}
-
-	if (object->type != OBJT_DEAD) {
 		/*
 		 * Let the pager know object is dead.
 		 */
 		vm_pager_deallocate(object);
+
 	}
 
-	if (object->ref_count == 0) {
-		if ((object->type != OBJT_DEAD) || (object->resident_page_count == 0))
-			vm_object_dispose(object);
-	}
+	if ((object->ref_count == 0) && (object->resident_page_count == 0))
+		vm_object_dispose(object);
 }
 
 /*
