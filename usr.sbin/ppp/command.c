@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.161 1998/08/26 17:39:37 brian Exp $
+ * $Id: command.c,v 1.162 1998/08/26 18:07:56 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -126,7 +126,7 @@
 #define NEG_DNS		50
 
 const char Version[] = "2.0";
-const char VersionDate[] = "$Date: 1998/08/26 17:39:37 $";
+const char VersionDate[] = "$Date: 1998/08/26 18:07:56 $";
 
 static int ShowCommand(struct cmdargs const *);
 static int TerminalCommand(struct cmdargs const *);
@@ -1576,8 +1576,8 @@ static struct cmdtab const SetCommands[] = {
   {"lcpretry", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX,
   "FSM retry period", "set lcpretry value", (const void *)VAR_LCPRETRY},
   {"log", NULL, log_SetLevel, LOCAL_AUTH, "log level",
-  "set log [local] [+|-]async|ccp|chat|command|connect|debug|hdlc|id0|ipcp|"
-  "lcp|lqm|phase|tcp/ip|timer|tun..."},
+  "set log [local] [+|-]async|cbcp|ccp|chat|command|connect|debug|hdlc|id0|"
+  "ipcp|lcp|lqm|phase|tcp/ip|timer|tun..."},
   {"login", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX,
   "login script", "set login chat-script", (const void *) VAR_LOGIN},
   {"lqrperiod", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX_OPT,
