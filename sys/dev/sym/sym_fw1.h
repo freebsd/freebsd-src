@@ -1420,8 +1420,8 @@ static struct SYM_FWB_SCR SYM_FWB_SCR = {
 	 *  We donnot handle 2 bytes messages from SCRIPTS.
 	 *  So, let the C code deal with these ones too.
 	 */
-	SCR_INT ^ IFFALSE (MASK (0x20, 0xf0)),
-		SIR_MSG_WEIRD,
+	SCR_JUMP ^ IFFALSE (MASK (0x20, 0xf0)),
+		PADDR_B (msg_weird_seen),
 	SCR_CLR (SCR_ACK),
 		0,
 	SCR_MOVE_ABS (1) ^ SCR_MSG_IN,
