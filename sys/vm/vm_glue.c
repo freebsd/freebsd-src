@@ -59,10 +59,9 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_glue.c,v 1.38 1996/01/29 12:10:30 davidg Exp $
+ * $Id: vm_glue.c,v 1.39 1996/02/22 10:57:36 davidg Exp $
  */
 
-#include "opt_sysvipc.h"
 #include "opt_ddb.h"
 
 #include <sys/param.h>
@@ -210,9 +209,8 @@ vsunlock(addr, len, dirtied)
  * after cpu_fork returns.
  */
 int
-vm_fork(p1, p2, isvfork)
+vm_fork(p1, p2)
 	register struct proc *p1, *p2;
-	int isvfork;
 {
 	register struct user *up;
 	vm_offset_t addr, ptaddr, ptpa;
@@ -234,10 +232,8 @@ vm_fork(p1, p2, isvfork)
 	    UPT_MIN_ADDRESS - UPAGES * PAGE_SIZE, VM_MAX_ADDRESS, VM_INHERIT_NONE);
 	p2->p_vmspace = vmspace_fork(p1->p_vmspace);
 
-#ifdef SYSVSHM
 	if (p1->p_vmspace->vm_shm)
-		shmfork(p1, p2, isvfork);
-#endif
+		shmfork(p1, p2);
 
 	/*
 	 * Allocate a wired-down (for now) pcb and kernel stack for the
