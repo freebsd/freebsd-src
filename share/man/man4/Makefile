@@ -184,6 +184,7 @@ MAN=	aac.4 \
 	ucom.4 \
 	udbp.4 \
 	udp.4 \
+	uftdi.4 \
 	ugen.4 \
 	uhci.4 \
 	uhid.4 \
