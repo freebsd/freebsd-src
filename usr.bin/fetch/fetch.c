@@ -76,6 +76,8 @@ int	 v_tty;		/*        stdout is a tty */
 u_int	 w_secs;	/*    -w: retry delay */
 int	 family = PF_UNSPEC;	/* -[46]: address family to use */
 
+int	 sigalrm;	/* SIGALRM received */
+int	 sigint;	/* SIGINT received */
 
 u_int	 ftp_timeout;	/* default timeout for FTP transfers */
 u_int	 http_timeout;	/* default timeout for HTTP transfers */
@@ -85,7 +87,14 @@ u_char	*buf;		/* transfer buffer */
 void
 sig_handler(int sig)
 {
-    errx(1, "Transfer timed out");
+    switch (sig) {
+    case SIGALRM:
+	sigalrm = 1;
+	break;
+    case SIGINT:
+	sigint = 1;
+	break;
+    }
 }
 
 struct xferstat {
@@ -219,18 +228,12 @@ fetch(char *URL, char *path)
 	timeout = T_secs ? T_secs : http_timeout;
     }
 
-    /*
-     * Set the protocol timeout.
-     * This currently only works for FTP, so we still use
-     * alarm(timeout) further down.
-     */
+    /* set the protocol timeout. */
     fetchTimeout = timeout;
 
     /* stat remote file */
-    alarm(timeout);
     if (fetchStat(url, &us, flags) == -1)
 	warnx("%s: size not known", path);
-    alarm(timeout);
 
     /* just print size */
     if (s_flag) {
@@ -303,14 +306,14 @@ fetch(char *URL, char *path)
     stat_start(&xs, path, us.size, count);
 
     n = 0;
-
+    sigint = sigalrm = 0;
     if (us.size == -1) {
 	/*	  
 	 * We have no idea how much data to expect, so do it byte by
          * byte. This is incredibly inefficient, but there's not much
          * we can do about it... :(	 
 	 */
-	while (1) {
+	while (!sigint && !sigalrm) {
 	    if (timeout)
 		alarm(timeout);
 #ifdef STDIO_HACK
@@ -339,7 +342,7 @@ fetch(char *URL, char *path)
 	}
     } else {
 	/* we know exactly how much to transfer, so do it efficiently */
-	for (size = B_size; count != us.size; n++) {
+	for (size = B_size; count != us.size && !sigint && !sigalrm; n++) {
 	    if (us.size - count < B_size)
 		size = us.size - count;
 	    if (timeout)
@@ -351,12 +354,12 @@ fetch(char *URL, char *path)
 		break;
 	}
     }
-    
+
     if (timeout)
 	alarm(0);
 
     stat_end(&xs);
-    
+
     /* check the status of our files */
     if (ferror(f))
 	warn("%s", URL);
@@ -385,15 +388,19 @@ fetch(char *URL, char *path)
 	    warn("%s: utimes()", path);
     }
     
-    /* check the file size */
-    if (us.size != -1 && count < us.size) {
+    /* did the transfer complete normally? */
+    if (sigalrm)
+	warnx("transfer timed out");
+    else if (sigint)
+	warnx("transfer interrupted");
+    else if (us.size != -1 && count < us.size) {
 	warnx("%s appears to be truncated: %lld/%lld bytes",
 	      path, count, us.size);
 	goto failure;
     }
     
  success:
-    r = 0;
+    r = (!sigalrm && !sigint);
     goto done;
  failure:
     r = -1;
@@ -586,6 +593,9 @@ main(int argc, char *argv[])
 	}
     }
 
+    /* interrupt handling */
+    signal(SIGINT, sig_handler);
+    
     /* output file */
     if (o_flag) {
 	if (strcmp(o_filename, "-") == 0) {
@@ -632,6 +642,9 @@ main(int argc, char *argv[])
 	    e = fetch(*argv, p);
 	}
 
+	if (sigint)
+	    exit(1);
+	
 	if (e == 0 && once_flag)
 	    exit(0);
 	
