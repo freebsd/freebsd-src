@@ -79,15 +79,6 @@
 #define IBCS2_SIGNO(x)		((x) & IBCS2_SIGNO_MASK)
 #define IBCS2_SIGCALL(x)	((x) & ~IBCS2_SIGNO_MASK)
 
-#define IBCS2_SIG_DFL		(void(*)())0
-#define IBCS2_SIG_ERR		(void(*)())-1
-#define IBCS2_SIG_IGN		(void(*)())1
-#define IBCS2_SIG_HOLD		(void(*)())2
-
-#define IBCS2_SIG_SETMASK	0
-#define IBCS2_SIG_BLOCK		1
-#define IBCS2_SIG_UNBLOCK	2
-
 typedef long	ibcs2_sigset_t;
 typedef void	(*ibcs2_sig_t) __P((int));
 
@@ -96,6 +87,15 @@ struct ibcs2_sigaction {
 	ibcs2_sigset_t	sa_mask;
 	int		sa_flags;
 };
+
+#define IBCS2_SIG_DFL		(ibcs2_sig_t)(0)
+#define IBCS2_SIG_ERR		(ibcs2_sig_t)(-1)
+#define IBCS2_SIG_IGN		(ibcs2_sig_t)(1)
+#define IBCS2_SIG_HOLD		(ibcs2_sig_t)(2)
+
+#define IBCS2_SIG_SETMASK	0
+#define IBCS2_SIG_BLOCK		1
+#define IBCS2_SIG_UNBLOCK	2
 
 /* sa_flags */
 #define IBCS2_SA_NOCLDSTOP	1

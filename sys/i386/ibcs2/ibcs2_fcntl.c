@@ -36,14 +36,19 @@
 #include <sys/kernel.h>
 #include <sys/mount.h>
 #include <sys/malloc.h>
-#include <sys/syscallargs.h>
+#include <sys/sysproto.h>
 
-#include <compat/ibcs2/ibcs2_types.h>
-#include <compat/ibcs2/ibcs2_fcntl.h>
-#include <compat/ibcs2/ibcs2_signal.h>
-#include <compat/ibcs2/ibcs2_syscallargs.h>
-#include <compat/ibcs2/ibcs2_util.h>
+#include <i386/ibcs2/ibcs2_types.h>
+#include <i386/ibcs2/ibcs2_fcntl.h>
+#include <i386/ibcs2/ibcs2_signal.h>
+#include <i386/ibcs2/ibcs2_proto.h>
+#include <i386/ibcs2/ibcs2_util.h>
 
+static void cvt_iflock2flock __P((struct ibcs2_flock *, struct flock *));
+static void cvt_flock2iflock __P((struct flock *, struct ibcs2_flock *));
+static int  cvt_o_flags      __P((int));
+static int  oflags2ioflags   __P((int));
+static int  ioflags2oflags   __P((int));
 
 static int
 cvt_o_flags(flags)
@@ -53,13 +58,16 @@ cvt_o_flags(flags)
 
         /* convert mode into NetBSD mode */
 	if (flags & IBCS2_O_WRONLY) r |= O_WRONLY;
-	if (flags & IBCS2_O_RDWR) r |= O_RDWR;
+	if (flags & IBCS2_O_RDWR)   r |= O_RDWR;
 	if (flags & (IBCS2_O_NDELAY | IBCS2_O_NONBLOCK)) r |= O_NONBLOCK;
 	if (flags & IBCS2_O_APPEND) r |= O_APPEND;
-	if (flags & IBCS2_O_SYNC) r |= O_FSYNC;
-	if (flags & IBCS2_O_CREAT) r |= O_CREAT;
-	if (flags & IBCS2_O_TRUNC) r |= O_TRUNC;
-	if (flags & IBCS2_O_EXCL) r |= O_EXCL;
+	if (flags & IBCS2_O_SYNC)   r |= O_FSYNC;
+	if (flags & IBCS2_O_CREAT)  r |= O_CREAT;
+	if (flags & IBCS2_O_TRUNC)  r |= O_TRUNC /* | O_CREAT ??? */;
+	if (flags & IBCS2_O_EXCL)   r |= O_EXCL;
+	if (flags & IBCS2_O_RDONLY) r |= O_RDONLY;
+	if (flags & IBCS2_O_PRIV)   r |= O_EXLOCK;
+	if (flags & IBCS2_O_NOCTTY) r |= O_NOCTTY;
 	return r;
 }
 
@@ -85,6 +93,16 @@ cvt_flock2iflock(flp, iflp)
 	iflp->l_sysid = 0;
 	iflp->l_pid = (ibcs2_pid_t)flp->l_pid;
 }
+
+#ifdef DEBUG_IBCS2
+static void
+print_flock(struct flock *flp)
+{
+  printf("flock: start=%x len=%x pid=%d type=%d whence=%d\n",
+	 (int)flp->l_start, (int)flp->l_len, (int)flp->l_pid,
+	 flp->l_type, flp->l_whence);
+}
+#endif
 
 static void
 cvt_iflock2flock(iflp, flp)
@@ -165,7 +183,7 @@ ibcs2_open(p, uap, retval)
 		CHECKALTCREAT(p, &sg, SCARG(uap, path));
 	else
 		CHECKALTEXIST(p, &sg, SCARG(uap, path));
-	ret = open(p, uap, retval);
+	ret = open(p, (struct open_args *)uap, retval);
 
 	if (!ret && !noctty && SESS_LEADER(p) && !(p->p_flag & P_CONTROLT)) {
 		struct filedesc *fdp = p->p_fd;
@@ -248,7 +266,7 @@ ibcs2_fcntl(p, uap, retval)
 	case IBCS2_F_SETFL:
 		SCARG(&fa, fd) = SCARG(uap, fd);
 		SCARG(&fa, cmd) = F_SETFL;
-		SCARG(&fa, arg) = (void *)ioflags2oflags(SCARG(uap, arg));
+		SCARG(&fa, arg) = (void *)ioflags2oflags((int)SCARG(uap, arg));
 		return fcntl(p, &fa, retval);
 
 	case IBCS2_F_GETLK:
@@ -283,6 +301,7 @@ ibcs2_fcntl(p, uap, retval)
 		SCARG(&fa, fd) = SCARG(uap, fd);
 		SCARG(&fa, cmd) = F_SETLK;
 		SCARG(&fa, arg) = (void *)flp;
+
 		return fcntl(p, &fa, retval);
 	    }
 

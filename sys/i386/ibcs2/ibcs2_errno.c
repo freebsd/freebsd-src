@@ -29,9 +29,9 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <compat/ibcs2/ibcs2_errno.h>
+#include <i386/ibcs2/ibcs2_errno.h>
 
-int bsd2ibcs_errno[] = {
+int bsd_to_ibcs2_errno[] = {
 	0,			/* 0 */
 	IBCS2_EPERM,		/* 1 */
 	IBCS2_ENOENT,		/* 2 */

@@ -41,7 +41,7 @@
 #include <sys/malloc.h>
 #include <sys/vnode.h>
 
-#include <compat/ibcs2/ibcs2_util.h>
+#include <i386/ibcs2/ibcs2_util.h>
 
 const char      ibcs2_emul_path[] = "/emul/ibcs2";
 

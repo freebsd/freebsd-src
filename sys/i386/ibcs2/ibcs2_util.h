@@ -39,16 +39,25 @@
 #ifndef	_IBCS2_UTIL_H_
 #define	_IBCS2_UTIL_H_
 
+#include <vm/vm.h>
+#include <vm/vm_param.h>
 #include <machine/vmparam.h>
 #include <sys/exec.h>
 #include <sys/cdefs.h>
 
+#ifndef SCARG
+#define SCARG(p, x)  (p)->x
+#endif
+
+static __inline caddr_t stackgap_init(void);
+static __inline void *stackgap_alloc(caddr_t *, size_t);
+
 static __inline caddr_t
 stackgap_init()
 {
-	extern char     sigcode[], esigcode[];
 #define szsigcode ((caddr_t)(esigcode - sigcode))
-	return STACKGAPBASE;
+	return (caddr_t)(ALIGN(((caddr_t)PS_STRINGS)
+			 + sizeof(struct ps_strings)));
 }
 
 

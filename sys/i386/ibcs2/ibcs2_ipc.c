@@ -1,18 +1,15 @@
-/*-
- * Copyright (c) 1994 Søren Schmidt
+/*
+ * Copyright (c) 1995 Scott Bartram
+ * Copyright (c) 1995 Steven Wallace
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer
- *    in this position and unchanged.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- * 3. The name of the author may not be used to endorse or promote products
- *    derived from this software withough specific prior written permission
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. The name of the author may not be used to endorse or promote products
+ *    derived from this software without specific prior written permission
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
@@ -24,52 +21,367 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- *	$Id: ibcs2_ipc.c,v 1.1 1994/10/14 08:53:04 sos Exp $
  */
-
-#include <i386/ibcs2/ibcs2.h>
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/errno.h>
+#include <sys/namei.h>
 #include <sys/proc.h>
+#include <sys/file.h>
+#include <sys/stat.h>
+#include <sys/filedesc.h>
+#include <sys/ioctl.h>
+#include <sys/ipc.h>
+#include <sys/kernel.h>
+#include <sys/malloc.h>
+#include <sys/mbuf.h>
+#include <sys/mman.h>
+#include <sys/mount.h>
+#include <sys/reboot.h>
+#include <sys/resource.h>
+#include <sys/resourcevar.h>
+#include <sys/signal.h>
+#include <sys/signalvar.h>
+#include <sys/socket.h>
+#include <sys/time.h>
+#include <sys/times.h>
+#include <sys/vnode.h>
+#include <sys/uio.h>
+#include <sys/wait.h>
+#include <sys/utsname.h>
+#include <sys/unistd.h>
+#include <sys/msg.h>
+#include <sys/sem.h>
+#include <sys/shm.h>
+#include <sys/sysproto.h>
 
-int
-ibcs2_msgsys(struct proc *p, void *args, int *retval)
+#include <vm/vm.h>
+
+#include <i386/ibcs2/ibcs2_types.h>
+#include <i386/ibcs2/ibcs2_signal.h>
+#include <i386/ibcs2/ibcs2_proto.h>
+#include <i386/ibcs2/ibcs2_util.h>
+#include <i386/ibcs2/ibcs2_ipc.h>
+
+#define IBCS2_IPC_RMID	0
+#define IBCS2_IPC_SET	1
+#define IBCS2_IPC_STAT	2
+
+
+static void cvt_msqid2imsqid __P((struct msqid_ds *, struct ibcs2_msqid_ds *));
+static void cvt_imsqid2msqid __P((struct ibcs2_msqid_ds *, struct msqid_ds *));
+static void cvt_sem2isem     __P((struct sem *, struct ibcs2_sem *));
+static void cvt_isem2sem     __P((struct ibcs2_sem *, struct sem *));
+static void cvt_semid2isemid __P((struct semid_ds *, struct ibcs2_semid_ds *));
+static void cvt_isemid2semid __P((struct ibcs2_semid_ds *, struct semid_ds *));
+static void cvt_shmid2ishmid __P((struct shmid_ds *, struct ibcs2_shmid_ds *));
+static void cvt_ishmid2shmid __P((struct ibcs2_shmid_ds *, struct shmid_ds *));
+
+
+/*
+ * iBCS2 msgsys call
+ */
+
+static void
+cvt_msqid2imsqid(bp, ibp)
+struct msqid_ds *bp;
+struct ibcs2_msqid_ds *ibp;
 {
-	if (ibcs2_trace & IBCS2_TRACE_MISC)
-		printf("IBCS2: 'msgsys'\n");
+	ibp->msg_perm = bp->msg_perm;
+	ibp->msg_first = bp->msg_first;
+	ibp->msg_last = bp->msg_last;
+	ibp->msg_cbytes = (u_short)bp->msg_cbytes;
+	ibp->msg_qnum = (u_short)bp->msg_qnum;
+	ibp->msg_qbytes = (u_short)bp->msg_qbytes;
+	ibp->msg_lspid = (u_short)bp->msg_lspid;
+	ibp->msg_lrpid = (u_short)bp->msg_lrpid;
+	ibp->msg_stime = bp->msg_stime;
+	ibp->msg_rtime = bp->msg_rtime;
+	ibp->msg_ctime = bp->msg_ctime;
+	return;
+}
+
+static void
+cvt_imsqid2msqid(ibp, bp)
+struct ibcs2_msqid_ds *ibp;
+struct msqid_ds *bp;
+{
+	bp->msg_perm = ibp->msg_perm;
+	bp->msg_first = ibp->msg_first;
+	bp->msg_last = ibp->msg_last;
+	bp->msg_cbytes = ibp->msg_cbytes;
+	bp->msg_qnum = ibp->msg_qnum;
+	bp->msg_qbytes = ibp->msg_qbytes;
+	bp->msg_lspid = ibp->msg_lspid;
+	bp->msg_lrpid = ibp->msg_lrpid;
+	bp->msg_stime = ibp->msg_stime;
+	bp->msg_rtime = ibp->msg_rtime;
+	bp->msg_ctime = ibp->msg_ctime;
+	return;
+}
+
 #ifdef SYSVMSG
-	return msgsys(p, args, retval);
-#else
-	printf("IBCS2: 'msgsys' not implemented yet\n");
-	return EINVAL;
+int
+ibcs2_msgsys(p, uap, retval)
+	struct proc *p;
+	struct ibcs2_msgsys_args *uap;
+	int *retval;
+{
+	switch (SCARG(uap, which)) {
+	case 0:				/* msgget */
+		SCARG(uap, which) = 1;
+		return msgsys(p, (struct msgsys_args *)uap, retval);
+	case 1: {			/* msgctl */
+		int error;
+		struct msgsys_args margs;
+		caddr_t sg = stackgap_init();
+
+		SCARG(&margs, which) = 0;
+		SCARG(&margs, a2) = SCARG(uap, a2);
+		SCARG(&margs, a4) =
+		    (int)stackgap_alloc(&sg, sizeof(struct msqid_ds));
+		SCARG(&margs, a3) = SCARG(uap, a3);
+		switch (SCARG(&margs, a3)) {
+		case IBCS2_IPC_STAT:
+			error = msgsys(p, &margs, retval);
+			if (!error)
+				cvt_msqid2imsqid(SCARG(&margs, a4),
+				    (struct ibcs2_msqid_ds *)SCARG(uap, a4));
+			return error;
+		case IBCS2_IPC_SET:
+			cvt_imsqid2msqid((struct ibcs2_msqid_ds *)SCARG(uap,
+									a4),
+					 SCARG(&margs, a4));
+			return msgsys(p, &margs, retval);
+		case IBCS2_IPC_RMID:
+			return msgsys(p, &margs, retval);
+		}
+		return EINVAL;
+	}
+	case 2:				/* msgrcv */
+		SCARG(uap, which) = 3;
+		return msgsys(p, (struct msgsys_args *)uap, retval);
+	case 3:				/* msgsnd */
+		SCARG(uap, which) = 2;
+		return msgsys(p, (struct msgsys_args *)uap, retval);
+	default:
+		return EINVAL;
+	}
+}
 #endif
+
+/*
+ * iBCS2 semsys call
+ */
+
+static void
+cvt_sem2isem(bp, ibp)
+struct sem *bp;
+struct ibcs2_sem *ibp;
+{
+	ibp->semval = bp->semval;
+	ibp->sempid = bp->sempid;
+	ibp->semncnt = bp->semncnt;
+	ibp->semzcnt = bp->semzcnt;
+	return;
 }
 
-int
-ibcs2_semsys(struct proc *p, void *args, int *retval)
+static void
+cvt_isem2sem(ibp, bp)
+struct ibcs2_sem *ibp;
+struct sem *bp;
 {
-	if (ibcs2_trace & IBCS2_TRACE_MISC)
-		printf("IBCS2: 'semsys'\n");
+	bp->semval = ibp->semval;
+	bp->sempid = ibp->sempid;
+	bp->semncnt = ibp->semncnt;
+	bp->semzcnt = ibp->semzcnt;
+	return;
+}
+
+static void
+cvt_semid2isemid(bp, ibp)
+struct semid_ds *bp;
+struct ibcs2_semid_ds *ibp;
+{
+	ibp->sem_perm = bp->sem_perm;
+	ibp->sem_base = (struct ibcs2_sem *)bp->sem_base;
+	ibp->sem_nsems = bp->sem_nsems;
+	ibp->sem_otime = bp->sem_otime;
+	ibp->sem_ctime = bp->sem_ctime;
+	return;
+}
+
+static void
+cvt_isemid2semid(ibp, bp)
+struct ibcs2_semid_ds *ibp;
+struct semid_ds *bp;
+{
+	bp->sem_perm = ibp->sem_perm;
+	bp->sem_base = (struct sem *)ibp->sem_base;
+	bp->sem_nsems = ibp->sem_nsems;
+	bp->sem_otime = ibp->sem_otime;
+	bp->sem_ctime = ibp->sem_ctime;
+	return;
+}
+
 #ifdef SYSVSEM
-	return semsys(p, args, retval);
-#else
-	printf("IBCS2: 'semsys' not implemented yet\n");
-	return EINVAL;
-#endif
-}
-
 int
-ibcs2_shmsys(struct proc *p, void *args, int *retval)
+ibcs2_semsys(p, uap, retval)
+	struct proc *p;
+	struct ibcs2_semsys_args *uap;
+	int *retval;
 {
-	if (ibcs2_trace & IBCS2_TRACE_MISC)
-		printf("IBCS2: 'shmsys'\n");
-#ifdef SYSVSHM
-	return shmsys(p, args, retval);
-#else
-	printf("IBCS2: 'shmsys' not implemented yet\n");
+	int error;
+
+	switch (SCARG(uap, which)) {
+	case 0:					/* semctl */
+		switch(SCARG(uap, a4)) {
+		case IBCS2_IPC_STAT:
+		    {
+			struct ibcs2_semid_ds *isp;
+			struct semid_ds *sp;
+			caddr_t sg = stackgap_init();
+
+			isp = (struct ibcs2_semid_ds *)SCARG(uap, a5);
+			sp = stackgap_alloc(&sg, sizeof(struct semid_ds));
+			SCARG(uap, a5) = (int)sp;
+			error = semsys(p, (struct semsys_args *)uap, retval);
+			if (!error) {
+				SCARG(uap, a5) = (int)isp;
+				isp = stackgap_alloc(&sg, sizeof(*isp));
+				cvt_semid2isemid(sp, isp);
+				error = copyout((caddr_t)isp,
+						(caddr_t)SCARG(uap, a5),
+						sizeof(*isp));
+			}
+			return error;
+		    }
+		case IBCS2_IPC_SET:
+		    {
+			struct ibcs2_semid_ds *isp;
+			struct semid_ds *sp;
+			caddr_t sg = stackgap_init();
+
+			isp = stackgap_alloc(&sg, sizeof(*isp));
+			sp = stackgap_alloc(&sg, sizeof(*sp));
+			error = copyin((caddr_t)SCARG(uap, a5), (caddr_t)isp,
+				       sizeof(*isp));
+			if (error)
+				return error;
+			cvt_isemid2semid(isp, sp);
+			SCARG(uap, a5) = (int)sp;
+			return semsys(p, (struct semsys_args *)uap, retval);
+		    }
+		}
+		return semsys(p, (struct semsys_args *)uap, retval);
+
+	case 1:				/* semget */
+		return semsys(p, (struct semsys_args *)uap, retval);
+
+	case 2:				/* semop */
+		return semsys(p, (struct semsys_args *)uap, retval);
+	}
 	return EINVAL;
+}
 #endif
+
+/*
+ * iBCS2 shmsys call
+ */
+
+static void
+cvt_shmid2ishmid(bp, ibp)
+struct shmid_ds *bp;
+struct ibcs2_shmid_ds *ibp;
+{
+	ibp->shm_perm = bp->shm_perm;
+	ibp->shm_segsz = bp->shm_segsz;
+	ibp->shm_lpid = bp->shm_lpid;
+	ibp->shm_cpid = bp->shm_cpid;
+	ibp->shm_nattch = bp->shm_nattch;
+	ibp->shm_cnattch = 0;			/* ignored anyway */
+	ibp->shm_atime = bp->shm_atime;
+	ibp->shm_dtime = bp->shm_dtime;
+	ibp->shm_ctime = bp->shm_ctime;
+	return;
 }
 
+static void
+cvt_ishmid2shmid(ibp, bp)
+struct ibcs2_shmid_ds *ibp;
+struct shmid_ds *bp;
+{
+	bp->shm_perm = ibp->shm_perm;
+	bp->shm_segsz = ibp->shm_segsz;
+	bp->shm_lpid = ibp->shm_lpid;
+	bp->shm_cpid = ibp->shm_cpid;
+	bp->shm_nattch = ibp->shm_nattch;
+	bp->shm_atime = ibp->shm_atime;
+	bp->shm_dtime = ibp->shm_dtime;
+	bp->shm_ctime = ibp->shm_ctime;
+	bp->shm_internal = (void *)0;		/* ignored anyway */
+	return;
+}
+
+#ifdef SYSVSHM
+int
+ibcs2_shmsys(p, uap, retval)
+	struct proc *p;
+	struct ibcs2_shmsys_args *uap;
+	int *retval;
+{
+	int error;
+
+	switch (SCARG(uap, which)) {
+	case 0:						/* shmat */
+		return shmsys(p, (struct shmsys_args *)uap, retval);
+
+	case 1:						/* shmctl */
+		switch(SCARG(uap, a3)) {
+		case IBCS2_IPC_STAT:
+		    {
+			struct ibcs2_shmid_ds *isp;
+			struct shmid_ds *sp;
+			caddr_t sg = stackgap_init();
+
+			isp = (struct ibcs2_shmid_ds *)SCARG(uap, a4);
+			sp = stackgap_alloc(&sg, sizeof(*sp));
+			SCARG(uap, a4) = (int)sp;
+			error = shmsys(p, (struct shmsys_args *)uap, retval);
+			if (!error) {
+				SCARG(uap, a4) = (int)isp;
+				isp = stackgap_alloc(&sg, sizeof(*isp));
+				cvt_shmid2ishmid(sp, isp);
+				error = copyout((caddr_t)isp,
+						(caddr_t)SCARG(uap, a4),
+						sizeof(*isp));
+			}
+			return error;
+		    }
+		case IBCS2_IPC_SET:
+		    {
+			struct ibcs2_shmid_ds *isp;
+			struct shmid_ds *sp;
+			caddr_t sg = stackgap_init();
+
+			isp = stackgap_alloc(&sg, sizeof(*isp));
+			sp = stackgap_alloc(&sg, sizeof(*sp));
+			error = copyin((caddr_t)SCARG(uap, a4), (caddr_t)isp,
+				       sizeof(*isp));
+			if (error)
+				return error;
+			cvt_ishmid2shmid(isp, sp);
+			SCARG(uap, a4) = (int)sp;
+			return shmsys(p, (struct shmsys_args *)uap, retval);
+		    }
+		}
+		return shmsys(p, (struct shmsys_args *)uap, retval);
+
+	case 2:						/* shmdt */
+		return shmsys(p, (struct shmsys_args *)uap, retval);
+
+	case 3:						/* shmget */
+		return shmsys(p, (struct shmsys_args *)uap, retval);
+	}
+	return EINVAL;
+}
+#endif
