@@ -186,13 +186,11 @@ ip_output(m0, opt, ro, flags, imo)
 	(void)ipsec_setsocket(m, NULL);
 #endif
 
-#ifdef	INVARIANTS	
-	if ((m->m_flags & M_PKTHDR) == 0)
-		panic("ip_output no HDR");
-	if (!ro)
-		panic("ip_output no route, proto = %d",
-		      mtod(m, struct ip *)->ip_p);
-#endif
+	KASSERT((m->m_flags & M_PKTHDR) != 0, ("ip_output: no HDR"));
+
+	KASSERT(ro != NULL, ("ip_output: no route, proto %d",
+	    mtod(m, struct ip *)->ip_p));
+
 	if (opt) {
 		m = ip_insertoptions(m, opt, &len);
 		hlen = len;
@@ -1111,15 +1109,13 @@ ip_optcopy(ip, jp)
 			optlen = 1;
 			continue;
 		}
-#ifdef	INVARIANTS 
-		if (cnt < IPOPT_OLEN + sizeof(*cp))
-			panic("malformed IPv4 option passed to ip_optcopy");
-#endif
+
+		KASSERT(cnt >= IPOPT_OLEN + sizeof(*cp),
+		    ("ip_optcopy: malformed ipv4 option"));
 		optlen = cp[IPOPT_OLEN];
-#ifdef	INVARIANTS 
-		if (optlen < IPOPT_OLEN + sizeof(*cp) || optlen > cnt)
-			panic("malformed IPv4 option passed to ip_optcopy");
-#endif
+		KASSERT(optlen >= IPOPT_OLEN + sizeof(*cp) && optlen <= cnt,
+		    ("ip_optcopy: malformed ipv4 option"));
+
 		/* bogus lengths should have been caught by ip_dooptions */
 		if (optlen > cnt)
 			optlen = cnt;
