@@ -1951,13 +1951,17 @@ controller	pcf0	at isa? port 0x320 irq 5
 
 # ISDN4BSD section
 #
-# see /usr/share/examples/isdn/ROADMAP for an introduction to isdn4bsd.
+# See /usr/share/examples/isdn/ROADMAP for an introduction to isdn4bsd.
 #
 # i4b passive ISDN cards support (isic - I4b Siemens Isdn Chipset driver)
 # note that the ``options'' and ``device'' lines must BOTH be defined !
 #
-# Non-PnP Cards:
-# --------------
+# Driver entries marked "(not supported yet!)" are not working currently
+# due to not being converted to newbus. We hope to get them back to support
+# in the near future.
+#
+# ISA bus non-PnP Cards:
+# ----------------------
 #
 # Teles S0/8 or Niccy 1008
 options 	TEL_S0_8
@@ -1975,61 +1979,61 @@ options 	TEL_S0_16_3
 options 	AVM_A1
 #device		isic0	at isa? port 0x340 irq 5 flags 4
 #
-# USRobotics Sportster ISDN TA intern
-options 	USR_STI
+# USRobotics Sportster ISDN TA intern (not supported yet!)
+#options 	USR_STI
 #device		isic0	at isa? port 0x268 irq 5 flags 7
 #
-# ITK ix1 Micro ( < V.3, non-PnP version )
-options 	ITKIX1
+# ITK ix1 Micro ( < V.3, non-PnP version ) (not supported yet!)
+#options 	ITKIX1
 #device		isic0	at isa? port 0x398 irq 10 flags 18
 #
 # ELSA PCC-16
 options 	"ELSA_PCC16"
-#device		isic0	at isa? port 0x360 irq 10 flags 19
+#device		isic0	at isa? port 0x360 irq 10 flags 20
 #
-# PnP-Cards:
-# ----------
+# ISA bus PnP Cards:
+# ------------------
 #
 # Teles S0/16.3 PnP
 options 	TEL_S0_16_3_P
-#device		isic0	at isa? port ? irq ?
+#device		isic0
 #
 # Creatix ISDN-S0 P&P
 options 	CRTX_S0_P
-#device		isic0	at isa? port ? irq ?
+#device		isic0
 #
 # Dr. Neuhaus Niccy Go@
 options 	DRN_NGO
-#device		isic0	at isa? port ? irq ?
+#device		isic0
 #
 # Sedlbauer Win Speed
 options 	SEDLBAUER
-#device		isic0	at isa? port ? irq ?
+#device		isic0
 #
-# Dynalink IS64PH
-options 	DYNALINK
-#device		isic0	at isa? port ? irq ?
+# Dynalink IS64PH (not supported yet!)
+#options 	DYNALINK 
+#device		isic0
 #
 # ELSA QuickStep 1000pro ISA
 options 	ELSA_QS1ISA
-#device		isic0	at isa? port ? irq ?
+#device		isic0
 #
-# ITK ix1 Micro ( V.3, PnP version )
-options 	"ITKIX1"
-#device		isic0	at isa? port ? irq ?
+# ITK ix1 Micro ( V.3, PnP version ) (not supported yet!)
+#options 	"ITKIX1"
+#device		isic0
 #
-# AVM Fritz!Card PnP
-options 	"AVM_PNP"
-#device 		isic0	at isa? port ? irq ?
+# AVM Fritz!Card PnP (not supported yet!)
+#options 	"AVM_PNP"
+#device 	isic0
 #
 # Siemens I-Surf 2.0
 options 	"SIEMENS_ISURF2"
-#device		isic0	at isa? port ? irq ?
+#device		isic0
 #
-# PCI-Cards:
-# ----------
+# PCI bus Cards:
+# --------------
 #
-# ELSA QuickStep 1000pro PCI
+# ELSA MicroLink ISDN/PCI (same as ELSA QuickStep 1000pro PCI)
 options 	ELSA_QS1PCI
 #device		isic0
 #
@@ -2037,17 +2041,18 @@ options 	ELSA_QS1PCI
 options 	"AVM_A1_PCI"
 #device		isic0
 #
-# PCMCIA-Cards:
+# PCMCIA Cards:
 # -------------
 #
-# AVM PCMCIA Fritz!Card
-options 	AVM_A1_PCMCIA
-device		isic0	at isa? port 0x340 irq 5 flags 10
+# AVM PCMCIA Fritz!Card (not supported yet!)
+#options 	AVM_A1_PCMCIA
+#device		isic0	at isa? port 0x340 irq 5 flags 10
 #
 # Active Cards:
 # -------------
 #
-# Stollmann Tina-dd control device
+# Stollmann Tina-dd control device 
+# (driver under development, not fully functional!)
 device		tina0	at isa? port 0x260 irq 10
 #
 # ISDN Protocol Stack
@@ -2081,6 +2086,8 @@ pseudo-device	"i4btel"	2
 pseudo-device	"i4bipr"	4
 # enable VJ header compression detection for ipr i/f
 options 	IPR_VJ
+# enable logging of the first n IP packets to isdnd (n=32 here)
+#options	IPR_LOG=32
 #
 # network driver for sync PPP over ISDN
 pseudo-device	"i4bisppp"	4
