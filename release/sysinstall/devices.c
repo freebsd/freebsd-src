@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: devices.c,v 1.1 1995/05/01 21:56:19 jkh Exp $
+ * $Id: devices.c,v 1.2 1995/05/04 03:51:14 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -43,6 +43,7 @@
 
 #include "sysinstall.h"
 #include "libdisk.h"
+#include <ctype.h>
 
 /* Where we start displaying chunk information on the screen */
 #define CHUNK_START_ROW		5
@@ -112,7 +113,6 @@ print_chunks(char *disk, struct disk *d)
     mvprintw(3, 1, "%10s %10s %10s %8s %8s %8s %8s %8s",
 	     "Offset", "Size", "End", "Name", "PType", "Desc",
 	     "Subtype", "Flags");
-    attrset(A_NORMAL);
     for (i = 0, row = CHUNK_START_ROW; chunk_info[i]; i++, row++) {
 	if (i == current_chunk)
 	    attrset(A_BOLD);
@@ -132,9 +132,10 @@ print_command_summary()
     mvprintw(15, 0, "The following commands are supported (in upper or lower case):");
     mvprintw(17, 0, "C = Create New Partition   D = Delete Partition");
     mvprintw(18, 0, "B = Scan For Bad Blocks    U = Undo All Changes");
-    mvprintw(19, 0, "ESC = Proceed to next screen");
+    mvprintw(19, 0, "W = Write Changes          ESC = Proceed to next screen");
     mvprintw(21, 0, "The currently selected partition is displayed in ");
     attrset(A_BOLD); addstr("bold"); attrset(A_NORMAL);
+    mvprintw(22, 0, "Use F1 or `?' for help on this screen");
     move(0, 0);
 }
 
@@ -172,7 +173,7 @@ device_slice_disk(char *disk)
 	}
 	refresh();
 
-	key = getch();
+	key = toupper(getch());
 	switch (key) {
 	case KEY_UP:
 	case '-':
@@ -203,7 +204,6 @@ device_slice_disk(char *disk)
 	    break;
 
 	case 'B':
-	case 'b':
 	    if (chunk_info[current_chunk]->type != freebsd)
 		msg = "Can only scan for bad blocks in FreeBSD partition.";
 	    else
@@ -211,7 +211,6 @@ device_slice_disk(char *disk)
 	    break;
 
 	case 'C':
-	case 'c':
 	    if (chunk_info[current_chunk]->type != unused)
 		msg = "Partition in use, delete it first or move to an unused one.";
 	    else {
@@ -233,7 +232,6 @@ device_slice_disk(char *disk)
 	    break;
 
 	case 'D':
-	case 'd':
 	    if (chunk_info[current_chunk]->type == unused)
 		msg = "Partition is already unused!";
 	    else {
@@ -243,10 +241,16 @@ device_slice_disk(char *disk)
 	    break;
 
 	case 'U':
-	case 'u':
 	    Free_Disk(d);
 	    d = Open_Disk(disk);
 	    record_chunks(disk, d);
+	    break;
+
+	case 'W':
+	    if (!msgYesNo("Are you sure you want to write this to disk?"))
+		Write_Disk(d);
+	    else
+		msg = "Write not confirmed";
 	    break;
 
 	case 27:	/* ESC */

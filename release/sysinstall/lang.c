@@ -1,10 +1,10 @@
 /*
  * The new sysinstall program.
  *
- * This is probably the last attempt in the `sysinstall' line, the next
- * generation being slated for what's essentially a complete rewrite.
+ * This is probably the last program in the `sysinstall' line - the next
+ * generation being essentially a complete rewrite.
  *
- * $Id: main.c,v 1.2 1995/05/04 03:51:17 jkh Exp $
+ * $Id: menus.c,v 1.5 1995/05/04 03:51:19 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -43,33 +43,84 @@
 
 #include "sysinstall.h"
 
-extern DMenu	MenuInitial;
-
-int
-main(int argc, char **argv)
+void
+lang_set_Danish(char *str)
 {
-    int choice, scroll, curr, max;
+    systemChangeFont("iso-8x14");
+    systemChangeLang("da_DK.ISO8859-1");
+    systemChangeTerminal("cons25l1", "cons25l1_m");
+}
 
-    if (geteuid() != 0) {
-	fprintf(stderr, "This utility can only be run as root.\n");
-	return 1;
-    }
-    /* Set up whatever things need setting up */
-    systemInitialize(argc, argv);
+void
+lang_set_Dutch(char *str)
+{
+    systemChangeFont("iso-8x14");
+    systemChangeLang("nl_NL.ISO8859-1");
+    systemChangeTerminal("cons25l1", "cons25l1_m");
+}
 
-    /* Welcome user to FreeBSD */
-    systemWelcome();
+void
+lang_set_English(char *str)
+{
+    systemChangeFont("cp850-8x14");
+    systemChangeLang("en_US.ISO8859-1");
+    systemChangeTerminal("cons25", "cons25_m");
+}
 
-    /* Begin user dialog at outer menu */
-    while (1) {
-	choice = scroll = curr = max = 0;
-	dmenuOpen(&MenuInitial, &choice, &scroll, &curr, &max);
-	if (getpid() != 1 || !msgYesNo("Are you sure you wish to exit?  System will reboot."))
-	    break;
-    }
-    /* Say goodnight, Gracie */
-    systemShutdown();
+void
+lang_set_French(char *str)
+{
+    systemChangeFont("iso-8x14");
+    systemChangeLang("fr_FR.ISO8859-1");
+    systemChangeTerminal("cons25l1", "cons25l1_m");
+}
 
-    /* If we're running as init, we should never get here */
-    return 0;
+void
+lang_set_German(char *str)
+{
+    systemChangeFont("iso-8x14");
+    systemChangeLang("de_DE.ISO8859-1");
+    systemChangeTerminal("cons25l1", "cons25l1_m");
+}
+
+void
+lang_set_Italian(char *str)
+{
+    systemChangeFont("iso-8x14");
+    systemChangeLang("it_IT.ISO8859-1");
+    systemChangeTerminal("cons25l1", "cons25l1_m");
+}
+
+/* Someday we will have to do a lot better than this */
+void
+lang_set_Japanese(char *str)
+{
+    systemChangeFont("iso-8x14");
+    systemChangeLang("ja_JP.ROMAJI");
+    systemChangeTerminal("cons25", "cons25_m");
+}
+
+void
+lang_set_Russian(char *str)
+{
+    systemChangeFont("iso-8x14");
+    systemChangeLang("ru_SU.KOI8-R");
+    systemChangeTerminal("cons25r", "cons25r_m");
+    systemChangeScreenmap("koi8-r2cp866");
+}
+
+void
+lang_set_Spanish(char *str)
+{
+    systemChangeFont("iso-8x14");
+    systemChangeLang("es_ES.ISO8859-1");
+    systemChangeTerminal("cons25l1", "cons25l1_m");
+}
+
+void
+lang_set_Swedish(char *str)
+{
+    systemChangeFont("iso-8x14");
+    systemChangeLang("sv_SV.ISO8859-1");
+    systemChangeTerminal("cons25l1", "cons25l1_m");
 }

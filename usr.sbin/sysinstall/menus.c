@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.4 1995/05/01 21:56:25 jkh Exp $
+ * $Id: menus.c,v 1.5 1995/05/04 03:51:19 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -52,6 +52,7 @@
 
 /* Forward decls for submenus */
 extern DMenu MenuDocumentation;
+extern DMenu MenuLanguage;
 extern DMenu MenuMedia;
 extern DMenu MenuInstallType;
 extern DMenu MenuInstallOptions;
@@ -121,25 +122,25 @@ of the english versions.",		/* prompt */
     "Press F1 for more information",	/* help line */
     "language.hlp",			/* help file */
    { { "Danish", "Danish language and character set (ISO-8859-1)", /* D */
-	 DMENU_SET_VARIABLE, (void *)"LANG=da_DK.ISO8859-1", 0 },
+	 DMENU_CALL, (void *)lang_set_Danish, 0 },
    { "Dutch", "Dutch language and character set (ISO-8859-1)",	   /* D */
-	 DMENU_SET_VARIABLE, (void *)"LANG=nl_NL.ISO8859-1", 0 },
+	 DMENU_CALL, (void *)lang_set_Dutch, 0 },
    { "*English", "English language (system default)",              /* E */
-	 DMENU_SET_VARIABLE, (void *)"LANG=en_US.ISO8859-1", 0 },
+	 DMENU_CALL, (void *)lang_set_English, 0 },
    { "French", "French language and character set (ISO-8859-1)",   /* F */
-	 DMENU_SET_VARIABLE, (void *)"LANG=fr_FR.ISO8859-1", 0 },
+	 DMENU_CALL, (void *)lang_set_French, 0 },
    { "German", "German language and character set (ISO-8859-1)",   /* G */
-	 DMENU_SET_VARIABLE, (void *)"LANG=de_DE.ISO8859-1", 0 },
+	 DMENU_CALL, (void *)lang_set_German, 0 },
    { "Italian", "Italian language and character set (ISO-8859-1)", /* I */
-	 DMENU_SET_VARIABLE, (void *)"LANG=it_IT.ISO8859-1", 0 },
-   { "Japanese", "Japanese language and character set (JIS?)",     /* J */
-	 DMENU_SET_VARIABLE, (void *)"LANG=ja_JP.EUC", 0 },
+	 DMENU_CALL, (void *)lang_set_Italian, 0 },
+   { "Japanese", "Japanese language and default character set (romaji)",/* J */
+	 DMENU_CALL, (void *)lang_set_Japanese, 0 },
    { "Russian", "Russian language and character set (cp866-8x14)", /* R */
-	 DMENU_SET_VARIABLE, (void *)"LANG=ru_SU.KOI8-R", 0 },
+	 DMENU_CALL, (void *)lang_set_Russian, 0 },
    { "Spanish", "Spanish language and character set (ISO-8859-1)", /* S */
-	 DMENU_SET_VARIABLE, (void *)"LANG=es_ES.ISO8859-1", 0 },
+	 DMENU_CALL, (void *)lang_set_Spanish, 0 },
    { "Swedish", "Swedish language and character set (ISO-8859-1)", /* S */
-	 DMENU_SET_VARIABLE, (void *)"LANG=sv_SV.ISO8859-1", 0 },
+	 DMENU_CALL, (void *)lang_set_Swedish, 0 },
    { NULL } },
 };
 
@@ -179,20 +180,20 @@ These pick what we consider to be the most reasonable defaults for the \
 type of system in question.  If you would prefer to pick and choose \
 the list of distributions yourself, simply select `custom'.",
     "Press F1 for more information on the various distributions",
-    "install_types.hlp",
+    "dist_types.hlp",
     { { "Developer", "Includes full sources, binaries and doc but no games.",
-	DMENU_CALL, (void *)installSetDeveloper, 0 },
+	DMENU_CALL, (void *)distSetDeveloper, 0 },
       { "X-Developer", "Same as above, but includes XFree86.",
-	DMENU_CALL, (void *)installSetXDeveloper, 0 },
+	DMENU_CALL, (void *)distSetXDeveloper, 0 },
       { "User", "General user.  Binaries and doc but no sources.",
-	DMENU_CALL, (void *)installSetUser, 0 },
+	DMENU_CALL, (void *)distSetUser, 0 },
       { "X-User", "Same as above, but includes XFree86.",
-	DMENU_CALL, (void *)installSetXUser, 0 },
+	DMENU_CALL, (void *)distSetXUser, 0 },
       { "Minimal", "The smallest configuration possible.",
-	DMENU_CALL, (void *)installSetMinimum, 0 },
-      { "Everything", "The entire kitchen sink, plus bedroom suite.",
-	DMENU_CALL, (void *)installSetEverything, 0 },
-      { "Custom", "I don't want it canned!  I want to drive!",
+	DMENU_CALL, (void *)distSetMinimum, 0 },
+      { "Everything", "The entire source and binary distribution.",
+	DMENU_CALL, (void *)distSetEverything, 0 },
+      { "Custom", "Specify your own distribution set",
 	DMENU_SUBMENU, (void *)&MenuDistributions, 0 },
       { NULL } },
 };

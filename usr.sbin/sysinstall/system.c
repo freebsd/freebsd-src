@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: system.c,v 1.2 1995/04/29 19:33:06 jkh Exp $
+ * $Id: system.c,v 1.3 1995/05/01 21:56:31 jkh Exp $
  *
  * Jordan Hubbard
  *
@@ -198,4 +198,26 @@ systemHelpFile(char *file, char *buf)
 	}
     }
     return fname;
+}
+
+void
+systemChangeFont(char *font)
+{
+}
+
+void
+systemChangeLang(char *lang)
+{
+    variable_set2("LANG", lang);
+}
+
+void
+systemChangeTerminal(char *color, char *mono)
+{
+    /* Do something with setterm */
+}
+
+void
+systemChangeScreenmap(char *newmap)
+{
 }
