@@ -263,13 +263,14 @@ option then you must also use this option if you wish to be able to use
 the mouse.
 .It Dv SC_CUT_SEPCHARS=_characters_
 This options specifies characters that will be looked for when the
-driver searches for words boundaries when doing cut operation.  By
-default its value is
-.Dq \e\\&x20
-- a space character.
+driver searches for words boundaries when doing cut operation.
+By default, its value is
+.Qq Li \ex20
+\(em a space character.
 .It Dv SC_CUT_SPACES2TABS
 This options instructs the driver to convert leading spaces into tabs
-when copying data into cut buffer.  This might be useful to preserve
+when copying data into cut buffer.
+This might be useful to preserve
 identation when copying tab-idented text.
 .It Dv SC_DISABLE_DDBKEY
 This option disables the ``debug'' key (by default, it is
