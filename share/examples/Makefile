@@ -44,4 +44,4 @@ etc-examples:
 SUBDIR=	ipfilter smbfs
 .endif
 
-.include <bsd.subdir.mk>
+.include <bsd.prog.mk>
