@@ -1,5 +1,9 @@
 #	@(#)Makefile	8.2 (Berkeley) 12/15/93
 
+# This stuff need original libdes to run (new_rnd_key.c module),
+# current eBones/des lib don't have it
+# Kerberos4 stuff ifdefed by MAKE_KERBEROS (make.conf) because of it
+
 PROG=	telnetd
 CFLAGS+=-DLINEMODE -DKLUDGELINEMODE -DUSE_TERMIO -DDIAGNOSTICS
 CFLAGS+=-DOLD_ENVIRON -DENV_HACK
@@ -15,8 +19,10 @@ MAN8=	telnetd.8
 
 CFLAGS+=-DAUTHENTICATION -DENCRYPTION
 
+.ifdef MAKE_KERBEROS
 .if exists(/usr/lib/libkrb.a)
 LDADD+=	-lkrb -ldes
+.endif
 .endif
 
 #endif	/* ENCRYPTION */
