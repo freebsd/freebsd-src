@@ -413,6 +413,39 @@ pmap_kenter(vm_offset_t va, vm_offset_t pa)
 }
 
 /*
+ * Map a wired page into kernel virtual address space. This additionally
+ * takes a flag argument wich is or'ed to the TTE data. This is used by
+ * bus_space_map().
+ */
+void
+pmap_kenter_flags(vm_offset_t va, vm_offset_t pa, u_long flags)
+{
+	struct stte *stp;
+	struct tte tte;
+
+	tte.tte_tag = TT_CTX(TLB_CTX_KERNEL) | TT_VA(va);
+	if ((flags & TD_W) != 0)
+		flags |= TD_SW;
+	tte.tte_data = TD_V | TD_8K | TD_VA_LOW(va) | TD_PA(pa) |
+	    TD_REF | TD_P | flags;
+	stp = tsb_kvtostte(va);
+	CTR4(KTR_PMAP, "pmap_kenter: va=%#lx pa=%#lx stp=%p data=%#lx",
+	    va, pa, stp, stp->st_tte.tte_data);
+	stp->st_tte = tte;
+}
+
+/*
+ * Make a temporary mapping for a physical address.  This is only intended
+ * to be used for panic dumps.
+ */
+void *
+pmap_kenter_temporary(vm_offset_t pa, int i)
+{
+
+	TODO;
+}
+
+/*
  * Remove a wired page from kernel virtual address space.
  */
 void
@@ -970,15 +1003,24 @@ pmap_zero_page_area(vm_offset_t pa, int off, int size)
 vm_offset_t
 pmap_extract(pmap_t pmap, vm_offset_t va)
 {
-	TODO;
-	return (0);
+	struct stte *stp;
+
+	stp = tsb_stte_lookup(pmap, va);
+	if (stp == NULL)
+		return (0);
+	else
+		return (TD_PA(stp->st_tte.tte_data) | (va & PAGE_MASK));
 }
 
 vm_offset_t
 pmap_kextract(vm_offset_t va)
 {
-	TODO;
-	return (0);
+	struct stte *stp;
+
+	stp = tsb_kvtostte(va);
+	KASSERT((stp->st_tte.tte_data & TD_V) != 0,
+	    ("pmap_kextract: invalid virtual address 0x%lx", va));
+	return (TD_PA(stp->st_tte.tte_data) | (va & PAGE_MASK));
 }
 
 int
