@@ -34,6 +34,10 @@
 struct acpi_powerres_device {
 	LIST_ENTRY(acpi_powerres_device) links;
 	struct	aml_name *name;
+#define ACPI_D_STATE_D0		0
+#define ACPI_D_STATE_D1		1
+#define ACPI_D_STATE_D2		2
+#define ACPI_D_STATE_D3		3
 	u_int8_t	state;		/* D0 to D3 */
 	u_int8_t	next_state;	/* initialized with D0 */
 };
@@ -46,8 +50,11 @@ struct acpi_powerres_device_ref {
 struct acpi_powerres_info {
 	LIST_ENTRY(acpi_powerres_info) links;
 	struct	aml_name *name;
+#define ACPI_POWER_RESOURCE_ON	1
+#define ACPI_POWER_RESOURCE_OFF	0
 	u_int8_t	state;		/* OFF or ON */
-	LIST_HEAD(, acpi_powerres_device_ref) reflist[3]; /* for _PR[0-2] */
+#define ACPI_PR_MAX		3
+	LIST_HEAD(, acpi_powerres_device_ref) reflist[ACPI_PR_MAX];
 };
 
 /* softc */
@@ -64,6 +71,17 @@ typedef struct acpi_softc {
 	LIST_HEAD(, acpi_powerres_device) acpi_powerres_devlist;
 } acpi_softc_t;
 
-void acpi_powerres_set_sleeping_state(acpi_softc_t *sc, u_int8_t state);
+/* Device State */
+u_int8_t	 acpi_get_current_device_state(struct aml_name *);
+void		 acpi_set_device_state(acpi_softc_t *, struct aml_name *,
+				       u_int8_t);
+
+/* PowerResource State */
+void		 acpi_powerres_init(acpi_softc_t *);
+void		 acpi_powerres_debug(acpi_softc_t *);
+u_int8_t	 acpi_get_current_powerres_state(struct aml_name *);
+void		 acpi_set_powerres_state(acpi_softc_t *, struct aml_name *,
+				         u_int8_t);
+void		 acpi_powerres_set_sleeping_state(acpi_softc_t *, u_int8_t);
 
 #endif	/* _DEV_ACPI_ACPI_H_ */
