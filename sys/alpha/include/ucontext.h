@@ -31,8 +31,6 @@
 #ifndef _MACHINE_UCONTEXT_H_
 #define	_MACHINE_UCONTEXT_H_
 
-#include <machine/frame.h>
-
 typedef struct __mcontext {
 	/*
 	 * These fields must match the definition
