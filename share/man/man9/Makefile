@@ -120,6 +120,7 @@ MAN=	accept_filter.9 \
 	ithread.9 \
 	KASSERT.9 \
 	kernacc.9 \
+	kernel_mount.9 \
 	kobj.9 \
 	kthread.9 \
 	ktr.9 \
@@ -535,6 +536,8 @@ MLINKS+=ithread.9 ithread_add_handler.9 \
 	ithread.9 ithread_remove_handler.9 \
 	ithread.9 ithread_schedule.9
 MLINKS+=kernacc.9 useracc.9
+MLINKS+=kernel_mount.9 free_mntarg.9 kernel_vmount.9 \
+	mount_arg.9 mount_argb.9 mount_argf.9 mount_argsu.9
 MLINKS+=kobj.9 DEFINE_CLASS.9 \
 	kobj.9 kobj_class_compile.9 \
 	kobj.9 kobj_class_compile_static.9 \
