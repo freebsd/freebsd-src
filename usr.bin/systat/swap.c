@@ -32,7 +32,11 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)swap.c	8.2 (Berkeley) 2/21/94";
+#if 0
+static char sccsid[] = "@(#)swap.c	8.3 (Berkeley) 4/29/95";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 /*
@@ -55,7 +59,6 @@ static char sccsid[] = "@(#)swap.c	8.2 (Berkeley) 2/21/94";
 #include "systat.h"
 #include "extern.h"
 
-extern char *devname __P((int, int));
 extern char *getbsize __P((int *headerlenp, long *blocksizep));
 void showspace __P((char *header, int hlen, long blocksize));
 
@@ -198,7 +201,7 @@ fetchswap()
 void
 labelswap()
 {
-	char *header;
+	char *header, *p;
 	int row, i;
 
 	row = 0;
@@ -210,9 +213,10 @@ labelswap()
 	for (i = 0; i < nswdev; i++) {
 		if (!sw[i].sw_freed)
 			continue;
+		p = devname(sw[i].sw_dev, S_IFBLK);
 		mvwprintw(wnd, i + 1, 0, "%-5s",
-			  sw[i].sw_dev != NODEV?
-			  devname(sw[i].sw_dev, S_IFBLK): "[NFS]");
+			  sw[i].sw_dev == NODEV ? "[NFS]" :
+			  p == NULL ? "??" : p);
 	}
 }
 
