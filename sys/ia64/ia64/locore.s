@@ -51,6 +51,9 @@ kstack:	.space KSTACK_PAGES * PAGE_SIZE
  * register r8.
  */
 ENTRY(__start, 1)
+	.prologue
+	.save	rp,r0
+	.body
 {	.mlx
 	mov	ar.rsc=0
 	movl	r16=ia64_vector_table	// set up IVT early
@@ -90,41 +93,10 @@ ENTRY(__start, 1)
 	br.call.sptk.many rp=_reloc
 	;;
 	br.call.sptk.many rp=ia64_init
-
-	/*
-	 * switch to thread0 and then initialise the rest of the kernel.
-	 */
-	alloc	r16=ar.pfs,0,0,1,0
-	;; 
-	movl	out0=thread0
 	;;
-	add	out0=TD_PCB,out0
-	;;
-	ld8	out0=[out0]
-	;; 
-	add	r16=PCB_SPECIAL_RP,out0	// return to mi_startup_trampoline
-	movl	r17=mi_startup_trampoline
-	;;
-	st8	[r16]=r17
-	;;
-	br.call.sptk.many rp=restorectx
-
-	/* NOTREACHED */	
-	
-END(__start)
-
-
-ENTRY(mi_startup_trampoline, 0)
-	.prologue
-	.save	rp,r0
-	.body
-
-	br.call.sptk.many rp=mi_startup
-
-	// Should never happen
+	/* NOTREACHED */
 1:	br.cond.sptk.few 1b
-
-END(mi_startup_trampoline)
+END(__start)
 
 /*
  * fork_trampoline()

@@ -114,7 +114,7 @@ long	fswintrberr(void);				/* MAGIC */
 int	ia64_highfp_drop(struct thread *);
 int	ia64_highfp_load(struct thread *);
 int	ia64_highfp_save(struct thread *);
-void	ia64_init(u_int64_t, u_int64_t);
+void	ia64_init(void);
 int	ia64_pa_access(u_long);
 void	init_prom_interface(struct rpb*);
 void	interrupt(u_int64_t, struct trapframe *);
