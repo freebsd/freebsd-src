@@ -6,6 +6,8 @@ OSRCS=	chared.c common.c el.c emacs.c hist.c key.c map.c parse.c \
 	prompt.c read.c refresh.c search.c sig.c term.c tty.c vi.c \
 	help.c fcns.c help.h
 
+LDADD+= -ltermcap
+
 # For speed and debugging
 #SRCS=   ${OSRCS} tokenizer.c history.c
 # For protection
