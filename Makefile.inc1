@@ -580,7 +580,8 @@ bootstrap-tools:
     usr.bin/uudecode usr.bin/xinstall \
     usr.sbin/config \
     gnu/usr.bin/gperf gnu/usr.bin/groff gnu/usr.bin/texinfo
-	cd ${.CURDIR}/${_tool}; \
+	${ECHODIR} "===> ${_tool}"; \
+		cd ${.CURDIR}/${_tool}; \
 		${MAKE} DIRPRFX=${_tool}/ obj; \
 		${MAKE} DIRPRFX=${_tool}/ depend; \
 		${MAKE} DIRPRFX=${_tool}/ all; \
@@ -625,7 +626,8 @@ build-tools:
 .for _tool in bin/csh bin/sh ${_games} gnu/usr.bin/cc/cc_tools ${_fortran} \
     ${_perl} ${_libroken4} ${_libkrb5} lib/libncurses ${_share} \
     usr.bin/awk usr.bin/file ${_sysinstall}
-	cd ${.CURDIR}/${_tool}; ${MAKE} DIRPRFX=${_tool}/ build-tools
+	${ECHODIR} "===> ${_tool}"; \
+		cd ${.CURDIR}/${_tool}; ${MAKE} DIRPRFX=${_tool}/ build-tools
 .endfor
 
 #
@@ -643,7 +645,8 @@ cross-tools:
 .for _tool in ${_btxld} ${_elf2exe} usr.bin/genassym usr.bin/gensetdefs \
     gnu/usr.bin/binutils usr.bin/objformat usr.sbin/crunch/crunchide \
     gnu/usr.bin/cc
-	cd ${.CURDIR}/${_tool}; \
+	${ECHODIR} "===> ${_tool}"; \
+		cd ${.CURDIR}/${_tool}; \
 		${MAKE} DIRPRFX=${_tool}/ obj; \
 		${MAKE} DIRPRFX=${_tool}/ depend; \
 		${MAKE} DIRPRFX=${_tool}/ all; \
@@ -733,7 +736,8 @@ _generic_libs+=	usr.sbin/pcvt/keycap
 .for _lib in ${_startup_libs} ${_prebuild_libs} ${_generic_libs}
 ${_lib}__L: .PHONY
 .if exists(${.CURDIR}/${_lib})
-	cd ${.CURDIR}/${_lib}; \
+	${ECHODIR} "===> ${_lib}"; \
+		cd ${.CURDIR}/${_lib}; \
 		${MAKE} DIRPRFX=${_lib}/ depend; \
 		${MAKE} DIRPRFX=${_lib}/ all; \
 		${MAKE} DIRPRFX=${_lib}/ install
