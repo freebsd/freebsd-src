@@ -11,6 +11,7 @@ beforeinstall:
 	    ${.CURDIR}/calendars/calendar.* ${DESTDIR}${SHAREDIR}
 	for lang in ${INTER}; \
 	do \
+		echo "Install calendar files for \"$$lang\""; \
 		${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${TEXTMODE} \
 	    		${.CURDIR}/calendars/$$lang/calendar.* \
 			${DESTDIR}${SHAREDIR}/$$lang; \
