@@ -222,8 +222,8 @@ sub usage() {
 
 MAIN:{
     usage()
-	unless (@ARGV == 1);
-    my $config = lc($ARGV[0]);
+	unless (@ARGV >= 1);
+    my $config = lc(shift(@ARGV));
     usage()
 	unless (exists($CONFIGS{$config}) && $config ne 'global');
     %CONFIG = %{$CONFIGS{$config}};
@@ -244,9 +244,20 @@ MAIN:{
     }
 
     foreach my $branch (sort(@{$CONFIG{'BRANCHES'}})) {
-	foreach my $arch (sort(keys(%{$CONFIG{'ARCHES'}}))) {
-	    foreach my $machine (sort(@{$CONFIG{'ARCHES'}->{$arch}})) {
+	if (@ARGV) {
+	    foreach my $target (@ARGV) {
+		$target =~ m|^(\w+)(?:/(\w+))?$|
+		    or die("invalid target specification: $target\n");
+		my ($arch, $machine) = ($1, $2);
+		$machine = $arch
+		    unless defined($machine);
 		tinderbox($branch, $arch, $machine);
+	    }
+	} else {
+	    foreach my $arch (sort(keys(%{$CONFIG{'ARCHES'}}))) {
+		foreach my $machine (sort(@{$CONFIG{'ARCHES'}->{$arch}})) {
+		    tinderbox($branch, $arch, $machine);
+		}
 	    }
 	}
     }
