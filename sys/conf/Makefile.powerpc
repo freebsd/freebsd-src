@@ -1,6 +1,6 @@
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.i386	7.1 5/10/91
-#	$Id: Makefile.i386,v 1.81 1996/05/02 21:40:50 joerg Exp $
+#	$Id: Makefile.i386,v 1.82 1996/05/07 23:19:46 wosch Exp $
 #
 # Makefile for FreeBSD
 #
@@ -45,18 +45,16 @@ INCLUDES+= -I$S/../include
 INCLUDES+= -I/usr/include
 .endif
 COPTS=	${INCLUDES} ${IDENT} -DKERNEL
-ASFLAGS=
 CFLAGS=	${COPTFLAGS} ${CWARNFLAGS} ${DEBUG} ${COPTS}
 LOAD_ADDRESS?=	F0100000
 
 NORMAL_C= ${CC} -c ${CFLAGS} ${PROF} $<
 NORMAL_C_C= ${CC} -c ${CFLAGS} ${PROF} ${PARAM} $<
-# XXX errors leak out of all the pipes.  Should use cc *.S.
 # XXX LOCORE means "don't declare C stuff" not "for locore.s".
-NORMAL_S= ${CPP} -DLOCORE ${COPTS} $< | ${AS} ${ASFLAGS} -o $*.o
+NORMAL_S= ${CC} -c -x assembler-with-cpp -DLOCORE ${COPTS} $<
 DRIVER_C= ${CC} -c ${CFLAGS} ${PROF} $<
 DRIVER_C_C= ${CC} -c ${CFLAGS} ${PROF} ${PARAM} $<
-DRIVER_S= ${CPP} -DLOCORE ${COPTS} $< | ${AS} ${ASFLAGS} -o $*.o
+DRIVER_S= ${CC} -c -x assembler-with-cpp -DLOCORE ${COPTS} $<
 PROFILE_C= ${CC} -c ${CFLAGS} ${PARAM} $<
 
 SYSTEM_CFILES= ioconf.c param.c vnode_if.c
