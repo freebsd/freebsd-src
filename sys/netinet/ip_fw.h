@@ -64,6 +64,7 @@ struct ip_fw {
 	unsigned fw_icmptypes[IP_FW_ICMPTYPES_DIM]; /* ICMP types bitmap */
 	} fw_uar;
     u_char fw_ipopt,fw_ipnopt;		/* IP options set/unset */
+    u_char fw_tcpopt,fw_tcpnopt;	/* TCP options set/unset */
     u_char fw_tcpf,fw_tcpnf;		/* TCP flags set/unset */
     long timestamp;			/* timestamp (tv_sec) of last match */
     union ip_fw_if fw_in_if, fw_out_if;	/* Incoming and outgoing interfaces */
@@ -228,6 +229,15 @@ struct ipfw_dyn_rule {
 #define IP_FW_IPOPT_SSRR	0x02
 #define IP_FW_IPOPT_RR		0x04
 #define IP_FW_IPOPT_TS		0x08
+
+/*
+ * Definitions for TCP option names.
+ */
+#define IP_FW_TCPOPT_MSS	0x01
+#define IP_FW_TCPOPT_WINDOW	0x02
+#define IP_FW_TCPOPT_SACK	0x04
+#define IP_FW_TCPOPT_TS		0x08
+#define IP_FW_TCPOPT_CC		0x10
 
 /*
  * Definitions for TCP flags.
