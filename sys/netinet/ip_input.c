@@ -254,7 +254,7 @@ ip_input(struct mbuf *m)
 	struct ip *ip;
 	struct ipq *fp;
 	struct in_ifaddr *ia = NULL;
-	int    i, hlen, mff;
+	int    i, hlen;
 	u_short sum;
 	u_int16_t divert_cookie;		/* firewall cookie */
 #ifdef IPDIVERT
@@ -598,23 +598,8 @@ ours:
 	 * if the packet was previously fragmented,
 	 * but it's not worth the time; just let them time out.)
 	 */
-	if (ip->ip_off & (IP_MF | IP_OFFMASK | IP_RF)) {
+	if (ip->ip_off & (IP_MF | IP_OFFMASK)) {
 
-#if 0	/*
-	 * Reassembly should be able to treat a mbuf cluster, for later
-	 * operation of contiguous protocol headers on the cluster. (KAME)
-	 */
-		if (m->m_flags & M_EXT) {		/* XXX */
-			if ((m = m_pullup(m, hlen)) == 0) {
-				ipstat.ips_toosmall++;
-#ifdef IPFIREWALL_FORWARD
-				ip_fw_fwd_addr = NULL;
-#endif
-				return;
-			}
-			ip = mtod(m, struct ip *);
-		}
-#endif
 		sum = IPREASS_HASH(ip->ip_src.s_addr, ip->ip_id);
 		/*
 		 * Look for queue of fragments
@@ -648,12 +633,10 @@ ours:
 found:
 		/*
 		 * Adjust ip_len to not reflect header,
-		 * set ip_mff if more fragments are expected,
 		 * convert offset of this to bytes.
 		 */
 		ip->ip_len -= hlen;
-		mff = (ip->ip_off & IP_MF) != 0;
-		if (mff) {
+		if (ip->ip_off & IP_MF) {
 		        /*
 		         * Make sure that fragments have a data length
 			 * that's a non-zero multiple of 8 bytes.
@@ -667,45 +650,39 @@ found:
 		ip->ip_off <<= 3;
 
 		/*
-		 * If datagram marked as having more fragments
-		 * or if this is not the first fragment,
-		 * attempt reassembly; if it succeeds, proceed.
+		 * Attempt reassembly; if it succeeds, proceed.
 		 */
-		if (mff || ip->ip_off) {
-			ipstat.ips_fragments++;
-			m->m_pkthdr.header = ip;
+		ipstat.ips_fragments++;
+		m->m_pkthdr.header = ip;
 #ifdef IPDIVERT
-			m = ip_reass(m,
-			    fp, &ipq[sum], &divert_info, &divert_cookie);
+		m = ip_reass(m,
+		    fp, &ipq[sum], &divert_info, &divert_cookie);
 #else
-			m = ip_reass(m, fp, &ipq[sum]);
+		m = ip_reass(m, fp, &ipq[sum]);
 #endif
-			if (m == 0) {
+		if (m == 0) {
 #ifdef IPFIREWALL_FORWARD
-				ip_fw_fwd_addr = NULL;
+			ip_fw_fwd_addr = NULL;
 #endif
-				return;
-			}
-			ipstat.ips_reassembled++;
-			ip = mtod(m, struct ip *);
-			/* Get the header length of the reassembled packet */
-			hlen = IP_VHL_HL(ip->ip_vhl) << 2;
+			return;
+		}
+		ipstat.ips_reassembled++;
+		ip = mtod(m, struct ip *);
+		/* Get the header length of the reassembled packet */
+		hlen = IP_VHL_HL(ip->ip_vhl) << 2;
 #ifdef IPDIVERT
-			/* Restore original checksum before diverting packet */
-			if (divert_info != 0) {
-				ip->ip_len += hlen;
-				HTONS(ip->ip_len);
-				HTONS(ip->ip_off);
-				ip->ip_sum = 0;
-				ip->ip_sum = in_cksum_hdr(ip);
-				NTOHS(ip->ip_off);
-				NTOHS(ip->ip_len);
-				ip->ip_len -= hlen;
-			}
+		/* Restore original checksum before diverting packet */
+		if (divert_info != 0) {
+			ip->ip_len += hlen;
+			HTONS(ip->ip_len);
+			HTONS(ip->ip_off);
+			ip->ip_sum = 0;
+			ip->ip_sum = in_cksum_hdr(ip);
+			NTOHS(ip->ip_off);
+			NTOHS(ip->ip_len);
+			ip->ip_len -= hlen;
+		}
 #endif
-		} else
-			if (fp)
-				ip_freef(fp);
 	} else
 		ip->ip_len -= hlen;
 
@@ -804,7 +781,7 @@ ip_reass(m, fp, where)
 #endif
 {
 	struct ip *ip = mtod(m, struct ip *);
-	register struct mbuf *p = 0, *q, *nq;
+	register struct mbuf *p, *q, *nq;
 	struct mbuf *t;
 	int hlen = IP_VHL_HL(ip->ip_vhl) << 2;
 	int i, next;
