@@ -28,7 +28,6 @@ kprog:
 
 bootstrap:
 	( cd include; ${MAKE} ${MFLAGS} install )
-	( cd des; ${MAKE} ${MFLAGS} depend all install )
 	( cd lib; ${MAKE} ${MFLAGS} depend all install )
 	${MAKE} ${MFLAGS} cleandir
 	${MAKE} ${MFLAGS} obj
