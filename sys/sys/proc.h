@@ -525,7 +525,6 @@ struct proc {
 	enum {
 		PRS_NEW = 0,		/* In creation */
 		PRS_NORMAL,		/* KSEs can be run */
-		PRS_WAIT,		/* Waiting on interrupt ? */
 		PRS_ZOMBIE
 	} p_state;			/* (j) S* process status. */
 	pid_t		p_pid;		/* (b) Process identifier. */
