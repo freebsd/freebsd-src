@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: subr_bus.c,v 1.28 1999/05/28 09:25:10 dfr Exp $
+ *	$Id: subr_bus.c,v 1.29 1999/05/30 10:27:11 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -1104,6 +1104,8 @@ device_probe_and_attach(device_t dev)
 		device_set_driver(dev, NULL);
 		dev->state = DS_NOTPRESENT;
 	    }
+	} else {
+		BUS_PROBE_NOMATCH(bus, dev);
 	}
     } else {
 	    device_print_prettyname(dev);
