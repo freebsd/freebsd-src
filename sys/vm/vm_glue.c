@@ -448,20 +448,19 @@ retry:
 		struct vmspace *vm;
 		
 		PROC_LOCK(p);
-		if (!(p->p_lock == 0 &&
-		    (p->p_flag & (P_TRACED|P_SYSTEM|P_WEXIT)) == 0)) {
-			mtx_enter(&sched_lock, MTX_SPIN);
-			if ((p->p_sflag & (PS_INMEM|PS_SWAPPING)) == PS_INMEM) {
-				mtx_exit(&sched_lock, MTX_SPIN);
-				PROC_UNLOCK(p);
-				continue;
-			}
-			mtx_exit(&sched_lock, MTX_SPIN);
+		if (p->p_lock != 0 ||
+		    (p->p_flag & (P_TRACED|P_SYSTEM|P_WEXIT)) != 0) {
+			PROC_UNLOCK(p);
+			continue;
 		}
 		vm = p->p_vmspace;
 		PROC_UNLOCK(p);
-
 		mtx_enter(&sched_lock, MTX_SPIN);
+		if ((p->p_sflag & (PS_INMEM|PS_SWAPPING)) != PS_INMEM) {
+			mtx_exit(&sched_lock, MTX_SPIN);
+			continue;
+		}
+
 		switch (p->p_stat) {
 		default:
 			mtx_exit(&sched_lock, MTX_SPIN);
