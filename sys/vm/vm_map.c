@@ -208,7 +208,7 @@ vm_map_zinit(void *mem, int size)
 	map->nentries = 0;
 	map->size = 0;
 	map->infork = 0;
-	lockinit(&map->lock, PVM, "thrd_sleep", 0, LK_NOPAUSE);
+	lockinit(&map->lock, PVM, "thrd_sleep", 0, LK_CANRECURSE | LK_NOPAUSE);
 }
 
 #ifdef INVARIANTS
@@ -372,73 +372,71 @@ vm_map_entry_set_behavior(struct vm_map_entry *entry, u_char behavior)
 void
 _vm_map_lock(vm_map_t map, const char *file, int line)
 {
-	if (lockmgr(&map->lock, LK_EXCLUSIVE, NULL, curthread) != 0)
-		panic("vm_map_lock: failed to get lock");
+	int error;
+
+	error = lockmgr(&map->lock, LK_EXCLUSIVE, NULL, curthread);
+	KASSERT(error == 0, ("%s: failed to get lock", __func__));
 	map->timestamp++;
 }
 
 void
 _vm_map_unlock(vm_map_t map, const char *file, int line)
 {
-	lockmgr(&(map)->lock, LK_RELEASE, NULL, curthread);
+
+	lockmgr(&map->lock, LK_RELEASE, NULL, curthread);
 }
 
 void
 _vm_map_lock_read(vm_map_t map, const char *file, int line)
 {
-	lockmgr(&(map)->lock, LK_SHARED, NULL, curthread);
+	int error;
+
+	error = lockmgr(&map->lock, LK_EXCLUSIVE, NULL, curthread);
+	KASSERT(error == 0, ("%s: failed to get lock", __func__));
 }
 
 void
 _vm_map_unlock_read(vm_map_t map, const char *file, int line)
 {
-	lockmgr(&(map)->lock, LK_RELEASE, NULL, curthread);
+
+	lockmgr(&map->lock, LK_RELEASE, NULL, curthread);
 }
 
 int
 _vm_map_trylock(vm_map_t map, const char *file, int line)
 {
-
-	return (lockmgr(&map->lock, LK_EXCLUSIVE | LK_NOWAIT, NULL,
-		    curthread) == 0);
-}
-
-static __inline__ int
-__vm_map_lock_upgrade(vm_map_t map, struct thread *td) {
 	int error;
 
-	error = lockmgr(&map->lock, LK_EXCLUPGRADE, NULL, td);
-	if (error == 0)
-		map->timestamp++;
-	return error;
+	error = lockmgr(&map->lock, LK_EXCLUSIVE | LK_NOWAIT, NULL, curthread);
+	return (error == 0);
 }
 
 int
 _vm_map_lock_upgrade(vm_map_t map, const char *file, int line)
 {
-    return (__vm_map_lock_upgrade(map, curthread));
+
+	KASSERT(lockstatus(&map->lock, curthread) == LK_EXCLUSIVE,
+		("%s: lock not held", __func__));
+	map->timestamp++;
+	return (0);
 }
 
 void
 _vm_map_lock_downgrade(vm_map_t map, const char *file, int line)
 {
-	lockmgr(&map->lock, LK_DOWNGRADE, NULL, curthread);
+
+	KASSERT(lockstatus(&map->lock, curthread) == LK_EXCLUSIVE,
+		("%s: lock not held", __func__));
 }
 
 void
 _vm_map_set_recursive(vm_map_t map, const char *file, int line)
 {
-	mtx_lock((map)->lock.lk_interlock);
-	map->lock.lk_flags |= LK_CANRECURSE;
-	mtx_unlock((map)->lock.lk_interlock);
 }
 
 void
 _vm_map_clear_recursive(vm_map_t map, const char *file, int line)
 {
-	mtx_lock((map)->lock.lk_interlock);
-	map->lock.lk_flags &= ~LK_CANRECURSE;
-	mtx_unlock((map)->lock.lk_interlock);
 }
 
 struct pmap *
@@ -496,7 +494,7 @@ void
 vm_map_init(vm_map_t map, vm_offset_t min, vm_offset_t max)
 {
 	_vm_map_init(map, min, max);
-	lockinit(&map->lock, PVM, "thrd_sleep", 0, LK_NOPAUSE);
+	lockinit(&map->lock, PVM, "thrd_sleep", 0, LK_CANRECURSE | LK_NOPAUSE);
 }
 
 /*
