@@ -67,9 +67,7 @@ static void obsolete(char **);
 static void usage(void);
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	struct stat sb;
 	FILE *fp;
@@ -222,8 +220,7 @@ main(argc, argv)
  * the option argument for a -b, -c or -n option gets converted.
  */
 static void
-obsolete(argv)
-	char *argv[];
+obsolete(char *argv[])
 {
 	char *ap, *p, *t;
 	size_t len;
@@ -306,7 +303,7 @@ obsolete(argv)
 }
 
 static void
-usage()
+usage(void)
 {
 	(void)fprintf(stderr,
 	    "usage: tail [-F | -f | -r] [-b # | -c # | -n #] [file ...]\n");
