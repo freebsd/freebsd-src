@@ -708,7 +708,7 @@ check_devd_enabled()
 	size_t len;
 
 	len = sizeof(val);
-	if (sysctlbyname(SYSCTL, &val, &len, NULL, NULL) != 0)
+	if (sysctlbyname(SYSCTL, &val, &len, NULL, 0) != 0)
 		errx(1, "devctl sysctl missing from kernel!");
 	if (val) {
 		warnx("Setting " SYSCTL " to 0");
