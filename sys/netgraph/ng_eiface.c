@@ -33,8 +33,10 @@
 #include <sys/systm.h>
 #include <sys/errno.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
+#include <sys/mutex.h>
 #include <sys/errno.h>
 #include <sys/sockio.h>
 #include <sys/socket.h>
@@ -119,6 +121,8 @@ static int	ng_units_in_use = 0;
 
 #define UNITS_BITSPERWORD	(sizeof(*ng_eiface_units) * NBBY)
 
+static struct mtx	ng_eiface_mtx;
+MTX_SYSINIT(ng_eiface, &ng_eiface_mtx, "ng_eiface", MTX_DEF);
 
 /************************************************************************
 			HELPER STUFF
@@ -132,6 +136,7 @@ ng_eiface_get_unit(int *unit)
 {
 	int index, bit;
 
+	mtx_lock(&ng_eiface_mtx);
 	for (index = 0; index < ng_eiface_units_len
 	    && ng_eiface_units[index] == 0; index++);
 	if (index == ng_eiface_units_len) {		/* extend array */
@@ -140,8 +145,10 @@ ng_eiface_get_unit(int *unit)
 		newlen = (2 * ng_eiface_units_len) + 4;
 		MALLOC(newarray, int *, newlen * sizeof(*ng_eiface_units),
 		    M_NETGRAPH, M_NOWAIT);
-		if (newarray == NULL)
+		if (newarray == NULL) {
+			mtx_unlock(&ng_eiface_mtx);
 			return (ENOMEM);
+		}
 		bcopy(ng_eiface_units, newarray,
 		    ng_eiface_units_len * sizeof(*ng_eiface_units));
 		for (i = ng_eiface_units_len; i < newlen; i++)
@@ -157,6 +164,7 @@ ng_eiface_get_unit(int *unit)
 	ng_eiface_units[index] &= ~(1 << bit);
 	*unit = (index * UNITS_BITSPERWORD) + bit;
 	ng_units_in_use++;
+	mtx_unlock(&ng_eiface_mtx);
 	return (0);
 }
 
@@ -170,6 +178,7 @@ ng_eiface_free_unit(int unit)
 
 	index = unit / UNITS_BITSPERWORD;
 	bit = unit % UNITS_BITSPERWORD;
+	mtx_lock(&ng_eiface_mtx);
 	KASSERT(index < ng_eiface_units_len,
 	    ("%s: unit=%d len=%d", __func__, unit, ng_eiface_units_len));
 	KASSERT((ng_eiface_units[index] & (1 << bit)) == 0,
@@ -187,6 +196,7 @@ ng_eiface_free_unit(int unit)
 		ng_eiface_units_len = 0;
 		ng_eiface_units = NULL;
 	}
+	mtx_unlock(&ng_eiface_mtx);
 }
 
 /************************************************************************
