@@ -35,7 +35,7 @@ aic79xx_{seq.h,reg.h,reg_print.c}	optional ahd pci		   \
 aic79xx_reg_print.o		optional ahd pci ahd_reg_pretty_print	   \
 	compile-with	"${NORMAL_C}"					   \
 	no-implicit-rule local
-emu10k1-alsa%diked.h		optional pcm pci			   \
+emu10k1-alsa%diked.h		optional snd_emu10k1 pci			   \
 	dependency	"$S/tools/emu10k1-mkalsa.sh $S/gnu/dev/sound/pci/emu10k1-alsa.h" \
 	compile-with	"CC=${CC} AWK=${AWK} sh $S/tools/emu10k1-mkalsa.sh $S/gnu/dev/sound/pci/emu10k1-alsa.h emu10k1-alsa%diked.h" \
 	no-obj no-implicit-rule before-depend				   \
@@ -679,57 +679,55 @@ dev/sn/if_sn_isa.c	optional sn isa
 dev/sn/if_sn_pccard.c	optional sn card
 dev/sn/if_sn_pccard.c	optional sn pccard
 dev/snp/snp.c		optional snp
-dev/sound/isa/ad1816.c	optional pcm isa
-dev/sound/isa/es1888.c	optional pcm isa
-dev/sound/isa/ess.c	optional pcm isa
-dev/sound/isa/gusc.c	optional gusc isa
-dev/sound/isa/gusc.c	optional pcm isa
-dev/sound/isa/mss.c	optional pcm isa
-dev/sound/isa/sb16.c	optional pcm isa
-dev/sound/isa/sb8.c	optional pcm isa
-dev/sound/isa/sbc.c	optional pcm isa
-dev/sound/isa/sbc.c	optional sbc isa
-dev/sound/isa/sndbuf_dma.c	optional pcm isa
-dev/sound/pci/als4000.c	optional pcm pci
-#dev/sound/pci/au88x0.c	optional pcm pci
-dev/sound/pci/cmi.c	optional pcm pci
-dev/sound/pci/cs4281.c	optional pcm pci
-dev/sound/pci/csa.c	optional csa pci
-dev/sound/pci/csa.c	optional pcm pci
-dev/sound/pci/csapcm.c	optional pcm pci
-dev/sound/pci/ds1.c	optional pcm pci
-dev/sound/pci/emu10k1.c	optional pcm pci dependency "emu10k1-alsa%diked.h"
-dev/sound/pci/es137x.c	optional pcm pci
-dev/sound/pci/fm801.c	optional pcm pci
-dev/sound/pci/ich.c	optional pcm pci
-dev/sound/pci/maestro.c optional pcm pci
-dev/sound/pci/neomagic.c optional pcm pci
-dev/sound/pci/solo.c	optional pcm pci
-dev/sound/pci/t4dwave.c	optional pcm pci
-dev/sound/pci/via8233.c	optional pcm pci
-dev/sound/pci/via82c686.c	optional pcm pci
-dev/sound/pci/vibes.c	optional pcm pci
-#dev/sound/pci/vortex1.c	optional pcm pci
-dev/sound/pcm/ac97.c	optional pcm
-dev/sound/pcm/ac97_patch.c	optional pcm
-dev/sound/pcm/ac97_if.m	optional pcm
-dev/sound/pcm/buffer.c	optional pcm
-dev/sound/pcm/channel.c	optional pcm
-dev/sound/pcm/channel_if.m	optional pcm
-dev/sound/pcm/dsp.c	optional pcm
-dev/sound/pcm/fake.c	optional pcm
-dev/sound/pcm/feeder.c	optional pcm
-dev/sound/pcm/feeder_if.m	optional pcm
-dev/sound/pcm/feeder_fmt.c	optional pcm
-dev/sound/pcm/feeder_rate.c	optional pcm
-dev/sound/pcm/mixer.c	optional pcm
-dev/sound/pcm/mixer_if.m	optional pcm
-dev/sound/pcm/sndstat.c	optional pcm
-dev/sound/pcm/sound.c	optional pcm
-dev/sound/pcm/vchan.c	optional pcm
-#dev/sound/usb/upcm.c	optional pcm usb
-dev/sound/usb/uaudio.c	optional pcm usb
-dev/sound/usb/uaudio_pcm.c	optional pcm usb
+dev/sound/isa/ad1816.c	optional snd_ad1816 isa
+dev/sound/isa/es1888.c	optional snd_ess isa
+dev/sound/isa/ess.c	optional snd_ess isa
+dev/sound/isa/gusc.c	optional snd_gusc isa
+dev/sound/isa/mss.c	optional snd_mss isa
+dev/sound/isa/sb16.c	optional snd_sb16 isa
+dev/sound/isa/sb8.c	optional snd_sb8 isa
+dev/sound/isa/sbc.c	optional snd_sbc isa
+dev/sound/isa/sndbuf_dma.c	optional sound isa
+dev/sound/pci/als4000.c	optional snd_als4000 pci
+#dev/sound/pci/au88x0.c	optional snd_au88x0 pci
+dev/sound/pci/cmi.c	optional snd_cmi pci
+dev/sound/pci/cs4281.c	optional snd_cs4281 pci
+dev/sound/pci/csa.c	optional snd_csa pci
+dev/sound/pci/csapcm.c	optional snd_csa pci
+dev/sound/pci/ds1.c	optional snd_ds1 pci
+dev/sound/pci/emu10k1.c	optional snd_emu10k1 pci dependency "emu10k1-alsa%diked.h"
+dev/sound/pci/es137x.c	optional snd_es137x pci
+dev/sound/pci/fm801.c	optional snd_fm801 pci
+dev/sound/pci/ich.c	optional snd_ich pci
+dev/sound/pci/maestro.c optional snd_maestro pci
+dev/sound/pci/maestro3.c	optional snd_maestro3 pci
+dev/sound/pci/neomagic.c	optional snd_neomagic pci
+dev/sound/pci/solo.c	optional snd_solo pci
+dev/sound/pci/t4dwave.c	optional snd_t4dwave pci
+dev/sound/pci/via8233.c	optional snd_via8233 pci
+dev/sound/pci/via82c686.c	optional snd_via82c686 pci
+dev/sound/pci/vibes.c	optional snd_vibes pci
+#dev/sound/pci/vortex1.c	optional snd_vortex1 pci
+dev/sound/pcm/ac97.c	optional sound
+dev/sound/pcm/ac97_patch.c	optional sound
+dev/sound/pcm/ac97_if.m	optional sound
+dev/sound/pcm/buffer.c	optional sound
+dev/sound/pcm/channel.c	optional sound
+dev/sound/pcm/channel_if.m	optional sound
+dev/sound/pcm/dsp.c	optional sound
+dev/sound/pcm/fake.c	optional sound
+dev/sound/pcm/feeder.c	optional sound
+dev/sound/pcm/feeder_if.m	optional sound
+dev/sound/pcm/feeder_fmt.c	optional sound
+dev/sound/pcm/feeder_rate.c	optional sound
+dev/sound/pcm/mixer.c	optional sound
+dev/sound/pcm/mixer_if.m	optional sound
+dev/sound/pcm/sndstat.c	optional sound
+dev/sound/pcm/sound.c	optional sound
+dev/sound/pcm/vchan.c	optional sound
+#dev/sound/usb/upcm.c	optional snd_upcm usb
+dev/sound/usb/uaudio.c	optional snd_uaudio usb
+dev/sound/usb/uaudio_pcm.c	optional snd_uaudio usb
 dev/sr/if_sr.c		optional sr
 dev/sr/if_sr_pci.c	optional sr pci
 dev/streams/streams.c	optional streams

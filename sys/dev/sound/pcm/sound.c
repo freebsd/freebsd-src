@@ -972,10 +972,15 @@ remok:
 
 /************************************************************************/
 
-static moduledata_t sndpcm_mod = {
-	"snd_pcm",
-	NULL,
-	NULL
-};
-DECLARE_MODULE(snd_pcm, sndpcm_mod, SI_SUB_DRIVERS, SI_ORDER_MIDDLE);
-MODULE_VERSION(snd_pcm, PCM_MODVER);
+#if notyet
+static int
+sound_modevent(module_t mod, int type, void *data)
+{
+	return (midi_modevent(mod, type, data));
+}
+
+DEV_MODULE(sound, sound_modevent, NULL);
+#else
+DEV_MODULE(sound, NULL, NULL);
+#endif /* notyet */
+MODULE_VERSION(sound, SOUND_MODVER);

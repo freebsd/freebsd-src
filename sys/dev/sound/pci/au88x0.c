@@ -729,5 +729,5 @@ static driver_t au88x0_driver = {
 };
 
 DRIVER_MODULE(snd_au88x0, pci, au88x0_driver, pcm_devclass, 0, 0);
-MODULE_DEPEND(snd_au88x0, snd_pcm, PCM_MINVER, PCM_PREFVER, PCM_MAXVER);
+MODULE_DEPEND(snd_au88x0, sound, SOUND_MINVER, SOUND_PREFVER, SOUND_MAXVER);
 MODULE_VERSION(snd_au88x0, 1);

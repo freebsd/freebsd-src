@@ -98,11 +98,11 @@ struct snd_mixer;
 
 #define SND_STATUSLEN	64
 
-#define PCM_MODVER	1
+#define SOUND_MODVER	1
 
-#define PCM_MINVER	1
-#define PCM_PREFVER	PCM_MODVER
-#define PCM_MAXVER	1
+#define SOUND_MINVER	1
+#define SOUND_PREFVER	SOUND_MODVER
+#define SOUND_MAXVER	1
 
 /*
 PROPOSAL:

@@ -790,5 +790,5 @@ static driver_t sbc_driver = {
 
 /* sbc can be attached to an isa bus. */
 DRIVER_MODULE(snd_sbc, isa, sbc_driver, sbc_devclass, 0, 0);
-MODULE_DEPEND(snd_sbc, snd_pcm, PCM_MINVER, PCM_PREFVER, PCM_MAXVER);
+MODULE_DEPEND(snd_sbc, sound, SOUND_MINVER, SOUND_PREFVER, SOUND_MAXVER);
 MODULE_VERSION(snd_sbc, 1);

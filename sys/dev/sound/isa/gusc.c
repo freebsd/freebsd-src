@@ -656,7 +656,7 @@ static driver_t gusc_driver = {
  * gusc can be attached to an isa bus.
  */
 DRIVER_MODULE(snd_gusc, isa, gusc_driver, gusc_devclass, 0, 0);
-MODULE_DEPEND(snd_gusc, snd_pcm, PCM_MINVER, PCM_PREFVER, PCM_MAXVER);
+MODULE_DEPEND(snd_gusc, sound, SOUND_MINVER, SOUND_PREFVER, SOUND_MAXVER);
 MODULE_VERSION(snd_gusc, 1);
 
 

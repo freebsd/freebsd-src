@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 SUBDIR =
-SUBDIR += pcm
+SUBDIR += sound
 SUBDIR += driver
 
 .include <bsd.subdir.mk>

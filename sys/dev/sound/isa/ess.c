@@ -932,7 +932,7 @@ static driver_t ess_driver = {
 };
 
 DRIVER_MODULE(snd_ess, sbc, ess_driver, pcm_devclass, 0, 0);
-MODULE_DEPEND(snd_ess, snd_pcm, PCM_MINVER, PCM_PREFVER, PCM_MAXVER);
+MODULE_DEPEND(snd_ess, sound, SOUND_MINVER, SOUND_PREFVER, SOUND_MAXVER);
 MODULE_DEPEND(snd_ess, snd_sbc, 1, 1, 1);
 MODULE_VERSION(snd_ess, 1);
 
