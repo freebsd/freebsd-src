@@ -59,7 +59,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_glue.c,v 1.5 1994/08/09 10:42:41 davidg Exp $
+ * $Id: vm_glue.c,v 1.6 1994/08/18 22:36:01 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -518,7 +518,11 @@ swapmore:
 				continue;
 			}
 			vm_map_unlock( &p->p_vmspace->vm_map);
-			if (p->p_slptime > maxslp) {
+			/*
+			 * If the process has been asleep for awhile and had most
+			 * of its pages taken away already, swap it out.
+			 */
+			if ((p->p_slptime > maxslp) && (p->p_vmspace->vm_pmap.pm_stats.resident_count <= 6)) {
 				swapout(p);
 				didswap++;
 			} else if ((tpri = p->p_slptime + p->p_nice * 8) > outpri) {
@@ -539,7 +543,11 @@ swapmore:
 			p = outp2; 
 		} 
 
-		if (p) {
+		/*
+		 * Only swapout processes that have already had most
+		 * of their pages taken away.
+		 */
+		if (p && (p->p_vmspace->vm_pmap.pm_stats.resident_count <= 6)) {
 			swapout(p);
 			didswap = 1;
 		}
