@@ -1,7 +1,7 @@
 /*	$OpenBSD: getoldopt.c,v 1.4 2000/01/22 20:24:51 deraadt Exp $	*/
 /*	$NetBSD: getoldopt.c,v 1.3 1995/03/21 09:07:28 cgd Exp $	*/
 
-/*
+/*-
  * Plug-compatible replacement for getopt() for parsing tar-like
  * arguments.  If the first argument begins with "-", it uses getopt;
  * otherwise, it uses the old rules used by tar, dump, and ps.

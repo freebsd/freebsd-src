@@ -1,5 +1,6 @@
 %{
-/* Written by Pace Willisson (pace@blitz.com) 
+/*-
+ * Written by Pace Willisson (pace@blitz.com) 
  * and placed in the public domain.
  *
  * Largely rewritten by J.T. Conklin (jtc@wimsey.com)

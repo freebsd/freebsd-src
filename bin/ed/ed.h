@@ -1,5 +1,5 @@
 /* ed.h: type and constant definitions for the ed editor. */
-/*
+/*-
  * Copyright (c) 1993 Andrew Moore
  * All rights reserved.
  *
