@@ -83,6 +83,7 @@ show_usage() {
 	echo "  -N		do not read configuration file"
 	echo "  -d		home directory"
 	echo "  -f		file from which input will be received"
+	echo "  -g		default login group"
 	echo "  -h		display this usage message"
 	echo "  -k		path to skeleton home directory"
 	echo "  -m		user welcome message file"
