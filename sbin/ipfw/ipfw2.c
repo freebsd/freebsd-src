@@ -827,9 +827,10 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 
 	if (do_time) {
 		char timestr[30];
+		time_t t = (time_t)0;
 
 		if (twidth == 0) {
-			strcpy(timestr, ctime((time_t *)&twidth));
+			strcpy(timestr, ctime(&t));
 			*strchr(timestr, '\n') = '\0';
 			twidth = strlen(timestr);
 		}
@@ -837,7 +838,7 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 #if _FreeBSD_version < 500000 /* XXX check */
 #define	_long_to_time(x)	(time_t)(x)
 #endif
-			time_t t = _long_to_time(rule->timestamp);
+			t = _long_to_time(rule->timestamp);
 
 			strcpy(timestr, ctime(&t));
 			*strchr(timestr, '\n') = '\0';
@@ -2492,7 +2493,7 @@ add_ports(ipfw_insn *cmd, char *av, u_char proto, int opcode)
  *
  * The syntax for a rule starts with the action, followed by an
  * optional log action, and the various match patterns.
- * In the assembled microcode, the first opcode must be a O_PROBE_STATE
+ * In the assembled microcode, the first opcode must be an O_PROBE_STATE
  * (generated if the rule includes a keep-state option), then the
  * various match patterns, the "log" action, and the actual action.
  *
@@ -2782,7 +2783,7 @@ add(int ac, char *av[])
 			cmd = next_cmd(cmd);
 		}
 	} else if (first_cmd != cmd) {
-		errx(EX_DATAERR, "invalid protocol ``%s''", av);
+		errx(EX_DATAERR, "invalid protocol ``%s''", *av);
 	} else
 		goto read_options;
     OR_BLOCK(get_proto);
@@ -3115,7 +3116,8 @@ read_options:
 				proto = cmd->arg1;
 				ac--; av++;
 			} else
-				errx(EX_DATAERR, "invalid protocol ``%s''", av);
+				errx(EX_DATAERR, "invalid protocol ``%s''",
+				    *av);
 			break;
 
 		case TOK_SRCIP:
@@ -3162,7 +3164,7 @@ read_options:
 		case TOK_MACTYPE:
 			NEED1("missing mac type");
 			if (!add_mactype(cmd, ac, *av))
-				errx(EX_DATAERR, "invalid mac type %s", av);
+				errx(EX_DATAERR, "invalid mac type %s", *av);
 			ac--; av++;
 			break;
 
@@ -3462,12 +3464,12 @@ ipfw_main(int ac, char **av)
 	else if (!strncmp(*av, "print", strlen(*av)) ||
 	         !strncmp(*av, "list", strlen(*av)))
 		list(ac, av);
+	else if (!strncmp(*av, "set", strlen(*av)))
+		sets_handler(ac, av);
 	else if (!strncmp(*av, "enable", strlen(*av)))
 		sysctl_handler(ac, av, 1);
 	else if (!strncmp(*av, "disable", strlen(*av)))
 		sysctl_handler(ac, av, 0);
-	else if (!strncmp(*av, "set", strlen(*av)))
-		sets_handler(ac, av);
 	else if (!strncmp(*av, "show", strlen(*av))) {
 		do_acct++;
 		list(ac, av);
