@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)syslog.h	8.1 (Berkeley) 6/2/93
- * $Id: syslog.h,v 1.8.2.1 1997/03/02 09:20:22 joerg Exp $
+ * $Id$
  */
 
 #ifndef _SYS_SYSLOG_H_
@@ -66,7 +66,7 @@
 #ifdef SYSLOG_NAMES
 #define	INTERNAL_NOPRI	0x10	/* the "no priority" priority */
 				/* mark "facility" */
-#define	INTERNAL_MARK	LOG_MAKEPRI(LOG_NFACILITIES, 0)
+#define	INTERNAL_MARK	LOG_MAKEPRI((LOG_NFACILITIES<<3), 0)
 typedef struct _code {
 	char	*c_name;
 	int	c_val;
