@@ -66,11 +66,6 @@ __FBSDID("$FreeBSD$");
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-/*
- * TODO:
- * 1. How do I handle hotchar?
- */
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -401,7 +396,7 @@ ucomopen(struct cdev *dev, int flag, int mode, usb_proc_ptr p)
 	if (error)
 		goto bad;
 
-	sc->hotchar = ttyldoptim(tp);
+	ttyldoptim(tp);
 
 	DPRINTF(("%s: ucomopen: success\n", USBDEVNAME(sc->sc_dev)));
 
@@ -461,7 +456,7 @@ ucomclose(struct cdev *dev, int flag, int mode, usb_proc_ptr p)
 
 	s = spltty();
 	ttyld_close(tp, flag);
-	sc->hotchar = ttyldoptim(tp);
+	ttyldoptim(tp);
 	ttyclose(tp);
 	splx(s);
 
@@ -563,7 +558,7 @@ ucomioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, usb_proc_ptr p)
 #endif
 
 	error = ttyioctl(dev, cmd, data, flag, p);
-	sc->hotchar = ttyldoptim(tp);
+	ttyldoptim(tp);
 	if (error != ENOTTY) {
 		DPRINTF(("ucomioctl: l_ioctl: error = %d\n", error));
 		return (error);
@@ -823,7 +818,7 @@ ucomparam(struct tty *tp, struct termios *t)
 		(void)ucomctl(sc, UMCR_RTS, DMBIS);
 	}
 
-	sc->hotchar = ttyldoptim(tp);
+	ttyldoptim(tp);
 
 	uerr = ucomstartread(sc);
 	if (uerr != USBD_NORMAL_COMPLETION)

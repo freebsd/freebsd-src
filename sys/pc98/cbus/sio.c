@@ -278,7 +278,6 @@ struct com_s {
 	u_char	last_modem_status;	/* last MSR read by intr handler */
 	u_char	prev_modem_status;	/* last MSR handled by high level */
 
-	u_char	hotchar;	/* ldisc-specific char to be handled ASAP */
 	u_char	*ibuf;		/* start of input buffer */
 	u_char	*ibufend;	/* end of input buffer */
 	u_char	*ibufold;	/* old input buffer, to be freed */
@@ -2103,7 +2102,7 @@ open_top:
 		goto open_top;
 	}
 	error =	ttyld_open(tp, dev);
-	com->hotchar = ttyldoptim(tp);
+	ttyldoptim(tp);
 	if (tp->t_state & TS_ISOPEN && mynor & CALLOUT_MASK)
 		com->active_out = TRUE;
 	siosettimeout();
@@ -2147,7 +2146,7 @@ sioclose(dev, flag, mode, td)
 #ifdef PC98
 	com->modem_checking = 0;
 #endif
-	com->hotchar = ttyldoptim(tp);
+	ttyldoptim(tp);
 	comhardclose(com);
 	ttyclose(tp);
 	siosettimeout();
@@ -2755,7 +2754,7 @@ more_intr:
 					recv_data = 0;
 			}
 			++com->bytes_in;
-			if (com->hotchar != 0 && recv_data == com->hotchar)
+			if (com->tp->t_hotchar != 0 && recv_data == com->tp->t_hotchar)
 				swi_sched(sio_fast_ih, 0);
 			ioptr = com->iptr;
 			if (ioptr >= com->ibufend)
@@ -3082,7 +3081,7 @@ sioioctl(dev, cmd, data, flag, td)
 			dt->c_ospeed = tp->t_ospeed;
 	}
 	error = ttyioctl(dev, cmd, data, flag, td);
-	com->hotchar = ttyldoptim(tp);
+	ttyldoptim(tp);
 	if (error != ENOTTY)
 		return (error);
 	s = spltty();
@@ -3426,7 +3425,7 @@ comparam(tp, t)
 #endif
 
 	/* XXX shouldn't call functions while intrs are disabled. */
-	com->hotchar = ttyldoptim(tp);
+	ttyldoptim(tp);
 
 	mtx_unlock_spin(&sio_lock);
 	splx(s);

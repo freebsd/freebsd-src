@@ -42,7 +42,6 @@ struct sx_port {
 	int		sp_dtr_wait;	/* DTR holddown in hz */
 	int		sp_delta_overflows;
 	u_int		sp_wopeners;	/* Processes waiting for DCD.         */
-	u_char		sp_hotchar;	/* ldisc specific ASAP char */
 	struct termios	sp_iin;		/* Initial state.                     */
 	struct termios	sp_iout;
 	struct termios	sp_lin;		/* Lock state.                        */
