@@ -31,7 +31,7 @@
 .\"
 .Dd October 14, 1993
 .Dt LD 1
-.Os FreeBSD
+.Os
 .Sh NAME
 .Nm ld
 .Nd link editor
@@ -174,7 +174,7 @@ the library search path.
 .It Fl M
 Produce output about the mapping of segments of the input files and the
 values assigned to
-.Pq global
+(global)
 symbols in the output file.
 .It Fl N
 Produce a
@@ -227,7 +227,7 @@ to be marked as undefined. Useful to force loading of an archive member
 in the absence of any other references to that member.
 .It Fl V Ar version
 Put the given version number into the output shared library
-.Pq if one is created .
+(if one is created).
 Useful to make shared libraries compatible with other operating
 systems. E.g., SunOS 4.x libraries use version number 3. Defaults to 8.
 .It Fl X
@@ -239,11 +239,13 @@ Discard all local symbols in the input files.
 Trace the manipulations inflicted on
 .Ar symbol
 .It Fl Z
-Make a 386BSD
+Make a
+.Bx 386
 .Dv ZMAGIC
 output file.
 .It Fl z
-Make a NetBSD
+Make a
+.Nx
 .Dv ZMAGIC
 output file.
 .El
