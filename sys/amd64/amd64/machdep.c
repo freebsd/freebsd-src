@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.137 1995/08/28 09:17:46 julian Exp $
+ *	$Id: machdep.c,v 1.138 1995/09/03 05:43:02 julian Exp $
  */
 
 #include "npx.h"
@@ -228,6 +228,7 @@ caddr_t		udata;	/* not used*/
 	printf(version);
 	startrtclock();
 	identifycpu();
+	printf("real memory  = %d (%d pages)\n", ptoa(physmem), physmem);
 	/*
 	 * Display any holes after the first chunk of extended memory.
 	 */
