@@ -283,7 +283,7 @@ prison_free(struct prison *pr)
 		mtx_unlock(&allprison_mtx);
 
 		TASK_INIT(&pr->pr_task, 0, prison_complete, pr);
-		taskqueue_enqueue(taskqueue_swi, &pr->pr_task);
+		taskqueue_enqueue(taskqueue_thread, &pr->pr_task);
 		return;
 	}
 	mtx_unlock(&pr->pr_mtx);
