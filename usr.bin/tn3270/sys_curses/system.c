@@ -593,7 +593,7 @@ child_died(code)
 
     while ((pid = wait3((int *)&status, WNOHANG, (struct rusage *)0)) > 0) {
 	if (pid == shell_pid) {
-	    char inputbuffer[100];
+	    int ch;
 	    extern void setconnmode();
 	    extern void ConnectScreen();
 
@@ -604,7 +604,8 @@ child_died(code)
 	    }
 	    printf("[Hit return to continue]");
 	    fflush(stdout);
-	    (void) fgets(inputbuffer, sizeof(inputbuffer), stdin);
+	    while ((ch = getchar()) != '\n' && ch != EOF)
+		    ;
 	    setconnmode();
 	    ConnectScreen();	/* Turn screen on (if need be) */
 	    (void) close(serversock);
