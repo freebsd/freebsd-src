@@ -59,7 +59,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_glue.c,v 1.53 1996/09/15 11:24:21 bde Exp $
+ * $Id: vm_glue.c,v 1.54 1996/10/15 03:16:44 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -319,7 +319,10 @@ loop:
 			(p->p_flag & (P_INMEM | P_SWAPPING)) == 0) {
 			int mempri;
 
-			pri = p->p_swtime + p->p_slptime - p->p_nice * 8;
+			pri = p->p_swtime + p->p_slptime;
+			if ((p->p_flag & P_SWAPINREQ) == 0) {
+				pri -= p->p_nice * 8;
+			}
 			mempri = pri > 0 ? pri : 0;
 			/*
 			 * if this process is higher priority and there is
@@ -334,12 +337,14 @@ loop:
 	}
 
 	/*
-	 * Nothing to do, back to sleep
+	 * Nothing to do, back to sleep.
 	 */
 	if ((p = pp) == NULL) {
 		tsleep(&proc0, PVM, "sched", 0);
 		goto loop;
 	}
+	p->p_flag &= ~P_SWAPINREQ;
+
 	/*
 	 * We would like to bring someone in. (only if there is space).
 	 */
