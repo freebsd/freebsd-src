@@ -2,7 +2,7 @@
  * Structure and function declartaions for the
  * SCSI Sequential Access Peripheral driver for CAM.
  *
- * Copyright (c) 1997 Justin T. Gibbs
+ * Copyright (c) 1999, 2000 Matthew Jacob
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
