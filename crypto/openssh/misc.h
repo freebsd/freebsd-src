@@ -1,4 +1,4 @@
-/*	$OpenBSD: misc.h,v 1.12 2002/03/19 10:49:35 markus Exp $	*/
+/*	$OpenBSD: misc.h,v 1.17 2004/08/11 21:43:05 avsm Exp $	*/
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -12,10 +12,12 @@
  * called by a name other than "ssh" or "Secure Shell".
  */
 
+/* misc.c */
+
 char	*chop(char *);
 char	*strdelim(char **);
-void	 set_nonblock(int);
-void	 unset_nonblock(int);
+int	 set_nonblock(int);
+int	 unset_nonblock(int);
 void	 set_nodelay(int);
 int	 a2port(const char *);
 char	*cleanhostname(char *);
@@ -27,7 +29,20 @@ struct passwd *pwcopy(struct passwd *);
 typedef struct arglist arglist;
 struct arglist {
 	char    **list;
-	int     num;
-	int     nalloc;
+	u_int   num;
+	u_int   nalloc;
 };
 void	 addargs(arglist *, char *, ...) __attribute__((format(printf, 2, 3)));
+
+/* tildexpand.c */
+
+char	*tilde_expand_filename(const char *, uid_t);
+
+/* readpass.c */
+
+#define RP_ECHO			0x0001
+#define RP_ALLOW_STDIN		0x0002
+#define RP_ALLOW_EOF		0x0004
+#define RP_USE_ASKPASS		0x0008
+
+char	*read_passphrase(const char *, int);

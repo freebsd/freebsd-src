@@ -1,4 +1,4 @@
-/*	$OpenBSD: ssh1.h,v 1.3 2001/05/30 12:55:13 markus Exp $	*/
+/*	$OpenBSD: ssh1.h,v 1.4 2004/07/11 17:48:47 deraadt Exp $	*/
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -29,8 +29,8 @@
 #define SSH_SMSG_AUTH_RSA_CHALLENGE		7	/* int (BIGNUM) */
 #define SSH_CMSG_AUTH_RSA_RESPONSE		8	/* int (BIGNUM) */
 #define SSH_CMSG_AUTH_PASSWORD			9	/* pass (string) */
-#define SSH_CMSG_REQUEST_PTY		        10	/* TERM, tty modes */
-#define SSH_CMSG_WINDOW_SIZE		        11	/* row,col,xpix,ypix */
+#define SSH_CMSG_REQUEST_PTY			10	/* TERM, tty modes */
+#define SSH_CMSG_WINDOW_SIZE			11	/* row,col,xpix,ypix */
 #define SSH_CMSG_EXEC_SHELL			12	/* */
 #define SSH_CMSG_EXEC_CMD			13	/* cmd (string) */
 #define SSH_SMSG_SUCCESS			14	/* */
@@ -45,7 +45,7 @@
 #define SSH_MSG_CHANNEL_DATA			23	/* ch,data (int,str) */
 #define SSH_MSG_CHANNEL_CLOSE			24	/* channel (int) */
 #define SSH_MSG_CHANNEL_CLOSE_CONFIRMATION	25	/* channel (int) */
-/*      SSH_CMSG_X11_REQUEST_FORWARDING         26         OBSOLETE */
+/*      SSH_CMSG_X11_REQUEST_FORWARDING		26	   OBSOLETE */
 #define SSH_SMSG_X11_OPEN			27	/* channel (int) */
 #define SSH_CMSG_PORT_FORWARD_REQUEST		28	/* p,host,hp (i,s,i) */
 #define SSH_MSG_PORT_OPEN			29	/* ch,h,p (i,s,i) */

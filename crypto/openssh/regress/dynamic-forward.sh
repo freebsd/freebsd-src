@@ -3,8 +3,8 @@
 
 tid="dynamic forwarding"
 
-PORT=4242
-FWDPORT=4243
+FWDPORT=`expr $PORT + 1`
+
 DATA=/bin/ls${EXEEXT}
 
 if have_prog nc && nc -h 2>&1 | grep "proxy address" >/dev/null; then

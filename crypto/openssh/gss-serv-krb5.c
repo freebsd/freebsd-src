@@ -1,4 +1,4 @@
-/*	$OpenBSD: gss-serv-krb5.c,v 1.2 2003/11/21 11:57:03 djm Exp $	*/
+/*	$OpenBSD: gss-serv-krb5.c,v 1.3 2004/07/21 10:36:23 djm Exp $	*/
 
 /*
  * Copyright (c) 2001-2003 Simon Wilkinson. All rights reserved.
@@ -53,7 +53,7 @@ static krb5_context krb_context = NULL;
 /* Initialise the krb5 library, for the stuff that GSSAPI won't do */
 
 static int
-ssh_gssapi_krb5_init()
+ssh_gssapi_krb5_init(void)
 {
 	krb5_error_code problem;
 
@@ -134,11 +134,15 @@ ssh_gssapi_krb5_storecreds(ssh_gssapi_client *client)
 	{
 		int tmpfd;
 		char ccname[40];
+		mode_t old_umask;
 
 		snprintf(ccname, sizeof(ccname),
 		    "FILE:/tmp/krb5cc_%d_XXXXXX", geteuid());
 
-		if ((tmpfd = mkstemp(ccname + strlen("FILE:"))) == -1) {
+		old_umask = umask(0177);
+		tmpfd = mkstemp(ccname + strlen("FILE:"));
+		umask(old_umask);
+		if (tmpfd == -1) {
 			logit("mkstemp(): %.100s", strerror(errno));
 			problem = errno;
 			return;

@@ -1,3 +1,4 @@
+
 /*
  * Copyright (c) 1999-2004 Damien Miller <djm@mindrot.org>
  *
@@ -17,7 +18,11 @@
 #include "includes.h"
 #include "xmalloc.h"
 
-RCSID("$Id: bsd-misc.c,v 1.21 2004/02/17 05:49:55 djm Exp $");
+RCSID("$Id: bsd-misc.c,v 1.25 2004/08/15 08:41:00 djm Exp $");
+
+#ifndef HAVE___PROGNAME
+char *__progname;
+#endif
 
 /*
  * NB. duplicate __progname in case it is an alias for argv[0]

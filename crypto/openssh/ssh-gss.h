@@ -1,4 +1,4 @@
-/*	$OpenBSD: ssh-gss.h,v 1.4 2003/11/17 11:06:07 markus Exp $	*/
+/*	$OpenBSD: ssh-gss.h,v 1.5 2004/06/21 17:36:31 avsm Exp $	*/
 /*
  * Copyright (c) 2001-2003 Simon Wilkinson. All rights reserved.
  *
@@ -100,31 +100,31 @@ typedef struct {
 
 extern ssh_gssapi_mech *supported_mechs[];
 
-int  ssh_gssapi_check_oid(Gssctxt *ctx, void *data, size_t len);
-void ssh_gssapi_set_oid_data(Gssctxt *ctx, void *data, size_t len);
-void ssh_gssapi_set_oid(Gssctxt *ctx, gss_OID oid);
-void ssh_gssapi_supported_oids(gss_OID_set *oidset);
-ssh_gssapi_mech *ssh_gssapi_get_ctype(Gssctxt *ctxt);
+int  ssh_gssapi_check_oid(Gssctxt *, void *, size_t);
+void ssh_gssapi_set_oid_data(Gssctxt *, void *, size_t);
+void ssh_gssapi_set_oid(Gssctxt *, gss_OID);
+void ssh_gssapi_supported_oids(gss_OID_set *);
+ssh_gssapi_mech *ssh_gssapi_get_ctype(Gssctxt *);
 
-OM_uint32 ssh_gssapi_import_name(Gssctxt *ctx, const char *host);
-OM_uint32 ssh_gssapi_acquire_cred(Gssctxt *ctx);
-OM_uint32 ssh_gssapi_init_ctx(Gssctxt *ctx, int deleg_creds,
-    gss_buffer_desc *recv_tok, gss_buffer_desc *send_tok, OM_uint32 *flags);
-OM_uint32 ssh_gssapi_accept_ctx(Gssctxt *ctx,
-    gss_buffer_desc *recv_tok, gss_buffer_desc *send_tok, OM_uint32 *flags);
-OM_uint32 ssh_gssapi_getclient(Gssctxt *ctx, ssh_gssapi_client *);
-void ssh_gssapi_error(Gssctxt *ctx);
-char *ssh_gssapi_last_error(Gssctxt *ctxt, OM_uint32 *maj, OM_uint32 *min);
-void ssh_gssapi_build_ctx(Gssctxt **ctx);
-void ssh_gssapi_delete_ctx(Gssctxt **ctx);
+OM_uint32 ssh_gssapi_import_name(Gssctxt *, const char *);
+OM_uint32 ssh_gssapi_acquire_cred(Gssctxt *);
+OM_uint32 ssh_gssapi_init_ctx(Gssctxt *, int,
+    gss_buffer_desc *, gss_buffer_desc *, OM_uint32 *);
+OM_uint32 ssh_gssapi_accept_ctx(Gssctxt *,
+    gss_buffer_desc *, gss_buffer_desc *, OM_uint32 *);
+OM_uint32 ssh_gssapi_getclient(Gssctxt *, ssh_gssapi_client *);
+void ssh_gssapi_error(Gssctxt *);
+char *ssh_gssapi_last_error(Gssctxt *, OM_uint32 *, OM_uint32 *);
+void ssh_gssapi_build_ctx(Gssctxt **);
+void ssh_gssapi_delete_ctx(Gssctxt **);
 OM_uint32 ssh_gssapi_sign(Gssctxt *, gss_buffer_t, gss_buffer_t);
-OM_uint32 ssh_gssapi_server_ctx(Gssctxt **ctx, gss_OID oid);
+OM_uint32 ssh_gssapi_server_ctx(Gssctxt **, gss_OID);
 void ssh_gssapi_buildmic(Buffer *, const char *, const char *, const char *);
 
 /* In the server */
 int ssh_gssapi_userok(char *name);
 OM_uint32 ssh_gssapi_checkmic(Gssctxt *, gss_buffer_t, gss_buffer_t);
-void ssh_gssapi_do_child(char ***envp, u_int *envsizep);
+void ssh_gssapi_do_child(char ***, u_int *);
 void ssh_gssapi_cleanup_creds(void);
 void ssh_gssapi_storecreds(void);
 

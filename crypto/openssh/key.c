@@ -32,7 +32,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "includes.h"
-RCSID("$OpenBSD: key.c,v 1.55 2003/11/10 16:23:41 jakob Exp $");
+RCSID("$OpenBSD: key.c,v 1.56 2004/07/28 09:40:29 markus Exp $");
 
 #include <openssl/evp.h>
 
@@ -782,7 +782,7 @@ key_sign(
 		return ssh_rsa_sign(key, sigp, lenp, data, datalen);
 		break;
 	default:
-		error("key_sign: illegal key type %d", key->type);
+		error("key_sign: invalid key type %d", key->type);
 		return -1;
 		break;
 	}
@@ -809,7 +809,7 @@ key_verify(
 		return ssh_rsa_verify(key, signature, signaturelen, data, datalen);
 		break;
 	default:
-		error("key_verify: illegal key type %d", key->type);
+		error("key_verify: invalid key type %d", key->type);
 		return -1;
 		break;
 	}
