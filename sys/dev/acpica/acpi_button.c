@@ -43,9 +43,10 @@ ACPI_MODULE_NAME("BUTTON")
 struct acpi_button_softc {
     device_t	button_dev;
     ACPI_HANDLE	button_handle;
-    boolean_t	button_type;	/* Power or Sleep Button */
+    boolean_t	button_type;
 #define		ACPI_POWER_BUTTON	0
 #define		ACPI_SLEEP_BUTTON	1
+    boolean_t	fixed;
 };
 
 #define		ACPI_NOTIFY_BUTTON_PRESSED_FOR_SLEEP	0x80
@@ -57,6 +58,8 @@ static int	acpi_button_suspend(device_t dev);
 static int	acpi_button_resume(device_t dev);
 static void 	acpi_button_notify_handler(ACPI_HANDLE h, UINT32 notify,
 					   void *context);
+static ACPI_STATUS
+		acpi_button_fixed_handler(void *context);
 static void	acpi_button_notify_pressed_for_sleep(void *arg);
 static void	acpi_button_notify_pressed_for_wakeup(void *arg);
 
@@ -85,23 +88,31 @@ static int
 acpi_button_probe(device_t dev)
 {
     struct acpi_button_softc	*sc;
+    int ret = ENXIO;
 
     sc = device_get_softc(dev);
-    if (acpi_get_type(dev) == ACPI_TYPE_DEVICE) {
-	if (!acpi_disabled("button")) {
-	    if (acpi_MatchHid(dev, "PNP0C0C")) {
-		device_set_desc(dev, "Power Button");
-		sc->button_type = ACPI_POWER_BUTTON;
-		return (0);
-	    }
-	    if (acpi_MatchHid(dev, "PNP0C0E")) {
-		device_set_desc(dev, "Sleep Button");
-		sc->button_type = ACPI_SLEEP_BUTTON;
-		return (0);
-	    }
+    if (acpi_get_type(dev) == ACPI_TYPE_DEVICE && !acpi_disabled("button")) {
+	if (acpi_MatchHid(dev, "PNP0C0C")) {
+	    device_set_desc(dev, "Power Button");
+	    sc->button_type = ACPI_POWER_BUTTON;
+	    ret = 0;
+	} else if (acpi_MatchHid(dev, "ACPI_FPB")) {
+	    device_set_desc(dev, "Power Button (fixed)");
+	    sc->button_type = ACPI_POWER_BUTTON;
+	    sc->fixed = 1;
+	    ret = 0;
+	} else if (acpi_MatchHid(dev, "PNP0C0E")) {
+	    device_set_desc(dev, "Sleep Button");
+	    sc->button_type = ACPI_SLEEP_BUTTON;
+	    ret = 0;
+	} else if (acpi_MatchHid(dev, "ACPI_FSB")) {
+	    device_set_desc(dev, "Sleep Button (fixed)");
+	    sc->button_type = ACPI_SLEEP_BUTTON;
+	    sc->fixed = 1;
+	    ret = 0;
 	}
     }
-    return (ENXIO);
+    return (ret);
 }
 
 static int
@@ -109,6 +120,7 @@ acpi_button_attach(device_t dev)
 {
     struct acpi_button_softc	*sc;
     ACPI_STATUS			status;
+    int event;
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
@@ -116,10 +128,17 @@ acpi_button_attach(device_t dev)
     sc->button_dev = dev;
     sc->button_handle = acpi_get_handle(dev);
 
-    status = AcpiInstallNotifyHandler(sc->button_handle, ACPI_DEVICE_NOTIFY, 
-				      acpi_button_notify_handler, sc);
+    if (sc->fixed) {
+	event = (sc->button_type == ACPI_SLEEP_BUTTON) ?
+		ACPI_EVENT_SLEEP_BUTTON : ACPI_EVENT_POWER_BUTTON;
+	status = AcpiInstallFixedEventHandler(event,
+			acpi_button_fixed_handler, sc);
+    } else {
+	status = AcpiInstallNotifyHandler(sc->button_handle,
+			ACPI_DEVICE_NOTIFY, acpi_button_notify_handler, sc);
+    }
     if (ACPI_FAILURE(status)) {
-	device_printf(sc->button_dev, "couldn't install Notify handler - %s\n",
+	device_printf(sc->button_dev, "couldn't install notify handler - %s\n",
 		      AcpiFormatException(status));
 	return_VALUE (ENXIO);
     }
@@ -216,4 +235,17 @@ acpi_button_notify_handler(ACPI_HANDLE h, UINT32 notify, void *context)
     default:
 	break;		/* unknown notification value */
     }
+}
+
+static ACPI_STATUS 
+acpi_button_fixed_handler(void *context)
+{
+    struct acpi_button_softc	*sc = (struct acpi_button_softc *)context;
+
+    if (context == NULL)
+	return_ACPI_STATUS (AE_BAD_PARAMETER);
+
+    acpi_button_notify_handler(sc->button_handle,
+			       ACPI_NOTIFY_BUTTON_PRESSED_FOR_SLEEP, sc);
+    return_VALUE (AE_OK);
 }
