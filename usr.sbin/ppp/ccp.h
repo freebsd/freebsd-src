@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ccp.h,v 1.5 1997/02/22 16:10:03 peter Exp $
+ * $Id: ccp.h,v 1.6 1997/06/09 03:27:14 brian Exp $
  *
  *	TODO:
  */
@@ -37,14 +37,14 @@
 #define	TY_BSD		21	/* BSD LZW Compress */
 
 struct ccpstate {
-  u_long  his_proto;		/* peer's compression protocol */
-  u_long  want_proto;		/* my compression protocol */
+  u_long his_proto;		/* peer's compression protocol */
+  u_long want_proto;		/* my compression protocol */
 
-  u_long  his_reject;		/* Request codes rejected by peer */
-  u_long  my_reject;		/* Request codes I have rejected */
+  u_long his_reject;		/* Request codes rejected by peer */
+  u_long my_reject;		/* Request codes I have rejected */
 
-  u_long  orgout, compout;
-  u_long  orgin, compin;
+  u_long orgout, compout;
+  u_long orgin, compin;
 };
 
 extern struct ccpstate CcpInfo;
@@ -55,4 +55,5 @@ void CcpInput(struct mbuf *);
 void CcpUp(void);
 void CcpOpen(void);
 void CcpInit(void);
+
 #endif

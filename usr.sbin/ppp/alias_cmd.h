@@ -1,5 +1,5 @@
 extern int
-AliasRedirectPort (struct cmdtab *, int, char **, void *);
+    AliasRedirectPort(struct cmdtab *, int, char **, void *);
 
 extern int
-AliasRedirectAddr (struct cmdtab *, int, char **, void *);
+    AliasRedirectAddr(struct cmdtab *, int, char **, void *);

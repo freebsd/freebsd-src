@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: timeout.h,v 1.9 1997/02/22 16:10:58 peter Exp $
+ * $Id: timeout.h,v 1.10 1997/06/09 03:27:39 brian Exp $
  *
  *	TODO:
  */
@@ -23,15 +23,15 @@
 #ifndef _TIMEOUT_H_
 #define	_TIMEOUT_H_
 
-#define	TICKUNIT	100000			/* Unit in usec */
+#define	TICKUNIT	100000	/* Unit in usec */
 #define	SECTICKS	(1000000/TICKUNIT)
 
 struct pppTimer {
-  int     state;
-  u_long  rest;			/* Ticks to expire */
-  u_long  load;			/* Initial load value */
-  void	  (*func)();		/* Function called when timer is expired */
-  void    *arg;			/* Argument passed to timeout function */
+  int state;
+  u_long rest;			/* Ticks to expire */
+  u_long load;			/* Initial load value */
+  void (*func) ();		/* Function called when timer is expired */
+  void *arg;			/* Argument passed to timeout function */
   struct pppTimer *next;	/* Link to next timer */
   struct pppTimer *enext;	/* Link to next expired timer */
 };
@@ -50,4 +50,5 @@ extern void TermTimerService(void);
 extern void StartIdleTimer(void);
 extern void UpdateIdleTimer(void);
 extern void ShowTimers();
-#endif	/* _TIMEOUT_H_ */
+
+#endif				/* _TIMEOUT_H_ */

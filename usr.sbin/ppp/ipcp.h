@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.h,v 1.7 1997/06/09 03:27:24 brian Exp $
+ * $Id: ipcp.h,v 1.8 1997/08/19 01:10:22 brian Exp $
  *
  *	TODO:
  */
@@ -39,27 +39,27 @@
 #endif
 
 struct ipcpstate {
-  struct  in_addr his_ipaddr;	/* IP address he is willing to use */
-  u_long  his_compproto;
+  struct in_addr his_ipaddr;	/* IP address he is willing to use */
+  u_long his_compproto;
 
-  struct  in_addr want_ipaddr;	/* IP address I'm willing to use */
-  u_long  want_compproto;
+  struct in_addr want_ipaddr;	/* IP address I'm willing to use */
+  u_long want_compproto;
 
-  u_long  his_reject;		/* Request codes rejected by peer */
-  u_long  my_reject;		/* Request codes I have rejected */
-  int	  heis1172;		/* True if he is speaking rfc1172 */
+  u_long his_reject;		/* Request codes rejected by peer */
+  u_long my_reject;		/* Request codes I have rejected */
+  int heis1172;			/* True if he is speaking rfc1172 */
 };
 
 struct compreq {
   u_short proto;
-  u_char  slots;
-  u_char  compcid;
+  u_char slots;
+  u_char compcid;
 };
 
 struct in_range {
   struct in_addr ipaddr;
   struct in_addr mask;
-  int    width;
+  int width;
 };
 
 extern struct ipcpstate IpcpInfo;
@@ -71,8 +71,10 @@ extern int HaveTriggerAddress;
 #ifndef NOMSEXT
 extern struct in_addr ns_entries[2];
 extern struct in_addr nbns_entries[2];
+
 #endif
 
 extern void IpcpInit(void);
 extern void IpcpDefAddress(void);
+
 #endif

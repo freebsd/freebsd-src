@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: mbuf.h,v 1.4 1997/02/22 16:10:35 peter Exp $
+ * $Id: mbuf.h,v 1.5 1997/06/09 03:27:29 brian Exp $
  *
  *	TODO:
  */
@@ -24,13 +24,13 @@
 #define _MBUF_H_
 
 struct mbuf {
-  u_char *base;		/* pointer to top of buffer space */
-  short size;		/* size allocated from base */
-  short offset;		/* offset to start position */
-  short cnt;		/* available byte count in buffer */
+  u_char *base;			/* pointer to top of buffer space */
+  short size;			/* size allocated from base */
+  short offset;			/* offset to start position */
+  short cnt;			/* available byte count in buffer */
   short type;
-  struct mbuf *next;	/* link to next mbuf */
-  struct mbuf *pnext;	/* link to next packet */
+  struct mbuf *next;		/* link to next mbuf */
+  struct mbuf *pnext;		/* link to next packet */
 };
 
 struct mqueue {
@@ -55,15 +55,16 @@ struct mqueue {
 #define	MB_IPQ		10
 #define	MB_MAX		MB_IPQ
 
-extern int plength(struct mbuf *bp);
+extern int plength(struct mbuf * bp);
 extern struct mbuf *mballoc(int cnt, int type);
-extern struct mbuf *mbfree(struct mbuf *bp);
-extern void pfree(struct mbuf *bp);
-extern void mbwrite(struct mbuf *bp, u_char *ptr, int cnt);
-extern struct mbuf *mbread(struct mbuf *bp, u_char *ptr, int cnt);
-extern void DumpBp(struct mbuf *bp);
-extern void Enqueue(struct mqueue *queue, struct mbuf *bp);
-extern struct mbuf *Dequeue(struct mqueue *queue);
+extern struct mbuf *mbfree(struct mbuf * bp);
+extern void pfree(struct mbuf * bp);
+extern void mbwrite(struct mbuf * bp, u_char * ptr, int cnt);
+extern struct mbuf *mbread(struct mbuf * bp, u_char * ptr, int cnt);
+extern void DumpBp(struct mbuf * bp);
+extern void Enqueue(struct mqueue * queue, struct mbuf * bp);
+extern struct mbuf *Dequeue(struct mqueue * queue);
 extern void LogMemory();
 extern int ShowMemMap();
+
 #endif

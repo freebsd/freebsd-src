@@ -18,7 +18,7 @@
  *		Columbus, OH  43221
  *		(614)451-1883
  *
- * $Id: chat.c,v 1.30 1997/08/17 20:38:43 brian Exp $
+ * $Id: chat.c,v 1.31 1997/08/17 22:47:07 brian Exp $
  *
  *  TODO:
  *	o Support more UUCP compatible control sequences.
@@ -54,7 +54,7 @@ static int TimeoutSec;
 static int abort_next, timeout_next;
 static int numaborts;
 char *AbortStrings[50];
-char inbuff[IBSIZE*2+1];
+char inbuff[IBSIZE * 2 + 1];
 
 extern int ChangeParity(char *);
 
@@ -72,13 +72,13 @@ findblank(char *p, int instring)
 	if (!*p)
 	  break;
       } else if (*p == '"')
-	return(p);
+	return (p);
       p++;
     }
   } else {
     while (*p) {
       if (isblank(*p))
-	return(p);
+	return (p);
       p++;
     }
   }
@@ -100,10 +100,11 @@ MakeArgs(char *script, char **pvect, int maxargs)
 	instring = 1;
 	script++;
 	if (*script == '\0')
-	  break; /* Shouldn't return here. Need to null terminate below */
+	  break;		/* Shouldn't return here. Need to null
+				 * terminate below */
       } else
 	instring = 0;
-      if (nargs >= maxargs-1)
+      if (nargs >= maxargs - 1)
 	break;
       *pvect++ = script;
       nargs++;
@@ -147,19 +148,29 @@ ExpandString(char *str, char *result, int reslen, int sendmode)
 	  addcr = 0;
 	break;
       case 'd':		/* Delay 2 seconds */
-        sleep(2); break;
+	sleep(2);
+	break;
       case 'p':
-        usleep(250000); break;	/* Pause 0.25 sec */
+	usleep(250000);
+	break;			/* Pause 0.25 sec */
       case 'n':
-	*result++ = '\n'; reslen--; break;
+	*result++ = '\n';
+	reslen--;
+	break;
       case 'r':
-	*result++ = '\r'; reslen--; break;
+	*result++ = '\r';
+	reslen--;
+	break;
       case 's':
-	*result++ = ' '; reslen--; break;
+	*result++ = ' ';
+	reslen--;
+	break;
       case 't':
-	*result++ = '\t'; reslen--; break;
+	*result++ = '\t';
+	reslen--;
+	break;
       case 'P':
-        strncpy(result, VarAuthKey, reslen);
+	strncpy(result, VarAuthKey, reslen);
 	reslen -= strlen(result);
 	result += strlen(result);
 	break;
@@ -186,11 +197,11 @@ ExpandString(char *str, char *result, int reslen, int sendmode)
 	break;
       default:
 	reslen--;
-	*result++ = *str; 
+	*result++ = *str;
 	break;
       }
-      if (*str) 
-          str++;
+      if (*str)
+	str++;
       break;
     case '^':
       str++;
@@ -211,42 +222,47 @@ ExpandString(char *str, char *result, int reslen, int sendmode)
   }
   if (--reslen > 0)
     *result++ = '\0';
-  return(result);
+  return (result);
 }
 
 #define MAXLOGBUFF 200
 static char logbuff[MAXLOGBUFF];
 static int loglen = 0;
 
-static void clear_log()
+static void
+clear_log()
 {
-  memset(logbuff,0,MAXLOGBUFF);
+  memset(logbuff, 0, MAXLOGBUFF);
   loglen = 0;
 }
 
-static void flush_log()
+static void
+flush_log()
 {
   if (LogIsKept(LogCONNECT))
-    LogPrintf(LogCONNECT,"%s", logbuff);
-  else if (LogIsKept(LogCARRIER) && strstr(logbuff,"CARRIER"))
-    LogPrintf(LogCARRIER,"%s", logbuff);
+    LogPrintf(LogCONNECT, "%s", logbuff);
+  else if (LogIsKept(LogCARRIER) && strstr(logbuff, "CARRIER"))
+    LogPrintf(LogCARRIER, "%s", logbuff);
 
   clear_log();
 }
 
-static void connect_log(char *str, int single_p)
+static void
+connect_log(char *str, int single_p)
 {
   int space = MAXLOGBUFF - loglen - 1;
-  
+
   while (space--) {
     if (*str == '\n') {
       flush_log();
     } else {
       logbuff[loglen++] = *str;
     }
-    if (single_p || !*++str) break;
+    if (single_p || !*++str)
+      break;
   }
-  if (!space) flush_log();
+  if (!space)
+    flush_log();
 }
 
 int
@@ -262,6 +278,7 @@ WaitforString(char *estr)
 
 #ifdef SIGALRM
   int omask;
+
   omask = sigblock(sigmask(SIGALRM));
 #endif
   clear_log();
@@ -270,19 +287,19 @@ WaitforString(char *estr)
   str = buff;
   inp = inbuff;
 
-  if (strlen(str)>=IBSIZE){
-    str[IBSIZE-1]=0;
+  if (strlen(str) >= IBSIZE) {
+    str[IBSIZE - 1] = 0;
     LogPrintf(LogCHAT, "Truncating String to %d character: %s", IBSIZE, str);
   }
-
   nfds = modem + 1;
   s = str;
   for (;;) {
     FD_ZERO(&rfds);
     FD_SET(modem, &rfds);
+
     /*
-     *  Because it is not clear whether select() modifies timeout value,
-     *  it is better to initialize timeout values everytime.
+     * Because it is not clear whether select() modifies timeout value, it is
+     * better to initialize timeout values everytime.
      */
     timeout.tv_sec = TimeoutSec;
     timeout.tv_usec = 0;
@@ -298,8 +315,8 @@ WaitforString(char *estr)
 #endif
       LogPrintf(LogERROR, "select: %s", strerror(errno));
       *inp = 0;
-      return(NOMATCH);
-    } else if (i == 0) { 	/* Timeout reached! */
+      return (NOMATCH);
+    } else if (i == 0) {	/* Timeout reached! */
       *inp = 0;
       if (inp != inbuff)
 	LogPrintf(LogCHAT, "Got: %s", inbuff);
@@ -307,54 +324,56 @@ WaitforString(char *estr)
 #ifdef SIGALRM
       sigsetmask(omask);
 #endif
-      return(NOMATCH);
+      return (NOMATCH);
     }
     if (FD_ISSET(modem, &rfds)) {	/* got something */
       if (DEV_IS_SYNC) {
 	int length;
-	if ((length=strlen(inbuff))>IBSIZE){
-	  bcopy(&(inbuff[IBSIZE]),inbuff,IBSIZE+1); /* shuffle down next part*/
-	  length=strlen(inbuff);
+
+	if ((length = strlen(inbuff)) > IBSIZE) {
+	  bcopy(&(inbuff[IBSIZE]), inbuff, IBSIZE + 1);	/* shuffle down next
+							 * part */
+	  length = strlen(inbuff);
 	}
 	nb = read(modem, &(inbuff[length]), IBSIZE);
 	inbuff[nb + length] = 0;
-	connect_log(inbuff,0);
+	connect_log(inbuff, 0);
 	if (strstr(inbuff, str)) {
 #ifdef SIGALRM
-          sigsetmask(omask);
+	  sigsetmask(omask);
 #endif
 	  flush_log();
-	  return(MATCH);
+	  return (MATCH);
 	}
 	for (i = 0; i < numaborts; i++) {
 	  if (strstr(inbuff, AbortStrings[i])) {
 	    LogPrintf(LogCHAT, "Abort: %s", AbortStrings[i]);
 #ifdef SIGALRM
-            sigsetmask(omask);
+	    sigsetmask(omask);
 #endif
 	    flush_log();
-	    return(ABORT);
+	    return (ABORT);
 	  }
 	}
       } else {
-        if (read(modem, &ch, 1) < 0) {
-           LogPrintf(LogERROR, "read error: %s", strerror(errno));
-	   *inp = '\0';
-	   return(NOMATCH);
+	if (read(modem, &ch, 1) < 0) {
+	  LogPrintf(LogERROR, "read error: %s", strerror(errno));
+	  *inp = '\0';
+	  return (NOMATCH);
 	}
-	connect_log(&ch,1);
-        *inp++ = ch;
-        if (ch == *s) {
+	connect_log(&ch, 1);
+	*inp++ = ch;
+	if (ch == *s) {
 	  s++;
 	  if (*s == '\0') {
 #ifdef SIGALRM
-            sigsetmask(omask);
+	    sigsetmask(omask);
 #endif
 	    *inp = 0;
 	    flush_log();
-	    return(MATCH);
+	    return (MATCH);
 	  }
-        } else
+	} else
 	  s = str;
 	if (inp == inbuff + IBSIZE) {
 	  bcopy(inp - 100, inbuff, 100);
@@ -371,13 +390,13 @@ WaitforString(char *estr)
 	      LogPrintf(LogCHAT, "Abort: %s", s1);
 	      *inp = 0;
 #ifdef SIGALRM
-      	      sigsetmask(omask);
+	      sigsetmask(omask);
 #endif
 	      flush_log();
-	      return(ABORT);
+	      return (ABORT);
 	    }
 	  }
-        }
+	}
       }
     }
   }
@@ -412,7 +431,6 @@ ExecStr(char *command, char *out)
     LogPrintf(LogCHAT, "Unable to create pipe in ExecStr: %s", strerror(errno));
     return;
   }
-
   pid = fork();
   if (pid == 0) {
     TermTimerService();
@@ -478,15 +496,15 @@ SendString(char *str)
       TimeoutSec = 30;
   } else {
     if (*str == '!') {
-      (void) ExpandString(str+1, buff+2, sizeof(buff)-2, 0);
+      (void) ExpandString(str + 1, buff + 2, sizeof(buff) - 2, 0);
       ExecStr(buff + 2, buff + 2);
     } else {
-      (void) ExpandString(str, buff+2, sizeof(buff)-2, 1);
+      (void) ExpandString(str, buff + 2, sizeof(buff) - 2, 1);
     }
-    if (strstr(str, "\\P")) { /* Do not log the password itself. */
+    if (strstr(str, "\\P")) {	/* Do not log the password itself. */
       LogPrintf(LogCHAT, "sending: %s", str);
     } else {
-      LogPrintf(LogCHAT, "sending: %s", buff+2);
+      LogPrintf(LogCHAT, "sending: %s", buff + 2);
     }
     cp = buff;
     if (DEV_IS_SYNC)
@@ -506,16 +524,17 @@ ExpectString(char *str)
 
   if (strcmp(str, "ABORT") == 0) {
     ++abort_next;
-    return(MATCH);
+    return (MATCH);
   }
   if (strcmp(str, "TIMEOUT") == 0) {
     ++timeout_next;
-    return(MATCH);
+    return (MATCH);
   }
   LogPrintf(LogCHAT, "Expecting %s", str);
   while (*str) {
+
     /*
-     *  Check whether if string contains sub-send-expect.
+     * Check whether if string contains sub-send-expect.
      */
     for (minus = str; *minus; minus++) {
       if (*minus == '-') {
@@ -523,11 +542,12 @@ ExpectString(char *str)
 	  break;
       }
     }
-    if (*minus == '-') {      /* We have sub-send-expect. */
+    if (*minus == '-') {	/* We have sub-send-expect. */
       *minus++ = '\0';
       state = WaitforString(str);
       if (state != NOMATCH)
-	return(state);
+	return (state);
+
       /*
        * Can't get expect string. Sendout send part.
        */
@@ -544,26 +564,27 @@ ExpectString(char *str)
 	str = minus;
       } else {
 	SendString(str);
-	return(MATCH);
+	return (MATCH);
       }
     } else {
+
       /*
-       *  Simple case. Wait for string.
+       * Simple case. Wait for string.
        */
-      return(WaitforString(str));
+      return (WaitforString(str));
     }
   }
-  return(MATCH);
+  return (MATCH);
 }
 
 static jmp_buf ChatEnv;
-static void (*oint)(int);
+static void (*oint) (int);
 
 static void
 StopDial(int sig)
 {
   LogPrintf(LogPHASE, "DoChat: Caught signal %d, abort connect\n", sig);
-  longjmp(ChatEnv,1);
+  longjmp(ChatEnv, 1);
 }
 
 int
@@ -579,7 +600,7 @@ DoChat(char *script)
   /* While we're chatting, we want an INT to fail us */
   if (setjmp(ChatEnv)) {
     signal(SIGINT, oint);
-    return(-1);
+    return (-1);
   }
   oint = signal(SIGINT, StopDial);
 
@@ -613,9 +634,9 @@ DoChat(char *script)
 #endif
     case NOMATCH:
       signal(SIGINT, oint);
-      return(NOMATCH);
+      return (NOMATCH);
     }
   }
   signal(SIGINT, oint);
-  return(MATCH);
+  return (MATCH);
 }

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: timer.c,v 1.16 1997/05/10 01:22:19 brian Exp $
+ * $Id: timer.c,v 1.17 1997/06/09 03:27:40 brian Exp $
  *
  *  TODO:
  */
@@ -30,13 +30,14 @@
 #endif
 #include "sig.h"
 
-void StopTimerNoBlock( struct pppTimer *);
+void StopTimerNoBlock(struct pppTimer *);
 
 void
-StopTimer( struct pppTimer *tp )
+StopTimer(struct pppTimer * tp)
 {
 #ifdef SIGALRM
-  int	omask;
+  int omask;
+
   omask = sigblock(sigmask(SIGALRM));
 #endif
   StopTimerNoBlock(tp);
@@ -46,14 +47,14 @@ StopTimer( struct pppTimer *tp )
 }
 
 void
-StartTimer(tp)
-struct pppTimer *tp;
+StartTimer(struct pppTimer * tp)
 {
   struct pppTimer *t, *pt;
   u_long ticks = 0;
 
 #ifdef SIGALRM
-  int	omask;
+  int omask;
+
   omask = sigblock(sigmask(SIGALRM));
 #endif
 
@@ -68,7 +69,7 @@ struct pppTimer *tp;
   pt = NULL;
   for (t = TimerList; t; t = t->next) {
     LogPrintf(LogDEBUG, "StartTimer: %x(%d):  ticks: %d, rest: %d\n",
-              t, t->state, ticks, t->rest);
+	      t, t->state, ticks, t->rest);
     if (ticks + t->rest >= tp->load)
       break;
     ticks += t->rest;
@@ -78,7 +79,7 @@ struct pppTimer *tp;
   tp->state = TIMER_RUNNING;
   tp->rest = tp->load - ticks;
   LogPrintf(LogDEBUG, "StartTimer: Inserting %x before %x, rest = %d\n",
-            tp, t, tp->rest);
+	    tp, t, tp->rest);
   /* Insert given *tp just before *t */
   tp->next = t;
   if (pt) {
@@ -96,35 +97,32 @@ struct pppTimer *tp;
 }
 
 void
-StopTimerNoBlock(tp)
-struct pppTimer *tp;
+StopTimerNoBlock(struct pppTimer * tp)
 {
   struct pppTimer *t, *pt;
 
   /*
-   * A Running Timer should be removing TimerList,
-   * But STOPPED/EXPIRED is already removing TimerList.
-   * So just marked as TIMER_STOPPED.
-   * Do not change tp->enext!! (Might be Called by expired proc)
+   * A Running Timer should be removing TimerList, But STOPPED/EXPIRED is
+   * already removing TimerList. So just marked as TIMER_STOPPED. Do not
+   * change tp->enext!! (Might be Called by expired proc)
    */
   LogPrintf(LogDEBUG, "StopTimer: %x, next = %x state=%x\n",
-            tp, tp->next, tp->state);
+	    tp, tp->next, tp->state);
   if (tp->state != TIMER_RUNNING) {
-    tp->next   = NULL;
-    tp->state  = TIMER_STOPPED;
+    tp->next = NULL;
+    tp->state = TIMER_STOPPED;
     return;
   }
-
   pt = NULL;
-  for (t = TimerList; t != tp && t !=NULL ; t = t->next)
+  for (t = TimerList; t != tp && t != NULL; t = t->next)
     pt = t;
   if (t) {
     if (pt) {
       pt->next = t->next;
     } else {
       TimerList = t->next;
-      if ( TimerList == NULL )			/* Last one ? */
-	 TermTimerService();			/* Terminate Timer Service */
+      if (TimerList == NULL)	/* Last one ? */
+	TermTimerService();	/* Terminate Timer Service */
     }
     if (t->next)
       t->next->rest += tp->rest;
@@ -146,6 +144,7 @@ TimerService()
   if (tp) {
     tp->rest--;
     if (tp->rest == 0) {
+
       /*
        * Multiple timers may expires at once. Create list of expired timers.
        */
@@ -160,10 +159,11 @@ TimerService()
       } while (tp && (tp->rest == 0));
 
       TimerList = tp;
-      if ( TimerList == NULL )			/* No timers ? */
-	 TermTimerService();			/* Terminate Timer Service */
+      if (TimerList == NULL)	/* No timers ? */
+	TermTimerService();	/* Terminate Timer Service */
       LogPrintf(LogDEBUG, "TimerService: next is %x(%d)\n",
-		TimerList, TimerList? TimerList->rest : 0);
+		TimerList, TimerList ? TimerList->rest : 0);
+
       /*
        * Process all expired timers.
        */
@@ -172,13 +172,13 @@ TimerService()
 	StopTimer(exp);
 #endif
 	if (exp->func)
-	  (*exp->func)(exp->arg);
+	  (*exp->func) (exp->arg);
+
 	/*
-         * Just Removing each item from expired list
-         * And exp->enext will be intialized at next expire
-         * in this funtion.
-         */
-	exp =  exp->enext;
+	 * Just Removing each item from expired list And exp->enext will be
+	 * intialized at next expire in this funtion.
+	 */
+	exp = exp->enext;
       }
     }
   }
@@ -192,83 +192,88 @@ ShowTimers()
   LogPrintf(LogDEBUG, "---- Begin of Timer Service List---\n");
   for (pt = TimerList; pt; pt = pt->next)
     LogPrintf(LogDEBUG, "%x: load = %d, rest = %d, state =%x\n",
-	pt, pt->load, pt->rest, pt->state);
+	      pt, pt->load, pt->rest, pt->state);
   LogPrintf(LogDEBUG, "---- End of Timer Service List ---\n");
 }
 
 #ifdef SIGALRM
 u_int
-sleep( u_int sec )
+sleep(u_int sec)
 {
-  struct timeval  to,st,et;
+  struct timeval to, st, et;
   long sld, nwd, std;
 
-  gettimeofday( &st, NULL );
-  to.tv_sec =  sec;
+  gettimeofday(&st, NULL);
+  to.tv_sec = sec;
   to.tv_usec = 0;
   std = st.tv_sec * 1000000 + st.tv_usec;
   for (;;) {
-    if ( select ( 0, NULL, NULL, NULL, &to) == 0 ||
-         errno != EINTR ) {
-       break;
-    } else  {
-       gettimeofday( &et, NULL );
-       sld = to.tv_sec * 1000000 + to.tv_sec;
-       nwd = et.tv_sec * 1000000 + et.tv_usec - std;
-       if ( sld > nwd )
-          sld -= nwd;
-       else
-          sld  = 1; /* Avoid both tv_sec/usec is 0 */
+    if (select(0, NULL, NULL, NULL, &to) == 0 ||
+	errno != EINTR) {
+      break;
+    } else {
+      gettimeofday(&et, NULL);
+      sld = to.tv_sec * 1000000 + to.tv_sec;
+      nwd = et.tv_sec * 1000000 + et.tv_usec - std;
+      if (sld > nwd)
+	sld -= nwd;
+      else
+	sld = 1;		/* Avoid both tv_sec/usec is 0 */
 
-       /* Calculate timeout value for select */
-       to.tv_sec  = sld / 1000000;
-       to.tv_usec = sld % 1000000;
+      /* Calculate timeout value for select */
+      to.tv_sec = sld / 1000000;
+      to.tv_usec = sld % 1000000;
     }
   }
   return (0L);
 }
 
-void usleep( u_int usec)
+void
+usleep(u_int usec)
 {
-  struct timeval  to,st,et;
+  struct timeval to, st, et;
   long sld, nwd, std;
 
-  gettimeofday( &st, NULL );
-  to.tv_sec =  0;
+  gettimeofday(&st, NULL);
+  to.tv_sec = 0;
   to.tv_usec = usec;
   std = st.tv_sec * 1000000 + st.tv_usec;
   for (;;) {
-    if ( select ( 0, NULL, NULL, NULL, &to) == 0 ||
-         errno != EINTR ) {
-       break;
-    } else  {
-       gettimeofday( &et, NULL );
-       sld = to.tv_sec * 1000000 + to.tv_sec;
-       nwd = et.tv_sec * 1000000 + et.tv_usec - std;
-       if ( sld > nwd )
-          sld -= nwd;
-       else
-          sld  = 1; /* Avoid both tv_sec/usec is 0 */
+    if (select(0, NULL, NULL, NULL, &to) == 0 ||
+	errno != EINTR) {
+      break;
+    } else {
+      gettimeofday(&et, NULL);
+      sld = to.tv_sec * 1000000 + to.tv_sec;
+      nwd = et.tv_sec * 1000000 + et.tv_usec - std;
+      if (sld > nwd)
+	sld -= nwd;
+      else
+	sld = 1;		/* Avoid both tv_sec/usec is 0 */
 
-       /* Calculate timeout value for select */
-       to.tv_sec  = sld / 1000000;
-       to.tv_usec = sld % 1000000;
+      /* Calculate timeout value for select */
+      to.tv_sec = sld / 1000000;
+      to.tv_usec = sld % 1000000;
 
     }
   }
 }
 
-void InitTimerService( void ) {
+void 
+InitTimerService(void)
+{
   struct itimerval itimer;
 
-  pending_signal(SIGALRM, (void (*)(int))TimerService);
+  pending_signal(SIGALRM, (void (*) (int)) TimerService);
   itimer.it_interval.tv_sec = itimer.it_value.tv_sec = 0;
   itimer.it_interval.tv_usec = itimer.it_value.tv_usec = TICKUNIT;
   if (setitimer(ITIMER_REAL, &itimer, NULL) == -1)
     LogPrintf(LogERROR, "Unable to set itimer.\n");
 }
 
-void TermTimerService( void ) {
+void 
+TermTimerService(void)
+{
   struct itimerval itimer;
 
   itimer.it_interval.tv_usec = itimer.it_interval.tv_sec = 0;
@@ -277,4 +282,5 @@ void TermTimerService( void ) {
     LogPrintf(LogERROR, "Unable to set itimer.\n");
   pending_signal(SIGALRM, SIG_IGN);
 }
+
 #endif
