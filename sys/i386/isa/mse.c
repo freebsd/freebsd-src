@@ -288,8 +288,8 @@ mse_probe(dev)
 
 	/* check PnP IDs */
 	error = ISA_PNP_PROBE(device_get_parent(dev), dev, mse_ids);
-	if (error == ENXIO)
-		return ENXIO;
+	if (error != ENOENT)
+		return error;
 
 	sc = device_get_softc(dev);
 	rid = 0;
