@@ -232,6 +232,12 @@ _thread_switch(struct kcb *kcb, struct tcb *tcb, int setmbox)
 			mc->mc_special.isr = (intptr_t)&tcb->tcb_tmbx;
 		}
 		_ia64_break_setcontext(mc);
+	} else if (mc->mc_flags & _MC_FLAGS_SYSCALL_CONTEXT) {
+		if (setmbox)
+			kse_switchin(mc, (long)&tcb->tcb_tmbx,
+			    (long *)&kcb->kcb_kmbx.km_curthread);
+		else
+			kse_switchin(mc, 0L, NULL);
 	} else {
 		if (setmbox)
 			_ia64_restore_context(mc, (intptr_t)&tcb->tcb_tmbx,

@@ -45,48 +45,42 @@
  * call to the function that creates the context. An asynctx needs to have the
  * scratch registers preserved because it can describe any point in a thread's
  * (or process') execution.
+ * The second variation is for synchronous contexts. When the kernel creates
+ * a synchronous context if needs to preserve the scratch registers, because
+ * the syscall argument and return values are stored there in the trapframe
+ * and they need to be preserved in order to restart a syscall or return the
+ * proper return values. Also, the IIP and CFM fields need to be preserved
+ * as they point to the syscall stub, which the kernel saves as a favor to
+ * userland (it keeps the stubs small and simple).
  *
  * Below a description of the flags and their meaning:
  *
  *	_MC_FLAGS_ASYNC_CONTEXT
  *		If set, indicates that mc_scratch and mc_scratch_fp are both
- *		valid. IFF not set, _MC_FLAGS_RETURN_VALID indicates if the
- *		return registers are valid or not.
+ *		valid. IFF not set, _MC_FLAGS_SYSCALL_CONTEXT indicates if the
+ *		synchronous context is one corresponding to a syscall or not.
+ *		Only the kernel is expected to create such a context and it's
+ *		probably wise to let the kernel restore it.
  *	_MC_FLAGS_HIGHFP_VALID
  *		If set, indicates that the high FP registers (f32-f127) are
  *		valid. This flag is very likely not going to be set for any
  *		sensible synctx, but is not explicitly disallowed. Any synctx
  *		that has this flag may or may not have the high FP registers
  *		restored. In short: don't do it.
- *	_MC_FLAGS_KSE_SET_MBOX
- *		This flag is special to setcontext(2) and swapcontext(2). It
- *		instructs the kernel to write the value in mc_special.isr to
- *		the memory address pointed to by mc_special.ifa. This allows
- *		the kernel to switch to a new context in a KSE based threaded
- *		program. Note that this is a non-srandard extension to the
- *		otherwise standard system calls and use of this flag should be
- *		limited to KSE.
- *	_MC_FLAGS_RETURN_VALID
- *		If set and _MC_FLAGS_ASYNC_CONTEXT is not set indicates that
- *		the ABI defined return registers are valid. Both getcontext(2)
- *		and swapcontext(2) need to save the system call return values.
- *		Any synctx that does not have this flag may still have the
- *		return registers restored from the context.
- *	_MC_FLAGS_SCRATCH_VALID
- *		If set and _MC_FLAGS_ASYNC_CONTEXT is not set indicates that
- *		the scratch registers, but not the FP registers are valid.
- *		This flag is set in contexts passed to signal handlers. This
- *		flag is a superset of _MC_FLAGS_RETURN_VALID. If both flags
- *		are set, this flag takes precedence.
+ *	_MC_FLAGS_SYSCALL_CONTEXT
+ *		If set (hence _MC_FLAGS_ASYNC_CONTEXT is not set) indicates
+ *		that the scratch registers contain syscall arguments and
+ *		return values and that additionally IIP and CFM are valid.
+ *		Only the kernel is expected to create such a context. It's
+ *		probably wise to let the kernel restore it.
  */
 
 typedef struct __mcontext {
 	unsigned long		mc_flags;
 #define	_MC_FLAGS_ASYNC_CONTEXT		0x0001
 #define	_MC_FLAGS_HIGHFP_VALID		0x0002
-#define	_MC_FLAGS_KSE_SET_MBOX		0x0004
-#define	_MC_FLAGS_RETURN_VALID		0x0008
-#define	_MC_FLAGS_SCRATCH_VALID		0x0010
+#define	_MC_FLAGS_KSE_SET_MBOX		0x0004	/* Undocumented. Has to go. */
+#define	_MC_FLAGS_SYSCALL_CONTEXT	0x0008
 	unsigned long		_reserved_;
 	struct _special		mc_special;
 	struct _callee_saved	mc_preserved;
@@ -95,10 +89,5 @@ typedef struct __mcontext {
 	struct _caller_saved_fp	mc_scratch_fp;
 	struct _high_fp		mc_high_fp;
 } mcontext_t;
-
-#ifdef _KERNEL
-/* Flags for get_mcontext().  See also <sys/ucontext.h>. */
-#define	GET_MC_IA64_SCRATCH	0x10
-#endif
 
 #endif /* !_MACHINE_UCONTEXT_H_ */
