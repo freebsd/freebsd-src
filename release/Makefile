@@ -149,7 +149,7 @@ DIST_DOCS_ARCH_DEP=	installation relnotes hardware
 #
 .if ${TARGET_ARCH} == "i386"
 COMPAT_DISTS?=	compat1x compat20 compat21 compat22 compat3x compat4x
-.elif ${TARGET_ARCH} != "ia64"
+.elif ${TARGET_ARCH} == "alpha"
 COMPAT_DISTS?=	compat4x
 .endif
 OTHER_DISTS?=	catpages manpages games proflibs dict info doc
