@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <machine/bus.h>
 
+#include <net/ethernet.h>
 #include <net/if.h>
 #include <net/if_arp.h>
 #include <net/if_mib.h>
@@ -65,8 +66,30 @@ static struct isa_pnp_id ed_ids[] = {
 };
 
 static int
-ed_isa_probe(dev)
-	device_t dev;
+ed_isa_probe_Novell(device_t dev)
+{
+	struct ed_softc *sc = device_get_softc(dev);
+	int flags = device_get_flags(dev);
+	int err;
+
+	err = ed_probe_Novell(dev, 0, flags);
+	if (err)
+		return err;
+	ed_Novell_read_mac(sc);
+	/*
+	 * Final sanity check for Gateway Ethernet cards before
+	 * believing that they really are Gateway AT.
+	 */
+	if ((ED_FLAGS_GETTYPE(flags) == ED_FLAGS_GWETHER) &&
+	    (sc->arpcom.ac_enaddr[2] == 0x86)) {
+		sc->type_str = "Gateway AT";
+	}
+	
+	return (0);
+}
+
+static int
+ed_isa_probe(device_t dev)
 {
 	int flags = device_get_flags(dev);
 	int error = 0;
@@ -75,14 +98,12 @@ ed_isa_probe(dev)
 	error = ISA_PNP_PROBE(device_get_parent(dev), dev, ed_ids);
 
 	/* If the card had a PnP ID that didn't match any we know about */
-	if (error == ENXIO) {
+	if (error == ENXIO)
 		goto end;
-	}
 
 	/* If we had some other problem. */
-	if (!(error == 0 || error == ENOENT)) {
+	if (!(error == 0 || error == ENOENT))
 		goto end;
-	}
 
 	/* Heuristic probes */
 
@@ -104,7 +125,7 @@ ed_isa_probe(dev)
 		goto end;
 	ed_release_resources(dev);
 #endif
-	error = ed_probe_Novell(dev, 0, flags);
+	error = ed_isa_probe_Novell(dev);
 	if (error == 0)
 		goto end;
 	ed_release_resources(dev);
