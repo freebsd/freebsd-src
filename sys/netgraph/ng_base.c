@@ -697,6 +697,7 @@ ng_unref_node(node_p node)
 		LIST_REMOVE(node, nd_idnodes);
 		mtx_exit(&ng_idhash_mtx, MTX_DEF);
 
+		mtx_destroy(&node->nd_input_queue.q_mtx);
 		NG_FREE_NODE(node);
 	}
 }
