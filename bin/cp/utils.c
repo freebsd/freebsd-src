@@ -50,6 +50,7 @@ static const char rcsid[] =
 #include <fcntl.h>
 #include <fts.h>
 #include <stdio.h>
+#include <sysexits.h>
 #include <unistd.h>
 
 #include "extern.h"
@@ -93,7 +94,7 @@ copy_file(entp, dne)
 			if (checkch != 'y' && checkch != 'Y') {
 				(void)close(from_fd);
 				(void)fprintf(stderr, "not overwritten\n");
-				return (0);
+				return (1);
 			}
 		}
 		
@@ -324,5 +325,5 @@ usage()
 	(void)fprintf(stderr, "%s\n%s\n",
 "usage: cp [-R [-H | -L | -P]] [-f | -i] [-pv] src target",
 "       cp [-R [-H | -L | -P]] [-f | -i] [-pv] src1 ... srcN directory");
-	exit(1);
+	exit(EX_USAGE);
 }
