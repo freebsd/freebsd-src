@@ -99,6 +99,7 @@ struct old_isa_driver {
 
 extern struct isa_driver  vtdriver;
 extern struct isa_driver advdriver;
+extern struct isa_driver ahadriver;
 extern struct isa_driver wdcdriver;
 extern struct isa_driver msedriver;
 extern struct isa_driver  ardriver;
@@ -310,6 +311,10 @@ static struct old_isa_driver old_drivers[] = {
 #if NADV > 0
 	{ INTR_TYPE_CAM, &advdriver },
 #endif
+#endif
+
+#if NAHA > 0
+	{ INTR_TYPE_CAM, &ahadriver },
 #endif
 
 #ifdef PC98
