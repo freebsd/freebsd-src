@@ -688,7 +688,7 @@ get_worklist(char **files)
 	}
 
 	free_entry(defconf);
-	return (newlist);
+	return (firstnew);
 }
 
 /*
