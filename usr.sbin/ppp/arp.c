@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: arp.c,v 1.18 1997/11/22 03:37:22 brian Exp $
+ * $Id: arp.c,v 1.19 1997/12/23 22:38:51 brian Exp $
  *
  */
 
@@ -90,7 +90,7 @@ sifproxyarp(int unit, u_long hisaddr)
    * Get the hardware address of an interface on the same subnet as our local
    * address.
    */
-  memset(&arpmsg, 0, sizeof(arpmsg));
+  memset(&arpmsg, 0, sizeof arpmsg);
   if (!get_ether_addr(unit, hisaddr, &arpmsg.hwa)) {
     LogPrintf(LogERROR, "Cannot determine ethernet address for proxy ARP\n");
     return 0;
@@ -168,7 +168,7 @@ sifproxyarp(int unit, u_long hisaddr)
     char space[128];
   }      dls;
 
-  memset(&arpreq, '\0', sizeof(arpreq));
+  memset(&arpreq, '\0', sizeof arpreq);
 
   /*
    * Get the hardware address of an interface on the same subnet as our local
@@ -199,7 +199,7 @@ cifproxyarp(int unit, u_long hisaddr)
 {
   struct arpreq arpreq;
 
-  memset(&arpreq, '\0', sizeof(arpreq));
+  memset(&arpreq, '\0', sizeof arpreq);
   SET_SA_FAMILY(arpreq.arp_pa, AF_INET);
   ((struct sockaddr_in *) & arpreq.arp_pa)->sin_addr.s_addr = hisaddr;
   if (ID0ioctl(unit, SIOCDARP, (caddr_t) & arpreq) < 0) {
@@ -228,7 +228,7 @@ get_ether_addr(int s, u_long ipaddr, struct sockaddr_dl *hwaddr)
   struct ifconf ifc;
   struct ifreq ifs[MAX_IFS];
 
-  ifc.ifc_len = sizeof(ifs);
+  ifc.ifc_len = sizeof ifs;
   ifc.ifc_req = ifs;
   if (ioctl(s, SIOCGIFCONF, &ifc) < 0) {
     LogPrintf(LogERROR, "get_ether_addr: ioctl(SIOCGIFCONF): %s\n",
@@ -244,8 +244,8 @@ get_ether_addr(int s, u_long ipaddr, struct sockaddr_dl *hwaddr)
   for (ifr = ifc.ifc_req; ifr < ifend;) {
     if (ifr->ifr_addr.sa_family == AF_INET) {
       ina = ((struct sockaddr_in *) & ifr->ifr_addr)->sin_addr.s_addr;
-      strncpy(ifreq.ifr_name, ifr->ifr_name, sizeof(ifreq.ifr_name) - 1);
-      ifreq.ifr_name[sizeof(ifreq.ifr_name) - 1] = '\0';
+      strncpy(ifreq.ifr_name, ifr->ifr_name, sizeof ifreq.ifr_name - 1);
+      ifreq.ifr_name[sizeof ifreq.ifr_name - 1] = '\0';
 
       /*
        * Check that the interface is up, and not point-to-point or loopback.

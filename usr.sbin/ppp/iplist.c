@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: iplist.c,v 1.2 1997/12/21 12:11:06 brian Exp $
+ *	$Id: iplist.c,v 1.3 1997/12/23 22:38:54 brian Exp $
  */
 
 #include <sys/types.h>
@@ -149,8 +149,8 @@ iplist_next(struct iplist *list)
 int
 iplist_setsrc(struct iplist *list, const char *src)
 {
-  strncpy(list->src, src, sizeof(list->src)-1);
-  list->src[sizeof(list->src)-1] = '\0';
+  strncpy(list->src, src, sizeof list->src - 1);
+  list->src[sizeof list->src - 1] = '\0';
   list->cur.srcptr = list->src;
   do {
     if (iplist_nextrange(list))
@@ -211,7 +211,7 @@ iplist_ip2pos(struct iplist *list, struct in_addr ip)
   int f, result;
 
   result = -1;
-  memcpy(&cur, &list->cur, sizeof(cur));
+  memcpy(&cur, &list->cur, sizeof cur);
 
   for (iplist_first(list), f = 0; f < list->nItems; f++)
     if (iplist_next(list).s_addr == ip.s_addr) {
@@ -219,6 +219,6 @@ iplist_ip2pos(struct iplist *list, struct in_addr ip)
       break;
     }
 
-  memcpy(&list->cur, &cur, sizeof(list->cur));
+  memcpy(&list->cur, &cur, sizeof list->cur);
   return result;
 }

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.49 1997/12/03 10:23:49 brian Exp $
+ * $Id: lcp.c,v 1.50 1997/12/07 23:55:27 brian Exp $
  *
  * TODO:
  *      o Validate magic number received from peer.
@@ -117,7 +117,7 @@ static const char *cftypes[] = {
   "LDBACP",	/* 23: Link Discriminator for BACP */
 };
 
-#define NCFTYPES (sizeof(cftypes)/sizeof(char *))
+#define NCFTYPES (sizeof cftypes/sizeof cftypes[0])
 
 struct fsm LcpFsm = {
   "LCP",			/* Name of protocol */
@@ -791,7 +791,7 @@ LcpDecodeConfig(u_char *cp, int plen, int mode_type)
       break;
 
     default:
-      sz = (sizeof(desc)-2)/2;
+      sz = (sizeof desc - 2) / 2;
       if (sz > length - 2)
         sz = length - 2;
       pos = 0;
@@ -803,8 +803,8 @@ LcpDecodeConfig(u_char *cp, int plen, int mode_type)
 
       if (mode_type == MODE_REQ) {
 reqreject:
-        if (length > sizeof(RejBuff) - (rejp - RejBuff)) {
-          length = sizeof(RejBuff) - (rejp - RejBuff);
+        if (length > sizeof RejBuff - (rejp - RejBuff)) {
+          length = sizeof RejBuff - (rejp - RejBuff);
           LogPrintf(LogLCP, "Can't REJ length %d - trunating to %d\n",
 		    cp[1], length);
         }

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.69 1997/12/21 03:16:12 brian Exp $
+ * $Id: modem.c,v 1.70 1997/12/23 22:38:55 brian Exp $
  *
  *  TODO:
  */
@@ -364,7 +364,7 @@ OpenConnection(char *host, char *port)
   if (sock < 0) {
     return (sock);
   }
-  if (connect(sock, (struct sockaddr *) & dest, sizeof(dest)) < 0) {
+  if (connect(sock, (struct sockaddr *)&dest, sizeof dest) < 0) {
     LogPrintf(LogWARN, "OpenConnection: connection failed.\n");
     return (-1);
   }
@@ -434,7 +434,7 @@ OpenModem()
   int oldflag;
   char *host, *port;
   char *cp;
-  char tmpDeviceList[sizeof(VarDeviceList)];
+  char tmpDeviceList[sizeof VarDeviceList];
   char *tmpDevice;
 
   if (modem >= 0)
@@ -466,13 +466,13 @@ OpenModem()
       return modem = 0;
     }
   } else {
-    strncpy(tmpDeviceList, VarDeviceList, sizeof(tmpDeviceList)-1);
-    tmpDeviceList[sizeof(tmpDeviceList)-1] = '\0';
+    strncpy(tmpDeviceList, VarDeviceList, sizeof tmpDeviceList - 1);
+    tmpDeviceList[sizeof tmpDeviceList - 1] = '\0';
 
     for(tmpDevice=strtok(tmpDeviceList, ","); tmpDevice && (modem < 0);
 	tmpDevice=strtok(NULL,",")) {
-      strncpy(VarDevice, tmpDevice, sizeof(VarDevice)-1);
-      VarDevice[sizeof(VarDevice)-1]= '\0';
+      strncpy(VarDevice, tmpDevice, sizeof VarDevice - 1);
+      VarDevice[sizeof VarDevice - 1]= '\0';
       VarBaseDevice = strrchr(VarDevice, '/');
       VarBaseDevice = VarBaseDevice ? VarBaseDevice + 1 : "";
 
@@ -700,8 +700,8 @@ HangupModem(int flag)
   if (modem >= 0) {
     char ScriptBuffer[SCRIPT_LEN];
 
-    strncpy(ScriptBuffer, VarHangupScript, sizeof(ScriptBuffer)-1);
-    ScriptBuffer[sizeof(ScriptBuffer) - 1] = '\0';
+    strncpy(ScriptBuffer, VarHangupScript, sizeof ScriptBuffer - 1);
+    ScriptBuffer[sizeof ScriptBuffer - 1] = '\0';
     LogPrintf(LogDEBUG, "HangupModem: Script: %s\n", ScriptBuffer);
     if (flag || !(mode & MODE_DEDICATED)) {
       DoChat(ScriptBuffer);
@@ -728,8 +728,8 @@ CloseLogicalModem(void)
     ClosePhysicalModem();
     if (Utmp) {
       struct utmp ut;
-      strncpy(ut.ut_line, VarBaseDevice, sizeof(ut.ut_line)-1);
-      ut.ut_line[sizeof(ut.ut_line)-1] = '\0';
+      strncpy(ut.ut_line, VarBaseDevice, sizeof ut.ut_line - 1);
+      ut.ut_line[sizeof ut.ut_line - 1] = '\0';
       if (logout(ut.ut_line))
         logwtmp(ut.ut_line, "", ""); 
       else
@@ -847,12 +847,12 @@ DialModem()
   char ScriptBuffer[SCRIPT_LEN];
   int excode;
 
-  strncpy(ScriptBuffer, VarDialScript, sizeof(ScriptBuffer) - 1);
-  ScriptBuffer[sizeof(ScriptBuffer) - 1] = '\0';
+  strncpy(ScriptBuffer, VarDialScript, sizeof ScriptBuffer - 1);
+  ScriptBuffer[sizeof ScriptBuffer - 1] = '\0';
   if ((excode = DoChat(ScriptBuffer)) > 0) {
     if (VarTerm)
       fprintf(VarTerm, "dial OK!\n");
-    strncpy(ScriptBuffer, VarLoginScript, sizeof(ScriptBuffer) - 1);
+    strncpy(ScriptBuffer, VarLoginScript, sizeof ScriptBuffer - 1);
     if ((excode = DoChat(ScriptBuffer)) > 0) {
       VarAltPhone = NULL;
       if (VarTerm)

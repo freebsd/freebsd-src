@@ -18,7 +18,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: pap.c,v 1.18 1997/10/26 01:03:28 brian Exp $
+ * $Id: pap.c,v 1.19 1997/11/22 03:37:43 brian Exp $
  *
  *	TODO:
  */
@@ -171,10 +171,10 @@ PapInput(struct mbuf * bp)
 			  VarBaseDevice);
 	      else {
 	        struct utmp ut;
-	        memset(&ut, 0, sizeof(ut));
+	        memset(&ut, 0, sizeof ut);
 	        time(&ut.ut_time);
-	        strncpy(ut.ut_name, cp+1, sizeof(ut.ut_name)-1);
-	        strncpy(ut.ut_line, VarBaseDevice, sizeof(ut.ut_line)-1);
+	        strncpy(ut.ut_name, cp+1, sizeof ut.ut_name - 1);
+	        strncpy(ut.ut_line, VarBaseDevice, sizeof ut.ut_line - 1);
 	        if (logout(ut.ut_line))
 		  logwtmp(ut.ut_line, "", "");
 	        login(&ut);
