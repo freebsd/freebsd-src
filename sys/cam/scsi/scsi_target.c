@@ -809,6 +809,7 @@ targdone(struct cam_periph *periph, union ccb *done_ccb)
 	/* If we're no longer enabled, throw away CCB */
 	if ((softc->state & TARG_STATE_LUN_ENABLED) == 0) {
 		targfreeccb(softc, done_ccb);
+		TARG_UNLOCK(softc);
 		return;
 	}
 	/* abort_all_pending() waits for pending queue to be empty */
