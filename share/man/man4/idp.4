@@ -1,0 +1,185 @@
+.\" Copyright (c) 1985, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)idp.4	8.1 (Berkeley) 6/5/93
+.\"
+.Dd June 5, 1993
+.Dt IDP 4
+.Os BSD 4.3
+.Sh NAME
+.Nm idp
+.Nd Xerox Internet Datagram Protocol
+.Sh SYNOPSIS
+.Fd #include <sys/socket.h>
+.Fd #include <netns/ns.h>
+.Fd #include <netns/idp.h>
+.Ft int
+.Fn socket AF_NS SOCK_DGRAM 0
+.Sh DESCRIPTION
+.Tn IDP
+is a simple, unreliable datagram protocol which is used
+to support the
+.Dv SOCK_DGRAM
+abstraction for the Internet
+protocol family.
+.Tn IDP
+sockets are connectionless, and are
+normally used with the
+.Xr sendto
+and
+.Xr recvfrom
+calls, though the
+.Xr connect 2
+call may also be used to fix the destination for future
+packets (in which case the 
+.Xr recv 2
+or
+.Xr read 2
+and 
+.Xr send 2
+or
+.Xr write 2
+system calls may be used).
+.Pp
+Xerox protocols are built vertically on top of
+.Tn IDP .
+Thus,
+.Tn IDP
+address formats are identical to those used by
+.Tn SPP .
+Note that the
+.Tn IDP
+port
+space is the same as the
+.Tn SPP
+port space (i.e. a
+.Tn IDP
+port
+may be
+.Dq connected
+to a
+.Tn SPP
+port, with certain
+options enabled below).
+In addition broadcast packets may be sent
+(assuming the underlying network supports
+this) by using a reserved
+.Dq broadcast address ;
+this address
+is network interface dependent.
+.Sh DIAGNOSTICS
+A socket operation may fail with one of the following errors returned:
+.Bl -tag -width [EADDRNOTAVAIL]
+.It Bq Er EISCONN
+when trying to establish a connection on a socket which
+already has one, or when trying to send a datagram with the destination
+address specified and the socket is already connected;
+.It Bq Er ENOTCONN
+when trying to send a datagram, but
+no destination address is specified, and the socket hasn't been
+connected;
+.It Bq Er ENOBUFS
+when the system runs out of memory for
+an internal data structure;
+.It Bq Er EADDRINUSE
+when an attempt
+is made to create a socket with a port which has already been
+allocated;
+.It Bq Er EADDRNOTAVAIL
+when an attempt is made to create a 
+socket with a network address for which no network interface
+exists.
+.El
+.Sh SOCKET OPTIONS
+.Bl -tag -width [SO_HEADERS_ON_OUTPUT]
+.It Bq Dv SO_ALL_PACKETS
+When set, this option defeats automatic processing of Error packets,
+and Sequence Protocol packets.
+.It Bq Dv SO_DEFAULT_HEADERS
+The user provides the kernel an
+.Tn IDP
+header, from which
+it gleans the Packet Type.
+When requested, the kernel will provide an
+.Tn IDP
+header, showing
+the default packet type, and local and foreign addresses, if
+connected.
+.It Bq Dv SO_HEADERS_ON_INPUT
+When set, the first 30 bytes of any data returned from a read
+or recv from will be the initial 30 bytes of the
+.Tn IDP
+packet,
+as described by
+.Bd -literal -offset indent
+struct idp {
+	u_short		idp_sum;
+	u_short		idp_len;
+	u_char		idp_tc;
+	u_char		idp_pt;
+	struct ns_addr	idp_dna;
+	struct ns_addr	idp_sna;
+};
+.Ed
+.Pp
+This allows the user to determine the packet type, and whether
+the packet was a multi-cast packet or directed specifically at
+the local host.
+When requested, gives the current state of the option,
+.Pf ( Dv NSP_RAWIN
+or 0).
+.It Bq Dv SO_HEADERS_ON_OUTPUT
+When set, the first 30 bytes of any data sent
+will be the initial 30 bytes of the
+.Tn IDP
+packet.
+This allows the user to determine the packet type, and whether
+the packet should be multi-cast packet or directed specifically at
+the local host.
+You can also misrepresent the sender of the packet.
+When requested, gives the current state of the option.
+.Pf ( Dv NSP_RAWOUT
+or 0).
+.It Bq Dv SO_SEQNO
+When requested, this returns a sequence number which is not likely
+to be repeated until the machine crashes or a very long time has passed.
+It is useful in constructing Packet Exchange Protocol packets.
+.El
+.Sh SEE ALSO
+.Xr send 2 ,
+.Xr recv 2 ,
+.Xr intro 4 ,
+.Xr ns 4
+.Sh HISTORY
+The
+.Nm
+protocol appeared in
+.Bx 4.3 .

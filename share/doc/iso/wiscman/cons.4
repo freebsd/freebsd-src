@@ -1,0 +1,241 @@
+.\"
+.\" 5799-WZQ (C) COPYRIGHT IBM CORPORATION 1986,1987,1988
+.\" LICENSED MATERIALS - PROPERTY OF IBM
+.\" REFER TO COPYRIGHT INSTRUCTIONS FORM NUMBER G120-2083
+.\"
+.\"$Header:cons.4_ca 11.3$
+.\"$ACIS:cons.4_ca 11.3$
+.\"$Source: /ibm/acis/usr/man/man4/RCS/cons.4_ca,v $
+.\" This file uses -man macros.
+.TH CONS 4 "Sept 1988" "Space overwritten by .AC macro" " " 
+.AC 1 0 
+.SH NAME
+cons \- keyboard and console display interface
+.SH DESCRIPTION
+The keyboard and various possible displays combine to 
+provide a terminal-like
+interface to the system. Internally, these are separate devices which
+software combines to emulate a normal terminal. See the appropriate manual
+pages for information about each display and the keyboard.
+.PP
+The keyboard adapter also supports the speaker, which is activated 
+when the ASCII character \fBbel\fP (\fB^G\fP)
+is sent to the display with software.
+For additional information on speaker control, see \fIspeaker\fP(4).
+.PP
+.B Console Device Control
+.PP
+The display devices, 
+\fI/dev/ttyaed\fR, \fI/dev/ttyap16\fR, \fI/dev/ttyap8c\fR,
+\fI/dev/ttyapa8\fR, \fI/dev/ttyega\fR, \fI/dev/ttymono\fR, 
+\fI/dev/ttympel\fR, \fI/dev/ttyvga\fR, and \fI/dev/tty8514\fR are all
+minor devices under 
+\fI/dev/console\fR, and are all capable of displaying console output. 
+Unique to this system is the fact that you may have one or more of these
+displays on your workstation at a time and any one can act as a console.
+With only one keyboard and system mouse, the console driver
+multiplexes these input devices to the many displays.
+All of the displays may have simultaneous logins and the user
+can ``hot key'' between each display.
+At first, this 
+``input focus''
+is on
+the first device in the above sequence to 
+be found at initialization time.  The input focus
+can be manually switched to the next available display by pressing the
+default ``hot key'' <Alt><Scroll Lock>. 
+When the
+input focus
+is on a display, all keyboard and mouse data are sent to the process(es)
+that read from that display.
+.PP
+If no other console tty device is open, and only the default input 
+emulator is used (see \fIkbdemul\fP(4)), the input focus is set to
+\fI/dev/console\fP.  In this case, <Alt><Scroll Lock> only switches
+which display gets console output.
+In the case where one or more tty devices are open, or the default input
+emulator changes, \fI/dev/console\fP gets no input.  It tries to send output
+to the currently focused device.  A user can redirect these console messages
+to any tty devices with the TIOCCONS ioctl.
+.PP
+To support the many displays and the multiplexing between them, an
+emulator package was developed to work with the console driver.
+This package allows different types of emulation on input and output to
+be written independently of device.
+.PP
+The display devices \fI/dev/aed\fP, \fI/dev/apa16\fP, \fI/dev/apa8c\fP,
+\fI/dev/apa8\fP, \fI/dev/ega\fR, \fI/dev/mono\fP, 
+\fI/dev/mpel\fR, \fI/dev/vga\fR, and \fI/dev/ibm8514\fR 
+are also minor devices to 
+\fI/dev/console\fP.  They are typically used by window managers and other
+graphic applications.  When the focus is pointed to one of these display
+devices, the console messages are put in a circular buffer 
+(see \fIbufemul\fP(4))
+unless redirected with the TIOCCONS ioctl.
+The buffer is flushed to the screen upon closing the display device.
+.PP
+The following are generic console \fIioctls\fP defined in \fIscreen_cousf.u\fP:
+.TP 20
+CON_SELECT_SCREEN 
+Output focus is set to display number (arg > 0) or 
+to next display in list (arg < 0).  Previous display number is returned.  
+.TP 20
+CON_GET_SCREEN 
+Just returns the current output focus display number.  
+.TP 20
+EIGETD 
+Gets the number of the current input emulator for this display.  
+.TP 20
+EOGETD 
+Gets the number of the current output emulator for this display.  
+.TP 20
+EISETD 
+Sets the input emulator and returns the previous for this display.  
+.TP 20
+EOSETD 
+Sets the output emulator and returns the previous for this display.  
+.TP 20
+CON_INIT_SCREEN 
+Initializes the specified display (arg >=0) or this display
+(arg < 0).  
+.TP 20
+CON_GET_FOCUS_CODE 
+Gets the current keyboard code for setting the console 
+focus (affects xemul only).  
+.TP 20
+CON_SET_FOCUS_CODE 
+Sets the current keyboard code for setting the console
+focus (affects xemul only), and return the previous code.
+.PP
+All of the above commands take integer arguments.  
+.PP
+The following are generic console \fIioctls\fP defined in \fIconsio.h\fP: 
+.TP 20
+SCRIOCGETF 
+Gets the screen control flags for the given display number.  
+.TP 20
+SCRIOCSETC 
+Sets the screen control flags for the given display number.  
+.PP
+.in +10
+SCRIOCGETF and SCRIOCSETC use the following structure:
+.DT
+.nf
+struct screen_control { 
+			 int   device; /* which screen/display to control */  
+			 int   switches; /* Flags for this screen */
+};
+.fi
+.sp 2
+.RS 6
+.TP 20
+CONSDEV_PRESENT 
+Display is present on this system.  
+This bit cannot be changed by SCRIOSETC. 
+.TP 20
+CONSDEV_KERNEL 
+Display is available to the kernel.  
+.TP 20
+CONSDEV_USER 
+Display is available to the user.  
+.TP 20
+CONSDEV_INIT 
+Display has been initialized for output.  
+.TP 20
+CONSDEV_TTY 
+Diplay has been initialuzed for output.  
+This bit cannot be changed by SCRIOSETC.
+.TP 20
+CONSDEV_GRA 
+Graphics display has been opened directly by minor device number. 
+This bit cannot be changed by SCRIOSETC.
+.TP 20
+CONSDEV_NOINPUT 
+Prevents the "round-robin" console focus-switching from finding this 
+display.  This flag is cleared when \fIbuf_emul\fP is closed.  
+.TP 20
+SCRSETNIP 
+Sets the no-input bit in the screen control flags for the 
+display's current file description.  
+.TP 20
+SCRCLRNIP 
+Clears the no-input bit in the screen control flags for the 
+display's current file description.  
+.RE
+.PP
+The following \fIioctl\fP is defined in \fIbufemul.h\fP: 
+.TP 20
+BUFDISPINFO 
+\fIArg\fP returns the following information about the display: 
+.PP
+.RS 6
+.TP 20
+BUF_IS_ATR(arg) 
+True when the CPU is an IBM 6152 Academic System.  
+.TP 20
+BUF_IS_RTPC(arg) 
+True when the CPU is an IBM RT PC.  
+.TP 20
+BUF_GET_PCCODE(x) 
+Get PC-Code version/type byte (IBM 6152 only).  
+.bp
+.TP 20
+BUF_GET_VGA(arg) 
+Get the type of display connected to the VGA.  
+0=none, 1=color, 2=gray.  Valid only for the IBM 6152 Academic System.   
+.TP 20
+BUF_GET_8514(arg) 
+Get the type of display connected to the IBM 8514/A.  
+0=none, 1=color, 2=gray.  Valid only for the IBM 6152 Academic System.  
+.TP 20
+BUF_GET_EGA(arg) 
+Returns the value of the switches on the EGA display.  Valid only for the IBM RT PC with an EGA card installed.  
+.RE
+.PP
+All of the above \fIioctl\fP system calls are device-independent controls 
+for dealing with the emulators.  
+.PP
+Each emulator has its own set of \fIioctls\fP for its own emulation purposes.  
+These other \fIiotls\fP are used in window-manager emulators for operations 
+such as passing/positioning the mouse locator for/on the display.  
+See the man page for any particular emulator for more information.  
+.PP
+.SH NOTE
+On the IBM RT PC, the kernel flashes ``98'' on the LEDs if it cannot find any
+configured display during initialization, and then proceeds. 
+.SH DIAGNOSTICS
+None.
+.SH FILES
+.PP
+For the IBM RT PC:
+.br
+/dev/console 
+.br
+/dev/aed 
+.br
+/dev/apa16
+.br
+/dev/apa8c
+.br
+/dev/apa8
+.br
+/dev/ega
+.br
+/dev/mono
+.br
+/dev/mpel
+.br
+.PP
+For the IBM 6152 Academic System:
+.br
+/dev/vga
+.br
+/dev/ibm8514
+.SH "SEE ALSO"
+bufemul(4), bus(4), ibm5081(4), ibm5151(4), ibm6153(4), ibm6154(4),
+ibm6155(4), ibm8514(4), ibmaed(4), ibmemul(4), kbdemul(4), 
+speaker(4), stdemul(4), tty(4), vga(4), xemul(4), setscreen(8)
+.br
+``IBM/4.3 Console Emulators'', in Volume II, Supplementary Documents
+
+

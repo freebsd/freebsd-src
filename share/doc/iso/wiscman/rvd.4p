@@ -1,0 +1,90 @@
+.\"
+.\" 5799-WZQ (C) COPYRIGHT IBM CORPORATION 1986,1987,1988
+.\" LICENSED MATERIALS - PROPERTY OF IBM
+.\" REFER TO COPYRIGHT INSTRUCTIONS FORM NUMBER G120-2083
+.\"
+.\"$Header:rvd.4p_ca 11.0$
+.\"$ACIS:rvd.4p_ca 11.0$
+.\"$Source: /ibm/acis/usr/man/man4/RCS/rvd.4p_ca,v $
+.\"This file contains -man macros.
+.TH RVD 4P "July 1987" "Space overwritten by .AC macro" " "
+.AC 1 0
+.SH NAME
+rvd \- Remote Virtual Disk protocol
+.SH DESCRIPTION
+RVD
+is a network service which allows several
+physical machines to share one
+physical mass storage device such as a hard disk.  The basic
+concept is to have the machine to which the device is physically attached
+act as a server to read and write blocks for all the other
+machines desiring use of the resource.
+.PP
+The server program apportions the
+physical blocks into \*(lqvirtual disk packs\*(rq based on a
+table maintained with
+.IR vddb (8).
+The packs can then be used separately by clients.  There are
+three modes of use: read-only, shared, and exclusive.
+Exclusive mode is used for
+read-write access, while read-only mode is as it sounds.
+Shared mode is not supported under IBM/4.3.
+If a disk pack is \*(lqspun up\*(rq in read-only mode,
+several clients may share the pack and read its information.  In
+exclusive mode, one client has exclusive use of the disk pack.
+.PP
+Packs are \*(lqspun up\*(rq and \*(lqspun down\*(rq with the 
+.I up
+and
+.I down
+commands (see
+.IR up (1)).
+This can be done 
+at reboot time within
+.I /etc/rc.local
+(see
+.IR rc (8))
+or
+at login time within
+.I ~/.login
+(see
+.IR csh (1)).
+Once a pack is spun up, it behaves like a disk physically attached to
+the local machine (excepting network latency).
+The client can do anything desired with the pack;
+both MS-DOS and UNIX operating system file systems have 
+been used on the same physical
+drive at the same time (on separate packs, of course).
+.PP
+RVD
+is implemented in two parts: server code and client code.  The server
+code is written as a
+.IR "user process" ,
+i.e. it does not require any special
+privileges beyond read/write access to the disks it manages.  The server
+opens a network socket and listens for UDP connections.  It also accepts
+all
+RVD
+packets and acts on them.
+RVD is a protocol different from both
+UDP and TCP,
+although similar in nature to the former.
+.PP
+The client code is implemented as a pseudo-device and corresponding
+device driver in the kernel.  It can handle up to 10
+remote virtual disks
+simultaneously, which are associated with the pseudo-devices below.
+.SH FILES
+.DT
+/dev/vd[0-9]a		block special file pseudo-device
+.br
+/dev/rvd[0-9]a		character special file pseudo-device
+.SH "SEE ALSO"
+up(1), rvddb(5), rvdtab(5),
+rvdflush(8), rvdchlog(8), rvddown(8),
+rvdexch(8), rvdflush(8), rvdlog(8), rvdsend(8), rvdshow(8),
+rvdshut(8), rvdsrv(8), savervd(8), 
+spinup(8), vddb(8), vdstats(8)
+.br
+``The Remote Virtual Disk System'' in Volume II, Supplementary Documents
+
