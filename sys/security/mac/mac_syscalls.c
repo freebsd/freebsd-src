@@ -256,6 +256,7 @@ mac_init(void)
 
 	LIST_INIT(&mac_static_policy_list);
 	LIST_INIT(&mac_policy_list);
+	mac_labelzone_init();
 
 	mtx_init(&mac_policy_mtx, "mac_policy_mtx", NULL, MTX_DEF);
 	cv_init(&mac_policy_cv, "mac_policy_cv");
@@ -565,7 +566,7 @@ __mac_get_pid(struct thread *td, struct __mac_get_pid_args *uap)
 	}
 
 	buffer = malloc(mac.m_buflen, M_MACTEMP, M_WAITOK | M_ZERO);
-	error = mac_externalize_cred_label(&tcred->cr_label, elements,
+	error = mac_externalize_cred_label(tcred->cr_label, elements,
 	    buffer, mac.m_buflen);
 	if (error == 0)
 		error = copyout(buffer, mac.m_string, strlen(buffer)+1);
@@ -602,7 +603,7 @@ __mac_get_proc(struct thread *td, struct __mac_get_proc_args *uap)
 	}
 
 	buffer = malloc(mac.m_buflen, M_MACTEMP, M_WAITOK | M_ZERO);
-	error = mac_externalize_cred_label(&td->td_ucred->cr_label,
+	error = mac_externalize_cred_label(td->td_ucred->cr_label,
 	    elements, buffer, mac.m_buflen);
 	if (error == 0)
 		error = copyout(buffer, mac.m_string, strlen(buffer)+1);
@@ -619,7 +620,7 @@ int
 __mac_set_proc(struct thread *td, struct __mac_set_proc_args *uap)
 {
 	struct ucred *newcred, *oldcred;
-	struct label intlabel;
+	struct label *intlabel;
 	struct proc *p;
 	struct mac mac;
 	char *buffer;
@@ -640,13 +641,11 @@ __mac_set_proc(struct thread *td, struct __mac_set_proc_args *uap)
 		return (error);
 	}
 
-	mac_init_cred_label(&intlabel);
-	error = mac_internalize_cred_label(&intlabel, buffer);
+	intlabel = mac_cred_label_alloc();
+	error = mac_internalize_cred_label(intlabel, buffer);
 	free(buffer, M_MACTEMP);
-	if (error) {
-		mac_destroy_cred_label(&intlabel);
-		return (error);
-	}
+	if (error)
+		goto out;
 
 	newcred = crget();
 
@@ -654,7 +653,7 @@ __mac_set_proc(struct thread *td, struct __mac_set_proc_args *uap)
 	PROC_LOCK(p);
 	oldcred = p->p_ucred;
 
-	error = mac_check_cred_relabel(oldcred, &intlabel);
+	error = mac_check_cred_relabel(oldcred, intlabel);
 	if (error) {
 		PROC_UNLOCK(p);
 		crfree(newcred);
@@ -663,7 +662,7 @@ __mac_set_proc(struct thread *td, struct __mac_set_proc_args *uap)
 
 	setsugid(p);
 	crcopy(newcred, oldcred);
-	mac_relabel_cred(newcred, &intlabel);
+	mac_relabel_cred(newcred, intlabel);
 	p->p_ucred = newcred;
 
 	/*
@@ -683,7 +682,7 @@ __mac_set_proc(struct thread *td, struct __mac_set_proc_args *uap)
 	crfree(oldcred);
 
 out:
-	mac_destroy_cred_label(&intlabel);
+	mac_cred_label_free(intlabel);
 	return (error);
 }
 
@@ -694,7 +693,7 @@ int
 __mac_get_fd(struct thread *td, struct __mac_get_fd_args *uap)
 {
 	char *elements, *buffer;
-	struct label intlabel;
+	struct label *intlabel;
 	struct file *fp;
 	struct mac mac;
 	struct vnode *vp;
@@ -729,20 +728,20 @@ __mac_get_fd(struct thread *td, struct __mac_get_fd_args *uap)
 	case DTYPE_VNODE:
 		vp = fp->f_vnode;
 
-		mac_init_vnode_label(&intlabel);
+		intlabel = mac_vnode_label_alloc();
 
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
-		mac_copy_vnode_label(&vp->v_label, &intlabel);
+		mac_copy_vnode_label(vp->v_label, intlabel);
 		VOP_UNLOCK(vp, 0, td);
 
 		break;
 	case DTYPE_PIPE:
 		pipe = fp->f_data;
 
-		mac_init_pipe_label(&intlabel);
+		intlabel = mac_pipe_label_alloc();
 
 		PIPE_LOCK(pipe);
-		mac_copy_pipe_label(pipe->pipe_label, &intlabel);
+		mac_copy_pipe_label(pipe->pipe_label, intlabel);
 		PIPE_UNLOCK(pipe);
 		break;
 	default:
@@ -756,14 +755,14 @@ __mac_get_fd(struct thread *td, struct __mac_get_fd_args *uap)
 	case DTYPE_FIFO:
 	case DTYPE_VNODE:
 		if (error == 0)
-			error = mac_externalize_vnode_label(&intlabel,
+			error = mac_externalize_vnode_label(intlabel,
 			    elements, buffer, mac.m_buflen);
-		mac_destroy_vnode_label(&intlabel);
+		mac_vnode_label_free(intlabel);
 		break;
 	case DTYPE_PIPE:
-		error = mac_externalize_pipe_label(&intlabel, elements,
+		error = mac_externalize_pipe_label(intlabel, elements,
 		    buffer, mac.m_buflen);
-		mac_destroy_pipe_label(&intlabel);
+		mac_pipe_label_free(intlabel);
 		break;
 	default:
 		panic("__mac_get_fd: corrupted label_type");
@@ -788,7 +787,7 @@ __mac_get_file(struct thread *td, struct __mac_get_file_args *uap)
 {
 	char *elements, *buffer;
 	struct nameidata nd;
-	struct label intlabel;
+	struct label *intlabel;
 	struct mac mac;
 	int error;
 
@@ -815,13 +814,13 @@ __mac_get_file(struct thread *td, struct __mac_get_file_args *uap)
 	if (error)
 		goto out;
 
-	mac_init_vnode_label(&intlabel);
-	mac_copy_vnode_label(&nd.ni_vp->v_label, &intlabel);
-	error = mac_externalize_vnode_label(&intlabel, elements, buffer,
+	intlabel = mac_vnode_label_alloc();
+	mac_copy_vnode_label(nd.ni_vp->v_label, intlabel);
+	error = mac_externalize_vnode_label(intlabel, elements, buffer,
 	    mac.m_buflen);
 
 	NDFREE(&nd, 0);
-	mac_destroy_vnode_label(&intlabel);
+	mac_vnode_label_free(intlabel);
 
 	if (error == 0)
 		error = copyout(buffer, mac.m_string, strlen(buffer)+1);
@@ -843,7 +842,7 @@ __mac_get_link(struct thread *td, struct __mac_get_link_args *uap)
 {
 	char *elements, *buffer;
 	struct nameidata nd;
-	struct label intlabel;
+	struct label *intlabel;
 	struct mac mac;
 	int error;
 
@@ -870,12 +869,12 @@ __mac_get_link(struct thread *td, struct __mac_get_link_args *uap)
 	if (error)
 		goto out;
 
-	mac_init_vnode_label(&intlabel);
-	mac_copy_vnode_label(&nd.ni_vp->v_label, &intlabel);
-	error = mac_externalize_vnode_label(&intlabel, elements, buffer,
+	intlabel = mac_vnode_label_alloc();
+	mac_copy_vnode_label(nd.ni_vp->v_label, intlabel);
+	error = mac_externalize_vnode_label(intlabel, elements, buffer,
 	    mac.m_buflen);
 	NDFREE(&nd, 0);
-	mac_destroy_vnode_label(&intlabel);
+	mac_vnode_label_free(intlabel);
 
 	if (error == 0)
 		error = copyout(buffer, mac.m_string, strlen(buffer)+1);
@@ -895,7 +894,7 @@ out:
 int
 __mac_set_fd(struct thread *td, struct __mac_set_fd_args *uap)
 {
-	struct label intlabel;
+	struct label *intlabel;
 	struct pipe *pipe;
 	struct file *fp;
 	struct mount *mp;
@@ -928,40 +927,40 @@ __mac_set_fd(struct thread *td, struct __mac_set_fd_args *uap)
 	switch (fp->f_type) {
 	case DTYPE_FIFO:
 	case DTYPE_VNODE:
-		mac_init_vnode_label(&intlabel);
-		error = mac_internalize_vnode_label(&intlabel, buffer);
+		intlabel = mac_vnode_label_alloc();
+		error = mac_internalize_vnode_label(intlabel, buffer);
 		if (error) {
-			mac_destroy_vnode_label(&intlabel);
+			mac_vnode_label_free(intlabel);
 			break;
 		}
 
 		vp = fp->f_vnode;
 		error = vn_start_write(vp, &mp, V_WAIT | PCATCH);
 		if (error != 0) {
-			mac_destroy_vnode_label(&intlabel);
+			mac_vnode_label_free(intlabel);
 			break;
 		}
 
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
-		error = vn_setlabel(vp, &intlabel, td->td_ucred);
+		error = vn_setlabel(vp, intlabel, td->td_ucred);
 		VOP_UNLOCK(vp, 0, td);
 		vn_finished_write(mp);
 
-		mac_destroy_vnode_label(&intlabel);
+		mac_vnode_label_free(intlabel);
 		break;
 
 	case DTYPE_PIPE:
-		mac_init_pipe_label(&intlabel);
-		error = mac_internalize_pipe_label(&intlabel, buffer);
+		intlabel = mac_pipe_label_alloc();
+		error = mac_internalize_pipe_label(intlabel, buffer);
 		if (error == 0) {
 			pipe = fp->f_data;
 			PIPE_LOCK(pipe);
 			error = mac_pipe_label_set(td->td_ucred, pipe,
-			    &intlabel);
+			    intlabel);
 			PIPE_UNLOCK(pipe);
 		}
 
-		mac_destroy_pipe_label(&intlabel);
+		mac_pipe_label_free(intlabel);
 		break;
 
 	default:
@@ -983,7 +982,7 @@ out:
 int
 __mac_set_file(struct thread *td, struct __mac_set_file_args *uap)
 {
-	struct label intlabel;
+	struct label *intlabel;
 	struct nameidata nd;
 	struct mount *mp;
 	struct mac mac;
@@ -1005,13 +1004,11 @@ __mac_set_file(struct thread *td, struct __mac_set_file_args *uap)
 		return (error);
 	}
 
-	mac_init_vnode_label(&intlabel);
-	error = mac_internalize_vnode_label(&intlabel, buffer);
+	intlabel = mac_vnode_label_alloc();
+	error = mac_internalize_vnode_label(intlabel, buffer);
 	free(buffer, M_MACTEMP);
-	if (error) {
-		mac_destroy_vnode_label(&intlabel);
-		return (error);
-	}
+	if (error)
+		goto out;
 
 	mtx_lock(&Giant);				/* VFS */
 
@@ -1021,15 +1018,15 @@ __mac_set_file(struct thread *td, struct __mac_set_file_args *uap)
 	if (error == 0) {
 		error = vn_start_write(nd.ni_vp, &mp, V_WAIT | PCATCH);
 		if (error == 0)
-			error = vn_setlabel(nd.ni_vp, &intlabel,
+			error = vn_setlabel(nd.ni_vp, intlabel,
 			    td->td_ucred);
 		vn_finished_write(mp);
 	}
 
 	NDFREE(&nd, 0);
 	mtx_unlock(&Giant);				/* VFS */
-	mac_destroy_vnode_label(&intlabel);
-
+out:
+	mac_vnode_label_free(intlabel);
 	return (error);
 }
 
@@ -1039,7 +1036,7 @@ __mac_set_file(struct thread *td, struct __mac_set_file_args *uap)
 int
 __mac_set_link(struct thread *td, struct __mac_set_link_args *uap)
 {
-	struct label intlabel;
+	struct label *intlabel;
 	struct nameidata nd;
 	struct mount *mp;
 	struct mac mac;
@@ -1061,13 +1058,11 @@ __mac_set_link(struct thread *td, struct __mac_set_link_args *uap)
 		return (error);
 	}
 
-	mac_init_vnode_label(&intlabel);
-	error = mac_internalize_vnode_label(&intlabel, buffer);
+	intlabel = mac_vnode_label_alloc();
+	error = mac_internalize_vnode_label(intlabel, buffer);
 	free(buffer, M_MACTEMP);
-	if (error) {
-		mac_destroy_vnode_label(&intlabel);
-		return (error);
-	}
+	if (error)
+		goto out;
 
 	mtx_lock(&Giant);				/* VFS */
 
@@ -1077,15 +1072,15 @@ __mac_set_link(struct thread *td, struct __mac_set_link_args *uap)
 	if (error == 0) {
 		error = vn_start_write(nd.ni_vp, &mp, V_WAIT | PCATCH);
 		if (error == 0)
-			error = vn_setlabel(nd.ni_vp, &intlabel,
+			error = vn_setlabel(nd.ni_vp, intlabel,
 			    td->td_ucred);
 		vn_finished_write(mp);
 	}
 
 	NDFREE(&nd, 0);
 	mtx_unlock(&Giant);				/* VFS */
-	mac_destroy_vnode_label(&intlabel);
-
+out:
+	mac_vnode_label_free(intlabel);
 	return (error);
 }
 

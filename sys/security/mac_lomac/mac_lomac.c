@@ -499,7 +499,7 @@ maybe_demote(struct mac_lomac *subjlabel, struct mac_lomac *objlabel,
 	struct proc *p;
 	pid_t pgid;
 
-	subj = PSLOT(&curthread->td_proc->p_label);
+	subj = PSLOT(curthread->td_proc->p_label);
 
 	p = curthread->td_proc;
 	mtx_lock(&subj->mtx);
@@ -941,7 +941,7 @@ mac_lomac_create_devfs_symlink(struct ucred *cred, struct mount *mp,
 {
 	struct mac_lomac *source, *dest;
 
-	source = SLOT(&cred->cr_label);
+	source = SLOT(cred->cr_label);
 	dest = SLOT(delabel);
 
 	mac_lomac_copy_single(source, dest);
@@ -953,7 +953,7 @@ mac_lomac_create_mount(struct ucred *cred, struct mount *mp,
 {
 	struct mac_lomac *source, *dest;
 
-	source = SLOT(&cred->cr_label);
+	source = SLOT(cred->cr_label);
 	dest = SLOT(mntlabel);
 	mac_lomac_copy_single(source, dest);
 	dest = SLOT(fslabel);
@@ -1082,7 +1082,7 @@ mac_lomac_create_vnode_extattr(struct ucred *cred, struct mount *mp,
 	buflen = sizeof(temp);
 	bzero(&temp, buflen);
 
-	source = SLOT(&cred->cr_label);
+	source = SLOT(cred->cr_label);
 	dest = SLOT(vlabel);
 	dir = SLOT(dlabel);
 	if (dir->ml_flags & MAC_LOMAC_FLAG_AUX) {
@@ -1142,7 +1142,7 @@ mac_lomac_create_socket(struct ucred *cred, struct socket *socket,
 {
 	struct mac_lomac *source, *dest;
 
-	source = SLOT(&cred->cr_label);
+	source = SLOT(cred->cr_label);
 	dest = SLOT(socketlabel);
 
 	mac_lomac_copy_single(source, dest);
@@ -1154,7 +1154,7 @@ mac_lomac_create_pipe(struct ucred *cred, struct pipe *pipe,
 {
 	struct mac_lomac *source, *dest;
 
-	source = SLOT(&cred->cr_label);
+	source = SLOT(cred->cr_label);
 	dest = SLOT(pipelabel);
 
 	mac_lomac_copy_single(source, dest);
@@ -1231,7 +1231,7 @@ mac_lomac_create_bpfdesc(struct ucred *cred, struct bpf_d *bpf_d,
 {
 	struct mac_lomac *source, *dest;
 
-	source = SLOT(&cred->cr_label);
+	source = SLOT(cred->cr_label);
 	dest = SLOT(bpflabel);
 
 	mac_lomac_copy_single(source, dest);
@@ -1453,8 +1453,8 @@ mac_lomac_create_cred(struct ucred *cred_parent, struct ucred *cred_child)
 {
 	struct mac_lomac *source, *dest;
 
-	source = SLOT(&cred_parent->cr_label);
-	dest = SLOT(&cred_child->cr_label);
+	source = SLOT(cred_parent->cr_label);
+	dest = SLOT(cred_child->cr_label);
 
 	mac_lomac_copy_single(source, dest);
 	mac_lomac_copy_range(source, dest);
@@ -1468,8 +1468,8 @@ mac_lomac_execve_transition(struct ucred *old, struct ucred *new,
 {
 	struct mac_lomac *source, *dest, *obj, *robj;
 
-	source = SLOT(&old->cr_label);
-	dest = SLOT(&new->cr_label);
+	source = SLOT(old->cr_label);
+	dest = SLOT(new->cr_label);
 	obj = SLOT(vnodelabel);
 	robj = interpvnodelabel != NULL ? SLOT(interpvnodelabel) : obj;
 
@@ -1507,7 +1507,7 @@ mac_lomac_execve_will_transition(struct ucred *old, struct vnode *vp,
 	if (!mac_lomac_enabled || !revocation_enabled)
 		return (0);
 
-	subj = SLOT(&old->cr_label);
+	subj = SLOT(old->cr_label);
 	obj = SLOT(vnodelabel);
 	robj = interpvnodelabel != NULL ? SLOT(interpvnodelabel) : obj;
 
@@ -1522,7 +1522,7 @@ mac_lomac_create_proc0(struct ucred *cred)
 {
 	struct mac_lomac *dest;
 
-	dest = SLOT(&cred->cr_label);
+	dest = SLOT(cred->cr_label);
 
 	mac_lomac_set_single(dest, MAC_LOMAC_TYPE_EQUAL, 0);
 	mac_lomac_set_range(dest, MAC_LOMAC_TYPE_LOW, 0, MAC_LOMAC_TYPE_HIGH,
@@ -1534,7 +1534,7 @@ mac_lomac_create_proc1(struct ucred *cred)
 {
 	struct mac_lomac *dest;
 
-	dest = SLOT(&cred->cr_label);
+	dest = SLOT(cred->cr_label);
 
 	mac_lomac_set_single(dest, MAC_LOMAC_TYPE_HIGH, 0);
 	mac_lomac_set_range(dest, MAC_LOMAC_TYPE_LOW, 0, MAC_LOMAC_TYPE_HIGH,
@@ -1547,7 +1547,7 @@ mac_lomac_relabel_cred(struct ucred *cred, struct label *newlabel)
 	struct mac_lomac *source, *dest;
 
 	source = SLOT(newlabel);
-	dest = SLOT(&cred->cr_label);
+	dest = SLOT(cred->cr_label);
 
 	try_relabel(source, dest);
 }
@@ -1578,7 +1578,7 @@ mac_lomac_check_cred_relabel(struct ucred *cred, struct label *newlabel)
 	struct mac_lomac *subj, *new;
 	int error;
 
-	subj = SLOT(&cred->cr_label);
+	subj = SLOT(cred->cr_label);
 	new = SLOT(newlabel);
 
 	/*
@@ -1646,8 +1646,8 @@ mac_lomac_check_cred_visible(struct ucred *u1, struct ucred *u2)
 	if (!mac_lomac_enabled)
 		return (0);
 
-	subj = SLOT(&u1->cr_label);
-	obj = SLOT(&u2->cr_label);
+	subj = SLOT(u1->cr_label);
+	obj = SLOT(u2->cr_label);
 
 	/* XXX: range */
 	if (!mac_lomac_dominate_single(obj, subj))
@@ -1663,7 +1663,7 @@ mac_lomac_check_ifnet_relabel(struct ucred *cred, struct ifnet *ifnet,
 	struct mac_lomac *subj, *new;
 	int error;
 
-	subj = SLOT(&cred->cr_label);
+	subj = SLOT(cred->cr_label);
 	new = SLOT(newlabel);
 
 	/*
@@ -1735,7 +1735,7 @@ mac_lomac_check_kld_load(struct ucred *cred, struct vnode *vp,
 	if (!mac_lomac_enabled)
 		return (0);
 
-	subj = SLOT(&cred->cr_label);
+	subj = SLOT(cred->cr_label);
 	obj = SLOT(label);
 
 	if (mac_lomac_subject_privileged(subj))
@@ -1755,7 +1755,7 @@ mac_lomac_check_kld_unload(struct ucred *cred)
 	if (!mac_lomac_enabled)
 		return (0);
 
-	subj = SLOT(&cred->cr_label);
+	subj = SLOT(cred->cr_label);
 
 	if (mac_lomac_subject_privileged(subj))
 		return (EPERM);
@@ -1785,7 +1785,7 @@ mac_lomac_check_pipe_read(struct ucred *cred, struct pipe *pipe,
 	if (!mac_lomac_enabled)
 		return (0);
 
-	subj = SLOT(&cred->cr_label);
+	subj = SLOT(cred->cr_label);
 	obj = SLOT((pipelabel));
 
 	if (!mac_lomac_dominate_single(obj, subj))
@@ -1802,7 +1802,7 @@ mac_lomac_check_pipe_relabel(struct ucred *cred, struct pipe *pipe,
 	int error;
 
 	new = SLOT(newlabel);
-	subj = SLOT(&cred->cr_label);
+	subj = SLOT(cred->cr_label);
 	obj = SLOT(pipelabel);
 
 	/*
@@ -1854,7 +1854,7 @@ mac_lomac_check_pipe_write(struct ucred *cred, struct pipe *pipe,
 	if (!mac_lomac_enabled)
 		return (0);
 
-	subj = SLOT(&cred->cr_label);
+	subj = SLOT(cred->cr_label);
 	obj = SLOT((pipelabel));
 
 	if (!mac_lomac_subject_dominate(subj, obj))
@@ -1871,8 +1871,8 @@ mac_lomac_check_proc_debug(struct ucred *cred, struct proc *proc)
 	if (!mac_lomac_enabled)
 		return (0);
 
-	subj = SLOT(&cred->cr_label);
-	obj = SLOT(&proc->p_ucred->cr_label);
+	subj = SLOT(cred->cr_label);
+	obj = SLOT(proc->p_ucred->cr_label);
 
 	/* XXX: range checks */
 	if (!mac_lomac_dominate_single(obj, subj))
@@ -1891,8 +1891,8 @@ mac_lomac_check_proc_sched(struct ucred *cred, struct proc *proc)
 	if (!mac_lomac_enabled)
 		return (0);
 
-	subj = SLOT(&cred->cr_label);
-	obj = SLOT(&proc->p_ucred->cr_label);
+	subj = SLOT(cred->cr_label);
+	obj = SLOT(proc->p_ucred->cr_label);
 
 	/* XXX: range checks */
 	if (!mac_lomac_dominate_single(obj, subj))
@@ -1911,8 +1911,8 @@ mac_lomac_check_proc_signal(struct ucred *cred, struct proc *proc, int signum)
 	if (!mac_lomac_enabled)
 		return (0);
 
-	subj = SLOT(&cred->cr_label);
-	obj = SLOT(&proc->p_ucred->cr_label);
+	subj = SLOT(cred->cr_label);
+	obj = SLOT(proc->p_ucred->cr_label);
 
 	/* XXX: range checks */
 	if (!mac_lomac_dominate_single(obj, subj))
@@ -1946,7 +1946,7 @@ mac_lomac_check_socket_relabel(struct ucred *cred, struct socket *socket,
 	int error;
 
 	new = SLOT(newlabel);
-	subj = SLOT(&cred->cr_label);
+	subj = SLOT(cred->cr_label);
 	obj = SLOT(socketlabel);
 
 	/*
@@ -1998,7 +1998,7 @@ mac_lomac_check_socket_visible(struct ucred *cred, struct socket *socket,
 	if (!mac_lomac_enabled)
 		return (0);
 
-	subj = SLOT(&cred->cr_label);
+	subj = SLOT(cred->cr_label);
 	obj = SLOT(socketlabel);
 
 	if (!mac_lomac_dominate_single(obj, subj))
@@ -2016,7 +2016,7 @@ mac_lomac_check_system_swapon(struct ucred *cred, struct vnode *vp,
 	if (!mac_lomac_enabled)
 		return (0);
 
-	subj = SLOT(&cred->cr_label);
+	subj = SLOT(cred->cr_label);
 	obj = SLOT(label);
 
 	if (mac_lomac_subject_privileged(subj))
@@ -2037,7 +2037,7 @@ mac_lomac_check_system_sysctl(struct ucred *cred, int *name, u_int namelen,
 	if (!mac_lomac_enabled)
 		return (0);
 
-	subj = SLOT(&cred->cr_label);
+	subj = SLOT(cred->cr_label);
 
 	/*
 	 * In general, treat sysctl variables as lomac/high, but also
@@ -2071,7 +2071,7 @@ mac_lomac_check_vnode_create(struct ucred *cred, struct vnode *dvp,
 	if (!mac_lomac_enabled)
 		return (0);
 
-	subj = SLOT(&cred->cr_label);
+	subj = SLOT(cred->cr_label);
 	obj = SLOT(dlabel);
 
 	if (!mac_lomac_subject_dominate(subj, obj))
@@ -2093,7 +2093,7 @@ mac_lomac_check_vnode_delete(struct ucred *cred, struct vnode *dvp,
 	if (!mac_lomac_enabled)
 		return (0);
 
-	subj = SLOT(&cred->cr_label);
+	subj = SLOT(cred->cr_label);
 	obj = SLOT(dlabel);
 
 	if (!mac_lomac_subject_dominate(subj, obj))
@@ -2116,7 +2116,7 @@ mac_lomac_check_vnode_deleteacl(struct ucred *cred, struct vnode *vp,
 	if (!mac_lomac_enabled)
 		return (0);
 
-	subj = SLOT(&cred->cr_label);
+	subj = SLOT(cred->cr_label);
 	obj = SLOT(label);
 
 	if (!mac_lomac_subject_dominate(subj, obj))
@@ -2135,7 +2135,7 @@ mac_lomac_check_vnode_link(struct ucred *cred, struct vnode *dvp,
 	if (!mac_lomac_enabled)
 		return (0);
 
-	subj = SLOT(&cred->cr_label);
+	subj = SLOT(cred->cr_label);
 	obj = SLOT(dlabel);
 
 	if (!mac_lomac_subject_dominate(subj, obj))
@@ -2162,7 +2162,7 @@ mac_lomac_check_vnode_mmap(struct ucred *cred, struct vnode *vp,
 	if (!mac_lomac_enabled)
 		return (0);
 
-	subj = SLOT(&cred->cr_label);
+	subj = SLOT(cred->cr_label);
 	obj = SLOT(label);
 
 	if (prot & VM_PROT_WRITE) {
@@ -2190,7 +2190,7 @@ mac_lomac_check_vnode_mprotect(struct ucred *cred, struct vnode *vp,
 	if (!mac_lomac_enabled || !revocation_enabled)
 		return (0);
 
-	subj = SLOT(&cred->cr_label);
+	subj = SLOT(cred->cr_label);
 	obj = SLOT(label);
 
 	if (prot & VM_PROT_WRITE) {
@@ -2218,7 +2218,7 @@ mac_lomac_check_vnode_mmap_downgrade(struct ucred *cred, struct vnode *vp,
 	if (!mac_lomac_enabled || !revocation_enabled)
 		return;
 
-	subj = SLOT(&cred->cr_label);
+	subj = SLOT(cred->cr_label);
 	obj = SLOT(label);
 
 	if (!mac_lomac_subject_dominate(subj, obj))
@@ -2234,7 +2234,7 @@ mac_lomac_check_vnode_open(struct ucred *cred, struct vnode *vp,
 	if (!mac_lomac_enabled)
 		return (0);
 
-	subj = SLOT(&cred->cr_label);
+	subj = SLOT(cred->cr_label);
 	obj = SLOT(vnodelabel);
 
 	/* XXX privilege override for admin? */
@@ -2255,7 +2255,7 @@ mac_lomac_check_vnode_read(struct ucred *active_cred, struct ucred *file_cred,
 	if (!mac_lomac_enabled || !revocation_enabled)
 		return (0);
 
-	subj = SLOT(&active_cred->cr_label);
+	subj = SLOT(active_cred->cr_label);
 	obj = SLOT(label);
 
 	if (!mac_lomac_dominate_single(obj, subj))
@@ -2273,7 +2273,7 @@ mac_lomac_check_vnode_relabel(struct ucred *cred, struct vnode *vp,
 
 	old = SLOT(vnodelabel);
 	new = SLOT(newlabel);
-	subj = SLOT(&cred->cr_label);
+	subj = SLOT(cred->cr_label);
 
 	/*
 	 * If there is a LOMAC label update for the vnode, it must be a
@@ -2350,7 +2350,7 @@ mac_lomac_check_vnode_rename_from(struct ucred *cred, struct vnode *dvp,
 	if (!mac_lomac_enabled)
 		return (0);
 
-	subj = SLOT(&cred->cr_label);
+	subj = SLOT(cred->cr_label);
 	obj = SLOT(dlabel);
 
 	if (!mac_lomac_subject_dominate(subj, obj))
@@ -2374,7 +2374,7 @@ mac_lomac_check_vnode_rename_to(struct ucred *cred, struct vnode *dvp,
 	if (!mac_lomac_enabled)
 		return (0);
 
-	subj = SLOT(&cred->cr_label);
+	subj = SLOT(cred->cr_label);
 	obj = SLOT(dlabel);
 
 	if (!mac_lomac_subject_dominate(subj, obj))
@@ -2399,7 +2399,7 @@ mac_lomac_check_vnode_revoke(struct ucred *cred, struct vnode *vp,
 	if (!mac_lomac_enabled)
 		return (0);
 
-	subj = SLOT(&cred->cr_label);
+	subj = SLOT(cred->cr_label);
 	obj = SLOT(label);
 
 	if (!mac_lomac_subject_dominate(subj, obj))
@@ -2417,7 +2417,7 @@ mac_lomac_check_vnode_setacl(struct ucred *cred, struct vnode *vp,
 	if (!mac_lomac_enabled)
 		return (0);
 
-	subj = SLOT(&cred->cr_label);
+	subj = SLOT(cred->cr_label);
 	obj = SLOT(label);
 
 	if (!mac_lomac_subject_dominate(subj, obj))
@@ -2436,7 +2436,7 @@ mac_lomac_check_vnode_setextattr(struct ucred *cred, struct vnode *vp,
 	if (!mac_lomac_enabled)
 		return (0);
 
-	subj = SLOT(&cred->cr_label);
+	subj = SLOT(cred->cr_label);
 	obj = SLOT(vnodelabel);
 
 	if (!mac_lomac_subject_dominate(subj, obj))
@@ -2456,7 +2456,7 @@ mac_lomac_check_vnode_setflags(struct ucred *cred, struct vnode *vp,
 	if (!mac_lomac_enabled)
 		return (0);
 
-	subj = SLOT(&cred->cr_label);
+	subj = SLOT(cred->cr_label);
 	obj = SLOT(vnodelabel);
 
 	if (!mac_lomac_subject_dominate(subj, obj))
@@ -2474,7 +2474,7 @@ mac_lomac_check_vnode_setmode(struct ucred *cred, struct vnode *vp,
 	if (!mac_lomac_enabled)
 		return (0);
 
-	subj = SLOT(&cred->cr_label);
+	subj = SLOT(cred->cr_label);
 	obj = SLOT(vnodelabel);
 
 	if (!mac_lomac_subject_dominate(subj, obj))
@@ -2492,7 +2492,7 @@ mac_lomac_check_vnode_setowner(struct ucred *cred, struct vnode *vp,
 	if (!mac_lomac_enabled)
 		return (0);
 
-	subj = SLOT(&cred->cr_label);
+	subj = SLOT(cred->cr_label);
 	obj = SLOT(vnodelabel);
 
 	if (!mac_lomac_subject_dominate(subj, obj))
@@ -2510,7 +2510,7 @@ mac_lomac_check_vnode_setutimes(struct ucred *cred, struct vnode *vp,
 	if (!mac_lomac_enabled)
 		return (0);
 
-	subj = SLOT(&cred->cr_label);
+	subj = SLOT(cred->cr_label);
 	obj = SLOT(vnodelabel);
 
 	if (!mac_lomac_subject_dominate(subj, obj))
@@ -2528,7 +2528,7 @@ mac_lomac_check_vnode_write(struct ucred *active_cred,
 	if (!mac_lomac_enabled || !revocation_enabled)
 		return (0);
 
-	subj = SLOT(&active_cred->cr_label);
+	subj = SLOT(active_cred->cr_label);
 	obj = SLOT(label);
 
 	if (!mac_lomac_subject_dominate(subj, obj))
@@ -2541,7 +2541,7 @@ static void
 mac_lomac_thread_userret(struct thread *td)
 {
 	struct proc *p = td->td_proc;
-	struct mac_lomac_proc *subj = PSLOT(&p->p_label);
+	struct mac_lomac_proc *subj = PSLOT(p->p_label);
 	struct ucred *newcred, *oldcred;
 	int dodrop;
 
@@ -2568,7 +2568,7 @@ mac_lomac_thread_userret(struct thread *td)
 		oldcred = p->p_ucred;
 		crcopy(newcred, oldcred);
 		crhold(newcred);
-		mac_lomac_copy(&subj->mac_lomac, SLOT(&newcred->cr_label));
+		mac_lomac_copy(&subj->mac_lomac, SLOT(newcred->cr_label));
 		p->p_ucred = newcred;
 		crfree(oldcred);
 		dodrop = 1;

@@ -37,7 +37,6 @@
 #ifndef _SYS_SOCKETVAR_H_
 #define _SYS_SOCKETVAR_H_
 
-#include <sys/_label.h>			/* for struct label */
 #include <sys/queue.h>			/* for TAILQ macros */
 #include <sys/selinfo.h>		/* for struct selinfo */
 
@@ -128,8 +127,8 @@ struct socket {
 	void	(*so_upcall)(struct socket *, void *, int);
 	void	*so_upcallarg;
 	struct	ucred *so_cred;		/* user credentials */
-	struct	label so_label;		/* MAC label for socket */
-	struct	label so_peerlabel;	/* cached MAC label for socket peer */
+	struct	label *so_label;	/* MAC label for socket */
+	struct	label *so_peerlabel;	/* cached MAC label for socket peer */
 	/* NB: generation count must not be first; easiest to make it last. */
 	so_gen_t so_gencnt;		/* generation count */
 	void	*so_emuldata;		/* private data for emulators */

@@ -44,7 +44,6 @@
  * Only the suser() or suser_cred() function should be used for this.
  */
 #if defined(_KERNEL) || defined(_WANT_UCRED)
-#include <sys/_label.h>
 
 struct ucred {
 	u_int	cr_ref;			/* reference count */
@@ -60,7 +59,7 @@ struct ucred {
 	struct uidinfo	*cr_ruidinfo;	/* per ruid resource consumption */
 	struct prison	*cr_prison;	/* jail(2) */
 #define	cr_endcopy	cr_label
-	struct label	cr_label;	/* MAC label */
+	struct label	*cr_label;	/* MAC label */
 	struct mtx	*cr_mtxp;      	/* protect refcount */
 };
 #define	NOCRED	((struct ucred *)0)	/* no credential available */

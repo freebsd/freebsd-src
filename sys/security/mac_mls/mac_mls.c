@@ -781,11 +781,11 @@ mac_mls_create_devfs_directory(struct mount *mp, char *dirname,
 static void
 mac_mls_create_devfs_symlink(struct ucred *cred, struct mount *mp,
     struct devfs_dirent *dd, struct label *ddlabel, struct devfs_dirent *de,
-    struct label *delabel)
+    struct label *delabel, const char *fullpath)
 {
 	struct mac_mls *source, *dest;
 
-	source = SLOT(&cred->cr_label);
+	source = SLOT(cred->cr_label);
 	dest = SLOT(delabel);
 
 	mac_mls_copy_single(source, dest);
@@ -797,7 +797,7 @@ mac_mls_create_mount(struct ucred *cred, struct mount *mp,
 {
 	struct mac_mls *source, *dest;
 
-	source = SLOT(&cred->cr_label);
+	source = SLOT(cred->cr_label);
 	dest = SLOT(mntlabel);
 	mac_mls_copy_single(source, dest);
 	dest = SLOT(fslabel);
@@ -919,7 +919,7 @@ mac_mls_create_vnode_extattr(struct ucred *cred, struct mount *mp,
 	buflen = sizeof(temp);
 	bzero(&temp, buflen);
 
-	source = SLOT(&cred->cr_label);
+	source = SLOT(cred->cr_label);
 	dest = SLOT(vlabel);
 	mac_mls_copy_single(source, &temp);
 
@@ -973,7 +973,7 @@ mac_mls_create_socket(struct ucred *cred, struct socket *socket,
 {
 	struct mac_mls *source, *dest;
 
-	source = SLOT(&cred->cr_label);
+	source = SLOT(cred->cr_label);
 	dest = SLOT(socketlabel);
 
 	mac_mls_copy_single(source, dest);
@@ -985,7 +985,7 @@ mac_mls_create_pipe(struct ucred *cred, struct pipe *pipe,
 {
 	struct mac_mls *source, *dest;
 
-	source = SLOT(&cred->cr_label);
+	source = SLOT(cred->cr_label);
 	dest = SLOT(pipelabel);
 
 	mac_mls_copy_single(source, dest);
@@ -1062,7 +1062,7 @@ mac_mls_create_bpfdesc(struct ucred *cred, struct bpf_d *bpf_d,
 {
 	struct mac_mls *source, *dest;
 
-	source = SLOT(&cred->cr_label);
+	source = SLOT(cred->cr_label);
 	dest = SLOT(bpflabel);
 
 	mac_mls_copy_single(source, dest);
@@ -1243,8 +1243,8 @@ mac_mls_create_cred(struct ucred *cred_parent, struct ucred *cred_child)
 {
 	struct mac_mls *source, *dest;
 
-	source = SLOT(&cred_parent->cr_label);
-	dest = SLOT(&cred_child->cr_label);
+	source = SLOT(cred_parent->cr_label);
+	dest = SLOT(cred_child->cr_label);
 
 	mac_mls_copy_single(source, dest);
 	mac_mls_copy_range(source, dest);
@@ -1255,7 +1255,7 @@ mac_mls_create_proc0(struct ucred *cred)
 {
 	struct mac_mls *dest;
 
-	dest = SLOT(&cred->cr_label);
+	dest = SLOT(cred->cr_label);
 
 	mac_mls_set_single(dest, MAC_MLS_TYPE_EQUAL, 0, NULL);
 	mac_mls_set_range(dest, MAC_MLS_TYPE_LOW, 0, NULL, MAC_MLS_TYPE_HIGH,
@@ -1267,7 +1267,7 @@ mac_mls_create_proc1(struct ucred *cred)
 {
 	struct mac_mls *dest;
 
-	dest = SLOT(&cred->cr_label);
+	dest = SLOT(cred->cr_label);
 
 	mac_mls_set_single(dest, MAC_MLS_TYPE_LOW, 0, NULL);
 	mac_mls_set_range(dest, MAC_MLS_TYPE_LOW, 0, NULL, MAC_MLS_TYPE_HIGH,
@@ -1280,7 +1280,7 @@ mac_mls_relabel_cred(struct ucred *cred, struct label *newlabel)
 	struct mac_mls *source, *dest;
 
 	source = SLOT(newlabel);
-	dest = SLOT(&cred->cr_label);
+	dest = SLOT(cred->cr_label);
 
 	mac_mls_copy(source, dest);
 }
@@ -1311,7 +1311,7 @@ mac_mls_check_cred_relabel(struct ucred *cred, struct label *newlabel)
 	struct mac_mls *subj, *new;
 	int error;
 
-	subj = SLOT(&cred->cr_label);
+	subj = SLOT(cred->cr_label);
 	new = SLOT(newlabel);
 
 	/*
@@ -1375,8 +1375,8 @@ mac_mls_check_cred_visible(struct ucred *u1, struct ucred *u2)
 	if (!mac_mls_enabled)
 		return (0);
 
-	subj = SLOT(&u1->cr_label);
-	obj = SLOT(&u2->cr_label);
+	subj = SLOT(u1->cr_label);
+	obj = SLOT(u2->cr_label);
 
 	/* XXX: range */
 	if (!mac_mls_dominate_single(subj, obj))
@@ -1392,7 +1392,7 @@ mac_mls_check_ifnet_relabel(struct ucred *cred, struct ifnet *ifnet,
 	struct mac_mls *subj, *new;
 	int error;
 
-	subj = SLOT(&cred->cr_label);
+	subj = SLOT(cred->cr_label);
 	new = SLOT(newlabel);
 
 	/*
@@ -1435,7 +1435,7 @@ mac_mls_check_mount_stat(struct ucred *cred, struct mount *mp,
 	if (!mac_mls_enabled)
 		return (0);
 
-	subj = SLOT(&cred->cr_label);
+	subj = SLOT(cred->cr_label);
 	obj = SLOT(mntlabel);
 
 	if (!mac_mls_dominate_single(subj, obj))
@@ -1466,7 +1466,7 @@ mac_mls_check_pipe_poll(struct ucred *cred, struct pipe *pipe,
 	if (!mac_mls_enabled)
 		return (0);
 
-	subj = SLOT(&cred->cr_label);
+	subj = SLOT(cred->cr_label);
 	obj = SLOT((pipelabel));
 
 	if (!mac_mls_dominate_single(subj, obj))
@@ -1484,7 +1484,7 @@ mac_mls_check_pipe_read(struct ucred *cred, struct pipe *pipe,
 	if (!mac_mls_enabled)
 		return (0);
 
-	subj = SLOT(&cred->cr_label);
+	subj = SLOT(cred->cr_label);
 	obj = SLOT((pipelabel));
 
 	if (!mac_mls_dominate_single(subj, obj))
@@ -1501,7 +1501,7 @@ mac_mls_check_pipe_relabel(struct ucred *cred, struct pipe *pipe,
 	int error;
 
 	new = SLOT(newlabel);
-	subj = SLOT(&cred->cr_label);
+	subj = SLOT(cred->cr_label);
 	obj = SLOT(pipelabel);
 
 	/*
@@ -1553,7 +1553,7 @@ mac_mls_check_pipe_stat(struct ucred *cred, struct pipe *pipe,
 	if (!mac_mls_enabled)
 		return (0);
 
-	subj = SLOT(&cred->cr_label);
+	subj = SLOT(cred->cr_label);
 	obj = SLOT((pipelabel));
 
 	if (!mac_mls_dominate_single(subj, obj))
@@ -1571,7 +1571,7 @@ mac_mls_check_pipe_write(struct ucred *cred, struct pipe *pipe,
 	if (!mac_mls_enabled)
 		return (0);
 
-	subj = SLOT(&cred->cr_label);
+	subj = SLOT(cred->cr_label);
 	obj = SLOT((pipelabel));
 
 	if (!mac_mls_dominate_single(obj, subj))
@@ -1588,8 +1588,8 @@ mac_mls_check_proc_debug(struct ucred *cred, struct proc *proc)
 	if (!mac_mls_enabled)
 		return (0);
 
-	subj = SLOT(&cred->cr_label);
-	obj = SLOT(&proc->p_ucred->cr_label);
+	subj = SLOT(cred->cr_label);
+	obj = SLOT(proc->p_ucred->cr_label);
 
 	/* XXX: range checks */
 	if (!mac_mls_dominate_single(subj, obj))
@@ -1608,8 +1608,8 @@ mac_mls_check_proc_sched(struct ucred *cred, struct proc *proc)
 	if (!mac_mls_enabled)
 		return (0);
 
-	subj = SLOT(&cred->cr_label);
-	obj = SLOT(&proc->p_ucred->cr_label);
+	subj = SLOT(cred->cr_label);
+	obj = SLOT(proc->p_ucred->cr_label);
 
 	/* XXX: range checks */
 	if (!mac_mls_dominate_single(subj, obj))
@@ -1628,8 +1628,8 @@ mac_mls_check_proc_signal(struct ucred *cred, struct proc *proc, int signum)
 	if (!mac_mls_enabled)
 		return (0);
 
-	subj = SLOT(&cred->cr_label);
-	obj = SLOT(&proc->p_ucred->cr_label);
+	subj = SLOT(cred->cr_label);
+	obj = SLOT(proc->p_ucred->cr_label);
 
 	/* XXX: range checks */
 	if (!mac_mls_dominate_single(subj, obj))
@@ -1663,7 +1663,7 @@ mac_mls_check_socket_relabel(struct ucred *cred, struct socket *socket,
 	int error;
 
 	new = SLOT(newlabel);
-	subj = SLOT(&cred->cr_label);
+	subj = SLOT(cred->cr_label);
 	obj = SLOT(socketlabel);
 
 	/*
@@ -1715,7 +1715,7 @@ mac_mls_check_socket_visible(struct ucred *cred, struct socket *socket,
 	if (!mac_mls_enabled)
 		return (0);
 
-	subj = SLOT(&cred->cr_label);
+	subj = SLOT(cred->cr_label);
 	obj = SLOT(socketlabel);
 
 	if (!mac_mls_dominate_single(subj, obj))
@@ -1733,7 +1733,7 @@ mac_mls_check_system_swapon(struct ucred *cred, struct vnode *vp,
 	if (!mac_mls_enabled)
 		return (0);
 
-	subj = SLOT(&cred->cr_label);
+	subj = SLOT(cred->cr_label);
 	obj = SLOT(label);
 
 	if (!mac_mls_dominate_single(obj, subj) ||
@@ -1752,7 +1752,7 @@ mac_mls_check_vnode_chdir(struct ucred *cred, struct vnode *dvp,
 	if (!mac_mls_enabled)
 		return (0);
 
-	subj = SLOT(&cred->cr_label);
+	subj = SLOT(cred->cr_label);
 	obj = SLOT(dlabel);
 
 	if (!mac_mls_dominate_single(subj, obj))
@@ -1770,7 +1770,7 @@ mac_mls_check_vnode_chroot(struct ucred *cred, struct vnode *dvp,
 	if (!mac_mls_enabled)
 		return (0);
 
-	subj = SLOT(&cred->cr_label);
+	subj = SLOT(cred->cr_label);
 	obj = SLOT(dlabel);
 
 	if (!mac_mls_dominate_single(subj, obj))
@@ -1788,7 +1788,7 @@ mac_mls_check_vnode_create(struct ucred *cred, struct vnode *dvp,
 	if (!mac_mls_enabled)
 		return (0);
 
-	subj = SLOT(&cred->cr_label);
+	subj = SLOT(cred->cr_label);
 	obj = SLOT(dlabel);
 
 	if (!mac_mls_dominate_single(obj, subj))
@@ -1807,7 +1807,7 @@ mac_mls_check_vnode_delete(struct ucred *cred, struct vnode *dvp,
 	if (!mac_mls_enabled)
 		return (0);
 
-	subj = SLOT(&cred->cr_label);
+	subj = SLOT(cred->cr_label);
 	obj = SLOT(dlabel);
 
 	if (!mac_mls_dominate_single(obj, subj))
@@ -1830,7 +1830,7 @@ mac_mls_check_vnode_deleteacl(struct ucred *cred, struct vnode *vp,
 	if (!mac_mls_enabled)
 		return (0);
 
-	subj = SLOT(&cred->cr_label);
+	subj = SLOT(cred->cr_label);
 	obj = SLOT(label);
 
 	if (!mac_mls_dominate_single(obj, subj))
@@ -1848,7 +1848,7 @@ mac_mls_check_vnode_deleteextattr(struct ucred *cred, struct vnode *vp,
 	if (!mac_mls_enabled)
 		return (0);
 
-	subj = SLOT(&cred->cr_label);
+	subj = SLOT(cred->cr_label);
 	obj = SLOT(label);
 
 	if (!mac_mls_dominate_single(obj, subj))
@@ -1880,7 +1880,7 @@ mac_mls_check_vnode_exec(struct ucred *cred, struct vnode *vp,
 	if (!mac_mls_enabled)
 		return (0);
 
-	subj = SLOT(&cred->cr_label);
+	subj = SLOT(cred->cr_label);
 	obj = SLOT(label);
 
 	if (!mac_mls_dominate_single(subj, obj))
@@ -1898,7 +1898,7 @@ mac_mls_check_vnode_getacl(struct ucred *cred, struct vnode *vp,
 	if (!mac_mls_enabled)
 		return (0);
 
-	subj = SLOT(&cred->cr_label);
+	subj = SLOT(cred->cr_label);
 	obj = SLOT(label);
 
 	if (!mac_mls_dominate_single(subj, obj))
@@ -1916,7 +1916,7 @@ mac_mls_check_vnode_getextattr(struct ucred *cred, struct vnode *vp,
 	if (!mac_mls_enabled)
 		return (0);
 
-	subj = SLOT(&cred->cr_label);
+	subj = SLOT(cred->cr_label);
 	obj = SLOT(label);
 
 	if (!mac_mls_dominate_single(subj, obj))
@@ -1935,7 +1935,7 @@ mac_mls_check_vnode_link(struct ucred *cred, struct vnode *dvp,
 	if (!mac_mls_enabled)
 		return (0);
 
-	subj = SLOT(&cred->cr_label);
+	subj = SLOT(cred->cr_label);
 	obj = SLOT(dlabel);
 
 	if (!mac_mls_dominate_single(obj, subj))
@@ -1958,7 +1958,7 @@ mac_mls_check_vnode_listextattr(struct ucred *cred, struct vnode *vp,
 	if (!mac_mls_enabled)
 		return (0);
 
-	subj = SLOT(&cred->cr_label);
+	subj = SLOT(cred->cr_label);
 	obj = SLOT(label);
 
 	if (!mac_mls_dominate_single(subj, obj))
@@ -1976,7 +1976,7 @@ mac_mls_check_vnode_lookup(struct ucred *cred, struct vnode *dvp,
 	if (!mac_mls_enabled)
 		return (0);
 
-	subj = SLOT(&cred->cr_label);
+	subj = SLOT(cred->cr_label);
 	obj = SLOT(dlabel);
 
 	if (!mac_mls_dominate_single(subj, obj))
@@ -1998,7 +1998,7 @@ mac_mls_check_vnode_mmap(struct ucred *cred, struct vnode *vp,
 	if (!mac_mls_enabled || !revocation_enabled)
 		return (0);
 
-	subj = SLOT(&cred->cr_label);
+	subj = SLOT(cred->cr_label);
 	obj = SLOT(label);
 
 	if (prot & (VM_PROT_READ | VM_PROT_EXECUTE)) {
@@ -2022,7 +2022,7 @@ mac_mls_check_vnode_open(struct ucred *cred, struct vnode *vp,
 	if (!mac_mls_enabled)
 		return (0);
 
-	subj = SLOT(&cred->cr_label);
+	subj = SLOT(cred->cr_label);
 	obj = SLOT(vnodelabel);
 
 	/* XXX privilege override for admin? */
@@ -2047,7 +2047,7 @@ mac_mls_check_vnode_poll(struct ucred *active_cred, struct ucred *file_cred,
 	if (!mac_mls_enabled || !revocation_enabled)
 		return (0);
 
-	subj = SLOT(&active_cred->cr_label);
+	subj = SLOT(active_cred->cr_label);
 	obj = SLOT(label);
 
 	if (!mac_mls_dominate_single(subj, obj))
@@ -2065,7 +2065,7 @@ mac_mls_check_vnode_read(struct ucred *active_cred, struct ucred *file_cred,
 	if (!mac_mls_enabled || !revocation_enabled)
 		return (0);
 
-	subj = SLOT(&active_cred->cr_label);
+	subj = SLOT(active_cred->cr_label);
 	obj = SLOT(label);
 
 	if (!mac_mls_dominate_single(subj, obj))
@@ -2083,7 +2083,7 @@ mac_mls_check_vnode_readdir(struct ucred *cred, struct vnode *dvp,
 	if (!mac_mls_enabled)
 		return (0);
 
-	subj = SLOT(&cred->cr_label);
+	subj = SLOT(cred->cr_label);
 	obj = SLOT(dlabel);
 
 	if (!mac_mls_dominate_single(subj, obj))
@@ -2101,7 +2101,7 @@ mac_mls_check_vnode_readlink(struct ucred *cred, struct vnode *vp,
 	if (!mac_mls_enabled)
 		return (0);
 
-	subj = SLOT(&cred->cr_label);
+	subj = SLOT(cred->cr_label);
 	obj = SLOT(vnodelabel);
 
 	if (!mac_mls_dominate_single(subj, obj))
@@ -2119,7 +2119,7 @@ mac_mls_check_vnode_relabel(struct ucred *cred, struct vnode *vp,
 
 	old = SLOT(vnodelabel);
 	new = SLOT(newlabel);
-	subj = SLOT(&cred->cr_label);
+	subj = SLOT(cred->cr_label);
 
 	/*
 	 * If there is an MLS label update for the vnode, it must be a
@@ -2172,7 +2172,7 @@ mac_mls_check_vnode_rename_from(struct ucred *cred, struct vnode *dvp,
 	if (!mac_mls_enabled)
 		return (0);
 
-	subj = SLOT(&cred->cr_label);
+	subj = SLOT(cred->cr_label);
 	obj = SLOT(dlabel);
 
 	if (!mac_mls_dominate_single(obj, subj))
@@ -2196,7 +2196,7 @@ mac_mls_check_vnode_rename_to(struct ucred *cred, struct vnode *dvp,
 	if (!mac_mls_enabled)
 		return (0);
 
-	subj = SLOT(&cred->cr_label);
+	subj = SLOT(cred->cr_label);
 	obj = SLOT(dlabel);
 
 	if (!mac_mls_dominate_single(obj, subj))
@@ -2221,7 +2221,7 @@ mac_mls_check_vnode_revoke(struct ucred *cred, struct vnode *vp,
 	if (!mac_mls_enabled)
 		return (0);
 
-	subj = SLOT(&cred->cr_label);
+	subj = SLOT(cred->cr_label);
 	obj = SLOT(label);
 
 	if (!mac_mls_dominate_single(obj, subj))
@@ -2239,7 +2239,7 @@ mac_mls_check_vnode_setacl(struct ucred *cred, struct vnode *vp,
 	if (!mac_mls_enabled)
 		return (0);
 
-	subj = SLOT(&cred->cr_label);
+	subj = SLOT(cred->cr_label);
 	obj = SLOT(label);
 
 	if (!mac_mls_dominate_single(obj, subj))
@@ -2258,7 +2258,7 @@ mac_mls_check_vnode_setextattr(struct ucred *cred, struct vnode *vp,
 	if (!mac_mls_enabled)
 		return (0);
 
-	subj = SLOT(&cred->cr_label);
+	subj = SLOT(cred->cr_label);
 	obj = SLOT(vnodelabel);
 
 	if (!mac_mls_dominate_single(obj, subj))
@@ -2278,7 +2278,7 @@ mac_mls_check_vnode_setflags(struct ucred *cred, struct vnode *vp,
 	if (!mac_mls_enabled)
 		return (0);
 
-	subj = SLOT(&cred->cr_label);
+	subj = SLOT(cred->cr_label);
 	obj = SLOT(vnodelabel);
 
 	if (!mac_mls_dominate_single(obj, subj))
@@ -2296,7 +2296,7 @@ mac_mls_check_vnode_setmode(struct ucred *cred, struct vnode *vp,
 	if (!mac_mls_enabled)
 		return (0);
 
-	subj = SLOT(&cred->cr_label);
+	subj = SLOT(cred->cr_label);
 	obj = SLOT(vnodelabel);
 
 	if (!mac_mls_dominate_single(obj, subj))
@@ -2314,7 +2314,7 @@ mac_mls_check_vnode_setowner(struct ucred *cred, struct vnode *vp,
 	if (!mac_mls_enabled)
 		return (0);
 
-	subj = SLOT(&cred->cr_label);
+	subj = SLOT(cred->cr_label);
 	obj = SLOT(vnodelabel);
 
 	if (!mac_mls_dominate_single(obj, subj))
@@ -2332,7 +2332,7 @@ mac_mls_check_vnode_setutimes(struct ucred *cred, struct vnode *vp,
 	if (!mac_mls_enabled)
 		return (0);
 
-	subj = SLOT(&cred->cr_label);
+	subj = SLOT(cred->cr_label);
 	obj = SLOT(vnodelabel);
 
 	if (!mac_mls_dominate_single(obj, subj))
@@ -2350,7 +2350,7 @@ mac_mls_check_vnode_stat(struct ucred *active_cred, struct ucred *file_cred,
 	if (!mac_mls_enabled)
 		return (0);
 
-	subj = SLOT(&active_cred->cr_label);
+	subj = SLOT(active_cred->cr_label);
 	obj = SLOT(vnodelabel);
 
 	if (!mac_mls_dominate_single(subj, obj))
@@ -2368,7 +2368,7 @@ mac_mls_check_vnode_write(struct ucred *active_cred, struct ucred *file_cred,
 	if (!mac_mls_enabled || !revocation_enabled)
 		return (0);
 
-	subj = SLOT(&active_cred->cr_label);
+	subj = SLOT(active_cred->cr_label);
 	obj = SLOT(label);
 
 	if (!mac_mls_dominate_single(obj, subj))

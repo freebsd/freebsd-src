@@ -55,7 +55,6 @@
 #include <sys/runq.h>
 #include <sys/sigio.h>
 #include <sys/signal.h>
-#include <sys/_label.h>
 #ifndef _KERNEL
 #include <sys/time.h>			/* For structs itimerval, timeval. */
 #else
@@ -616,7 +615,7 @@ struct proc {
 	struct proc	*p_peers;	/* (r) */
 	struct proc	*p_leader;	/* (b) */
 	void		*p_emuldata;	/* (c) Emulator state data. */
-	struct label	p_label;	/* (*) Process (not subject) MAC label */
+	struct label	*p_label;	/* (*) Proc (not subject) MAC label. */
 	struct p_sched	*p_sched;	/* (*) Scheduler-specific data. */
 };
 
