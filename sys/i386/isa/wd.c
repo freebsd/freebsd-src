@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.185 1999/01/16 01:06:23 bde Exp $
+ *	$Id: wd.c,v 1.186 1999/01/17 05:46:24 bde Exp $
  */
 
 /* TODO:
@@ -1084,10 +1084,11 @@ wdintr(void *unitnum)
 	du = wddrives[dkunit(bp->b_dev)];
 
 	/* finish off DMA */
-	if (du->dk_flags & (DKFL_DMA|DKFL_USEDMA)) {
+	if ((du->dk_flags & (DKFL_DMA|DKFL_SINGLE)) == DKFL_DMA) {
 		/* XXX SMP boxes sometimes generate an early intr.  Why? */
-		if ((wddma[du->dk_interface].wdd_dmastatus(du->dk_dmacookie) & WDDS_INTERRUPT)
-		    != 0)
+		if ((wddma[du->dk_interface].wdd_dmastatus(du->dk_dmacookie) & 
+		    WDDS_INTERRUPT) == 0)
+			return;
 		dmastat = wddma[du->dk_interface].wdd_dmadone(du->dk_dmacookie);
 	}
 
@@ -1568,6 +1569,7 @@ wdcommand(struct disk *du, u_int cylinder, u_int head, u_int sector,
 	if (wdwait(du, 0, TIMEOUT) < 0)
 		return (1);
 	if( command == WDCC_FEATURES) {
+		outb(wdc + wd_sdh, WDSD_IBM | (du->dk_unit << 4) | head);
 		outb(wdc + wd_features, count);
 		if ( count == WDFEA_SETXFER )
 			outb(wdc + wd_seccnt, sector);
@@ -2289,9 +2291,8 @@ wdreset(struct disk *du)
 {
 	int     err = 0;
 
-	if ((du->dk_flags & (DKFL_DMA|DKFL_USEDMA)) && du->dk_dmacookie)
+	if ((du->dk_flags & (DKFL_DMA|DKFL_SINGLE)) == DKFL_DMA)
 		wddma[du->dk_interface].wdd_dmadone(du->dk_dmacookie);
-
 	(void)wdwait(du, 0, TIMEOUT);
 	outb(du->dk_altport, WDCTL_IDS | WDCTL_RST);
 	DELAY(10 * 1000);
