@@ -56,7 +56,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)res_query.c	8.1 (Berkeley) 6/4/93";
 static char orig_rcsid = "From: Id: res_query.c,v 8.9 1996/09/22 00:13:28 vixie Exp";
-static char rcsid[] = "$Id$";
+static char rcsid[] = "$Id: res_query.c,v 1.12 1997/02/22 15:00:34 peter Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/types.h>
@@ -357,6 +357,9 @@ hostalias(name)
 	static char abuf[MAXDNAME];
 
 	if (_res.options & RES_NOALIASES)
+		return (NULL);
+	/* XXX issetguid() would be better here, but we don't have that. */
+	if (getuid() != geteuid() || getgid() != getegid())
 		return (NULL);
 	file = getenv("HOSTALIASES");
 	if (file == NULL || (fp = fopen(file, "r")) == NULL)
