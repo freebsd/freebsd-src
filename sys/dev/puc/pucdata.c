@@ -48,6 +48,92 @@ __FBSDID("$FreeBSD$");
 #define COM_FREQ	DEFAULT_RCLK
 
 const struct puc_device_description puc_devices[] = {
+
+	{   "Comtrol RocketPort 550/4 RJ45",
+	    {	0x11fe,	0x8014,	0,	0	},
+	    {	0xffff,	0xffff,	0,	0	},
+	    {
+		{ PUC_PORT_TYPE_COM, 0x10, 0x00, COM_FREQ * 4 },
+		{ PUC_PORT_TYPE_COM, 0x10, 0x08, COM_FREQ * 4 },
+		{ PUC_PORT_TYPE_COM, 0x10, 0x10, COM_FREQ * 4 },
+		{ PUC_PORT_TYPE_COM, 0x10, 0x18, COM_FREQ * 4 },
+	    },
+	},
+
+	{   "Comtrol RocketPort 550/Quad",
+	    {	0x11fe,	0x8015,	0,	0	},
+	    {	0xffff,	0xffff,	0,	0	},
+	    {
+		{ PUC_PORT_TYPE_COM, 0x10, 0x00, COM_FREQ * 4 },
+		{ PUC_PORT_TYPE_COM, 0x10, 0x08, COM_FREQ * 4 },
+		{ PUC_PORT_TYPE_COM, 0x10, 0x10, COM_FREQ * 4 },
+		{ PUC_PORT_TYPE_COM, 0x10, 0x18, COM_FREQ * 4 },
+	    },
+	},
+
+	{   "Comtrol RocketPort 550/8 RJ11 part A",
+	    {	0x11fe,	0x8010,	0,	0	},
+	    {	0xffff,	0xffff,	0,	0	},
+	    {
+		{ PUC_PORT_TYPE_COM, 0x10, 0x00, COM_FREQ * 4 },
+		{ PUC_PORT_TYPE_COM, 0x10, 0x08, COM_FREQ * 4 },
+		{ PUC_PORT_TYPE_COM, 0x10, 0x10, COM_FREQ * 4 },
+		{ PUC_PORT_TYPE_COM, 0x10, 0x18, COM_FREQ * 4 },
+	    },
+	},
+	{   "Comtrol RocketPort 550/8 RJ11 part B",
+	    {	0x11fe,	0x8011,	0,	0	},
+	    {	0xffff,	0xffff,	0,	0	},
+	    {
+		{ PUC_PORT_TYPE_COM, 0x10, 0x00, COM_FREQ * 4 },
+		{ PUC_PORT_TYPE_COM, 0x10, 0x08, COM_FREQ * 4 },
+		{ PUC_PORT_TYPE_COM, 0x10, 0x10, COM_FREQ * 4 },
+		{ PUC_PORT_TYPE_COM, 0x10, 0x18, COM_FREQ * 4 },
+	    },
+	},
+
+	{   "Comtrol RocketPort 550/8 Octa part A",
+	    {	0x11fe,	0x8012,	0,	0	},
+	    {	0xffff,	0xffff,	0,	0	},
+	    {
+		{ PUC_PORT_TYPE_COM, 0x10, 0x00, COM_FREQ * 4 },
+		{ PUC_PORT_TYPE_COM, 0x10, 0x08, COM_FREQ * 4 },
+		{ PUC_PORT_TYPE_COM, 0x10, 0x10, COM_FREQ * 4 },
+		{ PUC_PORT_TYPE_COM, 0x10, 0x18, COM_FREQ * 4 },
+	    },
+	},
+	{   "Comtrol RocketPort 550/8 Octa part B",
+	    {	0x11fe,	0x8013,	0,	0	},
+	    {	0xffff,	0xffff,	0,	0	},
+	    {
+		{ PUC_PORT_TYPE_COM, 0x10, 0x00, COM_FREQ * 4 },
+		{ PUC_PORT_TYPE_COM, 0x10, 0x08, COM_FREQ * 4 },
+		{ PUC_PORT_TYPE_COM, 0x10, 0x10, COM_FREQ * 4 },
+		{ PUC_PORT_TYPE_COM, 0x10, 0x18, COM_FREQ * 4 },
+	    },
+	},
+
+	{   "Comtrol RocketPort 550/8 part A",
+	    {	0x11fe,	0x8018,	0,	0	},
+	    {	0xffff,	0xffff,	0,	0	},
+	    {
+		{ PUC_PORT_TYPE_COM, 0x10, 0x00, COM_FREQ * 4 },
+		{ PUC_PORT_TYPE_COM, 0x10, 0x08, COM_FREQ * 4 },
+		{ PUC_PORT_TYPE_COM, 0x10, 0x10, COM_FREQ * 4 },
+		{ PUC_PORT_TYPE_COM, 0x10, 0x18, COM_FREQ * 4 },
+	    },
+	},
+	{   "Comtrol RocketPort 550/8 part B",
+	    {	0x11fe,	0x8019,	0,	0	},
+	    {	0xffff,	0xffff,	0,	0	},
+	    {
+		{ PUC_PORT_TYPE_COM, 0x10, 0x00, COM_FREQ * 4 },
+		{ PUC_PORT_TYPE_COM, 0x10, 0x08, COM_FREQ * 4 },
+		{ PUC_PORT_TYPE_COM, 0x10, 0x10, COM_FREQ * 4 },
+		{ PUC_PORT_TYPE_COM, 0x10, 0x18, COM_FREQ * 4 },
+	    },
+	},
+
 	{   "Comtrol RocketPort 550/16 part A",
 	    {	0x11fe,	0x8016,	0,	0	},
 	    {	0xffff,	0xffff,	0,	0	},
@@ -76,6 +162,7 @@ const struct puc_device_description puc_devices[] = {
 		{ PUC_PORT_TYPE_COM, 0x10, 0x58, COM_FREQ * 4 },
 	    },
 	},
+
 	/*
 	 * XXX no entry because I have no data:
 	 * XXX Dolphin Peripherals 4006 (single parallel)
