@@ -65,7 +65,6 @@ sed	-e '/	pty	/d' \
 	-e '/	vr	/d' \
 	-e '/	wb	/d' \
 	-e '/	xl	/d' \
-	-e '/	lnc	/d' \
 	-e '/	ugen	/d' \
 	-e '/	uhid	/d' \
 	-e '/	ulpt	/d' \
