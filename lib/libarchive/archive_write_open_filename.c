@@ -82,7 +82,7 @@ file_open(struct archive *a, void *client_data)
 	mine = client_data;
 	flags = O_WRONLY | O_CREAT | O_TRUNC;
 
-	if (mine->filename[0] != 0) {
+	if (mine->filename[0] != '\0') {
 		mine->fd = open(mine->filename, flags, 0666);
 
 		/*
