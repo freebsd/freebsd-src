@@ -3,6 +3,7 @@
 
 SUBDIR=	async \
 	atm \
+	atmllc \
 	${_bluetooth} \
 	bpf \
 	bridge \
