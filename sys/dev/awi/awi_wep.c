@@ -78,8 +78,6 @@
 
 #include <machine/cpu.h>
 #include <machine/bus.h>
-#ifdef __FreeBSD__
-#endif
 
 #ifdef __NetBSD__
 #include <dev/ic/am79c930reg.h>
