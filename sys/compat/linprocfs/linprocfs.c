@@ -258,7 +258,6 @@ linprocfs_douptime(curp, p, pfs, uio)
 	int xlen;
 	char psbuf[64];
 	struct timeval tv;
-	long ip, fp;
 
 	getmicrouptime(&tv);
 	ps = psbuf;
