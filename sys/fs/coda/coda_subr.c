@@ -315,7 +315,7 @@ coda_checkunmounting(mp)
 	MNT_ILOCK(mp);
 	MNT_VNODE_FOREACH(vp, mp, nvp) {
 		VI_LOCK(vp);
-		if (vp->v_iflag & VI_XLOCK) {
+		if (vp->v_iflag & VI_DOOMED) {
 			VI_UNLOCK(vp);
 			continue;
 		}
