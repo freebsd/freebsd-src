@@ -132,9 +132,6 @@ typedef	struct __sFILE {
 
 __BEGIN_DECLS
 extern FILE __sF[];
-extern FILE *__stdin;
-extern FILE *__stdout;
-extern FILE *__stderr;
 __END_DECLS
 
 #define	__SLBF	0x0001		/* line buffered */
@@ -197,9 +194,9 @@ __END_DECLS
 #define	SEEK_END	2	/* set file offset to EOF plus offset */
 #endif
 
-#define	stdin	(__stdin)
-#define	stdout	(__stdout)
-#define	stderr	(__stderr)
+#define	stdin	(&__sF[0])
+#define	stdout	(&__sF[1])
+#define	stderr	(&__sF[2])
 
 /*
  * Functions defined in ANSI C standard.
