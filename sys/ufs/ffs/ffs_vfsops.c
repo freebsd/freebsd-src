@@ -482,15 +482,15 @@ loop:
 			goto loop;
 		}
 		nvp = LIST_NEXT(vp, v_mntvnodes);
+		mtx_unlock(&mntvnode_mtx);
 		/*
 		 * Step 4: invalidate all inactive vnodes.
 		 */
-		if (vrecycle(vp, &mntvnode_mtx, p))
+		if (vrecycle(vp, NULL, p))
 			goto loop;
 		/*
 		 * Step 5: invalidate all cached file data.
 		 */
-		mtx_unlock(&mntvnode_mtx);
 		mtx_lock(&vp->v_interlock);
 		if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, p)) {
 			goto loop;
