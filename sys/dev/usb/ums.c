@@ -377,8 +377,10 @@ ums_detach(device_t self)
 	struct ums_softc *sc = device_get_softc(self);
 	char *devinfo = (char *) device_get_desc(self);
 
-	usbd_abort_pipe(sc->sc_intrpipe);
-	usbd_close_pipe(sc->sc_intrpipe);
+	if (sc->sc_enabled) {
+		usbd_abort_pipe(sc->sc_intrpipe);
+		usbd_close_pipe(sc->sc_intrpipe);
+	}
 	sc->sc_disconnected = 1;
 
 	DPRINTF(("%s: disconnected\n", USBDEVNAME(self)));
@@ -638,6 +640,9 @@ ums_read(dev_t dev, struct uio *uio, int flag)
 		if (error) {
 			splx(s);
 			return error;
+		} else if (!sc->sc_enabled) {
+			splx(s);
+			return EINTR;
 		}
 	}
 
