@@ -266,6 +266,9 @@ thread_export_context(struct thread *td)
 	void *addr2;
 	int error;
 
+#ifdef __ia64__
+	td2_mbx = 0;		/* pacify gcc (!) */
+#endif
 	/* Export the register contents. */
 	error = cpu_export_context(td);
 
