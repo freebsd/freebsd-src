@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.239 1999/06/08 17:14:22 dt Exp $
+ *	$Id: pmap.c,v 1.240 1999/06/23 21:47:21 luoqi Exp $
  */
 
 /*
@@ -3105,9 +3105,10 @@ pmap_changebit(pa, bit, setem)
 /*
  *	pmap_clearbit:
  *
- *	Clear a bit/bits in every pte mapping a given physical page.
+ *	Clear a bit/bits in every pte mapping a given physical page.  Making
+ *	this inline allows the pmap_changebit inline to be well optimized.
  */
-static void
+static __inline void
 pmap_clearbit(
 	vm_offset_t pa,
 	int	bit)
