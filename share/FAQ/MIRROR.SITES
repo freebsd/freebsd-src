@@ -1,7 +1,7 @@
                           Mirror Sites
                     For FreeBSD 2.0 and later
 
-$Id: MIRROR.SITES,v 1.22 1995/01/30 21:58:39 jkh Exp $
+$Id: MIRROR.SITES,v 1.23 1995/02/15 06:41:50 jkh Exp $
 
 The latest versions of FreeBSD (2.0 or later) are being mirrored at the
 following locations:
@@ -60,10 +60,10 @@ Japan		ftp://tutserver.tutcc.tut.ac.jp/FreeBSD
 		Ashida Hiroyuki <assie@bpel.tutics.tut.ac.jp>
 
 Japan		ftp://ftp.sra.co.jp/pub/os/FreeBSD
-		ftp-admin@sra.co.jp
+		<ftp-admin@sra.co.jp>
 
 Japan		ftp://ftp.ee.uec.ac.jp/pub/os/FreeBSD.other
-		ftp-admin@ftp.ee.uec.ac.jp
+		<ftp-admin@ftp.ee.uec.ac.jp>
 
 Japan		ftp://ftp.mei.co.jp/free/PC-UNIX/FreeBSD
 		TANIGUCHI Syuuhei <tanig@isl.mei.co.jp>
@@ -75,13 +75,29 @@ Japan		ftp://ftp.pu-toyama.ac.jp/pub/FreeBSD
 		Yoshihiko USUI <usui@pu-toyama.ac.jp>
 
 Japan           ftp://ftpsv1.u-aizu.ac.jp/pub/os/FreeBSD
-		ftp-admin@u-aizu.ac.jp
+		<ftp-admin@u-aizu.ac.jp>
 
 UK		ftp://src.doc.ic.ac.uk/packages/unix/FreeBSD
-		wizards@doc.ic.ac.uk
+		<wizards@doc.ic.ac.uk>
 
 UK		ftp://unix.hensa.ac.uk/pub/walnut.creek/FreeBSD
-		archive-admin@unix.hensa.ac.uk
+		<archive-admin@unix.hensa.ac.uk>
 
 UK		ftp://ftp.demon.co.uk/pub/BSD/FreeBSD
-		uploads@demon.net
+		<uploads@demon.net>
+
+---
+
+The latest versions of export-restricted code for FreeBSD (2.0C or later)
+(eBones and secure) are being made available at the following locations.
+
+If you are outside the U.S. or Canada, please get secure (DES) and
+eBones (Kerberos) from one of the following foreign distribution sites:
+
+Country		Site and Maintainer
+=======		========================================================
+South Africa	ftp://skeleton.mikom.csir.co.za/pub/FreeBSD
+		Mark Murray <mark@grondar.za>
+
+South Africa	ftp://storm.sea.uct.ac.za/pub/FreeBSD
+		Shaun Courtney <ftp@storm.sea.uct.ac.za>
