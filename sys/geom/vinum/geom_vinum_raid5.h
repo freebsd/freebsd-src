@@ -67,6 +67,8 @@ struct gv_raid5_packet {
 int	gv_stripe_active(struct gv_plex *, struct bio *);
 int	gv_build_raid5_req(struct gv_plex *, struct gv_raid5_packet *,
 	    struct bio *, caddr_t, off_t, off_t);
+int	gv_rebuild_raid5(struct gv_plex *, struct gv_raid5_packet *,
+	    struct bio *, caddr_t, off_t, off_t);
 void	gv_raid5_worker(void *);
 void	gv_plex_done(struct bio *);
 
