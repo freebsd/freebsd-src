@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.24.2.28 1997/06/30 03:05:06 brian Exp $
+ * $Id: command.c,v 1.24.2.29 1997/08/14 01:49:04 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -1033,10 +1033,13 @@ struct cmdtab *list;
 int argc;
 char **argv;
 {
-
   DefMyAddress.ipaddr.s_addr = DefHisAddress.ipaddr.s_addr = 0L;
+
   if (argc > 4)
      return -1;
+
+  HaveTriggerAddress = 0;
+  ifnetmask.s_addr = 0;
 
   if (argc > 0) {
     if (ParseAddr(argc, argv++,
@@ -1053,15 +1056,13 @@ char **argv;
       if (--argc > 0) {
         ifnetmask = GetIpAddr(*argv);
     	if (--argc > 0) {
-	   if (ParseAddr(argc, argv++,
-			 &DefTriggerAddress.ipaddr,
-			 &DefTriggerAddress.mask,
-			 &DefTriggerAddress.width) == 0)
-	      return 3;
+           TriggerAddress = GetIpAddr(*argv);
+	   HaveTriggerAddress = 1;
 	}
       }
     }
   }
+
   /*
    * For backwards compatibility, 0.0.0.0 means any address.
    */

@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.19.2.19 1997/08/14 01:49:15 brian Exp $
+.\" $Id: ppp.8,v 1.19.2.20 1997/08/19 11:25:09 danny Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -937,34 +937,53 @@ To control this IPCP behavior, this implementation has the
 .Dq set ifaddr
 command for defining the local and remote IP address:
 
-.Nm set ifaddr
-.Op src_addr Op dst_addr Op netmask
+.Bd -literal -offset indent
+set ifaddr [src_addr [dst_addr [netmask [trigger_addr]]]]
+.Ed
 
-Where,
+where,
 .Sq src_addr
-is the IP address that the local side is willing to use and
+is the IP address that the local side is willing to use,
 .Sq dst_addr
-is the IP address which the remote side should use.
+is the IP address which the remote side should use and
 .Sq netmask
-is interface netmask.
+is the netmask that should be used.
+.Sq Src_addr
+and
+.Sq dst_addr
+default to 0.0.0.0, and
+.Sq netmask
+defaults to whatever mask is appropriate for
+.Sq src_addr .
+It is only possible to make
+.Sq netmask
+smaller than the default.  The usual value is 255.255.255.255.
+Some incorrect ppp implementations require that the peer negotiates
+a specific IP address instead of
+.Sq src_addr .
+If this is the case,
+.Sq trigger_addr
+may be used to specify this IP number.  This will not affect the
+routing table unless the other side agrees with this proposed number.
 
 .Bd -literal -offset indent
-set ifaddr 192.244.177.38 192.244.177.2 255.255.255.0
+set ifaddr 192.244.177.38 192.244.177.2 255.255.255.255 0.0.0.0
 .Ed
 
 The above specification means:
 .Bl -bullet -compact
 .It
-I strongly want to use 192.244.177.38 as my IP address, and I'll
-disagree if the peer suggests that I use another address.
+I will first suggest that my IP address should be 0.0.0.0, but I
+will only accept an address of 192.244.177.38.
 
 .It
-I strongly insist that peer use 192.244.177.2 as own side address and
-don't permit it to use any IP address but 192.244.177.2.  When peer
-request another IP address, I always suggest that it use 192.244.177.2.
+I strongly insist that the peer uses 192.244.177.2 as his own
+address and won't permit the use of any IP address but 192.244.177.2.
+When the peer requests another IP address, I will always suggest that
+it uses 192.244.177.2.
 
 .It
-My interface netmask will be 255.255.255.0.
+The routing table entry will have a netmask of 0xffffffff.
 .El
 
 This is all fine when each side has a pre-determined IP address, however
@@ -1120,28 +1139,35 @@ rates of 28800 or more.  In general, the serial speed should be about
 four times the modem speed.
 
 .It
-Use
+Use the
 .Dq set ifaddr
 command to define the IP address.
 .Bl -bullet
 .It
 If you know what IP address your provider uses, then use it as the remote
-address, otherwise choose something like 10.0.0.2/0 (see below).
+address (dst_addr), otherwise choose something like 10.0.0.2/0 (see below).
 .It
 If your provider has assigned a particular IP address to you, then use
-it as your address.
+it as your address (src_addr).
 .It
 If your provider assigns your address dynamically, choose a suitably
 unobtrusive and unspecific IP number as your address.  10.0.0.1/0 would
 be appropriate.  The bit after the / specifies how many bits of the
 address you consider to be important, so if you wanted to insist on
 something in the class C network 1.2.3.0, you could specify 1.2.3.1/24.
+.It
+If you find that your ISP accepts the first IP number that you suggest,
+specify third and forth arguments of
+.Dq 0.0.0.0 .
+This will force your ISP to assign a number.  (The third argument will
+be ignored as it is less restrictive than the default mask for your
+.Sq src_addr .
 .El
 .Pp
 An example for a connection where you don't know your IP number or your
 ISPs IP number would be:
 .Bd -literal -offset indent
-set ifaddr 10.10.10.10/0 10.10.11.11/0 255.255.255.0
+set ifaddr 10.10.10.10/0 10.10.11.11/0 0.0.0.0 0.0.0.0
 .Ed
 
 .It
@@ -1570,9 +1596,9 @@ This option is similar to the
 option above.  It allows the user to specify a set of characters that
 will be `escaped' as they travel across the link.
 
-.It set ifaddr myaddr hisaddr mask
+.It set ifaddr [myaddr [hisaddr [netmask [triggeraddr]]]]
 This command specifies the IP addresses that will be used during
-LCP negotiation.  Addresses are specified using the format
+IPCP negotiation.  Addresses are specified using the format
 
 .Dl a.b.c.d/n
 
@@ -1580,6 +1606,14 @@ Where a.b.c.d is the preferred IP, but n specifies how many bits
 of the address we will insist on.  If the /n bit is omitted, it
 defaults to /32 unless the IP address is 0.0.0.0 in which case
 the mask defaults to /0.
+
+If
+.Dq triggeraddr
+is specified, it is used in place of
+.Dq myaddr
+in the initial IPCP negotiation.  However, only an address in the
+.Dq myaddr
+range will be accepted.
 
 .It set log [+|-]value...
 This command allows the adjustment of the current log level.  Please

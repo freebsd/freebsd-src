@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.h,v 1.7 1997/06/09 03:27:24 brian Exp $
+ * $Id: ipcp.h,v 1.4.2.1 1997/06/10 09:43:37 brian Exp $
  *
  *	TODO:
  */
@@ -65,7 +65,8 @@ struct in_range {
 extern struct ipcpstate IpcpInfo;
 extern struct in_range DefMyAddress;
 extern struct in_range DefHisAddress;
-extern struct in_range DefTriggerAddress;
+extern struct in_addr TriggerAddress;
+extern int HaveTriggerAddress;
 
 #ifndef NOMSEXT
 extern struct in_addr ns_entries[2];
