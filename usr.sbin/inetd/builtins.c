@@ -378,13 +378,27 @@ ident_stream(s, sep)		/* Ident service (AKA "auth") */
 			case 'g':
 				gflag = 1;
 				random = 0;	/* Shush, compiler. */
+				/*
+				 * The number of bits in "random" divided
+				 * by the number of bits needed per iteration
+				 * gives a more optimal way to reload the
+				 * random number only when necessary.
+				 *
+				 * I'm using base-36, so I need at least 6
+				 * bits; round it up to 8 bits to make it
+				 * easier.
+				 */
 				for (i = 0; i < sizeof(garbage) - 1; i++) {
-					if (i % (sizeof(random) * 8 / 4) == 0)
+					const char *const base36 =
+					    "0123456789"
+					    "abcdefghijklmnopqrstuvwxyz";
+					if (i % (sizeof(random) * 8 / 8) == 0)
 						random = arc4random();
-					snprintf(garbage + i, 2, "%.1x",
-					    (int)random & 0xf);
-					random >>= 4;
+					garbage[i] =
+					    base36[(random & 0xff) % 36];
+					random >>= 8;
 				}
+				garbage[i] = '\0';
 				break;
 			case 'n':
 				nflag = 1;
