@@ -93,9 +93,7 @@ void
 rtalloc(ro)
 	register struct route *ro;
 {
-	if (ro->ro_rt && ro->ro_rt->rt_ifp && (ro->ro_rt->rt_flags & RTF_UP))
-		return;				 /* XXX */
-	ro->ro_rt = rtalloc1(&ro->ro_dst, 1, 0UL);
+	rtalloc_ign(ro, 0UL);
 }
 
 void
@@ -103,8 +101,17 @@ rtalloc_ign(ro, ignore)
 	register struct route *ro;
 	u_long ignore;
 {
-	if (ro->ro_rt && ro->ro_rt->rt_ifp && (ro->ro_rt->rt_flags & RTF_UP))
-		return;				 /* XXX */
+	struct rtentry *rt;
+	int s;
+
+	if ((rt = ro->ro_rt) != NULL) {
+		if (rt->rt_ifp != NULL && rt->rt_flags & RTF_UP)
+			return;
+		/* XXX - We are probably always at splnet here already. */
+		s = splnet();
+		RTFREE(rt);
+		splx(s);
+	}
 	ro->ro_rt = rtalloc1(&ro->ro_dst, 1, ignore);
 }
 
