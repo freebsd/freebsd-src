@@ -102,9 +102,13 @@ SYSCTL_STRING(_kern, KERN_VERSION, version, CTLFLAG_RD,
 SYSCTL_STRING(_kern, KERN_OSTYPE, ostype, CTLFLAG_RD,
     ostype, 0, "Operating system type");
 
+/*
+ * NOTICE: The *userland* release date is available in
+ * /usr/include/osreldate.h
+ */
 extern int osreldate;
 SYSCTL_INT(_kern, KERN_OSRELDATE, osreldate, CTLFLAG_RD,
-    &osreldate, 0, "Operating system release date");
+    &osreldate, 0, "Kernel release date");
 
 SYSCTL_INT(_kern, KERN_MAXPROC, maxproc, CTLFLAG_RD,
     &maxproc, 0, "Maximum number of processes");
