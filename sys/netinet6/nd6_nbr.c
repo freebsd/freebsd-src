@@ -207,6 +207,7 @@ nd6_ns_input(m, off, icmp6len)
 	if (!ifa) {
 		struct rtentry *rt;
 		struct sockaddr_in6 tsin6;
+		int need_proxy;
 
 		bzero(&tsin6, sizeof tsin6);		
 		tsin6.sin6_len = sizeof(struct sockaddr_in6);
@@ -214,8 +215,11 @@ nd6_ns_input(m, off, icmp6len)
 		tsin6.sin6_addr = taddr6;
 
 		rt = rtalloc1((struct sockaddr *)&tsin6, 0, 0);
-		if (rt && (rt->rt_flags & RTF_ANNOUNCE) != 0 &&
-		    rt->rt_gateway->sa_family == AF_LINK) {
+		need_proxy = (rt && (rt->rt_flags & RTF_ANNOUNCE) != 0 &&
+		    rt->rt_gateway->sa_family == AF_LINK);
+		if (rt)
+			rtfree(rt);
+		if (need_proxy) {
 			/*
 			 * proxy NDP for single entry
 			 */
@@ -226,8 +230,6 @@ nd6_ns_input(m, off, icmp6len)
 				proxydl = SDL(rt->rt_gateway);
 			}
 		}
-		if (rt)
-			rtfree(rt);
 	}
 	if (!ifa) {
 		/*
