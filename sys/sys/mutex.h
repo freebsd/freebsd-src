@@ -34,11 +34,6 @@
 
 #ifndef LOCORE
 #include <sys/queue.h>
-
-#ifdef _KERNEL
-#include <sys/ktr.h>
-#endif	/* _KERNEL_ */
-
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
 
@@ -242,7 +237,10 @@ void	_mtx_assert(struct mtx *m, int what, const char *file, int line);
 #define mtx_unlock(m)		mtx_unlock_flags((m), 0)
 #define mtx_unlock_spin(m)	mtx_unlock_spin_flags((m), 0)
 
-#ifdef LOCK_DEBUG
+#ifndef LOCK_DEBUG
+#error LOCK_DEBUG not defined, include <sys/lock.h> before <sys/mutex.h>
+#endif
+#if LOCK_DEBUG > 0
 #define	mtx_lock_flags(m, opts)						\
 	_mtx_lock_flags((m), (opts), LOCK_FILE, LOCK_LINE)
 #define	mtx_unlock_flags(m, opts)					\
