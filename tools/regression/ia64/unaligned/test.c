@@ -178,7 +178,7 @@ main()
 	return (1);
 #  endif
 
-	memcpy(aligned, misaligned, sizeof(DATA_TYPE));
+	memcpy(aligned, data.misaligned, sizeof(DATA_TYPE));
 #endif
 
 	if (*aligned != value)
