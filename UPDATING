@@ -34,7 +34,7 @@ ITEMS:'
 	do not include devfs in your kernel as problems result.
 
 20010205:
-	FFS_ROOT and CD9660_ROOT have been removed or depricated.
+	FFS_ROOT and CD9660_ROOT have been removed or deprecated.
 	Remove them from your config.
 
 20010122:
@@ -530,9 +530,10 @@ COMMON ITEMS:
 	-------------------------------------
 	make buildworld
 	make buildkernel KERNCONF=YOUR_KERNEL_HERE
-	cp src/sys/${MACHINE_ARCH}/arch/GENERIC.hints /boot/device.hints [2]
+	cp src/sys/${MACHINE_ARCH}/conf/GENERIC.hints /boot/device.hints [2]
 	make installkernel KERNCONF=YOUR_KERNEL_HERE
 	make installworld
+	mergemaster
 	[1]
 	<reboot>
 
