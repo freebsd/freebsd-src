@@ -1025,6 +1025,7 @@ selwakeup(sip)
 	sip->si_pid = 0;
 	if (p != NULL) {
 		s = splhigh();
+		mtx_enter(&sched_lock, MTX_SPIN);
 		if (p->p_wchan == (caddr_t)&selwait) {
 			if (p->p_stat == SSLEEP)
 				setrunnable(p);
@@ -1032,6 +1033,7 @@ selwakeup(sip)
 				unsleep(p);
 		} else if (p->p_flag & P_SELECT)
 			p->p_flag &= ~P_SELECT;
+		mtx_exit(&sched_lock, MTX_SPIN);
 		splx(s);
 	}
 }
