@@ -223,6 +223,9 @@ struct uscanner_softc {
 	USBBASEDEVICE		sc_dev;		/* base device */
 	usbd_device_handle	sc_udev;
 	usbd_interface_handle	sc_iface;
+#if defined(__FreeBSD__)
+	dev_t			dev;
+#endif
 
 	u_int			sc_dev_flags;
 
@@ -358,7 +361,7 @@ USB_ATTACH(uscanner)
 
 #ifdef __FreeBSD__
 	/* the main device, ctrl endpoint */
-	make_dev(&uscanner_cdevsw, USBDEVUNIT(sc->sc_dev),
+	sc->dev = make_dev(&uscanner_cdevsw, USBDEVUNIT(sc->sc_dev),
 		UID_ROOT, GID_OPERATOR, 0644, "%s", USBDEVNAME(sc->sc_dev));
 #endif
 
@@ -618,8 +621,6 @@ USB_DETACH(uscanner)
 	int s;
 #if defined(__NetBSD__) || defined(__OpenBSD__)
 	int maj, mn;
-#elif defined(__FreeBSD__)
-	dev_t dev;
 #endif
 
 #if defined(__NetBSD__) || defined(__OpenBSD__)
@@ -655,8 +656,7 @@ USB_DETACH(uscanner)
 	vdevgone(maj, mn, mn + USB_MAX_ENDPOINTS - 1, VCHR);
 #elif defined(__FreeBSD__)
 	/* destroy the device for the control endpoint */
-	dev = makedev(USCANNER_CDEV_MAJOR, USBDEVUNIT(sc->sc_dev));
-	destroy_dev(dev);
+	destroy_dev(sc->dev);
 #endif
 
 	usbd_add_drv_event(USB_EVENT_DRIVER_DETACH, sc->sc_udev,
