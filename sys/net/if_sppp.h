@@ -62,8 +62,6 @@ struct sppp {
 void sppp_attach (struct ifnet *ifp);
 void sppp_detach (struct ifnet *ifp);
 void sppp_input (struct ifnet *ifp, struct mbuf *m);
-int sppp_output (struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
-	struct rtentry *rt);
 int sppp_ioctl (struct ifnet *ifp, int cmd, void *data);
 struct mbuf *sppp_dequeue (struct ifnet *ifp);
 int sppp_isempty (struct ifnet *ifp);

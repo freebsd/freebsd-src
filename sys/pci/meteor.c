@@ -78,7 +78,7 @@
 #include <machine/ioctl_meteor.h>
 
 
-extern int meteor_intr __P((void *arg));
+static int meteor_intr __P((void *arg));
 
 	/* enough memory for 640x48 RGB16, or YUV (16 storage bits/pixel) or
 			     450x340 RGB24 (32 storage bits/pixel)
@@ -148,9 +148,9 @@ typedef struct {
 #endif
 } meteor_reg_t;
 
-meteor_reg_t meteor[NMETEOR];
+static meteor_reg_t meteor[NMETEOR];
 
-u_long	read_intr_wait;
+static u_long	read_intr_wait;
 #define METPRI (PZERO+8)|PCATCH
 
 /*---------------------------------------------------------
@@ -164,7 +164,7 @@ static	char*	met_probe (pcici_t tag, pcidi_t type);
 static	void	met_attach(pcici_t tag, int unit);
 static	u_long	met_count;
 
-struct	pci_device met_device = {
+static struct	pci_device met_device = {
 	"meteor",
 	met_probe,
 	met_attach,
@@ -484,7 +484,7 @@ met_probe (pcici_t tag, pcidi_t type)
 	/* interrupt handling routine 
 	   complete meteor_read() if using interrupts
 	*/
-int
+static int
 meteor_intr( void *arg)
 {
 	register meteor_reg_t *mtr = (meteor_reg_t *) arg;

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)swap_pager.h	7.1 (Berkeley) 12/5/90
- *	$Id: swap_pager.h,v 1.11 1995/11/16 09:51:22 bde Exp $
+ *	$Id: swap_pager.h,v 1.12 1995/12/11 04:58:03 dyson Exp $
  */
 
 /*
@@ -67,9 +67,7 @@ typedef struct swblock *sw_blk_t;
 extern struct pagerlst swap_pager_un_object_list;
 extern int swap_pager_full;
 
-int swap_pager_getpages __P((vm_object_t, vm_page_t *, int, int));
 int swap_pager_putpages __P((vm_object_t, vm_page_t *, int, boolean_t, int *));    
-void swap_pager_sync __P((void));
 int swap_pager_swp_alloc __P((vm_object_t, int));
 void swap_pager_copy __P((vm_object_t, vm_pindex_t, vm_object_t,
 	vm_pindex_t, vm_pindex_t));

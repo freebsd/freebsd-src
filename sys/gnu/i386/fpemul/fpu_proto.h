@@ -1,6 +1,6 @@
 /*
  *
- *    $Id: fpu_proto.h,v 1.2 1994/04/29 21:16:23 gclarkii Exp $
+ *    $Id: fpu_proto.h,v 1.3 1995/03/16 18:11:11 bde Exp $
  *
  */
 
@@ -41,7 +41,6 @@ extern void fsubp_(void);
 extern void fdivrp(void);
 extern void fdivp_(void);
 /* fpu_aux.c */
-extern void fclex(void);
 extern void finit(void);
 extern void finit_(void);
 extern void fstsw_(void);
@@ -70,7 +69,6 @@ extern void load_store_instr(char type);
 extern int poly_2xm1(FPU_REG * arg, FPU_REG * result);
 /* poly_atan.c */
 extern void poly_atan(FPU_REG * arg);
-extern void poly_add_1(FPU_REG * src);
 /* poly_l2.c */
 extern void poly_l2(FPU_REG * arg, FPU_REG * result);
 extern int poly_l2p1(FPU_REG * arg, FPU_REG * result);

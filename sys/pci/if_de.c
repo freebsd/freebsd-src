@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_de.c,v 1.38 1995/11/29 11:19:02 asami Exp $
+ * $Id: if_de.c,v 1.39 1995/12/07 12:47:34 davidg Exp $
  *
  */
 
@@ -350,7 +350,7 @@ static const char *tulip_chipdescs[] = {
 #if defined(__FreeBSD__)
 typedef void ifnet_ret_t;
 typedef int ioctl_cmd_t;
-tulip_softc_t *tulips[NDE];
+static tulip_softc_t *tulips[NDE];
 #define	TULIP_UNIT_TO_SOFTC(unit)	(tulips[unit])
 #endif
 #if defined(__bsdi__)

@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.58 1995/12/07 12:48:21 davidg Exp $
+ * $Id: vm_object.c,v 1.59 1995/12/11 04:58:20 dyson Exp $
  */
 
 /*
@@ -92,7 +92,7 @@
 #include <vm/vm_extern.h>
 
 #ifdef DDB
-extern void	vm_object_check __P((void));
+static void	DDB_vm_object_check __P((void));
 #endif
 
 static void	_vm_object_allocate __P((objtype_t, vm_size_t, vm_object_t));
@@ -101,10 +101,12 @@ static int	_vm_object_in_map __P((vm_map_t map, vm_object_t object,
 				       vm_map_entry_t entry));
 static int	vm_object_in_map __P((vm_object_t object));
 #endif
-static vm_page_t
-		vm_object_page_lookup __P((vm_object_t object,
-					   vm_offset_t offset));
 static void	vm_object_qcollapse __P((vm_object_t object));
+#ifdef not_used
+static void	vm_object_deactivate_pages __P((vm_object_t));
+#endif
+static void	vm_object_terminate __P((vm_object_t));
+static void	vm_object_cache_trim __P((void));
 
 /*
  *	Virtual memory objects maintain the actual data
@@ -134,17 +136,17 @@ static void	vm_object_qcollapse __P((vm_object_t object));
 
 int vm_object_cache_max;
 struct object_q vm_object_cached_list;
-int vm_object_cached;
+static int vm_object_cached;
 struct object_q vm_object_list;
-long vm_object_count;
+static long vm_object_count;
 vm_object_t kernel_object;
 vm_object_t kmem_object;
-struct vm_object kernel_object_store;
-struct vm_object kmem_object_store;
+static struct vm_object kernel_object_store;
+static struct vm_object kmem_object_store;
 extern int vm_pageout_page_count;
 
-long object_collapses;
-long object_bypasses;
+static long object_collapses;
+static long object_bypasses;
 
 static void
 _vm_object_allocate(type, size, object)
@@ -359,7 +361,7 @@ vm_object_deallocate(object)
  *
  *	The object must be locked.
  */
-void
+static void
 vm_object_terminate(object)
 	register vm_object_t object;
 {
@@ -531,6 +533,8 @@ relookup:
 	return;
 }
 
+#ifdef not_used
+/* XXX I cannot tell if this should be an exported symbol */
 /*
  *	vm_object_deactivate_pages
  *
@@ -539,7 +543,7 @@ relookup:
  *
  *	The object must be locked.
  */
-void
+static void
 vm_object_deactivate_pages(object)
 	register vm_object_t object;
 {
@@ -550,11 +554,12 @@ vm_object_deactivate_pages(object)
 		vm_page_deactivate(p);
 	}
 }
+#endif
 
 /*
  *	Trim the object cache to size.
  */
-void
+static void
 vm_object_cache_trim()
 {
 	register vm_object_t object;
@@ -1304,8 +1309,10 @@ vm_object_in_map( object)
 }
 
 
-void
-vm_object_check() {
+#ifdef DDB
+static void
+DDB_vm_object_check()
+{
 	vm_object_t object;
 
 	/*
@@ -1330,6 +1337,7 @@ vm_object_check() {
 		}
 	}
 }
+#endif /* DDB */
 
 /*
  *	vm_object_print:	[ debug ]

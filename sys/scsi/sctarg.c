@@ -37,7 +37,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: sctarg.c,v 1.9 1995/12/08 11:18:51 julian Exp $
+ *      $Id: sctarg.c,v 1.10 1995/12/08 23:22:24 phk Exp $
  */
 
 /*
@@ -66,12 +66,10 @@ struct scsi_data {
 	int flags;					/* Already open */
 };
 
-errval sctarg_open(dev_t dev, int flags, int fmt, struct proc *p,
+static errval sctarg_open(dev_t dev, int flags, int fmt, struct proc *p,
 struct scsi_link *sc_link);
-void sctargstart(u_int32 unit, u_int32 unused_flags);
-errval sctarg_close(dev_t dev, int flag, int fmt, struct proc *p,
-        struct scsi_link *sc_link);
-void sctarg_strategy(struct buf *bp, struct scsi_link *sc_link);
+static void sctargstart(u_int32 unit, u_int32 unused_flags);
+static void sctarg_strategy(struct buf *bp, struct scsi_link *sc_link);
 
 static	d_open_t	sctargopen;
 static	d_close_t	sctargclose;
@@ -86,7 +84,7 @@ static struct cdevsw sctarg_cdevsw =
 
 SCSI_DEVICE_ENTRIES(sctarg)
 
-struct scsi_device sctarg_switch =
+static struct scsi_device sctarg_switch =
 {
     NULL,
     sctargstart,			/* we have a queue, and this is how we service it */
@@ -109,7 +107,8 @@ struct scsi_device sctarg_switch =
 	sctarg_strategy,
 };
 
-errval sctarg_open(dev_t dev, int flags, int fmt, struct proc *p,
+static errval
+sctarg_open(dev_t dev, int flags, int fmt, struct proc *p,
 struct scsi_link *sc_link)
 {
 	int ret = 0;
@@ -144,21 +143,6 @@ struct scsi_link *sc_link)
 	return ret;
 }
 
-errval sctarg_close(dev_t dev, int flags, int fmt, struct proc *p,
-struct scsi_link *sc_link)
-{
-	int ret = 0;
-
-	/* XXX: You can have more than one target device on a single
-	 * host adapter.  We need a reference count.
-	 */
-	ret = scsi_target_mode(sc_link, 0);
-
-	sc_link->sd->flags &= ~OPEN;
-
-	return ret;
-}
-
 /*
  * sctargstart looks to see if there is a buf waiting for the device
  * and that the device is not already busy. If both are true,
@@ -173,7 +157,7 @@ struct scsi_link *sc_link)
  * continues to be drained.
  * sctargstart() is called at splbio
  */
-void
+static void
 sctargstart(unit, unused_flags)
 	u_int32	unit;
 	u_int32	unused_flags;
@@ -247,10 +231,9 @@ sctargstart(unit, unused_flags)
 	} /* go back and see if we can cram more work in.. */
 }
 
-void
+static void
 sctarg_strategy(struct buf *bp, struct scsi_link *sc_link)
 {
-	struct buf **dp;
 	unsigned char unit;
 	u_int32 opri;
 	struct scsi_data *sctarg;

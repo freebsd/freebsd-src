@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pci.c,v 1.35 1995/12/06 15:52:23 se Exp $
+**  $Id: pci.c,v 1.36 1995/12/07 12:47:42 davidg Exp $
 **
 **  General subroutines for the PCI bus.
 **  pci_configure ()
@@ -139,7 +139,7 @@ pci_bridge_config (void);
 unsigned pci_max_burst_len = 3; /* 2=16Byte, 3=32Byte, 4=64Byte, ... */
 unsigned pci_mechanism     = 0;
 unsigned pci_maxdevice     = 0;
-struct pcibus* pcibus;
+static struct pcibus* pcibus;
 
 /*--------------------------------------------------------
 **
@@ -1132,7 +1132,7 @@ pci_internalize (struct kern_devconf *kdcp, struct sysctl_req *re)
 **-----------------------------------------------------------------------
 */
 
-struct pci_int_desc*
+static struct pci_int_desc*
 	pci_int_desc [PCI_MAX_IRQ];
 
 #ifndef NO_SHARED_IRQ

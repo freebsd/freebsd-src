@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)spec_vnops.c	8.6 (Berkeley) 4/9/94
- * $Id: spec_vnops.c,v 1.24 1995/12/11 09:24:50 phk Exp $
+ * $Id: spec_vnops.c,v 1.25 1995/12/13 15:13:31 julian Exp $
  */
 
 #include <sys/param.h>
@@ -59,6 +59,9 @@
 #include <vm/vnode_pager.h>
 
 #include <miscfs/specfs/specdev.h>
+
+static int	spec_ebadf __P((void));
+static int	spec_getattr __P((struct  vop_getattr_args *));
 
 struct vnode *speclisth[SPECHSZ];
 vop_t **spec_vnodeop_p;
@@ -842,7 +845,7 @@ spec_getpages(ap)
 }
 
 /* ARGSUSED */
-int
+static int
 spec_getattr(ap)
 	struct vop_getattr_args /* {
 		struct vnode *a_vp;

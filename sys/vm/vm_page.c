@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.41 1995/12/11 04:58:25 dyson Exp $
+ *	$Id: vm_page.c,v 1.42 1995/12/11 15:41:50 dyson Exp $
  */
 
 /*
@@ -86,7 +86,7 @@
 #include <vm/vm_extern.h>
 
 #ifdef DDB
-extern void	print_page_info __P((void));
+extern void	DDB_print_page_info __P((void));
 #endif
 
 /*
@@ -94,8 +94,8 @@ extern void	print_page_info __P((void));
  *	page structure.
  */
 
-struct pglist *vm_page_buckets;	/* Array of buckets */
-int vm_page_bucket_count;	/* How big is array? */
+static struct pglist *vm_page_buckets;	/* Array of buckets */
+static int vm_page_bucket_count;	/* How big is array? */
 static int vm_page_hash_mask;		/* Mask for hash function */
 
 struct pglist vm_page_queue_free;
@@ -104,17 +104,12 @@ struct pglist vm_page_queue_active;
 struct pglist vm_page_queue_inactive;
 struct pglist vm_page_queue_cache;
 
-/* has physical page allocation been initialized? */
-boolean_t vm_page_startup_initialized;
-
 vm_page_t vm_page_array;
-int vm_page_array_size;
+static int vm_page_array_size;
 long first_page;
-long last_page;
-vm_offset_t first_phys_addr;
-vm_offset_t last_phys_addr;
-vm_size_t page_mask;
-int page_shift;
+static long last_page;
+static vm_size_t page_mask;
+static int page_shift;
 int vm_page_zero_count;
 
 /*
@@ -1123,7 +1118,7 @@ vm_page_test_dirty(m)
 
 #ifdef DDB
 void
-print_page_info(void)
+DDB_print_page_info(void)
 {
 	printf("cnt.v_free_count: %d\n", cnt.v_free_count);
 	printf("cnt.v_cache_count: %d\n", cnt.v_cache_count);

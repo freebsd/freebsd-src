@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *	$Id: scsiconf.h,v 1.32 1995/12/05 07:14:25 julian Exp $
+ *	$Id: scsiconf.h,v 1.33 1995/12/10 10:58:27 julian Exp $
  */
 #ifndef	SCSI_SCSICONF_H
 #define SCSI_SCSICONF_H 1
@@ -421,14 +421,11 @@ struct scsi_xfer
 #ifdef KERNEL
 void *extend_get(struct extend_array *ea, int index);
 void scsi_attachdevs __P((struct scsibus_data *scbus));
-struct scsi_xfer *get_xs( struct scsi_link *sc_link, u_int32 flags);
-void free_xs(struct scsi_xfer *xs, struct scsi_link *sc_link,u_int32 flags);
 u_int32 scsi_read_capacity __P(( struct scsi_link *sc_link,
 	u_int32 *blk_size, u_int32 flags));
 errval scsi_test_unit_ready __P(( struct scsi_link *sc_link, u_int32 flags));
 errval scsi_reset_target __P((struct scsi_link *));
 errval scsi_target_mode __P((struct scsi_link *, int));
-errval scsi_change_def( struct scsi_link *sc_link, u_int32 flags);
 errval scsi_inquire( struct scsi_link *sc_link,
 			struct scsi_inquiry_data *inqbuf, u_int32 flags);
 errval scsi_prevent( struct scsi_link *sc_link, u_int32 type,u_int32 flags);
@@ -456,10 +453,7 @@ errval scsi_set_bus __P((int, struct scsi_link *));
 
 char	*scsi_sense_desc	__P((int, int));
 void	scsi_sense_print	__P((struct scsi_xfer *));
-int	scsi_sense_qualifiers	__P((struct scsi_xfer *, int *, int *));
-void	show_scsi_xs		__P((struct scsi_xfer *));
 void	show_scsi_cmd		__P((struct scsi_xfer *));
-void	show_mem		__P((unsigned char * , u_int32));
 
 void	scsi_uto3b __P((u_int32 , u_char *));
 u_int32	scsi_3btou __P((u_char *));

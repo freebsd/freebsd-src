@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)uipc_usrreq.c	8.3 (Berkeley) 1/4/94
- *	$Id: uipc_usrreq.c,v 1.11 1995/08/16 16:13:27 bde Exp $
+ *	$Id: uipc_usrreq.c,v 1.12 1995/08/31 01:39:31 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -59,8 +59,22 @@
  *	rethink name space problems
  *	need a proper out-of-band
  */
-struct	sockaddr sun_noname = { sizeof(sun_noname), AF_LOCAL };
-ino_t	unp_ino;			/* prototype for fake inode numbers */
+static struct	sockaddr sun_noname = { sizeof(sun_noname), AF_LOCAL };
+static ino_t	unp_ino;		/* prototype for fake inode numbers */
+
+static int     unp_attach __P((struct socket *));
+static void    unp_detach __P((struct unpcb *));
+static int     unp_bind __P((struct unpcb *,struct mbuf *, struct proc *));
+static int     unp_connect __P((struct socket *,struct mbuf *, struct proc *));
+static void    unp_disconnect __P((struct unpcb *));
+static void    unp_shutdown __P((struct unpcb *));
+static void    unp_drop __P((struct unpcb *, int));
+static void    unp_gc __P((void));
+static void    unp_scan __P((struct mbuf *, void (*)(struct file *)));
+static void    unp_mark __P((struct file *));
+static void    unp_discard __P((struct file *));
+static int     unp_internalize __P((struct mbuf *, struct proc *));
+
 
 /*ARGSUSED*/
 int
@@ -336,14 +350,14 @@ release:
 #ifndef PIPSIZ
 #define	PIPSIZ	8192
 #endif
-u_long	unpst_sendspace = PIPSIZ;
-u_long	unpst_recvspace = PIPSIZ;
-u_long	unpdg_sendspace = 2*1024;	/* really max datagram size */
-u_long	unpdg_recvspace = 4*1024;
+static u_long	unpst_sendspace = PIPSIZ;
+static u_long	unpst_recvspace = PIPSIZ;
+static u_long	unpdg_sendspace = 2*1024;	/* really max datagram size */
+static u_long	unpdg_recvspace = 4*1024;
 
-int	unp_rights;			/* file descriptors in flight */
+static int	unp_rights;			/* file descriptors in flight */
 
-int
+static int
 unp_attach(so)
 	struct socket *so;
 {
@@ -377,7 +391,7 @@ unp_attach(so)
 	return (0);
 }
 
-void
+static void
 unp_detach(unp)
 	register struct unpcb *unp;
 {
@@ -408,7 +422,7 @@ unp_detach(unp)
 	(void) m_free(dtom(unp));
 }
 
-int
+static int
 unp_bind(unp, nam, p)
 	struct unpcb *unp;
 	struct mbuf *nam;
@@ -458,7 +472,7 @@ unp_bind(unp, nam, p)
 	return (0);
 }
 
-int
+static int
 unp_connect(so, nam, p)
 	struct socket *so;
 	struct mbuf *nam;
@@ -548,7 +562,7 @@ unp_connect2(so, so2)
 	return (0);
 }
 
-void
+static void
 unp_disconnect(unp)
 	struct unpcb *unp;
 {
@@ -595,7 +609,7 @@ unp_abort(unp)
 }
 #endif
 
-void
+static void
 unp_shutdown(unp)
 	struct unpcb *unp;
 {
@@ -606,7 +620,7 @@ unp_shutdown(unp)
 		socantrcvmore(so);
 }
 
-void
+static void
 unp_drop(unp, errno)
 	struct unpcb *unp;
 	int errno;
@@ -663,7 +677,7 @@ unp_externalize(rights)
 	return (0);
 }
 
-int
+static int
 unp_internalize(control, p)
 	struct mbuf *control;
 	struct proc *p;
@@ -697,9 +711,9 @@ unp_internalize(control, p)
 	return (0);
 }
 
-int	unp_defer, unp_gcing;
+static int	unp_defer, unp_gcing;
 
-void
+static void
 unp_gc()
 {
 	register struct file *fp, *nextfp;
@@ -818,7 +832,7 @@ unp_dispose(m)
 		unp_scan(m, unp_discard);
 }
 
-void
+static void
 unp_scan(m0, op)
 	register struct mbuf *m0;
 	void (*op)(struct file *);
@@ -848,7 +862,7 @@ unp_scan(m0, op)
 	}
 }
 
-void
+static void
 unp_mark(fp)
 	struct file *fp;
 {
@@ -859,7 +873,7 @@ unp_mark(fp)
 	fp->f_flag |= (FMARK|FDEFER);
 }
 
-void
+static void
 unp_discard(fp)
 	struct file *fp;
 {
