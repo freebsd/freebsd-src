@@ -37,8 +37,8 @@ ports, and greatly reduces the disk space demands made by the older
 directory of the program you wish to install, type make and let the
 system do the rest.  The full original distribution for each port you
 build is retrieved dynamically off of CDROM or a local ftp site, so
-you need only enough disk space to build the ports you want.  Each
-port is also provided as a pre-compiled "package" which can be
+you need only enough disk space to build the ports you want.  (Almost)
+every port is also provided as a pre-compiled "package" which can be
 installed with a simple command (pkg_add) by those who do not wish to
 compile their own ports from source.  See the file:
         /usr/share/FAQ/Text/ports.FAQ
@@ -351,7 +351,7 @@ Pcvt Console driver
 -------------------
 Owner:                  Joerg Wunsch (joerg@FreeBSD.org)
 Submitted by:           Hellmuth Michaelis (hm@altona.hamburg.com)
-Sources involved:       isa/pcvt/*
+Sources involved:       isa/pcvt/* usr.sbin/pcvt/*
 
 
 BSD-audio emulator for VAT driver
@@ -378,7 +378,7 @@ Sources involved:       isa/gsc.c isa/gscreg.h
 CORTEX-I Frame Grabber
 ----------------------
 Owner:                  core
-Submitted by:           Paul S. LaFollette, Jr. (
+Submitted by:           Paul S. LaFollette, Jr.
 Sources involved:       isa/ctx.c isa/ctxreg.h
 
 
@@ -575,7 +575,7 @@ to you netwise.
 If you do not have access to the internet and electronic mail is your
 only recourse, then you may still fetch the files by sending mail to
 `ftpmail@decwrl.dec.com' - putting the keyword "help" in your message
-to get more information on how to fetch files from freebsd.cdrom.com.
+to get more information on how to fetch files from ftp.freebsd.org.
 Note: This approach will end up sending many *tens of megabytes*
 through the mail, and should only be employed as an absolute LAST
 resort!
@@ -722,4 +722,4 @@ mentioned, and we sincerely hope you enjoy this release of FreeBSD!
 
                         The FreeBSD Core Team
 
-$Id: RELNOTES,v 1.3 1995/06/04 07:31:51 jkh Exp $
+$Id: RELNOTES,v 1.4 1995/06/05 19:45:47 jkh Exp $
