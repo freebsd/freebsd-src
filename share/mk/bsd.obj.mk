@@ -1,4 +1,4 @@
-#	$Id: bsd.obj.mk,v 1.10 1996/09/19 06:58:26 peter Exp $
+#	$Id: bsd.obj.mk,v 1.11 1996/09/20 16:08:21 bde Exp $
 #
 # The include file <bsd.obj.mk> handles creating 'obj' directory
 # and cleaning up object files, log files etc.
@@ -129,6 +129,18 @@ cleandepend:
 
 .if !target(clean)
 clean: cleanfiles _SUBDIR
+.endif
+
+.if !target(checkdpadd)
+checkdpadd: _SUBDIR
+.if (defined(DPADD) || defined(LDADD))
+checkdpadd:
+	@if [ "${DPADD:S;^/usr/lib/lib;-l;S;.a$;;}" != "${LDADD}" ] ; then \
+		echo ${.CURDIR} ; \
+		echo "DPADD -> " ${DPADD:S;^/usr/lib/lib;-l;S;.a$;;} ; \
+		echo "LDADD =  " ${LDADD} ; \
+	fi
+.endif
 .endif
 
 cleandir: cleanobj _SUBDIR
