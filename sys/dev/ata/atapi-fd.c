@@ -254,6 +254,13 @@ afdstrategy(struct buf *bp)
     struct afd_softc *fdp = bp->b_dev->si_drv1;
     int32_t s;
 
+    /* if it's a null transfer, return immediatly. */
+    if (bp->b_bcount == 0) {
+	bp->b_resid = 0;
+	biodone(bp);
+	return;
+    }
+
     s = splbio();
     bufq_insert_tail(&fdp->buf_queue, bp);
     afd_start(fdp);
@@ -267,7 +274,7 @@ afd_start(struct afd_softc *fdp)
     u_int32_t lba, count;
     int8_t ccb[16];
     int8_t *data_ptr;
-    
+
     if (!bp)
 	return;
 
