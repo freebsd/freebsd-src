@@ -202,13 +202,12 @@ the code will generally attempt to spin up drives that are not spinning.
 It may take some other actions, depending upon the sense code returned from
 the command.
 .It Fl n Ar dev_name
-Specify the device type to operate on.  The default is
-.Em da .
+Specify the device type to operate on, e.g. "da", "cd".
 .It Fl t Ar timeout
 SCSI command timeout in seconds.  This overrides the default timeout for
 any given command.
 .It Fl u Ar unit_number
-Specify the device unit number.  The default is 0.
+Specify the device unit number, e.g. "1", "5".
 .It Fl v
 Be verbose, print out sense information for failed SCSI commands.
 .El
@@ -616,7 +615,7 @@ are the CAM application passthrough devices.
 Eject the CD from cd1, and print SCSI sense information if the command
 fails.
 .Pp
-.Dl camcontrol tur
+.Dl camcontrol tur da0
 .Pp
 Send the SCSI test unit ready command to da0.
 .Nm camcontrol
