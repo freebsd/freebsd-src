@@ -32,7 +32,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: yppasswdd_server.c,v 1.14 1997/10/13 11:18:53 charnier Exp $";
 #endif /* not lint */
 
 #include <stdio.h>
@@ -70,6 +70,9 @@ void reaper(sig)
 	extern pid_t pid;
 	extern int pstat;
 	int st;
+	int saved_errno;
+
+	saved_errno = errno;
 
 	if (sig > 0) {
 		if (sig == SIGCHLD)
@@ -77,6 +80,8 @@ void reaper(sig)
 	} else {
 		pid = waitpid(pid, &pstat, 0);
 	}
+
+	errno = saved_errno;
 	return;
 }
 
