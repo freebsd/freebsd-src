@@ -37,7 +37,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: request.c,v 1.18 1998/08/31 23:45:35 grog Exp grog $
+ * $Id: request.c,v 1.19 1998/11/01 02:18:39 grog Exp grog $
  */
 
 #define REALLYKERNEL
@@ -134,7 +134,14 @@ vinumstrategy(struct buf *bp)
      * The correct way is to hand it off the the Vinum
      * daemon, but I haven't found a name for it yet */
     while (vinum_conf.flags & VF_DIRTYCONFIG) {		    /* config is dirty, save it now */
+	int driveno;
+
 	vinum_conf.flags &= ~VF_DIRTYCONFIG;		    /* turn it off */
+	for (driveno = 0; driveno < vinum_conf.drives_used; driveno++) {
+	    if ((DRIVE[driveno].state == drive_down)	    /* drive down */
+	    &&(DRIVE[driveno].vp != NULL))		    /* but still open */
+		close_drive(&DRIVE[driveno]);		    /* close it now */
+	}
 	save_config();
     }
 
@@ -278,8 +285,13 @@ vinumstart(struct buf *bp, int reviveok)
 	    biodone(bp);
 	    freerq(rq);
 	    return -1;
-	    }
-	return launch_requests(rq, reviveok);	    /* now start the requests if we can */
+	} {						    /* XXX */
+	    int result;
+	    int s = splhigh();
+	    result = launch_requests(rq, reviveok);	    /* now start the requests if we can */
+	    splx(s);
+	    return result;
+	}
     } else
 	/* This is a write operation.  We write to all
 	 * plexes.  If this is a RAID 5 plex, we must also
@@ -308,8 +320,14 @@ vinumstart(struct buf *bp, int reviveok)
 		biodone(bp);
 	    freerq(rq);
 	    return -1;
-	    }
-	return launch_requests (rq, reviveok);	    /* start the requests */
+	} {						    /* XXX */
+	    int result;
+	    int s = splhigh();
+	    result = launch_requests(rq, reviveok);	    /* now start the requests if we can */
+	    splx(s);
+	    return result;
+	}
+	/*    return launch_requests (rq, reviveok);     *//* start the requests */
     }
 }
 
@@ -378,6 +396,7 @@ launch_requests(struct request *rq, int reviveok)
 		struct drive *drive = &DRIVE[rqe->driveno]; /* drive to access */
 		if ((rqe->b.b_flags & B_READ) == 0)
 		    rqe->b.b_vp->v_numoutput++;		    /* one more output going */
+		rqe->b.b_flags |= B_ORDERED;		    /* XXX chase SCSI driver */
 #if DEBUG
 		if (debug & DEBUG_ADDRESSES)
 		    printf("  %s dev 0x%x, sd %d, offset 0x%x, devoffset 0x%x, length %ld\n",
