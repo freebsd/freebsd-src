@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.246.2.36 1997/04/20 19:30:09 jkh Exp $
+#	$Id: Makefile,v 1.246.2.37 1997/04/25 09:12:47 jkh Exp $
 #
 # How to roll a release:
 #
@@ -46,8 +46,8 @@ ZIPNSPLIT=		gzip --no-name -9 -c | split -b 240640 -
 # Upper size for the mfs in the boot.flp kernel.
 # These are adjusted down to the minimum needed by doFS.sh.
 BOOTMFSSIZE=		1440
-MFSINODE=		60000
-FIXITINODE=		20000
+MFSINODE=		7000
+FIXITINODE=		2000
 BOOTINODE=		100000
 
 # Things which will get you into trouble if you change them
@@ -58,6 +58,21 @@ FD=			/R/ftp
 CD=			/R/cdrom
 CD_DISC1=		${CD}/disc1
 CD_DISC2=		${CD}/disc2
+
+# ${BOOTSTRAPDIR} is for those utilities that refer to the hosting
+# environment, rather then the target environment.  This is specifically
+# intended for kernel-dependant utilities that are used during the build.
+#
+# ${BOOTSTRAPDIR} is actually being used by prepending it to the normal
+# ${PATH}.  Thus, it's also available to outside utilities like doFS.sh.
+BOOTSTRAPDIR=	/bootstrap
+#
+# The mount subsystem has been changed between 2.2 and 3.0 by the
+# Lite2 import.
+BOOTSTRAPUTILS=	/sbin/mount /sbin/umount
+#
+# 3.0 cpio tries to reference lchown(2) which is not available in 2.2
+BOOTSTRAPUTILS+= /usr/bin/cpio
 
 .if !defined(WHICH_CRUNCH)
 WHICH_CRUNCH=	boot fixit
@@ -86,6 +101,10 @@ rerelease release:
 	cd ${.CURDIR}/../etc && ${MAKE} distrib-dirs DESTDIR=${CHROOTDIR}
 	cd ${.CURDIR}/../etc && ${MAKE} distribution DESTDIR=${CHROOTDIR}
 	cd ${.CURDIR}/.. && ${MAKE} install DESTDIR=${CHROOTDIR} NOMAN=1
+	mkdir ${CHROOTDIR}/${BOOTSTRAPDIR}
+	for i in ${BOOTSTRAPUTILS} ; do \
+		cp -p ${CHROOTDIR}$$i ${CHROOTDIR}/${BOOTSTRAPDIR} ; \
+	done
 .if !defined(RELEASETAG)
 	cd ${CHROOTDIR}/usr && rm -rf src && \
 		cvs -d ${CVSROOT} co -P src
@@ -130,8 +149,7 @@ rerelease release:
 	-test -f install.cfg && cp install.cfg ${CHROOTDIR}/usr/src/release
 	echo "#!/bin/sh"			> ${CHROOTDIR}/mk
 	echo "set -ex"				>> ${CHROOTDIR}/mk
-	echo "CFLAGS='-O2 -pipe'"		>> ${CHROOTDIR}/mk
-	echo "export CFLAGS"			>> ${CHROOTDIR}/mk
+	echo "export CFLAGS='-O2 -pipe'"	>> ${CHROOTDIR}/mk
 	echo "export BUILDNAME=${BUILDNAME}"	>> ${CHROOTDIR}/mk
 .if defined(RELEASETAG)
 	echo "export RELEASETAG=${RELEASETAG}"	>> ${CHROOTDIR}/mk
@@ -141,6 +159,7 @@ rerelease release:
 .endif
 	# Don't remove this, or the build will fall over!
 	echo "export RELEASEDIR=/R"		>> ${CHROOTDIR}/mk
+	echo "export PATH=${BOOTSTRAPDIR}:$${PATH}" >> ${CHROOTDIR}/mk
 	echo "cd /usr/src"			>> ${CHROOTDIR}/mk
 .if make(release)
 	# This eases bootstrapping from a more recent hosting environment:
