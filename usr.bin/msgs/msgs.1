@@ -123,7 +123,7 @@ The
 .Fl s
 option is used for setting up the posting of messages.  The line
 .Pp
-.Dl msgs: \&"\&| /usr/ucb/msgs \-s\&"
+.Dl msgs: \&"\&| /usr/bin/msgs \-s\&"
 .Pp
 should be included in
 .Pa /etc/aliases
@@ -196,8 +196,8 @@ and
 environment variables for the default home directory and
 terminal type.
 .Sh FILES
-.Bl -tag -width /usr/msgs/* -compact
-.It Pa /usr/msgs/*
+.Bl -tag -width /var/msgs/* -compact
+.It Pa /var/msgs/*
 database
 .It ~/.msgsrc
 number of next message to be presented
