@@ -1,19 +1,19 @@
-# $Id: zh_TW.BIG5.src,v 1.2 1999/04/01 10:15:15 foxfair Exp $
+# $Id: zh_TW.BIG5.src,v 1.3 1999/04/28 07:27:04 foxfair Exp $
 #
 # WARNING: spaces may be essential at the end of lines
 # WARNING: empty lines are essential too
 #
 # Short month names
 # It should be 3 characters. Add a space char at the beginning of every line.
-¡@1
-¡@2
-¡@3
-¡@4
-¡@5
-¡@6
-¡@7
-¡@8
-¡@9
+  1
+  2
+  3
+  4
+  5
+  6
+  7
+  8
+  9
  10
  11
  12
