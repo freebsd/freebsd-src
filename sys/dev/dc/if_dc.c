@@ -332,7 +332,8 @@ dc_delay(sc)
 		CSR_READ_4(sc, DC_BUSCTL);
 }
 
-void dc_eeprom_width(sc)
+static void
+dc_eeprom_width(sc)
 	struct dc_softc		*sc;
 {
 	int i;
@@ -1126,7 +1127,7 @@ dc_crc_be(addr)
  * frames. We also sneak the broadcast address into the hash filter since
  * we need that too.
  */
-void
+static void
 dc_setfilt_21143(sc)
 	struct dc_softc		*sc;
 {
@@ -1196,7 +1197,7 @@ dc_setfilt_21143(sc)
 	return;
 }
 
-void
+static void
 dc_setfilt_admtek(sc)
 	struct dc_softc		*sc;
 {
@@ -1250,7 +1251,7 @@ dc_setfilt_admtek(sc)
 	return;
 }
 
-void
+static void
 dc_setfilt_asix(sc)
 	struct dc_softc		*sc;
 {
@@ -1321,7 +1322,7 @@ dc_setfilt_asix(sc)
 	return;
 }
 
-void
+static void
 dc_setfilt_xircom(sc)
 	struct dc_softc		*sc;
 {
@@ -1836,7 +1837,8 @@ dc_decode_leaf_mii(sc, l)
 	return;
 }
 
-void dc_read_srom(sc, bits)
+static void
+dc_read_srom(sc, bits)
 	struct dc_softc		*sc;
 	int			bits;
 {
