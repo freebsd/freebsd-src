@@ -106,7 +106,8 @@ SRCS=	\
 	warn.c \
 	write_message.c \
 	krb5_err.c \
-	heim_err.c
+	heim_err.c \
+	heim_err.h
 
 INCLUDES=${KRB5DIR}/lib/krb5/krb5.h ${.CURDIR}/../../include/krb5-types.h \
 	${KRB5DIR}/lib/krb5/krb5-protos.h heim_err.h krb5_err.h 

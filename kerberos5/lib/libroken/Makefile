@@ -53,7 +53,6 @@ SRCS=		\
 	strnlen.c		\
 	strsep_copy.c		\
 	strupr.c		\
-	print_version.h		\
 	roken.h
 
 NOPIC=		yes
