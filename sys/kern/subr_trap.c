@@ -91,9 +91,11 @@ userret(p, frame, oticks)
 		mi_switch();
 		mtx_unlock_spin(&sched_lock);
 		PICKUP_GIANT();
+		mtx_lock(&Giant);
 		PROC_LOCK(p);
 		while ((sig = CURSIG(p)) != 0)
 			postsig(sig);
+		mtx_unlock(&Giant);
 		mtx_lock_spin(&sched_lock);
 		PROC_UNLOCK_NOSWITCH(p);
 	}
