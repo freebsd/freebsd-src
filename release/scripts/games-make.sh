@@ -18,3 +18,17 @@ if [ -d ${RD}/trees/bin/var/games ]; then
 		tar -xf - -C ${RD}/trees/games/var/games &&
 	rm -rf ${RD}/trees/bin/var/games;
 fi
+
+if [ -d ${RD}/trees/manpages/usr/share/man/man6 ]; then
+	mkdir -p ${RD}/trees/games/usr/share/man/man6
+	tar -cf - -C ${RD}/trees/manpages/usr/share/man/man6 . |
+		tar -xf - -C ${RD}/trees/games/usr/share/man/man6 &&
+	rm -rf ${RD}/trees/manpages/usr/share/man/man6
+fi
+
+if [ -d ${RD}/trees/catpages/usr/share/man/cat6 ]; then
+	mkdir -p ${RD}/trees/games/usr/share/man/cat6
+	tar -cf - -C ${RD}/trees/catpages/usr/share/man/cat6 . |
+		tar -xf - -C ${RD}/trees/games/usr/share/man/cat6 &&
+	rm -rf ${RD}/trees/catpages/usr/share/man/cat6
+fi
