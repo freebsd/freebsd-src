@@ -170,6 +170,14 @@ s/\$//g
 		print
 		exit 1
 	}
+	function align_sysent_comment(column) {
+		printf("\t") > sysent
+		column = column + 8 - column % 8
+		while (column < 56) {
+			printf("\t") > sysent
+			column = column + 8
+		}
+	}
 	function parserr(was, wanted) {
 		printf "%s: line %d: unexpected %s (expected %s)\n",
 		    infile, NR, was, wanted
@@ -178,7 +186,7 @@ s/\$//g
 	function parseline() {
 		f=4			# toss number and type
 		argc= 0;
-		bigargc = 0;
+		argssize = "0"
 		if ($NF != "}") {
 			funcalias=$(NF-2)
 			argalias=$(NF-1)
@@ -242,24 +250,24 @@ s/\$//g
 			}
 			if (argtype[argc] == "")
 				parserr($f, "argument definition")
-			if (argtype[argc] == "off_t")
-				bigargc++
 			argname[argc]=$f;
 			f += 2;			# skip name, and any comma
 		}
+		if (argc != 0)
+			argssize = "AS(" argalias ")"
 	}
 	{	comment = $4
 		if (NF < 7)
 			for (i = 5; i <= NF; i++)
 				comment = comment " " $i
 	}
-	mpsafe = 0;
 	# if the "MPSAFE" keyword is found, note it and shift the line
+	mpsafe = ""
 	$2 == "MPSAFE" {
 		for (i = 2; i <= NF; i++)
 			$i = $(i + 1);
 		NF -= 1;
-		mpsafe = 1;
+		mpsafe = "SYF_MPSAFE | "
 	}
 	$2 == "STD" || $2 == "NODEF" || $2 == "NOARGS"  || $2 == "NOPROTO" \
 	    || $2 == "NOIMPL" {
@@ -290,21 +298,16 @@ s/\$//g
 			nosys = 1
 		if (funcname == "lkmnosys")
 			lkmnosys = 1
-		printf("\t{ %s%d, (sy_call_t *)",
-			mpsafe == 1 ? "SYF_MPSAFE | " : "", argc+bigargc) > sysent
+		printf("\t{ %s%s, (sy_call_t *)", mpsafe, argssize) > sysent
+		column = 8 + 2 + length(mpsafe) + length(argssize) + 15
 	 	if ($2 != "NOIMPL") {
-			printf("%s },\t",
-			    funcname) > sysent
-			if(length(funcname) < 11)
-			    printf("\t") > sysent
+			printf("%s },", funcname) > sysent
+			column = column + length(funcname) + 3
 		} else {
-			printf("%s },\t",
-			    "nosys") > sysent
-			if(length("nosys") < 11)
-			    printf("\t") > sysent
+			printf("%s },", "nosys") > sysent
+			column = column + length("nosys") + 3
 		}
-		if (mpsafe == 0)
-			printf("\t") > sysent
+		align_sysent_comment(column)
 		printf("/* %d = %s */\n", syscall, funcalias) > sysent
 		printf("\t\"%s\",\t\t\t/* %d = %s */\n",
 		    funcalias, syscall, funcalias) > sysnames
@@ -334,9 +337,11 @@ s/\$//g
 			    argalias) > sysarg
 		printf("%s\to%s __P((struct proc *, struct %s *));\n",
 		    rettype, funcname, argalias) > syscompatdcl
-		printf("\t{ compat(%s%d,%s) },\t\t/* %d = old %s */\n",
-		    mpsafe == 1 ? "SYF_MPSAFE | " : "",
-		    argc+bigargc, funcname, syscall, funcalias) > sysent
+		printf("\t{ compat(%s%s,%s) },",
+		    mpsafe, argssize, funcname) > sysent
+		align_sysent_comment(8 + 9 + length(mpsafe) + \
+		    length(argssize) + 1 + length(funcname) + 4)
+		printf("/* %d = old %s */\n", syscall, funcalias) > sysent
 		printf("\t\"old.%s\",\t\t/* %d = old %s */\n",
 		    funcalias, syscall, funcalias) > sysnames
 		printf("\t\t\t\t/* %d is old %s */\n",
@@ -350,9 +355,11 @@ s/\$//g
 		ncompat++
 		parseline()
 		printf("%s\to%s();\n", rettype, funcname) > syscompatdcl
-		printf("\t{ compat(%s%d,%s) },\t\t/* %d = old %s */\n",
-		    mpsafe == 1 ? "SYF_MPSAFE | " : "",
-		    argc+bigargc, funcname, syscall, funcalias) > sysent
+		printf("\t{ compat(%s%s,%s) },",
+		    mpsafe, argssize, funcname) > sysent
+		align_sysent_comment(8 + 9 + length(mpsafe) + \
+		    length(argssize) + 1 + length(funcname) + 4)
+		printf("/* %d = old %s */\n", syscall, funcalias) > sysent
 		printf("\t\"old.%s\",\t\t/* %d = old %s */\n",
 		    funcalias, syscall, funcalias) > sysnames
 		printf("#define\t%s%s\t%d\t/* compatibility; still used by libc */\n",
@@ -364,8 +371,9 @@ s/\$//g
 		next
 	}
 	$2 == "OBSOL" {
-		printf("\t{ 0, (sy_call_t *)nosys },\t\t\t/* %d = obsolete %s */\n",
-		    syscall, comment) > sysent
+		printf("\t{ 0, (sy_call_t *)nosys },") > sysent
+		align_sysent_comment(34)
+		printf("/* %d = obsolete %s */\n", syscall, comment) > sysent
 		printf("\t\"obs_%s\",\t\t\t/* %d = obsolete %s */\n",
 		    $4, syscall, comment) > sysnames
 		printf("\t\t\t\t/* %d is obsolete %s */\n",
@@ -390,6 +398,7 @@ s/\$//g
 		exit 1
 	}
 	END {
+		printf "\n#define AS(name) (sizeof(struct name) / sizeof(register_t))\n" > sysinc
 		if (ncompat != 0) {
 			printf "#include \"opt_compat.h\"\n\n" > syssw
 			printf "\n#ifdef %s\n", compat > sysinc
