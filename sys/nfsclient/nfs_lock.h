@@ -88,5 +88,5 @@ struct lockd_ans {
 
 #ifdef _KERNEL
 int	nfs_dolock(struct vop_advlock_args *ap);
-int	nfslockdans(struct proc *p, struct lockd_ans *ansp);
+int	nfslockdans(struct thread *td, struct lockd_ans *ansp);
 #endif
