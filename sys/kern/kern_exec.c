@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_exec.c,v 1.92 1998/12/30 10:38:59 dfr Exp $
+ *	$Id: kern_exec.c,v 1.93 1999/01/06 23:05:38 julian Exp $
  */
 
 #include <sys/param.h>
@@ -117,6 +117,7 @@ execve(p, uap)
 	imgp->auxargs = NULL;
 	imgp->vp = NULL;
 	imgp->firstpage = NULL;
+	imgp->ps_strings = 0;
 
 	/*
 	 * Allocate temporary demand zeroed space for argument and
@@ -309,8 +310,9 @@ interpret:
 	/* clear "fork but no exec" flag, as we _are_ execing */
 	p->p_acflag &= ~AFORK;
 
-	/* Set entry address */
-	setregs(p, imgp->entry_addr, (u_long)(uintptr_t)stack_base);
+	/* Set values passed into the program in registers. */
+	setregs(p, imgp->entry_addr, (u_long)(uintptr_t)stack_base,
+	    imgp->ps_strings);
 
 exec_fail_dealloc:
 
