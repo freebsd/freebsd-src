@@ -37,17 +37,17 @@ project, however, because CVSup is both faster and more flexible.
 
 <p>The easiest way to install CVSup if you are running FreeBSD 2.2 or
 later is to use either <url
-url="ftp://ftp.freebsd.org/pub/FreeBSD/FreeBSD-current/ports/net/cvsup/"
+url="ftp://ftp.freebsd.org/pub/FreeBSD/ports-current/net/cvsup.tar.gz"
 name="the port"> from the FreeBSD <ref id="ports" name="ports
 collection"> or the corresponding <url
-url="ftp://ftp.freebsd.org/pub/FreeBSD/packages-2.2/net/cvsup-14.0.tgz"
+url="ftp://ftp.freebsd.org/pub/FreeBSD/packages-current/net/cvsup-14.1.1.tgz"
 name="binary package">, depending on whether you prefer to roll your
 own or not.
 
 <p>If you are running FreeBSD-2.1.6, you unfortunately cannot use the
 binary package versions due to the fact that it requires a version of
 the C library that did not yet exist in FreeBSD-2.1.6.  You can easily
-use <url url="ftp://ftp.freebsd.org/pub/FreeBSD/ports-current/net/cvsup/"
+use <url url="ftp://ftp.freebsd.org/pub/FreeBSD/ports-current/net/cvsup.tar.gz"
 name="the port">, however, just as with FreeBSD 2.2.  Simply unpack
 the tar file, cd to the cvsup subdirectory and type "make install"
 
@@ -56,7 +56,7 @@ url="http://www.research.digital.com/SRC/modula-3/html/home.html"
 name="Modula-3">, both the package and the port require that the
 Modula-3 runtime libraries be installed.  These are available as the
 <url
-url="ftp://ftp.freebsd.org/pub/FreeBSD/ports-current/lang/modula-3-lib"
+url="ftp://ftp.freebsd.org/pub/FreeBSD/ports-current/lang/modula-3-lib.tar.gz"
 name="lang/modula-3-lib"> port and the <url
 url="ftp://ftp.freebsd.org/pub/FreeBSD/packages-current/lang/modula-3-lib-3.6.tgz"
 name="lang/modula-3-lib-3.6"> package.  If you follow the same
@@ -66,14 +66,25 @@ installed automatically when you install the CVSup port or package.
 <p>The Modula-3 libraries are rather large, and fetching and compiling
 them is not an instantaneous process.  For that reason, a third option
 is provided.  You can get <em>statically linked</em> FreeBSD
-executables for CVSup from:
+executables for CVSup from either the USA distribution site:
 
 <itemize>
-  <item><url url="ftp://freefall.freebsd.org/pub/CVSup/cvsup-bin-14.0.tar.gz"
-  name="ftp://freefall.freebsd.org/pub/CVSup/cvsup-bin-14.0.tar.gz">
+  <item><url url="ftp://freefall.freebsd.org/pub/CVSup/cvsup-bin-14.1.1.tar.gz"
+  name="ftp://freefall.freebsd.org/pub/CVSup/cvsup-bin-14.1.1.tar.gz">
   (client).
-  <item><url url="ftp://freefall.freebsd.org/pub/CVSup/cvsupd-bin-14.0.tar.gz"
-  name="ftp://freefall.freebsd.org/pub/CVSup/cvsupd-bin-14.0.tar.gz">
+  <item><url url="ftp://freefall.freebsd.org/pub/CVSup/cvsupd-bin-14.1.1.tar.gz"
+  name="ftp://freefall.freebsd.org/pub/CVSup/cvsupd-bin-14.1.1.tar.gz">
+  (server).
+</itemize>
+
+or the German mirror:
+
+<itemize>
+  <item><url url="ftp://ftp.cs.tu-berlin.de/pub/FreeBSD/CVSup/cvsup-bin-14.1.1.tar.gz"
+  name="ftp://ftp.cs.tu-berlin.de/pub/FreeBSD/CVSup/cvsup-bin-14.1.1.tar.gz">
+  (client).
+  <item><url url="ftp://ftp.cs.tu-berlin.de/pub/FreeBSD/CVSup/cvsupd-bin-14.1.1.tar.gz"
+  name="ftp://ftp.cs.tu-berlin.de/pub/FreeBSD/CVSup/cvsupd-bin-14.1.1.tar.gz">
   (server).
 </itemize>
 
