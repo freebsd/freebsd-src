@@ -1,4 +1,4 @@
-<!-- $Id: bibliography.sgml,v 1.18 1997/03/19 03:32:12 obrien Exp $ -->
+<!-- $Id: bibliography.sgml,v 1.19 1997/03/19 03:40:47 obrien Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
     <chapt>
@@ -126,6 +126,11 @@
 	    	<em>The C Programming Language.</em>.
 		PTR Prentice Hall, 1988. 
 		<newline>ISBN 0-13-110362-9</item>
+
+	    <item>Lehey, Greg.
+		<em>Port UNIX Software</em>.
+		O'Reilly &amp; Associates, Inc., 1995.
+		<newline>ISBN 1-56592-126-7</item>
 
 	    <item>Plauger, P. J. <em>The Standard C
 		Library</em>. Prentice Hall, 1992.  
