@@ -62,6 +62,7 @@
 #include <sys/rman.h>
 #include <sys/mman.h>
 #include <sys/poll.h>
+#include <sys/sbuf.h>
 #include <sys/soundcard.h>
 #include <sys/sysctl.h>
 #include <isa/isavar.h>
@@ -76,6 +77,7 @@
 #define USING_MUTEX
 #define USING_DEVFS
 #endif
+
 #define SND_DYNSYSCTL
 
 #ifndef	INTR_MPSAFE
@@ -85,18 +87,6 @@
 #ifndef	INTR_MPSAFE
 #define	INTR_MPSAFE	0
 #endif
-
-#else
-struct isa_device { int dummy; };
-#define d_open_t void
-#define d_close_t void
-#define d_read_t void
-#define d_write_t void
-#define d_ioctl_t void
-#define d_select_t void
-#endif /* _KERNEL */
-
-#endif	/* _OS_H_ */
 
 struct pcm_channel;
 struct pcm_feeder;
@@ -109,27 +99,10 @@ struct snd_mixer;
 #include <dev/sound/pcm/mixer.h>
 #include <dev/sound/pcm/dsp.h>
 
-struct snddev_channel {
-	SLIST_ENTRY(snddev_channel) link;
-	struct pcm_channel *channel;
-};
+#define	PCM_SOFTC_SIZE	512
 
 #define SND_STATUSLEN	64
 /* descriptor of audio device */
-struct snddev_info {
-	SLIST_HEAD(, snddev_channel) channels;
-	struct pcm_channel *fakechan;
-	unsigned devcount, chancount, vchancount;
-	unsigned flags;
-	int inprog;
-	void *devinfo;
-	device_t dev;
-	char status[SND_STATUSLEN];
-	struct sysctl_ctx_list sysctl_tree;
-	struct sysctl_oid *sysctl_tree_top;
-	void *lock;
-};
-
 #ifndef ISADMA_WRITE
 #define ISADMA_WRITE B_WRITE
 #define ISADMA_READ B_READ
@@ -224,8 +197,6 @@ int fkchan_kill(struct pcm_channel *c);
 #define ON		1
 #define OFF		0
 
-#ifdef _KERNEL
-
 extern int snd_unit;
 extern devclass_t pcm_devclass;
 
@@ -243,9 +214,16 @@ extern devclass_t pcm_devclass;
 
 SYSCTL_DECL(_hw_snd);
 
+struct sysctl_ctx_list *snd_sysctl_tree(device_t dev);
+struct sysctl_oid *snd_sysctl_tree_top(device_t dev);
+
+void pcm_lock(struct snddev_info *d);
+void pcm_unlock(struct snddev_info *d);
+struct pcm_channel *pcm_getfakechan(struct snddev_info *d);
 struct pcm_channel *pcm_chnalloc(struct snddev_info *d, int direction, pid_t pid);
 int pcm_chnrelease(struct pcm_channel *c);
 int pcm_chnref(struct pcm_channel *c, int ref);
+int pcm_inprog(struct snddev_info *d, int delta);
 
 struct pcm_channel *pcm_chn_create(struct snddev_info *d, struct pcm_channel *parent, kobj_class_t cls, int dir, void *devinfo);
 int pcm_chn_destroy(struct pcm_channel *ch);
@@ -268,7 +246,25 @@ void snd_mtxfree(void *m);
 void snd_mtxassert(void *m);
 void snd_mtxlock(void *m);
 void snd_mtxunlock(void *m);
-#endif /* _KERNEL */
+
+int sysctl_hw_snd_vchans(SYSCTL_HANDLER_ARGS);
+
+typedef int (*sndstat_handler)(struct sbuf *s, device_t dev, int verbose);
+int sndstat_register(device_t dev, char *str, sndstat_handler handler);
+int sndstat_registerfile(char *str);
+int sndstat_unregister(device_t dev);
+int sndstat_unregisterfile(char *str);
+
+#define SND_DECLARE_FILE(version) \
+	_SND_DECLARE_FILE(__LINE__, version)
+
+#define _SND_DECLARE_FILE(uniq, version) \
+	__SND_DECLARE_FILE(uniq, version)
+
+#define __SND_DECLARE_FILE(uniq, version) \
+	static char sndstat_vinfo[] = version; \
+	SYSINIT(sdf_ ## uniq, SI_SUB_DRIVERS, SI_ORDER_MIDDLE, sndstat_registerfile, sndstat_vinfo); \
+	SYSUNINIT(sdf_ ## uniq, SI_SUB_DRIVERS, SI_ORDER_MIDDLE, sndstat_unregisterfile, sndstat_vinfo);
 
 /* usage of flags in device config entry (config file) */
 #define DV_F_DRQ_MASK	0x00000007	/* mask for secondary drq */
@@ -277,3 +273,7 @@ void snd_mtxunlock(void *m);
 /* ought to be made obsolete */
 #define	DV_F_DEV_MASK	0x0000ff00	/* force device type/class */
 #define	DV_F_DEV_SHIFT	8		/* force device type/class */
+
+#endif /* _KERNEL */
+
+#endif	/* _OS_H_ */

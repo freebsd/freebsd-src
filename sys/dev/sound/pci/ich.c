@@ -23,8 +23,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THEPOSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 #include <dev/sound/pcm/sound.h>
@@ -33,6 +31,8 @@
 
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
+
+SND_DECLARE_FILE("$FreeBSD$");
 
 /* -------------------------------------------------------------------- */
 
@@ -176,7 +176,7 @@ static void
 ich_filldtbl(struct sc_chinfo *ch)
 {
 	u_int32_t base;
-	int i;
+	int i, bs, gap;
 
 	base = vtophys(sndbuf_getbuf(ch->buffer));
 	ch->blkcnt = sndbuf_getsize(ch->buffer) / ch->blksz;
@@ -185,10 +185,22 @@ ich_filldtbl(struct sc_chinfo *ch)
 		ch->blksz = sndbuf_getsize(ch->buffer) / ch->blkcnt;
 	}
 
+	bs = sndbuf_getsize(ch->buffer) / ICH_DTBL_LENGTH;
+	gap = ICH_DTBL_LENGTH / ch->blkcnt;
 	for (i = 0; i < ICH_DTBL_LENGTH; i++) {
-		ch->dtbl[i].buffer = base + (ch->blksz * (i % ch->blkcnt));
-		ch->dtbl[i].length = ICH_BDC_IOC | (ch->blksz / 2);
+		ch->dtbl[i].buffer = base + (i * bs);
+		ch->dtbl[i].length = bs / 2;
+		if (i % gap == gap - 1)
+			ch->dtbl[i].length |= ICH_BDC_IOC;
 	}
+#ifdef DALEK
+	for (i = 0; i < ICH_DTBL_LENGTH; i++) {
+		ch->dtbl[i].buffer = base;
+		ch->dtbl[i].length = ch->blksz / 2;
+		if (pos % ch->blksz == 0)
+			ch->dtbl[i].length |= ICH_BDC_IOC;
+	}
+#endif
 }
 
 static int
@@ -327,7 +339,7 @@ ichchan_getptr(kobj_t obj, void *data)
 {
 	struct sc_chinfo *ch = data;
 	struct sc_info *sc = ch->parent;
-	u_int32_t ci, ofs, pos;
+	u_int32_t bs, ci, ofs, pos;
 
 	ofs = 0;
 	ci = 1234;
@@ -336,9 +348,10 @@ ichchan_getptr(kobj_t obj, void *data)
 		ofs = ich_rd(sc, ch->regbase + ICH_REG_X_PICB, 2) * 2;
 	}
 
-	ofs = ch->blksz - ofs;
-	ci %= ch->blkcnt;
-	pos = (ch->blksz * ci) + ofs;
+	bs = sndbuf_getsize(ch->buffer) / ICH_DTBL_LENGTH;
+	ofs = bs - ofs;
+	pos = ci * bs;
+	pos += ofs;
 
 	return pos;
 }
@@ -380,17 +393,17 @@ ich_intr(void *p)
 		st = ich_rd(sc, ch->regbase + ICH_REG_X_SR, 2);
 		st &= ICH_X_SR_FIFOE | ICH_X_SR_BCIS | ICH_X_SR_LVBCI;
 		if (st != 0) {
-			if (st & (ICH_X_SR_BCIS | ICH_X_SR_LVBCI)) {
+			/* clear status bit */
+			ich_wr(sc, ch->regbase + ICH_REG_X_SR, st, 2);
+			if (st & (ICH_X_SR_BCIS/* | ICH_X_SR_LVBCI*/)) {
 				/* block complete - update buffer */
 				if (ch->run)
 					chn_intr(ch->channel);
 				lvi = ich_rd(sc, ch->regbase + ICH_REG_X_LVI, 1);
-				lvi++;
+				lvi += ICH_DTBL_LENGTH / ch->blkcnt;
 				lvi %= ICH_DTBL_LENGTH;
 				ich_wr(sc, ch->regbase + ICH_REG_X_LVI, lvi, 1);
 			}
-			/* clear status bit */
-			ich_wr(sc, ch->regbase + ICH_REG_X_SR, st, 2);
 		}
 	}
 }
@@ -606,7 +619,7 @@ static device_method_t ich_methods[] = {
 static driver_t ich_driver = {
 	"pcm",
 	ich_methods,
-	sizeof(struct snddev_info),
+	PCM_SOFTC_SIZE,
 };
 
 DRIVER_MODULE(snd_ich, pci, ich_driver, pcm_devclass, 0, 0);

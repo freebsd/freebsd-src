@@ -22,14 +22,14 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 #include <dev/sound/pcm/sound.h>
 #include <dev/sound/pcm/ac97.h>
 
 #include "mixer_if.h"
+
+SND_DECLARE_FILE("$FreeBSD$");
 
 MALLOC_DEFINE(M_AC97, "ac97", "ac97 codec");
 

@@ -22,13 +22,13 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 #include <dev/sound/pcm/sound.h>
 
 #include "mixer_if.h"
+
+SND_DECLARE_FILE("$FreeBSD$");
 
 MALLOC_DEFINE(M_MIXER, "mixer", "mixer");
 
@@ -320,11 +320,9 @@ sysctl_hw_snd_hwvol_mixer(SYSCTL_HANDLER_ARGS)
 int
 mixer_hwvol_init(device_t dev)
 {
-	struct snddev_info *d;
 	struct snd_mixer *m;
 	dev_t pdev;
 
-	d = device_get_softc(dev);
 	pdev = mixer_get_devt(dev);
 	m = pdev->si_drv1;
 	snd_mtxlock(m->lock);
@@ -332,9 +330,9 @@ mixer_hwvol_init(device_t dev)
 	m->hwvol_mixer = SOUND_MIXER_VOLUME;
 	m->hwvol_step = 5;
 #ifdef SND_DYNSYSCTL
-	SYSCTL_ADD_INT(&d->sysctl_tree, SYSCTL_CHILDREN(d->sysctl_tree_top),
+	SYSCTL_ADD_INT(snd_sysctl_tree(dev), SYSCTL_CHILDREN(snd_sysctl_tree_top(dev)),
             OID_AUTO, "hwvol_step", CTLFLAG_RW, &m->hwvol_step, 0, "");
-	SYSCTL_ADD_PROC(&d->sysctl_tree, SYSCTL_CHILDREN(d->sysctl_tree_top),
+	SYSCTL_ADD_PROC(snd_sysctl_tree(dev), SYSCTL_CHILDREN(snd_sysctl_tree_top(dev)),
             OID_AUTO, "hwvol_mixer", CTLTYPE_STRING | CTLFLAG_RW, m, 0,
 	    sysctl_hw_snd_hwvol_mixer, "A", "")
 #endif
