@@ -1,6 +1,11 @@
 /*-
  * Copyright (c) 2001 Jake Burkholder.
+ * Copyright (c) 1992 Terrence R. Lambert.
+ * Copyright (c) 1982, 1987, 1990 The Regents of the University of California.
  * All rights reserved.
+ *
+ * This code is derived from software contributed to Berkeley by
+ * William Jolitz.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -10,11 +15,18 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *	This product includes software developed by the University of
+ *	California, Berkeley and its contributors.
+ * 4. Neither the name of the University nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -23,6 +35,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
+ * 	from: FreeBSD: src/sys/i386/i386/machdep.c,v 1.477 2001/08/27
  * $FreeBSD$
  */
 
@@ -41,9 +55,11 @@
 #include <sys/buf.h>
 #include <sys/ptrace.h>
 #include <sys/signalvar.h>
+#include <sys/sysent.h>
 #include <sys/sysproto.h>
 #include <sys/timetc.h>
 #include <sys/user.h>
+#include <sys/exec.h>
 
 #include <dev/ofw/openfirm.h>
 
@@ -60,14 +76,16 @@
 
 #include <machine/bootinfo.h>
 #include <machine/clock.h>
-#include <machine/frame.h>
+#include <machine/cpu.h>
 #include <machine/intr_machdep.h>
 #include <machine/md_var.h>
 #include <machine/pmap.h>
 #include <machine/pstate.h>
 #include <machine/reg.h>
+#include <machine/sigframe.h>
 #include <machine/tick.h>
 #include <machine/tstate.h>
+#include <machine/ver.h>
 
 typedef int ofw_vec_t(void *);
 
@@ -80,12 +98,12 @@ int cold = 1;
 long dumplo;
 int Maxmem = 0;
 
+u_long debug_mask;
+
 struct mtx Giant;
 struct mtx sched_lock;
 
 struct globaldata __globaldata;
-#define	GLOBALSTACK_SZ	128
-u_long __globalstack[GLOBALSTACK_SZ];
 /*
  * This needs not be aligned as the other user areas, provided that process 0
  * does not have an fp state (which it doesn't normally).
@@ -94,16 +112,10 @@ u_long __globalstack[GLOBALSTACK_SZ];
 char user0[UPAGES * PAGE_SIZE] __attribute__ ((aligned (64)));
 struct user *proc0paddr;
 
-vm_offset_t clean_sva;
-vm_offset_t clean_eva;
+struct kva_md_info kmi;
 
 u_long ofw_vec;
 u_long ofw_tba;
-
-static vm_offset_t buffer_sva;
-static vm_offset_t buffer_eva;
-static vm_offset_t pager_sva;
-static vm_offset_t pager_eva;
 
 static struct timecounter tick_tc;
 
@@ -116,19 +128,10 @@ SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL);
 static void
 cpu_startup(void *arg)
 {
-	vm_offset_t physmem_est;
-	vm_offset_t minaddr;
-	vm_offset_t maxaddr;
 	phandle_t child;
 	phandle_t root;
-	vm_offset_t va;
-	vm_size_t size;
-	char name[32];
 	char type[8];
 	u_int clock;
-	int factor;
-	caddr_t p;
-	int i;
 
 	root = OF_peer(0);
 	for (child = OF_child(root); child != 0; child = OF_peer(child)) {
@@ -138,7 +141,6 @@ cpu_startup(void *arg)
 	}
 	if (child == 0)
 		panic("cpu_startup: no cpu\n");
-	OF_getprop(child, "name", name, sizeof(name));
 	OF_getprop(child, "clock-frequency", &clock, sizeof(clock));
 
 	tick_tc.tc_get_timecount = tick_get_timecount;
@@ -160,6 +162,8 @@ cpu_startup(void *arg)
 	    VER_MAXWIN(ver));
 #endif
 
+	vm_ksubmap_init(&kmi);
+#if 0
 	/*
 	 * XXX make most of this MI and move to sys/kern.
 	 */
@@ -245,13 +249,15 @@ again:
 		TAILQ_INIT(&callwheel[i]);
 
 	mtx_init(&callout_lock, "callout", MTX_SPIN | MTX_RECURSE);
+#endif
 
 	bufinit();
 	vm_pager_bufferinit();
 
 	globaldata_register(globalp);
-
+#if 0
 	tick_start(clock, tick_hardclock);
+#endif
 }
 
 unsigned
@@ -343,9 +349,9 @@ sparc64_init(struct bootinfo *bi, ofw_vec_t *vec)
 	 */
 	ps = rdpr(pstate);
 	wrpr(pstate, ps, PSTATE_AG);
+	__asm __volatile("mov %0, %%g6" : : "r"
+	    (&__globaldata.gd_alt_stack[ALT_STACK_SIZE - 1]));
 	__asm __volatile("mov %0, %%g7" : : "r" (&__globaldata));
-	__asm __volatile("mov %0, %%g6" : :
-	    "r" (&__globalstack[GLOBALSTACK_SZ - 1]));
 	wrpr(pstate, ps, PSTATE_IG);
 	__asm __volatile("mov %0, %%g7" : : "r" (&__globaldata));
 	wrpr(pstate, ps, 0);
@@ -377,7 +383,116 @@ set_openfirm_callback(ofw_vec_t *vec)
 void
 sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 {
-	TODO;
+	struct trapframe *tf;
+	struct sigframe *sfp;
+	struct sigacts *psp;
+	struct sigframe sf;
+	struct proc *p;
+	u_long sp;
+	int oonstack;
+
+	oonstack = 0;
+	p = curproc;
+	PROC_LOCK(p);
+	psp = p->p_sigacts;
+	tf = p->p_frame;
+	sp = tf->tf_sp + SPOFF;
+	oonstack = sigonstack(sp);
+
+	CTR4(KTR_SIG, "sendsig: p=%p (%s) catcher=%p sig=%d", p, p->p_comm,
+	    catcher, sig);
+
+	/* Save user context. */
+	bzero(&sf, sizeof(sf));
+	sf.sf_uc.uc_sigmask = *mask;
+	sf.sf_uc.uc_stack = p->p_sigstk;
+	sf.sf_uc.uc_stack.ss_flags = (p->p_flag & P_ALTSTACK)
+	    ? ((oonstack) ? SS_ONSTACK : 0) : SS_DISABLE;
+	sf.sf_uc.uc_mcontext.mc_onstack = (oonstack) ? 1 : 0;
+	bcopy(tf->tf_global, sf.sf_uc.uc_mcontext.mc_global,
+	    sizeof (tf->tf_global));
+	bcopy(tf->tf_out, sf.sf_uc.uc_mcontext.mc_out, sizeof (tf->tf_out));
+	sf.sf_uc.uc_mcontext.mc_sp = tf->tf_sp;
+	sf.sf_uc.uc_mcontext.mc_tpc = tf->tf_tpc;
+	sf.sf_uc.uc_mcontext.mc_tnpc = tf->tf_tnpc;
+	sf.sf_uc.uc_mcontext.mc_tstate = tf->tf_tstate;
+
+	/* Allocate and validate space for the signal handler context. */
+	if ((p->p_flag & P_ALTSTACK) != 0 && !oonstack &&
+	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
+		sfp = (struct sigframe *)(p->p_sigstk.ss_sp +
+		    p->p_sigstk.ss_size - sizeof(struct sigframe));
+#if defined(COMPAT_43) || defined(COMPAT_SUNOS)
+		p->p_sigstk.ss_flags |= SS_ONSTACK;
+#endif
+	} else
+		sfp = (struct sigframe *)sp - 1;
+	PROC_UNLOCK(p);
+
+	/*
+	 * grow_stack() will return 0 if *sfp does not fit inside the stack
+	 * and the stack can not be grown.
+	 * useracc() will return FALSE if access is denied.
+	 */
+	if (vm_map_growstack(p, (u_long)sfp) != KERN_SUCCESS ||
+	    !useracc((caddr_t)sfp, sizeof(*sfp), VM_PROT_WRITE)) {
+		/*
+		 * Process has trashed its stack; give it an illegal
+		 * instruction to halt it in its tracks.
+		 */
+		CTR2(KTR_SIG, "sendsig: trashed stack p=%p sfp=%p", p, sfp);
+		PROC_LOCK(p);
+		SIGACTION(p, SIGILL) = SIG_DFL;
+		SIGDELSET(p->p_sigignore, SIGILL);
+		SIGDELSET(p->p_sigcatch, SIGILL);
+		SIGDELSET(p->p_sigmask, SIGILL);
+		psignal(p, SIGILL);
+		PROC_UNLOCK(p);
+		return;
+	}
+
+	/* Translate the signal if appropriate. */
+	if (p->p_sysent->sv_sigtbl && sig <= p->p_sysent->sv_sigsize)
+		sig = p->p_sysent->sv_sigtbl[_SIG_IDX(sig)];
+
+	/* Build the argument list for the signal handler. */
+	tf->tf_out[0] = sig;
+	tf->tf_out[2] = (register_t)&sfp->sf_uc;
+	tf->tf_out[3] = tf->tf_type;
+	tf->tf_out[4] = (register_t)catcher;
+	PROC_LOCK(p);
+	if (SIGISMEMBER(p->p_sigacts->ps_siginfo, sig)) {
+		/* Signal handler installed with SA_SIGINFO. */
+		tf->tf_out[1] = (register_t)&sfp->sf_si;
+		
+		/* Fill siginfo structure. */
+		sf.sf_si.si_signo = sig;
+		sf.sf_si.si_code = code;
+		sf.sf_si.si_addr = (void *)tf->tf_type;
+	} else {
+		/* Old FreeBSD-style arguments. */
+		tf->tf_out[1] = code;
+	}
+	PROC_UNLOCK(p);
+
+	/* Copy the sigframe out to the user's stack. */
+	if (rwindow_save(p) != 0 || copyout(&sf, sfp, sizeof(*sfp)) != 0) {
+		/*
+		 * Something is wrong with the stack pointer.
+		 * ...Kill the process.
+		 */
+		CTR2(KTR_SIG, "sendsig: sigexit p=%p sfp=%p", p, sfp);
+		PROC_LOCK(p);
+		sigexit(p, SIGILL);
+		/* NOTREACHED */
+	}
+
+	tf->tf_tpc = PS_STRINGS - *(p->p_sysent->sv_szsigcode);
+	tf->tf_tnpc = tf->tf_tpc + 4;
+	tf->tf_sp = (u_long)sfp - SPOFF;
+
+	CTR3(KTR_SIG, "sendsig: return p=%p pc=%#lx sp=%#lx", p, tf->tf_tpc,
+	    tf->tf_sp);
 }
 
 #ifndef	_SYS_SYSPROTO_H_
@@ -389,8 +504,45 @@ struct	sigreturn_args {
 int
 sigreturn(struct proc *p, struct sigreturn_args *uap)
 {
-	TODO;
-	return (0);
+	struct trapframe *tf;
+	ucontext_t uc;
+
+	if (rwindow_save(p)) {
+		PROC_LOCK(p);
+		sigexit(p, SIGILL);
+	}
+
+	CTR2(KTR_SIG, "sigreturn: p=%p ucp=%p", p, uap->sigcntxp);
+	if (copyin(uap->sigcntxp, &uc, sizeof(uc)) != 0) {
+		CTR1(KTR_SIG, "sigreturn: efault p=%p", p);
+		return (EFAULT);
+	}
+
+	if (((uc.uc_mcontext.mc_tpc | uc.uc_mcontext.mc_tnpc) & 3) != 0)
+		return (EINVAL);
+
+	tf = p->p_frame;
+	bcopy(uc.uc_mcontext.mc_global, tf->tf_global,
+	    sizeof(tf->tf_global));
+	bcopy(uc.uc_mcontext.mc_out, tf->tf_out, sizeof(tf->tf_out));
+	tf->tf_sp = uc.uc_mcontext.mc_sp;
+	tf->tf_tpc = uc.uc_mcontext.mc_tpc;
+	tf->tf_tnpc = uc.uc_mcontext.mc_tnpc;
+	tf->tf_tstate = uc.uc_mcontext.mc_tstate;
+	PROC_LOCK(p);
+#if defined(COMPAT_43) || defined(COMPAT_SUNOS)
+	if (uc.uc_mcontext.mc_onstack & 1)
+		p->p_sigstk.ss_flags |= SS_ONSTACK;
+	else
+		p->p_sigstk.ss_flags &= ~SS_ONSTACK;
+#endif
+
+	p->p_sigmask = uc.uc_sigmask;
+	SIG_CANTMASK(p->p_sigmask);
+	PROC_UNLOCK(p);
+	CTR4(KTR_SIG, "sigreturn: return p=%p pc=%#lx sp=%#lx tstate=%#lx",
+	     p, tf->tf_tpc, tf->tf_sp, tf->tf_tstate);
+	return (EJUSTRETURN);
 }
 
 void
@@ -419,18 +571,15 @@ void
 setregs(struct proc *p, u_long entry, u_long stack, u_long ps_strings)
 {
 	struct pcb *pcb;
-	struct wsframe *fp;
+	struct frame *fp;
 
 	/* Round the stack down to a multiple of 16 bytes. */
 	stack = ((stack) / 16) * 16;
 	pcb = &p->p_addr->u_pcb;
 	/* XXX: honor the real number of windows... */
-	bzero(pcb->pcb_wscratch, sizeof(pcb->pcb_wscratch));
+	bzero(pcb->pcb_rw, sizeof(pcb->pcb_rw));
 	/* The inital window for the process (%cw = 0). */
-	fp = &pcb->pcb_wscratch[0];
-	pcb->pcb_cwp = 1;
-	pcb->pcb_ws_inuse = 1;
-	pcb->pcb_inwinop = 0;
+	fp = (struct frame *)((caddr_t)p->p_addr + UPAGES * PAGE_SIZE) - 1;
 	/* Make sure the frames that are frobbed are actually flushed. */
 	__asm __volatile("flushw");
 	mtx_lock_spin(&sched_lock);
@@ -451,11 +600,10 @@ setregs(struct proc *p, u_long entry, u_long stack, u_long ps_strings)
 	 */
 	bzero(p->p_frame->tf_out, sizeof(p->p_frame->tf_out));
 	bzero(p->p_frame->tf_global, sizeof(p->p_frame->tf_global));
+	/* Set up user stack. */
+	fp->f_fp = stack - SPOFF;
 	p->p_frame->tf_out[6] = stack - SPOFF - sizeof(struct frame);
 	wr(y, 0, 0);
-	/* shouldn't be needed */
-	fp->wsf_sp = stack - SPOFF - sizeof(struct frame);
-	fp->wsf_inuse = 1;
 	mtx_unlock_spin(&sched_lock);
 }
 
