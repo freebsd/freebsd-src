@@ -31,6 +31,7 @@ COMM=	${SYS}/conf/*.[ch] \
 	${SYS}/fs/deadfs/*.[ch] \
 	${SYS}/fs/fdescfs/*.[ch] \
 	${SYS}/fs/fifofs/*.[ch] \
+	${SYS}/fs/msdosfs/*.[ch] \
 	${SYS}/fs/nullfs/*.[ch] \
 	${SYS}/fs/portalfs/*.[ch] \
 	${SYS}/fs/procfs/*.[ch] \
@@ -39,7 +40,6 @@ COMM=	${SYS}/conf/*.[ch] \
 	${SYS}/fs/unionfs/*.[ch] \
 	${SYS}/isofs/cd9660/*.[ch] \
 	${SYS}/kern/*.[ch] \
-	${SYS}/msdosfs/*.[ch] \
 	${SYS}/net/*.[ch] \
 	${SYS}/netatalk/*.[ch] \
 	${SYS}/netatm/*.[ch] \
@@ -59,7 +59,6 @@ COMM=	${SYS}/conf/*.[ch] \
 
 COMMDIR1= ${SYS}/conf \
 	${SYS}/kern \
-	${SYS}/msdosfs \
 	${SYS}/net \
 	${SYS}/netatalk \
 	${SYS}/netatm \
@@ -95,6 +94,7 @@ COMMDIR2= ${SYS}/dev/advansys \
 	${SYS}/fs/devfs \
 	${SYS}/fs/fdescfs \
 	${SYS}/fs/fifofs \
+	${SYS}/fs/msdosfs \
 	${SYS}/fs/nullfs \
 	${SYS}/fs/portalfs \
 	${SYS}/fs/procfs \

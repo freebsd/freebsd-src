@@ -43,13 +43,13 @@
 
 #define	_KERNEL
 #include <sys/mount.h>
-#include <msdosfs/bpb.h>
-#include <msdosfs/msdosfsmount.h>
+#include <fs/msdosfs/bpb.h>
+#include <fs/msdosfs/msdosfsmount.h>
 #undef _KERNEL
 
-#include <msdosfs/denode.h>
-#include <msdosfs/direntry.h>
-#include <msdosfs/fat.h>
+#include <fs/msdosfs/denode.h>
+#include <fs/msdosfs/direntry.h>
+#include <fs/msdosfs/fat.h>
 
 #include <err.h>
 #include <kvm.h>

@@ -63,7 +63,7 @@ static const char rcsid[] =
 #include <nfs/nfsproto.h>
 #include <nfs/nfs.h>
 #include <ufs/ufs/ufsmount.h>
-#include <msdosfs/msdosfsmount.h>
+#include <fs/msdosfs/msdosfsmount.h>
 #include <ntfs/ntfsmount.h>
 #include <isofs/cd9660/cd9660_mount.h>	/* XXX need isofs in include */
 

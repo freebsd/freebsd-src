@@ -743,7 +743,11 @@ struct sockaddr_dl;
  */
 #ifdef HAVE_MSDOSFS_MSDOSFSMOUNT_H
 # include <msdosfs/msdosfsmount.h>
-#endif /* HAVE_MSDOSFS_MSDOSFSMOUNT_H */
+#else /* not HAVE_MSDOSFS_MSDOSFSMOUNT_H */
+# ifdef HAVE_FS_MSDOSFS_MSDOSFSMOUNT_H
+#  include <fs/msdosfs/msdosfsmount.h>
+# endif /* HAVE_FS_MSDOSFS_MSDOSFSMOUNT_H */
+#endif /* not HAVE_MSDOSFS_MSDOSFSMOUNT_H */
 
 /*
  * Actions to take if <sys/fs/tmp.h> exists.
