@@ -38,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vnode_pager.c	7.5 (Berkeley) 4/20/91
- *	$Id: vnode_pager.c,v 1.65.2.1 1997/03/25 04:54:38 dyson Exp $
+ *	$Id: vnode_pager.c,v 1.65.2.2 1997/05/28 18:26:46 dfr Exp $
  */
 
 /*
@@ -963,8 +963,10 @@ vnode_pager_leaf_putpages(object, m, count, sync, rtvals)
 		if (i < ncount) {
 			rtvals[i] = VM_PAGER_OK;
 		}
-		if ((m[i]->busy == 0) && (m[i]->flags & PG_WANTED))
+		if ((m[i]->busy == 0) && (m[i]->flags & PG_WANTED)) {
+			m[i]->flags &= ~PG_WANTED;
 			wakeup(m[i]);
+		}
 	}
 	return rtvals[0];
 }
