@@ -1554,7 +1554,8 @@
 
     <para>&man.ipfw.8; will now avoid the display of dynamic
     firewall rules unless the <option>-d</option> flag is passed to
-    it.  The <option>-e</option> lists expired dynamic rules.</para>
+    it.  The <option>-e</option> option lists expired dynamic
+    rules. &merged;</para>
 
     <para>&man.ipfw.8; has a new feature (<literal>me</literal>) that
     allows for packet matching on interfaces with dynamically-changing
