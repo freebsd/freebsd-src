@@ -531,7 +531,7 @@ osf1_mmap(p, uap)
 	if (SCARG(uap, flags) & OSF1_MAP_HASSEMAPHORE)
 		SCARG(&a, flags) |= MAP_HASSEMAPHORE;
 	if (SCARG(uap, flags) & OSF1_MAP_INHERIT)
-		SCARG(&a, flags) |= MAP_INHERIT;
+		return (EINVAL);
 	if (SCARG(uap, flags) & OSF1_MAP_UNALIGNED)
 		return (EINVAL);
 	/*
