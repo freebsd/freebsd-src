@@ -1,5 +1,5 @@
-/* $Id: ispmbox.h,v 1.5 1999/01/30 07:29:00 mjacob Exp $ */
-/* release_02_05_99 */
+/* $Id: ispmbox.h,v 1.6 1999/02/09 01:05:42 mjacob Exp $ */
+/* release_03_16_99 */
 /*
  * Mailbox and Queue Entry Definitions for for Qlogic ISP SCSI adapters.
  *
@@ -127,7 +127,8 @@
 #define	MBOX_CLEAR_TASK_SET		0x67
 #define	MBOX_ABORT_TASK_SET		0x68
 #define	MBOX_GET_FW_STATE		0x69
-#define	MBOX_GET_LINK_STATUS		0x6a
+#define	MBOX_GET_PORT_NAME		0x6a
+#define	MBOX_GET_LINK_STATUS		0x6b
 #define	MBOX_INIT_LIP_RESET		0x6c
 #define	MBOX_INIT_LIP_LOGIN		0x72
 
@@ -429,7 +430,7 @@ typedef struct {
 #define RQSTF_NEGOTIATION		0x0080
 
 /*
- * FC (ISP2100) specific initialization data structures
+ * FC (ISP2100) specific data structures
  */
 
 /*
@@ -520,6 +521,97 @@ typedef struct {
 	array[ICB_NNM5] = (u_int8_t) ((wwn >> 40) & 0xff), \
 	array[ICB_NNM6] = (u_int8_t) ((wwn >> 48) & 0xff), \
 	array[ICB_NNM7] = (u_int8_t) ((wwn >> 56) & 0xff)
+
+/*
+ * Port Data Base Element
+ */
+
+typedef struct {
+	u_int16_t	pdb_options;
+#if	BYTE_ORDER == BIG_ENDIAN
+	u_int8_t	pdb_sstate;
+	u_int8_t	pdb_mstate;
+#else
+	u_int8_t	pdb_mstate;
+	u_int8_t	pdb_sstate;
+#endif
+#if BYTE_ORDER == BIG_ENDIAN
+#define	BITS2WORD(x)	\
+	(x)[1] << 16 | (x)[2] << 8 | (x)[3]
+#else
+#define	BITS2WORD(x)	\
+	(x)[0] << 16 | (x)[3] << 8 | (x)[2]
+#endif
+	u_int8_t	pdb_hardaddr_bits[4];
+	u_int8_t	pdb_portid_bits[4];
+	u_int8_t	pdb_nodename[8];
+	u_int8_t	pdb_portname[8];
+	u_int16_t	pdb_execthrottle;
+	u_int16_t	pdb_exec_count;
+#if BYTE_ORDER == BIG_ENDIAN
+	u_int8_t	pdb_retry_delay;
+	u_int8_t	pdb_retry_count;
+#else
+	u_int8_t	pdb_retry_count;
+	u_int8_t	pdb_retry_delay;
+#endif
+	u_int16_t	pdb_resalloc;
+	u_int16_t	pdb_curalloc;
+	u_int16_t	pdb_qhead;
+	u_int16_t	pdb_qtail;
+	u_int16_t	pdb_tl_next;
+	u_int16_t	pdb_tl_last;
+	u_int16_t	pdb_features;	/* PLOGI, Common Service */
+	u_int16_t	pdb_pconcurrnt;	/* PLOGI, Common Service */
+	u_int16_t	pdb_roi;	/* PLOGI, Common Service */
+#if BYTE_ORDER == BIG_ENDIAN
+	u_int8_t	pdb_initiator;	/* PLOGI, Class 3 Control Flags */
+	u_int8_t	pdb_target;
+#else
+	u_int8_t	pdb_target;
+	u_int8_t	pdb_initiator;	/* PLOGI, Class 3 Control Flags */
+#endif
+	u_int16_t	pdb_rdsiz;	/* PLOGI, Class 3 */
+	u_int16_t	pdb_ncseq;	/* PLOGI, Class 3 */
+	u_int16_t	pdb_noseq;	/* PLOGI, Class 3 */
+	u_int16_t	pdb_labrtflg;
+	u_int16_t	pdb_lstopflg;
+	u_int16_t	pdb_sqhead;
+	u_int16_t	pdb_sqtail;
+	u_int16_t	pdb_ptimer;
+	u_int16_t	pdb_nxt_seqid;
+	u_int16_t	pdb_fcount;
+	u_int16_t	pdb_prli_len;
+	u_int16_t	pdb_prli_svc0;
+	u_int16_t	pdb_prli_svc3;
+	u_int16_t	pdb_loopid;
+	u_int16_t	pdb_il_ptr;
+	u_int16_t	pdb_sl_ptr;
+} isp_pdb_t;
+
+#define	INVALID_PDB_OPTIONS	0xDEAD
+
+#define	PDB_OPTIONS_XMITTING	(1<<11)
+#define	PDB_OPTIONS_LNKXMIT	(1<<10)
+#define	PDB_OPTIONS_ABORTED	(1<<9)
+#define	PDB_OPTIONS_ADISC	(1<<1)
+
+#define	PDB_STATE_DISCOVERY	0
+#define	PDB_STATE_WDISC_ACK	1
+#define	PDB_STATE_PLOGI		2
+#define	PDB_STATE_PLOGI_ACK	3
+#define	PDB_STATE_PRLI		4
+#define	PDB_STATE_PRLI_ACK	5
+#define	PDB_STATE_LOGGED_IN	6
+#define	PDB_STATE_PORT_UNAVAIL	7
+#define	PDB_STATE_PRLO		8
+#define	PDB_STATE_PRLO_ACK	9
+#define	PDB_STATE_PLOGO		10
+#define	PDB_STATE_PLOG_ACK	11
+
+#define		SVC3_TGT_ROLE		0x10
+#define 	SVC3_INI_ROLE		0x20
+#define			SVC3_ROLE_MASK	0x30
 
 /*
  * Target Mode Structures

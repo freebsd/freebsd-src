@@ -1,5 +1,5 @@
-/* $Id: ispvar.h,v 1.9 1999/01/30 07:29:00 mjacob Exp $ */
-/* release_02_05_99 */
+/* $Id: ispvar.h,v 1.10 1999/02/09 01:11:35 mjacob Exp $ */
+/* release_03_16_99 */
 /*
  * Soft Definitions for for Qlogic ISP SCSI adapters.
  *
@@ -37,7 +37,7 @@
 #ifndef	_ISPVAR_H
 #define	_ISPVAR_H
 
-#ifdef	__NetBSD__
+#if defined(__NetBSD__) || defined(__OpenBSD__)
 #include <dev/ic/ispmbox.h>
 #endif
 #ifdef	__FreeBSD__
@@ -77,13 +77,17 @@ struct ispmdvec {
 };
 
 #define	MAX_TARGETS	16
+#ifdef	ISP2100_FABRIC
+#define	MAX_FC_TARG	256
+#else
 #define	MAX_FC_TARG	126
+#endif
 #define	DEFAULT_LOOPID	113
 
 /* queue length must be a power of two */
 #define	QENTRY_LEN			64
 #define	RQUEST_QUEUE_LEN		MAXISPREQUEST
-#define	RESULT_QUEUE_LEN		(MAXISPREQUEST/4)
+#define	RESULT_QUEUE_LEN		(MAXISPREQUEST/2)
 #define	ISP_QUEUE_ENTRY(q, idx)		((q) + ((idx) * QENTRY_LEN))
 #define	ISP_QUEUE_SIZE(n)		((n) * QENTRY_LEN)
 #define	ISP_NXT_QENTRY(idx, qlen)	(((idx) + 1) & ((qlen)-1))
@@ -164,6 +168,11 @@ typedef struct {
 	u_int16_t		isp_maxfrmlen;
 	u_int16_t		isp_fwoptions;
 	/*
+	 * Port Data Base
+	 */
+	isp_pdb_t		isp_pdb[MAX_FC_TARG];
+
+	/*
 	 * Scratch DMA mapped in area to fetch Port Database stuff, etc.
 	 */
 	volatile caddr_t	isp_scratch;
@@ -237,7 +246,8 @@ struct ispsoftc {
 
 	u_int				: 8,
 			isp_confopts	: 8,
-					: 2,
+					: 1,
+			isp_used	: 1,
 			isp_dblev	: 3,
 			isp_gotdparms	: 1,
 			isp_dogactive	: 1,
@@ -256,7 +266,7 @@ struct ispsoftc {
 				:	19,
 		isp_state	:	3,
 		isp_sendmarker	:	1,	/* send a marker entry */
-		isp_update	:	1,	/* update paramters */
+		isp_update	:	1,	/* update parameters */
 		isp_nactive	:	9;	/* how many commands active */
 
 	/*
@@ -341,8 +351,13 @@ struct ispsoftc {
 #define	ISP_HA_SCSI_1040	0x4
 #define	ISP_HA_SCSI_1040A	0x5
 #define	ISP_HA_SCSI_1040B	0x6
+#define	ISP_HA_SCSI_1080	0xe
 #define	ISP_HA_FC		0xf0
 #define	ISP_HA_FC_2100		0x10
+
+#define	IS_SCSI(isp)	(isp->isp_type & ISP_HA_SCSI)
+#define	IS_1080(isp)	(isp->isp_type == ISP_HA_SCSI_1080)
+#define	IS_FC(isp)	(isp->isp_type & ISP_HA_FC)
 
 /*
  * Macros to read, write ISP registers through bus specific code.
@@ -424,6 +439,7 @@ typedef enum {
 	ISPCTL_RESET_DEV,
 	ISPCTL_ABORT_CMD,
 	ISPCTL_UPDATE_PARAMS,
+	ISPCTL_FCLINK_TEST
 } ispctl_t;
 int isp_control __P((struct ispsoftc *, ispctl_t, void *));
 
@@ -439,8 +455,11 @@ int isp_control __P((struct ispsoftc *, ispctl_t, void *));
 
 typedef enum {
 	ISPASYNC_NEW_TGT_PARAMS,
+	ISPASYNC_BUS_RESET,		/* Bus Reset */
 	ISPASYNC_LOOP_DOWN,		/* Obvious FC only */
-	ISPASYNC_LOOP_UP		/* Obvious FC only */
+	ISPASYNC_LOOP_UP,		/* "" */
+	ISPASYNC_PDB_CHANGE_COMPLETE,	/* "" */
+	ISPASYNC_CHANGE_NOTIFY		/* "" */
 } ispasync_t;
 int isp_async __P((struct ispsoftc *, ispasync_t, void *));
 

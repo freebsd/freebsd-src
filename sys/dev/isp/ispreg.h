@@ -1,5 +1,5 @@
-/* $Id: ispreg.h,v 1.5 1999/01/30 07:29:00 mjacob Exp $ */
-/* release_02_05_99 */
+/* $Id: ispreg.h,v 1.6 1999/02/09 01:09:35 mjacob Exp $ */
+/* release_03_16_99 */
 /*
  * Machine Independent (well, as best as possible) register
  * definitions for Qlogic ISP SCSI adapters.
@@ -57,28 +57,40 @@
  * Sad but true, different architectures have different offsets.
  */
 
-#define	BIU_REGS_OFF		0x00
+#define	BIU_REGS_OFF			0x00
 
-#define	 PCI_MBOX_REGS_OFF		0x70
-#define	 PCI_MBOX_REGS2100_OFF		0x10
+#define	PCI_MBOX_REGS_OFF		0x70
+#define	PCI_MBOX_REGS2100_OFF		0x10
 #define	SBUS_MBOX_REGS_OFF		0x80
 
-#define	 PCI_SXP_REGS_OFF		0x80
+#define	PCI_SXP_REGS_OFF		0x80
 #define	SBUS_SXP_REGS_OFF		0x200
 
-#define	 PCI_RISC_REGS_OFF		0x80
+#define	PCI_RISC_REGS_OFF		0x80
 #define	SBUS_RISC_REGS_OFF		0x400
+
+/* Bless me! Chip designers have putzed it again! */
+#define	ISP1080_DMA_REGS_OFF		0x60
+#define	DMA_REGS_OFF			0x00	/* same as BIU block */
 
 /*
  * NB:	The *_BLOCK definitions have no specific hardware meaning.
  *	They serve simply to note to the MD layer which block of
  *	registers offsets are being accessed.
  */
+#define	_NREG_BLKS	5
+#define	_BLK_REG_SHFT	13
+#define	_BLK_REG_MASK	(7 << _BLK_REG_SHFT)
+#define	BIU_BLOCK	(0 << _BLK_REG_SHFT)
+#define	MBOX_BLOCK	(1 << _BLK_REG_SHFT)
+#define	SXP_BLOCK	(2 << _BLK_REG_SHFT)
+#define	RISC_BLOCK	(3 << _BLK_REG_SHFT)
+#define	DMA_BLOCK	(4 << _BLK_REG_SHFT)
 
 /*
  * Bus Interface Block Register Offsets
  */
-#define	BIU_BLOCK	0x0100
+
 #define	BIU_ID_LO	BIU_BLOCK+0x0	/* R  : Bus ID, Low */
 #define		BIU2100_FLASH_ADDR	BIU_BLOCK+0x0
 #define	BIU_ID_HI	BIU_BLOCK+0x2	/* R  : Bus ID, High */
@@ -90,34 +102,37 @@
 #define	BIU_ISR		BIU_BLOCK+0xA	/* R  : Bus Interface Status */
 #define	BIU_SEMA	BIU_BLOCK+0xC	/* RW : Bus Semaphore */
 #define	BIU_NVRAM	BIU_BLOCK+0xE	/* RW : Bus NVRAM */
-#define	CDMA_CONF	BIU_BLOCK+0x20	/* RW*: DMA Configuration */
-#define		CDMA2100_CONTROL	CDMA_CONF
-#define	CDMA_CONTROL	BIU_BLOCK+0x22	/* RW*: DMA Control */
-#define	CDMA_STATUS 	BIU_BLOCK+0x24	/* R  : DMA Status */
-#define	CDMA_FIFO_STS	BIU_BLOCK+0x26	/* R  : DMA FIFO Status */
-#define	CDMA_COUNT	BIU_BLOCK+0x28	/* RW*: DMA Transfer Count */
-#define	CDMA_ADDR0	BIU_BLOCK+0x2C	/* RW*: DMA Address, Word 0 */
-#define	CDMA_ADDR1	BIU_BLOCK+0x2E	/* RW*: DMA Address, Word 1 */
-/* these are for the 1040A cards */
-#define	CDMA_ADDR2	BIU_BLOCK+0x30	/* RW*: DMA Address, Word 2 */
-#define	CDMA_ADDR3	BIU_BLOCK+0x32	/* RW*: DMA Address, Word 3 */
-
-#define	DDMA_CONF	BIU_BLOCK+0x40	/* RW*: DMA Configuration */
-#define		TDMA2100_CONTROL	DDMA_CONF
-#define	DDMA_CONTROL	BIU_BLOCK+0x42	/* RW*: DMA Control */
-#define	DDMA_STATUS	BIU_BLOCK+0x44	/* R  : DMA Status */
-#define	DDMA_FIFO_STS	BIU_BLOCK+0x46	/* R  : DMA FIFO Status */
-#define	DDMA_COUNT_LO	BIU_BLOCK+0x48	/* RW*: DMA Xfer Count, Low */
-#define	DDMA_COUNT_HI	BIU_BLOCK+0x4A	/* RW*: DMA Xfer Count, High */
-#define	DDMA_ADDR0	BIU_BLOCK+0x4C	/* RW*: DMA Address, Word 0 */
-#define	DDMA_ADDR1	BIU_BLOCK+0x4E	/* RW*: DMA Address, Word 1 */
-/* these are for the 1040A cards */
-#define	DDMA_ADDR2	BIU_BLOCK+0x50	/* RW*: DMA Address, Word 2 */
-#define	DDMA_ADDR3	BIU_BLOCK+0x52	/* RW*: DMA Address, Word 3 */
-
 #define	DFIFO_COMMAND	BIU_BLOCK+0x60	/* RW : Command FIFO Port */
 #define		RDMA2100_CONTROL	DFIFO_COMMAND
 #define	DFIFO_DATA	BIU_BLOCK+0x62	/* RW : Data FIFO Port */
+
+/*
+ * Putzed DMA register layouts.
+ */
+#define	CDMA_CONF	DMA_BLOCK+0x20	/* RW*: DMA Configuration */
+#define		CDMA2100_CONTROL	CDMA_CONF
+#define	CDMA_CONTROL	DMA_BLOCK+0x22	/* RW*: DMA Control */
+#define	CDMA_STATUS 	DMA_BLOCK+0x24	/* R  : DMA Status */
+#define	CDMA_FIFO_STS	DMA_BLOCK+0x26	/* R  : DMA FIFO Status */
+#define	CDMA_COUNT	DMA_BLOCK+0x28	/* RW*: DMA Transfer Count */
+#define	CDMA_ADDR0	DMA_BLOCK+0x2C	/* RW*: DMA Address, Word 0 */
+#define	CDMA_ADDR1	DMA_BLOCK+0x2E	/* RW*: DMA Address, Word 1 */
+#define	CDMA_ADDR2	DMA_BLOCK+0x30	/* RW*: DMA Address, Word 2 */
+#define	CDMA_ADDR3	DMA_BLOCK+0x32	/* RW*: DMA Address, Word 3 */
+
+#define	DDMA_CONF	DMA_BLOCK+0x40	/* RW*: DMA Configuration */
+#define		TDMA2100_CONTROL	DDMA_CONF
+#define	DDMA_CONTROL	DMA_BLOCK+0x42	/* RW*: DMA Control */
+#define	DDMA_STATUS	DMA_BLOCK+0x44	/* R  : DMA Status */
+#define	DDMA_FIFO_STS	DMA_BLOCK+0x46	/* R  : DMA FIFO Status */
+#define	DDMA_COUNT_LO	DMA_BLOCK+0x48	/* RW*: DMA Xfer Count, Low */
+#define	DDMA_COUNT_HI	DMA_BLOCK+0x4A	/* RW*: DMA Xfer Count, High */
+#define	DDMA_ADDR0	DMA_BLOCK+0x4C	/* RW*: DMA Address, Word 0 */
+#define	DDMA_ADDR1	DMA_BLOCK+0x4E	/* RW*: DMA Address, Word 1 */
+/* these are for the 1040A cards */
+#define	DDMA_ADDR2	DMA_BLOCK+0x50	/* RW*: DMA Address, Word 2 */
+#define	DDMA_ADDR3	DMA_BLOCK+0x52	/* RW*: DMA Address, Word 3 */
+
 
 /*
  * Bus Interface Block Register Definitions
@@ -140,6 +155,9 @@
 #define	BIU_SBUS_CONF1_FIFO_8		0x0000	/* 8 bytes FIFO threshold */
 #define	BIU_SBUS_CONF1_BURST8		0x0008 	/* Enable 8-byte  bursts */
 #define	BIU_PCI_CONF1_SXP		0x0008	/* SXP register select */
+
+#define	BIU_PCI1080_CONF1_SXP		0x0100	/* SXP bank select */
+#define	BIU_PCI1080_CONF1_DMA		0x0300	/* DMA bank select */
 
  /* ISP2100 Bus Control/Status Register */
 
@@ -174,6 +192,11 @@
 #define	ENABLE_INTS(isp)	(isp->isp_type & ISP_HA_SCSI)?  \
  ISP_WRITE(isp, BIU_ICR, BIU_ICR_ENABLE_RISC_INT | BIU_ICR_ENABLE_ALL_INTS) : \
  ISP_WRITE(isp, BIU_ICR, BIU2100_ICR_ENA_RISC_INT | BIU2100_ICR_ENABLE_ALL_INTS)
+
+#define	INTS_ENABLED(isp)	((isp->isp_type & ISP_HA_SCSI)?  \
+ (ISP_READ(isp, BIU_ICR) & (BIU_ICR_ENABLE_RISC_INT|BIU_ICR_ENABLE_ALL_INTS)) :\
+ (ISP_READ(isp, BIU_ICR) & \
+	(BIU2100_ICR_ENA_RISC_INT|BIU2100_ICR_ENABLE_ALL_INTS)))
 
 #define	DISABLE_INTS(isp)	ISP_WRITE(isp, BIU_ICR, 0)
 
@@ -287,7 +310,6 @@
  * Mailbox Block Register Offsets
  */
 
-#define	MBOX_BLOCK	0x0200
 #define	INMAILBOX0	MBOX_BLOCK+0x0
 #define	INMAILBOX1	MBOX_BLOCK+0x2
 #define	INMAILBOX2	MBOX_BLOCK+0x4
@@ -314,7 +336,6 @@
 /*
  * SXP Block Register Offsets
  */
-#define	SXP_BLOCK	0x0400
 #define	SXP_PART_ID		SXP_BLOCK+0x0	/* R  : Part ID Code */
 #define	SXP_CONFIG1		SXP_BLOCK+0x2	/* RW*: Configuration Reg #1 */
 #define	SXP_CONFIG2		SXP_BLOCK+0x4	/* RW*: Configuration Reg #2 */
@@ -485,7 +506,6 @@
 /*
  * RISC and Host Command and Control Block Register Offsets
  */
-#define	RISC_BLOCK	0x0800
 
 #define	RISC_ACC	RISC_BLOCK+0x0	/* RW*: Accumulator */
 #define	RISC_R1		RISC_BLOCK+0x2	/* RW*: GP Reg R1  */

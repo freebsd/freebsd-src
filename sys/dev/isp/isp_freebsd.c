@@ -1,5 +1,5 @@
-/* $Id: isp_freebsd.c,v 1.11 1999/01/30 07:29:00 mjacob Exp $ */
-/* release_02_05_99 */
+/* $Id: isp_freebsd.c,v 1.12 1999/02/09 01:08:38 mjacob Exp $ */
+/* release_03_16_99 */
 /*
  * Platform (FreeBSD) dependent common attachment code for Qlogic adapters.
  *
@@ -92,7 +92,8 @@ isp_attach(struct ispsoftc *isp)
 	if (isp->isp_type & ISP_HA_FC) {
 		isp->isp_sim->base_transfer_speed = 100000;
 	}
-	isp->isp_state = ISP_RUNSTATE;
+	if (isp->isp_state == ISP_INITSTATE)
+		isp->isp_state = ISP_RUNSTATE;
 }
 
 static void
@@ -148,6 +149,30 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 	isp = (struct ispsoftc *)cam_sim_softc(sim);
 	ccb->ccb_h.sim_priv.entries[0].field = 0;
 	ccb->ccb_h.sim_priv.entries[1].ptr = isp;
+	/*
+	 * This should only happen for Fibre Channel adapters.
+	 * We want to pass through all but XPT_SCSI_IO (e.g.,
+	 * path inquiry) but fail if we can't get good Fibre
+	 * Channel link status.
+	 */
+	if (ccb->ccb_h.func_code == XPT_SCSI_IO &&
+	    isp->isp_state != ISP_RUNSTATE) {
+		s = splcam();
+		DISABLE_INTS(isp);
+		isp_init(isp);
+		if (isp->isp_state != ISP_INITSTATE) {
+			(void) splx(s);
+			/*
+			 * Lie. Say it was a selection timeout.
+			 */
+			ccb->ccb_h.status = CAM_SEL_TIMEOUT;
+			xpt_done(ccb);
+			return;
+		}
+		isp->isp_state = ISP_RUNSTATE;
+		ENABLE_INTS(isp);
+		(void) splx(s);
+	}
 	
 	IDPRINTF(4, ("%s: isp_action code %x\n", isp->isp_name,
 	    ccb->ccb_h.func_code));
@@ -218,9 +243,9 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 			ccb->ccb_h.status |= CAM_SIM_QUEUED;
 			break;
 		case CMD_EAGAIN:
-			if (isp->isp_osinfo.simqfrozen == 0) {
+			if (!(isp->isp_osinfo.simqfrozen & SIMQFRZ_RESOURCE)) {
 				xpt_freeze_simq(sim, 1);
-				isp->isp_osinfo.simqfrozen = 1;
+				isp->isp_osinfo.simqfrozen |= SIMQFRZ_RESOURCE;
 			}
 			ccb->ccb_h.status &= ~CAM_STATUS_MASK;
                         ccb->ccb_h.status |= CAM_REQUEUE_REQ;
@@ -547,13 +572,10 @@ isp_done(struct ccb_scsiio *sccb)
 			sccb->ccb_h.status |= CAM_DEV_QFRZN;
 		}
 	}
-	if (isp->isp_osinfo.simqfrozen) {
-
-		xpt_print_path(sccb->ccb_h.path);
-		printf("isp_done releasing SIMQ\n");
-
+	if (isp->isp_osinfo.simqfrozen & SIMQFRZ_RESOURCE) {
+		isp->isp_osinfo.simqfrozen &= ~SIMQFRZ_RESOURCE;
 		sccb->ccb_h.status |= CAM_RELEASE_SIMQ;
-		isp->isp_osinfo.simqfrozen = 0;
+		xpt_release_simq(isp->isp_sim, 1);
 	}
 	sccb->ccb_h.status &= ~CAM_SIM_QUEUED;
 	if (CAM_DEBUGGED(sccb->ccb_h.path, ISPDDB) &&
@@ -572,29 +594,6 @@ isp_async(isp, cmd, arg)
 {
 	int rv = 0;
 	switch (cmd) {
-	case ISPASYNC_LOOP_DOWN:
-		if (isp->isp_path) {
-			/*
-			 * We can get multiple LOOP downs, so only count one.
-			 */
-			if (isp->isp_osinfo.simqfrozen == 0) {
-				xpt_freeze_simq(isp->isp_sim, 1);
-				isp->isp_osinfo.simqfrozen = 1;
-				xpt_print_path(isp->isp_path);
-				printf("freezing SIMQ until loop comes up\n");
-			}
-		}
-		break;
-	case ISPASYNC_LOOP_UP:
-		if (isp->isp_path) {
-			xpt_print_path(isp->isp_path);
-			if (isp->isp_osinfo.simqfrozen) {
-				isp->isp_osinfo.simqfrozen = 0;
-				printf("releasing frozen SIMQ\n");
-				xpt_release_simq(isp->isp_sim, 1);
-			}
-		}
-		break;
 	case ISPASYNC_NEW_TGT_PARAMS:
 		if (isp->isp_type & ISP_HA_SCSI) {
 			int flags, tgt;
@@ -638,6 +637,100 @@ isp_async(isp, cmd, arg)
 			xpt_free_path(tmppath);
 		}
 		break;
+	case ISPASYNC_BUS_RESET:
+		printf("%s: SCSI bus reset detected\n", isp->isp_name);
+		if (isp->isp_path) {
+			xpt_async(AC_BUS_RESET, isp->isp_path, NULL);
+		}
+		break;
+	case ISPASYNC_LOOP_DOWN:
+		if (isp->isp_path) {
+			/*
+			 * We can get multiple LOOP downs, so only count one.
+			 */
+			if (!(isp->isp_osinfo.simqfrozen & SIMQFRZ_LOOPDOWN)) {
+				xpt_freeze_simq(isp->isp_sim, 1);
+				isp->isp_osinfo.simqfrozen |= SIMQFRZ_LOOPDOWN;
+				printf("%s: Loop DOWN- freezing SIMQ until Loop"
+				    " comes up\n", isp->isp_name);
+			}
+		} else {
+			printf("%s: Loop DOWN\n", isp->isp_name);
+		}
+		break;
+	case ISPASYNC_LOOP_UP:
+		if (isp->isp_path) {
+			if (isp->isp_osinfo.simqfrozen & SIMQFRZ_LOOPDOWN) {
+				xpt_release_simq(isp->isp_sim, 1);
+				isp->isp_osinfo.simqfrozen &= ~SIMQFRZ_LOOPDOWN;
+				if (isp->isp_osinfo.simqfrozen) {
+					printf("%s: Loop UP- SIMQ still "
+					    "frozen\n", isp->isp_name);
+				} else {
+					printf("%s: Loop UP-releasing frozen "
+					    "SIMQ\n", isp->isp_name);
+				}
+			}
+		} else {
+			printf("%s: Loop UP\n", isp->isp_name);
+		}
+		break;
+	case ISPASYNC_PDB_CHANGE_COMPLETE:
+	if (isp->isp_type & ISP_HA_FC) {
+		int i;
+		static char *roles[4] = {
+		    "No", "Target", "Initiator", "Target/Initiator"
+		};
+		for (i = 0; i < MAX_FC_TARG; i++)  {
+			isp_pdb_t *pdbp =
+			    &((fcparam *)isp->isp_param)->isp_pdb[i];
+			if (pdbp->pdb_options == INVALID_PDB_OPTIONS)
+				continue;
+			printf("%s: Loop ID %d, %s role\n",
+			    isp->isp_name, pdbp->pdb_loopid,
+			    roles[(pdbp->pdb_prli_svc3 >> 4) & 0x3]);
+			printf("     Node Address 0x%x WWN 0x"
+			    "%02x%02x%02x%02x%02x%02x%02x%02x\n",
+			    BITS2WORD(pdbp->pdb_portid_bits),
+			    pdbp->pdb_portname[0], pdbp->pdb_portname[1],
+			    pdbp->pdb_portname[2], pdbp->pdb_portname[3],
+			    pdbp->pdb_portname[4], pdbp->pdb_portname[5],
+			    pdbp->pdb_portname[6], pdbp->pdb_portname[7]);
+			if (pdbp->pdb_options & PDB_OPTIONS_ADISC)
+				printf("     Hard Address 0x%x WWN 0x"
+				    "%02x%02x%02x%02x%02x%02x%02x%02x\n",
+				    BITS2WORD(pdbp->pdb_hardaddr_bits),
+				    pdbp->pdb_nodename[0],
+				    pdbp->pdb_nodename[1],
+				    pdbp->pdb_nodename[2],
+				    pdbp->pdb_nodename[3],
+				    pdbp->pdb_nodename[4],
+				    pdbp->pdb_nodename[5],
+				    pdbp->pdb_nodename[6],
+				    pdbp->pdb_nodename[7]);
+			switch (pdbp->pdb_prli_svc3 & SVC3_ROLE_MASK) {
+			case SVC3_TGT_ROLE|SVC3_INI_ROLE:
+				printf("     Master State=%s, Slave State=%s\n",
+				    isp2100_pdb_statename(pdbp->pdb_mstate),
+				    isp2100_pdb_statename(pdbp->pdb_sstate));
+				break;
+			case SVC3_TGT_ROLE:
+				printf("     Master State=%s\n",
+				    isp2100_pdb_statename(pdbp->pdb_mstate));
+				break;
+			case SVC3_INI_ROLE:
+				printf("     Slave State=%s\n",
+				    isp2100_pdb_statename(pdbp->pdb_sstate));
+				break;
+			default:
+				break;
+			}
+		}
+		break;
+	}
+	case ISPASYNC_CHANGE_NOTIFY:
+		printf("%s: Name Server Database Changed\n", isp->isp_name);
+		break;
 	default:
 		break;
 	}
@@ -672,7 +765,9 @@ isp_attach(struct ispsoftc *isp)
 	if(!scbus) {
 		return;
 	}
-	isp->isp_state = ISP_RUNSTATE;
+	if (isp->isp_state == ISP_INITSTATE)
+		isp->isp_state = ISP_RUNSTATE;
+
 	START_WATCHDOG(isp);
 
 	isp->isp_osinfo._link.adapter_unit = isp->isp_osinfo.unit;
@@ -736,14 +831,25 @@ static int
 ispcmd(ISP_SCSI_XFER_T *xs)
 {
 	struct ispsoftc *isp;
-	int r;
-	ISP_LOCKVAL_DECL;
+	int r, s;
 
 	isp = XS_ISP(xs);
-	ISP_LOCK;
+	s = splbio();
+	DISABLE_INTS(isp);
+	if (isp->isp_state != ISP_RUNSTATE) {
+		isp_init(isp);
+		if (isp->isp_state != ISP_INITSTATE) {
+			ENABLE_INTS(isp);
+			(void) splx(s);
+			XS_SETERR(xs, HBA_BOTCH);
+			return (CMD_COMPLETE);
+		}
+		isp_state = ISP_RUNSTATE;
+	}
 	r = ispscsicmd(xs);
+	ENABLE_INTS(isp);
 	if (r != CMD_QUEUED || (xs->flags & SCSI_NOMASK) == 0) {
-		ISP_UNLOCK;
+		(void) splx(s);
 		return (r);
 	}
 
@@ -765,7 +871,7 @@ ispcmd(ISP_SCSI_XFER_T *xs)
 			}
 		}
 	}
-	ISP_UNLOCK;
+	(void) splx(s);
 	return (CMD_COMPLETE);
 }
 
@@ -872,6 +978,71 @@ isp_async(isp, cmd, arg)
 				    isp->isp_name, tgt, wt);
 			}
 		}
+		break;
+	case ISPASYNC_BUS_RESET:
+		printf("%s: SCSI bus reset detected\n", isp->isp_name);
+		break;
+	case ISPASYNC_LOOP_DOWN:
+		printf("%s: Loop DOWN\n", isp->isp_name);
+		break;
+	case ISPASYNC_LOOP_UP:
+		printf("%s: Loop UP\n", isp->isp_name);
+		break;
+	case ISPASYNC_PDB_CHANGE_COMPLETE:
+	if (isp->isp_type & ISP_HA_FC) {
+		int i;
+		static char *roles[4] = {
+		    "No", "Target", "Initiator", "Target/Initiator"
+		};
+		for (i = 0 i < MAX_FC_TARG; i++)  {
+			isp_pdb_t *pdbp =
+			    &((fcparam *)isp->isp_param)->isp_pdb[i];
+			if (pdbp->pdb_options == INVALID_PDB_OPTIONS)
+				continue;
+			printf("%s: Loop ID %d, %s role\n",
+			    isp->isp_name, pdbp->pdb_loopid,
+			    roles[(pdbp->pdb_prli_svc3 >> 4) & 0x3]);
+			printf("     Node Address 0x%x WWN 0x"
+			    "%02x%02x%02x%02x%02x%02x%02x%02x\n",
+			    BITS2WORD(pdbp->pdb_portid_bits),
+			    pdbp->pdb_portname[0], pdbp->pdb_portname[1],
+			    pdbp->pdb_portname[2], pdbp->pdb_portname[3],
+			    pdbp->pdb_portname[4], pdbp->pdb_portname[5],
+			    pdbp->pdb_portname[6], pdbp->pdb_portname[7]);
+			if (pdbp->pdb_options & PDB_OPTIONS_ADISC)
+				printf("     Hard Address 0x%x WWN 0x"
+				    "%02x%02x%02x%02x%02x%02x%02x%02x\n",
+				    BITS2WORD(pdbp->pdb_hardaddr_bits),
+				    pdbp->pdb_nodename[0],
+				    pdbp->pdb_nodename[1],
+				    pdbp->pdb_nodename[2],
+				    pdbp->pdb_nodename[3],
+				    pdbp->pdb_nodename[4],
+				    pdbp->pdb_nodename[5],
+				    pdbp->pdb_nodename[6],
+				    pdbp->pdb_nodename[7]);
+			switch (pdbp->pdb_prli_svc3 & SVC3_ROLE_MASK) {
+			case SVC3_TGT_ROLE|SVC3_INI_ROLE:
+				printf("     Master State=%s, Slave State=%s\n",
+				    isp2100_pdb_statename(pdbp->pdb_mstate),
+				    isp2100_pdb_statename(pdbp->pdb_sstate));
+				break;
+			case SVC3_TGT_ROLE:
+				printf("     Master State=%s\n",
+				    isp2100_pdb_statename(pdbp->pdb_mstate));
+				break;
+			case SVC3_INI_ROLE:
+				printf("     Slave State=%s\n",
+				    isp2100_pdb_statename(pdbp->pdb_sstate));
+				break;
+			default:
+				break;
+			}
+		}
+		break;
+	}
+	case ISPASYNC_CHANGE_NOTIFY:
+		printf("%s: Name Server Database Changed\n", isp->isp_name);
 		break;
 	default:
 		break;
