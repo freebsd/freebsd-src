@@ -180,7 +180,7 @@ redirect:
 				if (pd)
 					break;
 				if ((p = memchr(ps, '\n', psl)) != NULL) {
-					oldc = *p;
+					oldc = *++p;
 					*p = '\0';
 				}
 				OUT(ps)
