@@ -403,7 +403,9 @@ ad1816chan_trigger(void *data, int go)
     	struct ad1816_info *ad1816 = ch->parent;
     	int wr, reg;
 
-	if (go == PCMTRIG_EMLDMAWR) return 0;
+	if (go == PCMTRIG_EMLDMAWR || go == PCMTRIG_EMLDMARD)
+		return 0;
+
 	buf_isadma(ch->buffer, go);
     	wr = (ch->dir == PCMDIR_PLAY);
     	reg = wr? AD1816_PLAY : AD1816_CAPT;
@@ -617,4 +619,8 @@ static driver_t ad1816_driver = {
 	sizeof(snddev_info),
 };
 
-DRIVER_MODULE(ad1816, isa, ad1816_driver, pcm_devclass, 0, 0);
+DRIVER_MODULE(snd_ad1816, isa, ad1816_driver, pcm_devclass, 0, 0);
+MODULE_DEPEND(snd_ad1816, snd_pcm, PCM_MINVER, PCM_PREFVER, PCM_MAXVER);
+MODULE_VERSION(snd_ad1816, 1);
+
+

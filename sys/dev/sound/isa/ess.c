@@ -33,8 +33,6 @@
 
 #include <dev/sound/pcm/sound.h>
 
-#include "sbc.h"
-
 #include  <dev/sound/isa/sb.h>
 #include  <dev/sound/chip.h>
 
@@ -495,11 +493,12 @@ ess_calcspeed9(int *spd)
 	/* rate = source / (256 - divisor) */
 	/* divisor = 256 - (source / rate) */
 	speed = *spd;
-	t0 = 256 - (793800 / speed);
-	s0 = 793800 / (256 - t0);
+	t0 = 128 - (793800 / speed);
+	s0 = 793800 / (128 - t0);
 
-	t1 = 0x80 | (256 - (768000 / speed));
-	s1 = 768000 / (256 - t1);
+	t1 = 128 - (768000 / speed);
+	s1 = 768000 / (128 - t1);
+	t1 |= 0x80;
 
 	use0 = (ABS(speed - s0) < ABS(speed - s1))? 1 : 0;
 
@@ -677,7 +676,7 @@ esschan_trigger(void *data, int go)
 {
 	struct ess_chinfo *ch = data;
 
-	if (go == PCMTRIG_EMLDMAWR)
+	if (go == PCMTRIG_EMLDMAWR || go == PCMTRIG_EMLDMARD)
 		return 0;
 
 	switch (go) {
@@ -868,7 +867,10 @@ static driver_t ess_driver = {
 	sizeof(snddev_info),
 };
 
-DRIVER_MODULE(ess, sbc, ess_driver, pcm_devclass, 0, 0);
+DRIVER_MODULE(snd_ess, sbc, ess_driver, pcm_devclass, 0, 0);
+MODULE_DEPEND(snd_ess, snd_pcm, PCM_MINVER, PCM_PREFVER, PCM_MAXVER);
+MODULE_VERSION(snd_ess, 1);
+
 
 static devclass_t esscontrol_devclass;
 
@@ -924,7 +926,4 @@ static driver_t esscontrol_driver = {
 };
 
 DRIVER_MODULE(esscontrol, isa, esscontrol_driver, esscontrol_devclass, 0, 0);
-
-
-
 

@@ -388,7 +388,9 @@ csachan_trigger(void *data, int go)
 	struct csa_chinfo *ch = data;
 	struct csa_info *csa = ch->parent;
 
-	if (go == PCMTRIG_EMLDMAWR) return 0;
+	if (go == PCMTRIG_EMLDMAWR || go == PCMTRIG_EMLDMARD)
+		return 0;
+
 	if (ch->dir == PCMDIR_PLAY) {
 		if (go == PCMTRIG_START)
 			csa_startplaydma(csa);
@@ -872,4 +874,7 @@ static driver_t pcmcsa_driver = {
 
 static devclass_t pcm_devclass;
 
-DRIVER_MODULE(pcmcsa, csa, pcmcsa_driver, pcm_devclass, 0, 0);
+DRIVER_MODULE(snd_csapcm, csa, pcmcsa_driver, pcm_devclass, 0, 0);
+MODULE_DEPEND(snd_csapcm, snd_pcm, PCM_MINVER, PCM_PREFVER, PCM_MAXVER);
+MODULE_DEPEND(snd_csapcm, snd_csa, 1, 1, 1);
+MODULE_VERSION(snd_csapcm, 1);

@@ -33,8 +33,6 @@
 
 #include <dev/sound/pcm/sound.h>
 
-#include "sbc.h"
-
 #define __SB_MIXER_C__	/* XXX warning... */
 #include  <dev/sound/isa/sb.h>
 #include  <dev/sound/chip.h>
@@ -398,8 +396,8 @@ sb16_swap(void *v, int dir)
 			t = sb->pch.buffer->chan;
 			sb->pch.buffer->chan = sb->rch.buffer->chan;
 			sb->rch.buffer->chan = t;
-			sb->pch.buffer->dir = B_WRITE;
-			sb->rch.buffer->dir = B_READ;
+			sb->pch.buffer->dir = ISADMA_WRITE;
+			sb->rch.buffer->dir = ISADMA_READ;
 		}
 	}
 }
@@ -689,7 +687,7 @@ sbchan_trigger(void *data, int go)
 {
 	struct sb_chinfo *ch = data;
 
-	if (go == PCMTRIG_EMLDMAWR)
+	if (go == PCMTRIG_EMLDMAWR || go == PCMTRIG_EMLDMARD)
 		return 0;
 
 	buf_isadma(ch->buffer, go);
@@ -894,7 +892,10 @@ static driver_t sbsbc_driver = {
 	sizeof(snddev_info),
 };
 
-DRIVER_MODULE(sbsbc, sbc, sbsbc_driver, pcm_devclass, 0, 0);
+DRIVER_MODULE(snd_sb, sbc, sbsbc_driver, pcm_devclass, 0, 0);
+MODULE_DEPEND(snd_sb, snd_pcm, PCM_MINVER, PCM_PREFVER, PCM_MAXVER);
+MODULE_VERSION(snd_sb, 1);
+
 
 
 

@@ -31,6 +31,8 @@
 
 #include <dev/sound/pcm/sound.h>
 
+#define OLDPCM_IOCTL
+
 static int getchns(snddev_info *d, int chan, pcm_channel **rdch, pcm_channel **wrch);
 
 static pcm_channel *
@@ -39,7 +41,7 @@ allocchn(snddev_info *d, int direction)
 	pcm_channel *chns = (direction == PCMDIR_PLAY)? d->play : d->rec;
 	int i, cnt = (direction == PCMDIR_PLAY)? d->playcount : d->reccount;
 	for (i = 0; i < cnt; i++) {
-		if (!(chns[i].flags & CHN_F_BUSY)) {
+		if (!(chns[i].flags & (CHN_F_BUSY | CHN_F_DEAD))) {
 			chns[i].flags |= CHN_F_BUSY;
 			return &chns[i];
 		}
@@ -92,8 +94,9 @@ dsp_open(snddev_info *d, int chan, int oflags, int devtype)
 	if (oflags & FWRITE) {
 		if (wrch == NULL) {
 			wrch = allocchn(d, PCMDIR_PLAY);
-			if (!wrch && (oflags & FREAD)) {
-				rdch->flags &= ~CHN_F_BUSY;
+			if (!wrch) {
+				if (rdch && (oflags & FREAD))
+					rdch->flags &= ~CHN_F_BUSY;
 				return EBUSY;
 			}
 		} else return EBUSY;
@@ -169,7 +172,7 @@ dsp_read(snddev_info *d, int chan, struct uio *buf, int flag)
 	getchns(d, chan, &rdch, &wrch);
 	KASSERT(rdch, ("dsp_read: nonexistant channel"));
 	KASSERT(rdch->flags & CHN_F_BUSY, ("dsp_read: nonbusy channel"));
-	if (rdch->flags & CHN_F_MAPPED) return EINVAL;
+	if (rdch->flags & (CHN_F_MAPPED | CHN_F_DEAD)) return EINVAL;
 	if (!(rdch->flags & CHN_F_RUNNING))
 		rdch->flags |= CHN_F_RUNNING;
 	return chn_read(rdch, buf);
@@ -185,7 +188,7 @@ dsp_write(snddev_info *d, int chan, struct uio *buf, int flag)
 	getchns(d, chan, &rdch, &wrch);
 	KASSERT(wrch, ("dsp_write: nonexistant channel"));
 	KASSERT(wrch->flags & CHN_F_BUSY, ("dsp_write: nonbusy channel"));
-	if (wrch->flags & CHN_F_MAPPED) return EINVAL;
+	if (wrch->flags & (CHN_F_MAPPED | CHN_F_DEAD)) return EINVAL;
 	if (!(wrch->flags & CHN_F_RUNNING))
 		wrch->flags |= CHN_F_RUNNING;
 	return chn_write(wrch, buf);
@@ -201,6 +204,12 @@ dsp_ioctl(snddev_info *d, int chan, u_long cmd, caddr_t arg)
 	rdch = d->arec[chan];
 	wrch = d->aplay[chan];
 
+	if (rdch && (rdch->flags & CHN_F_DEAD))
+		rdch = NULL;
+	if (wrch && (wrch->flags & CHN_F_DEAD))
+		wrch = NULL;
+	if (!(rdch || wrch))
+		return EINVAL;
     	/*
      	 * all routines are called with int. blocked. Make sure that
      	 * ints are re-enabled when calling slow or blocking functions!
@@ -220,15 +229,17 @@ dsp_ioctl(snddev_info *d, int chan, u_long cmd, caddr_t arg)
     	case AIOSSIZE:     /* set the current blocksize */
 		{
 	    		struct snd_size *p = (struct snd_size *)arg;
-	    		if (wrch) chn_setblocksize(wrch, p->play_size);
-	    		if (rdch) chn_setblocksize(rdch, p->rec_size);
+	    		if (wrch)
+				chn_setblocksize(wrch, 2, p->play_size);
+	    		if (rdch)
+				chn_setblocksize(rdch, 2, p->rec_size);
 		}
 		/* FALLTHROUGH */
     	case AIOGSIZE:	/* get the current blocksize */
 		{
 	    		struct snd_size *p = (struct snd_size *)arg;
-	    		if (wrch) p->play_size = wrch->blocksize2nd;
-	    		if (rdch) p->rec_size = rdch->blocksize2nd;
+	    		if (wrch) p->play_size = wrch->buffer2nd.blksz;
+	    		if (rdch) p->rec_size = rdch->buffer2nd.blksz;
 		}
 		break;
 
@@ -271,6 +282,8 @@ dsp_ioctl(snddev_info *d, int chan, u_long cmd, caddr_t arg)
 			/* XXX bad on sb16 */
 	    		p->formats = (rcaps? rcaps->formats : 0xffffffff) &
 			 	     (pcaps? pcaps->formats : 0xffffffff);
+			if (rdch && wrch)
+				p->formats |= (d->flags & SD_F_SIMPLEX)? 0 : AFMT_FULLDUPLEX;
 	    		p->mixers = 1; /* default: one mixer */
 	    		p->inputs = d->mixer.devs;
 	    		p->left = p->right = 100;
@@ -321,9 +334,9 @@ dsp_ioctl(snddev_info *d, int chan, u_long cmd, caddr_t arg)
     	case THE_REAL_SNDCTL_DSP_GETBLKSIZE:
     	case SNDCTL_DSP_GETBLKSIZE:
 		if (wrch)
-			*arg_i = wrch->blocksize2nd;
+			*arg_i = wrch->buffer2nd.blksz;
 		else if (rdch)
-			*arg_i = rdch->blocksize2nd;
+			*arg_i = rdch->buffer2nd.blksz;
 		else
 			*arg_i = 0;
 		break ;
@@ -349,8 +362,10 @@ dsp_ioctl(snddev_info *d, int chan, u_long cmd, caddr_t arg)
 
     	case SNDCTL_DSP_SPEED:
 		splx(s);
-		if (wrch) chn_setspeed(wrch, *arg_i);
-		if (rdch) chn_setspeed(rdch, *arg_i);
+		if (wrch)
+			ret = chn_setspeed(wrch, *arg_i);
+		if (rdch && ret == 0)
+			ret = chn_setspeed(rdch, *arg_i);
 		/* fallthru */
 
     	case SOUND_PCM_READ_RATE:
@@ -359,20 +374,29 @@ dsp_ioctl(snddev_info *d, int chan, u_long cmd, caddr_t arg)
 
     	case SNDCTL_DSP_STEREO:
 		splx(s);
-		if (wrch) chn_setformat(wrch, (wrch->format & ~AFMT_STEREO) |
+		if (wrch)
+			ret = chn_setformat(wrch, (wrch->format & ~AFMT_STEREO) |
 					((*arg_i)? AFMT_STEREO : 0));
-		if (rdch) chn_setformat(rdch, (rdch->format & ~AFMT_STEREO) |
+		if (rdch && ret == 0)
+			ret = chn_setformat(rdch, (rdch->format & ~AFMT_STEREO) |
 				        ((*arg_i)? AFMT_STEREO : 0));
 		*arg_i = ((wrch? wrch->format : rdch->format) & AFMT_STEREO)? 1 : 0;
 		break;
 
     	case SOUND_PCM_WRITE_CHANNELS:
+/*	case SNDCTL_DSP_CHANNELS: ( == SOUND_PCM_WRITE_CHANNELS) */
 		splx(s);
-		if (wrch) chn_setformat(wrch, (wrch->format & ~AFMT_STEREO) |
+		if (*arg_i == 1 || *arg_i == 2) {
+	  		if (wrch)
+				ret = chn_setformat(wrch, (wrch->format & ~AFMT_STEREO) |
 					((*arg_i == 2)? AFMT_STEREO : 0));
-		if (rdch) chn_setformat(rdch, (rdch->format & ~AFMT_STEREO) |
-					((*arg_i == 2)? AFMT_STEREO : 0));
-		/* fallthru */
+			if (rdch && ret == 0)
+				ret = chn_setformat(rdch, (rdch->format & ~AFMT_STEREO) |
+				        ((*arg_i == 2)? AFMT_STEREO : 0));
+			*arg_i = ((wrch? wrch->format : rdch->format) & AFMT_STEREO)? 2 : 1;
+		} else
+			*arg_i = 0;
+		break;
 
     	case SOUND_PCM_READ_CHANNELS:
 		*arg_i = ((wrch? wrch->format : rdch->format) & AFMT_STEREO)? 2 : 1;
@@ -384,18 +408,19 @@ dsp_ioctl(snddev_info *d, int chan, u_long cmd, caddr_t arg)
 
     	case SNDCTL_DSP_SETFMT:	/* sets _one_ format */
 		splx(s);
-		if (wrch) chn_setformat(wrch, (*arg_i) | (wrch->format & AFMT_STEREO));
-		if (rdch) chn_setformat(rdch, (*arg_i) | (rdch->format & AFMT_STEREO));
+		if (wrch)
+			ret = chn_setformat(wrch, (*arg_i) | (wrch->format & AFMT_STEREO));
+		if (rdch && ret == 0)
+			ret = chn_setformat(rdch, (*arg_i) | (rdch->format & AFMT_STEREO));
 		*arg_i = (wrch? wrch->format: rdch->format) & ~AFMT_STEREO;
 		break;
 
     	case SNDCTL_DSP_SUBDIVIDE:
 		/* XXX watch out, this is RW! */
-		DEB(printf("SNDCTL_DSP_SUBDIVIDE unimplemented\n");)
+		printf("SNDCTL_DSP_SUBDIVIDE unimplemented\n");
 		break;
 
     	case SNDCTL_DSP_SETFRAGMENT:
-		/* XXX watch out, this is RW! */
 		DEB(printf("SNDCTL_DSP_SETFRAGMENT 0x%08x\n", *(int *)arg));
 		{
 			pcm_channel *c = wrch? wrch : rdch;
@@ -421,7 +446,13 @@ dsp_ioctl(snddev_info *d, int chan, u_long cmd, caddr_t arg)
 		    	if (wrch && ret == 0)
 				ret = chn_setblocksize(wrch, maxfrags, fragsz);
 
-	    		*arg_i = (c->fragments << 16) | c->blocksize;
+			fragsz = c->buffer2nd.blksz;
+			fragln = 0;
+			while (fragsz > 1) {
+				fragln++;
+				fragsz >>= 1;
+			}
+	    		*arg_i = (c->buffer2nd.blkcnt << 16) | fragln;
 		}
 		break;
 
@@ -439,9 +470,9 @@ dsp_ioctl(snddev_info *d, int chan, u_long cmd, caddr_t arg)
 					 */
 					while (chn_rdfeed(rdch) > 0);
 				a->bytes = bs->rl;
-	        		a->fragments = a->bytes / rdch->blocksize2nd;
-	        		a->fragstotal = rdch->fragments;
-	        		a->fragsize = rdch->blocksize2nd;
+	        		a->fragments = a->bytes / rdch->buffer2nd.blksz;
+	        		a->fragstotal = rdch->buffer2nd.blkcnt;
+	        		a->fragsize = rdch->buffer2nd.blksz;
 	    		}
 		}
 		break;
@@ -463,9 +494,9 @@ dsp_ioctl(snddev_info *d, int chan, u_long cmd, caddr_t arg)
 					while (chn_wrfeed(wrch) > 0);
 				}
 				a->bytes = bs->fl;
-	        		a->fragments = a->bytes / wrch->blocksize2nd;
-	        		a->fragstotal = wrch->fragments;
-	        		a->fragsize = wrch->blocksize2nd;
+	        		a->fragments = a->bytes / wrch->buffer2nd.blksz;
+	        		a->fragstotal = wrch->buffer2nd.blkcnt;
+	        		a->fragsize = wrch->buffer2nd.blksz;
 	    		}
 		}
 		break;
@@ -483,8 +514,9 @@ dsp_ioctl(snddev_info *d, int chan, u_long cmd, caddr_t arg)
 					 */
 					while (chn_rdfeed(rdch) > 0);
 	        		a->bytes = bs->total;
-	        		a->blocks = bs->rl / rdch->blocksize2nd;
-	        		a->ptr = bs->rl % rdch->blocksize2nd;
+	        		a->blocks = rdch->blocks;
+	        		a->ptr = bs->rp;
+				rdch->blocks = 0;
 	    		} else ret = EINVAL;
 		}
 		break;
@@ -601,12 +633,14 @@ dsp_mmap(snddev_info *d, int chan, vm_offset_t offset, int nprot)
 
 	getchns(d, chan, &rdch, &wrch);
 	/* XXX this is broken by line 204 of vm/device_pager.c, so force write buffer */
-	if (1 || (wrch && (nprot & PROT_WRITE))) c = wrch;
-	else if (rdch && (nprot & PROT_READ)) c = rdch;
-	if (c) {
+	if (1 || (wrch && (nprot & PROT_WRITE)))
+		c = wrch;
+	else if (rdch && (nprot & PROT_READ))
+		c = rdch;
+	if (c && (c->format == c->buffer.fmt)) {
 		c->flags |= CHN_F_MAPPED;
 		return atop(vtophys(c->buffer2nd.buf + offset));
-	}
-	return -1;
+	} else
+		return -1;
 }
 

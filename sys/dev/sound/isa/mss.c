@@ -34,11 +34,6 @@
 #include <dev/sound/isa/mss.h>
 #include <dev/sound/chip.h>
 
-#include "gusc.h"
-#if notyet
-#include "midi.h"
-#endif /* notyet */
-
 #define MSS_BUFFSIZE (65536 - 256)
 #define	abs(x)	(((x) < 0) ? -(x) : (x))
 
@@ -49,6 +44,7 @@ struct mss_chinfo {
 	pcm_channel *channel;
 	snd_dbuf *buffer;
 	int dir;
+	u_int32_t fmt;
 };
 
 struct mss_info {
@@ -327,7 +323,6 @@ mss_alloc_resources(struct mss_info *mss, device_t dev)
     	return ok;
 }
 
-#if NGUSC > 0
 /*
  * XXX This might be better off in the gusc driver.
  */
@@ -353,12 +348,8 @@ gusmax_setup(struct mss_info *mss, device_t dev, struct resource *alt)
 	port_wr(alt, 0x0f, 0x00);
 
 	irqctl = irq_bits[isa_get_irq(parent)];
-#if notyet
-#if NMIDI > 0
 	/* Share the IRQ with the MIDI driver.  */
 	irqctl |= 0x40;
-#endif /* NMIDI > 0 */
-#endif /* notyet */
 	dmactl = dma_bits[isa_get_drq(parent)];
 	if (device_get_flags(parent) & DV_F_DUAL_DMA)
 		dmactl |= dma_bits[device_get_flags(parent) & DV_F_DRQ_MASK]
@@ -383,7 +374,6 @@ gusmax_setup(struct mss_info *mss, device_t dev, struct resource *alt)
 
 	splx(s);
 }
-#endif	/* NGUSC > 0 */
 
 static int
 mss_init(struct mss_info *mss, device_t dev)
@@ -429,10 +419,8 @@ mss_init(struct mss_info *mss, device_t dev)
 			break;
 		}
     		port_wr(alt, 0, 0xC); /* enable int and dma */
-#if NGUSC > 0
 		if (mss->bd_id == MD_GUSMAX)
 			gusmax_setup(mss, dev, alt);
-#endif
 		bus_release_resource(dev, SYS_RES_IOPORT, rid, alt);
 
     		/*
@@ -499,7 +487,7 @@ mss_probe(device_t dev)
     	int flags, irq, drq, result = ENXIO, setres = 0;
     	struct mss_info *mss;
 
-    	if (isa_get_vendorid(dev)) return ENXIO; /* not yet */
+    	if (isa_get_logicalid(dev)) return ENXIO; /* not yet */
 
     	mss = (struct mss_info *)malloc(sizeof *mss, M_DEVBUF, M_NOWAIT);
     	if (!mss) return ENXIO;
@@ -970,7 +958,10 @@ static driver_t mss_driver = {
 	sizeof(snddev_info),
 };
 
-DRIVER_MODULE(mss, isa, mss_driver, pcm_devclass, 0, 0);
+DRIVER_MODULE(snd_mss, isa, mss_driver, pcm_devclass, 0, 0);
+MODULE_DEPEND(snd_mss, snd_pcm, PCM_MINVER, PCM_PREFVER, PCM_MAXVER);
+MODULE_VERSION(snd_mss, 1);
+
 
 /*
  * main irq handler for the CS423x. The OPTi931 code is
@@ -1293,6 +1284,7 @@ mss_format(struct mss_chinfo *ch, u_int32_t format)
         	{AFMT_U8, AFMT_MU_LAW, AFMT_S16_LE, AFMT_A_LAW,
 		-1, AFMT_IMA_ADPCM, AFMT_U16_BE, -1};
 
+	ch->fmt = format;
     	for (i = 0; i < 8; i++) if (arg == fmts[i]) break;
     	arg = i << 1;
     	if (format & AFMT_STEREO) arg |= 1;
@@ -1309,13 +1301,17 @@ mss_trigger(struct mss_chinfo *ch, int go)
 {
     	struct mss_info *mss = ch->parent;
     	u_char m;
-    	int retry, wr, cnt;
+    	int retry, wr, cnt, ss;
 
-    	wr = (ch->dir == PCMDIR_PLAY)? 1 : 0;
+	ss = 1;
+	ss <<= (ch->fmt & AFMT_STEREO)? 1 : 0;
+	ss <<= (ch->fmt & AFMT_16BIT)? 1 : 0;
+
+	wr = (ch->dir == PCMDIR_PLAY)? 1 : 0;
     	m = ad_read(mss, 9);
     	switch (go) {
     	case PCMTRIG_START:
-		cnt = (ch->buffer->dl / ch->buffer->sample_size) - 1;
+		cnt = (ch->buffer->dl / ss) - 1;
 
 		DEB(if (m & 4) printf("OUCH! reg 9 0x%02x\n", m););
 		m |= wr? I9_PEN : I9_CEN; /* enable DMA */
@@ -1457,7 +1453,10 @@ static driver_t pnpmss_driver = {
 	sizeof(snddev_info),
 };
 
-DRIVER_MODULE(pnpmss, isa, pnpmss_driver, pcm_devclass, 0, 0);
+DRIVER_MODULE(snd_pnpmss, isa, pnpmss_driver, pcm_devclass, 0, 0);
+MODULE_DEPEND(snd_pnpmss, snd_pcm, PCM_MINVER, PCM_PREFVER, PCM_MAXVER);
+MODULE_VERSION(snd_pnpmss, 1);
+
 
 /*
  * the opti931 seems to miss interrupts when working in full
@@ -1516,8 +1515,6 @@ opti931_intr(void *arg)
     	DEB(printf("xxx too many loops\n");)
 }
 
-#if NGUSC > 0
-
 static int
 guspcm_probe(device_t dev)
 {
@@ -1551,7 +1548,7 @@ guspcm_attach(device_t dev)
 	mss->drq1_rid = 1;
 	mss->drq2_rid = -1;
 
-	if (isa_get_vendorid(parent) == 0)
+	if (isa_get_logicalid(parent) == 0)
 		mss->bd_id = MD_GUSMAX;
 	else {
 		mss->bd_id = MD_GUSPNP;
@@ -1598,8 +1595,10 @@ static driver_t guspcm_driver = {
 	sizeof(snddev_info),
 };
 
-DRIVER_MODULE(guspcm, gusc, guspcm_driver, pcm_devclass, 0, 0);
-#endif	/* NGUSC > 0 */
+DRIVER_MODULE(snd_guspcm, gusc, guspcm_driver, pcm_devclass, 0, 0);
+MODULE_DEPEND(snd_guspcm, snd_pcm, PCM_MINVER, PCM_PREFVER, PCM_MAXVER);
+MODULE_VERSION(snd_guspcm, 1);
+
 
 static int
 mssmix_init(snd_mixer *m)
@@ -1768,7 +1767,9 @@ msschan_trigger(void *data, int go)
 {
 	struct mss_chinfo *ch = data;
 
-	if (go == PCMTRIG_EMLDMAWR) return 0;
+	if (go == PCMTRIG_EMLDMAWR || go == PCMTRIG_EMLDMARD)
+		return 0;
+
 	buf_isadma(ch->buffer, go);
 	mss_trigger(ch, go);
 	return 0;

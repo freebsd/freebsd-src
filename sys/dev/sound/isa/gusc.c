@@ -53,6 +53,13 @@
 #define LOGICALID_OPL   0x0300561e
 #define LOGICALID_MIDI  0x0400561e
 
+/* PnP IDs */
+static struct isa_pnp_id gusc_ids[] = {
+	{LOGICALID_PCM,  "GRV0000 Gravis UltraSound PnP PCM"},	/* GRV0000 */
+	{LOGICALID_OPL,  "GRV0003 Gravis UltraSound PnP OPL"},	/* GRV0003 */
+	{LOGICALID_MIDI, "GRV0004 Gravis UltraSound PnP MIDI"},	/* GRV0004 */
+};
+
 /* Interrupt handler.  */
 struct gusc_ihandler {
 	void (*intr)(void *);
@@ -88,9 +95,7 @@ static struct resource *gusc_alloc_resource(device_t bus, device_t child, int ty
 static int gusc_release_resource(device_t bus, device_t child, int type, int rid,
 				   struct resource *r);
 
-#if notyet
 static device_t find_masterdev(sc_p scp);
-#endif /* notyet */
 static int alloc_resource(sc_p scp);
 static int release_resource(sc_p scp);
 
@@ -100,52 +105,53 @@ static int
 gusc_probe(device_t dev)
 {
 	device_t child;
-	u_int32_t vend_id, logical_id;
+	u_int32_t logical_id;
 	char *s;
 	struct sndcard_func *func;
-
-	vend_id = isa_get_vendorid(dev);
-	if (vend_id == 0)
-		return gusisa_probe(dev);
+	int ret;
 
 	logical_id = isa_get_logicalid(dev);
 	s = NULL;
 
-	if (vend_id == 0x0100561e) { /* Gravis */
-		switch (logical_id) {
-		case LOGICALID_PCM:
-			s = "Gravis UltraSound Plug & Play PCM";
-			func = malloc(sizeof(struct sndcard_func), M_DEVBUF, M_NOWAIT);
-			if (func == NULL)
-				return (ENOMEM);
-			bzero(func, sizeof(*func));
-			func->func = SCF_PCM;
-			child = device_add_child(dev, "pcm", -1);
-			device_set_ivars(child, func);
-			break;
-#if notyet
-		case LOGICALID_OPL:
-			s = "Gravis UltraSound Plug & Play OPL";
-			func = malloc(sizeof(struct sndcard_func), M_DEVBUF, M_NOWAIT);
-			if (func == NULL)
-				return (ENOMEM);
-			bzero(func, sizeof(*func));
-			func->func = SCF_SYNTH;
-			child = device_add_child(dev, "midi", -1);
-			device_set_ivars(child, func);
-			break;
-		case LOGICALID_MIDI:
-			s = "Gravis UltraSound Plug & Play MIDI";
-			func = malloc(sizeof(struct sndcard_func), M_DEVBUF, M_NOWAIT);
-			if (func == NULL)
-				return (ENOMEM);
-			bzero(func, sizeof(*func));
-			func->func = SCF_MIDI;
-			child = device_add_child(dev, "midi", -1);
-			device_set_ivars(child, func);
-			break;
-#endif /* notyet */
-		}
+	/* Check isapnp ids */
+	if (logical_id != 0 && (ret = ISA_PNP_PROBE(device_get_parent(dev), dev, gusc_ids)) != 0)
+		return (ret);
+	else {
+		if (logical_id == 0)
+			return gusisa_probe(dev);
+	}
+
+	switch (logical_id) {
+	case LOGICALID_PCM:
+		s = "Gravis UltraSound Plug & Play PCM";
+		func = malloc(sizeof(struct sndcard_func), M_DEVBUF, M_NOWAIT);
+		if (func == NULL)
+			return (ENOMEM);
+		bzero(func, sizeof(*func));
+		func->func = SCF_PCM;
+		child = device_add_child(dev, "pcm", -1);
+		device_set_ivars(child, func);
+		break;
+	case LOGICALID_OPL:
+		s = "Gravis UltraSound Plug & Play OPL";
+		func = malloc(sizeof(struct sndcard_func), M_DEVBUF, M_NOWAIT);
+		if (func == NULL)
+			return (ENOMEM);
+		bzero(func, sizeof(*func));
+		func->func = SCF_SYNTH;
+		child = device_add_child(dev, "midi", -1);
+		device_set_ivars(child, func);
+		break;
+	case LOGICALID_MIDI:
+		s = "Gravis UltraSound Plug & Play MIDI";
+		func = malloc(sizeof(struct sndcard_func), M_DEVBUF, M_NOWAIT);
+		if (func == NULL)
+			return (ENOMEM);
+		bzero(func, sizeof(*func));
+		func->func = SCF_MIDI;
+		child = device_add_child(dev, "midi", -1);
+		device_set_ivars(child, func);
+		break;
 	}
 
 	if (s != NULL) {
@@ -265,7 +271,6 @@ gusisa_probe(device_t dev)
 			bus_set_resource(dev, SYS_RES_DRQ, 1,
 					 flags & DV_F_DRQ_MASK, 1);
 
-#if notyet
 		/* We can support the CS4231 and MIDI devices.  */
 
 		func = malloc(sizeof(struct sndcard_func), M_DEVBUF, M_NOWAIT);
@@ -275,7 +280,6 @@ gusisa_probe(device_t dev)
 		func->func = SCF_MIDI;
 		child = device_add_child(dev, "midi", -1);
 		device_set_ivars(child, func);
-#endif /* notyet */
 
 		func = malloc(sizeof(struct sndcard_func), M_DEVBUF, M_NOWAIT);
 		if (func == NULL)
@@ -320,7 +324,8 @@ gusc_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	bus_setup_intr(dev, scp->irq, INTR_TYPE_TTY, gusc_intr, scp, &ih);
+	if (scp->irq != NULL)
+		bus_setup_intr(dev, scp->irq, INTR_TYPE_TTY, gusc_intr, scp, &ih);
 	bus_generic_attach(dev);
 
 	return (0);
@@ -342,13 +347,11 @@ gusc_intr(void *arg)
 			(*scp->pcm_intr.intr)(scp->pcm_intr.arg);
 			did_something = 1;
 		}
-#if notyet
 		if (scp->midi_intr.intr != NULL &&
 		    (port_rd(scp->io[1], 0) & 0x80)) {
 			(*scp->midi_intr.intr)(scp->midi_intr.arg);
 			did_something = 1;
 		}
-#endif /* notyet */
 	} while (did_something != 0);
 }
 
@@ -444,7 +447,6 @@ gusc_setup_intr(device_t dev, device_t child, struct resource *irq,
 				      arg, cookiep);
 }
 
-#if notyet
 static device_t
 find_masterdev(sc_p scp)
 {
@@ -467,7 +469,6 @@ find_masterdev(sc_p scp)
 
 	return (dev);
 }
-#endif /* notyet */
 
 static int io_range[3]  = {0x10, 0x8  , 0x4  };
 static int io_offset[3] = {0x0 , 0x100, 0x10c};
@@ -475,9 +476,7 @@ static int
 alloc_resource(sc_p scp)
 {
 	int i, base, lid, flags;
-#if notyet
 	device_t dev;
-#endif /* notyet */
 
 	flags = 0;
 	if (isa_get_vendorid(scp->dev))
@@ -534,7 +533,6 @@ alloc_resource(sc_p scp)
 			}
 		}
 		break;
-#if notyet
 	case LOGICALID_OPL:
 		if (scp->io[0] == NULL) {
 			scp->io_rid[0] = 0;
@@ -567,7 +565,6 @@ alloc_resource(sc_p scp)
 			scp->irq_alloced = 0;
 		}
 		break;
-#endif /* notyet */
 	}
 	return (0);
 }
@@ -576,9 +573,7 @@ static int
 release_resource(sc_p scp)
 {
 	int i, lid, flags;
-#if notyet
 	device_t dev;
-#endif /* notyet */
 
 	flags = 0;
 	if (isa_get_vendorid(scp->dev))
@@ -607,7 +602,6 @@ release_resource(sc_p scp)
 			}
 		}
 		break;
-#if notyet
 	case LOGICALID_OPL:
 		if (scp->io[0] != NULL) {
 			bus_release_resource(scp->dev, SYS_RES_IOPORT, scp->io_rid[0], scp->io[0]);
@@ -628,7 +622,6 @@ release_resource(sc_p scp)
 			scp->irq = NULL;
 		}
 		break;
-#endif /* notyet */
 	}
 	return (0);
 }
@@ -663,4 +656,8 @@ static driver_t gusc_driver = {
 /*
  * gusc can be attached to an isa bus.
  */
-DRIVER_MODULE(gusc, isa, gusc_driver, gusc_devclass, 0, 0);
+DRIVER_MODULE(snd_gusc, isa, gusc_driver, gusc_devclass, 0, 0);
+MODULE_DEPEND(snd_gusc, snd_pcm, PCM_MINVER, PCM_PREFVER, PCM_MAXVER);
+MODULE_VERSION(snd_gusc, 1);
+
+
