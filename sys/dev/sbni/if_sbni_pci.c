@@ -129,7 +129,7 @@ sbni_pci_attach(device_t dev)
 
 	sc = device_get_softc(dev);
 
-	printf("sbni%d: <Granch SBNI12/PCI%sadapter> port 0x%x",
+	printf("sbni%d: <Granch SBNI12/PCI%sadapter> port 0x%lx",
 	       next_sbni_unit, sc->slave_sc ? " Dual " : " ",
 	       rman_get_start(sc->io_res));
 	sc->irq_res = bus_alloc_resource(dev, SYS_RES_IRQ, &sc->irq_rid,
