@@ -322,6 +322,11 @@ smbfs_reclaim(ap)
 		if (dvp->v_usecount >= 1) {
 			VI_UNLOCK(dvp);
 			vrele(dvp);
+			/*
+			 * Indicate that we released something; see comment
+			 * in smbfs_unmount().
+			 */
+			smp->sm_didrele = 1;
 		} else {
 			VI_UNLOCK(dvp);
 			SMBERROR("BUG: negative use count for parent!\n");
