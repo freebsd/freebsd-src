@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa_device.h	7.1 (Berkeley) 5/9/91
- *	$Id: intr_machdep.h,v 1.5 1997/07/18 21:27:14 fsmp Exp $
+ *	$Id: intr_machdep.h,v 1.10 1997/08/29 18:37:23 smp Exp smp $
  */
 
 #ifndef _I386_ISA_INTR_MACHDEP_H_
@@ -50,43 +50,50 @@
 /*
     APIC TPR priority vector levels:
 
-	0xff (255) +------------+
-		   |		| 15 (IPIs: Xspuriousint)
-	0xf0 (240) +------------+
-		   |		| 14
-	0xe0 (224) +------------+
-		   |		| 13
-	0xd0 (208) +------------+
-		   |		| 12
-	0xc0 (192) +------------+
-		   |		| 11
-	0xb0 (176) +------------+
-		   |		| 10 (IPIs: Xcpustop)
-	0xa0 (160) +------------+
-		   |		|  9 (IPIs: Xinvltlb)
-	0x90 (144) +------------+
-		   |		|  8 (linux compat @ vector 0x80)
-	0x80 (128) +------------+
-		   |		|  7
-	0x70 (112) +------------+
-		   |		|  6
-	0x60 (96)  +------------+
-		   |		|  5
-	0x50 (80)  +------------+
-		   |		|  4
-	0x40 (64)  +------------+
-		   |		|  3 (upper APIC hardware INTs: PCI)
-	0x30 (48)  +------------+
-		   |		|  2 (start of hardware INTs: ISA)
-	0x20 (32)  +------------+
-		   |		|  1 (exceptions, traps, etc.)
-	0x10 (16)  +------------+
-		   |		|  0 (exceptions, traps, etc.)
-	0x00 (0)   +------------+
+	0xff (255) +-------------+
+		   |             | 15 (IPIs: Xspuriousint)
+	0xf0 (240) +-------------+
+		   |             | 14
+	0xe0 (224) +-------------+
+		   |             | 13
+	0xd0 (208) +-------------+
+		   |             | 12
+	0xc0 (192) +-------------+
+		   |             | 11
+	0xb0 (176) +-------------+
+		   |             | 10 (IPIs: Xcpustop)
+	0xa0 (160) +-------------+
+		   |             |  9 (IPIs: Xinvltlb)
+	0x90 (144) +-------------+
+		   |             |  8 (linux/BSD syscall, IGNORE FAST HW INTS)
+	0x80 (128) +-------------+
+		   |             |  7 (FAST_INTR 16-23)
+	0x70 (112) +-------------+
+		   |             |  6 (FAST_INTR 0-15)
+	0x60 (96)  +-------------+
+		   |             |  5 (IGNORE HW INTS)
+	0x50 (80)  +-------------+
+		   |             |  4 (2nd IO APIC)
+	0x40 (64)  +------+------+
+		   |      |      |  3 (upper APIC hardware INTs: PCI)
+	0x30 (48)  +------+------+
+		   |             |  2 (start of hardware INTs: ISA)
+	0x20 (32)  +-------------+
+		   |             |  1 (exceptions, traps, etc.)
+	0x10 (16)  +-------------+
+		   |             |  0 (exceptions, traps, etc.)
+	0x00 (0)   +-------------+
  */
 
+/* IDT vector base for regular (aka. slow) and fast interrupts */
+#define TPR_SLOW_INTS		0x20
+#define TPR_FAST_INTS		0x60
+
 /* blocking values for local APIC Task Priority Register */
-#define TPR_BLOCK_HWI		0x3f		/* hardware INTs */
+#define TPR_BLOCK_HWI		0x4f		/* hardware INTs */
+#define TPR_IGNORE_HWI		0x5f		/* ignore INTs */
+#define TPR_BLOCK_FHWI		0x7f		/* hardware FAST INTs */
+#define TPR_IGNORE_FHWI		0x8f		/* ignore FAST INTs */
 #define TPR_BLOCK_XINVLTLB	0x9f		/*  */
 #define TPR_BLOCK_XCPUSTOP	0xaf		/*  */
 #define TPR_BLOCK_ALL		0xff		/* all INTs */

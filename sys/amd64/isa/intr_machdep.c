@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: intr_machdep.c,v 1.3 1997/06/22 16:04:04 peter Exp $
+ *	$Id: intr_machdep.c,v 1.1 1997/08/29 18:38:35 smp Exp smp $
  */
 
 #include "opt_auto_eoi.h"
@@ -47,6 +47,7 @@
 #include <machine/segments.h>
 #if defined(APIC_IO)
 #include <machine/smp.h>
+#include <machine/smptests.h>			/** FAST_HI */
 #endif /* APIC_IO */
 #include <i386/isa/isa_device.h>
 #ifdef PC98
@@ -260,9 +261,17 @@ int
 isa_irq_pending(dvp)
 	struct isa_device *dvp;
 {
-	/* read APIC IRR containing the 16 ISA INTerrupts */
-	return ((lapic.irr1 & 0x00ffffff)
-		& (u_int32_t)dvp->id_irq) ? 1 : 0;
+#ifdef FAST_HI
+/* XXX not quite right for >1 IO APIC yet */
+	if (dvp->id_ri_flags & RI_FAST)
+		/* read APIC IRR containing the FAST INTerrupts */
+		return ((lapic.irr3 & 0x00ffffff)
+			& (u_int32_t)dvp->id_irq) ? 1 : 0;
+	else
+#endif /* FAST_HI */
+		/* read APIC IRR containing the SLOW INTerrupts */
+		return ((lapic.irr1 & 0x00ffffff)
+			& (u_int32_t)dvp->id_irq) ? 1 : 0;
 }
 
 /*
@@ -396,6 +405,11 @@ update_intrname(int intr, int device_id)
 int
 icu_setup(int intr, inthand2_t *handler, void *arg, u_int *maskptr, int flags)
 {
+#ifdef FAST_HI
+	int		select;		/* the select register is 8 bits */
+	int		vector;
+	u_int32_t	value;		/* the window register is 32 bits */
+#endif /* FAST_HI */
 	u_long	ef;
 	u_int	mask = (maskptr ? *maskptr : 0);
 
@@ -413,9 +427,29 @@ icu_setup(int intr, inthand2_t *handler, void *arg, u_int *maskptr, int flags)
 	intr_mptr[intr] = maskptr;
 	intr_mask[intr] = mask | (1 << intr);
 	intr_unit[intr] = (int) arg;
+#ifdef FAST_HI
+	if (flags & INTR_FAST) {
+		vector = TPR_FAST_INTS + intr;
+		setidt(vector, fastintr[intr],
+		       SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
+
+		/*
+		 * XXX MULTIPLE_IOAPICSXXX
+		 * Reprogram the vector in the IO APIC.
+		 */
+		select = (intr * 2) + IOAPIC_REDTBL0;
+		value = io_apic_read(0, select) & ~IOART_INTVEC;
+		io_apic_write(0, select, value | vector);
+	}
+	else
+		setidt(TPR_SLOW_INTS + intr, slowintr[intr],
+		       SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
+
+#else
 	setidt(ICU_OFFSET + intr,
 	       flags & INTR_FAST ? fastintr[intr] : slowintr[intr],
 	       SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
+#endif /* FAST_HI */
 	INTREN(1 << intr);
 	write_eflags(ef);
 	return (0);

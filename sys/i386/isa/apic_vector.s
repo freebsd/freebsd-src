@@ -1,6 +1,6 @@
 /*
  *	from: vector.s, 386BSD 0.1 unknown origin
- *	$Id: apic_vector.s,v 1.27 1997/08/23 05:15:12 smp Exp smp $
+ *	$Id: apic_vector.s,v 1.32 1997/08/29 18:37:23 smp Exp smp $
  */
 
 
@@ -11,17 +11,17 @@
 #include "i386/isa/intr_machdep.h"
 
 
-#if defined(SMP) && defined(REAL_AVCPL)
+#ifdef REAL_AVCPL
 
 #define AVCPL_LOCK	CPL_LOCK
 #define AVCPL_UNLOCK	CPL_UNLOCK
 
-#else
+#else /* REAL_AVCPL */
 
 #define AVCPL_LOCK
 #define AVCPL_UNLOCK
 
-#endif
+#endif /* REAL_AVCPL */
 
 #ifdef FAST_SIMPLELOCK
 
@@ -213,6 +213,8 @@ IDTVEC(vec_name) ;							\
 9: ;									\
 	IMASK_UNLOCK
 
+#ifdef INTR_SIMPLELOCK
+
 #define	INTR(irq_num, vec_name)						\
 	.text ;								\
 	SUPERALIGN_TEXT ;						\
@@ -233,7 +235,78 @@ IDTVEC(vec_name) ;							\
 	AVCPL_LOCK ;				/* MP-safe */		\
 	testl	$IRQ_BIT(irq_num), _cpl ;				\
 	jne	2f ;				/* this INT masked */	\
+	testl	$IRQ_BIT(irq_num), _cml ;				\
+	jne	2f ;				/* this INT masked */	\
 	orl	$IRQ_BIT(irq_num), _cil ;				\
+	AVCPL_UNLOCK ;							\
+;									\
+	movl	$0, lapic_eoi ;			/* XXX too soon? */	\
+	incb	_intr_nesting_level ;					\
+__CONCAT(Xresume,irq_num): ;						\
+	FAKE_MCOUNT(12*4(%esp)) ;		/* XXX avoid dbl cnt */ \
+	lock ;	incl	_cnt+V_INTR ;		/* tally interrupts */	\
+	movl	_intr_countp + (irq_num) * 4, %eax ;			\
+	lock ;	incl	(%eax) ;					\
+;									\
+	AVCPL_LOCK ;				/* MP-safe */		\
+	movl	_cml, %eax ;						\
+	pushl	%eax ;							\
+	orl	_intr_mask + (irq_num) * 4, %eax ;			\
+	movl	%eax, _cml ;						\
+	AVCPL_UNLOCK ;							\
+;									\
+	pushl	_intr_unit + (irq_num) * 4 ;				\
+	sti ;								\
+	call	*_intr_handler + (irq_num) * 4 ;			\
+	cli ;								\
+;									\
+	lock ;	andl $~IRQ_BIT(irq_num), iactive ;			\
+	lock ;	andl $~IRQ_BIT(irq_num), _cil ;				\
+	UNMASK_IRQ(irq_num) ;						\
+	sti ;				/* doreti repeats cli/sti */	\
+	MEXITCOUNT ;							\
+	jmp	_doreti ;						\
+;									\
+	ALIGN_TEXT ;							\
+1: ;						/* active or locked */	\
+	MASK_LEVEL_IRQ(irq_num) ;					\
+	movl	$0, lapic_eoi ;			/* do the EOI */	\
+;									\
+	AVCPL_LOCK ;				/* MP-safe */		\
+	orl	$IRQ_BIT(irq_num), _ipending ;				\
+	AVCPL_UNLOCK ;							\
+;									\
+	POP_FRAME ;							\
+	iret ;								\
+;									\
+	ALIGN_TEXT ;							\
+2: ;						/* masked by cpl|cml */	\
+	AVCPL_UNLOCK ;							\
+	ISR_RELLOCK ;		/* XXX this is going away... */		\
+	jmp	1b
+
+#else /* INTR_SIMPLELOCK */
+
+#define	INTR(irq_num, vec_name)						\
+	.text ;								\
+	SUPERALIGN_TEXT ;						\
+IDTVEC(vec_name) ;							\
+	PUSH_FRAME ;							\
+	movl	$KDSEL, %eax ;	/* reload with kernel's data segment */	\
+	movl	%ax, %ds ;						\
+	movl	%ax, %es ;						\
+;									\
+	lock ;					/* MP-safe */		\
+	btsl	$(irq_num), iactive ;		/* lazy masking */	\
+	jc	1f ;				/* already active */	\
+;									\
+	ISR_TRYLOCK ;		/* XXX this is going away... */		\
+	testl	%eax, %eax ;			/* did we get it? */	\
+	jz	1f ;				/* no */		\
+;									\
+	AVCPL_LOCK ;				/* MP-safe */		\
+	testl	$IRQ_BIT(irq_num), _cpl ;				\
+	jne	2f ;				/* this INT masked */	\
 	AVCPL_UNLOCK ;							\
 ;									\
 	movl	$0, lapic_eoi ;			/* XXX too soon? */	\
@@ -279,6 +352,8 @@ __CONCAT(Xresume,irq_num): ;						\
 	AVCPL_UNLOCK ;							\
 	ISR_RELLOCK ;		/* XXX this is going away... */		\
 	jmp	1b
+
+#endif /* INTR_SIMPLELOCK */
 
 
 /*
@@ -344,22 +419,14 @@ _Xcpustop:
 
 	movl	_cpuid, %eax
 
-	ASMPOSTCODE_HI(0x1)
-
 	lock
 	btsl	%eax, _stopped_cpus	/* stopped_cpus |= (1<<id) */
-
-	ASMPOSTCODE_HI(0x2);
 1:
 	btl	%eax, _started_cpus	/* while (!(started_cpus & (1<<id))) */
 	jnc	1b
 
-	ASMPOSTCODE_HI(0x3)
-
 	lock
 	btrl	%eax, _started_cpus	/* started_cpus &= ~(1<<id) */
-
-	ASMPOSTCODE_HI(0x4)
 
 	movl	$0, lapic_eoi		/* End Of Interrupt to APIC */
 
