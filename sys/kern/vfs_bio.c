@@ -3688,8 +3688,7 @@ vmapbuf(struct buf *bp)
 
 	GIANT_REQUIRED;
 
-	if ((bp->b_flags & B_PHYS) == 0)
-		panic("vmapbuf");
+	KASSERT(bp->b_flags & B_PHYS, ("vmapbuf"));
 	if (bp->b_bufsize < 0)
 		return (-1);
 	prot = (bp->b_iocmd == BIO_READ) ? VM_PROT_READ | VM_PROT_WRITE :
@@ -3744,8 +3743,7 @@ vunmapbuf(struct buf *bp)
 
 	GIANT_REQUIRED;
 
-	if ((bp->b_flags & B_PHYS) == 0)
-		panic("vunmapbuf");
+	KASSERT(bp->b_flags & B_PHYS, ("vunmapbuf"));
 
 	npages = bp->b_npages;
 	pmap_qremove(trunc_page((vm_offset_t)bp->b_data),
