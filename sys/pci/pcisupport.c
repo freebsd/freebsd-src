@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.119 1999/06/13 20:48:29 n_hibma Exp $
+**  $Id: pcisupport.c,v 1.120 1999/06/15 12:01:26 roger Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -951,7 +951,7 @@ isab_match(device_t dev)
 	case 0x00061004:
 		return ("VLSI 82C593 PCI to ISA bridge");
 
-	/* VIA Technologies -- vendor 0x1106 &/
+	/* VIA Technologies -- vendor 0x1106 */
 	case 0x05861106: /* south bridge section */
 		return ("VIA 82C586 PCI-ISA bridge");
 
