@@ -454,10 +454,6 @@ udf_transname(char *cs0string, char *destname, int len)
 
 	/* allocate a buffer big enough to hold an 8->16 bit expansion */
 	transname = uma_zalloc(udf_zone_trans, M_WAITOK);
-	if (transname == NULL) {
-		printf("udf: out of memory?\n");
-		return 0;
-	}
 
 	if ((unilen = udf_UncompressUnicode(len, cs0string, transname)) == -1) {
 		printf("udf: Unicode translation failed\n");
@@ -490,16 +486,22 @@ udf_transname(char *cs0string, char *destname, int len)
 static int
 udf_cmpname(char *cs0string, char *cmpname, int cs0len, int cmplen)
 {
-	char transname[MAXNAMLEN+1]; /* XXX stack */
+	char *transname;
+	int error = 0;
 
-	if ((cs0len = udf_transname(cs0string, &transname[0], cs0len)) == 0)
-		return -1;
+	/* This is overkill, but not worth creating a new zone */
+	transname = uma_zalloc(udf_zone_trans, M_WAITOK);
+
+	cs0len = udf_transname(cs0string, transname, cs0len);
 
 	/* Easy check.  If they aren't the same length, they aren't equal */
-	if (cs0len != cmplen)
-		return -1;
+	if ((cs0len == 0) || (cs0len != cmplen))
+		error = -1;
+	else
+		error = bcmp(transname, cmpname, cmplen);
 
-	return (bcmp(transname, cmpname, cmplen));
+	uma_zfree(udf_zone_trans, transname);
+	return (error);
 }
 
 struct udf_uiodir {
