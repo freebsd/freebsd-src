@@ -1139,6 +1139,11 @@ device		mlx		# Mylex DAC960
 device		amr		# AMI MegaRAID
 
 #
+# 3ware ATA RAID
+#
+device		twe		# 3ware ATA RAID
+
+#
 # The 'ATA' driver supports all ATA and ATAPI devices.
 # It can reuse the majors of wd.c for booting purposes.
 # You only need one "device ata" for it to find all
