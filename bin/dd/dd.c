@@ -54,6 +54,7 @@ static const char rcsid[] =
 #include <sys/conf.h>
 #include <sys/disklabel.h>
 #include <sys/filio.h>
+#include <sys/time.h>
 
 #include <ctype.h>
 #include <err.h>
