@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media.c,v 1.27 1995/12/07 10:34:00 peter Exp $
+ * $Id: media.c,v 1.28 1996/03/18 15:28:01 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -426,7 +426,10 @@ mediaExtractDistBegin(char *dir, int *fd, int *zpid, int *cpid)
 	    close(1); open("/dev/null", O_WRONLY);
 	    dup2(1, 2);
 	}
-	i = execl("/stand/cpio", "/stand/cpio", "-idum", cpioVerbosity(), "--block-size", mediaTapeBlocksize(), 0);
+	if (strlen(cpioVerbosity()))
+	    i = execl("/stand/cpio", "/stand/cpio", "-idum", cpioVerbosity(), "--block-size", mediaTapeBlocksize(), 0);
+	else
+	    i = execl("/stand/cpio", "/stand/cpio", "-idum", "--block-size", mediaTapeBlocksize(), 0);
 	if (isDebug())
 	    msgDebug("/stand/cpio command returns %d status\n", i);
 	exit(i);
