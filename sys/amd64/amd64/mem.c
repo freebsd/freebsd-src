@@ -38,7 +38,7 @@
  *
  *	from: Utah $Hdr: mem.c 1.13 89/10/08$
  *	from: @(#)mem.c	7.2 (Berkeley) 5/9/91
- *	$Id: mem.c,v 1.30 1996/03/26 19:57:52 wollman Exp $
+ *	$Id: mem.c,v 1.31 1996/03/27 19:04:55 bde Exp $
  */
 
 /*
@@ -104,24 +104,31 @@ static void memdevfs_init __P((void));
 static void 
 memdevfs_init()
 {
-/*            path	name	cdevsw	   minor	type   uid gid perm*/
-    mem_devfs_token = devfs_add_devsw(
-		"/",	"mem",	&mem_cdevsw,    0,	DV_CHR, 0,  2, 0640);
-    kmem_devfs_token = devfs_add_devsw(
-		"/",	"kmem",	&mem_cdevsw,    1,	DV_CHR, 0,  2, 0640);
-    null_devfs_token = devfs_add_devsw(
-		"/",	"null",	&mem_cdevsw,    2,	DV_CHR, 0,  0, 0666);
-    random_devfs_token = devfs_add_devswf(&mem_cdevsw, 3, DV_CHR, UID_ROOT,
-					  GID_WHEEL, 0644, "random");
-    urandom_devfs_token = devfs_add_devswf(&mem_cdevsw, 4, DV_CHR, UID_ROOT,
-					   GID_WHEEL, 0644, "urandom");
-    zero_devfs_token = devfs_add_devsw(
-		"/",	"zero",	&mem_cdevsw,    12,	DV_CHR, 0,  0, 0666);
-    io_devfs_token = devfs_add_devsw(
-		"/",	"io",	&mem_cdevsw,    14,	DV_CHR, 0,  0, 0600);
+    mem_devfs_token = 
+	devfs_add_devswf(&mem_cdevsw, 0, DV_CHR, 
+			 UID_ROOT, GID_KMEM, 0640, "mem");
+    kmem_devfs_token = 
+	devfs_add_devswf(&mem_cdevsw, 1, DV_CHR,
+			 UID_ROOT, GID_KMEM, 0640, "kmem");
+    null_devfs_token = 
+	devfs_add_devswf(&mem_cdevsw, 2, DV_CHR, 
+			 UID_ROOT, GID_WHEEL, 0666, "null");
+    random_devfs_token = 
+	devfs_add_devswf(&mem_cdevsw, 3, DV_CHR, 
+			 UID_ROOT, GID_WHEEL, 0644, "random");
+    urandom_devfs_token = 
+	devfs_add_devswf(&mem_cdevsw, 4, DV_CHR, 
+			 UID_ROOT, GID_WHEEL, 0644, "urandom");
+    zero_devfs_token = 
+	devfs_add_devswf(&mem_cdevsw, 12, DV_CHR, 
+			 UID_ROOT, GID_WHEEL, 0666, "zero");
+    io_devfs_token = 
+	devfs_add_devswf(&mem_cdevsw, 14, DV_CHR, 
+			 UID_ROOT, GID_KMEM, 0640, "io");
 #ifdef PERFMON
-    perfmon_devfs_token = devfs_add_devswf(&mem_cdevsw, 32, DV_CHR, UID_ROOT,
-					   GID_KMEM, 0640, "perfmon");
+    perfmon_devfs_token = 
+	devfs_add_devswf(&mem_cdevsw, 32, DV_CHR, 
+			 UID_ROOT, GID_KMEM, 0640, "perfmon");
 #endif /* PERFMON */
 }
 #endif /* DEVFS */
