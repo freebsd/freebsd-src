@@ -31,12 +31,19 @@
 
 /* Node type name and magic cookie */
 #define NG_DEVICE_NODE_TYPE	"device"
-#define NGM_DEVICE_COOKIE	1009920473
+#define NGM_DEVICE_COOKIE	1091129178
+#define	NG_DEVICE_DEVNAME	"ngd"
 
+/* Netgraph control messages */
+enum {
+	NGM_DEVICE_GET_DEVNAME,
+};
+
+#if 0
 /* passing ioctl params */
 struct ngd_param_s {
 	        void * p;
 };
-
+#endif
 
 #endif /* _NETGRAPH_NG_DEVICE_H_ */
