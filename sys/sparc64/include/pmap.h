@@ -43,6 +43,7 @@
 #ifndef	_MACHINE_PMAP_H_
 #define	_MACHINE_PMAP_H_
 
+#include <sys/queue.h>
 #include <machine/tte.h>
 
 #define	DCACHE_COLOR_BITS	(1)
