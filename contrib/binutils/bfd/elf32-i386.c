@@ -251,7 +251,11 @@ elf_i386_is_local_label_name (abfd, name)
 /* The name of the dynamic interpreter.  This is put in the .interp
    section.  */
 
+#if defined(__FreeBSD__)
 #define ELF_DYNAMIC_INTERPRETER "/usr/libexec/ld-elf.so.1"
+#else
+#define ELF_DYNAMIC_INTERPRETER "/usr/lib/libc.so.1"
+#endif
 
 /* The size in bytes of an entry in the procedure linkage table.  */
 
@@ -962,11 +966,10 @@ elf_i386_size_dynamic_sections (output_bfd, info)
 		  relocs = true;
 
 		  /* If this relocation section applies to a read only
-		     section which is in memory at run time, then
-		     we probably need a DT_TEXTREL entry.  The entries
-		     in the .rel.plt section really apply to the
-		     .got section, which we created ourselves and so
-		     know is not readonly.  */
+		     section, then we probably need a DT_TEXTREL
+		     entry.  The entries in the .rel.plt section
+		     really apply to the .got section, which we
+		     created ourselves and so know is not readonly.  */
 		  outname = bfd_get_section_name (output_bfd,
 						  s->output_section);
 		  target = bfd_get_section_by_name (output_bfd, outname + 4);
