@@ -82,7 +82,7 @@ Fairwell(int sig)
   buf[16] = '0' + ((sig / 10) % 10);
   buf[17] = '0' + (sig % 10);
 
-  syslog(LOG_INFO, buf);
+  syslog(LOG_INFO, "%s", buf);
 
   if (pidfile)
     remove(pidfile);
