@@ -110,7 +110,6 @@ static Distribution DistTable[] = {
 /* The CRYPTO distribution */
 static Distribution CRYPTODistTable[] = {
     DTE_TARBALL("crypto",  &CRYPTODists, CRYPTO_CRYPTO,	    "/"),
-    DTE_TARBALL("krb5",    &CRYPTODists, CRYPTO_KERBEROS5,  "/"),
     DTE_TARBALL("ssecure", &CRYPTODists, CRYPTO_SSECURE,    "/usr/src"),
     DTE_TARBALL("scrypto", &CRYPTODists, CRYPTO_SCRYPTO,    "/usr/src"),
     DTE_TARBALL("skrb5",   &CRYPTODists, CRYPTO_SKERBEROS5, "/usr/src"),
@@ -263,11 +262,8 @@ distVerifyFlags(void)
 {
     if (SrcDists)
 	Dists |= DIST_SRC;
-    if (CRYPTODists) {
-	if (CRYPTODists & DIST_CRYPTO_KERBEROS5)
-	    CRYPTODists |= DIST_CRYPTO_CRYPTO;
+    if (CRYPTODists)
 	Dists |= DIST_CRYPTO;
-    }
     else if ((Dists & DIST_CRYPTO) && !CRYPTODists)
 	CRYPTODists |= DIST_CRYPTO_ALL;
 #ifndef X_AS_PKG
@@ -378,7 +374,7 @@ distSetKernDeveloper(dialogMenuItem *self)
     distReset(NULL);
     Dists = _DIST_DEVELOPER;
     SrcDists = DIST_SRC_SYS;
-    CRYPTODists |= DIST_CRYPTO_BIN;
+    CRYPTODists |= DIST_CRYPTO_CRYPTO;
     i = distMaybeSetPorts(self);
     distVerifyFlags();
     return i;
