@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.165 1998/05/16 21:28:14 jb Exp $
+#	$Id: Makefile,v 1.166 1998/05/27 12:13:16 jkoshy Exp $
 
 # -rw-r--r--
 BINOWN= root
@@ -16,11 +16,8 @@ BIN1=   aliases amd.map crontab csh.cshrc csh.login csh.logout dm.conf \
 	${.CURDIR}/../usr.bin/mail/misc/mail.rc \
 	${.CURDIR}/../usr.bin/locate/locate/locate.rc
 
-# -rw-rw-rw-
-BIN2=	motd
-
 # -rwxr-xr-x root.wheel, for the new cron root.wheel
-BIN3=	netstart pccard_ether
+BIN2=	netstart pccard_ether
 
 MTREE=	BSD.include.dist BSD.local.dist BSD.root.dist BSD.usr.dist \
 	BSD.var.dist BSD.x11.dist
@@ -49,8 +46,7 @@ distribute:
 distribution:
 	(cd ${.CURDIR}; \
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 ${BIN1} ${DESTDIR}/etc; \
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 666 ${BIN2} ${DESTDIR}/etc; \
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 755 ${BIN3} ${DESTDIR}/etc; \
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 755 ${BIN2} ${DESTDIR}/etc; \
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 600 /dev/null \
 	    ${DESTDIR}/var/cron/log; \
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 600 \
