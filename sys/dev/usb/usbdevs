@@ -252,6 +252,7 @@ vendor MCT		0x0711	MCT
 vendor DIGITALSTREAM	0x074e	Digital Stream
 vendor AUREAL		0x0755	Aureal Semiconductor
 vendor MIDIMAN		0x0763	Midiman
+vendor LINKSYS2		0x077b	Linksys 
 vendor GRIFFIN		0x077d	Griffin Technology
 vendor SANDISK		0x0781	SanDisk Corp
 vendor BRIMAX		0x078e	Brimax
@@ -333,6 +334,8 @@ vendor NEODIO		0x0aec  Neodio
 vendor TODOS		0x0b0c	Todos Data System
 vendor NEC2		0x0b62	NEC
 vendor ATI2		0x0b6f	ATI
+vendor ASIX		0x0b95	ASIX Electronics
+vendor REALTEK		0x0bda	RealTek
 vendor AGATE		0x0c08	Agate Technologies
 vendor DMI		0x0c0b	DMI
 vendor LUWEN		0x0c76	Luwen
@@ -453,6 +456,9 @@ product APPLE SPEAKERS		0x1101	Speakers
 /* Asahi Optical products */
 product ASAHIOPTICAL OPTIO230	0x0004	Digital camera
 
+/* ASIX Electronics products */
+product ASIX AX88172		0x1720  USB 2.0 10/100 ethernet controller
+
 /* ATen products */
 product ATEN UC1284		0x2001	Parallel printer adapter
 product ATEN UC10T		0x2002	10Mbps ethernet adapter
@@ -470,6 +476,7 @@ product AVISION 1200U		0x0268	1200U scanner
 product BELKIN2 F5U002		0x0002	F5U002 Parallel printer adapter
 product BELKIN USB2LAN		0x0121	USB to LAN Converter
 product BELKIN F5U103		0x0103	F5U103 Serial adapter
+product BELKIN F5U109		0x0109	F5U109 Serial adapter
 product BELKIN F5U120		0x1203	F5U120-PC Hub
 
 /* Billionton products */
@@ -547,6 +554,7 @@ product DIGI ACCELEPORT8	0x0008	AccelePort USB 8
 
 /* D-Link products */
 /*product DLINK DSBS25		0x0100	DSB-S25 serial adapter*/
+product	DLINK DUBE100		0x1a00	10/100 ethernet adapter
 product DLINK DSB650TX4		0x200c	10/100 ethernet adapter
 product DLINK DSB650C		0x4000	10Mbps ethernet adapter
 product DLINK DSB650TX1		0x4001	10/100 ethernet adapter
@@ -779,6 +787,7 @@ product LINKSYS USB100TX	0x2203	USB100TX Ethernet
 product LINKSYS USB100H1	0x2204	USB100H1 Ethernet/HPNA
 product LINKSYS USB10TA		0x2206	USB10TA Ethernet
 product LINKSYS USB10TX2	0x400b	USB10TX
+product LINKSYS USB200M		0x2226  USB 2.0 10/100 ethernet controller
 
 /* Logitech products */
 product LOGITECH M2452		0x0203	M2452 keyboard
@@ -796,6 +805,7 @@ product LOGITECH BD58		0xc00c	BD58 mouse
 product LOGITECH UN58A		0xc030	iFeel Mouse
 product LOGITECH BB13		0xc401	USB-PS/2 Trackball
 product LOGITECH WMPAD		0xc208	WingMan GamePad Extreme
+product LOGITECH WMRPAD		0xc20a	WingMan RumblePad
 product LOGITECH WMJOY		0xc281	WingMan Force joystick 
 product LOGITECH RK53		0xc501	Cordless mouse
 product LOGITECH RB6		0xc503	Cordless keyboard
@@ -820,6 +830,7 @@ product MCT SITECOM_USB232	0x0230	Sitecom USB-232 Products
 product MELCO LUATX1		0x0001	LUA-TX Ethernet
 product MELCO LUATX5		0x0005	LUA-TX Ethernet
 product MELCO LUA2TX5		0x0009	LUA2-TX Ethernet
+product MELCO LUAKTX		0x0012	LUA-KTX Ethernet
 product	MELCO DUBPXXG		0x001c	USB-IDE Bridge: DUB-PxxG
 
 /* Metricom products */
@@ -862,6 +873,7 @@ product MITSUMI CDRRW		0x0000	CD-R/RW Drive
 
 /* Motorola products */
 product MOTOROLA MC141555	0x1555	MC141555 hub controller
+product MOTOROLA SB4100		0x4100	SB4100 USB Cable Modem
 
 /* MultiTech products */
 product MULTITECH ATLAS		0xf101	MT5634ZBA-USB modem
@@ -896,6 +908,7 @@ product NETCHIP TURBOCONNECT	0x1080	Turbo-Connect
 
 /* Netgear products */
 product NETGEAR EA101		0x1001	Ethernet adapter
+product NETGEAR FA120		0x1040	USB 2.0 Ethernet adapter
 
 /* Nikon products */
 product NIKON E990		0x0102	Digital Camera E990
@@ -980,6 +993,9 @@ product QUICKSHOT STRIKEPAD	0x6238	USB StrikePad
 /* Rainbow Technologies products */
 product	RAINBOW IKEY2000	0x1200	i-Key 2000  
 
+/* ReakTek products */
+product REALTEK USBKR100	0x8150	USBKR100 USB Ethernet (GREEN HOUSE)
+
 /* Roland products */
 product	ROLAND UM1		0x0009	UM-1 MIDI I/F
 product	ROLAND UM880N		0x0014	EDIROL UM-880 MIDI I/F (native)
@@ -993,6 +1009,7 @@ product RATOC REXUSB60		0xb000	USB serial adapter REX-USB60
 
 /* SanDisk products */
 product SANDISK SDDR05A		0x0001	ImageMate SDDR-05a
+product SANDISK SDDR05		0x0005	ImageMate SDDR-05
 product SANDISK SDDR31		0x0002	ImageMate SDDR-31
 product SANDISK SDDR12		0x0100	ImageMate SDDR-12
 product SANDISK SDDR09		0x0200	ImageMate SDDR-09
@@ -1052,6 +1069,7 @@ product SONY MSACUS1		0x002d	Memorystick MSAC-US1
 product SONY MSC		0x0032	MSC memory stick slot
 product SONY CLIE_40		0x0066	Sony Clie v4.0
 product SONY CLIE_41		0x009a	Sony Clie v4.1
+product SONY CLIE_50		0x00da	Sony Clie v5.0
 
 /* STMicroelectronics products */
 product STMICRO COMMUNICATOR	0x7554	USB Communicator
