@@ -344,38 +344,37 @@ struct com_s {
 };
 
 /* PCI driver entry point. */
-int	cyattach_common		(cy_addr cy_iobase, int cy_align);
+int	cyattach_common(cy_addr cy_iobase, int cy_align);
 ointhand2_t	siointr;
 
-static	int	cy_units	(cy_addr cy_iobase, int cy_align);
-static	int	sioattach	(struct isa_device *dev);
+static	int	cy_units(cy_addr cy_iobase, int cy_align);
+static	int	sioattach(struct isa_device *dev);
 static	void	cd1400_channel_cmd(struct com_s *com, int cmd);
 static	void	cd1400_channel_cmd_wait(struct com_s *com);
-static	void	cd_etc		(struct com_s *com, int etc);
-static	int	cd_getreg	(struct com_s *com, int reg);
-static	void	cd_setreg	(struct com_s *com, int reg, int val);
+static	void	cd_etc(struct com_s *com, int etc);
+static	int	cd_getreg(struct com_s *com, int reg);
+static	void	cd_setreg(struct com_s *com, int reg, int val);
 static	timeout_t siodtrwakeup;
-static	void	comhardclose	(struct com_s *com);
-static	void	sioinput	(struct com_s *com);
+static	void	comhardclose(struct com_s *com);
+static	void	sioinput(struct com_s *com);
 #if 0
-static	void	siointr1	(struct com_s *com);
+static	void	siointr1(struct com_s *com);
 #endif
-static	int	commctl		(struct com_s *com, int bits, int how);
-static	int	comparam	(struct tty *tp, struct termios *t);
-static	void	siopoll		(void *arg);
-static	int	sioprobe	(struct isa_device *dev);
-static	void	siosettimeout	(void);
-static	int	siosetwater	(struct com_s *com, speed_t speed);
-static	int	comspeed	(speed_t speed, u_long cy_clock,
-				     int *prescaler_io);
-static	void	comstart	(struct tty *tp);
-static	void	comstop		(struct tty *tp, int rw);
+static	int	commctl(struct com_s *com, int bits, int how);
+static	int	comparam(struct tty *tp, struct termios *t);
+static	void	siopoll(void *arg);
+static	int	sioprobe(struct isa_device *dev);
+static	void	siosettimeout(void);
+static	int	siosetwater(struct com_s *com, speed_t speed);
+static	int	comspeed(speed_t speed, u_long cy_clock, int *prescaler_io);
+static	void	comstart(struct tty *tp);
+static	void	comstop(struct tty *tp, int rw);
 static	timeout_t comwakeup;
-static	void	disc_optim	(struct tty	*tp, struct termios *t,
-				     struct com_s *com);
+static	void	disc_optim(struct tty *tp, struct termios *t,
+		    struct com_s *com);
 
 #ifdef CyDebug
-void	cystatus	(int unit);
+void	cystatus(int unit);
 #endif
 
 static char driver_name[] = "cy";
