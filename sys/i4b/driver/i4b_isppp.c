@@ -43,9 +43,6 @@
  *---------------------------------------------------------------------------*/
 
 #include "i4bisppp.h"
-#ifdef __FreeBSD__
-#include "sppp.h"
-#endif
 
 #if NI4BISPPP == 0
 # error "You need to define `pseudo-device sppp <N>' with options ISPPP"

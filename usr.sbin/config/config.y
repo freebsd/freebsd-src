@@ -4,48 +4,25 @@
 	struct	file_list *file;
 }
 
-%token	ANY
 %token	ARCH
-%token	AT
-%token	BUS
 %token	COMMA
 %token	CONFIG
-%token	CONFLICTS
-%token	CONTROLLER
 %token	CPU
 %token	DEVICE
-%token	DISABLE
-%token	DISK
-%token	DRIVE
-%token	DRQ
 %token	EQUALS
-%token	FLAGS
+%token	HINTS
 %token	IDENT
-%token	IOMEM
-%token	IOSIZ
-%token	IRQ
 %token	MAXUSERS
-%token	MINUS
-%token	NEXUS
 %token	OPTIONS
 %token	MAKEOPTIONS
-%token	PORT
-%token	PSEUDO_DEVICE
 %token	SEMICOLON
-%token	TAPE
-%token	TARGET
-%token	TTY
-%token	UNIT
-%token	VECTOR
 
 %token	<str>	ID
 %token	<val>	NUMBER
-%token	<val>	FPNUMBER
 
 %type	<str>	Save_id
 %type	<str>	Opt_value
 %type	<str>	Dev
-%type	<str>	device_name
 
 %{
 
@@ -97,6 +74,7 @@ static struct	device *curp = 0;
 
 struct  device *dtab;
 char	*ident;
+char	*hints;
 int	yyline;
 struct  file_list *ftab;
 char	errbuf[80];
@@ -104,8 +82,7 @@ int	maxusers;
 
 #define ns(s)	strdup(s)
 
-static int connect __P((char *, int));
-static void yyerror __P((char *s));
+static void yyerror(char *s);
 
 
 %}
@@ -163,7 +140,9 @@ Config_spec:
 	System_spec
 		|
 	MAXUSERS NUMBER
-	      = { maxusers = $2; };
+	      = { maxusers = $2; } |
+	HINTS ID
+	      = { hints = $2; };
 
 System_spec:
 	CONFIG System_id System_parameter_list
@@ -188,41 +167,6 @@ System_id:
 System_parameter_list:
 	  System_parameter_list ID
 	| ID
-	;
-
-device_name:
-	  Save_id
-		= { $$ = $1; }
-	| Save_id NUMBER
-		= {
-			char buf[80];
-
-			(void) snprintf(buf, sizeof(buf), "%s%d", $1, $2);
-			$$ = ns(buf); free($1);
-		}
-	| Save_id NUMBER ID
-		= {
-			char buf[80];
-
-			(void) snprintf(buf, sizeof(buf), "%s%d%s", $1, $2, $3);
-			$$ = ns(buf); free($1);
-		}
-	| Save_id NUMBER ID NUMBER
-		= {
-			char buf[80];
-
-			(void) snprintf(buf, sizeof(buf), "%s%d%s%d",
-			     $1, $2, $3, $4);
-			$$ = ns(buf); free($1);
-		}
-	| Save_id NUMBER ID NUMBER ID
-		= {
-			char buf[80];
-
-			(void) snprintf(buf, sizeof(buf), "%s%d%s%d%s",
-			     $1, $2, $3, $4, $5);
-			$$ = ns(buf); free($1);
-		}
 	;
 
 Opt_list:
@@ -304,111 +248,25 @@ Dev:
 	;
 
 Device_spec:
-	DEVICE Dev_spec
-	      = { cur.d_type = DEVICE; } |
-	DISK Dev_spec
+	DEVICE Dev
 	      = {
-		warnx("line %d: Obsolete keyword 'disk' found - use 'device'", yyline);
 		cur.d_type = DEVICE;
+		cur.d_name = $2;
+		cur.d_count = UNKNOWN;
 		} |
-	TAPE Dev_spec
+	DEVICE Dev NUMBER
 	      = {
-		warnx("line %d: Obsolete keyword 'tape' found - use 'device'", yyline);
 		cur.d_type = DEVICE;
-		} |
-	CONTROLLER Dev_spec
-	      = {
-		warnx("line %d: Obsolete keyword 'controller' found - use 'device'", yyline);
-	        cur.d_type = DEVICE;
-	        } |
-	PSEUDO_DEVICE Init_dev Dev
-	      = {
-		cur.d_name = $3;
-		cur.d_type = PSEUDO_DEVICE;
-		} |
-	PSEUDO_DEVICE Init_dev Dev NUMBER
-	      = {
-		cur.d_name = $3;
-		cur.d_type = PSEUDO_DEVICE;
-		cur.d_count = $4;
+		cur.d_name = $2;
+		cur.d_count = $3;
+		if (cur.d_count == 0)
+			warnx("line %d: devices with zero units are not likely to be correct", yyline);
 		} ;
-
-Dev_spec:
-	Init_dev Dev
-	      = {
-		cur.d_name = $2;
-		cur.d_unit = UNKNOWN;
-		} |
-	Init_dev Dev NUMBER Dev_info
-	      = {
-		cur.d_name = $2;
-		cur.d_unit = $3;
-		};
-
-Init_dev:
-	/* lambda */
-	      = { init_dev(&cur); };
-
-Dev_info:
-	Con_info Info_list
-		|
-	/* lambda */
-		;
-
-Con_info:
-	AT Dev NUMBER
-	      = {
-		connect($2, $3);
-		cur.d_conn = $2;
-		cur.d_connunit = $3;
-		} |
-	AT NEXUS NUMBER
-	      = {
-	        cur.d_conn = "nexus";
-	        cur.d_connunit = 0;
-	        };
-    
-Info_list:
-	Info_list Info
-		|
-	/* lambda */
-		;
-
-Info:
-	BUS NUMBER	/* device scbus1 at ahc0 bus 1 - twin channel */
-	      = { cur.d_bus = $2; } |
-	TARGET NUMBER
-	      = { cur.d_target = $2; } |
-	UNIT NUMBER
-	      = { cur.d_lun = $2; } |
-	DRIVE NUMBER
-	      = { cur.d_drive = $2; } |
-	IRQ NUMBER
-	      = { cur.d_irq = $2; } |
-	DRQ NUMBER
-	      = { cur.d_drq = $2; } |
-	IOMEM NUMBER
-	      = { cur.d_maddr = $2; } |
-	IOSIZ NUMBER
-	      = { cur.d_msize = $2; } |
-	PORT device_name
-	      = { cur.d_port = $2; } |
-	PORT NUMBER
-	      = { cur.d_portn = $2; } |
-	FLAGS NUMBER
-	      = { cur.d_flags = $2; } |
-	DISABLE	
-	      = { cur.d_disabled = 1; } |
-	CONFLICTS
-	      = {
-		warnx("line %d: Obsolete keyword 'conflicts' found", yyline);
-		};
 
 %%
 
 static void
-yyerror(s)
-	char *s;
+yyerror(char *s)
 {
 
 	warnx("line %d: %s", yyline + 1, s);
@@ -418,87 +276,20 @@ yyerror(s)
  * add a device to the list of devices
  */
 static void
-newdev(dp)
-	register struct device *dp;
+newdev(struct device *dp)
 {
-	register struct device *np, *xp;
+	struct device *np;
 
-	if (dp->d_unit >= 0) {
-		for (xp = dtab; xp != 0; xp = xp->d_next) {
-			if ((xp->d_unit == dp->d_unit) &&
-			    eq(xp->d_name, dp->d_name)) {
-				warnx("line %d: already seen device %s%d",
-				    yyline, xp->d_name, xp->d_unit);
-			}
-		}
-	}
 	np = (struct device *) malloc(sizeof *np);
 	memset(np, 0, sizeof(*np));
 	*np = *dp;
+	np->d_name = dp->d_name;
+	np->d_type = dp->d_type;
+	np->d_count = dp->d_count;
 	np->d_next = 0;
 	if (curp == 0)
 		dtab = np;
 	else
 		curp->d_next = np;
 	curp = np;
-}
-
-
-/*
- * find the pointer to connect to the given device and number.
- * returns 0 if no such device and prints an error message
- */
-static int
-connect(dev, num)
-	register char *dev;
-	register int num;
-{
-	register struct device *dp;
-
-	if (num == QUES) {
-		for (dp = dtab; dp != 0; dp = dp->d_next)
-			if (eq(dp->d_name, dev))
-				break;
-		if (dp == 0) {
-			(void) snprintf(errbuf, sizeof(errbuf),
-			    "no %s's to wildcard", dev);
-			yyerror(errbuf);
-			return (0);
-		}
-		return (1);
-	}
-	for (dp = dtab; dp != 0; dp = dp->d_next) {
-		if ((num != dp->d_unit) || !eq(dev, dp->d_name))
-			continue;
-		if (dp->d_type != DEVICE) {
-			(void) snprintf(errbuf, sizeof(errbuf), 
-			    "%s connected to non-device", dev);
-			yyerror(errbuf);
-			return (0);
-		}
-		return (1);
-	}
-	(void) snprintf(errbuf, sizeof(errbuf), "%s %d not defined", dev, num);
-	yyerror(errbuf);
-	return (0);
-}
-
-void
-init_dev(dp)
-	register struct device *dp;
-{
-
-	dp->d_name = "OHNO!!!";
-	dp->d_type = DEVICE;
-	dp->d_conn = 0;
-	dp->d_disabled = 0;
-	dp->d_flags = 0;
-	dp->d_bus = dp->d_lun = dp->d_target = dp->d_drive = dp->d_unit = \
-		dp->d_count = UNKNOWN;
-	dp->d_port = (char *)0;
-	dp->d_portn = -1;
-	dp->d_irq = -1;
-	dp->d_drq = -1;
-	dp->d_maddr = 0;
-	dp->d_msize = 0;
 }

@@ -27,6 +27,8 @@ cpu		EV5
 ident		GENERIC
 maxusers	32
 
+hints		"GENERIC.hints"
+
 #makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
 
 # Platforms supported
@@ -72,8 +74,7 @@ device		pci
 options 	COMPAT_OLDPCI		# PCI compatability shims
 
 # Floppy drives
-device		fdc0	at isa? port IO_FD1 irq 6 drq 2
-device		fd0	at fdc0 drive 0
+device		fdc
 
 # ATA and ATAPI devices
 device		ata
@@ -97,27 +98,26 @@ device		cd		# CD
 device		pass		# Passthrough device (direct SCSI access)
 
 # atkbdc0 controls both the keyboard and the PS/2 mouse
-device		atkbdc0	at isa? port IO_KBD
-device		atkbd0	at atkbdc? irq 1
-device		psm0	at atkbdc? irq 12
+device		atkbdc	1
+device		atkbd
+device		psm
 
-device		vga0	at isa?
+device		vga
 
 # splash screen/screen saver
-pseudo-device	splash
+device		splash
 
 # syscons is the default console driver, resembling an SCO console
-device		sc0	at isa?
+device		sc	1
 
 # real time clock
-device		mcclock0 at isa? port 0x70
+device		mcclock
 
 # Serial (COM) ports
-device		sio0	at isa? port IO_COM1 irq 4
-device		sio1	at isa? port IO_COM2 irq 3 flags 0x50
+device		sio
 
 # Parallel port
-device          ppc0    at isa? irq 7
+device          ppc
 device          ppbus           # Parallel port bus (required)
 device          lpt             # Printer
 device          plip            # TCP/IP over parallel
@@ -143,19 +143,19 @@ device		wb		# Winbond W89C840F
 device		xl		# 3Com 3c90x (``Boomerang'', ``Cyclone'')
 
 # Pseudo devices - the number indicates how many units to allocated.
-pseudo-device	loop		# Network loopback
-pseudo-device	ether		# Ethernet support
-pseudo-device	sl		# Kernel SLIP
-pseudo-device	ppp	1	# Kernel PPP
-pseudo-device	tun		# Packet tunnel.
-pseudo-device	pty		# Pseudo-ttys (telnet etc)
-pseudo-device	md		# Memory "disks"
-pseudo-device	gif	4	# IPv6 and IPv4 tunneling
-pseudo-device	faith	1	# IPv6-to-IPv4 relaying/(translation)
+device		loop		# Network loopback
+device		ether		# Ethernet support
+device		sl		# Kernel SLIP
+device		ppp	1	# Kernel PPP
+device		tun		# Packet tunnel.
+device		pty		# Pseudo-ttys (telnet etc)
+device		md		# Memory "disks"
+device		gif	4	# IPv6 and IPv4 tunneling
+device		faith	1	# IPv6-to-IPv4 relaying/(translation)
 
-# The `bpf' pseudo-device enables the Berkeley Packet Filter.
+# The `bpf' device enables the Berkeley Packet Filter.
 # Be aware of the administrative consequences of enabling this!
-pseudo-device	bpf		#Berkeley packet filter
+device		bpf		#Berkeley packet filter
 
 # USB support
 device		uhci		# UHCI PCI->USB interface

@@ -1208,12 +1208,9 @@ device_unregister_oids(device_t dev)
  * Access functions for device resources.
  */
 
-/* Supplied by config(8) in ioconf.c */
-extern struct config_device config_devtab[];
-extern int devtab_count;
-
 /* Runtime version */
-struct config_device *devtab = config_devtab;
+static struct config_device *devtab;
+static int devtab_count = 0;
 
 static int
 resource_new_name(const char *name, int unit)
@@ -1492,68 +1489,106 @@ resource_set_string(const char *name, int unit, const char *resname,
 	return 0;
 }
 
-
+/*
+ * We use the identify routine to get the hints for all the other devices.
+ * Strings that are all digits or begin with 0x are integers.
+ *
+ * hint.aha.0.bus_speedup=1
+ * hint.aha.1.irq=10
+ * hint.wl.0.netid=PLUG
+ * hint.wl.1.netid=XYZZY
+ */
 static void
-resource_cfgload(void *dummy __unused)
+hint_load(char *cp)
 {
-	struct config_resource *res, *cfgres;
-	int i, j;
-	int error;
-	char *name, *resname;
-	int unit;
-	resource_type type;
-	char *stringval;
-	int config_devtab_count;
-
-	config_devtab_count = devtab_count;
-	devtab = NULL;
-	devtab_count = 0;
-
-	for (i = 0; i < config_devtab_count; i++) {
-		name = config_devtab[i].name;
-		unit = config_devtab[i].unit;
-
-		for (j = 0; j < config_devtab[i].resource_count; j++) {
-			cfgres = config_devtab[i].resources;
-			resname = cfgres[j].name;
-			type = cfgres[j].type;
-			error = resource_create(name, unit, resname, type,
-						&res);
-			if (error) {
-				printf("create resource %s%d: error %d\n",
-					name, unit, error);
-				continue;
-			}
-			if (res->type != type) {
-				printf("type mismatch %s%d: %d != %d\n",
-					name, unit, res->type, type);
-				continue;
-			}
-			switch (type) {
-			case RES_INT:
-				res->u.intval = cfgres[j].u.intval;
-				break;
-			case RES_LONG:
-				res->u.longval = cfgres[j].u.longval;
-				break;
-			case RES_STRING:
-				if (res->u.stringval)
-					free(res->u.stringval, M_TEMP);
-				stringval = cfgres[j].u.stringval;
-				res->u.stringval = malloc(strlen(stringval) + 1,
-							  M_TEMP, M_NOWAIT);
-				if (res->u.stringval == NULL)
-					break;
-				strcpy(res->u.stringval, stringval);
-				break;
-			default:
-				panic("unknown resource type %d\n", type);
-			}
-		}
+	char	*ep, *op, *walker;
+	int	len;
+	int	val;
+	char	name[20];
+	int	unit;
+	char	resname[255];
+    
+	for (ep = cp; (*ep != '=') && (*ep != 0); ep++)
+		;
+	len = ep - cp;
+	if (*ep == '=')
+		ep++;
+	if (strncmp(cp, "hint.", 5) != 0)
+		return;
+	walker = cp;
+	walker += 5;
+	op = walker;
+	while (*walker && *walker != '.')
+		walker++;
+	if (*walker != '.')
+		return;
+	if (walker - op > sizeof(name))
+		return;
+	strncpy(name, op, walker - op);
+	name[walker - op] = '\0';
+	walker++;
+	op = walker;
+	while (*walker && *walker != '.')
+		walker++;
+	if (*walker != '.')
+		return;
+	unit = strtol(op, &walker, 0);
+	if (*walker != '.')
+		return;
+	walker++;
+	op = walker;
+	while (*walker && *walker != '=')
+		walker++;
+	if (*walker != '=')
+		return;
+	if (walker - op > sizeof(resname))
+		return;
+	strncpy(resname, op, walker - op);
+	resname[walker - op] = '\0';
+	walker++;
+	if (walker != ep)
+		return;
+	if (1 || bootverbose)
+		printf("Setting %s %d %s to ", name, unit, resname);
+	val = strtol(ep, &op, 0);
+	if (*ep != '\0' && *op == '\0') {
+		resource_set_int(name, unit, resname, val);
+		if (1 || bootverbose)
+			printf("%d (int)\n", val);
+	} else {
+		resource_set_string(name, unit, resname, ep);
+		if (1 || bootverbose)
+			printf("%s (string)\n", ep);
 	}
 }
-SYSINIT(cfgload, SI_SUB_KMEM, SI_ORDER_ANY + 50, resource_cfgload, 0)
 
+extern char static_hints[];
+
+static void
+hints_load(void *dummy __unused)
+{
+	char	*cp;
+
+	cp = static_hints;
+	while (cp) {
+		hint_load(cp);
+		while (*cp != 0)
+			cp++;
+		cp++;
+		if (*cp == 0)
+			break;
+	}
+	cp = kern_envp;
+	while (cp) {
+		hint_load(cp);
+		while (*cp != 0)
+			cp++;
+		cp++;
+		if (*cp == 0)
+			break;
+	}
+}
+SYSINIT(cfghints, SI_SUB_KMEM, SI_ORDER_ANY + 60, hints_load, 0)
 
 /*======================================*/
 /*

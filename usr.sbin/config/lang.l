@@ -50,40 +50,23 @@ struct kt {
 	char *kt_name;
 	int kt_val;
 } key_words[] = {
-	{ "at",		AT },
-	{ "bus",	BUS },
-	{ "conflicts",	CONFLICTS },
 	{ "config",	CONFIG },
-	{ "controller",	CONTROLLER },
 	{ "cpu",	CPU },
 	{ "device",	DEVICE },
-	{ "disable",	DISABLE },
-	{ "disk",	DISK },
-	{ "drive",	DRIVE },
-	{ "drq",	DRQ },
-	{ "flags",	FLAGS },
+	{ "hints",	HINTS },
 	{ "ident",	IDENT },
-	{ "iomem",	IOMEM },
-	{ "iosiz",	IOSIZ },
-	{ "irq",	IRQ },
 	{ "machine",	ARCH }, /* MACHINE is defined in /sys/param.h */
 	{ "makeoptions", MAKEOPTIONS },
 	{ "maxusers",	MAXUSERS },
-	{ "nexus",	NEXUS },
 	{ "option",	OPTIONS },
 	{ "options",	OPTIONS },
-	{ "port",	PORT },
-	{ "pseudo-device",PSEUDO_DEVICE },
-	{ "tape",	TAPE },
-	{ "target",	TARGET },
-	{ "unit",	UNIT },
 	{ 0, 0 },
 };
 
 
-int kw_lookup __P((char *));
-int octal __P((char *));
-int hex __P((char *));
+int kw_lookup(char *);
+int octal(char *);
+int hex(char *);
 
 %}
 WORD	[A-Za-z_][-A-Za-z_]*
@@ -106,8 +89,7 @@ ID	[A-Za-z_][-A-Za-z_0-9]*
 
 			if ((i = kw_lookup(yytext)) == -1)
 				REJECT;
-			if (i == CONTROLLER || i == DEVICE || i == DISK || i == TAPE ||
-			    i == PSEUDO_DEVICE || i == AT)
+			if (i == DEVICE)
 				BEGIN NONUM;
 			return i;
 		}
@@ -146,10 +128,6 @@ ID	[A-Za-z_][-A-Za-z_0-9]*
 			yylval.val = atoi(yytext);
 			return NUMBER;
 		}
-[0-9]"."[0-9]*	{
-			yylval.val = (int) (60 * atof(yytext) + 0.5);
-			return FPNUMBER;
-		}
 "?"		{
 			yylval.val = -1;
 			return NUMBER;
@@ -166,7 +144,6 @@ ID	[A-Za-z_][-A-Za-z_0-9]*
 ";"		{	return SEMICOLON;		}
 ","		{	return COMMA;			}
 "="		{	BEGIN TOEOL; return EQUALS;	}
-"@"		{	return AT;			}
 .		{	return yytext[0];		}
 
 %%
@@ -177,10 +154,9 @@ ID	[A-Za-z_][-A-Za-z_0-9]*
  */
 
 int
-kw_lookup(word)
-register char *word;
+kw_lookup(char *word)
 {
-	register struct kt *kp;
+	struct kt *kp;
 
 	for (kp = key_words; kp->kt_name != 0; kp++)
 		if (eq(word, kp->kt_name))
@@ -193,8 +169,7 @@ register char *word;
  */
 
 int
-octal(str)
-char *str;
+octal(char *str)
 {
 	int num;
 
@@ -203,8 +178,7 @@ char *str;
 }
 
 int
-hex(str)
-char *str;
+hex(char *str)
 {
 	int num;
 

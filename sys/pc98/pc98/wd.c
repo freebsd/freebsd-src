@@ -52,12 +52,9 @@
  *	  driver entries for polled reinit and polled write).
  */
 
-#include "wd.h"
-#ifdef  NWDC
-#undef  NWDC
-#endif
-
 #include "wdc.h"
+#undef NWD
+#define NWD (NWDC * 4)		/* 4 drives per wdc on PC98 */
 
 #if     NWDC > 0
 
