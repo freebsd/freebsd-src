@@ -187,6 +187,7 @@ int
 give_plex_to_volume(int volno, int plexno)
 {
     struct volume *vol;
+    int i;
 
     /*
      * It's not an error for the plex to already
@@ -209,6 +210,9 @@ give_plex_to_volume(int volno, int plexno)
     vol->plexes++;					    /* add another plex */
     PLEX[plexno].volno = volno;				    /* note the number of our volume */
 
+    /* Find out how big our volume is */
+    for (i = 0; i < vol->plexes; i++)
+	vol->size = max(vol->size, PLEX[vol->plex[i]].length);
     return vol->plexes - 1;				    /* and return its index */
 }
 
@@ -908,7 +912,7 @@ config_drive(int update)
     if (drive->state != drive_referenced) {		    /* we already know this drive */
 	/*
 	 * XXX Check which definition is more up-to-date.  Give
-	 * preference for the definition on its own drive
+	 * preference for the definition on its own drive.
 	 */
 	return;						    /* XXX */
     }
@@ -970,8 +974,6 @@ config_drive(int update)
 		break;
 
 	    case DL_DELETED_LABEL:			    /* it was a drive, but we deleted it */
-		break;
-
 	    case DL_NOT_OURS:				    /* nothing to do with the rest */
 	    case DL_OURS:
 		break;
