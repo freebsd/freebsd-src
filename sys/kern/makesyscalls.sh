@@ -1,6 +1,6 @@
 #! /bin/sh -
 #	@(#)makesyscalls.sh	8.1 (Berkeley) 6/10/93
-# $Id: makesyscalls.sh,v 1.25 1997/10/26 20:27:48 phk Exp $
+# $Id: makesyscalls.sh,v 1.26 1997/11/18 03:34:39 peter Exp $
 
 set -e
 
@@ -19,12 +19,12 @@ switchname="sysent"
 namesname="syscallnames"
 
 # tmp files:
-sysdcl="sysent.dcl"
-syscompat="sysent.compat"
-syscompatdcl="sysent.compatdcl"
-sysent="sysent.switch"
-sysinc="sysinc.switch"
-sysarg="sysarg.switch"
+sysdcl="sysent.dcl.$$"
+syscompat="sysent.compat.$$"
+syscompatdcl="sysent.compatdcl.$$"
+sysent="sysent.switch.$$"
+sysinc="sysinc.switch.$$"
+sysarg="sysarg.switch.$$"
 
 trap "rm $sysdcl $syscompat $syscompatdcl $sysent $sysinc $sysarg" 0
 
