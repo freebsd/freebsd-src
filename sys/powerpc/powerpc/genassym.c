@@ -84,6 +84,9 @@ ASSYM(P_ADDR, offsetof(struct proc, p_addr));
 ASSYM(P_MD_FLAGS, offsetof(struct proc, p_md.md_flags));
 ASSYM(P_MD_PCBPADDR, offsetof(struct proc, p_md.md_pcbpaddr));
 ASSYM(P_MD_HAE, offsetof(struct proc, p_md.md_hae));
+#ifdef SMP
+ASSYM(P_MD_KERNNEST, offsetof(struct proc, p_md.md_kernnest));
+#endif
 ASSYM(MDP_HAEUSED, MDP_HAEUSED);
 
 ASSYM(CHIPSET_WRITE_HAE, offsetof(struct alpha_chipset, write_hae));

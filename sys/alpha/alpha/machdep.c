@@ -966,6 +966,9 @@ alpha_init(pfn, ptb, bim, bip, biv)
 		globaldata_init(globalp, alpha_pal_whami(), sz);
 		alpha_pal_wrval((u_int64_t) globalp);
 		PCPU_GET(next_asn) = 1;	/* 0 used for proc0 pmap */
+#ifdef SMP
+		proc0.p_md.md_kernnest = 1;
+#endif
 	}
 
 	/*
