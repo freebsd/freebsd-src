@@ -475,7 +475,7 @@ f_cause(char *pbuf, unsigned char *buf, int off)
 	len--;
 	
 	for(j = 0; j < len; j++)
-		sprintline(3, (pbuf+strlen(pbuf)), off+i+j, buf[i+j], 0xff, "Diagnostics = %02d %s", buf[i+j]);
+		sprintline(3, (pbuf+strlen(pbuf)), off+i+j, buf[i+j], 0xff, "Diagnostics = %02d %s", buf[i+j], buf[i+j]);
 
 	i += (len+1);
 	
