@@ -1,28 +1,26 @@
-# getopt --- do C library getopt(3) function in awk
+# getopt.awk --- do C library getopt(3) function in awk
 #
-# arnold@gnu.org
-# Public domain
+# Arnold Robbins, arnold@gnu.org, Public Domain
 #
 # Initial version: March, 1991
 # Revised: May, 1993
 
 # External variables:
-#    Optind -- index of ARGV for first non-option argument
+#    Optind -- index in ARGV of first non-option argument
 #    Optarg -- string value of argument to current option
-#    Opterr -- if non-zero, print our own diagnostic
+#    Opterr -- if nonzero, print our own diagnostic
 #    Optopt -- current option letter
 
-# Returns
+# Returns:
 #    -1     at end of options
 #    ?      for unrecognized option
 #    <c>    a character representing the current option
 
-# Private Data
-#    _opti  index in multi-flag option, e.g., -abc
-function getopt(argc, argv, options,    optl, thisopt, i)
+# Private Data:
+#    _opti  -- index in multi-flag option, e.g., -abc
+function getopt(argc, argv, options,    thisopt, i)
 {
-    optl = length(options)
-    if (optl == 0)        # no options given
+    if (length(options) == 0)    # no options given
         return -1
 
     if (argv[Optind] == "--") {  # all done

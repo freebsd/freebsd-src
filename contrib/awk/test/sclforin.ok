@@ -1,1 +1,1 @@
-gawk: sclforin.awk:1: fatal: attempt to use scalar as array
+gawk: sclforin.awk:1: fatal: attempt to use scalar `j' as array

@@ -1,6 +1,6 @@
 gawk: option requires an argument -- f
 Usage: gawk [POSIX or GNU style options] -f progfile [--] file ...
-	gawk [POSIX or GNU style options] [--] 'program' file ...
+Usage: gawk [POSIX or GNU style options] [--] 'program' file ...
 POSIX options:		GNU long options:
 	-f progfile		--file=progfile
 	-F fs			--field-separator=fs
@@ -9,9 +9,13 @@ POSIX options:		GNU long options:
 	-W compat		--compat
 	-W copyleft		--copyleft
 	-W copyright		--copyright
+	-W dump-variables[=file]	--dump-variables[=file]
+	-W gen-po		--gen-po
 	-W help			--help
-	-W lint			--lint
+	-W lint[=fatal]		--lint[=fatal]
 	-W lint-old		--lint-old
+	-W non-decimal-data	--non-decimal-data
+	-W profile[=file]	--profile[=file]
 	-W posix		--posix
 	-W re-interval		--re-interval
 	-W source=program-text	--source=program-text
@@ -19,6 +23,5 @@ POSIX options:		GNU long options:
 	-W usage		--usage
 	-W version		--version
 
-To report bugs, see node `Bugs' in `gawk.info', which
-is section `Reporting Problems and Bugs' in the
-printed version.
+To report bugs, see node `Bugs' in `gawk.info', which is
+section `Reporting Problems and Bugs' in the printed version.

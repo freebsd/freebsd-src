@@ -1,4 +1,5 @@
 # join.awk --- join an array into a string
+#
 # Arnold Robbins, arnold@gnu.org, Public Domain
 # May 1993
 

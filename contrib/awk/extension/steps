@@ -1,0 +1,9 @@
+# what to do under linux to make dl.so
+# Tue Nov 24 15:04:14 EST 1998
+
+gcc -shared -Wall -DHAVE_CONFIG_H -c -O -g -I.. dl.c
+gcc -shared -Wall -DHAVE_CONFIG_H -c -O -g -I.. filefuncs.c
+gcc -shared -Wall -DHAVE_CONFIG_H -c -O -g -I.. fork.c
+ld -o dl.so -shared dl.o
+ld -o filefuncs.so -shared filefuncs.o
+ld -o fork.so -shared fork.o

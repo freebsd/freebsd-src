@@ -1,7 +1,6 @@
-This is a list of known problems in gawk 3.0.
-Hopefully they will all be fixed in the next major release of gawk.
-
-Please keep in mind that the code is still undergoing significant evolution.
+This is a list of known problems in gawk 3.1.
+I don't know when this will be fixed, if ever.  See also FUTURES
+and the gawk.texi doc for other things that need doing.
 
 1. The interactions with the lexer and yyerror need reworking. It is possible
    to get line numbers that are one line off if --compat or --posix is

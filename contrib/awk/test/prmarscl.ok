@@ -1,1 +1,1 @@
-gawk: prmarscl.awk:4: fatal: attempt to use scalar parameter 1 as an array
+gawk: prmarscl.awk:4: fatal: attempt to use scalar parameter `a' as an array

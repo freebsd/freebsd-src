@@ -1,4 +1,5 @@
 # wc.awk --- count lines, words, characters
+#
 # Arnold Robbins, arnold@gnu.org, Public Domain
 # May 1993
 
@@ -8,6 +9,8 @@
 #    -c    only count characters
 #
 # Default is to count lines, words, characters
+#
+# Requires getopt and file transition library functions
 
 BEGIN {
     # let getopt print a message about
@@ -29,11 +32,11 @@ BEGIN {
 
     print_total = (ARGC - i > 2)
 }
-function beginfile(file) {
+function beginfile(file)
+{
     chars = lines = words = 0
     fname = FILENAME
 }
-
 function endfile(file)
 {
     tchars += chars
@@ -53,7 +56,6 @@ function endfile(file)
     lines++
     words += NF
 }
-
 END {
     if (print_total) {
         if (do_lines)

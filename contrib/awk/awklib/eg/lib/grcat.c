@@ -2,9 +2,9 @@
  * grcat.c
  *
  * Generate a printable version of the group database
- *
- * Arnold Robbins, arnold@gnu.org
- * May 1993
+ */
+/*
+ * Arnold Robbins, arnold@gnu.org, May 1993
  * Public Domain
  */
 

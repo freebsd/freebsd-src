@@ -1,0 +1,23 @@
+# List of source files containing translatable strings.
+# Copyright (C) 1999 Free Software Foundation, Inc.
+
+array.c
+builtin.c
+ext.c
+getopt.c
+main.c
+profile.c
+regex.c
+awkgram.c
+dfa.c
+field.c
+getopt1.c
+msg.c
+random.c
+version.c
+eval.c
+gawkmisc.c
+io.c
+node.c
+re.c
+posix/gawkmisc.c
