@@ -240,7 +240,7 @@ static int
 uhid_detach(device_t self)
 {       
 	DPRINTF(("%s: disconnected\n", USBDEVNAME(self)));
-	device_set_desc(self, NULL);
+
 	return 0;
 }
 #endif
