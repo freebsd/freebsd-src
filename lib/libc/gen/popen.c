@@ -49,6 +49,8 @@ static char sccsid[] = "@(#)popen.c	8.3 (Berkeley) 5/3/95";
 #include <string.h>
 #include <paths.h>
 
+extern char **environ;
+
 static struct pid {
 	struct pid *next;
 	FILE *fp;
@@ -62,6 +64,7 @@ popen(command, type)
 	struct pid *cur;
 	FILE *iop;
 	int pdes[2], pid, twoway;
+	char *argv[4];
 	struct pid *p;
 
 	/*
@@ -84,6 +87,11 @@ popen(command, type)
 		(void)close(pdes[1]);
 		return (NULL);
 	}
+
+	argv[0] = "sh";
+	argv[1] = "-c";
+	argv[2] = (char *) command;
+	argv[3] = NULL;
 
 	switch (pid = vfork()) {
 	case -1:			/* Error. */
@@ -120,7 +128,7 @@ popen(command, type)
 		for (p = pidlist; p; p = p->next) {
 			(void)close(fileno(p->fp));
 		}
-		execl(_PATH_BSHELL, "sh", "-c", command, NULL);
+		execve(_PATH_BSHELL, argv, environ);
 		_exit(127);
 		/* NOTREACHED */
 	}
