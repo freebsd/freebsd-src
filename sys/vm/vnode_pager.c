@@ -529,7 +529,7 @@ vnode_pager_input_smlfs(object, m)
 
 
 /*
- * old style vnode pager output routine
+ * old style vnode pager input routine
  */
 static int
 vnode_pager_input_old(object, m)
