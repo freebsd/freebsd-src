@@ -50,9 +50,9 @@
 #include <dev/ofw/openfirm.h>
 #include <powerpc/powermac/maciovar.h>
 
-/* 
+/*
  * Offset to control registers from base
-*/
+ */
 #define ATA_MACIO_ALTOFFSET	0x160
 
 /*
@@ -109,14 +109,14 @@ ata_macio_probe(device_t dev)
 		return (ENXIO);
 
 	ch = device_get_softc(dev);
+	bzero(ch, sizeof(struct ata_channel));
 
 	rid = 0;
-	mem = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid, 0, ~1, 1, 
-	    RF_ACTIVE);
+	mem = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
 	if (mem == NULL) {
 		device_printf(dev, "could not allocate memory\n");
 		return (ENXIO);
-	}	
+	}
 
 	/*
 	 * Set up the resource vectors
@@ -128,11 +128,12 @@ ata_macio_probe(device_t dev)
 	ch->r_io[ATA_ALTSTAT].res = mem;
 	ch->r_io[ATA_ALTSTAT].offset = ATA_MACIO_ALTOFFSET;
 
-	ch->unit = 0; 
+	ch->unit = 0;
 	ch->flags |= ATA_USE_16BIT;
 	ch->locking = ata_macio_locknoop;
 	ch->device[MASTER].setmode = ata_macio_setmode;
 	ch->device[SLAVE].setmode = ata_macio_setmode;
+	ata_generic_hw(ch);
 
 	return (ata_probe(dev));
 }
