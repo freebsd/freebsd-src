@@ -587,6 +587,8 @@ bootpc_call(struct bootpc_globalcontext *gctx, struct thread *td)
 	int retry;
 	const char *s;
 
+	GIANT_REQUIRED;		/* XXX until socket locking done */
+
 	/*
 	 * Create socket and set its recieve timeout.
 	 */
@@ -976,6 +978,8 @@ bootpc_fakeup_interface(struct bootpc_ifcontext *ifctx,
 	struct socket *so;
 	struct ifaddr *ifa;
 	struct sockaddr_dl *sdl;
+
+	GIANT_REQUIRED;		/* XXX until socket locking done */
 
 	error = socreate(AF_INET, &ifctx->so, SOCK_DGRAM, 0, td->td_ucred, td);
 	if (error != 0)
