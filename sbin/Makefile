@@ -12,7 +12,6 @@ SUBDIR=	adjkerntz \
 	clri \
 	comcontrol \
 	conscontrol \
-	devd \
 	devfs \
 	dhclient \
 	dmesg \
@@ -77,6 +76,10 @@ SUBDIR=	adjkerntz \
 	tunefs \
 	umount \
 	vinum
+
+.if !defined(NO_CXX)
+SUBDIR+=devd
+.endif
 
 .if !defined(NO_IPFILTER)
 SUBDIR+=ipf \
