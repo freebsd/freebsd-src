@@ -109,7 +109,7 @@
  * (in the HOME directory).
  */
 #define	LESSKEYFILE		".less"
-#define	LESSKEYFILE_SYS		SYSDIR "/sysless"
+#define	LESSKEYFILE_SYS		"/etc/lesskey"
 #define	DEF_LESSKEYINFILE	".lesskey"
 
 
