@@ -87,7 +87,6 @@ static char *cdrom_rootdevnames[] = {
 	NULL
 };
 
-static void	vfs_mountroot(void *junk);
 static int	vfs_mountroot_try(char *mountfrom);
 static int	vfs_mountroot_ask(void);
 static void	gets(char *cp);
@@ -96,13 +95,11 @@ static void	gets(char *cp);
 char		*rootdevnames[2] = {NULL, NULL};
 static int	setrootbyname(char *name);
 
-SYSINIT(mountroot, SI_SUB_MOUNT_ROOT, SI_ORDER_SECOND, vfs_mountroot, NULL);
-	
 /*
  * Find and mount the root filesystem
  */
-static void
-vfs_mountroot(void *junk)
+void
+vfs_mountroot(void *foo __unused)
 {
 	int		i;
 	
