@@ -37,7 +37,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumrequest.c,v 1.35 2003/04/28 02:54:43 grog Exp $
+ * $Id: vinumrequest.c,v 1.36 2003/05/08 04:34:55 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -340,7 +340,7 @@ launch_requests(struct request *rq, int reviveok)
 		rq->bp->b_iocmd == BIO_READ ? "Read" : "Write",
 		major(rq->bp->b_dev),
 		minor(rq->bp->b_dev),
-		(intmax_t)rq->bp->b_blkno,
+		(intmax_t) rq->bp->b_blkno,
 		rq->bp->b_bcount);
 #endif
 	return 0;					    /* and get out of here */
@@ -362,7 +362,7 @@ launch_requests(struct request *rq, int reviveok)
 	    rq->bp->b_iocmd == BIO_READ ? "Read" : "Write",
 	    major(rq->bp->b_dev),
 	    minor(rq->bp->b_dev),
-	    (intmax_t)rq->bp->b_blkno,
+	    (intmax_t) rq->bp->b_blkno,
 	    rq->bp->b_bcount);
     vinum_conf.lastrq = rq;
     vinum_conf.lastbuf = rq->bp;
@@ -437,7 +437,7 @@ launch_requests(struct request *rq, int reviveok)
 			minor(rqe->b.b_dev),
 			rqe->sdno,
 			(u_int) (rqe->b.b_blkno - SD[rqe->sdno].driveoffset),
-			(intmax_t)rqe->b.b_blkno,
+			(intmax_t) rqe->b.b_blkno,
 			rqe->b.b_bcount);
 		if (debug & DEBUG_LASTREQS) {
 		    microtime(&rqe->launchtime);	    /* time we launched this request */
@@ -640,12 +640,12 @@ bre(struct request *rq,
 			    plex->name,
 			    sd->name,
 			    (u_int) sd->sectors,
-			    (intmax_t)bp->b_blkno);
+			    (intmax_t) bp->b_blkno);
 			log(LOG_DEBUG,
 			    "vinum: stripebase %#jx, stripeoffset %#jx, blockoffset %#jx\n",
-			    (intmax_t)stripebase,
-			    (intmax_t)stripeoffset,
-			    (intmax_t)blockoffset);
+			    (intmax_t) stripebase,
+			    (intmax_t) stripeoffset,
+			    (intmax_t) blockoffset);
 		    }
 #endif
 		}
@@ -980,8 +980,8 @@ sdio(struct buf *bp)
 	    major(sbp->b.b_dev),
 	    minor(sbp->b.b_dev),
 	    sbp->sdno,
-	    (intmax_t)(sbp->b.b_blkno - SD[sbp->sdno].driveoffset),
-	    (intmax_t)sbp->b.b_blkno,
+	    (intmax_t) (sbp->b.b_blkno - SD[sbp->sdno].driveoffset),
+	    (intmax_t) sbp->b.b_blkno,
 	    sbp->b.b_bcount);
 #endif
     s = splbio();
@@ -1015,18 +1015,19 @@ vinum_bounds_check(struct buf *bp, struct volume *vol)
     int maxsize = vol->size;				    /* size of the partition (sectors) */
     int size = (bp->b_bcount + DEV_BSIZE - 1) >> DEV_BSHIFT; /* size of this request (sectors) */
 
+#ifdef LABELSECTOR
     /* Would this transfer overwrite the disk label? */
     if (bp->b_blkno <= LABELSECTOR			    /* starts before or at the label */
 #if LABELSECTOR != 0
 	&& bp->b_blkno + size > LABELSECTOR		    /* and finishes after */
 #endif
-	&& (!(vol->flags & VF_RAW))			    /* and it's not raw */
-	&&(bp->b_iocmd == BIO_WRITE)			    /* and it's a write */
+	&& (bp->b_iocmd == BIO_WRITE)			    /* and it's a write */
 	&&(!vol->flags & (VF_WLABEL | VF_LABELLING))) {	    /* and we're not allowed to write the label */
 	bp->b_error = EROFS;				    /* read-only */
 	bp->b_io.bio_flags |= BIO_ERROR;
 	return -1;
     }
+#endif
     if (size == 0)					    /* no transfer specified, */
 	return 0;					    /* treat as EOF */
     /* beyond partition? */
