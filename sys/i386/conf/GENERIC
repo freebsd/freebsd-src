@@ -193,6 +193,8 @@ device		wi
 # card for a manually chosen I/O address and IRQ, you must specify
 # those paremeters here.
 device		an
+# Xircom Ethernet
+device		xe
 # The probe order of these is presently determined by i386/isa/isa_compat.c.
 device		ie0	at isa? port 0x300 irq 10 iomem 0xd0000
 device		fe0	at isa? port 0x300
