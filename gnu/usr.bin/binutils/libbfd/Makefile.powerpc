@@ -19,7 +19,7 @@ VECS+=		bfd_elf32_powerpc_vec	\
 		bfd_powerpcle_pe_vec	\
 		bfd_powerpcle_pei_vec	\
 		ppcboot_vec
-.if ${MACHINE_ARCH} == "powerpc"
+.if ${TARGET_ARCH} == "powerpc"
 CFLAGS+=	-DDEFAULT_VECTOR=bfd_elf32_powerpc_vec
 .endif
 CFLAGS+=	-DHAVE_bfd_elf32_powerpc_vec	\

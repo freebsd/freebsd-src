@@ -13,7 +13,7 @@ SRCS+=		aout-sparcle.c	\
 		sparclynx.c	\
 		sparcnetbsd.c
 VECS+=		bfd_elf32_sparc_vec
-.if ${MACHINE_ARCH} == "sparc"
+.if ${TARGET_ARCH} == "sparc"
 CFLAGS+=	-DDEFAULT_VECTOR=bfd_elf32_sparc_vec
 .endif
 CFLAGS+=	-DHAVE_elf32_sparc_vec

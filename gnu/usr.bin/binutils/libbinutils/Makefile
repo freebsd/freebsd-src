@@ -9,12 +9,12 @@
 LIB=		binutils
 SRCS+=		arlex.l arparse.y arsup.c bucomm.c debug.c filemode.c \
 		ieee.c rdcoff.c rddbg.c stabs.c wrstabs.c version.c
-.if ${MACHINE_ARCH} == "mipseb"
+.if ${TARGET_ARCH} == "mipseb"
 CFLAGS+=	-DTARGET=\"elf32-bigmips\"
-.elif ${MACHINE_ARCH} == "mipsel"
+.elif ${TARGET_ARCH} == "mipsel"
 CFLAGS+=	-DTARGET=\"elf32-littlemips\"
 .else
-CFLAGS+=	-DTARGET=\"${MACHINE_ARCH}-unknown-freebsdelf\"
+CFLAGS+=	-DTARGET=\"${TARGET_ARCH}-unknown-freebsdelf\"
 .endif
 CFLAGS+=	-DVERSION=\"${VERSION}\"
 CFLAGS+=	-I${SRCDIR}/binutils

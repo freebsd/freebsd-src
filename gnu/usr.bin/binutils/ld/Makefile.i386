@@ -2,7 +2,7 @@
 # $FreeBSD$
 #
 
-.if	${MACHINE_ARCH} == "i386"
+.if	${TARGET_ARCH} == "i386"
 HOST=		i386-unknown-freebsdelf
 CFLAGS+=	-DDEFAULT_EMULATION=\"elf_i386\"
 CFLAGS+=	-DTARGET=\"i386-unknown-freebsdelf\"

@@ -5,7 +5,7 @@
 SRCS+=		coff-alpha.c cpu-alpha.c ecoff.c ecofflink.c elf64-alpha.c \
 		elf64-target.h elf64.c elflink.c
 VECS+=		bfd_elf64_alpha_vec ecoffalpha_little_vec
-.if ${MACHINE_ARCH} == "alpha"
+.if ${TARGET_ARCH} == "alpha"
 CFLAGS+=	-DDEFAULT_VECTOR=bfd_elf64_alpha_vec
 .endif
 CFLAGS+=	-DHAVE_bfd_elf64_alpha_vec
