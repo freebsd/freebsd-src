@@ -1,7 +1,7 @@
 .\" Copyright (c) 1997 Robert Nordier
 .\" All rights reserved.
 .\"
-.\" $Id: ckdist.1,v 1.2 1997/01/20 16:47:04 rnordier Exp $
+.\" $Id: ckdist.1,v 1.1.1.1 1997/01/21 12:58:53 jkh Exp $
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -36,10 +36,10 @@
 .Bq Fl d Ar dir
 .Bq Fl n Ar name
 .Bq Fl t Ar type
-.Ar file ...
+.Ar
 .Sh DESCRIPTION
 The
-.Nm ckdist
+.Nm
 utility reads "checksum" files (which are assumed to specify components
 of a software distribution) and verifies the integrity of the
 distribution by validating the checksum of each component file.
@@ -75,8 +75,8 @@ Look for distribution components in the directory
 .It Fl n Ar name
 Access distribution components using the filename
 .Ar name .
-(When accessing .inf file components, append the appropriate
-extension to the filename.)
+When accessing .inf file components, append the appropriate
+extension to the filename.
 .It Fl t Ar type
 Assume that all specified checksum files are of the format
 .Ar type ,
@@ -92,5 +92,5 @@ a distribution, and 2 if usage errors, inaccessible input files, or
 other system errors were encountered.
 .Sh NOTES
 Both BSD and DOS versions of
-.Nm ckdist
+.Nm
 are available.
