@@ -27,7 +27,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: cy.c,v 1.10 1995/07/22 01:29:58 bde Exp $
+ *	$Id: cy.c,v 1.11 1995/07/22 16:44:46 bde Exp $
  */
 
 #include "cy.h"
@@ -184,7 +184,7 @@
  * The following com and tty flags correspond closely:
  *	CS_BUSY		= TS_BUSY (maintained by comstart(), siopoll() and
  *				   siostop())
- *	CS_TTGO		= ~TS_TTSTOP (maintained by comstart() and siostop())
+ *	CS_TTGO		= ~TS_TTSTOP (maintained by comparam() and comstart())
  *	CS_CTS_OFLOW	= CCTS_OFLOW (maintained by comparam())
  *	CS_RTS_IFLOW	= CRTS_IFLOW (maintained by comparam())
  * TS_FLUSH is not used.
@@ -1642,7 +1642,7 @@ repeat:
 				|| tp->t_cc[VSTART] == tp->t_cc[VSTOP])) {
 				tp->t_state &= ~TS_TTSTOP;
 				tp->t_lflag &= ~FLUSHO;
-				ttstart(tp);
+				comstart(tp);
 			}
 		} else {
 			do {
@@ -2140,12 +2140,8 @@ siostop(tp, rw)
 	int		rw;
 {
 	struct com_s	*com;
-	cy_addr		iobase;
-	int		unit;
 
-	unit = DEV_TO_UNIT(tp->t_dev);
-	com = com_addr(unit);
-	iobase = com->iobase;
+	com = com_addr(DEV_TO_UNIT(tp->t_dev));
 	disable_intr();
 	if (rw & FWRITE) {
 		com->obufs[0].l_queued = FALSE;
@@ -2159,23 +2155,8 @@ siostop(tp, rw)
 		com_events -= (com->iptr - com->ibuf);
 		com->iptr = com->ibuf;
 	}
-	if (tp->t_state & TS_TTSTOP) {
-		com->state &= ~CS_TTGO;
-		if (com->intr_enable & CD1400_SRER_TXRDY) {
-			cd_outb(iobase, CD1400_CAR, unit & CD1400_CAR_CHAN);
-			cd_outb(iobase, CD1400_SRER,
-				com->intr_enable &= ~CD1400_SRER_TXRDY);
-		}
-	} else {
-		com->state |= CS_TTGO;
-		if (com->state >= (CS_BUSY | CS_TTGO | CS_ODEVREADY)
-		    && !(com->intr_enable & CD1400_SRER_TXRDY)) {
-			cd_outb(iobase, CD1400_CAR, unit & CD1400_CAR_CHAN);
-			cd_outb(iobase, CD1400_SRER,
-				com->intr_enable |= CD1400_SRER_TXRDY);
-		}
-	}
 	enable_intr();
+	comstart(tp);
 
 	/* XXX should clear h/w fifos too. */
 }

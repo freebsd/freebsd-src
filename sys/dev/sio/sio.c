@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.104 1995/07/22 01:30:02 bde Exp $
+ *	$Id: sio.c,v 1.105 1995/07/22 16:44:50 bde Exp $
  */
 
 #include "sio.h"
@@ -114,7 +114,7 @@
  * The following com and tty flags correspond closely:
  *	CS_BUSY		= TS_BUSY (maintained by comstart(), siopoll() and
  *				   siostop())
- *	CS_TTGO		= ~TS_TTSTOP (maintained by comstart() and siostop())
+ *	CS_TTGO		= ~TS_TTSTOP (maintained by comparam() and comstart())
  *	CS_CTS_OFLOW	= CCTS_OFLOW (maintained by comparam())
  *	CS_RTS_IFLOW	= CRTS_IFLOW (maintained by comparam())
  * TS_FLUSH is not used.
@@ -1591,7 +1591,7 @@ repeat:
 				|| tp->t_cc[VSTART] == tp->t_cc[VSTOP])) {
 				tp->t_state &= ~TS_TTSTOP;
 				tp->t_lflag &= ~FLUSHO;
-				ttstart(tp);
+				comstart(tp);
 			}
 		} else {
 			do {
@@ -1886,11 +1886,8 @@ siostop(tp, rw)
 		com_events -= (com->iptr - com->ibuf);
 		com->iptr = com->ibuf;
 	}
-	if (tp->t_state & TS_TTSTOP)
-		com->state &= ~CS_TTGO;
-	else
-		com->state |= CS_TTGO;
 	enable_intr();
+	comstart(tp);
 
 	/* XXX should clear h/w fifos too. */
 }
