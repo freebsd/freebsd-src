@@ -1269,11 +1269,9 @@ make it the first or last character listed.
 This section lists the commands which
 are builtin because they need to perform some operation
 that can not be performed by a separate process.  In addition to
-these, builtin versions of the
+these, a builtin version of the
 .Xr printf 1
-and
-.Xr echo 1
-commands are provided for efficiency.
+command is provided for efficiency.
 .Bl -tag -width Ds
 .It Ic :
 A null command that returns a 0 (true) exit value.
@@ -1349,6 +1347,64 @@ if this is different from the name that the user gave.
 These may be different either because the
 .Ev CDPATH
 mechanism was used or because a symbolic link was crossed.
+.It Xo
+.Ic echo
+.Op Fl en
+.Ar string
+.Xc
+Print
+.Ar string
+to the standard output with a newline appended.
+.Bl -tag -width Ds
+.It Fl n
+Suppress the output of the trailing newline.
+.It Fl e
+Process C-style backslash escape sequences.
+.Ic echo
+understands the following character escapes:
+.Bl -tag -width Ds
+.It \ea
+Alert (ring the terminal bell)
+.It \eb
+Backspace
+.It \ec
+Suppress the trailing newline (this has the side-effect of truncating the
+line if it is not the last character)
+.It \ee
+The ESC character (ASCII 0x1b)
+.It \ef
+Formfeed
+.It \en
+Newline
+.It \er
+Carriage return
+.It \et
+Horizontal tab
+.It \ev
+Vertical tab
+.It \e\e
+Literal backslash
+.It \e0nnn
+(Zero) The character whose octal value is nnn
+.El
+.Pp
+If
+.Ar string
+is not enclosed in quotes then the backslash itself must be escaped
+with a backslash to protect it from the shell. For example
+.Bd -literal -offset indent
+$ echo -e "a\evb"
+a
+ b
+$ echo -e a\e\evb
+a
+ b
+$ echo -e "a\e\eb"
+a\eb
+$ echo -e a\e\e\e\eb
+a\eb
+.Ed
+.El
 .It Ic eval Ar string ...
 Concatenate all the arguments with spaces.
 Then re-parse and execute the command.
