@@ -470,8 +470,8 @@ avm_pnp_attach(device_t dev)
 	bzero(sc, sizeof(struct l1_softc));
 
 	/* probably not really required */
-	if(unit > IFPNP_MAXUNIT) {
-		printf("avm_pnp%d: Error, unit > IFPNP_MAXUNIT!\n", unit);
+	if(unit >= IFPNP_MAXUNIT) {
+		printf("avm_pnp%d: Error, unit >= IFPNP_MAXUNIT!\n", unit);
 		splx(s);
 		return(ENXIO);
 	}
