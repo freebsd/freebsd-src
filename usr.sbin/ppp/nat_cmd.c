@@ -345,7 +345,7 @@ nat_SetTarget(struct cmdargs const *arg)
   struct in_addr addr;
 
   if (arg->argc == arg->argn) {
-    addr.s_addr = INADDR_ANY;
+    addr.s_addr = INADDR_NONE;
     PacketAliasSetTarget(addr);
     return 0;
   }
