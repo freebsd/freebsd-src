@@ -914,7 +914,7 @@ show_usage(void)
 "      {allow|permit|accept|pass|deny|drop|reject|unreach code|\n"
 "	reset|count|skipto num|divert port|tee port|fwd ip|\n"
 "	pipe num} [log [logamount count]]\n"
-"    proto: {ip|tcp|udp|icmp| < number>}\n"
+"    proto: {ip|tcp|udp|icmp|<number>}\n"
 "    src: from [not] {me|any|ip[{/bits|:mask}]} [{port[-port]}, [port], ...]\n"
 "    dst: to [not] {me|any|ip[{/bits|:mask}]} [{port[-port]}, [port], ...]\n"
 "  extras:\n"
