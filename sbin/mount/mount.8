@@ -191,7 +191,7 @@ You may create up to 20 snapshots per filesystem.
 Active snapshots are recorded in the superblock, so they persist across unmount
 and remount operations and across system reboots.
 When you are done with a snapshot, it can be removed with the
-.Xr rm
+.Xr rm 1
 command.
 Snapshots may be removed in any order, however you may not get back all the
 space contained in the snapshot as another snapshot may claim some of the blocks
@@ -202,23 +202,29 @@ The unlink command makes an exception for snapshot files in that it allows them
 to be removed even though they have the schg flag set, so it is not necessary to
 clear the schg flag before removing a snapshot file.
 .Pp
-Once you have taken a snapshot, there are three interesting things that you can 
+Once you have taken a snapshot, there are three interesting things that you can
 do with it:
 .Pp
 .Bl -enum -compact
 .It
-Run fsck on the snapshot file.
+Run
+.Xr fsck 8
+on the snapshot file.
 Assuming that the filesystem was clean when it was mounted, you should always
 get a clean (and unchanging) result from running fsck on the snapshot.
 This is essentially what the background fsck process does.
 .Pp
 .It
-Run dump on the snapshot.
+Run
+.Xr dump 8
+on the snapshot.
 You will get a dump that is consistent with the filesystem as of the timestamp
 of the snapshot.
 Note that
-.Xr dump
-has not yet been changed to set the dumpdates file correctly, so do not use this
+.Xr dump 8
+has not yet been changed to set the
+.Pa /etc/dumpdates
+file correctly, so do not use this
 feature in production until that fix is made.
 .Pp
 .It
