@@ -29,7 +29,7 @@
 struct physical;
 struct device;
 
-extern struct device *i4b_Create(struct physical *);
-extern struct device *i4b_iov2device(int, struct physical *,
-                                     struct iovec *, int *, int, int *, int *);
-extern int i4b_DeviceSize(void);
+extern struct device *ether_Create(struct physical *);
+extern struct device *ether_iov2device(int, struct physical *, struct iovec *,
+                                       int *, int, int *, int *);
+extern int ether_DeviceSize(void);
