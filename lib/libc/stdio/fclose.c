@@ -69,8 +69,8 @@ fclose(fp)
 	if (HASLB(fp))
 		FREELB(fp);
 	FUNLOCKFILE(fp);
-	fp->_flags = 0;		/* Release this FILE for reuse. */
 	fp->_file = -1;
 	fp->_r = fp->_w = 0;	/* Mess up if reaccessed. */
+	fp->_flags = 0;		/* Release this FILE for reuse. */
 	return (r);
 }
