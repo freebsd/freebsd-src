@@ -59,8 +59,10 @@
 #include <sys/systm.h>
 #include <sys/errno.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
+#include <sys/mutex.h>
 #include <sys/errno.h>
 #include <sys/random.h>
 #include <sys/sockio.h>
@@ -218,6 +220,9 @@ static int	ng_units_in_use = 0;
 
 #define UNITS_BITSPERWORD	(sizeof(*ng_iface_units) * NBBY)
 
+static struct mtx	ng_iface_mtx;
+MTX_SYSINIT(ng_iface, &ng_iface_mtx, "ng_iface", MTX_DEF);
+
 /************************************************************************
 			HELPER STUFF
  ************************************************************************/
@@ -289,6 +294,7 @@ ng_iface_get_unit(int *unit)
 {
 	int index, bit;
 
+	mtx_lock(&ng_iface_mtx);
 	for (index = 0; index < ng_iface_units_len
 	    && ng_iface_units[index] == 0; index++);
 	if (index == ng_iface_units_len) {		/* extend array */
@@ -297,8 +303,10 @@ ng_iface_get_unit(int *unit)
 		newlen = (2 * ng_iface_units_len) + 4;
 		MALLOC(newarray, int *, newlen * sizeof(*ng_iface_units),
 		    M_NETGRAPH_IFACE, M_NOWAIT);
-		if (newarray == NULL)
+		if (newarray == NULL) {
+			mtx_unlock(&ng_iface_mtx);
 			return (ENOMEM);
+		}
 		bcopy(ng_iface_units, newarray,
 		    ng_iface_units_len * sizeof(*ng_iface_units));
 		for (i = ng_iface_units_len; i < newlen; i++)
@@ -314,6 +322,7 @@ ng_iface_get_unit(int *unit)
 	ng_iface_units[index] &= ~(1 << bit);
 	*unit = (index * UNITS_BITSPERWORD) + bit;
 	ng_units_in_use++;
+	mtx_unlock(&ng_iface_mtx);
 	return (0);
 }
 
@@ -327,6 +336,7 @@ ng_iface_free_unit(int unit)
 
 	index = unit / UNITS_BITSPERWORD;
 	bit = unit % UNITS_BITSPERWORD;
+	mtx_lock(&ng_iface_mtx);
 	KASSERT(index < ng_iface_units_len,
 	    ("%s: unit=%d len=%d", __func__, unit, ng_iface_units_len));
 	KASSERT((ng_iface_units[index] & (1 << bit)) == 0,
@@ -344,6 +354,7 @@ ng_iface_free_unit(int unit)
 		ng_iface_units_len = 0;
 		ng_iface_units = NULL;
 	}
+	mtx_unlock(&ng_iface_mtx);
 }
 
 /************************************************************************
