@@ -1,6 +1,6 @@
 /*
  *	from: vector.s, 386BSD 0.1 unknown origin
- *	$Id: apic_vector.s,v 1.35 1999/04/10 19:19:02 tegge Exp $
+ *	$Id: apic_vector.s,v 1.36 1999/04/14 14:26:35 bde Exp $
  */
 
 
@@ -58,10 +58,13 @@ IDTVEC(vec_name) ;							\
 	pushl	%edx ;							\
 	pushl	%ds ;							\
 	MAYBE_PUSHL_ES ;						\
+	pushl	%fs ;							\
 	movl	$KDSEL,%eax ;						\
 	movl	%ax,%ds ;						\
 	MAYBE_MOVW_AX_ES ;						\
-	FAKE_MCOUNT((4+ACTUALLY_PUSHED)*4(%esp)) ;			\
+	movl	$KPSEL,%eax ;						\
+	movl	%ax,%fs ;						\
+	FAKE_MCOUNT((5+ACTUALLY_PUSHED)*4(%esp)) ;			\
 	pushl	_intr_unit + (irq_num) * 4 ;				\
 	GET_FAST_INTR_LOCK ;						\
 	call	*_intr_handler + (irq_num) * 4 ; /* do the work ASAP */ \
@@ -74,6 +77,7 @@ IDTVEC(vec_name) ;							\
 	lock ; 								\
 	incl	(%eax) ;						\
 	MEXITCOUNT ;							\
+	popl	%fs ;							\
 	MAYBE_POPL_ES ;							\
 	popl	%ds ;							\
 	popl	%edx ;							\
@@ -92,10 +96,13 @@ IDTVEC(vec_name) ;							\
 	pushl	%edx ;							\
 	pushl	%ds ;							\
 	MAYBE_PUSHL_ES ;						\
+	pushl	%fs ;							\
 	movl	$KDSEL, %eax ;						\
 	movl	%ax, %ds ;						\
 	MAYBE_MOVW_AX_ES ;						\
-	FAKE_MCOUNT((4+ACTUALLY_PUSHED)*4(%esp)) ;			\
+	movl	$KPSEL, %eax ;						\
+	movl	%ax, %fs ;						\
+	FAKE_MCOUNT((5+ACTUALLY_PUSHED)*4(%esp)) ;			\
 	GET_FAST_INTR_LOCK ;						\
 	pushl	_intr_unit + (irq_num) * 4 ;				\
 	call	*_intr_handler + (irq_num) * 4 ; /* do the work ASAP */ \
@@ -113,6 +120,7 @@ IDTVEC(vec_name) ;							\
 1: ;									\
 	MEXITCOUNT ;							\
 	REL_FAST_INTR_LOCK ;						\
+	popl	%fs ;							\
 	MAYBE_POPL_ES ;							\
 	popl	%ds ;							\
 	popl	%edx ;							\
@@ -130,6 +138,7 @@ IDTVEC(vec_name) ;							\
 	lock ; 								\
 	incb	_intr_nesting_level ;	/* ... really limit it ... */	\
 	sti ;			/* to do this as early as possible */	\
+	popl	%fs ;		/* discard most of thin frame ... */	\
 	MAYBE_POPL_ES ;		/* discard most of thin frame ... */	\
 	popl	%ecx ;		/* ... original %ds ... */		\
 	popl	%edx ;							\
@@ -137,11 +146,14 @@ IDTVEC(vec_name) ;							\
 	pushal ;		/* build fat frame (grrr) ... */	\
 	pushl	%ecx ;		/* ... actually %ds ... */		\
 	pushl	%es ;							\
+	pushl	%fs ;
 	movl	$KDSEL, %eax ;						\
 	movl	%ax, %es ;						\
-	movl	(2+8+0)*4(%esp), %ecx ;	/* %ecx from thin frame ... */	\
-	movl	%ecx, (2+6)*4(%esp) ;	/* ... to fat frame ... */	\
-	movl	(2+8+1)*4(%esp), %eax ;	/* ... cpl from thin frame */	\
+	movl	$KPSEL, %eax ;
+	movl	%ax, %fs ;
+	movl	(3+8+0)*4(%esp), %ecx ;	/* %ecx from thin frame ... */	\
+	movl	%ecx, (3+6)*4(%esp) ;	/* ... to fat frame ... */	\
+	movl	(3+8+1)*4(%esp), %eax ;	/* ... cpl from thin frame */	\
 	pushl	%eax ;							\
 	subl	$4, %esp ;	/* junk for unit number */		\
 	MEXITCOUNT ;							\
@@ -158,9 +170,11 @@ IDTVEC(vec_name) ;							\
 	pushl	$0 ;		/* dummy trap type */			\
 	pushal ;							\
 	pushl	%ds ;		/* save data and extra segments ... */	\
-	pushl	%es
+	pushl	%es ;							\
+	pushl	%fs
 
 #define POP_FRAME							\
+	popl	%fs ;							\
 	popl	%es ;							\
 	popl	%ds ;							\
 	popal ;								\
@@ -319,6 +333,8 @@ IDTVEC(vec_name) ;							\
 	movl	$KDSEL, %eax ;	/* reload with kernel's data segment */	\
 	movl	%ax, %ds ;						\
 	movl	%ax, %es ;						\
+	movl	$KPSEL, %eax ;						\
+	movl	%ax, %fs ;						\
 ;									\
 	APIC_ITRACE(apic_itrace_enter, irq_num, APIC_ITRACE_ENTER) ;	\
 	lock ;					/* MP-safe */		\
@@ -344,7 +360,7 @@ IDTVEC(vec_name) ;							\
 ;	 								\
   /* entry point used by doreti_unpend for HWIs. */			\
 __CONCAT(Xresume,irq_num): ;						\
-	FAKE_MCOUNT(12*4(%esp)) ;		/* XXX avoid dbl cnt */ \
+	FAKE_MCOUNT(13*4(%esp)) ;		/* XXX avoid dbl cnt */ \
 	lock ;	incl	_cnt+V_INTR ;		/* tally interrupts */	\
 	movl	_intr_countp + (irq_num) * 4, %eax ;			\
 	lock ;	incl	(%eax) ;					\
@@ -429,6 +445,8 @@ IDTVEC(vec_name) ;							\
 	movl	$KDSEL, %eax ;	/* reload with kernel's data segment */	\
 	movl	%ax, %ds ;						\
 	movl	%ax, %es ;						\
+	movl	$KPSEL, %eax ;						\
+	movl	%ax, %fs ;						\
 ;									\
 	APIC_ITRACE(apic_itrace_enter, irq_num, APIC_ITRACE_ENTER) ;	\
 	lock ;					/* MP-safe */		\
@@ -453,7 +471,7 @@ IDTVEC(vec_name) ;							\
 ;	 								\
   /* entry point used by doreti_unpend for HWIs. */			\
 __CONCAT(Xresume,irq_num): ;						\
-	FAKE_MCOUNT(12*4(%esp)) ;		/* XXX avoid dbl cnt */ \
+	FAKE_MCOUNT(13*4(%esp)) ;		/* XXX avoid dbl cnt */ \
 	lock ;	incl	_cnt+V_INTR ;		/* tally interrupts */	\
 	movl	_intr_countp + (irq_num) * 4, %eax ;			\
 	lock ;	incl	(%eax) ;					\
@@ -549,8 +567,11 @@ _Xinvltlb:
 	pushl	%eax
 
 #ifdef COUNT_XINVLTLB_HITS
-	ss
+	pushl	%fs
+	movl	$KPSEL, %eax
+	movl	%ax, %fs
 	movl	_cpuid, %eax
+	popl	%fs
 	ss
 	incl	_xhits(,%eax,4)
 #endif /* COUNT_XINVLTLB_HITS */
@@ -576,7 +597,7 @@ _Xinvltlb:
  *
  *  - Signals its receipt by setting bit cpuid in checkstate_probed_cpus.
  *
- * stack: 0 -> ds, 4 -> ebx, 8 -> eax, 12 -> eip, 16 -> cs, 20 -> eflags
+ * stack: 0->ds, 4->fs, 8->ebx, 12->eax, 16->eip, 20->cs, 24->eflags
  */
 
 	.text
@@ -589,19 +610,22 @@ _Xcpucheckstate:
 	pushl	%eax
 	pushl	%ebx		
 	pushl	%ds			/* save current data segment */
+	pushl	%fs
 
 	movl	$KDSEL, %eax
 	movl	%ax, %ds		/* use KERNEL data segment */
+	movl	$KPSEL, %eax
+	movl	%ax, %fs
 
 	movl	$0, lapic_eoi		/* End Of Interrupt to APIC */
 
 	movl	$0, %ebx		
-	movl	16(%esp), %eax	
+	movl	20(%esp), %eax	
 	andl	$3, %eax
 	cmpl	$3, %eax
 	je	1f
 #ifdef VM86
-	testl	$PSL_VM, 20(%esp)
+	testl	$PSL_VM, 24(%esp)
 	jne	1f
 #endif
 	incl	%ebx			/* system or interrupt */
@@ -615,12 +639,13 @@ _Xcpucheckstate:
 	movl	%ebx, _checkstate_cpustate(,%eax,4)
 	movl	_curproc, %ebx
 	movl	%ebx, _checkstate_curproc(,%eax,4)
-	movl	12(%esp), %ebx
+	movl	16(%esp), %ebx
 	movl	%ebx, _checkstate_pc(,%eax,4)
 
 	lock				/* checkstate_probed_cpus |= (1<<id) */
 	btsl	%eax, _checkstate_probed_cpus
 
+	popl	%fs
 	popl	%ds			/* restore previous data segment */
 	popl	%ebx
 	popl	%eax
@@ -644,6 +669,8 @@ _Xcpuast:
 	movl	$KDSEL, %eax
 	movl	%ax, %ds		/* use KERNEL data segment */
 	movl	%ax, %es
+	movl	$KPSEL, %eax
+	movl	%ax, %fs
 
 	movl	_cpuid, %eax
 	lock				/* checkstate_need_ast &= ~(1<<id) */
@@ -654,7 +681,7 @@ _Xcpuast:
 	btsl	%eax, _checkstate_pending_ast
 	jc	1f
 
-	FAKE_MCOUNT(12*4(%esp))
+	FAKE_MCOUNT(13*4(%esp))
 
 	/* 
 	 * Giant locks do not come cheap.
@@ -709,10 +736,12 @@ _Xforward_irq:
 	movl	$KDSEL, %eax
 	movl	%ax, %ds		/* use KERNEL data segment */
 	movl	%ax, %es
+	movl	$KPSEL, %eax
+	movl	%ax, %fs
 
 	movl	$0, lapic_eoi		/* End Of Interrupt to APIC */
 
-	FAKE_MCOUNT(12*4(%esp))
+	FAKE_MCOUNT(13*4(%esp))
 
 	ISR_TRYLOCK
 	testl	%eax,%eax		/* Did we get the lock ? */
@@ -812,10 +841,12 @@ _Xcpustop:
 	pushl	%ecx
 	pushl	%edx
 	pushl	%ds			/* save current data segment */
-	pushl	%es		
+	pushl	%fs
 
 	movl	$KDSEL, %eax
 	movl	%ax, %ds		/* use KERNEL data segment */
+	movl	$KPSEL, %eax
+	movl	%ax, %fs
 
 	movl	$0, lapic_eoi		/* End Of Interrupt to APIC */
 
@@ -850,7 +881,7 @@ _Xcpustop:
 
 	call	%eax
 2:
-	popl	%es
+	popl	%fs
 	popl	%ds			/* restore previous data segment */
 	popl	%edx
 	popl	%ecx

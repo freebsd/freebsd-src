@@ -127,8 +127,13 @@ svr4_getcontext(p, uc, mask, oonstack)
 	} else
 #endif
 	{
+#if defined(__NetBSD__)
 	        __asm("movl %%gs,%w0" : "=r" (r[SVR4_X86_GS]));
 		__asm("movl %%fs,%w0" : "=r" (r[SVR4_X86_FS]));
+#else
+	        r[SVR4_X86_GS] = rgs();
+		r[SVR4_X86_FS] = tf->tf_fs;
+#endif
 		r[SVR4_X86_ES] = tf->tf_es;
 		r[SVR4_X86_DS] = tf->tf_ds;
 		r[SVR4_X86_EFL] = tf->tf_eflags;
@@ -230,7 +235,12 @@ svr4_setcontext(p, uc)
 		    !USERMODE(r[SVR4_X86_CS], r[SVR4_X86_EFL]))
 			return (EINVAL);
 
+#if defined(__NetBSD__)
 		/* %fs and %gs were restored by the trampoline. */
+#else
+		/* %gs was restored by the trampoline. */
+		tf->tf_fs = r[SVR4_X86_FS];
+#endif
 		tf->tf_es = r[SVR4_X86_ES];
 		tf->tf_ds = r[SVR4_X86_DS];
 		tf->tf_eflags = r[SVR4_X86_EFL];
@@ -449,6 +459,7 @@ svr4_sendsig(catcher, sig, mask, code)
 	tf->tf_cs = _ucodesel;
 	tf->tf_ds = _udatasel;
 	tf->tf_es = _udatasel;
+	tf->tf_fs = _udatasel;
 	tf->tf_ss = _udatasel;
 #endif
 }

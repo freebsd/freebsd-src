@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: exception.s,v 1.57 1999/02/28 10:53:28 bde Exp $
+ *	$Id: exception.s,v 1.58 1999/04/16 21:22:12 peter Exp $
  */
 
 #include "npx.h"
@@ -59,10 +59,12 @@
 #define AVCPL_UNLOCK
 #endif /* SMP */
 
-#define	KCSEL		0x08		/* kernel code selector */
-#define	KDSEL		0x10		/* kernel data selector */
+#ifdef SMP
+#define	MOVL_KPSEL_EAX	movl	$KPSEL,%eax
+#else
+#define	MOVL_KPSEL_EAX
+#endif
 #define	SEL_RPL_MASK	0x0003
-#define	TRAPF_CS_OFF	(13 * 4)
 
 	.text
 
@@ -149,10 +151,13 @@ IDTVEC(fpu)
 	pushal
 	pushl	%ds
 	pushl	%es			/* now stack frame is a trap frame */
+	pushl	%fs
 	movl	$KDSEL,%eax
 	movl	%ax,%ds
 	movl	%ax,%es
-	FAKE_MCOUNT(12*4(%esp))
+	MOVL_KPSEL_EAX
+	movl	%ax,%fs
+	FAKE_MCOUNT(13*4(%esp))
 
 #ifdef SMP
 	MPLOCKED incl _cnt+V_TRAP
@@ -198,11 +203,14 @@ _alltraps:
 	pushal
 	pushl	%ds
 	pushl	%es
+	pushl	%fs
 alltraps_with_regs_pushed:
 	movl	$KDSEL,%eax
 	movl	%ax,%ds
 	movl	%ax,%es
-	FAKE_MCOUNT(12*4(%esp))
+	MOVL_KPSEL_EAX
+	movl	%ax,%fs
+	FAKE_MCOUNT(13*4(%esp))
 calltrap:
 	FAKE_MCOUNT(_btrap)		/* init "from" _btrap -> calltrap */
 	MPLOCKED incl _cnt+V_TRAP
@@ -249,13 +257,16 @@ IDTVEC(syscall)
 	pushal
 	pushl	%ds
 	pushl	%es
+	pushl	%fs
 	movl	$KDSEL,%eax		/* switch to kernel segments */
 	movl	%ax,%ds
 	movl	%ax,%es
+	MOVL_KPSEL_EAX
+	movl	%ax,%fs
 	movl	TF_ERR(%esp),%eax	/* copy saved eflags to final spot */
 	movl	%eax,TF_EFLAGS(%esp)
 	movl	$7,TF_ERR(%esp) 	/* sizeof "lcall 7,0" */
-	FAKE_MCOUNT(12*4(%esp))
+	FAKE_MCOUNT(13*4(%esp))
 	MPLOCKED incl _cnt+V_SYSCALL
 	SYSCALL_LOCK
 	ECPL_LOCK
@@ -285,11 +296,14 @@ IDTVEC(int0x80_syscall)
 	pushal
 	pushl	%ds
 	pushl	%es
+	pushl	%fs
 	movl	$KDSEL,%eax		/* switch to kernel segments */
 	movl	%ax,%ds
 	movl	%ax,%es
+	MOVL_KPSEL_EAX
+	movl	%ax,%fs
 	movl	$2,TF_ERR(%esp)		/* sizeof "int 0x80" */
-	FAKE_MCOUNT(12*4(%esp))
+	FAKE_MCOUNT(13*4(%esp))
 	MPLOCKED incl _cnt+V_SYSCALL
 	ALTSYSCALL_LOCK
 	ECPL_LOCK
@@ -316,7 +330,9 @@ ENTRY(fork_trampoline)
 #ifdef SMP
 	cmpl	$0,_switchtime
 	jne	1f
-	pushl	$_switchtime
+	movl	$gd_switchtime,%eax
+	addl	%fs:0,%eax
+	pushl	%eax
 	call	_microuptime
 	popl	%edx
 	movl	_ticks,%eax

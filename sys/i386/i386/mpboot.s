@@ -31,7 +31,7 @@
  * mpboot.s:	FreeBSD machine support for the Intel MP Spec
  *		multiprocessor systems.
  *
- *	$Id: mpboot.s,v 1.8 1998/10/10 10:36:12 kato Exp $
+ *	$Id: mpboot.s,v 1.9 1999/04/10 22:58:29 tegge Exp $
  */
 
 #include "opt_vm86.h"
@@ -76,12 +76,12 @@
 NON_GPROF_ENTRY(MPentry)
 	CHECKPOINT(0x36, 3)
 	/* Now enable paging mode */
-	movl	_bootPTD-KERNBASE, %eax
+	movl	_IdlePTD-KERNBASE, %eax
 	movl	%eax,%cr3	
 	movl	%cr0,%eax
 	orl	$CR0_PE|CR0_PG,%eax		/* enable paging */
 	movl	%eax,%cr0			/* let the games begin! */
-	movl	$_idlestack_top,%esp		/* boot stack end loc. */
+	movl	_bootSTK,%esp			/* boot stack end loc. */
 
 	pushl	$mp_begin			/* jump to high mem */
 	ret

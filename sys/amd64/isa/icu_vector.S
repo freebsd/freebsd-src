@@ -1,6 +1,6 @@
 /*
  *	from: vector.s, 386BSD 0.1 unknown origin
- *	$Id: icu_vector.s,v 1.9 1998/08/11 17:01:32 bde Exp $
+ *	$Id: icu_vector.s,v 1.10 1999/04/14 14:26:36 bde Exp $
  */
 
 /*
@@ -94,11 +94,13 @@ IDTVEC(vec_name) ; \
 	pushal ;		/* build fat frame (grrr) ... */ \
 	pushl	%ecx ;		/* ... actually %ds ... */ \
 	pushl	%es ; \
+	pushl	%fs ; \
 	movl	$KDSEL,%eax ; \
 	movl	%ax,%es ; \
-	movl	(2+8+0)*4(%esp),%ecx ;	/* ... %ecx from thin frame ... */ \
-	movl	%ecx,(2+6)*4(%esp) ;	/* ... to fat frame ... */ \
-	movl	(2+8+1)*4(%esp),%eax ;	/* ... cpl from thin frame */ \
+	movl	%ax,%fs ; \
+	movl	(3+8+0)*4(%esp),%ecx ;	/* ... %ecx from thin frame ... */ \
+	movl	%ecx,(3+6)*4(%esp) ;	/* ... to fat frame ... */ \
+	movl	(3+8+1)*4(%esp),%eax ;	/* ... cpl from thin frame */ \
 	pushl	%eax ; \
 	subl	$4,%esp ;	/* junk for unit number */ \
 	MEXITCOUNT ; \
@@ -113,9 +115,11 @@ IDTVEC(vec_name) ; \
 	pushal ; \
 	pushl	%ds ;		/* save our data and extra segments ... */ \
 	pushl	%es ; \
+	pushl	%fs ; \
 	movl	$KDSEL,%eax ;	/* ... and reload with kernel's own ... */ \
 	movl	%ax,%ds ;	/* ... early for obsolete reasons */ \
 	movl	%ax,%es ; \
+	movl	%ax,%fs ; \
 	movb	_imen + IRQ_BYTE(irq_num),%al ; \
 	orb	$IRQ_BIT(irq_num),%al ; \
 	movb	%al,_imen + IRQ_BYTE(irq_num) ; \
@@ -126,7 +130,7 @@ IDTVEC(vec_name) ; \
 	jne	2f ; \
 	incb	_intr_nesting_level ; \
 __CONCAT(Xresume,irq_num): ; \
-	FAKE_MCOUNT(12*4(%esp)) ;	/* XXX late to avoid double count */ \
+	FAKE_MCOUNT(13*4(%esp)) ;	/* XXX late to avoid double count */ \
 	incl	_cnt+V_INTR ;	/* tally interrupts */ \
 	movl	_intr_countp + (irq_num) * 4,%eax ; \
 	incl	(%eax) ; \
@@ -152,6 +156,7 @@ __CONCAT(Xresume,irq_num): ; \
 2: ; \
 	/* XXX skip mcounting here to avoid double count */ \
 	orb	$IRQ_BIT(irq_num),_ipending + IRQ_BYTE(irq_num) ; \
+	popl	%fs ; \
 	popl	%es ; \
 	popl	%ds ; \
 	popal ; \

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)npx.h	5.3 (Berkeley) 1/18/91
- *	$Id: npx.h,v 1.13 1997/06/22 16:03:50 peter Exp $
+ *	$Id: npx.h,v 1.14 1997/07/20 11:06:44 bde Exp $
  */
 
 /*
@@ -44,6 +44,8 @@
 
 #ifndef _MACHINE_NPX_H_
 #define	_MACHINE_NPX_H_
+
+#include <machine/globals.h>
 
 /* Environment information of floating point unit */
 struct	env87 {
@@ -135,7 +137,9 @@ struct	save87 {
 #endif
 
 #ifdef KERNEL
+#ifndef npxproc
 extern struct proc *npxproc;
+#endif
 
 int	npxdna __P((void));
 void	npxexit __P((struct proc *p));

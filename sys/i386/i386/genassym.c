@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)genassym.c	5.11 (Berkeley) 5/10/91
- *	$Id: genassym.c,v 1.64 1999/02/28 10:53:28 bde Exp $
+ *	$Id: genassym.c,v 1.65 1999/04/02 17:59:37 alc Exp $
  */
 
 #include "opt_vm86.h"
@@ -66,9 +66,7 @@
 #ifdef SMP
 #include <machine/apic.h>
 #endif
-#ifdef VM86
 #include <machine/segments.h>
-#endif
 #include <machine/globaldata.h>
 
 #define	OS(s, m)	((u_int)offsetof(struct s, m))
@@ -126,7 +124,6 @@ main()
 	printf("#define\tPCB_EIP %#x\n", OS(pcb, pcb_eip));
 	printf("#define\tTSS_ESP0 %#x\n", OS(i386tss, tss_esp0));
 	printf("#define\tPCB_USERLDT %#x\n", OS(pcb, pcb_ldt));
-	printf("#define\tPCB_FS %#x\n", OS(pcb, pcb_fs));
 	printf("#define\tPCB_GS %#x\n", OS(pcb, pcb_gs));
 #ifdef VM86
 	printf("#define\tPCB_EXT %#x\n", OS(pcb, pcb_ext));
@@ -134,6 +131,7 @@ main()
 #ifdef SMP
 	printf("#define\tPCB_MPNEST %#x\n", OS(pcb, pcb_mpnest));
 #endif
+	printf("#define\tPCB_SPARE %#x\n", OS(pcb, __pcb_spare));
 	printf("#define\tU_PROF %#x\n", OS(user, u_stats.p_prof));
 	printf("#define\tU_PROFSCALE %#x\n",
 	    OS(user, u_stats.p_prof.pr_scale));
@@ -194,42 +192,43 @@ main()
 	printf("#define\tBI_MODULEP %#x\n", OS(bootinfo, bi_modulep));
 
 	printf("#define\tGD_SIZEOF %u\n", sizeof(struct globaldata));
-	printf("#define\tGD_CURPROC %#x\n", OS(globaldata, curproc));
-	printf("#define\tGD_NPXPROC %#x\n", OS(globaldata, npxproc));
-	printf("#define\tGD_CURPCB %#x\n", OS(globaldata, curpcb));
-	printf("#define\tGD_COMMON_TSS %#x\n", OS(globaldata, common_tss));
-	printf("#define\tGD_SWITCHTIME %#x\n", OS(globaldata, switchtime));
-	printf("#define\tGD_SWITCHTICKS %#x\n", OS(globaldata, switchticks));
+	printf("#define\tGD_CURPROC %#x\n", OS(globaldata, gd_curproc));
+	printf("#define\tGD_NPXPROC %#x\n", OS(globaldata, gd_npxproc));
+	printf("#define\tGD_CURPCB %#x\n", OS(globaldata, gd_curpcb));
+	printf("#define\tGD_COMMON_TSS %#x\n", OS(globaldata, gd_common_tss));
+	printf("#define\tGD_SWITCHTIME %#x\n", OS(globaldata, gd_switchtime));
+	printf("#define\tGD_SWITCHTICKS %#x\n", OS(globaldata, gd_switchticks));
 #ifdef VM86
-	printf("#define\tGD_COMMON_TSSD %#x\n", OS(globaldata, common_tssd));
-	printf("#define\tGD_PRIVATE_TSS %#x\n", OS(globaldata, private_tss));
-	printf("#define\tGD_MY_TR %#x\n", OS(globaldata, my_tr));
+	printf("#define\tGD_COMMON_TSSD %#x\n", OS(globaldata, gd_common_tssd));
 #endif
 #ifdef USER_LDT
-	printf("#define\tGD_CURRENTLDT %#x\n", OS(globaldata, currentldt));
+	printf("#define\tGD_CURRENTLDT %#x\n", OS(globaldata, gd_currentldt));
 #endif
 #ifdef SMP
-	printf("#define\tGD_CPUID %#x\n", OS(globaldata, cpuid));
-	printf("#define\tGD_CPU_LOCKID %#x\n", OS(globaldata, cpu_lockid));
-	printf("#define\tGD_OTHER_CPUS %#x\n", OS(globaldata, other_cpus));
-	printf("#define\tGD_MY_IDLEPTD %#x\n", OS(globaldata, my_idlePTD));
-	printf("#define\tGD_SS_EFLAGS %#x\n", OS(globaldata, ss_eflags));
-	printf("#define\tGD_PRV_CMAP1 %#x\n", OS(globaldata, prv_CMAP1));
-	printf("#define\tGD_PRV_CMAP2 %#x\n", OS(globaldata, prv_CMAP2));
-	printf("#define\tGD_PRV_CMAP3 %#x\n", OS(globaldata, prv_CMAP3));
-	printf("#define\tGD_PRV_PMAP1 %#x\n", OS(globaldata, prv_PMAP1));
-	printf("#define\tGD_INSIDE_INTR %#x\n", OS(globaldata, inside_intr));
+	printf("#define\tGD_CPUID %#x\n", OS(globaldata, gd_cpuid));
+	printf("#define\tGD_CPU_LOCKID %#x\n", OS(globaldata, gd_cpu_lockid));
+	printf("#define\tGD_OTHER_CPUS %#x\n", OS(globaldata, gd_other_cpus));
+	printf("#define\tGD_SS_EFLAGS %#x\n", OS(globaldata, gd_ss_eflags));
+	printf("#define\tGD_INSIDE_INTR %#x\n", OS(globaldata, gd_inside_intr));
+	printf("#define\tGD_PRV_CMAP1 %#x\n", OS(globaldata, gd_prv_CMAP1));
+	printf("#define\tGD_PRV_CMAP2 %#x\n", OS(globaldata, gd_prv_CMAP2));
+	printf("#define\tGD_PRV_CMAP3 %#x\n", OS(globaldata, gd_prv_CMAP3));
+	printf("#define\tGD_PRV_PMAP1 %#x\n", OS(globaldata, gd_prv_PMAP1));
+	printf("#define\tGD_PRV_CADDR1 %#x\n", OS(globaldata, gd_prv_CADDR1));
+	printf("#define\tGD_PRV_CADDR2 %#x\n", OS(globaldata, gd_prv_CADDR2));
+	printf("#define\tGD_PRV_CADDR3 %#x\n", OS(globaldata, gd_prv_CADDR3));
+	printf("#define\tGD_PRV_PADDR1 %#x\n", OS(globaldata, gd_prv_PADDR1));
 	printf("#define\tPS_GLOBALDATA %#x\n", OS(privatespace, globaldata));
-	printf("#define\tPS_PRVPT %#x\n", OS(privatespace, prvpt));
-	printf("#define\tPS_LAPIC %#x\n", OS(privatespace, lapic));
 	printf("#define\tPS_IDLESTACK %#x\n", OS(privatespace, idlestack));
-	printf("#define\tPS_IDLESTACK_TOP %#x\n", OS(privatespace, CPAGE1));
-	printf("#define\tPS_CPAGE1 %#x\n", OS(privatespace, CPAGE1));
-	printf("#define\tPS_CPAGE2 %#x\n", OS(privatespace, CPAGE2));
-	printf("#define\tPS_CPAGE3 %#x\n", OS(privatespace, CPAGE3));
-	printf("#define\tPS_PPAGE1 %#x\n", OS(privatespace, PPAGE1));
-	printf("#define\tPS_IOAPICS %#x\n", OS(privatespace, ioapics));
+	printf("#define\tPS_IDLESTACK_TOP %#x\n", sizeof(struct privatespace));
 #endif
+
+	printf("#define\tKCSEL %#x\n", GSEL(GCODE_SEL, SEL_KPL));
+	printf("#define\tKDSEL %#x\n", GSEL(GDATA_SEL, SEL_KPL));
+#ifdef SMP
+	printf("#define\tKPSEL %#x\n", GSEL(GPRIV_SEL, SEL_KPL));
+#endif
+	printf("#define\tGPROC0_SEL %#x\n", GPROC0_SEL);
 
 	return (0);
 }

@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.134 1999/03/09 20:20:09 phk Exp $
+ *	$Id: trap.c,v 1.135 1999/04/19 14:14:13 peter Exp $
  */
 
 /*
@@ -100,8 +100,6 @@
 
 #include "isa.h"
 #include "npx.h"
-
-extern struct i386tss common_tss;
 
 int (*pmath_emulate) __P((struct trapframe *));
 
@@ -480,11 +478,6 @@ kernel_trap:
 				 * (XXX) so that we can continue, and generate
 				 * a signal.
 				 */
-				if (frame.tf_eip == (int)cpu_switch_load_fs) {
-					curpcb->pcb_fs = 0;
-					psignal(p, SIGBUS);
-					return;
-				}
 				if (frame.tf_eip == (int)cpu_switch_load_gs) {
 					curpcb->pcb_gs = 0;
 					psignal(p, SIGBUS);
@@ -496,6 +489,8 @@ kernel_trap:
 						   doreti_popl_ds_fault);
 				MAYBE_DORETI_FAULT(doreti_popl_es,
 						   doreti_popl_es_fault);
+				MAYBE_DORETI_FAULT(doreti_popl_fs,
+						   doreti_popl_fs_fault);
 				if (curpcb && curpcb->pcb_onfault) {
 					frame.tf_eip = (int)curpcb->pcb_onfault;
 					return;

@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $Id: init_main.c,v 1.112 1999/04/20 21:15:13 des Exp $
+ * $Id: init_main.c,v 1.113 1999/04/24 18:50:48 dt Exp $
  */
 
 #include "opt_devfs.h"
@@ -232,14 +232,12 @@ restart:
 			break;
 
 		case SI_TYPE_KTHREAD:
-#if !defined(SMP)
 			/* kernel thread*/
 			if (fork1(&proc0, RFMEM|RFFDG|RFPROC))
 				panic("fork kernel thread");
 			cpu_set_fork_handler(pfind(proc0.p_retval[0]),
 			    (*sipp)->func, (*sipp)->udata);
 			break;
-#endif
 
 		case SI_TYPE_KPROCESS:
 			if (fork1(&proc0, RFFDG|RFPROC))
@@ -360,7 +358,6 @@ proc0_init(dummy)
 	 * any possible traps/probes to simplify trap processing.
 	 */
 	p = &proc0;
-	curproc = p;			/* XXX redundant*/
 
 	/*
 	 * Initialize process and pgrp structures.

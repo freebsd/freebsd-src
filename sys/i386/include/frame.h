@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)frame.h	5.2 (Berkeley) 1/18/91
- *	$Id: frame.h,v 1.14 1997/02/22 09:34:38 peter Exp $
+ *	$Id: frame.h,v 1.15 1997/08/09 00:03:12 dyson Exp $
  */
 
 #ifndef _MACHINE_FRAME_H_
@@ -51,6 +51,7 @@
  */
 
 struct trapframe {
+	int	tf_fs;
 	int	tf_es;
 	int	tf_ds;
 	int	tf_edi;
@@ -75,6 +76,7 @@ struct trapframe {
 /* Superset of trap frame, for traps from virtual-8086 mode */
 
 struct trapframe_vm86 {
+	int	tf_fs;
 	int	tf_es;
 	int	tf_ds;
 	int	tf_edi;
@@ -106,6 +108,7 @@ struct trapframe_vm86 {
 struct intrframe {
 	int	if_vec;
 	int	if_ppl;
+	int	if_fs;
 	int	if_es;
 	int	if_ds;
 	int	if_edi;
@@ -132,6 +135,7 @@ struct intrframe {
 struct clockframe {
 	int	cf_vec;
 	int	cf_ppl;
+	int	cf_fs;
 	int	cf_es;
 	int	cf_ds;
 	int	cf_edi;

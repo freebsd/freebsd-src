@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: md_var.h,v 1.27 1998/10/30 05:41:15 msmith Exp $
+ *	$Id: md_var.h,v 1.28 1999/01/08 16:29:58 bde Exp $
  */
 
 #ifndef _MACHINE_MD_VAR_H_
@@ -69,7 +69,6 @@ void	bcopyb __P((const void *from, void *to, size_t len));
 void	busdma_swi __P((void));
 void	cpu_halt __P((void));
 void	cpu_reset __P((void));
-void	cpu_switch_load_fs __P((void)) __asm(__STRING(cpu_switch_load_fs));
 void	cpu_switch_load_gs __P((void)) __asm(__STRING(cpu_switch_load_gs));
 void	doreti_iret __P((void)) __asm(__STRING(doreti_iret));
 void	doreti_iret_fault __P((void)) __asm(__STRING(doreti_iret_fault));
@@ -77,6 +76,8 @@ void	doreti_popl_ds __P((void)) __asm(__STRING(doreti_popl_ds));
 void	doreti_popl_ds_fault __P((void)) __asm(__STRING(doreti_popl_ds_fault));
 void	doreti_popl_es __P((void)) __asm(__STRING(doreti_popl_es));
 void	doreti_popl_es_fault __P((void)) __asm(__STRING(doreti_popl_es_fault));
+void	doreti_popl_fs __P((void)) __asm(__STRING(doreti_popl_fs));
+void	doreti_popl_fs_fault __P((void)) __asm(__STRING(doreti_popl_fs_fault));
 int	fill_fpregs __P((struct proc *, struct fpreg *));
 int	fill_regs __P((struct proc *p, struct reg *regs));
 void	fillw __P((int /*u_short*/ pat, void *base, size_t cnt));
