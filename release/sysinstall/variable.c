@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: variable.c,v 1.6.2.2 1995/10/16 10:33:47 jkh Exp $
+ * $Id: variable.c,v 1.6.2.3 1995/10/16 15:14:28 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -74,6 +74,10 @@ variable_set(char *var)
 {
     char tmp[VAR_NAME_MAX + VAR_VALUE_MAX], *cp;
 
+    if (!var)
+	msgFatal("NULL variable name & value passed.");
+    else if (!*var)
+	msgDebug("Warning:  Zero length name & value passed to variable_set().\n");
     strncpy(tmp, var, VAR_NAME_MAX + VAR_VALUE_MAX);
     if ((cp = index(tmp, '=')) == NULL)
 	msgFatal("Invalid variable format: %s", var);
@@ -86,6 +90,8 @@ variable_set2(char *var, char *value)
 {
     if (!var || !value)
 	msgFatal("Null name or value passed to set_variable2!");
+    else if (!*var || !*value)
+	msgDebug("Warning:  Zero length name or value passed to variable_set2().\n");
     make_variable(var, value);
 }
 

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.42.2.25 1995/10/18 00:12:25 jkh Exp $
+ * $Id: menus.c,v 1.42.2.26 1995/10/18 00:47:09 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -104,6 +104,8 @@ consult the README file.",
 	DMENU_DISPLAY_FILE,	"COPYRIGHT", 0, 0	},
   { "Release",			"The release notes for this version of FreeBSD.",
 	DMENU_DISPLAY_FILE,	"relnotes", 0, 0	},
+  { "WEB",			"Go to the HTML documentation menu (post-install).",
+	DMENU_CALL,		docBrowser, 0, 0			},
   { "Exit",			"Exit this menu (returning to previous)",
 	DMENU_CANCEL,		NULL, 0, 0		},
   { NULL } },
@@ -657,8 +659,6 @@ software not provided in the base distributions.",
 	DMENU_SYSTEM_COMMAND,	"adduser -s", 0, 0			},
       { "Console",		"Customize system console behavior",
 	DMENU_SUBMENU,		&MenuSyscons, 0, 0			},
-      {	"Handbook",		"Read the FreeBSD handbook.",
-	DMENU_CALL,		docBrowser, 0, 0			},
       { "Time Zone",		"Set which time zone you're in",
 	DMENU_SYSTEM_COMMAND,	"rm -f /etc/wall_cmos_clock /etc/localtime; tzsetup", 0, 0 },
       { "Media",		"Change the installation media type",
