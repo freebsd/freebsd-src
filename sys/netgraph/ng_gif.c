@@ -260,7 +260,7 @@ ng_gif_attach(struct ifnet *ifp)
 }
 
 /*
- * An Ethernet interface is being detached.
+ * An interface is being detached.
  * REALLY Destroy its node.
  */
 static void
@@ -283,7 +283,7 @@ ng_gif_detach(struct ifnet *ifp)
 }
 
 /*
- * Optimization for gluing the Ethernet header back onto
+ * Optimization for gluing the address family onto
  * the front of an incoming packet.
  */
 static int
