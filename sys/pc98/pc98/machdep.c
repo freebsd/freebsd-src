@@ -567,7 +567,7 @@ sendsig(catcher, sig, mask, code)
 	p = td->td_proc;
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	psp = p->p_sigacts;
-	mtx_assert(&psp->ps_mtx,.MA_OWNED);
+	mtx_assert(&psp->ps_mtx, MA_OWNED);
 #ifdef COMPAT_FREEBSD4
 	if (SIGISMEMBER(psp->ps_freebsd4, sig)) {
 		freebsd4_sendsig(catcher, sig, mask, code);
