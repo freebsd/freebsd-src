@@ -141,7 +141,8 @@ vm_pager_put_pages(
 	int flags,
 	int *rtvals
 ) {
-	GIANT_REQUIRED;
+
+	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 	(*pagertab[object->type]->pgo_putpages)
 	    (object, m, count, flags, rtvals);
 }
@@ -186,7 +187,8 @@ vm_pager_has_page(
 static __inline void
 vm_pager_page_unswapped(vm_page_t m)
 {
-	GIANT_REQUIRED;
+
+	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
 	if (pagertab[m->object->type]->pgo_pageunswapped)
 		(*pagertab[m->object->type]->pgo_pageunswapped)(m);
 }

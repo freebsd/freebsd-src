@@ -362,12 +362,13 @@ more:
 int
 vm_pageout_flush(vm_page_t *mc, int count, int flags)
 {
-	vm_object_t object;
+	vm_object_t object = mc[0]->object;
 	int pageout_status[count];
 	int numpagedout = 0;
 	int i;
 
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 	/*
 	 * Initiate I/O.  Bump the vm_page_t->busy counter and
 	 * mark the pages read-only.
@@ -385,16 +386,13 @@ vm_pageout_flush(vm_page_t *mc, int count, int flags)
 		vm_page_io_start(mc[i]);
 		pmap_page_protect(mc[i], VM_PROT_READ);
 	}
-	object = mc[0]->object;
 	vm_page_unlock_queues();
 	vm_object_pip_add(object, count);
-	VM_OBJECT_UNLOCK(object);
 
 	vm_pager_put_pages(object, mc, count,
 	    (flags | ((object == kernel_object) ? VM_PAGER_PUT_SYNC : 0)),
 	    pageout_status);
 
-	VM_OBJECT_LOCK(object);
 	vm_page_lock_queues();
 	for (i = 0; i < count; i++) {
 		vm_page_t mt = mc[i];
@@ -669,7 +667,7 @@ vm_pageout_scan(int pass)
 	int s;
 	struct thread *td;
 
-	GIANT_REQUIRED;
+	mtx_lock(&Giant);
 	/*
 	 * Decrease registered cache sizes.
 	 */
@@ -1224,6 +1222,7 @@ unlock_and_continue:
 			wakeup(&cnt.v_free_count);
 		}
 	}
+	mtx_unlock(&Giant);
 }
 
 /*
@@ -1323,8 +1322,6 @@ static void
 vm_pageout()
 {
 	int error, pass, s;
-
-	mtx_lock(&Giant);
 
 	/*
 	 * Initialize some paging parameters.
