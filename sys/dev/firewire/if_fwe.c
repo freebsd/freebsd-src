@@ -76,7 +76,7 @@ static int fwedebug = 0;
 static int stream_ch = 1;
 
 MALLOC_DECLARE(M_FWE);
-MALLOC_DEFINE(M_FWE, "if_fwe", "Ethernet over Firewire interface");
+MALLOC_DEFINE(M_FWE, "if_fwe", "Ethernet over FireWire interface");
 SYSCTL_INT(_debug, OID_AUTO, if_fwe_debug, CTLFLAG_RW, &fwedebug, 0, "");
 SYSCTL_DECL(_hw_firewire);
 SYSCTL_NODE(_hw_firewire, OID_AUTO, fwe, CTLFLAG_RD, 0,
@@ -135,7 +135,7 @@ fwe_probe(device_t dev)
 		return(ENXIO);
 	}
 
-	device_set_desc(dev, "Ethernet over Firewire");
+	device_set_desc(dev, "Ethernet over FireWire");
 	return (0);
 }
 
