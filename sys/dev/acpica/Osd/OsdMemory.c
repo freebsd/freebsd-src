@@ -80,13 +80,13 @@ AcpiOsGetPhysicalAddress(void *LogicalAddress, ACPI_PHYSICAL_ADDRESS *PhysicalAd
  * that callers will not pass garbage to us.
  */
 BOOLEAN
-AcpiOsReadable (void *Pointer, UINT32 Length)
+AcpiOsReadable (void *Pointer, ACPI_SIZE Length)
 {
     return(TRUE);
 }
 
 BOOLEAN
-AcpiOsWritable (void *Pointer, UINT32 Length)
+AcpiOsWritable (void *Pointer, ACPI_SIZE Length)
 {
     return(TRUE);
 }
