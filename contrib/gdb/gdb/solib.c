@@ -444,7 +444,7 @@ bfd_lookup_symbol (abfd, symname)
      bfd *abfd;
      char *symname;
 {
-  unsigned int storage_needed;
+  long storage_needed;
   asymbol *sym;
   asymbol **symbol_table;
   unsigned int number_of_symbols;
