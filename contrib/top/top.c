@@ -96,10 +96,11 @@ char *renice_procs();
 
 #ifdef ORDER
 extern int (*proc_compares[])();
+extern int (*io_compares[])();
 #else
 extern int proc_compare();
-#endif
 extern int io_compare();
+#endif
 time_t time();
 
 caddr_t get_process_info();
@@ -567,15 +568,17 @@ restart:
 	/* get the current stats */
 	get_system_info(&system_info);
 
-	if (displaymode == DISP_CPU) {
 #ifdef ORDER
+	if (displaymode == DISP_CPU)
 		compare = proc_compares[order_index];
+	else
+		compare = io_compares[order_index];
 #else
+	if (displaymode == DISP_CPU)
 		compare = proc_compare;
-#endif
-	} else {
+	else
 		compare = io_compare;
-	}
+#endif
 
 	/* get the current set of processes */
 	processes =
