@@ -387,6 +387,8 @@ cardbus_read_tuple_mem(device_t dev, device_t child, u_int32_t *start,
 		       u_int8_t *tupledata)
 {
 	struct resource *mem;
+	bus_space_tag_t bt;
+	bus_space_handle_t bh;
 	int rid;
 	int ret;
 
@@ -398,6 +400,8 @@ cardbus_read_tuple_mem(device_t dev, device_t child, u_int32_t *start,
 
 	mem = bus_alloc_resource(child, SYS_RES_MEMORY, &rid, 0, ~0,
 				 1, RF_ACTIVE);
+	bt = rman_get_bustag(mem);
+	bh = rman_get_bushandle(mem);
 	if (mem == NULL) {
 		device_printf(dev, "Failed to get memory for CIS reading\n");
 		return ENOMEM;
@@ -407,13 +411,13 @@ cardbus_read_tuple_mem(device_t dev, device_t child, u_int32_t *start,
 		ret = cardbus_read_tuple_exrom(dev, mem, start, off, tupleid,
 					       len, tupledata);
 	} else {
-		/* XXX byte order? */
-		unsigned char* ptr;
-		ptr = (unsigned char*)rman_get_virtual(mem)
-			+ CARDBUS_CIS_ADDR(*start) + *off;
-		*tupleid = ptr[0];
-		*len = ptr[1];
-		memcpy(tupledata, ptr+2, *len);
+		*tupleid = bus_space_read_1(bt, bh,
+		    CARDBUS_CIS_ADDR(*start) + *off);
+		*len = bus_space_read_1(bt, bh,
+		    CARDBUS_CIS_ADDR(*start) + *off + 1);
+		bus_space_read_multi_1(rman_get_bustag(mem),
+		    rman_get_bushandle(mem),
+		    *off + CARDBUS_CIS_ADDR(*start), tupledata, *len);
 		ret = 0;
 		*off += *len+2;
 	}
