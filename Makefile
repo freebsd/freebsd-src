@@ -150,10 +150,9 @@ ${TGTS}:
 # Set a reasonable default
 .MAIN:	all
 
-.if defined(HISTORICAL_MAKE_WORLD) || defined(DESTDIR)
-.if make(world)
 STARTTIME!= LC_ALL=C date
-.endif
+
+.if defined(HISTORICAL_MAKE_WORLD) || defined(DESTDIR)
 #
 # world
 #
@@ -248,16 +247,20 @@ make: .PHONY
 # universe
 #
 # Attempt to rebuild *everything* for all supported architectures,
-# with reasonable chance of success, regardless of how old your
+# with a reasonable chance of success, regardless of how old your
 # existing system is.
 #
-i386_mach=	pc98
-universe:
+universe: universe_prologue
+universe_prologue:
 	@echo "--------------------------------------------------------------"
 	@echo ">>> make universe started on ${STARTTIME}"
 	@echo "--------------------------------------------------------------"
-.for arch in i386 sparc64 alpha ia64 amd64
-.for mach in ${arch} ${${arch}_mach}
+.for target in i386 i386:pc98 sparc64 alpha ia64 amd64
+.for arch in ${target:C/:.*$//}
+.for mach in ${target:C/^.*://}
+universe: universe_${mach}
+.ORDER: universe_prologue universe_${mach} universe_epilogue
+universe_${mach}:
 	@echo ">> ${mach} started on `LC_ALL=C date`"
 	-cd ${.CURDIR} && ${MAKE} ${JFLAG} buildworld \
 	    TARGET_ARCH=${arch} TARGET=${mach} \
@@ -268,10 +271,13 @@ universe:
 	-cd ${.CURDIR}/sys/${mach}/conf && ${MAKE} LINT \
 	    > ${.CURDIR}/_.${mach}.makeLINT 2>&1
 .endif
-	cd ${.CURDIR} && ${MAKE} ${JFLAG} buildkernels TARGET_ARCH=${arch} TARGET=${mach}
+	cd ${.CURDIR} && ${MAKE} buildkernels TARGET_ARCH=${arch} TARGET=${mach}
 	@echo ">> ${mach} completed on `LC_ALL=C date`"
 .endfor
 .endfor
+.endfor
+universe: universe_epilogue
+universe_epilogue:
 	@echo "--------------------------------------------------------------"
 	@echo ">>> make universe completed on `LC_ALL=C date`"
 	@echo "                      (started ${STARTTIME})"
@@ -280,8 +286,6 @@ universe:
 .if make(buildkernels)
 KERNCONFS!=	cd ${.CURDIR}/sys/${TARGET}/conf && \
 		find [A-Z]*[A-Z] -type f -maxdepth 0 ! -name NOTES
-.endif
-
 buildkernels:
 .for kernel in ${KERNCONFS}
 	-cd ${.CURDIR} && ${MAKE} ${JFLAG} buildkernel \
@@ -289,3 +293,4 @@ buildkernels:
 	    __MAKE_CONF=/dev/null \
 	    > _.${TARGET}.${kernel} 2>&1
 .endfor
+.endif
