@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.2 (Berkeley) 12/15/93
-#	$Id: Makefile,v 1.5 1995/07/24 21:38:32 ache Exp $
+#	$Id: Makefile,v 1.6 1995/07/24 21:49:06 ache Exp $
 
 # This stuff need original libdes to run (new_rnd_key.c module),
 # current eBones/des lib don't have it
@@ -13,6 +13,7 @@ CFLAGS+= -DHAS_CGETENT
 
 #ifdef	ENCRYPTION
 CFLAGS+= -DENCRYPTION -DAUTHENTICATION -DDES_ENCRYPTION
+LDADD+= -ldescrypt
 
 .ifdef  MAKE_KERBEROS
 .if exists(/usr/lib/libkrb.a)
