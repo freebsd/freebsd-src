@@ -1,15 +1,16 @@
-# Copyright (c) 2000-2001 Sendmail, Inc. and its suppliers.
+# Copyright (c) 2000-2002 Sendmail, Inc. and its suppliers.
 #	All rights reserved.
 #
 # By using this file, you agree to the terms and conditions set
 # forth in the LICENSE file which can be found at the top level of
 # the sendmail distribution.
 #
-# $Id: sendmail.schema,v 8.14 2001/08/31 17:18:18 gshapiro Exp $
+# $Id: sendmail.schema,v 8.19 2002/06/04 17:31:43 gshapiro Exp $
 
 # Note that this schema is experimental at this point as it has had little
 # public review.  Therefore, it may change in future versions.  Feedback
 # via sendmail@sendmail.org is encouraged.
+
 
 # OID arcs for Sendmail
 # enterprise:		1.3.6.1.4.1
@@ -87,6 +88,7 @@ attributetype ( 1.3.6.1.4.1.6152.10.3.1.16
 	EQUALITY caseIgnoreMatch
 	SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE )
 
+
 #objectClass sendmailMTAMap
 #	requires
 #		objectClass,
@@ -143,6 +145,7 @@ attributetype ( 1.3.6.1.4.1.6152.10.3.1.20
 	EQUALITY caseIgnoreMatch
 	SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 )
 
+
 #objectClass sendmailMTAAlias
 #	requires
 #		objectClass,
@@ -197,6 +200,7 @@ attributetype ( 1.3.6.1.4.1.6152.10.3.1.23
 	DESC 'member of a class'
 	EQUALITY caseIgnoreMatch
 	SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 )
+
 
 #objectClass sendmailMTAClass
 #	requires

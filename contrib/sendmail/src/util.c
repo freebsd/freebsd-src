@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: util.c,v 8.363 2002/05/24 20:44:05 gshapiro Exp $")
+SM_RCSID("@(#)$Id: util.c,v 8.363.2.1 2002/06/21 20:25:25 ca Exp $")
 
 #include <sysexits.h>
 #include <sm/xtrap.h>
@@ -2239,6 +2239,40 @@ denlstring(s, strict, logattacks)
 
 	return bp;
 }
+
+/*
+**  STRREPLNONPRT -- replace "unprintable" characters in a string with subst
+**
+**	Parameters:
+**		s -- string to manipulate (in place)
+**		subst -- character to use as replacement
+**
+**	Returns:
+**		true iff string did not contain "unprintable" characters
+*/
+
+bool
+strreplnonprt(s, c)
+	char *s;
+	int c;
+{
+	bool ok;
+
+	ok = true;
+	if (s == NULL)
+		return ok;
+	while (*s != '\0')
+	{
+		if (!(isascii(*s) && isprint(*s)))
+		{
+			*s = c;
+			ok = false;
+		}
+		++s;
+	}
+	return ok;
+}
+
 /*
 **  STR2PRT -- convert "unprintable" characters in a string to \oct
 **

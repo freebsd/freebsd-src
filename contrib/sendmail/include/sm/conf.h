@@ -10,7 +10,7 @@
  * the sendmail distribution.
  *
  *
- *	$Id: conf.h,v 1.88 2002/05/01 16:09:41 gshapiro Exp $
+ *	$Id: conf.h,v 1.90.2.2 2002/06/21 22:31:35 gshapiro Exp $
  */
 
 /*
@@ -1358,6 +1358,9 @@ extern void		*malloc();
 #  ifndef TZ_TYPE
 #   define TZ_TYPE	TZ_NONE		/* no standard for Linux */
 #  endif /* ! TZ_TYPE */
+#  if (__GLIBC__ >= 2)
+#   include <paths.h>
+#  endif /* (__GLIBC__ >= 2) */
 #  ifndef _PATH_SENDMAILPID
 #   define _PATH_SENDMAILPID	"/var/run/sendmail.pid"
 #  endif /* ! _PATH_SENDMAILPID */

@@ -12,7 +12,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: clock.c,v 1.35 2002/03/22 18:34:38 gshapiro Exp $")
+SM_RCSID("@(#)$Id: clock.c,v 1.35.2.1 2002/06/20 05:14:45 gshapiro Exp $")
 #include <unistd.h>
 #include <time.h>
 #include <errno.h>
@@ -257,9 +257,6 @@ sm_clear_events()
 #endif /* SM_CONF_SETITIMER */
 	int wasblocked;
 
-	if (SmEventQueue == NULL)
-		return;
-
 	/* nothing will be left in event queue, no need for an alarm */
 #if SM_CONF_SETITIMER
 	clr.it_interval.tv_sec = 0;
@@ -270,6 +267,10 @@ sm_clear_events()
 #else /* SM_CONF_SETITIMER */
 	(void) alarm(0);
 #endif /* SM_CONF_SETITIMER */
+
+	if (SmEventQueue == NULL)
+		return;
+
 	wasblocked = sm_blocksignal(SIGALRM);
 
 	/* find the end of the EventQueue */

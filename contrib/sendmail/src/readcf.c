@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: readcf.c,v 8.606 2002/05/09 21:09:01 ca Exp $")
+SM_RCSID("@(#)$Id: readcf.c,v 8.607 2002/06/14 16:57:32 ca Exp $")
 
 #if NETINET || NETINET6
 # include <arpa/inet.h>
@@ -2949,14 +2949,13 @@ setoption(opt, val, safe, sticky, e)
 #if _FFR_SELECT_SHM
 	  case O_SHMKEYFILE:		/* shared memory key file */
 # if SM_CONF_SHM
-		CANONIFY(val);
-		ShmKeyFile = newstr(val);
+		SET_STRING_EXP(ShmKeyFile);
 # else /* SM_CONF_SHM */
 		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
 				     "Warning: Option: %s requires shared memory support (-DSM_CONF_SHM)\n",
 				     OPTNAME);
-# endif /* SM_CONF_SHM */
 		break;
+# endif /* SM_CONF_SHM */
 #endif /* _FFR_SELECT_SHM */
 
 #if _FFR_MAX_FORWARD_ENTRIES
