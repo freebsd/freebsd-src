@@ -1,0 +1,271 @@
+.\" Copyright (c) 2005 Nate Lawson
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 6, 2005
+.Dt CPUFREQ 4
+.Os
+.Sh NAME
+.Nm cpufreq
+.Nd CPU frequency control framework
+.Sh SYNOPSIS
+.Cd "device cpufreq"
+.Pp
+.In sys/cpu.h
+.Ft int
+.Fo cpufreq_levels
+.Fa "device_t dev"
+.Fa "struct cf_level *levels"
+.Fa "int *count"
+.Fc
+.Ft int
+.Fo cpufreq_set
+.Fa "device_t dev"
+.Fa "const struct cf_level *level"
+.Fa "int priority"
+.Fc
+.Ft int
+.Fo cpufreq_get
+.Fa "device_t dev"
+.Fa "struct cf_level *level"
+.Fc
+.Ft int
+.Fo cpufreq_drv_settings
+.Fa "device_t dev"
+.Fa "struct cf_setting *sets"
+.Fa "int *count"
+.Fa "int *type"
+.Fc
+.Ft int
+.Fo cpufreq_drv_set
+.Fa "device_t dev"
+.Fa "const struct cf_setting *set"
+.Fc
+.Ft int
+.Fo cpufreq_drv_get
+.Fa "device_t dev"
+.Fa "struct cf_setting *set"
+.Fc
+.Sh DESCRIPTION
+The
+.Nm
+driver provides a unified kernel and user interface to CPU frequency
+control drivers.
+It combines multiple drivers offering different settings into a single
+interface of all possible levels.
+Users can access this interface directly via
+.Xr sysctl 8
+or by indicating to
+.Xr power_profile 8
+that it should switch settings when the AC line state changes via
+.Xr rc.conf 5 .
+.Sh SYSCTLS
+These settings may be overridden by kernel drivers requesting alternate
+settings.
+If this occurs, the original values will be restored once the condition
+has passed (e.g., the system has cooled sufficiently.)
+If a sysctl can't be set due to an override condition, it will return
+EPERM.
+.Bl -tag -width indent
+.It Va dev.cpu.%d.freq
+Current active CPU frequency in MHz.
+.It Va dev.cpu.%d.freq_levels
+Currently available levels for the CPU frequency and power usage for each.
+Values are in units of MHz and milliwatts.
+.El
+.Sh SUPPORTED DRIVERS
+The following device drivers offer absolute frequency control via the
+.Nm
+interface.
+Usually, only one of these can be active at a time.
+.Pp
+.Bl -tag -compact -width ".Xr acpi_perf 4"
+.It Xr acpi_perf 4
+ACPI CPU performance states
+.It Xr ichss 4
+Intel SpeedStep for ICH
+.El
+.Pp
+.Bl -tag -compact -width ".Xr acpi_throttle 4"
+The following device drivers offer relative frequency control and
+have an additive effect:
+.Pp
+.It Xr acpi_throttle 4
+ACPI CPU throttling
+.El
+.Sh KERNEL INTERFACE
+Kernel components can query and set CPU frequencies through the
+.Nm
+kernel interface.
+This involves obtaining a
+.Nm
+device, calling
+.Fn cpufreq_levels
+to get the currently available frequency levels,
+checking the current level with
+.Fn cpufreq_get ,
+and setting a new one from the list with
+.Fn cpufreq_set .
+Each level may actually reference more than one
+.Nm
+driver but kernel components do not need to be aware of this.
+The
+.Vt total_set
+element of
+.Vt struct cf_level
+provides a summary of the frequency and power for this level.
+Unknown or irrelevant values are set to
+.Vt CPUFREQ_VAL_UNKNOWN .
+.Pp
+The
+.Fn cpufreq_levels 
+method takes a
+.Nm
+device and an empty array of
+.Ar levels .
+The
+.Ar count
+value should be set to the number of levels available and after the
+function completes, will be set to the actual number of levels returned.
+If there are more levels than
+.Ar count
+will allow, it should return E2BIG.
+.Pp
+The
+.Fn cpufreq_get 
+method takes a pointer to space to store a
+.Ar level .
+After successful completion, the output will be the current active level
+and is equal to one of the levels returned by
+.Fn cpufreq_levels .
+.Pp
+The
+.Fn cpufreq_set 
+method takes a pointer a
+.Ar level
+and attempts to activate it.
+The
+.Ar priority
+(i.e., CPUFREQ_PRIO_KERN)
+tells
+.Nm
+whether to override previous settings while activating this level.
+If
+.Ar priority
+is higher than the current active level, that level will be saved and
+overridden with the new level.
+If
+.Fn cpufreq_set
+is called with a NULL
+.Ar level ,
+the saved level (if any) will be restored.
+If
+.Ar priority
+is lower than the current active level's priority, this method returns
+EPERM.
+.Sh DRIVER INTERFACE
+Kernel drivers offering hardware-specific CPU frequency control export
+their individual settings through the
+.Nm
+driver interface.
+This involves implementing three methods:
+.Fn cpufreq_drv_settings ,
+.Fn cpufreq_drv_set ,
+and
+.Fn cpufreq_drv_get .
+Additionally, the driver must attach a device as a child of a CPU
+device so that these methods can be called by the
+.Nm
+framework.
+.Pp
+The
+.Fn cpufreq_drv_settings
+method returns an array of currently available settings, each of type
+.Vt struct cf_setting .
+The driver should set unknown or irrelevant values to
+.Vt CPUFREQ_VAL_UNKNOWN .
+All the following elements for each setting should be returned:
+.Bd -literal
+struct cf_setting {
+	int	freq;	/* CPU clock in Mhz or 100ths of a percent. */
+	int	volts;	/* Voltage in mV. */
+	int	power;	/* Power consumed in mW. */
+	int	lat;	/* Transition latency in us. */
+	device_t dev;	/* Driver providing this setting. */
+};
+.Ed
+.Pp
+On entry to this method,
+.Ar count
+contains the number of settings that can be returned.
+On successful completion, the driver sets it to the actual number of
+settings returned.
+If the driver offers more settings than
+.Ar count
+will allow, it should return E2BIG.
+The driver sets
+.Ar type
+to the type of settings it offers, either
+.Vt CPUFREQ_TYPE_ABSOLUTE
+or
+.Vt CPUFREQ_TYPE_RELATIVE .
+.Pp
+The
+.Fn cpufreq_drv_set
+method takes a driver setting and makes it active.
+If the setting is invalid or not currently available, it should return
+EINVAL.
+.Pp
+The
+.Fn cpufreq_drv_get
+method returns the currently-active driver setting.
+The
+.Vt struct cf_setting
+returned must be valid for passing to
+.Fn cpufreq_drv_set ,
+including all elements being filled out correctly.
+If the driver cannot infer the current setting
+(even by estimating it with
+.Fn cpu_est_clockrate )
+then it should set all elements to
+.Vt CPUFREQ_VAL_UNKNOWN .
+.Sh BUGS
+The following drivers have not yet been converted to the
+.Nm
+interface:
+.Xr longrun 4 ,
+.Xr p4tcc 4 .
+.Pp
+Priorities and notification of unrequested frequency changes are not
+implemented yet.
+.Pp
+When multiple CPUs offer frequency control, they cannot be set to different
+levels and must all offer the same frequency settings.
+.Sh SEE ALSO
+.Xr acpi 4 ,
+.Xr sysctl 8
+.Sh AUTHORS
+.An -nosplit
+.An Nate Lawson
