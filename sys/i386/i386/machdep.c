@@ -1802,14 +1802,12 @@ void
 init386(first)
 	int first;
 {
-	int x;
 	struct gate_descriptor *gdp;
-	int gsel_tss;
+	int gsel_tss, metadata_missing, off, x;
 #ifndef SMP
 	/* table descriptors - used to load tables by microp */
 	struct region_descriptor r_gdt, r_idt;
 #endif
-	int off;
 
 	/*
 	 * Prevent lowering of the ipl if we call tsleep() early.
@@ -1820,9 +1818,12 @@ init386(first)
 
 	atdevbase = ISA_HOLE_START + KERNBASE;
 
+	metadata_missing = 0;
 	if (bootinfo.bi_modulep) {
 		preload_metadata = (caddr_t)bootinfo.bi_modulep + KERNBASE;
 		preload_bootstrap_relocate(KERNBASE);
+	} else {
+		metadata_missing = 1;
 	}
 	if (bootinfo.bi_envp)
 		kern_envp = (caddr_t)bootinfo.bi_envp + KERNBASE;
@@ -1839,17 +1840,17 @@ init386(first)
 	 * XXX text protection is temporarily (?) disabled.  The limit was
 	 * i386_btop(round_page(etext)) - 1.
 	 */
-	gdt_segs[GCODE_SEL].ssd_limit = i386_btop(0) - 1;
-	gdt_segs[GDATA_SEL].ssd_limit = i386_btop(0) - 1;
+	gdt_segs[GCODE_SEL].ssd_limit = atop(0 - 1);
+	gdt_segs[GDATA_SEL].ssd_limit = atop(0 - 1);
 #ifdef SMP
 	gdt_segs[GPRIV_SEL].ssd_limit =
-		i386_btop(sizeof(struct privatespace)) - 1;
+		atop(sizeof(struct privatespace) - 1);
 	gdt_segs[GPRIV_SEL].ssd_base = (int) &SMP_prvspace[0];
 	gdt_segs[GPROC0_SEL].ssd_base =
 		(int) &SMP_prvspace[0].globaldata.gd_common_tss;
 	SMP_prvspace[0].globaldata.gd_prvspace = &SMP_prvspace[0];
 #else
-	gdt_segs[GPRIV_SEL].ssd_limit = i386_btop(0) - 1;
+	gdt_segs[GPRIV_SEL].ssd_limit = atop(0 - 1);
 	gdt_segs[GPROC0_SEL].ssd_base = (int) &common_tss;
 #endif
 
@@ -1885,8 +1886,8 @@ init386(first)
 	 * the code segment cannot be written to directly.
 	 */
 #define VM_END_USER_R_ADDRESS	(VM_END_USER_RW_ADDRESS + UPAGES * PAGE_SIZE)
-	ldt_segs[LUCODE_SEL].ssd_limit = i386_btop(VM_END_USER_R_ADDRESS) - 1;
-	ldt_segs[LUDATA_SEL].ssd_limit = i386_btop(VM_END_USER_RW_ADDRESS) - 1;
+	ldt_segs[LUCODE_SEL].ssd_limit = atop(VM_END_USER_R_ADDRESS - 1);
+	ldt_segs[LUDATA_SEL].ssd_limit = atop(VM_END_USER_RW_ADDRESS - 1);
 	for (x = 0; x < sizeof ldt_segs / sizeof ldt_segs[0]; x++)
 		ssdtosd(&ldt_segs[x], &ldt[x].sd);
 
@@ -1930,6 +1931,9 @@ init386(first)
 	 * Initialize the console before we print anything out.
 	 */
 	cninit();
+
+	if (metadata_missing)
+		printf("WARNING: loader(8) metadata is missing!\n");
 
 #include	"isa.h"
 #if	NISA >0
