@@ -152,7 +152,7 @@ static void	swap_pager_dealloc __P((vm_object_t object));
 static int	swap_pager_getpages __P((vm_object_t, vm_page_t *, int, int));
 static void	swap_pager_init __P((void));
 static void	swap_pager_unswapped __P((vm_page_t));
-static void	swap_pager_strategy __P((vm_object_t, struct buf *));
+static void	swap_pager_strategy __P((vm_object_t, struct bio *));
 
 struct pagerops swappagerops = {
 	swap_pager_init,	/* early system initialization of pager	*/
@@ -165,10 +165,9 @@ struct pagerops swappagerops = {
 	swap_pager_strategy	/* pager strategy call			*/
 };
 
-static struct buf *getchainbuf(struct buf *bp, struct vnode *vp, int flags);
+static struct buf *getchainbuf(struct bio *bp, struct vnode *vp, int flags);
 static void flushchainbuf(struct buf *nbp);
-static void waitchainbuf(struct buf *bp, int count, int done);
-static void autochaindone(struct buf *bp);
+static void waitchainbuf(struct bio *bp, int count, int done);
 
 /*
  * dmmax is in page-sized chunks with the new swap system.  It was
@@ -819,7 +818,7 @@ swap_pager_unswapped(m)
  */
 
 static void	
-swap_pager_strategy(vm_object_t object, struct buf *bp)
+swap_pager_strategy(vm_object_t object, struct bio *bp)
 {
 	vm_pindex_t start;
 	int count;
@@ -827,12 +826,12 @@ swap_pager_strategy(vm_object_t object, struct buf *bp)
 	char *data;
 	struct buf *nbp = NULL;
 
-	if (bp->b_bcount & PAGE_MASK) {
-		bp->b_error = EINVAL;
-		bp->b_ioflags |= BIO_ERROR;
-		bp->b_flags |= B_INVAL;
-		bufdone(bp);
-		printf("swap_pager_strategy: bp %p b_vp %p blk %d size %d, not page bounded\n", bp, bp->b_vp, (int)bp->b_pblkno, (int)bp->b_bcount);
+	/* XXX: KASSERT instead ? */
+	if (bp->bio_bcount & PAGE_MASK) {
+		bp->bio_error = EINVAL;
+		bp->bio_flags |= BIO_ERROR;
+		biodone(bp);
+		printf("swap_pager_strategy: bp %p blk %d size %d, not page bounded\n", bp, (int)bp->bio_pblkno, (int)bp->bio_bcount);
 		return;
 	}
 
@@ -840,13 +839,13 @@ swap_pager_strategy(vm_object_t object, struct buf *bp)
 	 * Clear error indication, initialize page index, count, data pointer.
 	 */
 
-	bp->b_error = 0;
-	bp->b_ioflags &= ~BIO_ERROR;
-	bp->b_resid = bp->b_bcount;
+	bp->bio_error = 0;
+	bp->bio_flags &= ~BIO_ERROR;
+	bp->bio_resid = bp->bio_bcount;
 
-	start = bp->b_pblkno;
-	count = howmany(bp->b_bcount, PAGE_SIZE);
-	data = bp->b_data;
+	start = bp->bio_pblkno;
+	count = howmany(bp->bio_bcount, PAGE_SIZE);
+	data = bp->bio_data;
 
 	s = splvm();
 
@@ -854,15 +853,15 @@ swap_pager_strategy(vm_object_t object, struct buf *bp)
 	 * Deal with BIO_DELETE
 	 */
 
-	if (bp->b_iocmd == BIO_DELETE) {
+	if (bp->bio_cmd == BIO_DELETE) {
 		/*
 		 * FREE PAGE(s) - destroy underlying swap that is no longer
 		 *		  needed.
 		 */
 		swp_pager_meta_free(object, start, count);
 		splx(s);
-		bp->b_resid = 0;
-		bufdone(bp);
+		bp->bio_resid = 0;
+		biodone(bp);
 		return;
 	}
 
@@ -879,11 +878,11 @@ swap_pager_strategy(vm_object_t object, struct buf *bp)
 		 */
 
 		blk = swp_pager_meta_ctl(object, start, 0);
-		if ((blk == SWAPBLK_NONE) && (bp->b_iocmd == BIO_WRITE)) {
+		if ((blk == SWAPBLK_NONE) && (bp->bio_cmd == BIO_WRITE)) {
 			blk = swp_pager_getswapspace(1);
 			if (blk == SWAPBLK_NONE) {
-				bp->b_error = ENOMEM;
-				bp->b_ioflags |= BIO_ERROR;
+				bp->bio_error = ENOMEM;
+				bp->bio_flags |= BIO_ERROR;
 				break;
 			}
 			swp_pager_meta_build(object, start, blk);
@@ -904,7 +903,7 @@ swap_pager_strategy(vm_object_t object, struct buf *bp)
 		    )
 		) {
 			splx(s);
-			if (bp->b_iocmd == BIO_READ) {
+			if (bp->bio_cmd == BIO_READ) {
 				++cnt.v_swapin;
 				cnt.v_swappgsin += btoc(nbp->b_bcount);
 			} else {
@@ -929,10 +928,10 @@ swap_pager_strategy(vm_object_t object, struct buf *bp)
 			 * even if chain ops are in progress.
 			 */
 			bzero(data, PAGE_SIZE);
-			bp->b_resid -= PAGE_SIZE;
+			bp->bio_resid -= PAGE_SIZE;
 		} else {
 			if (nbp == NULL) {
-				nbp = getchainbuf(bp, swapdev_vp, (bp->b_iocmd == BIO_READ) | B_ASYNC);
+				nbp = getchainbuf(bp, swapdev_vp, B_ASYNC);
 				nbp->b_blkno = blk;
 				nbp->b_bcount = 0;
 				nbp->b_data = data;
@@ -951,8 +950,6 @@ swap_pager_strategy(vm_object_t object, struct buf *bp)
 	splx(s);
 
 	if (nbp) {
-		if ((bp->b_flags & B_ASYNC) == 0)
-			nbp->b_flags &= ~B_ASYNC;
 		if (nbp->b_iocmd == BIO_READ) {
 			++cnt.v_swapin;
 			cnt.v_swappgsin += btoc(nbp->b_bcount);
@@ -969,11 +966,7 @@ swap_pager_strategy(vm_object_t object, struct buf *bp)
 	 * Wait for completion.
 	 */
 
-	if (bp->b_flags & B_ASYNC) {
-		autochaindone(bp);
-	} else {
-		waitchainbuf(bp, 0, 1);
-	}
+	waitchainbuf(bp, 0, 1);
 }
 
 /*
@@ -1976,31 +1969,26 @@ swp_pager_meta_ctl(
 static void
 vm_pager_chain_iodone(struct buf *nbp)
 {
-	struct buf *bp;
+	struct bio *bp;
+	u_int *count;
 
-	if ((bp = nbp->b_chain.parent) != NULL) {
+	bp = nbp->b_caller1;
+	count = (u_int *)&(bp->bio_caller1);
+	if (bp != NULL) {
 		if (nbp->b_ioflags & BIO_ERROR) {
-			bp->b_ioflags |= BIO_ERROR;
-			bp->b_error = nbp->b_error;
+			bp->bio_flags |= BIO_ERROR;
+			bp->bio_error = nbp->b_error;
 		} else if (nbp->b_resid != 0) {
-			bp->b_ioflags |= BIO_ERROR;
-			bp->b_error = EINVAL;
+			bp->bio_flags |= BIO_ERROR;
+			bp->bio_error = EINVAL;
 		} else {
-			bp->b_resid -= nbp->b_bcount;
+			bp->bio_resid -= nbp->b_bcount;
 		}
-		nbp->b_chain.parent = NULL;
-		--bp->b_chain.count;
-		if (bp->b_flags & B_WANT) {
-			bp->b_flags &= ~B_WANT;
+		nbp->b_caller1 = NULL;
+		--(*count);
+		if (bp->bio_flags & BIO_FLAG1) {
+			bp->bio_flags &= ~BIO_FLAG1;
 			wakeup(bp);
-		}
-		if (!bp->b_chain.count && (bp->b_flags & B_AUTOCHAINDONE)) {
-			bp->b_flags &= ~B_AUTOCHAINDONE;
-			if (bp->b_resid != 0 && !(bp->b_ioflags & BIO_ERROR)) {
-				bp->b_ioflags |= BIO_ERROR;
-				bp->b_error = EINVAL;
-			}
-			bufdone(bp);
 		}
 	}
 	nbp->b_flags |= B_DONE;
@@ -2017,17 +2005,19 @@ vm_pager_chain_iodone(struct buf *nbp)
  */
 
 struct buf *
-getchainbuf(struct buf *bp, struct vnode *vp, int flags)
+getchainbuf(struct bio *bp, struct vnode *vp, int flags)
 {
 	struct buf *nbp = getpbuf(NULL);
+	u_int *count = (u_int *)&(bp->bio_caller1);
 
-	nbp->b_chain.parent = bp;
-	++bp->b_chain.count;
+	nbp->b_caller1 = bp;
+	++(*count);
 
-	if (bp->b_chain.count > 4)
+	if (*count > 4) 
 		waitchainbuf(bp, 4, 0);
 
-	nbp->b_ioflags = bp->b_ioflags & BIO_ORDERED;
+	nbp->b_iocmd = bp->bio_cmd;
+	nbp->b_ioflags = bp->bio_flags & BIO_ORDERED;
 	nbp->b_flags = flags;
 	nbp->b_rcred = nbp->b_wcred = proc0.p_ucred;
 	nbp->b_iodone = vm_pager_chain_iodone;
@@ -2055,35 +2045,23 @@ flushchainbuf(struct buf *nbp)
 }
 
 void
-waitchainbuf(struct buf *bp, int count, int done)
+waitchainbuf(struct bio *bp, int limit, int done)
 {
  	int s;
+	u_int *count = (u_int *)&(bp->bio_caller1);
 
 	s = splbio();
-	while (bp->b_chain.count > count) {
-		bp->b_flags |= B_WANT;
+	while (*count > limit) {
+		bp->bio_flags |= BIO_FLAG1;
 		tsleep(bp, PRIBIO + 4, "bpchain", 0);
 	}
 	if (done) {
-		if (bp->b_resid != 0 && !(bp->b_ioflags & BIO_ERROR)) {
-			bp->b_ioflags |= BIO_ERROR;
-			bp->b_error = EINVAL;
+		if (bp->bio_resid != 0 && !(bp->bio_flags & BIO_ERROR)) {
+			bp->bio_flags |= BIO_ERROR;
+			bp->bio_error = EINVAL;
 		}
-		bufdone(bp);
+		biodone(bp);
 	}
-	splx(s);
-}
-
-void
-autochaindone(struct buf *bp)
-{
- 	int s;
-
-	s = splbio();
-	if (bp->b_chain.count == 0)
-		bufdone(bp);
-	else
-		bp->b_flags |= B_AUTOCHAINDONE;
 	splx(s);
 }
 

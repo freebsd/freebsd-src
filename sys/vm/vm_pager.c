@@ -262,14 +262,14 @@ vm_pager_deallocate(object)
  */
 
 void
-vm_pager_strategy(vm_object_t object, struct buf *bp)
+vm_pager_strategy(vm_object_t object, struct bio *bp)
 {
 	if (pagertab[object->type]->pgo_strategy) {
 	    (*pagertab[object->type]->pgo_strategy)(object, bp);
 	} else {
-		bp->b_ioflags |= BIO_ERROR;
-		bp->b_error = ENXIO;
-		bufdone(bp);
+		bp->bio_flags |= BIO_ERROR;
+		bp->bio_error = ENXIO;
+		biodone(bp);
 	}
 }
 
