@@ -29,17 +29,17 @@
 .Os
 .Dt SPL 9
 .Sh NAME
-.Nm splbio,
-.Nm splclock,
-.Nm splhigh,
-.Nm splimp,
-.Nm splnet,
-.Nm splsoftclock,
-.Nm splsofttty,
-.Nm splstatclock,
-.Nm spltty,
-.Nm splvm,
-.Nm spl0,
+.Nm splbio ,
+.Nm splclock ,
+.Nm splhigh ,
+.Nm splimp ,
+.Nm splnet ,
+.Nm splsoftclock ,
+.Nm splsofttty ,
+.Nm splstatclock ,
+.Nm spltty ,
+.Nm splvm ,
+.Nm spl0 ,
 .Nm splx
 .Nd manipulate interrupt priorities
 .Sh SYNOPSIS
@@ -178,7 +178,7 @@ foointr(...)
 		wakeup(sc);
 	...
 }
-	
+
 .Ed
 Note that the interrupt handler should
 .Em never
