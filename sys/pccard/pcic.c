@@ -78,6 +78,26 @@ static struct slot_ctrl pcic_cinfo = {
 };
 
 /*
+ * Read a register from the PCIC.
+ */
+unsigned char
+pcic_getb_io(struct pcic_slot *sp, int reg)
+{
+	outb(sp->index, sp->offset + reg);
+	return (inb(sp->data));
+}
+
+/*
+ * Write a register on the PCIC
+ */
+void
+pcic_putb_io(struct pcic_slot *sp, int reg, unsigned char val)
+{
+	outb(sp->index, sp->offset + reg);
+	outb(sp->data, val);
+}
+
+/*
  * Clear bit(s) of a register.
  */
 __inline void

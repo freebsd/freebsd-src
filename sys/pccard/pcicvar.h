@@ -84,3 +84,5 @@ int pcic_set_memory_offset(device_t bus, device_t child, int rid,
 void pcic_clrb(struct pcic_slot *sp, int reg, unsigned char mask);
 void pcic_setb(struct pcic_slot *sp, int reg, unsigned char mask);
 void pcic_dealloc(device_t dev);
+unsigned char pcic_getb_io(struct pcic_slot *sp, int reg);
+void pcic_putb_io(struct pcic_slot *sp, int reg, unsigned char val);
