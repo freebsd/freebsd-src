@@ -9,7 +9,7 @@ use and modify. Please send modifications and/or suggestions + bug fixes to
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: bootparamd.c,v 1.3.2.1 1997/09/15 06:26:15 charnier Exp $";
 #endif /* not lint */
 
 #include <rpc/rpc.h>
@@ -37,7 +37,7 @@ static char path[MAX_PATH_LEN];
 static char domain_name[MAX_MACHINE_NAME];
 
 int getthefile __P((char *, char *, char *));
-int checkhost __P((char *, char *));
+int checkhost __P((char *, char *, int));
 
 bp_whoami_res *
 bootparamproc_whoami_1(whoami)
@@ -66,8 +66,10 @@ bp_whoami_arg *whoami;
   if (debug) warnx("this is host %s", he->h_name);
   if (dolog) syslog(LOG_NOTICE,"This is host %s\n", he->h_name);
 
-  strcpy(askname, he->h_name);
-  if (checkhost(askname, hostname) ) {
+  strncpy(askname, he->h_name, sizeof(askname));
+  askname[sizeof(askname)-1] = 0;
+
+  if (checkhost(askname, hostname, sizeof hostname) ) {
     res.client_name = hostname;
     getdomainname(domain_name, MAX_MACHINE_NAME);
     res.domain_name = domain_name;
@@ -121,7 +123,9 @@ bp_getfile_arg *getfile;
   he = gethostbyname(getfile->client_name);
   if (! he ) goto failed;
 
-  strcpy(askname,he->h_name);
+  strncpy(askname, he->h_name, sizeof(askname));
+  askname[sizeof(askname)-1] = 0;
+
   if (getthefile(askname, getfile->file_id,buffer)) {
     if ( (where = index(buffer,':')) ) {
       /* buffer is re-written to contain the name of the info of file */
@@ -192,7 +196,8 @@ char *fileid, *buffer;
   if ( ! bpf )
     errx(1, "no %s", bootpfile);
 
-  while ( fscanf(bpf, "%s", hostname) > 0  && !match ) {
+  /* XXX see comment below */
+  while ( fscanf(bpf, "%255s", hostname) > 0  && !match ) {
     if ( *hostname != '#' ) { /* comment */
       if ( ! strcmp(hostname, askname) ) {
 	match = 1;
@@ -267,9 +272,10 @@ char *fileid, *buffer;
    name for a host in the database */
 
 int
-checkhost(askname, hostname)
+checkhost(askname, hostname, len)
 char *askname;
 char *hostname;
+int len;
 {
   int ch, pch;
   FILE *bpf;
@@ -284,7 +290,9 @@ char *hostname;
   if ( ! bpf )
     errx(1, "no %s", bootpfile);
 
-  while ( fscanf(bpf, "%s", hostname) > 0 ) {
+  /* XXX there is no way in ISO C to specify the maximal length for a
+     conversion in a variable way */
+  while ( fscanf(bpf, "%254s", hostname) > 0 ) {
     if ( *hostname != '#' ) { /* comment */
       if ( ! strcmp(hostname, askname) ) {
         /* return true for match of hostname */
@@ -312,7 +320,7 @@ char *hostname;
         he = gethostbyname(askname);
         if (he && !strcmp(askname, he->h_name)) {
   	  res = 1;
-	  sprintf(hostname,"%s", he->h_name);
+	  snprintf(hostname, len, "%s", he->h_name);
 	}
       }
       if (fclose(bpf))
