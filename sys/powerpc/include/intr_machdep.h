@@ -37,10 +37,11 @@ struct intr_handler {
 	void		*ih_arg;
 	struct		ithd *ih_ithd;
 	u_int		ih_irq;
+	u_int		ih_flags;
 };
 
 void	intr_init(void (*)(void), int, void (*)(int), void (*)(int));
-void	intr_setup(u_int, ih_func_t *, void *);
+void	intr_setup(u_int, ih_func_t *, void *, u_int);
 int	inthand_add(const char *, u_int, void (*)(void *), void *, int,
 	    void **);
 int	inthand_remove(u_int, void *);
