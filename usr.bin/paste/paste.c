@@ -50,6 +50,7 @@ static char sccsid[] = "@(#)paste.c	8.1 (Berkeley) 6/6/93";
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
+
 #include <err.h>
 #include <errno.h>
 #include <limits.h>
@@ -61,17 +62,17 @@ __FBSDID("$FreeBSD$");
 char *delim;
 int delimcnt;
 
-void parallel __P((char **));
-void sequential __P((char **));
-int tr __P((char *));
-static void usage __P((void));
+int parallel(char **);
+int sequential(char **);
+int tr(char *);
+static void usage(void);
+
+char tab[] = "\t";
 
 int
-main(argc, argv)
-	int argc;
-	char **argv;
+main(int argc, char *argv[])
 {
-	int ch, seq;
+	int ch, rval, seq;
 
 	seq = 0;
 	while ((ch = getopt(argc, argv, "d:s")) != -1)
@@ -93,14 +94,14 @@ main(argc, argv)
 		usage();
 	if (!delim) {
 		delimcnt = 1;
-		delim = "\t";
+		delim = tab;
 	}
 
 	if (seq)
-		sequential(argv);
+		rval = sequential(argv);
 	else
-		parallel(argv);
-	exit(0);
+		rval = parallel(argv);
+	exit(rval);
 }
 
 typedef struct _list {
@@ -110,20 +111,19 @@ typedef struct _list {
 	char *name;
 } LIST;
 
-void
-parallel(argv)
-	char **argv;
+int
+parallel(char **argv)
 {
-	register LIST *lp;
-	register int cnt;
-	register char ch, *p;
+	LIST *lp;
+	int cnt;
+	char ch, *buf, *p;
 	LIST *head, *tmp;
 	int opencnt, output;
-	char buf[_POSIX2_LINE_MAX + 1];
+	size_t len;
 
 	for (cnt = 0, head = NULL; (p = *argv); ++argv, ++cnt) {
-		if (!(lp = (LIST *)malloc((u_int)sizeof(LIST))))
-			errx(1, "%s", strerror(ENOMEM));
+		if ((lp = malloc(sizeof(LIST))) == NULL)
+			err(1, NULL);
 		if (p[0] == '-' && !p[1])
 			lp->fp = stdin;
 		else if (!(lp->fp = fopen(p, "r")))
@@ -147,7 +147,7 @@ parallel(argv)
 					putchar(ch);
 				continue;
 			}
-			if (!fgets(buf, sizeof(buf), lp->fp)) {
+			if ((buf = fgetln(lp->fp, &len)) == NULL) {
 				if (!--opencnt)
 					break;
 				lp->fp = NULL;
@@ -156,9 +156,6 @@ parallel(argv)
 					putchar(ch);
 				continue;
 			}
-			if (!(p = index(buf, '\n')))
-				errx(1, "%s: input line too long", lp->name);
-			*p = '\0';
 			/*
 			 * make sure that we don't print any delimiters
 			 * unless there's a non-empty file.
@@ -170,57 +167,62 @@ parallel(argv)
 						putchar(ch);
 			} else if ((ch = delim[(lp->cnt - 1) % delimcnt]))
 				putchar(ch);
-			(void)printf("%s", buf);
+			if (buf[len - 1] == '\n')
+				len--;
+			fwrite(buf, 1, len, stdout);
 		}
 		if (output)
 			putchar('\n');
 	}
+
+	return (0);
 }
 
-void
-sequential(argv)
-	char **argv;
+int
+sequential(char **argv)
 {
-	register FILE *fp;
-	register int cnt;
-	register char ch, *p, *dp;
-	char buf[_POSIX2_LINE_MAX + 1];
+	FILE *fp;
+	int cnt, failed, needdelim;
+	char *buf, *p;
+	size_t len;
 
+	failed = 0;
 	for (; (p = *argv); ++argv) {
 		if (p[0] == '-' && !p[1])
 			fp = stdin;
 		else if (!(fp = fopen(p, "r"))) {
 			warn("%s", p);
+			failed = 1;
 			continue;
 		}
-		if (fgets(buf, sizeof(buf), fp)) {
-			for (cnt = 0, dp = delim;;) {
-				if (!(p = index(buf, '\n')))
-					errx(1, "%s: input line too long", *argv);
-				*p = '\0';
-				(void)printf("%s", buf);
-				if (!fgets(buf, sizeof(buf), fp))
-					break;
-				if ((ch = *dp++))
-					putchar(ch);
-				if (++cnt == delimcnt) {
-					dp = delim;
+		cnt = needdelim = 0;
+		while ((buf = fgetln(fp, &len)) != NULL) {
+			if (needdelim) {
+				needdelim = 0;
+				if (delim[cnt] != '\0')
+					putchar(delim[cnt]);
+				if (++cnt == delimcnt)
 					cnt = 0;
-				}
 			}
-			putchar('\n');
+			if (buf[len - 1] == '\n')
+				len--;
+			fwrite(buf, 1, len, stdout);
+			needdelim = 1;
 		}
+		if (needdelim)
+			putchar('\n');
 		if (fp != stdin)
 			(void)fclose(fp);
 	}
+
+	return (failed != 0);
 }
 
 int
-tr(arg)
-	char *arg;
+tr(char *arg)
 {
-	register int cnt;
-	register char ch, *p;
+	int cnt;
+	char ch, *p;
 
 	for (p = arg, cnt = 0; (ch = *p++); ++arg, ++cnt)
 		if (ch == '\\')
@@ -246,7 +248,7 @@ tr(arg)
 }
 
 static void
-usage()
+usage(void)
 {
 	(void)fprintf(stderr, "usage: paste [-s] [-d delimiters] file ...\n");
 	exit(1);
