@@ -373,7 +373,10 @@ foreach $packageString (sort keys %currentPackages) {
 	# Try to get the version out of the makefile.
 	# The chdir needs to be successful or our make -V invocation
 	# will fail.
-	chdir "$PortsDirectory/$origin" or next;
+	unless (chdir "$PortsDirectory/$origin" and -r "Makefile") {
+	    $currentPackages{$packageString}->{orphaned} = $origin;
+	    next;
+	}
 
 	open PKGNAME, "$GetPkgNameCommand|";
 	$pkgname = <PKGNAME>;
@@ -449,7 +452,14 @@ foreach $packageString (sort keys %currentPackages) {
 
     $currentVersion = $currentPackages{$packageString}{'fullversion'};
 
-    if (defined $currentPackages{$packageString}{'portversion'}) {
+    if ($currentPackages{$packageString}->{orphaned}) {
+
+	next if $ShowCommandsFlag;
+	$versionCode = "?";
+	$Comment = "orphaned: $currentPackages{$packageString}->{orphaned}";
+
+    } elsif (defined $currentPackages{$packageString}{'portversion'}) {
+
 	$portVersion = $currentPackages{$packageString}{'portversion'};
 
 	$portPath = "$PortsDirectory/$currentPackages{$packageString}{'origin'}";
