@@ -64,7 +64,7 @@ static struct p_times {
 } *pt;
 
 static long stime[CPUSTATES];
-static int     fscale;
+static long    fscale;
 static double  lccpu;
 
 WINDOW *
@@ -162,7 +162,7 @@ initpigs()
 		}
 	}
 	KREAD(NPTR(X_CPTIME), stime, sizeof (stime));
-	NREAD(X_CCPU, &ccpu, LONG);
+	NREAD(X_CCPU, &ccpu, sizeof(ccpu));
 	NREAD(X_FSCALE,  &fscale, LONG);
 	lccpu = log((double) ccpu / fscale);
 

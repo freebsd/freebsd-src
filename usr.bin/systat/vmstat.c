@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)vmstat.c	8.2 (Berkeley) 1/12/94";
 #endif
 static const char rcsid[] =
-	"$Id: vmstat.c,v 1.24 1998/05/27 21:01:37 jhay Exp $";
+	"$Id: vmstat.c,v 1.25 1998/06/09 04:17:29 imp Exp $";
 #endif /* not lint */
 
 /*
@@ -83,8 +83,8 @@ static struct Info {
 	long	*intrcnt;
 	int	bufspace;
 	int	desiredvnodes;
-	int	numvnodes;
-	int	freevnodes;
+	long	numvnodes;
+	long	freevnodes;
 } s, s1, s2, z;
 
 #define	cnt s.Cnt
@@ -626,11 +626,11 @@ getinfo(s, st)
 
 	NREAD(X_CPTIME, s->time, sizeof s->time);
 	NREAD(X_CNT, &s->Cnt, sizeof s->Cnt);
-	NREAD(X_BUFFERSPACE, &s->bufspace, LONG);
-	NREAD(X_DESIREDVNODES, &s->desiredvnodes, LONG);
+	NREAD(X_BUFFERSPACE, &s->bufspace, sizeof(s->bufspace));
+	NREAD(X_DESIREDVNODES, &s->desiredvnodes, sizeof(s->desiredvnodes));
 	NREAD(X_NUMVNODES, &s->numvnodes, LONG);
 	NREAD(X_FREEVNODES, &s->freevnodes, LONG);
-	NREAD(X_DK_BUSY, &s->dk_busy, LONG);
+	NREAD(X_DK_BUSY, &s->dk_busy, sizeof(s->dk_busy));
 	NREAD(X_DK_TIME, s->dk_time, dk_ndrive * LONG);
 	NREAD(X_DK_XFER, s->dk_xfer, dk_ndrive * LONG);
 	NREAD(X_DK_WDS, s->dk_wds, dk_ndrive * LONG);
