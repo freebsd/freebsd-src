@@ -28,7 +28,6 @@
  */
 
 #include <sys/cdefs.h>
-
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
@@ -185,7 +184,7 @@ main(int argc, char *argv[])
 		case 1:
 			bzero(&lsin, sizeof lsin);
 			lsin.sin_family = AF_INET;
-			if ((lsin.sin_addr.s_addr = inet_addr(argv[optind])) == -1) {
+			if ((lsin.sin_addr.s_addr = inet_addr(argv[optind])) == INADDR_NONE) {
 				hent = gethostbyname(argv[optind]);
 				if (!hent)
 					errx(ERR_NOSUCHHOST, "host %s unknown", argv[optind]);
