@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: cdrom.c,v 1.26.2.5 1997/01/22 00:28:50 jkh Exp $
+ * $Id: cdrom.c,v 1.26.2.6 1997/01/24 21:05:46 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -99,7 +99,7 @@ mediaInitCDROM(Device *dev)
 
     if (readInfo &&
 	(DITEM_STATUS(attr_parse_file(cd_attr, string_concat(mountpoint, "/cdrom.inf"))) == DITEM_FAILURE ||
-		      !(cp = attr_match(cd_attr, "CD_VERSION")) || strcmp(cp, variable_get(VAR_RELNAME)))) {
+		      !(cp = attr_match(cd_attr, "CD_VERSION")) || (strcmp(cp, variable_get(VAR_RELNAME)) && strcmp("none", variable_get(VAR_RELNAME))))) {
 	if (!cp)
 	    msgConfirm("Unable to find a %s/cdrom.inf file.\n"
 		       "Either this is not a FreeBSD CDROM, there is a problem with\n"
