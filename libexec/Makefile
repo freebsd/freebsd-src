@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/4/93
-#	$Id: Makefile,v 1.34 1998/08/30 01:52:53 jb Exp $
+#	$Id: Makefile,v 1.35 1998/09/04 22:55:17 jb Exp $
 
 SUBDIR=	atrun bootpd comsat fingerd ftpd getNAME getty \
 	makekey mknetid revnetgroup rexecd rlogind \
@@ -11,7 +11,7 @@ SUBDIR=	atrun bootpd comsat fingerd ftpd getNAME getty \
 SUBDIR+=mail.local smrsh
 .endif
 
-.if ${MACHINE} == i386
+.if ${MACHINE_ARCH} == i386
 SUBDIR+=named-xfer
 .if ${OBJFORMAT} == aout
 SUBDIR+=rtld-aout
@@ -29,11 +29,7 @@ SUBDIR+=telnetd
 
 # Present but disabled: kpasswdd
 
-.if	${MACHINE} == "hp300"
-SUBDIR+=rbootd
-.elif	${MACHINE} == "i386"
-SUBDIR+=rbootd
-.elif	${MACHINE} == "luna68k"
+.if	${MACHINE_ARCH} == "i386"
 SUBDIR+=rbootd
 .endif
 
