@@ -66,31 +66,37 @@ struct usb_knowndev usb_knowndevs[] = {
 	{
 	    USB_VENDOR_KODAK, USB_PRODUCT_KODAK_DC260,
 	    0,
-	    "Eastman Kodak",
+	    "Eastman Kodak Corp.",
 	    "Digital Science DC260",
 	},
 	{
 	    USB_VENDOR_CATC, USB_PRODUCT_CATC_ANDROMEDA,
 	    0,
-	    "CATC",
+	    "Computer Access Technology Corp.",
 	    "Andromeda hub",
 	},
 	{
-	    USB_VENDOR_UNIXTAR, USB_PRODUCT_UNIXTAR_UTUSB41,
+	    USB_VENDOR_GRAVIS, USB_PRODUCT_GRAVIS_GAMEPADPRO,
 	    0,
-	    "Unixtar",
+	    "Advanced Gravis Computer Tech. Ltd.",
+	    "GamePad Pro",
+	},
+	{
+	    USB_VENDOR_TI, USB_PRODUCT_TI_UTUSB41,
+	    0,
+	    "Texas Instruments",
 	    "UT-USB41 hub",
 	},
 	{
 	    USB_VENDOR_GENIUS, USB_PRODUCT_GENIUS_NICHE,
 	    0,
-	    "Genius",
+	    "KYE Systems Corp.",
 	    "Niche mouse",
 	},
 	{
 	    USB_VENDOR_GENIUS, USB_PRODUCT_GENIUS_FLIGHT2000,
 	    0,
-	    "Genius",
+	    "KYE Systems Corp.",
 	    "Flight 2000 joystick",
 	},
 	{
@@ -100,33 +106,45 @@ struct usb_knowndev usb_knowndevs[] = {
 	    "IntelliMouse",
 	},
 	{
-	    USB_VENDOR_MICROSOFT, USB_PRODUCT_MICROSOFT_KEYBOARD,
+	    USB_VENDOR_MICROSOFT, USB_PRODUCT_MICROSOFT_NATURALKBD,
 	    0,
 	    "Microsoft",
-	    "Keyboard",
+	    "Natural Keyboard Elite",
+	},
+	{
+	    USB_VENDOR_MICROSOFT, USB_PRODUCT_MICROSOFT_DDS80,
+	    0,
+	    "Microsoft",
+	    "Digital Sound System 80",
+	},
+	{
+	    USB_VENDOR_KENSINGTON, USB_PRODUCT_KENSINGTON_COMFORT,
+	    0,
+	    "Primax Electronics",
+	    "Comfort",
 	},
 	{
 	    USB_VENDOR_KENSINGTON, USB_PRODUCT_KENSINGTON_MOUSEINABOX,
 	    0,
-	    "Kensington",
+	    "Primax Electronics",
 	    "Mouse-in-a-Box",
 	},
 	{
 	    USB_VENDOR_CHERRY, USB_PRODUCT_CHERRY_MY3000KBD,
 	    0,
-	    "Cherry",
+	    "Cherry Mikroschalter GmbH",
 	    "My3000 keyboard",
 	},
 	{
 	    USB_VENDOR_CHERRY, USB_PRODUCT_CHERRY_MY3000HUB,
 	    0,
-	    "Cherry",
+	    "Cherry Mikroschalter GmbH",
 	    "My3000 hub",
 	},
 	{
 	    USB_VENDOR_BTC, USB_PRODUCT_BTC_BTC7932,
 	    0,
-	    "BTC",
+	    "Behavior Tech. Computer",
 	    "Keyboard with mouse port",
 	},
 	{
@@ -144,8 +162,14 @@ struct usb_knowndev usb_knowndevs[] = {
 	{
 	    USB_VENDOR_CONNECTIX, USB_PRODUCT_CONNECTIX_QUICKCAM,
 	    0,
-	    "Connectix",
+	    "Connectix Corp.",
 	    "QuickCam",
+	},
+	{
+	    USB_VENDOR_STMICRO, USB_PRODUCT_STMICRO_COMMUNICATOR,
+	    0,
+	    "STMicroelectronics",
+	    "USB Communicator",
 	},
 	{
 	    USB_VENDOR_LUCENT, USB_PRODUCT_LUCENT_EVALKIT,
@@ -156,7 +180,7 @@ struct usb_knowndev usb_knowndevs[] = {
 	{
 	    USB_VENDOR_ACER, USB_PRODUCT_ACER_ACERSCAN_C310U,
 	    0,
-	    "Acer Peripherals",
+	    "Acer Peripheral Inc.",
 	    "Acerscan C310U",
 	},
 	{
@@ -168,19 +192,19 @@ struct usb_knowndev usb_knowndevs[] = {
 	{
 	    USB_VENDOR_EPSON, USB_PRODUCT_EPSON_PRINTER3,
 	    0,
-	    "Epson",
+	    "Seiko Epson Corp.",
 	    "ISD USB Smart Cable",
 	},
 	{
 	    USB_VENDOR_3COM, USB_PRODUCT_3COM_USR56K,
 	    0,
-	    "3Com",
-	    "U.S.Robotics Voice Faxmodem Pro",
+	    "U.S. Robotics",
+	    "U.S.Robotics 56000 Voice Faxmodem Pro",
 	},
 	{
 	    USB_VENDOR_KONICA, USB_PRODUCT_KONICA_CAMERA,
 	    0,
-	    "Konica Corporation",
+	    "Konica Corp.",
 	    "Digital Color Camera",
 	},
 	{
@@ -190,34 +214,46 @@ struct usb_knowndev usb_knowndevs[] = {
 	    "E-USB Bridge",
 	},
 	{
+	    USB_VENDOR_BROTHER, USB_PRODUCT_BROTHER_HL1050,
+	    0,
+	    "Brother Industries Corp.",
+	    "HL-1050 laser printer",
+	},
+	{
 	    USB_VENDOR_JAZZ, USB_PRODUCT_JAZZ_J6502,
 	    0,
-	    "Jazz",
+	    "Dallas Semiconductor",
 	    "J-6502 speakers",
 	},
 	{
 	    USB_VENDOR_AKS, USB_PRODUCT_AKS_USBHASP,
 	    0,
-	    "Aladdin Knowledge Systems",
+	    "Fast Security AG",
 	    "USB-HASP 0.06",
 	},
 	{
-	    USB_VENDOR_VISION, USB_PRODUCT_VISION_CAMERA,
+	    USB_VENDOR_VISION, USB_PRODUCT_VISION_VC6452V002,
 	    0,
-	    "Vision",
+	    "Alcatel Mobile Phones",
 	    "VC6452V002 Camera",
 	},
 	{
 	    USB_VENDOR_ATEN, USB_PRODUCT_ATEN_UC1284,
 	    0,
-	    "ATen",
+	    "ATEN International Corp. Ltd.",
 	    "Parallel printer adapter",
 	},
 	{
 	    USB_VENDOR_PERACOM, USB_PRODUCT_PERACOM_SERIAL1,
 	    0,
-	    "Peracom",
+	    "Peracom Networks Inc.",
 	    "Serial Converter",
+	},
+	{
+	    USB_VENDOR_WACOM, USB_PRODUCT_WACOM_CT0405U,
+	    0,
+	    "WACOM Corp. Ltd.",
+	    "CT-0405-U Tablet",
 	},
 	{
 	    USB_VENDOR_EIZO, USB_PRODUCT_EIZO_HUB,
@@ -234,7 +270,7 @@ struct usb_knowndev usb_knowndevs[] = {
 	{
 	    USB_VENDOR_AGILER, USB_PRODUCT_AGILER_MOUSE29UO,
 	    0,
-	    "Agiler",
+	    "Elecom Corp. Ltd.",
 	    "mouse 29UO",
 	},
 	{
@@ -246,7 +282,7 @@ struct usb_knowndev usb_knowndevs[] = {
 	{
 	    USB_VENDOR_IOMEGA, USB_PRODUCT_IOMEGA_ZIP100,
 	    0,
-	    "Iomega",
+	    "Iomega Corp.",
 	    "Zip 100",
 	},
 	{
@@ -258,20 +294,26 @@ struct usb_knowndev usb_knowndevs[] = {
 	{
 	    USB_VENDOR_BELKIN, USB_PRODUCT_BELKIN_F5U002,
 	    0,
-	    "Belkin",
+	    "In-System Design",
 	    "Parallel printer adapter",
 	},
 	{
 	    USB_VENDOR_LOGITECH, USB_PRODUCT_LOGITECH_M2452,
 	    0,
-	    "Logitech",
+	    "Logitech Inc.",
 	    "M2452 keyboard",
 	},
 	{
-	    USB_VENDOR_LOGITECH, USB_PRODUCT_LOGITECH_MOUSE1,
+	    USB_VENDOR_LOGITECH, USB_PRODUCT_LOGITECH_M4848,
 	    0,
-	    "Logitech",
-	    "mouse",
+	    "Logitech Inc.",
+	    "M4848 mouse",
+	},
+	{
+	    USB_VENDOR_LOGITECH, USB_PRODUCT_LOGITECH_USBPS2,
+	    0,
+	    "Logitech Inc.",
+	    "USB-PS/2 mouse",
 	},
 	{
 	    USB_VENDOR_CHIC, USB_PRODUCT_CHIC_MOUSE1,
@@ -336,19 +378,25 @@ struct usb_knowndev usb_knowndevs[] = {
 	{
 	    USB_VENDOR_KODAK, 0,
 	    USB_KNOWNDEV_NOPROD,
-	    "Eastman Kodak",
+	    "Eastman Kodak Corp.",
 	    NULL,
 	},
 	{
 	    USB_VENDOR_CATC, 0,
 	    USB_KNOWNDEV_NOPROD,
-	    "CATC",
+	    "Computer Access Technology Corp.",
+	    NULL,
+	},
+	{
+	    USB_VENDOR_GRAVIS, 0,
+	    USB_KNOWNDEV_NOPROD,
+	    "Advanced Gravis Computer Tech. Ltd.",
 	    NULL,
 	},
 	{
 	    USB_VENDOR_NANAO, 0,
 	    USB_KNOWNDEV_NOPROD,
-	    "Nanao",
+	    "NANAO Corp.",
 	    NULL,
 	},
 	{
@@ -358,15 +406,15 @@ struct usb_knowndev usb_knowndevs[] = {
 	    NULL,
 	},
 	{
-	    USB_VENDOR_UNIXTAR, 0,
+	    USB_VENDOR_TI, 0,
 	    USB_KNOWNDEV_NOPROD,
-	    "Unixtar",
+	    "Texas Instruments",
 	    NULL,
 	},
 	{
 	    USB_VENDOR_GENIUS, 0,
 	    USB_KNOWNDEV_NOPROD,
-	    "Genius",
+	    "KYE Systems Corp.",
 	    NULL,
 	},
 	{
@@ -378,19 +426,25 @@ struct usb_knowndev usb_knowndevs[] = {
 	{
 	    USB_VENDOR_KENSINGTON, 0,
 	    USB_KNOWNDEV_NOPROD,
-	    "Kensington",
+	    "Primax Electronics",
 	    NULL,
 	},
 	{
 	    USB_VENDOR_CHERRY, 0,
 	    USB_KNOWNDEV_NOPROD,
-	    "Cherry",
+	    "Cherry Mikroschalter GmbH",
+	    NULL,
+	},
+	{
+	    USB_VENDOR_LOGITECH, 0,
+	    USB_KNOWNDEV_NOPROD,
+	    "Logitech Inc.",
 	    NULL,
 	},
 	{
 	    USB_VENDOR_BTC, 0,
 	    USB_KNOWNDEV_NOPROD,
-	    "BTC",
+	    "Behavior Tech. Computer",
 	    NULL,
 	},
 	{
@@ -402,7 +456,7 @@ struct usb_knowndev usb_knowndevs[] = {
 	{
 	    USB_VENDOR_CONNECTIX, 0,
 	    USB_KNOWNDEV_NOPROD,
-	    "Connectix",
+	    "Connectix Corp.",
 	    NULL,
 	},
 	{
@@ -412,9 +466,15 @@ struct usb_knowndev usb_knowndevs[] = {
 	    NULL,
 	},
 	{
+	    USB_VENDOR_STMICRO, 0,
+	    USB_KNOWNDEV_NOPROD,
+	    "STMicroelectronics",
+	    NULL,
+	},
+	{
 	    USB_VENDOR_ACER, 0,
 	    USB_KNOWNDEV_NOPROD,
-	    "Acer Peripherals",
+	    "Acer Peripheral Inc.",
 	    NULL,
 	},
 	{
@@ -426,19 +486,19 @@ struct usb_knowndev usb_knowndevs[] = {
 	{
 	    USB_VENDOR_EPSON, 0,
 	    USB_KNOWNDEV_NOPROD,
-	    "Epson",
+	    "Seiko Epson Corp.",
 	    NULL,
 	},
 	{
 	    USB_VENDOR_3COM, 0,
 	    USB_KNOWNDEV_NOPROD,
-	    "3Com",
+	    "U.S. Robotics",
 	    NULL,
 	},
 	{
 	    USB_VENDOR_KONICA, 0,
 	    USB_KNOWNDEV_NOPROD,
-	    "Konica Corporation",
+	    "Konica Corp.",
 	    NULL,
 	},
 	{
@@ -448,33 +508,45 @@ struct usb_knowndev usb_knowndevs[] = {
 	    NULL,
 	},
 	{
+	    USB_VENDOR_BROTHER, 0,
+	    USB_KNOWNDEV_NOPROD,
+	    "Brother Industries Corp.",
+	    NULL,
+	},
+	{
 	    USB_VENDOR_JAZZ, 0,
 	    USB_KNOWNDEV_NOPROD,
-	    "Jazz",
+	    "Dallas Semiconductor",
 	    NULL,
 	},
 	{
 	    USB_VENDOR_AKS, 0,
 	    USB_KNOWNDEV_NOPROD,
-	    "Aladdin Knowledge Systems",
+	    "Fast Security AG",
 	    NULL,
 	},
 	{
 	    USB_VENDOR_VISION, 0,
 	    USB_KNOWNDEV_NOPROD,
-	    "Vision",
+	    "Alcatel Mobile Phones",
 	    NULL,
 	},
 	{
 	    USB_VENDOR_ATEN, 0,
 	    USB_KNOWNDEV_NOPROD,
-	    "ATen",
+	    "ATEN International Corp. Ltd.",
 	    NULL,
 	},
 	{
 	    USB_VENDOR_PERACOM, 0,
 	    USB_KNOWNDEV_NOPROD,
-	    "Peracom",
+	    "Peracom Networks Inc.",
+	    NULL,
+	},
+	{
+	    USB_VENDOR_WACOM, 0,
+	    USB_KNOWNDEV_NOPROD,
+	    "WACOM Corp. Ltd.",
 	    NULL,
 	},
 	{
@@ -486,7 +558,7 @@ struct usb_knowndev usb_knowndevs[] = {
 	{
 	    USB_VENDOR_AGILER, 0,
 	    USB_KNOWNDEV_NOPROD,
-	    "Agiler",
+	    "Elecom Corp. Ltd.",
 	    NULL,
 	},
 	{
@@ -498,7 +570,7 @@ struct usb_knowndev usb_knowndevs[] = {
 	{
 	    USB_VENDOR_IOMEGA, 0,
 	    USB_KNOWNDEV_NOPROD,
-	    "Iomega",
+	    "Iomega Corp.",
 	    NULL,
 	},
 	{
@@ -510,13 +582,13 @@ struct usb_knowndev usb_knowndevs[] = {
 	{
 	    USB_VENDOR_BELKIN, 0,
 	    USB_KNOWNDEV_NOPROD,
-	    "Belkin",
+	    "In-System Design",
 	    NULL,
 	},
 	{
-	    USB_VENDOR_LOGITECH, 0,
+	    USB_VENDOR_APPLE, 0,
 	    USB_KNOWNDEV_NOPROD,
-	    "Logitech",
+	    "Apple Computer",
 	    NULL,
 	},
 	{
@@ -556,15 +628,15 @@ struct usb_knowndev usb_knowndevs[] = {
 	    NULL,
 	},
 	{
-	    USB_VENDOR_ENTREGA, 0,
-	    USB_KNOWNDEV_NOPROD,
-	    "Entrega",
-	    NULL,
-	},
-	{
 	    USB_VENDOR_INSIDEOUT, 0,
 	    USB_KNOWNDEV_NOPROD,
 	    "Inside Out Networks",
+	    NULL,
+	},
+	{
+	    USB_VENDOR_ENTREGA, 0,
+	    USB_KNOWNDEV_NOPROD,
+	    "Entrega",
 	    NULL,
 	},
 	{
