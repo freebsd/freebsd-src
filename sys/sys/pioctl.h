@@ -75,4 +75,5 @@ struct procfs_status {
 
 # define PF_LINGER	0x01	/* Keep stops around after last close */
 # define PF_ISUGID	0x02	/* Ignore UID/GID changes */
+# define PF_FORK	0x04	/* Retain settings on fork() */
 #endif 
