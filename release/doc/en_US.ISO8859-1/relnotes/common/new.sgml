@@ -374,7 +374,7 @@
 	  framework.</para>
 
 	<para>The &man.cdce.4; USB Communication Device Class Ethernet
-	  driver has been added.</para>
+	  driver has been added. &merged;</para>
 
 	<para>The &man.cp.4; driver is now MPSAFE. &merged;</para>
 
@@ -437,6 +437,9 @@
 	  Note in particular that WEP now requires the
 	  <filename>wlan_wep</filename> module to be loaded (or
 	  compiled) into the kernel.</para>
+
+	<para>The &man.xl.4; driver now supports
+	  &man.polling.4;.</para>
 
       </sect4>
     </sect3>
@@ -556,6 +559,11 @@
 
       <para>The &man.amr.4; driver is now safe for use on systems
 	using &man.pae.4;. &merged;</para>
+
+      <para arch="i386,ia64">The &man.arcmsr.4; driver has been added.
+	It supports the Areca ARC-11<replaceable>xx</replaceable> and
+	ARC-12<replaceable>xx</replaceable> series of SATA RAID
+	controllers.</para>
 
       <para>The SHSEC GEOM class has been added.  It provides for the
 	sharing of a secret between multiple GEOM providers.  All of
@@ -1036,7 +1044,10 @@ moused_ums0_port="/dev/ums0"</programlisting>
       it suitable for both an initial installation and repair
       purposes.  (On the ia64, the live filesystem is on a separate
       disk due to its size.)  Packages appear on separate
-      disks. &merged;</para>
+      disks; in particular, the <filename>disc2</filename> image
+      contains commonly packages such as desktop environments.
+      Documents from the &os; Documentation Project also appear on
+      <filename>disc2</filename>.  &merged;</para>
 
     <para>The supported version of the
       <application>GNOME</application> desktop environment has been
