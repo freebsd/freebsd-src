@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_malloc.c	8.3 (Berkeley) 1/4/94
- * $Id: kern_malloc.c,v 1.30 1997/09/16 13:51:58 bde Exp $
+ * $Id: kern_malloc.c,v 1.31 1997/10/10 14:06:34 phk Exp $
  */
 
 #include <sys/param.h>
@@ -51,10 +51,10 @@
 #include <vm/vm_map.h>
 
 static void kmeminit __P((void *));
-static void malloc_init __P((struct kmemstats *));
+static void malloc_init __P((struct malloc_type *));
 SYSINIT(kmem, SI_SUB_KMEM, SI_ORDER_FIRST, kmeminit, NULL)
 
-struct kmemstats *kmemstatistics = M_FREE;
+struct malloc_type *kmemstatistics = M_FREE;
 static struct kmembuckets bucket[MINBUCKET + 16];
 static struct kmemusage *kmemusage;
 static char *kmembase;
@@ -86,7 +86,7 @@ static long addrmask[] = { 0,
  */
 struct freelist {
 	long	spare0;
-	struct kmemstats *type;
+	struct malloc_type *type;
 	long	spare1;
 	caddr_t	next;
 };
@@ -102,7 +102,7 @@ struct freelist {
 void *
 malloc(size, type, flags)
 	unsigned long size;
-	struct kmemstats *type;
+	struct malloc_type *type;
 	int flags;
 {
 	register struct kmembuckets *kbp;
@@ -116,7 +116,7 @@ malloc(size, type, flags)
 	int copysize;
 	char *savedtype;
 #endif
-	register struct kmemstats *ksp = type;
+	register struct malloc_type *ksp = type;
 
 	if (!type->ks_next)
 		malloc_init(type);
@@ -195,10 +195,10 @@ malloc(size, type, flags)
 	freep = (struct freelist *)va;
 	savedtype = type->ks_shortdesc;
 #if BYTE_ORDER == BIG_ENDIAN
-	freep->type = (struct kmemstats *)WEIRD_ADDR >> 16;
+	freep->type = (struct malloc_type *)WEIRD_ADDR >> 16;
 #endif
 #if BYTE_ORDER == LITTLE_ENDIAN
-	freep->type = (struct kmemstats *)WEIRD_ADDR;
+	freep->type = (struct malloc_type *)WEIRD_ADDR;
 #endif
 	if (((long)(&freep->next)) & 0x2)
 		freep->next = (caddr_t)((WEIRD_ADDR >> 16)|(WEIRD_ADDR << 16));
@@ -239,7 +239,7 @@ out:
 void
 free(addr, type)
 	void *addr;
-	struct kmemstats *type;
+	struct malloc_type *type;
 {
 	register struct kmembuckets *kbp;
 	register struct kmemusage *kup;
@@ -250,7 +250,7 @@ free(addr, type)
 	struct freelist *fp;
 	long *end, *lp, alloc, copysize;
 #endif
-	register struct kmemstats *ksp = type;
+	register struct malloc_type *ksp = type;
 
 	if (!type->ks_next)
 		malloc_init(type);
@@ -399,7 +399,7 @@ kmeminit(dummy)
 
 static void
 malloc_init(type)
-	struct kmemstats *type;
+	struct malloc_type *type;
 {
 	int npg;
 

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_subr.c	8.3 (Berkeley) 1/21/94
- * $Id: kern_subr.c,v 1.11 1997/05/28 00:47:27 alex Exp $
+ * $Id: kern_subr.c,v 1.12 1997/09/02 20:05:42 bde Exp $
  */
 
 #include <sys/param.h>
@@ -198,7 +198,8 @@ again:
  */
 void *
 hashinit(elements, type, hashmask)
-	int elements, type;
+	int elements;
+	struct malloc_type *type;
 	u_long *hashmask;
 {
 	long hashsize;
@@ -227,7 +228,8 @@ static int primes[] = { 1, 13, 31, 61, 127, 251, 509, 761, 1021, 1531, 2039,
  */
 void *
 phashinit(elements, type, nentries)
-	int elements, type;
+	int elements;
+	struct malloc_type *type;
 	u_long *nentries;
 {
 	long hashsize;
