@@ -36,61 +36,15 @@
 #include <sys/callout.h>
 
 /*
- * Macro to turn a device number into various parameters, and test for
- * CONTROL device.
- * max of 4 controllers with up to 32 ports per controller.
- * minor device allocation is:
- * adapter	port
- *   0          0-31
- *   1		32-63
- *   2		64-95
- *   3		96-127
- */
+ * We name devices with %r in make_dev() with a radix of 32.
+ */ 
 #define	SI_MAXPORTPERCARD	32
-#define	SI_MAXCONTROLLER	4
-
-
-/*
- * breakup of minor device number:
- * lowest 5 bits:	port number on card		0x1f
- * next 2 bits:		card number			0x60
- * top bit:		callout				0x80
- * next 8 bits is the major number
- * next 2 bits select initial/lock states
- * next 1 bit selects the master control device
- */
-
-#define	SI_PORT_MASK		0x1f
-#define	SI_CARD_MASK		0x60
-#define	SI_TTY_MASK		0x7f
-#define SI_CALLOUT_MASK		0x80
-#define	SI_INIT_STATE_MASK	0x10000
-#define	SI_LOCK_STATE_MASK	0x20000
-#define	SI_STATE_MASK		0x30000
-#define	SI_CONTROLDEV_MASK	0x40000
-#define	SI_SPECIAL_MASK		0x70000
-
-#define SI_CARDSHIFT		5
-#define	SI_PORT(m)		(m & SI_PORT_MASK)
-#define	SI_CARD(m)		((m & SI_CARD_MASK) >> SI_CARDSHIFT)
-#define	SI_TTY(m)		(m & SI_TTY_MASK)
-
-#define	IS_CALLOUT(m)		(m & SI_CALLOUT_MASK)
-#define	IS_STATE(m)		(m & SI_STATE_MASK)
-#define	IS_CONTROLDEV(m)	(m & SI_CONTROLDEV_MASK)
-#define	IS_SPECIAL(m)		(m & SI_SPECIAL_MASK)
-
-#define	MINOR2SC(m)	((struct si_softc *)devclass_get_softc(si_devclass, SI_CARD(m)))
-#define	MINOR2PP(m)	(MINOR2SC((m))->sc_ports + SI_PORT((m)))
-#define	MINOR2TP(m)	(MINOR2PP((m))->sp_tty)
-#define	TP2PP(tp)	(MINOR2PP(SI_TTY(minor((tp)->t_dev))))
 
 /* Buffer parameters */
 #define	SI_BUFFERSIZE	256
 
-typedef	unsigned char	BYTE;		/* Type cast for unsigned 8 bit */
-typedef	unsigned short	WORD;		/* Type cast for unsigned 16 bit */
-
+typedef	uint8_t 	BYTE;		/* Type cast for unsigned 8 bit */
+typedef	uint16_t 	WORD;		/* Type cast for unsigned 16 bit */
 
 /*
  * Hardware `registers', stored in the shared memory.
@@ -330,24 +284,16 @@ struct si_port {
 	int		sp_pend;	/* pending command */
 	int		sp_last_hi_ip;	/* cached DCD */
 	int		sp_state;
-	int		sp_active_out;	/* callout is open */
 	int		sp_delta_overflows;
-	u_int		sp_wopeners;	/* # procs waiting DCD */
-	/* Initial state. */
-	struct termios	sp_iin;
-	struct termios	sp_iout;
-	/* Lock state. */
-	struct termios	sp_lin;
-	struct termios	sp_lout;
 	struct callout_handle lstart_ch;/* For canceling our timeout */
 #ifdef	SI_DEBUG
 	int		sp_debug;	/* debug mask */
+	char		sp_name[5];
 #endif
 };
 
 /* sp_state */
-#define	SS_CLOSED	0x0000
-#define	SS_OPEN		0x0001	/* Port is active			*/
+/*			0x0001	--					*/
 /*			0x0002	--					*/
 /*			0x0004	--					*/
 /*			0x0008	--					*/
@@ -357,42 +303,14 @@ struct si_port {
 /*			0x0080	-- 	 				*/
 #define SS_LSTART	0x0100	/* lstart timeout pending		*/
 #define SS_INLSTART	0x0200	/* running an lstart induced t_oproc	*/
-#define SS_CLOSING	0x0400	/* in the middle of a siclose()		*/
+/*			0x0400	--					*/
 /*			0x0800	--					*/
-#define	SS_WAITWRITE	0x1000
-#define	SS_BLOCKWRITE	0x2000
 
 /*
  *	Command post flags
  */
 #define	SI_NOWAIT	0x00	/* Don't wait for command */
 #define SI_WAIT		0x01	/* Wait for complete */
-
-/*
- * Extensive debugging stuff - manipulated using siconfig(8)
- */
-#define	DBG_ENTRY		0x00000001
-#define	DBG_DRAIN		0x00000002
-#define	DBG_OPEN		0x00000004
-#define	DBG_CLOSE		0x00000008
-#define	DBG_READ		0x00000010
-#define	DBG_WRITE		0x00000020
-#define	DBG_PARAM		0x00000040
-#define	DBG_INTR		0x00000080
-#define	DBG_IOCTL		0x00000100
-/*				0x00000200 */
-#define	DBG_SELECT		0x00000400
-#define	DBG_OPTIM		0x00000800
-#define	DBG_START		0x00001000
-#define	DBG_EXIT		0x00002000
-#define	DBG_FAIL		0x00004000
-#define	DBG_STOP		0x00008000
-#define	DBG_AUTOBOOT		0x00010000
-#define	DBG_MODEM		0x00020000
-#define	DBG_DOWNLOAD		0x00040000
-#define	DBG_LSTART		0x00080000
-#define	DBG_POLL		0x00100000
-#define	DBG_ALL			0xffffffff
 
 /*
  *	SI ioctls
