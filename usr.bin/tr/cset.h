@@ -43,7 +43,6 @@ struct csnode {
 struct csclass {
 	wctype_t	csc_type;
 	bool		csc_invert;
-	bool		csc_value;
 	struct csclass	*csc_next;
 };
 
