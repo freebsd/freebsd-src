@@ -119,7 +119,7 @@ sub GetNameAndVersion {
 sub PrintHelp {
     print <<"EOF"
 pkg_version $Version
-Bruce A. Mah <bmah\@ca.sandia.gov>
+Bruce A. Mah <bmah\@freebsd.org>
 
 Usage: pkg_version [-c] [-d debug] [-h] [-v] [index]
 -c              Show commands to update installed packages
