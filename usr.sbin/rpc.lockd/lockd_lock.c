@@ -1226,11 +1226,12 @@ void
 retry_blockingfilelocklist(void)
 {
 	/* Retry all locks in the blocked list */
-	struct file_lock *ifl, *nfl; /* Iterator */
+	struct file_lock *ifl, *nfl, *pfl; /* Iterator */
 	enum partialfilelock_status pflstatus;
 
 	debuglog("Entering retry_blockingfilelocklist\n");
 
+	pfl = NULL;
 	ifl = LIST_FIRST(&blockedlocklist_head);
 	debuglog("Iterator choice %p\n",ifl);
 
@@ -1241,6 +1242,7 @@ retry_blockingfilelocklist(void)
 		 */
 		nfl = LIST_NEXT(ifl, nfslocklist);
 		debuglog("Iterator choice %p\n",ifl);
+		debuglog("Prev iterator choice %p\n",pfl);
 		debuglog("Next iterator choice %p\n",nfl);
 
 		/*
@@ -1260,11 +1262,20 @@ retry_blockingfilelocklist(void)
 		} else {
 			/* Reinsert lock back into same place in blocked list */
 			debuglog("Replacing blocked lock\n");
-			LIST_INSERT_BEFORE(nfl, ifl, nfslocklist);
+			if (pfl != NULL)
+				LIST_INSERT_AFTER(pfl, ifl, nfslocklist);
+			else
+				/* ifl is the only elem. in the list */
+				LIST_INSERT_HEAD(&blockedlocklist_head, ifl, nfslocklist);
 		}
 
 		/* Valid increment behavior regardless of state of ifl */
 		ifl = nfl;
+		/* if a lock was granted incrementing pfl would make it nfl */
+		if (pfl != NULL && (LIST_NEXT(pfl, nfslocklist) != nfl))
+			pfl = LIST_NEXT(pfl, nfslocklist);
+		else
+			pfl = LIST_FIRST(&blockedlocklist_head);
 	}
 
 	debuglog("Exiting retry_blockingfilelocklist\n");
