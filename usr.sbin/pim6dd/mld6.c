@@ -63,7 +63,7 @@
  *  Questions concerning this software should be directed to 
  *  Pavlin Ivanov Radoslavov (pavlin@catarina.usc.edu)
  *
- *  $Id: mld6.c,v 1.13 2000/04/12 07:34:38 jinmei Exp $
+ *  $Id: mld6.c,v 1.14 2000/10/05 22:20:38 itojun Exp $
  */
 /*
  * Part of this program has been derived from mrouted.
@@ -342,6 +342,8 @@ int recvlen;
 	{
 		log(LOG_INFO, 0,
 		    "RECV %s with an invalid scope: %s from %s",
+		    packet_kind(IPPROTO_ICMPV6, mldh->mld6_type,
+				mldh->mld6_code),
 		    inet6_fmt(&mldh->mld6_addr),
 		    inet6_fmt(&src->sin6_addr));
 		return;			/* discard */

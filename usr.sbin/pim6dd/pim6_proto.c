@@ -61,7 +61,7 @@
  *  Questions concerning this software should be directed to 
  *  Kurt Windisch (kurtw@antc.uoregon.edu)
  *
- *  $Id: pim6_proto.c,v 1.5 2000/04/30 10:50:31 jinmei Exp $
+ *  $Id: pim6_proto.c,v 1.6 2000/10/05 22:20:38 itojun Exp $
  */
 /*
  * Part of this program has been derived from PIM sparse-mode pimd.
@@ -489,7 +489,7 @@ schedule_delayed_join(mrtentry_ptr, target)
 #endif
     
 	IF_DEBUG(DEBUG_PIM_JOIN_PRUNE)
-		log(LOG_DEBUG, 0, "Scheduling join for src %s, grp %s, delay %d",
+		log(LOG_DEBUG, 0, "Scheduling join for src %s, grp %s, delay %ld",
 		    inet6_fmt(&mrtentry_ptr->source->address.sin6_addr),
 		    inet6_fmt(&mrtentry_ptr->group->group.sin6_addr),
 		    random_delay);

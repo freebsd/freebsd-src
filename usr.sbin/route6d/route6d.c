@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: route6d.c,v 1.30 2000/06/04 06:48:03 itojun Exp $	*/
+/*	$KAME: route6d.c,v 1.35 2000/08/13 00:39:44 itojun Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
@@ -31,7 +31,7 @@
  */
 
 #ifndef	lint
-static char _rcsid[] = "$KAME: route6d.c,v 1.30 2000/06/04 06:48:03 itojun Exp $";
+static char _rcsid[] = "$KAME: route6d.c,v 1.35 2000/08/13 00:39:44 itojun Exp $";
 #endif
 
 #include <stdio.h>
@@ -253,9 +253,12 @@ struct in6_addr *plen2mask __P((int));
 struct riprt *rtsearch __P((struct netinfo6 *));
 int ripinterval __P((int));
 time_t ripsuptrig __P((void));
-void fatal __P((const char *, ...));
-void trace __P((int, const char *, ...));
-void tracet __P((int, const char *, ...));
+void fatal __P((const char *, ...))
+	__attribute__((__format__(__printf__, 1, 2)));
+void trace __P((int, const char *, ...))
+	__attribute__((__format__(__printf__, 2, 3)));
+void tracet __P((int, const char *, ...))
+	__attribute__((__format__(__printf__, 2, 3)));
 unsigned int if_maxindex __P((void));
 struct ifc *ifc_find __P((char *));
 struct iff *iff_find __P((struct ifc *, int));
@@ -530,7 +533,7 @@ init()
 	hints.ai_flags = AI_PASSIVE;
 	error = getaddrinfo(NULL, port, &hints, &res);
 	if (error)
-		fatal(gai_strerror(error));
+		fatal("%s", gai_strerror(error));
 	if (res->ai_next)
 		fatal(":: resolved to multiple address");
 
@@ -563,7 +566,7 @@ init()
 	hints.ai_socktype = SOCK_DGRAM;
 	error = getaddrinfo(RIP6_DEST, port, &hints, &res);
 	if (error)
-		fatal(gai_strerror(error));
+		fatal("%s", gai_strerror(error));
 	if (res->ai_next)
 		fatal("%s resolved to multiple address", RIP6_DEST);
 	memcpy(&ripsin, res->ai_addr, res->ai_addrlen);
@@ -2251,7 +2254,7 @@ rt_entry(rtm, again)
 	if ((rtm->rtm_addrs & RTA_DST) == 0)
 		return;		/* ignore routes without destination address */
 	sin6_dst = (struct sockaddr_in6 *)rtmp;
-	rtmp += sin6_dst->sin6_len;
+	rtmp += ROUNDUP(sin6_dst->sin6_len);
 	if (rtm->rtm_addrs & RTA_GATEWAY) {
 		sin6_gw = (struct sockaddr_in6 *)rtmp;
 		rtmp += ROUNDUP(sin6_gw->sin6_len);
@@ -2724,7 +2727,9 @@ filterconfig()
 	struct	iff ftmp, *iff_obj;
 	struct	ifc *ifcp;
 	struct	riprt *rrt;
+#if 0
 	struct	in6_addr gw;
+#endif
 
 	for (i = 0; i < nfilter; i++) {
 		ap = filter[i];
@@ -2783,6 +2788,24 @@ ifonly:
 		rrt->rrt_rflags = RRTF_AGGREGATE;
 		rrt->rrt_t = 0;
 		rrt->rrt_index = loopifindex;
+#if 0
+		if (getroute(&rrt->rrt_info, &gw)) {
+#if 0
+			/*
+			 * When the address has already been registered in the
+			 * kernel routing table, it should be removed 
+			 */
+			delroute(&rrt->rrt_info, &gw);
+#else
+			/* it is more safe behavior */
+			errno = EINVAL;
+			fatal("%s/%u already in routing table, "
+			    "cannot aggregate",
+			    inet6_n2p(&rrt->rrt_info.rip6_dest),
+			    rrt->rrt_info.rip6_plen);
+#endif
+		}
+#endif
 		/* Put the route to the list */
 		rrt->rrt_next = riprt;
 		riprt = rrt;
@@ -2792,13 +2815,6 @@ ifonly:
 		/* Add this route to the kernel */
 		if (nflag) 	/* do not modify kernel routing table */
 			continue;
-		if (getroute(&rrt->rrt_info, &gw)) {
-			/*
-			 * When the address has already been registered in the
-			 * kernel routing table, it should be removed 
-			 */
-			delroute(&rrt->rrt_info, &gw);
-		}
 		addroute(rrt, &in6addr_loopback, loopifcp);
 	}
 }

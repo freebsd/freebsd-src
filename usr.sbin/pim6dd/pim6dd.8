@@ -1,3 +1,5 @@
+.\"	$KAME: pim6dd.8,v 1.6 2000/07/10 08:52:59 itojun Exp $
+.\"
 .\" Copyright (C) 1998 WIDE Project.
 .\" All rights reserved.
 .\" 
@@ -25,7 +27,6 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: pim6dd.8,v 1.5 2000/05/18 16:11:46 itojun Exp $
 .\"	$FreeBSD$
 .\"
 .Dd Nov 17, 1998
@@ -113,4 +114,11 @@ daemon needs to run on the system.
 The kernel unicast routing table is periodically polled by
 .Nm
 in order to follow changes of existing unicast routes.
+.Pp
+.Nm
+must be used on an IPv6 router.
+Be sure to set
+.Li net.inet6.ip6.forwarding
+variable to 1 with
+.Xr sysctl 8 .
 .\"
