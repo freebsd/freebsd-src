@@ -8,10 +8,12 @@
  *	$Id: cr_err_reply.c,v 1.2 1995/07/18 16:37:49 mark Exp $
  */
 
+#if 0
 #ifndef lint
 static char rcsid[] =
 "$Id: cr_err_reply.c,v 1.2 1995/07/18 16:37:49 mark Exp $";
 #endif /* lint */
+#endif
 
 #include <sys/types.h>
 #include <krb.h>

@@ -29,6 +29,7 @@
 #include <sys/types.h>
 #include <netinet/in.h>
 #include <krb.h>
+#include <krb_db.h>
 #include <des.h>
 
 /* The global structures for the client and server */
@@ -144,5 +145,20 @@ int vts_string(char *dat, u_char **st, int loc);
 int vts_short(u_short dat, u_char **st, int loc);
 int vts_long(u_long dat, u_char **st, int loc);
 int vts_char(u_char dat, u_char **st, int loc);
+
+int kadm_cli_conn(void);
+void kadm_cli_disconn(void);
+int kadm_cli_send(u_char *st_dat, int st_siz, u_char **ret_dat, int *ret_siz);
+int kadm_cli_out(u_char *dat, int dat_len, u_char **ret_dat, int *ret_siz);
+int kadm_cli_keyd(des_cblock s_k, des_key_schedule s_s);
+
+int kadm_get(Kadm_vals *vals, u_char fl[4]);
+int kadm_mod(Kadm_vals *vals1, Kadm_vals *vals2);
+int kadm_add(Kadm_vals *vals);
+int kadm_change_pw(des_cblock newkey);
+int kadm_init_link(char n[], char i[], char r[]);
+void prin_vals(Kadm_vals *vals);
+void kadm_vals_to_prin(u_char fields[FLDSZ], Principal *new, Kadm_vals *old);
+void kadm_prin_to_vals(u_char fields[FLDSZ], Kadm_vals *new, Principal *old);
 
 #endif KADM_DEFS

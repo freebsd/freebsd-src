@@ -29,7 +29,7 @@ static const char rcsid[] =
 */
 
 #include <string.h>
-#include "kadm.h"
+#include <kadm.h>
 
 #define min(a,b) (((a) < (b)) ? (a) : (b))
 
@@ -40,7 +40,11 @@ vals_to_stream
 
 this function creates a byte-stream representation of the kadm_vals structure
 */
-int vals_to_stream(Kadm_vals *dt_in, u_char **dt_out)
+
+int
+vals_to_stream(dt_in, dt_out)
+Kadm_vals *dt_in;
+u_char **dt_out;
 {
   int vsloop, stsize;		/* loop counter, stream size */
 
@@ -74,21 +78,32 @@ int vals_to_stream(Kadm_vals *dt_in, u_char **dt_out)
   return(stsize);
 }
 
-int build_field_header(u_char *cont, u_char **st)
+int
+build_field_header(cont, st)
+u_char *cont;			/* container for fields data */
+u_char **st;			/* stream */
 {
   *st = (u_char *) malloc (4);
   bcopy((char *) cont, (char *) *st, 4);
   return 4;			/* return pointer to current stream location */
 }
 
-int vts_string(char *dat, u_char **st, int loc)
+int
+vts_string(dat, st, loc)
+char *dat;			/* a string to put on the stream */
+u_char **st;			/* base pointer to the stream */
+int loc;			/* offset into the stream for current data */
 {
   *st = (u_char *) realloc ((char *)*st, (unsigned) (loc + strlen(dat) + 1));
   bcopy(dat, (char *)(*st + loc), strlen(dat)+1);
   return strlen(dat)+1;
 }
 
-int vts_short(u_short dat, u_char **st, int loc)
+int
+vts_short(dat, st, loc)
+u_short dat;			/* the attributes field */
+u_char **st;			/* a base pointer to the stream */
+int loc;			/* offset into the stream for current data */
 {
   u_short temp;			/* to hold the net order short */
 
@@ -98,7 +113,11 @@ int vts_short(u_short dat, u_char **st, int loc)
   return sizeof(u_short);
 }
 
-int vts_long(u_long dat, u_char **st, int loc)
+int
+vts_long(dat, st, loc)
+u_long dat;			/* the attributes field */
+u_char **st;			/* a base pointer to the stream */
+int loc;			/* offset into the stream for current data */
 {
   u_long temp;			/* to hold the net order short */
 
@@ -108,8 +127,11 @@ int vts_long(u_long dat, u_char **st, int loc)
   return sizeof(u_long);
 }
 
-
-int vts_char(u_char dat, u_char **st, int loc)
+int
+vts_char(dat, st, loc)
+u_char dat;			/* the attributes field */
+u_char **st;			/* a base pointer to the stream */
+int loc;			/* offset into the stream for current data */
 {
   *st = (u_char *) realloc ((char *)*st, (unsigned)(loc + sizeof(u_char)));
   (*st)[loc] = (u_char) dat;
@@ -123,7 +145,11 @@ stream_to_vals
 
 this decodes a byte stream represntation of a vals struct into kadm_vals
 */
-int stream_to_vals(u_char *dt_in, Kadm_vals *dt_out, int maxlen)
+int
+stream_to_vals(dt_in, dt_out, maxlen)
+u_char *dt_in;
+Kadm_vals *dt_out;
+int maxlen;				/* max length to use */
 {
   register int vsloop, stsize;		/* loop counter, stream size */
   register int status;
@@ -182,7 +208,11 @@ int stream_to_vals(u_char *dt_in, Kadm_vals *dt_out, int maxlen)
   return stsize;
 }
 
-int check_field_header(u_char *st, u_char *cont, int maxlen)
+int
+check_field_header(st, cont, maxlen)
+u_char *st;			/* stream */
+u_char *cont;			/* container for fields data */
+int maxlen;
 {
   if (4 > maxlen)
       return(-1);
@@ -190,7 +220,13 @@ int check_field_header(u_char *st, u_char *cont, int maxlen)
   return 4;			/* return pointer to current stream location */
 }
 
-int stv_string(u_char *st, char *dat, int loc, int stlen, int maxlen)
+int
+stv_string(st, dat, loc, stlen, maxlen)
+register u_char *st;		/* base pointer to the stream */
+char *dat;			/* a string to read from the stream */
+register int loc;		/* offset into the stream for current data */
+int stlen;			/* max length of string to copy in */
+int maxlen;			/* max length of input stream */
 {
   int maxcount;				/* max count of chars to copy */
 
@@ -203,7 +239,12 @@ int stv_string(u_char *st, char *dat, int loc, int stlen, int maxlen)
   return strlen(dat)+1;
 }
 
-int stv_short(u_char *st, u_short *dat, int loc, int maxlen)
+int
+stv_short(st, dat, loc, maxlen)
+u_char *st;			/* a base pointer to the stream */
+u_short *dat;			/* the attributes field */
+int loc;			/* offset into the stream for current data */
+int maxlen;
 {
   u_short temp;			/* to hold the net order short */
 
@@ -214,7 +255,12 @@ int stv_short(u_char *st, u_short *dat, int loc, int maxlen)
   return sizeof(u_short);
 }
 
-int stv_long(u_char *st, u_long *dat, int loc, int maxlen)
+int
+stv_long(st, dat, loc, maxlen)
+u_char *st;			/* a base pointer to the stream */
+u_long *dat;			/* the attributes field */
+int loc;			/* offset into the stream for current data */
+int maxlen;			/* maximum length of st */
 {
   u_long temp;			/* to hold the net order short */
 
@@ -225,10 +271,16 @@ int stv_long(u_char *st, u_long *dat, int loc, int maxlen)
   return sizeof(u_long);
 }
 
-int stv_char(u_char *st, u_char *dat, int loc, int maxlen)
+int
+stv_char(st, dat, loc, maxlen)
+u_char *st;			/* a base pointer to the stream */
+u_char *dat;			/* the attributes field */
+int loc;			/* offset into the stream for current data */
+int maxlen;
 {
   if (loc + 1 > maxlen)
       return(-1);
   *dat = *(st + loc);
   return 1;
 }
+

@@ -5,10 +5,10 @@ PROG=	kadmin
 SRCS=	kadmin.c kadmin_cmds.c
 CLEANFILES+=	kadmin_cmds.c
 CFLAGS+=	-DPOSIX -I${.CURDIR}/../include -I${KRBOBJDIR}
-CFLAGS+=	-I${.CURDIR}/../libkadm
-LDADD+=	-L${KADMOBJDIR} -lkadm -L${KRBOBJDIR} -lkrb -L${DESOBJDIR} -ldes
+CFLAGS+=	-I${.CURDIR}/../libkadm -Wall
+LDADD+=	-L${KADMOBJDIR} -lkadm -L${KRBOBJDIR} -lkrb -ldes
 LDADD+=	-lss -lcom_err
-NOMAN=		# man page is in ../man
+MAN8=	kadmin.8
 
 kadmin_cmds.c:	kadmin_cmds.ct
 	test -e kadmin_cmds.ct || ln -s ${.CURDIR}/kadmin_cmds.ct .

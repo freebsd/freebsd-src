@@ -8,15 +8,22 @@
  *	$Id: kerberos.c,v 1.4 1995/07/18 16:37:51 mark Exp $
  */
 
+#if 0
 #ifndef lint
 static char rcsid[] =
 "$Id: kerberos.c,v 1.4 1995/07/18 16:37:51 mark Exp $";
 #endif  lint
+#endif
 
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <errno.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <arpa/inet.h>
 #include <netdb.h>
 #include <signal.h>
 #include <sgtty.h>
@@ -32,7 +39,14 @@ static char rcsid[] =
 #include <krb_db.h>
 #include <kdc.h>
 
-extern int errno;
+void cr_err_reply(KTEXT pkt, char *pname, char *pinst, char *prealm,
+    u_long time_ws, u_long e, char *e_string);
+void kerb_err_reply(struct sockaddr_in *client, KTEXT pkt, long err,
+    char *string);
+void setup_disc(void);
+void kerberos(struct sockaddr_in *client, KTEXT pkt);
+int check_princ(char *p_name, char *instance, unsigned lifetime, Principal *p);
+int set_tgtkey(char *r);
 
 struct sockaddr_in s_in = {AF_INET};
 int     f;
@@ -47,11 +61,8 @@ static struct timeval kerb_time;
 static Principal a_name_data;	/* for requesting user */
 static Principal s_name_data;	/* for services requested */
 static C_Block session_key;
-static C_Block user_key;
-static C_Block service_key;
 static u_char master_key_version;
 static char k_instance[INST_SZ];
-static char log_text[128];
 static char *lt;
 static int more;
 
@@ -67,7 +78,6 @@ static u_char req_version;
 static char *req_name_ptr;
 static char *req_inst_ptr;
 static char *req_realm_ptr;
-static u_char req_no_req;
 static u_long req_time_ws;
 
 int req_act_vno = KRB_PROT_VERSION; /* Temporary for version skew */
@@ -83,8 +93,6 @@ static long max_q_n;
 static long n_auth_req;
 static long n_appl_req;
 static long n_packets;
-static long n_user;
-static long n_server;
 
 static long max_age = -1;
 static long pause_int = -1;
@@ -105,6 +113,7 @@ static void usage()
 }
 
 
+int
 main(argc, argv)
     int     argc;
     char  **argv;
@@ -117,9 +126,7 @@ main(argc, argv)
     int     fromlen;
     static KTEXT_ST pkt_st;
     KTEXT   pkt = &pkt_st;
-    Principal *p;
-    int     more, kerror;
-    C_Block key;
+    int     kerror;
     int c;
     extern char *optarg;
     extern int optind;
@@ -198,9 +205,9 @@ main(argc, argv)
     printf("Kerberos server starting\n");
 
     if ((!nflag) && (max_age != -1))
-	printf("\tMaximum database age: %d seconds\n", max_age);
+	printf("\tMaximum database age: %ld seconds\n", max_age);
     if (pause_int != -1)
-	printf("\tSleep for %d seconds on error\n", pause_int);
+	printf("\tSleep for %ld seconds on error\n", pause_int);
     else
 	printf("\tSleep forever on error\n");
     if (mflag)
@@ -235,7 +242,7 @@ main(argc, argv)
 	exit(1);
     }
     /* do all the database and cache inits */
-    if (n = kerb_init()) {
+    if ((n = kerb_init())) {
 	if (mflag) {
 	    printf("Kerberos db and cache init ");
 	    printf("failed = %d ...exiting\n", n);
@@ -315,7 +322,7 @@ main(argc, argv)
     }
 }
 
-
+void
 kerberos(client, pkt)
     struct sockaddr_in *client;
     KTEXT   pkt;
@@ -336,7 +343,6 @@ kerberos(client, pkt)
     static int msg_byte_order;
     static int swap_bytes;
     static u_char k_flags;
-    char   *p_name, *instance;
     u_long  lifetime;
     int     i;
     C_Block key;
@@ -378,11 +384,9 @@ kerberos(client, pkt)
 
     case AUTH_MSG_KDC_REQUEST:
 	{
-	    u_long  time_ws;	/* Workstation time */
 	    u_long  req_life;	/* Requested liftime */
 	    char   *service;	/* Service name */
 	    char   *instance;	/* Service instance */
-	    int     kerno;	/* Kerberos error number */
 	    n_auth_req++;
 	    tk->length = 0;
 	    k_flags = 0;	/* various kerberos flags */
@@ -409,8 +413,8 @@ kerberos(client, pkt)
 	    "Initial ticket request Host: %s User: \"%s\" \"%s\"",
 	       inet_ntoa(client_host), req_name_ptr, req_inst_ptr, 0);
 
-	    if (i = check_princ(req_name_ptr, req_inst_ptr, 0,
-		&a_name_data)) {
+	    if ((i = check_princ(req_name_ptr, req_inst_ptr, 0,
+		&a_name_data))) {
 		kerb_err_reply(client, pkt, i, lt);
 		return;
 	    }
@@ -420,8 +424,8 @@ kerberos(client, pkt)
 		    "INITIAL request from %s.%s for %s.%s",
 		     req_name_ptr, req_inst_ptr, service, instance, 0);
 	    /* this does all the checking */
-	    if (i = check_princ(service, instance, lifetime,
-		&s_name_data)) {
+	    if ((i = check_princ(service, instance, lifetime,
+		&s_name_data))) {
 		kerb_err_reply(client, pkt, i, lt);
 		return;
 	    }
@@ -566,7 +570,7 @@ kerberos(client, pkt)
 #endif
 
 	    krb_create_ticket(tk, k_flags, ad->pname, ad->pinst,
-			      ad->prealm, client_host,
+			      ad->prealm, client_host.s_addr,
 			      session_key, lifetime, kerb_time.tv_sec,
 			      s_name_data.name, s_name_data.instance,
 			      key);
@@ -622,6 +626,7 @@ kerberos(client, pkt)
  * group that spawned us.
  */
 
+void
 setup_disc()
 {
 
@@ -642,7 +647,6 @@ setup_disc()
 	(void) close(s);
     }
     (void) chdir("/tmp");
-    return;
 }
 
 
@@ -651,6 +655,7 @@ setup_disc()
  * client.
  */
 
+void
 kerb_err_reply(client, pkt, err, string)
     struct sockaddr_in *client;
     KTEXT   pkt;
@@ -697,6 +702,7 @@ static void check_db_age()
     }
 }
 
+int
 check_princ(p_name, instance, lifetime, p)
     char   *p_name;
     char   *instance;
@@ -706,7 +712,6 @@ check_princ(p_name, instance, lifetime, p)
 {
     static int n;
     static int more;
-    long trans;
 
     n = kerb_get_principal(p_name, instance, p, 1, &more);
     klog(L_ALL_REQ,
@@ -764,6 +769,7 @@ check_princ(p_name, instance, lifetime, p)
 
 
 /* Set the key for krb_rd_req so we can check tgt */
+int
 set_tgtkey(r)
     char   *r;			/* Realm for desired key */
 {
@@ -801,7 +807,7 @@ hang()
 	    pause();
     } else {
 	char buf[256];
-	sprintf(buf,  "Kerberos will wait %d seconds before dying so as not to loop init", pause_int);
+	sprintf(buf,  "Kerberos will wait %ld seconds before dying so as not to loop init", pause_int);
 	klog(L_KRB_PERR, buf);
 	sleep(pause_int);
 	klog(L_KRB_PERR, "Do svedania....\n");

@@ -23,7 +23,7 @@
  */
 
 #include <sys/types.h>
-#include <kerberosIV/krb.h>
+#include <krb.h>
 #include <des.h>
 
 typedef struct {
@@ -47,5 +47,24 @@ typedef struct {
 #define	ADD_ACL_FILE	"/admin_acl.add"
 #define	GET_ACL_FILE	"/admin_acl.get"
 #define	MOD_ACL_FILE	"/admin_acl.mod"
+
+int kadm_ser_in(unsigned char **dat, int *dat_len);
+int kadm_ser_init(int inter, char realm[]);
+int kadm_ser_cpw(u_char *dat, int len, AUTH_DAT *ad, u_char **datout,
+    int *outlen);
+int kadm_ser_add(u_char *dat, int len, AUTH_DAT *ad, u_char **datout,
+    int *outlen);
+int kadm_ser_mod(u_char *dat, int len, AUTH_DAT *ad, u_char **datout,
+    int *outlen);
+int kadm_ser_get(u_char *dat, int len, AUTH_DAT *ad, u_char **datout,
+    int *outlen);
+int kadm_change (char *rname, char *rinstance, char *rrealm,
+    des_cblock newpw);
+int kadm_add_entry(char *rname, char *rinstance, char *rrealm,
+    Kadm_vals *valsin, Kadm_vals *valsout);
+int kadm_mod_entry(char *rname, char *rinstance, char *rrealm,
+    Kadm_vals *valsin1, Kadm_vals *valsin2, Kadm_vals *valsout);
+int kadm_get_entry(char *rname, char *rinstance, char *rrealm,
+    Kadm_vals *valsin, u_char *flags, Kadm_vals *valsout);
 
 #endif KADM_SERVER_DEFS

@@ -20,9 +20,9 @@ static const char rcsid[] =
  * kadm_cli_wrap.c the client side wrapping of the calls to the admin server
  */
 
-#include <sys/types.h>
 #include <unistd.h>
 #include <string.h>
+#include <sys/types.h>
 #include <errno.h>
 #include <signal.h>
 #include <netdb.h>
@@ -30,12 +30,6 @@ static const char rcsid[] =
 #include <kadm.h>
 #include <kadm_err.h>
 #include <krb_err.h>
-
-int kadm_cli_out(u_char *dat, int dat_len, u_char **ret_dat, int *ret_siz);
-int kadm_cli_send(u_char *st_dat, int st_siz, u_char **ret_dat, int *ret_siz);
-int kadm_cli_keyd(des_cblock *s_k, des_key_schedule s_s);
-int kadm_cli_conn(void);
-void kadm_cli_disconn(void);
 
 #ifndef NULL
 #define NULL 0
@@ -50,11 +44,11 @@ static Kadm_Client client_parm;
 static des_cblock sess_key;	       /* to be filled in by kadm_cli_keyd */
 static Key_schedule sess_sched;
 
-static void clear_secrets()
+static void
+clear_secrets()
 {
 	bzero((char *)sess_key, sizeof(sess_key));
 	bzero((char *)sess_sched, sizeof(sess_sched));
-	return;
 }
 
 /*
@@ -65,7 +59,11 @@ static void clear_secrets()
  * data about the connection between the server and client, the services
  * used, the locations and other fun things
  */
-int kadm_init_link(char n[], char i[], char r[])
+int
+kadm_init_link(n, i, r)
+char n[];
+char i[];
+char r[];
 {
 	struct servent *sep;	       /* service we will talk to */
 	struct hostent *hop;	       /* host we will talk to */
@@ -104,7 +102,9 @@ int kadm_init_link(char n[], char i[], char r[])
  * key. Returns no actual data from the master server, since this is called
  * by a user
  */
-int kadm_change_pw(des_cblock newkey)
+int
+kadm_change_pw(newkey)
+des_cblock newkey;		       /* The DES form of the users key */
 {
 	int stsize, retc;	       /* stream size and return code */
 	u_char *send_st;	       /* send stream */
@@ -148,7 +148,9 @@ int kadm_change_pw(des_cblock newkey)
  * entry, so if you leave certain fields blank you will be able to determine
  * the default values they are set to
  */
-int kadm_add(Kadm_vals *vals)
+int
+kadm_add(vals)
+Kadm_vals *vals;
 {
 	u_char *st, *st2;	       /* st will hold the stream of values */
 	int st_len;		       /* st2 the final stream with opcode */
@@ -184,7 +186,10 @@ int kadm_add(Kadm_vals *vals)
  * Modifies all entries corresponding to the first values so they match the
  * second values. returns the values for the changed entries in vals2
  */
-int kadm_mod(Kadm_vals *vals1, Kadm_vals *vals2)
+int
+kadm_mod(vals1, vals2)
+Kadm_vals *vals1;
+Kadm_vals *vals2;
 {
 	u_char *st, *st2;	       /* st will hold the stream of values */
 	int st_len, nlen;	       /* st2 the final stream with opcode */
@@ -228,7 +233,11 @@ int kadm_mod(Kadm_vals *vals1, Kadm_vals *vals2)
  * this data for each matching recipient, after a count of how many such
  * matches there were
  */
-int kadm_get(Kadm_vals *vals, u_char fl[4])
+int
+kadm_get(vals, fl)
+Kadm_vals *vals;
+u_char fl[4];
+
 {
 	int loop;		       /* for copying the fields data */
 	u_char *st, *st2;	       /* st will hold the stream of values */
@@ -276,7 +285,12 @@ int kadm_get(Kadm_vals *vals, u_char fl[4])
  * connection to the admin server.  If the connection is succesfully open
  * then it sends the data and waits for a reply.
  */
-int kadm_cli_send(u_char *st_dat, int st_siz, u_char **ret_dat, int *ret_siz)
+int
+kadm_cli_send(st_dat, st_siz, ret_dat, ret_siz)
+u_char *st_dat;				/* the actual data */
+int st_siz;				/* length of said data */
+u_char **ret_dat;			/* to give return info */
+int *ret_siz;				/* length of returned info */
 {
 	int act_len, retdat;	       /* current offset into packet, return
 				        * data */
@@ -292,7 +306,7 @@ int kadm_cli_send(u_char *st_dat, int st_siz, u_char **ret_dat, int *ret_siz)
 	(void) strncpy((char *)act_st, KADM_VERSTR, KADM_VERSIZE);
 	act_len = KADM_VERSIZE;
 
-	if ((retdat = kadm_cli_keyd(&sess_key, sess_sched)) != KADM_SUCCESS) {
+	if ((retdat = kadm_cli_keyd(sess_key, sess_sched)) != KADM_SUCCESS) {
 		free((char *)act_st);
 		return retdat;	       /* couldnt get key working */
 	}
@@ -312,7 +326,7 @@ int kadm_cli_send(u_char *st_dat, int st_siz, u_char **ret_dat, int *ret_siz)
 	cksum = 0;
 #else
 	cksum = quad_cksum((des_cblock *)priv_pak, (des_cblock *)0,
-		(long)priv_len, 0, &sess_key);
+		(long)priv_len, 0, (des_cblock *)sess_key);
 #endif
 	if ((retdat = krb_mk_req(&authent, client_parm.sname, client_parm.sinst,
 				client_parm.krbrlm, (long)cksum))) {
@@ -379,7 +393,10 @@ int kadm_cli_send(u_char *st_dat, int st_siz, u_char **ret_dat, int *ret_siz)
 }
 
 /* takes in the sess_key and key_schedule and sets them appropriately */
-int kadm_cli_keyd(des_cblock *s_k, des_key_schedule s_s)
+int
+kadm_cli_keyd(s_k, s_s)
+des_cblock s_k;			       /* session key */
+des_key_schedule s_s;		       /* session key schedule */
 {
 	CREDENTIALS cred;	       /* to get key data */
 	int stat;
@@ -393,7 +410,7 @@ int kadm_cli_keyd(des_cblock *s_k, des_key_schedule s_s)
 #ifdef NOENCRYPTION
 	bzero(s_s, sizeof(des_key_schedule));
 #else
-	if ((stat = key_sched(s_k,s_s)))
+	if ((stat = key_sched((des_cblock *)s_k,s_s)))
 		return(stat+krb_err_base);
 #endif
 	return KADM_SUCCESS;
@@ -401,7 +418,8 @@ int kadm_cli_keyd(des_cblock *s_k, des_key_schedule s_s)
 
 static sigtype (*opipe)();
 
-int kadm_cli_conn()
+int
+kadm_cli_conn()
 {					/* this connects and sets my_addr */
     int on = 1;
 
@@ -435,15 +453,21 @@ int kadm_cli_conn()
     return KADM_SUCCESS;
 }
 
-void kadm_cli_disconn()
+void
+kadm_cli_disconn()
 {
     (void) close(client_parm.admin_fd);
     (void) signal(SIGPIPE, opipe);
-    return;
 }
 
-int kadm_cli_out(u_char *dat, int dat_len, u_char **ret_dat, int *ret_siz)
+int
+kadm_cli_out(dat, dat_len, ret_dat, ret_siz)
+u_char *dat;
+int dat_len;
+u_char **ret_dat;
+int *ret_siz;
 {
+	extern int errno;
 	u_short dlen;
 	int retval;
 
@@ -461,7 +485,7 @@ int kadm_cli_out(u_char *dat, int dat_len, u_char **ret_dat, int *ret_siz)
 		return (errno);	       /* XXX */
 
 	if ((retval = krb_net_read(client_parm.admin_fd, (char *) &dlen,
-				  sizeof(u_short))) != sizeof(u_short)) {
+				  sizeof(u_short)) != sizeof(u_short))) {
 	    if (retval < 0)
 		return(errno);		/* XXX */
 	    else
@@ -474,7 +498,7 @@ int kadm_cli_out(u_char *dat, int dat_len, u_char **ret_dat, int *ret_siz)
 	    return(KADM_NOMEM);
 
 	if ((retval = krb_net_read(client_parm.admin_fd, (char *) *ret_dat,
-				  (int) dlen)) != dlen) {
+				  (int) dlen) != dlen)) {
 	    if (retval < 0)
 		return(errno);		/* XXX */
 	    else

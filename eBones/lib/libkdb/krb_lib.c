@@ -78,8 +78,13 @@ kerb_fini()
  */
 
 int
-kerb_get_principal(char *name, char *inst, Principal *principal,
-    unsigned int max, int *more)
+kerb_get_principal(name, inst, principal, max, more)
+    char   *name;		/* could have wild card */
+    char   *inst;		/* could have wild card */
+    Principal *principal;
+    unsigned int max;		/* max number of name structs to return */
+    int    *more;		/* more tuples than room for */
+
 {
     int     found = 0;
 #ifdef CACHE
@@ -131,7 +136,10 @@ kerb_get_principal(char *name, char *inst, Principal *principal,
 }
 
 /* principals */
-int kerb_put_principal(Principal *principal, unsigned int n)
+int
+kerb_put_principal(principal, n)
+    Principal *principal;
+    unsigned int n;		/* number of principal structs to write */
 {
     long time();
     struct tm *tp, *localtime();
@@ -176,7 +184,13 @@ int kerb_put_principal(Principal *principal, unsigned int n)
 }
 
 int
-kerb_get_dba(char *name, char *inst, Dba *dba, unsigned int max, int *more)
+kerb_get_dba(name, inst, dba, max, more)
+    char   *name;		/* could have wild card */
+    char   *inst;		/* could have wild card */
+    Dba    *dba;
+    unsigned int max;		/* max number of name structs to return */
+    int    *more;		/* more tuples than room for */
+
 {
     int     found = 0;
 #ifdef CACHE

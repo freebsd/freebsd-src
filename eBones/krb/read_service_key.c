@@ -17,8 +17,8 @@ static char *rcsid =
 
 #include <krb.h>
 #include <stdio.h>
-#include <strings.h>
 #include <unistd.h>
+#include <strings.h>
 
 /*
  * The private keys for servers on a given host are stored in a
@@ -54,8 +54,14 @@ static char *rcsid =
 
 
 /*ARGSUSED */
-int read_service_key(char *service, char *instance, char *realm, int kvno,
-    char *file, char *key)
+int
+read_service_key(service,instance,realm,kvno,file,key)
+    char *service;              /* Service Name */
+    char *instance;             /* Instance name or "*" */
+    char *realm;                /* Realm */
+    int kvno;                   /* Key version number */
+    char *file;                 /* Filename */
+    char *key;                  /* Pointer to key to be filled in */
 {
     char serv[SNAME_SZ];
     char inst[INST_SZ];

@@ -8,12 +8,17 @@
  *	$Id: kstash.c,v 1.3 1995/07/18 16:40:16 mark Exp $
  */
 
+#if 0
 #ifndef	lint
 static char rcsid[] =
 "$Id: kstash.c,v 1.3 1995/07/18 16:40:16 mark Exp $";
 #endif	lint
+#endif
 
+#include <unistd.h>
 #include <stdio.h>
+#include <string.h>
+#include <errno.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -31,27 +36,23 @@ static char rcsid[] =
 #include <krb_db.h>
 #include <kdc.h>
 
-extern int errno;
-
 /* change this later, but krblib_dbm needs it for now */
 char   *progname;
 
 static C_Block master_key;
 static Key_schedule master_key_schedule;
-static Principal s_name_data;	/* for services requested */
-static unsigned char master_key_version;
 int     debug;
-static int more;
 static int kfile;
 static void clear_secrets();
 
+int
 main(argc, argv)
     int     argc;
     char  **argv;
 {
     long    n;
-    if (n = kerb_init()) {
-	fprintf(stderr, "Kerberos db and cache init failed = %d\n", n);
+    if ((n = kerb_init())) {
+	fprintf(stderr, "Kerberos db and cache init failed = %ld\n", n);
 	exit(1);
     }
 
@@ -82,6 +83,7 @@ main(argc, argv)
     }
     (void) close(kfile);
     clear_secrets();
+    return(0);
 }
 
 static void

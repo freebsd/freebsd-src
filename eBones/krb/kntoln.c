@@ -44,7 +44,10 @@ static char *rcsid =
  * KSUCCESS if all goes well, otherwise KFAILURE.
  */
 
-int krb_kntoln(AUTH_DAT *ad, char *lname)
+int
+krb_kntoln(ad,lname)
+    AUTH_DAT *ad;
+    char *lname;
 {
     static char lrealm[REALM_SZ] = "";
 

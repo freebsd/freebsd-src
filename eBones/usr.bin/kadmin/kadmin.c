@@ -16,17 +16,24 @@
  * NO_MULTIPLE defined.
  */
 
+#if 0
 #ifndef	lint
 static char rcsid_kadmin_c[] =
 "BonesHeader: /afs/athena.mit.edu/astaff/project/kerberos/src/kadmin/RCS/kadmin.c,v 4.5 89/09/26 14:17:54 qjb Exp ";
 #endif	lint
+#endif
 
+#include <unistd.h>
+#include <string.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
 #include <sys/param.h>
 #include <pwd.h>
 #include <ss/ss.h>
-#include "krb_err.h"
-#include "kadm.h"
+#include <com_err.h>
+#include <krb_err.h>
+#include <kadm.h>
 
 #define BAD_PW 1
 #define GOOD_PW 0
@@ -40,12 +47,12 @@ static char rcsid_kadmin_c[] =
 #define DONTSWAP 0
 #define SWAP 1
 
-extern int kadm_init_link();
-extern char *error_message();
-extern void krb_set_tkt_string();
-
-static void do_init();
-void clean_up();
+static void do_init(int argc, char *argv[]);
+void clean_up(void);
+int get_password(unsigned long *low, unsigned long *high, char *prompt,
+    int byteswap);
+int get_admin_password(void);
+int princ_exists(char *name, char *instance, char *realm);
 
 extern ss_request_table admin_cmds;
 
@@ -56,6 +63,7 @@ static char krbrlm[REALM_SZ];	/* current realm being administered */
 static int multiple = 0;	/* Allow multiple requests per ticket */
 #endif
 
+int
 main(argc, argv)
   int argc;
   char *argv[];
@@ -98,7 +106,7 @@ setvals(vals, string)
 
     SET_FIELD(KADM_NAME,vals->fields);
     SET_FIELD(KADM_INST,vals->fields);
-    if (status = kname_parse(vals->name, vals->instance, realm, string)) {
+    if ((status = kname_parse(vals->name, vals->instance, realm, string))) {
 	printf("kerberos error: %s\n", krb_err_txt[status]);
 	return status;
     }
@@ -389,12 +397,13 @@ help(argc, argv)
 	printf("\n");
 	printf("This command exits this program.\n");
     } else {
-	printf("Sorry there is no such command as %s.");
-	printf(" Type \"help\" for more information.    \n", argv[1]);
+	printf("Sorry there is no such command as %s.", argv[1]);
+	printf(" Type \"help\" for more information.    \n");
     }
     return;
 }
 
+void
 go_home(str,x)
 char *str;
 int x;
@@ -406,7 +415,8 @@ int x;
 
 static int inited = 0;
 
-void usage()
+void
+usage()
 {
     fprintf(stderr, "Usage: kadmin [-u admin_name] [-r default_realm]");
 #ifndef NO_MULTIPLE
@@ -605,7 +615,7 @@ int byteswap;
 #ifdef NOENCRYPTION
     bzero((char *) newkey, sizeof(newkey));
 #else
-    des_string_to_key(new_passwd, newkey);
+    des_string_to_key(new_passwd, &newkey);
 #endif
     bzero(new_passwd, sizeof(new_passwd));
 

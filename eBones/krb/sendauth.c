@@ -28,6 +28,10 @@ static char rcsid[] =
  * and make appropriate changes in krb_recvauth.c
  */
 
+extern int errno;
+
+extern char *krb_get_phost();
+
 /*
  * This file contains two routines: krb_sendauth() and krb_sendsrv().
  *
@@ -107,10 +111,21 @@ static char rcsid[] =
  * will disappear when krb_sendauth() returns.
  */
 
-int krb_sendauth(long options, int fd, KTEXT ticket, char *service, char *inst,
-	char *realm, u_long checksum, MSG_DAT *msg_data, CREDENTIALS *cred,
-	des_key_schedule schedule, struct sockaddr_in *laddr,
-	struct sockaddr_in *faddr, char *version)
+int
+krb_sendauth(options, fd, ticket, service, inst, realm, checksum,
+	msg_data, cred, schedule, laddr, faddr, version)
+long options;			 /* bit-pattern of options */
+int fd;				 /* file descriptor to write onto */
+KTEXT ticket;			 /* where to put ticket (return); or
+				  * supplied in case of KOPT_DONT_MK_REQ */
+char *service, *inst, *realm;	 /* service name, instance, realm */
+u_long checksum;		 /* checksum to include in request */
+MSG_DAT *msg_data;		 /* mutual auth MSG_DAT (return) */
+CREDENTIALS *cred;		 /* credentials (return) */
+Key_schedule schedule;		 /* key schedule (return) */
+struct sockaddr_in *laddr;	 /* local address */
+struct sockaddr_in *faddr;	 /* address of foreign host on fd */
+char *version;			 /* version string */
 {
     int rem, i, cc;
     char srv_inst[INST_SZ];
@@ -198,7 +213,7 @@ int krb_sendauth(long options, int fd, KTEXT ticket, char *service, char *inst,
 
 	/* ...and decrypt it */
 #ifndef NOENCRYPTION
-	key_sched((des_cblock *)cred->session,schedule);
+	key_sched((C_Block *)cred->session,schedule);
 #endif
 	if ((cc = krb_rd_priv(priv_buf,(unsigned long) tkt_len, schedule,
 			     cred->session, faddr, laddr, msg_data)))
@@ -221,7 +236,10 @@ int krb_sendauth(long options, int fd, KTEXT ticket, char *service, char *inst,
  * krb_sendsvc
  */
 
-int krb_sendsvc(int fd, char *service)
+int
+krb_sendsvc(fd, service)
+int fd;
+char *service;
 {
     /* write the service name length and then the service name to
        the fd */

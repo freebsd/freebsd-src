@@ -14,9 +14,7 @@ static char rcsid[] =
 #endif	lint
 #endif
 
-#include <stdio.h>
 #include <unistd.h>
-#include <krb.h>
 
 /*
  * krb_net_read() reads from the file descriptor "fd" to the buffer
@@ -28,7 +26,11 @@ static char rcsid[] =
  * XXX must not use non-blocking I/O
  */
 
-int krb_net_read(int fd, char *buf, int len)
+int
+krb_net_read(fd, buf, len)
+int fd;
+register char *buf;
+register int len;
 {
     int cc, len2 = 0;
 
