@@ -91,13 +91,13 @@ The following switches are configurable through
 .It Ar maprts (\-maprts)
 Maps the functionality normally associated with the DTR pin to
 action on the RTS pin instead.
-So in other words the RTS pin will now act as if it where the DTR pin.
+So in other words the RTS pin will now act as if it were the DTR pin.
 This is useful for boards that have ports that do not have full
 modem signaling on their connector (eg ONboard 16).
 .It Ar mapcts (\-mapcts)
 Maps the functionality normally associated with the DCD pin to
 be actioned on the CTS pin.
-So in other words the CTS pin will now act as if it was the DCD pin.
+So in other words the CTS pin will now act as if it were the DCD pin.
 This is useful for boards that have ports that do not have full
 modem signaling on their connector (eg ONboard 16).
 .It Ar rtslock (\-rtslock)
@@ -150,7 +150,7 @@ Disables the UART received FIFO for this port.
 By default the UART received FIFO is programmed to a reasonably
 high level, to minimize CPU overhead.
 Some third party serial devices do not respond quickly to flow
-control signals (hardware of software) and this may cause the
+control signals (hardware or software) and this may cause the
 UART's received FIFO to over-run - thus losing data.
 Turning this switch on disables use of the received FIFO.
 .El
