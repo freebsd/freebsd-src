@@ -511,9 +511,9 @@
 361	MNOPROTO { int getresgid(gid_t *rgid, gid_t *egid, gid_t *sgid); }
 362	MNOPROTO { int kqueue(void); }
 363	MSTD { int freebsd32_kevent(int fd, \
-		    const struct kevent *changelist, int nchanges, \
-		    struct kevent *eventlist, int nevents, \
-		    const struct timespec *timeout); }
+		    const struct kevent32 *changelist, int nchanges, \
+		    struct kevent32 *eventlist, int nevents, \
+		    const struct timespec32 *timeout); }
 364	UNIMPL	__cap_get_proc
 365	UNIMPL	__cap_set_proc
 366	UNIMPL	__cap_get_fd
