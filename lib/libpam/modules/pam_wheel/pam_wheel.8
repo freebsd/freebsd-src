@@ -95,6 +95,14 @@ checking for membership of group
 .Ar foo
 instead of the default group
 .Dq Li wheel .
+.It Cm noroot_ok
+return
+.Dv PAM_SUCCESS
+instead of
+.Dv PAM_IGNORE
+if the user is authenticating
+to a user
+that is not the superuser.
 .El
 .Sh SEE ALSO
 .Xr getlogin 2 ,
