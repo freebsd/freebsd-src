@@ -190,12 +190,6 @@
 #include <i386/isa/ic/rsa.h>
 #endif
 
-/* XXX - this is ok because we only do sio fast interrupts on i386 */
-#ifndef __i386__
-#define disable_intr()
-#define enable_intr()
-#endif
-
 #define	LOTS_OF_EVENTS	64	/* helps separate urgent events from input */
 
 #define	CALLOUT_MASK		0x80
@@ -421,7 +415,7 @@ static	void	siointr1	__P((struct com_s *com));
 static	void	siointr		__P((void *arg));
 static	int	commctl		__P((struct com_s *com, int bits, int how));
 static	int	comparam	__P((struct tty *tp, struct termios *t));
-static	void	siopoll		__P((void *dummy));
+static	void	siopoll		__P((void *));
 static	int	sioprobe	__P((device_t dev, int xrid));
 static	int	sio_isa_probe	__P((device_t dev));
 static	void	siosettimeout	__P((void));
@@ -444,7 +438,9 @@ static	void	sio_pci_kludge_unit __P((device_t dev));
 static	int	sio_pci_probe __P((device_t dev));
 #endif /* NPCI > 0 */
 
-static char driver_name[] = "sio";
+static char	driver_name[] = "sio";
+static struct	mtx sio_lock;
+static int	sio_inited;
 
 /* table and macro for fast conversion from a unit number to its com struct */
 static	devclass_t	sio_devclass;
@@ -1182,7 +1178,6 @@ sioprobe(dev, xrid)
 	u_int		flags = device_get_flags(dev);
 	int		rid;
 	struct resource *port;
-	int		intrsave;
 #ifdef PC98
 	int		tmp;
 	struct siodev	iod;
@@ -1192,7 +1187,7 @@ sioprobe(dev, xrid)
 	iod.if_type = GET_IFTYPE(flags);
 	if ((iod.if_type < 0 || iod.if_type > COM_IF_END1) &&
 	    (iod.if_type < 0x10 || iod.if_type > COM_IF_END2))
-		return ENXIO;
+			return ENXIO;
 #endif
 
 	rid = xrid;
@@ -1203,11 +1198,11 @@ sioprobe(dev, xrid)
 	} else if (iod.if_type == COM_IF_RSA98III ||
 		   isa_get_vendorid(dev)) {
 		port = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0,
-			if_16550a_type[iod.if_type & 0x0f].iatsz, RF_ACTIVE);
+		  if_16550a_type[iod.if_type & 0x0f].iatsz, RF_ACTIVE);
 	} else {
 		port = isa_alloc_resourcev(dev, SYS_RES_IOPORT, &rid,
-			if_16550a_type[iod.if_type & 0x0f].iat,
-			if_16550a_type[iod.if_type & 0x0f].iatsz, RF_ACTIVE);
+		   if_16550a_type[iod.if_type & 0x0f].iat,
+		   if_16550a_type[iod.if_type & 0x0f].iatsz, RF_ACTIVE);
 	}
 #else
 	port = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
@@ -1218,10 +1213,10 @@ sioprobe(dev, xrid)
 #ifdef PC98
 	if (!IS_8251(iod.if_type)) {
 		if (isa_load_resourcev(port,
-			if_16550a_type[iod.if_type & 0x0f].iat,
-			if_16550a_type[iod.if_type & 0x0f].iatsz) != 0) {
-		    bus_release_resource(dev, SYS_RES_IOPORT, rid, port);
-		    return ENXIO;
+		       if_16550a_type[iod.if_type & 0x0f].iat,
+		       if_16550a_type[iod.if_type & 0x0f].iatsz) != 0) {
+			bus_release_resource(dev, SYS_RES_IOPORT, rid, port);
+			return ENXIO;
 		}
 	}
 #endif
@@ -1229,6 +1224,9 @@ sioprobe(dev, xrid)
 	com = device_get_softc(dev);
 	com->bst = rman_get_bustag(port);
 	com->bsh = rman_get_bushandle(port);
+
+	if (atomic_cmpset_int(&sio_inited, 0, 1))
+		mtx_init(&sio_lock, "sio", MTX_SPIN);
 
 #if 0
 	/*
@@ -1421,9 +1419,7 @@ sioprobe(dev, xrid)
 	 * but mask them in the processor as well in case there are some
 	 * (misconfigured) shared interrupts.
 	 */
-	intrsave = save_intr();
-	disable_intr();
-	COM_LOCK();
+	mtx_enter(&sio_lock, MTX_SPIN);
 /* EXTRA DELAY? */
 
 	/*
@@ -1533,8 +1529,7 @@ sioprobe(dev, xrid)
 			CLR_FLAG(dev, COM_C_IIR_TXRDYBUG);
 		}
 		sio_setreg(com, com_cfcr, CFCR_8BITS);
-		COM_UNLOCK();
-		restore_intr(intrsave);
+		mtx_exit(&sio_lock, MTX_SPIN);
 		bus_release_resource(dev, SYS_RES_IOPORT, rid, port);
 		return (iobase == siocniobase ? 0 : result);
 	}
@@ -1592,8 +1587,7 @@ sioprobe(dev, xrid)
 	}
 #endif
 
-	COM_UNLOCK();
-	restore_intr(intrsave);
+	mtx_exit(&sio_lock, MTX_SPIN);
 
 	irqs = irqmap[1] & ~irqmap[0];
 	if (bus_get_resource(idev, SYS_RES_IRQ, 0, &xirq, NULL) == 0 &&
@@ -1728,7 +1722,6 @@ sioattach(dev, xrid)
 	int		rid;
 	struct resource *port;
 	int		ret;
-	int		intrstate;
 #ifdef PC98
 	u_char		*obuf;
 	u_long		obufsize;
@@ -1743,11 +1736,11 @@ sioattach(dev, xrid)
 	} else if (if_type == COM_IF_RSA98III ||
 		   isa_get_vendorid(dev)) {
 		port = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0,
-			if_16550a_type[if_type & 0x0f].iatsz, RF_ACTIVE);
+			  if_16550a_type[if_type & 0x0f].iatsz, RF_ACTIVE);
 	} else {
 		port = isa_alloc_resourcev(dev, SYS_RES_IOPORT, &rid,
-			if_16550a_type[if_type & 0x0f].iat,
-			if_16550a_type[if_type & 0x0f].iatsz, RF_ACTIVE);
+			   if_16550a_type[if_type & 0x0f].iat,
+			   if_16550a_type[if_type & 0x0f].iatsz, RF_ACTIVE);
 	}
 #else
 	port = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
@@ -1758,10 +1751,10 @@ sioattach(dev, xrid)
 #ifdef PC98
 	if (!IS_8251(if_type)) {
 		if (isa_load_resourcev(port,
-			if_16550a_type[if_type & 0x0f].iat,
-			if_16550a_type[if_type & 0x0f].iatsz) != 0) {
-		    bus_release_resource(dev, SYS_RES_IOPORT, rid, port);
-		    return ENXIO;
+			       if_16550a_type[if_type & 0x0f].iat,
+			       if_16550a_type[if_type & 0x0f].iatsz) != 0) {
+			bus_release_resource(dev, SYS_RES_IOPORT, rid, port);
+			return ENXIO;
 		}
 	}
 #endif
@@ -1871,10 +1864,8 @@ sioattach(dev, xrid)
 		com->it_in.c_ispeed = com->it_in.c_ospeed = comdefaultrate;
 	} else
 		com->it_in.c_ispeed = com->it_in.c_ospeed = TTYDEF_SPEED;
-	intrstate = save_intr();
 	if (siosetwater(com, com->it_in.c_ispeed) != 0) {
-		COM_UNLOCK();
-		restore_intr(intrstate);
+		mtx_exit(&sio_lock, MTX_SPIN);
 		/*
 		 * Leave i/o resources allocated if this is a `cn'-level
 		 * console, so that other devices can't snarf them.
@@ -1883,8 +1874,7 @@ sioattach(dev, xrid)
 			bus_release_resource(dev, SYS_RES_IOPORT, rid, port);
 		return (ENOMEM);
 	}
-	COM_UNLOCK();
-	restore_intr(intrstate);
+	mtx_exit(&sio_lock, MTX_SPIN);
 	termioschars(&com->it_in);
 	com->it_out = com->it_in;
 
@@ -2201,8 +2191,6 @@ open_top:
 			goto out;
 		}
 	} else {
-		int	intrsave;
-
 		/*
 		 * The device isn't open, so there are no conflicts.
 		 * Initialize it.  Initialization is done twice in many
@@ -2287,9 +2275,7 @@ open_top:
 			}
 		}
 
-		intrsave = save_intr();
-		disable_intr();
-		COM_LOCK();
+		mtx_enter(&sio_lock, MTX_SPIN);
 #ifdef PC98
 		if (IS_8251(com->pc98_if_type)) {
 		    com_tiocm_bis(com, TIOCM_LE);
@@ -2317,8 +2303,7 @@ open_top:
 #ifdef PC98
 		}
 #endif
-		COM_UNLOCK();
-		restore_intr(intrsave);
+		mtx_exit(&sio_lock, MTX_SPIN);
 		/*
 		 * Handle initial DCD.  Callout devices get a fake initial
 		 * DCD (trapdoor DCD).  If we are callout, then any sleeping
@@ -2607,7 +2592,8 @@ siodtrwakeup(chan)
 }
 
 /*
- * Call this function with COM_LOCK.  It will return with the lock still held.
+ * Call this function with the sio_lock mutex held.  It will return with the
+ * lock still held.
  */
 static void
 sioinput(com)
@@ -2618,7 +2604,6 @@ sioinput(com)
 	u_char		line_status;
 	int		recv_data;
 	struct tty	*tp;
-	int		intrsave;
 
 	buf = com->ibuf;
 	tp = com->tp;
@@ -2641,9 +2626,7 @@ sioinput(com)
 			 * semantics instead of the save-and-disable semantics
 			 * that are used everywhere else.
 			 */
-			intrsave = save_intr();
-			COM_UNLOCK();
-			enable_intr();
+			mtx_exit(&sio_lock, MTX_SPIN);
 			incc = com->iptr - buf;
 			if (tp->t_rawq.c_cc + incc > tp->t_ihiwat
 			    && (com->state & CS_RTS_IFLOW
@@ -2664,8 +2647,7 @@ sioinput(com)
 				tp->t_lflag &= ~FLUSHO;
 				comstart(tp);
 			}
-			restore_intr(intrsave);
-			COM_LOCK();
+			mtx_enter(&sio_lock, MTX_SPIN);
 		} while (buf < com->iptr);
 	} else {
 		do {
@@ -2674,9 +2656,7 @@ sioinput(com)
 			 * semantics instead of the save-and-disable semantics
 			 * that are used everywhere else.
 			 */
-			intrsave = save_intr();
-			COM_UNLOCK();
-			enable_intr();
+			mtx_exit(&sio_lock, MTX_SPIN);
 			line_status = buf[com->ierroff];
 			recv_data = *buf++;
 			if (line_status
@@ -2691,8 +2671,7 @@ sioinput(com)
 					recv_data |= TTY_PE;
 			}
 			(*linesw[tp->t_line].l_rint)(recv_data, tp);
-			restore_intr(intrsave);
-			COM_LOCK();
+			mtx_enter(&sio_lock, MTX_SPIN);
 		} while (buf < com->iptr);
 	}
 	com_events -= (com->iptr - com->ibuf);
@@ -2726,17 +2705,20 @@ void
 siointr(arg)
 	void		*arg;
 {
-#ifndef COM_MULTIPORT
-	COM_LOCK();
-	siointr1((struct com_s *) arg);
-	COM_UNLOCK();
-#else /* COM_MULTIPORT */
-	bool_t		possibly_more_intrs;
-	int		unit;
 	struct com_s	*com;
 #ifdef PC98
 	u_char		rsa_buf_status;
 #endif
+
+#ifndef COM_MULTIPORT
+	com = (struct com_s *)arg;
+
+	mtx_enter(&sio_lock, MTX_SPIN);
+	siointr1(com);
+	mtx_exit(&sio_lock, MTX_SPIN);
+#else /* COM_MULTIPORT */
+	bool_t		possibly_more_intrs;
+	int		unit;
 
 	/*
 	 * Loop until there is no activity on any port.  This is necessary
@@ -2745,7 +2727,7 @@ siointr(arg)
 	 * devices, then the edge from one may be lost because another is
 	 * on.
 	 */
-	COM_LOCK();
+	mtx_enter(&sio_lock, MTX_SPIN);
 	do {
 		possibly_more_intrs = FALSE;
 		for (unit = 0; unit < sio_numunits; ++unit) {
@@ -2783,7 +2765,7 @@ siointr(arg)
 			/* XXX COM_UNLOCK(); */
 		}
 	} while (possibly_more_intrs);
-	COM_UNLOCK();
+	mtx_exit(&sio_lock, MTX_SPIN);
 #endif /* COM_MULTIPORT */
 }
 
@@ -3362,7 +3344,6 @@ static void
 siopoll(void *dummy)
 {
 	int		unit;
-	int		intrsave;
 
 	if (com_events == 0)
 		return;
@@ -3381,9 +3362,7 @@ repeat:
 			 * Discard any events related to never-opened or
 			 * going-away devices.
 			 */
-			intrsave = save_intr();
-			disable_intr();
-			COM_LOCK();
+			mtx_enter(&sio_lock, MTX_SPIN);
 			incc = com->iptr - com->ibuf;
 			com->iptr = com->ibuf;
 			if (com->state & CS_CHECKMSR) {
@@ -3391,17 +3370,13 @@ repeat:
 				com->state &= ~CS_CHECKMSR;
 			}
 			com_events -= incc;
-			COM_UNLOCK();
-			restore_intr(intrsave);
+			mtx_exit(&sio_lock, MTX_SPIN);
 			continue;
 		}
 		if (com->iptr != com->ibuf) {
-			intrsave = save_intr();
-			disable_intr();
-			COM_LOCK();
+			mtx_enter(&sio_lock, MTX_SPIN);
 			sioinput(com);
-			COM_UNLOCK();
-			restore_intr(intrsave);
+			mtx_exit(&sio_lock, MTX_SPIN);
 		}
 		if (com->state & CS_CHECKMSR) {
 			u_char	delta_modem_status;
@@ -3409,16 +3384,13 @@ repeat:
 #ifdef PC98
 			if (!IS_8251(com->pc98_if_type)) {
 #endif
-			intrsave = save_intr();
-			disable_intr();
-			COM_LOCK();
+			mtx_enter(&sio_lock, MTX_SPIN);
 			delta_modem_status = com->last_modem_status
 					     ^ com->prev_modem_status;
 			com->prev_modem_status = com->last_modem_status;
 			com_events -= LOTS_OF_EVENTS;
 			com->state &= ~CS_CHECKMSR;
-			COM_UNLOCK();
-			restore_intr(intrsave);
+			mtx_exit(&sio_lock, MTX_SPIN);
 			if (delta_modem_status & MSR_DCD)
 				(*linesw[tp->t_line].l_modem)
 					(tp, com->prev_modem_status & MSR_DCD);
@@ -3427,13 +3399,10 @@ repeat:
 #endif
 		}
 		if (com->state & CS_ODONE) {
-			intrsave = save_intr();
-			disable_intr();
-			COM_LOCK();
+			mtx_enter(&sio_lock, MTX_SPIN);
 			com_events -= LOTS_OF_EVENTS;
 			com->state &= ~CS_ODONE;
-			COM_UNLOCK();
-			restore_intr(intrsave);
+			mtx_exit(&sio_lock, MTX_SPIN);
 			if (!(com->state & CS_BUSY)
 			    && !(com->extra_state & CSE_BUSYCHECK)) {
 				timeout(siobusycheck, com, hz / 100);
@@ -3461,7 +3430,6 @@ comparam(tp, t)
 	u_char		dlbl;
 	int		s;
 	int		unit;
-	int		intrsave;
 #ifdef PC98
 	u_char		param = 0;
 #endif
@@ -3472,15 +3440,15 @@ comparam(tp, t)
 
 	cfcr = 0;
 	if (IS_8251(com->pc98_if_type)) {
-	    divisor = pc98_ttspeedtab(com, t->c_ospeed);
+		divisor = pc98_ttspeedtab(com, t->c_ospeed);
 	} else {
-	    /* do historical conversions */
-	    if (t->c_ispeed == 0)
-		t->c_ispeed = t->c_ospeed;
+		/* do historical conversions */
+		if (t->c_ispeed == 0)
+			t->c_ispeed = t->c_ospeed;
 
-	    /* check requested parameters */
-	    divisor = ttspeedtab(t->c_ospeed,
-			if_16550a_type[com->pc98_if_type & 0x0f].speedtab);
+		/* check requested parameters */
+		divisor = ttspeedtab(t->c_ospeed,
+		     if_16550a_type[com->pc98_if_type & 0x0f].speedtab);
 	}
 #else
 	/* do historical conversions */
@@ -3492,6 +3460,7 @@ comparam(tp, t)
 #endif
 	if (divisor < 0 || (divisor > 0 && t->c_ispeed != t->c_ospeed))
 		return (EINVAL);
+
 
 #ifndef PC98
 	/* parameters are OK, convert them to the com struct and the device */
@@ -3570,7 +3539,6 @@ comparam(tp, t)
 	 * the speed change atomically.  Keeping interrupts disabled is
 	 * especially important while com_data is hidden.
 	 */
-	intrsave = save_intr();
 	(void) siosetwater(com, t->c_ispeed);
 
 #ifdef PC98
@@ -3698,8 +3666,7 @@ comparam(tp, t)
 	if (com->state >= (CS_BUSY | CS_TTGO))
 		siointr1(com);
 
-	COM_UNLOCK();
-	restore_intr(intrsave);
+	mtx_exit(&sio_lock, MTX_SPIN);
 	splx(s);
 	comstart(tp);
 	if (com->ibufold != NULL) {
@@ -3710,8 +3677,8 @@ comparam(tp, t)
 }
 
 /*
- * This function must be called with interrupts enabled and the com_lock
- * unlocked.  It will return with interrupts disabled and the com_lock locked.
+ * This function must be called with the sio_lock mutex released and will
+ * return with it obtained.
  */
 static int
 siosetwater(com, speed)
@@ -3737,8 +3704,7 @@ siosetwater(com, speed)
 		ibufsize = 2048;
 #endif
 	if (ibufsize == com->ibufsize) {
-		disable_intr();
-		COM_LOCK();
+		mtx_enter(&sio_lock, MTX_SPIN);
 		return (0);
 	}
 
@@ -3748,8 +3714,7 @@ siosetwater(com, speed)
 	 */
 	ibuf = malloc(2 * ibufsize, M_DEVBUF, M_NOWAIT);
 	if (ibuf == NULL) {
-		disable_intr();
-		COM_LOCK();
+		mtx_enter(&sio_lock, MTX_SPIN);
 		return (ENOMEM);
 	}
 
@@ -3767,8 +3732,7 @@ siosetwater(com, speed)
 	 * Read current input buffer, if any.  Continue with interrupts
 	 * disabled.
 	 */
-	disable_intr();
-	COM_LOCK();
+	mtx_enter(&sio_lock, MTX_SPIN);
 	if (com->iptr != com->ibuf)
 		sioinput(com);
 
@@ -3797,16 +3761,13 @@ comstart(tp)
 	struct com_s	*com;
 	int		s;
 	int		unit;
-	int		intrsave;
 
 	unit = DEV_TO_UNIT(tp->t_dev);
 	com = com_addr(unit);
 	if (com == NULL)
 		return;
 	s = spltty();
-	intrsave = save_intr();
-	disable_intr();
-	COM_LOCK();
+	mtx_enter(&sio_lock, MTX_SPIN);
 	if (tp->t_state & TS_TTSTOP)
 		com->state &= ~CS_TTGO;
 	else
@@ -3845,8 +3806,7 @@ comstart(tp)
 			outb(com->modem_ctl_port, com->mcr_image |= MCR_RTS);
 #endif
 	}
-	COM_UNLOCK();
-	restore_intr(intrsave);
+	mtx_exit(&sio_lock, MTX_SPIN);
 	if (tp->t_state & (TS_TIMEOUT | TS_TTSTOP)) {
 		ttwwakeup(tp);
 		splx(s);
@@ -3866,9 +3826,7 @@ comstart(tp)
 #endif
 			com->obufs[0].l_next = NULL;
 			com->obufs[0].l_queued = TRUE;
-			intrsave = save_intr();
-			disable_intr();
-			COM_LOCK();
+			mtx_enter(&sio_lock, MTX_SPIN);
 			if (com->state & CS_BUSY) {
 				qp = com->obufq.l_next;
 				while ((next = qp->l_next) != NULL)
@@ -3880,8 +3838,7 @@ comstart(tp)
 				com->obufq.l_next = &com->obufs[0];
 				com->state |= CS_BUSY;
 			}
-			COM_UNLOCK();
-			restore_intr(intrsave);
+			mtx_exit(&sio_lock, MTX_SPIN);
 		}
 		if (tp->t_outq.c_cc != 0 && !com->obufs[1].l_queued) {
 			com->obufs[1].l_tail
@@ -3893,9 +3850,7 @@ comstart(tp)
 #endif
 			com->obufs[1].l_next = NULL;
 			com->obufs[1].l_queued = TRUE;
-			intrsave = save_intr();
-			disable_intr();
-			COM_LOCK();
+			mtx_enter(&sio_lock, MTX_SPIN);
 			if (com->state & CS_BUSY) {
 				qp = com->obufq.l_next;
 				while ((next = qp->l_next) != NULL)
@@ -3907,18 +3862,14 @@ comstart(tp)
 				com->obufq.l_next = &com->obufs[1];
 				com->state |= CS_BUSY;
 			}
-			COM_UNLOCK();
-			restore_intr(intrsave);
+			mtx_exit(&sio_lock, MTX_SPIN);
 		}
 		tp->t_state |= TS_BUSY;
 	}
-	intrsave = save_intr();
-	disable_intr();
-	COM_LOCK();
+	mtx_enter(&sio_lock, MTX_SPIN);
 	if (com->state >= (CS_BUSY | CS_TTGO))
 		siointr1(com);	/* fake interrupt to start output */
-	COM_UNLOCK();
-	restore_intr(intrsave);
+	mtx_exit(&sio_lock, MTX_SPIN);
 	ttwwakeup(tp);
 	splx(s);
 }
@@ -3929,7 +3880,6 @@ comstop(tp, rw)
 	int		rw;
 {
 	struct com_s	*com;
-	int		intrsave;
 #ifdef PC98
 	int		rsa98_tmp  = 0;
 #endif
@@ -3937,9 +3887,7 @@ comstop(tp, rw)
 	com = com_addr(DEV_TO_UNIT(tp->t_dev));
 	if (com == NULL || com->gone)
 		return;
-	intrsave = save_intr();
-	disable_intr();
-	COM_LOCK();
+	mtx_enter(&sio_lock, MTX_SPIN);
 	if (rw & FWRITE) {
 #ifdef PC98
 		if (!IS_8251(com->pc98_if_type)) {
@@ -3985,8 +3933,7 @@ comstop(tp, rw)
 		com_events -= (com->iptr - com->ibuf);
 		com->iptr = com->ibuf;
 	}
-	COM_UNLOCK();
-	restore_intr(intrsave);
+	mtx_exit(&sio_lock, MTX_SPIN);
 	comstart(tp);
 }
 
@@ -3998,7 +3945,6 @@ commctl(com, bits, how)
 {
 	int	mcr;
 	int	msr;
-	int	intrsave;
 
 	if (how == DMGET) {
 		bits = TIOCM_LE;	/* XXX - always enabled while open */
@@ -4030,9 +3976,7 @@ commctl(com, bits, how)
 		mcr |= MCR_RTS;
 	if (com->gone)
 		return(0);
-	intrsave = save_intr();
-	disable_intr();
-	COM_LOCK();
+	mtx_enter(&sio_lock, MTX_SPIN);
 	switch (how) {
 	case DMSET:
 		outb(com->modem_ctl_port,
@@ -4045,8 +3989,7 @@ commctl(com, bits, how)
 		outb(com->modem_ctl_port, com->mcr_image &= ~mcr);
 		break;
 	}
-	COM_UNLOCK();
-	restore_intr(intrsave);
+	mtx_exit(&sio_lock, MTX_SPIN);
 	return (0);
 }
 
@@ -4094,7 +4037,6 @@ comwakeup(chan)
 {
 	struct com_s	*com;
 	int		unit;
-	int		intrsave;
 
 	sio_timeout_handle = timeout(comwakeup, (void *)NULL, sio_timeout);
 
@@ -4106,12 +4048,9 @@ comwakeup(chan)
 		com = com_addr(unit);
 		if (com != NULL && !com->gone
 		    && (com->state >= (CS_BUSY | CS_TTGO) || com->poll)) {
-			intrsave = save_intr();
-			disable_intr();
-			COM_LOCK();
+			mtx_enter(&sio_lock, MTX_SPIN);
 			siointr1(com);
-			COM_UNLOCK();
-			restore_intr(intrsave);
+			mtx_exit(&sio_lock, MTX_SPIN);
 		}
 	}
 
@@ -4133,13 +4072,10 @@ comwakeup(chan)
 			u_int	delta;
 			u_long	total;
 
-			intrsave = save_intr();
-			disable_intr();
-			COM_LOCK();
+			mtx_enter(&sio_lock, MTX_SPIN);
 			delta = com->delta_error_counts[errnum];
 			com->delta_error_counts[errnum] = 0;
-			COM_UNLOCK();
-			restore_intr(intrsave);
+			mtx_exit(&sio_lock, MTX_SPIN);
 			if (delta == 0)
 				continue;
 			total = com->error_counts[errnum] += delta;
