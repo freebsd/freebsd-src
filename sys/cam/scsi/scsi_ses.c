@@ -54,7 +54,6 @@
 
 #include <opt_ses.h>
 
-
 /*
  * Platform Independent Driver Internal Definitions for SES devices.
  */
@@ -607,8 +606,9 @@ sesioctl(dev_t dev, u_long cmd, caddr_t arg_addr, int flag, struct proc *p)
 		error = (*ssc->ses_vec.get_encstat)(ssc, 1);
 		if (error)
 			break;
-		error = copyout(&ssc->ses_encstat, addr, sizeof (ses_encstat));
-		ssc->ses_encstat &= ~ENCI_SVALID;
+		tmp = ssc->ses_encstat & ~ENCI_SVALID;
+		error = copyout(&tmp, addr, sizeof (ses_encstat));
+		ssc->ses_encstat = tmp;
 		break;
 
 	case SESIOC_SETENCSTAT:
@@ -1244,7 +1244,6 @@ ses_getputstat(ses_softc_t *ssc, int objid, SesComStat *sp, int slp, int in)
 	} else {
 		bufsiz = (ssc->ses_nobjects * 4) + (cc->ses_ntypes * 4) + 8;
 	}
-
 	sdata = SES_MALLOC(bufsiz);
 	if (sdata == NULL)
 		return (ENOMEM);
@@ -1397,7 +1396,7 @@ ses_getthdr(uint8_t *buffer, int amt, int nth, SesThdr *thp)
  *	int elt
  *
  *		This is the element type being sought. If elt is -1,
- *		then overal enclosure status is being sought.
+ *		then overall enclosure status is being sought.
  *
  *	int elm
  *
