@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cond.c,v 1.7 1997/02/22 19:27:07 peter Exp $
+ *	$Id: cond.c,v 1.8 1999/05/25 13:45:08 hoek Exp $
  */
 
 #ifndef lint
@@ -707,7 +707,8 @@ do_string_compare:
 				condExpr += len;
 			}
 		    } else {
-			if (CondCvtArg(rhs, &right) == rhs)
+			char *c = CondCvtArg(rhs, &right);
+			if (*c != '\0' && !isspace(*c))
 			    goto do_string_compare;
 			if (rhs == condExpr) {
 			    /*
