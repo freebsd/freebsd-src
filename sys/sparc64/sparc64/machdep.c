@@ -564,7 +564,7 @@ freebsd4_sigreturn(struct thread *td, struct freebsd4_sigreturn_args *uap)
 #endif
 
 int
-get_mcontext(struct thread *td, mcontext_t *mc, int clear_ret)
+get_mcontext(struct thread *td, mcontext_t *mc, int flags)
 {
 	struct trapframe *tf;
 	struct pcb *pcb;
@@ -572,7 +572,7 @@ get_mcontext(struct thread *td, mcontext_t *mc, int clear_ret)
 	tf = td->td_frame;
 	pcb = td->td_pcb;
 	bcopy(tf, mc, sizeof(*tf));
-	if (clear_ret != 0) {
+	if (flags & GET_MC_CLEAR_RET) {
 		mc->mc_out[0] = 0;
 		mc->mc_out[1] = 0;
 	}

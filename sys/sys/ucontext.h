@@ -83,9 +83,16 @@ __END_DECLS
 
 struct thread;
 
+/*
+ * Flags for get_mcontext().  The low order 4 bits (i.e a mask of 0x0f) are
+ * reserved for use by machine independent code.  All other bits are for use
+ * by machine dependent code.
+ */
+#define	GET_MC_CLEAR_RET	1
+
 /* Machine-dependent functions: */
-int	get_mcontext(struct thread *td, mcontext_t *mcp, int clear_ret);
-int	set_mcontext(struct thread *td, const mcontext_t *mcp);
+int	get_mcontext(struct thread *, mcontext_t *, int);
+int	set_mcontext(struct thread *, const mcontext_t *);
 
 #endif /* !_KERNEL */
 
