@@ -32,9 +32,14 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)printlist.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
+#include <err.h>
 #include "gprof.h"
 
     /*
@@ -64,7 +69,7 @@ addlist( listp , funcname )
 
     slp = (struct stringlist *) malloc( sizeof(struct stringlist));
     if ( slp == (struct stringlist *) 0 ) {
-	fprintf( stderr, "gprof: ran out room for printlist\n" );
+	warnx("ran out room for printlist");
 	done();
     }
     slp -> next = listp -> next;
