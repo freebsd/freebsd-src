@@ -42,6 +42,7 @@ cpu_identify(unsigned int freq)
 		break;
 	case 0x13:
 	case 0x17:
+	case 0x22:
 		manus = "Sun Microsystems";
 		break;
 	}
