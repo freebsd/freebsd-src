@@ -145,6 +145,8 @@ sub remove_dir($) {
     }
     closedir(DIR)
 	or return warning("$dir: $!");
+    message("rmdir $dir")
+	if ($verbose);
     return rmdir($dir);
 }
 
@@ -155,8 +157,7 @@ sub make_dir($) {
     if (!-d $dir && $dir =~ m|^(\S*)/([^\s/]+)$|) {
 	make_dir($1)
 	    or return undef;
-	message("creating $dir")
-	    if ($verbose);
+	message("mkdir $dir");
 	mkdir("$dir")
 	    or return undef;
     }
@@ -166,8 +167,7 @@ sub make_dir($) {
 sub cd($) {
     my $dir = shift;
 
-    message("cd $dir")
-	if ($verbose);
+    message("cd $dir");
     chdir($dir)
 	or error("$dir: $!");
 }
@@ -179,8 +179,7 @@ sub spawn($@) {
     my $cmd = shift;		# Command to run
     my @args = @_;		# Arguments
 
-    message($cmd, @args)
-	if ($verbose);
+    message($cmd, @args);
     my $pid = fork();
     if (!defined($pid)) {
 	return warning("fork(): $!");
@@ -342,6 +341,7 @@ MAIN:{
     }
     $logfile = $1;
     logstage("logging to $logfile");
+    unlink($logfile);
     open(STDOUT, '>', $logfile)
 	or error("$logfile: $!");
     open(STDERR, ">&STDOUT");
@@ -370,7 +370,7 @@ MAIN:{
 	    "-R",
 	    $verbose ? "-q" : "-Q",
 	    "-d$repository",
-        );
+	);
 	if (-d "$sandbox/src") {
 	    push(@cvsargs, "update", "-Pd");
 	} else {
@@ -392,6 +392,7 @@ MAIN:{
 
 	'__MAKE_CONF'		=> "/dev/null",
 	'MAKEOBJDIRPREFIX'	=> "$sandbox/obj",
+	'NO_KERNELCLEAN'	=> "YES",
 
 	'TARGET_ARCH'		=> $arch,
 	'TARGET_MACHINE'	=> $machine,
