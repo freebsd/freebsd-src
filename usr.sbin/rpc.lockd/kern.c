@@ -113,8 +113,6 @@ client_request(void)
 		syslog(LOG_ERR, "mkfifo: %s: %m", _PATH_LCKFIFO);
 		exit (1);
 	}
-#define linebug syslog(LOG_ERR, "lockd: %d", __LINE__);
-linebug
 
 	/*
 	 * Create a separate process, the client code is really a separate
@@ -129,7 +127,6 @@ linebug
 		return (child);
 	}
 
-linebug
 	signal(SIGHUP, client_cleanup);
 	signal(SIGTERM, client_cleanup);
 
@@ -138,7 +135,6 @@ linebug
 	owner.pid = getpid();
 	(void)gethostname(hostname, sizeof(hostname) - 1);
 
-linebug
 reopen:
 	/* Open the fifo for reading. */
 	if ((fd = open(_PATH_LCKFIFO, O_RDONLY /* | O_NONBLOCK */)) < 0)
@@ -151,14 +147,12 @@ reopen:
 	FD_ZERO(&rdset);
 
 	for (;;) {
-linebug
 		/* Wait for contact... fifo's return EAGAIN when read with 
 		 * no data
 		 */
 		FD_SET(fd, &rdset);
 		(void)select(fd + 1, &rdset, NULL, NULL, NULL);
 
-linebug
 		/* Read the fixed length message. */
 		if ((nr = read(fd, &msg, sizeof(msg))) == sizeof(msg)) {
 			if (d_args)
@@ -202,7 +196,6 @@ linebug
 				}
 			}
 		} else if (nr == -1) {
-linebug
 			if (errno != EAGAIN) {
 				syslog(LOG_ERR, "read: %s: %m", _PATH_LCKFIFO);
 				goto err;
