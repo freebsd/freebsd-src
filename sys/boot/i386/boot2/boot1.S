@@ -23,6 +23,7 @@
 		.set MEM_BTX,0x9000		# BTX start
 		.set MEM_JMP,0x9010		# BTX entry point
 		.set MEM_USR,0xa000		# Client start
+		.set BDA_BOOT,0x472		# Boot howto flag
 	
 # Partition Constants 
 		.set PRT_OFF,0x1be		# Partition offset
@@ -200,7 +201,8 @@ error:		callw putstr			# Display message
 		callw putstr			#  prompt
 		xorb %ah,%ah			# BIOS: Get
 		int $0x16			#  keypress
-		int $0x19			# BIOS: Reboot
+		movw $0x1234, BDA_BOOT		# Do a warm boot
+		ljmp $0xffff,$0x0		# reboot the machine
 # 
 # Display a null-terminated string using the BIOS output.
 # 
@@ -228,25 +230,8 @@ return: 	retw				# To caller
 #
 # %dl	- byte     - drive number
 # stack - 10 bytes - EDD Packet
-# 
-read:		testb $FL_PACKET,%cs:MEM_REL+flags-start # LBA support enabled?
-		jz read.1			# No
-		mov $0x55aa,%bx			# Magic
-		push %dx			# Save
-		movb $0x41,%ah			# BIOS: Check
-		int $0x13			#  extensions present
-		pop %dx				# Restore
-		jc read.1			# If error
-		cmp $0xaa55,%bx			# Magic?
-		jne read.1			# No
-		testb $0x1,%cl			# Packet interface?
-		jz read.1			# No
-		mov %bp,%si			# Disk packet
-		movb $0x42,%ah			# BIOS: Extended
-		int $0x13			#  read
-		retw				# To caller
-
-read.1: 	push %dx			# Save
+#
+read:	 	push %dx			# Save
 		movb $0x8,%ah			# BIOS: Get drive
 		int $0x13			#  parameters
 		movb %dh,%ch			# Max head number
@@ -269,7 +254,7 @@ read.1: 	push %dx			# Save
 		pop %dx				# Restore
 		cmpl $0x3ff,%eax		# Cylinder number supportable?
 		sti				# Enable interrupts
-		ja ereturn			# No
+		ja read.7			# No, try EDD
 		xchgb %al,%ah			# Set up cylinder
 		rorb $0x2,%al			#  number
 		orb %ch,%al			# Merge
@@ -301,8 +286,24 @@ read.4: 	movzbw %bl,%ax	 		# Sectors read
 read.5: 	shlb %bl			#  buffer
 		add %bl,0x5(%bp)		#  pointer,
 		sub %al,0x2(%bp)		#  block count
-		ja read.1			# If not done
+		ja read				# If not done
 read.6: 	retw				# To caller
+read.7:		testb $FL_PACKET,%cs:MEM_REL+flags-start # LBA support enabled?
+		jz ereturn			# No, so return an error
+		mov $0x55aa,%bx			# Magic
+		push %dx			# Save
+		movb $0x41,%ah			# BIOS: Check
+		int $0x13			#  extensions present
+		pop %dx				# Restore
+		jc return			# If error, return an error
+		cmp $0xaa55,%bx			# Magic?
+		jne ereturn			# No, so return an error
+		testb $0x1,%cl			# Packet interface?
+		jz ereturn			# No, so return an error
+		mov %bp,%si			# Disk packet
+		movb $0x42,%ah			# BIOS: Extended
+		int $0x13			#  read
+		retw				# To caller
 
 # Messages
 
