@@ -430,7 +430,7 @@
     driver)
     </para>
 
-    <para arch="i386">IBM / Adaptec ServeRAID series (ips driver)</para>
+    <para arch="i386">IBM / Adaptec ServeRAID series (&man.ips.4; driver)</para>
 
     <para arch="i386,alpha,pc98,sparc64,ia64">LSI Logic Fusion/MP
 	architecture Fiber Channel controllers (&man.mpt.4; driver)</para>
