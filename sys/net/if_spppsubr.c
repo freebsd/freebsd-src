@@ -17,7 +17,7 @@
  *
  * From: Version 2.4, Thu Apr 30 17:17:21 MSD 1997
  *
- * $Id: if_spppsubr.c,v 1.53 1999/02/19 13:45:09 phk Exp $
+ * $Id: if_spppsubr.c,v 1.54 1999/02/23 15:08:44 phk Exp $
  */
 
 #include <sys/param.h>
@@ -134,6 +134,7 @@
 
 #define IFF_PASSIVE	IFF_LINK0	/* wait passively for connection */
 #define IFF_AUTO	IFF_LINK1	/* auto-dial on output */
+#define IFF_CISCO	IFF_LINK2	/* auto-dial on output */
 
 #define PPP_ALLSTATIONS 0xff		/* All-Stations broadcast address */
 #define PPP_UI		0x03		/* Unnumbered Information */
@@ -466,7 +467,7 @@ sppp_input(struct ifnet *ifp, struct mbuf *m)
 	case PPP_ALLSTATIONS:
 		if (h->control != PPP_UI)
 			goto invalid;
-		if (sp->pp_flags & PP_CISCO) {
+		if (sp->pp_mode == IFF_CISCO) {
 			if (debug)
 				log(LOG_DEBUG,
 				    SPP_FMT "PPP packet in Cisco mode "
@@ -548,7 +549,7 @@ sppp_input(struct ifnet *ifp, struct mbuf *m)
 	case CISCO_MULTICAST:
 	case CISCO_UNICAST:
 		/* Don't check the control field here (RFC 1547). */
-		if (! (sp->pp_flags & PP_CISCO)) {
+		if (sp->pp_mode != IFF_CISCO) {
 			if (debug)
 				log(LOG_DEBUG,
 				    SPP_FMT "Cisco packet in PPP mode "
@@ -711,7 +712,7 @@ sppp_output(struct ifnet *ifp, struct mbuf *m,
 	 * (albeit due to the implementation it's always enough)
 	 */
 	h = mtod (m, struct ppp_header*);
-	if (sp->pp_flags & PP_CISCO) {
+	if (sp->pp_mode == IFF_CISCO) {
 		h->address = CISCO_UNICAST;        /* unicast address */
 		h->control = 0;
 	} else {
@@ -722,7 +723,7 @@ sppp_output(struct ifnet *ifp, struct mbuf *m,
 	switch (dst->sa_family) {
 #ifdef INET
 	case AF_INET:   /* Internet Protocol */
-		if (sp->pp_flags & PP_CISCO)
+		if (sp->pp_mode == IFF_CISCO)
 			h->protocol = htons (ETHERTYPE_IP);
 		else {
 			/*
@@ -742,19 +743,19 @@ sppp_output(struct ifnet *ifp, struct mbuf *m,
 #endif
 #ifdef NS
 	case AF_NS:     /* Xerox NS Protocol */
-		h->protocol = htons ((sp->pp_flags & PP_CISCO) ?
+		h->protocol = htons (sp->pp_mode == IFF_CISCO ?
 			ETHERTYPE_NS : PPP_XNS);
 		break;
 #endif
 #ifdef IPX
 	case AF_IPX:     /* Novell IPX Protocol */
-		h->protocol = htons ((sp->pp_flags & PP_CISCO) ?
+		h->protocol = htons (sp->pp_mode == IFF_CISCO ?
 			ETHERTYPE_IPX : PPP_IPX);
 		break;
 #endif
 #ifdef ISO
 	case AF_ISO:    /* ISO OSI Protocol */
-		if (sp->pp_flags & PP_CISCO)
+		if (sp->pp_mode == IFF_CISCO)
 			goto nosupport;
 		h->protocol = htons (PPP_ISO);
 		break;
@@ -898,7 +899,7 @@ sppp_dequeue(struct ifnet *ifp)
 	 */
 	IF_DEQUEUE(&sp->pp_cpq, m);
 	if (m == NULL &&
-	    (sppp_ncp_check(sp) || (sp->pp_flags & PP_CISCO) != 0)) {
+	    (sppp_ncp_check(sp) || sp->pp_mode == IFF_CISCO)) {
 		IF_DEQUEUE(&sp->pp_fastq, m);
 		if (m == NULL)
 			IF_DEQUEUE (&sp->pp_if.if_snd, m);
@@ -921,8 +922,7 @@ sppp_pick(struct ifnet *ifp)
 
 	m = sp->pp_cpq.ifq_head;
 	if (m == NULL &&
-	    (sp->pp_phase == PHASE_NETWORK ||
-	     (sp->pp_flags & PP_CISCO) != 0))
+	    (sp->pp_phase == PHASE_NETWORK || sp->pp_mode == IFF_CISCO))
 		if ((m = sp->pp_fastq.ifq_head) == NULL)
 			m = sp->pp_if.if_snd.ifq_head;
 	splx (s);
@@ -955,23 +955,44 @@ sppp_ioctl(struct ifnet *ifp, IOCTL_CMD_T cmd, void *data)
 			(ifp->if_flags & IFF_RUNNING) == 0;
 		going_down = (ifp->if_flags & IFF_UP) == 0 &&
 			ifp->if_flags & IFF_RUNNING;
-		newmode = ifp->if_flags & (IFF_AUTO | IFF_PASSIVE);
-		if (newmode == (IFF_AUTO | IFF_PASSIVE)) {
-			/* sanity */
-			newmode = IFF_PASSIVE;
-			ifp->if_flags &= ~IFF_AUTO;
+
+		newmode = ifp->if_flags & IFF_PASSIVE;
+		if (!newmode)
+			newmode = ifp->if_flags & IFF_AUTO;
+		if (!newmode)
+			newmode = ifp->if_flags & IFF_CISCO;
+		ifp->if_flags &= ~(IFF_PASSIVE | IFF_AUTO | IFF_CISCO);
+		ifp->if_flags |= newmode;
+
+		if (newmode != sp->pp_mode) {
+			going_down = 1;
+			if (!going_up)
+				going_up = ifp->if_flags & IFF_RUNNING;
 		}
 
-		if (going_up || going_down)
-			lcp.Close(sp);
-		if (going_up && newmode == 0) {
-			/* neither auto-dial nor passive */
-			ifp->if_flags |= IFF_RUNNING;
-			if (!(sp->pp_flags & PP_CISCO))
-				lcp.Open(sp);
-		} else if (going_down) {
+		if (going_down) {
+			if (sp->pp_mode != IFF_CISCO) 
+				lcp.Close(sp);
+			else if (sp->pp_tlf)
+				(sp->pp_tlf)(sp);
 			sppp_flush(ifp);
 			ifp->if_flags &= ~IFF_RUNNING;
+			sp->pp_mode = newmode;
+		}
+
+		if (going_up) {
+			if (sp->pp_mode != IFF_CISCO) 
+				lcp.Close(sp);
+			sp->pp_mode = newmode;
+			if (sp->pp_mode == 0) {
+				ifp->if_flags |= IFF_RUNNING;
+				lcp.Open(sp);
+			}
+			if (sp->pp_mode == IFF_CISCO) {
+				if (sp->pp_tls)
+					(sp->pp_tls)(sp);
+				ifp->if_flags |= IFF_RUNNING;
+			}
 		}
 
 		break;
@@ -3764,7 +3785,7 @@ sppp_keepalive(void *dummy)
 			continue;
 
 		/* No keepalive in PPP mode if LCP not opened yet. */
-		if (! (sp->pp_flags & PP_CISCO) &&
+		if (sp->pp_mode != IFF_CISCO &&
 		    sp->pp_phase < PHASE_AUTHENTICATE)
 			continue;
 
@@ -3773,7 +3794,7 @@ sppp_keepalive(void *dummy)
 			printf (SPP_FMT "down\n", SPP_ARGS(ifp));
 			if_down (ifp);
 			sppp_qflush (&sp->pp_cpq);
-			if (! (sp->pp_flags & PP_CISCO)) {
+			if (sp->pp_mode != IFF_CISCO) {
 				/* XXX */
 				/* Shut down the PPP link. */
 				lcp.Down(sp);
@@ -3783,7 +3804,7 @@ sppp_keepalive(void *dummy)
 		}
 		if (sp->pp_alivecnt <= MAXALIVECNT)
 			++sp->pp_alivecnt;
-		if (sp->pp_flags & PP_CISCO)
+		if (sp->pp_mode == IFF_CISCO)
 			sppp_cisco_send (sp, CISCO_KEEPALIVE_REQ, ++sp->pp_seq,
 				sp->pp_rseq);
 		else if (sp->pp_phase >= PHASE_AUTHENTICATE) {
