@@ -28,6 +28,7 @@ static const char rcsid[] =
 #include "lib.h"
 #include "add.h"
 
+#include <libgen.h>
 #include <signal.h>
 #include <sys/wait.h>
 
@@ -67,7 +68,7 @@ pkg_do(char *pkg)
     char pkg_fullname[FILENAME_MAX];
     char playpen[FILENAME_MAX];
     char extract_contents[FILENAME_MAX];
-    char *where_to, *tmp, *extract;
+    char *where_to, *extract;
     FILE *cfile;
     int code;
     PackingList p;
@@ -356,7 +357,6 @@ pkg_do(char *pkg)
 	    code = 1;
 	    goto success;		/* nothing to uninstall yet */
 	}
-	if (new_m) unlink(pre_script);
     }
 
     /* Now finally extract the entire show if we're not going direct */
@@ -373,7 +373,6 @@ pkg_do(char *pkg)
 	    if (vsystem("/usr/sbin/mtree -U -f %s -d -e -p %s >%s", MTREE_FNAME, p ? p->name : "/", _PATH_DEVNULL))
 		warnx("mtree returned a non-zero status - continuing");
 	}
-	unlink(MTREE_FNAME);
     }
 
     /* Run the installation script one last time? */
@@ -387,7 +386,6 @@ pkg_do(char *pkg)
 	    code = 1;
 	    goto fail;
 	}
-	unlink(post_script);
     }
 
     /* Time to record the deed? */
@@ -415,12 +413,22 @@ pkg_do(char *pkg)
 	}
 	/* Make sure pkg_info can read the entry */
 	vsystem("chmod a+rx %s", LogDir);
+	move_file(".", DESC_FNAME, LogDir);
+	move_file(".", COMMENT_FNAME, LogDir);
+	if (fexists(INSTALL_FNAME))
+	    move_file(".", INSTALL_FNAME, LogDir);
+	if (fexists(POST_INSTALL_FNAME))
+	    move_file(".", POST_INSTALL_FNAME, LogDir);
 	if (fexists(DEINSTALL_FNAME))
 	    move_file(".", DEINSTALL_FNAME, LogDir);
 	if (fexists(POST_DEINSTALL_FNAME))
 	    move_file(".", POST_DEINSTALL_FNAME, LogDir);
 	if (fexists(REQUIRE_FNAME))
 	    move_file(".", REQUIRE_FNAME, LogDir);
+	if (fexists(DISPLAY_FNAME))
+	    move_file(".", DISPLAY_FNAME, LogDir);
+	if (fexists(MTREE_FNAME))
+	    move_file(".", MTREE_FNAME, LogDir);
 	sprintf(contents, "%s/%s", LogDir, CONTENTS_FNAME);
 	cfile = fopen(contents, "w");
 	if (!cfile) {
@@ -430,10 +438,6 @@ pkg_do(char *pkg)
 	}
 	write_plist(&Plist, cfile);
 	fclose(cfile);
-	move_file(".", DESC_FNAME, LogDir);
-	move_file(".", COMMENT_FNAME, LogDir);
-	if (fexists(DISPLAY_FNAME))
-	    move_file(".", DISPLAY_FNAME, LogDir);
 	for (p = Plist.head; p ; p = p->next) {
 	    if (p->type != PLIST_PKGDEP)
 		continue;
