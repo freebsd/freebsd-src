@@ -103,8 +103,8 @@ ncp_ncp_connect(struct ncp_conn *conn)
 	if (error)
 		return error;
 
-	conn->flags &= ~(NCPFL_INVALID | NCPFL_SIGNACTIVE | NCPFL_SIGNWANTED
-	    | NCPFL_ATTACHED);
+	conn->flags &= ~(NCPFL_SIGNACTIVE | NCPFL_SIGNWANTED |
+	    NCPFL_ATTACHED | NCPFL_LOGGED | NCPFL_INVALID);
 	conn->seq = 0;
 	error = ncp_request_int(rqp);
 	if (!error) {
@@ -135,7 +135,7 @@ ncp_ncp_disconnect(struct ncp_conn *conn)
 			ncp_rq_done(rqp);
 		}
 	}
-	conn->flags |= NCPFL_INVALID;
+	ncp_conn_invalidate(conn);
 	ncp_sock_disconnect(conn);
 	return 0;
 }
