@@ -76,6 +76,7 @@ Research Laboratory (NRL).
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/domain.h>
+#include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/proc.h>
 #include <sys/protosw.h>
