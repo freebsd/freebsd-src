@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.98 1997/09/01 03:17:26 bde Exp $
+ * $Id: vm_pageout.c,v 1.99 1997/10/06 02:48:16 dyson Exp $
  */
 
 /*
@@ -184,6 +184,7 @@ static freeer_fcn_t vm_pageout_object_deactivate_pages;
 static void vm_req_vmdaemon __P((void));
 #endif
 static void vm_pageout_page_stats(void);
+void pmap_collect(void);
 
 /*
  * vm_pageout_clean:
@@ -589,6 +590,11 @@ vm_pageout_scan()
 	int actcount;
 	int vnodes_skipped = 0;
 	int s;
+
+	/*
+	 * Do whatever cleanup that the pmap code can.
+	 */
+	pmap_collect();
 
 	/*
 	 * Start scanning the inactive queue for pages we can free. We keep
