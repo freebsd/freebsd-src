@@ -143,7 +143,7 @@
 #include <netnatm/natm.h>
 #endif
 
-#if !defined(sparc) && !defined(__FreeBSD__)
+#ifndef sparc
 #include <machine/bus.h>
 #endif
 
