@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.c,v 1.1.2.24 1998/03/16 22:53:41 brian Exp $
+ *	$Id: datalink.c,v 1.1.2.25 1998/03/18 21:53:56 brian Exp $
  */
 
 #include <sys/param.h>
@@ -376,7 +376,7 @@ datalink_LayerStart(void *v, struct fsm *fp)
   /* The given FSM is about to start up ! */
   struct datalink *dl = (struct datalink *)v;
 
-  if (fp == &dl->lcp.fsm)
+  if (fp->proto == PROTO_LCP)
     (*dl->parent->LayerStart)(dl->parent->object, fp);
 }
 
@@ -386,7 +386,7 @@ datalink_LayerUp(void *v, struct fsm *fp)
   /* The given fsm is now up */
   struct datalink *dl = (struct datalink *)v;
 
-  if (fp == &dl->lcp.fsm) {
+  if (fp->proto == PROTO_LCP) {
     dl->lcp.auth_ineed = dl->lcp.want_auth;
     dl->lcp.auth_iwait = dl->lcp.his_auth;
     if (dl->lcp.his_auth || dl->lcp.want_auth) {
@@ -426,7 +426,7 @@ datalink_LayerDown(void *v, struct fsm *fp)
   /* The given FSM has been told to come down */
   struct datalink *dl = (struct datalink *)v;
 
-  if (fp == &dl->lcp.fsm) {
+  if (fp->proto == PROTO_LCP) {
     switch (dl->state) {
       case DATALINK_OPEN:
         FsmDown(&dl->ccp.fsm);
@@ -448,7 +448,8 @@ datalink_LayerFinish(void *v, struct fsm *fp)
   /* The given fsm is now down */
   struct datalink *dl = (struct datalink *)v;
 
-  if (fp == &dl->lcp.fsm) {
+  if (fp->proto == PROTO_LCP) {
+    FsmDown(fp);	/* Bring us to INITIAL or STARTING */
     (*dl->parent->LayerFinish)(dl->parent->object, fp);
     datalink_ComeDown(dl, 0);
   }
