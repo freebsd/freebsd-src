@@ -647,6 +647,7 @@ static int get_search_term(WINDOW *win, unsigned char *search_term, int height, 
   wattrset(win, searchbox_title_attr);
   wmove(win, y, x+box_width/2-4);
   waddstr(win, " Search ");
+  wattrset(win, dialog_attr);
 
   box_width -= 2;
   search_term[0] = '\0';
