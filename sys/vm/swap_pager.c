@@ -142,7 +142,7 @@ static int nsw_wcount_async;	/* limit write buffers / asynchronous	*/
 static int nsw_wcount_async_max;/* assigned maximum			*/
 static int nsw_cluster_max;	/* maximum VOP I/O allowed		*/
 
-struct blist *swapblist;
+static struct blist *swapblist;
 static struct swblock **swhash;
 static int swhash_mask;
 static int swap_async_max = 4;	/* maximum in-progress async I/O's	*/
@@ -2664,6 +2664,22 @@ done:
 done2:
 	mtx_unlock(&Giant);
 	return (error);
+}
+
+void
+swap_pager_status(int *total, int *used)
+{
+	struct swdevt *sp;
+	int i;
+
+	*total = 0;
+	*used = 0;
+	for (sp = swdevt, i = 0; i < nswdev; i++, sp++) {
+		if (sp->sw_vp == NULL)
+			continue;
+		*total += sp->sw_nblks;
+		*used += sp->sw_used;
+	}
 }
 
 static int
