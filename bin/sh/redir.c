@@ -84,7 +84,7 @@ MKINIT struct redirtab *redirlist;
  * background commands, where we want to redirect fd0 to /dev/null only
  * if it hasn't already been redirected.
 */
-int fd0_redirected = 0;
+STATIC int fd0_redirected = 0;
 
 STATIC void openredirect(union node *, char[10 ]);
 STATIC int openhere(union node *);

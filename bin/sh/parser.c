@@ -84,19 +84,19 @@ struct heredoc {
 
 
 
-struct heredoc *heredoclist;	/* list of here documents to read */
-int parsebackquote;		/* nonzero if we are inside backquotes */
-int doprompt;			/* if set, prompt the user */
-int needprompt;			/* true if interactive and at start of line */
-int lasttoken;			/* last token read */
+STATIC struct heredoc *heredoclist;	/* list of here documents to read */
+STATIC int parsebackquote;	/* nonzero if we are inside backquotes */
+STATIC int doprompt;		/* if set, prompt the user */
+STATIC int needprompt;		/* true if interactive and at start of line */
+STATIC int lasttoken;		/* last token read */
 MKINIT int tokpushback;		/* last token pushed back */
-char *wordtext;			/* text of last word returned by readtoken */
+STATIC char *wordtext;		/* text of last word returned by readtoken */
 MKINIT int checkkwd;            /* 1 == check for kwds, 2 == also eat newlines */
-struct nodelist *backquotelist;
-union node *redirnode;
-struct heredoc *heredoc;
-int quoteflag;			/* set if (part of) last token was quoted */
-int startlinno;			/* line # where last token started */
+STATIC struct nodelist *backquotelist;
+STATIC union node *redirnode;
+STATIC struct heredoc *heredoc;
+STATIC int quoteflag;		/* set if (part of) last token was quoted */
+STATIC int startlinno;		/* line # where last token started */
 
 /* XXX When 'noaliases' is set to one, no alias expansion takes place. */
 static int noaliases = 0;

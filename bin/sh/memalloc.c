@@ -113,8 +113,8 @@ struct stack_block {
 };
 #define SPACE(sp)	((char*)(sp) + ALIGN(sizeof(struct stack_block)))
 
-struct stack_block *stackp;
-struct stackmark *markp;
+STATIC struct stack_block *stackp;
+STATIC struct stackmark *markp;
 char *stacknxt;
 int stacknleft;
 int sstrnleft;
