@@ -403,7 +403,7 @@ acpi_pwr_switch_consumer(ACPI_HANDLE consumer, int state)
     }
 
     /*
-     * Now we are ready to switch, so  kill off any current power
+     * Now we are ready to switch, so kill off any current power
      * resource references.
      */
     res_changed = 0;
