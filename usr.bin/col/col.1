@@ -43,7 +43,7 @@
 .Nd filter reverse line feeds from input
 .Sh SYNOPSIS
 .Nm
-.Op Fl bfhx
+.Op Fl bfhpx
 .Op Fl l Ar num
 .Sh DESCRIPTION
 .Nm Col
@@ -69,6 +69,12 @@ Normally characters printed on a half line boundary are printed
 on the following line.
 .It Fl h
 Don't output multiple spaces instead of tabs (default).
+.It Fl p
+Force unknown control sequences to be passed through unchanged.
+Normally,
+.Nm
+will filter out any control sequences from the input other than those
+recognized and interpreted by itself, which are listed below.
 .It Fl x
 Output multiple spaces instead of tabs.
 .It Fl l Ar num
