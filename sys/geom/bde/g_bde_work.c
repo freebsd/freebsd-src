@@ -231,10 +231,10 @@ g_bde_get_sector(struct g_bde_work *wp, off_t offset)
 		if (sp != NULL && sp->ref > 0)
 			sp = NULL;
 		if (sp == NULL) {
-			g_bde_ncache++;
-			sc->ncache++;
 			sp = g_bde_new_sector(wp, sc->sectorsize);
 			if (sp != NULL) {
+				g_bde_ncache++;
+				sc->ncache++;
 				TAILQ_INSERT_TAIL(&sc->freelist, sp, list);
 				sp->malloc = 2;
 			}
