@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kbdio.c,v 1.1.2.1 1996/12/03 10:45:00 phk Exp $
+ * $Id: kbdio.c,v 1.1.2.2 1996/12/04 16:11:39 phk Exp $
  */
 
 #include <sys/param.h>
@@ -295,64 +295,76 @@ read_aux_data(int port)
 
 /* discard data from the keyboard */
 void
-empty_kbd_buffer(int port, int t)
+empty_kbd_buffer(int port, int wait)
 {
+    int t;
     int b;
     int c = 0;
     int delta = 2;
 
-    for (; t > 0; t -= delta) { 
+    for (t = wait; t > 0; ) { 
         if ((inb(port + KBD_STATUS_PORT) & KBDS_BUFFER_FULL)
     	   == KBDS_KBD_BUFFER_FULL) {
 	    DELAY(KBDD_DELAYTIME);
-        b = inb(port + KBD_DATA_PORT);
-        ++c;
-    }
+            b = inb(port + KBD_DATA_PORT);
+            ++c;
+	    t = wait;
+	} else {
+	    t -= delta;
+        }
         DELAY(delta*1000);
     }
     if ((verbose >= 2) && (c > 0))
-    log(LOG_DEBUG,"kbdio: %d char read (empty_kbd_buffer)\n",c);
+        log(LOG_DEBUG,"kbdio: %d char read (empty_kbd_buffer)\n",c);
 }
 
 /* discard data from the aux device */
 void
-empty_aux_buffer(int port, int t)
+empty_aux_buffer(int port, int wait)
 {
+    int t;
     int b;
     int c = 0;
     int delta = 2;
 
-    for (; t > 0; t -= delta) { 
+    for (t = wait; t > 0; ) { 
         if ((inb(port + KBD_STATUS_PORT) & KBDS_BUFFER_FULL)
     	    == KBDS_AUX_BUFFER_FULL) {
 	    DELAY(KBDD_DELAYTIME);
-        b = inb(port + KBD_DATA_PORT);
-        ++c;
-    }
+            b = inb(port + KBD_DATA_PORT);
+            ++c;
+	    t = wait;
+	} else {
+	    t -= delta;
+        }
 	DELAY(delta*1000);
     }
     if ((verbose >= 2) && (c > 0))
-    log(LOG_DEBUG,"kbdio: %d char read (empty_aux_buffer)\n",c);
+        log(LOG_DEBUG,"kbdio: %d char read (empty_aux_buffer)\n",c);
 }
 
 /* discard any data from the keyboard or the aux device */
 void
-empty_both_buffers(int port, int t)
+empty_both_buffers(int port, int wait)
 {
+    int t;
     int b;
     int c = 0;
     int delta = 2;
 
-    for (; t > 0; t -= delta) { 
+    for (t = wait; t > 0; ) { 
         if (inb(port + KBD_STATUS_PORT) & KBDS_ANY_BUFFER_FULL) {
 	    DELAY(KBDD_DELAYTIME);
-        b = inb(port + KBD_DATA_PORT);
-        ++c;
-    }
+            b = inb(port + KBD_DATA_PORT);
+            ++c;
+	    t = wait;
+	} else {
+	    t -= delta;
+        }
 	DELAY(delta*1000);
     }
     if ((verbose >= 2) && (c > 0))
-    log(LOG_DEBUG,"kbdio: %d char read (empty_both_buffers)\n",c);
+        log(LOG_DEBUG,"kbdio: %d char read (empty_both_buffers)\n",c);
 }
 
 /* keyboard and mouse device control */
