@@ -26,6 +26,10 @@
  * $FreeBSD$
  */
 
+#ifdef COMPILING_LINT
+#warning "The simos driver is broken and is not compiled with LINT"
+#else
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
@@ -348,3 +352,6 @@ simos_intr(int unit)
 
 	simos_done(sc);
 }
+
+
+#endif /* !COMPILING_LINT */
