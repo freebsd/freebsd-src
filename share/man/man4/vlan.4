@@ -80,7 +80,7 @@ interface
 .Pq Em not on its parent
 using
 .Xr ifconfig 8
-in that case to indicate that the hardware support for
+in that case to indicate that hardware support for
 the 802.1Q VLANs is present in its parent.
 .\"
 .Ss "Selecting the Right Network Interface Card to Run VLANs Through"
@@ -89,6 +89,8 @@ driver hooks for the 802.1Q VLAN technology in
 .Fx
 are
 .Xr bge 4 ,
+.Xr em 4 ,
+.Xr gx 4 ,
 .Xr nge 4 ,
 .Xr ti 4 ,
 and
@@ -97,13 +99,12 @@ and
 The rest of the ethernet NICs supported by
 .Fx
 can run
-VLANs using the software emulation in the
+VLANs using software emulation in the
 .Nm
 driver.
 However, most of them lack the capability
 of transmitting and/or receiving oversized frames.
-Using such a NIC as a parent interface for a
-.Nm
+Using such a NIC as a parent interface
 implies a reduced MTU on the corresponding
 .Nm
 interfaces.
@@ -115,6 +116,10 @@ filtering that breaks the Path MTU Discovery mechanism.
 .Pp
 The NICs that support oversized frames are as follows:
 .Bl -tag -width ".Xr fxp 4 " -offset indent
+.It Xr dc 4
+supports long frames for
+.Nm
+natively.
 .It Xr de 4
 requires defining
 .Dv BIG_PACKET
@@ -123,39 +128,38 @@ in the
 source file and rebuilding the kernel.
 The hack works only for the 21041, 21140, and 21140A chips.
 .It Xr fxp 4
-supports long frames for the
+supports long frames for
 .Nm
 natively.
 .It Xr sis 4
-supports long frames for the
+supports long frames for
+.Nm
+natively.
+.It Xr ste 4
+supports long frames for
 .Nm
 natively.
 .It Xr tl 4
-does support long frames.
+has support for long frames.
 .It Xr tx 4
-does support long frames.
-.It Xr wx 4
-does support long frames.
+supports long frames for
+.Nm
+natively.
 .It Xr xl 4
 supports long frames only if the card is built on a newer chip
 (Cyclone and above).
 .El
 .Pp
 Note:
-Except for
-.Xr fxp 4 ,
-.Xr sis 4
-and
-.Xr tx 4 ,
-none of the above drivers inform the
+Unless marked as having native support for
+.Nm ,
+the above drivers don't inform the
 .Nm
-driver about their support for long frames.
-Just fix the MTU of a
+driver about their long frame handling capability.
+Just increase the MTU of a
 .Nm
 interface if it appears to be lower than 1500 bytes after
-attaching the
-.Nm
-to a parent interface that is known to support long frames.
+attaching to a parent known to support long frames.
 .Sh SEE ALSO
 .Xr ifconfig 8
 .Sh BUGS
