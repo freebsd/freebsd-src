@@ -84,7 +84,7 @@ if ($hfile) {
  * This file is produced automatically.
  * Do not modify anything in here by hand.
  *
- * Created from $FreeBSD$
+ * Created from src/sys/kern/vnode_if.pl
  */
 
 extern struct vnodeop_desc vop_default_desc;
@@ -100,7 +100,7 @@ if ($cfile) {
  * This file is produced automatically.
  * Do not modify anything in here by hand.
  *
- * Created from $FreeBSD$
+ * Created from src/sys/kern/vnode_if.pl
  */
 
 #include <sys/param.h>
