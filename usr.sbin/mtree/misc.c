@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)misc.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: misc.c,v 1.4 1997/10/01 06:30:01 charnier Exp $";
+	"$Id: misc.c,v 1.5 1998/06/05 14:43:40 peter Exp $";
 #endif /*not lint */
 
 #include <sys/types.h>
@@ -64,10 +64,18 @@ static KEY keylist[] = {
 	{"gname",	F_GNAME,	NEEDVALUE},
 	{"ignore",	F_IGN,		0},
 	{"link",	F_SLINK,	NEEDVALUE},
+#ifdef MD5
 	{"md5digest",	F_MD5,		NEEDVALUE},
+#endif
 	{"mode",	F_MODE,		NEEDVALUE},
 	{"nlink",	F_NLINK,	NEEDVALUE},
 	{"nochange",	F_NOCHANGE,	0},
+#ifdef RMD160
+	{"ripemd160digest", F_RMD160,	NEEDVALUE},
+#endif
+#ifdef SHA1
+	{"sha1digest",	F_SHA1,		NEEDVALUE},
+#endif
 	{"size",	F_SIZE,		NEEDVALUE},
 	{"time",	F_TIME,		NEEDVALUE},
 	{"type",	F_TYPE,		NEEDVALUE},

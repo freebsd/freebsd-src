@@ -30,9 +30,9 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     From: @(#)mtree.8	8.2 (Berkeley) 12/11/93
-.\"	$Id: mtree.8,v 1.12 1998/06/05 14:43:40 peter Exp $
+.\"	$Id: mtree.8,v 1.13 1998/06/10 06:45:08 peter Exp $
 .\"
-.Dd February 9, 1995
+.Dd February 26, 1999
 .Dt MTREE 8
 .Os
 .Sh NAME
@@ -139,6 +139,16 @@ The file group as a numeric value.
 The file group as a symbolic name.
 .It Cm md5digest
 The MD5 message digest of the file.
+.It Cm sha1digest
+The 
+.Tn FIPS
+160-1
+.Pq Dq Tn SHA-1
+message digest of the file.
+.It Cm ripemd160digest
+The
+.Tn RIPEMD160
+message digest of the file.
 .It Cm mode
 The current file's permissions as a numeric (octal) or symbolic
 value.
@@ -240,7 +250,7 @@ To detect system binaries that have been ``trojan horsed'', it is recommended
 that
 .Nm
 .Fl K
-.Cm md5digest
+.Cm sha1digest
 be run on the file systems, and a copy of the results stored on a different
 machine, or, at least, in encrypted form.
 The output file itself should be digested using the
@@ -285,8 +295,17 @@ The
 .Nm
 utility appeared in
 .Bx 4.3 Reno .
-The MD5 digest capability was added in
+The 
+.Tn MD5
+digest capability was added in
 .Fx 2.1 ,
 in response to the widespread use of programs which can spoof
 .Xr cksum 1 .
-
+The
+.Tn SHA-1
+and
+.Tn RIPEMD160
+digests were added in
+.Fx 4.0 ,
+as new attacks have demonstrated weaknesses in
+.Tn MD5 .

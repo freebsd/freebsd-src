@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)compare.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: compare.c,v 1.9 1998/06/09 05:02:29 imp Exp $";
+	"$Id: compare.c,v 1.10 1998/08/02 14:41:34 bde Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -45,7 +45,15 @@ static const char rcsid[] =
 #include <errno.h>
 #include <fcntl.h>
 #include <fts.h>
+#ifdef MD5
 #include <md5.h>
+#endif
+#ifdef SHA1
+#include <sha.h>
+#endif
+#ifdef RMD160
+#include <ripemd.h>
+#endif
 #include <stdio.h>
 #include <time.h>
 #include <unistd.h>
@@ -207,10 +215,11 @@ typeerr:		LABEL;
 			}
 			tab = "\t";
 		}
+#ifdef MD5
 	if (s->flags & F_MD5) {
 		char *new_digest, buf[33];
 
-		new_digest = MD5File(p->fts_accpath,buf);
+		new_digest = MD5File(p->fts_accpath, buf);
 		if (!new_digest) {
 			LABEL;
 			printf("%sMD5File: %s: %s\n", tab, p->fts_accpath,
@@ -223,6 +232,43 @@ typeerr:		LABEL;
 			tab = "\t";
 		}
 	}
+#endif /* MD5 */
+#ifdef SHA1
+	if (s->flags & F_SHA1) {
+		char *new_digest, buf[41];
+
+		new_digest = SHA1_File(p->fts_accpath, buf);
+		if (!new_digest) {
+			LABEL;
+			printf("%sSHA1_File: %s: %s\n", tab, p->fts_accpath,
+			       strerror(errno));
+			tab = "\t";
+		} else if (strcmp(new_digest, s->sha1digest)) {
+			LABEL;
+			printf("%sSHA-1 (%s, %s)\n", tab, s->sha1digest,
+			       new_digest);
+			tab = "\t";
+		}
+	}
+#endif /* SHA1 */
+#ifdef RMD160
+	if (s->flags & F_RMD160) {
+		char *new_digest, buf[41];
+
+		new_digest = RIPEMD160_File(p->fts_accpath, buf);
+		if (!new_digest) {
+			LABEL;
+			printf("%sRIPEMD160_File: %s: %s\n", tab,
+			       p->fts_accpath, strerror(errno));
+			tab = "\t";
+		} else if (strcmp(new_digest, s->rmd160digest)) {
+			LABEL;
+			printf("%sRIPEMD160 (%s, %s)\n", tab, s->rmd160digest,
+			       new_digest);
+			tab = "\t";
+		}
+	}
+#endif /* RMD160 */
 
 	if (s->flags & F_SLINK && strcmp(cp = rlink(name), s->slink)) {
 		LABEL;
