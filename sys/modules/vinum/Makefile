@@ -1,18 +1,24 @@
-#       $Id: Makefile,v 1.4 1998/10/23 11:56:44 peter Exp $ 
+#       $Id: Makefile,v 1.5 1998/12/28 05:27:24 peter Exp $ 
 
 SOURCE=	${.CURDIR}/../../dev/vinum
 
 .PATH:  ${SOURCE}
 KMOD=   vinum
-SRCS=   vinum.c vnode_if.h parser.c config.c io.c util.c vinumhdr.h request.h \
-	state.c memory.c request.c lock.c vinumext.h vinumio.h vinumkw.h \
-	vinumstate.h vinumvar.h revive.c vinumioctl.c interrupt.c
+SRCS=   vnode_if.h opt_vinum.h vinumstate.h vinumvar.h \
+	vinumhdr.h request.h vinumext.h vinumio.h vinumkw.h \
+	vinum.c vinumparser.c vinumconfig.c vinumio.c vinumutil.c \
+	vinumstate.c vinummemory.c vinumrequest.c vinumlock.c \
+	vinumrevive.c vinumioctl.c vinuminterrupt.c
 NOMAN=
-CFLAGS = -I${SOURCE} -O -g -I/usr/include/machine -DDEBUG -Wall -Wno-unused -Wno-parentheses
+CFLAGS = -I${SOURCE} -O -DVINUMDEBUG -Wall -Wno-unused -Wno-parentheses
 
-CLEANFILES+=    vnode_if.h vnode_if.c
+CLEANFILES+=    vnode_if.h vnode_if.c opt_vinum.h
 
 all:
+
+# VINUMDEBUG in CFLAGS instead..
+opt_vinum.h:
+	@touch opt_vinum.h
 
 state.h:  maketabs vinumstate.h
 	./maketabs >state.h
