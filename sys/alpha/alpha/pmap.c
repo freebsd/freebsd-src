@@ -326,7 +326,7 @@ vm_offset_t kernel_vm_end;
  * Data for the ASN allocator
  */
 static int pmap_maxasn;
-static pmap_t pmap_active[NCPUS];
+static pmap_t pmap_active[MAXCPU];
 
 /*
  * Data for the pv entry allocation mechanism
@@ -1180,7 +1180,7 @@ pmap_pinit0(pmap)
 	pmap->pm_count = 1;
 	pmap->pm_ptphint = NULL;
 	pmap->pm_active = 0;
-	for (i = 0; i < NCPUS; i++) {
+	for (i = 0; i < MAXCPU; i++) {
 		pmap->pm_asn[i].asn = 0;
 		pmap->pm_asn[i].gen = 0;
 	}
@@ -1230,7 +1230,7 @@ pmap_pinit(pmap)
 	pmap->pm_count = 1;
 	pmap->pm_ptphint = NULL;
 	pmap->pm_active = 0;
-	for (i = 0; i < NCPUS; i++) {
+	for (i = 0; i < MAXCPU; i++) {
 		pmap->pm_asn[i].asn = 0;
 		pmap->pm_asn[i].gen = 0;
 	}

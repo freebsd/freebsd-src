@@ -71,9 +71,9 @@
 #define OBJFORMAT_DEFAULT	"elf"
 
 #ifdef SMP
-#define NCPUS		32
+#define MAXCPU		32
 #else
-#define NCPUS		1
+#define MAXCPU		1
 #endif
 
 /*

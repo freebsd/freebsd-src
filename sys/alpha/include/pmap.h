@@ -178,7 +178,7 @@ struct pmap {
 	struct {
 		u_int32_t	asn:8;		/* address space number */
 		u_int32_t	gen:24;		/* generation number */
-	}			pm_asn[NCPUS];
+	}			pm_asn[MAXCPU];
 	struct pmap_statistics	pm_stats;	/* pmap statistics */
 	struct	vm_page		*pm_ptphint;	/* pmap ptp hint */
 };
