@@ -124,13 +124,13 @@ chrdev	name		comments
 105	iic		I2C bus generic i/o
 106	smb		System Management Bus generic i/o
 107	3dfx		3Dfx driver (shocking@prth.pgs.com)
-108	usb		Universal Serial Bus (hibma@skylink.it)
+108	usb		Universal Serial Bus <n_hibma>
 109	ida		Intelligent Disk [Array] (md@doc.ic.ac.uk)
 110	ses		SCSI Environmental Services driver (mjacob@feral.com)
-111	ums		USB Mouse (hibma@skylink.it)
+111	ums		USB Mouse <n_hibma>
 112	kbd		keyboard
-113	ulpt		USB Printer (hibma@skylink.it)
-114	ugen		USB Generic device (hibma@skylink.it)
+113	ulpt		USB Printer <n_hibma>
+114	ugen		USB Generic device <n_hibma>
 115	dag		University of Waikato DAG network capture boards
 116	ad		ATA disks
 117	acd		ATAPI CDROM
@@ -138,9 +138,9 @@ chrdev	name		comments
 119	ast		ATAPI tape
 120	aud		Audit Device <robert+freebsd@cyrus.watson.org>
 121	onew		Dallas Semiconductor One-Wire bus <phk@freebsd.org>
-122	uhid		USB HID devices <hibma@skylink.it>
+122	uhid		USB HID devices <n_hibma>
 123	fb		frame buffer
-124	ucdc		USB Communication Class Driver <hibma@skylink.it>
+124	ucdc		USB Communication Class Driver <n_hibma>
 125	digio		Advantech PCI-1750 IO card jen@vulture.dmem.strath.ac.uk
 126	sync		Generic sync port support <phk>, <brian>
 127	fire		Firewire driver <ikob@koganei.wide.ad.jp>
@@ -154,5 +154,6 @@ chrdev	name		comments
 135	zsc		TurboLaser console uart
 136	ipr		Iprobe on-chip perf. counters (gallatin@freebsd.org)
 137	nfp		nFast PCI crypto accelerator (support@ncipher.com)
+138	usio		USB Serial support <n_hibma>
 200	??		entries from 200-255 are reserved for local use
 255	??		entries from 200-255 are reserved for local use
