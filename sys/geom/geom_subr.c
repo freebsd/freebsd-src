@@ -180,7 +180,7 @@ g_modevent(module_t mod, int type, void *data)
 	struct g_class *mp;
 
 	mp = data;
-	if (mp->version != 0 && mp->version != G_VERSION) {
+	if (mp->version != G_VERSION) {
 		printf("GEOM class %s has Wrong version %x\n",
 		    mp->name, mp->version);
 		return (EINVAL);
