@@ -90,7 +90,7 @@ static char sccsid[] = "@(#)getnetgrent.c	8.1 (Berkeley) 6/4/93";
 #include <sys/param.h>
 #include <sys/errno.h>
 static char *_netgr_yp_domain;
-static int _use_only_yp;
+int _use_only_yp;
 static int _netgr_yp_enabled;
 static int _yp_innetgr;
 #endif
@@ -163,6 +163,8 @@ setnetgrent(group)
 		strcmp(group, grouphead.grname)) {
 		endnetgrent();
 #ifdef YP
+		/* Presumed guilty until proven innocent. */
+		_use_only_yp = 0;
 		/*
 		 * IF /etc/netgroup doesn't exist or is empty,
 		 * use NIS exclusively.
@@ -187,8 +189,11 @@ setnetgrent(group)
 		 * lookup and we're in NIS-only mode, short-circuit
 		 * parse_netgroup() and cut directly to the chase.
 		 */
-			if (_use_only_yp && _yp_innetgr)
+			if (_use_only_yp && _yp_innetgr) {
+				/* dohw! */
+				fclose(netf);
 				return;
+			}
 #else
 		if (netf = fopen(_PATH_NETGROUP, "r")) {
 #endif

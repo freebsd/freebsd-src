@@ -69,8 +69,10 @@ getgrent()
 
 #ifdef YP
 	if (_gr_stepping_yp) {
-		return (_nextypgroup(&_gr_group) ? &_gr_group : 0);
+		if (_nextypgroup(&_gr_group))
+			return(&_gr_group);
 	}
+tryagain:
 #endif
 
 	if (!grscan(0, 0, NULL))
@@ -80,7 +82,10 @@ getgrent()
 		_getypgroup(&_gr_group, &_gr_group.gr_name[1],
 			    "group.byname");
 	} else if(_gr_group.gr_name[0] == '+') {
-		return (_nextypgroup(&_gr_group) ? &_gr_group : 0);
+		if (!_nextypgroup(&_gr_group))
+			goto tryagain;
+		else
+			return(&_gr_group);
 	}
 #endif
 	return(&_gr_group);
@@ -404,7 +409,10 @@ unpack:
 		strcpy(resultbuf, result);
 		free(result);
 		if(result = strchr(resultbuf, '\n')) *result = '\0';
-		return(_gr_breakout_yp(gr, resultbuf));
+		if (_gr_breakout_yp(gr, resultbuf))
+			return(1);
+		else
+			goto tryagain;
 	}
 }
 

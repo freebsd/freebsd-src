@@ -70,8 +70,10 @@ struct _pw_cache {
 static int _pluscnt, _minuscnt;
 static struct _pw_cache *_plushead = NULL, *_minushead = NULL;
 static void _createcaches(), _freecaches();
+static int _scancaches(char *);
 static int _yp_enabled;			/* set true when yp enabled */
 static int _pw_stepping_yp;		/* set true when stepping thru map */
+static int _yp_done;
 #endif
 static int __hashpw(), __initdb();
 
@@ -92,11 +94,14 @@ getpwent()
 #ifdef YP
 	if(_pw_stepping_yp) {
 		_pw_passwd = _pw_copy;
-		return (_nextyppass(&_pw_passwd) ? &_pw_passwd : 0);
+		if (_nextyppass(&_pw_passwd))
+			return (&_pw_passwd);
+		else
+			_yp_done = 1;
 	}
-#else
-tryagain:
 #endif
+tryagain:
+
 	++_pw_keynum;
 	bf[0] = _PW_KEYBYNUM;
 	bcopy((char *)&_pw_keynum, bf + 1, sizeof(_pw_keynum));
@@ -107,7 +112,10 @@ tryagain:
 #ifdef YP
 	if(_pw_passwd.pw_name[0] == '+' || _pw_passwd.pw_name[0] == '-') {
 		_pw_copy = _pw_passwd;
-		return (_nextyppass(&_pw_passwd) ? &_pw_passwd : 0);
+		if (_yp_done || !_nextyppass(&_pw_passwd))
+			goto tryagain;
+		else
+			return (&_pw_passwd);
 	}
 #else
 	/* Ignore YP password file entries when YP is disabled. */
@@ -197,7 +205,7 @@ setpassent(stayopen)
 {
 	_pw_keynum = 0;
 #ifdef YP
-	_pw_stepping_yp = 0;
+	_pw_stepping_yp = _yp_done = 0;
 #endif
 	_pw_stayopen = stayopen;
 	return(1);
@@ -208,7 +216,7 @@ setpwent()
 {
 	_pw_keynum = 0;
 #ifdef YP
-	_pw_stepping_yp = 0;
+	_pw_stepping_yp = _yp_done = 0;
 #endif
 	_pw_stayopen = 0;
 	return(1);
@@ -219,7 +227,7 @@ endpwent()
 {
 	_pw_keynum = 0;
 #ifdef YP
-	_pw_stepping_yp = 0;
+	_pw_stepping_yp = _yp_done = 0;
 #endif
 	if (_pw_db) {
 		(void)(_pw_db->close)(_pw_db);
@@ -322,6 +330,7 @@ _createcaches()
 	struct _namelist *n, *namehead;
 	char *user, *host, *domain;
 	struct group *grp;
+	extern int ___use_only_yp;
 
 	/*
 	 * Assume that the database has already been initialized
@@ -404,7 +413,7 @@ _createcaches()
 	key.size = 1;
 	if (!(_pw_db->get)(_pw_db, &key, &data, 0)) {
 		_minuscnt = (int)*((char *)data.data);
-		for (i = 0; i < _minuscnt; i++) {
+		for (i = _minuscnt; i > -1; i--) {
 			bf[0] = _PW_KEYMINUSBYNUM;
 			bcopy(&i, bf + 1, sizeof(i) + 1);
 			key.size = (sizeof(i)) + 1;
@@ -439,6 +448,8 @@ _createcaches()
 						namehead->next = NULL;
 					}
 				}
+				/* Save just the name */
+				m->pw_entry.pw_name = strdup(_pw_passwd.pw_name);
 				m->namelist = namehead;
 				m->next = _minushead;
 				_minushead = m;
@@ -490,6 +501,40 @@ struct _namelist *n;
 		_minushead = m;
 	}
 	_pluscnt = _minuscnt = 0;
+}
+
+static int _scancaches(user)
+char *user;
+{
+	register struct _pw_cache *m, *p;
+	register struct _namelist *n;
+
+	if (_minuscnt && _minushead) {
+		m = _minushead;
+		while (m) {
+			n = m->namelist;
+			while (n) {
+				if (!strcmp(n->name,user) || *n->name == '\0')
+					return (1);
+				n = n->next;
+			}
+			m = m->next;
+		}
+	}
+	if (_pluscnt && _plushead) {
+		p = _plushead;
+		while (p) {
+			n = p->namelist;
+			while (n) {
+				if (!strcmp(n->name, user) || *n->name == '\0')
+					bcopy((char *)&p->pw_entry,
+					(char *)&_pw_passwd, sizeof(p->pw_entry));
+				n = n->next;
+			}
+			p = p->next;
+		}
+	}
+	return(0);
 }
 
 static int
@@ -600,9 +645,7 @@ _getyppass(struct passwd *pw, const char *name, const char *map)
 	int resultlen;
 	char mastermap[1024];
 	int gotmaster = 0;
-	struct _pw_cache *m, *p;
-	struct _namelist *n;
-	char user[UT_NAMESIZE];
+	char user[UT_NAMESIZE+2];
 
 	if(!_pw_yp_domain) {
 		if(yp_get_default_domain(&_pw_yp_domain))
@@ -627,36 +670,13 @@ _getyppass(struct passwd *pw, const char *name, const char *map)
 
 	if(resultlen >= sizeof resultbuf) return 0;
 	strcpy(resultbuf, result);
-	sprintf (user, "%.*s", (strchr(result, ':') - result), result);
+	snprintf (user, sizeof(user), "%.*s", (strchr(result, ':') - result), result);
 	_pw_passwd.pw_fields = -1; /* Impossible value */
-	if (_minuscnt && _minushead) {
-		m = _minushead;
-		while (m) {
-			n = m->namelist;
-			while (n) {
-				if (!strcmp(n->name,user) || *n->name == '\0') {
-					free(result);
-					return (0);
-				}
-				n = n->next;
-			}
-			m = m->next;
-		}
-	}
-	if (_pluscnt && _plushead) {
-		p = _plushead;
-		while (p) {
-			n = p->namelist;
-			while (n) {
-				if (!strcmp(n->name, user) || *n->name == '\0')
-					bcopy((char *)&p->pw_entry,
-					(char *)&_pw_passwd, sizeof(p->pw_entry));
-				n = n->next;
-			}
-			p = p->next;
-		}
-	}
-	free(result);
+	if (_scancaches((char *)&user)) {
+		free(result);
+		return(0);
+	} else
+		free(result);
 	/* No hits in the plus or minus lists: Bzzt! reject. */
 	if (_pw_passwd.pw_fields == -1)
 		return(0);
@@ -675,9 +695,7 @@ _nextyppass(struct passwd *pw)
 	int rv;
 	char *map = "passwd.byname";
 	int gotmaster = 0;
-	struct _pw_cache *m, *p;
-	struct _namelist *n;
-	char user[UT_NAMESIZE];
+	char user[UT_NAMESIZE+2];
 
 	if(!_pw_yp_domain) {
 		if(yp_get_default_domain(&_pw_yp_domain))
@@ -718,41 +736,21 @@ unpack:
 		}
 
 		strcpy(resultbuf, result);
-		sprintf(user, "%.*s", (strchr(result, ':') - result), result);
+		snprintf(user, sizeof(user), "%.*s", (strchr(result, ':') - result), result);
 		_pw_passwd.pw_fields = -1; /* Impossible value */
-		if (_minuscnt && _minushead) {
-			m = _minushead;
-			while (m) {
-				n = m->namelist;
-				while (n) {
-					if (!strcmp(n->name, user) || *n->name == '\0') {
-						free(result);
-						goto tryagain;
-					}
-					n = n->next;
-				}
-				m = m->next;
-			}
-		}
-		if (_pluscnt && _plushead) {
-			p = _plushead;
-			while (p) {
-				n = p->namelist;
-				while (n) {
-					if (!strcmp(n->name, user) || *n->name == '\0')
-						bcopy((char *)&p->pw_entry,
-						(char*)&_pw_passwd, sizeof(p->pw_entry));
-					n = n->next;
-				}
-				p = p->next;
-			}
-		}
-		free(result);
+		if (_scancaches((char *)&user)) {
+			free(result);
+			goto tryagain;
+		} else
+			free(result);
 		/* No plus or minus hits: Bzzzt! reject. */
 		if (_pw_passwd.pw_fields == -1)
 			goto tryagain;
 		if(result = strchr(resultbuf, '\n')) *result = '\0';
-		return(_pw_breakout_yp(pw, resultbuf, gotmaster));
+		if (_pw_breakout_yp(pw, resultbuf, gotmaster))
+			return(1);
+		else
+			goto tryagain;
 	}
 }
 
