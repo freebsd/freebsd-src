@@ -265,7 +265,10 @@ ata_pci_match(device_t dev)
 	return "Intel ICH2 ATA100 controller";
 
     case 0x522910b9:
-	return "AcerLabs Aladdin ATA33 controller";
+	if (pci_get_revid(dev) < 0x20)
+	    return "AcerLabs Aladdin ATA controller";
+	else
+	    return "AcerLabs Aladdin ATA33 controller";
 
     case 0x05711106: 
 	if (ata_find_dev(dev, 0x05861106, 0))
