@@ -167,7 +167,7 @@ Config_spec:
 
 System_spec:
 	CONFIG System_id System_parameter_list
-	  = { warnx("line %d: root/dump/swap specifications obsolete", yyline);}
+	  = { errx(1,"line %d: root/dump/swap specifications obsolete", yyline);}
 	  |
 	CONFIG System_id
 	  ;
@@ -246,11 +246,8 @@ Option:
 		 */
 		op->op_line = yyline;
 		opt = op;
-		if ((s = strchr(op->op_name, '='))) {
-			warnx("line %d: The `=' in options should not be quoted", yyline);
-			*s = '\0';
-			op->op_value = ns(s + 1);
-		}
+		if ((s = strchr(op->op_name, '=')))
+			errx(1, "line %d: The `=' in options should not be quoted", yyline);
 	      } |
 	Save_id EQUALS Opt_value
 	      = {
@@ -308,18 +305,15 @@ Device_spec:
 	      = { cur.d_type = DEVICE; } |
 	DISK Dev_spec
 	      = {
-		warnx("line %d: Obsolete keyword 'disk' found - use 'device'", yyline);
-		cur.d_type = DEVICE;
+		errx(1, "line %d: Obsolete keyword 'disk' found - use 'device'", yyline);
 		} |
 	TAPE Dev_spec
 	      = {
-		warnx("line %d: Obsolete keyword 'tape' found - use 'device'", yyline);
-		cur.d_type = DEVICE;
+		errx(1, "line %d: Obsolete keyword 'tape' found - use 'device'", yyline);
 		} |
 	CONTROLLER Dev_spec
 	      = {
-		warnx("line %d: Obsolete keyword 'controller' found - use 'device'", yyline);
-	        cur.d_type = DEVICE;
+		errx(1, "line %d: Obsolete keyword 'controller' found - use 'device'", yyline);
 	        } |
 	PSEUDO_DEVICE Init_dev Dev
 	      = {
@@ -401,7 +395,7 @@ Info:
 	      = { cur.d_disabled = 1; } |
 	CONFLICTS
 	      = {
-		warnx("line %d: Obsolete keyword 'conflicts' found", yyline);
+		errx(1, "line %d: Obsolete keyword 'conflicts' found", yyline);
 		};
 
 %%
@@ -411,7 +405,7 @@ yyerror(s)
 	char *s;
 {
 
-	warnx("line %d: %s", yyline + 1, s);
+	errx(1, "line %d: %s", yyline + 1, s);
 }
 
 /*
@@ -427,7 +421,7 @@ newdev(dp)
 		for (xp = dtab; xp != 0; xp = xp->d_next) {
 			if ((xp->d_unit == dp->d_unit) &&
 			    eq(xp->d_name, dp->d_name)) {
-				warnx("line %d: already seen device %s%d",
+				errx(1, "line %d: already seen device %s%d",
 				    yyline, xp->d_name, xp->d_unit);
 			}
 		}

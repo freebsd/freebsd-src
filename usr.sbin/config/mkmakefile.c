@@ -197,7 +197,7 @@ makefile()
 		else if (strncmp(line, "%VERSREQ=", sizeof("%VERSREQ=") - 1) == 0) {
 			versreq = atoi(line + sizeof("%VERSREQ=") - 1);
 			if (versreq != CONFIGVERS) {
-				fprintf(stderr, "WARNING: version of config(8) does not match kernel!\n");
+				fprintf(stderr, "ERROR: version of config(8) does not match kernel!\n");
 				fprintf(stderr, "config version = %d, ", CONFIGVERS);
 				fprintf(stderr, "version required = %d\n\n", versreq);
 				fprintf(stderr, "Make sure that /usr/src/usr.sbin/config is in sync\n");
@@ -207,6 +207,7 @@ makefile()
 				fprintf(stderr, "file against the GENERIC or LINT config files for\n");
 				fprintf(stderr, "changes in config syntax, or option/device naming\n");
 				fprintf(stderr, "conventions\n\n");
+				exit(1);
 			}
 		} else
 			fprintf(stderr,
@@ -234,7 +235,6 @@ read_files()
 	register struct opt *op;
 	char *wd, *this, *needs, *special, *depends, *clean, *warn;
 	char fname[MAXPATHLEN];
-	int ddwarned = 0;
 	int nreqs, first = 1, configdep, isdup, std, filetype,
 	    imp_rule, no_obj, before_depend, mandatory;
 
@@ -334,6 +334,7 @@ next:
 	else if (!eq(wd, "optional")) {
 		printf("%s: %s must be optional, mandatory or standard\n",
 		       fname, this);
+		printf("Your version of config(8) is out of sync with your kernel source.\n");
 		exit(1);
 	}
 nextparam:
@@ -411,11 +412,8 @@ nextparam:
 		goto nextparam;
 	}
 	if (eq(wd, "device-driver")) {
-		if (!ddwarned) {
-			printf("%s: `device-driver' flag ignored.\n", fname);
-			ddwarned++;
-		}
-		goto nextparam;
+		printf("%s: `device-driver' flag obsolete.\n", fname);
+		exit(1);
 	}
 	if (eq(wd, "profiling-routine")) {
 		filetype = PROFILING;

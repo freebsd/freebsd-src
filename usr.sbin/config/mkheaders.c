@@ -67,14 +67,18 @@ headers()
 			do_count(fl->f_needs, fl->f_needs, 1);
 	for (dp = dtab; dp != 0; dp = dp->d_next) {
 		if ((dp->d_type & TYPEMASK) == PSEUDO_DEVICE) {
-			if (!(dp->d_type & DEVDONE))
+			if (!(dp->d_type & DEVDONE)) {
 				printf("Warning: pseudo-device \"%s\" is unknown\n",
 				       dp->d_name);
+				exit(1);
+			}
 		}
 		if ((dp->d_type & TYPEMASK) == DEVICE) {
-			if (!(dp->d_type & DEVDONE))
+			if (!(dp->d_type & DEVDONE)) {
 				printf("Warning: device \"%s\" is unknown\n",
 				       dp->d_name);
+				exit(1);
+			}
 		}
 	}
 }
