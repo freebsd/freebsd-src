@@ -31,35 +31,42 @@
 .Os
 .Sh NAME
 .Nm vinvalbuf
-.Nd "Flushes and invalidates all buffers associated with a vnode"
+.Nd "flushes and invalidates all buffers associated with a vnode"
 .Sh SYNOPSIS
-.Fd #include <sys/param.h>
-.Fd #include <sys/vnode.h>
+.In sys/param.h
+.In sys/vnode.h
 .Ft int
 .Fn vinvalbuf "struct vnode *vp" "int flags" "struct ucred *cred" "struct proc *p" "int slpflag" "int slptimeo"
 .Sh DESCRIPTION
 The
-.Nm
+.Fn vinvalbuf
 function invalidates all of the buffers associated with the given vnode.
-This includes buffers on the clean list and the dirty list.  If the V_SAVE
+This includes buffers on the clean list and the dirty list.
+If the
+.Dv V_SAVE
 flag is specified then the buffers on the dirty list are synced prior to being
-released.  If there is a VM Object associated with the vnode it is removed.
+released.
+If there is a VM Object associated with the vnode, it is removed.
 .Pp
 Its arguments are:
-.Bl -tag -width spltimeo
-.It Ar vp
+.Bl -tag -xwidth ".Fa spltimeo"
+.It Fa vp
 A pointer to the vnode whose buffers will be invalidated.
-.It Ar flags
-The only supported flag is V_SAVE and it indicates that dirty buffers should by synced.
-.It Ar cred
+.It Fa flags
+The only supported flag is
+.Dv V_SAVE
+and it indicates that dirty buffers should by synced.
+.It Fa cred
 The user credentials that are used to
-.Fn VOP_FSYNC ""
-buffers if V_SAVE is set.
-.It Ar p
+.Xr VOP_FSYNC 9
+buffers if
+.Dv V_SAVE
+is set.
+.It Fa p
 The process responsible for this call.
-.It Ar slpflag
+.It Fa slpflag
 The slp flag that will be used in the priority of any sleeps in the function.
-.It Ar slptimeo
+.It Fa slptimeo
 The timeout for any sleeps in the function.
 .El
 .Sh LOCKS
@@ -67,32 +74,47 @@ The vnode is assumed to be locked prior to the call and remains locked upon retu
 .Pp
 Giant must be held by prior to the call and remains locked upon return.
 .Sh RETURN VALUES
-A 0 value is returned on success. 
+A 0 value is returned on success.
 .Sh PSEUDOCODE
-.Bd -literal
-	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, p);
-	error = vinvalbuf(devvp, V_SAVE, cred, p, 0, 0);
-	VOP_UNLOCK(devvp, 0, p);
-	if (error)
-		return (error);
+.Bd -literal -offset indent
+vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, p);
+error = vinvalbuf(devvp, V_SAVE, cred, p, 0, 0);
+VOP_UNLOCK(devvp, 0, p);
+if (error)
+	return (error);
 .Ed
 .Sh ERRORS
 .Bl -tag -width Er
 .It Bq Er ENOSPC
-The filesystem is full. (With V_SAVE)
+The filesystem is full.
+(With
+.Dv V_SAVE )
 .It Bq Er EDQUOT
-Disc quota exceeded. (With V_SAVE)
+Disc quota exceeded.
+(With
+.Dv V_SAVE )
 .It Bq Er EWOULDBLOCK
-Sleep operation timed out (See slptimeo)
+Sleep operation timed out.
+(See
+.Fa slptimeo )
 .It Bq Er ERESTART
-A signal needs to be delivered and the system call should be restarted (With PCATCH set in slpflag)
+A signal needs to be delivered and the system call should be restarted.
+(With
+.Dv PCATCH
+set in
+.Fa slpflag )
 .It Bq Er EINTR
-The system has been interrupted by a signal (With PCATCH set in slpflag)
+The system has been interrupted by a signal.
+(With
+.Dv PCATCH
+set in
+.Fa slpflag )
 .El
 .Sh SEE ALSO
-.Xr brelse 9
-.Xr bremfree 9
+.Xr brelse 9 ,
+.Xr bremfree 9 ,
+.Xr tsleep 9 ,
 .Xr VOP_FSYNC 9
-.Xr tsleep 9
 .Sh AUTHORS
-This man page was written by Chad David.
+This man page was written by
+.An Chad David .

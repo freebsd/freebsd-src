@@ -31,26 +31,29 @@
 .Os
 .Sh NAME
 .Nm major
-.Nd "Returns the major number for the device"
+.Nd "returns the major number for the device"
 .Sh SYNOPSIS
-.Fd #include <sys/systm.h>
+.In sys/systm.h
 .Ft int
-.Fo major
-.Fa "dev_t dev"
-.Fc
+.Fn major "dev_t dev"
 .Sh DESCRIPTION
 The
-.Nm
+.Fn major
 function returns the major device number for the given device.
 .Pp
-Its argument is: 
-.Bl -tag
-.It Ar dev
+Its argument is:
+.Bl -tag -xwidth ".Fa dev"
+.It Fa dev
 The device whose major device number should be returned.
+.El
 .Sh RETURN VALUES
-An integer greater than zero and less than NUMCDEVSW, or NOUDEV
+An integer greater than zero and less than
+.Dv NUMCDEVSW ,
+or
+.Dv NOUDEV
 if the device is invalid.
 .Sh SEE ALSO
 .Xr minor 9
 .Sh AUTHORS
-This man page was written by Chad David.
+This man page was written by
+.An Chad David .

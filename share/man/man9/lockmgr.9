@@ -31,94 +31,125 @@
 .Os
 .Sh NAME
 .Nm lockmgr
-.Nd "Aquires, releases and updates locks"
+.Nd "acquires, releases and updates locks"
 .Sh SYNOPSIS
-.Fd #include <sys/types.h>
-.Fd #include <sys/lockmgr.h>
+.In sys/types.h
+.In sys/lockmgr.h
 .Ft int
 .Fn lockmgr "struct lock *lkp" "u_int flags" "struct mtx *interlkp" "struct proc *p"
 .Sh DESCRIPTION
 The
-.Nm
+.Fn lockmgr
 function handles general locking functionality within the kernel, including
-support for shared and exclusive locks, and recursion.  Locks can also be
-upgraded and downgraded.
+support for shared and exclusive locks, and recursion.
+Locks can also be upgraded and downgraded.
 .Pp
 Its arguments are:
-.Bl -tag -width interlkp
-.It Ar lkp
+.Bl -tag -xwidth ".Fa interlkp"
+.It Fa lkp
 A pointer to lock to manipulate.
-.It Ar flags
+.It Fa flags
 Flags indicating what action is to be taken.
-.Pp
-LK_SHARED - Aquire a shared lock.  If we currently hold an exclusive lock it will
+.Bl -tag -xwidth ".Dv LK_EXCLUPGRADE"
+.It Dv LK_SHARED
+Aquire a shared lock.
+If we currently hold an exclusive lock it will be downgraded.
+.It Dv LK_EXCLUSIVE
+Aquire an exclusive lock.
+If we already hold an exclusive lock and
+.Dv LK_CANRECURSE
+is not set we will panic.
+.It Dv LK_DOWNGRADE
+Downgrade our exclusive lock to a shared lock.
+Downgrading a shared lock is not valid.
+If the exclusive lock has been recursed, all references will
 be downgraded.
-.Pp
-LK_EXCLUSIVE - Aquire an exclusive lock.  If we already hold an exclusive lock
-and LK_CANRECURSE is not set we will panic.
-.Pp
-LK_DOWNGRADE - Downgrade our exclusive lock to a shared lock.  Downgrading a shared
-lock is not valid.  If the exclusive lock has been recursed, all references will
-be downgraded.
-.Pp
-LK_EXCLUPGRADE - Upgrade our lock to an exclusive lock.  Will fail with EBUSY if
-there is someone ahead of use waiting for an upgrade. If this call fails we loose
-our shared lock.  Upgrading an exclusive lock will cause a panic.
-.Pp
-LK_UPGRADE - Upgrades our lock to an exclusive lock.  If this call fails we loose
-our shared lock.  Upgrading an exclusive lock will cause a panic.
-.Pp
-LK_RELEASE - Release the lock.  Releasing a lock that you do not hold can cause
+.It Dv LK_EXCLUPGRADE
+Upgrade our lock to an exclusive lock.
+Will fail with
+.Er EBUSY
+if there is someone ahead of use waiting for an upgrade.
+If this call fails we loose
+our shared lock.
+Upgrading an exclusive lock will cause a panic.
+.It Dv LK_UPGRADE
+Upgrades our lock to an exclusive lock.
+If this call fails we loose
+our shared lock.
+Upgrading an exclusive lock will cause a panic.
+.It Dv LK_RELEASE
+Release the lock.
+Releasing a lock that you do not hold can cause
 a panic.
-.Pp
-LK_DRAIN - Waits for all activity on the lock to end, and then marks it decommissioned.
+.It Dv LK_DRAIN
+Waits for all activity on the lock to end, and then marks it decommissioned.
 This is used before freeing a lock that is part of a piece of memory that is about to
-be freed. (As documented in lockmgr.h)
-.Pp
-LK_SLEEPFAIL - If we had to sleep for the lock then fail.
-.Pp
-LK_NOWAIT - Do not allow the call to sleep.  This can be used to test the lock.
-.Pp
-LK_CANRECURSE - It is ok to recurse on an exclusive lock.  For every lock there
+be freed.
+(As documented in
+.Pa lockmgr.h . )
+.It Dv LK_SLEEPFAIL
+If we had to sleep for the lock then fail.
+.It Dv LK_NOWAIT
+Do not allow the call to sleep.
+This can be used to test the lock.
+.It Dv LK_CANRECURSE
+It is ok to recurse on an exclusive lock.
+For every lock there
 must be a release.
-.Pp
-LK_INTERLOCK - Unlock the interlock, which is of course locked already.
-.Pp
-.It Ar interlkp
+.It Dv LK_INTERLOCK
+Unlock the interlock, which is of course locked already.
+.El
+.It Fa interlkp
 An interlock mutex for controlling group access to the lock.
-If LK_INTERLOCK is specified 
-.Nm
+If
+.Dv LK_INTERLOCK
+is specified,
+.Fn lockmgr
 assumes
-.Ar interlkp
+.Fa interlkp
 is currently owned and not recursed, and will return it unlocked.
-See mtx_assert(9).
-.It Ar p
-The process responsible for this call. NULL becomes LK_KERNPROC.
+See
+.Xr mtx_assert 9 .
+.It Fa p
+The process responsible for this call.
+.Dv NULL
+becomes
+.Dv LK_KERNPROC .
 .El
 .Sh LOCKS
-If LK_INTERLOCK is specified then
-.Ar interlkp
+If
+.Dv LK_INTERLOCK
+is specified then
+.Fa interlkp
 must be held prior to calling
-.Nm
+.Fn lockmgr
 and will be returned unlocked.
 .Pp
 Upgrade attempts that fail result in the loss of the lock that
-is currently held.  As well, it is not valid to upgrade an
+is currently held.
+As well, it is not valid to upgrade an
 exclusive lock, and a panic will be the result of trying.
 .Sh RETURN VALUES
-A value of 0 is returned on success. 
+A value of 0 is returned on success.
 .Sh ERRORS
-.Bl -tag
-.It Bq EBUSY
-Either LK_NOWAIT was specified and lockmgr would have slept, or another
+.Bl -tag -width Er
+.It Bq Er EBUSY
+Either
+.Dv LK_NOWAIT
+was specified and
+.Fn lockmgr
+would have slept, or another
 process was ahead of you in line for an exclusive upgrade.
-.It Bq ENOLCK
-LK_SLEEP_FAIL was set and we slept.
+.It Bq Er ENOLCK
+.Dv LK_SLEEP_FAIL
+was set and we slept.
+.El
 .Sh SEE ALSO
+.Xr lockcount 9 ,
+.Xr lockdestroy 9 ,
+.Xr lockmgr_printinfo 9 ,
+.Xr lockstatus 9 ,
 .Xr mutex 9
-.Xr lockcount 9
-.Xr lockdestroy 9
-.Xr lockstatus 9
-.Xr lockmgr_printinfo 9
 .Sh AUTHORS
-This man page was written by Chad David.
+This man page was written by
+.An Chad David .
