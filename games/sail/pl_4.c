@@ -74,7 +74,7 @@ acceptsignal()
 		;
 	p[-1] = '"';
 	*p = 0;
-	Write(W_SIGNAL, ms, 1, (int)buf, 0, 0, 0);
+	Write(W_SIGNAL, ms, 1, (long)buf, 0, 0, 0);
 }
 
 lookout()

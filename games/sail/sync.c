@@ -64,7 +64,7 @@ makesignal(from, fmt, ship, a, b, c)
 		(void) sprintf(message, fmt,
 			ship->shipname, colours(ship),
 			sterncolour(ship), a, b, c);
-	Write(W_SIGNAL, from, 1, (int)message, 0, 0, 0);
+	Write(W_SIGNAL, from, 1, (long)message, 0, 0, 0);
 }
 
 #include <sys/types.h>
@@ -194,7 +194,7 @@ Sync()
 			*p = 0;
 			for (p = buf; *p == ' '; p++)
 				;
-			a = (int)p;
+			a = (long)p;
 			b = c = d = 0;
 		} else
 			if (fscanf(sync_fp, "%d%d%d%d", &a, &b, &c, &d) != 4)
@@ -226,7 +226,7 @@ out:
 sync_update(type, ship, a, b, c, d)
 	int type;
 	register struct ship *ship;
-	int a, b, c, d;
+	long a, b, c, d;
 {
 	switch (type) {
 	case W_DBP: {

@@ -181,7 +181,7 @@ int key;
 		makesignal(from, "boarders from %s repelled", to);
 		(void) sprintf(message, "killed in melee: %d.  %s: %d",
 			totalto, from->shipname, totalfrom);
-		Write(W_SIGNAL, to, 1, (int) message, 0, 0, 0);
+		Write(W_SIGNAL, to, 1, (long) message, 0, 0, 0);
 		if (key)
 			return 1;
 	} else if (strengthto >= fromstrength * 3) {
@@ -213,10 +213,10 @@ int key;
 			}
 			(void) sprintf(message, "captured by the %s!",
 				to->shipname);
-			Write(W_SIGNAL, from, 1, (int) message, 0, 0, 0);
+			Write(W_SIGNAL, from, 1, (long) message, 0, 0, 0);
 			(void) sprintf(message, "killed in melee: %d.  %s: %d",
 				totalto, from->shipname, totalfrom);
-			Write(W_SIGNAL, to, 1, (int) message, 0, 0, 0);
+			Write(W_SIGNAL, to, 1, (long) message, 0, 0, 0);
 			mento = 0;
 			return 0;
 		}
