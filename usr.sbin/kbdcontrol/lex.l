@@ -31,6 +31,7 @@
 %{
 
 #include "lex.h"
+#define YY_NO_UNPUT
 
 %}
 
