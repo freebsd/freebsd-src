@@ -441,6 +441,18 @@ static struct xpt_quirk_entry xpt_quirk_table[] =
 	},
 	{
 		/*
+		 * These Hitachi drives don't like multi-lun probing.
+		 * The PR submitter has a DK319H, but says that the Linux
+		 * kernel has a similar work-around for the DK312 and DK314,
+		 * so all DK31* drives are quirked here.
+		 * PR:		  misc/18793
+		 * Submitted by:  Paul Haddad <paul@pth.com>
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "HITACHI", "DK31*", "*" },
+		CAM_QUIRK_NOLUNS, /*mintags*/2, /*maxtags*/255
+	},
+	{
+		/*
 		 * This old revision of the TDC3600 is also SCSI-1, and
 		 * hangs upon serial number probing.
 		 */
