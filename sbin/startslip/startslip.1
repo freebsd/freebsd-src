@@ -47,6 +47,7 @@
 ]
 .Op Fl h
 .Op Fl l
+.Op Fl L
 .Op Fl A Ar annexname
 .Op Fl U Ar upscript
 .Op Fl D Ar downscript
@@ -113,15 +114,15 @@ default value is 60.
 Set maximum number of connection retries for one session,
 default value is 6.
 Value 0 means infinite count.
-.It Fl s Ar string1
+.It Fl s Ar stringN
 The optional
-.Ar string
+.Ar stringN
 is written to
 .Ar device .
 Return character is added automatically.
 For a dialup modem,
 the string is used to specify a dial sequence.
-Default string is return character.
+No string written by default.
 You can specify several
 .Fl s Ar stringN
 arguments to use with each try, f.e. several host phone numbers.
@@ -177,6 +178,11 @@ Default value is no timeout.
 Set SLIP unit number directly. Use with caution, no check for two
 interfaces with same number made.
 Default is dynamic assignment.
+.It Fl L
+Use uucp-style device locking. You need it unless you start
+.Nm startslip
+from external program which already does uucp locking.
+Default case is no uucp locking to satisfy such programs.
 .El
 .Sh FILES
 .Bl -tag -width /var/run/startslip.<device>.pid -compact
@@ -185,6 +191,7 @@ pid stored here
 .Sh SEE ALSO
 .Xr sliplogin 8 ,
 .Xr slattach 8 ,
+.Xr uustat 1 ,
 /usr/share/examples/startslip
 .Sh HISTORY
 The
