@@ -1,5 +1,5 @@
 /*
- * $Id: phase.c,v 1.1 1997/10/26 01:03:31 brian Exp $
+ * $Id: phase.c,v 1.2 1997/10/29 01:19:50 brian Exp $
  */
 
 #include <sys/param.h>
@@ -7,6 +7,7 @@
 
 #include <stdio.h>
 
+#include "command.h"
 #include "mbuf.h"
 #include "log.h"
 #include "lcp.h"
@@ -20,13 +21,12 @@
 #include "defs.h"
 #include "main.h"
 #include "loadalias.h"
-#include "command.h"
 #include "vars.h"
 #include "phase.h"
 
 int phase = 0;			/* Curent phase */
 
-static char *PhaseNames[] = {
+static const char *PhaseNames[] = {
   "Dead", "Establish", "Authenticate", "Network", "Terminate"
 };
 

@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: timer.h,v 1.1 1997/10/26 01:03:53 brian Exp $
+ * $Id: timer.h,v 1.2 1997/10/26 12:42:13 brian Exp $
  *
  *	TODO:
  */
@@ -27,7 +27,7 @@ struct pppTimer {
   int state;
   u_long rest;			/* Ticks to expire */
   u_long load;			/* Initial load value */
-  void (*func)();		/* Function called when timer is expired */
+  void (*func)(void *);		/* Function called when timer is expired */
   void *arg;			/* Argument passed to timeout function */
   struct pppTimer *next;	/* Link to next timer */
   struct pppTimer *enext;	/* Link to next expired timer */

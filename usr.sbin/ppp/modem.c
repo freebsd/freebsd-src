@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.65 1997/11/18 08:49:03 brian Exp $
+ * $Id: modem.c,v 1.66 1997/11/18 14:52:06 brian Exp $
  *
  *  TODO:
  */
@@ -40,6 +40,7 @@
 #include <unistd.h>
 #include <utmp.h>
 
+#include "command.h"
 #include "mbuf.h"
 #include "log.h"
 #include "defs.h"
@@ -51,7 +52,6 @@
 #include "ip.h"
 #include "modem.h"
 #include "loadalias.h"
-#include "command.h"
 #include "vars.h"
 #include "main.h"
 #include "chat.h"
@@ -232,7 +232,7 @@ DownConnection()
  *
  */
 void
-ModemTimeout()
+ModemTimeout(void *data)
 {
   int ombits = mbits;
   int change;
@@ -275,7 +275,7 @@ ModemTimeout()
 }
 
 static void
-StartModemTimer()
+StartModemTimer(void)
 {
   StopTimer(&ModemTimer);
   ModemTimer.state = TIMER_STOPPED;
@@ -286,25 +286,18 @@ StartModemTimer()
 }
 
 struct parity {
-  char *name;
-  char *name1;
+  const char *name;
+  const char *name1;
   int set;
-}      validparity[] = {
-
-  {
-    "even", "P_EVEN", CS7 | PARENB
-  }, {
-    "odd", "P_ODD", CS7 | PARENB | PARODD
-  },
-  {
-    "none", "P_ZERO", CS8
-  }, {
-    NULL, 0
-  },
+} validparity[] = {
+  { "even", "P_EVEN", CS7 | PARENB },
+  { "odd", "P_ODD", CS7 | PARENB | PARODD },
+  { "none", "P_ZERO", CS8 },
+  { NULL, 0 },
 };
 
 static int
-GetParityValue(char *str)
+GetParityValue(const char *str)
 {
   struct parity *pp;
 
@@ -318,7 +311,7 @@ GetParityValue(char *str)
 }
 
 int
-ChangeParity(char *str)
+ChangeParity(const char *str)
 {
   struct termios rstio;
   int val;
@@ -382,7 +375,7 @@ OpenConnection(char *host, char *port)
 static char fn[MAXPATHLEN];
 
 static int
-LockModem()
+LockModem(void)
 {
   int res;
   FILE *lockfile;
@@ -411,7 +404,7 @@ LockModem()
 }
 
 static void
-UnlockModem()
+UnlockModem(void)
 {
   if (*VarDevice != '/')
     return;
@@ -425,7 +418,7 @@ UnlockModem()
 }
 
 static void
-HaveModem()
+HaveModem(void)
 {
   throughput_start(&throughput);
   connect_count++;
@@ -439,16 +432,22 @@ OpenModem()
 {
   struct termios rstio;
   int oldflag;
-  char *host, *cp, *port;
+  char *host, *port;
+  char *cp;
 
   if (modem >= 0)
     LogPrintf(LogDEBUG, "OpenModem: Modem is already open!\n");
     /* We're going back into "term" mode */
   else if (mode & MODE_DIRECT) {
+    struct cmdargs arg;
+    arg.cmd = NULL;
+    arg.data = (const void *)VAR_DEVICE;
     if (isatty(0)) {
       LogPrintf(LogDEBUG, "OpenModem(direct): Modem is a tty\n");
       cp = ttyname(0);
-      SetVariable(0, 1, &cp, VAR_DEVICE);
+      arg.argc = 1;
+      arg.argv = (char const *const *)&cp;
+      SetVariable(&arg);
       if (LockModem() == -1) {
         close(0);
         return -1;
@@ -457,7 +456,9 @@ OpenModem()
       HaveModem();
     } else {
       LogPrintf(LogDEBUG, "OpenModem(direct): Modem is not a tty\n");
-      SetVariable(0, 0, 0, VAR_DEVICE);
+      arg.argc = 0;
+      arg.argv = NULL;
+      SetVariable(&arg);
       /* We don't call ModemTimeout() with this type of connection */
       HaveModem();
       return modem = 0;
@@ -479,7 +480,7 @@ OpenModem()
       /* PPP over TCP */
       cp = strchr(VarDevice, ':');
       if (cp) {
-	*cp = 0;
+	*cp = '\0';
 	host = VarDevice;
 	port = cp + 1;
 	if (*host && *port) {
@@ -608,7 +609,7 @@ RawModem()
 }
 
 static void
-UnrawModem()
+UnrawModem(void)
 {
   int oldflag;
 
@@ -634,7 +635,7 @@ ModemAddOutOctets(int n)
 }
 
 static void
-ClosePhysicalModem()
+ClosePhysicalModem(void)
 {
   LogPrintf(LogDEBUG, "ClosePhysicalModem\n");
   close(modem);
@@ -699,7 +700,7 @@ HangupModem(int flag)
 }
 
 static void
-CloseLogicalModem()
+CloseLogicalModem(void)
 {
   LogPrintf(LogDEBUG, "CloseLogicalModem\n");
   if (modem >= 0) {
@@ -724,7 +725,7 @@ CloseLogicalModem()
  * to the line when ModemStartOutput() is called.
  */
 void
-WriteModem(int pri, char *ptr, int count)
+WriteModem(int pri, const char *ptr, int count)
 {
   struct mbuf *bp;
 
@@ -842,7 +843,7 @@ DialModem()
       LogPrintf(LogWARN, "DialModem: login failed.\n");
       excode = EX_NOLOGIN;
     }
-    ModemTimeout();		/* Dummy call to check modem status */
+    ModemTimeout(NULL);		/* Dummy call to check modem status */
   } else if (excode == -1)
     excode = EX_SIG;
   else {
@@ -854,9 +855,9 @@ DialModem()
 }
 
 int
-ShowModemStatus()
+ShowModemStatus(struct cmdargs const *arg)
 {
-  char *dev;
+  const char *dev;
 #ifdef TIOCOUTQ
   int nb;
 #endif

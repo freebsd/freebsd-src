@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: fsm.c,v 1.20 1997/10/26 01:02:37 brian Exp $
+ * $Id: fsm.c,v 1.21 1997/11/11 23:23:11 brian Exp $
  *
  *  TODO:
  *		o Refer loglevel for log output
@@ -30,6 +30,7 @@
 #include <string.h>
 #include <termios.h>
 
+#include "command.h"
 #include "mbuf.h"
 #include "log.h"
 #include "defs.h"
@@ -42,7 +43,6 @@
 #include "ccp.h"
 #include "modem.h"
 #include "loadalias.h"
-#include "command.h"
 #include "vars.h"
 #include "pred.h"
 
@@ -64,8 +64,10 @@ char const *StateNames[] = {
 };
 
 static void
-StoppedTimeout(struct fsm * fp)
+StoppedTimeout(void *v)
 {
+  struct fsm *fp = (struct fsm *)v;
+
   LogPrintf(fp->LogLevel, "Stopped timer expired\n");
   if (modem != -1)
     DownConnection();
@@ -283,8 +285,10 @@ FsmSendConfigNak(struct fsm * fp,
  *	Timeout actions
  */
 static void
-FsmTimeout(struct fsm * fp)
+FsmTimeout(void *v)
 {
+  struct fsm *fp = (struct fsm *)v;
+
   if (fp->restart) {
     switch (fp->state) {
       case ST_CLOSING:

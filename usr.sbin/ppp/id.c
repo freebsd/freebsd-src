@@ -1,5 +1,5 @@
 /*
- * $Id: id.c,v 1.1 1997/11/09 06:22:40 brian Exp $
+ * $Id: id.c,v 1.2 1997/11/13 17:31:52 brian Exp $
  */
 
 #include <sys/types.h>
@@ -12,6 +12,7 @@
 #include <sysexits.h>
 #include <unistd.h>
 
+#include "command.h"
 #include "mbuf.h"
 #include "log.h"
 #include "main.h"
@@ -37,7 +38,7 @@ ID0init()
 }
 
 static void
-ID0setuser()
+ID0setuser(void)
 {
   if (seteuid(uid) == -1) {
     LogPrintf(LogERROR, "ID0setuser: Unable to seteuid!\n");
@@ -52,7 +53,7 @@ ID0realuid()
 }
 
 static void
-ID0set0()
+ID0set0(void)
 {
   if (seteuid(euid) == -1) {
     LogPrintf(LogERROR, "ID0set0: Unable to seteuid!\n");
@@ -121,25 +122,25 @@ ID0open(const char *path, int flags)
 }
 
 int
-ID0uu_lock(const char *ttyname)
+ID0uu_lock(const char *basettyname)
 {
   int ret;
 
   ID0set0();
-  ret = uu_lock(ttyname);
-  LogPrintf(LogID0, "%d = uu_lock(\"%s\")\n", ret, ttyname);
+  ret = uu_lock(basettyname);
+  LogPrintf(LogID0, "%d = uu_lock(\"%s\")\n", ret, basettyname);
   ID0setuser();
   return ret;
 }
 
 int
-ID0uu_unlock(const char *ttyname)
+ID0uu_unlock(const char *basettyname)
 {
   int ret;
 
   ID0set0();
-  ret = uu_unlock(ttyname);
-  LogPrintf(LogID0, "%d = uu_unlock(\"%s\")\n", ret, ttyname);
+  ret = uu_unlock(basettyname);
+  LogPrintf(LogID0, "%d = uu_unlock(\"%s\")\n", ret, basettyname);
   ID0setuser();
   return ret;
 }

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ccp.c,v 1.18 1997/11/08 00:28:06 brian Exp $
+ * $Id: ccp.c,v 1.19 1997/11/14 15:39:14 brian Exp $
  *
  *	TODO:
  *		o Support other compression protocols
@@ -28,6 +28,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "command.h"
 #include "mbuf.h"
 #include "log.h"
 #include "defs.h"
@@ -38,7 +39,6 @@
 #include "ccp.h"
 #include "phase.h"
 #include "loadalias.h"
-#include "command.h"
 #include "vars.h"
 #include "pred.h"
 
@@ -91,14 +91,14 @@ static char const *cftypes[] = {
    "STAC",	/* 17: Stac Electronics LZS */
    "MSPPC",	/* 18: Microsoft PPC */
    "GAND",	/* 19: Gandalf FZA */
-   "V42BIS",	/* 20: V.42bis compression */
+   "V42BIS",	/* 20: ARG->DATA.42bis compression */
    "BSD",	/* BSD LZW Compress */
 };
 
 #define NCFTYPES (sizeof(cftypes)/sizeof(char *))
 
 int
-ReportCcpStatus()
+ReportCcpStatus(struct cmdargs const *arg)
 {
   struct ccpstate *icp = &CcpInfo;
   struct fsm *fp = &CcpFsm;

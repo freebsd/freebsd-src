@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: hdlc.c,v 1.20 1997/10/26 01:02:43 brian Exp $
+ * $Id: hdlc.c,v 1.21 1997/10/26 12:42:10 brian Exp $
  *
  *	TODO:
  */
@@ -28,6 +28,7 @@
 #include <string.h>
 #include <termios.h>
 
+#include "command.h"
 #include "mbuf.h"
 #include "log.h"
 #include "defs.h"
@@ -41,9 +42,9 @@
 #include "pap.h"
 #include "chap.h"
 #include "lcp.h"
+#include "async.h"
 #include "lqr.h"
 #include "loadalias.h"
-#include "command.h"
 #include "vars.h"
 #include "pred.h"
 #include "modem.h"
@@ -64,44 +65,22 @@ static int ifInOctets;
 
 struct protostat {
   u_short number;
-  char *name;
+  const char *name;
   u_long in_count;
   u_long out_count;
 }         ProtocolStat[] = {
 
-  {
-    PROTO_IP, "IP"
-  },
-  {
-    PROTO_VJUNCOMP, "VJ_UNCOMP"
-  },
-  {
-    PROTO_VJCOMP, "VJ_COMP"
-  },
-  {
-    PROTO_COMPD, "COMPD"
-  },
-  {
-    PROTO_LCP, "LCP"
-  },
-  {
-    PROTO_IPCP, "IPCP"
-  },
-  {
-    PROTO_CCP, "CCP"
-  },
-  {
-    PROTO_PAP, "PAP"
-  },
-  {
-    PROTO_LQR, "LQR"
-  },
-  {
-    PROTO_CHAP, "CHAP"
-  },
-  {
-    0, "Others"
-  },
+  { PROTO_IP, "IP" },
+  { PROTO_VJUNCOMP, "VJ_UNCOMP" },
+  { PROTO_VJCOMP, "VJ_COMP" },
+  { PROTO_COMPD, "COMPD" },
+  { PROTO_LCP, "LCP" },
+  { PROTO_IPCP, "IPCP" },
+  { PROTO_CCP, "CCP" },
+  { PROTO_PAP, "PAP" },
+  { PROTO_LQR, "LQR" },
+  { PROTO_CHAP, "CHAP" },
+  { 0, "Others" }
 };
 
 static u_short const fcstab[256] = {
@@ -297,7 +276,7 @@ DecodePacket(u_short proto, struct mbuf * bp)
 }
 
 int
-ReportProtStatus()
+ReportProtStatus(struct cmdargs const *arg)
 {
   struct protostat *statp;
   int cnt;
@@ -321,7 +300,7 @@ ReportProtStatus()
 }
 
 int
-ReportHdlcStatus()
+ReportHdlcStatus(struct cmdargs const *arg)
 {
   struct hdlcstat *hp = &HdlcStat;
 

@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: tun.c,v 1.2 1997/11/17 00:42:41 brian Exp $
  */
 
 #include <sys/param.h>
@@ -8,7 +8,9 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <net/if.h>
+#ifdef __FreeBSD__
 #include <net/if_var.h>
+#endif
 #include <net/if_tun.h>
 
 #include <stdio.h>
@@ -16,12 +18,13 @@
 #include <sys/ioctl.h>
 #include <sys/errno.h>
 
+#include "command.h"
+#include "mbuf.h"
+#include "log.h"
 #include "hdlc.h"
 #include "defs.h"
 #include "loadalias.h"
-#include "command.h"
 #include "vars.h"
-#include "log.h"
 #include "tun.h"
 
 void

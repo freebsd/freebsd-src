@@ -1,5 +1,5 @@
 /*
- * $Id: loadalias.c,v 1.9 1997/11/09 06:22:41 brian Exp $
+ * $Id: loadalias.c,v 1.10 1997/11/09 14:18:40 brian Exp $
  */
 
 #include <sys/param.h>
@@ -13,9 +13,9 @@
 #include <unistd.h>
 
 #include "command.h"
-#include "systems.h"
 #include "mbuf.h"
 #include "log.h"
+#include "systems.h"
 #include "id.h"
 #include "loadalias.h"
 #include "defs.h"
@@ -28,7 +28,7 @@
 
 static struct {
   int offset;
-  char *name;
+  const char *name;
 } map[] = {
   entry(PacketAliasGetFragment),
   entry(PacketAliasInit),
@@ -48,8 +48,8 @@ static void *dl;
 int 
 loadAliasHandlers(struct aliasHandlers * h)
 {
-  char *path;
-  char *env;
+  const char *path;
+  const char *env;
   int i;
 
   path = _PATH_ALIAS;

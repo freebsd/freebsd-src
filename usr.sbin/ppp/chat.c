@@ -18,7 +18,7 @@
  *		Columbus, OH  43221
  *		(614)451-1883
  *
- * $Id: chat.c,v 1.37 1997/11/09 06:22:39 brian Exp $
+ * $Id: chat.c,v 1.38 1997/11/09 14:18:36 brian Exp $
  *
  *  TODO:
  *	o Support more UUCP compatible control sequences.
@@ -43,16 +43,15 @@
 #include <termios.h>
 #include <unistd.h>
 
+#include "command.h"
 #include "mbuf.h"
 #include "log.h"
 #include "defs.h"
 #include "timer.h"
 #include "loadalias.h"
-#include "command.h"
 #include "vars.h"
 #include "chat.h"
 #include "sig.h"
-#include "chat.h"
 #include "modem.h"
 
 #ifndef isblank
@@ -140,7 +139,7 @@ MakeArgs(char *script, char **pvect, int maxargs)
  *  \U  Auth User
  */
 char *
-ExpandString(char *str, char *result, int reslen, int sendmode)
+ExpandString(const char *str, char *result, int reslen, int sendmode)
 {
   int addcr = 0;
   char *phone;
@@ -240,14 +239,14 @@ static char logbuff[MAXLOGBUFF];
 static int loglen = 0;
 
 static void
-clear_log()
+clear_log(void)
 {
   memset(logbuff, 0, MAXLOGBUFF);
   loglen = 0;
 }
 
 static void
-flush_log()
+flush_log(void)
 {
   if (LogIsKept(LogCONNECT))
     LogPrintf(LogCONNECT, "%s\n", logbuff);
@@ -258,7 +257,7 @@ flush_log()
 }
 
 static void
-connect_log(char *str, int single_p)
+connect_log(const char *str, int single_p)
 {
   int space = MAXLOGBUFF - loglen - 1;
 
@@ -276,7 +275,7 @@ connect_log(char *str, int single_p)
 }
 
 static int
-WaitforString(char *estr)
+WaitforString(const char *estr)
 {
   struct timeval timeout;
   char *s, *str, ch;
@@ -292,7 +291,7 @@ WaitforString(char *estr)
   omask = sigblock(sigmask(SIGALRM));
 #endif
   clear_log();
-  (void) ExpandString(estr, buff, sizeof(buff), 0);
+  ExpandString(estr, buff, sizeof(buff), 0);
   LogPrintf(LogCHAT, "Wait for (%d): %s --> %s\n", TimeoutSec, estr, buff);
   str = buff;
   inp = inbuff;
@@ -417,7 +416,7 @@ ExecStr(char *command, char *out)
 {
   int pid;
   int fids[2];
-  char *vector[20];
+  char *vector[MAXARGS];
   int stat, nb;
   char *cp;
   char tmp[300];
@@ -434,7 +433,7 @@ ExecStr(char *command, char *out)
     LogPrintf(LogCHAT, "Too long string to ExecStr: \"%s\"\n", command);
     return;
   }
-  (void) MakeArgs(tmp, vector, VECSIZE(vector));
+  MakeArgs(tmp, vector, VECSIZE(vector));
 
   if (pipe(fids) < 0) {
     LogPrintf(LogCHAT, "Unable to create pipe in ExecStr: %s\n",
@@ -462,7 +461,7 @@ ExecStr(char *command, char *out)
     }
     setuid(geteuid());
     LogPrintf(LogCHAT, "exec: %s\n", command);
-    pid = execvp(command, vector);
+    pid = execvp(command, (char **)vector);
     LogPrintf(LogCHAT, "execvp failed for (%d/%d): %s\n", pid, errno, command);
     exit(127);
   } else {
@@ -481,7 +480,7 @@ ExecStr(char *command, char *out)
 }
 
 static void
-SendString(char *str)
+SendString(const char *str)
 {
   char *cp;
   int on;
@@ -498,10 +497,10 @@ SendString(char *str)
       TimeoutSec = 30;
   } else {
     if (*str == '!') {
-      (void) ExpandString(str + 1, buff + 2, sizeof(buff) - 2, 0);
+      ExpandString(str + 1, buff + 2, sizeof(buff) - 2, 0);
       ExecStr(buff + 2, buff + 2);
     } else {
-      (void) ExpandString(str, buff + 2, sizeof(buff) - 2, 1);
+      ExpandString(str, buff + 2, sizeof(buff) - 2, 1);
     }
     if (strstr(str, "\\P"))	/* Do not log the password itself. */
       LogPrintf(LogCHAT, "sending: %s\n", str);
@@ -544,8 +543,10 @@ ExpectString(char *str)
       }
     }
     if (*minus == '-') {	/* We have sub-send-expect. */
-      *minus++ = '\0';
+      *minus = '\0';	/* XXX: Cheat with the const string */
       state = WaitforString(str);
+      *minus = '-';	/* XXX: Cheat with the const string */
+      minus++;
       if (state != NOMATCH)
 	return (state);
 
@@ -560,9 +561,10 @@ ExpectString(char *str)
 	}
       }
       if (*minus == '-') {
-	*minus++ = '\0';
+        *minus = '\0';	/* XXX: Cheat with the const string */
 	SendString(str);
-	str = minus;
+        *minus = '-';	/* XXX: Cheat with the const string */
+	str = ++minus;
       } else {
 	SendString(str);
 	return (MATCH);
@@ -591,8 +593,8 @@ StopDial(int sig)
 int
 DoChat(char *script)
 {
-  char *vector[40];
-  char **argv;
+  char *vector[MAXARGS];
+  char *const *argv;
   int argc, n, state;
 
   if (!script || !*script)
@@ -613,8 +615,7 @@ DoChat(char *script)
   numaborts = 0;
 
   memset(vector, '\0', sizeof(vector));
-  n = MakeArgs(script, vector, VECSIZE(vector));
-  argc = n;
+  argc = MakeArgs(script, vector, VECSIZE(vector));
   argv = vector;
   TimeoutSec = 30;
   while (*argv) {

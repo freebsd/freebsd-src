@@ -19,7 +19,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: $
+ * $Id: chap_ms.c,v 1.2 1997/10/26 01:02:20 brian Exp $
  *
  */
 
@@ -31,6 +31,7 @@
 #include <sys/time.h>
 #include <syslog.h>
 
+#include "command.h"
 #include "mbuf.h"
 #include "timer.h"
 #include "chap.h"

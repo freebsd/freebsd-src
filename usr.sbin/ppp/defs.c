@@ -1,5 +1,5 @@
 /*
- * $Id: defs.c,v 1.3 1997/11/17 00:42:38 brian Exp $
+ * $Id: defs.c,v 1.4 1997/11/18 00:19:30 brian Exp $
  */
 
 #include <sys/param.h>
@@ -9,13 +9,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
 
 #include "defs.h"
+#include "command.h"
 #include "mbuf.h"
 #include "log.h"
 #include "loadalias.h"
-#include "command.h"
 #include "vars.h"
 
 int mode = MODE_INTER;
@@ -45,12 +46,16 @@ GetLabel()
 void
 randinit()
 {
+#ifdef __FreeBSD__
   static int initdone;
 
   if (!initdone) {
     initdone = 1;
     srandomdev();
   }
+#else
+  srandom(time(NULL)^getpid());
+#endif
 }
 
 
