@@ -363,7 +363,7 @@ escape:
 	}
 	if ((sp->config = assign_driver(cp)) == NULL) 
 		return;
-	if (err = assign_io(sp)) {
+	if ((err = assign_io(sp))) {
 		char *reason;
 
 		switch (err) {
