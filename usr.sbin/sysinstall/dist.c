@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.126 1998/09/23 12:13:47 jkh Exp $
+ * $Id: dist.c,v 1.127 1998/09/29 07:27:33 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -37,6 +37,7 @@
 #include "sysinstall.h"
 #include <sys/time.h>
 #include <signal.h>
+#include <libutil.h>
 
 unsigned int Dists;
 unsigned int DESDists;
@@ -558,25 +559,25 @@ distExtract(char *parent, Distribution *me)
 	    }
 	}
 	else if (fp > 0) {
-	    int status;
-	    Attribs *dist_attr;
+	    properties dist_attr;
 
 	    if (isDebug())
 		msgDebug("Parsing attributes file for distribution %s\n", dist);
-	    dist_attr = alloca(sizeof(Attribs) * MAX_ATTRIBS);
 
-	    status = attr_parse(dist_attr, fp);
+	    dist_attr = properties_read(fileno(fp));
 	    intr = check_for_interrupt();
-	    if (intr || DITEM_STATUS(status) == DITEM_FAILURE)
+	    if (intr || !dist_attr) {
 		msgConfirm("Cannot parse information file for the %s distribution: %s\n"
 			   "Please verify that your media is valid and try again.",
 			   dist, !intr ? "I/O error" : "User interrupt");
+	    }
 	    else {
-		tmp = attr_match(dist_attr, "pieces");
+		tmp = property_find(dist_attr, "pieces");
 		if (tmp)
 		    numchunks = strtol(tmp, 0, 0);
 	    }
 	    fclose(fp);
+	    properties_free(dist_attr);
 	    if (!numchunks)
 		continue;
 	}
