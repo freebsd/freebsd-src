@@ -1,6 +1,6 @@
 ############
 # Setup system for firewall service.
-# $Id: rc.firewall,v 1.12 1997/05/05 07:08:31 jkh Exp $
+# $Id: rc.firewall,v 1.13 1997/09/11 10:59:00 danny Exp $
 
 ############
 # Define the firewall type in /etc/rc.conf.  Valid values are:
@@ -171,5 +171,5 @@ elif [ "${firewall_type}" = "simple" ]; then
     # Everything else is denied as default.
 
 elif [ "${firewall_type}" != "NONE" -a -r "${firewall_type}" ]; then
-	$fwcmd ${firewall}
+	$fwcmd ${firewall_type}
 fi
