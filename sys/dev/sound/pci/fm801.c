@@ -104,7 +104,6 @@
 
 /* channel interface */
 static void *fm801ch_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir);
-static int fm801ch_setdir(void *data, int dir);
 static int fm801ch_setformat(void *data, u_int32_t format);
 static int fm801ch_setspeed(void *data, u_int32_t speed);
 static int fm801ch_setblocksize(void *data, u_int32_t blocksize);
@@ -119,9 +118,7 @@ static u_int32_t fmts[] = {
 	AFMT_U8,
 	AFMT_STEREO | AFMT_U8,
 	AFMT_S16_LE,
-	AFMT_STEREO | AFMT_S16_LE, /*
-	AFMT_STEREO | (AFMT_S16_LE | AFMT_S16_BE | AFMT_U16_LE | AFMT_U16_BE),
-	(AFMT_S16_LE | AFMT_S16_BE | AFMT_U16_LE | AFMT_U16_BE), */
+	AFMT_STEREO | AFMT_S16_LE,
 	0
 };
 
@@ -132,7 +129,7 @@ static pcmchan_caps fm801ch_caps = {
 
 static pcm_channel fm801_chantemplate = {
 	fm801ch_init,
-	fm801ch_setdir,
+	NULL, 			/* setdir */
 	fm801ch_setformat,
 	fm801ch_setspeed,
 	fm801ch_setblocksize,
@@ -191,23 +188,6 @@ struct fm801_info {
 
 	struct fm801_chinfo 	pch, rch;
 };
-
-
-/* several procedures to release the thing properly if compiled as module */
-static struct fm801_info *save801;
-struct fm801_info *fm801_get __P((void ));
-
-static void
-fm801_save(struct fm801_info *fm801)
-{
-	save801 = fm801;
-}
-
-struct fm801_info *
-fm801_get(void )
-{
-	return save801;
-}
 
 /* Bus Read / Write routines */
 static u_int32_t
@@ -395,7 +375,7 @@ static int
 fm801_pci_attach(device_t dev)
 {
 	u_int32_t 		data;
-	struct ac97_info 	*codec;
+	struct ac97_info 	*codec = 0;
 	struct fm801_info 	*fm801;
 	int 			i;
 	int 			mapped = 0;
@@ -475,16 +455,37 @@ fm801_pci_attach(device_t dev)
 	pcm_addchan(dev, PCMDIR_REC, &fm801_chantemplate, fm801);
 	pcm_setstatus(dev, status);
 
-	fm801_save(fm801);
 	return 0;
 
 oops:
-	printf("Forte Media FM801 initialization failed\n");
+	if (codec) ac97_destroy(codec);
 	if (fm801->reg) bus_release_resource(dev, fm801->regtype, fm801->regid, fm801->reg);
 	if (fm801->ih) bus_teardown_intr(dev, fm801->irq, fm801->ih);
 	if (fm801->irq) bus_release_resource(dev, SYS_RES_IRQ, fm801->irqid, fm801->irq);
+	if (fm801->parent_dmat) bus_dma_tag_destroy(fm801->parent_dmat);
 	free(fm801, M_DEVBUF);
 	return ENXIO;
+}
+
+static int
+fm801_pci_detach(device_t dev)
+{
+	int r;
+	struct fm801_info *fm801;
+
+	DPRINT("Forte Media FM801 detach\n");
+
+	r = pcm_unregister(dev);
+	if (r)
+		return r;
+
+	fm801 = pcm_getdevinfo(dev);
+	bus_release_resource(dev, fm801->regtype, fm801->regid, fm801->reg);
+	bus_teardown_intr(dev, fm801->irq, fm801->ih);
+	bus_release_resource(dev, SYS_RES_IRQ, fm801->irqid, fm801->irq);
+	bus_dma_tag_destroy(fm801->parent_dmat);
+	free(fm801, M_DEVBUF);
+	return 0;
 }
 
 static int
@@ -521,14 +522,6 @@ fm801ch_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
 	ch->dir = dir;
 	if( chn_allocbuf(ch->buffer, fm801->parent_dmat) == -1) return NULL;
 	return (void *)ch;
-}
-
-static int
-fm801ch_setdir(void *data, int dir)
-{
-	struct fm801_chinfo *ch = data;
-	ch->dir = dir;
-	return 0;
 }
 
 static int
@@ -716,20 +709,6 @@ fm801ch_getcaps(void *data)
 	return &fm801ch_caps;
 }
 
-static int
-fm801_pci_detach(device_t dev)
-{
-	struct fm801_info *fm801 = fm801_get();
-	
-	DPRINT("Forte Media FM801 detach\n");
-
-	if (fm801->reg) bus_release_resource(dev, fm801->regtype, fm801->regid, fm801->reg);
-	if (fm801->ih) bus_teardown_intr(dev, fm801->irq, fm801->ih);
-	if (fm801->irq) bus_release_resource(dev, SYS_RES_IRQ, fm801->irqid, fm801->irq);
-	free(fm801, M_DEVBUF);
-	return 0;	
-}
-
 static device_method_t fm801_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		fm801_pci_probe),
@@ -746,4 +725,4 @@ static driver_t fm801_driver = {
 
 static devclass_t pcm_devclass;
 
-DRIVER_MODULE(fm801, pci, fm801_driver, pcm_devclass,0, 0);
+DRIVER_MODULE(fm801, pci, fm801_driver, pcm_devclass, 0, 0);

@@ -1161,7 +1161,8 @@ chn_init(pcm_channel *c, void *devinfo, int dir)
 int
 chn_kill(pcm_channel *c)
 {
-	chn_trigger(c, PCMTRIG_ABORT);
+	if (c->flags & CHN_F_TRIGGERED)
+		chn_trigger(c, PCMTRIG_ABORT);
 	while (chn_removefeeder(c) == 0);
 	free(c->feeder->desc, M_DEVBUF);
 	free(c->feeder, M_DEVBUF);
