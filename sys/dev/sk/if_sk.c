@@ -110,7 +110,6 @@ static struct sk_type sk_devs[] = {
 	{ 0, 0, NULL }
 };
 
-static unsigned long sk_count = 0;
 static int sk_probe		__P((device_t));
 static int sk_attach		__P((device_t));
 static int sk_detach		__P((device_t));
@@ -182,7 +181,7 @@ static driver_t sk_driver = {
 
 static devclass_t sk_devclass;
 
-DRIVER_MODULE(sk, pci, sk_driver, sk_devclass, 0, 0);
+DRIVER_MODULE(skc, pci, sk_driver, sk_devclass, 0, 0);
 
 #define SK_SETBIT(sc, reg, x)		\
 	CSR_WRITE_4(sc, reg, CSR_READ_4(sc, reg) | x)
@@ -1010,6 +1009,7 @@ static int sk_attach_xmac(sc, port)
 	struct sk_if_softc	*sc_if;
 	struct ifnet		*ifp;
 	int			i;
+	char			ifname[64];
 
 	if (sc == NULL)
 		return(EINVAL);
@@ -1019,14 +1019,25 @@ static int sk_attach_xmac(sc, port)
 
 	sc_if = malloc(sizeof(struct sk_if_softc), M_DEVBUF, M_NOWAIT);
 	if (sc_if == NULL) {
-		printf("sk%d: no memory for interface softc!\n", sc->sk_unit);
+		printf("skc%d: no memory for interface softc!\n", sc->sk_unit);
 		return(ENOMEM);
 	}
 	bzero((char *)sc_if, sizeof(struct sk_if_softc));
 
-	sc_if->sk_unit = sk_count;
+	for (i = 0; i < SK_MAXUNIT; i++) {
+		sprintf(ifname, "sk%d", i);
+		if (ifunit(ifname) == NULL)
+			break;
+	}
+
+	if (i == SK_MAXUNIT) {
+		printf("skc%d: too many sk units\n", sc->sk_unit);
+		free(sc_if, M_DEVBUF);
+		return(ENODEV);
+	}
+
+	sc_if->sk_unit = i;
 	sc_if->sk_port = port;
-	sk_count++;
 	sc_if->sk_softc = sc;
 	sc->sk_if[port] = sc_if;
 	if (port == SK_PORT_A)
@@ -1340,15 +1351,17 @@ static int sk_detach(dev)
 	ifp0 = &sc_if0->arpcom.ac_if;
 	sk_stop(sc_if0);
 	if_detach(ifp0);
-	free(sc_if0->sk_cdata.sk_jumbo_buf, M_DEVBUF);
+	contigfree(sc_if0->sk_cdata.sk_jumbo_buf, SK_JMEM, M_DEVBUF);
 	ifmedia_removeall(&sc_if0->ifmedia);
+	free(sc->sk_if[SK_PORT_A], M_DEVBUF);
 	if (sc->sk_if[SK_PORT_B] != NULL) {
 		sc_if1 = sc->sk_if[SK_PORT_B];
 		ifp1 = &sc_if1->arpcom.ac_if;
 		sk_stop(sc_if1);
 		if_detach(ifp1);
-		free(sc_if1->sk_cdata.sk_jumbo_buf, M_DEVBUF);
+		contigfree(sc_if1->sk_cdata.sk_jumbo_buf, SK_JMEM, M_DEVBUF);
 		ifmedia_removeall(&sc_if1->ifmedia);
+		free(sc->sk_if[SK_PORT_B], M_DEVBUF);
 	}
 
 	bus_teardown_intr(dev, sc->sk_irq, sc->sk_intrhand);
