@@ -50,6 +50,7 @@
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
 #include <sys/errno.h>
+#include <sys/proc.h>
 #include <sys/queue.h>
 
 #include <net/if.h>
