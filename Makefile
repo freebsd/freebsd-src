@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.109.2.19 1997/09/28 16:33:05 mckay Exp $
+#	$Id: Makefile,v 1.109.2.20 1997/10/26 22:46:16 jkh Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -9,6 +9,7 @@
 #
 #	-DNOCLEANDIR run ${MAKE} clean, instead of ${MAKE} cleandir
 #	-DNOCLEAN do not clean at all
+#       -DNOTOOLS do not rebuild any tools first
 #	-DNOCRYPT will prevent building of crypt versions
 #	-DNOLKM do not build loadable kernel modules
 #	-DNOOBJDIR do not run ``${MAKE} obj''
@@ -209,6 +210,7 @@ buildworld:
 	chflags -R noschg ${WORLDTMP}/
 	rm -rf ${WORLDTMP}
 .endif
+.if !defined(NOTOOLS)
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo " Making make"
@@ -223,6 +225,7 @@ buildworld:
 		${IBMAKE} -I${.CURDIR}/share/mk ${MK_FLAGS} all && \
 		${IBMAKE} -I${.CURDIR}/share/mk ${MK_FLAGS} install && \
 		${IBMAKE} -I${.CURDIR}/share/mk ${MK_FLAGS} clean cleandepend
+.endif
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo " Making hierarchy"
@@ -242,6 +245,7 @@ buildworld:
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR} && ${BMAKE} par-obj
 .endif
+.if !defined(NOTOOLS)
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo " Rebuilding bootstrap tools"
@@ -252,26 +256,31 @@ buildworld:
 	@echo " Rebuilding tools necessary to build the include files"
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR} && ${BMAKE} include-tools
+.endif
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo " Rebuilding /usr/include"
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR} && SHARED=symlinks ${BMAKE} includes
+.if !defined(NOTOOLS)
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo " Rebuilding tools needed to build the libraries"
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR} && ${BMAKE} lib-tools
+.endif
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo " Rebuilding /usr/lib"
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR} && ${BMAKE} libraries
+.if !defined(NOTOOLS)
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo " Rebuilding all other tools needed to build the world"
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR} && ${BMAKE} build-tools
+.endif
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo " Rebuilding dependencies"
