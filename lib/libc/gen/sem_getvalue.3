@@ -49,12 +49,7 @@ as of the time that the call to
 .Fn sem_getvalue
 is actually run.
 .Sh RETURN VALUES
-If successful,
-.Fn sem_getvalue
-returns 0.  Otherwise, -1 is returned and
-.Va errno
-is set to indicate the type of
-error.
+.Rv -std sem_getvalue
 .Sh ERRORS
 .Fn sem_getvalue
 will fail if:

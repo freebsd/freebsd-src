@@ -54,12 +54,7 @@ changes the specified pages to have protection
 Not all implementations will guarantee protection on a page basis;
 the granularity of protection changes may be as large as an entire region.
 .Sh RETURN VALUES
-Upon successful completion,
-.Fn mprotect
-returns 0.  Otherwise a value of -1 is returned
-and
-.Va errno
-is set to indicate the error.
+.Rv -std mprotect
 .Sh ERRORS
 The
 .Fn mprotect

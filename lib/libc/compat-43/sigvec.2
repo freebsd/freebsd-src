@@ -256,10 +256,7 @@ flag is not available in
 .Bx 4.2 ,
 hence it should not be used if backward compatibility is needed.
 .Sh RETURN VALUES
-A 0 value indicated that the call succeeded.  A \-1 return value
-indicates an error occurred and
-.Va errno
-is set to indicated the reason.
+.Rv -std sigvec
 .Sh ERRORS
 .Fn Sigvec
 will fail and no new signal handler will be installed if one
