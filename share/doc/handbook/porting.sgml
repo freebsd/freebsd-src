@@ -1,4 +1,4 @@
-<!-- $Id: porting.sgml,v 1.23 1996/07/30 09:35:54 asami Exp $ -->
+<!-- $Id: porting.sgml,v 1.24 1996/07/30 22:19:42 asami Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect1><heading>Porting an existing piece of free software<label id="porting"></heading>
@@ -158,7 +158,7 @@ The pattern is the year followed by the month.
  # Date created:		5 December 1994
  # Whom:			asami
  #
- # $Id: porting.sgml,v 1.23 1996/07/30 09:35:54 asami Exp $
+ # $Id: porting.sgml,v 1.24 1996/07/30 22:19:42 asami Exp $
  #
  
  DISTNAME=	oneko-1.1b
@@ -307,7 +307,7 @@ ftp://ftp.FreeBSD.ORG/pub/FreeBSD/incoming/
 	    will look up the ftp-URL <tt>&dollar;{MASTER_SITES}</tt>,
 	    which is set in the Makefile.  It will then attempt to
 	    fetch the named distribution file with
-	    <tt>&dollar;{NCFTP}</tt>, assuming that the requesting
+	    <tt>&dollar;{FETCH}</tt>, assuming that the requesting
 	    site has direct access to the Internet.  If that succeeds,
 	    it will save the file in <tt>&dollar;{DISTDIR}</tt> for
 	    future use and proceed.
@@ -363,14 +363,15 @@ ftp://ftp.FreeBSD.ORG/pub/FreeBSD/incoming/
 	  regular extraction actions, and the <tt>pre-build</tt>
 	  script will be executed before the default build rules are
 	  done.  It is recommended that you use Makefile targets if
-	  possible, because it will be easier for someone to figure
-	  out what kind of non-default action the port requires.
+	  the actions are simple enough, because it will be easier for
+	  someone to figure out what kind of non-default action the
+	  port requires.
 
 	<p>The default actions are done by the <tt>bsd.port.mk</tt>
 	  targets `<tt>do-&lt;something&gt;</tt>'.  For example, the
 	  commands to extract a port are in the target
 	  `<tt>do-extract</tt>'.  If you are not happy with the
-	  default target, and you cannot fix it by redefining the
+	  default target, you can fix it by redefining the
 	  `<tt>do-&lt;something&gt;</tt>' target in your Makefile.
 
 	<p>Note that the `main' targets (e.g., <tt>extract</tt>,
@@ -558,7 +559,7 @@ work/foozolix-1.0/
 	  location.  Do not forget the trailing slash (<tt>/</tt>)!
 
  	<p>The make macros will try to use this specification for
-	  grabbing the distribution file with <tt>&dollar;{NCFTP}</tt>
+	  grabbing the distribution file with <tt>&dollar;{FETCH}</tt>
 	  if they cannot find it already on the system.
 
 	<p>It is recommended that you put multiple sites on this list,
@@ -1047,7 +1048,7 @@ lib/libtcl.so.7.3
   person who wrote this Makefile]
  # Whom:			Satoshi Asami <asami@FreeBSD.ORG>
  #
- # $Id: porting.sgml,v 1.23 1996/07/30 09:35:54 asami Exp $
+ # $Id: porting.sgml,v 1.24 1996/07/30 22:19:42 asami Exp $
  [ ^^^^ do not worry about this...it will be automatically filled in by CVS 
   when it is committed to our repository]
  #
