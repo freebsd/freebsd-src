@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.54 1996/02/17 19:46:43 ache Exp $
+#	$Id: BSD.usr.dist,v 1.55 1996/03/24 19:20:02 paul Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -157,6 +157,8 @@
             ..
             meteor
             ..
+	    perfmon
+	    ..
 	    slattach
 	    ..
             sliplogin
