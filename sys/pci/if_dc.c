@@ -200,7 +200,7 @@ static int dc_resume		__P((device_t));
 static void dc_acpi		__P((device_t));
 static struct dc_type *dc_devtype	__P((device_t));
 static int dc_newbuf		__P((struct dc_softc *, int, struct mbuf *));
-static int dc_encap		__P((struct dc_softc *, struct mbuf *,
+static int dc_encap		__P((struct dc_softc *, struct mbuf **,
 					u_int32_t *));
 static void dc_pnic_rx_bug_war	__P((struct dc_softc *, int));
 static int dc_rx_resync		__P((struct dc_softc *));
@@ -2992,7 +2992,7 @@ static void dc_intr(arg)
  */
 static int dc_encap(sc, m_head, txidx)
 	struct dc_softc		*sc;
-	struct mbuf		*m_head;
+	struct mbuf		**m_head;
 	u_int32_t		*txidx;
 {
 	struct dc_desc		*f = NULL;
@@ -3012,15 +3012,15 @@ static int dc_encap(sc, m_head, txidx)
 	 * do not use up the entire list, even if they would fit.
 	 */
 
-	for (m = m_head; m != NULL; m = m->m_next)
+	for (m = *m_head; m != NULL; m = m->m_next)
 		chainlen++;
 
 	if ((chainlen > DC_TX_LIST_CNT / 4) ||
 	    ((DC_TX_LIST_CNT - (chainlen + sc->dc_cdata.dc_tx_cnt)) < 6)) {
-		m = m_defrag(m_head, M_DONTWAIT);
+		m = m_defrag(*m_head, M_DONTWAIT);
 		if (m == NULL)
 			return (ENOBUFS);
-		m_head = m;
+		*m_head = m;
 	}
        
 	/*
@@ -3028,10 +3028,10 @@ static int dc_encap(sc, m_head, txidx)
 	 * the fragment pointers. Stop when we run out
  	 * of fragments or hit the end of the mbuf chain.
 	 */
-	m = m_head;
+	m = *m_head;
 	cur = frag = *txidx;
 
-	for (m = m_head; m != NULL; m = m->m_next) {
+	for (m = *m_head; m != NULL; m = m->m_next) {
 		if (m->m_len != 0) {
 			if (sc->dc_flags & DC_TX_ADMTEK_WAR) {
 				if (*txidx != sc->dc_cdata.dc_tx_prod &&
@@ -3060,7 +3060,7 @@ static int dc_encap(sc, m_head, txidx)
 		return(ENOBUFS);
 
 	sc->dc_cdata.dc_tx_cnt += cnt;
-	sc->dc_cdata.dc_tx_chain[cur] = m_head;
+	sc->dc_cdata.dc_tx_chain[cur] = *m_head;
 	sc->dc_ldata->dc_tx_list[cur].dc_ctl |= DC_TXCTL_LASTFRAG;
 	if (sc->dc_flags & DC_TX_INTR_FIRSTFRAG)
 		sc->dc_ldata->dc_tx_list[*txidx].dc_ctl |= DC_TXCTL_FINT;
@@ -3116,7 +3116,7 @@ static void dc_start(ifp)
 			}
 		}
 
-		if (dc_encap(sc, m_head, &idx)) {
+		if (dc_encap(sc, &m_head, &idx)) {
 			IF_PREPEND(&ifp->if_snd, m_head);
 			ifp->if_flags |= IFF_OACTIVE;
 			break;
