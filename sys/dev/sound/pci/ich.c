@@ -693,12 +693,23 @@ ich_pci_attach(device_t dev)
 	}
 
 	/*
+	 * By default, ich4 has NAMBAR and NABMBAR i/o spaces as
+	 * read-only.  Need to enable "legacy support", by poking into
+	 * pci config space.  The driver should use MMBAR and MBBAR,
+	 * but doing so will mess things up here.  ich4 has enough new
+	 * features it warrants it's own driver. 
+	 */
+	if (pci_get_devid(dev) == ICH4ID) {
+		pci_write_config(dev, PCIR_ICH_LEGACY, ICH_LEGACY_ENABLE, 1);
+	}
+
+	/*
 	 * Enable bus master. On ich4/5 this may prevent the detection of
 	 * the primary codec becoming ready in ich_init().
 	 */
 	pci_enable_busmaster(dev);
 
-	if ((pci_get_devid(dev) == ICH4ID) || (pci_get_devid(dev) == ICH5ID)) {
+	if (pci_get_devid(dev) == ICH5ID) {
 		sc->nambarid = PCIR_MMBAR;
 		sc->nabmbarid = PCIR_MBBAR;
 		sc->regtype = SYS_RES_MEMORY;
