@@ -255,6 +255,17 @@ than or equal to the integer
 .Ar \&n\&2 .
 .El
 .Pp
+If
+.Ar file
+is a symbolic link,
+.Nm
+will fully dereference it and then evaluate the expression
+against the file referenced, except for the
+.Fl h
+and
+.Fl L
+primaries.
+.Pp
 These primaries can be combined with the following operators:
 .Bl -tag -width Ar
 .It Cm \&! Ar expression
@@ -315,7 +326,8 @@ An error occurred.
 .Sh SEE ALSO
 .Xr builtin 1 ,
 .Xr expr 1 ,
-.Xr sh 1
+.Xr sh 1 ,
+.Xr symlink 7
 .Sh STANDARDS
 The
 .Nm
