@@ -180,6 +180,7 @@ int	sbsize = SBSIZE;	/* superblock size */
 int	mntflags = MNT_ASYNC;	/* flags to be passed to mount */
 u_long	memleft;		/* virtual memory available */
 caddr_t	membase;		/* start address of memory based filesystem */
+char	*filename;
 #ifdef COMPAT
 char	*disktype;
 int	unlabeled;
@@ -216,7 +217,7 @@ main(argc, argv)
 	}
 
 	opstring = mfs ?
-	    "NT:a:b:c:d:e:f:i:m:o:s:" :
+	    "NF:T:a:b:c:d:e:f:i:m:o:s:"
 	    "NOS:T:a:b:c:d:e:f:i:k:l:m:n:o:p:r:s:t:u:x:";
 	while ((ch = getopt(argc, argv, opstring)) != EOF)
 		switch (ch) {
@@ -235,6 +236,9 @@ main(argc, argv)
 			disktype = optarg;
 			break;
 #endif
+		case 'F':
+			filename = optarg;
+			break;
 		case 'a':
 			if ((maxcontig = atoi(optarg)) <= 0)
 				fatal("%s: bad maximum contiguous blocks\n",
@@ -530,6 +534,9 @@ main(argc, argv)
 		args.size = fssize * sectorsize;
 		if (mount(MOUNT_MFS, argv[1], mntflags, &args) < 0)
 			fatal("%s: %s", argv[1], strerror(errno));
+		if(filename) {
+			munmap(membase,fssize * sectorsize);
+		}
 	}
 #endif
 	exit(0);
