@@ -113,7 +113,7 @@
 
 #include <dev/bge/if_bgereg.h>
 
-#define BGE_CSUM_FEATURES	(CSUM_IP | CSUM_TCP | CSUM_UDP | CSUM_IP_FRAGS)
+#define BGE_CSUM_FEATURES	(CSUM_IP | CSUM_TCP | CSUM_UDP)
 
 /* "controller miibus0" required.  See GENERIC if you get errors here. */
 #include "miibus_if.h"
