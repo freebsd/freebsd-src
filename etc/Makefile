@@ -75,11 +75,13 @@ distribution:
 	( cd ${.CURDIR}/../gnu/usr.bin/send-pr; ${MAKE} etc-gnats-freefall ); \
 	( cd ${.CURDIR}/../share/termcap; ${MAKE} etc-termcap ); \
 	( cd ${.CURDIR}/../usr.sbin/rmt; ${MAKE} etc-rmt ); \
-	( cd ${.CURDIR}/sendmail; ${MAKE} distribution ); \
 	( cd ${.CURDIR}/isdn; ${MAKE} install ); \
 	pwd_mkdb -p -d ${DESTDIR}/etc ${DESTDIR}/etc/master.passwd; \
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 555 \
 	     MAKEDEV.local MAKEDEV ${DESTDIR}/dev )
+.if !defined(NO_SENDMAIL)
+	( cd ${.CURDIR}/sendmail; ${MAKE} distribution );
+.endif
 .if !defined(NOUUCP)
 	( cd ${.CURDIR}/../gnu/libexec/uucp/sample; ${MAKE} install )
 .endif
