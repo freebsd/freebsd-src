@@ -2169,8 +2169,6 @@ validate:
 		*pte = newpte;
 		if (origpte)
 			pmap_invalidate_page(pmap, va);
-		if (prot & VM_PROT_EXECUTE)
-			alpha_pal_imb();
 	}
 }
 
@@ -2189,8 +2187,7 @@ static vm_page_t
 pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_offset_t pa, vm_page_t mpte)
 {
 	register pt_entry_t *pte;
-	pt_entry_t npte;
-	pv_table_t* ppv;
+
 
 	/*
 	 * In the case that a page table page is not
@@ -2262,14 +2259,10 @@ retry:
 	 */
 	pmap->pm_stats.resident_count++;
 
-	ppv = pa_to_pvh(pa);
-
 	/*
 	 * Now validate mapping with RO protection
 	 */
-	*pte = pmap_phys_to_pte(pa) | PG_V | PG_KRE | PG_URE | PG_MANAGED |
-	    (!(ppv->pv_flags & PV_TABLE_REF) ? (PG_FOR | PG_FOW | PG_FOE) : 0);
-	pmap_invalidate_page(pmap, va);
+	*pte = pmap_phys_to_pte(pa) | PG_V | PG_KRE | PG_URE | PG_MANAGED;
 
 	return mpte;
 }
