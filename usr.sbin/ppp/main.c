@@ -226,8 +226,8 @@ ProcessArgs(int argc, char **argv, struct switches *sw)
           log_Printf(LogWARN, "%s ignored: NAT is compiled out\n", argv[arg]);
           fprintf(stderr, "%s ignored: NAT is compiled out\n", argv[arg]);
 #else
-          log_Printf(LogWARN, "%s is depricated\n", argv[arg]);
-          fprintf(stderr, "%s is depricated\n", argv[arg]);
+          log_Printf(LogWARN, "%s is deprecated\n", argv[arg]);
+          fprintf(stderr, "%s is deprecated\n", argv[arg]);
           sw->nat = 1;
 #endif
           optc--;			/* this option isn't exclusive */

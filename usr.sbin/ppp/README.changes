@@ -1,3 +1,5 @@
+$FreeBSD$
+
 This file summarises changes made to ppp that effect
 its configuration.
 
@@ -83,13 +85,14 @@ o Ppp now accepts M$CHAP (as well as normal CHAP) by default.  If this
 o The ``set device'' command now expects each device to be specified as an
   argument rather than concatentating all arguments and splitting based
   on commas and spaces.
-o The ``show modem'' command is depricated and has been changed to
+o The ``show modem'' command is deprecated and has been changed to
   ``show physical''.
 o The words ``host'' and ``port'' are no longer accepted by the ``set filter''
   command.  Removing them should yield the same results as before.
-o The ``set weight'' command has been depricated.  The ``set bandwidth''
+o The ``set weight'' command has been deprecated.  The ``set bandwidth''
   command should now be used instead.
 o The ``set autoload'' command syntax and implementation have changed as the
   old implementation was mis-designed and dysfunctional.
 o Ppp now waits either the full ``set cd'' time or until carrier is detected
   before running the login script (whichever comes first).
+o The -alias flag has been deprecated.  The -nat flag should be used instead.
