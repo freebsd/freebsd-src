@@ -201,6 +201,7 @@ looutput(ifp, m, dst, rt)
 		return (rt->rt_flags & RTF_BLACKHOLE ? 0 :
 		        rt->rt_flags & RTF_HOST ? EHOSTUNREACH : ENETUNREACH);
 	}
+#ifdef INET6
 	/*
 	 * KAME requires that the packet to be contiguous on the
 	 * mbuf.  We need to make that sure.
@@ -222,6 +223,7 @@ looutput(ifp, m, dst, rt)
 			m = n;
 		}
 	}
+#endif
 
 	ifp->if_opackets++;
 	ifp->if_obytes += m->m_pkthdr.len;
