@@ -1,5 +1,4 @@
 .\" $NetBSD: ucom.4,v 1.9 2002/03/22 00:39:40 augustss Exp $
-.\" $FreeBSD$
 .\"
 .\" Copyright (c) 1999 The NetBSD Foundation, Inc.
 .\" All rights reserved.
@@ -35,6 +34,8 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
+.\" $FreeBSD$
+.\"
 .Dd November 25, 1999
 .Dt UCOM 4
 .Os
@@ -68,7 +69,7 @@ The
 locater can be used to decide which port to use for device that have
 multiple external ports.
 .Sh FILES
-.Bl -tag -width Pa
+.Bl -tag -width ".Pa /dev/ttyU?"
 .It Pa /dev/ttyU?
 .El
 .Sh SEE ALSO
@@ -85,8 +86,9 @@ The
 .Nm
 driver was adopted from
 .Nx
-in March of 2002.  This manual page
-was adopted from
+in March of 2002.
+This manual page was adopted from
 .Nx
-by Tom Rhodes <trhodes@FreeBSD.org>
+by
+.An Tom Rhodes Aq trhodes@FreeBSD.org
 in April 2002.
