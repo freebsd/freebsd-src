@@ -35,6 +35,9 @@
 
 #include <dev/fb/fbreg.h>
 #include <dev/fb/splashreg.h>
+#include <dev/fb/vgareg.h>
+
+#include <isa/isareg.h>
 
 #define FADE_TIMEOUT	15	/* sec */
 #define FADE_LEVELS	10
@@ -62,6 +65,7 @@ bmp_start(video_adapter_t *adp)
 			M_VESA_CG640x480,
 			M_VESA_CG800x600,
 			M_VESA_CG1024x768,
+			M_CG640x480,
     			/*
 			 * As 320x200 doesn't generally look great,
 			 * it's least preferred here.
@@ -212,6 +216,7 @@ typedef struct
 {
     int		width,height;		/* image dimensions */
     int		swidth,sheight;		/* screen dimensions for the current mode */
+    u_char	depth;			/* image depth (1, 4, 8, 24 bits) */
     u_char	sdepth;			/* screen depth (1, 4, 8 bpp) */
     int		ncols;			/* number of colours */
     u_char	palette[256][3];	/* raw palette data */
@@ -225,42 +230,6 @@ typedef struct
 
 static BMP_INFO bmp_info;
 
-static void
-fill(BMP_INFO *info, int x, int y, int xsize, int ysize)
-{
-    u_char	*window;
-    int		banksize;
-    int		bank;
-    int		p;
-
-    banksize = info->adp->va_window_size;
-    bank = (info->adp->va_line_width*y + x)/banksize;
-    window = (u_char *)info->adp->va_window;
-    (*vidsw[info->adp->va_index]->set_win_org)(info->adp, bank*banksize);
-    while (ysize > 0) {
-	p = (info->adp->va_line_width*y + x)%banksize;
-	for (; (p + xsize <= banksize) && ysize > 0; --ysize, ++y) {
-	    generic_bzero(window + p, xsize);
-	    p += info->adp->va_line_width;
-	}
-	if (ysize <= 0)
-	    break;
-	if (p < banksize) {
-	    /* the last line crosses the window boundary */
-	    generic_bzero(window + p, banksize - p);
-	}
-	++bank;				/* next bank */
-	(*vidsw[info->adp->va_index]->set_win_org)(info->adp, bank*banksize);
-	if (p < banksize) {
-	    /* the remaining part of the last line */
-	    generic_bzero(window, p + xsize - banksize);
-	    ++y;
-	    --ysize;
-	}
-    }
-    info->bank = bank;
-}
-
 /*
 ** bmp_SetPix
 **
@@ -271,7 +240,6 @@ static void
 bmp_SetPix(BMP_INFO *info, int x, int y, u_char val)
 {
     int		sofs, bofs;
-    u_char	tpv, mask;
     int		newbank;
 
     /*
@@ -286,31 +254,27 @@ bmp_SetPix(BMP_INFO *info, int x, int y, u_char val)
      */
     sofs = ((info->height - (y+1) + (info->sheight - info->height) / 2) 
 		* info->adp->va_line_width);
+    x += (info->swidth - info->width) / 2;
 
     switch(info->sdepth) {
+    case 4:
     case 1:
-	sofs += ((x + (info->swidth - info->width) / 2) >> 3);
+	/* EGA/VGA planar modes */
+	sofs += (x >> 3);
+	newbank = sofs/info->adp->va_window_size;
+	if (info->bank != newbank) {
+	    (*vidsw[info->adp->va_index]->set_win_org)(info->adp, newbank*info->adp->va_window_size);
+	    info->bank = newbank;
+	}
+	sofs %= info->adp->va_window_size;
 	bofs = x & 0x7;				/* offset within byte */
-	
-	val &= 1;				/* mask pixel value */
-	mask = ~(0x80 >> bofs);			/* calculate bit mask */
-	tpv = *(info->vidmem+sofs) & mask;	/* get screen contents, excluding masked bit */
-	*(info->vidmem+sofs) = tpv | (val << (8-bofs));	/* write new bit */
+	outw(GDCIDX, (0x8000 >> bofs) | 0x08);	/* bit mask */
+	outw(GDCIDX, (val << 8) | 0x00);	/* set/reset */
+	*(info->vidmem + sofs) ^= 0xff;		/* read-modify-write */
 	break;
 
-	/* XXX only correct for non-interleaved modes */
-    case 4:
-	sofs += ((x + (info->swidth - info->width) / 2) >> 1);
-	bofs = x & 0x1;				/* offset within byte */
-	
-	val &= 0xf;				/* mask pixel value */
-	mask = bofs ? 0x0f : 0xf0;		/* calculate bit mask */
-	tpv = *(info->vidmem+sofs) & mask;	/* get screen contents, excluding masked bits */
-	*(info->vidmem+sofs) = tpv | (val << (bofs ? 0 : 4));	/* write new bits */
-	break;
-	
     case 8:
-	sofs += x + (info->swidth - info->width) / 2;
+	sofs += x;
 	newbank = sofs/info->adp->va_window_size;
 	if (info->bank != newbank) {
 	    (*vidsw[info->adp->va_index]->set_win_org)(info->adp, newbank*info->adp->va_window_size);
@@ -390,7 +354,7 @@ bmp_DecodeRLE4(BMP_INFO *info, int line)
 
 /*
 ** bmp_DecodeRLE8
-** Given (data) pointing to a line of RLE4-format data and (line) being the starting
+** Given (data) pointing to a line of RLE8-format data and (line) being the starting
 ** line onscreen, decode the line.
 */
 static void
@@ -450,12 +414,46 @@ static void
 bmp_DecodeLine(BMP_INFO *info, int line)
 {
     int		x;
+    u_char	val, mask, *p;
 
     switch(info->format) {
     case BI_RGB:
-	for (x = 0; x < info->width; x++, info->index++)
-	    bmp_SetPix(info, x, line, *info->index);
-	info->index += 3 - (--x % 4);
+    	switch(info->depth) {
+	case 8:
+	    for (x = 0; x < info->width; x++, info->index++)
+		bmp_SetPix(info, x, line, *info->index);
+	    info->index += 3 - (--x % 4);
+	    break;
+	case 4:
+	    p = info->index;
+	    for (x = 0; x < info->width; x++) {
+		if (x & 1) {
+		    val = *p & 0xf;	/* get low nybble */
+		    p++;
+		} else {
+		    val = *p >> 4;	/* get high nybble */
+		}
+		bmp_SetPix(info, x, line, val);
+	    }
+	    /* warning, this depends on integer truncation, do not hand-optimise! */
+	    info->index += ((x + 7) / 8) * 4;
+	    break;
+	case 1:
+	    p = info->index;
+	    mask = 0x80;
+	    for (x = 0; x < info->width; x++) {
+		val = (*p & mask) ? 1 : 0;
+		mask >>= 1;
+		if (mask == 0) {
+		    mask = 0x80;
+		    p++;
+		}
+		bmp_SetPix(info, x, line, val);
+	    }
+	    /* warning, this depends on integer truncation, do not hand-optimise! */
+	    info->index += ((x + 31) / 32) * 4;
+	    break;
+	}
 	break;
     case BI_RLE4:
 	bmp_DecodeRLE4(info, line);
@@ -507,6 +505,7 @@ bmp_Init(const char *data, int swidth, int sheight, int sdepth)
     /* image parameters */
     bmp_info.width = bmf->bmfi.bmiHeader.biWidth;
     bmp_info.height = bmf->bmfi.bmiHeader.biHeight;
+    bmp_info.depth = bmf->bmfi.bmiHeader.biBitCount;
     bmp_info.format = bmf->bmfi.bmiHeader.biCompression;
 
     switch(bmp_info.format) {	/* check compression format */
@@ -525,16 +524,13 @@ bmp_Init(const char *data, int swidth, int sheight, int sdepth)
     if (bmp_info.ncols == 0) {	/* uses all of them */
 	bmp_info.ncols = 1 << bmf->bmfi.bmiHeader.biBitCount;
     }
-    if ((bmf->bmfi.bmiHeader.biBitCount != sdepth)
-	|| (bmp_info.ncols > (1 << sdepth))) {
-	printf("splash_bmp: unsupported color depth (%d bits, %d colors)\n",
-		bmf->bmfi.bmiHeader.biBitCount, bmp_info.ncols);
-	return(1);
-    }
     if ((bmp_info.height > bmp_info.sheight) ||
 	(bmp_info.width > bmp_info.swidth) ||
 	(bmp_info.ncols > (1 << sdepth))) {
-	    return(1);		/* beyond screen capacity */
+	if (bootverbose)
+	    printf("splash_bmp: beyond screen capacity (%dx%d, %d colors)\n",
+		   bmp_info.width, bmp_info.height, bmp_info.ncols);
+	return(1);
     }
 
     /* read palette */
@@ -556,6 +552,7 @@ static int
 bmp_Draw(video_adapter_t *adp)
 {
     int		line;
+    int		i;
 
     if (bmp_info.data == NULL) {	/* init failed, do nothing */
 	return(1);
@@ -564,8 +561,7 @@ bmp_Draw(video_adapter_t *adp)
     /* clear the screen */
     bmp_info.vidmem = (u_char *)adp->va_window;
     bmp_info.adp = adp;
-    /* XXX; the following line is correct only for 8bpp modes */
-    fill(&bmp_info, 0, 0, bmp_info.swidth, bmp_info.sheight);
+    (*vidsw[adp->va_index]->clear)(adp);
     (*vidsw[adp->va_index]->set_win_org)(adp, 0);
     bmp_info.bank = 0;
 
@@ -574,6 +570,24 @@ bmp_Draw(video_adapter_t *adp)
     
     /* set the palette for our image */
     (*vidsw[adp->va_index]->load_palette)(adp, (u_char *)&bmp_info.palette);
+
+    /* XXX: this is ugly, but necessary for EGA/VGA 1bpp/4bpp modes */
+    if ((adp->va_type == KD_EGA) || (adp->va_type == KD_VGA)) {
+	inb(adp->va_crtc_addr + 6);		/* reset flip-flop */
+	outb(ATC, 0x14);
+	outb(ATC, 0);
+	for (i = 0; i < 16; ++i) {
+	    outb(ATC, i);
+	    outb(ATC, i);
+	}
+	inb(adp->va_crtc_addr + 6);		/* reset flip-flop */
+	outb(ATC, 0x20);			/* enable palette */
+
+	outw(GDCIDX, 0x0f01);			/* set/reset enable */
+
+	if (bmp_info.sdepth == 1)
+	    outw(TSIDX, 0x0102);		/* unmask plane #0 */
+    }
 
     for (line = 0; (line < bmp_info.height) && bmp_info.index; line++) {
 	bmp_DecodeLine(&bmp_info, line);
