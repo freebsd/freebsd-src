@@ -131,7 +131,7 @@ typedef struct arcstruct	arctype;
     /*
      * The symbol table;
      * for each external in the specified file we gather
-     * its address, the number of calls and compute its share of cpu time.
+     * its address, the number of calls and compute its share of CPU time.
      */
 struct nl {
     const char		*name;		/* the name */
@@ -268,43 +268,43 @@ struct stringlist	*ktolist;
     /*
      *	function declarations
      */
-/*
-		addarc();
-*/
+void		addarc(nltype *, nltype *, long);
+bool		addcycle(arctype **, arctype **);
+void		addlist(struct stringlist *, char *);
+void		alignentries(void);
 int		aout_getnfile(const char *, char ***);
 int		arccmp();
 arctype		*arclookup();
-/*
-		asgnsamples();
-		printblurb();
-		cyclelink();
-		dfn();
-*/
+void		asgnsamples(void);
+void		compresslist(void);
+bool		cycleanalyze(void);
+void		cyclelink(void);
+void		cycletime(void);
+bool		descend(nltype *, arctype **, arctype **);
+void		dfn(nltype *);
 bool		dfn_busy();
-/*
-		dfn_findcycle();
-*/
+void		dfn_findcycle(nltype *);
+void		dfn_init(void);
 bool		dfn_numbered();
-/*
-		dfn_post_visit();
-		dfn_pre_visit();
-		dfn_self_cycle();
-*/
+void		dfn_post_visit(nltype *);
+void		dfn_pre_visit(nltype *);
+void		dfn_self_cycle(nltype *);
 nltype		**doarcs();
-/*
-		done();
-*/
+void		doflags(void);
+void		dotime(void);
+void		dumpsum(char *);
 int		elf_getnfile(const char *, char ***);
 /*
 		findcalls();
-		flatprofheader();
-		flatprofline();
 */
+void		flatprofheader(void);
+void		flatprofline(nltype *);
+void		getpfile(char *);
 /*
-		getpfile();
 		gprofheader();
 		gprofline();
 */
+void		inheritflags(nltype *);
 int		kernel_getnfile(const char *, char ***);
 /*
 		main();
@@ -313,33 +313,29 @@ unsigned long	max();
 int		membercmp();
 unsigned long	min();
 nltype		*nllookup();
+bool		onlist(struct stringlist *, const char *);
 FILE		*openpfile();
 long		operandlength();
 operandenum	operandmode();
 char		*operandname();
-/*
-		printchildren();
-		printcycle();
-		printgprof();
-		printmembers();
-		printname();
-		printparents();
-		printprof();
-		readsamples();
-*/
+void		printblurb(char *);
+void		printchildren(nltype *);
+void		printcycle(nltype *);
+void		printgprof(nltype **);
+void		printindex(void);
+void		printmembers(nltype *);
+void		printname(nltype *);
+void		printparents(nltype *);
+void		printprof(void);
+void		printsubcycle(cltype *);
+void		readsamples(FILE *);
 unsigned long	reladdr();
-/*
-		sortchildren();
-		sortmembers();
-		sortparents();
-		tally();
-		timecmp();
-		topcmp();
-*/
+void		sortchildren(nltype *);
+void		sortmembers(nltype *);
+void		sortparents(nltype *);
+void		tally(struct rawarc *);
+void		timepropagate(nltype *);
 int		totalcmp();
-/*
-		valcmp();
-*/
 
 #define	LESSTHAN	-1
 #define	EQUALTO		0

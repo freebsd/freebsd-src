@@ -81,10 +81,10 @@ elf_getnfile(const char *filename, char ***defaultEs)
 	return -1;
     }
     if (fstat(fd, &s) == -1)
-	err(1, "Cannot fstat %s", filename);
+	err(1, "cannot fstat %s", filename);
     if ((mapbase = mmap(0, s.st_size, PROT_READ, MAP_SHARED, fd, 0)) ==
       MAP_FAILED)
-	err(1, "Cannot mmap %s", filename);
+	err(1, "cannot mmap %s", filename);
     close(fd);
 
     base = (const char *)mapbase;
@@ -111,7 +111,7 @@ elf_getnfile(const char *filename, char ***defaultEs)
 
     /* Allocate memory for them, plus a terminating entry. */
     if ((nl = (nltype *)calloc(nname + 1, sizeof(nltype))) == NULL)
-	errx(1, "Insufficient memory for symbol table");
+	errx(1, "insufficient memory for symbol table");
 
     /* Read them in. */
     npe = nl;

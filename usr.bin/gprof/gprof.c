@@ -37,11 +37,12 @@ static const char copyright[] =
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
-#ifndef lint
 #if 0
+#ifndef lint
 static char sccsid[] = "@(#)gprof.c	8.1 (Berkeley) 6/6/93";
-#endif
 #endif /* not lint */
+#endif
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -57,6 +58,7 @@ static struct gmonhdr	gmonhdr;
 static int lflag;
 static int Lflag;
 
+int
 main(argc, argv)
     int argc;
     char **argv;
@@ -130,15 +132,15 @@ main(argc, argv)
 	case 'K':
 	    Kflag = TRUE;
 	    break;
-    case 'l':
+	case 'l':
 	    lflag = 1;
 	    Lflag = 0;
 	    break;
-    case 'L':
+	case 'L':
 	    Lflag = 1;
 	    lflag = 0;
 	    break;
-    case 's':
+	case 's':
 	    sflag = TRUE;
 	    break;
 	case 'u':
@@ -231,7 +233,7 @@ main(argc, argv)
 	 *	print the index
 	 */
     printindex();
-    done();
+    exit(0);
 }
 
     /*
@@ -239,6 +241,7 @@ main(argc, argv)
      *	an array of sampling hits within pc ranges,
      *	and the arcs.
      */
+void
 getpfile(filename)
     char *filename;
 {
@@ -276,16 +279,12 @@ openpfile(filename)
     int			size;
     int			rate;
 
-    if((pfile = fopen(filename, "r")) == NULL) {
-	perror(filename);
-	done();
-    }
+    if((pfile = fopen(filename, "r")) == NULL)
+	err(1, "%s", filename);
     fread(&tmp, sizeof(struct gmonhdr), 1, pfile);
     if ( s_highpc != 0 && ( tmp.lpc != gmonhdr.lpc ||
-	 tmp.hpc != gmonhdr.hpc || tmp.ncnt != gmonhdr.ncnt ) ) {
-	warnx("%s: incompatible with first gmon file", filename);
-	done();
-    }
+	 tmp.hpc != gmonhdr.hpc || tmp.ncnt != gmonhdr.ncnt ) )
+	errx(1, "%s: incompatible with first gmon file", filename);
     gmonhdr = tmp;
     if ( gmonhdr.version == GMONVERSION ) {
 	rate = gmonhdr.profrate;
@@ -298,12 +297,9 @@ openpfile(filename)
     }
     if (hz == 0) {
 	hz = rate;
-    } else if (hz != rate) {
-	fprintf(stderr,
-	    "%s: profile clock rate (%d) %s (%ld) in first gmon file\n",
+    } else if (hz != rate)
+	errx(0, "%s: profile clock rate (%d) %s (%ld) in first gmon file",
 	    filename, rate, "incompatible with clock rate", hz);
-	done();
-    }
     if ( gmonhdr.histcounter_type == 0 ) {
 	/* Historical case.  The type was u_short (2 bytes in practice). */
 	histcounter_type = 16;
@@ -334,6 +330,7 @@ openpfile(filename)
     return(pfile);
 }
 
+void
 tally( rawp )
     struct rawarc	*rawp;
 {
@@ -362,6 +359,7 @@ tally( rawp )
 /*
  * dump out the gmon.sum file
  */
+void
 dumpsum( sumfile )
     char *sumfile;
 {
@@ -370,24 +368,18 @@ dumpsum( sumfile )
     struct rawarc arc;
     FILE *sfile;
 
-    if ( ( sfile = fopen ( sumfile , "w" ) ) == NULL ) {
-	perror( sumfile );
-	done();
-    }
+    if ( ( sfile = fopen ( sumfile , "w" ) ) == NULL )
+	err( 1 , "%s" , sumfile );
     /*
      * dump the header; use the last header read in
      */
-    if ( fwrite( &gmonhdr , sizeof gmonhdr , 1 , sfile ) != 1 ) {
-	perror( sumfile );
-	done();
-    }
+    if ( fwrite( &gmonhdr , sizeof gmonhdr , 1 , sfile ) != 1 )
+	err( 1 , "%s" , sumfile );
     /*
      * dump the samples
      */
-    if (fwrite(samples, histcounter_size, nsamples, sfile) != nsamples) {
-	perror( sumfile );
-	done();
-    }
+    if (fwrite(samples, histcounter_size, nsamples, sfile) != nsamples)
+	err( 1 , "%s" , sumfile );
     /*
      * dump the normalized raw arc information
      */
@@ -396,10 +388,8 @@ dumpsum( sumfile )
 	    arc.raw_frompc = arcp -> arc_parentp -> value;
 	    arc.raw_selfpc = arcp -> arc_childp -> value;
 	    arc.raw_count = arcp -> arc_count;
-	    if ( fwrite ( &arc , sizeof arc , 1 , sfile ) != 1 ) {
-		perror( sumfile );
-		done();
-	    }
+	    if ( fwrite ( &arc , sizeof arc , 1 , sfile ) != 1 )
+		err( 1 , "%s" , sumfile );
 #	    ifdef DEBUG
 		if ( debug & SAMPLEDEBUG ) {
 		    printf( "[dumpsum] frompc 0x%lx selfpc 0x%lx count %ld\n" ,
@@ -428,6 +418,7 @@ valcmp(v1, v2)
     return EQUALTO;
 }
 
+void
 readsamples(pfile)
     FILE	*pfile;
 {
@@ -436,10 +427,8 @@ readsamples(pfile)
 
     if (samples == 0) {
 	samples = (double *) calloc(nsamples, sizeof(double));
-	if (samples == 0) {
-	    warnx("no room for %d sample pc's", nsamples);
-	    done();
-	}
+	if (samples == 0)
+	    errx(0, "no room for %d sample pc's", nsamples);
     }
     for (i = 0; i < nsamples; i++) {
 	fread(&sample, histcounter_size, 1, pfile);
@@ -474,10 +463,8 @@ readsamples(pfile)
 	    err(1, "unsupported histogram counter type %d", histcounter_type);
 	}
     }
-    if (i != nsamples) {
-	warnx("unexpected EOF after reading %d/%d samples", --i , nsamples );
-	done();
-    }
+    if (i != nsamples)
+	errx(1, "unexpected EOF after reading %d/%d samples", --i , nsamples );
 }
 
 /*
@@ -512,6 +499,7 @@ readsamples(pfile)
  *	only one sample for every four bytes of text space and never
  *	have any overlap (the two end cases, above).
  */
+void
 asgnsamples()
 {
     register int	j;
@@ -601,6 +589,7 @@ max(a, b)
      *	if it turns out that the entry point is in one bucket and the code
      *	for a routine is in the next bucket.
      */
+void
 alignentries()
 {
     register struct nl	*nlp;
@@ -623,10 +612,4 @@ alignentries()
 	    nlp->svalue += OFFSET_OF_CODE / HISTORICAL_SCALE_2;
 	}
     }
-}
-
-done()
-{
-
-    exit(0);
 }
