@@ -1,4 +1,4 @@
-/*	$NetBSD: if_gre.h,v 1.10 2002/02/24 17:22:20 martin Exp $ */
+/*	$NetBSD: if_gre.h,v 1.13 2003/11/10 08:51:52 wiz Exp $ */
 /*	 $FreeBSD$ */
 
 /*
@@ -116,7 +116,7 @@ struct greip {
  * should be routed over more than one tunnel hop by hop
  */
 struct gre_sre {
-	u_int16_t sre_family;	/* adress family */
+	u_int16_t sre_family;	/* address family */
 	u_char	sre_offset;	/* offset to first octet of active entry */
 	u_char	sre_length;	/* number of octets in the SRE. 
 				   sre_lengthl==0 -> last entry. */
@@ -166,7 +166,7 @@ struct mobip_h {
 LIST_HEAD(gre_softc_head, gre_softc);
 extern struct gre_softc_head gre_softc_list;
 
-u_short	gre_in_cksum(u_short *p, u_int len);
+u_int16_t	gre_in_cksum(u_int16_t *, u_int);
 #endif /* _KERNEL */
 
 #endif

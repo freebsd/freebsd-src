@@ -1,4 +1,4 @@
-/*	$NetBSD: ip_gre.c,v 1.21 2002/08/14 00:23:30 itojun Exp $ */
+/*	$NetBSD: ip_gre.c,v 1.29 2003/09/05 23:02:43 itojun Exp $ */
 /*	 $FreeBSD$ */
 
 /*
@@ -105,8 +105,8 @@ void
 gre_input(struct mbuf *m, ...)
 #else
 gre_input(m, va_alist)
-        struct mbuf *m;
-        va_dcl
+	struct mbuf *m;
+	va_dcl
 #endif
 {
 	int off, ret, proto;
@@ -135,26 +135,32 @@ gre_input(m, va_alist)
  * proto is the protocol number of the "calling" foo_input()
  * routine.
  */
-
 static int
 gre_input2(struct mbuf *m ,int hlen, u_char proto)
 {
-	struct greip *gip = mtod(m, struct greip *);
+	struct greip *gip;
 	int isr;
 	struct gre_softc *sc;
-	u_short flags;
+	u_int16_t flags;
 
 	if ((sc = gre_lookup(m, proto)) == NULL) {
 		/* No matching tunnel or tunnel is down. */
 		return (0);
 	}
 
+	if (m->m_len < sizeof(*gip)) {
+		m = m_pullup(m, sizeof(*gip));
+		if (m == NULL)
+			return (ENOBUFS);
+	}
+	gip = mtod(m, struct greip *);
+
 	sc->sc_if.if_ipackets++;
 	sc->sc_if.if_ibytes += m->m_pkthdr.len;
 
 	switch (proto) {
 	case IPPROTO_GRE:
-		hlen += sizeof (struct gre_h);
+		hlen += sizeof(struct gre_h);
 
 		/* process GRE flags as packet can be of variable len */
 		flags = ntohs(gip->gi_flags);
@@ -164,11 +170,11 @@ gre_input2(struct mbuf *m ,int hlen, u_char proto)
 			hlen += 4;
 		/* We don't support routing fields (variable length) */
 		if (flags & GRE_RP)
-			return(0);
+			return (0);
 		if (flags & GRE_KP)
 			hlen += 4;
 		if (flags & GRE_SP)
-			hlen +=4;
+			hlen += 4;
 
 		switch (ntohs(gip->gi_ptype)) { /* ethertypes */
 		case ETHERTYPE_IP: /* shouldn't need a schednetisr(), as */
@@ -183,16 +189,19 @@ gre_input2(struct mbuf *m ,int hlen, u_char proto)
 		case ETHERTYPE_IPV6:
 			/* FALLTHROUGH */
 		default:	   /* others not yet supported */
-			return(0);
+			return (0);
 		}
 		break;
 	default:
 		/* others not yet supported */
-		return(0);
+		return (0);
 	}
 
-	m->m_data += hlen;
-	m->m_len -= hlen;
+	if (hlen > m->m_pkthdr.len) {
+		m_freem(m);
+		return (EINVAL);
+	}
+	m_adj(m, hlen);
 	m->m_pkthdr.len -= hlen;
 
 	if (sc->sc_if.if_bpf) {
@@ -204,7 +213,7 @@ gre_input2(struct mbuf *m ,int hlen, u_char proto)
 
 	netisr_dispatch(isr, m);
 
-	return(1);	/* packet is done, no further processing needed */
+	return (1);	/* packet is done, no further processing needed */
 }
 
 /*
@@ -223,15 +232,14 @@ gre_mobile_input(m, va_alist)
         va_dcl
 #endif
 {
-	struct ip *ip = mtod(m, struct ip *);
-	struct mobip_h *mip = mtod(m, struct mobip_h *);
+	struct ip *ip;
+	struct mobip_h *mip;
 	struct gre_softc *sc;
 	int hlen;
 	va_list ap;
-	u_char osrc = 0;
 	int msiz;
 
-	va_start(ap,m);
+	va_start(ap, m);
 	hlen = va_arg(ap, int);
 	va_end(ap);
 
@@ -241,20 +249,35 @@ gre_mobile_input(m, va_alist)
 		return;
 	}
 
+	if (m->m_len < sizeof(*mip)) {
+		m = m_pullup(m, sizeof(*mip));
+		if (m == NULL)
+			return;
+	}
+	ip = mtod(m, struct ip *);
+	mip = mtod(m, struct mobip_h *);
+
 	sc->sc_if.if_ipackets++;
 	sc->sc_if.if_ibytes += m->m_pkthdr.len;
 
-	if(ntohs(mip->mh.proto) & MOB_H_SBIT) {
-		osrc = 1;
+	if (ntohs(mip->mh.proto) & MOB_H_SBIT) {
 		msiz = MOB_H_SIZ_L;
 		mip->mi.ip_src.s_addr = mip->mh.osrc;
-	} else {
+	} else
 		msiz = MOB_H_SIZ_S;
+
+	if (m->m_len < (ip->ip_hl << 2) + msiz) {
+		m = m_pullup(m, (ip->ip_hl << 2) + msiz);
+		if (m == NULL)
+			return;
+		ip = mtod(m, struct ip *);
+		mip = mtod(m, struct mobip_h *);
 	}
+
 	mip->mi.ip_dst.s_addr = mip->mh.odst;
 	mip->mi.ip_p = (ntohs(mip->mh.proto) >> 8);
 
-	if (gre_in_cksum((u_short*)&mip->mh,msiz) != 0) {
+	if (gre_in_cksum((u_int16_t *)&mip->mh, msiz) != 0) {
 		m_freem(m);
 		return;
 	}
