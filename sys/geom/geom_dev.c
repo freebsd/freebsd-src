@@ -52,8 +52,6 @@
 #include <geom/geom_int.h>
 #include <machine/limits.h>
 
-#define CDEV_MAJOR	4
-
 static d_open_t		g_dev_open;
 static d_close_t	g_dev_close;
 static d_strategy_t	g_dev_strategy;
@@ -70,7 +68,7 @@ static struct cdevsw g_dev_cdevsw = {
 	/* mmap */      nommap,
 	/* strategy */  g_dev_strategy,
 	/* name */      "g_dev",
-	/* maj */       CDEV_MAJOR,
+	/* maj */       GEOM_MAJOR,
 	/* dump */      nodump,
 	/* psize */     g_dev_psize,
 	/* flags */     D_DISK | D_CANFREE | D_TRACKCLOSE,
@@ -149,7 +147,7 @@ g_dev_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 {
 	struct g_geom *gp;
 	struct g_consumer *cp;
-	static int unit;
+	static int unit = GEOM_MINOR_PROVIDERS;
 	int error;
 	dev_t dev;
 
