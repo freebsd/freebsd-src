@@ -32,6 +32,7 @@
 #include <sys/types.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <paths.h>
 #include <poll.h>
 #include <signal.h>
 #include <stddef.h>
