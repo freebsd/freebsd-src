@@ -45,12 +45,19 @@
 #define NS_PC87334	10
 
 /*
+ * Parallel Port Chipset Type. SMC versus GENERIC (others)
+ */
+#define PPC_TYPE_SMCLIKE 0
+#define PPC_TYPE_GENERIC 1
+
+/*
  * Generic structure to hold parallel port chipset info.
  */
 struct ppc_data {
 
 	int ppc_unit;
-	int ppc_type;
+	int ppc_model;		/* chipset model if detected */
+	int ppc_type;		/* generic or smclike chipset type */
 
 	int ppc_mode;		/* chipset current mode */
 	int ppc_avm;		/* chipset available modes */
@@ -83,16 +90,22 @@ struct ppc_data {
 	short ppc_wthr;		/* writeIntrThresold */
 	short ppc_rthr;		/* readIntrThresold */
 
-#define ppc_base ppc_link.base
-#define ppc_epp ppc_link.epp_protocol
-#define ppc_irq ppc_link.id_irq
-#define ppc_subm ppc_link.submicroseq
-#define ppc_ptr ppc_link.ptr
-#define ppc_accum ppc_link.accum
+	char *ppc_ptr;		/* microseq current pointer */
+	int ppc_accum;		/* microseq accumulator */
+	int ppc_base;		/* parallel port base address */
+	int ppc_epp;		/* EPP mode (1.7 or 1.9) */
+	int ppc_irq;
 
 	unsigned char ppc_flags;
 
-	struct ppb_link ppc_link;
+	device_t ppbus;		/* parallel port chipset corresponding ppbus */
+
+  	int rid_irq, rid_drq, rid_ioport;
+	struct resource *res_irq, *res_drq, *res_ioport;
+
+	void *intr_cookie;
+
+	int ppc_registered;	/* 1 if ppcintr() is the registered interrupt */
 };
 
 /*

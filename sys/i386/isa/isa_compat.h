@@ -77,9 +77,7 @@
 #include "stl.h"
 #include "stli.h"
 #include "loran.h"
-#include "pcf.h"
 #include "tina.h"
-#include "ppc.h"
 #include "fla.h"
 
 struct old_isa_driver {
@@ -138,9 +136,7 @@ extern struct isa_driver ascdriver;
 extern struct isa_driver stldriver;
 extern struct isa_driver stlidriver;
 extern struct isa_driver lorandriver;
-extern struct isa_driver pcfdriver;
 extern struct isa_driver tinadriver;
-extern struct isa_driver ppcdriver;
 
 
 static struct old_isa_driver old_drivers[] = {
@@ -212,9 +208,6 @@ static struct old_isa_driver old_drivers[] = {
 #if NLORAN > 0
 	{ INTR_TYPE_TTY, &lorandriver },
 #endif
-#if NPPC > 0
-	{ INTR_TYPE_TTY, &ppcdriver },
-#endif
 
 /* BIO */
 
@@ -262,9 +255,6 @@ static struct old_isa_driver old_drivers[] = {
 #endif
 #if NWL > 0
 	{ INTR_TYPE_NET, &wldriver },
-#endif
-#if NPCF > 0
-	{ INTR_TYPE_NET, &pcfdriver },
 #endif
 #if NTINA > 0
 	{ INTR_TYPE_NET, &tinadriver },

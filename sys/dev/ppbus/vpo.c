@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1997, 1998 Nicolas Souchu
+ * Copyright (c) 1997, 1998, 1999 Nicolas Souchu
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,8 +30,8 @@
 #ifdef _KERNEL
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/malloc.h>
-#include <sys/buf.h>
+#include <sys/module.h>
+#include <sys/bus.h>
 
 #include <machine/clock.h>
 
@@ -56,6 +56,8 @@
 #include <dev/ppbus/ppbconf.h>
 #include <dev/ppbus/vpoio.h>
 
+#include "ppbus_if.h"
+
 struct vpo_sense {
 	struct scsi_sense cmd;
 	unsigned int stat;
@@ -79,96 +81,84 @@ struct vpo_data {
 	struct vpoio_data vpo_io;	/* interface to low level functions */
 };
 
+static int vpo_probe(device_t);
+static int vpo_attach(device_t);
+
+#define DEVTOSOFTC(dev) \
+	((struct vpo_data *)device_get_softc(dev))
+
+static devclass_t vpo_devclass;
+
+static device_method_t vpo_methods[] = {
+	/* device interface */
+	DEVMETHOD(device_probe,		vpo_probe),
+	DEVMETHOD(device_attach,	vpo_attach),
+
+	{ 0, 0 }
+};
+
+static driver_t vpo_driver = {
+	"vpo",
+	vpo_methods,
+	sizeof(struct vpo_data),
+};
+
 /* cam related functions */
 static void	vpo_action(struct cam_sim *sim, union ccb *ccb);
 static void	vpo_poll(struct cam_sim *sim);
 
-static int	nvpo = 0;
-#define MAXVP0	8			/* XXX not much better! */
-static struct vpo_data *vpodata[MAXVP0];
-
-#ifdef _KERNEL
-
 /*
- * Make ourselves visible as a ppbus driver
+ * vpo_probe()
  */
-static struct ppb_device	*vpoprobe(struct ppb_data *ppb);
-static int			vpoattach(struct ppb_device *dev);
-
-static struct ppb_driver vpodriver = {
-    vpoprobe, vpoattach, "vpo"
-};
-DATA_SET(ppbdriver_set, vpodriver);
-
-#endif
-
-/*
- * vpoprobe()
- *
- * Called by ppb_attachdevs().
- */
-static struct ppb_device *
-vpoprobe(struct ppb_data *ppb)
+static int
+vpo_probe(device_t dev)
 {
 	struct vpo_data *vpo;
-	struct ppb_device *dev;
+	int error;
 
-	if (nvpo >= MAXVP0) {
-		printf("vpo: Too many devices (max %d)\n", MAXVP0);
-		return(NULL);
-	}
-
-	vpo = (struct vpo_data *)malloc(sizeof(struct vpo_data),
-							M_DEVBUF, M_NOWAIT);
-	if (!vpo) {
-		printf("vpo: cannot malloc!\n");
-		return(NULL);
-	}
+	vpo = DEVTOSOFTC(dev);
 	bzero(vpo, sizeof(struct vpo_data));
 
-	vpodata[nvpo] = vpo;
-
 	/* vpo dependent initialisation */
-	vpo->vpo_unit = nvpo;
-
-	/* ok, go to next device on next probe */
-	nvpo ++;
+	vpo->vpo_unit = device_get_unit(dev);
 
 	/* low level probe */
 	vpoio_set_unit(&vpo->vpo_io, vpo->vpo_unit);
 
 	/* check ZIP before ZIP+ or imm_probe() will send controls to
 	 * the printer or whatelse connected to the port */
-	if ((dev = vpoio_probe(ppb, &vpo->vpo_io))) {
+	if ((error = vpoio_probe(dev, &vpo->vpo_io)) == 0) {
 		vpo->vpo_isplus = 0;
-	} else if ((dev = imm_probe(ppb, &vpo->vpo_io))) {
+		device_set_desc(dev,
+				"Iomega VPI0 Parallel to SCSI interface");
+	} else if ((error = imm_probe(dev, &vpo->vpo_io)) == 0) {
 		vpo->vpo_isplus = 1;
+		device_set_desc(dev,
+				"Iomega Matchmaker Parallel to SCSI interface");
 	} else {
-		free(vpo, M_DEVBUF);
-		return (NULL);
+		return (error);
 	}
 
-	return (dev);
+	return (0);
 }
 
 /*
- * vpoattach()
- *
- * Called by ppb_attachdevs().
+ * vpo_attach()
  */
 static int
-vpoattach(struct ppb_device *dev)
+vpo_attach(device_t dev)
 {
-	struct vpo_data *vpo = vpodata[dev->id_unit];
+	struct vpo_data *vpo = DEVTOSOFTC(dev);
 	struct cam_devq *devq;
+	int error;
 
 	/* low level attachment */
 	if (vpo->vpo_isplus) {
-		if (!imm_attach(&vpo->vpo_io))
-			return (0);
+		if ((error = imm_attach(&vpo->vpo_io)))
+			return (error);
 	} else {
-		if (!vpoio_attach(&vpo->vpo_io))
-			return (0);
+		if ((error = vpoio_attach(&vpo->vpo_io)))
+			return (error);
 	}
 
 	/*
@@ -178,18 +168,19 @@ vpoattach(struct ppb_device *dev)
 	devq = cam_simq_alloc(/*maxopenings*/1);
 	/* XXX What about low-level detach on error? */
 	if (devq == NULL)
-		return (0);
+		return (ENXIO);
 
-	vpo->sim = cam_sim_alloc(vpo_action, vpo_poll, "vpo", vpo, dev->id_unit,
+	vpo->sim = cam_sim_alloc(vpo_action, vpo_poll, "vpo", vpo,
+				 device_get_unit(dev),
 				 /*untagged*/1, /*tagged*/0, devq);
 	if (vpo->sim == NULL) {
 		cam_simq_free(devq);
-		return (0);
+		return (ENXIO);
 	}
 
 	if (xpt_bus_register(vpo->sim, /*bus*/0) != CAM_SUCCESS) {
 		cam_sim_free(vpo->sim, /*free_devq*/TRUE);
-		return (0);
+		return (ENXIO);
 	}
 
 	if (xpt_create_path(&vpo->path, /*periph*/NULL,
@@ -197,12 +188,12 @@ vpoattach(struct ppb_device *dev)
 			    CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
 		xpt_bus_deregister(cam_sim_path(vpo->sim));
 		cam_sim_free(vpo->sim, /*free_devq*/TRUE);
-		return (0);
+		return (ENXIO);
 	}
 
 	/* all went ok */
 
-	return (1);
+	return (0);
 }
 
 /*
@@ -445,3 +436,5 @@ vpo_poll(struct cam_sim *sim)
 	/* The ZIP is actually always polled throw vpo_action() */
 	return;
 }
+
+DRIVER_MODULE(vpo, ppbus, vpo_driver, vpo_devclass, 0, 0);
