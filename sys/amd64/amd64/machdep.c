@@ -130,7 +130,7 @@ static int  set_fpcontext(struct thread *td, const mcontext_t *mcp);
 SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL)
 
 int	_udatasel, _ucodesel;
-u_int	atdevbase;
+u_long	atdevbase;
 
 u_int64_t	modulep;	/* phys addr of metadata table */
 u_int64_t	physfree;	/* first free page after kernel */
