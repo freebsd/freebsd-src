@@ -4,17 +4,17 @@
 #
 #
 #  This file is checked when PPP establishes network level connection.
-#  PPP command seaches label in this file in following way and order.
+#  PPP command searches label in this file in following way and order.
 #
-#  1) At first, IP address assigned into our side is serched and execute
+#  1) At first, IP address assigned into our side is searched and execute
 #     associated command.
 #
 #  2) If it didn't found, then label name specified at startup time is
 #     searched.
 #
-#  3) If given label name is not found, then label MYADDR is serched.
+#  3) If given label name is not found, then label MYADDR is searched.
 #
-# $Id: ppp.linkup.sample,v 1.1.1.1 1995/01/31 06:24:33 amurai Exp $
+# $Id: ppp.linkup.sample,v 1.1.1.1.4.2 1996/06/05 02:37:07 jkh Exp $
 #
 #########################################################################
 #
@@ -22,16 +22,16 @@
 # to 192.244.176.0 network.
 #
 #192.244.176.32:
-# add 192.244.176.0 255.255.255.0 HISADDR
+# add 192.244.176.0 0 HISADDR
 #
-# If we are invked with an argument ``iij-demand'', then
+# If we are invoked with an argument ``iij-demand'', then
 # delete existing route entry and add peer as default gateway.
 #
 iij-demand:
  delete ALL
  add 0 0 HISADDR
 #
-# Otherwide, simply add peer as default gateway.
+# Otherwise, simply add peer as default gateway.
 #
 MYADDR:
  add 0 0 HISADDR

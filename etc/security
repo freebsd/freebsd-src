@@ -1,9 +1,10 @@
 #!/bin/sh -
 #
 #	@(#)security	5.3 (Berkeley) 5/28/91
-#	$Id: security,v 1.8 1995/05/27 01:37:44 ache Exp $
+#	$Id: security,v 1.8.4.2 1996/06/05 02:36:37 jkh Exp $
 #
 PATH=/sbin:/bin:/usr/bin
+LC_ALL=C; export LC_ALL
 
 host=`hostname -s`
 echo "Subject: $host security check output"
@@ -24,11 +25,17 @@ set $MP
 while test $# -ge 1; do
 	mount=$1
 	shift
-	find $mount -xdev \( -perm -u+s -or -perm -g+s \) | sort
+	find -X $mount -xdev -type f \
+		\( -perm -u+x -or -perm -g+x -or -perm -o+x \) \
+		\( -perm -u+s -or -perm -g+s \) | sort
 done | xargs -n 20 ls -lgTd > $TMP
 
+if [ ! -f $LOG/setuid.today ] ; then
+	echo "no $LOG/setuid.today"
+	cp $TMP $LOG/setuid.today
+fi
 if cmp $LOG/setuid.today $TMP >/dev/null; then :; else
-	echo "$host setuid/device diffs:"
+	echo "$host setuid diffs:"
 	diff -b $LOG/setuid.today $TMP
 	mv $LOG/setuid.today $LOG/setuid.yesterday
 	mv $TMP $LOG/setuid.today
