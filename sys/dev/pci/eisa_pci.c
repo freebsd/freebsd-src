@@ -114,7 +114,7 @@ eisab_attach(device_t dev)
      */
     child = device_add_child(dev, "eisa", 0);
     if (child != NULL)
-	return(bus_generic_attach(dev));
+	bus_generic_attach(dev);
 
     /*
      * Attach an ISA bus as well (should this be a child of EISA?)
