@@ -1,4 +1,4 @@
-/*	$Id$ */
+/*	$Id: msdosfsmount.h,v 1.10 1997/02/22 09:40:49 peter Exp $ */
 /*	$NetBSD: msdosfsmount.h,v 1.7 1994/08/21 18:44:17 ws Exp $	*/
 
 /*-
@@ -47,6 +47,11 @@
  *
  * October 1992
  */
+
+#ifndef _MSDOSFS_MSDOSFSMOUNT_H_
+#define	_MSDOSFS_MSDOSFSMOUNT_H_
+
+#ifdef KERNEL
 
 /*
  * Layout of the mount control block for a msdos file system.
@@ -170,6 +175,8 @@ struct msdosfsmount {
 
 int msdosfs_init __P((struct vfsconf *vfsp));
 
+#endif /* KERNEL */
+
 /*
  *  Arguments to mount MSDOS filesystems.
  */
@@ -181,3 +188,4 @@ struct msdosfs_args {
 	mode_t	mask;		/* mask to be applied for msdosfs perms */
 };
 
+#endif /* !_MSDOSFS_MSDOSFSMOUNT_H_ */
