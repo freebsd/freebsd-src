@@ -54,7 +54,7 @@ into the internal policy label format
 and places it in
 .Fa *mac ,
 which must later be freed with
-.Xr mac_free 3 .
+.Xr free 3 .
 .Pp
 The
 .Fn mac_to_text
@@ -72,6 +72,19 @@ for the MAC label format.
 POSIX.1e does not define
 a format for text representations
 of MAC labels.
+.Pp
+POSIX.1e requires that text strings allocated using
+.Fn mac_to_text
+be freed using
+.Xr mac_free 3 ;
+in the
+.Fx
+implementation, they must be freed using
+.Xr free 3 ,
+as
+.Xr mac_free 3
+is used only to free memory used for type
+.Dv mac_t .
 .Sh ERRORS
 .Bl -tag -width Er
 .It Bq Er ENOMEM
@@ -79,8 +92,8 @@ Insufficient memory was available
 to allocate internal storage.
 .El
 .Sh SEE ALSO
+.Xr free 3 ,
 .Xr mac 3 ,
-.Xr mac_free 3 ,
 .Xr mac_get 3 ,
 .Xr mac_is_present_np 3 ,
 .Xr mac_prepare 3 ,
