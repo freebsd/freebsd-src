@@ -513,9 +513,11 @@ vn_read(fp, uio, active_cred, flags, td)
 	 * According to McKusick the vn lock is protecting f_offset here.
 	 * Once this field has it's own lock we can acquire this shared.
 	 */
-	vn_lock(vp, LK_EXCLUSIVE | LK_NOPAUSE | LK_RETRY, td);
-	if ((flags & FOF_OFFSET) == 0)
+	if ((flags & FOF_OFFSET) == 0) {
+		vn_lock(vp, LK_EXCLUSIVE | LK_NOPAUSE | LK_RETRY, td);
 		uio->uio_offset = fp->f_offset;
+	} else
+		vn_lock(vp, LK_SHARED | LK_NOPAUSE | LK_RETRY, td);
 
 	ioflag |= sequential_heuristic(uio, fp);
 
