@@ -12,7 +12,7 @@
  *
  * Aug, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm_bios.h,v 1.17 1997/03/29 11:07:12 phk Exp $
+ *	$Id: apm_bios.h,v 1.18 1997/06/15 02:02:53 wollman Exp $
  */
 
 #ifndef	_MACHINE_APM_BIOS_H_
@@ -187,13 +187,35 @@ void apm_power_off(void);
 
 #if !defined(ASSEMBLER) && !defined(INITIALIZER)
 
-typedef struct apm_info {
+/*
+ * Old apm_info structure, returned by the APMIO_GETINFO_OLD ioctl.  This
+ * is for backward compatibility with old executables.
+ */
+typedef struct apm_info_old {
 	u_int	ai_major;	/* APM major version */
 	u_int	ai_minor;	/* APM minor version */
 	u_int	ai_acline;	/* AC line status */
 	u_int	ai_batt_stat;	/* Battery status */
 	u_int	ai_batt_life;	/* Remaining battery life */
 	u_int	ai_status;	/* Status of APM support (enabled/disabled) */
+} *apm_info_old_t;
+
+/*
+ * Structure returned by the APMIO_GETINFO ioctl.
+ *
+ * In the comments below, the parenthesized numbers indicate the minimum
+ * value of ai_infoversion for which each field is valid.
+ */
+typedef struct apm_info {
+	u_int	ai_infoversion;	/* Indicates which fields are valid */
+	u_int	ai_major;	/* APM major version (0) */
+	u_int	ai_minor;	/* APM minor version (0) */
+	u_int	ai_acline;	/* AC line status (0) */
+	u_int	ai_batt_stat;	/* Battery status (0) */
+	u_int	ai_batt_life;	/* Remaining battery life in percent (0) */
+	int	ai_batt_time;	/* Remaining battery time in seconds (0) */
+	u_int	ai_status;	/* True if enabled (0) */
+	u_int	ai_spare[8];	/* For future expansion */
 } *apm_info_t;
 
 struct apm_bios_arg {
@@ -206,13 +228,14 @@ struct apm_bios_arg {
 };
 
 #define APMIO_SUSPEND		_IO('P', 1)
-#define APMIO_GETINFO		_IOR('P', 2, struct apm_info)
+#define APMIO_GETINFO_OLD	_IOR('P', 2, struct apm_info_old)
 #define APMIO_ENABLE		_IO('P', 5)
 #define APMIO_DISABLE		_IO('P', 6)
 #define APMIO_HALTCPU		_IO('P', 7)
 #define APMIO_NOTHALTCPU	_IO('P', 8)
 #define APMIO_DISPLAY		_IOW('P', 9, int)
 #define APMIO_BIOS		_IOWR('P', 10, struct apm_bios_arg)
+#define APMIO_GETINFO		_IOR('P', 11, struct apm_info)
 
 #endif /* !ASSEMBLER && !INITIALIZER */
 
