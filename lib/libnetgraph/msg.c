@@ -115,7 +115,7 @@ NgSendAsciiMsg(int cs, const char *path, const char *fmt, ...)
 
 	/* Get a bigger buffer to hold inner message header plus arg string */
 	if ((ascii = malloc(sizeof(struct ng_mesg)
-	    + strlen(buf) + 1)) == NULL) {
+	    + strlen(args) + 1)) == NULL) {
 		free(buf);
 		return (-1);
 	}
