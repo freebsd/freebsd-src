@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)union_subr.c	8.20 (Berkeley) 5/20/95
- * $Id: union_subr.c,v 1.22 1997/11/18 15:07:35 phk Exp $
+ * $Id: union_subr.c,v 1.23 1997/12/27 02:56:26 bde Exp $
  */
 
 #include <sys/param.h>
@@ -307,6 +307,7 @@ union_allocvp(vpp, mp, undvp, dvp, cnp, uppervp, lowervp, docache)
 	int hash;
 	int vflag;
 	int try;
+	int	klocked;
 
 	if (uppervp == NULLVP && lowervp == NULLVP)
 		panic("union: unidentifiable allocation");
@@ -362,11 +363,27 @@ loop:
 			    (un->un_uppervp == uppervp ||
 			     un->un_uppervp == NULLVP) &&
 			    (UNIONTOV(un)->v_mount == mp)) {
+				/*
+				 * Do not assume that vget() does not
+				 * lock the vnode even though flags
+				 * argument is 0.
+				 */
+				if ((un->un_uppervp != NULLVP) &&
+					((un->un_flags & UN_KLOCK) == 0)) {
+					SETKLOCK(un);
+					klocked = 1;
+				} else {
+					klocked = 0;
+				}
 				if (vget(UNIONTOV(un), 0,
 				    cnp ? cnp->cn_proc : NULL)) {
+					if (klocked)
+						CLEARKLOCK(un);
 					union_list_unlock(hash);
 					goto loop;
 				}
+				if (klocked)
+					CLEARKLOCK(un);
 				break;
 			}
 		}
