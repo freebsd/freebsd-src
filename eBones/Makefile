@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	5.1 (Berkeley) 6/25/90
-#	$Id$
+#	$Id: Makefile,v 1.21 1996/02/13 12:25:32 markm Exp $
 
 SUBDIR=	include lib libexec usr.bin usr.sbin man
 
@@ -27,8 +27,8 @@ kprog:
 	cd ${SDIR}/usr.bin/su; ${CODAI}
 
 bootstrap:
-	( cd include; ${MAKE} ${MFLAGS} install )
-	( cd lib; ${MAKE} ${MFLAGS} depend all install )
+	( cd ${.CURDIR}/include; ${MAKE} ${MFLAGS} install )
+	( cd ${.CURDIR}/lib; ${MAKE} ${MFLAGS} depend all install )
 	${MAKE} ${MFLAGS} cleandir
 	${MAKE} ${MFLAGS} obj
 	${MAKE} ${MFLAGS} depend all install kprog
