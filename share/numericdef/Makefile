@@ -5,6 +5,7 @@ CLEANFILES+= ${LOCALES:S/$/.out/g}
 
 LOCALES=	af_ZA.ISO8859-1 \
 		am_ET.UTF-8 \
+		be_BY.CP1251 \
 		bg_BG.CP1251 \
 		ca_ES.ISO8859-1 \
 		cs_CZ.ISO8859-2 \
@@ -56,6 +57,7 @@ IT_LINKS=	it_CH
 BE_LINKS=	nl_BE
 RU_LINKS=       ru_RU.CP1251 ru_RU.CP866 ru_RU.ISO8859-5
 UA_LINKS=       uk_UA.ISO8859-5
+BY_LINKS=	be_BY.CP1131 be_BY.ISO8859-5
 CN_LINKS=       zh_CN.GB18030 zh_CN.GB2312 zh_CN.GBK zh_TW.Big5
 
 .SUFFIXES: .src .out
@@ -116,6 +118,10 @@ afterinstall:
 .endfor
 .for link in ${RU_LINKS}
 	ln -sf ../ru_RU.KOI8-R/LC_NUMERIC \
+		${LOCALEDIR}/${link}/LC_NUMERIC
+.endfor
+.for link in ${BY_LINKS}
+	ln -sf ../be_BY.CP1251/LC_NUMERIC \
 		${LOCALEDIR}/${link}/LC_NUMERIC
 .endfor
 .for link in ${UA_LINKS}
