@@ -271,9 +271,9 @@ evp.h: ${LCRYPTO_SRC}/crypto/evp/evp.h
 OLDSYMLINKS+=	libdes.a libdes.so libdes.so.3 libdes_p.a
 afterinstall:
 	@echo "Removing stale symlinks."
-	-rm -f ${DESTDIR}${INCLUDEDIR}/des.h
+	rm -f ${DESTDIR}${INCLUDEDIR}/des.h
 .for symlink in ${OLDSYMLINKS}
-	-rm -f ${DESTDIR}${LIBDIR}/${symlink}
+	rm -f ${DESTDIR}${LIBDIR}/${symlink}
 .endfor
 
 .include <bsd.lib.mk>
