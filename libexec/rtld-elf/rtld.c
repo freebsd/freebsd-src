@@ -943,7 +943,7 @@ gethints(void)
 	}
 	p = xmalloc(hdr.dirlistlen + 1);
 	if (lseek(fd, hdr.strtab + hdr.dirlist, SEEK_SET) == -1 ||
-	  read(fd, p, hdr.dirlistlen + 1) != hdr.dirlistlen + 1) {
+	  read(fd, p, hdr.dirlistlen + 1) != (ssize_t)hdr.dirlistlen + 1) {
 	    free(p);
 	    close(fd);
 	    return NULL;
