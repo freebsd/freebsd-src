@@ -1,5 +1,5 @@
 # $FreeBSD$
 
-SUBDIR=	k5admin k5destroy k5init k5list k5passwd k5su telnet
+SUBDIR=	k5admin k5destroy k5init k5list k5passwd k5su telnet krb5-config
 
 .include <bsd.subdir.mk>
