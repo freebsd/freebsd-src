@@ -50,7 +50,7 @@ options 	PSEUDOFS		#Pseudo-filesystem framework
 options 	COMPAT_43		#Compatible with BSD 4.3 [KEEP THIS!]
 options 	COMPAT_FREEBSD4		#Compatible with FreeBSD4
 options 	SCSI_DELAY=15000	#Delay (in ms) before probing SCSI
-options 	EPSON_BOUNCEDMA		#use bounce buufer for 15-16M
+options 	EPSON_BOUNCEDMA		#use bounce buffer for 15-16M
 #options 	EPSON_MEMWIN		#EPSON memory window support
 #options 	LINE30
 options 	KTRACE			#ktrace(1) support
@@ -84,7 +84,7 @@ device		atadisk			# ATA disk drives
 device		atapicd			# ATAPI CDROM drives
 device		atapifd			# ATAPI floppy drives
 device		atapist			# ATAPI tape drives
-options		ATA_STATIC_ID		# Static device numbering
+options 	ATA_STATIC_ID		#Static device numbering
 
 # IDE controller and disks
 #device		wdc	1
