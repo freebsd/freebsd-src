@@ -79,9 +79,8 @@ static int netdev_sock = -1;
 static int netdev_opens;
 
 static int	net_init(void);
-static int	net_open(struct open_file *, void *vdev);
+static int	net_open(struct open_file *, ...);
 static int	net_close(struct open_file *);
-static int	net_ioctl();
 static int	net_strategy();
 
 static int net_getparams(int sock);
@@ -108,12 +107,15 @@ net_init(void)
  * This is declared with variable arguments...
  */
 int
-net_open(struct open_file *f, void *vdev)
+net_open(struct open_file *f, ...)
 {
+    va_list args;
     char *devname;		/* Device part of file name (or NULL). */
     int error = 0;
 
-    devname = vdev;
+    va_start(args, f);
+    devname = va_arg(args, char*);
+    va_end(args);
 
     /* On first open, do netif open, mount, etc. */
     if (netdev_opens == 0) {
@@ -173,12 +175,6 @@ net_close(f)
 }
 
 int
-net_ioctl()
-{
-    return EIO;
-}
-
-int
 net_strategy()
 {
     return EIO;
@@ -201,6 +197,8 @@ net_strategy()
 int try_bootp = 1;
 int bootp(int sock);
 #endif
+
+extern n_long ip_convertaddr(char *p);
 
 static int
 net_getparams(sock)

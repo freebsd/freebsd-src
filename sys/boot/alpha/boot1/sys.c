@@ -28,6 +28,7 @@
  * $FreeBSD$
  */
 
+#include <string.h>
 #include <sys/param.h>
 #include <sys/time.h>
 
