@@ -42,7 +42,7 @@ struct pcb {
 	u_long	pcb_nsaved;
 	u_long	pcb_rwsp[MAXWIN];
 	struct	rwindow pcb_rw[MAXWIN];
-};
+} __aligned(64);
 
 #ifdef _KERNEL
 int	savectx(struct pcb *pcb);
