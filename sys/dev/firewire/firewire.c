@@ -113,9 +113,10 @@ static device_method_t firewire_methods[] = {
 };
 char linkspeed[7][0x10]={"S100","S200","S400","S800","S1600","S3200","Unknown"};
 
-#define MAX_GAPHOP  16
-u_int gap_cnt[] = {1, 1, 4, 6, 9, 12, 14, 17,
-			20, 23, 25, 28, 31, 33, 36, 39, 42};
+/* IEEE-1394a Table C-2 Gap count as a function of hops*/
+#define MAX_GAPHOP 15
+u_int gap_cnt[] = { 5,  5,  7,  8, 10, 13, 16, 18,
+		   21, 24, 26, 29, 32, 35, 37, 40};
 
 extern struct cdevsw firewire_cdevsw;
 
@@ -913,9 +914,14 @@ fw_xfer_unload(struct fw_xfer* xfer)
 		splx(s);
 	}
 	if (xfer->fc != NULL) {
-#if 1 /* this could happen if we call fwohci_arcv() before fwohci_txd() */
+#if 1
 		if(xfer->state == FWXF_START)
-			panic("fw_xfer_free FWXF_START\n");
+			/*
+			 * This could happen if:
+			 *  1. We call fwohci_arcv() before fwohci_txd().
+			 *  2. firewire_watch() is called.
+			 */
+			printf("fw_xfer_free FWXF_START\n");
 #endif
 		fw_tl_free(xfer->fc, xfer);
 	}
@@ -1102,25 +1108,18 @@ void fw_sidrcv(struct firewire_comm* fc, u_int32_t *sid, u_int len)
 	printf("\n");
 
 	if (try_bmr && (fc->irm != -1) && (CSRARC(fc, BUS_MGR_ID) == 0x3f)) {
-		if (fc->irm == ((CSRARC(fc, NODE_IDS) >> 16 ) & 0x3f)) {
+		if (fc->irm == fc->nodeid) {
 			fc->status = FWBUSMGRDONE;
 			CSRARC(fc, BUS_MGR_ID) = fc->set_bmr(fc, fc->irm);
+			fw_bmr(fc);
 		} else {
 			fc->status = FWBUSMGRELECT;
 			callout_reset(&fc->bmr_callout, hz/8,
 				(void *)fw_try_bmr, (void *)fc);
 		}
-	} else {
+	} else
 		fc->status = FWBUSMGRDONE;
-#if 0
-		device_printf(fc->bdev, "BMR = %x\n",
-				CSRARC(fc, BUS_MGR_ID));
-#endif
-	}
-	if(fc->irm == ((CSRARC(fc, NODE_IDS) >> 16 ) & 0x3f)){
-		/* I am BMGR */
-		fw_bmr(fc);
-	}
+
 	callout_reset(&fc->busprobe_callout, hz/4,
 			(void *)fw_bus_probe, (void *)fc);
 }
@@ -1883,15 +1882,12 @@ fw_try_bmr_callback(struct fw_xfer *xfer)
 		bmr = fc->nodeid;
 
 	CSRARC(fc, BUS_MGR_ID) = fc->set_bmr(fc, bmr & 0x3f);
-	device_printf(fc->bdev, "new bus manager %d ",
-		CSRARC(fc, BUS_MGR_ID));
-	if(bmr == fc->nodeid){
-		printf("(me)\n");
-		fw_bmr(fc);
-	}else{
-		printf("\n");
-	}
+	fw_xfer_free(xfer);
+	fw_bmr(fc);
+	return;
+
 error:
+	device_printf(fc->bdev, "bus manager election failed\n");
 	fw_xfer_free(xfer);
 }
 
@@ -2042,15 +2038,28 @@ fw_bmr(struct firewire_comm *fc)
 	/* Check to see if the current root node is cycle master capable */
 	self_id = &fc->topology_map->self_id[fc->max_node];
 	if (fc->max_node > 0) {
-		if (self_id->p0.contender)
+		/* XXX check cmc bit of businfo block rather than contender */
+		if (self_id->p0.link_active && self_id->p0.contender)
 			cmstr = fc->max_node;
-		else
-			/* XXX shall we be cycle master? */
+		else {
+			device_printf(fc->bdev,
+				"root node is not cycle master capable\n");
+			/* XXX shall we be the cycle master? */
 			cmstr = fc->nodeid;
-			/* XXX bus reset? */
+			/* XXX need bus reset */
+		}
 	} else
 		cmstr = -1;
-	/* If I am the bus manager, optimize gapcount */
+
+	device_printf(fc->bdev, "bus manager %d ", CSRARC(fc, BUS_MGR_ID));
+	if(CSRARC(fc, BUS_MGR_ID) != fc->nodeid) {
+		/* We are not the bus manager */
+		printf("\n");
+		return(0);
+	}
+	printf("(me)\n");
+
+	/* Optimize gapcount */
 	if(fc->max_hop <= MAX_GAPHOP )
 		fw_phy_config(fc, cmstr, gap_cnt[fc->max_hop]);
 	/* If we are the cycle master, nothing to do */
@@ -2065,7 +2074,7 @@ fw_bmr(struct firewire_comm *fc)
 	fwdev.status = FWDEVINIT;
 	/* Set cmstr bit on the cycle master */
 	fwmem_write_quad(&fwdev, NULL, 0/*spd*/,
-		0xffff, 0xf0000000 | STATE_SET, htonl(1 << 16),
+		0xffff, 0xf0000000 | STATE_SET, htonl(1 << 8),
 		fw_asy_callback_free);
 
 	return 0;
