@@ -12,6 +12,11 @@
 #include <config.h>
 #endif
 
+#if defined(SYS_WINNT)
+#undef close
+#define close closesocket
+#endif
+
 #if defined(REFCLOCK) && defined(CLOCK_DUMBCLOCK)
 
 #include "ntpd.h"
@@ -114,14 +119,15 @@ dumbclock_start(
 	if (debug)
 		printf ("starting Dumbclock with device %s\n",device);
 #endif
-	if (!(fd = refclock_open(device, SPEED232, 0)))
+	fd = refclock_open(device, SPEED232, 0);
+	if (fd < 0)
 		return (0);
 
 	/*
 	 * Allocate and initialize unit structure
 	 */
-	if (!(up = (struct dumbclock_unit *)
-	      emalloc(sizeof(struct dumbclock_unit)))) {
+	up = (struct dumbclock_unit *)emalloc(sizeof(struct dumbclock_unit));
+	if (up == NULL) {
 		(void) close(fd);
 		return (0);
 	}
@@ -218,7 +224,7 @@ dumbclock_receive(
 		    up->tcswitch = 0;
 		return;
 	}
-	pp->lencode = temp;
+	pp->lencode = (u_short)temp;
 	pp->lastrec = up->laststamp;
 	up->laststamp = trtmp;
 	up->tcswitch = 1;
@@ -232,7 +238,6 @@ dumbclock_receive(
 	/*
 	 * We get down to business. Check the timecode format...
 	 */
-	pp->msec = 0;
 	got_good=0;
 	if (sscanf(pp->a_lastcode,"%02d:%02d:%02d",
 		   &hours,&minutes,&seconds) == 3)
@@ -330,9 +335,10 @@ dumbclock_receive(
 		refclock_report(peer, CEVNT_BADTIME);
 		return;
 	}
-	record_clock_stats(&peer->srcadr, pp->a_lastcode);
+	pp->lastref = pp->lastrec;
 	refclock_receive(peer);
-	up->lasthour = pp->hour;
+	record_clock_stats(&peer->srcadr, pp->a_lastcode);
+	up->lasthour = (u_char)pp->hour;
 }
 
 #if 0

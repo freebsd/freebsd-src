@@ -40,10 +40,10 @@
  * change throughout the day and night.
  *
  * The driver receives, demodulates and decodes the radio signals when
- * connected to the audio codec of a Sun workstation running SunOS or
- * Solaris, and with a little help, other workstations with similar
- * codecs or sound cards. In this implementation, only one audio driver
- * and codec can be supported on a single machine.
+ * connected to the audio codec of a suported workstation hardware and
+ * operating system. These include Solaris, SunOS, FreeBSD, NetBSD and
+ * Linux. In this implementation, only one audio driver and codec can be
+ * supported on a single machine.
  *
  * The driver can be compiled to use a Bell 103 compatible modem or
  * modem chip to receive the radio signal and demodulate the data.
@@ -105,8 +105,8 @@
  *
  * The timecode format used for debugging and data recording includes
  * data helpful in diagnosing problems with the radio signal and serial
- * connections. With debugging enabled (-d -d -d on the ntpd command
- * line), the driver produces one line for each burst in two formats
+ * connections. With debugging enabled (-d on the ntpd command line),
+ * the driver produces one line for each burst in two formats
  * corresponding to format A and B. Following is format A:
  *
  *	n b f s m code
@@ -161,22 +161,22 @@
  *
  * For accuracies better than the low millisceconds, fudge time1 can be
  * set to the radio propagation delay from CHU to the receiver. This can
- * be done conviently using the minimuf program. When the modem driver
- * is compiled, fudge flag3 enables the ppsclock line discipline. Fudge
- * flag4 causes the dubugging output described above to be recorded in
- * the clockstats file.
+ * be done conviently using the minimuf program.
  *
- * When the audio driver is compiled, fudge flag2 selects the audio
- * input port, where 0 is the mike port (default) and 1 is the line-in
- * port. It does not seem useful to select the compact disc player port.
- * Fudge flag3 enables audio monitoring of the input signal. For this
- * purpose, the speaker volume must be set before the driver is started.
+ * Fudge flag4 causes the dubugging output described above to be
+ * recorded in the clockstats file. When the audio driver is compiled,
+ * fudge flag2 selects the audio input port, where 0 is the mike port
+ * (default) and 1 is the line-in port. It does not seem useful to
+ * select the compact disc player port. Fudge flag3 enables audio
+ * monitoring of the input signal. For this purpose, the monitor gain is
+ * set to a default value.
  *
  * The audio codec code is normally compiled in the driver if the
- * architecture supports it (HAVE_AUDIO defined), but is used only if the
- * link /dev/chu_audio is defined and valid. The serial port
- * code is alwasy compiled in the driver, but is used only if the autdio
- * codec is not available and the link /dev/chu%d is defined and valid.
+ * architecture supports it (HAVE_AUDIO defined), but is used only if
+ * the link /dev/chu_audio is defined and valid. The serial port code is
+ * always compiled in the driver, but is used only if the autdio codec
+ * is not available and the link /dev/chu%d is defined and valid.
+ *
  * The ICOM code is normally compiled in the driver if selected (ICOM
  * defined), but is used only if the link /dev/icom%d is defined and
  * valid and the mode keyword on the server configuration command
@@ -194,11 +194,13 @@
 #define	DEVICE		"/dev/chu%d" /* device name and unit */
 #define	SPEED232	B300	/* UART speed (300 baud) */
 #ifdef ICOM
-#define DWELL		5	/* minutes before qsy */
+#define TUNE		.001	/* offset for narrow filter (kHz) */
+#define DWELL		5	/* minutes in a probe cycle */
 #define NCHAN		3	/* number of channels */
+#define ISTAGE		3	/* number of integrator stages */
 #endif /* ICOM */
-#ifdef HAVE_AUDIO
 
+#ifdef HAVE_AUDIO
 /*
  * Audio demodulator definitions
  */
@@ -207,11 +209,13 @@
 #define OFFSET		128	/* companded sample offset */
 #define SIZE		256	/* decompanding table size */
 #define	MAXSIG		6000.	/* maximum signal level */
+#define	MAXCLP		100	/* max clips above reference per s */
 #define LIMIT		1000.	/* soft limiter threshold */
 #define AGAIN		6.	/* baseband gain */
 #define LAG		10	/* discriminator lag */
 #define	DEVICE_AUDIO	"/dev/chu_audio" /* device name */
 #define	DESCRIPTION	"CHU Audio/Modem Receiver" /* WRU */
+#define	AUDIO_BUFSIZ	240	/* audio buffer size (30 ms) */
 #else
 #define	DESCRIPTION	"CHU Modem Receiver" /* WRU */
 #endif /* HAVE_AUDIO */
@@ -224,16 +228,19 @@
 #define BURST		11	/* max characters per burst */
 #define MINCHAR		9	/* min characters per burst */
 #define MINDIST		28	/* min burst distance (of 40)  */
+#define MINBURST	4	/* min bursts in minute */
 #define MINSYNC		8	/* min sync distance (of 16) */
 #define MINSTAMP	20	/* min timestamps (of 60) */
-#define PANIC		(4 * 1440) /* panic restart */
+#define METRIC		50.	/* min channel metric */
+#define PANIC		1440	/* panic timeout (m) */
+#define HOLD		30	/* reach hold (m) */
 
 /*
  * Hex extension codes (>= 16)
  */
-#define HEX_MISS	16	/* miss */
-#define HEX_SOFT	17	/* soft error */
-#define HEX_HARD	18	/* hard error */
+#define HEX_MISS	16	/* miss _ */
+#define HEX_SOFT	17	/* soft error * */
+#define HEX_HARD	18	/* hard error = */
 
 /*
  * Status bits (status)
@@ -246,8 +253,9 @@
 #define AFORMAT		0x0020	/* invalid format A data */
 #define DECODE		0x0040	/* invalid data decode */
 #define STAMP		0x0080	/* too few timestamps */
-#define INYEAR		0x0100	/* valid B frame */
-#define INSYNC		0x0200	/* clock synchronized */
+#define AVALID		0x0100	/* valid A frame */
+#define BVALID		0x0200	/* valid B frame */
+#define INSYNC		0x0400	/* clock synchronized */
 
 /*
  * Alarm status bits (alarm)
@@ -264,6 +272,10 @@
 #define TSPERR		0x08	/* insufficient data */
 
 #ifdef HAVE_AUDIO
+/*
+ * Maximum likelihood UART structure. There are eight of these
+ * corresponding to the number of phases.
+ */ 
 struct surv {
 	double	shift[12];	/* mark register */
 	double	es_max, es_min;	/* max/min envelope signals */
@@ -271,6 +283,19 @@ struct surv {
 	int	uart;		/* decoded character */
 };
 #endif /* HAVE_AUDIO */
+
+#ifdef ICOM
+/*
+ * CHU station structure. There are three of these corresponding to the
+ * three frequencies.
+ */
+struct xmtr {
+	double	integ[ISTAGE];	/* circular integrator */
+	double	metric;		/* integrator sum */
+	int	iptr;		/* integrator pointer */
+	int	probe;		/* dwells since last probe */
+};
+#endif /* ICOM */
 
 /*
  * CHU unit control structure
@@ -284,12 +309,13 @@ struct chuunit {
 	l_fp	charstamp;	/* character time as a l_fp */
 	int	errflg;		/* error flags */
 	int	status;		/* status bits */
-	int	bufptr;		/* buffer index pointer */
-	char	ident[10];	/* transmitter frequency */
+	char	ident[5];	/* station ID and channel */
 #ifdef ICOM
 	int	fd_icom;	/* ICOM file descriptor */
-	int	chan;		/* frequency identifier */
-	int	dwell;		/* dwell minutes at current frequency */
+	int	chan;		/* data channel */
+	int	achan;		/* active channel */
+	int	dwell;		/* dwell cycle */
+	struct xmtr xmtr[NCHAN]; /* station metric */
 #endif /* ICOM */
 
 	/*
@@ -300,7 +326,6 @@ struct chuunit {
 	int	ndx;		/* buffer start index */
 	int	prevsec;	/* previous burst second */
 	int	burdist;	/* burst distance */
-	int	mindist;	/* minimum distance */
 	int	syndist;	/* sync distance */
 	int	burstcnt;	/* format A bursts this minute */
 
@@ -320,7 +345,7 @@ struct chuunit {
 	double	comp[SIZE];	/* decompanding table */
 	int	port;		/* codec port */
 	int	gain;		/* codec gain */
-	int	bufcnt;		/* samples in buffer */
+	int	mongain;	/* codec monitor gain */
 	int	clipcnt;	/* sample clip count */
 	int	seccnt;		/* second interval counter */
 
@@ -362,21 +387,30 @@ static	void	chu_clear	P((struct peer *));
 static	void	chu_a		P((struct peer *, int));
 static	void	chu_b		P((struct peer *, int));
 static	int	chu_dist	P((int, int));
-static	int	chu_major	P((struct peer *));
+static	double	chu_major	P((struct peer *));
 #ifdef HAVE_AUDIO
 static	void	chu_uart	P((struct surv *, double));
 static	void	chu_rf		P((struct peer *, double));
 static	void	chu_gain	P((struct peer *));
 static	void	chu_audio_receive P((struct recvbuf *rbufp));
 #endif /* HAVE_AUDIO */
+#ifdef ICOM
+static	int	chu_newchan	P((struct peer *, double));
+#endif /* ICOM */
 static	void	chu_serial_receive P((struct recvbuf *rbufp));
 
 /*
  * Global variables
  */
-static char hexchar[] = "0123456789abcdef_-=";
+static char hexchar[] = "0123456789abcdef_*=";
+
 #ifdef ICOM
-static double qsy[NCHAN] = {3.33, 7.335, 14.67}; /* frequencies (MHz) */
+/*
+ * Note the tuned frequencies are 1 kHz higher than the carrier. CHU
+ * transmits on USB with carrier so we can use AM and the narrow SSB
+ * filter.
+ */
+static double qsy[NCHAN] = {3.330, 7.335, 14.670}; /* freq (MHz) */
 #endif /* ICOM */
 
 /*
@@ -407,7 +441,6 @@ chu_start(
 	char device[20];	/* device name */
 	int	fd;		/* file descriptor */
 #ifdef ICOM
-	char	tbuf[80];	/* trace buffer */
 	int	temp;
 #endif /* ICOM */
 #ifdef HAVE_AUDIO
@@ -418,7 +451,7 @@ chu_start(
 	/*
 	 * Open audio device.
 	 */
-	fd_audio = audio_init(DEVICE_AUDIO);
+	fd_audio = audio_init(DEVICE_AUDIO, AUDIO_BUFSIZ, unit);
 #ifdef DEBUG
 	if (fd_audio > 0 && debug)
 		audio_show();
@@ -470,7 +503,8 @@ chu_start(
 	 */
 	peer->precision = PRECISION;
 	pp->clockdesc = DESCRIPTION;
-	memcpy((char *)&pp->refid, REFID, 4);
+	strcpy(up->ident, "CHU");
+	memcpy(&peer->refid, up->ident, 4); 
 	DTOLFP(CHAR, &up->charstamp);
 #ifdef HAVE_AUDIO
 
@@ -493,15 +527,14 @@ chu_start(
 	}
 	DTOLFP(1. / SECOND, &up->tick);
 #endif /* HAVE_AUDIO */
-	strcpy(up->ident, "X");
 #ifdef ICOM
 	temp = 0;
 #ifdef DEBUG
 	if (debug > 1)
 		temp = P_TRACE;
 #endif
-	if (peer->ttlmax > 0) {
-		if (peer->ttlmax & 0x80)
+	if (peer->ttl > 0) {
+		if (peer->ttl & 0x80)
 			up->fd_icom = icom_init("/dev/icom", B1200,
 			    temp);
 		else
@@ -509,22 +542,17 @@ chu_start(
 			    temp);
 	}
 	if (up->fd_icom > 0) {
-		if (icom_freq(up->fd_icom, peer->ttlmax & 0x7f,
-		    qsy[up->chan]) < 0) {
+		if (chu_newchan(peer, 0) != 0) {
 			NLOG(NLOG_SYNCEVENT | NLOG_SYSEVENT)
-			    msyslog(LOG_ERR,
-			    "ICOM bus error; autotune disabled");
+			    msyslog(LOG_NOTICE,
+			    "icom: radio not found");
 			up->errflg = CEVNT_FAULT;
 			close(up->fd_icom);
 			up->fd_icom = 0;
 		} else {
-			sprintf(up->ident, "%.1f", qsy[up->chan]); 
-			sprintf(tbuf, "chu: QSY to %s MHz", up->ident);
-			record_clock_stats(&peer->srcadr, tbuf);
-#ifdef DEBUG
-			if (debug)
-				printf("%s\n", tbuf);
-#endif
+			NLOG(NLOG_SYNCEVENT | NLOG_SYSEVENT)
+			    msyslog(LOG_NOTICE,
+			    "icom: autotune enabled");
 		}
 	}
 #endif /* ICOM */
@@ -548,11 +576,15 @@ chu_shutdown(
 	up = (struct chuunit *)pp->unitptr;
 	if (up == NULL)
 		return;
+
 	io_closeclock(&pp->io);
+#ifdef ICOM
 	if (up->fd_icom > 0)
 		close(up->fd_icom);
+#endif /* ICOM */
 	free(up);
 }
+
 
 /*
  * chu_receive - receive data from the audio or serial device
@@ -588,8 +620,8 @@ chu_receive(
 #endif /* HAVE_AUDIO */
 }
 
-#ifdef HAVE_AUDIO
 
+#ifdef HAVE_AUDIO
 /*
  * chu_audio_receive - receive data from the audio device
  */
@@ -604,10 +636,8 @@ chu_audio_receive(
 
 	double	sample;		/* codec sample */
 	u_char	*dpt;		/* buffer pointer */
+	int	bufcnt;		/* buffer counter */
 	l_fp	ltemp;		/* l_fp temp */
-	int	isneg;		/* parity flag */
-	double	dtemp;
-	int	i, j;
 
 	peer = (struct peer *)rbufp->recv_srcclock;
 	pp = peer->procptr;
@@ -617,13 +647,12 @@ chu_audio_receive(
 	 * Main loop - read until there ain't no more. Note codec
 	 * samples are bit-inverted.
 	 */
+	DTOLFP((double)rbufp->recv_length / SECOND, &ltemp);
+	L_SUB(&rbufp->recv_time, &ltemp);
 	up->timestamp = rbufp->recv_time;
-	up->bufcnt = rbufp->recv_length;
-	DTOLFP(up->bufcnt * 1. / SECOND, &ltemp);
-	L_SUB(&up->timestamp, &ltemp);
-	dpt = (u_char *)&rbufp->recv_space;
-	for (up->bufptr = 0; up->bufptr < up->bufcnt; up->bufptr++) {
-		sample = up->comp[~*dpt & 0xff];
+	dpt = rbufp->recv_buffer;
+	for (bufcnt = 0; bufcnt < rbufp->recv_length; bufcnt++) {
+		sample = up->comp[~*dpt++ & 0xff];
 
 		/*
 		 * Clip noise spikes greater than MAXSIG. If no clips,
@@ -637,56 +666,30 @@ chu_audio_receive(
 			sample = -MAXSIG;
 			up->clipcnt++;
 		}
-		up->seccnt = (up->seccnt + 1) % SECOND;
-		if (up->seccnt == 0) {
-			if (pp->sloppyclockflag & CLK_FLAG2)
-				up->port = 2;
-			else
-				up->port = 1;
-			chu_gain(peer);
-		}
 		chu_rf(peer, sample);
+		L_ADD(&up->timestamp, &up->tick);
 
 		/*
-		 * During development, it is handy to have an audio
-		 * monitor that can be switched to various signals. This
-		 * code converts the linear signal left in up->monitor
-		 * to codec format. If we can get the grass out of this
-		 * thing and improve modem performance, this expensive
-		 * code will be permanently nixed.
+		 * Once each second ride gain.
 		 */
-		isneg = 0;
-		dtemp = up->monitor;
-		if (sample < 0) {
-			isneg = 1;
-			dtemp-= dtemp;
+		up->seccnt = (up->seccnt + 1) % SECOND;
+		if (up->seccnt == 0) {
+			pp->second = (pp->second + 1) % 60;
+			chu_gain(peer);
 		}
-		i = 0;
-		j = OFFSET >> 1;
-		while (j != 0) {
-			if (dtemp > up->comp[i])
-				i += j;
-			else if (dtemp < up->comp[i])
-				i -= j;
-			else
-				break;
-			j >>= 1;
-		}
-		if (isneg)
-			*dpt = ~(i + OFFSET);
-		else
-			*dpt = ~i;
-		dpt++;
-		L_ADD(&up->timestamp, &up->tick);
 	}
-	
+
 	/*
-	 * Squawk to the monitor speaker if enabled.
+	 * Set the input port and monitor gain for the next buffer.
 	 */
+	if (pp->sloppyclockflag & CLK_FLAG2)
+		up->port = 2;
+	else
+		up->port = 1;
 	if (pp->sloppyclockflag & CLK_FLAG3)
-		if (write(pp->io.fd, (u_char *)&rbufp->recv_space,
-		    (u_int)up->bufcnt) < 0)
-			perror("chu:");
+		up->mongain = MONGAIN;
+	else
+		up->mongain = 0;
 }
 
 
@@ -1068,13 +1071,13 @@ chu_b(
 	 * In a format B burst, a character is considered valid only if
 	 * the first occurrence matches the last occurrence. The burst
 	 * is considered valid only if all characters are valid; that
-	 * is, only if the distance is 40. 
+	 * is, only if the distance is 40. Note that once a valid frame
+	 * has been found errors are ignored.
 	 */
 	sprintf(tbuf, "chuB %04x %2d %2d ", up->status, nchar,
 	    -up->burdist);
 	for (i = 0; i < nchar; i++)
-		sprintf(&tbuf[strlen(tbuf)], "%02x",
-		    up->cbuf[i]);
+		sprintf(&tbuf[strlen(tbuf)], "%02x", up->cbuf[i]);
 	if (pp->sloppyclockflag & CLK_FLAG4)
 		record_clock_stats(&peer->srcadr, tbuf);
 #ifdef DEBUG
@@ -1085,7 +1088,7 @@ chu_b(
 		up->status |= BFRAME;
 		return;
 	}
-	up->status |= INYEAR;
+	up->status |= BVALID;
 
 	/*
 	 * Convert the burst data to internal format. If this succeeds,
@@ -1201,6 +1204,7 @@ chu_a(
 	 * the previous burst to the current one.
 	 */
 	if (temp != 0) {
+		pp->second = 30 + temp;
 		offset.l_ui = 30 + temp;
 		offset.l_f = 0;
 		i = 0;
@@ -1236,6 +1240,7 @@ chu_a(
 		up->decode[i][(up->cbuf[j] >> 4) & 0xf]++;
 		i++;
 	}
+	up->status |= AVALID;
 	up->burstcnt++;
 }
 
@@ -1251,54 +1256,48 @@ chu_poll(
 {
 	struct refclockproc *pp;
 	struct chuunit *up;
+	l_fp	offset;
 	char	synchar, qual, leapchar;
-	int	minset;
-	int	temp;
-#ifdef ICOM
-	char	tbuf[80];	/* trace buffer */
-#endif /* ICOM */
+	int	minset, i;
+	double	dtemp;
+
 	pp = peer->procptr;
 	up = (struct chuunit *)pp->unitptr;
 	if (pp->coderecv == pp->codeproc)
 		up->errflg = CEVNT_TIMEOUT;
 	else
 		pp->polls++;
+
+	/*
+	 * If once in sync and the radio has not been heard for awhile
+	 * (30 m), it is no longer reachable. If not heard in a long
+	 * while (one day), turn out the lights and start from scratch.
+	 */
 	minset = ((current_time - peer->update) + 30) / 60;
 	if (up->status & INSYNC) {
 		if (minset > PANIC)
 			up->status = 0;
-		else
+		else if (minset <= HOLD)
 			peer->reach |= 1;
 	}
 
 	/*
 	 * Process the last burst, if still in the burst buffer.
-	 * Don't mess with anything if nothing has been heard.
+	 * Don't mess with anything if nothing has been heard. If the
+	 * minute contains a valid A frame and valid B frame, assume
+	 * synchronized; however, believe the time only if within metric
+	 * threshold. Note the quality indicator is only for
+	 * diagnostics; the data are used only if in sync and above
+	 * metric threshold.
 	 */
 	chu_burst(peer);
+	if (up->burstcnt == 0) {
 #ifdef ICOM
-	if (up->burstcnt > 2) {
-		up->dwell = 0;
-	} else if (up->dwell < DWELL) {
-		up->dwell++;
-	} else if (up->fd_icom > 0) {
-		up->dwell = 0;
-		up->chan = (up->chan + 1) % NCHAN;
-		icom_freq(up->fd_icom, peer->ttlmax & 0x7f, qsy[up->chan]);
-		sprintf(up->ident, "%.3f", qsy[up->chan]); 
-		sprintf(tbuf, "chu: QSY to %s MHz", up->ident);
-		record_clock_stats(&peer->srcadr, tbuf);
-#ifdef DEBUG
-		if (debug)
-			printf("%s\n", tbuf);
-#endif
-	}
+		chu_newchan(peer, 0);
 #endif /* ICOM */
-	if (up->burstcnt == 0)
 		return;
-	temp = chu_major(peer);
-	if (up->status & INYEAR)
-		up->status |= INSYNC;
+	}
+	dtemp = chu_major(peer);
 	qual = 0;
 	if (up->status & (BFRAME | AFRAME))
 		qual |= SYNERR;
@@ -1308,6 +1307,8 @@ chu_poll(
 		qual |= DECERR;
 	if (up->status & STAMP)
 		qual |= TSPERR;
+	if (up->status & AVALID && up->status & BVALID)
+		up->status |= INSYNC;
 	synchar = leapchar = ' ';
 	if (!(up->status & INSYNC)) {
 		pp->leap = LEAP_NOTINSYNC;
@@ -1324,34 +1325,45 @@ chu_poll(
 #ifdef HAVE_AUDIO
 	if (up->fd_audio)
 		sprintf(pp->a_lastcode,
-		    "%c%1X %4d %3d %02d:%02d:%02d.000 %c%x %+d %d %d %s %d %d %d %d",
+		    "%c%1X %04d %3d %02d:%02d:%02d %c%x %+d %d %d %s %.0f %d",
 		    synchar, qual, pp->year, pp->day, pp->hour,
 		    pp->minute, pp->second, leapchar, up->dst, up->dut,
-		    minset, up->gain, up->ident, up->tai, up->burstcnt,
-		    up->mindist, up->ntstamp);
+		    minset, up->gain, up->ident, dtemp, up->ntstamp);
 	else
 		sprintf(pp->a_lastcode,
-		    "%c%1X %4d %3d %02d:%02d:%02d.000 %c%x %+d %d %s %d %d %d %d",
+		    "%c%1X %04d %3d %02d:%02d:%02d %c%x %+d %d %s %.0f %d",
 		    synchar, qual, pp->year, pp->day, pp->hour,
 		    pp->minute, pp->second, leapchar, up->dst, up->dut,
-		    minset, up->ident, up->tai, up->burstcnt,
-		    up->mindist, up->ntstamp);
+		    minset, up->ident, dtemp, up->ntstamp);
 #else
 	sprintf(pp->a_lastcode,
-	    "%c%1X %4d %3d %02d:%02d:%02d.000 %c%x %+d %d %s %d %d %d %d",
+	    "%c%1X %04d %3d %02d:%02d:%02d %c%x %+d %d %s %.0f %d",
 	    synchar, qual, pp->year, pp->day, pp->hour, pp->minute,
-	    pp->second, leapchar, up->dst, up->dut, minset,
-	    up->ident, up->tai, up->burstcnt, up->mindist, up->ntstamp);
+	    pp->second, leapchar, up->dst, up->dut, minset, up->ident,
+	    dtemp, up->ntstamp);
 #endif /* HAVE_AUDIO */
 	pp->lencode = strlen(pp->a_lastcode);
 
 	/*
-	 * If timestamps have been stuffed, the timecode is ipso fatso
-	 * correct and can be selected to discipline the clock.
+	 * If in sync and the signal metric is above threshold, the
+	 * timecode is ipso fatso valid and can be selected to
+	 * discipline the clock. Be sure not to leave stray timestamps
+	 * around if signals are too weak or the clock time is invalid.
 	 */
-	if (temp > 0) {
+	if (up->status & INSYNC && dtemp > METRIC) {
+		if (!clocktime(pp->day, pp->hour, pp->minute, 0, GMT,
+		    up->tstamp[0].l_ui, &pp->yearstart, &offset.l_ui)) {
+			up->errflg = CEVNT_BADTIME;
+		} else {
+			offset.l_uf = 0;
+			for (i = 0; i < up->ntstamp; i++)
+				refclock_process_offset(pp, offset,
+				    up->tstamp[i], FUDGE +
+				    pp->fudgetime1);
+			pp->lastref = up->timestamp;
+			refclock_receive(peer);
+		}
 		record_clock_stats(&peer->srcadr, pp->a_lastcode);
-		refclock_receive(peer);
 	} else if (pp->sloppyclockflag & CLK_FLAG4) {
 		record_clock_stats(&peer->srcadr, pp->a_lastcode);
 	}
@@ -1360,6 +1372,9 @@ chu_poll(
 		printf("chu: timecode %d %s\n", pp->lencode,
 		    pp->a_lastcode);
 #endif
+#ifdef ICOM
+	chu_newchan(peer, dtemp);
+#endif /* ICOM */
 	chu_clear(peer);
 	if (up->errflg)
 		refclock_report(peer, up->errflg);
@@ -1370,7 +1385,7 @@ chu_poll(
 /*
  * chu_major - majority decoder
  */
-static int
+static double
 chu_major(
 	struct peer *peer	/* peer structure pointer */
 	)
@@ -1379,10 +1394,9 @@ chu_major(
 	struct chuunit *up;
 
 	u_char	code[11];	/* decoded timecode */
-	l_fp	toffset, offset; /* l_fp temps */
+	int	mindist;	/* minimum distance */
 	int	val1, val2;	/* maximum distance */
 	int	synchar;	/* stray cat */
-	double	dtemp;
 	int	temp;
 	int	i, j, k;
 
@@ -1392,20 +1406,20 @@ chu_major(
 	/*
 	 * Majority decoder. Each burst encodes two replications at each
 	 * digit position in the timecode. Each row of the decoding
-	 * matrix encodes the number of occurences of each digit found
+	 * matrix encodes the number of occurrences of each digit found
 	 * at the corresponding position. The maximum over all
-	 * occurences at each position is the distance for this position
-	 * and the corresponding digit is the maximumn likelihood
-	 * candidate. If the distance is zero, assume a miss '_'; if the
-	 * distance is not more than half the total number of
-	 * occurences, assume a soft error '-'; if two different digits
-	 * with the same distance are found, assume a hard error '='.
-	 * These will later cause a format error when the timecode is
-	 * interpreted. The decoding distance is defined as the minimum
-	 * distance over the first nine digits. The tenth digit varies
-	 * over the seconds, so we don't count it.
+	 * occurrences at each position is the distance for this
+	 * position and the corresponding digit is the maximum
+	 * likelihood candidate. If the distance is zero, assume a miss
+	 * '_'; if the distance is not more than half the total number
+	 * of occurrences, assume a soft error '*'; if two different
+	 * digits with the same distance are found, assume a hard error
+	 * '='. These will later cause a format error when the timecode
+	 * is interpreted. The decoding distance is defined as the
+	 * minimum distance over the first nine digits. The tenth digit
+	 * varies over the seconds, so we don't count it.
 	 */
-	up->mindist = 16;
+	mindist = 16;
 	for (i = 0; i < 9; i++) {
 		val1 = val2 = 0;
 		k = 0;
@@ -1425,19 +1439,18 @@ chu_major(
 			code[i] = HEX_SOFT;
 		else
 			code[i] = k;
-		if (val1 < up->mindist)
-			up->mindist = val1;
+		if (val1 < mindist)
+			mindist = val1;
 		code[i] = hexchar[code[i]];
 	}
 	code[i] = 0;
 
 	/*
-	 * A valid timecode requires at least three bursts and a
-	 * decoding distance greater than half the total number of
-	 * occurences. A valid timecode also requires at least 20 valid
-	 * timestamps.
+	 * A valid timecode requires a minimum distance at least half
+	 * the total number of occurrences. A valid timecode also
+	 * requires at least 20 valid timestamps.
 	 */
-	if (up->burstcnt < 3 || up->mindist <= up->burstcnt)
+	if (up->burstcnt < MINBURST || mindist < up->burstcnt)
 		up->status |= DECODE;
 	if (up->ntstamp < MINSTAMP)
 		up->status |= STAMP;
@@ -1458,20 +1471,7 @@ chu_major(
 		up->errflg = CEVNT_BADREPLY;
 		return (0);
 	}
-	L_CLR(&offset);
-	if (!clocktime(pp->day, pp->hour, pp->minute, 0, GMT,
-	    up->tstamp[0].l_ui, &pp->yearstart, &offset.l_ui)) {
-		up->errflg = CEVNT_BADTIME;
-		return (0);
-	}
-	pp->lastref = offset;
-	for (i = 0; i < up->ntstamp; i++) {
-		toffset = offset;
-		L_SUB(&toffset, &up->tstamp[i]);
-		LFPTOD(&toffset, dtemp);
-		SAMPLE(dtemp + FUDGE + pp->fudgetime1);
-	}
-	return (i);
+	return (mindist * 100. / (2. * up->burstcnt));
 }
 
 
@@ -1494,15 +1494,120 @@ chu_clear(
 	 * Clear stuff for the minute.
 	 */
 	up->ndx = up->prevsec = 0;
-	up->burstcnt = up->mindist = up->ntstamp = 0;
-	up->status &= INSYNC | INYEAR;
-	up->burstcnt = 0;
+	up->burstcnt = up->ntstamp = 0;
+	up->status &= INSYNC;
 	for (i = 0; i < 20; i++) {
 		for (j = 0; j < 16; j++)
 			up->decode[i][j] = 0;
 	}
 }
 
+#ifdef ICOM
+/*
+ * chu_newchan - called once per minute to find the best channel;
+ * returns zero on success, nonzero if ICOM error.
+ */
+static int
+chu_newchan(
+	struct peer *peer,
+	double	met
+	)
+{
+	struct chuunit *up;
+	struct refclockproc *pp;
+	struct xmtr *sp;
+	char	tbuf[80];	/* trace buffer */
+	int	rval;
+	double	metric;
+	int	i, j;
+
+	pp = peer->procptr;
+	up = (struct chuunit *)pp->unitptr;
+
+	/*
+	 * The radio can be tuned to three channels: 0 (3330 kHz), 1
+	 * (7335 kHz) and 2 (14670 kHz). There are five one-minute
+	 * dwells in each cycle. During the first dwell the radio is
+	 * tuned to one of three probe channels; during the remaining
+	 * four dwells the radio is tuned to the data channel. The probe
+	 * channel is selects as the least recently used. At the end of
+	 * each dwell the channel metrics are measured and the highest
+	 * one is selected as the data channel. 
+	 */
+	if (up->fd_icom <= 0)
+		return (0);
+
+	sp = &up->xmtr[up->achan];
+	sp->metric -= sp->integ[sp->iptr];
+	sp->integ[sp->iptr] = met;
+	sp->metric += sp->integ[sp->iptr];
+	sp->iptr = (sp->iptr + 1) % ISTAGE;
+	metric = 0;
+	j = 0;
+	for (i = 0; i < NCHAN; i++) {
+		up->xmtr[i].probe++;
+		if (i == up->achan)
+			up->xmtr[i].probe = 0;
+		if (up->xmtr[i].metric < metric)
+			continue;
+		metric = up->xmtr[i].metric;
+		j = i;
+	}
+	if (j != up->chan && metric > 0) {
+		up->chan = j;
+		sprintf(tbuf, "chu: QSY to %.3f MHz metric %.0f",
+		    qsy[up->chan], metric);
+		if (pp->sloppyclockflag & CLK_FLAG4)
+			record_clock_stats(&peer->srcadr, tbuf);
+#ifdef DEBUG
+		if (debug)
+			printf("%s\n", tbuf);
+#endif
+	}
+
+	/*
+	 * Start the next dwell. We speed up the initial sync a little.
+	 * If not in sync and no bursts were heard the previous dwell,
+	 * restart the probe.
+	 */
+	rval = 0;
+	if (up->burstcnt == 0 && !(up->status & INSYNC))
+		up->dwell = 0;
+#ifdef DEBUG
+	if (debug)
+		printf(
+		    "chu: at %ld dwell %d achan %d metric %.0f chan %d\n",
+		    current_time, up->dwell, up->achan, sp->metric,
+		    up->chan);
+#endif
+	if (up->dwell == 0) {
+		rval = 0;
+		for (i = 0; i < NCHAN; i++) {
+			if (up->xmtr[i].probe < rval)
+				continue;
+			rval = up->xmtr[i].probe;
+			up->achan = i;
+		}
+		rval = icom_freq(up->fd_icom, peer->ttl & 0x7f,
+		    qsy[up->achan] + TUNE);
+#ifdef DEBUG
+		if (debug)
+			printf("chu: at %ld probe channel %d\n",
+		    current_time, up->achan);
+#endif
+	} else {
+		if (up->achan != up->chan) {
+			rval = icom_freq(up->fd_icom, peer->ttl & 0x7f,
+			    qsy[up->chan] + TUNE);
+			up->achan = up->chan;
+		}
+	}
+	sprintf(up->ident, "CHU%d", up->achan);
+	memcpy(&peer->refid, up->ident, 4); 
+	up->dwell = (up->dwell + 1) % DWELL;
+	return (rval);
+}
+#endif /* ICOM */
 
 /*
  * chu_dist - determine the distance of two octet arguments
@@ -1564,14 +1669,14 @@ chu_gain(
 	 */
 	if (up->clipcnt == 0) {
 		up->gain += 4;
-		if (up->gain > 255)
-			up->gain = 255;
-	} else if (up->clipcnt > SECOND / 100) {
+		if (up->gain > MAXGAIN)
+			up->gain = MAXGAIN;
+	} else if (up->clipcnt > MAXCLP) {
 		up->gain -= 4;
 		if (up->gain < 0)
 			up->gain = 0;
 	}
-	audio_gain(up->gain, up->port);
+	audio_gain(up->gain, up->mongain, up->port);
 	up->clipcnt = 0;
 }
 #endif /* HAVE_AUDIO */

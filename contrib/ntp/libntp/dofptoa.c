@@ -12,7 +12,7 @@ char *
 dofptoa(
 	u_fp fpv,
 	int neg,
-	int ndec,
+	short ndec,
 	int msec
 	)
 {
@@ -53,8 +53,8 @@ dofptoa(
 
 		do {
 			tmp = sv;
-			sv /= ten;
-			*(--cp) = tmp - ((sv<<3) + (sv<<1));
+			sv = (u_short) (sv/ten);
+			*(--cp) = (u_char)(tmp - ((sv<<3) + (sv<<1)));
 		} while (sv != 0);
 	}
 
@@ -62,7 +62,7 @@ dofptoa(
 	 * Figure out how much of the fraction to do
 	 */
 	if (msec) {
-		dec = ndec + 3;
+		dec = (short)(ndec + 3);
 		if (dec < 3)
 		    dec = 3;
 		cpdec = &cbuf[8];

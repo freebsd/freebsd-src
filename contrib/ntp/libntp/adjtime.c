@@ -1,5 +1,5 @@
 #ifdef HAVE_CONFIG_H
-#include <config.h>
+# include <config.h>
 #endif
 
 #ifdef MPE 
@@ -80,7 +80,7 @@ if (delta != NULL) {
       /* Force new PDC time by starting an extra correction. */
       set_time_correction(pdc_usecs_wanted - pdc_usecs_current,0,1);
   }
-#endif
+#endif /* 0 */
     
   /* Immediately jump the PDC time to the new value, and then initiate a 
      gradual MPE time correction slew. */
@@ -244,6 +244,80 @@ _adjtime(
 	return (0);
 }
 
-#else /* not NEED_HPUX_ADJTIME */
+#else
+# if NEED_QNX_ADJTIME
+/*
+ * Emulate adjtime() using QNX ClockAdjust().
+ * Chris Burghart <burghart@atd.ucar.edu>, 11/2001
+ *
+ * This is a *very* simple implementation of adjtime() for QNX.  
+ * ClockAdjust() is used to tweak the system clock by about +- 1/10 
+ * of its current clock period per tick until the desired delta is 
+ * achieved.
+ */
+# include <math.h>
+# include <stdio.h>
+# include <sys/neutrino.h>
+# include <sys/time.h>
+
+# include <ntp_stdlib.h>
+
+int 
+adjtime (struct timeval *delta, struct timeval *olddelta)
+{
+    double delta_nsec;
+    double delta_nsec_old;
+    struct _clockadjust adj;
+    struct _clockadjust oldadj;
+    /*
+     * How many nanoseconds are we adjusting?
+     */
+    delta_nsec = delta->tv_sec * 1e9 + delta->tv_usec * 1000;
+    /*
+     * Build the adjust structure and call ClockAdjust()
+     */
+    if (delta_nsec != 0)
+    {
+	struct _clockperiod period;
+	long count;
+	long increment;
+
+	/*
+	 * Get the current clock period (nanoseconds)
+	 */
+	if (ClockPeriod (CLOCK_REALTIME, 0, &period, 0) < 0)
+	    return -1;
+
+	/*
+	 * Set the adjust increment to approximately 1/10 timer period per 
+	 * clock tick.
+	 */
+	count = 1 + (long)(fabs(10 * delta_nsec / period.nsec));
+	increment = (long)(delta_nsec / count);
+
+	adj.tick_nsec_inc = increment;
+	adj.tick_count = count;
+    }
+    else
+    {
+	adj.tick_nsec_inc = 0;
+	adj.tick_count = 0;
+    }
+
+    if (ClockAdjust (CLOCK_REALTIME, &adj, &oldadj) < 0)
+	return -1;
+
+    /*
+     * Build olddelta
+     */
+    delta_nsec_old = oldadj.tick_count * oldadj.tick_nsec_inc;
+    olddelta->tv_sec = (int)(delta_nsec_old / 1e9);
+    olddelta->tv_usec = (int)((delta_nsec_old - 1.0e9 * olddelta->tv_sec) / 
+                              1000);
+	    
+    return 0;
+}
+# else /* no special adjtime() needed */
 int adjtime_bs;
-#endif /* not NEED_HPUX_ADJTIME */
+# endif
+#endif

@@ -10,9 +10,9 @@
 
 #include "ntpd.h"
 #include "ntp_stdlib.h"
-#ifdef AUTOKEY
-#include "ntp_crypto.h"
-#endif /* AUTOKEY */
+#ifdef OPENSSL
+#include "openssl/rand.h"
+#endif /* OPENSSL */
 
 /*
  *                  Table of valid association combinations
@@ -181,7 +181,7 @@ getmorepeermem(void)
  */
 struct peer *
 findexistingpeer(
-	struct sockaddr_in *addr,
+	struct sockaddr_storage *addr,
 	struct peer *start_peer,
 	int mode
 	)
@@ -198,7 +198,7 @@ findexistingpeer(
 		peer = start_peer->next;
 	
 	while (peer != 0) {
-		if (NSRCADR(addr) == NSRCADR(&peer->srcadr)
+		if (SOCKCMP(addr, &peer->srcadr)
 		    && NSRCPORT(addr) == NSRCPORT(&peer->srcadr)) {
 			if (mode == -1)
 				return (peer);
@@ -216,7 +216,7 @@ findexistingpeer(
  */
 struct peer *
 findpeer(
-	struct sockaddr_in *srcadr,
+	struct sockaddr_storage *srcadr,
 	struct interface *dstadr,
 	int fd,
 	int pkt_mode,
@@ -228,11 +228,11 @@ findpeer(
 
 	findpeer_calls++;
 	hash = HASH_ADDR(srcadr);
-	for (peer = peer_hash[hash]; peer != 0; peer = peer->next) {
-		if (NSRCADR(srcadr) == NSRCADR(&peer->srcadr)
+	for (peer = peer_hash[hash]; peer != NULL; peer = peer->next) {
+		if (SOCKCMP(srcadr, &peer->srcadr)
 		    && NSRCPORT(srcadr) == NSRCPORT(&peer->srcadr)) {
 
-			/* 
+			/*
 			 * if the association matching rules determine
 			 * that this is not a valid combination, then
 			 * look for the next valid peer association.
@@ -312,7 +312,13 @@ clear_all(void)
 	for (n = 0; n < HASH_SIZE; n++) {
 		for (peer = peer_hash[n]; peer != 0; peer = next_peer) {
 			next_peer = peer->next;
-			peer_clear(peer);
+			if (peer->flags & FLAG_CONFIG) {
+				if (!(peer->cast_flags & (MDF_ACAST |
+				     MDF_MCAST | MDF_BCAST)))
+					peer_clear(peer, "STEP");
+			} else {
+				unpeer(peer);
+			}
 		}
 	}
 #ifdef DEBUG
@@ -331,14 +337,26 @@ unpeer(
 	)
 {
 	int hash;
+#ifdef OPENSSL
+	char	statstr[NTP_MAXSTRLEN]; /* statistics for filegen */
 
-	peer_associations--;
+	if (peer_to_remove->flags & FLAG_SKEY) {
+		sprintf(statstr, "unpeer %d flash %x reach %03o flags %04x",
+		    peer_to_remove->associd, peer_to_remove->flash,
+		    peer_to_remove->reach, peer_to_remove->flags);
+		record_crypto_stats(&peer_to_remove->srcadr, statstr);
+#ifdef DEBUG
+		if (debug)
+			printf("peer: %s\n", statstr);
+#endif
+	}
+#endif /* OPENSSL */
 #ifdef DEBUG
 	if (debug)
 		printf("demobilize %u %d\n", peer_to_remove->associd,
 		    peer_associations);
 #endif
-	peer_clear(peer_to_remove);
+	peer_clear(peer_to_remove, "NULL");
 	hash = HASH_ADDR(&peer_to_remove->srcadr);
 	peer_hash_count[hash]--;
 	peer_demobilizations++;
@@ -362,7 +380,7 @@ unpeer(
 		if (peer == 0) {
 			peer_hash_count[hash]++;
 			msyslog(LOG_ERR, "peer struct for %s not in table!",
-				ntoa(&peer->srcadr));
+				stoa(&peer->srcadr));
 		} else {
 			peer->next = peer_to_remove->next;
 		}
@@ -386,7 +404,7 @@ unpeer(
 			assoc_hash_count[hash]++;
 			msyslog(LOG_ERR,
 				"peer struct for %s not in association table!",
-				ntoa(&peer->srcadr));
+				stoa(&peer->srcadr));
 		} else {
 			peer->ass_next = peer_to_remove->ass_next;
 		}
@@ -394,6 +412,7 @@ unpeer(
 	peer_to_remove->next = peer_free;
 	peer_free = peer_to_remove;
 	peer_free_count++;
+	peer_associations--;
 }
 
 
@@ -402,7 +421,7 @@ unpeer(
  */
 struct peer *
 peer_config(
-	struct sockaddr_in *srcadr,
+	struct sockaddr_storage *srcadr,
 	struct interface *dstadr,
 	int hmode,
 	int version,
@@ -415,7 +434,7 @@ peer_config(
 	)
 {
 	register struct peer *peer;
-	u_int cast_flags;
+	u_char cast_flags;
 
 	/*
 	 * First search from the beginning for an association with given
@@ -440,22 +459,39 @@ peer_config(
 	switch (hmode) {
 
 	case MODE_BROADCAST:
-		if (IN_CLASSD(ntohl(srcadr->sin_addr.s_addr)))
-			cast_flags = MDF_MCAST;
-		else
-			cast_flags = MDF_BCAST;
-		break;
+		if(srcadr->ss_family == AF_INET) {
+			if (IN_CLASSD(ntohl(((struct sockaddr_in*)srcadr)->sin_addr.s_addr)))
+				cast_flags = MDF_MCAST;
+			else
+				cast_flags = MDF_BCAST;
+			break;
+		}
+		else {
+                        if (IN6_IS_ADDR_MULTICAST(&((struct sockaddr_in6*)srcadr)->sin6_addr))
+        	                cast_flags = MDF_MCAST;
+	        	else
+                        	cast_flags = MDF_BCAST;
+                	break;
+                }
 
 	case MODE_CLIENT:
-		if (IN_CLASSD(ntohl(srcadr->sin_addr.s_addr)))
-			cast_flags = MDF_ACAST;
-		else
-			cast_flags = MDF_UCAST;
-		break;
+		if(srcadr->ss_family == AF_INET) {
+			if (IN_CLASSD(ntohl(((struct sockaddr_in*)srcadr)->sin_addr.s_addr)))
+				cast_flags = MDF_ACAST;
+			else
+				cast_flags = MDF_UCAST;
+			break;
+		}
+		else {
+			if (IN6_IS_ADDR_MULTICAST(&((struct sockaddr_in6*)srcadr)->sin6_addr))
+				cast_flags = MDF_ACAST;
+			else
+				cast_flags = MDF_UCAST;
+			break;
+		}
 
 	default:
 		cast_flags = MDF_UCAST;
-		break;
 	}
 
 	/*
@@ -464,24 +500,26 @@ peer_config(
 	 */
 	if (peer != 0) {
 		peer->hmode = (u_char)hmode;
-		peer->version = (u_char)version;
-		peer->minpoll = (u_char)minpoll;
-		peer->maxpoll = (u_char)maxpoll;
-		peer->hpoll = peer->kpoll = peer->minpoll;
-		peer->ppoll = peer->maxpoll;
+		peer->version = (u_char) version;
+		peer->minpoll = (u_char) minpoll;
+		peer->maxpoll = (u_char) maxpoll;
 		peer->flags = flags | FLAG_CONFIG |
 			(peer->flags & FLAG_REFCLOCK);
 		peer->cast_flags = cast_flags;
-		peer->ttlmax = ttl;
+		peer->ttl = (u_char) ttl;
 		peer->keyid = key;
+		peer->precision = sys_precision;
+		peer_clear(peer, "RMOT");
 		return (peer);
 	}
 
 	/*
 	 * Here no match has been found, so presumably this is a new
 	 * persistent association. Mobilize the thing and initialize its
-	 * variables.
+	 * variables. If emulating ntpdate, force iburst.
 	 */
+	if (mode_ntpdate)
+		flags |= FLAG_IBURST;
 	peer = newpeer(srcadr, dstadr, hmode, version, minpoll, maxpoll,
 	    flags | FLAG_CONFIG, cast_flags, ttl, key);
 	return (peer);
@@ -493,20 +531,23 @@ peer_config(
  */
 struct peer *
 newpeer(
-	struct sockaddr_in *srcadr,
+	struct sockaddr_storage *srcadr,
 	struct interface *dstadr,
 	int hmode,
 	int version,
 	int minpoll,
 	int maxpoll,
 	u_int flags,
-	u_int cast_flags,
+	u_char cast_flags,
 	int ttl,
 	keyid_t key
 	)
 {
 	register struct peer *peer;
 	register int i;
+#ifdef OPENSSL
+	char	statstr[NTP_MAXSTRLEN]; /* statistics for filegen */
+#endif /* OPENSSL */
 
 	/*
 	 * Allocate a new peer structure. Some dirt here, since some of
@@ -521,6 +562,13 @@ newpeer(
 	memset((char *)peer, 0, sizeof(struct peer));
 
 	/*
+	 * Assign an association ID and increment the system variable.
+	 */
+	peer->associd = current_association_ID;
+	if (++current_association_ID == 0)
+		++current_association_ID;
+
+	/*
 	 * Initialize the peer structure and dance the interface jig.
 	 * Reference clocks step the loopback waltz, the others
 	 * squaredance around the interface list looking for a buddy. If
@@ -530,9 +578,15 @@ newpeer(
 	 */
 	if (ISREFCLOCKADR(srcadr))
 		peer->dstadr = loopback_interface;
-	else if (cast_flags & MDF_BCLNT)
+	else if (cast_flags & (MDF_BCLNT | MDF_ACAST | MDF_MCAST | MDF_BCAST)) {
 		peer->dstadr = findbcastinter(srcadr);
-	else if (dstadr != any_interface)
+		/*
+		 * If it was a multicast packet, findbcastinter() may not
+		 * find it, so try a little harder.
+		 */
+		if (peer->dstadr == ANY_INTERFACE_CHOOSE(srcadr))
+			peer->dstadr = findinterface(srcadr);
+	} else if (dstadr != NULL && dstadr != ANY_INTERFACE_CHOOSE(srcadr))
 		peer->dstadr = dstadr;
 	else
 		peer->dstadr = findinterface(srcadr);
@@ -541,21 +595,25 @@ newpeer(
 	peer->version = (u_char)version;
 	peer->minpoll = (u_char)max(NTP_MINPOLL, minpoll);
 	peer->maxpoll = (u_char)min(NTP_MAXPOLL, maxpoll);
-	peer->flags = flags | (key > NTP_MAXKEY ? FLAG_SKEY : 0);
+	peer->flags = flags;
+	if (key != 0)
+		peer->flags |= FLAG_AUTHENABLE;
+	if (key > NTP_MAXKEY)
+		peer->flags |= FLAG_SKEY;
 	peer->cast_flags = cast_flags;
-	peer->ttlmax = ttl;
+	peer->ttl = (u_char)ttl;
 	peer->keyid = key;
 	peer->precision = sys_precision;
-	peer_clear(peer);
+	if (cast_flags & MDF_ACAST)
+		peer_clear(peer, "ACST");
+	else if (cast_flags & MDF_MCAST)
+		peer_clear(peer, "MCST");
+	else if (cast_flags & MDF_BCAST)
+		peer_clear(peer, "BCST");
+	else
+		peer_clear(peer, "INIT");
 	if (mode_ntpdate)
 		peer_ntpdate++;
-
-	/*
-	 * Assign an association ID and increment the system variable.
-	 */
-	peer->associd = current_association_ID;
-	if (++current_association_ID == 0)
-		++current_association_ID;
 
 	/*
 	 * Note time on statistics timers.
@@ -594,14 +652,25 @@ newpeer(
 	peer->ass_next = assoc_hash[i];
 	assoc_hash[i] = peer;
 	assoc_hash_count[i]++;
+#ifdef OPENSSL
+	if (peer->flags & FLAG_SKEY) {
+		sprintf(statstr, "newpeer %d", peer->associd);
+		record_crypto_stats(&peer->srcadr, statstr);
+#ifdef DEBUG
+		if (debug)
+			printf("peer: %s\n", statstr);
+#endif
+	}
+#endif /* OPENSSL */
 #ifdef DEBUG
 	if (debug)
 		printf(
-		    "newpeer: %s->%s mode %d vers %d poll %d %d flags %x %x ttl %d key %08x\n",
-		    ntoa(&peer->dstadr->sin), ntoa(&peer->srcadr),
+		    "newpeer: %s->%s mode %d vers %d poll %d %d flags 0x%x 0x%x ttl %d key %08x\n",
+		    peer->dstadr == NULL ? "null" : stoa(&peer->dstadr->sin),
+		    stoa(&peer->srcadr),
 		    peer->hmode, peer->version, peer->minpoll,
 		    peer->maxpoll, peer->flags, peer->cast_flags,
-		    peer->ttlmax, peer->keyid);
+		    peer->ttl, peer->keyid);
 #endif
 	return (peer);
 }
@@ -612,7 +681,7 @@ newpeer(
  */
 int
 peer_unconfig(
-	struct sockaddr_in *srcadr,
+	struct sockaddr_storage *srcadr,
 	struct interface *dstadr,
 	int mode
 	)
@@ -681,6 +750,7 @@ peer_reset(
 	peer->oldpkt = 0;
 	peer->seldisptoolarge = 0;
 	peer->selbroken = 0;
+	peer->rank = 0;
 	peer->timereset = current_time;
 }
 
@@ -700,7 +770,7 @@ peer_all_reset(void)
 }
 
 
-#ifdef AUTOKEY
+#ifdef OPENSSL
 /*
  * expire_all - flush all crypto data and update timestamps.
  */
@@ -718,30 +788,29 @@ expire_all(void)
 	 * everything. Then, recompute and sign the agreement public
 	 * value, if present.
 	 */
+	if (!crypto_flags)
+		return;
 	for (n = 0; n < HASH_SIZE; n++) {
 		for (peer = peer_hash[n]; peer != 0; peer = next_peer) {
 			next_peer = peer->next;
-			if (peer->cast_flags & MDF_ACAST) {
-				peer_clear(peer);
-#ifdef AUTOKEY
-			} else {
+			if (!(peer->flags & FLAG_SKEY)) {
+				continue;
+			} else if (peer->cast_flags & MDF_ACAST) {
+				peer_clear(peer, "ACST");
+			} else if (peer->hmode == MODE_ACTIVE ||
+			    peer->hmode == MODE_PASSIVE) {
 				key_expire(peer);
-				peer->pcookie.tstamp = 0;
-#endif /* AUTOKEY */
+				peer->crypto &= ~(CRYPTO_FLAG_AUTO |
+				    CRYPTO_FLAG_AGREE);
 			}
 				
 		}
 	}
-	sys_private = (u_int32)RANDOM & 0xffffffff;
-#ifdef PUBKEY
-	crypto_agree();
-#endif /* PUBKEY */
-#ifdef DEBUG
-	if (debug)
-		printf("expire_all: at %lu\n", current_time);
-#endif
+	RAND_bytes((u_char *)&sys_private, 4);
+	crypto_update();
+	resetmanycast();
 }
-#endif /* AUTOKEY */
+#endif /* OPENSSL */
 
 
 /*
@@ -804,7 +873,7 @@ resetmanycast(void)
 		    peer->next) {
 			if (peer->cast_flags & MDF_ACAST) {
 				peer->ttl = 0;
-				poll_update(peer, peer->hpoll);
+				poll_update(peer, 0);
 			}
 		}
 	}

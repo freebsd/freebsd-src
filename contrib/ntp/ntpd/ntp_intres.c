@@ -50,8 +50,10 @@ struct conf_entry {
 	struct conf_entry *ce_next;
 	char *ce_name;			/* name we are trying to resolve */
 	struct conf_peer ce_config;	/* configuration info for peer */
+	struct sockaddr_storage peer_store; /* address info for both fams */
 };
 #define	ce_peeraddr	ce_config.peeraddr
+#define	ce_peeraddr6	ce_config.peeraddr6
 #define	ce_hmode	ce_config.hmode
 #define	ce_version	ce_config.version
 #define ce_minpoll	ce_config.minpoll
@@ -123,8 +125,7 @@ static	int resolve_value;	/* next value of resolve timer */
 /*
  * File descriptor for ntp request code.
  */
-static	int sockfd = -1;
-
+static	SOCKET sockfd = INVALID_SOCKET;	/* NT uses SOCKET */
 
 /* stuff to be filled in by caller */
 
@@ -410,6 +411,8 @@ addentry(
 	ce = (struct conf_entry *)emalloc(sizeof(struct conf_entry));
 	ce->ce_name = cp;
 	ce->ce_peeraddr = 0;
+	ce->ce_peeraddr6 = in6addr_any;
+	ANYSOCK(&ce->peer_store);
 	ce->ce_hmode = (u_char)mode;
 	ce->ce_version = (u_char)version;
 	ce->ce_minpoll = (u_char)minpoll;
@@ -446,18 +449,18 @@ findhostaddr(
 	struct conf_entry *entry
 	)
 {
-	struct hostent *hp;
-	struct in_addr in;
+	struct addrinfo *addr;
+	int error;
 
 	checkparent();		/* make sure our guy is still running */
 
-	if (entry->ce_name && entry->ce_peeraddr) {
+	if (entry->ce_name != NULL && SOCKNUL(&entry->peer_store)) {
 		/* HMS: Squawk? */
 		msyslog(LOG_ERR, "findhostaddr: both ce_name and ce_peeraddr are defined...");
 		return 1;
 	}
 
-	if (!entry->ce_name && !entry->ce_peeraddr) {
+        if (entry->ce_name == NULL && !SOCKNUL(&entry->peer_store)) {
 		msyslog(LOG_ERR, "findhostaddr: both ce_name and ce_peeraddr are undefined!");
 		return 0;
 	}
@@ -468,20 +471,33 @@ findhostaddr(
 			msyslog(LOG_INFO, "findhostaddr: Resolving <%s>",
 				entry->ce_name);
 #endif /* DEBUG */
-		hp = gethostbyname(entry->ce_name);
+		error = getaddrinfo(entry->ce_name, NULL, NULL, &addr);
+		if (error == 0) {
+			entry->peer_store = *((struct sockaddr_storage*)(addr->ai_addr));
+			if (entry->peer_store.ss_family == AF_INET) {
+				entry->ce_peeraddr =
+				    GET_INADDR(entry->peer_store);
+				entry->ce_config.v6_flag = 0;
+			} else {
+				entry->ce_peeraddr6 =
+				    GET_INADDR6(entry->peer_store);
+				entry->ce_config.v6_flag = 1;
+			}
+		}
 	} else {
 #ifdef DEBUG
 		if (debug > 2)
-			msyslog(LOG_INFO, "findhostaddr: Resolving %x>",
-				entry->ce_peeraddr);
+			msyslog(LOG_INFO, "findhostaddr: Resolving %s>",
+				stoa(&entry->peer_store));
 #endif
-		in.s_addr = entry->ce_peeraddr;
-		hp = gethostbyaddr((const char *)&in,
-				   sizeof entry->ce_peeraddr,
-				   AF_INET);
+		entry->ce_name = emalloc(MAXHOSTNAMELEN);
+		error = getnameinfo((const struct sockaddr *)&entry->peer_store,
+				   SOCKLEN(&entry->peer_store),
+				   (char *)&entry->ce_name, MAXHOSTNAMELEN,
+				   NULL, 0, 0);
 	}
 
-	if (hp == NULL) {
+	if (error != 0) {
 		/*
 		 * If the resolver is in use, see if the failure is
 		 * temporary.  If so, return success.
@@ -496,29 +512,11 @@ findhostaddr(
 		if (debug > 2)
 			msyslog(LOG_INFO, "findhostaddr: name resolved.");
 #endif
-		/*
-		 * Use the first address.  We don't have any way to tell
-		 * preferences and older gethostbyname() implementations
-		 * only return one.
-		 */
-		memmove((char *)&(entry->ce_peeraddr),
-			(char *)hp->h_addr,
-			sizeof(struct in_addr));
-		if (entry->ce_keystr[0] == '*')
-			strncpy((char *)&(entry->ce_keystr), hp->h_name,
-				MAXFILENAME);
-	} else {
-		char *cp;
-		size_t s;
 
 #ifdef DEBUG
 		if (debug > 2)
 			msyslog(LOG_INFO, "findhostaddr: address resolved.");
 #endif
-		s = strlen(hp->h_name) + 1;
-		cp = (char *)emalloc(s);
-		strcpy(cp, hp->h_name);
-		entry->ce_name = cp;
 	}
 		   
 	return (1);
@@ -531,21 +529,25 @@ findhostaddr(
 static void
 openntp(void)
 {
-	struct sockaddr_in saddr;
+	struct addrinfo hints;
+	struct addrinfo *addrResult;
 
 	if (sockfd >= 0)
 	    return;
-	
-	sockfd = socket(AF_INET, SOCK_DGRAM, 0);
+
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = AF_UNSPEC;
+	hints.ai_socktype = SOCK_DGRAM;
+	if (getaddrinfo(NULL, "ntp", &hints, &addrResult)!=0) {
+		msyslog(LOG_ERR, "getaddrinfo failed: %m");
+		exit(1);
+	}
+	sockfd = socket(addrResult->ai_family, addrResult->ai_socktype, 0);
+
 	if (sockfd == -1) {
 		msyslog(LOG_ERR, "socket() failed: %m");
 		exit(1);
 	}
-
-	memset((char *)&saddr, 0, sizeof(saddr));
-	saddr.sin_family = AF_INET;
-	saddr.sin_port = htons(NTP_PORT);		/* trash */
-	saddr.sin_addr.s_addr = htonl(LOCALHOST);	/* garbage */
 
 	/*
 	 * Make the socket non-blocking.  We'll wait with select()
@@ -575,12 +577,11 @@ openntp(void)
 		}
 	}
 #endif /* SYS_WINNT */
-
-
-	if (connect(sockfd, (struct sockaddr *)&saddr, sizeof(saddr)) == -1) {
+	if (connect(sockfd, addrResult->ai_addr, addrResult->ai_addrlen) == -1) {
 		msyslog(LOG_ERR, "openntp: connect() failed: %m");
 		exit(1);
 	}
+	freeaddrinfo(addrResult);
 }
 
 
@@ -711,7 +712,8 @@ request(
 
 		if (n < 0)
 		{
-			msyslog(LOG_ERR, "select() fails: %m");
+			if (errno != EINTR)
+			    msyslog(LOG_ERR, "select() fails: %m");
 			return 0;
 		}
 		else if (n == 0)
@@ -832,32 +834,32 @@ request(
 		
 		    case INFO_ERR_IMPL:
 			msyslog(LOG_ERR,
-				"server reports implementation mismatch!!");
+				"ntpd reports implementation mismatch!");
 			return 0;
 		
 		    case INFO_ERR_REQ:
 			msyslog(LOG_ERR,
-				"server claims configuration request is unknown");
+				"ntpd says configuration request is unknown!");
 			return 0;
 		
 		    case INFO_ERR_FMT:
 			msyslog(LOG_ERR,
-				"server indicates a format error occurred(!!)");
+				"ntpd indicates a format error occurred!");
 			return 0;
 
 		    case INFO_ERR_NODATA:
 			msyslog(LOG_ERR,
-				"server indicates no data available (shouldn't happen)");
+				"ntpd indicates no data available!");
 			return 0;
 		
 		    case INFO_ERR_AUTH:
 			msyslog(LOG_ERR,
-				"server returns a permission denied error");
+				"ntpd returns a permission denied error!");
 			return 0;
 
 		    default:
 			msyslog(LOG_ERR,
-				"server returns unknown error code %d", n);
+				"ntpd returns unknown error code %d!", n);
 			return 0;
 		}
 	}
@@ -1029,10 +1031,10 @@ doconfigure(
 #ifdef DEBUG
 		if (debug > 1)
 			msyslog(LOG_INFO,
-			    "doconfigure: <%s> has peeraddr %#x",
-			    ce->ce_name, ce->ce_peeraddr);
+			    "doconfigure: <%s> has peeraddr %s",
+			    ce->ce_name, stoa(&ce->peer_store));
 #endif
-		if (dores && ce->ce_peeraddr == 0) {
+		if (dores && !SOCKNUL(&(ce->peer_store))) {
 			if (!findhostaddr(ce)) {
 				msyslog(LOG_ERR,
 					"couldn't resolve `%s', giving up on it",
@@ -1044,7 +1046,7 @@ doconfigure(
 			}
 		}
 
-		if (ce->ce_peeraddr != 0) {
+		if (!SOCKNUL(&ce->peer_store)) {
 			if (request(&ce->ce_config)) {
 				ceremove = ce;
 				ce = ceremove->ce_next;

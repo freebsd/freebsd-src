@@ -177,7 +177,7 @@ main (
 			    p->valid=1;
 		    }
 		    else {
-			    printf ("p->valid still set\n"); // not an error!
+			    printf ("p->valid still set\n"); /* not an error! */
 		    }
 	    }
 	    break;

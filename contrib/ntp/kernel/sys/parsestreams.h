@@ -31,7 +31,9 @@
 
 #include <sys/ppsclock.h>
 
+#ifndef NTP_NEED_BOPS
 #define NTP_NEED_BOPS
+#endif
 
 #if defined(PARSESTREAM) && (defined(_sun) || defined(__sun)) && defined(HAVE_SYS_STREAM_H)
 /*

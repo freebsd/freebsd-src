@@ -139,7 +139,7 @@ fetch_ieee754(
   unsigned int sign;
   unsigned int bias;
   unsigned int maxexp;
-  unsigned int mbits;
+  int mbits;
   u_long mantissa_low;
   u_long mantissa_high;
   u_long characteristic;

@@ -1,18 +1,16 @@
 #AUTOMAKE_OPTIONS = ../ansi2knr no-dependencies
-AUTOMAKE_OPTIONS = ansi2knr
-bin_PROGRAMS = @MAKE_NTPTIME@ @MAKE_TICKADJ@ @MAKE_TIMETRIM@ ntp-genkeys
-EXTRA_PROGRAMS = byteorder hist jitter kern longsize ntptime \
-precision sht testrs6000 tickadj timetrim
+AUTOMAKE_OPTIONS=	ansi2knr
+bin_PROGRAMS=	@MAKE_NTPTIME@ @MAKE_TICKADJ@ @MAKE_TIMETRIM@ @MAKE_NTP_KEYGEN@
+EXTRA_PROGRAMS=	audio-pcm byteorder hist jitter kern longsize \
+	ntp-keygen ntptime pps-api precision sht testrs6000 tickadj timetrim
 
-ntp_genkeys_LDADD = ../ntpd/ntp_config$U.o ../libntp/libntp.a $(LIBRSAREF)
-ntp_genkeys_DEPENDENCIES = ../ntpd/ntp_config$U.o ../libntp/libntp.a $(LIBRSAREF)
-
-INCLUDES = -I$(top_srcdir)/include -I$(top_srcdir)/librsaref
+INCLUDES=	-I$(top_srcdir)/include
 # LDADD might need RESLIB and ADJLIB
-LDADD =	../libntp/libntp.a
-#EXTRA_DIST = README TAGS
-EXTRA_DIST = 
-ETAGS_ARGS = Makefile.am
+LDADD=		../libntp/libntp.a
+ntp_keygen_LDADD=	@LCRYPTO@
+#EXTRA_DIST=	README TAGS
+EXTRA_DIST=
+ETAGS_ARGS=	Makefile.am
 
 ../libntp/libntp.a:
 	cd ../libntp && $(MAKE)
