@@ -8,11 +8,11 @@
 .Nd trace system calls
 .Sh SYNOPSIS
 .Nm
-.Op Fl fS
+.Op Fl fdDS
 .Op Fl o Ar file
 .Fl p Ar pid
 .Nm
-.Op Fl fS
+.Op Fl fdDS
 .Op Fl o Ar file
 command
 .Op args
@@ -29,6 +29,12 @@ The options are as follows:
 .It Fl f
 Trace decendants of the original traced process created by fork(),
 vfork, etc.
+.It Fl d
+Include timestamps in the output showing the time elapsed
+since the trace was started.
+.It Fl D
+Include timestamps in the output showing the time elapsed
+since the last recorded event.
 .It Fl S
 Do not display information about signals received by the process.
 (Normally,
