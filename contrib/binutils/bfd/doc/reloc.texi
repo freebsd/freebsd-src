@@ -1,7 +1,7 @@
 @section Relocations
 BFD maintains relocations in much the same way it maintains
 symbols: they are left alone until required, then read in
-en-mass and translated into an internal form.  A common
+en-masse and translated into an internal form.  A common
 routine @code{bfd_perform_relocation} acts upon the
 canonical form to do the fixup.
 
@@ -307,13 +307,26 @@ struct reloc_howto_struct
        /* The textual name of the relocation type. */
   char *name;
 
-       /* When performing a partial link, some formats must modify the
-          relocations rather than the data - this flag signals this.*/
+       /* Some formats record a relocation addend in the section contents
+          rather than with the relocation.  For ELF formats this is the
+          distinction between USE_REL and USE_RELA (though the code checks
+          for USE_REL == 1/0).  The value of this field is TRUE if the
+          addend is recorded with the section contents; when performing a
+          partial link (ld -r) the section contents (the data) will be
+          modified.  The value of this field is FALSE if addends are
+          recorded with the relocation (in arelent.addend); when performing
+          a partial link the relocation will be modified.
+          All relocations for all ELF USE_RELA targets should set this field
+          to FALSE (values of TRUE should be looked on with suspicion).
+          However, the converse is not true: not all relocations of all ELF
+          USE_REL targets set this field to TRUE.  Why this is so is peculiar
+          to each particular target.  For relocs that aren't used in partial
+          links (e.g. GOT stuff) it doesn't matter what this is set to.  */
   boolean partial_inplace;
 
        /* The src_mask selects which parts of the read in data
           are to be used in the relocation sum.  E.g., if this was an 8 bit
-          bit of data which we read and relocated, this would be
+          byte of data which we read and relocated, this would be
           0x000000ff. When we have relocs which have an addend, such as
           sun4 extended relocs, the value in the offset part of a
           relocating field is garbage so we never use it. In this case
@@ -350,6 +363,14 @@ And will be replaced with the totally magic way. But for the
 moment, we are compatible, so do it this way.
 @example
 #define NEWHOWTO( FUNCTION, NAME,SIZE,REL,IN) HOWTO(0,0,SIZE,0,REL,0,complain_overflow_dont,FUNCTION, NAME,false,0,0,IN)
+
+@end example
+
+@strong{Description}@*
+This is used to fill in an empty howto entry in an array.
+@example
+#define EMPTY_HOWTO(C) \
+  HOWTO((C),0,0,0,false,0,complain_overflow_dont,NULL,NULL,false,0,0,false)
 
 @end example
 
@@ -399,13 +420,15 @@ bfd_check_overflow
    (enum complain_overflow how,
     unsigned int bitsize,
     unsigned int rightshift,
+    unsigned int addrsize,
     bfd_vma relocation);
 @end example
 @strong{Description}@*
-Perform overflow checking on @var{relocation} which has @var{bitsize}
-significant bits and will be shifted right by @var{rightshift} bits.
-The result is either of @code{bfd_reloc_ok} or
-@code{bfd_reloc_overflow}.
+Perform overflow checking on @var{relocation} which has
+@var{bitsize} significant bits and will be shifted right by
+@var{rightshift} bits, on a machine with addresses containing
+@var{addrsize} significant bits.  The result is either of
+@code{bfd_reloc_ok} or @code{bfd_reloc_overflow}.
 
 @findex bfd_perform_relocation
 @subsubsection @code{bfd_perform_relocation}
@@ -609,6 +632,9 @@ I think these are specific to SPARC a.out (e.g., Sun 4).
 @deffnx {} BFD_RELOC_SPARC_REGISTER
 SPARC64 relocations
 @end deffn
+@deffn {} BFD_RELOC_SPARC_REV32
+SPARC little endian relocation
+@end deffn
 @deffn {} BFD_RELOC_ALPHA_GPDISP_HI16
 Alpha ECOFF and ELF relocations.  Some of these treat the symbol or
 "addend" in some special way.
@@ -656,6 +682,17 @@ of instruction using the register:
 3 - jsr (target of branch)
 
 The GNU linker currently doesn't do any of this optimizing.
+@end deffn
+@deffn {} BFD_RELOC_ALPHA_USER_LITERAL
+@deffnx {} BFD_RELOC_ALPHA_USER_LITUSE_BASE
+@deffnx {} BFD_RELOC_ALPHA_USER_LITUSE_BYTOFF
+@deffnx {} BFD_RELOC_ALPHA_USER_LITUSE_JSR
+@deffnx {} BFD_RELOC_ALPHA_USER_GPDISP
+@deffnx {} BFD_RELOC_ALPHA_USER_GPRELHIGH
+@deffnx {} BFD_RELOC_ALPHA_USER_GPRELLOW
+The BFD_RELOC_ALPHA_USER_* relocations are used by the assembler to
+process the explicit !<reloc>!sequence relocations, and are mapped
+into the normal relocations at the end of processing.
 @end deffn
 @deffn {} BFD_RELOC_ALPHA_HINT
 The HINT relocation indicates a value that should be filled into the
@@ -711,6 +748,10 @@ Relocation against a MIPS literal section.
 @deffnx {} BFD_RELOC_MIPS_GOT_LO16
 @deffnx {} BFD_RELOC_MIPS_CALL_HI16
 @deffnx {} BFD_RELOC_MIPS_CALL_LO16
+@deffnx {} BFD_RELOC_MIPS_SUB
+@deffnx {} BFD_RELOC_MIPS_GOT_PAGE
+@deffnx {} BFD_RELOC_MIPS_GOT_OFST
+@deffnx {} BFD_RELOC_MIPS_GOT_DISP
 MIPS ELF relocations.
 @end deffn
 @deffn {} BFD_RELOC_386_GOT32
@@ -736,6 +777,14 @@ i386/elf relocations
 @deffnx {} BFD_RELOC_NS32K_DISP_16_PCREL
 @deffnx {} BFD_RELOC_NS32K_DISP_32_PCREL
 ns32k relocations
+@end deffn
+@deffn {} BFD_RELOC_PJ_CODE_HI16
+@deffnx {} BFD_RELOC_PJ_CODE_LO16
+@deffnx {} BFD_RELOC_PJ_CODE_DIR16
+@deffnx {} BFD_RELOC_PJ_CODE_DIR32
+@deffnx {} BFD_RELOC_PJ_CODE_REL16
+@deffnx {} BFD_RELOC_PJ_CODE_REL32
+Picojava relocs.  Not all of these appear in object files.
 @end deffn
 @deffn {} BFD_RELOC_PPC_B26
 @deffnx {} BFD_RELOC_PPC_BA26
@@ -769,6 +818,9 @@ ns32k relocations
 @deffnx {} BFD_RELOC_PPC_EMB_RELSDA
 Power(rs6000) and PowerPC relocations.
 @end deffn
+@deffn {} BFD_RELOC_I370_D12
+IBM 370/390 relocations
+@end deffn
 @deffn {} BFD_RELOC_CTOR
 The type of reloc used to build a contructor table - at the moment
 probably a 32 bit wide absolute relocation, but the target can choose.
@@ -779,6 +831,7 @@ ARM 26 bit pc-relative branch.  The lowest two bits must be zero and are
 not stored in the instruction.
 @end deffn
 @deffn {} BFD_RELOC_ARM_IMMEDIATE
+@deffnx {} BFD_RELOC_ARM_ADRL_IMMEDIATE
 @deffnx {} BFD_RELOC_ARM_OFFSET_IMM
 @deffnx {} BFD_RELOC_ARM_SHIFT_IMM
 @deffnx {} BFD_RELOC_ARM_SWI
@@ -794,6 +847,15 @@ not stored in the instruction.
 @deffnx {} BFD_RELOC_ARM_THUMB_IMM
 @deffnx {} BFD_RELOC_ARM_THUMB_SHIFT
 @deffnx {} BFD_RELOC_ARM_THUMB_OFFSET
+@deffnx {} BFD_RELOC_ARM_GOT12
+@deffnx {} BFD_RELOC_ARM_GOT32
+@deffnx {} BFD_RELOC_ARM_JUMP_SLOT
+@deffnx {} BFD_RELOC_ARM_COPY
+@deffnx {} BFD_RELOC_ARM_GLOB_DAT
+@deffnx {} BFD_RELOC_ARM_PLT32
+@deffnx {} BFD_RELOC_ARM_RELATIVE
+@deffnx {} BFD_RELOC_ARM_GOTOFF
+@deffnx {} BFD_RELOC_ARM_GOTPC
 These relocs are only used within the ARM assembler.  They are not
 (at present) written to any object files.
 @end deffn
@@ -853,6 +915,54 @@ assumed to be 0.
 @deffn {} BFD_RELOC_D10V_18_PCREL
 This is an 18-bit reloc with the right 2 bits
 assumed to be 0.
+@end deffn
+@deffn {} BFD_RELOC_D30V_6
+Mitsubishi D30V relocs.
+This is a 6-bit absolute reloc.
+@end deffn
+@deffn {} BFD_RELOC_D30V_9_PCREL
+This is a 6-bit pc-relative reloc with
+the right 3 bits assumed to be 0.
+@end deffn
+@deffn {} BFD_RELOC_D30V_9_PCREL_R
+This is a 6-bit pc-relative reloc with
+the right 3 bits assumed to be 0. Same
+as the previous reloc but on the right side
+of the container.
+@end deffn
+@deffn {} BFD_RELOC_D30V_15
+This is a 12-bit absolute reloc with the
+right 3 bitsassumed to be 0.
+@end deffn
+@deffn {} BFD_RELOC_D30V_15_PCREL
+This is a 12-bit pc-relative reloc with
+the right 3 bits assumed to be 0.
+@end deffn
+@deffn {} BFD_RELOC_D30V_15_PCREL_R
+This is a 12-bit pc-relative reloc with
+the right 3 bits assumed to be 0. Same
+as the previous reloc but on the right side
+of the container.
+@end deffn
+@deffn {} BFD_RELOC_D30V_21
+This is an 18-bit absolute reloc with
+the right 3 bits assumed to be 0.
+@end deffn
+@deffn {} BFD_RELOC_D30V_21_PCREL
+This is an 18-bit pc-relative reloc with
+the right 3 bits assumed to be 0.
+@end deffn
+@deffn {} BFD_RELOC_D30V_21_PCREL_R
+This is an 18-bit pc-relative reloc with
+the right 3 bits assumed to be 0. Same
+as the previous reloc but on the right side
+of the container.
+@end deffn
+@deffn {} BFD_RELOC_D30V_32
+This is a 32-bit absolute reloc.
+@end deffn
+@deffn {} BFD_RELOC_D30V_32_PCREL
+This is a 32-bit pc-relative reloc.
 @end deffn
 @deffn {} BFD_RELOC_M32R_24
 Mitsubishi M32R relocs.
@@ -916,6 +1026,27 @@ This is a 7 bit offset from the tiny data area pointer.
 @deffn {} BFD_RELOC_V850_TDA_16_16_OFFSET
 This is a 16 bit offset from the tiny data area pointer.
 @end deffn
+@deffn {} BFD_RELOC_V850_TDA_4_5_OFFSET
+This is a 5 bit offset (of which only 4 bits are used) from the tiny
+data area pointer.
+@end deffn
+@deffn {} BFD_RELOC_V850_TDA_4_4_OFFSET
+This is a 4 bit offset from the tiny data area pointer.
+@end deffn
+@deffn {} BFD_RELOC_V850_SDA_16_16_SPLIT_OFFSET
+This is a 16 bit offset from the short data area pointer, with the
+bits placed non-contigously in the instruction.
+@end deffn
+@deffn {} BFD_RELOC_V850_ZDA_16_16_SPLIT_OFFSET
+This is a 16 bit offset from the zero data area pointer, with the
+bits placed non-contigously in the instruction.
+@end deffn
+@deffn {} BFD_RELOC_V850_CALLT_6_7_OFFSET
+This is a 6 bit offset from the call table base pointer.
+@end deffn
+@deffn {} BFD_RELOC_V850_CALLT_16_16_OFFSET
+This is a 16 bit offset from the call table base pointer.
+@end deffn
 @deffn {} BFD_RELOC_MN10300_32_PCREL
 This is a 32bit pcrel reloc for the mn10300, offset by two bytes in the
 instruction.
@@ -928,6 +1059,133 @@ instruction.
 This is a 8bit DP reloc for the tms320c30, where the most
 significant 8 bits of a 24 bit word are placed into the least
 significant 8 bits of the opcode.
+@end deffn
+@deffn {} BFD_RELOC_FR30_48
+This is a 48 bit reloc for the FR30 that stores 32 bits.
+@end deffn
+@deffn {} BFD_RELOC_FR30_20
+This is a 32 bit reloc for the FR30 that stores 20 bits split up into
+two sections.
+@end deffn
+@deffn {} BFD_RELOC_FR30_6_IN_4
+This is a 16 bit reloc for the FR30 that stores a 6 bit word offset in
+4 bits.
+@end deffn
+@deffn {} BFD_RELOC_FR30_8_IN_8
+This is a 16 bit reloc for the FR30 that stores an 8 bit byte offset
+into 8 bits.
+@end deffn
+@deffn {} BFD_RELOC_FR30_9_IN_8
+This is a 16 bit reloc for the FR30 that stores a 9 bit short offset
+into 8 bits.
+@end deffn
+@deffn {} BFD_RELOC_FR30_10_IN_8
+This is a 16 bit reloc for the FR30 that stores a 10 bit word offset
+into 8 bits.
+@end deffn
+@deffn {} BFD_RELOC_FR30_9_PCREL
+This is a 16 bit reloc for the FR30 that stores a 9 bit pc relative
+short offset into 8 bits.
+@end deffn
+@deffn {} BFD_RELOC_FR30_12_PCREL
+This is a 16 bit reloc for the FR30 that stores a 12 bit pc relative
+short offset into 11 bits.
+@end deffn
+@deffn {} BFD_RELOC_MCORE_PCREL_IMM8BY4
+@deffnx {} BFD_RELOC_MCORE_PCREL_IMM11BY2
+@deffnx {} BFD_RELOC_MCORE_PCREL_IMM4BY2
+@deffnx {} BFD_RELOC_MCORE_PCREL_32
+@deffnx {} BFD_RELOC_MCORE_PCREL_JSR_IMM11BY2
+@deffnx {} BFD_RELOC_MCORE_RVA
+Motorola Mcore relocations.
+@end deffn
+@deffn {} BFD_RELOC_AVR_7_PCREL
+This is a 16 bit reloc for the AVR that stores 8 bit pc relative
+short offset into 7 bits.
+@end deffn
+@deffn {} BFD_RELOC_AVR_13_PCREL
+This is a 16 bit reloc for the AVR that stores 13 bit pc relative
+short offset into 12 bits.
+@end deffn
+@deffn {} BFD_RELOC_AVR_16_PM
+This is a 16 bit reloc for the AVR that stores 17 bit value (usually
+program memory address) into 16 bits.
+@end deffn
+@deffn {} BFD_RELOC_AVR_LO8_LDI
+This is a 16 bit reloc for the AVR that stores 8 bit value (usually
+data memory address) into 8 bit immediate value of LDI insn.
+@end deffn
+@deffn {} BFD_RELOC_AVR_HI8_LDI
+This is a 16 bit reloc for the AVR that stores 8 bit value (high 8 bit
+of data memory address) into 8 bit immediate value of LDI insn.
+@end deffn
+@deffn {} BFD_RELOC_AVR_HH8_LDI
+This is a 16 bit reloc for the AVR that stores 8 bit value (most high 8 bit
+of program memory address) into 8 bit immediate value of LDI insn.
+@end deffn
+@deffn {} BFD_RELOC_AVR_LO8_LDI_NEG
+This is a 16 bit reloc for the AVR that stores negated 8 bit value
+(usually data memory address) into 8 bit immediate value of SUBI insn.
+@end deffn
+@deffn {} BFD_RELOC_AVR_HI8_LDI_NEG
+This is a 16 bit reloc for the AVR that stores negated 8 bit value
+(high 8 bit of data memory address) into 8 bit immediate value of
+SUBI insn.
+@end deffn
+@deffn {} BFD_RELOC_AVR_HH8_LDI_NEG
+This is a 16 bit reloc for the AVR that stores negated 8 bit value
+(most high 8 bit of program memory address) into 8 bit immediate value
+of LDI or SUBI insn.
+@end deffn
+@deffn {} BFD_RELOC_AVR_LO8_LDI_PM
+This is a 16 bit reloc for the AVR that stores 8 bit value (usually
+command address) into 8 bit immediate value of LDI insn.
+@end deffn
+@deffn {} BFD_RELOC_AVR_HI8_LDI_PM
+This is a 16 bit reloc for the AVR that stores 8 bit value (high 8 bit
+of command address) into 8 bit immediate value of LDI insn.
+@end deffn
+@deffn {} BFD_RELOC_AVR_HH8_LDI_PM
+This is a 16 bit reloc for the AVR that stores 8 bit value (most high 8 bit
+of command address) into 8 bit immediate value of LDI insn.
+@end deffn
+@deffn {} BFD_RELOC_AVR_LO8_LDI_PM_NEG
+This is a 16 bit reloc for the AVR that stores negated 8 bit value
+(usually command address) into 8 bit immediate value of SUBI insn.
+@end deffn
+@deffn {} BFD_RELOC_AVR_HI8_LDI_PM_NEG
+This is a 16 bit reloc for the AVR that stores negated 8 bit value
+(high 8 bit of 16 bit command address) into 8 bit immediate value
+of SUBI insn.
+@end deffn
+@deffn {} BFD_RELOC_AVR_HH8_LDI_PM_NEG
+This is a 16 bit reloc for the AVR that stores negated 8 bit value
+(high 6 bit of 22 bit command address) into 8 bit immediate
+value of SUBI insn.
+@end deffn
+@deffn {} BFD_RELOC_AVR_CALL
+This is a 32 bit reloc for the AVR that stores 23 bit value
+into 22 bits.
+@end deffn
+@deffn {} BFD_RELOC_VTABLE_INHERIT
+@deffnx {} BFD_RELOC_VTABLE_ENTRY
+These two relocations are used by the linker to determine which of
+the entries in a C++ virtual function table are actually used.  When
+the --gc-sections option is given, the linker will zero out the entries
+that are not used, so that the code for those functions need not be
+included in the output.
+
+VTABLE_INHERIT is a zero-space relocation used to describe to the
+linker the inheritence tree of a C++ virtual function table.  The
+relocation's symbol should be the parent class' vtable, and the
+relocation should be located at the child vtable.
+
+VTABLE_ENTRY is a zero-space relocation that describes the use of a
+virtual function table entry.  The reloc's symbol should refer to the
+table of the class mentioned in the code.  Off of that base, an offset
+describes the entry that is being used.  For Rela hosts, this offset
+is stored in the reloc's addend.  For Rel hosts, we are forced to put
+this offset in the reloc's section offset.
 @end deffn
 
 @example
@@ -979,6 +1237,17 @@ boolean bfd_generic_relax_section
 @strong{Description}@*
 Provides default handling for relaxing for back ends which
 don't do relaxing -- i.e., does nothing.
+
+@findex bfd_generic_gc_sections
+@subsubsection @code{bfd_generic_gc_sections}
+@strong{Synopsis}
+@example
+boolean bfd_generic_gc_sections
+   (bfd *, struct bfd_link_info *);
+@end example
+@strong{Description}@*
+Provides default handling for relaxing for back ends which
+don't do section gc -- i.e., does nothing.
 
 @findex bfd_generic_get_relocated_section_contents
 @subsubsection @code{bfd_generic_get_relocated_section_contents}

@@ -977,6 +977,7 @@ _bfd_elf_link_hash_table_init (table, abfd, newfunc)
   table->needed = NULL;
   table->hgot = NULL;
   table->stab_info = NULL;
+  table->dynlocal = NULL;
   return _bfd_link_hash_table_init (&table->root, abfd, newfunc);
 }
 
@@ -3206,7 +3207,7 @@ prep_headers (abfd)
     bfd_big_endian (abfd) ? ELFDATA2MSB : ELFDATA2LSB;
   i_ehdrp->e_ident[EI_VERSION] = bed->s->ev_current;
 
-  i_ehdrp->e_ident[EI_OSABI] = ELFOSABI_SYSV;
+  i_ehdrp->e_ident[EI_OSABI] = ELFOSABI_NONE;
   i_ehdrp->e_ident[EI_ABIVERSION] = 0;
 
   for (count = EI_PAD; count < EI_NIDENT; count++)

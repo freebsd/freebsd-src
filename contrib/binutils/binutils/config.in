@@ -82,6 +82,9 @@
 /* Define if you have the setlocale function.  */
 #undef HAVE_SETLOCALE
 
+/* Define if you have the setmode function.  */
+#undef HAVE_SETMODE
+
 /* Define if you have the stpcpy function.  */
 #undef HAVE_STPCPY
 

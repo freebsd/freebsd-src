@@ -420,7 +420,7 @@ print_insn_arm (pc, info, given)
 		      break;
 
 		    case 'C':
-		      switch (given & 0x00090000)
+		      switch (given & 0x000f0000)
 			{
 			default:
 			  func (stream, "_???");
@@ -429,10 +429,16 @@ print_insn_arm (pc, info, given)
 			  func (stream, "_all");
 			  break;
 			case 0x10000:
-			  func (stream, "_ctl");
+			  func (stream, "_c");
+			  break;
+			case 0x20000:
+			  func (stream, "_x");
+			  break;
+			case 0x40000:
+			  func (stream, "_s");
 			  break;
 			case 0x80000:
-			  func (stream, "_flg");
+			  func (stream, "_f");
 			  break;
 			}
 		      break;

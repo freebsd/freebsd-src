@@ -1,3 +1,20 @@
+2000-05-26  Scott Bambrough  <scottb@netwinder.org>
+
+	Port of patch to mainline by Nick Clifton <nickc@cygnus.com>:
+	* arm-opc.h: Use upper case for flags in MSR and MRS
+	instructions.  Allow any bit to be set in the field_mask of
+	the MSR instruction.
+
+	Port of patch to mainline by Nick Clifton <nickc@cygnus.com>:
+	* arm-dis.c (print_insn_arm): Decode _x and _s bits of
+	the field_mask of an MSR instruction.
+
+2000-05-26  Scott Bambrough  <scottb@netwinder.org>
+
+	Port of patch to mainline by Thomas de Lellis <tdel@windriver.com>:
+        * arm-opc.h: Disassembly of thumb ldsb/ldsh
+        instructions changed to ldrsb/ldrsh.
+
 2000-04-13  Michael Sokolov  <msokolov@ivan.Harhan.ORG>
 
 	* a29k-dis.c, alpha-dis.c, alpha-opc.c, arc-dis.c, arc-opc.c,

@@ -1,5 +1,6 @@
 /* BFD library -- caching of file descriptors.
-   Copyright 1990, 91, 92, 93, 94, 95, 1996 Free Software Foundation, Inc.
+   Copyright 1990, 91, 92, 93, 94, 95, 1996, 2000
+   Free Software Foundation, Inc.
    Hacked by Steve Chamberlain of Cygnus Support (steve@cygnus.com).
 
 This file is part of BFD, the Binary File Descriptor library.
@@ -300,10 +301,17 @@ bfd_open_file (abfd)
 
 	     So we unlink the output file if and only if it has
 	     non-zero size.  */
+#ifndef __MSDOS__
+	  /* Don't do this for MSDOS: it doesn't care about overwriting
+	     a running binary, but if this file is already open by
+	     another BFD, we will be in deep trouble if we delete an
+	     open file.  In fact, objdump does just that if invoked with
+	     the --info option.  */
 	  struct stat s;
 
 	  if (stat (abfd->filename, &s) == 0 && s.st_size != 0)
 	    unlink (abfd->filename);
+#endif
 	  abfd->iostream = (PTR) fopen (abfd->filename, FOPEN_WB);
 	  abfd->opened_once = true;
 	}

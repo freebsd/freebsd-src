@@ -1,5 +1,5 @@
 /* Main program of GNU linker.
-   Copyright (C) 1991, 92, 93, 94, 95, 96, 97, 98, 1999
+   Copyright (C) 1991, 92, 93, 94, 95, 96, 97, 98, 99, 2000
    Free Software Foundation, Inc.
    Written by Steve Chamberlain steve@cygnus.com
 
@@ -27,6 +27,7 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 #include "libiberty.h"
 #include "progress.h"
 #include "bfdlink.h"
+#include "filenames.h"
 
 #include "ld.h"
 #include "ldmain.h"
@@ -567,6 +568,14 @@ set_scripts_dir ()
 
   /* Look for "ldscripts" in the dir where our binary is.  */
   end = strrchr (program_name, '/');
+#ifdef HAVE_DOS_BASED_FILE_SYSTEM
+  {
+    /* We could have \foo\bar, or /foo\bar.  */
+    char *bslash = strrchr (program_name, '\\');
+    if (bslash > end)
+      end = bslash;
+  }
+#endif
 
   if (end == NULL)
     {
