@@ -155,6 +155,11 @@ and /etc/periodic.conf. [MERGED]
 
 logger(1) can now send messages directly to a remote syslog. [MERGED]
 
+which(1) and killall(1) are now C programs, rather than Perl scripts.
+
+finger(1) now has the ability to support fingering aliases, via the
+finger.conf(5) file. [MERGED]
+
 
 2. Supported Configurations
 ---------------------------
