@@ -132,7 +132,7 @@ int cnt;
 	Session_Key skey;
 
 	if (cnt-- < 1)
-		return;
+		goto bad;
 	switch (*data++) {
 
 	case SRA_KEY:
@@ -154,7 +154,7 @@ int cnt;
 		memcpy(pkb,data,HEXKEYBYTES);
 		pkb[HEXKEYBYTES] = '\0';
 		common_key(ska,pkb,&ik,&ck);
-		break;
+		return;
 
 	case SRA_USER:
 		/* decode KAB(u) */
@@ -166,7 +166,7 @@ int cnt;
 		auth_encrypt_user(user);
 		Data(ap, SRA_CONTINUE, (void *)0, 0);
 
-		break;
+		return;
 
 	case SRA_PASS:
 		if (cnt > 512) /* Attempted buffer overflow */
@@ -205,16 +205,16 @@ int cnt;
 				printf("SRA user failed\r\n");
 			}
 		}
-		break;
+		return;
 
 	default:
 		if (auth_debug_mode)
 			printf("Unknown SRA option %d\r\n", data[-1]);
-		Data(ap, SRA_REJECT, 0, 0);
-		sra_valid = 0;
-		auth_finished(ap, AUTH_REJECT);
-		break;
 	}
+bad:
+	Data(ap, SRA_REJECT, 0, 0);
+	sra_valid = 0;
+	auth_finished(ap, AUTH_REJECT);
 }
 
 extern char *getpass();
