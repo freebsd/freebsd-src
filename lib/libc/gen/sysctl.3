@@ -412,7 +412,9 @@ The system revision string.
 .It Li KERN_OSTYPE
 The system type string.
 .It Li KERN_POSIX1
-The version of ISO/IEC 9945 (POSIX 1003.1) with which the system
+The version of
+.St -p1003.1
+with which the system
 attempts to comply.
 .It Li KERN_PROC
 Return the entire process table, or a subset of it.
@@ -655,7 +657,9 @@ The maximum length in bytes of a text-processing utility's input
 line.
 .It Li USER_POSIX2_CHAR_TERM
 Return 1 if the system supports at least one terminal type capable of
-all operations described in POSIX 1003.2, otherwise 0.
+all operations described in
+.St -p1003.2 ,
+otherwise 0.
 .It Li USER_POSIX2_C_BIND
 Return 1 if the system's C-language development facilities support the
 C-Language Bindings Option, otherwise 0.
@@ -677,7 +681,9 @@ otherwise 0.
 Return 1 if the system supports the User Portability Utilities Option,
 otherwise 0.
 .It Li USER_POSIX2_VERSION
-The version of POSIX 1003.2 with which the system attempts to comply.
+The version of
+.St -p1003.2
+with which the system attempts to comply.
 .It Li USER_RE_DUP_MAX
 The maximum number of repeated occurrences of a regular expression
 permitted when using interval notation.
