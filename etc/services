@@ -1906,6 +1906,8 @@ www-dev		2784/tcp   #world wide web - development
 www-dev		2784/udp   #world wide web - development
 dict		2628/tcp   #RFC 2229
 dict		2628/udp   #RFC 2229
+eppc		3031/tcp   #Remote AppleEvents/PPC Toolbox
+eppc		3031/udp   #Remote AppleEvents/PPC Toolbox
 NSWS		3049/tcp
 NSWS		3049/udp
 sj3		3086/tcp   #SJ3 (kanji input)
