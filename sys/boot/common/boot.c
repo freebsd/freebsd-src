@@ -38,7 +38,7 @@
 static char	*getbootfile(int try);
 
 /* List of kernel names to try (may be overwritten by boot.config) XXX should move from here? */
-static const char *default_bootfiles = "/boot/modules/kernel.ko";
+static const char *default_bootfiles = "/boot/kernel/kernel.ko";
 
 static int autoboot_tried;
 
