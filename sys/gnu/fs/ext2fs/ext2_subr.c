@@ -51,6 +51,8 @@
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>
 
+static void	ext2_checkoverlap __P((struct buf *, struct inode *));
+
 /*
  * Return buffer with the contents of block "offset" from the beginning of
  * directory "ip".  If "res" is non-zero, fill it in with a pointer to the
@@ -85,8 +87,8 @@ ext2_blkatoff(vp, offset, res, bpp)
 	return (0);
 }
 
-#if defined(KERNEL) && defined(DIAGNOSTIC)
-void
+#ifdef DDB
+static void
 ext2_checkoverlap(bp, ip)
 	struct buf *bp;
 	struct inode *ip;
@@ -117,5 +119,4 @@ ext2_checkoverlap(bp, ip)
 		panic("Disk buffer overlap");
 	}
 }
-#endif /* DIAGNOSTIC */
-
+#endif /* DDB */
