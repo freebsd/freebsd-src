@@ -16,7 +16,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- *  $Id: physical.h,v 1.12 1999/06/01 19:08:59 brian Exp $
+ *  $Id: physical.h,v 1.13 1999/06/05 21:35:52 brian Exp $
  *
  */
 
@@ -28,15 +28,23 @@ struct bundle;
 struct ccp;
 struct cmdargs;
 
-#define TTY_DEVICE	1
-#define TCP_DEVICE	2
-#define UDP_DEVICE	3
-#define EXEC_DEVICE	4
+/* Device types */
+#define I4B_DEVICE	1
+#define TTY_DEVICE	2
+#define TCP_DEVICE	3
+#define UDP_DEVICE	4
+#define EXEC_DEVICE	5
+
+/* Returns from awaitcarrier() */
+#define CARRIER_PENDING	1
+#define CARRIER_OK	2
+#define CARRIER_LOST	3
 
 struct device {
   int type;
   const char *name;
 
+  int (*awaitcarrier)(struct physical *);
   int (*raw)(struct physical *);
   void (*offline)(struct physical *);
   void (*cooked)(struct physical *);
@@ -137,3 +145,4 @@ extern void physical_DeleteQueue(struct physical *);
 extern void physical_SetupStack(struct physical *, const char *, int);
 extern void physical_StopDeviceTimer(struct physical *);
 extern int physical_MaxDeviceSize(void);
+extern int physical_AwaitCarrier(struct physical *);

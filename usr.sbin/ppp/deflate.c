@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: deflate.c,v 1.13 1999/05/08 11:06:25 brian Exp $
+ *	$Id: deflate.c,v 1.14 1999/06/02 15:58:56 brian Exp $
  */
 
 #include <sys/types.h>
@@ -37,8 +37,6 @@
 #include "mbuf.h"
 #include "log.h"
 #include "timer.h"
-#include "lqr.h"
-#include "hdlc.h"
 #include "fsm.h"
 #include "lcp.h"
 #include "ccp.h"
