@@ -166,14 +166,12 @@ cleandepend:
 .endif
 
 .if !target(checkdpadd) && (defined(DPADD) || defined(LDADD))
+_LDADD_FROM_DPADD=	${DPADD:C;^/usr/lib/lib(.*)\.a$;-l\1;}
+_LDADD_CANONICALIZED=	${LDADD:S/$//}
 checkdpadd:
-	@ldadd=`echo \`for lib in ${DPADD} ; do \
-		echo $$lib | sed 's;^/usr/lib/lib\(.*\)\.a;-l\1;' ; \
-	done \`` ; \
-	ldadd1=`echo ${LDADD}` ; \
-	if [ "$$ldadd" != "$$ldadd1" ] ; then \
-		echo ${.CURDIR} ; \
-		echo "DPADD -> $$ldadd" ; \
-		echo "LDADD -> $$ldadd1" ; \
-	fi
+.if ${_LDADD_FROM_DPADD} != ${_LDADD_CANONICALIZED}
+	@echo ${.CURDIR}
+	@echo "DPADD -> ${_LDADD_FROM_DPADD}"
+	@echo "LDADD -> ${_LDADD_CANONICALIZED}"
+.endif
 .endif
