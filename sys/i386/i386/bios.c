@@ -93,7 +93,8 @@ bios32_init(void *junk)
 	    ck += cv[i];
 	}
 	/* If checksum is OK, enable use of the entrypoint */
-	if ((ck == 0) && (sdh->entry < (BIOS_START + BIOS_SIZE))) {
+	if ((ck == 0) && (BIOS_START <= sdh->entry ) &&
+	    (sdh->entry < (BIOS_START + BIOS_SIZE))) {
 	    bios32_SDCI = BIOS_PADDRTOVADDR(sdh->entry);
 	    if (bootverbose) {
 		printf("bios32: Found BIOS32 Service Directory header at %p\n", sdh);
