@@ -1,5 +1,5 @@
 .\" manual page [] for ppp 0.94 beta2 + alpha
-.\" $Id: ppp.8,v 1.28 1997/04/13 00:54:45 brian Exp $
+.\" $Id: ppp.8,v 1.29 1997/04/14 23:48:17 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -441,13 +441,44 @@ dial mode on both ends of the link. If each end has the same timeout,
 both ends wind up calling each other at the same time if the link
 drops and both ends have packets queued.
 
+At some locations, the serial link may not be reliable, and carrier
+may be lost at inappropriate times.  It is possible to have
+.Nm
+redial should carrier be unexpectedly lost during a session.
+.Bd -literal -offset indent
+set reconnect timeout ntries
+.Ed
+
+This command tells ppp to re-establish the connection
+.Ar ntries
+times on loss of carrier with a pause of
+.Ar timeout
+seconds before each try.  For example,
+.Bd -literal -offset indent
+set reconnect 3 5
+.Ed
+
+tells
+.Nm
+that on an unexpected loss of carrier, it should wait
+.Ar 3
+seconds before attempting to reconnect.  This may happen up to
+.Ar 5
+times before
+.Nm
+gives up.  The default value of ntries is zero (no redial).  Care
+should be taken with this option.  If the local timeout is slightly
+longer than the remote timeout, the reconnect feature will always be
+triggered (up to the given number of times) after the remote side
+times out and hangs up.
+
 If the
 .Fl background
 flag is specified, all phone numbers are dialed at most once until
 a connection is made.  The next number redial period specified with
 the
 .Dq set redial
-command is honoured.
+command is honoured, as is the reconnect tries value.
 
 To terminate the program, type
 

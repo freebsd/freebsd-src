@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.37 1997/04/09 17:35:52 ache Exp $
+ * $Id: command.c,v 1.38 1997/04/14 23:48:12 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -365,6 +365,13 @@ static int ShowLogList()
   return(1);
 }
 
+static int ShowReconnect()
+{
+  printf(" Reconnect Timer:  %d,  %d tries\n",
+         VarReconnectTimer, VarReconnectTries);
+  return(1);
+}
+
 static int ShowRedial()
 {
   printf(" Redial Timer: ");
@@ -441,12 +448,14 @@ struct cmdtab const ShowCommands[] = {
 	"Show Output filters", StrOption},
   { "proto",    NULL,     ReportProtStatus,	LOCAL_AUTH,
 	"Show protocol summary", StrNull},
+  { "reconnect",NULL,	  ShowReconnect,	LOCAL_AUTH,
+	"Show Reconnect timer ntries", StrNull},
+  { "redial",   NULL,	  ShowRedial,		LOCAL_AUTH,
+	"Show Redial timeout value", StrNull},
   { "route",    NULL,     ShowRoute,		LOCAL_AUTH,
 	"Show routing table", StrNull},
   { "timeout",  NULL,	  ShowTimeout,		LOCAL_AUTH,
 	"Show Idle timeout value", StrNull},
-  { "redial",   NULL,	  ShowRedial,		LOCAL_AUTH,
-	"Show Redial timeout value", StrNull},
 #ifdef MSEXT
   { "msext", 	NULL,	  ShowMSExt,		LOCAL_AUTH,
 	"Show MS PPP extentions", StrNull},
@@ -630,7 +639,8 @@ DownCommand()
   return(1);
 }
 
-static int SetModemSpeed(list, argc, argv)
+static int
+SetModemSpeed(list, argc, argv)
 struct cmdtab *list;
 int argc;
 char **argv;
@@ -652,7 +662,22 @@ char **argv;
   return(1);
 }
 
-static int SetRedialTimeout(list, argc, argv)
+static int
+SetReconnect(list, argc, argv)
+struct cmdtab *list;
+int argc;
+char **argv;
+{
+  if (argc == 2) {
+    VarReconnectTimer = atoi(argv[0]);
+    VarReconnectTries = atoi(argv[1]);
+  } else
+    printf("Usage: %s %s\n", list->name, list->syntax);
+  return(1);
+}
+
+static int
+SetRedialTimeout(list, argc, argv)
 struct cmdtab *list;
 int argc;
 char **argv;
@@ -727,7 +752,8 @@ char **argv;
   return(1);
 }
 
-static int SetModemParity(list, argc, argv)
+static int
+SetModemParity(list, argc, argv)
 struct cmdtab *list;
 int argc;
 char **argv;
@@ -1075,12 +1101,14 @@ struct cmdtab const SetCommands[] = {
 	"Set modem parity", "[odd|even|none]"},
   { "phone",    NULL,     SetVariable,		LOCAL_AUTH,
 	"Set telephone number(s)", "phone1[:phone2[...]]", (void *)VAR_PHONE },
+  { "reconnect",NULL,     SetReconnect,		LOCAL_AUTH,
+	"Set Reconnect timeout", "value ntries"},
+  { "redial",   NULL,     SetRedialTimeout,	LOCAL_AUTH,
+	"Set Redial timeout", "value|random[.value|random] [dial_attempts]"},
   { "speed",    NULL,     SetModemSpeed,	LOCAL_AUTH,
 	"Set modem speed", "speed"},
   { "timeout",  NULL,     SetIdleTimeout,	LOCAL_AUTH,
 	"Set Idle timeout", StrValue},
-  { "redial",   NULL,     SetRedialTimeout,	LOCAL_AUTH,
-	"Set Redial timeout", "value|random[.value|random] [dial_attempts]"},
 #ifdef MSEXT
   { "ns",	NULL,	  SetNS,		LOCAL_AUTH,
 	"Set NameServer", "pri-addr [sec-addr]"},

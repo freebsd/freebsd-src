@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.43 1997/04/13 00:54:43 brian Exp $
+ * $Id: main.c,v 1.44 1997/04/14 23:48:15 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -735,6 +735,7 @@ DoLoop()
 
   timeout.tv_sec = 0;
   timeout.tv_usec = 0;
+  lostCarrier = 0;
 
   if (mode & MODE_BACKGROUND)
     dial_up = TRUE;			/* Bring the line up */
@@ -752,11 +753,24 @@ DoLoop()
     if (mode & MODE_DDIAL && LcpFsm.state <= ST_CLOSED)
         dial_up = TRUE;
 
+    /*
+     * If we lost carrier and want to re-establish the connection
+     * due to the "set reconnect" value, we'd better bring the line
+     * back up now.
+     */
+    if (LcpFsm.state <= ST_CLOSED && dial_up != TRUE
+        && lostCarrier && lostCarrier <= VarReconnectTries) {
+        LogPrintf(LOG_PHASE_BIT, "Connection lost, re-establish (%d/%d)\n",
+                  lostCarrier, VarReconnectTries);
+	StartRedialTimer(VarReconnectTimer);
+        dial_up = TRUE;
+    }
+
    /*
-    * If Ip packet for output is enqueued and require dial up,
+    * If Ip packet for output is enqueued and require dial up, 
     * Just do it!
     */
-    if ( dial_up && RedialTimer.state != TIMER_RUNNING ) { /* XXX */
+    if ( dial_up && RedialTimer.state != TIMER_RUNNING ) {
 #ifdef DEBUG
       logprintf("going to dial: modem = %d\n", modem);
 #endif
