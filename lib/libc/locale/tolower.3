@@ -53,20 +53,20 @@ The
 .Fn tolower
 function converts an upper-case letter to the corresponding lower-case
 letter.
+For single C
+.Va char Ns s
+locales (see
+.Xr multibyte 3 )
+the value of the argument is
+representable as an
+.Li unsigned char
+or the value of
+.Dv EOF .
 .Sh RETURN VALUES
 If the argument is an upper-case letter, the
 .Fn tolower
 function returns the corresponding lower-case letter if there is
 one; otherwise the argument is returned unchanged.
-.\" In the 
-.\" .Em ``C''
-.\" locale,
-.\" .Fn tolower
-.\" maps only the characters for which
-.\" .Xr isupper
-.\" is true to the corresponding characters for which
-.\" .Xr islower
-.\" is true.
 .Sh SEE ALSO
 .Xr isalnum 3 ,
 .Xr isalpha 3 ,
@@ -80,6 +80,7 @@ one; otherwise the argument is returned unchanged.
 .Xr isspace 3 ,
 .Xr isupper 3 ,
 .Xr isxdigit 3 ,
+.Xr multibyte 3 ,
 .Xr stdio 3 ,
 .Xr toascii 3 ,
 .Xr toupper 3 ,
