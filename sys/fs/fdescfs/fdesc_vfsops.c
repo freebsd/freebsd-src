@@ -71,7 +71,7 @@ fdesc_mount(struct mount *mp, struct thread *td)
 	/*
 	 * Update is a no-op
 	 */
-	if (mp->mnt_flag & MNT_UPDATE)
+	if (mp->mnt_flag & (MNT_UPDATE | MNT_ROOTFS))
 		return (EOPNOTSUPP);
 
 	error = fdesc_allocvp(Froot, FD_ROOT, mp, &rvp, td);
