@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1997-2001 by Darren Reed.
+ * Copyright (C) 1997-2002 by Darren Reed.
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  */
@@ -8,6 +8,9 @@
 # define	_KERNEL
 #endif
 
+#ifdef __sgi
+# include <sys/ptimers.h>
+#endif
 #include <sys/errno.h>
 #include <sys/types.h>
 #include <sys/param.h>
@@ -17,7 +20,6 @@
 # include <sys/ioctl.h>      
 #endif
 #include <sys/fcntl.h>
-#include <sys/uio.h>
 #if !defined(_KERNEL) && !defined(KERNEL)
 # include <stdio.h>
 # include <string.h>
@@ -66,9 +68,9 @@
 #include "netinet/ip_compat.h"
 #include <netinet/tcpip.h>
 #include "netinet/ip_fil.h"
-#include "netinet/ip_proxy.h"
 #include "netinet/ip_nat.h"
 #include "netinet/ip_state.h"
+#include "netinet/ip_proxy.h"
 #if (__FreeBSD_version >= 300000)
 # include <sys/malloc.h>
 #endif
@@ -78,23 +80,27 @@
 static const char rcsid[] = "@(#)$FreeBSD$";
 #endif
 
+#if defined(_KERNEL) && (SOLARIS || defined(__sgi))
+extern  KRWLOCK_T       ipf_nat, ipf_state;
+#endif
 
 #ifndef MIN
 #define MIN(a,b)        (((a)<(b))?(a):(b))
 #endif
 
-static ap_session_t *appr_new_session __P((aproxy_t *, ip_t *,
-					   fr_info_t *, nat_t *));
 static int appr_fixseqack __P((fr_info_t *, ip_t *, ap_session_t *, int ));
 
 
 #define	AP_SESS_SIZE	53
 
-#if defined(_KERNEL) && !defined(linux)
+#if defined(_KERNEL)
 #include "netinet/ip_ftp_pxy.c"
 #include "netinet/ip_rcmd_pxy.c"
 #include "netinet/ip_raudio_pxy.c"
+#include "netinet/ip_netbios_pxy.c"
+#include "netinet/ip_h323_pxy.c"
 #endif
+#include "netinet/ip_ipsec_pxy.c"
 
 ap_session_t	*ap_sess_tab[AP_SESS_SIZE];
 ap_session_t	*ap_sess_list = NULL;
@@ -102,20 +108,39 @@ aproxy_t	*ap_proxylist = NULL;
 aproxy_t	ap_proxies[] = {
 #ifdef	IPF_FTP_PROXY
 	{ NULL, "ftp", (char)IPPROTO_TCP, 0, 0, ippr_ftp_init, NULL,
-	  ippr_ftp_new, ippr_ftp_in, ippr_ftp_out },
+	  ippr_ftp_new, NULL, ippr_ftp_in, ippr_ftp_out, NULL },
 #endif
 #ifdef	IPF_RCMD_PROXY
 	{ NULL, "rcmd", (char)IPPROTO_TCP, 0, 0, ippr_rcmd_init, NULL,
-	  ippr_rcmd_new, NULL, ippr_rcmd_out },
+	  ippr_rcmd_new, NULL, NULL, ippr_rcmd_out, NULL },
 #endif
 #ifdef	IPF_RAUDIO_PROXY
 	{ NULL, "raudio", (char)IPPROTO_TCP, 0, 0, ippr_raudio_init, NULL,
-	  ippr_raudio_new, ippr_raudio_in, ippr_raudio_out },
+	  ippr_raudio_new, NULL, ippr_raudio_in, ippr_raudio_out, NULL },
 #endif
-	{ NULL, "", '\0', 0, 0, NULL, NULL }
+#ifdef IPF_IPSEC_PROXY
+	{ NULL, "ipsec", (char)IPPROTO_UDP, 0, 0, ippr_ipsec_init, NULL,
+	  ippr_ipsec_new, ippr_ipsec_del, NULL, ippr_ipsec_out,
+	  ippr_ipsec_match },
+#endif
+#ifdef	IPF_NETBIOS_PROXY
+	{ NULL, "netbios", (char)IPPROTO_TCP, 0, 0, ippr_netbios_init, NULL,
+	  NULL, NULL, NULL, ippr_netbios_out, NULL },
+#endif
+#ifdef  IPF_H323_PROXY
+    { NULL, "h323", (char)IPPROTO_TCP, 0, 0, ippr_h323_init, NULL,
+ 	  ippr_h323_new, ippr_h323_del, ippr_h323_in, ippr_h323_out, NULL },
+    { NULL, "h245", (char)IPPROTO_TCP, 0, 0, ippr_h245_init, NULL,
+ 	  ippr_h245_new, NULL, NULL, ippr_h245_out, NULL },
+#endif   
+	{ NULL, "", '\0', 0, 0, NULL, NULL, NULL }
 };
 
 
+/*
+ * Dynamically add a new kernel proxy.  Ensure that it is unique in the
+ * collection compiled in and dynamically added.
+ */
 int appr_add(ap)
 aproxy_t *ap;
 {
@@ -127,7 +152,7 @@ aproxy_t *ap;
 			     sizeof(ap->apr_label)))
 			return -1;
 
-	for (a = ap_proxylist; a->apr_p; a = a->apr_next)
+	for (a = ap_proxylist; a && a->apr_p; a = a->apr_next)
 		if ((a->apr_p == ap->apr_p) &&
 		    !strncmp(a->apr_label, ap->apr_label,
 			     sizeof(ap->apr_label)))
@@ -138,6 +163,11 @@ aproxy_t *ap;
 }
 
 
+/*
+ * Delete a proxy that has been added dynamically from those available.
+ * If it is in use, return 1 (do not destroy NOW), not in use 0 or -1
+ * if it cannot be matched.
+ */
 int appr_del(ap)
 aproxy_t *ap;
 {
@@ -145,15 +175,19 @@ aproxy_t *ap;
 
 	for (app = &ap_proxylist; (a = *app); app = &a->apr_next)
 		if (a == ap) {
+			a->apr_flags |= APR_DELETE;
+			*app = a->apr_next;
 			if (ap->apr_ref != 0)
 				return 1;
-			*app = a->apr_next;
 			return 0;
 		}
 	return -1;
 }
 
 
+/*
+ * Return 1 if the packet is a good match against a proxy, else 0.
+ */
 int appr_ok(ip, tcp, nat)
 ip_t *ip;
 tcphdr_t *tcp;
@@ -162,12 +196,37 @@ ipnat_t *nat;
 	aproxy_t *apr = nat->in_apr;
 	u_short dport = nat->in_dport;
 
-	if (!apr || (apr->apr_flags & APR_DELETE) ||
+	if ((apr == NULL) || (apr->apr_flags & APR_DELETE) ||
 	    (ip->ip_p != apr->apr_p))
 		return 0;
-	if ((tcp && (tcp->th_dport != dport)) || (!tcp && dport))
+	if (((tcp != NULL) && (tcp->th_dport != dport)) || (!tcp && dport))
 		return 0;
 	return 1;
+}
+
+
+/*
+ * If a proxy has a match function, call that to do extended packet
+ * matching.
+ */
+int appr_match(fin, nat)
+fr_info_t *fin;
+nat_t *nat;
+{
+	aproxy_t *apr;
+	ipnat_t *ipn;
+
+	ipn = nat->nat_ptr;
+	if (ipn == NULL)
+		return -1;
+	apr = ipn->in_apr;
+	if ((apr == NULL) || (apr->apr_flags & APR_DELETE) ||
+	    (nat->nat_aps == NULL))
+		return -1;
+	if (apr->apr_match != NULL)
+		if ((*apr->apr_match)(fin, nat->nat_aps, nat) != 0)
+			return -1;
+	return 0;
 }
 
 
@@ -176,20 +235,25 @@ ipnat_t *nat;
  * relevant details.  call the init function once complete, prior to
  * returning.
  */
-static ap_session_t *appr_new_session(apr, ip, fin, nat)
-aproxy_t *apr;
-ip_t *ip;
+int appr_new(fin, ip, nat)
 fr_info_t *fin;
+ip_t *ip;
 nat_t *nat;
 {
 	register ap_session_t *aps;
+	aproxy_t *apr;
+
+	if ((nat->nat_ptr == NULL) || (nat->nat_aps != NULL))
+		return -1;
+
+	apr = nat->nat_ptr->in_apr;
 
 	if (!apr || (apr->apr_flags & APR_DELETE) || (ip->ip_p != apr->apr_p))
-		return NULL;
+		return -1;
 
 	KMALLOC(aps, ap_session_t *);
 	if (!aps)
-		return NULL;
+		return -1;
 	bzero((char *)aps, sizeof(*aps));
 	aps->aps_p = ip->ip_p;
 	aps->aps_data = NULL;
@@ -197,13 +261,18 @@ nat_t *nat;
 	aps->aps_psiz = 0;
 	if (apr->apr_new != NULL)
 		if ((*apr->apr_new)(fin, ip, aps, nat) == -1) {
+			if ((aps->aps_data != NULL) && (aps->aps_psiz != 0)) {
+				KFREES(aps->aps_data, aps->aps_psiz);
+			}
 			KFREE(aps);
-			return NULL;
+			return -1;
 		}
 	aps->aps_nat = nat;
 	aps->aps_next = ap_sess_list;
 	ap_sess_list = aps;
-	return aps;
+	nat->nat_aps = aps;
+
+	return 0;
 }
 
 
@@ -227,9 +296,6 @@ nat_t *nat;
 	short rv;
 	int err;
 
-	if (nat->nat_aps == NULL)
-		nat->nat_aps = appr_new_session(nat->nat_ptr->in_apr, ip,
-						fin, nat);
 	aps = nat->nat_aps;
 	if ((aps != NULL) && (aps->aps_p == ip->ip_p)) {
 		if (ip->ip_p == IPPROTO_TCP) {
@@ -265,8 +331,13 @@ nat_t *nat;
 		}
 
 		rv = APR_EXIT(err);
-		if (rv == -1)
-			return rv;
+		if (rv == 1)
+			return -1;
+		if (rv == 2) {
+			appr_free(apr);
+			nat->nat_aps = NULL;
+			return -1;
+		}
 
 		if (tcp != NULL) {
 			err = appr_fixseqack(fin, ip, aps, APR_INC(err));
@@ -285,7 +356,10 @@ nat_t *nat;
 }
 
 
-aproxy_t *appr_match(pr, name)
+/*
+ * Search for an proxy by the protocol it is being used with and its name.
+ */
+aproxy_t *appr_lookup(pr, name)
 u_int pr;
 char *name;
 {
@@ -319,6 +393,7 @@ void aps_free(aps)
 ap_session_t *aps;
 {
 	ap_session_t *a, **ap;
+	aproxy_t *apr;
 
 	if (!aps)
 		return;
@@ -329,6 +404,10 @@ ap_session_t *aps;
 			break;
 		}
 
+	apr = aps->aps_apr;
+	if ((apr != NULL) && (apr->apr_del != NULL))
+		(*apr->apr_del)(aps);
+ 
 	if ((aps->aps_data != NULL) && (aps->aps_psiz != 0))
 		KFREES(aps->aps_data, aps->aps_psiz);
 	KFREE(aps);
@@ -434,6 +513,10 @@ int inc;
 }
 
 
+/*
+ * Initialise hook for kernel application proxies.
+ * Call the initialise routine for all the compiled in kernel proxies.
+ */
 int appr_init()
 {
 	aproxy_t *ap;
@@ -448,6 +531,10 @@ int appr_init()
 }
 
 
+/*
+ * Unload hook for kernel application proxies.
+ * Call the finialise routine for all the compiled in kernel proxies.
+ */
 void appr_unload()
 {
 	aproxy_t *ap;

@@ -52,7 +52,8 @@ extern	void	fr_authexpire __P((void));
 extern	void	fr_authunload __P((void));
 extern	mb_t	*fr_authpkts[];
 extern	int	fr_newauth __P((mb_t *, fr_info_t *, ip_t *));
-#if defined(__NetBSD__) || defined(__OpenBSD__)
+#if defined(__NetBSD__) || defined(__OpenBSD__) || \
+    (__FreeBSD_version >= 300003)
 extern	int	fr_auth_ioctl __P((caddr_t, int, u_long, frentry_t *, frentry_t **));
 #else
 extern	int	fr_auth_ioctl __P((caddr_t, int, int, frentry_t *, frentry_t **));
