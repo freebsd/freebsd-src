@@ -683,9 +683,9 @@ acpi_child_location_str_method(device_t cbdev, device_t child, char *buf,
     struct acpi_device *dinfo = device_get_ivars(child);
 	
     if (dinfo->ad_handle)
-	snprintf(buf, buflen, "path=%s", acpi_name(dinfo->ad_handle));
+	snprintf(buf, buflen, "handle=%s", acpi_name(dinfo->ad_handle));
     else
-	snprintf(buf, buflen, "magic=unknown");
+	snprintf(buf, buflen, "unknown");
     return (0);
 }
 
@@ -702,16 +702,14 @@ acpi_child_pnpinfo_str_method(device_t cbdev, device_t child, char *buf,
 
     error = AcpiGetObjectInfo(dinfo->ad_handle, &adbuf);
     adinfo = (ACPI_DEVICE_INFO *) adbuf.Pointer;
-
     if (error)
-	snprintf(buf, buflen, "Unknown");
+	snprintf(buf, buflen, "unknown");
     else
-	snprintf(buf, buflen, "_HID=%s _UID=%lu", 
+	snprintf(buf, buflen, "_HID=%s _UID=%lu",
 		 (adinfo->Valid & ACPI_VALID_HID) ?
-		 adinfo->HardwareId.Value : "UNKNOWN",
+		 adinfo->HardwareId.Value : "none",
 		 (adinfo->Valid & ACPI_VALID_UID) ?
 		 strtoul(adinfo->UniqueId.Value, &end, 10) : 0);
-
     if (adinfo)
 	AcpiOsFree(adinfo);
 
