@@ -31,9 +31,10 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_input.c	8.12 (Berkeley) 5/24/95
- *	$Id: tcp_input.c,v 1.77 1998/05/18 17:11:24 guido Exp $
+ *	$Id: tcp_input.c,v 1.78 1998/05/31 18:42:49 peter Exp $
  */
 
+#include "opt_ipfw.h"	/* for ipfw_fwd */
 #include "opt_tcpdebug.h"
 
 #include <sys/param.h>
@@ -339,6 +340,33 @@ tcp_input(m, iphlen)
 	 * Locate pcb for segment.
 	 */
 findpcb:
+#ifdef IPFIREWALL_FORWARD
+	if (ip_fw_fwd_addr != NULL) {
+		/*
+		 * Diverted. Pretend to be the destination.
+		 * already got one like this? 
+		 */
+		inp = in_pcblookup_hash(&tcbinfo, ti->ti_src, ti->ti_sport,
+			ti->ti_dst, ti->ti_dport, 0);
+		if (!inp) {
+			/* 
+			 * No, then it's new. Try find the ambushing socket
+			 */
+			if (!ip_fw_fwd_addr->sin_port) {
+				inp = in_pcblookup_hash(&tcbinfo, ti->ti_src,
+				    ti->ti_sport, ip_fw_fwd_addr->sin_addr,
+				    ti->ti_dport, 1);
+			} else {
+				inp = in_pcblookup_hash(&tcbinfo,
+				    ti->ti_src, ti->ti_sport,
+	    			    ip_fw_fwd_addr->sin_addr,
+				    ntohs(ip_fw_fwd_addr->sin_port), 1);
+			}
+		}
+		ip_fw_fwd_addr = NULL;
+	} else
+#endif	/* IPFIREWALL_FORWARD */
+
 	inp = in_pcblookup_hash(&tcbinfo, ti->ti_src, ti->ti_sport,
 	    ti->ti_dst, ti->ti_dport, 1);
 
