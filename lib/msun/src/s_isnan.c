@@ -1,37 +1,62 @@
-/* @(#)s_isnan.c 5.1 93/09/24 */
-/*
- * ====================================================
- * Copyright (C) 1993 by Sun Microsystems, Inc. All rights reserved.
+/*-
+ * Copyright (c) 2004 David Schultz <das@FreeBSD.ORG>
+ * All rights reserved.
  *
- * Developed at SunPro, a Sun Microsystems, Inc. business.
- * Permission to use, copy, modify, and distribute this
- * software is freely granted, provided that this notice
- * is preserved.
- * ====================================================
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
-/* For binary compat; to be removed in FreeBSD 6.0. */
+#include <math.h>
 
-#ifndef lint
-static char rcsid[] = "$FreeBSD$";
+#include "fpmath.h"
+
+/* Provided by libc */
+#if 0
+int
+isnan(double d)
+{
+	union IEEEd2bits u;
+
+	u.d = d;
+	return (u.bits.exp == 2047 && (u.bits.manl != 0 || u.bits.manh != 0));
+}
 #endif
 
-/*
- * isnan(x) returns 1 is x is nan, else 0;
- * no branching!
- */
-
-#include "math.h"
-#include "math_private.h"
-
-#undef isnan
-
-	int isnan(double x)
+int
+isnanf(float f)
 {
-	int32_t hx,lx;
-	EXTRACT_WORDS(hx,lx,x);
-	hx &= 0x7fffffff;
-	hx |= (u_int32_t)(lx|(-lx))>>31;
-	hx = 0x7ff00000 - hx;
-	return (int)((u_int32_t)(hx))>>31;
+	union IEEEf2bits u;
+
+	u.f = f;
+	return (u.bits.exp == 255 && u.bits.man != 0);
+}
+
+int
+__isnanl(long double e)
+{
+	union IEEEl2bits u;
+
+	u.e = e;
+	mask_nbit_l(u);
+	return (u.bits.exp == 32767 && (u.bits.manl != 0 || u.bits.manh != 0));
 }

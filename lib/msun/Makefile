@@ -84,7 +84,7 @@ COMMON_SRCS= b_exp.c b_log.c b_tgamma.c \
 	s_expm1.c s_expm1f.c s_fabsf.c s_fdim.c s_finite.c s_finitef.c \
 	s_floor.c s_floorf.c s_fmax.c s_fmaxf.c s_fmaxl.c s_fmin.c \
 	s_fminf.c s_fminl.c s_frexp.c s_frexpf.c s_ilogb.c s_ilogbf.c \
-	s_isfinite.c s_isnanf.c s_isnormal.c s_ldexpf.c \
+	s_isfinite.c s_isnan.c s_isnormal.c s_ldexpf.c \
 	s_lib_version.c s_log1p.c \
 	s_log1pf.c s_logb.c s_logbf.c s_matherr.c s_modff.c \
 	s_nearbyint.c s_nextafter.c s_nextafterf.c \
