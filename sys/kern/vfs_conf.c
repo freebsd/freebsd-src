@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_conf.c	8.8 (Berkeley) 3/31/94
- * $Id: vfs_conf.c,v 1.23 1998/04/19 23:31:57 julian Exp $
+ * $Id: vfs_conf.c,v 1.24 1998/04/20 03:57:30 julian Exp $
  */
 
 /*
@@ -71,15 +71,16 @@ MALLOC_DEFINE(M_MOUNT, "mount", "vfs mount struct");
 /*
  *  These define the root filesystem, device, and root filesystem type.
  */
-static struct mount *rootfs;
+dev_t rootdevs[] = { NODEV, NODEV };
+char *rootdevnames[2];
 struct vnode *rootvnode;
 char *mountrootfsname;
 #ifdef SLICE
 char	rootdevice[32];
-#endif /* SLICE */
+#endif
 #ifdef BOOTP
 extern void bootpc_init __P((void));
-#endif /* BOOTP */
+#endif
 
 /*
  * vfs_init() will set maxvfsconf
@@ -119,8 +120,9 @@ static void
 vfs_mountrootfs(void *unused)
 {
 	struct mount		*mp;
-	int			err = 0;
+	int			i, err;
 	struct proc		*p = curproc;	/* XXX */
+	dev_t			orootdev;
 
 #ifdef BOOTP
 	bootpc_init();
@@ -138,20 +140,30 @@ vfs_mountrootfs(void *unused)
 	/*
 	 * Attempt the mount
 	 */
-	err = VFS_MOUNT(mp, NULL, NULL, NULL, p);
-	/*
-	 * rootdev may be bogus (slice field may be incorrect for disks)
-	 * If slice field is nonzero, clear and retry.
-	 *
-	 * XXX Implicit knowledge of device minor number layout.
-	 *     This is placeholder code until saner root mounts arrive with
-	 *     DEVFS.
-	 */
-	if ((err == ENXIO) && (rootdev & 0xff0000)) {
-		rootdev &= ~0xff0000;
+	err = ENXIO;
+	orootdev = rootdev;
+	if (rootdevs[0] == NODEV)
+		rootdevs[0] = rootdev;
+	for (i = 0; i < sizeof(rootdevs) / sizeof(rootdevs[0]); i++) {
+		if (rootdevs[i] == NODEV)
+			break;
+		rootdev = rootdevs[i];
+		if (rootdev != orootdev) {
+			printf("changing root device to %s\n", rootdevnames[i]);
+			orootdev = rootdev;
+		}
+		strncpy(mp->mnt_stat.f_mntfromname,
+		    rootdevnames[i] ? rootdevnames[i] : ROOTNAME, MNAMELEN - 1);
 		err = VFS_MOUNT(mp, NULL, NULL, NULL, p);
+		if (err != ENXIO)
+			break;
 	}
 	if (err) {
+		/*
+		 * XXX should ask the user for the name in some cases.
+		 * Why do we call vfs_unbusy() here and not after ENXIO
+		 * is returned above?
+		 */
 		vfs_unbusy(mp, p);
 		/*
 		 * free mount struct before failing
