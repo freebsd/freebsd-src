@@ -171,7 +171,7 @@ static	u_int32 trmamd_info( int unit );
 static u_long	trmamd_count;
 
 struct	pci_device   trmamd_device = {
-	"trmamd",
+	"amd",
 	trmamd_probe,
 	trmamd_attach,
 	&trmamd_count,
@@ -194,7 +194,7 @@ struct scsi_adapter trmamd_switch =
 #ifdef	REL_2_1_5
 	0,
 #endif
-	"trmamd",
+	"amd",
 };
 
 struct scsi_device trmamd_dev =
@@ -203,7 +203,7 @@ struct scsi_device trmamd_dev =
 	NULL,			/* have a queue, served by this */
 	NULL,			/* have no async handler */
 	NULL,			/* Use default 'done' routine */
-	"trmamd",
+	"amd",
 };
 
 
@@ -502,7 +502,8 @@ trmamd_scsi_cmd ( PSCSICMD cmd )
 
     if( pACB->scan_devices )
     {
-	if( (plink->target >= CurrentID) && (plink->lun >= CurrentLUN) )
+	if( (plink->target > CurrentID) ||
+	    (plink->target == CurrentID) && (plink->lun >= CurrentLUN) )
 	{
 	    CurrentID = plink->target;
 	    CurrentLUN = plink->lun;
@@ -1689,7 +1690,7 @@ static	char*
 trmamd_probe (pcici_t tag, pcidi_t type)
 {
 	if( type == PCI_DEVICE_ID_AMD53C974 )
-	    return ("Tekram DC390(T) Adapter Driver v1.01 Aug-20-1996");
+	    return ("amd 53c974 scsi");
 	else
 	    return (NULL);
 }
