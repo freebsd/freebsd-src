@@ -65,12 +65,12 @@ extern char *CheckPkg;
 extern match_t MatchType;
 extern struct which_head *whead;
 
-extern void	show_file(char *, char *);
-extern void	show_plist(char *, Package *, plist_t);
-extern void	show_files(char *, Package *);
-extern void	show_index(char *, char *);
-extern void	show_size(char *, Package *);
-extern void	show_cksum(char *, Package *);
-extern void	show_origin(char *, Package *);
+extern void	show_file(const char *, const char *);
+extern void	show_plist(const char *, Package *, plist_t, Boolean);
+extern void	show_files(const char *, Package *);
+extern void	show_index(const char *, const char *);
+extern void	show_size(const char *, Package *);
+extern void	show_cksum(const char *, Package *);
+extern void	show_origin(const char *, Package *);
 
 #endif	/* _INST_INFO_H_INCLUDE */

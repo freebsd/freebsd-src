@@ -70,9 +70,9 @@ make_hierarchy(char *dir)
 
 /* Using permission defaults, apply them as necessary */
 void
-apply_perms(char *dir, char *arg)
+apply_perms(const char *dir, const char *arg)
 {
-    char *cd_to;
+    const char *cd_to;
 
     if (!dir || *arg == '/')	/* absolute path? */
 	cd_to = "/";
