@@ -139,8 +139,7 @@ nommap(dev, offset, paddr, nprot)
 	int nprot;
 {
 
-	/* Don't return ENODEV.  That would allow mapping address ENODEV! */
-	return (-1);
+	return (ENODEV);
 }
 
 int
