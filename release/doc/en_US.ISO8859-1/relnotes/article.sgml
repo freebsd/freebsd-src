@@ -454,6 +454,10 @@
       <filename>libssl.so.2</filename> libraries from &os;
       4.7-RELEASE.</para>
 
+    <para>&man.chgrp.1 and &man.chown.8 now, when the owner/group is
+      modified, print the old and new uid/gid if the
+      <option>-v</option> option is specified more than once.</para>
+
     <para>&man.config.8; now implements a <literal>nodevice</literal>
       kernel configuration file directive that cancels the effect of a
       <literal>device</literal> directive.  The new
