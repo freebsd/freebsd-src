@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_output.c	8.3 (Berkeley) 1/21/94
- *      $Id: ip_output.c,v 1.44.2.12 1998/11/20 03:09:02 jkoshy Exp $
+ *      $Id: ip_output.c,v 1.44.2.13 1999/02/19 18:21:25 luigi Exp $
  */
 
 #define _IP_VHL
@@ -134,14 +134,14 @@ ip_output(m0, opt, ro, flags, imo)
 	     * the packet was already tagged, so part of the
 	     * processing was already done, and we need to go down.
 	     * opt, flags and imo have already been used, and now
-	     * they are used to hold ifp and hlen and NULL, respectively.
+	     * they are used to hold ifp, dst and NULL, respectively.
 	     */
 	    rule = (struct ip_fw_chain *)(m->m_data) ;
 	    m = m->m_next ;
 	    FREE(m1, M_IPFW);
 	    m0 = m ;
 	    ip = mtod(m, struct ip *);
-	    dst = (struct sockaddr_in *)&ro->ro_dst;
+	    dst = (struct sockaddr_in *)flags ;
 	    ifp = (struct ifnet *)opt;
 	    hlen = IP_VHL_HL(ip->ip_vhl) << 2 ;
 	    opt = NULL ;
@@ -403,14 +403,14 @@ sendit:
 		if (off & 0x10000) {
 		    /*
 		     * pass the pkt to dummynet. Need to include
-		     * pipe number, m, ifp, ro, hlen because these are
+		     * pipe number, m, ifp, ro, dst because these are
 		     * not recomputed in the next pass.
 		     * All other parameters have been already used and
 		     * so they are not needed anymore.
 		     * XXX note: if the ifp or ro entry are deleted
 		     * while a pkt is in dummynet, we are in trouble!
 		     */
-		    dummynet_io(off & 0xffff, DN_TO_IP_OUT, m,ifp,ro,hlen,rule);
+		    dummynet_io(off & 0xffff, DN_TO_IP_OUT, m,ifp,ro,dst,rule);
 		    goto done ;
 		}
 #endif
