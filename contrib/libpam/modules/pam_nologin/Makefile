@@ -5,6 +5,8 @@
 #
 # Michael K. Johnson <johnsonm@redhat.com> 1996/10/24
 #
+# $FreeBSD$
+#
 
 TITLE=pam_nologin
 
