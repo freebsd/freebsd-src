@@ -419,13 +419,13 @@ CHECK_GIDS+=	proxy authpf
 .endif
 installcheck: ${SPECIAL_INSTALLCHECKS}
 .for uid in ${CHECK_UIDS}
-	@if ! `id -u ${uid} > /dev/null`; then \
+	@if ! `id -u ${uid} >/dev/null 2>&1`; then \
 		echo "ERROR: Required ${uid} user is missing, see /usr/src/UPDATING."; \
 		false; \
 	fi
 .endfor
 .for gid in ${CHECK_GIDS}
-	@if ! `find / -prune -group ${gid} > /dev/null`; then \
+	@if ! `find / -prune -group ${gid} >/dev/null 2>&1`; then \
 		echo "ERROR: Required ${gid} group is missing, see /usr/src/UPDATING."; \
 		false; \
 	fi
