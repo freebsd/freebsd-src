@@ -1233,56 +1233,151 @@
   <sect2 id="userland">
     <title>Userland Changes</title>
 
-    <para>&man.cdcontrol.1; now supports a <literal>cdid</literal>
-    command, which calculates and displays the CD serial number, using
-    the same algorithm used by the CDDB database. &merged;</para>
+    <para>If the first argument to &man.ancontrol.8; or
+    &man.wicontrol.8; doesn't start with a <literal>-</literal>, it is
+    assumed to be an interface.</para>
 
-    <para>&man.mtree.8; now includes support for a file that lists
-    pathnames to be excluded when creating and verifying prototypes.
-    This makes it easier to use &man.mtree.8; as a part of an
-    intrusion-detection system. &merged;</para>
+    <para>&man.apmd.8; now has the ability to monitor battery levels and
+    execute commands based on percentage or minutes of battery life
+    remaining via the <literal>apm_battery</literal> configuration
+    directive.  See the commented-out examples in
+    <filename>/etc/apmd.conf</filename> for the syntax. &merged;</para>
 
-    <para>&man.ls.1; can produce colorized listings with the
-    <option>-G</option> flag (and appropriate terminal
-    support).  The <envar>CLICOLOR</envar> environment variable can be set
-    to enable colorized listings by default. &merged;</para>
-
-    <para>&man.sysinstall.8; now properly preserves
-    <filename>/etc/mail</filename> during a binary upgrade. &merged;</para>
-
-    <para>The &man.truncate.1; utility, which truncates or extends the length
-    of files, has been added. &merged;</para>
-
-    <para>&man.syslogd.8; can take a <option>-n</option> option to
-    disable DNS queries for every request. &merged;</para>
-
-    <para>&man.kenv.1;, a command to dump the kernel environment, has
-    been added. &merged;</para>
-
-    <para>The behavior of &man.periodic.8; is now controlled by
-    <filename>/etc/defaults/periodic.conf</filename> and
-    <filename>/etc/periodic.conf</filename>. &merged;</para>
+    <para>&man.atacontrol.8; has been added to control various aspects
+    of the &man.ata.4; driver.</para>
 
     <para arch="i386">&man.boot98cfg.8;, a PC-98 boot manager installation and
     configuration utility, has been added. &merged;</para>
 
-    <para>&man.logger.1; can now send messages directly to a remote
-    syslog. &merged;</para>
+    <para>&man.burncd.8; now supports a <option>-m</option> option for
+    multisession mode (the default behavior now is to close disks as
+    single-session).  A <option>-l</option> option to take a list of
+    image files from a filename was also added; <filename>-</filename>
+    can be used as a filename for <literal>stdin</literal>. &merged;</para>
 
-    <para arch="i386">&man.gdb.1; now supports hardware watchpoints (using the
-    kernel's debug register + support that has been introduced in
-    &os; 4.0). &merged;</para>
+    <para>&man.burncd.8; now supports Disk At Once (DAO) mode,
+    selectable via the <option>-d</option> flag.</para>
 
-    <para>&man.which.1; is now a C program, rather than a Perl
-    script.</para>
+    <para>&man.c89.1; has been converted from a shell script to a
+    binary executable, fixing some minor bugs. &merged;</para>
 
-    <para>&man.killall.1; is now a C program, rather than a Perl
-    script.  As a result, its <option>-m</option> option now uses the
-    regular expression syntax of &man.regex.3;, rather than that of
-    &man.perl.1;. &merged;</para>
+    <para>&man.cat.1; now has the ability to read from UNIX-domain
+    sockets. &merged;</para>
 
-    <para>&man.killall.1; now allows non-root users to kill SUID root
-    processes that they started, the same as the Perl version did.</para>
+    <para>&man.cdcontrol.1; now supports a <literal>cdid</literal>
+    command, which calculates and displays the CD serial number, using
+    the same algorithm used by the CDDB database. &merged;</para>
+
+    <para>&man.cdcontrol.1; now uses the <envar>CDROM</envar>
+    environment variable to pick a default device. &merged;</para>
+
+    <para>&man.cdcontrol.1; now supports <literal>next</literal> and
+    <literal>prev</literal> commands to skip forwards or backwards a
+    specified number of tracks while playing an audio CD. &merged;</para>
+
+    <para>&man.chflags.1; has moved from <filename>/usr/bin</filename>
+    to <filename>/bin</filename>.</para>
+
+    <para>&man.chio.1; now has the ability to specify elements by
+    volume tag instead of by their physical location as well as the
+    ability to return an element to its previous location. &merged;</para>
+
+    <para>&man.chmod.1; now supports a <option>-h</option> for
+    changing the mode of a symbolic link.</para>
+
+    <para>&man.chown.8; now correctly follows symbolic links named as
+    command line arguments if run without <option>-R</option>.</para>
+
+    <para>&man.chown.8; no longer takes <literal>.</literal> as a
+    user/group delimeter.  This change was made to support usernames
+    containing a <literal>.</literal>.</para>
+
+    <para>Use of the <literal>CSMG_*</literal> macros no longer
+    require inclusion of
+    <filename>&lt;sys/param.h&gt;</filename></para>
+
+    <para>&man.col.1; now takes a <option>-p</option> flag to force unknown
+    control sequences to be passed through unchanged. &merged;</para>
+
+    <para>The
+    <filename>compat3x</filename> distribution has been updated to
+    include libraries present in &os; 3.5.1-RELEASE. &merged;</para>
+
+    <para>A <filename>compat4x</filename> distribution has been added
+    for compatibility with &os; 4-STABLE.</para>
+
+    <para>&man.config.8; is now better about converting various 
+    warnings that should
+    have been errors into actual fatal errors with an exit code.  This
+    ensures that <literal>make buildkernel</literal> 
+    doesn't quietly ignore them and
+    build a bogus kernel without a human to read the errors. &merged;</para>
+
+    <para>A number of buffer overflows in &man.config.8; have been
+    fixed. &merged;</para>
+
+    <para>The &man.daemon.8; program, a command-line interface to
+    &man.daemon.3;, has been added.  It detaches itself from its
+    controlling terminal and executes a program specified on the command
+    line.  This allows the user to run an arbitrary program as if it were
+    written to be a daemon.</para>
+
+    <para>devinfo, a simple tool to print the device tree and resource usage by
+    devices, has been added.</para>
+
+    <para>&man.df.1; now takes a <option>-l</option> option to only
+    display information about locally-mounted filesystems. &merged;</para>
+
+    <para>&man.disklabel.8; now supports partition sizes expressed in
+    kilobytes, megabytes, or gigabytes, in addition to sectors. &merged;</para>
+
+    <para>&man.dmesg.8; now has a <option>-a</option> option to show
+    the entire message buffer, including &man.syslogd.8; records and
+    <filename>/dev/console</filename> output. &merged;</para>
+
+    <para>&man.du.1; now takes a <option>-I</option> command-line flag
+    to ignore/skip files and subdirectories matching a specified
+    shell-glob mask. &merged;</para>
+
+    <para>&man.dump.8; now supports inheritance of the
+    <literal>nodump</literal> flag down a hierarchy. &merged;</para>
+
+    <para>The <option>-T</option> option to &man.dump.8; no longer swallows
+    an extra argument. &merged;</para>
+
+    <para>&man.dump.8; has a new <option>-D</option> option, allowing
+    the path to the <filename>/etc/dumpdates</filename> file to be
+    changed. &merged;</para>
+
+    <para>&man.edquota.8; now takes a <option>-f</option> option to
+    allow limiting the prototype quota distribution (specified with
+    <option>-p</option>) to a single filesystem.</para>
+
+    <para arch="i386">&man.fdisk.8; no longer attempts to search for
+    a device if none has been specified on the command line, but
+    instead tries to figure out the default device name from the
+    root device.</para>
+
+    <para>&man.fdread.1;, a program to read data from floppy disks,
+    has been added.  It is a counterpart to &man.fdwrite.1; and is
+    designed to provide a means of recovering at least some data from
+    bad media, and to obviate for a complex invocation of
+    &man.dd.1;.</para>
+
+    <para>&man.find.1; now takes the <option>-empty</option> flag,
+    which returns true if a file or directory is empty. &merged;</para>
+
+    <para>&man.find.1; now takes the <option>-iname</option> and
+    <option>-ipath</option> primaries for case-insensitive matches,
+    and the <option>-regexp</option> and <option>-iregexp</option>
+    primaries for regular-expression matches.  The <option>-E</option>
+    flag now enables extended regular expressions. &merged;</para>
+
+    <para>&man.find.1; now has the <option>-anewer</option>,
+    <option>-cnewer</option>, <option>-mnewer</option>,
+    <option>-okdir</option>, and <option>-newer[acm][acmt]</option>
+    primaries for comparisons of file timestamps.  The latter
+    primaries can be specified with various units of time. &merged;</para>
 
     <para>&man.finger.1; now has the ability to support fingering
     aliases, via the &man.finger.conf.5; file. &merged;</para>
@@ -1290,76 +1385,11 @@
     <para>&man.finger.1; now has support for a
     <filename>.pubkey</filename> file.</para>
 
-    <para>nsswitch support has been merged from NetBSD.  By creating
-    an &man.nsswitch.conf.5; file, &os; can be configured so that
-    various databases such as &man.passwd.5; and &man.group.5; can be
-    looked up using flat files, NIS, or Hesiod.  The old
-    <filename>hosts.conf</filename> file is no longer used.</para>
+    <para>&man.fmt.1; has been rewritten; the rewrite fixes a number
+    of bugs compared to its prior behavior. &merged;</para>
 
-    <para>RSA Security has waived all patent rights to the RSA
-    algorithm.  As a
-    result, the native <application>OpenSSL</application>
-    implementation of the RSA algorithm is now activated by default,
-    and the <port>security/rsaref</port> port and the
-    <filename>librsaUSA</filename> and <filename>librsaINTL</filename>
-    libraries are
-    no longer required for USA and non-USA residents respectively. &merged;</para>
-
-    <para>&man.ifconfig.8; command can set the link-layer address
-    of an interface using the <option>lladdr</option> parameter. 
-    &merged;</para>
-
-    <para>&man.ifconfig.8; can now accept addresses in slash/CIDR
-    notation. &merged;</para>
-
-    <para>&man.ifconfig.8; now has support for setting parameters for
-    IEEE 802.11 wireless network devices.  &man.wi.4; and
-    &man.an.4; devices are supported, and partial support is provided
-    for &man.awi.4; devices. &merged;</para>
-
-    <para>&man.ifconfig.8; no longer displays the list of supported
-    media by default.  Instead it displays it when the
-    <option>-m</option> flag is given. &merged;</para>
-
-    <para>&man.setproctitle.3; has been moved from
-    <filename>libutil</filename> to
-    <filename>libc</filename>. &merged;</para>
-
-    <para>&man.chio.1; now has the ability to specify elements by
-    volume tag instead of by their physical location as well as the
-    ability to return an element to its previous location. &merged;</para>
-
-    <para>&man.sed.1; now takes a <option>-E</option> option for
-    extended regular expression support. &merged;</para>
-
-    <para>&man.ln.1; now takes an <option>-i</option> option to
-    request user confirmation before overwriting an existing
-    file. &merged;</para>
-
-    <para>&man.ln.1; now takes a <option>-h</option> flag to avoid
-    following a target that is a link, with a <option>-n</option> flag
-    for compatibility with other implementations. &merged;</para>
-
-    <para>Userland &man.ppp.8; has received a number of updates and
-    bug fixes. &merged;</para>
-
-    <para>&man.make.1; has gained the <literal>:C///</literal>
-    (regular expression substitution), <literal>:L</literal>
-    (lowercase), and <literal>:U</literal> (uppercase) variable
-    modifiers.  These were added to reduce the differences between the
-    &os; and
-    OpenBSD/NetBSD
-    &man.make.1; programs. &merged; </para>
-
-    <para>Bugs in &man.make.1;, among which include broken null suffix
-    behavior, bad assumptions about current directory permissions, and
-    potential buffer overflows, have been fixed. &merged;</para>
-
-    <para>The &os; <filename>Makefile</filename> infrastructure now
-    supports the <varname>WARNS</varname> directive from NetBSD.  This
-    directive controls the addition of compiler warning flags to
-    <varname>CFLAGS</varname> in a relatively compiler-neutral
-    manner. &merged;</para>
+    <para>&man.fmtcheck.3;, a function for checking consistency of
+    format string arguments, has been added. &merged;</para>
 
     <para>&man.fsck.8; wrappers have been imported; this feature
     provides infrastructure for &man.fsck.8; to work on different
@@ -1368,124 +1398,6 @@
     <para>The behavior of &man.fsck.8; when dealing with various
     passes (a la <filename>/etc/fstab</filename>) has been modified to
     accomodate multiple-disk filesystems.</para>
-
-    <para>&man.style.perl.7;, a style guide for Perl code in the &os;
-    base system, has been added.</para>
-
-    <para>The <quote>in use</quote> percentage metric displayed by
-    &man.netstat.1; now really reflects the percentage of network
-    mbufs used. &merged;</para>
-
-    <para>&man.netstat.1; now has a <option>-W</option> flag that
-    tells it not to truncate addresses, even if they're too long for
-    the column they're printed in. &merged;</para>
-
-    <para>&man.netstat.1; now keeps track of input and output packets
-    on a per-address basis for each interface. &merged;</para>
-
-    <para>&man.netstat.1; now has a <option>-z</option> flag to reset
-    statistics. &merged;</para>
-
-    <para>&man.netstat.1; now has a <option>-S</option> flag to print
-    address numerically but port names symbolically. &merged;</para>
-
-    <para>&man.sockstat.1; now has <option>-c</option> and
-    <option>-l</option> flags for listing connected and listening
-    sockets, respectively. &merged;</para>
-
-    <para>&man.mergemaster.8; has gained some new features, has been
-    cleaned up somewhat, and is now more cross-platform friendly.</para>
-
-    <para>&man.mergemaster.8; now sources an
-    <filename>/etc/mergemaster.rc</filename> file and also prompts the
-    user to run recommended commands (such as
-    <command>newaliases</command>) as needed. &merged;</para>
-
-    <para>The compiler chain now uses the FSF-supplied C/C++ runtime
-    initialization code.  This change brings about better
-    compatibility with code generated from the various egcs and gcc
-    ports, as well as the stock public FSF source. &merged;</para>
-
-    <para>The threads library has gained some signal handling changes,
-    bug fixes, and performance enhancements (including zero system
-    call thread switching).  &man.gdb.1; thread support has been
-    updated to match these changes. &merged;</para>
-
-    <para>&man.chflags.1; has moved from <filename>/usr/bin</filename>
-    to <filename>/bin</filename>.</para>
-
-    <para>Use of the <literal>CSMG_*</literal> macros no longer
-    require inclusion of
-    <filename>&lt;sys/param.h&gt;</filename></para>
-
-    <para>IP Filter is now supported by the
-    &man.rc.conf.5; boot-time configuration and
-    initialization. &merged;</para>
-
-    <para>The &man.lastlogin.8; utility, which prints the last login
-    time of each user, has been imported from
-    NetBSD. &merged;</para>
-
-    <para>&man.last.1; now implements a <option>-d</option> that
-    provides a <quote>snapshot</quote> of who was logged in at a
-    particular date and time. &merged;</para>
-
-    <para>&man.newfs.8; now implements write combining, which can make
-    creation of new filesystems up to seven times
-    faster. &merged;</para>
-
-    <para>&man.newfs.8; now takes a <option>-U</option> option to
-    enable softupdates on a new filesystem. &merged;</para>
-
-    <para>The default number of cylinders per group in &man.newfs.8;
-    is now computed to be the maximum allowable given the current
-    filesystem parameters.  It can be overridden with the
-    <option>-c</option>.  Formerly, the default was fixed at 16.  This
-    change leads to better &man.fsck.8; performance and reduced
-    fragmentation. &merged;</para>
-
-    <para>A number of buffer overflows in &man.config.8; have been
-    fixed. &merged;</para>
-
-    <para>&man.pwd.1; can now double as &man.realpath.1;, a program to
-    resolve pathnames to their underlying physical paths. &merged;</para>
-
-    <para>&man.stty.1; now has support for an
-    <literal>erase2</literal> control character, so that, for example,
-    both the <keycap>Delete</keycap> and <keycap>Backspace</keycap>
-    keys can be used to erase characters. &merged;</para>
-
-    <para>The &man.ibcs2.8;, &man.linux.8;, &man.osf1.8;, and &man.svr4.8;
-    scripts, whose sole purpose was to load emulation
-    kernel modules, have been removed.  The kernel module system will
-    automatically load them as needed to fulfill dependencies.</para>
-
-    <para>&man.top.1; will now use the full width of its tty.</para>
-
-    <para>&man.growfs.8;, a utility for growing FFS filesystems, has
-    been added.  &man.ffsinfo.8;, a utility for dump all the
-    meta-information of an existing filesystem, has also been
-    added. &merged;</para>
-
-    <para>&man.indent.1; has gained some new formatting
-    options. &merged;</para>
-
-    <para>&man.sysinstall.8; now uses some more intuitive defaults
-    thanks to some new dialog support functions. &merged;</para>
-
-    <para>The default root partition in &man.sysinstall.8; is now
-    100MB on the i386 and 120MB on the Alpha.</para>
-
-    <para>Shortly after the receipt of a <literal>SIGINFO</literal>
-    signal (normally control-T from the controlling tty), &man.fsck.ffs.8;
-    will now output a line indicating the current phase number and
-    progress information relevant to the current phase. &merged;</para>
-
-    <para>&man.fsck.ffs.8; now supports background filesystem checks
-    to mounted FFS filesystems with the <option>-B</option> option
-    (softupdates must be enabled on these filesystems).  The
-    <option>-F</option> flag now determines whether a specified
-    filesystem needs foreground checking.</para>
 
     <para>&man.fsck.8; now has support for foreground
     (<option>-F</option>) and background (<option>-B</option>) checks.
@@ -1504,22 +1416,179 @@
     this feature is controlled by the
     <varname>background_fsck</varname> option in &man.rc.conf.5;.</para>
 
+    <para>Shortly after the receipt of a <literal>SIGINFO</literal>
+    signal (normally control-T from the controlling tty), &man.fsck.ffs.8;
+    will now output a line indicating the current phase number and
+    progress information relevant to the current phase. &merged;</para>
+
+    <para>&man.fsck.ffs.8; now supports background filesystem checks
+    to mounted FFS filesystems with the <option>-B</option> option
+    (softupdates must be enabled on these filesystems).  The
+    <option>-F</option> flag now determines whether a specified
+    filesystem needs foreground checking.</para>
+
     <para>A new &man.fsck.msdosfs.8; utility has been added to check
     the consistency of MS-DOS filesystems. &merged;</para>
 
-    <para>Catching up with most other network utilities in the base
-    system, &man.lpr.1;, &man.lpd.8;, &man.syslogd.8;, and
-    &man.logger.1; are now all IPv6-capable. &merged;</para>
+    <para>&man.ftpd.8; now supports a <option>-r</option> flag for
+    read-only mode and a <option>-E</option> flag to disable
+    <literal>EPSV</literal>.  It also has some fixes to reduce
+    information leakage and the ability to specify compile-time port
+    ranges. &merged;</para>
+
+    <para>&man.ftpd.8; now supports <option>-o</option> and
+    <option>-O</option> options to disable the <literal>RETR</literal>
+    command; the former for everybody, and the latter only for guest users.
+    Coupled with <option>-A</option> and appropriate file permissions,
+    these can be used to create a relatively safe anonymous FTP drop box
+    for others to upload to.</para>
+
+    <para arch="i386">&man.gdb.1; now supports hardware watchpoints (using the
+    kernel's debug register + support that has been introduced in
+    &os; 4.0). &merged;</para>
+
+    <para>The &man.getprogname.3; and &man.setprogname.3; library
+    functions have been added to manipulate the name of the current
+    program.  They are used by error-reporting routines to produce
+    consistent output. &merged;</para>
+
+    <para>&man.growfs.8;, a utility for growing FFS filesystems, has
+    been added.  &man.ffsinfo.8;, a utility for dump all the
+    meta-information of an existing filesystem, has also been
+    added. &merged;</para>
+
+    <para>The &man.groups.1; and &man.whoami.1; shell scripts are now
+    unnecessary; their functionality has been completely folded into
+    &man.id.1;.</para>
+
+    <para>The &man.ibcs2.8;, &man.linux.8;, &man.osf1.8;, and &man.svr4.8;
+    scripts, whose sole purpose was to load emulation
+    kernel modules, have been removed.  The kernel module system will
+    automatically load them as needed to fulfill dependencies.</para>
+
+    <para>&man.indent.1; has gained some new formatting
+    options. &merged;</para>
+
+    <para>&man.ifconfig.8; command can set the link-layer address
+    of an interface using the <option>lladdr</option> parameter. 
+    &merged;</para>
+
+    <para>&man.ifconfig.8; can now accept addresses in slash/CIDR
+    notation. &merged;</para>
+
+    <para>&man.ifconfig.8; now has support for setting parameters for
+    IEEE 802.11 wireless network devices.  &man.wi.4; and
+    &man.an.4; devices are supported, and partial support is provided
+    for &man.awi.4; devices. &merged;</para>
+
+    <para>&man.ifconfig.8; no longer displays the list of supported
+    media by default.  Instead it displays it when the
+    <option>-m</option> flag is given. &merged;</para>
+
+    <para>The syntax of &man.inetd.8;'s support for &man.faithd.8; is
+    now compatible with that of other BSDs. &merged;</para>
+
+    <para>The <literal>ident</literal> protocol support in &man.inetd.8; has
+    been cleaned up and updated. &merged;</para>
+
+    <para>&man.inetd.8; now has the ability to manage UNIX-domain
+    sockets. &merged;</para>
+
+    <para>&man.install.1; has a number of new features, including the
+    <option>-b</option> and <option>-B</option> options for backing up
+    existing target files and the <option>-S</option> option for
+    <quote>safe</quote> (atomic copy) operation.  The
+    <option>-c</option> (copy) flag is now the default, and the
+    <option>-D</option> (debugging) flag has been withdrawn.
+    &man.install.1; now issues a warning if <option>-d</option>
+    (create directories) and <option>-C</option> (copy changed files
+    only) are used together. &merged;</para>
+
+    <para>IP Filter is now supported by the
+    &man.rc.conf.5; boot-time configuration and
+    initialization. &merged;</para>
+
+    <para>&man.ipfstat.8; now supports the <option>-t</option> option
+    to turn on a &man.top.1;-like display. &merged;</para>
+
+    <para>&man.kenv.1;, a command to dump the kernel environment, has
+    been added. &merged;</para>
+
+    <para>&man.killall.1; is now a C program, rather than a Perl
+    script.  As a result, its <option>-m</option> option now uses the
+    regular expression syntax of &man.regex.3;, rather than that of
+    &man.perl.1;. &merged;</para>
+
+    <para>&man.killall.1; now allows non-root users to kill SUID root
+    processes that they started, the same as the Perl version did.</para>
+
+    <para>The &man.kldconfig.8; utility has been added to make it easier to
+    manipulate the kernel module search path. &merged;</para>
+
+    <para>&man.last.1; now implements a <option>-d</option> that
+    provides a <quote>snapshot</quote> of who was logged in at a
+    particular date and time. &merged;</para>
+
+    <para>The &man.lastlogin.8; utility, which prints the last login
+    time of each user, has been imported from
+    NetBSD. &merged;</para>
+
+    <para>&man.ldconfig.8; now checks directory ownerships and
+    permissions for greater security; these checks can be disabled
+    with the <option>-i</option> flag. &merged;</para>
+
+    <para><filename>libc</filename> is now thread-safe by default;
+    <filename>libc_r</filename> contains only thread functions.</para>
+
+    <para><filename>libcrypt</filename> and
+    <filename>libdescrypt</filename> have been unified to provide a
+    configurable password authentication hash library.  Both the md5
+    and des hash methods are provided unless the des hash is
+    specifically compiled out. &merged;</para>
+
+    <para><filename>libcrypt</filename> now has support for Blowfish
+    password hashing. &merged;</para>
 
     <para arch="i386"><filename>libdisk</filename> can now do
     install-time configuration of the <filename>boot0</filename>
     boot loader. &merged;</para>
 
-    <para>The <option>-v</option> option to &man.rm.1; now displays
-    the entire pathname of a file being removed.</para>
+    <para>The default TCP port range used by
+    <filename>libfetch</filename> for passive FTP retrievals has
+    changed; this affects the behavior of &man.fetch.1;, which has
+    gained the <option>-U</option> option to restore the old
+    behavior. &merged;</para>
 
-    <para>&man.lpr.1;, &man.lpq.1;, and &man.lpd.8; have received a
-    few minor enhancements. &merged;</para>
+    <para><filename>libfetch</filename> now has support for an
+    authentication callback.</para>
+
+    <para><filename>libfetch</filename> now has support for a
+    <envar>HTTP_USER_AGENT</envar> environment variable. &merged;</para>
+
+    <para><filename>libgmp</filename> has been superceded by
+    <filename>libmp</filename>.
+
+    <para>The functions from <filename>libposix1e</filename> have been 
+    integrated into <filename>libc</filename>.</para>
+
+    <para>&man.ln.1; now takes an <option>-i</option> option to
+    request user confirmation before overwriting an existing
+    file. &merged;</para>
+
+    <para>&man.ln.1; now takes a <option>-h</option> flag to avoid
+    following a target that is a link, with a <option>-n</option> flag
+    for compatibility with other implementations. &merged;</para>
+
+    <para>&man.logger.1; can now send messages directly to a remote
+    syslog. &merged;</para>
+
+    <para>&man.login.1; now exports environment variables set by
+    <application>PAM</application> modules. &merged;</para>
+
+    <para>&man.lpc.8; has been improved; <command>lpc clean</command>
+    is now somewhat safer, and a new <command>lpc tclean</command>
+    command has been added to check to see what files would be removed
+    by <command>lpc clean</command>. &merged;</para>
 
     <para>&man.lpd.8; now takes two new options:  <option>-c</option>
     will log all connection errors to &man.syslogd.8;, while
@@ -1531,18 +1600,135 @@
     which allows printing of PostScript files generated by
     <application>MacOS</application> 10.1. &merged;</para>
 
-    <para>&man.lpc.8; has been improved; <command>lpc clean</command>
-    is now somewhat safer, and a new <command>lpc tclean</command>
-    command has been added to check to see what files would be removed
-    by <command>lpc clean</command>. &merged;</para>
+    <para>&man.lpr.1;, &man.lpq.1;, and &man.lpd.8; have received a
+    few minor enhancements. &merged;</para>
 
-    <para>If the first argument to &man.ancontrol.8; or
-    &man.wicontrol.8; doesn't start with a <literal>-</literal>, it is
-    assumed to be an interface.</para>
+    <para>Catching up with most other network utilities in the base
+    system, &man.lpr.1;, &man.lpd.8;, &man.syslogd.8;, and
+    &man.logger.1; are now all IPv6-capable. &merged;</para>
 
-    <para>&man.rdist.1; has been retired from the base system, but is still
-    available from &os; Ports Collection as 
-    <port>net/44bsd-rdist</port>.</para>
+    <para><command>lprm -</command> now works for remote printer
+    queues. &merged;</para>
+
+    <para>&man.ls.1; can produce colorized listings with the
+    <option>-G</option> flag (and appropriate terminal
+    support).  The <envar>CLICOLOR</envar> environment variable can be set
+    to enable colorized listings by default. &merged;</para>
+
+    <para>&man.mail.1; now takes a <option>-E</option> flag to avoid
+    sending messages with empty bodies. &merged;</para>
+
+    <para>&man.make.1; has gained the <literal>:C///</literal>
+    (regular expression substitution), <literal>:L</literal>
+    (lowercase), and <literal>:U</literal> (uppercase) variable
+    modifiers.  These were added to reduce the differences between the
+    &os; and
+    OpenBSD/NetBSD
+    &man.make.1; programs. &merged; </para>
+
+    <para>Bugs in &man.make.1;, among which include broken null suffix
+    behavior, bad assumptions about current directory permissions, and
+    potential buffer overflows, have been fixed. &merged;</para>
+
+    <para>The new <varname>CPUTYPE</varname>
+    <filename>make.conf</filename> variable controls the compilation
+    of processor-specific optimizations in various pieces of code such
+    as <application>OpenSSL</application>. &merged;</para>
+
+    <para>The &os; <filename>Makefile</filename> infrastructure now
+    supports the <varname>WARNS</varname> directive from NetBSD.  This
+    directive controls the addition of compiler warning flags to
+    <varname>CFLAGS</varname> in a relatively compiler-neutral
+    manner. &merged;</para>
+
+    <para>The &man.mdmfs.8; command has been added; it is a wrapper
+    around &man.mdconfig.8;, &man.disklabel.8;, &man.newfs.8;, and
+    &man.mount.8; that mimics the command line option set of the
+    deprecated &man.mount.mfs.8;.</para>
+
+    <para>&man.mergemaster.8; has gained some new features, has been
+    cleaned up somewhat, and is now more cross-platform friendly.</para>
+
+    <para>&man.mergemaster.8; now sources an
+    <filename>/etc/mergemaster.rc</filename> file and also prompts the
+    user to run recommended commands (such as
+    <command>newaliases</command>) as needed. &merged;</para>
+
+    <para>&man.moused.8; now takes a <option>-a</option> option to control
+    mouse acceleration. &merged;</para>
+
+    <para>&man.mtree.8; now includes support for a file that lists
+    pathnames to be excluded when creating and verifying prototypes.
+    This makes it easier to use &man.mtree.8; as a part of an
+    intrusion-detection system. &merged;</para>
+
+    <para>The <quote>in use</quote> percentage metric displayed by
+    &man.netstat.1; now really reflects the percentage of network
+    mbufs used. &merged;</para>
+
+    <para>&man.netstat.1; now has a <option>-W</option> flag that
+    tells it not to truncate addresses, even if they're too long for
+    the column they're printed in. &merged;</para>
+
+    <para>&man.netstat.1; now keeps track of input and output packets
+    on a per-address basis for each interface. &merged;</para>
+
+    <para>&man.netstat.1; now has a <option>-z</option> flag to reset
+    statistics. &merged;</para>
+
+    <para>&man.netstat.1; now has a <option>-S</option> flag to print
+    address numerically but port names symbolically. &merged;</para>
+
+    <para>&man.newfs.8; now implements write combining, which can make
+    creation of new filesystems up to seven times
+    faster. &merged;</para>
+
+    <para>&man.newfs.8; now takes a <option>-U</option> option to
+    enable softupdates on a new filesystem. &merged;</para>
+
+    <para>The default number of cylinders per group in &man.newfs.8;
+    is now computed to be the maximum allowable given the current
+    filesystem parameters.  It can be overridden with the
+    <option>-c</option>.  Formerly, the default was fixed at 16.  This
+    change leads to better &man.fsck.8; performance and reduced
+    fragmentation. &merged;</para>
+
+    <para>NFS now works over IPv6.</para>
+
+    <para>&man.nl.1;, a line numbering filter program, has been
+    added. &merged;</para>
+
+    <para>nsswitch support has been merged from NetBSD.  By creating
+    an &man.nsswitch.conf.5; file, &os; can be configured so that
+    various databases such as &man.passwd.5; and &man.group.5; can be
+    looked up using flat files, NIS, or Hesiod.  The old
+    <filename>hosts.conf</filename> file is no longer used.</para>
+
+    <para><application>PAM</application> support has been added for
+    account management and sessions.</para>
+
+    <para>&man.passwd.1; and &man.pw.8; now select the password hash
+    algorithm at run time.  See the <literal>passwd_format</literal>
+    attribute in <filename>/etc/login.conf</filename>. &merged;</para>
+
+    <para>&man.pax.1; has received a number of enhancements, including
+    &man.cpio.1; functionality, &man.tar.1; compatibility
+    enhancements, <option>-z</option> and <option>-Z</option> flags
+    for &man.gzip.1; and &man.compress.1; functionality, and a number
+    of bug fixes.</para>
+
+    <para>The behavior of &man.periodic.8; is now controlled by
+    <filename>/etc/defaults/periodic.conf</filename> and
+    <filename>/etc/periodic.conf</filename>. &merged;</para>
+
+    <para>&man.ping.8; now supports a <option>-m</option> option to
+    set the TTL of outgoing packets. &merged;</para>
+
+    <para>&man.ping.8; now supports a <option>-A</option> option to
+    beep when packets are lost. &merged;</para>
+
+    <para>Userland &man.ppp.8; has received a number of updates and
+    bug fixes. &merged;</para>
 
     <para>&man.ppp.8; has gained the <literal>tcpmssfixup</literal>
     option, which adjusts outgoing and incoming TCP SYN packets so that the maximum
@@ -1551,51 +1737,118 @@
 
     <para>&man.ppp.8; now supports IPv6.</para>
 
-    <para><filename>libcrypt</filename> and
-    <filename>libdescrypt</filename> have been unified to provide a
-    configurable password authentication hash library.  Both the md5
-    and des hash methods are provided unless the des hash is
-    specifically compiled out. &merged;</para>
+    <para>&man.pppd.8; (the control program for kernel-level PPP) is
+    now installed mode <literal>4550</literal> and
+    <username>root</username><literal>:</literal><groupname>dialer</groupname>,
+    rather than mode <literal>4555</literal> (in other words, it is no
+    longer world-executable).  Users of &man.pppd.8; may need to
+    change their group settings. &merged;</para>
 
-    <para>&man.passwd.1; and &man.pw.8; now select the password hash
-    algorithm at run time.  See the <literal>passwd_format</literal>
-    attribute in <filename>/etc/login.conf</filename>. &merged;</para>
+    <para>&man.pwd.1; can now double as &man.realpath.1;, a program to
+    resolve pathnames to their underlying physical paths. &merged;</para>
+
+    <para>The pseudo-random number generator implemented by
+    &man.rand.3; has been improved to provide less biased results.</para>
+
+    <para>&man.rc.8; now has an framework for handling dependencies between
+    &man.rc.conf.5; variables. &merged;</para>
+
+    <para>&man.rc.8; now deletes all non-directory files in
+    <filename>/var/run</filename> and
+    <filename>/var/spool/lock</filename> at boot time. &merged;</para>
+
+    <para>&man.rdist.1; has been retired from the base system, but is still
+    available from &os; Ports Collection as 
+    <port>net/44bsd-rdist</port>.</para>
+
+    <para>The &man.resolver.3; in &os; now implements EDNS0 support,
+    which will be necessary when working with IPv6 transport-ready
+    resolvers/DNS servers. &merged;</para>
+
+    <para>The &man.rfork.thread.3; library call has been added as a
+    helper function to &man.rfork.2;.  Using this function should
+    avoid the need to implement complex stack swap
+    code. &merged;</para>
+
+    <para>The <option>-v</option> option to &man.rm.1; now displays
+    the entire pathname of a file being removed.</para>
+
+    <para>&man.route.8; is now more verbose when changing indirect
+    routes, in the case of a gateway route that is the same route as
+    the one being modified. &merged;</para>
+
+    <para>&man.route.8; now uses
+    <literal><replaceable>host</replaceable>/<replaceable>bits</replaceable></literal>
+    syntax instead of 
+    <literal><replaceable>net</replaceable>/<replaceable>bits</replaceable></literal>
+    syntax, for compatibility with &man.netstat.1;. &merged;</para>
+
+    <para>&man.route.8; can now create <quote>proxy only</quote>
+    published ARP entries. &merged;</para>
+
+    <para>&man.rpcbind.8; has replaced &man.portmap.8;.</para>
+
+    <para>&man.rpcgen.1; now uses <filename>/usr/bin/cpp</filename>
+    (as on NetBSD), not <filename>/usr/libexec/cpp</filename>.</para>
+
+    <para>&man.rpc.lockd.8; has been imported from NetBSD.  This
+    daemon enables locking on NFS filesystems.</para>
+
+    <para>The performance of the ELF dynamic linker &man.rtld.1; has
+    been improved. &merged;</para>
+
+    <para>RSA Security has waived all patent rights to the RSA
+    algorithm.  As a
+    result, the native <application>OpenSSL</application>
+    implementation of the RSA algorithm is now activated by default,
+    and the <port>security/rsaref</port> port and the
+    <filename>librsaUSA</filename> and <filename>librsaINTL</filename>
+    libraries are
+    no longer required for USA and non-USA residents respectively. &merged;</para>
+
+    <para>&man.savecore.8; now supports a <option>-k</option> option
+    to prevent clearing a crash dump after saving it.  It also
+    attempts to avoid writing large stretches of zeros to crash dump
+    files to save space and time. &merged;</para>
+
+    <para>&man.savecore.8; now works correctly on machines with 2 GB
+    or more of RAM. &merged;</para>
+
+    <para>&man.sed.1; now takes a <option>-E</option> option for
+    extended regular expression support. &merged;</para>
+
+    <para>The &man.setfacl.1; and &man.getfacl.1; commands have been
+    added to manage file system Access Control Lists.</para>
+
+    <para>&man.setproctitle.3; has been moved from
+    <filename>libutil</filename> to
+    <filename>libc</filename>. &merged;</para>
+
+    <para>&man.sockstat.1; now has <option>-c</option> and
+    <option>-l</option> flags for listing connected and listening
+    sockets, respectively. &merged;</para>
+
+    <para>&man.split.1; now has the ability to split a file longer
+    than 2GB. &merged;</para>
 
     <para>In preparation for meeting SUSv2/POSIX
     <filename>&lt;sys/select.h&gt;</filename> requirements,
     <literal>struct selinfo</literal> and related functions have been
     moved to <filename>&lt;sys/selinfo.h&gt;</filename>.</para>
 
-    <para>&man.syslogd.8; now supports a <literal>LOG_CONSOLE</literal>
-    facility (disabled by
-    default), which can be used to log <filename>/dev/console</filename> 
-    output. &merged;</para>
+    <para>&man.stty.1; now has support for an
+    <literal>erase2</literal> control character, so that, for example,
+    both the <keycap>Delete</keycap> and <keycap>Backspace</keycap>
+    keys can be used to erase characters. &merged;</para>
 
-    <para>&man.rpcgen.1; now uses <filename>/usr/bin/cpp</filename>
-    (as on NetBSD), not <filename>/usr/libexec/cpp</filename>.</para>
+    <para>&man.style.perl.7;, a style guide for Perl code in the &os;
+    base system, has been added.</para>
+
+    <para>&man.su.1; now uses <application>PAM</application> for
+    authentication.</para>
 
     <para>Boot-time &man.syscons.4; configuration was moved to a
     machine-independent <filename>/etc/rc.syscons</filename>. &merged;</para>
-
-    <para>&man.burncd.8; now supports a <option>-m</option> option for
-    multisession mode (the default behavior now is to close disks as
-    single-session).  A <option>-l</option> option to take a list of
-    image files from a filename was also added; <filename>-</filename>
-    can be used as a filename for <literal>stdin</literal>. &merged;</para>
-
-    <para>&man.burncd.8; now supports Disk At Once (DAO) mode,
-    selectable via the <option>-d</option> flag.</para>
-
-    <para>&man.dmesg.8; now has a <option>-a</option> option to show
-    the entire message buffer, including &man.syslogd.8; records and
-    <filename>/dev/console</filename> output. &merged;</para>
-
-    <para>&man.cdcontrol.1; now uses the <envar>CDROM</envar>
-    environment variable to pick a default device. &merged;</para>
-
-    <para>&man.cdcontrol.1; now supports <literal>next</literal> and
-    <literal>prev</literal> commands to skip forwards or backwards a
-    specified number of tracks while playing an audio CD. &merged;</para>
 
     <para>&man.sysctl.8; now supports a <option>-N</option> option to
     print out variable names only. &merged;</para>
@@ -1606,34 +1859,44 @@
     deprecated.  The <option>-w</option> option is deprecated as well; it is
     not needed to determine the user's intentions. &merged;</para>
 
+    <para>&man.sysinstall.8; now properly preserves
+    <filename>/etc/mail</filename> during a binary upgrade. &merged;</para>
+
+    <para>&man.sysinstall.8; now uses some more intuitive defaults
+    thanks to some new dialog support functions. &merged;</para>
+
+    <para>The default root partition in &man.sysinstall.8; is now
+    100MB on the i386 and 120MB on the Alpha.</para>
+
     <para>&man.sysinstall.8; now lives in <filename>/usr/sbin</filename>,
     which simplifies the installation process.  The &man.sysinstall.8;
     manpage is also installed in a more consistent fashion now.</para>
 
-    <para>&man.config.8; is now better about converting various 
-    warnings that should
-    have been errors into actual fatal errors with an exit code.  This
-    ensures that <literal>make buildkernel</literal> 
-    doesn't quietly ignore them and
-    build a bogus kernel without a human to read the errors. &merged;</para>
+    <para>&man.syslogd.8; can take a <option>-n</option> option to
+    disable DNS queries for every request. &merged;</para>
 
-    <para><filename>libc</filename> is now thread-safe by default;
-    <filename>libc_r</filename> contains only thread functions.</para>
+    <para>&man.syslogd.8; now supports a <literal>LOG_CONSOLE</literal>
+    facility (disabled by
+    default), which can be used to log <filename>/dev/console</filename> 
+    output. &merged;</para>
 
-    <para>&man.find.1; now takes the <option>-empty</option> flag,
-    which returns true if a file or directory is empty. &merged;</para>
+    <para>&man.syslogd.8; now has the ability to bind to a specific
+    address--as opposed to using every available one--via the
+    <option>-b</option> option.</para>
 
-    <para>&man.find.1; now takes the <option>-iname</option> and
-    <option>-ipath</option> primaries for case-insensitive matches,
-    and the <option>-regexp</option> and <option>-iregexp</option>
-    primaries for regular-expression matches.  The <option>-E</option>
-    flag now enables extended regular expressions. &merged;</para>
+    <para>&man.tail.1; now has the ability to work on files longer
+    than 2GB. &merged;</para>
 
-    <para>&man.find.1; now has the <option>-anewer</option>,
-    <option>-cnewer</option>, <option>-mnewer</option>,
-    <option>-okdir</option>, and <option>-newer[acm][acmt]</option>
-    primaries for comparisons of file timestamps.  The latter
-    primaries can be specified with various units of time. &merged;</para>
+    <para>&man.tar.1; now supports the <varname>TAR_RSH</varname>
+    variable, principally to enable the use of &man.ssh.1; as a
+    transport. &merged;</para>
+
+    <para>&man.telnet.1; now does autologin and encryption by default;
+    a new <option>-y</option> option turns off encryption.</para>
+
+    <para>&man.telnet.1; now supports a <option>-u</option> flag to
+    allow connections to UNIX-domain (<literal>AF_UNIX</literal>)
+    sockets. &merged;</para>
 
     <para>&man.tftpd.8; now takes the <option>-c</option> and
     <option>-C</option> options, which allow the server to
@@ -1647,18 +1910,80 @@
     servers) in order to boot an image using
     <application>TFTP</application>.</para>
 
+    <para>A version of Transport Independent RPC
+    (<application>TI-RPC</application>) has been imported.</para>
+
+    <para>&man.tmpnam.3; will now use the <envar>TMPDIR</envar>
+    environment variable, if set, to specify the location of temporary
+    files. &merged;</para>
+
+    <para>&man.top.1; will now use the full width of its tty.</para>
+
+    <para>&man.touch.1; now takes a <option>-h</option> option to
+    operate on a symbolic link, rather than what the link points
+    to.</para>
+
+    <para>The &man.truncate.1; utility, which truncates or extends the length
+    of files, has been added. &merged;</para>
+
+    <para>Ukrainian language support has been added to the &os;
+    console. &merged;</para>
+
+    <para><application>UUCP</application> has been removed from the
+    base system, with the exceptions of &man.cu.1; and &man.rmail.8;.
+    The remainder of <application>UUCP</application> can be found in
+    the Ports Collection, in <port>net/freebsd-uucp</port>.</para>
+
+    <para>&man.units.1; has received some updates and bugfixes. &merged;</para>
+
     <para>&man.vidcontrol.1; now accepts a <option>-g</option>
     parameter to select custom text geometry in the
     <literal>VESA_800x600</literal> raster text mode. &merged;</para>
 
-    <para>&man.ldconfig.8; now checks directory ownerships and
-    permissions for greater security; these checks can be disabled
-    with the <option>-i</option> flag. &merged;</para>
+    <para>&man.vidcontrol.1; now allows the user to omit the font size
+    specification when loading a font, and has some better
+    error-handling. &merged;</para>
 
-    <para>The &man.rfork.thread.3; library call has been added as a
-    helper function to &man.rfork.2;.  Using this function should
-    avoid the need to implement complex stack swap
-    code. &merged;</para>
+    <para>&man.vidcontrol.1; now supports a <option>-p</option> option to
+    take a snapshot of a &man.syscons.4; video buffer.  These
+    snapshots can be manipulated by the
+    <port>graphics/scr2png</port> utility in the Ports
+    Collection. &merged;</para>
+
+    <para>&man.vidcontrol.1; now supports a <option>-C</option> option
+    to clear the history buffer for a given tty, as well as a
+    <option>-h</option> option to set the size of the history buffer. &merged;</para>
+
+    <para>The default stripe size in &man.vinum.8; has been changed
+    from 256KB to 279KB, to spread out superblocks more evenly between
+    stripes.</para>
+
+    <para>&man.wall.1; now supports a <option>-g</option> flag to
+    write a message to all users of a given group. &merged;</para>
+
+    <para>&man.which.1; is now a C program, rather than a Perl
+    script.</para>
+
+    <para>&man.whois.1; now directs queries for IP addresses to
+    ARIN.  If a query to ARIN references APNIC or RIPE, the
+    appropriate server will also be queried, provided that the
+    <option>-Q</option> option is not specified. &merged;</para>
+
+    <para>&man.xargs.1; now supports a <option>-J</option>
+    <replaceable>replstr</replaceable> option that allows the user to
+    tell &man.xargs.1; to insert the data read from standard input at
+    a specific point in the command line arguments rather than at the
+    end. &merged;</para>
+
+    <para>The compiler chain now uses the FSF-supplied C/C++ runtime
+    initialization code.  This change brings about better
+    compatibility with code generated from the various egcs and gcc
+    ports, as well as the stock public FSF source. &merged;</para>
+
+    <para>The threads library has gained some signal handling changes,
+    bug fixes, and performance enhancements (including zero system
+    call thread switching).  &man.gdb.1; thread support has been
+    updated to match these changes. &merged;</para>
 
     <para>Significant additions have been made to internationalization
     support; &os; now has complete locale support for the
@@ -1675,337 +2000,12 @@
     <filename>/etc/locale.alias</filename> provide backward
     compatibility.</para>
 
-    <para>A <filename>compat4x</filename> distribution has been added
-    for compatibility with &os; 4-STABLE.</para>
-
-    <para>The
-    <filename>compat3x</filename> distribution has been updated to
-    include libraries present in &os; 3.5.1-RELEASE. &merged;</para>
-
-    <para>&man.savecore.8; now supports a <option>-k</option> option
-    to prevent clearing a crash dump after saving it.  It also
-    attempts to avoid writing large stretches of zeros to crash dump
-    files to save space and time. &merged;</para>
-
-    <para>&man.savecore.8; now works correctly on machines with 2 GB
-    or more of RAM. &merged;</para>
-
-    <para>&man.tar.1; now supports the <varname>TAR_RSH</varname>
-    variable, principally to enable the use of &man.ssh.1; as a
-    transport. &merged;</para>
-
-    <para>&man.disklabel.8; now supports partition sizes expressed in
-    kilobytes, megabytes, or gigabytes, in addition to sectors. &merged;</para>
-
-    <para>The pseudo-random number generator implemented by
-    &man.rand.3; has been improved to provide less biased results.</para>
-
-    <para>&man.login.1; now exports environment variables set by
-    <application>PAM</application> modules. &merged;</para>
-
-    <para><application>PAM</application> support has been added for
-    account management and sessions.</para>
-
-    <para>&man.su.1; now uses <application>PAM</application> for
-    authentication.</para>
-
-    <para>&man.wall.1; now supports a <option>-g</option> flag to
-    write a message to all users of a given group. &merged;</para>
-
-    <para>The new <varname>CPUTYPE</varname>
-    <filename>make.conf</filename> variable controls the compilation
-    of processor-specific optimizations in various pieces of code such
-    as <application>OpenSSL</application>. &merged;</para>
-
-    <para>&man.ipfstat.8; now supports the <option>-t</option> option
-    to turn on a &man.top.1;-like display. &merged;</para>
-
     <para><filename>/usr/src/share/examples/BSD_daemon/</filename> now
     contains a scalable Beastie graphic. &merged;</para>
-
-    <para>&man.dump.8; now supports inheritance of the
-    <literal>nodump</literal> flag down a hierarchy. &merged;</para>
-
-    <para>The <option>-T</option> option to &man.dump.8; no longer swallows
-    an extra argument. &merged;</para>
-
-    <para>&man.dump.8; has a new <option>-D</option> option, allowing
-    the path to the <filename>/etc/dumpdates</filename> file to be
-    changed. &merged;</para>
-
-    <para>&man.split.1; now has the ability to split a file longer
-    than 2GB. &merged;</para>
-
-    <para>&man.tail.1; now has the ability to work on files longer
-    than 2GB. &merged;</para>
-
-    <para>&man.units.1; has received some updates and bugfixes. &merged;</para>
 
     <para>As part of an ongoing process, many manual pages were
     improved, both in terms of their formatting markup and in their
     content. &merged;</para>
-
-    <para><command>lprm -</command> now works for remote printer
-    queues. &merged;</para>
-
-    <para>&man.ftpd.8; now supports a <option>-r</option> flag for
-    read-only mode and a <option>-E</option> flag to disable
-    <literal>EPSV</literal>.  It also has some fixes to reduce
-    information leakage and the ability to specify compile-time port
-    ranges. &merged;</para>
-
-    <para>&man.ping.8; now supports a <option>-m</option> option to
-    set the TTL of outgoing packets. &merged;</para>
-
-    <para>&man.ping.8; now supports a <option>-A</option> option to
-    beep when packets are lost. &merged;</para>
-
-    <para>A version of Transport Independent RPC
-    (<application>TI-RPC</application>) has been imported.</para>
-
-    <para>&man.rpcbind.8; has replaced &man.portmap.8;.</para>
-
-    <para>NFS now works over IPv6.</para>
-
-    <para>&man.rpc.lockd.8; has been imported from NetBSD.  This
-    daemon enables locking on NFS filesystems.</para>
-
-    <para>&man.rc.8; now has an framework for handling dependencies between
-    &man.rc.conf.5; variables. &merged;</para>
-
-    <para>&man.rc.8; now deletes all non-directory files in
-    <filename>/var/run</filename> and
-    <filename>/var/spool/lock</filename> at boot time. &merged;</para>
-
-    <para>The &man.setfacl.1; and &man.getfacl.1; commands have been
-    added to manage file system Access Control Lists.</para>
-
-    <para>The default TCP port range used by
-    <filename>libfetch</filename> for passive FTP retrievals has
-    changed; this affects the behavior of &man.fetch.1;, which has
-    gained the <option>-U</option> option to restore the old
-    behavior. &merged;</para>
-
-    <para><filename>libfetch</filename> now has support for an
-    authentication callback.</para>
-
-    <para><filename>libfetch</filename> now has support for a
-    <envar>HTTP_USER_AGENT</envar> environment variable. &merged;</para>
-
-    <para>&man.atacontrol.8; has been added to control various aspects
-    of the &man.ata.4; driver.</para>
-
-    <para><filename>libcrypt</filename> now has support for Blowfish
-    password hashing. &merged;</para>
-
-    <para>The functions from <filename>libposix1e</filename> have been 
-    integrated into <filename>libc</filename>.</para>
-
-    <para>&man.vidcontrol.1; now allows the user to omit the font size
-    specification when loading a font, and has some better
-    error-handling. &merged;</para>
-
-    <para>&man.vidcontrol.1; now supports a <option>-p</option> option to
-    take a snapshot of a &man.syscons.4; video buffer.  These
-    snapshots can be manipulated by the
-    <port>graphics/scr2png</port> utility in the Ports
-    Collection. &merged;</para>
-
-    <para>&man.vidcontrol.1; now supports a <option>-C</option> option
-    to clear the history buffer for a given tty, as well as a
-    <option>-h</option> option to set the size of the history buffer. &merged;</para>
-
-    <para>devinfo, a simple tool to print the device tree and resource usage by
-    devices, has been added.</para>
-
-    <para>&man.fmtcheck.3;, a function for checking consistency of
-    format string arguments, has been added. &merged;</para>
-
-    <para>&man.nl.1;, a line numbering filter program, has been
-    added. &merged;</para>
-
-    <para>&man.c89.1; has been converted from a shell script to a
-    binary executable, fixing some minor bugs. &merged;</para>
-
-    <para>&man.pax.1; has received a number of enhancements, including
-    &man.cpio.1; functionality, &man.tar.1; compatibility
-    enhancements, <option>-z</option> and <option>-Z</option> flags
-    for &man.gzip.1; and &man.compress.1; functionality, and a number
-    of bug fixes.</para>
-
-    <para>Ukrainian language support has been added to the &os;
-    console. &merged;</para>
-
-    <para>The performance of the ELF dynamic linker &man.rtld.1; has
-    been improved. &merged;</para>
-
-    <para>&man.fdread.1;, a program to read data from floppy disks,
-    has been added.  It is a counterpart to &man.fdwrite.1; and is
-    designed to provide a means of recovering at least some data from
-    bad media, and to obviate for a complex invocation of
-    &man.dd.1;.</para>
-
-    <para>&man.xargs.1; now supports a <option>-J</option>
-    <replaceable>replstr</replaceable> option that allows the user to
-    tell &man.xargs.1; to insert the data read from standard input at
-    a specific point in the command line arguments rather than at the
-    end. &merged;</para>
-
-    <para>&man.apmd.8; now has the ability to monitor battery levels and
-    execute commands based on percentage or minutes of battery life
-    remaining via the <literal>apm_battery</literal> configuration
-    directive.  See the commented-out examples in
-    <filename>/etc/apmd.conf</filename> for the syntax. &merged;</para>
-
-    <para>&man.telnet.1; now does autologin and encryption by default;
-    a new <option>-y</option> option turns off encryption.</para>
-
-    <para>&man.telnet.1; now supports a <option>-u</option> flag to
-    allow connections to UNIX-domain (<literal>AF_UNIX</literal>)
-    sockets. &merged;</para>
-
-    <para>The default stripe size in &man.vinum.8; has been changed
-    from 256KB to 279KB, to spread out superblocks more evenly between
-    stripes.</para>
-
-    <para>&man.chown.8; now correctly follows symbolic links named as
-    command line arguments if run without <option>-R</option>.</para>
-
-    <para>&man.chown.8; no longer takes <literal>.</literal> as a
-    user/group delimeter.  This change was made to support usernames
-    containing a <literal>.</literal>.</para>
-
-    <para>&man.chmod.1; now supports a <option>-h</option> for
-    changing the mode of a symbolic link.</para>
-
-    <para>&man.install.1; has a number of new features, including the
-    <option>-b</option> and <option>-B</option> options for backing up
-    existing target files and the <option>-S</option> option for
-    <quote>safe</quote> (atomic copy) operation.  The
-    <option>-c</option> (copy) flag is now the default, and the
-    <option>-D</option> (debugging) flag has been withdrawn.
-    &man.install.1; now issues a warning if <option>-d</option>
-    (create directories) and <option>-C</option> (copy changed files
-    only) are used together. &merged;</para>
-
-    <para>&man.whois.1; now directs queries for IP addresses to
-    ARIN.  If a query to ARIN references APNIC or RIPE, the
-    appropriate server will also be queried, provided that the
-    <option>-Q</option> option is not specified. &merged;</para>
-
-    <para>&man.fmt.1; has been rewritten; the rewrite fixes a number
-    of bugs compared to its prior behavior. &merged;</para>
-
-    <para>&man.df.1; now takes a <option>-l</option> option to only
-    display information about locally-mounted filesystems. &merged;</para>
-
-    <para>The syntax of &man.inetd.8;'s support for &man.faithd.8; is
-    now compatible with that of other BSDs. &merged;</para>
-
-    <para>The <literal>ident</literal> protocol support in &man.inetd.8; has
-    been cleaned up and updated. &merged;</para>
-
-    <para>&man.inetd.8; now has the ability to manage UNIX-domain
-    sockets. &merged;</para>
-
-    <para>&man.du.1; now takes a <option>-I</option> command-line flag
-    to ignore/skip files and subdirectories matching a specified
-    shell-glob mask. &merged;</para>
-
-    <para>The &man.resolver.3; in &os; now implements EDNS0 support,
-    which will be necessary when working with IPv6 transport-ready
-    resolvers/DNS servers. &merged;</para>
-
-    <para>&man.col.1; now takes a <option>-p</option> flag to force unknown
-    control sequences to be passed through unchanged. &merged;</para>
-
-    <para>The &man.mdmfs.8; command has been added; it is a wrapper
-    around &man.mdconfig.8;, &man.disklabel.8;, &man.newfs.8;, and
-    &man.mount.8; that mimics the command line option set of the
-    deprecated &man.mount.mfs.8;.</para>
-
-    <para>The &man.getprogname.3; and &man.setprogname.3; library
-    functions have been added to manipulate the name of the current
-    program.  They are used by error-reporting routines to produce
-    consistent output. &merged;</para>
-
-    <para>The &man.kldconfig.8; utility has been added to make it easier to
-    manipulate the kernel module search path. &merged;</para>
-
-    <para>&man.moused.8; now takes a <option>-a</option> option to control
-    mouse acceleration. &merged;</para>
-
-    <para arch="i386">&man.fdisk.8; no longer attempts to search for
-    a device if none has been specified on the command line, but
-    instead tries to figure out the default device name from the
-    root device.</para>
-
-    <para>&man.mail.1; now takes a <option>-E</option> flag to avoid
-    sending messages with empty bodies. &merged;</para>
-
-    <para>&man.route.8; is now more verbose when changing indirect
-    routes, in the case of a gateway route that is the same route as
-    the one being modified. &merged;</para>
-
-    <para>&man.route.8; now uses
-    <literal><replaceable>host</replaceable>/<replaceable>bits</replaceable></literal>
-    syntax instead of 
-    <literal><replaceable>net</replaceable>/<replaceable>bits</replaceable></literal>
-    syntax, for compatibility with &man.netstat.1;. &merged;</para>
-
-    <para>&man.route.8; can now create <quote>proxy only</quote>
-    published ARP entries. &merged;</para>
-
-    <para>&man.tmpnam.3; will now use the <envar>TMPDIR</envar>
-    environment variable, if set, to specify the location of temporary
-    files. &merged;</para>
-
-    <para>&man.pppd.8; (the control program for kernel-level PPP) is
-    now installed mode <literal>4550</literal> and
-    <username>root</username><literal>:</literal><groupname>dialer</groupname>,
-    rather than mode <literal>4555</literal> (in other words, it is no
-    longer world-executable).  Users of &man.pppd.8; may need to
-    change their group settings. &merged;</para>
-
-    <para>&man.ftpd.8; now supports <option>-o</option> and
-    <option>-O</option> options to disable the <literal>RETR</literal>
-    command; the former for everybody, and the latter only for guest users.
-    Coupled with <option>-A</option> and appropriate file permissions,
-    these can be used to create a relatively safe anonymous FTP drop box
-    for others to upload to.</para>
-
-    <para>The &man.daemon.8; program, a command-line interface to
-    &man.daemon.3;, has been added.  It detaches itself from its
-    controlling terminal and executes a program specified on the command
-    line.  This allows the user to run an arbitrary program as if it were
-    written to be a daemon.</para>
-
-    <para>&man.syslogd.8; now has the ability to bind to a specific
-    address--as opposed to using every available one--via the
-    <option>-b</option> option.</para>
-
-    <para>&man.cat.1; now has the ability to read from UNIX-domain
-    sockets. &merged;</para>
-
-    <para>The &man.groups.1; and &man.whoami.1; shell scripts are now
-    unnecessary; their functionality has been completely folded into
-    &man.id.1;.</para>
-
-    <para>&man.touch.1; now takes a <option>-h</option> option to
-    operate on a symbolic link, rather than what the link points
-    to.</para>
-
-    <para>&man.edquota.8; now takes a <option>-f</option> option to
-    allow limiting the prototype quota distribution (specified with
-    <option>-p</option>) to a single filesystem.</para>
-
-    <para><filename>libgmp</filename> has been superceded by
-    <filename>libmp</filename>.
-
-    <para><application>UUCP</application> has been removed from the
-    base system, with the exceptions of &man.cu.1; and &man.rmail.8;.
-    The remainder of <application>UUCP</application> can be found in
-    the Ports Collection, in <port>net/freebsd-uucp</port>.</para>
 
     <sect3>
       <title>Contributed Software</title>
