@@ -470,6 +470,9 @@ Disk_Names()
 		return NULL;
 	}
 
+	if (listsize == 0)
+		return (NULL);
+
 	disks = malloc(sizeof *disks * (1 + MAX_NO_DISKS));
 	if (disks == NULL)
 		return NULL;
@@ -481,7 +484,7 @@ Disk_Names()
 	memset(disks,0,sizeof *disks * (1 + MAX_NO_DISKS));
 	memset(disklist, 0, listsize + 1);
 	error = sysctlbyname("kern.disks", disklist, &listsize, NULL, 0);
-	if (error) {
+	if (error || disklist[0] == 0) {
 		free(disklist);
 		free(disks);
 		return NULL;
