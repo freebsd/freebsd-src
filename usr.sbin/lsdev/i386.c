@@ -158,15 +158,26 @@ print_isa(struct devconf *dc)
 }
 
 static void
+print_eisa_resvaddrs(struct resvlist *list)
+{
+	resvaddr_t *rp;
+
+	for (rp = list->lh_first; rp; rp = rp->links.le_next)
+		printf(" %#lx-%#lx%s", rp->addr, rp->addr + rp->size - 1,
+			rp->links.le_next ? "," : "");
+}
+
+static void
 print_eisa(struct devconf *dc)
 {
 	struct eisa_device *e_dev = (struct eisa_device *)dc->dc_data;
-        printf("%s%d\tat eisa0 slot %d # %#lx-%#lx",
-		dc->dc_name,              
-		dc->dc_unit,              
-		e_dev->ioconf.slot,
-		e_dev->ioconf.iobase,
-		e_dev->ioconf.iobase + e_dev->ioconf.iosize - 1);
+
+	printf("%s%d\tat eisa0 slot %d #",
+		dc->dc_name,
+		dc->dc_unit,
+		e_dev->ioconf.slot);
+	print_eisa_resvaddrs(&e_dev->ioconf.ioaddrs);
+	print_eisa_resvaddrs(&e_dev->ioconf.maddrs);
 	if(e_dev->ioconf.irq)
 		printf(" irq %d", ffs(e_dev->ioconf.irq) - 1);
 }
