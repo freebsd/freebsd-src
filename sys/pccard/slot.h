@@ -31,6 +31,8 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #ifndef _PCCARD_SLOT_H
@@ -72,7 +74,6 @@ struct slot_ctrl {
 	int	maxio;		/* Number of allowed I/O windows */
 	int	irqs;		/* IRQ's that are allowed */
 	u_int	*imask;		/* IRQ mask for the PCIC controller */
-	char	*name;		/* controller name */
 
 	/*
 	 *	The rest is maintained by the mainline PC-CARD code.
