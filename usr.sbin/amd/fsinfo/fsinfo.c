@@ -34,17 +34,20 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	@(#)fsinfo.c	8.1 (Berkeley) 6/6/93
- *
- * $Id: fsinfo.c,v 1.3 1997/02/22 16:03:20 peter Exp $
- *
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1989, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
+#endif /* not lint */
+
+#ifndef lint
+#if 0
+static char sccsid[] = "@(#)fsinfo.c    8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 /*
@@ -53,7 +56,9 @@ static char copyright[] =
 
 #include "../fsinfo/fsinfo.h"
 #include "fsi_gram.h"
+#include <err.h>
 #include <pwd.h>
+#include <unistd.h>
 
 qelem *list_of_hosts;
 qelem *list_of_automounts;
@@ -69,7 +74,8 @@ int verbose;
 char idvbuf[1024];
 
 char **g_argv;
-char *progname;
+
+static void usage __P((void));
 
 /*
  * Output file prefixes
@@ -87,24 +93,9 @@ static void get_args(c, v)
 int c;
 char *v[];
 {
-	extern char *optarg;
-	extern int optind;
 	int ch;
-	int usage = 0;
+	int usageflg = 0;
 	char *iptr = idvbuf;
-
-	/*
-	 * Determine program name
-	 */
-	if (v[0]) {
-		progname = strrchr(v[0], '/');
-		if (progname && progname[1])
-			progname++;
-		else
-			progname = v[0];
-	}
-	if (!progname)
-		progname = "fsinfo";
 
 	while ((ch = getopt(c, v, "a:b:d:e:f:h:m:D:U:I:qv")) != -1)
 	switch (ch) {
@@ -150,7 +141,7 @@ char *v[];
 		iptr += strlen(iptr);
 		break;
 	default:
-		usage++;
+		usageflg++;
 		break;
 	}
 
@@ -159,23 +150,26 @@ char *v[];
 		if (yywrap())
 			fatal("Cannot read any input files");
 	} else {
-		usage++;
+		usageflg++;
 	}
 
-	if (usage) {
-		fprintf(stderr,
-"\
-Usage: %s [-v] [-a autodir] [-h hostname] [-b bootparams] [-d dumpsets]\n\
-\t[-e exports] [-f fstabs] [-m automounts]\n\
-\t[-I dir] [-D|-U string[=string]] config ...\n", progname);
-		exit(1);
-	}
-
+	if (usageflg)
+		usage();
 
 	if (g_argv[0])
 		log("g_argv[0] = %s", g_argv[0]);
 	else
 		log("g_argv[0] = (nil)");
+}
+
+static void
+usage()
+{
+	fprintf(stderr, "%s\n%s\n%s\n",
+"usage: fsinfo [-v] [-a autodir] [-h hostname] [-b bootparams] [-d dumpsets]",
+"              [-e exports] [-f fstabs] [-m automounts]",
+"              [-I dir] [-D|-U string[=string]] config ...");
+		exit(1);
 }
 
 /*
@@ -216,10 +210,8 @@ char *argv[];
 	/*
 	 * If no hostname given then use the local name
 	 */
-	if (!*hostname && gethostname(hostname, sizeof(hostname)) < 0) {
-		perror("gethostname");
-		exit(1);
-	}
+	if (!*hostname && gethostname(hostname, sizeof(hostname)) < 0)
+		err(1, "gethostname");
 
 	/*
 	 * Get the username
