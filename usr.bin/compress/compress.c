@@ -375,10 +375,10 @@ setfile(name, fs)
 			cwarn("chown: %s", name);
 		fs->st_mode &= ~(S_ISUID|S_ISGID);
 	}
-	if (chmod(name, fs->st_mode))
+	if (chmod(name, fs->st_mode) && errno != EOPNOTSUPP)
 		cwarn("chmod: %s", name);
 
-	if (chflags(name, fs->st_flags))
+	if (chflags(name, fs->st_flags) && errno != EOPNOTSUPP)
 		cwarn("chflags: %s", name);
 }
 
