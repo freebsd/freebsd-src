@@ -1083,7 +1083,7 @@ lnc_attach(struct isa_device * isa_dev)
 	sc->arpcom.ac_if.if_name = lncdriver.name;
 	sc->arpcom.ac_if.if_unit = isa_dev->id_unit;
 	sc->arpcom.ac_if.if_mtu = ETHERMTU;
-	sc->arpcom.ac_if.if_flags = IFF_BROADCAST | IFF_NOTRAILERS | IFF_SIMPLEX;
+	sc->arpcom.ac_if.if_flags = IFF_BROADCAST | IFF_SIMPLEX;
 	sc->arpcom.ac_if.if_timer = 0;
 	sc->arpcom.ac_if.if_init = lnc_init;
 	sc->arpcom.ac_if.if_output = ether_output;
@@ -1131,7 +1131,7 @@ lnc_init(int unit)
 
 	s = splimp();
 	lnc_stop(unit);
-	sc->arpcom.ac_if.if_flags |= IFF_BROADCAST | IFF_NOTRAILERS | IFF_SIMPLEX;
+	sc->arpcom.ac_if.if_flags |= IFF_BROADCAST | IFF_SIMPLEX; /* XXX??? */
 
 	/*
 	 * This sets up the memory area for the controller. Memory is set up for

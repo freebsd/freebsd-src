@@ -47,7 +47,7 @@
  */
 
 /*
- * $Id: if_ze.c,v 1.19 1995/08/16 16:12:35 bde Exp $
+ * $Id: if_ze.c,v 1.20 1995/09/26 08:57:47 phk Exp $
  */
 
 #include "ze.h"
@@ -612,7 +612,7 @@ ze_attach(isa_dev)
 	ifp->if_reset = ze_reset;
 	ifp->if_watchdog = ze_watchdog;
 
-	ifp->if_flags = (IFF_BROADCAST | IFF_SIMPLEX | IFF_NOTRAILERS);
+	ifp->if_flags = (IFF_BROADCAST | IFF_SIMPLEX);
 
 	/*
 	 * Attach the interface

@@ -1070,7 +1070,7 @@ fe_attach ( struct isa_device *isa_dev )
 	/*
 	 * Set default interface flags.
 	 */
-	sc->sc_if.if_flags = IFF_BROADCAST | IFF_NOTRAILERS | IFF_MULTICAST;
+	sc->sc_if.if_flags = IFF_BROADCAST | IFF_MULTICAST;
 
 	/*
 	 * Set maximum size of output queue, if it has not been set.

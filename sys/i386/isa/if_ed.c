@@ -13,7 +13,7 @@
  *   the SMC Elite Ultra (8216), the 3Com 3c503, the NE1000 and NE2000,
  *   and a variety of similar clones.
  *
- * $Id: if_ed.c,v 1.76 1995/08/25 19:50:15 bde Exp $
+ * $Id: if_ed.c,v 1.77 1995/10/10 09:52:30 phk Exp $
  */
 
 #include "ed.h"
@@ -1412,10 +1412,10 @@ ed_attach(isa_dev)
 		 */
 		if (isa_dev->id_flags & ED_FLAGS_DISABLE_TRANCEIVER)
 			ifp->if_flags = (IFF_BROADCAST | IFF_SIMPLEX | 
-			    IFF_NOTRAILERS | IFF_MULTICAST | IFF_ALTPHYS);
+			    IFF_MULTICAST | IFF_ALTPHYS);
 		else
 			ifp->if_flags = (IFF_BROADCAST | IFF_SIMPLEX |
-			    IFF_NOTRAILERS | IFF_MULTICAST);
+			    IFF_MULTICAST);
 
 		/*
 		 * Attach the interface

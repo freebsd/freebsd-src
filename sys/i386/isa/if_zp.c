@@ -34,7 +34,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *	From: if_ep.c,v 1.9 1994/01/25 10:46:29 deraadt Exp $
- *	$Id: if_zp.c,v 1.7 1995/07/25 22:18:56 bde Exp $
+ *	$Id: if_zp.c,v 1.8 1995/08/16 23:34:28 nate Exp $
  */
 /*-
  * TODO:
@@ -912,7 +912,7 @@ zpattach(isa_dev)
     sc->attached = 1;
 
 #else	/* MACH_KERNEL */
-    ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_NOTRAILERS;
+    ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX;
     ifp->if_unit = isa_dev->id_unit;
     ifp->if_name = "zp";
     ifp->if_init = zpinit;
