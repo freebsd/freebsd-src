@@ -146,7 +146,7 @@ char	**av;
 	register STR		*fp;
 	static char		string[257];
 
-	(void) setlocale(LC_CTYPE, "");
+	(void) setlocale(LC_ALL, "");
 
 	getargs(ac, av);		/* evalute arguments */
 	dc = Delimch;
