@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: index.c,v 1.30 1996/05/23 16:34:27 jkh Exp $
+ * $Id: index.c,v 1.31 1996/06/08 07:02:19 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -384,15 +384,8 @@ pkg_checked(dialogMenuItem *self)
 {
     PkgNodePtr kp = self->data, plist = (PkgNodePtr)self->aux;
 
-    if (kp->type == PACKAGE && kp->name && plist) {
-	int i;
-
-	i = index_search(plist, kp->name, NULL) ? TRUE : FALSE;
-	if (!RunningAsInit)
-	    return i || package_exists(kp->name);
-	else
-	    return i;
-    }
+    if (kp->type == PACKAGE && plist)
+	return index_search(plist, kp->name, NULL) ? TRUE : FALSE;
     else
 	return FALSE;
 }
@@ -409,16 +402,14 @@ pkg_fire(dialogMenuItem *self)
 	sp = index_search(plist, kp->name, NULL);
 	/* Not already selected? */
 	if (!sp) {
-	    if (RunningAsInit || !package_exists(kp->name)) {
-		PkgNodePtr np = (PkgNodePtr)safe_malloc(sizeof(PkgNode));
+	    PkgNodePtr np = (PkgNodePtr)safe_malloc(sizeof(PkgNode));
 
-		*np = *kp;
-		np->next = plist->kids;
-		plist->kids = np;
-		msgInfo("Added %s to selection list", kp->name);
-	    }
+	    *np = *kp;
+	    np->next = plist->kids;
+	    plist->kids = np;
+	    msgInfo("Added %s to selection list", kp->name);
 	}
-	else {
+	else if (sp) {
 	    msgInfo("Removed %s from selection list", kp->name);
 	    index_delete(sp);
 	}
