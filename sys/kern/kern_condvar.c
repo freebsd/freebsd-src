@@ -140,8 +140,10 @@ cv_switch_catch(struct proc *p)
 	 */
 	p->p_sflag |= PS_SINTR;
 	mtx_unlock_spin(&sched_lock);
+	PROC_LOCK(p);
 	sig = CURSIG(p);
 	mtx_lock_spin(&sched_lock);
+	PROC_UNLOCK_NOSWITCH(p);
 	if (sig != 0) {
 		if (p->p_wchan != NULL)
 			cv_waitq_remove(p);
@@ -275,20 +277,22 @@ cv_wait_sig(struct cv *cvp, struct mtx *mp)
 	mtx_unlock_spin(&sched_lock);
 	PICKUP_GIANT();
 
+	PROC_LOCK(p);
 	if (sig == 0)
 		sig = CURSIG(p);
 	if (sig != 0) {
-		PROC_LOCK(p);
 		if (SIGISMEMBER(p->p_sigacts->ps_sigintr, sig))
 			rval = EINTR;
 		else
 			rval = ERESTART;
-		PROC_UNLOCK(p);
 	}
+	PROC_UNLOCK(p);
 
 #ifdef KTRACE
+	mtx_lock(&Giant);
 	if (KTRPOINT(p, KTR_CSW))
 		ktrcsw(p->p_tracep, 0, 0);
+	mtx_unlock(&Giant);
 #endif
 	mtx_lock(mp);
 	WITNESS_RESTORE(&mp->mtx_object, mp);
@@ -409,20 +413,22 @@ cv_timedwait_sig(struct cv *cvp, struct mtx *mp, int timo)
 	mtx_unlock_spin(&sched_lock);
 	PICKUP_GIANT();
 
+	PROC_LOCK(p);
 	if (sig == 0)
 		sig = CURSIG(p);
 	if (sig != 0) {
-		PROC_LOCK(p);
 		if (SIGISMEMBER(p->p_sigacts->ps_sigintr, sig))
 			rval = EINTR;
 		else
 			rval = ERESTART;
-		PROC_UNLOCK(p);
 	}
+	PROC_UNLOCK(p);
 
 #ifdef KTRACE
+	mtx_lock(&Giant);
 	if (KTRPOINT(p, KTR_CSW))
 		ktrcsw(p->p_tracep, 0, 0);
+	mtx_unlock(&Giant);
 #endif
 	mtx_lock(mp);
 	WITNESS_RESTORE(&mp->mtx_object, mp);
