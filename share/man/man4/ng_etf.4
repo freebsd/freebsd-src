@@ -57,8 +57,8 @@ Packets travelling in the other direction  (towards the
 hook) are also examined and filtered.
 If a packet has an ethertype that matches one of he values configured
 into the node, it must have arrived in on the hook for which that value
-was configured. Ethertypes of values other than those configured
-by the conreol messages mus have arrived via the 
+was configured otherwise it wil be discarded. Ethertypes of values other
+than those configured by the control messages must have arrived via the 
 .Em nomatch
 hook.
 .Sh HOOKS
