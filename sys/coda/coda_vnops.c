@@ -1985,7 +1985,7 @@ coda_pathconf(v)
 {
 	struct vop_pathconf_args *ap;
 	int error;
-	int *retval;
+	register_t *retval;
 
 	ap = v;
 	retval = ap->a_retval;
