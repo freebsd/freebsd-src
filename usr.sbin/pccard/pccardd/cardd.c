@@ -37,6 +37,7 @@ static const char rcsid[] =
 #include <fcntl.h>
 #include <ctype.h>
 #include <regex.h>
+#include <machine/resource.h>
 #include <sys/ioctl.h>
 #include "cardd.h"
 
@@ -191,6 +192,7 @@ void
 card_removed(struct slot *sp)
 {
 	struct card *cp;
+	struct allocblk *sio;
 	int in_use = 0;
 
 	if (sp->config && sp->config->driver && sp->card)
@@ -209,10 +211,14 @@ card_removed(struct slot *sp)
 	sp->cis = 0;
 	sp->config = 0;
 	/* release io */
-	bit_nset(io_avail, sp->io.addr, sp->io.addr + sp->io.size - 1);
+	if (sp->flags & IO_ASSIGNED) 
+            for (sio = &sp->io; sio; sio = sio->next)
+                if (sio->addr && sio->size)
+			bit_nset(io_avail, sio->addr, sio->addr + sio->size - 1);
 	/* release irq */
-	if (sp->irq)
-		pool_irq[sp->irq] = 1;
+	if (sp->flags & IRQ_ASSIGNED)
+		if (sp->irq >= 1 && sp->irq <= 15)
+			pool_irq[sp->irq] = 1;
 }
 
 /* CIS string comparison */
@@ -273,6 +279,7 @@ void
 card_inserted(struct slot *sp)
 {
 	struct card *cp;
+	int err;
 
 	usleep(pccard_init_sleep);
 	sp->cis = readcis(sp->fd);
@@ -355,8 +362,27 @@ escape:
 	}
 	if ((sp->config = assign_driver(cp)) == NULL) 
 		return;
-	if (assign_io(sp)) {
-		logmsg("Resource allocation failure for %s", sp->cis->manuf);
+	if (err = assign_io(sp)) {
+		char *reason;
+
+		switch (err) {
+		case -1:
+			reason = "specified CIS was not found";
+			break;
+		case -2:
+			reason = "memory block allocation failed";
+			break;
+		case -3:
+			reason = "I/O block allocation failed";
+			break;
+		default:
+			reason = "Unknown";
+			break;
+		}
+                logmsg("Resource allocation failure for \"%s\"(\"%s\") "
+                       "[%s] [%s]; Reason %s\n",
+                    sp->cis->manuf, sp->cis->vers,
+                    sp->cis->add_info1, sp->cis->add_info2, reason);
 		return;
 	}
 
@@ -486,13 +512,29 @@ assign_driver(struct card *cp)
 	}
 	/* Allocate a free IRQ if none has been specified */
 	if (conf->irq == 0) {
-		int     i;
-		for (i = 1; i < 16; i++)
-			if (pool_irq[i]) {
+		struct pccard_resource res;
+		char name[128];
+		int i, fd;
+
+		sprintf(name, CARD_DEVICE, 0); /* XXX */
+		fd = open(name, O_RDWR);
+ 
+		res.type = SYS_RES_IRQ;
+		res.size = 1;
+		for (i = 1; i < 16; i++) {
+			res.min = i;
+			res.max = i;
+			if (ioctl(fd, PIOCSRESOURCE, &res) < 0) {
+				perror("ioctl (PIOCSRESOURCE)");
+				exit(1);
+			}
+			if (pool_irq[i] && res.resource_addr == i) {
 				conf->irq = i;
 				pool_irq[i] = 0;
 				break;
 			}
+		}
+		close(fd);
 		if (conf->irq == 0) {
 			logmsg("Failed to allocate IRQ for %s\n", cp->manuf);
 			return (NULL);
@@ -513,19 +555,36 @@ assign_card_index(struct cis * cis)
 {
 	struct cis_config *cp;
 	struct cis_ioblk *cio;
-	int i;
+	struct pccard_resource res;
+	char name[128];
+	int i, fd;
 
+	sprintf(name, CARD_DEVICE, 0); /* XXX */
+	fd = open(name, O_RDWR);
+
+	res.type = SYS_RES_IOPORT;
 	for (cp = cis->conf; cp; cp = cp->next) {
 		if (!cp->iospace || !cp->io)
 			continue;
 		for (cio = cp->io; cio; cio = cio->next) {
+			res.size = cio->size;
+			res.min = cio->addr;
+			res.max = res.min + cio->size - 1;
+			if (ioctl(fd, PIOCSRESOURCE, &res) < 0) {
+				perror("ioctl (PIOCSRESOURCE)");
+			       exit(1);
+			}
+			if (res.resource_addr != cio->addr)
+					goto next;
 			for (i = cio->addr; i < cio->addr + cio->size - 1; i++)
 				if (!bit_test(io_avail, i))
 					goto next;
 		}
+		close(fd);
 		return cp;	/* found */
 	next:
 	}
+	close(fd);
 	return cis->def_config;
 }
 
@@ -649,12 +708,34 @@ assign_io(struct slot *sp)
 				sio->size = 1 << cp->io_addr;
 			}
 			if (sio->addr == 0) {
-				int i = bit_fns(io_avail, IOPORTS,
-						sio->size, sio->size);
-				if (i < 0) {
-					return (-1);
+				struct pccard_resource res;
+				char name[128];
+				int i, j, fd;
+
+				sprintf(name, CARD_DEVICE, 0); /* XXX */
+				fd = open(name, O_RDWR);
+ 
+				res.type = SYS_RES_IOPORT;
+				res.size = sio->size;
+
+				for (i = 0; i < IOPORTS; i++) {
+					j = bit_fns(io_avail, IOPORTS, i,
+							sio->size, sio->size);
+					res.min = j;
+					res.max = j + sio->size - 1;
+					if (ioctl(fd, PIOCSRESOURCE, &res) < 0) {
+						perror("ioctl (PIOCSRESOURCE)");
+						exit(1);
+					}
+					if (res.resource_addr == j)
+						break;
 				}
-				sio->addr = i;
+				if (j < 0) {
+					return (-3);
+				} else {
+					sio->addr = j;
+				}
+				close(fd);
 			}
 			bit_nclear(io_avail, sio->addr,
 				   sio->addr + sio->size - 1);

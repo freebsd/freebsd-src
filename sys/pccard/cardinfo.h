@@ -49,6 +49,7 @@
 #define PIOCSPOW	_IOW('P', 9, struct power) /* Set power structure */
 #define PIOCSVIR	_IOW('P', 10, int)	/* Virtual insert/remove */
 #define PIOCSBEEP	_IOW('P', 11, int)		/* Select Beep */
+#define PIOCSRESOURCE	_IOWR('P', 12, struct pccard_resource)	/* get resource info */
 /*
  *	Debug codes.
  */
@@ -135,6 +136,18 @@ struct power {
 	int	vcc;
 	int	vpp;
 };
+
+/*
+ *	Th PC-Card resource IOC_GET_RESOURCE_RANGE
+ */
+struct pccard_resource {
+	int		type;
+	u_long		size;
+	u_long		min;
+	u_long		max;
+	u_long		resource_addr;
+};
+
 
 /*
  *	Other system limits

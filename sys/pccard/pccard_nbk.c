@@ -49,8 +49,6 @@
  * These compatibility nodes are called pccnbk.  PCCard New Bus Kludge.
  */
 
-#include "opt_bus.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/module.h>
@@ -61,13 +59,10 @@
 
 #include <sys/bus.h>
 #include <machine/bus.h>
-#include <sys/rman.h>
 #include <machine/resource.h>
 
-#include <i386/isa/isa_device.h>
 #include <pccard/cardinfo.h>
 #include <pccard/slot.h>
-#include <pccard/pccard_nbk.h>
 
 #include <dev/pccard/pccardvar.h>
 #include <net/ethernet.h>

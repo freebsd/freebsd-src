@@ -41,15 +41,10 @@
 #include <sys/select.h>
 #include <sys/sysctl.h>
 #include <sys/conf.h>
-#include <sys/module.h>
 #include <sys/uio.h>
 #include <sys/poll.h>
 #include <sys/bus.h>
 #include <machine/bus.h>
-
-#include <i386/isa/isa_device.h>
-#include <i386/isa/icu.h>
-#include <i386/isa/intr_machdep.h>
 
 #include <pccard/cardinfo.h>
 #include <pccard/driver.h>
@@ -282,7 +277,7 @@ inserted(void *arg)
 	 *	Enable 5V to the card so that the CIS can be read.
 	 */
 	slt->pwr.vcc = 50;
-	slt->pwr.vpp = 0;
+	slt->pwr.vpp = 50;
 
 	/*
 	 * Disable any pending timeouts for this slot, and explicitly
@@ -460,7 +455,12 @@ crdioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct proc *p)
 	struct slot *slt = pccard_slots[minor(dev)];
 	struct mem_desc *mp;
 	struct io_desc *ip;
+	struct pccard_resource *pr;
+	struct resource *r;
+	device_t pcicdev;
 	int s, err;
+	int rid = 1;
+	int i;
 	int	pwval;
 
 	if (slt == 0 && cmd != PIOCRWMEM)
@@ -544,8 +544,10 @@ crdioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct proc *p)
 	case PIOCRWFLAG:
 		slt->rwmem = *(int *)data;
 		break;
+#ifndef	__alpha__
 	/*
 	 * Set the memory window to be used for the read/write interface.
+	 * Not available on the alpha.
 	 */
 	case PIOCRWMEM:
 		if (*(unsigned long *)data == 0) {
@@ -571,6 +573,7 @@ crdioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct proc *p)
 		    (unsigned char *)(void *)(uintptr_t)
 		    (pccard_mem + atdevbase - IOM_BEGIN);
 		break;
+#endif
 	/*
 	 * Set power values.
 	 */
@@ -608,6 +611,37 @@ crdioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct proc *p)
 	case PIOCSBEEP:
 		if (pccard_beep_select(*(int *)data)) {
 			return EINVAL;
+		}
+		break;
+	case PIOCSRESOURCE:
+		pr = (struct pccard_resource *)data;
+		pr->resource_addr = ~0ul;
+		/*
+		 * pccard_devclass does not have soft_c
+		 * so we use pcic_devclass
+		 */
+		pcicdev = devclass_get_device(pcic_devclass, 0);
+		switch(pr->type) {
+		default:
+			return EINVAL;
+		case SYS_RES_IOPORT:
+		case SYS_RES_MEMORY:
+		case SYS_RES_IRQ:
+			for (i = pr->min; i + pr->size - 1 <= pr->max; i++) {
+				/* already allocated to pcic? */
+				if (bus_get_resource_start(pcicdev, pr->type, 0) == i)
+					continue;
+				err = bus_set_resource(pcicdev, pr->type, rid, i, pr->size);
+				if (!err) {
+					r = bus_alloc_resource(pcicdev, pr->type, &rid, 0ul, ~0ul, pr->size, 0);
+					if (r) { 
+						pr->resource_addr = (u_long)rman_get_start(r);
+			                        bus_release_resource(pcicdev, pr->type, rid, r);
+						break;
+					}
+				}
+			}
+			break;
 		}
 		break;
 	}
