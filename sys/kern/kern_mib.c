@@ -208,7 +208,7 @@ sysctl_kern_securelvl(SYSCTL_HANDLER_ARGS)
 		if (level < imax(securelevel,
 		    req->p->p_ucred->cr_prison->pr_securelevel))
 			return (EPERM);
-			req->p->p_ucred->cr_prison->pr_securelevel = level;
+		req->p->p_ucred->cr_prison->pr_securelevel = level;
 	} else {
 #ifdef REGRESSION
 		if (!regression_securelevel_nonmonotonic)
