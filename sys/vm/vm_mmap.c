@@ -1037,7 +1037,7 @@ mlock(td, uap)
 	if (atop(size) + cnt.v_wire_count > vm_page_max_wired)
 		return (EAGAIN);
 
-#ifdef pmap_wired_count
+#if 0
 	if (size + ptoa(pmap_wired_count(vm_map_pmap(&td->td_proc->p_vmspace->vm_map))) >
 	    td->td_proc->p_rlimit[RLIMIT_MEMLOCK].rlim_cur)
 		return (ENOMEM);
@@ -1075,7 +1075,7 @@ mlockall(td, uap)
 	if ((uap->how == 0) || ((uap->how & ~(MCL_CURRENT|MCL_FUTURE)) != 0))
 		return (EINVAL);
 
-#ifdef pmap_wired_count
+#if 0
 	/*
 	 * If wiring all pages in the process would cause it to exceed
 	 * a hard resource limit, return ENOMEM.
@@ -1129,11 +1129,9 @@ munlockall(td, uap)
 	int error;
 
 	map = &td->td_proc->p_vmspace->vm_map;
-#ifndef pmap_wired_count
 	error = suser(td);
 	if (error)
 		return (error);
-#endif
 
 	/* Clear the MAP_WIREFUTURE flag from this vm_map. */
 	vm_map_lock(map);
@@ -1177,11 +1175,9 @@ munlock(td, uap)
 	if (addr + size < addr)
 		return (EINVAL);
 
-#ifndef pmap_wired_count
 	error = suser(td);
 	if (error)
 		return (error);
-#endif
 
 	error = vm_map_unwire(&td->td_proc->p_vmspace->vm_map, addr,
 		     addr + size, VM_MAP_WIRE_USER|VM_MAP_WIRE_NOHOLES);
