@@ -289,10 +289,14 @@ int main(int argc, unsigned char *argv[])
     return retval;
   }
   else if (!strcmp(argv[offset+1], "--inputbox")) {
-    if (argc-offset != 5) {
+    if (argc-offset != 5 && argc-offset != 6) {
       Usage(argv[0]);
       exit(-1);
     }
+    if (argc-offset == 6)
+      strcpy(result, argv[offset+5]);
+    else
+      *result = '\0';
     init_dialog();
     retval = dialog_inputbox(title, argv[offset+2], atoi(argv[offset+3]),
 			     atoi(argv[offset+4]), result);
@@ -333,7 +337,7 @@ void Usage(unsigned char *name)
 \n  --msgbox    <text> <height> <width>\
 \n  --prgbox    \"<command line>\" <height> <width>\
 \n  --infobox   <text> <height> <width>\
-\n  --inputbox  <text> <height> <width>\
+\n  --inputbox  <text> <height> <width> [<init string>]\
 \n  --textbox   <file> <height> <width>\
 \n  --menu      <text> <height> <width> <menu height> <tag1> <item1>...\
 \n  --checklist <text> <height> <width> <list height> <tag1> <item1> <status1>...\

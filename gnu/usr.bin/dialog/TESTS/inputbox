@@ -10,7 +10,7 @@ width of the input box, in that case, the \n\
 input field will be automatically scrolled. \n\
 You can use BACKSPACE, LEFT, RIGHT, HOME, END \n\
 to correct errors. \n\n\
-Try inputing your name below:" 16 51 2> /tmp/inputbox.tmp.$$
+Try inputing your name below:" 16 51 "John Smith" 2> /tmp/inputbox.tmp.$$
 
 retval=$?
 
