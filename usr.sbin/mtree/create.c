@@ -107,6 +107,10 @@ cwalk()
 	while ((p = fts_read(t))) {
 		if (iflag)
 			indent = p->fts_level * 4;
+		if (check_excludes(p->fts_name, p->fts_path)) {
+			fts_set(t, p, FTS_SKIP);
+			continue;
+		}
 		switch(p->fts_info) {
 		case FTS_D:
 			if (!dflag)

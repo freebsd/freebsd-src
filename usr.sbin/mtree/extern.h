@@ -45,3 +45,7 @@ u_int	 parsekey __P((char *, int *));
 char	*rlink __P((char *));
 NODE	*spec __P((void));
 int	 verify __P((void));
+
+int	 check_excludes __P((const char *, const char *));
+void	 init_excludes __P((void));
+void	 read_excludes_file __P((const char *));

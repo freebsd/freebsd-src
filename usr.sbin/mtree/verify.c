@@ -90,6 +90,10 @@ vwalk()
 	level = root;
 	specdepth = rval = 0;
 	while ((p = fts_read(t))) {
+		if (check_excludes(p->fts_name, p->fts_path)) {
+			fts_set(t, p, FTS_SKIP);
+			continue;
+		}
 		switch(p->fts_info) {
 		case FTS_D:
 			break;
