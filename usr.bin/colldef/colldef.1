@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id$
+.\"	$Id: colldef.1,v 1.5 1997/06/26 11:25:16 charnier Exp $
 .\"
 .Dd January, 27 1995
 .Dt COLLDEF 1
@@ -124,26 +124,24 @@ representation, and can be only one character in length.
 .br
 .Ar ...
 .Pp
-Symbol names cannot be specified in
-.Ar substitute
-fields.
-.Pp
 The
 .Ar charmap
 statement is optional.
 .Pp
 .Ar substitute
-"\fIchar\fR"
+\fIsymbol\fR
 .Ar with
-"\fIrepl\fR"
+"\fIrepl_string\fR"
 .Pp
 The
 .Ar substitute
 statement substitutes the character
-.Ar char
+.Ar symbol
 with the string
-.Ar repl .
-.Pp
+.Ar repl_string .
+Symbol names cannot be specified in
+.Ar repl_string
+field.
 The
 .Ar substitute
 statement is optional.

@@ -1,4 +1,4 @@
-%x string name charmap defn nchar subs
+%x string name charmap defn nchar subs subs2
 %{
 /*-
  * Copyright (c) 1995 Alex Tatmanjants <alex@elvisti.kiev.ua>
@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: scan.l,v 1.7 1997/02/22 19:54:32 peter Exp $
+ * $Id: scan.l,v 1.8 1999/02/12 20:39:06 ache Exp $
  */
 
 #include <ctype.h>
@@ -37,7 +37,7 @@
 #include "collate.h"
 #include "y.tab.h"
 
-int line_no = 1, save_no;
+int line_no = 1, save_no, fromsubs;
 u_char buf[STR_LEN], *ptr;
 FILE *map_fp;
 extern char map_name[];
@@ -48,21 +48,22 @@ YYSTYPE yylval;
 #endif /* FLEX_DEBUG */
 %}
 %%
-<INITIAL,charmap,nchar,subs>[ \t]+      ;
-<subs>\"                { ptr = buf; BEGIN(string); }
-<INITIAL>\<             { ptr = buf; BEGIN(name); }
+<INITIAL,charmap,nchar,subs,subs2>[ \t]+      ;
+<subs2>\"               { ptr = buf; BEGIN(string); }
+<subs>\<                { ptr = buf; fromsubs = 1; BEGIN(name); }
+<INITIAL>\<             { ptr = buf; fromsubs = 0; BEGIN(name); }
 ^#.*\n			line_no++;
 ^\n			line_no++;
 <INITIAL>\\\n           line_no++;
-<INITIAL,nchar>\\t      { yylval.ch = '\t'; return CHAR; }
-<INITIAL,nchar>\\n      { yylval.ch = '\n'; return CHAR; }
-<INITIAL,nchar>\\b      { yylval.ch = '\b'; return CHAR; }
-<INITIAL,nchar>\\f      { yylval.ch = '\f'; return CHAR; }
-<INITIAL,nchar>\\v      { yylval.ch = '\v'; return CHAR; }
-<INITIAL,nchar>\\r      { yylval.ch = '\r'; return CHAR; }
-<INITIAL,nchar>\\a      { yylval.ch = '\a'; return CHAR; }
-<INITIAL,nchar>\\.      { yylval.ch = yytext[1]; return CHAR; }
-<subs>\n                {
+<INITIAL,nchar,subs>\\t      { yylval.ch = '\t'; return CHAR; }
+<INITIAL,nchar,subs>\\n      { yylval.ch = '\n'; return CHAR; }
+<INITIAL,nchar,subs>\\b      { yylval.ch = '\b'; return CHAR; }
+<INITIAL,nchar,subs>\\f      { yylval.ch = '\f'; return CHAR; }
+<INITIAL,nchar,subs>\\v      { yylval.ch = '\v'; return CHAR; }
+<INITIAL,nchar,subs>\\r      { yylval.ch = '\r'; return CHAR; }
+<INITIAL,nchar,subs>\\a      { yylval.ch = '\a'; return CHAR; }
+<INITIAL,nchar,subs>\\.      { yylval.ch = yytext[1]; return CHAR; }
+<subs2>\n               {
 	line_no++;
 	BEGIN(INITIAL);
 	return '\n';
@@ -77,18 +78,18 @@ YYSTYPE yylval;
 }
 <INITIAL>[;,{}()]       return *yytext;
 <INITIAL>substitute     { BEGIN(subs); return SUBSTITUTE; }
-<subs>with              return WITH;
+<subs>with              { BEGIN(subs2); return WITH; }
 <INITIAL>order          return ORDER;
 <INITIAL>charmap        BEGIN(charmap);
 <INITIAL>;[ \t]*\.\.\.[ \t]*;   return RANGE;
-<INITIAL,nchar>\\[0-7]{3}       {
+<INITIAL,nchar,subs>\\[0-7]{3}       {
 	u_int v;
 
 	sscanf(&yytext[1], "%o", &v);
 	yylval.ch = (u_char)v;
 	return CHAR;
 }
-<INITIAL,nchar>\\x[0-9a-z]{2}   {
+<INITIAL,nchar,subs>\\x[0-9a-z]{2}   {
 	u_int v;
 
 	sscanf(&yytext[2], "%x", &v);
@@ -106,7 +107,7 @@ YYSTYPE yylval;
 	strcpy(yylval.str, yytext);
 	return CHAIN;
 }
-<nchar>.                {
+<nchar,subs>.                {
 	yylval.ch = *yytext;
 	return CHAR;
 }
@@ -151,13 +152,16 @@ YYSTYPE yylval;
 		buf, line_no);
 	findit:
 	yylval.ch = i;
-	BEGIN(INITIAL);
+	if (fromsubs)
+		BEGIN(subs);
+	else
+		BEGIN(INITIAL);
 	return CHAR;
 }
 <string>\"		{
 	*ptr = '\0';
 	strcpy(yylval.str, buf);
-	BEGIN(subs);
+	BEGIN(subs2);
 	return STRING;
 }
 <name,defn>.            {
