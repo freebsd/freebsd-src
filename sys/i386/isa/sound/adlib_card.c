@@ -45,7 +45,10 @@ attach_adlib_card (long mem_start, struct address_info *hw_config)
 int
 probe_adlib (struct address_info *hw_config)
 {
-  return opl3_detect (FM_MONO);
+  if (opl3_detect (FM_MONO))
+	return 4;
+  else
+	return 0;
 }
 
 #endif
