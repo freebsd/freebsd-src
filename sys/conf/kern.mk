@@ -28,7 +28,8 @@ CWARNFLAGS?=	-Wall -Wredundant-decls -Wnested-externs -Wstrict-prototypes \
 # cache tag lines)
 #
 .if ${MACHINE_ARCH} == "i386" && ${CC} != "icc"
-CFLAGS+=	-mno-align-long-strings -mpreferred-stack-boundary=2
+CFLAGS+=	-mno-align-long-strings -mpreferred-stack-boundary=2 \
+		-mno-mmx -mno-3dnow -mno-sse -mno-sse2
 INLINE_LIMIT?=	8000
 .endif
 
