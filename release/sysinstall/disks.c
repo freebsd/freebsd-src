@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.62 1996/08/03 05:29:24 jkh Exp $
+ * $Id: disks.c,v 1.63 1996/08/03 10:10:44 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -272,7 +272,6 @@ diskPartition(Device *dev, Disk *d)
 		char *val, tmp[20], *cp;
 		int size, subtype;
 		chunk_e partitiontype;
-		WINDOW *save = savescr();
 
 		snprintf(tmp, 20, "%d", chunk_info[current_chunk]->size);
 		val = msgGetInput(tmp, "Please specify the size for new FreeBSD partition in blocks\n"
@@ -302,7 +301,6 @@ diskPartition(Device *dev, Disk *d)
 		    record_chunks(d);
 		    }
 		}
-		restorescr(save);
 	    }
 	    break;
 
@@ -359,10 +357,8 @@ diskPartition(Device *dev, Disk *d)
 			  "are installing FreeBSD for the first time!  This is not\n"
 			  "an option for use during the standard install.\n\n"
 			  "Are you absolutely sure you want to do this now?")) {
-		WINDOW *save = savescr();
 
 		variable_set2(DISK_PARTITIONED, "yes");
-		clear();
 
 		/* Don't trash the MBR if the first (and therefore only) chunk is marked for a truly dedicated
 		 * disk (i.e., the disklabel starts at sector 0), even in cases where the user has requested
@@ -376,7 +372,6 @@ diskPartition(Device *dev, Disk *d)
 		    msgConfirm("Disk partition write returned an error status!");
 		else
 		    msgConfirm("Wrote FDISK partition information out successfully.");
-		restorescr(save);
 	    }
 	    break;
 
