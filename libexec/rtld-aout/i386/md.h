@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: md.h,v 1.6 1993/12/11 12:02:05 jkh Exp $
+ *	$Id: md.h,v 1.7 1994/01/03 18:35:36 davidg Exp $
  */
 
 
@@ -48,6 +48,8 @@
 #define N_SET_FLAG(ex,f)	(netzmagic ? \
 				N_SETMAGIC_NET(ex,N_GETMAGIC_NET(ex), MID_MACHINE, \
 					N_GETFLAG_NET(ex)|(f)) : \
+				N_GETMAGIC(ex) == ZMAGIC ? \
+				N_SETMAGIC(ex,ZMAGIC,0,N_GETFLAG(ex)|(f)) : \
 				N_SETMAGIC(ex,N_GETMAGIC(ex), MID_MACHINE, \
 					N_GETFLAG(ex)|(f)))
   

@@ -32,7 +32,7 @@ static char sccsid[] = "@(#)ld.c	6.10 (Berkeley) 5/22/91";
    Set, indirect, and warning symbol features added by Randy Smith. */
 
 /*
- *	$Id: ld.c,v 1.17 1993/12/22 23:28:08 jkh Exp $
+ *	$Id: ld.c,v 1.18 1994/01/03 18:35:14 davidg Exp $
  */
    
 /* Define how to initialize system-dependent header fields.  */
@@ -2176,8 +2176,7 @@ write_header ()
 {
 	int flags = (rrs_section_type == RRS_FULL) ? EX_DYNAMIC : 0;
 
-	if (netzmagic || magic == QMAGIC || (link_mode & DYNAMIC))
-		N_SET_FLAG (outheader, flags);
+	N_SET_FLAG (outheader, flags);
 
 	outheader.a_text = text_size;
 	outheader.a_data = data_size;
