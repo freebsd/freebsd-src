@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.13 (Berkeley) 4/18/94
- * $Id: vfs_subr.c,v 1.19 1995/03/07 18:59:45 davidg Exp $
+ * $Id: vfs_subr.c,v 1.20 1995/03/09 20:27:04 phk Exp $
  */
 
 /*
@@ -338,9 +338,9 @@ getnewvnode(tag, mp, vops, vpp)
 	 *	3. if less that 1/16th of our vnodes are free.
 	 *		We don't want to trash the namei cache either.
 	 */
-	if (vp == NULL ||
+	if (freevnodes < (numvnodes >> 4) ||
 	    numvnodes < desiredvnodes ||
-	    freevnodes < (numvnodes >> 4)) {
+	    vp == NULL) {
 		vp = (struct vnode *) malloc((u_long) sizeof *vp,
 		    M_VNODE, M_WAITOK);
 		bzero((char *) vp, sizeof *vp);
