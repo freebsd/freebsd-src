@@ -22,9 +22,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"    $FreeBSD$
+.\" $FreeBSD$
 .\"
-.Dd September, 16 2004
+.Dd September 16, 2004
 .Dt MICROUPTIME 9
 .Os
 .Sh NAME
@@ -55,7 +55,7 @@ The
 and
 .Fn getbinuptime
 functions store the time elapsed since boot as a
-.Ft struct bintime
+.Vt "struct bintime"
 at the address specified by
 .Fa bt .
 The
@@ -63,19 +63,21 @@ The
 and
 .Fn getmicrouptime
 functions perform the same utility, but record the elapsed time as a
-.Ft struct timeval
+.Vt "struct timeval"
 instead.
 Similarly the
 .Fn nanouptime
 and
 .Fn getnanouptime
 functions store the elapsed time as a
-.Ft struct timespec .
+.Vt "struct timespec" .
 .Pp
-.Fn Binuptime ,
+The
+.Fn binuptime ,
 .Fn microuptime ,
 and
 .Fn nanouptime
+functions
 always query the timecounter to return the current time as precisely as
 possible.
 Whereas

@@ -155,7 +155,7 @@ The
 parameter is a bitmask consisting of the type of sleep queue being slept on
 and zero or more optional flags.
 There are currently two types of sleep queues:
-.Bl -tag -width SLEEPQ_CONDVAR
+.Bl -tag -width ".Dv SLEEPQ_CONDVAR"
 .It Dv SLEEPQ_CONDVAR
 A sleep queue used to implement condition variables.
 .It Dv SLEEPQ_MSLEEP
@@ -167,7 +167,7 @@ and
 .El
 .Pp
 There is currently only one optional flag:
-.Bl -tag -width SLEEPQ_INTERRUPTIBLE
+.Bl -tag -width ".Dv SLEEPQ_INTERRUPTIBLE"
 .It Dv SLEEPQ_INTERRUPTIBLE
 The current thread is entering an interruptible sleep.
 .El
