@@ -32,8 +32,8 @@
 .\" USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
 .\" DAMAGE.
 .\"
-.\" $Id: worm.4,v 1.4 1996/04/08 04:18:08 mpp Exp $
-.\"
+.\" $Id: worm.4,v 1.1.4.1 1996/06/23 16:50:11 joerg Exp $
+.\" "
 .Dd January 27, 1996
 .Dt WORM 4
 .Os FreeBSD
@@ -198,19 +198,36 @@ general ioctls may be used with the
 .Nm
 driver, but only against the control device.
 .Sh BUGS
-The driver is still in a very preliminary state.  Expect all kind of
-surprises when using it.  It is highly recommendable to be used to
-the command
-.Xr scsi 8
-in order to provide First Medical Aid in case of an emergency.
+The driver is considered beta quality.  There's still a lot of
+polishing required.
 .Pp
 Preparing the driver for a CD-R from another vendor will require you
 to understand the source code, be used to the SCSI-2 specification,
 hold a copy of the vendor's SCSI reference manual on your desk, and
 have a lot of patience and CD-R's.
 .Pp
-The driver should learn the entire set of CD-ROM commands, too, since
-all CD-R devices implement it.
+The driver should include all the functionality of the
+.Xr cd 4
+driver.  No strategy for implementing this kind of interaction has
+been designed yet.
+.Pp
+The first
+.Em Unit Attention
+conditition after a media change is often not yet caught, although
+the driver was designed to catch it.  This can royally screw a user
+of the driver, thus make sure to manually catch it before actually
+starting a burn.  This can be done for example with a dummy
+.Em Test Unit Ready
+command:
+.Bd -literal
+scsi -f /dev/rworm0.ctl -c "0 0 0 0 0 0" >/dev/null 2>&1
+.Ed
+.Pp
+The SCSI subsystem in FreeBSD 2.1.X has no provisions for assigning
+a device that lies about its device type to a different driver.  Thus,
+if your CD-R burner claims to be a CD-ROM device, the
+.Xr worm 4
+driver won't be assigned to it.
 .Sh FILES
 .Bl -tag -width /dev/rworm[0-9].ctl -compact
 .It Pa /dev/rworm[0-9]
@@ -222,6 +239,7 @@ the control device, as being used by
 .Sh DIAGNOSTICS
 See above.
 .Sh SEE ALSO
+.Xr cd 4 ,
 .Xr scsi 4 ,
 .Xr scsi 8 ,
 .Xr wormcontrol 8 ,
@@ -234,8 +252,8 @@ The first skeleton for a
 .Nm
 driver has been written by Peter Dufault in May, 1995.  The driver has
 then been improved and made actually usable at all by
-.if n Joerg Wunsch
-.if t J\(:org Wunsch
+.ie t J\(:org Wunsch
+.el Joerg Wunsch
 in January, 1996.
 .Sh HISTORY
 The
