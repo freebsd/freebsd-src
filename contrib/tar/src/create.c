@@ -16,6 +16,8 @@
    with this program; if not, write to the Free Software Foundation, Inc.,
    59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
+/* $FreeBSD$ */
+
 #include "system.h"
 
 #if !MSDOS
@@ -1473,7 +1475,7 @@ dump_file (char *p, int top_level, dev_t parent_device)
 	  if (linklen != current_stat.st_size || linklen + 1 == 0)
 	    xalloc_die ();
 	  buffer = (char *) alloca (linklen + 1);
-	  size = readlink (p, buffer, linklen + 1);
+	  size = readlink (p, buffer, linklen);
 	  if (size < 0)
 	    {
 	      if (ignore_failed_read_option)
