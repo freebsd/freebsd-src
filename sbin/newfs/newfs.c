@@ -249,10 +249,8 @@ main(argc, argv)
 		Nflag++;
 		fprintf(stderr,
 "WARNING: MFS is being phased out in preference for md devices\n"
-"WARNING: Please see mdconfig(8) for details\n"
-"WARNING: Continuing in 15 seconds\n");
-		sleep(15);
-
+"WARNING: Please see mdconfig(8) for details\n");
+		exit(1);
 	}
 
 	opstring = mfs ?
