@@ -686,16 +686,24 @@ If set to
 the system will attempt to run
 .Xr fsck 8
 in the background where possible.
-.It Va networkfs_types
+.It Va extra_netfs_types
 .Pq Vt str
-A whitespace-separated list of network filesystem descriptor pairs,
+If set to something other than
+.Dq NO
+(the default),
+this variable extends the list of filesystem types
+for which automatic mounting at startup by
+.Xr rc 8
+should be delayed until the network is initialized.
+It should contain
+a whitespace-separated list of network filesystem descriptor pairs,
 each consisting of a filesystem type as passed to
 .Xr mount 8
 and a human-readable, one-word description,
 joined with a colon
 .Pq Sq \&: .
-This list can be extended as required to accommodate
-third-party filesystem support.
+Extending the default list in this way is only necessary
+when third party filesystem types are used.
 .It Va syslogd_enable
 .Pq Vt bool
 If set to
