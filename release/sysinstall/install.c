@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.119 1996/09/29 10:03:30 jkh Exp $
+ * $Id: install.c,v 1.120 1996/10/01 04:56:32 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -618,6 +618,10 @@ installFixup(dialogMenuItem *self)
 	    return DITEM_FAILURE;
 	}
     }
+
+    /* Snapshot the dset changes back */
+    vsystem("/sbin/dset -v -k /kernel");
+
     /* Resurrect /dev after bin distribution screws it up */
     if (RunningAsInit) {
 	msgNotify("Remaking all devices.. Please wait!");
