@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: ccdvar.h,v 1.6 1997/02/22 09:44:51 peter Exp $ */
 
 /*	$NetBSD: ccdvar.h,v 1.7.2.1 1995/10/12 21:30:18 thorpej Exp $	*/
 
@@ -186,8 +186,7 @@ struct ccd_softc {
 	int		 sc_nccdisks;		/* number of components */
 	struct ccdcinfo	 *sc_cinfo;		/* component info */
 	struct ccdiinfo	 *sc_itable;		/* interleave table */
-	int		 sc_nactive;		/* number of requests active */
-	int		 sc_dk;			/* disk index */
+	struct devstat	 device_stats;		/* device statistics */
 	struct ccdgeom   sc_geom;		/* pseudo geometry info */
 	struct dkdevice	 sc_dkdev;		/* generic disk device info */
 };
