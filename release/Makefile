@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.370 1998/08/30 02:50:44 jb Exp $
+#	$Id: Makefile,v 1.371 1998/09/01 06:57:18 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -718,6 +718,7 @@ doMFSKERN:
 	@mv ${RD}/boot.${FSIMAGE}/kernel ${RD}/kernels/MFSKERNEL.${FSIMAGE}
 	@mv ${RD}/boot.${FSIMAGE}/kernel.kz ${RD}/boot.${FSIMAGE}/kernel
 	@cp ${.CURDIR}/../sys/i386/boot/biosboot/boot.help ${RD}/boot.${FSIMAGE}
+	@printf \a\a\a >> ${RD}/boot.${FSIMAGE}
 	@touch ${RD}/boot.${FSIMAGE}/boot.config
 	@touch ${RD}/boot.${FSIMAGE}/kernel.config
 	@rm -f ${RD}/floppies/boot${FSIMAGE}.flp
