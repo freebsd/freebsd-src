@@ -32,10 +32,14 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)termstat.c	8.2 (Berkeley) 5/30/95";
+static const char sccsid[] = "@(#)termstat.c	8.2 (Berkeley) 5/30/95";
 #endif /* not lint */
 
 #include "telnetd.h"
+
+#if	defined(ENCRYPTION)
+#include <libtelnet/encrypt.h>
+#endif
 
 /*
  * local variables
@@ -144,25 +148,6 @@ localstat()
 #endif	/* defined(CRAY2) && defined(UNICOS5) */
 
 	/*
-	 * Check for state of BINARY options.
-	 */
-	if (tty_isbinaryin()) {
-		if (his_want_state_is_wont(TELOPT_BINARY))
-			send_do(TELOPT_BINARY, 1);
-	} else {
-		if (his_want_state_is_will(TELOPT_BINARY))
-			send_dont(TELOPT_BINARY, 1);
-	}
-
-	if (tty_isbinaryout()) {
-		if (my_want_state_is_wont(TELOPT_BINARY))
-			send_will(TELOPT_BINARY, 1);
-	} else {
-		if (my_want_state_is_will(TELOPT_BINARY))
-			send_wont(TELOPT_BINARY, 1);
-	}
-
-	/*
 	 * Check for changes to flow control if client supports it.
 	 */
 	flowstat();
@@ -179,6 +164,34 @@ localstat()
 	if (alwayslinemode && linemode && !uselinemode) {
 		uselinemode = 1;
 		tty_setlinemode(uselinemode);
+	}
+
+	if (uselinemode) {
+		/*
+	 * Check for state of BINARY options.
+		 *
+		 * We only need to do the binary dance if we are actually going
+		 * to use linemode.  As this confuses some telnet clients
+		 * that don't support linemode, and doesn't gain us
+		 * anything, we don't do it unless we're doing linemode.
+		 * -Crh (henrich@msu.edu)
+	 */
+
+	if (tty_isbinaryin()) {
+		if (his_want_state_is_wont(TELOPT_BINARY))
+			send_do(TELOPT_BINARY, 1);
+	} else {
+		if (his_want_state_is_will(TELOPT_BINARY))
+			send_dont(TELOPT_BINARY, 1);
+	}
+
+	if (tty_isbinaryout()) {
+		if (my_want_state_is_wont(TELOPT_BINARY))
+			send_will(TELOPT_BINARY, 1);
+	} else {
+		if (my_want_state_is_will(TELOPT_BINARY))
+			send_wont(TELOPT_BINARY, 1);
+	}
 	}
 
 #ifdef	ENCRYPTION
@@ -479,7 +492,7 @@ clientstat(code, parm1, parm2)
 		 ack = (useeditmode & MODE_ACK);
 		 useeditmode &= ~MODE_ACK;
 
-		 if (changed = (useeditmode ^ editmode)) {
+		 if ((changed = (useeditmode ^ editmode))) {
 			/*
 			 * This check is for a timing problem.  If the
 			 * state of the tty has changed (due to the user

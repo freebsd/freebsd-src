@@ -101,7 +101,6 @@ static unsigned char str_name[1024] = { IAC, SB, TELOPT_AUTHENTICATION,
 #ifdef	ENCRYPTION
 static Block	session_key	= { 0 };
 #endif	/* ENCRYPTION */
-static Schedule sched;
 static Block	challenge	= { 0 };
 
 

@@ -32,7 +32,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)sys_term.c	8.4+1 (Berkeley) 5/30/95";
+static const char sccsid[] = "@(#)sys_term.c	8.4+1 (Berkeley) 5/30/95";
 #endif /* not lint */
 
 #include "telnetd.h"
@@ -42,13 +42,17 @@ static char sccsid[] = "@(#)sys_term.c	8.4+1 (Berkeley) 5/30/95";
 #include <libtelnet/auth.h>
 #endif
 
+extern char *altlogin;
+int cleanopen(char *line);
+void scrub_env(void);
+
 #if defined(CRAY) || defined(__hpux)
 # define PARENT_DOES_UTMP
 #endif
 
+int     utmp_len = MAXHOSTNAMELEN;
 #ifdef	NEWINIT
 #include <initreq.h>
-int	utmp_len = MAXHOSTNAMELEN;	/* sizeof(init_request.host) */
 #else	/* NEWINIT*/
 # ifdef	UTMPX
 # include <utmpx.h>
@@ -58,13 +62,22 @@ struct	utmpx wtmp;
 struct	utmp wtmp;
 # endif /* UTMPX */
 
-int	utmp_len = sizeof(wtmp.ut_host);
 # ifndef PARENT_DOES_UTMP
+#ifdef _PATH_WTMP
+char    wtmpf[] = _PATH_WTMP;
+#else
 char	wtmpf[]	= "/usr/adm/wtmp";
+#endif
+#ifdef _PATH_UTMP
+char    utmpf[] = _PATH_UTMP;
+#else
 char	utmpf[] = "/etc/utmp";
+#endif
 # else /* PARENT_DOES_UTMP */
 char	wtmpf[]	= "/etc/wtmp";
 # endif /* PARENT_DOES_UTMP */
+
+#include <libutil.h>
 
 # ifdef CRAY
 #include <tmpdir.h>
@@ -504,7 +517,7 @@ int *ptynum;
 	p2 = &line[14];
 #endif
 
-	for (cp = "pqrstuvwxyzPQRST"; *cp; cp++) {
+	for (cp = "pqrsPQRS"; *cp; cp++) {
 		struct stat stb;
 
 		*p1 = *cp;
@@ -516,8 +529,8 @@ int *ptynum;
 		 */
 		if (stat(line, &stb) < 0)
 			break;
-		for (i = 0; i < 16; i++) {
-			*p2 = "0123456789abcdef"[i];
+		for (i = 0; i < 32; i++) {
+			*p2 = "0123456789abcdefghijklmnopqrstuv"[i];
 			p = open(line, 2);
 			if (p > 0) {
 #ifndef	__hpux
@@ -1065,10 +1078,11 @@ extern void utmp_sig_notify P((int));
  * that is necessary.  The return value is a file descriptor
  * for the slave side.
  */
-	int
+	void
 getptyslave()
 {
 	register int t = -1;
+	char erase;
 
 #if	!defined(CRAY) || !defined(NEWINIT)
 # ifdef	LINEMODE
@@ -1085,12 +1099,13 @@ getptyslave()
 	 * 	if linemode was turned on
 	 *	terminal window size
 	 *	terminal speed
+	 *	erase character
 	 * so that we can re-set them if we need to.
 	 */
 # ifdef	LINEMODE
 	waslm = tty_linemode();
 # endif
-
+	erase = termbuf.c_cc[VERASE];
 
 	/*
 	 * Make sure that we don't have a controlling tty, and
@@ -1176,6 +1191,8 @@ getptyslave()
 # endif /* defined(USE_TERMIO) && !defined(CRAY) && (BSD <= 43) */
 	tty_rspeed((def_rspeed > 0) ? def_rspeed : 9600);
 	tty_tspeed((def_tspeed > 0) ? def_tspeed : 9600);
+	if (erase)
+		termbuf.c_cc[VERASE] = erase;
 # ifdef	LINEMODE
 	if (waslm)
 		tty_setlinemode(1);
@@ -1384,7 +1401,6 @@ startslave(host, autologin, autoname)
 {
 	register int i;
 	long time();
-	char name[256];
 #ifdef	NEWINIT
 	extern char *ptyip;
 	struct init_request request;
@@ -1517,7 +1533,7 @@ init_env()
 	char **envp;
 
 	envp = envinit;
-	if (*envp = getenv("TZ"))
+	if ((*envp = getenv("TZ")))
 		*envp++ -= 3;
 #if	defined(CRAY) || defined(__hpux)
 	else
@@ -1542,9 +1558,8 @@ start_login(host, autologin, name)
 	int autologin;
 	char *name;
 {
-	register char *cp;
 	register char **argv;
-	char **addarg();
+	char **addarg(), *user;
 	extern char *getenv();
 #ifdef	UTMPX
 	register int pid = getpid();
@@ -1652,6 +1667,7 @@ start_login(host, autologin, name)
 	if (auth_level >= 0 && autologin == AUTH_VALID) {
 # if	!defined(NO_LOGIN_F)
 		argv = addarg(argv, "-f");
+		argv = addarg(argv, "--");
 		argv = addarg(argv, name);
 # else
 #  if defined(LOGIN_R)
@@ -1724,12 +1740,14 @@ start_login(host, autologin, name)
 			pty = xpty;
 		}
 #  else
+		argv = addarg(argv, "--");
 		argv = addarg(argv, name);
 #  endif
 # endif
 	} else
 #endif
 	if (getenv("USER")) {
+ 		argv = addarg(argv, "--");
 		argv = addarg(argv, getenv("USER"));
 #if	defined(LOGIN_ARGS) && defined(NO_LOGIN_P)
 		{
@@ -1765,16 +1783,14 @@ start_login(host, autologin, name)
 		close(pty);
 #endif
 	closelog();
-	/*
-	 * This sleep(1) is in here so that telnetd can
-	 * finish up with the tty.  There's a race condition
-	 * the login banner message gets lost...
-	 */
-	sleep(1);
-	execv(_PATH_LOGIN, argv);
 
-	syslog(LOG_ERR, "%s: %m\n", _PATH_LOGIN);
-	fatalperror(net, _PATH_LOGIN);
+	if (altlogin == NULL) {
+		altlogin = _PATH_LOGIN;
+	}
+	execv(altlogin, argv);
+
+	syslog(LOG_ERR, "%s: %m\n", altlogin);
+	fatalperror(net, altlogin);
 	/*NOTREACHED*/
 }
 
@@ -1818,14 +1834,20 @@ addarg(argv, val)
  * Remove a few things from the environment that
  * don't need to be there.
  */
+	void
 scrub_env()
 {
 	register char **cpp, **cpp2;
 
 	for (cpp2 = cpp = environ; *cpp; cpp++) {
+#ifdef __FreeBSD__
+		if (strncmp(*cpp, "LD_LIBRARY_PATH=", 16) &&
+		    strncmp(*cpp, "LD_PRELOAD=", 11) &&
+#else
 		if (strncmp(*cpp, "LD_", 3) &&
 		    strncmp(*cpp, "_RLD_", 5) &&
 		    strncmp(*cpp, "LIBPATH=", 8) &&
+#endif
 		    strncmp(*cpp, "IFS=", 4))
 			*cpp2++ = *cpp;
 	}
