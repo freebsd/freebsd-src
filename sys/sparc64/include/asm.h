@@ -97,4 +97,14 @@ CNAME(x):
 #define	ENTRY(x)	_ENTRY(x)
 #define	END(x)		.size x, . - x
 
+/*
+ * Kernel RCS ID tag and copyright macros
+ */
+
+#if !defined(lint) && !defined(STRIP_FBSDID)
+#define __FBSDID(s)	.ident s
+#else
+#define __FBSDID(s)	/* nothing */
+#endif /* not lint and not STRIP_FBSDID */
+
 #endif /* !_MACHINE_ASM_H_ */

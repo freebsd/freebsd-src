@@ -77,6 +77,12 @@
 
 #define	RCSID(x)	.text; .asciz x
 
+#if !defined(lint) && !defined(STRIP_FBSDID)
+#define __FBSDID(s)	.ident s
+#else
+#define __FBSDID(s)	/* nothing */
+#endif /* not lint and not STRIP_FBSDID */
+
 #ifdef __ELF__
 #define	WEAK_ALIAS(alias,sym)					\
 	.weak alias;						\
