@@ -244,7 +244,7 @@ failed:
 	 * Copy out the error if doing sane error semantics.
 	 */
 	if (errout != 0)
-		strcpy(errout, kd->errbuf);
+		strlcpy(errout, kd->errbuf, _POSIX2_LINE_MAX);
 	(void)kvm_close(kd);
 	return (0);
 }
@@ -260,7 +260,7 @@ kvm_openfiles(uf, mf, sf, flag, errout)
 	register kvm_t *kd;
 
 	if ((kd = malloc(sizeof(*kd))) == NULL) {
-		(void)strcpy(errout, strerror(errno));
+		(void)strlcpy(errout, strerror(errno), _POSIX2_LINE_MAX);
 		return (0);
 	}
 	memset(kd, 0, sizeof(*kd));
