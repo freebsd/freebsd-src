@@ -3038,7 +3038,7 @@ cdstartunit(struct cam_periph *periph)
 			/* cbfcnp */ cddone,
 			/* tag_action */ MSG_SIMPLE_Q_TAG,
 			/* start */ TRUE,
-			/* load_eject */ TRUE,
+			/* load_eject */ FALSE,
 			/* immediate */ FALSE,
 			/* sense_len */ SSD_FULL_SIZE,
 			/* timeout */ 50000);
