@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.9.2.10 1997/07/10 10:47:13 kato Exp $
+ *	$Id: wd.c,v 1.9.2.11 1997/08/12 08:09:56 kato Exp $
  */
 
 /* TODO:
@@ -2176,8 +2176,12 @@ out:
 			return (EIO);
 		}
 		while (blkcnt != 0) {
-			pmap_enter(kernel_pmap, (vm_offset_t)CADDR1, trunc_page(addr),
-				   VM_PROT_READ, TRUE);
+			if (is_physical_memory((vm_offset_t)addr))
+				pmap_enter(kernel_pmap, (vm_offset_t)CADDR1,
+					   trunc_page(addr), VM_PROT_READ, TRUE);
+			else
+				pmap_enter(kernel_pmap, (vm_offset_t)CADDR1,
+					   trunc_page(0), VM_PROT_READ, TRUE);
 
 			/* Ready to send data? */
 			DELAY(5);	/* ATA spec */
