@@ -42,7 +42,7 @@ static char copyright[] =
 static char sccsid[] = "@(#)fmt.c	8.1 (Berkeley) 7/20/93";
 #else
 static const char rcsid[] =
-	"$Id: fmt.c,v 1.9 1997/07/03 07:19:46 charnier Exp $";
+	"$Id: fmt.c,v 1.10 1997/08/21 03:41:41 jlemon Exp $";
 #endif
 #endif /* not lint */
 
@@ -339,8 +339,21 @@ split(line)
 	char line[];
 {
 	register char *cp, *cp2;
-	char word[BUFSIZ];
+	static char *word=0;
+	static int wordsize=0;
 	int wordl;		/* LIZ@UOM 6/18/85 */
+
+	{
+		int l = strlen(line);
+		if (l >= wordsize) {
+			if (word)
+				free(word);
+			wordsize = (l+66)&~63;
+			word = malloc(wordsize);
+			if (word == NULL)
+				abort();
+		}
+	}
 
 	cp = line;
 	while (*cp) {
@@ -364,7 +377,7 @@ split(line)
 		 */
 		if (*cp == '\0') {
 			*cp2++ = ' ';
-			if (index(".:!", cp[-1]))
+			if (cp != line && index(".:!", cp[-1]))
 				*cp2++ = ' ';
 		}
 		while (*cp == ' ')
@@ -386,8 +399,9 @@ split(line)
  * there ain't nothing in there yet.  At the bottom of this whole mess,
  * leading tabs are reinserted.
  */
-char	outbuf[BUFSIZ];			/* Sandbagged output line image */
+char	*outbuf;			/* Sandbagged output line image */
 char	*outp;				/* Pointer in above */
+int	outbuf_size;			/* er, size of outbuf */
 
 /*
  * Initialize the output section.
@@ -395,6 +409,10 @@ char	*outp;				/* Pointer in above */
 void
 setout()
 {
+	outbuf = malloc(BUFSIZ);
+	if (outbuf == 0)
+		abort();
+	outbuf_size = BUFSIZ;
 	outp = NOSTR;
 }
 
@@ -425,6 +443,15 @@ pack(word,wl)
 {
 	register char *cp;
 	register int s, t;
+
+	if (((outp==NOSTR) ? wl : outp-outbuf + wl) >= outbuf_size) {
+		char *old_outbuf = outbuf;
+		outbuf_size *= 2;
+		outbuf = realloc(outbuf, outbuf_size);
+		if (outbuf == 0)
+			abort();
+		outp += outbuf-old_outbuf;
+	}
 
 	if (outp == NOSTR)
 		leadin();
