@@ -2805,6 +2805,10 @@
 	</listitem>
       </itemizedlist>
     </para>
+
+    <para arch="i386">Creative Technologies Sound Blaster Live! series
+    (emu10k1 driver)</para>
+
     <para arch="i386">Trident 4DWave DX/NX (&man.pcm.4; driver)</para>
     <para arch="i386">VIA Technologies VT82C686A</para>
     <para arch="i386">Yamaha
@@ -2839,8 +2843,6 @@
         </listitem>
       </itemizedlist>
     </para>
-
-    <para arch="i386">Creative Sound Blaster Live! (emu10k1 driver)</para>
 
   </sect2>
   <sect2>
