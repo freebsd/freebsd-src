@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.134 1999/01/24 06:04:52 dillon Exp $
+ * $Id: vm_pageout.c,v 1.135 1999/02/07 21:48:23 dillon Exp $
  */
 
 /*
@@ -1079,7 +1079,7 @@ rescan0:
 
 	while (cnt.v_free_count < cnt.v_free_reserved) {
 		static int cache_rover = 0;
-		m = vm_page_list_find(PQ_CACHE, cache_rover);
+		m = vm_page_list_find(PQ_CACHE, cache_rover, FALSE);
 		if (!m)
 			break;
 		if ((m->flags & PG_BUSY) || m->busy || m->hold_count || m->wire_count) {
