@@ -148,7 +148,7 @@ unlock_map(struct faultstate *fs)
 }
 
 static void
-_unlock_things(struct faultstate *fs, int dealloc)
+unlock_and_deallocate(struct faultstate *fs)
 {
 
 	vm_object_pip_wakeup(fs->object);
@@ -162,9 +162,7 @@ _unlock_things(struct faultstate *fs, int dealloc)
 		VM_OBJECT_UNLOCK(fs->first_object);
 		fs->first_m = NULL;
 	}
-	if (dealloc) {
-		vm_object_deallocate(fs->first_object);
-	}
+	vm_object_deallocate(fs->first_object);
 	unlock_map(fs);	
 	if (fs->vp != NULL) { 
 		mtx_lock(&Giant);
@@ -172,12 +170,9 @@ _unlock_things(struct faultstate *fs, int dealloc)
 		mtx_unlock(&Giant);
 		fs->vp = NULL;
 	}
-	if (dealloc && !fs->map->system_map)
+	if (!fs->map->system_map)
 		VM_UNLOCK_GIANT();
 }
-
-#define unlock_things(fs) _unlock_things(fs, 0)
-#define unlock_and_deallocate(fs) _unlock_things(fs, 1)
 
 /*
  * TRYPAGER - used by vm_fault to calculate whether the pager for the
@@ -367,10 +362,33 @@ RetryFault:;
 			 */
 			if ((fs.m->flags & PG_BUSY) || fs.m->busy) {
 				vm_page_unlock_queues();
-				unlock_things(&fs);
-				vm_page_lock_queues();
-				if (!vm_page_sleep_if_busy(fs.m, TRUE, "vmpfw"))
+				VM_OBJECT_UNLOCK(fs.object);
+				if (fs.object != fs.first_object) {
+					VM_OBJECT_LOCK(fs.first_object);
+					vm_page_lock_queues();
+					vm_page_free(fs.first_m);
 					vm_page_unlock_queues();
+					vm_object_pip_wakeup(fs.first_object);
+					VM_OBJECT_UNLOCK(fs.first_object);
+					fs.first_m = NULL;
+				}
+				unlock_map(&fs);
+				if (fs.vp != NULL) {
+					mtx_lock(&Giant);
+					vput(fs.vp);
+					mtx_unlock(&Giant);
+					fs.vp = NULL;
+				}
+				VM_OBJECT_LOCK(fs.object);
+				if (fs.m == vm_page_lookup(fs.object,
+				    fs.pindex)) {
+					vm_page_lock_queues();
+					if (!vm_page_sleep_if_busy(fs.m, TRUE,
+					    "vmpfw"))
+						vm_page_unlock_queues();
+				}
+				vm_object_pip_wakeup(fs.object);
+				VM_OBJECT_UNLOCK(fs.object);
 				atomic_add_int(&cnt.v_intrans, 1);
 				if (!fs.map->system_map)
 					VM_UNLOCK_GIANT();
