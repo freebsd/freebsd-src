@@ -691,6 +691,7 @@ pci/if_en_pci.c		optional en pci
 pci/if_fpa.c		optional fpa pci
 pci/if_fxp.c		optional fxp
 pci/if_lnc_p.c		optional lnc pci
+pci/if_mn.c		optional mn
 pci/if_mx.c		optional mx
 pci/if_pn.c		optional pn
 pci/if_rl.c		optional rl
