@@ -37,7 +37,7 @@ static int wdtest = 0;
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.26 1994/02/06 17:03:17 ats Exp $
+ *	$Id: wd.c,v 1.27 1994/02/07 04:20:57 davidg Exp $
  */
 
 /* TODO:
@@ -300,6 +300,7 @@ wdattach(struct isa_device *dvp)
 		} else {
 			free(du, M_TEMP);
 			wddrives[lunit] = NULL;
+			printf(" [%d: wd%d: not found]", unit, lunit);
 		}
 	}
 
