@@ -229,7 +229,7 @@ aac_pci_attach(device_t dev)
 			   sc, &sc->aac_intr)) {
 		device_printf(sc->aac_dev, "can't set up FAST interrupt\n");
 		if (bus_setup_intr(sc->aac_dev, sc->aac_irq,
-				   INTR_MPSAFE|INTR_ENTROPY, INTR_TYPE_BIO,
+				   INTR_MPSAFE|INTR_ENTROPY|INTR_TYPE_BIO,
 				   aac_intr, sc, &sc->aac_intr)) {
 			device_printf(sc->aac_dev,
 				      "can't set up MPSAFE interrupt\n");
