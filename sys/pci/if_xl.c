@@ -1773,7 +1773,7 @@ static void xl_rxeof(sc)
         struct ifnet		*ifp;
 	struct xl_chain_onefrag	*cur_rx;
 	int			total_len = 0;
-	u_int16_t		rxstat;
+	u_int32_t		rxstat;
 
 	ifp = &sc->arpcom.ac_if;
 
@@ -1832,6 +1832,22 @@ again:
 
 		/* Remove header from mbuf and pass it on. */
 		m_adj(m, sizeof(struct ether_header));
+
+		if (sc->xl_type == XL_TYPE_905B) {
+			/* Do IP checksum checking. */
+			if (rxstat & XL_RXSTAT_IPCKOK)
+				m->m_pkthdr.csum_flags |= CSUM_IP_CHECKED;
+			if (!(rxstat & XL_RXSTAT_IPCKERR))
+				m->m_pkthdr.csum_flags |= CSUM_IP_VALID;
+			if ((rxstat & XL_RXSTAT_TCPCOK &&
+			     !(rxstat & XL_RXSTAT_TCPCKERR)) ||
+			    (rxstat & XL_RXSTAT_UDPCKOK &&
+			     !(rxstat & XL_RXSTAT_UDPCKERR))) {
+				m->m_pkthdr.csum_flags |=
+					CSUM_DATA_VALID|CSUM_PSEUDO_HDR;
+				m->m_pkthdr.csum_data = 0xffff;
+			}
+		}
 		ether_input(ifp, eh, m);
 	}
 
