@@ -93,13 +93,11 @@ boot2.h: boot1.out
 	    ORG1=`printf "%d" ${ORG1}` \
 	    REL1=`printf "%d" ${REL1}` > ${.TARGET}
 
-.if defined(REALLY_AMD64)
+.if ${MACHINE_ARCH} == "amd64"
 boot2.s: machine
-
+CLEANFILES+=	machine
 machine:
 	ln -sf ${.CURDIR}/../../../i386/include machine
-
-CLEANFILES+=	machine
 .endif
 
 .include <bsd.prog.mk>
