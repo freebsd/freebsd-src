@@ -186,7 +186,7 @@ ngpppoe_set_ethertype(SYSCTL_HANDLER_ARGS)
 	return (0);
 }
 
-SYSCTL_PROC(_net_graph, OID_AUTO, nonstandard, CTLTYPE_INT | CTLFLAG_RW,
+SYSCTL_PROC(_net_graph, OID_AUTO, nonstandard_pppoe, CTLTYPE_INT | CTLFLAG_RW,
     0, sizeof(int), ngpppoe_set_ethertype, "I", "nonstandard ethertype");
 
 union uniq {
