@@ -49,19 +49,22 @@
  *
  * The data file distributed with the fortran source is assumed to be called
  * "glorkz" in the directory where the program is first run.
+ *
+ * $FreeBSD$
  */
 
 /* hdr.h: included by c advent files */
 #include <sys/types.h>
+#include <signal.h>
 
 int datfd;                              /* message file descriptor      */
-int delhit;
+volatile sig_atomic_t delhit;
 int yea;
 extern char data_file[];                /* Virtual data file            */
 
 #define TAB     011
 #define LF      012
-#define FLUSHLINE while (getchar()!='\n')
+#define FLUSHLINE do { int flushline_ch; while ((flushline_ch = getchar()) != EOF && flushline_ch != '\n'); } while (0)
 #define FLUSHLF   while (next()!=LF)
 
 int loc,newloc,oldloc,oldlc2,wzdark,gaveup,kq,k,k2;
@@ -153,12 +156,63 @@ int chloc,chloc2,dseen[7],dloc[7],      /* dwarf stuff                  */
 int tk[21],stick,dtotal,attack;
 int turns,lmwarn,iwest,knfloc,detail,   /* various flags & counters     */
 	abbnum,maxdie,numdie,holdng,dkill,foobar,bonus,clock1,clock2,
-	saved,closng,panic,closed,scorng;
+	closng,panic,closed,scorng;
 
-int demo,newloc,limit;
+int demo,limit;
 
-char *decr();
-unsigned long crc();
+int at(int);
+int bug(int);
+void carry(int,int);
+void caveclose(void);
+void checkhints(void);
+void ciao(void);
+void closing(void);
+unsigned long crc(const char *, int);
+void crc_start(void);
+int dark(void);
+void datime(int *, int *);
+char *decr(char,char,char,char,char);
+void die(int);
+void done(int);
+void drop(int,int);
+void dstroy(int);
+int fdwarf(void);
+int forced(int);
+void getin(char **, char **);
+int here(int);
+void init(void);
+void juggle(int);
+int liq(void);
+int liqloc(int);
+int march(void);
+void move(int,int);
+void mspeak(int);
+int pct(int);
+void poof(void);
+void pspeak(int, int);
+int put(int,int,int);
+int ran(int);
+void rdata(void);
+int restore(const char *);
+void rspeak(int);
+int save(const char *);
+int score(void);
+void speak(const struct text *);
+int Start(void);
+void startup(void);
+int toting(int);
+void trapdel(int);
+int trdrop(void);
+int trfeed(void);
+int trfill(void);
+int trkill(void);
+int tropen(void);
+int trsay(void);
+int trtake(void);
+int trtoss(void);
+int vocab(const char *,int,int);
+int yes(int,int,int);
+int yesm(int,int,int);
 
 /* We need to get a little tricky to avoid strings */
 #define DECR(a,b,c,d,e) decr('a'+'+','b'+'-','c'+'#','d'+'&','e'+'%')

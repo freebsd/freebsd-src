@@ -37,38 +37,44 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1991, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)main.c	8.1 (Berkeley) 6/2/93";
+#endif
+static const char rcsid[] =
+ "$FreeBSD$";
 #endif /* not lint */
 
 /*      Re-coding of advent in C: main program                          */
 
 #include <sys/file.h>
+#include <sys/types.h>
 #include <signal.h>
 #include <stdio.h>
+#include <string.h>
+#include <unistd.h>
 #include "hdr.h"
 
 
+int
 main(argc,argv)
 int argc;
 char **argv;
 {
-	extern int errno;
-	register int i;
+	int i;
 	int rval,ll;
 	struct text *kk;
-	extern trapdel();
 
 	/* revoke */
 	setgid(getgid());
 
 	init();         /* Initialize everything */
-	signal(2,trapdel);
+	signal(SIGINT,trapdel);
 
 	if (argc > 1)   /* Restore file specified */
 	{               /* Restart is label 8305 (Fortran) */
@@ -76,15 +82,15 @@ char **argv;
 		switch(i)
 		{
 		    case 0:     /* The restore worked fine */
-			yea=Start(0);
+			yea=Start();
 			k=null;
 			unlink(argv[1]);/* Don't re-use the save */
 			goto l8;        /* Get where we're going */
 		    case 1:             /* Couldn't open it */
-			exit(0);        /* So give up */
+			exit(1);        /* So give up */
 		    case 2:             /* Oops -- file was altered */
 			rspeak(202);    /* You dissolve */
-			exit(0);        /* File could be non-adventure */
+			exit(1);        /* File could be non-adventure */
 		}                       /* So don't unlink it. */
 	}
 
@@ -105,20 +111,20 @@ char **argv;
 		kk = &stext[loc];
 		if ((abb[loc]%abbnum)==0 || kk->seekadr==0)
 			kk = &ltext[loc];
-		if (!forced(loc) && dark(0))
+		if (!forced(loc) && dark())
 		{       if (wzdark && pct(35))
 			{       die(90);
 				goto l2000;
 			}
 			kk = &rtext[16];
 		}
-	l2001:  if (toting(bear)) rspeak(141);  /* 2001                 */
+		if (toting(bear)) rspeak(141);  /* 2001                 */
 		speak(kk);
 		k=1;
 		if (forced(loc))
 			goto l8;
 		if (loc==33 && pct(25)&&!closng) rspeak(8);
-		if (!dark(0))
+		if (!dark())
 		{       abb[loc]++;
 			for (i=atloc[loc]; i!=0; i=linkx[i])     /*2004  */
 			{       obj=i;
@@ -153,12 +159,12 @@ char **argv;
 				if (toting(i)&&prop[i]<0)       /*2604  */
 					prop[i] = -1-prop[i];
 		}
-		wzdark=dark(0);                 /* 2605                 */
+		wzdark=dark();                  /* 2605                 */
 		if (knfloc>0 && knfloc!=loc) knfloc=1;
 		getin(&wd1,&wd2);
 		if (delhit)                     /* user typed a DEL     */
 		{       delhit=0;               /* reset counter        */
-			copystr("quit",wd1);    /* pretend he's quitting*/
+			strcpy(wd1,"quit");    /* pretend he's quitting*/
 			*wd2=0;
 		}
 	l2608:  if ((foobar = -foobar)>0) foobar=0;     /* 2608         */
@@ -210,18 +216,18 @@ char **argv;
 		}
 	l19999: k=43;
 		if (liqloc(loc)==water) k=70;
-		if (weq(wd1,"enter") &&
-		    (weq(wd2,"strea")||weq(wd2,"water")))
+		if (!strncmp(wd1,"enter",5) &&
+		    (!strncmp(wd2,"strea",5)||!strncmp(wd2,"water",5)))
 			goto l2010;
-		if (weq(wd1,"enter") && *wd2!=0) goto l2800;
-		if ((!weq(wd1,"water")&&!weq(wd1,"oil"))
-		    || (!weq(wd2,"plant")&&!weq(wd2,"door")))
+		if (!strncmp(wd1,"enter",5) && *wd2!=0) goto l2800;
+		if ((strncmp(wd1,"water",5)&&strncmp(wd1,"oil",3))
+		    || (strncmp(wd2,"plant",5)&&strncmp(wd2,"door",4)))
 			goto l2610;
-		if (at(vocab(wd2,1))) copystr("pour",wd2);
+		if (at(vocab(wd2,1,0))) strcpy(wd2,"pour");
 
-	l2610:  if (weq(wd1,"west"))
+	l2610:  if (!strncmp(wd1,"west",4))
 			if (++iwest==10) rspeak(17);
-	l2630:  i=vocab(wd1,-1);
+	l2630:  i=vocab(wd1,-1,0);
 		if (i== -1)
 		{       spk=60;                 /* 3000         */
 			if (pct(20)) spk=61;
@@ -237,22 +243,19 @@ char **argv;
 		    case 3: goto l4000;
 		    case 4: goto l2010;
 		    default:
-			printf("Error 22\n");
-			exit(0);
+			bug(22);
 		}
 
 	l8:
 		switch(march())
 		{   case 2: continue;           /* i.e. goto l2         */
 		    case 99:
-			switch(die(99))
-			{   case 2000: goto l2000;
-			    default: bug(111);
-			}
+			die(99);
+			goto l2000;
 		    default: bug(110);
 		}
 
-	l2800:  copystr(wd2,wd1);
+	l2800:  strcpy(wd1,wd2);
 		*wd2=0;
 		goto l2610;
 
@@ -261,7 +264,6 @@ char **argv;
 		if (*wd2!=0 && verb!=say) goto l2800;
 		if (verb==say) obj= *wd2;
 		if (obj!=0) goto l4090;
-	l4080:
 		switch(verb)
 		{   case 1:                     /* take = 8010          */
 			if (atloc[loc]==0||linkx[atloc[loc]]!=0) goto l8000;
@@ -327,7 +329,7 @@ char **argv;
 			if (gaveup) done(2);
 			goto l2012;
 		    case 25:                    /* foo: 8250            */
-			k=vocab(wd1,3);
+			k=vocab(wd1,3,0);
 			spk=42;
 			if (foobar==1-k) goto l8252;
 			if (foobar!=0) spk=151;
@@ -355,7 +357,7 @@ char **argv;
 			if (here(tablet)) obj=obj*100+tablet;
 			if (here(messag)) obj=obj*100+messag;
 			if (closed&&toting(oyster)) obj=oyster;
-			if (obj>100||obj==0||dark(0)) goto l8000;
+			if (obj>100||obj==0||dark()) goto l8000;
 			goto l9270;
 		    case 30:                    /* suspend=8300         */
 			spk=201;
@@ -366,7 +368,7 @@ char **argv;
 			printf(" %d minutes before continuing.",latncy);
 			if (!yes(200,54,54)) goto l2012;
 			datime(&saved,&savet);
-			ciao(argv[0]);          /* Do we quit? */
+			ciao();                 /* Do we quit? */
 			continue;               /* Maybe not */
 		    case 31:                    /* hours=8310           */
 			printf("Colossal cave is closed 9am-5pm Mon ");
@@ -392,7 +394,7 @@ char **argv;
 			    case 2012: goto l2012;
 			    default: bug(105);
 			}
-	l9030:      case 3:
+		    case 3:
 			switch(trsay())
 			{   case 2012: goto l2012;
 			    case 2630: goto l2630;
@@ -418,7 +420,7 @@ char **argv;
 	l9080:          if (!here(lamp)) goto l2011;
 			prop[lamp]=0;
 			rspeak(40);
-			if (dark(0)) rspeak(16);
+			if (dark()) rspeak(16);
 			goto l2012;
 
 		    case 9:                     /* wave                 */
@@ -443,7 +445,7 @@ char **argv;
 			    default: bug(112);
 			}
 	l9130:      case 13:                    /* pour                 */
-			if (obj==bottle||obj==0) obj=liq(0);
+			if (obj==bottle||obj==0) obj=liq();
 			if (obj==0) goto l8000;
 			if (!toting(obj)) goto l2011;
 			spk=78;
@@ -472,10 +474,10 @@ char **argv;
 			    ||obj==bear) spk=71;
 			goto l2011;
 	l9150:      case 15:                    /* 9150 - drink         */
-			if (obj==0&&liqloc(loc)!=water&&(liq(0)!=water
+			if (obj==0&&liqloc(loc)!=water&&(liq()!=water
 				||!here(bottle))) goto l8000;
 			if (obj!=0&&obj!=water) spk=110;
-			if (spk==110||liq(0)!=water||!here(bottle))
+			if (spk==110||liq()!=water||!here(bottle))
 				goto l2011;
 			prop[bottle]=1;
 			place[water]=0;
@@ -494,7 +496,7 @@ char **argv;
 			    default: bug(113);
 			}
 		    case 19: case 20:           /* 9190: find, invent   */
-			if (at(obj)||(liq(0)==obj&&at(bottle))
+			if (at(obj)||(liq()==obj&&at(bottle))
 				||k==liqloc(loc)) spk=94;
 			for (i=1; i<=5; i++)
 				if (dloc[i]==loc&&dflag>=2&&obj==dwarf)
@@ -522,7 +524,7 @@ char **argv;
 			rspeak(bonus);
 			done(2);
 	l9270:      case 27:                    /* read                 */
-			if (dark(0)) goto l5190;
+			if (dark()) goto l5190;
 			if (obj==magzin) spk=190;
 			if (obj==tablet) spk=196;
 			if (obj==messag) spk=191;
@@ -531,7 +533,7 @@ char **argv;
 				||!closed) goto l2011;
 			hinted[2]=yes(192,193,54);
 			goto l2012;
-	l9280:      case 28:                    /* break                */
+		    case 28:                    /* break                */
 			if (obj==mirror) spk=148;
 			if (obj==vase&&prop[vase]==0)
 			{       spk=198;
@@ -544,7 +546,7 @@ char **argv;
 			rspeak(197);
 			done(3);
 
-	l9290:      case 29:                    /* wake                 */
+		      case 29:                    /* wake                 */
 			if (obj!=dwarf||!closed) goto l2011;
 			rspeak(199);
 			done(3);
@@ -566,7 +568,7 @@ char **argv;
 	l5110:  if (k!=dwarf) goto l5120;
 		for (i=1; i<=5; i++)
 			if (dloc[i]==loc&&dflag>=2) goto l5010;
-	l5120:  if ((liq(0)==k&&here(bottle))||k==liqloc(loc)) goto l5010;
+	l5120:  if ((liq()==k&&here(bottle))||k==liqloc(loc)) goto l5010;
 		if (obj!=plant||!at(plant2)||prop[plant2]==0) goto l5130;
 		obj=plant2;
 		goto l5010;

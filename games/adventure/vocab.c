@@ -37,23 +37,30 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)vocab.c	8.1 (Berkeley) 5/31/93";
+#endif
+static const char rcsid[] =
+ "$FreeBSD$";
 #endif /* not lint */
 
 /*      Re-coding of advent in C: data structure routines               */
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <err.h>
 #include "hdr.h"
 
+void
 dstroy(object)
 int object;
 {       move(object,0);
 }
 
+void
 juggle(object)
 int object;
-{       register int i,j;
+{       int i,j;
 
 	i=place[object];
 	j=fixed[object];
@@ -62,9 +69,10 @@ int object;
 }
 
 
+void
 move(object,where)
 int object,where;
-{       register int from;
+{       int from;
 
 	if (object<=100)
 		from=place[object];
@@ -75,15 +83,17 @@ int object,where;
 }
 
 
+int
 put(object,where,pval)
 int object,where,pval;
 {       move(object,where);
 	return(-1-pval);
 }
 
+void
 carry(object,where)
 int object,where;
-{       register int temp;
+{       int temp;
 
 	if (object<=100)
 	{       if (place[object]== -1) return;
@@ -99,6 +109,7 @@ int object,where;
 }
 
 
+void
 drop(object,where)
 int object,where;
 {	if (object>100) fixed[object-100]=where;
@@ -112,12 +123,14 @@ int object,where;
 }
 
 
+int
 vocab(word,type,value)                  /* look up or store a word      */
-char *word;
+const char *word;
 int type;       /* -2 for store, -1 for user word, >=0 for canned lookup*/
 int value;                              /* used for storing only        */
-{       register int adr;
-	register char *s,*t;
+{       int adr;
+	const char *s;
+	char *t;
 	int hash, i;
 	struct hashtab *h;
 
@@ -134,13 +147,15 @@ int value;                              /* used for storing only        */
 			if (h->val)     /* already got an entry?        */
 				goto exitloop2;
 			h->val=value;
-			h->atab=malloc(length(word));
+			h->atab=malloc(strlen(word)+1);
+			if (h->atab == NULL)
+				errx(1, "Out of memory!");
 			for (s=word,t=h->atab; *s;)
 				*t++ = *s++ ^ '=';
 			*t=0^'=';
 			/* encrypt slightly to thwart core reader       */
 		/*      printf("Stored \"%s\" (%d ch) as entry %d\n",   */
-		/*              word, length(word), adr);               */
+		/*              word, strlen(word)+1, adr);               */
 			return(0);      /* entry unused                 */
 		    case -1:            /* looking up user word         */
 			if (h->val==0) return(-1);   /* not found    */
@@ -152,8 +167,7 @@ int value;                              /* used for storing only        */
 			return(h->val);
 		    default:            /* looking up known word        */
 			if (h->val==0)
-			{       printf("Unable to find %s in vocab\n",word);
-				exit(0);
+			{       errx(1, "Unable to find %s in vocab", word);
 			}
 			for (s=word, t=h->atab;*t ^ '=';)
 				if ((*s++ ^ '=') != *t++) goto exitloop2;
@@ -164,62 +178,7 @@ int value;                              /* used for storing only        */
 
 	    exitloop2:                  /* hashed entry does not match  */
 		if (adr+1==hash || (adr==HTSIZE && hash==0))
-		{       printf("Hash table overflow\n");
-			exit(0);
+		{       errx(1, "Hash table overflow");
 		}
-	}
-}
-
-
-copystr(w1,w2)                          /* copy one string to another   */
-char *w1,*w2;
-{       register char *s,*t;
-	for (s=w1,t=w2; *s;)
-		*t++ = *s++;
-	*t=0;
-}
-
-weq(w1,w2)                              /* compare words                */
-char *w1,*w2;                           /* w1 is user, w2 is system     */
-{       register char *s,*t;
-	register int i;
-	s=w1;
-	t=w2;
-	for (i=0; i<5; i++)             /* compare at most 5 chars      */
-	{       if (*t==0 && *s==0)
-			return(TRUE);
-		if (*s++ != *t++) return(FALSE);
-	}
-	return(TRUE);
-}
-
-
-length(str)                             /* includes 0 at end            */
-char *str;
-{       register char *s;
-	register int n;
-	for (n=0,s=str; *s++;) n++;
-	return(n+1);
-}
-
-prht()                                  /* print hash table             */
-{       register int i,j,l;
-	char *c;
-	struct hashtab *h;
-	for (i=0; i<HTSIZE/10+1; i++)
-	{       printf("%4d",i*10);
-		for (j=0; j<10; j++)
-		{       if (i*10+j>=HTSIZE) break;
-			h= &voc[i*10+j];
-			putchar(' ');
-			if (h->val==0)
-			{       printf("-----");
-				continue;
-			}
-			for (l=0, c=h->atab; l<5; l++)
-				if ((*c ^ '=')) putchar(*c++ ^ '=');
-				else putchar(' ');
-		}
-		putchar('\n');
 	}
 }

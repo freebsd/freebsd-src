@@ -37,7 +37,11 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)save.c	8.1 (Berkeley) 5/31/93";
+#endif
+static const char rcsid[] =
+ "$FreeBSD$";
 #endif /* not lint */
 
 #include <stdio.h>
@@ -53,72 +57,73 @@ struct savestruct
 
 struct savestruct save_array[] =
 {
-	&abbnum,        sizeof(abbnum),
-	&attack,        sizeof(attack),
-	&blklin,        sizeof(blklin),
-	&bonus,         sizeof(bonus),
-	&chloc,         sizeof(chloc),
-	&chloc2,        sizeof(chloc2),
-	&clock1,        sizeof(clock1),
-	&clock2,        sizeof(clock2),
-	&closed,        sizeof(closed),
-	&closng,        sizeof(closng),
-	&daltlc,        sizeof(daltlc),
-	&demo,          sizeof(demo),
-	&detail,        sizeof(detail),
-	&dflag,         sizeof(dflag),
-	&dkill,         sizeof(dkill),
-	&dtotal,        sizeof(dtotal),
-	&foobar,        sizeof(foobar),
-	&gaveup,        sizeof(gaveup),
-	&holdng,        sizeof(holdng),
-	&iwest,         sizeof(iwest),
-	&k,             sizeof(k),
-	&k2,            sizeof(k2),
-	&knfloc,        sizeof(knfloc),
-	&kq,            sizeof(kq),
-	&latncy,        sizeof(latncy),
-	&limit,         sizeof(limit),
-	&lmwarn,        sizeof(lmwarn),
-	&loc,           sizeof(loc),
-	&maxdie,        sizeof(maxdie),
-	&mxscor,        sizeof(mxscor),
-	&newloc,        sizeof(newloc),
-	&numdie,        sizeof(numdie),
-	&obj,           sizeof(obj),
-	&oldlc2,        sizeof(oldlc2),
-	&oldloc,        sizeof(oldloc),
-	&panic,         sizeof(panic),
-	&saved,         sizeof(saved),
-	&savet,         sizeof(savet),
-	&scorng,        sizeof(scorng),
-	&spk,           sizeof(spk),
-	&stick,         sizeof(stick),
-	&tally,         sizeof(tally),
-	&tally2,        sizeof(tally2),
-	&tkk,           sizeof(tkk),
-	&turns,         sizeof(turns),
-	&verb,          sizeof(verb),
-	&wd1,           sizeof(wd1),
-	&wd2,           sizeof(wd2),
-	&wzdark,        sizeof(wzdark),
-	&yea,           sizeof(yea),
-	atloc,          sizeof(atloc),
-	dloc,           sizeof(dloc),
-	dseen,          sizeof(dseen),
-	fixed,          sizeof(fixed),
-	hinted,         sizeof(hinted),
-	linkx,           sizeof(linkx),
-	odloc,          sizeof(odloc),
-	place,          sizeof(place),
-	prop,           sizeof(prop),
-	tk,             sizeof(tk),
+	{&abbnum,        sizeof(abbnum)},
+	{&attack,        sizeof(attack)},
+	{&blklin,        sizeof(blklin)},
+	{&bonus,         sizeof(bonus)},
+	{&chloc,         sizeof(chloc)},
+	{&chloc2,        sizeof(chloc2)},
+	{&clock1,        sizeof(clock1)},
+	{&clock2,        sizeof(clock2)},
+	{&closed,        sizeof(closed)},
+	{&closng,        sizeof(closng)},
+	{&daltlc,        sizeof(daltlc)},
+	{&demo,          sizeof(demo)},
+	{&detail,        sizeof(detail)},
+	{&dflag,         sizeof(dflag)},
+	{&dkill,         sizeof(dkill)},
+	{&dtotal,        sizeof(dtotal)},
+	{&foobar,        sizeof(foobar)},
+	{&gaveup,        sizeof(gaveup)},
+	{&holdng,        sizeof(holdng)},
+	{&iwest,         sizeof(iwest)},
+	{&k,             sizeof(k)},
+	{&k2,            sizeof(k2)},
+	{&knfloc,        sizeof(knfloc)},
+	{&kq,            sizeof(kq)},
+	{&latncy,        sizeof(latncy)},
+	{&limit,         sizeof(limit)},
+	{&lmwarn,        sizeof(lmwarn)},
+	{&loc,           sizeof(loc)},
+	{&maxdie,        sizeof(maxdie)},
+	{&mxscor,        sizeof(mxscor)},
+	{&newloc,        sizeof(newloc)},
+	{&numdie,        sizeof(numdie)},
+	{&obj,           sizeof(obj)},
+	{&oldlc2,        sizeof(oldlc2)},
+	{&oldloc,        sizeof(oldloc)},
+	{&panic,         sizeof(panic)},
+	{&saved,         sizeof(saved)},
+	{&savet,         sizeof(savet)},
+	{&scorng,        sizeof(scorng)},
+	{&spk,           sizeof(spk)},
+	{&stick,         sizeof(stick)},
+	{&tally,         sizeof(tally)},
+	{&tally2,        sizeof(tally2)},
+	{&tkk,           sizeof(tkk)},
+	{&turns,         sizeof(turns)},
+	{&verb,          sizeof(verb)},
+	{&wd1,           sizeof(wd1)},
+	{&wd2,           sizeof(wd2)},
+	{&wzdark,        sizeof(wzdark)},
+	{&yea,           sizeof(yea)},
+	{atloc,          sizeof(atloc)},
+	{dloc,           sizeof(dloc)},
+	{dseen,          sizeof(dseen)},
+	{fixed,          sizeof(fixed)},
+	{hinted,         sizeof(hinted)},
+	{linkx,           sizeof(linkx)},
+	{odloc,          sizeof(odloc)},
+	{place,          sizeof(place)},
+	{prop,           sizeof(prop)},
+	{tk,             sizeof(tk)},
 
-	NULL,   0
+	{NULL,   0}
 };
 
+int
 save(outfile)   /* Two passes on data: first to get checksum, second */
-char *outfile;  /* to output the data using checksum to start random #s */
+const char *outfile;  /* to output the data using checksum to start random #s */
 {
 	FILE *out;
 	struct savestruct *p;
@@ -150,8 +155,9 @@ char *outfile;  /* to output the data using checksum to start random #s */
 	return 0;
 }
 
+int
 restore(infile)
-char *infile;
+const char *infile;
 {
 	FILE *in;
 	struct savestruct *p;
@@ -159,6 +165,7 @@ char *infile;
 	long sum, cksum;
 	int i;
 
+	cksum = 0;
 	if ((in = fopen(infile, "rb")) == NULL)
 	{
 	    fprintf(stderr,
