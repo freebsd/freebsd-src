@@ -103,9 +103,11 @@ rm_path(char *path)
 	*++p = '\0';
 	while ((p = strrchr(path, '/')) != NULL) {
 		/* Delete trailing slashes. */
-		while (--p > path && *p == '/')
+		while (--p >= path && *p == '/')
 			;
 		*++p = '\0';
+		if (p == path)
+			break;
 
 		if (rmdir(path) < 0) {
 			warn("%s", path);
