@@ -470,55 +470,6 @@ literal:
 				 */
 				switch (c) {
 
-				/*
-				 * The digit 0 is always legal, but is
-				 * special.  For %i conversions, if no
-				 * digits (zero or nonzero) have been
-				 * scanned (only signs), we will have
-				 * base==0.  In that case, we should set
-				 * it to 8 and enable 0x prefixing.
-				 * Also, if we have not scanned zero digits
-				 * before this, do not turn off prefixing
-				 * (someone else will turn it off if we
-				 * have scanned any nonzero digits).
-				 */
-				case '0':
-					if (base == 0) {
-						base = 8;
-						flags |= PFXOK;
-					}
-					if (flags & NZDIGITS)
-					    flags &= ~(SIGNOK|NZDIGITS|NDIGITS);
-					else
-					    flags &= ~(SIGNOK|PFXOK|NDIGITS);
-					goto ok;
-
-				/* 1 through 7 always legal */
-				case '1': case '2': case '3':
-				case '4': case '5': case '6': case '7':
-					base = basefix[base];
-					flags &= ~(SIGNOK | PFXOK | NDIGITS);
-					goto ok;
-
-				/* digits 8 and 9 ok iff decimal or hex */
-				case '8': case '9':
-					base = basefix[base];
-					if (base <= 8)
-						break;	/* not legal here */
-					flags &= ~(SIGNOK | PFXOK | NDIGITS);
-					goto ok;
-
-				/* letters ok iff hex */
-				case 'A': case 'B': case 'C':
-				case 'D': case 'E': case 'F':
-				case 'a': case 'b': case 'c':
-				case 'd': case 'e': case 'f':
-					/* no need to fix base here */
-					if (base <= 10)
-						break;	/* not legal here */
-					flags &= ~(SIGNOK | PFXOK | NDIGITS);
-					goto ok;
-
 				/* sign ok only as first character */
 				case '+': case '-':
 					if (flags & SIGNOK) {
@@ -535,6 +486,56 @@ literal:
 						goto ok;
 					}
 					break;
+
+				default:
+					if (!isxdigit(c))
+						break;
+					n = digittoint(c);
+					if (n >= 16)
+						break;
+					else if (n >= 10) {
+						/* letters ok iff hex */
+						/* no need to fix base here */
+						if (base <= 10)
+							break;  /* not legal here */
+						flags &= ~(SIGNOK | PFXOK | NDIGITS);
+						goto ok;
+					} else if (n >= 8) {
+						/* digits 8 and 9 ok iff decimal or hex */
+						base = basefix[base];
+						if (base <= 8)
+							break;  /* not legal here */
+						flags &= ~(SIGNOK | PFXOK | NDIGITS);
+						goto ok;
+					} else if (n > 0) {
+						/* 1 through 7 always legal */
+						base = basefix[base];
+						flags &= ~(SIGNOK | PFXOK | NDIGITS);
+						goto ok;
+					} else {
+						/*
+						 * The digit 0 is always legal, but is
+						 * special.  For %i conversions, if no
+						 * digits (zero or nonzero) have been
+						 * scanned (only signs), we will have
+						 * base==0.  In that case, we should set
+						 * it to 8 and enable 0x prefixing.
+						 * Also, if we have not scanned zero digits
+						 * before this, do not turn off prefixing
+						 * (someone else will turn it off if we
+						 * have scanned any nonzero digits).
+						 */
+						if (base == 0) {
+							base = 8;
+							flags |= PFXOK;
+						}
+						if (flags & NZDIGITS)
+						    flags &= ~(SIGNOK|NZDIGITS|NDIGITS);
+						else
+						    flags &= ~(SIGNOK|PFXOK|NDIGITS);
+						goto ok;
+					}
+					/* NOTREACHED */
 				}
 
 				/*
@@ -611,12 +612,6 @@ literal:
 				 */
 				switch (c) {
 
-				case '0': case '1': case '2': case '3':
-				case '4': case '5': case '6': case '7':
-				case '8': case '9':
-					flags &= ~(SIGNOK | NDIGITS);
-					goto fok;
-
 				case '+': case '-':
 					if (flags & SIGNOK) {
 						flags &= ~SIGNOK;
@@ -636,6 +631,9 @@ literal:
 					if ((char)c == decimal_point &&
 					    (flags & DPTOK)) {
 						flags &= ~(SIGNOK | DPTOK);
+						goto fok;
+					} else if (isdigit(c) && digittoint(c) <= 9) {
+						flags &= ~(SIGNOK | NDIGITS);
 						goto fok;
 					}
 					break;
