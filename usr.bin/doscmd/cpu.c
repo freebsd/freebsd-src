@@ -29,14 +29,16 @@
 #include "doscmd.h"
 #include "video.h"
 
-static u_int32_t decode_modrm(u_int8_t *, u_int16_t, regcontext_t *, int *);
-static u_int8_t reg8(u_int8_t c, regcontext_t *);
-static u_int16_t reg16(u_int8_t c, regcontext_t *);
+static u_int32_t	decode_modrm(u_int8_t *, u_int16_t,
+				     regcontext_t *, int *);
+static u_int8_t		*reg8(u_int8_t c, regcontext_t *);
+static u_int16_t	*reg16(u_int8_t c, regcontext_t *);
 #if 0
-static u_int32_t reg32(u_int8_t c, regcontext_t *);
+static u_int32_t	*reg32(u_int8_t c, regcontext_t *);
 #endif
-static void write_byte(u_int32_t, u_int8_t);
-static void write_word(u_int32_t, u_int16_t);
+static u_int8_t		read_byte(u_int32_t);
+static void		write_byte(u_int32_t, u_int8_t);
+static void		write_word(u_int32_t, u_int16_t);
 
 /*
 ** Hardware /0 interrupt
@@ -120,90 +122,163 @@ emu_instr(regcontext_t *REGS)
     int prefix = 1;
     u_int8_t *cs = (u_int8_t *)(R_CS << 4);
     int ip = R_IP;
-    int instrlen;
-    int dir;
-    u_int16_t value;
-    u_int16_t seg = R_DS;
-    u_int32_t addr, endaddr;
+    int dir, i, instrlen;
+    u_int8_t *r8;
+    u_int8_t val8;
+    u_int16_t val16;
+    u_int16_t *seg = &R_DS;
+    u_int32_t addr, toaddr;
     
     while (prefix) {
 	prefix = 0;
 	switch (cs[ip]) {
+	case 0x08:		/* or r/m8, r8 */
+	    addr = decode_modrm(cs + ip, *seg, REGS, &instrlen);
+	    r8 = reg8(cs[ip + 1], REGS);
+	    val8 = read_byte(addr) | *r8;
+	    write_byte(addr, val8);
+	    /* clear carry and overflow; check zero, sign, parity */
+	    R_EFLAGS &= ~PSL_C | ~PSL_V;
+	    if (val8 == 0)
+		R_EFLAGS |= PSL_Z;
+	    if (val8 % 2 != 0)
+		R_EFLAGS |= PSL_PF;
+	    if (val8 & 0x80)
+		R_EFLAGS |= PSL_N;
+	    ip += 2 + instrlen;
+	    break;
+	case 0x22:		/* and r8, r/m8 */
+	    addr = decode_modrm(cs + ip, *seg, REGS, &instrlen);
+	    r8 = reg8(cs[ip + 1], REGS);
+	    *r8 &= read_byte(addr);
+	    /* clear carry and overflow; check zero, sign, parity */
+	    R_EFLAGS &= ~PSL_C | ~PSL_V;
+	    if (*r8 == 0)
+		R_EFLAGS |= PSL_Z;
+	    if (*r8 % 2 != 0)
+		R_EFLAGS |= PSL_PF;
+	    if (*r8 & 0x80)
+		R_EFLAGS |= PSL_N;
+	    ip += 2 + instrlen;
+	    break;
 	case 0x26:		/* Segment Override ES */
-	    seg = R_ES;
+	    seg = &R_ES;
 	    prefix = 1;
 	    ip++;
 	    break;
 	case 0x2e:		/* Segment Override CS */
-	    seg = R_CS;
+	    seg = &R_CS;
 	    prefix = 1;
 	    ip++;
 	    break;
 	case 0x36:		/* Segment Override SS */
-	    seg = R_SS;
+	    seg = &R_SS;
 	    prefix = 1;
 	    ip++;
 	    break;
 	case 0x3e:		/* Segment Override DS */
-	    seg = R_DS;
+	    seg = &R_DS;
 	    prefix = 1;
 	    ip++;
 	    break;
 	case 0x64:		/* Segment Override FS */
-	    seg = R_FS;
+	    seg = &R_FS;
 	    prefix = 1;
 	    ip++;
 	    break;
 	case 0x65:		/* Segment Override GS */
-	    seg = R_GS;
+	    seg = &R_GS;
 	    prefix = 1;
 	    ip++;
 	    break;
 	case 0x88:		/* mov r/m8, r8 */
-	    addr = decode_modrm(cs + ip, seg, REGS, &instrlen);
-	    write_byte(addr, reg8(cs[ip + 1], REGS));
+	    addr = decode_modrm(cs + ip, *seg, REGS, &instrlen);
+	    write_byte(addr, *reg8(cs[ip + 1], REGS));
+	    ip += 2 + instrlen;
+	    break;
+	case 0x8a:		/* mov r8, r/m8 */
+	    addr = decode_modrm(cs + ip, *seg, REGS, &instrlen);
+	    r8 = reg8(cs[ip + 1], REGS);
+	    *r8 = read_byte(addr);
 	    ip += 2 + instrlen;
 	    break;
 	case 0xc6:		/* mov r/m8, imm8 */
-	    addr = decode_modrm(cs + ip, seg, REGS, &instrlen);
+	    addr = decode_modrm(cs + ip, *seg, REGS, &instrlen);
 	    write_byte(addr, cs[ip + 2 + instrlen]);
 	    ip += 2 + instrlen + 1;
 	    break;
 	case 0xc7:		/* mov r/m32/16, imm32/16 */
-	    addr = decode_modrm(cs + ip, seg, REGS, &instrlen);
-	    value = *(u_int16_t *)&cs[ip + 2 + instrlen];
-	    write_word(addr, value);
+	    addr = decode_modrm(cs + ip, *seg, REGS, &instrlen);
+	    val16 = *(u_int16_t *)&cs[ip + 2 + instrlen];
+	    write_word(addr, val16);
 	    ip += 2 + instrlen + 2;
 	    break;
+	case 0xa4:		/* movs m8, m8 */
+	    write_byte(MAKEPTR(R_ES, R_DI), read_byte(MAKEPTR(*seg, R_SI)));
+	    dir = (R_EFLAGS & PSL_D) ? -1 : 1;
+	    R_DI += dir;
+	    R_SI += dir;
+	    ip++;
+	    break;
+	case 0xaa:		/* stos m8 */
+	    addr = MAKEPTR(R_ES, R_DI);
+	    write_byte(addr, R_AL);
+	    R_DI += (R_EFLAGS & PSL_D) ? -1 : 1;
+	    ip++;
+	    break;
 	case 0xab:		/* stos m32/16*/
+	    addr = MAKEPTR(R_ES, R_DI);
+	    write_word(addr, R_AX);
+	    R_DI += (R_EFLAGS & PSL_D) ? -2 : 2;
+	    ip++;
 	    break;
 	case 0xf3:		/* rep */
 	    switch (cs[++ip]) {
-	    case 0xab:		/* stos m32/16 */
-		value = R_AX;
+	    case 0xa4:		/* movs m8, m8 */
+		/* XXX Possible optimization: if both source and target
+		   addresses lie within the video memory and write mode 1 is
+		   selected, we can use memcpy(). */
+		dir = (R_EFLAGS & PSL_D) ? -1 : 1;
+		addr = MAKEPTR(R_ES, R_DI);
+		toaddr = MAKEPTR(*seg, R_SI);
+		for (i = R_CX; i > 0; i--) {
+		    write_byte(addr, read_byte(toaddr));
+		    addr += dir;
+		    toaddr += dir;
+		}
+		PUTPTR(R_ES, R_DI, addr);
+		PUTPTR(*seg, R_SI, toaddr);
+		ip++;
+		break;
+	    case 0xaa:		/* stos m8 */
 		/* direction */
 		dir = (R_EFLAGS & PSL_D) ? -1 : 1;
 		addr = MAKEPTR(R_ES, R_DI);
-		endaddr = MAKEPTR(R_ES, R_DI) + dir * R_CX;
-		if (addr <= endaddr)
-		    while (addr <= endaddr) {
-			write_word(addr, value);
-			addr += 2;
-		    }
-		else
-		    while (addr >= endaddr) {
-			write_word(addr, value);
-			addr -= 2;
-		    }
-		ip += 2;
+		for (i = R_CX; i > 0; i--) {
+		    write_byte(addr, R_AL);
+		    addr += dir;
+		}
+		PUTPTR(R_ES, R_DI, addr);
+		ip++;
+		break;
+	    case 0xab:		/* stos m32/16 */
+		/* direction */
+		dir = (R_EFLAGS & PSL_D) ? -2 : 2;
+		addr = MAKEPTR(R_ES, R_DI);
+		for (i = R_CX; i > 0; i--) {
+		    write_word(addr, R_AX);
+		    addr += dir;
+		}
+		PUTPTR(R_ES, R_DI, addr);
+		ip++;
 		break;
 	    default:
-		R_IP = ip--;	/* Move IP back to the 'rep' instruction */
+		R_IP = --ip;	/* Move IP back to the 'rep' instruction. */
 		return -1;
 	    }
 	    break;
 	default:
-	    /* unknown instruction, get out of here and let trap.c:sigbus()
+	    /* Unknown instruction, get out of here and let trap.c:sigbus()
 	       catch it. */
 	    return -1;
 	}
@@ -243,9 +318,9 @@ decode_modrm(u_int8_t *c, u_int16_t seg, regcontext_t *REGS, int *instrlen)
 	break;
     case 0xc0:			/* reg in R/M */
 	if (c[0] & 1)		/* 16-bit reg */
-	    return reg16(c[1], REGS);
+	    return *reg16(c[1], REGS);
 	else			/* 8-bit reg */
-	    return reg8(c[1], REGS);
+	    return *reg8(c[1], REGS);
 	break;
     }
     
@@ -284,50 +359,63 @@ decode_modrm(u_int8_t *c, u_int16_t seg, regcontext_t *REGS, int *instrlen)
     return addr;
 }
 
-static u_int8_t
+static u_int8_t *
 reg8(u_int8_t c, regcontext_t *REGS)
 {
-    u_int8_t	r8[] = {R_AL, R_CL, R_DL, R_BL, R_AH, R_CH, R_DH, R_BH};
+    u_int8_t *r8[] = {&R_AL, &R_CL, &R_DL, &R_BL,
+		      &R_AH, &R_CH, &R_DH, &R_BH};
 
     /* select 'rrr' bits in ModR/M */
     return r8[(c & 0x34) >> 3];
 }
 
-static u_int16_t
+static u_int16_t *
 reg16(u_int8_t c, regcontext_t *REGS)
 {
-    u_int16_t	r16[] = {R_AX, R_CX, R_DX, R_BX, R_SP, R_BP, R_SI, R_DI};
+    u_int16_t *r16[] = {&R_AX, &R_CX, &R_DX, &R_BX,
+			&R_SP, &R_BP, &R_SI, &R_DI};
 
     return r16[(c & 0x34) >> 3];
 }
 
 #if 0
 /* not yet */
-static u_int32_t
+static u_int32_t *
 reg32(u_int8_t c, regcontext_t *REGS)
 {
-    u_int32_t	r32[] = {R_EAX, R_ECX, R_EDX, R_EBX,
-			 R_ESP, R_EBP, R_ESI, R_EDI};
+    u_int32_t *r32[] = {&R_EAX, &R_ECX, &R_EDX, &R_EBX,
+			&R_ESP, &R_EBP, &R_ESI, &R_EDI};
 
     return r32[(c & 0x34) >> 3];
 }
 #endif
 
+/* Read an 8-bit value from the location specified by 'addr'. If 'addr' lies
+   within the video memory, we call 'video.c:vga_read()'. */
+static u_int8_t
+read_byte(u_int32_t addr)
+{
+    if (addr >= 0xa0000 && addr < 0xb0000)
+	return vga_read(addr);
+    else
+	return *(u_int8_t *)addr;
+}
+
 /* Write an 8-bit value to the location specified by 'addr'. If 'addr' lies
-   within the video memory region, we call video.c:vga_write(). */
+   within the video memory region, we call 'video.c:vga_write()'. */
 static void
 write_byte(u_int32_t addr, u_int8_t val)
 {
-    if (addr >= 0xa0000 && addr < 0xb0000) {
+    if (addr >= 0xa0000 && addr < 0xb0000)
 	vga_write(addr, val);
-    } else
+    else
 	*(u_int8_t *)addr = val;
 
     return;
 }
 
 /* Write a 16-bit value to the location specified by 'addr'. If 'addr' lies
-   within the video memory region, we call video.c:vga_write(). */
+   within the video memory region, we call 'video.c:vga_write()'. */
 static void
 write_word(u_int32_t addr, u_int16_t val)
 {

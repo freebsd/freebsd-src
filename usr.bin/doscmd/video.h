@@ -364,13 +364,14 @@ extern vmode_t vmodelist[];
 #define FONT8x16	"vga8x16"	/* same as FONTVGA */
 
 /* External functions in 'video.c'. */
-extern void	init_mode(int);
-extern int	find_vmode(int);
-extern void	vga_write(u_int32_t, u_int8_t);
-extern void	video_bios_init(void);
-extern void	video_init(void);
-extern int	vmem_pageflt(struct sigframe *);
+void		init_mode(int);
+int		find_vmode(int);
+u_int8_t	vga_read(u_int32_t);
+void		vga_write(u_int32_t, u_int8_t);
+void		video_bios_init(void);
+void		video_init(void);
+int		vmem_pageflt(struct sigframe *);
 
 /* Other external variables, mostly from tty.c. Needs to be cleaned up. */
-extern int vattr;
-void	write_vram(void *);
+extern int 	vattr;
+void		write_vram(void *);
