@@ -1330,6 +1330,12 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 
 #endif /* SC_NO_FONT_LOADING */
 
+#ifdef PC98
+    case ADJUST_CLOCK:	/* /dev/rtc for 98note resume */
+	inittodr(0);
+	return 0;
+#endif
+
     default:
 	break;
     }
@@ -1668,7 +1674,9 @@ sccnupdate(scr_stat *scp)
 static void
 scrn_timer(void *arg)
 {
+#ifndef PC98
     static int kbd_interval = 0;
+#endif
     struct timeval tv;
     sc_softc_t *sc;
     scr_stat *scp;
@@ -1691,6 +1699,7 @@ scrn_timer(void *arg)
     }
     s = spltty();
 
+#ifndef PC98
     if ((sc->kbd == NULL) && (sc->config & SC_AUTODETECT_KBD)) {
 	/* try to allocate a keyboard automatically */
 	if (++kbd_interval >= 25) {
@@ -1706,6 +1715,7 @@ scrn_timer(void *arg)
 	    kbd_interval = 0;
 	}
     }
+#endif /* PC98 */
 
     /* find the vty to update */
     scp = sc->cur_scp;
@@ -2455,7 +2465,11 @@ exchange_scr(sc_softc_t *sc)
 
     /* set up the video for the new screen */
     scp = sc->cur_scp = sc->new_scp;
+#ifdef PC98
+    if (sc->old_scp->mode != scp->mode || ISUNKNOWNSC(sc->old_scp) || ISUNKNOWNSC(sc->new_scp))
+#else
     if (sc->old_scp->mode != scp->mode || ISUNKNOWNSC(sc->old_scp))
+#endif
 	set_mode(scp);
 #ifndef __sparc64__
     else
@@ -2627,7 +2641,11 @@ scinit(int unit, int flags)
     static scr_stat main_console;
     static dev_t main_devs[MAXCONS];
     static struct tty main_tty;
+#ifdef PC98
+    static u_short sc_buffer[ROW*COL*2];/* XXX */
+#else
     static u_short sc_buffer[ROW*COL];	/* XXX */
+#endif
 #ifndef SC_NO_FONT_LOADING
     static u_char font_8[256*8];
     static u_char font_14[256*14];
@@ -2817,6 +2835,9 @@ scinit(int unit, int flags)
     /* initialize mapscrn arrays to a one to one map */
     for (i = 0; i < sizeof(sc->scr_map); i++)
 	sc->scr_map[i] = sc->scr_rmap[i] = i;
+#ifdef PC98
+    sc->scr_map[0x5c] = (u_char)0xfc;	/* for backslash */
+#endif
 
     sc->flags |= SC_INIT_DONE;
 }
