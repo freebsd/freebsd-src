@@ -442,26 +442,32 @@ mp_Assemble(struct mp *mp, struct mbuf *m, struct physical *p)
    * the queue.
    */
 
-  if (!mp->inbufs) {
-    mp->inbufs = m;
-    m = NULL;
-  }
-
   last = NULL;
   seq = mp->seq.next_in;
   q = mp->inbufs;
-  while (q) {
-    mp_ReadHeader(mp, q, &h);
-    if (m && isbefore(mp->local_is12bit, mh.seq, h.seq)) {
-      /* Our received fragment fits in before this one, so link it in */
+  while (q || m) {
+    if (!q) {
       if (last)
         last->m_nextpkt = m;
       else
         mp->inbufs = m;
-      m->m_nextpkt = q;
       q = m;
-      h = mh;
       m = NULL;
+      h = mh;
+    } else {
+      mp_ReadHeader(mp, q, &h);
+
+      if (m && isbefore(mp->local_is12bit, mh.seq, h.seq)) {
+        /* Our received fragment fits in before this one, so link it in */
+        if (last)
+          last->m_nextpkt = m;
+        else
+          mp->inbufs = m;
+        m->m_nextpkt = q;
+        q = m;
+        h = mh;
+        m = NULL;
+      }
     }
 
     if (h.seq != seq) {
