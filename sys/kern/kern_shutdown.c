@@ -433,6 +433,7 @@ static u_int panic_cpu = NOCPU;
 void
 panic(const char *fmt, ...)
 {
+	struct thread *td = curthread;
 	int bootopt;
 	va_list ap;
 	static char buf[256];
@@ -486,6 +487,7 @@ panic(const char *fmt, ...)
 	}
 #endif
 #endif
+	td->td_flags |= TDF_INPANIC;
 	if (!sync_on_panic)
 		bootopt |= RB_NOSYNC;
 	boot(bootopt);

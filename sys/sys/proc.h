@@ -316,6 +316,7 @@ struct thread {
 };
 /* flags kept in td_flags */
 #define	TDF_UNBOUND	0x000001 /* may give away the kse, uses the kg runq */
+#define	TDF_INPANIC	0x000002 /* Caused a panic, let it drive crashdump */
 #define	TDF_SINTR	0x000008 /* Sleep is interruptible. */
 #define	TDF_TIMEOUT	0x000010 /* Timing out during sleep. */
 #define	TDF_SELECT	0x000040 /* Selecting; wakeup/waiting danger. */
