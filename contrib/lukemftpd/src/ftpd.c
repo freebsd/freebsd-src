@@ -112,6 +112,7 @@ static char sccsid[] = "@(#)ftpd.c	8.5 (Berkeley) 4/28/95";
 __RCSID("$NetBSD: ftpd.c,v 1.147 2002/11/29 14:40:00 lukem Exp $");
 #endif
 #endif /* not lint */
+__FBSDID("$FreeBSD$");
 
 /*
  * FTP server.
@@ -226,6 +227,21 @@ enum send_status {
 	SS_FILE_ERROR,			/* file read error */
 	SS_DATA_ERROR			/* data send error */
 };
+
+
+#ifdef USE_OPIE
+#include <opie.h>
+static struct opie opiedata;
+static char opieprompt[OPIE_CHALLENGE_MAX+1];
+static int pwok;
+#endif
+
+#ifdef USE_PAM
+#include <security/pam_appl.h>
+pam_handle_t	*pamh = NULL;
+#include "pamize.h"
+#endif
+
 
 static int	 bind_pasv_addr(void);
 static int	 checkuser(const char *, const char *, int, int, char **);
@@ -745,6 +761,18 @@ user(const char *name)
 			    curname);
 		} else
 #endif
+
+#ifdef USE_OPIE
+		if (opiechallenge(&opiedata, (char *)curname, opieprompt) ==
+		    0) {
+			pwok = (pw != NULL) &&
+			    opieaccessfile(remotehost) &&
+			    opiealways(pw->pw_dir);
+			reply(331, "Response to %s %s for %s.",
+			    opieprompt, pwok ? "requested" : "required",
+			    curname);
+		} else
+#endif
 			reply(331, "Password required for %s.", curname);
 	}
 
@@ -987,6 +1015,9 @@ logout_utmp(void)
 static void
 end_login(void)
 {
+#ifdef USE_PAM
+	int e;
+#endif
 	logout_utmp();
 	show_chdir_messages(-1);		/* flush chdir cache */
 	if (pw != NULL && pw->pw_passwd != NULL)
@@ -999,11 +1030,23 @@ end_login(void)
 	gidcount = 0;
 	curclass.type = CLASS_REAL;
 	(void) seteuid((uid_t)0);
+#ifdef USE_PAM
+	if ((e = pam_setcred(pamh, PAM_DELETE_CRED)) != PAM_SUCCESS)
+		syslog(LOG_ERR, "pam_setcred: %s", pam_strerror(pamh, e));
+	if ((e = pam_close_session(pamh,0)) != PAM_SUCCESS)
+		syslog(LOG_ERR, "pam_close_session: %s", pam_strerror(pamh, e));
+	if ((e = pam_end(pamh, e)) != PAM_SUCCESS)
+		syslog(LOG_ERR, "pam_end: %s", pam_strerror(pamh, e));
+	pamh = NULL;
+#endif
 }
 
 void
 pass(const char *passwd)
 {
+#ifdef USE_PAM
+	int		 e;
+#endif
 	int		 rval;
 	char		 root[MAXPATHLEN];
 
@@ -1044,6 +1087,27 @@ pass(const char *passwd)
 			}
 		}
 #endif
+
+#ifdef USE_PAM
+		rval = auth_pam(&pw, passwd);
+		if (rval >= 0) {
+#ifdef USE_OPIE
+			opieunlock();
+#endif
+			goto skip;
+ 		}
+#endif
+#ifdef USE_OPIE
+		if (opieverify(&opiedata, (char *)passwd) == 0) {
+			/* OPIE says ok, check expire time */
+			if (pw->pw_expire && time(NULL) >= pw->pw_expire)
+				rval = 2;
+			else
+				rval = 0;
+			goto skip;
+		}
+#endif
+
 		if (!sflag)
 			rval = checkpassword(pw, passwd);
 		else
@@ -1094,6 +1158,19 @@ pass(const char *passwd)
 	(void) initgroups(pw->pw_name, pw->pw_gid);
 			/* cache groups for cmds.c::matchgroup() */
 	gidcount = getgroups(sizeof(gidlist), gidlist);
+
+#ifdef USE_PAM
+       	if (pamh) {
+		if ((e = pam_open_session(pamh, 0)) != PAM_SUCCESS) {
+			syslog(LOG_ERR, "pam_open_session: %s",
+			    pam_strerror(pamh, e));
+		} else if ((e = pam_setcred(pamh, PAM_ESTABLISH_CRED)) !=
+		    PAM_SUCCESS) {
+			syslog(LOG_ERR, "pam_setcred: %s",
+			    pam_strerror(pamh, e));
+		}
+	}
+#endif
 
 	/* open utmp/wtmp before chroot */
 	login_utmp(ttyline, pw->pw_name, remotehost);
