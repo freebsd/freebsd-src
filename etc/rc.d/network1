@@ -146,7 +146,8 @@ network_start()
 
 	dhcp_interfaces=""
 	for ifn in ${network_interfaces}; do
-		if ifconfig ${ifn} | grep -s UP, > /dev/null 2>&1; then
+		_up=`ifconfig ${ifn} | head -1 | grep -v LOOPBACK | grep UP,`
+		if [ "$_up" != "" ]; then
 			# Interface is already up, so ignore it.
 			continue;
 		fi
