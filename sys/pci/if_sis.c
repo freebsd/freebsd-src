@@ -1387,11 +1387,13 @@ sis_attach(dev)
 	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
 	ifp->if_capabilities |= IFCAP_VLAN_MTU;
 
+	/* Hook interrupt last to avoid having to lock softc */
 	error = bus_setup_intr(dev, sc->sis_irq, INTR_TYPE_NET,
 	    sis_intr, sc, &sc->sis_intrhand);
 
 	if (error) {
 		printf("sis%d: couldn't set up irq\n", unit);
+		ether_ifdetach(ifp);
 		goto fail;
 	}
 
@@ -1402,6 +1404,13 @@ fail:
 	return(error);
 }
 
+/*
+ * Shutdown hardware and free up resources. This can be called any
+ * time after the mutex has been initialized. It is called in both
+ * the error case in attach and the normal detach case so it needs
+ * to be careful about only freeing resources that have actually been
+ * allocated.
+ */
 static int
 sis_detach(dev)
 	device_t		dev;
@@ -1414,15 +1423,15 @@ sis_detach(dev)
 	SIS_LOCK(sc);
 	ifp = &sc->arpcom.ac_if;
 
+	/* These should only be active if attach succeeded */
 	if (device_is_alive(dev)) {
-		if (bus_child_present(dev)) {
-			sis_reset(sc);
-			sis_stop(sc);
-		}
+		sis_reset(sc);
+		sis_stop(sc);
 		ether_ifdetach(ifp);
-		device_delete_child(dev, sc->sis_miibus);
-		bus_generic_detach(dev);
 	}
+	if (sc->sis_miibus)
+		device_delete_child(dev, sc->sis_miibus);
+	bus_generic_detach(dev);
 
 	if (sc->sis_intrhand)
 		bus_teardown_intr(dev, sc->sis_irq, sc->sis_intrhand);

@@ -2282,6 +2282,7 @@ dc_attach(dev)
 
 	if (error) {
 		printf("dc%d: couldn't set up irq\n", unit);
+		ether_ifdetach(ifp);
 		goto fail;
 	}
 
@@ -2291,6 +2292,13 @@ fail:
 	return (error);
 }
 
+/*
+ * Shutdown hardware and free up resources. This can be called any
+ * time after the mutex has been initialized. It is called in both
+ * the error case in attach and the normal detach case so it needs
+ * to be careful about only freeing resources that have actually been
+ * allocated.
+ */
 static int
 dc_detach(dev)
 	device_t		dev;
@@ -2305,12 +2313,14 @@ dc_detach(dev)
 
 	ifp = &sc->arpcom.ac_if;
 
+	/* These should only be active if attach succeeded */
 	if (device_is_alive(dev)) {
 		dc_stop(sc);
 		ether_ifdetach(ifp);
-		device_delete_child(dev, sc->dc_miibus);
-		bus_generic_detach(dev);
 	}
+	if (sc->dc_miibus)
+		device_delete_child(dev, sc->dc_miibus);
+	bus_generic_detach(dev);
 
 	if (sc->dc_intrhand)
 		bus_teardown_intr(dev, sc->dc_irq, sc->dc_intrhand);
