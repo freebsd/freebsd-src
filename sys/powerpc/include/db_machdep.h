@@ -39,6 +39,8 @@
 #define	DB_ELF_SYMBOLS
 #define	DB_ELFSIZE	32
 
+#define BYTE_MSF        (1)
+
 typedef	vm_offset_t	db_addr_t;	/* address - unsigned */
 typedef	int		db_expr_t;	/* expression - signed */
 
