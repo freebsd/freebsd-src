@@ -1114,7 +1114,7 @@ static void pcn_init(xsc)
 	/*
 	 * Enable burst read and write. Also set the no underflow
 	 * bit. This will avoid transmit underruns in certain
-	 * conditions while still providing decent performances.
+	 * conditions while still providing decent performance.
 	 */
 	PCN_BCR_SETBIT(sc, PCN_BCR_BUSCTL, PCN_BUSCTL_NOUFLOW|
 	    PCN_BUSCTL_BREAD|PCN_BUSCTL_BWRITE);
