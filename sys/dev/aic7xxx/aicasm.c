@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aic7xxx_asm.c,v 1.15 1997/03/16 07:08:15 gibbs Exp $
+ *      $Id: aic7xxx_asm.c,v 1.16 1997/03/18 19:18:39 gibbs Exp $
  */
 #include <sys/types.h>
 #include <sys/mman.h>
@@ -75,7 +75,7 @@ main(argc, argv)
 {
 	extern char *optarg;
 	extern int optind;
-	int ch;
+	int  ch;
 	int  retval;
 	char *inputfilename;
 	char *regfilename;
@@ -96,7 +96,7 @@ main(argc, argv)
 #if DEBUG
 	yy_flex_debug = 0;
 #endif
-	while ((ch = getopt(argc, argv, "d:l:n:o:r:I:O:")) != EOF) {
+	while ((ch = getopt(argc, argv, "d:l:n:o:r:I:O:")) != -1) {
 		switch(ch) {
 		case 'd':
 #if DEBUG
