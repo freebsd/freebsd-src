@@ -399,7 +399,7 @@ labpcinit(void)
 	labpcs = malloc(NLABPC * sizeof(struct ctlr *), M_DEVBUF, M_NOWAIT);
 	if (labpcs)
 	{
-		bzero(labpcs, NLABPC * sizeof(struct cltr *));
+		bzero(labpcs, NLABPC * sizeof(struct ctlr *));
 		return 1;
 	}
 	return 0;
