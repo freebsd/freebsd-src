@@ -164,6 +164,7 @@ nomenclature:
 #define PCMMKMINOR(u, d, c) ((((c) & 0xff) << 16) | (((u) & 0x0f) << 4) | ((d) & 0x0f))
 
 #define SD_F_SIMPLEX		0x00000001
+#define	SD_F_AUTOVCHAN		0x00000002
 #define SD_F_PRIO_RD		0x10000000
 #define SD_F_PRIO_WR		0x20000000
 #define SD_F_PRIO_SET		(SD_F_PRIO_RD | SD_F_PRIO_WR)
@@ -189,6 +190,8 @@ int fkchan_kill(struct pcm_channel *c);
  * Major nuber for the sound driver.
  */
 #define SND_CDEV_MAJOR 30
+
+#define	SND_MAXVCHANS	255
 
 /*
  * Minor numbers for the sound driver.

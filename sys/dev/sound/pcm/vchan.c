@@ -348,6 +348,11 @@ sysctl_hw_snd_vchans(SYSCTL_HANDLER_ARGS)
 
 	err = sysctl_handle_int(oidp, &newcnt, sizeof(newcnt), req);
 	if (err == 0 && req->newptr != NULL) {
+		if (newcnt < 0 || newcnt > SND_MAXVCHANS) {
+			snd_mtxunlock(d->lock);
+			return EINVAL;
+		}
+
 		if (newcnt > cnt) {
 			/* add new vchans - find a parent channel first */
 			SLIST_FOREACH(sce, &d->channels, link) {

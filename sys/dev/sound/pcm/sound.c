@@ -37,6 +37,8 @@ devclass_t pcm_devclass;
 int snd_unit = 0;
 TUNABLE_INT("hw.snd.unit", &snd_unit);
 #endif
+int snd_autovchans = 0;
+TUNABLE_INT("hw.snd.autovchans", &snd_autovchans);
 
 SYSCTL_NODE(_hw, OID_AUTO, snd, CTLFLAG_RD, 0, "Sound driver");
 
@@ -157,7 +159,7 @@ pcm_chnref(struct pcm_channel *c, int ref)
 
 #ifdef USING_DEVFS
 static int
-sysctl_hw_sndunit(SYSCTL_HANDLER_ARGS)
+sysctl_hw_snd_unit(SYSCTL_HANDLER_ARGS)
 {
 	struct snddev_info *d;
 	int error, unit;
@@ -175,8 +177,25 @@ sysctl_hw_sndunit(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 SYSCTL_PROC(_hw_snd, OID_AUTO, unit, CTLTYPE_INT | CTLFLAG_RW,
-            0, sizeof(int), sysctl_hw_sndunit, "I", "");
+            0, sizeof(int), sysctl_hw_snd_unit, "I", "");
 #endif
+
+static int
+sysctl_hw_snd_autovchans(SYSCTL_HANDLER_ARGS)
+{
+	int v, error;
+
+	v = snd_autovchans;
+	error = sysctl_handle_int(oidp, &v, sizeof(v), req);
+	if (error == 0 && req->newptr != NULL) {
+		if (v < 0 || v >= SND_MAXVCHANS)
+			return EINVAL;
+		snd_autovchans = v;
+	}
+	return (error);
+}
+SYSCTL_PROC(_hw_snd, OID_AUTO, autovchans, CTLTYPE_INT | CTLFLAG_RW,
+            0, sizeof(int), sysctl_hw_snd_autovchans, "I", "");
 
 struct pcm_channel *
 pcm_chn_create(struct snddev_info *d, struct pcm_channel *parent, kobj_class_t cls, int dir, void *devinfo)
@@ -296,18 +315,36 @@ int
 pcm_addchan(device_t dev, int dir, kobj_class_t cls, void *devinfo)
 {
     	struct snddev_info *d = device_get_softc(dev);
-	struct pcm_channel *ch;
-    	int err;
+	struct pcm_channel *ch, *child;
+	struct pcmchan_children *pce;
+    	int i, err;
 
 	ch = pcm_chn_create(d, NULL, cls, dir, devinfo);
 	if (!ch) {
 		device_printf(d->dev, "pcm_chn_create(%s, %d, %p) failed\n", cls->name, dir, devinfo);
 		return ENODEV;
 	}
+
 	err = pcm_chn_add(d, ch);
 	if (err) {
 		device_printf(d->dev, "pcm_chn_add(%s) failed, err=%d\n", ch->name, err);
 		pcm_chn_destroy(ch);
+		return err;
+	}
+
+	if ((dir == PCMDIR_PLAY) && (d->flags & SD_F_AUTOVCHAN)) {
+		ch->flags |= CHN_F_BUSY;
+		for (i = 0; err == 0 && i < snd_autovchans; i++)
+			err = vchan_create(ch);
+		if (err) {
+			device_printf(d->dev, "vchan_create(%d) failed, err=%d\n", i - 1, err);
+			SLIST_FOREACH(pce, &ch->children, link) {
+				child = pce->channel;
+				vchan_destroy(child);
+			}
+			return err;
+		}
+
 	}
 
 	return err;
@@ -370,6 +407,7 @@ pcm_register(device_t dev, void *devinfo, int numplay, int numrec)
 	d->lock = snd_mtxcreate(device_get_nameunit(dev));
 	snd_mtxlock(d->lock);
 
+	d->flags = 0;
 	d->dev = dev;
 	d->devinfo = devinfo;
 	d->chancount = 0;
@@ -393,6 +431,9 @@ pcm_register(device_t dev, void *devinfo, int numplay, int numrec)
 #endif
 	if (numplay > 0)
 		vchan_initsys(d);
+	if (numplay == 1)
+		d->flags |= SD_F_AUTOVCHAN;
+
 	snd_mtxunlock(d->lock);
     	return 0;
 no:
