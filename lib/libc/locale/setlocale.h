@@ -27,6 +27,7 @@
  */
 
 #define ENCODING_LEN 31
+#define CATEGORY_LEN 11
 
 extern char *_PathLocale;
 

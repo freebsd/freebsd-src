@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: collcmp.c,v 1.7 1996/10/23 15:35:46 ache Exp $
+ * $Id: collcmp.c,v 1.8 1996/10/31 04:25:14 ache Exp $
  */
 
 #define ASCII_COMPATIBLE_COLLATE        /* see usr.bin/colldef/data */
@@ -33,15 +33,6 @@
 #ifndef ASCII_COMPATIBLE_COLLATE
 #include <ctype.h>
 #endif
-
-/* Temporary backward compatibility */
-
-int collate_range_cmp (c1, c2)
-	int c1, c2;
-{
-	return __collate_range_cmp(c1, c2);
-}
-
 
 /*
  * Compare two characters converting collate information
