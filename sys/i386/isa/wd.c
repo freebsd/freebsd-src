@@ -36,7 +36,7 @@ static int wdtest = 0;
  * SUCH DAMAGE.
  *
  *	from: @(#)wx.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.20 1994/01/04 20:20:38 nate Exp $
+ *	$Id: wd.c,v 1.21 1994/01/08 00:00:52 nate Exp $
  */
 
 /* TODO:peel out buffer at low ipl, speed improvement */
@@ -1468,7 +1468,7 @@ wdwait(struct disk *du, u_char bits_wanted)
 	int ctrlr = du->dk_ctrlr;
 	u_char status;
 #define	POLLING		1000
-#define	TIMEOUT		2000	/* WDCC_DIAGNOSE can take > 300 msec */
+#define	TIMEOUT		20000	/* WDCC_DIAGNOSE can take > 300 msec */
 
 	wdc = du->dk_port;
 	retries = POLLING + TIMEOUT;
