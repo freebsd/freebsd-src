@@ -211,10 +211,18 @@ again:
 			continue;
 		if (nports && !checkport(&inpcb))
 			continue;
-		KREAD(inpcb.inp_socket, &sockb, sizeof (sockb));
 		if (istcp) {
-			KREAD(inpcb.inp_ppcb, &tcpcb, sizeof (tcpcb));
-			enter_kvm(&inpcb, &sockb, tcpcb.t_state, "tcp");
+			if (inpcb.inp_vflag & INP_TIMEWAIT) {
+				bzero(&sockb, sizeof(sockb));
+				enter_kvm(&inpcb, &sockb, TCPS_TIME_WAIT,
+					 "tcp");
+			} else {
+				KREAD(inpcb.inp_socket, &sockb,
+					sizeof (sockb));
+				KREAD(inpcb.inp_ppcb, &tcpcb, sizeof (tcpcb));
+				enter_kvm(&inpcb, &sockb, tcpcb.t_state,
+					"tcp");
+			}
 		} else
 			enter_kvm(&inpcb, &sockb, 0, "udp");
 	}
