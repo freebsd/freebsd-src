@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)dd.1	8.2 (Berkeley) 1/13/94
-.\"	$Id: dd.1,v 1.6 1997/10/11 20:09:04 joerg Exp $
+.\"	$Id: dd.1,v 1.7 1998/05/06 06:51:35 charnier Exp $
 .\"
 .Dd January 13, 1994
 .Dt DD 1
@@ -59,7 +59,9 @@ and truncated input records to the standard error output.
 The following operands are available:
 .Bl -tag -width of=file
 .It Cm bs= Ns Ar n
-Set both input and output block size, superseding the
+Set both input and output block size to
+.Va n
+bytes, superseding the
 .Cm ibs
 and
 .Cm obs
@@ -107,13 +109,13 @@ Any regular output file is truncated unless the
 conversion value is specified.
 If an initial portion of the output file is skipped (see the
 .Cm seek
-operand)
+operand),
 the output file is truncated at that point.
 .It Cm seek= Ns Ar n
 Seek
 .Va n
 blocks from the beginning of the output before copying.
-On non-tape devices, a
+On non-tape devices, an
 .Xr lseek 2
 operation is used.
 Otherwise, existing blocks are read and the data discarded.
@@ -129,7 +131,7 @@ bytes.
 Skip
 .Va n
 blocks from the beginning of the input before copying.
-On input which supports seeks, a
+On input which supports seeks, an
 .Xr lseek 2
 operation is used.
 Otherwise, input data is read and discarded.
@@ -330,7 +332,7 @@ will exit.
 .Pp
 The
 .Nm
-utility exits 0 on success and >0 if an error occurred.
+utility exits 0 on success or >0 if an error occurred.
 .Sh SEE ALSO
 .Xr cp 1 ,
 .Xr mt 1 ,
