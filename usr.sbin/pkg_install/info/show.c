@@ -32,7 +32,8 @@ show_file(char *title, char *fname)
     char line[1024];
     int n;
 
-    printf("%s%s", InfoPrefix, title);
+    if (!Quiet)
+	printf("%s%s", InfoPrefix, title);
     fp = fopen(fname, "r");
     if (!fp) {
 	whinge("show_file: Can't open '%s' for reading.", fname);
@@ -51,7 +52,8 @@ show_plist(char *title, Package *plist, plist_t type)
     PackingList p;
     Boolean ign = FALSE;
 
-    printf("%s%s", InfoPrefix, title);
+    if (!Quiet)
+	printf("%s%s", InfoPrefix, title);
     p = plist->head;
     while (p) {
 	if (p->type != type && type != -1) {
@@ -61,35 +63,38 @@ show_plist(char *title, Package *plist, plist_t type)
 	switch(p->type) {
 	case PLIST_FILE:
 	    if (ign) {
-		printf("File: %s (ignored)\n", p->name);
+		printf(Quiet ? "%s\n" : "File: %s (ignored)\n", p->name);
 		ign = FALSE;
 	    }
 	    else
-		printf("File: %s\n", p->name);
+		printf(Quiet ? "%s\n" : "File: %s\n", p->name);
 	    break;
 	    
 	case PLIST_CWD:
-	    printf("\tCWD to %s\n", p->name);
+	    printf(Quiet ? "@cwd %s\n" : "\tCWD to %s\n", p->name);
 	    break;
 
 	case PLIST_CMD:
-	    printf("\tEXEC '%s'\n", p->name);
+	    printf(Quiet ? "@exec %s\n" : "\tEXEC '%s'\n", p->name);
 	    break;
 
 	case PLIST_CHMOD:
-	    printf("\tCHMOD to %s\n", p->name ? p->name : "(no default)");
+	    printf(Quiet ? "@chmod %s\n" : "\tCHMOD to %s\n",
+		   p->name ? p->name : "(clear default)");
 	    break;
 
 	case PLIST_CHOWN:
-	    printf("\tCHOWN to %s\n", p->name ? p->name : "(no default)");
+	    printf(Quiet ? "@chown %s\n" : "\tCHOWN to %s\n",
+		   p->name ? p->name : "(clear default)");
 	    break;
 
 	case PLIST_CHGRP:
-	    printf("\tCHGRP to %s\n", p->name ? p->name : "(no default)");
+	    printf(Quiet ? "@chgrp %s\n" : "\tCHGRP to %s\n",
+		   p->name ? p->name : "(clear default)");
 	    break;
 
 	case PLIST_COMMENT:
-	    printf("\tComment: %s\n", p->name);
+	    printf(Quiet ? "@comment %s\n" : "\tComment: %s\n", p->name);
 	    break;
 
 	case PLIST_IGNORE:
@@ -97,7 +102,7 @@ show_plist(char *title, Package *plist, plist_t type)
 	    break;
 
 	case PLIST_NAME:
-	    printf("\tPackage name: %s\n", p->name);
+	    printf(Quiet ? "@name %s\n" : "\tPackage name: %s\n", p->name);
 	    break;
 
 	default:
@@ -108,3 +113,33 @@ show_plist(char *title, Package *plist, plist_t type)
     }
 }
 
+/* Show all files in the packing list (except ignored ones) */
+void
+show_files(char *title, Package *plist)
+{
+    PackingList p;
+    Boolean ign = FALSE;
+    char *dir = ".";
+
+    if (!Quiet)
+	printf("%s%s", InfoPrefix, title);
+    p = plist->head;
+    while (p) {
+	switch(p->type) {
+	case PLIST_FILE:
+	    if (!ign)
+		printf("%s/%s\n", dir, p->name);
+	    ign = FALSE;
+	    break;
+	    
+	case PLIST_CWD:
+	    dir = p->name;
+	    break;
+
+	case PLIST_IGNORE:
+	    ign = TRUE;
+	    break;
+	}
+	p = p->next;
+    }
+}
