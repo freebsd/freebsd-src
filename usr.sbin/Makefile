@@ -211,6 +211,10 @@ SUBDIR+=i4b
 
 .endif
 
+.if ${MACHINE_ARCH} == "ia64"
+SUBDIR+=acpi
+.endif
+
 # kgmon: builds, but no kernel profiling
 # kgzip: builds, but missing support files
 # mptable: broken (not 64 bit clean)
