@@ -265,9 +265,10 @@ wi_pci_resume(device_t dev)
 	if (sc->wi_bus_type != WI_BUS_PCI_NATIVE)
 		return (0);
 
-	ifp->if_init(ifp->if_softc);
 	if (ifp->if_flags & IFF_UP) {
-		ifp->if_start(ifp);
+		ifp->if_init(ifp->if_softc);
+		if (ifp->if_flags & IFF_RUNNING)
+			ifp->if_start(ifp);
 	}
 
 	return (0);
