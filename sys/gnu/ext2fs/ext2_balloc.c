@@ -39,10 +39,6 @@
  *	@(#)ffs_balloc.c	8.4 (Berkeley) 9/23/93
  */
 
-#if !defined(__FreeBSD__)
-#include "diagnostic.h"
-#endif
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/buf.h>
@@ -151,11 +147,7 @@ ext2_debug("ext2_balloc called (%d, %d, %d)\n",
 			bp = getblk(vp, bn, nsize, 0, 0);
 			bp->b_blkno = fsbtodb(fs, newb);
 			if (flags & B_CLRBUF)
-#if defined(__FreeBSD__)
 				vfs_bio_clrbuf(bp);
-#else
-				clrbuf(bp);
-#endif
 		}
 		ip->i_db[bn] = dbtofsb(fs, bp->b_blkno);
 		ip->i_flag |= IN_CHANGE | IN_UPDATE;
@@ -201,11 +193,7 @@ ext2_debug("ext2_balloc called (%d, %d, %d)\n",
 		nb = newb;
 		bp = getblk(vp, indirs[1].in_lbn, fs->s_blocksize, 0, 0);
 		bp->b_blkno = fsbtodb(fs, newb);
-#if defined(__FreeBSD__)
 		vfs_bio_clrbuf(bp);
-#else
-		clrbuf(bp);
-#endif
 		/*
 		 * Write synchronously so that indirect blocks
 		 * never point at garbage.
@@ -257,11 +245,7 @@ ext2_debug("ext2_balloc called (%d, %d, %d)\n",
 		nb = newb;
 		nbp = getblk(vp, indirs[i].in_lbn, fs->s_blocksize, 0, 0);
 		nbp->b_blkno = fsbtodb(fs, nb);
-#if defined(__FreeBSD__)
 		vfs_bio_clrbuf(nbp);
-#else
-		clrbuf(nbp);
-#endif
 		/*
 		 * Write synchronously so that indirect blocks
 		 * never point at garbage.
@@ -297,11 +281,7 @@ ext2_debug("ext2_balloc called (%d, %d, %d)\n",
 		nbp = getblk(vp, lbn, fs->s_blocksize, 0, 0);
 		nbp->b_blkno = fsbtodb(fs, nb);
 		if (flags & B_CLRBUF)
-#if defined(__FreeBSD__)
 			vfs_bio_clrbuf(nbp);
-#else
-			clrbuf(nbp);
-#endif
 		bap[indirs[i].in_off] = nb;
 		/*
 		 * If required, write synchronously, otherwise use

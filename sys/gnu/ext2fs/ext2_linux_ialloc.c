@@ -73,9 +73,7 @@ int ll_w_block(struct buf * bp, int waitfor)
 	bp->b_flags &= ~(B_READ|B_DONE|B_ERROR|B_DELWRI);
 	bp->b_flags |= B_WRITEINPROG;
 	bp->b_vp->v_numoutput++;
-#if defined(__FreeBSD__)
 	vfs_busy_pages(bp, 1);
-#endif
 	VOP_STRATEGY(bp);
 	return waitfor ? biowait(bp) : 0;
 }
