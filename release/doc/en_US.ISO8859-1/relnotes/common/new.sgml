@@ -433,7 +433,11 @@
     <sect3>
       <title>Ports/Packages Collection</title>
 
-      <para></para>
+      <para>The one-line <filename>pkg-comment</filename> files have
+        been eliminated from each port skeleton; their contents have
+        been moved into each port's <filename>Makefile</filename>.
+        This change reduces the disk space and inodes used by the
+        ports tree.</para>
 
     </sect3>
   </sect2>
@@ -441,7 +445,14 @@
   <sect2>
     <title>Release Engineering and Integration</title>
 
-    <para></para>
+    <para>The supported release of <application>GNOME</application>
+      has been updated to 2.2.</para>
+
+    <para>The supported release of <application>KDE</application>
+      has been updated to 3.1.</para>
+
+    <para>The supported release of <application>XFree86</application>
+      has been updated to 4.3.0.</para>
 
   </sect2>
 </sect1>
