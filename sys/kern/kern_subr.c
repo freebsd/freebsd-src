@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_subr.c	8.3 (Berkeley) 1/21/94
- * $Id: kern_subr.c,v 1.23 1999/01/08 17:31:10 eivind Exp $
+ * $Id: kern_subr.c,v 1.24 1999/01/10 01:58:24 eivind Exp $
  */
 
 #include <sys/param.h>
@@ -44,12 +44,17 @@
 #include <sys/proc.h>
 #include <sys/malloc.h>
 #include <sys/lock.h>
+#include <sys/resourcevar.h>
 #include <sys/vnode.h>
 
 #include <vm/vm.h>
 #include <vm/vm_prot.h>
 #include <vm/vm_page.h>
 #include <vm/vm_map.h>
+
+#include <machine/cpu.h>
+
+static void	uio_yield __P((void));
 
 int
 uiomove(cp, n, uio)
@@ -81,6 +86,8 @@ uiomove(cp, n, uio)
 
 		case UIO_USERSPACE:
 		case UIO_USERISPACE:
+			if (resched_wanted())
+				uio_yield();
 			if (uio->uio_rw == UIO_READ)
 				error = copyout(cp, iov->iov_base, cnt);
 			else
@@ -139,6 +146,8 @@ uiomoveco(cp, n, uio, obj)
 
 		case UIO_USERSPACE:
 		case UIO_USERISPACE:
+			if (resched_wanted())
+				uio_yield();
 			if (uio->uio_rw == UIO_READ) {
 				if (vfs_ioopt && ((cnt & PAGE_MASK) == 0) &&
 					((((intptr_t) iov->iov_base) & PAGE_MASK) == 0) &&
@@ -214,6 +223,8 @@ uioread(n, uio, obj, nread)
 
 			cnt &= ~PAGE_MASK;
 
+			if (resched_wanted())
+				uio_yield();
 			error = vm_uiomove(&curproc->p_vmspace->vm_map, obj,
 						uio->uio_offset, cnt,
 						(vm_offset_t) iov->iov_base, &npagesmoved);
@@ -388,4 +399,18 @@ phashinit(elements, type, nentries)
 		LIST_INIT(&hashtbl[i]);
 	*nentries = hashsize;
 	return (hashtbl);
+}
+
+static void
+uio_yield()
+{
+	struct proc *p;
+	int s;
+
+	p = curproc;
+	s = splhigh();
+	setrunqueue(p);
+	p->p_stats->p_ru.ru_nivcsw++;
+	mi_switch();
+	splx(s);
 }
