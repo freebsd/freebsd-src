@@ -1,7 +1,7 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/5/93
-#	$Id: Makefile,v 1.9 1998/01/01 10:50:53 bde Exp $
+#	$Id: Makefile,v 1.10 1999/05/02 00:13:44 obrien Exp $
 
-MAN8=	adding_user.8 diskless.8 intro.8 rc.8 sticky.8
+MAN8=	adding_user.8 crash.8 diskless.8 intro.8 rc.8 sticky.8
 
 # XXX NOT IMPORTED:	man8.hp300 man8.tahoe man8.vax
 .if ${MACHINE_ARCH} == "i386"
