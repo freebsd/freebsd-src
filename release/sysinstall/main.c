@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: main.c,v 1.28.2.2 1997/01/15 04:50:12 jkh Exp $
+ * $Id: main.c,v 1.28.2.3 1997/01/17 08:53:45 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -113,8 +113,7 @@ main(int argc, char **argv)
 	if (argc > start_arg)
 	    systemShutdown(0);
     }
-
-    {
+    else {
 	FILE *fp;
 	char buf[BUFSIZ];
 
