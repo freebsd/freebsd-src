@@ -219,7 +219,7 @@ flushroutes(argc, argv)
 	char *buf, *next, *lim;
 	register struct rt_msghdr *rtm;
 
-	if (uid) {
+	if (uid && !debugonly) {
 		errx(EX_NOPERM, "must be root to alter routing table");
 	}
 	shutdown(s, 0); /* Don't want to read back our messages */
