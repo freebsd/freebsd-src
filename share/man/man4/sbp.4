@@ -39,43 +39,23 @@
 .Nd Serial Bus Protocol 2 (SBP-2) Mass Storage Devices driver
 .Sh SYNOPSIS
 .Cd "device sbp"
+.Cd "device firewire"
+.Cd "device scbus"
+.Cd "device da"
+.Cd "device cd"
+.Cd "device pass"
 .Sh DESCRIPTION
 The
 .Nm
 driver provides support for SBP-2 devices that attach to the firewire
-(IEEE 1394)
-port.
-Verified are:
+(IEEE 1394) port.
+It should work with SBP-2 devices which CAM layer supports, for example,
+HDD, CDROM drive and DVD drive.
 .Pp
-.Bl -item -compact
-.It
-Apple Macintosh G4 (target mode)
-.It
-Apple iPod
-.El
-.Pp
-.Xr firewire 4
-and
-.Xr fwohci 4
-must be configured in the kernel as well.
-Last but not least, support for
-SCSI drives,
-.Xr da 4 .
-.Sh EXAMPLES
-.Bd -literal -offset indent
-device sbp
-device scbus
-device da
-device pass
-.Ed
-.Pp
-Add the
-.Nm
-driver to the kernel.
-.Pp
-.Dl "camcontrol rescan 0"
-.Pp
-Rescan a SCSI drive that was added after boot.
+.Sh SEE ALSO
+.Xr camcontrol 8 ,
+.Xr firewire 4 ,
+.Xr fwcontrol 8
 .Sh AUTHORS
 .An -nosplit
 The
