@@ -167,6 +167,13 @@ options 	SMP			# Symmetric MultiProcessor Kernel
 # CPU.
 options 	ADAPTIVE_MUTEXES
 
+# MUTEX_NOINLINE forces mutex operations to call functions to perform each
+# operation rather than inlining the simple cases.  This can be used to
+# shrink the size of the kernel text segment.  Note that this behavior is
+# already implied by the INVARIANT_SUPPORT, INVARIANTS, MUTEX_PROFILING,
+# and WITNESS options.
+options 	MUTEX_NOINLINE
+
 # SMP Debugging Options:
 #
 # MUTEX_DEBUG enables various extra assertions in the mutex code.
