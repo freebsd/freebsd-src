@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.3.2.3 1997/09/14 23:17:12 jkh Exp $
+# $Id: Makefile,v 1.3.2.4 1997/12/19 23:10:04 julian Exp $
 
 NOMAN=YES
 CLEANFILES+= ${LOCALES:S/$/.out/g}
@@ -28,7 +28,7 @@ LATIN1LINKS = \
 	fr_BE fr_CA fr_CH fr_FR it_CH it_IT nl_BE nl_NL no_NO \
 	pt_PT sv_SE
 
-LATIN2LINKS = hr_HR
+LATIN2LINKS = hr_HR pl_PL sl_SI
 
 DELINKS = de_AT de_CH
 
