@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.16 (Berkeley) 5/27/95
- * $Id: nfs_vnops.c,v 1.125 1999/05/02 23:56:26 alc Exp $
+ * $Id: nfs_vnops.c,v 1.126 1999/05/03 20:59:14 alc Exp $
  */
 
 
@@ -2543,11 +2543,12 @@ nfs_lookitup(dvp, name, len, cred, procp, npp)
 	nfsm_reqdone;
 	if (npp && *npp == NULL) {
 		if (error) {
-			if (newvp)
+			if (newvp) {
 				if (newvp == dvp)
 					vrele(newvp);
 				else
 					vput(newvp);
+			}
 		} else
 			*npp = np;
 	}

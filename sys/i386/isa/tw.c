@@ -544,12 +544,12 @@ int twpoll(dev, events, p)
   sc = &tw_sc[TWUNIT(dev)];
   s = spltty();
   /* XXX is this correct?  the original code didn't test select rw mode!! */
-  if (events & (POLLIN | POLLRDNORM))
+  if (events & (POLLIN | POLLRDNORM)) {
     if(sc->sc_nextin != sc->sc_nextout)
       revents |= events & (POLLIN | POLLRDNORM);
     else
       selrecord(p, &sc->sc_selp);
-
+  }
   splx(s);
   return(revents);
 }

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)if.h	8.1 (Berkeley) 6/10/93
- *	$Id: if_var.h,v 1.10 1998/12/16 18:30:43 phk Exp $
+ *	$Id: if_var.h,v 1.11 1999/04/16 21:22:46 peter Exp $
  */
 
 #ifndef	_NET_IF_VAR_H_
@@ -277,10 +277,12 @@ struct ifmultiaddr {
 
 #ifdef KERNEL
 #define	IFAFREE(ifa) \
-	if ((ifa)->ifa_refcnt <= 0) \
-		ifafree(ifa); \
-	else \
-		(ifa)->ifa_refcnt--;
+	do { \
+		if ((ifa)->ifa_refcnt <= 0) \
+			ifafree(ifa); \
+		else \
+			(ifa)->ifa_refcnt--; \
+	} while (0)
 
 extern	struct ifnethead ifnet;
 extern	int ifqmaxlen;

@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_tl.c,v 1.29 1999/04/24 20:14:01 peter Exp $
+ *	$Id: if_tl.c,v 1.30 1999/05/06 15:32:49 wpaul Exp $
  */
 
 /*
@@ -221,7 +221,7 @@
 
 #if !defined(lint)
 static const char rcsid[] =
-	"$Id: if_tl.c,v 1.29 1999/04/24 20:14:01 peter Exp $";
+	"$Id: if_tl.c,v 1.30 1999/05/06 15:32:49 wpaul Exp $";
 #endif
 
 /*
@@ -1411,10 +1411,10 @@ static int tl_attach_phy(sc)
 
 	if (sc->tl_phy_sts & PHY_BMSR_100BT4 ||
 		sc->tl_phy_sts & PHY_BMSR_100BTXHALF ||
-		sc->tl_phy_sts & PHY_BMSR_100BTXHALF)
+		sc->tl_phy_sts & PHY_BMSR_100BTXHALF) {
 		if (bootverbose)
 			printf("10/100Mbps ");
-	else {
+	} else {
 		media &= ~IFM_100_TX;
 		media |= IFM_10_T;
 		if (bootverbose)
@@ -1422,10 +1422,10 @@ static int tl_attach_phy(sc)
 	}
 
 	if (sc->tl_phy_sts & PHY_BMSR_100BTXFULL ||
-		sc->tl_phy_sts & PHY_BMSR_10BTFULL)
+		sc->tl_phy_sts & PHY_BMSR_10BTFULL) {
 		if (bootverbose)
 			printf("full duplex ");
-	else {
+	} else {
 		if (bootverbose)
 			printf("half duplex ");
 		media &= ~IFM_FDX;

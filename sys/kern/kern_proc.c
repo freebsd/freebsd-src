@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_proc.c	8.7 (Berkeley) 2/14/95
- * $Id: kern_proc.c,v 1.47 1999/04/28 11:36:57 phk Exp $
+ * $Id: kern_proc.c,v 1.48 1999/05/03 23:57:21 billf Exp $
  */
 
 #include <sys/param.h>
@@ -321,11 +321,12 @@ fixjobc(p, pgrp, entering)
 	 * group; if so, adjust count for p's process group.
 	 */
 	if ((hispgrp = p->p_pptr->p_pgrp) != pgrp &&
-	    hispgrp->pg_session == mysession)
+	    hispgrp->pg_session == mysession) {
 		if (entering)
 			pgrp->pg_jobc++;
 		else if (--pgrp->pg_jobc == 0)
 			orphanpg(pgrp);
+	}
 
 	/*
 	 * Check this process' children to see whether they qualify
@@ -335,11 +336,12 @@ fixjobc(p, pgrp, entering)
 	for (p = p->p_children.lh_first; p != 0; p = p->p_sibling.le_next)
 		if ((hispgrp = p->p_pgrp) != pgrp &&
 		    hispgrp->pg_session == mysession &&
-		    p->p_stat != SZOMB)
+		    p->p_stat != SZOMB) {
 			if (entering)
 				hispgrp->pg_jobc++;
 			else if (--hispgrp->pg_jobc == 0)
 				orphanpg(hispgrp);
+		}
 }
 
 /*

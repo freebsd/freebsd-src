@@ -657,7 +657,7 @@ tunpoll(dev, events, p)
 	s = splimp();
 	TUNDEBUG("%s%d: tunpoll\n", ifp->if_name, ifp->if_unit);
 
-	if (events & (POLLIN | POLLRDNORM))
+	if (events & (POLLIN | POLLRDNORM)) {
 		if (ifp->if_snd.ifq_len > 0) {
 			TUNDEBUG("%s%d: tunpoll q=%d\n", ifp->if_name,
 			    ifp->if_unit, ifp->if_snd.ifq_len);
@@ -667,7 +667,7 @@ tunpoll(dev, events, p)
 			    ifp->if_unit);
 			selrecord(p, &tp->tun_rsel);
 		}
-
+	}
 	if (events & (POLLOUT | POLLWRNORM))
 		revents |= events & (POLLOUT | POLLWRNORM);
 

@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vnops.c,v 1.82 1999/04/27 11:16:51 phk Exp $ */
+/*	$Id: msdosfs_vnops.c,v 1.83 1999/04/28 11:37:27 phk Exp $ */
 /*	$NetBSD: msdosfs_vnops.c,v 1.68 1998/02/10 14:10:04 mrg Exp $	*/
 
 /*-
@@ -1762,12 +1762,12 @@ out:
 	/*
 	 * Set the eofflag (NFS uses it)
 	 */
-	if (ap->a_eofflag)
+	if (ap->a_eofflag) {
 		if (dep->de_FileSize - (offset - bias) <= 0)
 			*ap->a_eofflag = 1;
 		else
 			*ap->a_eofflag = 0;
-
+	}
 	return (error);
 }
 

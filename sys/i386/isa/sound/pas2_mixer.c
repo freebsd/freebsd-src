@@ -132,12 +132,12 @@ pas_mixer_set(int whichDev, u_int level)
 	left = level & 0x7f;
 	right = (level & 0x7f00) >> 8;
 
-	if (whichDev < SOUND_MIXER_NRDEVICES)
+	if (whichDev < SOUND_MIXER_NRDEVICES) {
 		if ((1 << whichDev) & rec_devices)
 			mixer = P_M_MV508_INPUTMIX;
 		else
 			mixer = P_M_MV508_OUTPUTMIX;
-
+	}
 	switch (whichDev) {
 	case SOUND_MIXER_VOLUME:	/* Master volume (0-63) */
 		levels[whichDev] = mixer_output(right, left, 63, P_M_MV508_MASTER_A, 0);
