@@ -139,7 +139,7 @@ SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL)
 
 struct msgbuf *msgbufp=0;
 
-int bootverbose = 0, Maxmem = 0;
+int Maxmem = 0;
 long dumplo;
 
 int	totalphysmem;		/* total amount of physical memory in system */
