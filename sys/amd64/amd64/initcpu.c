@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *		$Id: initcpu.c,v 1.15 1998/12/14 06:16:13 dillon Exp $
+ *		$Id: initcpu.c,v 1.16 1998/12/27 23:23:26 msmith Exp $
  */
 
 #include "opt_cpu.h"
@@ -617,20 +617,17 @@ enable_K6_wt_alloc(void)
 #endif
 	/* Don't assume that memory size is aligned with 4M. */
 	if (Maxmem > 0)
-	  size = Maxmem / 256;
+	  size = ((Maxmem >> 8) + 3) >> 2;
 	else
 	  size = 0;
-	size = (size + 3) / 4;
 
 	/* Limit is 508M bytes. */
-	if (size > 127)
-		size = 127;
-	whcr = rdmsr(0xc0000082);
-	whcr &= ~0x00feLL;
-	whcr |= (size << 1);
+	if (size > 0x7f)
+		size = 0x7f;
+	whcr = (rdmsr(0xc0000082) & ~(0x7fLL << 1)) | (size << 1);
 
 #if defined(PC98) || defined(NO_MEMORY_HOLE)
-	if (whcr & 0x00feLL) {
+	if (whcr & (0x7fLL << 1)) {
 #ifdef PC98
 		/*
 		 * If bit 2 of port 0x43b is 0, disable wrte allocate for the
@@ -687,7 +684,8 @@ enable_K6_2_wt_alloc(void)
 	  size = 0;
 
 	/* Limit is 4092M bytes. */
-	size &= 0x3ff;
+	if (size > 0x3fff)
+		size = 0x3ff;
 	whcr = (rdmsr(0xc0000082) & ~(0x3ffLL << 22)) | (size << 22);
 
 #if defined(PC98) || defined(NO_MEMORY_HOLE)
