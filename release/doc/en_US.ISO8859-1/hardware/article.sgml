@@ -949,6 +949,9 @@
 	<listitem>
 	  <para>D-Link DFE-538TX</para>
 	</listitem>
+        <listitem>
+          <para>Farallon NetLINE 10/100 PCI</para>
+        </listitem>
 	<listitem>
 	  <para>Genius GF100TXR (RTL8139)</para>
         </listitem>
