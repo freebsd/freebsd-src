@@ -64,7 +64,6 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/user.h>
 #include <sys/sysctl.h>
-#include <vm/swap_pager.h>
 
 #include <err.h>
 #include <fcntl.h>
@@ -486,9 +485,9 @@ print_swap_header(void)
 
 	header = getbsize(&hlen, &blocksize);
 	if (totalflag == 0)
-		(void)printf("%-15s %*s %8s %8s %8s  %s\n",
+		(void)printf("%-15s %*s %8s %8s %8s\n",
 		    "Device", hlen, header,
-		    "Used", "Avail", "Capacity", "Type");
+		    "Used", "Avail", "Capacity");
 }
 
 static void
@@ -506,12 +505,10 @@ print_swap(struct kvm_swap *ksw)
 		(void)printf("%-15s %*d ",
 		    ksw->ksw_devname, hlen,
 		    CONVERT(ksw->ksw_total));
-		(void)printf("%8d %8d %5.0f%%    %s\n",
+		(void)printf("%8d %8d %5.0f%%\n",
 		    CONVERT(ksw->ksw_used),
 		    CONVERT(ksw->ksw_total - ksw->ksw_used),
-		    (ksw->ksw_used * 100.0) / ksw->ksw_total,
-		    (ksw->ksw_flags & SW_SEQUENTIAL) ?
-		    "Sequential" : "Interleaved");
+		    (ksw->ksw_used * 100.0) / ksw->ksw_total);
 	}
 }
 
