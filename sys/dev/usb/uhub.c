@@ -1,4 +1,4 @@
-/*	$NetBSD: uhub.c,v 1.52 2001/10/26 17:53:59 augustss Exp $	*/
+/*	$NetBSD: uhub.c,v 1.54 2001/11/16 01:57:47 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -441,6 +441,23 @@ uhub_explore(usbd_device_handle dev)
 		if (usbd_reset_port(dev, port, &up->status)) {
 			printf("uhub_explore: port=%d reset failed\n",
 				 port);
+			continue;
+		}
+		/* Get port status again, it might have changed during reset */
+		err = usbd_get_port_status(dev, port, &up->status);
+		if (err) {
+			DPRINTF(("uhub_explore: get port status failed, "
+				 "error=%s\n", usbd_errstr(err)));
+			continue;
+		}
+		status = UGETW(up->status.wPortStatus);
+		change = UGETW(up->status.wPortChange);
+		if (!(status & UPS_CURRENT_CONNECT_STATUS)) {
+			/* Nothing connected, just ignore it. */
+#ifdef DIAGNOSTIC
+			printf("%s: device disappeared on port %d\n",
+			       USBDEVNAME(sc->sc_dev), port);
+#endif
 			continue;
 		}
 
