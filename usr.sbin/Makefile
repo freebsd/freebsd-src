@@ -197,8 +197,18 @@ SUBDIR+=i4b
 .endif
 .endif
 
+# kgmon: builds, but no kernel profiling
+# kgzip: builds, but missing support files
+# mptable: broken (not 64 bit clean)
+# pnpinfo: crashes (not really useful anyway)
 .if ${MACHINE_ARCH} == "amd64"
-SUBDIR+= btxld
+SUBDIR+=acpi \   
+	boot0cfg \
+	btxld \
+	lptcontrol \
+	sicontrol \
+	spkrtest \
+	zzz
 .endif
 
 .if ${MACHINE} == "i386"
