@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: linker.h,v 1.5 1998/09/14 18:31:19 msmith Exp $
+ *	$Id: linker.h,v 1.6 1998/10/09 01:44:09 msmith Exp $
  */
 
 #ifndef _SYS_LINKER_H_
@@ -177,10 +177,11 @@ caddr_t linker_file_lookup_symbol(linker_file_t file, const char* name,
 /*
  * Module information subtypes
  */
-#define MODINFO_NAME		0x0000
-#define MODINFO_TYPE		0x0001
-#define MODINFO_ADDR		0x0002
-#define MODINFO_SIZE		0x0003
+#define MODINFO_END		0x0000
+#define MODINFO_NAME		0x0001
+#define MODINFO_TYPE		0x0002
+#define MODINFO_ADDR		0x0003
+#define MODINFO_SIZE		0x0004
 #define MODINFO_METADATA	0x8000
 
 #define MODINFOMD_AOUTEXEC	0x0001		/* a.out exec header */
