@@ -142,6 +142,7 @@ sub history($$$) {
     my $success = shift;
 
     my $history = expand('HOSTNAME') . "\t";
+    $history .= expand('CONFIG') . "\t";
     $history .= strftime("%Y-%m-%d %H:%M:%S\t", localtime($start));
     $history .= strftime("%Y-%m-%d %H:%M:%S\t", localtime($end));
     $history .= expand('ARCH') . "\t";
