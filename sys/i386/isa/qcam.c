@@ -61,9 +61,48 @@
    running in a kernel that has eliminated the cdevsw table (yea!) */
 
 #if defined(__FreeBSD__) && defined(nostrategy)
+
+#define CDEV_MAJOR 73
 #define	STATIC_CDEVSW	static
-#define	PRIVATE_CDEVSW
-#else
+
+static	d_open_t	qcam_open;
+static	d_close_t	qcam_close;
+static	d_read_t	qcam_read;
+static	d_ioctl_t	qcam_ioctl;
+
+static struct cdevsw qcam_cdevsw = 
+	{ qcam_open,	qcam_close,	qcam_read,	nowrite,
+	  qcam_ioctl,	nostop,		nullreset,	nodevtotty,
+	  noselect,	nommap,		nostrategy,	"qcam",
+	  NULL,		-1  };
+
+static int qcam_probe(struct isa_device *devp);
+static int qcam_attach(struct isa_device *devp);
+
+struct isa_driver	qcamdriver =
+			{qcam_probe, qcam_attach, "qcam"};
+
+/*
+ * Initialize the dynamic cdevsw hooks.
+ */
+static void
+qcam_drvinit (void *unused)
+{
+	static int qcam_devsw_installed = 0;
+	dev_t dev;
+
+	if (!qcam_devsw_installed) {
+		dev = makedev(CDEV_MAJOR, 0);
+		cdevsw_add(&dev,&qcam_cdevsw, NULL);
+		qcam_devsw_installed++;
+    	}
+}
+
+SYSINIT(qcamdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,qcam_drvinit,NULL)
+
+#endif	/* new FreeBSD configuration system */
+
+#ifndef	STATIC_CDEVSW
 #define	STATIC_CDEVSW
 #endif
 
@@ -73,6 +112,8 @@ static struct qcam_softc qcam_softc[NQCAM];
 
 #define	QC_CONF_NODETECT 0x01		/* always assume camera is present */
 #define	QC_CONF_FORCEUNI 0x02		/* force unidirectional transfers */
+
+#define	UNIT(dev)		minor(dev)
 
 static struct kern_devconf kdc_qcam_template = {
 	0, 0, 0,			/* filled in by dev_attach() */
@@ -93,8 +134,6 @@ static struct kern_devconf kdc_qcam_template = {
 	"QuickCam video input", 	/* kdc_description */
 	DC_CLS_MISC			/* class */
 };
-
-#define	UNIT(dev)		minor(dev)
 
 static void
 qcam_registerdev (struct isa_device *id)
@@ -260,40 +299,6 @@ qcam_ioctl (dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	return 0;
 }
 
-#ifdef	__FreeBSD__
-struct isa_driver	qcamdriver =
-			{qcam_probe, qcam_attach, "qcam"};
-
-#ifdef	PRIVATE_CDEVSW		/* new configuration system? */
-
-#define CDEV_MAJOR 73
-
-static struct cdevsw qcam_cdevsw = 
-	{ qcam_open,	qcam_close,	qcam_read,	nowrite,
-	  qcam_ioctl,	nostop,		nullreset,	nodevtotty,
-	  noselect,	nommap,		nostrategy,	"qcam",
-	  NULL,		-1  };
-
-/*
- * Initialize the dynamic cdevsw hooks.
- */
-static void
-qcam_drvinit (void *unused)
-{
-	static int qcam_devsw_installed = 0;
-	dev_t dev;
-
-	if (!qcam_devsw_installed) {
-		dev = makedev(CDEV_MAJOR, 0);
-		cdevsw_add(&dev,&qcam_cdevsw, NULL);
-		qcam_devsw_installed++;
-    	}
-}
-
-SYSINIT(qcamdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,qcam_drvinit,NULL)
-
-#endif	/* new configuration system */
-
 #ifdef QCAM_MODULE
 
 #include <sys/exec.h>
@@ -358,5 +363,4 @@ qcam_mod (struct lkm_table *lkmtp, int cmd, int ver)
 }
 
 #endif /* QCAM_MODULE */
-#endif /* FreeBSD */
 #endif /* NQCAM */
