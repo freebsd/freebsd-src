@@ -48,8 +48,8 @@ __BEGIN_DECLS
 intmax_t	imaxabs(intmax_t) __pure2;
 imaxdiv_t	imaxdiv(intmax_t, intmax_t) __pure2;
 
-intmax_t	strtoimax(const char *__restrict, char **__restrict, int);
-uintmax_t	strtoumax(const char *__restrict, char **__restrict, int);
+intmax_t	strtoimax(const char * __restrict, char ** __restrict, int);
+uintmax_t	strtoumax(const char * __restrict, char ** __restrict, int);
 /* XXX: The following functions are missing the restrict type qualifier. */
 intmax_t	wcstoimax(const wchar_t *, wchar_t **, int);
 uintmax_t	wcstoumax(const wchar_t *, wchar_t **, int);

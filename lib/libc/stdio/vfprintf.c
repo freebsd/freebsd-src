@@ -332,7 +332,7 @@ __ujtoa(uintmax_t val, char *endp, int base, int octzero, char *xdigs,
  * MT-safe version
  */
 int
-vfprintf(FILE *__restrict fp, const char *__restrict fmt0, va_list ap)
+vfprintf(FILE * __restrict fp, const char * __restrict fmt0, va_list ap)
 
 {
 	int ret;

@@ -30,7 +30,7 @@ __FBSDID("$FreeBSD$");
 #include <wchar.h>
 
 size_t
-mbrlen(const char *__restrict s, size_t n, mbstate_t *__restrict ps __unused)
+mbrlen(const char * __restrict s, size_t n, mbstate_t * __restrict ps __unused)
 {
 
 	return (mbrtowc(NULL, s, n, NULL));
