@@ -331,7 +331,6 @@ pccbb_chipinit(struct pccbb_softc *sc)
 	/* disable Legacy IO */
 	switch (sc->sc_chipset) {
 	case CB_RF5C46X:
-	case CB_RF5C47X:
 		PCI_MASK_CONFIG(sc->sc_dev, PCCBBR_BRIDGECTRL,
 		    & ~(PCCBBM_BRIDGECTRL_RL_3E0_EN |
 		    PCCBBM_BRIDGECTRL_RL_3E2_EN), 2);
@@ -348,12 +347,19 @@ pccbb_chipinit(struct pccbb_softc *sc)
 	    | PCCBBM_BRIDGECTRL_WRITE_POST_EN,
 	    2);
 
+	/* XXX this should be a function table, ala OLDCARD. */
 	switch (sc->sc_chipset) {
 	case CB_TI113X:
-		PCI_MASK2_CONFIG(sc->sc_dev, PCCBBR_CBCTRL,
-		    & ~PCCBBM_CBCTRL_113X_PCI_INTR,
-		    | PCCBBM_CBCTRL_113X_PCI_CSC |
-		    PCCBBM_CBCTRL_113X_PCI_IRQ_EN, 1);
+		/*
+		 * The TI 1030, TI 1130 and TI 1131 all require another bit
+		 * be set to enable PCI routing of interrupts, and then
+		 * a bit for each of the CSC and Function interrupts we
+		 * want routed.
+		 */
+		PCI_MASK_CONFIG(sc->sc_dev, PCCBBR_CBCTRL,
+		    | PCCBBM_CBCTRL_113X_PCI_INTR | 
+		    PCCBBM_CBCTRL_113X_PCI_CSC | PCCBBM_CBCTRL_113X_PCI_IRQ_EN,
+		    1);
 		PCI_MASK_CONFIG(sc->sc_dev, PCCBBR_DEVCTRL,
 		    & ~(PCCBBM_DEVCTRL_INT_SERIAL |
 		    PCCBBM_DEVCTRL_INT_PCI), 1);
