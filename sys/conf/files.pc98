@@ -172,7 +172,6 @@ i386/isa/bs/bsfunc.c		optional	bs
 i386/isa/bs/bshw.c		optional	bs
 i386/isa/bs/bsif.c		optional	bs
 #i386/isa/adv_isa.c		optional	adv
-i386/isa/aha_isa.c		optional	aha
 i386/isa/asc.c			optional	asc
 i386/isa/atapi-cd.c		optional	wcd
 i386/isa/atapi.c		optional	wdc
