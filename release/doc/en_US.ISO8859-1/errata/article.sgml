@@ -27,7 +27,7 @@
   <articleinfo>
     <title>&os;
 <![ %release.type.snapshot [
-    &release.prev;
+    &release.prev;/&release.point;
 ]]>
 <![ %release.type.release [
     &release.current;
