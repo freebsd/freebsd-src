@@ -7,65 +7,79 @@
 <title>
 Setting up FreeBSD as a SLIP Server
 <author>Guy Helmer, <tt/ghelmer@alpha.dsu.edu/
-<date>v0.2, 20 March 1995
+<date>v1.0, 15 May 1995
 
 -->
 
 <sect><heading>Setting up a SLIP server</heading>
-
-<p><em>Contributed by &a.ghelmer;.</em>
+<p><em>Contribudted by &a.ghelmer;.<newline>
+v1.0, 15 May 1995.</em>
 
 This document provides suggestions for setting up SLIP Server services
 on a FreeBSD system, which typically means configuring your system to
 automatically startup connections upon login for remote SLIP clients.
-I've written this document based on my own experience; however, as
-your system and needs may be different, this document may not answer
-all of your questions, and I cannot be responsible if you damage your
-system or lose data due to attempting to follow the suggestions here.
+The author has written this document based on his experience;
+however, as your system and needs may be different, this document may
+not answer all of your questions, and the author cannot be responsible
+if you damage your system or lose data due to attempting to follow the
+suggestions here.
 
-I have only setup SLIP Server services on a FreeBSD 1.1 system, so if
-you are running a different version (such as FreeBSD 2.0), your system
-may be different.
+This guide was originally written for SLIP Server services on a
+FreeBSD 1.x system.  It has been modified to reflect changes in the
+pathnames and the removal of the SLIP interface compression flags in
+FreeBSD 2.x, which appear to be the only major changes between
+FreeBSD versions.  If you do run encounter mistakes in this document,
+please email the author with enough information to help correct the
+problem.
+
+For FreeBSD 1.x users, all of the files referenced in the directory
+<tt>/etc/sliphome</tt> are actually in the <tt>/etc</tt> directory.
 
 <sect1><heading>Prerequisites<label id="prereqs"></>
 
 <p>
 This document is very technical in nature, so background knowledge is
-required.  I must assume that you are familiar with the TCP/IP network
+required.  It is assumed that you are familiar with the TCP/IP network
 protocol, and in particular, network and node addressing, network
 address masks, subnetting, routing, and routing protocols, such as
 RIP.  Configuring SLIP services on a dial-up server requires a
 knowledge of these concepts, and if you are not familiar with them,
 please read a copy of either Craig Hunt's <em>TCP/IP Network
 Administration</em> published by O'Reilly &amp; Associates, Inc. (ISBN
-Number 0-937175-82-X), or Douglas Comer's book on the TCP/IP protocol.
+Number 0-937175-82-X), or Douglas Comer's books on the TCP/IP
+protocol.
 
-I will assume that you have already setup your modem(s) and configured
-the appropriate system files to allow logins through your modems (see
-the manual pages for <tt>sio(4)</tt> for information on the serial
-port device driver and <tt>ttys(5)</tt>, <tt>gettytab(5)</tt>,
-<tt>getty(8)</tt>, &amp; <tt>init(8)</tt> for information relevant to
-configuring the system to accept logins on modems, and perhaps
-<tt>stty(1)</tt> for information on setting serial port parameters
-&lsqb;such as <tt>clocal</tt> for directly-connected serial
-interfaces&rsqb;).
+It's further assumed that you have already setup your modem(s) and
+configured the appropriate system files to allow logins through your
+modems.  If you haven't prepared your system for this yet, please see
+the tutorial for configuring dialup services; if you have a World-Wide
+Web browser available, browse the list of tutorials at
+<tt>http://www.freebsd.org/How</tt>; otherwise, check the place
+where you found this document for a document named <tt/dialup.txt/ or
+something similar.  You may also want to check the manual pages for
+<tt/sio(4)/ for information on the serial port device driver and
+<tt/ttys(5)/, <tt/gettytab(5)/, <tt/getty(8)/, &amp; <tt/init(8)/ for
+information relevant to configuring the system to accept logins on
+modems, and perhaps <tt/stty(1)/ for information on setting serial
+port parameters &lsqb;such as <tt/clocal/ for directly-connected
+serial interfaces&rsqb;.
 
 <sect1>Quick Overview
-
 <p>
+
 In its typical configuration, using FreeBSD as a SLIP server works as
 follows: a SLIP user dials up your FreeBSD SLIP Server system and logs
 in with a special SLIP login ID that uses <tt>/usr/sbin/sliplogin</tt>
 as the special user's shell.  The <tt/sliplogin/ program browses the
-file <tt>/etc/slip.hosts</tt> to find a matching line for the special
-user, and if it finds a match, connects the serial line to an
-available SLIP interface and then runs the shell script
-<tt>/etc/slip.login</tt> to configure the SLIP interface.
+file <tt>/etc/sliphome/slip.hosts</tt> to find a matching line for
+the special user, and if it finds a match, connects the serial line to
+an available SLIP interface and then runs the shell script
+<tt>/etc/sliphome/slip.login</tt> to configure the SLIP interface.
 
 <sect2>An Example of a SLIP Server Login
-
 <p>
-For example, if my SLIP user ID were <tt>Shelmerg</tt>, that user's
+
+For example, if a SLIP user ID were <tt>Shelmerg</tt>, <tt/Shelmerg/'s
 entry in <tt>/etc/master.passwd</tt> would look something like this
 (except it would be all on one line):
 
@@ -74,34 +88,36 @@ Shelmerg:password:1964:89::0:0:Guy Helmer - SLIP:
         /usr/users/Shelmerg:/usr/sbin/sliplogin
 </verb></tscreen>
 
-and, when I log in with that user ID, <tt>sliplogin</tt> will search
-<tt>/etc/slip.hosts</tt> for a line that had a matching user ID; on my
-system, I may have a line in <tt>/etc/slip.hosts</tt> that reads:
+and, when <tt/Shelmerg/ logs in, <tt>sliplogin</tt> will search
+<tt>/etc/sliphome/slip.hosts</tt> for a line that had a matching user
+ID; for example, there may be a line in
+<tt>/etc/sliphome/slip.hosts</tt> that reads:
 
 <tscreen><verb>
 Shelmerg        dc-slip sl-helmer       0xfffffc00      autocomp
 </verb></tscreen>
 
-sliplogin will find that matching line, hook the serial line I'm on
-into the next available SLIP interface, and then execute
-<tt>/etc/slip.login</tt> like this:
+<tt/sliplogin/ will find that matching line, hook the serial line into
+the next available SLIP interface, and then execute
+<tt>/etc/sliphome/slip.login</tt> like this:
 
 <tscreen><verb>
-/etc/slip.login 0 19200 Shelmerg dc-slip sl-helmer 0xfffffc00 autocomp
+/etc/sliphome/slip.login 0 19200 Shelmerg dc-slip sl-helmer 0xfffffc00 autocomp
 </verb></tscreen>
 
-If all goes well, <tt>/etc/slip.login</tt> will issue an
-<tt>ifconfig</tt> for the SLIP interface to which sliplogin attached
-itself (slip interface 0, in the above example, which was the first
-parameter in the list given to <tt>slip.login</tt>) to set the local
-IP address (<tt>dc-slip</tt>), remote IP address (<tt>sl-helmer</tt>),
-network mask for the SLIP interface (<tt>0xfffffc00</tt>), and any
-additional flags (<tt>autocomp</tt>).  If something goes wrong,
-sliplogin usually logs good informational messages via the daemon
-syslog facility, which usually goes into <tt>/var/log/messages</tt>
-(see the manual pages for <tt>syslogd(8)</tt> and
-<tt>syslog.conf(5)</tt>, and perhaps check <tt>/etc/syslog.conf</tt>
-to see to which files <tt>syslogd</tt> is logging).
+If all goes well, <tt>/etc/sliphome/slip.login</tt> will issue an
+<tt>ifconfig</tt> for the SLIP interface to which <tt/sliplogin/
+attached itself (slip interface 0, in the above example, which was the
+first parameter in the list given to <tt>slip.login</tt>) to set the
+local IP address (<tt>dc-slip</tt>), remote IP address
+(<tt>sl-helmer</tt>), network mask for the SLIP interface
+(<tt>0xfffffc00</tt>), and any additional flags (<tt>autocomp</tt>).
+If something goes wrong, <tt/sliplogin/ usually logs good
+informational messages via the daemon syslog facility, which usually
+goes into <tt>/var/log/messages</tt> (see the manual pages for
+<tt>syslogd(8)</tt> and <tt>syslog.conf(5)</tt>, and perhaps check
+<tt>/etc/syslog.conf</tt> to see to which files <tt>syslogd</tt> is
+logging).
 
 OK, enough of the examples -- let's dive into setting up the system.
 
@@ -169,19 +185,23 @@ kernels.
 <sect1>Sliplogin Configuration
 
 <p>
-As mentioned earlier, there are three files in the <tt>/etc</tt> directory that are part of the configuration for
-<tt>/usr/sbin/sliplogin</tt> (see <tt>sliplogin(8)</tt> for the actual
-manual page for <tt>sliplogin</tt>): <tt>slip.hosts</tt>, which
+
+As mentioned earlier, there are three files in the
+<tt>/etc/sliphome</tt> directory that are part of the configuration
+for <tt>/usr/sbin/sliplogin</tt> (see <tt>sliplogin(8)</tt> for the
+actual manual page for <tt>sliplogin</tt>): <tt>slip.hosts</tt>, which
 defines the SLIP users &amp; their associated IP addresses;
 <tt>slip.login</tt>, which usually just configures the SLIP interface;
-and (optionally) <tt>slip.logout</tt>, which undoes <tt>slip.login</tt>'s
-effects when the serial connection is terminated.
+and (optionally) <tt>slip.logout</tt>, which undoes
+<tt>slip.login</tt>'s effects when the serial connection is
+terminated.
 
 <sect2>slip.hosts Configuration
 
 <p>
-<tt>/etc/slip.hosts</tt> contains lines which have at least four items
-listed:
+
+<tt>/etc/sliphome/slip.hosts</tt> contains lines which have at least
+four items, separated by whitespace:
 
 <itemize>
 <item> SLIP user's login ID
@@ -194,20 +214,20 @@ The local and remote addresses may be host names (resolved to IP
 addresses by <tt>/etc/hosts</tt> or by the domain name service,
 depending on your specifications in <tt>/etc/host.conf</tt>), and I
 believe the network mask may be a name that can be resolved by a
-lookup into <tt>/etc/networks</tt>.  On one of my systems,
-<tt>/etc/slip.hosts</tt> looks like this:
+lookup into <tt>/etc/networks</tt>.  On a sample system,
+<tt>/etc/sliphome/slip.hosts</tt> looks like this:
 
 <tscreen><verb>
------ begin /etc/slip.hosts -----
+----- begin /etc/sliphome/slip.hosts -----
 #
 # login local-addr      remote-addr     mask            opt1    opt2 
 #                                               (normal,compress,noicmp)
 #
 Shelmerg  dc-slip       sl-helmerg      0xfffffc00      autocomp
------ end /etc/slip.hosts ------
+----- end /etc/sliphome/slip.hosts ------
 </verb></tscreen>
 
-At the end of the line is one or more of the options:
+At the end of the line is one or more of the options.
 
 <itemize>
 <item> <tt>normal</tt> - no header compression
@@ -217,10 +237,16 @@ At the end of the line is one or more of the options:
 	dropped instead of using up your bandwidth)
 </itemize>
 
+It appears that <tt/sliplogin/ under FreeBSD 2.x ignores the options
+that FreeBSD 1.x recognized, so the options <tt/normal/,
+<tt/compress/, <tt/autocomp/, and <tt/noicmp/ will have no effect
+under FreeBSD 2.x unless your <tt/slip.login/ script includes code to
+make use of the flags.
+
 Your choice of local and remote addresses for your SLIP links depends
 on whether you are going to dedicate a TCP/IP subnet or if you are
-going to use ``proxy ARP'' on your SLIP server (it's not ``true'' proxy
-ARP, but that is the terminology that I will use in this document to
+going to use ``proxy ARP'' on your SLIP server (it's not ``true''
+proxy ARP, but that is the terminology used in this document to
 describe it).  If you're not sure which method to select or how to
 assign IP addresses, please refer to the TCP/IP books referenced in
 the <ref id="prereqs"> section and/or consult your IP network manager.
@@ -238,17 +264,17 @@ subnet.
 Otherwise, if you will use the ``proxy ARP'' method, you will need to
 assign your SLIP client's IP addresses out of your SLIP server's
 Ethernet subnet, and you'll also need to adjust your
-<tt>/etc/slip.login</tt> and <tt>/etc/slip.logout</tt> scripts to use
-<tt>arp(8)</tt> to manage the proxy-ARP entries in the SLIP server's
-ARP table.
+<tt>/etc/sliphome/slip.login</tt> and
+<tt>/etc/sliphome/slip.logout</tt> scripts to use <tt>arp(8)</tt> to
+manage the proxy-ARP entries in the SLIP server's ARP table.
 
 <sect2>slip.login Configuration
 
 <p>
-The typical <tt>/etc/slip.login</tt> file looks like this:
+The typical <tt>/etc/sliphome/slip.login</tt> file looks like this:
 
 <tscreen><verb>
------ begin /etc/slip.login -----
+----- begin /etc/sliphome/slip.login -----
 #!/bin/sh -
 #
 #	@(#)slip.login  5.1 (Berkeley) 7/1/90
@@ -260,7 +286,7 @@ The typical <tt>/etc/slip.login</tt> file looks like this:
 #   slipunit ttyspeed loginname local-addr remote-addr mask opt-args
 #
 /sbin/ifconfig sl$1 inet $4 $5 netmask $6
------ end /etc/slip.login -----
+----- end /etc/sliphome/slip.login -----
 </verb></tscreen>
 
 This <tt>slip.login</tt> file merely ifconfig's the appropriate SLIP
@@ -268,11 +294,12 @@ interface with the local and remote addresses and network mask of the
 SLIP interface.
 
 If you have decided to use the ``proxy ARP'' method (instead of using
-a separate subnet for your SLIP clients), your <tt>/etc/slip.login</tt>
-file will need to look something like this:
+a separate subnet for your SLIP clients), your
+<tt>/etc/sliphome/slip.login</tt> file will need to look something
+like this:
 
 <tscreen><verb>
------ begin /etc/slip.login for "proxy ARP" -----
+----- begin /etc/sliphome/slip.login for "proxy ARP" -----
 #!/bin/sh -
 #
 #	@(#)slip.login  5.1 (Berkeley) 7/1/90
@@ -286,7 +313,7 @@ file will need to look something like this:
 /sbin/ifconfig sl$1 inet $4 $5 netmask $6 
 # Answer ARP requests for the SLIP client with our Ethernet addr
 /usr/sbin/arp -s $5 00:11:22:33:44:55 pub
------ end /etc/slip.login for "proxy ARP" -----
+----- end /etc/sliphome/slip.login for "proxy ARP" -----
 </verb></tscreen>
 
 The additional line in this <tt>slip.login</tt>, <tt>arp -s &dollar;5
@@ -314,21 +341,22 @@ should be added to each single-digit hexadecimal number to convert the
 address into the form that <tt>arp(8)</tt> desires; see the manual page on
 <tt>arp(8)</tt> for complete information on usage.
 
-Note that when you create <tt>/etc/slip.login</tt> and
-<tt>/etc/slip.logout</tt>, the ``execute'' bit (ie, <tt>chmod 755
-/etc/slip.login /etc/slip.logout</tt>) must be set, or
-<tt>sliplogin</tt> will be unable to execute it.
+Note that when you create <tt>/etc/sliphome/slip.login</tt> and
+<tt>/etc/sliphome/slip.logout</tt>, the ``execute'' bit (ie,
+<tt>chmod 755 /etc/sliphome/slip.login
+/etc/sliphome/slip.logout</tt>) must be set, or <tt>sliplogin</tt>
+will be unable to execute it.
 
 <sect2>slip.logout Configuration
 
 <p>
 
-<tt>/etc/slip.logout</tt> isn't strictly needed (unless you are
-implementing ``proxy ARP''), but if you decide to create it, this is
-an example of a basic <tt>slip.logout</tt> script:
+<tt>/etc/sliphome/slip.logout</tt> isn't strictly needed (unless you
+are implementing ``proxy ARP''), but if you decide to create it, this
+is an example of a basic <tt>slip.logout</tt> script:
 
 <tscreen><verb>
------ begin /etc/slip.logout -----
+----- begin /etc/sliphome/slip.logout -----
 #!/bin/sh -
 #
 #	slip.logout
@@ -340,14 +368,15 @@ an example of a basic <tt>slip.logout</tt> script:
 #   slipunit ttyspeed loginname local-addr remote-addr mask opt-args
 #
 /sbin/ifconfig sl$1 down
------ end /etc/slip.logout -----
+----- end /etc/sliphome/slip.logout -----
 </verb></tscreen>
 
 If you are using ``proxy ARP'', you'll want to have
-<tt>/etc/slip.logout</tt> remove the ARP entry for the SLIP client:
+<tt>/etc/sliphome/slip.logout</tt> remove the ARP entry for the SLIP
+client:
 
 <tscreen><verb>
------ begin /etc/slip.logout for "proxy ARP" -----
+----- begin /etc/sliphome/slip.logout for "proxy ARP" -----
 #!/bin/sh -
 #
 #       @(#)slip.logout
@@ -361,15 +390,15 @@ If you are using ``proxy ARP'', you'll want to have
 /sbin/ifconfig sl$1 down
 # Quit answering ARP requests for the SLIP client
 /usr/sbin/arp -d $5
------ end /etc/slip.logout for "proxy ARP" -----
+----- end /etc/sliphome/slip.logout for "proxy ARP" -----
 </verb></tscreen>
 
 The <tt>arp -d &dollar;5</tt> removes the ARP entry that the ``proxy ARP''
 <tt>slip.login</tt> added when the SLIP client logged in.
 
-It bears repeating: make sure <tt>/etc/slip.logout</tt> has the
-execute bit set for after you create it (ie, <tt>chmod 755
-/etc/slip.logout</tt>).
+It bears repeating: make sure <tt>/etc/sliphome/slip.logout</tt> has
+the execute bit set for after you create it (ie, <tt>chmod 755
+/etc/sliphome/slip.logout</tt>).
 
 <sect1>Routing Considerations
 
@@ -400,15 +429,16 @@ routing to work.
 An alternative to the headaches of static routes is to install
 <tt>gated</tt> on your FreeBSD SLIP server and configure it to use the
 appropriate routing protocols (RIP/OSPF/BGP/EGP) to tell other routers
-about your SLIP subnet.  <tt/gated/ is available via anonymous ftp from
-<tt>ftp.gated.cornell.edu</tt> in the directory <tt>/pub/gated</tt>; I
-believe the current version as of this writing is
-<tt>gated-R3_5Alpha_8.tar.Z</tt>, which includes support for FreeBSD
-``out-of-the-box''.  Complete information and documentation on
+about your SLIP subnet.  <tt/gated/ is available via anonymous ftp
+from <tt>ftp.gated.cornell.edu</tt> in the directory
+<tt>/pub/gated</tt>; I believe the current version as of this writing
+is <tt>gated-R3_5Alpha_8.tar.Z</tt>, which includes support for
+FreeBSD ``out-of-the-box''.  Complete information and documentation on
 <tt>gated</tt> is available on the Web starting at
 <tt>http://www.gated.cornell.edu/</tt>.  Compile and install it, and
 then write a <tt>/etc/gated.conf</tt> file to configure your gated;
-here's a sample, similar to what I use on my FreeBSD SLIP server:
+here's a sample, similar to what the author used on a FreeBSD SLIP
+server:
 
 <tscreen><verb>
 ----- begin sample /etc/gated.conf for gated version 3.5Alpha5 -----
@@ -460,11 +490,10 @@ the Ethernet; if you are using a different Ethernet driver than the
 interface appropriately.  This sample file also sets up tracing to
 <tt>/var/tmp/gated.output</tt> for debugging <tt>gated</tt>'s
 activity; you can certainly turn off the tracing options if
-<tt>gated</tt> works OK for you.  I've changed my SLIP subnet's
-address to <tt>xxx.xxx.yy</tt> throughout the above file; you'll need
-to change the <tt>xxx.xxx.yy</tt>'s into the network address of your
-own SLIP subnet (be sure to change the net mask in the <tt>proto
-direct</tt> clause as well).
+<tt>gated</tt> works OK for you.  You'll need to change the
+<tt>xxx.xxx.yy</tt>'s into the network address of your own SLIP subnet
+(be sure to change the net mask in the <tt>proto direct</tt> clause as
+well).
 
 When you get <tt>gated</tt> built and installed and create a
 configuration file for it, you'll need to run <tt>gated</tt> in place
@@ -477,7 +506,7 @@ parameters.
 <sect1>Acknowledgements
 
 <p>
-Thanks to these people for comments and advice regarding this FAQ:
+Thanks to these people for comments and advice regarding this tutorial:
 
 <descrip>
 <tag/Wilko Bulte/  &lt;wilko@yedi.iaf.nl&gt;
@@ -485,4 +514,3 @@ Thanks to these people for comments and advice regarding this FAQ:
 </descrip>
 
 <!-- </article> -->
-
