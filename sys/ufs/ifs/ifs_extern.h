@@ -70,7 +70,6 @@ struct statfs;
 struct ucred;
 struct vnode;
 struct vop_balloc_args;
-struct vop_bmap_args;
 struct vop_fsync_args;
 struct vop_reallocblks_args;
 
