@@ -54,6 +54,20 @@ Solution:	There are several possible solutions.  The first,
 
 ---
 
+Summary:	When I boot for the first time, it still looks for /386bsd!
+
+Cause:		You still have the old FreeBSD 1.x boot blocks on your
+		boot partition.
+
+Solution:	You should re-enter the installation process, invoke
+		the (F)disk editor and chose the (W)rite option.  This
+		won't hurt an existing installation and will make sure
+		that the new boot blocks get written to the drive.
+		If you're installing for the first time, don't forget
+		to (W)rite out your new boot blocks! :-)
+
+---
+
 Summary:	I want to boot FreeBSD off the second drive.  It doesn't!
 
 Cause:		FreeBSD will actually install just fine on a drive other
