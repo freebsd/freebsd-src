@@ -151,16 +151,16 @@ is set to indicate the error.
 .Fn Getdirentries
 will fail if:
 .Bl -tag -width [EFAULT]
-.It EBADF
+.It Bq Er EBADF
 .Fa fd
 is not a valid file descriptor open for reading.
-.It EFAULT
+.It Bq Er EFAULT
 Either
 .Fa buf
 or
 .Fa basep
 point outside the allocated address space.
-.It EIO
+.It Bq Er EIO
 An
 .Tn I/O
 error occurred while reading from or writing to the file system.
