@@ -1438,6 +1438,7 @@ ACPI_STATUS
 acpi_ConvertBufferToInteger(ACPI_BUFFER *bufp, UINT32 *number)
 {
     ACPI_OBJECT	*p;
+    UINT8	*val;
     int		i;
 
     p = (ACPI_OBJECT *)bufp->Pointer;
@@ -1451,8 +1452,9 @@ acpi_ConvertBufferToInteger(ACPI_BUFFER *bufp, UINT32 *number)
 	return (AE_BAD_DATA);
 
     *number = 0;
+    val = p->Buffer.Pointer;
     for (i = 0; i < p->Buffer.Length; i++)
-	*number += (*(p->Buffer.Pointer + i) << (i * 8));
+	*number += val[i] << (i * 8);
     return (AE_OK);
 }
 
