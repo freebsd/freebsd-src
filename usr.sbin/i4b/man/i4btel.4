@@ -1,5 +1,5 @@
 .\"
-.\" Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
+.\" Copyright (c) 1997, 2002 Hellmuth Michaelis. All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -22,26 +22,22 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: i4btel.4,v 1.9 1999/12/13 22:11:55 hm Exp $
-.\"
 .\" $FreeBSD$
 .\"
-.\"	last edit-date: [Mon Dec 13 23:13:39 1999]
+.\"	last edit-date: [Sun Jul 28 14:14:06 2002]
 .\"
-.Dd April 21, 1999
+.Dd July 28, 2002
 .Dt I4BTEL 4
 .Os
 .Sh NAME
 .Nm i4btel
 .Nd isdn4bsd ISDN B-channel telephony interface driver
-.Sh FreeBSD SYNOPSIS
-.Cd pseudo-device \&"i4btel\&" Op count
-.Sh NetBSD SYNOPSIS
-none
+.Sh SYNOPSIS
+.Cd device \&"i4btel\&" Op count
 .Sh DESCRIPTION
 The
 .Nm
-driver provides an interface to the B-channel for telephony applications
+driver provides an interface to the ISDN B-channel for telephony applications
 and is currently used by the
 .Xr isdnd 8
 for answering machine support. The driver is part of the isdn4bsd package.
@@ -133,4 +129,4 @@ A-Law and u-Law are specified in ITU Recommendation G.711.
 The
 .Nm
 device driver and this manpage were written by
-.An Hellmuth Michaelis Aq hm@kts.org .
+.An Hellmuth Michaelis Aq hm@freebsd.org .
