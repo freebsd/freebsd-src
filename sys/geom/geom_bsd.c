@@ -98,7 +98,6 @@ g_bsd_modify(struct g_geom *gp, u_char *label)
 
 	error = bsd_disklabel_le_dec(label, &dl, MAXPARTITIONS);
 	if (error) {
-printf("HERE %s %d\n", __FILE__, __LINE__);
 		return (error);
 	}
 
@@ -122,13 +121,11 @@ printf("HERE %s %d\n", __FILE__, __LINE__);
 
 	/* ... or a smaller sector size. */
 	if (dl.d_secsize < secsize) {
-printf("HERE %s %d\n", __FILE__, __LINE__);
 		return (EINVAL);
 	}
 
 	/* ... or a non-multiple sector size. */
 	if (dl.d_secsize % secsize != 0) {
-printf("HERE %s %d\n", __FILE__, __LINE__);
 		return (EINVAL);
 	}
 
