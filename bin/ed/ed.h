@@ -25,10 +25,9 @@
  * SUCH DAMAGE.
  *
  *	@(#)ed.h,v 1.5 1994/02/01 00:34:39 alm Exp
- *	$Id$
+ *	$Id: ed.h,v 1.10 1997/02/22 14:03:14 peter Exp $
  */
 
-#include <sys/types.h>
 #include <sys/param.h>		/* for MAXPATHLEN */
 #include <errno.h>
 #if defined(sun) || defined(__NetBSD__)
