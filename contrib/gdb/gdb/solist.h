@@ -99,6 +99,12 @@ struct target_so_ops
     /* Determine if PC lies in the dynamic symbol resolution code of
        the run time loader */
     int (*in_dynsym_resolve_code) (CORE_ADDR pc);
+
+    /* Extra hook for finding and opening a solib.  Convenience function
+       for remote debuggers finding host libs */
+    int (*find_and_open_solib) (char *soname,
+        unsigned o_flags, char **temp_pathname);
+    
   };
 
 void free_so (struct so_list *so);
@@ -122,5 +128,7 @@ extern struct target_so_ops *current_target_so_ops;
   (current_target_so_ops->open_symbol_file_object)
 #define TARGET_SO_IN_DYNSYM_RESOLVE_CODE \
   (current_target_so_ops->in_dynsym_resolve_code)
+#define TARGET_SO_FIND_AND_OPEN_SOLIB \
+  (current_target_so_ops->find_and_open_solib)
 
 #endif

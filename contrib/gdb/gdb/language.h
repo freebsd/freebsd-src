@@ -1,6 +1,8 @@
 /* Source-language-related definitions for GDB.
-   Copyright 1991, 1992, 1993, 1994, 1995, 1998, 1999, 2000
-   Free Software Foundation, Inc.
+
+   Copyright 1991, 1992, 1993, 1994, 1995, 1998, 1999, 2000, 2003,
+   2004 Free Software Foundation, Inc.
+
    Contributed by the Department of Computer Science at the State University
    of New York at Buffalo.
 
@@ -28,6 +30,8 @@
 struct value;
 struct objfile;
 struct expression;
+struct ui_file;
+
 /* enum exp_opcode;     ANSI's `wisdom' didn't include forward enum decls. */
 
 /* This used to be included to configure GDB for one or more specific
@@ -35,7 +39,6 @@ struct expression;
 /* #include "lang_def.h" */
 #define	_LANG_c
 #define	_LANG_m2
-#define	_LANG_chill
 #define  _LANG_fortran
 #define  _LANG_pascal
 
@@ -164,6 +167,11 @@ struct language_defn
     /* Default case sensitivity */
     enum case_sensitivity la_case_sensitivity;
 
+    /* Definitions related to expression printing, prefixifying, and
+       dumping */
+
+    const struct exp_descriptor *la_exp_desc;
+
     /* Parser function. */
 
     int (*la_parser) (void);
@@ -171,10 +179,6 @@ struct language_defn
     /* Parser error function */
 
     void (*la_error) (char *);
-
-    /* Evaluate an expression. */
-    struct value *(*evaluate_exp) (struct type *, struct expression *,
-				   int *, enum noside);
 
     void (*la_printchar) (int ch, struct ui_file * stream);
 
@@ -201,6 +205,39 @@ struct language_defn
 
     int (*la_value_print) (struct value *, struct ui_file *,
 			   int, enum val_prettyprint);
+
+    /* PC is possibly an unknown languages trampoline.
+       If that PC falls in a trampoline belonging to this language,
+       return the address of the first pc in the real function, or 0
+       if it isn't a language tramp for this language.  */
+    CORE_ADDR (*skip_trampoline) (CORE_ADDR pc);
+
+    /* Now come some hooks for lookup_symbol.  */
+
+    /* If this is non-NULL, lookup_symbol will do the 'field_of_this'
+       check, using this function to find the value of this.  */
+
+    /* FIXME: carlton/2003-05-19: Audit all the language_defn structs
+       to make sure we're setting this appropriately: I'm sure it
+       could be NULL in more languages.  */
+
+    struct value *(*la_value_of_this) (int complain);
+
+    /* This is a function that lookup_symbol will call when it gets to
+       the part of symbol lookup where C looks up static and global
+       variables.  */
+
+    struct symbol *(*la_lookup_symbol_nonlocal) (const char *,
+						 const char *,
+						 const struct block *,
+						 const domain_enum,
+						 struct symtab **);
+
+    /* Find the definition of the type with the given name.  */
+    struct type *(*la_lookup_transparent_type) (const char *);
+
+    /* Return demangled language symbol, or NULL.  */
+    char *(*la_demangle) (const char *mangled, int options);
 
     /* Base 2 (binary) formats. */
 
@@ -232,6 +269,9 @@ struct language_defn
 
     /* Type of elements of strings. */
     struct type **string_char_type;
+
+    /* The list of characters forming word boundaries.  */
+    char *(*la_word_break_characters) (void);
 
     /* Add fields above this point, so the magic number is always last. */
     /* Magic number for compat checking */
@@ -288,7 +328,8 @@ language_mode;
 /* "cast" really means conversion */
 /* FIXME -- should be a setting in language_defn */
 #define CAST_IS_CONVERSION (current_language->la_language == language_c  || \
-			    current_language->la_language == language_cplus)
+			    current_language->la_language == language_cplus || \
+			    current_language->la_language == language_objc)
 
 extern void language_info (int);
 
@@ -395,13 +436,9 @@ extern char *longest_raw_hex_string (LONGEST);
    (language-specific) formats.  Result is static and is overwritten by
    the next call.  Takes printf options like "08l" or "l".  */
 
-extern char *local_hex_string (unsigned long);	/* language.c */
+extern char *local_hex_string (LONGEST);	/* language.c */
 
-extern char *longest_local_hex_string (LONGEST);	/* language.c */
-
-extern char *local_hex_string_custom (unsigned long, char *);	/* language.c */
-
-extern char *longest_local_hex_string_custom (LONGEST, char *);	/* language.c */
+extern char *local_hex_string_custom (LONGEST, char *);	/* language.c */
 
 /* Type predicates */
 
@@ -433,12 +470,8 @@ extern void binop_type_check (struct value *, struct value *, int);
 
 /* Error messages */
 
-extern void op_error (char *fmt, enum exp_opcode, int);
-
-#define type_op_error(f,o) \
-   op_error((f),(o),type_check==type_check_on ? 1 : 0)
-#define range_op_error(f,o) \
-   op_error((f),(o),range_check==range_check_on ? 1 : 0)
+extern void op_error (const char *lhs, enum exp_opcode,
+		      const char *rhs);
 
 extern void type_error (const char *, ...) ATTR_FORMAT (printf, 1, 2);
 
@@ -466,5 +499,16 @@ extern char *language_str (enum language);
 extern void add_language (const struct language_defn *);
 
 extern enum language get_frame_language (void);	/* In stack.c */
+
+/* Check for a language-specific trampoline. */
+
+extern CORE_ADDR skip_language_trampoline (CORE_ADDR pc);
+
+/* Return demangled language symbol, or NULL.  */
+extern char *language_demangle (const struct language_defn *current_language, 
+				const char *mangled, int options);
+
+/* Splitting strings into words.  */
+extern char *default_word_break_characters (void);
 
 #endif /* defined (LANGUAGE_H) */

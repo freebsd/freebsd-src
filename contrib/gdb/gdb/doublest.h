@@ -1,7 +1,8 @@
 /* Floating point definitions for GDB.
-   Copyright 1986, 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996,
-   1997, 1998, 1999, 2000, 2001
-   Free Software Foundation, Inc.
+
+   Copyright 1986, 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995,
+   1996, 1997, 1998, 1999, 2000, 2001, 2003 Free Software Foundation,
+   Inc.
 
    This file is part of GDB.
 
@@ -22,6 +23,8 @@
 
 #ifndef DOUBLEST_H
 #define DOUBLEST_H
+
+struct type;
 
 /* Setup definitions for host and target floating point formats.  We need to
    consider the format for `float', `double', and `long double' for both target
@@ -59,12 +62,16 @@ extern int floatformat_is_negative (const struct floatformat *, char *);
 extern int floatformat_is_nan (const struct floatformat *, char *);
 extern char *floatformat_mantissa (const struct floatformat *, char *);
 
-/* These two functions are deprecated in favour of
-   extract_typed_floating and store_typed_floating.  See comments in
-   'doublest.c' for details.  */
+/* These functions have been replaced by extract_typed_floating and
+   store_typed_floating.
 
-extern DOUBLEST extract_floating (const void *addr, int len);
-extern void store_floating (void *addr, int len, DOUBLEST val);
+   Most calls are passing in TYPE_LENGTH (TYPE) so can be changed to
+   just pass the TYPE.  The remainder pass in the length of a
+   register, those calls should instead pass in the floating point
+   type that corresponds to that length.  */
+
+extern DOUBLEST deprecated_extract_floating (const void *addr, int len);
+extern void deprecated_store_floating (void *addr, int len, DOUBLEST val);
 
 /* Given TYPE, return its floatformat.  TYPE_FLOATFORMAT() may return
    NULL.  type_floatformat() detects that and returns a floatformat

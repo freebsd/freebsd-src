@@ -1,6 +1,6 @@
 /* Support for printing C and C++ types for GDB, the GNU debugger.
    Copyright 1986, 1988, 1989, 1991, 1992, 1993, 1994, 1995, 1996, 1998,
-   1999, 2000, 2001, 2002
+   1999, 2000, 2001, 2002, 2003
    Free Software Foundation, Inc.
 
    This file is part of GDB.
@@ -21,7 +21,7 @@
    Boston, MA 02111-1307, USA.  */
 
 #include "defs.h"
-#include "obstack.h"
+#include "gdb_obstack.h"
 #include "bfd.h"		/* Binary File Description */
 #include "symtab.h"
 #include "gdbtypes.h"
@@ -41,7 +41,7 @@
 /* Flag indicating target was compiled by HP compiler */
 extern int hp_som_som_object_present;
 
-static void cp_type_print_method_args (struct type ** args, char *prefix,
+static void cp_type_print_method_args (struct type *mtype, char *prefix,
 				       char *varstring, int staticp,
 				       struct ui_file *stream);
 
@@ -49,8 +49,8 @@ static void c_type_print_args (struct type *, struct ui_file *);
 
 static void cp_type_print_derivation_info (struct ui_file *, struct type *);
 
-void c_type_print_varspec_prefix (struct type *, struct ui_file *, int,
-				  int);
+static void c_type_print_varspec_prefix (struct type *, struct ui_file *, int,
+				         int, int);
 
 /* Print "const", "volatile", or address space modifiers. */
 static void c_type_print_modifier (struct type *, struct ui_file *,
@@ -65,8 +65,9 @@ void
 c_print_type (struct type *type, char *varstring, struct ui_file *stream,
 	      int show, int level)
 {
-  register enum type_code code;
+  enum type_code code;
   int demangled_args;
+  int need_post_space;
 
   if (show > 0)
     CHECK_TYPEDEF (type);
@@ -85,7 +86,8 @@ c_print_type (struct type *type, char *varstring, struct ui_file *stream,
 	|| code == TYPE_CODE_MEMBER
 	|| code == TYPE_CODE_REF)))
     fputs_filtered (" ", stream);
-  c_type_print_varspec_prefix (type, stream, show, 0);
+  need_post_space = (varstring != NULL && strcmp (varstring, "") != 0);
+  c_type_print_varspec_prefix (type, stream, show, 0, need_post_space);
 
   if (varstring != NULL)
     {
@@ -147,40 +149,40 @@ cp_type_print_derivation_info (struct ui_file *stream, struct type *type)
       fputs_filtered (" ", stream);
     }
 }
+
 /* Print the C++ method arguments ARGS to the file STREAM.  */
 
 static void
-cp_type_print_method_args (struct type **args, char *prefix, char *varstring,
+cp_type_print_method_args (struct type *mtype, char *prefix, char *varstring,
 			   int staticp, struct ui_file *stream)
 {
+  struct field *args = TYPE_FIELDS (mtype);
+  int nargs = TYPE_NFIELDS (mtype);
+  int varargs = TYPE_VARARGS (mtype);
   int i;
 
   fprintf_symbol_filtered (stream, prefix, language_cplus, DMGL_ANSI);
   fprintf_symbol_filtered (stream, varstring, language_cplus, DMGL_ANSI);
   fputs_filtered ("(", stream);
-  if (args && args[!staticp] && args[!staticp]->code != TYPE_CODE_VOID)
+
+  /* Skip the class variable.  */
+  i = staticp ? 0 : 1;
+  if (nargs > i)
     {
-      i = !staticp;		/* skip the class variable */
-      while (1)
+      while (i < nargs)
 	{
-	  type_print (args[i++], "", stream, 0);
-	  if (!args[i])
-	    {
-	      fprintf_filtered (stream, " ...");
-	      break;
-	    }
-	  else if (args[i]->code != TYPE_CODE_VOID)
-	    {
-	      fprintf_filtered (stream, ", ");
-	    }
-	  else
-	    break;
+	  type_print (args[i++].type, "", stream, 0);
+
+	  if (i == nargs && varargs)
+	    fprintf_filtered (stream, ", ...");
+	  else if (i < nargs)
+	    fprintf_filtered (stream, ", ");
 	}
     }
+  else if (varargs)
+    fprintf_filtered (stream, "...");
   else if (current_language->la_language == language_cplus)
-    {
-      fprintf_filtered (stream, "void");
-    }
+    fprintf_filtered (stream, "void");
 
   fprintf_filtered (stream, ")");
 }
@@ -192,11 +194,15 @@ cp_type_print_method_args (struct type **args, char *prefix, char *varstring,
    On outermost call, pass 0 for PASSED_A_PTR.
    On outermost call, SHOW > 0 means should ignore
    any typename for TYPE and show its details.
-   SHOW is always zero on recursive calls.  */
+   SHOW is always zero on recursive calls.
+   
+   NEED_POST_SPACE is non-zero when a space will be be needed
+   between a trailing qualifier and a field, variable, or function
+   name.  */
 
 void
 c_type_print_varspec_prefix (struct type *type, struct ui_file *stream,
-			     int show, int passed_a_ptr)
+			     int show, int passed_a_ptr, int need_post_space)
 {
   char *name;
   if (type == 0)
@@ -210,15 +216,15 @@ c_type_print_varspec_prefix (struct type *type, struct ui_file *stream,
   switch (TYPE_CODE (type))
     {
     case TYPE_CODE_PTR:
-      c_type_print_varspec_prefix (TYPE_TARGET_TYPE (type), stream, 0, 1);
+      c_type_print_varspec_prefix (TYPE_TARGET_TYPE (type), stream, show, 1, 1);
       fprintf_filtered (stream, "*");
-      c_type_print_modifier (type, stream, 1, 0);
+      c_type_print_modifier (type, stream, 1, need_post_space);
       break;
 
     case TYPE_CODE_MEMBER:
       if (passed_a_ptr)
 	fprintf_filtered (stream, "(");
-      c_type_print_varspec_prefix (TYPE_TARGET_TYPE (type), stream, 0, 0);
+      c_type_print_varspec_prefix (TYPE_TARGET_TYPE (type), stream, show, 0, 0);
       fprintf_filtered (stream, " ");
       name = type_name_no_tag (TYPE_DOMAIN_TYPE (type));
       if (name)
@@ -231,7 +237,7 @@ c_type_print_varspec_prefix (struct type *type, struct ui_file *stream,
     case TYPE_CODE_METHOD:
       if (passed_a_ptr)
 	fprintf_filtered (stream, "(");
-      c_type_print_varspec_prefix (TYPE_TARGET_TYPE (type), stream, 0, 0);
+      c_type_print_varspec_prefix (TYPE_TARGET_TYPE (type), stream, show, 0, 0);
       if (passed_a_ptr)
 	{
 	  fprintf_filtered (stream, " ");
@@ -241,21 +247,25 @@ c_type_print_varspec_prefix (struct type *type, struct ui_file *stream,
       break;
 
     case TYPE_CODE_REF:
-      c_type_print_varspec_prefix (TYPE_TARGET_TYPE (type), stream, 0, 1);
+      c_type_print_varspec_prefix (TYPE_TARGET_TYPE (type), stream, show, 1, 0);
       fprintf_filtered (stream, "&");
-      c_type_print_modifier (type, stream, 1, 0);
+      c_type_print_modifier (type, stream, 1, need_post_space);
       break;
 
     case TYPE_CODE_FUNC:
-      c_type_print_varspec_prefix (TYPE_TARGET_TYPE (type), stream, 0, 0);
+      c_type_print_varspec_prefix (TYPE_TARGET_TYPE (type), stream, show, 0, 0);
       if (passed_a_ptr)
 	fprintf_filtered (stream, "(");
       break;
 
     case TYPE_CODE_ARRAY:
-      c_type_print_varspec_prefix (TYPE_TARGET_TYPE (type), stream, 0, 0);
+      c_type_print_varspec_prefix (TYPE_TARGET_TYPE (type), stream, show, 0, 0);
       if (passed_a_ptr)
 	fprintf_filtered (stream, "(");
+      break;
+
+    case TYPE_CODE_TYPEDEF:
+      c_type_print_varspec_prefix (TYPE_TARGET_TYPE (type), stream, show, 0, 0);
       break;
 
     case TYPE_CODE_UNDEF:
@@ -273,8 +283,8 @@ c_type_print_varspec_prefix (struct type *type, struct ui_file *stream,
     case TYPE_CODE_STRING:
     case TYPE_CODE_BITSTRING:
     case TYPE_CODE_COMPLEX:
-    case TYPE_CODE_TYPEDEF:
     case TYPE_CODE_TEMPLATE:
+    case TYPE_CODE_NAMESPACE:
       /* These types need no prefix.  They are listed here so that
          gcc -Wall will reveal any types that haven't been handled.  */
       break;
@@ -294,7 +304,7 @@ c_type_print_modifier (struct type *type, struct ui_file *stream,
 		       int need_pre_space, int need_post_space)
 {
   int did_print_modifier = 0;
-  char *address_space_id;
+  const char *address_space_id;
 
   /* We don't print `const' qualifiers for references --- since all
      operators affect the thing referenced, not the reference itself,
@@ -316,7 +326,7 @@ c_type_print_modifier (struct type *type, struct ui_file *stream,
       did_print_modifier = 1;
     }
 
-  address_space_id = address_space_int_to_name (TYPE_FLAGS (type));
+  address_space_id = address_space_int_to_name (TYPE_INSTANCE_FLAGS (type));
   if (address_space_id)
     {
       if (did_print_modifier || need_pre_space)
@@ -336,39 +346,31 @@ static void
 c_type_print_args (struct type *type, struct ui_file *stream)
 {
   int i;
-  struct type **args;
+  struct field *args;
 
   fprintf_filtered (stream, "(");
-  args = TYPE_ARG_TYPES (type);
+  args = TYPE_FIELDS (type);
   if (args != NULL)
     {
-      if (args[1] == NULL)
+      int i;
+
+      /* FIXME drow/2002-05-31: Always skips the first argument,
+	 should we be checking for static members?  */
+
+      for (i = 1; i < TYPE_NFIELDS (type); i++)
 	{
-	  fprintf_filtered (stream, "...");
-	}
-      else if ((args[1]->code == TYPE_CODE_VOID) &&
-	       (current_language->la_language == language_cplus))
-	{
-	  fprintf_filtered (stream, "void");
-	}
-      else
-	{
-	  for (i = 1;
-	       args[i] != NULL && args[i]->code != TYPE_CODE_VOID;
-	       i++)
+	  c_print_type (args[i].type, "", stream, -1, 0);
+	  if (i != TYPE_NFIELDS (type))
 	    {
-	      c_print_type (args[i], "", stream, -1, 0);
-	      if (args[i + 1] == NULL)
-		{
-		  fprintf_filtered (stream, "...");
-		}
-	      else if (args[i + 1]->code != TYPE_CODE_VOID)
-		{
-		  fprintf_filtered (stream, ",");
-		  wrap_here ("    ");
-		}
+	      fprintf_filtered (stream, ",");
+	      wrap_here ("    ");
 	    }
 	}
+      if (TYPE_VARARGS (type))
+	fprintf_filtered (stream, "...");
+      else if (i == 1
+	       && (current_language->la_language == language_cplus))
+	fprintf_filtered (stream, "void");
     }
   else if (current_language->la_language == language_cplus)
     {
@@ -545,19 +547,22 @@ c_type_print_varspec_suffix (struct type *type, struct ui_file *stream,
 			   / TYPE_LENGTH (TYPE_TARGET_TYPE (type))));
       fprintf_filtered (stream, "]");
 
-      c_type_print_varspec_suffix (TYPE_TARGET_TYPE (type), stream, 0, 0, 0);
+      c_type_print_varspec_suffix (TYPE_TARGET_TYPE (type), stream, show,
+				   0, 0);
       break;
 
     case TYPE_CODE_MEMBER:
       if (passed_a_ptr)
 	fprintf_filtered (stream, ")");
-      c_type_print_varspec_suffix (TYPE_TARGET_TYPE (type), stream, 0, 0, 0);
+      c_type_print_varspec_suffix (TYPE_TARGET_TYPE (type), stream, show,
+				   0, 0);
       break;
 
     case TYPE_CODE_METHOD:
       if (passed_a_ptr)
 	fprintf_filtered (stream, ")");
-      c_type_print_varspec_suffix (TYPE_TARGET_TYPE (type), stream, 0, 0, 0);
+      c_type_print_varspec_suffix (TYPE_TARGET_TYPE (type), stream, show,
+				   0, 0);
       if (passed_a_ptr)
 	{
 	  c_type_print_args (type, stream);
@@ -566,7 +571,8 @@ c_type_print_varspec_suffix (struct type *type, struct ui_file *stream,
 
     case TYPE_CODE_PTR:
     case TYPE_CODE_REF:
-      c_type_print_varspec_suffix (TYPE_TARGET_TYPE (type), stream, 0, 1, 0);
+      c_type_print_varspec_suffix (TYPE_TARGET_TYPE (type), stream, show,
+				   1, 0);
       break;
 
     case TYPE_CODE_FUNC:
@@ -594,7 +600,12 @@ c_type_print_varspec_suffix (struct type *type, struct ui_file *stream,
 	      }
 	  fprintf_filtered (stream, ")");
 	}
-      c_type_print_varspec_suffix (TYPE_TARGET_TYPE (type), stream, 0,
+      c_type_print_varspec_suffix (TYPE_TARGET_TYPE (type), stream, show,
+				   passed_a_ptr, 0);
+      break;
+
+    case TYPE_CODE_TYPEDEF:
+      c_type_print_varspec_suffix (TYPE_TARGET_TYPE (type), stream, show,
 				   passed_a_ptr, 0);
       break;
 
@@ -613,8 +624,8 @@ c_type_print_varspec_suffix (struct type *type, struct ui_file *stream,
     case TYPE_CODE_STRING:
     case TYPE_CODE_BITSTRING:
     case TYPE_CODE_COMPLEX:
-    case TYPE_CODE_TYPEDEF:
     case TYPE_CODE_TEMPLATE:
+    case TYPE_CODE_NAMESPACE:
       /* These types do not need a suffix.  They are listed so that
          gcc -Wall will report types that may not have been considered.  */
       break;
@@ -848,10 +859,11 @@ c_type_print_base (struct type *type, struct ui_file *stream, int show,
 	      QUIT;
 	      /* Don't print out virtual function table.  */
 	      /* HP ANSI C++ case */
-	      if (TYPE_HAS_VTABLE (type) && (STREQN (TYPE_FIELD_NAME (type, i), "__vfp", 5)))
+	      if (TYPE_HAS_VTABLE (type)
+		  && (strncmp (TYPE_FIELD_NAME (type, i), "__vfp", 5) == 0))
 		continue;
 	      /* Other compilers */
-	      if (STREQN (TYPE_FIELD_NAME (type, i), "_vptr", 5)
+	      if (strncmp (TYPE_FIELD_NAME (type, i), "_vptr", 5) == 0
 		  && is_cplus_marker ((TYPE_FIELD_NAME (type, i))[5]))
 		continue;
 
@@ -933,7 +945,7 @@ c_type_print_base (struct type *type, struct ui_file *stream, int show,
 	      int j, len2 = TYPE_FN_FIELDLIST_LENGTH (type, i);
 	      char *method_name = TYPE_FN_FIELDLIST_NAME (type, i);
 	      char *name = type_name_no_tag (type);
-	      int is_constructor = name && STREQ (method_name, name);
+	      int is_constructor = name && strcmp (method_name, name) == 0;
 	      for (j = 0; j < len2; j++)
 		{
 		  char *physname = TYPE_FN_FIELD_PHYSNAME (f, j);
@@ -1010,10 +1022,15 @@ c_type_print_base (struct type *type, struct ui_file *stream, int show,
 		         Let's try to reconstruct the function signature from 
 		         the symbol information */
 		      if (!TYPE_FN_FIELD_STUB (f, j))
-			cp_type_print_method_args (TYPE_FN_FIELD_ARGS (f, j), "",
-						   method_name,
-					      TYPE_FN_FIELD_STATIC_P (f, j),
-						   stream);
+			{
+			  int staticp = TYPE_FN_FIELD_STATIC_P (f, j);
+			  struct type *mtype = TYPE_FN_FIELD_TYPE (f, j);
+			  cp_type_print_method_args (mtype,
+						     "",
+						     method_name,
+						     staticp,
+						     stream);
+			}
 		      else
 			fprintf_filtered (stream, "<badly mangled name '%s'>",
 					  mangled_name);
@@ -1166,6 +1183,11 @@ c_type_print_base (struct type *type, struct ui_file *stream, int show,
 		fprintf_filtered (stream, "\n");
 	    }
 	}
+      break;
+
+    case TYPE_CODE_NAMESPACE:
+      fputs_filtered ("namespace ", stream);
+      fputs_filtered (TYPE_TAG_NAME (type), stream);
       break;
 
     default:

@@ -22,6 +22,9 @@
 #include "inferior.h"
 #include "regcache.h"
 
+#include "alpha-tdep.h"
+#include "alphabsd-tdep.h"
+
 #include <sys/types.h>
 #include <sys/ptrace.h>
 #include <machine/reg.h>
@@ -34,103 +37,45 @@
 typedef struct reg gregset_t;
 #endif
 
-#ifndef HAVE_FPREGSET_T
-typedef struct fpreg fpregset_t;
-#endif
+#ifndef HAVE_FPREGSET_T 
+typedef struct fpreg fpregset_t; 
+#endif 
 
 #include "gregset.h"
 
-/* Number of general-purpose registers.  */
-#define NUM_GREGS  32
-
-/* Number of floating point registers.  */
-#define NUM_FPREGS 31
-
-
-/* Transfering the registers between GDB, inferiors and core files.  */
-
-/* Fill GDB's register array with the general-purpose register values
-   in *GREGSETP.  */
+/* Provide *regset() wrappers around the generic Alpha BSD register
+   supply/fill routines.  */
 
 void
 supply_gregset (gregset_t *gregsetp)
 {
-  int i;
-
-  for (i = 0; i < NUM_GREGS; i++)
-    {
-      if (CANNOT_FETCH_REGISTER (i))
-	supply_register (i, NULL);
-      else
-	supply_register (i, (char *) &gregsetp->r_regs[i]);
-    }
-
-  /* The PC travels in the R_ZERO slot.  */
-  supply_register (PC_REGNUM, (char *) &gregsetp->r_regs[R_ZERO]);
+  alphabsd_supply_reg ((char *) gregsetp, -1);
 }
-
-/* Fill register REGNO (if it is a general-purpose register) in
-   *GREGSETPS with the value in GDB's register array.  If REGNO is -1,
-   do this for all registers.  */
 
 void
 fill_gregset (gregset_t *gregsetp, int regno)
 {
-  int i;
-
-  for (i = 0; i < NUM_GREGS; i++)
-    if ((regno == -1 || regno == i) && ! CANNOT_STORE_REGISTER (i))
-      regcache_collect (i, (char *) &gregsetp->r_regs[i]);
-
-  /* The PC travels in the R_ZERO slot.  */
-  if (regno == -1 || regno == PC_REGNUM)
-    regcache_collect (PC_REGNUM, (char *) &gregsetp->r_regs[R_ZERO]);
+  alphabsd_fill_reg ((char *) gregsetp, regno);
 }
-
-/* Fill GDB's register array with the floating-point register values
-   in *FPREGSETP.  */
 
 void
 supply_fpregset (fpregset_t *fpregsetp)
 {
-  int i;
-
-  for (i = FP0_REGNUM; i < FP0_REGNUM + NUM_FPREGS; i++)
-    {
-      if (CANNOT_FETCH_REGISTER (i))
-	supply_register (i, NULL);
-      else
-	supply_register (i, (char *) &fpregsetp->fpr_regs[i - FP0_REGNUM]);
-    }
-
-  supply_register (FPCR_REGNUM, (char *) &fpregsetp->fpr_cr);
+  alphabsd_supply_fpreg ((char *) fpregsetp, -1);
 }
-
-/* Fill register REGNO (if it is a floating-point register) in
-   *FPREGSETP with the value in GDB's register array.  If REGNO is -1,
-   do this for all registers.  */
 
 void
 fill_fpregset (fpregset_t *fpregsetp, int regno)
 {
-  int i;
-
-  for (i = FP0_REGNUM; i < FP0_REGNUM + NUM_FPREGS; i++)
-    if ((regno == -1 || regno == i) && ! CANNOT_STORE_REGISTER (i))
-      regcache_collect (i, (char *) &fpregsetp->fpr_regs[i - FP0_REGNUM]);
-
-  if (regno == -1 || regno == FPCR_REGNUM)
-    regcache_collect (FPCR_REGNUM, (char *) &fpregsetp->fpr_cr);
+  alphabsd_fill_fpreg ((char *) fpregsetp, regno);
 }
-
-
+
 /* Determine if PT_GETREGS fetches this register.  */
 
 static int
 getregs_supplies (int regno)
 {
-
-  return ((regno >= V0_REGNUM && regno <= ZERO_REGNUM)
+  return ((regno >= ALPHA_V0_REGNUM && regno <= ALPHA_ZERO_REGNUM)
 	  || regno >= PC_REGNUM);
 }
 
@@ -141,33 +86,29 @@ getregs_supplies (int regno)
 void
 fetch_inferior_registers (int regno)
 {
-
   if (regno == -1 || getregs_supplies (regno))
     {
-      gregset_t gregs;
+      struct reg gregs;
 
       if (ptrace (PT_GETREGS, PIDGET (inferior_ptid),
 		  (PTRACE_ARG3_TYPE) &gregs, 0) == -1)
 	perror_with_name ("Couldn't get registers");
 
-      supply_gregset (&gregs);
+      alphabsd_supply_reg ((char *) &gregs, regno);
       if (regno != -1)
 	return;
     }
 
   if (regno == -1 || regno >= FP0_REGNUM)
     {
-      fpregset_t fpregs;
+      struct fpreg fpregs;
 
       if (ptrace (PT_GETFPREGS, PIDGET (inferior_ptid),
 		  (PTRACE_ARG3_TYPE) &fpregs, 0) == -1)
 	perror_with_name ("Couldn't get floating point status");
 
-      supply_fpregset (&fpregs);
+      alphabsd_supply_fpreg ((char *) &fpregs, regno);
     }
-
-  /* Reset virtual frame pointer.  */
-  supply_register (FP_REGNUM, NULL);
 }
 
 /* Store register REGNO back into the inferior.  If REGNO is -1, do
@@ -176,15 +117,14 @@ fetch_inferior_registers (int regno)
 void
 store_inferior_registers (int regno)
 {
-
   if (regno == -1 || getregs_supplies (regno))
     {
-      gregset_t gregs;
+      struct reg gregs;
       if (ptrace (PT_GETREGS, PIDGET (inferior_ptid),
                   (PTRACE_ARG3_TYPE) &gregs, 0) == -1)
         perror_with_name ("Couldn't get registers");
 
-      fill_gregset (&gregs, regno);
+      alphabsd_fill_reg ((char *) &gregs, regno);
 
       if (ptrace (PT_SETREGS, PIDGET (inferior_ptid),
                   (PTRACE_ARG3_TYPE) &gregs, 0) == -1)
@@ -196,13 +136,13 @@ store_inferior_registers (int regno)
 
   if (regno == -1 || regno >= FP0_REGNUM)
     {
-      fpregset_t fpregs;
+      struct fpreg fpregs;
 
       if (ptrace (PT_GETFPREGS, PIDGET (inferior_ptid),
 		  (PTRACE_ARG3_TYPE) &fpregs, 0) == -1)
 	perror_with_name ("Couldn't get floating point status");
 
-      fill_fpregset (&fpregs, regno);
+      alphabsd_fill_fpreg ((char *) &fpregs, regno);
 
       if (ptrace (PT_SETFPREGS, PIDGET (inferior_ptid),
 		  (PTRACE_ARG3_TYPE) &fpregs, 0) == -1)

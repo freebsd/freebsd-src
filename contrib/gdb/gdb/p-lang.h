@@ -38,7 +38,8 @@ extern void pascal_type_print_method_args (char *, char *,
 
 /* These are in p-lang.c: */
 
-extern int is_pascal_string_type (struct type *, int *, int *, int *, int*);
+extern int 
+  is_pascal_string_type (struct type *, int *, int *, int *, int *, char **);
 
 extern void pascal_printchar (int, struct ui_file *);
 

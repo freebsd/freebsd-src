@@ -42,8 +42,8 @@
 #include <signal.h>
 #include "gdb_string.h"
 
-static int tcp_open (struct serial *scb, const char *name);
-static void tcp_close (struct serial *scb);
+static int net_open (struct serial *scb, const char *name);
+static void net_close (struct serial *scb);
 extern int (*ui_loop_hook) (int);
 void _initialize_ser_tcp (void);
 
@@ -55,17 +55,27 @@ void _initialize_ser_tcp (void);
 /* Open a tcp socket */
 
 static int
-tcp_open (struct serial *scb, const char *name)
+net_open (struct serial *scb, const char *name)
 {
   char *port_str, hostname[100];
   int n, port, tmp;
+  int use_udp;
   struct hostent *hostent;
   struct sockaddr_in sockaddr;
+
+  use_udp = 0;
+  if (strncmp (name, "udp:", 4) == 0)
+    {
+      use_udp = 1;
+      name = name + 4;
+    }
+  else if (strncmp (name, "tcp:", 4) == 0)
+    name = name + 4;
 
   port_str = strchr (name, ':');
 
   if (!port_str)
-    error ("tcp_open: No colon in host name!");	   /* Shouldn't ever happen */
+    error ("net_open: No colon in host name!");	   /* Shouldn't ever happen */
 
   tmp = min (port_str - name, (int) sizeof hostname - 1);
   strncpy (hostname, name, tmp);	/* Don't want colon */
@@ -84,7 +94,11 @@ tcp_open (struct serial *scb, const char *name)
       return -1;
     }
 
-  scb->fd = socket (PF_INET, SOCK_STREAM, 0);
+  if (use_udp)
+    scb->fd = socket (PF_INET, SOCK_DGRAM, 0);
+  else
+    scb->fd = socket (PF_INET, SOCK_STREAM, 0);
+
   if (scb->fd < 0)
     return -1;
   
@@ -102,7 +116,7 @@ tcp_open (struct serial *scb, const char *name)
 
   if (n < 0 && errno != EINPROGRESS)
     {
-      tcp_close (scb);
+      net_close (scb);
       return -1;
     }
 
@@ -124,7 +138,7 @@ tcp_open (struct serial *scb, const char *name)
 	      if (ui_loop_hook (0))
 		{
 		  errno = EINTR;
-		  tcp_close (scb);
+		  net_close (scb);
 		  return -1;
 		}
 	    }
@@ -142,7 +156,7 @@ tcp_open (struct serial *scb, const char *name)
 	{
 	  if (polls > TIMEOUT * POLL_INTERVAL)
 	    errno = ETIMEDOUT;
-	  tcp_close (scb);
+	  net_close (scb);
 	  return -1;
 	}
     }
@@ -156,20 +170,23 @@ tcp_open (struct serial *scb, const char *name)
       {
 	if (err)
 	  errno = err;
-	tcp_close (scb);
+	net_close (scb);
 	return -1;
       }
   } 
-  
+
   /* turn off nonblocking */
   tmp = 0;
   ioctl (scb->fd, FIONBIO, &tmp);
 
-  /* Disable Nagle algorithm. Needed in some cases. */
-  tmp = 1;
-  setsockopt (scb->fd, IPPROTO_TCP, TCP_NODELAY,
-	      (char *)&tmp, sizeof (tmp));
-  
+  if (use_udp == 0)
+    {
+      /* Disable Nagle algorithm. Needed in some cases. */
+      tmp = 1;
+      setsockopt (scb->fd, IPPROTO_TCP, TCP_NODELAY,
+		  (char *)&tmp, sizeof (tmp));
+    }
+
   /* If we don't do this, then GDB simply exits
      when the remote side dies.  */
   signal (SIGPIPE, SIG_IGN);
@@ -178,7 +195,7 @@ tcp_open (struct serial *scb, const char *name)
 }
 
 static void
-tcp_close (struct serial *scb)
+net_close (struct serial *scb)
 {
   if (scb->fd < 0)
     return;
@@ -191,11 +208,11 @@ void
 _initialize_ser_tcp (void)
 {
   struct serial_ops *ops = XMALLOC (struct serial_ops);
-  memset (ops, sizeof (struct serial_ops), 0);
+  memset (ops, 0, sizeof (struct serial_ops));
   ops->name = "tcp";
   ops->next = 0;
-  ops->open = tcp_open;
-  ops->close = tcp_close;
+  ops->open = net_open;
+  ops->close = net_close;
   ops->readchar = ser_unix_readchar;
   ops->write = ser_unix_write;
   ops->flush_output = ser_unix_nop_flush_output;

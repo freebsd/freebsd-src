@@ -1,7 +1,8 @@
 /* Evaluate expressions for GDB.
-   Copyright 1986, 1987, 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995,
-   1996, 1997, 1998, 1999, 2000, 2001
-   Free Software Foundation, Inc.
+
+   Copyright 1986, 1987, 1988, 1989, 1990, 1991, 1992, 1993, 1994,
+   1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003 Free Software
+   Foundation, Inc.
 
    This file is part of GDB.
 
@@ -31,6 +32,10 @@
 #include "language.h"		/* For CAST_IS_CONVERSION */
 #include "f-lang.h"		/* for array bound stuff */
 #include "cp-abi.h"
+#include "infcall.h"
+#include "objc-lang.h"
+#include "block.h"
+#include "parser-defs.h"
 
 /* Defined in symtab.c */
 extern int hp_som_som_object_present;
@@ -63,10 +68,11 @@ static LONGEST init_array_element (struct value *, struct value *,
 				   LONGEST, LONGEST);
 
 static struct value *
-evaluate_subexp (struct type *expect_type, register struct expression *exp,
-		 register int *pos, enum noside noside)
+evaluate_subexp (struct type *expect_type, struct expression *exp,
+		 int *pos, enum noside noside)
 {
-  return (*exp->language_defn->evaluate_exp) (expect_type, exp, pos, noside);
+  return (*exp->language_defn->la_exp_desc->evaluate_exp) 
+    (expect_type, exp, pos, noside);
 }
 
 /* Parse the string EXP as a C expression, evaluate it,
@@ -76,9 +82,9 @@ CORE_ADDR
 parse_and_eval_address (char *exp)
 {
   struct expression *expr = parse_expression (exp);
-  register CORE_ADDR addr;
-  register struct cleanup *old_chain =
-  make_cleanup (free_current_contents, &expr);
+  CORE_ADDR addr;
+  struct cleanup *old_chain =
+    make_cleanup (free_current_contents, &expr);
 
   addr = value_as_address (evaluate_expression (expr));
   do_cleanups (old_chain);
@@ -92,9 +98,9 @@ CORE_ADDR
 parse_and_eval_address_1 (char **expptr)
 {
   struct expression *expr = parse_exp_1 (expptr, (struct block *) 0, 0);
-  register CORE_ADDR addr;
-  register struct cleanup *old_chain =
-  make_cleanup (free_current_contents, &expr);
+  CORE_ADDR addr;
+  struct cleanup *old_chain =
+    make_cleanup (free_current_contents, &expr);
 
   addr = value_as_address (evaluate_expression (expr));
   do_cleanups (old_chain);
@@ -107,8 +113,8 @@ LONGEST
 parse_and_eval_long (char *exp)
 {
   struct expression *expr = parse_expression (exp);
-  register LONGEST retval;
-  register struct cleanup *old_chain =
+  LONGEST retval;
+  struct cleanup *old_chain =
     make_cleanup (free_current_contents, &expr);
 
   retval = value_as_long (evaluate_expression (expr));
@@ -121,8 +127,8 @@ parse_and_eval (char *exp)
 {
   struct expression *expr = parse_expression (exp);
   struct value *val;
-  register struct cleanup *old_chain
-  = make_cleanup (free_current_contents, &expr);
+  struct cleanup *old_chain =
+    make_cleanup (free_current_contents, &expr);
 
   val = evaluate_expression (expr);
   do_cleanups (old_chain);
@@ -138,8 +144,8 @@ parse_to_comma_and_eval (char **expp)
 {
   struct expression *expr = parse_exp_1 (expp, (struct block *) 0, 1);
   struct value *val;
-  register struct cleanup *old_chain
-  = make_cleanup (free_current_contents, &expr);
+  struct cleanup *old_chain =
+    make_cleanup (free_current_contents, &expr);
 
   val = evaluate_expression (expr);
   do_cleanups (old_chain);
@@ -172,7 +178,7 @@ evaluate_type (struct expression *exp)
    returning the label.  Otherwise, does nothing and returns NULL. */
 
 static char *
-get_label (register struct expression *exp, int *pos)
+get_label (struct expression *exp, int *pos)
 {
   if (exp->elts[*pos].opcode == OP_LABELED)
     {
@@ -186,13 +192,13 @@ get_label (register struct expression *exp, int *pos)
     return NULL;
 }
 
-/* This function evaluates tuples (in Chill) or brace-initializers
-   (in C/C++) for structure types.  */
+/* This function evaluates tuples (in (the deleted) Chill) or
+   brace-initializers (in C/C++) for structure types.  */
 
 static struct value *
 evaluate_struct_tuple (struct value *struct_val,
-		       register struct expression *exp,
-		       register int *pos, enum noside noside, int nargs)
+		       struct expression *exp,
+		       int *pos, enum noside noside, int nargs)
 {
   struct type *struct_type = check_typedef (VALUE_TYPE (struct_val));
   struct type *substruct_type = struct_type;
@@ -221,7 +227,7 @@ evaluate_struct_tuple (struct value *struct_val,
 		   fieldno++)
 		{
 		  char *field_name = TYPE_FIELD_NAME (struct_type, fieldno);
-		  if (field_name != NULL && STREQ (field_name, label))
+		  if (field_name != NULL && DEPRECATED_STREQ (field_name, label))
 		    {
 		      variantno = -1;
 		      subfieldno = fieldno;
@@ -249,7 +255,7 @@ evaluate_struct_tuple (struct value *struct_val,
 				 subfieldno < TYPE_NFIELDS (substruct_type);
 				   subfieldno++)
 				{
-				  if (STREQ (TYPE_FIELD_NAME (substruct_type,
+				  if (DEPRECATED_STREQ (TYPE_FIELD_NAME (substruct_type,
 							      subfieldno),
 					     label))
 				    {
@@ -325,17 +331,16 @@ evaluate_struct_tuple (struct value *struct_val,
   return struct_val;
 }
 
-/* Recursive helper function for setting elements of array tuples for Chill.
-   The target is ARRAY (which has bounds LOW_BOUND to HIGH_BOUND);
-   the element value is ELEMENT;
-   EXP, POS and NOSIDE are as usual.
-   Evaluates index expresions and sets the specified element(s) of
-   ARRAY to ELEMENT.
-   Returns last index value.  */
+/* Recursive helper function for setting elements of array tuples for
+   (the deleted) Chill.  The target is ARRAY (which has bounds
+   LOW_BOUND to HIGH_BOUND); the element value is ELEMENT; EXP, POS
+   and NOSIDE are as usual.  Evaluates index expresions and sets the
+   specified element(s) of ARRAY to ELEMENT.  Returns last index
+   value.  */
 
 static LONGEST
 init_array_element (struct value *array, struct value *element,
-		    register struct expression *exp, register int *pos,
+		    struct expression *exp, int *pos,
 		    enum noside noside, LONGEST low_bound, LONGEST high_bound)
 {
   LONGEST index;
@@ -376,12 +381,12 @@ init_array_element (struct value *array, struct value *element,
 
 struct value *
 evaluate_subexp_standard (struct type *expect_type,
-			  register struct expression *exp, register int *pos,
+			  struct expression *exp, int *pos,
 			  enum noside noside)
 {
   enum exp_opcode op;
   int tem, tem2, tem3;
-  register int pc, pc2 = 0, oldpos;
+  int pc, pc2 = 0, oldpos;
   struct value *arg1 = NULL;
   struct value *arg2 = NULL;
   struct value *arg3;
@@ -403,11 +408,9 @@ evaluate_subexp_standard (struct type *expect_type,
     case OP_SCOPE:
       tem = longest_to_int (exp->elts[pc + 2].longconst);
       (*pos) += 4 + BYTES_TO_EXP_ELEM (tem + 1);
-      arg1 = value_struct_elt_for_reference (exp->elts[pc + 1].type,
-					     0,
-					     exp->elts[pc + 1].type,
-					     &exp->elts[pc + 3].string,
-					     NULL_TYPE);
+      arg1 = value_aggregate_elt (exp->elts[pc + 1].type,
+				  &exp->elts[pc + 3].string,
+				  noside);
       if (arg1 == NULL)
 	error ("There is no field named %s", &exp->elts[pc + 3].string);
       return arg1;
@@ -447,11 +450,11 @@ evaluate_subexp_standard (struct type *expect_type,
     case OP_REGISTER:
       {
 	int regno = longest_to_int (exp->elts[pc + 1].longconst);
-	struct value *val = value_of_register (regno);
-
+	struct value *val = value_of_register (regno, get_selected_frame ());
 	(*pos) += 2;
 	if (val == NULL)
-	  error ("Value of register %s not available.", REGISTER_NAME (regno));
+	  error ("Value of register %s not available.",
+		 frame_map_regnum_to_name (get_selected_frame (), regno));
 	else
 	  return val;
       }
@@ -470,6 +473,15 @@ evaluate_subexp_standard (struct type *expect_type,
       if (noside == EVAL_SKIP)
 	goto nosideret;
       return value_string (&exp->elts[pc + 2].string, tem);
+
+    case OP_OBJC_NSSTRING:		/* Objective C Foundation Class NSString constant.  */
+      tem = longest_to_int (exp->elts[pc + 1].longconst);
+      (*pos) += 3 + BYTES_TO_EXP_ELEM (tem + 1);
+      if (noside == EVAL_SKIP)
+	{
+	  goto nosideret;
+	}
+      return (struct value *) value_nsstring (&exp->elts[pc + 2].string, tem + 1);
 
     case OP_BITSTRING:
       tem = longest_to_int (exp->elts[pc + 1].longconst);
@@ -667,6 +679,285 @@ evaluate_subexp_standard (struct type *expect_type,
 	  return arg2;
 	}
 
+    case OP_OBJC_SELECTOR:
+      {				/* Objective C @selector operator.  */
+	char *sel = &exp->elts[pc + 2].string;
+	int len = longest_to_int (exp->elts[pc + 1].longconst);
+
+	(*pos) += 3 + BYTES_TO_EXP_ELEM (len + 1);
+	if (noside == EVAL_SKIP)
+	  goto nosideret;
+
+	if (sel[len] != 0)
+	  sel[len] = 0;		/* Make sure it's terminated.  */
+	return value_from_longest (lookup_pointer_type (builtin_type_void),
+				   lookup_child_selector (sel));
+      }
+
+    case OP_OBJC_MSGCALL:
+      {				/* Objective C message (method) call.  */
+
+	static CORE_ADDR responds_selector = 0;
+	static CORE_ADDR method_selector = 0;
+
+	CORE_ADDR selector = 0;
+
+	int using_gcc = 0;
+	int struct_return = 0;
+	int sub_no_side = 0;
+
+	static struct value *msg_send = NULL;
+	static struct value *msg_send_stret = NULL;
+	static int gnu_runtime = 0;
+
+	struct value *target = NULL;
+	struct value *method = NULL;
+	struct value *called_method = NULL; 
+
+	struct type *selector_type = NULL;
+
+	struct value *ret = NULL;
+	CORE_ADDR addr = 0;
+
+	selector = exp->elts[pc + 1].longconst;
+	nargs = exp->elts[pc + 2].longconst;
+	argvec = (struct value **) alloca (sizeof (struct value *) 
+					   * (nargs + 5));
+
+	(*pos) += 3;
+
+	selector_type = lookup_pointer_type (builtin_type_void);
+	if (noside == EVAL_AVOID_SIDE_EFFECTS)
+	  sub_no_side = EVAL_NORMAL;
+	else
+	  sub_no_side = noside;
+
+	target = evaluate_subexp (selector_type, exp, pos, sub_no_side);
+
+	if (value_as_long (target) == 0)
+ 	  return value_from_longest (builtin_type_long, 0);
+	
+	if (lookup_minimal_symbol ("objc_msg_lookup", 0, 0))
+	  gnu_runtime = 1;
+	
+	/* Find the method dispatch (Apple runtime) or method lookup
+	   (GNU runtime) function for Objective-C.  These will be used
+	   to lookup the symbol information for the method.  If we
+	   can't find any symbol information, then we'll use these to
+	   call the method, otherwise we can call the method
+	   directly. The msg_send_stret function is used in the special
+	   case of a method that returns a structure (Apple runtime 
+	   only).  */
+	if (gnu_runtime)
+	  {
+	    struct type *type;
+	    type = lookup_pointer_type (builtin_type_void);
+	    type = lookup_function_type (type);
+	    type = lookup_pointer_type (type);
+	    type = lookup_function_type (type);
+	    type = lookup_pointer_type (type);
+
+	    msg_send = find_function_in_inferior ("objc_msg_lookup");
+	    msg_send_stret = find_function_in_inferior ("objc_msg_lookup");
+
+	    msg_send = value_from_pointer (type, value_as_address (msg_send));
+	    msg_send_stret = value_from_pointer (type, 
+					value_as_address (msg_send_stret));
+	  }
+	else
+	  {
+	    msg_send = find_function_in_inferior ("objc_msgSend");
+	    /* Special dispatcher for methods returning structs */
+	    msg_send_stret = find_function_in_inferior ("objc_msgSend_stret");
+	  }
+
+	/* Verify the target object responds to this method. The
+	   standard top-level 'Object' class uses a different name for
+	   the verification method than the non-standard, but more
+	   often used, 'NSObject' class. Make sure we check for both. */
+
+	responds_selector = lookup_child_selector ("respondsToSelector:");
+	if (responds_selector == 0)
+	  responds_selector = lookup_child_selector ("respondsTo:");
+	
+	if (responds_selector == 0)
+	  error ("no 'respondsTo:' or 'respondsToSelector:' method");
+	
+	method_selector = lookup_child_selector ("methodForSelector:");
+	if (method_selector == 0)
+	  method_selector = lookup_child_selector ("methodFor:");
+	
+	if (method_selector == 0)
+	  error ("no 'methodFor:' or 'methodForSelector:' method");
+
+	/* Call the verification method, to make sure that the target
+	 class implements the desired method. */
+
+	argvec[0] = msg_send;
+	argvec[1] = target;
+	argvec[2] = value_from_longest (builtin_type_long, responds_selector);
+	argvec[3] = value_from_longest (builtin_type_long, selector);
+	argvec[4] = 0;
+
+	ret = call_function_by_hand (argvec[0], 3, argvec + 1);
+	if (gnu_runtime)
+	  {
+	    /* Function objc_msg_lookup returns a pointer.  */
+	    argvec[0] = ret;
+	    ret = call_function_by_hand (argvec[0], 3, argvec + 1);
+	  }
+	if (value_as_long (ret) == 0)
+	  error ("Target does not respond to this message selector.");
+
+	/* Call "methodForSelector:" method, to get the address of a
+	   function method that implements this selector for this
+	   class.  If we can find a symbol at that address, then we
+	   know the return type, parameter types etc.  (that's a good
+	   thing). */
+
+	argvec[0] = msg_send;
+	argvec[1] = target;
+	argvec[2] = value_from_longest (builtin_type_long, method_selector);
+	argvec[3] = value_from_longest (builtin_type_long, selector);
+	argvec[4] = 0;
+
+	ret = call_function_by_hand (argvec[0], 3, argvec + 1);
+	if (gnu_runtime)
+	  {
+	    argvec[0] = ret;
+	    ret = call_function_by_hand (argvec[0], 3, argvec + 1);
+	  }
+
+	/* ret should now be the selector.  */
+
+	addr = value_as_long (ret);
+	if (addr)
+	  {
+	    struct symbol *sym = NULL;
+	    /* Is it a high_level symbol?  */
+
+	    sym = find_pc_function (addr);
+	    if (sym != NULL) 
+	      method = value_of_variable (sym, 0);
+	  }
+
+	/* If we found a method with symbol information, check to see
+           if it returns a struct.  Otherwise assume it doesn't.  */
+
+	if (method)
+	  {
+	    struct block *b;
+	    CORE_ADDR funaddr;
+	    struct type *value_type;
+
+	    funaddr = find_function_addr (method, &value_type);
+
+	    b = block_for_pc (funaddr);
+
+	    /* If compiled without -g, assume GCC 2.  */
+	    using_gcc = (b == NULL ? 2 : BLOCK_GCC_COMPILED (b));
+
+	    CHECK_TYPEDEF (value_type);
+	  
+	    if ((value_type == NULL) 
+		|| (TYPE_CODE(value_type) == TYPE_CODE_ERROR))
+	      {
+		if (expect_type != NULL)
+		  value_type = expect_type;
+	      }
+
+	    struct_return = using_struct_return (value_type, using_gcc);
+	  }
+	else if (expect_type != NULL)
+	  {
+	    struct_return = using_struct_return (check_typedef (expect_type), using_gcc);
+	  }
+	
+	/* Found a function symbol.  Now we will substitute its
+	   value in place of the message dispatcher (obj_msgSend),
+	   so that we call the method directly instead of thru
+	   the dispatcher.  The main reason for doing this is that
+	   we can now evaluate the return value and parameter values
+	   according to their known data types, in case we need to
+	   do things like promotion, dereferencing, special handling
+	   of structs and doubles, etc.
+	  
+	   We want to use the type signature of 'method', but still
+	   jump to objc_msgSend() or objc_msgSend_stret() to better
+	   mimic the behavior of the runtime.  */
+	
+	if (method)
+	  {
+	    if (TYPE_CODE (VALUE_TYPE (method)) != TYPE_CODE_FUNC)
+	      error ("method address has symbol information with non-function type; skipping");
+	    if (struct_return)
+	      VALUE_ADDRESS (method) = value_as_address (msg_send_stret);
+	    else
+	      VALUE_ADDRESS (method) = value_as_address (msg_send);
+	    called_method = method;
+	  }
+	else
+	  {
+	    if (struct_return)
+	      called_method = msg_send_stret;
+	    else
+	      called_method = msg_send;
+	  }
+
+	if (noside == EVAL_SKIP)
+	  goto nosideret;
+
+	if (noside == EVAL_AVOID_SIDE_EFFECTS)
+	  {
+	    /* If the return type doesn't look like a function type,
+	       call an error.  This can happen if somebody tries to
+	       turn a variable into a function call. This is here
+	       because people often want to call, eg, strcmp, which
+	       gdb doesn't know is a function.  If gdb isn't asked for
+	       it's opinion (ie. through "whatis"), it won't offer
+	       it. */
+
+	    struct type *type = VALUE_TYPE (called_method);
+	    if (type && TYPE_CODE (type) == TYPE_CODE_PTR)
+	      type = TYPE_TARGET_TYPE (type);
+	    type = TYPE_TARGET_TYPE (type);
+
+	    if (type)
+	    {
+	      if ((TYPE_CODE (type) == TYPE_CODE_ERROR) && expect_type)
+		return allocate_value (expect_type);
+	      else
+		return allocate_value (type);
+	    }
+	    else
+	      error ("Expression of type other than \"method returning ...\" used as a method");
+	  }
+
+	/* Now depending on whether we found a symbol for the method,
+	   we will either call the runtime dispatcher or the method
+	   directly.  */
+
+	argvec[0] = called_method;
+	argvec[1] = target;
+	argvec[2] = value_from_longest (builtin_type_long, selector);
+	/* User-supplied arguments.  */
+	for (tem = 0; tem < nargs; tem++)
+	  argvec[tem + 3] = evaluate_subexp_with_coercion (exp, pos, noside);
+	argvec[tem + 3] = 0;
+
+	if (gnu_runtime && (method != NULL))
+	  {
+	    /* Function objc_msg_lookup returns a pointer.  */
+	    VALUE_TYPE (argvec[0]) = lookup_function_type 
+			    (lookup_pointer_type (VALUE_TYPE (argvec[0])));
+	    argvec[0] = call_function_by_hand (argvec[0], nargs + 2, argvec + 1);
+	  }
+
+	ret = call_function_by_hand (argvec[0], nargs + 2, argvec + 1);
+	return ret;
+      }
+      break;
+
     case OP_FUNCALL:
       (*pos) += 2;
       op = exp->elts[*pos].opcode;
@@ -821,15 +1112,10 @@ evaluate_subexp_standard (struct type *expect_type,
       if (op == STRUCTOP_STRUCT || op == STRUCTOP_PTR)
 	{
 	  int static_memfuncp;
-	  struct value *temp = arg2;
 	  char tstr[256];
 
 	  /* Method invocation : stuff "this" as first parameter */
-	  /* pai: this used to have lookup_pointer_type for some reason,
-	   * but temp is already a pointer to the object */
-	  argvec[1]
-	    = value_from_pointer (VALUE_TYPE (temp),
-				  VALUE_ADDRESS (temp) + VALUE_OFFSET (temp));
+	  argvec[1] = arg2;
 	  /* Name of method from expression */
 	  strcpy (tstr, &exp->elts[pc2 + 2].string);
 
@@ -855,11 +1141,17 @@ evaluate_subexp_standard (struct type *expect_type,
 	  else
 	    /* Non-C++ case -- or no overload resolution */
 	    {
-	      temp = arg2;
+	      struct value *temp = arg2;
 	      argvec[0] = value_struct_elt (&temp, argvec + 1, tstr,
 					    &static_memfuncp,
 					    op == STRUCTOP_STRUCT
 				       ? "structure" : "structure pointer");
+	      /* value_struct_elt updates temp with the correct value
+	 	 of the ``this'' pointer if necessary, so modify argvec[1] to
+		 reflect any ``this'' changes.  */
+	      arg2 = value_from_longest (lookup_pointer_type(VALUE_TYPE (temp)),
+			     VALUE_ADDRESS (temp) + VALUE_OFFSET (temp)
+			     + VALUE_EMBEDDED_OFFSET (temp));
 	      argvec[1] = arg2;	/* the ``this'' pointer */
 	    }
 
@@ -1748,6 +2040,10 @@ evaluate_subexp_standard (struct type *expect_type,
       (*pos) += 1;
       return value_of_this (1);
 
+    case OP_OBJC_SELF:
+      (*pos) += 1;
+      return value_of_local ("self", 1);
+
     case OP_TYPE:
       error ("Attempt to use a type name as an expression");
 
@@ -1777,11 +2073,11 @@ nosideret:
    then only the type of the result need be correct.  */
 
 static struct value *
-evaluate_subexp_for_address (register struct expression *exp, register int *pos,
+evaluate_subexp_for_address (struct expression *exp, int *pos,
 			     enum noside noside)
 {
   enum exp_opcode op;
-  register int pc;
+  int pc;
   struct symbol *var;
 
   pc = (*pos);
@@ -1857,11 +2153,11 @@ evaluate_subexp_for_address (register struct expression *exp, register int *pos,
  */
 
 struct value *
-evaluate_subexp_with_coercion (register struct expression *exp,
-			       register int *pos, enum noside noside)
+evaluate_subexp_with_coercion (struct expression *exp,
+			       int *pos, enum noside noside)
 {
-  register enum exp_opcode op;
-  register int pc;
+  enum exp_opcode op;
+  int pc;
   struct value *val;
   struct symbol *var;
 
@@ -1894,10 +2190,10 @@ evaluate_subexp_with_coercion (register struct expression *exp,
    Advance *POS over the subexpression.  */
 
 static struct value *
-evaluate_subexp_for_sizeof (register struct expression *exp, register int *pos)
+evaluate_subexp_for_sizeof (struct expression *exp, int *pos)
 {
   enum exp_opcode op;
-  register int pc;
+  int pc;
   struct type *type;
   struct value *val;
 

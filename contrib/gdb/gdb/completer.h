@@ -19,11 +19,9 @@
 #if !defined (COMPLETER_H)
 #define COMPLETER_H 1
 
-extern char **complete_line (char *text, char *line_buffer, int point);
+extern char **complete_line (const char *text, char *line_buffer, int point);
 
-extern char *line_completion_function (char *, int, char *, int);
-
-extern char *readline_line_completion_function (char *text, int matches);
+extern char *readline_line_completion_function (const char *text, int matches);
 
 extern char **noop_completer (char *, char *);
 
@@ -33,12 +31,12 @@ extern char **location_completer (char *, char *);
 
 extern char **command_completer (char *, char *);
 
-extern char *get_gdb_completer_word_break_characters (void); 
-
 extern char *get_gdb_completer_quote_characters (void);
 
 /* Exported to linespec.c */
 
-extern char *skip_quoted (char *str);
+extern char *skip_quoted_chars (char *, char *, char *);
+
+extern char *skip_quoted (char *);
 
 #endif /* defined (COMPLETER_H) */

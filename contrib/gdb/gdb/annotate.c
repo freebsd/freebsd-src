@@ -155,28 +155,28 @@ annotate_signalled (void)
 void
 annotate_signal_name (void)
 {
-  if (annotation_level > 1)
+  if (annotation_level == 2)
     printf_filtered ("\n\032\032signal-name\n");
 }
 
 void
 annotate_signal_name_end (void)
 {
-  if (annotation_level > 1)
+  if (annotation_level == 2)
     printf_filtered ("\n\032\032signal-name-end\n");
 }
 
 void
 annotate_signal_string (void)
 {
-  if (annotation_level > 1)
+  if (annotation_level == 2)
     printf_filtered ("\n\032\032signal-string\n");
 }
 
 void
 annotate_signal_string_end (void)
 {
-  if (annotation_level > 1)
+  if (annotation_level == 2)
     printf_filtered ("\n\032\032signal-string-end\n");
 }
 
@@ -193,35 +193,35 @@ annotate_signal (void)
 void
 annotate_breakpoints_headers (void)
 {
-  if (annotation_level > 1)
+  if (annotation_level == 2)
     printf_filtered ("\n\032\032breakpoints-headers\n");
 }
 
 void
 annotate_field (int num)
 {
-  if (annotation_level > 1)
+  if (annotation_level == 2)
     printf_filtered ("\n\032\032field %d\n", num);
 }
 
 void
 annotate_breakpoints_table (void)
 {
-  if (annotation_level > 1)
+  if (annotation_level == 2)
     printf_filtered ("\n\032\032breakpoints-table\n");
 }
 
 void
 annotate_record (void)
 {
-  if (annotation_level > 1)
+  if (annotation_level == 2)
     printf_filtered ("\n\032\032record\n");
 }
 
 void
 annotate_breakpoints_table_end (void)
 {
-  if (annotation_level > 1)
+  if (annotation_level == 2)
     printf_filtered ("\n\032\032breakpoints-table-end\n");
 }
 
@@ -238,7 +238,7 @@ annotate_frames_invalid (void)
 void
 annotate_field_begin (struct type *type)
 {
-  if (annotation_level > 1)
+  if (annotation_level == 2)
     {
       printf_filtered ("\n\032\032field-begin ");
       print_value_flags (type);
@@ -249,21 +249,21 @@ annotate_field_begin (struct type *type)
 void
 annotate_field_name_end (void)
 {
-  if (annotation_level > 1)
+  if (annotation_level == 2)
     printf_filtered ("\n\032\032field-name-end\n");
 }
 
 void
 annotate_field_value (void)
 {
-  if (annotation_level > 1)
+  if (annotation_level == 2)
     printf_filtered ("\n\032\032field-value\n");
 }
 
 void
 annotate_field_end (void)
 {
-  if (annotation_level > 1)
+  if (annotation_level == 2)
     printf_filtered ("\n\032\032field-end\n");
 }
 
@@ -291,7 +291,7 @@ annotate_error_begin (void)
 void
 annotate_value_history_begin (int histindex, struct type *type)
 {
-  if (annotation_level > 1)
+  if (annotation_level == 2)
     {
       printf_filtered ("\n\032\032value-history-begin %d ", histindex);
       print_value_flags (type);
@@ -302,7 +302,7 @@ annotate_value_history_begin (int histindex, struct type *type)
 void
 annotate_value_begin (struct type *type)
 {
-  if (annotation_level > 1)
+  if (annotation_level == 2)
     {
       printf_filtered ("\n\032\032value-begin ");
       print_value_flags (type);
@@ -313,91 +313,91 @@ annotate_value_begin (struct type *type)
 void
 annotate_value_history_value (void)
 {
-  if (annotation_level > 1)
+  if (annotation_level == 2)
     printf_filtered ("\n\032\032value-history-value\n");
 }
 
 void
 annotate_value_history_end (void)
 {
-  if (annotation_level > 1)
+  if (annotation_level == 2)
     printf_filtered ("\n\032\032value-history-end\n");
 }
 
 void
 annotate_value_end (void)
 {
-  if (annotation_level > 1)
+  if (annotation_level == 2)
     printf_filtered ("\n\032\032value-end\n");
 }
 
 void
 annotate_display_begin (void)
 {
-  if (annotation_level > 1)
+  if (annotation_level == 2)
     printf_filtered ("\n\032\032display-begin\n");
 }
 
 void
 annotate_display_number_end (void)
 {
-  if (annotation_level > 1)
+  if (annotation_level == 2)
     printf_filtered ("\n\032\032display-number-end\n");
 }
 
 void
 annotate_display_format (void)
 {
-  if (annotation_level > 1)
+  if (annotation_level == 2)
     printf_filtered ("\n\032\032display-format\n");
 }
 
 void
 annotate_display_expression (void)
 {
-  if (annotation_level > 1)
+  if (annotation_level == 2)
     printf_filtered ("\n\032\032display-expression\n");
 }
 
 void
 annotate_display_expression_end (void)
 {
-  if (annotation_level > 1)
+  if (annotation_level == 2)
     printf_filtered ("\n\032\032display-expression-end\n");
 }
 
 void
 annotate_display_value (void)
 {
-  if (annotation_level > 1)
+  if (annotation_level == 2)
     printf_filtered ("\n\032\032display-value\n");
 }
 
 void
 annotate_display_end (void)
 {
-  if (annotation_level > 1)
+  if (annotation_level == 2)
     printf_filtered ("\n\032\032display-end\n");
 }
 
 void
 annotate_arg_begin (void)
 {
-  if (annotation_level > 1)
+  if (annotation_level == 2)
     printf_filtered ("\n\032\032arg-begin\n");
 }
 
 void
 annotate_arg_name_end (void)
 {
-  if (annotation_level > 1)
+  if (annotation_level == 2)
     printf_filtered ("\n\032\032arg-name-end\n");
 }
 
 void
 annotate_arg_value (struct type *type)
 {
-  if (annotation_level > 1)
+  if (annotation_level == 2)
     {
       printf_filtered ("\n\032\032arg-value ");
       print_value_flags (type);
@@ -408,7 +408,7 @@ annotate_arg_value (struct type *type)
 void
 annotate_arg_end (void)
 {
-  if (annotation_level > 1)
+  if (annotation_level == 2)
     printf_filtered ("\n\032\032arg-end\n");
 }
 
@@ -430,7 +430,7 @@ annotate_source (char *filename, int line, int character, int mid, CORE_ADDR pc)
 void
 annotate_frame_begin (int level, CORE_ADDR pc)
 {
-  if (annotation_level > 1)
+  if (annotation_level == 2)
     {
       printf_filtered ("\n\032\032frame-begin %d 0x", level);
       print_address_numeric (pc, 0, gdb_stdout);
@@ -441,98 +441,98 @@ annotate_frame_begin (int level, CORE_ADDR pc)
 void
 annotate_function_call (void)
 {
-  if (annotation_level > 1)
+  if (annotation_level == 2)
     printf_filtered ("\n\032\032function-call\n");
 }
 
 void
 annotate_signal_handler_caller (void)
 {
-  if (annotation_level > 1)
+  if (annotation_level == 2)
     printf_filtered ("\n\032\032signal-handler-caller\n");
 }
 
 void
 annotate_frame_address (void)
 {
-  if (annotation_level > 1)
+  if (annotation_level == 2)
     printf_filtered ("\n\032\032frame-address\n");
 }
 
 void
 annotate_frame_address_end (void)
 {
-  if (annotation_level > 1)
+  if (annotation_level == 2)
     printf_filtered ("\n\032\032frame-address-end\n");
 }
 
 void
 annotate_frame_function_name (void)
 {
-  if (annotation_level > 1)
+  if (annotation_level == 2)
     printf_filtered ("\n\032\032frame-function-name\n");
 }
 
 void
 annotate_frame_args (void)
 {
-  if (annotation_level > 1)
+  if (annotation_level == 2)
     printf_filtered ("\n\032\032frame-args\n");
 }
 
 void
 annotate_frame_source_begin (void)
 {
-  if (annotation_level > 1)
+  if (annotation_level == 2)
     printf_filtered ("\n\032\032frame-source-begin\n");
 }
 
 void
 annotate_frame_source_file (void)
 {
-  if (annotation_level > 1)
+  if (annotation_level == 2)
     printf_filtered ("\n\032\032frame-source-file\n");
 }
 
 void
 annotate_frame_source_file_end (void)
 {
-  if (annotation_level > 1)
+  if (annotation_level == 2)
     printf_filtered ("\n\032\032frame-source-file-end\n");
 }
 
 void
 annotate_frame_source_line (void)
 {
-  if (annotation_level > 1)
+  if (annotation_level == 2)
     printf_filtered ("\n\032\032frame-source-line\n");
 }
 
 void
 annotate_frame_source_end (void)
 {
-  if (annotation_level > 1)
+  if (annotation_level == 2)
     printf_filtered ("\n\032\032frame-source-end\n");
 }
 
 void
 annotate_frame_where (void)
 {
-  if (annotation_level > 1)
+  if (annotation_level == 2)
     printf_filtered ("\n\032\032frame-where\n");
 }
 
 void
 annotate_frame_end (void)
 {
-  if (annotation_level > 1)
+  if (annotation_level == 2)
     printf_filtered ("\n\032\032frame-end\n");
 }
 
 void
 annotate_array_section_begin (int index, struct type *elttype)
 {
-  if (annotation_level > 1)
+  if (annotation_level == 2)
     {
       printf_filtered ("\n\032\032array-section-begin %d ", index);
       print_value_flags (elttype);
@@ -543,28 +543,28 @@ annotate_array_section_begin (int index, struct type *elttype)
 void
 annotate_elt_rep (unsigned int repcount)
 {
-  if (annotation_level > 1)
+  if (annotation_level == 2)
     printf_filtered ("\n\032\032elt-rep %u\n", repcount);
 }
 
 void
 annotate_elt_rep_end (void)
 {
-  if (annotation_level > 1)
+  if (annotation_level == 2)
     printf_filtered ("\n\032\032elt-rep-end\n");
 }
 
 void
 annotate_elt (void)
 {
-  if (annotation_level > 1)
+  if (annotation_level == 2)
     printf_filtered ("\n\032\032elt\n");
 }
 
 void
 annotate_array_section_end (void)
 {
-  if (annotation_level > 1)
+  if (annotation_level == 2)
     printf_filtered ("\n\032\032array-section-end\n");
 }
 

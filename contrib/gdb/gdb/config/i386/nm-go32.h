@@ -1,5 +1,5 @@
 /* Native definitions for Intel x86 running DJGPP.
-   Copyright (C) 1997, 1998, 1999, 2001 Free Software Foundation, Inc.
+   Copyright 1997, 1998, 1999, 2001, 2002 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -17,8 +17,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place - Suite 330,
    Boston, MA 02111-1307, USA.  */
-
-#define NO_PTRACE_H
 
 #define I386_USE_GENERIC_WATCHPOINTS
 

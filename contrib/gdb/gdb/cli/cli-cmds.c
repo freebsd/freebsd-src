@@ -1,6 +1,6 @@
 /* GDB CLI commands.
 
-   Copyright 2000, 2001, 2002 Free Software Foundation, Inc.
+   Copyright 2000, 2001, 2002, 2003, 2004 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -20,11 +20,23 @@
    Boston, MA 02111-1307, USA.  */
 
 #include "defs.h"
+#include "readline/readline.h"
+#include "readline/tilde.h"
 #include "completer.h"
 #include "target.h"	 /* For baud_rate, remote_debug and remote_timeout */
 #include "gdb_wait.h"		/* For shell escape implementation */
 #include "gdb_regex.h"		/* Used by apropos_command */
+#include "gdb_string.h"
+#include "gdb_vfork.h"
+#include "linespec.h"
+#include "expression.h"
+#include "frame.h"
+#include "value.h"
+#include "language.h"
 #include "filenames.h"		/* for DOSish file names */
+#include "objfiles.h"
+#include "source.h"
+#include "disasm.h"
 
 #include "ui-out.h"
 
@@ -34,23 +46,15 @@
 #include "cli/cli-setshow.h"
 #include "cli/cli-cmds.h"
 
+#ifdef TUI
+#include "tui/tui.h"		/* For tui_active et.al.   */
+#endif
+
 #ifndef GDBINIT_FILENAME
 #define GDBINIT_FILENAME        ".gdbinit"
 #endif
 
-/* From gdb/top.c */
-
-extern void dont_repeat (void);
-
-extern void set_verbose (char *, int, struct cmd_list_element *);
-
-extern void show_history (char *, int);
-
-extern void set_history (char *, int);
-
-extern void show_commands (char *, int);
-
-/* Prototypes for local functions */
+/* Prototypes for local command functions */
 
 static void complete_command (char *, int);
 
@@ -59,8 +63,6 @@ static void echo_command (char *, int);
 static void pwd_command (char *, int);
 
 static void show_version (char *, int);
-
-static void validate_comname (char *);
 
 static void help_command (char *, int);
 
@@ -78,8 +80,19 @@ static void make_command (char *, int);
 
 static void shell_escape (char *, int);
 
+static void edit_command (char *, int);
+
+static void list_command (char *, int);
+
 void apropos_command (char *, int);
+
+/* Prototypes for local utility functions */
+
+static void ambiguous_line_spec (struct symtabs_and_lines *);
 
+/* Limit the call depth of user-defined commands */
+int max_user_call_depth;
+
 /* Define all cmd_list_elements.  */
 
 /* Chain containing all defined commands.  */
@@ -174,7 +187,6 @@ error_no_arg (char *why)
 /* The "info" command is defined as a prefix, with allow_unknown = 0.
    Therefore, its own definition is called only for "info" with no args.  */
 
-/* ARGSUSED */
 static void
 info_command (char *arg, int from_tty)
 {
@@ -184,7 +196,6 @@ info_command (char *arg, int from_tty)
 
 /* The "show" command with no arguments shows all the settings.  */
 
-/* ARGSUSED */
 static void
 show_command (char *arg, int from_tty)
 {
@@ -194,7 +205,6 @@ show_command (char *arg, int from_tty)
 /* Provide documentation on command or list given by COMMAND.  FROM_TTY
    is ignored.  */
 
-/* ARGSUSED */
 static void
 help_command (char *command, int from_tty)
 {
@@ -212,13 +222,12 @@ compare_strings (const void *arg1, const void *arg2)
 
 /* The "complete" command is used by Emacs to implement completion.  */
 
-/* ARGSUSED */
 static void
 complete_command (char *arg, int from_tty)
 {
   int i;
   int argpoint;
-  char **completions;
+  char **completions, *point, *arg_prefix;
 
   dont_repeat ();
 
@@ -226,7 +235,23 @@ complete_command (char *arg, int from_tty)
     arg = "";
   argpoint = strlen (arg);
 
-  completions = complete_line (arg, arg, argpoint);
+  /* complete_line assumes that its first argument is somewhere within,
+     and except for filenames at the beginning of, the word to be completed.
+     The following crude imitation of readline's word-breaking tries to
+     accomodate this.  */
+  point = arg + argpoint;
+  while (point > arg)
+    {
+      if (strchr (rl_completer_word_break_characters, point[-1]) != 0)
+        break;
+      point--;
+    }
+
+  arg_prefix = alloca (point - arg + 1);
+  memcpy (arg_prefix, arg, point - arg);
+  arg_prefix[point - arg] = 0;
+
+  completions = complete_line (point, arg, argpoint);
 
   if (completions)
     {
@@ -242,7 +267,7 @@ complete_command (char *arg, int from_tty)
       while (item < size)
 	{
 	  int next_item;
-	  printf_unfiltered ("%s\n", completions[item]);
+	  printf_unfiltered ("%s%s\n", arg_prefix, completions[item]);
 	  next_item = item + 1;
 	  while (next_item < size
 		 && ! strcmp (completions[item], completions[next_item]))
@@ -265,7 +290,6 @@ is_complete_command (struct cmd_list_element *c)
   return cmd_cfunc_eq (c, complete_command);
 }
 
-/* ARGSUSED */
 static void
 show_version (char *args, int from_tty)
 {
@@ -285,7 +309,6 @@ quit_command (char *args, int from_tty)
   quit_force (args, from_tty);
 }
 
-/* ARGSUSED */
 static void
 pwd_command (char *args, int from_tty)
 {
@@ -293,7 +316,7 @@ pwd_command (char *args, int from_tty)
     error ("The \"pwd\" command does not take an argument: %s", args);
   getcwd (gdb_dirbuf, sizeof (gdb_dirbuf));
 
-  if (!STREQ (gdb_dirbuf, current_directory))
+  if (strcmp (gdb_dirbuf, current_directory) != 0)
     printf_unfiltered ("Working directory %s\n (canonically %s).\n",
 		       current_directory, gdb_dirbuf);
   else
@@ -429,12 +452,11 @@ source_command (char *args, int from_tty)
   do_cleanups (old_cleanups);
 }
 
-/* ARGSUSED */
 static void
 echo_command (char *text, int from_tty)
 {
   char *p = text;
-  register int c;
+  int c;
 
   if (text)
     while ((c = *p++) != '\0')
@@ -459,7 +481,6 @@ echo_command (char *text, int from_tty)
   gdb_flush (gdb_stdout);
 }
 
-/* ARGSUSED */
 static void
 shell_escape (char *arg, int from_tty)
 {
@@ -489,23 +510,24 @@ shell_escape (char *arg, int from_tty)
 #endif
 #else /* Can fork.  */
   int rc, status, pid;
-  char *p, *user_shell;
 
-  if ((user_shell = (char *) getenv ("SHELL")) == NULL)
-    user_shell = "/bin/sh";
-
-  /* Get the name of the shell for arg0 */
-  if ((p = strrchr (user_shell, '/')) == NULL)
-    p = user_shell;
-  else
-    p++;			/* Get past '/' */
-
-  if ((pid = fork ()) == 0)
+  if ((pid = vfork ()) == 0)
     {
-      if (!arg)
-	execl (user_shell, p, 0);
+      char *p, *user_shell;
+
+      if ((user_shell = (char *) getenv ("SHELL")) == NULL)
+	user_shell = "/bin/sh";
+
+      /* Get the name of the shell for arg0 */
+      if ((p = strrchr (user_shell, '/')) == NULL)
+	p = user_shell;
       else
-	execl (user_shell, p, "-c", arg, 0);
+	p++;			/* Get past '/' */
+
+      if (!arg)
+	execl (user_shell, p, (char *) 0);
+      else
+	execl (user_shell, p, "-c", arg, (char *) 0);
 
       fprintf_unfiltered (gdb_stderr, "Cannot execute %s: %s\n", user_shell,
 			  safe_strerror (errno));
@@ -519,6 +541,378 @@ shell_escape (char *arg, int from_tty)
   else
     error ("Fork failed");
 #endif /* Can fork.  */
+}
+
+static void
+edit_command (char *arg, int from_tty)
+{
+  struct symtabs_and_lines sals;
+  struct symtab_and_line sal;
+  struct symbol *sym;
+  char *arg1;
+  int cmdlen, log10;
+  unsigned m;
+  char *editor;
+  char *p;
+
+  /* Pull in the current default source line if necessary */
+  if (arg == 0)
+    {
+      set_default_source_symtab_and_line ();
+      sal = get_current_source_symtab_and_line ();
+    }
+
+  /* bare "edit" edits file with present line.  */
+
+  if (arg == 0)
+    {
+      if (sal.symtab == 0)
+	error ("No default source file yet.");
+      sal.line += get_lines_to_list () / 2;
+    }
+  else
+    {
+
+      /* Now should only be one argument -- decode it in SAL */
+
+      arg1 = arg;
+      sals = decode_line_1 (&arg1, 0, 0, 0, 0, 0);
+
+      if (! sals.nelts) return;  /*  C++  */
+      if (sals.nelts > 1) {
+        ambiguous_line_spec (&sals);
+        xfree (sals.sals);
+        return;
+      }
+
+      sal = sals.sals[0];
+      xfree (sals.sals);
+
+      if (*arg1)
+        error ("Junk at end of line specification.");
+
+      /* if line was specified by address,
+         first print exactly which line, and which file.
+         In this case, sal.symtab == 0 means address is outside
+         of all known source files, not that user failed to give a filename.  */
+      if (*arg == '*')
+        {
+          if (sal.symtab == 0)
+	    /* FIXME-32x64--assumes sal.pc fits in long.  */
+	    error ("No source file for address %s.",
+		   local_hex_string((unsigned long) sal.pc));
+          sym = find_pc_function (sal.pc);
+          if (sym)
+	    {
+	      print_address_numeric (sal.pc, 1, gdb_stdout);
+	      printf_filtered (" is in ");
+	      fputs_filtered (SYMBOL_PRINT_NAME (sym), gdb_stdout);
+	      printf_filtered (" (%s:%d).\n", sal.symtab->filename, sal.line);
+	    }
+          else
+	    {
+	      print_address_numeric (sal.pc, 1, gdb_stdout);
+	      printf_filtered (" is at %s:%d.\n",
+			       sal.symtab->filename, sal.line);
+	    }
+        }
+
+      /* If what was given does not imply a symtab, it must be an undebuggable
+         symbol which means no source code.  */
+
+      if (sal.symtab == 0)
+        error ("No line number known for %s.", arg);
+    }
+
+  if ((editor = (char *) getenv ("EDITOR")) == NULL)
+      editor = "/bin/ex";
+  
+  /* Approximate base-10 log of line to 1 unit for digit count */
+  for(log10=32, m=0x80000000; !(sal.line & m) && log10>0; log10--, m=m>>1);
+  log10 = 1 + (int)((log10 + (0 == ((m-1) & sal.line)))/3.32192809);
+
+  cmdlen = strlen(editor) + 1
+         + (NULL == sal.symtab->dirname ? 0 : strlen(sal.symtab->dirname) + 1)
+	 + (NULL == sal.symtab->filename? 0 : strlen(sal.symtab->filename)+ 1)
+	 + log10 + 2;
+  
+  p = xmalloc(cmdlen);
+  sprintf(p,"%s +%d %s%s",editor,sal.line,
+     (NULL == sal.symtab->dirname ? "./" :
+        (NULL != sal.symtab->filename && *(sal.symtab->filename) != '/') ?
+	   sal.symtab->dirname : ""),
+     (NULL == sal.symtab->filename ? "unknown" : sal.symtab->filename)
+  );
+  shell_escape(p, from_tty);
+
+  xfree(p);
+}
+
+static void
+list_command (char *arg, int from_tty)
+{
+  struct symtabs_and_lines sals, sals_end;
+  struct symtab_and_line sal, sal_end, cursal;
+  struct symbol *sym;
+  char *arg1;
+  int no_end = 1;
+  int dummy_end = 0;
+  int dummy_beg = 0;
+  int linenum_beg = 0;
+  char *p;
+
+  /* Pull in the current default source line if necessary */
+  if (arg == 0 || arg[0] == '+' || arg[0] == '-')
+    {
+      set_default_source_symtab_and_line ();
+      cursal = get_current_source_symtab_and_line ();
+    }
+
+  /* "l" or "l +" lists next ten lines.  */
+
+  if (arg == 0 || strcmp (arg, "+") == 0)
+    {
+      print_source_lines (cursal.symtab, cursal.line,
+			  cursal.line + get_lines_to_list (), 0);
+      return;
+    }
+
+  /* "l -" lists previous ten lines, the ones before the ten just listed.  */
+  if (strcmp (arg, "-") == 0)
+    {
+      print_source_lines (cursal.symtab,
+			  max (get_first_line_listed () - get_lines_to_list (), 1),
+			  get_first_line_listed (), 0);
+      return;
+    }
+
+  /* Now if there is only one argument, decode it in SAL
+     and set NO_END.
+     If there are two arguments, decode them in SAL and SAL_END
+     and clear NO_END; however, if one of the arguments is blank,
+     set DUMMY_BEG or DUMMY_END to record that fact.  */
+
+  if (!have_full_symbols () && !have_partial_symbols ())
+    error ("No symbol table is loaded.  Use the \"file\" command.");
+
+  arg1 = arg;
+  if (*arg1 == ',')
+    dummy_beg = 1;
+  else
+    {
+      sals = decode_line_1 (&arg1, 0, 0, 0, 0, 0);
+
+      if (!sals.nelts)
+	return;			/*  C++  */
+      if (sals.nelts > 1)
+	{
+	  ambiguous_line_spec (&sals);
+	  xfree (sals.sals);
+	  return;
+	}
+
+      sal = sals.sals[0];
+      xfree (sals.sals);
+    }
+
+  /* Record whether the BEG arg is all digits.  */
+
+  for (p = arg; p != arg1 && *p >= '0' && *p <= '9'; p++);
+  linenum_beg = (p == arg1);
+
+  while (*arg1 == ' ' || *arg1 == '\t')
+    arg1++;
+  if (*arg1 == ',')
+    {
+      no_end = 0;
+      arg1++;
+      while (*arg1 == ' ' || *arg1 == '\t')
+	arg1++;
+      if (*arg1 == 0)
+	dummy_end = 1;
+      else
+	{
+	  if (dummy_beg)
+	    sals_end = decode_line_1 (&arg1, 0, 0, 0, 0, 0);
+	  else
+	    sals_end = decode_line_1 (&arg1, 0, sal.symtab, sal.line, 0, 0);
+	  if (sals_end.nelts == 0)
+	    return;
+	  if (sals_end.nelts > 1)
+	    {
+	      ambiguous_line_spec (&sals_end);
+	      xfree (sals_end.sals);
+	      return;
+	    }
+	  sal_end = sals_end.sals[0];
+	  xfree (sals_end.sals);
+	}
+    }
+
+  if (*arg1)
+    error ("Junk at end of line specification.");
+
+  if (!no_end && !dummy_beg && !dummy_end
+      && sal.symtab != sal_end.symtab)
+    error ("Specified start and end are in different files.");
+  if (dummy_beg && dummy_end)
+    error ("Two empty args do not say what lines to list.");
+
+  /* if line was specified by address,
+     first print exactly which line, and which file.
+     In this case, sal.symtab == 0 means address is outside
+     of all known source files, not that user failed to give a filename.  */
+  if (*arg == '*')
+    {
+      if (sal.symtab == 0)
+	/* FIXME-32x64--assumes sal.pc fits in long.  */
+	error ("No source file for address %s.",
+	       local_hex_string ((unsigned long) sal.pc));
+      sym = find_pc_function (sal.pc);
+      if (sym)
+	{
+	  print_address_numeric (sal.pc, 1, gdb_stdout);
+	  printf_filtered (" is in ");
+	  fputs_filtered (SYMBOL_PRINT_NAME (sym), gdb_stdout);
+	  printf_filtered (" (%s:%d).\n", sal.symtab->filename, sal.line);
+	}
+      else
+	{
+	  print_address_numeric (sal.pc, 1, gdb_stdout);
+	  printf_filtered (" is at %s:%d.\n",
+			   sal.symtab->filename, sal.line);
+	}
+    }
+
+  /* If line was not specified by just a line number,
+     and it does not imply a symtab, it must be an undebuggable symbol
+     which means no source code.  */
+
+  if (!linenum_beg && sal.symtab == 0)
+    error ("No line number known for %s.", arg);
+
+  /* If this command is repeated with RET,
+     turn it into the no-arg variant.  */
+
+  if (from_tty)
+    *arg = 0;
+
+  if (dummy_beg && sal_end.symtab == 0)
+    error ("No default source file yet.  Do \"help list\".");
+  if (dummy_beg)
+    print_source_lines (sal_end.symtab,
+			max (sal_end.line - (get_lines_to_list () - 1), 1),
+			sal_end.line + 1, 0);
+  else if (sal.symtab == 0)
+    error ("No default source file yet.  Do \"help list\".");
+  else if (no_end)
+    {
+      int first_line = sal.line - get_lines_to_list () / 2;
+
+      if (first_line < 1) first_line = 1;
+
+      print_source_lines (sal.symtab,
+		          first_line,
+			  first_line + get_lines_to_list (),
+			  0);
+    }
+  else
+    print_source_lines (sal.symtab, sal.line,
+			(dummy_end
+			 ? sal.line + get_lines_to_list ()
+			 : sal_end.line + 1),
+			0);
+}
+
+/* Dump a specified section of assembly code.  With no command line
+   arguments, this command will dump the assembly code for the
+   function surrounding the pc value in the selected frame.  With one
+   argument, it will dump the assembly code surrounding that pc value.
+   Two arguments are interpeted as bounds within which to dump
+   assembly.  */
+
+static void
+disassemble_command (char *arg, int from_tty)
+{
+  CORE_ADDR low, high;
+  char *name;
+  CORE_ADDR pc, pc_masked;
+  char *space_index;
+#if 0
+  asection *section;
+#endif
+
+  name = NULL;
+  if (!arg)
+    {
+      if (!deprecated_selected_frame)
+	error ("No frame selected.\n");
+
+      pc = get_frame_pc (deprecated_selected_frame);
+      if (find_pc_partial_function (pc, &name, &low, &high) == 0)
+	error ("No function contains program counter for selected frame.\n");
+#if defined(TUI)
+      /* NOTE: cagney/2003-02-13 The `tui_active' was previously
+	 `tui_version'.  */
+      if (tui_active)
+	/* FIXME: cagney/2004-02-07: This should be an observer.  */
+	low = tui_get_low_disassembly_address (low, pc);
+#endif
+      low += FUNCTION_START_OFFSET;
+    }
+  else if (!(space_index = (char *) strchr (arg, ' ')))
+    {
+      /* One argument.  */
+      pc = parse_and_eval_address (arg);
+      if (find_pc_partial_function (pc, &name, &low, &high) == 0)
+	error ("No function contains specified address.\n");
+#if defined(TUI)
+      /* NOTE: cagney/2003-02-13 The `tui_active' was previously
+	 `tui_version'.  */
+      if (tui_active)
+	/* FIXME: cagney/2004-02-07: This should be an observer.  */
+	low = tui_get_low_disassembly_address (low, pc);
+#endif
+      low += FUNCTION_START_OFFSET;
+    }
+  else
+    {
+      /* Two arguments.  */
+      *space_index = '\0';
+      low = parse_and_eval_address (arg);
+      high = parse_and_eval_address (space_index + 1);
+    }
+
+#if defined(TUI)
+  if (!tui_is_window_visible (DISASSEM_WIN))
+#endif
+    {
+      printf_filtered ("Dump of assembler code ");
+      if (name != NULL)
+	{
+	  printf_filtered ("for function %s:\n", name);
+	}
+      else
+	{
+	  printf_filtered ("from ");
+	  print_address_numeric (low, 1, gdb_stdout);
+	  printf_filtered (" to ");
+	  print_address_numeric (high, 1, gdb_stdout);
+	  printf_filtered (":\n");
+	}
+
+      /* Dump the specified range.  */
+      gdb_disassembly (uiout, 0, 0, 0, -1, low, high);
+
+      printf_filtered ("End of assembler dump.\n");
+      gdb_flush (gdb_stdout);
+    }
+#if defined(TUI)
+  else
+    {
+      tui_show_assembly (low);
+    }
+#endif
 }
 
 static void
@@ -538,7 +932,6 @@ make_command (char *arg, int from_tty)
   shell_escape (p, from_tty);
 }
 
-/* ARGSUSED */
 static void
 show_user (char *args, int from_tty)
 {
@@ -590,6 +983,21 @@ apropos_command (char *searchstr, int from_tty)
   xfree (pattern_fastmap);
 }
 
+/* Print a list of files and line numbers which a user may choose from
+   in order to list a function which was specified ambiguously (as with
+   `list classname::overloadedfuncname', for example).  The vector in
+   SALS provides the filenames and line numbers.  */
+
+static void
+ambiguous_line_spec (struct symtabs_and_lines *sals)
+{
+  int i;
+
+  for (i = 0; i < sals->nelts; ++i)
+    printf_filtered ("file: \"%s\", line number: %d\n",
+		     sals->sals[i].symtab->filename, sals->sals[i].line);
+}
+
 static void
 set_debug (char *arg, int from_tty)
 {
@@ -606,6 +1014,8 @@ show_debug (char *args, int from_tty)
 void
 init_cmd_lists (void)
 {
+  max_user_call_depth = 1024;
+
   cmdlist = NULL;
   infolist = NULL;
   enablelist = NULL;
@@ -673,7 +1083,7 @@ The commands below can be used to select other frames by number or address.",
 	       "Set working directory to DIR for debugger and program being debugged.\n\
 The change does not take effect for the program being debugged\n\
 until the next time it is started.", &cmdlist);
-  c->completer = filename_completer;
+  set_cmd_completer (c, filename_completer);
 
   add_com ("echo", class_support, echo_command,
 	   "Print a constant string.  Give string as argument.\n\
@@ -698,11 +1108,11 @@ Commands defined in this way may have up to ten arguments.");
 	       "Read commands from a file named FILE.\n\
 Note that the file \"" GDBINIT_FILENAME "\" is read automatically in this way\n\
 when gdb is started.", &cmdlist);
-  c->completer = filename_completer;
+  set_cmd_completer (c, filename_completer);
 
   add_com ("quit", class_support, quit_command, "Exit gdb.");
   c = add_com ("help", class_support, help_command, "Print list of commands.");
-  c->completer = command_completer;
+  set_cmd_completer (c, command_completer);
   add_com_alias ("q", "quit", class_support, 1);
   add_com_alias ("h", "help", class_support, 1);
 
@@ -802,9 +1212,54 @@ from the target.", &setlist),
 		  &showdebuglist, "show debug ", 0, &showlist);
 
   c = add_com ("shell", class_support, shell_escape,
-	       "Execute the rest of the line as a shell command.  \n\
+	       "Execute the rest of the line as a shell command.\n\
 With no arguments, run an inferior shell.");
-  c->completer = filename_completer;
+  set_cmd_completer (c, filename_completer);
+
+  c = add_com ("edit", class_files, edit_command,
+           concat ("Edit specified file or function.\n\
+With no argument, edits file containing most recent line listed.\n\
+", "\
+Editing targets can be specified in these ways:\n\
+  FILE:LINENUM, to edit at that line in that file,\n\
+  FUNCTION, to edit at the beginning of that function,\n\
+  FILE:FUNCTION, to distinguish among like-named static functions.\n\
+  *ADDRESS, to edit at the line containing that address.\n\
+Uses EDITOR environment variable contents as editor (or ex as default).",NULL));
+
+  c->completer = location_completer;
+
+  add_com ("list", class_files, list_command,
+	   concat ("List specified function or line.\n\
+With no argument, lists ten more lines after or around previous listing.\n\
+\"list -\" lists the ten lines before a previous ten-line listing.\n\
+One argument specifies a line, and ten lines are listed around that line.\n\
+Two arguments with comma between specify starting and ending lines to list.\n\
+", "\
+Lines can be specified in these ways:\n\
+  LINENUM, to list around that line in current file,\n\
+  FILE:LINENUM, to list around that line in that file,\n\
+  FUNCTION, to list around beginning of that function,\n\
+  FILE:FUNCTION, to distinguish among like-named static functions.\n\
+  *ADDRESS, to list around the line containing that address.\n\
+With two args if one is empty it stands for ten lines away from the other arg.", NULL));
+
+  if (!xdb_commands)
+    add_com_alias ("l", "list", class_files, 1);
+  else
+    add_com_alias ("v", "list", class_files, 1);
+
+  if (dbx_commands)
+    add_com_alias ("file", "list", class_files, 1);
+
+  c = add_com ("disassemble", class_vars, disassemble_command,
+	       "Disassemble a specified section of memory.\n\
+Default is the function surrounding the pc of the selected frame.\n\
+With a single argument, the function surrounding that address is dumped.\n\
+Two arguments are taken as a range of memory to dump.");
+  set_cmd_completer (c, location_completer);
+  if (xdb_commands)
+    add_com_alias ("va", "disassemble", class_xdb, 0);
 
   /* NOTE: cagney/2000-03-20: Being able to enter ``(gdb) !ls'' would
      be a really useful feature.  Unfortunately, the below wont do
@@ -817,10 +1272,17 @@ With no arguments, run an inferior shell.");
 
   c = add_com ("make", class_support, make_command,
           "Run the ``make'' program using the rest of the line as arguments.");
-  c->completer = filename_completer;
+  set_cmd_completer (c, filename_completer);
   add_cmd ("user", no_class, show_user,
 	   "Show definitions of user defined commands.\n\
 Argument is the name of the user defined command.\n\
 With no argument, show definitions of all user defined commands.", &showlist);
   add_com ("apropos", class_support, apropos_command, "Search for commands matching a REGEXP");
+
+  add_show_from_set (
+		      add_set_cmd ("max-user-call-depth", no_class, var_integer, 
+				   (char *) &max_user_call_depth,
+				   "Set the max call depth for user-defined commands.\n", 
+				   &setlist),
+		      &showlist);
 }

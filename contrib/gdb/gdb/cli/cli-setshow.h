@@ -19,6 +19,8 @@
 #if !defined (CLI_SETSHOW_H)
 #define CLI_SETSHOW_H 1
 
+struct cmd_list_element;
+
 /* Exported to cli/cli-cmds.c and gdb/top.c */
 
 /* Do a "set" or "show" command.  ARG is NULL if no argument, or the text

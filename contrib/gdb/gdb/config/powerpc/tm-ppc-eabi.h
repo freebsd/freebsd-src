@@ -24,20 +24,11 @@
 
 /* Use generic RS6000 definitions. */
 #include "rs6000/tm-rs6000.h"
-/* except we want to allow single stepping */
-#undef SOFTWARE_SINGLE_STEP_P
-#define SOFTWARE_SINGLE_STEP_P() 0
-
-#undef	DEFAULT_LR_SAVE
-#define	DEFAULT_LR_SAVE 4	/* eabi saves LR at 4 off of SP */
 
 #undef PROCESS_LINENUMBER_HOOK
 
 #undef TEXT_SEGMENT_BASE
 #define TEXT_SEGMENT_BASE 1
-
-/* Say that we're using ELF, not XCOFF.  */
-#define ELF_OBJECT_FORMAT 1
 
 /* The value of symbols of type N_SO and N_FUN maybe null when 
    it shouldn't be. */

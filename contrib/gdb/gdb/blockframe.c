@@ -1,7 +1,9 @@
-/* Get info from stack frames;
-   convert between frames, blocks, functions and pc values.
-   Copyright 1986, 1987, 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995,
-   1996, 1997, 1998, 1999, 2000, 2001 Free Software Foundation, Inc.
+/* Get info from stack frames; convert between frames, blocks,
+   functions and pc values.
+
+   Copyright 1986, 1987, 1988, 1989, 1990, 1991, 1992, 1993, 1994,
+   1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004
+   Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -23,7 +25,6 @@
 #include "defs.h"
 #include "symtab.h"
 #include "bfd.h"
-#include "symfile.h"
 #include "objfiles.h"
 #include "frame.h"
 #include "gdbcore.h"
@@ -32,95 +33,76 @@
 #include "inferior.h"		/* for read_pc */
 #include "annotate.h"
 #include "regcache.h"
+#include "gdb_assert.h"
+#include "dummy-frame.h"
+#include "command.h"
+#include "gdbcmd.h"
+#include "block.h"
 
 /* Prototypes for exported functions. */
 
 void _initialize_blockframe (void);
 
-/* A default FRAME_CHAIN_VALID, in the form that is suitable for most
-   targets.  If FRAME_CHAIN_VALID returns zero it means that the given
-   frame is the outermost one and has no caller. */
-
-int
-file_frame_chain_valid (CORE_ADDR chain, struct frame_info *thisframe)
-{
-  return ((chain) != 0
-	  && !inside_entry_file (FRAME_SAVED_PC (thisframe)));
-}
-
-/* Use the alternate method of avoiding running up off the end of the
-   frame chain or following frames back into the startup code.  See
-   the comments in objfiles.h. */
-
-int
-func_frame_chain_valid (CORE_ADDR chain, struct frame_info *thisframe)
-{
-  return ((chain) != 0
-	  && !inside_main_func ((thisframe)->pc)
-	  && !inside_entry_func ((thisframe)->pc));
-}
-
-/* A very simple method of determining a valid frame */
-
-int
-nonnull_frame_chain_valid (CORE_ADDR chain, struct frame_info *thisframe)
-{
-  return ((chain) != 0);
-}
-
-/* Is ADDR inside the startup file?  Note that if your machine
-   has a way to detect the bottom of the stack, there is no need
-   to call this function from FRAME_CHAIN_VALID; the reason for
-   doing so is that some machines have no way of detecting bottom
-   of stack. 
+/* Is ADDR inside the startup file?  Note that if your machine has a
+   way to detect the bottom of the stack, there is no need to call
+   this function from DEPRECATED_FRAME_CHAIN_VALID; the reason for
+   doing so is that some machines have no way of detecting bottom of
+   stack.
 
    A PC of zero is always considered to be the bottom of the stack. */
 
 int
-inside_entry_file (CORE_ADDR addr)
+deprecated_inside_entry_file (CORE_ADDR addr)
 {
   if (addr == 0)
     return 1;
   if (symfile_objfile == 0)
     return 0;
-  if (CALL_DUMMY_LOCATION == AT_ENTRY_POINT)
+  if (CALL_DUMMY_LOCATION == AT_ENTRY_POINT
+      || CALL_DUMMY_LOCATION == AT_SYMBOL)
     {
       /* Do not stop backtracing if the pc is in the call dummy
          at the entry point.  */
       /* FIXME: Won't always work with zeros for the last two arguments */
-      if (PC_IN_CALL_DUMMY (addr, 0, 0))
+      if (DEPRECATED_PC_IN_CALL_DUMMY (addr, 0, 0))
 	return 0;
     }
-  return (addr >= symfile_objfile->ei.entry_file_lowpc &&
-	  addr < symfile_objfile->ei.entry_file_highpc);
+  return (addr >= symfile_objfile->ei.deprecated_entry_file_lowpc &&
+	  addr < symfile_objfile->ei.deprecated_entry_file_highpc);
 }
 
-/* Test a specified PC value to see if it is in the range of addresses
-   that correspond to the main() function.  See comments above for why
-   we might want to do this.
-
-   Typically called from FRAME_CHAIN_VALID.
-
-   A PC of zero is always considered to be the bottom of the stack. */
+/* Test whether PC is in the range of addresses that corresponds to
+   the "main" function.  */
 
 int
 inside_main_func (CORE_ADDR pc)
 {
-  if (pc == 0)
-    return 1;
+  struct minimal_symbol *msymbol;
+
   if (symfile_objfile == 0)
     return 0;
 
-  /* If the addr range is not set up at symbol reading time, set it up now.
-     This is for FRAME_CHAIN_VALID_ALTERNATE. I do this for coff, because
-     it is unable to set it up and symbol reading time. */
+  msymbol = lookup_minimal_symbol (main_name (), NULL, symfile_objfile);
 
-  if (symfile_objfile->ei.main_func_lowpc == INVALID_ENTRY_LOWPC &&
-      symfile_objfile->ei.main_func_highpc == INVALID_ENTRY_HIGHPC)
+  /* If the address range hasn't been set up at symbol reading time,
+     set it up now.  */
+
+  if (msymbol != NULL
+      && symfile_objfile->ei.main_func_lowpc == INVALID_ENTRY_LOWPC
+      && symfile_objfile->ei.main_func_highpc == INVALID_ENTRY_HIGHPC)
     {
-      struct symbol *mainsym;
+      /* brobecker/2003-10-10: We used to rely on lookup_symbol() to
+	 search the symbol associated to the "main" function.
+	 Unfortunately, lookup_symbol() uses the current-language
+	 la_lookup_symbol_nonlocal function to do the global symbol
+	 search.  Depending on the language, this can introduce
+	 certain side-effects, because certain languages, for instance
+	 Ada, may find more than one match.  Therefore we prefer to
+	 search the "main" function symbol using its address rather
+	 than its name.  */
+      struct symbol *mainsym =
+	find_pc_function (SYMBOL_VALUE_ADDRESS (msymbol));
 
-      mainsym = lookup_symbol (main_name (), NULL, VAR_NAMESPACE, NULL, NULL);
       if (mainsym && SYMBOL_CLASS (mainsym) == LOC_BLOCK)
 	{
 	  symfile_objfile->ei.main_func_lowpc =
@@ -129,165 +111,105 @@ inside_main_func (CORE_ADDR pc)
 	    BLOCK_END (SYMBOL_BLOCK_VALUE (mainsym));
 	}
     }
-  return (symfile_objfile->ei.main_func_lowpc <= pc &&
-	  symfile_objfile->ei.main_func_highpc > pc);
+
+  /* Not in the normal symbol tables, see if "main" is in the partial
+     symbol table.  If it's not, then give up.  */
+  if (msymbol != NULL && MSYMBOL_TYPE (msymbol) == mst_text)
+    {
+      CORE_ADDR maddr = SYMBOL_VALUE_ADDRESS (msymbol);
+      asection *msect = SYMBOL_BFD_SECTION (msymbol);
+      struct obj_section *osect = find_pc_sect_section (maddr, msect);
+
+      if (osect != NULL)
+	{
+	  int i;
+
+	  /* Step over other symbols at this same address, and symbols
+	     in other sections, to find the next symbol in this
+	     section with a different address.  */
+	  for (i = 1; SYMBOL_LINKAGE_NAME (msymbol + i) != NULL; i++)
+	    {
+	      if (SYMBOL_VALUE_ADDRESS (msymbol + i) != maddr
+		  && SYMBOL_BFD_SECTION (msymbol + i) == msect)
+		break;
+	    }
+
+	  symfile_objfile->ei.main_func_lowpc = maddr;
+
+	  /* Use the lesser of the next minimal symbol in the same
+	     section, or the end of the section, as the end of the
+	     function.  */
+	  if (SYMBOL_LINKAGE_NAME (msymbol + i) != NULL
+	      && SYMBOL_VALUE_ADDRESS (msymbol + i) < osect->endaddr)
+	    symfile_objfile->ei.main_func_highpc =
+	      SYMBOL_VALUE_ADDRESS (msymbol + i);
+	  else
+	    /* We got the start address from the last msymbol in the
+	       objfile.  So the end address is the end of the
+	       section.  */
+	    symfile_objfile->ei.main_func_highpc = osect->endaddr;
+	}
+    }
+
+  return (symfile_objfile->ei.main_func_lowpc <= pc
+	  && symfile_objfile->ei.main_func_highpc > pc);
 }
 
-/* Test a specified PC value to see if it is in the range of addresses
-   that correspond to the process entry point function.  See comments
-   in objfiles.h for why we might want to do this.
-
-   Typically called from FRAME_CHAIN_VALID.
-
-   A PC of zero is always considered to be the bottom of the stack. */
+/* Test whether THIS_FRAME is inside the process entry point function.  */
 
 int
-inside_entry_func (CORE_ADDR pc)
+inside_entry_func (struct frame_info *this_frame)
 {
-  if (pc == 0)
-    return 1;
+  return (get_frame_func (this_frame) == entry_point_address ());
+}
+
+/* Similar to inside_entry_func, but accomodating legacy frame code.  */
+
+static int
+legacy_inside_entry_func (CORE_ADDR pc)
+{
   if (symfile_objfile == 0)
     return 0;
+
   if (CALL_DUMMY_LOCATION == AT_ENTRY_POINT)
     {
-      /* Do not stop backtracing if the pc is in the call dummy
-         at the entry point.  */
-      /* FIXME: Won't always work with zeros for the last two arguments */
-      if (PC_IN_CALL_DUMMY (pc, 0, 0))
+      /* Do not stop backtracing if the program counter is in the call
+         dummy at the entry point.  */
+      /* FIXME: This won't always work with zeros for the last two
+         arguments.  */
+      if (DEPRECATED_PC_IN_CALL_DUMMY (pc, 0, 0))
 	return 0;
     }
-  return (symfile_objfile->ei.entry_func_lowpc <= pc &&
-	  symfile_objfile->ei.entry_func_highpc > pc);
+
+  return (symfile_objfile->ei.entry_func_lowpc <= pc
+	  && symfile_objfile->ei.entry_func_highpc > pc);
 }
 
-/* Info about the innermost stack frame (contents of FP register) */
-
-static struct frame_info *current_frame;
-
-/* Cache for frame addresses already read by gdb.  Valid only while
-   inferior is stopped.  Control variables for the frame cache should
-   be local to this module.  */
-
-static struct obstack frame_cache_obstack;
-
-void *
-frame_obstack_alloc (unsigned long size)
-{
-  return obstack_alloc (&frame_cache_obstack, size);
-}
-
-void
-frame_saved_regs_zalloc (struct frame_info *fi)
-{
-  fi->saved_regs = (CORE_ADDR *)
-    frame_obstack_alloc (SIZEOF_FRAME_SAVED_REGS);
-  memset (fi->saved_regs, 0, SIZEOF_FRAME_SAVED_REGS);
-}
-
-
-/* Return the innermost (currently executing) stack frame.  */
-
-struct frame_info *
-get_current_frame (void)
-{
-  if (current_frame == NULL)
-    {
-      if (target_has_stack)
-	current_frame = create_new_frame (read_fp (), read_pc ());
-      else
-	error ("No stack.");
-    }
-  return current_frame;
-}
-
-void
-set_current_frame (struct frame_info *frame)
-{
-  current_frame = frame;
-}
-
-/* Create an arbitrary (i.e. address specified by user) or innermost frame.
-   Always returns a non-NULL value.  */
-
-struct frame_info *
-create_new_frame (CORE_ADDR addr, CORE_ADDR pc)
-{
-  struct frame_info *fi;
-  char *name;
-
-  fi = (struct frame_info *)
-    obstack_alloc (&frame_cache_obstack,
-		   sizeof (struct frame_info));
-
-  /* Zero all fields by default.  */
-  memset (fi, 0, sizeof (struct frame_info));
-
-  fi->frame = addr;
-  fi->pc = pc;
-  find_pc_partial_function (pc, &name, (CORE_ADDR *) NULL, (CORE_ADDR *) NULL);
-  fi->signal_handler_caller = IN_SIGTRAMP (fi->pc, name);
-
-  if (INIT_EXTRA_FRAME_INFO_P ())
-    INIT_EXTRA_FRAME_INFO (0, fi);
-
-  return fi;
-}
-
-/* Return the frame that FRAME calls (NULL if FRAME is the innermost
-   frame).  */
-
-struct frame_info *
-get_next_frame (struct frame_info *frame)
-{
-  return frame->next;
-}
-
-/* Flush the entire frame cache.  */
-
-void
-flush_cached_frames (void)
-{
-  /* Since we can't really be sure what the first object allocated was */
-  obstack_free (&frame_cache_obstack, 0);
-  obstack_init (&frame_cache_obstack);
-
-  current_frame = NULL;		/* Invalidate cache */
-  select_frame (NULL, -1);
-  annotate_frames_invalid ();
-}
-
-/* Flush the frame cache, and start a new one if necessary.  */
-
-void
-reinit_frame_cache (void)
-{
-  flush_cached_frames ();
-
-  /* FIXME: The inferior_ptid test is wrong if there is a corefile.  */
-  if (PIDGET (inferior_ptid) != 0)
-    {
-      select_frame (get_current_frame (), 0);
-    }
-}
-
-/* Return nonzero if the function for this frame lacks a prologue.  Many
-   machines can define FRAMELESS_FUNCTION_INVOCATION to just call this
-   function.  */
+/* Return nonzero if the function for this frame lacks a prologue.
+   Many machines can define DEPRECATED_FRAMELESS_FUNCTION_INVOCATION
+   to just call this function.  */
 
 int
-frameless_look_for_prologue (struct frame_info *frame)
+legacy_frameless_look_for_prologue (struct frame_info *frame)
 {
-  CORE_ADDR func_start, after_prologue;
+  CORE_ADDR func_start;
 
-  func_start = get_pc_function_start (frame->pc);
+  func_start = get_frame_func (frame);
   if (func_start)
     {
       func_start += FUNCTION_START_OFFSET;
-      /* This is faster, since only care whether there *is* a
-         prologue, not how long it is.  */
-      return PROLOGUE_FRAMELESS_P (func_start);
+      /* NOTE: cagney/2004-02-09: Eliminated per-architecture
+         PROLOGUE_FRAMELESS_P call as architectures with custom
+         implementations had all been deleted.  Eventually even this
+         function can go - GDB no longer tries to differentiate
+         between framed, frameless and stackless functions.  They are
+         all now considered equally evil :-^.  */
+      /* If skipping the prologue ends up skips nothing, there must be
+         no prologue and hence no code creating a frame.  There for
+         the function is "frameless" :-/.  */
+      return func_start == SKIP_PROLOGUE (func_start);
     }
-  else if (frame->pc == 0)
+  else if (get_frame_pc (frame) == 0)
     /* A frame with a zero PC is usually created by dereferencing a
        NULL function pointer, normally causing an immediate core dump
        of the inferior. Mark function as frameless, as the inferior
@@ -301,257 +223,61 @@ frameless_look_for_prologue (struct frame_info *frame)
     return 0;
 }
 
-/* Default a few macros that people seldom redefine.  */
-
-#ifndef FRAME_CHAIN_COMBINE
-#define	FRAME_CHAIN_COMBINE(chain, thisframe) (chain)
-#endif
-
-/* Return a structure containing various interesting information
-   about the frame that called NEXT_FRAME.  Returns NULL
-   if there is no such frame.  */
-
-struct frame_info *
-get_prev_frame (struct frame_info *next_frame)
-{
-  CORE_ADDR address = 0;
-  struct frame_info *prev;
-  int fromleaf = 0;
-  char *name;
-
-  /* If the requested entry is in the cache, return it.
-     Otherwise, figure out what the address should be for the entry
-     we're about to add to the cache. */
-
-  if (!next_frame)
-    {
-#if 0
-      /* This screws value_of_variable, which just wants a nice clean
-         NULL return from block_innermost_frame if there are no frames.
-         I don't think I've ever seen this message happen otherwise.
-         And returning NULL here is a perfectly legitimate thing to do.  */
-      if (!current_frame)
-	{
-	  error ("You haven't set up a process's stack to examine.");
-	}
-#endif
-
-      return current_frame;
-    }
-
-  /* If we have the prev one, return it */
-  if (next_frame->prev)
-    return next_frame->prev;
-
-  /* On some machines it is possible to call a function without
-     setting up a stack frame for it.  On these machines, we
-     define this macro to take two args; a frameinfo pointer
-     identifying a frame and a variable to set or clear if it is
-     or isn't leafless.  */
-
-  /* Still don't want to worry about this except on the innermost
-     frame.  This macro will set FROMLEAF if NEXT_FRAME is a
-     frameless function invocation.  */
-  if (!(next_frame->next))
-    {
-      fromleaf = FRAMELESS_FUNCTION_INVOCATION (next_frame);
-      if (fromleaf)
-	address = FRAME_FP (next_frame);
-    }
-
-  if (!fromleaf)
-    {
-      /* Two macros defined in tm.h specify the machine-dependent
-         actions to be performed here.
-         First, get the frame's chain-pointer.
-         If that is zero, the frame is the outermost frame or a leaf
-         called by the outermost frame.  This means that if start
-         calls main without a frame, we'll return 0 (which is fine
-         anyway).
-
-         Nope; there's a problem.  This also returns when the current
-         routine is a leaf of main.  This is unacceptable.  We move
-         this to after the ffi test; I'd rather have backtraces from
-         start go curfluy than have an abort called from main not show
-         main.  */
-      address = FRAME_CHAIN (next_frame);
-      if (!FRAME_CHAIN_VALID (address, next_frame))
-	return 0;
-      address = FRAME_CHAIN_COMBINE (address, next_frame);
-    }
-  if (address == 0)
-    return 0;
-
-  prev = (struct frame_info *)
-    obstack_alloc (&frame_cache_obstack,
-		   sizeof (struct frame_info));
-
-  /* Zero all fields by default.  */
-  memset (prev, 0, sizeof (struct frame_info));
-
-  if (next_frame)
-    next_frame->prev = prev;
-  prev->next = next_frame;
-  prev->frame = address;
-
-/* This change should not be needed, FIXME!  We should
-   determine whether any targets *need* INIT_FRAME_PC to happen
-   after INIT_EXTRA_FRAME_INFO and come up with a simple way to
-   express what goes on here.
-
-   INIT_EXTRA_FRAME_INFO is called from two places: create_new_frame
-   (where the PC is already set up) and here (where it isn't).
-   INIT_FRAME_PC is only called from here, always after
-   INIT_EXTRA_FRAME_INFO.
-
-   The catch is the MIPS, where INIT_EXTRA_FRAME_INFO requires the PC
-   value (which hasn't been set yet).  Some other machines appear to
-   require INIT_EXTRA_FRAME_INFO before they can do INIT_FRAME_PC.  Phoo.
-
-   We shouldn't need INIT_FRAME_PC_FIRST to add more complication to
-   an already overcomplicated part of GDB.   gnu@cygnus.com, 15Sep92.
-
-   Assuming that some machines need INIT_FRAME_PC after
-   INIT_EXTRA_FRAME_INFO, one possible scheme:
-
-   SETUP_INNERMOST_FRAME()
-   Default version is just create_new_frame (read_fp ()),
-   read_pc ()).  Machines with extra frame info would do that (or the
-   local equivalent) and then set the extra fields.
-   SETUP_ARBITRARY_FRAME(argc, argv)
-   Only change here is that create_new_frame would no longer init extra
-   frame info; SETUP_ARBITRARY_FRAME would have to do that.
-   INIT_PREV_FRAME(fromleaf, prev)
-   Replace INIT_EXTRA_FRAME_INFO and INIT_FRAME_PC.  This should
-   also return a flag saying whether to keep the new frame, or
-   whether to discard it, because on some machines (e.g.  mips) it
-   is really awkward to have FRAME_CHAIN_VALID called *before*
-   INIT_EXTRA_FRAME_INFO (there is no good way to get information
-   deduced in FRAME_CHAIN_VALID into the extra fields of the new frame).
-   std_frame_pc(fromleaf, prev)
-   This is the default setting for INIT_PREV_FRAME.  It just does what
-   the default INIT_FRAME_PC does.  Some machines will call it from
-   INIT_PREV_FRAME (either at the beginning, the end, or in the middle).
-   Some machines won't use it.
-   kingdon@cygnus.com, 13Apr93, 31Jan94, 14Dec94.  */
-
-  INIT_FRAME_PC_FIRST (fromleaf, prev);
-
-  if (INIT_EXTRA_FRAME_INFO_P ())
-    INIT_EXTRA_FRAME_INFO (fromleaf, prev);
-
-  /* This entry is in the frame queue now, which is good since
-     FRAME_SAVED_PC may use that queue to figure out its value
-     (see tm-sparc.h).  We want the pc saved in the inferior frame. */
-  INIT_FRAME_PC (fromleaf, prev);
-
-  /* If ->frame and ->pc are unchanged, we are in the process of getting
-     ourselves into an infinite backtrace.  Some architectures check this
-     in FRAME_CHAIN or thereabouts, but it seems like there is no reason
-     this can't be an architecture-independent check.  */
-  if (next_frame != NULL)
-    {
-      if (prev->frame == next_frame->frame
-	  && prev->pc == next_frame->pc)
-	{
-	  next_frame->prev = NULL;
-	  obstack_free (&frame_cache_obstack, prev);
-	  return NULL;
-	}
-    }
-
-  find_pc_partial_function (prev->pc, &name,
-			    (CORE_ADDR *) NULL, (CORE_ADDR *) NULL);
-  if (IN_SIGTRAMP (prev->pc, name))
-    prev->signal_handler_caller = 1;
-
-  return prev;
-}
-
-CORE_ADDR
-get_frame_pc (struct frame_info *frame)
-{
-  return frame->pc;
-}
-
-
-#ifdef FRAME_FIND_SAVED_REGS
-/* XXX - deprecated.  This is a compatibility function for targets
-   that do not yet implement FRAME_INIT_SAVED_REGS.  */
-/* Find the addresses in which registers are saved in FRAME.  */
-
-void
-get_frame_saved_regs (struct frame_info *frame,
-		      struct frame_saved_regs *saved_regs_addr)
-{
-  if (frame->saved_regs == NULL)
-    {
-      frame->saved_regs = (CORE_ADDR *)
-	frame_obstack_alloc (SIZEOF_FRAME_SAVED_REGS);
-    }
-  if (saved_regs_addr == NULL)
-    {
-      struct frame_saved_regs saved_regs;
-      FRAME_FIND_SAVED_REGS (frame, saved_regs);
-      memcpy (frame->saved_regs, &saved_regs, SIZEOF_FRAME_SAVED_REGS);
-    }
-  else
-    {
-      FRAME_FIND_SAVED_REGS (frame, *saved_regs_addr);
-      memcpy (frame->saved_regs, saved_regs_addr, SIZEOF_FRAME_SAVED_REGS);
-    }
-}
-#endif
-
 /* Return the innermost lexical block in execution
-   in a specified stack frame.  The frame address is assumed valid.  */
+   in a specified stack frame.  The frame address is assumed valid.
+
+   If ADDR_IN_BLOCK is non-zero, set *ADDR_IN_BLOCK to the exact code
+   address we used to choose the block.  We use this to find a source
+   line, to decide which macro definitions are in scope.
+
+   The value returned in *ADDR_IN_BLOCK isn't necessarily the frame's
+   PC, and may not really be a valid PC at all.  For example, in the
+   caller of a function declared to never return, the code at the
+   return address will never be reached, so the call instruction may
+   be the very last instruction in the block.  So the address we use
+   to choose the block is actually one byte before the return address
+   --- hopefully pointing us at the call instruction, or its delay
+   slot instruction.  */
 
 struct block *
-get_frame_block (struct frame_info *frame)
+get_frame_block (struct frame_info *frame, CORE_ADDR *addr_in_block)
 {
-  CORE_ADDR pc;
+  const CORE_ADDR pc = get_frame_address_in_block (frame);
 
-  pc = frame->pc;
-  if (frame->next != 0 && frame->next->signal_handler_caller == 0)
-    /* We are not in the innermost frame and we were not interrupted
-       by a signal.  We need to subtract one to get the correct block,
-       in case the call instruction was the last instruction of the block.
-       If there are any machines on which the saved pc does not point to
-       after the call insn, we probably want to make frame->pc point after
-       the call insn anyway.  */
-    --pc;
+  if (addr_in_block)
+    *addr_in_block = pc;
+
   return block_for_pc (pc);
-}
-
-struct block *
-get_current_block (void)
-{
-  return block_for_pc (read_pc ());
 }
 
 CORE_ADDR
 get_pc_function_start (CORE_ADDR pc)
 {
-  register struct block *bl;
-  register struct symbol *symbol;
-  register struct minimal_symbol *msymbol;
-  CORE_ADDR fstart;
+  struct block *bl;
+  struct minimal_symbol *msymbol;
 
-  if ((bl = block_for_pc (pc)) != NULL &&
-      (symbol = block_function (bl)) != NULL)
+  bl = block_for_pc (pc);
+  if (bl)
     {
-      bl = SYMBOL_BLOCK_VALUE (symbol);
-      fstart = BLOCK_START (bl);
+      struct symbol *symbol = block_function (bl);
+
+      if (symbol)
+	{
+	  bl = SYMBOL_BLOCK_VALUE (symbol);
+	  return BLOCK_START (bl);
+	}
     }
-  else if ((msymbol = lookup_minimal_symbol_by_pc (pc)) != NULL)
+
+  msymbol = lookup_minimal_symbol_by_pc (pc);
+  if (msymbol)
     {
-      fstart = SYMBOL_VALUE_ADDRESS (msymbol);
+      CORE_ADDR fstart = SYMBOL_VALUE_ADDRESS (msymbol);
+
+      if (find_pc_section (fstart))
+	return fstart;
     }
-  else
-    {
-      fstart = 0;
-    }
-  return (fstart);
+
+  return 0;
 }
 
 /* Return the symbol for the function executing in frame FRAME.  */
@@ -559,110 +285,20 @@ get_pc_function_start (CORE_ADDR pc)
 struct symbol *
 get_frame_function (struct frame_info *frame)
 {
-  register struct block *bl = get_frame_block (frame);
+  struct block *bl = get_frame_block (frame, 0);
   if (bl == 0)
     return 0;
   return block_function (bl);
 }
 
 
-/* Return the blockvector immediately containing the innermost lexical block
-   containing the specified pc value and section, or 0 if there is none.
-   PINDEX is a pointer to the index value of the block.  If PINDEX
-   is NULL, we don't pass this information back to the caller.  */
-
-struct blockvector *
-blockvector_for_pc_sect (register CORE_ADDR pc, struct sec *section,
-			 int *pindex, struct symtab *symtab)
-{
-  register struct block *b;
-  register int bot, top, half;
-  struct blockvector *bl;
-
-  if (symtab == 0)		/* if no symtab specified by caller */
-    {
-      /* First search all symtabs for one whose file contains our pc */
-      if ((symtab = find_pc_sect_symtab (pc, section)) == 0)
-	return 0;
-    }
-
-  bl = BLOCKVECTOR (symtab);
-  b = BLOCKVECTOR_BLOCK (bl, 0);
-
-  /* Then search that symtab for the smallest block that wins.  */
-  /* Use binary search to find the last block that starts before PC.  */
-
-  bot = 0;
-  top = BLOCKVECTOR_NBLOCKS (bl);
-
-  while (top - bot > 1)
-    {
-      half = (top - bot + 1) >> 1;
-      b = BLOCKVECTOR_BLOCK (bl, bot + half);
-      if (BLOCK_START (b) <= pc)
-	bot += half;
-      else
-	top = bot + half;
-    }
-
-  /* Now search backward for a block that ends after PC.  */
-
-  while (bot >= 0)
-    {
-      b = BLOCKVECTOR_BLOCK (bl, bot);
-      if (BLOCK_END (b) > pc)
-	{
-	  if (pindex)
-	    *pindex = bot;
-	  return bl;
-	}
-      bot--;
-    }
-  return 0;
-}
-
-/* Return the blockvector immediately containing the innermost lexical block
-   containing the specified pc value, or 0 if there is none.
-   Backward compatibility, no section.  */
-
-struct blockvector *
-blockvector_for_pc (register CORE_ADDR pc, int *pindex)
-{
-  return blockvector_for_pc_sect (pc, find_pc_mapped_section (pc),
-				  pindex, NULL);
-}
-
-/* Return the innermost lexical block containing the specified pc value
-   in the specified section, or 0 if there is none.  */
-
-struct block *
-block_for_pc_sect (register CORE_ADDR pc, struct sec *section)
-{
-  register struct blockvector *bl;
-  int index;
-
-  bl = blockvector_for_pc_sect (pc, section, &index, NULL);
-  if (bl)
-    return BLOCKVECTOR_BLOCK (bl, index);
-  return 0;
-}
-
-/* Return the innermost lexical block containing the specified pc value,
-   or 0 if there is none.  Backward compatibility, no section.  */
-
-struct block *
-block_for_pc (register CORE_ADDR pc)
-{
-  return block_for_pc_sect (pc, find_pc_mapped_section (pc));
-}
-
 /* Return the function containing pc value PC in section SECTION.
    Returns 0 if function is not known.  */
 
 struct symbol *
-find_pc_sect_function (CORE_ADDR pc, struct sec *section)
+find_pc_sect_function (CORE_ADDR pc, struct bfd_section *section)
 {
-  register struct block *b = block_for_pc_sect (pc, section);
+  struct block *b = block_for_pc_sect (pc, section);
   if (b == 0)
     return 0;
   return block_function (b);
@@ -683,7 +319,7 @@ find_pc_function (CORE_ADDR pc)
 static CORE_ADDR cache_pc_function_low = 0;
 static CORE_ADDR cache_pc_function_high = 0;
 static char *cache_pc_function_name = 0;
-static struct sec *cache_pc_function_section = NULL;
+static struct bfd_section *cache_pc_function_section = NULL;
 
 /* Clear cache, e.g. when symbol table is discarded. */
 
@@ -721,15 +357,14 @@ find_pc_sect_partial_function (CORE_ADDR pc, asection *section, char **name,
 
   mapped_pc = overlay_mapped_address (pc, section);
 
-  if (mapped_pc >= cache_pc_function_low &&
-      mapped_pc < cache_pc_function_high &&
-      section == cache_pc_function_section)
+  if (mapped_pc >= cache_pc_function_low
+      && mapped_pc < cache_pc_function_high
+      && section == cache_pc_function_section)
     goto return_cached_value;
 
   /* If sigtramp is in the u area, it counts as a function (especially
      important for step_1).  */
-#if defined SIGTRAMP_START
-  if (IN_SIGTRAMP (mapped_pc, (char *) NULL))
+  if (SIGTRAMP_START_P () && PC_IN_SIGTRAMP (mapped_pc, (char *) NULL))
     {
       cache_pc_function_low = SIGTRAMP_START (mapped_pc);
       cache_pc_function_high = SIGTRAMP_END (mapped_pc);
@@ -737,7 +372,6 @@ find_pc_sect_partial_function (CORE_ADDR pc, asection *section, char **name,
       cache_pc_function_section = section;
       goto return_cached_value;
     }
-#endif
 
   msymbol = lookup_minimal_symbol_by_pc_section (mapped_pc, section);
   pst = find_pc_sect_psymtab (mapped_pc, section);
@@ -764,7 +398,7 @@ find_pc_sect_partial_function (CORE_ADDR pc, asection *section, char **name,
 	    {
 	      cache_pc_function_low = BLOCK_START (SYMBOL_BLOCK_VALUE (f));
 	      cache_pc_function_high = BLOCK_END (SYMBOL_BLOCK_VALUE (f));
-	      cache_pc_function_name = SYMBOL_NAME (f);
+	      cache_pc_function_name = DEPRECATED_SYMBOL_NAME (f);
 	      cache_pc_function_section = section;
 	      goto return_cached_value;
 	    }
@@ -785,7 +419,7 @@ find_pc_sect_partial_function (CORE_ADDR pc, asection *section, char **name,
 	      if (address)
 		*address = SYMBOL_VALUE_ADDRESS (psb);
 	      if (name)
-		*name = SYMBOL_NAME (psb);
+		*name = DEPRECATED_SYMBOL_NAME (psb);
 	      /* endaddr non-NULL can't happen here.  */
 	      return 1;
 	    }
@@ -816,7 +450,7 @@ find_pc_sect_partial_function (CORE_ADDR pc, asection *section, char **name,
     }
 
   cache_pc_function_low = SYMBOL_VALUE_ADDRESS (msymbol);
-  cache_pc_function_name = SYMBOL_NAME (msymbol);
+  cache_pc_function_name = DEPRECATED_SYMBOL_NAME (msymbol);
   cache_pc_function_section = section;
 
   /* Use the lesser of the next minimal symbol in the same section, or
@@ -826,14 +460,14 @@ find_pc_sect_partial_function (CORE_ADDR pc, asection *section, char **name,
      other sections, to find the next symbol in this section with
      a different address.  */
 
-  for (i = 1; SYMBOL_NAME (msymbol + i) != NULL; i++)
+  for (i = 1; DEPRECATED_SYMBOL_NAME (msymbol + i) != NULL; i++)
     {
       if (SYMBOL_VALUE_ADDRESS (msymbol + i) != SYMBOL_VALUE_ADDRESS (msymbol)
-	&& SYMBOL_BFD_SECTION (msymbol + i) == SYMBOL_BFD_SECTION (msymbol))
+	  && SYMBOL_BFD_SECTION (msymbol + i) == SYMBOL_BFD_SECTION (msymbol))
 	break;
     }
 
-  if (SYMBOL_NAME (msymbol + i) != NULL
+  if (DEPRECATED_SYMBOL_NAME (msymbol + i) != NULL
       && SYMBOL_VALUE_ADDRESS (msymbol + i) < osect->endaddr)
     cache_pc_function_high = SYMBOL_VALUE_ADDRESS (msymbol + i);
   else
@@ -841,7 +475,7 @@ find_pc_sect_partial_function (CORE_ADDR pc, asection *section, char **name,
        So the end address is the end of the section.  */
     cache_pc_function_high = osect->endaddr;
 
-return_cached_value:
+ return_cached_value:
 
   if (address)
     {
@@ -860,8 +494,8 @@ return_cached_value:
 	{
 	  /* Because the high address is actually beyond the end of
 	     the function (and therefore possibly beyond the end of
-	     the overlay), we must actually convert (high - 1)
-	     and then add one to that. */
+	     the overlay), we must actually convert (high - 1) and
+	     then add one to that. */
 
 	  *endaddr = 1 + overlay_unmapped_address (cache_pc_function_high - 1,
 						   section);
@@ -873,16 +507,30 @@ return_cached_value:
   return 1;
 }
 
-/* Backward compatibility, no section argument */
+/* Backward compatibility, no section argument.  */
 
 int
 find_pc_partial_function (CORE_ADDR pc, char **name, CORE_ADDR *address,
 			  CORE_ADDR *endaddr)
 {
-  asection *section;
+  struct bfd_section *bfd_section;
 
-  section = find_pc_overlay (pc);
-  return find_pc_sect_partial_function (pc, section, name, address, endaddr);
+  /* To ensure that the symbol returned belongs to the correct setion
+     (and that the last [random] symbol from the previous section
+     isn't returned) try to find the section containing PC.  First try
+     the overlay code (which by default returns NULL); and second try
+     the normal section code (which almost always succeeds).  */
+  bfd_section = find_pc_overlay (pc);
+  if (bfd_section == NULL)
+    {
+      struct obj_section *obj_section = find_pc_section (pc);
+      if (obj_section == NULL)
+	bfd_section = NULL;
+      else
+	bfd_section = obj_section->the_bfd_section;
+    }
+  return find_pc_sect_partial_function (pc, bfd_section, name, address,
+					endaddr);
 }
 
 /* Return the innermost stack frame executing inside of BLOCK,
@@ -892,8 +540,9 @@ struct frame_info *
 block_innermost_frame (struct block *block)
 {
   struct frame_info *frame;
-  register CORE_ADDR start;
-  register CORE_ADDR end;
+  CORE_ADDR start;
+  CORE_ADDR end;
+  CORE_ADDR calling_pc;
 
   if (block == NULL)
     return NULL;
@@ -907,97 +556,28 @@ block_innermost_frame (struct block *block)
       frame = get_prev_frame (frame);
       if (frame == NULL)
 	return NULL;
-      if (frame->pc >= start && frame->pc < end)
+      calling_pc = get_frame_address_in_block (frame);
+      if (calling_pc >= start && calling_pc < end)
 	return frame;
     }
 }
-
-/* Return the full FRAME which corresponds to the given CORE_ADDR
-   or NULL if no FRAME on the chain corresponds to CORE_ADDR.  */
-
-struct frame_info *
-find_frame_addr_in_frame_chain (CORE_ADDR frame_addr)
-{
-  struct frame_info *frame = NULL;
-
-  if (frame_addr == (CORE_ADDR) 0)
-    return NULL;
-
-  while (1)
-    {
-      frame = get_prev_frame (frame);
-      if (frame == NULL)
-	return NULL;
-      if (FRAME_FP (frame) == frame_addr)
-	return frame;
-    }
-}
-
-#ifdef SIGCONTEXT_PC_OFFSET
-/* Get saved user PC for sigtramp from sigcontext for BSD style sigtramp.  */
-
-CORE_ADDR
-sigtramp_saved_pc (struct frame_info *frame)
-{
-  CORE_ADDR sigcontext_addr;
-  char *buf;
-  int ptrbytes = TARGET_PTR_BIT / TARGET_CHAR_BIT;
-  int sigcontext_offs = (2 * TARGET_INT_BIT) / TARGET_CHAR_BIT;
-
-  buf = alloca (ptrbytes);
-  /* Get sigcontext address, it is the third parameter on the stack.  */
-  if (frame->next)
-    sigcontext_addr = read_memory_integer (FRAME_ARGS_ADDRESS (frame->next)
-					   + FRAME_ARGS_SKIP
-					   + sigcontext_offs,
-					   ptrbytes);
-  else
-    sigcontext_addr = read_memory_integer (read_register (SP_REGNUM)
-					   + sigcontext_offs,
-					   ptrbytes);
-
-  /* Don't cause a memory_error when accessing sigcontext in case the stack
-     layout has changed or the stack is corrupt.  */
-  target_read_memory (sigcontext_addr + SIGCONTEXT_PC_OFFSET, buf, ptrbytes);
-  return extract_unsigned_integer (buf, ptrbytes);
-}
-#endif /* SIGCONTEXT_PC_OFFSET */
-
 
 /* Are we in a call dummy?  The code below which allows DECR_PC_AFTER_BREAK
    below is for infrun.c, which may give the macro a pc without that
    subtracted out.  */
 
-extern CORE_ADDR text_end;
-
-int
-pc_in_call_dummy_before_text_end (CORE_ADDR pc, CORE_ADDR sp,
-				  CORE_ADDR frame_address)
-{
-  return ((pc) >= text_end - CALL_DUMMY_LENGTH
-	  && (pc) <= text_end + DECR_PC_AFTER_BREAK);
-}
-
-int
-pc_in_call_dummy_after_text_end (CORE_ADDR pc, CORE_ADDR sp,
-				 CORE_ADDR frame_address)
-{
-  return ((pc) >= text_end
-	  && (pc) <= text_end + CALL_DUMMY_LENGTH + DECR_PC_AFTER_BREAK);
-}
-
 /* Is the PC in a call dummy?  SP and FRAME_ADDRESS are the bottom and
    top of the stack frame which we are checking, where "bottom" and
    "top" refer to some section of memory which contains the code for
    the call dummy.  Calls to this macro assume that the contents of
-   SP_REGNUM and FP_REGNUM (or the saved values thereof), respectively,
-   are the things to pass.
+   SP_REGNUM and DEPRECATED_FP_REGNUM (or the saved values thereof),
+   respectively, are the things to pass.
 
-   This won't work on the 29k, where SP_REGNUM and FP_REGNUM don't
-   have that meaning, but the 29k doesn't use ON_STACK.  This could be
-   fixed by generalizing this scheme, perhaps by passing in a frame
-   and adding a few fields, at least on machines which need them for
-   PC_IN_CALL_DUMMY.
+   This won't work on the 29k, where SP_REGNUM and
+   DEPRECATED_FP_REGNUM don't have that meaning, but the 29k doesn't
+   use ON_STACK.  This could be fixed by generalizing this scheme,
+   perhaps by passing in a frame and adding a few fields, at least on
+   machines which need them for DEPRECATED_PC_IN_CALL_DUMMY.
 
    Something simpler, like checking for the stack segment, doesn't work,
    since various programs (threads implementations, gcc nested function
@@ -1005,7 +585,8 @@ pc_in_call_dummy_after_text_end (CORE_ADDR pc, CORE_ADDR sp,
    allocate other kinds of code on the stack.  */
 
 int
-pc_in_call_dummy_on_stack (CORE_ADDR pc, CORE_ADDR sp, CORE_ADDR frame_address)
+deprecated_pc_in_call_dummy_on_stack (CORE_ADDR pc, CORE_ADDR sp,
+				      CORE_ADDR frame_address)
 {
   return (INNER_THAN ((sp), (pc))
 	  && (frame_address != 0)
@@ -1013,313 +594,50 @@ pc_in_call_dummy_on_stack (CORE_ADDR pc, CORE_ADDR sp, CORE_ADDR frame_address)
 }
 
 int
-pc_in_call_dummy_at_entry_point (CORE_ADDR pc, CORE_ADDR sp,
-				 CORE_ADDR frame_address)
+deprecated_pc_in_call_dummy_at_entry_point (CORE_ADDR pc, CORE_ADDR sp,
+					    CORE_ADDR frame_address)
 {
-  return ((pc) >= CALL_DUMMY_ADDRESS ()
-	  && (pc) <= (CALL_DUMMY_ADDRESS () + DECR_PC_AFTER_BREAK));
+  CORE_ADDR addr = entry_point_address ();
+  return ((pc) >= addr && (pc) <= (addr + DECR_PC_AFTER_BREAK));
 }
 
+/* Returns true for a user frame or a call_function_by_hand dummy
+   frame, and false for the CRT0 start-up frame.  Purpose is to
+   terminate backtrace.  */
 
-/*
- * GENERIC DUMMY FRAMES
- * 
- * The following code serves to maintain the dummy stack frames for
- * inferior function calls (ie. when gdb calls into the inferior via
- * call_function_by_hand).  This code saves the machine state before 
- * the call in host memory, so we must maintain an independent stack 
- * and keep it consistant etc.  I am attempting to make this code 
- * generic enough to be used by many targets.
- *
- * The cheapest and most generic way to do CALL_DUMMY on a new target
- * is probably to define CALL_DUMMY to be empty, CALL_DUMMY_LENGTH to
- * zero, and CALL_DUMMY_LOCATION to AT_ENTRY.  Then you must remember
- * to define PUSH_RETURN_ADDRESS, because no call instruction will be
- * being executed by the target.  Also FRAME_CHAIN_VALID as
- * generic_{file,func}_frame_chain_valid and FIX_CALL_DUMMY as
- * generic_fix_call_dummy.  */
-
-/* Dummy frame.  This saves the processor state just prior to setting
-   up the inferior function call.  Older targets save the registers
-   on the target stack (but that really slows down function calls).  */
-
-struct dummy_frame
+int
+legacy_frame_chain_valid (CORE_ADDR fp, struct frame_info *fi)
 {
-  struct dummy_frame *next;
+  /* Don't prune CALL_DUMMY frames.  */
+  if (DEPRECATED_USE_GENERIC_DUMMY_FRAMES
+      && DEPRECATED_PC_IN_CALL_DUMMY (get_frame_pc (fi), 0, 0))
+    return 1;
 
-  CORE_ADDR pc;
-  CORE_ADDR fp;
-  CORE_ADDR sp;
-  CORE_ADDR top;
-  char *registers;
-};
+  /* If the new frame pointer is zero, then it isn't valid.  */
+  if (fp == 0)
+    return 0;
+  
+  /* If the new frame would be inside (younger than) the previous frame,
+     then it isn't valid.  */
+  if (INNER_THAN (fp, get_frame_base (fi)))
+    return 0;
+  
+  /* If the architecture has a custom DEPRECATED_FRAME_CHAIN_VALID,
+     call it now.  */
+  if (DEPRECATED_FRAME_CHAIN_VALID_P ())
+    return DEPRECATED_FRAME_CHAIN_VALID (fp, fi);
 
-static struct dummy_frame *dummy_frame_stack = NULL;
-
-/* Function: find_dummy_frame(pc, fp, sp)
-   Search the stack of dummy frames for one matching the given PC, FP and SP.
-   This is the work-horse for pc_in_call_dummy and read_register_dummy     */
-
-char *
-generic_find_dummy_frame (CORE_ADDR pc, CORE_ADDR fp)
-{
-  struct dummy_frame *dummyframe;
-
-  if (pc != entry_point_address ())
+  /* If we're already inside the entry function for the main objfile, then it
+     isn't valid.  */
+  if (legacy_inside_entry_func (get_frame_pc (fi)))
     return 0;
 
-  for (dummyframe = dummy_frame_stack; dummyframe != NULL;
-       dummyframe = dummyframe->next)
-    if (fp == dummyframe->fp
-	|| fp == dummyframe->sp
-	|| fp == dummyframe->top)
-      /* The frame in question lies between the saved fp and sp, inclusive */
-      return dummyframe->registers;
+  /* If we're inside the entry file, it isn't valid.  */
+  /* NOTE/drow 2002-12-25: should there be a way to disable this check?  It
+     assumes a single small entry file, and the way some debug readers (e.g.
+     dbxread) figure out which object is the entry file is somewhat hokey.  */
+  if (deprecated_inside_entry_file (frame_pc_unwind (fi)))
+      return 0;
 
-  return 0;
-}
-
-/* Function: pc_in_call_dummy (pc, fp)
-   Return true if this is a dummy frame created by gdb for an inferior call */
-
-int
-generic_pc_in_call_dummy (CORE_ADDR pc, CORE_ADDR sp, CORE_ADDR fp)
-{
-  /* if find_dummy_frame succeeds, then PC is in a call dummy */
-  /* Note: SP and not FP is passed on. */
-  return (generic_find_dummy_frame (pc, sp) != 0);
-}
-
-/* Function: read_register_dummy 
-   Find a saved register from before GDB calls a function in the inferior */
-
-CORE_ADDR
-generic_read_register_dummy (CORE_ADDR pc, CORE_ADDR fp, int regno)
-{
-  char *dummy_regs = generic_find_dummy_frame (pc, fp);
-
-  if (dummy_regs)
-    return extract_address (&dummy_regs[REGISTER_BYTE (regno)],
-			    REGISTER_RAW_SIZE (regno));
-  else
-    return 0;
-}
-
-/* Save all the registers on the dummy frame stack.  Most ports save the
-   registers on the target stack.  This results in lots of unnecessary memory
-   references, which are slow when debugging via a serial line.  Instead, we
-   save all the registers internally, and never write them to the stack.  The
-   registers get restored when the called function returns to the entry point,
-   where a breakpoint is laying in wait.  */
-
-void
-generic_push_dummy_frame (void)
-{
-  struct dummy_frame *dummy_frame;
-  CORE_ADDR fp = (get_current_frame ())->frame;
-
-  /* check to see if there are stale dummy frames, 
-     perhaps left over from when a longjump took us out of a 
-     function that was called by the debugger */
-
-  dummy_frame = dummy_frame_stack;
-  while (dummy_frame)
-    if (INNER_THAN (dummy_frame->fp, fp))	/* stale -- destroy! */
-      {
-	dummy_frame_stack = dummy_frame->next;
-	xfree (dummy_frame->registers);
-	xfree (dummy_frame);
-	dummy_frame = dummy_frame_stack;
-      }
-    else
-      dummy_frame = dummy_frame->next;
-
-  dummy_frame = xmalloc (sizeof (struct dummy_frame));
-  dummy_frame->registers = xmalloc (REGISTER_BYTES);
-
-  dummy_frame->pc = read_pc ();
-  dummy_frame->sp = read_sp ();
-  dummy_frame->top = dummy_frame->sp;
-  dummy_frame->fp = fp;
-  read_register_bytes (0, dummy_frame->registers, REGISTER_BYTES);
-  dummy_frame->next = dummy_frame_stack;
-  dummy_frame_stack = dummy_frame;
-}
-
-void
-generic_save_dummy_frame_tos (CORE_ADDR sp)
-{
-  dummy_frame_stack->top = sp;
-}
-
-/* Restore the machine state from either the saved dummy stack or a
-   real stack frame. */
-
-void
-generic_pop_current_frame (void (*popper) (struct frame_info * frame))
-{
-  struct frame_info *frame = get_current_frame ();
-
-  if (PC_IN_CALL_DUMMY (frame->pc, frame->frame, frame->frame))
-    generic_pop_dummy_frame ();
-  else
-    (*popper) (frame);
-}
-
-/* Function: pop_dummy_frame
-   Restore the machine state from a saved dummy stack frame. */
-
-void
-generic_pop_dummy_frame (void)
-{
-  struct dummy_frame *dummy_frame = dummy_frame_stack;
-
-  /* FIXME: what if the first frame isn't the right one, eg..
-     because one call-by-hand function has done a longjmp into another one? */
-
-  if (!dummy_frame)
-    error ("Can't pop dummy frame!");
-  dummy_frame_stack = dummy_frame->next;
-  write_register_bytes (0, dummy_frame->registers, REGISTER_BYTES);
-  flush_cached_frames ();
-
-  xfree (dummy_frame->registers);
-  xfree (dummy_frame);
-}
-
-/* Function: frame_chain_valid 
-   Returns true for a user frame or a call_function_by_hand dummy frame,
-   and false for the CRT0 start-up frame.  Purpose is to terminate backtrace */
-
-int
-generic_file_frame_chain_valid (CORE_ADDR fp, struct frame_info *fi)
-{
-  if (PC_IN_CALL_DUMMY (FRAME_SAVED_PC (fi), fp, fp))
-    return 1;			/* don't prune CALL_DUMMY frames */
-  else				/* fall back to default algorithm (see frame.h) */
-    return (fp != 0
-	    && (INNER_THAN (fi->frame, fp) || fi->frame == fp)
-	    && !inside_entry_file (FRAME_SAVED_PC (fi)));
-}
-
-int
-generic_func_frame_chain_valid (CORE_ADDR fp, struct frame_info *fi)
-{
-  if (PC_IN_CALL_DUMMY ((fi)->pc, fp, fp))
-    return 1;			/* don't prune CALL_DUMMY frames */
-  else				/* fall back to default algorithm (see frame.h) */
-    return (fp != 0
-	    && (INNER_THAN (fi->frame, fp) || fi->frame == fp)
-	    && !inside_main_func ((fi)->pc)
-	    && !inside_entry_func ((fi)->pc));
-}
-
-/* Function: fix_call_dummy
-   Stub function.  Generic dummy frames typically do not need to fix
-   the frame being created */
-
-void
-generic_fix_call_dummy (char *dummy, CORE_ADDR pc, CORE_ADDR fun, int nargs,
-			struct value **args, struct type *type, int gcc_p)
-{
-  return;
-}
-
-/* Function: get_saved_register
-   Find register number REGNUM relative to FRAME and put its (raw,
-   target format) contents in *RAW_BUFFER.  
-
-   Set *OPTIMIZED if the variable was optimized out (and thus can't be
-   fetched).  Note that this is never set to anything other than zero
-   in this implementation.
-
-   Set *LVAL to lval_memory, lval_register, or not_lval, depending on
-   whether the value was fetched from memory, from a register, or in a
-   strange and non-modifiable way (e.g. a frame pointer which was
-   calculated rather than fetched).  We will use not_lval for values
-   fetched from generic dummy frames.
-
-   Set *ADDRP to the address, either in memory or as a REGISTER_BYTE
-   offset into the registers array.  If the value is stored in a dummy
-   frame, set *ADDRP to zero.
-
-   To use this implementation, define a function called
-   "get_saved_register" in your target code, which simply passes all
-   of its arguments to this function.
-
-   The argument RAW_BUFFER must point to aligned memory.  */
-
-void
-generic_get_saved_register (char *raw_buffer, int *optimized, CORE_ADDR *addrp,
-			    struct frame_info *frame, int regnum,
-			    enum lval_type *lval)
-{
-  if (!target_has_registers)
-    error ("No registers.");
-
-  /* Normal systems don't optimize out things with register numbers.  */
-  if (optimized != NULL)
-    *optimized = 0;
-
-  if (addrp)			/* default assumption: not found in memory */
-    *addrp = 0;
-
-  /* Note: since the current frame's registers could only have been
-     saved by frames INTERIOR TO the current frame, we skip examining
-     the current frame itself: otherwise, we would be getting the
-     previous frame's registers which were saved by the current frame.  */
-
-  while (frame && ((frame = frame->next) != NULL))
-    {
-      if (PC_IN_CALL_DUMMY (frame->pc, frame->frame, frame->frame))
-	{
-	  if (lval)		/* found it in a CALL_DUMMY frame */
-	    *lval = not_lval;
-	  if (raw_buffer)
-	    memcpy (raw_buffer,
-		    generic_find_dummy_frame (frame->pc, frame->frame) +
-		    REGISTER_BYTE (regnum),
-		    REGISTER_RAW_SIZE (regnum));
-	  return;
-	}
-
-      FRAME_INIT_SAVED_REGS (frame);
-      if (frame->saved_regs != NULL
-	  && frame->saved_regs[regnum] != 0)
-	{
-	  if (lval)		/* found it saved on the stack */
-	    *lval = lval_memory;
-	  if (regnum == SP_REGNUM)
-	    {
-	      if (raw_buffer)	/* SP register treated specially */
-		store_address (raw_buffer, REGISTER_RAW_SIZE (regnum),
-			       frame->saved_regs[regnum]);
-	    }
-	  else
-	    {
-	      if (addrp)	/* any other register */
-		*addrp = frame->saved_regs[regnum];
-	      if (raw_buffer)
-		read_memory (frame->saved_regs[regnum], raw_buffer,
-			     REGISTER_RAW_SIZE (regnum));
-	    }
-	  return;
-	}
-    }
-
-  /* If we get thru the loop to this point, it means the register was
-     not saved in any frame.  Return the actual live-register value.  */
-
-  if (lval)			/* found it in a live register */
-    *lval = lval_register;
-  if (addrp)
-    *addrp = REGISTER_BYTE (regnum);
-  if (raw_buffer)
-    read_register_gen (regnum, raw_buffer);
-}
-
-void
-_initialize_blockframe (void)
-{
-  obstack_init (&frame_cache_obstack);
+  return 1;
 }

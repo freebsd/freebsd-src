@@ -1,6 +1,6 @@
-/* Functions specific to running gdb native on a SPARC running SunOS4.
-   Copyright 1989, 1992, 1993, 1994, 1996, 1997, 1998, 1999, 2000, 2001
-   Free Software Foundation, Inc.
+/* Native-dependent code for SPARC.
+
+   Copyright 2003, 2004 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -21,327 +21,310 @@
 
 #include "defs.h"
 #include "inferior.h"
-#include "target.h"
-#include "gdbcore.h"
 #include "regcache.h"
+#include "target.h"
 
-#ifdef HAVE_SYS_PARAM_H
-#include <sys/param.h>
-#endif
+#include "gdb_assert.h"
 #include <signal.h>
+#include "gdb_string.h"
 #include <sys/ptrace.h>
-#include <sys/wait.h>
-#ifdef __linux__
-#include <asm/reg.h>
-#else
+#include "gdb_wait.h"
+#ifdef HAVE_MACHINE_REG_H
 #include <machine/reg.h>
 #endif
-#include <sys/user.h>
 
-/* We don't store all registers immediately when requested, since they
-   get sent over in large chunks anyway.  Instead, we accumulate most
-   of the changes and send them over once.  "deferred_stores" keeps
-   track of which sets of registers we have locally-changed copies of,
-   so we only need send the groups that have changed.  */
+#include "sparc-tdep.h"
+#include "sparc-nat.h"
 
-#define	INT_REGS	1
-#define	STACK_REGS	2
-#define	FP_REGS		4
+/* With some trickery we can use the code in this file for most (if
+   not all) ptrace(2) based SPARC systems, which includes SunOS 4,
+   GNU/Linux and the various SPARC BSD's.
 
-/* Fetch one or more registers from the inferior.  REGNO == -1 to get
-   them all.  We actually fetch more than requested, when convenient,
-   marking them as valid so we won't fetch them again.  */
+   First, we need a data structure for use with ptrace(2).  SunOS has
+   `struct regs' and `struct fp_status' in <machine/reg.h>.  BSD's
+   have `struct reg' and `struct fpreg' in <machine/reg.h>.  GNU/Linux
+   has the same structures as SunOS 4, but they're in <asm/reg.h>,
+   which is a kernel header.  As a general rule we avoid including
+   GNU/Linux kernel headers.  Fortunately GNU/Linux has a `gregset_t'
+   and a `fpregset_t' that are equivalent to `struct regs' and `struct
+   fp_status' in <sys/ucontext.h>, which is automatically included by
+   <signal.h>.  Settling on using the `gregset_t' and `fpregset_t'
+   typedefs, providing them for the other systems, therefore solves
+   the puzzle.  */
 
-void
-fetch_inferior_registers (int regno)
-{
-  struct regs inferior_registers;
-  struct fp_status inferior_fp_registers;
-  int i;
+#ifdef HAVE_MACHINE_REG_H
+#ifdef HAVE_STRUCT_REG
+typedef struct reg gregset_t;
+typedef struct fpreg fpregset_t;
+#else 
+typedef struct regs gregset_t;
+typedef struct fp_status fpregset_t;
+#endif
+#endif
 
-  /* We should never be called with deferred stores, because a prerequisite
-     for writing regs is to have fetched them all (PREPARE_TO_STORE), sigh.  */
-  if (deferred_stores)
-    internal_error (__FILE__, __LINE__, "failed internal consistency check");
+/* Second, we need to remap the BSD ptrace(2) requests to their SunOS
+   equivalents.  GNU/Linux already follows SunOS here.  */
 
-  DO_DEFERRED_STORES;
+#ifndef PTRACE_GETREGS
+#define PTRACE_GETREGS PT_GETREGS
+#endif
 
-  /* Global and Out regs are fetched directly, as well as the control
-     registers.  If we're getting one of the in or local regs,
-     and the stack pointer has not yet been fetched,
-     we have to do that first, since they're found in memory relative
-     to the stack pointer.  */
-  if (regno < O7_REGNUM		/* including -1 */
-      || regno >= Y_REGNUM
-      || (!register_valid[SP_REGNUM] && regno < I7_REGNUM))
-    {
-      if (0 != ptrace (PTRACE_GETREGS, PIDGET (inferior_ptid),
-		       (PTRACE_ARG3_TYPE) & inferior_registers, 0))
-	perror ("ptrace_getregs");
+#ifndef PTRACE_SETREGS
+#define PTRACE_SETREGS PT_SETREGS
+#endif
 
-      registers[REGISTER_BYTE (0)] = 0;
-      memcpy (&registers[REGISTER_BYTE (1)], &inferior_registers.r_g1,
-	      15 * REGISTER_RAW_SIZE (G0_REGNUM));
-      *(int *) &registers[REGISTER_BYTE (PS_REGNUM)] = inferior_registers.r_ps;
-      *(int *) &registers[REGISTER_BYTE (PC_REGNUM)] = inferior_registers.r_pc;
-      *(int *) &registers[REGISTER_BYTE (NPC_REGNUM)] = inferior_registers.r_npc;
-      *(int *) &registers[REGISTER_BYTE (Y_REGNUM)] = inferior_registers.r_y;
+#ifndef PTRACE_GETFPREGS
+#define PTRACE_GETFPREGS PT_GETFPREGS
+#endif
 
-      for (i = G0_REGNUM; i <= O7_REGNUM; i++)
-	register_valid[i] = 1;
-      register_valid[Y_REGNUM] = 1;
-      register_valid[PS_REGNUM] = 1;
-      register_valid[PC_REGNUM] = 1;
-      register_valid[NPC_REGNUM] = 1;
-      /* If we don't set these valid, read_register_bytes() rereads
-         all the regs every time it is called!  FIXME.  */
-      register_valid[WIM_REGNUM] = 1;	/* Not true yet, FIXME */
-      register_valid[TBR_REGNUM] = 1;	/* Not true yet, FIXME */
-      register_valid[CPS_REGNUM] = 1;	/* Not true yet, FIXME */
-    }
+#ifndef PTRACE_SETFPREGS
+#define PTRACE_SETFPREGS PT_SETFPREGS
+#endif
 
-  /* Floating point registers */
-  if (regno == -1 ||
-      regno == FPS_REGNUM ||
-      (regno >= FP0_REGNUM && regno <= FP0_REGNUM + 31))
-    {
-      if (0 != ptrace (PTRACE_GETFPREGS, PIDGET (inferior_ptid),
-		       (PTRACE_ARG3_TYPE) & inferior_fp_registers,
-		       0))
-	perror ("ptrace_getfpregs");
-      memcpy (&registers[REGISTER_BYTE (FP0_REGNUM)], &inferior_fp_registers,
-	      sizeof inferior_fp_registers.fpu_fr);
-      memcpy (&registers[REGISTER_BYTE (FPS_REGNUM)],
-	      &inferior_fp_registers.Fpu_fsr,
-	      sizeof (FPU_FSR_TYPE));
-      for (i = FP0_REGNUM; i <= FP0_REGNUM + 31; i++)
-	register_valid[i] = 1;
-      register_valid[FPS_REGNUM] = 1;
-    }
+/* Register set description.  */
+const struct sparc_gregset *sparc_gregset;
+void (*sparc_supply_gregset) (const struct sparc_gregset *,
+			      struct regcache *, int , const void *);
+void (*sparc_collect_gregset) (const struct sparc_gregset *,
+			       const struct regcache *, int, void *);
+void (*sparc_supply_fpregset) (struct regcache *, int , const void *);
+void (*sparc_collect_fpregset) (const struct regcache *, int , void *);
+int (*sparc_gregset_supplies_p) (int);
+int (*sparc_fpregset_supplies_p) (int);
 
-  /* These regs are saved on the stack by the kernel.  Only read them
-     all (16 ptrace calls!) if we really need them.  */
-  if (regno == -1)
-    {
-      CORE_ADDR sp = *(unsigned int *) & registers[REGISTER_BYTE (SP_REGNUM)];
-      target_read_memory (sp, &registers[REGISTER_BYTE (L0_REGNUM)],
-			  16 * REGISTER_RAW_SIZE (L0_REGNUM));
-      for (i = L0_REGNUM; i <= I7_REGNUM; i++)
-	register_valid[i] = 1;
-    }
-  else if (regno >= L0_REGNUM && regno <= I7_REGNUM)
-    {
-      CORE_ADDR sp = *(unsigned int *) & registers[REGISTER_BYTE (SP_REGNUM)];
-      i = REGISTER_BYTE (regno);
-      if (register_valid[regno])
-	printf_unfiltered ("register %d valid and read\n", regno);
-      target_read_memory (sp + i - REGISTER_BYTE (L0_REGNUM),
-			  &registers[i], REGISTER_RAW_SIZE (regno));
-      register_valid[regno] = 1;
-    }
-}
-
-/* Store our register values back into the inferior.
-   If REGNO is -1, do this for all registers.
-   Otherwise, REGNO specifies which register (so we can save time).  */
-
-void
-store_inferior_registers (int regno)
-{
-  struct regs inferior_registers;
-  struct fp_status inferior_fp_registers;
-  int wanna_store = INT_REGS + STACK_REGS + FP_REGS;
-
-  /* First decide which pieces of machine-state we need to modify.  
-     Default for regno == -1 case is all pieces.  */
-  if (regno >= 0)
-    if (FP0_REGNUM <= regno && regno < FP0_REGNUM + 32)
-      {
-	wanna_store = FP_REGS;
-      }
-    else
-      {
-	if (regno == SP_REGNUM)
-	  wanna_store = INT_REGS + STACK_REGS;
-	else if (regno < L0_REGNUM || regno > I7_REGNUM)
-	  wanna_store = INT_REGS;
-	else if (regno == FPS_REGNUM)
-	  wanna_store = FP_REGS;
-	else
-	  wanna_store = STACK_REGS;
-      }
-
-  /* See if we're forcing the stores to happen now, or deferring. */
-  if (regno == -2)
-    {
-      wanna_store = deferred_stores;
-      deferred_stores = 0;
-    }
-  else
-    {
-      if (wanna_store == STACK_REGS)
-	{
-	  /* Fall through and just store one stack reg.  If we deferred
-	     it, we'd have to store them all, or remember more info.  */
-	}
-      else
-	{
-	  deferred_stores |= wanna_store;
-	  return;
-	}
-    }
-
-  if (wanna_store & STACK_REGS)
-    {
-      CORE_ADDR sp = *(unsigned int *) & registers[REGISTER_BYTE (SP_REGNUM)];
-
-      if (regno < 0 || regno == SP_REGNUM)
-	{
-	  if (!register_valid[L0_REGNUM + 5])
-	    internal_error (__FILE__, __LINE__, "failed internal consistency check");
-	  target_write_memory (sp,
-			       &registers[REGISTER_BYTE (L0_REGNUM)],
-			       16 * REGISTER_RAW_SIZE (L0_REGNUM));
-	}
-      else
-	{
-	  if (!register_valid[regno])
-	    internal_error (__FILE__, __LINE__, "failed internal consistency check");
-	  target_write_memory (sp + REGISTER_BYTE (regno) - REGISTER_BYTE (L0_REGNUM),
-			       &registers[REGISTER_BYTE (regno)],
-			       REGISTER_RAW_SIZE (regno));
-	}
-
-    }
-
-  if (wanna_store & INT_REGS)
-    {
-      if (!register_valid[G1_REGNUM])
-	internal_error (__FILE__, __LINE__, "failed internal consistency check");
-
-      memcpy (&inferior_registers.r_g1, &registers[REGISTER_BYTE (G1_REGNUM)],
-	      15 * REGISTER_RAW_SIZE (G1_REGNUM));
-
-      inferior_registers.r_ps =
-	*(int *) &registers[REGISTER_BYTE (PS_REGNUM)];
-      inferior_registers.r_pc =
-	*(int *) &registers[REGISTER_BYTE (PC_REGNUM)];
-      inferior_registers.r_npc =
-	*(int *) &registers[REGISTER_BYTE (NPC_REGNUM)];
-      inferior_registers.r_y =
-	*(int *) &registers[REGISTER_BYTE (Y_REGNUM)];
-
-      if (0 != ptrace (PTRACE_SETREGS, PIDGET (inferior_ptid),
-		       (PTRACE_ARG3_TYPE) & inferior_registers, 0))
-	perror ("ptrace_setregs");
-    }
-
-  if (wanna_store & FP_REGS)
-    {
-      if (!register_valid[FP0_REGNUM + 9])
-	internal_error (__FILE__, __LINE__, "failed internal consistency check");
-      memcpy (&inferior_fp_registers, &registers[REGISTER_BYTE (FP0_REGNUM)],
-	      sizeof inferior_fp_registers.fpu_fr);
-      memcpy (&inferior_fp_registers.Fpu_fsr,
-	      &registers[REGISTER_BYTE (FPS_REGNUM)], sizeof (FPU_FSR_TYPE));
-      if (0 !=
-	  ptrace (PTRACE_SETFPREGS, PIDGET (inferior_ptid),
-		  (PTRACE_ARG3_TYPE) & inferior_fp_registers, 0))
-	perror ("ptrace_setfpregs");
-    }
-}
-
-/* Provide registers to GDB from a core file.
-
-   CORE_REG_SECT points to an array of bytes, which are the contents
-   of a `note' from a core file which BFD thinks might contain
-   register contents.  CORE_REG_SIZE is its size.
-
-   WHICH says which register set corelow suspects this is:
-     0 --- the general-purpose register set
-     2 --- the floating-point register set
-
-   IGNORE is unused.  */
-
-static void
-fetch_core_registers (char *core_reg_sect, unsigned core_reg_size,
-		      int which, CORE_ADDR ignore)
-{
-
-  if (which == 0)
-    {
-
-      /* Integer registers */
-
-#define gregs ((struct regs *)core_reg_sect)
-      /* G0 *always* holds 0.  */
-      *(int *) &registers[REGISTER_BYTE (0)] = 0;
-
-      /* The globals and output registers.  */
-      memcpy (&registers[REGISTER_BYTE (G1_REGNUM)], &gregs->r_g1,
-	      15 * REGISTER_RAW_SIZE (G1_REGNUM));
-      *(int *) &registers[REGISTER_BYTE (PS_REGNUM)] = gregs->r_ps;
-      *(int *) &registers[REGISTER_BYTE (PC_REGNUM)] = gregs->r_pc;
-      *(int *) &registers[REGISTER_BYTE (NPC_REGNUM)] = gregs->r_npc;
-      *(int *) &registers[REGISTER_BYTE (Y_REGNUM)] = gregs->r_y;
-
-      /* My best guess at where to get the locals and input
-         registers is exactly where they usually are, right above
-         the stack pointer.  If the core dump was caused by a bus error
-         from blowing away the stack pointer (as is possible) then this
-         won't work, but it's worth the try. */
-      {
-	int sp;
-
-	sp = *(int *) &registers[REGISTER_BYTE (SP_REGNUM)];
-	if (0 != target_read_memory (sp, &registers[REGISTER_BYTE (L0_REGNUM)],
-				     16 * REGISTER_RAW_SIZE (L0_REGNUM)))
-	  {
-	    /* fprintf_unfiltered so user can still use gdb */
-	    fprintf_unfiltered (gdb_stderr,
-		"Couldn't read input and local registers from core file\n");
-	  }
-      }
-    }
-  else if (which == 2)
-    {
-
-      /* Floating point registers */
-
-#define fpuregs  ((struct fpu *) core_reg_sect)
-      if (core_reg_size >= sizeof (struct fpu))
-	{
-	  memcpy (&registers[REGISTER_BYTE (FP0_REGNUM)], fpuregs->fpu_regs,
-		  sizeof (fpuregs->fpu_regs));
-	  memcpy (&registers[REGISTER_BYTE (FPS_REGNUM)], &fpuregs->fpu_fsr,
-		  sizeof (FPU_FSR_TYPE));
-	}
-      else
-	fprintf_unfiltered (gdb_stderr, "Couldn't read float regs from core file\n");
-    }
-}
+/* Determine whether `gregset_t' contains register REGNUM.  */
 
 int
-kernel_u_size (void)
+sparc32_gregset_supplies_p (int regnum)
 {
-  return (sizeof (struct user));
+  /* Integer registers.  */
+  if ((regnum >= SPARC_G1_REGNUM && regnum <= SPARC_G7_REGNUM)
+      || (regnum >= SPARC_O0_REGNUM && regnum <= SPARC_O7_REGNUM)
+      || (regnum >= SPARC_L0_REGNUM && regnum <= SPARC_L7_REGNUM)
+      || (regnum >= SPARC_I0_REGNUM && regnum <= SPARC_I7_REGNUM))
+    return 1;
+
+  /* Control registers.  */
+  if (regnum == SPARC32_PC_REGNUM
+      || regnum == SPARC32_NPC_REGNUM
+      || regnum == SPARC32_PSR_REGNUM
+      || regnum == SPARC32_Y_REGNUM)
+    return 1;
+
+  return 0;
 }
-
 
-/* Register that we are able to handle sparc core file formats.
-   FIXME: is this really bfd_target_unknown_flavour? */
+/* Determine whether `fpregset_t' contains register REGNUM.  */
 
-static struct core_fns sparc_core_fns =
+int
+sparc32_fpregset_supplies_p (int regnum)
 {
-  bfd_target_unknown_flavour,		/* core_flavour */
-  default_check_format,			/* check_format */
-  default_core_sniffer,			/* core_sniffer */
-  fetch_core_registers,			/* core_read_registers */
-  NULL					/* next */
-};
+  /* Floating-point registers.  */
+  if (regnum >= SPARC_F0_REGNUM && regnum <= SPARC_F31_REGNUM)
+    return 1;
+
+  /* Control registers.  */
+  if (regnum == SPARC32_FSR_REGNUM)
+    return 1;
+
+  return 0;
+}
+
+/* Fetch register REGNUM from the inferior.  If REGNUM is -1, do this
+   for all registers (including the floating-point registers).  */
 
 void
-_initialize_core_sparc (void)
+fetch_inferior_registers (int regnum)
 {
-  add_core_fns (&sparc_core_fns);
+  struct regcache *regcache = current_regcache;
+  int pid;
+
+  /* NOTE: cagney/2002-12-03: This code assumes that the currently
+     selected light weight processes' registers can be written
+     directly into the selected thread's register cache.  This works
+     fine when given an 1:1 LWP:thread model (such as found on
+     GNU/Linux) but will, likely, have problems when used on an N:1
+     (userland threads) or N:M (userland multiple LWP) model.  In the
+     case of the latter two, the LWP's registers do not necessarily
+     belong to the selected thread (the LWP could be in the middle of
+     executing the thread switch code).
+
+     These functions should instead be paramaterized with an explicit
+     object (struct regcache, struct thread_info?) into which the LWPs
+     registers can be written.  */
+  pid = TIDGET (inferior_ptid);
+  if (pid == 0)
+    pid = PIDGET (inferior_ptid);
+
+  if (regnum == SPARC_G0_REGNUM)
+    {
+      regcache_raw_supply (regcache, SPARC_G0_REGNUM, NULL);
+      return;
+    }
+
+  if (regnum == -1 || sparc_gregset_supplies_p (regnum))
+    {
+      gregset_t regs;
+
+      if (ptrace (PTRACE_GETREGS, pid, (PTRACE_ARG3_TYPE) &regs, 0) == -1)
+	perror_with_name ("Couldn't get registers");
+
+      sparc_supply_gregset (sparc_gregset, regcache, -1, &regs);
+      if (regnum != -1)
+	return;
+    }
+
+  if (regnum == -1 || sparc_fpregset_supplies_p (regnum))
+    {
+      fpregset_t fpregs;
+
+      if (ptrace (PTRACE_GETFPREGS, pid, (PTRACE_ARG3_TYPE) &fpregs, 0) == -1)
+	perror_with_name ("Couldn't get floating point status");
+
+      sparc_supply_fpregset (regcache, -1, &fpregs);
+    }
+}
+
+void
+store_inferior_registers (int regnum)
+{
+  struct regcache *regcache = current_regcache;
+  int pid;
+
+  /* NOTE: cagney/2002-12-02: See comment in fetch_inferior_registers
+     about threaded assumptions.  */
+  pid = TIDGET (inferior_ptid);
+  if (pid == 0)
+    pid = PIDGET (inferior_ptid);
+
+  if (regnum == -1 || sparc_gregset_supplies_p (regnum))
+    {
+      gregset_t regs;
+
+      if (ptrace (PTRACE_GETREGS, pid, (PTRACE_ARG3_TYPE) &regs, 0) == -1)
+	perror_with_name ("Couldn't get registers");
+
+      sparc_collect_gregset (sparc_gregset, regcache, regnum, &regs);
+
+      if (ptrace (PTRACE_SETREGS, pid, (PTRACE_ARG3_TYPE) &regs, 0) == -1)
+	perror_with_name ("Couldn't write registers");
+
+      /* Deal with the stack regs.  */
+      if (regnum == -1 || regnum == SPARC_SP_REGNUM
+	  || (regnum >= SPARC_L0_REGNUM && regnum <= SPARC_I7_REGNUM))
+	{
+	  ULONGEST sp;
+
+	  regcache_cooked_read_unsigned (regcache, SPARC_SP_REGNUM, &sp);
+	  sparc_collect_rwindow (regcache, sp, regnum);
+	}
+
+      if (regnum != -1)
+	return;
+    }
+
+  if (regnum == -1 || sparc_fpregset_supplies_p (regnum))
+    {
+      fpregset_t fpregs, saved_fpregs;
+
+      if (ptrace (PTRACE_GETFPREGS, pid, (PTRACE_ARG3_TYPE) &fpregs, 0) == -1)
+	perror_with_name ("Couldn't get floating-point registers");
+
+      memcpy (&saved_fpregs, &fpregs, sizeof (fpregs));
+      sparc_collect_fpregset (regcache, regnum, &fpregs);
+
+      /* Writing the floating-point registers will fail on NetBSD with
+	 EINVAL if the inferior process doesn't have an FPU state
+	 (i.e. if it didn't use the FPU yet).  Therefore we don't try
+	 to write the registers if nothing changed.  */
+      if (memcmp (&saved_fpregs, &fpregs, sizeof (fpregs)) != 0)
+	{
+	  if (ptrace (PTRACE_SETFPREGS, pid,
+		      (PTRACE_ARG3_TYPE) &fpregs, 0) == -1)
+	    perror_with_name ("Couldn't write floating-point registers");
+	}
+
+      if (regnum != -1)
+	return;
+    }
+}
+
+
+/* Fetch StackGhost Per-Process XOR cookie.  */
+
+LONGEST
+sparc_xfer_wcookie (struct target_ops *ops, enum target_object object,
+		    const char *annex, void *readbuf, const void *writebuf,
+		    ULONGEST offset, LONGEST len)
+{
+  unsigned long wcookie = 0;
+  char *buf = (char *)&wcookie;
+
+  gdb_assert (object == TARGET_OBJECT_WCOOKIE);
+  gdb_assert (readbuf && writebuf == NULL);
+
+  if (offset >= sizeof (unsigned long))
+    return -1;
+
+#ifdef PT_WCOOKIE
+  /* If PT_WCOOKIE is defined (by <sys/ptrace.h>), assume we're
+     running on an OpenBSD release that uses StackGhost (3.1 or
+     later).  As of release 3.4, OpenBSD doesn't use a randomized
+     cookie yet, but a future release probably will.  */
+  {
+    int pid;
+
+    pid = TIDGET (inferior_ptid);
+    if (pid == 0)
+      pid = PIDGET (inferior_ptid);
+
+    /* Sanity check.  The proper type for a cookie is register_t, but
+       we can't assume that this type exists on all systems supported
+       by the code in this file.  */
+    gdb_assert (sizeof (wcookie) == sizeof (register_t));
+
+    /* Fetch the cookie.  */
+    if (ptrace (PT_WCOOKIE, pid, (PTRACE_ARG3_TYPE) &wcookie, 0) == -1)
+      {
+	if (errno != EINVAL)
+	  perror_with_name ("Couldn't get StackGhost cookie");
+
+	/* Although PT_WCOOKIE is defined on OpenBSD 3.1 and later,
+	   the request wasn't implemented until after OpenBSD 3.4.  If
+	   the kernel doesn't support the PT_WCOOKIE request, assume
+	   we're running on a kernel that uses non-randomized cookies.  */
+	wcookie = 0x3;
+      }
+  }
+#endif /* PT_WCOOKIE */
+
+  if (len > sizeof (unsigned long) - offset)
+    len = sizeof (unsigned long) - offset;
+
+  memcpy (readbuf, buf + offset, len);
+  return len;
+}
+
+
+/* Provide a prototype to silence -Wmissing-prototypes.  */
+void _initialize_sparc_nat (void);
+
+void
+_initialize_sparc_nat (void)
+{
+  /* Deafult to using SunOS 4 register sets.  */
+  if (sparc_gregset == NULL)
+    sparc_gregset = &sparc32_sunos4_gregset;
+  if (sparc_supply_gregset == NULL)
+    sparc_supply_gregset = sparc32_supply_gregset;
+  if (sparc_collect_gregset == NULL)
+    sparc_collect_gregset = sparc32_collect_gregset;
+  if (sparc_supply_fpregset == NULL)
+    sparc_supply_fpregset = sparc32_supply_fpregset;
+  if (sparc_collect_fpregset == NULL)
+    sparc_collect_fpregset = sparc32_collect_fpregset;
+  if (sparc_gregset_supplies_p == NULL)
+    sparc_gregset_supplies_p = sparc32_gregset_supplies_p;
+  if (sparc_fpregset_supplies_p == NULL)
+    sparc_fpregset_supplies_p = sparc32_fpregset_supplies_p;
 }

@@ -1,7 +1,8 @@
 /* Support for printing Fortran types for GDB, the GNU debugger.
-   Copyright 1986, 1988, 1989, 1991, 1993, 1994, 1995, 1996, 1998, 2000,
-   2001, 2002
-   Free Software Foundation, Inc.
+
+   Copyright 1986, 1988, 1989, 1991, 1993, 1994, 1995, 1996, 1998,
+   2000, 2001, 2002, 2003 Free Software Foundation, Inc.
+
    Contributed by Motorola.  Adapted from the C version by Farooq Butt
    (fmbutt@engage.sps.mot.com).
 
@@ -23,7 +24,7 @@
    Boston, MA 02111-1307, USA.  */
 
 #include "defs.h"
-#include "obstack.h"
+#include "gdb_obstack.h"
 #include "bfd.h"
 #include "symtab.h"
 #include "gdbtypes.h"
@@ -58,7 +59,7 @@ void
 f_print_type (struct type *type, char *varstring, struct ui_file *stream,
 	      int show, int level)
 {
-  register enum type_code code;
+  enum type_code code;
   int demangled_args;
 
   f_type_print_base (type, stream, show, level);
@@ -328,6 +329,11 @@ f_type_print_base (struct type *type, struct ui_file *stream, int show,
       f_type_print_base (TYPE_TARGET_TYPE (type), stream, 0, level);
       break;
 
+    case TYPE_CODE_REF:
+      fprintf_filtered (stream, "REF TO -> ( ");
+      f_type_print_base (TYPE_TARGET_TYPE (type), stream, 0, level);
+      break;
+
     case TYPE_CODE_VOID:
       fprintf_filtered (stream, "VOID");
       break;
@@ -355,7 +361,7 @@ f_type_print_base (struct type *type, struct ui_file *stream, int show,
          through as TYPE_CODE_INT since dbxstclass.h is so
          C-oriented, we must change these to "character" from "char".  */
 
-      if (STREQ (TYPE_NAME (type), "char"))
+      if (strcmp (TYPE_NAME (type), "char") == 0)
 	fprintf_filtered (stream, "character");
       else
 	goto default_case;

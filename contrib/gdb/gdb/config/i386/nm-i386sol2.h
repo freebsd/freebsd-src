@@ -18,7 +18,7 @@
    Foundation, Inc., 59 Temple Place - Suite 330,
    Boston, MA 02111-1307, USA.  */
 
-#include "nm-sysv4.h"
+#include "config/nm-sysv4.h"
 
 #ifdef NEW_PROC_API	/* Solaris 6 and above can do HW watchpoints */
 
@@ -28,11 +28,12 @@
    can support "thousands" of hardware watchpoints, but gives no
    method for finding out how many.  So just tell GDB 'yes'.  */
 #define TARGET_CAN_USE_HARDWARE_WATCHPOINT(TYPE, CNT, OT) 1
+#define TARGET_REGION_SIZE_OK_FOR_HW_WATCHPOINT(SIZE) 1
 
 /* When a hardware watchpoint fires off the PC will be left at the
    instruction following the one which caused the watchpoint.  
    It will *NOT* be necessary for GDB to step over the watchpoint. */
-#define HAVE_CONTINUABLE_WATCHPOINT
+#define HAVE_CONTINUABLE_WATCHPOINT 1
 
 /* Solaris x86 2.6 and 2.7 targets have a kernel bug when stepping
    over an instruction that causes a page fault without triggering

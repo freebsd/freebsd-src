@@ -1,5 +1,7 @@
 /* Definitions for expressions stored in reversed prefix form, for GDB.
-   Copyright 1986, 1989, 1992, 1994, 2000 Free Software Foundation, Inc.
+
+   Copyright 1986, 1989, 1992, 1994, 2000, 2003 Free Software
+   Foundation, Inc.
 
    This file is part of GDB.
 
@@ -109,10 +111,11 @@ enum exp_opcode
        the second operand with itself that many times. */
     BINOP_CONCAT,
 
-    /* For Chill and Pascal. */
+    /* For (the deleted) Chill and Pascal. */
     BINOP_IN,			/* Returns 1 iff ARG1 IN ARG2. */
 
-    /* This is the "colon operator" used various places in Chill. */
+    /* This is the "colon operator" used various places in (the
+       deleted) Chill. */
     BINOP_RANGE,
 
     /* This must be the highest BINOP_ value, for expprint.c.  */
@@ -121,12 +124,13 @@ enum exp_opcode
     /* Operates on three values computed by following subexpressions.  */
     TERNOP_COND,		/* ?: */
 
-    /* A sub-string/sub-array.  Chill syntax:  OP1(OP2:OP3).
-       Return elements OP2 through OP3 of OP1.  */
+    /* A sub-string/sub-array.  (the deleted) Chill syntax:
+       OP1(OP2:OP3).  Return elements OP2 through OP3 of OP1.  */
     TERNOP_SLICE,
 
-    /* A sub-string/sub-array.  Chill syntax:  OP1(OP2 UP OP3).
-       Return OP3 elements of OP1, starting with element OP2. */
+    /* A sub-string/sub-array.  (The deleted) Chill syntax: OP1(OP2 UP
+       OP3).  Return OP3 elements of OP1, starting with element
+       OP2. */
     TERNOP_SLICE_COUNT,
 
     /* Multidimensional subscript operator, such as Modula-2 x[a,b,...].
@@ -178,6 +182,12 @@ enum exp_opcode
        The integer is followed by a repeat of OP_FUNCALL,
        making three exp_elements.  */
     OP_FUNCALL,
+
+    /* OP_OBJC_MSGCALL is followed by a string in the next exp_element and then an
+       integer.  The string is the selector string.  The integer is the number
+       of arguments to the message call.  That many plus one values are used, 
+       the first one being the object pointer.  This is an Objective C message */
+    OP_OBJC_MSGCALL,
 
     /* This is EXACTLY like OP_FUNCALL but is semantically different.  
        In F77, array subscript expressions, substring expressions
@@ -251,7 +261,7 @@ enum exp_opcode
     UNOP_ODD,
     UNOP_TRUNC,
 
-    /* Chill builtin functions. */
+    /* (The deleted) Chill builtin functions.  */
     UNOP_LOWER, UNOP_UPPER, UNOP_LENGTH, UNOP_CARD, UNOP_CHMAX, UNOP_CHMIN,
 
     OP_BOOL,			/* Modula-2 builtin BOOLEAN type */
@@ -271,22 +281,31 @@ enum exp_opcode
     STRUCTOP_STRUCT,
     STRUCTOP_PTR,
 
-    /* C++ */
-    /* OP_THIS is just a placeholder for the class instance variable.
+    /* C++: OP_THIS is just a placeholder for the class instance variable.
        It just comes in a tight (OP_THIS, OP_THIS) pair.  */
     OP_THIS,
+
+    /* Objective-C: OP_OBJC_SELF is just a placeholder for the class instance
+       variable.  It just comes in a tight (OP_OBJC_SELF, OP_OBJC_SELF) pair.  */
+    OP_OBJC_SELF,
+
+    /* Objective C: "@selector" pseudo-operator */
+    OP_OBJC_SELECTOR,
 
     /* OP_SCOPE surrounds a type name and a field name.  The type
        name is encoded as one element, but the field name stays as
        a string, which, of course, is variable length.  */
     OP_SCOPE,
 
-    /* Used to represent named structure field values in brace initializers
-       (or tuples as they are called in Chill).
-       The gcc C syntax is NAME:VALUE or .NAME=VALUE, the Chill syntax is
-       .NAME:VALUE.  Multiple labels (as in the Chill syntax
-       .NAME1,.NAME2:VALUE) is represented as if it were
-       .NAME1:(.NAME2:VALUE) (though that is not valid Chill syntax).
+    /* Used to represent named structure field values in brace
+       initializers (or tuples as they are called in (the deleted)
+       Chill).
+
+       The gcc C syntax is NAME:VALUE or .NAME=VALUE, the (the
+       deleted) Chill syntax is .NAME:VALUE.  Multiple labels (as in
+       the (the deleted) Chill syntax .NAME1,.NAME2:VALUE) is
+       represented as if it were .NAME1:(.NAME2:VALUE) (though that is
+       not valid (the deleted) Chill syntax).
 
        The NAME is represented as for STRUCTOP_STRUCT;  VALUE follows. */
     OP_LABELED,
@@ -300,7 +319,30 @@ enum exp_opcode
     OP_NAME,
 
     /* An unparsed expression.  Used for Scheme (for now at least) */
-    OP_EXPRSTRING
+    OP_EXPRSTRING,
+
+    /* An Objective C Foundation Class NSString constant */
+    OP_OBJC_NSSTRING,
+
+     /* First extension operator.  Individual language modules define
+        extra operators they need as constants with values 
+        OP_LANGUAGE_SPECIFIC0 + k, for k >= 0, using a separate 
+        enumerated type definition:
+           enum foo_extension_operator {
+             BINOP_MOGRIFY = OP_EXTENDED0,
+ 	     BINOP_FROB,
+ 	     ...
+           };      */
+    OP_EXTENDED0,
+  
+    /* Last possible extension operator.  Defined to provide an
+       explicit and finite number of extended operators. */
+    OP_EXTENDED_LAST = 0xff
+    /* NOTE: Eventually, we expect to convert to an object-oriented 
+       formulation for expression operators that does away with the
+       need for these extension operators, and indeed for this
+       entire enumeration type.  Therefore, consider the OP_EXTENDED
+       definitions to be a temporary measure. */
   };
 
 union exp_element
@@ -371,11 +413,7 @@ extern void print_expression (struct expression *, struct ui_file *);
 
 extern char *op_string (enum exp_opcode);
 
-extern void dump_prefix_expression (struct expression *,
-				    struct ui_file *,
-				    char *);
-extern void dump_postfix_expression (struct expression *,
-				     struct ui_file *,
-				     char *);
+extern void dump_raw_expression (struct expression *, struct ui_file *, char *);
+extern void dump_prefix_expression (struct expression *, struct ui_file *);
 
 #endif /* !defined (EXPRESSION_H) */

@@ -22,6 +22,8 @@
 #ifndef GDB_H
 #define GDB_H
 
+struct ui_out;
+
 /* Return-code (RC) from a gdb library call.  (The abreviation RC is
    taken from the sim/common directory.) */
 

@@ -1,7 +1,7 @@
 /* Support for printing C values for GDB, the GNU debugger.
-   Copyright 1986, 1988, 1989, 1991, 1992, 1993, 1994, 1995, 1996, 1997,
-   1998, 1999, 2000, 2001
-   Free Software Foundation, Inc.
+
+   Copyright 1986, 1988, 1989, 1991, 1992, 1993, 1994, 1995, 1996,
+   1997, 1998, 1999, 2000, 2001, 2003 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -21,6 +21,7 @@
    Boston, MA 02111-1307, USA.  */
 
 #include "defs.h"
+#include "gdb_string.h"
 #include "symtab.h"
 #include "gdbtypes.h"
 #include "expression.h"
@@ -29,6 +30,7 @@
 #include "language.h"
 #include "c-lang.h"
 #include "cp-abi.h"
+#include "target.h"
 
 
 /* Print function pointer with inferior address ADDRESS onto stdio
@@ -37,7 +39,9 @@
 static void
 print_function_pointer_address (CORE_ADDR address, struct ui_file *stream)
 {
-  CORE_ADDR func_addr = CONVERT_FROM_FUNC_PTR_ADDR (address);
+  CORE_ADDR func_addr = gdbarch_convert_from_func_ptr_addr (current_gdbarch,
+							    address,
+							    &current_target);
 
   /* If the function pointer is represented by a description, print the
      address of the description.  */
@@ -69,7 +73,7 @@ c_val_print (struct type *type, char *valaddr, int embedded_offset,
 	     CORE_ADDR address, struct ui_file *stream, int format,
 	     int deref_ref, int recurse, enum val_prettyprint pretty)
 {
-  register unsigned int i = 0;	/* Number of characters printed */
+  unsigned int i = 0;	/* Number of characters printed */
   unsigned len;
   struct type *elttype;
   unsigned eltlen;
@@ -204,7 +208,7 @@ c_val_print (struct type *type, char *valaddr, int embedded_offset,
 		  (vt_address == SYMBOL_VALUE_ADDRESS (msymbol)))
 		{
 		  fputs_filtered (" <", stream);
-		  fputs_filtered (SYMBOL_SOURCE_NAME (msymbol), stream);
+		  fputs_filtered (SYMBOL_PRINT_NAME (msymbol), stream);
 		  fputs_filtered (">", stream);
 		}
 	      if (vt_address && vtblprint)
@@ -212,13 +216,12 @@ c_val_print (struct type *type, char *valaddr, int embedded_offset,
 		  struct value *vt_val;
 		  struct symbol *wsym = (struct symbol *) NULL;
 		  struct type *wtype;
-		  struct symtab *s;
 		  struct block *block = (struct block *) NULL;
 		  int is_this_fld;
 
 		  if (msymbol != NULL)
-		    wsym = lookup_symbol (SYMBOL_NAME (msymbol), block,
-					  VAR_NAMESPACE, &is_this_fld, &s);
+		    wsym = lookup_symbol (DEPRECATED_SYMBOL_NAME (msymbol), block,
+					  VAR_DOMAIN, &is_this_fld, NULL);
 
 		  if (wsym)
 		    {
@@ -514,7 +517,7 @@ c_value_print (struct value *val, struct ui_file *stream, int format,
       if (TYPE_CODE (type) == TYPE_CODE_PTR &&
 	  TYPE_NAME (type) == NULL &&
 	  TYPE_NAME (TYPE_TARGET_TYPE (type)) != NULL &&
-	  STREQ (TYPE_NAME (TYPE_TARGET_TYPE (type)), "char"))
+	  strcmp (TYPE_NAME (TYPE_TARGET_TYPE (type)), "char") == 0)
 	{
 	  /* Print nothing */
 	}
@@ -592,7 +595,8 @@ c_value_print (struct value *val, struct ui_file *stream, int format,
       /* Otherwise, we end up at the return outside this "if" */
     }
 
-  return val_print (type, VALUE_CONTENTS_ALL (val), VALUE_EMBEDDED_OFFSET (val),
-		    VALUE_ADDRESS (val),
+  return val_print (type, VALUE_CONTENTS_ALL (val),
+		    VALUE_EMBEDDED_OFFSET (val),
+		    VALUE_ADDRESS (val) + VALUE_OFFSET (val),
 		    stream, format, 1, 0, pretty);
 }

@@ -23,6 +23,8 @@
 #include "serial.h"
 #include "srec.h"
 #include <time.h>
+#include "gdb_assert.h"
+#include "gdb_string.h"
 
 extern void report_transfer_performance (unsigned long, time_t, time_t);
 
@@ -223,10 +225,6 @@ make_srec (char *srec, CORE_ADDR targ_addr, bfd *abfd, asection *sect,
   const static char data_code_table[] = "123";
   const static char term_code_table[] = "987";
   const static char header_code_table[] = "000";
-  const static char *formats[] =
-  {"S%c%02X%04X",
-   "S%c%02X%06X",
-   "S%c%02X%08X"};
   char const *code_table;
   int addr_size;
   int payload_size;
@@ -271,9 +269,10 @@ make_srec (char *srec, CORE_ADDR targ_addr, bfd *abfd, asection *sect,
     payload_size = 0;		/* Term or header packets have no payload */
 
   /* Output the header.  */
-
-  sprintf (srec, formats[addr_size - 2], code_table[addr_size - 2],
-	   addr_size + payload_size + 1, (int) targ_addr);
+  snprintf (srec, (*maxrecsize) + 1, "S%c%02X%0*X",
+	    code_table[addr_size - 2],
+	    addr_size + payload_size + 1,
+	    addr_size * 2, (int) targ_addr);
 
   /* Note that the checksum is calculated on the raw data, not the
      hexified data.  It includes the length, address and the data
@@ -287,6 +286,9 @@ make_srec (char *srec, CORE_ADDR targ_addr, bfd *abfd, asection *sect,
 	       + ((targ_addr >> 16) & 0xff)
 	       + ((targ_addr >> 24) & 0xff));
 
+  /* NOTE: cagney/2003-08-10: The equation is old.  Check that the
+     recent snprintf changes match that equation.  */
+  gdb_assert (strlen (srec) == 1 + 1 + 2 + addr_size * 2);
   p = srec + 1 + 1 + 2 + addr_size * 2;
 
   /* Build the Srecord.  */

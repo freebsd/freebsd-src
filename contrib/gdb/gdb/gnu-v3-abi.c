@@ -1,6 +1,7 @@
 /* Abstraction of GNU v3 abi.
    Contributed by Jim Blandy <jimb@redhat.com>
-   Copyright 2001 Free Software Foundation, Inc.
+
+   Copyright 2001, 2002, 2003 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -22,8 +23,10 @@
 #include "defs.h"
 #include "value.h"
 #include "cp-abi.h"
+#include "cp-support.h"
 #include "demangle.h"
 #include "gdb_assert.h"
+#include "gdb_string.h"
 
 static struct cp_abi_ops gnu_v3_abi_ops;
 
@@ -172,9 +175,10 @@ build_gdb_vtable_type (struct gdbarch *arch)
    gdb_gnu_v3_abi_vtable' object to the vtable's "address point"
    (i.e., where objects' virtual table pointers point).  */
 static int
-vtable_address_point_offset ()
+vtable_address_point_offset (void)
 {
-  struct type *vtable_type = gdbarch_data (vtable_type_gdbarch_data);
+  struct type *vtable_type = gdbarch_data (current_gdbarch,
+					   vtable_type_gdbarch_data);
 
   return (TYPE_FIELD_BITPOS (vtable_type, vtable_field_virtual_functions)
           / TARGET_CHAR_BIT);
@@ -185,14 +189,14 @@ static struct type *
 gnuv3_rtti_type (struct value *value,
                  int *full_p, int *top_p, int *using_enc_p)
 {
-  struct type *vtable_type = gdbarch_data (vtable_type_gdbarch_data);
+  struct type *vtable_type = gdbarch_data (current_gdbarch,
+					   vtable_type_gdbarch_data);
   struct type *value_type = check_typedef (VALUE_TYPE (value));
   CORE_ADDR vtable_address;
   struct value *vtable;
   struct minimal_symbol *vtable_symbol;
   const char *vtable_symbol_name;
   const char *class_name;
-  struct symbol *class_symbol;
   struct type *run_time_type;
   struct type *base_type;
   LONGEST offset_to_top;
@@ -241,25 +245,20 @@ gnuv3_rtti_type (struct value *value,
   vtable_symbol_name = SYMBOL_DEMANGLED_NAME (vtable_symbol);
   if (vtable_symbol_name == NULL
       || strncmp (vtable_symbol_name, "vtable for ", 11))
-    error ("can't find linker symbol for virtual table for `%s' value",
-           TYPE_NAME (value_type));
+    {
+      warning ("can't find linker symbol for virtual table for `%s' value",
+	       TYPE_NAME (value_type));
+      if (vtable_symbol_name)
+	warning ("  found `%s' instead", vtable_symbol_name);
+      return NULL;
+    }
   class_name = vtable_symbol_name + 11;
 
   /* Try to look up the class name as a type name.  */
-  class_symbol = lookup_symbol (class_name, 0, STRUCT_NAMESPACE, 0, 0);
-  if (! class_symbol)
-    error ("can't find class named `%s', as given by C++ RTTI", class_name);
-
-  /* Make sure the type symbol is sane.  (An earlier version of this
-     code would find constructor functions, who have the same name as
-     the class.)  */
-  if (SYMBOL_CLASS (class_symbol) != LOC_TYPEDEF
-      || TYPE_CODE (SYMBOL_TYPE (class_symbol)) != TYPE_CODE_CLASS)
-    error ("C++ RTTI gives a class name of `%s', but that isn't a type name",
-           class_name);
-
-  /* This is the object's run-time type!  */
-  run_time_type = SYMBOL_TYPE (class_symbol);
+  /* FIXME: chastain/2003-11-26: block=NULL is bogus.  See pr gdb/1465. */
+  run_time_type = cp_lookup_rtti_type (class_name, NULL);
+  if (run_time_type == NULL)
+    return NULL;
 
   /* Get the offset from VALUE to the top of the complete object.
      NOTE: this is the reverse of the meaning of *TOP_P.  */
@@ -282,7 +281,8 @@ gnuv3_virtual_fn_field (struct value **value_p,
                         struct fn_field *f, int j,
 			struct type *type, int offset)
 {
-  struct type *vtable_type = gdbarch_data (vtable_type_gdbarch_data);
+  struct type *vtable_type = gdbarch_data (current_gdbarch,
+					   vtable_type_gdbarch_data);
   struct value *value = *value_p;
   struct type *value_type = check_typedef (VALUE_TYPE (value));
   struct type *vfn_base;
@@ -308,6 +308,9 @@ gnuv3_virtual_fn_field (struct value **value_p,
      type now.  */
   if (TYPE_VPTR_FIELDNO (vfn_base) < 0)
     fill_in_vptr_fieldno (vfn_base);
+  if (TYPE_VPTR_FIELDNO (vfn_base) < 0)
+    error ("Could not find virtual table pointer for class \"%s\".",
+	   TYPE_TAG_NAME (vfn_base) ? TYPE_TAG_NAME (vfn_base) : "<unknown>");
 
   /* Now that we know which base class is defining our virtual
      function, cast our value to that baseclass.  This takes care of
@@ -353,20 +356,17 @@ gnuv3_virtual_fn_field (struct value **value_p,
    to (the address of)(ARG) + OFFSET.
 
    -1 is returned on error. */
-int
+static int
 gnuv3_baseclass_offset (struct type *type, int index, char *valaddr,
 			CORE_ADDR address)
 {
-  struct type *vtable_type = gdbarch_data (vtable_type_gdbarch_data);
-  struct type *basetype = TYPE_BASECLASS (type, index);
-  struct value *full_object, *vbase_object, *orig_object;
-  struct value *vtable, *orig_typeinfo, *orig_base_info;
-  struct type *orig_type, *vbasetype;
+  struct type *vtable_type = gdbarch_data (current_gdbarch,
+					   vtable_type_gdbarch_data);
+  struct value *vtable;
+  struct type *vbasetype;
   struct value *offset_val, *vbase_array;
   CORE_ADDR vtable_address;
   long int cur_base_offset, base_offset;
-  int to_top;
-  int baseclasses, i;
 
   /* If it isn't a virtual base, this is easy.  The offset is in the
      type definition.  */
@@ -389,15 +389,27 @@ gnuv3_baseclass_offset (struct type *type, int index, char *valaddr,
     / ((int) TYPE_LENGTH (builtin_type_void_data_ptr));
 
   /* We're now looking for the cur_base_offset'th entry (negative index)
-     in the vcall_and_vbase_offsets array.  */
+     in the vcall_and_vbase_offsets array.  We used to cast the object to
+     its TYPE_VPTR_BASETYPE, and reference the vtable as TYPE_VPTR_FIELDNO;
+     however, that cast can not be done without calling baseclass_offset again
+     if the TYPE_VPTR_BASETYPE is a virtual base class, as described in the
+     v3 C++ ABI Section 2.4.I.2.b.  Fortunately the ABI guarantees that the
+     vtable pointer will be located at the beginning of the object, so we can
+     bypass the casting.  Verify that the TYPE_VPTR_FIELDNO is in fact at the
+     start of whichever baseclass it resides in, as a sanity measure - iff
+     we have debugging information for that baseclass.  */
 
-  orig_object = value_at_lazy (type, address, NULL);
-  vbasetype = TYPE_VPTR_BASETYPE (VALUE_TYPE (orig_object));
-  vbase_object = value_cast (vbasetype, orig_object);
+  vbasetype = TYPE_VPTR_BASETYPE (type);
+  if (TYPE_VPTR_FIELDNO (vbasetype) < 0)
+    fill_in_vptr_fieldno (vbasetype);
 
-  vtable_address
-    = value_as_address (value_field (vbase_object,
-				     TYPE_VPTR_FIELDNO (vbasetype)));
+  if (TYPE_VPTR_FIELDNO (vbasetype) >= 0
+      && TYPE_FIELD_BITPOS (vbasetype, TYPE_VPTR_FIELDNO (vbasetype)) != 0)
+    error ("Illegal vptr offset in class %s",
+	   TYPE_NAME (vbasetype) ? TYPE_NAME (vbasetype) : "<unknown>");
+
+  vtable_address = value_as_address (value_at_lazy (builtin_type_void_data_ptr,
+						    address, NULL));
   vtable = value_at_lazy (vtable_type,
                           vtable_address - vtable_address_point_offset (),
                           NULL);
@@ -410,7 +422,7 @@ gnuv3_baseclass_offset (struct type *type, int index, char *valaddr,
 static void
 init_gnuv3_ops (void)
 {
-  vtable_type_gdbarch_data = register_gdbarch_data (build_gdb_vtable_type, 0);
+  vtable_type_gdbarch_data = register_gdbarch_data (build_gdb_vtable_type);
 
   gnu_v3_abi_ops.shortname = "gnu-v3";
   gnu_v3_abi_ops.longname = "GNU G++ Version 3 ABI";
@@ -424,11 +436,12 @@ init_gnuv3_ops (void)
   gnu_v3_abi_ops.baseclass_offset = gnuv3_baseclass_offset;
 }
 
+extern initialize_file_ftype _initialize_gnu_v3_abi; /* -Wmissing-prototypes */
 
 void
 _initialize_gnu_v3_abi (void)
 {
   init_gnuv3_ops ();
 
-  register_cp_abi (gnu_v3_abi_ops);
+  register_cp_abi (&gnu_v3_abi_ops);
 }

@@ -1,6 +1,7 @@
 /* Language independent support for printing types for GDB, the GNU debugger.
-   Copyright 1986, 1988, 1989, 1991, 1992, 1993, 1994, 1995, 1998, 1999,
-   2000, 2001 Free Software Foundation, Inc.
+
+   Copyright 1986, 1988, 1989, 1991, 1992, 1993, 1994, 1995, 1998,
+   1999, 2000, 2001, 2003 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -20,7 +21,7 @@
    Boston, MA 02111-1307, USA.  */
 
 #include "defs.h"
-#include "obstack.h"
+#include "gdb_obstack.h"
 #include "bfd.h"		/* Binary File Description */
 #include "symtab.h"
 #include "gdbtypes.h"
@@ -32,7 +33,7 @@
 #include "target.h"
 #include "language.h"
 #include "cp-abi.h"
-
+#include "typeprint.h"
 #include "gdb_string.h"
 #include <errno.h>
 
@@ -66,16 +67,16 @@ typedef_print (struct type *type, struct symbol *new, struct ui_file *stream)
       fprintf_filtered (stream, "typedef ");
       type_print (type, "", stream, 0);
       if (TYPE_NAME ((SYMBOL_TYPE (new))) == 0
-	  || !STREQ (TYPE_NAME ((SYMBOL_TYPE (new))), SYMBOL_NAME (new)))
-	fprintf_filtered (stream, " %s", SYMBOL_SOURCE_NAME (new));
+	  || strcmp (TYPE_NAME ((SYMBOL_TYPE (new))), DEPRECATED_SYMBOL_NAME (new)) != 0)
+	fprintf_filtered (stream, " %s", SYMBOL_PRINT_NAME (new));
       break;
 #endif
 #ifdef _LANG_m2
     case language_m2:
       fprintf_filtered (stream, "TYPE ");
-      if (!TYPE_NAME (SYMBOL_TYPE (new)) ||
-	  !STREQ (TYPE_NAME (SYMBOL_TYPE (new)), SYMBOL_NAME (new)))
-	fprintf_filtered (stream, "%s = ", SYMBOL_SOURCE_NAME (new));
+      if (!TYPE_NAME (SYMBOL_TYPE (new))
+	  || strcmp (TYPE_NAME ((SYMBOL_TYPE (new))), DEPRECATED_SYMBOL_NAME (new)) != 0)
+	fprintf_filtered (stream, "%s = ", SYMBOL_PRINT_NAME (new));
       else
 	fprintf_filtered (stream, "<builtin> = ");
       type_print (type, "", stream, 0);
@@ -84,18 +85,7 @@ typedef_print (struct type *type, struct symbol *new, struct ui_file *stream)
 #ifdef _LANG_pascal
     case language_pascal:
       fprintf_filtered (stream, "type ");
-      fprintf_filtered (stream, "%s = ", SYMBOL_SOURCE_NAME (new));
-      type_print (type, "", stream, 0);
-      break;
-#endif
-#ifdef _LANG_chill
-    case language_chill:
-      fprintf_filtered (stream, "SYNMODE ");
-      if (!TYPE_NAME (SYMBOL_TYPE (new)) ||
-	  !STREQ (TYPE_NAME (SYMBOL_TYPE (new)), SYMBOL_NAME (new)))
-	fprintf_filtered (stream, "%s = ", SYMBOL_SOURCE_NAME (new));
-      else
-	fprintf_filtered (stream, "<builtin> = ");
+      fprintf_filtered (stream, "%s = ", SYMBOL_PRINT_NAME (new));
       type_print (type, "", stream, 0);
       break;
 #endif
@@ -127,7 +117,7 @@ whatis_exp (char *exp, int show)
 {
   struct expression *expr;
   struct value *val;
-  register struct cleanup *old_chain = NULL;
+  struct cleanup *old_chain = NULL;
   struct type *real_type = NULL;
   struct type *type;
   int full = 0;
@@ -183,7 +173,6 @@ whatis_exp (char *exp, int show)
     do_cleanups (old_chain);
 }
 
-/* ARGSUSED */
 static void
 whatis_command (char *exp, int from_tty)
 {
@@ -210,13 +199,12 @@ ptype_eval (struct expression *exp)
 
 /* TYPENAME is either the name of a type, or an expression.  */
 
-/* ARGSUSED */
 static void
 ptype_command (char *typename, int from_tty)
 {
-  register struct type *type;
+  struct type *type;
   struct expression *expr;
-  register struct cleanup *old_chain;
+  struct cleanup *old_chain;
 
   if (typename == NULL)
     {
@@ -317,6 +305,7 @@ print_type_scalar (struct type *type, LONGEST val, struct ui_file *stream)
     case TYPE_CODE_MEMBER:
     case TYPE_CODE_METHOD:
     case TYPE_CODE_REF:
+    case TYPE_CODE_NAMESPACE:
       error ("internal error: unhandled type in print_type_scalar");
       break;
 
@@ -334,8 +323,8 @@ void
 maintenance_print_type (char *typename, int from_tty)
 {
   struct value *val;
-  register struct type *type;
-  register struct cleanup *old_chain;
+  struct type *type;
+  struct cleanup *old_chain;
   struct expression *expr;
 
   if (typename != NULL)
