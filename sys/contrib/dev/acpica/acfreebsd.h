@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acfreebsd.h - OS specific defines, etc.
- *       $Revision: 15 $
+ *       $Revision: 17 $
  *
  *****************************************************************************/
 
@@ -156,6 +156,7 @@
 /* Not building kernel code, so use libc */
 #define ACPI_USE_STANDARD_HEADERS
 #define ACPI_FLUSH_CPU_CACHE()
+
 #if __STDC_HOSTED__
 #include <ctype.h>
 #endif
