@@ -38,7 +38,7 @@
  * from: Utah $Hdr: vm_mmap.c 1.6 91/10/21$
  *
  *	@(#)vm_mmap.c	8.4 (Berkeley) 1/12/94
- * $Id: vm_mmap.c,v 1.98 1999/05/16 05:07:33 alc Exp $
+ * $Id: vm_mmap.c,v 1.99 1999/05/17 00:53:56 alc Exp $
  */
 
 /*
@@ -1018,11 +1018,13 @@ vm_mmap(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 
 	if (handle == NULL) {
 		object = NULL;
+		docow = 0;
 	} else {
 		object = vm_pager_allocate(type,
 			handle, objsize, prot, foff);
 		if (object == NULL)
 			return (type == OBJT_DEVICE ? EINVAL : ENOMEM);
+		docow = MAP_PREFAULT_PARTIAL;
 	}
 
 	/*
@@ -1033,9 +1035,8 @@ vm_mmap(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 		flags |= MAP_SHARED;
 	}
 
-	docow = 0;
 	if ((flags & (MAP_ANON|MAP_SHARED)) == 0) {
-		docow = MAP_COPY_ON_WRITE | MAP_PREFAULT_PARTIAL;
+		docow |= MAP_COPY_ON_WRITE;
 	}
 
 #if defined(VM_PROT_READ_IS_EXEC)
