@@ -178,6 +178,11 @@ MD5 (4.8-RELEASE-i386-mini.iso) = 5f0d2576dbb56d6ec85d49ac9fa4bbf9</programlisti
       means that it is generally not possible to install &os;
       &release.prev; over an &man.awi.4; network.</para>
       
+    <para>Due to space limitations, support for ATAPI floppy disks and
+      the DEC AlphaServer 8200 and 8400 (<quote>TurboLaser</quote>)
+      machines has been removed from the kernel used on the 1.44MB
+      <filename>kern.flp</filename> alpha boot floppy.</para>
+
 ]]>
   </sect1>
 </article>
