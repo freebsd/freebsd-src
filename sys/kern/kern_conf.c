@@ -259,7 +259,7 @@ makedev(int x, int y)
 	si = allocdev();
 	si->si_udev = udev;
 	LIST_INSERT_HEAD(&dev_hash[hash], si, si_hash);
-        return (si);
+	return (si);
 }
 
 void
@@ -286,7 +286,7 @@ udev_t
 dev2udev(dev_t x)
 {
 	if (x == NODEV)
-		return NOUDEV;
+		return (NOUDEV);
 	return (x->si_udev);
 }
 
@@ -297,32 +297,30 @@ udev2dev(udev_t x, int b)
 	if (x == NOUDEV)
 		return (NODEV);
 	switch (b) {
-		case 0:
-			return makedev(umajor(x), uminor(x));
-		case 1:
-			return (NODEV);
-		default:
-			Debugger("udev2dev(...,X)");
-			return NODEV;
+	case 0:
+		return (makedev(umajor(x), uminor(x)));
+	default:
+		Debugger("udev2dev(...,X)");
+		return (NODEV);
 	}
 }
 
 int
 uminor(udev_t dev)
 {
-	return(dev & 0xffff00ff);
+	return (dev & 0xffff00ff);
 }
 
 int
 umajor(udev_t dev)
 {
-	return((dev & 0xff00) >> 8);
+	return ((dev & 0xff00) >> 8);
 }
 
 udev_t
 makeudev(int x, int y)
 {
-        return ((x << 8) | y);
+	return ((x << 8) | y);
 }
 
 static void
@@ -340,7 +338,6 @@ prep_cdevsw(struct cdevsw *devsw)
 	if (devsw->d_strategy == NULL)	devsw->d_strategy = no_strategy;
 	if (devsw->d_dump == NULL)	devsw->d_dump = no_dump;
 	if (devsw->d_kqfilter == NULL)	devsw->d_kqfilter = no_kqfilter;
-
 	if (devsw->d_maj == MAJOR_AUTO) {
 		for (i = NUMCDEVSW - 1; i > 0; i--)
 			if (reserved_majors[i] != i)
@@ -363,15 +360,15 @@ prep_cdevsw(struct cdevsw *devsw)
 }
 
 dev_t
-make_dev(struct cdevsw *devsw, int minor, uid_t uid, gid_t gid, int perms, const char *fmt, ...)
+make_dev(struct cdevsw *devsw, int minor, uid_t uid, gid_t gid, int perms,
+    const char *fmt, ...)
 {
-	dev_t	dev;
+	dev_t dev;
 	va_list ap;
 	int i;
 
 	KASSERT((minor & ~0xffff00ff) == 0,
 	    ("Invalid minor (0x%x) in make_dev", minor));
-
 	prep_cdevsw(devsw);
 	dev = makedev(devsw->d_maj, minor);
 	if (dev->si_flags & SI_CHEAPCLONE &&
