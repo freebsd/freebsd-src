@@ -1,5 +1,5 @@
 <HTML>
-<! $Id: faq.html,v 1.3 1998/10/28 16:16:31 abial Exp $ >
+<! $Id: faq.html,v 1.4.2.1 1999/05/07 10:02:48 abial Exp $ >
 <HEAD>
    <META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=iso-8859-1">
    <META NAME="Author" CONTENT="Dinesh Nair">
@@ -37,26 +37,22 @@ fully grown daemons, and PicoBSD as a system infested with
 
 <P><B>What version of FreeBSD is PicoBSD based on ?</B></p>
 
-<P>PicoBSD has versions based on FreeBSD 3.0-RELEASE, 3.0-current and
+<P>PicoBSD has versions based on FreeBSD 3.2-RELEASE, 4.0-current and
 FreeBSD 2.2.5-RELEASE.
 <A HREF="mailto:abial@freebsd.org">Andrzej Bialecki</A> maintains the <A HREF="http://www.freebsd.org/~picobsd/picobsd.html">FreeBSD
-3.0-RELEASE and -current versions</A> and 
+3.x-RELEASE and -current versions</A> and 
 <A HREF="mailto:dinesh@alphaque.com">Dinesh Nair</A>
 maintains the <A HREF="http://info.net-gw.com/picoBSD/">FreeBSD
-2.2.5-RELEASE</A> version. Both the versions don't differ by much except
-for the following:
+2.2.5-RELEASE</A> version. Both the versions are different:
 <UL TYPE=CIRCLE>
 <LI>
-the 3.0-current version is, well, more current so it has support for the
-latest whiz-bang devices; on the other hand, it sometimes mean it can
-provide functionality not yet present in 2.2.5-RELEASE</LI>
+the 3.x-RELEASE version is the one actively maintained, and provides support
+for many new devices</li>
 
 <LI>
-the 2.2.5-RELEASE version is more stable and since binary sizes are smaller,
-it sometimes has a little more functionality than the 3.0-current version</LI>
+the 2.2.5-RELEASE version is not maintained anymore - the only difference is
+that it has lynx on board.</li>
 </UL>
-As far as possible, both versions will be kept functionally similar, but
-occasionaly divergence may occur.
 
 <p><b>What is current version of PicoBSD?</b></p>
 
@@ -84,7 +80,7 @@ external or internal.
 For LAN access, an Ethernet NIC (support for 3Com, NE2000 etc available)
 would also be required.
 <p>In case of "router" flavor, its requirements are even smaller: it can
-run in only 4MB of RAM, on a 386SX CPU.</p>
+run in as low as 4MB of RAM, on a 386SX CPU.</p>
 
 <P><B>Where do I get PicoBSD?</B></p>
  PicoBSD is available at the following
@@ -96,7 +92,7 @@ FreeBSD 3.0-RELEASE and -current</A> maintained by Andrzej Bialecki</LI>
 
 <LI>
 <A HREF="http://info.net-gw.com/picoBSD/">PicoBSD based on FreeBSD 2.2.5-RELEASE</A>
-maintained by Dinesh Nair</LI>
+prepared by Dinesh Nair</LI>
 </UL>
 Additional mirror sites will be brought online as demand increases. If
 you're interested in mirroring the PicoBSD distribution, please get in
@@ -133,13 +129,13 @@ Replace the <U>domain</U> with your domain and change the <U>nameserver</U>
 IP address to your nameserver or your ISP's nameserver. You may have as
 many <U>nameserver</U> lines as you want. Don't forget to run <I>/stand/update</I>
 to commit your changes to the floppy.
-<p>NOTE: starting with version 0.4, the <i>dialup</i> scripts asks you to
+<p>NOTE: starting with version 0.4, the <i>dialup</i> script asks you to
 set your nameserver as well as default domain name.</p>
 
 <p><b>I can't execute the <i>/stand/update</i> on the "router" floppy.</b></p>
 <p>The "router" floppy doesn't contain any real shell, so some commands work
 differently (and some don't work at all). In order to use this script you
-have to source it in, i.e.:
+have to 'source it in', i.e.:
 <pre>
 	(48)/# pwd
 	/
