@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.57 1997/05/26 00:44:06 brian Exp $
+ * $Id: main.c,v 1.58 1997/05/29 02:29:12 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -330,7 +330,8 @@ char **argv;
   mode = MODE_INTER;		/* default operation is interactive mode */
   netfd = server = modem = tun_in = -1;
   ProcessArgs(argc, argv);
-  Greetings();
+  if (!(mode & MODE_DIRECT))
+    Greetings();
   GetUid();
   IpcpDefAddress();
 
@@ -340,9 +341,11 @@ char **argv;
 
   switch ( LocalAuthInit() ) {
     case NOT_FOUND:
-    	fprintf(stderr,LAUTH_M1);
-    	fprintf(stderr,LAUTH_M2);
-	fflush (stderr);
+        if (!(mode & MODE_DIRECT)) {
+    	  fprintf(stderr,LAUTH_M1);
+    	  fprintf(stderr,LAUTH_M2);
+	  fflush (stderr);
+        }
 	/* Fall down */
     case VALID:
 	VarLocalAuth = LOCAL_AUTH;

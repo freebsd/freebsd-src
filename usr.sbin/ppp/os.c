@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: os.c,v 1.19 1997/05/26 00:44:08 brian Exp $
+ * $Id: os.c,v 1.20 1997/06/01 01:13:03 brian Exp $
  *
  */
 #include "fsm.h"
@@ -352,7 +352,8 @@ int *ptun;
     close(s);
     return(-1);
   }
-  printf("Using interface: %s\r\n", IfDevName);
+  if (!(mode & MODE_DIRECT))
+    printf("Using interface: %s\r\n", IfDevName);
   LogPrintf(LOG_PHASE_BIT, "Using interface: %s\n", IfDevName);
   close(s);
   return(0);
