@@ -750,10 +750,12 @@ _thr_sig_check_pending(struct pthread *curthread)
 {
 	ucontext_t uc;
 	volatile int once;
+	int errsave;
 
 	if (THR_IN_CRITICAL(curthread))
 		return;
 
+	errsave = errno;
 	once = 0;
 	THR_GETCONTEXT(&uc);
 	if (once == 0) {
@@ -761,6 +763,7 @@ _thr_sig_check_pending(struct pthread *curthread)
 		curthread->check_pending = 0;
 		_thr_sig_rundown(curthread, &uc, NULL);
 	}
+	errno = errsave;
 }
 
 #ifndef SYSTEM_SCOPE_ONLY
