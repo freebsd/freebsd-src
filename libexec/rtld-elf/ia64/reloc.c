@@ -170,6 +170,36 @@ reloc_non_plt_obj(Obj_Entry *obj_rtld, Obj_Entry *obj, const Elf_Rela *rela,
 		break;
 	}
 
+	case R_IA64_IPLTLSB: {
+		/*
+		 * Relocation typically used to populate C++ virtual function
+		 * tables. It creates a 128-bit function descriptor at the
+		 * specified memory address.
+		 */
+		const Elf_Sym *def;
+		const Obj_Entry *defobj;
+		struct fptr *fptr;
+		Elf_Addr target, gp;
+
+		def = find_symdef(ELF_R_SYM(rela->r_info), obj, &defobj,
+				  false, cache);
+		if (def == NULL)
+			return -1;
+
+		if (def->st_shndx != SHN_UNDEF) {
+			target = (Elf_Addr)(defobj->relocbase + def->st_value);
+			gp = (Elf_Addr)defobj->pltgot;
+		} else {
+			target = 0;
+			gp = 0;
+		}
+
+		fptr = (void*)where;
+		store64(&fptr->target, target);
+		store64(&fptr->gp, gp);
+		break;
+	}
+
 	default:
 		_rtld_error("%s: Unsupported relocation type %d"
 			    " in non-PLT relocations\n", obj->path,
