@@ -615,7 +615,7 @@ void wrcodec(snddev_info *s, unsigned addr, unsigned data)
 	if(es_debug > 0) printf("wrcodec addr 0x%x data 0x%x\n",addr,data);
 
 	for (t = 0; t < 0x1000; t++)
-	  if(!(bus_space_read_4(es->st, es->sh,(ES1371_REG_CODEC & CODEC_WIP))))
+	  if(!(bus_space_read_4(es->st, es->sh,ES1371_REG_CODEC) & CODEC_WIP))
 			break;
 	/*	spin_lock_irqsave(&s->lock, flags); */
 	sl = spltty();
