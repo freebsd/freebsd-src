@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.94 1996/09/06 23:09:18 phk Exp $
+ *      $Id: sd.c,v 1.95 1996/09/14 04:31:09 bde Exp $
  */
 
 #include "opt_bounce.h"
@@ -314,6 +314,7 @@ sd_open(dev, mode, fmt, p, sc_link)
 	/*
 	 * Load the physical device parameters
 	 */
+#if 0
 	sd_get_parms(unit, 0);	/* sets SDEV_MEDIA_LOADED */
 	if (sd->params.secsiz != SECSIZE) {	/* XXX One day... */
 		printf("sd%ld: Can't deal with %d bytes logical blocks\n",
@@ -322,6 +323,22 @@ sd_open(dev, mode, fmt, p, sc_link)
 		errcode = ENXIO;
 		goto bad;
 	}
+#else
+	if(errcode = sd_get_parms(unit, 0))	/* sets SDEV_MEDIA_LOADED */
+		goto bad;
+	switch (sd->params.secsiz) {
+	case SECSIZE: /* 512 */
+	case 1024:
+	case 2048:
+		break;
+	default:
+		printf("sd%ld: Can't deal with %d bytes logical blocks\n",
+		    unit, sd->params.secsiz);
+		Debugger("sd");
+		errcode = ENXIO;
+		goto bad;
+	}
+#endif
 	SC_DEBUG(sc_link, SDEV_DB3, ("Params loaded "));
 
 	/* Lock the pack in. */
@@ -391,7 +408,7 @@ sd_strategy(struct buf *bp, struct scsi_link *sc_link)
 {
 	u_int32_t opri;
 	struct scsi_data *sd;
-	u_int32_t unit;
+	u_int32_t unit, secsize;
 
 	sdstrats++;
 	unit = SDUNIT((bp->b_dev));
@@ -409,6 +426,7 @@ sd_strategy(struct buf *bp, struct scsi_link *sc_link)
 	 */
         scsi_minphys(bp,&sd_switch);
 
+#if 0
 	/*
 	 * Odd number of bytes or negative offset
 	 */
@@ -421,7 +439,61 @@ sd_strategy(struct buf *bp, struct scsi_link *sc_link)
 	 */
 	if (dscheck(bp, sd->dk_slices) <= 0)
 		goto done;	/* XXX check b_resid */
+#else
+	/*
+	 * Odd number of bytes or negative offset
+	 */
+	if (bp->b_blkno < 0 ) {
+		bp->b_error = EINVAL;
+		printf("sd_strategy: Negative block number: 0x%x\n", bp->b_blkno);
+		goto bad;
+	}
 
+	secsize = sd->params.secsiz;
+
+	/* make sure the blkno is scalable */
+	if( (bp->b_blkno % (secsize/DEV_BSIZE)) != 0 ) {
+		bp->b_error = EINVAL;
+		printf("sd_strategy: Block number is not multiple of sector size (2): 0x%x\n", bp->b_blkno);
+		goto bad;
+	}
+
+	/* make sure that the transfer size is a multiple of the sector size */
+	if( (bp->b_bcount % secsize) != 0 ) {
+		bp->b_error = EINVAL;
+		printf("sd_strategy: Invalid b_bcount %d at block number: 0x%x\n", bp->b_bcount, bp->b_blkno);
+		goto bad;
+	}
+
+	/*
+	 * Do bounds checking, adjust transfer, set b_cylin and b_pbklno.
+	 */
+	{
+		int status;
+		int sec_blk_ratio = secsize/DEV_BSIZE;
+		/* save original block number and size */
+		int b_blkno = bp->b_blkno;
+		int b_bcount = bp->b_bcount;
+
+		/* replace with scaled values */
+		bp->b_blkno /= sec_blk_ratio;
+		bp->b_bcount /= sec_blk_ratio;
+	
+		/* enforce limits and map to physical block number */
+		status = dscheck(bp, sd->dk_slices);
+
+		/* prevent bad side effects in block system */
+		bp->b_blkno = b_blkno;
+		bp->b_bcount = b_bcount;
+
+		/* scale resid */
+		bp->b_resid *= sec_blk_ratio;
+
+		/* see if the mapping failed */
+		if (status <= 0)
+			goto done;	/* XXX check b_resid */
+	}
+#endif
 	opri = SPLSD();
 	/*
 	 * Use a bounce buffer if necessary
@@ -493,7 +565,7 @@ sdstart(u_int32_t unit, u_int32_t flags)
 	register struct scsi_data *sd = sc_link->sd;
 	struct buf *bp = NULL;
 	struct scsi_rw_big cmd;
-	u_int32_t blkno, nblk;
+	u_int32_t blkno, nblk, secsize;
 
 	SC_DEBUG(sc_link, SDEV_DB2, ("sdstart "));
 	/*
@@ -530,12 +602,13 @@ sdstart(u_int32_t unit, u_int32_t flags)
 		 * We have a buf, now we know we are going to go through
 		 * With this thing..
 		 */
+		secsize = sd->params.secsiz;
 		blkno = bp->b_pblkno;
-		if (bp->b_bcount & (SECSIZE - 1))
+		if (bp->b_bcount & (secsize - 1))
 		{
 		    goto bad;
 		}
-		nblk = bp->b_bcount >> 9;
+		nblk = bp->b_bcount / secsize;
 
 		/*
 		 *  Fill out the scsi command
@@ -996,7 +1069,7 @@ sddump(dev_t dev)
 		xs->error = XS_NOERROR;
 		xs->bp = 0;
 		xs->data = (u_char *) CADDR1;	/* XXX use pmap_enter() */
-		xs->datalen = blkcnt * SECSIZE;
+		xs->datalen = blkcnt * sd->params.secsiz;
 
 		/*
 		 * Pass all this info to the scsi driver.
@@ -1017,7 +1090,7 @@ sddump(dev_t dev)
 		/* update block count */
 		num -= blkcnt;
 		blknum += blkcnt;
-		(int) addr += SECSIZE * blkcnt;
+		(int) addr += blkcnt * sd->params.secsiz;
 
 		/* operator aborting dump? */
 		if (cncheckc() != -1)
