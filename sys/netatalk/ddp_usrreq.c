@@ -590,5 +590,5 @@ struct pr_usrreqs ddp_usrreqs = {
 	at_setsockaddr,
 	sosend,
 	soreceive,
-	soselect
+	sopoll
 };

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)tcp_usrreq.c	8.2 (Berkeley) 1/3/94
- *	$Id: tcp_usrreq.c,v 1.32 1997/08/02 14:32:58 bde Exp $
+ *	$Id: tcp_usrreq.c,v 1.33 1997/08/16 19:15:40 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -456,7 +456,7 @@ struct pr_usrreqs tcp_usrreqs = {
 	tcp_usr_connect, pru_connect2_notsupp, in_control, tcp_usr_detach,
 	tcp_usr_disconnect, tcp_usr_listen, in_setpeeraddr, tcp_usr_rcvd,
 	tcp_usr_rcvoob, tcp_usr_send, pru_sense_null, tcp_usr_shutdown,
-	in_setsockaddr, sosend, soreceive, soselect
+	in_setsockaddr, sosend, soreceive, sopoll
 };
 
 /*

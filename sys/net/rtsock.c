@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)rtsock.c	8.5 (Berkeley) 11/2/94
- *	$Id: rtsock.c,v 1.32 1997/08/16 19:15:32 wollman Exp $
+ *	$Id: rtsock.c,v 1.33 1997/09/02 01:18:49 bde Exp $
  */
 
 
@@ -265,7 +265,7 @@ static struct pr_usrreqs route_usrreqs = {
 	pru_connect2_notsupp, pru_control_notsupp, rts_detach, rts_disconnect,
 	pru_listen_notsupp, rts_peeraddr, pru_rcvd_notsupp, pru_rcvoob_notsupp,
 	rts_send, pru_sense_null, rts_shutdown, rts_sockaddr,
-	sosend, soreceive, soselect
+	sosend, soreceive, sopoll
 };
 
 /*ARGSUSED*/
