@@ -39,6 +39,7 @@ extern  int nsfbufsused;                /* Number of sendfile(2) bufs in use */
 
 struct sf_buf *
 	sf_buf_alloc(struct vm_page *m);
-void	sf_buf_free(void *addr, void *args);
+void	sf_buf_free(struct sf_buf *sf);
+void	sf_buf_mext(void *addr, void *args);
 
 #endif /* !_SYS_SF_BUF_H_ */
