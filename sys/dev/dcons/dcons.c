@@ -598,7 +598,7 @@ dcons_modevent(module_t mode, int type, void *data)
 #if CONS_NODEV
 		gdb_arg = NULL;
 #else
-		gdbdev = NODEV;
+		gdbdev = NULL;
 #endif
 #endif
 #if __FreeBSD_version >= 500000

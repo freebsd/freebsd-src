@@ -147,7 +147,7 @@ static char *cdrom_rootdevnames[] = {
 /* legacy find-root code */
 char		*rootdevnames[2] = {NULL, NULL};
 static int	setrootbyname(char *name);
-struct cdev *rootdev = NODEV;
+struct cdev *rootdev = NULL;
 
 /*
  * Has to be dynamic as the value of rootdev can change; however, it can't
@@ -162,7 +162,7 @@ sysctl_rootdev(SYSCTL_HANDLER_ARGS)
 	/* _RD prevents this from happening. */
 	KASSERT(req->newptr == NULL, ("Attempt to change root device name"));
 
-	if (rootdev != NODEV)
+	if (rootdev != NULL)
 		error = sysctl_handle_string(oidp, rootdev->si_name, 0, req);
 	else
 		error = sysctl_handle_string(oidp, "", 0, req);
@@ -1339,7 +1339,7 @@ vfs_mountroot_try(char *mountfrom)
 		printf("setrootbyname failed\n");
 
 	/* If the root device is a type "memory disk", mount RW */
-	if (rootdev != NODEV && devsw(rootdev) != NULL) {
+	if (rootdev != NULL && devsw(rootdev) != NULL) {
 		devname = devtoname(rootdev);
 		if (devname[0] == 'm' && devname[1] == 'd')
 			mp->mnt_flag &= ~MNT_RDONLY;
@@ -1457,7 +1457,7 @@ getdiskbyname(char *name) {
 	if (!bcmp(cp, "/dev/", 5))
 		cp += 5;
 
-	dev = NODEV;
+	dev = NULL;
 	EVENTHANDLER_INVOKE(dev_clone, cp, strlen(cp), &dev);
 	return (dev);
 }
@@ -1472,7 +1472,7 @@ setrootbyname(char *name)
 	struct cdev *diskdev;
 
 	diskdev = getdiskbyname(name);
-	if (diskdev != NODEV) {
+	if (diskdev != NULL) {
 		rootdev = diskdev;
 		return (0);
 	}
@@ -1491,7 +1491,7 @@ DB_SHOW_COMMAND(disk, db_getdiskbyname)
 		return;
 	}
 	dev = getdiskbyname(modif);
-	if (dev != NODEV)
+	if (dev != NULL)
 		db_printf("struct cdev *= %p\n", dev);
 	else
 		db_printf("No disk device matched.\n");

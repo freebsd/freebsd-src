@@ -87,7 +87,7 @@ typedef unsigned long long u_quad_t;
 typedef unsigned long long u_quad_t;
 #endif
 #else
-#define cdev_t udev_t
+#define cdev_t dev_t
 #endif
 
 #ifdef __CYGWIN32__

@@ -234,13 +234,13 @@ led_create(led_t *func, void *priv, char const *name)
 
 	sb = sbuf_new(NULL, NULL, SPECNAMELEN, SBUF_FIXEDLEN);
 	if (sb == NULL)
-		return (NODEV);
+		return (NULL);
 	sbuf_cpy(sb, "led/");
 	sbuf_cat(sb, name);
 	sbuf_finish(sb);
 	if (sbuf_overflowed(sb)) {
 		sbuf_delete(sb);
-		return (NODEV);
+		return (NULL);
 	}
 		
 	sc = malloc(sizeof *sc, M_LED, M_WAITOK | M_ZERO);

@@ -153,7 +153,7 @@ struct vnode {
 	const char *filename;			/* Source file doing locking */
 	int line;				/* Line number doing locking */
 #endif
-	udev_t	v_cachedfs;			/* cached fs id */
+	dev_t	v_cachedfs;			/* cached fs id */
 	ino_t	v_cachedid;			/* cached file id */
 };
 #define	v_mountedhere	v_un.vu_mountedhere
@@ -179,9 +179,9 @@ struct xvnode {
 	union {
 		void	*xvu_socket;		/* socket, if VSOCK */
 		void	*xvu_fifo;		/* fifo, if VFIFO */
-		udev_t	xvu_rdev;		/* maj/min, if VBLK/VCHR */
+		dev_t	xvu_rdev;		/* maj/min, if VBLK/VCHR */
 		struct {
-			udev_t	xvu_dev;	/* device, if VDIR/VREG/VLNK */
+			dev_t	xvu_dev;	/* device, if VDIR/VREG/VLNK */
 			ino_t	xvu_ino;	/* id, if VDIR/VREG/VLNK */
 		} xv_uns;
 	} xv_un;
@@ -247,7 +247,7 @@ struct vattr {
 	short		va_nlink;	/* number of references to file */
 	uid_t		va_uid;		/* owner user id */
 	gid_t		va_gid;		/* owner group id */
-	udev_t		va_fsid;	/* filesystem id */
+	dev_t		va_fsid;	/* filesystem id */
 	long		va_fileid;	/* file id */
 	u_quad_t	va_size;	/* file size in bytes */
 	long		va_blocksize;	/* blocksize preferred for i/o */
@@ -257,7 +257,7 @@ struct vattr {
 	struct timespec	va_birthtime;	/* time file created */
 	u_long		va_gen;		/* generation number of file */
 	u_long		va_flags;	/* flags defined for file */
-	udev_t		va_rdev;	/* device the special file represents */
+	dev_t		va_rdev;	/* device the special file represents */
 	u_quad_t	va_bytes;	/* bytes of disk space held by file */
 	u_quad_t	va_filerev;	/* file modification number */
 	u_int		va_vaflags;	/* operations flags, see below */
@@ -593,7 +593,7 @@ extern int	(*lease_check_hook)(struct vop_lease_args *);
 extern int	(*softdep_fsync_hook)(struct vnode *);
 extern int	(*softdep_process_worklist_hook)(struct mount *);
 
-struct	vnode *addaliasu(struct vnode *vp, udev_t nvp_rdev);
+struct	vnode *addaliasu(struct vnode *vp, dev_t nvp_rdev);
 int	bdevvp(struct cdev *dev, struct vnode **vpp);
 /* cache_* may belong in namei.h. */
 void	cache_enter(struct vnode *dvp, struct vnode *vp,

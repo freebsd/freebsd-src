@@ -143,7 +143,7 @@ ptyinit(struct cdev *devc)
 	n = minor(devc);
 	/* For now we only map the lower 8 bits of the minor */
 	if (n & ~0xff)
-		return (NODEV);
+		return (NULL);
 
 	devc->si_flags &= ~SI_CHEAPCLONE;
 
@@ -777,7 +777,7 @@ pty_clone(void *arg, char *name, int namelen, struct cdev **dev)
 {
 	int u;
 
-	if (*dev != NODEV)
+	if (*dev != NULL)
 		return;
 	if (bcmp(name, "pty", 3) != 0)
 		return;

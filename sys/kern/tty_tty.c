@@ -58,7 +58,7 @@ static void
 ctty_clone(void *arg, char *name, int namelen, struct cdev **dev)
 {
 
-	if (*dev != NODEV)
+	if (*dev != NULL)
 		return;
 	if (strcmp(name, "tty"))
 		return;

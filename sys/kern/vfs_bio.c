@@ -517,7 +517,7 @@ bufinit(void)
 		bp = &buf[i];
 		bzero(bp, sizeof *bp);
 		bp->b_flags = B_INVAL;	/* we're just an empty header */
-		bp->b_dev = NODEV;
+		bp->b_dev = NULL;
 		bp->b_rcred = NOCRED;
 		bp->b_wcred = NOCRED;
 		bp->b_qindex = QUEUE_EMPTY;
@@ -1413,7 +1413,7 @@ brelse(struct buf * bp)
 			bp->b_qindex = QUEUE_EMPTY;
 		}
 		TAILQ_INSERT_HEAD(&bufqueues[bp->b_qindex], bp, b_freelist);
-		bp->b_dev = NODEV;
+		bp->b_dev = NULL;
 	/* buffers with junk contents */
 	} else if (bp->b_flags & (B_INVAL | B_NOCACHE | B_RELBUF) ||
 	    (bp->b_ioflags & BIO_ERROR)) {
@@ -1423,7 +1423,7 @@ brelse(struct buf * bp)
 			panic("losing buffer 2");
 		bp->b_qindex = QUEUE_CLEAN;
 		TAILQ_INSERT_HEAD(&bufqueues[QUEUE_CLEAN], bp, b_freelist);
-		bp->b_dev = NODEV;
+		bp->b_dev = NULL;
 	/* remaining buffers */
 	} else {
 		if (bp->b_flags & B_DELWRI)
@@ -1917,7 +1917,7 @@ restart:
 		bp->b_ioflags = 0;
 		bp->b_xflags = 0;
 		bp->b_vflags = 0;
-		bp->b_dev = NODEV;
+		bp->b_dev = NULL;
 		bp->b_vp = NULL;
 		bp->b_blkno = bp->b_lblkno = 0;
 		bp->b_offset = NOOFFSET;

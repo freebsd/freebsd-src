@@ -56,7 +56,7 @@ open_drive(struct drive *drive, struct thread *td, int verbose)
 	return EBUSY;					    /* don't do it again */
 
     drive->dev = getdiskbyname(drive->devicename);
-    if (drive->dev == NODEV)				    /* didn't find anything */
+    if (drive->dev == NULL)				    /* didn't find anything */
 	return ENOENT;
     dev_ref(drive->dev);
 

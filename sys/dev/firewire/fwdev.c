@@ -848,7 +848,7 @@ fwdev_clone(void *arg, char *name, int namelen, struct cdev **dev)
 	int devflag[NDEVTYPE] = {0, FWMEM_FLAG};
 	int i, unit = 0, sub = 0;
 
-	if (*dev != NODEV)
+	if (*dev != NULL)
 		return;
 
 	for (i = 0; i < NDEVTYPE; i++)

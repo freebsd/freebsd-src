@@ -800,7 +800,7 @@ fill_kinfo_thread(struct thread *td, struct kinfo_proc *kp)
 		if (tp->t_session)
 			kp->ki_tsid = tp->t_session->s_sid;
 	} else
-		kp->ki_tdev = NOUDEV;
+		kp->ki_tdev = NODEV;
 	if (p->p_comm[0] != '\0') {
 		strlcpy(kp->ki_comm, p->p_comm, sizeof(kp->ki_comm));
 		strlcpy(kp->ki_ocomm, p->p_comm, sizeof(kp->ki_ocomm));
@@ -1012,7 +1012,7 @@ sysctl_kern_proc(SYSCTL_HANDLER_ARGS)
 				SESS_LOCK(p->p_session);
 				if (p->p_session->s_ttyp == NULL ||
 				    dev2udev(p->p_session->s_ttyp->t_dev) != 
-				    (udev_t)name[0]) {
+				    (dev_t)name[0]) {
 					SESS_UNLOCK(p->p_session);
 					PROC_UNLOCK(p);
 					continue;

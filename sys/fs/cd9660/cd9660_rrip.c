@@ -413,9 +413,9 @@ cd9660_rrip_device(p,ana)
 	low  = isonum_733(p->dev_t_low);
 	
 	if (high == 0)
-		ana->inop->inode.iso_rdev = makeudev(umajor(low), uminor(low));
+		ana->inop->inode.iso_rdev = makedev(umajor(low), uminor(low));
 	else
-		ana->inop->inode.iso_rdev = makeudev(high, uminor(low));
+		ana->inop->inode.iso_rdev = makedev(high, uminor(low));
 	ana->fields &= ~ISO_SUSP_DEVICE;
 	return ISO_SUSP_DEVICE;
 }

@@ -100,7 +100,7 @@ nmdm_clone(void *arg, char *name, int nameen, struct cdev **dev)
 	char *p;
 	struct cdev *d1, *d2;
 
-	if (*dev != NODEV)
+	if (*dev != NULL)
 		return;
 	if (strcmp(name, "nmdm") == 0) {
 		p = NULL;
