@@ -71,7 +71,6 @@ The following structure described the super-block and is
 from the file
 .Aq Pa ufs/ffs/fs.h :
 .Bd -literal
-#define	FS_MAGIC 0x011954
 struct fs {
 	struct	fs *fs_link;	/* linked list of file systems */
 	struct	fs *fs_rlink;	/*     used for incore super blocks */
@@ -144,7 +143,9 @@ struct fs {
 	struct	csum *fs_csp[MAXCSBUFS]; /* list of fs_cs info buffers */
 	long	fs_cpc;	/* cyl per cycle in postbl */
 	short	fs_opostbl[16][8];	/* old rotation block list head */
-	long	fs_sparecon[56];	/* reserved for future constants */
+	long	fs_sparecon[50];	/* reserved for future constants */
+	long	fs_contigsumsize;/* size of cluster summary array */
+	u_quad_t fs_maxfilesize;/* maximum representable file size */	
 	quad	fs_qbmask;	/* ~fs_bmask - for use with quad size */
 	quad	fs_qfmask;	/* ~fs_fmask - for use with quad size */
 	long	fs_postblformat; /* format of positional layout tables */
@@ -155,6 +156,24 @@ struct fs {
 	u_char	fs_space[1];	/* list of blocks for each rotation */
 /* actually longer */
 };
+/*
+ * Filesystem identification
+ */
+#define FS_MAGIC	0x011954   /* the fast filesystem magic number */
+#define FS_OKAY		0x7c269d38 /* superblock checksum */
+#define FS_42INODEFMT	-1	   /* 4.2BSD inode format */
+#define FS_44INODEFMT	2	   /* 4.4BSD inode format */
+/*
+ * Preference for optimization.
+ */
+#define FS_OPTTIME	0          /* minimize allocation time */
+#define FS_OPTSPACE	1	   /* minimize disk fragmentation */
+
+/*
+ * Rotational layout table format types
+ */
+#define FS_42POSTBLFMT	    -1	   /* 4.2BSD rotational table format */
+#define FS_DYNAMICPOSTBLFMT 1	   /* dynamic rotational table format */
 .Ed
 .Pp
 Each disk drive contains some number of file systems.
