@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_pty.c	8.2 (Berkeley) 9/23/93
- * $Id: tty_pty.c,v 1.31 1995/12/10 15:55:17 bde Exp $
+ * $Id: tty_pty.c,v 1.32 1995/12/13 15:13:15 julian Exp $
  */
 
 /*
@@ -56,9 +56,9 @@
 #include <sys/devfsext.h>
 #endif /*DEVFS*/
 
-void ptyattach __P((int n));
-void ptsstart __P((struct tty *tp));
-void ptcwakeup __P((struct tty *tp, int flag));
+static void ptyattach __P((int n));
+static void ptsstart __P((struct tty *tp));
+static void ptcwakeup __P((struct tty *tp, int flag));
 
 static	d_open_t	ptsopen;
 static	d_close_t	ptsclose;
@@ -98,14 +98,14 @@ static struct cdevsw ptc_cdevsw =
  * pts == /dev/tty[pqrsPQRS][0123456789abcdefghijklmnopqrstuv]
  * ptc == /dev/pty[pqrsPQRS][0123456789abcdefghijklmnopqrstuv]
  */
-struct	tty pt_tty[NPTY];	/* XXX */
-struct	pt_ioctl {
+static struct	tty pt_tty[NPTY];	/* XXX */
+static struct	pt_ioctl {
 	int	pt_flags;
 	struct	selinfo pt_selr, pt_selw;
 	u_char	pt_send;
 	u_char	pt_ucntl;
 } pt_ioctl[NPTY];		/* XXX */
-int	npty = NPTY;		/* for pstat -t */
+static int	npty = NPTY;		/* for pstat -t */
 
 #define	PF_PKT		0x08		/* packet mode */
 #define	PF_STOPPED	0x10		/* user told stopped */
@@ -118,7 +118,7 @@ int	npty = NPTY;		/* for pstat -t */
  *
  * XXX cdevsw & pstat require the array `pty[]' to be an array
  */
-void
+static void
 ptyattach(n)
 	int n;
 {
@@ -268,7 +268,7 @@ ptswrite(dev, uio, flag)
  * Start output on pseudo-tty.
  * Wake up process selecting or sleeping for input from controlling tty.
  */
-void
+static void
 ptsstart(tp)
 	struct tty *tp;
 {
@@ -283,7 +283,7 @@ ptsstart(tp)
 	ptcwakeup(tp, FREAD);
 }
 
-void
+static void
 ptcwakeup(tp, flag)
 	struct tty *tp;
 	int flag;
@@ -770,8 +770,8 @@ static ptc_devsw_installed = 0;
 #define MAXUNITS (8 * 32)
 static	void	*devfs_token_pts[MAXUNITS];
 static	void	*devfs_token_ptc[MAXUNITS];
-const	char jnames[] = "pqrsPQRS";
-const	char knames[] = "0123456789abcdefghijklmnopqrstuv";
+static  const	char jnames[] = "pqrsPQRS";
+static  const	char knames[] = "0123456789abcdefghijklmnopqrstuv";
 #endif
 
 static void

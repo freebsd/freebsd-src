@@ -54,7 +54,7 @@
  * functioning of this software, nor does the author assume any responsibility
  * for damages incurred with its use.
  *
- *	$Id: subr_rlist.c,v 1.13 1995/12/07 12:46:53 davidg Exp $
+ *	$Id: subr_rlist.c,v 1.14 1995/12/11 04:56:02 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -74,7 +74,7 @@
 #define RLIST_MIN 128
 static int rlist_count=0, rlist_desired=0;
 static struct rlist *rlfree;
-int rlist_active;
+static int rlist_active;
 
 static struct rlist	*rlist_malloc __P((void));
 

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_ktrace.c	8.2 (Berkeley) 9/23/93
- * $Id: kern_ktrace.c,v 1.7 1995/11/12 06:42:56 bde Exp $
+ * $Id: kern_ktrace.c,v 1.8 1995/12/02 18:58:47 bde Exp $
  */
 
 #ifdef KTRACE
@@ -47,9 +47,14 @@
 #include <sys/malloc.h>
 #include <sys/syslog.h>
 
-extern struct ktr_header	*ktrgetheader __P((int type));
+static struct ktr_header *ktrgetheader __P((int type));
+static void ktrwrite __P((struct vnode *, struct ktr_header *));
+static int ktrcanset __P((struct proc *,struct proc *));
+static int ktrsetchildren __P((struct proc *,struct proc *,int,int,struct vnode *));
+static int ktrops __P((struct proc *,struct proc *,int,int,struct vnode *));
 
-struct ktr_header *
+
+static struct ktr_header *
 ktrgetheader(type)
 	int type;
 {
@@ -335,7 +340,7 @@ done:
 	return (error);
 }
 
-int
+static int
 ktrops(curp, p, ops, facs, vp)
 	struct proc *p, *curp;
 	int ops, facs;
@@ -372,7 +377,7 @@ ktrops(curp, p, ops, facs, vp)
 	return (1);
 }
 
-int
+static int
 ktrsetchildren(curp, top, ops, facs, vp)
 	struct proc *curp, *top;
 	int ops, facs;
@@ -408,7 +413,7 @@ ktrsetchildren(curp, top, ops, facs, vp)
 	/*NOTREACHED*/
 }
 
-void
+static void
 ktrwrite(vp, kth)
 	struct vnode *vp;
 	register struct ktr_header *kth;
@@ -463,7 +468,7 @@ ktrwrite(vp, kth)
  *
  * TODO: check groups.  use caller effective gid.
  */
-int
+static int
 ktrcanset(callp, targetp)
 	struct proc *callp, *targetp;
 {

@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.76 1995/12/11 04:56:05 dyson Exp $
+ * $Id: vfs_bio.c,v 1.78 1995/12/13 03:47:01 dyson Exp $
  */
 
 /*
@@ -58,7 +58,7 @@
 #include <miscfs/specfs/specdev.h>
 
 static void vfs_update __P((void));
-struct	proc *updateproc;
+static struct	proc *updateproc;
 static struct kproc_desc up_kp = {
 	"update",
 	vfs_update,
@@ -70,9 +70,11 @@ struct buf *buf;		/* buffer header pool */
 struct swqueue bswlist;
 
 int count_lock_queue __P((void));
-void vm_hold_free_pages(struct buf * bp, vm_offset_t from, vm_offset_t to);
-void vm_hold_load_pages(struct buf * bp, vm_offset_t from, vm_offset_t to);
-void vfs_clean_pages(struct buf * bp);
+static void vm_hold_free_pages(struct buf * bp, vm_offset_t from,
+		vm_offset_t to);
+static void vm_hold_load_pages(struct buf * bp, vm_offset_t from,
+		vm_offset_t to);
+static void vfs_clean_pages(struct buf * bp);
 static void vfs_setdirty(struct buf *bp);
 
 int needsbuffer;
@@ -97,12 +99,12 @@ caddr_t buffers_kva;
  * but the code is intricate enough already.
  */
 vm_page_t bogus_page;
-vm_offset_t bogus_offset;
+static vm_offset_t bogus_offset;
 
-int bufspace, maxbufspace;
+static int bufspace, maxbufspace;
 
-struct bufhashhdr bufhashtbl[BUFHSZ], invalhash;
-struct bqueues bufqueues[BUFFER_QUEUES];
+static struct bufhashhdr bufhashtbl[BUFHSZ], invalhash;
+static struct bqueues bufqueues[BUFFER_QUEUES];
 
 #define BUF_MAXUSE 8
 

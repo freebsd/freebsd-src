@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_acct.c	8.1 (Berkeley) 6/14/93
- *	$Id: kern_acct.c,v 1.8 1995/10/29 15:30:56 phk Exp $
+ *	$Id: kern_acct.c,v 1.9 1995/11/12 06:42:51 bde Exp $
  */
 
 #include <sys/param.h>
@@ -49,6 +49,7 @@
 #include <sys/file.h>
 #include <sys/syslog.h>
 #include <sys/kernel.h>
+#include <sys/sysctl.h>
 #include <sys/namei.h>
 #include <sys/errno.h>
 #include <sys/acct.h>
@@ -72,21 +73,29 @@
  * The former's operation is described in Leffler, et al., and the latter
  * was provided by UCB with the 4.4BSD-Lite release
  */
-comp_t	encode_comp_t __P((u_long, u_long));
-void	acctwatch __P((void *));
+static comp_t	encode_comp_t __P((u_long, u_long));
+static void	acctwatch __P((void *));
 
 /*
  * Accounting vnode pointer, and saved vnode pointer.
  */
-struct	vnode *acctp;
-struct	vnode *savacctp;
+static struct	vnode *acctp;
+static struct	vnode *savacctp;
 
 /*
  * Values associated with enabling and disabling accounting
  */
-int	acctsuspend = 2;	/* stop accounting when < 2% free space left */
-int	acctresume = 4;		/* resume when free space risen to > 4% */
-int	acctchkfreq = 15;	/* frequency (in seconds) to check space */
+static int acctsuspend = 2;	/* stop accounting when < 2% free space left */
+SYSCTL_INT(_kern, OID_AUTO, acct_suspend, CTLFLAG_RW,
+	&acctsuspend, 0, "");
+
+static int acctresume = 4;	/* resume when free space risen to > 4% */
+SYSCTL_INT(_kern, OID_AUTO, acct_resume, CTLFLAG_RW,
+	&acctresume, 0, "");
+
+static int acctchkfreq = 15;	/* frequency (in seconds) to check space */
+SYSCTL_INT(_kern, OID_AUTO, acct_chkfreq, CTLFLAG_RW,
+	&acctchkfreq, 0, "");
 
 /*
  * Accounting system call.  Written based on the specification and
@@ -235,7 +244,7 @@ acct_process(p)
 #define	EXPSIZE		3			/* Base 8 (3 bit) exponent. */
 #define	MAXFRACT	((1 << MANTSIZE) - 1)	/* Maximum fractional value. */
 
-comp_t
+static comp_t
 encode_comp_t(s, us)
 	u_long s, us;
 {
@@ -271,7 +280,7 @@ encode_comp_t(s, us)
  * system containing the accounting file has been forcibly unmounted.
  */
 /* ARGSUSED */
-void
+static void
 acctwatch(a)
 	void *a;
 {

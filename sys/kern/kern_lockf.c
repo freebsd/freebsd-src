@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_lockf.c	8.3 (Berkeley) 1/6/94
- * $Id: kern_lockf.c,v 1.3 1994/10/25 11:27:51 davidg Exp $
+ * $Id: kern_lockf.c,v 1.4 1995/05/30 08:05:31 rgrimes Exp $
  */
 
 #include <sys/param.h>
@@ -61,6 +61,16 @@ int	lockf_debug = 0;
 #define NOLOCKF (struct lockf *)0
 #define SELF	0x1
 #define OTHERS	0x2
+static void	 lf_addblock __P((struct lockf *, struct lockf *));
+static int	 lf_clearlock __P((struct lockf *));
+static int	 lf_findoverlap __P((struct lockf *,
+	    struct lockf *, int, struct lockf ***, struct lockf **));
+static struct lockf *
+	 lf_getblock __P((struct lockf *));
+static int	 lf_getlock __P((struct lockf *, struct flock *));
+static int	 lf_setlock __P((struct lockf *));
+static void	 lf_split __P((struct lockf *, struct lockf *));
+static void	 lf_wakelock __P((struct lockf *));
 
 /*
  * Advisory record locking support
@@ -157,7 +167,7 @@ lf_advlock(ap, head, size)
 /*
  * Set a byte-range lock.
  */
-int
+static int
 lf_setlock(lock)
 	register struct lockf *lock;
 {
@@ -399,7 +409,7 @@ lf_setlock(lock)
  * Generally, find the lock (or an overlap to that lock)
  * and remove it (or shrink it), then wakeup anyone we can.
  */
-int
+static int
 lf_clearlock(unlock)
 	register struct lockf *unlock;
 {
@@ -468,7 +478,7 @@ lf_clearlock(unlock)
  * Check whether there is a blocking lock,
  * and if so return its process identifier.
  */
-int
+static int
 lf_getlock(lock, fl)
 	register struct lockf *lock;
 	register struct flock *fl;
@@ -502,7 +512,7 @@ lf_getlock(lock, fl)
  * Walk the list of locks for an inode and
  * return the first blocking lock.
  */
-struct lockf *
+static struct lockf *
 lf_getblock(lock)
 	register struct lockf *lock;
 {
@@ -532,7 +542,7 @@ lf_getblock(lock)
  * NOTE: this returns only the FIRST overlapping lock.  There
  *	 may be more than one.
  */
-int
+static int
 lf_findoverlap(lf, lock, type, prev, overlap)
 	register struct lockf *lf;
 	struct lockf *lock;
@@ -641,7 +651,7 @@ lf_findoverlap(lf, lock, type, prev, overlap)
 /*
  * Add a lock to the end of the blocked list.
  */
-void
+static void
 lf_addblock(blocklist, lock)
 	struct lockf *blocklist;
 	struct lockf *lock;
@@ -670,7 +680,7 @@ lf_addblock(blocklist, lock)
  * Split a lock and a contained region into
  * two or three locks as necessary.
  */
-void
+static void
 lf_split(lock1, lock2)
 	register struct lockf *lock1;
 	register struct lockf *lock2;
@@ -717,7 +727,7 @@ lf_split(lock1, lock2)
 /*
  * Wakeup a blocklist
  */
-void
+static void
 lf_wakelock(listhead)
 	struct lockf *listhead;
 {

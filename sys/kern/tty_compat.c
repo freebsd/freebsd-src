@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_compat.c	8.1 (Berkeley) 6/10/93
- * $Id: tty_compat.c,v 1.17 1995/08/02 12:53:14 ache Exp $
+ * $Id: tty_compat.c,v 1.18 1995/11/18 11:07:00 bde Exp $
  */
 
 /*
@@ -48,6 +48,7 @@
 #include <sys/file.h>
 #include <sys/conf.h>
 #include <sys/kernel.h>
+#include <sys/sysctl.h>
 #include <sys/syslog.h>
 
 static int ttcompatgetflags	__P((struct tty	*tp));
@@ -55,7 +56,8 @@ static void ttcompatsetflags	__P((struct tty	*tp, struct termios *t));
 static void ttcompatsetlflags	__P((struct tty	*tp, struct termios *t));
 static int ttcompatspeedtab	__P((int speed, struct speedtab *table));
 
-int ttydebug = 0;
+static int ttydebug = 0;
+SYSCTL_INT(_debug, OID_AUTO, ttydebug, CTLFLAG_RW, &ttydebug, 0, "");
 
 static struct speedtab compatspeeds[] = {
 #define MAX_SPEED	17
