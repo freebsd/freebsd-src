@@ -38,32 +38,32 @@
 .Sh SYNOPSIS
 .Nm
 .Fl i
-.Op Fl cdhmNuvy
+.Op Fl dhmNuvy
 .Op Fl b Ar blocksize
 .Op Fl f Ar file | Fl P Ar pipecommand
 .Op Fl s Ar fileno
 .Nm
 .Fl R
-.Op Fl cdNuvy
+.Op Fl dNuvy
 .Op Fl b Ar blocksize
 .Op Fl f Ar file | Fl P Ar pipecommand
 .Op Fl s Ar fileno
 .Nm
 .Fl r
-.Op Fl cdNuvy
+.Op Fl dNuvy
 .Op Fl b Ar blocksize
 .Op Fl f Ar file | Fl P Ar pipecommand
 .Op Fl s Ar fileno
 .Nm
 .Fl t
-.Op Fl cdhNuvy
+.Op Fl dhNuvy
 .Op Fl b Ar blocksize
 .Op Fl f Ar file | Fl P Ar pipecommand
 .Op Fl s Ar fileno
 .Op Ar
 .Nm
 .Fl x
-.Op Fl cdhmNuvy
+.Op Fl dhmNuvy
 .Op Fl b Ar blocksize
 .Op Fl f Ar file | Fl P Ar pipecommand
 .Op Fl s Ar fileno
@@ -276,15 +276,6 @@ If the
 option is not specified,
 .Nm
 tries to determine the media block size dynamically.
-.It Fl c
-Normally,
-.Nm
-will try to determine dynamically whether the dump was made from an
-old (pre-4.4) or new format file system.
-The
-.Fl c
-flag disables this check, and only allows reading a dump in the old
-format.
 .It Fl d
 Sends verbose debugging output to the standard error.
 .It Fl f Ar file
