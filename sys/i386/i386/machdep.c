@@ -1003,17 +1003,19 @@ cpu_halt(void)
  * On -stable, cpu_idle() is called with interrupts disabled and must
  * return with them enabled.
  */
-#ifdef SMP
-static int	cpu_idle_hlt = 0;
-#else
 static int	cpu_idle_hlt = 1;
-#endif
 SYSCTL_INT(_machdep, OID_AUTO, cpu_idle_hlt, CTLFLAG_RW,
     &cpu_idle_hlt, 0, "Idle loop HLT enable");
 
 void
 cpu_idle(void)
 {
+
+#ifdef SMP
+	if (mp_grab_cpu_hlt())
+		return;
+#endif
+
 	if (cpu_idle_hlt) {
 		/*
 		 * We must guarentee that hlt is exactly the instruction
