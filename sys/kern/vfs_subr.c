@@ -144,7 +144,12 @@ int	nfs_mount_type = -1;
 /* To keep more than one thread at a time from running vfs_getnewfsid */
 static struct mtx mntid_mtx;
 
-/* For any iteration/modification of vnode_free_list */
+/*
+ * Lock for any access to the following:
+ *	vnode_free_list
+ *	numvnodes
+ *	freevnodes
+ */
 static struct mtx vnode_free_list_mtx;
 
 /*
@@ -616,11 +621,14 @@ vnlru_proc(void)
 	s = splbio();
 	for (;;) {
 		kthread_suspend_check(p);
+		mtx_lock(&vnode_free_list_mtx);
 		if (numvnodes - freevnodes <= desiredvnodes * 9 / 10) {
+			mtx_unlock(&vnode_free_list_mtx);
 			vnlruproc_sig = 0;
 			tsleep(vnlruproc, PVFS, "vlruwt", 0);
 			continue;
 		}
+		mtx_unlock(&vnode_free_list_mtx);
 		done = 0;
 		mtx_lock(&mountlist_mtx);
 		for (mp = TAILQ_FIRST(&mountlist); mp != NULL; mp = nmp) {
@@ -741,6 +749,8 @@ getnewvnode(tag, mp, vops, vpp)
 	struct mount *vnmp;
 
 	s = splbio();
+	mtx_lock(&vnode_free_list_mtx);
+
 	/*
 	 * Try to reuse vnodes if we hit the max.  This situation only
 	 * occurs in certain large-memory (2G+) situations.  We cannot
@@ -757,8 +767,6 @@ getnewvnode(tag, mp, vops, vpp)
 	 * a new vnode if we can't find one or if we have not reached a
 	 * good minimum for good LRU performance.
 	 */
-
-	mtx_lock(&vnode_free_list_mtx);
 
 	if (freevnodes >= wantfreevnodes && numvnodes >= minvnodes) {
 		int error;
@@ -870,6 +878,7 @@ getnewvnode(tag, mp, vops, vpp)
 	splx(s);
 
 #if 0
+	mp_fixme("This code does not lock access to numvnodes && freevnodes.");
 	vnodeallocs++;
 	if (vnodeallocs % vnoderecycleperiod == 0 &&
 	    freevnodes < vnoderecycleminfreevn &&
@@ -2761,6 +2770,9 @@ sysctl_vnode(SYSCTL_HANDLER_ARGS)
 	struct vnode *vp;
 	int error, len, n;
 
+	/*
+	 * Stale numvnodes access is not fatal here.
+	 */
 	req->lock = 0;
 	len = (numvnodes + KINFO_VNODESLOP) * sizeof *xvn;
 	if (!req->oldptr)
