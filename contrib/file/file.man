@@ -1,5 +1,5 @@
 .TH FILE __CSECTION__ "Copyright but distributable"
-.\" $Id: file.man,v 1.43 2003/02/08 18:33:53 christos Exp $
+.\" $Id: file.man,v 1.44 2003/02/27 20:47:46 christos Exp $
 .SH NAME
 file
 \- determine file type
@@ -180,10 +180,12 @@ Use the specified separator character instead of ``:''.
 .TP 8
 .B \-i
 Causes the file command to output mime type strings rather than the more
-traditional human readable ones. Thus it may say
+traditional human readable ones.
+Thus it may say
 ``text/plain; charset=us-ascii''
 rather
-than ``ASCII text''. In order for this option to work, file changes the way
+than ``ASCII text''.
+In order for this option to work, file changes the way
 it handles files recognised by the command itself (such as many of the
 text file types, directories etc), and makes use of an alternative
 ``magic'' file.
@@ -197,9 +199,9 @@ Specify an alternate list of files containing magic numbers.
 This can be a single file, or a colon-separated list of files.
 .TP 8
 .B \-n
-Force stdout to be flushed after checking each file. This is only useful if
-checking a list of files. It is intended to be used by programs that want
-filetype output from a pipe.
+Force stdout to be flushed after checking each file.
+This is only useful if checking a list of files.
+It is intended to be used by programs that want filetype output from a pipe.
 .TP 8
 .B \-N
 Don't pad output to align filenames nicely.
@@ -322,7 +324,7 @@ file:     ELF 32-bit LSB executable, Intel 80386, version 1 (SYSV),
 $ file -s /dev/wd0{b,d}
 /dev/wd0b: data
 /dev/wd0d: x86 boot sector
-$ file -s /dev/hda{,1,2,3,4,5,6,7,8,9,10}
+$ file -s /dev/hda{,1,2,3,4,5,6,7,8,9,10}	# Linux
 /dev/hda:   x86 boot sector
 /dev/hda1:  Linux/i386 ext2 filesystem
 /dev/hda2:  x86 boot sector
@@ -334,6 +336,22 @@ $ file -s /dev/hda{,1,2,3,4,5,6,7,8,9,10}
 /dev/hda8:  Linux/i386 swap file
 /dev/hda9:  empty
 /dev/hda10: empty
+
+$ file -s /dev/rwd0e				# BSD
+/dev/rwd0e:
+Unix Fast File system (little-endian),
+last mounted on /usr,
+last written at Mon Feb 10 13:22:40 2003,
+clean flag 2,
+number of blocks 28754208,
+number of data blocks 27812712,
+number of cylinder groups 3566,
+block size 8192,
+fragment size 1024,
+minimum percentage of free blocks 5,
+rotational delay 0ms,
+disk rotational speed 60rps,
+TIME optimization
 
 $ file -i file.c file /dev/{wd0a,hda}
 file.c:      text/x-c
@@ -377,7 +395,8 @@ of non-ASCII files.
 .PP
 The list of contributors to the "Magdir" directory (source for the
 /etc/magic
-file) is too long to include here. You know who you are; thank you.
+file) is too long to include here.
+You know who you are; thank you.
 .SH LEGAL NOTICE
 Copyright (c) Ian F. Darwin, Toronto, Canada, 1986-1999.
 Covered by the standard Berkeley Software Distribution copyright; see the file
@@ -392,7 +411,8 @@ were written by John Gilmore from his public-domain
 program, and are not covered by the above license.
 .SH BUGS
 There must be a better way to automate the construction of the Magic
-file from all the glop in Magdir. What is it?
+file from all the glop in Magdir.
+What is it?
 Better yet, the magic file should be compiled into binary (say,
 .BR ndbm (3)
 or, better yet, fixed-length
@@ -439,7 +459,8 @@ This could be done by using some keyword like `*' for the offset value.
 Another optimisation would be to sort
 the magic file so that we can just run down all the
 tests for the first byte, first word, first long, etc, once we
-have fetched it.  Complain about conflicts in the magic file entries.
+have fetched it.
+Complain about conflicts in the magic file entries.
 Make a rule that the magic entries sort based on file offset rather
 than position within the magic file?
 .PP
@@ -447,7 +468,8 @@ The program should provide a way to give an estimate
 of ``how good'' a guess is.
 We end up removing guesses (e.g. ``From '' as first 5 chars of file) because
 they are not as good as other guesses (e.g. ``Newsgroups:'' versus
-``Return-Path:'').  Still, if the others don't pan out, it should be
+``Return-Path:'').
+Still, if the others don't pan out, it should be
 possible to use the first guess.
 .PP
 This program is slower than some vendors' file commands.
@@ -459,4 +481,4 @@ You can obtain the original author's latest version by anonymous FTP
 on
 .B ftp.astron.com
 in the directory
-.I /pub/file/file-X.YY.tar.gz
+.I /pub/file/file-X.YZ.tar.gz

@@ -110,6 +110,7 @@ Magdir/gimp \
 Magdir/gnu \
 Magdir/grace \
 Magdir/gringotts \
+Magdir/hdf \
 Magdir/hitachi-sh \
 Magdir/hp \
 Magdir/ibm370 \
@@ -185,6 +186,7 @@ Magdir/smalltalk \
 Magdir/sniffer \
 Magdir/softquad \
 Magdir/spectrum \
+Magdir/sql \
 Magdir/sun \
 Magdir/sysex \
 Magdir/teapot \

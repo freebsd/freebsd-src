@@ -16,6 +16,10 @@
 0	string		Seg			StuffIt Deluxe Segment (data)
 >2	string		x			: %s
 
+# Newer StuffIt archives (grant@netbsd.org)
+0	string		StuffIt			StuffIt Archive
+>162	string		>0			: %s
+
 # Macintosh Applications and Installation binaries (franklsm@tuns.ca)
 0	string		APPL			Macintosh Application (data)
 >2	string		x			\b: %s

@@ -41,6 +41,9 @@
    standard headers don't define.  */
 #undef uint64_t
 
+/* Define to `int' if standard headers don't define.  */
+#undef int32_t
+
 /* FIXME: These have to be added manually because autoheader doesn't know
    about AC_CHECK_SIZEOF_INCLUDES.  */
 
