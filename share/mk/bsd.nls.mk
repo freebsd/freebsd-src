@@ -25,7 +25,7 @@
 .error bsd.nls.mk cannot be included directly.
 .endif
 
-GENCAT?=	gencat -new
+GENCAT?=	gencat
 
 .SUFFIXES: .cat .msg
 
