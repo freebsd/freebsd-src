@@ -228,34 +228,6 @@ connection.
 All environment variables mentioned in the documentation for the
 .Xr fetch 3
 library are supported.
-.Sh EXAMPLES
-The various authentication mechanisms can be set using the
-following examples:
-.Pp
-If a proxy needed to be accessed on example.com
-than
-.Pp
-.Dv export HTTP_PROXY=http://trhodes:xxxxxx@proxy.example.com:8080
-.Pp
-should be used, where
-.Dq trhodes:xxxxxx
-would be the applicable username and password,
-.Dq example.com
-would be the domain name and
-.Dq portnum
-would be the required port number.
-The
-.Em HTTP_PROXY
-option uses:
-.Pp
-.Dv HTTP_PROXY="http://proxy.example.com:8080/"
-.Pp
-and
-.Em HTTP_PROXY_AUTH
-option would use the following example:
-.Pp
-.Dv export HTTP_PROXY_AUTH="basic:*:<user>:<password>"
-.Pp
 .Sh SEE ALSO
 .Xr sh 1 ,
 .Xr fetch 3
