@@ -58,6 +58,11 @@
 
 #include "acpi_wakecode.h"
 
+#if __FreeBSD_version < 500000
+#define	vm_page_lock_queues()
+#define	vm_page_unlock_queues()
+#endif
+
 extern void initializecpu(void);
 
 static struct region_descriptor	r_idt, r_gdt, *p_gdt;
