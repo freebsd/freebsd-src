@@ -30,17 +30,17 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: rlogind.c,v 1.16 1997/03/24 06:01:39 imp Exp $
+ *	$Id: rlogind.c,v 1.17 1997/03/28 15:48:16 imp Exp $
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1983, 1988, 1989, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)rlogind.c	8.1 (Berkeley) 6/4/93";
+static const char sccsid[] = "@(#)rlogind.c	8.1 (Berkeley) 6/4/93";
 #endif /* not lint */
 
 /*
@@ -53,6 +53,7 @@ static char sccsid[] = "@(#)rlogind.c	8.1 (Berkeley) 6/4/93";
  */
 
 #define	FD_SETSIZE	16		/* don't need many bits for select */
+#include <sys/types.h>
 #include <sys/param.h>
 #include <sys/stat.h>
 #include <sys/ioctl.h>
@@ -74,6 +75,7 @@ static char sccsid[] = "@(#)rlogind.c	8.1 (Berkeley) 6/4/93";
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
+#include <libutil.h>
 #include "pathnames.h"
 
 #ifndef TIOCPKT_WINDOW
@@ -82,7 +84,7 @@ static char sccsid[] = "@(#)rlogind.c	8.1 (Berkeley) 6/4/93";
 
 #ifdef	KERBEROS
 #include <des.h>
-#include <kerberosIV/krb.h>
+#include <krb.h>
 #define	SECURE_MESSAGE "This rlogin session is using DES encryption for all transmissions.\r\n"
 
 AUTH_DAT	*kdata;
@@ -191,6 +193,7 @@ main(argc, argv)
 		syslog(LOG_WARNING, "setsockopt (IP_TOS): %m");
 
 	doit(0, &from);
+	return 0;
 }
 
 int	child;
@@ -290,7 +293,10 @@ doit(f, fromp)
 #ifdef	KERBEROS
 #ifdef	CRYPT
 	if (doencrypt)
-		(void) des_write(f, SECURE_MESSAGE, sizeof(SECURE_MESSAGE) - 1);
+		(void) des_enc_write(f,
+				     SECURE_MESSAGE,
+				     strlen(SECURE_MESSAGE),
+				     schedule, &kdata->session);
 #endif
 #endif
 	netf = f;
@@ -447,7 +453,8 @@ protocol(f, p)
 #ifdef	CRYPT
 #ifdef	KERBEROS
 			if (doencrypt)
-				fcc = des_read(f, fibuf, sizeof(fibuf));
+				fcc = des_enc_read(f, fibuf, sizeof(fibuf),
+					schedule, &kdata->session);
 			else
 #endif
 #endif
@@ -515,7 +522,8 @@ protocol(f, p)
 #ifdef	CRYPT
 #ifdef	KERBEROS
 			if (doencrypt)
-				cc = des_write(f, pbp, pcc);
+				cc = des_enc_write(f, pbp, pcc,
+					schedule, &kdata->session);
 			else
 #endif
 #endif
@@ -693,7 +701,7 @@ do_krb_login(dest)
 			ticket, "rcmd",
 			instance, dest, &faddr,
 			kdata, "", schedule, version);
-		 des_set_key_krb(&kdata->session, schedule);
+		 des_set_key(&kdata->session, schedule);
 
 	} else
 #endif
