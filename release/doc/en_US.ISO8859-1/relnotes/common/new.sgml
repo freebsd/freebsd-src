@@ -152,7 +152,7 @@
       is no longer needed when only a USB keyboard is connected.
       &merged;</para>
 
-    <para arch="i386">The DRM kernel modules have been updated from
+    <para arch="i386,pc98">The DRM kernel modules have been updated from
       DRI CVS as of 9 September 2003.  Among other changes, this
       import includes a newly-ported SiS 300/305/540/630/730
       driver.</para>
