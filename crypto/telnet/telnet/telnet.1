@@ -41,13 +41,14 @@
 protocol
 .Sh SYNOPSIS
 .Nm telnet
-.Op Fl 8EFKLacdfrx
+.Op Fl 8EFKLNacdfrx
 .Op Fl S Ar tos
 .Op Fl X Ar authtype
 .Op Fl e Ar escapechar
 .Op Fl k Ar realm
 .Op Fl l Ar user
 .Op Fl n Ar tracefile
+.Op Fl s Ar src_addr
 .Oo
 .Ar host
 .Op port
@@ -91,6 +92,9 @@ Specifies no automatic login to the remote system.
 .It Fl L
 Specifies an 8-bit data path on output.  This causes the
 BINARY option to be negotiated on output.
+.It Fl N
+Prevents IP address to name lookup when destination host is given
+as an IP address.
 .It Fl S Ar tos
 Sets the IP type-of-service (TOS) option for the telnet
 connection to the value
@@ -173,6 +177,12 @@ Specifies a user interface similar to
 In this
 mode, the escape character is set to the tilde (~) character,
 unless modified by the -e option.
+.It Fl s Ar src_addr
+Set the source IP address for the
+.Nm
+connection to
+.Ar src_addr ,
+which can be an IP address or a host name.
 .It Fl x
 Turns on encryption of the data stream if possible.  This
 option is not available outside of the United States and
