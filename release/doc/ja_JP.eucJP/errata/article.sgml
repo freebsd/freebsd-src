@@ -2,7 +2,7 @@
     FreeBSD Japanese Documentation Project
 
     $FreeBSD$
-    Original revision: 1.26
+    Original revision: 1.27
 -->
 
 <!-- 
@@ -177,7 +177,8 @@
     <para>&os; 4.7-RELEASE で正常に動作していた
       &man.mly.4; で構成した RAID アレイに
       &os; 5.0 スナップショット版をインストールする際、
-      システムがハングアップするという事例がいくつか報告されています。</para>
+      システムがハングアップするという事例がいくつか報告されていました。
+      これらの問題は、&os; &release.current; で修正されました。</para>
 
     <bridgehead renderas="sect3">NETNCP/Netware ファイルシステム対応</bridgehead>
 

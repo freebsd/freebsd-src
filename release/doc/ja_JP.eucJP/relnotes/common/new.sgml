@@ -3,7 +3,7 @@
 
     $FreeBSD$
 
-    Original revision: 1.492
+    Original revision: 1.493
 -->
 
 <articleinfo>
@@ -198,6 +198,9 @@
         <literal>GEOM_VOL</literal> モジュールを使うと、
         <filename>/dev/vol</filename>
         以下に現れるボリュームラベルを使ってボリュームにアクセスすることが可能になります。</para>
+
+      <para>&man.vinum.4; ボリュームにルートファイルシステムが置けるようになりました。
+        詳しくは &man.vinum.4; のマニュアルページをご覧ください。</para>
     </sect3>
 
     <sect3>
@@ -310,6 +313,11 @@
     <para>&man.ping.8; に、送出パケットの
       Type of Service ビットをセットする
       <option>-z</option> フラグが追加されました。</para>
+
+    <para>&man.pw.8; が、<literal>$</literal>
+      文字で終わるユーザの追加に対応しました。
+      これは、主に <application>Samba</application>
+      サービスの管理を容易にするための変更です。&merged;</para>
 
     <para arch="sparc64">Sun ディスクラベルで動作する
       &man.disklabel.8; 風のプログラム、
