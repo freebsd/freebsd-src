@@ -69,6 +69,7 @@ void	udp_stats (u_long, const char *, int);
 void	ip_stats (u_long, const char *, int);
 void	icmp_stats (u_long, const char *, int);
 void	igmp_stats (u_long, const char *, int);
+void	pim_stats (u_long, const char *, int);
 #ifdef IPSEC
 void	ipsec_stats (u_long, const char *, int);
 #endif
