@@ -782,7 +782,7 @@ osigreturn(p, uap)
 
 	scp = uap->sigcntxp;
 
-	if (!useracc((caddr_t)scp, sizeof (struct osigcontext), VM_PROT_WRITE))
+	if (!useracc((caddr_t)scp, sizeof (struct osigcontext), VM_PROT_READ))
 		return(EFAULT);
 
 	eflags = scp->sc_ps;
@@ -893,7 +893,7 @@ sigreturn(p, uap)
 	ucp = uap->sigcntxp;
 	eflags = ucp->uc_mcontext.mc_eflags;
 
-	if (!useracc((caddr_t)ucp, sizeof(ucontext_t), VM_PROT_WRITE))
+	if (!useracc((caddr_t)ucp, sizeof(ucontext_t), VM_PROT_READ))
 		return(EFAULT);
 
 	if (eflags & PSL_VM) {
