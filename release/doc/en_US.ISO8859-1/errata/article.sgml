@@ -225,6 +225,11 @@ boot</screen>
       and a floppy disk properly when it is specified in the <option>-f</option>
       option.  As an alternative &man.gtar.1; (<application>GNU tar</application>)
       can be used.</para>
+
+    <para>(9 Nov 2004) The &man.geom.4;-aware &man.vinum.4; subsystem
+      does not work for RAID5 volumes on machines with a single processor.
+      The configurations other than RAID5 (such as RAID1) should work correctly.
+      This problem has been fixed on the RELENG_5 branch.</para>
   </sect1>
 
   <sect1 id="late-news">
