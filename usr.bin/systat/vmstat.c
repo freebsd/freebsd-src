@@ -80,8 +80,8 @@ static struct Info {
 	long	*intrcnt;
 	int	bufspace;
 	int	desiredvnodes;
-	long	numvnodes;
-	long	freevnodes;
+	int	numvnodes;
+	int	freevnodes;
 	long	numdirtybuffers;
 } s, s1, s2, z;
 
@@ -716,8 +716,8 @@ getinfo(s, st)
 	enum state st;
 {
 	struct devinfo *tmp_dinfo;
-	size_t len;
-	int mib[2], size, err;
+	size_t len, size;
+	int mib[2], err;
 
 	len = sizeof(s->time);
 	err = sysctlbyname("kern.cp_time", &s->time, &len, NULL, 0);
