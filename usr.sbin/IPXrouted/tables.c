@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: tables.c,v 1.1 1995/10/26 21:28:27 julian Exp $
+ *	$Id: tables.c,v 1.2 1996/04/13 15:13:27 jhay Exp $
  */
 
 #ifndef lint
@@ -47,8 +47,6 @@ static char sccsid[] = "@(#)tables.c	8.1 (Berkeley) 6/5/93";
 #include <errno.h>
 #include <stdlib.h>
 #include <unistd.h>
-/* XXX I thought that this should work! #include <sys/systm.h> */
-#include <machine/cpufunc.h>
 
 #ifndef DEBUG
 #define	DEBUG	0
@@ -60,7 +58,6 @@ int	install = !DEBUG;		/* if 1 call kernel */
 int	delete = 1;
 
 struct  rthash nethash[ROUTEHASHSIZ];
-struct  rthash hosthash[ROUTEHASHSIZ];
 
 /*
  * Lookup dst in the tables for an exact match.
@@ -73,25 +70,17 @@ rtlookup(dst)
 	register struct rthash *rh;
 	register u_int hash;
 	struct afhash h;
-	int doinghost = 1;
 
 	if (dst->sa_family >= AF_MAX)
 		return (0);
 	(*afswitch[dst->sa_family].af_hash)(dst, &h);
-	hash = h.afh_hosthash;
-	rh = &hosthash[hash & ROUTEHASHMASK];
-again:
+	hash = h.afh_nethash;
+	rh = &nethash[hash & ROUTEHASHMASK];
 	for (rt = rh->rt_forw; rt != (struct rt_entry *)rh; rt = rt->rt_forw) {
 		if (rt->rt_hash != hash)
 			continue;
 		if (equal(&rt->rt_dst, dst))
 			return (rt);
-	}
-	if (doinghost) {
-		doinghost = 0;
-		hash = h.afh_nethash;
-		rh = &nethash[hash & ROUTEHASHMASK];
-		goto again;
 	}
 	return (0);
 }
@@ -108,34 +97,21 @@ rtfind(dst)
 	register u_int hash;
 	struct afhash h;
 	int af = dst->sa_family;
-	int doinghost = 1, (*match)() = 0;
+	int (*match)() = 0;
 
 	if (af >= AF_MAX)
 		return (0);
 	(*afswitch[af].af_hash)(dst, &h);
-	hash = h.afh_hosthash;
-	rh = &hosthash[hash & ROUTEHASHMASK];
 
-again:
+	hash = h.afh_nethash;
+	rh = &nethash[hash & ROUTEHASHMASK];
+	match = afswitch[af].af_netmatch;
 	for (rt = rh->rt_forw; rt != (struct rt_entry *)rh; rt = rt->rt_forw) {
 		if (rt->rt_hash != hash)
 			continue;
-		if (doinghost) {
-			if (equal(&rt->rt_dst, dst))
-				return (rt);
-		} else {
-			if (rt->rt_dst.sa_family == af &&
-			    (match != 0) &&
-			    (*match)(&rt->rt_dst, dst))
-				return (rt);
-		}
-	}
-	if (doinghost) {
-		doinghost = 0;
-		hash = h.afh_nethash;
-		rh = &nethash[hash & ROUTEHASHMASK];
-		match = afswitch[af].af_netmatch;
-		goto again;
+		if (rt->rt_dst.sa_family == af &&
+		    (*match)(&rt->rt_dst, dst))
+			return (rt);
 	}
 	return (0);
 }
@@ -158,13 +134,8 @@ rtadd(dst, gate, metric, ticks, state)
 		return;
 	(*afswitch[af].af_hash)(dst, &h);
 	flags = (*afswitch[af].af_ishost)(dst) ? RTF_HOST : 0;
-	if (flags & RTF_HOST) {
-		hash = h.afh_hosthash;
-		rh = &hosthash[hash & ROUTEHASHMASK];
-	} else {
-		hash = h.afh_nethash;
-		rh = &nethash[hash & ROUTEHASHMASK];
-	}
+	hash = h.afh_nethash;
+	rh = &nethash[hash & ROUTEHASHMASK];
 	rt = (struct rt_entry *)malloc(sizeof (*rt));
 	if (rt == 0)
 		return;
@@ -181,7 +152,7 @@ rtadd(dst, gate, metric, ticks, state)
 	if (metric)
 		rt->rt_flags |= RTF_GATEWAY;
 	insque(rt, rh);
-	TRACE_ACTION(ADD, rt);
+	TRACE_ACTION("ADD", rt);
 	/*
 	 * If the ioctl fails because the gateway is unreachable
 	 * from this host, discard the entry.  This should only
@@ -191,7 +162,7 @@ rtadd(dst, gate, metric, ticks, state)
 		if (errno != EEXIST)
 			perror("SIOCADDRT");
 		if (errno == ENETUNREACH) {
-			TRACE_ACTION(DELETE, rt);
+			TRACE_ACTION("DELETE", rt);
 			remque(rt);
 			free((char *)rt);
 		}
@@ -217,13 +188,8 @@ rtadd_clone(ort, dst, gate, metric, ticks, state)
 		return;
 	(*afswitch[af].af_hash)(dst, &h);
 	flags = (*afswitch[af].af_ishost)(dst) ? RTF_HOST : 0;
-	if (flags & RTF_HOST) {
-		hash = h.afh_hosthash;
-		rh = &hosthash[hash & ROUTEHASHMASK];
-	} else {
-		hash = h.afh_nethash;
-		rh = &nethash[hash & ROUTEHASHMASK];
-	}
+	hash = h.afh_nethash;
+	rh = &nethash[hash & ROUTEHASHMASK];
 	rt = (struct rt_entry *)malloc(sizeof (*rt));
 	if (rt == 0)
 		return;
@@ -245,7 +211,7 @@ rtadd_clone(ort, dst, gate, metric, ticks, state)
 	while(ort->rt_clone != NULL)
 		ort = ort->rt_clone;
 	ort->rt_clone = rt;
-	TRACE_ACTION(ADD_CLONE, rt);
+	TRACE_ACTION("ADD_CLONE", rt);
 }
 
 void
@@ -321,7 +287,7 @@ rtchange(rt, gate, metric, ticks)
 	if ((metric != rt->rt_metric) || (ticks != rt->rt_ticks))
 		metricchanged++;
 	if (doioctl || metricchanged) {
-		TRACE_ACTION(CHANGE FROM, rt);
+		TRACE_ACTION("CHANGE FROM", rt);
 		if (doioctl) {
 			oldroute = rt->rt_rt;
 			rt->rt_router = *gate;
@@ -342,15 +308,16 @@ rtchange(rt, gate, metric, ticks)
 			rt->rt_flags |= RTF_GATEWAY;
 		else
 			rt->rt_flags &= ~RTF_GATEWAY;
+		rt->rt_ifp = if_ifwithnet(&rt->rt_router);
 		rt->rt_state |= RTS_CHANGED;
-		TRACE_ACTION(CHANGE TO, rt);
+		TRACE_ACTION("CHANGE TO", rt);
 	}
 	if (doioctl && install) {
 #ifndef RTM_ADD
 		if (rtioctl(ADD, &rt->rt_rt) < 0)
 		  syslog(LOG_ERR, "rtioctl ADD dst %s, gw %s: %m",
-		   xns_ntoa(&((struct sockaddr_ns *)&rt->rt_dst)->sns_addr),
-		   xns_ntoa(&((struct sockaddr_ns *)&rt->rt_router)->sns_addr));
+		   ipx_ntoa(&((struct sockaddr_ipx *)&rt->rt_dst)->sipx_addr),
+		   ipx_ntoa(&((struct sockaddr_ipx *)&rt->rt_router)->sipx_addr));
 		if (delete && rtioctl(DELETE, &oldroute) < 0)
 			perror("rtioctl DELETE");
 #else
@@ -394,7 +361,7 @@ rtdelete(rt)
 			syslog(LOG_ERR, 
 				"deleting route to interface ??? (timed out)");
 	}
-	TRACE_ACTION(DELETE, rt);
+	TRACE_ACTION("DELETE", rt);
 	if (install && rtioctl(DELETE, &rt->rt_rt) < 0)
 		perror("rtioctl DELETE");
 	remque(rt);
@@ -407,8 +374,6 @@ rtinit(void)
 	register struct rthash *rh;
 
 	for (rh = nethash; rh < &nethash[ROUTEHASHSIZ]; rh++)
-		rh->rt_forw = rh->rt_back = (struct rt_entry *)rh;
-	for (rh = hosthash; rh < &hosthash[ROUTEHASHSIZ]; rh++)
 		rh->rt_forw = rh->rt_back = (struct rt_entry *)rh;
 }
 int seqno;
@@ -467,4 +432,3 @@ rtioctl(action, ort)
 	return write(r, (char *)&w, rtm.rtm_msglen);
 #endif  /* RTM_ADD */
 }
-

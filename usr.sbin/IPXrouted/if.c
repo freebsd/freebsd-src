@@ -34,7 +34,7 @@
  *
  * static char sccsid[] = "@(#)if.c	5.1 (Berkeley) 6/4/85"; (routed/if.c)
  *
- *	$Id: if.c,v 1.2 1995/10/11 18:57:14 jhay Exp $
+ *	$Id: if.c,v 1.1 1995/10/26 21:28:16 julian Exp $
  */
 
 #ifndef lint
@@ -58,7 +58,7 @@ if_ifwithaddr(addr)
 	register struct interface *ifp;
 
 #define	same(a1, a2) \
-	(bcmp((caddr_t)((a1)->sa_data), (caddr_t)((a2)->sa_data), 14) == 0)
+	(bcmp((caddr_t)((a1)->sa_data), (caddr_t)((a2)->sa_data), 10) == 0)
 	for (ifp = ifnet; ifp; ifp = ifp->int_next) {
 		if (ifp->int_flags & IFF_REMOTE)
 			continue;
