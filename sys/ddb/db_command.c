@@ -472,7 +472,7 @@ db_error(s)
 	char *s;
 {
 	if (s)
-	    db_printf(s);
+	    db_printf("%s", s);
 	db_flush_lex();
 	longjmp(db_jmpbuf, 1);
 }
