@@ -1,18 +1,27 @@
 #
-# $Id$
+# $Id: Makefile,v 1.9 1997/02/22 15:06:14 peter Exp $
 #
 
 LCRYPTBASE= 	libcrypt
-LCRYPTSO=	${LCRYPTBASE}.so.${SHLIB_MAJOR}.${SHLIB_MINOR}
-
 LSCRYPTBASE= 	libscrypt
+
+.if ${BINFORMAT} != elf
+LCRYPTSO=	${LCRYPTBASE}.so.${SHLIB_MAJOR}.${SHLIB_MINOR}
 LSCRYPTSO=	${LSCRYPTBASE}.so.${SHLIB_MAJOR}.${SHLIB_MINOR}
+.else
+LCRYPTSO=	${LCRYPTBASE}.so.${SHLIB_MAJOR}
+LSCRYPTSO=	${LSCRYPTBASE}.so.${SHLIB_MAJOR}
+.endif
 
 # called libscrypt - for scramble crypt!
 .PATH:	${.CURDIR}/../libmd
 LIB=	scrypt
 SRCS=	crypt.c md5c.c
 CFLAGS+=	-I${.CURDIR}/../libmd
+
+.if ${BINFORMAT} == elf
+SONAME=	${LCRYPTBASE}.so.${SHLIB_MAJOR}
+.endif
 
 # We only install the links if they do not already exist.
 # This may have to be revised
@@ -23,6 +32,13 @@ afterinstall:
 	if [ ! -e ${LCRYPTSO} ]; then \
 	rm -f ${LCRYPTSO}; \
 	ln -s ${LSCRYPTSO} ${LCRYPTSO}; \
+	fi
+.endif
+.if !defined(NOPIC) && ${BINFORMAT} == elf
+	@cd  ${DESTDIR}${LIBDIR}; \
+	if [ ! -e ${LCRYPTBASE}.so ]; then \
+	rm -f ${LCRYPTBASE}.so; \
+	ln -s ${LSCRYPTBASE}.so libcrypt.so; \
 	fi
 .endif
 	@cd  ${DESTDIR}${LIBDIR}; \
