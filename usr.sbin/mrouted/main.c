@@ -349,10 +349,14 @@ main(argc, argv)
     sigaction(SIGUSR1, &sa, NULL);
     sigaction(SIGUSR2, &sa, NULL);
 
+    if (igmp_socket >= FD_SETSIZE)
+	    log(LOG_ERR, 0, "descriptor too big");
     FD_ZERO(&readers);
     FD_SET(igmp_socket, &readers);
     nfds = igmp_socket + 1;
     for (i = 0; i < nhandlers; i++) {
+	if (ihandlers[i].fd >= FD_SETSIZE)
+		log(LOG_ERR, 0, "descriptor too big");
 	FD_SET(ihandlers[i].fd, &readers);
 	if (ihandlers[i].fd >= nfds)
 	    nfds = ihandlers[i].fd + 1;
