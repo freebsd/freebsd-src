@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: perform.c,v 1.9 1994/10/04 16:07:43 jkh Exp $";
+static const char *rcsid = "$Id: perform.c,v 1.10 1994/10/14 05:34:04 jkh Exp $";
 #endif
 
 /*
@@ -56,6 +56,7 @@ static int
 pkg_do(char *pkg)
 {
     char pkg_fullname[FILENAME_MAX];
+    char home[FILENAME_MAX];
     FILE *cfile;
     int code = 0;
     PackingList p;
@@ -77,8 +78,6 @@ pkg_do(char *pkg)
 	read_plist(&Plist, stdin);
     }
     else {
-	char home[FILENAME_MAX];
-
 	if (!getcwd(home, FILENAME_MAX))
 	    upchuck("getcwd"); 
 
