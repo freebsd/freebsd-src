@@ -60,10 +60,10 @@ static const char rcsid[] =
 
 static	int lineno = 0;
 static	int verbose = 0;
-static	char *ccdconf = _PATH_CCDCONF;
+static	const char *ccdconf = _PATH_CCDCONF;
 
 struct	flagval {
-	char	*fv_flag;
+	const char	*fv_flag;
 	int	fv_val;
 } flagvaltab[] = {
 	{ "CCDF_UNIFORM",	CCDF_UNIFORM },
@@ -78,15 +78,13 @@ struct	flagval {
 #define CCD_DUMP		4	/* dump a ccd's configuration */
 
 static	int checkdev(char *);
-static	int do_io(char *, u_long, struct ccd_ioctl *);
+static	int do_io(int, u_long, struct ccd_ioctl *);
 static	int do_single(int, char **, int);
 static	int do_all(int);
 static	int dump_ccd(int, char **);
-static	int getmaxpartitions(void);
-static	int getrawpartition(void);
 static	int flags_to_val(char *);
 static	void print_ccd_info(struct ccd_s *);
-static	char *resolve_ccdname(char *);
+static	int resolve_ccdname(char *);
 static	void usage(void);
 
 int
@@ -167,8 +165,9 @@ static int
 do_single(int argc, char **argv, int action)
 {
 	struct ccd_ioctl ccio;
-	char *ccd, *cp, *cp2, **disks;
-	int noflags = 0, i, ileave, flags = 0, j;
+	char *cp, *cp2, **disks;
+	int ccd, noflags = 0, i, ileave, flags = 0, j;
+	u_int u;
 
 	bzero(&ccio, sizeof(ccio));
 
@@ -261,14 +260,14 @@ do_single(int argc, char **argv, int action)
 	if (verbose) {
 		printf("ccd%d: %d components ", ccio.ccio_unit,
 		    ccio.ccio_ndisks);
-		for (i = 0; i < ccio.ccio_ndisks; ++i) {
-			if ((cp2 = strrchr(disks[i], '/')) != NULL)
+		for (u = 0; u < ccio.ccio_ndisks; ++u) {
+			if ((cp2 = strrchr(disks[u], '/')) != NULL)
 				++cp2;
 			else
-				cp2 = disks[i];
+				cp2 = disks[u];
 			printf("%c%s%c",
-			    i == 0 ? '(' : ' ', cp2,
-			    i == ccio.ccio_ndisks - 1 ? ')' : ',');
+			    u == 0 ? '(' : ' ', cp2,
+			    u == ccio.ccio_ndisks - 1 ? ')' : ',');
 		}
 		printf(", %lu blocks ", (u_long)ccio.ccio_size);
 		if (ccio.ccio_ileave != 0)
@@ -360,62 +359,27 @@ checkdev(char *path)
 }
 
 static int
-pathtounit(char *path, int *unitp)
-{
-	struct stat st;
-	int maxpartitions;
-
-	if (stat(path, &st) != 0)
-		return (errno);
-
-	if (!S_ISBLK(st.st_mode) && !S_ISCHR(st.st_mode))
-		return (EINVAL);
-
-	if ((maxpartitions = getmaxpartitions()) < 0)
-		return (errno);
-
-	*unitp = minor(st.st_rdev) / maxpartitions;
-
-	return (0);
-}
-
-static char *
 resolve_ccdname(char *name)
 {
-	char c, *path;
-	size_t len, newlen;
-	int rawpart;
 
-	if (name[0] == '/' || name[0] == '.') {
-		/* Assume they gave the correct pathname. */
-		return (strdup(name));
-	}
-
-	len = strlen(name);
-	c = name[len - 1];
-
-	newlen = len + 8;
-	if ((path = malloc(newlen)) == NULL)
-		return (NULL);
-	bzero(path, newlen);
-
-	if (isdigit(c)) {
-		if ((rawpart = getrawpartition()) < 0) {
-			free(path);
-			return (NULL);
-		}
-		(void)sprintf(path, "%s%s%c", _PATH_DEV, name, 'a' + rawpart);
-	} else
-		(void)sprintf(path, "%s%s", _PATH_DEV, name);
-
-	return (path);
+	if (!strncmp(name, _PATH_DEV, strlen(_PATH_DEV)))
+		name += strlen(_PATH_DEV);
+	if (strncmp(name, "ccd", 3))
+		return -1;
+	name += 3;
+	if (!isdigit(*name))
+		return -1;
+	return (strtoul(name, NULL, 10));
 }
 
 static int
-do_io(char *path, u_long cmd, struct ccd_ioctl *cciop)
+do_io(int unit, u_long cmd, struct ccd_ioctl *cciop)
 {
 	int fd;
 	char *cp;
+	char *path;
+
+	asprintf(&path, "%sccd%dc", _PATH_DEV, unit);
 
 	if ((fd = open(path, O_RDWR, 0640)) < 0) {
 		warn("open: %s", path);
@@ -453,15 +417,16 @@ do_io(char *path, u_long cmd, struct ccd_ioctl *cciop)
 static int
 dump_ccd(int argc, char **argv)
 {
-	char *ccd, *cp;
+	char *cp;
 	int i, error, numccd, numconfiged = 0;
 	struct ccdconf conf;
+	int ccd;
 
 	/*
 	 * Read the ccd configuration data from the kernel and dump
 	 * it to stdout.
 	 */
-	if ((ccd = resolve_ccdname("ccd0")) == NULL) {		/* XXX */
+	if ((ccd = resolve_ccdname("ccd0")) < 0) {		/* XXX */
 		warnx("invalid ccd name: %s", cp);
 		return (1);
 	}
@@ -489,17 +454,13 @@ dump_ccd(int argc, char **argv)
 	} else {
 		while (argc) {
 			cp = *argv++; --argc;
-			if ((ccd = resolve_ccdname(cp)) == NULL) {
+			if ((ccd = resolve_ccdname(cp)) < 0) {
 				warnx("invalid ccd name: %s", cp);
-				continue;
-			}
-			if ((error = pathtounit(ccd, &numccd)) != 0) {
-				warnx("%s: %s", ccd, strerror(error));
 				continue;
 			}
 			error = 1;
 			for (i = 0; i < numconfiged; i++) {
-				if (conf.buffer[i].sc_unit == numccd) {
+				if (conf.buffer[i].sc_unit == ccd) {
 					print_ccd_info(&(conf.buffer[i]));
 					error = 0;
 					break;
@@ -518,9 +479,10 @@ dump_ccd(int argc, char **argv)
 static void
 print_ccd_info(struct ccd_s *cs)
 {
-	char *cp, *ccd;
+	char *cp;
 	static int header_printed = 0;
 	struct ccdcpps cpps;
+	int ccd;
 
 	/* Print out header if necessary*/
 	if (header_printed == 0 && verbose) {
@@ -543,7 +505,7 @@ print_ccd_info(struct ccd_s *cs)
 		return;
 	}
 
-	if ((ccd = resolve_ccdname(cp)) == NULL) {
+	if ((ccd = resolve_ccdname(cp)) < 0) {
 		printf("\n");
 		warnx("can't read component info: invalid ccd name: %s", cp);
 		return;
@@ -574,18 +536,6 @@ print_ccd_info(struct ccd_s *cs)
 		fflush(stdout);
 	}
 	return;
-}
-
-static int
-getmaxpartitions(void)
-{
-    return (MAXPARTITIONS);
-}
-
-static int
-getrawpartition(void)
-{
-	return (RAW_PART);
 }
 
 static int
