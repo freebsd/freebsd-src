@@ -218,11 +218,11 @@ struct sigaction {
 	sigset_t sa_mask;		/* signal mask to apply */
 };
 
-/* if SA_SIGINFO is set, sa_sigaction is to be used instead of sa_handler. */
 #define	sa_handler	__sigaction_u.__sa_handler
 #endif
 
 #if __XSI_VISIBLE
+/* If SA_SIGINFO is set, sa_sigaction must be used instead of sa_handler. */
 #define	sa_sigaction	__sigaction_u.__sa_sigaction
 #endif
 
