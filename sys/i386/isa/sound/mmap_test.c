@@ -13,24 +13,31 @@
  * (3.8-beta16 or later in FreeBSD and BSD/OS).
  */
 
-#include <stdio.h>
-#include <unistd.h>
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
+
+#include <err.h>
 #include <fcntl.h>
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
 #include <sys/types.h>
 #include <sys/mman.h>
 #include <machine/soundcard.h>
 #include <sys/time.h>
 
+int
 main()
 {
-	int fd, sz, fsz, i, tmp, n, l, have_data=0, nfrag;
+	int fd, sz, fsz, tmp, nfrag;
         int caps;
 
 	int sd, sl=0, sp;
 
 	unsigned char data[500000], *dp = data;
 
-	struct buffmem_desc imemd, omemd;
         caddr_t buf;
 	struct timeval tim;
 
@@ -44,10 +51,7 @@ main()
 
 	close(0);
 	if ((fd=open("/dev/dsp", O_RDWR, 0))==-1)
-	{
-		perror("/dev/dsp");
-		exit(-1);
-	}
+		err(1, "/dev/dsp");
 /*
  * Then setup sampling parameters. Just sampling rate in this case.
  */
@@ -66,13 +70,12 @@ main()
 	printf("%d bytes read from file.\n", sl);
 	close(sd);
   }
-  else perror("smpl");
+  else warn("smpl");
 
 	if (ioctl(fd, SNDCTL_DSP_GETCAPS, &caps)==-1)
 	{
-		perror("/dev/dsp");
-		fprintf(stderr, "Sorry but your sound driver is too old\n");
-		exit(-1);
+		warn("sorry but your sound driver is too old");
+		err(1, "/dev/dsp");
 	}
 
 /*
@@ -92,10 +95,7 @@ main()
  */
 	if (!(caps & DSP_CAP_TRIGGER) ||
 	    !(caps & DSP_CAP_MMAP))
-	{
-		fprintf(stderr, "Sorry but your soundcard can't do this\n");
-		exit(-1);
-	}
+		errx(1, "sorry but your soundcard can't do this");
 
 /*
  * Select the fragment size. This is propably important only when
@@ -111,10 +111,7 @@ main()
  */
 
 	if (ioctl(fd, SNDCTL_DSP_GETOSPACE, &info)==-1)
-	{
-		perror("GETOSPACE");
-		exit(-1);
-	}
+		err(1, "GETOSPACE");
 
 	sz = info.fragstotal * info.fragsize;
 	fsz = info.fragsize;
@@ -143,10 +140,7 @@ main()
  */
 
 	if ((buf=mmap(NULL, sz, PROT_WRITE | PROT_READ, MAP_FILE|MAP_SHARED, fd, 0))==(caddr_t)-1)
-  	{
-		perror("mmap (write)");
-		exit(-1);
-	}
+		err(1, "mmap (write)");
 	printf("mmap (out) returned %08x\n", buf);
 	op=buf;
 
@@ -186,7 +180,7 @@ main()
 	while (1)
 	{
 		struct count_info count;
-		int p, l, extra;
+		int extra;
 
 		FD_ZERO(&writeset);
 		FD_SET(fd, &writeset);
@@ -209,10 +203,7 @@ main()
  */
 
 		if (ioctl(fd, SNDCTL_DSP_GETOPTR, &count)==-1)
-		{
-			perror("GETOPTR");
-			exit(-1);
-		}
+			err(1, "GETOPTR");
                 if (count.ptr < 0 ) count.ptr = 0;
 		nfrag += count.blocks;
 
