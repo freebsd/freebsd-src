@@ -27,10 +27,54 @@
  */
 
 /*
- * Drive status
+ * ioctl interface
  */
 
-#define AMRD_OFFLINE	0x0
-#define AMRD_DEGRADED	0x1
-#define AMRD_OPTIMAL	0x2
-#define AMRD_DELETED	0x3
+#include <sys/ioccom.h>
+
+/*
+ * Fetch the driver's interface version.
+ */
+#define AMR_IO_VERSION_NUMBER	0x01
+#define AMR_IO_VERSION	_IOR('A', 0x200, int)
+
+/*
+ * Pass a command from userspace through to the adapter.
+ *
+ * Note that in order to be code-compatible with the Linux
+ * interface where possible, the formatting of the au_cmd field is
+ * somewhat Interesting.
+ *
+ * For normal commands, the layout is (fields from struct amr_mailbox_ioctl):
+ *
+ * 0		mb_command
+ * 1		mb_channel
+ * 2		mb_param
+ * 3		mb_pad[0]
+ * 4		mb_drive
+ *
+ * For SCSI passthrough commands, the layout is:
+ *
+ * 0		AMR_CMD_PASS	(0x3)
+ * 1		reserved, 0
+ * 2		cdb length
+ * 3		cdb data
+ * 3+cdb_len	passthrough control byte (timeout, ars, islogical)
+ * 4+cdb_len	reserved, 0
+ * 5+cdb_len	channel
+ * 6+cdb_len	target
+ */
+
+struct amr_user_ioctl {
+    unsigned char	au_cmd[32];	/* command text from userspace */
+    void		*au_buffer;	/* data buffer in userspace */
+    unsigned long	au_length;	/* data buffer size (0 == no data) */
+    int			au_direction;	/* data transfer direction */
+#define AMR_IO_NODATA	0
+#define AMR_IO_READ	1
+#define AMR_IO_WRITE	2
+    int			au_status;	/* command status returned by adapter */
+};
+
+#define AMR_IO_COMMAND	_IOWR('A', 0x201, struct amr_user_ioctl)
+
