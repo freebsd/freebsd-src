@@ -1,7 +1,7 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-#	$Id: files.i386,v 1.221 1999/02/10 02:41:23 des Exp $
+#	$Id: files.i386,v 1.222 1999/02/11 07:11:00 gibbs Exp $
 #
 # The long compile-with and dependency lines are required because of
 # limitations in config: backslash-newline doesn't work in strings, and
@@ -139,6 +139,23 @@ i386/isa/if_sr.c		optional	sr	device-driver
 i386/isa/if_wl.c		optional	wl	device-driver
 i386/isa/if_ze.c		optional	ze	device-driver
 i386/isa/if_zp.c		optional	zp	device-driver
+dev/oltr/if_oltr.c		optional	oltr	device-driver
+dev/oltr/trlld.o		optional	oltr	device-driver	\
+	dependency	"$S/$@.uu"					\
+	compile-with	"uudecode < $S/$@.uu"				\
+	no-implicit-rule before-depend
+dev/oltr/trlldmac.o		optional	oltr	device-driver	\
+	dependency	"$S/$@.uu"					\
+	compile-with	"uudecode < $S/$@.uu"				\
+	no-implicit-rule before-depend
+dev/oltr/trlldhm.o		optional	oltr	device-driver	\
+	dependency	"$S/$@.uu"					\
+	compile-with	"uudecode < $S/$@.uu"				\
+	no-implicit-rule before-depend
+dev/oltr/trlldbm.o		optional	oltr	device-driver	\
+	dependency	"$S/$@.uu"					\
+	compile-with	"uudecode < $S/$@.uu"				\
+	no-implicit-rule before-depend
 i386/isa/ipl_funcs.c		standard				   \
 	compile-with	"${CC} -c ${CFLAGS} ${DEFINED_PROF:S/^$/-fomit-frame-pointer/} $<"
 i386/isa/intr_machdep.c		standard
