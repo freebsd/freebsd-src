@@ -189,6 +189,7 @@ extern	int ieee80211_next_scan(struct ieee80211com *);
 extern	void ieee80211_create_ibss(struct ieee80211com*,
 		struct ieee80211_channel *);
 extern	void ieee80211_reset_bss(struct ieee80211com *);
+extern	void ieee80211_cancel_scan(struct ieee80211com *);
 extern	void ieee80211_end_scan(struct ieee80211com *);
 extern	int ieee80211_ibss_merge(struct ieee80211com *,
 		struct ieee80211_node *);

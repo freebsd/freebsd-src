@@ -570,6 +570,20 @@ ieee80211_node_compare(struct ieee80211com *ic,
 }
 
 /*
+ * Mark an ongoing scan stopped.
+ */
+void
+ieee80211_cancel_scan(struct ieee80211com *ic)
+{
+
+	IEEE80211_DPRINTF(ic, IEEE80211_MSG_SCAN, "%s: end %s scan\n",
+		__func__,
+		(ic->ic_flags & IEEE80211_F_ASCAN) ?  "active" : "passive");
+
+	ic->ic_flags &= ~(IEEE80211_F_SCAN | IEEE80211_F_ASCAN);
+}
+
+/*
  * Complete a scan of potential channels.
  */
 void
@@ -578,14 +592,11 @@ ieee80211_end_scan(struct ieee80211com *ic)
 	struct ieee80211_node *ni, *nextbs, *selbs;
 	struct ieee80211_node_table *nt;
 
-	IEEE80211_DPRINTF(ic, IEEE80211_MSG_SCAN, "end %s scan\n",
-		(ic->ic_flags & IEEE80211_F_ASCAN) ?  "active" : "passive");
+	ieee80211_cancel_scan(ic);
+	ieee80211_notify_scan_done(ic);
 
-	ic->ic_flags &= ~(IEEE80211_F_SCAN | IEEE80211_F_ASCAN);
 	nt = &ic->ic_scan;
 	ni = TAILQ_FIRST(&nt->nt_node);
-
-	ieee80211_notify_scan_done(ic);
 
 	if (ic->ic_opmode == IEEE80211_M_HOSTAP) {
 		u_int8_t maxrssi[IEEE80211_CHAN_MAX];	/* XXX off stack? */
