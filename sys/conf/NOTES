@@ -1805,8 +1805,6 @@ hint.si.0.at="isa"
 hint.si.0.maddr="0xd0000"
 hint.si.0.irq="12"
 device		nmdm
-# HOT1 Xilinx 6200 card (http://www.vcc.com/)
-device		xrpu
 
 #
 # The `meteor' device is a PCI video capture board. It can also have the
