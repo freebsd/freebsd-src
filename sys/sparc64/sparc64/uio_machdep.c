@@ -101,7 +101,7 @@ uiomove_fromphys(vm_page_t ma[], vm_offset_t offset, int n, struct uio *uio)
 		m = ma[offset >> PAGE_SHIFT];
 		pa = VM_PAGE_TO_PHYS(m);
 		if (m->md.color != DCACHE_COLOR(pa)) {
-			sf = sf_buf_alloc(m);
+			sf = sf_buf_alloc(m, 0);
 			cp = (char *)sf_buf_kva(sf) + page_offset;
 		} else {
 			sf = NULL;
