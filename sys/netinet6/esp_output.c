@@ -404,7 +404,7 @@ esp_output(m, nexthdrp, md, isr, af)
 		 * XXX sequence number must not be cycled, if the SA is
 		 * installed by IKE daemon.
 		 */
-		nesp->esp_seq = htonl(sav->replay->count);
+		nesp->esp_seq = htonl(sav->replay->count & 0xffffffff);
 	}
 
     {
