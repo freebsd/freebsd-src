@@ -3541,6 +3541,8 @@ This is replaced with the current process id.
 .It Li VERSION
 This is replaced with the current version number of
 .Nm .
+.It Li UPTIME
+This is replaced with the bundle uptime in HH:MM:SS format.
 .It Li USER
 This is replaced with the username that has been authenticated with PAP or
 CHAP.
