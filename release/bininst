@@ -1,0 +1,143 @@
+#!/stand/sh
+#
+# bininst - perform the last stage of installation by somehow getting
+# a bindist onto the user's disk and unpacking it.  The name bininst
+# is actually something of a misnomer, since this utility will install
+# more than just the bindist set.
+#
+# November 11th, 1994
+# Copyright (C) 1994 by Jordan K. Hubbard
+#
+# Permission to copy or use this software for any purpose is granted
+# provided that this message stay intact, and at this location (no putting
+# your name on top after doing something trivial like reindenting it, just
+# to make it look like you wrote it!).
+#
+DIALOG=${DIALOG=/usr/bin/dialog}
+
+set_defaults() {
+	media_type="" ;
+	media_device="" ;
+	inst_dir="/usr/tmp" ;
+}
+
+handle_rval() {
+	case $1 in
+	0)
+		return 0
+	;;
+	255)
+		echo "User aborted installation, invoking shell.";
+		exec /stand/sh
+	;;
+	*)
+		return 1
+	;;
+	esac
+}
+
+not_supported() {
+	$DIALOG --title "Sorry!" \
+        --msgbox "This feature is not supported in the current version of the \
+installation tools but will be in the release, barring \
+some sort of fatal accident.  Please press RETURN to go on." 10 60
+}
+
+welcome() {
+	$DIALOG --title "Welcome to FreeBSD" --clear \
+--msgbox "Hi!  Nice to see you've made it this far.  We're now ready to
+install one or more packed distribution sets onto your machine.  At
+the minimum, you need a bindist installation. A secrdist is also useful
+if you want your system to have any kind of effective security.
+The secrdist is a bit of a special case since it cannot be legally
+obtained from the U.S. due to export restrictions, but non-U.S.
+versions are also available.  See the release notes for more information
+on where to obtain a secrdist for your part of the world.  In the menus
+and dialogs that follow, you may use your arrow keys to move up and down,
+as well as your PageUp and PageDown keys to scroll.  If you wish to abort
+while in a dialog, hit ESC twice." 15 77
+	if ! handle_rval $?; then return 1; fi
+}
+
+choose_media() {
+	while [ "$media_device" = "" ]; do
+
+	$DIALOG --clear --title "Chose installation media" \
+--menu "Before we begin the installation, we need to chose and possibly \n\
+configure your method of installation.  Please pick from one of \n\
+the following options.  If your option isn't listed here, your \n\
+best bet may be to simply select CANCEL to get a shell and proceed \n\
+manually on your own. \n\n\
+	Please choose one of the following:" 20 70 5 \
+	"Tape" "Load installation from SCSI or QIC tape" \
+	"CDROM" "Load installation from SCSI or Mitsumi CDROM" \
+        "DOS" "Load from DOS floppies or a DOS hard disk partition" \
+        "FTP" "Load the distribution over ftp" \
+        "NFS" "Load the distribution over NFS" 2> /tmp/menu.tmp.$$
+
+	retval=$?
+	choice=`cat /tmp/menu.tmp.$$`
+	rm -f /tmp/menu.tmp.$$
+	if ! handle_rval $retval; then return 1; fi
+
+	case $choice in
+	Tape)
+		$DIALOG --clear --title "Chose tape type" \
+--menu "Which type of tape drive do you have attached to your \n\
+system?  FreeBSD supports the following types:\n\n\
+		Choose one of the following:" 20 70 2 \
+		"SCSI" "SCSI tape drive attached to standard SCSI controller" \
+		"QIC" "QIC tape drive (Colorado Jumbo, etc)" \
+			2> /tmp/menu.tmp.$$
+		retval=$?
+		choice=`cat /tmp/menu.tmp.$$`
+		rm -f /tmp/menu.tmp.$$
+		if ! handle_rval $retval; then continue; fi
+		media_type=tape;
+		case $choice in
+			SCSI)
+				media_device=/dev/rst0
+			;;
+			QIC)
+				media_device=/dev/rwt0
+			;;
+		esac
+	;;
+	CDROM)
+		not_supported
+	;;
+	DOS)
+		not_supported
+	;;
+	FTP)
+		$DIALOG --title "FTP Installation Information" --clear \
+--inputbox "Please specify the machine and directory location of the
+distribution you wish to load.  This should be a \"URL style\"
+specification (e.g. something like ftp://ftp.freeBSD.org/pub/...)\n\n" \
+16 70 'ftp://ftp.freebsd.org/pub/FreeBSD/2.0-ALPHA/bindist/' 2> /tmp/inputbox.tmp.$$
+		if ! handle_rval $?; then continue; fi
+		media_type=ftp
+		media_device=`cat /tmp/inputbox.tmp.$$`
+	;;
+	NFS)
+		not_supported
+	;;
+	esac
+	done
+}
+
+install_set()
+{
+	echo Installing from $media_type on $media_device
+}
+
+welcome
+
+while :; do
+	if choose_media; then
+		install_set
+	else
+		echo "Exiting per user request.";
+		exit 0;
+	fi
+done
