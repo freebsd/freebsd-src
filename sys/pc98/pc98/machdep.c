@@ -131,6 +131,9 @@ extern void finishidentcpu(void);
 extern void panicifcpuunsupported(void);
 extern void initializecpu(void);
 
+#define	CS_SECURE(cs)		(ISPL(cs) == SEL_UPL)
+#define	EFL_SECURE(ef, oef)	((((ef) ^ (oef)) & ~PSL_USERCHANGE) == 0)
+
 static void cpu_startup __P((void *));
 SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL)
 
@@ -161,6 +164,8 @@ SYSCTL_INT(_machdep, OID_AUTO, ispc98, CTLFLAG_RD, &ispc98, 0, "");
 
 int physmem = 0;
 int cold = 1;
+
+static void osendsig __P((sig_t catcher, int sig, sigset_t *mask, u_long code));
 
 static int
 sysctl_hw_physmem SYSCTL_HANDLER_ARGS
@@ -471,17 +476,23 @@ register_netisr(num, handler)
  * specified pc, psl.
  */
 static void
-osendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
+osendsig(catcher, sig, mask, code)
+	sig_t catcher;
+	int sig;
+	sigset_t *mask;
+	u_long code;
 {
-	register struct proc *p = curproc;
-	register struct trapframe *regs;
-	register struct osigframe *fp;
 	struct osigframe sf;
-	struct sigacts *psp = p->p_sigacts;
+	struct osigframe *fp;
+	struct proc *p;
+	struct sigacts *psp;
+	struct trapframe *regs;
 	int oonstack;
 
+	p = curproc;
+	psp = p->p_sigacts;
 	regs = p->p_md.md_regs;
-	oonstack = (p->p_sigstk.ss_flags & SS_ONSTACK) ? 1 : 0;
+	oonstack = p->p_sigstk.ss_flags & SS_ONSTACK;
 
 	/* Allocate and validate space for the signal handler context. */
 	if ((p->p_flag & P_ALTSTACK) && !oonstack &&
@@ -489,17 +500,16 @@ osendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 		fp = (struct osigframe *)(p->p_sigstk.ss_sp +
 		    p->p_sigstk.ss_size - sizeof(struct osigframe));
 		p->p_sigstk.ss_flags |= SS_ONSTACK;
-	}
-	else
+	} else
 		fp = (struct osigframe *)regs->tf_esp - 1;
 
 	/*
-	 * grow() will return FALSE if the fp will not fit inside the stack
-	 *	and the stack can not be grown. useracc will return FALSE
-	 *	if access is denied.
+	 * grow_stack() will return 0 if *fp does not fit inside the stack
+	 * and the stack can not be grown.
+	 * useracc() will return FALSE if access is denied.
 	 */
-	if (grow_stack(p, (int)fp) == FALSE ||
-	    !useracc((caddr_t)fp, sizeof(struct osigframe), VM_PROT_WRITE)) {
+	if (grow_stack(p, (int)fp) == 0 ||
+	    !useracc((caddr_t)fp, sizeof(*fp), VM_PROT_WRITE)) {
 		/*
 		 * Process has trashed its stack; give it an illegal
 		 * instruction to halt it in its tracks.
@@ -512,11 +522,9 @@ osendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 		return;
 	}
 
-	/* Translate the signal if appropriate */
-	if (p->p_sysent->sv_sigtbl) {
-		if (sig <= p->p_sysent->sv_sigsize)
-			sig = p->p_sysent->sv_sigtbl[_SIG_IDX(sig)];
-	}
+	/* Translate the signal if appropriate. */
+	if (p->p_sysent->sv_sigtbl && sig <= p->p_sysent->sv_sigsize)
+		sig = p->p_sysent->sv_sigtbl[_SIG_IDX(sig)];
 
 	/* Build the argument list for the signal handler. */
 	sf.sf_signum = sig;
@@ -527,15 +535,14 @@ osendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 		sf.sf_siginfo.si_signo = sig;
 		sf.sf_siginfo.si_code = code;
 		sf.sf_ahu.sf_action = (__osiginfohandler_t *)catcher;
-	}
-	else {
+	} else {
 		/* Old FreeBSD-style arguments. */
 		sf.sf_arg2 = code;
 		sf.sf_addr = regs->tf_err;
 		sf.sf_ahu.sf_handler = catcher;
 	}
 
-	/* save scratch registers */
+	/* Save most if not all of trap frame. */
 	sf.sf_siginfo.si_sc.sc_eax = regs->tf_eax;
 	sf.sf_siginfo.si_sc.sc_ebx = regs->tf_ebx;
 	sf.sf_siginfo.si_sc.sc_ecx = regs->tf_ecx;
@@ -550,7 +557,7 @@ osendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	sf.sf_siginfo.si_sc.sc_gs = rgs();
 	sf.sf_siginfo.si_sc.sc_isp = regs->tf_isp;
 
-	/* Build the signal context to be used by sigreturn. */
+	/* Build the signal context to be used by osigreturn(). */
 	sf.sf_siginfo.si_sc.sc_onstack = oonstack;
 	SIG2OSIG(*mask, sf.sf_siginfo.si_sc.sc_mask);
 	sf.sf_siginfo.si_sc.sc_sp = regs->tf_esp;
@@ -566,6 +573,7 @@ osendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	 * eflags.
 	 */
 	if (regs->tf_eflags & PSL_VM) {
+		/* XXX confusing names: `tf' isn't a trapframe; `regs' is. */
 		struct trapframe_vm86 *tf = (struct trapframe_vm86 *)regs;
 		struct vm86_kernel *vm86 = &p->p_addr->u_pcb.pcb_ext->ext_vm86;
 
@@ -576,14 +584,15 @@ osendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 
 		if (vm86->vm86_has_vme == 0)
 			sf.sf_siginfo.si_sc.sc_ps =
-			    (tf->tf_eflags & ~(PSL_VIF | PSL_VIP))
-			    | (vm86->vm86_eflags & (PSL_VIF | PSL_VIP));
-		/* see sendsig for comment */
-		tf->tf_eflags &= ~(PSL_VM|PSL_NT|PSL_T|PSL_VIF|PSL_VIP);
+			    (tf->tf_eflags & ~(PSL_VIF | PSL_VIP)) |
+			    (vm86->vm86_eflags & (PSL_VIF | PSL_VIP));
+
+		/* See sendsig() for comments. */
+		tf->tf_eflags &= ~(PSL_VM | PSL_NT | PSL_T | PSL_VIF | PSL_VIP);
 	}
 
 	/* Copy the sigframe out to the user's stack. */
-	if (copyout(&sf, fp, sizeof(struct osigframe)) != 0) {
+	if (copyout(&sf, fp, sizeof(*fp)) != 0) {
 		/*
 		 * Something is wrong with the stack pointer.
 		 * ...Kill the process.
@@ -608,45 +617,46 @@ sendsig(catcher, sig, mask, code)
 	sigset_t *mask;
 	u_long code;
 {
-	struct proc *p = curproc;
+	struct sigframe sf;
+	struct proc *p;
+	struct sigacts *psp;
 	struct trapframe *regs;
-	struct sigacts *psp = p->p_sigacts;
-	struct sigframe sf, *sfp;
+	struct sigframe *sfp;
 	int oonstack;
 
+	p = curproc;
+	psp = p->p_sigacts;
 	if (SIGISMEMBER(psp->ps_osigset, sig)) {
 		osendsig(catcher, sig, mask, code);
 		return;
 	}
-
 	regs = p->p_md.md_regs;
-	oonstack = (p->p_sigstk.ss_flags & SS_ONSTACK) ? 1 : 0;
+	oonstack = p->p_sigstk.ss_flags & SS_ONSTACK;
 
-	/* save user context */
-	bzero(&sf, sizeof(struct sigframe));
+	/* Save user context. */
+	bzero(&sf, sizeof(sf));
 	sf.sf_uc.uc_sigmask = *mask;
 	sf.sf_uc.uc_stack = p->p_sigstk;
 	sf.sf_uc.uc_mcontext.mc_onstack = oonstack;
 	sf.sf_uc.uc_mcontext.mc_gs = rgs();
-	bcopy(regs, &sf.sf_uc.uc_mcontext.mc_fs, sizeof(struct trapframe));
+	bcopy(regs, &sf.sf_uc.uc_mcontext.mc_fs, sizeof(*regs));
 
 	/* Allocate and validate space for the signal handler context. */
-        if ((p->p_flag & P_ALTSTACK) != 0 && !oonstack &&
+	if ((p->p_flag & P_ALTSTACK) != 0 && !oonstack &&
 	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
 		sfp = (struct sigframe *)(p->p_sigstk.ss_sp +
 		    p->p_sigstk.ss_size - sizeof(struct sigframe));
 		p->p_sigstk.ss_flags |= SS_ONSTACK;
-	}
-	else
+	} else
 		sfp = (struct sigframe *)regs->tf_esp - 1;
 
 	/*
-	 * grow() will return FALSE if the sfp will not fit inside the stack
-	 * and the stack can not be grown. useracc will return FALSE if
-	 * access is denied.
+	 * grow_stack() will return 0 if *sfp does not fit inside the stack
+	 * and the stack can not be grown.
+	 * useracc() will return FALSE if access is denied.
 	 */
-	if (grow_stack(p, (int)sfp) == FALSE ||
-	    !useracc((caddr_t)sfp, sizeof(struct sigframe), VM_PROT_WRITE)) {
+	if (grow_stack(p, (int)sfp) == 0 ||
+	    !useracc((caddr_t)sfp, sizeof(*sfp), VM_PROT_WRITE)) {
 		/*
 		 * Process has trashed its stack; give it an illegal
 		 * instruction to halt it in its tracks.
@@ -662,11 +672,9 @@ sendsig(catcher, sig, mask, code)
 		return;
 	}
 
-	/* Translate the signal is appropriate */
-	if (p->p_sysent->sv_sigtbl) {
-		if (sig <= p->p_sysent->sv_sigsize)
-			sig = p->p_sysent->sv_sigtbl[_SIG_IDX(sig)];
-	}
+	/* Translate the signal if appropriate. */
+	if (p->p_sysent->sv_sigtbl && sig <= p->p_sysent->sv_sigsize)
+		sig = p->p_sysent->sv_sigtbl[_SIG_IDX(sig)];
 
 	/* Build the argument list for the signal handler. */
 	sf.sf_signum = sig;
@@ -676,12 +684,11 @@ sendsig(catcher, sig, mask, code)
 		sf.sf_siginfo = (register_t)&sfp->sf_si;
 		sf.sf_ahu.sf_action = (__siginfohandler_t *)catcher;
 
-		/* fill siginfo structure */
+		/* Fill siginfo structure. */
 		sf.sf_si.si_signo = sig;
 		sf.sf_si.si_code = code;
-		sf.sf_si.si_addr = (void*)regs->tf_err;
-	}
-	else {
+		sf.sf_si.si_addr = (void *)regs->tf_err;
+	} else {
 		/* Old FreeBSD-style arguments. */
 		sf.sf_siginfo = code;
 		sf.sf_addr = regs->tf_err;
@@ -718,13 +725,11 @@ sendsig(catcher, sig, mask, code)
 		 * does nothing in vm86 mode, but vm86 programs can set it
 		 * almost legitimately in probes for old cpu types.
 		 */
-		tf->tf_eflags &= ~(PSL_VM|PSL_NT|PSL_T|PSL_VIF|PSL_VIP);
+		tf->tf_eflags &= ~(PSL_VM | PSL_NT | PSL_T | PSL_VIF | PSL_VIP);
 	}
 
-	/*
-	 * Copy the sigframe out to the user's stack.
-	 */
-	if (copyout(&sf, sfp, sizeof(struct sigframe)) != 0) {
+	/* Copy the sigframe out to the user's stack. */
+	if (copyout(&sf, sfp, sizeof(*sfp)) != 0) {
 		/*
 		 * Something is wrong with the stack pointer.
 		 * ...Kill the process.
@@ -751,9 +756,6 @@ sendsig(catcher, sig, mask, code)
  * make sure that the user has not modified the
  * state to gain improper privileges.
  */
-#define	EFL_SECURE(ef, oef)	((((ef) ^ (oef)) & ~PSL_USERCHANGE) == 0)
-#define	CS_SECURE(cs)		(ISPL(cs) == SEL_UPL)
-
 int
 osigreturn(p, uap)
 	struct proc *p;
@@ -761,15 +763,14 @@ osigreturn(p, uap)
 		struct osigcontext *sigcntxp;
 	} */ *uap;
 {
-	register struct osigcontext *scp;
-	register struct trapframe *regs = p->p_md.md_regs;
+	struct trapframe *regs;
+	struct osigcontext *scp;
 	int eflags;
 
+	regs = p->p_md.md_regs;
 	scp = uap->sigcntxp;
-
-	if (!useracc((caddr_t)scp, sizeof (struct osigcontext), VM_PROT_READ))
-		return(EFAULT);
-
+	if (!useracc((caddr_t)scp, sizeof(*scp), VM_PROT_READ))
+		return (EFAULT);
 	eflags = scp->sc_ps;
 	if (eflags & PSL_VM) {
 		struct trapframe_vm86 *tf = (struct trapframe_vm86 *)regs;
@@ -785,7 +786,7 @@ osigreturn(p, uap)
 		if (vm86->vm86_inited == 0)
 			return (EINVAL);
 
-		/* go back to user mode if both flags are set */
+		/* Go back to user mode if both flags are set. */
 		if ((eflags & PSL_VIP) && (eflags & PSL_VIF))
 			trapsignal(p, SIGBUS, 0);
 
@@ -818,7 +819,7 @@ osigreturn(p, uap)
 		 * one less debugger trap, so allowing it is fairly harmless.
 		 */
 		if (!EFL_SECURE(eflags & ~PSL_RF, regs->tf_eflags & ~PSL_RF)) {
-	    		return(EINVAL);
+	    		return (EINVAL);
 		}
 
 		/*
@@ -828,14 +829,14 @@ osigreturn(p, uap)
 		 */
 		if (!CS_SECURE(scp->sc_cs)) {
 			trapsignal(p, SIGBUS, T_PROTFLT);
-			return(EINVAL);
+			return (EINVAL);
 		}
 		regs->tf_ds = scp->sc_ds;
 		regs->tf_es = scp->sc_es;
 		regs->tf_fs = scp->sc_fs;
 	}
 
-	/* restore scratch registers */
+	/* Restore remaining registers. */
 	regs->tf_eax = scp->sc_eax;
 	regs->tf_ebx = scp->sc_ebx;
 	regs->tf_ecx = scp->sc_ecx;
@@ -850,14 +851,13 @@ osigreturn(p, uap)
 		p->p_sigstk.ss_flags |= SS_ONSTACK;
 	else
 		p->p_sigstk.ss_flags &= ~SS_ONSTACK;
-
 	SIGSETOLD(p->p_sigmask, scp->sc_mask);
 	SIG_CANTMASK(p->p_sigmask);
 	regs->tf_ebp = scp->sc_fp;
 	regs->tf_esp = scp->sc_sp;
 	regs->tf_eip = scp->sc_pc;
 	regs->tf_eflags = eflags;
-	return(EJUSTRETURN);
+	return (EJUSTRETURN);
 }
 
 int
@@ -872,7 +872,6 @@ sigreturn(p, uap)
 	int cs, eflags;
 
 	ucp = uap->sigcntxp;
-
 	if (!useracc((caddr_t)ucp, sizeof(struct osigcontext), VM_PROT_READ))
 		return (EFAULT);
 	if (((struct osigcontext *)ucp)->sc_trapno == 0x01d516)
@@ -885,12 +884,11 @@ sigreturn(p, uap)
 	 * being valid for the size of an osigcontext, now check for
 	 * it being valid for a whole, new-style ucontext_t.
 	 */
-	if (!useracc((caddr_t)ucp, sizeof(ucontext_t), VM_PROT_READ))
+	if (!useracc((caddr_t)ucp, sizeof(*ucp), VM_PROT_READ))
 		return (EFAULT);
 
 	regs = p->p_md.md_regs;
 	eflags = ucp->uc_mcontext.mc_eflags;
-
 	if (eflags & PSL_VM) {
 		struct trapframe_vm86 *tf = (struct trapframe_vm86 *)regs;
 		struct vm86_kernel *vm86;
@@ -905,7 +903,7 @@ sigreturn(p, uap)
 		if (vm86->vm86_inited == 0)
 			return (EINVAL);
 
-		/* go back to user mode if both flags are set */
+		/* Go back to user mode if both flags are set. */
 		if ((eflags & PSL_VIP) && (eflags & PSL_VIF))
 			trapsignal(p, SIGBUS, 0);
 
@@ -941,7 +939,7 @@ sigreturn(p, uap)
 		 */
 		if (!EFL_SECURE(eflags & ~PSL_RF, regs->tf_eflags & ~PSL_RF)) {
 			printf("sigreturn: eflags = 0x%x\n", eflags);
-	    		return(EINVAL);
+	    		return (EINVAL);
 		}
 
 		/*
@@ -953,11 +951,11 @@ sigreturn(p, uap)
 		if (!CS_SECURE(cs)) {
 			printf("sigreturn: cs = 0x%x\n", cs);
 			trapsignal(p, SIGBUS, T_PROTFLT);
-			return(EINVAL);
+			return (EINVAL);
 		}
-		bcopy(&ucp->uc_mcontext.mc_fs, regs, sizeof(struct trapframe));
-	}
 
+		bcopy(&ucp->uc_mcontext.mc_fs, regs, sizeof(*regs));
+	}
 	if (ucp->uc_mcontext.mc_onstack & 1)
 		p->p_sigstk.ss_flags |= SS_ONSTACK;
 	else
@@ -965,7 +963,7 @@ sigreturn(p, uap)
 
 	p->p_sigmask = ucp->uc_sigmask;
 	SIG_CANTMASK(p->p_sigmask);
-	return(EJUSTRETURN);
+	return (EJUSTRETURN);
 }
 
 /*
