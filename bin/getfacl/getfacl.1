@@ -30,20 +30,20 @@
 .Os
 .Sh NAME
 .Nm getfacl
-.Nd Get ACL Information
+.Nd get ACL Information
 .Sh SYNOPSIS
-.Nm getfacl
+.Nm
 .Op Fl d
-.Op Ar file ...
+.Op Ar
 .Sh DESCRIPTION
 The
 .Nm
 utility writes discretionary access control information associated with
 the specified file(s) to standard output.
 If the
-.Xr getconf 8
+.Xr getconf 1
 utility indicates that
-.Va {_POSIX_ACL_EXTENDED}
+.Eq { } Va _POSIX_ACL_EXTENDED
 is not in effect for a
 .Ar file
 then the standard discretionary access permissions are interpreted as
@@ -54,8 +54,8 @@ The following option is available:
 .It Fl d
 The operation applies to the default ACL of a directory instead of the
 access ACL.
-An error shall be generated if a default ACL cannot be associated with
-.Op Ar file .
+An error is generated if a default ACL cannot be associated with
+.Ar file .
 .El
 .Pp
 The following operand is available:
@@ -63,24 +63,27 @@ The following operand is available:
 .It Ar file
 A pathname of a file whose ACL shall be retrieved.
 If
-.Op Ar file
+.Ar file
 is not specified, or a
-.Op Ar file
-is specified as "-", then
+.Ar file
+is specified as
+.Fl ,
+then
 .Nm
-shall read a list of pathnames, each terminated by one <newline> character,
+reads a list of pathnames, each terminated by one newline character,
 from the standard input.
 .El
-.Pp
 .Sh EXAMPLES
-.Pp
 .Dl getfacl /
 .Pp
-Retrieve ACL for the directory "/".
+Retrieve ACL for the directory
+.Pa / .
 .Pp
 .Dl getfacl -d /
 .Pp
-Retrieve the default ACL for the directory "/", if any.
+Retrieve the default ACL for the directory
+.Pa / ,
+if any.
 .Sh SEE ALSO
 .Xr setfacl 1 ,
 .Xr acl 3 ,
@@ -91,10 +94,14 @@ Retrieve the default ACL for the directory "/", if any.
 .Sh STANDARDS
 The
 .Nm
-utility is expected to be IEEE Std 1003.2c compliant.
+utility is expected to be
+.Tn IEEE
+Std 1003.2c compliant.
 .Sh HISTORY
 Extended Attribute and Access Control List support was developed as part
-of the TrustedBSD Project and introduced in
-.Fx 5.0
+of the
+.Tn TrustedBSD
+Project and introduced in
+.Fx 5.0 .
 .Sh AUTHORS
-Robert N M Watson
+.An Robert N M Watson
