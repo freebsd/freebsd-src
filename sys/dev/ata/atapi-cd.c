@@ -1388,7 +1388,7 @@ acd_close_disk(struct acd_softc *cdp, int multisession)
     else
     	param.session_type = CDR_SESS_NONE;
 
-    if ((error =  acd_mode_select(cdp, (caddr_t)&param, sizeof(param))))
+    if ((error = acd_mode_select(cdp, (caddr_t)&param, param.page_length + 10)))
 	return error;
   
     error = atapi_queue_cmd(cdp->atp, ccb, NULL, 0, 0, 30, NULL, NULL);
@@ -1486,7 +1486,7 @@ acd_open_track(struct acd_softc *cdp, struct cdr_track *track)
 	break;
     }
 
-    return acd_mode_select(cdp, (caddr_t)&param, sizeof(param));
+    return acd_mode_select(cdp, (caddr_t)&param, param.page_length + 10);
 }
 
 static int
