@@ -340,13 +340,16 @@ _fetch_putln(int fd, const char *str, size_t len)
     ssize_t wlen;
 
     /* XXX should enforce timeout */
-    iov[0].iov_base = (char *)str;
+    (const char *)iov[0].iov_base = str; /* XXX */
     iov[0].iov_len = len;
-    iov[1].iov_base = (char *)ENDL;
+    (const char *)iov[1].iov_base = ENDL; /* XXX */
     iov[1].iov_len = sizeof ENDL;
+    len += sizeof ENDL;
     wlen = writev(fd, iov, 2);
+    if (wlen < 0 || (size_t)wlen != len)
+	return -1;
     DEBUG(fprintf(stderr, "\033[1m>>> %s\n\033[m", str));
-    return (wlen != len);
+    return 0;
 }
 
 
@@ -354,7 +357,7 @@ _fetch_putln(int fd, const char *str, size_t len)
 
 int
 _fetch_add_entry(struct url_ent **p, int *size, int *len,
-		 const char *name, struct url_stat *stat)
+		 const char *name, struct url_stat *us)
 {
     struct url_ent *tmp;
 
@@ -383,7 +386,7 @@ _fetch_add_entry(struct url_ent **p, int *size, int *len,
 
     tmp = *p + *len;
     snprintf(tmp->name, PATH_MAX, "%s", name);
-    bcopy(stat, &tmp->stat, sizeof *stat);
+    bcopy(us, &tmp->stat, sizeof *us);
 
     (*len)++;
     (++tmp)->name[0] = 0;
