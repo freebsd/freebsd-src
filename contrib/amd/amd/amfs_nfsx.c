@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-1999 Erez Zadok
+ * Copyright (c) 1997-2001 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: amfs_nfsx.c,v 1.2 1999/01/10 21:53:42 ezk Exp $
+ * $Id: amfs_nfsx.c,v 1.3.2.2 2001/04/14 21:08:20 ezk Exp $
  *
  */
 
@@ -149,7 +149,7 @@ amfs_nfsx_match(am_opts *fo)
    */
   xmtab = str3cat((char *) 0, fo->opt_rhost, ":", fo->opt_rfs);
 #ifdef DEBUG
-  dlog("NFS: mounting remote server \"%s\", remote fs \"%s\" on \"%s\"",
+  dlog("NFSX: mounting remote server \"%s\", remote fs \"%s\" on \"%s\"",
        fo->opt_rhost, fo->opt_rfs, fo->opt_fs);
 #endif /* DEBUG */
 

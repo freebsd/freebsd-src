@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-1999 Erez Zadok
+ * Copyright (c) 1997-2001 Erez Zadok
  * Copyright (c) 1989 Jan-Simon Pendry
  * Copyright (c) 1989 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1989 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: srvr_amfs_auto.c,v 1.2 1999/01/10 21:53:53 ezk Exp $
+ * $Id: srvr_amfs_auto.c,v 1.3.2.3 2001/04/14 21:08:23 ezk Exp $
  *
  */
 
@@ -208,7 +208,8 @@ dup_srvr(fserver *fs)
 /*
  * Log state change
  */
-void srvrlog(fserver *fs, char *state)
+void
+srvrlog(fserver *fs, char *state)
 {
-  plog(XLOG_INFO, "file server %s type %s %s", fs->fs_host, fs->fs_type, state);
+  plog(XLOG_INFO, "file server %s, type %s, state %s", fs->fs_host, fs->fs_type, state);
 }

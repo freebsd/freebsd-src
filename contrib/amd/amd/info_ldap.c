@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-1999 Erez Zadok
+ * Copyright (c) 1997-2001 Erez Zadok
  * Copyright (c) 1989 Jan-Simon Pendry
  * Copyright (c) 1989 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1989 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: info_ldap.c,v 1.6 1999/09/30 21:01:31 ezk Exp $
+ * $Id: info_ldap.c,v 1.9.2.2 2001/01/12 23:28:56 ro Exp $
  *
  */
 
@@ -127,24 +127,25 @@ he_free(HE *h)
 
 
 static HE *
-string2he(char *s)
+string2he(char *s_orig)
 {
   char *c, *p;
+  char *s;
   HE *new, *old = NULL;
 
-  if (s == NULL)
-    return (NULL);
+  if (NULL == s_orig || NULL == (s = strdup(s_orig)))
+    return NULL;
   for (p = s; p; p = strchr(p, ',')) {
     if (old != NULL) {
-      new = (HE *) xmalloc(sizeof(HE));
+      new = ALLOC(HE);
       old->next = new;
       old = new;
     } else {
-      old = (HE *) xmalloc(sizeof(HE));
+      old = ALLOC(HE);
       old->next = NULL;
     }
     c = strchr(p, ':');
-    if (c) {			/* Host and port */
+    if (c) {            /* Host and port */
       *c++ = '\0';
       old->host = strdup(p);
       old->port = atoi(c);
@@ -152,6 +153,7 @@ string2he(char *s)
       old->host = strdup(p);
 
   }
+  XFREE(s);
   return (old);
 }
 
@@ -196,8 +198,8 @@ amu_ldap_init(mnt_map *m, char *map, time_t *ts)
   }
 #endif /* DEBUG */
 
-  aldh = (ALD *) xmalloc(sizeof(ALD));
-  creds = (CR *) xmalloc(sizeof(CR));
+  aldh = ALLOC(ALD);
+  creds = ALLOC(CR);
 
   aldh->hostent = string2he(gopt.ldap_hostports);
   if (aldh->hostent == NULL) {
@@ -278,7 +280,7 @@ amu_ldap_rebind(ALD *a)
 
 
 static int
-get_ldap_timestamp(LDAP * ld, char *map, time_t *ts)
+get_ldap_timestamp(LDAP *ld, char *map, time_t *ts)
 {
   struct timeval tv;
   char **vals, *end;
@@ -313,7 +315,7 @@ get_ldap_timestamp(LDAP * ld, char *map, time_t *ts)
   if (err != LDAP_SUCCESS) {
     *ts = 0;
     plog(XLOG_USER, "LDAP timestamp search failed: %s\n",
-	 ldap_err2string(ld->ld_errno));
+	 ldap_err2string(err));
     return (ENOENT);
   }
 
@@ -413,7 +415,7 @@ amu_ldap_search(mnt_map *m, char *map, char *key, char **pval, time_t *ts)
     return (ENOENT);
   default:
     plog(XLOG_USER, "LDAP search failed: %s\n",
-	 ldap_err2string(a->ldap->ld_errno));
+	 ldap_err2string(err));
     ldap_msgfree(res);
     return (EIO);
   }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-1999 Erez Zadok
+ * Copyright (c) 1997-2001 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: amfs_union.c,v 1.2 1999/01/10 21:53:43 ezk Exp $
+ * $Id: amfs_union.c,v 1.3.2.2 2001/04/14 21:08:21 ezk Exp $
  *
  */
 
@@ -92,7 +92,7 @@ create_amfs_union_node(char *dir, voidp arg)
     (void) amfs_toplvl_ops.lookuppn(arg, dir, &error, VLOOK_CREATE);
     if (error > 0) {
       errno = error;		/* XXX */
-      plog(XLOG_ERROR, "Could not mount %s: %m", dir);
+      plog(XLOG_ERROR, "unionfs: could not mount %s: %m", dir);
     }
     return error;
   }

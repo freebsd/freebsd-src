@@ -86,6 +86,14 @@
 # define MNTTAB_OPT_MAXGROUPS "maxgroups"
 #endif /* defined(MNT2_NFS_OPT_MAXGRPS) && !defined(MNTTAB_OPT_MAXGROUPS) */
 
+#if defined(MNT2_NFS_OPT_PROPLIST) && !defined(MNTTAB_OPT_PROPLIST)
+# define MNTTAB_OPT_PROPLIST "proplist"
+#endif /* defined(MNT2_NFS_OPT_PROPLIST) && !defined(MNTTAB_OPT_PROPLIST) */
+
+#if defined(MNT2_NFS_OPT_NONLM) && !defined(MNTTAB_OPT_NOLOCK)
+# define MNTTAB_OPT_NOLOCK "nolock"
+#endif /* defined(MNT2_NFS_OPT_NONLM) && !defined(MNTTAB_OPT_NOLOCK) */
+
 /*
  * Complete MNTTAB_OPT_* options based on MNT2_CDFS_OPT_* mount options.
  */
@@ -249,6 +257,13 @@ struct hsfs_args {
 #if defined(HAVE_FS_UFS) && !defined(ufs_args_t)
 # define ufs_args_t u_int
 #endif /* defined(HAVE_FS_UFS) && !defined(ufs_args_t) */
+
+/*
+ * if does not define struct efs_args, assume integer bit-field (linux)
+ */
+#if defined(HAVE_FS_EFS) && !defined(efs_args_t)
+# define efs_args_t u_int
+#endif /* defined(HAVE_FS_EFS) && !defined(efs_args_t) */
 
 #if defined(HAVE_FS_AUTOFS) && defined(MOUNT_TYPE_AUTOFS) && !defined(MNTTYPE_AUTOFS)
 # define MNTTYPE_AUTOFS "autofs"

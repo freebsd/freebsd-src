@@ -62,6 +62,9 @@ fi
 if [ -d /var/mail/. ]; then
 	maildir="/var/mail"
 	altmaildir="/var/alt_mail"
+elif [ -d /var/spool/mail/. ]; then
+	maildir="/var/spool/mail"
+	altmaildir="/var/spool/alt_mail"
 else
 	maildir="/usr/spool/mail"
 	altmaildir="/usr/spool/alt_mail"

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-1999 Erez Zadok
+ * Copyright (c) 1997-2001 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: amfs_toplvl.c,v 1.5 1999/02/04 07:24:14 ezk Exp $
+ * $Id: amfs_toplvl.c,v 1.7.2.2 2001/04/14 21:08:20 ezk Exp $
  *
  */
 
@@ -275,10 +275,10 @@ amfs_toplvl_mount(am_node *mp)
     mnttype = "indirect";
   else if (mf->mf_ops == &amfs_direct_ops)
     mnttype = "direct";
-#ifdef HAVE_AM_FS_UNION
+#ifdef HAVE_AMU_FS_UNION
   else if (mf->mf_ops == &amfs_union_ops)
     mnttype = "union";
-#endif /* HAVE_AM_FS_UNION */
+#endif /* HAVE_AMU_FS_UNION */
   else
     mnttype = "auto";
 
@@ -309,7 +309,7 @@ amfs_toplvl_mount(am_node *mp)
   error = mount_amfs_toplvl(mf->mf_mount, opts);
   if (error) {
     errno = error;
-    plog(XLOG_FATAL, "mount_amfs_toplvl: %m");
+    plog(XLOG_FATAL, "amfs_toplvl_mount: mount_amfs_toplvl failed: %m");
     return error;
   }
   return 0;

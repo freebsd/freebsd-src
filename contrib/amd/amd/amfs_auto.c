@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-1999 Erez Zadok
+ * Copyright (c) 1997-2001 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: amfs_auto.c,v 1.5 1999/09/30 21:01:29 ezk Exp $
+ * $Id: amfs_auto.c,v 1.9.2.7 2001/04/14 21:08:19 ezk Exp $
  *
  */
 
@@ -57,10 +57,7 @@
  ****************************************************************************/
 #define	IN_PROGRESS(cp) ((cp)->mp->am_mnt->mf_flags & MFF_MOUNTING)
 
-/* DEVELOPERS: turn this on for special debugging of readdir code */
-#undef DEBUG_READDIR
-
-#define DOT_DOT_COOKIE (u_int) 1
+#define DOT_DOT_COOKIE	(u_int) 1
 
 /****************************************************************************
  *** STRUCTURES                                                           ***
@@ -70,7 +67,7 @@
 /****************************************************************************
  *** FORWARD DEFINITIONS                                                  ***
  ****************************************************************************/
-static int amfs_auto_bgmount(struct continuation * cp, int mpe);
+static int amfs_auto_bgmount(struct continuation *cp, int mpe);
 static int amfs_auto_mount(am_node *mp);
 static int amfs_auto_readdir_browsable(am_node *mp, nfscookie cookie, nfsdirlist *dp, nfsentry *ep, int count, int fully_browsable);
 static void amfs_auto_umounted(am_node *mp);
@@ -504,7 +501,7 @@ For each location:
 endfor
  */
 static int
-amfs_auto_bgmount(struct continuation * cp, int mpe)
+amfs_auto_bgmount(struct continuation *cp, int mpe)
 {
   mntfs *mf = cp->mp->am_mnt;	/* Current mntfs */
   mntfs *mf_retry = 0;		/* First mntfs which needed retrying */
@@ -580,7 +577,7 @@ amfs_auto_bgmount(struct continuation * cp, int mpe)
      * Note whether this is a real mount attempt
      */
     if (p == &amfs_error_ops) {
-      plog(XLOG_MAP, "Map entry %s for %s failed to match", *cp->ivec, mp->am_path);
+      plog(XLOG_MAP, "Map entry %s for %s did not match", *cp->ivec, mp->am_path);
       if (this_error <= 0)
 	this_error = ENOENT;
       continue;
@@ -606,7 +603,7 @@ amfs_auto_bgmount(struct continuation * cp, int mpe)
 	mp->am_link = strdup(link_dir);
       } else {
 	/*
-	 * try getting fs option from continuation, not mountpoint!
+	 * Try getting fs option from continuation, not mountpoint!
 	 * Don't try logging the string from mf, since it may be bad!
 	 */
 	if (cp->fs_opts.opt_fs != mf->mf_fo->opt_fs)
@@ -671,8 +668,6 @@ amfs_auto_bgmount(struct continuation * cp, int mpe)
       else
 	mk_fattr(mp, NFLNK);
 
-      mp->am_fattr.na_fileid = mp->am_gen;
-
       if (p->fs_init)
 	this_error = (*p->fs_init) (mf);
     }
@@ -722,7 +717,10 @@ amfs_auto_bgmount(struct continuation * cp, int mpe)
 	  untimeout(cp->callout);
 	  cp->callout = 0;
 	}
+
+	/* actually run the task, backgrounding as necessary */
 	run_task(try_mount, (voidp) mp, amfs_auto_cont, (voidp) cp);
+
 	mf->mf_flags |= MFF_MKMNT;	/* XXX */
 	if (mf_retry)
 	  free_mntfs(mf_retry);
@@ -1120,7 +1118,7 @@ amfs_auto_lookuppn(am_node *mp, char *fname, int *error_return, int op)
      */
     rvec = strsplit(dfl, ' ', '\"');
 
-    if (gopt.flags & CFM_ENABLE_DEFAULT_SELECTORS) {
+    if (gopt.flags & CFM_SELECTORS_IN_DEFAULTS) {
       /*
        * Pick whichever first entry matched the list of selectors.
        * Strip the selectors from the string, and assign to dfl the
@@ -1132,11 +1130,18 @@ amfs_auto_lookuppn(am_node *mp, char *fname, int *error_return, int op)
 	char **sp = rvec;
 	while (*sp) {		/* loop until you find something, if any */
 	  memset((char *) &ap, 0, sizeof(am_opts));
+	  /*
+	   * This next routine cause many spurious "expansion of ... is"
+	   * messages, which are ignored, b/c all we need out of this
+	   * routine is to match selectors.  These spurious messages may
+	   * be wrong, esp. if they try to expand ${key} b/c it will
+	   * get expanded to "/defaults"
+	   */
 	  pt = ops_match(&ap, *sp, "", mp->am_path, "/defaults",
 			 mp->am_parent->am_mnt->mf_info);
 	  free_opts(&ap);	/* don't leak */
 	  if (pt == &amfs_error_ops) {
-	    plog(XLOG_MAP, "failed to match defaults for \"%s\"", *sp);
+	    plog(XLOG_MAP, "did not match defaults for \"%s\"", *sp);
 	  } else {
 	    dfl = strip_selectors(*sp, "/defaults");
 	    plog(XLOG_MAP, "matched default selectors \"%s\"", dfl);
@@ -1159,7 +1164,7 @@ amfs_auto_lookuppn(am_node *mp, char *fname, int *error_return, int op)
       /*
        * Log error if there were other values
        */
-      if (!(gopt.flags & CFM_ENABLE_DEFAULT_SELECTORS) && rvec[1]) {
+      if (!(gopt.flags & CFM_SELECTORS_IN_DEFAULTS) && rvec[1]) {
 # ifdef DEBUG
 	dlog("/defaults chopped into %s", dfl);
 # endif /* DEBUG */
@@ -1305,6 +1310,10 @@ amfs_auto_readdir(am_node *mp, nfscookie cookie, nfsdirlist *dp, nfsentry *ep, i
   u_int gen = *(u_int *) cookie;
   am_node *xp;
   mntent_t mnt;
+#ifdef DEBUG
+  nfsentry *ne;
+  static int j;
+#endif /* DEBUG */
 
   dp->dl_eof = FALSE;		/* assume readdir not done */
 
@@ -1317,6 +1326,7 @@ amfs_auto_readdir(am_node *mp, nfscookie cookie, nfsdirlist *dp, nfsentry *ep, i
       return amfs_auto_readdir_browsable(mp, cookie, dp, ep, count, FALSE);
   }
 
+  /* when gen is 0, we start reading from the beginning of the directory */
   if (gen == 0) {
     /*
      * In the default instance (which is used to start a search) we return
@@ -1361,6 +1371,12 @@ amfs_auto_readdir(am_node *mp, nfscookie cookie, nfsdirlist *dp, nfsentry *ep, i
     if (!xp)
       dp->dl_eof = TRUE;	/* by default assume readdir done */
 
+#ifdef DEBUG
+    amuDebug(D_READDIR)
+      for (j=0,ne=ep; ne; ne=ne->ne_nextentry)
+	plog(XLOG_DEBUG, "gen1 key %4d \"%s\" fi=%d ck=%d",
+	     j++, ne->ne_name, ne->ne_fileid, *(u_int *)ne->ne_cookie);
+#endif /* DEBUG */
     return 0;
   }
 #ifdef DEBUG
@@ -1373,6 +1389,10 @@ amfs_auto_readdir(am_node *mp, nfscookie cookie, nfsdirlist *dp, nfsentry *ep, i
 #endif /* DEBUG */
     dp->dl_eof = TRUE;
     dp->dl_entries = 0;
+#ifdef DEBUG
+    amuDebug(D_READDIR)
+      plog(XLOG_DEBUG, "end of readdir eof=TRUE, dl_entries=0\n");
+#endif /* DEBUG */
     return 0;
   }
 
@@ -1415,6 +1435,12 @@ amfs_auto_readdir(am_node *mp, nfscookie cookie, nfsdirlist *dp, nfsentry *ep, i
 
     ep->ne_nextentry = 0;
 
+#ifdef DEBUG
+    amuDebug(D_READDIR)
+      for (j=0,ne=ep; ne; ne=ne->ne_nextentry)
+	plog(XLOG_DEBUG, "gen2 key %4d \"%s\" fi=%d ck=%d",
+	     j++, ne->ne_name, ne->ne_fileid, *(u_int *)ne->ne_cookie);
+#endif /* DEBUG */
     return 0;
   }
   return ESTALE;
@@ -1428,17 +1454,18 @@ amfs_auto_readdir_browsable(am_node *mp, nfscookie cookie, nfsdirlist *dp, nfsen
   u_int gen = *(u_int *) cookie;
   int chain_length, i;
   static nfsentry *te, *te_next;
-#ifdef DEBUG_READDIR
+#ifdef DEBUG
   nfsentry *ne;
   static int j;
-#endif /* DEBUG_READDIR */
+#endif /* DEBUG */
 
   dp->dl_eof = FALSE;		/* assume readdir not done */
 
-#ifdef DEBUG_READDIR
-  plog(XLOG_INFO, "amfs_auto_readdir_browsable gen=%u, count=%d",
-       gen, count);
-#endif /* DEBUG_READDIR */
+#ifdef DEBUG
+  amuDebug(D_READDIR)
+    plog(XLOG_DEBUG, "amfs_auto_readdir_browsable gen=%u, count=%d",
+	 gen, count);
+#endif /* DEBUG */
 
   if (gen == 0) {
     /*
@@ -1488,6 +1515,7 @@ amfs_auto_readdir_browsable(am_node *mp, nfscookie cookie, nfsdirlist *dp, nfsen
       ep[1].ne_fileid = mp->am_parent->am_gen;
     else
       ep[1].ne_fileid = mp->am_gen;
+
     ep[1].ne_name = "..";
     ep[1].ne_nextentry = 0;
     *(u_int *) ep[1].ne_cookie = DOT_DOT_COOKIE;
@@ -1501,10 +1529,11 @@ amfs_auto_readdir_browsable(am_node *mp, nfscookie cookie, nfsdirlist *dp, nfsen
     te = make_entry_chain(mp, dp->dl_entries, fully_browsable);
     if (!te)
       return 0;
-#ifdef DEBUG_READDIR
-    for (j=0,ne=te; ne; ne=ne->ne_nextentry)
-      plog(XLOG_INFO, "gen1 key %4d \"%s\"", j++, ne->ne_name);
-#endif /* DEBUG_READDIR */
+#ifdef DEBUG
+    amuDebug(D_READDIR)
+      for (j=0,ne=te; ne; ne=ne->ne_nextentry)
+	plog(XLOG_DEBUG, "gen1 key %4d \"%s\"", j++, ne->ne_name);
+#endif /* DEBUG */
 
     /* return only "chain_length" entries */
     te_next = te;
@@ -1522,13 +1551,15 @@ amfs_auto_readdir_browsable(am_node *mp, nfscookie cookie, nfsdirlist *dp, nfsen
       dp->dl_eof = TRUE;	/* tell readdir that's it */
     }
     ep[1].ne_nextentry = te;	/* append this chunk of "te" chain */
-#ifdef DEBUG_READDIR
-    for (j=0,ne=te; ne; ne=ne->ne_nextentry)
-      plog(XLOG_INFO, "gen2 key %4d \"%s\"", j++, ne->ne_name);
-    for (j=0,ne=ep; ne; ne=ne->ne_nextentry)
-      plog(XLOG_INFO, "gen2+ key %4d \"%s\" fi=%d ck=%d",
-	   j++, ne->ne_name, ne->ne_fileid, *(u_int *)ne->ne_cookie);
-    plog(XLOG_INFO, "EOF is %d", dp->dl_eof);
+#ifdef DEBUG
+    amuDebug(D_READDIR) {
+      for (j=0,ne=te; ne; ne=ne->ne_nextentry)
+	plog(XLOG_DEBUG, "gen2 key %4d \"%s\"", j++, ne->ne_name);
+      for (j=0,ne=ep; ne; ne=ne->ne_nextentry)
+	plog(XLOG_DEBUG, "gen2+ key %4d \"%s\" fi=%d ck=%d",
+	     j++, ne->ne_name, ne->ne_fileid, *(u_int *)ne->ne_cookie);
+      plog(XLOG_DEBUG, "EOF is %d", dp->dl_eof);
+    }
 #endif /* DEBUG_READDIR */
     return 0;
   } /* end of "if (gen == 0)" statement */
@@ -1579,12 +1610,14 @@ amfs_auto_readdir_browsable(am_node *mp, nfscookie cookie, nfsdirlist *dp, nfsen
   }
   ep = te;			/* send next chunk of "te" chain */
   dp->dl_entries = ep;
-#ifdef DEBUG_READDIR
-  plog(XLOG_INFO, "dl_entries=0x%x, te_next=0x%x, dl_eof=%d",
-       (int) dp->dl_entries, (int) te_next, dp->dl_eof);
-  for (ne=te; ne; ne=ne->ne_nextentry)
-    plog(XLOG_INFO, "gen3 key %4d \"%s\"", j++, ne->ne_name);
-#endif /* DEBUG_READDIR */
+#ifdef DEBUG
+  amuDebug(D_READDIR) {
+    plog(XLOG_DEBUG, "dl_entries=0x%lx, te_next=0x%lx, dl_eof=%d",
+	 (long) dp->dl_entries, (long) te_next, dp->dl_eof);
+    for (ne=te; ne; ne=ne->ne_nextentry)
+      plog(XLOG_DEBUG, "gen3 key %4d \"%s\"", j++, ne->ne_name);
+  }
+#endif /* DEBUG */
   return 0;
 }
 

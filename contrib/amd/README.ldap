@@ -1,0 +1,25 @@
+LDAP support for am-utils was originally done by Leif Johansson
+<leifj@it.su.se>.  He no longer maintains it.
+
+The current LDAP support for am-utils is for LDAPv2 only.  Reportedly,
+small changes are needed to support LDAPv3.  Volunteers and patches are
+welcome.
+
+There are two files in this directory that relate to LDAP:
+
+ldap-id.txt:
+
+	This is an experimental schema for amd mount maps in LDAP.  Since
+	LDAP isn't maintained now, this code may not match with either the
+	current ldap_info.c code or with Amd mount maps in general.
+
+	The schema is written in the form of an internet-draft but it has
+	not been published as such.  We need volunteers who know and use
+	LDAP to clean it up and further its process of submission.
+
+ldap-id.ms:
+
+	This is the NROFF source of the draft.  To generate the text from
+	it, run "nroff -ms ldap-id.ms > ldap-id.txt"
+
+Erez.
