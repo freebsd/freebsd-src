@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: mount_freebsd3.c,v 5.2.2.1 1992/02/09 15:10:08 jsp beta $
+ * $Id: mount_freebsd3.c,v 1.1.1.1 1998/08/23 22:07:20 obrien Exp $
  *
  */
 
@@ -59,9 +59,8 @@
 int
 mount_freebsd3(MTYPE_TYPE type, const char *dir, int flags, voidp data)
 {
-  char const *namelist[] = INITMOUNTNAMES;
 
-  return mount(namelist[type],
+  return mount(type,
 	       dir,
 	       flags,
 	       data);
