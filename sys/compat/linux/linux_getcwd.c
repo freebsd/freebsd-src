@@ -426,7 +426,7 @@ linux_getcwd(struct proc *p, struct linux_getcwd_args *args)
 	error = __getcwd(p, &bsd);
 	if (!error) {
 		lenused = strlen(bsd.buf) + 1;
-		if (len <= args->bufsize) {
+		if (lenused <= args->bufsize) {
 			p->p_retval[0] = lenused;
 			error = copyout(bsd.buf, args->buf, lenused);
 		}
