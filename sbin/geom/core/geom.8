@@ -55,9 +55,9 @@ Print detailed information (within the given class) about all providers
 This command is only available if the given class exists in the kernel.
 .It Cm load
 Load the kernel module that implements the given class.
-This command is only available if the class doesn't yet exist in the kernel and
+This command is only available if the class does not yet exist in the kernel and
 the file
-.Pa geom_<class>.ko
+.Pa geom_ Ns Ao Ar class Ac Ns Pa .ko
 can be found in one of the directories specifed in
 .Va kern.module_path
 sysctl.
@@ -75,10 +75,11 @@ directory and are loaded via
 function when the class name is known.
 When a class-specific shared library exists, a direct utility should also be
 available under the name of
-.Nm g<class> .
+.Nm g Ns Ar class .
 .Pp
 Currently available classes which are aware of
 .Xr geom 8 :
+.Pp
 .Bl -bullet -offset indent -compact
 .It
 CONCAT

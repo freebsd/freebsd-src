@@ -85,7 +85,7 @@ method, no metadata are stored on the devices, so the striped
 device has to be configured by hand every time it is needed.
 The
 .Dq automatic
-method use on-disk metadata to detect devices.
+method uses on-disk metadata to detect devices.
 Once devices are labeled, they will be automatically detected and
 configured.
 .Pp
@@ -94,7 +94,7 @@ The first argument to
 indicates an action to be performed:
 .Bl -tag -width ".Cm destroy"
 .It Cm create
-Setup a striped device from the given devices with specified
+Set up a striped device from the given devices with specified
 .Ar name .
 This is the
 .Dq manual
@@ -103,7 +103,7 @@ The kernel module
 .Pa geom_stripe.ko
 will be loaded if it is not loaded already.
 .It Cm label
-Setup a striped device from the given devices with the specified
+Set up a striped device from the given devices with the specified
 .Ar name .
 This is the
 .Dq automatic
@@ -114,7 +114,7 @@ will be loaded if it is not loaded already.
 .It Cm stop
 Turn off existing striped device by its
 .Ar name .
-This command doesn't touch on-disk metadata!
+This command does not touch on-disk metadata!
 .It Cm destroy
 Same as
 .Cm stop .
@@ -142,7 +142,7 @@ Specifies size of stripe block.
 Be more verbose.
 .El
 .Sh EXAMPLES
-The following example shows how to setup striped device from four disks
+The following example shows how to set up striped device from four disks
 for automatic configuration, create a file system on it, and mount it:
 .Bd -literal -offset indent
 gstripe label -v -s 65536 data /dev/da0 /dev/da1 /dev/da2 /dev/da3
