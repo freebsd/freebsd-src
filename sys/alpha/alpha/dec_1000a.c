@@ -148,6 +148,15 @@ dec_1000a_init(int cputype)
 	case PCS_PROC_EV4:
 	case PCS_PROC_EV45:
 		platform.iobus = "apecs";
+		break;
+
+	default:
+		platform.iobus = "cia";
+		break;
+	}
+	platform.cons_init = dec_1000a_cons_init;
+	switch (cputype) {
+	case ST_DEC_1000:
 		platform.pci_intr_route = dec_1000_intr_route;
 		platform.pci_intr_disable = dec_1000_intr_disable;
 		platform.pci_intr_enable = dec_1000_intr_enable;
@@ -155,14 +164,13 @@ dec_1000a_init(int cputype)
 		break;
 
 	default:
-		platform.iobus = "cia";
 		platform.pci_intr_route = dec_1000a_intr_route;
 		platform.pci_intr_disable = dec_1000a_intr_disable;
 		platform.pci_intr_enable = dec_1000a_intr_enable;
 		platform.pci_intr_init = dec_1000a_intr_init;
 		break;
 	}
-	platform.cons_init = dec_1000a_cons_init;
+
 }
 
 /* XXX for forcing comconsole when srm serial console is used */
