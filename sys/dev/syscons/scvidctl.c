@@ -92,7 +92,7 @@ typedef struct old_video_adapter_info {
     u_int		va_window;	/* virtual address */
     size_t		va_window_size;
     size_t		va_window_gran;
-    u_int		va_buffer;;
+    u_int		va_buffer;
     size_t		va_buffer_size;
     int			va_initial_mode;
     int			va_initial_bios_mode;
