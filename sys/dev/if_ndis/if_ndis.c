@@ -110,6 +110,8 @@ static void ndis_starttask	(void *);
 static int ndis_ioctl		(struct ifnet *, u_long, caddr_t);
 static int ndis_wi_ioctl_get	(struct ifnet *, u_long, caddr_t);
 static int ndis_wi_ioctl_set	(struct ifnet *, u_long, caddr_t);
+static int ndis_80211_ioctl_get	(struct ifnet *, u_long, caddr_t);
+static int ndis_80211_ioctl_set	(struct ifnet *, u_long, caddr_t);
 static void ndis_init		(void *);
 static void ndis_stop		(struct ndis_softc *);
 static void ndis_watchdog	(struct ifnet *);
@@ -2035,6 +2037,18 @@ ndis_ioctl(ifp, command, data)
 			ifp->if_hwassist = 0;
 		ndis_set_offload(sc);
 		break;
+	case SIOCG80211:
+		if (sc->ndis_80211)
+			error = ndis_80211_ioctl_get(ifp, command, data);
+		else
+			error = ENOTTY;
+		break;
+	case SIOCS80211:
+		if (sc->ndis_80211)
+			error = ndis_80211_ioctl_set(ifp, command, data);
+		else
+			error = ENOTTY;
+		break;
 	case SIOCGIFGENERIC:
 	case SIOCSIFGENERIC:
 		if (sc->ndis_80211 && NDIS_INITIALIZED(sc)) {
@@ -2181,6 +2195,119 @@ ndis_wi_ioctl_set(ifp, command, data)
 		break;
 	}
 	return (error);
+}
+
+static int
+ndis_80211_ioctl_get(struct ifnet *ifp, u_long command, caddr_t data)
+{
+	struct ndis_softc		*sc;
+	struct ieee80211req		*ireq;
+	ndis_80211_bssid_list_ex	*bl;
+	ndis_wlan_bssid_ex		*wb;
+	struct ieee80211req_scan_result	*sr, *bsr;
+	int				error, len, i, j;
+	char				*cp;
+	
+	sc = ifp->if_softc;
+	ireq = (struct ieee80211req *) data;
+		
+	switch (ireq->i_type) {
+	case IEEE80211_IOC_SCAN_RESULTS:
+		len = 0;
+		error = ndis_get_info(sc, OID_802_11_BSSID_LIST, NULL, &len);
+		if (error != ENOSPC)
+			break;
+		bl = malloc(len, M_DEVBUF, M_WAITOK | M_ZERO);
+		error = ndis_get_info(sc, OID_802_11_BSSID_LIST, bl, &len);
+		if (error) {
+			free(bl, M_DEVBUF);
+			break;
+		}
+		sr = bsr = malloc(ireq->i_len, M_DEVBUF, M_WAITOK | M_ZERO);
+		wb = bl->nblx_bssid;
+		len = 0;
+		for (i = 0; i < bl->nblx_items; i++) {
+			/*
+			 * Check if we have enough space left for this ap
+			 */
+			j = roundup(sizeof(*sr) + wb->nwbx_ssid.ns_ssidlen
+			    + wb->nwbx_ielen - sizeof(struct ndis_80211_fixed_ies),
+			    sizeof(uint32_t));
+			if (len + j > ireq->i_len)
+				break;
+			bcopy(&wb->nwbx_macaddr, &sr->isr_bssid, sizeof(sr->isr_bssid));
+			if (wb->nwbx_privacy)
+				sr->isr_capinfo |= IEEE80211_CAPINFO_PRIVACY;
+			sr->isr_rssi = wb->nwbx_rssi + 200;
+			sr->isr_freq = wb->nwbx_config.nc_dsconfig / 1000;
+			sr->isr_intval = wb->nwbx_config.nc_beaconperiod;
+			switch (wb->nwbx_netinfra) {
+			case NDIS_80211_NET_INFRA_IBSS:
+				sr->isr_capinfo |= IEEE80211_CAPINFO_IBSS;
+				break;
+			case NDIS_80211_NET_INFRA_BSS:
+				sr->isr_capinfo |= IEEE80211_CAPINFO_ESS;
+				break;
+			}
+			for (j = 0; j < sizeof(sr->isr_rates); j++) {
+				/* XXX - check units */
+				if (wb->nwbx_supportedrates[j] == 0)
+					break;
+				sr->isr_rates[j] = wb->nwbx_supportedrates[j] & 0x7f;
+			}
+			sr->isr_nrates = j;
+			sr->isr_ssid_len = wb->nwbx_ssid.ns_ssidlen;
+			cp = (char *)sr + sizeof(*sr);
+			bcopy(&wb->nwbx_ssid.ns_ssid, cp, sr->isr_ssid_len);
+			cp += sr->isr_ssid_len;
+			sr->isr_ie_len = wb->nwbx_ielen
+			    - sizeof(struct ndis_80211_fixed_ies);
+			bcopy((char *)wb->nwbx_ies + sizeof(struct ndis_80211_fixed_ies),
+			    cp, sr->isr_ie_len);
+			sr->isr_len = roundup(sizeof(*sr) + sr->isr_ssid_len
+			    + sr->isr_ie_len, sizeof(uint32_t));
+			len += sr->isr_len;
+			sr = (struct ieee80211req_scan_result *)((char *)sr + sr->isr_len);
+			wb = (ndis_wlan_bssid_ex *)((char *)wb + wb->nwbx_len);
+		}
+		ireq->i_len = len;
+		error = copyout(bsr, ireq->i_data, len);
+		free(bl, M_DEVBUF);
+		free(bsr, M_DEVBUF);
+		break;
+	default:
+		error = ieee80211_ioctl(&sc->ic, command, data);
+	}
+	
+	return(error);
+}
+
+static int
+ndis_80211_ioctl_set(struct ifnet *ifp, u_long command, caddr_t data)
+{
+	struct ndis_softc	*sc;
+	struct ieee80211req	*ireq;
+	int			error, len;
+	
+	sc = ifp->if_softc;
+	ireq = (struct ieee80211req *) data;
+		
+	switch (ireq->i_type) {
+	case IEEE80211_IOC_SCAN_REQ:
+		len = 0;
+		error = ndis_set_info(sc, OID_802_11_BSSID_LIST_SCAN, NULL, &len);
+		tsleep(&error, PPAUSE|PCATCH, "ssidscan", hz * 2);
+		rt_ieee80211msg(ifp, RTM_IEEE80211_SCAN, NULL, 0);
+		break;
+	default:
+		error = ieee80211_ioctl(&sc->ic, command, data);
+		if (error == ENETRESET) {
+			ndis_setstate_80211(sc);
+			error = 0;
+		}
+	}
+	
+	return(error);
 }
 
 static void
