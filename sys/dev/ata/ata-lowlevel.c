@@ -80,7 +80,7 @@ ata_getparam(device_t parent, struct ata_device *atadev, u_int8_t command)
 	ATA_IDX_OUTB(ch, ATA_DRIVE, ATA_D_IBM | ATA_D_LBA | atadev->unit);
 
 	/* disable interrupt */
-	ATA_IDX_OUTB(ch, ATA_ALTSTAT, ATA_A_4BIT | ATA_A_IDS);
+	ATA_IDX_OUTB(ch, ATA_CONTROL, ATA_A_4BIT | ATA_A_IDS);
 
 	/* ready to issue command ? */
 	if ((error = ata_wait(ch, atadev, 0)) < 0) { 
@@ -96,7 +96,7 @@ ata_getparam(device_t parent, struct ata_device *atadev, u_int8_t command)
 	ATA_IDX_OUTB(ch, ATA_DRIVE, ATA_D_IBM | ATA_D_LBA | atadev->unit);
 
 	/* issue command */
-	ATA_IDX_OUTB(ch, ATA_CMD, command);
+	ATA_IDX_OUTB(ch, ATA_COMMAND, command);
 
     } while (ata_wait(ch, atadev, ATA_S_DRQ));
 
@@ -251,7 +251,7 @@ ata_begin_transaction(struct ata_request *request)
 	if (request->u.atapi.ccb[0] == ATAPI_POLL_DSC) {
 	    ATA_IDX_OUTB(ch, ATA_DRIVE, ATA_D_IBM | atadev->unit);
 	    DELAY(10);
-	    if (!(ATA_IDX_INB(ch, ATA_ALTSTAT)&ATA_S_DSC))
+	    if (!(ATA_IDX_INB(ch, ATA_ALTSTAT) & ATA_S_DSC))
 		request->result = EBUSY;
 	    break;
 	}
@@ -302,7 +302,7 @@ ata_begin_transaction(struct ata_request *request)
 	if (request->u.atapi.ccb[0] == ATAPI_POLL_DSC) {
 	    ATA_IDX_OUTB(ch, ATA_DRIVE, ATA_D_IBM | atadev->unit);
 	    DELAY(10);
-	    if (!(ATA_IDX_INB(ch, ATA_ALTSTAT)&ATA_S_DSC))
+	    if (!(ATA_IDX_INB(ch, ATA_ALTSTAT) & ATA_S_DSC))
 		request->result = EBUSY;
 	    break;
 	}
@@ -597,7 +597,7 @@ ata_end_transaction(struct ata_request *request)
     }
 
     /* disable interrupt */
-    //ATA_IDX_OUTB(ch, ATA_ALTSTAT, ATA_A_4BIT | ATA_A_IDS);
+    //ATA_IDX_OUTB(ch, ATA_CONTROL, ATA_A_4BIT | ATA_A_IDS);
 
     return ATA_OP_FINISHED;
 }
@@ -654,9 +654,9 @@ ata_generic_reset(struct ata_channel *ch)
     /* reset (both) devices on this channel */
     ATA_IDX_OUTB(ch, ATA_DRIVE, ATA_D_IBM | ATA_D_LBA | ATA_MASTER);
     DELAY(10);
-    ATA_IDX_OUTB(ch, ATA_ALTSTAT, ATA_A_IDS | ATA_A_RESET);
+    ATA_IDX_OUTB(ch, ATA_CONTROL, ATA_A_IDS | ATA_A_RESET);
     ata_udelay(10000); 
-    ATA_IDX_OUTB(ch, ATA_ALTSTAT, ATA_A_IDS);
+    ATA_IDX_OUTB(ch, ATA_CONTROL, ATA_A_IDS);
     ata_udelay(100000);
     ATA_IDX_INB(ch, ATA_ERROR);
 
@@ -811,7 +811,7 @@ ata_generic_command(struct ata_device *atadev, u_int8_t command,
     }
 
     /* enable interrupt */
-    ATA_IDX_OUTB(ch, ATA_ALTSTAT, ATA_A_4BIT);
+    ATA_IDX_OUTB(ch, ATA_CONTROL, ATA_A_4BIT);
 
     /* only use 48bit addressing if needed (avoid bugs and overhead) */
     if ((lba >= ATA_MAX_28BIT_LBA || count > 256) &&
@@ -885,7 +885,7 @@ ata_generic_command(struct ata_device *atadev, u_int8_t command,
     }
 
     /* issue command to controller */
-    ATA_IDX_OUTB(ch, ATA_CMD, command);
+    ATA_IDX_OUTB(ch, ATA_COMMAND, command);
 
     return 0;
 }

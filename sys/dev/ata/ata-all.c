@@ -669,6 +669,20 @@ ata_identify(driver_t *driver, device_t parent, int type, const char *name)
 }
 
 void
+ata_default_registers(struct ata_channel *ch)
+{
+    /* fill in the defaults from whats setup already */
+    ch->r_io[ATA_ERROR].res = ch->r_io[ATA_FEATURE].res;
+    ch->r_io[ATA_ERROR].offset = ch->r_io[ATA_FEATURE].offset;
+    ch->r_io[ATA_IREASON].res = ch->r_io[ATA_COUNT].res;
+    ch->r_io[ATA_IREASON].offset = ch->r_io[ATA_COUNT].offset;
+    ch->r_io[ATA_STATUS].res = ch->r_io[ATA_COMMAND].res;
+    ch->r_io[ATA_STATUS].offset = ch->r_io[ATA_COMMAND].offset;
+    ch->r_io[ATA_ALTSTAT].res = ch->r_io[ATA_CONTROL].res;
+    ch->r_io[ATA_ALTSTAT].offset = ch->r_io[ATA_CONTROL].offset;
+}
+
+void
 ata_udelay(int interval)
 {
     /* for now just use DELAY, the timer/sleep subsytems are not there yet */

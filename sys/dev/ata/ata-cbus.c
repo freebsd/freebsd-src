@@ -51,7 +51,7 @@ __FBSDID("$FreeBSD$");
 /* local vars */
 struct ata_cbus_controller {
     struct resource *io;
-    struct resource *altio;
+    struct resource *ctlio;
     struct resource *bankio;
     struct resource *irq;
     void *ih;
@@ -88,10 +88,10 @@ ata_cbus_probe(device_t dev)
 	return ENOMEM;
 
     /* calculate & set the altport range */
-    rid = ATA_PC98_ALTADDR_RID;
+    rid = ATA_PC98_CTLADDR_RID;
     if (bus_get_resource(dev, SYS_RES_IOPORT, rid, &tmp, &tmp)) {
 	bus_set_resource(dev, SYS_RES_IOPORT, rid,
-			 rman_get_start(io)+ATA_PC98_ALTOFFSET, ATA_ALTIOSIZE);
+			 rman_get_start(io)+ATA_PC98_CTLOFFSET, ATA_CTLIOSIZE);
     }
 
     /* calculate & set the bank range */
@@ -118,12 +118,12 @@ ata_cbus_attach(device_t dev)
     if (!ctlr->io)
        return ENOMEM;
 
-    rid = ATA_PC98_ALTADDR_RID;
-    ctlr->altio = 
+    rid = ATA_PC98_CTLADDR_RID;
+    ctlr->ctlio = 
 	bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
-			   rman_get_start(ctlr->io) + ATA_PC98_ALTOFFSET, ~0,
-			   ATA_ALTIOSIZE, RF_ACTIVE);
-    if (!ctlr->altio) {
+			   rman_get_start(ctlr->io) + ATA_PC98_CTLOFFSET, ~0,
+			   ATA_CTLIOSIZE, RF_ACTIVE);
+    if (!ctlr->ctlio) {
 	bus_release_resource(dev, SYS_RES_IOPORT, ATA_IOADDR_RID, ctlr->io);
 	return ENOMEM;
     }
@@ -134,7 +134,7 @@ ata_cbus_attach(device_t dev)
 				      ATA_PC98_BANKIOSIZE, RF_ACTIVE);
     if (!ctlr->bankio) {
 	bus_release_resource(dev, SYS_RES_IOPORT, ATA_IOADDR_RID, ctlr->io);
-	bus_release_resource(dev, SYS_RES_IOPORT, ATA_ALTADDR_RID, ctlr->altio);
+	bus_release_resource(dev, SYS_RES_IOPORT, ATA_CTLADDR_RID, ctlr->ctlio);
 	return ENOMEM;
     }
 
@@ -143,7 +143,7 @@ ata_cbus_attach(device_t dev)
 					     RF_ACTIVE | RF_SHAREABLE))) {
 	device_printf(dev, "unable to alloc interrupt\n");
 	bus_release_resource(dev, SYS_RES_IOPORT, ATA_IOADDR_RID, ctlr->io);
-	bus_release_resource(dev, SYS_RES_IOPORT, ATA_ALTADDR_RID, ctlr->altio);
+	bus_release_resource(dev, SYS_RES_IOPORT, ATA_CTLADDR_RID, ctlr->ctlio);
 	bus_release_resource(dev, SYS_RES_IOPORT, 
 			     ATA_PC98_BANKADDR_RID, ctlr->bankio);
 	return ENXIO;
@@ -153,7 +153,7 @@ ata_cbus_attach(device_t dev)
 			ata_cbus_intr, ctlr, &ctlr->ih))) {
 	device_printf(dev, "unable to setup interrupt\n");
 	bus_release_resource(dev, SYS_RES_IOPORT, ATA_IOADDR_RID, ctlr->io);
-	bus_release_resource(dev, SYS_RES_IOPORT, ATA_ALTADDR_RID, ctlr->altio);
+	bus_release_resource(dev, SYS_RES_IOPORT, ATA_CTLADDR_RID, ctlr->ctlio);
 	bus_release_resource(dev, SYS_RES_IOPORT, 
 			     ATA_PC98_BANKADDR_RID, ctlr->bankio);
 	bus_release_resource(dev, SYS_RES_IOPORT, ATA_IRQ_RID, ctlr->irq);
@@ -183,8 +183,8 @@ ata_cbus_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	switch (*rid) {
 	case ATA_IOADDR_RID:
 	    return ctlr->io;
-	case ATA_ALTADDR_RID:
-	    return ctlr->altio;
+	case ATA_CTLADDR_RID:
+	    return ctlr->ctlio;
 	}
     }
     if (type == SYS_RES_IRQ)
@@ -275,12 +275,14 @@ ata_cbuschannel_probe(device_t dev)
     free(children, M_TEMP);
 
     /* setup the resource vectors */
-    for (i = ATA_DATA; i <= ATA_STATUS; i ++) {
+    for (i = ATA_DATA; i <= ATA_COMMAND; i ++) {
 	ch->r_io[i].res = ctlr->io;
 	ch->r_io[i].offset = i << 1;
     }
-    ch->r_io[ATA_ALTSTAT].res = ctlr->altio;
-    ch->r_io[ATA_ALTSTAT].offset = 0;
+    ch->r_io[ATA_CONTROL].res = ctlr->ctlio;
+    ch->r_io[ATA_CONTROL].offset = 0;
+    ch->r_io[ATA_IDX_ADDR].res = ctlr->io;
+    ata_default_registers(ch);
 
     /* initialize softc for this channel */
     ch->flags |= ATA_USE_16BIT;
