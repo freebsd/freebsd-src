@@ -205,7 +205,7 @@ vop_nolookup(ap)
  *
  *	BIO_ERROR and B_INVAL must be cleared prior to calling any strategy
  *	routine.  Typically this is done for a BIO_READ strategy call.
- *	Typically B_INVAL is assumed to already be clear prior to a write 
+ *	Typically B_INVAL is assumed to already be clear prior to a write
  *	and should not be cleared manually unless you just made the buffer
  *	invalid.  BIO_ERROR should be cleared either way.
  */
@@ -247,7 +247,7 @@ vop_nospecstrategy (struct vop_specstrategy_args *ap)
 
 /*
  * vop_stdpathconf:
- * 
+ *
  * Standard implementation of POSIX pathconf, to get information about limits
  * for a filesystem.
  * Override per filesystem for the case where the filesystem has smaller
@@ -297,7 +297,7 @@ vop_stdlock(ap)
 		int a_flags;
 		struct thread *a_td;
 	} */ *ap;
-{               
+{
 	struct vnode *vp = ap->a_vp;
 
 #ifndef	DEBUG_LOCKS
@@ -414,7 +414,7 @@ vop_sharedlock(ap)
 	 * function unlock them. Otherwise all intermediate vnode layers
 	 * (such as union, umapfs, etc) must catch these functions to do
 	 * the necessary locking at their layer. Note that the inactive
-	 * and lookup operations also change their lock state, but this 
+	 * and lookup operations also change their lock state, but this
 	 * cannot be avoided, so these two operations will always need
 	 * to be handled in intermediate layers.
 	 */
@@ -479,7 +479,7 @@ vop_nolock(ap)
 	 * function unlock them. Otherwise all intermediate vnode layers
 	 * (such as union, umapfs, etc) must catch these functions to do
 	 * the necessary locking at their layer. Note that the inactive
-	 * and lookup operations also change their lock state, but this 
+	 * and lookup operations also change their lock state, but this
 	 * cannot be avoided, so these two operations will always need
 	 * to be handled in intermediate layers.
 	 */
@@ -685,7 +685,7 @@ vop_stdgetvobject(ap)
 /* XXX Needs good comment and VOP_BMAP(9) manpage */
 int
 vop_stdbmap(ap)
-	struct vop_bmap_args /* {  
+	struct vop_bmap_args /* {
 		struct vnode *a_vp;
 		daddr_t  a_bn;
 		struct vnode **a_vpp;
@@ -792,9 +792,10 @@ loop2:
 	}
 	VI_UNLOCK(vp);
 	splx(s);
-	
+
 	return (error);
 }
+
 /* XXX Needs good comment and more info in the manpage (VOP_GETPAGES(9)). */
 int
 vop_stdgetpages(ap)
@@ -828,9 +829,7 @@ vop_stdputpages(ap)
 	     ap->a_sync, ap->a_rtvals);
 }
 
-
-
-/* 
+/*
  * vfs default ops
  * used to fill the vfs function table to get reasonable default return values.
  */
@@ -868,7 +867,7 @@ vfs_stdstart (mp, flags, td)
 	return (0);
 }
 
-int	
+int
 vfs_stdquotactl (mp, cmds, uid, arg, td)
 	struct mount *mp;
 	int cmds;
@@ -879,17 +878,17 @@ vfs_stdquotactl (mp, cmds, uid, arg, td)
 	return (EOPNOTSUPP);
 }
 
-int	
+int
 vfs_stdsync (mp, waitfor, cred, td)
 	struct mount *mp;
 	int waitfor;
-	struct ucred *cred; 
+	struct ucred *cred;
 	struct thread *td;
 {
 	return (0);
 }
 
-int	
+int
 vfs_stdvget (mp, ino, flags, vpp)
 	struct mount *mp;
 	ino_t ino;
@@ -899,7 +898,7 @@ vfs_stdvget (mp, ino, flags, vpp)
 	return (EOPNOTSUPP);
 }
 
-int	
+int
 vfs_stdfhtovp (mp, fhp, vpp)
 	struct mount *mp;
 	struct fid *fhp;
@@ -909,7 +908,7 @@ vfs_stdfhtovp (mp, fhp, vpp)
 }
 
 int
-vfs_stdinit (vfsp) 
+vfs_stdinit (vfsp)
 	struct vfsconf *vfsp;
 {
 	return (0);
