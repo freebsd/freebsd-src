@@ -98,7 +98,7 @@ static int aflag, kflag, memf, follow, sflag, tflag;
 
 void dotrace __P((caddr_t));
 void klseek __P((int, off_t, int));
-int numeric __P((caddr_t *, caddr_t *));
+int numeric __P((const void *, const void *));
 void tcp_trace __P((short, short, struct tcpcb *, struct tcpcb *,
 			int, void *, struct tcphdr *, int));
 static void usage __P((void));
@@ -460,9 +460,10 @@ tcp_trace(act, ostate, atp, tp, family, ip, th, req)
 }
 
 int
-numeric(c1, c2)
-	caddr_t *c1, *c2;
+numeric(v1, v2)
+	const void *v1, *v2;
 {
+	const caddr_t *c1 = v1, *c2 = v2;
 	return(*c1 - *c2);
 }
 
