@@ -17,7 +17,8 @@ LOCALES=	de_DE.DIS_8859-15 \
 		ru_SU.ISO_8859-5 \
 		ru_SU.KOI8-R \
 		sv_SE.DIS_8859-15 \
-		sv_SE.ISO_8859-1
+		sv_SE.ISO_8859-1 \
+		uk_UA.KOI8-U
 
 LOCALEDIR=      ${DESTDIR}/usr/share/locale
 
@@ -56,6 +57,7 @@ ru_SU.ISO_8859-5.out:   map.ISO_8859-5
 ru_SU.KOI8-R.out:       map.KOI8-R
 sv_SE.DIS_8859-15.out:  map.DIS_8859-15
 sv_SE.ISO_8859-1.out:   map.ISO_8859-1
+uk_UA.KOI8-U.out:       map.KOI8-U
 
 afterinstall:
 .for locale in ${LOCALES}
