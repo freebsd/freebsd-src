@@ -34,7 +34,7 @@
 .\"
 .Dd April 18, 1994
 .Dt NETSTAT 1
-.Os BSD 4.2
+.Os
 .Sh NAME
 .Nm netstat
 .Nd show network status
@@ -45,7 +45,7 @@
 .Op Fl M Ar core
 .Op Fl N Ar system
 .Nm
-.Op Fl bdgilnrs
+.Op Fl bdgilnrsS
 .Op Fl f Ar address_family
 .Op Fl M Ar core
 .Op Fl N Ar system
@@ -172,7 +172,7 @@ option) or the
 .Fl p Ar protocol
 option is present, show per-interface statistics on the
 .Ar interface
-for the specfied
+for the specified
 .Ar address_family
 or
 .Ar protocol ,
@@ -194,7 +194,7 @@ option (with the
 option) or the
 .Fl p Ar protocol
 option is present, show per-interface statistics on all interfaces
-for the specfied
+for the specified
 .Ar address_family
 or
 .Ar protocol ,
@@ -218,11 +218,15 @@ Show statistics recorded by the memory management routines
 Extract the name list from the specified system instead of the default
 .Pa /kernel .
 .It Fl n
-Show network addresses as numbers (normally
+Show network addresses and ports as numbers (normally
 .Nm
-interprets addresses and attempts to display them
+interprets addresses and ports and attempts to display them
 symbolically).
 This option may be used with any of the display formats.
+.It Fl S
+Show network addresses as numbers (as with
+.Fl n )
+but show ports symbolically).
 .It Fl p Ar protocol 
 Show statistics about
 .Ar protocol ,
