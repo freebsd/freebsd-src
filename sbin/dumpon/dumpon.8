@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     From: @(#)swapon.8	8.1 (Berkeley) 6/5/93
-.\"	$Id: dumpon.8,v 1.8 1998/06/15 07:03:46 charnier Exp $
+.\"	$Id: dumpon.8,v 1.9 1998/08/31 16:41:06 wosch Exp $
 .\"
 .Dd May 12, 1995
 .Dt DUMPON 8
@@ -106,8 +106,8 @@ is the text string:
 .Xr swapon 8 ,
 .Xr panic 9
 .Sh FILES
-.Bl -tag -width /dev/[ws]d?b -compact
-.It Pa /dev/[ws]d?b
+.Bl -tag -width "/dev/{wd,da}?s?b" -compact
+.It Pa /dev/{wd,da}?s?b
 standard swap areas
 .It Pa /etc/rc.conf
 boot-time system configuration
