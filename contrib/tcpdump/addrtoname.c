@@ -467,15 +467,16 @@ isonsap_string(const u_char *nsap)
 	if (tp->e_name)
 		return tp->e_name;
 
-	tp->e_name = cp = (char *)malloc(nlen * 2 + 2);
+	tp->e_name = cp = (char *)malloc(nlen * 2 + 2 + (nlen>>1));
 	if (cp == NULL)
 		error("isonsap_string: malloc");
 
 	nsap++;
-	*cp++ = '/';
-	for (i = nlen; (int)--i >= 0;) {
+	for (i = 0; i < nlen; i++) {
 		*cp++ = hex[*nsap >> 4];
 		*cp++ = hex[*nsap++ & 0xf];
+		if (((i & 1) == 0) && (i + 1 < nlen))
+			*cp++ = '.';
 	}
 	*cp = '\0';
 	return (tp->e_name);
