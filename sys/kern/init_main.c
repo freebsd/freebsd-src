@@ -374,12 +374,8 @@ proc0_init(void *dummy __unused)
 	ke->ke_oncpu = 0;
 	ke->ke_state = KES_THREAD;
 	ke->ke_thread = td;
-	/* proc_linkup puts it in the idle queue, that's not what we want. */
-	TAILQ_REMOVE(&kg->kg_iq, ke, ke_kgrlist);
-	kg->kg_idle_kses--;
 	p->p_peers = 0;
 	p->p_leader = p;
-KASSERT((ke->ke_kgrlist.tqe_next != ke), ("linked to self!"));
 
 
 	bcopy("swapper", p->p_comm, sizeof ("swapper"));

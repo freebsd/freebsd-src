@@ -500,8 +500,6 @@ again:
 #undef RANGEOF
 
 	/* Set up the thread as an active thread (as if runnable). */
-	TAILQ_REMOVE(&kg2->kg_iq, ke2, ke_kgrlist);
-	kg2->kg_idle_kses--;
 	ke2->ke_state = KES_THREAD;
 	ke2->ke_thread = td2;
 	td2->td_kse = ke2;
