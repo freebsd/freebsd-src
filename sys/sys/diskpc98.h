@@ -37,6 +37,8 @@
 #ifndef _SYS_DISKPC98_H_
 #define	_SYS_DISKPC98_H_
 
+#include <sys/ioccom.h>
+
 #define	DOSBBSECTOR	0	/* DOS boot block relative sector number */
 #define	DOSPARTOFF	0
 #define	NDOSPART	16
@@ -63,5 +65,8 @@ struct dos_partition {
 #ifdef CTASSERT
 CTASSERT(sizeof (struct dos_partition) == 32);
 #endif
+
+#define DIOCGPC98	_IOR('M', 128, u_char[8192])
+#define DIOCSPC98	_IOW('M', 129, u_char[8192])
 
 #endif /* !_SYS_DISKPC98_H_ */
