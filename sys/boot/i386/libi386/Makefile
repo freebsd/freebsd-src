@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.3 1998/09/17 23:52:07 msmith Exp $
+# $Id: Makefile,v 1.4 1998/09/18 02:02:33 msmith Exp $
 #
 LIB=	i386
 NOPIC=
@@ -10,6 +10,6 @@ SRCS=	aout_freebsd.c biosdisk.c biosmem.c bootinfo.c comconsole.c \
 CFLAGS+=	-I${.CURDIR}/../../common -I${.CURDIR}/../btx/lib
 
 # Make the disk code more talkative
-CFLAGS+= -DDISK_DEBUG
+#CFLAGS+= -DDISK_DEBUG
 
 .include <bsd.lib.mk>
