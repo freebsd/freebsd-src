@@ -23,8 +23,11 @@
 
 /* $FreeBSD$ */
 
+#include "opt_mac.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/mac.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
@@ -47,6 +50,10 @@ ddp_output( struct mbuf *m, struct socket *so)
 {
     struct ddpehdr	*deh;
     struct ddpcb *ddp = sotoddpcb( so );
+
+#ifdef MAC
+    mac_create_mbuf_from_socket(so, m);
+#endif
 
     M_PREPEND( m, sizeof( struct ddpehdr ), M_TRYWAIT );
 
@@ -195,6 +202,9 @@ ddp_route( struct mbuf *m, struct route *ro)
 	    printf("ddp_route: no buffers\n");
 	    return( ENOBUFS );
 	}
+#ifdef MAC
+	mac_create_mbuf_from_mbuf(m, m0);
+#endif
 	m0->m_next = m;
 	/* XXX perhaps we ought to align the header? */
 	m0->m_len = SZ_ELAPHDR;
