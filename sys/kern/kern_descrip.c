@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>
 #include <sys/filedesc.h>
 #include <sys/lock.h>
+#include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/limits.h>
 #include <sys/malloc.h>
@@ -1303,8 +1304,8 @@ falloc(td, resultfp, resultfd)
 
 	fp = uma_zalloc(file_zone, M_WAITOK | M_ZERO);
 	sx_xlock(&filelist_lock);
-	if ((nfiles >= maxuserfiles && td->td_ucred->cr_ruid != 0)
-	   || nfiles >= maxfiles) {
+	if ((nfiles >= maxuserfiles && (td->td_ucred->cr_ruid != 0 ||
+	   jailed(td->td_ucred))) || nfiles >= maxfiles) {
 		if (ppsratecheck(&lastfail, &curfail, 1)) {
 			printf("kern.maxfiles limit exceeded by uid %i, please see tuning(7).\n",
 				td->td_ucred->cr_ruid);
