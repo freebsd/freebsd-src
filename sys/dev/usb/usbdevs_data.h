@@ -46,6 +46,12 @@
 
 struct usb_knowndev usb_knowndevs[] = {
 	{
+	    USB_VENDOR_THRUST, USB_PRODUCT_THRUST_FUSION_PAD,
+	    0,
+	    "Thrustmaster",
+	    "Fusion Digital Gamepad",
+	},
+	{
 	    USB_VENDOR_NEC, USB_PRODUCT_NEC_HUB,
 	    0,
 	    "NEC",
@@ -337,6 +343,12 @@ struct usb_knowndev usb_knowndevs[] = {
 	    USB_VENDOR_NANAO, 0,
 	    USB_KNOWNDEV_NOPROD,
 	    "Nanao",
+	    NULL,
+	},
+	{
+	    USB_VENDOR_THRUST, 0,
+	    USB_KNOWNDEV_NOPROD,
+	    "Thrustmaster",
 	    NULL,
 	},
 	{
