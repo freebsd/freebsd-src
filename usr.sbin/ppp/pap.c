@@ -18,7 +18,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: pap.c,v 1.5 1996/05/11 20:48:38 phk Exp $
+ * $Id: pap.c,v 1.6 1996/10/06 13:32:30 jkh Exp $
  *
  *	TODO:
  */
@@ -30,6 +30,10 @@
 #include "lcpproto.h"
 #include "phase.h"
 #include "auth.h"
+
+#ifdef PASSWDAUTH
+# include "passwdauth.h"
+#endif
 
 static char *papcodes[] = {
   "???", "REQUEST", "ACK", "NAK"

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.19 1996/05/11 20:48:34 phk Exp $
+ * $Id: main.c,v 1.20 1996/07/09 17:40:36 ache Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -32,6 +32,7 @@
 #include <sys/wait.h>
 #include <errno.h>
 #include <netdb.h>
+#include <unistd.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include "modem.h"
