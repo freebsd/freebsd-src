@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/smp.h>
 #include <sys/sysctl.h>
 #include <sys/sx.h>
+#include <sys/turnstile.h>
 #include <machine/smp.h>
 
 /*
@@ -159,10 +160,12 @@ static void	setup_runqs(void);
 static void	roundrobin(void *arg);
 static void	schedcpu(void);
 static void	schedcpu_thread(void);
+static void	sched_priority(struct thread *td, u_char prio);
 static void	sched_setup(void *dummy);
 static void	maybe_resched(struct thread *td);
 static void	updatepri(struct ksegrp *kg);
 static void	resetpriority(struct ksegrp *kg);
+static void	resetpriority_thread(struct thread *td, struct ksegrp *kg);
 #ifdef SMP
 static int	forward_wakeup(int  cpunum);
 #endif
@@ -516,9 +519,7 @@ schedcpu(void)
 			kg->kg_estcpu = decay_cpu(loadfac, kg->kg_estcpu);
 		      	resetpriority(kg);
 			FOREACH_THREAD_IN_GROUP(kg, td) {
-				if (td->td_priority >= PUSER) {
-					sched_prio(td, kg->kg_user_pri);
-				}
+				resetpriority_thread(td, kg);
 			}
 		} /* end of ksegrp loop */
 		mtx_unlock_spin(&sched_lock);
@@ -561,7 +562,6 @@ updatepri(struct ksegrp *kg)
 			newcpu = decay_cpu(loadfac, newcpu);
 		kg->kg_estcpu = newcpu;
 	}
-	resetpriority(kg);
 }
 
 /*
@@ -573,7 +573,6 @@ static void
 resetpriority(struct ksegrp *kg)
 {
 	register unsigned int newpriority;
-	struct thread *td;
 
 	if (kg->kg_pri_class == PRI_TIMESHARE) {
 		newpriority = PUSER + kg->kg_estcpu / INVERSE_ESTCPU_WEIGHT +
@@ -582,9 +581,25 @@ resetpriority(struct ksegrp *kg)
 		    PRI_MAX_TIMESHARE);
 		kg->kg_user_pri = newpriority;
 	}
-	FOREACH_THREAD_IN_GROUP(kg, td) {
-		maybe_resched(td);			/* XXXKSE silly */
-	}
+}
+
+/*
+ * Update the thread's priority when the associated ksegroup's user
+ * priority changes.
+ */
+static void
+resetpriority_thread(struct thread *td, struct ksegrp *kg)
+{
+
+	/* Only change threads with a time sharing user priority. */
+	if (td->td_priority < PRI_MIN_TIMESHARE ||
+	    td->td_priority > PRI_MAX_TIMESHARE)
+		return;
+
+	/* XXX the whole needresched thing is broken, but not silly. */
+	maybe_resched(td);
+
+	sched_prio(td, kg->kg_user_pri);
 }
 
 /* ARGSUSED */
@@ -674,8 +689,7 @@ sched_clock(struct thread *td)
 	kg->kg_estcpu = ESTCPULIM(kg->kg_estcpu + 1);
 	if ((kg->kg_estcpu % INVERSE_ESTCPU_WEIGHT) == 0) {
 		resetpriority(kg);
-		if (td->td_priority >= PUSER)
-			td->td_priority = kg->kg_user_pri;
+		resetpriority_thread(td, kg);
 	}
 }
 
@@ -735,12 +749,16 @@ void
 sched_nice(struct proc *p, int nice)
 {
 	struct ksegrp *kg;
+	struct thread *td;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	mtx_assert(&sched_lock, MA_OWNED);
 	p->p_nice = nice;
 	FOREACH_KSEGRP_IN_PROC(p, kg) {
 		resetpriority(kg);
+		FOREACH_THREAD_IN_GROUP(kg, td) {
+			resetpriority_thread(td, kg);
+		}
 	}
 }
 
@@ -757,19 +775,85 @@ sched_class(struct ksegrp *kg, int class)
  * changing the assignment of a kse to the thread,
  * and moving a KSE in the system run queue.
  */
-void
-sched_prio(struct thread *td, u_char prio)
+static void
+sched_priority(struct thread *td, u_char prio)
 {
 	CTR6(KTR_SCHED, "sched_prio: %p(%s) prio %d newprio %d by %p(%s)",
 	    td, td->td_proc->p_comm, td->td_priority, prio, curthread, 
 	    curthread->td_proc->p_comm);
 
 	mtx_assert(&sched_lock, MA_OWNED);
+	if (td->td_priority == prio)
+		return;
 	if (TD_ON_RUNQ(td)) {
 		adjustrunqueue(td, prio);
 	} else {
 		td->td_priority = prio;
 	}
+}
+
+/*
+ * Update a thread's priority when it is lent another thread's
+ * priority.
+ */
+void
+sched_lend_prio(struct thread *td, u_char prio)
+{
+
+	td->td_flags |= TDF_BORROWING;
+	sched_priority(td, prio);
+}
+
+/*
+ * Restore a thread's priority when priority propagation is
+ * over.  The prio argument is the minimum priority the thread
+ * needs to have to satisfy other possible priority lending
+ * requests.  If the thread's regulary priority is less
+ * important than prio the thread will keep a priority boost
+ * of prio.
+ */
+void
+sched_unlend_prio(struct thread *td, u_char prio)
+{
+	u_char base_pri;
+
+	if (td->td_base_pri >= PRI_MIN_TIMESHARE &&
+	    td->td_base_pri <= PRI_MAX_TIMESHARE)
+		base_pri = td->td_ksegrp->kg_user_pri;
+	else
+		base_pri = td->td_base_pri;
+	if (prio >= base_pri) {
+		td->td_flags &= ~TDF_BORROWING;
+		sched_prio(td, base_pri);
+	} else
+		sched_lend_prio(td, prio);
+}
+
+void
+sched_prio(struct thread *td, u_char prio)
+{
+	u_char oldprio;
+
+	/* First, update the base priority. */
+	td->td_base_pri = prio;
+
+	/*
+	 * If the thread is borrowing another thread's priority, don't ever
+	 * lower the priority.
+	 */
+	if (td->td_flags & TDF_BORROWING && td->td_priority < prio)
+		return;
+
+	/* Change the real priority. */
+	oldprio = td->td_priority;
+	sched_priority(td, prio);
+
+	/*
+	 * If the thread is on a turnstile, then let the turnstile update
+	 * its state.
+	 */
+	if (TD_ON_LOCK(td) && oldprio != prio)
+		turnstile_adjust(td, oldprio);
 }
 
 void
@@ -778,7 +862,6 @@ sched_sleep(struct thread *td)
 
 	mtx_assert(&sched_lock, MA_OWNED);
 	td->td_ksegrp->kg_slptime = 0;
-	td->td_base_pri = td->td_priority;
 }
 
 static void remrunqueue(struct thread *td);
@@ -889,8 +972,10 @@ sched_wakeup(struct thread *td)
 
 	mtx_assert(&sched_lock, MA_OWNED);
 	kg = td->td_ksegrp;
-	if (kg->kg_slptime > 1)
+	if (kg->kg_slptime > 1) {
 		updatepri(kg);
+		resetpriority(kg);
+	}
 	kg->kg_slptime = 0;
 	setrunqueue(td, SRQ_BORING);
 }
@@ -1157,10 +1242,13 @@ sched_userret(struct thread *td)
 	 * it here and returning to user mode, so don't waste time setting
 	 * it perfectly here.
 	 */
+	KASSERT((td->td_flags & TDF_BORROWING) == 0,
+	    ("thread with borrowed priority returning to userland"));
 	kg = td->td_ksegrp;
 	if (td->td_priority != kg->kg_user_pri) {
 		mtx_lock_spin(&sched_lock);
 		td->td_priority = kg->kg_user_pri;
+		td->td_base_pri = kg->kg_user_pri;
 		mtx_unlock_spin(&sched_lock);
 	}
 }
