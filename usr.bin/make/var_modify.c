@@ -311,7 +311,7 @@ VarNoMatch(const char *word, Boolean addSpace, Buffer buf, void *pattern)
 Boolean
 VarSubstitute(const char *word, Boolean addSpace, Buffer buf, void *patternp)
 {
-    int		  	wordLen;    /* Length of word */
+    size_t	  	wordLen;    /* Length of word */
     const char	 	*cp;	    /* General pointer */
     VarPattern	*pattern = patternp;
 
