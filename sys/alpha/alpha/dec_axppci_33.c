@@ -47,7 +47,6 @@
 #include <pci/pcivar.h>
 #include <alpha/pci/lcavar.h>
 
-#include "sio.h"
 #include "sc.h"
 #ifndef	CONSPEED
 #define	CONSPEED TTYDEF_SPEED

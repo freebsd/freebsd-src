@@ -45,7 +45,6 @@
 
 #include <alpha/pci/ciavar.h>
 
-#include "sio.h"
 #include "sc.h"
 
 #ifndef	CONSPEED

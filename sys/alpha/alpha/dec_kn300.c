@@ -55,7 +55,6 @@
 #include <alpha/pci/pci_kn300.h>
 #endif
 
-#include "sio.h"
 #include "sc.h"
 
 #ifndef	CONSPEED

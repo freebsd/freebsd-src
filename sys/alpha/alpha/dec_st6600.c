@@ -44,7 +44,6 @@
 #include <pci/pcivar.h>
 #include <alpha/pci/tsunamivar.h>
 
-#include "sio.h"
 #include "sc.h"
 
 #ifndef	CONSPEED
