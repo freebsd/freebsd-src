@@ -712,7 +712,9 @@ _umtx_op(struct thread *td, struct _umtx_op_args *uap)
 			error = copyin(uap->uaddr2, &abstime, sizeof(abstime));
 			if (error != 0)
 				break;
+#if 0
 			printf("uap->abstime: %d.%ld\n", abstime.tv_sec, abstime.tv_nsec);	
+#endif
 			if (abstime.tv_nsec >= 1000000000 ||
 			    abstime.tv_nsec < 0) {
 				error = EINVAL;
