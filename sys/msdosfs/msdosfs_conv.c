@@ -780,7 +780,14 @@ winChkName(un, unlen, wep, chksum, u2w_loaded, u2w, ul_loaded, ul)
 	 */
 	i = ((wep->weCnt&WIN_CNT) - 1) * WIN_CHARS;
 	un += i;
-	if ((unlen -= i) <= 0)
+	unlen -= i;
+
+	/*
+	 * unlen being zero must not be treated as length missmatch. It is
+	 * possible if the entry is WIN_LAST and contains nothing but the
+	 * terminating 0.
+	 */
+	if (unlen < 0)
 		return -1;
 	if ((wep->weCnt&WIN_LAST) && unlen > WIN_CHARS)
 		return -1;
