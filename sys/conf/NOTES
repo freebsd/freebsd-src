@@ -2363,6 +2363,7 @@ options 	SHMMAXPGS=1025
 options 	SHMMIN=2
 options 	SHMMNI=33
 options 	SHMSEG=9
+options 	SHM_PHYS_BACKED
 options 	SHOW_BUSYBUFS	# List buffers that prevent root unmount
 options 	SIMPLELOCK_DEBUG
 options 	SI_DEBUG
