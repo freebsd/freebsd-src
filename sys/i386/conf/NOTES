@@ -66,6 +66,7 @@ options 	NO_MIXED_MODE		# Disable use of mixed mode
 # deleting the specification for CPUs you don't need to use may make
 # parts of the system run faster.
 # I386_CPU is mutually exclusive with the other CPU types.
+# I386_CPU is deprecated and will be removed in 6.0-RELEASE.
 #
 #cpu		I386_CPU
 cpu		I486_CPU
