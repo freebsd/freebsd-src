@@ -141,12 +141,9 @@ enter_prom()
 		 */
 		if (curproc != fpcurproc) {
 			alpha_pal_wrfen(1);
-			if (fpcurproc) {
+			if (fpcurproc)
 				savefpstate(&fpcurproc->p_addr->u_pcb.pcb_fp);
-				PRELE(fpcurproc);
-			}
 			fpcurproc = curproc;
-			PHOLD(fpcurproc);
 			restorefpstate(&fpcurproc->p_addr->u_pcb.pcb_fp);
 		}
 #endif

@@ -43,7 +43,7 @@
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
  *	from:	i386 Id: pmap.c,v 1.193 1998/04/19 15:22:48 bde Exp
  *		with some ideas from NetBSD's alpha pmap
- *	$Id: pmap.c,v 1.24 1999/05/28 05:38:47 alc Exp $
+ *	$Id: pmap.c,v 1.25 1999/06/08 17:14:07 dt Exp $
  */
 
 /*
@@ -1052,6 +1052,13 @@ pmap_swapout_proc(p)
 	int i;
 	vm_object_t upobj;
 	vm_page_t m;
+
+	if (p == fpcurproc) {
+		alpha_pal_wrfen(1);
+		savefpstate(&fpcurproc->p_addr->u_pcb.pcb_fp);
+		fpcurproc = NULL;
+		alpha_pal_wrfen(0);
+	}
 
 	upobj = p->p_upages_obj;
 	/*
