@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_conf.c	8.8 (Berkeley) 3/31/94
- * $Id: vfs_conf.c,v 1.29 1999/06/26 14:44:24 peter Exp $
+ * $Id: vfs_conf.c,v 1.30 1999/07/03 08:24:00 phk Exp $
  */
 
 /*
@@ -129,7 +129,7 @@ vfs_mountrootfs(void *unused)
 	 *  New root mount structure
 	 */
 	if ((err = vfs_rootmountalloc(mountrootfsname, ROOTNAME, &mp))) {
-		printf("rootdev=%08x error=%d,  ", rootdev, err);
+		printf("rootdev=%p error=%d,  ", (void *)rootdev, err);
 		panic("cannot mount root\n");
 		return ;
 	}
@@ -170,7 +170,7 @@ vfs_mountrootfs(void *unused)
 		 * (hardly worthwhile with the PANIC eh?)
 		 */
 		free( mp, M_MOUNT);
-		printf("rootdev=%08x error=%d,  ", rootdev, err);
+		printf("rootdev=%p error=%d,  ", (void *)rootdev, err);
 		panic("cannot mount root (2)\n");
 		return;
 	}

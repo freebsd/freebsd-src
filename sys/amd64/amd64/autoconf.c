@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.125 1999/06/01 18:56:10 phk Exp $
+ *	$Id: autoconf.c,v 1.126 1999/07/03 08:23:50 phk Exp $
  */
 
 /*
@@ -439,7 +439,8 @@ setroot()
 	majdev = B_TYPE(bootdev);
 	dev = makebdev(majdev, 0);
 	if (bdevsw(dev) == NULL) {
-		printf("No bdevsw (majdev=%d bootdev=%08x)\n", majdev, bootdev);
+		printf("No bdevsw (majdev=%d bootdev=%p)\n", majdev,
+		    (void *)bootdev);
 		setconf();
 		return;
 	}
@@ -556,8 +557,8 @@ gotit:
 		return (1);
 	}
 	rootdev = makebdev(bd, dkmakeminor(unit, slice, part));
-	printf("driver=%s, unit=%d, slice=%d, part=%d -> rootdev=%08x\n",
-		name, unit, slice, part, rootdev);
+	printf("driver=%s, unit=%d, slice=%d, part=%d -> rootdev=%p\n",
+		name, unit, slice, part, (void *)rootdev);
 	return 0;
 }
 
