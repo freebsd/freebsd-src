@@ -275,7 +275,7 @@ identifycpu(void)
 	if (family == 0x7)
 		strcpy(cpu_model, "Itanium");
 	else if (family == 0x1f)
-		strcpy(cpu_model, "McKinley");
+		strcpy(cpu_model, "Itanium 2");	/* McKinley */
 	else
 		snprintf(cpu_model, sizeof(cpu_model), "Family=%d", family);
 
