@@ -71,6 +71,7 @@ static void	HPTLIBAPI fOsCommandDone(_VBUS_ARG PCommand pCmd);
 static void	ccb_done(union ccb *ccb);
 static void	hpt_queue_ccb(union ccb **ccb_Q, union ccb *ccb);
 static void	hpt_free_ccb(union ccb **ccb_Q, union ccb *ccb);
+static void	launch_worker_thread(void);
 static MV_SATA_CHANNEL gMvSataChannels[MAX_VBUS][MV_SATA_CHANNELS_NUM];
 static void	hptmv_free_edma_queues(IAL_ADAPTER_T *pAdapter);
 static void	hptmv_free_channel(IAL_ADAPTER_T *pAdapter, MV_U8 channelNum);
@@ -2060,9 +2061,15 @@ hpt_attach(device_t dev)
 	xpt_action((union ccb *)ccb);
 	free(ccb, M_DEVBUF);
 
-	if ((pAdapter->eh = EVENTHANDLER_REGISTER(shutdown_final, hpt_shutdown,
-	    dev, SHUTDOWN_PRI_DEFAULT)) == NULL)
-		device_printf(dev, "Shutdown event registrration failed\n");
+	/* Only do this setup for the first device. */
+	if (device_get_unit(dev) == 0) {
+		pAdapter->eh = EVENTHANDLER_REGISTER(shutdown_final,
+		    hpt_shutdown, dev, SHUTDOWN_PRI_DEFAULT);
+		if (pAdapter->eh != NULL)
+			launch_worker_thread();
+		else
+			printf("hptmv: shutdown event registration failed\n");
+	}
 
 	return 0;
 }
@@ -2495,7 +2502,6 @@ launch_worker_thread(void)
 	    hptdaemonproc, SHUTDOWN_PRI_FIRST);
 #endif
 }
-SYSINIT(hptwt, SI_SUB_KTHREAD_IDLE, SI_ORDER_FIRST, launch_worker_thread, NULL);
 
 #endif /* SUPPORT_ARRAY */
 
