@@ -43,12 +43,17 @@
 .Op Fl a
 .Op Fl A Ar num
 .Op Fl B Ar num
+.Op Fl F Ar friday
 .Op Fl f Ar calendarfile
-.Oo Fl t Ar dd Ns
+.Oo
+.Bk -words
+.Fl t Ar dd Ns
 .Sm off
 .Op . Ar mm Op . Ar year
 .Sm on
+.Ek
 .Oc
+.Op Fl W Ar num
 .Sh DESCRIPTION
 The
 .Nm
@@ -61,26 +66,22 @@ three days are displayed.
 .Pp
 The following options are available:
 .Bl -tag -width Ds
-.It Fl a
-Process the ``calendar'' files of all users and mail the results
-to them.
-This requires super-user privileges.
 .It Fl A Ar num
 Print lines from today and the next
 .Ar num
 days (forward, future).
+.It Fl a
+Process the ``calendar'' files of all users and mail the results
+to them.
+This requires super-user privileges.
 .It Fl B Ar num
 Print lines from today and the previous
 .Ar num
 days (backward, past).
-.It Fl F
+.It Fl F Ar friday
 Specify which day of the week is ``Friday'' (the day before the
 weekend begins).
-.It Fl W Ar num
-Print lines from today and the next
-.Ar num
-days (forward, future).
-Ignore weekends when calculating the number of days.
+Default is 5.
 .It Fl f Pa calendarfile
 Use
 .Pa calendarfile
@@ -92,6 +93,11 @@ as the default calendar file.
 .Sm on
 .Xc
 For test purposes only: set date directly to argument values.
+.It Fl W Ar num
+Print lines from today and the next
+.Ar num
+days (forward, future).
+Ignore weekends when calculating the number of days.
 .El
 .Pp
 To handle calendars in your national code table you can specify
