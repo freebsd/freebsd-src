@@ -96,7 +96,7 @@ lm_init (void)
 			 * There should be nothing except whitespace or comment
 			  from this point to the end of the line.
 			 */
-			while(isspace(*cp)) *cp++;
+			while(isspace(*cp)) cp++;
 			if (!iseol(*cp)) continue;
 
 			strcpy(prog, c);
