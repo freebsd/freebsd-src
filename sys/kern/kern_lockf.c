@@ -234,6 +234,7 @@ lf_setlock(lock)
 
 			/* The block is waiting on something */
 			wproc = (struct proc *)block->lf_id;
+			mtx_lock_spin(&sched_lock);
 			while (wproc->p_wchan &&
 			       (wproc->p_wmesg == lockstr) &&
 			       (i++ < maxlockdepth)) {
@@ -244,10 +245,12 @@ lf_setlock(lock)
 					break;
 				wproc = (struct proc *)waitblock->lf_id;
 				if (wproc == (struct proc *)lock->lf_id) {
+					mtx_unlock_spin(&sched_lock);
 					free(lock, M_LOCKF);
 					return (EDEADLK);
 				}
 			}
+			mtx_unlock_spin(&sched_lock);
 		}
 		/*
 		 * For flock type locks, we must first remove
