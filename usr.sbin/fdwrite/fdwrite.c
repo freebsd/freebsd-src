@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: fdwrite.c,v 1.2 1994/10/14 16:03:33 joerg Exp $
+ * $Id: fdwrite.c,v 1.3 1995/05/30 03:47:40 rgrimes Exp $
  *
  */
 
@@ -56,7 +56,7 @@ format_track(int fd, int cyl, int secs, int head, int rate,
 static void
 usage ()
 {
-	printf("Usage:\n\tfdwrite [-v] [-f inputfile] [-d device]\n");
+	printf("Usage:\n\tfdwrite [-v] [-y] [-f inputfile] [-d device]\n");
 	exit(2);
 }
 
@@ -65,12 +65,13 @@ main(int argc, char **argv)
 {
     int inputfd = -1, c, fdn = 0, i,j,fd;
     int bpt, verbose=1, nbytes=0, track;
+    int interactive = 1;
     char *device= "/dev/rfd0", *trackbuf = 0,*vrfybuf = 0;
     struct fd_type fdt;
     FILE *tty;
 
     setbuf(stdout,0);
-    while((c = getopt(argc, argv, "d:s:f:v")) != -1)
+    while((c = getopt(argc, argv, "d:s:f:vy")) != -1)
 	    switch(c) {
 	    case 'd':	/* Which drive */
 		    device = optarg;
@@ -90,12 +91,19 @@ main(int argc, char **argv)
 		    verbose = !verbose;
 		    break;
 
+	    case 'y':  /* Don't confirm? */
+		    interactive = 0;
+		    break;
+
 	    case '?': default:
 		    usage();
 	    }
 
     if (inputfd < 0)
 	inputfd = 0;
+
+    if (!isatty(1))
+	interactive = 0;
 
     if(optind < argc)
 	    usage();
@@ -109,12 +117,14 @@ main(int argc, char **argv)
 
     for(j=1;j > 0;) {
         fdn++;
-	fprintf(tty,
-	    "Please insert floppy #%d in drive %s and press return >",
-		fdn,device);
-	while(1) {
-	    i = getc(tty);
-	    if(i == '\n') break;
+	if (interactive) {
+	    fprintf(tty,
+		    "Please insert floppy #%d in drive %s and press return >",
+		    fdn,device);
+	    while(1) {
+		i = getc(tty);
+		if(i == '\n') break;
+	    }
 	}
 
 	if((fd = open(device, O_RDWR)) < 0) {
