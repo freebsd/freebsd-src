@@ -54,6 +54,7 @@ static const char rcsid[] =
 #include <unistd.h>
 
 void	usage __P((void));
+int	main __P((int, char *[]));
 int	system __P((const char *));
 
 int
@@ -193,7 +194,7 @@ int
 system(command)
 	const char *command;
 {
-	static char *name, *shell;
+	static const char *name, *shell;
 	pid_t pid;
 	int omask, pstat;
 	sig_t intsave, quitsave;
