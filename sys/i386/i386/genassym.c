@@ -148,7 +148,17 @@ main()
 	printf("#define\tTF_EFLAGS %#x\n", OS(trapframe, tf_eflags));
 
 	printf("#define\tSIGF_HANDLER %#x\n", OS(sigframe, sf_ahu.sf_handler));
+	printf("#define\tSIGF_SC %#x\n", OS(osigframe, sf_siginfo.si_sc));
 	printf("#define\tSIGF_UC %#x\n", OS(sigframe, sf_uc));
+
+	printf("#define\tSC_PS %#x\n", OS(osigcontext, sc_ps));
+	printf("#define\tSC_FS %#x\n", OS(osigcontext, sc_fs));
+	printf("#define\tSC_GS %#x\n", OS(osigcontext, sc_gs));
+	printf("#define\tSC_TRAPNO %#x\n", OS(osigcontext, sc_trapno));
+
+	printf("#define\tUC_EFLAGS %#x\n",
+	    OS(__ucontext, uc_mcontext.mc_eflags));
+	printf("#define\tUC_GS %#x\n", OS(__ucontext, uc_mcontext.mc_gs));
 
 	printf("#define\tB_READ %#x\n", B_READ);
 	printf("#define\tENOENT %d\n", ENOENT);

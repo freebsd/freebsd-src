@@ -71,9 +71,9 @@ static int sigprop	__P((int sig));
 static int sig_ffs	__P((sigset_t *set));
 static int killpg1	__P((struct proc *cp, int sig, int pgid, int all));
 static int do_sigaction	__P((struct proc *p, int sig, struct sigaction *act,
-			     struct sigaction *oact));
+			     struct sigaction *oact, int old));
 static int do_sigprocmask	__P((struct proc *p, int how, sigset_t *set,
-				     sigset_t *oset));
+				     sigset_t *oset, int old));
 static void stop	__P((struct proc *));
 static char *expand_name	__P((const char *, uid_t, pid_t));
 static int coredump	__P((struct proc *));
@@ -180,10 +180,11 @@ extern __inline int sig_ffs(sigset_t *set)
  * osigaction
  */
 static int
-do_sigaction(p, sig, act, oact)
+do_sigaction(p, sig, act, oact, old)
 	struct proc *p;
 	register int sig;
 	struct sigaction *act, *oact;
+	int old;
 {
 	register struct sigacts *ps = p->p_sigacts;
 
@@ -204,9 +205,9 @@ do_sigaction(p, sig, act, oact)
 			oact->sa_flags |= SA_NODEFER;
 		if (SIGISMEMBER(ps->ps_siginfo, sig))
 			oact->sa_flags |= SA_SIGINFO;
-		if (sig == SIGCHLD && p->p_procsig->ps_flag & P_NOCLDSTOP)
+		if (sig == SIGCHLD && p->p_procsig->ps_flag & PS_NOCLDSTOP)
 			oact->sa_flags |= SA_NOCLDSTOP;
-		if (sig == SIGCHLD && p->p_procsig->ps_flag & P_NOCLDWAIT)
+		if (sig == SIGCHLD && p->p_procsig->ps_flag & PS_NOCLDWAIT)
 			oact->sa_flags |= SA_NOCLDWAIT;
 	}
 	if (act) {
@@ -254,9 +255,9 @@ do_sigaction(p, sig, act, oact)
 #endif
 		if (sig == SIGCHLD) {
 			if (act->sa_flags & SA_NOCLDSTOP)
-				p->p_procsig->ps_flag |= P_NOCLDSTOP;
+				p->p_procsig->ps_flag |= PS_NOCLDSTOP;
 			else
-				p->p_procsig->ps_flag &= ~P_NOCLDSTOP;
+				p->p_procsig->ps_flag &= ~PS_NOCLDSTOP;
 			if (act->sa_flags & SA_NOCLDWAIT) {
 				/*
 				 * Paranoia: since SA_NOCLDWAIT is implemented
@@ -265,11 +266,11 @@ do_sigaction(p, sig, act, oact)
 				 * is forbidden to set SA_NOCLDWAIT.
 				 */
 				if (p->p_pid == 1)
-					p->p_procsig->ps_flag &= ~P_NOCLDWAIT;
+					p->p_procsig->ps_flag &= ~PS_NOCLDWAIT;
 				else
-					p->p_procsig->ps_flag |= P_NOCLDWAIT;
+					p->p_procsig->ps_flag |= PS_NOCLDWAIT;
 			} else
-				p->p_procsig->ps_flag &= ~P_NOCLDWAIT;
+				p->p_procsig->ps_flag &= ~PS_NOCLDWAIT;
 		}
 		/*
 		 * Set bit in p_sigignore for signals that are set to SIG_IGN,
@@ -286,14 +287,18 @@ do_sigaction(p, sig, act, oact)
 				/* easier in psignal */
 				SIGADDSET(p->p_sigignore, sig);
 			SIGDELSET(p->p_sigcatch, sig);
-		}
-		else {
+		} else {
 			SIGDELSET(p->p_sigignore, sig);
 			if (ps->ps_sigact[_SIG_IDX(sig)] == SIG_DFL)
 				SIGDELSET(p->p_sigcatch, sig);
 			else
 				SIGADDSET(p->p_sigcatch, sig);
 		}
+		if (ps->ps_sigact[_SIG_IDX(sig)] == SIG_IGN ||
+		    ps->ps_sigact[_SIG_IDX(sig)] == SIG_DFL || !old)
+			SIGDELSET(ps->ps_osigset, sig);
+		else
+			SIGADDSET(ps->ps_osigset, sig);
 
 		(void) spl0();
 	}
@@ -317,8 +322,6 @@ sigaction(p, uap)
 	register struct sigaction *actp, *oactp;
 	int error;
 
-	p->p_flag |= P_NEWSIGSET;
-
 	actp = (uap->act) ? &act : NULL;
 	oactp = (uap->oact) ? &oact : NULL;
 	if (actp) {
@@ -327,7 +330,7 @@ sigaction(p, uap)
 		if (error)
 			return (error);
 	}
-	error = do_sigaction(p, uap->sig, actp, oactp);
+	error = do_sigaction(p, uap->sig, actp, oactp, 0);
 	if (oactp && !error) {
 		error = copyout((caddr_t)oactp, (caddr_t)uap->oact,
 				sizeof(oact));
@@ -363,7 +366,7 @@ osigaction(p, uap)
 		nsap->sa_flags = sa.sa_flags;
 		OSIG2SIG(sa.sa_mask, nsap->sa_mask);
 	}
-	error = do_sigaction(p, uap->signum, nsap, osap);
+	error = do_sigaction(p, uap->signum, nsap, osap, 1);
 	if (osap && !error) {
 		sa.sa_handler = osap->sa_handler;
 		sa.sa_flags = osap->sa_flags;
@@ -417,14 +420,13 @@ execsigs(p)
 	 * Reset stack state to the user stack.
 	 * Clear set of signals caught on the signal stack.
 	 */
-	ps->ps_sigstk.ss_flags = SS_DISABLE;
-	ps->ps_sigstk.ss_size = 0;
-	ps->ps_sigstk.ss_sp = 0;
-	ps->ps_flags = 0;
+	p->p_sigstk.ss_flags = SS_DISABLE;
+	p->p_sigstk.ss_size = 0;
+	p->p_sigstk.ss_sp = 0;
 	/*
 	 * Reset no zombies if child dies flag as Solaris does.
 	 */
-	p->p_procsig->ps_flag &= ~P_NOCLDWAIT;
+	p->p_procsig->ps_flag &= ~PS_NOCLDWAIT;
 }
 
 /*
@@ -434,10 +436,11 @@ execsigs(p)
  * the library stub does the rest.
  */
 static int
-do_sigprocmask(p, how, set, oset)
+do_sigprocmask(p, how, set, oset, old)
 	struct proc *p;
 	int how;
 	sigset_t *set, *oset;
+	int old;
 {
 	int error;
 
@@ -449,15 +452,18 @@ do_sigprocmask(p, how, set, oset)
 		(void) splhigh();
 		switch (how) {
 		case SIG_BLOCK:
+			SIG_CANTMASK(*set);
 			SIGSETOR(p->p_sigmask, *set);
-			SIG_CANTMASK(p->p_sigmask);
 			break;
 		case SIG_UNBLOCK:
 			SIGSETNAND(p->p_sigmask, *set);
 			break;
 		case SIG_SETMASK:
-			p->p_sigmask = *set;
-			SIG_CANTMASK(p->p_sigmask);
+			SIG_CANTMASK(*set);
+			if (old)
+				SIGSETLO(p->p_sigmask, *set);
+			else
+				p->p_sigmask = *set;
 			break;
 		default:
 			error = EINVAL;
@@ -492,7 +498,7 @@ sigprocmask(p, uap)
 		if (error)
 			return (error);
 	}
-	error = do_sigprocmask(p, uap->how, setp, osetp);
+	error = do_sigprocmask(p, uap->how, setp, osetp, 0);
 	if (osetp && !error) {
 		error = copyout((caddr_t)osetp, (caddr_t)uap->oset,
 				sizeof(oset));
@@ -515,7 +521,7 @@ osigprocmask(p, uap)
 	int error;
 
 	OSIG2SIG(uap->mask, set);
-	error = do_sigprocmask(p, uap->how, &set, &oset);
+	error = do_sigprocmask(p, uap->how, &set, &oset, 1);
 	SIG2OSIG(oset, p->p_retval[0]);
 	return (error);
 }
@@ -588,7 +594,7 @@ osigvec(p, uap)
 		nsap->sa_flags |= SA_USERTRAMP;
 #endif
 	}
-	error = do_sigaction(p, uap->signum, nsap, osap);
+	error = do_sigaction(p, uap->signum, nsap, osap, 1);
 	if (osap && !error) {
 		vec.sv_handler = osap->sa_handler;
 		SIG2OSIG(osap->sa_mask, vec.sv_mask);
@@ -640,7 +646,7 @@ osigsetmask(p, uap)
 	SIG_CANTMASK(set);
 	(void) splhigh();
 	SIG2OSIG(p->p_sigmask, p->p_retval[0]);
-	p->p_sigmask = set;
+	SIGSETLO(p->p_sigmask, set);
 	(void) spl0();
 	return (0);
 }
@@ -671,15 +677,17 @@ sigsuspend(p, uap)
 		return (error);
 
 	/*
-	 * When returning from sigpause, we want
+	 * When returning from sigsuspend, we want
 	 * the old mask to be restored after the
 	 * signal handler has finished.  Thus, we
 	 * save it here and mark the sigacts structure
 	 * to indicate this.
 	 */
 	p->p_oldsigmask = p->p_sigmask;
+	p->p_flag |= P_OLDMASK;
+
+	SIG_CANTMASK(mask);
 	p->p_sigmask = mask;
-	SIG_CANTMASK(p->p_sigmask);
 	while (tsleep((caddr_t) ps, PPAUSE|PCATCH, "pause", 0) == 0)
 		/* void */;
 	/* always return EINTR rather than ERESTART... */
@@ -697,14 +705,15 @@ osigsuspend(p, uap)
 	register struct proc *p;
 	struct osigsuspend_args *uap;
 {
-	sigset_t set;
+	sigset_t mask;
 	register struct sigacts *ps = p->p_sigacts;
 
-	OSIG2SIG(uap->mask, set);
-	SIG_CANTMASK(set);
 	p->p_oldsigmask = p->p_sigmask;
-	p->p_sigmask = set;
-	while (tsleep((caddr_t) ps, PPAUSE|PCATCH, "pause", 0) == 0)
+	p->p_flag |= P_OLDMASK;
+	OSIG2SIG(uap->mask, mask);
+	SIG_CANTMASK(mask);
+	SIGSETLO(p->p_sigmask, mask);
+	while (tsleep((caddr_t) ps, PPAUSE|PCATCH, "opause", 0) == 0)
 		/* void */;
 	/* always return EINTR rather than ERESTART... */
 	return (EINTR);
@@ -724,21 +733,19 @@ osigstack(p, uap)
 	register struct osigstack_args *uap;
 {
 	struct sigstack ss;
-	struct sigacts *psp;
 	int error = 0;
 
-	psp = p->p_sigacts;
-	ss.ss_sp = psp->ps_sigstk.ss_sp;
-	ss.ss_onstack = psp->ps_sigstk.ss_flags & SS_ONSTACK;
+	ss.ss_sp = p->p_sigstk.ss_sp;
+	ss.ss_onstack = p->p_sigstk.ss_flags & SS_ONSTACK;
 	if (uap->oss && (error = copyout((caddr_t)&ss, (caddr_t)uap->oss,
 	    sizeof (struct sigstack))))
 		return (error);
 	if (uap->nss && (error = copyin((caddr_t)uap->nss, (caddr_t)&ss,
 	    sizeof (ss))) == 0) {
-		psp->ps_sigstk.ss_sp = ss.ss_sp;
-		psp->ps_sigstk.ss_size = 0;
-		psp->ps_sigstk.ss_flags |= ss.ss_onstack & SS_ONSTACK;
-		psp->ps_flags |= SAS_ALTSTACK;
+		p->p_sigstk.ss_sp = ss.ss_sp;
+		p->p_sigstk.ss_size = 0;
+		p->p_sigstk.ss_flags |= ss.ss_onstack & SS_ONSTACK;
+		p->p_flag |= P_ALTSTACK;
 	}
 	return (error);
 }
@@ -756,14 +763,12 @@ sigaltstack(p, uap)
 	struct proc *p;
 	register struct sigaltstack_args *uap;
 {
-	struct sigacts *psp;
 	stack_t ss;
 	int error;
 
-	psp = p->p_sigacts;
-	if ((psp->ps_flags & SAS_ALTSTACK) == 0)
-		psp->ps_sigstk.ss_flags |= SS_DISABLE;
-	if (uap->oss && (error = copyout((caddr_t)&psp->ps_sigstk,
+	if ((p->p_flag & P_ALTSTACK) == 0)
+		p->p_sigstk.ss_flags |= SS_DISABLE;
+	if (uap->oss && (error = copyout((caddr_t)&p->p_sigstk,
 	    (caddr_t)uap->oss, sizeof (stack_t))))
 		return (error);
 	if (uap->ss == 0)
@@ -771,16 +776,16 @@ sigaltstack(p, uap)
 	if ((error = copyin((caddr_t)uap->ss, (caddr_t)&ss, sizeof (ss))))
 		return (error);
 	if (ss.ss_flags & SS_DISABLE) {
-		if (psp->ps_sigstk.ss_flags & SS_ONSTACK)
+		if (p->p_sigstk.ss_flags & SS_ONSTACK)
 			return (EINVAL);
-		psp->ps_flags &= ~SAS_ALTSTACK;
-		psp->ps_sigstk.ss_flags = ss.ss_flags;
+		p->p_flag &= ~P_ALTSTACK;
+		p->p_sigstk.ss_flags = ss.ss_flags;
 		return (0);
 	}
 	if (ss.ss_size < MINSIGSTKSZ)
 		return (ENOMEM);
-	psp->ps_flags |= SAS_ALTSTACK;
-	psp->ps_sigstk = ss;
+	p->p_flag |= P_ALTSTACK;
+	p->p_sigstk = ss;
 	return (0);
 }
 
@@ -1093,7 +1098,7 @@ psignal(p, sig)
 				goto out;
 			SIGDELSET(p->p_siglist, sig);
 			p->p_xstat = sig;
-			if ((p->p_pptr->p_procsig->ps_flag & P_NOCLDSTOP) == 0)
+			if ((p->p_pptr->p_procsig->ps_flag & PS_NOCLDSTOP) == 0)
 				psignal(p->p_pptr, SIGCHLD);
 			stop(p);
 			goto out;
@@ -1300,7 +1305,7 @@ issignal(p)
 					break;	/* == ignore */
 				p->p_xstat = sig;
 				stop(p);
-				if ((p->p_pptr->p_procsig->ps_flag & P_NOCLDSTOP) == 0)
+				if ((p->p_pptr->p_procsig->ps_flag & PS_NOCLDSTOP) == 0)
 					psignal(p->p_pptr, SIGCHLD);
 				mi_switch();
 				break;
@@ -1372,8 +1377,7 @@ postsig(sig)
 	action = ps->ps_sigact[_SIG_IDX(sig)];
 #ifdef KTRACE
 	if (KTRPOINT(p, KTR_PSIG))
-		ktrpsig(p->p_tracep,
-		    sig, action, SIGNOTEMPTY(p->p_oldsigmask) ?
+		ktrpsig(p->p_tracep, sig, action, p->p_flag & P_OLDMASK ?
 		    &p->p_oldsigmask : &p->p_sigmask, 0);
 #endif
 	STOPEVENT(p, S_SIG, sig);
@@ -1393,17 +1397,17 @@ postsig(sig)
 		    ("postsig action"));
 		/*
 		 * Set the new mask value and also defer further
-		 * occurences of this signal.
+		 * occurrences of this signal.
 		 *
-		 * Special case: user has done a sigpause.  Here the
+		 * Special case: user has done a sigsuspend.  Here the
 		 * current mask is not of interest, but rather the
-		 * mask from before the sigpause is what we want
+		 * mask from before the sigsuspend is what we want
 		 * restored after the signal processing is completed.
 		 */
 		(void) splhigh();
-		if (SIGNOTEMPTY(p->p_oldsigmask)) {
+		if (p->p_flag & P_OLDMASK) {
 			returnmask = p->p_oldsigmask;
-			SIGEMPTYSET(p->p_oldsigmask);
+			p->p_flag &= ~P_OLDMASK;
 		} else
 			returnmask = p->p_sigmask;
 

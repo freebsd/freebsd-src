@@ -76,7 +76,8 @@ kthread_create(void (*func)(void *), void *arg,
 		*newpp = p2;
 
 	/* this is a non-swapped system process */
-	p2->p_flag |= P_INMEM | P_SYSTEM | P_NOCLDWAIT;
+	p2->p_flag |= P_INMEM | P_SYSTEM;
+	p2->p_procsig->ps_flag |= PS_NOCLDWAIT;
 	PHOLD(p2);
 
 	/* set up arg0 for 'ps', et al */

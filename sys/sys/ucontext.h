@@ -45,7 +45,7 @@ typedef struct __ucontext {
 	sigset_t	uc_sigmask;
 	mcontext_t	uc_mcontext;
 
-	struct __ucontext_t *uc_link;
+	struct __ucontext *uc_link;
 	stack_t		uc_stack;
 	int		__spare__[8];
 } ucontext_t;

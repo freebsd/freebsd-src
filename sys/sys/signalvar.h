@@ -59,14 +59,8 @@ struct	sigacts {
 	sigset_t ps_sigreset;		/* signals that reset when caught */
 	sigset_t ps_signodefer;		/* signals not masked while handled */
 	sigset_t ps_siginfo;		/* signals that want SA_SIGINFO args */
-	int	ps_flags;		/* signal flags, below */
-	stack_t	ps_sigstk;		/* sp & on stack state variable */
-	sigset_t ps_usertramp;		/* SunOS compat; libc sigtramp XXX */
+	sigset_t ps_osigset;		/* signals that use osigset_t */
 };
-
-/* signal flags */
-#define	SAS_OLDMASK	0x01		/* need to restore mask before pause */
-#define	SAS_ALTSTACK	0x02		/* have alternate signal stack */
 
 /*
  * Compatibility
@@ -153,6 +147,9 @@ typedef void __osiginfohandler_t __P((int, osiginfo_t *, void *));
 		for (__i = 0; __i < _SIG_WORDS; __i++)			\
 			(set1).__bits[__i] &= ~(set2).__bits[__i];	\
 	} while (0)
+
+#define SIGSETLO(set1, set2)	((set1).__bits[0] = (set2).__bits[0])
+#define SIGSETOLD(set, oset)	((set).__bits[0] = (oset))
 
 #define SIG_CANTMASK(set)						\
 	SIGDELSET(set, SIGKILL), SIGDELSET(set, SIGSTOP)
