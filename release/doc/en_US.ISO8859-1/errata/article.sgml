@@ -67,7 +67,6 @@
     later releases.</para>
 ]]>
 
-    <note>
       <para>At this time, &release.current; has no errata, because
       there have not been any releases on the &release.branch;
       branch since the last branchpoint.  (The first such release will
@@ -75,7 +74,6 @@
       This file exists to provide a clean template for
       newly-created branches.  (Clearly this notice should not exist
       on any branched version of this file.)</para>
-    </note>
   </abstract>
 
   <sect1>
