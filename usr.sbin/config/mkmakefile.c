@@ -96,21 +96,6 @@ fl_lookup(char *file)
 }
 
 /*
- * Lookup a file, by final component name.
- */
-static struct file_list *
-fltail_lookup(char *file)
-{
-	struct file_list *fp;
-
-	for (fp = ftab ; fp != 0; fp = fp->f_next) {
-		if (eq(tail(fp->f_fn), tail(file)))
-			return (fp);
-	}
-	return (0);
-}
-
-/*
  * Make a new file list entry
  */
 static struct file_list *
@@ -278,7 +263,7 @@ read_files(void)
 	struct file_list *tp, *pf;
 	struct device *dp;
 	struct opt *op;
-	char *wd, *this, *needs, *special, *depends, *clean, *warning;
+	char *wd, *this, *needs, *compilewith, *depends, *clean, *warning;
 	char fname[MAXPATHLEN];
 	int nreqs, first = 1, configdep, isdup, std, filetype,
 	    imp_rule, no_obj, needcount, before_depend, mandatory;
@@ -339,7 +324,7 @@ next:
 		isdup = 0;
 	tp = 0;
 	nreqs = 0;
-	special = 0;
+	compilewith = 0;
 	depends = 0;
 	clean = 0;
 	warning = 0;
@@ -380,7 +365,7 @@ nextparam:
 		goto nextparam;
 	}
 	if (eq(wd, "no-implicit-rule")) {
-		if (special == 0) {
+		if (compilewith == 0) {
 			printf("%s: alternate rule required when "
 			       "\"no-implicit-rule\" is specified.\n",
 			       fname);
@@ -419,7 +404,7 @@ nextparam:
 			       fname, this);
 			exit(1);
 		}
-		special = ns(wd);
+		compilewith = ns(wd);
 		goto nextparam;
 	}
 	if (eq(wd, "warning")) {
@@ -484,7 +469,7 @@ invis:
 	tp->f_flags |= isdup;
 	if (needcount)
 		tp->f_flags |= NEED_COUNT;
-	tp->f_special = special;
+	tp->f_compilewith = compilewith;
 	tp->f_depends = depends;
 	tp->f_clean = clean;
 	tp->f_warn = warning;
@@ -524,7 +509,7 @@ doneparam:
 	if (needcount)
 		tp->f_flags |= NEED_COUNT;
 	tp->f_needs = needs;
-	tp->f_special = special;
+	tp->f_compilewith = compilewith;
 	tp->f_depends = depends;
 	tp->f_clean = clean;
 	tp->f_warn = warning;
@@ -661,7 +646,7 @@ do_rules(FILE *f)
 {
 	char *cp, *np, och, *tp;
 	struct file_list *ftp;
-	char *special;
+	char *compilewith;
 
 	for (ftp = ftab; ftp != 0; ftp = ftp->f_next) {
 		if (ftp->f_type == INVISIBLE)
@@ -691,8 +676,8 @@ do_rules(FILE *f)
 					np, och);
 		}
 		tp = tail(np);
-		special = ftp->f_special;
-		if (special == 0) {
+		compilewith = ftp->f_compilewith;
+		if (compilewith == 0) {
 			const char *ftype = NULL;
 			static char cmd[128];
 
@@ -714,10 +699,10 @@ do_rules(FILE *f)
 			}
 			(void)snprintf(cmd, sizeof(cmd), "${%s_%c%s}", ftype, toupper(och),
 				      ftp->f_flags & CONFIGDEP? "_C" : "");
-			special = cmd;
+			compilewith = cmd;
 		}
 		*cp = och;
-		fprintf(f, "\t%s\n\n", special);
+		fprintf(f, "\t%s\n\n", compilewith);
 	}
 }
 
