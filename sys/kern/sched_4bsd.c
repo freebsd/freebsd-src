@@ -949,9 +949,10 @@ sched_add(struct thread *td, int flags)
 		 * the thread is unpinned
 		 * or pinned to another cpu,
 		 * and there are other available and idle CPUs.
-		 * if we are idle, then skip straight to preemption.
+		 * if we are idle, or it's an interrupt,
+		 * then skip straight to preemption.
 		 */
-		if ( (! idle) &&
+		if ( (! idle) && ((flags & SRQ_INTR) == 0) &&
 		    (idle_cpus_mask & ~(hlt_cpus_mask | me)) &&
 		    ( KSE_CAN_MIGRATE(ke) ||
 		      ke->ke_runq != &runq_pcpu[PCPU_GET(cpuid)])) {
