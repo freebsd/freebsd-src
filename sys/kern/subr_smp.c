@@ -65,7 +65,7 @@ SYSCTL_INT(_kern_smp, OID_AUTO, active, CTLFLAG_RW, &smp_active, 0,
     "Number of Auxillary Processors (APs) that were successfully started");
 
 int smp_disabled = 0;	/* has smp been disabled? */
-SYSCTL_INT(_kern_smp, OID_AUTO, disabled, CTLFLAG_RD, &smp_disabled, 0,
+SYSCTL_INT(_kern_smp, OID_AUTO, disabled, CTLFLAG_RDTUN, &smp_disabled, 0,
     "SMP has been disabled from the loader");
 TUNABLE_INT("kern.smp.disabled", &smp_disabled);
 
