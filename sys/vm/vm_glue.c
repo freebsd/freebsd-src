@@ -59,7 +59,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id$
+ * $Id: vm_glue.c,v 1.3 1994/08/02 07:55:19 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -109,19 +109,16 @@ useracc(addr, len, rw)
 	vm_prot_t prot = rw == B_READ ? VM_PROT_READ : VM_PROT_WRITE;
 
 	/*
-	 * XXX - specially disallow access to user page tables - they are
-	 * in the map.
-	 *
-	 * XXX - don't specially disallow access to the user area - treat
-	 * it as incorrectly as elsewhere.
+	 * XXX - check separately to disallow access to user area and user
+	 * page tables - they are in the map.
 	 *
 	 * XXX - VM_MAXUSER_ADDRESS is an end address, not a max.  It was
-	 * only used (as an end address) in trap.c.  Use it as an end
-	 * address here too.
+	 * once only used (as an end address) in trap.c.  Use it as an end
+	 * address here too.  This bogusness has spread.  I just fixed
+	 * where it was used as a max in vm_mmap.c.
 	 */
-	if ((vm_offset_t) addr >= VM_MAXUSER_ADDRESS 
-	    || (vm_offset_t) addr + len > VM_MAXUSER_ADDRESS
-	    || (vm_offset_t) addr + len <= (vm_offset_t) addr) {
+	if ((vm_offset_t) addr + len > /* XXX */ VM_MAXUSER_ADDRESS
+	    || (vm_offset_t) addr + len < (vm_offset_t) addr) {
 		return (FALSE);
 	}
 
@@ -276,23 +273,24 @@ void
 vm_init_limits(p)
 	register struct proc *p;
 {
-	int tmp;
+	int rss_limit;
 
 	/*
 	 * Set up the initial limits on process VM.
-	 * Set the maximum resident set size to be all
-	 * of (reasonably) available memory.  This causes
-	 * any single, large process to start random page
-	 * replacement once it fills memory.
+	 * Set the maximum resident set size to be half
+	 * of (reasonably) available memory.  Since this
+	 * is a soft limit, it comes into effect only
+	 * when the system is out of memory - half of
+	 * main memory helps to favor smaller processes,
+	 * and reduces thrashing of the object cache.
 	 */
         p->p_rlimit[RLIMIT_STACK].rlim_cur = DFLSSIZ;
         p->p_rlimit[RLIMIT_STACK].rlim_max = MAXSSIZ;
         p->p_rlimit[RLIMIT_DATA].rlim_cur = DFLDSIZ;
         p->p_rlimit[RLIMIT_DATA].rlim_max = MAXDSIZ;
-	tmp = ((2 * cnt.v_free_count) / 3) - 32;
-	if (cnt.v_free_count < 512)
-		tmp = cnt.v_free_count;
-	p->p_rlimit[RLIMIT_RSS].rlim_cur = ptoa(tmp);
+	/* limit the limit to no less than 128K */ 
+	rss_limit = max(cnt.v_free_count / 2, 32);
+	p->p_rlimit[RLIMIT_RSS].rlim_cur = ptoa(rss_limit);
 	p->p_rlimit[RLIMIT_RSS].rlim_max = RLIM_INFINITY;
 }
 
