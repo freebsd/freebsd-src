@@ -196,7 +196,7 @@ cpu_fork(p1, p2, flags)
 		p2tf->tf_regs[FRAME_A4] = 1;	/* is child (FreeBSD) 	*/
 
 		/*
-		 * Arrange for continuation at child_return(), which
+		 * Arrange for continuation at fork_return(), which
 		 * will return to exception_return().  Note that the child
 		 * process doesn't stay in the kernel for long!
 		 * 
@@ -204,7 +204,7 @@ cpu_fork(p1, p2, flags)
 		 */
 		up->u_pcb.pcb_hw.apcb_ksp = (u_int64_t)p2tf;	
 		up->u_pcb.pcb_context[0] =
-		    (u_int64_t)child_return;		/* s0: pc */
+		    (u_int64_t)fork_return;		/* s0: pc */
 		up->u_pcb.pcb_context[1] =
 		    (u_int64_t)exception_return;	/* s1: ra */
 		up->u_pcb.pcb_context[2] = (u_long) p2;	/* s2: a0 */

@@ -289,10 +289,11 @@ IDTVEC(int0x80_syscall)
 	jmp	_doreti
 
 ENTRY(fork_trampoline)
+	pushl	%esp			/* trapframe pointer */
 	pushl	%ebx			/* arg1 */
 	pushl	%esi			/* function */
 	call	_fork_exit
-	addl	$8,%esp
+	addl	$12,%esp
 	/* cut from syscall */
 
 	/*

@@ -752,31 +752,6 @@ syscall(code, framep)
 }
 
 /*
- * Process the tail end of a fork() for the child.
- */
-void
-child_return(p)
-	struct proc *p;
-{
-
-	/*
-	 * Return values in the frame set by cpu_fork().
-	 */
-
-	userret(p, p->p_md.md_tf, 0);
-#ifdef KTRACE
-	if (KTRPOINT(p, KTR_SYSRET)) {
-		if (!mtx_owned(&Giant))
-			mtx_enter(&Giant, MTX_DEF);
-		ktrsysret(p->p_tracep, SYS_fork, 0, 0);
-	}
-#endif
-
-	if (mtx_owned(&Giant))
-		mtx_exit(&Giant, MTX_DEF);
-}
-
-/*
  * Process an asynchronous software trap.
  * This is relatively easy.
  */
