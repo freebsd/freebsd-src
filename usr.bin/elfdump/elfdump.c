@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/stat.h>
 #include <err.h>
 #include <fcntl.h>
+#include <inttypes.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -582,16 +583,16 @@ elf_print_ehdr(Elf32_Ehdr *e)
 	fprintf(out, "\te_type: %s\n", e_types[type]);
 	fprintf(out, "\te_machine: %s\n", e_machines(machine));
 	fprintf(out, "\te_version: %s\n", ei_versions[version]);
-	fprintf(out, "\te_entry: %#llx\n", entry);
-	fprintf(out, "\te_phoff: %lld\n", phoff);
-	fprintf(out, "\te_shoff: %lld\n", shoff);
-	fprintf(out, "\te_flags: %lld\n", flags);
-	fprintf(out, "\te_ehsize: %lld\n", ehsize);
-	fprintf(out, "\te_phentsize: %lld\n", phentsize);
-	fprintf(out, "\te_phnum: %lld\n", phnum);
-	fprintf(out, "\te_shentsize: %lld\n", shentsize);
-	fprintf(out, "\te_shnum: %lld\n", shnum);
-	fprintf(out, "\te_shstrndx: %lld\n", shstrndx);
+	fprintf(out, "\te_entry: %#jx\n", (intmax_t)entry);
+	fprintf(out, "\te_phoff: %jd\n", (intmax_t)phoff);
+	fprintf(out, "\te_shoff: %jd\n", (intmax_t)shoff);
+	fprintf(out, "\te_flags: %jd\n", (intmax_t)flags);
+	fprintf(out, "\te_ehsize: %jd\n", (intmax_t)ehsize);
+	fprintf(out, "\te_phentsize: %jd\n", (intmax_t)phentsize);
+	fprintf(out, "\te_phnum: %jd\n", (intmax_t)phnum);
+	fprintf(out, "\te_shentsize: %jd\n", (intmax_t)shentsize);
+	fprintf(out, "\te_shnum: %jd\n", (intmax_t)shnum);
+	fprintf(out, "\te_shstrndx: %jd\n", (intmax_t)shstrndx);
 }
 
 void
@@ -626,13 +627,13 @@ elf_print_phdr(Elf32_Ehdr *e, void *p)
 		fprintf(out, "\n");
 		fprintf(out, "entry: %d\n", i);
 		fprintf(out, "\tp_type: %s\n", p_types[type & 0x7]);
-		fprintf(out, "\tp_offset: %lld\n", offset);
-		fprintf(out, "\tp_vaddr: %#llx\n", vaddr);
-		fprintf(out, "\tp_paddr: %#llx\n", paddr);
-		fprintf(out, "\tp_filesz: %lld\n", filesz);
-		fprintf(out, "\tp_memsz: %lld\n", memsz);
+		fprintf(out, "\tp_offset: %jd\n", (intmax_t)offset);
+		fprintf(out, "\tp_vaddr: %#jx\n", (intmax_t)vaddr);
+		fprintf(out, "\tp_paddr: %#jx\n", (intmax_t)paddr);
+		fprintf(out, "\tp_filesz: %jd\n", (intmax_t)filesz);
+		fprintf(out, "\tp_memsz: %jd\n", (intmax_t)memsz);
 		fprintf(out, "\tp_flags: %s\n", p_flags[flags]);
-		fprintf(out, "\tp_align: %lld\n", align);
+		fprintf(out, "\tp_align: %jd\n", (intmax_t)align);
 	}
 }
 
@@ -674,13 +675,13 @@ elf_print_shdr(Elf32_Ehdr *e, void *sh)
 		fprintf(out, "\tsh_name: %s\n", shstrtab + name);
 		fprintf(out, "\tsh_type: %s\n", sh_types(type));
 		fprintf(out, "\tsh_flags: %s\n", sh_flags[flags & 0x7]);
-		fprintf(out, "\tsh_addr: %#llx\n", addr);
-		fprintf(out, "\tsh_offset: %lld\n", offset);
-		fprintf(out, "\tsh_size: %lld\n", size);
-		fprintf(out, "\tsh_link: %lld\n", shlink);
-		fprintf(out, "\tsh_info: %lld\n", info);
-		fprintf(out, "\tsh_addralign: %lld\n", addralign);
-		fprintf(out, "\tsh_entsize: %lld\n", entsize);
+		fprintf(out, "\tsh_addr: %#jx\n", addr);
+		fprintf(out, "\tsh_offset: %jd\n", (intmax_t)offset);
+		fprintf(out, "\tsh_size: %jd\n", (intmax_t)size);
+		fprintf(out, "\tsh_link: %jd\n", (intmax_t)shlink);
+		fprintf(out, "\tsh_info: %jd\n", (intmax_t)info);
+		fprintf(out, "\tsh_addralign: %jd\n", (intmax_t)addralign);
+		fprintf(out, "\tsh_entsize: %jd\n", (intmax_t)entsize);
 	}
 }
 
@@ -714,12 +715,12 @@ elf_print_symtab(Elf32_Ehdr *e, void *sh, char *str)
 		fprintf(out, "\n");
 		fprintf(out, "entry: %d\n", i);
 		fprintf(out, "\tst_name: %s\n", str + name);
-		fprintf(out, "\tst_value: %#llx\n", value);
-		fprintf(out, "\tst_size: %lld\n", size);
+		fprintf(out, "\tst_value: %#jx\n", value);
+		fprintf(out, "\tst_size: %jd\n", (intmax_t)size);
 		fprintf(out, "\tst_info: %s %s\n",
 		    st_types[ELF32_ST_TYPE(info)],
 		    st_bindings[ELF32_ST_BIND(info)]);
-		fprintf(out, "\tst_shndx: %lld\n", shndx);
+		fprintf(out, "\tst_shndx: %jd\n", (intmax_t)shndx);
 	}
 }
 
@@ -762,7 +763,7 @@ elf_print_dynamic(Elf32_Ehdr *e, void *sh)
 		case DT_RELSZ:
 		case DT_RELENT:
 		case DT_PLTREL:
-			fprintf(out, "\td_val: %lld\n", val);
+			fprintf(out, "\td_val: %jd\n", (intmax_t)val);
 			break;
 		case DT_PLTGOT:
 		case DT_HASH:
@@ -772,7 +773,7 @@ elf_print_dynamic(Elf32_Ehdr *e, void *sh)
 		case DT_FINI:
 		case DT_REL:
 		case DT_JMPREL:
-			fprintf(out, "\td_ptr: %#llx\n", ptr);
+			fprintf(out, "\td_ptr: %#jx\n", ptr);
 			break;
 		case DT_NULL:
 		case DT_SYMBOLIC:
@@ -809,9 +810,9 @@ elf_print_rela(Elf32_Ehdr *e, void *sh)
 		addend = elf_get_off(e, ra, RA_ADDEND);
 		fprintf(out, "\n");
 		fprintf(out, "entry: %d\n", i);
-		fprintf(out, "\tr_offset: %#llx\n", offset);
-		fprintf(out, "\tr_info: %lld\n", info);
-		fprintf(out, "\tr_addend: %lld\n", addend);
+		fprintf(out, "\tr_offset: %#jx\n", offset);
+		fprintf(out, "\tr_info: %jd\n", (intmax_t)info);
+		fprintf(out, "\tr_addend: %jd\n", (intmax_t)addend);
 	}
 }
 
@@ -839,8 +840,8 @@ elf_print_rel(Elf32_Ehdr *e, void *sh)
 		info = elf_get_word(e, r, R_INFO);
 		fprintf(out, "\n");
 		fprintf(out, "entry: %d\n", i);
-		fprintf(out, "\tr_offset: %#llx\n", offset);
-		fprintf(out, "\tr_info: %lld\n", info);
+		fprintf(out, "\tr_offset: %#jx\n", offset);
+		fprintf(out, "\tr_info: %jd\n", (intmax_t)info);
 	}
 }
 
@@ -875,7 +876,7 @@ elf_print_got(Elf32_Ehdr *e, void *sh)
 		addr = elf_get_addr(e, (char *)v + i * addralign, 0);
 		fprintf(out, "\n");
 		fprintf(out, "entry: %d\n", i);
-		fprintf(out, "\t%#llx\n", addr);
+		fprintf(out, "\t%#jx\n", addr);
 	}
 }
 
