@@ -29,6 +29,7 @@ __FBSDID("$FreeBSD$");
 
 #include <errno.h>
 #include <signal.h>
+#include <stddef.h>
 #include <ucontext.h>
 
 __weak_reference(__swapcontext, swapcontext);
@@ -36,17 +37,17 @@ __weak_reference(__swapcontext, swapcontext);
 int
 __swapcontext(ucontext_t *oucp, const ucontext_t *ucp)
 {
-	volatile int	swapped;
-	int		ret;
+	volatile int swapping;
+	int ret;
 
 	if (oucp == NULL || ucp == NULL) {
 		errno = EINVAL;
 		ret = -1;
-	}
-	else {
-		swapped = 0;
-		if ((ret = getcontext(oucp) == 0) && (swapped == 0)) {
-			swapped = 1;
+	} else {
+		swapping = 0;
+		ret = getcontext(oucp);
+		if (ret == 0 && swapping == 0) {
+			swapping = 1;
 			ret = setcontext(ucp);
 		}
 	}
