@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_vnops.c	8.19 (Berkeley) 5/27/95
- * $Id: cd9660_vnops.c,v 1.48 1997/10/27 13:33:37 bde Exp $
+ * $Id: cd9660_vnops.c,v 1.49 1997/10/27 14:55:49 bde Exp $
  */
 
 #include <sys/param.h>
@@ -60,6 +60,7 @@
 static int cd9660_setattr __P((struct vop_setattr_args *));
 static int cd9660_access __P((struct vop_access_args *));
 static int cd9660_getattr __P((struct vop_getattr_args *));
+static int cd9660_pathconf __P((struct vop_pathconf_args *));
 static int cd9660_read __P((struct vop_read_args *));
 struct isoreaddir;
 static int iso_uiodir __P((struct isoreaddir *idp, struct dirent *dp,
@@ -769,7 +770,7 @@ cd9660_print(ap)
 /*
  * Return POSIX pathconf information applicable to cd9660 filesystems.
  */
-int
+static int
 cd9660_pathconf(ap)
 	struct vop_pathconf_args /* {
 		struct vnode *a_vp;
@@ -810,7 +811,7 @@ cd9660_pathconf(ap)
  * Global vfs data structures for cd9660
  */
 vop_t **cd9660_vnodeop_p;
-struct vnodeopv_entry_desc cd9660_vnodeop_entries[] = {
+static struct vnodeopv_entry_desc cd9660_vnodeop_entries[] = {
 	{ &vop_default_desc,		(vop_t *) vop_defaultop },
 	{ &vop_abortop_desc,		(vop_t *) cd9660_abortop },
 	{ &vop_access_desc,		(vop_t *) cd9660_access },
@@ -840,7 +841,7 @@ VNODEOP_SET(cd9660_vnodeop_opv_desc);
  * Special device vnode ops
  */
 vop_t **cd9660_specop_p;
-struct vnodeopv_entry_desc cd9660_specop_entries[] = {
+static struct vnodeopv_entry_desc cd9660_specop_entries[] = {
 	{ &vop_default_desc,		(vop_t *) spec_vnoperate },
 	{ &vop_access_desc,		(vop_t *) cd9660_access },
 	{ &vop_getattr_desc,		(vop_t *) cd9660_getattr },
@@ -858,7 +859,7 @@ static struct vnodeopv_desc cd9660_specop_opv_desc =
 VNODEOP_SET(cd9660_specop_opv_desc);
 
 vop_t **cd9660_fifoop_p;
-struct vnodeopv_entry_desc cd9660_fifoop_entries[] = {
+static struct vnodeopv_entry_desc cd9660_fifoop_entries[] = {
 	{ &vop_default_desc,		(vop_t *) fifo_vnoperate },
 	{ &vop_access_desc,		(vop_t *) cd9660_access },
 	{ &vop_getattr_desc,		(vop_t *) cd9660_getattr },
