@@ -9,6 +9,13 @@ the common items quick how-tos, followed by entries for versions of
 -current prior to 4.0 Release.
 
 
+20030806:
+	All current USB quirks in da(4) have been deprecated and will be
+	removed for 4.9.  If this causes failure for your umass(4) devices,
+	enable "options DA_OLD_QUIRKS" in your kernel and send the output of
+	"camcontrol inquiry da0" to scsi@freebsd.org so the quirk can be
+	re-enabled.
+
 20030403:
 	FreeBSD 4.8-RELEASE.
 
