@@ -256,6 +256,8 @@ accept1(td, uap, compat)
 		error = copyin(uap->anamelen, &namelen, sizeof (namelen));
 		if(error)
 			goto done2;
+		if (namelen < 0)
+			return (EINVAL);
 	}
 	error = fgetsock(td, uap->s, &head, &fflag);
 	if (error)
