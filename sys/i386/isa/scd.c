@@ -41,7 +41,7 @@
  */
 
 
-/* $Id: scd.c,v 1.41 1999/01/12 01:29:45 eivind Exp $ */
+/* $Id: scd.c,v 1.42 1999/04/28 10:52:51 dt Exp $ */
 
 /* Please send any comments to micke@dynas.se */
 
@@ -397,7 +397,7 @@ scd_start(int unit)
 	struct scd_data *cd = scd_data + unit;
 	struct buf *bp;
 	struct partition *p;
-	register s = splbio();
+	int s = splbio();
 
 	if (cd->flags & SCDMBXBSY) {
 		splx(s);

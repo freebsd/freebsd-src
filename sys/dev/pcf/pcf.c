@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: pcf.c,v 1.6 1998/12/07 21:58:22 archie Exp $
+ *	$Id: pcf.c,v 1.7 1999/05/02 21:51:17 peter Exp $
  *
  */
 #include <sys/param.h>
@@ -92,7 +92,7 @@ struct pcf_isa_softc {
 #define MAXPCF 2
 
 static struct pcf_isa_softc *pcfdata[MAXPCF];
-static npcf = 0;
+static int npcf = 0;
 
 static int	pcfprobe_isa(struct isa_device *);
 static int	pcfattach_isa(struct isa_device *);
