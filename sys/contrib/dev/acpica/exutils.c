@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: amutils - interpreter/scanner utilities
- *              $Revision: 68 $
+ *              $Revision: 69 $
  *
  *****************************************************************************/
 
@@ -127,20 +127,6 @@
 #define _COMPONENT          INTERPRETER
         MODULE_NAME         ("amutils")
 
-
-typedef struct Internal_Search_st
-{
-    ACPI_OPERAND_OBJECT         *DestObj;
-    UINT32                      Index;
-    ACPI_OPERAND_OBJECT         *SourceObj;
-
-} INTERNAL_PKG_SEARCH_INFO;
-
-
-/* Used to traverse nested packages when copying*/
-/* TBD: This must be removed! */
-
-INTERNAL_PKG_SEARCH_INFO        CopyLevel[MAX_PACKAGE_DEPTH];
 
 
 /*******************************************************************************
@@ -504,167 +490,7 @@ AcpiAmlUnsignedIntegerToString (
 }
 
 
-/*******************************************************************************
- *
- * FUNCTION:    AcpiAmlBuildCopyInternalPackageObject
- *
- * PARAMETERS:  *SourceObj      - Pointer to the source package object
- *              *DestObj        - Where the internal object is returned
- *
- * RETURN:      Status          - the status of the call
- *
- * DESCRIPTION: This function is called to copy an internal package object
- *              into another internal package object.
- *
- ******************************************************************************/
-
-ACPI_STATUS
-AcpiAmlBuildCopyInternalPackageObject (
-    ACPI_OPERAND_OBJECT     *SourceObj,
-    ACPI_OPERAND_OBJECT     *DestObj,
-    ACPI_WALK_STATE         *WalkState)
-{
-    UINT32                      CurrentDepth = 0;
-    ACPI_STATUS                 Status = AE_OK;
-    UINT32                      Length = 0;
-    UINT32                      ThisIndex;
-    UINT32                      ObjectSpace = 0;
-    ACPI_OPERAND_OBJECT         *ThisDestObj;
-    ACPI_OPERAND_OBJECT         *ThisSourceObj;
-    INTERNAL_PKG_SEARCH_INFO    *LevelPtr;
 
 
-    FUNCTION_TRACE ("AmlBuildCopyInternalPackageObject");
-
-
-    /*
-     * Initialize the working variables
-     */
-
-    MEMSET ((void *) CopyLevel, 0, sizeof(CopyLevel));
-
-    CopyLevel[0].DestObj    = DestObj;
-    CopyLevel[0].SourceObj  = SourceObj;
-    LevelPtr                = &CopyLevel[0];
-    CurrentDepth            = 0;
-
-    DestObj->Common.Type    = SourceObj->Common.Type;
-    DestObj->Package.Count  = SourceObj->Package.Count;
-
-
-    /*
-     * Build an array of ACPI_OBJECTS in the buffer
-     * and move the free space past it
-     */
-
-    DestObj->Package.Elements   = AcpiCmCallocate (
-                                        (DestObj->Package.Count + 1) *
-                                        sizeof (void *));
-    if (!DestObj->Package.Elements)
-    {
-        /* Package vector allocation failure   */
-
-        REPORT_ERROR (("AmlBuildCopyInternalPackageObject: Package vector allocation failure\n"));
-        return_ACPI_STATUS (AE_NO_MEMORY);
-    }
-
-    DestObj->Package.NextElement = DestObj->Package.Elements;
-
-
-    while (1)
-    {
-        ThisIndex       = LevelPtr->Index;
-        ThisDestObj     = (ACPI_OPERAND_OBJECT *) LevelPtr->DestObj->Package.Elements[ThisIndex];
-        ThisSourceObj   = (ACPI_OPERAND_OBJECT *) LevelPtr->SourceObj->Package.Elements[ThisIndex];
-
-        if (IS_THIS_OBJECT_TYPE (ThisSourceObj, ACPI_TYPE_PACKAGE))
-        {
-            /*
-             * If this object is a package then we go one deeper
-             */
-            if (CurrentDepth >= MAX_PACKAGE_DEPTH-1)
-            {
-                /*
-                 * Too many nested levels of packages for us to handle
-                 */
-                DEBUG_PRINT (ACPI_ERROR,
-                    ("AmlBuildCopyInternalPackageObject: Pkg nested too deep (max %X)\n",
-                    MAX_PACKAGE_DEPTH));
-                return_ACPI_STATUS (AE_LIMIT);
-            }
-
-            /*
-             * Build the package object
-             */
-            ThisDestObj = AcpiCmCreateInternalObject (ACPI_TYPE_PACKAGE);
-            LevelPtr->DestObj->Package.Elements[ThisIndex] = ThisDestObj;
-
-
-            ThisDestObj->Common.Type        = ACPI_TYPE_PACKAGE;
-            ThisDestObj->Package.Count      = ThisDestObj->Package.Count;
-
-            /*
-             * Save space for the array of objects (Package elements)
-             * update the buffer length counter
-             */
-            ObjectSpace             = ThisDestObj->Package.Count *
-                                        sizeof (ACPI_OPERAND_OBJECT);
-            Length                  += ObjectSpace;
-            CurrentDepth++;
-            LevelPtr                = &CopyLevel[CurrentDepth];
-            LevelPtr->DestObj       = ThisDestObj;
-            LevelPtr->SourceObj     = ThisSourceObj;
-            LevelPtr->Index         = 0;
-
-        }   /* if object is a package */
-
-        else
-        {
-
-            ThisDestObj = AcpiCmCreateInternalObject (
-                                ThisSourceObj->Common.Type);
-            LevelPtr->DestObj->Package.Elements[ThisIndex] = ThisDestObj;
-
-            Status = AcpiAmlStoreObjectToObject(ThisSourceObj, ThisDestObj, WalkState);
-
-            if (ACPI_FAILURE (Status))
-            {
-                /*
-                 * Failure get out
-                 */
-                return_ACPI_STATUS (Status);
-            }
-
-            Length      +=ObjectSpace;
-
-            LevelPtr->Index++;
-            while (LevelPtr->Index >= LevelPtr->DestObj->Package.Count)
-            {
-                /*
-                 * We've handled all of the objects at this level,  This means
-                 * that we have just completed a package.  That package may
-                 * have contained one or more packages itself
-                 */
-                if (CurrentDepth == 0)
-                {
-                    /*
-                     * We have handled all of the objects in the top level
-                     * package just add the length of the package objects
-                     * and exit
-                     */
-                    return_ACPI_STATUS (AE_OK);
-                }
-
-                /*
-                 * Go back up a level and move the index past the just
-                 * completed package object.
-                 */
-                CurrentDepth--;
-                LevelPtr = &CopyLevel[CurrentDepth];
-                LevelPtr->Index++;
-            }
-        }   /* else object is NOT a package */
-    }   /* while (1)  */
-}
 
 
