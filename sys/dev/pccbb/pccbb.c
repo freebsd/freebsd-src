@@ -950,7 +950,7 @@ cbb_event_thread(void *arg)
 		 */
 		mtx_lock(&Giant);
 		status = cbb_get(sc, CBB_SOCKET_STATE);
-		if ((status & CBB_SOCKET_STAT_CD) == 0)
+		if ((status & CBB_STATE_CD) == 0)
 			cbb_insert(sc);
 		else
 			cbb_removal(sc);
@@ -1001,11 +1001,11 @@ cbb_insert(struct cbb_softc *sc)
 	DEVPRINTF((sc->dev, "card inserted: event=0x%08x, state=%08x\n",
 	    sockevent, sockstate));
 
-	if (sockstate & CBB_SOCKET_STAT_16BIT) {
+	if (sockstate & CBB_STATE_R2_CARD) {
 		if (sc->exca.pccarddev)
 			sc->flags |= CBB_16BIT_CARD | CBB_CARD_OK;
 		exca_insert(&sc->exca);
-	} else if (sockstate & CBB_SOCKET_STAT_CB) {
+	} else if (sockstate & CBB_STATE_CB_CARD) {
 		if (sc->cbdev != NULL) {
 			sc->flags &= ~CBB_16BIT_CARD;
 			sc->flags |= CBB_CARD_OK;
@@ -1110,13 +1110,13 @@ cbb_detect_voltage(device_t brdev)
 
 	psr = cbb_get(sc, CBB_SOCKET_STATE);
 
-	if (psr & CBB_SOCKET_STAT_5VCARD)
+	if (psr & CBB_STATE_5VCARD)
 		vol |= CARD_5V_CARD;
-	if (psr & CBB_SOCKET_STAT_3VCARD)
+	if (psr & CBB_STATE_3VCARD)
 		vol |= CARD_3V_CARD;
-	if (psr & CBB_SOCKET_STAT_XVCARD)
+	if (psr & CBB_STATE_XVCARD)
 		vol |= CARD_XV_CARD;
-	if (psr & CBB_SOCKET_STAT_YVCARD)
+	if (psr & CBB_STATE_YVCARD)
 		vol |= CARD_YV_CARD;
 
 	return (vol);
@@ -1240,7 +1240,7 @@ cbb_power(device_t brdev, int volts)
 	 */
 	DELAY(400*1000);
 
-	if (status & CBB_SOCKET_STAT_BADVCC) {
+	if (status & CBB_STATE_BAD_VCC_REQ) {
 		device_printf(sc->dev,
 		    "bad Vcc request. ctrl=0x%x, status=0x%x\n",
 		    sock_ctrl ,status);
@@ -1300,7 +1300,7 @@ cbb_cardbus_reset(device_t brdev)
 	DELAY(delay_us);
 
 	/* If a card exists, unreset it! */
-	if ((cbb_get(sc, CBB_SOCKET_STATE) & CBB_SOCKET_STAT_CD) == 0) {
+	if ((cbb_get(sc, CBB_SOCKET_STATE) & CBB_STATE_CD) == 0) {
 		PCI_MASK_CONFIG(brdev, CBBR_BRIDGECTRL,
 		    &~CBBM_BRIDGECTRL_RESET, 2);
 		DELAY(delay_us);
@@ -1313,8 +1313,8 @@ cbb_cardbus_power_enable_socket(device_t brdev, device_t child)
 	struct cbb_softc *sc = device_get_softc(brdev);
 	int err;
 
-	if ((cbb_get(sc, CBB_SOCKET_STATE) & CBB_SOCKET_STAT_CD) ==
-	    CBB_SOCKET_STAT_CD)
+	if ((cbb_get(sc, CBB_SOCKET_STATE) & CBB_STATE_CD) ==
+	    CBB_STATE_CD)
 		return (ENODEV);
 
 	err = cbb_do_power(brdev);
@@ -1964,7 +1964,7 @@ cbb_child_present(device_t self)
 	uint32_t sockstate;
 
 	sockstate = cbb_get(sc, CBB_SOCKET_STATE);
-	return ((sockstate & CBB_SOCKET_STAT_CD) != 0 &&
+	return ((sockstate & CBB_STATE_CD) != 0 &&
 	  (sc->flags & CBB_CARD_OK) != 0);
 }
 
