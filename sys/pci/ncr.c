@@ -1397,6 +1397,8 @@ static int ncr_cache; /* to be aligned _NOT_ static */
 #define	NCR_885_ID	(0x000d1000ul)
 #define	NCR_895_ID	(0x000c1000ul)
 #define	NCR_896_ID	(0x000b1000ul)
+#define	NCR_895A_ID	(0x00121000ul)
+#define	NCR_1510D_ID	(0x000a1000ul)
 
 
 static u_long ncr_count;
@@ -3314,6 +3316,12 @@ static ncr_chip ncr_chip_table[] = {
  FE_WIDE|FE_ULTRA2|FE_QUAD|FE_CACHE_SET|FE_DFS|FE_LDSTR|FE_PFEN|FE_RAM}
  ,
  {NCR_896_ID, 0x00,	"ncr 53c896 fast40 wide scsi",		7, 31, 7,
+ FE_WIDE|FE_ULTRA2|FE_QUAD|FE_CACHE_SET|FE_DFS|FE_LDSTR|FE_PFEN|FE_RAM}
+ ,
+ {NCR_895A_ID, 0x00,	"ncr 53c895a fast40 wide scsi",		7, 31, 7,
+ FE_WIDE|FE_ULTRA2|FE_QUAD|FE_CACHE_SET|FE_DFS|FE_LDSTR|FE_PFEN|FE_RAM}
+ ,
+ {NCR_1510D_ID, 0x00,	"ncr 53c1510d fast40 wide scsi",	7, 31, 7,
  FE_WIDE|FE_ULTRA2|FE_QUAD|FE_CACHE_SET|FE_DFS|FE_LDSTR|FE_PFEN|FE_RAM}
 };
 
