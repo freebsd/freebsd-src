@@ -49,7 +49,7 @@ ARCH_SRCS = s_copysign.S s_copysignf.S
 # Stock gcc 2.7.2.1 doesn't understand these options.
 #CFLAGS += -mtrap-precision=i -mfp-trap-mode=su
 .elif ${MACHINE_ARCH} == "i386"
-ARCH=	i387
+ARCH_SUBDIR= i387
 ARCH_SRCS = e_acos.S e_asin.S e_atan2.S e_exp.S e_fmod.S e_log.S e_log10.S \
 	    e_remainder.S e_scalb.S e_sqrt.S s_atan.S s_ceil.S s_copysign.S \
 	    s_cos.S s_finite.S s_floor.S s_logb.S \
@@ -58,7 +58,7 @@ ARCH_SRCS = e_acos.S e_asin.S e_atan2.S e_exp.S e_fmod.S e_log.S e_log10.S \
 # ARCH_SRCS+=	s_log1p.S
 .endif
 
-ARCH?=	${MACHINE_ARCH}
+ARCH_SUBDIR?= ${MACHINE_ARCH}
 
 .PATH:	${.CURDIR}/bsdsrc
 .PATH:	${.CURDIR}/man
@@ -114,7 +114,7 @@ COMMON_SRCS+=	s_cimag.c s_cimagf.c s_cimagl.c s_conj.c s_conjf.c s_conjl.c \
 #COMMON_SRCS+=	s_fabs.c s_frexp.c s_isnan.c s_ldexp.c s_modf.c
 
 # Exclude the generic versions of what we provide in the MD area.
-.PATH:	${.CURDIR}/${ARCH}
+.PATH:	${.CURDIR}/${ARCH_SUBDIR}
 .if defined(ARCH_SRCS)
 .for i in ${ARCH_SRCS}
 COMMON_SRCS:=  ${COMMON_SRCS:N${i:R}.c}
