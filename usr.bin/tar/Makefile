@@ -7,8 +7,9 @@
 
 PROG=	bsdtar
 VERSION=	1.01.022
-SRCS=	bsdtar.c getdate.y matching.c read.c util.c write.c
-WARNS?=	6
+DIST_SRCS=	bsdtar.c getdate.y matching.c read.c util.c write.c
+SRCS=	${DIST_SRCS}
+WARNS?=	5
 DPADD=	${LIBARCHIVE} ${LIBBZ2} ${LIBZ}
 LDADD=	-larchive -lbz2 -lz
 CFLAGS+=	-DPACKAGE_VERSION=\"${VERSION}\"
@@ -23,7 +24,7 @@ DIST_BUILD_DIR=	${.OBJDIR}/${PROG}-${VERSION}
 CLEANDIRS+=	${DIST_BUILD_DIR}
 DISTFILE=	${PROG}-${VERSION}.tar.gz
 # Files that just get copied to the distfile build directory
-DIST_FILES=	${SRCS_ORIGINAL}
+DIST_FILES=	${DIST_SRCS}
 DIST_FILES+=	${MAN}
 DIST_FILES+=	bsdtar.h bsdtar_platform.h
 DIST_FILES+=	Makefile.am
