@@ -243,7 +243,7 @@ acpi_perf_evaluate(device_t dev)
 	ACPI_BUFFER buf;
 	ACPI_OBJECT *pkg, *res;
 	ACPI_STATUS status;
-	int error, i, j;
+	int count, error, i, j;
 	uint32_t *p;
 
 	/* Get the control values and parameters for each state. */
@@ -272,6 +272,7 @@ acpi_perf_evaluate(device_t dev)
 	 * BusMasterLatency, ControlVal, StatusVal}, sorted from highest
 	 * performance to lowest.
 	 */
+	count = 0;
 	for (i = 0; i < sc->px_count; i++) {
 		res = &pkg->Package.Elements[i];
 		if (!ACPI_PKG_VALID(res, 6)) {
@@ -279,19 +280,29 @@ acpi_perf_evaluate(device_t dev)
 			continue;
 		}
 
-		/*
-		 * Check for some impossible frequencies that some systems
-		 * use to indicate they don't actually support Px states.
-		 */
-		p = &sc->px_states[i].core_freq;
-		if (*p == 9999 || *p == 0xffff)
-			goto out;
-
 		/* Parse the rest of the package into the struct. */
+		p = &sc->px_states[count].core_freq;
 		for (j = 0; j < 6; j++, p++)
 			acpi_PkgInt32(res, j, p);
+
+		/*
+		 * Check for some impossible frequencies that some systems
+		 * use to indicate they don't actually support this Px state.
+		 */
+		if (sc->px_states[count].core_freq == 0 ||
+		    sc->px_states[count].core_freq == 9999 ||
+		    sc->px_states[count].core_freq == 0x9999 ||
+		    sc->px_states[count].core_freq >= 0xffff)
+			continue;
+
+		count++;
 	}
 	AcpiOsFree(buf.Pointer);
+	sc->px_count = count;
+
+	/* No valid Px state found. */
+	if (count == 0)
+		goto out;
 
 	/* Get the control and status registers (one of each). */
 	buf.Pointer = NULL;
