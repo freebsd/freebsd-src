@@ -227,7 +227,11 @@ pf_normalize_init(void)
 	TAILQ_INIT(&pf_cachequeue);
 }
 
+#if defined(__FreeBSD__)
+static int
+#else
 static __inline int
+#endif
 pf_frag_compare(struct pf_fragment *a, struct pf_fragment *b)
 {
 	int	diff;

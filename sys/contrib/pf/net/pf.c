@@ -302,7 +302,11 @@ static __inline int pf_state_compare(struct pf_tree_node *,
 struct pf_state_tree tree_lan_ext, tree_ext_gwy;
 RB_GENERATE(pf_state_tree, pf_tree_node, entry, pf_state_compare);
 
+#if defined(__FreeBSD__)
+static int
+#else
 static __inline int
+#endif
 pf_state_compare(struct pf_tree_node *a, struct pf_tree_node *b)
 {
 	int	diff;
