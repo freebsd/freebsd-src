@@ -1231,7 +1231,6 @@ fdalloc(struct thread *td, int *result)
 			break;
 		fdgrowtable(fdp, min(fdp->fd_nfiles * 2, maxfd));
 	}
-	FILEDESC_LOCK_ASSERT(fdp, MA_OWNED);
 
 	/*
 	 * Perform some sanity checks, then mark the file descriptor as
@@ -1374,8 +1373,10 @@ fdinit(fdp)
 
 	FILEDESC_LOCK_ASSERT(fdp, MA_OWNED);
 
+	FILEDESC_UNLOCK(fdp);
 	MALLOC(newfdp, struct filedesc0 *, sizeof(struct filedesc0),
 	    M_FILEDESC, M_WAITOK | M_ZERO);
+	FILEDESC_LOCK(fdp);
 	mtx_init(&newfdp->fd_fd.fd_mtx, FILEDESC_LOCK_DESC, NULL, MTX_DEF);
 	newfdp->fd_fd.fd_cdir = fdp->fd_cdir;
 	if (newfdp->fd_fd.fd_cdir)
@@ -1430,8 +1431,11 @@ fdcopy(fdp)
 	FILEDESC_LOCK_ASSERT(fdp, MA_OWNED);
 	newfdp = fdinit(fdp);
 	FILEDESC_LOCK(newfdp);
-	if (fdp->fd_lastfile >= newfdp->fd_nfiles)
+	while (fdp->fd_lastfile >= newfdp->fd_nfiles) {
+		FILEDESC_UNLOCK(fdp);
 		fdgrowtable(newfdp, fdp->fd_lastfile + 1);
+		FILEDESC_LOCK(fdp);
+	}
 	KASSERT(newfdp->fd_nfiles > fdp->fd_lastfile,
 	    ("fdgrowtable() failed to grow table"));
 	/* copy everything except kqueue descriptors */
