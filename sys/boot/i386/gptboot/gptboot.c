@@ -14,7 +14,7 @@
  */
 
 /*
- *	$Id: boot2.c,v 1.2 1998/10/13 17:41:06 rnordier Exp $
+ *	$Id: boot2.c,v 1.3 1998/10/13 21:35:42 rnordier Exp $
  */
 
 #include <sys/param.h>
@@ -51,7 +51,7 @@
 #define ARGS		0x800
 #define NOPT		8
 #define BSIZEMAX	8192
-#define NDEV		3
+#define NDEV		5
 #define MEM_BASE	0x12
 #define MEM_EXT 	0x15
 #define V86_CY(x)	((x) & 1)
@@ -712,22 +712,19 @@ drvread(void *buf, unsigned lba, unsigned nblk)
 static int
 keyhit(unsigned ticks)
 {
-    uint32_t x;
+    uint32_t t0, t1;
 
-    x = 0;
+    t0 = 0;
     for (;;) {
 	v86.addr = 0x16;
 	v86.eax = 0x100;
 	v86int();
 	if (!V86_ZR(v86.efl))
 	    return 1;
-	v86.addr = 0x1a;
-	v86.eax = 0;
-	v86.edx = 0;
-	v86int();
-	if (!x)
-	    x = v86.edx;
-	else if (v86.edx < x || v86.edx > x + ticks)
+	t1 = *(uint32_t *)PTOV(0x46c);
+	if (!t0)
+	    t0 = t1;
+	if (t1 < t0 || t1 >= t0 + ticks)
 	    return 0;
     }
 }
