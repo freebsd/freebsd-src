@@ -515,19 +515,22 @@ archive_write_pax_header(struct archive *a,
 
 		if (st_main->st_mtime < 0  ||
 		    st_main->st_mtime >= 0x7fffffff  ||
-		    st_main->st_mtimespec.tv_nsec != 0)
+		    ARCHIVE_STAT_MTIME_NANOS(st_main) != 0)
 			add_pax_attr_time(&(pax->pax_header), "mtime",
-			    st_main->st_mtime, st_main->st_mtimespec.tv_nsec);
+			    st_main->st_mtime,
+			    ARCHIVE_STAT_MTIME_NANOS(st_main));
 
-		if (st_main->st_ctimespec.tv_nsec != 0 ||
-		    st_main->st_ctime != 0)
+		if (st_main->st_ctime != 0  ||
+		    ARCHIVE_STAT_CTIME_NANOS(st_main) != 0)
 			add_pax_attr_time(&(pax->pax_header), "ctime",
-			    st_main->st_ctime, st_main->st_ctimespec.tv_nsec);
+			    st_main->st_ctime,
+			    ARCHIVE_STAT_CTIME_NANOS(st_main));
 
-		if (st_main->st_atimespec.tv_nsec != 0 ||
-		    st_main->st_atime != 0)
+		if (st_main->st_atime != 0  ||
+		    ARCHIVE_STAT_ATIME_NANOS(st_main) != 0)
 			add_pax_attr_time(&(pax->pax_header), "atime",
-			    st_main->st_atime, st_main->st_atimespec.tv_nsec);
+			    st_main->st_atime,
+			    ARCHIVE_STAT_ATIME_NANOS(st_main));
 
 		/* I use a star-compatible file flag attribute. */
 		p = archive_entry_fflags(entry_main);
