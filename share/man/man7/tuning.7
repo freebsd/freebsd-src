@@ -424,7 +424,8 @@ sysctls are of particular interest if you are running network intensive
 applications.
 This controls the amount of send and receive buffer space
 allowed for any given TCP connection.
-The default is 16K.
+The default sending buffer is 32k; the default receiving buffer
+is 64k.
 You can often
 improve bandwidth utilization by increasing the default at the cost of
 eating up more kernel memory for each connection.
