@@ -648,6 +648,12 @@ If set to
 run the
 .Xr syslogd 8
 daemon.
+.It Va syslogd_program
+.Pq Vt str
+Path to
+.Xr syslogd 8
+(default
+.Pa /usr/sbin/syslogd ) .
 .It Va syslogd_flags
 .Pq Vt str
 if syslogd_enable is set to
@@ -661,6 +667,12 @@ If set to
 run the
 .Xr inetd 8
 daemon.
+.It Va inetd_program
+.Pq Vt str
+Path to
+.Xr inetd 8
+(default
+.Pa /usr/sbin/inetd ) .
 .It Va inetd_flags
 .Pq Vt str
 if inetd_enable is set to
