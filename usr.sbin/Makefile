@@ -9,7 +9,7 @@ SUBDIR=	accton amd arp bootpd bootpef bootpgw bootptest chown chroot \
 	manctl mtree mrouted portmap pstat \
 	pwd_mkdb quotaon repquota routed rmt rtprio rwhod sendmail \
 	sliplogin sysctl syslogd tcpdump traceroute trpt vidcontrol \
-	vipw xntpd ypbind yppoll ypset
+	vipw xntpd ypbind yppoll ypset zic
 
 #
 # XNSrouted and trsp are of very marginal utility to anyone at this
