@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: tbget - ACPI Table get* routines
- *              $Revision: 46 $
+ *              $Revision: 48 $
  *
  *****************************************************************************/
 
@@ -126,6 +126,7 @@
 
 #define RSDP_CHECKSUM_LENGTH 20
 
+
 /*******************************************************************************
  *
  * FUNCTION:    AcpiTbGetTablePtr
@@ -169,14 +170,12 @@ AcpiTbGetTablePtr (
      * For all table types (Single/Multiple), the first
      * instance is always in the list head.
      */
-
     if (Instance == 1)
     {
         /*
          * Just pluck the pointer out of the global table!
          * Will be null if no table is present
          */
-
         *TablePtrLoc = AcpiGbl_AcpiTables[TableType].Pointer;
         return_ACPI_STATUS (AE_OK);
     }
@@ -191,11 +190,11 @@ AcpiTbGetTablePtr (
     }
 
     /* Walk the list to get the desired table
-     *  Since the if (Instance == 1) check above checked for the
-     *  first table, setting TableDesc equal to the .Next member
-     *  is actually pointing to the second table.  Therefore, we
-     *  need to walk from the 2nd table until we reach the Instance
-     *  that the user is looking for and return its table pointer.
+     * Since the if (Instance == 1) check above checked for the
+     * first table, setting TableDesc equal to the .Next member
+     * is actually pointing to the second table.  Therefore, we
+     * need to walk from the 2nd table until we reach the Instance
+     * that the user is looking for and return its table pointer.
      */
     TableDesc = AcpiGbl_AcpiTables[TableType].Next;
     for (i = 2; i < Instance; i++)
@@ -289,8 +288,7 @@ AcpiTbGetTable (
     {
         Size = SIZE_IN_HEADER;
 
-        Status = AcpiTbMapAcpiTable (PhysicalAddress, &Size,
-                                    (void **) &FullTable);
+        Status = AcpiTbMapAcpiTable (PhysicalAddress, &Size, &FullTable);
         if (ACPI_FAILURE (Status))
         {
             return_ACPI_STATUS (Status);
@@ -516,8 +514,7 @@ AcpiTbVerifyRsdp (
     /*
      * Obtain access to the RSDP structure
      */
-    Status = AcpiOsMapMemory (RsdpPhysicalAddress,
-                                sizeof (RSDP_DESCRIPTOR),
+    Status = AcpiOsMapMemory (RsdpPhysicalAddress, sizeof (RSDP_DESCRIPTOR),
                                 (void **) &TablePtr);
     if (ACPI_FAILURE (Status))
     {
@@ -577,6 +574,148 @@ Cleanup:
 
 /*******************************************************************************
  *
+ * FUNCTION:    AcpiTbGetRsdtAddress
+ *
+ * PARAMETERS:  None
+ *
+ * RETURN:      RSDT physical address
+ *
+ * DESCRIPTION: Extract the address of the RSDT or XSDT, depending on the
+ *              version of the RSDP
+ *
+ ******************************************************************************/
+
+ACPI_PHYSICAL_ADDRESS
+AcpiTbGetRsdtAddress (void)
+{
+    ACPI_PHYSICAL_ADDRESS   PhysicalAddress;
+
+
+    /*
+     * For RSDP revision 0 or 1, we use the RSDT.
+     * For RSDP revision 2 (and above), we use the XSDT
+     */
+    if (AcpiGbl_RSDP->Revision < 2)
+    {
+#ifdef _IA64
+        /* 0.71 RSDP has 64bit Rsdt address field */
+        PhysicalAddress = ((RSDP_DESCRIPTOR_REV071 *)AcpiGbl_RSDP)->RsdtPhysicalAddress;
+#else
+        PhysicalAddress = (ACPI_PHYSICAL_ADDRESS) AcpiGbl_RSDP->RsdtPhysicalAddress;
+#endif
+    }
+
+    else
+    {
+        PhysicalAddress = (ACPI_PHYSICAL_ADDRESS)
+                            ACPI_GET_ADDRESS (AcpiGbl_RSDP->XsdtPhysicalAddress);
+    }
+
+
+    return (PhysicalAddress);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiTbValidateRsdt 
+ *
+ * PARAMETERS:  TablePtr        - Addressable pointer to the RSDT.
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Validate signature for the RSDT or XSDT
+ *
+ ******************************************************************************/
+
+ACPI_STATUS
+AcpiTbValidateRsdt (
+    ACPI_TABLE_HEADER       *TablePtr)
+{
+    UINT32                  NoMatch;
+
+
+    /*
+     * For RSDP revision 0 or 1, we use the RSDT.
+     * For RSDP revision 2 (and above), we use the XSDT
+     */
+    if (AcpiGbl_RSDP->Revision < 2)
+    {
+        NoMatch = STRNCMP ((char *) TablePtr, RSDT_SIG, 
+                        sizeof (RSDT_SIG) -1);
+    }
+    else
+    {
+        NoMatch = STRNCMP ((char *) TablePtr, XSDT_SIG, 
+                        sizeof (XSDT_SIG) -1);
+    }
+
+
+    if (NoMatch)
+    {
+        /* Invalid RSDT or XSDT signature */
+
+        REPORT_ERROR (("Invalid signature where RSDP indicates RSDT/XSDT should be located\n"));
+
+        DUMP_BUFFER (AcpiGbl_RSDP, 20);
+
+        DEBUG_PRINT_RAW (ACPI_ERROR,
+            ("RSDT/XSDT signature at %X is invalid\n",
+            AcpiGbl_RSDP->RsdtPhysicalAddress));
+
+        return (AE_BAD_SIGNATURE);
+    }
+
+    return (AE_OK);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiTbGetTablePointer
+ *
+ * PARAMETERS:  PhysicalAddress     - Address from RSDT
+ *              Flags               - virtual or physical addressing
+ *              TablePtr            - Addressable address (output)
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Create an addressable pointer to an ACPI table
+ *
+ ******************************************************************************/
+
+ACPI_STATUS
+AcpiTbGetTablePointer (
+    ACPI_PHYSICAL_ADDRESS   PhysicalAddress,
+    UINT32                  Flags,
+    UINT32                  *Size,
+    ACPI_TABLE_HEADER       **TablePtr)
+{
+    ACPI_STATUS             Status;
+
+
+
+    if ((Flags & ACPI_MEMORY_MODE) == ACPI_LOGICAL_ADDRESSING)
+    {
+        *Size = SIZE_IN_HEADER;
+        Status = AcpiTbMapAcpiTable (PhysicalAddress, Size, TablePtr);
+    }
+
+    else
+    {
+        *Size = 0;
+        *TablePtr = (ACPI_TABLE_HEADER *) (ACPI_TBLPTR) PhysicalAddress;
+
+        Status = AE_OK;
+    }
+
+    return (Status);
+}
+
+
+
+/*******************************************************************************
+ *
  * FUNCTION:    AcpiTbGetTableRsdt
  *
  * PARAMETERS:  NumberOfTables      - Where the table count is placed
@@ -592,10 +731,8 @@ AcpiTbGetTableRsdt (
     UINT32                  *NumberOfTables)
 {
     ACPI_TABLE_DESC         TableInfo;
-    ACPI_STATUS             Status = AE_OK;
+    ACPI_STATUS             Status;
     ACPI_PHYSICAL_ADDRESS   PhysicalAddress;
-    UINT32                  SignatureLength;
-    char                    *TableSignature;
 
 
     FUNCTION_TRACE ("TbGetTableRsdt");
@@ -609,28 +746,8 @@ AcpiTbGetTableRsdt (
         ("RSDP located at %p, RSDT physical=%p \n",
         AcpiGbl_RSDP, AcpiGbl_RSDP->RsdtPhysicalAddress));
 
-    /*
-     * For RSDP revision 0 or 1, we use the RSDT.
-     * For RSDP revision 2 (and above), we use the XSDT
-     */
-    if (AcpiGbl_RSDP->Revision < 2)
-    {
-#ifdef _IA64
-        /* 0.71 RSDP has 64bit Rsdt address field */
-        PhysicalAddress = ((RSDP_DESCRIPTOR_REV071 *)AcpiGbl_RSDP)->RsdtPhysicalAddress;
-#else
-        PhysicalAddress = (ACPI_PHYSICAL_ADDRESS) AcpiGbl_RSDP->RsdtPhysicalAddress;
-#endif
-        TableSignature = RSDT_SIG;
-        SignatureLength = sizeof (RSDT_SIG) -1;
-    }
-    else
-    {
-        PhysicalAddress = (ACPI_PHYSICAL_ADDRESS)
-                            ACPI_GET_ADDRESS (AcpiGbl_RSDP->XsdtPhysicalAddress);
-        TableSignature = XSDT_SIG;
-        SignatureLength = sizeof (XSDT_SIG) -1;
-    }
+
+    PhysicalAddress = AcpiTbGetRsdtAddress ();
 
 
     /* Get the RSDT/XSDT */
@@ -646,26 +763,17 @@ AcpiTbGetTableRsdt (
 
     /* Check the RSDT or XSDT signature */
 
-    if (STRNCMP ((char *) TableInfo.Pointer, TableSignature,
-                    SignatureLength))
+    Status = AcpiTbValidateRsdt (TableInfo.Pointer);
+    if (ACPI_FAILURE (Status))
     {
-        /* Invalid RSDT or XSDT signature */
-
-        REPORT_ERROR (("Invalid signature where RSDP indicates %s should be located\n",
-                        TableSignature));
-
-        DUMP_BUFFER (AcpiGbl_RSDP, 20);
-
-        DEBUG_PRINT_RAW (ACPI_ERROR,
-            ("RSDP points to %X at %lXh, but signature is invalid\n",
-            TableSignature, (void *) AcpiGbl_RSDP->RsdtPhysicalAddress));
-
         return_ACPI_STATUS (Status);
     }
 
 
-    /* Valid RSDT signature, verify the checksum */
-
+    /* 
+     * Valid RSDT signature, verify the checksum.  If it fails, just
+     * print a warning and ignore it.
+     */
     Status = AcpiTbVerifyTableChecksum (TableInfo.Pointer);
 
 
@@ -698,7 +806,7 @@ AcpiTbGetTableRsdt (
  * FUNCTION:    AcpiTbGetTableFacs
  *
  * PARAMETERS:  *BufferPtr              - If BufferPtr is valid, read data from
- *                                          buffer rather than searching memory
+ *                                        buffer rather than searching memory
  *              *TableInfo              - Where the table info is returned
  *
  * RETURN:      Status
@@ -715,7 +823,7 @@ AcpiTbGetTableFacs (
     ACPI_TABLE_HEADER       *BufferPtr,
     ACPI_TABLE_DESC         *TableInfo)
 {
-    void                    *TablePtr = NULL;
+    ACPI_TABLE_HEADER       *TablePtr = NULL;
     UINT32                  Size;
     UINT8                   Allocation;
     ACPI_STATUS             Status = AE_OK;
@@ -757,7 +865,7 @@ AcpiTbGetTableFacs (
 
         Status = AcpiTbMapAcpiTable ((ACPI_PHYSICAL_ADDRESS) ACPI_GET_ADDRESS (AcpiGbl_FADT->XFirmwareCtrl),
                                         &Size, &TablePtr);
-        if (ACPI_FAILURE(Status))
+        if (ACPI_FAILURE (Status))
         {
             return_ACPI_STATUS (Status);
         }

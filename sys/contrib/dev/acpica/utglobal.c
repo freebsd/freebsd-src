@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: utglobal - Global variables for the ACPI subsystem
- *              $Revision: 122 $
+ *              $Revision: 123 $
  *
  *****************************************************************************/
 
@@ -235,17 +235,18 @@ UINT8                       AcpiGbl_NsProperties[] =
     NSP_NORMAL,                 /* 21 Alias            */
     NSP_NORMAL,                 /* 22 Notify           */
     NSP_NORMAL,                 /* 23 Address Handler  */
-    NSP_NEWSCOPE | NSP_LOCAL,   /* 24 Resource         */
-    NSP_NORMAL,                 /* 25 DefFieldDefn     */
-    NSP_NORMAL,                 /* 26 BankFieldDefn    */
-    NSP_NORMAL,                 /* 27 IndexFieldDefn   */
-    NSP_NORMAL,                 /* 28 If               */
-    NSP_NORMAL,                 /* 29 Else             */
-    NSP_NORMAL,                 /* 30 While            */
-    NSP_NEWSCOPE,               /* 31 Scope            */
-    NSP_LOCAL,                  /* 32 DefAny           */
-    NSP_NORMAL,                 /* 33 Extra            */
-    NSP_NORMAL                  /* 34 Invalid          */
+    NSP_NEWSCOPE | NSP_LOCAL,   /* 24 Resource Desc    */
+    NSP_NEWSCOPE | NSP_LOCAL,   /* 25 Resource Field   */
+    NSP_NORMAL,                 /* 26 DefFieldDefn     */
+    NSP_NORMAL,                 /* 27 BankFieldDefn    */
+    NSP_NORMAL,                 /* 28 IndexFieldDefn   */
+    NSP_NORMAL,                 /* 29 If               */
+    NSP_NORMAL,                 /* 30 Else             */
+    NSP_NORMAL,                 /* 31 While            */
+    NSP_NEWSCOPE,               /* 32 Scope            */
+    NSP_LOCAL,                  /* 33 DefAny           */
+    NSP_NORMAL,                 /* 34 Extra            */
+    NSP_NORMAL                  /* 35 Invalid          */
 };
 
 
@@ -359,17 +360,18 @@ static NATIVE_CHAR          *AcpiGbl_NsTypeNames[] =    /* printable names of AC
     /* 21 */ "Alias",
     /* 22 */ "Notify",
     /* 23 */ "AddrHndlr",
-    /* 24 */ "Resource",
-    /* 25 */ "RgnFldDfn",
-    /* 26 */ "BnkFldDfn",
-    /* 27 */ "IdxFldDfn",
-    /* 28 */ "If",
-    /* 29 */ "Else",
-    /* 30 */ "While",
-    /* 31 */ "Scope",
-    /* 32 */ "DefAny",
-    /* 33 */ "Extra",
-    /* 34 */ "Invalid"
+    /* 24 */ "RsrcDesc",
+    /* 25 */ "RsrcField",
+    /* 26 */ "RgnFldDfn",
+    /* 27 */ "BnkFldDfn",
+    /* 28 */ "IdxFldDfn",
+    /* 29 */ "If",
+    /* 30 */ "Else",
+    /* 31 */ "While",
+    /* 32 */ "Scope",
+    /* 33 */ "DefAny",
+    /* 34 */ "Extra",
+    /* 35 */ "Invalid"
 };
 
 
