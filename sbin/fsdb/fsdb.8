@@ -109,6 +109,10 @@ This command is valid only if the starting inode is a directory.
 .It Cm print
 Print out the active inode.
 .Pp
+.It Cm blocks
+Print out the block list of the active inode.
+Note that the printout can become long for large files, since all
+indirect block pointers will also be printed.
 .It Cm uplink
 Increment the active inode's link count.
 .Pp

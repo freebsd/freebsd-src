@@ -124,6 +124,7 @@ main(argc, argv)
 CMDFUNC(helpfn);
 CMDFUNC(focus);				/* focus on inode */
 CMDFUNC(active);			/* print active inode */
+CMDFUNC(blocks);			/* print blocks for active inode */
 CMDFUNC(focusname);			/* focus by name */
 CMDFUNC(zapi);				/* clear inode */
 CMDFUNC(uplink);			/* incr link */
@@ -157,6 +158,7 @@ struct cmdtable cmds[] = {
 	{ "back", "Go to previous active inode", 1, 1, FL_RO, back },
 	{ "active", "Print active inode", 1, 1, FL_RO, active },
 	{ "print", "Print active inode", 1, 1, FL_RO, active },
+	{ "blocks", "Print block numbers of active inode", 1, 1, FL_RO, blocks },
 	{ "uplink", "Increment link count", 1, 1, FL_WR, uplink },
 	{ "downlink", "Decrement link count", 1, 1, FL_WR, downlink },
 	{ "linkcount", "Set link count to COUNT", 2, 2, FL_WR, linkcount },
@@ -222,7 +224,7 @@ cmdloop()
 
     curinode = ginode(ROOTINO);
     curinum = ROOTINO;
-    printactive();
+    printactive(0);
 
     hist = history_init();
     history(hist, H_EVENT, 100);	/* 100 elt history buffer */
@@ -300,7 +302,7 @@ CMDFUNCSTART(focus)
     curinode = ginode(inum);
     ocurrent = curinum;
     curinum = inum;
-    printactive();
+    printactive(0);
     return 0;
 }
 
@@ -308,7 +310,7 @@ CMDFUNCSTART(back)
 {
     curinum = ocurrent;
     curinode = ginode(curinum);
-    printactive();
+    printactive(0);
     return 0;
 }
 
@@ -329,10 +331,15 @@ CMDFUNCSTART(zapi)
 
 CMDFUNCSTART(active)
 {
-    printactive();
+    printactive(0);
     return 0;
 }
 
+CMDFUNCSTART(blocks)
+{
+    printactive(1);
+    return 0;
+}
 
 CMDFUNCSTART(quit)
 {
@@ -424,7 +431,7 @@ dolookup(name)
     if (ckinode(curinode, &idesc) & FOUND) {
 	curinum = idesc.id_parent;
 	curinode = ginode(curinum);
-	printactive();
+	printactive(0);
 	return 1;
     } else {
 	warnx("name `%s' not found in current inode directory", name);
@@ -632,7 +639,7 @@ CMDFUNCSTART(newtype)
     curinode->di_mode &= ~IFMT;
     curinode->di_mode |= type;
     inodirty();
-    printactive();
+    printactive(0);
     return 0;
 }
 
@@ -653,7 +660,7 @@ CMDFUNCSTART(chlen)
     
     curinode->di_size = len;
     inodirty();
-    printactive();
+    printactive(0);
     return rval;
 }
 
@@ -675,7 +682,7 @@ CMDFUNCSTART(chmode)
     curinode->di_mode &= ~07777;
     curinode->di_mode |= modebits;
     inodirty();
-    printactive();
+    printactive(0);
     return rval;
 }
 
@@ -700,7 +707,7 @@ CMDFUNCSTART(chaflags)
     }
     curinode->di_flags = flags;
     inodirty();
-    printactive();
+    printactive(0);
     return rval;
 }
 
@@ -725,7 +732,7 @@ CMDFUNCSTART(chgen)
     }
     curinode->di_gen = gen;
     inodirty();
-    printactive();
+    printactive(0);
     return rval;
 }
 
@@ -750,7 +757,7 @@ CMDFUNCSTART(linkcount)
     
     curinode->di_nlink = lcnt;
     inodirty();
-    printactive();
+    printactive(0);
     return rval;
 }
 
@@ -777,7 +784,7 @@ CMDFUNCSTART(chowner)
     
     curinode->di_uid = uid;
     inodirty();
-    printactive();
+    printactive(0);
     return rval;
 }
 
@@ -803,7 +810,7 @@ CMDFUNCSTART(chgroup)
     
     curinode->di_gid = gid;
     inodirty();
-    printactive();
+    printactive(0);
     return rval;
 }
 
@@ -869,7 +876,7 @@ CMDFUNCSTART(chmtime)
     if (dotime(argv[1], &curinode->di_ctime))
 	return 1;
     inodirty();
-    printactive();
+    printactive(0);
     return 0;
 }
 
@@ -878,7 +885,7 @@ CMDFUNCSTART(chatime)
     if (dotime(argv[1], &curinode->di_ctime))
 	return 1;
     inodirty();
-    printactive();
+    printactive(0);
     return 0;
 }
 
@@ -887,6 +894,6 @@ CMDFUNCSTART(chctime)
     if (dotime(argv[1], &curinode->di_ctime))
 	return 1;
     inodirty();
-    printactive();
+    printactive(0);
     return 0;
 }
