@@ -287,8 +287,7 @@ sendmail(str)
 	head.h_cc = NULL;
 	head.h_bcc = NULL;
 	head.h_smopts = NULL;
-	if ((head.h_replyto = getenv("REPLYTO")) == NULL)
-		head.h_replyto = NULL;
+	head.h_replyto = value("REPLYTO");
 	head.h_inreplyto = NULL;
 	mail1(&head, 0);
 	return (0);

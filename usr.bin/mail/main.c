@@ -93,7 +93,6 @@ main(argc, argv)
 	bcc = NULL;
 	smopts = NULL;
 	subject = NULL;
-	replyto = NULL;
 	while ((i = getopt(argc, argv, "INT:b:c:dfins:u:v")) != -1) {
 		switch (i) {
 		case 'T':
@@ -219,14 +218,13 @@ Usage: %s [-iInv] [-s subject] [-c cc-addr] [-b bcc-addr] to-addr ...\n\
 			if (*s != '\0')
 				load(s);
 	}
-	if ((cp = getenv("REPLYTO")) != NULL)
-		replyto = cp;
-		
 	/*
 	 * Expand returns a savestr, but load only uses the file name
 	 * for fopen, so it's safe to do this.
 	 */
 	load(expand("~/.mailrc"));
+
+	replyto = value("REPLYTO");
 	if (!rcvmode) {
 		mail(to, cc, bcc, smopts, subject, replyto);
 		/*
