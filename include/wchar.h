@@ -96,7 +96,7 @@ typedef	_BSD_SIZE_T_	size_t;
 #endif
 
 #ifndef _WCTYPE_T
-typedef long	wctype_t;
+typedef unsigned long	wctype_t;
 #define _WCTYPE_T
 #endif
 
