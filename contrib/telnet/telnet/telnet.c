@@ -1326,6 +1326,7 @@ slc_check(void)
 }
 
 unsigned char slc_reply[128];
+unsigned char const * const slc_reply_eom = &slc_reply[sizeof(slc_reply)];
 unsigned char *slc_replyp;
 
 void
@@ -1341,6 +1342,14 @@ slc_start_reply(void)
 void
 slc_add_reply(unsigned char func, unsigned char flags, cc_t value)
 {
+	/* A sequence of up to 6 bytes my be written for this member of the SLC
+	 * suboption list by this function.  The end of negotiation command,
+	 * which is written by slc_end_reply(), will require 2 additional
+	 * bytes.  Do not proceed unless there is sufficient space for these
+	 * items.
+	 */
+	if (&slc_replyp[6+2] > slc_reply_eom)
+		return;
 	if ((*slc_replyp++ = func) == IAC)
 		*slc_replyp++ = IAC;
 	if ((*slc_replyp++ = flags) == IAC)
@@ -1354,6 +1363,9 @@ slc_end_reply(void)
 {
     int len;
 
+    /* The end of negotiation command requires 2 bytes. */
+    if (&slc_replyp[2] > slc_reply_eom)
+            return;
     *slc_replyp++ = IAC;
     *slc_replyp++ = SE;
     len = slc_replyp - slc_reply;
@@ -1471,8 +1483,8 @@ env_opt(unsigned char *buf, int len)
 	}
 }
 
-#define	OPT_REPLY_SIZE	256
-unsigned char *opt_reply;
+#define	OPT_REPLY_SIZE	(2 * SUBBUFSIZE)
+unsigned char *opt_reply = NULL;
 unsigned char *opt_replyp;
 unsigned char *opt_replyend;
 
@@ -1525,9 +1537,9 @@ env_opt_add(unsigned char *ep)
 		return;
 	}
 	vp = env_getvalue(ep);
-	if (opt_replyp + (vp ? strlen((char *)vp) : 0) +
-				strlen((char *)ep) + 6 > opt_replyend)
-	{
+        if (opt_replyp + (vp ? 2 * strlen((char *)vp) : 0) +
+                                2 * strlen((char *)ep) + 6 > opt_replyend)
+        {
 		int len;
 		opt_replyend += OPT_REPLY_SIZE;
 		len = opt_replyend - opt_reply;
@@ -1551,6 +1563,8 @@ env_opt_add(unsigned char *ep)
 		*opt_replyp++ = ENV_USERVAR;
 	for (;;) {
 		while ((c = *ep++)) {
+			if (opt_replyp + (2 + 2) > opt_replyend)
+				return;
 			switch(c&0xff) {
 			case IAC:
 				*opt_replyp++ = IAC;
@@ -1565,6 +1579,8 @@ env_opt_add(unsigned char *ep)
 			*opt_replyp++ = c;
 		}
 		if ((ep = vp)) {
+			if (opt_replyp + (1 + 2 + 2) > opt_replyend)
+				return;
 #ifdef	OLD_ENVIRON
 			if (telopt_environ == TELOPT_OLD_ENVIRON)
 				*opt_replyp++ = old_env_value;
@@ -1595,7 +1611,9 @@ env_opt_end(int emptyok)
 {
 	int len;
 
-	len = opt_replyp - opt_reply + 2;
+	if (opt_replyp + 2 > opt_replyend)
+		return;
+	len = opt_replyp + 2 - opt_reply;
 	if (emptyok || len > 6) {
 		*opt_replyp++ = IAC;
 		*opt_replyp++ = SE;
