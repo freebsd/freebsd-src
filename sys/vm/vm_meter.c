@@ -80,10 +80,6 @@ loadav(struct loadavg *avg)
 
 	for (nrun = 0, p = allproc.lh_first; p != 0; p = p->p_list.le_next) {
 		switch (p->p_stat) {
-		case SSLEEP:
-			if (p->p_priority > PZERO || p->p_slptime != 0)
-				continue;
-			/* FALLTHROUGH */
 		case SRUN:
 		case SIDL:
 			nrun++;
