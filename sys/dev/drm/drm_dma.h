@@ -75,7 +75,7 @@ void DRM(dma_takedown)(drm_device_t *dev)
 				  dma->bufs[i].buf_count,
 				  dma->bufs[i].seg_count);
 			for (j = 0; j < dma->bufs[i].seg_count; j++) {
-				if (dma->bufs[i].seglist[j] != NULL)
+				if (dma->bufs[i].seglist[j] != 0)
 					DRM(pci_free)(dev, dma->bufs[i].buf_size,
 					    (void *)dma->bufs[i].seglist[j],
 					    dma->bufs[i].seglist_bus[j]);
