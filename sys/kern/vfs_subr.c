@@ -839,9 +839,10 @@ getnewvnode(tag, mp, vops, vpp)
 		mac_associate_vnode_singlelabel(mp, vp);
 #endif
 	delmntque(vp);
-	if (mp != NULL)
+	if (mp != NULL) {
 		insmntque(vp, mp);
-	vp->v_bsize = mp->mnt_stat.f_iosize;
+		vp->v_bsize = mp->mnt_stat.f_iosize;
+	}
 
 	return (0);
 }
