@@ -39,7 +39,7 @@ umask 077			# protect temp files
 
 : ${TMPDIR:=/tmp}; export TMPDIR
 test -d "$TMPDIR" || TMPDIR=/tmp
-if ! TMPDIR=`mktemp -d $TMPDIR/mklocateXXXXXX`; then
+if ! TMPDIR=`mktemp -d $TMPDIR/mklocateXXXXXXXXXX`; then
 	exit 1
 fi
 
