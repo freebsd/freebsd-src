@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.558 1999/02/21 15:04:43 nsouch Exp $
+#	$Id: LINT,v 1.559 1999/02/21 16:23:23 n_hibma Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -456,6 +456,10 @@ options PPP_FILTER			#enable bpf filtering (needs bpfilter)
 # IPFILTER_LOG enables ipfilter's logging.
 # IPFILTER_LKM enables LKM support for an ipfilter module (untested).
 #
+# IPSTEALTH enables code to support stealth forwarding (i.e., forwarding
+# packets without touching the ttl).  This can be useful to hide firewalls
+# from traceroute and similar tools.
+#
 # TCPDEBUG is undocumented.
 #
 options		"TCP_COMPAT_42"		#emulate 4.2BSD TCP bugs
@@ -470,6 +474,7 @@ options		IPDIVERT		#divert sockets
 options		IPFILTER		#kernel ipfilter support
 options		IPFILTER_LOG		#ipfilter logging
 #options	IPFILTER_LKM		#kernel support for ip_fil.o LKM
+options		IPSTEALTH		#support for stealth forwarding
 options		TCPDEBUG
 
 # ICMP_BANDLIM enables icmp error response bandwidth limiting.   You
