@@ -75,6 +75,7 @@ MLINKS+=acl_delete.3 acl_delete_def_file.3	\
 	extattr.3 extattr_string_to_namespace.3 \
 	mac_get.3 mac_get_fd.3			\
 	mac_get.3 mac_get_file.3		\
+	mac_get.3 mac_get_link.3		\
 	mac_get.3 mac_get_pid.3			\
 	mac_get.3 mac_get_proc.3		\
 	mac_prepare.3 mac_prepare_file_label.3	\
