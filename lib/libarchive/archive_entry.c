@@ -29,15 +29,15 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/stat.h>
 #include <sys/types.h>
+#ifdef HAVE_EXT2FS_EXT2_FS_H
+#include <ext2fs/ext2_fs.h>	/* for Linux file flags */
+#endif
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <wchar.h>
 
-#ifdef HAVE_EXT2FS_EXT2_FS_H
-#include <ext2fs/ext2_fs.h>	/* for Linux file flags */
-#endif
 
 #include "archive.h"
 #include "archive_entry.h"

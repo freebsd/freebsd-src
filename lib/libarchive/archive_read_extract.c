@@ -27,26 +27,31 @@
 #include "archive_platform.h"
 __FBSDID("$FreeBSD$");
 
-#include <sys/stat.h>
 #include <sys/types.h>
-#ifdef HAVE_POSIX_ACL
+#ifdef HAVE_SYS_ACL_H
 #include <sys/acl.h>
 #endif
+#ifdef HAVE_SYS_IOCTL_H
+#include <sys/ioctl.h>
+#endif
+#include <sys/stat.h>
 #include <sys/time.h>
 
+#ifdef HAVE_EXT2FS_EXT2_FS_H
+#include <ext2fs/ext2_fs.h>	/* for Linux file flags */
+#endif
 #include <errno.h>
 #include <fcntl.h>
 #include <grp.h>
+#ifdef HAVE_LINUX_EXT2_FS_H
+#include <linux/ext2_fs.h>	/* for Linux file flags */
+#endif
 #include <limits.h>
 #include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#ifdef linux
-#include <ext2fs/ext2_fs.h>
-#include <sys/ioctl.h>
-#endif
 
 #include "archive.h"
 #include "archive_string.h"

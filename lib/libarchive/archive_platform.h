@@ -51,7 +51,6 @@
 #define	HAVE_ERRNO_H 1
 #define	HAVE_FCHDIR 1
 #define	HAVE_FCNTL_H 1
-#define	HAVE_INT64_T 1
 #define	HAVE_INTTYPES_H 1
 #define	HAVE_LCHMOD 1
 #define	HAVE_LCHOWN 1
@@ -83,9 +82,7 @@
 #define	HAVE_SYS_TIME_H 1
 #define	HAVE_SYS_TYPES_H 1
 #define	HAVE_SYS_WAIT_H 1
-#define	HAVE_UINT64_T 1
 #define	HAVE_UNISTD_H 1
-#define	HAVE_U_INT64_T 1
 #define	HAVE_WCHAR_H 1
 #define	HAVE_ZLIB_H 1
 #define	STDC_HEADERS 1
@@ -106,28 +103,6 @@
 
 #if HAVE_INTTYPES_H
 #include <inttypes.h>
-#endif
-
-/* Try to figure out which type on this system is a 64-bit int. */
-#ifndef HAVE_INT64_T
-#if HAVE_64_BIT_LONG_LONG
-#define	int64_t	long long
-#else
-#error No 64-bit integer type was found.
-#endif
-#endif
-
-/* Ditto for unsigned 64-bit types. */
-#ifndef HAVE_UINT64_T
-#if HAVE_U_INT64_T
-#define	uint64_t	u_int64_t
-#else
-#if HAVE_64_BIT_UNSIGNED_LONG_LONG
-#define	uint64_t	unsigned long long
-#else
-#error No 64-bit integer type was found.
-#endif
-#endif
 #endif
 
 /* TODO: Test for the functions we use as well... */
