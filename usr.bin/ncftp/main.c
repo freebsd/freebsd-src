@@ -16,6 +16,9 @@
 #include <ctype.h>
 #include <netdb.h>
 #include <pwd.h>
+#ifdef __FreeBSD__
+#include <locale.h>
+#endif
 
 #ifdef SYSLOG
 #	include <syslog.h>
@@ -141,6 +144,10 @@ void main(int argc, char **argv)
 	int					top, opt, openopts = 0;
 	string				tmp, oline;
 	struct servent		*sptr;
+
+#ifdef __FreeBSD__
+	(void) setlocale(LC_TIME, "");
+#endif
 
 	if ((cp = rindex(argv[0], '/'))) cp++;
 	else cp = argv[0];
