@@ -87,7 +87,6 @@ static int amrd_detach(device_t dev);
 static	d_open_t	amrd_open;
 static	d_close_t	amrd_close;
 static	d_strategy_t	amrd_strategy;
-static	d_ioctl_t	amrd_ioctl;
 
 #define AMRD_CDEV_MAJOR	133
 
@@ -96,7 +95,7 @@ static struct cdevsw amrd_cdevsw = {
 		/* close */	amrd_close,
 		/* read */	physread,
 		/* write */	physwrite,
-		/* ioctl */	amrd_ioctl,
+		/* ioctl */	noioctl,
 		/* poll */	nopoll,
 		/* mmap */	nommap,
 		/* strategy */	amrd_strategy,
@@ -180,13 +179,6 @@ amrd_close(dev_t dev, int flags, int fmt, d_thread_t *td)
 	return (ENXIO);
     sc->amrd_flags &= ~AMRD_OPEN;
     return (0);
-}
-
-static int
-amrd_ioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, d_thread_t *td)
-{
-
-    return (ENOTTY);
 }
 
 /*
