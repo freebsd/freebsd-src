@@ -3671,7 +3671,7 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\n"
      as well as trying the machine and the version.  */
 #ifdef FREEBSD_NATIVE
       add_prefix (&exec_prefixes, PREFIX"/bin/", "BINUTILS",
-		  0, 0, warn_std_ptr, 0);
+		  PREFIX_PRIORITY_LAST, 0, warn_std_ptr, 0);
 #endif	/* FREEBSD_NATIVE */
 #ifndef OS2
   add_prefix (&exec_prefixes, standard_exec_prefix, "GCC",
