@@ -129,10 +129,10 @@ IdlePDPT:	.long	0		/* phys addr of kernel PDPT */
 #endif
 KPTphys:	.long	0		/* phys addr of kernel page tables */
 
-	.globl	proc0uarea, proc0kstack
-proc0uarea:	.long	0		/* address of proc 0 uarea space */
+	.globl	proc0kstack
+proc0uarea:	.long	0		/* address of proc 0 uarea (unused)*/
 proc0kstack:	.long	0		/* address of proc 0 kstack space */
-p0upa:		.long	0		/* phys addr of proc0's UAREA */
+p0upa:		.long	0		/* phys addr of proc0 UAREA (unused) */
 p0kpa:		.long	0		/* phys addr of proc0's STACK */
 
 vm86phystk:	.long	0		/* PA of vm86/bios stack */
@@ -748,12 +748,7 @@ no_kernend:
 	ALLOCPAGES(NPGPTD)
 	movl	%esi,R(IdlePTD)
 
-/* Allocate UPAGES */
-	ALLOCPAGES(UAREA_PAGES)
-	movl	%esi,R(p0upa)
-	addl	$KERNBASE, %esi
-	movl	%esi, R(proc0uarea)
-
+/* Allocate KSTACK */
 	ALLOCPAGES(KSTACK_PAGES)
 	movl	%esi,R(p0kpa)
 	addl	$KERNBASE, %esi
@@ -845,11 +840,6 @@ no_kernend:
 
 	movl	R(IdlePTD), %eax
 	movl	$NPGPTD, %ecx
-	fillkptphys($PG_RW)
-
-/* Map proc0's UPAGES in the physical way ... */
-	movl	R(p0upa), %eax
-	movl	$(UAREA_PAGES), %ecx
 	fillkptphys($PG_RW)
 
 /* Map proc0's KSTACK in the physical way ... */
