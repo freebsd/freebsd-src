@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dbcmds - debug commands and output routines
- *              $Revision: 110 $
+ *              $Revision: 112 $
  *
  ******************************************************************************/
 
@@ -155,6 +155,37 @@ static ARGUMENT_INFO        AcpiDbObjectTypes [] =
     {"DDBHANDLES"},
     {NULL}           /* Must be null terminated */
 };
+
+
+ACPI_STATUS
+AcpiDbSleep (
+    char                    *ObjectArg)
+{
+    ACPI_STATUS             Status;
+    UINT8                   SleepState;
+
+
+    SleepState = (UINT8) ACPI_STRTOUL (ObjectArg, NULL, 0);
+
+    AcpiOsPrintf ("**** Prepare to sleep ****\n");
+    Status = AcpiEnterSleepStatePrep (SleepState);
+    if (ACPI_FAILURE (Status))
+    {
+        return (Status);
+    }
+
+    AcpiOsPrintf ("**** Going to sleep ****\n");
+    Status = AcpiEnterSleepState (SleepState);
+    if (ACPI_FAILURE (Status))
+    {
+        return (Status);
+    }
+
+    AcpiOsPrintf ("**** returning from sleep ****\n");
+    Status = AcpiLeaveSleepState (SleepState);
+
+    return (Status);
+}
 
 
 /*******************************************************************************
@@ -1300,7 +1331,7 @@ AcpiDbGenerateGpe (
         return;
     }
 
-    AcpiEvGpeDispatch (GpeEventInfo, GpeNumber);
+    (void) AcpiEvGpeDispatch (GpeEventInfo, GpeNumber);
 }
 
 #endif /* ACPI_DEBUGGER */
