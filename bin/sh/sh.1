@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	from: @(#)sh.1	8.6 (Berkeley) 5/4/95
-.\"	$Id: sh.1,v 1.27 1999/04/03 11:41:46 cracauer Exp $
+.\"	$Id: sh.1,v 1.23.2.1 1999/04/12 15:46:02 cracauer Exp $
 .\"
 .Dd May 5, 1995
 .Dt SH 1
@@ -564,8 +564,8 @@ proceeding to the next one.
 .Ss Short-Circuit List Operators
 ``&&'' and ``||'' are AND-OR list operators.  ``&&'' executes
 the first command, and then executes the second command
-iff the exit status of the first command is zero.  ``||''
-is similar, but executes the second command iff the exit
+if the exit status of the first command is zero.  ``||''
+is similar, but executes the second command if the exit
 status of the first command is nonzero.  ``&&'' and ``||''
 both have the same priority.
 .Ss Flow-Control Constructs -- if, while, for, case
