@@ -103,14 +103,14 @@
 .Fn bus_dmamap_load_uio "bus_dma_tag_t dmat" "bus_dmamap_t map" \
 "struct uio *uio" "bus_dmamap_callback2_t *callback" "void *callback_arg" \
 "int flags"
-.Ft int
-.Fn bus_dmamem_alloc "bus_dma_tag_t dmat" "void **vaddr" \
-"int flags" "bus_dmamap_t *mapp"
 .Ft void
 .Fn bus_dmamap_unload "bus_dma_tag_t dmat" "bus_dmamap_t map"
 .Ft void
 .Fn bus_dmamap_sync "bus_dma_tag_t dmat" "bus_dmamap_t map" \
 "op"
+.Ft int
+.Fn bus_dmamem_alloc "bus_dma_tag_t dmat" "void **vaddr" \
+"int flags" "bus_dmamap_t *mapp"
 .Ft void
 .Fn bus_dmamem_free "bus_dma_tag_t dmat" "void *vaddr" \
 "bus_dmamap_t map"
