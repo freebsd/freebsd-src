@@ -728,10 +728,8 @@ libraries:
 	    ${MAKE} -f Makefile.inc1 _prebuild_libs; \
 	    ${MAKE} -f Makefile.inc1 _generic_libs;
 
-.if exists(${.CURDIR}/lib/csu/${MACHINE_ARCH}.pcc)
-_startup_libs=	lib/csu/${MACHINE_ARCH}.pcc
-.elif ${MACHINE_ARCH} == "i386" && ${OBJFORMAT} == "elf"
-_startup_libs=	lib/csu/i386-elf
+.if exists(${.CURDIR}/lib/csu/${MACHINE_ARCH}-${OBJFORMAT})
+_startup_libs=	lib/csu/${MACHINE_ARCH}-${OBJFORMAT}
 .else
 _startup_libs=	lib/csu/${MACHINE_ARCH}
 .endif
