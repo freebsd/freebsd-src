@@ -47,6 +47,8 @@
 
 #define FIX_SSTEP(p)	ptrace_clear_single_step(p)
 
+#ifdef _KERNEL
 int	ptrace_clear_single_step(struct proc *_p);
+#endif
 
 #endif
