@@ -1344,7 +1344,9 @@ ip_rtaddr(dst)
 
 	sin = (struct sockaddr_in *) &ipforward_rt.ro_dst;
 
-	if (ipforward_rt.ro_rt == 0 || dst.s_addr != sin->sin_addr.s_addr) {
+	if (ipforward_rt.ro_rt == 0 ||
+	    !(ipforward_rt.ro_rt->rt_flags & RTF_UP) ||
+	    dst.s_addr != sin->sin_addr.s_addr) {
 		if (ipforward_rt.ro_rt) {
 			RTFREE(ipforward_rt.ro_rt);
 			ipforward_rt.ro_rt = 0;
@@ -1508,7 +1510,6 @@ ip_forward(m, srcrt)
 	int srcrt;
 {
 	register struct ip *ip = mtod(m, struct ip *);
-	register struct sockaddr_in *sin;
 	register struct rtentry *rt;
 	int error, type = 0, code = 0;
 	struct mbuf *mcopy;
@@ -1544,24 +1545,11 @@ ip_forward(m, srcrt)
 	}
 #endif
 
-	sin = (struct sockaddr_in *)&ipforward_rt.ro_dst;
-	if ((rt = ipforward_rt.ro_rt) == 0 ||
-	    ip->ip_dst.s_addr != sin->sin_addr.s_addr) {
-		if (ipforward_rt.ro_rt) {
-			RTFREE(ipforward_rt.ro_rt);
-			ipforward_rt.ro_rt = 0;
-		}
-		sin->sin_family = AF_INET;
-		sin->sin_len = sizeof(*sin);
-		sin->sin_addr = ip->ip_dst;
-
-		rtalloc_ign(&ipforward_rt, RTF_PRCLONING);
-		if (ipforward_rt.ro_rt == 0) {
-			icmp_error(m, ICMP_UNREACH, ICMP_UNREACH_HOST, dest, 0);
-			return;
-		}
+	if (ip_rtaddr(ip->ip_dst) == 0) {
+		icmp_error(m, ICMP_UNREACH, ICMP_UNREACH_HOST, dest, 0);
+		return;
+	} else
 		rt = ipforward_rt.ro_rt;
-	}
 
 	/*
 	 * Save the IP header and at most 8 bytes of the payload,
