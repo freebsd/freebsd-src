@@ -53,10 +53,10 @@
 #include <locale.h>
 #endif
 
-#if MAXLOGNAME > UT_NAMESIZE
+#if (MAXLOGNAME-1) > UT_NAMESIZE
 #define LOGNAMESIZE UT_NAMESIZE
 #else
-#define LOGNAMESIZE MAXLOGNAME
+#define LOGNAMESIZE (MAXLOGNAME-1)
 #endif
 
 /* Local headers */

@@ -44,10 +44,10 @@
 #include "bitmap.h"
 #include "pwupd.h"
 
-#if MAXLOGNAME > UT_NAMESIZE
+#if (MAXLOGNAME-1) > UT_NAMESIZE
 #define LOGNAMESIZE UT_NAMESIZE
 #else
-#define LOGNAMESIZE MAXLOGNAME
+#define LOGNAMESIZE (MAXLOGNAME-1)
 #endif
 
 static int      print_user(struct passwd * pwd, int pretty);
