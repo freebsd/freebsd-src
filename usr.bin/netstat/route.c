@@ -36,7 +36,7 @@
 static char sccsid[] = "From: @(#)route.c	8.6 (Berkeley) 4/28/95";
 #endif
 static const char rcsid[] =
-	"$Id: route.c,v 1.12 1996/02/16 15:42:14 wollman Exp $";
+	"$Id: route.c,v 1.13 1996/06/02 23:19:11 alex Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -50,9 +50,10 @@ static const char rcsid[] =
 #define  KERNEL
 #include <net/route.h>
 #undef KERNEL
-#include <netinet/in.h>
 
+#include <netinet/in.h>
 #include <netipx/ipx.h>
+#include <netatalk/at.h>
 
 #ifdef NS
 #include <netns/ns.h>
@@ -183,6 +184,9 @@ pr_family(af)
 #endif
 	case AF_ISO:
 		afname = "ISO";
+		break;
+	case AF_APPLETALK:
+		afname = "ATALK";
 		break;
 	case AF_CCITT:
 		afname = "X.25";
@@ -408,6 +412,11 @@ p_sockaddr(sa, mask, flags, width)
 			cp = "default";
 		else
 			cp = ipx_print(sa);
+		break;
+	    }
+	case AF_APPLETALK:
+	    {
+			cp = atalk_print(sa);
 		break;
 	    }
 
@@ -703,6 +712,41 @@ rt_stats(off)
 		rtstat.rts_unreach, plural(rtstat.rts_unreach));
 	printf("\t%u use%s of a wildcard route\n",
 		rtstat.rts_wildcard, plural(rtstat.rts_wildcard));
+}
+
+char * 
+at_addr_print(ata)
+	struct at_addr *ata;
+{
+static	char mybuf[50];
+
+	sprintf(mybuf,"[%hd.%d]",ntohs(ata->s_net),(unsigned long)ata->s_node);
+	return mybuf;
+}
+
+char *
+atalk_print(sa)
+	register struct sockaddr *sa;
+{
+	struct sockaddr_at *sat = (struct sockaddr_at *)sa;
+static	char mybuf[50];
+
+	strcpy(mybuf,at_addr_print(&sat->sat_addr));
+	sprintf(mybuf+strlen(mybuf),":%d",sat->sat_port);
+#if 0
+	switch(sat->sat_hints.type) {
+	case	SATHINT_NONE:
+		sprintf(mybuf,"[no type]");
+		break;
+	case	SATHINT_CONFIG:
+	case	SATHINT_IFACE:
+		sprintf(mybuf,"[too hard for now]");
+		break;
+	default:
+		sprintf(mybuf,"[unknown type]");
+	}
+#endif
+	return mybuf;
 }
 
 char *

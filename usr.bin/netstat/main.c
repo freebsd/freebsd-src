@@ -133,6 +133,10 @@ struct nlist nl[] = {
 	{ "_spx_istat"},
 #define N_IPXERR	34
 	{ "_ipx_errstat"},
+#define N_DDPSTAT	35
+	{ "_ddpstat"},
+#define N_DDPCB		36
+	{ "_ddpcb"},
 	{ "" },
 };
 
@@ -154,6 +158,13 @@ struct protox {
 	  icmp_stats,	"icmp" },
 	{ -1,		N_IGMPSTAT,	1,	0,
 	  igmp_stats,	"igmp" },
+	{ -1,		-1,		0,	0,
+	  0,		0 }
+};
+
+struct protox atalkprotox[] = {
+	{ N_DDPCB,	N_DDPSTAT,	1,	atalkprotopr,
+	  ddp_stats,	"ddp" },
 	{ -1,		-1,		0,	0,
 	  0,		0 }
 };
@@ -197,7 +208,7 @@ struct protox isoprotox[] = {
 };
 #endif
 
-struct protox *protoprotox[] = { protox, ipxprotox, 
+struct protox *protoprotox[] = { protox, ipxprotox, atalkprotox,
 #ifdef NS
 					 nsprotox, 
 #endif
@@ -259,6 +270,8 @@ main(argc, argv)
 				af = AF_INET;
 			else if (strcmp(optarg, "unix") == 0)
 				af = AF_UNIX;
+			else if (strcmp(optarg, "atalk") == 0)
+				af = AF_APPLETALK;
 #ifdef ISO
 			else if (strcmp(optarg, "iso") == 0)
 				af = AF_ISO;
@@ -430,6 +443,9 @@ main(argc, argv)
 	}
 	if (af == AF_IPX || af == AF_UNSPEC)
 		for (tp = ipxprotox; tp->pr_name; tp++)
+			printproto(tp, tp->pr_name);
+	if (af == AF_APPLETALK || af == AF_UNSPEC)
+		for (tp = atalkprotox; tp->pr_name; tp++)
 			printproto(tp, tp->pr_name);
 #ifdef NS
 	if (af == AF_NS || af == AF_UNSPEC)

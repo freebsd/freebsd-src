@@ -88,6 +88,7 @@ void	upHex __P((char *));
 
 char	*routename __P((u_long));
 char	*netname __P((u_long, u_long));
+char	*atalk_print __P((struct sockaddr *));
 char	*ipx_print __P((struct sockaddr *));
 char	*ns_print __P((struct sockaddr *));
 void	routepr __P((u_long));
@@ -101,6 +102,9 @@ void	nsprotopr __P((u_long, char *));
 void	spp_stats __P((u_long, char *));
 void	idp_stats __P((u_long, char *));
 void	nserr_stats __P((u_long, char *));
+
+void	atalkprotopr __P((u_long, char *));
+void	ddp_stats __P((u_long, char *));
 
 void	intpr __P((int, u_long));
 
