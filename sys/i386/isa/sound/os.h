@@ -58,15 +58,6 @@
 #include "buf.h"
 #include "i386/isa/isa_device.h"
 
-/* These few lines are used by FreeBSD (only??). */
-
-#if NSND > 0
-#define KERNEL_SOUNDCARD
-#else
-#undef KERNEL_SOUNDCARD
-#endif
-
-
 /*
  * Rest of the file is compiled only if the driver is really required.
  */
