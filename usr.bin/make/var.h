@@ -122,6 +122,6 @@ struct Buffer *Var_Subst(const char *, const char *, struct GNode *, Boolean);
 char *Var_GetTail(char *);
 char *Var_GetHead(char *);
 void Var_Init(void);
-void Var_Dump(struct GNode *);
+void Var_Dump(const struct GNode *);
 
 #endif /* var_h_9cccafce */
