@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_shutdown.c	8.3 (Berkeley) 1/21/94
- * $Id: kern_shutdown.c,v 1.17 1997/06/22 16:04:16 peter Exp $
+ * $Id: kern_shutdown.c,v 1.18 1997/08/09 01:25:53 julian Exp $
  */
 
 #include "opt_ddb.h"
@@ -90,6 +90,7 @@ SYSCTL_INT(_debug, OID_AUTO, debugger_on_panic, CTLFLAG_RW,
 #endif
 
 
+#ifdef	HW_WDOG
 /*
  * If there is a hardware watchdog, point this at the function needed to
  * hold it off.
@@ -98,6 +99,7 @@ SYSCTL_INT(_debug, OID_AUTO, debugger_on_panic, CTLFLAG_RW,
  * your precious core-dump only half written because the wdog kicked in.
  */
 watchdog_tickle_fn wdog_tickler = NULL;
+#endif	/* HW_WDOG */
 
 /*
  * Variable panicstr contains argument to first call to panic; used as flag
