@@ -13,12 +13,18 @@
  * Snoop stuff.
  */
 
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
+
 #include <sys/types.h>
 #include <sys/fcntl.h>
 #include <sys/filio.h>
 #include <sys/snoop.h>
 #include <sys/stat.h>
 
+#include <err.h>
 #include <locale.h>
 #include <signal.h>
 #include <stdio.h>
@@ -125,8 +131,9 @@ fatal(err, buf)
 {
 	unset_tty();
 	if (buf)
-		fprintf(stderr, "Fatal: %s\n", buf);
-	exit(err);
+		errx(err, "fatal: %s", buf);
+	else
+		exit(err);
 }
 
 int
@@ -147,7 +154,8 @@ open_snp()
 			continue;
 		return f;
 	}
-	fatal(EX_OSFILE, "Cannot open snoop device.");
+	fatal(EX_OSFILE, "cannot open snoop device");
+	return (0);
 }
 
 
@@ -162,10 +170,10 @@ cleanup()
 }
 
 
-void
-show_usage()
+static void
+usage()
 {
-	printf("watch -[ciotnW] [tty name]\n");
+	fprintf(stderr, "usage: watch [-ciotnW] [tty name]\n");
 	exit(EX_USAGE);
 }
 
@@ -194,7 +202,8 @@ ctoh(c)
 	if (c >= 'a' && c <= 'f')
 		return (int) (c - 'a' + 10);
 
-	fatal(EX_DATAERR, "Bad tty number.");
+	fatal(EX_DATAERR, "bad tty number");
+	return (0);
 }
 
 
@@ -211,7 +220,7 @@ void
 attach_snp()
 {
 	if (ioctl(snp_io, SNPSTTY, &snp_tty) != 0)
-		fatal(EX_UNAVAILABLE, "Cannot attach to tty.");
+		fatal(EX_UNAVAILABLE, "cannot attach to tty");
 	if (opt_timestamp)
 		timestamp("Logging Started.");
 }
@@ -235,10 +244,10 @@ set_dev(name)
 	}
 
 	if (*name == '\0' || stat(buf, &sb) < 0)
-		fatal(EX_DATAERR, "Bad device name.");
+		fatal(EX_DATAERR, "bad device name");
 
 	if ((sb.st_mode & S_IFMT) != S_IFCHR)
-		fatal(EX_DATAERR, "Must be a character device.");
+		fatal(EX_DATAERR, "must be a character device");
 
 	snp_tty = sb.st_rdev;
 	attach_snp();
@@ -313,8 +322,7 @@ main(ac, av)
 			break;
 		case '?':
 		default:
-			show_usage();
-			exit(1);
+			usage();
 		}
 
 	signal(SIGINT, cleanup);
@@ -326,14 +334,14 @@ main(ac, av)
 		if (opt_interactive && !opt_no_switch)
 			ask_dev(dev_name, MSG_INIT);
 		else
-			fatal(EX_DATAERR, "No device name given.");
+			fatal(EX_DATAERR, "no device name given");
 	} else
 		strncpy(dev_name, *av, DEV_NAME_LEN);
 
 	set_dev(dev_name);
 
 	if (!(buf = (char *) malloc(b_size)))
-		fatal(EX_UNAVAILABLE, "Cannot malloc().");
+		fatal(EX_UNAVAILABLE, "malloc failed");
 
 	FD_ZERO(&fd_s);
 
@@ -345,11 +353,11 @@ main(ac, av)
 		if (opt_interactive && FD_ISSET(std_in, &fd_s)) {
 
 			if ((res = ioctl(std_in, FIONREAD, &nread)) != 0)
-				fatal(EX_OSERR, "ioctl() failed.");
+				fatal(EX_OSERR, "ioctl(FIONREAD)");
 			if (nread > READB_LEN)
 				nread = READB_LEN;
 			if (read(std_in,chb,nread)!=nread)
-				fatal(EX_IOERR, "read (stdin) failed.");
+				fatal(EX_IOERR, "read (stdin) failed");
 
 			switch (chb[0]) {
 			case CHR_CLEAR:
@@ -367,7 +375,7 @@ main(ac, av)
 					if (write(snp_io,chb,nread) != nread) {
 						detach_snp();
 						if (opt_no_switch)
-							fatal(EX_IOERR, "Write failed.");
+							fatal(EX_IOERR, "write failed");
 						ask_dev(dev_name, MSG_NOWRITE);
 						set_dev(dev_name);
 					}
@@ -379,7 +387,7 @@ main(ac, av)
 			continue;
 
 		if ((res = ioctl(snp_io, FIONREAD, &nread)) != 0)
-			fatal(EX_OSERR, "ioctl() failed.");
+			fatal(EX_OSERR, "ioctl(FIONREAD)");
 
 		switch (nread) {
 		case SNP_OFLOW:
@@ -403,19 +411,19 @@ main(ac, av)
 			if (nread < (b_size / 2) && (b_size / 2) > MIN_SIZE) {
 				free(buf);
 				if (!(buf = (char *) malloc(b_size / 2)))
-					fatal(EX_UNAVAILABLE, "Cannot malloc()");
+					fatal(EX_UNAVAILABLE, "malloc failed");
 				b_size = b_size / 2;
 			}
 			if (nread > b_size) {
 				b_size = (nread % 2) ? (nread + 1) : (nread);
 				free(buf);
 				if (!(buf = (char *) malloc(b_size)))
-					fatal(EX_UNAVAILABLE, "Cannot malloc()");
+					fatal(EX_UNAVAILABLE, "malloc failed");
 			}
 			if (read(snp_io, buf, nread) < nread)
-				fatal(EX_IOERR, "read failed.");
+				fatal(EX_IOERR, "read failed");
 			if (write(std_out, buf, nread) < nread)
-				fatal(EX_IOERR, "write failed.");
+				fatal(EX_IOERR, "write failed");
 		}
 	}			/* While */
 }
