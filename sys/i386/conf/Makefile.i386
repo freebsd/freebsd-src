@@ -1,6 +1,6 @@
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.i386	7.1 5/10/91
-#	$Id: Makefile.i386,v 1.65 1995/07/22 23:55:41 bde Exp $
+#	$Id: Makefile.i386,v 1.66 1995/08/16 16:11:48 bde Exp $
 #
 # Makefile for FreeBSD
 #
@@ -57,8 +57,6 @@ DRIVER_C= ${CC} -c ${CFLAGS} ${PROF} $<
 DRIVER_C_C= ${CC} -c ${CFLAGS} ${PROF} ${PARAM} $<
 PROFILE_C= ${CC} -c ${CFLAGS} ${PARAM} $<
 
-SFILES=	${I386}/i386/exception.s ${I386}/i386/microtime.s \
-	${I386}/i386/support.s ${I386}/i386/swtch.s ${I386}/apm/apm_setup.s
 SYSTEM_CFILES= ioconf.c param.c vnode_if.c
 SYSTEM_SFILES= ${I386}/i386/locore.s
 SYSTEM_OBJS= locore.o vnode_if.o ${OBJS} ioconf.o param.o
@@ -77,6 +75,8 @@ SYSTEM_LD_TAIL= @echo rearranging symbols; \
 %OBJS
 
 %CFILES
+
+%SFILES
 
 %LOAD
 
