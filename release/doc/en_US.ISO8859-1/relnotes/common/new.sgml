@@ -1864,9 +1864,6 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     &man.mount.8; that mimics the command line option set of the
     deprecated &man.mount.mfs.8;.</para>
 
-    <para>&man.mergemaster.8; has gained some new features, has been
-    cleaned up somewhat, and is now more cross-platform friendly.</para>
-
     <para>&man.mergemaster.8; now sources an
     <filename>/etc/mergemaster.rc</filename> file and also prompts the
     user to run recommended commands (such as
