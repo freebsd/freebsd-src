@@ -222,7 +222,8 @@ struct ipfw_dyn_rule {
 #define IP_FW_IF_TCPSEQ	0x00000004      /* tcp sequence number		*/
 #define IP_FW_IF_TCPACK	0x00000008      /* tcp acknowledgement number	*/
 #define IP_FW_IF_TCPWIN	0x00000010      /* tcp window size		*/
-#define IP_FW_IF_TCPMSK	0x0000001f      /* mask of all tcp values	*/
+#define	IP_FW_IF_TCPEST 0x00000020	/* established TCP connection	*/
+#define	IP_FW_IF_TCPMSK	0x0000003f	/* mask of all tcp values	*/
 
 #define IP_FW_IF_IPOPT	0x00000100	/* ip options			*/
 #define IP_FW_IF_IPLEN	0x00000200	/* ip length			*/
@@ -274,7 +275,6 @@ struct ipfw_dyn_rule {
 #define IP_FW_TCPF_PSH		TH_PUSH
 #define IP_FW_TCPF_ACK		TH_ACK
 #define IP_FW_TCPF_URG		TH_URG
-#define IP_FW_TCPF_ESTAB	0x40
 
 /*
  * Main firewall chains definitions and global var's definitions.
