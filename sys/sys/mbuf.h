@@ -251,8 +251,6 @@ union mcluster {
  *	MGETHDR(struct mbuf *m, int how, int type)
  * allocates an mbuf and initializes it to contain a packet header
  * and internal data.
- *
- * Warning: MGETHDR() does *not* initialize m->m_pkthdr.rcvif.
  */
 #define	MGET(m, how, type) do {						\
 	struct mbuf *_mm;						\
@@ -302,6 +300,7 @@ union mcluster {
 		_mm->m_nextpkt = NULL;					\
 		_mm->m_data = _mm->m_pktdat;				\
 		_mm->m_flags = M_PKTHDR;				\
+		_mm->m_pkthdr.rcvif = NULL;				\
 		(m) = _mm;						\
 		splx(_ms);						\
 	} else {							\
