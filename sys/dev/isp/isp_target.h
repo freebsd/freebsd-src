@@ -129,6 +129,7 @@ typedef struct {
 /*
  * Values for the in_status field
  */
+#define	IN_REJECT	0x0D	/* Message Reject message received */
 #define IN_RESET	0x0E	/* Bus Reset occurred */
 #define IN_NO_RCAP	0x16	/* requested capability not available */
 #define IN_IDE_RECEIVED	0x33	/* Initiator Detected Error msg received */
@@ -138,6 +139,7 @@ typedef struct {
 #define	IN_PORT_LOGOUT	0x29	/* port has logged out (FC) */
 #define	IN_PORT_CHANGED	0x2A	/* port changed */
 #define	IN_GLOBAL_LOGO	0x2E	/* all ports logged out */
+#define	IN_NO_NEXUS	0x3B	/* Nexus not established */
 
 /*
  * Values for the in_task_flags field- should only get one at a time!
@@ -323,6 +325,7 @@ typedef struct {
 #define CT_NO_DATA	0x000000C0	/* bits 6&7, Data direction */
 #define	CT_CCINCR	0x00000100	/* bit 8, autoincrement atio count */
 #define CT_DATAMASK	0x000000C0	/* bits 6&7, Data direction */
+#define	CT_INISYNCWIDE	0x00004000	/* bit 14, Do Sync/Wide Negotiation */
 #define CT_NODISC	0x00008000	/* bit 15, Disconnects disabled */
 #define CT_DSDP		0x01000000	/* bit 24, Disable Save Data Pointers */
 #define CT_SENDRDP	0x04000000	/* bit 26, Send Restore Pointers msg */
@@ -341,12 +344,15 @@ typedef struct {
 #define CT_RSELTMO	0x0A	/* reselection timeout after 2 tries */
 #define CT_TIMEOUT	0x0B	/* timed out */
 #define CT_RESET	0x0E	/* SCSI Bus Reset occurred */
+#define	CT_PARITY	0x0F	/* Uncorrectable Parity Error */
+#define	CT_PANIC	0x13	/* Unrecoverable Error */
 #define CT_PHASE_ERROR	0x14	/* Bus phase sequence error */
 #define CT_BDR_MSG	0x17	/* Bus Device Reset msg received */
 #define CT_TERMINATED	0x19	/* due to Terminate Transfer mbox cmd */
 #define	CT_PORTNOTAVAIL	0x28	/* port not available */
 #define	CT_LOGOUT	0x29	/* port logout */
 #define	CT_PORTCHANGED	0x2A	/* port changed */
+#define	CT_IDE		0x33	/* Initiator Detected Error */
 #define CT_NOACK	0x35	/* Outstanding Immed. Notify. entry */
 
 /*
