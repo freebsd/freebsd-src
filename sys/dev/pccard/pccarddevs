@@ -462,7 +462,7 @@ product AMD AM79C930		{ "AMD", "Am79C930", NULL, NULL } AMD Am79C930
 product ARGOSY SP320		{ "PCMCIA", "RS-COM 2P", NULL, NULL } ARGOSY SP320 Dual port serial PCMCIA
 product BILLIONTON CFLT10N     { "CF", "10Base-Ethernet", "1.0", NULL } Billionton Systems Inc. CFLT10N Ethernet
 product BILLIONTON LNT10TN	{ "PCMCIA", "LNT-10TN", NULL, NULL } Billionton Systems Inc. LNT-10TN NE2000 Compatible Card
-+product BILLIONTON CFLT10N     { "CF", "10Base-Ethernet", "1.0", NULL } Billionproduct CNET NE2000		{ "CNet", "CN40BC&spEthernet", "D", "NE2000" } CNet CN40BC NE2000 Compatible
+product CNET NE2000		{ "CNet", "CN40BC&spEthernet", "D", "NE2000" } CNet CN40BC NE2000 Compatible
 product COREGA ETHER_PCC_T	{ "corega&spK.K.", "corega&spEther&spPCC-T", NULL, NULL } Corega Ether PCC-T
 product COREGA ETHER_PCC_TD	{ "corega&spK.K.", "corega&spEther&spPCC-TD", NULL, NULL } Corega Ether PCC-TD
 product COREGA ETHER_II_PCC_T	{ "corega&spK.K.", "corega&spEtherII&spPCC-T", NULL, NULL } Corega EtherII PCC-T
@@ -533,13 +533,9 @@ product RATOC REX5572		{ "RATOC&spSystem&spInc.", "SOUND/SCSI2&spCARD", NULL, NU
 product RATOC REX9530		{ "RATOC&spSystem&spInc.", "SCSI2&spCARD&sp37", NULL, NULL } RATOC REX-9530
 product SIMPLETECH SPECTRUM24_ALT	{ "Symbol&spTechnologies", "LA4111&spSpectrum24&spWireless&spLAN&spPC&spCard", NULL, NULL } LA4111 Spectrum24 Wireless LAN PC Card
 product SMC 2632W		{ "SMC", "SMC2632W", "Version&sp01.02", NULL } SMC 2632 EZ Connect Wireless PC Card
+product SMC 8041		{ "SMC", "8041TX-10/100-PC-Card-V2", NULL, NULL } SMC 8041TX 10/100 PC Card
 product SVEC COMBOCARD		{ "Ethernet", "Adapter", NULL, NULL } SVEC/Hawking Tech. Combo Card
 product SVEC LANCARD		{ "SVEC", "FD605&spPCMCIA&spEtherNet&spCard", "V1-1", NULL } SVEC PCMCIA Lan Card
-/*
- * vendor ID of PN650TX is LINKSYS (0x0149) and product ID is 0xc1ab, but
- * it conflicts with LINKSYS Combo EthernetCard.
- */
-product SVEC PN650TX		-1 SVEC PN650TX 10/100 Dual Speed Fast Ethernet PC Card
 product SYNERGY21 S21810	{ "PCMCIA", "Ethernet", "A", "004743118001" } Synergy 21 S21810+ NE2000 Compatible Card
 product TEAC IDECARDII		{ NULL, "NinjaATA-", NULL, NULL } TEAC IDE Card/II
 product TOSHIBA CBIDE2         { "LOOKMEET", "CBIDE2&sp&sp&sp&sp&sp&sp", NULL, NULL } TOSHIBA PA2673U CBIDE2/16-bit mode (IO-DATA OEM)
