@@ -13,6 +13,7 @@ Commercial  usage is  also  possible  with  participation of it's author.
 */
 
 #include "FtpLibrary.h"
+#include <unistd.h>
 
 int FtpRead(FTP *con)
 {
@@ -87,13 +88,14 @@ STATUS FtpPutc(FTP *ftp,FILE *fp,char c)
     return EXIT(ftp,QUIT);
 
   if (ftp->hash!=NULL) (*ftp->hash)(ftp,1);
+  return 0;
 }
 
 
 STATUS FtpReadBlock(FTP *ftp, char *buffer, int size)
 {
   fd_set fds;
-  register int rsize,status;
+  register int rsize;
   
   FD_ZERO(&fds);
   FD_SET(fileno(FTPDATA(ftp)),&fds);

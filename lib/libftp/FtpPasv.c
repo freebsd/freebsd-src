@@ -13,7 +13,8 @@ Commercial  usage is  also  possible  with  participation of it's author.
 */
 
 #include "FtpLibrary.h"
-
+#include <unistd.h>
+#include <ctype.h>
 
 char * FtpPasv (FTP *ftp)
 {
@@ -46,6 +47,7 @@ STATUS FtpLink(FTP *ftp1, FTP *ftp2)
   strcpy(PORT,FtpPasv(ftp1));
 
   FtpCommand(ftp2,"PORT %s",PORT,200,EOF);
+  return 0;
 }
 
 STATUS FtpPassiveTransfer(FTP *ftp1, FTP *ftp2, char *f1, char *f2)
@@ -89,6 +91,7 @@ STATUS FtpPassiveTransfer(FTP *ftp1, FTP *ftp2, char *f1, char *f2)
       FtpGetMessage(ftp1,tmp);
       FtpLog(ftp1->title,tmp);
     }
+  return 0;
 }
 
 

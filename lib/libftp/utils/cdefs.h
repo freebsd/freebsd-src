@@ -54,7 +54,7 @@
  * in between its arguments.  __CONCAT can also concatenate double-quoted
  * strings produced by the __STRING macro, but this only works with ANSI C.
  */
-#if defined(__STDC__) || defined(__cplusplus)
+#if (defined(__STDC__) || defined(__cplusplus)) && !defined(__CONCAT)
 #define	__P(protos)	protos		/* full-blown ANSI C */
 #define	__CONCAT(x,y)	x ## y
 #define	__STRING(x)	#x

@@ -13,16 +13,18 @@ Commercial  usage is  also  possible  with  participation of it's author.
 */
 
 #include "FtpLibrary.h"
+#include <unistd.h>
+
+extern STATUS FtpFilenameChecker(char ** in, char ** out);
 
 STATUS FtpRetr (FTP * con , char * command ,
 		       char *in , char * out)
 {
   FILE *o;
-  int c;
   struct stat st;
-  char buffer[FTPBUFSIZ],buffer2[FTPBUFSIZ];
+  char buffer[FTPBUFSIZ];
   register int size;
-  
+ 
   FtpFilenameChecker(&in,&out);
 
   if ( FtpTestFlag(con,FTP_REST) && stat(out,&st)==0)

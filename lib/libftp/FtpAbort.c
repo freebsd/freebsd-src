@@ -13,8 +13,9 @@ Commercial  usage is  also  possible  with  participation of it's author.
 */
 
 #include "FtpLibrary.h"
+#include <unistd.h>
 
-
+int
 FtpAbort(FTP *ftp)
 {
   fd_set fds;
@@ -36,11 +37,10 @@ FtpAbort(FTP *ftp)
   
   while (select ( getdtablesize(), &fds, 0,0, &(ftp->timeout) )>0)
     {
-      register int i;
-
       FtpGetMessage(ftp,msg);
       if (FtpGood(FtpNumber(msg),225,226,EOF)) break;
     }
+   return 0;
 }
 
 

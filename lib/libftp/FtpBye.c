@@ -17,9 +17,6 @@ Commercial  usage is  also  possible  with  participation of it's author.
 
 STATUS FtpBye(FTP *ftp)
 {
-  String S1;
-  int i;
-
   FtpAssert(ftp,FtpCommand(ftp,"QUIT",221,EOF));
 
   fclose(FTPCMD(ftp));
@@ -29,9 +26,7 @@ STATUS FtpBye(FTP *ftp)
       
 STATUS FtpQuickBye(FTP *ftp)
 {
-
-
-  if (ftp == NULL) return;
+  if (ftp == NULL) return 0;
   
   if (FTPDATA(ftp)!=NULL)
     {
@@ -44,7 +39,7 @@ STATUS FtpQuickBye(FTP *ftp)
       shutdown(fileno(FTPCMD(ftp)),2);
       fclose(FTPCMD(ftp));
     }
-  
   free(ftp);
+  return 0;
 }
 

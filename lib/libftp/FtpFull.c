@@ -13,10 +13,10 @@ Commercial  usage is  also  possible  with  participation of it's author.
 */
 
 #include "FtpLibrary.h"
+#include <unistd.h>
 #include <pwd.h>
 
 static FTP *ftp_table[256];
-static STATUS syntax();
 
 FILE * FtpFullOpen(char * file , char * mode )
 {

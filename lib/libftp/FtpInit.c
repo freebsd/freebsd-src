@@ -25,6 +25,7 @@ FTP FtpInit = {
   0, /*flags*/
   {120,0}, /*timeout 2 min*/
   21, /*Port*/
+  "johndoe", /* Title */
   0, /*Counter*/
 };
 
