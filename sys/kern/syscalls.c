@@ -461,4 +461,5 @@ const char *syscallnames[] = {
 	"getaudit_addr",			/* 451 = getaudit_addr */
 	"setaudit_addr",			/* 452 = setaudit_addr */
 	"auditctl",			/* 453 = auditctl */
+	"_umtx_op",			/* 454 = _umtx_op */
 };
