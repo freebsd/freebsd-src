@@ -943,7 +943,7 @@ is set to
 these are the flags to pass to the
 .Xr nfsd 8
 daemon.
-.It Va single_mountd_enable
+.It Va mountd_enable
 .Pq Vt bool
 If set to
 .Dq Li YES ,
@@ -991,23 +991,23 @@ If set to
 and also an NFS server, run
 .Xr rpc.statd 8
 at boot time.
-.It Va portmap_program
+.It Va rpcbind_program
 .Pq Vt str
 Path to
 .Xr rpcbind 8
 (default
 .Pa /usr/sbin/rpcbind ) .
-.It Va portmap_enable
+.It Va rpcbind_enable
 .Pq Vt bool
 If set to
 .Dq Li YES ,
 run the
 .Xr rpcbind 8
 service at boot time.
-.It Va portmap_flags
+.It Va rpcbind_flags
 .Pq Vt str
 If
-.Va portmap_enable
+.Va rpcbind_enable
 is set to
 .Dq Li YES ,
 these are the flags to pass to the
@@ -1112,23 +1112,23 @@ is set to
 these are the flags to pass to the
 .Xr ntpdate 8
 command (typically a hostname).
-.It Va xntpd_enable
+.It Va ntpd_enable
 .Pq Vt bool
 If set to
 .Dq Li YES ,
 run the
 .Xr ntpd 8
 command at boot time.
-.It Va xntpd_program
+.It Va ntpd_program
 .Pq Vt str
 Path to
 .Xr ntpd 8
 (default
 .Pa /usr/sbin/ntpd ) .
-.It Va xntpd_flags
+.It Va ntpd_flags
 .Pq Vt str
 If
-.Va xntpd_enable
+.Va ntpd_enable
 is set to
 .Dq Li YES ,
 these are the flags to pass to the
