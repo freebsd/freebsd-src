@@ -7,7 +7,6 @@
 
 #include <sys/types.h>
 
-#include <limits.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -16,7 +15,7 @@
 /*
  * Override gperf's built-in external scope.
  */
-static const struct map *in_word_set(const char *str, unsigned int len);
+static const struct map *in_word_set(const char *str);
 
 %}
 struct map { const char *name; int key; int valid; };
@@ -138,7 +137,7 @@ find_sysconf(const char *name, int *key)
 {
 	const struct map *rv;
 
-	rv = in_word_set(name, strlen(name));
+	rv = in_word_set(name);
 	if (rv != NULL) {
 		if (rv->valid) {
 			*key = rv->key;
