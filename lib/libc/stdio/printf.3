@@ -678,14 +678,14 @@ To allocate a 128 byte string and print into it:
 #include <stdarg.h>
 char *newfmt(const char *fmt, ...)
 {
-		char *p;
-		va_list ap;
-		if ((p = malloc(128)) == NULL)
-			return (NULL);
-		va_start(ap, fmt);
-		(void) vsnprintf(p, 128, fmt, ap);
-		va_end(ap);
-		return (p);
+	char *p;
+	va_list ap;
+	if ((p = malloc(128)) == NULL)
+		return (NULL);
+	va_start(ap, fmt);
+	(void) vsnprintf(p, 128, fmt, ap);
+	va_end(ap);
+	return (p);
 }
 .Ed
 .Sh SECURITY CONSIDERATIONS
