@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.c	8.8 (Berkeley) 1/21/94
- * $Id: tty.c,v 1.27 1995/02/15 18:41:56 ugen Exp $
+ * $Id: tty.c,v 1.28 1995/02/15 22:25:51 ache Exp $
  */
 
 #include "snp.h"
@@ -308,7 +308,7 @@ parmrk:				(void)putc(0377 | TTY_QUOTE, &tp->t_rawq);
 	/*
 	 * In tandem mode, check high water mark.
 	 */
-	if (ISSET(iflag, IXOFF))
+	if (ISSET(iflag, IXOFF) || ISSET(tp->t_cflag, CRTS_IFLOW))
 		ttyblock(tp);
 	if (!ISSET(tp->t_state, TS_TYPEN) && ISSET(iflag, ISTRIP))
 		CLR(c, 0x80);
@@ -1107,19 +1107,16 @@ ttyblock(tp)
 	register int total;
 
 	total = tp->t_rawq.c_cc + tp->t_canq.c_cc;
-	if (tp->t_rawq.c_cc > TTYHOG) {
-		ttyflush(tp, FREAD | FWRITE);
-		CLR(tp->t_state, TS_TBLOCK);
-	}
 	/*
 	 * Block further input iff: current input > threshold
 	 * AND input is available to user program.
 	 */
-	if ((total >= TTYHOG / 2 &&
+	if (total >= TTYHOG / 2 &&
 	    !ISSET(tp->t_state, TS_TBLOCK) &&
-	    !ISSET(tp->t_lflag, ICANON)) || (tp->t_canq.c_cc > 0 &&
-	    tp->t_cc[VSTOP] != _POSIX_VDISABLE)) {
-		if (putc(tp->t_cc[VSTOP], &tp->t_outq) == 0) {
+	    (!ISSET(tp->t_lflag, ICANON) || tp->t_canq.c_cc > 0)) {
+		if (tp->t_cc[VSTOP] != _POSIX_VDISABLE &&
+		    putc(tp->t_cc[VSTOP], &tp->t_outq) == 0 ||
+		    ISSET(tp->t_cflag, CRTS_IFLOW)) {
 			SET(tp->t_state, TS_TBLOCK);
 			ttstart(tp);
 		}
@@ -1499,7 +1496,8 @@ read:
 	s = spltty();
 	if (ISSET(tp->t_state, TS_TBLOCK) && tp->t_rawq.c_cc < TTYHOG/5) {
 		if (cc[VSTART] != _POSIX_VDISABLE &&
-		    putc(cc[VSTART], &tp->t_outq) == 0) {
+		    putc(cc[VSTART], &tp->t_outq) == 0 ||
+		    ISSET(tp->t_cflag, CRTS_IFLOW)) {
 			CLR(tp->t_state, TS_TBLOCK);
 			ttstart(tp);
 		}
