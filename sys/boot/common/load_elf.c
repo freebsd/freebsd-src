@@ -48,11 +48,11 @@ typedef struct elf_file {
     Elf_Phdr 	*ph;
     Elf_Ehdr	*ehdr;
     Elf_Sym	*symtab;
-    Elf_Off	*hashtab;
-    Elf_Off	nbuckets;
-    Elf_Off	nchains;
-    Elf_Off*	buckets;
-    Elf_Off*	chains;
+    Elf_Hashelt	*hashtab;
+    Elf_Hashelt	nbuckets;
+    Elf_Hashelt	nchains;
+    Elf_Hashelt	*buckets;
+    Elf_Hashelt	*chains;
     char	*strtab;
     size_t	strsz;
     int		fd;
@@ -481,7 +481,7 @@ nosyms:
 	    break;
 	switch (dp[i].d_tag) {
 	case DT_HASH:
-	    ef->hashtab = (Elf_Off*)(dp[i].d_un.d_ptr + off);
+	    ef->hashtab = (Elf_Hashelt*)(dp[i].d_un.d_ptr + off);
 	    break;
 	case DT_STRTAB:
 	    ef->strtab = (char *)(dp[i].d_un.d_ptr + off);
