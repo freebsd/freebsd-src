@@ -33,7 +33,7 @@ NOMAN = noman
 NOOBJ = noobj
 
 install:
-	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${SHAREMODE} ${FONTS} \
+	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m ${SHAREMODE} ${FONTS} \
 		${DESTDIR}${FONTDIR}
 
 .include <bsd.prog.mk>

@@ -26,7 +26,7 @@ copies::
 	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 755 -d ${DDIR}/${dir}
 .endfor
 .for file in ${CFFILES}
-	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 444 ${SENDMAIL_DIR}/${file} ${DDIR}/${file}
+	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 ${SENDMAIL_DIR}/${file} ${DDIR}/${file}
 .endfor
 
 symlinks::

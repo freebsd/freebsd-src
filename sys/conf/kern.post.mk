@@ -157,17 +157,17 @@ kernel-install:
 .endif
 	mkdir -p ${DESTDIR}${KODIR}
 .if defined(DEBUG) && defined(INSTALL_DEBUG)
-	${INSTALL} ${COPY} -m 555 -o root -g wheel ${FULLKERNEL} ${DESTDIR}${KODIR}
+	${INSTALL} -m 555 -o root -g wheel ${FULLKERNEL} ${DESTDIR}${KODIR}
 .else
-	${INSTALL} ${COPY} -m 555 -o root -g wheel ${KERNEL_KO} ${DESTDIR}${KODIR}
+	${INSTALL} -m 555 -o root -g wheel ${KERNEL_KO} ${DESTDIR}${KODIR}
 .endif
 
 kernel-reinstall:
 	@-chflags -R noschg ${DESTDIR}${KODIR}
 .if defined(DEBUG) && defined(INSTALL_DEBUG)
-	${INSTALL} ${COPY} -m 555 -o root -g wheel ${FULLKERNEL} ${DESTDIR}${KODIR}
+	${INSTALL} -m 555 -o root -g wheel ${FULLKERNEL} ${DESTDIR}${KODIR}
 .else
-	${INSTALL} ${COPY} -m 555 -o root -g wheel ${KERNEL_KO} ${DESTDIR}${KODIR}
+	${INSTALL} -m 555 -o root -g wheel ${KERNEL_KO} ${DESTDIR}${KODIR}
 .endif
 
 .if !defined(MODULES_WITH_WORLD) && !defined(NO_MODULES) && exists($S/modules)

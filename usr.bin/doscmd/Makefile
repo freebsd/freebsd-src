@@ -38,15 +38,15 @@ CFLAGS+=	-DNO_X
 
 beforeinstall:
 .if ${OBJFORMAT} == "aout"
-	${INSTALL} ${COPY} -o ${BINOWN} -g ${EXEGRP} -m ${EXEMODE} \
+	${INSTALL} -o ${BINOWN} -g ${EXEGRP} -m ${EXEMODE} \
 	    doscmd.kernel ${DESTDIR}/usr/libexec/
 .endif
-	${INSTALL} ${COPY} -o ${BINOWN} -g ${EXEGRP} -m ${EXEMODE} \
+	${INSTALL} -o ${BINOWN} -g ${EXEGRP} -m ${EXEMODE} \
 	    emsdriv.sys redir.com ${DESTDIR}/usr/libdata/doscmd/
-	${INSTALL} ${COPY} -o ${BINOWN} -g ${EXEGRP} -m ${SHAREMODE} \
+	${INSTALL} -o ${BINOWN} -g ${EXEGRP} -m ${SHAREMODE} \
 	    ${FONTFILES} ${DESTDIR}/usr/libdata/doscmd/fonts
 	cd ${.CURDIR} && \
-	    ${INSTALL} ${COPY} -o ${BINOWN} -g ${EXEGRP} -m ${SHAREMODE} \
+	    ${INSTALL} -o ${BINOWN} -g ${EXEGRP} -m ${SHAREMODE} \
 		fonts.dir ${DESTDIR}/usr/libdata/doscmd/fonts
 
 .if ${OBJFORMAT} == "aout"

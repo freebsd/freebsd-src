@@ -11,13 +11,6 @@
 # DISTDIR	Change the tree where the file for a distribution
 # 		gets installed (see /usr/src/release/Makefile). [not set]
 #
-#
-# COPY		The flag passed to the install program to cause the binary
-#		to be copied rather than moved.  This is to be used when
-#		building our own install script so that the entire system
-#		can either be installed with copies, or with moves using
-#		a single knob. [-c]
-#
 # COMPRESS_CMD	Program to compress documents. 
 #		Output is to stdout. [gzip -cn]
 #
@@ -177,7 +170,6 @@ INCLUDEDIR?=	/usr/include
 STRIP?=		-s
 .endif
 
-COPY?=		-c
 COMPRESS_CMD?=	gzip -cn
 COMPRESS_EXT?=	.gz
 

@@ -17,7 +17,7 @@ maybe_stripped: strip
 .endif
 
 realinstall:
-	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
+	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
 	    maybe_stripped ${DESTDIR}${BINDIR}/strip
 
 .include <bsd.prog.mk>

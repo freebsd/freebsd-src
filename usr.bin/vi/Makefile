@@ -83,7 +83,7 @@ ex_noperl.c: ex_perl.c
 CLEANFILES+=	ex_notcl.c ex_noperl.c
 
 afterinstall:
-	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 444 \
+	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 \
 		${CATALOGS:S;^;${SRCDIR}/catalog/;} \
 		${DESTDIR}/usr/share/vi/catalog
 	for l in ${NLLINKS}; do \
