@@ -179,14 +179,15 @@ isp_print_qentry(isp, msg, idx, arg)
 	int amt, i, j;
 	u_int8_t *ptr = arg;
 
+	isp_prt(isp, ISP_LOGALL, "%s index %d=>", msg, idx);
 	for (buf[0] = 0, amt = i = 0; i < 4; i++) {
 		buf[0] = 0;
+		SNPRINTF(buf, TBA, "  ");
 		for (j = 0; j < (QENTRY_LEN >> 2); j++) {
 			SNPRINTF(buf, TBA, "%s %02x", buf, ptr[amt++] & 0xff);
 		}
-		STRNCAT(buf, "\n", TBA);
+		isp_prt(isp, ISP_LOGALL, buf);
 	}
-	isp_prt(isp, ISP_LOGALL, "%s index %d:%s", msg, idx, buf);
 }
 
 static INLINE void
