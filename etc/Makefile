@@ -456,10 +456,10 @@ release: release-dirs distribution kcopy-kernels floppies \
 	 bin-tarball des-tarball
 	
 release-dirs:
-	rm -rf ${RELEASEDIR}/filesystem
-	mkdir ${RELEASEDIR}/filesystem
-	chown root.wheel ${RELEASEDIR}/filesystem
-	chmod 755 ${RELEASEDIR}/filesystem
+	rm -rf ${RELEASEDIR}/filesys
+	mkdir ${RELEASEDIR}/filesys
+	chown root.wheel ${RELEASEDIR}/filesys
+	chmod 755 ${RELEASEDIR}/filesys
 	rm -rf ${RELEASEDIR}/tarballs
 	mkdir ${RELEASEDIR}/tarballs
 	chown root.wheel ${RELEASEDIR}/tarballs
