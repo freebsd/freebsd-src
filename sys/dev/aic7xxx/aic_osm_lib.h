@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: //depot/aic7xxx/freebsd/dev/aic7xxx/aic_osm_lib.h#4 $
+ * $Id: //depot/aic7xxx/freebsd/dev/aic7xxx/aic_osm_lib.h#5 $
  *
  * $FreeBSD$
  */
@@ -207,7 +207,7 @@ aic_timer_reset(aic_timer_t *timer, u_int usec, aic_callback_t *func, void *arg)
 static __inline u_int
 aic_get_timeout(struct scb *scb)
 {
-	return (scb->io_ctx->ccb_h.timeout);
+	return (scb->io_ctx->ccb_h.timeout * 1000);
 }
 
 static __inline void
@@ -217,6 +217,21 @@ aic_scb_timer_reset(struct scb *scb, u_int usec)
 		  scb->io_ctx->ccb_h.timeout_ch);
 	scb->io_ctx->ccb_h.timeout_ch =
 	    timeout(aic_platform_timeout, scb, (usec * hz)/1000000);
+}
+
+static __inline void
+aic_scb_timer_start(struct scb *scb)
+{
+	
+	if (scb->io_ctx->ccb_h.timeout != CAM_TIME_INFINITY) {
+		uint64_t time;
+
+		time = scb->io_ctx->ccb_h.timeout;
+		time *= hz;
+		time /= 1000;
+		scb->io_ctx->ccb_h.timeout_ch =
+		    timeout(aic_platform_timeout, scb, time);
+	}
 }
 
 /************************** Transaction Operations ****************************/
