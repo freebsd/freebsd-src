@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: malloc.c,v 1.25 1997/06/12 12:45:45 phk Exp $
+ * $Id: malloc.c,v 1.26 1997/06/22 17:54:27 phk Exp $
  *
  */
 
@@ -58,7 +58,7 @@
 #   endif
 #endif /* __FreeBSD__ */
 
-#if defined(__sparc__) || defined(sun)
+#if defined(__sparc__) && defined(sun)
 #   define malloc_pageshirt		12U
 #   define malloc_minsize		16U
 #   define MAP_ANON			(0)
@@ -74,7 +74,7 @@
 #if defined(__FOOCPU__) && defined(__BAROS__)
 #   define malloc_pageshift		12U
 #   define malloc_minsize		16U
-#endif /* __FOORCPU__ && __BAROS__ */
+#endif /* __FOOCPU__ && __BAROS__ */
 
 
 /*
@@ -220,10 +220,11 @@ static int malloc_zero;
 /* junk fill ?  */
 static int malloc_junk;
 
+#ifdef HAS_UTRACE
+
 /* utrace ?  */
 static int malloc_utrace;
 
-#ifdef HAS_UTRACE
 struct ut { void *p; size_t s; void *r; };
 
 void utrace __P((struct ut *, int));
@@ -233,7 +234,7 @@ void utrace __P((struct ut *, int));
 		{struct ut u; u.p=a; u.s = b; u.r=c; utrace(&u, sizeof u);}
 #else /* !HAS_UTRACE */
 #define UTRACE(a,b,c)
-#endif
+#endif /* HAS_UTRACE */
 
 /* my last break. */
 static void *malloc_brk;
@@ -406,8 +407,10 @@ malloc_init ()
 		case 'R': malloc_realloc = 1; break;
 		case 'j': malloc_junk    = 0; break;
 		case 'J': malloc_junk    = 1; break;
+#ifdef HAS_UTRACE
 		case 'u': malloc_utrace  = 0; break;
 		case 'U': malloc_utrace  = 1; break;
+#endif
 		case 'v': malloc_sysv    = 0; break;
 		case 'V': malloc_sysv    = 1; break;
 		case 'x': malloc_xmalloc = 0; break;
@@ -432,6 +435,13 @@ malloc_init ()
      */
     if (malloc_zero)
 	malloc_junk=1;
+
+    /*
+     * If we run with junk (or implicitly from above: zero), we want to
+     * force realloc() to get new storage, so we can DTRT with it.
+     */
+    if (malloc_junk)
+	malloc_realloc=1;
 
     /* Allocate one page for the page directory */
     page_dir = (struct pginfo **) MMAP(malloc_pagesize);
@@ -1051,8 +1061,6 @@ malloc(size_t size)
 {
     register void *r;
 
-    if (malloc_sysv && !size)
-	return (0);
     malloc_func = " in malloc():";
     THREAD_LOCK();
     if (malloc_active++) {
@@ -1060,7 +1068,10 @@ malloc(size_t size)
         malloc_active--;
 	return (0);
     }
-    r = imalloc(size);
+    if (malloc_sysv && !size)
+	r = 0;
+    else
+	r = imalloc(size);
     UTRACE(0, size, r);
     malloc_active--;
     THREAD_UNLOCK();
@@ -1114,28 +1125,3 @@ realloc(void *ptr, size_t size)
     return (r);
 }
 
-void *
-calloc(size_t num, size_t size)
-{
-    register void *r;
-
-    size *= num;
-    if (malloc_sysv && !size)
-	return (0);
-    malloc_func = " in calloc():";
-    THREAD_LOCK();
-    if (malloc_active++) {
-	wrtwarning("recursive call.\n");
-        malloc_active--;
-	return (0);
-    }
-    r = imalloc(size);
-    UTRACE(0, size, r);
-    malloc_active--;
-    THREAD_UNLOCK();
-    if (malloc_xmalloc && !r)
-	wrterror("out of memory.\n");
-    if (r)
-	memset(r, 0, size);
-    return (r);
-}
