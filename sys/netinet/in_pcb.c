@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_pcb.c	8.4 (Berkeley) 5/24/95
- *	$Id: in_pcb.c,v 1.30 1997/04/03 05:14:40 davidg Exp $
+ *	$Id: in_pcb.c,v 1.31 1997/04/27 20:01:04 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -470,9 +470,14 @@ in_setsockaddr(so, nam)
 	struct socket *so;
 	struct mbuf *nam;
 {
+	int s = splnet();
 	register struct inpcb *inp = sotoinpcb(so);
 	register struct sockaddr_in *sin;
 
+	if (!inp) {
+		splx(s);
+		return EINVAL;
+	}
 	nam->m_len = sizeof (*sin);
 	sin = mtod(nam, struct sockaddr_in *);
 	bzero((caddr_t)sin, sizeof (*sin));
@@ -480,6 +485,7 @@ in_setsockaddr(so, nam)
 	sin->sin_len = sizeof(*sin);
 	sin->sin_port = inp->inp_lport;
 	sin->sin_addr = inp->inp_laddr;
+	splx(s);
 	return 0;
 }
 
@@ -488,9 +494,14 @@ in_setpeeraddr(so, nam)
 	struct socket *so;
 	struct mbuf *nam;
 {
+	int s = splnet();
 	struct inpcb *inp = sotoinpcb(so);
 	register struct sockaddr_in *sin;
 
+	if (!inp) {
+		splx(s);
+		return EINVAL;
+	}
 	nam->m_len = sizeof (*sin);
 	sin = mtod(nam, struct sockaddr_in *);
 	bzero((caddr_t)sin, sizeof (*sin));
@@ -498,6 +509,7 @@ in_setpeeraddr(so, nam)
 	sin->sin_len = sizeof(*sin);
 	sin->sin_port = inp->inp_fport;
 	sin->sin_addr = inp->inp_faddr;
+	splx(s);
 	return 0;
 }
 
