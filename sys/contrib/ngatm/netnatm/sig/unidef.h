@@ -26,12 +26,18 @@
  *
  * Author: Hartmut Brandt <harti@freebsd.org>
  *
- * $Begemot: libunimsg/atm/sig/unidef.h,v 1.6 2003/09/19 12:03:34 hbb Exp $
+ * $Begemot: libunimsg/netnatm/sig/unidef.h,v 1.9 2004/07/08 08:22:24 brandt Exp $
  *
  * UNI public definitions.
  */
 #ifndef _ATM_SIG_UNIDEF_H_
 #define _ATM_SIG_UNIDEF_H_
+
+#ifdef _KERNEL
+#include <sys/stdint.h>
+#else
+#include <stdint.h>
+#endif
 
 /*
  * Debug facilities
@@ -109,25 +115,25 @@ enum uni_option {
  * UNI configuration
  */
 struct uni_config {
-	u_int32_t	proto;		/* which protocol */
-	u_int32_t	popt;		/* protocol option */
-	u_int32_t	option;		/* other options */
-	u_int32_t	timer301;	/* T301 */
-	u_int32_t	timer303;	/* T303 */
-	u_int32_t	init303;	/* T303 retransmission count */
-	u_int32_t	timer308;	/* T308 */
-	u_int32_t	init308;	/* T308 retransmission count */
-	u_int32_t	timer309;	/* T309 */
-	u_int32_t	timer310;	/* T310 */
-	u_int32_t	timer313;	/* T313 */
-	u_int32_t	timer316;	/* T316 */
-	u_int32_t	init316;	/* T316 retransmission count */
-	u_int32_t	timer317;	/* T317 */
-	u_int32_t	timer322;	/* T322 */
-	u_int32_t	init322;	/* T322 retransmission count */
-	u_int32_t	timer397;	/* T397 */
-	u_int32_t	timer398;	/* T398 */
-	u_int32_t	timer399;	/* T399 */
+	uint32_t	proto;		/* which protocol */
+	uint32_t	popt;		/* protocol option */
+	uint32_t	option;		/* other options */
+	uint32_t	timer301;	/* T301 */
+	uint32_t	timer303;	/* T303 */
+	uint32_t	init303;	/* T303 retransmission count */
+	uint32_t	timer308;	/* T308 */
+	uint32_t	init308;	/* T308 retransmission count */
+	uint32_t	timer309;	/* T309 */
+	uint32_t	timer310;	/* T310 */
+	uint32_t	timer313;	/* T313 */
+	uint32_t	timer316;	/* T316 */
+	uint32_t	init316;	/* T316 retransmission count */
+	uint32_t	timer317;	/* T317 */
+	uint32_t	timer322;	/* T322 */
+	uint32_t	init322;	/* T322 retransmission count */
+	uint32_t	timer397;	/* T397 */
+	uint32_t	timer398;	/* T398 */
+	uint32_t	timer399;	/* T399 */
 };
 enum uni_config_mask {
 	UNICFG_PROTO	= 0x00000001,
@@ -213,8 +219,8 @@ enum uni_sig {
 };
 
 struct uniapi_error {
-	u_int32_t	reason;
-	u_int32_t	state;
+	uint32_t	reason;
+	uint32_t	state;
 };
 /* keep this in sync with atmapi.h:enum atmerr */
 
@@ -275,8 +281,8 @@ struct uniapi_reset_indication {
 
 };
 struct uniapi_reset_error_indication {
-	u_int32_t		source;		/* 0 - start, 1 - response */
-	u_int32_t		reason;
+	uint32_t		source;		/* 0 - start, 1 - response */
+	uint32_t		reason;
 };
 
 #define UNIAPI_DEF_RESET_ERRORS(MACRO)				\

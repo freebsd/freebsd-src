@@ -26,7 +26,7 @@
  *
  * Author: Hartmut Brandt <harti@freebsd.org>
  *
- * $Begemot: libunimsg/atm/msg/uni_config.h,v 1.3 2003/09/19 11:58:15 hbb Exp $
+ * $Begemot: libunimsg/netnatm/msg/uni_config.h,v 1.3 2003/09/19 11:58:15 hbb Exp $
  */
 #ifndef _uni_uni_config_h_
 #define _uni_uni_config_h_
