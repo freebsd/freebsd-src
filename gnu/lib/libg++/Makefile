@@ -1,5 +1,5 @@
 #
-# $Id$
+# $Id: Makefile,v 1.3 1994/09/09 22:22:36 wollman Exp $
 #
 
 SRCS=	vasprintf.c strerror.c strsignal.c
@@ -13,6 +13,6 @@ CXXFLAGS+=	-fexternal-templates -I${.CURDIR}/include
 
 beforeinstall:
 	@-if [ ! -d ${DESTDIR}/usr/include/g++ ]; then  mkdir ${DESTDIR}/usr/include/g++;  chown ${BINOWN}.${BINGRP} ${DESTDIR}/usr/include/g++;  chmod 755 ${DESTDIR}/usr/include/g++;  fi
-	@(cd ${.CURDIR}/include ; for j in *.h; do  cmp -s $$j ${DESTDIR}/usr/include/g++/$$j ||  install -c -o ${BINOWN} -g ${BINGRP} -m 444 $$j  ${DESTDIR}/usr/include/$$j;  done)
+	@(cd ${.CURDIR}/include ; for j in *.h; do  cmp -s $$j ${DESTDIR}/usr/include/g++/$$j ||  install -c -o ${BINOWN} -g ${BINGRP} -m 444 $$j  ${DESTDIR}/usr/include/g++/$$j;  done)
 
 .include <bsd.lib.mk>
