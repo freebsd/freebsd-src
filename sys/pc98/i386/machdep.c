@@ -359,7 +359,7 @@ again:
 #endif
 
 	if (nbuf == 0) {
-		nbuf = 30;
+		nbuf = 50;
 		if (physmem > 1024)
 			nbuf += min((physmem - 1024) / 8, 2048);
 		if (physmem > 16384)
