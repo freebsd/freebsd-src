@@ -697,10 +697,12 @@ process_entry(host, src)
 			break;
 		case E_BAD_PATHNAME:
 			msg = "bad pathname (need leading '/')";
+			break;
 		case E_BAD_VALUE:
 			msg = "bad value";
+			break;
 		default:
-			msg = "unkown error";
+			msg = "unknown error";
 			break;
 		}						/* switch */
 		report(LOG_ERR, "in entry named \"%s\", symbol \"%s\": %s",
