@@ -594,4 +594,4 @@
 421	UNIMPL	BSD	getcontext
 422	UNIMPL	BSD	setcontext
 423	UNIMPL	BSD	swapcontext
-424	MNOPROTO BSD	swapoff
+424	UNIMPL	BSD	swapoff
