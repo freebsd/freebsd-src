@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002 Networks Associates Technology, Inc.
+ * Copyright (c) 2002, 2004 Networks Associates Technology, Inc.
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project by Network Associates
@@ -705,6 +705,47 @@ bsde_set_rule(int rulenum, struct mac_bsdextended_rule *rule, size_t buflen,
 		    rulenum, strerror(errno));
 		return (-1);
 	}
+
+	return (0);
+}
+
+int
+bsde_add_rule(int *rulenum, struct mac_bsdextended_rule *rule, size_t buflen,
+    char *errstr)
+{
+	char charstr[BUFSIZ];
+	int name[10];
+	size_t len, size;
+	int error, rule_slots;
+
+	len = 10;
+	error = bsde_get_mib(MIB ".rules", name, &len);
+	if (error) {
+		len = snprintf(errstr, buflen, "%s: %s", MIB ".rules",
+		    strerror(errno));
+		return (-1);
+	}
+
+	rule_slots = bsde_get_rule_slots(BUFSIZ, charstr);
+	if (rule_slots == -1) {
+		len = snprintf(errstr, buflen, "unable to get rule slots: %s",
+		    strerror(errno));
+		return (-1);
+	}
+
+	name[len] = rule_slots;
+	len++;
+
+	size = sizeof(*rule);
+	error = sysctl(name, len, NULL, NULL, rule, size);
+	if (error) {
+		len = snprintf(errstr, buflen, "%s.%d: %s", MIB ".rules",
+		    rule_slots, strerror(errno));
+		return (-1);
+	}
+
+	if (rulenum != NULL)
+		rule_slots;
 
 	return (0);
 }
