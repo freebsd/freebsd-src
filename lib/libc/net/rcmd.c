@@ -100,7 +100,7 @@ rcmd_af(ahost, rport, locuser, remuser, cmd, fd2p, af)
 	int s, aport, lport, timo, error;
 	char c;
 	int refused;
-	char num[8];
+	char num[8], *ohost;
 
 	pid = getpid();
 
@@ -119,8 +119,8 @@ rcmd_af(ahost, rport, locuser, remuser, cmd, fd2p, af)
 				strerror(errno));
 		return (-1);
 	}
-	if (res->ai_canonname)
-		*ahost = res->ai_canonname;
+	ohost = *ahost;
+	*ahost = strdup(res->ai_canonname ? res->ai_canonname : *ahost);
 	ai = res;
 	refused = 0;
 	oldmask = sigblock(sigmask(SIGURG));
@@ -139,6 +139,8 @@ rcmd_af(ahost, rport, locuser, remuser, cmd, fd2p, af)
 				    strerror(errno));
 			freeaddrinfo(res);
 			sigsetmask(oldmask);
+			free(*ahost);
+			*ahost = ohost;
 			return (-1);
 		}
 		_fcntl(s, F_SETOWN, pid);
@@ -185,6 +187,8 @@ rcmd_af(ahost, rport, locuser, remuser, cmd, fd2p, af)
 		(void)fprintf(stderr, "%s: %s\n", *ahost, strerror(errno));
 		freeaddrinfo(res);
 		sigsetmask(oldmask);
+		free(*ahost);
+		*ahost = ohost;
 		return (-1);
 	}
 	lport--;
@@ -292,6 +296,8 @@ bad:
 	(void)_close(s);
 	sigsetmask(oldmask);
 	freeaddrinfo(res);
+	free(*ahost);
+	*ahost = ohost;
 	return (-1);
 }
 
