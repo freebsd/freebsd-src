@@ -29,21 +29,25 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $Id: rndcontrol.c,v 1.4 1996/06/25 18:56:19 markm Exp $
- *
  */
 
-#include <stdlib.h>
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
+
+#include <err.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <fcntl.h>
 #include <sys/ioctl.h>
-#include <sys/errno.h>
 #include <machine/random.h>
 
-void usage(char *myname)
+static void
+usage()
 {
-	fprintf(stderr, "usage: %s [ [-q ] [-s N | -c M]... ]\n", myname);
+	fprintf(stderr, "usage: rndcontrol [-q] [-s irq_no] [-c irq_no]\n");
+	exit(1);
 }
 
 int
@@ -56,7 +60,7 @@ main(int argc, char *argv[])
 
 	fd = open("/dev/random", O_RDONLY, 0);
 	if (fd == -1) {
-		perror("/dev/random");
+		warn("/dev/random");
 		return (1);
 	}
 	else {
@@ -71,7 +75,7 @@ main(int argc, char *argv[])
 					printf("%s: setting irq %d\n", argv[0], irq);
 				result = ioctl(fd, MEM_SETIRQ, (char *)&irq);
 				if (result == -1) {
-					perror(argv[0]);
+					warn("%s", argv[0]);
 					return (1);
 				}
 				break;
@@ -81,23 +85,22 @@ main(int argc, char *argv[])
 					printf("%s: clearing irq %d\n", argv[0], irq);
 				result = ioctl(fd, MEM_CLEARIRQ, (char *)&irq);
 				if (result == -1) {
-					perror(argv[0]);
+					warn("%s", argv[0]);
 					return (1);
 				}
 				break;
 			case '?':
 			default:
-				usage(argv[0]);
-				return (1);
+				usage();
 			}
 		}
 		if (verbose) {
 			result = ioctl(fd, MEM_RETURNIRQ, (char *)&irq);
 			if (result == -1) {
-				perror(argv[0]);
+				warn("%s", argv[0]);
 				return (1);
 			}
-			printf("%s: Interrupts in use:", argv[0]);
+			printf("%s: interrupts in use:", argv[0]);
 			for (i = 0; i < 16; i++)
 				if (irq & (1 << i))
 					printf(" %d", i);
@@ -107,7 +110,7 @@ main(int argc, char *argv[])
 		argv += optind;
 
 		if (argc) {
-			fprintf(stderr, "%s: Unknown argument(s):", argv[-optind]);
+			fprintf(stderr, "%s: unknown argument(s): ", argv[-optind]);
 			for (i = 0; i < argc; i++)
 				fprintf(stderr, " %s", argv[i]);
 			fprintf(stderr, "\n");
