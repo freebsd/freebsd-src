@@ -195,8 +195,10 @@ _http_fillbuf(struct cookie *c)
     c->chunksize -= c->b_len;
     
     if (c->chunksize == 0) {
-	char endl[2];
-	read(c->fd, endl, 2);
+	char endl;
+	if (read(c->fd, &endl, 1) == -1 ||
+	    read(c->fd, &endl, 1) == -1)
+	    return -1;
     }
     
     c->b_pos = 0;
