@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_nqlease.c	8.9 (Berkeley) 5/20/95
- * $Id: nfs_nqlease.c,v 1.26 1997/07/16 09:06:27 dfr Exp $
+ * $Id: nfs_nqlease.c,v 1.27 1997/08/16 19:15:55 wollman Exp $
  */
 
 
@@ -57,6 +57,7 @@
 #include <sys/kernel.h>
 #include <sys/proc.h>
 #include <sys/systm.h>
+#include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>

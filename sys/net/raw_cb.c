@@ -31,12 +31,13 @@
  * SUCH DAMAGE.
  *
  *	@(#)raw_cb.c	8.1 (Berkeley) 6/10/93
- *	$Id: raw_cb.c,v 1.11 1997/04/14 18:23:22 phk Exp $
+ *	$Id: raw_cb.c,v 1.12 1997/04/27 20:00:58 wollman Exp $
  */
 
 #include <sys/param.h>
 #include <sys/queue.h>
 #include <sys/systm.h>
+#include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>

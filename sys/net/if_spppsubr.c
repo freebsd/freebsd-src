@@ -17,7 +17,7 @@
  *
  * From: Version 1.9, Wed Oct  4 18:58:15 MSK 1995
  *
- * $Id: if_spppsubr.c,v 1.24 1997/08/10 14:28:16 joerg Exp $
+ * $Id: if_spppsubr.c,v 1.25 1997/08/12 05:22:54 kjc Exp $
  */
 
 #include <sys/param.h>
@@ -26,6 +26,7 @@
 #include <sys/sockio.h>
 #include <sys/socket.h>
 #include <sys/syslog.h>
+#include <sys/malloc.h>
 #include <sys/mbuf.h>
 
 #include <net/if.h>

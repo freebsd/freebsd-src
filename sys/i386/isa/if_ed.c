@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ed.c,v 1.116 1997/03/24 11:32:39 bde Exp $
+ *	$Id: if_ed.c,v 1.117 1997/07/20 14:09:57 bde Exp $
  */
 
 /*
@@ -44,6 +44,7 @@
 #include <sys/systm.h>
 #include <sys/conf.h>
 #include <sys/sockio.h>
+#include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/syslog.h>
