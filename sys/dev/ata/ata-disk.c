@@ -189,6 +189,7 @@ ad_attach(struct ata_device *atadev)
 	atadev->setmode(atadev, ATA_PIO_MAX);
 
     /* use tagged queueing if allowed and supported */
+#if 0 /* disable tags for now */
     if (ata_tags && ad_tagsupported(adp)) {
 	adp->num_tags = atadev->param->queuelen;
 	adp->flags |= AD_F_TAG_ENABLED;
@@ -200,7 +201,7 @@ ad_attach(struct ata_device *atadev)
 			0, 0, ATA_C_F_DIS_SRVIRQ, ATA_WAIT_INTR))
 	    ata_prtdev(atadev, "disabling service interrupt failed\n");
     }
-
+#endif
     ATA_UNLOCK_CH(atadev->channel);
 
     devstat_add_entry(&adp->stats, "ad", adp->lun, DEV_BSIZE,
