@@ -755,10 +755,10 @@ pinger(void)
 	icp->icmp_type = ICMP_ECHO;
 	icp->icmp_code = 0;
 	icp->icmp_cksum = 0;
-	icp->icmp_seq = ntransmitted;
+	icp->icmp_seq = htons(ntransmitted);
 	icp->icmp_id = ident;			/* ID */
 
-	CLR(icp->icmp_seq % mx_dup_ck);
+	CLR(ntransmitted % mx_dup_ck);
 
 	if (timing)
 		(void)gettimeofday((struct timeval *)&outpack[8],
@@ -812,7 +812,7 @@ pr_pack(buf, cc, from, tv)
 	struct ip *ip;
 	struct timeval *tp;
 	double triptime;
-	int hlen, dupflag;
+	int hlen, dupflag, seq;
 
 	/* Check the IP header */
 	ip = (struct ip *)buf;
@@ -852,12 +852,14 @@ pr_pack(buf, cc, from, tv)
 				tmax = triptime;
 		}
 
-		if (TST(icp->icmp_seq % mx_dup_ck)) {
+		seq = ntohs(icp->icmp_seq);
+
+		if (TST(seq % mx_dup_ck)) {
 			++nrepeats;
 			--nreceived;
 			dupflag = 1;
 		} else {
-			SET(icp->icmp_seq % mx_dup_ck);
+			SET(seq % mx_dup_ck);
 			dupflag = 0;
 		}
 
@@ -869,7 +871,7 @@ pr_pack(buf, cc, from, tv)
 		else {
 			(void)printf("%d bytes from %s: icmp_seq=%u", cc,
 			   inet_ntoa(*(struct in_addr *)&from->sin_addr.s_addr),
-			   icp->icmp_seq);
+			   seq);
 			(void)printf(" ttl=%d", ip->ip_ttl);
 			if (timing)
 				(void)printf(" time=%.3f ms", triptime);
