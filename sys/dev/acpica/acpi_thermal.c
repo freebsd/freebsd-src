@@ -48,6 +48,7 @@ MODULE_NAME("THERMAL")
 struct acpi_tz_softc {
     device_t	tz_dev;
     ACPI_HANDLE	tz_handle;
+    int		tz_tmp;
 };
 
 static int	acpi_tz_probe(device_t dev);
@@ -90,7 +91,7 @@ static int
 acpi_tz_attach(device_t dev)
 {
     struct acpi_tz_softc	*sc;
-    ACPI_STATUS			status;
+    struct acpi_softc		*acpi_sc;
 
     FUNCTION_TRACE(__func__);
 
@@ -100,6 +101,14 @@ acpi_tz_attach(device_t dev)
 
     AcpiInstallNotifyHandler(sc->tz_handle, ACPI_DEVICE_NOTIFY, 
 			     acpi_tz_notify_handler, dev);
+
+    if (device_get_unit(dev) == 0) {
+	acpi_sc = acpi_device_get_parent_softc(dev);
+	SYSCTL_ADD_UINT(&acpi_sc->acpi_sysctl_ctx,
+	    SYSCTL_CHILDREN(acpi_sc->acpi_sysctl_tree),
+	    OID_AUTO, "temperature", CTLFLAG_RD,
+	    &sc->tz_tmp, 0, "");
+    }
 
     /*
      * Don't bother evaluating/printing the temperature at this point;
@@ -124,7 +133,10 @@ acpi_tz_check_tripping_point(void *context)
 	return_VOID;
     }
     
-    device_printf(dev,"%d.%dC\n", TZ_KELVTOC(tp));
+    sc->tz_tmp = (tp - TZ_ZEROC) / 10;
+    if (bootverbose) {
+	device_printf(dev, "%dC\n", sc->tz_tmp);
+    }
     return_VOID;
 }
 
@@ -144,9 +156,4 @@ acpi_tz_notify_handler(ACPI_HANDLE h, UINT32 notify, void *context)
     }
     return_VOID;
 }
-
-
-
-
-
 
