@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 16, 2001
+.Dd July 15, 2004
 .Dt FDC 4
 .Os
 .Sh NAME
@@ -60,7 +60,8 @@ can be handled.
 Floppy disk controllers can connect up to four drives each.
 The
 .Nm
-driver can currently handle up to two drives per controller.
+driver can currently handle up to two drives per controller (or four
+drives on ACPI).
 Upon
 driver initialization, an attempt is made to find out the type of the
 floppy controller in use.
@@ -153,15 +154,18 @@ Same as type 5, available for compatibility with some BIOSes
 .El
 .Pp
 On IA32 architectures, the drive type can be specified as 0 for the
-first two drives.
+drives.
 In that case, the CMOS configuration memory will be
 consulted to obtain the value for that drive.
+The ACPI probe automatically determines these values via the _FDE and
+_FDI methods, but this can be overriden by specifying a drive type hint.
 .Pp
 Normally, each configured drive will be probed at initialization
 time, using a short seek sequence.
 This is intended to find out about
 drives that have been configured but are actually missing or
 otherwise not responding.
+(The ACPI probe method does not perform this seek.)
 In some environments (like laptops with
 detachable drives), it might be desirable to bypass this drive probe,
 and pretend a drive to be there so the driver autoconfiguration will
@@ -317,7 +321,7 @@ Returns the floppy disk drive type.
 Third argument is a pointer to
 .Vt "enum fd_drivetype" .
 This type is the same as being used in the per-drive configuration
-flags, or in the CMOS configuration data on IA32 systems.
+flags, or in the CMOS configuration data or ACPI namespace on IA32 systems.
 .El
 .Sh FILES
 .Bl -tag -width ".Pa /dev/fd*" -compact
