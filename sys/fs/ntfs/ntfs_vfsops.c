@@ -974,7 +974,6 @@ ntfs_vgetex(
 		}
 	}
 
-	VREF(ip->i_devvp);
 	*vpp = vp;
 	return (0);
 	
