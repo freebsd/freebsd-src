@@ -104,15 +104,11 @@ g_simdisk_start(struct bio *bp)
 		return;
 	}
 	if (bp->bio_cmd == BIO_GETATTR) {
-		if (g_handleattr_int(bp, "GEOM::sectorsize", sc->sectorsize))
-			return;
 		if (g_handleattr_int(bp, "GEOM::fwsectors", sc->fwsectors))
 			return;
 		if (g_handleattr_int(bp, "GEOM::fwheads", sc->fwheads))
 			return;
 		if (g_handleattr_int(bp, "GEOM::fwcylinders", sc->fwcylinders))
-			return;
-		if (g_handleattr_off_t(bp, "GEOM::mediasize", sc->mediasize))
 			return;
 	}
 	g_io_deliver(bp, EOPNOTSUPP);
@@ -139,7 +135,8 @@ g_simdisk_create(char *name, struct simdisk_softc *sc)
 	gp->access = g_std_access;
 
 	pp = g_new_providerf(gp, "%s", name);
-	pp->mediasize=sc->mediasize;
+	pp->mediasize = sc->mediasize;
+	pp->sectorsize = sc->sectorsize;
 	g_error_provider(pp, 0);
 	unit++;
 	g_topology_unlock();
