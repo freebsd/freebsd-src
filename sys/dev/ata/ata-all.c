@@ -1043,7 +1043,7 @@ ata_command(struct ata_device *atadev, u_int8_t command,
 	ATA_OUTB(atadev->channel->r_io, ATA_COUNT, count & 0xff);
 	ATA_OUTB(atadev->channel->r_io, ATA_SECTOR, (lba>>24) & 0xff);
 	ATA_OUTB(atadev->channel->r_io, ATA_SECTOR, lba & 0xff);
-	ATA_OUTB(atadev->channel->r_io, ATA_CYL_LSB, (lba<<32) & 0xff);
+	ATA_OUTB(atadev->channel->r_io, ATA_CYL_LSB, (lba>>32) & 0xff);
 	ATA_OUTB(atadev->channel->r_io, ATA_CYL_LSB, (lba>>8) & 0xff);
 	ATA_OUTB(atadev->channel->r_io, ATA_CYL_MSB, (lba>>40) & 0xff);
 	ATA_OUTB(atadev->channel->r_io, ATA_CYL_MSB, (lba>>16) & 0xff);
