@@ -2019,6 +2019,8 @@ static int dc_attach(dev)
 
 	if (sc->dc_ldata == NULL) {
 		printf("dc%d: no memory for list buffers!\n", unit);
+		if (sc->dc_pnic_rx_buf != NULL)
+			free(sc->dc_pnic_rx_buf, M_DEVBUF);
 		bus_teardown_intr(dev, sc->dc_irq, sc->dc_intrhand);
 		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->dc_irq);
 		bus_release_resource(dev, DC_RES, DC_RID, sc->dc_res);
@@ -2079,6 +2081,10 @@ static int dc_attach(dev)
 
 	if (error) {
 		printf("dc%d: MII without any PHY!\n", sc->dc_unit);
+		contigfree(sc->dc_ldata, sizeof(struct dc_list_data),
+		    M_DEVBUF);
+		if (sc->dc_pnic_rx_buf != NULL)
+			free(sc->dc_pnic_rx_buf, M_DEVBUF);
 		bus_teardown_intr(dev, sc->dc_irq, sc->dc_intrhand);
 		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->dc_irq);
 		bus_release_resource(dev, DC_RES, DC_RID, sc->dc_res);

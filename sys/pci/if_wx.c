@@ -454,7 +454,9 @@ wx_dring_setup(wx_softc_t *sc)
 	if (((intptr_t)sc->tdescriptors) & 0xfff) {
 		contigfree(sc->rdescriptors,
 		    sizeof (wxrd_t) * WX_MAX_RDESC, M_DEVBUF);
+		contigfree(sc->tdescriptors, len, M_DEVBUF);
 		sc->rdescriptors = NULL;
+		sc->tdescriptors = NULL;
 		printf("%s: xmt descriptors not 4KB aligned\n", sc->wx_name);
 		return (-1);
 	}

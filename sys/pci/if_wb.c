@@ -956,10 +956,11 @@ static int wb_attach(dev)
 	 */
 	if (mii_phy_probe(dev, &sc->wb_miibus,
 	    wb_ifmedia_upd, wb_ifmedia_sts)) {
+		contigfree(sc->wb_ldata_ptr, sizeof(struct wb_list_data) + 8,
+		    M_DEVBUF);
 		bus_teardown_intr(dev, sc->wb_irq, sc->wb_intrhand);
 		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->wb_irq);
 		bus_release_resource(dev, WB_RES, WB_RID, sc->wb_res);
-		free(sc->wb_ldata_ptr, M_DEVBUF);
 		error = ENXIO;
 		goto fail;
 	}
@@ -1000,7 +1001,8 @@ static int wb_detach(dev)
 	bus_release_resource(dev, SYS_RES_IRQ, 0, sc->wb_irq);
 	bus_release_resource(dev, WB_RES, WB_RID, sc->wb_res);
 
-	free(sc->wb_ldata_ptr, M_DEVBUF);
+	contigfree(sc->wb_ldata_ptr, sizeof(struct wb_list_data) + 8,
+	    M_DEVBUF);
 
 	splx(s);
 

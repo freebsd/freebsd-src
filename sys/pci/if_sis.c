@@ -1235,6 +1235,8 @@ static int sis_attach(dev)
 	if (mii_phy_probe(dev, &sc->sis_miibus,
 	    sis_ifmedia_upd, sis_ifmedia_sts)) {
 		printf("sis%d: MII without any PHY!\n", sc->sis_unit);
+		contigfree(sc->sis_ldata, sizeof(struct sis_list_data),
+		    M_DEVBUF);
 		bus_teardown_intr(dev, sc->sis_irq, sc->sis_intrhand);
 		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->sis_irq);
 		bus_release_resource(dev, SIS_RES, SIS_RID, sc->sis_res);

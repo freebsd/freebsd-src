@@ -639,6 +639,8 @@ static int pcn_attach(dev)
 	if (mii_phy_probe(dev, &sc->pcn_miibus,
 	    pcn_ifmedia_upd, pcn_ifmedia_sts)) {
 		printf("pcn%d: MII without any PHY!\n", sc->pcn_unit);
+		contigfree(sc->pcn_ldata, sizeof(struct pcn_list_data),
+		    M_DEVBUF);
 		bus_teardown_intr(dev, sc->pcn_irq, sc->pcn_intrhand);
 		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->pcn_irq);
 		bus_release_resource(dev, PCN_RES, PCN_RID, sc->pcn_res);

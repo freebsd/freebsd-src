@@ -952,6 +952,8 @@ static int rl_attach(dev)
 	if (mii_phy_probe(dev, &sc->rl_miibus,
 	    rl_ifmedia_upd, rl_ifmedia_sts)) {
 		printf("rl%d: MII without any phy!\n", sc->rl_unit);
+		contigfree(sc->rl_cdata.rl_rx_buf, RL_RXBUFLEN + 1518,
+		    M_DEVBUF);
 		bus_teardown_intr(dev, sc->rl_irq, sc->rl_intrhand);
 		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->rl_irq);
 		bus_release_resource(dev, RL_RES, RL_RID, sc->rl_res);
@@ -1006,7 +1008,7 @@ static int rl_detach(dev)
 	bus_release_resource(dev, SYS_RES_IRQ, 0, sc->rl_irq);
 	bus_release_resource(dev, RL_RES, RL_RID, sc->rl_res);
 
-	contigfree(sc->rl_cdata.rl_rx_buf, RL_RXBUFLEN + 32, M_DEVBUF);
+	contigfree(sc->rl_cdata.rl_rx_buf, RL_RXBUFLEN + 1518, M_DEVBUF);
 
 	splx(s);
 

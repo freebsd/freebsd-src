@@ -1212,6 +1212,8 @@ static int sk_attach_xmac(dev)
 	if (mii_phy_probe(dev, &sc_if->sk_miibus,
 	    sk_ifmedia_upd, sk_ifmedia_sts)) {
 		printf("skc%d: no PHY found!\n", sc_if->sk_unit);
+		contigfree(sc_if->sk_cdata.sk_jumbo_buf, SK_JMEM,
+		    M_DEVBUF);
 		contigfree(sc_if->sk_rdata,
 		    sizeof(struct sk_ring_data), M_DEVBUF);
 		return(ENXIO);
