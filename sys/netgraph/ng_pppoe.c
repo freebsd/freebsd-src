@@ -667,7 +667,7 @@ AAA
 			if (msg->header.arglen - sizeof(*ourmsg) <
 			    ourmsg->data_len) {
 				printf("pppoe: init data has bad length,"
-				    " %d should be %d\n", ourmsg->data_len,
+				    " %d should be %zd\n", ourmsg->data_len,
 				    msg->header.arglen - sizeof (*ourmsg));
 				LEAVE(EMSGSIZE);
 			}
