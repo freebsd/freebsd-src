@@ -150,6 +150,39 @@ vnode_create_vobject(struct vnode *vp, size_t isize, struct thread *td)
 	return (0);
 }
 
+void
+vnode_destroy_vobject(struct vnode *vp)
+{
+	struct vm_object *obj;
+
+	obj = vp->v_object;
+	if (obj == NULL)
+		return;
+	vp->v_object = NULL;
+	VM_OBJECT_LOCK(obj);
+	if (obj->ref_count == 0) {
+		/*
+		 * vclean() may be called twice. The first time
+		 * removes the primary reference to the object,
+		 * the second time goes one further and is a
+		 * special-case to terminate the object.
+		 *
+		 * don't double-terminate the object
+		 */
+		if ((obj->flags & OBJ_DEAD) == 0)
+			vm_object_terminate(obj);
+		else
+			VM_OBJECT_UNLOCK(obj);
+	} else {
+		/*
+		 * Woe to the process that tries to page now :-).
+		 */
+		vm_pager_deallocate(obj);
+		VM_OBJECT_UNLOCK(obj);
+	}
+}
+
+
 /*
  * Allocate (or lookup) pager for a vnode.
  * Handle is a vnode pointer.

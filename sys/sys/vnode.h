@@ -687,6 +687,7 @@ void	vbusy(struct vnode *vp);
 void 	v_addpollinfo(struct vnode *vp);
 
 int vnode_create_vobject(struct vnode *vp, size_t size, struct thread *td);
+void vnode_destroy_vobject(struct vnode *vp);
 
 extern struct vop_vector fifo_specops;
 extern struct vop_vector dead_vnodeops;
