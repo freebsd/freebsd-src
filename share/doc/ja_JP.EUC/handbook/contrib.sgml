@@ -1,6 +1,6 @@
-<!-- $Id: contrib.sgml,v 1.33 1997/02/22 13:00:42 peter Exp $ -->
+<!-- $Id: contrib.sgml,v 1.34 1997/02/25 04:54:22 hanai Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.217 -->
+<!-- Original revision: 1.218 -->
 
 <!-- Please try to keep the file 'avail' (from CVSROOT) 
      in sync with the list of FreeBSD Developers -->
@@ -296,6 +296,7 @@
 	  <item>Jim Lowe &lt;james@cs.uwm.edu&gt;
 	  <item>Jim Wilson &lt;wilson@moria.cygnus.com&gt;
           <item>Johann Tonsing &lt;jtonsing@mikom.csir.co.za&gt;
+          <item>Joel Sutton &lt;suttonj@interconnect.com.au&gt;
 	  <item>John Capo &lt;jc@irbs.com&gt;
           <item>John Perry &lt;perry@vishnu.alias.net&gt;
 	  <item>Juergen Lock &lt;nox@jelal.hb.north.de&gt;
