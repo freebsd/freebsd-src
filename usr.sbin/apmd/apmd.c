@@ -476,7 +476,7 @@ proc_signal(int fd)
 			break;
 		case SIGTERM:
 			syslog(LOG_NOTICE, "going down on signal %d", sig);
-			rc = 1;
+			rc = -1;
 			goto out;
 		case SIGCHLD:
 			wait_child();
