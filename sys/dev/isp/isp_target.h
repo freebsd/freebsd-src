@@ -186,6 +186,8 @@ typedef struct {
  * Value for the na_event field
  */
 #define NA_RST_CLRD	0x80	/* Clear an async event notification */
+#define	NA_OK		0x01	/* Notify Acknowledge Succeeded */
+#define	NA_INVALID	0x06	/* Invalid Notify Acknowledge */
 
 #define	NA2_RSVDLEN	21
 typedef struct {
@@ -623,7 +625,7 @@ int isp_target_notify __P((struct ispsoftc *, void *, u_int16_t *));
  */
 #define	DFLT_CMD_CNT	(RESULT_QUEUE_LEN >> 1)
 #define	DFLT_INOTIFY	(4)
-int isp_lun_cmd __P((struct ispsoftc *isp, int, int, int, int, u_int32_t));
+int isp_lun_cmd __P((struct ispsoftc *, int, int, int, int, u_int32_t));
 
 /*
  * General request queue 'put' routine for target mode entries.
@@ -635,14 +637,14 @@ int isp_target_put_entry __P((struct ispsoftc *isp, void *));
  * used for replenishing f/w resource counts.
  */
 int
-isp_target_put_atio __P((struct ispsoftc *isp, int, int, int, int, int));
+isp_target_put_atio __P((struct ispsoftc *, int, int, int, int, int));
 
 /*
  * General routine to send a final CTIO for a command- used mostly for
  * local responses.
  */
 int
-isp_endcmd __P((struct ispsoftc *isp, void *, u_int32_t, u_int32_t));
+isp_endcmd __P((struct ispsoftc *, void *, u_int32_t, u_int32_t));
 #define	ECMD_SVALID	0x100
 
 /*
