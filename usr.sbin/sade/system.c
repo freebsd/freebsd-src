@@ -217,6 +217,28 @@ systemExecute(char *command)
     return status;
 }
 
+/* suspend/resume libdialog/curses screen */
+static    WINDOW *oldW;
+
+void
+systemSuspendDialog(void)
+{
+
+    oldW  = savescr();
+    dialog_clear();
+    dialog_update();
+    end_dialog();
+    DialogActive = FALSE;
+}
+
+void
+systemResumeDialog(void)
+{
+
+    DialogActive = TRUE;
+    restorescr(oldW);
+}
+
 /* Display a help file in a filebox */
 int
 systemDisplayHelp(char *file)
@@ -355,7 +377,9 @@ vsystem(char *fmt, ...)
 void
 systemCreateHoloshell(void)
 {
-    if (OnVTY && RunningAsInit) {
+    int waitstatus;
+
+    if ((FixItMode || OnVTY) && RunningAsInit) {
 
 	if (ehs_pid != 0) {
 	    int pstat;
@@ -377,6 +401,8 @@ systemCreateHoloshell(void)
 	    (void) waitpid(ehs_pid, &pstat, WNOHANG);
 	}
 
+	if (!OnVTY)
+	    systemSuspendDialog();	/* must be before the fork() */
 	if ((ehs_pid = fork()) == 0) {
 	    int i, fd;
 	    struct termios foo;
@@ -385,7 +411,10 @@ systemCreateHoloshell(void)
 	    ioctl(0, TIOCNOTTY, NULL);
 	    for (i = getdtablesize(); i >= 0; --i)
 		close(i);
-	    fd = open("/dev/ttyv3", O_RDWR);
+	    if (OnVTY)
+	        fd = open("/dev/ttyv3", O_RDWR);
+	    else
+	        fd = open("/dev/console", O_RDWR);
 	    ioctl(0, TIOCSCTTY, &fd);
 	    dup2(0, 1);
 	    dup2(0, 2);
@@ -400,16 +429,26 @@ systemCreateHoloshell(void)
 	    }
 	    else
 		msgDebug("Doctor: I'm unable to get the terminal attributes!\n");
+	    if (!OnVTY){
+	        printf("Type ``exit'' in this fixit shell to resume sysinstall.\n\n");
+		fflush(stdout);
+	    }
 	    execlp("sh", "-sh", 0);
 	    msgDebug("Was unable to execute sh for Holographic shell!\n");
 	    exit(1);
 	}
 	else {
-	    WINDOW *w = savescr();
+	    if (OnVTY) {
+	        WINDOW *w = savescr();
 
-	    msgNotify("Starting an emergency holographic shell on VTY4");
-	    sleep(2);
-	    restorescr(w);
+	        msgNotify("Starting an emergency holographic shell on VTY4");
+	        sleep(2);
+	        restorescr(w);
+	    }
+	    if (!OnVTY){
+	        (void)waitpid(ehs_pid, &waitstatus, 0);
+	        systemResumeDialog();
+	    }
 	}
     }
 }
