@@ -123,7 +123,7 @@ int
 acct(td, uap)
 	struct thread *td;
 	struct acct_args /* {
-		syscallarg(char *) path;
+		char *path;
 	} */ *uap;
 {
 	struct nameidata nd;
