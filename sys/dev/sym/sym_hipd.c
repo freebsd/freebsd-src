@@ -57,7 +57,9 @@
 
 /* $FreeBSD$ */
 
-#define SYM_DRIVER_NAME	"sym-1.5.2-20000430"
+#define SYM_DRIVER_NAME	"sym-1.5.3-20000506"
+
+/* #define SYM_DEBUG_GENERIC_SUPPORT */
 
 #include <pci.h>
 #include <stddef.h>	/* For offsetof */
@@ -1710,9 +1712,10 @@ struct sym_hcb {
 	u_char	maxwide;	/* Maximum transfer width	*/
 	u_char	minsync;	/* Min sync period factor (ST)	*/
 	u_char	maxsync;	/* Max sync period factor (ST)	*/
+	u_char	maxoffs;	/* Max scsi offset        (ST)	*/
 	u_char	minsync_dt;	/* Min sync period factor (DT)	*/
 	u_char	maxsync_dt;	/* Max sync period factor (DT)	*/
-	u_char	maxoffs;	/* Max scsi offset		*/
+	u_char	maxoffs_dt;	/* Max scsi offset        (DT)	*/
 	u_char	multiplier;	/* Clock multiplier (1,2,4)	*/
 	u_char	clock_divn;	/* Number of clock divisors	*/
 	u_long	clock_khz;	/* SCSI clock frequency in KHz	*/
@@ -1958,6 +1961,19 @@ sym_fw2_patch(hcb_p np)
 	if (!(np->features & FE_C10)) {
 		scripta0->resel_scntl4[0] = cpu_to_scr(SCR_NO_OP);
 		scripta0->resel_scntl4[1] = cpu_to_scr(0);
+	}
+
+	/*
+	 *  Remove a couple of work-arounds specific to C1010 if 
+	 *  they are not desirable. See `sym_fw2.h' for more details.
+	 */
+	if ((np->features & (FE_C10|FE_PCI66)) != (FE_C10|FE_PCI66)) {
+		scripta0->datao_phase[0] = cpu_to_scr(SCR_NO_OP);
+		scripta0->datao_phase[1] = cpu_to_scr(0);
+	}
+	if ((np->features & (FE_C10|FE_PCI66)) != FE_C10) {
+		scripta0->sel_done[0] = cpu_to_scr(SCR_NO_OP);
+		scripta0->sel_done[1] = cpu_to_scr(0);
 	}
 
 	/*
@@ -2657,6 +2673,7 @@ static int sym_prepare_setting(hcb_p np, struct sym_nvram *nvram)
 		if (np->clock_khz == 160000) {
 			np->minsync_dt = 9;
 			np->maxsync_dt = 50;
+			np->maxoffs_dt = 62;
 		}
 	}
 	
@@ -2830,6 +2847,14 @@ static int sym_prepare_setting(hcb_p np, struct sym_nvram *nvram)
 
 		sym_nvram_setup_target (np, i, nvram);
 
+		/*
+		 *  For now, guess PPR support from the period.
+		 */
+		if (tp->tinfo.user.period <= 9) {
+			tp->tinfo.user.options |= PPR_OPT_DT;
+			tp->tinfo.user.offset   = np->maxoffs_dt;
+		}
+
 		if (!tp->usrtags)
 			tp->usrflags &= ~SYM_TAGS_ENABLED;
 	}
@@ -2898,17 +2923,6 @@ static int sym_prepare_nego(hcb_p np, ccb_p cp, int nego, u_char *msgptr)
 	tcb_p tp = &np->target[cp->target];
 	int msglen = 0;
 
-#if 1
-	/*
-	 *  For now, only use PPR with DT option if period factor = 9.
-	 */
-	if (tp->tinfo.goal.period == 9) {
-		tp->tinfo.goal.width = BUS_16_BIT;
-		tp->tinfo.goal.options |= PPR_OPT_DT;
-	}
-	else
-		tp->tinfo.goal.options &= ~PPR_OPT_DT;
-#endif
 	/*
 	 *  Early C1010 chips need a work-around for DT 
 	 *  data transfer to work.
@@ -5788,7 +5802,11 @@ static void sym_ppr_nego(hcb_p np, tcb_p tp, ccb_p cp)
 	if (dt != (np->msgin[7] & PPR_OPT_MASK)) chg = 1;
 
 	if (ofs) {
-		if (ofs > np->maxoffs)
+		if (dt) {
+			if (ofs > np->maxoffs_dt)
+				{chg = 1; ofs = np->maxoffs_dt;}
+		}
+		else if (ofs > np->maxoffs)
 			{chg = 1; ofs = np->maxoffs;}
 		if (req) {
 			if (ofs > tp->tinfo.user.offset)
@@ -7561,11 +7579,7 @@ static void sym_action1(struct cam_sim *sim, union ccb *ccb)
 	if (tp->tinfo.current.width   != tp->tinfo.goal.width  ||
 	    tp->tinfo.current.period  != tp->tinfo.goal.period ||
 	    tp->tinfo.current.offset  != tp->tinfo.goal.offset ||
-#if 0 /* For now only renegotiate, based on width, period and offset */
 	    tp->tinfo.current.options != tp->tinfo.goal.options) {
-#else
-	    0) {
-#endif
 		if (!tp->nego_cp && lp)
 			msglen += sym_prepare_nego(np, cp, 0, msgptr + msglen);
 	}
@@ -8356,25 +8370,45 @@ static void sym_update_trans(hcb_p np, tcb_p tp, struct sym_trans *tip,
 		tip->period = cts->sync_period;
 
 	/*
-	 *  Scale against out limits.
+	 *  Scale against driver configuration limits.
 	 */
-	if (tip->width  > SYM_SETUP_MAX_WIDE)	tip->width  =SYM_SETUP_MAX_WIDE;
-	if (tip->width  > np->maxwide)		tip->width  = np->maxwide;
-	if (tip->offset > SYM_SETUP_MAX_OFFS)	tip->offset =SYM_SETUP_MAX_OFFS;
-	if (tip->offset > np->maxoffs)		tip->offset = np->maxoffs;
-	if (tip->period) {
-		if (tip->period < SYM_SETUP_MIN_SYNC)
-			tip->period = SYM_SETUP_MIN_SYNC;
-		if (np->features & FE_ULTRA3) {
-			if (tip->period < np->minsync_dt)
-				tip->period = np->minsync_dt;
-		}
-		else {
-			if (tip->period < np->minsync)
-				tip->period = np->minsync;
-		}
+	if (tip->width  > SYM_SETUP_MAX_WIDE) tip->width  = SYM_SETUP_MAX_WIDE;
+	if (tip->offset > SYM_SETUP_MAX_OFFS) tip->offset = SYM_SETUP_MAX_OFFS;
+	if (tip->period < SYM_SETUP_MIN_SYNC) tip->period = SYM_SETUP_MIN_SYNC;
+
+	/*
+	 *  Scale against actual controller BUS width.
+	 */
+	if (tip->width > np->maxwide)
+		tip->width  = np->maxwide;
+
+	/*
+	 *  For now, only assume DT if period <= 9, BUS 16 and offset != 0.
+	 */
+	tip->options = 0;
+	if ((np->features & (FE_C10|FE_ULTRA3)) == (FE_C10|FE_ULTRA3) &&
+	    tip->period <= 9 && tip->width == BUS_16_BIT && tip->offset) {
+		tip->options |= PPR_OPT_DT;
+	}
+
+	/*
+	 *  Scale period factor and offset against controller limits.
+	 */
+	if (tip->options & PPR_OPT_DT) {
+		if (tip->period < np->minsync_dt)
+			tip->period = np->minsync_dt;
+		if (tip->period > np->maxsync_dt)
+			tip->period = np->maxsync_dt;
+		if (tip->offset > np->maxoffs_dt)
+			tip->offset = np->maxoffs_dt;
+	}
+	else {
+		if (tip->period < np->minsync)
+			tip->period = np->minsync;
 		if (tip->period > np->maxsync)
 			tip->period = np->maxsync;
+		if (tip->offset > np->maxoffs)
+			tip->offset = np->maxoffs;
 	}
 }
 
@@ -8500,17 +8534,17 @@ static struct sym_pci_chip sym_pci_dev_table[] = {
  FE_WIDE|FE_ULTRA2|FE_QUAD|FE_CACHE_SET|FE_BOF|FE_DFS|FE_LDSTR|FE_PFEN|
  FE_RAM|FE_RAM8K|FE_64BIT|FE_IO256|FE_NOPM|FE_LEDC|FE_LCKFRQ}
  ,
- {PCI_ID_LSI53C1010, 0x00, "1010", 6, 62, 7, 8,
+ {PCI_ID_LSI53C1010, 0x00, "1010-33", 6, 31, 7, 8,
  FE_WIDE|FE_ULTRA3|FE_QUAD|FE_CACHE_SET|FE_BOF|FE_DFBC|FE_LDSTR|FE_PFEN|
  FE_RAM|FE_RAM8K|FE_64BIT|FE_IO256|FE_NOPM|FE_LEDC|FE_PCI66|FE_CRC|
  FE_C10}
  ,
- {PCI_ID_LSI53C1010, 0xff, "1010", 6, 62, 7, 8,
+ {PCI_ID_LSI53C1010, 0xff, "1010-33", 6, 31, 7, 8,
  FE_WIDE|FE_ULTRA3|FE_QUAD|FE_CACHE_SET|FE_BOF|FE_DFBC|FE_LDSTR|FE_PFEN|
  FE_RAM|FE_RAM8K|FE_64BIT|FE_IO256|FE_NOPM|FE_LEDC|FE_CRC|
  FE_C10|FE_U3EN}
  ,
- {PCI_ID_LSI53C1010_2, 0xff, "1010", 6, 62, 7, 8,
+ {PCI_ID_LSI53C1010_2, 0xff, "1010-66", 6, 31, 7, 8,
  FE_WIDE|FE_ULTRA3|FE_QUAD|FE_CACHE_SET|FE_BOF|FE_DFBC|FE_LDSTR|FE_PFEN|
  FE_RAM|FE_RAM8K|FE_64BIT|FE_IO256|FE_NOPM|FE_LEDC|FE_PCI66|FE_CRC|
  FE_C10|FE_U3EN}
