@@ -4,7 +4,7 @@
 
      $Id: dev.sgml,v 1.3 2002/09/29 21:03:53 eagle Exp $
      $FreeBSD$
-     Original revision: 1.112
+     Original revision: 1.114
 -->
 <!--
 
@@ -1078,7 +1078,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,pc98,alpha">Cartes Ethernet National
+    <para arch="i386,pc98">Cartes Ethernet National
     Semiconductor DS8390, incluant les clones Novell NE2000
     (gestionnaire &man.ed.4;)
       <note arch="pc98">
@@ -3197,6 +3197,43 @@
       </itemizedlist>
     </para>
  </sect2>
+
+
+  <sect2 id="firewire">
+    <title>P&eacute;riph&eacute;riques IEEE 1394 (Firewire)</title>
+
+    <para arch="i386,pc98,powerpc">Controleurs hotes (gestionnaire
+    &man.fwohci.4;)
+      <itemizedlist>
+        <listitem>
+	  <para>puces Ricoh R5C552</para>
+        </listitem>
+        <listitem>
+	  <para>puce Sony CX3022</para>
+        </listitem>
+        <listitem>
+	  <para>puces TI TSB12LV22, LV23, 26 et TSB43AA22</para>
+        </listitem>
+        <listitem>
+	  <para>puce uPD72861</para>
+        </listitem>
+        <listitem>
+	  <para>puce VIA VT6306</para>
+        </listitem>
+      </itemizedlist>
+      </para>
+
+    <para arch="i386,pc98,powerpc">Stockage (gestionnaire &man.sbp.4;)
+      <itemizedlist>
+	<listitem>
+          <para>Apple iPod</para>
+	</listitem>
+	<listitem>
+          <para>Apple Macintosh G4 (target mode)</para>
+	</listitem>
+      </itemizedlist>
+      </para>
+  </sect2>
 
  <sect2>
  <title>Acc&eacute;l&eacute;rateurs de chiffrement</title>
