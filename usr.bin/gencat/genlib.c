@@ -31,6 +31,8 @@ up-to-date.  Many thanks.
 				Cambridge, MA 02139  USA
 				nazgul@alfalfa.com
 
+$FreeBSD$
+
 ******************************************************************/
 
 /* Edit History
@@ -265,6 +267,7 @@ char quote;
 			*tptr += (*cptr - '0');
 			++cptr;
 		    }
+		    ++tptr;
 		} else {
 		    warning(cptr, "unrecognized escape sequence");
 		}
