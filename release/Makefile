@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.154 1995/05/11 07:11:24 jkh Exp $
+#	$Id: Makefile,v 1.155 1995/05/11 07:18:11 jkh Exp $
 #
 # How to roll a release:
 #
@@ -62,12 +62,15 @@ release:
 .if !defined(CHROOTDIR) || !defined(BUILDNAME)
 	@echo "To make a release you must set CHROOTDIR and BUILDNAME" && false
 .endif
-	-mkdir ${CHROOTDIR}
+.if exists(${CHROOTDIR})
 	chflags -R noschg ${CHROOTDIR}/.
 	rm -rf ${CHROOTDIR}/*
+.else
+	mkdir ${CHROOTDIR}
+.endif
 	cd ${.CURDIR}/../etc ; ${MAKE} distrib-dirs DESTDIR=${CHROOTDIR}
 	cd ${.CURDIR}/../etc ; ${MAKE} distribution DESTDIR=${CHROOTDIR}
-	cd ${.CURDIR}/.. ; ${MAKE} -k install DESTDIR=${CHROOTDIR}
+	cd ${.CURDIR}/.. ; ${MAKE} install DESTDIR=${CHROOTDIR}
 	echo "#!/bin/sh"			> ${CHROOTDIR}/mk
 	echo "set -ex"				>> ${CHROOTDIR}/mk
 	echo "cd /usr/src"			>> ${CHROOTDIR}/mk
