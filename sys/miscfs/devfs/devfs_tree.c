@@ -2,7 +2,7 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_tree.c,v 1.25 1996/06/12 05:08:29 gpalmer Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_tree.c,v 1.26 1996/07/24 21:22:36 phk Exp $
  */
 
 #include "param.h"
@@ -783,6 +783,7 @@ DBPRINT(("	vntodn "));
 	return(0);
 }
 
+#ifdef DEVFS_ROOT
 static dn_p
 findbdev(dev_t dev, dn_p dir)
 {
@@ -818,6 +819,7 @@ bdevvp(dev_t dev, struct vnode **vpp)
 		return (0);
 	return (devfs_dntovn(dnp, vpp));
 }
+#endif /* DEVFS_ROOT */
 
 /***************************************************************\
 * given a dev_node, find the appropriate vnode if one is already*
