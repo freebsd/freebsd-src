@@ -32,6 +32,16 @@
 
 /*
  * This module provides MI support for per-cpu data.
+ *
+ * Each architecture determines the mapping of logical CPU IDs to physical
+ * CPUs.  The requirements of this mapping are as follows:
+ *  - Logical CPU IDs must reside in the range 0 ... MAXCPU - 1.
+ *  - The mapping is not required to be dense.  That is, there may be
+ *    gaps in the mappings.
+ *  - The platform sets the value of MAXCPU in <machine/param.h>.
+ *  - It is suggested, but not required, that in the non-SMP case, the
+ *    platform define MAXCPU to be 1 and define the logical ID of the
+ *    sole CPU as 0.
  */
 
 #include <sys/param.h>
