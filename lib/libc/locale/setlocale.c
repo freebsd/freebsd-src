@@ -33,12 +33,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: setlocale.c,v 1.8.2.7 1997/09/14 13:09:02 jkh Exp $
+ * $Id: setlocale.c,v 1.23 1998/04/29 22:39:56 ache Exp $
  */
 
 #ifdef LIBC_RCS
 static const char rcsid[] =
-	"$Id: setlocale.c,v 1.8.2.7 1997/09/14 13:09:02 jkh Exp $";
+	"$Id: setlocale.c,v 1.23 1998/04/29 22:39:56 ache Exp $";
 #endif
 
 #if defined(LIBC_SCCS) && !defined(lint)
@@ -66,12 +66,14 @@ static char *categories[_LC_LAST] = {
     "LC_MONETARY",
     "LC_NUMERIC",
     "LC_TIME",
+    "LC_MESSAGES",
 };
 
 /*
  * Current locales for each category
  */
 static char current_categories[_LC_LAST][ENCODING_LEN + 1] = {
+    "C",
     "C",
     "C",
     "C",
@@ -200,15 +202,10 @@ currentlocale()
 
 	for (i = 2; i < _LC_LAST; ++i)
 		if (strcmp(current_categories[1], current_categories[i])) {
-			(void) strcpy(current_locale_string, current_categories[1]);
-			(void) strcat(current_locale_string, "/");
-			(void) strcat(current_locale_string, current_categories[2]);
-			(void) strcat(current_locale_string, "/");
-			(void) strcat(current_locale_string, current_categories[3]);
-			(void) strcat(current_locale_string, "/");
-			(void) strcat(current_locale_string, current_categories[4]);
-			(void) strcat(current_locale_string, "/");
-			(void) strcat(current_locale_string, current_categories[5]);
+			for (i = 2; i < _LC_LAST; ++i) {
+				(void) strcat(current_locale_string, "/");
+				(void) strcat(current_locale_string, current_categories[i]);
+			}
 			break;
 		}
 	return (current_locale_string);
@@ -278,7 +275,9 @@ loadlocale(category)
 		return (ret);
 	}
 
-	if (category == LC_MONETARY || category == LC_NUMERIC) {
+	if (category == LC_MONETARY ||
+	    category == LC_MESSAGES ||
+	    category == LC_NUMERIC) {
 		ret = stub_load_locale(new) ? NULL : new;
 		if (!ret)
 			(void)stub_load_locale(old);
