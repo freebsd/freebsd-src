@@ -199,8 +199,7 @@ collect(fp, smtpmode, requeueflag, hdrp, e)
 					c = getc(fp);
 					if (errno != EINTR)
 						break;
-					if (c != EOF)
-						clearerr(fp);
+					clearerr(fp);
 				}
 				CollectProgress = TRUE;
 				if (TrafficLogFile != NULL && !headeronly)
