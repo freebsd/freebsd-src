@@ -196,7 +196,7 @@ bad:
 
 usage()
 {
-	(void) fprintf(stderr, "Usage: window [-e escape-char] [-c command] [-t] [-f] [-d]\n");
+	(void) fprintf(stderr, "usage: window [-e escape-char] [-c command] [-t] [-f] [-d]\n");
 	exit(1);
 	return 0;			/* for lint */
 }
