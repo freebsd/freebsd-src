@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_pt.c,v 1.9 1999/05/30 16:51:05 phk Exp $
+ *      $Id: scsi_pt.c,v 1.10 1999/05/31 11:24:07 phk Exp $
  */
 
 #include <sys/param.h>
@@ -159,7 +159,7 @@ ptopen(dev_t dev, int flags, int fmt, struct proc *p)
 	}
 
 	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE,
-	    ("ptopen: dev=0x%x (unit %d)\n", dev, unit));
+	    ("ptopen: dev=%s (unit %d)\n", devtoname(dev), unit));
 
 	if ((error = cam_periph_lock(periph, PRIBIO|PCATCH)) != 0) {
 		splx(s);
