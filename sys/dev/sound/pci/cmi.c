@@ -441,7 +441,7 @@ cmichan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
 	}
 	sndbuf_resize(ch->buffer, CMI_INTR_PER_BUFFER, blocksize);
 
-	return sndbuf_getsize(ch->buffer);
+	return blocksize;
 }
 
 static int
