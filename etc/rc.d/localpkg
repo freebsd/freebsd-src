@@ -23,7 +23,7 @@ script_is_rcd()
 	_s="$1"
 
 	[ -z "$_s" ] && return 1
-	match=`grep -c -m1 '^# PROVIDE:' "$_s" 2> /dev/null`
+	match=`grep -I -c -m1 '^# PROVIDE:' "$_s" 2> /dev/null`
 	[ "$match" = "1" ] && return 0
 	return 1
 }
