@@ -1164,7 +1164,6 @@ ffs_vget(mp, ino, flags, vpp)
 	int flags;
 	struct vnode **vpp;
 {
-	struct thread *td = curthread; 		/* XXX */
 	struct fs *fs;
 	struct inode *ip;
 	struct ufsmount *ump;
@@ -1174,10 +1173,8 @@ ffs_vget(mp, ino, flags, vpp)
 	int error;
 
 	error = vfs_hash_get(mp, ino, flags, curthread, vpp);
-	if (error)
+	if (error || *vpp != NULL)
 		return (error);
-	if (*vpp != NULL)
-		return (0);
 
 	/*
 	 * We do not lock vnode creation as it is believed to be too
@@ -1227,28 +1224,11 @@ ffs_vget(mp, ino, flags, vpp)
 			ip->i_dquot[i] = NODQUOT;
 	}
 #endif
-	/*
-	 * Exclusively lock the vnode before adding to hash. Note, that we
-	 * must not release nor downgrade the lock (despite flags argument
-	 * says) till it is fully initialized.
-	 */
-	lockmgr(vp->v_vnlock, LK_EXCLUSIVE, (struct mtx *)0, td);
 
-	/*
-	 * Atomicaly (in terms of vfs_hash operations) check the hash for
-	 * duplicate of vnode being created and add it to the hash. If a
-	 * duplicate vnode was found, it will be vget()ed from hash for us.
-	 */
-	if ((error = vfs_hash_insert(vp, ino, flags, curthread, vpp)) != 0) {
+	error = vfs_hash_insert(vp, ino, flags, curthread, vpp);
+	if (error || *vpp != NULL) {
 		vput(vp);
-		*vpp = NULL;
 		return (error);
-	}
-
-	/* We lost the race, then throw away our vnode and return existing */
-	if (*vpp != NULL) {
-		vput(vp);
-		return (0);
 	}
 
 	/* Read in the disk contents for the inode, copy into the inode. */
