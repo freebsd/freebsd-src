@@ -502,6 +502,7 @@ Usage(const char *msg)
 {
 	if (msg)
 		warnx("%s", msg);
-	errx(EX_USAGE, "usage: ngctl [-d] [-f file] [-n name] [command ...]");
+	fprintf(stderr,
+		"usage: ngctl [-d] [-f file] [-n name] [command ...]\n");
+	exit(EX_USAGE);
 }
-
