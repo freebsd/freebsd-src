@@ -288,7 +288,11 @@
         ..
     ..
     share
+        aclocal
+        ..
         doc
+            ja
+            ..
         ..
         examples
         ..
