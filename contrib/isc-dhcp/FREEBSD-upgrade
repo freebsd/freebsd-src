@@ -47,6 +47,9 @@ Local Changes:
 	  r1.6 - document -D option.
           - remove dhcpd from SEE ALSO section.
 	client/dhclient.c
+	  r1.29 - interface polling
+	  r1.28 - interface polling
+	  r1.27 - interface polling
 	  r1.26 - interface polling
 	  r1.25 - correct release lease option
 	  r1.19 - connect std{in,out,err}.
@@ -59,9 +62,12 @@ Local Changes:
 	  r1.2 - note that hostname is only set if not already set.
 	       - Remove dhcpd from SEE ALSO section.
 	common/dispatch.c
-	  r1.2 - polling mode
+	  r1.2 - interface polling
 	includes/dhcpd.h
-	  r1.2 - polling mode
+	  r1.5 - interface polling
+	  r1.4 - interface polling
+	  r1.3 - interface polling
+	  r1.2 - interface polling
     (see CVS logs for complete details)
 
 murray@FreeBSD.org
