@@ -54,7 +54,7 @@ __FBSDID("$FreeBSD$");
 #define TTY_PREFIX	"/dev/"
 
 PAM_EXTERN int 
-pam_sm_authenticate(pam_handle_t * pamh, int flags __unused, int argc, const char **argv)
+pam_sm_authenticate(pam_handle_t *pamh __unused, int flags __unused, int argc, const char **argv)
 {
 	struct options options;
 
@@ -67,7 +67,7 @@ pam_sm_authenticate(pam_handle_t * pamh, int flags __unused, int argc, const cha
 
 PAM_EXTERN
 int 
-pam_sm_setcred(pam_handle_t * pamh __unused, int flags __unused, int argc, const char **argv)
+pam_sm_setcred(pam_handle_t *pamh __unused, int flags __unused, int argc, const char **argv)
 {
 	struct options options;
 
