@@ -136,7 +136,6 @@ alltraps_with_regs_pushed:
 	movl	%eax,%fs
 	FAKE_MCOUNT(TF_EIP(%esp))
 calltrap:
-	FAKE_MCOUNT(btrap)		/* init "from" btrap -> calltrap */
 	call	trap
 
 	/*
@@ -235,7 +234,7 @@ ENTRY(fork_trampoline)
 	.globl	doreti
 	.type	doreti,@function
 doreti:
-	FAKE_MCOUNT(bintr)		/* init "from" bintr -> doreti */
+	FAKE_MCOUNT($bintr)		/* init "from" bintr -> doreti */
 doreti_next:
 	/*
 	 * Check if ASTs can be handled now.  PSL_VM must be checked first
