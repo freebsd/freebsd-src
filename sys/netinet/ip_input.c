@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_input.c,v 1.37 1996/02/24 00:17:34 phk Exp $
+ * $Id: ip_input.c,v 1.38 1996/02/24 13:38:28 phk Exp $
  */
 
 #include <sys/param.h>
@@ -299,7 +299,7 @@ ip_input(struct mbuf *m)
 
 		if (IA_SIN(ia)->sin_addr.s_addr == ip->ip_dst.s_addr)
 			goto ours;
-		if (ia->ia_ifp->if_flags & IFF_BROADCAST) {
+		if (ia->ia_ifp && ia->ia_ifp->if_flags & IFF_BROADCAST) {
 #if 0
 			u_long t;
 #endif
