@@ -195,7 +195,6 @@ device		ppi		# Parallel port interface device
 device		de		# DEC/Intel DC21x4x (``Tulip'')
 device		em		# Intel PRO/1000 adapter Gigabit Ethernet Card
 device		ixgb		# Intel PRO/10GbE Ethernet Card
-device		nve		# nVidia nForce MCP on-board Ethernet Networking
 device		txp		# 3Com 3cR990 (``Typhoon'')
 device		vx		# 3Com 3c590, 3c595 (``Vortex'')
 
@@ -208,7 +207,8 @@ device		dc		# DEC/Intel 21143 and various workalikes
 device		fxp		# Intel EtherExpress PRO/100B (82557, 82558)
 device		lge		# Level 1 LXT1001 gigabit Ethernet
 device		nge		# NatSemi DP83820 gigabit Ethernet
-device		pcn		# AMD Am79C97x PCI 10/100 (precedence over 'lnc')
+device		nve		# nVidia nForce MCP on-board Ethernet Networking
+device		pcn		# AMD Am79C97x PCI 10/100(precedence over 'lnc')
 device		re		# RealTek 8139C+/8169/8169S/8110S
 device		rl		# RealTek 8129/8139
 device		sf		# Adaptec AIC-6915 (``Starfire'')
