@@ -3,6 +3,7 @@
  */
 
 #define CHARMAP_SYMBOL_LEN 64
+#define BUFSIZE 80
 
 extern int line_no;
 
