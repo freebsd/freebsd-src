@@ -156,6 +156,11 @@ static struct sk_type sk_devs[] = {
 		DEVICEID_3COM_3C940,
 		"3Com 3C940 Gigabit Ethernet"
 	},
+	{
+		VENDORID_LINKSYS,
+		DEVICEID_LINKSYS_EG1032,
+		"Linksys EG1032 Gigabit Ethernet"
+	},
 	{ 0, 0, NULL }
 };
 
@@ -1519,6 +1524,7 @@ skc_attach(dev)
 		break;
 	case DEVICEID_SK_V2:
 	case DEVICEID_3COM_3C940:
+	case DEVICEID_LINKSYS_EG1032:
 		sc->sk_type = SK_YUKON;
 		break;
 	}
