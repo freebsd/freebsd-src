@@ -34,14 +34,15 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-
-#ifdef __FBSDID
-__FBSDID("$FreeBSD$");
+#if 0
+#ifndef lint
+static char sccsid[] = "@(#)error.c	5.3 (Berkeley) 6/1/90";
+#endif
 #endif
 
-#ifndef lint
-static char const sccsid[] = "@(#)error.c	5.3 (Berkeley) 6/1/90";
+#include <sys/cdefs.h>
+#ifdef __FBSDID
+__FBSDID("$FreeBSD$");
 #endif
 
 /* routines for printing error messages  */
