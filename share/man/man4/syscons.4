@@ -255,7 +255,10 @@ in the virtual terminal.
 It may be vastly costly for some video cards to draw the arrow-shaped
 cursor and you may want to try this option.
 However, the appearance of the alternative mouse cursor may not be
-very appealing.
+very appealing.  Note that if you use the
+.Em SC_NO_FONT_LOADING
+option then you must also use this option if you wish to be able to use
+the mouse.
 .It Em SC_DISABLE_DDBKEY
 This option disables the ``debug'' key (by default, it is 
 .Em Alt-Esc ,
@@ -336,7 +339,10 @@ terminals.
 The
 .Nm
 driver can load software font on some video cards.
-This option removes this feature.
+This option removes this feature.  Note that if you still wish to use
+the mouse with this option then you must also use the
+.Em SC_ALT_MOUSE_IMAGE
+option.
 .It Em SC_NO_HISTORY
 This option disables back-scrolling in virtual terminals.
 .\".It Em SC_NO_PALETTE_LOADING
