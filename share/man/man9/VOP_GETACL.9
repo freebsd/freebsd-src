@@ -67,8 +67,7 @@ directory ACL interfaces.  More information about ACL management in kernel
 may be found in
 .Xr acl 9 .
 .Sh LOCKS
-No locks are required to call this vnode method, and any locks held on
-entry will be held on exit.
+The vnode will be locked on entry and should remain locked on return.
 .Sh RETURN VALUES
 If the
 .Fa aclp
