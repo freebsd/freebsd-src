@@ -40,6 +40,7 @@ infrastructure in FreeBSD:
 	contrib/sendmail/
 	etc/Makefile
 	etc/defaults/make.conf (RELENG_4)
+	etc/defaults/periodic.conf
 	etc/defaults/rc.conf
 	etc/mail/Makefile
 	etc/mail/README
@@ -71,6 +72,7 @@ infrastructure in FreeBSD:
 	share/doc/smm/08.sendmailop/Makefile
 	share/examples/etc/make.conf (HEAD)
 	share/man/man5/make.conf.5
+	share/man/man5/periodic.conf.5
 	share/man/man5/rc.conf.5
 	share/man/man7/hier.7
 	share/man/man8/Makefile
