@@ -4,7 +4,7 @@
 # This is sysconfig - a file full of useful variables that you can set 
 # to change the default startup behavior of your system.
 #
-#	$Id: sysconfig,v 1.37 1996/02/11 04:07:27 jkh Exp $
+#	$Id: sysconfig,v 1.38 1996/02/24 22:13:06 wpaul Exp $
 
 ######################### Start Of Local Configuration Section ###########
 
@@ -224,7 +224,7 @@ linux=NO
 #  happen fairly irregularly, and never occur in very high-speed bursts.
 #
 # You'll have it right when you have a good supply of numbers from
-#  /dev/random, and no problems on your system, like slow downs,
+#  /dev/random, and no problems on your system, like slowdowns,
 #  Sluggish net/disk activity, perhaps even errors.
 
 rand_irqs="-s 1"
