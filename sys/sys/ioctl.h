@@ -36,11 +36,15 @@
  * SUCH DAMAGE.
  *
  *	@(#)ioctl.h	8.6 (Berkeley) 3/28/94
- * $Id$
+ * $Id: ioctl.h,v 1.6 1997/02/22 09:45:22 peter Exp $
  */
 
 #ifndef	_SYS_IOCTL_H_
 #define	_SYS_IOCTL_H_
+
+#ifdef KERNEL
+#warning "Don't #include ioctl.h in the kernel.  Include xxxio.h instead."
+#endif
 
 #include <sys/ttycom.h>
 
