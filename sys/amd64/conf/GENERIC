@@ -11,7 +11,7 @@
 # device lines is present in the ./LINT configuration file. If you are 
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-#	$Id: GENERIC,v 1.151 1999/02/18 01:13:40 wollman Exp $
+#	$Id: GENERIC,v 1.152 1999/02/20 21:12:24 obrien Exp $
 
 machine		"i386"
 cpu		"I386_CPU"
@@ -222,7 +222,6 @@ options         SYSVMSG
 #device        ums0
 #device        ukbd0
 #device        ulpt0
-#device        uhub0
 #device        ucom0
 #device        umodem0
 #device        hid0
