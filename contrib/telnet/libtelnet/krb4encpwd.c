@@ -29,6 +29,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ * 
+ * $FreeBSD$
  */
 
 #ifndef lint
@@ -75,7 +77,7 @@ static char sccsid[] = "@(#)krb4encpwd.c	8.3 (Berkeley) 5/30/95";
 #include <pwd.h>
 #include <stdio.h>
 
-#include <des.h>
+#include <openssl/des.h>
 #include <krb.h>
 #ifdef	__STDC__
 #include <stdlib.h>

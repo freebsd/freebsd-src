@@ -1,4 +1,5 @@
 /* public key routines */
+/* $FreeBSD$ */
 /* functions:
 	genkeys(char *public, char *secret)
 	common_key(char *secret, char *public, desData *deskey)
@@ -13,7 +14,7 @@
 #include <sys/time.h>
 #include <string.h>
 #include <fcntl.h>
-#include <des.h>
+#include <openssl/des.h>
 #include "mp.h"
 #include "pk.h"
 #if defined(SOLARIS2) || defined(LINUX)
