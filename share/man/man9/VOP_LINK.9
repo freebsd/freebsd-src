@@ -52,7 +52,8 @@ the vnode of the file to be linked
 pathname information about the file
 .El
 .Pp
-The pathname info must be released on exit.
+The pathname info should NOT be released on exit because it is done
+by the caller.
 The directory and file vnodes should NOT be released on exit.
 .Sh LOCKS
 The directory,
@@ -74,10 +75,8 @@ vop_link(struct vnode *dvp, struct vnode *vp, struct componentname *cnp)
 {
     int error = 0;
 
-    if (vp->v_mount != dvp->v_mount) {
-	error = EXDEV;
-	goto out2;
-    }
+    if (vp->v_mount != dvp->v_mount)
+	return (EXDEV);
     if (vp != dvp && (error = VOP_LOCK(vp))) {
 	goto out2;
     }
@@ -108,7 +107,6 @@ vop_link(struct vnode *dvp, struct vnode *vp, struct componentname *cnp)
 	...;
     }
 
-    free(cnp->cn_pnbuf, M_NAMEI);
 out1:
     if (vp != dvp)
 	VOP_UNLOCK(vp);
@@ -119,8 +117,16 @@ out2:
 .Ed
 .Sh ERRORS
 .Bl -tag -width Er
+.It Bq Er EMLINK
+the file has too many links
+.El
+.Bl -tag -width Er
 .It Bq Er EPERM
 the file is immutable
+.El
+.Bl -tag -width Er
+.It Bq Er EXDEV
+a hard link is not possible between different file systems
 .El
 .Sh SEE ALSO
 .Xr vnode 9 ,
