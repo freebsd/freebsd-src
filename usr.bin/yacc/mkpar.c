@@ -35,9 +35,10 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)mkpar.c	5.3 (Berkeley) 1/20/91";
+static char const sccsid[] = "@(#)mkpar.c	5.3 (Berkeley) 1/20/91";
 #endif /* not lint */
 
+#include <stdlib.h>
 #include "defs.h"
 
 action **parser;
@@ -53,12 +54,20 @@ short final_state;
 static int SRcount;
 static int RRcount;
 
-extern action *parse_actions();
-extern action *get_shifts();
-extern action *add_reductions();
-extern action *add_reduce();
+static action *add_reduce __P((action *, int, int));
+static action *add_reductions __P((int, action *));
+static void defreds __P((void));
+static void find_final_state __P((void));
+static void free_action_row __P((action *));
+static action *get_shifts __P((int));
+static action *parse_actions __P((int));
+static void remove_conflicts __P((void));
+static int sole_reduction __P((int));
+static void total_conflicts __P((void));
+static void unused_rules __P((void));
 
 
+void
 make_parser()
 {
     register int i;
@@ -75,7 +84,7 @@ make_parser()
 }
 
 
-action *
+static action *
 parse_actions(stateno)
 register int stateno;
 {
@@ -87,7 +96,7 @@ register int stateno;
 }
 
 
-action *
+static action *
 get_shifts(stateno)
 int stateno;
 {
@@ -122,7 +131,7 @@ int stateno;
     return (actions);
 }
 
-action *
+static action *
 add_reductions(stateno, actions)
 int stateno;
 register action *actions;
@@ -148,7 +157,7 @@ register action *actions;
 }
 
 
-action *
+static action *
 add_reduce(actions, ruleno, symbol)
 register action *actions;
 register int ruleno, symbol;
@@ -189,6 +198,7 @@ register int ruleno, symbol;
 }
 
 
+static void
 find_final_state()
 {
     register int goal, i;
@@ -206,6 +216,7 @@ find_final_state()
 }
 
 
+static void
 unused_rules()
 {
     register int i;
@@ -238,11 +249,12 @@ unused_rules()
 }
 
 
+static void
 remove_conflicts()
 {
     register int i;
     register int symbol;
-    register action *p, *pref;
+    register action *p, *pref = NULL;
 
     SRtotal = 0;
     RRtotal = 0;
@@ -313,6 +325,7 @@ remove_conflicts()
 }
 
 
+static void
 total_conflicts()
 {
     fprintf(stderr, "%s: ", myname);
@@ -333,7 +346,7 @@ total_conflicts()
 }
 
 
-int
+static int
 sole_reduction(stateno)
 int stateno;
 {
@@ -362,6 +375,7 @@ int stateno;
 }
 
 
+static void
 defreds()
 {
     register int i;
@@ -371,6 +385,7 @@ defreds()
 	defred[i] = sole_reduction(i);
 }
 
+static void
 free_action_row(p)
 register action *p;
 {
@@ -384,6 +399,7 @@ register action *p;
     }
 }
 
+void
 free_parser()
 {
   register int i;
