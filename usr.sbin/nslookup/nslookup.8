@@ -1,0 +1,387 @@
+.\"
+.\" ++Copyright++ 1985, 1989
+.\" -
+.\" Copyright (c) 1985, 1989
+.\"    The Regents of the University of California.  All rights reserved.
+.\" 
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\" 	This product includes software developed by the University of
+.\" 	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\" 
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\" -
+.\" Portions Copyright (c) 1993 by Digital Equipment Corporation.
+.\" 
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies, and that
+.\" the name of Digital Equipment Corporation not be used in advertising or
+.\" publicity pertaining to distribution of the document or software without
+.\" specific, written prior permission.
+.\" 
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND DIGITAL EQUIPMENT CORP. DISCLAIMS ALL
+.\" WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING ALL IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS.   IN NO EVENT SHALL DIGITAL EQUIPMENT
+.\" CORPORATION BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+.\" DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+.\" PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
+.\" ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
+.\" SOFTWARE.
+.\" -
+.\" --Copyright--
+.\"
+.\"	@(#)nslookup.8	5.3 (Berkeley) 6/24/90
+.\"
+.TH NSLOOKUP @SYS_OPS_EXT_U@ "June 24, 1990"
+.UC 6
+.SH NAME
+nslookup \- query Internet name servers interactively
+.SH SYNOPSIS
+.B nslookup
+[ 
+.I \-option ...
+]
+[
+.I host-to-find
+| \- [
+.I server
+]] 
+.SH DESCRIPTION
+.I Nslookup
+is a program to query Internet domain name servers. 
+Nslookup has two modes: interactive and non-interactive.
+Interactive mode allows the user to query name servers for
+information about various hosts and domains or to print a list of hosts 
+in a domain. 
+Non-interactive mode is used to print just the name and requested information
+for a host or domain.
+.sp 1
+.SH ARGUMENTS
+Interactive mode is entered in the following cases:
+.IP a) 4
+when no arguments are given (the default name server will be used),
+.IP b) 4
+when the first argument is a hyphen (\-) and the second argument
+is the host name or Internet address of a name server.
+.LP
+Non-interactive mode is used when the name or Internet address 
+of the host to be looked up
+is given as the first argument. The optional second argument specifies
+the host name or address of a name server.
+.LP
+The options listed under the ``set'' command below can be specified in
+the .nslookuprc file in the user's home directory if they are listed 
+one per line. Options can also be specified
+on the command line if they precede the arguments and are prefixed with
+a hyphen. For example, to change the default query type to host information,
+and the initial timeout to 10 seconds, type:
+.sp .5v
+	nslookup \-query=hinfo  \-timeout=10
+.sp .5v
+.SH "INTERACTIVE COMMANDS"
+Commands may be interrupted at any time by typing a control-C.
+To exit, type a control-D (EOF) or type exit.
+The command line length must be less than 256 characters.
+To treat a built-in command as a host name, 
+precede it with an escape character (\e). 
+\fBN.B.\fP an unrecognized command will be interpreted as a host name.
+.sp .5v
+.IP "\fIhost\fP [\fIserver\fP]"
+Look up information for \fIhost\fP using the current default server
+or using \fIserver\fP if specified.
+If \fIhost\fP is an Internet address and the query type is A or PTR, the 
+name of the host is returned.
+If \fIhost\fP is a name and does not have a trailing period, the default 
+domain name is appended to the name. (This behavior depends on the state of the
+\fBset\fP options \fBdomain\fP, \fBsrchlist\fP, 
+\fBdefname\fP, and \fBsearch\fP).
+To look up a host not in the current domain, append a period to 
+the name.
+.sp 1
+.IP "\fBserver\fP \fIdomain\fP"
+.ns
+.IP "\fBlserver\fP \fIdomain\fP"
+Change the default server to \fIdomain\fP. 
+\fBLserver\fP uses the initial server to look up 
+information about \fIdomain\fP while \fBserver\fP
+uses the current default server. 
+If an authoritative answer can't be found, the names of servers
+that might have the answer are returned.
+.sp 1
+.IP \fBroot\fP
+Changes the default server to the server for the root of the domain name space.
+Currently, the host ns.internic.net is used.
+(This command is a synonym for \fBlserver ns.internic.net.\fP)
+The name of the root server can be changed with the \fBset root\fP command.
+.sp 1
+.IP "\fBfinger\fP [\fIname\fP] [\fB>\fP \fIfilename\fP]"
+.ns
+.IP "\fBfinger\fP [\fIname\fP] [\fB>>\fP \fIfilename\fP]"
+Connects with the finger server on the current host. 
+The current host is defined when a previous lookup for a host
+was successful and returned address information (see the 
+\fBset querytype=A\fP command).
+\fIName\fP is optional. 
+\fB>\fP and \fB>>\fP can be used to redirect output in the
+usual manner.
+.sp 1
+.IP "\fBls\fR [\fIoption\fR] \fIdomain\fR [\fB>\fR \fIfilename\fR]"
+.ns
+.IP "\fBls\fR [\fIoption\fR] \fIdomain\fR [\fB>>\fR \fIfilename\fR]"
+List the information available for \fIdomain\fP, optionally creating
+or appending to \fIfilename\fP.
+The default output contains host names and their Internet addresses. 
+.I Option 
+can be one of the following:
+.RS
+.IP "\fB\-t \fIquerytype\fP" 4
+lists all records of the specified type (see \fIquerytype\fP below).
+.IP \fB\-a\fP 4
+lists aliases of hosts in the domain. 
+synonym for \fB\-t\ \ CNAME\fP.
+.IP \fB\-d\fP 4
+lists all records for the domain.
+synonym for \fB\-t\ \ ANY\fP.
+.IP \fB\-h\fP 4
+lists CPU and operating system information for the domain.
+synonym for \fB\-t\ \ HINFO\fP.
+.IP \fB\-s\fP 4
+lists well-known services of hosts in the domain.
+synonym for \fB\-t\ \ WKS\fP.
+.P
+When output is directed to a file, hash marks are printed for every
+50 records received from the server.
+.RE
+.sp 1
+.IP "\fBview\fP \fIfilename\fP"
+Sorts and lists the output of previous \fBls\fP command(s) with 
+\fImore\fP(@CMD_EXT@).
+.sp 1
+.ne 4
+.IP "\fBhelp\fP"
+.ns
+.IP "\fB?\fP"
+Prints a brief summary of commands.
+.sp 1
+.IP "\fBexit\fP"
+Exits the program.
+.sp 1
+.IP "\fBset\fP \fIkeyword\fP[=\fIvalue\fP]"
+This command is used to change state information that affects the lookups.
+Valid keywords are:
+.RS
+.IP "\fBall\fP"
+Prints the current values of the frequently-used options to \fBset\fP.
+Information about the  current default server and host is also printed.
+.IP "\fBclass=\fIvalue\fR"
+Change the query class to one of:
+.RS
+.IP IN 10
+the Internet class.
+.IP CHAOS 10
+the Chaos class.
+.IP HESIOD 10
+the MIT Athena Hesiod class.
+.IP ANY 10
+wildcard (any of the above).
+.P
+The class specifies the protocol group of the information.
+.br
+(Default = IN, abbreviation = cl)
+.RE
+.IP "\fB[no]debug\fP"
+Turn debugging mode on. A lot more information is printed about the
+packet sent to the server and the resulting answer.
+.br
+(Default = nodebug, abbreviation = [no]deb)
+.IP "\fB[no]d2\fP"
+Turn exhaustive debugging mode on.
+Essentially all fields of every packet are printed.
+.br
+(Default = nod2)
+.IP "\fBdomain=\fIname\fR"
+Change the default domain name to \fIname\fP. 
+The default domain name is appended to a lookup request depending on the
+state of the \fBdefname\fP and \fBsearch\fP options.
+The domain search list contains the parents of the default domain if it has 
+at least two components in its name. 
+For example, if the default domain
+is CC.Berkeley.EDU, the search list is CC.Berkeley.EDU and Berkeley.EDU.
+Use the \fBset srchlist\fP command to specify a different list.
+Use the \fBset all\fP command to display the list.
+.br
+(Default = value from hostname, /etc/resolv.conf or LOCALDOMAIN, 
+abbreviation = do)
+.IP "\fBsrchlist=\fIname1/name2/...\fR"
+Change the default domain name to \fIname1\fP and the domain search list
+to \fIname1\fP, \fIname2\fP, etc. A maximum of 6 names separated by slashes (/)
+can be specified.
+For example,
+.sp .5v
+    set\ srchlist=lcs.MIT.EDU/ai.MIT.EDU/MIT.EDU
+.sp .5v
+sets the domain to lcs.MIT.EDU and the search list to the three names.
+This command overrides the
+default domain name and search list of the \fBset domain\fP command.
+Use the \fBset all\fP command to display the list.
+.br
+(Default = value based on hostname, /etc/resolv.conf or LOCALDOMAIN, 
+abbreviation = srchl)
+.IP "\fB[no]defname\fP"
+If set, append the default domain name to a single-component lookup request 
+(i.e., one that does not contain a period).
+.br
+(Default = defname, abbreviation = [no]def)
+.IP "\fB[no]search\fP"
+If the lookup request contains at least one period but doesn't end 
+with a trailing period, 
+append the domain names in the domain search list
+to the request until an answer is received.
+.br
+(Default = search, abbreviation = [no]sea)
+.IP "\fBport=\fIvalue\fR"
+Change the default TCP/UDP name server port to \fIvalue\fP. 
+.br
+(Default = 53, abbreviation = po)
+.IP "\fBquerytype=\fIvalue\fR"
+.ns
+.IP "\fBtype=\fIvalue\fR"
+.ns
+Change the type of information query to one of:
+.RS
+.IP A 10
+the host's Internet address.
+.IP CNAME  10
+the canonical name for an alias. 
+.IP HINFO 10
+the host CPU and operating system type.
+.IP MINFO 10
+the mailbox or mail list information.
+.IP MX 10
+the mail exchanger.
+.IP NS 10
+the name server for the named zone.
+.IP PTR 10
+the host name if the query is an Internet address,
+otherwise the pointer to other information.
+.IP SOA 10
+the domain's ``start-of-authority'' information.
+.IP TXT 10
+the text information.
+.IP UINFO 10
+the user information.
+.IP WKS 10
+the supported well-known services.
+.P
+Other types (ANY, AXFR, MB, MD, MF, NULL) are described in the 
+RFC-1035 document.
+.br
+(Default = A, abbreviations = q, ty)
+.RE
+.IP "\fB[no]recurse\fP"
+Tell the name server to query other servers if it does not have the
+information.
+.br
+(Default = recurse, abbreviation = [no]rec)
+.IP \fBretry=\fInumber\fR
+Set the number of retries to \fInumber\fP. 
+When a reply to a request is not received within a certain 
+amount of time (changed with \fBset timeout\fP), 
+the timeout period is doubled and the request is resent. 
+The retry value controls how many times a request is resent before giving up.
+.br
+(Default = 4, abbreviation = ret)
+.IP \fBroot=\fIhost\fR
+Change the name of the root server to \fIhost\fP. This
+affects the \fBroot\fP command. 
+.br
+(Default = ns.internic.net., abbreviation = ro)
+.IP \fBtimeout=\fInumber\fR
+Change the initial timeout interval 
+for waiting for a reply 
+to \fInumber\fP seconds. 
+Each retry doubles the timeout period.
+.br
+(Default = 5 seconds, abbreviation = ti)
+.IP "\fB[no]vc\fP"
+Always use a virtual circuit when sending requests to the server.
+.br
+(Default = novc, abbreviation = [no]v)
+.IP "\fB[no]ignoretc\fP"
+Ignore packet truncation errors.
+.br
+(Default = noignoretc, abbreviation = [no]ig)
+.RE
+.SH DIAGNOSTICS
+If the lookup request was not successful, an error message is printed.
+Possible errors are:
+.IP "Timed out" 5
+The server did not respond to a request after a certain amount of
+time (changed with \fBset timeout=\fIvalue\fR) 
+and a certain number of retries (changed with \fBset retry=\fIvalue\fR).
+.IP "No response from server" 5
+No name server is running on the server machine.
+.IP "No records" 5
+The server does not have resource records of the current query type for the
+host, although the host name is valid.
+The query type is specified with the \fBset querytype\fP command.
+.IP "Non-existent domain" 5
+The host or domain name does not exist.
+.IP "Connection refused" 5
+.ns
+.IP "Network is unreachable" 5
+The connection to the name or finger server could not be made 
+at the current time.
+This error commonly occurs with \fBls\fP and \fBfinger\fP requests. 
+.IP "Server failure" 5
+The name server found an internal inconsistency in its database
+and could not return a valid answer.
+.IP "Refused" 5
+The name server refused to service the request.
+.IP "Format error" 5
+The name server found that the request packet was not in the proper format.
+It may indicate an error in \fInslookup\fP.
+.sp 1
+.SH FILES
+.ta \w'/usr/share/misc/nslookup.helpXXX'u
+/etc/resolv.conf	initial domain name and 
+	name server addresses.
+.br
+$HOME/.nslookuprc	user's initial options.
+.br
+/usr/share/misc/nslookup.help	summary of commands.
+.SH ENVIRONMENT
+.ta \w'HOSTALIASESXXXX'u
+HOSTALIASES	file containing host aliases.
+.br
+LOCALDOMAIN	overrides default domain.
+.SH SEE ALSO
+resolver(@LIB_NETWORK_EXT@), resolver(@FORMAT_EXT@), @INDOT@named(@SYS_OPS_EXT@), 
+.br
+RFC-1034  ``Domain Names \- Concepts and Facilities''
+.br
+RFC-1035  ``Domain Names \- Implementation and Specification''
+.SH AUTHOR
+Andrew Cherenson
