@@ -1,4 +1,4 @@
-<!-- $Id: hw.sgml,v 1.25 1996/06/01 21:28:06 jkh Exp $ -->
+<!-- $Id: hw.sgml,v 1.26 1996/06/07 15:56:38 alex Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!-- 
@@ -262,8 +262,8 @@ Slippery when wet.  Beware of dog.
 		parity checking.  Workaround for parity issue.
 		Wait for Triton-II.
 
-	      <tag>Triton-II:</tag> Unknown, not yet shipping.
-
+	      <tag>Triton-II:</tag> No known problems.  This chipset
+		appears to be a winner for everyone so far.
 	    </descrip>
 	  </p>
 
