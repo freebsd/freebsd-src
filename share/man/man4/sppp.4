@@ -1,5 +1,5 @@
 .\"
-.\" Copyright (c) 1997 Joerg Wunsch
+.\" Copyright (c) 1997, 2001 Joerg Wunsch
 .\"
 .\" All rights reserved.
 .\"
@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 19, 1997
+.Dd December 27, 2001
 .Dt SPPP 4
 .Os
 .Sh NAME
@@ -132,6 +132,10 @@ and RFC 1994 resp., are also implemented.  Their parameters are being
 controlled by the
 .Xr spppcontrol 8
 utility.
+.Pp
+VJ header compression is implemented, and enabled by default.  It can be
+disabled using
+.Xr spppcontrol 8 .
 .Sh DIAGNOSTICS
 .Bl -diag
 .It <ifname><ifnum>: <proto> illegal <event> in state <statename>
@@ -198,6 +202,8 @@ Currently, only the
 control protocol and
 .Xr ip 4
 network protocol is supported.
+More NCPs should be implemented, as well as other control protocols
+for authentication and link quality reporting.
 .Pp
 Negotiation loop avoidance is not fully implemented.  If the negotiation
 doesn't converge, this can cause an endless loop.
@@ -209,10 +215,5 @@ through
 .Pp
 .Em Passive
 mode has not been tested extensively.
-.Pp
-More NCPs should be implemented, as well as other control protocols
-for authentication and link quality reporting.
-.Pp
-IPCP should support VJ header compression.
 .Pp
 Link-level compression protocols should be supported.
