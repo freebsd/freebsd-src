@@ -956,10 +956,20 @@ sendfile(pp, type, file, format)
 	struct stat stb;
 	FILE *fp;
 	char buf[BUFSIZ];
-	int sizerr, resp, closedpr;
+	int closedpr, resp, sizerr, statrc;
 
-	if (lstat(file, &stb) < 0 || (f = open(file, O_RDONLY)) < 0)
+	statrc = lstat(file, &stb);
+	if (statrc < 0) {
+		syslog(LOG_ERR, "%s: error from lstat(%s): %m",
+		    pp->printer, file);
 		return(ERROR);
+	}
+	f = open(file, O_RDONLY);
+	if (f < 0) {
+		syslog(LOG_ERR, "%s: error from open(%s,O_RDONLY): %m",
+		    pp->printer, file);
+		return(ERROR);
+	}
 	/*
 	 * Check to see if data file is a symbolic link. If so, it should
 	 * still point to the same file or someone is trying to print something
@@ -977,10 +987,11 @@ sendfile(pp, type, file, format)
 	if (type == '\3') {
 		if (pp->filters[LPF_INPUT]) {
 			/*
-			 * We're sending something with an ifilter, we have to
-			 * run the ifilter and store the output as a
-			 * temporary file (tfile)... the protocol requires us
-			 * to send the file size
+			 * We're sending something with an ifilter.  We have to
+			 * run the ifilter and store the output as a temporary
+			 * spool file (tfile...), because the protocol requires
+			 * us to send the file size before we start sending any
+			 * of the data.
 			 */
 			char *av[15];
 			int n;
@@ -1054,8 +1065,12 @@ sendfile(pp, type, file, format)
 				unlink(tfile);
 				return(FILTERERR);
 			}
-			if (fstat(tfd, &stb) < 0)	/* the size of tfile */
+			statrc = fstat(tfd, &stb);   /* to find size of tfile */
+			if (statrc < 0)	{
+				syslog(LOG_ERR, "%s: error processing 'if', fstat(%s): %m",
+				    pp->printer, tfile);
 				return(ERROR);
+			}
 			f = tfd;
 			lseek(f,0,SEEK_SET);
 		} else if (ofilter) {
@@ -1083,7 +1098,10 @@ sendfile(pp, type, file, format)
 			while ((i = wait(NULL)) > 0 && i != ofilter)
 				;
 			ofilter = 0;
-			if (fstat(tfd, &stb) < 0) {	/* the size of tfile */
+			statrc = fstat(tfd, &stb);   /* to find size of tfile */
+			if (statrc < 0)	{
+				syslog(LOG_ERR, "%s: error processing 'of', fstat(%s): %m",
+				    pp->printer, tfile);
 				openpr(pp);
 				return(ERROR);
 			}
