@@ -425,7 +425,7 @@ eth_transmit(d,t,s,p)
 #ifdef INCLUDE_3COM
         if (eth_vendor == VENDOR_3COM) {
                 bcopy(d, eth_bmem, 6);                             /* dst */
-                bcopy(eth_node_addr, eth_bmem+6, ETHER_ADDR_SIZE); /* src */
+                bcopy(eth_node_addr, eth_bmem+6, ETHER_ADDR_LEN);  /* src */
                 *(eth_bmem+12) = t>>8;                             /* type */
                 *(eth_bmem+13) = t;
                 bcopy(p, eth_bmem+14, s);
