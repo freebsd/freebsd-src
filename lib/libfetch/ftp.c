@@ -57,7 +57,6 @@
 
 #include <sys/param.h>
 #include <sys/socket.h>
-#include <sys/uio.h>
 #include <netinet/in.h>
 
 #include <ctype.h>
@@ -91,8 +90,6 @@
 #define FTP_NEED_ACCOUNT		332
 #define FTP_FILE_OK			350
 #define FTP_SYNTAX_ERROR		500
-
-static char ENDL[2] = "\r\n";
 
 static struct url cached_host;
 static int cached_socket;
@@ -138,18 +135,12 @@ _ftp_chkerr(int cd)
 	_fetch_syserr();
 	return -1;
     }
-#ifndef NDEBUG
-    _fetch_info("got reply '%.*s'", lr_length - 2, last_reply);
-#endif
     if (isftpinfo(last_reply)) {
 	while (!isftpreply(last_reply)) {
 	    if (_fetch_getln(cd, &last_reply, &lr_size, &lr_length) == -1) {
 		_fetch_syserr();
 		return -1;
 	    }
-#ifndef NDEBUG
-	    _fetch_info("got reply '%.*s'", lr_length - 2, last_reply);
-#endif
 	}
     }
 
@@ -176,12 +167,12 @@ static int
 _ftp_cmd(int cd, char *fmt, ...)
 {
     va_list ap;
-    struct iovec iov[2];
+    size_t len;
     char *msg;
     int r;
 
     va_start(ap, fmt);
-    vasprintf(&msg, fmt, ap);
+    len = vasprintf(&msg, fmt, ap);
     va_end(ap);
     
     if (msg == NULL) {
@@ -189,15 +180,10 @@ _ftp_cmd(int cd, char *fmt, ...)
 	_fetch_syserr();
 	return -1;
     }
-#ifndef NDEBUG
-    _fetch_info("sending '%s'", msg);
-#endif
-    iov[0].iov_base = msg;
-    iov[0].iov_len = strlen(msg);
-    iov[1].iov_base = ENDL;
-    iov[1].iov_len = sizeof ENDL;
-    r = writev(cd, iov, 2);
+    
+    r = _fetch_putln(cd, msg, len);
     free(msg);
+    
     if (r == -1) {
 	_fetch_syserr();
 	return -1;
@@ -300,16 +286,15 @@ _ftp_transfer(int cd, char *oper, char *file,
          * is IMHO the one and only weak point in the FTP protocol.
 	 */
 	ln = last_reply;
-	for (p = ln + 3; *p && *p != '('; p++)
-	    /* nothing */ ;
-	if (!*p) {
-	    e = 999;
-	    goto ouch;
-	}
-	p++;
-	switch (e) {
+      	switch (e) {
 	case FTP_PASSIVE_MODE:
 	case FTP_LPASSIVE_MODE:
+	    for (p = ln + 3; *p && !isdigit(*p); p++)
+		/* nothing */ ;
+	    if (!*p) {
+		e = 999;
+		goto ouch;
+	    }
 	    l = (e == FTP_PASSIVE_MODE ? 6 : 21);
 	    for (i = 0; *p && i < l; i++, p++)
 		addr[i] = strtol(p, &p, 10);
@@ -319,6 +304,13 @@ _ftp_transfer(int cd, char *oper, char *file,
 	    }
 	    break;
 	case FTP_EPASSIVE_MODE:
+	    for (p = ln + 3; *p && *p != '('; p++)
+		/* nothing */ ;
+	    if (!*p) {
+		e = 999;
+		goto ouch;
+	    }
+	    ++p;
 	    if (sscanf(p, "%c%c%c%d%c", &addr[0], &addr[1], &addr[2],
 		       &port, &addr[3]) != 5 ||
 		addr[0] != addr[1] ||
@@ -455,6 +447,11 @@ _ftp_transfer(int cd, char *oper, char *file,
 	if (e != FTP_OK)
 	    goto ouch;
 
+	/* seek to required offset */
+	if (offset)
+	    if (_ftp_cmd(cd, "REST %lu", (u_long)offset) != FTP_FILE_OK)
+		goto sysouch;
+	
 	/* make the server initiate the transfer */
 	if (verbose)
 	    _fetch_info("initiating transfer");
