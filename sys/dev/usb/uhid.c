@@ -202,6 +202,7 @@ uhid_detach(device_t self)
 {       
 	char *devinfo = (char *) device_get_desc(self);
 
+	DPRINTF(("%s: disconnected\n", USBDEVNAME(self)));
 	if (devinfo) {
 		device_set_desc(self, NULL);
 		free(devinfo, M_USB);

@@ -1,5 +1,5 @@
 /*	$NetBSD: usbdi_util.c,v 1.13 1999/01/08 11:58:26 augustss Exp $	*/
-/*	FreeBSD $Id: usbdi_util.c,v 1.5 1999/01/07 23:31:43 n_hibma Exp $ */
+/*	$FreeBSD$	*/
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.

@@ -1,5 +1,5 @@
 /*	$NetBSD: hid.c,v 1.7 1999/01/08 11:58:25 augustss Exp $	*/
-/*	FreeBSD $Id: hid.c,v 1.5 1999/01/07 23:31:29 n_hibma Exp $ */
+/*	$FreeBSD$	*/
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.

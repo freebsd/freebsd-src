@@ -75,11 +75,11 @@ struct uhub_softc {
 };
 
 usbd_status uhub_init_port __P((struct usbd_port *));
-void uhub_disconnect __P((struct usbd_port *up));
+void uhub_disconnect_port __P((struct usbd_port *up));
 usbd_status uhub_explore __P((usbd_device_handle hub));
 void uhub_intr __P((usbd_request_handle, usbd_private_handle, usbd_status));
 
-/*void uhub_disco __P((void *));*/
+/* void uhub_disco __P((void *)); */
 
 USB_DECLARE_DRIVER(uhub);
 
@@ -252,13 +252,17 @@ static int
 uhub_detach(device_t self)
 {
 	struct uhub_softc *sc = device_get_softc(self);
-	int nports = sc->sc_hub->hub->hubdesc.bNbrPorts;
+	struct usbd_port *up;
+	usbd_device_handle dev = sc->sc_hub;
+	int nports;
 	int p;
 
+	DPRINTF(("%s: disconnected\n", USBDEVNAME(self)));
+	nports = dev->hub->hubdesc.bNbrPorts;
 	for (p = 0; p < nports; p++) {
-		struct usbd_port *up = &sc->sc_hub->hub->ports[p];
+		up = &sc->sc_hub->hub->ports[p];
 		if (up->device)
-			uhub_disconnect(up);
+			uhub_disconnect_port(up);
 	}
 
 	free(sc->sc_hub->hub, M_USB);
@@ -387,7 +391,7 @@ uhub_explore(dev)
 			DPRINTF(("uhub_explore: device %d disappeared "
 				 "on port %d\n", 
 				 up->device->address, port));
-			uhub_disconnect(up);
+			uhub_disconnect_port(up);
 			usbd_clear_port_feature(dev, port, 
 						UHF_C_PORT_CONNECTION);
 		}
@@ -424,7 +428,7 @@ uhub_explore(dev)
 			if (r == USBD_SET_ADDR_FAILED || 1) {/* XXX */
 				/* The unit refused to accept a new
 				 * address, and since we cannot leave
-				 * at 0 we have to disable the port
+				 * it at 0 we have to disable the port
 				 * instead. */
 				printf("%s: device problem, disabling "
 				       "port %d\n",
@@ -443,20 +447,24 @@ uhub_explore(dev)
 }
 
 void
-uhub_disconnect(up)
+uhub_disconnect_port(up)
 	struct usbd_port *up;
 {
 	usbd_device_handle dev = up->device;
 	usbd_pipe_handle p, n;
 	int i;
-	struct softc { bdevice sc_dev; }; /* all softc begin like this */
+	struct softc {		/* all softc begin like this */
+		bdevice sc_dev;
+	};
 
-	DPRINTFN(3,("uhub_disconnect: up=%p dev=%p port=%d\n", 
+	struct softc *sc = (struct softc *)dev->softc;
+	struct softc *scp = (struct softc *)up->parent->softc;
+
+	DPRINTFN(3,("uhub_disconnect_port: up=%p dev=%p port=%d\n", 
 		    up, dev, up->portno));
 
 	printf("%s: at %s port %d (addr %d) disconnected\n",
-	       USBDEVNAME(((struct softc *)dev->softc)->sc_dev),
-	       USBDEVNAME(((struct uhub_softc *)up->parent->softc)->sc_dev),
+	       USBDEVNAME(sc->sc_dev), USBDEVNAME(scp->sc_dev),
 	       up->portno, dev->address);
 
 	if (!dev->cdesc) {
@@ -466,13 +474,13 @@ uhub_disconnect(up)
 		return;
 	}
 
+	/* Remove the device */
+#if defined(__NetBSD__)
 	for (i = 0; i < dev->cdesc->bNumInterface; i++) {
 		for (p = LIST_FIRST(&dev->ifaces[i].pipes); p; p = n) {
 			n = LIST_NEXT(p, next);
 			if (p->disco)
 				p->disco(p->discoarg);
-			usbd_abort_pipe(p);
-			usbd_close_pipe(p);
 		}
 	}
 
@@ -486,18 +494,25 @@ uhub_disconnect(up)
 		for(p = 0; p < nports; p++) {
 			rup = &dev->hub->ports[p];
 			if (rup->device)
-				uhub_disconnect(rup);
+				uhub_disconnect_port(rup);
+		}
+	}
+#elif defined(__FreeBSD__)
+	device_delete_child(scp->sc_dev, sc->sc_dev);
+#endif
+
+	/* clean up the kitchen */
+	for (i = 0; i < dev->cdesc->bNumInterface; i++) {
+		for (p = LIST_FIRST(&dev->ifaces[i].pipes); p; p = n) {
+			n = LIST_NEXT(p, next);
+			usbd_abort_pipe(p);
+			usbd_close_pipe(p);
 		}
 	}
 
 	dev->bus->devices[dev->address] = 0;
 	up->device = 0;
 	/* XXX free */
-#if defined(__FreeBSD__)
-	device_delete_child(
-		device_get_parent(((struct softc *)dev->softc)->sc_dev),
-		((struct softc *)dev->softc)->sc_dev);
-#endif
 }
 
 void
