@@ -54,8 +54,6 @@ __FBSDID("$FreeBSD$");
 
 extern int coda_nc_initialized;    /* Set if cache has been initialized */
 
-#include "opt_coda.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/ioccom.h>
@@ -122,17 +120,16 @@ vc_nb_open(dev, flag, mode, td)
     int          mode;     
     struct thread *td;             /* NetBSD only */
 {
-    register struct vcomm *vcp;
+    struct vcomm *vcp;
+    struct coda_mntinfo *mnt;
     
     ENTRY;
 
-    if (minor(dev) >= NVCODA || minor(dev) < 0)
-	return(ENXIO);
-    
     if (!coda_nc_initialized)
 	coda_nc_init();
     
-    vcp = &coda_mnttbl[minor(dev)].mi_vcomm;
+    mnt = dev2coda_mntinfo(dev);
+    vcp = &mnt->mi_vcomm;
     if (VC_OPEN(vcp))
 	return(EBUSY);
     
@@ -141,8 +138,8 @@ vc_nb_open(dev, flag, mode, td)
     INIT_QUEUE(vcp->vc_replys);
     MARK_VC_OPEN(vcp);
     
-    coda_mnttbl[minor(dev)].mi_vfsp = NULL;
-    coda_mnttbl[minor(dev)].mi_rootvp = NULL;
+    mnt->mi_vfsp = NULL;
+    mnt->mi_rootvp = NULL;
 
     return(0);
 }
@@ -161,10 +158,7 @@ vc_nb_close (dev, flag, mode, td)
 	
     ENTRY;
 
-    if (minor(dev) >= NVCODA || minor(dev) < 0)
-	return(ENXIO);
-
-    mi = &coda_mnttbl[minor(dev)];
+    mi = dev2coda_mntinfo(dev);
     vcp = &(mi->mi_vcomm);
     
     if (!VC_OPEN(vcp))
@@ -243,10 +237,7 @@ vc_nb_read(dev, uiop, flag)
     
     ENTRY;
 
-    if (minor(dev) >= NVCODA || minor(dev) < 0)
-	return(ENXIO);
-    
-    vcp = &coda_mnttbl[minor(dev)].mi_vcomm;
+    vcp = &dev2coda_mntinfo(dev)->mi_vcomm;
     /* Get message at head of request queue. */
     if (EMPTY(vcp->vc_requests))
 	return(0);	/* Nothing to read */
@@ -301,10 +292,7 @@ vc_nb_write(dev, uiop, flag)
 
     ENTRY;
 
-    if (minor(dev) >= NVCODA || minor(dev) < 0)
-	return(ENXIO);
-    
-    vcp = &coda_mnttbl[minor(dev)].mi_vcomm;
+    vcp = &dev2coda_mntinfo(dev)->mi_vcomm;
     
     /* Peek at the opcode, unique without transfering the data. */
     uiop->uio_rw = UIO_WRITE;
@@ -450,10 +438,7 @@ vc_nb_poll(dev, events, td)
 
     ENTRY;
     
-    if (minor(dev) >= NVCODA || minor(dev) < 0)
-	return(ENXIO);
-    
-    vcp = &coda_mnttbl[minor(dev)].mi_vcomm;
+    vcp = &dev2coda_mntinfo(dev)->mi_vcomm;
     
     event_msk = events & (POLLIN|POLLRDNORM);
     if (!event_msk)
