@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)msgs.c	8.2 (Berkeley) 4/28/95";
 #endif
 static const char rcsid[] =
-	"$Id: msgs.c,v 1.8.2.1 1997/07/30 06:46:41 charnier Exp $";
+	"$Id: msgs.c,v 1.8.2.2 1998/07/07 12:09:52 jkh Exp $";
 #endif /* not lint */
 
 /*
@@ -246,10 +246,7 @@ int argc; char *argv[];
 	 */
 	snprintf(fname, sizeof(fname), "%s/%s", _PATH_MSGS, BOUNDS);
 	if (stat(fname, &buf) < 0)
-	{
-		perror(fname);
-		exit(1);
-	}
+		err(errno, "%s", fname);
 	bounds = fopen(fname, "r");
 
 	if (bounds != NULL) {
