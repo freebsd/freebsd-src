@@ -1063,7 +1063,7 @@ make_cat_file (path, man_file, cat_file)
 
       status = do_system_command (command);
 
-      if (!status) {
+      if (status <= 0) {
 	fprintf(stderr, "Failed.\n");
 	unlink(temp);
 	exit(1);
