@@ -57,6 +57,7 @@
 #ifdef EVCNT_COUNTERS
 struct evcnt clock_intr_evcnt;	/* event counter for clock intrs. */
 #else
+#include <sys/interrupt.h>
 #include <machine/intrcnt.h>
 #endif
 
