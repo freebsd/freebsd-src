@@ -1226,12 +1226,10 @@ ste_init(xsc)
 	struct ste_softc	*sc;
 	int			i;
 	struct ifnet		*ifp;
-	struct mii_data		*mii;
 
 	sc = xsc;
 	STE_LOCK(sc);
 	ifp = &sc->arpcom.ac_if;
-	mii = device_get_softc(sc->ste_miibus);
 
 	ste_stop(sc);
 
@@ -1475,7 +1473,6 @@ ste_encap(sc, c, m_head)
 	struct ste_frag		*f = NULL;
 	struct mbuf		*m;
 	struct ste_desc		*d;
-	int			total_len = 0;
 
 	d = c->ste_ptr;
 	d->ste_ctl = 0;
@@ -1485,7 +1482,6 @@ encap_retry:
 		if (m->m_len != 0) {
 			if (frag == STE_MAXFRAGS)
 				break;
-			total_len += m->m_len;
 			f = &d->ste_frags[frag];
 			f->ste_addr = vtophys(mtod(m, vm_offset_t));
 			f->ste_len = m->m_len;
