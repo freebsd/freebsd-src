@@ -1,4 +1,4 @@
-<!-- $Id: porting.sgml,v 1.51 1996/12/28 08:23:52 max Exp $ -->
+<!-- $Id: porting.sgml,v 1.52 1996/12/30 21:33:38 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect1><heading>Porting an existing piece of free software<label id="porting"></heading>
@@ -954,6 +954,12 @@ MAN8=      baz.8
 </verb></tscreen>
 	<p>Note that this is not usually necessary with ports that are X
 	   applications and use Imake to build.
+
+	<p>If your port anchors its man tree somewhere other than 
+	   <tt>PREFIX</tt>, you can use the <tt>MANPREFIX</tt> to set it.
+	   Also, if only some of the manpages go in a non-standard place,
+	   such as many Perl modules ports, you can set individual man
+	   paths using <tt>MAN%cPREFIX</tt> (where %c=[1-9LN]).
 
       <sect3>
 	<heading>INSTALL_* macros</heading>
