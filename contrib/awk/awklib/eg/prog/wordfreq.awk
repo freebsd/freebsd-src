@@ -1,9 +1,16 @@
-# Print list of word frequencies
+# wordfreq.awk --- print list of word frequencies
+
 {
     $0 = tolower($0)    # remove case distinctions
-    gsub(/[^a-z0-9_ \t]/, "", $0)  # remove punctuation
+    # remove punctuation
+    gsub(/[^[:alnum:]_[:blank:]]/, "", $0)
     for (i = 1; i <= NF; i++)
         freq[$i]++
+}
+
+END {
+    for (word in freq)
+        printf "%s\t%d\n", word, freq[word]
 }
 END {
     sort = "sort +1 -nr"

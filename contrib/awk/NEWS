@@ -1,3 +1,131 @@
+Changes from 3.0.6 to 3.1.0
+---------------------------
+
+1. A new PROCINFO array provides info about the process. The non-I/O /dev/xxx
+   files are now obsolete, and their use always generates a warning.
+
+2. A new `mktime' builtin function was added for creating time stamps. The
+   `mktime' function written in awk was removed from the user's guide.
+
+3. New `--gen-po' option creates GNU gettext .po files for strings marked
+   with a leading underscore.
+
+4. Gawk now completely interprets special file names internally, ignoring the
+   existence of real /dev/stdin, /dev/stdout files, etc.
+
+5. The mmap code was removed. It was a worthwhile experiment that just
+   didn't work out.
+
+6. The BINMODE variable is new; on non-UNIX systems it affects how gawk
+   opens files for text vs. binary.
+
+7. The atari port is now unsupported.
+
+8. Gawk no longer supports `next file' as two words.
+
+9. On systems that support it, gawk now sets the `close on exec' flag on all
+   files and pipes it opens. This makes sure that child processes run via
+   system() or pipes have plenty of file descriptors available.
+
+10. New ports: Tandem and BeOS.  The Tandem port is unsupported.
+
+11. If `--posix' is in effect, newlines are not allowed after ?:.
+
+12. Weird OFMT/CONVFMT formats no longer cause fatal errors.
+
+13. Diagnostics about array parameters now include the parameter's name,
+    not just its number.
+
+14. configure should now automatically add -D_SYSV3 for ISC Unix.
+    (This seems to have made it into the gawk 3.0.x line long ago.)
+
+15. It is now possible to open a two-way pipe via the `|&' operator.
+    See the discussion in the manual about putting `sort' into such a pipeline,
+    though.  (NOTE!  This is borrowed from ksh: it is not the same as
+    the same operator in csh!)
+
+16. The close() function now takes an optional second string argument
+    that allows closing one or the other end of the two-way pipe to
+    a co-process.  This is needed to use `sort' in a co-process, see
+    the doc.
+
+17. If TCP/IP is available, special file names beginning with `/inet'
+    can be used with `|&' for IPC. Thanks to Juergen Kahrs for the initial
+    code.
+
+18. With `--enable-portals' on the configure command line, gawk will also
+    treat file names that start with `/p/' as a 4.4 BSD type portal file,
+    i.e., a two-way pipe for `|&'.
+
+19. Unrecognized escapes, such as "\q" now always generate a warning.
+
+20. The LINT variable is new; it provides dynamic control over the --lint
+    option.
+
+21. Lint warnings can be made fatal by using --lint=fatal or `LINT = "fatal"'.
+    Use this if you're really serious about portable code.
+
+22. Due to an enhanced sed script, there is no longer any need to worry
+    about finding or using alloca.  alloca.c is thus now gone.
+
+23. A number of lint warnings have been added.  Most notably, gawk will
+    detect if a variable is used before assigned to.  Warnings for
+    when a string that isn't a number gets converted to a number are
+    in the code but disabled; they seem to be too picky in practice.
+
+    Also, gawk will now warn about function parameter names that shadow
+    global variable names.
+
+24. It is now possible to dynamically add builtin functions on systems
+    that support dlopen. This facility is not (yet) as portable or well
+    integrated as it might be.  *** WARNING *** THIS FEATURE WILL EVOLVE!
+
+25. There are *many* new tests in the test suite.
+
+26. Profiling has been added!  A separate version of gawk, named pgawk, is
+    built and generates a run-time execution profile.  The --profile option
+    can be used to change the default output file.   In regular gawk, this
+    option pretty-prints the parse tree.
+
+27. Gawk has been internationalized, using GNU gettext.  Translations for
+    future distributions are most welcome.  Simultaneously, gawk was switched
+    over to using automake.  You need Automake 1.4a (from the CVS archive)
+    if you want to muck with the Makefile.am files.
+
+28. New asort() function for sorting arrays.  See the doc for details.
+
+29. The match function takes an optional array third argument to hold
+    the text matched by parenthesized sub-expressions.
+
+30. The bit op functions and octal and hex source code constants are on by
+    default, no longer a configure-time option.  Recognition of non-decimal
+    data is now enabled at runtime with --non-decimal-data command line option.
+
+31. Internationalization features available at the awk level: new TEXTDOMAIN
+    variable and bindtextdomain() and dcgettext() functions. printf formats
+    may contain the "%2$3.5d" kind of notation for use in translations.  See
+    the texinfo manual for details.
+
+32. The return value from close() has been rationalized.  Most notably,
+    closing something that wasn't open returns -1 but remains non-fatal.
+
+33. The array effeciency change from 3.0.5 was reverted; the semantics were
+    not right.  Additionally, index values of previously stored elements
+    can no longer change dynamically.
+
+34. The new option --dump-variables dumps a list of all global variables and
+    their final types and values to a file you give, or to `awkvars.out'.
+
+35. Gawk now uses a recent version of random.c courtesy of the FreeBSD
+    project.
+
+36. The gawk source code now uses ANSI C function definitions (new style),
+    with ansi2knr to translate code for old compilers.
+
+37. `for (iggy in foo)' loops should be more robust now in the face of
+    adding/deleting elements in the middle; they loop over just the elements
+    that are present in the array when the loop starts.
+
 Changes from 3.0.5 to 3.0.6
 ---------------------------
 
@@ -11,7 +139,7 @@ Bugs fixed and changes made:
 2. Similarly, running a `for (iggy in foo)' loop where `foo' is a
    function parameter now works correctly.
 
-3. Similarly, `i = ""; v[i] = a; if (v in a) ...' now works again.
+3. Similarly, `i = ""; v[i] = a; if (i in v) ...' now works again.
 
 4. Gawk now special cases `for (iggy in foo) delete foo[iggy]' and
    treats it as the moral equivalent of `delete foo'.  This should be

@@ -10,97 +10,76 @@ know where to get it.")
 The focus on the future is thus narrowed to performance and functional
 enhancements, with only minor plans for significant new features.
 
-For 3.0
-=======
-	DONE: Move to autoconf-based configure system.
-
-	DONE: Allow RS to be a regexp.
-
-	DONE: RT variable to hold text of record terminator
-
-	DONE: split() with null string as third arg to split up strings
-
-	DONE: Analogously, setting FS="" would split the input record into
-	individual characters.
-
-	DONE: Generalize IGNORECASE
-		- any value makes it work, not just numeric non-zero
-		- make it apply to *all* string comparisons
-
-	DONE: Incorporate newer dfa.c and regex.c
-
-	DONE: Go to POSIX regexps
-
-	DONE: Make regex + dfa less dependant on gawk header file includes
-
-	DONE: Source code formatting cleaned up and regularized
-
-	DONE: Clean up code by isolating system-specific functions in
-	separate files.
-
-	DONE: General sub function:
-		gensub(pat, sub, global_flag[, line])
-	that return the substituted strings and allow \1 etc.
-	in the sub string.
-
-	DONE: Add AWKPATH to ENVIRON if it's not there
-
-	DONE: Undertake significant directory reorganization.
-
-	DONE: Extensive manual cleanup:
-		Use of texinfo 2.0 features
-		Lots more examples
-		Document posix regexps
-		Document all of the above.
+(OK, so 3.1 had a bad case of feature-itis.  I think I'm mostly over it
+now, though. :-)
 
 In 3.1
 ======
-	A PROCINFO array to replace /dev/pid, /dev/user, et al.
+	DONE: A PROCINFO array to replace /dev/pid, /dev/user, et al.
 
-	DONE: Use mmap to read input files on systems that support it.
+	DONE: Add `abort' statement a la Thompson awk.
 
-	Add `abort' statement a la Thompson awk.
+	DONE: Provide awk profiling.
 
-	Consider removing use of and/or need for the protos.h file.
+	DONE: Integrate GNU NLS support.
 
-	Use a new or improved dfa.
-
-	Integrate GNU NLS support.
-
-	Bring out hooks for NLS support into gawk itself.
-
-	DBM storage of awk arrays. Try to allow multiple dbm packages.
-
-	Use GNU malloc.
+	DONE: Bring out hooks for NLS support into gawk itself.
 
 	DONE: Do a reference card.
 
-	? Have strftime() pay attention to the value of ENVIRON["TZ"]
+	DONE: Switch to full ANSI C and use ansi2kr.
 
 	Additional manual features:
-		Document use of dbm arrays
-		Document NLS support
+		DONE: Document NLS support
+
+For 3.2
+=======
+	Move the loadable modules interface to libtool.
+
+	Redo the loadable modules interface from the awk level.
+
+	Rework management of array index storage.
+
+	A RECLEN variable for fixed-length record input. PROCINFO["RS"]
+	would be "RS" or "RECLEN" depending upon what's in use.
+
+	DBM storage of awk arrays. Try to allow multiple dbm packages.
+
+	Look at ISO C 99 printf features.
+
+	Add %'d for putting in commas in formatting?
+
+	Consider integrating Fred Fish's DBUG library into gawk.
+
+	Consider removing use of and/or need for the protos.h file.
+
+	Additional manual features:
 		? Add exercises
+		Document use of dbm arrays
 		? Add an error messages section to the manual
+
+For 3.3
+=======
+	Use a new or improved dfa and/or regex library.
+
+	? Have strftime() pay attention to the value of ENVIRON["TZ"]
+
+	Add a lint check if the return value of a function is used but
+	the function did not supply a value.
+
+	Additional manual features:
 		? A section on where gawk is bounded
 			regex
 			i/o
 			sun fp conversions
 
-For 3.2
+For 3.4
 =======
-	Add a lint check if the return value of a function is used but
-	the function did not supply a value.
-
 	Do an optimization pass over parse tree?
 
-	Make 	awk '/foo/' files...	run at egrep speeds
+	Make 	awk '/foo/' files...	run at egrep speeds (how?)
 
 For 4.x:
 ========
 
-Create a gawk compiler?
-
-Create a gawk-to-C translator? (or C++??)
-
-Provide awk profiling and debugging.
+Provide awk debugging.

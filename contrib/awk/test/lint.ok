@@ -1,0 +1,5 @@
+gawk: lint.awk:7: warning: delete: index `2' not in array `a'
+gawk: lint.awk:7: warning: turning off `--lint' due to assignment to `LINT'
+gawk: lint.awk:11: warning: delete: index `4' not in array `a'
+gawk: lint.awk:11: warning: turning off `--lint' due to assignment to `LINT'
+done

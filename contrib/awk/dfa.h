@@ -1,5 +1,5 @@
 /* dfa.h - declarations for GNU deterministic regexp compiler
-   Copyright (C) 1988 Free Software Foundation, Inc.
+   Copyright (C) 1988, 1998 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,6 +21,21 @@
    2.  We should not export so much of the DFA internals.
    In addition to clobbering modularity, we eat up valuable
    name space. */
+
+# undef PARAMS
+#if __STDC__
+# ifndef _PTR_T
+# define _PTR_T
+  typedef void * ptr_t;
+# endif
+# define PARAMS(x) x
+#else
+# ifndef _PTR_T
+# define _PTR_T
+  typedef char * ptr_t;
+# endif
+# define PARAMS(x) ()
+#endif
 
 /* Number of bits in an unsigned char. */
 #ifndef CHARBITS
@@ -305,16 +320,15 @@ struct dfa
 
 /* Entry points. */
 
-#ifdef __STDC__
-
-/* dfasyntax() takes two arguments; the first sets the syntax bits described
-   earlier in this file, and the second sets the case-folding flag. */
-extern void dfasyntax(reg_syntax_t, int);
+/* dfasyntax() takes three arguments; the first sets the syntax bits described
+   earlier in this file, the second sets the case-folding flag, and the
+   third specifies the line terminator. */
+extern void dfasyntax PARAMS ((reg_syntax_t, int, int));
 
 /* Compile the given string of the given length into the given struct dfa.
    Final argument is a flag specifying whether to build a searching or an
    exact matcher. */
-extern void dfacomp(char *, size_t, struct dfa *, int);
+extern void dfacomp PARAMS ((char *, size_t, struct dfa *, int));
 
 /* Execute the given struct dfa on the buffer of characters.  The
    first char * points to the beginning, and the second points to the
@@ -328,26 +342,26 @@ extern void dfacomp(char *, size_t, struct dfa *, int);
    order to verify backreferencing; otherwise the flag will be cleared.
    Returns NULL if no match is found, or a pointer to the first
    character after the first & shortest matching string in the buffer. */
-extern char *dfaexec(struct dfa *, char *, char *, int, int *, int *);
+extern char *dfaexec PARAMS ((struct dfa *, char *, char *, int, int *, int *));
 
 /* Free the storage held by the components of a struct dfa. */
-extern void dfafree(struct dfa *);
+extern void dfafree PARAMS ((struct dfa *));
 
 /* Entry points for people who know what they're doing. */
 
 /* Initialize the components of a struct dfa. */
-extern void dfainit(struct dfa *);
+extern void dfainit PARAMS ((struct dfa *));
 
 /* Incrementally parse a string of given length into a struct dfa. */
-extern void dfaparse(char *, size_t, struct dfa *);
+extern void dfaparse PARAMS ((char *, size_t, struct dfa *));
 
 /* Analyze a parsed regexp; second argument tells whether to build a searching
    or an exact matcher. */
-extern void dfaanalyze(struct dfa *, int);
+extern void dfaanalyze PARAMS ((struct dfa *, int));
 
 /* Compute, for each possible character, the transitions out of a given
    state, storing them in an array of integers. */
-extern void dfastate(int, struct dfa *, int []);
+extern void dfastate PARAMS ((int, struct dfa *, int []));
 
 /* Error handling. */
 
@@ -355,10 +369,4 @@ extern void dfastate(int, struct dfa *, int []);
    takes a single argument, a NUL-terminated string describing the error.
    The default dfaerror() prints the error message to stderr and exits.
    The user can provide a different dfafree() if so desired. */
-extern void dfaerror(const char *);
-
-#else /* ! __STDC__ */
-extern void dfasyntax(), dfacomp(), dfafree(), dfainit(), dfaparse();
-extern void dfaanalyze(), dfastate(), dfaerror();
-extern char *dfaexec();
-#endif /* ! __STDC__ */
+extern void dfaerror PARAMS ((const char *));
