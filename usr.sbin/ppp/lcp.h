@@ -15,10 +15,26 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.h,v 1.17 1998/05/21 21:46:03 brian Exp $
+ * $Id: lcp.h,v 1.18 1998/06/27 23:48:48 brian Exp $
  *
  *	TODO:
  */
+
+/* callback::opmask values */
+#define CALLBACK_AUTH		(0)
+#define CALLBACK_DIALSTRING	(1)	/* Don't do this */
+#define CALLBACK_LOCATION	(2)	/* Don't do this */
+#define CALLBACK_E164		(3)
+#define CALLBACK_NAME		(4)	/* Don't do this */
+#define CALLBACK_CBCP		(6)
+#define CALLBACK_NONE		(14)	/* No callback is ok */
+
+#define CALLBACK_BIT(n) ((n) < 0 ? 0 : 1 << (n))
+
+struct callback {
+  int opmask;			/* want these types of callback */
+  char msg[SCRIPT_LEN];		/* with this data (E.164) */
+};
 
 #define	REJECTED(p, x)	((p)->his_reject & (1<<(x)))
 
@@ -30,6 +46,7 @@ struct lcp {
   u_int32_t his_magic;		/* Peers magic number */
   u_int32_t his_lqrperiod;	/* Peers LQR frequency (100ths of seconds) */
   u_short his_auth;		/* Peer wants this type of authentication */
+  struct callback his_callback;	/* Peer wants callback ? */
   unsigned his_shortseq : 1;	/* Peer would like only 12bit seqs (MP) */
   unsigned his_protocomp : 1;	/* Does peer do Protocol field compression */
   unsigned his_acfcomp : 1;	/* Does peer do addr & cntrl fld compression */
@@ -40,6 +57,7 @@ struct lcp {
   u_int32_t want_magic;		/* Our magic number */
   u_int32_t want_lqrperiod;	/* Our LQR frequency (100ths of seconds) */
   u_short want_auth;		/* We want this type of authentication */
+  struct callback want_callback;/* We want callback ? */
   unsigned want_shortseq : 1;	/* I'd like only 12bit seqs (MP) */
   unsigned want_protocomp : 1;	/* Do we do protocol field compression */
   unsigned want_acfcomp : 1;	/* Do we do addr & cntrl fld compression */
@@ -80,11 +98,13 @@ struct lcp {
 #define	TY_ACFCOMP	8	/* Address-and-Control-Field-Compression */
 #define	TY_FCSALT	9	/* FCS-Alternatives */
 #define	TY_SDP		10	/* Self-Describing-Padding */
+#define	TY_CALLBACK	13	/* Callback */
+#define	TY_CFRAMES	15	/* Compound-frames */
 #define	TY_MRRU		17	/* Max Reconstructed Receive Unit (MP) */
 #define	TY_SHORTSEQ	18	/* Want short seqs (12bit) please (see mp.h) */
 #define	TY_ENDDISC	19	/* Endpoint discriminator */
 
-#define MAX_LCP_OPT_LEN 10
+#define MAX_LCP_OPT_LEN 20
 struct lcp_opt {
   u_char id;
   u_char len;

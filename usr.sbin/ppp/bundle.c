@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.29 1998/07/29 18:21:11 brian Exp $
+ *	$Id: bundle.c,v 1.30 1998/08/02 06:56:40 brian Exp $
  */
 
 #include <sys/param.h>
@@ -82,6 +82,7 @@
 #include "tun.h"
 #include "prompt.h"
 #include "chat.h"
+#include "cbcp.h"
 #include "datalink.h"
 #include "ip.h"
 
@@ -318,7 +319,7 @@ bundle_LinkAdded(struct bundle *bundle, struct datalink *dl)
     bundle_StartIdleTimer(bundle);
 }
 
-static void
+void
 bundle_LinksRemoved(struct bundle *bundle)
 {
   struct datalink *dl;

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ccp.c,v 1.36 1998/06/27 23:48:40 brian Exp $
+ * $Id: ccp.c,v 1.37 1998/06/30 23:04:10 brian Exp $
  *
  *	TODO:
  *		o Support other compression protocols
@@ -30,7 +30,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include <termios.h>
 
 #include "defs.h"
@@ -213,7 +212,7 @@ CcpInitRestartCounter(struct fsm *fp)
   struct ccp *ccp = fsm2ccp(fp);
 
   fp->FsmTimer.load = ccp->cfg.fsmretry * SECTICKS;
-  fp->restart = 5;
+  fp->restart = DEF_REQs;
 }
 
 static void

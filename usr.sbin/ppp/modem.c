@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.95 1998/07/03 17:24:38 brian Exp $
+ * $Id: modem.c,v 1.96 1998/07/29 18:20:53 brian Exp $
  *
  *  TODO:
  */
@@ -36,12 +36,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/ioctl.h>
 #include <sys/tty.h>
 #include <sys/uio.h>
 #include <sys/wait.h>
 #include <unistd.h>
 #ifdef __OpenBSD__
+#include <sys/ioctl.h>
 #include <util.h>
 #else
 #include <libutil.h>
@@ -74,6 +74,7 @@
 #include "chat.h"
 #include "auth.h"
 #include "chap.h"
+#include "cbcp.h"
 #include "datalink.h"
 
 

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.157 1998/07/29 18:21:13 brian Exp $
+ * $Id: command.c,v 1.158 1998/07/31 19:50:24 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -76,6 +76,7 @@
 #include "prompt.h"
 #include "chat.h"
 #include "chap.h"
+#include "cbcp.h"
 #include "datalink.h"
 
 /* ``set'' values */
@@ -103,6 +104,8 @@
 #define	VAR_DNS		21
 #define	VAR_NBNS	22
 #define	VAR_MODE	23
+#define	VAR_CALLBACK	24
+#define	VAR_CBCP	25
 
 /* ``accept|deny|disable|enable'' masks */
 #define NEG_HISMASK (1)
@@ -122,7 +125,7 @@
 #define NEG_DNS		50
 
 const char Version[] = "2.0";
-const char VersionDate[] = "$Date: 1998/07/29 18:21:13 $";
+const char VersionDate[] = "$Date: 1998/07/31 19:50:24 $";
 
 static int ShowCommand(struct cmdargs const *);
 static int TerminalCommand(struct cmdargs const *);
@@ -1348,6 +1351,7 @@ SetVariable(struct cmdargs const *arg)
   case VAR_PHONE:
     strncpy(cx->cfg.phone.list, argp, sizeof cx->cfg.phone.list - 1);
     cx->cfg.phone.list[sizeof cx->cfg.phone.list - 1] = '\0';
+    cx->phone.alt = cx->phone.next = NULL;
     break;
 
   case VAR_HANGUP:
@@ -1446,6 +1450,53 @@ SetVariable(struct cmdargs const *arg)
         addr[0].s_addr = addr[1].s_addr;
     }
     break;
+
+  case VAR_CALLBACK:
+    cx->cfg.callback.opmask = 0;
+    for (dummyint = arg->argn; dummyint < arg->argc; dummyint++) {
+      if (!strcasecmp(arg->argv[dummyint], "auth"))
+        cx->cfg.callback.opmask |= CALLBACK_BIT(CALLBACK_AUTH);
+      else if (!strcasecmp(arg->argv[dummyint], "cbcp"))
+        cx->cfg.callback.opmask |= CALLBACK_BIT(CALLBACK_CBCP);
+      else if (!strcasecmp(arg->argv[dummyint], "e.164")) {
+        if (dummyint == arg->argc - 1)
+          log_Printf(LogWARN, "No E.164 arg (E.164 ignored) !\n");
+        else {
+          cx->cfg.callback.opmask |= CALLBACK_BIT(CALLBACK_E164);
+          strncpy(cx->cfg.callback.msg, arg->argv[++dummyint],
+                  sizeof cx->cfg.callback.msg - 1);
+          cx->cfg.callback.msg[sizeof cx->cfg.callback.msg - 1] = '\0';
+        }
+      } else if (!strcasecmp(arg->argv[dummyint], "none"))
+        cx->cfg.callback.opmask |= CALLBACK_BIT(CALLBACK_NONE);
+      else
+        return -1;
+    }
+    if (cx->cfg.callback.opmask == CALLBACK_BIT(CALLBACK_NONE))
+      cx->cfg.callback.opmask = 0;
+    break;
+
+  case VAR_CBCP:
+    cx->cfg.cbcp.delay = 0;
+    *cx->cfg.cbcp.phone = '\0';
+    cx->cfg.cbcp.fsmretry = DEF_FSMRETRY;
+    if (arg->argc > arg->argn) {
+      strncpy(cx->cfg.cbcp.phone, arg->argv[arg->argn],
+              sizeof cx->cfg.cbcp.phone - 1);
+      cx->cfg.cbcp.phone[sizeof cx->cfg.cbcp.phone - 1] = '\0';
+      if (arg->argc > arg->argn + 1) {
+        cx->cfg.cbcp.delay = atoi(arg->argv[arg->argn + 1]);
+        if (arg->argc > arg->argn + 2) {
+          long_val = atol(arg->argv[arg->argn + 2]);
+          if (long_val < MIN_FSMRETRY)
+            log_Printf(LogWARN, "%ld: Invalid CBCP FSM retry period - min %d\n",
+                       long_val, MIN_FSMRETRY);
+          else
+            cx->cfg.cbcp.fsmretry = long_val;
+        }
+      }
+    }
+    break;
   }
 
   return err ? 1 : 0;
@@ -1476,6 +1527,12 @@ static struct cmdtab const SetCommands[] = {
   {"autoload", NULL, SetVariable, LOCAL_AUTH,
   "auto link [de]activation", "set autoload maxtime maxload mintime minload",
   (const void *)VAR_AUTOLOAD},
+  {"callback", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX,
+  "callback control", "set callback [none|auth|cbcp|"
+  "E.164 *|number[,number]...]...", (const void *)VAR_CALLBACK},
+  {"cbcp", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX,
+  "CBCP control", "set cbcp [*|phone[,phone...] [delay [timeout]]]", 
+  (const void *)VAR_CBCP},
   {"ccpretry", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX_OPT,
   "FSM retry period", "set ccpretry value", (const void *)VAR_CCPRETRY},
   {"chapretry", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX,

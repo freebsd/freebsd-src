@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp.c,v 1.11 1998/06/24 19:33:34 brian Exp $
+ *	$Id: mp.c,v 1.12 1998/06/30 23:04:17 brian Exp $
  */
 
 #include <sys/types.h>
@@ -68,6 +68,7 @@
 #include "filter.h"
 #include "mp.h"
 #include "chap.h"
+#include "cbcp.h"
 #include "datalink.h"
 #include "bundle.h"
 #include "ip.h"
