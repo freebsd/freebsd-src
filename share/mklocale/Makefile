@@ -11,6 +11,7 @@ LOCALES=	am_ET.UTF-8 \
 		hy_AM.ARMSCII-8 \
 		ja_JP.SJIS \
 		ja_JP.eucJP \
+		kk_KZ.PT154 \
 		ko_KR.CP949 \
 		ko_KR.eucKR \
 		la_LN.ISO8859-1 \

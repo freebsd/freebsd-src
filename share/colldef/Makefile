@@ -21,6 +21,7 @@ LOCALES=	bg_BG.CP1251 \
 		hy_AM.ARMSCII-8 \
 		is_IS.ISO8859-1 \
 		is_IS.ISO8859-15 \
+		kk_KZ.PT154 \
 		la_LN.ISO8859-1 \
 		la_LN.ISO8859-15 \
 		la_LN.ISO8859-2 \
@@ -79,6 +80,7 @@ hi_IN.ISCII-DEV.out:	map.ISCII-DEV
 hy_AM.ARMSCII-8.out:    map.ARMSCII-8
 is_IS.ISO8859-15.out:   map.ISO8859-15
 is_IS.ISO8859-1.out:    map.ISO8859-1
+kk_KZ.PT154.out:	map.PT154
 la_LN.ISO8859-15.out:   map.ISO8859-15
 la_LN.ISO8859-1.out:    map.ISO8859-1
 la_LN.ISO8859-2.out:    map.ISO8859-2
