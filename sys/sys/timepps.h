@@ -16,6 +16,7 @@
 #define _SYS_TIMEPPS_H_
 
 #include <sys/ioccom.h>
+#include <sys/time.h>
 
 #define PPS_API_VERS_1	1
 
@@ -103,26 +104,26 @@ struct pps_kcbind_args {
 #define PPS_IOC_KCBIND		_IOW('1', 7, struct pps_kcbind_args)
 
 #ifdef _KERNEL
-struct timehands;
-struct timecounter;
+
 struct pps_state {
-	/* capture information */
-	struct timehands	*capth;
-	u_int			capgen;
-	u_int			capcount;
-	/* state information */
-	pps_params_t		ppsparam;
-	pps_info_t		ppsinfo;
-	int			kcmode;
-	int			ppscap;
-	struct timecounter	*ppstc;
-	unsigned		ppscount[3];
+	/* Capture information. */
+	struct timehands *capth;
+	unsigned	capgen;
+	unsigned	capcount;
+
+	/* State information. */
+	pps_params_t	ppsparam;
+	pps_info_t	ppsinfo;
+	int		kcmode;
+	int		ppscap;
+	struct timecounter *ppstc;
+	unsigned	ppscount[3];
 };
 
 void pps_capture(struct pps_state *pps);
 void pps_event(struct pps_state *pps, int event);
 void pps_init(struct pps_state *pps);
-int pps_ioctl(u_long cmd, caddr_t data, struct pps_state *pps);
+int pps_ioctl(unsigned long cmd, caddr_t data, struct pps_state *pps);
 void hardpps(struct timespec *tsp, long nsec);
 
 #else /* !_KERNEL */
@@ -194,5 +195,6 @@ time_pps_kcbind(pps_handle_t handle, const int kernel_consumer,
 	return (ioctl(handle, PPS_IOC_KCBIND, &arg));
 }
 
-#endif /* !_KERNEL */
-#endif /* _SYS_TIMEPPS_H_ */
+#endif /* KERNEL */
+
+#endif /* !_SYS_TIMEPPS_H_ */
