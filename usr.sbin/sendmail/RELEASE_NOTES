@@ -1,10 +1,109 @@
 			SENDMAIL RELEASE NOTES
-	     @(#)RELEASE_NOTES	8.8.3.2 (Berkeley) 11/16/96
+	     @(#)RELEASE_NOTES	8.8.4.4 (Berkeley) 12/2/96
 
 
 This listing shows the version of the sendmail binary, the version
 of the sendmail configuration files, the date of release, and a
 summary of the changes in that release.
+
+8.8.4/8.8.4	96/12/02
+	SECURITY: under some circumstances, an attacker could get additional
+		permissions by hard linking to files that were group
+		writable by the attacker.  The solution is to disallow any
+		files that have hard links -- this will affect .forward,
+		:include:, and output files.  Problem noted by Terry
+		Kyriacopoulos of Interlog Internet Services.  As a
+		workaround, set UnsafeGroupWrites -- always a good idea.
+	SECURITY: the TryNullMXList (w) option should not be safe -- if it
+		is, it is possible to do a denial-of-service attack on
+		MX hosts that rely on the use of the null MX list.  There
+		is no danger if you have this option turned off (the default).
+		Problem noted by Dan Bernstein.  Also, make the DontInitGroups
+		unsafe.  I know of no specific attack against this, although
+		a denial-of-service attack is probably possible, but in theory
+		you should not be able to safely tweak anything that affects
+		the permissions that are used when mail is delivered.
+	Purgestat could go into an infinite loop if one of the host status
+		directories somehow became empty.  Problem noted by Roy
+		Mongiovi of Georgia Tech.
+	Processes got "lost" when counting children due to a race condition.
+		This caused "proc_list_probe: lost pid" messages to be logged.
+		Problem noted by several people.
+	On systems with System V SIGCLD child signal semantics (notably AIX
+		and HP-UX), mail transactions would print the message "451
+		SMTP-MAIL: lost child: No child processes".  Problem noted
+		by several people.
+	Miscellaneous compiler warnings on picky compilers (or when setting
+		gcc to high warning levels).  From Tom Moore of NCR Corp.
+	SMTP protocol errors, and most errors on MAIL FROM: lines should
+		not be persistent between runs, since they are based on the
+		message rather than the host.  Problem noted by Matt Dillon
+		of Best Internet Communications.
+	The F=7 flag was ignored on SMTP mailers.  Problem noted by Tom Moore
+		of NCR (a.k.a., AT&T Global Information Solutions).
+	Avoid the possibility of having a child daemon run to completion
+		(including closing the SMTP socket) before the parent has
+		had a chance to close the socket; this can cause the parent
+		to hang for a long time waiting for the socket to drain.
+		Patch from Don Lewis of TDK Semiconductor.
+	If the fork() failed in a queue run, the queue runners would not be
+		rescheduled (so queue runs would stop).  Patch from Don Lewis.
+	Some error conditions in ETRN could cause output without an SMTP
+		status code.  Problem noted by Don Lewis.
+	Multiple :maildrop addresses in the user database didn't work properly.
+		Patch from Roy Mongiovi of Georgia Tech.
+	Add ".db" automatically onto any user database spec that does not
+		already have it; this is for consistency with makemap, the
+		K line, and the documentation.  Inconsistency pointed out
+		by Roy Mongiovi.
+	Allow sendmail to be properly called in nohup mode.  Patch from
+		Kyle Jones of UUNET.
+	Change ETRN to ignore but still update host status files; previously
+		it would ignore them and not save the updated status, which
+		caused stale information to be maintained.  Based on a patch
+		from Christopher Davis of Kapor Enterprises Inc.  Also, have
+		ETRN ignore the MinQueueAge option.
+	Patch long term host status to recover more gracefully from an empty
+		host status file condition.  Patch from NAKAMURA Motonori
+		of Kyoto University.
+	Several patches to signal handling code to fix potential race
+		conditions from Don Lewis.
+	Make it possible to compile with -DDAEMON=0 (previously it had some
+		compile errors).  This turns DAEMON, QUEUE, and SMTP into
+		0/1 compilation flags.  Note that DAEMON is an obsolete
+		compile flag; use NETINET instead.  Solution based on a
+		patch from Bryan Costales.
+	PORTABILITY FIXES:
+		AIX4: getpwnam() and getpwuid() do a sequential scan of the
+			/etc/security/passwd file when called as root.  This
+			is very slow on some systems.  To speed it up, use the
+			(undocumented) _getpw{nam,uid}_shadow() routines.
+			Patch from Chris Thomas of UCLA/OAC Systems Group.
+		SCO 5.x: include -lprot in the Makefile.  Patch from Bill
+			Glicker of Burrelle's Information Service.
+		NEWS-OS 4.x: need a definition for MODE_T to compile.  Patch
+			from Makoto MATSUSHITA of Osaka University.
+		SunOS 4.0.3: compile problems.  Patches from Andrew Cole of
+			Leeds University and SASABE Tetsuro of the University
+			of Tokyo.
+		DG/UX 5.4.4.11 from Brian J. Murrell of InterLinx Support
+			Services, Inc.
+		Domain/OS from Don (Truck) Lewis of TDK Semiconductor Corp.
+			I believe this to have only been a problem if you
+			compiled with -DUSE_VENDOR_CF_PATH -- another reason
+			to stick with /etc/sendmail.cf as your One True Path.
+		Digital UNIX (OSF/1 on Alpha) load average computation from
+			Martin Laubach of the Technischen Universität Wien.
+	CONFIG: change default Received: line to be multiple lines rather
+		than one long one.  By popular demand.
+	MAIL.LOCAL: warnings weren't being logged on some systems.  Patch
+		from Jerome Berkman of U.C. Berkeley.
+	MAKEMAP: be sure to zero hinfo to avoid cruft that can cause runs
+		to take a very long time.  Problem noted by Yoshiro YONEYA
+		of NTT Software Corporation.
+	CONTRIB: add etrn.pl, contributed by John Beck.
+	NEW FILES:
+		contrib/etrn.pl
 
 8.8.3/8.8.3	96/11/17
 	SECURITY: it was possible to get a root shell by lying to sendmail
@@ -83,7 +182,7 @@ summary of the changes in that release.
 		AIX4: use tzname[] vector to determine time zone name.
 			Patch from NAKAMURA Motonori of Kyoto University.
 		MkLinux: add Makefile.Linux.ppc and OSTYPE(mklinux) support.
-			Contributed by Paul DeBois <dubois@primate.wisc.edu>.
+			Contributed by Paul DuBois <dubois@primate.wisc.edu>.
 		Solaris: kstat(3k) support for retrieving the load average.
 			This adds the LA_KSTAT definition for LA_TYPE.
 			The outline of the implementation was contributed
