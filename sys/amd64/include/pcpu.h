@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: globaldata.h,v 1.2 1998/04/06 18:59:15 peter Exp $
+ * $Id: globaldata.h,v 1.3 1998/05/17 18:53:07 tegge Exp $
  */
 
 /*
@@ -53,7 +53,7 @@ struct globaldata {
 	u_int		cpu_lockid;
 	u_int		other_cpus;
 	pd_entry_t	*my_idlePTD;
-	u_int		ss_tpr;
+	u_int		ss_eflags;
 	pt_entry_t	*prv_CMAP1;
 	pt_entry_t	*prv_CMAP2;
 	pt_entry_t	*prv_CMAP3;
