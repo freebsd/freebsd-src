@@ -1560,7 +1560,7 @@ ng_btsocket_hci_raw_sockaddr(struct socket *so, struct sockaddr **nam)
 	sa.hci_family = AF_BLUETOOTH;
 	strlcpy(sa.hci_node, pcb->addr.hci_node, sizeof(sa.hci_node));
 
-	*nam = dup_sockaddr((struct sockaddr *) &sa, 0);
+	*nam = sodupsockaddr((struct sockaddr *) &sa, M_NOWAIT);
 
 	return ((*nam == NULL)? ENOMEM : 0);
 } /* ng_btsocket_hci_raw_sockaddr */

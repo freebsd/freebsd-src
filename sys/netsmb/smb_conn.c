@@ -419,10 +419,10 @@ smb_vc_create(struct smb_vcspec *vcspec,
 	smb_sl_init(&vcp->vc_stlock, "vcstlock");
 	error = ENOMEM;
 
-	vcp->vc_paddr = dup_sockaddr(vcspec->sap, 1);
+	vcp->vc_paddr = sodupsockaddr(vcspec->sap, M_WAITOK);
 	if (vcp->vc_paddr == NULL)
 		goto fail;
-	vcp->vc_laddr = dup_sockaddr(vcspec->lap, 1);
+	vcp->vc_laddr = sodupsockaddr(vcspec->lap, M_WAITOK);
 	if (vcp->vc_laddr == NULL)
 		goto fail;
 	vcp->vc_pass = smb_strdup(vcspec->pass);

@@ -138,7 +138,7 @@ soalloc(int mflags)
 	so = uma_zalloc(socket_zone, mflags | M_ZERO);
 	if (so) {
 #ifdef MAC
-		error = mac_init_socket(so, mflags | M_ZERO);
+		error = mac_init_socket(so, mflags);
 		if (error != 0) {
 			uma_zfree(socket_zone, so);
 			so = NULL;
@@ -908,8 +908,8 @@ dontblock:
 		    ("m->m_type == %d", m->m_type));
 		orig_resid = 0;
 		if (psa)
-			*psa = dup_sockaddr(mtod(m, struct sockaddr *),
-					    mp0 == 0);
+			*psa = sodupsockaddr(mtod(m, struct sockaddr *),
+			    mp0 == NULL ? M_WAITOK : M_NOWAIT);
 		if (flags & MSG_PEEK) {
 			m = m->m_next;
 		} else {

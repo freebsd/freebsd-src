@@ -1302,7 +1302,7 @@ spx_accept(so, nam)
 	sipx->sipx_len = sizeof *sipx;
 	sipx->sipx_family = AF_IPX;
 	sipx->sipx_addr = ipxp->ipxp_faddr;
-	*nam = dup_sockaddr((struct sockaddr *)sipx, 0);
+	*nam = sodupsockaddr((struct sockaddr *)sipx, M_NOWAIT);
 	return (0);
 }
 

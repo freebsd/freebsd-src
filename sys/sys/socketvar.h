@@ -352,7 +352,6 @@ struct uio;
 /*
  * From uipc_socket and friends
  */
-struct	sockaddr *dup_sockaddr(struct sockaddr *sa, int canwait);
 int	sockargs(struct mbuf **mp, caddr_t buf, int buflen, int type);
 int	getsockaddr(struct sockaddr **namp, caddr_t uaddr, size_t len);
 void	sbappend(struct sockbuf *sb, struct mbuf *m);
@@ -391,6 +390,7 @@ int	socreate(int dom, struct socket **aso, int type, int proto,
 	    struct ucred *cred, struct thread *td);
 void	sodealloc(struct socket *so);
 int	sodisconnect(struct socket *so);
+struct	sockaddr *sodupsockaddr(const struct sockaddr *sa, int mflags);
 void	sofree(struct socket *so);
 int	sogetopt(struct socket *so, struct sockopt *sopt);
 void	sohasoutofband(struct socket *so);

@@ -199,7 +199,8 @@ portal_connect(so, so2)
 	unp3 = sotounpcb(so3);
 	if (unp2->unp_addr)
 		unp3->unp_addr = (struct sockaddr_un *)
-			dup_sockaddr((struct sockaddr *)unp2->unp_addr, 0);
+		    sodupsockaddr((struct sockaddr *)unp2->unp_addr,
+		    M_NOWAIT);
 	so2 = so3;
 
 	return (unp_connect2(so, so2));

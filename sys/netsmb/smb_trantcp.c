@@ -564,7 +564,7 @@ smb_nbst_bind(struct smb_vc *vcp, struct sockaddr *sap, struct thread *td)
 		slen = sap->sa_len;
 		if (slen < NB_MINSALEN)
 			break;
-		snb = (struct sockaddr_nb*)dup_sockaddr(sap, 1);
+		snb = (struct sockaddr_nb*)sodupsockaddr(sap, M_WAITOK);
 		if (snb == NULL) {
 			error = ENOMEM;
 			break;
@@ -597,7 +597,7 @@ smb_nbst_connect(struct smb_vc *vcp, struct sockaddr *sap, struct thread *td)
 		free(nbp->nbp_paddr, M_SONAME);
 		nbp->nbp_paddr = NULL;
 	}
-	snb = (struct sockaddr_nb*)dup_sockaddr(sap, 1);
+	snb = (struct sockaddr_nb*)sodupsockaddr(sap, M_WAITOK);
 	if (snb == NULL)
 		return ENOMEM;
 	nbp->nbp_paddr = snb;
