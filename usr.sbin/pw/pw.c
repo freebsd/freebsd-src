@@ -370,6 +370,15 @@ cmdhelp(int mode, int which)
 				"usage: pw usernext [switches]\n"
 				"\t-V etcdir      alternate /etc location\n"
 				"\t-C config      configuration file\n"
+				"\t-q             quiet operation\n",
+				"usage pw: lock [switches]\n"
+				"\t-V etcdir      alternate /etc locations\n"
+				"\t-C config      configuration file\n"
+				"\t-q             quiet operation\n",
+				"usage pw: unlock [switches]\n"
+				"\t-V etcdir      alternate /etc locations\n"
+				"\t-C config      configuration file\n"
+				"\t-q             quiet operation\n"
 			},
 			{
 				"usage: pw groupadd [group|gid] [switches]\n"
@@ -409,6 +418,7 @@ cmdhelp(int mode, int which)
 				"usage: pw groupnext [switches]\n"
 				"\t-V etcdir      alternate /etc location\n"
 				"\t-C config      configuration file\n"
+				"\t-q             quiet operation\n"
 			}
 		};
 
