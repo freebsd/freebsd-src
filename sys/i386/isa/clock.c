@@ -153,7 +153,7 @@ static	int	i8254_ticked;
 /*
  * XXX new_function and timer_func should not handle clockframes, but
  * timer_func currently needs to hold hardclock to handle the
- * timer0_state == 0 case.  We should use register_intr()/unregister_intr()
+ * timer0_state == 0 case.  We should use inthand_add()/inthand_remove()
  * to switch between clkintr() and a slightly different timerintr().
  */
 static	void	(*new_function) __P((struct clockframe *frame));
