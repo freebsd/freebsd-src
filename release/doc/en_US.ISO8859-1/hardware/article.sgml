@@ -155,7 +155,7 @@
 	  driver)</para>
 	</listitem>
 	<listitem arch="i386,alpha,sparc64">
-	  <para>Adaptec 19160/291x/2920/2930/2940/2950/29160/3940/3950/3960/39160/398x/494x
+	  <para>Adaptec 19160/291x/2920C/2930/2940/2950/29160/3940/3950/3960/39160/398x/494x
 	  series PCI SCSI controllers, including
 	  Narrow/Wide/Twin/Ultra/Ultra2 variants (&man.ahc.4;
 	  driver)</para>
@@ -727,11 +727,17 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,pc98">TMC 18C30, 18C50 based ISA/PC-Card SCSI host
+    <para arch="i386,pc98">TMC 18C30, 18C50 and 36C70 (AIC-6820) based ISA/PC-Card SCSI host
     adapters (stg driver)
       <itemizedlist>
         <listitem>
+          <para>Adaptec 2920/A</para>
+        </listitem>
+        <listitem>
           <para>Future Domain SCSI2GO</para>
+        </listitem>
+        <listitem>
+          <para>Future Domain TMC-18XX/3260</para>
         </listitem>
 	<listitem>
 	  <para>IBM SCSI PCMCIA Card</para>
