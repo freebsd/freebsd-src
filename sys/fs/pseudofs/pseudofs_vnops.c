@@ -50,14 +50,14 @@
 #if 0
 #define PFS_TRACE(foo) \
 	do { \
-		printf("pseudofs: %s(): line %d: ", __FUNCTION__, __LINE__); \
+		printf("pseudofs: %s(): line %d: ", __func__, __LINE__); \
 		printf foo ; \
 		printf("\n"); \
 	} while (0)
 #define PFS_RETURN(err) \
 	do { \
 		printf("pseudofs: %s(): line %d: returning %d\n", \
-		    __FUNCTION__, __LINE__, err); \
+		    __func__, __LINE__, err); \
 		return (err); \
 	} while (0)
 #else
@@ -219,7 +219,7 @@ pfs_ioctl(struct vop_ioctl_args *va)
 	struct proc *proc = NULL;
 	int error;
 
-	PFS_TRACE(("%s: %d", pn->pn_name, va->a_com));
+	PFS_TRACE(("%s: %lx", pn->pn_name, va->a_command));
 	
 	if (vn->v_type != VREG)
 		PFS_RETURN (EINVAL);
