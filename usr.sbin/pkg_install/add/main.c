@@ -1,5 +1,5 @@
 #ifndef lint
-static char *rcsid = "$Id: main.c,v 1.6 1993/09/04 05:06:28 jkh Exp $";
+static char *rcsid = "$Id: main.c,v 1.3 1993/09/05 04:53:49 jkh Exp $";
 #endif
 
 /*
@@ -26,7 +26,7 @@ static char *rcsid = "$Id: main.c,v 1.6 1993/09/04 05:06:28 jkh Exp $";
 #include "lib.h"
 #include "add.h"
 
-static char Options[] = "hvIRnp:SM";
+static char Options[] = "hvIRnp:SMt:";
 
 char	*Prefix		= NULL;
 Boolean	NoInstall	= FALSE;
