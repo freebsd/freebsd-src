@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cons.c	7.2 (Berkeley) 5/9/91
- *	$Id$
+ *	$Id: cons.c,v 1.51 1997/02/22 09:32:10 peter Exp $
  */
 
 #include <sys/param.h>
@@ -83,8 +83,6 @@ static struct cdevsw cn_cdevsw =
 	{ cnopen,	cnclose,	cnread,		cnwrite,	/*0*/
 	  cnioctl,	nullstop,	nullreset,	nodevtotty,/* console */
 	  cnselect,	nommap,		NULL,	"console",	NULL,	-1 };
-
-struct	tty *constty = 0;	/* virtual console output device */
 
 static dev_t	cn_dev_t;
 SYSCTL_OPAQUE(_machdep, CPU_CONSDEV, consdev, CTLTYPE_OPAQUE|CTLFLAG_RD,
