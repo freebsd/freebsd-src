@@ -520,6 +520,7 @@ __elfN(load_file)(struct proc *p, const char *file, u_long *addr,
 	imgp->firstpage = NULL;
 	imgp->image_header = (char *)kmem_alloc_wait(exec_map, PAGE_SIZE);
 	imgp->object = NULL;
+	imgp->execlabel = NULL;
 
 	if (imgp->image_header == NULL) {
 		nd->ni_vp = NULL;
