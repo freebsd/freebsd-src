@@ -160,10 +160,11 @@ DEFUN(ar_open,(name, t),
 
 {
   char *tname = (char *) xmalloc (strlen (name) + 10);
+  const char *bname = lbasename (name);
   real_name = name;
   /* Prepend tmp- to the beginning, to avoid file-name clashes after
      truncation on filesystems with limited namespaces (DOS).  */
-  sprintf(tname, "tmp-%s", name);
+  sprintf(tname, "%.*stmp-%s", (int) (bname - name), name, bname);
   obfd = bfd_openw(tname, NULL);
 
   if (!obfd) {

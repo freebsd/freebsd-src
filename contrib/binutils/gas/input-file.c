@@ -1,5 +1,5 @@
 /* input_file.c - Deal with Input Files -
-   Copyright 1987, 1990, 1991, 1992, 1993, 1994, 1995, 1999, 2000
+   Copyright 1987, 1990, 1991, 1992, 1993, 1994, 1995, 1999, 2000, 2001
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -19,50 +19,44 @@
    Software Foundation, 59 Temple Place - Suite 330, Boston, MA
    02111-1307, USA.  */
 
-/*
- * Confines all details of reading source bytes to this module.
- * All O/S specific crocks should live here.
- * What we lose in "efficiency" we gain in modularity.
- * Note we don't need to #include the "as.h" file. No common coupling!
- */
+/* Confines all details of reading source bytes to this module.
+   All O/S specific crocks should live here.
+   What we lose in "efficiency" we gain in modularity.
+   Note we don't need to #include the "as.h" file. No common coupling!  */
 
 #include <stdio.h>
 #include <string.h>
-
 #include "as.h"
 #include "input-file.h"
+#include "safe-ctype.h"
 
 static int input_file_get PARAMS ((char *, int));
 
 /* This variable is non-zero if the file currently being read should be
-   preprocessed by app.  It is zero if the file can be read straight in.
-   */
+   preprocessed by app.  It is zero if the file can be read straight in.  */
 int preprocess = 0;
 
-/*
- * This code opens a file, then delivers BUFFER_SIZE character
- * chunks of the file on demand.
- * BUFFER_SIZE is supposed to be a number chosen for speed.
- * The caller only asks once what BUFFER_SIZE is, and asks before
- * the nature of the input files (if any) is known.
- */
+/* This code opens a file, then delivers BUFFER_SIZE character
+   chunks of the file on demand.
+   BUFFER_SIZE is supposed to be a number chosen for speed.
+   The caller only asks once what BUFFER_SIZE is, and asks before
+   the nature of the input files (if any) is known.  */
 
 #define BUFFER_SIZE (32 * 1024)
 
-/*
- * We use static data: the data area is not sharable.
- */
+/* We use static data: the data area is not sharable.  */
 
 static FILE *f_in;
 static char *file_name;
 
 /* Struct for saving the state of this module for file includes.  */
-struct saved_file {
-  FILE *f_in;
-  char *file_name;
-  int preprocess;
-  char *app_save;
-};
+struct saved_file
+  {
+    FILE * f_in;
+    char * file_name;
+    int    preprocess;
+    char * app_save;
+  };
 
 /* These hooks accomodate most operating systems.  */
 
@@ -92,6 +86,7 @@ input_file_is_open ()
 
 /* Push the state of our input, returning a pointer to saved info that
    can be restored with input_file_pop ().  */
+
 char *
 input_file_push ()
 {
@@ -105,7 +100,8 @@ input_file_push ()
   if (preprocess)
     saved->app_save = app_push ();
 
-  input_file_begin ();		/* Initialize for new file */
+  /* Initialize for new file.  */
+  input_file_begin ();
 
   return (char *) saved;
 }
@@ -116,7 +112,7 @@ input_file_pop (arg)
 {
   register struct saved_file *saved = (struct saved_file *) arg;
 
-  input_file_end ();		/* Close out old file */
+  input_file_end ();		/* Close out old file.  */
 
   f_in = saved->f_in;
   file_name = saved->file_name;
@@ -140,7 +136,7 @@ input_file_open (filename, pre)
   assert (filename != 0);	/* Filename may not be NULL.  */
   if (filename[0])
     {				/* We have a file name. Suck it and see.  */
-      f_in = fopen (filename, "r");
+      f_in = fopen (filename, FOPEN_RT);
       file_name = filename;
     }
   else
@@ -150,42 +146,54 @@ input_file_open (filename, pre)
     }
   if (f_in == (FILE *) 0)
     {
-      as_bad (_("Can't open %s for reading."), file_name);
+      as_bad (_("can't open %s for reading"), file_name);
       as_perror ("%s", file_name);
       return;
     }
 
   c = getc (f_in);
   if (c == '#')
-    {				/* Begins with comment, may not want to preprocess */
+    {
+      /* Begins with comment, may not want to preprocess.  */
       c = getc (f_in);
       if (c == 'N')
-	{
-	  fgets (buf, 80, f_in);
-	  if (!strcmp (buf, "O_APP\n"))
-	    preprocess = 0;
-	  if (!strchr (buf, '\n'))
-	    ungetc ('#', f_in);	/* It was longer */
-	  else
-	    ungetc ('\n', f_in);
-	}
+        {
+          fgets (buf, 80, f_in);
+          if (!strncmp (buf, "O_APP", 5) && ISSPACE (buf[5]))
+            preprocess = 0;
+          if (!strchr (buf, '\n'))
+            ungetc ('#', f_in);	/* It was longer.  */
+          else
+            ungetc ('\n', f_in);
+        }
+      else if (c == 'A')
+        {
+          fgets (buf, 80, f_in);
+          if (!strncmp (buf, "PP", 2) && ISSPACE (buf[2]))
+            preprocess = 1;
+          if (!strchr (buf, '\n'))
+            ungetc ('#', f_in);
+          else
+            ungetc ('\n', f_in);
+        }
       else if (c == '\n')
-	ungetc ('\n', f_in);
+        ungetc ('\n', f_in);
       else
-	ungetc ('#', f_in);
+        ungetc ('#', f_in);
     }
   else
     ungetc (c, f_in);
 }
 
 /* Close input file.  */
+
 void
 input_file_close ()
 {
+  /* Don't close a null file pointer.  */
   if (f_in != NULL)
-    {
-      fclose (f_in);
-    }				/* don't close a null file pointer */
+    fclose (f_in);
+
   f_in = 0;
 }
 
@@ -218,12 +226,10 @@ input_file_give_next_buffer (where)
 
   if (f_in == (FILE *) 0)
     return 0;
-  /*
-   * fflush (stdin); could be done here if you want to synchronise
-   * stdin and stdout, for the case where our input file is stdin.
-   * Since the assembler shouldn't do any output to stdout, we
-   * don't bother to synch output and input.
-   */
+  /* fflush (stdin); could be done here if you want to synchronise
+     stdin and stdout, for the case where our input file is stdin.
+     Since the assembler shouldn't do any output to stdout, we
+     don't bother to synch output and input.  */
   if (preprocess)
     size = do_scrub_chars (input_file_get, where, BUFFER_SIZE);
   else
@@ -242,5 +248,6 @@ input_file_give_next_buffer (where)
       f_in = (FILE *) 0;
       return_value = 0;
     }
-  return (return_value);
+
+  return return_value;
 }

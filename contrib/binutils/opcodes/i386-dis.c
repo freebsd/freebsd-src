@@ -52,7 +52,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 static int fetch_data PARAMS ((struct disassemble_info *, bfd_byte *));
 static void ckprefix PARAMS ((void));
 static const char *prefix_name PARAMS ((int, int));
-static int print_insn_i386 PARAMS ((bfd_vma, disassemble_info *));
+static int print_insn PARAMS ((bfd_vma, disassemble_info *));
 static void dofloat PARAMS ((int));
 static void OP_ST PARAMS ((int, int));
 static void OP_STi  PARAMS ((int, int));
@@ -101,6 +101,7 @@ struct dis_private {
   bfd_byte *max_fetched;
   bfd_byte the_buffer[MAXLEN];
   bfd_vma insn_start;
+  int orig_sizeflag;
   jmp_buf bailout;
 };
 
@@ -298,9 +299,7 @@ fetch_data (info, addr)
 #define loop_jcxz_flag NULL, loop_jcxz_mode
 
 /* bits in sizeflag */
-#if 0 /* Leave undefined until someone adds the extra flag to objdump.  */
 #define SUFFIX_ALWAYS 4
-#endif
 #define AFLAG 2
 #define DFLAG 1
 
@@ -442,9 +441,9 @@ struct dis386 {
    'N' => print 'n' if instruction has no wait "prefix"
    'O' => print 'd', or 'o'
    'P' => print 'w', 'l' or 'q' if instruction has an operand size prefix,
-                              or suffix_always is true
-	  print 'q' if rex prefix is present.
-   'Q' => print 'w', 'l' or 'q' if no register operands or suffix_always is true
+   .      or suffix_always is true.  print 'q' if rex prefix is present.
+   'Q' => print 'w', 'l' or 'q' if no register operands or suffix_always
+   .      is true
    'R' => print 'w', 'l' or 'q' ("wd" or "dq" in intel mode)
    'S' => print 'w', 'l' or 'q' if suffix_always is true
    'T' => print 'q' in 64bit mode and behave as 'P' otherwise
@@ -1337,8 +1336,8 @@ static const struct dis386 grps[][8] = {
   },
   /* GRP6 */
   {
-    { "sldt",	Ew, XX, XX },
-    { "str",	Ew, XX, XX },
+    { "sldtQ",	Ev, XX, XX },
+    { "strQ",	Ev, XX, XX },
     { "lldt",	Ew, XX, XX },
     { "ltr",	Ew, XX, XX },
     { "verr",	Ew, XX, XX },
@@ -1352,7 +1351,7 @@ static const struct dis386 grps[][8] = {
     { "sidtQ",	 M, XX, XX },
     { "lgdtQ",	 M, XX, XX },
     { "lidtQ",	 M, XX, XX },
-    { "smsw",	Ew, XX, XX },
+    { "smswQ",	Ev, XX, XX },
     { "(bad)",	XX, XX, XX },
     { "lmsw",	Ew, XX, XX },
     { "invlpg",	Ew, XX, XX },
@@ -1837,25 +1836,17 @@ static char close_char;
 static char separator_char;
 static char scale_char;
 
+/* Here for backwards compatibility.  When gdb stops using
+   print_insn_i386_att and print_insn_i386_intel these functions can
+   disappear, and print_insn_i386 be merged into print_insn.  */
 int
 print_insn_i386_att (pc, info)
      bfd_vma pc;
      disassemble_info *info;
 {
   intel_syntax = 0;
-  names64 = att_names64;
-  names32 = att_names32;
-  names16 = att_names16;
-  names8 = att_names8;
-  names8rex = att_names8rex;
-  names_seg = att_names_seg;
-  index16 = att_index16;
-  open_char = '(';
-  close_char =  ')';
-  separator_char = ',';
-  scale_char = ',';
 
-  return print_insn_i386 (pc, info);
+  return print_insn (pc, info);
 }
 
 int
@@ -1864,23 +1855,22 @@ print_insn_i386_intel (pc, info)
      disassemble_info *info;
 {
   intel_syntax = 1;
-  names64 = intel_names64;
-  names32 = intel_names32;
-  names16 = intel_names16;
-  names8 = intel_names8;
-  names8rex = intel_names8rex;
-  names_seg = intel_names_seg;
-  index16 = intel_index16;
-  open_char = '[';
-  close_char = ']';
-  separator_char = '+';
-  scale_char = '*';
 
-  return print_insn_i386 (pc, info);
+  return print_insn (pc, info);
+}
+
+int
+print_insn_i386 (pc, info)
+     bfd_vma pc;
+     disassemble_info *info;
+{
+  intel_syntax = -1;
+
+  return print_insn (pc, info);
 }
 
 static int
-print_insn_i386 (pc, info)
+print_insn (pc, info)
      bfd_vma pc;
      disassemble_info *info;
 {
@@ -1890,25 +1880,102 @@ print_insn_i386 (pc, info)
   char *first, *second, *third;
   int needcomma;
   unsigned char uses_SSE_prefix;
-  VOLATILE int sizeflag;
-  VOLATILE int orig_sizeflag;
-
+  int sizeflag;
+  const char *p;
   struct dis_private priv;
-  bfd_byte *inbuf = priv.the_buffer;
 
   mode_64bit = (info->mach == bfd_mach_x86_64_intel_syntax
 		|| info->mach == bfd_mach_x86_64);
+
+  if (intel_syntax == -1)
+    intel_syntax = (info->mach == bfd_mach_i386_i386_intel_syntax
+		    || info->mach == bfd_mach_x86_64_intel_syntax);
 
   if (info->mach == bfd_mach_i386_i386
       || info->mach == bfd_mach_x86_64
       || info->mach == bfd_mach_i386_i386_intel_syntax
       || info->mach == bfd_mach_x86_64_intel_syntax)
-    sizeflag = AFLAG | DFLAG;
+    priv.orig_sizeflag = AFLAG | DFLAG;
   else if (info->mach == bfd_mach_i386_i8086)
-    sizeflag = 0;
+    priv.orig_sizeflag = 0;
   else
     abort ();
-  orig_sizeflag = sizeflag;
+
+  for (p = info->disassembler_options; p != NULL; )
+    {
+      if (strncmp (p, "x86-64", 6) == 0)
+	{
+	  mode_64bit = 1;
+	  priv.orig_sizeflag = AFLAG | DFLAG;
+	}
+      else if (strncmp (p, "i386", 4) == 0)
+	{
+	  mode_64bit = 0;
+	  priv.orig_sizeflag = AFLAG | DFLAG;
+	}
+      else if (strncmp (p, "i8086", 5) == 0)
+	{
+	  mode_64bit = 0;
+	  priv.orig_sizeflag = 0;
+	}
+      else if (strncmp (p, "intel", 5) == 0)
+	{
+	  intel_syntax = 1;
+	}
+      else if (strncmp (p, "att", 3) == 0)
+	{
+	  intel_syntax = 0;
+	}
+      else if (strncmp (p, "addr", 4) == 0)
+	{
+	  if (p[4] == '1' && p[5] == '6')
+	    priv.orig_sizeflag &= ~AFLAG;
+	  else if (p[4] == '3' && p[5] == '2')
+	    priv.orig_sizeflag |= AFLAG;
+	}
+      else if (strncmp (p, "data", 4) == 0)
+	{
+	  if (p[4] == '1' && p[5] == '6')
+	    priv.orig_sizeflag &= ~DFLAG;
+	  else if (p[4] == '3' && p[5] == '2')
+	    priv.orig_sizeflag |= DFLAG;
+	}
+      else if (strncmp (p, "suffix", 6) == 0)
+	priv.orig_sizeflag |= SUFFIX_ALWAYS;
+
+      p = strchr (p, ',');
+      if (p != NULL)
+	p++;
+    }
+
+  if (intel_syntax)
+    {
+      names64 = intel_names64;
+      names32 = intel_names32;
+      names16 = intel_names16;
+      names8 = intel_names8;
+      names8rex = intel_names8rex;
+      names_seg = intel_names_seg;
+      index16 = intel_index16;
+      open_char = '[';
+      close_char = ']';
+      separator_char = '+';
+      scale_char = '*';
+    }
+  else
+    {
+      names64 = att_names64;
+      names32 = att_names32;
+      names16 = att_names16;
+      names8 = att_names8;
+      names8rex = att_names8rex;
+      names_seg = att_names_seg;
+      index16 = att_index16;
+      open_char = '(';
+      close_char =  ')';
+      separator_char = ',';
+      scale_char = ',';
+    }
 
   /* The output looks better if we put 7 bytes on a line, since that
      puts most long word instructions on a single line.  */
@@ -1927,26 +1994,26 @@ print_insn_i386 (pc, info)
 
   the_info = info;
   start_pc = pc;
-  start_codep = inbuf;
-  codep = inbuf;
+  start_codep = priv.the_buffer;
+  codep = priv.the_buffer;
 
   if (setjmp (priv.bailout) != 0)
     {
       const char *name;
 
       /* Getting here means we tried for data but didn't get it.  That
-         means we have an incomplete instruction of some sort.  Just
-         print the first byte as a prefix or a .byte pseudo-op.  */
-      if (codep > inbuf)
+	 means we have an incomplete instruction of some sort.  Just
+	 print the first byte as a prefix or a .byte pseudo-op.  */
+      if (codep > priv.the_buffer)
 	{
-	  name = prefix_name (inbuf[0], orig_sizeflag);
+	  name = prefix_name (priv.the_buffer[0], priv.orig_sizeflag);
 	  if (name != NULL)
 	    (*info->fprintf_func) (info->stream, "%s", name);
 	  else
 	    {
 	      /* Just print the first byte as a .byte instruction.  */
 	      (*info->fprintf_func) (info->stream, ".byte 0x%x",
-				     (unsigned int) inbuf[0]);
+				     (unsigned int) priv.the_buffer[0]);
 	    }
 
 	  return 1;
@@ -1959,6 +2026,7 @@ print_insn_i386 (pc, info)
   ckprefix ();
 
   insn_codep = codep;
+  sizeflag = priv.orig_sizeflag;
 
   FETCH_DATA (info, codep + 1);
   two_source_ops = (*codep == 0x62) || (*codep == 0xc8);
@@ -1970,7 +2038,7 @@ print_insn_i386 (pc, info)
 
       /* fwait not followed by floating point instruction.  Print the
          first prefix, which is probably fwait itself.  */
-      name = prefix_name (inbuf[0], orig_sizeflag);
+      name = prefix_name (priv.the_buffer[0], priv.orig_sizeflag);
       if (name == NULL)
 	name = INTERNAL_DISASSEMBLER_ERROR;
       (*info->fprintf_func) (info->stream, "%s", name);
@@ -2116,7 +2184,7 @@ print_insn_i386 (pc, info)
     {
       const char *name;
 
-      name = prefix_name (inbuf[0], orig_sizeflag);
+      name = prefix_name (priv.the_buffer[0], priv.orig_sizeflag);
       if (name == NULL)
 	name = INTERNAL_DISASSEMBLER_ERROR;
       (*info->fprintf_func) (info->stream, "%s", name);
@@ -2125,7 +2193,7 @@ print_insn_i386 (pc, info)
   if (rex & ~rex_used)
     {
       const char *name;
-      name = prefix_name (rex | 0x40, orig_sizeflag);
+      name = prefix_name (rex | 0x40, priv.orig_sizeflag);
       if (name == NULL)
 	name = INTERNAL_DISASSEMBLER_ERROR;
       (*info->fprintf_func) (info->stream, "%s ", name);
@@ -2189,7 +2257,7 @@ print_insn_i386 (pc, info)
 	(*info->print_address_func) ((bfd_vma) (start_pc + codep - start_codep
 						+ op_address[op_index[i]]), info);
       }
-  return codep - inbuf;
+  return codep - priv.the_buffer;
 }
 
 static const char *float_mem[] = {
@@ -2548,20 +2616,14 @@ putop (template, sizeflag)
 	case 'A':
           if (intel_syntax)
             break;
-	  if (mod != 3
-#ifdef SUFFIX_ALWAYS
-	      || (sizeflag & SUFFIX_ALWAYS)
-#endif
-	      )
+	  if (mod != 3 || (sizeflag & SUFFIX_ALWAYS))
 	    *obufp++ = 'b';
 	  break;
 	case 'B':
           if (intel_syntax)
             break;
-#ifdef SUFFIX_ALWAYS
 	  if (sizeflag & SUFFIX_ALWAYS)
 	    *obufp++ = 'b';
-#endif
 	  break;
 	case 'E':		/* For jcxz/jecxz */
 	  if (sizeflag & AFLAG)
@@ -2571,11 +2633,7 @@ putop (template, sizeflag)
 	case 'F':
           if (intel_syntax)
             break;
-	  if ((prefixes & PREFIX_ADDR)
-#ifdef SUFFIX_ALWAYS
-	      || (sizeflag & SUFFIX_ALWAYS)
-#endif
-	      )
+	  if ((prefixes & PREFIX_ADDR) || (sizeflag & SUFFIX_ALWAYS))
 	    {
 	      if (sizeflag & AFLAG)
 		*obufp++ = 'l';
@@ -2602,10 +2660,8 @@ putop (template, sizeflag)
 	case 'L':
           if (intel_syntax)
             break;
-#ifdef SUFFIX_ALWAYS
 	  if (sizeflag & SUFFIX_ALWAYS)
 	    *obufp++ = 'l';
-#endif
 	  break;
 	case 'N':
 	  if ((prefixes & PREFIX_FWAIT) == 0)
@@ -2634,10 +2690,7 @@ putop (template, sizeflag)
             break;
 	  if ((prefixes & PREFIX_DATA)
 	      || (rex & REX_MODE64)
-#ifdef SUFFIX_ALWAYS
-	      || (sizeflag & SUFFIX_ALWAYS)
-#endif
-	      )
+	      || (sizeflag & SUFFIX_ALWAYS))
 	    {
 	      USED_REX (REX_MODE64);
 	      if (rex & REX_MODE64)
@@ -2665,11 +2718,7 @@ putop (template, sizeflag)
           if (intel_syntax)
             break;
 	  USED_REX (REX_MODE64);
-	  if (mod != 3
-#ifdef SUFFIX_ALWAYS
-	      || (sizeflag & SUFFIX_ALWAYS)
-#endif
-	      )
+	  if (mod != 3 || (sizeflag & SUFFIX_ALWAYS))
 	    {
 	      if (rex & REX_MODE64)
 		*obufp++ = 'q';
@@ -2718,7 +2767,6 @@ putop (template, sizeflag)
 	case 'S':
           if (intel_syntax)
             break;
-#ifdef SUFFIX_ALWAYS
 	  if (sizeflag & SUFFIX_ALWAYS)
 	    {
 	      if (rex & REX_MODE64)
@@ -2732,7 +2780,6 @@ putop (template, sizeflag)
 		  used_prefixes |= (prefixes & PREFIX_DATA);
 		}
 	    }
-#endif
 	  break;
 	case 'X':
 	  if (prefixes & PREFIX_DATA)

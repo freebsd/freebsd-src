@@ -38,6 +38,7 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 #include "ldexp.h"
 #include "ldgram.h"
 #include "ldlang.h"
+#include "libiberty.h"
 
 static void exp_print_token PARAMS ((token_code_type code));
 static void make_abs PARAMS ((etree_value_type *ptr));
@@ -67,12 +68,14 @@ static void
 exp_print_token (code)
      token_code_type code;
 {
-  static CONST struct {
+  static CONST struct
+  {
     token_code_type code;
-    char *name;
-  } table[] = {
+    char * name;
+  }
+  table[] =
+  {
     { INT, "int" },
-    { REL, "relocateable" },
     { NAME, "NAME" },
     { PLUSEQ, "+=" },
     { MINUSEQ, "-=" },
@@ -89,40 +92,45 @@ exp_print_token (code)
     { LE, "<=" },
     { GE, ">=" },
     { LSHIFT, "<<" },
-    { RSHIFT, ">>=" },
+    { RSHIFT, ">>" },
     { ALIGN_K, "ALIGN" },
     { BLOCK, "BLOCK" },
-    { SECTIONS, "SECTIONS" },
-    { SIZEOF_HEADERS, "SIZEOF_HEADERS" },
-    { NEXT, "NEXT" },
-    { SIZEOF, "SIZEOF" },
-    { ADDR, "ADDR" },
-    { LOADADDR, "LOADADDR" },
-    { MEMORY, "MEMORY" },
-    { DEFINED, "DEFINED" },
-    { TARGET_K, "TARGET" },
-    { SEARCH_DIR, "SEARCH_DIR" },
-    { MAP, "MAP" },
     { QUAD, "QUAD" },
     { SQUAD, "SQUAD" },
     { LONG, "LONG" },
     { SHORT, "SHORT" },
     { BYTE, "BYTE" },
+    { SECTIONS, "SECTIONS" },
+    { SIZEOF_HEADERS, "SIZEOF_HEADERS" },
+    { MEMORY, "MEMORY" },
+    { DEFINED, "DEFINED" },
+    { TARGET_K, "TARGET" },
+    { SEARCH_DIR, "SEARCH_DIR" },
+    { MAP, "MAP" },
     { ENTRY, "ENTRY" },
-    { 0, (char *) NULL }
+    { NEXT, "NEXT" },
+    { SIZEOF, "SIZEOF" },
+    { ADDR, "ADDR" },
+    { LOADADDR, "LOADADDR" },
+    { MAX_K, "MAX_K" },
+    { REL, "relocateable" },
   };
   unsigned int idx;
 
-  for (idx = 0; table[idx].name != (char *) NULL; idx++)
+  for (idx = ARRAY_SIZE (table); idx--;)
     {
       if (table[idx].code == code)
 	{
-	  fprintf (config.map_file, "%s", table[idx].name);
+	  fprintf (config.map_file, " %s ", table[idx].name);
 	  return;
 	}
     }
-  /* Not in table, just print it alone */
-  fprintf (config.map_file, "%c", code);
+
+  /* Not in table, just print it alone.  */
+  if (code < 127)
+    fprintf (config.map_file, " %c ", code);
+  else
+    fprintf (config.map_file, " <code %d> ", code);
 }
 
 static void
@@ -335,6 +343,7 @@ fold_name (tree, current_section, allocation_done, dot)
      bfd_vma dot;
 {
   etree_value_type result;
+
   switch (tree->type.node_code)
     {
     case SIZEOF_HEADERS:
@@ -597,7 +606,7 @@ exp_fold_tree (tree, current_section, allocation_done, dot, dotp)
     case etree_provided:
       if (tree->assign.dst[0] == '.' && tree->assign.dst[1] == 0)
 	{
-	  /* Assignment to dot can only be done during allocation */
+	  /* Assignment to dot can only be done during allocation.  */
 	  if (tree->type.node_class != etree_assign)
 	    einfo (_("%F%S can not PROVIDE assignment to location counter\n"));
 	  if (allocation_done == lang_allocating_phase_enum
@@ -622,10 +631,8 @@ exp_fold_tree (tree, current_section, allocation_done, dot, dotp)
 				 + current_section->bfd_section->vma);
 		      if (nextdot < dot
 			  && current_section != abs_output_section)
-			{
-			  einfo (_("%F%S cannot move location counter backwards (from %V to %V)\n"),
-				 dot, nextdot);
-			}
+			einfo (_("%F%S cannot move location counter backwards (from %V to %V)\n"),
+			       dot, nextdot);
 		      else
 			*dotp = nextdot;
 		    }
@@ -740,9 +747,8 @@ exp_trinop (code, cond, lhs, rhs)
 			    (lang_output_section_statement_type *) NULL,
 			    lang_first_phase_enum);
   if (r.valid_p)
-    {
-      return exp_intop (r.value);
-    }
+    return exp_intop (r.value);
+
   new = (etree_type *) stat_alloc (sizeof (new->trinary));
   memcpy ((char *) new, (char *) &value, sizeof (new->trinary));
   return new;
@@ -762,9 +768,8 @@ exp_unop (code, child)
   r = exp_fold_tree_no_dot (&value, abs_output_section,
 			    lang_first_phase_enum);
   if (r.valid_p)
-    {
-      return exp_intop (r.value);
-    }
+    return exp_intop (r.value);
+
   new = (etree_type *) stat_alloc (sizeof (new->unary));
   memcpy ((char *) new, (char *) &value, sizeof (new->unary));
   return new;
@@ -785,9 +790,8 @@ exp_nameop (code, name)
 			    (lang_output_section_statement_type *) NULL,
 			    lang_first_phase_enum);
   if (r.valid_p)
-    {
-      return exp_intop (r.value);
-    }
+    return exp_intop (r.value);
+
   new = (etree_type *) stat_alloc (sizeof (new->name));
   memcpy ((char *) new, (char *) &value, sizeof (new->name));
   return new;
@@ -810,9 +814,7 @@ exp_assop (code, dst, src)
 
 #if 0
   if (exp_fold_tree_no_dot (&value, &result))
-    {
-      return exp_intop (result);
-    }
+    return exp_intop (result);
 #endif
   new = (etree_type *) stat_alloc (sizeof (new->assign));
   memcpy ((char *) new, (char *) &value, sizeof (new->assign));
@@ -857,6 +859,15 @@ void
 exp_print_tree (tree)
      etree_type *tree;
 {
+  if (config.map_file == NULL)
+    config.map_file = stderr;
+  
+  if (tree == NULL)
+    {
+      minfo ("NULL TREE\n");
+      return;
+    }
+  
   switch (tree->type.node_class)
     {
     case etree_value:
@@ -870,14 +881,10 @@ exp_print_tree (tree)
     case etree_assign:
 #if 0
       if (tree->assign.dst->sdefs != (asymbol *) NULL)
-	{
-	  fprintf (config.map_file, "%s (%x) ", tree->assign.dst->name,
-		   tree->assign.dst->sdefs->value);
-	}
+	fprintf (config.map_file, "%s (%x) ", tree->assign.dst->name,
+		 tree->assign.dst->sdefs->value);
       else
-	{
-	  fprintf (config.map_file, "%s (UNDEFINED)", tree->assign.dst->name);
-	}
+	fprintf (config.map_file, "%s (UNDEFINED)", tree->assign.dst->name);
 #endif
       fprintf (config.map_file, "%s", tree->assign.dst);
       exp_print_token (tree->type.node_code);
@@ -981,12 +988,9 @@ exp_get_abs_int (tree, def, name, allocation_done)
   res = exp_fold_tree_no_dot (tree, abs_output_section, allocation_done);
 
   if (res.valid_p)
-    {
-      res.value += res.section->bfd_section->vma;
-    }
+    res.value += res.section->bfd_section->vma;
   else
-    {
-      einfo (_("%F%S non constant expression for %s\n"), name);
-    }
+    einfo (_("%F%S non constant expression for %s\n"), name);
+
   return res.value;
 }

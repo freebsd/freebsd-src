@@ -1,5 +1,5 @@
 /* wrstabs.c -- Output stabs debugging information
-   Copyright 1996, 1997, 1998, 2000 Free Software Foundation, Inc.
+   Copyright 1996, 1997, 1998, 2000, 2001 Free Software Foundation, Inc.
    Written by Ian Lance Taylor <ian@cygnus.com>.
 
    This file is part of GNU Binutils.
@@ -23,12 +23,12 @@
    information.  */
 
 #include <stdio.h>
-#include <ctype.h>
 #include <assert.h>
 
 #include "bfd.h"
 #include "bucomm.h"
 #include "libiberty.h"
+#include "safe-ctype.h"
 #include "debug.h"
 #include "budbg.h"
 
@@ -2172,7 +2172,7 @@ stab_variable (p, name, kind, val)
       kindstr = "";
 
       /* Make sure that this is a type reference or definition.  */
-      if (! isdigit ((unsigned char) *s))
+      if (! ISDIGIT (*s))
 	{
 	  char *n;
 	  long index;

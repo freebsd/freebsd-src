@@ -390,13 +390,6 @@ print_insn_arm (pc, info, given)
 			func (stream, "t");
 		      break;
 
-		    case 'h':
-		      if ((given & 0x00000020) == 0x00000020)
-			func (stream, "h");
-                      else
-                        func (stream, "b");
-		      break;
-
 		    case 'A':
 		      func (stream, "[%s", arm_regnames [(given >> 16) & 0xf]);
 		      if ((given & 0x01000000) != 0)
@@ -443,6 +436,25 @@ print_insn_arm (pc, info, given)
 
 		        info->print_address_func (address, info);
 		      }
+		      break;
+
+		    case 'I':
+		      /* Print a Cirrus/DSP shift immediate.  */
+		      /* Immediates are 7bit signed ints with bits 0..3 in
+			 bits 0..3 of opcode and bits 4..6 in bits 5..7
+			 of opcode.  */
+		      {
+			int imm;
+
+			imm = (given & 0xf) | ((given & 0xe0) >> 1);
+
+			/* Is ``imm'' a negative number?  */
+			if (imm & 0x40)
+			  imm |= (-1 << 7);
+
+			func (stream, "%d", imm);
+		      }
+
 		      break;
 
 		    case 'C':
@@ -611,7 +623,85 @@ print_insn_arm (pc, info, given)
 				abort ();
 			      }
 			    break;
-			    
+
+			  case 'y':
+			  case 'z':
+			    {
+			      int single = *c == 'y';
+			      int regno;
+
+			      switch (bitstart)
+				{
+				case 4: /* Sm pair */
+				  func (stream, "{");
+				  /* Fall through.  */
+				case 0: /* Sm, Dm */
+				  regno = given & 0x0000000f;
+				  if (single)
+				    {
+				      regno <<= 1;
+				      regno += (given >> 5) & 1;
+				    }
+				  break;
+
+				case 1: /* Sd, Dd */
+				  regno = (given >> 12) & 0x0000000f;
+				  if (single)
+				    {
+				      regno <<= 1;
+				      regno += (given >> 22) & 1;
+				    }
+				  break;
+
+				case 2: /* Sn, Dn */
+				  regno = (given >> 16) & 0x0000000f;
+				  if (single)
+				    {
+				      regno <<= 1;
+				      regno += (given >> 7) & 1;
+				    }
+				  break;
+
+				case 3: /* List */
+				  func (stream, "{");
+				  regno = (given >> 12) & 0x0000000f;
+				  if (single)
+				    {
+				      regno <<= 1;
+				      regno += (given >> 22) & 1;
+				    }
+				  break;
+
+				  
+				default:
+				  abort ();
+				}
+
+			      func (stream, "%c%d", single ? 's' : 'd', regno);
+
+			      if (bitstart == 3)
+				{
+				  int count = given & 0xff;
+
+				  if (single == 0)
+				    count >>= 1;
+
+				  if (--count)
+				    {
+				      func (stream, "-%c%d",
+					    single ? 's' : 'd',
+					    regno + count);
+				    }
+
+				  func (stream, "}");
+				}
+			      else if (bitstart == 4)
+				func (stream, ", %c%d}", single ? 's' : 'd',
+				      regno + 1);
+
+			      break;
+			    }
+
 			  case '`':
 			    c++;
 			    if ((given & (1 << bitstart)) == 0)
@@ -669,15 +759,32 @@ print_insn_thumb (pc, info, given)
           /* Special processing for Thumb 2 instruction BL sequence:  */
           if (!*c) /* Check for empty (not NULL) assembler string.  */
             {
+	      long offset;
+	      
 	      info->bytes_per_chunk = 4;
 	      info->bytes_per_line  = 4;
+
+	      offset = BDISP23 (given);
 	      
 	      if ((given & 0x10000000) == 0)
-                 func (stream, "blx\t");
+		{
+		  func (stream, "blx\t");
+
+		  /* The spec says that bit 1 of the branch's destination
+		     address comes from bit 1 of the instruction's
+		     address and not from the offset in the instruction.  */
+		  if (offset & 0x1)
+		    {
+		      /* func (stream, "*malformed!* "); */
+		      offset &= ~ 0x1;
+		    }
+
+		  offset |= ((pc & 0x2) >> 1);
+		}
 	      else
-                func (stream, "bl\t");
-		
-              info->print_address_func (BDISP23 (given) * 2 + pc + 4, info);
+		func (stream, "bl\t");
+
+	      info->print_address_func (offset * 2 + pc + 4, info);
               return 4;
             }
           else
@@ -1088,7 +1195,7 @@ the -M switch:\n"));
   for (i = NUM_ARM_REGNAMES; i--;)
     fprintf (stream, "  reg-names-%s %*c%s\n",
 	     regnames[i].name,
-	     14 - strlen (regnames[i].name), ' ',
+	     (int)(14 - strlen (regnames[i].name)), ' ',
 	     regnames[i].description);
 
   fprintf (stream, "  force-thumb              Assume all insns are Thumb insns\n");

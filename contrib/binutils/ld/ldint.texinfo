@@ -84,6 +84,7 @@ section entitled "GNU Free Documentation License".
 * README::			The README File
 * Emulations::			How linker emulations are generated
 * Emulation Walkthrough::	A Walkthrough of a Typical Emulation
+* Architecture Specific::	Some Architecture Specific Notes
 * GNU Free Documentation License::  GNU Free Documentation License
 @end menu
 
@@ -238,7 +239,7 @@ If @code{SCRIPT_NAME} is set to @var{script}, @code{genscripts.sh} will
 invoke @file{scripttempl/@var{script}.sc}.
 
 The @file{genscripts.sh} script will invoke the @file{scripttempl}
-script 5 or 6 times.  Each time it will set the shell variable
+script 5 to 8 times.  Each time it will set the shell variable
 @code{LD_FLAG} to a different value.  When the linker is run, the
 options used will direct it to select a particular script.  (Script
 selection is controlled by the @code{get_script} emulation entry point;
@@ -277,6 +278,22 @@ this value if @code{GENERATE_SHLIB_SCRIPT} is defined in the
 this script at the appropriate time, normally when the linker is invoked
 with the @code{-shared} option.  The output has an extension of
 @file{.xs}.
+@item c
+The @file{scripttempl} script is only invoked with @code{LD_FLAG} set to
+this value if @code{GENERATE_COMBRELOC_SCRIPT} is defined in the
+@file{emulparams} file or if @code{SCRIPT_NAME} is @code{elf}. The
+@file{emultempl} script must arrange to use this script at the appropriate
+time, normally when the linker is invoked with the @code{-z combreloc}
+option.  The output has an extension of
+@file{.xc}.
+@item cshared
+The @file{scripttempl} script is only invoked with @code{LD_FLAG} set to
+this value if @code{GENERATE_COMBRELOC_SCRIPT} is defined in the
+@file{emulparams} file or if @code{SCRIPT_NAME} is @code{elf} and
+@code{GENERATE_SHLIB_SCRIPT} is defined in the @file{emulparms} file.
+The @file{emultempl} script must arrange to use this script at the
+appropriate time, normally when the linker is invoked with the @code{-shared
+-z combreloc} option.  The output has an extension of @file{.xsc}.
 @end table
 
 Besides the shell variables set by the @file{emulparams} script, and the
@@ -300,6 +317,10 @@ page aligned, or to @samp{.} when generating the @code{-N} script.
 @item CREATE_SHLIB
 This will be set to a non-empty string when generating a @code{-shared}
 script.
+
+@item COMBRELOC
+This will be set to a non-empty string when generating @code{-z combreloc}
+scripts to a temporary file name which can be used during script generation.
 @end table
 
 The conventional way to write a @file{scripttempl} script is to first
@@ -570,6 +591,105 @@ In summary,
 @item output bfd is written to disk
 
 @end itemize
+
+@node Architecture Specific
+@chapter Some Architecture Specific Notes
+
+This is the place for notes on the behavior of @code{ld} on
+specific platforms.  Currently, only Intel x86 is documented (and 
+of that, only the auto-import behavior for DLLs).
+
+@menu
+* ix86::                        Intel x86
+@end menu
+
+@node ix86
+@section Intel x86
+
+@table @emph
+@code{ld} can create DLLs that operate with various runtimes available
+on a common x86 operating system.  These runtimes include native (using 
+the mingw "platform"), cygwin, and pw.
+
+@item auto-import from DLLs 
+@enumerate
+@item
+With this feature on, DLL clients can import variables from DLL 
+without any concern from their side (for example, without any source
+code modifications).  Auto-import can be enabled using the 
+@code{--enable-auto-import} flag, or disabled via the 
+@code{--disable-auto-import} flag.  Auto-import is disabled by default.
+
+@item
+This is done completely in bounds of the PE specification (to be fair,
+there's a minor violation of the spec at one point, but in practice 
+auto-import works on all known variants of that common x86 operating
+system)  So, the resulting DLL can be used with any other PE 
+compiler/linker.
+
+@item
+Auto-import is fully compatible with standard import method, in which
+variables are decorated using attribute modifiers. Libraries of either
+type may be mixed together.
+
+@item
+Overhead (space): 8 bytes per imported symbol, plus 20 for each
+reference to it; Overhead (load time): negligible; Overhead 
+(virtual/physical memory): should be less than effect of DLL 
+relocation.
+@end enumerate
+
+Motivation
+
+The obvious and only way to get rid of dllimport insanity is 
+to make client access variable directly in the DLL, bypassing 
+the extra dereference imposed by ordinary DLL runtime linking.
+I.e., whenever client contains someting like
+
+@code{mov dll_var,%eax,}
+
+address of dll_var in the command should be relocated to point 
+into loaded DLL. The aim is to make OS loader do so, and than 
+make ld help with that.  Import section of PE made following 
+way: there's a vector of structures each describing imports 
+from particular DLL. Each such structure points to two other 
+parellel vectors: one holding imported names, and one which 
+will hold address of corresponding imported name. So, the 
+solution is de-vectorize these structures, making import 
+locations be sparse and pointing directly into code.
+
+Implementation
+
+For each reference of data symbol to be imported from DLL (to 
+set of which belong symbols with name <sym>, if __imp_<sym> is 
+found in implib), the import fixup entry is generated. That 
+entry is of type IMAGE_IMPORT_DESCRIPTOR and stored in .idata$3 
+subsection. Each fixup entry contains pointer to symbol's address 
+within .text section (marked with __fuN_<sym> symbol, where N is 
+integer), pointer to DLL name (so, DLL name is referenced by 
+multiple entries), and pointer to symbol name thunk. Symbol name 
+thunk is singleton vector (__nm_th_<symbol>) pointing to 
+IMAGE_IMPORT_BY_NAME structure (__nm_<symbol>) directly containing 
+imported name. Here comes that "om the edge" problem mentioned above: 
+PE specification rambles that name vector (OriginalFirstThunk) should 
+run in parallel with addresses vector (FirstThunk), i.e. that they 
+should have same number of elements and terminated with zero. We violate
+this, since FirstThunk points directly into machine code. But in 
+practice, OS loader implemented the sane way: it goes thru 
+OriginalFirstThunk and puts addresses to FirstThunk, not something 
+else. It once again should be noted that dll and symbol name 
+structures are reused across fixup entries and should be there 
+anyway to support standard import stuff, so sustained overhead is 
+20 bytes per reference. Other question is whether having several 
+IMAGE_IMPORT_DESCRIPTORS for the same DLL is possible. Answer is yes, 
+it is done even by native compiler/linker (libth32's functions are in 
+fact resident in windows9x kernel32.dll, so if you use it, you have 
+two IMAGE_IMPORT_DESCRIPTORS for kernel32.dll). Yet other question is 
+whether referencing the same PE structures several times is valid. 
+The answer is why not, prohibiting that (detecting violation) would 
+require more work on behalf of loader than not doing it.
+
+@end table
 
 @node GNU Free Documentation License
 @chapter GNU Free Documentation License

@@ -230,10 +230,19 @@ dwarf2_gen_line_info (ofs, loc)
 {
   struct line_subseg *ss;
   struct line_entry *e;
+  static unsigned int line = -1;
+  static unsigned int filenum = -1;
 
   /* Early out for as-yet incomplete location information.  */
   if (loc->filenum == 0 || loc->line == 0)
     return;
+
+  /* Don't emit sequences of line symbols for the same line. */
+  if (line == loc->line && filenum == loc->filenum)
+    return;
+
+  line = loc->line;
+  filenum = loc->filenum;
 
   e = (struct line_entry *) xmalloc (sizeof (*e));
   e->next = NULL;
@@ -341,13 +350,13 @@ dwarf2_directive_file (dummy)
 
   if (num < 1)
     {
-      as_bad (_("File number less than one"));
+      as_bad (_("file number less than one"));
       return;
     }
 
-  if (num < files_in_use && files[num].filename != 0)
+  if (num < (int) files_in_use && files[num].filename != 0)
     {
-      as_bad (_("File number %ld already allocated"), (long) num);
+      as_bad (_("file number %ld already allocated"), (long) num);
       return;
     }
 
@@ -383,12 +392,12 @@ dwarf2_directive_loc (dummy)
 
   if (filenum < 1)
     {
-      as_bad (_("File number less than one"));
+      as_bad (_("file number less than one"));
       return;
     }
   if (filenum >= (int) files_in_use || files[filenum].filename == 0)
     {
-      as_bad (_("Unassigned file number %ld"), (long) filenum);
+      as_bad (_("unassigned file number %ld"), (long) filenum);
       return;
     }
 
@@ -524,8 +533,9 @@ get_frag_fix (frag)
   for (fr = frchain_root; fr; fr = fr->frch_next)
     if (fr->frch_last == frag)
       {
-	return ((char *) obstack_next_free (&fr->frch_obstack)
-		- frag->fr_literal);
+	long align_mask = -1 << get_recorded_alignment (fr->frch_seg);
+	return (((char *) obstack_next_free (&fr->frch_obstack)
+		 - frag->fr_literal) + ~align_mask) & align_mask;
       }
 
   abort ();
@@ -772,7 +782,7 @@ dwarf2dbg_estimate_size_before_relax (frag)
   offsetT addr_delta;
   int size;
 
-  addr_delta = resolve_symbol_value (frag->fr_symbol, 0);
+  addr_delta = resolve_symbol_value (frag->fr_symbol);
   size = size_inc_line_addr (frag->fr_offset, addr_delta);
 
   frag->fr_subtype = size;
@@ -806,7 +816,7 @@ dwarf2dbg_convert_frag (frag)
 {
   offsetT addr_diff;
 
-  addr_diff = resolve_symbol_value (frag->fr_symbol, 1);
+  addr_diff = resolve_symbol_value (frag->fr_symbol);
 
   /* fr_var carries the max_chars that we created the fragment with.
      fr_subtype carries the current expected length.  We must, of
@@ -933,7 +943,7 @@ out_file_list ()
     {
       if (files[i].filename == NULL)
 	{
-	  as_bad (_("Unassigned file number %u"), i);
+	  as_bad (_("unassigned file number %ld"), (long) i);
 	  continue;
 	}
 
@@ -1212,7 +1222,7 @@ dwarf2_finish ()
   struct line_seg *s;
 
   /* If no debug information was recorded, nothing to do.  */
-  if (all_segs == NULL)
+  if (all_segs == NULL && files_in_use <= 1)
     return;
 
   /* Calculate the size of an address for the target machine.  */
@@ -1239,7 +1249,7 @@ dwarf2_finish ()
 
   /* If this is assembler generated line info, we need .debug_info
      and .debug_abbrev sections as well.  */
-  if (debug_type == DEBUG_DWARF2)
+  if (all_segs != NULL && debug_type == DEBUG_DWARF2)
     {
       segT abbrev_seg;
       segT info_seg;
