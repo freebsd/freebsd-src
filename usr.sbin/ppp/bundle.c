@@ -966,7 +966,7 @@ bundle_LinkClosed(struct bundle *bundle, struct datalink *dl)
   /*
    * Our datalink has closed.
    * CleanDatalinks() (called from DoLoop()) will remove closed
-   * BACKGROUND and DIRECT links.
+   * BACKGROUND, FOREGROUND and DIRECT links.
    * If it's the last data link, enter phase DEAD.
    *
    * NOTE: dl may not be in our list (bundle_SendDatalink()) !
@@ -1282,7 +1282,8 @@ bundle_CleanDatalinks(struct bundle *bundle)
 
   while (*dlp)
     if ((*dlp)->state == DATALINK_CLOSED &&
-        (*dlp)->physical->type & (PHYS_DIRECT|PHYS_BACKGROUND)) {
+        (*dlp)->physical->type &
+        (PHYS_DIRECT|PHYS_BACKGROUND|PHYS_FOREGROUND)) {
       *dlp = datalink_Destroy(*dlp);
       found++;
     } else
