@@ -1405,6 +1405,7 @@ dropit:
 				(void)memcpy(sin, &IA_SIN(ia)->sin_addr,
 				    sizeof(struct in_addr));
 				cp[IPOPT_OFFSET] += sizeof(struct in_addr);
+				off += sizeof(struct in_addr);
 				break;
 
 			case IPOPT_TS_PRESPEC:
@@ -1418,6 +1419,7 @@ dropit:
 				if (ifa_ifwithaddr((SA)&ipaddr) == 0)
 					continue;
 				cp[IPOPT_OFFSET] += sizeof(struct in_addr);
+				off += sizeof(struct in_addr);
 				break;
 
 			default:
