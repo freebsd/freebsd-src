@@ -267,6 +267,7 @@ mmap(p, uap)
 	     addr < round_page((vm_offset_t)vms->vm_daddr + MAXDSIZ)))
 		addr = round_page((vm_offset_t)vms->vm_daddr + MAXDSIZ);
 
+	mtx_lock(&Giant);
 	if (flags & MAP_ANON) {
 		/*
 		 * Mapping blank space is trivial.
@@ -280,10 +281,14 @@ mmap(p, uap)
 		 * sure it is of appropriate type.
 		 */
 		if (((unsigned) uap->fd) >= fdp->fd_nfiles ||
-		    (fp = fdp->fd_ofiles[uap->fd]) == NULL)
+		    (fp = fdp->fd_ofiles[uap->fd]) == NULL) {
+			mtx_unlock(&Giant);
 			return (EBADF);
-		if (fp->f_type != DTYPE_VNODE)
+		}
+		if (fp->f_type != DTYPE_VNODE) {
+			mtx_unlock(&Giant);
 			return (EINVAL);
+		}
 
 		/*
 		 * don't let the descriptor disappear on us if we block
@@ -301,8 +306,10 @@ mmap(p, uap)
 		if (fp->f_flag & FPOSIXSHM)
 			flags |= MAP_NOSYNC;
 		vp = (struct vnode *) fp->f_data;
-		if (vp->v_type != VREG && vp->v_type != VCHR)
-			return (EINVAL);
+		if (vp->v_type != VREG && vp->v_type != VCHR) {
+			error = EINVAL;
+			goto done;
+		}
 		if (vp->v_type == VREG) {
 			/*
 			 * Get the proper underlying object
@@ -408,13 +415,16 @@ mmap(p, uap)
 		goto done;
 	}
 
+	mtx_unlock(&Giant);
 	error = vm_mmap(&vms->vm_map, &addr, size, prot, maxprot,
 	    flags, handle, pos);
 	if (error == 0)
 		p->p_retval[0] = (register_t) (addr + pageoff);
+	mtx_lock(&Giant);
 done:
 	if (fp)
 		fdrop(fp, p);
+	mtx_unlock(&Giant);
 	return (error);
 }
 
@@ -594,14 +604,17 @@ munmap(p, uap)
 	/*
 	 * Make sure entire range is allocated.
 	 */
+	mtx_lock(&Giant);
 	mtx_lock(&vm_mtx);
 	if (!vm_map_check_protection(map, addr, addr + size, VM_PROT_NONE)) {
 		mtx_unlock(&vm_mtx);
+		mtx_unlock(&Giant);
 		return (EINVAL);
 	}
 	/* returns nothing but KERN_SUCCESS anyway */
 	(void) vm_map_remove(map, addr, addr + size);
 	mtx_unlock(&vm_mtx);
+	mtx_unlock(&Giant);
 	return (0);
 }
 
@@ -650,10 +663,12 @@ mprotect(p, uap)
 	if (addr + size < addr)
 		return(EINVAL);
 
+	mtx_lock(&Giant);
 	mtx_lock(&vm_mtx);
 	ret = vm_map_protect(&p->p_vmspace->vm_map, addr,
 		     addr + size, prot, FALSE);
 	mtx_unlock(&vm_mtx);
+	mtx_unlock(&Giant);
 	switch (ret) {
 	case KERN_SUCCESS:
 		return (0);
@@ -1105,10 +1120,12 @@ vm_mmap(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 	if ((flags & MAP_FIXED) == 0) {
 		fitit = TRUE;
 		*addr = round_page(*addr);
+		mtx_lock(&Giant);
 	} else {
 		if (*addr != trunc_page(*addr))
 			return (EINVAL);
 		fitit = FALSE;
+		mtx_lock(&Giant);
 		mtx_lock(&vm_mtx);
 		(void) vm_map_remove(map, *addr, *addr + size);
 		mtx_unlock(&vm_mtx);
@@ -1133,11 +1150,11 @@ vm_mmap(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 			struct vattr vat;
 			int error;
 
-			mtx_lock(&Giant);
 			error = VOP_GETATTR(vp, &vat, p->p_ucred, p);
-			mtx_unlock(&Giant);
-			if (error)
+			if (error) {
+				mtx_unlock(&Giant);
 				return (error);
+			}
 			objsize = round_page(vat.va_size);
 			type = OBJT_VNODE;
 			/*
@@ -1156,8 +1173,10 @@ vm_mmap(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 	} else {
 		object = vm_pager_allocate(type,
 			handle, objsize, prot, foff);
-		if (object == NULL)
+		if (object == NULL) {
+			mtx_unlock(&Giant);
 			return (type == OBJT_DEVICE ? EINVAL : ENOMEM);
+		}
 		docow = MAP_PREFAULT_PARTIAL;
 	}
 
@@ -1185,9 +1204,8 @@ vm_mmap(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 #endif
 
 	mtx_lock(&vm_mtx);
-	if (fitit) {
+	if (fitit)
 		*addr = pmap_addr_hint(object, *addr, size);
-	}
 
 	if (flags & MAP_STACK)
 		rv = vm_map_stack (map, *addr, size, prot,
@@ -1196,28 +1214,24 @@ vm_mmap(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 		rv = vm_map_find(map, object, foff, addr, size, fitit,
 				 prot, maxprot, docow);
 
-	if (rv != KERN_SUCCESS) {
+	if (rv != KERN_SUCCESS)
 		/*
 		 * Lose the object reference. Will destroy the
 		 * object if it's an unnamed anonymous mapping
 		 * or named anonymous without other references.
 		 */
 		vm_object_deallocate(object);
-		goto out;
-	}
 
 	/*
 	 * Shared memory is also shared with children.
 	 */
-	if (flags & (MAP_SHARED|MAP_INHERIT)) {
+	else if (flags & (MAP_SHARED|MAP_INHERIT)) {
 		rv = vm_map_inherit(map, *addr, *addr + size, VM_INHERIT_SHARE);
-		if (rv != KERN_SUCCESS) {
+		if (rv != KERN_SUCCESS)
 			(void) vm_map_remove(map, *addr, *addr + size);
-			goto out;
-		}
 	}
-out:
 	mtx_unlock(&vm_mtx);
+	mtx_unlock(&Giant);
 	switch (rv) {
 	case KERN_SUCCESS:
 		return (0);
