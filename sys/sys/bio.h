@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)buf.h	8.9 (Berkeley) 3/30/95
- * $Id$
+ * $Id: buf.h,v 1.38 1997/02/22 09:44:49 peter Exp $
  */
 
 #ifndef _SYS_BUF_H_
@@ -194,6 +194,7 @@ extern char	*buffers;		/* The buffer contents. */
 extern int	bufpages;		/* Number of memory pages in the buffer pool. */
 extern struct	buf *swbuf;		/* Swap I/O buffer headers. */
 extern int	nswbuf;			/* Number of swap I/O buffer headers. */
+extern int	needsbuffer, numdirtybuffers;
 extern TAILQ_HEAD(swqueue, buf) bswlist;
 
 void	bufinit __P((void));
@@ -244,6 +245,7 @@ void	vm_bounce_alloc __P((struct buf *));
 void	vm_bounce_free __P((struct buf *));
 vm_offset_t	vm_bounce_kva_alloc __P((int));
 void	vm_bounce_kva_alloc_free __P((vm_offset_t, int));
+void	vfs_bio_need_satisfy __P((void));
 #endif /* KERNEL */
 
 #endif /* !_SYS_BUF_H_ */

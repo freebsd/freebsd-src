@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.119 1997/06/06 09:04:28 dfr Exp $
+ * $Id: vfs_bio.c,v 1.120 1997/06/13 08:30:40 bde Exp $
  */
 
 /*
@@ -85,6 +85,7 @@ static void vfs_page_set_valid(struct buf *bp, vm_ooffset_t off,
 static void vfs_clean_pages(struct buf * bp);
 static void vfs_setdirty(struct buf *bp);
 static void vfs_vmio_release(struct buf *bp);
+static void flushdirtybuffers(int slpflag, int slptimeo);
 
 int needsbuffer;
 
@@ -111,13 +112,44 @@ static vm_offset_t bogus_offset;
 
 static int bufspace, maxbufspace, vmiospace, maxvmiobufspace,
 	bufmallocspace, maxbufmallocspace;
+int numdirtybuffers, lodirtybuffers, hidirtybuffers;
+static int numfreebuffers, lofreebuffers, hifreebuffers;
+
+SYSCTL_INT(_vfs, OID_AUTO, numdirtybuffers, CTLFLAG_RD,
+	&numdirtybuffers, 0, "");
+SYSCTL_INT(_vfs, OID_AUTO, lodirtybuffers, CTLFLAG_RW,
+	&lodirtybuffers, 0, "");
+SYSCTL_INT(_vfs, OID_AUTO, hidirtybuffers, CTLFLAG_RW,
+	&hidirtybuffers, 0, "");
+SYSCTL_INT(_vfs, OID_AUTO, numfreebuffers, CTLFLAG_RD,
+	&numfreebuffers, 0, "");
+SYSCTL_INT(_vfs, OID_AUTO, lofreebuffers, CTLFLAG_RW,
+	&lofreebuffers, 0, "");
+SYSCTL_INT(_vfs, OID_AUTO, hifreebuffers, CTLFLAG_RW,
+	&hifreebuffers, 0, "");
+SYSCTL_INT(_vfs, OID_AUTO, maxbufspace, CTLFLAG_RW,
+	&maxbufspace, 0, "");
+SYSCTL_INT(_vfs, OID_AUTO, bufspace, CTLFLAG_RD,
+	&bufspace, 0, "");
+SYSCTL_INT(_vfs, OID_AUTO, maxvmiobufspace, CTLFLAG_RW,
+	&maxvmiobufspace, 0, "");
+SYSCTL_INT(_vfs, OID_AUTO, vmiospace, CTLFLAG_RD,
+	&vmiospace, 0, "");
+SYSCTL_INT(_vfs, OID_AUTO, maxmallocbufspace, CTLFLAG_RW,
+	&maxbufmallocspace, 0, "");
+SYSCTL_INT(_vfs, OID_AUTO, bufmallocspace, CTLFLAG_RD,
+	&bufmallocspace, 0, "");
 
 static struct bufhashhdr bufhashtbl[BUFHSZ], invalhash;
 static struct bqueues bufqueues[BUFFER_QUEUES];
 
 extern int vm_swap_size;
 
-#define BUF_MAXUSE 16
+#define BUF_MAXUSE 24
+
+#define VFS_BIO_NEED_ANY 1
+#define VFS_BIO_NEED_LOWLIMIT 2
+#define VFS_BIO_NEED_FREE 4
 
 /*
  * Initialize buffer headers and related structures.
@@ -172,6 +204,17 @@ bufinit()
  */
 	maxbufmallocspace = maxbufspace / 20;
 
+/*
+ * Remove the probability of deadlock conditions by limiting the
+ * number of dirty buffers.
+ */
+	hidirtybuffers = nbuf / 6 + 20;
+	lodirtybuffers = nbuf / 12 + 10;
+	numdirtybuffers = 0;
+	lofreebuffers = nbuf / 18 + 5;
+	hifreebuffers = 2 * lofreebuffers;
+	numfreebuffers = nbuf;
+
 	bogus_offset = kmem_alloc_pageable(kernel_map, PAGE_SIZE);
 	bogus_page = vm_page_alloc(kernel_object,
 			((bogus_offset - VM_MIN_KERNEL_ADDRESS) >> PAGE_SHIFT),
@@ -210,8 +253,13 @@ bremfree(struct buf * bp)
 		TAILQ_REMOVE(&bufqueues[bp->b_qindex], bp, b_freelist);
 		bp->b_qindex = QUEUE_NONE;
 	} else {
+#if !defined(MAX_PERF)
 		panic("bremfree: removing a buffer when not on a queue");
+#endif
 	}
+	if ((bp->b_flags & B_INVAL) ||
+		(bp->b_flags & (B_DELWRI|B_LOCKED)) == 0)
+		--numfreebuffers;
 	splx(s);
 }
 
@@ -316,13 +364,16 @@ bwrite(struct buf * bp)
 		brelse(bp);
 		return (0);
 	}
+#if !defined(MAX_PERF)
 	if (!(bp->b_flags & B_BUSY))
 		panic("bwrite: buffer is not busy???");
+#endif
 
 	bp->b_flags &= ~(B_READ | B_DONE | B_ERROR | B_DELWRI);
 	bp->b_flags |= B_WRITEINPROG;
 
-	if ((oldflags & (B_ASYNC|B_DELWRI)) == (B_ASYNC|B_DELWRI)) {
+	if ((oldflags & B_DELWRI) == B_DELWRI) {
+		--numdirtybuffers;
 		reassignbuf(bp, bp->b_vp);
 	}
 
@@ -385,6 +436,22 @@ vn_bwrite(ap)
 	return (bwrite(ap->a_bp));
 }
 
+void
+vfs_bio_need_satisfy(void) {
+	++numfreebuffers;
+	if (!needsbuffer)
+		return;
+	if (numdirtybuffers < lodirtybuffers) {
+		needsbuffer &= ~(VFS_BIO_NEED_ANY | VFS_BIO_NEED_LOWLIMIT);
+	} else {
+		needsbuffer &= ~VFS_BIO_NEED_ANY;
+	}
+	if (numfreebuffers >= hifreebuffers) {
+		needsbuffer &= ~VFS_BIO_NEED_FREE;
+	}
+	wakeup(&needsbuffer);
+}
+
 /*
  * Delayed write. (Buffer is marked dirty).
  */
@@ -392,9 +459,12 @@ void
 bdwrite(struct buf * bp)
 {
 
+#if !defined(MAX_PERF)
 	if ((bp->b_flags & B_BUSY) == 0) {
 		panic("bdwrite: buffer is not busy");
 	}
+#endif
+
 	if (bp->b_flags & B_INVAL) {
 		brelse(bp);
 		return;
@@ -407,6 +477,7 @@ bdwrite(struct buf * bp)
 	if ((bp->b_flags & B_DELWRI) == 0) {
 		bp->b_flags |= B_DONE | B_DELWRI;
 		reassignbuf(bp, bp->b_vp);
+		++numdirtybuffers;
 	}
 
 	/*
@@ -436,6 +507,10 @@ bdwrite(struct buf * bp)
 	 */
 	vfs_clean_pages(bp);
 	bqrelse(bp);
+
+	if (numdirtybuffers >= hidirtybuffers)
+		flushdirtybuffers(0, 0);
+
 	return;
 }
 
@@ -493,6 +568,8 @@ brelse(struct buf * bp)
 	if ((bp->b_flags & (B_NOCACHE | B_INVAL | B_ERROR)) ||
 	    (bp->b_bufsize <= 0)) {
 		bp->b_flags |= B_INVAL;
+		if (bp->b_flags & B_DELWRI)
+			--numdirtybuffers;
 		bp->b_flags &= ~(B_DELWRI | B_CACHE);
 		if (((bp->b_flags & B_VMIO) == 0) && bp->b_vp) {
 			if (bp->b_bufsize)
@@ -533,8 +610,11 @@ brelse(struct buf * bp)
 		int iototal = bp->b_bufsize;
 
 		vp = bp->b_vp;
+
+#if !defined(MAX_PERF)
 		if (!vp) 
 			panic("brelse: missing vp");
+#endif
 
 		if (bp->b_npages) {
 			vm_pindex_t poff;
@@ -548,9 +628,11 @@ brelse(struct buf * bp)
 				m = bp->b_pages[i];
 				if (m == bogus_page) {
 					m = vm_page_lookup(obj, poff + i);
+#if !defined(MAX_PERF)
 					if (!m) {
 						panic("brelse: page missing\n");
 					}
+#endif
 					bp->b_pages[i] = m;
 					pmap_qenter(trunc_page(bp->b_data),
 						bp->b_pages, bp->b_npages);
@@ -590,12 +672,15 @@ brelse(struct buf * bp)
 		if (bp->b_flags & (B_INVAL | B_RELBUF))
 			vfs_vmio_release(bp);
 	}
+#if !defined(MAX_PERF)
 	if (bp->b_qindex != QUEUE_NONE)
 		panic("brelse: free buffer onto another queue???");
+#endif
 
 	/* enqueue */
 	/* buffers with no memory */
 	if (bp->b_bufsize == 0) {
+		bp->b_flags |= B_INVAL;
 		bp->b_qindex = QUEUE_EMPTY;
 		TAILQ_INSERT_HEAD(&bufqueues[QUEUE_EMPTY], bp, b_freelist);
 		LIST_REMOVE(bp, b_hash);
@@ -605,41 +690,39 @@ brelse(struct buf * bp)
 		 * Get rid of the kva allocation *now*
 		 */
 		bfreekva(bp);
-		if (needsbuffer) {
-			wakeup(&needsbuffer);
-			needsbuffer=0;
-		}
-		/* buffers with junk contents */
+
+	/* buffers with junk contents */
 	} else if (bp->b_flags & (B_ERROR | B_INVAL | B_NOCACHE | B_RELBUF)) {
+		bp->b_flags |= B_INVAL;
 		bp->b_qindex = QUEUE_AGE;
 		TAILQ_INSERT_HEAD(&bufqueues[QUEUE_AGE], bp, b_freelist);
 		LIST_REMOVE(bp, b_hash);
 		LIST_INSERT_HEAD(&invalhash, bp, b_hash);
 		bp->b_dev = NODEV;
-		if (needsbuffer) {
-			wakeup(&needsbuffer);
-			needsbuffer=0;
-		}
-		/* buffers that are locked */
+
+	/* buffers that are locked */
 	} else if (bp->b_flags & B_LOCKED) {
 		bp->b_qindex = QUEUE_LOCKED;
 		TAILQ_INSERT_TAIL(&bufqueues[QUEUE_LOCKED], bp, b_freelist);
-		/* buffers with stale but valid contents */
+
+	/* buffers with stale but valid contents */
 	} else if (bp->b_flags & B_AGE) {
 		bp->b_qindex = QUEUE_AGE;
 		TAILQ_INSERT_TAIL(&bufqueues[QUEUE_AGE], bp, b_freelist);
-		if (needsbuffer) {
-			wakeup(&needsbuffer);
-			needsbuffer=0;
-		}
-		/* buffers with valid and quite potentially reuseable contents */
+
+	/* buffers with valid and quite potentially reuseable contents */
 	} else {
 		bp->b_qindex = QUEUE_LRU;
 		TAILQ_INSERT_TAIL(&bufqueues[QUEUE_LRU], bp, b_freelist);
-		if (needsbuffer) {
-			wakeup(&needsbuffer);
-			needsbuffer=0;
+	}
+
+	if ((bp->b_flags & B_INVAL) ||
+		(bp->b_flags & (B_LOCKED|B_DELWRI)) == 0) {
+		if (bp->b_flags & B_DELWRI) {
+			--numdirtybuffers;
+			bp->b_flags &= ~B_DELWRI;
 		}
+		vfs_bio_need_satisfy();
 	}
 
 	/* unlock */
@@ -658,15 +741,16 @@ bqrelse(struct buf * bp)
 
 	s = splbio();
 
-
 	/* anyone need this block? */
 	if (bp->b_flags & B_WANTED) {
 		bp->b_flags &= ~(B_WANTED | B_AGE);
 		wakeup(bp);
 	} 
 
+#if !defined(MAX_PERF)
 	if (bp->b_qindex != QUEUE_NONE)
 		panic("bqrelse: free buffer onto another queue???");
+#endif
 
 	if (bp->b_flags & B_LOCKED) {
 		bp->b_flags &= ~B_ERROR;
@@ -676,10 +760,10 @@ bqrelse(struct buf * bp)
 	} else {
 		bp->b_qindex = QUEUE_LRU;
 		TAILQ_INSERT_TAIL(&bufqueues[QUEUE_LRU], bp, b_freelist);
-		if (needsbuffer) {
-			wakeup(&needsbuffer);
-			needsbuffer=0;
-		}
+	}
+
+	if ((bp->b_flags & (B_LOCKED|B_DELWRI)) == 0) {
+		vfs_bio_need_satisfy();
 	}
 
 	/* unlock */
@@ -854,11 +938,12 @@ vfs_bio_awrite(struct buf * bp)
  * Find a buffer header which is available for use.
  */
 static struct buf *
-getnewbuf(int slpflag, int slptimeo, int size, int maxsize)
+getnewbuf(struct vnode *vp, int slpflag, int slptimeo, int size, int maxsize)
 {
 	struct buf *bp;
 	int nbyteswritten = 0;
 	vm_offset_t addr;
+	static int writerecursion = 0;
 
 start:
 	if (bufspace >= maxbufspace)
@@ -866,9 +951,11 @@ start:
 
 	/* can we constitute a new buffer? */
 	if ((bp = TAILQ_FIRST(&bufqueues[QUEUE_EMPTY]))) {
+#if !defined(MAX_PERF)
 		if (bp->b_qindex != QUEUE_EMPTY)
 			panic("getnewbuf: inconsistent EMPTY queue, qindex=%d",
 			    bp->b_qindex);
+#endif
 		bp->b_flags |= B_BUSY;
 		bremfree(bp);
 		goto fillbuf;
@@ -880,21 +967,25 @@ trytofreespace:
 	 * VM/Buffer cache even if a buffer is freed.
 	 */
 	if ((bp = TAILQ_FIRST(&bufqueues[QUEUE_AGE]))) {
+#if !defined(MAX_PERF)
 		if (bp->b_qindex != QUEUE_AGE)
 			panic("getnewbuf: inconsistent AGE queue, qindex=%d",
 			    bp->b_qindex);
+#endif
 	} else if ((bp = TAILQ_FIRST(&bufqueues[QUEUE_LRU]))) {
+#if !defined(MAX_PERF)
 		if (bp->b_qindex != QUEUE_LRU)
 			panic("getnewbuf: inconsistent LRU queue, qindex=%d",
 			    bp->b_qindex);
+#endif
 	}
 	if (!bp) {
 		/* wait for a free buffer of any kind */
-		needsbuffer = 1;
+		needsbuffer |= VFS_BIO_NEED_ANY;
 		do
 			tsleep(&needsbuffer, (PRIBIO + 1) | slpflag, "newbuf",
 			    slptimeo);
-		while (needsbuffer);
+		while (needsbuffer & VFS_BIO_NEED_ANY);
 		return (0);
 	}
 
@@ -922,13 +1013,36 @@ trytofreespace:
 		}
 	}
 
+
 	/* if we are a delayed write, convert to an async write */
 	if ((bp->b_flags & (B_DELWRI | B_INVAL)) == B_DELWRI) {
-		nbyteswritten += vfs_bio_awrite(bp);
-		if (!slpflag && !slptimeo) {
-			return (0);
+
+		if (writerecursion > 0) {
+			bp = TAILQ_FIRST(&bufqueues[QUEUE_AGE]);
+			while (bp) {
+				if ((bp->b_flags & B_DELWRI) == 0)
+					break;
+				bp = TAILQ_NEXT(bp, b_freelist);
+			}
+			if (bp == NULL) {
+				bp = TAILQ_FIRST(&bufqueues[QUEUE_LRU]);
+				while (bp) {
+					if ((bp->b_flags & B_DELWRI) == 0)
+						break;
+					bp = TAILQ_NEXT(bp, b_freelist);
+				}
+			}
+			if (bp == NULL)
+				panic("getnewbuf: cannot get buffer, infinite recursion failure");
+		} else {
+			++writerecursion;
+			nbyteswritten += vfs_bio_awrite(bp);
+			--writerecursion;
+			if (!slpflag && !slptimeo) {
+				return (0);
+			}
+			goto start;
 		}
-		goto start;
 	}
 
 	if (bp->b_flags & B_WANTED) {
@@ -1019,6 +1133,64 @@ fillbuf:
 	bp->b_data = bp->b_kvabase;
 	
 	return (bp);
+}
+
+static void
+waitfreebuffers(int slpflag, int slptimeo) {
+	while (numfreebuffers < hifreebuffers) {
+		flushdirtybuffers(slpflag, slptimeo);
+		if (numfreebuffers < hifreebuffers)
+			break;
+		needsbuffer |= VFS_BIO_NEED_FREE;
+		if (tsleep(&needsbuffer, PRIBIO|slpflag, "biofre", slptimeo))
+			break;
+	}
+}
+
+static void
+flushdirtybuffers(int slpflag, int slptimeo) {
+	int s;
+	static pid_t flushing = 0;
+
+	s = splbio();
+
+	if (flushing) {
+		if (flushing == curproc->p_pid) {
+			splx(s);
+			return;
+		}
+		while (flushing) {
+			if (tsleep(&flushing, PRIBIO|slpflag, "biofls", slptimeo)) {
+				splx(s);
+				return;
+			}
+		}
+	}
+	flushing = curproc->p_pid;
+
+	while (numdirtybuffers > lodirtybuffers) {
+		struct buf *bp;
+		needsbuffer |= VFS_BIO_NEED_LOWLIMIT;
+		bp = TAILQ_FIRST(&bufqueues[QUEUE_AGE]);
+		if (bp == NULL)
+			bp = TAILQ_FIRST(&bufqueues[QUEUE_LRU]);
+
+		while (bp && ((bp->b_flags & B_DELWRI) == 0)) {
+			bp = TAILQ_NEXT(bp, b_freelist);
+		}
+
+		if (bp) {
+			splx(s);
+			vfs_bio_awrite(bp);
+			s = splbio();
+			continue;
+		}
+		break;
+	}
+
+	flushing = 0;
+	wakeup(&flushing);
+	splx(s);
 }
 
 /*
@@ -1141,6 +1313,7 @@ getblk(struct vnode * vp, daddr_t blkno, int size, int slpflag, int slptimeo)
 	int s;
 	struct bufhashhdr *bh;
 	int maxsize;
+	static pid_t flushing = 0;
 
 	if (vp->v_mount) {
 		maxsize = vp->v_mount->mnt_stat.f_iosize;
@@ -1153,11 +1326,17 @@ getblk(struct vnode * vp, daddr_t blkno, int size, int slpflag, int slptimeo)
 		maxsize = size;
 	}
 
+#if !defined(MAX_PERF)
 	if (size > MAXBSIZE)
 		panic("getblk: size(%d) > MAXBSIZE(%d)\n", size, MAXBSIZE);
+#endif
 
 	s = splbio();
 loop:
+	if (numfreebuffers < lofreebuffers) {
+		waitfreebuffers(slpflag, slptimeo);
+	}
+		
 	if ((bp = gbincore(vp, blkno))) {
 		if (bp->b_flags & B_BUSY) {
 			bp->b_flags |= B_WANTED;
@@ -1172,7 +1351,7 @@ loop:
 		}
 		bp->b_flags |= B_BUSY | B_CACHE;
 		bremfree(bp);
-				
+
 		/*
 		 * check for size inconsistancies (note that they shouldn't happen
 		 * but do when filesystems don't handle the size changes correctly.)
@@ -1197,7 +1376,7 @@ loop:
 	} else {
 		vm_object_t obj;
 
-		if ((bp = getnewbuf(slpflag, slptimeo, size, maxsize)) == 0) {
+		if ((bp = getnewbuf(vp, slpflag, slptimeo, size, maxsize)) == 0) {
 			if (slpflag || slptimeo) {
 				splx(s);
 				return NULL;
@@ -1260,7 +1439,7 @@ geteblk(int size)
 	int s;
 
 	s = splbio();
-	while ((bp = getnewbuf(0, 0, size, MAXBSIZE)) == 0);
+	while ((bp = getnewbuf(0, 0, 0, size, MAXBSIZE)) == 0);
 	splx(s);
 	allocbuf(bp, size);
 	bp->b_flags |= B_INVAL;
@@ -1287,11 +1466,13 @@ allocbuf(struct buf * bp, int size)
 	int newbsize, mbsize;
 	int i;
 
+#if !defined(MAX_PERF)
 	if (!(bp->b_flags & B_BUSY))
 		panic("allocbuf: buffer not busy");
 
 	if (bp->b_kvasize < size)
 		panic("allocbuf: buffer too small");
+#endif
 
 	if ((bp->b_flags & B_VMIO) == 0) {
 		caddr_t origbuf;
@@ -1519,7 +1700,7 @@ allocbuf(struct buf * bp, int size)
 		}
 	}
 	if (bp->b_flags & B_VMIO)
-		vmiospace += bp->b_bufsize;
+		vmiospace += (newbsize - bp->b_bufsize);
 	bufspace += (newbsize - bp->b_bufsize);
 	bp->b_bufsize = newbsize;
 	bp->b_bcount = size;
@@ -1560,12 +1741,17 @@ biodone(register struct buf * bp)
 	int s;
 
 	s = splbio();
+
+#if !defined(MAX_PERF)
 	if (!(bp->b_flags & B_BUSY))
 		panic("biodone: buffer not busy");
+#endif
 
 	if (bp->b_flags & B_DONE) {
 		splx(s);
+#if !defined(MAX_PERF)
 		printf("biodone: buffer already done\n");
+#endif
 		return;
 	}
 	bp->b_flags |= B_DONE;
@@ -1598,9 +1784,11 @@ biodone(register struct buf * bp)
 		else
 			foff = (vm_ooffset_t) vp->v_mount->mnt_stat.f_iosize * bp->b_lblkno;
 		obj = vp->v_object;
+#if !defined(MAX_PERF)
 		if (!obj) {
 			panic("biodone: no object");
 		}
+#endif
 #if defined(VFS_BIO_DEBUG)
 		if (obj->paging_in_progress < bp->b_npages) {
 			printf("biodone: paging in progress(%d) < bp->b_npages(%d)\n",
@@ -1647,12 +1835,15 @@ biodone(register struct buf * bp)
 			 * have not set the page busy flag correctly!!!
 			 */
 			if (m->busy == 0) {
+#if !defined(MAX_PERF)
 				printf("biodone: page busy < 0, "
 				    "pindex: %d, foff: 0x(%x,%x), "
 				    "resid: %d, index: %d\n",
 				    (int) m->pindex, (int)(foff >> 32),
 						(int) foff & 0xffffffff, resid, i);
+#endif
 				if (vp->v_type != VBLK)
+#if !defined(MAX_PERF)
 					printf(" iosize: %ld, lblkno: %d, flags: 0x%lx, npages: %d\n",
 					    bp->b_vp->v_mount->mnt_stat.f_iosize,
 					    (int) bp->b_lblkno,
@@ -1663,6 +1854,7 @@ biodone(register struct buf * bp)
 					    bp->b_flags, bp->b_npages);
 				printf(" valid: 0x%x, dirty: 0x%x, wired: %d\n",
 				    m->valid, m->dirty, m->wire_count);
+#endif
 				panic("biodone: page busy < 0\n");
 			}
 			--m->busy;
@@ -1763,9 +1955,11 @@ vfs_unbusy_pages(struct buf * bp)
 
 			if (m == bogus_page) {
 				m = vm_page_lookup(obj, OFF_TO_IDX(foff) + i);
+#if !defined(MAX_PERF)
 				if (!m) {
 					panic("vfs_unbusy_pages: page missing\n");
 				}
+#endif
 				bp->b_pages[i] = m;
 				pmap_qenter(trunc_page(bp->b_data), bp->b_pages, bp->b_npages);
 			}
@@ -2015,10 +2209,12 @@ vm_hold_free_pages(struct buf * bp, vm_offset_t from, vm_offset_t to)
 	for (pg = from; pg < to; pg += PAGE_SIZE, index++) {
 		p = bp->b_pages[index];
 		if (p && (index < bp->b_npages)) {
+#if !defined(MAX_PERF)
 			if (p->busy) {
 				printf("vm_hold_free_pages: blkno: %d, lblkno: %d\n",
 					bp->b_blkno, bp->b_lblkno);
 			}
+#endif
 			bp->b_pages[index] = NULL;
 			pmap_kremove(pg);
 			vm_page_unwire(p);
