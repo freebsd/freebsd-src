@@ -742,10 +742,7 @@ nfsrv_send(struct socket *so, struct sockaddr *nam, struct mbuf *top)
 }
 
 /*
- * Nfs timer routine
- * Scan the nfsreq list and retranmit any requests that have timed out
- * To avoid retransmission attempts on STREAM sockets (in the future) make
- * sure to set the r_retry field to 0 (implies nm_retry == 0).
+ * NFS server timer routine.
  */
 void
 nfsrv_timer(void *arg)
@@ -761,8 +758,9 @@ nfsrv_timer(void *arg)
 	 */
 	cur_usec = nfs_curusec();
 	TAILQ_FOREACH(slp, &nfssvc_sockhead, ns_chain) {
-	    if (LIST_FIRST(&slp->ns_tq) && LIST_FIRST(&slp->ns_tq)->nd_time<=cur_usec)
-		nfsrv_wakenfsd(slp);
+		if (LIST_FIRST(&slp->ns_tq) &&
+		    LIST_FIRST(&slp->ns_tq)->nd_time <= cur_usec)
+			nfsrv_wakenfsd(slp);
 	}
 	splx(s);
 	nfsrv_timer_handle = timeout(nfsrv_timer, (void *)0, nfs_ticks);
