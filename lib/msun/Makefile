@@ -17,7 +17,7 @@
 # 	_IEEE_LIBM 	--- IEEE libm; smaller, and somewhat faster
 #	_MULTI_LIBM	--- Support multi-standard at runtime by
 #			    imposing wrapper functions defined in
-#			    fdlibm.h:
+#			    math.h:
 #				_IEEE_MODE 	-- IEEE
 #				_XOPEN_MODE 	-- X/OPEN
 #				_POSIX_MODE 	-- POSIX/ANSI
@@ -57,12 +57,6 @@ ARCH_SRCS = e_acos.S e_asin.S e_atan2.S e_exp.S e_fmod.S e_log.S e_log10.S \
 	    e_remainder.S e_scalb.S e_sqrt.S s_atan.S s_ceil.S s_copysign.S \
 	    s_cos.S s_finite.S s_floor.S s_ilogb.S s_logb.S \
 	    s_rint.S s_scalbn.S s_significand.S s_sin.S s_tan.S
-.elif ${MACHINE_ARCH} == "m68k"
-.PATH:  ${.CURDIR}/mc68881
-ARCH_SRCS = e_acos.S e_asin.S e_atanh.S e_cosh.S e_exp.S e_fmod.S e_log.S \
-            e_log10.S e_remainder.S e_scalb.S e_sinh.S e_sqrt.S s_atan.S \
-            s_ceil.S s_copysign.S s_cos.S s_expm1.S s_finite.S s_floor.S \
-            s_log1p.S s_logb.S s_rint.S s_scalbn.S s_sin.S s_tan.S s_tanh.S
 .endif
 
 # Broken
