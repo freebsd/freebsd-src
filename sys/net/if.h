@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.h	8.1 (Berkeley) 6/10/93
- * $Id: if.h,v 1.34 1996/08/26 23:17:17 julian Exp $
+ * $Id: if.h,v 1.35 1996/10/12 19:49:22 bde Exp $
  */
 
 #ifndef _NET_IF_H_
@@ -77,6 +77,10 @@ struct	socket;
 struct	ether_header;
 #endif
 
+/*
+ * Structure describing information about an interface
+ * which may be of interest to management entities.
+ */
 struct if_data {
 	/* generic interface information */
 	u_char	ifi_type;		/* ethernet, tokenring, etc */
@@ -107,10 +111,7 @@ struct if_data {
 
 /*
  * Structure defining a queue for a network interface.
- *
- * (Would like to call this struct ``if'', but C isn't PL/1.)
  */
-
 struct	ifqueue {
 	struct	mbuf *ifq_head;
 	struct	mbuf *ifq_tail;
@@ -120,8 +121,9 @@ struct	ifqueue {
 };
 
 /*
- * Structure describing information about an interface
- * which may be of interest to management entities.
+ * Structure defining a network interface.
+ *
+ * (Would like to call this struct ``if'', but C isn't PL/1.)
  */
 struct ifnet {
 	void	*if_softc;		/* pointer to driver state */
