@@ -49,7 +49,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include <machine/pcb.h>
 #include <machine/tss.h>
 #include <machine/frame.h>
+#define _KERNEL
 #include <machine/globaldata.h>
+#undef _KERNEL
 
 static void kcore_files_info PARAMS ((struct target_ops *));
 
