@@ -45,6 +45,12 @@ __FBSDID("$FreeBSD$");
 #define _COMPONENT	ACPI_BUS
 ACPI_MODULE_NAME("PCI")
 
+ACPI_SERIAL_DECL(pcib, "ACPI PCI bus methods");
+
+/*
+ * For locking, we assume the caller is not concurrent since this is
+ * triggered by newbus methods.
+ */
 int
 acpi_pcib_attach(device_t dev, ACPI_BUFFER *prt, int busno)
 {
@@ -113,6 +119,8 @@ acpi_pcib_route_interrupt(device_t pcib, device_t dev, int pin)
 
     /* ACPI numbers pins 0-3, not 1-4 like the BIOS. */
     pin--;
+
+    ACPI_SERIAL_BEGIN(pcib);
 
     /* Look up the PRT entry for this device. */
     entry = acpi_pci_find_prt(pcib, dev, pin);
@@ -190,6 +198,7 @@ acpi_pcib_route_interrupt(device_t pcib, device_t dev, int pin)
 	    acpi_name(entry->prt_source));
 
 out:
+    ACPI_SERIAL_END(pcib);
 
     return_VALUE (interrupt);
 }
