@@ -399,19 +399,6 @@ uhci_dump_td(p)
 		       UHCI_TD_GET_ENDPT(p->td->td_token),
 		       UHCI_TD_GET_DT(p->td->td_token),
 		       UHCI_TD_GET_MAXLEN(p->td->td_token));
-#if 0 && defined(__FreeBSD__)
-		printf("  Link=0x%08lx,Status=0x%08lx\n  errcnt=%d,actlen=%d,pid=%02x,addr=%d,endpt=%d,D=%d,maxlen=%d\n", 
-			(long)p->td->td_link,
-			(long)p->td->td_status,
-		       UHCI_TD_GET_ERRCNT(p->td->td_status),
-		       UHCI_TD_GET_ACTLEN(p->td->td_status),
-		       UHCI_TD_GET_PID(p->td->td_token),
-		       UHCI_TD_GET_DEVADDR(p->td->td_token),
-		       UHCI_TD_GET_ENDPT(p->td->td_token),
-		       UHCI_TD_GET_DT(p->td->td_token),
-		       UHCI_TD_GET_MAXLEN(p->td->td_token));
-#endif
-		       
 }
 
 void
@@ -637,8 +624,10 @@ uhci_intr(p)
 
 	sc->sc_intrs++;
 #if defined(USB_DEBUG)
-	if (uhcidebug > 9)
+	if (uhcidebug > 9) {
+		DEVICE_MSG(sc->sc_bus.bdev, ("uhci_intr %p\n", sc));
 		uhci_dumpregs(sc);
+	}
 #endif
 	status = UREAD2(sc, UHCI_STS);
 	ret = 0;
@@ -765,7 +754,7 @@ uhci_ii_done(ii, timo)
 		tst = std->td->td_status;
 		status |= tst;
 #ifdef USB_DEBUG
-		if ((tst & UHCI_TD_ERROR) && uhcidebug) {
+		if ((tst & UHCI_TD_ERROR) && uhcidebug>10) {
 			printf("uhci_ii_done: intr error TD:\n");
 			uhci_dump_td(std);
 		}
@@ -776,13 +765,9 @@ uhci_ii_done(ii, timo)
 	status &= UHCI_TD_ERROR;
 	DPRINTFN(10, ("uhci_ii_done: len=%d\n", len));
 	if (status != 0) {
-		DPRINTFN(-1+(status==UHCI_TD_STALLED),
+		DPRINTFN(10,
 			 ("uhci_ii_done: error, status 0x%b\n", (long)status, 
 			  "\20\22BITSTUFF\23CRCTO\24NAK\25BABBLE\26DBUFFER\27STALLED\30ACTIVE"));
-#if 0 && defined(__FreeBSD__)
-		DPRINTFN(-1+(status==UHCI_TD_STALLED),
-			("uhci_ii_done: error, status 0x%08lx\n", (long)status));
-#endif
 		if (status == UHCI_TD_STALLED)
 			reqh->status = USBD_STALLED;
 		else
@@ -1440,7 +1425,7 @@ uhci_device_request(reqh)
 	int isread;
 	int s;
 
-	DPRINTFN(1,("uhci_device_control type=0x%02x, request=0x%02x, wValue=0x%04x, wIndex=0x%04x len=%d, addr=%d, endpt=%d\n",
+	DPRINTFN(5,("uhci_device_control type=0x%02x, request=0x%02x, wValue=0x%04x, wIndex=0x%04x len=%d, addr=%d, endpt=%d\n",
 		    req->bmRequestType, req->bRequest, UGETW(req->wValue),
 		    UGETW(req->wIndex), UGETW(req->wLength),
 		    addr, endpt));

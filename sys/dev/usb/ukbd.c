@@ -382,7 +382,6 @@ bLength=%d bDescriptorType=%d bEndpointAddress=%d-%s bmAttributes=%d wMaxPacketS
 }
 
 
-#if defined(__FreeBSD__)
 int
 ukbd_detach(device_t self)
 {
@@ -397,20 +396,8 @@ ukbd_detach(device_t self)
 		free(devinfo, M_USB);
 	}
 
-	/* good bye, and thanks for all the fish */
-	ukbd_set_leds(sc, NUM_LOCK);
-	DELAY(50000);
-	ukbd_set_leds(sc, CAPS_LOCK);
-	DELAY(30000);
-	ukbd_set_leds(sc, SCROLL_LOCK);
-	DELAY(20000);
-	ukbd_set_leds(sc, CAPS_LOCK);
-	DELAY(15000);
-	ukbd_set_leds(sc, NUM_LOCK);
-
 	return 0;
 }
-#endif
 
 
 void

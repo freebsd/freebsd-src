@@ -54,7 +54,7 @@ usbd_status	usbd_get_hub_status __P((usbd_device_handle dev,
 					 usb_hub_status_t *st));
 usbd_status	usbd_set_protocol __P((usbd_interface_handle dev, int report));
 usbd_status	usbd_get_report_descriptor
-	__P((usbd_device_handle dev, int i, int size, void *d));
+	__P((usbd_device_handle dev, int ifcno, int repid, int size, void *d));
 struct usb_hid_descriptor *usbd_get_hid_descriptor 
 	__P((usbd_interface_handle ifc));
 usbd_status	usbd_set_report 
