@@ -401,6 +401,12 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       cause &man.lpd.8; not to open a socket for network print
       jobs).</para>
 
+    <para>&man.lpd.8; now implements a new <literal>rc</literal>
+      printcap option.  When specified in a print queue for a remote
+      host, boolean option causes &man.lpd.8; to resend the data file
+      for each copy the user requested via <command>lpr
+      -#<replaceable>n</replaceable></command>.</para>
+
     <para>&man.ls.1; now accepts a <option>-h</option> flag, which
       when combined with the <option>-l</option> flag, causes file
       sizes to be printed with unit suffixes, such that the number of
