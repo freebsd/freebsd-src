@@ -80,7 +80,7 @@ extern void umap_mapids __P((struct mount *v_mount, struct ucred *credp));
 #define	MOUNTTOUMAPMOUNT(mp) ((struct umap_mount *)((mp)->mnt_data))
 #define	VTOUMAP(vp) ((struct umap_node *)(vp)->v_data)
 #define UMAPTOV(xp) ((xp)->umap_vnode)
-#ifdef DDB
+#ifdef DIAGNOSTIC
 extern struct vnode *umap_checkvp __P((struct vnode *vp, char *fil, int lno));
 #define	UMAPVPTOLOWERVP(vp) umap_checkvp((vp), __FILE__, __LINE__)
 #else
