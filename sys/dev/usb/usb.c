@@ -1,4 +1,4 @@
-/*	$NetBSD: usb.c,v 1.63 2002/01/02 20:58:12 augustss Exp $	*/
+/*	$NetBSD: usb.c,v 1.65 2002/01/03 22:20:45 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -736,11 +736,13 @@ usb_get_next_event(struct usb_event *ue)
 	if (usb_nevents <= 0)
 		return (0);
 	ueq = TAILQ_FIRST(&usb_events);
+#ifdef DIAGNOSTIC
 	if (ueq == NULL) {
 		printf("usb: usb_nevents got out of sync! %d\n", usb_nevents);
 		usb_nevents = 0;
 		return (0);
 	}
+#endif
 	*ue = ueq->ue;
 	TAILQ_REMOVE(&usb_events, ueq, next);
 	free(ueq, M_USBDEV);
