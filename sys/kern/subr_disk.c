@@ -99,7 +99,7 @@ bioq_flush(struct bio_queue_head *head, struct devstat *stp, int error)
 		if (bp == NULL)
 			break;
 		bioq_remove(head, bp);
-		biofinish(bp, stp, ENXIO);
+		biofinish(bp, stp, error);
 	}
 }
 
