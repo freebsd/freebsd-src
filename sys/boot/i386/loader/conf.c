@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: conf.c,v 1.2 1998/09/14 18:27:06 msmith Exp $
+ *	$Id: conf.c,v 1.3 1998/09/17 23:52:15 msmith Exp $
  */
 
 #include <stand.h>
@@ -43,7 +43,7 @@
 
 /* Exported for libstand */
 struct devsw *devsw[] = {
-/*    &biosdisk, 			XXX BTX */
+    &biosdisk,
     /* XXX network devices? */
     NULL
 };
