@@ -113,7 +113,7 @@ stat_display(struct xferstat *xs, int force)
 {
     struct timeval now;
     
-    if (!v_tty)
+    if (!v_tty || !v_level)
 	return;
     
     gettimeofday(&now, NULL);
@@ -290,6 +290,12 @@ fetch(char *URL, char *path)
 	goto success;
     }
 
+    if (v_level > 1) {
+	if (sb.st_size)
+	    warnx("local: %lld / %ld", sb.st_size, sb.st_mtime);
+	warnx("remote: %lld / %ld", us.size, us.mtime);
+    }
+    
     /* open output file */
     if (o_stdout) {
 	/* output to stdout */
@@ -307,7 +313,6 @@ fetch(char *URL, char *path)
 	    if (sigint)
 		goto signal;
 	} else {
-	    us.size += url->offset;
 	    if (us.size == sb.st_size)
 		/* nothing to do */
 		goto success;
