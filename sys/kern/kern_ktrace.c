@@ -261,8 +261,8 @@ ktr_submitrequest(struct ktr_request *req)
 
 	mtx_lock(&ktrace_mtx);
 	STAILQ_INSERT_TAIL(&ktr_todo, req, ktr_list);
-	sema_post(&ktrace_sema);
 	mtx_unlock(&ktrace_mtx);
+	sema_post(&ktrace_sema);
 	curthread->td_pflags &= ~TDP_INKTRACE;
 }
 
