@@ -1,5 +1,5 @@
 #
-# $Id: Makefile.inc0,v 1.3 1998/03/12 05:59:22 jb Exp $
+# $Id: Makefile.inc0,v 1.4 1998/05/04 21:10:56 jb Exp $
 #
 
 #
@@ -8,7 +8,7 @@
 # definitions before the sub-Makefile is processed.
 #
 
-VERSION=	2.8.1
+VERSION=	2.9.1
 
 # RELTOP is the relative path to this point in the source or object
 # tree, from any subdirectory of same.  It gets extra "../" prefixes

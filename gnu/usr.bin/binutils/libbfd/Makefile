@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.4 1998/05/04 21:16:46 jb Exp $
+# $Id: Makefile,v 1.5 1998/06/04 06:50:57 bde Exp $
 #
 
 .include "../Makefile.inc0"
@@ -11,7 +11,7 @@ SRCS+=		archive.c archures.c bfd.c binary.c cache.c \
 		coffgen.c corefile.c elf.c format.c hash.c ihex.c \
 		init.c libbfd.c linker.c opncls.c reloc.c section.c \
 		srec.c stab-syms.c stabs.c syms.c targets.c tekhex.c \
-		targmatch.h
+		targmatch.h dwarf2.c
 CFLAGS+=	-I${SRCDIR}/bfd
 NOPROFILE=	true
 NOPIC=		true
