@@ -67,8 +67,10 @@ struct buf {
 int nbufs;
 
 /*
- * The buffer pool is kept as a doubly-linked circular list, in order from
- * most- to least-recently used.  The circular list is anchored by buf_anchor.
+ * The buffer pool is kept as a doubly-linked circular list.  For the ispipe
+ * case, this list will always be ordered from highest-numbered block downto
+ * lowest-numbered block, skipping no blocks.  For the !ispipe case,
+ * it may become disordered.  It is not clear that this is a feature.
  */
 #define	END_OF_CHAIN	((struct buf *)&buf_anchor)
 #define	buf_head	buf_anchor.next
@@ -76,7 +78,14 @@ int nbufs;
 
 static struct {
 	struct buf *next, *prev;
-} buf_anchor = { END_OF_CHAIN, END_OF_CHAIN };
+	long block;  /* this is never changed from -1 */
+} buf_anchor = { END_OF_CHAIN, END_OF_CHAIN, (long)-1 };
+
+/*
+ * The last buffer in the circular list that was accessed, and correspondingly
+ * the most likely to be accessed in the future.
+ */
+static struct buf *buf_lastacc = END_OF_CHAIN;
 
 extern int ispipe, cbufs, sigs;
 
@@ -99,48 +108,46 @@ static off_t last_piped_pos;
  * case that the block desired is at the head of the chain.
  */
 #define	ch_get() \
-	((buf_head->block == ch_block && \
-	    ch_offset < buf_head->datasize) ? \
-	    (unsigned char)buf_head->data[ch_offset] : fch_get())
+	((buf_lastacc->block == ch_block && \
+	    ch_offset < buf_lastacc->datasize) ? \
+	    (unsigned char)buf_lastacc->data[ch_offset] : fch_get())
 
 static
 fch_get()
 {
 	register struct buf *bp;
-	register int n, ch;
 	register char *p, *t;
+	int n, gofor;
 	off_t pos, lseek();
 
-	/* look for a buffer holding the desired block. */
-	for (bp = buf_head;  bp != END_OF_CHAIN;  bp = bp->next)
-		if (bp->block == ch_block) {
-			if (ch_offset >= bp->datasize)
-				/*
-				 * Need more data in this buffer.
-				 */
-				goto read_more;
-			/*
-			 * On a pipe, we don't sort the buffers LRU
-			 * because this can cause gaps in the buffers.
-			 * For example, suppose we've got 12 1K buffers,
-			 * and a 15K input stream.  If we read the first 12K
-			 * sequentially, then jump to line 1, then jump to
-			 * the end, the buffers have blocks 0,4,5,6,..,14.
-			 * If we then jump to line 1 again and try to
-			 * read sequentially, we're out of luck when we
-			 * get to block 1 (we'd get the "pipe error" below).
-			 * To avoid this, we only sort buffers on a pipe
-			 * when we actually READ the data, not when we
-			 * find it already buffered.
-			 */
-			if (ispipe)
-				return((unsigned char)bp->data[ch_offset]);
-			goto found;
-		}
 	/*
-	 * Block is not in a buffer.  Take the least recently used buffer
-	 * and read the desired block into it.  If the LRU buffer has data
-	 * in it, and input is a pipe, then try to allocate a new buffer first.
+	 * look for a buffer holding the desired block.
+	 */
+	if (abs(buf_lastacc->next->block - ch_block) <
+	    abs(buf_lastacc->prev->block - ch_block))
+		gofor = 1;  /* Look forwards through the buffer queue */
+	else
+		gofor = 0;  /* Look backwards through the buffer queue */
+
+	bp = buf_lastacc;
+	do {
+		if (bp->block == ch_block) {
+			buf_lastacc = bp;
+			if (ch_offset >= bp->datasize)
+				goto read_more;
+			return((unsigned char)bp->data[ch_offset]);
+		}
+		if (gofor)
+			bp = bp->next;
+		else
+			bp = bp->prev;
+	} while (bp != buf_lastacc);
+
+	/*
+	 * Block is not in a buffer.  Take the buffer from the tail and
+	 * read the desired block into it.  If the input is a pipe, we try
+	 * to buffer as much input as possible since the input will be
+	 * permanently lost if we throw it from the buffer queue.
 	 */
 	if (ispipe && buf_tail->block != (long)(-1))
 		(void)ch_addbuf(1);
@@ -164,6 +171,7 @@ read_more:
 
 	/*
 	 * Read the block.
+	 *
 	 * If we read less than a full block, we just return the
 	 * partial block and pick up the rest next time.
 	 */
@@ -185,7 +193,8 @@ read_more:
 	}
 
 	/*
-	 * Turn EOI (nul) characters into 0200 since EOI has special meaning.		 */
+	 * Turn other EOI (nul) chars into 0200 since EOI has special meaning.
+	 */
 	for (p = &bp->data[bp->datasize]; --n >= 0;) {
 		--p;
 		if (*p == EOI)
@@ -195,8 +204,12 @@ read_more:
 found:
 	if (buf_head != bp) {
 		/*
-		 * Move the buffer to the head of the buffer chain.
-		 * This orders the buffer chain, most- to least-recently used.
+		 * Move the buffer to the head of the buffer chain.  This
+		 * ensures correct order for the ispipe case and prevents
+		 * needless buffer thrashing for the !ispipe case.  It's not
+		 * clear that buffer thrashing isn't desirable in this latter
+		 * case, since the VM should probably be handling the file
+		 * buffer...
 		 */
 		bp->next->prev = bp->prev;
 		bp->prev->next = bp->next;
@@ -219,6 +232,10 @@ found:
 
 /*
  * Determine if a specific block is currently in one of the buffers.
+ *
+ * In general, this function is only called for the ispipe case.  For the
+ * !ispipe case, ch.c generally assumes that any given block is accessible
+ * through ch_get(), even though ch_get() may not have it buffered.
  */
 static
 buffered(block)
@@ -226,6 +243,14 @@ buffered(block)
 {
 	register struct buf *bp;
 
+	/* For the ispipe case, we know that the buffer queue is sequentially
+	 * ordered from tail to head. */
+	if (ispipe && (block <= buf_head->block && block >= buf_tail->block))
+		return(1);
+
+	/*
+	 * XXX This is dead code.
+	 */
 	for (bp = buf_head; bp != END_OF_CHAIN; bp = bp->next)
 		if (bp->block == block)
 			return(1);
@@ -290,6 +315,11 @@ ch_beg_seek()
 	/*
 	 * Can't get to position 0.
 	 * Look thru the buffers for the one closest to position 0.
+	 *
+	 * This should use the obvious optimization that applies for the
+	 * ispipe case (which is also the only case under which this
+	 * code will be executed, ie. the only case under which ch_seek()
+	 * will fail).
 	 */
 	firstbp = bp = buf_head;
 	if (bp == END_OF_CHAIN)
