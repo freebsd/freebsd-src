@@ -3,8 +3,7 @@
 PROG=	asn1_compile
 NOMAN=
 
-SRCS=	\
-	gen.c \
+SRCS=	gen.c \
 	gen_copy.c \
 	gen_decode.c \
 	gen_encode.c \
@@ -25,7 +24,9 @@ SRCS=	\
 	get_window_size.c \
 	strupr.c
 
-CFLAGS+= -I${KRB5DIR}/lib/roken -I${KRB5DIR}/lib/asn1 -I.
+CFLAGS+=-I${KRB5DIR}/lib/roken -I${KRB5DIR}/lib/asn1 -I.
+
+CLEANFILES= print_version.h roken.h
 
 print_version.h: ../make-print-version/make-print-version
 	../make-print-version/make-print-version ${.TARGET}
@@ -38,8 +39,6 @@ roken.h: ../make-roken/make-roken
 
 ../make-roken/make-roken:
 	cd ${.CURDIR}/../make-roken && ${MAKE}
-
-CLEANFILES= print_version.h roken.h
 
 .include <bsd.prog.mk>
 
