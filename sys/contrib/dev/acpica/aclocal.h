@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: aclocal.h - Internal data types used across the ACPI subsystem
- *       $Revision: 121 $
+ *       $Revision: 123 $
  *
  *****************************************************************************/
 
@@ -123,6 +123,11 @@
 typedef void*                           ACPI_MUTEX;
 typedef UINT32                          ACPI_MUTEX_HANDLE;
 
+
+
+#define ACPI_MEMORY_MODE                0x01
+#define ACPI_LOGICAL_ADDRESSING         0x00
+#define ACPI_PHYSICAL_ADDRESSING        0x01
 
 /* Object descriptor types */
 
@@ -289,6 +294,8 @@ typedef struct acpi_node
 #define ANOBJ_METHOD_LOCAL              0x10
 #define ANOBJ_METHOD_NO_RETVAL          0x20
 #define ANOBJ_METHOD_SOME_NO_RETVAL     0x40
+
+#define ANOBJ_IS_BIT_OFFSET             0x80
 
 
 /*
@@ -919,6 +926,26 @@ typedef struct
     NATIVE_CHAR             Buffer[ACPI_DEVICE_ID_LENGTH];
 
 } ACPI_DEVICE_ID;
+
+
+
+/*****************************************************************************
+ *
+ * Debugger
+ *
+ ****************************************************************************/
+
+typedef struct dbmethodinfo
+{
+    ACPI_HANDLE             ThreadGate;
+    NATIVE_CHAR             *Name;
+    NATIVE_CHAR             **Args;
+    UINT32                  Flags;
+    UINT32                  NumLoops;
+    NATIVE_CHAR             Pathname[128];
+
+} DB_METHOD_INFO;
+
 
 
 /*****************************************************************************

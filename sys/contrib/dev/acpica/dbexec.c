@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dbexec - debugger control method execution
- *              $Revision: 25 $
+ *              $Revision: 26 $
  *
  ******************************************************************************/
 
@@ -130,18 +130,6 @@
 
 #define _COMPONENT          ACPI_DEBUGGER
         MODULE_NAME         ("dbexec")
-
-
-typedef struct dbmethodinfo
-{
-    ACPI_HANDLE             ThreadGate;
-    NATIVE_CHAR             *Name;
-    NATIVE_CHAR             **Args;
-    UINT32                  Flags;
-    UINT32                  NumLoops;
-    NATIVE_CHAR             Pathname[128];
-
-} DB_METHOD_INFO;
 
 
 DB_METHOD_INFO              Info;
