@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, [92/04/03  16:51:14  rvb]
- *	$Id: boot.c,v 1.32 1995/01/28 03:51:39 davidg Exp $
+ *	$Id: boot.c,v 1.33 1995/03/14 08:21:53 davidg Exp $
  */
 
 
@@ -109,6 +109,12 @@ loadstart:
 	maj = (drive&0x80 ? 0 : 2);		/* a good first bet */
 
 	printf("Boot: ");
+	/*
+	 * Be paranoid and make doubly sure that the input
+	 * buffer is empty.
+	 */
+	if (loadflags & RB_SERIAL)
+		init_serial();
 	getbootdev(&loadflags);
 	ret = openrd();
 	if (ret != 0) {
