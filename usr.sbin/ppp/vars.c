@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: vars.c,v 1.36 1997/11/22 03:37:53 brian Exp $
+ * $Id: vars.c,v 1.37 1997/11/22 13:47:02 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -39,7 +39,7 @@
 #include "auth.h"
 
 char VarVersion[] = "PPP Version 1.5";
-char VarLocalVersion[] = "$Date: 1997/11/22 03:37:53 $";
+char VarLocalVersion[] = "$Date: 1997/11/22 13:47:02 $";
 int Utmp = 0;
 int ipInOctets = 0;
 int ipOutOctets = 0;
@@ -53,18 +53,19 @@ int reconnectCount = 0;
  * Order of conf option is important. See vars.h.
  */
 struct confdesc pppConfs[] = {
-  {"vjcomp", CONF_ENABLE, CONF_ACCEPT},
-  {"lqr", CONF_DISABLE, CONF_ACCEPT},
-  {"chap", CONF_DISABLE, CONF_ACCEPT},
-  {"pap", CONF_DISABLE, CONF_ACCEPT},
   {"acfcomp", CONF_ENABLE, CONF_ACCEPT},
-  {"protocomp", CONF_ENABLE, CONF_ACCEPT},
+  {"chap", CONF_DISABLE, CONF_ACCEPT},
+  {"deflate", CONF_ENABLE, CONF_ACCEPT},
+  {"lqr", CONF_DISABLE, CONF_ACCEPT},
+  {"pap", CONF_DISABLE, CONF_ACCEPT},
   {"pred1", CONF_ENABLE, CONF_ACCEPT},
-  {"proxy", CONF_DISABLE, CONF_NONE},
+  {"protocomp", CONF_ENABLE, CONF_ACCEPT},
+  {"vjcomp", CONF_ENABLE, CONF_ACCEPT},
   {"msext", CONF_DISABLE, CONF_NONE},
   {"passwdauth", CONF_DISABLE, CONF_NONE},
-  {"utmp", CONF_ENABLE, CONF_NONE},
+  {"proxy", CONF_DISABLE, CONF_NONE},
   {"throughput", CONF_DISABLE, CONF_NONE},
+  {"utmp", CONF_ENABLE, CONF_NONE},
   {NULL},
 };
 

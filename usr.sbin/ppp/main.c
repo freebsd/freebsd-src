@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.104 1997/11/18 18:17:25 brian Exp $
+ * $Id: main.c,v 1.105 1997/11/22 03:37:39 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -61,8 +61,8 @@
 #include "modem.h"
 #include "os.h"
 #include "hdlc.h"
-#include "ccp.h"
 #include "lcp.h"
+#include "ccp.h"
 #include "ipcp.h"
 #include "loadalias.h"
 #include "vars.h"
@@ -748,11 +748,8 @@ DoLoop(void)
   int tries;
   int qlen;
   int res;
-  pid_t pgroup;
   struct tun_data tun;
 #define rbuff tun.data
-
-  pgroup = getpgrp();
 
   if (mode & MODE_DIRECT) {
     LogPrintf(LogDEBUG, "Opening modem\n");
@@ -976,48 +973,46 @@ DoLoop(void)
       IsInteractive(1);
       Prompt();
     }
-    if (netfd >= 0 && FD_ISSET(netfd, &rfds) &&
-	((mode & MODE_OUTGOING_DAEMON) || pgroup == tcgetpgrp(0))) {
+    if (netfd >= 0 && FD_ISSET(netfd, &rfds))
       /* something to read from tty */
       ReadTty();
+    if (modem >= 0 && FD_ISSET(modem, &wfds)) {
+      /* ready to write into modem */
+      ModemStartOutput(modem);
+      if (modem < 0)
+        dial_up = 1;
     }
-    if (modem >= 0) {
-      if (FD_ISSET(modem, &wfds)) {	/* ready to write into modem */
-	ModemStartOutput(modem);
-      }
-      if (FD_ISSET(modem, &rfds)) {	/* something to read from modem */
-	if (LcpFsm.state <= ST_CLOSED)
-	  nointr_usleep(10000);
-	n = read(modem, rbuff, sizeof(rbuff));
-	if ((mode & MODE_DIRECT) && n <= 0) {
-	  DownConnection();
-	} else
-	  LogDumpBuff(LogASYNC, "ReadFromModem", rbuff, n);
+    if (modem >= 0 && FD_ISSET(modem, &rfds)) {
+      /* something to read from modem */
+      if (LcpFsm.state <= ST_CLOSED)
+	nointr_usleep(10000);
+      n = read(modem, rbuff, sizeof(rbuff));
+      if ((mode & MODE_DIRECT) && n <= 0) {
+	DownConnection();
+      } else
+	LogDumpBuff(LogASYNC, "ReadFromModem", rbuff, n);
 
-	if (LcpFsm.state <= ST_CLOSED) {
-
-	  /*
-	   * In dedicated mode, we just discard input until LCP is started.
-	   */
-	  if (!(mode & MODE_DEDICATED)) {
-	    cp = HdlcDetect(rbuff, n);
-	    if (cp) {
-
-	      /*
-	       * LCP packet is detected. Turn ourselves into packet mode.
-	       */
-	      if (cp != rbuff) {
-		write(modem, rbuff, cp - rbuff);
-		write(modem, "\r\n", 2);
-	      }
-	      PacketMode();
-	    } else
-	      write(fileno(VarTerm), rbuff, n);
-	  }
-	} else {
-	  if (n > 0)
-	    AsyncInput(rbuff, n);
+      if (LcpFsm.state <= ST_CLOSED) {
+	/*
+	 * In dedicated mode, we just discard input until LCP is started.
+	 */
+	if (!(mode & MODE_DEDICATED)) {
+	  cp = HdlcDetect(rbuff, n);
+	  if (cp) {
+	    /*
+	     * LCP packet is detected. Turn ourselves into packet mode.
+	     */
+	    if (cp != rbuff) {
+	      write(modem, rbuff, cp - rbuff);
+	      write(modem, "\r\n", 2);
+	    }
+	    PacketMode();
+	  } else
+	    write(fileno(VarTerm), rbuff, n);
 	}
+      } else {
+	if (n > 0)
+	  AsyncInput(rbuff, n);
       }
     }
     if (tun_in >= 0 && FD_ISSET(tun_in, &rfds)) {	/* something to read
