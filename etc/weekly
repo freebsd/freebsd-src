@@ -16,25 +16,25 @@ echo "Subject: $host weekly run output"
 # see if /usr/src exists and is local
 # before looking there for checked-out files
 
-if [ -d /usr/src -a \
-  X"`find -f /usr/src ! -fstype local -prune -or -type d -print -prune`" != X ];
-then
-	echo "looking for checked out files:"
-	TDIR=/tmp/_checkout$$
-
-	mkdir $TDIR
-	for file in `find -f /usr/src ! -fstype local -prune -or \
-	    -name 'p.*' -print | egrep 'SCCS/p\.'`; do
-		owner=`awk '{ print $3 }' $file`
-		echo "$owner	$file"
-		echo $file >> $TDIR/$owner
-	done | sed -e 's,SCCS/p.,,'
-	for file in $TDIR/*; do
-		sed -e 's,SCCS/p.,,' $file | \
-		    Mail -s 'checked out files' `basename $file`
-	done
-	rm -rf $TDIR
-fi
+#if [ -d /usr/src -a \
+#  X"`find -f /usr/src ! -fstype local -prune -or -type d -print -prune`" != X ];
+#then
+#	echo "looking for checked out files:"
+#	TDIR=/tmp/_checkout$$
+#
+#	mkdir $TDIR
+#	for file in `find -f /usr/src ! -fstype local -prune -or \
+#	    -name 'p.*' -print | egrep 'SCCS/p\.'`; do
+#		owner=`awk '{ print $3 }' $file`
+#		echo "$owner	$file"
+#		echo $file >> $TDIR/$owner
+#	done | sed -e 's,SCCS/p.,,'
+#	for file in $TDIR/*; do
+#		sed -e 's,SCCS/p.,,' $file | \
+#		    Mail -s 'checked out files' `basename $file`
+#	done
+#	rm -rf $TDIR
+#fi
 
 if [ -f /usr/lib/uucp/clean.weekly ]; then
 	echo ""
