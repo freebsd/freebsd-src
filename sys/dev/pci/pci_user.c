@@ -249,7 +249,7 @@ pci_ioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 		 * If this test is true, the user wants the pci_conf
 		 * structures returned to match the supplied entries.
 		 */
-		if ((cio->num_patterns > 0)
+		if ((cio->num_patterns > 0) && (cio->num_patterns < pci_numdevs)
 		 && (cio->pat_buf_len > 0)) {
 			/*
 			 * pat_buf_len needs to be:
