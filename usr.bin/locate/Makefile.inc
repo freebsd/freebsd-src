@@ -1,0 +1,3 @@
+#	$Id$
+
+LIBEXECDIR?=	/usr/libexec
