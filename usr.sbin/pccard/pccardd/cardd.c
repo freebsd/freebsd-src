@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: cardd.c,v 1.13 1996/06/20 21:06:51 nate Exp $
+ * $Id: cardd.c,v 1.14 1997/01/06 08:35:01 nate Exp $
  */
 
 #include <stdio.h>
@@ -358,7 +358,7 @@ assign_driver(struct card *cp)
 		if (conf->inuse == 0 && conf->driver->card == cp &&
 		    conf->driver->config == conf) {
 #ifdef	DEBUG
-			log_1s(stderr, "Found existing driver (%s) for %s\n",
+			log_1s("Found existing driver (%s) for %s\n",
 			    conf->driver->name, cp->manuf);
 #endif
 			return (conf);
