@@ -1971,10 +1971,17 @@ cons25|ansis|ansi80x25:\
 cons50|ansil|ansi80x50:\
         :li#50:tc=cons25:
 # Syscons console with koi8-r russian code table.
-pc3r|ibmpc3r|FreeBSD console for syscons koi8-r code table:\
+cons25r|pc3r|ibmpc3r|cons25-koi8-r|FreeBSD console for syscons koi8-r code table:\
 	:K2=\E[E:kD=\E[K:\
 	:ac=q\200x\201m\204v\211j\205t\206n\212u\207l\202w\210k\203y\230z\231f\234~\225a\220h\221o~s_`^D.^Y-^XI^U0\215:\
 	:tc=cons25:
+cons50r|cons50-koi8-r|80x50 koi8-r FreeBSD console:\
+	:li#50:tc=cons25r:
+cons25l1|cons25-iso8859-1|80x25 ISO 8859-1 FreeBSD console:\
+	:ac=l\215m\216k\214j\213u\226t\225v\227w\230q\222x\231n\217o\220s\224p\221r\223`\201a\202f\207g\210~\237.^Y-^X+\253,\273I\247y\232z\233:\
+	:tc=cons25:
+cons50l1|cons50-iso8859-1|80x50 ISO 8859-1 FreeBSD console:\
+	:li#50:tc=cons25l1:
 dosansi|ANSI.SYS standard crt:\
         :am:bs:ce=\E[K:cl=\E[2J:cm=\E[%i%d;%dH:co#80:\
         :do=\E[B:li#25:mi:nd=\E[C:\
