@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)from: main.c	8.1 (Berkeley) 6/20/93";
 #endif
 static const char rcsid[] =
-	"$Id: main.c,v 1.22 1997/11/21 07:43:50 charnier Exp $";
+	"$Id: main.c,v 1.23 1998/10/08 23:14:02 jkh Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -351,6 +351,9 @@ main(argc, argv)
 		if ((rval = getname()) == 2) {
 			oflush();
 			alarm(0);
+			limit.rlim_max = RLIM_INFINITY;
+			limit.rlim_cur = RLIM_INFINITY;
+			(void)setrlimit(RLIMIT_CPU, &limit);
 			execle(PP, "ppplogin", ttyn, (char *) 0, env);
 			syslog(LOG_ERR, "%s: %m", PP);
 			exit(1);
