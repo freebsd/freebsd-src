@@ -54,7 +54,6 @@
 #include <sys/bio.h>
 #include <sys/conf.h>
 #include <sys/disk.h>
-#include <sys/diskslice.h>
 #include <sys/malloc.h>
 #include <sys/cdio.h>
 #include <sys/dvdio.h>
@@ -128,7 +127,6 @@ struct cd_softc {
 	struct bio_queue_head	bio_queue;
 	LIST_HEAD(, ccb_hdr)	pending_ccbs;
 	struct cd_params	params;
-	struct disk	 	disk;
 	union ccb		saved_ccb;
 	cd_quirks		quirks;
 	struct devstat		device_stats;
@@ -136,6 +134,7 @@ struct cd_softc {
 	struct cdchanger	*changer;
 	int			bufs_left;
 	struct cam_periph	*periph;
+	dev_t			dev;
 };
 
 struct cd_quirk_entry {
@@ -206,7 +205,6 @@ static	int		cderror(union ccb *ccb, u_int32_t cam_flags,
 				u_int32_t sense_flags);
 static	void		cdprevent(struct cam_periph *periph, int action);
 static	int		cdsize(dev_t dev, u_int32_t *size);
-static	int		cdfirsttrackisdata(struct cam_periph *periph);
 static	int		cdreadtoc(struct cam_periph *periph, u_int32_t mode, 
 				  u_int32_t start, struct cd_toc_entry *data, 
 				  u_int32_t len);
@@ -246,10 +244,6 @@ static struct periph_driver cddriver =
 
 PERIPHDRIVER_DECLARE(cd, cddriver);
 
-/* For 2.2-stable support */
-#ifndef D_DISK
-#define D_DISK 0
-#endif
 static struct cdevsw cd_cdevsw = {
 	/* open */	cdopen,
 	/* close */	cdclose,
@@ -265,7 +259,6 @@ static struct cdevsw cd_cdevsw = {
 	/* psize */	nopsize,
 	/* flags */	D_DISK,
 };
-static struct cdevsw cddisk_cdevsw;
 
 static int num_changers;
 
@@ -471,9 +464,7 @@ cdcleanup(struct cam_periph *periph)
 		num_changers--;
 	}
 	devstat_remove_entry(&softc->device_stats);
-	if (softc->disk.d_dev) {
-		disk_destroy(softc->disk.d_dev);
-	}
+	destroy_dev(softc->dev);
 	free(softc, M_DEVBUF);
 	splx(s);
 }
@@ -549,7 +540,6 @@ cdregister(struct cam_periph *periph, void *arg)
 	struct ccb_setasync csa;
 	struct ccb_getdev *cgd;
 	caddr_t match;
-	dev_t disk_dev;
 
 	cgd = (struct ccb_getdev *)arg;
 	if (periph == NULL) {
@@ -611,10 +601,9 @@ cdregister(struct cam_periph *periph, void *arg)
 	  		  DEVSTAT_BS_UNAVAILABLE,
 			  DEVSTAT_TYPE_CDROM | DEVSTAT_TYPE_IF_SCSI,
 			  DEVSTAT_PRIORITY_CD);
-	disk_dev = disk_create(periph->unit_number, &softc->disk,
-		    DSO_ONESLICE | DSO_COMPATLABEL,
-		    &cd_cdevsw, &cddisk_cdevsw);
-	disk_dev->si_drv1 = periph;
+	softc->dev = make_dev(&cd_cdevsw, periph->unit_number,
+		UID_ROOT, GID_OPERATOR, 0640, "cd%d", periph->unit_number);
+	softc->dev->si_drv1 = periph;
 
 	/*
 	 * Add an async callback so that we get
@@ -901,23 +890,6 @@ cdopen(dev_t dev, int flags, int fmt, struct thread *td)
 	}
 
 	/*
-	 * If we get a non-zero return, revert back to not reading the
-	 * label off the disk.  The first track is likely audio, which
-	 * won't have a disklabel.
-	 */
-	if ((error = cdfirsttrackisdata(periph)) != 0) {
-		softc->disk.d_dsflags &= ~DSO_COMPATLABEL;
-		softc->disk.d_dsflags |= DSO_NOLABELS;
-		error = 0;
-	}
-
-	softc->disk.d_sectorsize = softc->params.blksize;
-	softc->disk.d_mediasize = softc->params.blksize * 
-	    (off_t)softc->params.disksize;
-	softc->disk.d_fwsectors = 0;
-	softc->disk.d_fwheads = 0;
-	
-	/*
 	 * We unconditionally (re)set the blocksize each time the
 	 * CD device is opened.  This is because the CD can change,
 	 * and therefore the blocksize might change.
@@ -953,13 +925,6 @@ cdclose(dev_t dev, int flag, int fmt, struct thread *td)
 
 	if ((softc->flags & CD_FLAG_DISC_REMOVABLE) != 0)
 		cdprevent(periph, PR_ALLOW);
-
-	/*
-	 * Unconditionally set the dsopen() flags back to their default
-	 * state.
-	 */
-	softc->disk.d_dsflags &= ~DSO_NOLABELS;
-	softc->disk.d_dsflags |= DSO_COMPATLABEL;
 
 	/*
 	 * Since we're closing this CD, mark the blocksize as unavailable.
@@ -1404,7 +1369,7 @@ cdstart(struct cam_periph *periph, union ccb *start_ccb)
 					/* read */bp->bio_cmd == BIO_READ,
 					/* byte2 */ 0,
 					/* minimum_cmd_size */ 10,
-					/* lba */ bp->bio_pblkno,
+					/* lba */ bp->bio_blkno,
 					bp->bio_bcount / softc->params.blksize,
 					/* data_ptr */ bp->bio_data,
 					/* dxfer_len */ bp->bio_bcount,
@@ -1533,7 +1498,11 @@ cddone(struct cam_periph *periph, union ccb *done_ccb)
 			bp->bio_resid = csio->resid;
 			bp->bio_error = 0;
 			if (bp->bio_resid != 0) {
-				/* Short transfer ??? */
+				/*
+				 * Short transfer ??? 
+				 * XXX: not sure this is correct for partial
+				 * transfers at EOM
+				 */
 				bp->bio_flags |= BIO_ERROR;
 			}
 		}
@@ -1775,6 +1744,14 @@ cdioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 		return(error);
 
 	switch (cmd) {
+
+	case DIOCGMEDIASIZE:
+		*(off_t *)addr =
+		    (off_t)softc->params.blksize * softc->params.disksize;
+		break;
+	case DIOCGSECTORSIZE:
+		*(u_int *)addr = softc->params.blksize;
+		break;
 
 	case CDIOCPLAYTRACKS:
 		{
@@ -2388,7 +2365,7 @@ cdioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 		else
 			error = cdsendkey(periph, authinfo);
 		break;
-	}
+		}
 	case DVDIOCREADSTRUCTURE: {
 		struct dvd_struct *dvdstruct;
 
@@ -2406,6 +2383,9 @@ cdioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 	cam_periph_unlock(periph);
 
 	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("leaving cdioctl\n"));
+	if (error && bootverbose) {
+		printf("scsi_cd.c::ioctl cmd=%08lx error=%d\n", cmd, error);
+	}
 
 	return (error);
 }
@@ -2504,80 +2484,6 @@ cdsize(dev_t dev, u_int32_t *size)
 
 	return (error);
 
-}
-
-/*
- * The idea here is to try to figure out whether the first track is data or
- * audio.  If it is data, we can at least attempt to read a disklabel off
- * the first sector of the disk.  If it is audio, there won't be a
- * disklabel.
- *
- * This routine returns 0 if the first track is data, and non-zero if there
- * is an error or the first track is audio.  (If either non-zero case, we
- * should not attempt to read the disklabel.)
- */
-static int
-cdfirsttrackisdata(struct cam_periph *periph)
-{
-	struct cdtocdata {
-		struct ioc_toc_header header;
-		struct cd_toc_entry entries[100];
-	};
-	struct cd_softc *softc;
-	struct ioc_toc_header *th;
-	struct cdtocdata *data;
-	int num_entries, i;
-	int error, first_track_audio;
-
-	error = 0;
-	first_track_audio = -1;
-
-	softc = (struct cd_softc *)periph->softc;
-
-	data = malloc(sizeof(struct cdtocdata), M_TEMP, M_WAITOK);
-
-	th = &data->header;
-	error = cdreadtoc(periph, 0, 0, (struct cd_toc_entry *)data,
-			  sizeof(*data));
-
-	if (error)
-		goto bailout;
-
-	if (softc->quirks & CD_Q_BCD_TRACKS) {
-		/* we are going to have to convert the BCD
-		 * encoding on the cd to what is expected
-		 */
-		th->starting_track =
-		    bcd2bin(th->starting_track);
-		th->ending_track = bcd2bin(th->ending_track);
-	}
-	th->len = scsi_2btoul((u_int8_t *)&th->len);
-
-	if ((th->len - 2) > 0)
-		num_entries = (th->len - 2) / sizeof(struct cd_toc_entry);
-	else
-		num_entries = 0;
-
-	for (i = 0; i < num_entries; i++) {
-		if (data->entries[i].track == th->starting_track) {
-			if (data->entries[i].control & 0x4)
-				first_track_audio = 0;
-			else
-				first_track_audio = 1;
-			break;
-		}
-	}
-
-	if (first_track_audio == -1)
-		error = ENOENT;
-	else if (first_track_audio == 1)
-		error = EINVAL;
-	else
-		error = 0;
-bailout:
-	free(data, M_TEMP);
-
-	return(error);
 }
 
 static int
