@@ -845,6 +845,11 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       supports the Compaq SmartRAID 5* family of RAID controllers
       (5300, 532, 5i). &merged;</para>
 
+      <para>The &man.fdc.4; floppy disk has undergone a number of
+      enhancements.  Density selection for common settings is now
+      automatic; the driver is also much more flexible in setting the
+      densities of various subdevices.</para>
+
       <para>The ida disk driver now has crashdump support. &merged;</para>
 
       <para arch="alpha">A bug that made certain CDROM drives fail to
@@ -2135,6 +2140,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
     <para>&man.sysinstall.8; now has the ability to load KLDs as a
     part of the installation. &merged;</para>
+
+    <para>&man.sysinstall.8; now enables Soft Updates by default on
+    all filesystems it creates, except for the root
+    filesystem. &merged;</para>
 
     <para>&man.syslogd.8; can take a <option>-n</option> option to
     disable DNS queries for every request. &merged;</para>
