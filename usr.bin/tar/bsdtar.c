@@ -47,6 +47,9 @@ struct option {
 #define	no_argument 0
 #define	required_argument 1
 #endif
+#ifdef HAVE_NL_LANGINFO_D_MD_ORDER
+#include <langinfo.h>
+#endif
 #include <locale.h>
 #include <pwd.h>
 #include <stdio.h>
@@ -163,6 +166,9 @@ main(int argc, char **argv)
 
 	if (setlocale(LC_ALL, "") == NULL)
 		bsdtar_warnc(bsdtar, 0, "Failed to set default locale");
+#ifdef HAVE_NL_LANGINFO_D_MD_ORDER
+	bsdtar->day_first = (*nl_langinfo(D_MD_ORDER) == 'd');
+#endif
 	mode = '\0';
 	possible_help_request = 0;
 
