@@ -115,23 +115,19 @@ struct in_addr {
 #define	inet_nsap_ntoa	__inet_nsap_ntoa
 #endif /* !_POSIX_SOURCE */
 
-#ifndef _BYTEORDER_FUNC_DEFINED
-#define	_BYTEORDER_FUNC_DEFINED
-#define	htonl(x)	__htonl(x)
-#define	htons(x)	__htons(x)
-#define	ntohl(x)	__ntohl(x)
-#define	ntohs(x)	__ntohs(x)
+__BEGIN_DECLS
+#ifndef _BYTEORDER_PROTOTYPED
+#define	_BYTEORDER_PROTOTYPED
+__uint32_t	 htonl __P((__uint32_t));
+__uint16_t	 htons __P((__uint16_t));
+__uint32_t	 ntohl __P((__uint32_t));
+__uint16_t	 ntohs __P((__uint16_t));
 #endif
 
-__BEGIN_DECLS
-__uint32_t	 htonl(__uint32_t);
-__uint16_t	 htons(__uint16_t);
 in_addr_t	 inet_addr __P((const char *));
 char		*inet_ntoa __P((struct in_addr));
 const char	*inet_ntop __P((int, const void *, char *, socklen_t));
 int		 inet_pton __P((int, const char *, void *));
-__uint32_t	 ntohl(__uint32_t);
-__uint16_t	 ntohs(__uint16_t);
 
 /* Nonstandard functions. */
 #ifndef _POSIX_SOURCE
@@ -149,5 +145,13 @@ unsigned	 inet_nsap_addr __P((const char *, unsigned char *, int));
 char		*inet_nsap_ntoa __P((int, const unsigned char *, char *));
 #endif /* !_POSIX_SOURCE */
 __END_DECLS
+
+#ifndef _BYTEORDER_FUNC_DEFINED
+#define	_BYTEORDER_FUNC_DEFINED
+#define	htonl(x)	__htonl(x)
+#define	htons(x)	__htons(x)
+#define	ntohl(x)	__ntohl(x)
+#define	ntohs(x)	__ntohs(x)
+#endif
 
 #endif /* !_ARPA_INET_H_ */

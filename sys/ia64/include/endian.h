@@ -47,11 +47,11 @@
 #define _QUAD_HIGHWORD 1
 #define _QUAD_LOWWORD 0
 
+#ifndef _POSIX_SOURCE
 /*
  * Definitions for byte order, according to byte significance from low
  * address to high.
  */
-#ifndef _POSIX_SOURCE
 #define	LITTLE_ENDIAN	1234	/* LSB first: i386, vax */
 #define	BIG_ENDIAN	4321	/* MSB first: 68000, ibm, net */
 #define	PDP_ENDIAN	3412	/* LSB first in word, MSW first in long */
@@ -59,10 +59,8 @@
 #define	BYTE_ORDER	LITTLE_ENDIAN
 #endif /* !_POSIX_SOURCE */
 
-#ifdef _KERNEL
 #ifdef __GNUC__
 
-#define	_BSWAP64_DEFINED
 static __inline __uint64_t
 __bswap64(__uint64_t __x)
 {
@@ -72,7 +70,6 @@ __bswap64(__uint64_t __x)
 	return __r;
 }
 
-#define	_BSWAP32_DEFINED
 static __inline __uint32_t
 __bswap32(__uint32_t __x)
 {
@@ -80,7 +77,6 @@ __bswap32(__uint32_t __x)
 	return (__bswap64(__x) >> 32);
 }
 
-#define	_BSWAP16_DEFINED
 static __inline __uint16_t
 __bswap16(__uint16_t __x)
 {
@@ -88,14 +84,11 @@ __bswap16(__uint16_t __x)
 	return (__bswap64(__x) >> 48);
 }
 
-#else /* !__GNUC__ */
-/* XXX: use the libkern versions for now; these might go away soon. */
-#define	_BSWAP16_DEFINED
-__uint16_t __bswap16(__uint16_t);
-#define	_BSWAP32_DEFINED
-__uint32_t __bswap32(__uint32_t);
 #endif /* __GNUC__ */
 
-#endif /* _KERNEL */
+#define	__htonl(x)	__bswap32(x)
+#define	__htons(x)	__bswap16(x)
+#define	__ntohl(x)	__bswap32(x)
+#define	__ntohs(x)	__bswap16(x)
 
 #endif /* !_MACHINE_ENDIAN_H_ */
