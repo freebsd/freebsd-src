@@ -76,12 +76,18 @@ main(argc, argv)
 	} bkey;
 	DB *db;
 	DBT data, key;
-	int ch;
+	int ch, fflag;
 	u_char buf[MAXNAMLEN + 1];
 	char dbtmp[MAXPATHLEN + 1], dbname[MAXPATHLEN + 1];
+	const char *dirname;
 
-	while ((ch = getopt(argc, argv, "")) != -1)
+	fflag = 0;
+	while ((ch = getopt(argc, argv, "f:")) != -1)
 		switch((char)ch) {
+		case 'f':
+			strlcpy(dbname, optarg, sizeof(dbname));
+			fflag = 1;
+			break;
 		case '?':
 		default:
 			usage();
@@ -89,16 +95,24 @@ main(argc, argv)
 	argc -= optind;
 	argv += optind;
 
-	if (argc > 0)
+	if (argc > 1)
 		usage();
+	if (argc == 1)
+		dirname = argv[0];
+	else
+		dirname = _PATH_DEV;
 
-	if (chdir(_PATH_DEV))
-		err(1, "%s", _PATH_DEV);
+	if (!fflag) {
+		(void)snprintf(dbname, sizeof(dbtmp), "%sdev.db", _PATH_VARRUN);
+		(void)snprintf(dbtmp, sizeof(dbtmp), "%sdev.tmp", _PATH_VARRUN);
+	} else
+		(void)snprintf(dbtmp, sizeof(dbtmp), "%s.tmp", dbname);
+
+	if (chdir(dirname))
+		err(1, "%s", dirname);
 
 	dirp = opendir(".");
 
-	(void)snprintf(dbtmp, sizeof(dbtmp), "%sdev.tmp", _PATH_VARRUN);
-	(void)snprintf(dbname, sizeof(dbtmp), "%sdev.db", _PATH_VARRUN);
 	db = dbopen(dbtmp, O_CREAT|O_EXLOCK|O_RDWR|O_TRUNC,
 	    S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH, DB_HASH, NULL);
 	if (db == NULL)
@@ -148,6 +162,6 @@ main(argc, argv)
 static void
 usage()
 {
-	(void)fprintf(stderr, "usage: dev_mkdb\n");
+	(void)fprintf(stderr, "usage: dev_mkdb [-f file] [directory]\n");
 	exit(1);
 }
