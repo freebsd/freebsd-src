@@ -477,7 +477,6 @@ isp_sbus_mbxdma(struct ispsoftc *isp)
 	caddr_t base;
 	u_int32_t len;
 	int i, error, ns;
-	bus_size_t bl;
 	struct imush im;
 
 	/*
@@ -488,16 +487,15 @@ isp_sbus_mbxdma(struct ispsoftc *isp)
 	}
 
 	ISP_UNLOCK(isp);
-	bl = BUS_SPACE_MAXADDR_24BIT;
 
-	if (bus_dma_tag_create(NULL, 1, 0, BUS_SPACE_MAXADDR,
-	    BUS_SPACE_MAXADDR, NULL, NULL, BUS_SPACE_MAXSIZE,
-	    ISP_NSEGS, bl, 0, &sbs->dmat)) {
+	if (bus_dma_tag_create(NULL, 1, BUS_SPACE_MAXADDR_24BIT-1,
+	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR_32BIT,
+	    NULL, NULL, BUS_SPACE_MAXSIZE_32BIT, ISP_NSEGS,
+	    BUS_SPACE_MAXADDR_24BIT, 0, &sbs->dmat)) {
 		isp_prt(isp, ISP_LOGERR, "could not create master dma tag");
 		ISP_LOCK(isp);
 		return(1);
 	}
-
 
 	len = sizeof (XS_T **) * isp->isp_maxcmds;
 	isp->isp_xflist = (XS_T **) malloc(len, M_DEVBUF, M_WAITOK | M_ZERO);
@@ -522,8 +520,9 @@ isp_sbus_mbxdma(struct ispsoftc *isp)
 	len += ISP_QUEUE_SIZE(RESULT_QUEUE_LEN(isp));
 
 	ns = (len / PAGE_SIZE) + 1;
-	if (bus_dma_tag_create(sbs->dmat, QENTRY_LEN, 0, BUS_SPACE_MAXADDR,
-	    BUS_SPACE_MAXADDR, NULL, NULL, len, ns, bl, 0, &isp->isp_cdmat)) {
+	if (bus_dma_tag_create(sbs->dmat, QENTRY_LEN, BUS_SPACE_MAXADDR_24BIT-1,
+	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR_32BIT, NULL, NULL,
+	    len, ns, BUS_SPACE_MAXADDR_24BIT, 0, &isp->isp_cdmat)) {
 		isp_prt(isp, ISP_LOGERR,
 		    "cannot create a dma tag for control spaces");
 		free(sbs->dmaps, M_DEVBUF);
