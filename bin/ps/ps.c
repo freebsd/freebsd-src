@@ -497,7 +497,7 @@ main(int argc, char *argv[])
 	 */
 	nentries = -1;
 	kp = kvm_getprocs(kd, what, flag, &nentries);
-	if ((kp == 0 && nentries != 0) || nentries < 0)
+	if ((kp == 0 && nentries > 0) || (kp != 0 && nentries < 0))
 		errx(1, "%s", kvm_geterr(kd));
 	nkept = 0;
 	if (nentries > 0) {
