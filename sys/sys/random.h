@@ -1,7 +1,7 @@
 /*
  * random.h -- A strong random number generator
  *
- * $Id: random.h,v 1.14 1998/04/06 09:30:18 phk Exp $
+ * $Id: random.h,v 1.15 1998/06/18 15:32:05 bde Exp $
  *
  * Version 0.95, last modified 18-Oct-95
  * 
@@ -58,16 +58,19 @@
 
 #ifdef KERNEL
 
-/* Interrupts to be used in the randomizing process */
+/* Type of the cookie passed to add_interrupt_randomness. */
 
-extern inthand2_t *sec_intr_handler[];
-extern void *sec_intr_unit[];
+struct random_softc {
+	inthand2_t	*sc_handler;
+	void		*sc_arg;
+	int		sc_intr;
+};
 
 /* Exported functions */
 
 void rand_initialize(void);
 void add_keyboard_randomness(u_char scancode);
-void add_interrupt_randomness(int irq);
+inthand2_t add_interrupt_randomness;
 #ifdef notused
 void add_blkdev_randomness(int major);
 #endif
