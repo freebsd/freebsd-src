@@ -32,6 +32,8 @@
 #include <signal.h>
 #include <string.h>
 
+#include "thr_private.h"
+
 __strong_reference(clock_gettime, _thr_clock_gettime);
 __strong_reference(kse_exit, _thr_kse_exit);
 __strong_reference(kse_wakeup, _thr_kse_wakeup);
@@ -53,3 +55,4 @@ __strong_reference(strcpy, _thr_strcpy);
 __strong_reference(strlen, _thr_strlen);
 __strong_reference(bzero, _thr_bzero);
 
+__strong_reference(__sys_write, _thr__sys_write);
