@@ -139,6 +139,9 @@ struct slot {
 #define AFLAGS	(IO_ASSIGNED | MEM_ASSIGNED | IRQ_ASSIGNED)
 #define CFLAGS	(EADDR_CONFIGED | WL_CONFIGED)
 
+EXTERN struct slot *slots, *current_slot;
+EXTERN int slen;
+
 EXTERN struct allocblk *pool_ioblks;            /* I/O blocks in the pool */
 EXTERN struct allocblk *pool_mem;               /* Memory in the pool */
 EXTERN int     pool_irq[16];			/* IRQ allocations */
@@ -170,8 +173,13 @@ char		*newstr();
 void		 reset_slot(struct slot *);
 void		*xmalloc(int);
 
-/* file.c */
+/* file.c functions */
 void		 readfile(char *);
+
+/* server.c functions */
+void		 set_socket(int);
+void		 stat_changed(struct slot *);
+void		 process_client(void);
 
 #define	IOPORTS	0x400
 #define	MEMUNIT	0x1000
