@@ -49,7 +49,7 @@
 static const char sccsid[] = "@(#)rmpproto.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: rmpproto.c,v 1.4 1997/11/24 07:33:41 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -575,12 +575,7 @@ SendPacket(rconn)
 	 */
 	memmove((char *)&rconn->rmp.hp_hdr.daddr[0],
 	        (char *)&rconn->rmp.hp_hdr.saddr[0], RMP_ADDRLEN);
-#ifdef __FreeBSD__
-	/* BPF (incorrectly) wants this in host order. */
-	rconn->rmp.hp_hdr.len = rconn->rmplen - sizeof(struct hp_hdr);
-#else
 	rconn->rmp.hp_hdr.len = htons(rconn->rmplen - sizeof(struct hp_hdr));
-#endif
 
 	/*
 	 *  Reverse 802.2/HP Extended Source & Destination Access Pts.
