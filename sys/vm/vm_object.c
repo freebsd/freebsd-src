@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.118 1998/03/08 18:05:59 dyson Exp $
+ * $Id: vm_object.c,v 1.119 1998/03/16 01:55:52 dyson Exp $
  */
 
 /*
@@ -135,6 +135,7 @@ static vm_zone_t obj_zone;
 static struct vm_zone obj_zone_store;
 #define VM_OBJECTS_INIT 256
 static struct vm_object vm_objects_init[VM_OBJECTS_INIT];
+static int objidnumber;
 
 void
 _vm_object_allocate(type, size, object)
@@ -150,6 +151,9 @@ _vm_object_allocate(type, size, object)
 	object->size = size;
 	object->ref_count = 1;
 	object->flags = 0;
+	object->id = ++objidnumber;
+	if ((object->type == OBJT_DEFAULT) || (object->type == OBJT_SWAP))
+		object->flags |= OBJ_ONEMAPPING;
 	object->behavior = OBJ_NORMAL;
 	object->paging_in_progress = 0;
 	object->resident_page_count = 0;
@@ -312,8 +316,11 @@ vm_object_deallocate(object)
 		 * Here on ref_count of one or two, which are special cases for
 		 * objects.
 		 */
-		if ((object->ref_count == 2) && (object->shadow_count == 1)) {
-
+		if ((object->ref_count == 2) && (object->shadow_count == 0)) {
+			object->flags |= OBJ_ONEMAPPING;
+			object->ref_count--;
+			return;
+		} else if ((object->ref_count == 2) && (object->shadow_count == 1)) {
 			object->ref_count--;
 			if ((object->handle == NULL) &&
 			    (object->type == OBJT_DEFAULT ||
@@ -870,6 +877,7 @@ vm_object_shadow(object, offset, length)
 	result->backing_object = source;
 	if (source) {
 		TAILQ_INSERT_TAIL(&source->shadow_head, result, shadow_list);
+		source->flags &= ~OBJ_ONEMAPPING;
 		source->shadow_count++;
 		source->generation++;
 	}
@@ -1100,7 +1108,7 @@ vm_object_collapse(object)
 					    OFF_TO_IDX(backing_object->paging_offset),
 					    object,
 					    OFF_TO_IDX(object->paging_offset),
-					    OFF_TO_IDX(object->backing_object_offset));
+					    OFF_TO_IDX(object->backing_object_offset), TRUE);
 					vm_object_pip_wakeup(object);
 				} else {
 					object->paging_in_progress++;

@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.h,v 1.46 1998/02/25 03:55:52 dyson Exp $
+ * $Id: vm_object.h,v 1.47 1998/03/07 21:37:09 dyson Exp $
  */
 
 /*
@@ -93,6 +93,7 @@ struct vm_object {
 	int ref_count;			/* How many refs?? */
 	int shadow_count;		/* how many objects that this is a shadow for */
 	int pg_color;			/* color of first page in obj */
+	int	id;					/* ID for no purpose, other than info */
 	u_short flags;			/* see below */
 	u_short paging_in_progress;	/* Paging (in or out) so don't collapse or destroy */
 	u_short	behavior;		/* see below */
@@ -132,6 +133,7 @@ struct vm_object {
 #define OBJ_MIGHTBEDIRTY	0x0100	/* object might be dirty */
 #define OBJ_CLEANING	0x0200
 #define OBJ_OPT		0x1000		/* I/O optimization */
+#define	OBJ_ONEMAPPING	0x2000		/* One USE (a single, non-forked) mapping flag */
 
 #define OBJ_NORMAL	0x0		/* default behavior */
 #define OBJ_SEQUENTIAL	0x1		/* expect sequential accesses */

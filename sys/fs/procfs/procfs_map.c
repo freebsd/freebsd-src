@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_status.c	8.3 (Berkeley) 2/17/94
  *
- *	$Id: procfs_map.c,v 1.15 1998/02/04 22:32:48 eivind Exp $
+ *	$Id: procfs_map.c,v 1.16 1998/02/06 12:13:41 eivind Exp $
  */
 
 #include <sys/param.h>
@@ -93,6 +93,7 @@ procfs_domap(curp, p, pfs, uio)
 		((uio->uio_resid > 0) && (entry != &map->header));
 		entry = entry->next) {
 		vm_object_t obj, tobj, lobj;
+		int ref_count, shadow_count, id, flags;
 		vm_offset_t addr;
 		int resident, privateresident;
 		char *type;
@@ -117,23 +118,34 @@ procfs_domap(curp, p, pfs, uio)
 		for( lobj = tobj = obj; tobj; tobj = tobj->backing_object)
 			lobj = tobj;
 
-		if (lobj) switch(lobj->type) {
+		if (lobj) {
+			switch(lobj->type) {
 
 default:
 case OBJT_DEFAULT:
-			type = "default";
-			break;
+				type = "default";
+				break;
 case OBJT_VNODE:
-			type = "vnode";
-			break;
+				type = "vnode";
+				break;
 case OBJT_SWAP:
-			type = "swap";
-			break;
+				type = "swap";
+				break;
 case OBJT_DEVICE:
-			type = "device";
-			break;
+				type = "device";
+				break;
+			}
+			
+			flags = obj->flags;
+			ref_count = obj->ref_count;
+			shadow_count = obj->shadow_count;
+			id = obj->id;
 		} else {
 			type = "none";
+			flags = 0;
+			ref_count = 0;
+			shadow_count = 0;
+			id = 0;
 		}
 			
 
@@ -141,13 +153,15 @@ case OBJT_DEVICE:
 		 * format:
 		 *  start, end, resident, private resident, cow, access, type.
 		 */
-		sprintf(mebuffer, "0x%-8.8x 0x%-8.8x %9d %9d %s%s%s %s %s\n",
+		sprintf(mebuffer, "0x%x 0x%x %d %d %d %s%s%s %d %d 0x%x %s %s %s\n",
 			entry->start, entry->end,
-			resident, privateresident,
+			resident, privateresident, id,
 			(entry->protection & VM_PROT_READ)?"r":"-",
 			(entry->protection & VM_PROT_WRITE)?"w":"-",
 			(entry->protection & VM_PROT_EXECUTE)?"x":"-",
-			(entry->eflags & MAP_ENTRY_COW)?"COW":"   ",
+			ref_count, shadow_count, flags,
+			(entry->eflags & MAP_ENTRY_COW)?"COW":"NCOW",
+			(entry->eflags & MAP_ENTRY_NEEDS_COPY)?"NC":"NNC",
 			type);
 
 		len = strlen(mebuffer);
