@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id$
+ *      $Id: scsi_target.c,v 1.1 1998/09/15 06:36:34 gibbs Exp $
  */
 #include <stddef.h>	/* For offsetof */
 
@@ -906,7 +906,7 @@ targrunqueue(struct cam_periph *periph, struct targ_softc *softc)
 			softc->flags &= ~TARG_FLAG_SEND_EOF;
 		else {
 			xpt_print_path(periph->path);
-			printf("De-Queued a SEND buffer %d\n",
+			printf("De-Queued a SEND buffer %ld\n",
 			       bp->b_bcount);
 		}
 		bufq = &softc->snd_buf_queue;
@@ -919,7 +919,8 @@ targrunqueue(struct cam_periph *periph, struct targ_softc *softc)
 			softc->flags &= ~TARG_FLAG_RECEIVE_EOF;
 		else {
 			xpt_print_path(periph->path);
-			printf("De-Queued a RECEIVE buffer %d\n", bp->b_bcount);
+			printf("De-Queued a RECEIVE buffer %ld\n",
+			       bp->b_bcount);
 		}
 		bufq = &softc->rcv_buf_queue;
 		pending_queue = &softc->rcv_ccb_queue;
@@ -945,8 +946,8 @@ targrunqueue(struct cam_periph *periph, struct targ_softc *softc)
 			    MIN(desc->data_resid, bp->b_resid);
 		}
 		xpt_print_path(periph->path);
-		printf("Buffer command: data %x: datacnt %d\n", desc->data,
-		       desc->data_increment);
+		printf("Buffer command: data %x: datacnt %d\n",
+		       (intptr_t)desc->data, desc->data_increment);
 		TAILQ_INSERT_TAIL(&softc->work_queue, &atio->ccb_h,
 				  periph_links.tqe);
 	}
@@ -1299,7 +1300,7 @@ targdone(struct cam_periph *periph, union ccb *done_ccb)
 			bp->b_error = 0;
 
 			xpt_print_path(done_ccb->ccb_h.path);
-			printf("Buffer I/O Completed - Resid %d:%d\n",
+			printf("Buffer I/O Completed - Resid %ld:%d\n",
 			       bp->b_resid, desc->data_resid);
 			/*
 			 * Send the buffer back to the client if

@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pci.c,v 1.86 1998/09/06 22:41:41 tegge Exp $
+ * $Id: pci.c,v 1.87 1998/09/15 08:21:08 gibbs Exp $
  *
  */
 
@@ -760,9 +760,9 @@ pci_ioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 			 */
 			if ((error = useracc((caddr_t)cio->patterns,
 			                     cio->pat_buf_len, B_READ)) != 1){
-				printf("pci_ioctl: pattern buffer %#lx, "
+				printf("pci_ioctl: pattern buffer %#x, "
 				       "length %u isn't user accessible for"
-				       " READ\n", cio->patterns,
+				       " READ\n", (intptr_t)cio->patterns,
 				       cio->pat_buf_len);
 				error = EACCES;
 				break;
@@ -796,9 +796,9 @@ pci_ioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 		 */
 		if ((error = useracc((caddr_t)cio->matches, cio->match_buf_len,
 				     B_WRITE)) != 1) {
-			printf("pci_ioctl: match buffer %#lx, length %u "
+			printf("pci_ioctl: match buffer %#x, length %u "
 			       "isn't user accessible for WRITE\n",
-			       cio->matches, cio->match_buf_len);
+			       (intptr_t)cio->matches, cio->match_buf_len);
 			error = EACCES;
 			break;
 		}

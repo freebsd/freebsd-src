@@ -43,7 +43,7 @@
  *	       arrays that span controllers (Wow!).
  */
 
-#ident "$Id: dpt_scsi.c,v 1.12 1998/08/26 19:11:22 gibbs Exp $"
+#ident "$Id: dpt_scsi.c,v 1.13 1998/09/15 08:33:31 gibbs Exp $"
 
 #define _DPT_C_
 
@@ -620,7 +620,7 @@ dptexecuteccb(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 	if (error != 0) {
 		if (error != EFBIG)
 			printf("dpt%d: Unexepected error 0x%x returned from "
-			       "bus_dmamap_load\n", dpt->unit);
+			       "bus_dmamap_load\n", dpt->unit, error);
 		if (ccb->ccb_h.status == CAM_REQ_INPROG) {
 			xpt_freeze_devq(ccb->ccb_h.path, /*count*/1);
 			ccb->ccb_h.status = CAM_REQ_TOO_BIG|CAM_DEV_QFRZN;
@@ -1603,13 +1603,14 @@ dpttimeout(void *arg)
 	ccb = dccb->ccb;
 	dpt = (struct dpt_softc *)ccb->ccb_h.ccb_dpt_ptr;
 	xpt_print_path(ccb->ccb_h.path);
-	printf("CCB 0x%x - timed out\n", dccb);
+	printf("CCB 0x%x - timed out\n", (intptr_t)dccb);
 
 	s = splcam();
 
 	if ((dccb->state & DCCB_ACTIVE) == 0) {
 		xpt_print_path(ccb->ccb_h.path);
-		printf("CCB 0x%x - timed out CCB already completed\n", dccb);
+		printf("CCB 0x%x - timed out CCB already completed\n",
+		       (intptr_t)dccb);
 		splx(s);
 		return;
 	}
