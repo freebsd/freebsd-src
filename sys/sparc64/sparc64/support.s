@@ -231,8 +231,9 @@
 #define	SU_ALIGNED(storer, label) \
 	CATCH_SETUP(label) ; \
 	storer	%o1, [%o0] ASI_AIUP ; \
+	CATCH_END() ; \
 	retl ; \
-	 CATCH_END()
+	 clr	%o0
 
 #define	SU_BYTES(storer, size, label) \
 	btst	(size) - 1, %o0 ; \
@@ -428,6 +429,11 @@ END(copystr)
  * int fubyte(const void *base)
  */
 ENTRY(fubyte)
+#if KTR_COMPILE & KTR_CT1
+	CATR(KTR_CT1, "fubyte: base=%#lx", %g1, %g2, %g3, 7, 8, 9)
+	stx	%o0, [%g1 + KTR_PARM1]
+9:
+#endif
 	FU_ALIGNED(lduba, .Lfsfault)
 END(fubyte)
 
@@ -435,6 +441,11 @@ END(fubyte)
  * int fusword(const void *base)
  */
 ENTRY(fusword)
+#if KTR_COMPILE & KTR_CT1
+	CATR(KTR_CT1, "fusword: base=%#lx", %g1, %g2, %g3, 7, 8, 9)
+	stx	%o0, [%g1 + KTR_PARM1]
+9:
+#endif
 	FU_BYTES(lduwa, 2, .Lfsfault)
 END(fusword)
 
@@ -442,6 +453,11 @@ END(fusword)
  * int fuswintr(const void *base)
  */
 ENTRY(fuswintr)
+#if KTR_COMPILE & KTR_CT1
+	CATR(KTR_CT1, "fuswintr: base=%#lx", %g1, %g2, %g3, 7, 8, 9)
+	stx	%o0, [%g1 + KTR_PARM1]
+9:
+#endif
 	FU_BYTES(lduwa, 2, fsbail)
 END(fuswintr)
 
@@ -449,6 +465,11 @@ END(fuswintr)
  * int fuword(const void *base)
  */
 ENTRY(fuword)
+#if KTR_COMPILE & KTR_CT1
+	CATR(KTR_CT1, "fuword: base=%#lx", %g1, %g2, %g3, 7, 8, 9)
+	stx	%o0, [%g1 + KTR_PARM1]
+9:
+#endif
 	FU_BYTES(ldxa, 8, .Lfsfault)
 END(fuword)
 
@@ -456,6 +477,11 @@ END(fuword)
  * int subyte(const void *base)
  */
 ENTRY(subyte)
+#if KTR_COMPILE & KTR_CT1
+	CATR(KTR_CT1, "subyte: base=%#lx", %g1, %g2, %g3, 7, 8, 9)
+	stx	%o0, [%g1 + KTR_PARM1]
+9:
+#endif
 	SU_ALIGNED(stba, .Lfsfault)
 END(subyte)
 
@@ -463,6 +489,11 @@ END(subyte)
  * int suibyte(const void *base)
  */
 ENTRY(suibyte)
+#if KTR_COMPILE & KTR_CT1
+	CATR(KTR_CT1, "suibyte: base=%#lx", %g1, %g2, %g3, 7, 8, 9)
+	stx	%o0, [%g1 + KTR_PARM1]
+9:
+#endif
 	SU_ALIGNED(stba, fsbail)
 END(suibyte)
 
@@ -470,6 +501,11 @@ END(suibyte)
  * int susword(const void *base)
  */
 ENTRY(susword)
+#if KTR_COMPILE & KTR_CT1
+	CATR(KTR_CT1, "susword: base=%#lx", %g1, %g2, %g3, 7, 8, 9)
+	stx	%o0, [%g1 + KTR_PARM1]
+9:
+#endif
 	SU_BYTES(stwa, 2, .Lfsfault)
 END(susword)
 
@@ -477,6 +513,11 @@ END(susword)
  * int suswintr(const void *base)
  */
 ENTRY(suswintr)
+#if KTR_COMPILE & KTR_CT1
+	CATR(KTR_CT1, "suswintr: base=%#lx", %g1, %g2, %g3, 7, 8, 9)
+	stx	%o0, [%g1 + KTR_PARM1]
+9:
+#endif
 	SU_BYTES(stwa, 2, fsbail)
 END(suswintr)
 
@@ -484,16 +525,42 @@ END(suswintr)
  * int suword(const void *base)
  */
 ENTRY(suword)
+#if KTR_COMPILE & KTR_CT1
+	CATR(KTR_CT1, "suword: base=%#lx", %g1, %g2, %g3, 7, 8, 9)
+	stx	%o0, [%g1 + KTR_PARM1]
+9:
+#endif
 	SU_BYTES(stxa, 8, .Lfsfault)
 END(suword)
 
-ENTRY(fsbail)
-	nop
-.Lfsfault:
-	CATCH_END()
+	.align 16
 .Lfsalign:
+#if KTR_COMPILE & KTR_CT1
+	CATR(KTR_CT1, "{f,s}u*: alignment", %g1, %g2, %g3, 7, 8, 9)
+9:
+#endif
 	retl
 	 mov	-1, %o0
+
+	.align 16
+.Lfsfault:
+#if KTR_COMPILE & KTR_CT1
+	CATR(KTR_CT1, "{f,s}u*: fault", %g1, %g2, %g3, 7, 8, 9)
+9:
+#endif
+	CATCH_END()
+	retl
+	 mov	-1, %o0
+
+ENTRY(fsbail)
+#if KTR_COMPILE & KTR_CT1
+	CATR(KTR_CT1, "{f,s}uswintr: bail", %g1, %g2, %g3, 7, 8, 9)
+9:
+#endif
+	CATCH_END()
+	retl
+	 mov	-1, %o0
+END(fsbail)
 
 ENTRY(longjmp)
 	set	1, %g3
