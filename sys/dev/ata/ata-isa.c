@@ -107,33 +107,40 @@ DRIVER_MODULE(ata, isa, ata_isa_driver, ata_devclass, 0, 0);
  */
 #include "pci.h"
 #if NPCI == 0
-void *
-ata_dmaalloc(struct ata_channel *ch, int device)
+int
+ata_dmaalloc(struct ata_device *atadev)
 {
-    return 0;
+    return ENXIO;
 }
 
 void
-ata_dmainit(struct ata_channel *ch, int device,
-	    int piomode, int wdmamode, int udmamode)
+ata_dmafree(struct ata_device *atadev)
+{
+}
+
+void
+ata_dmafreetags(struct ata_channel *ch)
+{
+}
+
+void
+ata_dmainit(struct ata_device *atadev, int piomode, int wdmamode, int udmamode)
 {
 }
 
 int
-ata_dmasetup(struct ata_channel *ch, int device, struct ata_dmaentry *dmatab,
-	     caddr_t data, int32_t count)
+ata_dmasetup(struct ata_device *atadev, caddr_t data, int32_t count)
 {
     return -1;
 }
 
 void
-ata_dmastart(struct ata_channel *ch, int device, 
-	     struct ata_dmaentry *dmatab, int dir)
+ata_dmastart(struct ata_device *atadev, int dir)
 {
 }
 
 int
-ata_dmadone(struct ata_channel *ch)
+ata_dmadone(struct ata_device *atadev)
 {
     return -1;
 }
