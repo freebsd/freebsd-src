@@ -29,11 +29,11 @@
 # comment on the same line if possible.  Very detailed descriptions of
 # devices and subsystems belong in manpages.
 #
-# A space followed by a tab separates 'option' from an option name.  Two
+# A space followed by a tab separates 'options' from an option name.  Two
 # spaces followed by a tab separate 'device' from a device name.  Comments
 # after an option or device should use one space after the comment character.
 # To comment out a negative option that disables code and thus should not be
-# enabled for LINT builds, precede 'option' with "#!".
+# enabled for LINT builds, precede 'options' with "#!".
 #
 
 #
