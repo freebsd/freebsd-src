@@ -8,7 +8,7 @@ MAN=	aic.4 alpm.4 amdpm.4 apm.4 ar.4 asc.4 asr.4 \
 	pcf.4 perfmon.4 pnp.4 \
 	ray.4 rdp.4 sb.4 scd.4 \
 	spkr.4 sr.4 tw.4 \
-	tx.4 vx.4 \
+	tx.4 viapm.4 vx.4 \
 	wd.4 wfd.4 wl.4 wt.4
 
 MLINKS=	spkr.4 speaker.4

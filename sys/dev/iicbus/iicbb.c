@@ -65,11 +65,12 @@
 #include "iicbb_if.h"
 
 struct iicbb_softc {
-	int dummy;
+	device_t iicbus;
 };
 
 static int iicbb_probe(device_t);
 static int iicbb_attach(device_t);
+static int iicbb_detach(device_t);
 static int iicbb_print_child(device_t, device_t);
 
 static int iicbb_callback(device_t, int, caddr_t);
@@ -83,7 +84,7 @@ static device_method_t iicbb_methods[] = {
 	/* device interface */
 	DEVMETHOD(device_probe,		iicbb_probe),
 	DEVMETHOD(device_attach,	iicbb_attach),
-	DEVMETHOD(device_detach,	bus_generic_detach),
+	DEVMETHOD(device_detach,	iicbb_detach),
 
 	/* bus interface */
 	DEVMETHOD(bus_print_child,	iicbb_print_child),
@@ -110,13 +111,36 @@ static devclass_t iicbb_devclass;
 
 static int iicbb_probe(device_t dev)
 {
-	device_set_desc(dev, "I2C generic bit-banging driver");
+	device_set_desc(dev, "I2C bit-banging driver");
 
 	return (0);
 }
 
 static int iicbb_attach(device_t dev)
 {
+	struct iicbb_softc *sc = (struct iicbb_softc *)device_get_softc(dev);
+
+	bzero(sc, sizeof(struct iicbb_softc));
+
+	sc->iicbus = device_add_child(dev, "iicbus", -1);
+
+	if (!sc->iicbus)
+		return (ENXIO);
+
+	bus_generic_attach(dev);
+
+	return (0);
+}
+
+static int iicbb_detach(device_t dev)
+{
+	struct iicbb_softc *sc = (struct iicbb_softc *)device_get_softc(dev);
+
+	if (sc->iicbus) {
+		bus_generic_detach(dev);
+		device_delete_child(dev, sc->iicbus);
+	}
+
 	return (0);
 }
 
@@ -322,3 +346,4 @@ static int iicbb_read(device_t dev, char * buf, int len, int *read,
 
 DRIVER_MODULE(iicbb, bti2c, iicbb_driver, iicbb_devclass, 0, 0);
 DRIVER_MODULE(iicbb, lpbb, iicbb_driver, iicbb_devclass, 0, 0);
+DRIVER_MODULE(iicbb, viapm, iicbb_driver, iicbb_devclass, 0, 0);

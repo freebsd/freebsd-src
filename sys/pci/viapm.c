@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2001 Alcove - Nicolas Souchu
+ * Copyright (c) 2002 Nicolas Souchu
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -505,6 +506,7 @@ viabb_reset(device_t dev, u_char speed, u_char addr, u_char *oldaddr)
 	return (IIC_ENOADDR);
 }
 
+#if 0
 static int
 viabb_getscl(device_t dev)
 {
@@ -512,6 +514,7 @@ viabb_getscl(device_t dev)
 
 	return ((VIAPM_INB(EXTSMI_VAL) & VIAPM_SCL) != 0);
 }
+#endif
 
 static int
 viabb_getsda(device_t dev)
@@ -519,6 +522,15 @@ viabb_getsda(device_t dev)
 	struct viapm_softc *viapm = device_get_softc(dev);
 
 	return ((VIAPM_INB(EXTSMI_VAL) & VIAPM_SDA) != 0);
+}
+
+static void
+viabb_setlines(device_t dev, int ctrl, int data)
+{
+	viabb_setscl(dev, ctrl);
+	viabb_setsda(dev, data);
+
+	return;
 }
 
 static int
@@ -874,10 +886,8 @@ static device_method_t viapm_methods[] = {
 
 	/* iicbb interface */
 	DEVMETHOD(iicbb_callback,	viabb_callback),
-	DEVMETHOD(iicbb_setscl,		viabb_setscl),
-	DEVMETHOD(iicbb_setsda,		viabb_setsda),
-	DEVMETHOD(iicbb_getscl,		viabb_getscl),
-	DEVMETHOD(iicbb_getsda,		viabb_getsda),
+	DEVMETHOD(iicbb_setlines,	viabb_setlines),
+	DEVMETHOD(iicbb_getdataline,	viabb_getsda),
 	DEVMETHOD(iicbb_reset,		viabb_reset),
 
 	{ 0, 0 }
