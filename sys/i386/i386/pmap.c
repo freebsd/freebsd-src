@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.212 1998/11/08 02:26:14 msmith Exp $
+ *	$Id: pmap.c,v 1.213 1998/11/24 20:25:52 eivind Exp $
  */
 
 /*
@@ -188,6 +188,9 @@ struct msgbuf *msgbufp=0;
  *  PPro_vmtrr
  */
 struct ppro_vmtrr PPro_vmtrr[NPPROVMTRR];
+
+/* AIO support */
+extern struct vmspace *aiovmspace;
 
 #ifdef SMP
 extern char prv_CPAGE1[], prv_CPAGE2[], prv_CPAGE3[];
@@ -1567,6 +1570,10 @@ pmap_growkernel(vm_offset_t addr)
 				pmap = &p->p_vmspace->vm_pmap;
 				*pmap_pde(pmap, kernel_vm_end) = newpdir;
 			}
+		}
+		if (aiovmspace != NULL) {
+			pmap = &aiovmspace->vm_pmap;
+			*pmap_pde(pmap, kernel_vm_end) = newpdir;
 		}
 		*pmap_pde(kernel_pmap, kernel_vm_end) = newpdir;
 		kernel_vm_end = (kernel_vm_end + PAGE_SIZE * NPTEPG) & ~(PAGE_SIZE * NPTEPG - 1);
