@@ -173,16 +173,17 @@ import (argc, argv)
     if (! isabsolute (argv[0])
 	&& pathname_levels (argv[0]) == 0)
     {
-	if (CVSroot_directory == NULL)
+	if (current_parsed_root == NULL)
 	{
 	    error (0, 0, "missing CVSROOT environment variable\n");
 	    error (1, 0, "Set it or specify the '-d' option to %s.",
 		   program_name);
 	}
-	repository = xmalloc (strlen (CVSroot_directory) + strlen (argv[0])
-			      + 10);
-	(void) sprintf (repository, "%s/%s", CVSroot_directory, argv[0]);
-	repos_len = strlen (CVSroot_directory);
+	repository = xmalloc (strlen (current_parsed_root->directory)
+			      + strlen (argv[0])
+			      + 2);
+	(void) sprintf (repository, "%s/%s", current_parsed_root->directory, argv[0]);
+	repos_len = strlen (current_parsed_root->directory);
     }
     else
     {
@@ -209,7 +210,7 @@ import (argc, argv)
     *cp = '\0';
 
 #ifdef CLIENT_SUPPORT
-    if (client_active)
+    if (current_parsed_root->isremote)
     {
 	/* For rationale behind calling start_server before do_editor, see
 	   commit.c  */
@@ -238,7 +239,7 @@ import (argc, argv)
     }
 
 #ifdef CLIENT_SUPPORT
-    if (client_active)
+    if (current_parsed_root->isremote)
     {
 	int err;
 
@@ -292,8 +293,7 @@ import (argc, argv)
     make_directories (repository);
 
     /* Create the logfile that will be logged upon completion */
-    tmpfile = cvs_temp_name ();
-    if ((logfp = CVS_FOPEN (tmpfile, "w+")) == NULL)
+    if ((logfp = cvs_temp_file (&tmpfile)) == NULL)
 	error (1, errno, "cannot create temporary file `%s'", tmpfile);
     /* On systems where we can unlink an open file, do so, so it will go
        away no matter how we exit.  FIXME-maybe: Should be checking for
@@ -427,7 +427,7 @@ import_descend (message, vtag, targc, targv)
     else
     {
 	errno = 0;
-	while ((dp = readdir (dirp)) != NULL)
+	while ((dp = CVS_READDIR (dirp)) != NULL)
 	{
 	    if (strcmp (dp->d_name, ".") == 0 || strcmp (dp->d_name, "..") == 0)
 		goto one_more_time_boys;
@@ -478,7 +478,7 @@ import_descend (message, vtag, targc, targv)
 	    else
 	    {
 #ifdef CLIENT_SUPPORT
-		if (client_active)
+		if (current_parsed_root->isremote)
 		    err += client_process_import_file (message, dp->d_name,
                                                        vtag, targc, targv,
                                                        repository,
@@ -498,7 +498,7 @@ import_descend (message, vtag, targc, targv)
 	    error (0, errno, "cannot read directory");
 	    ++err;
 	}
-	(void) closedir (dirp);
+	(void) CVS_CLOSEDIR (dirp);
     }
 
     if (dirlist != NULL)
@@ -1569,7 +1569,7 @@ import_descend_dir (message, dir, vtag, targc, targv)
     }
 
 #ifdef CLIENT_SUPPORT
-    if (!quiet && !client_active)
+    if (!quiet && !current_parsed_root->isremote)
 #else
     if (!quiet)
 #endif
@@ -1584,7 +1584,7 @@ import_descend_dir (message, dir, vtag, targc, targv)
 	goto out;
     }
 #ifdef CLIENT_SUPPORT
-    if (!client_active && !isdir (repository))
+    if (!current_parsed_root->isremote && !isdir (repository))
 #else
     if (!isdir (repository))
 #endif
