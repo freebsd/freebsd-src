@@ -614,6 +614,7 @@ route_Add(struct sticky_route **rp, int type, const struct ncprange *dst,
   r->next = NULL;
   ncprange_copy(&r->dst, dst);
   ncpaddr_copy(&r->gw, gw);
+  *rp = r;
 }
 
 void
