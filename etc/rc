@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.98 1996/09/02 13:09:54 phk Exp $
+#	$Id: rc,v 1.99 1996/09/22 06:36:49 imp Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -164,14 +164,6 @@ fi
 echo 'recording kernel -c changes'
 /sbin/dset -q
 
-# Check the quotas
-if [ "X${check_quotas}" = X"YES" ]; then
-	echo 'checking quotas:'
-	quotacheck -a
-	echo ' done.'
-	quotaon -a
-fi
-
 # start system logging and name service (named needs to start before syslogd
 # if you don't have a /etc/resolv.conf)
 #
@@ -179,7 +171,7 @@ echo -n starting system daemons:
 
 echo ' syslogd.';			syslogd
 
-echo -n starting network daemons:
+echo -n starting early network daemons:
 
 # $namedflags is imported from /etc/sysconfig
 if [ "X${namedflags}" != X"NO" ]; then
@@ -232,11 +224,17 @@ if [ "X${nis_clientflags}" != X"NO" ]; then
 	fi
 fi
 
-# $rwhod is imported from /etc/sysconfig;
-# if $rwhod is set to YES, rwhod is run.
-if [ "X${rwhod}" = X"YES" ]; then
-	echo -n ' rwhod';	rwhod
+echo '.'
+
+# Check the quotas (must be after ypbind if using NIS)
+if [ "X${check_quotas}" = X"YES" ]; then
+	echo -n 'checking quotas:'
+	quotacheck -a
+	echo ' done.'
+	quotaon -a
 fi
+
+echo -n starting other network daemons:
 
 if [ "X${nfs_server}" = X"YES" -a -r /etc/exports ]; then
 	echo -n ' mountd'
@@ -257,6 +255,12 @@ if [ "X${amdflags}" != X"NO" ]; then
 	amd ${amdflags} > /var/run/amd.pid
 fi
 
+# $rwhod is imported from /etc/sysconfig;
+# if $rwhod is set to YES, rwhod is run.
+if [ "X${rwhod}" = X"YES" ]; then
+	echo -n ' rwhod';	rwhod
+fi
+
 # Kerberos runs ONLY on the Kerberos server machine
 if [ "X${kerberos_server}" = X"YES" ]; then
 	echo -n ' kerberos';	kerberos >> /var/log/kerberos.log &
@@ -269,7 +273,6 @@ if [ "X${mrouted}" != X"NO" -a -x /usr/sbin/mrouted ]; then
 	echo -n ' mrouted'; mrouted ${mrouted}
 fi
 
-echo -n ' inetd';		inetd
 echo '.'
 
 # build ps databases
@@ -306,6 +309,7 @@ fi
 # Now start up miscellaneous daemons that don't belong anywhere else
 #
 echo -n standard daemons:
+echo -n ' inetd';		inetd
 echo -n ' cron';		cron
 
 if [ "X${lpd}" != X"NO" -a -x /usr/sbin/lpd ]; then
