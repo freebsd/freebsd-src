@@ -259,6 +259,7 @@ MLINKS+=zero_copy.9 zero_copy_sockets.9
 MLINKS+=device_add_child.9 device_add_child_ordered.9
 MLINKS+=device_enable.9 device_disable.9
 MLINKS+=device_enable.9 device_is_enabled.9
+MLINKS+=device_get_ivars.9 device_set_ivars.9
 MLINKS+=device_get_name.9 device_get_nameunit.9
 MLINKS+=device_get_state.9 device_busy.9
 MLINKS+=device_get_state.9 device_unbusy.9
