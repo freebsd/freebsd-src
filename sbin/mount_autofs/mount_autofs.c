@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: mount_autofs.c,v 1.4 2004/08/31 16:28:22 bright Exp $
+ * $Id: mount_autofs.c,v 1.5 2004/09/08 08:12:21 bright Exp $
  * $FreeBSD$
  */
 #include <sys/param.h>

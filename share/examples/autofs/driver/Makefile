@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.2 2004/07/17 11:26:51 bright Exp $
+# $Id: Makefile,v 1.5 2004/09/08 08:27:12 bright Exp $
 # $FreeBSD$
 
 PROG=autodriver
@@ -8,6 +8,7 @@ NOMAN=		YES
 WERROR=		YES
 WARNS=		4
 CFLAGS+=	-g
+BINDIR?=	/sbin
 
 DPADD+=		${.OBJDIR}/../libautofs/libautofs.a
 #LDADD+=		-lautofs

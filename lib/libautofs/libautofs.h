@@ -24,7 +24,7 @@
  * SUCH DAMAGE.
  *
  * $FreeBSD$
- * $Id: libautofs.h,v 1.3 2004/08/31 08:49:56 bright Exp $
+ * $Id: libautofs.h,v 1.4 2004/09/08 08:12:21 bright Exp $
  */
 #ifndef _LIBAUTOFS_H
 #define _LIBAUTOFS_H

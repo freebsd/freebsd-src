@@ -1,8 +1,8 @@
-# $Id: Makefile,v 1.4 2004/08/31 16:27:40 bright Exp $
+# $Id: Makefile,v 1.6 2004/09/08 08:27:12 bright Exp $
 # $FreeBSD$
 
 PROG=mount_autofs
 MAN=mount_autofs.8
-BINDIR?=/usr/sbin
+BINDIR?=/sbin
 
 .include <bsd.prog.mk>
