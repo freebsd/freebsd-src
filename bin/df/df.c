@@ -121,8 +121,10 @@ main(argc, argv)
 	struct stat stbuf;
 	struct statfs statfsbuf, *mntbuf;
 	long mntsize;
-	int ch, eno, i, maxwidth, rv, width;
-	char *mntpt, *mntpath, **vfslist;
+	int ch, i, maxwidth, rv, width;
+	char *fstype, *mntpt, *mntpath, **vfslist;
+
+	fstype = "ufs";
 
 	vfslist = NULL;
 	while ((ch = getopt(argc, argv, "abgHhiklmnPt:")) != -1)
@@ -170,6 +172,7 @@ main(argc, argv)
 		case 't':
 			if (vfslist != NULL)
 				errx(1, "only one -t option may be specified.");
+			fstype = optarg;
 			vfslist = makevfslist(optarg);
 			break;
 		case '?':
@@ -207,16 +210,12 @@ main(argc, argv)
 
 	for (; *argv; argv++) {
 		if (stat(*argv, &stbuf) < 0) {
-			eno = errno;
 			if ((mntpt = getmntpt(*argv)) == 0) {
 				warn("%s", *argv);
 				rv = 1;
 				continue;
 			}
-		} else if ((stbuf.st_mode & S_IFMT) == S_IFCHR) {
-			rv = ufs_df(*argv, maxwidth) || rv;
-			continue;
-		} else if ((stbuf.st_mode & S_IFMT) == S_IFBLK) {
+		} else if (S_ISCHR(stbuf.st_mode)) {
 			if ((mntpt = getmntpt(*argv)) == 0) {
 				mdev.fspec = *argv;
 				mntpath = strdup("/tmp/df.XXXXXX");
@@ -232,7 +231,7 @@ main(argc, argv)
 					free(mntpath);
 					continue;
 				}
-				if (mount("ufs", mntpt, MNT_RDONLY,
+				if (mount(fstype, mntpt, MNT_RDONLY,
 				    &mdev) != 0) {
 					rv = ufs_df(*argv, maxwidth) || rv;
 					(void)rmdir(mntpt);
