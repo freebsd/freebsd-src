@@ -282,6 +282,10 @@ setup(dev)
 		goto badsb;
 	}
 	numdirs = sblock.fs_cstotal.cs_ndir;
+	if (numdirs == 0) {
+		printf("numdirs is zero, try using an alternate superblock\n");
+		goto badsb;
+	}
 	inplast = 0;
 	listmax = numdirs + 10;
 	inpsort = (struct inoinfo **)calloc((unsigned)listmax,
@@ -434,6 +438,11 @@ calcsb(dev, devfd, fs)
 			fstypenames[pp->p_fstype] : "unknown");
 		return (0);
 	}
+	if (pp->p_fsize == 0 || pp->p_frag == 0) {
+		pfatal("%s: LABELED AS A %s FILE SYSTEM, BUT BLOCK SIZE IS 0\n",
+			dev, fstypenames[pp->p_fstype]);
+		return (0);
+	}
 	bzero((char *)fs, sizeof(struct fs));
 	fs->fs_fsize = pp->p_fsize;
 	fs->fs_frag = pp->p_frag;
@@ -443,6 +452,8 @@ calcsb(dev, devfd, fs)
 	fs->fs_nsect = lp->d_nsectors;
 	fs->fs_spc = lp->d_secpercyl;
 	fs->fs_nspf = fs->fs_fsize / lp->d_secsize;
+	if (!fs->fs_fsize || !fs->fs_frag)
+		errexit("can't determine FS or frag size\n");
 	fs->fs_sblkno = roundup(
 		howmany(lp->d_bbsize + lp->d_sbsize, fs->fs_fsize),
 		fs->fs_frag);
@@ -454,6 +465,8 @@ calcsb(dev, devfd, fs)
 	fs->fs_cgoffset = roundup(
 		howmany(fs->fs_nsect, NSPF(fs)), fs->fs_frag);
 	fs->fs_fpg = (fs->fs_cpg * fs->fs_spc) / NSPF(fs);
+	if (!fs->fs_spc || !fs->fs_cpg)
+		errexit("!fs_spc or !fs_cpg\n");
 	fs->fs_ncg = howmany(fs->fs_size / fs->fs_spc, fs->fs_cpg);
 	for (fs->fs_fsbtodb = 0, i = NSPF(fs); i > 1; i >>= 1)
 		fs->fs_fsbtodb++;
