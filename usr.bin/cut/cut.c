@@ -64,7 +64,6 @@ void	b_n_cut(FILE *, const char *);
 void	c_cut(FILE *, const char *);
 void	f_cut(FILE *, const char *);
 void	get_list(char *);
-int	main(int, char **);
 void	needpos(size_t);
 static 	void usage(void);
 

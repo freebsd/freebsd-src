@@ -63,7 +63,6 @@ void For_Run(void);
 
 /* main.c */
 void Main_ParseArgLine(char *);
-int main(int, char **);
 char *Cmd_Exec(char *, char **);
 void Error(const char *, ...);
 void Fatal(const char *, ...);

@@ -100,7 +100,6 @@ void	flush_line(LINE *);
 void	flush_lines(int);
 void	flush_blanks(void);
 void	free_line(LINE *);
-int	main(int, char **);
 void	usage(void);
 
 CSET	last_set;		/* char_set of last char printed */

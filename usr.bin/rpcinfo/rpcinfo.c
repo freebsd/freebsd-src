@@ -156,8 +156,6 @@ static char	*spaces(int);
 static bool_t	add_version(struct rpcbdump_short *, u_long);
 static bool_t	add_netid(struct rpcbdump_short *, char *);
 
-int		main(int argc, char **argv);
-
 int
 main(int argc, char **argv)
 {
