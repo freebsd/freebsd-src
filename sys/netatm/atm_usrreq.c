@@ -36,6 +36,7 @@
  */
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/sockio.h>
 #include <sys/protosw.h>
 #include <sys/socket.h>

@@ -499,18 +499,14 @@ fore_reset(fup)
 
 	if (fup->fu_ctlreg) {
 
-		switch (fup->fu_config.ac_device) {
-
-		case DEV_FORE_PCA200E:
+		if (fup->fu_config.ac_device == DEV_FORE_PCA200E) {
 			/*
 			 * Reset i960 by setting and clearing RESET
 			 */
 			PCA200E_HCR_INIT(*fup->fu_ctlreg, PCA200E_RESET);
 			DELAY(10000);
 			PCA200E_HCR_CLR(*fup->fu_ctlreg, PCA200E_RESET);
-			break;
-
-		}
+		 }
 	}
 
 	(void) splx(s);

@@ -37,6 +37,7 @@
 
 #include <sys/param.h>
 #include <sys/types.h>
+#include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/time.h>
 #include <sys/socket.h>
