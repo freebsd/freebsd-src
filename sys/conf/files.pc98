@@ -89,6 +89,8 @@ contrib/dev/oltr/if_oltr.c	optional	oltr
 contrib/dev/oltr/trlldbm.c	optional	oltr
 contrib/dev/oltr/trlldhm.c	optional	oltr
 contrib/dev/oltr/trlldmac.c	optional	oltr
+crypto/des/des_ecb.c		optional	netsmbcrypto
+crypto/des/des_setkey.c		optional	netsmbcrypto
 #dev/advansys/adv_isa.c		optional	adv isa
 dev/aic/aic_cbus.c		optional	aic isa
 #dev/ar/if_ar_isa.c		optional	ar isa
@@ -117,6 +119,12 @@ dev/syscons/scterm.c		optional	sc
 dev/syscons/scterm-dumb.c	optional	sc
 dev/syscons/scvidctl.c		optional	sc
 dev/syscons/sysmouse.c		optional	sc
+fs/smbfs/smbfs_io.c		optional	smbfs
+fs/smbfs/smbfs_node.c		optional	smbfs
+fs/smbfs/smbfs_smb.c		optional	smbfs
+fs/smbfs/smbfs_subr.c		optional	smbfs
+fs/smbfs/smbfs_vfsops.c		optional	smbfs
+fs/smbfs/smbfs_vnops.c		optional	smbfs
 gnu/i386/fpemul/div_small.s	optional	gpl_math_emulate
 gnu/i386/fpemul/errors.c	optional	gpl_math_emulate
 gnu/i386/fpemul/fpu_arith.c	optional	gpl_math_emulate
@@ -344,6 +352,7 @@ isa/psm.c			optional	psm
 kern/imgact_aout.c		standard
 kern/imgact_gzip.c		optional	gzip
 kern/link_aout.c		standard
+kern/md4c.c			optional	netsmb
 kern/subr_diskmbr.c		count		compat_atdisk
 libkern/divdi3.c		standard
 libkern/moddi3.c		standard
@@ -351,6 +360,15 @@ libkern/qdivrem.c		standard
 libkern/ucmpdi2.c		standard
 libkern/udivdi3.c		standard
 libkern/umoddi3.c		standard
+netsmb/smb_conn.c		optional	netsmb
+netsmb/smb_crypt.c		optional	netsmb
+netsmb/smb_dev.c		optional	netsmb
+netsmb/smb_iod.c		optional	netsmb
+netsmb/smb_rq.c			optional	netsmb
+netsmb/smb_smb.c		optional	netsmb
+netsmb/smb_subr.c		optional	netsmb
+netsmb/smb_trantcp.c		optional	netsmb
+netsmb/smb_usr.c		optional	netsmb
 pc98/apm/apm.c			optional	apm
 pc98/apm/apm_bioscall.s		optional	apm
 pc98/i386/machdep.c		standard
