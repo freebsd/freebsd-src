@@ -32,7 +32,7 @@
 .\" USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
 .\" DAMAGE.
 .\"
-.\" $Id: worm.4,v 1.13 1997/11/07 00:05:24 joerg Exp $
+.\" $Id: worm.4,v 1.14 1998/03/12 07:30:19 charnier Exp $
 .\" "
 .Dd January 27, 1996
 .Dt WORM 4
@@ -321,6 +321,24 @@ to 1 will cause the next session being opened, so further recording
 can be performed into the remaining space.  If
 .Dv onp
 is 0, the disk will be closed once and for all.
+
+.It Dv WORMIOCFIRSTWRITABLEADDR
+This command will return the next logical writable address for the
+write command. The argument is a pointer to
+.Dv struct wormio_first_writable_addr ,
+with the elements
+.Dv track ,
+the track for which the write address will be returned,
+.Dv mode ,
+which can take the values 1 or 2, 
+.Dv raw ,  
+which must be set to 1 if the pregap must not be taken in account,
+.Dv audio , 
+which must be set to 1 for an audio track (in this case, mode
+indicates if there is preemphasis) and
+.Dv addr .
+
+addr will be the address corresponding to the next write command.
 
 .It Dv WORMIOERROR
 This call may be used to get additional information when a I/O error
