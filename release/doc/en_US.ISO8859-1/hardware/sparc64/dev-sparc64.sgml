@@ -34,9 +34,9 @@
       <listitem><para>&man.ata.4;, <devicename>atadisk</devicename>,
         <devicename>atapicd</devicename> (but not atapifd,
         atapist)</para></listitem>
-      <listitem><para><devicename>gem</devicename> (Sun GEM/ERI ethernet,
+      <listitem><para>&man.gem.4; (Sun GEM/ERI ethernet,
         on-board on Blade 100)</para></listitem>
-      <listitem><para><literal>hme</literal> (Sun HME ethernet,
+      <listitem><para>&man.hme.4; (Sun HME ethernet,
         on-board on Ultra 5, 10)</para></listitem>
       <listitem><para>&man.sio.4;</para></listitem>
       <listitem><para>&man.sym.4;</para></listitem>
@@ -50,8 +50,8 @@
 
     <itemizedlist>
       <listitem><para><literal>hme</literal> Ethernet</para></listitem>
-      <listitem><para><literal>mk48txx</literal> ('eeprom' device;
-        time-of-day clock)</para></listitem>
+      <listitem><para><literal>mk48txx</literal>
+	  (<quote>eeprom</quote> device; time-of-day clock)</para></listitem>
     </itemizedlist>
   </sect2>
 
@@ -61,7 +61,7 @@
     <para>The paragraph about PCI drivers apply to ISA drivers as
       well, but with the notable exception that ISA DMA is not yet
       supported.  This are generally on-board devices; there are no
-      UltraSPARC boxes with ISA slots that the authors are aware
+      &tm.ultrasparc; boxes with ISA slots that the authors are aware
       of.</para>
 
     <para>The following drivers are known to work:</para>
@@ -91,7 +91,7 @@
   <sect2>
     <title>Unsupported Hardware</title>
 
-    <para>The following hardware, which is built-in in Sun UltraSPARC
+    <para>The following hardware, which is built-in in Sun &tm.ultrasparc;
       boxes, is not currently supported:</para>
 
     <itemizedlist>
