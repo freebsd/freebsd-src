@@ -109,7 +109,7 @@ edit(filename, force_open)
 
 	/* Okay since later code in this fcn() always forces redraw() */
 	horiz_off = 0;
-	wraplines = 0;
+	wraplines = 1;
 
 	initial_pos = NULL_POSITION;
 	if (filename == NULL || *filename == '\0') {
