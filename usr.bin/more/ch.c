@@ -101,7 +101,6 @@ static off_t last_piped_pos;
 static
 fch_get()
 {
-	extern int bs_mode;
 	register struct buf *bp;
 	register int n, ch;
 	register char *p, *t;
@@ -187,28 +186,10 @@ read_more:
 		bp->data[bp->datasize++] = EOI;
 	}
 
-	if (bs_mode) {
-		for (p = &bp->data[bp->datasize]; --n >= 0;) {
-			*--p;
-			if (*p == EOI)
-				*p = 0200;
-		}
-	}
-	else {
-		for (t = p; --n >= 0; ++p) {
-			ch = *p;
-			if (ch == '\r' && n && p[1] == '\n') {
-				++p;
-				*t++ = '\n';
-			}
-			else
-				*t++ = (ch == EOI) ? 0200 : ch;
-		}
-		if (p != t) {
-			bp->datasize -= p - t;
-			if (ispipe)
-				last_piped_pos -= p - t;
-		}
+	for (p = &bp->data[bp->datasize]; --n >= 0;) {
+		*--p;
+		if (*p == EOI)
+			*p = 0200;
 	}
 
 found:
