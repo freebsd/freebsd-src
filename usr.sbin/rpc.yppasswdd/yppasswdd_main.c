@@ -35,34 +35,37 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif /* not lint */
 
-#include "yppasswd.h"
-#include <stdio.h>
-#include <sys/types.h>
-#include <stdlib.h> /* getenv, exit */
-#include <unistd.h>
-#include <string.h>
 #include <sys/param.h>
-#include <rpc/pmap_clnt.h> /* for pmap_unset */
-#include <string.h> /* strcmp */
-#include <signal.h>
-#include <fcntl.h>
 #include <sys/ioctl.h>
 #include <sys/stat.h>
-#ifdef __cplusplus
-#include <sysent.h> /* getdtablesize, open */
-#endif /* __cplusplus */
-#include <memory.h>
 #include <sys/socket.h>
+#include <sys/time.h>
+#include <sys/resource.h>
 #include <netinet/in.h>
-#include <syslog.h>
+
 #include <err.h>
 #include <errno.h>
+#include <fcntl.h>
+#include <memory.h>
+#include <signal.h>
+#include <stdio.h>
+#include <stdlib.h> /* getenv, exit */
+#include <string.h>
+#include <string.h> /* strcmp */
+#include <syslog.h>
+#include <unistd.h>
+
+#include <rpc/rpc.h>
+#include <rpc/pmap_clnt.h> /* for pmap_unset */
 #include <rpcsvc/yp.h>
 struct dom_binding {};
 #include <rpcsvc/ypclnt.h>
+
+#include "yppasswd.h"
 #include "yppasswdd_extern.h"
 #include "yppasswd_private.h"
 #include "ypxfr_extern.h"
+#include "yp_extern.h"
 
 #ifndef SIG_PF
 #define	SIG_PF void(*)(int)
@@ -82,10 +85,15 @@ static int _rpcfdtype;
 #define	_SERVED 1
 #define	_SERVING 2
 
+static char _localhost[] = "localhost";
+static char _passwd_byname[] = "passwd.byname";
 extern int _rpcsvcstate;	 /* Set when a request is serviced */
-char *progname = "rpc.yppasswdd";
-char *yp_dir = _PATH_YP;
-char *passfile_default = _PATH_YP "master.passwd";
+static char _progname[] = "rpc.yppasswdd";
+char *progname = _progname;
+static char _yp_dir[] = _PATH_YP;
+char *yp_dir = _yp_dir;
+static char _passfile_default[] = _PATH_YP "master.passwd";
+char *passfile_default = _passfile_default;
 char *passfile;
 char *yppasswd_domain = NULL;
 int no_chsh = 0;
@@ -95,10 +103,10 @@ int multidomain = 0;
 int verbose = 0;
 int resvport = 1;
 int inplace = 0;
-char *sockname = YP_SOCKNAME;
+char sockname[] = YP_SOCKNAME;
 
 static void
-terminate(int sig)
+terminate(int sig __unused)
 {
 	rpcb_unset(YPPASSWDPROG, YPPASSWDVERS, NULL);
 	rpcb_unset(MASTER_YPPASSWDPROG, MASTER_YPPASSWDVERS, NULL);
@@ -107,13 +115,13 @@ terminate(int sig)
 }
 
 static void
-reload(int sig)
+reload(int sig __unused)
 {
 	load_securenets();
 }
 
 static void
-closedown(int sig)
+closedown(int sig __unused)
 {
 	if (_rpcsvcstate == _IDLE) {
 		extern fd_set svc_fdset;
@@ -154,7 +162,8 @@ usage(void)
 int
 main(int argc, char *argv[])
 {
-	register SVCXPRT *transp = NULL;
+	struct rlimit rlim;
+	SVCXPRT *transp = NULL;
 	struct sockaddr_in saddr;
 	int asize = sizeof (saddr);
 	struct netconfig *nconf;
@@ -216,14 +225,14 @@ name isn't set -- aborting");
 
 	load_securenets();
 
-	if (getrpcport("localhost", YPPROG, YPVERS, IPPROTO_UDP) <= 0) {
+	if (getrpcport(_localhost, YPPROG, YPVERS, IPPROTO_UDP) <= 0) {
 		yp_error("no ypserv processes registered with local portmap");
 		yp_error("this host is not an NIS server -- aborting");
 		exit(1);
 	}
 
-	if ((mastername = ypxfr_get_master(yppasswd_domain, "passwd.byname",
-						"localhost",0)) == NULL) {
+	if ((mastername = ypxfr_get_master(yppasswd_domain,
+		 _passwd_byname, _localhost, 0)) == NULL) {
 		yp_error("can't get name of NIS master server for domain %s",
 			 				yppasswd_domain);
 		exit(1);
@@ -311,14 +320,26 @@ the %s domain -- aborting", yppasswd_domain);
 		(void) signal(SIGALRM, (SIG_PF) closedown);
 		(void) alarm(_RPCSVC_CLOSEDOWN/2);
 	}
-	/* set up resource limits and block signals */
-	pw_init();
 
-	/* except SIGCHLD, which we need to catch */
-	install_reaper(1);
-	signal(SIGTERM, (SIG_PF) terminate);
+	/* Unlimited resource limits. */
+	rlim.rlim_cur = rlim.rlim_max = RLIM_INFINITY;
+	(void)setrlimit(RLIMIT_CPU, &rlim);
+	(void)setrlimit(RLIMIT_FSIZE, &rlim);
+	(void)setrlimit(RLIMIT_STACK, &rlim);
+	(void)setrlimit(RLIMIT_DATA, &rlim);
+	(void)setrlimit(RLIMIT_RSS, &rlim);
 
-	signal(SIGHUP, (SIG_PF) reload);
+	/* Don't drop core (not really necessary, but GP's). */
+	rlim.rlim_cur = rlim.rlim_max = 0;
+	(void)setrlimit(RLIMIT_CORE, &rlim);
+
+	/* Turn off signals. */
+	(void)signal(SIGALRM, SIG_IGN);
+	(void)signal(SIGHUP, (SIG_PF) reload);
+	(void)signal(SIGINT, SIG_IGN);
+	(void)signal(SIGPIPE, SIG_IGN);
+	(void)signal(SIGQUIT, SIG_IGN);
+	(void)signal(SIGTERM, (SIG_PF) terminate);
 
 	svc_run();
 	yp_error("svc_run returned");
