@@ -800,19 +800,6 @@ fill_kinfo_thread(struct thread *td, struct kinfo_proc *kp)
 		kp->ki_ppid = p->p_pptr->p_pid;
 }
 
-/*
- * Fill a 'struct user' for backwards compatibility with a.out core dumps.
- * This is used by the aout, linux, and pecoff modules.
- */
-void
-fill_user(struct proc *p, struct user *u)
-{
-
-	PROC_LOCK_ASSERT(p, MA_OWNED);
-	bcopy(&p->p_stats, &u->u_stats, sizeof(struct pstats));
-	fill_kinfo_proc(p, &u->u_kproc);
-}
-
 struct pstats *
 pstats_alloc(void)
 {

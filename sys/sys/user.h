@@ -206,6 +206,4 @@ struct user {
 	struct	kinfo_proc u_kproc;	/* eproc */
 };
 
-void fill_user(struct proc *, struct user *);
-
 #endif
