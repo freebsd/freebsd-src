@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.74 1996/11/02 19:50:28 jkh Exp $
+ * $Id: dist.c,v 1.75 1996/11/06 19:15:22 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -75,7 +75,7 @@ static Distribution DistTable[] = {
 { "compat21",	"/",			&Dists,		DIST_COMPAT21,		NULL		},
 { "commerce",	"/usr/local",		&Dists,		DIST_COMMERCIAL,	NULL		},
 { "xperimnt",	"/usr/local",		&Dists,		DIST_EXPERIMENTAL,	NULL		},
-{ "XF86312",	"/usr",			&Dists,		DIST_XF86,		XF86DistTable	},
+{ "XF8632",	"/usr",			&Dists,		DIST_XF86,		XF86DistTable	},
 { NULL },
 };
 
@@ -230,7 +230,7 @@ distSetXUser(dialogMenuItem *self)
 {
     distReset(NULL);
     Dists = _DIST_USER;
-    XF86Dists = DIST_XF86_BIN | DIST_XF86_LIB | DIST_XF86_MAN | DIST_XF86_SERVER | DIST_XF86_FONTS;
+    XF86Dists = DIST_XF86_BIN | DIST_XF86_SET | DIST_XF86_LIB | DIST_XF86_MAN | DIST_XF86_SERVER | DIST_XF86_FONTS;
     XF86ServerDists = DIST_XF86_SERVER_SVGA;
     XF86FontDists = DIST_XF86_FONTS_MISC;
     return distSetXF86(NULL) | distMaybeSetDES(self);
