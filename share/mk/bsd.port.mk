@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.208 1996/06/19 01:26:18 jkh Exp $
+# $Id: bsd.port.mk,v 1.209 1996/06/19 07:07:16 jkh Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -143,8 +143,12 @@
 #				  Arguments to ${EXTRACT_CMD} following filename
 #				  (default: none).
 #
-# NCFTP			- Full path to ncftp command if not in $PATH (default: ncftp).
-# NCFTPFLAGS    - Arguments to ${NCFTP} (default: -N).
+# FETCH_CMD		  - Full path to ftp/http fetch command if not in $PATH
+#				  (default: /usr/bin/fetch).
+# FETCH_BEFORE_ARGS -
+#				  Arguments to ${FETCH_CMD} before filename (default: none).
+# FETCH_AFTER_ARGS -
+#				  Arguments to ${FETCH_CMD} followingfilename (default: none).
 #
 # Motif support:
 #
@@ -311,8 +315,7 @@ MAKE_FLAGS?=	-f
 MAKEFILE?=		Makefile
 MAKE_ENV+=		PREFIX=${PREFIX} LOCALBASE=${LOCALBASE} X11BASE=${X11BASE} MOTIFLIB="${MOTIFLIB}" CFLAGS="${CFLAGS}"
 
-NCFTP?=			/usr/bin/ncftp
-NCFTPFLAGS?=	-N
+FETCH_CMD?=		/usr/bin/fetch
 
 TOUCH?=			/usr/bin/touch
 TOUCH_FLAGS?=	-f
@@ -605,8 +608,7 @@ do-fetch:
 			${ECHO_MSG} ">> $$file doesn't seem to exist on this system."; \
 			for site in ${MASTER_SITES}; do \
 			    ${ECHO_MSG} ">> Attempting to fetch from $${site}."; \
-				(${NCFTP} ${NCFTPFLAGS} $${site}$${file} ${NCFTPTAIL} || true); \
-				if [ -f $$file -o -f `${BASENAME} $$file` ]; then \
+				if ${FETCH_CMD} ${FETCH_BEFORE_ARGS} $${site}$${file} ${FETCH_AFTER_ARGS}; then \
 					continue 2; \
 				fi \
 			done; \
@@ -629,8 +631,7 @@ do-fetch:
 			${ECHO_MSG} ">> $$file doesn't seem to exist on this system."; \
 			for site in ${PATCH_SITES}; do \
 			    ${ECHO_MSG} ">> Attempting to fetch from $${site}."; \
-				(${NCFTP} ${NCFTPFLAGS} $${site}$${file} ${NCFTPTAIL} || true); \
-				if [ -f $$file -o -f `${BASENAME} $$file` ]; then \
+				if ${FETCH_CMD} ${FETCH_BEFORE_ARGS} $${site}$${file} ${FETCH_AFTER_ARGS}; then \
 					continue 2; \
 				fi \
 			done; \
@@ -1011,7 +1012,7 @@ fetch-list:
 	 for file in ${DISTFILES}; do \
 		if [ ! -f $$file -a ! -f `${BASENAME} $$file` ]; then \
 			for site in ${MASTER_SITES}; do \
-				${ECHO} -n ${NCFTP} ${NCFTPFLAGS} $${site}$${file} "${NCFTPTAIL}" '||' ; \
+				${ECHO} -n ${FETCH_CMD} ${FETCH_BEFORE_ARGS} $${site}$${file} "${FETCH_AFTER_ARGS}" '||' ; \
 					break; \
 			done; \
 			${ECHO} "echo $${file} not fetched" ; \
@@ -1022,7 +1023,7 @@ fetch-list:
 	 for file in ${PATCHFILES}; do \
 		if [ ! -f $$file -a ! -f `${BASENAME} $$file` ]; then \
 			for site in ${PATCH_SITES}; do \
-				${ECHO} -n ${NCFTP} ${NCFTPFLAGS} $${site}$${file} "${NCFTPTAIL}" '||' ; \
+				${ECHO} -n ${FETCH_CMD} ${FETCH_BEFORE_ARGS} $${site}$${file} "${FETCH_AFTER_ARGS}" '||' ; \
 					break; \
 			done; \
 			${ECHO} "echo $${file} not fetched" ; \
