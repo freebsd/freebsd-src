@@ -52,6 +52,8 @@
 #include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/module.h>
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -252,7 +254,12 @@ isa_dmastart(int flags, caddr_t addr, u_int nbytes, int chan)
 	}
 
 	/* translate to physical */
+	mtx_lock(&vm_mtx);	/*
+				 * XXX: need to hold for longer period to
+				 * ensure that mappings don't change
+				 */
 	phys = pmap_extract(pmap_kernel(), (vm_offset_t)addr);
+	mtx_unlock(&vm_mtx);
 
 	if (flags & ISADMA_RAW) {
 	    dma_auto_mode |= (1 << chan);
@@ -373,7 +380,9 @@ isa_dmarangecheck(caddr_t va, u_int length, int chan)
 
 	endva = (vm_offset_t)round_page((vm_offset_t)va + length);
 	for (; va < (caddr_t) endva ; va += PAGE_SIZE) {
+		mtx_lock(&vm_mtx);
 		phys = trunc_page(pmap_extract(pmap_kernel(), (vm_offset_t)va));
+		mtx_unlock(&vm_mtx);
 #define ISARAM_END	RAM_END
 		if (phys == 0)
 			panic("isa_dmacheck: no physical page present");
