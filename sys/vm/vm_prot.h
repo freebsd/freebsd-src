@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id$
+ * $Id: vm_prot.h,v 1.7 1997/02/22 09:48:38 peter Exp $
  */
 
 /*
@@ -80,6 +80,7 @@
 #define VM_PROT_READ	((vm_prot_t) 0x01)	/* read permission */
 #define VM_PROT_WRITE	((vm_prot_t) 0x02)	/* write permission */
 #define VM_PROT_EXECUTE	((vm_prot_t) 0x04)	/* execute permission */
+#define	VM_PROT_OVERRIDE_WRITE	((vm_prot_t) 0x08)	/* write, overriding permission for COW */
 
 /*
  *	The default protection for newly-created virtual memory
