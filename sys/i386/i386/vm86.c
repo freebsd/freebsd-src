@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: vm86.c,v 1.3 1997/09/01 01:12:53 bde Exp $
+ *	$Id: vm86.c,v 1.4 1997/10/10 12:42:50 peter Exp $
  */
 
 #include <sys/param.h>
@@ -322,10 +322,9 @@ vm86_emulate(vmf)
 }
 
 int
-vm86_sysarch(p, args, retval)
+vm86_sysarch(p, args)
 	struct proc *p;
 	char *args;
-	int *retval;
 {
 	int error = 0;
 	struct i386_vm86_args ua;
