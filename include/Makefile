@@ -159,12 +159,17 @@ symlinks:
 		ln -fs ../../../sys/$i/$$h ${DESTDIR}${INCLUDEDIR}/$i; \
 	done
 .endfor
-.for i in ${LSUBDIRS}
+.for i in ${LSUBDIRS:Ndev/bktr}
 	cd ${.CURDIR}/../sys/$i; \
 	for h in *.h; do \
 		ln -fs ../../../../sys/$i/$$h ${DESTDIR}${INCLUDEDIR}/$i; \
 	done
 .endfor
+	cd ${.CURDIR}/../sys/dev/bktr; \
+	for h in ioctl_*.h; do \
+		ln -fs ../../../../sys/dev/bktr/$$h \
+		    ${DESTDIR}${INCLUDEDIR}/dev/bktr; \
+	done
 .for i in ${LSUBSUBDIRS}
 	cd ${.CURDIR}/../sys/$i; \
 	for h in *.h; do \
