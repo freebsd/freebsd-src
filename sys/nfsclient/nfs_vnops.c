@@ -94,39 +94,39 @@ __FBSDID("$FreeBSD$");
 #define vfs_busy_pages(bp, f)
 #endif
 
-static int	nfsfifo_read(struct vop_read_args *);
-static int	nfsfifo_write(struct vop_write_args *);
-static int	nfsfifo_close(struct vop_close_args *);
+static vop_read_t	nfsfifo_read;
+static vop_write_t	nfsfifo_write;
+static vop_close_t	nfsfifo_close;
 static int	nfs_flush(struct vnode *, struct ucred *, int, struct thread *,
 		    int);
 static int	nfs_setattrrpc(struct vnode *, struct vattr *, struct ucred *,
 		    struct thread *);
-static	int	nfs_lookup(struct vop_lookup_args *);
-static	int	nfs_create(struct vop_create_args *);
-static	int	nfs_mknod(struct vop_mknod_args *);
-static	int	nfs_open(struct vop_open_args *);
-static	int	nfs_close(struct vop_close_args *);
-static	int	nfs_access(struct vop_access_args *);
-static	int	nfs_getattr(struct vop_getattr_args *);
-static	int	nfs_setattr(struct vop_setattr_args *);
-static	int	nfs_read(struct vop_read_args *);
-static	int	nfs_fsync(struct vop_fsync_args *);
-static	int	nfs_remove(struct vop_remove_args *);
-static	int	nfs_link(struct vop_link_args *);
-static	int	nfs_rename(struct vop_rename_args *);
-static	int	nfs_mkdir(struct vop_mkdir_args *);
-static	int	nfs_rmdir(struct vop_rmdir_args *);
-static	int	nfs_symlink(struct vop_symlink_args *);
-static	int	nfs_readdir(struct vop_readdir_args *);
-static	int	nfs_strategy(struct vop_strategy_args *);
+static vop_lookup_t	nfs_lookup;
+static vop_create_t	nfs_create;
+static vop_mknod_t	nfs_mknod;
+static vop_open_t	nfs_open;
+static vop_close_t	nfs_close;
+static vop_access_t	nfs_access;
+static vop_getattr_t	nfs_getattr;
+static vop_setattr_t	nfs_setattr;
+static vop_read_t	nfs_read;
+static vop_fsync_t	nfs_fsync;
+static vop_remove_t	nfs_remove;
+static vop_link_t	nfs_link;
+static vop_rename_t	nfs_rename;
+static vop_mkdir_t	nfs_mkdir;
+static vop_rmdir_t	nfs_rmdir;
+static vop_symlink_t	nfs_symlink;
+static vop_readdir_t	nfs_readdir;
+static vop_strategy_t	nfs_strategy;
 static	int	nfs_lookitup(struct vnode *, const char *, int,
 		    struct ucred *, struct thread *, struct nfsnode **);
 static	int	nfs_sillyrename(struct vnode *, struct vnode *,
 		    struct componentname *);
-static int	nfsspec_access(struct vop_access_args *);
-static int	nfs_readlink(struct vop_readlink_args *);
-static int	nfs_print(struct vop_print_args *);
-static int	nfs_advlock(struct vop_advlock_args *);
+static vop_access_t	nfsspec_access;
+static vop_readlink_t	nfs_readlink;
+static vop_print_t	nfs_print;
+static vop_advlock_t	nfs_advlock;
 
 /*
  * Global vfs data structures for nfs
