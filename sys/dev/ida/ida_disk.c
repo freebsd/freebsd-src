@@ -179,7 +179,6 @@ idad_strategy(struct bio *bp)
 bad:
 	bp->bio_flags |= BIO_ERROR;
 
-done:
 	/*
 	 * Correctly set the buf to indicate a completed transfer
 	 */
