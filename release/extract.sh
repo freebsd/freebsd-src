@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: extract.sh,v 1.14 1994/11/20 22:55:24 phk Exp $
+# $Id: extract.sh,v 1.15 1994/11/21 04:14:33 phk Exp $
 PATH=/stand:$PATH
 DDIR=/
 
@@ -21,6 +21,9 @@ if [ -f bindist.aa ] ; then
 	if [ -f $DDIR/stand/etc/defaultrouter ]; then
 		cp $DDIR/stand/etc/defaultrouter $DDIR/etc
 	fi
+	chmod 1777 /tmp
+	rm -f /sys
+	ln -s /usr/src/sys /sys
 fi
 
 for i in *.aa
