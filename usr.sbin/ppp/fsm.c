@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: fsm.c,v 1.34 1998/06/27 23:48:43 brian Exp $
+ * $Id: fsm.c,v 1.35 1998/06/30 23:04:15 brian Exp $
  *
  *  TODO:
  */
@@ -488,6 +488,10 @@ FsmRecvConfigReq(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
   case ST_STOPPING:
     mbuf_Free(bp);
     return;
+  case ST_OPENED:
+    (*fp->fn->LayerDown)(fp);
+    (*fp->parent->LayerDown)(fp->parent->object, fp);
+    break;
   }
 
   dec.ackend = dec.ack;
@@ -501,13 +505,11 @@ FsmRecvConfigReq(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
     ackaction = 1;
 
   switch (fp->state) {
-  case ST_OPENED:
-    (*fp->fn->LayerDown)(fp);
-    FsmSendConfigReq(fp);
-    (*fp->parent->LayerDown)(fp->parent->object, fp);
-    break;
   case ST_STOPPED:
     FsmInitRestartCounter(fp);
+    /* Fall through */
+
+  case ST_OPENED:
     FsmSendConfigReq(fp);
     break;
   }
