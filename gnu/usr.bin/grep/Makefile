@@ -25,7 +25,9 @@ LINKS+=	${BINDIR}/grep ${BINDIR}/zgrep \
 MLINKS+=grep.1 zgrep.1 grep.1 zegrep.1 grep.1 zfgrep.1
 .endif
 
-SUBDIR+=doc
+# XXX: cannot build docs until our texinfo system is updated to understand
+#      "command{foo}".
+# SUBDIR+=doc
 
 check:	all
 	@failed=0; total=0; \
