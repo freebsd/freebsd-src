@@ -146,7 +146,7 @@ retry:
 	/* Check if there is a thread joining this one: */
 	if (curthread->joiner != NULL) {
 		pthread = curthread->joiner;
-		_SPINLOCK(&pthread->lock);
+		THR_LOCK(&pthread->lock);
 		curthread->joiner = NULL;
 
 		/* Make the joining thread runnable: */
@@ -156,7 +156,7 @@ retry:
 		pthread->join_status.ret = curthread->ret;
 		pthread->join_status.error = 0;
 		pthread->join_status.thread = NULL;
-		_SPINUNLOCK(&pthread->lock);
+		THR_UNLOCK(&pthread->lock);
 
 		/* Make this thread collectable by the garbage collector. */
 		PTHREAD_ASSERT(((curthread->attr.flags & PTHREAD_DETACHED) ==
