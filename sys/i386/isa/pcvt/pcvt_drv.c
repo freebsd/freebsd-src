@@ -1081,7 +1081,11 @@ consinit()		/* init for kernel messages during boot */
 }
 #endif /* PCVT_NETBSD */
 
+#if PCVT_FREEBSD > 205
+void
+#else
 int
+#endif
 pccnprobe(struct consdev *cp)
 {
 	int maj;
@@ -1115,17 +1119,29 @@ pccnprobe(struct consdev *cp)
 
 #endif /* !PCVT_NETBSD */
 
+#if PCVT_FREEBSD <= 205
 	return 1;
+#endif
 }
 
+#if PCVT_FREEBSD > 205
+void
+#else
 int
+#endif
 pccninit(struct consdev *cp)
 {
 	pcvt_is_console = 1;
+#if PCVT_FREEBSD <= 205
 	return 0;
+#endif
 }
 
+#if PCVT_FREEBSD > 205
+void
+#else
 int
+#endif
 pccnputc(Dev_t dev, U_char c)
 {
 
@@ -1151,7 +1167,9 @@ pccnputc(Dev_t dev, U_char c)
 
  	async_update(UPDATE_KERN);	
 
+#if PCVT_FREEBSD <= 205
 	return 0;
+#endif
 }
 
 int
