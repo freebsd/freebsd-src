@@ -40,7 +40,6 @@
  * $FreeBSD$
  */
 
-#include "opt_global.h"
 #include "opt_posix.h"
 
 #include <sys/param.h>
