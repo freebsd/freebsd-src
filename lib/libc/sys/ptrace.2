@@ -278,6 +278,25 @@ it loads the traced process's debug registers from the
 .In machine/reg.h )
 pointed to by
 .Fa addr .
+.It Dv PT_LWPINFO
+This request can be used to obtain information about the kernel thread,
+also known as light-weight process, that caused the traced process to stop.
+The
+.Fa addr
+argument specifies a pointer to a
+.Vt "struct ptrace_lwpinfo" ,
+which is defined as follows:
+.Bd -literal
+struct ptrace_lwpinfo {
+	lwpid_t pl_lwpid;	/* LWP described. */
+	int	pl_event;	/* Event received. */
+};
+.Ed
+.Pp
+The
+.Fa data
+argument is to be set to the size of the structure known to the caller.
+This allows the structure to grow without affecting older programs.
 .El
 .Pp
 Additionally, machine-specific requests can exist.
