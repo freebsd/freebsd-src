@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)su.c	8.3 (Berkeley) 4/2/94";
 #endif
 static const char rcsid[] =
-	"$Id: su.c,v 1.24 1997/10/27 22:05:12 guido Exp $";
+	"$Id: su.c,v 1.25 1997/10/28 21:20:21 guido Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -113,6 +113,7 @@ main(argc, argv)
 	char *p, **g, *user, *shell=NULL, *username, **cleanenv, **nargv, **np;
 	struct group *gr;
 	uid_t ruid;
+	gid_t gid;
 	int asme, ch, asthem, fastlogin, prio, i;
 	enum { UNSET, YES, NO } iscsh = UNSET;
 #ifdef LOGIN_CAP
@@ -198,6 +199,7 @@ main(argc, argv)
 	if (pwd == NULL)
 		errx(1, "who are you?");
 	username = strdup(pwd->pw_name);
+	gid = pwd->pw_gid;
 	if (username == NULL)
 		err(1, NULL);
 	if (asme) {
@@ -249,14 +251,21 @@ main(argc, argv)
 		}
 #endif
 		{
-			/* only allow those in group zero to su to root. */
+			/*
+			 * Only allow those with pw_gid==0 or those listed in
+			 * group zero to su to root.  If group zero entry is
+			 * missing or empty, then allow anyone to su to root.
+			 * iswheelsu will only be set if the user is EXPLICITLY
+			 * listed in group zero.
+			 */
 			if (pwd->pw_uid == 0 && (gr = getgrgid((gid_t)0)) &&
 			    gr->gr_mem && *(gr->gr_mem))
 				for (g = gr->gr_mem;; ++g) {
 					if (!*g)
-						errx(1,
-			    "you are not in the correct group to su %s.",
-						    user);
+						if (gid == 0)
+							break;
+						else
+							errx(1, "you are not in the correct group to su %s.", user);
 					if (strcmp(username, *g) == 0) {
 #ifdef WHEELSU
 						iswheelsu = 1;
