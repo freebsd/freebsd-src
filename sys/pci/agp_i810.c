@@ -369,6 +369,8 @@ agp_i810_alloc_memory(device_t dev, int type, vm_size_t size)
 		 */
 		vm_page_t m;
 		m = vm_page_grab(mem->am_obj, 0, VM_ALLOC_ZERO|VM_ALLOC_RETRY);
+		if ((m->flags & PG_ZERO) == 0)
+			vm_page_zero_fill(m);
 		vm_page_wire(m);
 		mem->am_physical = VM_PAGE_TO_PHYS(m);
 		vm_page_wakeup(m);
