@@ -21,9 +21,16 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_pdq.c,v 1.1 1995/03/14 09:16:04 davidg Exp $
+ * $Id: if_pdq.c,v 1.2 1995/03/17 04:27:17 davidg Exp $
  *
  * $Log: if_pdq.c,v $
+ * Revision 1.2  1995/03/17  04:27:17  davidg
+ * Added a new field to the pci_device struct called pd_shutdown to specify
+ * a device specific shutdown routine for devconf. Assign the value of this
+ * to the kern_devconf struct. Implement a device shutdown routine for if_de
+ * that disables the device. This will stop the device from corrupting memory
+ * after a reboot.
+ *
  * Revision 1.1  1995/03/14  09:16:04  davidg
  * Added support for generic FDDI and the DEC DEFEA and DEFPA FDDI adapters.
  *
@@ -717,14 +724,14 @@ pdq_eisa_attach(
     pdq_eisa_subprobe(sc->sc_iobase, &maddr, &msize, NULL);
     va_csrs = (vm_offset_t) pmap_mapdev(maddr, msize);
     if (va_csrs == (vm_offset_t) 0) {
-	printf("fea%s: mapping of device memory failed\n", sc->sc_if.if_unit);
+	printf("fea%d: mapping of device memory failed\n", sc->sc_if.if_unit);
 	return 0;
     }
 
     sc->sc_pdq = pdq_initialize((void *) va_csrs, "fea", sc->sc_if.if_unit,
 				(void *) sc, PDQ_DEFEA);
     if (sc->sc_pdq == NULL) {
-	printf("fea%s: initialization failed\n", sc->sc_if.if_unit);
+	printf("fea%d: initialization failed\n", sc->sc_if.if_unit);
 	return 0;
     }
 
