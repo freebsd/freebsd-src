@@ -79,6 +79,9 @@ The options are as follows:
 .Bl -tag -width indent
 .It Fl a
 Display information about other users' processes as well as your own.
+This can be disable by setting the
+.Va kern.ps_showallprocs
+sysctl to zero.
 .It Fl c
 Change the ``command'' column output to just contain the executable name,
 rather than the full command line.
@@ -503,7 +506,8 @@ the mount point of
 .Xr kvm 3 ,
 .Xr strftime 3 ,
 .Xr procfs 5 ,
-.Xr pstat 8
+.Xr pstat 8 ,
+.Xr sysctl 8
 .Sh BUGS
 Since
 .Nm
