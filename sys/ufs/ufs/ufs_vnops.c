@@ -558,7 +558,9 @@ ufs_setattr(ap)
 		if ((error = UFS_TRUNCATE(vp, vap->va_size, 0, cred, td)) != 0)
 			return (error);
 	}
-	if (vap->va_atime.tv_sec != VNOVAL || vap->va_mtime.tv_sec != VNOVAL) {
+	if (vap->va_atime.tv_sec != VNOVAL ||
+	    vap->va_mtime.tv_sec != VNOVAL ||
+	    vap->va_birthtime.tv_sec != VNOVAL) {
 		if (vp->v_mount->mnt_flag & MNT_RDONLY)
 			return (EROFS);
 		if ((ip->i_flags & SF_SNAPSHOT) != 0)
@@ -579,6 +581,9 @@ ufs_setattr(ap)
 			ip->i_flag |= IN_ACCESS;
 		if (vap->va_mtime.tv_sec != VNOVAL)
 			ip->i_flag |= IN_CHANGE | IN_UPDATE;
+		if (vap->va_birthtime.tv_sec != VNOVAL &&
+		    ip->i_ump->um_fstype == UFS2)
+			ip->i_flag |= IN_MODIFIED;
 		ufs_itimes(vp);
 		if (vap->va_atime.tv_sec != VNOVAL) {
 			DIP(ip, i_atime) = vap->va_atime.tv_sec;
@@ -587,6 +592,11 @@ ufs_setattr(ap)
 		if (vap->va_mtime.tv_sec != VNOVAL) {
 			DIP(ip, i_mtime) = vap->va_mtime.tv_sec;
 			DIP(ip, i_mtimensec) = vap->va_mtime.tv_nsec;
+		}
+		if (vap->va_birthtime.tv_sec != VNOVAL &&
+		    ip->i_ump->um_fstype == UFS2) {
+			ip->i_din2->di_birthtime = vap->va_birthtime.tv_sec;
+			ip->i_din2->di_birthnsec = vap->va_birthtime.tv_nsec;
 		}
 		error = UFS_UPDATE(vp, 0);
 		if (error)

@@ -407,8 +407,8 @@ dumpino(union dinode *dp, ino_t ino)
 		spcl.c_atimensec = dp->dp1.di_atimensec;
 		spcl.c_mtime = _time32_to_time(dp->dp1.di_mtime);
 		spcl.c_mtimensec = dp->dp1.di_mtimensec;
-		spcl.c_createtime = 0;
-		spcl.c_createtimensec = 0;
+		spcl.c_birthtime = 0;
+		spcl.c_birthtimensec = 0;
 		spcl.c_rdev = dp->dp1.di_rdev;
 		spcl.c_file_flags = dp->dp1.di_flags;
 		spcl.c_uid = dp->dp1.di_uid;
@@ -420,8 +420,8 @@ dumpino(union dinode *dp, ino_t ino)
 		spcl.c_atimensec = dp->dp2.di_atimensec;
 		spcl.c_mtime = _time64_to_time(dp->dp2.di_mtime);
 		spcl.c_mtimensec = dp->dp2.di_mtimensec;
-		spcl.c_createtime = _time64_to_time(dp->dp2.di_createtime);
-		spcl.c_createtimensec = dp->dp2.di_creatensec;
+		spcl.c_birthtime = _time64_to_time(dp->dp2.di_birthtime);
+		spcl.c_birthtimensec = dp->dp2.di_birthnsec;
 		spcl.c_rdev = dp->dp2.di_rdev;
 		spcl.c_file_flags = dp->dp2.di_flags;
 		spcl.c_uid = dp->dp2.di_uid;

@@ -82,7 +82,7 @@ static int setfown(struct thread *td, struct vnode *, uid_t, gid_t);
 static int setfmode(struct thread *td, struct vnode *, int);
 static int setfflags(struct thread *td, struct vnode *, int);
 static int setutimes(struct thread *td, struct vnode *,
-    const struct timespec *, int);
+    const struct timespec *, int, int);
 static int vn_access(struct vnode *vp, int user_flags, struct ucred *cred,
     struct thread *td);
 
@@ -2116,13 +2116,14 @@ getutimes(usrtvp, tsp)
  * Common implementation code for utimes(), lutimes(), and futimes().
  */
 static int
-setutimes(td, vp, ts, nullflag)
+setutimes(td, vp, ts, numtimes, nullflag)
 	struct thread *td;
 	struct vnode *vp;
 	const struct timespec *ts;
+	int numtimes;
 	int nullflag;
 {
-	int error;
+	int error, setbirthtime;
 	struct mount *mp;
 	struct vattr vattr;
 
@@ -2130,9 +2131,17 @@ setutimes(td, vp, ts, nullflag)
 		return (error);
 	VOP_LEASE(vp, td, td->td_ucred, LEASE_WRITE);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+	setbirthtime = 0;
+	if (numtimes < 3 && VOP_GETATTR(vp, &vattr, td->td_ucred, td) == 0 &&
+	    timespeccmp(&ts[1], &vattr.va_birthtime, < ))
+		setbirthtime = 1;
 	VATTR_NULL(&vattr);
 	vattr.va_atime = ts[0];
 	vattr.va_mtime = ts[1];
+	if (setbirthtime)
+		vattr.va_birthtime = ts[1];
+	if (numtimes > 2)
+		vattr.va_birthtime = ts[2];
 	if (nullflag)
 		vattr.va_vaflags |= VA_UTIMES_NULL;
 	error = VOP_SETATTR(vp, &vattr, td->td_ucred, td);
@@ -2171,7 +2180,7 @@ utimes(td, uap)
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
-	error = setutimes(td, nd.ni_vp, ts, usrtvp == NULL);
+	error = setutimes(td, nd.ni_vp, ts, 2, usrtvp == NULL);
 	vrele(nd.ni_vp);
 	return (error);
 }
@@ -2206,7 +2215,7 @@ lutimes(td, uap)
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
-	error = setutimes(td, nd.ni_vp, ts, usrtvp == NULL);
+	error = setutimes(td, nd.ni_vp, ts, 2, usrtvp == NULL);
 	vrele(nd.ni_vp);
 	return (error);
 }
@@ -2239,7 +2248,7 @@ futimes(td, uap)
 		return (error);
 	if ((error = getvnode(td->td_proc->p_fd, SCARG(uap, fd), &fp)) != 0)
 		return (error);
-	error = setutimes(td, (struct vnode *)fp->f_data, ts, usrtvp == NULL);
+	error = setutimes(td, (struct vnode *)fp->f_data, ts, 2, usrtvp==NULL);
 	fdrop(fp, td);
 	return (error);
 }
