@@ -250,6 +250,12 @@
 \&is currently in beta test.
 ..
 .\" NS St macro - standards (posix, ansi - formal standard names)
+.\" ISO/IEC 9945-1 : 1996 (-iso9945-1) comprises:
+.\"	IEEE 1003.1-1996
+.\"	IEEE 1003.1b-1993
+.\"	IEEE 1003.1i-1995
+.\" and	IEEE 1003.1c-1995
+.\"
 .ds Px \\*(tNPOSIX
 .ds Ai \\*(tNANSI
 .de St
@@ -356,6 +362,16 @@
 .		el \{\
 .			ds b1 \&\\*(tNIEEE Std\\*(aa1003.2\\*(sV
 .			as b1 (``\\*(tN\\*(Px.2\\*(aa'')
+.		\}
+.       \}
+.       if "\\*(A\\n(aP"-iso9945-1" \{\
+.		ie \\n(sT==1 \{\
+.			ds b1 \&\\*(tNISO/IEC \\*(aa9945-1: 1996\\*(sV
+.			as b1 (``\\*(tN\\*(Px.1\\*(aa'')
+.		\}
+.		el \{\
+.			ds b1 \&\\*(tNISO/IEC \\*(aa9945-1: 1996\\*(sV
+.			as b1 (``\\*(tN\\*(Px.1\\*(aa'')
 .		\}
 .       \}
 .       if "\\*(A\\n(aP"-ansiC" \{\
