@@ -954,9 +954,23 @@ uhci_remove_hs_ctrl(uhci_softc_t *sc, uhci_soft_qh_t *sqh)
 
 	DPRINTFN(10, ("uhci_remove_hs_ctrl: sqh=%p\n", sqh));
 	uhci_rem_loop(sc);
+	/*
+	 * The T bit should be set in the elink of the QH so that the HC
+	 * doesn't follow the pointer.  This condition may fail if the
+	 * the transferred packet was short so that the QH still points
+	 * at the last used TD.
+	 * In this case we set the T bit and wait a little for the HC
+	 * to stop looking at the TD.
+	 */
+	if (!(sqh->qh.qh_elink & htole32(UHCI_PTR_T))) {
+		sqh->qh.qh_elink = htole32(UHCI_PTR_T);
+		delay(UHCI_QH_REMOVE_DELAY);
+	}
+
 	pqh = uhci_find_prev_qh(sc->sc_hctl_start, sqh);
 	pqh->hlink = sqh->hlink;
 	pqh->qh.qh_hlink = sqh->qh.qh_hlink;
+	delay(UHCI_QH_REMOVE_DELAY);
 	if (sc->sc_hctl_end == sqh)
 		sc->sc_hctl_end = pqh;
 }
@@ -987,9 +1001,15 @@ uhci_remove_ls_ctrl(uhci_softc_t *sc, uhci_soft_qh_t *sqh)
 	SPLUSBCHECK;
  
 	DPRINTFN(10, ("uhci_remove_ls_ctrl: sqh=%p\n", sqh));
+	/* See comment in uhci_remove_hs_ctrl() */
+	if (!(sqh->qh.qh_elink & htole32(UHCI_PTR_T))) {
+		sqh->qh.qh_elink = htole32(UHCI_PTR_T);
+		delay(UHCI_QH_REMOVE_DELAY);
+	}
 	pqh = uhci_find_prev_qh(sc->sc_lctl_start, sqh);
 	pqh->hlink = sqh->hlink;
 	pqh->qh.qh_hlink = sqh->qh.qh_hlink;
+	delay(UHCI_QH_REMOVE_DELAY);
 	if (sc->sc_lctl_end == sqh)
 		sc->sc_lctl_end = pqh;
 }
@@ -1022,9 +1042,15 @@ uhci_remove_bulk(uhci_softc_t *sc, uhci_soft_qh_t *sqh)
 
 	DPRINTFN(10, ("uhci_remove_bulk: sqh=%p\n", sqh));
 	uhci_rem_loop(sc);
+	/* See comment in uhci_remove_hs_ctrl() */
+	if (!(sqh->qh.qh_elink & htole32(UHCI_PTR_T))) {
+		sqh->qh.qh_elink = htole32(UHCI_PTR_T);
+		delay(UHCI_QH_REMOVE_DELAY);
+	}
 	pqh = uhci_find_prev_qh(sc->sc_bulk_start, sqh);
 	pqh->hlink = sqh->hlink;
 	pqh->qh.qh_hlink = sqh->qh.qh_hlink;
+	delay(UHCI_QH_REMOVE_DELAY);
 	if (sc->sc_bulk_end == sqh)
 		sc->sc_bulk_end = pqh;
 }
@@ -2538,6 +2564,12 @@ uhci_remove_intr(uhci_softc_t *sc, int n, uhci_soft_qh_t *sqh)
 
 	DPRINTFN(4, ("uhci_remove_intr: n=%d sqh=%p\n", n, sqh));
 
+	/* See comment in uhci_remove_ctrl() */
+	if (!(sqh->qh.qh_elink & htole32(UHCI_PTR_T))) {
+		sqh->qh.qh_elink = htole32(UHCI_PTR_T);
+		delay(UHCI_QH_REMOVE_DELAY);
+	}
+
 	for (pqh = vf->hqh; pqh->hlink != sqh; pqh = pqh->hlink)
 #if defined(DIAGNOSTIC) || defined(UHCI_DEBUG)		
 		if (le32toh(pqh->qh.qh_hlink) & UHCI_PTR_T) {
@@ -2549,6 +2581,7 @@ uhci_remove_intr(uhci_softc_t *sc, int n, uhci_soft_qh_t *sqh)
 #endif
 	pqh->hlink       = sqh->hlink;
 	pqh->qh.qh_hlink = sqh->qh.qh_hlink;
+	delay(UHCI_QH_REMOVE_DELAY);
 	if (vf->eqh == sqh)
 		vf->eqh = pqh;
 	vf->bandwidth--;
@@ -3086,7 +3119,7 @@ uhci_root_ctrl_start(usbd_xfer_handle xfer)
 			delay(100);
 			x = UREAD2(sc, port);
 			UWRITE2(sc, port, x  | UHCI_PORTSC_PE);
-			delay(100);
+			usb_delay_ms(&sc->sc_bus, 10); /* XXX */
 			DPRINTFN(3,("uhci port %d reset, status = 0x%04x\n",
 				    index, UREAD2(sc, port)));
 			sc->sc_isreset = 1;
