@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: chap.c,v 1.52 1999/06/09 08:47:29 brian Exp $
+ * $Id: chap.c,v 1.53 1999/07/15 02:02:51 brian Exp $
  *
  *	TODO:
  */
@@ -35,6 +35,7 @@
 #include <md5.h>
 #include <paths.h>
 #include <signal.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/wait.h>
@@ -231,30 +232,25 @@ chap_StartChild(struct chap *chap, char *prog, const char *name)
       timer_TermService();
       close(in[1]);
       close(out[0]);
-      if (out[1] == STDIN_FILENO) {
-        fd = dup(out[1]);
-        close(out[1]);
-        out[1] = fd;
-      }
+      if (out[1] == STDIN_FILENO)
+        out[1] = dup(out[1]);
       dup2(in[0], STDIN_FILENO);
       dup2(out[1], STDOUT_FILENO);
-      if ((fd = open(_PATH_DEVNULL, O_RDWR)) == -1) {
+      close(STDERR_FILENO);
+      if (open(_PATH_DEVNULL, O_RDWR) != STDERR_FILENO) {
         log_Printf(LogALERT, "Chap: Failed to open %s: %s\n",
                   _PATH_DEVNULL, strerror(errno));
         exit(1);
       }
-      dup2(fd, STDERR_FILENO);
-      fcntl(3, F_SETFD, 1);		/* Set close-on-exec flag */
-
+      for (fd = getdtablesize(); fd > STDERR_FILENO; fd--)
+        fcntl(fd, F_SETFD, 1);
       setuid(geteuid());
       argc = command_Interpret(prog, strlen(prog), argv);
       command_Expand(nargv, argc, (char const *const *)argv,
                      chap->auth.physical->dl->bundle, 0, pid);
       execvp(nargv[0], nargv);
-
-      log_Printf(LogWARN, "exec() of %s failed: %s\n",
-                nargv[0], strerror(errno));
-      exit(255);
+      printf("exec() of %s failed: %s\n", nargv[0], strerror(errno));
+      _exit(255);
 
     default:
       close(in[0]);
