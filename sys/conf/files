@@ -409,6 +409,7 @@ dev/ppbus/vpo.c		optional vpo
 dev/ppbus/vpoio.c	optional vpo
 dev/ray/if_ray.c        optional ray card
 dev/ray/if_ray.c        optional ray pccard
+dev/rndtest/rndtest.c	optional rndtest
 dev/rp/rp.c		optional nrp
 dev/rp/rp_isa.c		optional nrp isa
 dev/rp/rp_pci.c		optional nrp pci

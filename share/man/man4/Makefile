@@ -143,6 +143,7 @@ MAN=	aac.4 \
 	pty.4 \
 	puc.4 \
 	rl.4 \
+	rndtest.4 \
 	route.4 \
 	rp.4 \
 	sa.4 \

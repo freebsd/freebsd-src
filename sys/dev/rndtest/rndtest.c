@@ -71,7 +71,7 @@ static const struct rndtest_testfunc {
 SYSCTL_NODE(_kern, OID_AUTO, rndtest, CTLFLAG_RD, 0, "RNG test parameters");
 
 static	int rndtest_retest = 120;		/* interval in seconds */
-SYSCTL_INT(_kern_rndtest, OID_AUTO, reset, CTLFLAG_RW, &rndtest_retest,
+SYSCTL_INT(_kern_rndtest, OID_AUTO, retest, CTLFLAG_RW, &rndtest_retest,
 	    0, "retest interval (seconds)");
 static struct rndtest_stats rndstats;
 SYSCTL_STRUCT(_kern_rndtest, OID_AUTO, stats, CTLFLAG_RD, &rndstats,
@@ -93,8 +93,12 @@ rndtest_attach(device_t dev)
 		rsp->rs_discard = 1;
 		rsp->rs_collect = 1;
 		rsp->rs_parent = dev;
+#if __FreeBSD_version < 500000
+		callout_init(&rsp->rs_to);
+#else
 		/* NB: 1 means the callout runs w/o Giant locked */
 		callout_init(&rsp->rs_to, 1);
+#endif
 	} else
 		device_printf(dev, "rndtest_init: no memory for state block\n");
 	return (rsp);
@@ -110,11 +114,11 @@ rndtest_detach(struct rndtest_state *rsp)
 void
 rndtest_harvest(struct rndtest_state *rsp, void *buf, u_int len)
 {
+	size_t i;
 	/*
 	 * If enabled, collect data and run tests when we have enough.
 	 */
 	if (rsp->rs_collect) {
-		size_t i;
 		for (i = 0; i < len; i++) {
 			*rsp->rs_current = ((u_char *) buf)[i];
 			if (++rsp->rs_current == rsp->rs_end) {
@@ -140,8 +144,16 @@ rndtest_harvest(struct rndtest_state *rsp, void *buf, u_int len)
 	 */
 	if (rsp->rs_discard)
 		rndstats.rst_discard += len;
-	else
+	else {
+#if __FreeBSD_version < 500000
+		/* XXX verify buffer is word aligned */
+		u_int32_t *p = buf;
+		for (len /= sizeof (u_int32_t); len; len--)
+			add_true_randomness(*p++);
+#else
 		random_harvest(buf, len, len*NBBY, 0, RANDOM_PURE);
+#endif
+	}
 }
 
 static void
