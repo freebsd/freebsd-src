@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.15 1996/05/07 23:18:43 wosch Exp $
+#	$Id: Makefile,v 1.16 1996/06/23 13:11:51 bde Exp $
 
 LIB=	disk
 SRCS=	blocks.c disklabel.c dkcksum.c chunk.c disk.c change.c \
@@ -51,10 +51,7 @@ data.c:	${.CURDIR}/libdisk.h ${BOOTS}/boot1 ${BOOTS}/boot2
 	mv -f tmp.c data.c
 
 beforeinstall:
-	@${ECHO} installing libdisk.h
-	@cd ${.CURDIR}; \
-	cmp -s libdisk.h ${DESTDIR}/usr/include/libdisk.h || \
-	    ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 libdisk.h \
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/libdisk.h \
 	    ${DESTDIR}/usr/include/libdisk.h
 
 
