@@ -422,10 +422,10 @@ AcpiExFieldDatumIo (
     /*
      * The four types of fields are:
      *
-     * BufferFields - Read/write from/to a Buffer
-     * RegionFields - Read/write from/to a Operation Region.
-     * BankFields   - Write to a Bank Register, then read/write from/to an OpRegion
-     * IndexFields  - Write to an Index Register, then read/write from/to a Data Register
+     * BufferField - Read/write from/to a Buffer
+     * RegionField - Read/write from/to a Operation Region.
+     * BankField   - Write to a Bank Register, then read/write from/to an OpRegion
+     * IndexField  - Write to an Index Register, then read/write from/to a Data Register
      */
     switch (ACPI_GET_OBJECT_TYPE (ObjDesc))
     {
@@ -523,27 +523,37 @@ AcpiExFieldDatumIo (
 
         /* Write the index value to the IndexRegister (itself a RegionField) */
 
+        FieldDatumByteOffset += ObjDesc->IndexField.Value;
+
+        ACPI_DEBUG_PRINT ((ACPI_DB_BFIELD,
+                "Write to Index Register: Value %8.8X\n",
+                FieldDatumByteOffset));
+
         Status = AcpiExInsertIntoField (ObjDesc->IndexField.IndexObj,
-                                &ObjDesc->IndexField.Value,
-                                sizeof (ObjDesc->IndexField.Value));
+                                &FieldDatumByteOffset,
+                                sizeof (FieldDatumByteOffset));
         if (ACPI_FAILURE (Status))
         {
             return_ACPI_STATUS (Status);
         }
+
+        ACPI_DEBUG_PRINT ((ACPI_DB_BFIELD,
+                "I/O to Data Register: ValuePtr %p\n",
+                Value));
 
         if (ReadWrite == ACPI_READ)
         {
             /* Read the datum from the DataRegister */
 
             Status = AcpiExExtractFromField (ObjDesc->IndexField.DataObj,
-                            Value, ObjDesc->CommonField.AccessByteWidth);
+                            Value, sizeof (ACPI_INTEGER));
         }
         else
         {
-            /* Write the datum to the Data register */
+            /* Write the datum to the DataRegister */
 
             Status = AcpiExInsertIntoField (ObjDesc->IndexField.DataObj,
-                            Value, ObjDesc->CommonField.AccessByteWidth);
+                            Value, sizeof (ACPI_INTEGER));
         }
         break;
 
