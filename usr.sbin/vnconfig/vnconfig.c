@@ -13,6 +13,7 @@ static const char rcsid[] =
 #endif /* not lint */
 
 #include <stdio.h>
+#include <stdlib.h>
 
 int
 main(int argc, char **argv)
