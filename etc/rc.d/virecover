@@ -15,15 +15,7 @@
 
 name="virecover"
 stop_cmd=":"
-
-case ${OSTYPE} in
-FreeBSD)
-	start_cmd="virecover_start"
-	;;
-NetBSD)
-	command="/usr/libexec/${name}"
-	;;
-esac
+start_cmd="virecover_start"
 
 virecover_start()
 {

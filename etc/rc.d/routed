@@ -18,19 +18,10 @@ name="routed"
 #
 load_rc_config $name
 
-case ${OSTYPE} in
-FreeBSD)
-	rcvar="router_enable"
-	command="${router:-/sbin/${name}}"
-	eval ${name}_flags=${router_flags}
-	start_precmd=
-	;;
-NetBSD)
-	rcvar=${name}
-	command="/sbin/${name}"
-	start_precmd="routed_precmd"
-	;;
-esac
+rcvar="router_enable"
+command="${router:-/sbin/${name}}"
+eval ${name}_flags=${router_flags}
+start_precmd=
 
 routed_precmd()
 {

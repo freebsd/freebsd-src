@@ -17,17 +17,8 @@ command="/usr/sbin/${name}"
 start_precmd="named_precmd"
 required_dirs="$named_chrootdir"	# if it is set, it must exist
 extra_commands="reload"
-
-case ${OSTYPE} in
-FreeBSD)
-	nuser=bind
-	ngroup=bind
-	;;
-NetBSD)
-	nuser=named
-	ngroup=named
-	;;
-esac
+nuser=bind
+ngroup=bind
 
 # If running in a chroot cage, ensure that the appropriate files
 # exist inside the cage, as well as helper symlinks into the cage
@@ -78,40 +69,22 @@ make_symlinks()
 
 named_precmd()
 {
-	case ${OSTYPE} in
-	FreeBSD)
-		! checkyesno named_rcng && return 0
-		# Is the user using a sandbox?
-		if [ -z "$named_chrootdir" ]; then
-			rc_flags="-u $nuser -g $ngroup $rc_flags"
-			return 0
-		fi
+	! checkyesno named_rcng && return 0
+	# Is the user using a sandbox?
+	if [ -z "$named_chrootdir" ]; then
+		rc_flags="-u $nuser -g $ngroup $rc_flags"
+		return 0
+	fi
 
-		# Do the following checks only if the user wants them done
-		checkyesno named_chroot_autoupdate && chroot_autoupdate
-		;;
-	NetBSD)
-		chroot_autoupdate
-		;;
-	esac
+	# Do the following checks only if the user wants them done
+	checkyesno named_chroot_autoupdate && chroot_autoupdate
 
-	case ${OSTYPE} in
-	FreeBSD)
-		# Make the symlinks only if the user wants them done.
-		checkyesno named_symlink_enable && make_symlinks
-		;;
-	NetBSD)
-		make_symlinks
-		;;
-	esac
+	# Make the symlinks only if the user wants them done.
+	checkyesno named_symlink_enable && make_symlinks
 
 	#       Change run_rc_commands()'s internal copy of $named_flags
 	#
-	case ${OSTYPE} in
-	FreeBSD)
-		! checkyesno named_rcng && return
-		;;
-	esac
+	! checkyesno named_rcng && return
 	rc_flags="-u $nuser -g $ngroup -t ${named_chrootdir} $rc_flags"
 }
 

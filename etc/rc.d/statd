@@ -13,20 +13,10 @@
 
 arg=$1
 
-case ${OSTYPE} in
-FreeBSD)
-	RCVAR_SERVER="nfs_server_enable"
-	RCVAR_CLIENT="nfs_client_enable"
-	RCVAR_STATD="rpc_statd_enable"
-	RCVAR_LOCKD="rpc_lockd_enable"
-	;;
-NetBSD)
-	RCVAR_SERVER="nfs_server"
-	RCVAR_CLIENT="nfs_client"
-	RCVAR_STATD="statd"
-	RCVAR_LOCKD="lockd"
-	;;
-esac
+RCVAR_SERVER="nfs_server_enable"
+RCVAR_CLIENT="nfs_client_enable"
+RCVAR_STATD="rpc_statd_enable"
+RCVAR_LOCKD="rpc_lockd_enable"
 
 start_precmd='checkyesno ${RCVAR_SERVER} || checkyesno ${RCVAR_CLIENT} ||
 		[ -n "$rc_force" ]'

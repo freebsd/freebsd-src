@@ -19,36 +19,11 @@ securelevel_start()
 	#
 	/etc/rc.d/sysctl lastload
 
-	case ${OSTYPE} in
-	FreeBSD)
-		case ${kern_securelevel_enable} in
-		[Yy][Ee][Ss])
-			if [ ${kern_securelevel} -ge 0 ]; then
-				echo 'Raising kernel security level: '
-				${SYSCTL_W} kern.securelevel=${kern_securelevel}
-			fi
-			;;
-		esac
-		;;
-	NetBSD)
-		#	if $securelevel is set higher, change it here, else if
-		#	it is 0, change it to 1 here, before we start daemons
-		#	or login services.
-		#
-		osecurelevel=`sysctl -n kern.securelevel`
-		if [ -n "$securelevel" -a "$securelevel" != "$osecurelevel" ]; then
-			if [ "$securelevel" -lt "$osecurelevel" ]; then
-				echo "Can't lower securelevel."
-				exit 1
-			else
-				echo -n "Setting securelevel: "
-				${SYSCTL_W} kern.securelevel=$securelevel
-			fi
-		else
-			if [ "$osecurelevel" = 0 ]; then
-				echo -n "Setting securelevel: "
-				${SYSCTL_W} kern.securelevel=1
-			fi
+	case ${kern_securelevel_enable} in
+	[Yy][Ee][Ss])
+		if [ ${kern_securelevel} -ge 0 ]; then
+			echo 'Raising kernel security level: '
+			${SYSCTL_W} kern.securelevel=${kern_securelevel}
 		fi
 		;;
 	esac

@@ -14,11 +14,5 @@ name="rpcbind"
 rcvar=`set_rcvar`
 command="/usr/sbin/${name}"
 
-case ${OSTYPE} in
-NetBSD)
-	pidfile="/var/run/${name}.pid"
-	;;
-esac
-
 load_rc_config $name
 run_rc_command "$1"

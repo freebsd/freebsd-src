@@ -12,18 +12,9 @@
 
 name="ntpdate"
 rcvar=`set_rcvar`
-
-case ${OSTYPE} in
-FreeBSD)
-	command="/usr/sbin/${name}"
-	command_args=">/dev/null 2>&1"
-	pidfile="/var/run/${name}.pid"
-	;;
-NetBSD)
-	start_cmd="ntpdate_start"
-	stop_cmd=":"
-	;;
-esac
+command="/usr/sbin/${name}"
+command_args=">/dev/null 2>&1"
+pidfile="/var/run/${name}.pid"
 
 ntpdate_start()
 {

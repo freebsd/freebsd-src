@@ -19,16 +19,8 @@ name="route6d"
 #
 load_rc_config $name
 
-case ${OSTYPE} in
-FreeBSD)
-	rcvar="ipv6_router_enable"
-	command="${ipv6_router:-/usr/sbin/${name}}"
-	eval ${name}_flags=\"${ipv6_router_flags}\"
-	;;
-NetBSD)
-	rcvar=$name
-	command="/usr/sbin/${name}"
-	;;
-esac
+rcvar="ipv6_router_enable"
+command="${ipv6_router:-/usr/sbin/${name}}"
+eval ${name}_flags=\"${ipv6_router_flags}\"
 
 run_rc_command "$1"

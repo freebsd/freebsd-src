@@ -11,20 +11,8 @@
 . /etc/rc.subr
 
 name="swap1"
-
-case ${OSTYPE} in
-FreeBSD)
-	start_cmd='swapon -a'
-	stop_cmd=':'
-	;;
-NetBSD)
-	#	Add all block-type swap devices; these might be necessary
-	#	during disk checks.
-	#
-	start_cmd="swap1_start"
-	stop_cmd="swap1_stop"
-	;;
-esac
+start_cmd='swapon -a'
+stop_cmd=':'
 
 #		Add all block-type swap devices; these might be necessary
 #		during disk checks.
