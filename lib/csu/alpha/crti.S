@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright 2000 David O'Brien, John D. Polstra.
  * All rights reserved.
  *
@@ -49,5 +49,5 @@ $_fini..ng:
 	.align	5
 
 
-.section	.rodata
-	.ascii "$FreeBSD$\0"
+	.section .rodata
+.ascii "$FreeBSD$\0"
