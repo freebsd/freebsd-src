@@ -1,0 +1,82 @@
+.\" $FreeBSD$
+.\" Written by Tom Rhodes
+.\" This file is in the public domain.
+.\"
+.Dd December 26, 2002
+.Dt MSDOS 5
+.Os
+.Sh NAME
+.Nm msdos
+.Nd msdos file system
+.Sh SYNOPSIS
+.Bd -literal
+/dev/ad0sN		/dos	msdos	rw	0	0
+.Ed
+.Pp
+To link into the kernel:
+.Cd "options MSDOSFS"
+.Pp
+To load as a kernel loadable module:
+.Dl kldload msdosfs
+.Sh DESCRIPTION
+.Pp
+The
+.Nm
+file system driver will permit the
+.Fx
+kernel to read and write
+.Nm
+based file systems.
+.Pp
+The most common usage follows:
+.Pp
+.Dl "# mount_msdos /dev/ad0sN
+.Pp
+where
+.Sy N
+is the partition number and
+.Pa /mnt
+is a mount point directory in the root file system.
+Some users tend to create a
+.Pa /dos
+directory for
+.Nm
+mount points.
+This helps to keep better track of the file system,
+and make it more easily accessible.
+.Pp
+It is possible to define an entry in
+.Pa /etc/fstab
+that looks similar to:
+.Bd -literal
+/dev/ad0sN		/dos	msdos	rw	0	0
+.Ed
+.Pp
+This will mount an
+.Nm
+based partition at the
+.Pa /dos
+mount point during system boot.
+Using
+.Pa /mnt
+as a permanent mount point is not advised as its intention
+has always been to be a temporary mount point for floppy and
+zip disks.
+See
+.Xr hier 7
+for more information on
+.Fx
+directory layout.
+.Sh SEE ALSO
+.Xr mount 2 ,
+.Xr unmount 2 ,
+.Xr mount 8 ,
+.Xr mount_msdos 8 ,
+.Xr umount 8 ,
+.Rs
+.%T "The FreeBSD Handbook"
+.%O "http://www.freebsd.org/doc"
+.Re
+.Sh AUTHORS
+This manual page was written by
+.An Tom Rhodes Aq trhodes@FreeBSD.org .
