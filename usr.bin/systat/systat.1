@@ -229,7 +229,9 @@ It reports the number of seeks, transfers, and number
 of kilobyte blocks transferred per second averaged over the
 refresh period of the display (by default, five seconds).
 For some disks it also reports the average milliseconds per seek.
-Note that the system only keeps statistics on at most four disks.
+Note that the system only keeps statistics on at most eight disks
+(this is controlled by the constant DK_NDRIVE in /sys/dkstat.h as
+a kernel compile-time constant).
 .Pp
 Below the disk display is a list of the
 average number of processes (over the last refresh interval)
