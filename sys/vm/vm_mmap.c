@@ -1116,7 +1116,6 @@ vm_mmap_vnode(struct thread *td, vm_size_t objsize,
 		/*
 		 * Force device mappings to be shared.
 		 */
-		flags &= ~(MAP_PRIVATE|MAP_COPY);
 		flags |= MAP_SHARED;
 	} else {
 		error = EINVAL;
