@@ -35,6 +35,7 @@
 static char sccsid[] = "@(#)gmon.c	8.1 (Berkeley) 6/4/93";
 #endif
 
+#ifndef __NETBSD_SYSCALLS
 #include <sys/param.h>
 #include <sys/time.h>
 #include <sys/gmon.h>
@@ -256,3 +257,4 @@ hertz()
 }
 
 
+#endif
