@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.9 1994/08/30 18:27:44 davidg Exp $
+ * $Id: vm_pageout.c,v 1.10 1994/09/06 11:28:46 davidg Exp $
  */
 
 /*
@@ -211,7 +211,8 @@ vm_pageout_clean(m, sync)
 			pmap_page_protect(VM_PAGE_TO_PHYS(ms[i]), VM_PROT_READ);
 		}
 		object->paging_in_progress += pageout_count;
-		cnt.v_pageouts += pageout_count; 
+		cnt.v_pageouts++; 
+		cnt.v_pgpgout += pageout_count;
 	} else {
 
 		m->flags |= PG_BUSY;
@@ -219,6 +220,7 @@ vm_pageout_clean(m, sync)
 		pmap_page_protect(VM_PAGE_TO_PHYS(m), VM_PROT_READ);
 
 		cnt.v_pageouts++;
+		cnt.v_pgpgout++;
 
 		object->paging_in_progress++;
 
@@ -491,14 +493,17 @@ vm_pageout_scan()
 	int		cache_size, orig_cache_size;
 
 	/*
-	 * deactivate pages for objects on the cached queue are 0
-	 * we manage the cached memory by attempting to keep it
+	 * We manage the cached memory by attempting to keep it
 	 * at about the desired level.
-	 * we deactivate the pages for the oldest cached objects
-	 * first.
+	 * We deactivate the pages for the oldest cached objects
+	 * first.  This keeps pages that are "cached" from hogging
+	 * physical memory.
 	 */
 	orig_cache_size = 0;
 	object = vm_object_cached_list.tqh_first;
+
+	/* calculate the total cached size */
+
 	while( object) {
 		orig_cache_size += object->resident_page_count;
 		object = object->cached_list.tqe_next;
@@ -535,21 +540,6 @@ redeact:
 	vm_object_cache_unlock();
 
 morefree:
-	/*
-	 * deactivate pages for objects whose ref-counts are 0
-	 */
-	simple_lock(&vm_object_list_lock);
-	object = vm_object_list.tqh_first;
-	while (object) {
-		if( cnt.v_inactive_count >= cnt.v_inactive_target)
-			break;
-		if( (object->ref_count == 0) && (object->resident_page_count != 0)) {
-			vm_object_deactivate_pages(object);
-		}
-		object = object->object_list.tqe_next;
-	}
-	simple_unlock(&vm_object_list_lock);
-
 	/*
 	 * now check malloc area or swap processes out if we are in low
 	 * memory conditions
@@ -671,6 +661,7 @@ rescan1:
 				pmap_page_protect(VM_PAGE_TO_PHYS(m),
 						  VM_PROT_NONE);
 				vm_page_free(m);
+				++cnt.v_dfree;
 				++pages_freed;
 			} else {
 				m->act_count -= min(m->act_count, ACT_DECLINE);
@@ -818,12 +809,17 @@ vm_pageout()
 
 vmretry:
 	cnt.v_free_min = 12;
-	cnt.v_free_reserved = 8;
+	/*
+	 * free_reserved needs to include enough for the largest
+	 * swap pager structures plus enough for any pv_entry
+	 * structs when paging.
+	 */
+	cnt.v_free_reserved = 4 + cnt.v_page_count / 1024;
 	if (cnt.v_free_min < 8)
 		cnt.v_free_min = 8;
 	if (cnt.v_free_min > 32)
 		cnt.v_free_min = 32;
-	vm_pageout_free_min = 4;
+	vm_pageout_free_min = cnt.v_free_reserved;
 	cnt.v_free_target = 2*cnt.v_free_min + cnt.v_free_reserved;
 	cnt.v_inactive_target = cnt.v_free_count / 12;
 	cnt.v_free_min += cnt.v_free_reserved;
