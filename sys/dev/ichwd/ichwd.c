@@ -203,13 +203,6 @@ ichwd_event(void *arg, unsigned int cmd, int *error)
 	return;
 }
 
-static int
-ichwd_probe(device_t dev)
-{
-	(void)dev;
-	return (0);
-}
-
 static unsigned long pmbase;
 
 /*
@@ -222,8 +215,6 @@ ichwd_identify(driver_t *driver, device_t parent)
 	struct ichwd_device *id;
 	device_t ich = NULL;
 	device_t dev;
-
-	printf("%s()\n", __func__);
 
 	/* look for an ICH LPC interface bridge */
 	for (id = ichwd_devices; id->desc != NULL; ++id)
@@ -257,15 +248,19 @@ ichwd_identify(driver_t *driver, device_t parent)
 	if ((dev = device_find_child(parent, driver->name, 0)) == NULL)
 		dev = BUS_ADD_CHILD(parent, 0, driver->name, -1);
 	device_set_desc_copy(dev, id->desc);
-	device_set_driver(dev, driver);
+}
+
+static int
+ichwd_probe(device_t dev)
+{
+	(void)dev;
+	return (0);
 }
 
 static int
 ichwd_attach(device_t dev)
 {
 	struct ichwd_softc *sc;
-
-	device_printf(dev, "attaching\n");
 
 	sc = device_get_softc(dev);
 	sc->device = dev;
