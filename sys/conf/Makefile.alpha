@@ -104,6 +104,7 @@ SYSTEM_DEP+= $S/conf/ldscript.$M
 
 %CLEAN
 
+.PHONY:	all modules
 all: ${KERNEL}
 
 .if !defined(DEBUG)
@@ -119,7 +120,11 @@ ${FULLKERNEL}: ${SYSTEM_DEP} vers.o
 	@echo linking ${.TARGET}
 	${SYSTEM_LD}
 	${SYSTEM_LD_TAIL}
+
 .if !defined(NO_MODULES) && exists(${.CURDIR}/../../modules)
+all:	modules
+
+modules:
 	@mkdir -p ${.CURDIR}/modules
 	cd ${.CURDIR}/../../modules && env MAKEOBJDIRPREFIX=${.CURDIR}/modules ${MAKE} obj
 	cd ${.CURDIR}/../../modules && ${MAKE} all
