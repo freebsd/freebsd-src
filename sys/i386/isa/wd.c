@@ -37,7 +37,7 @@ static int wdtest = 0;
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.53 1994/10/19 00:08:07 wollman Exp $
+ *	$Id: wd.c,v 1.54 1994/10/20 00:08:22 phk Exp $
  */
 
 /* TODO:
@@ -285,7 +285,7 @@ wdprobe(struct isa_device *dvp)
 
 	/* check if we have registers that work */
 	outb(du->dk_port + wd_cyl_lo, 0xa5);	/* wd_cyl_lo is read/write */
-	if (inb(du->dk_port + wd_cyl_lo) != 0xa5)
+	if (inb(du->dk_port + wd_cyl_lo) == 0xff)
 		goto nodevice;
 
 	if (wdreset(du) != 0 && (DELAY(RECOVERYTIME), wdreset(du)) != 0)
