@@ -326,11 +326,11 @@ ptcwakeup(tp, flag)
 	struct pt_ioctl *pti = tp->t_dev->si_drv1;
 
 	if (flag & FREAD) {
-		selwakeup(&pti->pt_selr);
+		selwakeuppri(&pti->pt_selr, TTIPRI);
 		wakeup(TSA_PTC_READ(tp));
 	}
 	if (flag & FWRITE) {
-		selwakeup(&pti->pt_selw);
+		selwakeuppri(&pti->pt_selw, TTOPRI);
 		wakeup(TSA_PTC_WRITE(tp));
 	}
 }

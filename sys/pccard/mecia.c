@@ -499,7 +499,7 @@ mecia_reset(void *chan)
 #endif
 	outb(MECIA_REG1, 0);
 
-	selwakeup(&slt->selp);
+	selwakeuppri(&slt->selp, PZERO);
 }
 
 static void

@@ -370,7 +370,7 @@ snp_in(snp, buf, n)
 		snp->snp_flags &= ~SNOOP_RWAIT;
 		wakeup(snp);
 	}
-	selwakeup(&snp->snp_sel);
+	selwakeuppri(&snp->snp_sel, PZERO + 1);
 
 	return (n);
 }
@@ -444,7 +444,7 @@ snp_detach(snp)
 	snp->snp_target = NODEV;
 
 detach_notty:
-	selwakeup(&snp->snp_sel);
+	selwakeuppri(&snp->snp_sel, PZERO + 1);
 	if ((snp->snp_flags & SNOOP_OPEN) == 0) 
 		free(snp, M_SNP);
 

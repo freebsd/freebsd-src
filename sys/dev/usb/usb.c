@@ -810,7 +810,7 @@ usb_add_event(int type, struct usb_event *uep)
 	TAILQ_INSERT_TAIL(&usb_events, ueq, next);
 	usb_nevents++;
 	wakeup(&usb_events);
-	selwakeup(&usb_selevent);
+	selwakeuppri(&usb_selevent, PZERO);
 	if (usb_async_proc != NULL) {
 		PROC_LOCK(usb_async_proc);
 		psignal(usb_async_proc, SIGIO);

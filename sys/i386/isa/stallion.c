@@ -1234,7 +1234,7 @@ static void stl_start(struct tty *tp)
 			tp->t_state &= ~TS_ASLEEP;
 			wakeup(&tp->t_outq);
 		}
-		selwakeup(&tp->t_wsel);
+		selwakeuppri(&tp->t_wsel, TTOPRI);
 	}
 #endif
 

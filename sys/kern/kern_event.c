@@ -925,7 +925,7 @@ kqueue_wakeup(struct kqueue *kq)
 	}
 	if (kq->kq_state & KQ_SEL) {
 		kq->kq_state &= ~KQ_SEL;
-		selwakeup(&kq->kq_sel);
+		selwakeuppri(&kq->kq_sel, PSOCK);
 	}
 	KNOTE(&kq->kq_sel.si_note, 0);
 }

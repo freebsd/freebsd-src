@@ -447,7 +447,7 @@ pipeselwakeup(cpipe)
 
 	if (cpipe->pipe_state & PIPE_SEL) {
 		cpipe->pipe_state &= ~PIPE_SEL;
-		selwakeup(&cpipe->pipe_sel);
+		selwakeuppri(&cpipe->pipe_sel, PSOCK);
 	}
 	if ((cpipe->pipe_state & PIPE_ASYNC) && cpipe->pipe_sigio)
 		pgsigio(&cpipe->pipe_sigio, SIGIO, 0);

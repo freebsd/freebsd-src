@@ -676,7 +676,7 @@ genkbd_event(keyboard_t *kbd, int event, void *arg)
 			sc->gkb_flags &= ~KB_ASLEEP;
 			wakeup(sc);
 		}
-		selwakeup(&sc->gkb_rsel);
+		selwakeuppri(&sc->gkb_rsel, PZERO);
 		return 0;
 	default:
 		return EINVAL;
@@ -747,7 +747,7 @@ genkbd_event(keyboard_t *kbd, int event, void *arg)
 			sc->gkb_flags &= ~KB_ASLEEP;
 			wakeup(sc);
 		}
-		selwakeup(&sc->gkb_rsel);
+		selwakeuppri(&sc->gkb_rsel, PZERO);
 	}
 
 	return 0;

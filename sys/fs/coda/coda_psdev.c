@@ -526,7 +526,7 @@ coda_call(mntinfo, inSize, outSize, buffer)
 
 	/* Append msg to request queue and poke Venus. */
 	INSQUE(vmp->vm_chain, vcp->vc_requests);
-	selwakeup(&(vcp->vc_selproc));
+	selwakeuppri(&(vcp->vc_selproc), coda_call_sleep);
 
 	/* We can be interrupted while we wait for Venus to process
 	 * our request.  If the interrupt occurs before Venus has read
@@ -664,7 +664,7 @@ coda_call(mntinfo, inSize, outSize, buffer)
 		
 		/* insert at head of queue! */
 		INSQUE(svmp->vm_chain, vcp->vc_requests);
-		selwakeup(&(vcp->vc_selproc));
+		selwakeuppri(&(vcp->vc_selproc), coda_call_sleep);
 	    }
 	}
 

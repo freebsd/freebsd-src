@@ -751,7 +751,7 @@ mseintr(arg)
 			sc->sc_flags &= ~MSESC_WANT;
 			wakeup(sc);
 		}
-		selwakeup(&sc->sc_selp);
+		selwakeuppri(&sc->sc_selp, MSEPRI);
 	}
 }
 

@@ -528,7 +528,7 @@ bpf_wakeup(d)
 	if (d->bd_async && d->bd_sig && d->bd_sigio)
 		pgsigio(&d->bd_sigio, d->bd_sig, 0);
 
-	selwakeup(&d->bd_sel);
+	selwakeuppri(&d->bd_sel, PRINET);
 	KNOTE(&d->bd_sel.si_note, 0);
 }
 
