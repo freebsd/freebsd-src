@@ -71,7 +71,6 @@ DUMMY(vhangup);
 DUMMY(idle);
 DUMMY(vm86old);
 DUMMY(swapoff);
-DUMMY(sysinfo);
 DUMMY(adjtimex);
 DUMMY(create_module);
 DUMMY(init_module);
