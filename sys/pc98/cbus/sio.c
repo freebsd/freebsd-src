@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.39 1997/09/22 12:23:49 kato Exp $
+ *	$Id: sio.c,v 1.40 1997/10/13 09:23:14 kato Exp $
  */
 
 #include "opt_comconsole.h"
@@ -165,8 +165,8 @@
 #endif
 #include <i386/isa/ic/ns16550.h>
 
-#include "crd.h"
-#if NCRD > 0
+#include "card.h"
+#if NCARD > 0
 #include <pccard/card.h>
 #include <pccard/driver.h>
 #include <pccard/slot.h>
@@ -702,72 +702,48 @@ sysctl_machdep_comdefaultrate SYSCTL_HANDLER_ARGS
 SYSCTL_PROC(_machdep, OID_AUTO, conspeed, CTLTYPE_INT | CTLFLAG_RW,
 	    0, 0, sysctl_machdep_comdefaultrate, "I", "");
 
-#if NCRD > 0
+#if NCARD > 0
 /*
  *	PC-Card (PCMCIA) specific code.
  */
-static int card_intr(struct pccard_dev *);	/* Interrupt handler */
-static void siounload(struct pccard_dev *);	/* Disable driver */
-static void siosuspend(struct pccard_dev *);	/* Suspend driver */
-static int sioinit(struct pccard_dev *, int);	/* init device */
+static int sioinit(struct pccard_devinfo *);		/* init device */
+static void siounload(struct pccard_devinfo *);		/* Disable driver */
+static int card_intr(struct pccard_devinfo *);		/* Interrupt handler */
 
-static struct pccard_drv sio_info = {
+static struct pccard_device sio_info = {
 	driver_name,
-	card_intr,
-	siounload,
-	siosuspend,
 	sioinit,
+	siounload,
+	card_intr,
 	0,			/* Attributes - presently unused */
 	&tty_imask		/* Interrupt mask for device */
 				/* XXX - Should this also include net_imask? */
 };
 
-/*
- *	Called when a power down is requested. Shuts down the
- *	device and configures the device as unavailable (but
- *	still loaded...). A resume is done by calling
- *	sioinit with first=0. This is called when the user suspends
- *	the system, or the APM code suspends the system.
- */
-static void
-siosuspend(struct pccard_dev *dp)
-{
-	printf("sio%d: suspending\n", dp->isahd.id_unit);
-}
+DATA_SET(pccarddrv_set, sio_info);
 
 /*
  *	Initialize the device - called from Slot manager.
- *	If first is set, then check for the device's existence
- *	before initializing it.  Once initialized, the device table may
- *	be set up.
  */
 int
-sioinit(struct pccard_dev *dp, int first)
+sioinit(struct pccard_devinfo *devi)
 {
 
 	/* validate unit number. */
-	if (first) {
-		if (dp->isahd.id_unit >= (NSIOTOT))
-			return(ENODEV);
-		/* Make sure it isn't already probed. */
-		if (com_addr(dp->isahd.id_unit))
-			return(EBUSY);
-		/*
-		 * Probe the device. If a value is returned, the
-		 * device was found at the location.
-		 */
-		if (sioprobe(&dp->isahd)==0)
-			return(ENXIO);
-		if (sioattach(&dp->isahd)==0)
-			return(ENXIO);
-	}
+	if (devi->isahd.id_unit >= (NSIOTOT))
+		return(ENODEV);
+	/* Make sure it isn't already probed. */
+	if (com_addr(devi->isahd.id_unit))
+		return(EBUSY);
 	/*
-	 * XXX TODO:
-	 * If it was initialized before, the device structure
-	 * should also be initialized.  We should
-	 * reset (and possibly restart) the hardware, but
-	 * I am not sure of the best way to do this...
+	 * Probe the device. If a value is returned, the
+	 * device was found at the location.
 	 */
+	if (sioprobe(&devi->isahd) == 0)
+		return(ENXIO);
+	if (sioattach(&devi->isahd) == 0)
+		return(ENXIO);
+
 	return(0);
 }
 
@@ -781,18 +757,18 @@ sioinit(struct pccard_dev *dp, int first)
  *	read and write do not hang.
  */
 static void
-siounload(struct pccard_dev *dp)
+siounload(struct pccard_devinfo *devi)
 {
 	struct com_s	*com;
 
-	com = com_addr(dp->isahd.id_unit);
+	com = com_addr(devi->isahd.id_unit);
 	if (!com->iobase) {
-		printf("sio%d already unloaded!\n",dp->isahd.id_unit);
+		printf("sio%d already unloaded!\n",devi->isahd.id_unit);
 		return;
 	}
 	if (com->tp && (com->tp->t_state & TS_ISOPEN)) {
 		com->gone = 1;
-		printf("sio%d: unload\n", dp->isahd.id_unit);
+		printf("sio%d: unload\n", devi->isahd.id_unit);
 		com->tp->t_gen++;
 		ttyclose(com->tp);
 		ttwakeup(com->tp);
@@ -801,7 +777,7 @@ siounload(struct pccard_dev *dp)
 		com_addr(com->unit) = NULL;
 		bzero(com, sizeof *com);
 		free(com,M_TTYS);
-		printf("sio%d: unload,gone\n", dp->isahd.id_unit);
+		printf("sio%d: unload,gone\n", devi->isahd.id_unit);
 	}
 }
 
@@ -810,17 +786,17 @@ siounload(struct pccard_dev *dp)
  *	front end of PC-Card handler.
  */
 static int
-card_intr(struct pccard_dev *dp)
+card_intr(struct pccard_devinfo *devi)
 {
 	struct com_s	*com;
 	COM_LOCK();
-	com = com_addr(dp->isahd.id_unit);
-	if (com && !com_addr(dp->isahd.id_unit)->gone)
-		siointr1(com_addr(dp->isahd.id_unit));
+	com = com_addr(devi->isahd.id_unit);
+	if (com && !com_addr(devi->isahd.id_unit)->gone)
+		siointr1(com_addr(devi->isahd.id_unit));
 	COM_UNLOCK();
 	return(1);
 }
-#endif /* NCRD > 0 */
+#endif /* NCARD > 0 */
 
 static int
 sioprobe(dev)
@@ -858,13 +834,6 @@ sioprobe(dev)
 				else
 #endif
 				outb(xdev->id_iobase + com_mcr, 0);
-#if NCRD > 0
-		/*
-		 * If PC-Card probe required, then register driver with
-		 * slot manager.
-		 */
-		pccard_add_driver(&sio_info);
-#endif
 		already_init = TRUE;
 	}
 
