@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.43 1995/09/18 16:52:32 peter Exp $
+ * $Id: menus.c,v 1.44 1995/12/07 10:34:05 peter Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -398,6 +398,8 @@ DES distribution out of the U.S.!  It is for U.S. customers only.",
 	DMENU_CALL,	distSetDES, 0, 0, DESFlagCheck			},
   { "dict",		"Spelling checker dictionary files [4.2MB]",
 	DMENU_SET_FLAG,	&Dists, DIST_DICT, 0, dmenuFlagCheck		},
+  { "doc",		"FreeBSD Handbook and other online docs [10MB]",
+	DMENU_SET_FLAG, &Dists, DIST_DOC, 0, dmenuFlagCheck		},
   { "games",	"Games (non-commercial) [6.4MB]",
 	DMENU_SET_FLAG,	&Dists, DIST_GAMES, 0, dmenuFlagCheck		},
   { "info",		"GNU info files [4.1MB]",
