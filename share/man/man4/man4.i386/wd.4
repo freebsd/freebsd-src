@@ -24,7 +24,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"	$Id$
+.\"	$Id: wd.4,v 1.5 1997/03/07 02:50:00 jmg Exp $
 .\"
 .Dd August 31, 1994
 .Dt WD 4 i386
@@ -37,6 +37,9 @@ Generic WD100x/IDE diskcontroller driver
 .Cd "controller wdc0 at isa? port" \&"IO_WD1\&" bio irq 14 vector wdintr
 .Cd "disk wd0 at wdc0 drive 0
 .Cd "disk wd1 at wdc0 drive 1
+.Pp
+For the CMD640b IDE controller:
+.Cd "options"  \&"CMD640\&"
 .Sh DESCRIPTION
 This driver provides access to disks connected to controllers that emulate
 the Western Digital WD100x series. This range of controllers includes WD1003
@@ -69,6 +72,13 @@ sectors attempted is (flags & 0x00ff).
 The flags can be specified on the line for the drive as a 16 bit int,
 or on the controller line as a 32 bit int, where the top 16 bit is
 relevant to the highest numbered drive.
+.Pp
+The
+.Dq Dv CMD640
+configuration option
+enables a workaround for a deficiency of the CMD640b IDE controller.
+If this option is enabled and the chip is detected by the PCI subsystem,
+the primary and secondary controller will not be used simultaneously.
 .Sh FILES
 .Bl -tag -width Pa -compact
 .It Pa /dev/wd*
