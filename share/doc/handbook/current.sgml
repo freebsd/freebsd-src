@@ -1,4 +1,4 @@
-<!-- $Id: current.sgml,v 1.10 1996/05/09 23:04:33 mpp Exp $ -->
+<!-- $Id: current.sgml,v 1.11 1996/05/16 23:17:52 mpp Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 
@@ -10,7 +10,7 @@
 
                         THE FREEBSD CURRENT POLICY 
 
-Last updated: $Date: 1996/05/09 23:04:33 $
+Last updated: $Date: 1996/05/16 23:17:52 $
 
 This document attempts to explain the rationale behind
 FreeBSD-current, what you should expect should you decide to run it,
@@ -83,9 +83,9 @@ ask!  It takes far too much time to do this as a general task.
 
 <sect><heading>Using FreeBSD-current</heading>
 
-<p><enum> <item> Join the freebsd-current and cvs-all
-    mailing lists.  This is not just a good idea, it is
-    <em>essential</em>.  If you are not on the &a.current, you
+<p><enum> <item> Join the &a.current and the &a.cvsall .
+    This is not just a good idea, it is <em>essential</em>.
+    If you are not on the <em>FreeBSD-current</em> mailing list you
     will not see the comments that people are making about the
     current state of the system and thus will probably end up stumbling
     over a lot of problems that others have already found and
@@ -94,7 +94,7 @@ ask!  It takes far too much time to do this as a general task.
     Before you rebuild <tt>/usr/src</tt>, you <em>must</em>
     rebuild the kernel or your system will crash horribly!").
 
-    The cvs-all mailing list will allow you to see the commit log
+    The <em>cvs-all</em> mailing list will allow you to see the commit log
     entry for each change as it is made along with any pertinent
     information on possible side-effects.
 
@@ -111,12 +111,12 @@ ask!  It takes far too much time to do this as a general task.
         three ways:
 
     <enum>
-	<item> Using the CTM facility described below.  Unless you 
+	<item> Use the <ref id="ctm" name="CTM"> facility.  Unless you 
             have a good TCP/IP connection at a flat rate, this is 
             the way to do it.
 
-        <item>  Use the CMU `sup' program (Software Update
-	     Protocol), also described below.
+        <item>  Use the CMU <ref id="sup"> program (Software Update
+	     Protocol).
             This is the second most recommended method, since it allows 
 	    you to grab the entire collection once and then only what has
             changed from then on.  Many people run sup from cron
