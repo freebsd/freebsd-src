@@ -112,7 +112,6 @@
 #include <i386/isa/intr_machdep.h>
 #include <isa/rtc.h>
 #include <machine/vm86.h>
-#include <sys/random.h>
 #include <sys/ptrace.h>
 #include <machine/sigframe.h>
 
@@ -1908,7 +1907,6 @@ init386(first)
 #if	NISA >0
 	isa_defaultirq();
 #endif
-	rand_initialize();
 
 #ifdef DDB
 	kdb_init();
