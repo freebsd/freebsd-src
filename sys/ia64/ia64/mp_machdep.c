@@ -395,12 +395,12 @@ forward_hardclock(int pscnt)
 			if (checkstate_cpustate[id] == CHECKSTATE_USER &&
 			    timevalisset(&pstats->p_timer[ITIMER_VIRTUAL].it_value) &&
 			    itimerdecr(&pstats->p_timer[ITIMER_VIRTUAL], tick) == 0) {
-				psignal(p, SIGVTALRM);
+				p->p_sflag |= PS_ALRMPEND;
 				map |= (1 << id);
 			}
 			if (timevalisset(&pstats->p_timer[ITIMER_PROF].it_value) &&
 			    itimerdecr(&pstats->p_timer[ITIMER_PROF], tick) == 0) {
-				psignal(p, SIGPROF);
+				p->p_sflag |= PS_PROFPEND;
 				map |= (1 << id);
 			}
 		}
