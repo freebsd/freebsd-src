@@ -109,7 +109,7 @@ in the host environment:
 .Bd -literal -offset indent
 sendmail_enable="NO"
 inetd_flags="-wW -a 192.168.11.23"
-portmap_enable="NO"
+rpcbind_enable="NO"
 .Ed
 .Pp
 .Li 192.168.11.23
@@ -191,7 +191,7 @@ to quell startup warnings about missing fstab
 .It
 Disable the port mapper
 .Pa ( /etc/rc.conf :
-.Li portmap_enable="NO" )
+.Li rpcbind_enable="NO" )
 .It
 Run
 .Xr newaliases 1
