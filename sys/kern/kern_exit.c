@@ -527,13 +527,7 @@ retry:
 	PCPU_SET(switchticks, ticks);
 
 	cnt.v_swtch++;
-
-	/*
-	 * Allow the scheduler to adjust the priority of the
-	 * parent when a kseg is exiting.
-	 */
-	if (p->p_pid != 1) 
-		sched_exit(p->p_pptr, p);
+	sched_exit(p->p_pptr, p);
 
 	/*
 	 * Make sure the scheduler takes this thread out of its tables etc.
