@@ -28,7 +28,7 @@
  *
  *	from: @(#)pmap_clnt.h 1.11 88/02/08 SMI
  *	from: @(#)pmap_clnt.h	2.1 88/07/29 4.0 RPCSRC
- *	$Id: pmap_clnt.h,v 1.7 1997/02/23 09:17:22 peter Exp $
+ *	$Id: pmap_clnt.h,v 1.8 1997/05/07 02:27:05 eivind Exp $
  */
 
 /*
@@ -63,9 +63,6 @@
 #ifndef _RPC_PMAPCLNT_H
 #define _RPC_PMAPCLNT_H
 #include <sys/cdefs.h>
-#include <rpc/types.h>
-#include <rpc/xdr.h>
-#include <netinet/in.h>
 
 __BEGIN_DECLS
 extern bool_t		pmap_set	__P((u_long, u_long, int, int));

@@ -36,9 +36,6 @@
 #ifndef _PROTOCOLS_TALKD_H_
 #define	_PROTOCOLS_TALKD_H_
 
-#include <sys/types.h>
-#include <sys/socket.h>
-
 /*
  * This describes the protocol used by the talk server and clients.
  *
