@@ -22,7 +22,7 @@
  * today: Fri Jun  2 17:21:03 EST 1994
  * added 24F support  ++sg
  *
- *      $Id: ultra14f.c,v 1.57 1997/09/21 21:41:45 gibbs Exp $
+ *      $Id: ultra14f.c,v 1.58 1998/03/25 22:40:06 imp Exp $
  */
 
 #ifdef	KERNEL			/* don't laugh.. this compiles to a program too.. look */
@@ -551,7 +551,7 @@ uha_attach(dev)
 
 /*
  * Return some information to the caller about
- * the adapter and it's capabilities
+ * the adapter and its capabilities
  */
 u_int32_t
 uha_adapter_info(unit)

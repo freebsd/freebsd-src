@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vnops.c	8.27 (Berkeley) 5/27/95
- * $Id: ufs_vnops.c,v 1.81 1998/03/30 09:56:37 phk Exp $
+ * $Id: ufs_vnops.c,v 1.82 1998/04/04 13:26:20 phk Exp $
  */
 
 #include "opt_quota.h"
@@ -1397,7 +1397,7 @@ ufs_mkdir(ap)
 	}
 	VN_POLLEVENT(dvp, POLLWRITE); /* XXX right place? */
 	/*
-	 * Directory set up, now install it's entry in the parent directory.
+	 * Directory set up, now install its entry in the parent directory.
 	 *
 	 * If we are not doing soft dependencies, then we must write out the
 	 * buffer containing the new directory body before entering the new 

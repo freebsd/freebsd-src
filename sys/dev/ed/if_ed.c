@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ed.c,v 1.138 1998/03/29 03:22:19 eivind Exp $
+ *	$Id: if_ed.c,v 1.139 1998/04/15 17:45:15 bde Exp $
  */
 
 /*
@@ -464,7 +464,7 @@ ed_probe_WD80x3(isa_dev)
 #endif
 	DELAY(100);
 	outb(sc->asic_addr + ED_WD_MSR, inb(sc->asic_addr + ED_WD_MSR) & ~ED_WD_MSR_RST);
-	/* wait in the case this card is reading it's EEROM */
+	/* wait in the case this card is reading its EEROM */
 	DELAY(5000);
 
 	sc->vendor = ED_VENDOR_WD_SMC;

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_exec.c,v 1.80 1998/03/07 21:35:17 dyson Exp $
+ *	$Id: kern_exec.c,v 1.81 1998/03/08 06:21:33 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -244,7 +244,7 @@ interpret:
 
 	/*
 	 * mark as execed, wakeup the process that vforked (if any) and tell
-	 * it that it now has it's own resources back
+	 * it that it now has its own resources back
 	 */
 	p->p_flag |= P_EXEC;
 	if (p->p_pptr && (p->p_flag & P_PPWAIT)) {

@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *      $Id: cd.c,v 1.89 1998/01/24 02:54:48 eivind Exp $
+ *      $Id: cd.c,v 1.90 1998/04/15 17:47:17 bde Exp $
  */
 
 #include "opt_bounce.h"
@@ -1119,7 +1119,7 @@ cd_getdisklabel(unit)
 }
 
 /*
- * Find out from the device what it's capacity is
+ * Find out from the device what its capacity is
  */
 static u_int32_t
 cd_size(unit, flags)

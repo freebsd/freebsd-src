@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: exception.s,v 1.49 1998/04/04 13:24:07 phk Exp $
+ *	$Id: exception.s,v 1.50 1998/04/15 11:10:28 bde Exp $
  */
 
 #include "npx.h"
@@ -352,7 +352,7 @@ ENTRY(fork_trampoline)
 	/*
 	 * cpu_set_fork_handler intercepts this function call to
 	 * have this call a non-return function to stay in kernel mode.
-	 * initproc has it's own fork handler, but it does return.
+	 * initproc has its own fork handler, but it does return.
 	 */
 	pushl	%ebx			/* arg1 */
 	call	%esi			/* function */

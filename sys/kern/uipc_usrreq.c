@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)uipc_usrreq.c	8.3 (Berkeley) 1/4/94
- *	$Id: uipc_usrreq.c,v 1.31 1998/02/04 22:32:37 eivind Exp $
+ *	$Id: uipc_usrreq.c,v 1.32 1998/02/06 12:13:28 eivind Exp $
  */
 
 #include <sys/param.h>
@@ -927,7 +927,7 @@ unp_gc()
 			/*
 			 * So, Ok, it's one of our sockets and it IS externally
 			 * accessible (or was defered). Now we look
-			 * to see if we hold any file descriptors in it's
+			 * to see if we hold any file descriptors in its
 			 * message buffers. Follow those links and mark them 
 			 * as accessible too.
 			 */

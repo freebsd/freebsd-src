@@ -474,7 +474,7 @@ ext2_blkpref(ip, lbn, indx, bap, blocknr)
 				return bap[tmp];
 
 	/* else let's fall back to the blocknr, or, if there is none,
-	   follow the rule that a block should be allocated near it's inode
+	   follow the rule that a block should be allocated near its inode
 	*/
 	return blocknr ? blocknr :
 			(daddr_t)(ip->i_block_group * 

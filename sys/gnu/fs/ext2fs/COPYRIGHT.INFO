@@ -3,7 +3,7 @@ by him using the CSRG sources.  Those files are covered by the Berkeley-style
 copyright.  However the following files are covered by GPL.  Since the policy
 of the FreeBSD project is to keep the files with the more restrictive
 copyright in the gnu tree and it is a good idea to keep the filesystem code
-all together, the EXT2FS in it's entirety resides under the gnu tree.  Note
+all together, the EXT2FS in its entirety resides under the gnu tree.  Note
 that only the files below are under the GPL.  In the eventuality that these
 files are redesigned or rewritten, this tree can be moved back into the less
 restrictive FreeBSD tree.

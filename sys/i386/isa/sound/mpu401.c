@@ -462,7 +462,7 @@ mpu401_open(int dev, int mode,
     /*
      * Verify that the device is really running. Some devices (such as
      * Ensoniq SoundScape don't work before the on board processor (OBP)
-     * is initialized by downloadin it's microcode.
+     * is initialized by downloading its microcode.
      */
 
     if (!devc->initialized) {
@@ -784,7 +784,7 @@ mpu_synth_open(int dev, int mode)
     /*
      * Verify that the device is really running. Some devices (such as
      * Ensoniq SoundScape don't work before the on board processor (OBP)
-     * is initialized by downloadin it's microcode.
+     * is initialized by downloading its microcode.
      */
 
     if (!devc->initialized) {
@@ -902,7 +902,7 @@ mpu401_chk_version(struct mpu_config * devc)
     if ((tmp = mpu_cmd(num_midis, 0xAC, 0)) < 0)
 	return;
 
-    if ((tmp & 0xf0) > 0x20)/* Why it's larger than 2.x ??? */
+    if ((tmp & 0xf0) > 0x20)/* Why is it larger than 2.x ??? */
 	return;
 
     devc->version = tmp;
@@ -1160,7 +1160,7 @@ clocks2ticks(u_long clocks)
     /*
      * The MPU-401 supports just a limited set of possible timebase
      * values. Since the applications require more choices, the driver
-     * has to program the HW to do it's best and to convert between the
+     * has to program the HW to do its best and to convert between the
      * HW and actual timebases.
      */
 

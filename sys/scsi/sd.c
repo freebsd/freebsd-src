@@ -15,7 +15,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.121 1998/02/16 23:57:49 eivind Exp $
+ *      $Id: sd.c,v 1.122 1998/04/15 17:47:21 bde Exp $
  */
 
 #include "opt_bounce.h"
@@ -677,7 +677,7 @@ sd_ioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p,
 }
 
 /*
- * Find out from the device what it's capacity is. It turns
+ * Find out from the device what its capacity is. It turns
  * out this is also the best way to find out the sector size.
  */
 static int

@@ -8,7 +8,7 @@
  * file.
  *
  * Written by Julian Elischer (julian@dialix.oz.au)
- *      $Id: scsi_base.c,v 1.54 1998/02/20 13:37:39 bde Exp $
+ *      $Id: scsi_base.c,v 1.55 1998/04/16 11:15:23 peter Exp $
  */
 
 #include "opt_bounce.h"
@@ -400,7 +400,7 @@ scsi_done(xs)
 		return;
 	}
 	/*
-	 * If the device has it's own done routine, call it first.
+	 * If the device has its own done routine, call it first.
 	 * If it returns a legit error value, return that, otherwise
 	 * it wants us to continue with normal processing.
 	 */
@@ -1010,7 +1010,7 @@ scsi_interpret_sense(xs)
 	}
   #endif	/*SCSIDEBUG */
 	/*
-	 * If the device has it's own sense handler, call it first.
+	 * If the device has its own sense handler, call it first.
 	 * If it returns a legit errno value, return that, otherwise
 	 * it should return either DO_RETRY or CONTINUE to either
 	 * request a retry or continue with default sense handling.
@@ -1305,7 +1305,7 @@ sc_print_addr(sc_link)
 
 #ifdef	SCSIDEBUG
 /*
- * Given a scsi_xfer, dump the request, in all it's glory
+ * Given a scsi_xfer, dump the request, in all its glory
  */
 static void
 show_scsi_xs(xs)

@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $Id: init_main.c,v 1.88 1998/04/08 09:01:52 phk Exp $
+ * $Id: init_main.c,v 1.89 1998/04/11 17:24:06 phk Exp $
  */
 
 #include "opt_devfs.h"
@@ -391,7 +391,7 @@ proc0_init(dummy)
 #define INCOMPAT_LITES2
 #ifdef INCOMPAT_LITES2
 	/*
-	 * proc0 needs to have a coherent frame base in it's stack.
+	 * proc0 needs to have a coherent frame base in its stack.
 	 */
 	cpu_set_init_frame(p, init_framep);			/* XXX! */
 #endif	/* INCOMPAT_LITES2*/

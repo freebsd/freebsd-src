@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_sr.c,v 1.10 1998/01/08 23:41:02 eivind Exp $
+ * $Id: if_sr.c,v 1.11 1998/01/30 19:49:54 jhay Exp $
  */
 
 /*
@@ -999,7 +999,7 @@ sr_xmit(struct sr_softc *sc)
  *
  * Transmitter idle state is indicated by the IFF_OACTIVE flag.
  * The function that clears that should ensure that the transmitter
- * and it's DMA is in a "good" idle state.
+ * and its DMA is in a "good" idle state.
  */
 static void
 srstart(struct ifnet *ifp)
@@ -2822,7 +2822,7 @@ sr_dmac_intr(struct sr_hardc *hc, u_char isr1)
  * Perform timeout on an FR channel 
  *
  * Establish a periodic check of open N2 ports;  If
- * a port is open/active, it's DCD state is checked
+ * a port is open/active, its DCD state is checked
  * and a loss of DCD is recognized (and eventually
  * processed).
  */

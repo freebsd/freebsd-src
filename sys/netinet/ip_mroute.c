@@ -9,7 +9,7 @@
  * Modified by Bill Fenner, PARC, April 1995
  *
  * MROUTING Revision: 3.5
- * $Id: ip_mroute.c,v 1.44 1998/02/06 12:13:52 eivind Exp $
+ * $Id: ip_mroute.c,v 1.45 1998/02/09 06:10:17 eivind Exp $
  */
 
 #include "opt_mrouting.h"
@@ -1567,7 +1567,7 @@ encap_send(ip, vifp, m)
     register int i, len = ip->ip_len;
 
     /*
-     * copy the old packet & pullup it's IP header into the
+     * copy the old packet & pullup its IP header into the
      * new mbuf so we can modify it.  Try to fill the new
      * mbuf since if we don't the ethernet driver will.
      */

@@ -36,7 +36,7 @@
  * future.
  */
 
-#ident "$Id: dpt_control.c,v 1.2 1998/02/10 17:36:43 eivind Exp $"
+#ident "$Id: dpt_control.c,v 1.3 1998/02/20 13:11:44 bde Exp $"
 
 #include "opt_dpt.h"
 
@@ -175,7 +175,7 @@ dpt_minor2unit(int minor)
 
 /**
  * Given a minor device number,
- * return the pointer to it's softc structure
+ * return the pointer to its softc structure
  */
 
 static INLINE dpt_softc_t *

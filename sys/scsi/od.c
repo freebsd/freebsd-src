@@ -28,7 +28,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: od.c,v 1.35 1998/01/24 02:54:49 eivind Exp $
+ *	$Id: od.c,v 1.36 1998/04/15 17:47:18 bde Exp $
  */
 
 /*
@@ -716,7 +716,7 @@ od_ioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p,
 }
 
 /*
- * Find out from the device what it's capacity is
+ * Find out from the device what its capacity is
  */
 static u_int32_t
 od_size(unit, flags)

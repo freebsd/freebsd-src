@@ -181,7 +181,7 @@ Since 2.2
 
 Since 2.1
 - Preliminary support for SB16. 
-  - The SB16 mixer is supported in it's native mode.
+  - The SB16 mixer is supported in its native mode.
   - Digitized voice capability up to 44.1 kHz/8 bit/mono
     (16 bit and stereo support coming in the next release).
 - Fixed some bugs in the digitized voice driver for PAS16.

@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_ar.c,v 1.16 1997/09/02 01:18:04 bde Exp $
+ * $Id: if_ar.c,v 1.17 1998/01/08 23:40:37 eivind Exp $
  */
 
 /*
@@ -472,7 +472,7 @@ ar_xmit(struct ar_softc *sc)
  * start the transmition. ar_xmit() does that.
  *
  * Transmitter idle state is indicated by the IFF_OACTIVE flag. The function
- * that clears that should ensure that the transmitter and it's DMA is
+ * that clears that should ensure that the transmitter and its DMA is
  * in a "good" idle state.
  */
 static void
