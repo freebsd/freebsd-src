@@ -62,11 +62,7 @@
 #ifdef INET6
 #include <netinet6/nd6.h>
 #endif
-#if defined(__FreeBSD__)
 #include <netinet/if_fddi.h>
-#else
-#include <net/if_fddi.h>
-#endif
 
 #ifdef IPX
 #include <netipx/ipx.h> 
@@ -106,13 +102,8 @@ static	int fddi_resolvemulti(struct ifnet *, struct sockaddr **,
 #define	llc_snap	llc_un.type_snap
 #endif
 
-#if defined(__bsdi__) || defined(__NetBSD__)
-#define	RTALLOC1(a, b)			rtalloc1(a, b)
-#define	ARPRESOLVE(a, b, c, d, e, f)	arpresolve(a, b, c, d, e)
-#elif defined(__FreeBSD__)
 #define	RTALLOC1(a, b)			rtalloc1(a, b, 0UL)
 #define	ARPRESOLVE(a, b, c, d, e, f)	arpresolve(a, b, c, d, e, f)
-#endif
 /*
  * FDDI output routine.
  * Encapsulate a packet of type family for the local net.
@@ -137,7 +128,6 @@ fddi_output(ifp, m, dst, rt0)
 	if ((ifp->if_flags & (IFF_UP|IFF_RUNNING)) != (IFF_UP|IFF_RUNNING))
 		senderr(ENETDOWN);
 	getmicrotime(&ifp->if_lastchange);
-#if !defined(__bsdi__) || _BSDI_VERSION >= 199401
 	if ((rt = rt0) != NULL) {
 		if ((rt->rt_flags & RTF_UP) == 0) {
 			if ((rt0 = rt = RTALLOC1(dst, 1)) != NULL)
@@ -160,19 +150,12 @@ fddi_output(ifp, m, dst, rt0)
 			    time_second < rt->rt_rmx.rmx_expire)
 				senderr(rt == rt0 ? EHOSTDOWN : EHOSTUNREACH);
 	}
-#endif
 	switch (dst->sa_family) {
 
 #ifdef INET
 	case AF_INET: {
-#if !defined(__bsdi__) || _BSDI_VERSION >= 199401
 		if (!ARPRESOLVE(ifp, rt, m, dst, edst, rt0))
 			return (0);	/* if not yet resolved */
-#else
-		int usetrailers;
-		if (!arpresolve(ac, m, &((struct sockaddr_in *)dst)->sin_addr, edst, &usetrailers))
-			return (0);	/* if not yet resolved */
-#endif
 		type = htons(ETHERTYPE_IP);
 		break;
 	}
@@ -505,9 +488,6 @@ fddi_input(ifp, fh, m)
 /*
  * Perform common duties while attaching to interface list
  */
-#ifdef __NetBSD__
-#define	ifa_next	ifa_list.tqe_next
-#endif
 
 void
 fddi_ifattach(ifp)
@@ -526,28 +506,11 @@ fddi_ifattach(ifp)
 	ifp->if_flags |= IFF_NOTRAILERS;
 #endif
 	ifp->if_broadcastaddr = fddibroadcastaddr;
-#if defined(__FreeBSD__)
 	ifa = ifaddr_byindex(ifp->if_index);
 	sdl = (struct sockaddr_dl *)ifa->ifa_addr;
 	sdl->sdl_type = IFT_FDDI;
 	sdl->sdl_alen = ifp->if_addrlen;
 	bcopy(((struct arpcom *)ifp)->ac_enaddr, LLADDR(sdl), ifp->if_addrlen);
-#elif defined(__NetBSD__)
-	LIST_INIT(&((struct arpcom *)ifp)->ac_multiaddrs);
-	TAILQ_FOREACH(ifa, &ifp->if_addrlist, ifa_list)
-#else
-	for (ifa = ifp->if_addrlist; ifa != NULL; ifa = ifa->ifa_next)
-#endif
-#if !defined(__FreeBSD__)
-		if ((sdl = (struct sockaddr_dl *)ifa->ifa_addr) &&
-		    sdl->sdl_family == AF_LINK) {
-			sdl->sdl_type = IFT_FDDI;
-			sdl->sdl_alen = ifp->if_addrlen;
-			bcopy((caddr_t)((struct arpcom *)ifp)->ac_enaddr,
-			      LLADDR(sdl), ifp->if_addrlen);
-			break;
-		}
-#endif
 }
 
 static int
