@@ -95,6 +95,13 @@ userret(td, frame, oticks)
 #endif
 
 	/*
+	 * If this thread tickled GEOM, we need to wait for the giggling to
+	 * stop before we return to userland
+	 */
+	if (td->td_pflags & TDP_GEOM)
+		g_waitidle();
+
+	/*
 	 * Let the scheduler adjust our priority etc.
 	 */
 	sched_userret(td);
