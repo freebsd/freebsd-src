@@ -18,6 +18,7 @@ SRCS=	atob8.c btoa8.c btoh.c challenge.c getsequence.c hash.c hashlen.c \
 	btoe.c accessfile.c generator.c insecure.c getutmpentry.c \
 	readrec.c writerec.c login.c open.c logwtmp.c \
 	getutline.c pututline.c endutent.c setutent.c # from libmissing
+INCS=	${OPIE_DIST}/opie.h
 
 CFLAGS+=-I${.CURDIR} -I${OPIE_DIST} -I${DIST_DIR} \
 	-DKEY_FILE=${KEYFILE}
@@ -27,9 +28,5 @@ DPADD+=	${LIBMD}
 
 MAN4=	${OPIE_DIST}/opie.4
 MAN5=	${OPIE_DIST}/opiekeys.5 ${OPIE_DIST}/opieaccess.5
-
-beforeinstall:
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${OPIE_DIST}/opie.h \
-			${DESTDIR}/usr/include
 
 .include <bsd.lib.mk>

@@ -8,12 +8,9 @@ NCURSES=${.CURDIR}/../../contrib/ncurses
 LIB=    panel
 
 SRCS=	panel.c
+INCS=	${NCURSES}/panel/panel.h
 
 CFLAGS+= -I${.CURDIR}/../libncurses -I${NCURSES}/panel -I${NCURSES}/include \
 	-Wall -DNDEBUG -DHAVE_CONFIG_H
-
-beforeinstall:
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 \
-		${NCURSES}/panel/panel.h ${DESTDIR}/usr/include
 
 .include <bsd.lib.mk>

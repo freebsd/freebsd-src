@@ -3,6 +3,7 @@
 LIB=	disk
 SRCS=	blocks.c disklabel.c dkcksum.c chunk.c disk.c change.c \
 	create_chunk.c rules.c write_disk.c
+INCS=	libdisk.h
 
 CFLAGS+= 	-Wall
 CLEANFILES+=	tmp.c tst01 tst01.o
@@ -41,11 +42,6 @@ MLINKS+=	libdisk.3 Open_Disk.3 \
 		libdisk.3 slice_type_name.3
 
 .include <bsd.lib.mk>
-
-beforeinstall:
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/libdisk.h \
-	    ${DESTDIR}/usr/include/libdisk.h
-
 
 tst01: tst01.o libdisk.a
 	cc ${CFLAGS} -static tst01.o -o tst01 libdisk.a
