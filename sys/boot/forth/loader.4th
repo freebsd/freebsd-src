@@ -66,26 +66,26 @@ only forth also support-functions also builtins definitions
       0 1 unload drop
     else
       s" kernelname" getenv? 0= if ( no kernel has been loaded )
-	load_conf
+	load_kernel_and_modules
 	?dup if exit then
       then
       1 boot exit
     then
   else
     s" kernelname" getenv? 0= if ( no kernel has been loaded )
-      load_conf
+      load_kernel_and_modules
       ?dup if exit then
     then
     1 boot exit
   then
-  load_conf
+  load_kernel_and_modules
   ?dup 0= if 0 1 boot then
 ;
 
 : boot-conf
   0= if ( interpreted ) get-arguments then
   0 1 unload drop
-  load_conf
+  load_kernel_and_modules
   ?dup 0= if 0 1 autoboot then
 ;
 
