@@ -53,21 +53,16 @@
 MALLOC_DEFINE(M_HPFSMNT, "HPFS mount", "HPFS mount structure");
 MALLOC_DEFINE(M_HPFSNO, "HPFS node", "HPFS node structure");
 
-/* XXXKSE */
-#define	a_p	a_td
-#define	cn_proc	cn_thread
-#define	proc	thread
-
 struct sockaddr;
 
 static int	hpfs_root __P((struct mount *, struct vnode **));
 static int	hpfs_statfs __P((struct mount *, struct statfs *,
-				 struct proc *));
-static int	hpfs_unmount __P((struct mount *, int, struct proc *));
+				 struct thread *));
+static int	hpfs_unmount __P((struct mount *, int, struct thread *));
 static int	hpfs_vget __P((struct mount *mp, ino_t ino,
 			       struct vnode **vpp));
 static int	hpfs_mountfs __P((register struct vnode *, struct mount *, 
-				  struct hpfs_args *, struct proc *));
+				  struct hpfs_args *, struct thread *));
 static int	hpfs_vptofh __P((struct vnode *, struct fid *));
 static int	hpfs_fhtovp __P((struct mount *, struct fid *,
 				 struct vnode **));
@@ -100,7 +95,7 @@ hpfs_mount (
 	char *path,
 	caddr_t data,
 	struct nameidata *ndp,
-	struct proc *p )
+	struct thread *p )
 {
 	u_int		size;
 	int		err = 0;
@@ -217,7 +212,7 @@ hpfs_mountfs(devvp, mp, argsp, p)
 	register struct vnode *devvp;
 	struct mount *mp;
 	struct hpfs_args *argsp;
-	struct proc *p;
+	struct thread *p;
 {
 	int error, ncount, ronly;
 	struct sublock *sup;
@@ -337,7 +332,7 @@ static int
 hpfs_unmount( 
 	struct mount *mp,
 	int mntflags,
-	struct proc *p)
+	struct thread *p)
 {
 	int error, flags, ronly;
 	register struct hpfsmount *hpmp = VFSTOHPFS(mp);
@@ -398,7 +393,7 @@ static int
 hpfs_statfs(
 	struct mount *mp,
 	struct statfs *sbp,
-	struct proc *p)
+	struct thread *p)
 {
 	struct hpfsmount *hpmp = VFSTOHPFS(mp);
 
