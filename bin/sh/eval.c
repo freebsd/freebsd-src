@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)eval.c	8.9 (Berkeley) 6/8/95";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: eval.c,v 1.15 1998/05/18 06:43:34 charnier Exp $";
 #endif /* not lint */
 
 #include <signal.h>
@@ -706,7 +706,8 @@ evalcommand(cmd, flags, backcmd)
 
 	/* Fork off a child process if necessary. */
 	if (cmd->ncmd.backgnd
-	 || (cmdentry.cmdtype == CMDNORMAL && (flags & EV_EXIT) == 0)
+	 || (cmdentry.cmdtype == CMDNORMAL
+	    && ((flags & EV_EXIT) == 0 || Tflag))
 	 || ((flags & EV_BACKCMD) != 0
 	    && (cmdentry.cmdtype != CMDBUILTIN
 		 || cmdentry.u.index == DOTCMD
