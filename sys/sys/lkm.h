@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: lkm.h,v 1.2 1994/09/21 03:47:30 wollman Exp $
+ * $Id: lkm.h,v 1.3 1994/09/27 20:39:48 phk Exp $
  */
 
 #ifndef _SYS_LKM_H_
@@ -49,7 +49,8 @@ typedef enum loadmod {
 	LM_DEV,
 	LM_STRMOD,
 	LM_EXEC,
-	LM_MISC
+	LM_MISC,
+	LM_UNKNOWN
 } MODTYPE;
 
 
