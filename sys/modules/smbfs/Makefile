@@ -42,15 +42,13 @@ CFLAGS+= ${KDEBUG}
 CFLAGS+= -DVNPRINT
 .endif
 
-opt_inet.h:
-	touch ${.TARGET}
 .if ${SMB_INET} > 0
+opt_inet.h:
 	echo "#define INET 1" > ${.TARGET}
 .endif
 
-opt_ipx.h:
-	touch ${.TARGET}
 .if ${SMB_IPX} > 0
+opt_ipx.h:
 	echo "#define IPX 1" > ${.TARGET}
 .endif
 
