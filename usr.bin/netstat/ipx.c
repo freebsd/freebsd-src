@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)ns.c	8.1 (Berkeley) 6/6/93";
 */
 static const char rcsid[] =
-	"$Id: ipx.c,v 1.4 1996/10/28 18:56:39 wollman Exp $";
+	"$Id: ipx.c,v 1.4.2.1 1997/06/28 09:23:50 jhay Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -73,7 +73,6 @@ struct	spxpcb spxpcb;
 struct	socket sockb;
 
 static char *ipx_prpr __P((struct ipx_addr *));
-static void ipx_erputil __P((int, int));
 
 static	int first = 1;
 

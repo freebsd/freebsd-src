@@ -32,13 +32,17 @@
  */
 
 #ifndef lint
-char copyright[] =
+char const copyright[] =
 "@(#) Copyright (c) 1983, 1988, 1993\n\
 	Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)main.c	8.4 (Berkeley) 3/1/94";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -49,6 +53,7 @@ static char sccsid[] = "@(#)main.c	8.4 (Berkeley) 3/1/94";
 #include <netinet/in.h>
 
 #include <ctype.h>
+#include <err.h>
 #include <errno.h>
 #include <kvm.h>
 #include <limits.h>
@@ -59,7 +64,6 @@ static char sccsid[] = "@(#)main.c	8.4 (Berkeley) 3/1/94";
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <err.h>
 #include "netstat.h"
 
 struct nlist nl[] = {
@@ -231,19 +235,12 @@ main(argc, argv)
 	int argc;
 	char *argv[];
 {
-	extern char *optarg;
-	extern int optind;
 	register struct protoent *p;
 	register struct protox *tp;	/* for printing cblocks & stats */
-	register char *cp;
 	int ch;
 	char *nlistf = NULL, *memf = NULL;
 	char buf[_POSIX2_LINE_MAX];
 
-	if ((cp = rindex(argv[0], '/')))
-		prog = cp + 1;
-	else
-		prog = argv[0];
 	af = AF_UNSPEC;
 
 	while ((ch = getopt(argc, argv, "Aabdf:ghI:iM:mN:np:rstuw:")) != EOF)
@@ -569,14 +566,11 @@ name2protox(name)
 static void
 usage()
 {
-	(void)fprintf(stderr,
-"usage: %s [-Aan] [-f address_family] [-M core] [-N system]\n", prog);
-	(void)fprintf(stderr,
-"       %s [-bdghimnrs] [-f address_family] [-M core] [-N system]\n", prog);
-	(void)fprintf(stderr,
-"       %s [-bdn] [-I interface] [-M core] [-N system] [-w wait]\n", prog);
-	(void)fprintf(stderr,
-"       %s [-M core] [-N system] [-p protocol]\n", prog);
+	(void)fprintf(stderr, "%s\n%s\n%s\n%s\n",
+"usage: netstat [-Aan] [-f address_family] [-M core] [-N system]",
+"       netstat [-bdghimnrs] [-f address_family] [-M core] [-N system]",
+"       netstat [-bdn] [-I interface] [-M core] [-N system] [-w wait]",
+"       netstat [-M core] [-N system] [-p protocol]");
 	exit(1);
 }
 
