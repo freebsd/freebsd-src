@@ -47,7 +47,6 @@ MAN=	acpi_asus.4 \
 	viapm.4 \
 	vpd.4 \
 	vx.4 \
-	wd.4 \
 	wl.4
 
 MLINKS=	CPU_ELAN.4 CPU_SOEKRIS.4
@@ -55,7 +54,6 @@ MLINKS+=ndis.4 if_ndis.4
 MLINKS+=pae.4 PAE.4
 MLINKS+=sbni.4 if_sbni.4
 MLINKS+=spkr.4 speaker.4
-MLINKS+=wd.4 wdc.4
 
 MANSUBDIR=/i386
 
