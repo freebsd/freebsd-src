@@ -553,7 +553,7 @@ bpfwrite(dev, uio, ioflag)
 	struct ifnet *ifp;
 	struct mbuf *m;
 	int error;
-	static struct sockaddr dst;
+	struct sockaddr dst;
 	int datlen;
 
 	if (d->bd_bif == 0)
@@ -564,6 +564,7 @@ bpfwrite(dev, uio, ioflag)
 	if (uio->uio_resid == 0)
 		return (0);
 
+	bzero(&dst, sizeof(dst));
 	error = bpf_movein(uio, (int)d->bd_bif->bif_dlt, &m, &dst, &datlen);
 	if (error)
 		return (error);
