@@ -849,9 +849,7 @@ pci_is_ata_legacy(device_t dev)
 	 */
 	if ((pci_get_class(dev) == PCIC_STORAGE) &&
 	    (pci_get_subclass(dev) == PCIS_STORAGE_IDE) &&
-	    (pci_get_progif(dev) & PCIP_STORAGE_IDE_MASTERDEV) &&
-	    !(pci_get_progif(dev) &
-	      (PCIP_STORAGE_IDE_MODEPRIM | PCIP_STORAGE_IDE_MODESEC)))
+	    (pci_get_progif(dev) & PCIP_STORAGE_IDE_MASTERDEV))
 		return 1;
 	return 0;
 }
@@ -887,6 +885,9 @@ pci_add_ata_legacy_maps(device_t pcib, device_t bus, device_t dev, int b,
 		resource_list_add(rl, type, rid, 0x3f6, 0x3f6, 1);
 		resource_list_alloc(rl, bus, dev, type, &rid, 0x3f6, 0x3f6, 1,
 		    0);
+	} else {
+		pci_add_map(pcib, bus, dev, b, s, f, PCIR_BAR(0), rl);
+		pci_add_map(pcib, bus, dev, b, s, f, PCIR_BAR(1), rl);
 	}
 	if ((pci_get_progif(dev) & PCIP_STORAGE_IDE_MODESEC) == 0) {
 		rid = PCIR_BAR(2);
@@ -897,6 +898,9 @@ pci_add_ata_legacy_maps(device_t pcib, device_t bus, device_t dev, int b,
 		resource_list_add(rl, type, rid, 0x376, 0x376, 1);
 		resource_list_alloc(rl, bus, dev, type, &rid, 0x376, 0x376, 1,
 		    0);
+	} else {
+		pci_add_map(pcib, bus, dev, b, s, f, PCIR_BAR(2), rl);
+		pci_add_map(pcib, bus, dev, b, s, f, PCIR_BAR(3), rl);
 	}
 	pci_add_map(pcib, bus, dev, b, s, f, PCIR_BAR(4), rl);
 }
