@@ -108,7 +108,7 @@ static void
 feepout(char *msg)
 {
     beep();
-    dialog_notify(msg);
+    msgConfirm(msg);
 }
 
 /* Very basic IP address integrity check - could be drastically improved */
