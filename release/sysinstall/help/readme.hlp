@@ -1,14 +1,14 @@
    -----------------------------------------
-       FreeBSD 2.2.5  ---  RELEASE Version              ,        ,
+       FreeBSD 2.2.6  ---  RELEASE Version              ,        ,
    -----------------------------------------          /(        )`
                                                       \ \___   / |
-Welcome to the 2.2.5 RELEASE version of FreeBSD!      /- _  `-/  '
+Welcome to the 2.2.6 RELEASE version of FreeBSD!      /- _  `-/  '
                                                      (/\/ \ \   /\
-This is a full release to follow 2.2.2-RELEASE,      / /   | `    \
-which was released in June, 1997.  Many bugs have    O O   ) /    |
-been fixed and the general stability of the system   `-^--'`<     '
+This is a full release to follow 2.2.5-RELEASE,      / /   | `    \
+which was released in November, 1997.  Many bugs     O O   ) /    |
+were fixed and the general stability of the system   `-^--'`<     '
 enhanced, a conservative set of subsystem upgrades  (_.)  _  )   /
-and new features also being added for 2.2.5.         `.___/`    /
+and new features also being added for 2.2.6.         `.___/`    /
                                                        `-----' /
 Feedback or offers to help with anything  <----.     __ / __   \
 you see in this release are most welcome  <----|====O)))==) \) /====
