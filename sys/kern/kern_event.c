@@ -33,10 +33,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
-#include <sys/malloc.h> 
+#include <sys/malloc.h>
 #include <sys/unistd.h>
 #include <sys/file.h>
 #include <sys/filedesc.h>
+#include <sys/filio.h>
 #include <sys/fcntl.h>
 #include <sys/selinfo.h>
 #include <sys/queue.h>
@@ -44,6 +45,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/eventvar.h>
 #include <sys/poll.h>
 #include <sys/protosw.h>
+#include <sys/sigio.h>
+#include <sys/signalvar.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/stat.h>
@@ -811,9 +814,29 @@ kqueue_write(struct file *fp, struct uio *uio, struct ucred *active_cred,
 
 /*ARGSUSED*/
 static int
-kqueue_ioctl(struct file *fp, u_long com, void *data,
+kqueue_ioctl(struct file *fp, u_long cmd, void *data,
 	struct ucred *active_cred, struct thread *td)
 {
+	struct kqueue *kq;
+
+	kq = fp->f_data;
+	switch (cmd) {
+	case FIOASYNC:
+		if (*(int *)data) {
+			kq->kq_state |= KQ_ASYNC;
+		} else {
+			kq->kq_state &= ~KQ_ASYNC;
+		}
+		return (0);
+
+	case FIOSETOWN:
+		return (fsetown(*(int *)data, &kq->kq_sigio));
+
+	case FIOGETOWN:
+		*(int *)data = fgetown(&kq->kq_sigio);
+		return (0);
+	}
+
 	return (ENOTTY);
 }
 
@@ -910,6 +933,7 @@ kqueue_close(struct file *fp, struct thread *td)
 		kq->kq_state &= ~KQ_SEL;
 		selwakeuppri(&kq->kq_sel, PSOCK);
 	}
+	funsetown(&kq->kq_sigio);
 	free(kq, M_KQUEUE);
 	fp->f_data = NULL;
 
@@ -927,6 +951,9 @@ kqueue_wakeup(struct kqueue *kq)
 	if (kq->kq_state & KQ_SEL) {
 		kq->kq_state &= ~KQ_SEL;
 		selwakeuppri(&kq->kq_sel, PSOCK);
+	}
+	if (kq->kq_state & KQ_ASYNC) {
+		pgsigio(&kq->kq_sigio, SIGIO, 0);
 	}
 	KNOTE(&kq->kq_sel.si_note, 0);
 }
