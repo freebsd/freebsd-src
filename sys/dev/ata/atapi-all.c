@@ -51,7 +51,7 @@ static char *atapi_cmd2str(u_int8_t);
 static char *atapi_skey2str(u_int8_t);
 
 /* internal vars */
-MALLOC_DEFINE(M_ATAPI, "ATAPI generic", "ATAPI driver generic layer");
+static MALLOC_DEFINE(M_ATAPI, "ATAPI generic", "ATAPI driver generic layer");
 
 /* defines */
 #define ATAPI_MAX_RETRIES  	3

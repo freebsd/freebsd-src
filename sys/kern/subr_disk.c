@@ -22,7 +22,7 @@
 #include <machine/md_var.h>
 #include <sys/ctype.h>
 
-MALLOC_DEFINE(M_DISK, "disk", "disk data");
+static MALLOC_DEFINE(M_DISK, "disk", "disk data");
 
 static d_strategy_t diskstrategy;
 static d_open_t diskopen;

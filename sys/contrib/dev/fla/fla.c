@@ -33,7 +33,7 @@
 
 #include <contrib/dev/fla/msysosak.h>
 
-MALLOC_DEFINE(M_FLA, "fla driver", "fla driver storage");
+static MALLOC_DEFINE(M_FLA, "fla driver", "fla driver storage");
 
 static int fla_debug = 0;
 SYSCTL_INT(_debug, OID_AUTO, fladebug, CTLFLAG_RW, &fla_debug, 0, "");

@@ -76,7 +76,7 @@ static int afd_prevent_allow(struct afd_softc *, int);
 
 /* internal vars */
 static u_int32_t afd_lun_map = 0;
-MALLOC_DEFINE(M_AFD, "AFD driver", "ATAPI floppy driver buffers");
+static MALLOC_DEFINE(M_AFD, "AFD driver", "ATAPI floppy driver buffers");
 
 int 
 afdattach(struct atapi_softc *atp)

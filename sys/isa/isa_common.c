@@ -78,7 +78,7 @@
 
 static int	isa_print_child(device_t bus, device_t dev);
 
-MALLOC_DEFINE(M_ISADEV, "isadev", "ISA device");
+static MALLOC_DEFINE(M_ISADEV, "isadev", "ISA device");
 
 static devclass_t isa_devclass;
 static int isa_running;

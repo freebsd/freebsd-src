@@ -76,7 +76,7 @@ static int ar_read(struct ad_softc *, u_int32_t, int, char *);
 /* internal vars */
 static int ar_init = 0;
 static struct ar_softc *ar_table[8];
-MALLOC_DEFINE(M_AR, "AR driver", "ATA RAID driver");
+static MALLOC_DEFINE(M_AR, "AR driver", "ATA RAID driver");
   
 /* defines */
 #define PRINT_AD(adp) \
