@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile.inc1,v 1.38 1998/11/05 04:38:28 peter Exp $
+#	$Id: Makefile.inc1,v 1.39 1998/11/05 07:54:05 msmith Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -578,9 +578,11 @@ includes:
 .endif
 	cd ${.CURDIR}/lib/libopie;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libpcap;		${MAKE} beforeinstall
+	cd ${.CURDIR}/lib/libradius;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/librpcsvc;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libskey;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libstand;		${MAKE} beforeinstall
+	cd ${.CURDIR}/lib/libtacplus;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libtermcap;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libcom_err;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libss;		${MAKE} -B hdrs beforeinstall
@@ -646,7 +648,8 @@ lib-tools:
 # libcom_err must be built before libss.
 # libcrypt must be built before libskey.
 # libm must be built before libf2c, libg++ and libstdc++.
-# libmd must be built before libatm, libopie and libskey.
+# libmd must be built before libatm, libopie, libradius, libskey,
+# and libtacplus.
 # libmytinfo must be built before libdialog and libncurses.
 # libncurses must be built before libdialog.
 # libtermcap must be built before libcurses, libedit and libreadline.
