@@ -28,7 +28,7 @@
  *
  *	from: @(#)svc.h 1.20 88/02/08 SMI
  *	from: @(#)svc.h	2.2 88/07/29 4.0 RPCSRC
- *	$Id: svc.h,v 1.10 1997/05/07 02:27:10 eivind Exp $
+ *	$Id: svc.h,v 1.6 1996/12/30 13:59:40 peter Exp $
  */
 
 /*
@@ -306,13 +306,15 @@ __END_DECLS
  */
 __BEGIN_DECLS
 extern SVCXPRT *svctcp_create __P((int, u_int, u_int));
+extern SVCXPRT *svcfd_create __P((int, u_int, u_int));
 __END_DECLS
 
 /*
- * Fd based rpc.
+ * AF_UNIX socket based rpc.
  */
 __BEGIN_DECLS
-extern SVCXPRT *svcfd_create __P((int, u_int, u_int));
+extern SVCXPRT *svcunix_create __P((int, u_int, u_int, char *));
+extern SVCXPRT *svcunixfd_create __P((int, u_int, u_int));
 __END_DECLS
 
 #endif /* !_RPC_SVC_H */
