@@ -1385,7 +1385,7 @@ linux_ioctl_socket(struct proc *p, struct linux_ioctl_args *args)
 		 * structure, as Linux interface names are all different.
 		 */
 		for (ifn = 0; ifn < if_index; ifn++) {
-			ifp = ifnet_addrs[ifn]->ifa_ifp;
+			ifp = ifnet_byindex(ifn);
 			if (ifp->if_type == IFT_ETHER) {
 				ifa = TAILQ_FIRST(&ifp->if_addrhead);
 				while (ifa) {

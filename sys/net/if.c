@@ -71,7 +71,9 @@
 #endif
 
 static int	ifconf(u_long, caddr_t);
-static void	ifinit(void *);
+static void	if_grow(void);
+static void	if_init(void *);
+static void	if_check(void *);
 static void	if_qflush(struct ifqueue *);
 static void	if_slowtimo(void *);
 static void	link_rtrequest(int, struct rtentry *, struct sockaddr *);
@@ -87,17 +89,19 @@ extern void	nd6_setmtu __P((struct ifnet *));
 #endif
 
 int	if_index = 0;
-struct	ifaddr **ifnet_addrs;
-struct	ifnet **ifindex2ifnet = NULL;
+struct	ifindex_entry *ifindex_table = NULL;
 int	ifqmaxlen = IFQ_MAXLEN;
 struct	ifnethead ifnet;	/* depend on static init XXX */
 int	if_cloners_count;
 LIST_HEAD(, if_clone) if_cloners = LIST_HEAD_INITIALIZER(if_cloners);
 
+static int	if_indexlim = 8;
+
 /*
  * System initialization
  */
-SYSINIT(interfaces, SI_SUB_PROTO_IF, SI_ORDER_FIRST, ifinit, NULL)
+SYSINIT(interfaces, SI_SUB_INIT_IF, SI_ORDER_FIRST, if_init, NULL)
+SYSINIT(interface_check, SI_SUB_PROTO_IF, SI_ORDER_FIRST, if_check, NULL)
 
 MALLOC_DEFINE(M_IFADDR, "ifaddr", "interface address");
 MALLOC_DEFINE(M_IFMADDR, "ether_multi", "link-level multicast address");
@@ -109,8 +113,34 @@ MALLOC_DEFINE(M_IFMADDR, "ether_multi", "link-level multicast address");
  * parameters.
  */
 /* ARGSUSED*/
-void
-ifinit(dummy)
+static void
+if_init(dummy)
+	void *dummy;
+{
+
+	TAILQ_INIT(&ifnet);
+	if_grow();				/* create initial table */
+}
+
+static void
+if_grow(void)
+{
+	u_int n;
+	struct ifindex_entry *e;
+
+	if_indexlim <<= 1;
+	n = if_indexlim * sizeof(*e);
+	e = malloc(n, M_IFADDR, M_WAITOK | M_ZERO);
+	if (ifindex_table != NULL) {
+		memcpy((caddr_t)e, (caddr_t)ifindex_table, n/2);
+		free((caddr_t)ifindex_table, M_IFADDR);
+	}
+	ifindex_table = e;
+}
+
+/* ARGSUSED*/
+static void
+if_check(dummy)
 	void *dummy;
 {
 	struct ifnet *ifp;
@@ -146,13 +176,6 @@ if_attach(ifp)
 	char workbuf[64];
 	register struct sockaddr_dl *sdl;
 	register struct ifaddr *ifa;
-	static int if_indexlim = 8;
-	static int inited;
-
-	if (!inited) {
-		TAILQ_INIT(&ifnet);
-		inited = 1;
-	}
 
 	TAILQ_INSERT_TAIL(&ifnet, ifp, if_link);
 	ifp->if_index = ++if_index;
@@ -167,27 +190,10 @@ if_attach(ifp)
 	TAILQ_INIT(&ifp->if_prefixhead);
 	TAILQ_INIT(&ifp->if_multiaddrs);
 	getmicrotime(&ifp->if_lastchange);
-	if (ifnet_addrs == 0 || if_index >= if_indexlim) {
-		unsigned n = (if_indexlim <<= 1) * sizeof(ifa);
-		caddr_t q = malloc(n, M_IFADDR, M_WAITOK | M_ZERO);
-		if (ifnet_addrs) {
-			bcopy((caddr_t)ifnet_addrs, (caddr_t)q, n/2);
-			free((caddr_t)ifnet_addrs, M_IFADDR);
-		}
-		ifnet_addrs = (struct ifaddr **)q;
+	if (if_index >= if_indexlim)
+		if_grow();
 
-		/* grow ifindex2ifnet */
-		n = if_indexlim * sizeof(struct ifnet *);
-		q = malloc(n, M_IFADDR, M_WAITOK | M_ZERO);
-		if (ifindex2ifnet) {
-			bcopy((caddr_t)ifindex2ifnet, q, n/2);
-			free((caddr_t)ifindex2ifnet, M_IFADDR);
-		}
-		ifindex2ifnet = (struct ifnet **)q;
-	}
-
-	ifindex2ifnet[if_index] = ifp;
-
+	ifnet_byindex(if_index) = ifp;
 	mtx_init(&ifp->if_snd.ifq_mtx, ifp->if_name, MTX_DEF);
 
 	/*
@@ -212,7 +218,7 @@ if_attach(ifp)
 		sdl->sdl_nlen = namelen;
 		sdl->sdl_index = ifp->if_index;
 		sdl->sdl_type = ifp->if_type;
-		ifnet_addrs[if_index - 1] = ifa;
+		ifaddr_byindex(if_index) = ifa;
 		ifa->ifa_ifp = ifp;
 		ifa->ifa_rtrequest = link_rtrequest;
 		ifa->ifa_addr = (struct sockaddr *)sdl;
@@ -245,11 +251,12 @@ if_detach(ifp)
 	if_down(ifp);
 
 	/*
-	 * Remove address from ifnet_addrs[] and maybe decrement if_index.
+	 * Remove address from ifindex_table[] and maybe decrement if_index.
 	 * Clean up all addresses.
 	 */
-	ifnet_addrs[ifp->if_index - 1] = 0;
-	while (if_index > 0 && ifnet_addrs[if_index - 1] == 0)
+	ifaddr_byindex(ifp->if_index) = NULL;
+
+	while (if_index > 0 && ifaddr_byindex(if_index) == NULL)
 		if_index--;
 
 	for (ifa = TAILQ_FIRST(&ifp->if_addrhead); ifa;
@@ -600,7 +607,7 @@ ifa_ifwithnet(addr)
 	if (af == AF_LINK) {
 	    register struct sockaddr_dl *sdl = (struct sockaddr_dl *)addr;
 	    if (sdl->sdl_index && sdl->sdl_index <= if_index)
-		return (ifnet_addrs[sdl->sdl_index - 1]);
+		return (ifaddr_byindex(sdl->sdl_index));
 	}
 
 	/*
@@ -719,7 +726,9 @@ ifaof_ifpforaddr(addr, ifp)
 				return (ifa);
 		}
 	}
-	return (ifa_maybe);
+	ifa = ifa_maybe;
+done:
+	return (ifa);
 }
 
 #include <net/route.h>
@@ -1553,7 +1562,7 @@ if_setlladdr(struct ifnet *ifp, const u_char *lladdr, int len)
 	struct sockaddr_dl *sdl;
 	struct ifaddr *ifa;
 
-	ifa = ifnet_addrs[ifp->if_index - 1];
+	ifa = ifaddr_byindex(ifp->if_index);
 	if (ifa == NULL)
 		return (EINVAL);
 	sdl = (struct sockaddr_dl *)ifa->ifa_addr;

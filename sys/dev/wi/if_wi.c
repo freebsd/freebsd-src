@@ -1293,7 +1293,7 @@ static void wi_setdef(sc, wreq)
 
 	switch(wreq->wi_type) {
 	case WI_RID_MAC_NODE:
-		ifa = ifnet_addrs[ifp->if_index - 1];
+		ifa = ifaddr_byindex(ifp->if_index);
 		sdl = (struct sockaddr_dl *)ifa->ifa_addr;
 		bcopy((char *)&wreq->wi_val, (char *)&sc->arpcom.ac_enaddr,
 		   ETHER_ADDR_LEN);

@@ -613,7 +613,7 @@ skip_ipsec2:;
 		 * Boundary check for ifindex is assumed to be already done.
 		 */
 		if (opt && opt->ip6po_pktinfo && opt->ip6po_pktinfo->ipi6_ifindex)
-			ifp = ifindex2ifnet[opt->ip6po_pktinfo->ipi6_ifindex];
+			ifp = ifnet_byindex(opt->ip6po_pktinfo->ipi6_ifindex);
 
 		/*
 		 * If the destination is a node-local scope multicast,
@@ -795,9 +795,9 @@ skip_ipsec2:;
 		 */
 		origifp = NULL;
 		if (IN6_IS_SCOPE_LINKLOCAL(&ip6->ip6_src))
-			origifp = ifindex2ifnet[ntohs(ip6->ip6_src.s6_addr16[1])];
+			origifp = ifnet_byindex(ntohs(ip6->ip6_src.s6_addr16[1]));
 		else if (IN6_IS_SCOPE_LINKLOCAL(&ip6->ip6_dst))
-			origifp = ifindex2ifnet[ntohs(ip6->ip6_dst.s6_addr16[1])];
+			origifp = ifnet_byindex(ntohs(ip6->ip6_dst.s6_addr16[1]));
 		/*
 		 * XXX: origifp can be NULL even in those two cases above.
 		 * For example, if we remove the (only) link-local address
@@ -1929,7 +1929,7 @@ ip6_setmoptions(optname, im6op, m)
 			error = ENXIO;	/* XXX EINVAL? */
 			break;
 		}
-		ifp = ifindex2ifnet[ifindex];
+		ifp = ifnet_byindex(ifindex);
 		if (ifp == NULL || (ifp->if_flags & IFF_MULTICAST) == 0) {
 			error = EADDRNOTAVAIL;
 			break;
@@ -2038,7 +2038,7 @@ ip6_setmoptions(optname, im6op, m)
 				rtfree(ro.ro_rt);
 			}
 		} else
-			ifp = ifindex2ifnet[mreq->ipv6mr_interface];
+			ifp = ifnet_byindex(mreq->ipv6mr_interface);
 
 		/*
 		 * See if we found an interface, and confirm that it
@@ -2114,7 +2114,7 @@ ip6_setmoptions(optname, im6op, m)
 			error = ENXIO;	/* XXX EINVAL? */
 			break;
 		}
-		ifp = ifindex2ifnet[mreq->ipv6mr_interface];
+		ifp = ifnet_byindex(mreq->ipv6mr_interface);
 		/*
 		 * Put interface index into the multicast address,
 		 * if the address has link-local scope.

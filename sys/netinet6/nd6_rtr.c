@@ -1959,7 +1959,7 @@ nd6_setdefaultiface(ifindex)
 	if (nd6_defifindex != ifindex) {
 		nd6_defifindex = ifindex;
 		if (nd6_defifindex > 0)
-			nd6_defifp = ifindex2ifnet[nd6_defifindex];
+			nd6_defifp = ifnet_byindex(nd6_defifindex);
 		else
 			nd6_defifp = NULL;
 
