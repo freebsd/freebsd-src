@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.272 1998/08/03 11:30:45 yokota Exp $
+ *  $Id: syscons.c,v 1.273 1998/08/10 08:39:19 yokota Exp $
  */
 
 #include "sc.h"
@@ -5006,7 +5006,7 @@ mouse_cut(scr_stat *scp)
 	    scp->mouse_cut_start = p;
 	else
 	    scp->mouse_cut_end = p;
-	cut_buffer[j++] = '\n';
+	cut_buffer[j++] = '\r';
 	cut_buffer[j] = '\0';
     }
 
@@ -5031,7 +5031,7 @@ mouse_cut_start(scr_stat *scp)
 	        ((scp->mouse_pos - scp->scr_buf) / scp->xsize) * scp->xsize + i;
 	    scp->mouse_cut_end = scp->scr_buf +
 	        ((scp->mouse_pos - scp->scr_buf) / scp->xsize + 1) * scp->xsize;
-	    cut_buffer[0] = '\n';
+	    cut_buffer[0] = '\r';
 	    cut_buffer[1] = '\0';
 	    scp->status |= MOUSE_CUTTING;
 	} else {
@@ -5114,7 +5114,7 @@ mouse_cut_line(scr_stat *scp)
 	scp->mouse_cut_end = scp->mouse_cut_start + scp->xsize;
 	for (i = 0, p = scp->mouse_cut_start; p < scp->mouse_cut_end; ++p)
 	    cut_buffer[i++] = *p & 0xff;
-	cut_buffer[i++] = '\n';
+	cut_buffer[i++] = '\r';
 	cut_buffer[i] = '\0';
 	scp->status |= MOUSE_CUTTING;
     }
