@@ -117,9 +117,14 @@ smapi_ioctl (dev, cmd, data, fflag, td)
 		error = 0;
 		break;
 	case SMAPIOCGFUNCTION:
+#if 1
 		smapi32_segment = SMAPI32_SEGMENT;
 		smapi32_offset = sc->smapi32_entry;
-		error = smapi32((struct smapi_bios_parameter *)data,
+		error = smapi32(
+#else
+		error = smapi32_new(sc->smapi32_entry, SMAPI32_SEGMENT,
+#endif
+				(struct smapi_bios_parameter *)data,
 				(struct smapi_bios_parameter *)data);
 		break;
 	default:
@@ -133,9 +138,6 @@ fail:
 int
 smapi_attach (struct smapi_softc *sc)
 {
-	struct smapi_bios_parameter input_param;
-	struct smapi_bios_parameter output_param;
-	int retval;
 
 	sc->cdev = make_dev(&smapi_cdevsw,
 			device_get_unit(sc->dev),
@@ -143,17 +145,6 @@ smapi_attach (struct smapi_softc *sc)
 			"%s%d",
 			smapi_cdevsw.d_name,
 			device_get_unit(sc->dev));
-
-	bzero(&input_param, sizeof(struct smapi_bios_parameter));
-	bzero(&output_param, sizeof(struct smapi_bios_parameter));
-	smapi32_segment = SMAPI32_SEGMENT;
-	smapi32_offset = sc->smapi32_entry;
-	retval = smapi32(&output_param, &output_param);
-
-#if 0
-	retval = smapi32_new(sc->smapi32_entry, SMAPI32_SEGMENT,
-			     &output_param, &output_param);
-#endif
 
 	return (0);
 }

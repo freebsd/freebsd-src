@@ -38,9 +38,6 @@
 #include <machine/resource.h>
 #include <sys/rman.h>
 
-#include <isa/isavar.h>
-#include <isa/pnpvar.h>
-
 /* And all this for BIOS_PADDRTOVADDR() */
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -58,13 +55,6 @@ static int	smapi_modevent		(module_t, int, void *);
 
 static int	smapi_header_cksum	(struct smapi_bios_header *);
 
-#define SMAPI_ID  0x0000a24d
-
-static struct isa_pnp_id smapi_ids[] = {
-        { SMAPI_ID,	NULL },		/* SMB0000 */
-        { 0,		NULL },
-};
-
 #define	SMAPI_START	0xf0000
 #define	SMAPI_END	0xffff0
 #define	SMAPI_STEP	0x10
@@ -73,23 +63,21 @@ static struct isa_pnp_id smapi_ids[] = {
 				 (h->signature[1] == 'S') && \
 				 (h->signature[2] == 'M') && \
 				 (h->signature[3] == 'B'))
+#define	RES2HEADER(res)		((struct smapi_bios_header *)rman_get_virtual(res))
 
 static void
 smapi_isa_identify (driver_t *driver, device_t parent)
 {
 	device_t child;
 	struct resource *res;
-	struct smapi_bios_header *header;
 	u_int32_t chunk;
 	int rid;
 
 	rid = 0;
 	chunk = SMAPI_START;
 
-	child = BUS_ADD_CHILD(parent, ISA_ORDER_SENSITIVE, "smapi", -1);
+	child = BUS_ADD_CHILD(parent, 0, "smapi", -1);
 	device_set_driver(child, driver);
-	isa_set_logicalid(child, SMAPI_ID);
-	isa_set_vendorid(child, SMAPI_ID);
 
 	while (chunk < SMAPI_END) {
 		bus_set_resource(child, SYS_RES_MEMORY, rid, chunk,
@@ -101,14 +89,9 @@ smapi_isa_identify (driver_t *driver, device_t parent)
 			chunk += SMAPI_STEP;
 			continue;
 		}
-		header = (struct smapi_bios_header *)rman_get_virtual(res);
 
-		if (SMAPI_SIGNATURE(header)) {
-			if (smapi_header_cksum(header)) {
-				device_printf(child, "SMAPI header checksum failed.\n");
-			} else {
+		if (SMAPI_SIGNATURE(RES2HEADER(res))) {
 				goto found;
-			}
 		} else {
 			bus_release_resource(child, SYS_RES_MEMORY, rid, res);
 			bus_delete_resource(child, SYS_RES_MEMORY, rid);
@@ -121,6 +104,7 @@ smapi_isa_identify (driver_t *driver, device_t parent)
 	return;
 
 found:
+	bus_release_resource(child, SYS_RES_MEMORY, rid, res);
 	device_set_desc(child, "SMAPI BIOS");
 	return;
 }
@@ -128,7 +112,30 @@ found:
 static int
 smapi_isa_probe (device_t dev)
 {
-	return (ISA_PNP_PROBE(device_get_parent(dev), dev, smapi_ids));
+	struct resource *res;
+	int rid;
+	int error;
+
+	error = 0;
+	rid = 0;
+	res = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid,
+		0ul, ~0ul, 1, RF_ACTIVE);
+	if (res == NULL) {
+		device_printf(dev, "Unable to allocate memory resource.\n");
+		error = ENOMEM;
+		goto bad;
+	}
+
+	if (smapi_header_cksum(RES2HEADER(res))) {
+		device_printf(dev, "SMAPI header checksum failed.\n");
+		error = ENXIO;
+		goto bad;
+	}
+
+bad:
+	if (res)
+		bus_release_resource(dev, SYS_RES_MEMORY, rid, res);
+	return (error);
 }
 
 static int
@@ -154,21 +161,17 @@ smapi_isa_attach (device_t dev)
 					sc->header->prot32_segment +
 					sc->header->prot32_offset);
 
-	if (smapi_header_cksum(sc->header)) {
-		device_printf(dev, "SMAPI header checksum failed.\n");
-		error = ENXIO;
-		goto bad;
-	}
-
 	if (smapi_attach(sc)) {
 		device_printf(dev, "SMAPI attach failed.\n");
 		error = ENXIO;
 		goto bad;
 	}
 
-	device_printf(dev, "Version %02d.%02d, Length %d, Checksum 0x%02x\n",
-		sc->header->version_major, sc->header->version_minor,
-		sc->header->length, sc->header->checksum);
+	device_printf(dev, "Version %d.%02d, Length %d, Checksum 0x%02x\n",
+		bcd2bin(sc->header->version_major),
+		bcd2bin(sc->header->version_minor),
+		sc->header->length,
+		sc->header->checksum);
 	device_printf(dev, "Information=0x%b\n",
 		sc->header->information,
 		"\020"
@@ -254,7 +257,7 @@ static driver_t smapi_driver = {
 	sizeof(struct smapi_softc),
 };
 
-DRIVER_MODULE(smapi, isa, smapi_driver, smapi_devclass, smapi_modevent, 0);
+DRIVER_MODULE(smapi, legacy, smapi_driver, smapi_devclass, smapi_modevent, 0);
 MODULE_VERSION(smapi, 1);
 
 static int
