@@ -20,8 +20,6 @@
         ..
     ..
     libdata
-        gcc
-        ..
         ldscripts
         ..
         lint
