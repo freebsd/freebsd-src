@@ -69,8 +69,9 @@ struct callout_list callfree;
 int callwheelsize, callwheelbits, callwheelmask;
 struct callout_tailq *callwheel;
 int softticks;			/* Like ticks, but for softclock(). */
+struct mtx callout_lock;
 #ifdef DIAGNOSTIC
-struct mtx callout_lock, callout_dont_sleep;
+struct mtx callout_dont_sleep;
 #endif
 
 static struct callout *nextsoftcheck;	/* Next callout to be checked. */
