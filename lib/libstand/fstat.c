@@ -59,5 +59,7 @@ fstat(fd, sb)
 	}
 
 	errno = (f->f_ops->fo_stat)(f, sb);
+	if (errno)
+		return (-1);
 	return (0);
 }
