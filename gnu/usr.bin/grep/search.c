@@ -59,7 +59,7 @@ extern char *memchr();
 #include "grep.h"
 #include "dfa.h"
 #include "kwset.h"
-#include "regex.h"
+#include "gnuregex.h"
 
 #define NCHAR (UCHAR_MAX + 1)
 
