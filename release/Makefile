@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.452 1999/01/09 00:32:00 jkh Exp $
+#	$Id: Makefile,v 1.453 1999/01/09 19:14:22 gpalmer Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -429,9 +429,6 @@ release.8: write_mfs_in_kernel dumpnlist
 	mkdir ${RD}/mfsfd
 	cd ${RD}/mfsfd && \
 		mkdir -p etc dev mnt stand/help
-.if ${MACHINE_ARCH} == "i386"
-	@cp ${.CURDIR}/../sys/i386/boot/biosboot/boot.help ${RD}/mfsfd/stand
-.endif
 	@cd ${.CURDIR} && $(MAKE) installCRUNCH CRUNCH=boot \
 		DIR=${RD}/mfsfd/stand ZIP=false
 	( cd ${RD}/trees/bin/dev && \
@@ -690,10 +687,6 @@ doMFSKERN:
 	@cp ${RD}/image.${FSIMAGE}/kernel ${RD}/kernels/MFSKERNEL.${FSIMAGE}
 .endif
 	@gzip -v ${RD}/image.${FSIMAGE}/kernel
-.if ${MACHINE_ARCH} == "i386"
-	@cp ${.CURDIR}/../sys/i386/boot/biosboot/boot.help ${RD}/image.${FSIMAGE}
-	@printf \\a\\a\\a >> ${RD}/image.${FSIMAGE}/boot.help
-.endif
 	@touch ${RD}/image.${FSIMAGE}/kernel.config
 	@rm -f ${RD}/floppies/${FSIMAGE}.flp
 .if defined(_MFSKERN)
