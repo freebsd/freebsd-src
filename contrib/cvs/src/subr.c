@@ -311,6 +311,9 @@ compare_revnums (rev1, rev2)
     return result;
 }
 
+/* Increment a revision number.  Working on the string is a bit awkward,
+   but it avoid problems with integer overflow should the revision numbers
+   get really big.  */
 char *
 increment_revnum (rev)
     const char *rev;
@@ -319,17 +322,29 @@ increment_revnum (rev)
     int lastfield;
     size_t len = strlen (rev);
 
-    newrev = (char *) xmalloc (len + 2);
+    newrev = xmalloc (len + 2);
     memcpy (newrev, rev, len + 1);
-    p = strrchr (newrev, '.');
-    if (p == NULL)
+    for (p = newrev + len; p != newrev; )
     {
-	free (newrev);
-	return NULL;
+	--p;
+	if (!isdigit(*p))
+	{
+	    ++p;
+	    break;
+	}
+	if (*p != '9')
+	{
+	    ++*p;
+	    return newrev;
+	}
+	*p = '0';
     }
-    lastfield = atoi (++p);
-    sprintf (p, "%d", lastfield + 1);
-
+    /* The number was all 9s, so change the first character to 1 and add
+       a 0 to the end.  */
+    *p = '1';
+    p = newrev + len;
+    *p++ = '0';
+    *p = '\0';
     return newrev;
 }
 
@@ -659,7 +674,7 @@ file_has_conflict (finfo, ts_conflict)
     /* If ts_conflict is NULL, there was no merge since the last
      * commit and there can be no conflict.
      */
-    assert ( ts_conflict );
+    assert (ts_conflict);
 
     /*
      * If the timestamp has changed and no
@@ -668,14 +683,14 @@ file_has_conflict (finfo, ts_conflict)
      */
 
 #ifdef SERVER_SUPPORT
-    if ( server_active )
+    if (server_active)
 	retcode = ts_conflict[0] == '=';
     else 
 #endif /* SERVER_SUPPORT */
     {
-	filestamp = time_stamp ( finfo->file );
-	retcode = !strcmp ( ts_conflict, filestamp );
-	free ( filestamp );
+	filestamp = time_stamp (finfo->file);
+	retcode = !strcmp (ts_conflict, filestamp);
+	free (filestamp);
     }
 
     return retcode;

@@ -1,3 +1,111 @@
+2004-06-09  Derek Price  <derek@ximbiot.com>
+
+	* commit.c, filesubr.c, history.c, server.c, wrapper.c: Various
+	security fixes.
+	(Original patch from Stefan Essler <s.esser@e-matters.de> & Sebastian
+	Krahmer <krahmer@suse.de>.)
+
+	* cvs.h: Include xsize.h.
+
+2004-06-09  Derek Price  <derek@ximbiot.com>
+
+	* server.c (serve_entry, serve_is_modified, serve_unchanged): Protect
+	against malformed entries.
+	* sanity.sh (server): Tests for same.
+
+2004-06-07  Larry Jones  <lawrence.jones@ugsplm.com>
+
+	* sanity.sh (basica): More tests for string-based revision inc.
+
+2004-06-04  Larry Jones  <lawrence.jones@ugsplm.com>
+
+	* subr.c (increment_revnum): Rewrite ala RCS to work directly on
+	the string rather than converting to int to avoid overflow.
+	* sanity.sh (basica): New tests for above, update others to match.
+
+2004-05-19  Derek Price  <derek@ximbiot.com>
+
+	* server.c (serve_unchanged, serve_is_modified): Overwrite existing
+	data in timefields.  Fixes CAN-2004-0396.
+
+2004-05-14  Derek Price  <derek@ximbiot.com>
+
+	* subr.c (file_has_conflict), vers_ts.c (time_stamp_server): Don't
+	require '=' to be the only character here, as this is potentially
+	destabilizing.
+
+2004-05-14  Mark D. Baushke  <mdb@cvshome.org>
+
+	* sanity.sh (trailingslashes): During cleanup remove topfile,v to
+	avoid problems in later tests (editor-1).
+
+2004-05-13  Derek Price  <derek@ximbiot.com>
+
+	* sanity.sh (trailingslashes): Note TODO item #205 in the comment.
+
+2004-05-13  Derek Price  <derek@ximbiot.com>
+
+	* sanity.sh (trailingslashes): New tests to expose a bug in CVS when
+	paths are specified with trailing slashes.  This relates to TODO #205.
+
+2004-05-12  Derek Price  <derek@ximbiot.com>
+
+	* subr.c (file_has_conflict), vers_ts.c (time_stamp_server): Only
+	special case "=" when it is the only character in a timestamp field.
+	Gratuitous reformatting.
+	* vers_ts.c (time_stamp_server): Check for NULL in a consistent manner.
+	Gratuitous reformatting.
+
+2004-05-10  Derek Price  <derek@ximbiot.com>
+
+	* sanity.sh (top-level): Rename to...
+	(rstar-toplevel): ...this for clarity.
+
+2004-05-10  Derek Price  <derek@ximbiot.com>
+
+	* sanity.sh (dirs2-10ar): Remove unnecessary empty argument.
+
+2004-05-02  Larry Jones  <lawrence.jones@ugsplm.com>
+
+	* log.c (log_expand_revlist): Suppress warnings if really_quiet.
+
+2004-05-07  Derek Price  <derek@ximbiot.com>
+
+	* sanity.sh (basica): Remove unnecessary empty arguments.
+
+2004-05-07  Derek Price  <derek@ximbiot.com>
+
+	* cvs.h (fopen_case): Remove obsolescent prototype.
+
+2004-05-05  Derek Price  <derek@ximbiot.com>
+
+	* sanity.sh: Wait a second and retry if cvs-serv* directories are
+	discovered to avoid race conditions on some systems.
+	(Patch from Pavel Roskin <proski@gnu.org>.)
+
+2004-05-05  Derek Price  <derek@ximbiot.com>
+
+	* commit.c: Some gratuitous reformatting.
+
+2004-05-04  Derek Price  <derek@ximbiot.com>
+
+	* update.c: Some gratuitous reformatting.
+
+2004-05-04  Derek Price  <derek@ximbiot.com>
+
+	* add.c (add): Remove obsolete FIXME comment.
+	(*): Some gratuitous reformatting.
+
+2004-04-26  Derek Price  <derek@ximbiot.com>
+
+	* client.c (start_rsh_server): Don't rely on GNU argument processing
+	capabilities in the RSH command.
+	(Report from Mark Andrews <Mark_Andrews@isc.org>.)
+
+2004-04-19  Derek Price  <derek@ximbiot.com>
+
+	* ignore.c: Gratuitous reformatting.
+
 2004-04-11  Derek Price  <derek@ximbiot.com>
 
 	* client.c (call_in_directory): Check paths the server sends us to make

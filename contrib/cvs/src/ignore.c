@@ -44,6 +44,8 @@ const char *ign_default = ". .. core RCSLOG tags TAGS RCS SCCS .make.state\
    no longer ask the server about what is in CVSROOTADM_IGNORE.  */
 int ign_inhibit_server;
 
+
+
 /*
  * To the "ignore list", add the hard-coded default ignored wildcards above,
  * the wildcards found in $CVSROOT/CVSROOT/cvsignore, the wildcards found in
@@ -99,6 +101,8 @@ ign_setup ()
 
     /* Later, add ignore entries found in -I arguments */
 }
+
+
 
 /*
  * Open a file and read lines, feeding each line to a line parser. Arrange

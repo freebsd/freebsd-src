@@ -14,7 +14,7 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 
-man_MANS = cvs.1 cvs.5 cvsbug.8
+man_MANS = cvs.5 cvsbug.8
 EXTRA_DIST = \
 	.cvsignore \
 	$(man_MANS)
