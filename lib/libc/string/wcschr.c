@@ -30,10 +30,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 __RCSID("$NetBSD: wcschr.c,v 1.1 2000/12/23 23:14:36 itojun Exp $");
 #endif /* LIBC_SCCS and not lint */
-#ifndef lint
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif
+__FBSDID("$FreeBSD$");
 
 #include <assert.h>
 #include <wchar.h>
