@@ -147,6 +147,7 @@ void	lapic_create(u_int apic_id, int boot_cpu);
 void	lapic_disable(void);
 void	lapic_dump(const char *str);
 void	lapic_enable_intr(u_int vector);
+void	lapic_eoi(void);
 int	lapic_id(void);
 void	lapic_init(uintptr_t addr);
 int	lapic_intr_pending(u_int vector);

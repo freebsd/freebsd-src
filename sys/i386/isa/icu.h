@@ -104,7 +104,7 @@
 #define	HWI_MASK	0xffff		/* bits for h/w interrupts */
 
 #ifndef LOCORE
-void	atpic_sched_ithd(struct intrframe iframe);
+void	atpic_handle_intr(struct intrframe iframe);
 void	atpic_startup(void);
 #endif
 

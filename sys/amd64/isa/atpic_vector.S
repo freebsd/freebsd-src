@@ -52,50 +52,10 @@
 
 #include "assym.s"
 
-#define	IRQ_BIT(irq_num)	(1 << ((irq_num) % 8))
-#define	IRQ_BYTE(irq_num)	((irq_num) >> 3)
-
-#ifdef AUTO_EOI_1
-
-#define	ENABLE_ICU1		/* use auto-EOI to reduce i/o */
-#define	OUTB_ICU1
-
-#else
-
-#define	ENABLE_ICU1							\
-	movb	$ICU_EOI,%al ;	/* as soon as possible send EOI ... */	\
-	OUTB_ICU1		/* ... to clear in service bit */
-
-#define	OUTB_ICU1							\
-	outb	%al,$IO_ICU1
-
-#endif
-
-#ifdef AUTO_EOI_2
-/*
- * The data sheet says no auto-EOI on slave, but it sometimes works.
- */
-#define	ENABLE_ICU1_AND_2	ENABLE_ICU1
-
-#else
-
-#define	ENABLE_ICU1_AND_2						\
-	movb	$ICU_EOI,%al ;	/* as above */				\
-	outb	%al,$IO_ICU2 ;	/* but do second icu first ... */	\
-	OUTB_ICU1		/* ... then first icu (if !AUTO_EOI_1) */
-
-#endif
-
 /*
  * Macros for interrupt interrupt entry, call to handler, and exit.
- *
- * XXX Most of the parameters here are obsolete.  Fix this when we're
- * done.
- * XXX we really shouldn't return via doreti if we just schedule the
- * interrupt handler and don't run anything.  We could just do an
- * iret.  FIXME.
  */
-#define	INTR(irq_num, vec_name, icu, enable_icus, maybe_extra_ipending) \
+#define	INTR(irq_num, vec_name) \
 	.text ;								\
 	SUPERALIGN_TEXT ;						\
 IDTVEC(vec_name) ;							\
@@ -111,42 +71,29 @@ IDTVEC(vec_name) ;							\
 	mov	$KPSEL,%ax ;						\
 	mov	%ax,%fs ;						\
 ;									\
-	maybe_extra_ipending ;						\
-	movb	imen + IRQ_BYTE(irq_num),%al ;				\
-	orb	$IRQ_BIT(irq_num),%al ;					\
-	movb	%al,imen + IRQ_BYTE(irq_num) ;				\
-	outb	%al,$icu+ICU_IMR_OFFSET ;				\
-	enable_icus ;							\
-;									\
-	movl	PCPU(CURTHREAD),%ebx ;					\
-	incl	TD_INTR_NESTING_LEVEL(%ebx) ;				\
-;									\
 	FAKE_MCOUNT(13*4(%esp)) ;	/* XXX late to avoid double count */ \
 	pushl	$irq_num; 	/* pass the IRQ */			\
-	call	atpic_sched_ithd ;					\
+	call	atpic_handle_intr ;					\
 	addl	$4, %esp ;	/* discard the parameter */		\
 ;									\
-	decl	TD_INTR_NESTING_LEVEL(%ebx) ;				\
 	MEXITCOUNT ;							\
 	jmp	doreti
 
 MCOUNT_LABEL(bintr)
-#define	CLKINTR_PENDING	movl $1,CNAME(clkintr_pending)
-/* Threaded interrupts */
-	INTR(0,atpic_intr0, IO_ICU1, ENABLE_ICU1, CLKINTR_PENDING)
-	INTR(1,atpic_intr1, IO_ICU1, ENABLE_ICU1,)
-	INTR(2,atpic_intr2, IO_ICU1, ENABLE_ICU1,)
-	INTR(3,atpic_intr3, IO_ICU1, ENABLE_ICU1,)
-	INTR(4,atpic_intr4, IO_ICU1, ENABLE_ICU1,)
-	INTR(5,atpic_intr5, IO_ICU1, ENABLE_ICU1,)
-	INTR(6,atpic_intr6, IO_ICU1, ENABLE_ICU1,)
-	INTR(7,atpic_intr7, IO_ICU1, ENABLE_ICU1,)
-	INTR(8,atpic_intr8, IO_ICU2, ENABLE_ICU1_AND_2,)
-	INTR(9,atpic_intr9, IO_ICU2, ENABLE_ICU1_AND_2,)
-	INTR(10,atpic_intr10, IO_ICU2, ENABLE_ICU1_AND_2,)
-	INTR(11,atpic_intr11, IO_ICU2, ENABLE_ICU1_AND_2,)
-	INTR(12,atpic_intr12, IO_ICU2, ENABLE_ICU1_AND_2,)
-	INTR(13,atpic_intr13, IO_ICU2, ENABLE_ICU1_AND_2,)
-	INTR(14,atpic_intr14, IO_ICU2, ENABLE_ICU1_AND_2,)
-	INTR(15,atpic_intr15, IO_ICU2, ENABLE_ICU1_AND_2,)
+	INTR(0, atpic_intr0)
+	INTR(1, atpic_intr1)
+	INTR(2, atpic_intr2)
+	INTR(3, atpic_intr3)
+	INTR(4, atpic_intr4)
+	INTR(5, atpic_intr5)
+	INTR(6, atpic_intr6)
+	INTR(7, atpic_intr7)
+	INTR(8, atpic_intr8)
+	INTR(9, atpic_intr9)
+	INTR(10, atpic_intr10)
+	INTR(11, atpic_intr11)
+	INTR(12, atpic_intr12)
+	INTR(13, atpic_intr13)
+	INTR(14, atpic_intr14)
+	INTR(15, atpic_intr15)
 MCOUNT_LABEL(eintr)
