@@ -56,6 +56,7 @@
 #include <machine/frame.h>
 #include <machine/intr.h>
 #include <machine/sapicvar.h>
+#include <machine/smp.h>
 
 #ifdef EVCNT_COUNTERS
 struct evcnt clock_intr_evcnt;	/* event counter for clock intrs. */
@@ -69,7 +70,6 @@ struct evcnt clock_intr_evcnt;	/* event counter for clock intrs. */
 #endif
 
 #ifdef SMP
-extern int mp_ipi_vector[];		/* XXX */
 extern int mp_ipi_test;
 #endif
 
@@ -123,13 +123,14 @@ interrupt(u_int64_t vector, struct trapframe *framep)
 		critical_exit();
 #ifdef SMP
 	} else if (vector == mp_ipi_vector[IPI_AST]) {
-		if ((framep->tf_cr_ipsr & IA64_PSR_CPL) == IA64_PSR_CPL_USER)
-			ast(framep);
+		CTR1(KTR_SMP, "IPI_AST, cpuid=%d", PCPU_GET(cpuid));
 	} else if (vector == mp_ipi_vector[IPI_RENDEZVOUS]) {
+		CTR1(KTR_SMP, "IPI_RENDEZVOUS, cpuid=%d", PCPU_GET(cpuid));
 		smp_rendezvous_action();
 	} else if (vector == mp_ipi_vector[IPI_STOP]) {
 		u_int32_t mybit = PCPU_GET(cpumask);
 
+		CTR1(KTR_SMP, "IPI_STOP, cpuid=%d", PCPU_GET(cpuid));
 		savectx(PCPU_GET(pcb));
 		stopped_cpus |= mybit;
 		while ((started_cpus & mybit) == 0)
@@ -142,6 +143,7 @@ interrupt(u_int64_t vector, struct trapframe *framep)
 			(*f)();
 		}
 	} else if (vector == mp_ipi_vector[IPI_TEST]) {
+		CTR1(KTR_SMP, "IPI_TEST, cpuid=%d", PCPU_GET(cpuid));
 		mp_ipi_test++;
 #endif
 	} else
@@ -331,3 +333,33 @@ ia64_dispatch_intr(void *frame, unsigned long vector)
 	KASSERT(error == 0, ("got an impossible stray interrupt"));
 }
 
+#ifdef DDB
+
+static void
+db_show_vector(int vector)
+{
+	int irq, i;
+
+	irq = vector - IA64_HARDWARE_IRQ_BASE;
+	for (i = 0; i < ia64_sapic_count; i++) {
+		struct sapic *sa = ia64_sapics[i];
+		if (irq >= sa->sa_base && irq <= sa->sa_limit)
+			sapic_print(sa, irq - sa->sa_base);
+	}
+}
+
+DB_SHOW_COMMAND(irq, db_show_irq)
+{
+	int vector;
+
+	if (have_addr) {
+		vector = ((addr >> 4) % 16) * 10 + (addr % 16);
+		db_show_vector(vector);
+	} else {
+		for (vector = IA64_HARDWARE_IRQ_BASE;
+		     vector < IA64_HARDWARE_IRQ_BASE + 64; vector++)
+			db_show_vector(vector);
+	}
+}
+
+#endif
