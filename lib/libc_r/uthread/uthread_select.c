@@ -43,7 +43,7 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-__weak_reference(_select, select);
+__weak_reference(__select, select);
 
 int 
 _select(int numfds, fd_set * readfds, fd_set * writefds, fd_set * exceptfds,
@@ -213,4 +213,17 @@ _select(int numfds, fd_set * readfds, fd_set * writefds, fd_set * exceptfds,
 	}
 
 	return (ret);
+}
+
+int 
+__select(int numfds, fd_set *readfds, fd_set *writefds, fd_set *exceptfds,
+	struct timeval *timeout)
+{
+	int ret;
+
+	_thread_enter_cancellation_point();
+	ret = _select(numfds, readfds, writefds, exceptfds, timeout);
+	_thread_leave_cancellation_point();
+
+	return ret;
 }

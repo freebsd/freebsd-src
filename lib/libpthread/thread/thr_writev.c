@@ -42,7 +42,7 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-__weak_reference(_writev, writev);
+__weak_reference(__writev, writev);
 
 ssize_t
 _writev(int fd, const struct iovec * iov, int iovcnt)
@@ -201,4 +201,16 @@ _writev(int fd, const struct iovec * iov, int iovcnt)
 		free(p_iov);
 
 	return (ret);
+}
+
+ssize_t
+__writev(int fd, const struct iovec *iov, int iovcnt)
+{
+	ssize_t ret;
+
+	_thread_enter_cancellation_point();
+	ret = _writev(fd, iov, iovcnt);
+	_thread_leave_cancellation_point();
+
+	return ret;
 }
