@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: label.c,v 1.19 1995/05/21 17:53:27 jkh Exp $
+ * $Id: label.c,v 1.20 1995/05/21 18:24:33 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -66,11 +66,14 @@
 #define CHUNK_SLICE_START_ROW		2
 #define CHUNK_PART_START_ROW		11
 
+/* One MB worth of blocks */
+#define ONE_MEG				2048
+
 /* The smallest filesystem we're willing to create */
-#define FS_MIN_SIZE			2048
+#define FS_MIN_SIZE			ONE_MEG
 
 /* The smallest root filesystem we're willing to create */
-#define ROOT_MIN_SIZE			40960	/* 20MB */
+#define ROOT_MIN_SIZE			(20 * ONE_MEG)
 
 /* All the chunks currently displayed on the screen */
 static struct {
@@ -169,6 +172,7 @@ record_label_chunks()
 		label_chunk_info[j].type = PART_FAT;
 		label_chunk_info[j].d = d;
 		label_chunk_info[j].c = c1;
+		++j;
 	    }
 	}
     }
@@ -210,7 +214,6 @@ get_mountpoint(struct chunk *old)
     char *val;
     PartInfo *tmp;
 
-    dialog_clear(); clear();
     val = msgGetInput(old && old->private ? ((PartInfo *)old->private)->mountpoint : NULL,
 		      "Please specify a mount point for the partition");
     if (!val)
@@ -255,7 +258,6 @@ get_partition_type(void)
 	"Swap",
 	"A swap partition.",
     };
-    dialog_clear(); clear();
     i = dialog_menu("Please choose a partition type",
 		    "If you want to use this partition for swap space, select Swap.\nIf you want to put a filesystem on it, choose FS.", -1, -1, 2, 2, fs_types, selection, NULL, NULL);
     if (!i) {
@@ -329,7 +331,7 @@ print_label_chunks(void)
 	    mvprintw(srow++, 0,
 		     "Disk: %s\tPartition name: %s\tFree: %d blocks (%dMB)",
 		     label_chunk_info[i].d->name,
-		     label_chunk_info[i].c->name, sz, (sz / 2048));
+		     label_chunk_info[i].c->name, sz, (sz / ONE_MEG));
 	}
 	/* Otherwise it's a DOS, swap or filesystem entry, at the bottom */
 	else {
@@ -381,7 +383,7 @@ print_label_chunks(void)
 	    for (j = 0; j < MAX_MOUNT_NAME && mountpoint[j]; j++)
 		onestr[PART_MOUNT_COL + j] = mountpoint[j];
 	    snprintf(num, 10, "%4ldMB", label_chunk_info[i].c->size ?
-		    label_chunk_info[i].c->size / 2048 : 0);
+		    label_chunk_info[i].c->size / ONE_MEG : 0);
 	    memcpy(onestr + PART_SIZE_COL, num, strlen(num));
 	    memcpy(onestr + PART_NEWFS_COL, newfs, strlen(newfs));
 	    onestr[PART_NEWFS_COL + strlen(newfs)] = '\0';
@@ -426,8 +428,9 @@ diskLabelEditor(char *str)
 	msgConfirm("You need to partition your disk(s) before you can assign disk labels.");
 	return 0;
     }
-    clear();
+    dialog_clear(); clear();
     while (labeling) {
+	clear();
 	print_label_chunks();
 	print_command_summary();
 	if (msg) {
@@ -478,66 +481,70 @@ diskLabelEditor(char *str)
 		break;
 	    }
 	    {
-	    char *val, *cp, tmpb[20];
-	    int size;
-	    struct chunk *tmp;
-	    u_long flags = 0;
+		char *val, *cp, tmpb[20];
+		int size;
+		struct chunk *tmp;
+		u_long flags = 0;
 
-	    snprintf(tmpb, 20, "%d", sz);
-	    val = msgGetInput(tmpb, "Please specify the size for new FreeBSD partition in blocks, or append\na trailing `M' for megabytes (e.g. 20M).");
-	    if (!val || (size = strtol(val, &cp, 0)) <= 0)
-		break;
+		snprintf(tmpb, 20, "%d", sz);
+		val = msgGetInput(tmpb, "Please specify the size for new FreeBSD partition in blocks, or append\na trailing `M' for megabytes (e.g. 20M).");
+		if (!val || (size = strtol(val, &cp, 0)) <= 0)
+		    break;
 
-	    if (*cp && toupper(*cp) == 'M')
-		size *= 2048;
+		if (sz <= FS_MIN_SIZE) {
+		    msgConfirm("The minimum filesystem size is %dMB", FS_MIN_SIZE / ONE_MEG);
+		    break;
+		}
+		if (*cp && toupper(*cp) == 'M')
+		    size *= ONE_MEG;
 	    
-	    type = get_partition_type();
-	    if (type == PART_NONE)
-		break;
-
-	    if (type == PART_FILESYSTEM) {
-		if ((p = get_mountpoint(NULL)) == NULL)
+		type = get_partition_type();
+		if (type == PART_NONE)
 		    break;
-		else if (!strcmp(p->mountpoint, "/"))
-		    flags |= CHUNK_IS_ROOT;
-		else
-		    flags &= ~CHUNK_IS_ROOT;
-	    } else
-		p = NULL;
 
-	    if ((flags & CHUNK_IS_ROOT)) {
-		if (!(label_chunk_info[here].c->flags & CHUNK_BSD_COMPAT)) {
-		    msgConfirm("This region cannot be used for your root partition as\nthe FreeBSD boot code cannot deal with a root partition created in\nsuch a location.  Please choose another location for your root\npartition and try again!");
+		if (type == PART_FILESYSTEM) {
+		    if ((p = get_mountpoint(NULL)) == NULL)
+			break;
+		    else if (!strcmp(p->mountpoint, "/"))
+			flags |= CHUNK_IS_ROOT;
+		    else
+			flags &= ~CHUNK_IS_ROOT;
+		} else
+		    p = NULL;
+
+		if ((flags & CHUNK_IS_ROOT)) {
+		    if (!(label_chunk_info[here].c->flags & CHUNK_BSD_COMPAT)) {
+			msgConfirm("This region cannot be used for your root partition as\nthe FreeBSD boot code cannot deal with a root partition created in\nsuch a location.  Please choose another location for your root\npartition and try again!");
+			break;
+		    }
+		    if (size < ROOT_MIN_SIZE) {
+			msgConfirm("This is too small a size for a root partition.  For a variety of\nreasons, root partitions should be at least %dMB in size", ROOT_MIN_SIZE / ONE_MEG);
+			break;
+		    }
+		}
+		tmp = Create_Chunk_DWIM(label_chunk_info[here].d,
+					label_chunk_info[here].c,
+					size, part,
+					(type == PART_SWAP) ? FS_SWAP : FS_BSDFFS,
+					flags);
+		if (!tmp) {
+		    msgConfirm("Unable to create the partition. Too big?");
 		    break;
 		}
-		if (size < ROOT_MIN_SIZE) {
-		    msgConfirm("This is too small a size for a root partition.  For a variety of\nreasons, root partitions should be at least %dMB in size", ROOT_MIN_SIZE / 2048);
-		    break;
-		}
-	    }
-	    tmp = Create_Chunk_DWIM(label_chunk_info[here].d,
-				    label_chunk_info[here].c,
-				    size, part,
-				    (type == PART_SWAP) ? FS_SWAP : FS_BSDFFS,
-				    flags);
-	    if (!tmp) {
-		msgConfirm("Unable to create the partition. Too big?");
-		break;
-	    }
-	    if ((flags & CHUNK_IS_ROOT) && (tmp->flags & CHUNK_PAST_1024)) {
+		if ((flags & CHUNK_IS_ROOT) && (tmp->flags & CHUNK_PAST_1024)) {
 		    msgConfirm("This region cannot be used for your root partition as it starts\nor extends past the 1024'th cylinder mark and is thus a\npoor location to boot from.  Please choose another\nlocation for your root partition and try again!");
 		    Delete_Chunk(label_chunk_info[here].d, tmp);
 		    break;
-	    }
-	    if (type != PART_SWAP) {
+		}
+		if (type != PART_SWAP) {
 		    /* This is needed to tell the newfs -u about the size */
 		    tmp->private = new_part(p->mountpoint,p->newfs,tmp->size);
 		    safe_free(p);
-	    } else {
+		} else {
 		    tmp->private = p;
-	    }	
-	    tmp->private_free = safe_free;
-	    record_label_chunks();
+		}	
+		tmp->private_free = safe_free;
+		record_label_chunks();
 	    }
 	    break;
 
@@ -639,7 +646,6 @@ diskLabelEditor(char *str)
     }
     variable_set2(DISK_LABELLED, "yes");
     dialog_clear();
-    refresh();
     return 0;
 }
 

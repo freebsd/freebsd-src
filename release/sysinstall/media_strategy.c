@@ -8,6 +8,8 @@
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
+ * Copyright (c) 1995
+ * 	Gary J Palmer. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -163,8 +165,8 @@ attr_parse(struct attribs **attr, char *file)
 	    break;
 	    
 	case COMMIT:
-	    attr[num_attribs]->name = strdup(hold_n);
-	    attr[num_attribs++]->value = strdup(hold_v);
+	    (*attr)[num_attribs].name = strdup(hold_n);
+	    (*attr)[num_attribs++].value = strdup(hold_v);
 	    state = LOOK;
 	    v = n = 0;
 	    break;
@@ -181,11 +183,12 @@ attr_match(struct attribs *attr, char *name)
 {
     int n = 0;
 
-    while((strcmp(attr[n].name, name)!=0) && (n < num_attribs))
+    while((strcmp(attr[n].name, name)!=0) && (n < num_attribs) && (n < 20))
 	n++;
 
-    if (strcmp(attr[n].name, name))
+    if (strcmp(attr[n].name, name)==0)
 	return((const char *) attr[n].value);
+
     return NULL;
 }
 
@@ -196,6 +199,7 @@ genericGetDist(char *path, struct attribs *dist_attrib)
     char 	buf[512];
     struct stat	sb;
     int		pfd[2], pid, numchunks;
+    const char *tmp;
 
     snprintf(buf, 512, "%s.tgz", path);
 
@@ -209,10 +213,11 @@ genericGetDist(char *path, struct attribs *dist_attrib)
     if (stat(buf, &sb) != 0)
     {
 	msgConfirm("Cannot find file(s) for distribution in ``%s''!\n", path);
-	return 0;
+	return -1;
     }
 
-    numchunks = atoi(attr_match(dist_attrib, "pieces"));
+    tmp = attr_match(dist_attrib, "pieces");
+    numchunks = atoi(tmp);
     msgDebug("Attempting to extract distribution from %u files\n", numchunks);
     pipe(pfd);
     pid = fork();
@@ -220,6 +225,7 @@ genericGetDist(char *path, struct attribs *dist_attrib)
     {
 	caddr_t		memory;
 	int		chunk = 0;
+	int		retval;
 
 	dup2(pfd[1], 1); close(pfd[1]);
 	close(pfd[0]);
@@ -228,9 +234,8 @@ genericGetDist(char *path, struct attribs *dist_attrib)
 	{
 	    int		fd;
 
-	    snprintf(buf, 512, "%s.%c%c", path, (chunk / 26), (chunk % 26));
-	    msgDebug("Opening %s\n", buf);
-	    if ((fd = open(buf, O_RDONLY)) == NULL)
+	    snprintf(buf, 512, "%s.%c%c", path, (chunk / 26) + 'a', (chunk % 26) + 'a');
+	    if ((fd = open(buf, O_RDONLY)) == -1)
 		msgFatal("Cannot find file `%s'!\n", buf);
 
 	    fstat(fd, &sb);
@@ -239,14 +244,26 @@ genericGetDist(char *path, struct attribs *dist_attrib)
 	    if (memory == (caddr_t) -1)
 		msgFatal("mmap error: %s\n", strerror(errno));
 
-	    msgDebug("writing out mmap() space\n");
- 	    write(1, memory, sb.st_size);
-	    msgDebug("munmapping %s\n", buf);
-	    munmap(memory, sb.st_size);
-	    msgDebug("closing %s\n", buf);
+ 	    retval = write(1, memory, sb.st_size);
+	    if (retval != sb.st_size)
+	    {
+		msgConfirm("write didn't write out the complete file!\n
+(wrote %d bytes of %d bytes)\n", retval, sb.st_size);
+		exit(1);
+	    }
+
+	    retval = munmap(memory, sb.st_size);
+	    if (retval != 0)
+	    {
+		msgConfirm("munmap() returned %d\n", retval);
+		exit(1);
+	    }
 	    close(fd);
 	    ++chunk;
 	}
+	close(1);
+	msgDebug("Extract of %s finished!!!\n", path);
+	exit(0);
     }
     close(pfd[1]);
     return(pfd[0]);
@@ -254,21 +271,26 @@ genericGetDist(char *path, struct attribs *dist_attrib)
 
 /* Various media "strategy" routines */
 
+static Boolean cdromMounted;
+
 Boolean
 mediaInitCDROM(Device *dev)
 {
     struct iso_args	args;
     struct stat		sb;
 
-    if (Mkdir("/mnt", NULL))
+    if (cdromMounted)
+	return TRUE;
+
+    if (Mkdir("/cdrom", NULL))
 	return FALSE;
 
     args.fspec = dev->devname;
     args.flags = 0;
 
-    if (mount(MOUNT_CD9660, "/mnt", MNT_RDONLY, (caddr_t) &args) == -1)
+    if (mount(MOUNT_CD9660, "/cdrom", MNT_RDONLY, (caddr_t) &args) == -1)
     {
-	msgConfirm("Error mounting %s on /mnt: %s (%u)\n",
+	msgConfirm("Error mounting %s on /cdrom: %s (%u)\n",
 		   dev, strerror(errno), errno);
 	return FALSE;
     }
@@ -276,7 +298,7 @@ mediaInitCDROM(Device *dev)
     /* Do a very simple check to see if this looks roughly like a 2.0.5 CDROM
        Unfortunately FreeBSD won't let us read the ``label'' AFAIK, which is one
        sure way of telling the disc version :-( */
-    if (stat("/mnt/dists", &sb))
+    if (stat("/cdrom/dists", &sb))
     {
 	if (errno == ENOENT)
 	{
@@ -284,10 +306,11 @@ mediaInitCDROM(Device *dev)
 Is this a 2.0.5 CDROM?\n");
 	    return FALSE;
 	} else {
-	    msgConfirm("Couldn't stat directory %s: %s", "/mnt/dists", strerror(errno));
+	    msgConfirm("Couldn't stat directory %s: %s", "/cdrom/dists", strerror(errno));
 	    return FALSE;
 	}
     }
+    cdromMounted = TRUE;
     return TRUE;
 }
 
@@ -301,13 +324,14 @@ mediaGetCDROM(char *dist)
     dist_attr = safe_malloc(sizeof(struct attribs) * MAX_ATTRIBS);
 
     snprintf(buf, PATH_MAX, "/stand/info/%s.inf", dist);
+
     if (attr_parse(&dist_attr, buf) == 0)
     {
 	msgConfirm("Cannot load information file for distribution\n");
 	return FALSE;
     }
    
-    snprintf(buf, PATH_MAX, "/mnt/dists/%s", dist);
+    snprintf(buf, PATH_MAX, "/cdrom/dists/%s", dist);
 
     retval = genericGetDist(buf, dist_attr);
     free(dist_attr);
@@ -317,9 +341,9 @@ mediaGetCDROM(char *dist)
 void
 mediaCloseCDROM(Device *dev)
 {
-    if (unmount("/mnt", 0) != 0)
+    if (unmount("/cdrom", 0) != 0)
 	msgConfirm("Could not unmount the CDROM: %s\n", strerror(errno));
-
+    cdromMounted = FALSE;
     return;
 }
 

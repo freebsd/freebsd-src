@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media.c,v 1.12 1995/05/21 15:40:50 jkh Exp $
+ * $Id: media.c,v 1.13 1995/05/21 19:28:05 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -293,9 +293,7 @@ mediaOpen(char *parent, char *me)
 	snprintf(distname, FILENAME_MAX, "%s%s", parent, me);
     else
 	snprintf(distname, FILENAME_MAX, "%s/%s", me, me);
-    if (mediaDevice->init)
-	if ((*mediaDevice->init)(mediaDevice) == FALSE)
-	     return -1;
+    msgNotify("Attempting to open %s distribution", distname);
     fd = (*mediaDevice->get)(distname);
     return fd;
 }
@@ -315,58 +313,58 @@ mediaExtractDist(char *dir, int fd)
 
     if (!dir)
 	dir = "/";
-    j = fork();
-    if (!j) {
-	chdir(dir);
-	pipe(pfd);
-	zpid = fork();
-	if (!zpid) {
-	    dup2(fd, 0); close(fd);
-	    dup2(pfd[1], 1); close(pfd[1]);
-	    close(pfd[0]);
-	    i = execl("/stand/gunzip", "/stand/gunzip", 0);
-	    msgDebug("/stand/gunzip command returns %d status\n", i);
-	    exit(i);
-	}
-	cpid = fork();
-	if (!cpid) {
-	    dup2(pfd[0], 0); close(pfd[0]);
-	    close(fd);
-	    close(pfd[1]);
-	    if (DebugFD != -1) {
-		dup2(DebugFD, 1);
-		dup2(DebugFD, 2);
-	    }
-	    else {
-		close(1); open("/dev/null", O_WRONLY);
-		dup2(1, 2);
-	    }
-	    i = execl("/stand/cpio", "/stand/cpio", "-iduvm", "-H", "tar", 0);
-	    msgDebug("/stand/cpio command returns %d status\n", i);
-	    exit(i);
+    msgNotify("Extracting into %s directory..", dir);
+    Mkdir(dir, NULL);
+    chdir(dir);
+    pipe(pfd);
+    zpid = fork();
+    if (!zpid) {
+	dup2(fd, 0); close(fd);
+	dup2(pfd[1], 1); close(pfd[1]);
+	if (DebugFD != -1)
+	    dup2(DebugFD, 2);
+	else {
+	    close(2);
+	    open("/dev/null", O_WRONLY);
 	}
 	close(pfd[0]);
-	close(pfd[1]);
-	close(fd);
-
-	i = waitpid(zpid, &j, 0);
-	if (i < 0 || _WSTATUS(j)) {
-	    dialog_clear();
-	    msgConfirm("gunzip returned error status of %d!", _WSTATUS(j));
-	    exit(1);
-	}
-	i = waitpid(cpid, &j, 0);
-	if (i < 0 || _WSTATUS(j)) {
-	    dialog_clear();
-	    msgConfirm("cpio returned error status of %d!", _WSTATUS(j));
-	    exit(2);
-	}
-	exit(0);
+	i = execl("/stand/gunzip", "/stand/gunzip", 0);
+	msgDebug("/stand/gunzip command returns %d status\n", i);
+	exit(i);
     }
-    else
-	i = wait(&j);
-    if (i < 0 || _WSTATUS(j))
+    cpid = fork();
+    if (!cpid) {
+	dup2(pfd[0], 0); close(pfd[0]);
+	close(fd);
+	close(pfd[1]);
+	if (DebugFD != -1) {
+	    dup2(DebugFD, 1);
+	    dup2(DebugFD, 2);
+	}
+	else {
+	    close(1); open("/dev/null", O_WRONLY);
+	    dup2(1, 2);
+	}
+	i = execl("/stand/cpio", "/stand/cpio", "-iduvm", "-H", "tar", 0);
+	msgDebug("/stand/cpio command returns %d status\n", i);
+	exit(i);
+    }
+    close(pfd[0]);
+    close(pfd[1]);
+    close(fd);
+
+    i = waitpid(zpid, &j, 0);
+    if (i < 0 || _WSTATUS(j)) {
+	dialog_clear();
+	msgConfirm("gunzip returned error status of %d!", _WSTATUS(j));
 	return FALSE;
+    }
+    i = waitpid(cpid, &j, 0);
+    if (i < 0 || _WSTATUS(j)) {
+	dialog_clear();
+	msgConfirm("cpio returned error status of %d!", _WSTATUS(j));
+	return FALSE;
+    }
     return TRUE;
 }
 
