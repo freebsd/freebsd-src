@@ -540,6 +540,7 @@ print_entry(struct sockaddr_dl *sdl,
 		printf(" [vlan]");
 		break;
             default:
+		break;
         }
 	if (sdl->sdl_rcf != NULL) {
 		printf(" rt=%x", ntohs(sdl->sdl_rcf));
