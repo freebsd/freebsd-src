@@ -32,7 +32,7 @@
 .\"     @(#)icmp.4	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd June 5, 1993
+.Dd March 21, 2003
 .Dt ICMP 4
 .Os
 .Sh NAME
@@ -87,6 +87,51 @@ them (based on the destination address).
 Incoming packets are received with the
 .Tn IP
 header and options intact.
+.Ss MIB Variables
+The
+.Tn ICMP
+protocol implements a number of variables in the
+.Va net.inet.icmp
+branch of the
+.Xr sysctl 3
+MIB.
+.Bl -tag -width ".Va icmplim_output"
+.It Va maskrepl
+.Pq Vt boolean
+Enable/disable replies to ICMP Address Mask Request packets.
+Defaults to false.
+.It Va maskfake
+.Pq Vt "unsigned integer"
+When
+.Va maskrepl
+is set and this value is non-zero,
+it will be used instead of the real address mask when
+the system replies to an ICMP Address Mask Request packet.
+Defaults to 0.
+.It Va icmplim
+.Pq Vt integer
+Bandwidth limit for ICMP replies in packets/second.
+Used when
+.Va icmplim_output
+is non-zero.
+Defaults to 200.
+.It Va icmplim_output
+.Pq Vt boolean
+Enable/disable bandwidth limiting of ICMP replies.
+Defaults to true.
+.It Va drop_redirect
+.Pq Vt boolean
+Enable/disable dropping of ICMP Redirect packets.
+Defaults to false.
+.It Va log_redirect
+.Pq Vt boolean
+Enable/disable logging of ICMP Redirect packets.
+Defaults to false.
+.It Va bmcastecho
+.Pq Vt boolean
+Enable/disable ICMP replies received via broadcast or multicast.
+Defaults to false.
+.El
 .Sh ERRORS
 A socket operation may fail with one of the following errors returned:
 .Bl -tag -width Er
