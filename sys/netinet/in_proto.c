@@ -206,7 +206,7 @@ struct protosw inetsw[] = {
 #endif
 #ifdef IPDIVERT
 { SOCK_RAW,	&inetdomain,	IPPROTO_DIVERT,	PR_ATOMIC|PR_ADDR,
-  div_input,	0,	 	0,		ip_ctloutput,
+  div_input,	0,	 	div_ctlinput,	ip_ctloutput,
   0,
   div_init,	0,		0,		0,
   &div_usrreqs,
