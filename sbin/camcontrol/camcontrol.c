@@ -2305,6 +2305,8 @@ cpi_print(struct ccb_pathinq *cpi)
 		cpi->max_lun);
 	fprintf(stdout, "%s highest path ID in subsystem: %d\n",
 		adapter_str, cpi->hpath_id);
+	fprintf(stdout, "%s initiator ID: %d\n", adapter_str,
+		cpi->initiator_id);
 	fprintf(stdout, "%s SIM vendor: %s\n", adapter_str, cpi->sim_vid);
 	fprintf(stdout, "%s HBA vendor: %s\n", adapter_str, cpi->hba_vid);
 	fprintf(stdout, "%s bus ID: %d\n", adapter_str, cpi->bus_id);
