@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.62 1996/07/01 18:00:47 bde Exp $
+ *	$Id: clock.c,v 1.63 1996/07/17 11:26:05 bde Exp $
  */
 
 /*
@@ -88,13 +88,13 @@
 #define	TIMER0_LATCH_COUNT	20
 
 /*
- * Minimum maximum count that we are willing to program into timer0.
- * Must be large enough to guarantee that the timer interrupt handler
- * returns before the next timer interrupt.  Must be larger than
- * TIMER0_LATCH_COUNT so that we don't have to worry about underflow in
- * the calculation of timer0_overflow_threshold.
+ * Maximal frequency that we are willing to allow for timer0.  Must be
+ * low enough to guarantee that the timer interrupt handler returns
+ * before the next timer interrupt.  Must result in a lower TIMER_DIV
+ * value than TIMER0_LATCH_COUNT so that we don't have to worry about
+ * underflow in the calculation of timer0_overflow_threshold.
  */
-#define	TIMER0_MIN_MAX_COUNT	TIMER_DIV(20000)
+#define	TIMER0_MAX_FREQ		20000
 
 int	adjkerntz;		/* local offset	from GMT in seconds */
 int	disable_rtc_set;	/* disable resettodr() if != 0 */
@@ -123,8 +123,6 @@ static 	u_int	hardclock_max_count;
  * timer_func currently needs to hold hardclock to handle the
  * timer0_state == 0 case.  We should use register_intr()/unregister_intr()
  * to switch between clkintr() and a slightly different timerintr().
- * This will require locking when acquiring and releasing timer0 - the
- * current (nonexistent) locking doesn't seem to be adequate even now.
  */
 static 	void	(*new_function) __P((struct clockframe *frame));
 static 	u_int	new_rate;
@@ -135,27 +133,26 @@ static	u_int	timer_freq = TIMER_FREQ;
 #else
 static	u_int	timer_freq = 1193182;
 #endif
-static 	char	timer0_state = 0;
-static	char	timer2_state = 0;
+
+/* Values for timerX_state: */
+#define RELEASED 0
+#define RELEASE_PENDING 1
+#define ACQUIRED 2
+#define ACQUIRE_PENDING 3
+
+static	u_char	timer0_state;
+static	u_char	timer2_state;
 static 	void	(*timer_func) __P((struct clockframe *frame)) = hardclock;
 
-#if 0
-void
-clkintr(struct clockframe frame)
-{
-	hardclock(&frame);
-	setdelayed();
-}
-#else
 static void
 clkintr(struct clockframe frame)
 {
 	timer_func(&frame);
 	switch (timer0_state) {
-	case 0:
+	case RELEASED:
 		setdelayed();
 		break;
-	case 1:
+	case ACQUIRED:
 		if ((timer0_prescaler_count += timer0_max_count)
 		    >= hardclock_max_count) {
 			hardclock(&frame);
@@ -163,7 +160,7 @@ clkintr(struct clockframe frame)
 			timer0_prescaler_count -= hardclock_max_count;
 		}
 		break;
-	case 2:
+	case ACQUIRE_PENDING:
 		setdelayed();
 		timer0_max_count = TIMER_DIV(new_rate);
 		timer0_overflow_threshold =
@@ -175,9 +172,9 @@ clkintr(struct clockframe frame)
 		enable_intr();
 		timer0_prescaler_count = 0;
 		timer_func = new_function;
-		timer0_state = 1;
+		timer0_state = ACQUIRED;
 		break;
-	case 3:
+	case RELEASE_PENDING:
 		if ((timer0_prescaler_count += timer0_max_count)
 		    >= hardclock_max_count) {
 			hardclock(&frame);
@@ -200,53 +197,97 @@ clkintr(struct clockframe frame)
 			if (time.tv_usec >= 1000000)
 				time.tv_usec -= 1000000;
 			timer0_prescaler_count = 0;
-			timer_func = hardclock;;
-			timer0_state = 0;
+			timer_func = hardclock;
+			timer0_state = RELEASED;
 		}
 		break;
 	}
 }
-#endif
 
+/*
+ * The following functions must be called at ipl >= splclock.
+ */
 int
 acquire_timer0(int rate, void (*function) __P((struct clockframe *frame)))
 {
-	if (timer0_state || TIMER_DIV(rate) < TIMER0_MIN_MAX_COUNT ||
-	    !function)
-		return -1;
+	static int old_rate;
+
+	if (rate <= 0 || rate > TIMER0_MAX_FREQ)
+		return (-1);
+
+	switch (timer0_state) {
+	  case RELEASED:
+		  timer0_state = ACQUIRE_PENDING;
+		  break;
+
+	  case RELEASE_PENDING:
+		  if (rate != old_rate)
+			  return (-1);
+		  /*
+		   * The timer has been released recently, but is
+		   * re-acquired before the release got complete.  In
+		   * this case, we simply reclaim it as if it had not
+		   * been released at all.
+		   */
+		  timer0_state = ACQUIRED;
+		  break;
+
+	  default:
+		  return (-1);	/* busy */
+	}
 	new_function = function;
-	new_rate = rate;
-	timer0_state = 2;
-	return 0;
+	old_rate = new_rate = rate;
+	return (0);
 }
 
 int
 acquire_timer2(int mode)
 {
-	if (timer2_state)
-		return -1;
-	timer2_state = 1;
+	u_long eflags;
+
+	if (timer2_state != RELEASED)
+		return (-1);
+	timer2_state = ACQUIRED;
+	eflags = read_eflags();
+	disable_intr();
 	outb(TIMER_MODE, TIMER_SEL2 | (mode &0x3f));
-	return 0;
+	write_eflags(eflags);
+	return (0);
 }
 
 int
 release_timer0()
 {
-	if (!timer0_state)
-		return -1;
-	timer0_state = 3;
-	return 0;
+	switch (timer0_state) {
+	  case ACQUIRED:
+		  timer0_state = RELEASE_PENDING;
+		  break;
+
+	  case ACQUIRE_PENDING:
+		  /* Nothing happened yet, release quickly. */
+		  timer0_state = RELEASED;
+		  break;
+
+	  default:
+		  return (-1);
+	}
+	return (0);
 }
 
 int
 release_timer2()
 {
-	if (!timer2_state)
-		return -1;
-	timer2_state = 0;
+	u_long eflags;
+
+	if (timer2_state != ACQUIRED)
+		return (-1);
+	timer2_state = RELEASED;
+	eflags = read_eflags();
+	disable_intr();
 	outb(TIMER_MODE, TIMER_SEL2|TIMER_SQWAVE|TIMER_16BIT);
-	return 0;
+	write_eflags(eflags);
+	enable_intr();
+	return (0);
 }
 
 /*
@@ -377,19 +418,26 @@ sysbeepstop(void *chan)
 int
 sysbeep(int pitch, int period)
 {
+	int x = splclock();
 
 	if (acquire_timer2(TIMER_SQWAVE|TIMER_16BIT))
-		return -1;
+		if (!beeping) {
+			/* Something else owns it. */
+			splx(x);
+			return (-1); /* XXX Should be EBUSY, but nobody cares anyway. */
+		}
 	disable_intr();
 	outb(TIMER_CNTR2, pitch);
 	outb(TIMER_CNTR2, (pitch>>8));
 	enable_intr();
 	if (!beeping) {
-	outb(IO_PPI, inb(IO_PPI) | 3);	/* enable counter2 output to speaker */
+		/* enable counter2 output to speaker */
+		outb(IO_PPI, inb(IO_PPI) | 3);
 		beeping = period;
 		timeout(sysbeepstop, (void *)NULL, period);
 	}
-	return 0;
+	splx(x);
+	return (0);
 }
 
 /*
