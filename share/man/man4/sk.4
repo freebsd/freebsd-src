@@ -30,12 +30,12 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 19, 2004
+.Dd August 24, 2004
 .Dt SK 4
 .Os
 .Sh NAME
 .Nm sk
-.Nd "SysKonnect SK-984x and SK-982x PCI gigabit ethernet adapter driver"
+.Nd "SysKonnect SK-984x and SK-982x PCI Gigabit Ethernet adapter driver"
 .Sh SYNOPSIS
 .Cd "device miibus"
 .Cd "device sk"
@@ -43,32 +43,7 @@
 The
 .Nm
 driver provides support for the SysKonnect SK-984x and SK-982x series PCI
-gigabit ethernet adapters, including the following:
-.Pp
-.Bl -bullet -offset indent -compact
-.It
-3COM 3C940 single port, 1000baseT adapter
-.It
-Belkin F5D5005 single port, 10000baseT adapter
-.It
-Linksys EG1032 single port, 1000baseT adapter
-.It
-SK-9521 SK-NET GE-T single port, 1000baseT adapter
-.It
-SK-9821 SK-NET GE-T single port, 1000baseT adapter
-.It
-SK-9822 SK-NET GE-T dual port, 1000baseT adapter
-.It
-SK-9841 SK-NET GE-LX single port, single mode fiber adapter
-.It
-SK-9842 SK-NET GE-LX dual port, single mode fiber adapter
-.It
-SK-9843 SK-NET GE-SX single port, multimode fiber adapter
-.It
-SK-9844 SK-NET GE-SX dual port, multimode fiber adapter
-.It
-SMC 9452TX single port, 1000baseT adapter
-.El
+Gigabit Ethernet adapters.
 .Pp
 The SysKonnect adapters consist of two main components: the XaQti Corp.
 XMAC II gigabit MAC and the SysKonnect GEnesis controller ASIC.
@@ -128,7 +103,7 @@ and
 .Ar half-duplex
 modes are supported.
 .It 1000baseSX
-Set 1000Mbps (gigabit ethernet) operation.
+Set 1000Mbps (Gigabit Ethernet) operation.
 Both
 .Ar full-duplex
 and
@@ -154,7 +129,7 @@ driver also supports one special link option for 1000baseTX cards:
 .Bl -tag -width xxxxxxxxxxxxxxxxxxxx
 .It link0
 With 1000baseTX cards, establishing a link between two ports requires
-that one port be configured as a master and the other a slave.
+that one port is configured as master and the other one as slave.
 With autonegotiation,
 the master/slave settings will be chosen automatically.
 However when manually selecting the link state, it is necessary to
@@ -171,6 +146,35 @@ will set a port as a master instead.
 .Pp
 For more information on configuring this device, see
 .Xr ifconfig 8 .
+.Sh HARDWARE
+Adapters supported by the
+.Nm
+driver include:
+.Pp
+.Bl -bullet -compact
+.It
+3COM 3C940 single port, 1000baseT adapter
+.It
+Belkin F5D5005 single port, 1000baseT adapter
+.It
+Linksys EG1032 single port, 1000baseT adapter
+.It
+SK-9521 SK-NET GE-T single port, 1000baseT adapter
+.It
+SK-9821 SK-NET GE-T single port, 1000baseT adapter
+.It
+SK-9822 SK-NET GE-T dual port, 1000baseT adapter
+.It
+SK-9841 SK-NET GE-LX single port, single mode fiber adapter
+.It
+SK-9842 SK-NET GE-LX dual port, single mode fiber adapter
+.It
+SK-9843 SK-NET GE-SX single port, multimode fiber adapter
+.It
+SK-9844 SK-NET GE-SX dual port, multimode fiber adapter
+.It
+SMC 9452TX single port, 1000baseT adapter
+.El
 .Sh DIAGNOSTICS
 .Bl -diag
 .It "sk%d: couldn't map memory"
