@@ -1,4 +1,4 @@
-<!-- $Id: bibliography.sgml,v 1.4 1995/09/27 00:46:14 jmz Exp $ -->
+<!-- $Id: bibliography.sgml,v 1.5 1995/12/11 15:09:05 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
     <chapt>
@@ -92,8 +92,8 @@
 		<newline>ISBN 0-201-51459-1</item>
 
 	    <item>Harbison, Samuel P. and Steele, Guy
-		L. Jr. <em>C: A Reference Manual</em>.  3rd ed. Prentice
-		Hall, 1991.  <newline>ISBN 0-13-110933-2</item>
+		L. Jr. <em>C: A Reference Manual</em>.  4rd ed. Prentice
+		Hall, 1995.  <newline>ISBN 0-13-326224-3</item>
 
 	    <item>Jolitz, William.  "Porting UNIX to the
 	      386". <em>Dr. Dobb's Journal</em>.  January
