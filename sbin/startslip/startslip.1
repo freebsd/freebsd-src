@@ -60,8 +60,9 @@
 .Op Fl S Ar unit
 .Ar device user password
 .Sh DESCRIPTION
-.Nm Startslip
-opens the specified
+The
+.Nm
+utility opens the specified
 .Ar device .
 Once carrier is asserted (if modem control is enabled)
 .Nm
@@ -99,8 +100,7 @@ before any operation.
 The following options are available:
 .Bl -tag -width indent
 .It Fl d
-.Nm Startslip
-prints out debugging information about what it is trying to do.
+Print out debugging information.
 .It Fl b Ar speed
 Determine the baud rate used for
 .Ar device ,
@@ -127,8 +127,9 @@ You can specify several
 .Fl s Ar stringN
 arguments to use with each try, f.e. several host phone numbers.
 .It Fl A Ar annexname
-.Nm Startslip
-assumes it is connecting to a Xylogics Annex box and engages in an
+The
+.Nm
+utility assumes it is connecting to a Xylogics Annex box and engages in an
 appropriate dialog using the
 .Ar user
 and
