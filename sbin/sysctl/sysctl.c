@@ -196,13 +196,13 @@ parse(char *string)
 		if ((kind & CTLTYPE) == CTLTYPE_NODE)
 			errx(1, "oid '%s' isn't a leaf node", bufp);
 
-		if (!(kind&CTLFLAG_WR))
+		if (!(kind & CTLFLAG_WR)) {
 			if (kind & CTLFLAG_TUN) {
-				fprintf(stderr, "Tunable values are set in"
-		" /boot/loader.conf and require a reboot to take effect.\n");
-				errx(1, "oid '%s' is a tunable.", bufp);
+				warnx("oid '%s' is a read only tunable", bufp);
+				errx(1, "Tunable values are set in /boot/loader.conf");
 			} else {
 				errx(1, "oid '%s' is read only", bufp);
+			}
 		}
 
 		if ((kind & CTLTYPE) == CTLTYPE_INT ||
@@ -215,7 +215,7 @@ parse(char *string)
 	
 		switch (kind & CTLTYPE) {
 			case CTLTYPE_INT:
-				intval = (int) strtol(newval, &endptr, 0);
+				intval = (int)strtol(newval, &endptr, 0);
 				if (endptr == newval || *endptr != '\0')
 					errx(1, "invalid integer '%s'",
 					    newval);
