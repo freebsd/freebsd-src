@@ -36,14 +36,13 @@
  * SUCH DAMAGE.
  *
  *	@(#)systm.h	8.7 (Berkeley) 3/29/95
- * $Id: systm.h,v 1.43 1996/08/31 16:57:54 bde Exp $
+ * $Id: systm.h,v 1.44 1996/09/13 09:20:15 bde Exp $
  */
 
 #ifndef _SYS_SYSTM_H_
 #define	_SYS_SYSTM_H_
 
 #include <machine/cpufunc.h>
-#include <machine/stdarg.h>
 
 /*
  * The `securelevel' variable controls the security level of the system.
@@ -120,12 +119,13 @@ void	boot __P((int)) __dead2;
 void	cpu_boot __P((int));
 void	tablefull __P((const char *));
 int	addlog __P((const char *, ...));
-int	kvprintf __P((char const *, void (*)(int, void*), void *, int, va_list));
+int	kvprintf __P((char const *, void (*)(int, void*), void *, int,
+		      _BSD_VA_LIST_));
 void	log __P((int, const char *, ...));
 int	printf __P((const char *, ...));
 int	sprintf __P((char *buf, const char *, ...));
 void	uprintf __P((const char *, ...));
-void	vprintf __P((const char *, va_list));
+void	vprintf __P((const char *, _BSD_VA_LIST_));
 void	ttyprintf __P((struct tty *, const char *, ...));
 
 void	bcopy __P((const void *from, void *to, size_t len));
