@@ -221,6 +221,7 @@ faith_clone_create(ifc, unit)
 	sc->sc_if.if_type = IFT_FAITH;
 	sc->sc_if.if_hdrlen = 0;
 	sc->sc_if.if_addrlen = 0;
+	sc->sc_if.if_snd.ifq_maxlen = ifqmaxlen;
 	if_attach(&sc->sc_if);
 	bpfattach(&sc->sc_if, DLT_NULL, sizeof(u_int));
 	LIST_INSERT_HEAD(&faith_softc_list, sc, sc_list);
