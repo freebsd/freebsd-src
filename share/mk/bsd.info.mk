@@ -1,4 +1,4 @@
-#	$Id: bsd.info.mk,v 1.50 1998/05/06 18:44:01 bde Exp $
+#	$Id: bsd.info.mk,v 1.51 1998/08/08 07:02:07 peter Exp $
 #
 # The include file <bsd.info.mk> handles installing GNU (tech)info files.
 # Texinfo is a documentation system that uses a single source
@@ -159,8 +159,8 @@ ${x:S/$/${ICOMPRESS_EXT}/}:	${x}
 .for x in ${INFO}
 INSTALLINFODIRS+= ${x:S/$/-install/}
 ${x:S/$/-install/}: ${DESTDIR}${INFODIR}/${INFODIRFILE}
-	${INSTALLINFO} --defsection=${INFOSECTION} \
-		       --defentry=${INFOENTRY_${x}} \
+	${INSTALLINFO} --section=${INFOSECTION} \
+		       --entry=${INFOENTRY_${x}} \
 		       ${x}.info ${DESTDIR}${INFODIR}/${INFODIRFILE}
 .endfor
 
