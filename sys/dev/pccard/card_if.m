@@ -94,15 +94,6 @@ METHOD int detach_card {
 }
 
 #
-# Returns the function number for this device.
-#
-METHOD int get_function {
-	device_t  dev;
-	device_t  child;
-	int	  *func;
-}
-
-#
 # Activates (and powers up if necessary) the card's nth function
 # since each function gets its own device, there is no need to
 # to specify a function number
