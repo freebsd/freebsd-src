@@ -150,11 +150,13 @@ ed_pccard_attach(device_t dev)
 		return (error);
 	}	      
 
-	pccard_get_ether(dev, ether_addr);
-	for (i = 0, sum = 0; i < ETHER_ADDR_LEN; i++)
-		sum |= ether_addr[i];
-	if (sum)
-		bcopy(ether_addr, sc->arpcom.ac_enaddr, ETHER_ADDR_LEN);
+	if (ed_get_Linksys(sc) == 0) {
+		pccard_get_ether(dev, ether_addr);
+		for (i = 0, sum = 0; i < ETHER_ADDR_LEN; i++)
+			sum |= ether_addr[i];
+		if (sum)
+			bcopy(ether_addr, sc->arpcom.ac_enaddr, ETHER_ADDR_LEN);
+	}
 
 	error = ed_attach(sc, device_get_unit(dev), flags);
 	return (error);
