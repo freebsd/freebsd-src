@@ -23,7 +23,7 @@ $(OBJS):	fed.h
 clean:
 	rm -f *.o fed *core* trace*
 
-install:	fed
+install:
 	${INSTALL} -c -s -o bin -g bin fed $(DEST)
 
 .endif
