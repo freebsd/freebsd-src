@@ -39,7 +39,7 @@ static volatile int print_tci = 1;
  * SUCH DAMAGE.
  *
  *	@(#)kern_clock.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_clock.c,v 1.73 1998/06/09 13:10:52 phk Exp $
+ * $Id: kern_clock.c,v 1.74 1998/07/02 21:35:02 phk Exp $
  */
 
 #include <sys/param.h>
@@ -747,15 +747,14 @@ switch_timecounter(struct timecounter *newtc)
 static struct timecounter *
 sync_other_counter(void)
 {
-	struct timecounter *tc, *tco;
+	struct timecounter *tc, *tcn, *tco;
 	unsigned delta;
 
-	if (timecounter->tc_poll_pps) 
-		timecounter->tc_poll_pps(timecounter);
-	tc = timecounter->tc_other;
-	tco = tc->tc_other;
-	*tc = *timecounter;
-	tc->tc_other = tco;
+	tco = timecounter;
+	tc = tco->tc_other;
+	tcn = tc->tc_other;
+	*tc = *tco;
+	tc->tc_other = tcn;
 	delta = tco_delta(tc);
 	tc->tc_offset_count += delta;
 	tc->tc_offset_count &= tc->tc_counter_mask;
@@ -770,6 +769,17 @@ tco_forward(void)
 	struct timecounter *tc;
 
 	tc = sync_other_counter();
+	/*
+	 * We may be inducing a tiny error here, the tc_poll_pps() may
+	 * process a latched count which happens after the tco_delta()
+	 * in sync_other_counter(), which would extend the previous
+	 * counters parameters into the domain of this new one.
+	 * Since the timewindow is very small for this, the error is
+	 * going to be only a few weenieseconds (as Dave Mills would
+	 * say), so lets just not talk more about it, OK ?
+	 */
+	if (tc->tc_poll_pps) 
+		tc->tc_poll_pps(tc);
 	if (timedelta != 0) {
 		tc->tc_offset_nano += (u_int64_t)(tickdelta * 1000) << 32;
 		timedelta -= tickdelta;
