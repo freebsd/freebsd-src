@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.109 1998/06/21 18:02:34 bde Exp $
+ *	$Id: locore.s,v 1.110 1998/06/30 03:01:35 jmg Exp $
  *
  *		originally from: locore.s, by William F. Jolitz
  *
@@ -134,6 +134,8 @@ _proc0paddr:	.long	0			/* address of proc 0 address space */
 p0upa:		.long	0			/* phys addr of proc0's UPAGES */
 
 #ifdef VM86
+vm86phystk:	.long	0			/* PA of vm86/bios stack */
+
 	.globl	_vm86paddr, _vm86pa
 _vm86paddr:	.long	0			/* address of vm86 region */
 _vm86pa:	.long	0			/* phys addr of vm86 region */
@@ -786,7 +788,10 @@ over_symalloc:
 	movl	%esi, R(_proc0paddr)
 
 #ifdef VM86
-	ALLOCPAGES(4)			/* IOPAGES + ext + stack */
+	ALLOCPAGES(1)			/* vm86/bios stack */
+	movl	%esi,R(vm86phystk)
+
+	ALLOCPAGES(3)			/* pgtable + ext + IOPAGES */
 	movl	%esi,R(_vm86pa)
 	addl	$KERNBASE, %esi
 	movl	%esi, R(_vm86paddr)
@@ -860,7 +865,7 @@ map_read_write:
 
 #ifdef VM86
 /* Map space for the vm86 region */
-	movl	R(_vm86pa), %eax
+	movl	R(vm86phystk), %eax
 	movl	$4, %ecx
 	fillkptphys($PG_RW)
 
