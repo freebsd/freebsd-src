@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id: conf.c,v 1.19 1993/11/27 06:50:45 rich Exp $
+ *	$Id: conf.c,v 1.20 1994/01/04 20:08:56 nate Exp $
  */
 
 #include "param.h"
@@ -394,21 +394,6 @@ d_ioctl_t bpfioctl;
 #define	bpfioctl	(d_ioctl_t *)enxio
 #endif
 
-#include "dcfclk.h"
-#if NDCFCLK > 0
-d_open_t dcfclkopen;
-d_close_t dcfclkclose;
-d_rdwr_t dcfclkread;
-d_ioctl_t dcfclkioctl;
-d_select_t dcfclkselect;
-#else
-#define dcfclkopen	(d_open_t *)enxio
-#define dcfclkclose	(d_close_t *)enxio
-#define dcfclkread	(d_rdwr_t *)enxio
-#define dcfclkioctl	(d_ioctl_t *)enxio
-#define dcfclkselect	(d_select_t *)enxio
-#endif
-
 #include "lpa.h"
 #if NLPA > 0
 d_open_t lpaopen;
@@ -583,9 +568,9 @@ struct cdevsw	cdevsw[] =
  	{ bpfopen,	bpfclose,	bpfread,	bpfwrite,	/*23*/
  	  bpfioctl,	nostop,		nullreset,	NULL,	/* bpf */
  	  bpfselect,	nommap,		NULL },
-	{ dcfclkopen,	dcfclkclose,	dcfclkread,	nowrite,	/*24*/
-	  dcfclkioctl,	nostop,		nullreset,	NULL,	/* dcfclk */
-	  dcfclkselect,	nommap,		NULL },
+	{ noopen,	noclose,	noread,		nowrite,	/*24*/
+	  noioc,	nostop,		nullreset,	NULL,	/* FREE */
+	  noselect,	nommap,		NULL },
 	{ lpaopen,	lpaclose,	noread,		lpawrite,	/*25*/
 	  lpaioctl,	nullstop,	nullreset,	NULL,	/* lpa */
 	  seltrue,	nommap,		NULL },
