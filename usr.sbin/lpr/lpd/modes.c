@@ -46,9 +46,9 @@ static const char rcsid[] =
 #include "extern.h"
 
 struct modes {
-	char *name;
-	long set;
-	long unset;
+	const char *name;
+	const long set;
+	const long unset;
 };
 
 /*
@@ -94,7 +94,7 @@ struct modes cmodes[] = {
 	{ "-rtsflow",	0, CRTS_IFLOW },
 	{ "mdmbuf",	MDMBUF, 0 },
 	{ "-mdmbuf",	0, MDMBUF },
-	{ NULL },
+	{ NULL, 0, 0},
 };
 
 struct modes imodes[] = {
@@ -130,7 +130,7 @@ struct modes imodes[] = {
 	{ "-decctlq",	IXANY, 0 },
 	{ "imaxbel",	IMAXBEL, 0 },
 	{ "-imaxbel",	0, IMAXBEL },
-	{ NULL },
+	{ NULL, 0, 0},
 };
 
 struct modes lmodes[] = {
@@ -182,7 +182,7 @@ struct modes lmodes[] = {
 	{ "-nokerninfo",0, NOKERNINFO },
 	{ "kerninfo",	0, NOKERNINFO },
 	{ "-kerninfo",	NOKERNINFO, 0 },
-	{ NULL },
+	{ NULL, 0, 0},
 };
 
 struct modes omodes[] = {
@@ -196,7 +196,7 @@ struct modes omodes[] = {
 	{ "-tabs",	OXTABS, 0 },
 	{ "oxtabs",	OXTABS, 0 },
 	{ "-oxtabs",	0, OXTABS },
-	{ NULL },
+	{ NULL, 0, 0},
 };
 
 #define	CHK(name, s)	(*name == s[0] && !strcmp(name, s))
