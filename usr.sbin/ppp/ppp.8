@@ -3920,7 +3920,7 @@ as they travel across the link.
 .Nm
 supports four filter sets.  The
 .Em alive
-filter specifies packets that keep the connection alive - reseting the
+filter specifies packets that keep the connection alive - resetting the
 idle timer.  The
 .Em dial
 filter specifies packets that cause
