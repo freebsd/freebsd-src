@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 7/19/93
-#	$Id$
+#	$Id: Makefile,v 1.6 1998/08/06 21:39:12 markm Exp $
 
 PROG=	rsh
 SRCS=	rsh.c
@@ -13,8 +13,8 @@ CFLAGS+=-DKERBEROS -DCRYPT -DHAVE_CONFIG_H \
 	-I${.CURDIR}/../../crypto/kerberosIV/include \
 	-I${.CURDIR}/../../crypto/kerberosIV/lib/roken \
 	-I${.CURDIR}/../../crypto/kerberosIV/appl/bsd
-DPADD=	${LIBKRB} ${LIBDES}
-LDADD=	-lkrb -ldes
+DPADD=	${LIBKRB} ${LIBDES} ${LIBCRYPT}
+LDADD=	-lkrb -ldes -lcrypt
 DISTRIBUTION=	krb
 .PATH:	${.CURDIR}/../../crypto/kerberosIV/appl/bsd
 .endif
