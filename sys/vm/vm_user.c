@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_user.c,v 1.5 1995/01/09 16:06:00 davidg Exp $
+ * $Id: vm_user.c,v 1.6 1995/01/10 07:32:52 davidg Exp $
  */
 
 /*
@@ -76,105 +76,6 @@
 
 simple_lock_data_t vm_alloc_lock;	/* XXX */
 
-#ifdef MACHVMCOMPAT
-/*
- * BSD style syscall interfaces to MACH calls
- * All return MACH return values.
- */
-struct svm_allocate_args {
-	vm_map_t map;
-	vm_offset_t *addr;
-	vm_size_t size;
-	boolean_t anywhere;
-};
-
-/* ARGSUSED */
-int
-svm_allocate(p, uap, retval)
-	struct proc *p;
-	struct svm_allocate_args *uap;
-	int *retval;
-{
-	vm_offset_t addr;
-	int rv;
-
-	uap->map = p->p_map;	/* XXX */
-
-	if (copyin((caddr_t) uap->addr, (caddr_t) &addr, sizeof(addr)))
-		rv = KERN_INVALID_ARGUMENT;
-	else
-		rv = vm_allocate(uap->map, &addr, uap->size, uap->anywhere);
-	if (rv == KERN_SUCCESS) {
-		if (copyout((caddr_t) &addr, (caddr_t) uap->addr, sizeof(addr)))
-			rv = KERN_INVALID_ARGUMENT;
-	}
-	return ((int) rv);
-}
-
-struct svm_deallocate_args {
-	vm_map_t map;
-	vm_offset_t addr;
-	vm_size_t size;
-};
-
-/* ARGSUSED */
-int
-svm_deallocate(p, uap, retval)
-	struct proc *p;
-	struct svm_deallocate_args *uap;
-	int *retval;
-{
-	int rv;
-
-	uap->map = p->p_map;	/* XXX */
-	rv = vm_deallocate(uap->map, uap->addr, uap->size);
-	return ((int) rv);
-}
-
-struct svm_inherit_args {
-	vm_map_t map;
-	vm_offset_t addr;
-	vm_size_t size;
-	vm_inherit_t inherit;
-};
-
-/* ARGSUSED */
-int
-svm_inherit(p, uap, retval)
-	struct proc *p;
-	struct svm_inherit_args *uap;
-	int *retval;
-{
-	int rv;
-
-	uap->map = p->p_map;	/* XXX */
-	rv = vm_inherit(uap->map, uap->addr, uap->size, uap->inherit);
-	return ((int) rv);
-}
-
-struct svm_protect_args {
-	vm_map_t map;
-	vm_offset_t addr;
-	vm_size_t size;
-	boolean_t setmax;
-	vm_prot_t prot;
-};
-
-/* ARGSUSED */
-int
-svm_protect(p, uap, retval)
-	struct proc *p;
-	struct svm_protect_args *uap;
-	int *retval;
-{
-	int rv;
-
-	uap->map = p->p_map;	/* XXX */
-	rv = vm_protect(uap->map, uap->addr, uap->size, uap->setmax, uap->prot);
-	return ((int) rv);
-}
-
-#endif
 /*
  *	vm_inherit sets the inheritence of the specified range in the
  *	specified map.
