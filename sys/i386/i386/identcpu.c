@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: Id: machdep.c,v 1.193 1996/06/18 01:22:04 bde Exp
- *	$Id: identcpu.c,v 1.57.2.2 1999/06/24 20:16:34 jlemon Exp $
+ *	$Id: identcpu.c,v 1.57.2.3 1999/06/25 03:05:48 green Exp $
  */
 
 #include "opt_cpu.h"
@@ -71,7 +71,8 @@ void	enable_K6_2_wt_alloc(void);
 void panicifcpuunsupported(void);
 
 static void identifycyrix(void);
-static void print_AMD_info(void);
+static void print_AMD_features(u_int *regs);
+static void print_AMD_info(u_int amd_maxregs);
 static void print_AMD_assoc(int i);
 static void do_cpuid(u_int ax, u_int *p);
 
@@ -132,7 +133,7 @@ printcpuinfo(void)
 
 #if defined(I486_CPU) || defined(I586_CPU) || defined(I686_CPU)
 	if (strcmp(cpu_vendor,"GenuineIntel") == 0) {
-		if ((cpu_id & 0xf00) > 3) {
+		if ((cpu_id & 0xf00) > 0x300) {
 			cpu_model[0] = '\0';
 
 			switch (cpu_id & 0x3000) {
@@ -273,6 +274,7 @@ printcpuinfo(void)
 			break;
 		case 0x500:
 			strcat(cpu_model, "K5 model 0");
+			tsc_is_broken = 1;
 			break;
 		case 0x510:
 			strcat(cpu_model, "K5 model 1");
@@ -291,6 +293,9 @@ printcpuinfo(void)
 			break;
 		case 0x580:
 			strcat(cpu_model, "K6-2");
+			break;
+		case 0x590:
+			strcat(cpu_model, "K6-III");
 			break;
 		default:
 			strcat(cpu_model, "Unknown");
@@ -464,6 +469,18 @@ printcpuinfo(void)
 		default:
 			strcat(cpu_model, "Unknown");
 		}
+	} else if (strcmp(cpu_vendor, "CentaurHauls") == 0) {
+		strcpy(cpu_model, "IDT ");
+		switch (cpu_id & 0ff0) {
+		case 0x540:
+			strcat(cpu_model, "WinChip C6");
+			break;
+		case 0x580:
+			strcat(cpu_model, "WinChip 2");
+			break;
+		default:
+			strcat(cpu_model, "Unknown");
+		}
 	} else if (strcmp(cpu_vendor, "IBM") == 0)
 		strcpy(cpu_model, "Blue Lightning CPU");
 #endif
@@ -517,9 +534,10 @@ printcpuinfo(void)
 	if (strcmp(cpu_vendor, "GenuineIntel") == 0 ||
 	    strcmp(cpu_vendor, "AuthenticAMD") == 0 ||
 	    strcmp(cpu_vendor, "RiseRiseRise") == 0 ||
+	    strcmp(cpu_vendor, "CentaurHauls") == 0 ||
 		((strcmp(cpu_vendor, "CyrixInstead") == 0) &&
-		 ((cpu_id & 0xf00) > 5))) {
-		printf("  Stepping=%u", cpu_id & 0xf);
+		 ((cpu_id & 0xf00) > 0x500))) {
+		printf("  Stepping = %u", cpu_id & 0xf);
 		if (strcmp(cpu_vendor, "CyrixInstead") == 0)
 			printf("  DIR=0x%04x", cyrix_did);
 		if (cpu_high > 0) {
@@ -557,7 +575,7 @@ printcpuinfo(void)
 			"\026<b21>"
 			"\027<b22>"
 			"\030MMX"
-			"\031<b24>"
+			"\031FXSR"
 			"\032<b25>"
 			"\033<b26>"
 			"\034<b27>"
@@ -567,6 +585,9 @@ printcpuinfo(void)
 			"\040<b31>"
 			);
 		}
+		if (strcmp(cpu_vendor, "AuthenticAMD") == 0 &&
+		    nreg >= 0x80000001)
+			print_AMD_features(regs);
 	} else if (strcmp(cpu_vendor, "CyrixInstead") == 0) {
 		printf("  DIR=0x%04x", cyrix_did);
 		printf("  Stepping=%u", (cyrix_did & 0xf000) >> 12);
@@ -585,7 +606,7 @@ printcpuinfo(void)
 		return;
 
 	if (strcmp(cpu_vendor, "AuthenticAMD") == 0)
-		print_AMD_info();
+		print_AMD_info(nreg);
 #ifdef I686_CPU
 	/*
 	 * XXX - Do PPro CPUID level=2 stuff here?
@@ -859,13 +880,13 @@ print_AMD_assoc(int i)
 }
 
 static void
-print_AMD_info(void)
+print_AMD_info(u_int amd_maxregs)
 {
-	u_int regs[4];
 	quad_t amd_whcr;
 
-	do_cpuid(0x80000000, regs);
-	if (regs[0] >= 0x80000005) {
+	if (amd_maxregs >= 0x80000005) {
+		u_int regs[4];
+
 		do_cpuid(0x80000005, regs);
 		printf("Data TLB: %d entries", (regs[1] >> 16) & 0xff);
 		print_AMD_assoc(regs[1] >> 24);
@@ -879,12 +900,19 @@ print_AMD_info(void)
 		printf(", %d bytes/line", regs[3] & 0xff);
 		printf(", %d lines/tag", (regs[3] >> 8) & 0xff);
 		print_AMD_assoc((regs[3] >> 16) & 0xff);
+		if (amd_maxregs >= 0x80000006) {	/* K6-III only */
+			do_cpuid(0x80000006, regs);
+			printf("L2 internal cache: %d kbytes", regs[2] >> 16);
+			printf(", %d bytes/line", regs[2] & 0xff);
+			printf(", %d lines/tag", (regs[2] >> 8) & 0x0f);
+			print_AMD_assoc((regs[2] >> 12) & 0x0f);	
+		}
 	}
 	if (((cpu_id & 0xf00) == 0x500)
 	    && (((cpu_id & 0x0f0) > 0x80)
 		|| (((cpu_id & 0x0f0) == 0x80)
 		    && (cpu_id & 0x00f) > 0x07))) {
-		/* K6-2(new core [Stepping 8-F]), K6-3 or later */
+		/* K6-2(new core [Stepping 8-F]), K6-III or later */
 		amd_whcr = rdmsr(0xc0000082);
 		if (!(amd_whcr & (0x3ff << 22))) {
 			printf("Write Allocate Disable\n");
@@ -909,4 +937,45 @@ print_AMD_info(void)
 			    (amd_whcr & 0x0100) ? "Enable" : "Disable");
 		}
 	}
+}
+
+static void
+print_AMD_features(u_int *regs)
+{
+	do_cpuid(0x80000001, regs);
+	printf("\n  AMD Features=0x%b", regs[3] &~ cpu_feature,
+		"\020"		/* in hex */
+		"\001FPU"
+		"\002VME"
+		"\003DE"
+		"\004PSE"
+		"\005TSC"
+		"\006MSR"
+		"\007<b6>"
+		"\010MCE"
+		"\011CX8"
+		"\012<b9>"
+		"\013<b10>"
+		"\014SYSCALL"
+		"\015<b12>"
+		"\016PGE"
+		"\017<b14>"
+		"\020ICMOV"
+		"\021FCMOV"
+		"\022<b17>"
+		"\023<b18>"
+		"\024<b19>"
+		"\025<b20>"
+		"\026<b21>"
+		"\027<b22>"
+		"\030MMX"
+		"\031<b24>"
+		"\032<b25>"
+		"\033<b26>"
+		"\034<b27>"
+		"\035<b28>"
+		"\036<b29>"
+		"\037<b30>"
+		"\0403DNow!"
+		);
 }
