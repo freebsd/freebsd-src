@@ -32,9 +32,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     @(#)showmount.8	8.2 (Berkeley) 12/11/93
+.\"     @(#)showmount.8	8.3 (Berkeley) 3/29/95
 .\"
-.Dd December 11, 1993
+.Dd March 29, 1995
 .Dt SHOWMOUNT 8
 .Os BSD 4
 .Sh NAME
@@ -65,14 +65,14 @@ for a detailed description of the protocol.
 .It Fl a
 List all mount points in the form:
 .Bd -ragged -offset indent -compact
-.Ar host : Ns Ar dirpath
+.Ar host : Ns Ar dirpath .
 .Ed
 .It Fl d
-List directory paths of mount points instead of hosts
+List directory paths of mount points instead of hosts.
 .It Fl e
 Show the
 .Ar host Ns 's
-exports list
+exports list.
 .It Fl 3
 Use mount protocol Version 3, compatible with NFS Version 3.
 .El
@@ -89,6 +89,6 @@ will only display the information
 as accurately as the mount daemon reports it.
 .Sh HISTORY
 The
-.Nm showmount
+.Nm
 utility first appeared in
 .Bx 4.4 .
