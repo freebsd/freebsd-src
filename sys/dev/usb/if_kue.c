@@ -115,6 +115,8 @@ static struct kue_type kue_devs[] = {
 	    "KLSI USB ethernet" },
 	{ USB_VENDOR_ENTREGA, USB_PRODUCT_ENTREGA_E45,
 	    "KLSI USB ethernet" },
+	{ USB_VENDOR_3COM, USB_PRODUCT_3COM_3C19250,
+	    "KLSI USB ethernet" },
 	{ 0, 0, NULL }
 };
 
