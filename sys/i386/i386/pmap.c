@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.110 1996/07/27 03:23:22 dyson Exp $
+ *	$Id: pmap.c,v 1.111 1996/07/28 20:31:27 dyson Exp $
  */
 
 /*
@@ -672,7 +672,6 @@ retry:
 		VM_PAGE_TO_PHYS(ptdpg) | PG_V | PG_RW;
 
 	pmap->pm_count = 1;
-	pmap->pm_ptphint = NULL;
 	TAILQ_INIT(&pmap->pm_pvlist.pv_list);
 }
 
@@ -714,9 +713,6 @@ pmap_release_free_page(pmap, p)
 		pde[APTDPTDI] = 0;
 		pmap_kremove((vm_offset_t) pmap->pm_pdir);
 	}
-
-	if (pmap->pm_ptphint == p)
-		pmap->pm_ptphint = NULL;
 
 	vm_page_free_zero(p);
 	splx(s);
@@ -811,13 +807,7 @@ pmap_allocpte(pmap, va)
 	 * hold count, and activate it.
 	 */
 	if (ptepa) {
-		if (pmap->pm_ptphint &&
-			(pmap->pm_ptphint->pindex == ptepindex)) {
-			m = pmap->pm_ptphint;
-		} else {
-			m = vm_page_lookup( pmap->pm_pteobj, ptepindex);
-			pmap->pm_ptphint = m;
-		}
+		m = vm_page_lookup( pmap->pm_pteobj, ptepindex);
 		++m->hold_count;
 		return m;
 	}
@@ -1104,8 +1094,6 @@ pmap_unwire_pte_hold(pmap_t pmap, vm_page_t m) {
 		 */
 		--m->wire_count;
 		if (m->wire_count == 0) {
-			if (pmap->pm_ptphint == m)
-				pmap->pm_ptphint = NULL;
 			vm_page_free_zero(m);
 			--cnt.v_wire_count;
 		}
@@ -1130,13 +1118,7 @@ pmap_unuse_pt(pmap, va, mpte)
 
 	if (mpte == NULL) {
 		ptepindex = (va >> PDRSHIFT);
-		if (pmap->pm_ptphint &&
-			pmap->pm_ptphint->pindex == ptepindex) {
-			mpte = pmap->pm_ptphint;
-		} else {
-			mpte = vm_page_lookup( pmap->pm_pteobj, ptepindex);
-			pmap->pm_ptphint = mpte;
-		}
+		mpte = vm_page_lookup( pmap->pm_pteobj, ptepindex);
 	}
 
 	return pmap_unwire_pte_hold(pmap, mpte);
@@ -1704,13 +1686,7 @@ pmap_enter_quick(pmap, va, pa, mpte)
 			 * the hold count, and activate it.
 			 */
 			if (ptepa) {
-				if (pmap->pm_ptphint &&
-					pmap->pm_ptphint->pindex == ptepindex) {
-					mpte = pmap->pm_ptphint;
-				} else {
-					mpte = vm_page_lookup( pmap->pm_pteobj, ptepindex);
-					pmap->pm_ptphint = mpte;
-				}
+				mpte = vm_page_lookup( pmap->pm_pteobj, ptepindex);
 				++mpte->hold_count;
 			} else {
 				mpte = _pmap_allocpte(pmap, ptepindex);
@@ -2185,7 +2161,7 @@ pmap_remove_pages(pmap, sva, eva)
 	int s;
 
 #ifdef PMAP_REMOVE_PAGES_CURPROC_ONLY
-	if (pmap != &curproc->p_vmspace->vm_pmap) {
+	if (!curproc || (pmap != &curproc->p_vmspace->vm_pmap)) {
 		printf("warning: pmap_remove_pages called with non-current pmap\n");
 		return;
 	}
@@ -2210,8 +2186,6 @@ pmap_remove_pages(pmap, sva, eva)
 		tpte = *pte;
 		*pte = 0;
 
-		TAILQ_REMOVE(&pv->pv_pmap->pm_pvlist.pv_list, pv, pv_plist);
-
 		if (tpte) {
 			pv->pv_pmap->pm_stats.resident_count--;
 			if (tpte & PG_W)
@@ -2225,10 +2199,11 @@ pmap_remove_pages(pmap, sva, eva)
 		}
 
 		npv = TAILQ_NEXT(pv, pv_plist);
+		TAILQ_REMOVE(&pv->pv_pmap->pm_pvlist.pv_list, pv, pv_plist);
 
 		ppv = pa_to_pvh(tpte);
-		TAILQ_REMOVE(&ppv->pv_list, pv, pv_list);
 		--ppv->pv_list_count;
+		TAILQ_REMOVE(&ppv->pv_list, pv, pv_list);
 
 		pmap_unuse_pt(pv->pv_pmap, pv->pv_va, pv->pv_ptem);
 		free_pv_entry(pv);
@@ -2284,16 +2259,12 @@ pmap_tcbit(vm_offset_t pa, int bit)
 
 		if ((rtval == 0) && (*pte & bit)) {
 			rtval = 1;
-			*pte &= ~bit;
-		} else {
-			*pte &= ~bit;
 		}
+		*pte &= ~bit;
 	}
 	splx(s);
-	if (rtval) {
-		if (curproc != pageproc)
-			pmap_update();
-	}
+	if (rtval)
+		pmap_update();
 	return (rtval);
 }
 
