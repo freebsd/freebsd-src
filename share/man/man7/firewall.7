@@ -71,11 +71,11 @@ if you are paranoid you can compile IPFW directly into the
 kernel by using the
 .Sy IPFIREWALL
 option set.  If compiled in the kernel, ipfw denies all
-packets by default, which means that if you do not load in
+packets by default, which means that, if you do not load in
 a permissive ruleset via
 .Em /etc/rc.conf ,
-rebooting into your new kernel will take the network offline
-and will prevent you from being able to access it if you
+rebooting into your new kernel will take the network offline.
+This can prevent you from being able to access your system if you
 are not sitting at the console.  It is also quite common to
 update a kernel to a new release and reboot before updating
 the binaries.  This can result in an incompatibility between
