@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: lkm.h,v 1.15 1997/02/22 09:45:30 peter Exp $
+ * $Id: lkm.h,v 1.16 1997/04/06 11:14:12 dufault Exp $
  */
 
 #ifndef _SYS_LKM_H_
@@ -221,7 +221,7 @@ struct lkm_table {
 #define	MOD_DECL(name)							    \
 	static int name ## _load __P((struct lkm_table *lkmtp, int cmd));   \
 	static int name ## _unload __P((struct lkm_table *lkmtp, int cmd)); \
-	int name ## _mod __P((struct lkm_table *lkmtp, int cmd,	int ver))   \
+	int name ## _mod __P((struct lkm_table *lkmtp, int cmd,	int ver))
 
 #define	MOD_SYSCALL(name,callslot,sysentp)	\
 	static struct lkm_syscall MOD_PRIVATE(name) = {	\
