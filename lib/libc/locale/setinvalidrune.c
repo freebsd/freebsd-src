@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 
 #include <rune.h>
 
+__warn_references(setinvalidrune, "warning: setinvalidrune() is deprecated. See setinvalidrune(3).");
 void
 setinvalidrune(ir)
 	rune_t ir;
