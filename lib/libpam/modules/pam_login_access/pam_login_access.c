@@ -109,16 +109,20 @@ pam_sm_acct_mgmt(pam_handle_t *pamh, int flags, int argc ,const char **argv)
 
 	gethostname(hostname, sizeof hostname);
 
-	if (strcmp(hostname, rhost) == 0) {
+	if (rhost == NULL) {
 		PAM_LOG("Checking login.access for user %s on tty %s",
 		    user, tty);
 		if (login_access(user, tty) != 0)
 			PAM_RETURN(PAM_SUCCESS);
+		PAM_VERBOSE_ERROR("%s is not allowed to log in on %s",
+		    user, tty);
 	} else {
 		PAM_LOG("Checking login.access for user %s from host %s",
 		    user, rhost);
 		if (login_access(user, rhost) != 0)
 			PAM_RETURN(PAM_SUCCESS);
+		PAM_VERBOSE_ERROR("%s is not allowed to log in from %s",
+		    user, rhost);
 	}
 	
 	PAM_RETURN(PAM_AUTH_ERR);
