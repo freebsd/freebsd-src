@@ -49,8 +49,7 @@ static const char rcsid[] =
 #include "fsutil.h"
 
 int
-checkfilesys(fname)
-	const char *fname;
+checkfilesys(const char *fname)
 {
 	int dosfs;
 	struct bootblock boot;
@@ -99,7 +98,7 @@ checkfilesys(fname)
 	}
 
 	if (boot.ValidFat < 0)
-		for (i = 1; i < boot.FATs; i++) {
+		for (i = 1; i < (int)boot.FATs; i++) {
 			struct fatEntry *currentFat;
 
 			mod |= readfat(dosfs, &boot, i, &currentFat);
