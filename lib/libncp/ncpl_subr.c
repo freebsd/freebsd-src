@@ -37,9 +37,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/errno.h>
 #include <sys/sysctl.h>
-#include <sys/syscall.h>
+#include <sys/ioctl.h>
 #include <unistd.h>
 #include <ctype.h>
+#include <fcntl.h>
+#include <paths.h>
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -49,9 +51,9 @@ __FBSDID("$FreeBSD$");
 #include <netncp/ncp_rcfile.h>
 #include <netncp/ncp_nls.h>
 /*#include <netncp/ncp_cfg.h>*/
-#include "ncp_mod.h"
+#include <netncp/ncpio.h>
 
-int sysentoffset;
+#define	_PATH_NCP	_PATH_DEV NCP_NAME
 
 void
 ncp_add_word_lh(struct ncp_buf *conn, u_int16_t x) {
@@ -158,7 +160,17 @@ ncp_reply_dword_lh(struct ncp_buf *conn, int offset) {
 
 int
 ncp_connect(struct ncp_conn_args *li, int *connHandle) {
-	return syscall(NCP_CONNECT,li,connHandle);
+	struct ncpioc_connect args;
+	int fd, r;
+	if ((fd = open(_PATH_NCP, O_RDWR)) < 0)
+		return (errno);
+	args.ioc_li = li;
+	args.ioc_connhandle = connHandle;
+	errno = 0;
+	(void)ioctl(fd, NCPIOC_CONNECT, &args);
+	r = errno;
+	close(fd);
+	return (r);
 }
 
 int
@@ -172,18 +184,38 @@ ncp_disconnect(int cH) {
 
 int
 ncp_request(int connHandle,int function, struct ncp_buf *ncpbuf){
-	int err = syscall(SNCP_REQUEST,connHandle,function,ncpbuf);
-	return (err<0) ? errno : 0;
+	struct ncpioc_request args;
+	int fd, r;
+	if ((fd = open(_PATH_NCP, O_RDWR)) < 0)
+		return (errno);
+	args.ioc_connhandle = connHandle;
+	args.ioc_fn = function;
+	args.ioc_ncpbuf = ncpbuf;
+	errno = 0;
+	(void)ioctl(fd, NCPIOC_REQUEST, &args);
+	r = errno;
+	close(fd);
+	return (r);
 }
 
 int
 ncp_conn_request(int connHandle, struct ncp_buf *ncpbuf){
-	return syscall(SNCP_REQUEST, connHandle, NCP_CONN, ncpbuf);
+	return (ncp_request(connHandle, NCP_CONN, ncpbuf));
 }
 
 int
 ncp_conn_scan(struct ncp_conn_loginfo *li, int *connid) {
-	return syscall(NCP_CONNSCAN,li, connid);
+	struct ncpioc_connscan args;
+	int fd, r;
+	if ((fd = open(_PATH_NCP, O_RDWR)) < 0)
+		return (errno);
+	args.ioc_li = li;
+	args.ioc_connhandle = connid;
+	errno = 0;
+	(void)ioctl(fd, NCPIOC_CONNSCAN, &args);
+	r = errno;
+	close(fd);
+	return (r);
 }
 
 NWCCODE
@@ -211,21 +243,11 @@ NWRequest(NWCONN_HANDLE cH, nuint16 fn,
 int
 ncp_initlib(void){
 	int error;
-	int len = sizeof(sysentoffset);
 	int kv, kvlen = sizeof(kv);
 	static int ncp_initialized;
 
 	if (ncp_initialized)
 		return 0;
-#if __FreeBSD_version < 400001
-	error = sysctlbyname("net.ipx.ncp.sysent", &sysentoffset, &len, NULL, 0);
-#else
-	error = sysctlbyname("net.ncp.sysent", &sysentoffset, &len, NULL, 0);
-#endif
-	if (error) {
-		fprintf(stderr, "%s: can't find kernel module\n", __FUNCTION__);
-		return error;
-	}
 #if __FreeBSD_version < 400001
 	error = sysctlbyname("net.ipx.ncp.version", &kv, &kvlen, NULL, 0);
 #else
