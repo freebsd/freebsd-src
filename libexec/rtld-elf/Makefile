@@ -9,6 +9,8 @@ CFLAGS+=	-Wall -DFREEBSD_ELF -DIN_RTLD
 CFLAGS+=	-I${.CURDIR}/${MACHINE_ARCH} -I${.CURDIR}
 LDFLAGS+=	-nostdlib -e .rtld_start
 INSTALLFLAGS=	-fschg -C -b
+BINDIR=		/libexec
+SYMLINKS=	${BINDIR}/ld-elf.so.1 /usr/libexec/ld-elf.so.1
 MLINKS=		rtld.1 ld-elf.so.1.1 \
 		rtld.1 ld.so.1
 
