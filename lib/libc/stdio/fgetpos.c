@@ -43,7 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 
 int
-fgetpos(FILE *fp, fpos_t *pos)
+fgetpos(FILE * __restrict fp, fpos_t * __restrict pos)
 {
 	/*
 	 * ftello is thread-safe; no need to lock fp.
