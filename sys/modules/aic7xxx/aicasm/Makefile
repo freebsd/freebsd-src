@@ -1,7 +1,6 @@
 # $FreeBSD$
 
 MAKESRCPATH=	${.CURDIR}/../../../dev/aic7xxx/aicasm
-NOMAN=
 
 install:
 
