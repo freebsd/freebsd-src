@@ -80,7 +80,7 @@ extern struct mtx callout_lock;
 void	callout_init __P((struct callout *, int));
 #define	callout_pending(c)	((c)->c_flags & CALLOUT_PENDING)
 void	callout_reset __P((struct callout *, int, void (*)(void *), void *));
-void	callout_stop __P((struct callout *));
+int	callout_stop __P((struct callout *));
 
 #endif
 
