@@ -106,6 +106,7 @@ enum sysinit_sub_id {
 	SI_SUB_TUNABLES		= 0x0700000,	/* establish tunable values */
 	SI_SUB_CONSOLE		= 0x0800000,	/* console*/
 	SI_SUB_COPYRIGHT	= 0x0800001,	/* first use of console*/
+	SI_SUB_SETTINGS		= 0x0880000,	/* check and recheck settings */
 	SI_SUB_MTX_POOL_STATIC	= 0x0900000,	/* static mutex pool */
 	SI_SUB_LOCKMGR		= 0x0980000,	/* lockmgr locks */
 	SI_SUB_VM		= 0x1000000,	/* virtual memory system init*/
@@ -326,6 +327,11 @@ struct tunable_str {
 
 #define	TUNABLE_STR_FETCH(path, var, size)			\
 	getenv_string((path), (var), (size))
+
+void	net_warn_not_mpsafe(const char *component);
+#define	NET_NEEDS_GIANT(component)					\
+	SYSINIT(__net_warn_not_mpsafe_ ## __FILE__,			\
+	    SI_SUB_SETTINGS, SI_ORDER_SECOND, net_warn_not_mpsafe, component);
 
 struct intr_config_hook {
 	TAILQ_ENTRY(intr_config_hook) ich_links;
