@@ -145,12 +145,11 @@ typedef	int32_t	swblk_t;	/*
  * Swap device table
  */
 struct swdevt {
-	udev_t	sw_dev;			/* For quasibogus swapdev reporting */
+	dev_t	sw_dev;
 	int	sw_flags;
 	int	sw_nblks;
 	int     sw_used;
 	struct	vnode *sw_vp;
-	dev_t	sw_device;
 	swblk_t	sw_first;
 	swblk_t	sw_end;
 	struct blist *sw_blist;
@@ -2038,7 +2037,7 @@ swapdev_strategy(struct buf *a_bp)
 	 * here.
 	 */
 	sp = swp_pager_find_dev(bp->b_blkno, sz);
-	bp->b_dev = sp->sw_device;
+	bp->b_dev = sp->sw_dev;
 	/*
 	 * Convert from PAGE_SIZE'd to DEV_BSIZE'd chunks for the actual I/O
 	 */
@@ -2216,8 +2215,7 @@ swaponvp(td, vp, dev, nblks)
 
 	sp = malloc(sizeof *sp, M_VMPGDATA, M_WAITOK | M_ZERO);
 	sp->sw_vp = vp;
-	sp->sw_dev = dev2udev(dev);
-	sp->sw_device = dev;
+	sp->sw_dev = dev;
 	sp->sw_flags = 0;
 	sp->sw_nblks = nblks;
 	sp->sw_used = 0;
@@ -2374,7 +2372,7 @@ sysctl_vm_swap_info(SYSCTL_HANDLER_ARGS)
 	TAILQ_FOREACH(sp, &swtailq, sw_list) {
 		if (n == *name) {
 			xs.xsw_version = XSWDEV_VERSION;
-			xs.xsw_dev = sp->sw_dev;
+			xs.xsw_dev = dev2udev(sp->sw_dev);
 			xs.xsw_flags = sp->sw_flags;
 			xs.xsw_nblks = sp->sw_nblks;
 			xs.xsw_used = sp->sw_used;
