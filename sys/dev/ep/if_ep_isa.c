@@ -26,25 +26,25 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/socket.h>
-
 #include <sys/module.h>
 #include <sys/bus.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
-#include <sys/rman.h> 
+#include <sys/rman.h>
 
 #include <net/if.h>
 #include <net/if_arp.h>
-#include <net/if_media.h> 
+#include <net/if_media.h>
 
 #include <isa/isavar.h>
 
@@ -56,18 +56,19 @@
 #endif
 
 #ifdef __i386__
-static u_int16_t	get_eeprom_data	(int, int);
-static void		ep_isa_identify	(driver_t *, device_t);
+static u_int16_t get_eeprom_data(int, int);
+static void ep_isa_identify(driver_t *, device_t);
 #endif
-static int		ep_isa_probe	(device_t);
-static int		ep_isa_attach	(device_t);
-static int		ep_eeprom_cksum (struct ep_softc *);
+
+static int ep_isa_probe(device_t);
+static int ep_isa_attach(device_t);
+static int ep_eeprom_cksum(struct ep_softc *);
 
 struct isa_ident {
-	u_int32_t	id;
-	char *		name;
+	u_int32_t id;
+	char *name;
 };
-const char * ep_isa_match_id (u_int32_t, struct isa_ident *);
+const char *ep_isa_match_id(u_int32_t, struct isa_ident *);
 
 #define ISA_ID_3C509_XXX   0x0506d509
 #define ISA_ID_3C509_TP    0x506d5090
@@ -82,27 +83,27 @@ const char * ep_isa_match_id (u_int32_t, struct isa_ident *);
 
 #ifdef __i386__
 static struct isa_ident ep_isa_devs[] = {
-	{ ISA_ID_3C509_TP,	"3Com 3C509-TP EtherLink III" },
-	{ ISA_ID_3C509_BNC,	"3Com 3C509-BNC EtherLink III" },
-	{ ISA_ID_3C509_COMBO,	"3Com 3C509-Combo EtherLink III" },
-	{ ISA_ID_3C509_TPO,	"3Com 3C509-TPO EtherLink III" },
-	{ ISA_ID_3C509_TPC,	"3Com 3C509-TPC EtherLink III" },
+	{ISA_ID_3C509_TP, "3Com 3C509-TP EtherLink III"},
+	{ISA_ID_3C509_BNC, "3Com 3C509-BNC EtherLink III"},
+	{ISA_ID_3C509_COMBO, "3Com 3C509-Combo EtherLink III"},
+	{ISA_ID_3C509_TPO, "3Com 3C509-TPO EtherLink III"},
+	{ISA_ID_3C509_TPC, "3Com 3C509-TPC EtherLink III"},
 #ifdef PC98
-	{ ISA_ID_3C569B_COMBO,	"3Com 3C569B-J-Combo EtherLink III" },
-	{ ISA_ID_3C569B_TPO,	"3Com 3C569B-J-TPO EtherLink III" },
+	{ISA_ID_3C569B_COMBO, "3Com 3C569B-J-Combo EtherLink III"},
+	{ISA_ID_3C569B_TPO, "3Com 3C569B-J-TPO EtherLink III"},
 #endif
-	{ 0,			NULL },
+	{0, NULL},
 };
 #endif
 
 static struct isa_pnp_id ep_ids[] = {
-	{ 0x90506d50,	"3Com 3C509B-TP EtherLink III (PnP)" },	/* TCM5090 */
-	{ 0x91506d50,	"3Com 3C509B-BNC EtherLink III (PnP)" },/* TCM5091 */
-	{ 0x94506d50,	"3Com 3C509B-Combo EtherLink III (PnP)" },/* TCM5094 */
-	{ 0x95506d50,	"3Com 3C509B-TPO EtherLink III (PnP)" },/* TCM5095 */
-	{ 0x98506d50,	"3Com 3C509B-TPC EtherLink III (PnP)" },/* TCM5098 */
-	{ 0xf780d041,	NULL }, /* PNP80f7 */
-	{ 0,		NULL },
+	{0x90506d50, "3Com 3C509B-TP EtherLink III (PnP)"},	/* TCM5090 */
+	{0x91506d50, "3Com 3C509B-BNC EtherLink III (PnP)"},	/* TCM5091 */
+	{0x94506d50, "3Com 3C509B-Combo EtherLink III (PnP)"},	/* TCM5094 */
+	{0x95506d50, "3Com 3C509B-TPO EtherLink III (PnP)"},	/* TCM5095 */
+	{0x98506d50, "3Com 3C509B-TPC EtherLink III (PnP)"},	/* TCM5098 */
+	{0xf780d041, NULL},	/* PNP80f7 */
+	{0, NULL},
 };
 
 /*
@@ -119,14 +120,12 @@ static struct isa_pnp_id ep_ids[] = {
  */
 #ifdef __i386__
 static u_int16_t
-get_eeprom_data(id_port, offset)
-	int	id_port;
-	int	offset;
+get_eeprom_data(int id_port, int offset)
 {
-	int		i;
-	u_int16_t	data = 0;
+	int i;
+	u_int16_t data = 0;
 
-	outb(id_port, EEPROM_CMD_RD|offset);
+	outb(id_port, EEPROM_CMD_RD | offset);
 	DELAY(BIT_DELAY_MULTIPLE * 1000);
 	for (i = 0; i < 16; i++) {
 		DELAY(50);
@@ -137,41 +136,39 @@ get_eeprom_data(id_port, offset)
 #endif
 
 const char *
-ep_isa_match_id (id, isa_devs)
-	u_int32_t	      id;
-	struct isa_ident *      isa_devs;
+ep_isa_match_id(u_int32_t id, struct isa_ident *isa_devs)
 {
-	struct isa_ident *      i = isa_devs;
-	while(i->name != NULL) {
-	       if (id == i->id)
-		      return (i->name);
-	       i++;
+	struct isa_ident *i = isa_devs;
+
+	while (i->name != NULL) {
+		if (id == i->id)
+			return (i->name);
+		i++;
 	}
 	/*
 	 * If we see a card that is likely to be a 3c509
 	 * return something so that it will work; be annoying
 	 * so that the user will tell us about it though.
 	 */
-	if ((id >> 4) == ISA_ID_3C509_XXX) {
+	if ((id >> 4) == ISA_ID_3C509_XXX)
 		return ("Unknown 3c509; notify maintainer!");
-	}
 	return (NULL);
 }
 
 #ifdef __i386__
 static void
-ep_isa_identify (driver_t *driver, device_t parent)
+ep_isa_identify(driver_t * driver, device_t parent)
 {
-	int		tag = EP_LAST_TAG;
-	int		found = 0;
-	int		i;
-	int		j;
-	const char *	desc;
-	u_int16_t	data;
-	u_int32_t	irq;
-	u_int32_t	ioport;
-	u_int32_t	isa_id;
-	device_t	child;
+	int tag = EP_LAST_TAG;
+	int found = 0;
+	int i;
+	int j;
+	const char *desc;
+	u_int16_t data;
+	u_int32_t irq;
+	u_int32_t ioport;
+	u_int32_t isa_id;
+	device_t child;
 
 	outb(ELINK_ID_PORT, 0);
 	outb(ELINK_ID_PORT, 0);
@@ -187,27 +184,22 @@ ep_isa_identify (driver_t *driver, device_t parent)
 		elink_idseq(ELINK_509_POLY);
 		DELAY(400);
 
-		/* For the first probe, clear all
-		 * board's tag registers.
-		 * Otherwise kill off already-found
-		 * boards. -- linux 3c509.c
+		/*
+		 * For the first probe, clear all board's tag registers.
+		 * Otherwise kill off already-found boards. -- linux 3c509.c
 		 */
-		if (i == 0) {
+		if (i == 0)
 			outb(ELINK_ID_PORT, 0xd0);
-		} else {
+		else
 			outb(ELINK_ID_PORT, 0xd8);
-		}
 
 		/* Get out of loop if we're out of cards. */
 		data = get_eeprom_data(ELINK_ID_PORT, EEPROM_MFG_ID);
-		if (data != MFG_ID) {
+		if (data != MFG_ID)
 			break;
-		}
-
 		/* resolve contention using the Ethernet address */
-		for (j = 0; j < 3; j++) {
+		for (j = 0; j < 3; j++)
 			(void)get_eeprom_data(ELINK_ID_PORT, j);
-		}
 
 		/*
 		 * Construct an 'isa_id' in 'EISA'
@@ -221,13 +213,11 @@ ep_isa_identify (driver_t *driver, device_t parent)
 		/* Find known ISA boards */
 		desc = ep_isa_match_id(isa_id, ep_isa_devs);
 		if (!desc) {
-			if (bootverbose) {
+			if (bootverbose)
 				device_printf(parent, "if_ep: unknown ID 0x%08x\n",
-						isa_id);
-			}
+				    isa_id);
 			continue;
 		}
-
 		/* Retreive IRQ */
 		data = get_eeprom_data(ELINK_ID_PORT, EEPROM_RESOURCE_CFG);
 		irq = (data >> 12);
@@ -242,27 +232,30 @@ ep_isa_identify (driver_t *driver, device_t parent)
 
 		if ((data & ADDR_CFG_MASK) == ADDR_CFG_EISA) {
 			device_printf(parent, "if_ep: <%s> at port 0x%03x in EISA mode!\n",
-					desc, ioport);
-			/* Set the adaptor tag so that the next card can be found. */
+			    desc, ioport);
+			/*
+			 * Set the adaptor tag so that the next card can be
+			 * found.
+			 */
 			outb(ELINK_ID_PORT, tag--);
 			continue;
 		}
-
 		/* Test for an adapter with PnP support. */
 		data = get_eeprom_data(ELINK_ID_PORT, EEPROM_CAP);
 		if (data == CAP_ISA) {
 			data = get_eeprom_data(ELINK_ID_PORT, EEPROM_INT_CONFIG_1);
 			if (data & ICW1_IAS_PNP) {
-				if (bootverbose) {
+				if (bootverbose)
 					device_printf(parent, "if_ep: <%s> at 0x%03x in PnP mode!\n",
-					  	      desc, ioport);
-				}
-				/* Set the adaptor tag so that the next card can be found. */
+					    desc, ioport);
+				/*
+				 * Set the adaptor tag so that the next card
+				 * can be found.
+				 */
 				outb(ELINK_ID_PORT, tag--);
 				continue;
 			}
 		}
-
 		/* Set the adaptor tag so that the next card can be found. */
 		outb(ELINK_ID_PORT, tag--);
 
@@ -274,66 +267,57 @@ ep_isa_identify (driver_t *driver, device_t parent)
 		data = inw(ioport + EP_W0_EEPROM_COMMAND);
 		if (data & EEPROM_TST_MODE) {
 			device_printf(parent, "if_ep: <%s> at port 0x%03x in TEST mode!  Erase pencil mark.\n",
-					desc, ioport);
+			    desc, ioport);
 			continue;
 		}
-
 		child = BUS_ADD_CHILD(parent, ISA_ORDER_SPECULATIVE, "ep", -1);
 		device_set_desc_copy(child, desc);
 		device_set_driver(child, driver);
 		bus_set_resource(child, SYS_RES_IRQ, 0, irq, 1);
 		bus_set_resource(child, SYS_RES_IOPORT, 0, ioport, EP_IOSIZE);
 
-		if (bootverbose) {
+		if (bootverbose)
 			device_printf(parent, "if_ep: <%s> at port 0x%03x-0x%03x irq %d\n",
-					desc, ioport, ioport + EP_IOSIZE, irq);
-		}
-
+			    desc, ioport, ioport + EP_IOSIZE, irq);
 		found++;
 	}
-
-	return;
 }
 #endif
 
 static int
-ep_isa_probe (device_t dev)
+ep_isa_probe(device_t dev)
 {
-	int	error = 0;
+	int error = 0;
 
 	/* Check isapnp ids */
 	error = ISA_PNP_PROBE(device_get_parent(dev), dev, ep_ids);
 
 	/* If the card had a PnP ID that didn't match any we know about */
-	if (error == ENXIO) {
-	       return (error);
-	}
+	if (error == ENXIO)
+		return (error);
 
 	/* If we had some other problem. */
-	if (!(error == 0 || error == ENOENT)) {
+	if (!(error == 0 || error == ENOENT))
 		return (error);
-	}
 
 	/* If we have the resources we need then we're good to go. */
 	if ((bus_get_resource_start(dev, SYS_RES_IOPORT, 0) != 0) &&
-	    (bus_get_resource_start(dev, SYS_RES_IRQ, 0) != 0)) {
+	    (bus_get_resource_start(dev, SYS_RES_IRQ, 0) != 0))
 		return (0);
-	}
 
 	return (ENXIO);
 }
 
 static int
-ep_isa_attach (device_t dev)
+ep_isa_attach(device_t dev)
 {
-	struct ep_softc *	sc = device_get_softc(dev);
-	int			error = 0;
+	struct ep_softc *sc = device_get_softc(dev);
+	int error = 0;
 
 	if ((error = ep_alloc(dev))) {
 		device_printf(dev, "ep_alloc() failed! (%d)\n", error);
 		goto bad;
 	}
-
 	ep_get_media(sc);
 
 	GO_WINDOW(0);
@@ -343,19 +327,16 @@ ep_isa_attach (device_t dev)
 		device_printf(dev, "ep_attach() failed! (%d)\n", error);
 		goto bad;
 	}
-
 	error = ep_eeprom_cksum(sc);
 	if (error) {
 		device_printf(sc->dev, "Invalid EEPROM checksum!\n");
 		goto bad;
 	}
-
 	if ((error = bus_setup_intr(dev, sc->irq, INTR_TYPE_NET, ep_intr,
-				   sc, &sc->ep_intrhand))) {
+		    sc, &sc->ep_intrhand))) {
 		device_printf(dev, "bus_setup_intr() failed! (%d)\n", error);
 		goto bad;
 	}
-
 	return (0);
 bad:
 	ep_free(dev);
@@ -363,19 +344,18 @@ bad:
 }
 
 static int
-ep_eeprom_cksum (sc)
-	struct ep_softc *	sc;
+ep_eeprom_cksum(struct ep_softc *sc)
 {
-	int                     i;
-	int                     error;
-	u_int16_t               val;
-	u_int16_t               cksum;
-	u_int8_t                cksum_high = 0;
-	u_int8_t                cksum_low = 0;
+	int i;
+	int error;
+	u_int16_t val;
+	u_int16_t cksum;
+	u_int8_t cksum_high = 0;
+	u_int8_t cksum_low = 0;
 
 	error = get_e(sc, 0x0f, &val);
 	if (error)
-	       return (ENXIO);
+		return (ENXIO);
 	cksum = val;
 
 	for (i = 0; i < 0x0f; i++) {
@@ -383,31 +363,31 @@ ep_eeprom_cksum (sc)
 		if (error)
 			return (ENXIO);
 		switch (i) {
-			case 0x08:
-			case 0x09:
-			case 0x0d:
-				cksum_low ^= (u_int8_t)(val & 0x00ff) ^
-					     (u_int8_t)((val & 0xff00) >> 8);
-				break;
-			default:
-				cksum_high ^= (u_int8_t)(val & 0x00ff) ^
-					      (u_int8_t)((val & 0xff00) >> 8);
-				break;
+		case 0x08:
+		case 0x09:
+		case 0x0d:
+			cksum_low ^= (u_int8_t) (val & 0x00ff) ^
+			    (u_int8_t) ((val & 0xff00) >> 8);
+			break;
+		default:
+			cksum_high ^= (u_int8_t) (val & 0x00ff) ^
+			    (u_int8_t) ((val & 0xff00) >> 8);
+			break;
 		}
 	}
-	return (cksum != ((u_int16_t)cksum_low | (u_int16_t)(cksum_high << 8)));
+	return (cksum != ((u_int16_t) cksum_low | (u_int16_t) (cksum_high << 8)));
 }
 
 static device_method_t ep_isa_methods[] = {
 	/* Device interface */
 #ifdef __i386__
-	DEVMETHOD(device_identify,	ep_isa_identify),
+	DEVMETHOD(device_identify, ep_isa_identify),
 #endif
-	DEVMETHOD(device_probe,		ep_isa_probe),
-	DEVMETHOD(device_attach,	ep_isa_attach),
-	DEVMETHOD(device_detach,	ep_detach),
+	DEVMETHOD(device_probe, ep_isa_probe),
+	DEVMETHOD(device_attach, ep_isa_attach),
+	DEVMETHOD(device_detach, ep_detach),
 
-	{ 0, 0 }
+	{0, 0}
 };
 
 static driver_t ep_isa_driver = {

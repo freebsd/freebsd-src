@@ -23,62 +23,62 @@
  */
 
 struct ep_board {
-	u_short		prod_id;	/* product ID */
-	int		cmd_off;	/* command offset (bit shift) */
-	int		mii_trans;	/* activate MII transiever */
-	u_short		res_cfg;	/* resource configuration */
+	u_short prod_id;	/* product ID */
+	int cmd_off;		/* command offset (bit shift) */
+	int mii_trans;		/* activate MII transiever */
+	u_short res_cfg;	/* resource configuration */
 };
 
 /*
  * Ethernet software status per interface.
  */
 struct ep_softc {
-	struct arpcom		arpcom;		/* Ethernet common part	*/
-	struct ifmedia		ifmedia;	/* media info		*/
+	struct arpcom arpcom;	/* Ethernet common part	 */
+	struct ifmedia ifmedia;	/* media info		 */
 
-	device_t		dev;
+	device_t dev;
 
-	struct resource *	iobase;
-	struct resource *	irq;
+	struct resource *iobase;
+	struct resource *irq;
 
-	bus_space_handle_t	ep_bhandle;
-	bus_space_tag_t		ep_btag;
-	void *			ep_intrhand;
+	bus_space_handle_t ep_bhandle;
+	bus_space_tag_t ep_btag;
+	void *ep_intrhand;
 
-	int			ep_io_addr;	/* i/o bus address	*/
+	int ep_io_addr;		/* i/o bus address	 */
 
-	u_short			ep_connectors;	/* Connectors on this card. */
-	u_char			ep_connector;	/* Configured connector.*/
+	u_short ep_connectors;	/* Connectors on this card. */
+	u_char ep_connector;	/* Configured connector. */
 
-	struct mbuf *		top;
-	struct mbuf *		mcur;
-	short			cur_len;
+	struct mbuf *top;
+	struct mbuf *mcur;
+	short cur_len;
 
-	int			stat;		/* some flags */
+	int stat;		/* some flags */
 #define	F_RX_FIRST		0x001
 #define	F_PROMISC		0x008
 #define	F_ACCESS_32_BITS	0x100
 
-	int			gone;		/* adapter is not present (for PCCARD) */
+	int gone;		/* adapter is not present (for PCCARD) */
 
-	struct ep_board		epb;
+	struct ep_board epb;
 
-	int			unit;
+	int unit;
 
 #ifdef  EP_LOCAL_STATS
-	short		tx_underrun;
-	short		rx_no_first;
-	short		rx_no_mbuf;
-	short		rx_overrunf;
-	short		rx_overrunl;
+	short tx_underrun;
+	short rx_no_first;
+	short rx_no_mbuf;
+	short rx_overrunf;
+	short rx_overrunl;
 #endif
 };
 
-int		ep_alloc	(device_t);
-void		ep_free		(device_t);
-int		ep_detach	(device_t);
-void		ep_get_media	(struct ep_softc *);
-int		ep_attach	(struct ep_softc *);
-void		ep_intr		(void *);
-int		get_e		(struct ep_softc *, u_int16_t, u_int16_t *);
-int		ep_get_macaddr	(struct ep_softc *, u_char *);
+int ep_alloc(device_t);
+void ep_free(device_t);
+int ep_detach(device_t);
+void ep_get_media(struct ep_softc *);
+int ep_attach(struct ep_softc *);
+void ep_intr(void *);
+int get_e(struct ep_softc *, u_int16_t, u_int16_t *);
+int ep_get_macaddr(struct ep_softc *, u_char *);
