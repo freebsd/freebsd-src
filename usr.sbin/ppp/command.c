@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.54 1997/06/09 03:27:16 brian Exp $
+ * $Id: command.c,v 1.24.2.18 1997/06/10 09:43:16 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -1120,43 +1120,47 @@ char **argv;
 int param;
 {
   u_long map;
+  char *arg;
 
-  if (argc > 0) {
-    switch (param) {
+  if (argc > 0)
+    arg = *argv;
+  else
+    arg = "";
+
+  switch (param) {
     case VAR_AUTHKEY:
-      strncpy(VarAuthKey, *argv, sizeof(VarAuthKey)-1);
+      strncpy(VarAuthKey, arg, sizeof(VarAuthKey)-1);
       VarAuthKey[sizeof(VarAuthKey)-1] = '\0';
       break;
     case VAR_AUTHNAME:
-      strncpy(VarAuthName, *argv, sizeof(VarAuthName)-1);
+      strncpy(VarAuthName, arg, sizeof(VarAuthName)-1);
       VarAuthName[sizeof(VarAuthName)-1] = '\0';
       break;
     case VAR_DIAL:
-      strncpy(VarDialScript, *argv, sizeof(VarDialScript)-1);
+      strncpy(VarDialScript, arg, sizeof(VarDialScript)-1);
       VarDialScript[sizeof(VarDialScript)-1] = '\0';
       break;
     case VAR_LOGIN:
-      strncpy(VarLoginScript, *argv, sizeof(VarLoginScript)-1);
+      strncpy(VarLoginScript, arg, sizeof(VarLoginScript)-1);
       VarLoginScript[sizeof(VarLoginScript)-1] = '\0';
       break;
     case VAR_DEVICE:
       CloseModem();
-      strncpy(VarDevice, *argv, sizeof(VarDevice)-1);
+      strncpy(VarDevice, arg, sizeof(VarDevice)-1);
       VarDevice[sizeof(VarDevice)-1] = '\0';
       VarBaseDevice = rindex(VarDevice, '/');
       VarBaseDevice = VarBaseDevice ? VarBaseDevice + 1 : "";
       break;
     case VAR_ACCMAP:
-      sscanf(*argv, "%lx", &map);
+      sscanf(arg, "%lx", &map);
       VarAccmap = map;
       break;
     case VAR_PHONE:
-      strncpy(VarPhoneList, *argv, sizeof(VarPhoneList)-1);
+      strncpy(VarPhoneList, arg, sizeof(VarPhoneList)-1);
       VarPhoneList[sizeof(VarPhoneList)-1] = '\0';
       strcpy(VarPhoneCopy, VarPhoneList);
       VarNextPhone = VarPhoneCopy;
       break;
-    }
   }
   return 0;
 }

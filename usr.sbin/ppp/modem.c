@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.42 1997/06/09 03:27:30 brian Exp $
+ * $Id: modem.c,v 1.24.2.12 1997/06/10 09:44:06 brian Exp $
  *
  *  TODO:
  */
@@ -359,6 +359,7 @@ char *host, *port;
     LogPrintf(LogWARN, "OpenConnection: connection failed.\n");
     return(-1);
   }
+  LogPrintf(LogDEBUG, "OpenConnection: modem fd is %d.\n", sock);
   return(sock);
 }
 
@@ -381,8 +382,9 @@ int mode;
 	LogPrintf(LogPHASE, "Open Failed %s\n", ctermid(NULL));
         return(modem);
       }
-    } else if (modem < 0)
-	return(modem);
+    } else
+        /* must be a tcp connection */
+        return modem = dup(1);
   } else if (modem < 0) {
     if (strncmp(VarDevice, "/dev/", 5) == 0) {
       if ((res = uu_lock(VarBaseDevice)) != UU_LOCK_OK) {
@@ -680,7 +682,6 @@ int fd;
   if (modemout) {
     nb = modemout->cnt;
     if (nb > 1600) nb = 1600;
-    if (fd == 0) fd = 1;	/* XXX WTFO!  This is bogus */
     nw = write(fd, MBUF_CTOP(modemout), nb);
     LogPrintf(LogDEBUG, "ModemStartOutput: wrote: %d(%d)\n", nw, nb);
     LogDumpBuff(LogDEBUG, "ModemStartOutput: modem write",
@@ -693,8 +694,11 @@ int fd;
 	LogPrintf(LogDEBUG, "ModemStartOutput: mbfree\n");
       }
     } else if (nw < 0) {
-      if (errno != EAGAIN)
-        LogPrintf(LogERROR, "modem write: %s", strerror(errno));
+      if (errno != EAGAIN) {
+        LogPrintf(LogERROR, "modem write (%d): %s", modem, strerror(errno));
+        reconnect(RECON_TRUE);
+	DownConnection();
+      }
     }
   }
 }
