@@ -104,11 +104,10 @@ void	fatal();
 /*
  * Cylinder groups may have up to many cylinders. The actual
  * number used depends upon how much information can be stored
- * on a single cylinder. The default is to use 22 cylinders
- * per group, which seems to be the largest value allowed given
- * all the other default values.
+ * on a single cylinder. The default is to use as many as possible
+ * cylinders per group.
  */
-#define	DESCPG		22	/* desired fs_cpg */
+#define	DESCPG		65536	/* desired fs_cpg ("infinity") */
 
 /*
  * Once upon a time...
@@ -167,6 +166,7 @@ int	Uflag;			/* enable soft updates for file system */
 int	fssize;			/* file system size */
 int	ntracks = NTRACKS;	/* # tracks/cylinder */
 int	nsectors = NSECTORS;	/* # sectors/track */
+int	ncyls;			/* # complete cylinders */
 int	nphyssectors;		/* # sectors/track including spares */
 int	secpercyl;		/* sectors per cylinder */
 int	trackspares = -1;	/* spare sectors per track */
@@ -180,7 +180,7 @@ int	headswitch;		/* head switch time, usec */
 int	trackseek;		/* track-to-track seek, usec */
 int	fsize = 0;		/* fragment size */
 int	bsize = 0;		/* block size */
-int	cpg = DESCPG;		/* cylinders/cylinder group */
+int	cpg = 0;		/* cylinders/cylinder group */
 int	cpgflg;			/* cylinders/cylinder group flag was given */
 int	minfree = MINFREE;	/* free space threshold */
 int	opt = DEFAULTOPT;	/* optimization preference (space or time) */
@@ -545,6 +545,17 @@ main(argc, argv)
 		pp->p_size *= secperblk;
 	}
 #endif
+	ncyls = fssize / secpercyl;
+	if (ncyls == 0)
+		ncyls = 1;	/* XXX */
+	if (cpg == 0)
+		cpg = DESCPG < ncyls ? DESCPG : ncyls;
+	else if (cpg > ncyls) {
+		cpg = ncyls;
+		printf(
+		"Number of cylinders restricts cylinders per group to %d.\n",
+		    cpg);
+	}
 	mkfs(pp, special, fsi, fso);
 #ifdef tahoe
 	if (realsectorsize != DEV_BSIZE)
