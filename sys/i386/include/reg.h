@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)reg.h	5.5 (Berkeley) 1/18/91
- *	$Id: reg.h,v 1.6 1994/01/03 07:55:34 davidg Exp $
+ *	$Id: reg.h,v 1.8 1994/05/25 08:56:42 rgrimes Exp $
  */
 
 #ifndef _MACHINE_REG_H_
@@ -103,4 +103,8 @@ struct fpreg {
 #endif
 };
 
+#ifdef KERNEL
+int	set_regs __P((struct proc *p, struct reg *regs));
+void	setregs __P((struct proc *, u_long, u_long));
+#endif
 #endif /* _MACHINE_REG_H_ */
