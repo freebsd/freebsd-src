@@ -76,6 +76,10 @@ static u_long uihash;		/* size of hash table - 1 */
 
 static void	orphanpg __P((struct pgrp *pg));
 
+static struct uidinfo	*uifind(uid_t uid);
+static struct uidinfo	*uicreate(uid_t uid);
+static int 	uifree(struct uidinfo *uip);
+
 /*
  * Other process lists
  */
@@ -103,85 +107,119 @@ procinit()
 }
 
 /*
- * Change the count associated with number of processes
- * a given user is using.
+ * find/create a uidinfo struct for the uid passed in
  */
-int
-chgproccnt(uid, diff)
-	uid_t	uid;
-	int	diff;
+static struct uidinfo *
+uifind(uid)
+	uid_t uid;
 {
-	register struct uidinfo *uip;
-	register struct uihashhead *uipp;
+	struct uihashhead *uipp;
+	struct uidinfo *uip;
 
 	uipp = UIHASH(uid);
 	LIST_FOREACH(uip, uipp, ui_hash)
 		if (uip->ui_uid == uid)
 			break;
-	if (uip) {
-		uip->ui_proccnt += diff;
-		if (uip->ui_proccnt < 0)
-			panic("chgproccnt: procs < 0");
-		if (uip->ui_proccnt > 0 || uip->ui_sbsize > 0)
-			return (uip->ui_proccnt);
+
+	return (uip);
+}
+
+static struct uidinfo *
+uicreate(uid)
+	uid_t uid;
+{
+	struct uidinfo *uip, *norace;
+
+	MALLOC(uip, struct uidinfo *, sizeof(*uip), M_PROC, M_NOWAIT);
+	if (uip == NULL) {
+		MALLOC(uip, struct uidinfo *, sizeof(*uip), M_PROC, M_WAITOK);
+		/*
+		 * if we M_WAITOK we must look afterwards or risk
+		 * redundant entries
+		 */
+		norace = uifind(uid);
+		if (norace != NULL) {
+			FREE(uip, M_PROC);
+			return (norace);
+		}
+	}
+	LIST_INSERT_HEAD(UIHASH(uid), uip, ui_hash);
+	uip->ui_uid = uid;
+	uip->ui_proccnt = 0;
+	uip->ui_sbsize = 0;
+	return (uip);
+}
+
+static int
+uifree(uip)
+	struct uidinfo *uip;
+{
+
+	if (uip->ui_sbsize == 0 && uip->ui_proccnt == 0) {
 		LIST_REMOVE(uip, ui_hash);
 		FREE(uip, M_PROC);
+		return (1);
+	}
+	return (0);
+}
+
+/*
+ * Change the count associated with number of processes
+ * a given user is using.  When 'max' is 0, don't enforce a limit
+ */
+int
+chgproccnt(uid, diff, max)
+	uid_t	uid;
+	int	diff;
+	int	max;
+{
+	struct uidinfo *uip;
+
+	uip = uifind(uid);
+	if (diff < 0)
+		KASSERT(uip != NULL, ("reducing proccnt: lost count, uid = %d", uid));
+	if (uip == NULL)
+		uip = uicreate(uid);
+	/* don't allow them to exceed max, but allow subtraction */
+	if (diff > 0 && uip->ui_proccnt + diff > max && max != 0) {
+		(void)uifree(uip);
 		return (0);
 	}
-	if (diff <= 0) {
-		if (diff == 0)
-			return(0);
-		panic("chgproccnt: lost user");
-	}
-	MALLOC(uip, struct uidinfo *, sizeof(*uip), M_PROC, M_WAITOK);
-	LIST_INSERT_HEAD(uipp, uip, ui_hash);
-	uip->ui_uid = uid;
-	uip->ui_proccnt = diff;
-	uip->ui_sbsize = 0;
-	return (diff);
+	uip->ui_proccnt += diff;
+	(void)uifree(uip);
+	return (1);
 }
 
 /*
  * Change the total socket buffer size a user has used.
  */
-rlim_t
-chgsbsize(uid, diff)
+int
+chgsbsize(uid, diff, max)
 	uid_t	uid;
 	rlim_t	diff;
+	rlim_t	max;
 {
-	register struct uidinfo *uip;
-	register struct uihashhead *uipp;
+	struct uidinfo *uip;
 
-	uipp = UIHASH(uid);
-	LIST_FOREACH(uip, uipp, ui_hash)
-		if (uip->ui_uid == uid)
-			break;
-	if (diff <= 0) {
-		if (diff == 0)
-			return (uip ? uip->ui_sbsize : 0);
-		KASSERT(uip != NULL, ("uidinfo (%d) gone", uid));
+	uip = uifind(uid);
+	if (diff < 0)
+		KASSERT(uip != NULL, ("reducing sbsize: lost count, uid = %d", uid));
+	if (uip == NULL)
+		uip = uicreate(uid);
+	/* don't allow them to exceed max, but allow subtraction */
+	if (diff > 0 && uip->ui_sbsize + diff > max) {
+		(void)uifree(uip);
+		return (0);
 	}
-	if (uip) {
-		uip->ui_sbsize += diff;
-		if (uip->ui_sbsize == 0 && uip->ui_proccnt == 0) {
-			LIST_REMOVE(uip, ui_hash);
-			FREE(uip, M_PROC);
-			return (0);
-		}
-		return (uip->ui_sbsize);
-	}
-	MALLOC(uip, struct uidinfo *, sizeof(*uip), M_PROC, M_WAITOK);
-	LIST_INSERT_HEAD(uipp, uip, ui_hash);
-	uip->ui_uid = uid;
-	uip->ui_proccnt = 0;
-	uip->ui_sbsize = diff;
-	return (diff);
+	uip->ui_sbsize += diff;
+	(void)uifree(uip);
+	return (1);
 }
 
 /*
  * Is p an inferior of the current process?
  */
-int
+inT
 inferior(p)
 	register struct proc *p;
 {

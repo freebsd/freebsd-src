@@ -183,7 +183,7 @@ fork1(p1, flags, procp)
 	struct proc *p2, *pptr;
 	uid_t uid;
 	struct proc *newproc;
-	int count;
+	int ok;
 	static int pidchecked = 0;
 	struct forklist *ep;
 
@@ -245,9 +245,8 @@ fork1(p1, flags, procp)
 	 * Increment the count of procs running with this uid. Don't allow
 	 * a nonprivileged user to exceed their current limit.
 	 */
-	count = chgproccnt(uid, 1);
-	if (uid != 0 && count > p1->p_rlimit[RLIMIT_NPROC].rlim_cur) {
-		(void)chgproccnt(uid, -1);
+	ok = chgproccnt(uid, 1, p1->p_rlimit[RLIMIT_NPROC].rlim_cur);
+	if (uid != 0 && !ok) {
 		/*
 		 * Back out the process count
 		 */

@@ -387,7 +387,7 @@ proc0_init(dummy)
 	/*
 	 * Charge root for one process.
 	 */
-	(void)chgproccnt(0, 1);
+	(void)chgproccnt(0, 1, 0);
 
 	/*
 	 * Initialize the current process pointer (curproc) before
