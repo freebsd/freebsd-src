@@ -145,7 +145,8 @@ acdattach(struct atapi_softc *atp)
 	chp = malloc(sizeof(struct changer), M_ACD, M_NOWAIT);
 	if (chp == NULL) {
 	    printf("acd: out of memory\n");
-	    return 0;
+	    free(cdp, M_ACD);
+	    return -1;
 	}
 	bzero(chp, sizeof(struct changer));
 	error = atapi_queue_cmd(cdp->atp, ccb, chp, sizeof(struct changer),
@@ -161,6 +162,8 @@ acdattach(struct atapi_softc *atp)
 	    if (!(cdparr = malloc(sizeof(struct acd_softc) * chp->slots,
 				 M_ACD, M_NOWAIT))) {
 		printf("acd: out of memory\n");
+		free(chp, M_ACD);
+		free(cdp, M_ACD);
 		return -1;
 	    }
 	    for (count = 0; count < chp->slots; count++) {
@@ -168,7 +171,7 @@ acdattach(struct atapi_softc *atp)
 		    tmpcdp = acd_init_lun(atp, cdp->stats);
 		    if (!tmpcdp) {
 			printf("acd: out of memory\n");
-			return -1;
+			break;
 		    }
 		}
 		cdparr[count] = tmpcdp;

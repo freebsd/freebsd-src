@@ -391,7 +391,7 @@ ad_transfer(struct ad_request *request)
 
 	if (ata_command(adp->controller, adp->unit, cmd, 
 			cylinder, head, sector, count, 0, ATA_IMMEDIATE)) {
-	    printf("ad%d: error executing command\n", adp->lun);
+	    printf("ad%d: error executing command", adp->lun);
 	    goto transfer_failed;
 	}
 
@@ -429,12 +429,21 @@ ad_transfer(struct ad_request *request)
 
 transfer_failed:
     untimeout((timeout_t *)ad_timeout, request, request->timeout_handle);
-    request->bp->bio_error = EIO;
-    request->bp->bio_flags |= BIO_ERROR;
-    request->bp->bio_resid = request->bytecount;
-    devstat_end_transaction_bio(&adp->stats, request->bp);
-    biodone(request->bp);
-    free(request, M_AD);
+    printf(" - resetting\n");
+
+    /* if retries still permit, reinject this request */
+    if (request->retries++ < AD_MAX_RETRIES)
+	TAILQ_INSERT_HEAD(&adp->controller->ata_queue, request, chain);
+    else {
+	/* retries all used up, return error */
+	request->bp->bio_error = EIO;
+	request->bp->bio_flags |= BIO_ERROR;
+	request->bp->bio_resid = request->bytecount;
+	devstat_end_transaction_bio(&adp->stats, request->bp);
+	biodone(request->bp);
+	free(request, M_AD);
+    }
+    ata_reinit(adp->controller);
 }
 
 int32_t
