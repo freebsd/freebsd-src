@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)write.2	8.5 (Berkeley) 4/2/94
-.\"     $Id$
+.\"     $Id: write.2,v 1.9 1999/07/12 20:48:55 nik Exp $
 .\"
 .Dd April 2, 1994
 .Dt WRITE 2
@@ -242,6 +242,8 @@ The sum of the
 values in the
 .Fa iov
 array overflowed a 32-bit integer.
+.It Bq Er ENOBUFS
+The mbuf pool has been completely exhausted when writing to a socket.
 .El
 .Pp
 The
