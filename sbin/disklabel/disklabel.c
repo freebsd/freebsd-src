@@ -800,36 +800,36 @@ edit(lp, f)
 	struct disklabel *lp;
 	int f;
 {
-	register int c;
+	register int c, fd;
 	struct disklabel label;
-	FILE *fd;
+	FILE *fp;
 
-	(void) mktemp(tmpfil);
-	fd = fopen(tmpfil, "w");
-	if (fd == NULL) {
+	if ((fd = mkstemp(tmpfil)) == -1 ||
+	    (fp = fdopen(fd, "w")) == NULL) {
 		fprintf(stderr, "%s: Can't create\n", tmpfil);
 		return (1);
 	}
-	(void)fchmod(fileno(fd), 0600);
-	display(fd, lp);
-	fclose(fd);
+	display(fp, lp);
+	fclose(fp);
 	for (;;) {
 		if (!editit())
 			break;
-		fd = fopen(tmpfil, "r");
-		if (fd == NULL) {
+		fp = fopen(tmpfil, "r");
+		if (fp == NULL) {
 			fprintf(stderr, "%s: Can't reopen for reading\n",
 				tmpfil);
 			break;
 		}
 		bzero((char *)&label, sizeof(label));
-		if (getasciilabel(fd, &label)) {
+		if (getasciilabel(fp, &label)) {
 			*lp = label;
 			if (writelabel(f, bootarea, lp) == 0) {
+				fclose(fp);
 				(void) unlink(tmpfil);
 				return (0);
 			}
 		}
+		fclose(fp);
 		printf("re-edit the label? [y]: "); fflush(stdout);
 		c = getchar();
 		if (c != EOF && c != (int)'\n')
