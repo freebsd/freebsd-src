@@ -581,7 +581,7 @@ run_rc_command()
 				exit 1
 			fi
 
-			if [ ! -x $command ]; then
+			if [ ! -x ${_chroot}${command} ]; then
 				info "run_rc_command: cannot run ($command)."
 				return 0
 			fi
