@@ -985,14 +985,15 @@ static void aue_rxeof(xfer, priv, status)
 	/* Put the packet on the special USB input queue. */
 	usb_ether_input(m);
 
+	return;
 done:
-#ifdef foo
+
 	/* Setup new transfer. */
 	usbd_setup_xfer(xfer, sc->aue_ep[AUE_ENDPT_RX],
 	    c, mtod(c->aue_mbuf, char *), AUE_CUTOFF, USBD_SHORT_XFER_OK,
 	    USBD_NO_TIMEOUT, aue_rxeof);
 	usbd_transfer(xfer);
-#endif
+
 	return;
 }
 
