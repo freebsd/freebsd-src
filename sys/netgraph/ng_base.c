@@ -1519,7 +1519,7 @@ ng_generic_msg(node_p here, struct ng_mesg *msg, const char *retaddr,
 		const struct ng_cmdlist *c;
 		const struct ng_parse_type *argstype;
 		struct ng_mesg *rp, *ascii, *binary;
-		int off;
+		int off = 0;
 
 		/* Data area must contain at least a struct ng_mesg + '\0' */
 		ascii = (struct ng_mesg *)msg->data;
