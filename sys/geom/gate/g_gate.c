@@ -380,9 +380,6 @@ g_gate_create(struct g_gate_ctl_create *ggio)
 		G_GATE_DEBUG(1, "Invalid unit number.");
 		return (EINVAL);
 	}
-	ggio->gctl_unit = g_gate_getunit(ggio->gctl_unit);
-	if (ggio->gctl_unit == -1)
-		return (EBUSY);
 
 	sc = malloc(sizeof(*sc), M_GATE, M_WAITOK | M_ZERO);
 	sc->sc_flags = (ggio->gctl_flags & G_GATE_USERFLAGS);
@@ -397,9 +394,16 @@ g_gate_create(struct g_gate_ctl_create *ggio)
 	if (sc->sc_queue_size > G_GATE_MAX_QUEUE_SIZE)
 		sc->sc_queue_size = G_GATE_MAX_QUEUE_SIZE;
 	sc->sc_timeout = ggio->gctl_timeout;
-	mtx_lock(&g_gate_list_mtx);
-	sc->sc_unit = ggio->gctl_unit;
 	callout_init(&sc->sc_callout, CALLOUT_MPSAFE);
+	mtx_lock(&g_gate_list_mtx);
+	ggio->gctl_unit = g_gate_getunit(ggio->gctl_unit);
+	if (ggio->gctl_unit == -1) {
+		mtx_destroy(&sc->sc_inqueue_mtx);
+		mtx_destroy(&sc->sc_outqueue_mtx);
+		free(sc, M_GATE);
+		return (EBUSY);
+	}
+	sc->sc_unit = ggio->gctl_unit;
 	LIST_INSERT_HEAD(&g_gate_list, sc, sc_next);
 	mtx_unlock(&g_gate_list_mtx);
 
@@ -490,6 +494,7 @@ g_gate_ioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 				return (0);
 			}
 		}
+		ggio->gctl_cmd = bp->bio_cmd;
 		if ((bp->bio_cmd == BIO_DELETE || bp->bio_cmd == BIO_WRITE) &&
 		    bp->bio_length > ggio->gctl_length) {
 			mtx_unlock(&sc->sc_inqueue_mtx);
@@ -502,7 +507,6 @@ g_gate_ioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 		atomic_subtract_rel_32(&sc->sc_queue_count, 1);
 		mtx_unlock(&sc->sc_inqueue_mtx);
 		ggio->gctl_seq = (uintptr_t)bp->bio_driver1;
-		ggio->gctl_cmd = bp->bio_cmd;
 		ggio->gctl_offset = bp->bio_offset;
 		ggio->gctl_length = bp->bio_length;
 		switch (bp->bio_cmd) {
