@@ -188,6 +188,6 @@ static void
 usage(void)
 {
 
-	fprintf(stderr, "usage: random [-elruUw] [-f filename] [denominator]\n");
+	fprintf(stderr, "usage: random [-elrUuw] [-f filename] [denominator]\n");
 	exit(1);
 }
