@@ -541,11 +541,11 @@
             ..
             it_IT.ISO8859-15
             ..
-            ja_JP.EUC
+            ja_JP.eucJP
             ..
             ja_JP.SJIS
             ..
-            ko_KR.EUC
+            ko_KR.eucKR
             ..
             la_LN.ISO8859-1
             ..
@@ -599,7 +599,7 @@
             ..
             uk_UA.KOI8-U
             ..
-            zh_CN.EUC
+            zh_CN.eucCN
             ..
             zh_TW.Big5
             ..
@@ -853,11 +853,11 @@
             ..
             it_IT.ISO8859-15
             ..
-            ja_JP.EUC
+            ja_JP.eucJP
             ..
             ja_JP.SJIS
             ..
-            ko_KR.EUC
+            ko_KR.eucKR
             ..
             la_LN.ISO8859-1
             ..
@@ -911,7 +911,7 @@
             ..
             uk_UA.KOI8-U
             ..
-            zh_CN.EUC
+            zh_CN.eucCN
             ..
             zh_TW.Big5
             ..
