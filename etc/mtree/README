@@ -1,4 +1,4 @@
-$Id: README,v 1.1 1999/08/23 01:16:26 rgrimes Exp $
+$FreeBSD$
 
 These files are used to create empty file hierarchies for building the
 system into.  Some notes about working with them are placed here to try

@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $Id: 150.clean-hoststat,v 1.1 1999/03/30 15:30:44 wollman Exp $
+# $FreeBSD$
 #
 
 if [ -d /var/spool/.hoststat ] ; then

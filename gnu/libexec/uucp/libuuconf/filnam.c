@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_filnam_rcsid[] = "$Id$";
+const char _uuconf_filnam_rcsid[] = "$FreeBSD$";
 #endif
 
 /* Return the saved file name.  */

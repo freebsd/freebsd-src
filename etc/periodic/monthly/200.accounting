@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-# $Id: 200.accounting,v 1.2 1998/02/09 11:36:43 danny Exp $
+# $FreeBSD$
 #
 
 W=/var/log/wtmp

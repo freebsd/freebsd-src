@@ -1,4 +1,4 @@
-# $Id$
+# $FreeBSD$
 
 INFO = bison
 INFOSECTION= "Programming & development tools."

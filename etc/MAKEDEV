@@ -132,7 +132,7 @@
 #	ipl	ipfilter control devices (ipl, ipnat, ipstate, ipauth)
 #	kbd	keyboard devices
 #
-#	$Id: MAKEDEV,v 1.207 1999/08/16 16:00:21 sheldonh Exp $
+# $FreeBSD$
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:$PATH

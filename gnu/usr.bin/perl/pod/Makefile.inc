@@ -1,5 +1,5 @@
 #
-# $Id$
+# $FreeBSD$
 #
 
 PERL5SRC?=	${.CURDIR}/../../../../../contrib/perl5

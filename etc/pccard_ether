@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-#	$Id: pccard_ether,v 1.11 1999/02/22 02:55:18 steve Exp $
+# $FreeBSD$
 #
 # pccard_ether interfacename [ifconfig option]
 #

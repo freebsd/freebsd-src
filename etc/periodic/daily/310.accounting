@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $Id: 310.accounting,v 1.1.1.1 1997/08/16 17:04:00 pst Exp $
+# $FreeBSD$
 #
 
 if [ -f /var/account/acct ] ; then

@@ -1,4 +1,4 @@
-#	$Id:$
+# $FreeBSD$
 
 # This is an example of dial, the dialer configuration file for Taylor
 # UUCP.  To use it, you must compile the package with

@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.7 1997/02/22 15:45:24 peter Exp $
+# $FreeBSD$
 
 .PATH:  ${.CURDIR}/../../../contrib/diff
 

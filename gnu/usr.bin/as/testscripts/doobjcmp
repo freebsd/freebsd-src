@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id$
+# $FreeBSD$
 # compare two object files, in depth.
 
 x=$1

@@ -1,5 +1,5 @@
 #
-# $Id: Makefile.i386,v 1.5 1998/06/04 06:50:58 bde Exp $
+# $FreeBSD$
 #
 SRCS+=		cpu-mips.c elf32-mips.c elf32-target.h elf32.c elflink.c
 SRCS+=		coff-mips.c ecoff.c ecofflink.c mips-opc.c mips16-opc.c

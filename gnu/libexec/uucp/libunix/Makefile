@@ -1,5 +1,5 @@
 # This subdirectory contains Unix specific support functions.
-# $Id$
+# $FreeBSD$
 
 LIB=		unix
 SRCS = access.c addbas.c app3.c app4.c basnam.c bytfre.c corrup.c \

@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.6 1999/04/06 13:26:48 obrien Exp $
+# $FreeBSD$
 
 GCCDIR=	${.CURDIR}/../../../contrib/egcs/gcc
 

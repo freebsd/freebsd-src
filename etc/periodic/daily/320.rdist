@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $Id: 320.rdist,v 1.1.1.1 1997/08/16 17:04:00 pst Exp $
+# $FreeBSD$
 #
 
 if [ -f /etc/Distfile ]; then

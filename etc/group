@@ -1,4 +1,4 @@
-#	$Id: group,v 1.17 1998/09/13 23:05:46 brian Exp $
+# $FreeBSD$
 #
 wheel:*:0:root
 daemon:*:1:daemon

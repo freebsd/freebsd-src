@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-# $Id: 310.locate,v 1.2 1997/11/01 15:00:40 wosch Exp $
+# $FreeBSD$
 #
 locdb=/var/db/locate.database
 
