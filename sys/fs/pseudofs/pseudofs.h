@@ -57,6 +57,7 @@ typedef enum {
 #define PFS_RAWRD	0x0004	/* raw reader */
 #define	PFS_RAWWR	0x0008	/* raw writer */
 #define PFS_RAW		(PFS_RAWRD|PFS_RAWWR)
+#define PFS_PROCDEP	0x0010	/* process-dependent */
 #define PFS_DISABLED	0x8000	/* node is disabled */
 
 /*
@@ -65,6 +66,15 @@ typedef enum {
 struct pfs_info;
 struct pfs_node;
 struct pfs_bitmap;
+
+/*
+ * Init / uninit callback
+ */
+#define PFS_INIT_ARGS \
+	struct pfs_info *pi, struct vfsconf *vfc
+#define PFS_INIT_PROTO(name) \
+	int name(PFS_INIT_ARGS);
+typedef int (*pfs_init_t)(PFS_INIT_ARGS);
 
 /*
  * Filler callback
@@ -103,8 +113,10 @@ typedef int (*pfs_vis_t)(PFS_VIS_ARGS);
  */
 struct pfs_info {
 	char			 pi_name[MFSNAMELEN];
-	struct pfs_node		*pi_root;
+	pfs_init_t		 pi_init;
+	pfs_init_t		 pi_uninit;
 	/* members below this line aren't initialized */
+	struct pfs_node		*pi_root;
 	/* currently, the mutex is only used to protect the bitmap */
 	struct mtx		 pi_mutex;
 	struct pfs_bitmap	*pi_bitmap;
@@ -123,62 +135,56 @@ struct pfs_node {
 	} u1;
 #define pn_func		u1._pn_func
 #define pn_nodes	u1._pn_nodes
+	/*pfs_ioctl_t		 pn_ioctl;*/
 	pfs_attr_t		 pn_attr;
 	pfs_vis_t		 pn_vis;
 	void			*pn_data;
 	int			 pn_flags;
-	/* members below this line aren't initialized */
+	
+	struct pfs_info		*pn_info;
 	struct pfs_node		*pn_parent;
+	struct pfs_node		*pn_next;
 	u_int32_t		 pn_fileno;
 };
-
-#define PFS_NODE(name, type, fill, attr, vis, data, flags) \
-        { (name), (type), { (fill) }, (attr), (vis), (data), (flags) }
-#define PFS_DIR(name, nodes, attr, vis, data, flags) \
-        PFS_NODE(name, pfstype_dir, nodes, attr, vis, data, flags)
-#define PFS_ROOT(nodes) \
-        PFS_NODE("/", pfstype_root, nodes, NULL, NULL, NULL, 0)
-#define PFS_THIS \
-	PFS_NODE(".", pfstype_this, NULL, NULL, NULL, NULL, 0)
-#define PFS_PARENT \
-	PFS_NODE("..", pfstype_parent, NULL, NULL, NULL, NULL, 0)
-#define PFS_FILE(name, func, attr, vis, data, flags) \
-	PFS_NODE(name, pfstype_file, func, attr, vis, data, flags)
-#define PFS_SYMLINK(name, func, attr, vis, data, flags) \
-	PFS_NODE(name, pfstype_symlink, func, attr, vis, data, flags)
-#define PFS_PROCDIR(nodes, attr, vis, data, flags) \
-        PFS_NODE("", pfstype_procdir, nodes, attr, vis, data, flags)
-#define PFS_LASTNODE \
-	PFS_NODE("", pfstype_none, NULL, NULL, NULL, NULL, 0)
 
 /*
  * VFS interface
  */
-int	 pfs_mount		(struct pfs_info *pi,
+int	 	 pfs_mount	(struct pfs_info *pi,
 				 struct mount *mp, char *path, caddr_t data,
 				 struct nameidata *ndp, struct thread *td);
-int	 pfs_unmount		(struct mount *mp, int mntflags,
+int	 	 pfs_unmount	(struct mount *mp, int mntflags,
 				 struct thread *td);
-int	 pfs_root		(struct mount *mp, struct vnode **vpp);
-int	 pfs_statfs		(struct mount *mp, struct statfs *sbp,
+int		 pfs_root	(struct mount *mp, struct vnode **vpp);
+int	 	 pfs_statfs	(struct mount *mp, struct statfs *sbp,
 				 struct thread *td);
-int	 pfs_init		(struct pfs_info *pi, struct vfsconf *vfc);
-int	 pfs_uninit		(struct pfs_info *pi, struct vfsconf *vfc);
+int	 	 pfs_init	(struct pfs_info *pi, struct vfsconf *vfc);
+int	 	 pfs_uninit	(struct pfs_info *pi, struct vfsconf *vfc);
 
 /*
- * Other utility functions
+ * Directory structure construction and manipulation
  */
-int	 pfs_disable		(struct pfs_node *pn);
-int	 pfs_enable		(struct pfs_node *pn);
+struct pfs_node	*pfs_create_dir	(struct pfs_node *parent, char *name,
+				 pfs_attr_t attr, pfs_vis_t vis, int flags);
+struct pfs_node	*pfs_create_file(struct pfs_node *parent, char *name,
+				 pfs_fill_t fill, pfs_attr_t attr,
+				 pfs_vis_t vis, int flags);
+struct pfs_node	*pfs_create_link(struct pfs_node *parent, char *name,
+				 pfs_fill_t fill, pfs_attr_t attr,
+				 pfs_vis_t vis, int flags);
+int		 pfs_disable	(struct pfs_node *pn);
+int		 pfs_enable	(struct pfs_node *pn);
+int		 pfs_destroy	(struct pfs_node *pn);
 
 /*
  * Now for some initialization magic...
  */
-#define PSEUDOFS(name, root, version)					\
+#define PSEUDOFS(name, version)						\
 									\
 static struct pfs_info name##_info = {					\
 	#name,								\
-	&(root)								\
+	&name##_init,							\
+	&name##_uninit,							\
 };									\
 									\
 static int								\
@@ -215,6 +221,6 @@ static struct vfsops name##_vfsops = {					\
 };									\
 VFS_SET(name##_vfsops, name, VFCF_SYNTHETIC);				\
 MODULE_VERSION(name, version);						\
-MODULE_DEPEND(name, pseudofs, 2, 2, 2);
+MODULE_DEPEND(name, pseudofs, 3, 3, 3);
 
 #endif
