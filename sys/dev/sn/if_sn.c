@@ -65,7 +65,6 @@ __FBSDID("$FreeBSD$");
  *    o   "if_ep.c,v 1.19 1995/01/24 20:53:45 davidg Exp"
  *
  * Known Bugs:
- *    o   The hardware multicast filter isn't used yet.
  *    o   Setting of the hardware address isn't supported.
  *    o   Hardware padding isn't used.
  */
@@ -124,12 +123,14 @@ static int snioctl(struct ifnet * ifp, u_long, caddr_t);
 
 static void snresume(struct ifnet *);
 
-void sninit(void *);
-void snread(struct ifnet *);
-void snreset(struct sn_softc *);
-void snstart(struct ifnet *);
-void snstop(struct sn_softc *);
-void snwatchdog(struct ifnet *);
+static void sninit_locked(void *);
+static void snstart_locked(struct ifnet *);
+
+static void sninit(void *);
+static void snread(struct ifnet *);
+static void snstart(struct ifnet *);
+static void snstop(struct sn_softc *);
+static void snwatchdog(struct ifnet *);
 
 static void sn_setmcast(struct sn_softc *);
 static int sn_getmcf(struct arpcom *ac, u_char *mcf);
@@ -156,20 +157,19 @@ int
 sn_attach(device_t dev)
 {
 	struct sn_softc *sc = device_get_softc(dev);
-	struct ifnet   *ifp = &sc->arpcom.ac_if;
-	u_short         i;
-	u_char         *p;
-	struct ifaddr  *ifa;
+	struct ifnet    *ifp = &sc->arpcom.ac_if;
+	uint16_t        i, w;
+	uint8_t         *p;
+	struct ifaddr   *ifa;
 	struct sockaddr_dl *sdl;
 	int             rev;
-	u_short         address;
+	uint16_t        address;
 	int		j;
 
-	sn_activate(dev);
-
-	snstop(sc);
-
 	sc->dev = dev;
+	sn_activate(dev);
+	SN_LOCK_INIT(sc);
+	snstop(sc);
 	sc->pages_wanted = -1;
 
 	SMC_SELECT_BANK(sc, 3);
@@ -177,7 +177,7 @@ sn_attach(device_t dev)
 	if (chip_ids[rev])
 		device_printf(dev, " %s ", chip_ids[rev]);
 	else
-		device_printf(dev, "support for this chip hasn't been integrated\n");
+		device_printf(dev, " unsupported chip");
 
 	SMC_SELECT_BANK(sc, 1);
 	i = CSR_READ_2(sc, CONFIG_REG_W);
@@ -185,10 +185,8 @@ sn_attach(device_t dev)
 
 	if (sc->pccard_enaddr)
 		for (j = 0; j < 3; j++) {
-			u_short	w;
-
-			w = (u_short)sc->arpcom.ac_enaddr[j * 2] | 
-				(((u_short)sc->arpcom.ac_enaddr[j * 2 + 1]) << 8);
+			w = (uint16_t)sc->arpcom.ac_enaddr[j * 2] | 
+			    (((uint16_t)sc->arpcom.ac_enaddr[j * 2 + 1]) << 8);
 			CSR_WRITE_2(sc, IAR_ADDR0_REG_W + j * 2, w);
 		}
 
@@ -197,7 +195,7 @@ sn_attach(device_t dev)
 	 * regs 4 - 9
 	 */
 	SMC_SELECT_BANK(sc, 1);
-	p = (u_char *) & sc->arpcom.ac_enaddr;
+	p = (uint8_t *) &sc->arpcom.ac_enaddr;
 	for (i = 0; i < 6; i += 2) {
 		address = CSR_READ_2(sc, IAR_ADDR0_REG_W + i);
 		p[i + 1] = address >> 8;
@@ -246,25 +244,35 @@ sn_detach(device_t dev)
 {
 	struct sn_softc *sc = device_get_softc(dev);
 
+	snstop(sc);
 	sc->arpcom.ac_if.if_flags &= ~IFF_RUNNING; 
 	ether_ifdetach(&sc->arpcom.ac_if);
 	sn_deactivate(dev);
+	SN_LOCK_DESTORY(sc);
 	return 0;
+}
+
+static void
+sninit(void *xsc)
+{
+	struct sn_softc *sc = xsc;
+	SN_LOCK(sc);
+	sninit_locked(sc);
+	SN_UNLOCK(sc);
 }
 
 /*
  * Reset and initialize the chip
  */
-void
-sninit(void *xsc)
+static void
+sninit_locked(void *xsc)
 {
 	struct sn_softc *sc = xsc;
 	struct ifnet *ifp = &sc->arpcom.ac_if;
-	int             s;
 	int             flags;
 	int             mask;
 
-	s = splimp();
+	SN_ASSERT_LOCKED(sc);
 
 	/*
 	 * This resets the registers mostly to defaults, but doesn't affect
@@ -348,35 +356,39 @@ sninit(void *xsc)
 	/*
 	 * Attempt to push out any waiting packets.
 	 */
-	snstart(ifp);
-
-	splx(s);
+	snstart_locked(ifp);
 }
 
-
-void
+static void
 snstart(struct ifnet *ifp)
 {
 	struct sn_softc *sc = ifp->if_softc;
-	u_int  len;
-	struct mbuf *m;
-	struct mbuf    *top;
-	int             s, pad;
+	SN_LOCK(sc);
+	snstart_locked(ifp);
+	SN_UNLOCK(sc);
+}
+
+
+static void
+snstart_locked(struct ifnet *ifp)
+{
+	struct sn_softc *sc = ifp->if_softc;
+	u_int		len;
+	struct mbuf	*m;
+	struct mbuf	*top;
+	int             pad;
 	int             mask;
-	u_short         length;
-	u_short         numPages;
-	u_char          packet_no;
+	uint16_t        length;
+	uint16_t        numPages;
+	uint8_t         packet_no;
 	int             time_out;
 	int		junk = 0;
 
-	s = splimp();
+	SN_ASSERT_LOCKED(sc);
 
-	if (sc->arpcom.ac_if.if_flags & IFF_OACTIVE) {
-		splx(s);
+	if (sc->arpcom.ac_if.if_flags & IFF_OACTIVE)
 		return;
-	}
 	if (sc->pages_wanted != -1) {
-		splx(s);
 		if_printf(ifp, "snstart() while memory allocation pending\n");
 		return;
 	}
@@ -386,10 +398,8 @@ startagain:
 	 * Sneak a peek at the next packet
 	 */
 	m = sc->arpcom.ac_if.if_snd.ifq_head;
-	if (m == 0) {
-		splx(s);
+	if (m == 0)
 		return;
-	}
 	/*
 	 * Compute the frame length and set pad to give an overall even
 	 * number of bytes.  Below we assume that the packet length is even.
@@ -466,8 +476,6 @@ startagain:
 		sc->arpcom.ac_if.if_timer = 1;
 		sc->arpcom.ac_if.if_flags |= IFF_OACTIVE;
 		sc->pages_wanted = numPages;
-
-		splx(s);
 		return;
 	}
 	/*
@@ -567,8 +575,6 @@ readcheck:
 	 */
 	if (CSR_READ_2(sc, FIFO_PORTS_REG_W) & FIFO_REMPTY)
 		goto startagain;
-
-	splx(s);
 	return;
 }
 
@@ -586,15 +592,15 @@ static void
 snresume(struct ifnet *ifp)
 {
 	struct sn_softc *sc = ifp->if_softc;
-	u_int  len;
-	struct mbuf *m;
+	u_int		len;
+	struct mbuf	*m;
 	struct mbuf    *top;
 	int             pad;
 	int             mask;
-	u_short         length;
-	u_short         numPages;
-	u_short         pages_wanted;
-	u_char          packet_no;
+	uint16_t        length;
+	uint16_t        numPages;
+	uint16_t        pages_wanted;
+	uint8_t         packet_no;
 
 	if (sc->pages_wanted < 0)
 		return;
@@ -778,20 +784,16 @@ sn_intr(void *arg)
 	int             status, interrupts;
 	struct sn_softc *sc = (struct sn_softc *) arg;
 	struct ifnet   *ifp = &sc->arpcom.ac_if;
-	int             x;
 
 	/*
 	 * Chip state registers
 	 */
-	u_char          mask;
-	u_char          packet_no;
-	u_short         tx_status;
-	u_short         card_stats;
+	uint8_t          mask;
+	uint8_t         packet_no;
+	uint16_t        tx_status;
+	uint16_t        card_stats;
 
-	/*
-	 * if_ep.c did this, so I do too.  Yet if_ed.c doesn't. I wonder...
-	 */
-	x = splbio();
+	SN_LOCK(sc);
 
 	/*
 	 * Clear the watchdog.
@@ -924,7 +926,7 @@ sn_intr(void *arg)
 		 * Attempt to queue more transmits.
 		 */
 		sc->arpcom.ac_if.if_flags &= ~IFF_OACTIVE;
-		snstart(&sc->arpcom.ac_if);
+		snstart_locked(&sc->arpcom.ac_if);
 	}
 	/*
 	 * Transmit underrun.  We use this opportunity to update transmit
@@ -962,14 +964,14 @@ sn_intr(void *arg)
 		 * Attempt to enqueue some more stuff.
 		 */
 		sc->arpcom.ac_if.if_flags &= ~IFF_OACTIVE;
-		snstart(&sc->arpcom.ac_if);
+		snstart_locked(&sc->arpcom.ac_if);
 	}
 	/*
 	 * Some other error.  Try to fix it by resetting the adapter.
 	 */
 	if (status & IM_EPH_INT) {
 		snstop(sc);
-		sninit(sc);
+		sninit_locked(sc);
 	}
 
 out:
@@ -989,11 +991,10 @@ out:
 	mask |= CSR_READ_1(sc, INTR_MASK_REG_B);
 	CSR_WRITE_1(sc, INTR_MASK_REG_B, mask);
 	sc->intr_mask = mask;
-
-	splx(x);
+	SN_UNLOCK(sc);
 }
 
-void
+static void
 snread(struct ifnet *ifp)
 {
         struct sn_softc *sc = ifp->if_softc;
@@ -1001,8 +1002,8 @@ snread(struct ifnet *ifp)
 	struct mbuf    *m;
 	short           status;
 	int             packet_number;
-	u_short         packet_length;
-	u_char         *data;
+	uint16_t        packet_length;
+	uint8_t        *data;
 
 	SMC_SELECT_BANK(sc, 2);
 #if 0
@@ -1083,8 +1084,7 @@ read_another:
 	/*
 	 * Get packet, including link layer address, from interface.
 	 */
-
-	data = (u_char *) eh;
+	data = (uint8_t *) eh;
 	CSR_READ_MULTI_2(sc, DATA_REG_W, (uint16_t *) data, packet_length >> 1);
 	if (packet_length & 1) {
 		data += packet_length & ~1;
@@ -1097,7 +1097,16 @@ read_another:
 	 */
 	m->m_pkthdr.len = m->m_len = packet_length;
 
+	/*
+	 * Drop locks before calling if_input() since it may re-enter
+	 * snstart() in the netisr case.  This would result in a
+	 * lock reversal.  Better performance might be obtained by
+	 * chaining all packets received, dropping the lock, and then
+	 * calling if_input() on each one.
+	 */
+	SN_UNLOCK(sc);
 	(*ifp->if_input)(ifp, m);
+	SN_LOCK(sc);
 
 out:
 
@@ -1130,21 +1139,19 @@ static int
 snioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
 	struct sn_softc *sc = ifp->if_softc;
-	int             s, error = 0;
-
-	s = splimp();
+	int             error = 0;
 
 	switch (cmd) {
 	case SIOCSIFFLAGS:
+		SN_LOCK(sc);
 		if ((ifp->if_flags & IFF_UP) == 0 && ifp->if_flags & IFF_RUNNING) {
 			ifp->if_flags &= ~IFF_RUNNING;
 			snstop(sc);
-			break;
 		} else {
 			/* reinitialize card on any parameter change */
-			sninit(sc);
-			break;
+			sninit_locked(sc);
 		}
+		SN_UNLOCK(sc);
 		break;
 
 #ifdef notdef
@@ -1155,45 +1162,31 @@ snioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 #endif
 
 	case SIOCADDMULTI:
-	    /* update multicast filter list. */
-	    sn_setmcast(sc);
-	    error = 0;
-	    break;
+		/* update multicast filter list. */
+		SN_LOCK(sc);
+		sn_setmcast(sc);
+		error = 0;
+		SN_UNLOCK(sc);
+		break;
 	case SIOCDELMULTI:
-	    /* update multicast filter list. */
-	    sn_setmcast(sc);
-	    error = 0;
-	    break;
+		/* update multicast filter list. */
+		SN_LOCK(sc);
+		sn_setmcast(sc);
+		error = 0;
+		SN_UNLOCK(sc);
+		break;
 	default:
 		error = EINVAL;
 		error = ether_ioctl(ifp, cmd, data);
 		break;
 	}
-
-	splx(s);
-
 	return (error);
 }
 
-void
-snreset(struct sn_softc *sc)
-{
-	int	s;
-	
-	s = splimp();
-	snstop(sc);
-	sninit(sc);
-
-	splx(s);
-}
-
-void
+static void
 snwatchdog(struct ifnet *ifp)
 {
-	int	s;
-	s = splimp();
 	sn_intr(ifp->if_softc);
-	splx(s);
 }
 
 
@@ -1201,7 +1194,7 @@ snwatchdog(struct ifnet *ifp)
  * 2. clear the enable receive flag
  * 3. clear the enable xmit flags
  */
-void
+static void
 snstop(struct sn_softc *sc)
 {
 	
@@ -1251,8 +1244,8 @@ sn_activate(device_t dev)
 		sn_deactivate(dev);
 		return ENOMEM;
 	}
-	if ((err = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET, sn_intr, sc,
-	    &sc->intrhand)) != 0) {
+	if ((err = bus_setup_intr(dev, sc->irq_res,
+	    INTR_TYPE_NET | INTR_MPSAFE, sn_intr, sc, &sc->intrhand)) != 0) {
 		sn_deactivate(dev);
 		return err;
 	}
@@ -1300,9 +1293,9 @@ int
 sn_probe(device_t dev, int pccard)
 {
 	struct sn_softc *sc = device_get_softc(dev);
-	u_int           bank;
-	u_short         revision_register;
-	u_short         base_address_register;
+	uint16_t        bank;
+	uint16_t        revision_register;
+	uint16_t        base_address_register;
 	int		err;
 
 	if ((err = sn_activate(dev)) != 0)
@@ -1396,6 +1389,9 @@ sn_setmcast(struct sn_softc *sc)
 {
 	struct ifnet *ifp = (struct ifnet *)sc;
 	int flags;
+	uint8_t mcf[MCFSZ];
+
+	SN_ASSERT_LOCKED(sc);
 
 	/*
 	 * Set the receiver filter.  We want receive enabled and auto strip
@@ -1409,18 +1405,17 @@ sn_setmcast(struct sn_softc *sc)
 	} else if (ifp->if_flags & IFF_ALLMULTI) {
 		flags |= RCR_ALMUL;
 	} else {
-		u_char mcf[MCFSZ];
 		if (sn_getmcf(&sc->arpcom, mcf)) {
 			/* set filter */
 			SMC_SELECT_BANK(sc, 3);
 			CSR_WRITE_2(sc, MULTICAST1_REG_W,
-			    ((u_short)mcf[1] << 8) |  mcf[0]);
+			    ((uint16_t)mcf[1] << 8) |  mcf[0]);
 			CSR_WRITE_2(sc, MULTICAST2_REG_W,
-			    ((u_short)mcf[3] << 8) |  mcf[2]);
+			    ((uint16_t)mcf[3] << 8) |  mcf[2]);
 			CSR_WRITE_2(sc, MULTICAST3_REG_W,
-			    ((u_short)mcf[5] << 8) |  mcf[4]);
+			    ((uint16_t)mcf[5] << 8) |  mcf[4]);
 			CSR_WRITE_2(sc, MULTICAST4_REG_W,
-			    ((u_short)mcf[7] << 8) |  mcf[6]);
+			    ((uint16_t)mcf[7] << 8) |  mcf[6]);
 		} else {
 			flags |= RCR_ALMUL;
 		}
@@ -1430,11 +1425,11 @@ sn_setmcast(struct sn_softc *sc)
 }
 
 static int
-sn_getmcf(struct arpcom *ac, u_char *mcf)
+sn_getmcf(struct arpcom *ac, uint8_t *mcf)
 {
 	int i;
-	u_int index, index2;
-	u_char *af = (u_char *) mcf;
+	uint32_t index, index2;
+	uint8_t *af = mcf;
 	struct ifmultiaddr *ifma;
 
 	bzero(mcf, MCFSZ);
@@ -1459,9 +1454,9 @@ sn_crc(u_char *s)
 {
 	int perByte;
 	int perBit;
-	const u_int poly = 0xedb88320;
-	u_int v = 0xffffffff;
-	u_char c;
+	const uint32_t poly = 0xedb88320;
+	uint32_t v = 0xffffffff;
+	uint8_t c;
   
 	for (perByte = 0; perByte < ETHER_ADDR_LEN; perByte++) {
 		c = s[perByte];
