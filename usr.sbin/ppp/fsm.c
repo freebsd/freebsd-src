@@ -349,10 +349,12 @@ fsm_Close(struct fsm *fp)
     break;
   case ST_OPENED:
     (*fp->fn->LayerDown)(fp);
-    FsmInitRestartCounter(fp, FSM_TRM_TIMER);
-    FsmSendTerminateReq(fp);
-    NewState(fp, ST_CLOSING);
-    (*fp->parent->LayerDown)(fp->parent->object, fp);
+    if (fp->state == ST_OPENED) {
+      FsmInitRestartCounter(fp, FSM_TRM_TIMER);
+      FsmSendTerminateReq(fp);
+      NewState(fp, ST_CLOSING);
+      (*fp->parent->LayerDown)(fp->parent->object, fp);
+    }
     break;
   case ST_REQSENT:
   case ST_ACKRCVD:
