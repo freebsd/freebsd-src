@@ -45,6 +45,13 @@ Table of contents:
 1.1. KERNEL CHANGES
 -------------------
 
+The tap driver, a virtual Ethernet device driver for bridged 
+configurations, has been added.
+
+accept_filters, a kernel feature to reduce overheads when accepting
+and reading new connections on listening sockets, has been added.
+
+
 1.2. SECURITY FIXES
 -------------------
 
@@ -56,6 +63,22 @@ include: new default file locations (see
 /usr/src/contrib/sendmail/cf/README); newaliases is limited to root and
 trusted users; and the MSA port (587) is turned on by default.  See
 /usr/src/contrib/sendmail/RELEASE_NOTES for more information.
+
+routed(8) has been updated to version 2.22.
+
+The truncate(1) utility, which truncates or extends the length
+of files, has been added.
+
+syslogd(8) can take a -n option to disable DNS queries for every
+request.
+
+kenv(1), a command to dump the kernel environment, has been added. 
+
+The behavior of periodic(8) is now controlled by /etc/defaults/periodic.conf
+and /etc/periodic.conf.
+
+logger(1) can now send messages directly to a remote syslog.
+
 
 2. Supported Configurations
 ---------------------------
