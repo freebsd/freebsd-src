@@ -144,6 +144,88 @@
 
 #define	ERRATUM50(reg)	mov reg, reg
 
+#define	KSTACK_SLOP	1024
+
+#define	KSTACK_CHECK \
+	dec	16, ASP_REG ; \
+	stx	%g1, [ASP_REG + 0] ; \
+	stx	%g2, [ASP_REG + 8] ; \
+	add	%sp, SPOFF, %g1 ; \
+	andcc	%g1, (1 << PTR_SHIFT) - 1, %g0 ; \
+	bnz,a	%xcc, tl1_kstack_fault ; \
+	 inc	16, ASP_REG ; \
+	ldx	[PCPU(CURTHREAD)], %g2 ; \
+	ldx	[%g2 + TD_KSTACK], %g2 ; \
+	add	%g2, KSTACK_SLOP, %g2 ; \
+	subcc	%g1, %g2, %g1 ; \
+	ble,a	%xcc, tl1_kstack_fault ; \
+	 inc	16, ASP_REG ; \
+	set	KSTACK_PAGES * PAGE_SIZE, %g2 ; \
+	cmp	%g1, %g2 ; \
+	bgt,a	%xcc, tl1_kstack_fault ; \
+	 inc	16, ASP_REG ; \
+	ldx	[ASP_REG + 8], %g2 ; \
+	ldx	[ASP_REG + 0], %g1 ; \
+	inc	16, ASP_REG
+
+ENTRY(tl1_kstack_fault)
+	rdpr	%tl, %g1
+	cmp	%g1, 3
+	beq	%xcc, 1f
+	 nop
+	blt	%xcc, 2f
+	 nop
+	sir
+
+1:
+#if KTR_COMPILE & KTR_TRAP
+	CATR(KTR_TRAP, "tl1_kstack_fault: tl=%#lx tpc=%#lx tnpc=%#lx"
+	    , %g1, %g2, %g3, 7, 8, 9)
+	rdpr	%tl, %g2
+	stx	%g2, [%g1 + KTR_PARM1]
+	rdpr	%tpc, %g2
+	stx	%g2, [%g1 + KTR_PARM1]
+	rdpr	%tnpc, %g2
+	stx	%g2, [%g1 + KTR_PARM1]
+9:
+#endif
+	wrpr	%g0, 2, %tl
+
+2:
+#if KTR_COMPILE & KTR_TRAP
+	CATR(KTR_TRAP,
+	    "tl1_kstack_fault: sp=%#lx ks=%#lx cr=%#lx cs=%#lx ow=%#lx ws=%#lx"
+	    , %g1, %g2, %g3, 7, 8, 9)
+	add	%sp, SPOFF, %g2
+	stx	%g2, [%g1 + KTR_PARM1]
+	ldx	[PCPU(CURTHREAD)], %g2
+	ldx	[%g2 + TD_KSTACK], %g2
+	stx	%g2, [%g1 + KTR_PARM2]
+	rdpr	%canrestore, %g2
+	stx	%g2, [%g1 + KTR_PARM3]
+	rdpr	%cansave, %g2
+	stx	%g2, [%g1 + KTR_PARM4]
+	rdpr	%otherwin, %g2
+	stx	%g2, [%g1 + KTR_PARM5]
+	rdpr	%wstate, %g2
+	stx	%g2, [%g1 + KTR_PARM6]
+9:
+#endif
+
+	wrpr	%g0, 0, %canrestore
+	wrpr	%g0, 6, %cansave
+	wrpr	%g0, 0, %otherwin
+	wrpr	%g0, WSTATE_KERNEL, %wstate
+
+	SET(panic_stack + PANIC_STACK_PAGES * PAGE_SIZE, %g2, %g1)
+	sub	%g1, SPOFF + CCFSZ, %sp
+	clr	%fp
+
+	rdpr	%pil, %o1
+	b	%xcc, tl1_trap
+	 mov	T_KSTACK_FAULT | T_KERNEL, %o0
+END(tl1_kstack_fault)
+
 /*
  * Magic to resume from a spill or fill trap.  If we get an alignment or an
  * mmu fault during a spill or a fill, this macro will detect the fault and
@@ -247,7 +329,8 @@
  * Game over if the window operation fails.
  */
 #define	RSF_FATAL(type) \
-	sir	type ; \
+	b	%xcc, rsf_fatal ; \
+	 mov	type, %g2 ; \
 	.align	16
 
 /*
@@ -268,6 +351,21 @@
 	b,a	%xcc, tl1_spill_topcb ; \
 	 nop ; \
 	.align	16
+
+ENTRY(rsf_fatal)
+#if KTR_COMPILE & KTR_TRAP
+	CATR(KTR_TRAP, "rsf_fatal: bad window trap tt=%#lx type=%#lx"
+	    , %g1, %g3, %g4, 7, 8, 9)
+	rdpr	%tt, %g3
+	stx	%g3, [%g1 + KTR_PARM1]
+	stx	%g2, [%g1 + KTR_PARM2]
+9:
+#endif
+
+	KSTACK_CHECK
+
+	sir
+END(rsf_fatal)
 
 	.comm	intrnames, NIV * 8
 	.comm	eintrnames, 0
@@ -1290,6 +1388,23 @@ END(intr_enqueue)
 	 */
 2:	wrpr	%g0, PSTATE_ALT, %pstate
 
+	b,a	%xcc, tl1_dmmu_miss_trap
+	 nop
+	.align	128
+	.endm
+
+ENTRY(tl1_dmmu_miss_trap)
+#if KTR_COMPILE & KTR_TRAP
+	CATR(KTR_TRAP, "tl1_dmmu_miss_trap: tar=%#lx"
+	    , %g1, %g2, %g3, 7, 8, 9)
+	mov	AA_DMMU_TAR, %g2
+	ldxa	[%g2] ASI_DMMU, %g2
+	stx	%g2, [%g1 + KTR_PARM1]
+9:
+#endif
+
+	KSTACK_CHECK
+
 	wr	%g0, ASI_DMMU, %asi
 	ldxa	[%g0 + AA_DMMU_TAR] %asi, %g3
 
@@ -1298,8 +1413,7 @@ END(intr_enqueue)
 	mov	%g3, %o3
 	b	%xcc, tl1_trap
 	 mov	T_DATA_MISS | T_KERNEL, %o0
-	.align	128
-	.endm
+END(tl1_dmmu_miss_trap)
 
 ENTRY(tl1_dmmu_miss_user)
 	/*
