@@ -134,14 +134,12 @@ Naturally, option
 .Fl p
 is available only for VGA boards.
 Three flavors are available.
-
+.Pp
 If used with argument
 .Dq Ar default ,
 this flag will restore the default palette
-.Po
-as installed by VGA ROM BIOS after hardware reset
-.Pc .
-
+(as installed by VGA ROM BIOS after hardware reset).
+.Pp
 If used with argument
 .Dq Ar list ,
 the current VGA DAC palette entries are listed.
@@ -150,7 +148,7 @@ the table index, values for red, green, and blue, and if there's a
 known name for this entry, the color name.
 Trailing empty table
 slots (RGB values all zero) are omitted.
-
+.Pp
 Otherwise, four comma-separated arguments are expected.
 The first
 denotes the number of palette entry to be modified.
@@ -200,7 +198,7 @@ region is reset and the cursor is placed in the home position.
 The command
 .Dq Li scon Fl H s Ar 28
 places the current screen into HP mode and sets the screen size to 28x80.
-
+.Pp
 Invoking
 .Do
 .Li scon Fl p

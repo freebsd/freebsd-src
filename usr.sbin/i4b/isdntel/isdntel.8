@@ -74,7 +74,7 @@ as the command string to execute for playing a voice message to some audio
 output facility. The characters
 .Em %s
 are replaced by the currently selected filename. The default string is
-.Em cat %s | alaw2ulaw >/dev/audio
+.Dq Li cat %s \&| alaw2ulaw >/dev/audio .
 .It Fl t
 The value for
 .Ar timeout
@@ -87,10 +87,8 @@ The screen output should be obvious. If in doubt, consult the source.
 .Xr isdnd 8
 .Xr isdnd.rc 5
 .Xr i4btel 4
-
 .Sh BUGS
 Still two or more left.
-
 .Sh AUTHORS
 The
 .Nm

@@ -83,7 +83,6 @@ enhances it as a real self test and setup-verification tool!
 .Nm Isdntest 
 does almost no error checking and error recovery, so unexpected
 hangs or crashes may occur.
-
 .Sh EXAMPLES
 For the following example, it is assumed that a machine with isdn4bsd 
 installed is connected to an S0 bus and that one of the valid MSN's (MSN = Multiple Subscriber Number
@@ -103,8 +102,9 @@ and disconnect after 5 seconds.
 has to be finished by the user by entering Control-C.
 .Pp
 .Sh FILES
-/dev/i4b
-
+.Bl -tag -width indent
+.It Pa /dev/i4b
+.El
 .Sh AUTHORS
 The
 .Nm

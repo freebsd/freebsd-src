@@ -242,7 +242,7 @@ In direct mode,
 acts as server which accepts incoming
 .Em PPP
 connections on stdin/stdout.
-.It Supports PAP and CHAP (rfc 1994, 2433 and 2759) authentication.
+.It "Supports PAP and CHAP (rfc 1994, 2433 and 2759) authentication.
 With PAP or CHAP, it is possible to skip the Unix style
 .Xr login 1
 procedure, and use the
@@ -1609,7 +1609,7 @@ set filter
 .Ar name
 .Ar rule-no
 .Ar action
-.Op \&!
+.Op !\&
 .Oo
 .Op host
 .Ar src_addr Ns Op / Ns Ar width
@@ -1663,7 +1663,7 @@ the new rule number (rather than the next rule number).
 The
 .Ar action
 may optionally be followed with an exclamation mark
-.Pq Dq ! ,
+.Pq Dq \&! ,
 telling
 .Nm
 to reverse the sense of the following match.
@@ -2635,7 +2635,7 @@ Type
 is actually specified as
 .Dq PPP Magna-link Variable Resource Compression
 in
-.Pa rfc1975 Ns No !
+.Pa rfc1975 Ns !
 .Nm
 is capable of negotiating with
 .Nm pppd ,
@@ -3111,7 +3111,7 @@ is replaced with the interface address and
 is replaced with the interface destination (peer) address.
 .Pp
 If the
-.Ar add!
+.Ar add!\&
 command is used
 .Pq note the trailing Dq \&! ,
 then if the route already exists, it will be updated as with the
@@ -3372,7 +3372,7 @@ command below.
 This is replaced with the date on which
 .Nm
 was compiled.
-.It Li DNS0 No " & " Li DNS1
+.It Li DNS0 & DNS1
 These are replaced with the primary and secondary nameserver IP numbers.
 If nameservers are negotiated by IPCP, the values of these macros will change.
 .It Li ENDDISC
@@ -3467,7 +3467,7 @@ If
 .Dq ccp
 is specified, only the relevant compression layer is closed.
 If the
-.Dq \&!
+.Dq !\&
 is used, the compression layer will remain in the closed state, otherwise
 it will re-enter the STOPPED state, waiting for the peer to initiate
 further CCP negotiation.
@@ -3500,7 +3500,7 @@ is specified as
 the default route is deleted.
 .Pp
 If the
-.Ar delete!
+.Ar delete!\&
 command is used
 .Pq note the trailing Dq \&! ,
 .Nm
@@ -3575,7 +3575,7 @@ Instead of specifying
 can be used
 .Pq with no space between \&it and Ar addr .
 If the given address already exists, the command fails unless the
-.Dq \&!
+.Dq !\&
 is used - in which case the previous interface address entry is overwritten
 with the new one, allowing a change of netmask or peer address.
 .Pp
@@ -3606,15 +3606,15 @@ is not in the OPENED state and is not in
 mode, all interface addresses are deleted.
 .Pp
 .It iface delete Ns Xo
-.Op \&! Ns
-.No |rm Ns Op \&!
+.Op !\& Ns
+.No |rm Ns Op !\&
 .Ar addr
 .Xc
 This command deletes the given
 .Ar addr
 from the interface.
 If the
-.Dq \&!
+.Dq !\&
 is used, no error is given if the address isn't currently assigned to
 the interface (and no deletion takes place).
 .It iface show
@@ -3883,7 +3883,7 @@ This sets the authentication key (or password) used in client mode
 PAP or CHAP negotiation to the given value.
 It also specifies the
 password to be used in the dial or login scripts in place of the
-.Sq \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\P
+.Sq \eP
 sequence, preventing the actual password from being logged.
 If
 .Ar command
@@ -3908,7 +3908,7 @@ and
 values.
 .Pp
 If the
-.Dq \&!
+.Dq !\&
 is doubled up
 .Pq to Dq \&!! ,
 it is treated as a single literal
@@ -4130,7 +4130,7 @@ is specified,
 .Nm
 will expect the peer to specify the number.
 .It set cd Oo
-.No off| Ns Ar seconds Ns Op \&!
+.No off| Ns Ar seconds Ns Op !\&
 .Oc
 Normally,
 .Nm
@@ -4299,9 +4299,9 @@ be of the format
 .Op \&: Ns Ar provider Ns
 .Xc
 or be of the format
-.Ar host Ns No : Ns Ar port Ns Oo
-.No /tcp|udp
-.Oc .
+.Sm off
+.Ar host : port Op /tcp|udp .
+.Sm on
 .Pp
 If it begins with an exclamation mark, the rest of the device name is
 treated as a program name, and that program is executed when the device
@@ -4382,34 +4382,34 @@ It is possible to specify some special
 .Sq values
 in your chat script as follows:
 .Bd -unfilled -offset indent
-.It Li \\\\\\\\\\\\\\\\c
+.It Li \ec
 When used as the last character in a
 .Sq send
 string, this indicates that a newline should not be appended.
-.It Li \\\\\\\\\\\\\\\\d
+.It Li \ed
 When the chat script encounters this sequence, it delays two seconds.
-.It Li \\\\\\\\\\\\\\\\p
+.It Li \ep
 When the chat script encounters this sequence, it delays for one quarter of
 a second.
-.It Li \\\\\\\\\\\\\\\\n
+.It Li \en
 This is replaced with a newline character.
-.It Li \\\\\\\\\\\\\\\\r
+.It Li \er
 This is replaced with a carriage return character.
-.It Li \\\\\\\\\\\\\\\\s
+.It Li \es
 This is replaced with a space character.
-.It Li \\\\\\\\\\\\\\\\t
+.It Li \et
 This is replaced with a tab character.
-.It Li \\\\\\\\\\\\\\\\T
+.It Li \eT
 This is replaced by the current phone number (see
 .Dq set phone
 below).
-.It Li \\\\\\\\\\\\\\\\P
+.It Li \eP
 This is replaced by the current
 .Ar authkey
 value (see
 .Dq set authkey
 above).
-.It Li \\\\\\\\\\\\\\\\U
+.It Li \eU
 This is replaced by the current
 .Ar authname
 value (see
@@ -4432,7 +4432,7 @@ To do this, the first character of the expect or send string is an
 exclamation mark
 .Pq Dq \&! .
 If a literal exclamation mark is required, double it up to
-.Dq \&!!
+.Dq !!\&
 and it will be treated as a single literal
 .Dq \&! .
 When the command is executed, standard input and standard output are
@@ -4488,7 +4488,7 @@ important that the
 signs are escaped, otherwise this parser will see them as constituting
 an expect-send-expect sequence.
 When the
-.Dq \&!
+.Dq !\&
 character is seen, the execution parser reads the first command as three
 arguments, and then
 .Xr sh 1
@@ -4573,7 +4573,7 @@ It allows the user to specify a set of characters that will be
 as they travel across the link.
 .It set filter dial|alive|in|out Ar rule-no Xo
 .No permit|deny|clear| Ns Ar rule-no
-.Op \&!
+.Op !\&
 .Oo Op host
 .Ar src_addr Ns Op / Ns Ar width
 .Op Ar dst_addr Ns Op / Ns Ar width
@@ -5127,7 +5127,7 @@ delay will be effective, even after
 has been exceeded, so an immediate manual dial may appear to have
 done nothing.
 If an immediate dial is required, a
-.Dq \&!
+.Dq !\&
 should immediately follow the
 .Dq open
 keyword.
@@ -5409,11 +5409,11 @@ They are a good source of information.
 .It
 Use
 .Dq help ,
-.Dq nat ? ,
-.Dq enable ? ,
-.Dq set ?
+.Dq nat \&? ,
+.Dq enable \&? ,
+.Dq set ?\&
 and
-.Dq show ?
+.Dq show ?\&
 to get online information about what's available.
 .It
 The following URLs contain useful information:
