@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)mbuf.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: mbuf.c,v 1.9 1997/11/10 08:03:36 ache Exp $";
+	"$Id: mbuf.c,v 1.10 1998/04/24 04:30:27 dg Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -94,8 +94,7 @@ bool seen[256];			/* "have we seen this type yet?" */
  * Print mbuf statistics.
  */
 void
-mbpr(mbaddr)
-	u_long mbaddr;
+mbpr()
 {
 	register int totmem, totfree, totmbufs;
 	register int i;
