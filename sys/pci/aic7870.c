@@ -19,7 +19,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: aic7870.c,v 1.24 1996/01/23 21:46:54 se Exp $
+ *	$Id: aic7870.c,v 1.25 1996/01/29 03:18:20 gibbs Exp $
  */
 
 #include <pci.h>
@@ -434,7 +434,7 @@ load_seeprom(ahc)
 	u_short *scarray = (u_short *)&sc;
 	u_short	checksum = 0;
 	u_long	iobase = ahc->baseport;
-	u_char	host_id;
+	u_char	scsi_conf;
 	int	have_seeprom, retval;
                  
 	if(bootverbose) 
@@ -459,11 +459,8 @@ load_seeprom(ahc)
 				printf ("checksum error");
 				have_seeprom = 0;
 			}
-			else {
-				if(bootverbose)
+			else if(bootverbose)
 				printf("done.\n");
-				host_id = (sc.brtime_id & CFSCSIID);
-			}
 		}
 	}
 	if (!have_seeprom) {
@@ -471,7 +468,7 @@ load_seeprom(ahc)
 		       "using leftover BIOS values\n", ahc->unit);
 		retval = 0;
 
-		host_id = 0x7; /* Assume a default */
+		scsi_conf = /*host_id*/0x7 | ENSPCHK; /* Assume a default */
 		/*
 		 * If we happen to be an ULTRA card,
 		 * default to non-ultra mode.
@@ -500,7 +497,9 @@ load_seeprom(ahc)
 		outb(DISC_DSB + iobase, ~(ahc->discenable & 0xff));
 		outb(DISC_DSB + iobase + 1, ~((ahc->discenable >> 8) & 0xff));
 
-		host_id = sc.brtime_id & CFSCSIID;
+		scsi_conf = sc.brtime_id & CFSCSIID;
+		if(sc.adapter_control & CFSPARITY)
+			scsi_conf |= ENSPCHK;
 
 		if(ahc->type & AHC_ULTRA) {
 			/* Should we enable Ultra mode? */
@@ -511,9 +510,9 @@ load_seeprom(ahc)
 		retval = 1;
 	}
 	/* Set the host ID */
-	outb(SCSICONF + iobase, host_id);
+	outb(SCSICONF + iobase, scsi_conf);
 	/* In case we are a wide card */
-	outb(SCSICONF + 1 + iobase, host_id);
+	outb(SCSICONF + 1 + iobase, scsi_conf);
 
 	return(retval);
 }
