@@ -288,18 +288,23 @@ __hashpw(key)
 
 #ifdef YP
 /*
- * Build special +@netgroup and -@netgroup caches. We handle ordinary
- * +user/-user translations too, since there's no other way to have it
- * work right in all situations. The +user/-user stuff is somewhat
- * non-standard -- I don't think any other OSes use it -- but handling
- * it here is simple, so why not. This also lets us have just one
+ * Build special +@netgroup and -@netgroup caches. We also handle ordinary
+ * +user/-user entries, *and* +@group/-@group entries, which are special
+ * cases of the +@netgroup/-@netgroup substitutions: if we can't find
+ * netgroup 'foo', we look for a regular user group called 'foo' and
+ * match against that instead. The netgroup takes precedence since the
+ * +group/-group support is basically just a hack to make Justin T. Gibbs
+ * happy. :) Sorting out all the funny business here lets us have a
  * yp_enabled flag with a simple on or off value instead of the somewhat
  * bogus setup we had before.
+ *
  * We cache everything here in one shot so that we only have to scan
- * each netgroup once. The alternative is to use innetgr() inside the
+ * each netgroup/group once. The alternative is to use innetgr() inside the
  * NIS lookup functions, which would make retrieving the whole password
- * database though getpwent() very slow.
+ * database though getpwent() very slow. +user/-user entries are treated
+ * like @groups/@netgroups with only one member.
  */
+#include <grp.h>
 static void
 _createcaches()
 {
@@ -310,6 +315,7 @@ _createcaches()
 	struct _pw_cache *p, *m;
 	struct _namelist *n, *namehead;
 	char *user, *host, *domain;
+	struct group *grp;
 
 	/*
 	 * Assume that the database has already been initialized
@@ -319,7 +325,7 @@ _createcaches()
 	if (!_yp_enabled)
 		return;
 	/*
-	 * For the plus lists, we have to store both the linked list of
+	 * For the plus list, we have to store both the linked list of
 	 * names and the +entries from the password database so we can
 	 * do the substitution later if we find a match.
 	 */
@@ -334,15 +340,36 @@ _createcaches()
 			key.size = (sizeof(i)) + 1;
 			if (__hashpw(&key)) {
 				p = (struct _pw_cache *)malloc(sizeof (struct _pw_cache));
-				if (_pw_passwd.pw_name[1])
+				if (strlen(_pw_passwd.pw_name) > 2 && _pw_passwd.pw_name[1] == '@') {
 					setnetgrent(_pw_passwd.pw_name+2);
-				namehead = NULL;
-				while(getnetgrent(&host, &user, &domain)) {
-					n = (struct _namelist *)malloc(sizeof (struct _namelist));
-					n->name = strdup(user);
-					n->next = namehead;
-					namehead = n;
+					namehead = NULL;
+					while(getnetgrent(&host, &user, &domain)) {
+						n = (struct _namelist *)malloc(sizeof (struct _namelist));
+						n->name = strdup(user);
+						n->next = namehead;
+						namehead = n;
+					}
+					/* 
+					 * If netgroup 'foo' doesn't exist,
+					 * try group 'foo' instead.
+					 */
+					if (namehead == NULL && (grp = getgrnam(_pw_passwd.pw_name+2)) != NULL) {
+						while(*grp->gr_mem) {
+							n = (struct _namelist *)malloc(sizeof (struct _namelist));
+							n->name = strdup(*grp->gr_mem);
+							n->next = namehead;
+							namehead = n;
+							grp->gr_mem++;
+						}
+					}
+				} else {
+					if (_pw_passwd.pw_name[1] != '@') {
+						namehead = (struct _namelist *)malloc(sizeof (struct _namelist));
+						namehead->name = strdup(_pw_passwd.pw_name+1);
+						namehead->next = NULL;
+					}
 				}
+				p->namelist = namehead;
 				p->pw_entry.pw_name = strdup(_pw_passwd.pw_name);
 				p->pw_entry.pw_passwd = strdup(_pw_passwd.pw_passwd);
 				p->pw_entry.pw_uid = _pw_passwd.pw_uid;
@@ -354,12 +381,6 @@ _createcaches()
 				p->pw_entry.pw_dir = strdup(_pw_passwd.pw_dir);
 				p->pw_entry.pw_shell = strdup(_pw_passwd.pw_shell);
 				p->pw_entry.pw_fields = _pw_passwd.pw_fields;
-				if (_pw_passwd.pw_name[1] != '@') {
-					p->namelist = (struct _namelist *)malloc(sizeof (struct _namelist));
-					p->namelist->name = strdup(_pw_passwd.pw_name+1);
-					p->namelist->next = NULL;
-				} else
-					p->namelist = namehead;
 				p->next = _plushead;
 				_plushead = p;
 			}
@@ -367,8 +388,8 @@ _createcaches()
 	}
 
 	/*
-	 * All we need for the minuslist are the usernames.
-	 * The actual -entries can be ignored since no substitution
+	 * All we need for the minuslist is the usernames.
+	 * The actual -entries data can be ignored since no substitution
 	 * will be done: anybody on the minus list is treated like a
 	 * non-person.
 	 */
@@ -383,21 +404,36 @@ _createcaches()
 			key.size = (sizeof(i)) + 1;
 			if (__hashpw(&key)) {
 				m = (struct _pw_cache *)malloc(sizeof (struct _pw_cache));
-				if (_pw_passwd.pw_name[1])
+				if (strlen (_pw_passwd.pw_name) > 2 && _pw_passwd.pw_name[1] == '@') {
+					namehead = NULL;
 					setnetgrent(_pw_passwd.pw_name+2);
-				namehead = NULL;
-				while(getnetgrent(&host, &user, &domain)) {
-					n = (struct _namelist *)malloc(sizeof (struct _namelist));
-					n->name = strdup(user);
-					n->next = namehead;
-					namehead = n;
+					while(getnetgrent(&host, &user, &domain)) {
+						n = (struct _namelist *)malloc(sizeof (struct _namelist));
+						n->name = strdup(user);
+						n->next = namehead;
+						namehead = n;
+					}
+					/* 
+					 * If netgroup 'foo' doesn't exist,
+					 * try group 'foo' instead.
+					 */
+					if (namehead == NULL && (grp = getgrnam(_pw_passwd.pw_name+2)) != NULL) {
+						while(*grp->gr_mem) {
+							n = (struct _namelist *)malloc(sizeof (struct _namelist));
+							n->name = strdup(*grp->gr_mem);
+							n->next = namehead;
+							namehead = n;
+							grp->gr_mem++;
+						}
+					}
+				} else {
+					if (_pw_passwd.pw_name[1] != '@') {
+						namehead = (struct _namelist *)malloc(sizeof (struct _namelist));
+						namehead->name = strdup(_pw_passwd.pw_name+1);
+						namehead->next = NULL;
+					}
 				}
-				if (_pw_passwd.pw_name[1] != '@') {
-					m->namelist = (struct _namelist *)malloc(sizeof (struct _namelist));
-					m->namelist->name = strdup(_pw_passwd.pw_name+1);
-					m->namelist->next = NULL;
-				} else
-					m->namelist = namehead;
+				m->namelist = namehead;
 				m->next = _minushead;
 				_minushead = m;
 			}
