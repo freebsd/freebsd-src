@@ -92,7 +92,7 @@ static int
 isa_probe(device_t dev)
 {
 	device_set_desc(dev, "ISA bus");
-	isa_init();		/* Allow machdep code to initialise */
+	isa_init(dev);		/* Allow machdep code to initialise */
 	return 0;
 }
 
@@ -634,37 +634,6 @@ isa_add_child(device_t dev, int order, const char *name, int unit)
 }
 
 static int
-isa_print_resources(struct resource_list *rl, const char *name, int type,
-		    int count, const char *format)
-{
-	struct resource_list_entry *rle;
-	int printed;
-	int i, retval = 0;;
-
-	printed = 0;
-	for (i = 0; i < count; i++) {
-		rle = resource_list_find(rl, type, i);
-		if (rle) {
-			if (printed == 0)
-				retval += printf(" %s ", name);
-			else if (printed > 0)
-				retval += printf(",");
-			printed++;
-			retval += printf(format, rle->start);
-			if (rle->count > 1) {
-				retval += printf("-");
-				retval += printf(format,
-						 rle->start + rle->count - 1);
-			}
-		} else if (i > 3) {
-			/* check the first few regardless */
-			break;
-		}
-	}
-	return retval;
-}
-
-static int
 isa_print_all_resources(device_t dev)
 {
 	struct	isa_device *idev = DEVTOISA(dev);
@@ -674,14 +643,10 @@ isa_print_all_resources(device_t dev)
 	if (SLIST_FIRST(rl) || device_get_flags(dev))
 		retval += printf(" at");
 	
-	retval += isa_print_resources(rl, "port", SYS_RES_IOPORT,
-				      ISA_NPORT, "%#lx");
-	retval += isa_print_resources(rl, "iomem", SYS_RES_MEMORY,
-				      ISA_NMEM, "%#lx");
-	retval += isa_print_resources(rl, "irq", SYS_RES_IRQ,
-				      ISA_NIRQ, "%ld");
-	retval += isa_print_resources(rl, "drq", SYS_RES_DRQ,
-				      ISA_NDRQ, "%ld");
+	retval += resource_list_print_type(rl, "port", SYS_RES_IOPORT, "%#lx");
+	retval += resource_list_print_type(rl, "iomem", SYS_RES_MEMORY, "%#lx");
+	retval += resource_list_print_type(rl, "irq", SYS_RES_IRQ, "%ld");
+	retval += resource_list_print_type(rl, "drq", SYS_RES_DRQ, "%ld");
 	if (device_get_flags(dev))
 		retval += printf(" flags %#x", device_get_flags(dev));
 
