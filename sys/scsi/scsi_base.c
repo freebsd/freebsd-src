@@ -8,7 +8,7 @@
  * file.
  *
  * Written by Julian Elischer (julian@dialix.oz.au)
- *      $Id: scsi_base.c,v 1.39 1996/07/14 10:46:48 joerg Exp $
+ *      $Id: scsi_base.c,v 1.39.4.1 1997/01/12 22:09:53 joerg Exp $
  */
 
 #include "opt_bounce.h"
@@ -931,7 +931,7 @@ static errval
 scsi_interpret_sense(xs)
 	struct scsi_xfer *xs;
 {
-	struct scsi_sense_data *sense;
+	struct scsi_sense_data_new *sense;
 	struct scsi_sense_extended *ext;
 	struct scsi_link *sc_link = xs->sc_link;
 	u_int32_t key;
@@ -946,7 +946,7 @@ scsi_interpret_sense(xs)
 	if (xs->flags & SCSI_ERR_OK)
 		return (ESUCCESS);
 
-	sense = &(xs->sense);
+	sense = (struct scsi_sense_data_new *)&(xs->sense);
 	ext = &(sense->ext.extended);
 #ifdef	SCSIDEBUG
 	if (sc_link->flags & SDEV_DB1) {
@@ -956,20 +956,20 @@ scsi_interpret_sense(xs)
 		    sense->error_code & SSD_ERRCODE,
 		    sense->error_code & SSD_ERRCODE_VALID ? 1 : 0);
 		printf("seg%x key%x ili%x eom%x fmark%x\n",
-		    sense->ext.extended.segment,
-		    sense->ext.extended.flags & SSD_KEY,
-		    sense->ext.extended.flags & SSD_ILI ? 1 : 0,
-		    sense->ext.extended.flags & SSD_EOM ? 1 : 0,
-		    sense->ext.extended.flags & SSD_FILEMARK ? 1 : 0);
+		    ext->segment,
+		    ext->flags & SSD_KEY,
+		    ext->flags & SSD_ILI ? 1 : 0,
+		    ext->flags & SSD_EOM ? 1 : 0,
+		    ext->flags & SSD_FILEMARK ? 1 : 0);
 		printf("info: %x %x %x %x followed by %d extra bytes\n",
-		    sense->ext.extended.info[0],
-		    sense->ext.extended.info[1],
-		    sense->ext.extended.info[2],
-		    sense->ext.extended.info[3],
-		    sense->ext.extended.extra_len);
+		    ext->info[0],
+		    ext->info[1],
+		    ext->info[2],
+		    ext->info[3],
+		    ext->extra_len);
 		printf("extra: ");
-		while (count < sense->ext.extended.extra_len) {
-			printf("%x ", sense->ext.extended.extra_bytes[count++]);
+		while (count < ext->extra_len) {
+			printf("%x ", ext->extra_bytes[count++]);
 		}
 		printf("\n");
 	}
