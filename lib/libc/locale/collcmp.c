@@ -32,31 +32,35 @@
 int collate_range_cmp (c1, c2)
 	int c1, c2;
 {
+	int as1, as2, al1, al2;
 	static char s1[2], s2[2];
 
 	c1 &= UCHAR_MAX;
 	c2 &= UCHAR_MAX;
 	if (c1 == c2)
 		return (0);
-	if (   (isascii(c1) && isascii(c2))
-	    || (!isalpha(c1) && !isalpha(c2))
-	   )
-		return (c1 - c2);
-	if (isalpha(c1) && !isalpha(c2)) {
-		if (isupper(c1))
-			return ('A' - c2);
-		else
-			return ('a' - c2);
-	} else if (isalpha(c2) && !isalpha(c1)) {
-		if (isupper(c2))
-			return (c1 - 'A');
-		else
-			return (c1 - 'a');
+
+	as1 = isascii(c1);
+	as2 = isascii(c2);
+	al1 = isalpha(c1);
+	al2 = isalpha(c2);
+
+	if (as1 || as2 || al1 || al2) {
+		if ((as1 && as2) || (!al1 && !al2))
+			return (c1 - c2);
+		if (al1 && !al2) {
+			if (isupper(c1))
+				return ('A' - c2);
+			else
+				return ('a' - c2);
+		} else if (al2 && !al1) {
+			if (isupper(c2))
+				return (c1 - 'A');
+			else
+				return (c1 - 'a');
+		}
 	}
-	if (isupper(c1) && islower(c2))
-		return (-1);
-	else if (islower(c1) && isupper(c2))
-		return (1);
+
 	s1[0] = c1;
 	s2[0] = c2;
 	return strcoll(s1, s2);
