@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1992-1994 by Joerg Wunsch, Dresden
+ * Copyright (C) 1992-1994,2001 by Joerg Wunsch, Dresden
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -42,6 +42,7 @@
 
 #include <ctype.h>
 #include <err.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <paths.h>
 #include <stdio.h>
@@ -166,15 +167,73 @@ yes (void)
 	}
 }
 
+/*
+ * Some definitions imported from /sys/isa/ic/nec765.h for convenience.
+ */
+
+/* Status register ST0 */
+#define NE7_ST0_IC	0xc0	/* interrupt completion code */
+#define NE7_ST0_IC_AT	0x40	/* abnormal termination, check error stat */
+#define NE7_ST0_IC_RC	0xc0	/* terminated due to ready changed, n/a */
+
+/* Status register ST1 */
+#define NE7_ST1_EN	0x80	/* end of cylinder, access past last record */
+#define NE7_ST1_DE	0x20	/* data error, CRC fail in ID or data */
+#define NE7_ST1_ND	0x04	/* no data, sector not found or CRC in ID f. */
+#define NE7_ST1_MA	0x01	/* missing address mark (in ID or data field)*/
+
+/* Status register ST2 */
+#define NE7_ST2_DD	0x20	/* data error in data field, CRC fail */
+#define NE7_ST2_WC	0x10	/* wrong cylinder, ID field mismatches cmd */
+#define NE7_ST2_MD	0x01	/* missing address mark in data field */
+
+/*
+ * Decode the FDC status pointed to by `fdcsp', and print a textual
+ * translation to stderr.
+ */
+static void
+printstatus(struct fdc_status *fdcsp)
+{
+	char msgbuf[100];
+
+	if ((fdcsp->status[0] & NE7_ST0_IC_RC) != NE7_ST0_IC_AT) {
+		sprintf(msgbuf, "unexcpted interrupt code %#x",
+			fdcsp->status[0] & NE7_ST0_IC_RC);
+	} else {
+		strcpy(msgbuf, "unexpected error code in ST1/ST2");
+
+		if (fdcsp->status[1] & NE7_ST1_EN)
+			strcpy(msgbuf, "end of cylinder (wrong format)");
+		else if (fdcsp->status[1] & NE7_ST1_DE) {
+			if (fdcsp->status[2] & NE7_ST2_DD)
+				strcpy(msgbuf, "CRC error in data field");
+			else
+				strcpy(msgbuf, "CRC error in ID field");
+		} else if (fdcsp->status[1] & NE7_ST1_MA) {
+			if (fdcsp->status[2] & NE7_ST2_MD)
+				strcpy(msgbuf, "no address mark in data field");
+			else
+				strcpy(msgbuf, "no address mark in ID field");
+		} else if (fdcsp->status[2] & NE7_ST2_WC)
+			strcpy(msgbuf, "wrong cylinder (format mismatch)");
+		else if (fdcsp->status[1] & NE7_ST1_ND)
+			strcpy(msgbuf, "no data (sector not found)");
+	}
+	fputs(msgbuf, stderr);
+}
+
 int
 main(int argc, char **argv)
 {
 	int format = -1, cyls = -1, secs = -1, heads = -1, intleave = -1;
 	int rate = -1, gaplen = -1, secsize = -1, steps = -1;
 	int fill = 0xf6, quiet = 0, verify = 1, verify_only = 0, confirm = 0;
-	int fd, c, track, error, tracks_per_dot, bytes_per_track, errs;
+	int fd, c, i, track, error, tracks_per_dot, bytes_per_track, errs;
+	int fdopts;
 	const char *devname, *suffix;
 	struct fd_type fdt;
+#define MAXPRINTERRS 10
+	struct fdc_status fdcs[MAXPRINTERRS];
 
 	while((c = getopt(argc, argv, "f:c:s:h:r:g:S:F:t:i:qyvn")) != -1)
 		switch(c) {
@@ -265,6 +324,9 @@ main(int argc, char **argv)
 
 	if(ioctl(fd, FD_GTYPE, &fdt) < 0)
 		errx(1, "not a floppy disk: %s", devname);
+	fdopts = FDOPT_NOERRLOG;
+	if (ioctl(fd, FD_SOPTS, &fdopts) == -1)
+		err(1, "ioctl(FD_SOPTS, FDOPT_NOERRLOG)");
 
 	switch(rate) {
 	case -1:  break;
@@ -332,8 +394,16 @@ main(int argc, char **argv)
 			}
 		}
 		if (verify) {
-			if (verify_track(fd, track, bytes_per_track) < 0)
-				error = errs = 1;
+			if (verify_track(fd, track, bytes_per_track) < 0) {
+				error = 1;
+				if (errs < MAXPRINTERRS && errno == EIO) {
+					if (ioctl(fd, FD_GSTAT, fdcs + errs) ==
+					    -1)
+						errx(1,
+					"floppy IO error, but no FDC status");
+					errs++;
+				}
+			}
 			if(!quiet && !((track + 1) % tracks_per_dot)) {
 				if (!verify_only)
 					putchar('\b');
@@ -350,7 +420,21 @@ main(int argc, char **argv)
 	if(!quiet)
 		printf(" done.\n");
 
-	return errs;
+	if (!quiet && errs) {
+		fflush(stdout);
+		fprintf(stderr, "Errors encountered:\nCyl Head Sect   Error\n");
+		for (i = 0; i < errs && i < MAXPRINTERRS; i++) {
+			fprintf(stderr, " %2d   %2d   %2d   ",
+				fdcs[i].status[3], fdcs[i].status[4],
+				fdcs[i].status[5]);
+			printstatus(fdcs + i);
+			putc('\n', stderr);
+		}
+		if (errs >= MAXPRINTERRS)
+			fprintf(stderr, "(Further errors not printed.)\n");
+	}
+
+	return errs != 0;
 }
 /*
  * Local Variables:
