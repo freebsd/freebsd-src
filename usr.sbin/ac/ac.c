@@ -87,11 +87,11 @@ int			main __P((int, char **));
 int			ac __P((FILE *));
 struct tty_list		*add_tty __P((char *));
 int			do_tty __P((char *));
-FILE			*file __P((char *));
+FILE			*file __P((const char *));
 struct utmp_list	*log_in __P((struct utmp_list *, struct utmp *));
 struct utmp_list	*log_out __P((struct utmp_list *, struct utmp *));
 int			on_console __P((struct utmp_list *));
-void			show __P((char *, time_t));
+void			show __P((const char *, time_t));
 void			show_today __P((struct user_list *, struct utmp_list *,
 			    time_t));
 void			show_users __P((struct user_list *));
@@ -103,7 +103,7 @@ void			usage __P((void));
  */
 FILE *
 file(name)
-	char *name;
+	const char *name;
 {
 	FILE *fp;
 
@@ -132,8 +132,7 @@ add_tty(name)
 		tp->ret = 0;
 		name++;
 	}
-	(void)strncpy(tp->name, name, sizeof (tp->name) - 1);
-	tp->name[sizeof (tp->name) - 1] = '\0';
+	strlcpy(tp->name, name, sizeof (tp->name));
 	if ((rcp = strchr(tp->name, '*')) != NULL) {	/* wild card */
 		*rcp = '\0';
 		tp->len = strlen(tp->name);	/* match len bytes only */
@@ -213,8 +212,7 @@ update_user(head, name, secs)
 	if ((up = NEW(struct user_list)) == NULL)
 		errx(1, "malloc failed");
 	up->next = head;
-	(void)strncpy(up->name, name, sizeof (up->name) - 1);
-	up->name[sizeof (up->name) - 1] = '\0';	/* paranoid! */
+	strlcpy(up->name, name, sizeof (up->name));
 	up->secs = secs;
 	Total += secs;
 	return up;
@@ -293,7 +291,7 @@ main(argc, argv)
  */
 void
 show(name, secs)
-	char *name;
+	const char *name;
 	time_t secs;
 {
 	(void)printf("\t%-*s %8.2f\n", UT_NAMESIZE, name,
@@ -429,8 +427,7 @@ log_in(head, up)
 		/*
 		 * this allows us to pick the right logout
 		 */
-		(void)strncpy(up->ut_line, Console, sizeof (up->ut_line) - 1);
-		up->ut_line[sizeof (up->ut_line) - 1] = '\0'; /* paranoid! */
+		strlcpy(up->ut_line, Console, sizeof (up->ut_line));
 	}
 #endif
 	/*
