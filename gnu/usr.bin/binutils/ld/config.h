@@ -1,6 +1,12 @@
 /* config.h.  Generated automatically by configure.  */
 /* config.in.  Generated automatically from configure.in by autoheader.  */
 
+/* Name of package.  */
+#define PACKAGE "ld"
+
+/* Version of package.  */
+#define VERSION "2.9.1"
+
 /* Whether strstr must be declared even if <string.h> is included.  */
 /* #undef NEED_DECLARATION_STRSTR */
 
@@ -12,6 +18,9 @@
 
 /* Whether getenv must be declared even if <stdlib.h> is included.  */
 /* #undef NEED_DECLARATION_GETENV */
+
+/* Define if lex declares yytext as a char * by default, not a char[].  */
+#define YYTEXT_POINTER 1
 
 /* Do we need to use the b modifier when opening binary files?  */
 /* #undef USE_BINARY_FOPEN */
