@@ -1534,6 +1534,12 @@ p_candebug(struct proc *p1, struct proc *p2)
 {
 	int error;
 
+	if (!kern_unprivileged_procdebug_permitted) {
+		error = suser_xxx(NULL, p1, PRISON_ROOT);
+		if (error)
+			return (error);
+	}
+
 	if (p1 == p2)
 		return (0);
 	
@@ -1547,8 +1553,9 @@ p_candebug(struct proc *p1, struct proc *p2)
 	if (p1->p_ucred->cr_uid != p2->p_ucred->cr_uid ||
 	    p1->p_ucred->cr_uid != p2->p_ucred->cr_svuid ||
 	    p1->p_ucred->cr_uid != p2->p_ucred->cr_ruid ||
-	    p2->p_flag & P_SUGID || !kern_unprivileged_procdebug_permitted) {
-		if ((error = suser_xxx(0, p1, PRISON_ROOT)) != 0)
+	    p2->p_flag & P_SUGID) {
+		error = suser_xxx(NULL, p1, PRISON_ROOT);
+		if (error)
 			return (error);
 	}
 
