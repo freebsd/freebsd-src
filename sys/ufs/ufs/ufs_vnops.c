@@ -1851,10 +1851,8 @@ ufs_print(ap)
 
 	printf("tag VT_UFS, ino %ld, on dev %d, %d", ip->i_number,
 		major(ip->i_dev), minor(ip->i_dev));
-#ifdef FIFO
 	if (vp->v_type == VFIFO)
 		fifo_printinfo(vp);
-#endif /* FIFO */
 	lockmgr_printinfo(&ip->i_lock);
 	printf("\n");
 	return (0);
