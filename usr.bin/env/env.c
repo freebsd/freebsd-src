@@ -60,9 +60,10 @@ main(argc, argv)
 	char *cleanenv[1];
 	int ch;
 
-	while ((ch = getopt(argc, argv, "-")) != -1)
+	while ((ch = getopt(argc, argv, "-i")) != -1)
 		switch(ch) {
 		case '-':
+		case 'i':
 			environ = cleanenv;
 			cleanenv[0] = NULL;
 			break;
@@ -85,6 +86,6 @@ static void
 usage()
 {
 	(void)fprintf(stderr,
-	    "usage: env [-] [name=value ...] [command]\n");
+	    "usage: env [-] [-i] [name=value ...] [command]\n");
 	exit(1);
 }
