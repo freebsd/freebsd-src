@@ -372,10 +372,12 @@ pmap_bootstrap(firstaddr, loadaddr)
 
 
 	pgeflag = 0;
+#ifdef notyet
 #if !defined(SMP)
 	if (cpu_feature & CPUID_PGE) {
 		pgeflag = PG_G;
 	}
+#endif
 #endif
 	
 /*
@@ -473,6 +475,7 @@ pmap_set_opt(unsigned *pdir) {
 		}
 	}
 
+#ifdef notyet
 	if (pgeflag && (cpu_feature & CPUID_PGE)) {
 		load_cr4(rcr4() | CR4_PGE);
 		for(i = KPTDI; i < KPTDI + nkpt; i++) {
@@ -481,6 +484,7 @@ pmap_set_opt(unsigned *pdir) {
 			}
 		}
 	}
+#endif
 }
 
 /*
