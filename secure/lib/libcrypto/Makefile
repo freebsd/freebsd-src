@@ -365,6 +365,17 @@ beforeinstall:  openssl/opensslconf.h openssl/evp.h
 	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 444 \
 	    ${CRYPTO_HDRS} openssl/evp.h openssl/opensslconf.h \
 	    ${DESTDIR}/usr/include/openssl
+	ln -fs openssl/des.h ${INCDIR}/des.h
+
+afterinstall:
+.if !defined(NOPIC)
+SYMLINKS+=	lib${LIB}.so.${SHLIB_MAJOR} ${LIBDIR}/libdes.so.3
+SYMLINKS+=	lib${LIB}.so.${SHLIB_MAJOR} ${LIBDIR}/libdes.so
+.endif
+SYMLINKS+=	lib${LIB}.a ${LIBDIR}/libdes.a
+.if !defined(NOPROFILE)
+SYMLINKS+=	lib${LIB}_p.a ${LIBDIR}/libdes_p.a
+.endif
 
 .include <bsd.lib.mk>
 
@@ -382,25 +393,3 @@ beforeinstall:  openssl/opensslconf.h openssl/evp.h
 	perl -I${PERLPATH} $(.ALLSRC) elf ${CPUTYPE:Mi386:S/i//} > $(.PREFIX).pl.s ; ${AS} ${AFLAGS} $(.PREFIX).pl.s -o $(.TARGET)
 .endif
 
-afterinstall:
-.if !defined(NOPIC)
-	@cd ${DESTDIR}${SHLIBDIR}; \
-	rm -f libdes.so.3; \
-	ln -sf lib${LIB}.so.${SHLIB_MAJOR} libdes.so.3;
-.endif
-.if !defined(NOPIC) && ${OBJFORMAT} == elf
-	@cd ${DESTDIR}${SHLIBDIR}; \
-	rm -f libdes.so; \
-	ln -sf lib${LIB}.so libdes.so
-.endif
-	@cd  ${DESTDIR}${LIBDIR}; \
-	rm -f libdes.a; \
-	ln -sf lib${LIB}.a libdes.a
-	@cd  ${DESTDIR}${INCDIR}; \
-	rm -f des.h; \
-	ln -sf openssl/des.h
-.if !defined(NOPROFILE)
-	@cd  ${DESTDIR}${LIBDIR}; \
-	rm -f libdes_p.a; \
-	ln -sf lib${LIB}_p.a libdes_p.a
-.endif
