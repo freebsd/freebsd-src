@@ -358,7 +358,8 @@ vm_page_io_finish(vm_page_t m)
 void
 vm_page_hold(vm_page_t mem)
 {
-        GIANT_REQUIRED;
+
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
         mem->hold_count++;
 }
 
