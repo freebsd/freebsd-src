@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_output.c	8.3 (Berkeley) 1/21/94
- *	$Id: ip_output.c,v 1.35 1996/04/18 15:49:06 wollman Exp $
+ *	$Id: ip_output.c,v 1.36 1996/04/21 13:47:43 bde Exp $
  */
 
 #define _IP_VHL
@@ -94,6 +94,7 @@ ip_output(m0, opt, ro, flags, imo)
 	int len, off, error = 0;
 	struct sockaddr_in *dst;
 	struct in_ifaddr *ia;
+	int isbroadcast;
 
 #ifdef	DIAGNOSTIC
 	if ((m->m_flags & M_PKTHDR) == 0)
@@ -150,6 +151,7 @@ ip_output(m0, opt, ro, flags, imo)
 		}
 		ifp = ia->ia_ifp;
 		ip->ip_ttl = 1;
+		isbroadcast = in_broadcast(dst->sin_addr, ifp);
 	} else {
 		/*
 		 * If this is the case, we probably don't want to allocate
@@ -172,6 +174,10 @@ ip_output(m0, opt, ro, flags, imo)
 		ro->ro_rt->rt_use++;
 		if (ro->ro_rt->rt_flags & RTF_GATEWAY)
 			dst = (struct sockaddr_in *)ro->ro_rt->rt_gateway;
+		if (ro->ro_rt->rt_flags & RTF_HOST)
+			isbroadcast = (ro->ro_rt->rt_flags & RTF_BROADCAST);
+		else
+			isbroadcast = in_broadcast(dst->sin_addr, ifp);
 	}
 	if (IN_MULTICAST(ntohl(ip->ip_dst.s_addr))) {
 		struct in_multi *inm;
@@ -296,7 +302,7 @@ ip_output(m0, opt, ro, flags, imo)
 	 * and verify user is allowed to send
 	 * such a packet.
 	 */
-	if (in_broadcast(dst->sin_addr, ifp)) {
+	if (isbroadcast) {
 		if ((ifp->if_flags & IFF_BROADCAST) == 0) {
 			error = EADDRNOTAVAIL;
 			goto bad;
@@ -311,8 +317,9 @@ ip_output(m0, opt, ro, flags, imo)
 			goto bad;
 		}
 		m->m_flags |= M_BCAST;
-	} else
+	} else {
 		m->m_flags &= ~M_BCAST;
+	}
 
 sendit:
 	/*
@@ -345,7 +352,6 @@ sendit:
 	 */
 	if (ip->ip_off & IP_DF) {
 		error = EMSGSIZE;
-#if 1
 		/*
 		 * This case can happen if the user changed the MTU
 		 * of an interface after enabling IP on it.  Because
@@ -358,7 +364,6 @@ sendit:
 		    && (ro->ro_rt->rt_rmx.rmx_mtu > ifp->if_mtu)) {
 			ro->ro_rt->rt_rmx.rmx_mtu = ifp->if_mtu;
 		}
-#endif
 		ipstat.ips_cantfrag++;
 		goto bad;
 	}
