@@ -16,7 +16,7 @@
  *
  * New configuration setup: dufault@hda.com
  *
- *      $Id: scsiconf.c,v 1.48 1996/01/28 22:41:44 julian Exp $
+ *      $Id: scsiconf.c,v 1.49 1996/01/31 07:32:11 jkh Exp $
  */
 
 #include <sys/types.h>
@@ -245,6 +245,10 @@ static struct scsidevs knowndevs[] =
 	},
 #endif	/* NOD */
 #if NSD > 0
+	{
+		T_DIRECT, T_DIRECT, T_FIXED, "EMULEX", "MD21*" , "*",
+		"sd", SC_MORE_LUS
+	},
 	{
 		T_DIRECT, T_DIRECT, T_FIXED, "*", "*", "*",
 		"sd", SC_ONE_LU
