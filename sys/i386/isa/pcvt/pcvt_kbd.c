@@ -309,9 +309,9 @@ update_led(void)
 
 #if PCVT_UPDLED_LOSES_INTR
 		if (lost_intr_timeout_queued)
-			untimeout (check_for_lost_intr, (void *)NULL);
+			untimeout(check_for_lost_intr, NULL);
 
-		timeout (check_for_lost_intr, (void *)NULL, hz);
+		timeout(check_for_lost_intr, NULL, hz);
 		lost_intr_timeout_queued = 1;
 #endif /* PCVT_UPDLED_LOSES_INTR */
 
