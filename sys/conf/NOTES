@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.430 1998/05/16 14:08:31 des Exp $
+#	$Id: LINT,v 1.431 1998/05/16 14:10:12 des Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -654,6 +654,9 @@ pseudo-device	ccd	4	#Concatenated disk driver
 # These are only for watching for bitrot in old SCSI code.
 pseudo-device	su		#scsi user
 pseudo-device	ssc		#super scsi
+
+# Size of the kernel message buffer.  Should be N * pagesize.
+options		"MSGBUF_SIZE=40960"
 
 
 #####################################################################

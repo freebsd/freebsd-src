@@ -36,8 +36,10 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_prf.c	8.3 (Berkeley) 1/21/94
- * $Id: subr_prf.c,v 1.43 1997/10/12 20:23:58 phk Exp $
+ * $Id: subr_prf.c,v 1.44 1997/12/28 05:03:33 bde Exp $
  */
+
+#include "opt_msgbuf.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -586,18 +588,12 @@ msglogchar(int c, void *dummyarg)
 
 	if (c != '\0' && c != '\r' && c != 0177 && msgbufmapped) {
 		mbp = msgbufp;
-		if (mbp->msg_magic != MSG_MAGIC ||
-		    mbp->msg_bufx >= MSG_BSIZE ||
-		    mbp->msg_bufr >= MSG_BSIZE) {
-			bzero(mbp, sizeof(struct msgbuf));
-			mbp->msg_magic = MSG_MAGIC;
-		}
-		mbp->msg_bufc[mbp->msg_bufx++] = c;
-		if (mbp->msg_bufx >= MSG_BSIZE)
+		mbp->msg_ptr[mbp->msg_bufx++] = c;
+		if (mbp->msg_bufx >= mbp->msg_size)
 			mbp->msg_bufx = 0;
 		/* If the buffer is full, keep the most recent data. */
 		if (mbp->msg_bufr == mbp->msg_bufx) {
-			if (++mbp->msg_bufr >= MSG_BSIZE)
+			if (++mbp->msg_bufr >= mbp->msg_size)
 				mbp->msg_bufr = 0;
 		}
 	}

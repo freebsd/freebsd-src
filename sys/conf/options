@@ -1,4 +1,4 @@
-#	$Id: options,v 1.71 1998/04/20 03:57:21 julian Exp $
+#	$Id: options,v 1.72 1998/04/20 04:30:41 julian Exp $
 #
 #        On the handling of kernel options   
 # 
@@ -227,3 +227,6 @@ VM_KMEM_SIZE_MAX	opt_vm.h
 # sys/netkey
 KEY
 KEY_DEBUG		opt_key.h
+
+# Size of the kernel message buffer
+MSGBUF_SIZE		opt_msgbuf.h
