@@ -83,6 +83,13 @@ softdep_initialize()
 }
 
 void
+softdep_uninitialize()
+{
+
+	return;
+}
+
+void
 softdep_setup_inomapdep(bp, ip, newinum)
 	struct buf *bp;
 	struct inode *ip;
