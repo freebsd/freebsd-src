@@ -1,6 +1,6 @@
 /*
  *	from: vector.s, 386BSD 0.1 unknown origin
- *	$Id: vector.s,v 1.11 1994/12/03 10:03:19 bde Exp $
+ *	$Id: vector.s,v 1.12 1995/04/15 21:32:18 bde Exp $
  */
 
 #include <i386/isa/icu.h>
@@ -51,6 +51,16 @@
 #define	MAYBE_MOVW_AX_ES
 #define	MAYBE_POPL_ES
 #define	MAYBE_PUSHL_ES
+#endif
+
+#ifdef DEVRANDOM
+#define	ADDENTROPY(irq_num) \
+	/* Add this interrupt to the pool of entropy */ \
+	pushl	$irq_num ; \
+	call	_add_interrupt_randomness ; \
+	addl	$4,%esp
+#else
+#define	ADDENTROPY(irq_num)
 #endif
 
 /*
@@ -194,6 +204,8 @@ Xresume/**/irq_num: ; \
 	FASTER_NOP ; \
 	outb	%al,$icu+1 ; \
 	sti ;			/* XXX _doreti repeats the cli/sti */ \
+	/* Add this interrupt to the pool of entropy */ \
+	ADDENTROPY(irq_num) ; \
 	MEXITCOUNT ; \
 	/* We could usually avoid the following jmp by inlining some of */ \
 	/* _doreti, but it's probably better to use less cache. */ \
