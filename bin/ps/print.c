@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: print.c,v 1.19 1997/02/22 14:05:05 peter Exp $
+ *	$Id: print.c,v 1.20 1997/04/16 16:08:11 jdp Exp $
  */
 
 #ifndef lint
@@ -284,6 +284,17 @@ uname(k, ve)
 #endif
 }
 
+int
+s_uname(k)
+	KINFO *k;
+{
+#ifndef NEWVM
+	    return (strlen(user_from_uid(KI_PROC(k)->p_uid, 0)));
+#else
+	    return (strlen(user_from_uid(KI_EPROC(k)->e_ucred.cr_uid, 0)));
+#endif
+}
+
 void
 runame(k, ve)
 	KINFO *k;
@@ -298,6 +309,17 @@ runame(k, ve)
 #else
 	(void)printf("%-*s",
 	    (int)v->width, user_from_uid(KI_EPROC(k)->e_pcred.p_ruid, 0));
+#endif
+}
+
+int
+s_runame(k)
+	KINFO *k;
+{
+#ifndef NEWVM
+	    return (strlen(user_from_uid(KI_PROC(k)->p_ruid, 0)));
+#else
+	    return (strlen(user_from_uid(KI_EPROC(k)->e_pcred.p_ruid, 0)));
 #endif
 }
 

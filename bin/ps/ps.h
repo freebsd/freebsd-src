@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ps.h	8.1 (Berkeley) 5/31/93
- *	$Id$
+ *	$Id: ps.h,v 1.4 1997/02/22 14:05:09 peter Exp $
  */
 
 #define	UNLIMITED	0	/* unlimited terminal width */
@@ -68,9 +68,12 @@ typedef struct var {
 #define	COMM	0x01		/* needs exec arguments and environment (XXX) */
 #define	LJUST	0x02		/* left adjust on output (trailing blanks) */
 #define	USER	0x04		/* needs user structure */
+#define	DSIZ	0x08		/* field size is dynamic*/
 	u_int	flag;
 				/* output routine */
 	void	(*oproc) __P((struct kinfo *, struct varent *));
+				/* sizing routine*/
+	int	(*sproc) __P((struct kinfo *));
 	short	width;		/* printing width */
 	/*
 	 * The following (optional) elements are hooks for passing information
@@ -81,6 +84,7 @@ typedef struct var {
 	enum	type type;	/* type of element */
 	char	*fmt;		/* printf format */
 	char	*time;		/* time format */
+	short	dwidth;		/* dynamic printing width */
 	/*
 	 * glue to link selected fields together
 	 */
