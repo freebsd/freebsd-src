@@ -4,7 +4,7 @@ PROG=	boot1.elf
 INTERNALPROG=
 NOMAN=
 FILES=	boot1
-SRCS=	_start.S boot1.c
+SRCS=	_start.s boot1.c
 
 BOOTBLOCKBASE= 0x4000
 
