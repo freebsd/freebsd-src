@@ -655,11 +655,10 @@ MODULE_DEPEND(acpi_sysresource, acpi, 1, 1, 1);
 static int
 acpi_sysres_probe(device_t dev)
 {
-    ACPI_HANDLE h;
+    static char *sysres_ids[] = { "PNP0C01", "PNP0C02", NULL };
 
-    h = acpi_get_handle(dev);
     if (acpi_disabled("sysresource") ||
-	(!acpi_MatchHid(h, "PNP0C01") && !acpi_MatchHid(h, "PNP0C02")))
+	ACPI_ID_PROBE(device_get_parent(dev), dev, sysres_ids) == NULL)
 	return (ENXIO);
 
     device_set_desc(dev, "System Resource");
