@@ -1653,9 +1653,7 @@ ipsec_chkreplay(seq, sav)
 	u_int32_t wsizeb;	/* constant: bits of window size */
 	int frlast;		/* constant: last frame */
 
-#if 0
 	SPLASSERT(net, "ipsec_chkreplay");
-#endif
 
 	KASSERT(sav != NULL, ("ipsec_chkreplay: Null SA"));
 	KASSERT(sav->replay != NULL, ("ipsec_chkreplay: Null replay state"));
@@ -1715,9 +1713,7 @@ ipsec_updatereplay(seq, sav)
 	u_int32_t wsizeb;	/* constant: bits of window size */
 	int frlast;		/* constant: last frame */
 
-#if 0
 	SPLASSERT(net, "ipsec_updatereplay");
-#endif
 
 	KASSERT(sav != NULL, ("ipsec_updatereplay: Null SA"));
 	KASSERT(sav->replay != NULL, ("ipsec_updatereplay: Null replay state"));

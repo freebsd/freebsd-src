@@ -72,6 +72,16 @@
 #include <netkey/key.h>
 #endif /* IPSEC */
 
+#ifdef FAST_IPSEC
+#if defined(IPSEC) || defined(IPSEC_ESP)
+#error "Bad idea: don't compile with both IPSEC and FAST_IPSEC!"
+#endif
+
+#include <netipsec/ipsec.h>
+#include <netipsec/key.h>
+#define	IPSEC
+#endif /* FAST_IPSEC */
+
 struct	in_addr zeroin_addr;
 
 /*

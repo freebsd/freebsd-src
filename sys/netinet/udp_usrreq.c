@@ -72,6 +72,10 @@
 #include <netinet/udp.h>
 #include <netinet/udp_var.h>
 
+#ifdef FAST_IPSEC
+#include <netipsec/ipsec.h>
+#endif /*FAST_IPSEC*/
+
 #ifdef IPSEC
 #include <netinet6/ipsec.h>
 #endif /*IPSEC*/
@@ -299,6 +303,12 @@ udp_input(m, off, proto)
 					/* do not inject data to pcb */
 				else
 #endif /*IPSEC*/
+#ifdef FAST_IPSEC
+				/* check AH/ESP integrity. */
+				if (ipsec4_in_reject(m, last))
+					;
+				else
+#endif /*FAST_IPSEC*/
 				if ((n = m_copy(m, 0, M_COPYALL)) != NULL)
 					udp_append(last, ip, n,
 						   iphlen +
@@ -333,6 +343,11 @@ udp_input(m, off, proto)
 			goto bad;
 		}
 #endif /*IPSEC*/
+#ifdef FAST_IPSEC
+		/* check AH/ESP integrity. */
+		if (ipsec4_in_reject(m, last))
+			goto bad;
+#endif /*FAST_IPSEC*/
 		udp_append(last, ip, m, iphlen + sizeof(struct udphdr));
 		return;
 	}
@@ -373,6 +388,10 @@ udp_input(m, off, proto)
 		goto bad;
 	}
 #endif /*IPSEC*/
+#ifdef FAST_IPSEC
+	if (ipsec4_in_reject(m, inp))
+		goto bad;
+#endif /*FAST_IPSEC*/
 
 	/*
 	 * Construct sockaddr format source address.

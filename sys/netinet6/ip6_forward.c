@@ -71,6 +71,13 @@
 #include <netkey/key.h>
 #endif /* IPSEC */
 
+#ifdef FAST_IPSEC
+#include <netipsec/ipsec.h>
+#include <netipsec/ipsec6.h>
+#include <netipsec/key.h>
+#define	IPSEC
+#endif /* FAST_IPSEC */
+
 #include <netinet6/ip6_fw.h>
 
 #include <net/net_osdep.h>
@@ -116,7 +123,9 @@ ip6_forward(m, srcrt)
 	 * before forwarding packet actually.
 	 */
 	if (ipsec6_in_reject(m, NULL)) {
+#if !defined(FAST_IPSEC)
 		ipsec6stat.in_polvio++;
+#endif
 		m_freem(m);
 		return;
 	}

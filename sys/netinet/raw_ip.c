@@ -66,6 +66,10 @@
 #include <netinet/ip_fw.h>
 #include <netinet/ip_dummynet.h>
 
+#ifdef FAST_IPSEC
+#include <netipsec/ipsec.h>
+#endif /*FAST_IPSEC*/
+
 #ifdef IPSEC
 #include <netinet6/ipsec.h>
 #endif /*IPSEC*/
@@ -172,6 +176,13 @@ rip_input(struct mbuf *m, int off, int proto)
 				/* do not inject data to pcb */
 			} else
 #endif /*IPSEC*/
+#ifdef FAST_IPSEC
+			/* check AH/ESP integrity. */
+			if (ipsec4_in_reject(n, last)) {
+				m_freem(n);
+				/* do not inject data to pcb */
+			} else
+#endif /*FAST_IPSEC*/
 			if (n) {
 				if (last->inp_flags & INP_CONTROLOPTS ||
 				    last->inp_socket->so_options & SO_TIMESTAMP)
@@ -199,6 +210,14 @@ rip_input(struct mbuf *m, int off, int proto)
 		/* do not inject data to pcb */
 	} else
 #endif /*IPSEC*/
+#ifdef FAST_IPSEC
+	/* check AH/ESP integrity. */
+	if (last && ipsec4_in_reject(m, last)) {
+		m_freem(m);
+		ipstat.ips_delivered--;
+		/* do not inject data to pcb */
+	} else
+#endif /*FAST_IPSEC*/
 	if (last) {
 		if (last->inp_flags & INP_CONTROLOPTS ||
 		    last->inp_socket->so_options & SO_TIMESTAMP)

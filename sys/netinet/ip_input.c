@@ -86,6 +86,11 @@
 #include <netkey/key.h>
 #endif
 
+#ifdef FAST_IPSEC
+#include <netipsec/ipsec.h>
+#include <netipsec/key.h>
+#endif
+
 int rsvp_on = 0;
 static int ip_rsvp_on;
 struct socket *ip_rsvpd;
@@ -291,6 +296,12 @@ ip_input(struct mbuf *m)
 	struct in_addr pkt_dst;
 	u_int32_t divert_info = 0;		/* packet divert/tee info */
 	struct ip_fw_args args;
+#ifdef FAST_IPSEC
+	struct m_tag *mtag;
+	struct tdb_ident *tdbi;
+	struct secpolicy *sp;
+	int s, error;
+#endif /* FAST_IPSEC */
 
 	args.eh = NULL;
 	args.oif = NULL;
@@ -640,6 +651,34 @@ pass:
 			goto bad;
 		}
 #endif /* IPSEC */
+#ifdef FAST_IPSEC
+		mtag = m_tag_find(m, PACKET_TAG_IPSEC_IN_DONE, NULL);
+		s = splnet();
+		if (mtag != NULL) {
+			tdbi = (struct tdb_ident *)(mtag + 1);
+			sp = ipsec_getpolicy(tdbi, IPSEC_DIR_INBOUND);
+		} else {
+			sp = ipsec_getpolicybyaddr(m, IPSEC_DIR_INBOUND,
+						   IP_FORWARDING, &error);   
+		}
+		if (sp == NULL) {	/* NB: can happen if error */
+			splx(s);
+			/*XXX error stat???*/
+			DPRINTF(("ip_input: no SP for forwarding\n"));	/*XXX*/
+			goto bad;
+		}
+
+		/*
+		 * Check security policy against packet attributes.
+		 */
+		error = ipsec_in_reject(sp, m);
+		KEY_FREESP(&sp);
+		splx(s);
+		if (error) {
+			ipstat.ips_cantforward++;
+			goto bad;
+		}
+#endif /* FAST_IPSEC */
 		ip_forward(m, 0, args.next_hop);
 	}
 	return;
@@ -804,6 +843,45 @@ found:
 		goto bad;
 	}
 #endif
+#if FAST_IPSEC
+	/*
+	 * enforce IPsec policy checking if we are seeing last header.
+	 * note that we do not visit this with protocols with pcb layer
+	 * code - like udp/tcp/raw ip.
+	 */
+	if ((inetsw[ip_protox[ip->ip_p]].pr_flags & PR_LASTHDR) != 0) {
+		/*
+		 * Check if the packet has already had IPsec processing
+		 * done.  If so, then just pass it along.  This tag gets
+		 * set during AH, ESP, etc. input handling, before the
+		 * packet is returned to the ip input queue for delivery.
+		 */ 
+		mtag = m_tag_find(m, PACKET_TAG_IPSEC_IN_DONE, NULL);
+		s = splnet();
+		if (mtag != NULL) {
+			tdbi = (struct tdb_ident *)(mtag + 1);
+			sp = ipsec_getpolicy(tdbi, IPSEC_DIR_INBOUND);
+		} else {
+			sp = ipsec_getpolicybyaddr(m, IPSEC_DIR_INBOUND,
+						   IP_FORWARDING, &error);   
+		}
+		if (sp != NULL) {
+			/*
+			 * Check security policy against packet attributes.
+			 */
+			error = ipsec_in_reject(sp, m);
+			KEY_FREESP(&sp);
+		} else {
+			/* XXX error stat??? */
+			error = EINVAL;
+DPRINTF(("ip_input: no SP, packet discarded\n"));/*XXX*/
+			goto bad;
+		}
+		splx(s);
+		if (error)
+			goto bad;
+	}
+#endif /* FAST_IPSEC */
 
 	/*
 	 * Switch out to protocol's input routine.
@@ -1598,7 +1676,7 @@ ip_forward(struct mbuf *m, int srcrt, struct sockaddr_in *next_hop)
 	n_long dest;
 	struct in_addr pkt_dst;
 	struct ifnet *destifp;
-#ifdef IPSEC
+#if defined(IPSEC) || defined(FAST_IPSEC)
 	struct ifnet dummyifp;
 #endif
 
@@ -1827,7 +1905,58 @@ ip_forward(struct mbuf *m, int srcrt, struct sockaddr_in *next_hop)
 				key_freesp(sp);
 			}
 		}
-#else /* !IPSEC */
+#elif FAST_IPSEC
+		/*
+		 * If the packet is routed over IPsec tunnel, tell the
+		 * originator the tunnel MTU.
+		 *	tunnel MTU = if MTU - sizeof(IP) - ESP/AH hdrsiz
+		 * XXX quickhack!!!
+		 */
+		if (ipforward_rt.ro_rt) {
+			struct secpolicy *sp = NULL;
+			int ipsecerror;
+			int ipsechdr;
+			struct route *ro;
+
+			sp = ipsec_getpolicybyaddr(mcopy,
+						   IPSEC_DIR_OUTBOUND,
+			                           IP_FORWARDING,
+			                           &ipsecerror);
+
+			if (sp == NULL)
+				destifp = ipforward_rt.ro_rt->rt_ifp;
+			else {
+				/* count IPsec header size */
+				ipsechdr = ipsec4_hdrsiz(mcopy,
+							 IPSEC_DIR_OUTBOUND,
+							 NULL);
+
+				/*
+				 * find the correct route for outer IPv4
+				 * header, compute tunnel MTU.
+				 *
+				 * XXX BUG ALERT
+				 * The "dummyifp" code relies upon the fact
+				 * that icmp_error() touches only ifp->if_mtu.
+				 */
+				/*XXX*/
+				destifp = NULL;
+				if (sp->req != NULL
+				 && sp->req->sav != NULL
+				 && sp->req->sav->sah != NULL) {
+					ro = &sp->req->sav->sah->sa_route;
+					if (ro->ro_rt && ro->ro_rt->rt_ifp) {
+						dummyifp.if_mtu =
+						    ro->ro_rt->rt_ifp->if_mtu;
+						dummyifp.if_mtu -= ipsechdr;
+						destifp = &dummyifp;
+					}
+				}
+
+				KEY_FREESP(&sp);
+			}
+		}
+#else /* !IPSEC && !FAST_IPSEC */
 		if (ipforward_rt.ro_rt)
 			destifp = ipforward_rt.ro_rt->rt_ifp;
 #endif /*IPSEC*/

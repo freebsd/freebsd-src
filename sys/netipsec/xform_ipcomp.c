@@ -139,9 +139,7 @@ ipcomp_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 	struct cryptop *crp;
 	int hlen = IPCOMP_HLENGTH;
 
-#if 0
 	SPLASSERT(net, "ipcomp_input");
-#endif
 
 	/* Get crypto descriptors */
 	crp = crypto_getreq(1);
@@ -343,9 +341,7 @@ ipcomp_output(
 	struct mbuf *mo;
 	struct ipcomp *ipcomp;
 
-#if 0
 	SPLASSERT(net, "ipcomp_output");
-#endif
 
 	sav = isr->sav;
 	KASSERT(sav != NULL, ("ipcomp_output: null SA"));

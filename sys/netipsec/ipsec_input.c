@@ -201,24 +201,6 @@ ipsec4_common_input(struct mbuf *m, ...)
 				  AF_INET, nxt);
 }
 
-void
-ah4_input(struct mbuf *m, int off)
-{
-	ipsec4_common_input(m, off, IPPROTO_AH);
-}
-
-void
-esp4_input(struct mbuf *m, int off)
-{
-	ipsec4_common_input(m, off, IPPROTO_ESP);
-}
-
-void
-ipcomp4_input(struct mbuf *m, int off)
-{
-	ipsec4_common_input(m, off, IPPROTO_IPCOMP);
-}
-
 /*
  * IPsec input callback for INET protocols.
  * This routine is called as the transform callback.
@@ -236,9 +218,7 @@ ipsec4_common_input_cb(struct mbuf *m, struct secasvar *sav,
 	struct secasindex *saidx;
 	int error;
 
-#if 0
 	SPLASSERT(net, "ipsec4_common_input_cb");
-#endif
 
 	KASSERT(m != NULL, ("ipsec4_common_input_cb: null mbuf"));
 	KASSERT(sav != NULL, ("ipsec4_common_input_cb: null SA"));
@@ -534,6 +514,9 @@ esp6_ctlinput(int cmd, struct sockaddr *sa, void *d)
 		/* we normally notify any pcb here */
 	}
 }
+
+extern	struct ip6protosw inet6sw[];
+extern	u_char ip6_protox[];
 
 /*
  * IPsec input callback, called by the transform callback. Takes care of
