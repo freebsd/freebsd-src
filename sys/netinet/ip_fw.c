@@ -12,7 +12,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.c,v 1.97 1998/10/16 03:55:01 peter Exp $
+ *	$Id: ip_fw.c,v 1.98 1998/11/15 15:33:52 bde Exp $
  */
 
 /*
@@ -1190,7 +1190,7 @@ ipfw_modevent(module_t mod, int type, void *unused)
 	return 0;
 }
 
-moduledata_t ipfwmod = {
+static moduledata_t ipfwmod = {
 	"ipfw",
 	ipfw_modevent,
 	0
