@@ -208,14 +208,6 @@
             dialog
             ..
             diskless
-                209.157.86.12
-                ..
-                HT.DISKLESS
-                ..
-                HT.STD
-                ..
-                archive.backplane.com
-                ..
             ..
             drivers
             ..
@@ -247,8 +239,6 @@
                     ..
                 ..
                 dyn_sysctl
-                    module
-                    ..
                 ..
                 syscall
                     module
