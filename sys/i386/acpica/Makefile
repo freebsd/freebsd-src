@@ -9,6 +9,7 @@ DEPENDFILE=
 MAKESRCPATH= ${.CURDIR}
 CLEANFILES= acpi_wakecode.h acpi_wakecode.bin acpi_wakecode.o
 .endif
+CFLAGS+=	-I.
 
 all: acpi_wakecode.h
 
