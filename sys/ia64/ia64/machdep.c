@@ -1305,7 +1305,10 @@ set_regs(struct thread *td, struct reg *regs)
 	struct trapframe *tf;
 
 	tf = td->td_frame;
+	ia64_flush_dirty(td, &tf->tf_special);
 	tf->tf_special = regs->r_special;
+	tf->tf_special.bspstore += tf->tf_special.ndirty;
+	tf->tf_special.ndirty = 0;
 	tf->tf_scratch = regs->r_scratch;
 	restore_callee_saved(&regs->r_preserved);
 	return (0);
