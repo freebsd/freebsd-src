@@ -399,7 +399,7 @@ bwrite(struct buf *bp)
 	KASSERT(bp->b_bufobj->bo_ops != NULL, ("bwrite: no bo_ops bp=%p", bp));
 	KASSERT(bp->b_bufobj->bo_ops->bop_write != NULL,
 	    ("bwrite: no bop_write bp=%p", bp));
-	return (bp->b_bufobj->bo_ops->bop_write(bp));
+	return (BO_WRITE(bp->b_bufobj, bp));
 }
 
 static __inline void
@@ -411,7 +411,7 @@ bstrategy(struct buf *bp)
 	    ("bstrategy: no bo_ops bp=%p", bp));
 	KASSERT(bp->b_bufobj->bo_ops->bop_strategy != NULL,
 	    ("bstrategy: no bop_strategy bp=%p", bp));
-	bp->b_bufobj->bo_ops->bop_strategy(bp->b_bufobj, bp);
+	BO_STRATEGY(bp->b_bufobj, bp);
 }
 
 static __inline void

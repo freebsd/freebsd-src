@@ -1949,7 +1949,7 @@ ufs_strategy(ap)
 	}
 	bp->b_iooffset = dbtob(bp->b_blkno);
 	bo = ip->i_umbufobj;
-	bo->bo_ops->bop_strategy(bo, bp);
+	BO_STRATEGY(bo, bp);
 	return (0);
 }
 
