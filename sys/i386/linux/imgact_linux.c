@@ -28,12 +28,8 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: imgact_linux.c,v 1.21 1997/04/01 08:39:05 bde Exp $
+ *	$Id: imgact_linux.c,v 1.22 1997/04/13 01:48:17 dyson Exp $
  */
-
-#ifndef LKM
-#include "opt_rlimit.h"
-#endif
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -109,8 +105,8 @@ exec_linux_imgact(imgp)
     /*
      * text/data/bss must not exceed limits
      */
-    if (a_out->a_text > MAXTSIZ || a_out->a_data + bss_size > MAXDSIZ ||
-	a_out->a_data+bss_size > imgp->proc->p_rlimit[RLIMIT_DATA].rlim_cur)
+    if (a_out->a_text > MAXTSIZ ||
+	a_out->a_data + bss_size > imgp->proc->p_rlimit[RLIMIT_DATA].rlim_cur)
 	return (ENOMEM);
 
     /* copy in arguments and/or environment from old process */
