@@ -139,7 +139,7 @@ interrupt(u_int64_t vector, struct trapframe *framep)
 			mtx_lock_spin(&sched_lock);
 			hardclock_process(curthread, TRAPF_USERMODE(framep));
 			if ((schedclk2 & 0x7) == 0)
-				statclock_process(curkse, TRAPF_PC(framep),
+				statclock_process(curthread, TRAPF_PC(framep),
 				    TRAPF_USERMODE(framep));
 			mtx_unlock_spin(&sched_lock);
 		}
