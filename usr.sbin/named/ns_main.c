@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static char sccsid[] = "@(#)ns_main.c	4.55 (Berkeley) 7/1/91";
-static char rcsid[] = "$Id: ns_main.c,v 8.12 1995/12/29 07:16:18 vixie Exp $";
+static char rcsid[] = "$Id: ns_main.c,v 8.13 1996/01/09 20:23:55 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -652,7 +652,8 @@ main(argc, argv, envp)
 		        for (udpcnt = 0; udpcnt < 42; udpcnt++) {  /*XXX*/
 			    int from_len = sizeof(from_addr);
 
-			    if ((n = recvfrom(dqp->dq_dfd, (char *)buf, sizeof(buf), 0,
+			    if ((n = recvfrom(dqp->dq_dfd, (char *)buf,
+					      MIN(PACKETSZ, sizeof buf), 0,
 				(struct sockaddr *)&from_addr, &from_len)) < 0)
 			    {
 #if defined(SPURIOUS_ECONNREFUSED)
