@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: smp.h,v 1.20 1997/07/23 20:42:16 fsmp Exp $
+ * $Id: smp.h,v 1.17 1997/07/28 03:40:09 smp Exp smp $
  *
  */
 
@@ -19,11 +19,20 @@
 # error APIC_IO required for SMP, add "options APIC_IO" to your config file.
 #endif /* SMP && !APIC_IO */
 
+/* Number of CPUs. */
 #if defined(SMP) && !defined(NCPU)
 # define NCPU			2
 #endif /* SMP && NCPU */
 
+/* Number of IO APICs. */
+#if defined(APIC_IO) && !defined(NAPIC)
+# define NAPIC			1
+#endif /* SMP && NAPIC */
+
+
 #if defined(SMP) || defined(APIC_IO)
+
+#ifndef LOCORE
 
 /*
  * For sending values to POST displays.
@@ -158,6 +167,7 @@ extern volatile u_int		cpuid;
 extern volatile u_int		cpu_lockid;
 extern volatile u_int		other_cpus;
 
+#endif /* !LOCORE */
 #endif /* SMP || APIC_IO */
 #endif /* KERNEL */
 #endif /* _MACHINE_SMP_H_ */

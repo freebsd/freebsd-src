@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp_machdep.c,v 1.36 1997/07/23 20:47:19 fsmp Exp $
+ *	$Id: mp_machdep.c,v 1.22 1997/07/28 03:39:06 smp Exp smp $
  */
 
 #include "opt_smp.h"
@@ -1380,11 +1380,11 @@ default_mp_table(int type)
 	/* general cases from MP v1.4, table 5-2 */
 	for (pin = 0; pin < 16; ++pin) {
 		io_apic_ints[pin].int_type = 0;
-		io_apic_ints[pin].int_flags = 0x05;	/* edge-triggered/active-hi */
+		io_apic_ints[pin].int_flags = 0x05;	/* edge/active-hi */
 		io_apic_ints[pin].src_bus_id = 0;
-		io_apic_ints[pin].src_bus_irq = pin;	/* IRQ2 is caught below */
+		io_apic_ints[pin].src_bus_irq = pin;	/* IRQ2 caught below */
 		io_apic_ints[pin].dst_apic_id = io_apic_id;
-		io_apic_ints[pin].dst_apic_int = pin;	/* 1-to-1 correspondence */
+		io_apic_ints[pin].dst_apic_int = pin;	/* 1-to-1 */
 	}
 
 	/* special cases from MP v1.4, table 5-2 */
