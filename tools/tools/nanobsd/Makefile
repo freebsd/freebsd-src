@@ -8,7 +8,7 @@
 .include "${.CURDIR}/make.conf"
 
 # parallism flag for make.
-MAKEJ?="-j12"
+MAKEJ?="-j3"
 
 .if defined(WITH_GEOM_VOL)
 # Do not hardcode device names, use FFS volume labels instead.
