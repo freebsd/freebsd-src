@@ -59,13 +59,13 @@ psrsave	=	loc4
 	mov	r30=in2
 	mov	r31=in3
 	;;
-	mov	b1=entry
+	mov	b6=entry
 	add	palret=2f-1b,palret	// calculate return address
 	;;
 	mov	b0=palret
 	rsm	psr.i			// disable interrupts
 	;;
-	br.cond.sptk b1			// call into firmware
+	br.cond.sptk b6			// call into firmware
 2:	mov	psr.l=psrsave
 	mov	rp=rpsave
 	mov	ar.pfs=pfssave
@@ -102,11 +102,11 @@ psrsave	=	loc3
 	mov	out2=in2
 	mov	out3=in3
 	;;
-	mov	b1=entry
+	mov	b6=entry
 	;;
 	rsm	psr.i			// disable interrupts
 	;;
-	br.call.sptk.many rp=b1		// call into firmware
+	br.call.sptk.many rp=b6		// call into firmware
 2:	mov	psr.l=psrsave
 	mov	rp=rpsave
 	mov	ar.pfs=pfssave
