@@ -171,7 +171,13 @@ char	*argv[];
 				warnx("%s: not a dynamic executable", *argv);
 				file_ok = 0;
 			} else if (hdr.elf.e_type == ET_DYN) {
-				is_shlib = 1;
+				if (hdr.elf.e_ident[EI_OSABI] & ELFOSABI_FREEBSD) {
+					is_shlib = 1;
+				} else {
+					warnx("%s: not a FreeBSD ELF shared "
+					      "object", *argv);
+					file_ok = 0;
+				}
 			}
 		} else {
 			warnx("%s: not a dynamic executable", *argv);
