@@ -27,25 +27,26 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
  */
+
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
 
 /*
  * The main module for truss.  Suprisingly simple, but, then, the other
  * files handle the bulk of the work.  And, of course, the kernel has to
  * do a lot of the work :).
  */
-/*
- * $Id: main.c,v 1.5 1997/12/13 03:13:47 sef Exp $
- */
 
+#include <err.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
-#include <err.h>
-#include <signal.h>
-#include <fcntl.h>
 #include <unistd.h>
 #include <sys/ioctl.h>
 #include <sys/pioctl.h>
@@ -65,14 +66,15 @@ extern void i386_linux_syscall_exit(int, int);
 int pid = 0;
 int nosigs = 0;
 FILE *outfile = stderr;
-char *prog;
 int Procfd;
 char progtype[50];	/* OS and type of executable */
 
 static inline void
-usage(void) {
-  fprintf(stderr, "usage:  %s [-o <file>] [-S] { [-p <pid> ] | "
-	  "[ <command> <args>] }\n", prog);
+usage(void)
+{
+  fprintf(stderr, "%s\n%s\n",
+	"usage: truss [-S] [-o file] -p pid",
+	"       truss [-S] [-o file] command [args]");
   exit(1);
 }
 
@@ -116,18 +118,15 @@ set_etype() {
   return funcs;
 }
 
+int
 main(int ac, char **av) {
-  int mask;
   int c;
   int i;
   char **command;
   struct procfs_status pfs;
-  char etype[25];
   struct ex_types *funcs;
-  int fd;
   int in_exec = 0;
-
-  prog = av[0];
+  char *fname = NULL;
 
   while ((c = getopt(ac, av, "p:o:S")) != EOF) {
     switch (c) {
@@ -135,10 +134,7 @@ main(int ac, char **av) {
       pid = atoi(optarg);
       break;
     case 'o':	/* Specified output file */
-      if ((outfile = fopen(optarg, "w")) == NULL) {
-	fprintf (stderr, "%s:  cannot open %s\n", av[0], optarg);
-	exit(1);
-      }
+      fname = optarg;
       break;
     case 'S':	/* Don't trace signals */ 
       nosigs = 1;
@@ -151,6 +147,11 @@ main(int ac, char **av) {
   ac -= optind; av += optind;
   if ((pid == 0 && ac == 0) || (pid != 0 && ac != 0))
     usage();
+
+  if (fname != NULL) { /* Use output file */
+    if ((outfile = fopen(fname, "w")) == NULL)
+      errx(1, "cannot open %s", fname);
+  }
 
   /*
    * If truss starts the process itself, it will ignore some signals --
@@ -193,7 +194,7 @@ main(int ac, char **av) {
     int val = 0;
 
     if (ioctl(Procfd, PIOCWAIT, &pfs) == -1)
-      perror("PIOCWAIT top of loop");
+      warn("PIOCWAIT top of loop");
     else {
       switch(i = pfs.why) {
       case S_SCE:
@@ -229,7 +230,7 @@ main(int ac, char **av) {
       }
     }
     if (ioctl(Procfd, PIOCCONT, val) == -1)
-      perror("PIOCCONT");
+      warn("PIOCCONT");
   } while (pfs.why != S_EXIT);
   return 0;
 }
