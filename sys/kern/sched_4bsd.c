@@ -68,6 +68,7 @@ struct ke_sched {
 	struct runq	*ske_runq;	/* runq the kse is currently on */
 };
 #define ke_runq 	ke_sched->ske_runq
+#define ke_cpticks 	ke_sched->ske_cpticks
 #define KEF_BOUND	KEF_SCHED1
 
 #define SKE_RUNQ_PCPU(ke)						\
@@ -341,20 +342,20 @@ schedcpu(void)
 				 * stop recalculating its priority until
 				 * it wakes up.
 				 */
-				if (ke->ke_sched->ske_cpticks == 0)
+				if (ke->ke_cpticks == 0)
 					continue;
 #if	(FSHIFT >= CCPU_SHIFT)
 				ke->ke_pctcpu += (realstathz == 100)
-				    ? ((fixpt_t) ke->ke_sched->ske_cpticks) <<
+				    ? ((fixpt_t) ke->ke_cpticks) <<
 				    (FSHIFT - CCPU_SHIFT) :
-				    100 * (((fixpt_t) ke->ke_sched->ske_cpticks)
+				    100 * (((fixpt_t) ke->ke_cpticks)
 				    << (FSHIFT - CCPU_SHIFT)) / realstathz;
 #else
 				ke->ke_pctcpu += ((FSCALE - ccpu) *
-				    (ke->ke_sched->ske_cpticks *
+				    (ke->ke_cpticks *
 				    FSCALE / realstathz)) >> FSHIFT;
 #endif
-				ke->ke_sched->ske_cpticks = 0;
+				ke->ke_cpticks = 0;
 			} /* end of kse loop */
 			/* 
 			 * If there are ANY running threads in this KSEGRP,
@@ -514,7 +515,7 @@ sched_clock(struct thread *td)
 	kg = td->td_ksegrp;
 	ke = td->td_kse;
 
-	ke->ke_sched->ske_cpticks++;
+	ke->ke_cpticks++;
 	kg->kg_estcpu = ESTCPULIM(kg->kg_estcpu + 1);
 	if ((kg->kg_estcpu % INVERSE_ESTCPU_WEIGHT) == 0) {
 		resetpriority(kg);
@@ -570,7 +571,7 @@ sched_fork(struct thread *td, struct proc *p1)
 void
 sched_fork_kse(struct thread *td, struct kse *child)
 {
-	child->ke_sched->ske_cpticks = 0;
+	child->ke_cpticks = 0;
 }
 
 void
@@ -754,7 +755,7 @@ sched_rem(struct thread *td)
 
 	if ((td->td_proc->p_flag & P_NOLOAD) == 0)
 		sched_tdcnt--;
-	runq_remove(ke->ke_sched->ske_runq, ke);
+	runq_remove(ke->ke_runq, ke);
 
 	ke->ke_state = KES_THREAD;
 	ke->ke_ksegrp->kg_runq_kses--;
