@@ -1296,7 +1296,7 @@ resource_match_string(int i, const char *resname, const char *value)
 }
 
 static int
-resource_find_hard(const char *cp, const char *name, int unit,
+resource_find_hard(char *cp, const char *name, int unit,
 		   const char *resname, struct config_resource **result)
 {
 	char match[256];
