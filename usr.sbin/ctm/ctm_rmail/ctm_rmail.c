@@ -242,7 +242,7 @@ read_piece(char *input_file)
 		*s = '_';
 
 	    mk_piece_name(pname, delta, pce, npieces);
-	    sprintf(tname,"tmp.%s",pname);
+	    sprintf(tname,"%s.%d.tmp",pname,getpid());
 	    if ((ofp = fopen(tname, "w")) == NULL)
 		{
 		err("cannot open '%s' for writing", tname);
