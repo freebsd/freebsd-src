@@ -21,7 +21,7 @@
  *
  * High-level routines relating to use of the user capabilities database
  *
- *	$Id$
+ *	$Id: login_class.c,v 1.1 1997/01/04 16:50:06 davidn Exp $
  */
 
 #include <stdio.h>
@@ -66,6 +66,9 @@ void
 setclassresources(login_cap_t *lc)
 {
   struct login_res *lr = resources;
+
+  if (lc == NULL)
+	  return;
 
   while (lr->what != NULL) {
     struct rlimit rlim,
@@ -166,16 +169,17 @@ substvar(char * var, const struct passwd * pwd, int hlen, int pch, int nlen)
 	  int l = strlen(p);
 
 	  if (p > var && *(p-1) == '\\')  /* Escaped: */
-	    memmove(p - 1, p, l + 1);	    /* Slide-out the backslash */
+	    memmove(p - 1, p, l + 1);	  /* Slide-out the backslash */
 	  else if (*p == '~') {
-	    memmove(p + 1, p + hlen + pch, l);  /* Subst homedir */
+	    int v = pch && *(p+1) != '/'; /* Avoid double // */
+	    memmove(p + hlen + v, p + 1, l);  /* Subst homedir */
 	    memmove(p, pwd->pw_dir, hlen);
-	    if (pch)
+	    if (v)
       	      p[hlen] = '/';
-	    p += hlen + pch;
+	    p += hlen + v;
 	  }
 	  else /* if (*p == '$') */ {
-	    memmove(p + 1, p + nlen, l);	/* Subst username */
+	    memmove(p + nlen, p + 1, l);	/* Subst username */
 	    memmove(p, pwd->pw_name, nlen);
 	    p += nlen;
 	  }
@@ -200,7 +204,7 @@ setclassenvironment(login_cap_t *lc, const struct passwd * pwd, int paths)
 
   while (vars->tag != NULL) {
     char * var = paths ? login_getpath(lc, vars->tag, NULL)
-		       : login_getcapstr(lc, vars->tag, NULL, NULL);
+  		       : login_getcapstr(lc, vars->tag, NULL, NULL);
 
     char * np  = substvar(var, pwd, hlen, pch, nlen);
 
@@ -219,13 +223,16 @@ setclassenvironment(login_cap_t *lc, const struct passwd * pwd, int paths)
    */
   if (!paths) {
     char ** set_env = login_getcaplist(lc, "setenv", ",");
+
     if (set_env != NULL) {
       while (*set_env != NULL) {
 	char *p = strchr(*set_env, '=');
-	if (p != NULL) {
-	  char * np = substvar(set_env[1], pwd, hlen, pch, nlen);
-	  if (np != NULL) {
-	    setenv(set_env[0], np, 1);
+	if (p != NULL) {  /* Discard invalid entries */
+	  char * np;
+
+	  *p++ = '\0';
+	  if ((np = substvar(p, pwd, hlen, pch, nlen)) != NULL) {
+	    setenv(*set_env, np, 1);
 	    free(np);
 	  }
 	}
@@ -233,7 +240,6 @@ setclassenvironment(login_cap_t *lc, const struct passwd * pwd, int paths)
       }
     }
   }
-
 }
 
 
@@ -282,10 +288,8 @@ setusercontext(login_cap_t *lc, const struct passwd *pwd, uid_t uid, unsigned in
 
   if (lc == NULL)
   {
-    if (pwd == NULL || (lc = login_getclass(pwd)) == NULL) {
-      return -1;
-    }
-    llc = lc; /* free this when we're done */
+    if (pwd != NULL && (lc = login_getclass(pwd)) != NULL)
+      llc = lc; /* free this when we're done */
   }
 
   if (flags & LOGIN_SETPATH)
@@ -313,27 +317,17 @@ setusercontext(login_cap_t *lc, const struct passwd *pwd, uid_t uid, unsigned in
   if ((flags & LOGIN_SETLOGIN) && setlogin(pwd->pw_name) != 0) {
     syslog(LOG_ERR, "setlogin '%s': %m", pwd->pw_name);
     login_close(llc);
-    return -1;	/* You can't be too paranoid */
+    return -1;
   }
 
   /*
    * Setup the user's group permissions
    */
   if (flags & LOGIN_SETGROUP) {
-    /* XXX is it really a good idea to let errors here go? */
     if (setgid(pwd->pw_gid) != 0)
       syslog(LOG_WARNING, "setgid %ld: %m", (long)pwd->pw_gid);
     if (initgroups(pwd->pw_name, pwd->pw_gid) == -1)
       syslog(LOG_WARNING, "initgroups '%s': %m", pwd->pw_name);
-  }
-
-  /*
-   * This needs to be done after all of the above.
-   */
-  if ((flags & LOGIN_SETUSER) && setuid(uid) != 0) {
-    syslog(LOG_ERR, "setuid %ld: %m", uid);
-    login_close(llc);
-    return -1;	/* Paranoia again */
   }
 
   /*
@@ -365,6 +359,16 @@ setusercontext(login_cap_t *lc, const struct passwd *pwd, uid_t uid, unsigned in
 
   login_close(lc);  /* User's private 'me' class */
   login_close(llc); /* Class we opened */
+
+  /*
+   * This needs to be done after all of the above.
+   * Do it last so we avoid getting killed and dropping core
+   */
+  if ((flags & LOGIN_SETUSER) && setuid(uid) != 0) {
+    syslog(LOG_ERR, "setuid %ld: %m", uid);
+    login_close(llc);
+    return -1;	/* Paranoia again */
+  }
 
   return 0;
 }
