@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)rtsock.c	8.5 (Berkeley) 11/2/94
- *	$Id: rtsock.c,v 1.19 1996/05/08 04:28:54 gpalmer Exp $
+ *	$Id: rtsock.c,v 1.20 1996/07/10 01:34:36 fenner Exp $
  */
 
 #include <sys/param.h>
@@ -278,12 +278,12 @@ route_output(m, so)
 			   flags may also be different; ifp may be specified
 			   by ll sockaddr when protocol address is ambiguous */
 			if (ifpaddr && (ifa = ifa_ifwithnet(ifpaddr)) &&
-			    (ifp = ifa->ifa_ifp))
+			    (ifp = ifa->ifa_ifp) && (ifaaddr || gate))
 				ifa = ifaof_ifpforaddr(ifaaddr ? ifaaddr : gate,
 							ifp);
 			else if ((ifaaddr && (ifa = ifa_ifwithaddr(ifaaddr))) ||
-				 (ifa = ifa_ifwithroute(rt->rt_flags,
-							rt_key(rt), gate)))
+				 (gate && (ifa = ifa_ifwithroute(rt->rt_flags,
+							rt_key(rt), gate))))
 				ifp = ifa->ifa_ifp;
 			if (ifa) {
 				register struct ifaddr *oifa = rt->rt_ifa;
