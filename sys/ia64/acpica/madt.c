@@ -141,7 +141,7 @@ parse_madt(APIC_TABLE *madt)
 	 * MADT header is followed by a number of variable length
 	 * structures.
 	 */
-	end = (char *) madt + madt->header.Length;
+	end = (char *) madt + madt->Header.Length;
 	for (p = (char *) (madt + 1); p < end; ) {
 		APIC_HEADER *head = (APIC_HEADER *) p;
 
