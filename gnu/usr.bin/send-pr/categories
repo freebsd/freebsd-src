@@ -1,6 +1,6 @@
-test
 docs
-kernel
-binaries
+kern
+bin
 i386
-config
+conf
+gnu
