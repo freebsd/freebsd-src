@@ -43,13 +43,13 @@
 .Op Fl a
 .Op Fl l
 .Op Fl P Ns Ar printer
-.Op  job # ...\&
-.Op  user ...\&
+.Op job # ...\&
+.Op user ...\&
 .Sh DESCRIPTION
 The
 .Nm
 utility examines the spooling area used by
-.Xr lpd  8
+.Xr lpd 8
 for printing files on the line printer, and reports the status of the
 specified jobs or all jobs associated with a user.
 The
@@ -78,12 +78,12 @@ rather than just the specified printer.
 .El
 .Pp
 For each job submitted (i.e., invocation of
-.Xr lpr  1  )
+.Xr lpr 1 )
 .Nm
 reports the user's name, current rank in the queue, the
 names of files comprising the job, the job identifier (a number which
 may be supplied to
-.Xr lprm  1
+.Xr lprm 1
 for removing a specific job), and the total size in bytes.
 Job ordering is dependent on
 the algorithm used to scan the spooling directory and is supposed
@@ -92,7 +92,7 @@ to be
 (First in First Out).
 File names comprising a job may be unavailable
 (when
-.Xr lpr  1
+.Xr lpr 1
 is used as a sink in a pipeline) in which case the file
 is indicated as ``(standard input)''.
 .Pp
@@ -100,7 +100,7 @@ If
 .Nm
 warns that there is no daemon present (i.e., due to some malfunction),
 the
-.Xr lpc  8
+.Xr lpc 8
 command can be used to restart the printer daemon.
 .Sh ENVIRONMENT
 If the following environment variable exists, it is used by
