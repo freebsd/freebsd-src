@@ -113,10 +113,11 @@ xdrstdio_getlong(xdrs, lp)
 	XDR *xdrs;
 	long *lp;
 {
+	u_int32_t temp;
 
-	if (fread(lp, sizeof(int32_t), 1, (FILE *)xdrs->x_private) != 1)
+	if (fread(&temp, sizeof(int32_t), 1, (FILE *)xdrs->x_private) != 1)
 		return (FALSE);
-	*lp = (long)ntohl((u_int32_t)*lp);
+	*lp = (long)ntohl(temp);
 	return (TRUE);
 }
 
@@ -125,7 +126,7 @@ xdrstdio_putlong(xdrs, lp)
 	XDR *xdrs;
 	const long *lp;
 {
-	long mycopy = (long)htonl((u_int32_t)*lp);
+	int32_t mycopy = htonl((u_int32_t)*lp);
 
 	if (fwrite(&mycopy, sizeof(int32_t), 1, (FILE *)xdrs->x_private) != 1)
 		return (FALSE);
