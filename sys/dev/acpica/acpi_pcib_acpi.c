@@ -29,11 +29,10 @@
 #include "opt_acpi.h"
 #include <sys/param.h>
 #include <sys/bus.h>
-#include <sys/malloc.h>
 #include <sys/kernel.h>
+#include <sys/malloc.h>
 
 #include "acpi.h"
-
 #include <dev/acpica/acpivar.h>
 
 #include <machine/pci_cfgreg.h>
@@ -43,9 +42,7 @@
 
 #include <dev/acpica/acpi_pcibvar.h>
 
-/*
- * Hooks for the ACPI CA debugging infrastructure
- */
+/* Hooks for the ACPI CA debugging infrastructure. */
 #define _COMPONENT	ACPI_BUS
 ACPI_MODULE_NAME("PCI_ACPI")
 
@@ -59,17 +56,19 @@ struct acpi_hpcib_softc {
     ACPI_BUFFER		ap_prt;		/* interrupt routing table */
 };
 
-
 static int		acpi_pcib_acpi_probe(device_t bus);
 static int		acpi_pcib_acpi_attach(device_t bus);
 static int		acpi_pcib_acpi_resume(device_t bus);
-static int		acpi_pcib_read_ivar(device_t dev, device_t child, int which, uintptr_t *result);
-static int		acpi_pcib_write_ivar(device_t dev, device_t child, int which, uintptr_t value);
-static u_int32_t	acpi_pcib_read_config(device_t dev, int bus, int slot, int func, int reg, int bytes);
-static void		acpi_pcib_write_config(device_t dev, int bus, int slot, int func, int reg, 
-					       u_int32_t data, int bytes);
+static int		acpi_pcib_read_ivar(device_t dev, device_t child,
+			    int which, uintptr_t *result);
+static int		acpi_pcib_write_ivar(device_t dev, device_t child,
+			    int which, uintptr_t value);
+static uint32_t		acpi_pcib_read_config(device_t dev, int bus, int slot,
+			    int func, int reg, int bytes);
+static void		acpi_pcib_write_config(device_t dev, int bus, int slot,
+			    int func, int reg, uint32_t data, int bytes);
 static int		acpi_pcib_acpi_route_interrupt(device_t pcib,
-    device_t dev, int pin);
+			    device_t dev, int pin);
 static struct resource *acpi_pcib_acpi_alloc_resource(device_t dev,
   			    device_t child, int type, int *rid,
 			    u_long start, u_long end, u_long count,
@@ -116,20 +115,15 @@ static int
 acpi_pcib_acpi_probe(device_t dev)
 {
 
-    if ((acpi_get_type(dev) == ACPI_TYPE_DEVICE) &&
-	!acpi_disabled("pci") &&
+    if (acpi_get_type(dev) == ACPI_TYPE_DEVICE && !acpi_disabled("pci") &&
 	acpi_MatchHid(dev, "PNP0A03")) {
 
-	if (!pci_cfgregopen())
-		return(ENXIO);
-
-	/*
-	 * Set device description 
-	 */
+	if (pci_cfgregopen() == 0)
+		return (ENXIO);
 	device_set_desc(dev, "ACPI Host-PCI bridge");
-	return(0);
+	return (0);
     }
-    return(ENXIO);
+    return (ENXIO);
 }
 
 static int
@@ -168,9 +162,9 @@ acpi_pcib_acpi_attach(device_t dev)
 	if (status != AE_NOT_FOUND) {
 	    device_printf(dev, "could not evaluate _BBN - %s\n",
 		AcpiFormatException(status));
-	    return_VALUE(ENXIO);
+	    return_VALUE (ENXIO);
 	} else {
-	    /* if it's not found, assume 0 */
+	    /* If it's not found, assume 0. */
 	    sc->ap_bus = 0;
 	}
     }
@@ -187,9 +181,9 @@ acpi_pcib_acpi_attach(device_t dev)
 	    if (status != AE_NOT_FOUND) {
 		device_printf(dev, "could not evaluate _ADR - %s\n",
 		    AcpiFormatException(status));
-		return_VALUE(ENXIO);
+		return_VALUE (ENXIO);
 	    } else
-		device_printf(dev, "could not determine config space address\n");
+		device_printf(dev, "couldn't find _ADR\n");
 	} else {
 	    /* XXX: We assume bus 0. */
 	    slot = addr >> 16;
@@ -198,7 +192,7 @@ acpi_pcib_acpi_attach(device_t dev)
 		device_printf(dev, "reading config registers from 0:%d:%d\n",
 		    slot, func);
 	    if (host_pcib_get_busno(pci_cfgregread, 0, slot, func, &busno) == 0)
-		device_printf(dev, "could not read bus number from config space\n");
+		device_printf(dev, "couldn't read bus number from cfg space\n");
 	    else {
 		sc->ap_bus = busno;
 		busok = 1;
@@ -221,12 +215,14 @@ acpi_pcib_acpi_attach(device_t dev)
      * Get our segment number by evaluating _SEG
      * It's OK for this to not exist.
      */
-    if (ACPI_FAILURE(status = acpi_GetInteger(sc->ap_handle, "_SEG", &sc->ap_segment))) {
+    status = acpi_GetInteger(sc->ap_handle, "_SEG", &sc->ap_segment);
+    if (ACPI_FAILURE(status)) {
 	if (status != AE_NOT_FOUND) {
-	    device_printf(dev, "could not evaluate _SEG - %s\n", AcpiFormatException(status));
-	    return_VALUE(ENXIO);
+	    device_printf(dev, "could not evaluate _SEG - %s\n",
+		AcpiFormatException(status));
+	    return_VALUE (ENXIO);
 	}
-	/* if it's not found, assume 0 */
+	/* If it's not found, assume 0. */
 	sc->ap_segment = 0;
     }
 
@@ -250,14 +246,14 @@ acpi_pcib_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
     struct acpi_hpcib_softc	*sc = device_get_softc(dev);
 
     switch (which) {
-    case  PCIB_IVAR_BUS:
+    case PCIB_IVAR_BUS:
 	*result = sc->ap_bus;
-	return(0);
-    case  ACPI_IVAR_HANDLE:
+	return (0);
+    case ACPI_IVAR_HANDLE:
 	*result = (uintptr_t)sc->ap_handle;
-	return(0);
+	return (0);
     }
-    return(ENOENT);
+    return (ENOENT);
 }
 
 static int
@@ -266,21 +262,23 @@ acpi_pcib_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
     struct acpi_hpcib_softc 	*sc = device_get_softc(dev);
 
     switch (which) {
-    case  PCIB_IVAR_BUS:
+    case PCIB_IVAR_BUS:
 	sc->ap_bus = value;
-	return(0);
+	return (0);
     }
-    return(ENOENT);
+    return (ENOENT);
 }
 
-static u_int32_t
-acpi_pcib_read_config(device_t dev, int bus, int slot, int func, int reg, int bytes)
+static uint32_t
+acpi_pcib_read_config(device_t dev, int bus, int slot, int func, int reg,
+    int bytes)
 {
-    return(pci_cfgregread(bus, slot, func, reg, bytes));
+    return (pci_cfgregread(bus, slot, func, reg, bytes));
 }
 
 static void
-acpi_pcib_write_config(device_t dev, int bus, int slot, int func, int reg, u_int32_t data, int bytes)
+acpi_pcib_write_config(device_t dev, int bus, int slot, int func, int reg,
+    uint32_t data, int bytes)
 {
     pci_cfgregwrite(bus, slot, func, reg, data, bytes);
 }
@@ -290,24 +288,24 @@ acpi_pcib_acpi_route_interrupt(device_t pcib, device_t dev, int pin)
 {
     struct acpi_hpcib_softc *sc;
 
-    /* find the bridge softc */
+    /* Find the bridge softc. */
     sc = device_get_softc(pcib);
     return (acpi_pcib_route_interrupt(pcib, dev, pin, &sc->ap_prt));
 }
 
 struct resource *
 acpi_pcib_acpi_alloc_resource(device_t dev, device_t child, int type, int *rid,
-  u_long start, u_long end, u_long count, u_int flags)
+    u_long start, u_long end, u_long count, u_int flags)
 {
-	/*
-	 * If no memory preference is given, use upper 256MB slot most
-	 * bioses use for their memory window.  Typically other bridges
-	 * before us get in the way to assert their preferences on memory.
-	 * Hardcoding like this sucks, so a more MD/MI way needs to be
-	 * found to do it.
-	 */
-	if (type == SYS_RES_MEMORY && start == 0UL && end == ~0UL)
-		start = 0xf0000000;
-	return (bus_generic_alloc_resource(dev, child, type, rid, start, end,
-	    count, flags));
+    /*
+     * If no memory preference is given, use upper 256MB slot most
+     * bioses use for their memory window.  Typically other bridges
+     * before us get in the way to assert their preferences on memory.
+     * Hardcoding like this sucks, so a more MD/MI way needs to be
+     * found to do it.
+     */
+    if (type == SYS_RES_MEMORY && start == 0UL && end == ~0UL)
+	start = 0xf0000000;
+    return (bus_generic_alloc_resource(dev, child, type, rid, start, end,
+	count, flags));
 }
