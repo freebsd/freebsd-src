@@ -1,6 +1,6 @@
-# The include file <bsd.docb.mk> handles installing SGML/docbook documents.
+#	$Id$
 #
-# $Id
+# The include file <bsd.docb.mk> handles installing SGML/docbook documents.
 #
 # +++ variables +++
 #
@@ -52,5 +52,4 @@ install:
 	${INSTALL} ${COPY} -o ${DOCOWN} -g ${DOCGRP} -m ${DOCMODE} \
 		${_docs} ${DESTDIR}${DOCDIR}/${VOLUME}
 
-.include <bsd.dep.mk>
 .include <bsd.obj.mk>
