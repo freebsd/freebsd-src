@@ -103,7 +103,7 @@
 #	perfmon	CPU performance-monitoring counters
 #	pci	PCI configuration-space access from user mode
 #
-#	$Id: MAKEDEV,v 1.127.2.6 1997/03/03 16:07:30 bde Exp $
+#	$Id: MAKEDEV,v 1.127.2.7 1997/03/05 13:58:16 joerg Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:$PATH
@@ -477,6 +477,7 @@ uk*)
 	;;
 
 worm*)
+	umask $disk_umask
 	unit=`expr $i : 'worm\(.*\)'`
 	if [ "X${unit}" = "X" ]; then
 		unit=0
@@ -488,6 +489,8 @@ worm*)
 	mknod ${name}${unit} b $blk ${unit}
 	rm -f r${name}${unit}
 	mknod r${name}${unit} c $chr ${unit}
+	chgrp operator ${name}${unit} r${name}${unit}
+	umask 077
 	rm -f r${name}${unit}.ctl
 	mknod r${name}${unit}.ctl c $chr `expr $unit + $scsictl `
 	;;
