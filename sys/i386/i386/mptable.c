@@ -1988,13 +1988,8 @@ start_all_aps(u_int boot_addr)
 		/* allocate and set up an idle stack data page */
 		stack = (char *)kmem_alloc(kernel_map, UPAGES*PAGE_SIZE);
 		for (i = 0; i < UPAGES; i++)
-			SMPpt[pg + 5 + i] = (pt_entry_t)
+			SMPpt[pg + 1 + i] = (pt_entry_t)
 			    (PG_V | PG_RW | vtophys(PAGE_SIZE * i + stack));
-
-		SMPpt[pg + 1] = 0;		/* *prv_CMAP1 */
-		SMPpt[pg + 2] = 0;		/* *prv_CMAP2 */
-		SMPpt[pg + 3] = 0;		/* *prv_CMAP3 */
-		SMPpt[pg + 4] = 0;		/* *prv_PMAP1 */
 
 		/* prime data page for it to use */
 		SLIST_INSERT_HEAD(&cpuhead, gd, gd_allcpu);
@@ -2053,7 +2048,7 @@ start_all_aps(u_int boot_addr)
 	/* Allocate and setup BSP idle stack */
 	stack = (char *)kmem_alloc(kernel_map, UPAGES * PAGE_SIZE);
 	for (i = 0; i < UPAGES; i++)
-		SMPpt[5 + i] = (pt_entry_t)
+		SMPpt[1 + i] = (pt_entry_t)
 		    (PG_V | PG_RW | vtophys(PAGE_SIZE * i + stack));
 
 	*(int *)PTD = 0;
