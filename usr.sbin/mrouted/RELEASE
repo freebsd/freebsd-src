@@ -1,0 +1,326 @@
+$Id: README-3.8.mrouted,v 3.8 1995/11/29 22:23:02 fenner Rel $
+
+	IP Multicast Extensions for BSD-Derived Unix Systems
+
+	Release 3.8
+	November 29, 1995
+
+	available from parcftp.xerox.com,
+	file pub/net-research/ipmulti/mrouted3.8.tar.Z
+	binaries pub/net-research/ipmulti/mrouted3.8-sparc-sunos41x.tar.Z
+	         pub/net-research/ipmulti/mrouted3.8-sparc-solaris2.tar.Z
+	         pub/net-research/ipmulti/mrouted3.8-i386-bsd.tar.Z
+	         pub/net-research/ipmulti/mrouted3.8-alpha-osf1.tar.Z
+	         pub/net-research/ipmulti/mrouted3.8-sgi-irix.tar.Z
+	         pub/net-research/ipmulti/mrouted3.8-hp-hpux.tar.Z
+
+Note: The 3.8 release is mrouted-only, and will run on top of a 3.5 kernel.
+It is a drop-in replacement for mrouted 3.5, 3.6 or 3.7 .
+
+The 3.8 release fixes the following bugs:
+
+  o mrouted would fail to forget prunes when a neighbor went away,
+    thus potentially sending traffic down a tunnel after the tunnel
+    endpoint has gone down.  This was due to some research code making
+    it into the "emergency" 3.7 release, sigh.
+
+  o mrouted could send prunes with negative lifetimes.  This causes
+    slightly higher prune traffic but shouldn't be any major problem.
+
+===========
+Release 3.7
+November 28, 1995
+
+The 3.7 release fixes the following bugs:
+
+  o mrouted now ignores route reports that include bogus netmasks.
+    There was a bug in 3.5 that would mangle default routes into
+    tens of bogus routes; this should prevent that bug from killing
+    the MBONE.
+
+    This solution can cause route flaps and black holes until the
+    3.5's are gone or all of the 3.5's neighbors are 3.7 .
+
+  o mrouted now ignores duplicate routes.  Ciscos and the above 3.5
+    bug could cause two copies of the same route to appear in a single
+    routing update; mrouted would insert two copies of the same route
+    into its routing table and wreak all sorts of havoc.
+
+  o mrouted now sends a group-specific query for both retransmissions
+    of a g-s query; previous versions sent a general query the second
+    time.
+
+  o mrouted now loops back multicasted mtrace responses and
+    group-specific membership queries
+
+  o mrouted now performs deterministic tiebreaking between two
+    neighbors on the same vif.
+
+  o mrouted now only does duplicate suppression on traceroute requests,
+    not all traceroute packets, so that a loop can be nicely detected
+    via a duplicate router instead of just a timeout.
+
+  o the buffer size that mrouted uses has been increased to allow
+    more than 16 hops in mtrace messages.
+
+  o mtrace's hop-by-hop termination is now more likely to be correct.
+
+  o mrinfo now waits for the responses to its retransmitted queries.
+
+The 3.7 release has the following new features:
+
+  o The configuration file can accept a hostname as the other end
+    of a tunnel.  There must be a single name->ip mapping for the
+    given name, however, or mrouted will fail to start up.
+
+  o mrinfo now sends requests to all interfaces of a multihomed host.
+
+  o mtrace's passive mode has been implemented.
+
+  o The first screen of mtrace statistics is shorter and more likely
+    to fit on one screen.
+
+===========
+Release 3.6
+June 26, 1995
+
+The 3.6 release fixes the following bugs:
+
+  o mrouted would dump core when attempting to report no routes (i.e. upon
+    startup, if you have no enabled phyint's)
+
+  o mrouted would dump core if requested to traceroute a source for which it
+    had no route
+
+  o neighbor flags were not always properly updated on probe or report
+
+  o mrouted would sometimes reply to a multicast traceroute on a disabled
+    phyint; now it uses the first configured phyint to reply to traceroutes.
+
+  o host routes (i.e. netmask 0xffffffff) works now; it was discarding
+    IGMP from the host because it was coming from the "broadcast address"
+    of the subnet.
+
+  o send_igmp() now treats the failure to send an mtrace or a neighbor
+    reply as informational, as opposed to warning.
+
+  o mrouted would go into an infinite loop trying to respond to a traceroute
+    for a source with a netmask of 0xffffffff.
+
+  o vifs_with_neighbors was not being reset if the mrouted was restarted
+    with SIGHUP
+
+  o the default route was not being properly advertised to neighbors (although
+    it was accepted if it was advertised to it)
+
+  o ANSI-fication for those who it helps, still-K&R-ish for those it doesn't.
+
+  o mtrace now attempts to trace three hops past a non-responding router,
+    in the hopes that it does support traceroute but just couldn't respond
+    (i.e. unicast didn't work and it can't source multicast because all its
+    phyints are disabled).
+
+  o mrinfo now times out even on a multicast router.
+
+
+===========
+Release 3.5
+May 8, 1995
+
+The 3.5 release has the following new features:
+
+  o The kernel and mrouted make sure that each is the correct version, to
+    prevent problems with mismatched kernel/mrouted versions.  A too-old
+    mrouted will die with the error:
+
+    can't enable DVMRP routing in kernel: Option not supported by protocol
+
+  o mrouted can accept and propogate a default route (essential for
+    heirarchical multicast routing)
+
+  o Kernel route cache keeps source-specific routes instead of subnet routes,
+    eliminating hashing and longest-match problems.
+    (allows classless routing, longest-match and default routing)
+
+  o Cached kernel routes only get deleted if no traffic is flowing, to
+    facilitate multicast traceroute
+
+  o mrouted has a new configuration file parser, which provides better error
+    messages than before, and allows named boundaries (see man page)
+
+  o added "netmask" to phyint configuration, at the suggestion of
+    Anders Klemets
+
+  o System V and FreeBSD compatibility from John Brezak <brezak@ch.hp.com>
+
+  o phyint's can have additional subnets configured, for people with
+    multiple subnets on one physical network.  mrouted.conf syntax is
+    altnet 1.2.3.0, or altnet 1.2.3.0/24 if you need to specify
+    a different netmask.  There can be as many altnet statements
+    as you need.
+
+  o both mrouted and the kernel now support classless addresses.
+
+  o the kernel supports PIM assert processing by notifying the router
+    when a packet arrives on the wrong interface
+
+  o the kernel keeps additional counters, and mrouted can be compiled to
+    support SNMP and the Multicast MIB
+
+  o the packet classifier in the kernel now uses the following udp port
+    ranges:
+      [0, 16384) - lowest priority, unclassified
+      [16384, 32768) - highest priority, i.e. audio
+      [32768, 49152) - medium priority, i.e. whiteboard
+      [49152, 65536) - low priority, i.e. video
+    A future release of a session directory will allocate ports in these
+    ranges.
+
+  o the configuration code has been modified to default tunnels' rate_limit
+    parameters to 500kbps.  This is easily modified with a rate_limit keyword
+    in mrouted.conf, but should be a good default for the MBONE in general.
+
+  o The tunnel sending code now caches a route for ip_output(), this should
+    help performance on machines with lots of tunnels.
+
+  o Dispatching for de-capsulating packets is now via protosw[], making
+    reception of other raw protocols more efficient
+
+  o Neighbor capabilities are discovered via a bitmask as opposed to
+    version number.
+
+  o Multicast traceroute code improved
+
+  o mrouted can be compiled with Routing Support for Resource Reservation
+    (RSRR), required for RSVP.
+
+
+The 3.5 release fixes the following bugs:
+
+  o The IGMPv2 query timeout field was interpreted as being in units of
+    200ms as opposed to 100ms, thus the maximum timeout was set to twice
+    the expected value.  This is not fatal, as mrouted always queries
+    twice in the expectation that a packet could get loss, but it does
+    make it less robust in the face of packet loss.
+
+  o IGMP could report membership in local-only groups (i.e. 224.0.0.X)
+
+  o IGMP could get confused by hearing its own new membership reports, thus
+    a router would never perform fast leave.
+
+  o IGMP could reset timers for the wrong interface.
+
+  o mrouted put a bogus value in the maximum timeout field of IGMPv2 query
+    packets.
+
+  o Non-querier mrouters would respond to IGMP leave messages
+
+  o mrouted was not performing fast leave properly
+
+  o If the last member goes away on a transit network, the upstream router
+    would stop forwarding even if there are downstream members.
+
+  o Kernel hash function improved
+
+  o Eliminated possibility of panic(): timeout in cache maintenance
+
+  o Reordered resource allocation when sending upcall to handle failure properly
+
+  o some endian-ness bugs squashed in mrouted, probably more to go.
+
+  o Multicast traceroute could send a reply on a disabled interface.
+
+
+This release consists of the following files:
+
+
+	README-3.8.mrouted			- this file
+	
+	mrouted/*				- version 3.8 of mrouted,
+						  mrinfo, map-mbone and
+						  mtrace.
+
+	ifconfig/*				- Changes to ifconfig to
+						  show multicast interfaces
+
+	netstat/*				- Diffs to netstat
+
+	ping/*					- sources for ping
+						  which support
+						  multicasting
+
+	mtest/*					- utility for testing
+						  multicast group 
+						  membership
+
+
+MROUTED 3.8
+
+Mrouted 3.8 has two optional features: SNMP and RSRR.  RSRR support
+is required for running RSVP; the SNMP code, with the help of the
+ISODE snmpd, implements both the Multicast MIB and the DVMRP MIB.
+
+RSRR
+----
+Routing Support for Resource Reservations (RSRR) was contributed by
+Daniel Zappala <daniel@isi.edu>.
+
+To enable RSRR support, uncomment the three lines starting with
+RSRR near the top of the Makefile and "make clean; make".  Or use
+the prebuilt binary, mrouted.rsrr .
+
+RSRR allows RSVP to query mrouted for its routing entry for a particular
+source-group pair.  Using the routing entry and the IP_MULTICAST_VIF
+socket call, RSVP can forward distinct control messages out each
+outgoing interface.  This version of mrouted supports RSRR messages
+using a Unix datagram socket.
+
+RSRR currently includes two pairs of query-reply messages.  RSVP sends
+an Initial Query when it starts.  Mrouted responds with an Initial Reply
+that includes the set of vifs it is using, flagging those that are
+administratively disabled.  When RSVP needs the routing entry for a
+source-group pair, it sends a Route Query.  Mrouted responds with a
+Route Reply that includes the incoming vif and outgoing vifs for the
+source-group pair.
+
+RSVP may request route change notification by setting the notification
+bit in the Route Query.  If mrouted can provide route change
+notification for the source-group pair, it sets the notification bit in
+its Route Reply.  When the routing entry for the source-group pair
+changes, mrouted sends an unsolicited Route Reply containing the new
+routing information.  The initial release of mrouted 3.5 did not support
+route change notification and always returned a Route Reply with the
+notification bit cleared.  This release of mrouted provides route change
+notification when possible.
+
+SNMP
+----
+SNMP support was contributed by David Thaler <thalerd@eecs.umich.edu>.
+
+To enable SNMP support, uncomment the six lines near the top of
+the Makefile below the description of SNMP support, or use the
+prebuilt binary, mrouted.snmp or mrouted.rsrr.snmp .
+
+To link the SNMP-capable mrouted, you need the CMU libraries.
+See http://nic.merit.edu/~mbone/ for a full mrouted-snmp distribution.
+
+Make sure to add the "sysName", "sysContact", "sysVersion" and
+"sysLocation" variables to your /etc/mrouted.conf if you want them
+to provide anything other than default values.
+
+Example:
+
+sysName	"tibia"
+sysContact "Bill Fenner <fenner@parc.xerox.com> +1 415 812-4816"
+sysVersion "SunOS 4.1.3 and mrouted 3.8"
+sysLocation "MAXC room, PARC building 35"
+
+The SNMP version of mrouted has an additional command line flag:
+
+  -P snmp_port
+ 
+     Specifies a port for SNMP communication (default 161).  This option
+     should be used when another SNMP daemon already exists.  The
+     preferred alternate port in this case is port 9161.
+
+The mstat(8) program allows querying of statistics using SNMP.
