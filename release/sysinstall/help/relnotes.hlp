@@ -559,7 +559,10 @@ Stallion multiport serial boards: EasyIO, EasyConnection 8/32 & 8/64,
 ONboard 4/16 and Brumby.
 
 Adlib, SoundBlaster, SoundBlaster Pro, ProAudioSpectrum, Gravis UltraSound
-and Roland MPU-401 sound cards.
+and Roland MPU-401 sound cards. (snd driver)
+
+Most ISA audio codecs manufactured by Crystal Semiconductors, OPTi, Creative
+Labs, Avance, Yamaha and ENSONIQ. (pcm driver)
 
 Connectix QuickCam
 Matrox Meteor Video frame grabber
