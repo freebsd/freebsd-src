@@ -28,7 +28,7 @@
  */
 
 #ifndef LINT
-static char rcsid[] = "$Id: ypbind.c,v 1.9 1995/05/03 18:34:22 wpaul Exp $";
+static char rcsid[] = "$Id: ypbind.c,v 1.11 1995/05/11 00:16:54 wpaul Exp $";
 #endif
 
 #include <sys/param.h>
@@ -63,6 +63,10 @@ static char rcsid[] = "$Id: ypbind.c,v 1.9 1995/05/03 18:34:22 wpaul Exp $";
 
 #ifndef BINDINGDIR
 #define BINDINGDIR "/var/yp/binding"
+#endif
+
+#ifndef YPBINDLOCK
+#define YPBINDLOCK "/var/run/ypbind.lock"
 #endif
 
 struct _dom_binding {
@@ -115,6 +119,7 @@ int child_fds[FD_SETSIZE];
 static int fd[2];
 int children = 0;
 int domains = 0;
+int yplockfd;
 
 SVCXPRT *udptransp, *tcptransp;
 
@@ -149,7 +154,7 @@ CLIENT *clnt;
 			break;
 
 	if(ypdb==NULL) {
-		if (domains == MAX_DOMAINS) {
+		if (domains >= MAX_DOMAINS) {
 			syslog(LOG_WARNING, "domain limit (%d) exceeded",
 							MAX_DOMAINS);
 			res.ypbind_respbody.ypbind_error = YPBIND_ERR_RESC;
@@ -313,6 +318,8 @@ int sig;
 			ypdb->dom_domain, ypdb->dom_vers);
 		unlink(path);
 	}
+	close(yplockfd);
+	unlink(YPBINDLOCK);
 	pmap_unset(YPBINDPROG, YPBINDVERS);
 	exit(0);
 }
@@ -328,6 +335,17 @@ char **argv;
 	int i;
 	DIR *dird;
 	struct dirent *dirp;
+
+	/* Check that another ypbind isn't already running. */
+	if ((yplockfd = (open(YPBINDLOCK, O_RDONLY|O_CREAT, 0444))) == -1) {
+		perror(YPBINDLOCK);
+		exit(1);
+	}
+
+	if(flock(yplockfd, LOCK_EX|LOCK_NB) == -1 && errno == EWOULDBLOCK) {
+		fprintf (stderr, "Another ypbind is already running. Aborting.\n");
+		exit(1);
+	}
 
 	yp_get_default_domain(&domainname);
 	if( domainname[0] == '\0') {
