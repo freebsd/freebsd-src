@@ -153,7 +153,7 @@ SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL)
 static MALLOC_DEFINE(M_MBUF, "mbuf", "mbuf");
 
 #ifdef PC98
-int	need_pre_dma_flush;		/* If 1, use wbinvd befor DMA transfer. */
+int	need_pre_dma_flush;	/* If 1, use wbinvd befor DMA transfer. */
 int	need_post_dma_flush;	/* If 1, use invd after DMA transfer. */
 #endif
 
@@ -169,9 +169,9 @@ SYSCTL_INT(_debug, OID_AUTO, tlb_flush_count,
 #endif
 
 #ifdef PC98
-int	ispc98 = 1;
+static int	ispc98 = 1;
 #else
-int	ispc98 = 0;
+static int	ispc98 = 0;
 #endif
 SYSCTL_INT(_machdep, OID_AUTO, ispc98, CTLFLAG_RD, &ispc98, 0, "");
 
