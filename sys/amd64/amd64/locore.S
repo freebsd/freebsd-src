@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.7 1993/10/13 07:11:11 rgrimes Exp $
+ *	$Id: locore.s,v 1.8 1993/10/15 10:34:19 rgrimes Exp $
  */
 
 
@@ -164,9 +164,20 @@ _atdevphys:	.long	0	/* location of device mapping ptes (phys) */
 _IdlePTD:	.long	0
 _KPTphys:	.long	0
 
+	.globl	_curpcb, _whichqs
+_curpcb:	.long	0	/* pointer to curproc's PCB area */
+_whichqs:	.long	0	/* which run queues have data */
+
 	.globl	_cyloffset,_proc0paddr
 _cyloffset:	.long	0
 _proc0paddr:	.long	0
+
+	/* Stuff for network ASTs */
+	.globl	_softem,_netisr,_astpending,_want_resched
+_softem:	.long	0	/* WFJ only knows... */
+_netisr:	.long	0	/* set with bits for which queue to service */
+_astpending:	.long	0	/* tells us an AST needs to be taken */
+_want_resched:	.long	0	/* we need to re-schedule */
 
 	.space 512
 tmpstk:
