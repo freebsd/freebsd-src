@@ -140,7 +140,7 @@ created at the time they are connected, and breaking an edge by
 removing either hook destroys both hooks.
 .It
 A hook can be set into a state where incoming packets are always queued
-by the input queuing system, rather than being delivered directly. This
+by the input queueing system, rather than being delivered directly. This
 is used when the two joined nodes need to be decoupled, e.g. if they are
 running at different processor priority levels. (spl)
 .It
@@ -336,7 +336,7 @@ hooks, and the links have been made, the nodes get a chance to
 find out who their peer is across the link and can then decide to reject
 the connection. Tear-down is automatic. This is also the time at which
 a node may decide whether to set a particular hook (or its peer) into
-.Em queuing
+.Em queueing
 mode.
 .It Destruction of a hook
 The node is notified of a broken connection. The node may consider some hooks
