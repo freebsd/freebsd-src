@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mpapic.c,v 1.6 1997/07/08 23:42:28 smp Exp smp $
+ *	$Id: mpapic.c,v 1.10 1997/07/13 00:42:14 smp Exp smp $
  */
 
 #include "opt_smp.h"
@@ -33,15 +33,11 @@
 
 #include <machine/smp.h>
 #include <machine/mpapic.h>
-#include <machine/smptests.h>	/** TEST_LOPRIO, TEST_IPI, TEST_CPUSTOP */
+#include <machine/smptests.h>	/** TEST_LOPRIO, TEST_IPI, TEST_CPUSTOP, TEST_ALTTIMER */
 #include <machine/cpufunc.h>
 #include <machine/segments.h>
 
 #include <i386/isa/intr_machdep.h>	/* Xspuriousint() */
-
-#if defined(TEST_CPUSTOP)
-void	db_printf __P((const char *fmt, ...));
-#endif  /* TEST_CPUSTOP */
 
 /* EISA Edge/Level trigger control registers */
 #define ELCR0	0x4d0			/* eisa irq 0-7 */
@@ -104,23 +100,37 @@ apic_initialize(void)
 	temp |= APIC_SVR_SWEN;		/* software enable APIC */
 	temp &= ~APIC_SVR_FOCUS;	/* enable 'focus processor' */
 
-#if defined(TEST_CPUSTOP)
+	/* set the 'spurious INT' vector */
 	if ((XSPURIOUSINT_OFFSET & APIC_SVR_VEC_FIX) != APIC_SVR_VEC_FIX)
 		panic("bad XSPURIOUSINT_OFFSET: 0x%08x", XSPURIOUSINT_OFFSET);
 	temp &= ~APIC_SVR_VEC_PROG;	/* clear (programmable) vector field */
 	temp |= (XSPURIOUSINT_OFFSET & APIC_SVR_VEC_PROG);
-#endif  /* TEST_CPUSTOP */
+
+#if defined(TEST_TEST1)
+	if (cpuid == GUARD_CPU) {
+		temp &= ~APIC_SVR_SWEN;	/* software DISABLE APIC */
+	}
+#endif  /** TEST_TEST1 */
 
 	lapic.svr = temp;
 
-#if defined(TEST_CPUSTOP)
-	printf(">>> CPU%02d apic_initialize()    lint0: 0x%08x\n",
+	if (bootverbose)
+		apic_dump();
+}
+
+
+/*
+ * dump contents of local APIC registers
+ */
+void
+apic_dump(void)
+{
+	printf("SMP: CPU%02d bsp_apic_configure() lint0: 0x%08x\n",
 	       cpuid, lapic.lvt_lint0);
-	printf(">>>                            lint1: 0x%08x\n",
+	printf("                                lint1: 0x%08x\n",
 	       lapic.lvt_lint1);
-	printf(">>>                            TPR:   0x%08x\n", lapic.tpr);
-	printf(">>>                            SVR:   0x%08x\n", lapic.svr);
-#endif  /* TEST_CPUSTOP */
+	printf("                                TPR:   0x%08x\n", lapic.tpr);
+	printf("                                SVR:   0x%08x\n", lapic.svr);
 }
 
 
@@ -238,13 +248,27 @@ io_apic_setup(int apic)
 #undef DEFAULT_FLAGS
 
 
+#if defined(TEST_ALTTIMER)
+
+#if defined(TIMER_ALL)
+#define DEL_MODE IOART_DELLOPRI
+#else
+#define DEL_MODE IOART_DELFIXED
+#endif /** TIMER_ALL */
+
+#else
+
+#define DEL_MODE IOART_DELEXINT
+
+#endif /** TEST_ALTTIMER */
+
 #define DEFAULT_EXTINT_FLAGS	\
 	((u_int32_t)		\
 	 (IOART_INTMSET |	\
 	  IOART_TRGREDG |	\
 	  IOART_INTAHI |	\
 	  IOART_DESTPHY |	\
-	  IOART_DELEXINT))
+	  DEL_MODE))
 
 /*
  * Setup the source of External INTerrupts.
@@ -261,11 +285,11 @@ ext_int_setup(int apic, int intr)
 		return -1;
 
 /** XXX FIXME: changed on 970708, make default if no complaints */
-#if 1
+#if defined(TIMER_ALL)
 	target = IOART_DEST;
 #else
 	target = boot_cpu_id << 24;
-#endif	/* BROADCAST_EXTINT */
+#endif	/* TIMER_ALL */
 
 	select = IOAPIC_REDTBL0 + (2 * intr);
 	vector = NRSVIDT + intr;
@@ -274,8 +298,13 @@ ext_int_setup(int apic, int intr)
 	io_apic_write(apic, select, flags | vector);
 	io_apic_write(apic, select + 1, target);
 
+#if defined(TEST_ALTTIMER)
+	printf("SMP: using ALT timer setup\n");
+#endif /** TEST_ALTTIMER */
+
 	return 0;
 }
+#undef DEL_MODE
 #undef DEFAULT_EXTINT_FLAGS
 
 
@@ -646,9 +675,7 @@ selected_apic_ipi(u_int target, int vector, int delivery_mode)
 			icr_hi = lapic.icr_hi & ~APIC_ID_MASK;
 			icr_hi |= (CPU_TO_ID(x) << 24);
 			lapic.icr_hi = icr_hi;
-#if defined(TEST_CPUSTOP)
-			db_printf( "icr_hi: 0x%08x\n", lapic.icr_hi );
-#endif  /* TEST_CPUSTOP */
+
 			/* send the IPI */
 			if (apic_ipi(APIC_DEST_DESTFLD, vector,
 				     delivery_mode) == -1)
