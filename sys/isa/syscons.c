@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: syscons.c,v 1.77 1994/11/17 22:03:16 sos Exp $
+ *	$Id: syscons.c,v 1.78 1994/11/19 23:17:48 ache Exp $
  */
 
 #include "sc.h"
@@ -1790,8 +1790,8 @@ scan_esc(scr_stat *scp, u_char c)
 			      sizeof(u_short));
 			fillw(scp->term.cur_attr | scr_map[0x20],
 			      scp->crt_base + scp->xsize * 
-			      (scp->ysize - 1), 
-			      scp->xsize);
+			      (scp->ysize - n),
+			      scp->xsize * n);
 			break;
 
 		case 'T':	/* scroll down n lines */
@@ -1803,7 +1803,7 @@ scan_esc(scr_stat *scp, u_char c)
 			      scp->xsize * (scp->ysize - n) * 
 			      sizeof(u_short));
 			fillw(scp->term.cur_attr | scr_map[0x20], 
-			      scp->crt_base, scp->xsize);
+			      scp->crt_base, scp->xsize * n);
 			break;
 
 		case 'X':	/* delete n characters in line */
