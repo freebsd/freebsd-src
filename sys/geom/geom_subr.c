@@ -270,7 +270,7 @@ g_destroy_provider(struct g_provider *pp)
 		cp = LIST_FIRST(&gp->consumer);
 		if (cp == NULL)
 			break;
-		g_dettach(cp);
+		g_detach(cp);
 		g_destroy_consumer(cp);
 	}
 	g_destroy_geom(gp);
@@ -287,7 +287,7 @@ g_destroy_provider(struct g_provider *pp)
  * of the sequence with invalid rank as well.
  * At some point we encounter our original geom and if we stil fail
  * to assign it a rank, there must be a loop and we fail back to
- * g_attach() which dettach again and calls redo_rank again
+ * g_attach() which detach again and calls redo_rank again
  * to fix up the damage.
  * It would be much simpler code wise to do it recursively, but we
  * can't risk that on the kernel stack.
@@ -363,18 +363,18 @@ g_attach(struct g_consumer *cp, struct g_provider *pp)
 }
 
 void
-g_dettach(struct g_consumer *cp)
+g_detach(struct g_consumer *cp)
 {
 	struct g_provider *pp;
 
-	g_trace(G_T_TOPOLOGY, "g_dettach(%p)", cp);
+	g_trace(G_T_TOPOLOGY, "g_detach(%p)", cp);
 	KASSERT(cp != (void*)0xd0d0d0d0, ("ARGH!"));
 	g_topology_assert();
-	KASSERT(cp->provider != NULL, ("dettach but not attached"));
-	KASSERT(cp->acr == 0, ("dettach but nonzero acr"));
-	KASSERT(cp->acw == 0, ("dettach but nonzero acw"));
-	KASSERT(cp->ace == 0, ("dettach but nonzero ace"));
-	KASSERT(cp->biocount == 0, ("dettach but nonzero biocount"));
+	KASSERT(cp->provider != NULL, ("detach but not attached"));
+	KASSERT(cp->acr == 0, ("detach but nonzero acr"));
+	KASSERT(cp->acw == 0, ("detach but nonzero acw"));
+	KASSERT(cp->ace == 0, ("detach but nonzero ace"));
+	KASSERT(cp->biocount == 0, ("detach but nonzero biocount"));
 	pp = cp->provider;
 	LIST_REMOVE(cp, consumers);
 	cp->provider = NULL;
@@ -493,22 +493,22 @@ g_access_rel(struct g_consumer *cp, int dcr, int dcw, int dce)
 }
 
 int
-g_haveattr_int(struct bio *bp, char *attribute, int val)
+g_handleattr_int(struct bio *bp, char *attribute, int val)
 {
 
-	return (g_haveattr(bp, attribute, &val, sizeof val));
+	return (g_handleattr(bp, attribute, &val, sizeof val));
 }
 
 int
-g_haveattr_off_t(struct bio *bp, char *attribute, off_t val)
+g_handleattr_off_t(struct bio *bp, char *attribute, off_t val)
 {
 
-	return (g_haveattr(bp, attribute, &val, sizeof val));
+	return (g_handleattr(bp, attribute, &val, sizeof val));
 }
 
 
 int
-g_haveattr(struct bio *bp, char *attribute, void *val, int len)
+g_handleattr(struct bio *bp, char *attribute, void *val, int len)
 {
 	int error;
 
@@ -558,7 +558,7 @@ g_std_spoiled(struct g_consumer *cp)
 
 	g_trace(G_T_TOPOLOGY, "g_std_spoiled(%p)", cp);
 	g_topology_assert();
-	g_dettach(cp);
+	g_detach(cp);
 	gp = cp->geom;
 	LIST_FOREACH(pp, &gp->provider, provider)
 		g_orphan_provider(pp, ENXIO);
