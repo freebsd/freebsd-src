@@ -168,7 +168,7 @@ SUBDIR+=linux \
 SUBDIR+=ext2fs
 .endif
 
-.if defined(MODULES_OVERRIDE)
+.if defined(MODULES_OVERRIDE) && !defined(ALL_MODULES)
 SUBDIR=${MODULES_OVERRIDE}
 .endif
 
