@@ -2298,6 +2298,9 @@ isp_scan_loop(struct ispsoftc *isp)
 	return (0);
 }
 
+#ifndef	HICAP_MAX
+#define HICAP_MAX	256
+#endif
 static int
 isp_scan_fabric(struct ispsoftc *isp)
 {
@@ -2320,7 +2323,7 @@ isp_scan_fabric(struct ispsoftc *isp)
 	first_portid = portid = fcp->isp_portid;
 	fcp->isp_loopstate = LOOP_SCANNING_FABRIC;
 
-	for (first_portid_seen = hicap = 0; hicap < 65535; hicap++) {
+	for (first_portid_seen = hicap = 0; hicap < HICAP_MAX; hicap++) {
 		mbreg_t mbs;
 		sns_screq_t *rq;
 		sns_ganrsp_t *rs0, *rs1;
@@ -3133,6 +3136,7 @@ again:
 	} else {
 		iptr = READ_RESPONSE_QUEUE_IN_POINTER(isp);
 	}
+	isp->isp_resodx = iptr;
 
 
 	if (optr == iptr && sema == 0) {
@@ -3167,8 +3171,14 @@ again:
 			    isr, junk, iptr, optr);
 		}
 	}
+	isp->isp_resodx = iptr;
 	ISP_WRITE(isp, HCCR, HCCR_CMD_CLEAR_RISC_INT);
 	ISP_WRITE(isp, BIU_SEMA, 0);
+
+	if (isp->isp_rspbsy) {
+		return;
+	}
+	isp->isp_rspbsy = 1;
 
 	while (optr != iptr) {
 		ispstatusreq_t local, *sp = &local;
@@ -3198,19 +3208,17 @@ again:
 			}
 			if (isp->isp_fpcchiwater < rio.req_header.rqs_seqno)
 				isp->isp_fpcchiwater = rio.req_header.rqs_seqno;
+			MEMZERO(hp, QENTRY_LEN);	/* PERF */
 			continue;
 		} else {
 			/*
 			 * Somebody reachable via isp_handle_other_response
 			 * may have updated the response queue pointers for
-			 * us.
+			 * us, so we reload our goal index.
 			 */
-			oop = optr;
-			if (!isp_handle_other_response(isp, type, hp, &optr)) {
+			if (isp_handle_other_response(isp, type, hp, &optr)) {
+				iptr = isp->isp_resodx;
 				MEMZERO(hp, QENTRY_LEN);	/* PERF */
-				if (oop != optr) {
-					goto out;
-				}
 				continue;
 			}
 
@@ -3438,7 +3446,7 @@ again:
 	}
 
 	isp->isp_residx = optr;
-out:
+	isp->isp_rspbsy = 0;
 	for (i = 0; i < ndone; i++) {
 		xs = complist[i];
 		if (xs) {
@@ -3788,7 +3796,7 @@ isp_handle_other_response(struct ispsoftc *isp, int type,
 	switch (type) {
 	case RQSTYPE_STATUS_CONT:
 		isp_prt(isp, ISP_LOGINFO, "Ignored Continuation Response");
-		return (0);
+		return (1);
 	case RQSTYPE_ATIO:
 	case RQSTYPE_CTIO:
 	case RQSTYPE_ENABLE_LUN:
@@ -3801,7 +3809,9 @@ isp_handle_other_response(struct ispsoftc *isp, int type,
 	case RQSTYPE_CTIO3:
 		isp->isp_rsltccmplt++;	/* count as a response completion */
 #ifdef	ISP_TARGET_MODE
-		return (isp_target_notify(isp, (ispstatusreq_t *) hp, optrp));
+		if (isp_target_notify(isp, (ispstatusreq_t *) hp, optrp)) {
+			return (1);
+		}
 #else
 		optrp = optrp;
 		/* FALLTHROUGH */
@@ -3809,11 +3819,11 @@ isp_handle_other_response(struct ispsoftc *isp, int type,
 	case RQSTYPE_REQUEST:
 	default:
 		if (isp_async(isp, ISPASYNC_UNHANDLED_RESPONSE, hp)) {
-			return (0);
+			return (1);
 		}
 		isp_prt(isp, ISP_LOGWARN, "Unhandled Response Type 0x%x",
 		    isp_get_response_type(isp, hp));
-		return (-1);
+		return (0);
 	}
 }
 
@@ -4117,18 +4127,16 @@ isp_parse_status(struct ispsoftc *isp, ispstatusreq_t *sp, XS_T *xs)
 		/*
 		 * No such port on the loop. Moral equivalent of SELTIMEO
 		 */
-		isp_prt(isp, ISP_LOGINFO,
-		    "Port Unavailable for target %d", XS_TGT(xs));
-		if (XS_NOERR(xs)) {
-			XS_SETERR(xs, HBA_SELTIMEOUT);
-		}
-		return;
 	case RQCS_PORT_LOGGED_OUT:
 		/*
 		 * It was there (maybe)- treat as a selection timeout.
 		 */
-		isp_prt(isp, ISP_LOGINFO,
-		    "port logout for target %d", XS_TGT(xs));
+		if ((sp->req_completion_status & 0xff) == RQCS_PORT_UNAVAILABLE)
+			isp_prt(isp, ISP_LOGINFO,
+			    "Port Unavailable for target %d", XS_TGT(xs));
+		else
+			isp_prt(isp, ISP_LOGINFO,
+			    "port logout for target %d", XS_TGT(xs));
 		/*
 		 * If we're on a local loop, force a LIP (which is overkill)
 		 * to force a re-login of this unit.
