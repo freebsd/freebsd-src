@@ -310,6 +310,18 @@ fwphy_rddata(struct fwohci_softc *sc,  u_int addr)
 	addr &= 0xf;
 	fun = PHYDEV_RDCMD | (addr << PHYDEV_REGADDR);
 	OWRITE(sc, OHCI_PHYACCESS, fun);
+#if 1
+	/* Make sure that SCLK is started */
+	for(i = 0; i < 1000; i++) {
+		if ((OREAD(sc, FWOHCI_INTSTAT) & OHCI_INT_REG_FAIL) == 0)
+			break;
+		DELAY(100);
+		OWRITE(sc, FWOHCI_INTSTATCLR, OHCI_INT_REG_FAIL);
+		OWRITE(sc, OHCI_PHYACCESS, fun);
+	}
+	if (bootverbose)
+		device_printf(sc->fc.dev, "fwphy_rddata: write loop=%d\n", i);
+#endif
 	for ( i = 0 ; i < 1000 ; i ++ ){
 		fun = OREAD(sc, OHCI_PHYACCESS);
 		if ((fun & PHYDEV_RDCMD) == 0 && (fun & PHYDEV_RDDONE) != 0)
@@ -456,6 +468,9 @@ fwohci_init(struct fwohci_softc *sc, device_t dev)
 	
 	fw_init(&sc->fc);
 
+/* Disable interrupt */ 
+	OWRITE(sc, FWOHCI_INTMASKCLR, ~0);
+
 /* Now stopping all DMA channel */
 	OWRITE(sc,  OHCI_ARQCTLCLR, OHCI_CNTL_DMA_RUN);
 	OWRITE(sc,  OHCI_ARSCTLCLR, OHCI_CNTL_DMA_RUN);
@@ -478,10 +493,7 @@ fwohci_init(struct fwohci_softc *sc, device_t dev)
 		DELAY(1000);
 	}
 	if (bootverbose)
-		printf("done (%d)\n", i);
-	OWRITE(sc, OHCI_HCCCTL, OHCI_HCC_LPS);
-	/* XXX wait for SCLK. */
-	DELAY(100000);
+		printf("done (loop=%d)\n", i);
 
 	reg = OREAD(sc,  OHCI_BUS_OPT);
 	reg2 = reg | OHCI_BUSFNC;
@@ -504,13 +516,13 @@ fwohci_init(struct fwohci_softc *sc, device_t dev)
  *    number of port supported by core-logic.
  *    It is not actually available port on your PC .
  */
-	/* Wait a while */
-	reg = fwphy_rddata(sc, FW_PHY_SPD_REG);
+	OWRITE(sc, OHCI_HCCCTL, OHCI_HCC_LPS);
 #if 0
-	/* try again */
-	DELAY(1000);
-	reg = fwphy_rddata(sc, FW_PHY_SPD_REG);
+	/* XXX wait for SCLK. */
+	DELAY(100000);
 #endif
+	reg = fwphy_rddata(sc, FW_PHY_SPD_REG);
+
 	if((reg >> 5) != 7 ){
 		sc->fc.mode &= ~FWPHYASYST;
 		sc->fc.nport = reg & FW_PHY_NP;
@@ -629,7 +641,6 @@ fwohci_init(struct fwohci_softc *sc, device_t dev)
 
 	OWRITE(sc, FWOHCI_RETRY,
 		(0xffff << 16 )| (0x0f << 8) | (0x0f << 4) | 0x0f) ;
-	OWRITE(sc, FWOHCI_INTMASKCLR, ~0);
 	OWRITE(sc, FWOHCI_INTMASK,
 			OHCI_INT_ERR  | OHCI_INT_PHY_SID 
 			| OHCI_INT_DMA_ATRQ | OHCI_INT_DMA_ATRS 
@@ -1992,6 +2003,14 @@ fwohci_ibr(struct firewire_comm *fc)
 	u_int32_t fun;
 
 	sc = (struct fwohci_softc *)fc;
+
+	/*
+	 * Set root hold-off bit so that non cyclemaster capable node
+	 * shouldn't became the root node.
+	 */
+	fun = fwphy_rddata(sc, FW_PHY_RHB_REG);
+	fun |= FW_PHY_RHB;
+	fun = fwphy_wrdata(sc, FW_PHY_RHB_REG, fun);
 #if 1
 	fun = fwphy_rddata(sc, FW_PHY_IBR_REG);
 	fun |= FW_PHY_IBR;
