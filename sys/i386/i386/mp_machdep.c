@@ -464,7 +464,8 @@ init_secondary(void)
 	gdt_segs[GPRIV_SEL].ssd_base = (int) &SMP_prvspace[myid];
 	gdt_segs[GPROC0_SEL].ssd_base =
 		(int) &SMP_prvspace[myid].globaldata.gd_common_tss;
-	SMP_prvspace[myid].globaldata.gd_prvspace = &SMP_prvspace[myid];
+	SMP_prvspace[myid].globaldata.gd_prvspace =
+		&SMP_prvspace[myid].globaldata;
 
 	for (x = 0; x < NGDT; x++) {
 		ssdtosd(&gdt_segs[x], &gdt[myid * NGDT + x].sd);
