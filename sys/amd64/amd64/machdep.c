@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.34 1994/02/07 07:44:42 davidg Exp $
+ *	$Id: machdep.c,v 1.35 1994/02/08 09:25:53 davidg Exp $
  */
 
 #include "npx.h"
@@ -1022,7 +1022,7 @@ init386(first)
 	setidt(1, &IDTVEC(dbg),  SDT_SYS386TGT, SEL_KPL);
 	setidt(2, &IDTVEC(nmi),  SDT_SYS386TGT, SEL_KPL);
  	setidt(3, &IDTVEC(bpt),  SDT_SYS386TGT, SEL_UPL);
-	setidt(4, &IDTVEC(ofl),  SDT_SYS386TGT, SEL_KPL);
+	setidt(4, &IDTVEC(ofl),  SDT_SYS386TGT, SEL_UPL);
 	setidt(5, &IDTVEC(bnd),  SDT_SYS386TGT, SEL_KPL);
 	setidt(6, &IDTVEC(ill),  SDT_SYS386TGT, SEL_KPL);
 	setidt(7, &IDTVEC(dna),  SDT_SYS386TGT, SEL_KPL);
