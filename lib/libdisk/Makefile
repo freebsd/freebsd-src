@@ -2,30 +2,13 @@
 
 LIB=	disk
 SRCS=	blocks.c chunk.c disk.c change.c \
-	create_chunk.c rules.c write_disk.c
+	create_chunk.c rules.c write_disk.c write_${MACHINE}_disk.c
 INCS=	libdisk.h
 
 WARNS=	2
 
 .if ${MACHINE} == "pc98"
 CFLAGS+=	-DPC98
-SRCS	+=	write_pc98_disk.c
-.endif
-
-.if ${MACHINE} == "i386"
-SRCS	+=	write_i386_disk.c
-.endif
-
-.if ${MACHINE_ARCH} == "ia64"
-SRCS	+=	write_ia64_disk.c
-.endif
-
-.if ${MACHINE_ARCH} == "alpha"
-SRCS	+=	write_alpha_disk.c
-.endif
-
-.if ${MACHINE_ARCH} == "sparc64"
-SRCS	+=	write_sparc64_disk.c
 .endif
 
 CLEANFILES+=	tmp.c tst01 tst01.o
