@@ -95,7 +95,7 @@ struct ignentry {
 	SLIST_ENTRY(ignentry)	next;
 };
 
-int		linkchk(FTSENT *);
+static int	linkchk(FTSENT *);
 static void	usage(void);
 void		prthumanval(double);
 unit_t		unit_adjust(double *);
@@ -117,12 +117,12 @@ main(int argc, char *argv[])
 	static char	dot[] = ".";
 
 	Hflag = Lflag = Pflag = aflag = sflag = dflag = cflag = hflag = 0;
-	
+
 	save = argv;
 	ftsoptions = 0;
 	depth = INT_MAX;
 	SLIST_INIT(&ignores);
-	
+
 	while ((ch = getopt(argc, argv, "HI:LPasd:chkrx")) != -1)
 		switch (ch) {
 			case 'H':
@@ -231,7 +231,7 @@ main(int argc, char *argv[])
 	blocksize /= 512;
 
 	rval = 0;
-	
+
 	if ((fts = fts_open(argv, ftsoptions, NULL)) == NULL)
 		err(1, "fts_open");
 
@@ -247,7 +247,7 @@ main(int argc, char *argv[])
 
 				p->fts_parent->fts_number +=
 				    p->fts_number += p->fts_statp->st_blocks;
-				
+
 				if (p->fts_level <= depth) {
 					if (hflag) {
 						(void) prthumanval(howmany(p->fts_number, blocksize));
@@ -273,7 +273,7 @@ main(int argc, char *argv[])
 
 				if (p->fts_statp->st_nlink > 1 && linkchk(p))
 					break;
-				
+
 				if (listall || p->fts_level == 0) {
 					if (hflag) {
 						(void) prthumanval(howmany(p->fts_statp->st_blocks,
@@ -307,35 +307,144 @@ main(int argc, char *argv[])
 	exit(rval);
 }
 
-
-typedef struct _ID {
-	dev_t	dev;
-	ino_t	inode;
-} ID;
-
-
-int
+static int
 linkchk(FTSENT *p)
 {
-	static ID *files;
-	static int maxfiles, nfiles;
-	ID *fp, *start;
-	ino_t ino;
-	dev_t dev;
+	static const size_t links_hash_initial_size = 8192;
+	struct links_entry {
+		struct links_entry	*next;
+		struct links_entry	*previous;
+		int			 links;
+		dev_t			 dev;
+		ino_t			 ino;
+	};
+	static unsigned long		  number_entries;
+	static size_t			  number_buckets;
+	static struct links_entry	**buckets;
+	static struct links_entry	*free_list;
+	static char			 stop_allocating;
 
-	ino = p->fts_statp->st_ino;
-	dev = p->fts_statp->st_dev;
-	if ((start = files) != NULL)
-		for (fp = start + nfiles - 1; fp >= start; --fp)
-			if (ino == fp->inode && dev == fp->dev)
-				return (1);
+	struct links_entry	*le, **new_buckets;
+	struct stat		*st;
+	int			 hash;
+	size_t			 i, new_size;
 
-	if (nfiles == maxfiles && (files = realloc((char *)files,
-	    (u_int)(sizeof(ID) * (maxfiles += 128)))) == NULL)
-		errx(1, "can't allocate memory");
-	files[nfiles].inode = ino;
-	files[nfiles].dev = dev;
-	++nfiles;
+	st = p->fts_statp;
+
+	/* If necessary, initialize the hash table. */
+	if (buckets == NULL) {
+		number_buckets = links_hash_initial_size;
+		buckets = malloc(number_buckets * sizeof(buckets[0]));
+		if (buckets == NULL)
+			err(1, "No memory for hardlink detection.");
+		for (i = 0; i < number_buckets; i++)
+			buckets[i] = NULL;
+	}
+
+	/* If the hash table is getting too full, enlarge it. */
+	if (number_entries > number_buckets * 10 && !stop_allocating) {
+		int count;
+
+		new_size = number_buckets * 2;
+		new_buckets = malloc(new_size * sizeof(struct links_entry *));
+		count = 0;
+
+		/* Try releasing the free list to see if that helps. */
+		if (new_buckets == NULL && free_list != NULL) {
+			while (free_list != NULL) {
+				le = free_list;
+				free_list = le->next;
+				free(le);
+			}
+			new_buckets = malloc(new_size * sizeof(new_buckets[0]));
+		}
+
+		if (new_buckets == NULL) {
+			stop_allocating = 1;
+			warnc(ENOMEM, "No more memory for recording "
+			    "hard links; Remaining hard links will be "
+			    "counted as separate files.");
+		} else {
+			memset(new_buckets, 0,
+			    new_size * sizeof(struct links_entry *));
+			for (i = 0; i < number_buckets; i++) {
+				while (buckets[i] != NULL) {
+					/* Remove entry from old bucket. */
+					le = buckets[i];
+					buckets[i] = le->next;
+
+					/* Add entry to new bucket. */
+					hash = (le->dev ^ le->ino) % new_size;
+
+					if (new_buckets[hash] != NULL)
+						new_buckets[hash]->previous =
+						    le;
+					le->next = new_buckets[hash];
+					le->previous = NULL;
+					new_buckets[hash] = le;
+				}
+			}
+			free(buckets);
+			buckets = new_buckets;
+			number_buckets = new_size;
+		}
+	}
+
+	/* Try to locate this entry in the hash table. */
+	hash = ( st->st_dev ^ st->st_ino ) % number_buckets;
+	for (le = buckets[hash]; le != NULL; le = le->next) {
+		if (le->dev == st->st_dev && le->ino == st->st_ino) {
+			/*
+			 * Save memory by releasing an entry when we've seen
+			 * all of it's links.
+			 */
+			if (--le->links <= 0) {
+				if (le->previous != NULL)
+					le->previous->next = le->next;
+				if (le->next != NULL)
+					le->next->previous = le->previous;
+				if (buckets[hash] == le)
+					buckets[hash] = le->next;
+				number_entries--;
+				/* Recycle this node through the free list */
+				if (stop_allocating) {
+					free(le);
+				} else {
+					le->next = free_list;
+					free_list = le;
+				}
+			}
+			return (1);
+		}
+	}
+
+	if (stop_allocating)
+		return (0);
+
+	/* Add this entry to the links cache. */
+	if (free_list != NULL) {
+		/* Pull a node from the free list if we can. */
+		le = free_list;
+		free_list = le->next;
+	} else
+		/* Malloc one if we have to. */
+		le = malloc(sizeof(struct links_entry));
+	if (le == NULL) {
+		stop_allocating = 1;
+		warnc(ENOMEM, "No more memory for recording "
+		    "hard links; Remaining hard links will be counted "
+		    "as separate files.");
+		return (0);
+	}
+	le->dev = st->st_dev;
+	le->ino = st->st_ino;
+	le->links = st->st_nlink - 1;
+	number_entries++;
+	le->next = buckets[hash];
+	le->previous = NULL;
+	if (buckets[hash] != NULL)
+		buckets[hash]->previous = le;
+	buckets[hash] = le;
 	return (0);
 }
 
