@@ -1,0 +1,29 @@
+#
+# $Id$
+#
+
+EMULATION=	elf_i386
+HOST=		i386-unknown-freebsdelf
+TARGET=		i386-unknown-freebsdelf
+LDSCRIPTS=	elf_i386.x elf_i386.xbn elf_i386.xn elf_i386.xr \
+		elf_i386.xs elf_i386.xu i386freebsd.x i386freebsd.xbn \
+		i386freebsd.xn i386freebsd.xr i386freebsd.xu
+SRCS+=		eelf_i386.c ei386freebsd.c
+CLEANFILES+=	eelf_i386.c ei386freebsd.c
+BINDIR=		/usr/libexec/elf
+
+beforedepend: eelf_i386.c ei386freebsd.c
+
+eelf_i386.c:	emulparams/elf_i386.sh emultempl/elf32.em \
+		scripttempl/elf.sc genscripts.sh emultempl/stringify.sed
+	env LIB_PATH="/usr/lib" \
+	    sh ${SRCDIR}/ld/genscripts.sh ${SRCDIR}/ld ${DESTDIR}/usr/lib \
+	    ${HOST} ${TARGET} ${TARGET} ${EMULATION} "" \
+	    ${EMULATION} ${TARGET}
+
+ei386freebsd.c:	emulparams/elf_i386.sh emultempl/elf32.em \
+		scripttempl/elf.sc genscripts.sh emultempl/stringify.sed
+	env LIB_PATH="/usr/lib" \
+	    sh ${SRCDIR}/ld/genscripts.sh ${SRCDIR}/ld ${DESTDIR}/usr/lib \
+	    ${HOST} ${TARGET} ${TARGET} ${EMULATION} "" \
+	    i386freebsd i386-unknown-freebsd

@@ -1,5 +1,5 @@
 #
-# $Id$
+# $Id: Makefile.inc0,v 1.1.1.1 1998/03/01 23:40:48 jdp Exp $
 #
 
 #
@@ -17,14 +17,23 @@ RELTOP:=	..
 
 RELSRC=		${RELTOP}/../../../contrib/binutils
 SRCDIR=		${.CURDIR}/${RELSRC}
-HOST=		i386-unknown-freebsdelf
-TARGET=		i386-unknown-freebsdelf
 
 CFLAGS+=	-D_GNU_SOURCE
-CFLAGS+=	-DARCH_i386
 
 # We use "-I-" because without it our yacc-generated parser tries to
 # use GNU's bison-generated header files.
-CFLAGS+=	-I- -I. -I${.CURDIR}
+CFLAGS+=	-I- -I.
+.if exists(${.CURDIR}/${MACHINE_ARCH})
+CFLAGS+=	-I${.CURDIR}/${MACHINE_ARCH}
+.endif
+CFLAGS+=	-I${.CURDIR}
 CFLAGS+=	-I${.CURDIR}/${RELTOP}/libbfd
 CFLAGS+=	-I${SRCDIR}/include
+
+.if exists(${.CURDIR}/${MACHINE_ARCH})
+.PATH: ${.CURDIR}/${MACHINE_ARCH}
+.endif
+
+.if exists(${.CURDIR}/Makefile.${MACHINE_ARCH})
+.include "${.CURDIR}/Makefile.${MACHINE_ARCH}"
+.endif

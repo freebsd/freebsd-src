@@ -1,11 +1,10 @@
 #
-# $Id$
+# $Id: Makefile,v 1.1.1.1 1998/03/01 23:40:47 jdp Exp $
 #
 
 # Omitted for now: c++filt.
 SUBDIR=		libiberty libbfd libopcodes libbinutils \
-		i386-elf i386-aout \
-		addr2line ar nm objcopy objdump ranlib \
+		addr2line ar as ld nm objcopy objdump ranlib \
 		size strings strip
 
 .include <bsd.subdir.mk>
