@@ -85,7 +85,7 @@ static int	mac_biba_label_size = sizeof(struct mac_biba);
 SYSCTL_INT(_security_mac_biba, OID_AUTO, label_size, CTLFLAG_RD,
     &mac_biba_label_size, 0, "Size of struct mac_biba");
 
-static int	mac_biba_enabled = 0;
+static int	mac_biba_enabled = 1;
 SYSCTL_INT(_security_mac_biba, OID_AUTO, enabled, CTLFLAG_RW,
     &mac_biba_enabled, 0, "Enforce MAC/Biba policy");
 TUNABLE_INT("security.mac.biba.enabled", &mac_biba_enabled);

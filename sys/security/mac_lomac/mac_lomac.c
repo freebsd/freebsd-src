@@ -91,7 +91,7 @@ static int	mac_lomac_label_size = sizeof(struct mac_lomac);
 SYSCTL_INT(_security_mac_lomac, OID_AUTO, label_size, CTLFLAG_RD,
     &mac_lomac_label_size, 0, "Size of struct mac_lomac");
 
-static int	mac_lomac_enabled = 0;
+static int	mac_lomac_enabled = 1;
 SYSCTL_INT(_security_mac_lomac, OID_AUTO, enabled, CTLFLAG_RW,
     &mac_lomac_enabled, 0, "Enforce MAC/LOMAC policy");
 TUNABLE_INT("security.mac.lomac.enabled", &mac_lomac_enabled);

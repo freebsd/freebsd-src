@@ -70,7 +70,7 @@ SYSCTL_DECL(_security_mac);
 SYSCTL_NODE(_security_mac, OID_AUTO, seeotheruids, CTLFLAG_RW, 0,
     "TrustedBSD mac_seeotheruids policy controls");
 
-static int	mac_seeotheruids_enabled = 0;
+static int	mac_seeotheruids_enabled = 1;
 SYSCTL_INT(_security_mac_seeotheruids, OID_AUTO, enabled, CTLFLAG_RW,
     &mac_seeotheruids_enabled, 0, "Enforce seeotheruids policy");
 
