@@ -31,6 +31,7 @@ extern char	*DeInstall;
 extern char	*Contents;
 extern char	*Require;
 extern char	*PlayPen;
+extern char	*ExcludeFrom;
 
 void		check_list(char *, Package *);
 void		usage(const char *, const char *, ...);
