@@ -200,6 +200,7 @@ _nc_read_termcap_entry(const char *const name, TERMTYPE *const tp)
 		tcs = pd - 1;
 		for (;;) {
 			while ((tok = strsep(&ps, ":")) != NULL &&
+			       *(tok - 2) != '\\' &&
 			       (*tok == '\0' || *tok == '\\' || !isgraph(*tok)))
 				;
 			if (tok == NULL)
