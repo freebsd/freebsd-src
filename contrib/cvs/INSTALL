@@ -1,13 +1,106 @@
 First, read the README file.  If you're still happy...
 
+First you need to obtain and install the CVS executables.  If you got
+a distribution which contains executables, consult the installation
+instructions for that distribution.  If you got source code, do not
+panic.  On many platforms building CVS from source code is a
+straightforward process requiring no programming knowledge.  See the
+section BUILDING FROM SOURCE CODE at the end of this file, which
+includes a list of platforms which have been tested.
+
+-------------------------------------------------------------------------------
+
+1) Take a look at the CVS documentation, if desired.  For most
+   purposes you want doc/cvs.texinfo, also known as _Version Management
+   with CVS_ by Per Cederqvist et al.  Looking at it might be as simple
+   as "info cvs" but this will depend on your installation; see README
+   for more details.
+
+   See what CVS can do for you, and if it fits your environment (or can
+   possibly be made to fit your environment).  If things look good,
+   continue on.  Alternately, just give CVS a try first then figure out
+   what it is good for.
+
+2) Set the CVSROOT environment variable to where you want to put your
+   source repository.  See the "Setting up the repository" section of
+   the Cederqvist manual for details, but the quick summary is just to
+   pick some directory.  We'll use /src/master as an example.  For
+   users of a POSIX shell (sh/bash/ksh) on unix, the following
+   commands can be placed in user's ~/.profile, ~/.bash_profile file;
+   or in the site-wide /etc/profile:
+
+       CVSROOT=/src/master; export CVSROOT
+
+   For C shell users on unix place the following commands in the
+   user's ~/.cshrc, ~/.login, or /etc/chsrc file:
+
+       setenv CVSROOT /src/master
+
+   For Windows users, supposing the repository will be in
+   d:\src\master, place the following line in c:\autoexec.bat.  On
+   Windows 95, autoexec.bat might not already exist.  In that case,
+   just create a new file containing the following line.
+
+       set CVSROOT=:local:d:\src\master
+
+   If these environment variables are not already set in your current
+   shell, set them now by typing the above line at the command prompt
+   (or source the login script you just edited).
+   The instructions for the remaining steps assume that you have set
+   the CVSROOT environment variable.
+
+3) Create the master source repository.  Again, the details are in
+   the "Setting up the repository" section of cvs.texinfo; the
+   one-line summary is:
+
+       $ cvs init
+
+   In this and subsequent examples we use "$" to indicate the command
+   prompt; do not type the "$".
+
+4) It might be a good idea to jump right in and put some sources or
+   documents directly under CVS control.  From within the top-level
+   directory of your source tree, run the following commands:
+
+       $ cvs import -m "test distribution" ccvs CVS_DIST CVS-TEST
+
+   (Those last three items are, respectively, a repository location, a
+   "vendor tag", and a "release tag".  You don't need to understand
+   them yet, but read the section "Starting new projects" in the
+   Cederqvist manual for details).
+
+5) Having done step 4, one should be able to checkout a fresh copy of the
+   sources you just imported and hack away at the sources with the
+   following command:
+
+      $ cd
+      $ cvs checkout ccvs
+
+   This will make the directory "ccvs" in your current directory and
+   populate it with the appropriate files and directories.
+
+6) You may wish to customize the various administrative files, in particular
+   modules.  See the Cederqvist manual for details.
+
+7) Read the NEWS file to see what's new.
+
+8) Hack away.
+
+-------------------------------------------------------------------------------
+
+BUILDING FROM SOURCE CODE
+
+Tested platforms
+
 CVS has been tested on the following platforms.  The most recent
 version of CVS reported to have been tested is indicated, but more
 recent versions of CVS probably will work too.  Please send updates to
-this list to bug-cvs@prep.ai.mit.edu (doing so in the form of a diff
-to this file is encouraged).  "tested" means, at a minimum, that CVS
-compiles and appears to work on simple (manual) testing.  In many
-cases it also means "make check" and/or "make remotecheck" passes, but
-we don't try to list the platforms for which that is true.
+this list to bug-cvs@gnu.org (doing so in the form of a diff
+to this file, or at least exact suggested text, is encouraged).
+"tested" means, at a minimum, that CVS compiles and appears to work on
+simple (manual) testing.  In many cases it also means "make check"
+and/or "make remotecheck" passes, but we don't try to list the
+platforms for which that is true.
 
 Alpha:
 	DEC Alpha running OSF/1 version 1.3 using cc (about 1.4A2)
@@ -15,6 +108,7 @@ Alpha:
 	DEC Alpha running OSF/1 version 2.1 (about 1.4A2)
 	DEC Alpha running OSF/1 version 3.0 (1.5.95) (footnote 7)
 	DEC Alpha running OSF/1 version 3.2 (1.9)
+	DEC Alpha running Digital UNIX v4.0C using gcc 2.7.2.2 (1.9.14)
 	DEC Alpha running VMS 6.2 (1.8.85 client-only)
 Cray:
 	J90 (CVS 970215 snapshot)
@@ -22,10 +116,11 @@ Cray:
 HPPA:
 	HP 9000/710 running HP-UX 8.07A using gcc (about 1.4A2)
 	HPPA running HP-UX 9 (1.8)
-	HPPA running HP-UX 10.01 (1.7)
         HPPA 1.1 running HP-UX A.09.03 (1.5.95) (footnote 8)
         HPPA 1.1 running HP-UX A.09.04 (1.7.1)
 	HPPA 9000/735 running HP-UX A.09.05 (1.8.87)
+	HPPA running HP-UX 10.01 (1.7)
+	HPPA running HP-UX 10.20 using gcc 2.7.2.2 (1.9.14)
 	NextSTEP 3.3 (1.7)
 i386 family:
 	Solaris 2.4 using gcc (about 1.4A2)
@@ -33,17 +128,23 @@ i386 family:
 	Unixware 2.1 (1.8.86)
 	ISC 4.0.1 (1.8.87)
 	Linux (kernel 1.2.x) (1.8.86)
+	Linux (kernel 2.0.x, RedHat 4.2) (1.9)
 	BSDI 2.0 (1.4.93) (footnote 5)
 	FreeBSD 2.1.5-stable (1.8.87)
 	NextSTEP 3.3 (1.7)
 	SCO Unix 3.2.4.2, gcc 2.7.2 (1.8.87) (footnote 4)
 	SCO OpenServer 5 (1.8.86)
+	Sequent Dynix/PTX 4.1.4 (1.9.20 or so + patches)
 	Lynx 2.3.0 080695 (1.6.86) (footnote 9)
 	Windows NT 3.51 (1.8.86 client; 1.8.3 local)
+	Windows NT 3.51 service pack 4 (1.9)
+	Windows NT 3.51 service pack 5 (1.9) -- DOES NOT WORK (footnote 11)
 	Windows NT 4.0 (1.9 client and local)
-	Windows 95 (1.8.86 client and local)
-	QNX 4 (1.7 + obvious patches)
+	Windows 95 (1.9 client and local)
+	QNX (1.9.1 + patches for strippath() and va_list)
 	OS/2 Version 3 using IBM C/C++ Tools 2.01 (1.8.86 + patches, client)
+	OS/2 Version 3 using EMX 0.9c (1.9.22, client)
+	OS/2 Version 3 using Watcom version ? (? - has this been tested?)
 m68k:
 	Sun 3 running SunOS 4.1.1_U1 w/ bundled K&R /usr/5bin/cc (1.8.86+)
 	NextSTEP 3.3p1 (1.8.87)
@@ -57,6 +158,7 @@ MIPS:
 	DECstation running Ultrix 4.3 (1.8.85)
 	SGI running Irix 4.0.5H using gcc and cc (about 1.4A2) (footnote 2)
 	SGI running Irix 5.3 using gcc 2.7.2 (1.8.87)
+	SGI running Irix 6.2 using SGI MIPSpro 6.2 and beta 7.2 compilers (1.9)
 	SGI running Irix-6.2 (1.9.8)
 	Siemens-Nixdorf RM600 running SINIX-Y (1.6)
 PowerPC or RS/6000:
@@ -64,13 +166,15 @@ PowerPC or RS/6000:
 	IBM RS/6000 running AIX 3.2.5 (1.8)
 	IBM RS/6000 running AIX 4.1 using gcc and cc (about 1.4A2) (footnote 1)
 	Lynx 2.3.1 120495 (1.6.86) (footnote 9)
+	Lynx 2.5 (1.9) (footnote 10)
 SPARC:
-	Sun SPARC running SunOS 4.1.x (1.8.87)
+	Sun SPARC running SunOS 4.1.x using gcc 2.7.2.1 (1.9.14)
 	Sun SPARCstation 10 running Solaris 2.3 using gcc and cc (about 1.4A2)
 	Sun SPARCstation running Solaris 2.4 using gcc and cc (about 1.5.91)
 	Sun SPARC running Solaris 2.5 (1.8.87)
+	Sun SPARC running Solaris 2.5.1 using gcc 2.7.2.2 (1.9.14)
 	NextSTEP 3.3 (1.7)
-	Sun SparcClassing running Linux 2.0.17, gcc 2.7.2 (1.8.87)
+	Sun SPARC running Linux 2.0.17, gcc 2.7.2 (1.8.87)
 VAX:
 	VAX running VMS 6.2 (1.9+patches, client-only)
 	  (see README.VMS for information on necessary hacks).
@@ -117,11 +221,19 @@ VAX:
     So after running configure I had to undef HAVE_DIRENT_H and
     define HAVE_SYS_DIR_H.
 
+(footnote 10)
+    Had to compile with "make LIBS=-lbsd" (to get gethostbyname
+    and getservbyname).
+
+(footnote 11)
+    when I do a `cvs init' I get this message:
+      ci: 'RCS/loginfo,v' is not a regular file
+      ci:  RCS/loginfo,v: Invalid argument
+      cvs [init aborted]: failed to checkin n:/safe/CVSROOT/loginfo
+
 -------------------------------------------------------------------------------
 
-Installation under Unix (if you got a binary distribution from
-somewhere, install it according to procedure for that binary
-distribution, then skip to step 5):
+Building from source code under Unix:
 
 1)  Run "configure":
 
@@ -148,23 +260,8 @@ distribution, then skip to step 5):
 
     Typically this can reduce the size of the executable by around 30%.
 
-    If you are using server or local CVS, RCS needs to be installed in
-    the user's PATH (or a path you have configured in src/options.h,
-    or a path specified with the -b option).  If you don't have RCS,
-    you will need to get it from GNU as well.  It is best to get the
-    version 5.7 (or later) version of RCS, available from
-    prep.ai.mit.edu in the file pub/gnu/rcs-5.7.tar.gz.  If you do not
-    have RCS version 5.x (for example, if you are using the old RCS
-    shipped with some versions of HPUX), CVS will probably fail to work
-    entirely.  To find out what version of RCS you have, invoke "co -V".
-    If it fails to print a version number, it is an old version.
-
-    If you want version control of files with binary data, make sure
-    that the RCS configure script finds GNU diff 1.15 or later and
-    notices that diff supports the -a option.  CVS itself is much less
-    picky about which version of diff it uses, and you shouldn't need
-    to worry about that.  If you are using GNU diff 2.6 or 2.7, you may
-    want to know about a (subtle) bug described in doc/DIFFUTILS-2.7-BUG.
+    Unlike previous versions of CVS, you do not need to install RCS
+    or GNU diff.  
 
     NOTE: The configure program will cache the results of the previous
     configure execution.  If you need to re-run configure from scratch, you
@@ -221,11 +318,8 @@ distribution, then skip to step 5):
 
     END OF NOTE FOR NDBM GUNK.
 
-2)  Edit src/options.h.  Appropriate things to look at may be the
-    invocation locations of programs like DIFF.
-    Also glance at the default values for the environment variables
-    that CVS uses, in particular, the RCSBIN variable, which holds the
-    path to where the RCS programs live on your system.
+2)  Edit src/options.h.  The defaults should be reasonable, and in fact
+    if you are lazy you can safely skip this step.
 
 3)  Try to build it:
 
@@ -256,65 +350,6 @@ distribution, then skip to step 5):
 
     Depending on your installation's configuration, you may need to be
     root to do this.
-
-5)  Take a look at the CVS documentation.
-
-	$ man cvs
-
-    and
-
-	$ info cvs  
-
-    See what it can do for you, and if it fits your environment (or can
-    possibly be made to fit your environment).  If things look good,
-    continue on...
-
-6)  Set up the master source repository.  See the "Setting up the repository"
-    section of cvs.texinfo for details; the one-line summary is (if you
-    are putting the repository in /src/master):
-    $ cvs -d /src/master init
-
-7)  Have all users of the CVS system set the CVSROOT environment
-    variable appropriately to reflect the placement of your source
-    repository.  If the above example is used, the following commands
-    can be placed in user's ~/.profile, ~/.bash_profile file; or in the
-    site-wide /etc/profile:
-
-	CVSROOT=/src/master; export CVSROOT
-
-    for sh/bash/ksh users, or place the following commands in the user's
-    ~/.cshrc, ~/.login, or /etc/chsrc file:
-
-	setenv CVSROOT /src/master
-
-    for csh/tcsh users.  If these environment variables are not already set
-    in your current shell, set them now (or source the login script you
-    just edited).  You will need to have the CVSROOT environment variable
-    set to continue on to the next step.
-
-8)  It might be a good idea to jump right in and put the CVS distribution
-    directly under CVS control.  From within the top-level directory of the
-    CVS distribution (the one that contains this README file) do the
-    following commands:
-
-	$ make distclean
-	$ cvs import -m 'CVS 1.6 distribution' cvs CVS_DIST CVS-1_6
-
-9)  Having done step 8, one should be able to checkout a fresh copy of the
-    CVS distribution and hack away at the sources with the following command:
-
-	$ cd
-	$ cvs checkout cvs
-
-    This will make the directory "cvs" in your current directory and
-    populate it with the appropriate CVS files and directories.
-
-10) You may wish to customize the various administrative files, in particular
-    modules.  See cvs.texinfo for details.
-
-11) Read the NEWS file to see what's new.
-
-12) Hack away.
 
 -------------------------------------------------------------------------------
 
@@ -351,13 +386,30 @@ behaviour:
 				appear to be.
 
 -------------------------------------------------------------------------------
-Installation under Windows NT:
+
+Building from source code under Windows NT/95:
 
 You may find interesting information in windows-NT/README.
 
-1) Using Microsoft Visual C++ version 2.1, open the project `cvsnt.mak',
-   in the top directory of the CVS distribution.
+1) Using Microsoft Visual C++ 5.x, open the project `cvsnt.dsp',
+   in the top directory of the CVS distribution.  If you have an older
+   version of Visual C++, take a look at windows-NT/README.
 2) Choose "Build cvs.exe" from the "Project" menu.
-3) MSVC will place the executable file cvs.exe in WinDebug, or whatever
+3) MSVC will place the executable file cvs.exe in WinRel, or whatever
    your target directory is.
+
+-------------------------------------------------------------------------------
+
+Building from source code under other platforms:
+
+For OS/2, see os2/README and emx/README.
+
+For VMS, see README.VMS
+
+For Macintosh, see macintosh/README.MacCVS
+
+For a Java client, see jCVS (which is a separate package from CVS
+itself, but which might be preferable to the Macintosh port mentioned
+above, for example).
+
 -------------------------------------------------------------------------------

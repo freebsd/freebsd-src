@@ -43,46 +43,66 @@ copy_file (from, to)
     if (noexec)
 	return;
 
-    if ((fdin = open (from, O_RDONLY)) < 0)
-	error (1, errno, "cannot open %s for copying", from);
-    if (fstat (fdin, &sb) < 0)
-	error (1, errno, "cannot fstat %s", from);
-    if ((fdout = creat (to, (int) sb.st_mode & 07777)) < 0)
-	error (1, errno, "cannot create %s for copying", to);
-    if (sb.st_size > 0)
+    /* If the file to be copied is a link or a device, then just create
+       the new link or device appropriately. */
+    if (islink (from))
     {
-	char buf[BUFSIZ];
-	int n;
-
-	for (;;) 
-	{
-	    n = read (fdin, buf, sizeof(buf));
-	    if (n == -1)
-	    {
-#ifdef EINTR
-		if (errno == EINTR)
-		    continue;
-#endif
-		error (1, errno, "cannot read file %s for copying", from);
-	    }
-            else if (n == 0) 
-		break;
-  
-	    if (write(fdout, buf, n) != n) {
-		error (1, errno, "cannot write file %s for copying", to);
-	    }
-	}
-
-#ifdef HAVE_FSYNC
-	if (fsync (fdout)) 
-	    error (1, errno, "cannot fsync file %s after copying", to);
-#endif
+	char *source = xreadlink (from);
+	symlink (source, to);
+	free (source);
+	return;
     }
 
-    if (close (fdin) < 0) 
-	error (0, errno, "cannot close %s", from);
-    if (close (fdout) < 0)
-	error (1, errno, "cannot close %s", to);
+    if (isdevice (from))
+    {
+	if (stat (from, &sb) < 0)
+	    error (1, errno, "cannot stat %s", from);
+	mknod (to, sb.st_mode, sb.st_rdev);
+    }
+    else
+    {
+	/* Not a link or a device... probably a regular file. */
+	if ((fdin = open (from, O_RDONLY)) < 0)
+	    error (1, errno, "cannot open %s for copying", from);
+	if (fstat (fdin, &sb) < 0)
+	    error (1, errno, "cannot fstat %s", from);
+	if ((fdout = creat (to, (int) sb.st_mode & 07777)) < 0)
+	    error (1, errno, "cannot create %s for copying", to);
+	if (sb.st_size > 0)
+	{
+	    char buf[BUFSIZ];
+	    int n;
+	    
+	    for (;;) 
+	    {
+		n = read (fdin, buf, sizeof(buf));
+		if (n == -1)
+		{
+#ifdef EINTR
+		    if (errno == EINTR)
+			continue;
+#endif
+		    error (1, errno, "cannot read file %s for copying", from);
+		}
+		else if (n == 0) 
+		    break;
+		
+		if (write(fdout, buf, n) != n) {
+		    error (1, errno, "cannot write file %s for copying", to);
+		}
+	    }
+
+#ifdef HAVE_FSYNC
+	    if (fsync (fdout)) 
+		error (1, errno, "cannot fsync file %s after copying", to);
+#endif
+	}
+
+	if (close (fdin) < 0) 
+	    error (0, errno, "cannot close %s", from);
+	if (close (fdout) < 0)
+	    error (1, errno, "cannot close %s", to);
+    }
 
     /* now, set the times for the copied file to match those of the original */
     memset ((char *) &t, 0, sizeof (t));
@@ -119,12 +139,35 @@ islink (file)
 #ifdef S_ISLNK
     struct stat sb;
 
-    if (lstat (file, &sb) < 0)
+    if (CVS_LSTAT (file, &sb) < 0)
 	return (0);
     return (S_ISLNK (sb.st_mode));
 #else
     return (0);
 #endif
+}
+
+/*
+ * Returns non-zero if the argument file is a block or
+ * character special device.
+ */
+int
+isdevice (file)
+    const char *file;
+{
+    struct stat sb;
+
+    if (CVS_LSTAT (file, &sb) < 0)
+	return (0);
+#ifdef S_ISBLK
+    if (S_ISBLK (sb.st_mode))
+	return 1;
+#endif
+#ifdef S_ISCHR
+    if (S_ISCHR (sb.st_mode))
+	return 1;
+#endif
+    return 0;
 }
 
 /*
@@ -287,7 +330,8 @@ mkdir_if_needed (name)
 {
     if (mkdir (name, 0777) < 0)
     {
-	if (errno != EEXIST)
+	if (!(errno == EEXIST
+	      || (errno == EACCES && isdir (name))))
 	    error (1, errno, "cannot make directory %s", name);
 	return 1;
     }
@@ -297,6 +341,9 @@ mkdir_if_needed (name)
 /*
  * Change the mode of a file, either adding write permissions, or removing
  * all write permissions.  Either change honors the current umask setting.
+ *
+ * Don't do anything if PreservePermissions is set to `yes'.  This may
+ * have unexpected consequences for some uses of xchmod.
  */
 void
 xchmod (fname, writable)
@@ -305,6 +352,9 @@ xchmod (fname, writable)
 {
     struct stat sb;
     mode_t mode, oumask;
+
+    if (preserve_perms)
+	return;
 
     if (stat (fname, &sb) < 0)
     {
@@ -416,33 +466,41 @@ int
 unlink_file_dir (f)
     const char *f;
 {
-    if (trace)
+    struct stat sb;
+
+    if (trace
 #ifdef SERVER_SUPPORT
-	(void) fprintf (stderr, "%c-> unlink_file_dir(%s)\n",
-			(server_active) ? 'S' : ' ', f);
-#else
-	(void) fprintf (stderr, "-> unlink_file_dir(%s)\n", f);
+	/* This is called by the server parent process in contexts where
+	   it is not OK to send output (e.g. after we sent "ok" to the
+	   client).  */
+	&& !server_active
 #endif
+	)
+	(void) fprintf (stderr, "-> unlink_file_dir(%s)\n", f);
+
     if (noexec)
 	return (0);
 
     /* For at least some unices, if root tries to unlink() a directory,
        instead of doing something rational like returning EISDIR,
        the system will gleefully go ahead and corrupt the filesystem.
-       So we first call isdir() to see if it is OK to call unlink().  This
+       So we first call stat() to see if it is OK to call unlink().  This
        doesn't quite work--if someone creates a directory between the
-       call to isdir() and the call to unlink(), we'll still corrupt
+       call to stat() and the call to unlink(), we'll still corrupt
        the filesystem.  Where is the Unix Haters Handbook when you need
        it?  */
-    if (isdir(f)) 
-	return deep_remove_dir(f);
-    else
+    if (stat (f, &sb) < 0)
     {
-	if (unlink (f) != 0)
+	if (existence_error (errno))
+	{
+	    /* The file or directory doesn't exist anyhow.  */
 	    return -1;
+	}
     }
-    /* We were able to remove the file from the disk */
-    return 0;
+    else if (S_ISDIR (sb.st_mode))
+	return deep_remove_dir (f);
+
+    return unlink (f);
 }
 
 /* Remove a directory and everything it contains.  Returns 0 for
@@ -553,6 +611,8 @@ block_read (fd, buf, nchars)
     
 /*
  * Compare "file1" to "file2". Return non-zero if they don't compare exactly.
+ * If FILE1 and FILE2 are special files, compare their salient characteristics
+ * (i.e. major/minor device numbers, links, etc.
  */
 int
 xcmp (file1, file2)
@@ -564,14 +624,42 @@ xcmp (file1, file2)
     int fd1, fd2;
     int ret;
 
+    if (CVS_LSTAT (file1, &sb1) < 0)
+	error (1, errno, "cannot lstat %s", file1);
+    if (CVS_LSTAT (file2, &sb2) < 0)
+	error (1, errno, "cannot lstat %s", file2);
+
+    /* If FILE1 and FILE2 are not the same file type, they are unequal. */
+    if ((sb1.st_mode & S_IFMT) != (sb2.st_mode & S_IFMT))
+	return 1;
+
+    /* If FILE1 and FILE2 are symlinks, they are equal if they point to
+       the same thing. */
+    if (S_ISLNK (sb1.st_mode) && S_ISLNK (sb2.st_mode))
+    {
+	int result;
+	buf1 = xreadlink (file1);
+	buf2 = xreadlink (file2);
+	result = (strcmp (buf1, buf2) == 0);
+	free (buf1);
+	free (buf2);
+	return result;
+    }
+
+    /* If FILE1 and FILE2 are devices, they are equal if their device
+       numbers match. */
+    if (S_ISBLK (sb1.st_mode) || S_ISCHR (sb1.st_mode))
+    {
+	if (sb1.st_rdev == sb2.st_rdev)
+	    return 0;
+	else
+	    return 1;
+    }
+
     if ((fd1 = open (file1, O_RDONLY)) < 0)
 	error (1, errno, "cannot open file %s for comparing", file1);
     if ((fd2 = open (file2, O_RDONLY)) < 0)
 	error (1, errno, "cannot open file %s for comparing", file2);
-    if (fstat (fd1, &sb1) < 0)
-	error (1, errno, "cannot fstat %s", file1);
-    if (fstat (fd2, &sb2) < 0)
-	error (1, errno, "cannot fstat %s", file2);
 
     /* A generic file compare routine might compare st_dev & st_ino here 
        to see if the two files being compared are actually the same file.
@@ -646,7 +734,7 @@ cvs_temp_name ()
     char *retval;
 
     value = xmalloc (strlen (Tmpdir) + 40);
-    sprintf (value, "%s/%s", Tmpdir, "cvsXXXXXX" );
+    sprintf (value, "%s/%s", Tmpdir, "cvsXXXXXXXXXX" );
     retval = mktemp (value);
 
     if (retval == NULL)
@@ -673,6 +761,39 @@ isabsolute (filename)
     return filename[0] == '/';
 }
 
+/*
+ * Return a string (dynamically allocated) with the name of the file to which
+ * LINK is symlinked.
+ */
+char *
+xreadlink (link)
+    const char *link;
+{
+    char *file = NULL;
+    int buflen = BUFSIZ;
+
+    if (!islink (link))
+	return NULL;
+
+    /* Get the name of the file to which `from' is linked.
+       FIXME: what portability issues arise here?  Are readlink &
+       ENAMETOOLONG defined on all systems? -twp */
+    do
+    {
+	file = xrealloc (file, buflen);
+	errno = 0;
+	readlink (link, file, buflen);
+	buflen *= 2;
+    }
+    while (errno == ENAMETOOLONG);
+
+    if (errno)
+	error (1, errno, "cannot readlink %s", link);
+
+    return file;
+}
+
+
 
 /* Return a pointer into PATH's last component.  */
 char *
@@ -680,8 +801,8 @@ last_component (path)
     char *path;
 {
     char *last = strrchr (path, '/');
-
-    if (last)
+    
+    if (last && (last != path))
         return last + 1;
     else
         return path;
@@ -690,7 +811,26 @@ last_component (path)
 /* Return the home directory.  Returns a pointer to storage
    managed by this function or its callees (currently getenv).
    This function will return the same thing every time it is
-   called.  */
+   called.  Returns NULL if there is no home directory.
+
+   Note that for a pserver server, this may return root's home
+   directory.  What typically happens is that upon being started from
+   inetd, before switching users, the code in cvsrc.c calls
+   get_homedir which remembers root's home directory in the static
+   variable.  Then the switch happens and get_homedir might return a
+   directory that we don't even have read or execute permissions for
+   (which is bad, when various parts of CVS try to read there).  One
+   fix would be to make the value returned by get_homedir only good
+   until the next call (which would free the old value).  Another fix
+   would be to just always malloc our answer, and let the caller free
+   it (that is best, because some day we may need to be reentrant).
+
+   The workaround is to put -f in inetd.conf which means that
+   get_homedir won't get called until after the switch in user ID.
+
+   The whole concept of a "home directory" on the server is pretty
+   iffy, although I suppose some people probably are relying on it for
+   .cvsrc and such, in the cases where it works.  */
 char *
 get_homedir ()
 {

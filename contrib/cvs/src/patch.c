@@ -3,7 +3,7 @@
  * Copyright (c) 1989-1992, Brian Berliner
  * 
  * You may distribute under the terms of the GNU General Public License as
- * specified in the README file that comes with the CVS 1.4 kit.
+ * specified in the README file that comes with the CVS source distribution.
  * 
  * Patch
  * 
@@ -54,6 +54,7 @@ static const char *const patch_usage[] =
     "\t-D date\tDate.\n",
     "\t-r rev\tRevision - symbolic or numeric.\n",
     "\t-V vers\tUse RCS Version \"vers\" for keyword expansion.\n",
+    "(Specify the --help global option for a list of other help options)\n",
     NULL
 };
 
@@ -385,6 +386,7 @@ patch_fileproc (callerdat, finfo)
     size_t line2_chars_allocated;
     char *cp1, *cp2;
     FILE *fp;
+    int line_length;
 
     line1 = NULL;
     line1_chars_allocated = 0;
@@ -461,43 +463,79 @@ patch_fileproc (callerdat, finfo)
 
     if (patch_short)
     {
-	(void) printf ("File %s ", finfo->fullname);
+	cvs_output ("File ", 0);
+	cvs_output (finfo->fullname, 0);
 	if (vers_tag == NULL)
-	    (void) printf ("is new; current revision %s\n", vers_head);
+	{
+	    cvs_output (" is new; current revision ", 0);
+	    cvs_output (vers_head, 0);
+	    cvs_output ("\n", 1);
+	}
 	else if (vers_head == NULL)
 	{
-	    (void) printf ("is removed; not included in ");
+	    cvs_output (" is removed; not included in ", 0);
 	    if (rev2 != NULL)
-		(void) printf ("release tag %s", rev2);
+	    {
+		cvs_output ("release tag ", 0);
+		cvs_output (rev2, 0);
+	    }
 	    else if (date2 != NULL)
-		(void) printf ("release date %s", date2);
+	    {
+		cvs_output ("release date ", 0);
+		cvs_output (date2, 0);
+	    }
 	    else
-		(void) printf ("current release");
-	    (void) printf ("\n");
+		cvs_output ("current release", 0);
+	    cvs_output ("\n", 1);
 	}
 	else
-	    (void) printf ("changed from revision %s to %s\n",
-			   vers_tag, vers_head);
+	{
+	    cvs_output (" changed from revision ", 0);
+	    cvs_output (vers_tag, 0);
+	    cvs_output (" to ", 0);
+	    cvs_output (vers_head, 0);
+	    cvs_output ("\n", 1);
+	}
 	ret = 0;
 	goto out2;
     }
+
+    /* Create 3 empty files.  I'm not really sure there is any advantage
+       to doing so now rather than just waiting until later.  */
     tmpfile1 = cvs_temp_name ();
-    if ((fp1 = CVS_FOPEN (tmpfile1, "w+")) != NULL)
-	(void) fclose (fp1);
-    tmpfile2 = cvs_temp_name ();
-    if ((fp2 = CVS_FOPEN (tmpfile2, "w+")) != NULL)
-	(void) fclose (fp2);
-    tmpfile3 = cvs_temp_name ();
-    if ((fp3 = CVS_FOPEN (tmpfile3, "w+")) != NULL)
-	(void) fclose (fp3);
-    if (fp1 == NULL || fp2 == NULL || fp3 == NULL)
+    fp1 = CVS_FOPEN (tmpfile1, "w+");
+    if (fp1 == NULL)
     {
-	/* FIXME: should be printing a proper error message, with errno-based
-	   message, and the filename which we could not create.  */
-	error (0, 0, "cannot create temporary files");
+	error (0, errno, "cannot create temporary file %s", tmpfile1);
 	ret = 1;
 	goto out;
     }
+    else
+	if (fclose (fp1) < 0)
+	    error (0, errno, "warning: cannot close %s", tmpfile1);
+    tmpfile2 = cvs_temp_name ();
+    fp2 = CVS_FOPEN (tmpfile2, "w+");
+    if (fp2 == NULL)
+    {
+	error (0, errno, "cannot create temporary file %s", tmpfile2);
+	ret = 1;
+	goto out;
+    }
+    else
+	if (fclose (fp2) < 0)
+	    error (0, errno, "warning: cannot close %s", tmpfile2);
+    tmpfile3 = cvs_temp_name ();
+    fp3 = CVS_FOPEN (tmpfile3, "w+");
+    if (fp3 == NULL)
+    {
+	error (0, errno, "cannot create temporary file %s", tmpfile3);
+	ret = 1;
+	goto out;
+    }
+    else
+	if (fclose (fp3) < 0)
+	    error (0, errno, "warning: cannot close %s", tmpfile3);
+
     if (vers_tag != NULL)
     {
 	retcode = RCS_checkout (rcsfile, (char *) NULL, vers_tag,
@@ -505,9 +543,8 @@ patch_fileproc (callerdat, finfo)
 				(RCSCHECKOUTPROC) NULL, (void *) NULL);
 	if (retcode != 0)
 	{
-	    if (!really_quiet)
-		error (retcode == -1 ? 1 : 0, retcode == -1 ? errno : 0,
-		       "co of revision %s in %s failed", vers_tag, rcs);
+	    error (0, 0,
+		   "cannot check out revision %s of %s", vers_tag, rcs);
 	    ret = 1;
 	    goto out;
 	}
@@ -530,9 +567,8 @@ patch_fileproc (callerdat, finfo)
 				(RCSCHECKOUTPROC) NULL, (void *) NULL);
 	if (retcode != 0)
 	{
-	    if (!really_quiet)
-		error (retcode == -1 ? 1 : 0, retcode == -1 ? errno : 0,
-		       "co of revision %s in %s failed", vers_head, rcs);
+	    error (0, 0,
+		   "cannot check out revision %s of %s", vers_head, rcs);
 	    ret = 1;
 	    goto out;
 	}
@@ -542,11 +578,8 @@ patch_fileproc (callerdat, finfo)
 	       and therefore should be on the server, not the client.  */
 	    (void) utime (tmpfile2, &t);
     }
-    run_setup ("%s -%c", DIFF, unidiff ? 'u' : 'c');
-    run_arg (tmpfile1);
-    run_arg (tmpfile2);
 
-    switch (run_exec (RUN_TTY, tmpfile3, RUN_TTY, RUN_REALLY))
+    switch (diff_exec (tmpfile1, tmpfile2, unidiff ? "-u" : "-c", tmpfile3))
     {
 	case -1:			/* fork/wait failure */
 	    error (1, errno, "fork for diff failed on %s", rcs);
@@ -561,18 +594,24 @@ patch_fileproc (callerdat, finfo)
 	     */
 
 	    /* Output an "Index:" line for patch to use */
-	    (void) fflush (stdout);
-	    (void) printf ("Index: %s\n", finfo->fullname);
-	    (void) fflush (stdout);
+	    cvs_output ("Index: ", 0);
+	    cvs_output (finfo->fullname, 0);
+	    cvs_output ("\n", 1);
 
 	    fp = open_file (tmpfile3, "r");
 	    if (getline (&line1, &line1_chars_allocated, fp) < 0 ||
 		getline (&line2, &line2_chars_allocated, fp) < 0)
 	    {
-		error (0, errno, "failed to read diff file header %s for %s",
-		       tmpfile3, rcs);
+		if (feof (fp))
+		    error (0, 0, "\
+failed to read diff file header %s for %s: end of file", tmpfile3, rcs);
+		else
+		    error (0, errno,
+			   "failed to read diff file header %s for %s",
+			   tmpfile3, rcs);
 		ret = 1;
-		(void) fclose (fp);
+		if (fclose (fp) < 0)
+		    error (0, errno, "error closing %s", tmpfile3);
 		goto out;
 	    }
 	    if (!unidiff)
@@ -584,7 +623,8 @@ patch_fileproc (callerdat, finfo)
 		{
 		    error (0, 0, "invalid diff header for %s", rcs);
 		    ret = 1;
-		    (void) fclose (fp);
+		    if (fclose (fp) < 0)
+			error (0, errno, "error closing %s", tmpfile3);
 		    goto out;
 		}
 	    }
@@ -597,7 +637,8 @@ patch_fileproc (callerdat, finfo)
 		{
 		    error (0, 0, "invalid unidiff header for %s", rcs);
 		    ret = 1;
-		    (void) fclose (fp);
+		    if (fclose (fp) < 0)
+			error (0, errno, "error closing %s", tmpfile3);
 		    goto out;
 		}
 	    }
@@ -628,25 +669,49 @@ patch_fileproc (callerdat, finfo)
 	    (void) sprintf (file2, "%s:%s", finfo->fullname,
 			    vers_head ? vers_head : "removed");
 
-	    /* Note that this prints "diff" not DIFF.  The format of a diff
-	       does not depend on the name of the program which happens to
-	       have produced it.  */
+	    /* Note that the string "diff" is specified by POSIX (for -c)
+	       and is part of the diff output format, not the name of a
+	       program.  */
 	    if (unidiff)
 	    {
-		(void) printf ("diff -u %s %s\n", file1, file2);
-		(void) printf ("--- %s%s+++ ", file1, cp1);
+		cvs_output ("diff -u ", 0);
+		cvs_output (file1, 0);
+		cvs_output (" ", 1);
+		cvs_output (file2, 0);
+		cvs_output ("\n", 1);
+
+		cvs_output ("--- ", 0);
+		cvs_output (file1, 0);
+		cvs_output (cp1, 0);
+		cvs_output ("+++ ", 0);
 	    }
 	    else
 	    {
-		(void) printf ("diff -c %s %s\n", file1, file2);
-		(void) printf ("*** %s%s--- ", file1, cp1);
+		cvs_output ("diff -c ", 0);
+		cvs_output (file1, 0);
+		cvs_output (" ", 1);
+		cvs_output (file2, 0);
+		cvs_output ("\n", 1);
+
+		cvs_output ("*** ", 0);
+		cvs_output (file1, 0);
+		cvs_output (cp1, 0);
+		cvs_output ("--- ", 0);
 	    }
 
-	    (void) printf ("%s%s", finfo->fullname, cp2);
+	    cvs_output (finfo->fullname, 0);
+	    cvs_output (cp2, 0);
+
 	    /* spew the rest of the diff out */
-	    while (getline (&line1, &line1_chars_allocated, fp) >= 0)
-		(void) fputs (line1, stdout);
-	    (void) fclose (fp);
+	    while ((line_length
+		    = getline (&line1, &line1_chars_allocated, fp))
+		   >= 0)
+		cvs_output (line1, 0);
+	    if (line_length < 0 && !feof (fp))
+		error (0, errno, "cannot read %s", tmpfile3);
+
+	    if (fclose (fp) < 0)
+		error (0, errno, "cannot close %s", tmpfile3);
 	    free (file1);
 	    free (file2);
 	    break;
@@ -658,10 +723,12 @@ patch_fileproc (callerdat, finfo)
         free (line1);
     if (line2)
         free (line2);
-    /* FIXME: should be checking for errors.  */
-    (void) CVS_UNLINK (tmpfile1);
-    (void) CVS_UNLINK (tmpfile2);
-    (void) CVS_UNLINK (tmpfile3);
+    if (CVS_UNLINK (tmpfile1) < 0)
+	error (0, errno, "cannot unlink %s", tmpfile1);
+    if (CVS_UNLINK (tmpfile2) < 0)
+	error (0, errno, "cannot unlink %s", tmpfile2);
+    if (CVS_UNLINK (tmpfile3) < 0)
+	error (0, errno, "cannot unlink %s", tmpfile3);
     free (tmpfile1);
     free (tmpfile2);
     free (tmpfile3);

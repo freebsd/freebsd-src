@@ -14,6 +14,7 @@ static const char *const release_usage[] =
 {
     "Usage: %s %s [-d] directories...\n",
     "\t-d\tDelete the given directory.\n",
+    "(Specify the --help global option for a list of other help options)\n",
     NULL
 };
 
@@ -46,7 +47,10 @@ release_server (argc, argv)
    2.  The fact that "cvs update" contacts the server slows things down;
    it undermines the case for using "cvs release" rather than "rm -rf".
    However, for correctly printing "? foo" and correctly handling
-   CVSROOTADM_IGNORE, we currently need to contact the server.
+   CVSROOTADM_IGNORE, we currently need to contact the server.  (One
+   idea for how to fix this is to stash a copy of CVSROOTADM_IGNORE in
+   the working directories; see comment at base_* in entries.c for a
+   few thoughts on that).
 
    3.  Would be nice to take processing things on the client side one step
    further, and making it like edit/unedit in terms of working well if
@@ -156,6 +160,8 @@ release (argc, argv)
 
 	if (!really_quiet)
 	{
+	    int line_length;
+
 	    /* The "release" command piggybacks on "update", which
 	       does the real work of finding out if anything is not
 	       up-to-date with the repository.  Then "release" prompts
@@ -163,14 +169,19 @@ release (argc, argv)
 	       modified, and asking if she still wants to do the
 	       release.  */
 	    fp = run_popen (update_cmd, "r");
+	    if (fp == NULL)
+		error (1, 0, "cannot run command %s", update_cmd);
+
 	    c = 0;
 
-	    while (getline (&line, &line_allocated, fp) >= 0)
+	    while ((line_length = getline (&line, &line_allocated, fp)) >= 0)
 	    {
 		if (strchr ("MARCZ", *line))
 		    c++;
 		(void) printf (line);
 	    }
+	    if (line_length < 0 && !feof (fp))
+		error (0, errno, "cannot read from subprocess");
 
 	    /* If the update exited with an error, then we just want to
 	       complain and go on to the next arg.  Especially, we do
@@ -270,9 +281,15 @@ release_delete (dir)
     (void) CVS_STAT (dir, &st);
     if (ino != st.st_ino)
     {
+	/* This test does not work on cygwin32, because under cygwin32
+	   the st_ino field is not the same when you refer to a file
+	   by a different name.  This is a cygwin32 bug, but then I
+	   don't see what the point of this test is anyhow.  */
+#ifndef __CYGWIN32__
 	error (0, 0,
 	       "Parent dir on a different disk, delete of %s aborted", dir);
 	return;
+#endif
     }
     /*
      * XXX - shouldn't this just delete the CVS-controlled files and, perhaps,

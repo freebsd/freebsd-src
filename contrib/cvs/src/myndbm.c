@@ -2,7 +2,7 @@
  * Copyright (c) 1992, Brian Berliner
  * 
  * You may distribute under the terms of the GNU General Public License as
- * specified in the README file that comes with the CVS 1.4 kit.
+ * specified in the README file that comes with the CVS source distribution.
  * 
  * A simple ndbm-emulator for CVS.  It parses a text file of the format:
  * 
@@ -21,6 +21,8 @@
 
 static void mydbm_load_file PROTO ((FILE *, List *));
 
+/* Returns NULL on error in which case errno has been set to indicate
+   the error.  Can also call error() itself.  */
 /* ARGSUSED */
 DBM *
 mydbm_open (file, flags, mode)
@@ -198,26 +200,34 @@ mydbm_load_file (fp, list)
     List *list;
 {
     char *line = NULL;
-    size_t line_len;
+    size_t line_size;
     char *value;
     size_t value_allocated;
     char *cp, *vp;
-    int len, cont;
+    int cont;
+    int line_length;
 
     value_allocated = 1;
     value = xmalloc (value_allocated);
 
-    for (cont = 0; getline (&line, &line_len, fp) >= 0;)
+    cont = 0;
+    while ((line_length = getstr (&line, &line_size, fp, '\012', 0)) >= 0)
     {
-	if ((cp = strrchr (line, '\012')) != NULL)
-	    *cp = '\0';			/* strip the newline */
-	cp = line + strlen (line);
-	if (cp > line && cp[-1] == '\015')
+	if (line_length > 0 && line[line_length - 1] == '\012')
+	{
+	    /* Strip the newline.  */
+	    --line_length;
+	    line[line_length] = '\0';
+	}
+	if (line_length > 0 && line[line_length - 1] == '\015')
+	{
 	    /* If the file (e.g. modules) was written on an NT box, it will
 	       contain CRLF at the ends of lines.  Strip them (we can't do
 	       this by opening the file in text mode because we might be
 	       running on unix).  */
-	    cp[-1] = '\0';	    
+	    --line_length;
+	    line[line_length] = '\0';
+	}
 
 	/*
 	 * Add the line to the value, at the end if this is a continuation
@@ -231,15 +241,15 @@ mydbm_load_file (fp, list)
 	 * See if the line we read is a continuation line, and strip the
 	 * backslash if so.
 	 */
-	len = strlen (line);
-	if (len > 0)
-	    cp = &line[len - 1];
+	if (line_length > 0)
+	    cp = &line[line_length - 1];
 	else
 	    cp = line;
 	if (*cp == '\\')
 	{
 	    cont = 1;
 	    *cp = '\0';
+	    --line_length;
 	}
 	else
 	{
@@ -247,7 +257,7 @@ mydbm_load_file (fp, list)
 	}
 	expand_string (&value,
 		       &value_allocated,
-		       strlen (value) + strlen (line) + 5);
+		       strlen (value) + line_length + 5);
 	strcat (value, line);
 
 	if (value[0] == '#')
@@ -288,6 +298,10 @@ mydbm_load_file (fp, list)
 	    }
 	}
     }
+    if (line_length < 0 && !feof (fp))
+	/* FIXME: should give the name of the file.  */
+	error (0, errno, "cannot read file in mydbm_load_file");
+
     free (line);
     free (value);
 }

@@ -3,7 +3,7 @@
  *    Copyright (c) 1989-1992, Brian Berliner
  *
  *    You may distribute under the terms of the GNU General Public License
- *    as specified in the README file that comes with the CVS 1.4 kit.
+ *    as specified in the README file that comes with the CVS source distribution.
  *
  * This is the main C driver for the CVS system.
  *
@@ -33,15 +33,15 @@ char *command_name;
 
 char hostname[MAXHOSTNAMELEN];
 
-int use_editor = TRUE;
-int use_cvsrc = TRUE;
+int use_editor = 1;
+int use_cvsrc = 1;
 int cvswrite = !CVSREAD_DFLT;
-int really_quiet = FALSE;
-int quiet = FALSE;
-int trace = FALSE;
-int noexec = FALSE;
-int readonlyfs = FALSE;
-int logoff = FALSE;
+int really_quiet = 0;
+int quiet = 0;
+int trace = 0;
+int noexec = 0;
+int readonlyfs = 0;
+int logoff = 0;
 mode_t cvsumask = UMASK_DFLT;
 
 char *CurDir;
@@ -49,7 +49,6 @@ char *CurDir;
 /*
  * Defaults, for the environment variables that are not set
  */
-char *Rcsbin = RCSBIN_DFLT;
 char *Tmpdir = TMPDIR_DFLT;
 char *Editor = EDITOR_DFLT;
 
@@ -125,33 +124,47 @@ static const struct cmd
 
 static const char *const usg[] =
 {
-    "Usage: %s [cvs-options] command [command-options] [files...]\n",
-    "    Where 'cvs-options' are:\n",
-    "        -H           Displays Usage information for command\n",
-    "        -Q           Cause CVS to be really quiet.\n",
-    "        -q           Cause CVS to be somewhat quiet.\n",
-    "        -r           Make checked-out files read-only\n",
-    "        -w           Make checked-out files read-write (default)\n",
-    "        -l           Turn History logging off\n",
-    "        -n           Do not execute anything that will change the disk\n",
-    "        -R           Assume repository is read-only, such as CDROM\n",
-    "        -t           Show trace of program execution -- Try with -n\n",
-    "        -v           CVS version and copyright\n",
-    "        -b bindir    Find RCS programs in 'bindir'\n",
-    "        -T tmpdir    Use 'tmpdir' for temporary files\n",
-    "        -e editor    Use 'editor' for editing log information\n",
-    "        -d CVS_root  Overrides $CVSROOT as the root of the CVS tree\n",
-    "        -f           Do not use the ~/.cvsrc file\n",
-#ifdef CLIENT_SUPPORT
-    "        -z #         Use compression level '#' for net traffic.\n",
-#ifdef ENCRYPTION
-    "        -x           Encrypt all net traffic.\n",
-#endif
-#endif
-    "        -s VAR=VAL   Set CVS user variable.\n",
+    /* CVS usage messages never have followed the GNU convention of
+       putting metavariables in uppercase.  I don't know whether that
+       is a good convention or not, but if it changes it would have to
+       change in all the usage messages.  For now, they consistently
+       use lowercase, as far as I know.  Puncutation is pretty funky,
+       though.  Sometimes they use none, as here.  Sometimes they use
+       single quotes (not the TeX-ish `' stuff), as in --help-options.
+       Sometimes they use double quotes, as in cvs -H add.
+
+       Most (not all) of the usage messages seem to have periods at
+       the end of each line.  I haven't tried to duplicate this style
+       in --help as it is a rather different format from the rest.  */
+
+    "Usage: %s [cvs-options] command [command-options-and-arguments]\n",
+    "  where cvs-options are -q, -n, etc.\n",
+    "    (specify --help-options for a list of options)\n",
+    "  where command is add, admin, etc.\n",
+    "    (specify --help-commands for a list of commands\n",
+    "     or --help-synonyms for a list of command synonyms)\n",
+    "  where command-options-and-arguments depend on the specific command\n",
+    "    (specify -H followed by a command name for command-specific help)\n",
+    "  Specify --help to receive this message\n",
     "\n",
-    "    and where 'command' is: add, admin, etc. (use the --help-commands\n",
-    "    option for a list of commands)\n",
+
+    /* Some people think that a bug-reporting address should go here.  IMHO,
+       the web sites are better because anything else is very likely to go
+       obsolete in the years between a release and when someone might be
+       reading this help.  Besides, we could never adequately discuss
+       bug reporting in a concise enough way to put in a help message.  */
+
+    /* I was going to put this at the top, but usage() wants the %s to
+       be in the first line.  */
+    "The Concurrent Versions System (CVS) is a tool for version control.\n",
+    /* I really don't think I want to try to define "version control"
+       in one line.  I'm not sure one can get more concise than the
+       paragraph in ../cvs.spec without assuming the reader knows what
+       version control means.  */
+
+    "For CVS updates and additional information, see\n",
+    "    Cyclic Software at http://www.cyclic.com/ or\n",
+    "    Pascal Molli's CVS site at http://www.loria.fr/~molli/cvs-index.html\n",
     NULL,
 };
 
@@ -185,8 +198,38 @@ static const char *const cmd_usage[] =
     "        update       Bring work tree in sync with repository\n",
     "        watch        Set watches\n",
     "        watchers     See who is watching a file\n",
-    "(Use the --help-synonyms option for a list of alternate command names)\n",
+    "(Specify the --help option for a list of other help options)\n",
     NULL,
+};
+
+static const char *const opt_usage[] =
+{
+    "CVS global options (specified before the command name) are:\n",
+    "    -H           Displays usage information for command.\n",
+    "    -Q           Cause CVS to be really quiet.\n",
+    "    -q           Cause CVS to be somewhat quiet.\n",
+    "    -r           Make checked-out files read-only.\n",
+    "    -w           Make checked-out files read-write (default).\n",
+    "    -l           Turn history logging off.\n",
+    "    -n           Do not execute anything that will change the disk.\n",
+    "    -t           Show trace of program execution -- try with -n.\n",
+    "    -R           Assume repository is read-only, such as CDROM\n",
+    "    -v           CVS version and copyright.\n",
+    "    -b bindir    Find RCS programs in 'bindir'.\n",
+    "    -T tmpdir    Use 'tmpdir' for temporary files.\n",
+    "    -e editor    Use 'editor' for editing log information.\n",
+    "    -d CVS_root  Overrides $CVSROOT as the root of the CVS tree.\n",
+    "    -f           Do not use the ~/.cvsrc file.\n",
+#ifdef CLIENT_SUPPORT
+    "    -z #         Use compression level '#' for net traffic.\n",
+#ifdef ENCRYPTION
+    "    -x           Encrypt all net traffic.\n",
+#endif
+    "    -a           Authenticate all net traffic.\n",
+#endif
+    "    -s VAR=VAL   Set CVS user variable.\n",
+    "(Specify the --help option for a list of other help options)\n",
+    NULL
 };
 
 static const char * const*
@@ -195,7 +238,8 @@ cmd_synonyms ()
     char ** synonyms;
     char ** line;
     const struct cmd *c = &cmds[0];
-    int numcmds = 2;		/* two more for title and end */
+    /* Three more for title, "specify --help" line, and NULL.  */
+    int numcmds = 3;
 
     while (c->fullname != NULL)
     {
@@ -220,6 +264,7 @@ cmd_synonyms ()
 	    line++;
 	}
     }
+    *line++ = "(Specify the --help option for a list of other help options)\n";
     *line = NULL;
     
     return (const char * const*) synonyms; /* will never be freed */
@@ -330,11 +375,10 @@ main (argc, argv)
     char *cp, *end;
     const struct cmd *cm;
     int c, err = 0;
-    int rcsbin_update_env, tmpdir_update_env, cvs_update_env;
+    int tmpdir_update_env, cvs_update_env;
     int free_CVSroot = 0;
     int free_Editor = 0;
     int free_Tmpdir = 0;
-    int free_Rcsbin = 0;
 
     int help = 0;		/* Has the user asked for help?  This
 				   lets us support the `cvs -H cmd'
@@ -345,6 +389,7 @@ main (argc, argv)
         {"version", 0, NULL, 'v'},
 	{"help-commands", 0, NULL, 1},
 	{"help-synonyms", 0, NULL, 2},
+	{"help-options", 0, NULL, 4},
 	{"allow-root", required_argument, NULL, 3},
         {0, 0, 0, 0}
     };
@@ -382,12 +427,6 @@ main (argc, argv)
      * they can be overridden by command line arguments
      */
     cvs_update_env = 0;
-    rcsbin_update_env = *Rcsbin;	/* RCSBIN_DFLT must be set */
-    if ((cp = getenv (RCSBIN_ENV)) != NULL)
-    {
-	Rcsbin = cp;
-	rcsbin_update_env = 0;		/* it's already there */
-    }
     tmpdir_update_env = *Tmpdir;	/* TMPDIR_DFLT must be set */
     if ((cp = getenv (TMPDIR_ENV)) != NULL)
     {
@@ -406,10 +445,10 @@ main (argc, argv)
 	cvs_update_env = 0;		/* it's already there */
     }
     if (getenv (CVSREAD_ENV) != NULL)
-	cvswrite = FALSE;
+	cvswrite = 0;
     if (getenv (CVSREADONLYFS_ENV) != NULL) {
-	readonlyfs = TRUE;
-	logoff = TRUE;
+	readonlyfs = 1;
+	logoff = 1;
     }
 
     /* Set this to 0 to force getopt initialization.  getopt() sets
@@ -427,7 +466,7 @@ main (argc, argv)
            != EOF)
     {
 	if (c == 'f')
-	    use_cvsrc = FALSE;
+	    use_cvsrc = 0;
     }
 
     /*
@@ -440,7 +479,7 @@ main (argc, argv)
     opterr = 1;
 
     while ((c = getopt_long
-            (argc, argv, "+QqrwtnRlvb:T:e:d:Hfz:s:x", long_options, &option_index))
+            (argc, argv, "+QqrwtnRlvb:T:e:d:Hfz:s:xa", long_options, &option_index))
            != EOF)
     {
 	switch (c)
@@ -453,51 +492,63 @@ main (argc, argv)
 	        /* --help-synonyms */
                 usage (cmd_synonyms());
                 break;
+	    case 4:
+		/* --help-options */
+		usage (opt_usage);
+		break;
 	    case 3:
 		/* --allow-root */
 		root_allow_add (optarg);
 		break;
 	    case 'Q':
-		really_quiet = TRUE;
+		really_quiet = 1;
 		/* FALL THROUGH */
 	    case 'q':
-		quiet = TRUE;
+		quiet = 1;
 		break;
 	    case 'r':
-		cvswrite = FALSE;
+		cvswrite = 0;
 		break;
 	    case 'w':
-		cvswrite = TRUE;
+		cvswrite = 1;
 		break;
 	    case 't':
-		trace = TRUE;
+		trace = 1;
 		break;
 	    case 'R':
-		readonlyfs = TRUE;
-		logoff = TRUE;
+		readonlyfs = 1;
+		logoff = 1;
 		break;
 	    case 'n':
-		noexec = TRUE;
+		noexec = 1;
 	    case 'l':			/* Fall through */
-		logoff = TRUE;
+		logoff = 1;
 		break;
 	    case 'v':
+		/* Having the year here is a good idea, so people have
+		   some idea of how long ago their version of CVS was
+		   released.  */
 		(void) fputs (version_string, stdout);
 		(void) fputs (config_string, stdout);
 		(void) fputs ("\n", stdout);
-		(void) fputs ("Copyright (c) 1993-1994 Brian Berliner\n", stdout);
-		(void) fputs ("Copyright (c) 1993-1994 david d `zoo' zuhn\n", stdout);
-		(void) fputs ("Copyright (c) 1992, Brian Berliner and Jeff Polk\n", stdout);
-		(void) fputs ("Copyright (c) 1989-1992, Brian Berliner\n", stdout);
+		(void) fputs ("\
+Copyright (c) 1989-1998 Brian Berliner, david d `zoo' zuhn, \n\
+                        Jeff Polk, and other authors\n", stdout);
 		(void) fputs ("\n", stdout);
 		(void) fputs ("CVS may be copied only under the terms of the GNU General Public License,\n", stdout);
 		(void) fputs ("a copy of which can be found with the CVS distribution kit.\n", stdout);
+		(void) fputs ("\n", stdout);
+
+		(void) fputs ("Specify the --help option for further information about CVS\n", stdout);
+
 		exit (0);
 		break;
 	    case 'b':
-		Rcsbin = xstrdup (optarg);
-		free_Rcsbin = 1;
-		rcsbin_update_env = 1;	/* need to update environment */
+		/* This option used to specify the directory for RCS
+		   executables.  But since we don't run them any more,
+		   this is a noop.  Silently ignore it so that .cvsrc
+		   and scripts and inetd.conf and such can work with
+		   either new or old CVS.  */
 		break;
 	    case 'T':
 		Tmpdir = xstrdup (optarg);
@@ -517,7 +568,7 @@ main (argc, argv)
 	        help = 1;
 		break;
             case 'f':
-		use_cvsrc = FALSE; /* unnecessary, since we've done it above */
+		use_cvsrc = 0; /* unnecessary, since we've done it above */
 		break;
 	    case 'z':
 #ifdef CLIENT_SUPPORT
@@ -541,6 +592,15 @@ main (argc, argv)
                    have it in their .cvsrc and not cause any trouble.
                    If no ENCRYPTION, we still accept -x, but issue an
                    error if we are being run as a client.  */
+		break;
+	    case 'a':
+#ifdef CLIENT_SUPPORT
+		cvsauthenticate = 1;
+#endif
+		/* If no CLIENT_SUPPORT, ignore -a, so that users can
+                   have it in their .cvsrc and not cause any trouble.
+                   We will issue an error later if stream
+                   authentication is not supported.  */
 		break;
 	    case '?':
 	    default:
@@ -572,6 +632,9 @@ main (argc, argv)
     else
 	command_name = cm->fullname;	/* Global pointer for later use */
 
+    /* This should probably remain a warning, rather than an error,
+       for quite a while.  For one thing the version of VC distributed
+       with GNU emacs 19.34 invokes 'cvs rlog' instead of 'cvs log'.  */
     if (strcmp (argv[0], "rlog") == 0)
     {
 	error (0, 0, "warning: the rlog command is deprecated");
@@ -615,7 +678,7 @@ main (argc, argv)
 #endif /* HAVE_KERBEROS */
 
 
-#if defined(AUTH_SERVER_SUPPORT) && defined(SERVER_SUPPORT)
+#if (defined(AUTH_SERVER_SUPPORT) || defined (HAVE_GSSAPI)) && defined(SERVER_SUPPORT)
 	if (strcmp (command_name, "pserver") == 0)
 	{
 	    /* The reason that --allow-root is not a command option
@@ -632,15 +695,16 @@ main (argc, argv)
 	    /* Pretend we were invoked as a plain server.  */
 	    command_name = "server";
 	}
-#endif /* AUTH_SERVER_SUPPORT && SERVER_SUPPORT */
+#endif /* (AUTH_SERVER_SUPPORT || HAVE_GSSAPI) && SERVER_SUPPORT */
 
+#ifdef SERVER_SUPPORT
+	server_active = strcmp (command_name, "server") == 0;
 
 	/* Fiddling with CVSROOT doesn't make sense if we're running
            in server mode, since the client will send the repository
            directory after the connection is made. */
 
-#ifdef SERVER_SUPPORT
-	if (strcmp (command_name, "server") != 0)
+	if (!server_active)
 #endif
 	{
 	    char *CVSADM_Root;
@@ -764,7 +828,6 @@ main (argc, argv)
 		    error (1, save_errno, "%s", path);
 		}
 		free (path);
-		parseopts(CVSroot_directory);
 	    }
 
 #ifdef HAVE_PUTENV
@@ -788,7 +851,7 @@ main (argc, argv)
 	   it is worth the trouble.  */
 
 #ifdef SERVER_SUPPORT
-	if (strcmp (command_name, "server") == 0)
+	if (server_active)
 	    CurDir = xstrdup ("<remote>");
 	else
 #endif
@@ -802,16 +865,6 @@ main (argc, argv)
 	    Tmpdir = "/tmp";
 
 #ifdef HAVE_PUTENV
-	/* Now, see if we should update the environment with the
-           Rcsbin value */
-	if (rcsbin_update_env)
-	{
-	    char *env;
-	    env = xmalloc (strlen (RCSBIN_ENV) + strlen (Rcsbin) + 1 + 1);
-	    (void) sprintf (env, "%s=%s", RCSBIN_ENV, Rcsbin);
-	    (void) putenv (env);
-	    /* do not free env, as putenv has control of it */
-	}
 	if (tmpdir_update_env)
 	{
 	    char *env;
@@ -827,24 +880,6 @@ main (argc, argv)
 	    (void) putenv (env);
 	}
 #endif
-
-	/*
-	 * If Rcsbin is set to something, make sure it is terminated with
-	 * a slash character.  If not, add one.
-	 */
-	if (*Rcsbin)
-	{
-	    int len = strlen (Rcsbin);
-	    char *rcsbin;
-
-	    if (Rcsbin[len - 1] != '/')
-	    {
-		rcsbin = Rcsbin;
-		Rcsbin = xmalloc (len + 2);	/* one for '/', one for NULL */
-		(void) strcpy (Rcsbin, rcsbin);
-		(void) strcat (Rcsbin, "/");
-	    }
-	}
 
 #ifndef DONT_USE_SIGNALS
 	/* make sure we clean up on error */
@@ -883,6 +918,31 @@ main (argc, argv)
 	if (use_cvsrc)
 	    read_cvsrc (&argc, &argv, command_name);
 
+	/* Parse the CVSROOT/config file, but only for local.  For the
+	   server, we parse it after we know $CVSROOT.  For the
+	   client, it doesn't get parsed at all, obviously.  The
+	   presence of the parse_config call here is not mean to
+	   predetermine whether CVSROOT/config overrides things from
+	   read_cvsrc and other such places or vice versa.  That sort
+	   of thing probably needs more thought.  */
+	if (1
+#ifdef SERVER_SUPPORT
+	    && !server_active
+#endif
+#ifdef CLIENT_SUPPORT
+	    && !client_active
+#endif
+	    )
+	{
+	    /* If there was an error parsing the config file, parse_config
+	       already printed an error.  We keep going.  Why?  Because
+	       if we didn't, then there would be no way to check in a new
+	       CVSROOT/config file to fix the broken one!  */
+	    parse_config (CVSroot_directory);
+
+	    /* Now is a convenient time to read CVSROOT/options */
+	    parseopts(CVSroot_directory);
+	}
     } /* end of stuff that gets done if the user DOESN'T ask for help */
 
     err = (*(cm->func)) (argc, argv);
@@ -891,7 +951,10 @@ main (argc, argv)
     {
 	/* Update the CVS/Root file.  We might want to do this in
 	   all directories that we recurse into, but currently we
-	   don't.  */
+	   don't.  Note that if there is an error writing the file,
+	   we give an error/warning.  This is so if users try to rewrite
+	   CVS/Root with the -d option (a documented feature), they will
+	   either succeed, or be told why it didn't work.  */
 	Create_Root (NULL, CVSroot);
     }
 
@@ -904,8 +967,6 @@ main (argc, argv)
 	free (Editor);
     if (free_Tmpdir)
 	free (Tmpdir);
-    if (free_Rcsbin)
-	free (Rcsbin);
     root_allow_free ();
 
 #ifdef SYSTEM_CLEANUP
@@ -917,6 +978,8 @@ main (argc, argv)
     /* This is exit rather than return because apparently that keeps
        some tools which check for memory leaks happier.  */
     exit (err ? EXIT_FAILURE : 0);
+	/* Keep picky/stupid compilers (e.g. Visual C++ 5.0) happy.  */
+	return 0;
 }
 
 char *
@@ -931,11 +994,14 @@ Make_Date (rawdate)
     unixtime = get_date (rawdate, (struct timeb *) NULL);
     if (unixtime == (time_t) - 1)
 	error (1, 0, "Can't parse date/time: %s", rawdate);
-#ifdef HAVE_RCS5
+
     ftm = gmtime (&unixtime);
-#else
-    ftm = localtime (&unixtime);
-#endif
+    if (ftm == NULL)
+	/* This is a system, like VMS, where the system clock is in local
+	   time.  Hopefully using localtime here matches the "zero timezone"
+	   hack I added to get_date.  */
+	ftm = localtime (&unixtime);
+
     (void) sprintf (date, DATEFORM,
 		    ftm->tm_year + (ftm->tm_year < 100 ? 0 : 1900),
 		    ftm->tm_mon + 1, ftm->tm_mday, ftm->tm_hour,
@@ -993,13 +1059,6 @@ parseopts(root)
 
 		rcs_localid = buf + 4;
 		RCS_setlocalid(rcs_localid);
-		what = malloc(sizeof("RCSLOCALID") + 2 + strlen(rcs_localid));
-		if (what == NULL) {
-			printf("no memory for local tag\n");
-			return;
-		}
-		sprintf(what, "RCSLOCALID=%s", rcs_localid);
-		putenv(what);
 	    }
 	    if (!strncmp(buf, "tagexpand=", 10)) {
 		char *what;
@@ -1007,19 +1066,12 @@ parseopts(root)
 
 		rcs_incexc = buf + 10;
 		RCS_setincexc(rcs_incexc);
-		what = malloc(sizeof("RCSINCEXC") + 2 + strlen(rcs_incexc));
-		if (what == NULL) {
-			printf("no memory for tag expand mode\n");
-			return;
-		}
-		sprintf(what, "RCSINCEXC=%s", rcs_incexc);
-		putenv(what);
 	    }
 	    /*
 	     * OpenBSD has a "umask=" and "dlimit=" command, we silently
 	     * ignore them here since they are not much use to us.  cvsumask
 	     * defaults to 002 already, and the dlimit (data size limit)
-	     * should really be handled elsewhere.
+	     * should really be handled elsewhere (eg: login.conf).
 	     */
 	}
 	fclose(fp);

@@ -3,7 +3,7 @@
  * Copyright (c) 1989-1992, Brian Berliner
  * 
  * You may distribute under the terms of the GNU General Public License as
- * specified in the README file that comes with the CVS 1.4 kit.
+ * specified in the README file that comes with the CVS source distribution.
  * 
  * Set Lock
  * 
@@ -39,9 +39,9 @@
    be.
 
    * Readlocks ensure that we won't find the file in the state in
-   which it is in between the "rcs -i" and the RCS_checkin in commit.c
-   (when a file is being added).  This state is a state in which the
-   RCS file parsing routines in rcs.c cannot parse the file.
+   which it is in between the calls to add_rcs_file and RCS_checkin in
+   commit.c (when a file is being added).  This state is a state in
+   which the RCS file parsing routines in rcs.c cannot parse the file.
 
    * Readlocks ensure that a reader won't try to look at a
    half-written fileattr file (fileattr is not updated atomically).
@@ -199,11 +199,17 @@ lock_simple_remove (lock)
        existence_error here.  */
     if (readlock != NULL)
     {
+#ifdef __GNUC__
+	tmp = alloca (strlen (lock->repository) + strlen (readlock) + 10);
+#else
 	tmp = xmalloc (strlen (lock->repository) + strlen (readlock) + 10);
+#endif
 	(void) sprintf (tmp, "%s/%s", lock->repository, readlock);
 	if ( CVS_UNLINK (tmp) < 0 && ! existence_error (errno))
 	    error (0, errno, "failed to remove lock %s", tmp);
+#ifndef __GNUC__
 	free (tmp);
+#endif
     }
 
     /* If writelock is set, the lock directory *might* have been created, but
@@ -212,23 +218,35 @@ lock_simple_remove (lock)
        existence_error here.  */
     if (writelock != NULL)
     {
+#ifdef __GNUC__
+	tmp = alloca (strlen (lock->repository) + strlen (writelock) + 10);
+#else
 	tmp = xmalloc (strlen (lock->repository) + strlen (writelock) + 10);
+#endif
 	(void) sprintf (tmp, "%s/%s", lock->repository, writelock);
 	if ( CVS_UNLINK (tmp) < 0 && ! existence_error (errno))
 	    error (0, errno, "failed to remove lock %s", tmp);
+#ifndef __GNUC__
 	free (tmp);
+#endif
     }
 
     if (lock->have_lckdir)
     {
+#ifdef __GNUC__
+	tmp = alloca (strlen (lock->repository) + sizeof (CVSLCK) + 10);
+#else
 	tmp = xmalloc (strlen (lock->repository) + sizeof (CVSLCK) + 10);
+#endif
 	(void) sprintf (tmp, "%s/%s", lock->repository, CVSLCK);
 	SIG_beginCrSect ();
 	if (CVS_RMDIR (tmp) < 0)
 	    error (0, errno, "failed to remove lock dir %s", tmp);
 	lock->have_lckdir = 0;
 	SIG_endCrSect ();
+#ifndef __GNUC__
 	free (tmp);
+#endif
     }
 }
 
@@ -709,7 +727,6 @@ lock_obtained (repos)
 static int lock_filesdoneproc PROTO ((void *callerdat, int err,
 				      char *repository, char *update_dir,
 				      List *entries));
-static int fsortcmp PROTO((const Node * p, const Node * q));
 
 /*
  * Create a list of repositories to lock
@@ -736,17 +753,6 @@ lock_filesdoneproc (callerdat, err, repository, update_dir, entries)
     if (p->key == NULL || addnode (lock_tree_list, p) != 0)
 	freenode (p);
     return (err);
-}
-
-/*
- * compare two lock list nodes (for sort)
- */
-static int
-fsortcmp (p, q)
-    const Node *p;
-    const Node *q;
-{
-    return (strcmp (p->key, q->key));
 }
 
 void

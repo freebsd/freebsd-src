@@ -46,13 +46,6 @@ are actually more appropriate for this list.
   (and modify) indexes.  This becomes very apparent with files
   with several hundred revisions.
 
-* A RCS "library", so CVS could operate on RCS files directly.  
-
-  CVS parses RCS files in order to determine if work needs to be done,
-  and then RCS parses the files again when it is performing the work.
-  This would be much faster if CVS could do whatever is necessary 
-  by itself.  (see comment at start of rcscmds.c for a few notes on this).
-
 1. Improved testsuite/sanity check script
 
 * Need to use a code coverage tool to determine how much the sanity

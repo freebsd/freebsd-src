@@ -3,11 +3,12 @@
  * Copyright (c) 1989-1992, Brian Berliner
  * 
  * You may distribute under the terms of the GNU General Public License as
- * specified in the README file that comes with the CVS 1.4 kit.
+ * specified in the README file that comes with the CVS source distribution.
  */
 
 #include "cvs.h"
 #include "getline.h"
+#include <assert.h>
 
 /*
  * Parse the INFOFILE file for the specified REPOSITORY.  Invoke CALLPROC for
@@ -62,7 +63,7 @@ Parse_Info (infofile, repository, callproc, all)
     srepos = Short_Repository (repository);
 
     if (trace)
-	(void) fprintf (stderr, "-> ParseInfo(%s, %s, %s)\n",
+	(void) fprintf (stderr, " -> ParseInfo(%s, %s, %s)\n",
 			infopath, srepos, all ? "ALL" : "not ALL");
 
     /* search the info file for lines that match */
@@ -184,4 +185,204 @@ Parse_Info (infofile, repository, callproc, all)
 	free (line);
 
     return (err);
+}
+
+
+/* Parse the CVS config file.  The syntax right now is a bit ad hoc
+   but tries to draw on the best or more common features of the other
+   *info files and various unix (or non-unix) config file syntaxes.
+   Lines starting with # are comments.  Settings are lines of the form
+   KEYWORD=VALUE.  There is currently no way to have a multi-line
+   VALUE (would be nice if there was, probably).
+
+   CVSROOT is the $CVSROOT directory (CVSroot_directory might not be
+   set yet).
+
+   Returns 0 for success, negative value for failure.  Call
+   error(0, ...) on errors in addition to the return value.  */
+int
+parse_config (cvsroot)
+    char *cvsroot;
+{
+    char *infopath;
+    FILE *fp_info;
+    char *line = NULL;
+    size_t line_allocated = 0;
+    size_t len;
+    char *p;
+    /* FIXME-reentrancy: If we do a multi-threaded server, this would need
+       to go to the per-connection data structures.  */
+    static int parsed = 0;
+
+    /* Authentication code and serve_root might both want to call us.
+       Let this happen smoothly.  */
+    if (parsed)
+	return 0;
+    parsed = 1;
+
+    infopath = malloc (strlen (cvsroot)
+			+ sizeof (CVSROOTADM_CONFIG)
+			+ sizeof (CVSROOTADM)
+			+ 10);
+    if (infopath == NULL)
+    {
+	error (0, 0, "out of memory; cannot allocate infopath");
+	goto error_return;
+    }
+
+    strcpy (infopath, cvsroot);
+    strcat (infopath, "/");
+    strcat (infopath, CVSROOTADM);
+    strcat (infopath, "/");
+    strcat (infopath, CVSROOTADM_CONFIG);
+
+    fp_info = CVS_FOPEN (infopath, "r");
+    if (fp_info == NULL)
+    {
+	/* If no file, don't do anything special.  */
+	if (!existence_error (errno))
+	{
+	    /* Just a warning message; doesn't affect return
+	       value, currently at least.  */
+	    error (0, errno, "cannot open %s", infopath);
+	}
+	free (infopath);
+	return 0;
+    }
+
+    while (getline (&line, &line_allocated, fp_info) >= 0)
+    {
+	/* Skip comments.  */
+	if (line[0] == '#')
+	    continue;
+
+	/* At least for the moment we don't skip whitespace at the start
+	   of the line.  Too picky?  Maybe.  But being insufficiently
+	   picky leads to all sorts of confusion, and it is a lot easier
+	   to start out picky and relax it than the other way around.
+
+	   Is there any kind of written standard for the syntax of this
+	   sort of config file?  Anywhere in POSIX for example (I guess
+	   makefiles are sort of close)?  Red Hat Linux has a bunch of
+	   these too (with some GUI tools which edit them)...
+
+	   Along the same lines, we might want a table of keywords,
+	   with various types (boolean, string, &c), as a mechanism
+	   for making sure the syntax is consistent.  Any good examples
+	   to follow there (Apache?)?  */
+
+	/* Strip the training newline.  There will be one unless we
+	   read a partial line without a newline, and then got end of
+	   file (or error?).  */
+
+	len = strlen (line) - 1;
+	if (line[len] == '\n')
+	    line[len] = '\0';
+
+	/* Skip blank lines.  */
+	if (line[0] == '\0')
+	    continue;
+
+	/* The first '=' separates keyword from value.  */
+	p = strchr (line, '=');
+	if (p == NULL)
+	{
+	    /* Probably should be printing line number.  */
+	    error (0, 0, "syntax error in %s: line '%s' is missing '='",
+		   infopath, line);
+	    goto error_return;
+	}
+
+	*p++ = '\0';
+
+	if (strcmp (line, "RCSBIN") == 0)
+	{
+	    /* This option used to specify the directory for RCS
+	       executables.  But since we don't run them any more,
+	       this is a noop.  Silently ignore it so that a
+	       repository can work with either new or old CVS.  */
+	    ;
+	}
+	else if (strcmp (line, "SystemAuth") == 0)
+	{
+	    if (strcmp (p, "no") == 0)
+#ifdef AUTH_SERVER_SUPPORT
+		system_auth = 0;
+#else
+		/* Still parse the syntax but ignore the
+		   option.  That way the same config file can
+		   be used for local and server.  */
+		;
+#endif
+	    else if (strcmp (p, "yes") == 0)
+#ifdef AUTH_SERVER_SUPPORT
+		system_auth = 1;
+#else
+		;
+#endif
+	    else
+	    {
+		error (0, 0, "unrecognized value '%s' for SystemAuth", p);
+		goto error_return;
+	    }
+	}
+	else if (strcmp (line, "PreservePermissions") == 0)
+	{
+	    if (strcmp (p, "no") == 0)
+		preserve_perms = 0;
+	    else if (strcmp (p, "yes") == 0)
+	    {
+#ifdef PRESERVE_PERMISSIONS_SUPPORT
+		preserve_perms = 1;
+#else
+		error (0, 0, "\
+warning: this CVS does not support PreservePermissions");
+#endif
+	    }
+	    else
+	    {
+		error (0, 0, "unrecognized value '%s' for PreservePermissions",
+		       p);
+		goto error_return;
+	    }
+	}
+	else
+	{
+	    /* We may be dealing with a keyword which was added in a
+	       subsequent version of CVS.  In that case it is a good idea
+	       to complain, as (1) the keyword might enable a behavior like
+	       alternate locking behavior, in which it is dangerous and hard
+	       to detect if some CVS's have it one way and others have it
+	       the other way, (2) in general, having us not do what the user
+	       had in mind when they put in the keyword violates the
+	       principle of least surprise.  Note that one corollary is
+	       adding new keywords to your CVSROOT/config file is not
+	       particularly recommended unless you are planning on using
+	       the new features.  */
+	    error (0, 0, "%s: unrecognized keyword '%s'",
+		   infopath, line);
+	    goto error_return;
+	}
+    }
+    if (ferror (fp_info))
+    {
+	error (0, errno, "cannot read %s", infopath);
+	goto error_return;
+    }
+    if (fclose (fp_info) < 0)
+    {
+	error (0, errno, "cannot close %s", infopath);
+	goto error_return;
+    }
+    free (infopath);
+    if (line != NULL)
+	free (line);
+    return 0;
+
+ error_return:
+    if (infopath != NULL)
+	free (infopath);
+    if (line != NULL)
+	free (line);
+    return -1;
 }

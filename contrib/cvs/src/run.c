@@ -14,30 +14,18 @@
 
 #include "cvs.h"
 
-#ifdef HAVE_VPRINTF
-#if defined (USE_PROTOTYPES) ? USE_PROTOTYPES : defined (__STDC__)
-#include <stdarg.h>
-#define VA_START(args, lastarg) va_start(args, lastarg)
-#else
-#include <varargs.h>
-#define VA_START(args, lastarg) va_start(args)
-#endif
-#else
-#define va_alist a1, a2, a3, a4, a5, a6, a7, a8
-#define va_dcl char *a1, *a2, *a3, *a4, *a5, *a6, *a7, *a8;
+#ifndef HAVE_UNISTD_H
+extern int execvp PROTO((char *file, char **argv));
 #endif
 
 static void run_add_arg PROTO((const char *s));
 
 extern char *strtok ();
 
-extern int vasprintf ();
-
 /*
- * To exec a program under CVS, first call run_setup() to setup any initial
- * arguments.  The options to run_setup are essentially like printf(). The
- * arguments will be parsed into whitespace separated words and added to the
- * global run_argv list.
+ * To exec a program under CVS, first call run_setup() to setup initial
+ * arguments.  The argument to run_setup will be parsed into whitespace 
+ * separated words and added to the global run_argv list.
  * 
  * Then, optionally call run_arg() for each additional argument that you'd like
  * to pass to the executed program.
@@ -51,19 +39,10 @@ static int run_argc;
 static int run_argc_allocated;
 
 /* VARARGS */
-#if defined (HAVE_VPRINTF) && (defined (USE_PROTOTYPES) ? USE_PROTOTYPES : defined (__STDC__))
 void 
-run_setup (const char *fmt,...)
-#else
-void 
-run_setup (fmt, va_alist)
-    char *fmt;
-    va_dcl
-#endif
+run_setup (prog)
+    const char *prog;
 {
-#ifdef HAVE_VPRINTF
-    va_list args;
-#endif
     char *cp;
     int i;
     char *run_prog;
@@ -79,16 +58,7 @@ run_setup (fmt, va_alist)
     }
     run_argc = 0;
 
-    /* process the varargs into run_prog */
-#ifdef HAVE_VPRINTF
-    VA_START (args, fmt);
-    (void) vasprintf (&run_prog, fmt, args);
-    va_end (args);
-#else
-    you lose
-#endif
-    if (run_prog == NULL)
-	error (1, 0, "out of memory");
+    run_prog = xstrdup (prog);
 
     /* put each word into run_argv, allocating it as we go */
     for (cp = strtok (run_prog, " \t"); cp; cp = strtok ((char *) NULL, " \t"))
@@ -101,38 +71,6 @@ run_arg (s)
     const char *s;
 {
     run_add_arg (s);
-}
-
-/* VARARGS */
-#if defined (HAVE_VPRINTF) && (defined (USE_PROTOTYPES) ? USE_PROTOTYPES : defined (__STDC__))
-void 
-run_args (const char *fmt,...)
-#else
-void 
-run_args (fmt, va_alist)
-    char *fmt;
-    va_dcl
-#endif
-{
-#ifdef HAVE_VPRINTF
-    va_list args;
-#endif
-    char *run_prog;
-
-    /* process the varargs into run_prog */
-#ifdef HAVE_VPRINTF
-    VA_START (args, fmt);
-    (void) vasprintf (&run_prog, fmt, args);
-    va_end (args);
-#else
-    you lose
-#endif
-    if (run_prog == NULL)
-	error (1, 0, "out of memory");
-
-    /* and add the (single) argument to the run_argv list */
-    run_add_arg (run_prog);
-    free (run_prog);
 }
 
 static void
@@ -155,9 +93,9 @@ run_add_arg (s)
 
 int
 run_exec (stin, stout, sterr, flags)
-    char *stin;
-    char *stout;
-    char *sterr;
+    const char *stin;
+    const char *stout;
+    const char *sterr;
     int flags;
 {
     int shin, shout, sherr;
@@ -398,7 +336,13 @@ run_print (fp)
     else if (fp == stdout)
 	outfn = cvs_output;
     else
+    {
 	error (1, 0, "internal error: bad argument to run_print");
+	/* Solely to placate gcc -Wall.
+	   FIXME: it'd be better to use a function named `fatal' that
+	   is known never to return.  Then kludges wouldn't be necessary.  */
+	outfn = NULL;
+    }
 
     for (i = 0; i < run_argc; i++)
     {
@@ -409,6 +353,11 @@ run_print (fp)
 	    (*outfn) (" ", 1);
     }
 }
+
+/* Return value is NULL for error, or if noexec was set.  If there was an
+   error, return NULL and I'm not sure whether errno was set (the Red Hat
+   Linux 4.1 popen manpage was kind of vague but discouraging; and the noexec
+   case complicates this even aside from popen behavior).  */
 
 FILE *
 run_popen (cmd, mode)
@@ -427,8 +376,6 @@ run_popen (cmd, mode)
 
     return (popen (cmd, mode));
 }
-
-extern int evecvp PROTO((char *file, char **argv));
 
 int
 piped_child (command, tofdp, fromfdp)

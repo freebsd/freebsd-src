@@ -7,6 +7,9 @@
 #undef _ALL_SOURCE
 #endif
 
+/* Define if the closedir function returns void instead of int.  */
+#undef CLOSEDIR_VOID
+
 /* Define to empty if the keyword does not work.  */
 #undef const
 
@@ -16,11 +19,17 @@
 /* Define if you support file names longer than 14 characters.  */
 #undef HAVE_LONG_FILE_NAMES
 
+/* Define if your struct stat has st_blksize.  */
+#undef HAVE_ST_BLKSIZE
+
 /* Define if you have <sys/wait.h> that is POSIX.1 compatible.  */
 #undef HAVE_SYS_WAIT_H
 
 /* Define if utime(file, NULL) sets file's timestamp to the present.  */
 #undef HAVE_UTIME_NULL
+
+/* Define if you have <vfork.h>.  */
+#undef HAVE_VFORK_H
 
 /* Define if on MINIX.  */
 #undef _MINIX
@@ -56,8 +65,14 @@
 /* Define to `int' if <sys/types.h> doesn't define.  */
 #undef uid_t
 
+/* Define vfork as fork if vfork does not work.  */
+#undef vfork
+
 /* Define if you have MIT Kerberos version 4 available.  */
 #undef HAVE_KERBEROS
+
+/* Define if you have GSSAPI with MIT Kerberos version 5 available.  */
+#undef HAVE_GSSAPI
 
 /* Define if you want CVS to be able to be a remote repository client.  */
 #undef CLIENT_SUPPORT
@@ -74,6 +89,26 @@
 
 /* Define if you have the connect function.  */
 #undef HAVE_CONNECT
+
+/* Define if this system supports chown(), link(), and friends.  */
+#undef PRESERVE_PERMISSIONS_SUPPORT
+
+/* Define if you have memchr (always for CVS).  */
+#undef HAVE_MEMCHR
+
+/* Define if you have strchr (always for CVS).  */
+#undef HAVE_STRCHR
+
+/* Define if utime requires write access to the file (true on Windows,
+   but not Unix).  */
+#undef UTIME_EXPECTS_WRITABLE
+
+/* Define if setmode is required when writing binary data to stdout.  */
+#undef USE_SETMODE_STDOUT
+
+/* Define if the diff library should use setmode for binary files.
+   FIXME: Why two different macros for setmode?  */
+#undef HAVE_SETMODE
 
 /* Define if you have the crypt function.  */
 #undef HAVE_CRYPT
@@ -138,9 +173,6 @@
 /* Define if you have the tzset function.  */
 #undef HAVE_TZSET
 
-/* Define if you have the vfork function.  */
-#undef HAVE_VFORK
-
 /* Define if you have the vprintf function.  */
 #undef HAVE_VPRINTF
 
@@ -162,6 +194,9 @@
 /* Define if you have the <io.h> header file.  */
 #undef HAVE_IO_H
 
+/* Define if you have the <limits.h> header file.  */
+#undef HAVE_LIMITS_H
+
 /* Define if you have the <memory.h> header file.  */
 #undef HAVE_MEMORY_H
 
@@ -179,6 +214,9 @@
 
 /* Define if you have the <sys/dir.h> header file.  */
 #undef HAVE_SYS_DIR_H
+
+/* Define if you have the <sys/file.h> header file.  */
+#undef HAVE_SYS_FILE_H
 
 /* Define if you have the <sys/ndir.h> header file.  */
 #undef HAVE_SYS_NDIR_H
@@ -206,6 +244,9 @@
 
 /* Define if you have the crypt library (-lcrypt).  */
 #undef HAVE_LIBCRYPT
+
+/* Define if you have the gen library (-lgen).  */
+#undef HAVE_LIBGEN
 
 /* Define if you have the inet library (-linet).  */
 #undef HAVE_LIBINET

@@ -134,3 +134,12 @@ unnecessary baggage.  The only dependency would be on tcl (that is,
 wish).
 
 * perl or python or <any other serious contenders here?>
+
+It is worth thinking about how to:
+
+a.  include spaces in arguments which we pass to the program under
+test (sanity.sh dotest cannot do this; see test rcs-9 for a
+workaround).
+
+b.  pass stdin to the program under test (sanity.sh, again, handles
+this by bypassing dotest).

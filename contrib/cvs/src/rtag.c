@@ -3,7 +3,7 @@
  * Copyright (c) 1989-1992, Brian Berliner
  * 
  * You may distribute under the terms of the GNU General Public License as
- * specified in the README file that comes with the CVS 1.4 kit.
+ * specified in the README file that comes with the CVS source distribution.
  * 
  * Rtag
  * 
@@ -72,8 +72,10 @@ static const char *const rtag_usage[] =
     "\t-n\tNo execution of 'tag program'\n",
     "\t-d\tDelete the given Tag.\n",
     "\t-b\tMake the tag a \"branch\" tag, allowing concurrent development.\n",
-    "\t-[rD]\tExisting tag or Date.\n",
+    "\t-r rev\tExisting revision/tag.\n",
+    "\t-D\tExisting date.\n",
     "\t-F\tMove tag if it already exists\n",	
+    "(Specify the --help global option for a list of other help options)\n",
     NULL
 };
 
@@ -206,7 +208,8 @@ rtag (argc, argv)
 	/* XXX last arg should be repository, but doesn't make sense here */
 	history_write ('T', (delete_flag ? "D" : (numtag ? numtag : 
 		       (date ? date : "A"))), symtag, argv[i], "");
-	err += do_module (db, argv[i], TAG, delete_flag ? "Untagging" : "Tagging",
+	err += do_module (db, argv[i], TAG,
+			  delete_flag ? "Untagging" : "Tagging",
 			  rtag_proc, (char *) NULL, 0, 0, run_module_prog,
 			  symtag);
     }
@@ -469,11 +472,10 @@ pretag_proc(repository, filter)
         }
         free(s);
     }
-    run_setup("%s %s %s %s",
-              filter,
-              symtag,
-              delete_flag ? "del" : force_tag_move ? "mov" : "add",
-              repository);
+    run_setup (filter);
+    run_arg (symtag);
+    run_arg (delete_flag ? "del" : force_tag_move ? "mov" : "add");
+    run_arg (repository);
     walklist(tlist, pretag_list_proc, NULL);
     return (run_exec(RUN_TTY, RUN_TTY, RUN_TTY, RUN_NORMAL|RUN_REALLY));
 }
@@ -594,6 +596,8 @@ rtag_fileproc (callerdat, finfo)
 	 */
 	rev = branch_mode ? RCS_magicrev (rcsfile, version) : numtag;
 	retcode = RCS_settag(rcsfile, symtag, numtag);
+	if (retcode == 0)
+	    RCS_rewrite (rcsfile, NULL, NULL);
     }
     else
     {
@@ -613,7 +617,7 @@ rtag_fileproc (callerdat, finfo)
 				   (int *) NULL);
 	if (oversion != NULL)
 	{
-	    int isbranch = RCS_isbranch (finfo->rcs, symtag);
+	    int isbranch = RCS_nodeisbranch (finfo->rcs, symtag);
 
 	    /*
 	     * if versions the same and neither old or new are branches don't
@@ -643,6 +647,8 @@ rtag_fileproc (callerdat, finfo)
 	    free (oversion);
 	}
 	retcode = RCS_settag(rcsfile, symtag, rev);
+	if (retcode == 0)
+	    RCS_rewrite (rcsfile, NULL, NULL);
     }
 
     if (retcode != 0)
@@ -694,7 +700,7 @@ rtag_delete (rcsfile)
 	return (0);
     free (version);
 
-    if ((retcode = RCS_deltag(rcsfile, symtag, 1)) != 0)
+    if ((retcode = RCS_deltag(rcsfile, symtag)) != 0)
     {
 	if (!quiet)
 	    error (0, retcode == -1 ? errno : 0,
@@ -702,6 +708,7 @@ rtag_delete (rcsfile)
 		   rcsfile->path);
 	return (1);
     }
+    RCS_rewrite (rcsfile, NULL, NULL);
     return (0);
 }
 
@@ -732,8 +739,17 @@ rtag_dirproc (callerdat, dir, repos, update_dir, entries)
     char *update_dir;
     List *entries;
 {
+    if (ignore_directory (update_dir))
+    {
+	/* print the warm fuzzy message */
+	if (!quiet)
+	  error (0, 0, "Ignoring %s", update_dir);
+        return R_SKIP_ALL;
+    }
+
     if (!quiet)
-	error (0, 0, "%s %s", delete_flag ? "Untagging" : "Tagging", update_dir);
+	error (0, 0, "%s %s", delete_flag ? "Untagging" : "Tagging",
+	       update_dir);
     return (R_PROCESS);
 }
 
