@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *	are met.
  *
- * $Id: vm_zone.c,v 1.6 1997/09/01 03:17:32 bde Exp $
+ * $Id: vm_zone.c,v 1.7 1997/09/21 04:24:26 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -65,7 +65,7 @@ int sysctl_vm_zone SYSCTL_HANDLER_ARGS;
  * name		name of zone.
  * size		size of zone entries.
  * nentries	number of zone entries allocated (only ZONE_INTERRUPT.)
- * flags	ZONE_INTERRUPT --	items can be allocated at interrupt time.
+ * flags	ZONE_INTERRUPT -- items can be allocated at interrupt time.
  * zalloc	number of pages allocated when memory is needed.
  *
  * Note that when using ZONE_INTERRUPT, the size of the zone is limited
@@ -75,7 +75,8 @@ int sysctl_vm_zone SYSCTL_HANDLER_ARGS;
  */
 int
 zinitna(vm_zone_t z, vm_object_t obj, char *name, int size,
-	int nentries, int flags, int zalloc) {
+	int nentries, int flags, int zalloc)
+{
 	int totsize;
 
 	if ((z->zflags & ZONE_BOOT) == 0) {
@@ -107,9 +108,8 @@ zinitna(vm_zone_t z, vm_object_t obj, char *name, int size,
 		totsize = round_page(z->zsize * nentries);
 
 		z->zkva = kmem_alloc_pageable(kernel_map, totsize);
-		if (z->zkva == 0) {
+		if (z->zkva == 0)
 			return 0;
-		}
 
 		z->zpagemax = totsize / PAGE_SIZE;
 		if (obj == NULL) {
@@ -126,7 +126,7 @@ zinitna(vm_zone_t z, vm_object_t obj, char *name, int size,
 	}
 
 
-	if ( z->zsize > PAGE_SIZE)
+	if (z->zsize > PAGE_SIZE)
 		z->zfreemin = 1;
 	else
 		z->zfreemin = PAGE_SIZE / z->zsize;
@@ -148,8 +148,10 @@ zinitna(vm_zone_t z, vm_object_t obj, char *name, int size,
  * initialization call.
  */
 vm_zone_t
-zinit(char *name, int size, int nentries, int flags, int zalloc) {
+zinit(char *name, int size, int nentries, int flags, int zalloc)
+{
 	vm_zone_t z;
+
 	z = (vm_zone_t) malloc(sizeof (struct vm_zone), M_ZONE, M_NOWAIT);
 	if (z == NULL)
 		return NULL;
@@ -168,8 +170,8 @@ zinit(char *name, int size, int nentries, int flags, int zalloc) {
  * only be called before full VM startup.
  */
 void
-zbootinit(vm_zone_t z, char *name, int size, void *item, int nitems) {
-
+zbootinit(vm_zone_t z, char *name, int size, void *item, int nitems)
+{
 	int i;
 
 	z->zname = name;
@@ -209,15 +211,18 @@ zbootinit(vm_zone_t z, char *name, int size, void *item, int nitems) {
  * Zone critical region locks.
  */
 static inline int
-zlock(vm_zone_t z) {
+zlock(vm_zone_t z)
+{
 	int s;
+
 	s = splhigh();
 	simple_lock(&z->zlock);
 	return s;
 }
 
 static inline void
-zunlock(vm_zone_t z, int s) {
+zunlock(vm_zone_t z, int s)
+{
 	simple_unlock(&z->zlock);
 	splx(s);
 }
@@ -243,9 +248,11 @@ zunlock(vm_zone_t z, int s) {
  * and are not interrupt safe, but are fast.
  */
 void *
-zalloci(vm_zone_t z) {
+zalloci(vm_zone_t z)
+{
 	int s;
 	void *item;
+
 	s = zlock(z);
 	item = _zalloc(z);
 	zunlock(z, s);
@@ -253,8 +260,10 @@ zalloci(vm_zone_t z) {
 }
 
 void
-zfreei(vm_zone_t z, void *item) {
+zfreei(vm_zone_t z, void *item)
+{
 	int s;
+
 	s = zlock(z);
 	_zfree(z, item);
 	zunlock(z, s);
@@ -265,7 +274,8 @@ zfreei(vm_zone_t z, void *item) {
  * Internal zone routine.  Not to be called from external (non vm_zone) code.
  */
 void *
-_zget(vm_zone_t z) {
+_zget(vm_zone_t z)
+{
 	int i;
 	vm_page_t m;
 	int nitems, nbytes;
@@ -276,14 +286,16 @@ _zget(vm_zone_t z) {
 
 	if (z->zflags & ZONE_INTERRUPT) {
 		item = (char *) z->zkva + z->zpagecount * PAGE_SIZE;
-		for( i = 0; ((i < z->zalloc) && (z->zpagecount < z->zpagemax)); i++) {
+		for (i = 0; ((i < z->zalloc) && (z->zpagecount < z->zpagemax));
+		     i++) {
 
-			m = vm_page_alloc( z->zobj, z->zpagecount, z->zallocflag);
-			if (m == NULL) {
+			m = vm_page_alloc(z->zobj, z->zpagecount,
+					  z->zallocflag);
+			if (m == NULL)
 				break;
-			}
 
-			pmap_kenter(z->zkva + z->zpagecount * PAGE_SIZE, VM_PAGE_TO_PHYS(m));
+			pmap_kenter(z->zkva + z->zpagecount * PAGE_SIZE,
+				    VM_PAGE_TO_PHYS(m));
 			z->zpagecount++;
 		}
 		nitems = (i * PAGE_SIZE) / z->zsize;
@@ -297,14 +309,16 @@ _zget(vm_zone_t z) {
 #if 0
 		if (z->zname)
 			printf("zalloc: %s, %d (0x%x --> 0x%x)\n",
-				z->zname, z->zalloc, item, (char *)item + nbytes);
+				z->zname, z->zalloc, item,
+				(char *)item + nbytes);
 		else
 			printf("zalloc: XXX(%d), %d (0x%x --> 0x%x)\n",
-				z->zsize, z->zalloc, item, (char *)item + nbytes);
+				z->zsize, z->zalloc, item,
+				(char *)item + nbytes);
 
-		for(i=0;i<nbytes;i+=PAGE_SIZE) {
-			printf("(%x, %x)", (char *) item + i, pmap_kextract( (char *) item + i));
-		}
+		for (i = 0; i < nbytes; i += PAGE_SIZE)
+			printf("(%x, %x)", (char *) item + i,
+			       pmap_kextract((char *) item + i));
 		printf("\n");
 #endif
 		nitems = nbytes / z->zsize;
@@ -350,62 +364,63 @@ sysctl_vm_zone SYSCTL_HANDLER_ARGS
 	char tmpname[14];
 
 	for (curzone = zlist; curzone; curzone = nextzone) {
-			int i;
-			int len;
-			int offset;
-			nextzone = curzone->znext;
-			len = strlen(curzone->zname);
-			if (len >= (sizeof(tmpname) - 1))
-				len = (sizeof(tmpname) - 1);
-			for(i = 0; i < sizeof(tmpname) - 1; i++)
-				tmpname[i] = ' ';
-			tmpname[i] = 0;
-			memcpy(tmpname, curzone->zname, len);
-			tmpname[len] = ':';
-			offset = 0;
-			if (curzone == zlist) {
-				offset = 1;
-				tmpbuf[0] = '\n';
-			}
-			
-			sprintf(tmpbuf + offset,
-				"%s limit=%8.8u, used=%6.6u, free=%6.6u, requests=%8.8u\n",
-				tmpname, curzone->zmax,
-				(curzone->ztotal - curzone->zfreecnt),
-				curzone->zfreecnt, curzone->znalloc);
+		int i;
+		int len;
+		int offset;
 
-			len = strlen((char *)tmpbuf);
-			if (nextzone == NULL) {
-				tmpbuf[len - 1] = 0;
-			}
+		nextzone = curzone->znext;
+		len = strlen(curzone->zname);
+		if (len >= (sizeof(tmpname) - 1))
+			len = (sizeof(tmpname) - 1);
+		for(i = 0; i < sizeof(tmpname) - 1; i++)
+			tmpname[i] = ' ';
+		tmpname[i] = 0;
+		memcpy(tmpname, curzone->zname, len);
+		tmpname[len] = ':';
+		offset = 0;
+		if (curzone == zlist) {
+			offset = 1;
+			tmpbuf[0] = '\n';
+		}
 
-			error = SYSCTL_OUT(req, tmpbuf, len);
+		sprintf(tmpbuf + offset,
+			"%s limit=%8.8u, used=%6.6u, free=%6.6u, requests=%8.8u\n",
+			tmpname, curzone->zmax,
+			(curzone->ztotal - curzone->zfreecnt),
+			curzone->zfreecnt, curzone->znalloc);
 
-			if (error)
-				return (error);
+		len = strlen((char *)tmpbuf);
+		if (nextzone == NULL)
+			tmpbuf[len - 1] = 0;
+
+		error = SYSCTL_OUT(req, tmpbuf, len);
+
+		if (error)
+			return (error);
 	}
 	return (0);
 }
 
 #if defined(DIAGNOSTIC)
 void
-zerror(int error) {
+zerror(int error)
+{
 	char *msg;
+
 	switch (error) {
-case ZONE_ERROR_INVALID:
+	case ZONE_ERROR_INVALID:
 		msg = "zone: invalid zone";
 		break;
-case ZONE_ERROR_NOTFREE:
+	case ZONE_ERROR_NOTFREE:
 		msg = "zone: entry not free";
 		break;
-case ZONE_ERROR_ALREADYFREE:
+	case ZONE_ERROR_ALREADYFREE:
 		msg = "zone: freeing free entry";
 		break;
-default:
+	default:
 		msg = "zone: invalid error";
 		break;
 	}
-		
 	panic(msg);
 }
 #endif
