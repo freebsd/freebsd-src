@@ -19,7 +19,7 @@
 # Automatic SNAP versioning:
 DATE != date +%Y%m%d
 BASE = 4.0
-BUILDNAME?=${BASE}-${DATE}-SNAP
+BUILDNAME?=${BASE}-${DATE}-STABLE
 #
 #CHROOTDIR=/junk/release
 # If this is a -stable snapshot, then set
