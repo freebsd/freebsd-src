@@ -42,6 +42,7 @@
 
 #include <ctype.h>
 #include <err.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <paths.h>
 #include <stdio.h>
@@ -50,6 +51,8 @@
 #include <unistd.h>
 
 #include <sys/fdcio.h>
+
+#include "fdutil.h"
 
 static void
 format_track(int fd, int cyl, int secs, int head, int rate,
@@ -172,10 +175,12 @@ main(int argc, char **argv)
 	int format = -1, cyls = -1, secs = -1, heads = -1, intleave = -1;
 	int rate = -1, gaplen = -1, secsize = -1, steps = -1;
 	int fill = 0xf6, quiet = 0, verify = 1, verify_only = 0, confirm = 0;
-	int fd, c, track, error, tracks_per_dot, bytes_per_track, errs;
+	int fd, c, i, track, error, tracks_per_dot, bytes_per_track, errs;
 	int fdopts;
 	const char *devname, *suffix;
 	struct fd_type fdt;
+#define MAXPRINTERRS 10
+	struct fdc_status fdcs[MAXPRINTERRS];
 
 	while((c = getopt(argc, argv, "f:c:s:h:r:g:S:F:t:i:qyvn")) != -1)
 		switch(c) {
@@ -336,8 +341,16 @@ main(int argc, char **argv)
 			}
 		}
 		if (verify) {
-			if (verify_track(fd, track, bytes_per_track) < 0)
-				error = errs = 1;
+			if (verify_track(fd, track, bytes_per_track) < 0) {
+				error = 1;
+				if (errs < MAXPRINTERRS && errno == EIO) {
+					if (ioctl(fd, FD_GSTAT, fdcs + errs) ==
+					    -1)
+						errx(1,
+					"floppy IO error, but no FDC status");
+					errs++;
+				}
+			}
 			if(!quiet && !((track + 1) % tracks_per_dot)) {
 				if (!verify_only)
 					putchar('\b');
@@ -354,20 +367,19 @@ main(int argc, char **argv)
 	if(!quiet)
 		printf(" done.\n");
 
-	return errs;
+	if (!quiet && errs) {
+		fflush(stdout);
+		fprintf(stderr, "Errors encountered:\nCyl Head Sect   Error\n");
+		for (i = 0; i < errs && i < MAXPRINTERRS; i++) {
+			fprintf(stderr, " %2d   %2d   %2d   ",
+				fdcs[i].status[3], fdcs[i].status[4],
+				fdcs[i].status[5]);
+			printstatus(fdcs + i, 1);
+			putc('\n', stderr);
+		}
+		if (errs >= MAXPRINTERRS)
+			fprintf(stderr, "(Further errors not printed.)\n");
+	}
+
+	return errs != 0;
 }
-/*
- * Local Variables:
- *  c-indent-level:               8
- *  c-continued-statement-offset: 8
- *  c-continued-brace-offset:     0
- *  c-brace-offset:              -8
- *  c-brace-imaginary-offset:     0
- *  c-argdecl-indent:             8
- *  c-label-offset:              -8
- *  c++-hanging-braces:           1
- *  c++-access-specifier-offset: -8
- *  c++-empty-arglist-indent:     8
- *  c++-friend-offset:            0
- * End:
- */
