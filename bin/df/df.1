@@ -40,7 +40,8 @@
 .Nd display free disk space
 .Sh SYNOPSIS
 .Nm df
-.Op Fl ikn
+.Op Fl b | h | H | k | m | P
+.Op Fl in
 .Op Fl t Ar type
 .Op Ar file | Ar filesystem ...
 .Sh DESCRIPTION
@@ -59,10 +60,28 @@ option below).
 .Pp
 The following options are available:
 .Bl -tag -width Ds
+.It Fl b
+Use 512-byte blocks rather than the default.  Note that
+this overrides the
+.Ev BLOCKSIZE
+specification from the environment.
+.It Fl H
+"Human-readable" output.  Use unit suffixes: Byte, Kilobyte, Megabyte,
+Gigabyte, Terabyte and Petabyte in order to reduce the number of
+digits to three or less using base 10 for sizes.
+.It Fl h
+"Human-readable" output.  Use unit suffixes: Byte, Kilobyte, Megabyte,
+Gigabyte, Terabyte and Petabyte in order to reduce the number of
+digits to three or less using base 2 for sizes.
 .It Fl i
 Include statistics on the number of free inodes.
 .It Fl k
 Use 1024-byte (1-Kbyte) blocks rather than the default.  Note that
+this overrides the
+.Ev BLOCKSIZE
+specification from the environment.
+.It Fl m
+Use 1048576-byte (1-Mbyte) blocks rather than the default.  Note that
 this overrides the
 .Ev BLOCKSIZE
 specification from the environment.
@@ -75,6 +94,11 @@ When this option is specified,
 .Nm
 will not request new statistics from the filesystems, but will respond
 with the possibly stale statistics that were previously obtained.
+.It Fl P
+Use POSIX compliant output of 512-byte blocks rather than the default. 
+Note that this overrides the
+.Ev BLOCKSIZE
+specification from the environment.
 .It Fl t
 Only print out statistics for filesystems of the specified types.
 More than one type may be specified in a comma separated list.

@@ -59,21 +59,55 @@ static const char rcsid[] =
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sysexits.h>
 #include <unistd.h>
+
+#define UNITS_SI 1
+#define UNITS_2 2
+
+#define KILO_SZ(n) (n)
+#define MEGA_SZ(n) ((n) * (n))
+#define GIGA_SZ(n) ((n) * (n) * (n))
+#define TERA_SZ(n) ((n) * (n) * (n) * (n))
+#define PETA_SZ(n) ((n) * (n) * (n) * (n) * (n))
+
+#define KILO_2_SZ (KILO_SZ(1024ULL))
+#define MEGA_2_SZ (MEGA_SZ(1024ULL))
+#define GIGA_2_SZ (GIGA_SZ(1024ULL))
+#define TERA_2_SZ (TERA_SZ(1024ULL))
+#define PETA_2_SZ (PETA_SZ(1024ULL))
+
+#define KILO_SI_SZ (KILO_SZ(1000ULL))
+#define MEGA_SI_SZ (MEGA_SZ(1000ULL))
+#define GIGA_SI_SZ (GIGA_SZ(1000ULL))
+#define TERA_SI_SZ (TERA_SZ(1000ULL))
+#define PETA_SI_SZ (PETA_SZ(1000ULL))
+
+unsigned long long vals_si [] = {1, KILO_SI_SZ, MEGA_SI_SZ, GIGA_SI_SZ, TERA_SI_SZ, PETA_SI_SZ};
+unsigned long long vals_base2[] = {1, KILO_2_SZ, MEGA_2_SZ, GIGA_2_SZ, TERA_2_SZ, PETA_2_SZ};
+unsigned long long *valp;
+
+typedef enum { NONE, KILO, MEGA, GIGA, TERA, PETA, UNIT_MAX } unit_t;
+
+int unitp [] = { NONE, KILO, MEGA, GIGA, TERA, PETA };
 
 int	  checkvfsname __P((const char *, char **));
 char	**makevfslist __P((char *));
 long	  regetmntinfo __P((struct statfs **, long, char **));
 int	  bread __P((off_t, void *, int));
 char	 *getmntpt __P((char *));
+void	  prthuman __P((struct statfs *, long));
+void	  prthumanval __P((double));
 void	  prtstat __P((struct statfs *, int));
 int	  ufs_df __P((char *, int));
+unit_t	  unit_adjust __P((double *));
 void	  usage __P((void));
 
-int	iflag, nflag;
+int	hflag, iflag, nflag;
 struct	ufs_args mdev;
 
 int
@@ -88,13 +122,32 @@ main(argc, argv)
 	char *mntpt, *mntpath, **vfslist;
 
 	vfslist = NULL;
-	while ((ch = getopt(argc, argv, "iknt:")) != -1)
+	while ((ch = getopt(argc, argv, "bHhikmnPt:")) != -1)
 		switch (ch) {
+		case 'b':
+				/* FALLTHROUGH */
+		case 'P':
+			putenv("BLOCKSIZE=512");
+			hflag = 0;
+			break;
+		case 'H':
+			hflag = UNITS_SI;
+			valp = vals_si;
+			break;
+		case 'h':
+			hflag = UNITS_2;
+			valp = vals_base2;
+			break;
 		case 'i':
 			iflag = 1;
 			break;
 		case 'k':
 			putenv("BLOCKSIZE=1k");
+			hflag = 0;
+			break;
+		case 'm':
+			putenv("BLOCKSIZE=1m");
+			hflag = 0;
 			break;
 		case 'n':
 			nflag = 1;
@@ -130,8 +183,9 @@ main(argc, argv)
 					maxwidth = width;
 			}
 		}
-		for (i = 0; i < mntsize; i++)
+		for (i = 0; i < mntsize; i++) {
 			prtstat(&mntbuf[i], maxwidth);
+		}
 		exit(rv);
 	}
 
@@ -244,6 +298,61 @@ regetmntinfo(mntbufp, mntsize, vfslist)
 }
 
 /*
+ * Output in "human-readable" format.  Uses 3 digits max and puts
+ * unit suffixes at the end.  Makes output compact and easy to read,
+ * especially on huge disks.
+ *
+ */
+unit_t
+unit_adjust(val)
+	double *val;
+{
+	double abval;
+	unit_t unit;
+	unsigned int unit_sz;
+
+	abval = fabs(*val);
+
+	unit_sz = abval ? ilogb(abval) / 10 : 0;
+
+	if (unit_sz >= UNIT_MAX) {
+		unit = NONE;
+	} else {
+		unit = unitp[unit_sz];
+		*val /= (double)valp[unit_sz];
+	}
+
+	return (unit);
+}
+
+void
+prthuman(sfsp, used)
+	struct statfs *sfsp;
+	long used;
+{
+
+	prthumanval((double)sfsp->f_blocks * (double)sfsp->f_bsize);
+	prthumanval((double)used * (double)sfsp->f_bsize);
+	prthumanval((double)sfsp->f_bavail * (double)sfsp->f_bsize);
+}
+
+void
+prthumanval(bytes)
+	double bytes;
+{
+
+	unit_t unit;
+	unit = unit_adjust(&bytes);
+
+	if (bytes == 0)
+		(void)printf("     0B");
+	else if (bytes > 10)
+		(void)printf(" %5.0f%c", bytes, "BKMGTPE"[unit]);
+	else
+		(void)printf(" %5.1f%c", bytes, "BKMGTPE"[unit]);
+}
+
+/*
  * Convert statfs returned filesystem size into BLOCKSIZE units.
  * Attempts to avoid overflow for large filesystems.
  */
@@ -267,9 +376,16 @@ prtstat(sfsp, maxwidth)
 	if (maxwidth < 11)
 		maxwidth = 11;
 	if (++timesthrough == 1) {
-		header = getbsize(&headerlen, &blocksize);
-		(void)printf("%-*.*s %s     Used    Avail Capacity",
-		    maxwidth, maxwidth, "Filesystem", header);
+		if (hflag) {
+			header = "  Size";
+			headerlen = strlen(header);
+			(void)printf("%-*.*s %-s   Used  Avail Capacity",
+				maxwidth, maxwidth, "Filesystem", header);
+		} else {
+			header = getbsize(&headerlen, &blocksize);
+			(void)printf("%-*.*s %-s     Used    Avail Capacity",
+				maxwidth, maxwidth, "Filesystem", header);
+		}
 		if (iflag)
 			(void)printf(" iused   ifree  %%iused");
 		(void)printf("  Mounted on\n");
@@ -277,10 +393,14 @@ prtstat(sfsp, maxwidth)
 	(void)printf("%-*.*s", maxwidth, maxwidth, sfsp->f_mntfromname);
 	used = sfsp->f_blocks - sfsp->f_bfree;
 	availblks = sfsp->f_bavail + used;
-	(void)printf(" %*ld %8ld %8ld", headerlen,
-	    fsbtoblk(sfsp->f_blocks, sfsp->f_bsize, blocksize),
-	    fsbtoblk(used, sfsp->f_bsize, blocksize),
-	    fsbtoblk(sfsp->f_bavail, sfsp->f_bsize, blocksize));
+	if (hflag) {
+		prthuman(sfsp, used);
+	} else {
+		(void)printf(" %*ld %8ld %8ld", headerlen,
+	            fsbtoblk(sfsp->f_blocks, sfsp->f_bsize, blocksize),
+	            fsbtoblk(used, sfsp->f_bsize, blocksize),
+	            fsbtoblk(sfsp->f_bavail, sfsp->f_bsize, blocksize));
+	}
 	(void)printf(" %5.0f%%",
 	    availblks == 0 ? 100.0 : (double)used / (double)availblks * 100.0);
 	if (iflag) {
@@ -376,7 +496,8 @@ bread(off, buf, cnt)
 void
 usage()
 {
+
 	(void)fprintf(stderr,
-	    "usage: df [-ikn] [-t type] [file | filesystem ...]\n");
-	exit(1);
+	    "usage: df [-b | -H | -h | -k | -m | -P] [-ain] [-t type] [file | filesystem ...]\n");
+	exit(EX_USAGE);
 }
