@@ -131,6 +131,7 @@ static device_method_t bti2c_methods[] = {
 static driver_t bti2c_driver = {
 	"bti2c",
 	bti2c_methods,
+	DRIVER_TYPE_MISC,
 	sizeof(struct bti2c_softc),
 };
 
