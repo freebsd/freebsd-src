@@ -29,7 +29,7 @@
  *
  * $FreeBSD$
  *
- *      last edit-date: [Thu Oct 18 13:40:40 2001]
+ *      last edit-date: [Sun Oct 21 11:00:31 2001]
  *
  *---------------------------------------------------------------------------*/
 
@@ -47,7 +47,7 @@
  *---------------------------------------------------------------------------*/
 #define	VERSION		1		/* version number	*/
 #define	REL		1		/* release number	*/
-#define STEP		0		/* release step		*/
+#define STEP		1		/* release step		*/
 
 /*---------------------------------------------------------------------------*
  * date/time format in i4b log messages
@@ -136,7 +136,7 @@
 #define CARD_TYPEP_CCD_HFCS_PCI	28	/* Cologne Chip HFC-S PCI based	*/
 #define	CARD_TYPEP_NETJET_S	29	/* Traverse NetJet-S (Tiger300) */
 #define	CARD_TYPEP_DIVA_ISA	30	/* Eicon DIVA ISA PnP 2.0 or 2.02 */
-
+#define CARD_TYPEP_COMPAQ_M610	31	/* Compaq Microcom 610 		*/
 /*
  * in case you add support for more cards, please update:
  *
@@ -145,7 +145,7 @@
  * and adjust CARD_TYPEP_MAX below.
  */
 
-#define CARD_TYPEP_MAX		30	/* max type */
+#define CARD_TYPEP_MAX		31	/* max type */
 
 /*---------------------------------------------------------------------------*
  *	card types for CTRL_DAIC
