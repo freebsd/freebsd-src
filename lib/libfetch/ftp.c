@@ -419,6 +419,8 @@ _ftp_closefn(void *v)
 	io->dconn = NULL;
 	DEBUG(fprintf(stderr, "Waiting for final status\n"));
 	r = _ftp_chkerr(io->cconn);
+	if (io->cconn == cached_connection && io->cconn->ref == 1)
+		cached_connection = NULL;
 	_fetch_close(io->cconn);
 	free(io);
 	return (r == FTP_TRANSFER_COMPLETE) ? 0 : -1;
@@ -833,6 +835,8 @@ static void
 _ftp_disconnect(conn_t *conn)
 {
 	(void)_ftp_cmd(conn, "QUIT");
+	if (conn == cached_connection && conn->ref == 1)
+		cached_connection = NULL;
 	_fetch_close(conn);
 }
 
