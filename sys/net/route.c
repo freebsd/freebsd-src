@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)route.c	8.3 (Berkeley) 1/9/95
+ *	@(#)route.c	8.3.1.1 (Berkeley) 2/23/95
  * $FreeBSD$
  */
 
