@@ -71,7 +71,14 @@ struct tun_softc {
 
 #define TUN_READY       (TUN_OPEN | TUN_INITED)
 
-	struct proc		*tun_proc;	/* Owning process */
+	/*
+	 * XXXRW: tun_pid is used to exclusively lock /dev/tun.  Is this
+	 * actually needed?  Can we just return EBUSY if already open?
+	 * Problem is that this involved inherent races when a tun device
+	 * is handed off from one process to another, as opposed to just
+	 * being slightly stale informationally.
+	 */
+	pid_t	tun_pid;		/* owning pid */
 	struct	ifnet tun_if;		/* the interface */
 	struct  sigio *tun_sigio;	/* information for async I/O */
 	struct	selinfo	tun_rsel;	/* read select */
@@ -237,9 +244,9 @@ tunopen(dev_t dev, int flag, int mode, struct thread *td)
 		tp = dev->si_drv1;
 	}
 
-	if (tp->tun_proc != NULL && tp->tun_proc != td->td_proc)
+	if (tp->tun_pid != 0 && tp->tun_pid != td->td_proc->p_pid)
 		return (EBUSY);
-	tp->tun_proc = td->td_proc;
+	tp->tun_pid = td->td_proc->p_pid;
 
 	tp->tun_flags |= TUN_OPEN;
 	ifp = &tp->tun_if;
@@ -263,7 +270,7 @@ tunclose(dev_t dev, int foo, int bar, struct thread *td)
 	ifp = &tp->tun_if;
 
 	tp->tun_flags &= ~TUN_OPEN;
-	tp->tun_proc = NULL;
+	tp->tun_pid = 0;
 
 	/*
 	 * junk all pending output
@@ -346,9 +353,9 @@ tunifioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	switch(cmd) {
 	case SIOCGIFSTATUS:
 		ifs = (struct ifstat *)data;
-		if (tp->tun_proc)
+		if (tp->tun_pid)
 			sprintf(ifs->ascii + strlen(ifs->ascii),
-			    "\tOpened by PID %d\n", tp->tun_proc->p_pid);
+			    "\tOpened by PID %d\n", tp->tun_pid);
 		break;
 	case SIOCSIFADDR:
 		error = tuninit(ifp);
@@ -535,7 +542,7 @@ tunioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 		}
 		break;
 	case TUNSIFPID:
-		tp->tun_proc = curthread->td_proc;
+		tp->tun_pid = curthread->td_proc->p_pid;
 		break;
 	case FIONBIO:
 		break;
