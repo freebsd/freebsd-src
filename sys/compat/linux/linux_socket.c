@@ -25,17 +25,23 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_socket.c,v 1.2 1995/06/07 21:27:57 sos Exp $
+ *  $Id: linux_socket.c,v 1.1 1995/06/25 17:32:41 sos Exp $
  */
 
-#include <i386/linux/linux.h>
+/* XXX we use functions that might not exist. */
+#define	COMPAT_43	1
+
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/sysproto.h>
 #include <sys/proc.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
+
 #include <netinet/in.h>
 
+#include <i386/linux/linux.h>
+#include <i386/linux/sysproto.h>
 
 static int
 linux_to_bsd_domain(int domain)

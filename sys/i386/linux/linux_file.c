@@ -25,12 +25,12 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_file.c,v 1.2 1995/08/28 00:50:08 swallace Exp $
+ *  $Id: linux_file.c,v 1.3 1995/10/10 23:13:27 swallace Exp $
  */
 
-#include <i386/linux/linux.h>
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/sysproto.h>
 #include <sys/fcntl.h>
 #include <sys/file.h>
 #include <sys/filedesc.h>
@@ -41,9 +41,11 @@
 #include <sys/malloc.h>
 #include <sys/exec.h>
 #include <sys/dirent.h>
-#include <vm/vm.h>
+
 #include <ufs/ufs/dir.h>
 
+#include <i386/linux/linux.h>
+#include <i386/linux/sysproto.h>
 
 struct linux_creat_args {
     char    *path;
@@ -386,7 +388,8 @@ again:
     auio.uio_resid = buflen;
     auio.uio_offset = off - (off_t)blockoff;
 
-    error = VOP_READDIR(vp, &auio, fp->f_cred, &eofflag, 0, 0);
+    error = VOP_READDIR(vp, &auio, fp->f_cred, &eofflag, (int *) NULL,
+			(u_int **) NULL);
     if (error) {
 	goto out;
 }

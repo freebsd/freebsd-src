@@ -25,12 +25,12 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_ioctl.c,v 1.2 1995/06/07 21:27:57 sos Exp $
+ *  $Id: linux_ioctl.c,v 1.1 1995/06/25 17:32:35 sos Exp $
  */
 
-#include <i386/linux/linux.h>
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/sysproto.h>
 #include <sys/proc.h>
 #include <sys/ioctl.h>
 #include <sys/ioctl_compat.h>
@@ -38,8 +38,11 @@
 #include <sys/filedesc.h>
 #include <sys/tty.h>
 #include <sys/termios.h>
+
 #include <machine/console.h>
 
+#include <i386/linux/linux.h>
+#include <i386/linux/sysproto.h>
 
 struct linux_termios {
     unsigned long   c_iflag;
@@ -363,7 +366,7 @@ linux_ioctl(struct proc *p, struct linux_ioctl_args *args, int *retval)
     struct linux_winsize linux_winsize;
     struct filedesc *fdp = p->p_fd;
     struct file *fp;
-    int (*func)();
+    int (*func)(struct file *fp, int com, caddr_t data, struct proc *p);
     int bsd_line, linux_line;
     int error;
 
