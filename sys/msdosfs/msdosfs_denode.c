@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_denode.c,v 1.8 1995/01/29 01:27:58 ats Exp $ */
+/*	$Id: msdosfs_denode.c,v 1.9 1995/03/16 18:14:18 bde Exp $ */
 /*	$NetBSD: msdosfs_denode.c,v 1.9 1994/08/21 18:44:00 ws Exp $	*/
 
 /*-
@@ -476,7 +476,6 @@ detrunc(dep, length, flags, cred, p)
 #endif
 			return error;
 		}
-		/* vnode_pager_uncache(DETOV(dep));	what's this for? */
 		/*
 		 * is this the right place for it?
 		 */
