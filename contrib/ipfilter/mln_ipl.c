@@ -48,6 +48,9 @@
 #include "ip_compat.h"
 #include "ip_fil.h"
 
+#if !defined(__NetBSD_Version__) || __NetBSD_Version__ < 103050000
+#define vn_lock(v,f) VOP_LOCK(v)
+#endif
 
 #if !defined(VOP_LEASE) && defined(LEASE_CHECK)
 #define	VOP_LEASE	LEASE_CHECK
@@ -179,7 +182,7 @@ static int ipl_remove()
 		if ((error = namei(&nd)))
 			return (error);
 		VOP_LEASE(nd.ni_vp, curproc, curproc->p_ucred, LEASE_WRITE);
-		VOP_LOCK(nd.ni_vp);
+		vn_lock(nd.ni_vp, LK_EXCLUSIVE | LK_RETRY);
 		VOP_LEASE(nd.ni_dvp, curproc, curproc->p_ucred, LEASE_WRITE);
 		(void) VOP_REMOVE(nd.ni_dvp, nd.ni_vp, &nd.ni_cnd);
 	}

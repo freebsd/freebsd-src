@@ -3,6 +3,7 @@
 ipf \- packet filtering kernel interface
 .SH SYNOPSIS
 #include <netinet/ip_compat.h>
+.br
 #include <netinet/ip_fil.h>
 .SH IOCTLS
 .PP
@@ -200,5 +201,13 @@ struct	filterstats {
 #endif
 };
 .fi
+.SH FILES
+/dev/ipauth
+.br
+/dev/ipl
+.br
+/dev/ipnat
+.br
+/dev/ipstate
 .SH SEE ALSO
-ipfstat(8), ipf(8), ipf(5)
+ipl(4), ipnat(4), ipf(5), ipf(8), ipfstat(8)

@@ -28,9 +28,13 @@ To install as part of a SunOS 4.1.x kernel:
 		NOTE: This script sets up /dev/ipl as char. device 59,0
 			in /sys/sun/conf.c
 
-	3. Do "mknod /dev/ipl c 59 0" as root.
+	3. Run the following commands as root:
+		mknod /dev/ipl c 59 0
+		mknod /dev/ipnat c 59 1
+		mknod /dev/ipstate c 59 2
+		mknod /dev/ipauth c 59 3
 
 	4. Reboot using the new kernel
 
 Darren Reed
-darrenr@cyber.com.au
+darrenr@pobox.com

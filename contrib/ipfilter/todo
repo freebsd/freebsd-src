@@ -34,3 +34,8 @@ done
 * ipfsync() should change IP#'s in current mappings as well as what's
   in rules.
  
+document bimap
+
+document NAT rule order processing
+
+add more docs
