@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: Makefile,v 1.4 1997/02/22 16:15:28 peter Exp $
 
 .PATH:	${.CURDIR}/..
 

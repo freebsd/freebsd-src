@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: vm86.h,v 1.7 1998/07/14 17:13:23 msmith Exp $
+ *	$Id: vm86.h,v 1.8 1998/09/29 09:06:00 bde Exp $
  */
 
 #ifndef _MACHINE_VM86_H_

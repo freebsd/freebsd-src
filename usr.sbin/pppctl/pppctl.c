@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: pppctl.c,v 1.16 1998/03/22 00:43:04 brian Exp $
+ *	$Id: pppctl.c,v 1.16.2.1 1999/01/31 12:25:39 brian Exp $
  */
 
 #include <sys/types.h>

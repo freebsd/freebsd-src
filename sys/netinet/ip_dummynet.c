@@ -10,7 +10,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_dummynet.c,v 1.6 1999/01/12 16:40:57 eivind Exp $
+ *	$Id: ip_dummynet.c,v 1.7 1999/01/12 16:43:52 eivind Exp $
  */
 
 /*

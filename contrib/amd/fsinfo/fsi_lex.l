@@ -39,7 +39,7 @@
  *
  *	%W% (Berkeley) %G%
  *
- * $Id: fsi_lex.l,v 1.1.1.1 1998/11/05 02:04:54 ezk Exp $
+ * $Id: fsi_lex.l,v 1.1.1.2 1999/01/13 19:22:31 obrien Exp $
  *
  */
 

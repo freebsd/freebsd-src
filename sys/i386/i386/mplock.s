@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: mplock.s,v 1.24 1998/05/17 23:08:04 tegge Exp $
+ * $Id: mplock.s,v 1.25 1998/06/21 14:53:03 bde Exp $
  *
  * Functions for locking between CPUs in a SMP system.
  *

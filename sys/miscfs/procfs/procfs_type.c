@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: procfs_type.c,v 1.4 1997/03/24 11:24:42 bde Exp $
+ *	$Id: procfs_type.c,v 1.5 1997/08/02 14:32:18 bde Exp $
  */
 
 #include <sys/param.h>

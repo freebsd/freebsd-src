@@ -1,6 +1,6 @@
 #!./perl
 
-# $RCSfile: time.t,v $$Revision: 4.1 $$Date: 92/08/07 18:28:32 $
+# $RCSfile: time.t,v $$Revision: 1.1.1.1 $$Date: 1998/09/09 07:00:02 $
 
 if ($does_gmtime = gmtime(time)) { print "1..5\n" }
 else { print "1..3\n" }

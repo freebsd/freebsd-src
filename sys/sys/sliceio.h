@@ -1,5 +1,5 @@
 /*
- * $Id: sliceio.h,v 1.1 1998/04/19 23:32:43 julian Exp $
+ * $Id: sliceio.h,v 1.2 1998/04/22 19:27:54 julian Exp $
  */
 
 #ifndef	_SYS_SLICEIO_H_

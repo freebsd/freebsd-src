@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_cmdlin_rcsid[] = "$Id$";
+const char _uuconf_cmdlin_rcsid[] = "$Id: cmdlin.c,v 1.6 1997/02/22 15:27:26 peter Exp $";
 #endif
 
 #include <errno.h>

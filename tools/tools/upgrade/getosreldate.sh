@@ -1,5 +1,5 @@
 #! /bin/sh
-# $Id$
+# $Id: getosreldate.sh,v 1.1 1998/10/17 05:40:46 peter Exp $
 
 RELDATE=`sysctl -n kern.osreldate 2>/dev/null`
 if [ "x$RELDATE" = x ]; then

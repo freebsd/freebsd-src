@@ -1,5 +1,5 @@
 # Makefile
-# $Id$
+# $Id: Makefile,v 1.9 1997/02/22 16:06:27 peter Exp $
 
 MAN8=	manctl.8
 

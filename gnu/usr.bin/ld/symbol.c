@@ -31,7 +31,7 @@
 
 /*
  * symbol table routines
- * $Id$
+ * $Id: symbol.c,v 1.9 1997/02/22 15:46:26 peter Exp $
  */
 
 /* Create the symbol table entries for `etext', `edata' and `end'.  */

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/usr.sbin/kvm_mkdb/nlist.c,v 1.10 1998/10/28 06:39:41 jdp Exp $
  */
 
 #ifndef lint
@@ -38,7 +38,7 @@
 static char sccsid[] = "@(#)from: nlist.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: nlist.c,v 1.9 1998/08/17 08:46:46 dfr Exp $";
+	"$Id: nlist.c,v 1.10 1998/10/28 06:39:41 jdp Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>

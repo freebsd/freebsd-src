@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_rdp.c,v 1.2 1998/12/21 18:11:10 joerg Exp $
+ *	$Id: if_rdp.c,v 1.3 1999/01/12 00:36:31 eivind Exp $
  */
 
 /*

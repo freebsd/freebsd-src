@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(SABER)
-static char rcsid[] = "$Id: res_update.c,v 1.14 1998/03/10 22:04:48 halley Exp $";
+static char rcsid[] = "$Id: res_update.c,v 1.1 1998/06/11 09:03:02 peter Exp $";
 #endif /* not lint */
 
 /*

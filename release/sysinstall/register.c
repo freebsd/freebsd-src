@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: register.c,v 1.8 1997/08/18 21:47:34 jkh Exp $
+ * $Id: register.c,v 1.9 1998/11/24 00:18:56 jkh Exp $
  *
  * Copyright (c) 1997
  *	Jordan Hubbard.  All rights reserved.

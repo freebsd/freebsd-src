@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)ns_proto.c	8.1 (Berkeley) 6/10/93
- *	$Id$
+ *	$Id: ns_proto.c,v 1.9 1997/02/22 09:42:22 peter Exp $
  */
 
 #include <sys/param.h>

@@ -16,7 +16,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id$
+ *	$Id: wdc_p.h,v 1.1 1997/03/11 23:17:02 se Exp $
  */
 
 #define Q_CMD640B	0x00000001 /* CMD640B quirk: serialize IDE channels */

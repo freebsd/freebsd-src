@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.85 1998/12/23 14:28:37 foxfair Exp $
+**  $Id: pcisupport.c,v 1.86 1998/12/27 07:59:25 foxfair Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **

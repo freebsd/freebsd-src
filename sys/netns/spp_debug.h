@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)spp_debug.h	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: spp_debug.h,v 1.8 1997/02/22 09:42:25 peter Exp $
  */
 
 #ifndef _NETNS_SPP_DEBUG_H_

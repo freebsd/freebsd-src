@@ -27,7 +27,7 @@
  *	i4b_cause.h - causes and cause handling for i4b
  *	-----------------------------------------------
  *
- *	$Id: i4b_cause.h,v 1.8 1998/12/05 18:05:55 hm Exp $
+ *	$Id: i4b_cause.h,v 1.1 1998/12/27 21:46:56 phk Exp $
  *
  *      last edit-date: [Sat Dec  5 18:36:30 1998]
  *

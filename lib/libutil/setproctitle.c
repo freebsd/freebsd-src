@@ -14,7 +14,7 @@
  * 3. Absolutely no warranty of function or purpose is made by the author
  *    Peter Wemm.
  *
- * $Id: setproctitle.c,v 1.7 1998/04/28 07:02:33 dg Exp $
+ * $Id: setproctitle.c,v 1.8 1998/12/16 17:34:05 bde Exp $
  */
 
 #include <sys/types.h>

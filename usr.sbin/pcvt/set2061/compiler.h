@@ -20,7 +20,7 @@
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
  *
- * $Header: /home/ncvs/src/usr.sbin/pcvt/set2061/Attic/compiler.h,v 1.2 1995/05/30 03:49:45 rgrimes Exp $
+ * $Header: /home/ncvs/src/usr.sbin/pcvt/set2061/compiler.h,v 1.4 1999/01/01 08:32:01 peter Exp $
  */
 
 

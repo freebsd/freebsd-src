@@ -1,4 +1,4 @@
-# $Id: Makefile.inc,v 1.5 1999/01/18 07:38:09 simokawa Exp $
+# $Id: Makefile.inc,v 1.6 1999/01/19 00:23:25 bde Exp $
 
 .if !defined(GLOBAL_MAKEFILE_INC_BEEN_HERE)
 

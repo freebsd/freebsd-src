@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)nec765.h	7.1 (Berkeley) 5/9/91
- *	$Id: nec765.h,v 1.6 1997/02/22 09:38:04 peter Exp $
+ *	$Id: nec765.h,v 1.7 1997/09/17 20:16:17 tegge Exp $
  */
 
 /*

@@ -1,5 +1,5 @@
 /*	$NetBSD: usb_mem.h,v 1.4 1999/01/09 12:16:54 augustss Exp $	*/
-/*	FreeBSD $Id: usb_mem.h,v 1.4 1999/01/07 23:31:38 n_hibma Exp $ */
+/*	FreeBSD $Id: usb_mem.h,v 1.5 1999/01/10 18:42:53 n_hibma Exp $ */
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.

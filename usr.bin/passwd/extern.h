@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)extern.h	8.1 (Berkeley) 4/2/94
- *	$Id$
+ *	$Id: extern.h,v 1.4 1997/02/22 19:56:34 peter Exp $
  */
 
 int	krb_passwd __P((char *, char *, char *, char *));

@@ -21,7 +21,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: gmt2local.c,v 1.2 97/01/23 22:31:25 leres Exp $ (LBL)";
+    "@(#) $Header: /home/ncvs/src/contrib/tcpdump/gmt2local.c,v 1.1.1.1 1998/09/15 19:36:21 fenner Exp $ (LBL)";
 #endif
 
 #include <sys/types.h>

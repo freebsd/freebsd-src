@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: isapnp.c,v 1.3 1998/10/21 20:07:04 msmith Exp $
+ *      $Id: isapnp.c,v 1.4 1998/10/22 20:20:50 msmith Exp $
  */
 
 /*

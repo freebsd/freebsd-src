@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: scsp_socket.c,v 1.6 1998/08/21 18:08:24 johnc Exp $
+ *	@(#) $Id: scsp_socket.c,v 1.1 1998/09/15 08:23:17 phk Exp $
  *
  */
 
@@ -38,7 +38,7 @@
 
 
 #ifndef lint
-static char *RCSid = "@(#) $Id: scsp_socket.c,v 1.6 1998/08/21 18:08:24 johnc Exp $";
+static char *RCSid = "@(#) $Id: scsp_socket.c,v 1.1 1998/09/15 08:23:17 phk Exp $";
 #endif
 
 #include <sys/types.h>

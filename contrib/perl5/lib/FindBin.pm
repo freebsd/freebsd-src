@@ -66,7 +66,7 @@ under the same terms as Perl itself.
 
 =head1 REVISION
 
-$Revision: 1.4 $
+$Revision: 1.1.1.1 $
 
 =cut
 
@@ -82,7 +82,7 @@ use File::Basename;
 %EXPORT_TAGS = (ALL => [qw($Bin $Script $RealBin $RealScript $Dir $RealDir)]);
 @ISA = qw(Exporter);
 
-$VERSION = $VERSION = sprintf("%d.%02d", q$Revision: 1.41 $ =~ /(\d+)\.(\d+)/);
+$VERSION = $VERSION = sprintf("%d.%02d", q$Revision: 1.1.1.1 $ =~ /(\d+)\.(\d+)/);
 
 sub is_abs_path
 {

@@ -25,7 +25,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: gloadavg.c,v 1.4 1997/11/20 07:21:55 charnier Exp $";
 #endif /* not lint */
 
 #ifndef __FreeBSD__

@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: exception.s,v 1.2 1998/06/10 20:11:16 dfr Exp $ */
 /* $NetBSD: locore.s,v 1.47 1998/03/22 07:26:32 thorpej Exp $ */
 
 /*

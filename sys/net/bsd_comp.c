@@ -40,7 +40,7 @@
 /*
  * This version is for use with mbufs on BSD-derived systems.
  *
- * $Id: bsd_comp.c,v 1.9 1997/09/02 01:18:31 bde Exp $
+ * $Id: bsd_comp.c,v 1.10 1997/10/28 15:58:29 bde Exp $
  */
 
 #include <sys/param.h>

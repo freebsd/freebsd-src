@@ -27,7 +27,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: cdrom.c,v 1.2 1997/12/02 21:13:59 joerg Exp $
+ * $Id: cdrom.c,v 1.3 1997/12/04 21:52:47 joerg Exp $
  */
 
 

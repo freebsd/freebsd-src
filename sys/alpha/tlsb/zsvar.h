@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: zsvar.h,v 1.1 1998/06/14 13:58:57 dfr Exp $
  */
 
 int zs_cnattach(vm_offset_t base, vm_offset_t offset);

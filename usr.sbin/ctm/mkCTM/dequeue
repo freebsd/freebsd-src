@@ -1,5 +1,5 @@
 #! /bin/sh
-# $Id$
+# $Id: dequeue,v 1.3 1997/02/22 16:05:44 peter Exp $
 
 L=/home/ctm/log.dequeue
 /usr/sbin/ctm_dequeue -n 1 -l $L /home/ctm/queue/ctm-cvs-cur

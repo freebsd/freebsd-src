@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: intrcnt.h,v 1.1 1998/11/28 09:55:16 dfr Exp $ */
 /* $NetBSD: intrcnt.h,v 1.17 1998/11/19 01:48:04 ross Exp $ */
 
 /*

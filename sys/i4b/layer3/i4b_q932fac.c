@@ -27,7 +27,7 @@
  *	i4b_q932fac.c - Q932 facility handling
  *	--------------------------------------
  *
- *	$Id: i4b_q932fac.c,v 1.5 1998/12/05 18:05:41 hm Exp $ 
+ *	$Id: i4b_q932fac.c,v 1.1 1998/12/27 21:46:52 phk Exp $ 
  *
  *      last edit-date: [Sat Dec  5 18:34:11 1998]
  *

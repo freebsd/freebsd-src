@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)fifo.h	8.6 (Berkeley) 5/21/95
- * $Id: fifo.h,v 1.14 1997/09/14 02:57:51 peter Exp $
+ * $Id: fifo.h,v 1.15 1997/10/15 13:23:07 phk Exp $
  */
 
 extern vop_t **fifo_vnodeop_p;

@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.3 1998/08/17 04:59:15 jdp Exp $
+#	$Id: Makefile,v 1.4 1998/09/04 19:03:57 dfr Exp $
 #
 
 PROG=		ld-elf.so.1

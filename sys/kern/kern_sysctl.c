@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sysctl.c	8.4 (Berkeley) 4/14/94
- * $Id: kern_sysctl.c,v 1.81 1998/12/27 18:03:29 dfr Exp $
+ * $Id: kern_sysctl.c,v 1.83 1999/01/10 07:45:31 phk Exp $
  */
 
 #include "opt_compat.h"

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)file.h	8.3 (Berkeley) 1/9/95
- * $Id: file.h,v 1.15 1997/11/23 10:43:36 bde Exp $
+ * $Id: file.h,v 1.16 1998/06/07 17:12:58 dfr Exp $
  */
 
 #ifndef _SYS_FILE_H_

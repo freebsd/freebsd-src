@@ -1,4 +1,4 @@
-# $Header: /home/ncvs/src/gnu/lib/libregex/Makefile,v 1.18 1996/08/30 02:12:07 peter Exp $
+# $Header: /home/ncvs/src/gnu/lib/libregex/Makefile,v 1.19 1996/11/16 22:53:42 joerg Exp $
 
 
 LIB=	gnuregex

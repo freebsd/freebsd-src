@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.15 1998/12/30 11:17:09 bde Exp $
+#	$Id: Makefile,v 1.16 1998/12/30 12:06:08 bde Exp $
 
 # This is the old aout only boot loader.
 .if	exists(${MACHINE}/boot) && ${OBJFORMAT} == "aout"

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: uthread_rwlockattr.c,v 1.1 1998/09/07 19:01:43 alex Exp $
+ *	$Id: uthread_rwlockattr.c,v 1.2 1998/09/07 19:23:55 alex Exp $
  */
 
 #ifdef _THREAD_SAFE

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)socketvar.h	8.3 (Berkeley) 2/19/95
- *	$Id: socketvar.h,v 1.31 1998/11/11 10:04:13 truckman Exp $
+ *	$Id: socketvar.h,v 1.32 1998/11/11 10:56:07 truckman Exp $
  */
 
 #ifndef _SYS_SOCKETVAR_H_

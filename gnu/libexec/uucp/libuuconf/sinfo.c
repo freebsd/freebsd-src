@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_sinfo_rcsid[] = "$Id$";
+const char _uuconf_sinfo_rcsid[] = "$Id: sinfo.c,v 1.5 1997/02/22 15:27:45 peter Exp $";
 #endif
 
 /* Get information about a particular system.  We combine the

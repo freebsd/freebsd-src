@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.9 1998/09/19 22:42:13 obrien Exp $
+#	$Id: Makefile,v 1.10 1999/01/13 10:27:00 simokawa Exp $
 
 PROG=	traceroute
 MAN8=	traceroute.8

@@ -1,5 +1,5 @@
 #	from: @(#)bsd.lib.mk	5.26 (Berkeley) 5/2/91
-#	$Id: bsd.lib.mk,v 1.85 1999/01/22 12:41:26 jdp Exp $
+#	$Id: bsd.lib.mk,v 1.84.2.1 1999/01/22 18:41:00 jdp Exp $
 #
 
 .if !target(__initialized__)

@@ -1,4 +1,4 @@
-/* $Id: $ */
+/* $Id: asm_sbus.h,v 1.3 1998/12/28 19:22:25 mjacob Exp $ */
 /* release_12_28_98_A */
 /*
  * SBus Qlogic Host Adapter Firmware Tables

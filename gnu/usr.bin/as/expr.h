@@ -17,7 +17,7 @@
    along with GAS; see the file COPYING.  If not, write to
    the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 /*
- * $Id$
+ * $Id: expr.h,v 1.5 1997/02/22 15:43:32 peter Exp $
  */
 
 

@@ -1,4 +1,4 @@
-#	$Id: Makefile.inc,v 1.3 1998/03/14 02:33:54 kato Exp $
+#	$Id: Makefile.inc,v 1.4 1999/01/04 08:01:04 kato Exp $
 
 BINDIR?=	/usr/mdec
 CFLAGS+=	-aout

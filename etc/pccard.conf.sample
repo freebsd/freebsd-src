@@ -8,7 +8,7 @@
 # IRQ == 0 means "allocate free IRQ from IRQ pool"
 # IRQ == 16 means "do not use IRQ (e.g. PIO mode)"
 #
-# $Id$
+# $Id: pccard.conf.sample,v 1.24.2.1 1999/02/05 09:42:27 markm Exp $
 
 # Generally available IO ports
 io	0x240-0x360

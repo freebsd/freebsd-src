@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.95 1999/01/20 11:36:26 jkh Exp $
+#	$Id: Makefile,v 1.95.2.1 1999/02/07 05:43:14 yokota Exp $
 
 MAN4=	adv.4 adw.4 aha.4 ahb.4 ahc.4 aic.4 apm.4 ar.4 asc.4 atkbd.4 \
 	atkbdc.4 ax.4 bktr.4 bt.4 cs.4 cx.4 cy.4 de.4 \

@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_fxpreg.h,v 1.12 1998/03/03 14:19:09 dg Exp $
+ *	$Id: if_fxpreg.h,v 1.13 1998/06/08 09:47:46 bde Exp $
  */
 
 #define FXP_VENDORID_INTEL	0x8086

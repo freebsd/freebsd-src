@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_module.c,v 1.13 1999/01/09 14:59:50 dfr Exp $
+ *	$Id: kern_module.c,v 1.14 1999/01/09 16:50:04 dfr Exp $
  */
 
 #include <sys/param.h>

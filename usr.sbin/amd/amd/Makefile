@@ -3,7 +3,7 @@
 # Makefile for amd
 # 	This file is under a "BSD" copyright (c) by David O'Brien 1998
 #
-# $Id: Makefile,v 1.15 1998/08/30 19:59:49 gpalmer Exp $
+# $Id: Makefile,v 1.16 1998/10/17 13:55:22 bde Exp $
 #
 
 .PATH:		${.CURDIR}/../../../contrib/amd/amd

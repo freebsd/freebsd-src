@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: main.c,v 1.8 1998/10/31 17:12:32 dfr Exp $
+ *	$Id: main.c,v 1.9 1998/11/02 23:28:07 msmith Exp $
  */
 
 

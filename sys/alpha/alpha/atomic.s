@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: atomic.s,v 1.1 1998/08/24 08:39:36 dfr Exp $
  */
 
 #include <machine/asm.h>

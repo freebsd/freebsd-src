@@ -33,7 +33,7 @@
 # SUCH DAMAGE.
 #
 #	@(#)kill	8.2 (Berkeley) 5/4/95
-#	$Id$
+#	$Id: kill,v 1.5 1997/02/22 13:59:03 peter Exp $
 
 # Convert job names to process ids and then run /bin/kill.
 

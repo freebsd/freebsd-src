@@ -5,7 +5,7 @@
  * provided that this notice is preserved and due credit is given
  * to the original author and the contributors.
  *
- * $Id: ip_auth.h,v 1.1.1.1 1997/11/16 05:55:52 peter Exp $
+ * $Id: ip_auth.h,v 1.2 1998/08/15 21:51:53 bde Exp $
  *
  */
 #ifndef	__IP_AUTH_H__

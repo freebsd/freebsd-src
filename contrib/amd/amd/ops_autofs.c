@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: ops_autofs.c,v 1.2 1998/12/27 06:24:47 ezk Exp $
+ * $Id: ops_autofs.c,v 1.1.1.3 1999/01/13 19:21:29 obrien Exp $
  *
  */
 

@@ -13,7 +13,7 @@
 # purpose.
 #
 
-#	$Id:$
+#	$Id: btxsys.s,v 1.1 1998/09/14 10:37:00 rnordier Exp $
 
 #
 # BTX system calls.

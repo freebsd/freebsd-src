@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id$
+ * $Id: xrpuio.h,v 1.1 1998/10/24 19:47:29 phk Exp $
  *
  */
 

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_alloc.c	8.18 (Berkeley) 5/26/95
- * $Id: ffs_alloc.c,v 1.55 1999/01/06 17:04:33 bde Exp $
+ * $Id: ffs_alloc.c,v 1.56 1999/01/07 16:14:16 bde Exp $
  */
 
 #include "opt_quota.h"

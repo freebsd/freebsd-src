@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: conf.c,v 1.2 1998/12/27 06:24:46 ezk Exp $
+ * $Id: conf.c,v 1.1.1.3 1999/01/13 19:20:58 obrien Exp $
  *
  */
 

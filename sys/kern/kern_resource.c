@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_resource.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_resource.c,v 1.37 1998/05/28 09:30:18 phk Exp $
+ * $Id: kern_resource.c,v 1.38 1998/07/27 19:16:21 bde Exp $
  */
 
 #include "opt_compat.h"

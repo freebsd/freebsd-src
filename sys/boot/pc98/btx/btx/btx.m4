@@ -13,7 +13,7 @@
 # purpose.
 #
 
-#	$Id$
+#	$Id: btx.m4,v 1.1.2.1 1999/02/06 07:37:13 kato Exp $
 
 define(_al,0x0)dnl
 define(_cl,0x1)dnl

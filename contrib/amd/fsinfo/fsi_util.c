@@ -35,7 +35,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: fsi_util.c,v 1.1.1.1 1998/11/05 02:04:53 ezk Exp $
+ * $Id: fsi_util.c,v 1.1.1.2 1999/01/13 19:22:14 obrien Exp $
  *
  */
 

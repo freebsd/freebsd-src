@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: common.c,v 1.4 1998/12/18 14:32:48 des Exp $
+ *	$Id: common.c,v 1.5 1998/12/21 19:41:50 des Exp $
  */
 
 #include <sys/param.h>

@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.5 1998/10/11 18:13:42 markm Exp $
+# $Id: Makefile,v 1.6 1999/01/12 07:57:01 peter Exp $
 #
 
 PROG=	suidperl

@@ -27,7 +27,7 @@ provided "as is" without express or implied warranty.
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: newsyslog.c,v 1.20 1998/06/09 18:24:04 ache Exp $";
+	"$Id: newsyslog.c,v 1.21 1998/12/23 12:03:33 peter Exp $";
 #endif /* not lint */
 
 #ifndef CONF

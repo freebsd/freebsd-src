@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cia.c,v 1.13 1998/12/02 09:33:27 dfr Exp $
+ *	$Id: cia.c,v 1.14 1998/12/04 22:54:42 archie Exp $
  */
 /*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.

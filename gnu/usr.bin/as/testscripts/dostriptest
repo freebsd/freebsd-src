@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id$
+# $Id: dostriptest,v 1.3 1997/02/22 15:44:34 peter Exp $
 
 x=striptest.xx.$$
 y=striptest.yy.$$

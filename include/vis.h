@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vis.h	8.1 (Berkeley) 6/2/93
- *	$Id$
+ *	$Id: vis.h,v 1.5 1997/02/23 09:17:17 peter Exp $
  */
 
 #ifndef _VIS_H_

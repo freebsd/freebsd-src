@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.276 1998/11/08 12:39:04 dfr Exp $
+ *  $Id: syscons.c,v 1.277 1998/11/15 18:25:17 dfr Exp $
  *  from: i386/isa syscons.c,v 1.278
  */
 

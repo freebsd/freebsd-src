@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: iicbb.c,v 1.2 1998/11/04 22:07:24 nsouch Exp $
+ *	$Id: iicbb.c,v 1.2.2.1 1999/01/26 23:19:50 roger Exp $
  *
  */
 

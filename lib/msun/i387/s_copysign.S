@@ -35,7 +35,7 @@
 
 #include <machine/asm.h>
 
-RCSID("$Id: s_copysign.S,v 1.4 1997/02/22 15:08:55 peter Exp $")
+RCSID("$Id: s_copysign.S,v 1.5 1997/03/09 14:00:45 bde Exp $")
 
 ENTRY(copysign)
 	movl	16(%esp),%edx

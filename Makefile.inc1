@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile.inc1,v 1.59.2.1 1999/02/02 03:12:57 jkh Exp $
+#	$Id: Makefile.inc1,v 1.59.2.2 1999/02/14 14:09:43 des Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include

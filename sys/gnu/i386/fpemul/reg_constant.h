@@ -54,7 +54,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- *    $Id$
+ *    $Id: reg_constant.h,v 1.6 1997/02/22 09:29:21 peter Exp $
  *
  */
 

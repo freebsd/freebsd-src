@@ -29,7 +29,7 @@
  *
  *	BSDI dos.h,v 2.2 1996/04/08 19:32:28 bostic Exp
  *
- * $Id: dos.h,v 1.7 1996/09/23 09:59:24 miff Exp $
+ * $Id: dos.h,v 1.1 1997/08/09 01:43:08 dyson Exp $
  */
 
 /*

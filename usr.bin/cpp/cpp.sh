@@ -36,7 +36,7 @@
 # SUCH DAMAGE.
 #
 #	From: @(#)cpp.sh	8.1 (Berkeley) 6/6/93
-#	$Id$
+#	$Id: cpp.sh,v 1.6 1997/02/22 19:54:47 peter Exp $
 #
 # Transitional front end to CCCP to make it behave like (Reiser) CCP:
 #	specifies -traditional

@@ -27,7 +27,7 @@
  *	i4b daemon - main program entry
  *	-------------------------------
  *
- *	$Id: main.c,v 1.29 1998/12/05 18:03:26 hm Exp $ 
+ *	$Id: main.c,v 1.1 1998/12/27 21:47:01 phk Exp $ 
  *
  *      last edit-date: [Sat Dec  5 18:10:38 1998]
  *

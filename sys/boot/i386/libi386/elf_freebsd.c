@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: elf_freebsd.c,v 1.5 1998/10/04 20:58:46 msmith Exp $
+ *	$Id: elf_freebsd.c,v 1.6 1998/10/09 23:22:30 peter Exp $
  */
 
 #include <sys/param.h>

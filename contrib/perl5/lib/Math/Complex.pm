@@ -14,7 +14,7 @@ use vars qw($VERSION @ISA @EXPORT %EXPORT_TAGS);
 
 my ( $i, $ip2, %logn );
 
-$VERSION = sprintf("%s", q$Id: Complex.pm,v 1.25 1998/02/05 16:07:37 jhi Exp $ =~ /(\d+\.\d+)/);
+$VERSION = sprintf("%s", q$Id: Complex.pm,v 1.1.1.1 1998/09/09 06:59:55 markm Exp $ =~ /(\d+\.\d+)/);
 
 @ISA = qw(Exporter);
 

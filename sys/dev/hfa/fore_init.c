@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: fore_init.c,v 1.3 1998/10/31 20:06:53 phk Exp $
+ *	@(#) $Id: fore_init.c,v 1.4 1998/12/04 22:54:45 archie Exp $
  *
  */
 
@@ -38,7 +38,7 @@
 #include <dev/hfa/fore_include.h>
 
 #ifndef lint
-__RCSID("@(#) $Id: fore_init.c,v 1.3 1998/10/31 20:06:53 phk Exp $");
+__RCSID("@(#) $Id: fore_init.c,v 1.4 1998/12/04 22:54:45 archie Exp $");
 #endif
 
 

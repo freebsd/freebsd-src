@@ -45,7 +45,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)uucpd.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-	"$Id: uucpd.c,v 1.14 1997/12/04 07:20:45 charnier Exp $";
+	"$Id: uucpd.c,v 1.15 1998/06/30 15:19:51 bde Exp $";
 #endif /* not lint */
 
 /*

@@ -1,6 +1,6 @@
 =head1 NAME
 
-perlfaq2 - Obtaining and Learning about Perl ($Revision: 1.25 $, $Date: 1998/08/05 11:47:25 $)
+perlfaq2 - Obtaining and Learning about Perl ($Revision: 1.1.1.1 $, $Date: 1998/09/09 06:59:57 $)
 
 =head1 DESCRIPTION
 

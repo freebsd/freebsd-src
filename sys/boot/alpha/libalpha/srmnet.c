@@ -1,5 +1,5 @@
 /* 
- * $Id$
+ * $Id: srmnet.c,v 1.1.1.1 1998/08/21 03:17:42 msmith Exp $
  * From: $NetBSD: if_prom.c,v 1.10 1997/09/06 14:08:33 drochner Exp $ 
  */
 

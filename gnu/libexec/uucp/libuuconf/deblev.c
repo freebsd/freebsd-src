@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_deblev_rcsid[] = "$Id$";
+const char _uuconf_deblev_rcsid[] = "$Id: deblev.c,v 1.5 1997/02/22 15:27:27 peter Exp $";
 #endif
 
 /* Get the UUCP debugging level.  */

@@ -13,7 +13,7 @@
 # purpose.
 #
 
-#	$Id: btxv86.s,v 1.1 1998/09/14 10:37:00 rnordier Exp $
+#	$Id: btxv86.s,v 1.2 1998/10/22 20:22:07 msmith Exp $
 
 #
 # BTX V86 interface.

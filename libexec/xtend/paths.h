@@ -1,7 +1,7 @@
 /*
  * Pathnames for files used by xtend
  *
- *	$Id$
+ *	$Id: paths.h,v 1.5 1997/02/22 14:22:42 peter Exp $
  */
 
 #define X10DIR		"/var/spool/xten"

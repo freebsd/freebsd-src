@@ -1,7 +1,7 @@
 /*
  * getif.c : get an interface structure
  *
- *	$Id$
+ *	$Id: getif.c,v 1.6 1997/02/22 14:21:05 peter Exp $
  */
 
 #include <sys/types.h>

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_linker.c,v 1.20 1999/01/19 16:26:32 peter Exp $
+ *	$Id: kern_linker.c,v 1.21 1999/01/19 22:26:46 peter Exp $
  */
 
 #include "opt_ddb.h"

@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.1 1998/07/16 23:21:59 abial Exp $
+#	$Id: Makefile,v 1.1.1.1 1998/08/27 17:38:45 abial Exp $
 #
 PROG=sps
 SRCS= 	sps.c

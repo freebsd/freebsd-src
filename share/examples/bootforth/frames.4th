@@ -1,6 +1,6 @@
 \ Words implementing frame drawing
 \ XXX Filled boxes are left as an exercise for the reader... ;-/
-\ $Id$
+\ $Id: frames.4th,v 1.1 1998/12/22 12:15:45 abial Exp $
 
 marker task-frames.4th
 

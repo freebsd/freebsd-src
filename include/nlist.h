@@ -37,7 +37,7 @@
  *
  *	@(#)nlist.h	8.2 (Berkeley) 1/21/94
  *
- *	$Id: nlist.h,v 1.5 1997/02/23 09:17:14 peter Exp $
+ *	$Id: nlist.h,v 1.6 1997/12/06 17:59:52 jdp Exp $
  */
 
 #ifndef _NLIST_H_

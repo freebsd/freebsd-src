@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aicasm.h,v 1.3 1997/06/27 19:38:47 gibbs Exp $
+ *      $Id: aicasm.h,v 1.4 1998/09/15 07:24:17 gibbs Exp $
  */
 
 #include <sys/queue.h>

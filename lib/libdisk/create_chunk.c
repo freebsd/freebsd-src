@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: create_chunk.c,v 1.33 1999/01/08 00:32:19 jkh Exp $
+ * $Id: create_chunk.c,v 1.34 1999/01/14 21:48:13 phk Exp $
  *
  */
 

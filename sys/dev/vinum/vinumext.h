@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumext.h,v 1.18 1999/01/15 02:41:16 grog Exp grog $
+ * $Id: vinumext.h,v 1.6.2.1 1999/01/29 01:13:41 grog Exp $
  */
 
 /* vinumext.h: external definitions */

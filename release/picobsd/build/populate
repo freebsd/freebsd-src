@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-#	$Id: populate,v 1.8.2.1 1999/02/05 12:15:00 abial Exp $
+#	$Id: populate,v 1.8.2.2 1999/02/15 00:29:51 abial Exp $
 #
 
 . ../Version

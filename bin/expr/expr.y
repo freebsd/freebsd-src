@@ -4,7 +4,7 @@
  *
  * Largely rewritten by J.T. Conklin (jtc@wimsey.com)
  *
- * $Id$
+ * $Id: expr.y,v 1.13 1997/02/22 14:03:38 peter Exp $
  */
 
 #include <stdio.h>

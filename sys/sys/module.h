@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: module.h,v 1.5 1998/11/14 21:58:41 wollman Exp $
+ *	$Id: module.h,v 1.6 1999/01/09 14:59:49 dfr Exp $
  */
 
 #ifndef _SYS_MODULE_H_

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cpufunc.h,v 1.84 1999/01/08 19:51:02 bde Exp $
+ *	$Id: cpufunc.h,v 1.85 1999/01/09 13:00:27 bde Exp $
  */
 
 /*

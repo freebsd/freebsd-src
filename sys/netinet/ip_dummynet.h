@@ -10,7 +10,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_dummynet.h,v 1.3 1999/01/23 23:59:50 archie Exp $
+ *	$Id: ip_dummynet.h,v 1.2.2.1 1999/01/25 19:19:28 archie Exp $
  */
 
 #ifndef _IP_DUMMYNET_H

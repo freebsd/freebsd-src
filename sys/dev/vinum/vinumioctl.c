@@ -37,7 +37,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumioctl.c,v 1.7 1999/01/18 03:36:17 grog Exp grog $
+ * $Id: vinumioctl.c,v 1.6.2.2 1999/01/29 01:13:42 grog Exp $
  */
 
 #define STATIC						    /* nothing while we're testing XXX */

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kern_conf.c,v 1.28 1998/10/25 17:44:50 phk Exp $
+ * $Id: kern_conf.c,v 1.29 1998/11/14 21:58:51 wollman Exp $
  */
 
 #include <sys/param.h>

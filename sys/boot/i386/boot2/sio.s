@@ -13,7 +13,7 @@
 # purpose.
 #
 
-#	$Id: sio.s,v 1.2 1998/10/20 20:20:48 rnordier Exp $
+#	$Id: sio.s,v 1.3 1999/01/10 14:48:03 rnordier Exp $
 
 		.set SIO_PRT,SIOPRT		# Base port
 		.set SIO_FMT,SIOFMT		# 8N1

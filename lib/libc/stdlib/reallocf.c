@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id:$
+ *	$Id: reallocf.c,v 1.2 1998/09/16 03:16:06 imp Exp $
  */
 #include <stdlib.h>
 

@@ -1,7 +1,7 @@
 /*
 ** No copyright?!
 **
-** $Id: timer.c,v 1.3 1996/09/22 15:42:59 miff Exp $
+** $Id: timer.c,v 1.1 1997/08/09 01:42:56 dyson Exp $
 */
 #include "doscmd.h"
 

@@ -1,4 +1,4 @@
-#	$Id: options.pc98,v 1.77 1999/01/04 08:09:15 kato Exp $
+#	$Id: options.pc98,v 1.78 1999/01/18 08:38:07 kato Exp $
 
 DISABLE_PSE
 IDE_DELAY

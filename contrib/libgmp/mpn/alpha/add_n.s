@@ -1,4 +1,4 @@
-/* $Id$
+/* $Id: add_n.s,v 1.2 1998/03/08 21:08:53 jb Exp $
  # Alpha __mpn_add_n -- Add two limb vectors of the same length > 0 and
  # store sum in a third limb vector.
 

@@ -1,4 +1,4 @@
-#	$Id:$
+#	$Id: ftpusers,v 1.4 1998/09/02 01:34:55 brian Exp $
 #
 # list of users disallowed any ftp access.
 # read by ftpd(8).

@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: ibcs2_sysvec.c,v 1.14 1999/02/04 21:21:38 newton Exp $
+ * $Id: ibcs2_sysvec.c,v 1.13.2.1 1999/02/08 01:27:18 newton Exp $
  */
 
 #include <sys/param.h>

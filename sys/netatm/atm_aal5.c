@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: atm_aal5.c,v 1.3 1998/10/31 20:06:54 phk Exp $
+ *	@(#) $Id: atm_aal5.c,v 1.4 1998/12/11 21:47:21 phk Exp $
  *
  */
 
@@ -39,7 +39,7 @@
 #include <sys/stat.h>
 
 #ifndef lint
-__RCSID("@(#) $Id: atm_aal5.c,v 1.3 1998/10/31 20:06:54 phk Exp $");
+__RCSID("@(#) $Id: atm_aal5.c,v 1.4 1998/12/11 21:47:21 phk Exp $");
 #endif
 
 

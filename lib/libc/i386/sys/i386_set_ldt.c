@@ -25,11 +25,11 @@
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: i386_set_ldt.c,v 1.5 1997/02/22 14:59:32 peter Exp $
  */
 
 #if defined(LIBC_RCS) && !defined(lint)
-static const char rcsid[] = "$Id$";
+static const char rcsid[] = "$Id: i386_set_ldt.c,v 1.5 1997/02/22 14:59:32 peter Exp $";
 #endif /* LIBC_RCS and not lint */
 
 #include <sys/cdefs.h>

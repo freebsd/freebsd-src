@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)disklabel.h	8.2 (Berkeley) 7/10/94
- * $Id: disklabel.h,v 1.35 1998/08/24 08:45:37 dfr Exp $
+ * $Id: disklabel.h,v 1.36 1999/01/03 07:38:58 jkh Exp $
  */
 
 #ifndef	_SYS_DISKLABEL_H_

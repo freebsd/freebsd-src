@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: dialup.pl,v 1.1.1.1 1998/08/27 17:38:42 abial Exp $
+# $Id: dialup.pl,v 1.2 1999/01/19 23:09:15 abial Exp $
 set_resolv() {
 	echo "[H[J"
 	echo "[1m                       Domy¶lna Nazwa Domeny[m"

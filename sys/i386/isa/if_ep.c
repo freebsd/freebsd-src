@@ -38,7 +38,7 @@
  */
 
 /*
- *  $Id: if_ep.c,v 1.77 1998/10/22 05:58:39 bde Exp $
+ *  $Id: if_ep.c,v 1.78 1999/01/19 00:21:39 peter Exp $
  *
  *  Promiscuous mode added and interrupt logic slightly changed
  *  to reduce the number of adapter failures. Transceiver select

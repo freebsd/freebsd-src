@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)unistd.h	8.2 (Berkeley) 1/7/94
- * $Id: unistd.h,v 1.18 1998/12/19 02:55:34 julian Exp $
+ * $Id: unistd.h,v 1.19 1999/01/07 21:23:47 julian Exp $
  */
 
 #ifndef _SYS_UNISTD_H_

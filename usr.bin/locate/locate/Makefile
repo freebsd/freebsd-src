@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/6/93
-#	$Id$
+#	$Id: Makefile,v 1.10 1997/12/17 19:49:09 bde Exp $
 
 PROG=	locate
 SRCS=	util.c locate.c

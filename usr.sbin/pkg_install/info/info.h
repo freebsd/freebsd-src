@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: info.h,v 1.10 1997/02/22 16:09:40 peter Exp $ */
 
 /*
  * FreeBSD install - a package for the installation and maintainance

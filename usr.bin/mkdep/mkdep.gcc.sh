@@ -32,7 +32,7 @@
 # SUCH DAMAGE.
 #
 #	@(#)mkdep.gcc.sh	8.1 (Berkeley) 6/6/93
-#	$Id: mkdep.gcc.sh,v 1.14 1998/08/24 10:16:39 cracauer Exp $
+#	$Id: mkdep.gcc.sh,v 1.17 1998/09/13 09:39:39 obrien Exp $
 
 D=.depend			# default dependency file is .depend
 append=0

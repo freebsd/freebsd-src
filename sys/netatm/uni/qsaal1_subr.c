@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: qsaal1_subr.c,v 1.1 1998/09/15 08:23:06 phk Exp $
+ *	@(#) $Id: qsaal1_subr.c,v 1.2 1998/10/31 20:07:00 phk Exp $
  *
  */
 
@@ -44,7 +44,7 @@
 #include <netatm/uni/sscop_var.h>
 
 #ifndef lint
-__RCSID("@(#) $Id: qsaal1_subr.c,v 1.1 1998/09/15 08:23:06 phk Exp $");
+__RCSID("@(#) $Id: qsaal1_subr.c,v 1.2 1998/10/31 20:07:00 phk Exp $");
 #endif
 
 

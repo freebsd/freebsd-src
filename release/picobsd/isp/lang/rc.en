@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: rc.en,v 1.4 1999/01/12 14:09:20 asami Exp $
+# $Id: rc.en,v 1.5 1999/01/19 23:11:50 abial Exp $
 ############################################
 ### Special setup for one floppy PICOBSD ###
 ### THIS IS NOT THE NORMAL /etc/rc !!!!! ###

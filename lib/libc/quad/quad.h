@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)quad.h	8.1 (Berkeley) 6/4/93
- *	$Id$
+ *	$Id: quad.h,v 1.4 1997/02/22 15:00:56 peter Exp $
  */
 
 /*

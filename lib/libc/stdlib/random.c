@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: random.c,v 1.9 1997/06/14 00:13:56 ache Exp $
+ * $Id: random.c,v 1.10 1997/06/15 18:23:19 ache Exp $
  *
  */
 

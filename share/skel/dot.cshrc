@@ -1,4 +1,4 @@
-#	$Id: dot.cshrc,v 1.8 1997/09/26 08:28:29 joerg Exp $
+#	$Id: dot.cshrc,v 1.9 1998/09/02 14:10:22 bde Exp $
 #
 # .cshrc - csh resource script, read at beginning 
 #	   of execution by each shell

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ns_error.c	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: ns_error.c,v 1.8 1997/02/22 09:42:16 peter Exp $
  */
 
 #include <sys/param.h>

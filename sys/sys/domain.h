@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)domain.h	8.1 (Berkeley) 6/2/93
- * $Id: domain.h,v 1.10 1997/11/18 06:48:43 bde Exp $
+ * $Id: domain.h,v 1.11 1999/01/21 00:26:39 julian Exp $
  */
 
 #ifndef _SYS_DOMAIN_H_

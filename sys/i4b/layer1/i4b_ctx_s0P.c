@@ -27,7 +27,7 @@
  *	isic - I4B Siemens ISDN Chipset Driver for Creatix PnP cards
  *	============================================================
  *
- *	$Id: i4b_ctx_s0P.c,v 1.17 1998/12/16 09:32:50 hm Exp $ 
+ *	$Id: i4b_ctx_s0P.c,v 1.1 1998/12/27 21:46:44 phk Exp $ 
  *
  *      last edit-date: [Mon Dec 14 17:26:30 1998]
  *

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: devicename.c,v 1.2 1998/08/22 10:31:01 dfr Exp $
+ *	$Id: devicename.c,v 1.3 1998/09/26 10:51:37 dfr Exp $
  */
 
 #include <stand.h>

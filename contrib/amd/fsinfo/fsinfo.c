@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: fsinfo.c,v 1.2 1998/08/23 22:52:08 obrien Exp $
+ * $Id: fsinfo.c,v 1.3 1999/01/13 20:03:58 obrien Exp $
  *
  */
 

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ppb_1284.h,v 1.3 1998/09/13 18:26:26 nsouch Exp $
+ *	$Id: ppb_1284.h,v 1.4 1999/01/10 12:04:54 nsouch Exp $
  *
  */
 #ifndef __1284_H

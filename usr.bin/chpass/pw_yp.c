@@ -35,7 +35,7 @@
  * Center for Telecommunications Research
  * Columbia University, New York City
  *
- *	$Id: pw_yp.c,v 1.12 1997/12/18 15:27:43 bde Exp $
+ *	$Id: pw_yp.c,v 1.13 1998/10/17 14:08:12 bde Exp $
  */
 
 #ifdef YP

@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: autil.c,v 1.2 1998/12/27 06:24:46 ezk Exp $
+ * $Id: autil.c,v 1.1.1.2 1999/01/13 19:20:56 obrien Exp $
  *
  */
 

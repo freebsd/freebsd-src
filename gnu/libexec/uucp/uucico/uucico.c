@@ -26,7 +26,7 @@
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char uucico_rcsid[] = "$Id$";
+const char uucico_rcsid[] = "$Id: uucico.c,v 1.8 1997/02/22 15:28:33 peter Exp $";
 #endif
 
 #include <ctype.h>

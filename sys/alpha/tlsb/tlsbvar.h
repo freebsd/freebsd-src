@@ -1,4 +1,4 @@
-/* $Id: tlsbvar.h,v 1.1 1998/06/10 10:55:58 dfr Exp $ */
+/* $Id: tlsbvar.h,v 1.2 1998/06/14 13:45:27 dfr Exp $ */
 /* $NetBSD: tlsbvar.h,v 1.5 1998/05/13 23:23:23 thorpej Exp $ */
 
 /*

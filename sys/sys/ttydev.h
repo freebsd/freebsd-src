@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ttydev.h	8.2 (Berkeley) 1/4/94
- * $Id$
+ * $Id: ttydev.h,v 1.6 1997/02/22 09:46:17 peter Exp $
  */
 
 /* COMPATIBILITY HEADER FILE */

@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: smp.h,v 1.43 1998/05/17 22:12:05 tegge Exp $
+ * $Id: smp.h,v 1.44 1998/09/06 22:41:40 tegge Exp $
  *
  */
 

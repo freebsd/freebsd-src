@@ -19,7 +19,7 @@
  *          Steven Wallace  <swallace@freebsd.org>
  *          Wolfram Schneider <wosch@FreeBSD.org>
  *
- * $Id: machine.c,v 1.17 1998/11/26 12:59:21 bde Exp $
+ * $Id: machine.c,v 1.18 1999/01/09 20:25:02 obrien Exp $
  */
 
 

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: bus_memio.h,v 1.1 1998/09/16 08:22:57 dfr Exp $
  */
 
 #ifndef _ALPHA_BUS_MEMIO_H_

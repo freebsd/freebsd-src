@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: ahareg.h,v 1.4 1998/11/10 06:44:42 gibbs Exp $
+ *      $Id: ahareg.h,v 1.5 1999/01/20 06:21:27 imp Exp $
  */
 
 #ifndef _AHAREG_H_

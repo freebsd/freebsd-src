@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: pcm86.c,v 1.5 1998/12/04 22:54:50 archie Exp $
+ * $Id: pcm86.c,v 1.7 1999/01/01 08:18:06 peter Exp $
  */
 
 /*

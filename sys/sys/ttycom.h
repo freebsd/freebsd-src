@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ttycom.h	8.1 (Berkeley) 3/28/94
- * $Id: ttycom.h,v 1.12 1997/02/22 09:46:14 peter Exp $
+ * $Id: ttycom.h,v 1.13 1998/12/29 13:06:54 phk Exp $
  */
 
 #ifndef	_SYS_TTYCOM_H_

@@ -27,7 +27,7 @@
  *	i4b_q931.c - Q931 received messages handling
  *	--------------------------------------------
  *
- *	$Id: i4b_q931.c,v 1.18 1998/12/05 18:05:38 hm Exp $ 
+ *	$Id: i4b_q931.c,v 1.1 1998/12/27 21:46:52 phk Exp $ 
  *
  *      last edit-date: [Sat Dec  5 18:33:36 1998]
  *

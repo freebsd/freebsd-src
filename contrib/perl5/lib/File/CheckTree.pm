@@ -44,7 +44,7 @@ The routine returns the number of warnings issued.
 @ISA = qw(Exporter);
 @EXPORT = qw(validate);
 
-# $RCSfile: validate.pl,v $$Revision: 4.1 $$Date: 92/08/07 18:24:19 $
+# $RCSfile: CheckTree.pm,v $$Revision: 1.1.1.1 $$Date: 1998/09/09 06:59:55 $
 
 # The validate routine takes a single multiline string consisting of
 # lines containing a filename plus a file test to try on it.  (The

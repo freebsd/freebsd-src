@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: unisig_sigmgr_state.c,v 1.3 1998/10/31 20:07:01 phk Exp $
+ *	@(#) $Id: unisig_sigmgr_state.c,v 1.4 1999/01/19 23:14:51 mks Exp $
  *
  */
 
@@ -47,7 +47,7 @@
 #include <netatm/uni/sscf_uni.h>
 
 #ifndef lint
-__RCSID("@(#) $Id: unisig_sigmgr_state.c,v 1.3 1998/10/31 20:07:01 phk Exp $");
+__RCSID("@(#) $Id: unisig_sigmgr_state.c,v 1.4 1999/01/19 23:14:51 mks Exp $");
 #endif
 
 

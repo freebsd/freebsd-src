@@ -20,7 +20,7 @@
 # along with GNU GNATS; see the file COPYING.  If not, write to
 # the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
 #
-# $Id: send-pr.sh,v 1.8 1997/02/22 15:48:14 peter Exp $
+# $Id: send-pr.sh,v 1.9 1997/06/07 23:46:48 paul Exp $
 
 # The version of this send-pr.
 VERSION=3.2

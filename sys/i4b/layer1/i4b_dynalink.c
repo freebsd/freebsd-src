@@ -33,7 +33,7 @@
  *	isdn4bsd layer1 driver for Dynalink IS64PH isdn TA
  *	==================================================
  *
- *	$Id: i4b_dynalink.c,v 1.8 1998/12/17 04:55:38 hm Exp $
+ *	$Id: i4b_dynalink.c,v 1.1 1998/12/27 21:46:44 phk Exp $
  *
  *      last edit-date: [Thu Dec 17 05:50:39 1998]
  *

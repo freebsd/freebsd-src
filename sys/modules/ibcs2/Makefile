@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.22 1998/11/11 07:04:10 peter Exp $
+#	$Id: Makefile,v 1.23 1998/11/12 00:37:38 jkh Exp $
 
 .PATH:	${.CURDIR}/../../i386/ibcs2
 KMOD=	ibcs2

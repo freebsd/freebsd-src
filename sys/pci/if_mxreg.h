@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_mxreg.h,v 1.12 1998/12/04 21:34:33 wpaul Exp $
+ *	$Id: if_mxreg.h,v 1.2 1998/12/04 21:48:12 wpaul Exp $
  */
 
 /*

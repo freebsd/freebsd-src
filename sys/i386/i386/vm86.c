@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: vm86.c,v 1.18 1998/09/29 22:06:33 ache Exp $
+ *	$Id: vm86.c,v 1.19 1998/12/07 21:58:19 archie Exp $
  */
 
 #include "opt_vm86.h"

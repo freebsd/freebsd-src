@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *	$Id: scsi_all.h,v 1.5 1998/10/15 19:08:58 ken Exp $
+ *	$Id: scsi_all.h,v 1.6 1998/12/05 22:10:14 mjacob Exp $
  */
 
 /*

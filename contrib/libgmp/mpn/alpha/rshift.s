@@ -1,4 +1,4 @@
-/* $Id$
+/* $Id: rshift.s,v 1.2 1998/03/08 21:08:58 jb Exp $
  # Alpha 21064 __mpn_rshift --
 
  # Copyright (C) 1994, 1995 Free Software Foundation, Inc.

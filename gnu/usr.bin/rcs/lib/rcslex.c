@@ -168,7 +168,7 @@ Report problems and direct all questions to:
 
 #include "rcsbase.h"
 
-libId(lexId, "$Id$")
+libId(lexId, "$Id: rcslex.c,v 1.7 1997/02/22 15:47:39 peter Exp $")
 
 static char *checkidentifier P((char*,int,int));
 static void errsay P((char const*));

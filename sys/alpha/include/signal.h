@@ -1,4 +1,4 @@
-/* $Id: signal.h,v 1.1 1998/01/10 10:13:16 jb Exp $ */
+/* $Id: signal.h,v 1.2 1998/11/18 23:51:40 dfr Exp $ */
 /* From: NetBSD: signal.h,v 1.3 1997/04/06 08:47:43 cgd Exp */
 
 /*

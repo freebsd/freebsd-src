@@ -11,7 +11,7 @@
  * In return you should think about all the nice people who give away software.
  * Maybe you should write some free software too.
  *
- * $Id$
+ * $Id: ctm_smail.c,v 1.11 1997/02/22 16:05:42 peter Exp $
  */
 
 #include <stdio.h>

@@ -37,9 +37,12 @@ $Config{startperl}
 
 print OUT <<'!NO!SUBS!';
 
-# $RCSfile: s2p.SH,v $$Revision: 4.1 $$Date: 92/08/07 18:29:23 $
+# $RCSfile: s2p.PL,v $$Revision: 1.1.1.1 $$Date: 1998/09/09 07:00:04 $
 #
-# $Log:	s2p.SH,v $
+# $Log: s2p.PL,v $
+# Revision 1.1.1.1  1998/09/09 07:00:04  markm
+# Initial import of Perl5. The king is dead; long live the king!
+#
 
 =head1 NAME
 

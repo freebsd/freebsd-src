@@ -11,7 +11,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: e_asin.c,v 1.6 1997/02/22 15:09:57 peter Exp $";
+static char rcsid[] = "$Id: e_asin.c,v 1.7 1997/03/09 16:29:19 bde Exp $";
 #endif
 
 /* __ieee754_asin(x)

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_fork.c	8.6 (Berkeley) 4/8/94
- * $Id: kern_fork.c,v 1.54 1999/01/07 21:23:42 julian Exp $
+ * $Id: kern_fork.c,v 1.54.2.1 1999/01/27 20:51:41 julian Exp $
  */
 
 #include "opt_ktrace.h"

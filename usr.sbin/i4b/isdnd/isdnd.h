@@ -27,7 +27,7 @@
  *	i4b daemon - main header file
  *	-----------------------------
  *
- *	$Id: isdnd.h,v 1.56 1998/12/16 13:39:46 hm Exp $ 
+ *	$Id: isdnd.h,v 1.1 1998/12/27 21:47:01 phk Exp $ 
  *
  *      last edit-date: [Mon Dec 14 10:06:39 1998]
  *

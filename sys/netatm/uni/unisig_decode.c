@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: unisig_decode.c,v 1.2 1998/09/17 09:35:02 phk Exp $
+ *	@(#) $Id: unisig_decode.c,v 1.3 1998/10/31 20:07:00 phk Exp $
  *
  */
 
@@ -44,7 +44,7 @@
 #include <netatm/uni/unisig_decode.h>
 
 #ifndef lint
-__RCSID("@(#) $Id: unisig_decode.c,v 1.2 1998/09/17 09:35:02 phk Exp $");
+__RCSID("@(#) $Id: unisig_decode.c,v 1.3 1998/10/31 20:07:00 phk Exp $");
 #endif
 
 #define	ALLOC_IE(ie)						\

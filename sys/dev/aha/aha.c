@@ -55,7 +55,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aha.c,v 1.18 1998/12/22 22:31:06 imp Exp $
+ *      $Id: aha.c,v 1.19 1999/01/20 06:21:26 imp Exp $
  */
 
 #include "pnp.h"

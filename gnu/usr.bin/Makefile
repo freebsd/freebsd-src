@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.43 1998/09/09 06:01:11 markm Exp $
+#	$Id: Makefile,v 1.44 1998/09/09 19:30:45 markm Exp $
 
 SUBDIR= awk bc binutils bison cc cpio cvs dc dialog diff diff3 genclass gperf \
 	grep groff gzip man patch ptx rcs sdiff send-pr sort tar texinfo

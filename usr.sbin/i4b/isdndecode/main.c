@@ -27,7 +27,7 @@
  *	main.c - isdndecode main program file
  *	-------------------------------------
  *
- *	$Id: main.c,v 1.6 1998/12/18 17:09:38 hm Exp $
+ *	$Id: main.c,v 1.1 1998/12/27 21:47:05 phk Exp $
  *
  *      last edit-date: [Fri Dec 18 18:12:52 1998]
  *

@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)qsort.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: qsort.c,v 1.7 1997/02/22 15:03:14 peter Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <stdlib.h>

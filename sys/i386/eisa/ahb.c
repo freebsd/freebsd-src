@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ahb.c,v 1.4 1998/10/09 21:38:31 gibbs Exp $
+ *	$Id: ahb.c,v 1.4.2.1 1999/01/28 03:46:50 gibbs Exp $
  */
 
 #include "eisa.h"

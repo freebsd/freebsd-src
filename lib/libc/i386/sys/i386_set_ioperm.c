@@ -23,11 +23,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: i386_set_ioperm.c,v 1.1 1998/07/28 03:39:03 jlemon Exp $
+ *	$Id: i386_set_ioperm.c,v 1.2 1998/07/28 15:22:35 jlemon Exp $
  */
 
 #if defined(LIBC_RCS) && !defined(lint)
-static const char rcsid[] = "$Id: i386_set_ioperm.c,v 1.1 1998/07/28 03:39:03 jlemon Exp $";
+static const char rcsid[] = "$Id: i386_set_ioperm.c,v 1.2 1998/07/28 15:22:35 jlemon Exp $";
 #endif /* LIBC_RCS and not lint */
 
 #include <machine/sysarch.h>

@@ -1,5 +1,5 @@
 /* MD2.H - header file for MD2C.C
- * $Id: md2.h,v 1.6 1997/08/25 05:24:24 joerg Exp $
+ * $Id: md2.h,v 1.7 1998/03/27 10:21:42 phk Exp $
  */
 
 /* Copyright (C) 1990-2, RSA Data Security, Inc. Created 1990. All

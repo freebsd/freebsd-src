@@ -32,7 +32,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: yp_dnslookup.c,v 1.14 1998/06/09 05:06:27 imp Exp $";
+	"$Id: yp_dnslookup.c,v 1.15 1998/08/10 19:43:33 wpaul Exp $";
 #endif /* not lint */
 
 /*

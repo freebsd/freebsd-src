@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: iic.c,v 1.5 1998/12/07 21:58:16 archie Exp $
+ *	$Id: iic.c,v 1.6 1999/01/09 18:08:24 nsouch Exp $
  *
  */
 #include <sys/param.h>

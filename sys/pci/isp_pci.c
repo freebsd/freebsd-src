@@ -1,4 +1,4 @@
-/* $Id: isp_pci.c,v 1.12 1998/12/28 19:24:23 mjacob Exp $ */
+/* $Id: isp_pci.c,v 1.13 1999/01/10 02:45:51 mjacob Exp $ */
 /* release_12_28_98_A+ */
 /*
  * PCI specific probe and attach routines for Qlogic ISP SCSI adapters.

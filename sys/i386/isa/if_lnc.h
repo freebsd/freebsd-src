@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_lnc.h,v 1.10 1999/01/31 00:56:32 paul Exp $
+ * $Id: if_lnc.h,v 1.9.2.1 1999/01/31 00:57:46 paul Exp $
  */
 
 #include <i386/isa/ic/Am7990.h>

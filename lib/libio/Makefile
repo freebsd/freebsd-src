@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: Makefile,v 1.1 1998/12/12 18:05:06 dfr Exp $
 
 LIB=		io
 SHLIB_MAJOR=	1

@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: Makefile,v 1.6 1998/03/20 12:05:50 bde Exp $
 
 PROG=		refer
 SRCS=		command.cc label.cc ref.cc refer.cc token.cc

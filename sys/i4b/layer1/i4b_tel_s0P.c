@@ -38,7 +38,7 @@
  *		EXPERIMENTAL !!!
  *		================
  *
- *	$Id: i4b_tel_s0P.c,v 1.12 1998/12/13 09:52:34 hm Exp $ 
+ *	$Id: i4b_tel_s0P.c,v 1.1 1998/12/27 21:46:47 phk Exp $ 
  *
  *      last edit-date: [Thu Dec 10 07:11:15 1998]
  *

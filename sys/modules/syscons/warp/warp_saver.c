@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: warp_saver.c,v 1.3 1998/12/31 13:38:59 des Exp $
+ *	$Id: warp_saver.c,v 1.4 1999/01/11 03:18:55 yokota Exp $
  */
 
 #include <sys/param.h>

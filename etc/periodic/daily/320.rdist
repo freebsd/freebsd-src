@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $Id: 320.rdist,v 1.1.1.1 1997/08/16 17:04:00 pst Exp $
+# $Id: 320.rdist,v 1.2 1997/08/17 17:55:32 pst Exp $
 #
 
 if [ -f /etc/Distfile ]; then

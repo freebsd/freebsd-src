@@ -62,7 +62,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 /* from: static char sccsid[] = 	"@(#)svcauth_des.c	2.3 89/07/11 4.0 RPCSRC; from 1.15 88/02/08 SMI"; */
-static const char rcsid[] = "$Id$";
+static const char rcsid[] = "$Id: svc_auth_des.c,v 1.2 1997/05/28 05:05:25 wpaul Exp $";
 #endif
 
 #define debug(msg)	 printf("svcauth_des: %s\n", msg) 

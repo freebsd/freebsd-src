@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: getsecs.c,v 1.1.1.1 1998/08/21 03:17:42 msmith Exp $
  * From:	$NetBSD: getsecs.c,v 1.5 1998/01/05 07:02:49 perry Exp $	
  */
 

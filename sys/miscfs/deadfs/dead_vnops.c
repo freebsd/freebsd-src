@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)dead_vnops.c	8.1 (Berkeley) 6/10/93
- * $Id: dead_vnops.c,v 1.24 1998/08/23 11:43:29 bde Exp $
+ * $Id: dead_vnops.c,v 1.25 1998/11/22 09:19:07 bde Exp $
  */
 
 #include <sys/param.h>

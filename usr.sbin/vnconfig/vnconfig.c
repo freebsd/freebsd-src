@@ -43,7 +43,7 @@
 static char sccsid[] = "@(#)vnconfig.c	8.1 (Berkeley) 12/15/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: vnconfig.c,v 1.7 1997/10/27 07:55:31 charnier Exp $";
 #endif /* not lint */
 
 #include <err.h>

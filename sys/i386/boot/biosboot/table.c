@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:36:43  rpd
- *	$Id: table.c,v 1.16 1998/09/15 09:59:58 gibbs Exp $
+ *	$Id: table.c,v 1.17 1998/10/10 14:30:05 bde Exp $
  */
 
 /*

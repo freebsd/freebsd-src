@@ -1,5 +1,5 @@
 /*	$OpenBSD: if_tx.c,v 1.3 1998/10/10 04:30:09 jason Exp $	*/
-/*	$Id: if_tx.c,v 1.19 1998/12/09 01:12:18 eivind Exp $ */
+/*	$Id: if_tx.c,v 1.20 1998/12/14 06:32:56 dillon Exp $ */
 
 /*-
  * Copyright (c) 1997 Semen Ustimenko (semen@iclub.nsu.ru)

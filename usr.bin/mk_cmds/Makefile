@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.6 1998/05/04 20:09:03 bde Exp $
+#	$Id: Makefile,v 1.7 1998/05/05 13:16:24 bde Exp $
 
 PROG=	mk_cmds
 SRCS=	mk_cmds.c options.c utils.c ct.y cmd_tbl.l y.tab.h

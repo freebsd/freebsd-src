@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.5 1998/09/16 17:25:52 markm Exp $
+# $Id: Makefile,v 1.6 1998/09/22 12:00:59 markm Exp $
 #
 
 PROG=	a2p

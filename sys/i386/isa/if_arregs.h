@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: if_arregs.h,v 1.4 1997/02/22 09:36:18 peter Exp $
  */
 #ifndef _IF_ARREGS_H_
 #define _IF_ARREGS_H_

@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: shlib.c,v 1.20 1998/06/07 03:53:08 brian Exp $
+ *	$Id: shlib.c,v 1.21 1998/09/05 20:28:48 jdp Exp $
  */
 
 #include <sys/param.h>

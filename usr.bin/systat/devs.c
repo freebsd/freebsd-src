@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: devs.c,v 1.2 1998/09/20 00:11:23 ken Exp $
+ *	$Id: devs.c,v 1.3 1998/10/08 09:56:10 obrien Exp $
  */
 /*
  * Some code and ideas taken from the old disks.c.

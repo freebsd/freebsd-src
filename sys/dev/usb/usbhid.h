@@ -1,5 +1,5 @@
 /*	$NetBSD: usbhid.h,v 1.3 1998/12/26 12:53:04 augustss Exp $	*/
-/*	FreeBSD $Id$ */
+/*	FreeBSD $Id: usbhid.h,v 1.4 1999/01/07 23:31:46 n_hibma Exp $ */
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.

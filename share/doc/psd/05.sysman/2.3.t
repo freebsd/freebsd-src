@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)2.3.t	8.1 (Berkeley) 6/8/93
-.\"	$Id$
+.\"	$Id: 2.3.t,v 1.4 1997/02/22 13:04:23 peter Exp $
 .\"
 .sh "Interprocess communications
 .NH 3

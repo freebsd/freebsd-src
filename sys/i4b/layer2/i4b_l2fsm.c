@@ -27,7 +27,7 @@
  *	i4b_l2fsm.c - layer 2 FSM
  *	-------------------------
  *
- *	$Id: i4b_l2fsm.c,v 1.13 1998/12/05 18:05:11 hm Exp $ 
+ *	$Id: i4b_l2fsm.c,v 1.1 1998/12/27 21:46:49 phk Exp $ 
  *
  *      last edit-date: [Sat Dec  5 18:28:15 1998]
  *

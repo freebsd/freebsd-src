@@ -1,10 +1,13 @@
 #!./perl
 #
-# $Id: soundex.t,v 1.2 1994/03/24 00:30:27 mike Exp $
+# $Id: soundex.t,v 1.1.1.1 1998/09/09 07:00:02 markm Exp $
 #
 # test module for soundex.pl
 #
 # $Log: soundex.t,v $
+# Revision 1.1.1.1  1998/09/09 07:00:02  markm
+# Initial import of Perl5. The king is dead; long live the king!
+#
 # Revision 1.2  1994/03/24  00:30:27  mike
 # Subtle bug (any excuse :-) spotted by Rich Pinder <rpinder@hsc.usc.edu>
 # in the way I handles leasing characters which were different but had

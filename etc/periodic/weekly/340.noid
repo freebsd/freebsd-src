@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-# $Id$
+# $Id: 340.noid,v 1.1 1997/11/01 15:03:04 wosch Exp $
 
 exit 0		# do not run by default
 

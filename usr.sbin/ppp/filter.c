@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: filter.c,v 1.25 1998/06/27 12:03:48 brian Exp $
+ * $Id: filter.c,v 1.26 1998/10/22 02:32:48 brian Exp $
  *
  *	TODO: Shoud send ICMP error message when we discard packets.
  */

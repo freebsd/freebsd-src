@@ -1,4 +1,4 @@
-/* $Id: cpuconf.c,v 1.1 1998/06/10 10:52:18 dfr Exp $ */
+/* $Id: cpuconf.c,v 1.2 1998/08/10 07:53:58 dfr Exp $ */
 /*	$NetBSD: cpuconf.c,v 1.10 1998/03/20 21:48:21 thorpej Exp $	*/
 
 /*

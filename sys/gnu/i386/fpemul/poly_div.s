@@ -57,7 +57,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- *     $Id: poly_div.s,v 1.6 1997/02/22 09:29:16 peter Exp $
+ *     $Id: poly_div.s,v 1.7 1997/04/22 06:54:46 jdp Exp $
  *
  */
 

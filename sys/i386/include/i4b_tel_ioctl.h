@@ -27,7 +27,7 @@
  *	i4b_tel_ioctl.h telephony interface ioctls
  *	------------------------------------------
  *
- *	$Id: i4b_tel_ioctl.h,v 1.5 1998/12/14 10:31:58 hm Exp $ 
+ *	$Id: i4b_tel_ioctl.h,v 1.1 1998/12/27 21:46:57 phk Exp $ 
  *
  *      last edit-date: [Sat Dec  5 18:37:36 1998]
  *

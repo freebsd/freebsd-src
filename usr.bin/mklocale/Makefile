@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/7/93
-#	$Id: Makefile,v 1.18 1998/05/04 20:09:03 bde Exp $
+#	$Id: Makefile,v 1.19 1998/05/05 13:16:28 bde Exp $
 
 PROG=	mklocale
 SRCS=	yacc.y lex.l y.tab.h

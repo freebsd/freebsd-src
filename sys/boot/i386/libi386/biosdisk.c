@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: biosdisk.c,v 1.20.2.2 1999/01/24 17:24:34 msmith Exp $
+ *	$Id: biosdisk.c,v 1.20.2.3 1999/01/25 23:11:34 rnordier Exp $
  */
 
 /*

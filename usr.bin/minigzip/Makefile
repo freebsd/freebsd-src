@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.1.1.1 1997/12/13 09:57:48 msmith Exp $
+# $Id: Makefile,v 1.2 1997/12/13 15:57:55 bde Exp $
 
 PROG=	minigzip
 LDADD+=	-lz

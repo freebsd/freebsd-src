@@ -35,7 +35,7 @@
  *	trace.c - print traces of D (B) channel activity for isdn4bsd
  *	-------------------------------------------------------------
  *
- *	$Id: trace.c,v 1.10 1998/10/19 12:32:21 hm Exp $ 
+ *	$Id: trace.c,v 1.1 1998/12/27 21:47:10 phk Exp $ 
  *
  *      last edit-date: [Mon Oct 19 14:30:58 1998]
  *

@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: nfs_prot_xdr.c,v 1.1.1.1 1998/11/05 02:04:45 ezk Exp $
+ * $Id: nfs_prot_xdr.c,v 1.1.1.2 1999/01/13 19:20:30 obrien Exp $
  *
  */
 

@@ -1,5 +1,5 @@
 #
-# $Id$
+# $Id: Makefile,v 1.7 1997/02/22 15:42:58 peter Exp $
 #
 INFO = gmp
 INFOSECTION= "Programming & development tools."

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp.c,v 1.16 1998/09/04 18:25:59 brian Exp $
+ *	$Id: mp.c,v 1.17 1998/10/24 01:08:45 brian Exp $
  */
 
 #include <sys/types.h>

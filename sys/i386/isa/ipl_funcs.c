@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ipl_funcs.c,v 1.13 1998/02/01 22:04:58 bde Exp $
+ *	$Id: ipl_funcs.c,v 1.14 1998/12/07 21:58:22 archie Exp $
  */
 
 #include <sys/types.h>

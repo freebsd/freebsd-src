@@ -37,7 +37,7 @@
 static char sccsid[] = "@(#)gram.y	8.1 (Berkeley) 6/9/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: gram.y,v 1.5 1998/04/06 06:18:22 charnier Exp $";
 #endif /* not lint */
 
 #include "defs.h"

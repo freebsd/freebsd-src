@@ -1,4 +1,4 @@
-dnl @(#) $Header: acsite.m4,v 1.38 96/09/26 21:18:41 leres Exp $ (LBL)
+dnl @(#) $Header: /home/ncvs/src/contrib/traceroute/acsite.m4,v 1.1.1.1 1996/09/30 19:09:53 fenner Exp $ (LBL)
 dnl
 dnl Copyright (c) 1995, 1996
 dnl	The Regents of the University of California.  All rights reserved.

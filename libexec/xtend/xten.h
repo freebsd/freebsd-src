@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: xten.h,v 1.5 1997/02/22 14:22:43 peter Exp $
  */
 
 extern char *X10housenames[];

@@ -27,7 +27,7 @@
  *	i4b_isic.c - global isic stuff
  *	==============================
  *
- *	$Id: i4b_isic.c,v 1.44 1998/12/20 11:07:59 hm Exp $ 
+ *	$Id: i4b_isic.c,v 1.1 1998/12/27 21:46:45 phk Exp $ 
  *
  *      last edit-date: [Fri Dec 18 12:14:07 1998]
  *

@@ -11,7 +11,7 @@
 
 /*
  * from: @(#)fdlibm.h 5.1 93/09/24
- * $Id: math.h,v 1.5 1997/08/31 22:12:19 bde Exp $
+ * $Id: math.h,v 1.7 1998/04/23 04:44:08 pst Exp $
  */
 
 #ifndef _MATH_H_

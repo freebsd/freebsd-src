@@ -35,7 +35,7 @@
  *
  *	@(#)null.h	8.3 (Berkeley) 8/20/94
  *
- * $Id: null.h,v 1.7 1997/05/25 04:50:02 peter Exp $
+ * $Id: null.h,v 1.8 1997/09/07 05:26:04 bde Exp $
  */
 
 struct null_args {

@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: OSFpal.c,v 1.1.1.1 1998/08/21 03:17:42 msmith Exp $
  * From	$NetBSD: OSFpal.c,v 1.5 1998/06/24 01:33:19 ross Exp $ 
  */
 

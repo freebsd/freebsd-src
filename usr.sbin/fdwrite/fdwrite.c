@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: fdwrite.c,v 1.6 1997/02/22 16:05:49 peter Exp $
+ * $Id: fdwrite.c,v 1.7 1997/09/18 06:35:51 charnier Exp $
  *
  */
 

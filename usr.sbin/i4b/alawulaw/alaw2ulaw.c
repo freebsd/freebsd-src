@@ -30,7 +30,7 @@
  *
  *	last edit-date: [Sat Dec  5 17:57:56 1998]
  *
- *	$Id: alaw2ulaw.c,v 1.2 1998/12/05 18:02:36 hm Exp $
+ *	$Id: alaw2ulaw.c,v 1.1 1998/12/27 21:46:59 phk Exp $
  *
  *	-hm	telephony is ready
  *

@@ -144,7 +144,7 @@ static int sc_tokid;	/* scanner - token id */
 static int sc_tokplur;	/* scanner - is token plural? */
 
 static const char rcsid[] =
-	"$Id: parsetime.c,v 1.15 1998/08/30 17:33:05 steve Exp $";
+	"$Id: parsetime.c,v 1.16 1998/12/06 07:42:09 archie Exp $";
 
 /* Local functions */
 

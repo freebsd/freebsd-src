@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_disksubr.c	8.5 (Berkeley) 1/21/94
- * $Id: ufs_disksubr.c,v 1.38 1998/10/17 07:49:04 bde Exp $
+ * $Id: ufs_disksubr.c,v 1.39 1998/12/14 05:37:37 dillon Exp $
  */
 
 #include <sys/param.h>

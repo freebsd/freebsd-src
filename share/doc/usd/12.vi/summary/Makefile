@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.1 1997/03/02 14:07:46 wosch Exp $
+#	$Id: Makefile,v 1.2 1997/12/17 19:26:01 bde Exp $
 
 SRCS=	vi.summary
 DOC=	summary

@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pager.c,v 1.39 1998/10/31 15:31:29 peter Exp $
+ * $Id: vm_pager.c,v 1.40 1998/11/10 09:16:27 peter Exp $
  */
 
 /*

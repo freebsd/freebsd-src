@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * 	$Id$
+ * 	$Id: zopen.h,v 1.3 1997/02/22 19:54:46 peter Exp $
  */
 
 #ifndef _ZOPEN_H_

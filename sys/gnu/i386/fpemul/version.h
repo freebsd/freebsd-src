@@ -54,7 +54,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- *    $Id$
+ *    $Id: version.h,v 1.5 1997/02/22 09:29:28 peter Exp $
  *
  */
 

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: server.c,v 1.22 1998/06/27 14:18:10 brian Exp $
+ *	$Id: server.c,v 1.23 1998/08/02 13:01:16 brian Exp $
  */
 
 #include <sys/types.h>

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: subr_bus.c,v 1.13 1999/01/10 22:04:05 n_hibma Exp $
+ *	$Id: subr_bus.c,v 1.14 1999/01/16 17:44:09 dfr Exp $
  */
 
 #include <sys/param.h>

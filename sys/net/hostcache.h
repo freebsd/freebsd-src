@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: hostcache.h,v 1.1 1997/06/18 01:24:22 wollman Exp $
+ *	$Id: hostcache.h,v 1.2 1997/10/12 20:25:07 phk Exp $
  */
 
 #ifndef _NET_HOSTCACHE_H

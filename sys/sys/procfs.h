@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: procfs.h,v 1.1 1998/09/14 22:46:08 jdp Exp $
  */
 
 #ifndef _SYS_PROCFS_H_

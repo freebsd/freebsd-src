@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.8 (Berkeley) 7/28/90
-#	$Id: Makefile,v 1.8 1997/02/22 16:04:27 peter Exp $
+#	$Id: Makefile,v 1.9 1998/04/26 16:31:14 bde Exp $
 
 PROG=	callbootd
 SRCS=	callbootd.c ${GENSRCS}

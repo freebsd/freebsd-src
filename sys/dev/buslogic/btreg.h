@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: btreg.h,v 1.2 1998/10/30 02:06:44 gibbs Exp $
+ *      $Id: btreg.h,v 1.3 1998/11/10 06:44:50 gibbs Exp $
  */
 
 #ifndef _BTREG_H_

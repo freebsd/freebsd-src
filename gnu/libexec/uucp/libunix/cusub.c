@@ -26,7 +26,7 @@
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char cusub_rcsid[] = "$Id$";
+const char cusub_rcsid[] = "$Id: cusub.c,v 1.6 1997/02/22 15:27:08 peter Exp $";
 #endif
 
 #include "uudefs.h"

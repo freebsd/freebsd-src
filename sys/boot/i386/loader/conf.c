@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: conf.c,v 1.9 1998/10/22 20:23:58 msmith Exp $
+ *	$Id: conf.c,v 1.10 1998/10/23 22:29:19 msmith Exp $
  */
 
 #include <stand.h>

@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: atkbd_isa.c,v 1.1 1999/01/09 02:44:40 yokota Exp $
+ * $Id: atkbd_isa.c,v 1.2 1999/01/19 11:30:55 yokota Exp $
  */
 
 #include "atkbd.h"

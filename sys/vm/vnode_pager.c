@@ -38,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vnode_pager.c	7.5 (Berkeley) 4/20/91
- *	$Id: vnode_pager.c,v 1.100 1998/10/13 08:24:44 dg Exp $
+ *	$Id: vnode_pager.c,v 1.101 1998/12/04 18:39:44 rvb Exp $
  */
 
 /*

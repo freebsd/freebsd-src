@@ -1,5 +1,5 @@
 # BeOS hints file
-# $Id: beos.sh,v 1.1 1998/02/16 03:51:45 dogcow Exp $
+# $Id: beos.sh,v 1.1.1.1 1998/09/09 06:59:53 markm Exp $
 
 if [ ! -f beos/nm ]; then mwcc -w all -o beos/nm beos/nm.c; fi
 

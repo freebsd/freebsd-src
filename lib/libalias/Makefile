@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: Makefile,v 1.9 1998/08/31 12:14:30 brian Exp $
 
 LIB=		alias
 SHLIB_MAJOR=	2

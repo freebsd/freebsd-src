@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_file.c,v 1.22 1998/10/05 16:37:36 jfieber Exp $
+ *  $Id: linux_file.c,v 1.23 1999/01/10 23:15:35 eivind Exp $
  */
 
 #include "opt_compat.h"

@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.6 1997/02/22 15:45:03 peter Exp $
+# $Id: Makefile,v 1.7 1997/12/17 19:57:35 bde Exp $
 
 INFO = gcc cpp reno gxxint
 

@@ -1,7 +1,7 @@
 /*
  * Downloadable microcode for Advanced Systems Inc. SCSI controllers
  *
- *	$Id: advmcode.c,v 1.4 1998/09/15 07:03:33 gibbs Exp $
+ *	$Id: advmcode.c,v 1.5 1998/09/20 05:04:05 gibbs Exp $
  *
  * Obtained from:
  * advansys.c - Linux Host Driver for AdvanSys SCSI Adapters

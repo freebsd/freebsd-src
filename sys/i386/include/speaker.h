@@ -4,7 +4,7 @@
  * v1.4 by Eric S. Raymond (esr@snark.thyrsus.com) Aug 1993
  *      modified for FreeBSD by Andrew A. Chernov <ache@astral.msk.su>
  *
- * $Id$
+ * $Id: speaker.h,v 1.5 1997/02/22 09:35:14 peter Exp $
  */
 
 #ifndef	_MACHINE_SPEAKER_H_

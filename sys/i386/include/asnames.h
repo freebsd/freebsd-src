@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: asnames.h,v 1.26 1998/10/03 17:23:25 jdp Exp $
+ * $Id: asnames.h,v 1.26.2.1 1999/02/06 07:31:33 kato Exp $
  */
 
 #ifndef _MACHINE_ASNAMES_H_

@@ -1,5 +1,5 @@
 /*	$NetBSD: usbdivar.h,v 1.16 1999/01/08 11:58:26 augustss Exp $	*/
-/*	FreeBSD $Id: usbdivar.h,v 1.6 1999/01/07 23:31:45 n_hibma Exp $ */
+/*	FreeBSD $Id: usbdivar.h,v 1.7 1999/01/10 18:42:54 n_hibma Exp $ */
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.

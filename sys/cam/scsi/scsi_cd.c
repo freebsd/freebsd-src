@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_cd.c,v 1.13 1999/01/11 17:45:22 eivind Exp $
+ *      $Id: scsi_cd.c,v 1.14 1999/01/12 16:26:19 eivind Exp $
  */
 /*
  * Portions of this driver taken from the original FreeBSD cd driver.

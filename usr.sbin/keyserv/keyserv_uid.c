@@ -44,7 +44,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: keyserv_uid.c,v 1.2 1997/09/23 06:36:27 charnier Exp $";
 #endif
 
 /*

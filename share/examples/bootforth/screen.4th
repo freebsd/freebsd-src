@@ -1,5 +1,5 @@
 \ Screen manipulation related words.
-\ $Id$
+\ $Id: screen.4th,v 1.1 1998/12/22 12:15:45 abial Exp $
 
 marker task-screen.4th
 

@@ -24,7 +24,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: main.c,v 1.48 1998/11/08 23:18:48 des Exp $ */
+/* $Id: main.c,v 1.49 1998/12/08 13:00:49 cracauer Exp $ */
 
 #include <sys/types.h>
 

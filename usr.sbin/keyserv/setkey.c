@@ -32,7 +32,7 @@
 static char sccsid[] = "@(#)setkey.c	1.11	94/04/25 SMI";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: setkey.c,v 1.2 1997/09/23 06:36:27 charnier Exp $";
 #endif /* not lint */
 
 /*

@@ -1,6 +1,6 @@
 # Makefile for groff
 #
-# $Id$
+# $Id: Makefile,v 2.3 1997/02/22 15:45:41 peter Exp $
 
 SUBDIR=		libgroff libdriver libbib \
 		addftinfo eqn \

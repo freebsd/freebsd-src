@@ -1,4 +1,4 @@
-#	$Id: Makefile.inc,v 1.8 1998/04/29 11:03:34 jb Exp $
+#	$Id: Makefile.inc,v 1.9 1998/04/30 09:04:08 jb Exp $
 
 .PATH:	 ${.CURDIR}/sys ${.CURDIR}/arch/${MACHINE_ARCH}
 

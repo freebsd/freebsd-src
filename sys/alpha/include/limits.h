@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: limits.h,v 1.1 1998/01/10 10:13:15 jb Exp $ */
 /* From: NetBSD: limits.h,v 1.3 1997/04/06 08:47:31 cgd Exp */
 
 /*

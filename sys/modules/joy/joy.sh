@@ -1,4 +1,4 @@
 #!/bin/sh
-# $Id: joy,v 1.3 1997/02/22 12:48:17 peter Exp $
+# $Id: joy.sh,v 1.4 1998/11/05 04:19:26 peter Exp $
 
 kldload joy

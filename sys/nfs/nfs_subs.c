@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_subs.c  8.8 (Berkeley) 5/22/95
- * $Id: nfs_subs.c,v 1.69 1998/12/14 18:54:03 dt Exp $
+ * $Id: nfs_subs.c,v 1.70 1999/01/05 18:49:58 eivind Exp $
  */
 
 /*

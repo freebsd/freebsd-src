@@ -33,12 +33,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: modf.S,v 1.5 1997/02/22 14:58:39 peter Exp $
  */
 
 #if defined(LIBC_RCS) && !defined(lint)
 	.text
-	.asciz "$Id$"
+	.asciz "$Id: modf.S,v 1.5 1997/02/22 14:58:39 peter Exp $"
 #endif /* LIBC_RCS and not lint */
 
 /*

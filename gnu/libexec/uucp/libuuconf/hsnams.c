@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_hsnams_rcsid[] = "$Id$";
+const char _uuconf_hsnams_rcsid[] = "$Id: hsnams.c,v 1.6 1997/02/22 15:27:36 peter Exp $";
 #endif
 
 #include <errno.h>

@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: ipatm_vcm.c,v 1.2 1998/09/17 09:35:00 phk Exp $
+ *	@(#) $Id: ipatm_vcm.c,v 1.3 1998/10/31 20:06:55 phk Exp $
  *
  */
 
@@ -42,7 +42,7 @@
 #include <netatm/ipatm/ipatm_serv.h>
 
 #ifndef lint
-__RCSID("@(#) $Id: ipatm_vcm.c,v 1.2 1998/09/17 09:35:00 phk Exp $");
+__RCSID("@(#) $Id: ipatm_vcm.c,v 1.3 1998/10/31 20:06:55 phk Exp $");
 #endif
 
 

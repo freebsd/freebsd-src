@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.3 (Berkeley) 1/7/94
-#	$Id: Makefile,v 1.121 1998/11/09 11:08:48 dima Exp $
+#	$Id: Makefile,v 1.122 1998/11/10 12:19:26 bde Exp $
 
 # XXX MISSING:		deroff diction graph learn plot
 #			spell spline struct xsend

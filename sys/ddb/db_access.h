@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id$
+ *	$Id: db_access.h,v 1.8 1997/02/22 09:28:18 peter Exp $
  */
 
 #ifndef _DDB_DB_ACCESS_H_

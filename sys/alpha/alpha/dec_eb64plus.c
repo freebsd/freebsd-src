@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: dec_eb64plus.c,v 1.1 1999/01/18 20:18:49 gallatin Exp $ */
 
 /*
  * Copyright (c) 1995, 1996, 1997 Carnegie-Mellon University.

@@ -1,5 +1,5 @@
 /* MD4.H - header file for MD4C.C
- * $Id: md4.h,v 1.7 1997/08/25 05:24:24 joerg Exp $
+ * $Id: md4.h,v 1.8 1998/03/27 10:21:52 phk Exp $
  */
 
 /* Copyright (C) 1991-2, RSA Data Security, Inc. Created 1991. All

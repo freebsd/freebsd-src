@@ -20,7 +20,7 @@ along with GAS or GDB; see the file COPYING.	If not, write to
 the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.	*/
 
 /*
- * $Id$
+ * $Id: sparc.h,v 1.5 1997/02/22 15:44:31 peter Exp $
  */
 
  /* FIXME-someday: perhaps the ,a's and such should be embedded in the

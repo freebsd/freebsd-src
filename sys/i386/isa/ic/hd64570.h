@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: hd64570.h,v 1.5 1997/02/22 09:38:01 peter Exp $
  */
 #ifndef _HD64570_H_
 #define _HD64570_H_

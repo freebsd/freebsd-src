@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: pcb_ext.h,v 1.1 1997/08/09 04:55:05 dyson Exp $
  */
 
 #ifndef _I386_PCB_EXT_H_

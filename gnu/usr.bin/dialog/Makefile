@@ -1,5 +1,5 @@
 # Makefile for dialog
-# $Id$
+# $Id: Makefile,v 1.6 1997/02/22 15:45:23 peter Exp $
 
 PROG=   dialog
 MAN1=   dialog.1

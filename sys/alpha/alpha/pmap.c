@@ -43,7 +43,7 @@
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
  *	from:	i386 Id: pmap.c,v 1.193 1998/04/19 15:22:48 bde Exp
  *		with some ideas from NetBSD's alpha pmap
- *	$Id: pmap.c,v 1.11 1998/10/21 11:38:06 dg Exp $
+ *	$Id: pmap.c,v 1.12 1998/10/28 13:36:49 dg Exp $
  */
 
 /*

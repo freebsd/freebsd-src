@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: vpo.c,v 1.10 1999/01/09 18:05:46 nsouch Exp $
+ *	$Id: vpo.c,v 1.11 1999/01/10 12:04:55 nsouch Exp $
  *
  */
 

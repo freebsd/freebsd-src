@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.4 1997/09/27 19:37:22 gibbs Exp $
+#	$Id: Makefile,v 1.5 1999/01/17 19:56:02 peter Exp $
 
 PROG=	aicasm
 

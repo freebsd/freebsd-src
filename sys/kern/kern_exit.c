@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_exit.c	8.7 (Berkeley) 2/12/94
- * $Id: kern_exit.c,v 1.71 1999/01/07 21:23:41 julian Exp $
+ * $Id: kern_exit.c,v 1.71.2.1 1999/01/27 20:51:41 julian Exp $
  */
 
 #include "opt_compat.h"

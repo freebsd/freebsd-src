@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: devicestat.h,v 1.2 1998/09/20 00:10:58 ken Exp $
+ *	$Id: devicestat.h,v 1.3 1998/11/14 21:58:41 wollman Exp $
  */
 
 #ifndef _DEVICESTAT_H

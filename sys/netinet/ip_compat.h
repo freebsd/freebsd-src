@@ -6,7 +6,7 @@
  * to the original author and the contributors.
  *
  * @(#)ip_compat.h	1.8 1/14/96
- * $Id: ip_compat.h,v 2.0.2.31.2.11 1998/05/23 14:29:36 darrenr Exp $
+ * $Id: ip_compat.h,v 1.1.1.6 1998/06/20 18:17:46 peter Exp $
  */
 
 #ifndef	__IP_COMPAT_H__

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/lib/libpam/libpam/pam_mod_misc.h,v 1.1.1.1 1998/11/18 01:44:37 jdp Exp $
  */
 
 #ifndef PAM_MOD_MISC_H

@@ -23,7 +23,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-#	$Id: device_if.m,v 1.2 1998/11/08 18:35:53 nsouch Exp $
+#	$Id: device_if.m,v 1.3 1998/11/14 21:58:51 wollman Exp $
 #
 
 INTERFACE device;

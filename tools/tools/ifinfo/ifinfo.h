@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: ifinfo.h,v 1.3 1997/02/22 14:08:26 peter Exp $
  */
 #ifndef	ifinfo_h
 #define	ifinfo_h	1

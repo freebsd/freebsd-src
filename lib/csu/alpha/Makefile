@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.6 1998/08/20 21:37:22 jb Exp $
+#	$Id: Makefile,v 1.7 1999/01/09 21:50:56 jdp Exp $
 #
 
 SRCS=		crt1.c crtbegin.c crtend.c

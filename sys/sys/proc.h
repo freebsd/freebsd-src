@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)proc.h	8.15 (Berkeley) 5/19/95
- * $Id: proc.h,v 1.66 1999/01/07 21:23:45 julian Exp $
+ * $Id: proc.h,v 1.66.2.1 1999/01/27 20:51:42 julian Exp $
  */
 
 #ifndef _SYS_PROC_H_

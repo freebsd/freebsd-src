@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-#	$Id: rc.network,v 1.38 1999/01/13 08:20:55 hm Exp $
+#	$Id: rc.network,v 1.39 1999/01/13 17:32:37 joerg Exp $
 #	From: @(#)netstart	5.9 (Berkeley) 3/30/91
 
 # Note that almost all the user-configurable behavior is no longer in

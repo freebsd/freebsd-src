@@ -8,7 +8,7 @@
 #
 # Comment out the LOG=yes line to disable logging.
 #
-#	$Id$
+#	$Id: yppwupdate,v 1.6 1997/02/22 16:12:57 peter Exp $
 #
 
 PATH=/bin:/usr/bin; export PATH

@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: lstConcat.c,v 1.6 1997/02/22 19:27:35 peter Exp $
  */
 
 #ifndef lint

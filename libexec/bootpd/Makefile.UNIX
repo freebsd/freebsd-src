@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: Makefile.UNIX,v 1.4 1997/02/22 14:21:00 peter Exp $
 #
 # Makefile for the BOOTP programs:
 #   bootpd	- BOOTP server daemon

@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: console.h,v 1.40 1998/09/17 09:38:36 dfr Exp $
+ *	$Id: console.h,v 1.41 1999/01/01 14:38:29 des Exp $
  *	from: i386/include console.h,v 1.39
  */
 

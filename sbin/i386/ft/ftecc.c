@@ -32,7 +32,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: ftecc.c,v 1.5 1998/06/30 06:22:08 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/ftape.h>

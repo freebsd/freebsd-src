@@ -1,5 +1,5 @@
 /*	$NetBSD: uhcireg.h,v 1.5 1998/12/27 23:40:52 augustss Exp $	*/
-/*	FreeBSD $Id$ */
+/*	FreeBSD $Id: uhcireg.h,v 1.4 1999/01/07 23:31:33 n_hibma Exp $ */
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.

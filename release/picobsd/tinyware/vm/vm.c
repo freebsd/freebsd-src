@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: vm.c,v 1.1.1.1 1998/08/27 17:38:45 abial Exp $
+ *	$Id: vm.c,v 1.2 1998/10/29 12:38:06 abial Exp $
  */
 
 #include <stdio.h>

@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)trace.c	8.1 (Berkeley) 6/5/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: trace.c,v 1.2 1998/07/28 06:36:16 charnier Exp $";
 #endif /* not lint */
 
 #define	RIPCMDS

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)umap_vnops.c	8.6 (Berkeley) 5/22/95
- * $Id: umap_vnops.c,v 1.25 1998/07/30 17:40:45 bde Exp $
+ * $Id: umap_vnops.c,v 1.26 1998/12/07 21:58:34 archie Exp $
  */
 
 /*

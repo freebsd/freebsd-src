@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: vga_isa.c,v 1.1 1999/01/09 02:44:41 yokota Exp $
+ * $Id: vga_isa.c,v 1.1.2.1 1999/02/07 03:03:26 yokota Exp $
  */
 
 #include "vga.h"

@@ -1,5 +1,5 @@
 # Makefile for uux
-# $Id$
+# $Id: Makefile,v 1.5 1997/02/22 15:28:53 peter Exp $
 
 BINDIR=		$(bindir)
 BINOWN=		$(owner)

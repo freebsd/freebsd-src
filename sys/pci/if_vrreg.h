@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_vrreg.h,v 1.9 1999/01/10 18:06:10 wpaul Exp $
+ *	$Id: if_vrreg.h,v 1.2 1999/01/10 18:51:49 wpaul Exp $
  */
 
 /*

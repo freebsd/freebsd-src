@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: mk-amd-map.c,v 1.5 1998/11/14 03:13:32 obrien Exp $
+ * $Id: mk-amd-map.c,v 1.6 1999/01/13 20:03:59 obrien Exp $
  */
 
 /*

@@ -1,5 +1,5 @@
 #
-# $Id: Makefile.alpha,v 1.1 1998/03/12 13:02:46 jb Exp $
+# $Id: Makefile.alpha,v 1.2 1998/05/04 21:18:46 jb Exp $
 #
 
 SRCS+=		alpha-dis.c alpha-opc.c

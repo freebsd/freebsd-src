@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)hash.h	8.1 (Berkeley) 6/6/93
- *	$Id$
+ *	$Id: hash.h,v 1.7 1997/02/22 19:27:10 peter Exp $
  */
 
 /* hash.h --

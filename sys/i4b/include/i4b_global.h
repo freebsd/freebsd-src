@@ -27,7 +27,7 @@
  *	i4b_global.h - i4b global include file
  *	--------------------------------------
  *
- *	$Id: i4b_global.h,v 1.17 1998/12/05 18:02:53 hm Exp $
+ *	$Id: i4b_global.h,v 1.1 1998/12/27 21:46:43 phk Exp $
  *
  *	last edit-date: [Sat Dec  5 18:03:41 1998]
  *

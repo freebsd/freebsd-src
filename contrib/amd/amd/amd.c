@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: amd.c,v 1.3 1998/11/14 03:13:19 obrien Exp $
+ * $Id: amd.c,v 1.4 1999/01/13 20:03:54 obrien Exp $
  *
  */
 

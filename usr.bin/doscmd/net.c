@@ -1,7 +1,7 @@
 /*
 ** No copyright!
 **
-** $Id: net.c,v 1.3 1996/09/22 15:42:58 miff Exp $
+** $Id: net.c,v 1.1 1997/08/09 01:42:53 dyson Exp $
 **
 ** NetBIOS etc. hooks.
 */

@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: uthread_readv.c,v 1.5 1998/06/09 23:20:54 jb Exp $
+ * $Id: uthread_readv.c,v 1.6 1998/06/10 22:28:44 jb Exp $
  *
  */
 #include <sys/types.h>

@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)pat_rep.h	8.1 (Berkeley) 5/31/93
- *	$Id$
+ *	$Id: pat_rep.h,v 1.4 1997/02/22 14:04:37 peter Exp $
  */
 
 /*

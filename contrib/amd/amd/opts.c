@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: opts.c,v 1.2 1998/12/27 06:24:48 ezk Exp $
+ * $Id: opts.c,v 1.1.1.2 1999/01/13 19:21:09 obrien Exp $
  *
  */
 

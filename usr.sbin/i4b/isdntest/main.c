@@ -27,7 +27,7 @@
  *	main.c - i4b selftest utility
  *	-----------------------------
  *
- *	$Id: main.c,v 1.9 1998/12/05 18:04:06 hm Exp $ 
+ *	$Id: main.c,v 1.1 1998/12/27 21:47:08 phk Exp $ 
  *
  *      last edit-date: [Sat Dec  5 18:18:17 1998]
  *

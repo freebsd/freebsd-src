@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *      @(#)if_llc.h	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: if_llc.h,v 1.6 1997/02/22 09:41:01 peter Exp $
  */
 
 #ifndef _NET_IF_LLC_H_

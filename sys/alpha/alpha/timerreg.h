@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: Header: timerreg.h,v 1.2 93/02/28 15:08:58 mccanne Exp
- *	$Id: timerreg.h,v 1.5 1997/02/22 09:37:18 peter Exp $
+ *	$Id: timerreg.h,v 1.1 1998/07/22 08:21:36 dfr Exp $
  */
 
 /*

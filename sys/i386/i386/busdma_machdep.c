@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: busdma_machdep.c,v 1.11 1998/10/13 08:24:33 dg Exp $
+ *      $Id: busdma_machdep.c,v 1.12 1998/12/14 05:35:56 dillon Exp $
  */
 
 #include <sys/param.h>

@@ -1,5 +1,5 @@
 #!/bin/sh -
-# $Id: rc.network.pl,v 1.1.1.1 1998/07/14 07:30:50 abial Exp $
+# $Id: rc.network.pl,v 1.1.1.1 1998/08/27 17:38:43 abial Exp $
 network_pass1() {
     echo -n 'Wstepna konfiguracja sieci:'
     # Set the host name if it is not already set

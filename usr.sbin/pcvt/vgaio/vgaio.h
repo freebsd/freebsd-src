@@ -37,6 +37,11 @@
  * The author may be reached unter <joerg_wunsch@uriah.sax.de>
  *
  * $Log: vgaio.h,v $
+ * Revision 1.4  1999/01/01 08:32:05  peter
+ * Part 4 of pcvt/voxware revival: pcvt userland
+ *
+ * Reviewed by:    core
+ *
  * Revision 1.2  1995/03/05 22:46:27  joerg
  * Upgrade to beta 3.20/b22
  *

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)quota.h	7.9 (Berkeley) 2/22/91
- *	$Id$
+ *	$Id: quota.h,v 1.4 1997/02/22 09:31:00 peter Exp $
  */
 
 #ifndef _QUOTA_

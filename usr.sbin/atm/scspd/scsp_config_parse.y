@@ -24,7 +24,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: scsp_config_parse.y,v 1.2 1998/07/24 17:12:14 johnc Exp $
+ *	@(#) $Id: scsp_config_parse.y,v 1.1 1998/09/15 08:23:16 phk Exp $
  *
  */
 
@@ -39,7 +39,7 @@
 
 
 #ifndef lint
-static char *RCSid = "@(#) $Id: scsp_config_parse.y,v 1.2 1998/07/24 17:12:14 johnc Exp $";
+static char *RCSid = "@(#) $Id: scsp_config_parse.y,v 1.1 1998/09/15 08:23:16 phk Exp $";
 #endif
 
 #include <sys/types.h>

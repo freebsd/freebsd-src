@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: if_levar.h,v 1.1 1998/08/20 08:27:10 dfr Exp $ */
 /*	$NetBSD: if_levar.h,v 1.4 1997/03/15 18:12:07 is Exp $	*/
 
 /*-

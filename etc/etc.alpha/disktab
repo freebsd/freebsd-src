@@ -1,4 +1,4 @@
-#	$Id: disktab,v 1.2 1998/09/02 01:34:56 brian Exp $
+#	$Id: disktab,v 1.3 1998/10/06 12:42:55 dfr Exp $
 #
 # Disk geometry and partition layout tables. 
 # Key:

@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: $
+ * $Id: atkbdc_isa.c,v 1.1 1999/01/09 02:44:40 yokota Exp $
  */
 
 #include "atkbdc.h"

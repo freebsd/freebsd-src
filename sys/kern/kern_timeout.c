@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_clock.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_timeout.c,v 1.54 1998/02/25 06:13:32 bde Exp $
+ * $Id: kern_timeout.c,v 1.55 1998/05/17 20:08:04 bde Exp $
  */
 
 #include <sys/param.h>

@@ -27,7 +27,7 @@
  *	decode.h - isdndecode header file
  *	---------------------------------
  *
- *	$Id: decode.h,v 1.4 1998/12/18 17:09:38 hm Exp $
+ *	$Id: decode.h,v 1.1 1998/12/27 21:47:04 phk Exp $
  *
  *      last edit-date: [Fri Dec 18 18:10:13 1998]
  *

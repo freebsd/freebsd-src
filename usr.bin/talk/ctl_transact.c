@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)ctl_transact.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: ctl_transact.c,v 1.4 1998/01/14 07:21:00 charnier Exp $";
 #endif /* not lint */
 
 #include <errno.h>

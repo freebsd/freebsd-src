@@ -6,7 +6,7 @@ perlhist - the Perl history records
 
 =for RCS
 #
-# $Id: perlhist.pod,v 1.48 1998/08/03 08:50:12 jhi Exp $
+# $Id: perlhist.pod,v 1.1.1.1 1998/09/09 06:59:57 markm Exp $
 #
 =end RCS
 

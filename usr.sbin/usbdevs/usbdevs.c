@@ -1,5 +1,5 @@
 /*	$NetBSD: usbdevs.c,v 1.4 1998/07/23 13:57:51 augustss Exp $	*/
-/*	FreeBSD $Id$ */
+/*	FreeBSD $Id: usbdevs.c,v 1.2 1998/12/14 09:40:15 n_hibma Exp $ */
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.

@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_grdcmp_rcsid[] = "$Id$";
+const char _uuconf_grdcmp_rcsid[] = "$Id: grdcmp.c,v 1.5 1997/02/22 15:27:32 peter Exp $";
 #endif
 
 #include <ctype.h>

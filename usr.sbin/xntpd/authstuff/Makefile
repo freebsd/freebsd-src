@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.5 1997/02/22 16:14:15 peter Exp $
+# $Id: Makefile,v 1.6 1998/03/07 09:46:01 bde Exp $
 #
 # Most of the programs in this directory are completely useless for the
 # NTP configuration that we provide by default.

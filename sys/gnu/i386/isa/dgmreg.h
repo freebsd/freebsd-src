@@ -1,5 +1,5 @@
 /*-
- *  dgmreg.h $Id: dgreg.h,v 1.4.2.1 1996/12/19 14:57:36 davidg Exp $
+ *  dgmreg.h $Id: dgmreg.h,v 1.1 1998/08/04 21:42:27 brian Exp $
  *
  *  Digiboard driver.
  *

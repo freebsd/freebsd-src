@@ -1,5 +1,5 @@
 #
-# $Id$
+# $Id: Makefile,v 1.1 1998/09/09 07:20:27 markm Exp $
 #
 
 PROG=	pod2html

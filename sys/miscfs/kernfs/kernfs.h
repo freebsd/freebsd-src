@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernfs.h	8.6 (Berkeley) 3/29/95
- * $Id: kernfs.h,v 1.9 1998/03/01 22:46:12 msmith Exp $
+ * $Id: kernfs.h,v 1.10 1998/05/06 05:29:33 msmith Exp $
  */
 
 #define	_PATH_KERNFS	"/kern"		/* Default mountpoint */

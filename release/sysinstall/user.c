@@ -1,5 +1,5 @@
 /*
- * $Id: user.c,v 1.13 1997/02/22 14:12:36 peter Exp $
+ * $Id: user.c,v 1.14 1997/03/09 22:25:49 jkh Exp $
  *
  * Copyright (c) 1996
  *      Jörg Wunsch. All rights reserved.

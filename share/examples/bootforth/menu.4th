@@ -1,7 +1,7 @@
 \ Simple greeting screen, presenting basic options.
 \ XXX This is far too trivial - I don't have time now to think
 \ XXX about something more fancy... :-/
-\ $Id: menu.4th,v 1.1 1998/12/22 12:15:45 abial Exp $
+\ $Id: menu.4th,v 1.2 1998/12/31 14:06:30 abial Exp $
 
 : title
 	f_single

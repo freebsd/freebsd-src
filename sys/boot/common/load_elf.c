@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: load_elf.c,v 1.9 1998/10/17 03:06:38 peter Exp $
+ *	$Id: load_elf.c,v 1.10 1999/01/04 18:37:41 peter Exp $
  */
 
 #include <sys/param.h>

@@ -13,7 +13,7 @@
  * the author assume any responsibility for damages incurred with
  * its use.
  *
- * $Id$
+ * $Id: check3.c,v 1.4 1997/02/22 15:42:39 peter Exp $
  *
  */
 

@@ -1,4 +1,4 @@
-#       $Id: Makefile,v 1.4 1997/07/20 08:46:27 bde Exp $
+#       $Id: Makefile,v 1.5 1998/10/16 04:30:43 peter Exp $
 
 .PATH:  ${.CURDIR}/../../i386/i386
 KMOD=   fpu

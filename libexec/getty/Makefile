@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	8.1 (Berkeley) 6/4/93
-#	$Id$
+#	$Id: Makefile,v 1.8 1997/02/22 14:21:36 peter Exp $
 
 PROG=	getty
 SRCS=	main.c init.c subr.c chat.c

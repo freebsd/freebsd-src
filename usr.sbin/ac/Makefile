@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: Makefile,v 1.3 1997/02/22 16:01:09 peter Exp $
 
 PROG=	ac
 MAN8=	ac.8

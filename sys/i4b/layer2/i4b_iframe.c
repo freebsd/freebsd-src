@@ -27,7 +27,7 @@
  *	i4b_iframe.c - i frame handling routines
  *	------------------------------------------
  *
- *	$Id: i4b_iframe.c,v 1.15 1998/12/05 18:05:06 hm Exp $ 
+ *	$Id: i4b_iframe.c,v 1.1 1998/12/27 21:46:49 phk Exp $ 
  *
  *      last edit-date: [Sat Dec  5 18:26:16 1998]
  *

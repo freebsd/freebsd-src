@@ -23,11 +23,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: alpha_sethae.c,v 1.1 1998/12/12 18:05:06 dfr Exp $
  */
 
 #if defined(LIBC_RCS) && !defined(lint)
-static const char rcsid[] = "$Id$";
+static const char rcsid[] = "$Id: alpha_sethae.c,v 1.1 1998/12/12 18:05:06 dfr Exp $";
 #endif /* LIBC_RCS and not lint */
 
 #include <sys/types.h>

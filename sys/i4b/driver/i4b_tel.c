@@ -27,7 +27,7 @@
  *	i4b_tel.c - device driver for ISDN telephony
  *	--------------------------------------------
  *
- *	$Id: i4b_tel.c,v 1.18 1998/12/14 10:31:53 hm Exp $
+ *	$Id: i4b_tel.c,v 1.1 1998/12/27 21:46:42 phk Exp $
  *
  *	last edit-date: [Mon Dec 14 11:32:06 1998]
  *

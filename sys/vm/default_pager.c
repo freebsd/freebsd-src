@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: default_pager.c,v 1.15 1998/02/06 12:14:20 eivind Exp $
+ *	$Id: default_pager.c,v 1.16 1998/10/13 08:24:42 dg Exp $
  */
 
 #include <sys/param.h>

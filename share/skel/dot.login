@@ -1,4 +1,4 @@
-#	$Id: dot.login,v 1.10 1997/02/22 13:56:32 peter Exp $
+#	$Id: dot.login,v 1.11 1997/08/15 23:41:24 ache Exp $
 #
 # .login - csh login script, read by login shell, 
 #	   after `.cshrc' at login.

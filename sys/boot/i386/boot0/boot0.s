@@ -13,7 +13,7 @@
 # purpose.
 #
 
-#	$Id: boot0.s,v 1.5 1998/11/29 14:09:00 rnordier Exp $
+#	$Id: boot0.s,v 1.6 1998/12/05 11:58:33 rnordier Exp $
 
 # A 512-byte boot manager.
 

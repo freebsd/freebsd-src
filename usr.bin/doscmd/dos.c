@@ -31,7 +31,7 @@
  *
  *	BSDI int21.c,v 2.2 1996/04/08 19:32:51 bostic Exp
  *
- * $Id: dos.c,v 1.4 1998/07/16 23:54:23 imp Exp $
+ * $Id: dos.c,v 1.5 1998/07/17 00:18:52 imp Exp $
  */
 
 #include "doscmd.h"

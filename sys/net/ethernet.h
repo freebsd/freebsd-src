@@ -1,7 +1,7 @@
 /*
  * Fundamental constants relating to ethernet.
  *
- * $Id: ethernet.h,v 1.8 1997/02/22 09:40:58 peter Exp $
+ * $Id: ethernet.h,v 1.9 1998/03/18 01:40:11 wollman Exp $
  *
  */
 

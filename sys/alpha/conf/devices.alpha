@@ -1,6 +1,6 @@
 # This file tells what major numbers the various possible swap devices have.
 #
-#	$Id: devices.alpha,v 1.1 1998/06/10 10:54:04 dfr Exp $
+#	$Id: devices.alpha,v 1.2 1998/09/18 18:40:59 dfr Exp $
 #
 wd	0
 wfd	1

@@ -30,7 +30,7 @@
  *	i4b daemon - runtime configuration parser
  *	-----------------------------------------
  *
- *	$Id: rc_parse.y,v 1.15 1998/12/05 18:03:38 hm Exp $ 
+ *	$Id: rc_parse.y,v 1.1 1998/12/27 21:47:02 phk Exp $ 
  *
  *      last edit-date: [Sat Dec  5 18:12:26 1998]
  *

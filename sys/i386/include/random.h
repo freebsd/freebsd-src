@@ -1,7 +1,7 @@
 /*
  * random.h -- A strong random number generator
  *
- * $Id: random.h,v 1.15 1998/06/18 15:32:05 bde Exp $
+ * $Id: random.h,v 1.16 1998/06/21 11:33:31 bde Exp $
  *
  * Version 0.95, last modified 18-Oct-95
  * 

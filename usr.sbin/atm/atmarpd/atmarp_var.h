@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: atmarp_var.h,v 1.6 1998/08/13 20:11:12 johnc Exp $
+ *	@(#) $Id: atmarp_var.h,v 1.1 1998/09/15 08:23:15 phk Exp $
  *
  */
 

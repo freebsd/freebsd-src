@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)logwtmp.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: logwtmp.c,v 1.7 1997/11/21 07:38:43 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>

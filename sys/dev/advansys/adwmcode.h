@@ -1,7 +1,7 @@
 /*
  * Exported interface to downloadable microcode for AdvanSys SCSI Adapters
  *
- *	$Id: advmcode.h,v 1.4 1998/09/15 07:03:34 gibbs Exp $
+ *	$Id: adwmcode.h,v 1.1 1998/10/07 03:20:47 gibbs Exp $
  *
  * Obtained from:
  *

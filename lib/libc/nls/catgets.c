@@ -1,4 +1,4 @@
-/*	$Id: catgets.c,v 1.3 1997/02/22 15:00:47 peter Exp $ */
+/*	$Id: catgets.c,v 1.4 1998/04/30 10:14:54 ache Exp $ */
 
 /*
  * Written by J.T. Conklin, 10/05/94

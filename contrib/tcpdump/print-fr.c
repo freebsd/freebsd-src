@@ -21,7 +21,7 @@
 
 #ifndef lint
 static  char rcsid[] =
-	"@(#)$Header: /home/ncvs/src/contrib/tcpdump/print-fr.c,v 1.1 1997/12/31 21:50:31 pst Exp $ (LBL)";
+	"@(#)$Header: /home/ncvs/src/contrib/tcpdump/print-fr.c,v 1.2 1998/01/01 04:13:43 pst Exp $ (LBL)";
 #endif
 
 #ifdef PPP

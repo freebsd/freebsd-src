@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: get_args.c,v 1.2 1998/09/05 06:06:00 obrien Exp $
+ * $Id: get_args.c,v 1.3 1999/01/13 20:03:55 obrien Exp $
  *
  */
 

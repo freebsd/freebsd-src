@@ -36,7 +36,7 @@
  * future.
  */
 
-#ident "$Id: dpt_control.c,v 1.9 1998/09/15 08:33:31 gibbs Exp $"
+#ident "$Id: dpt_control.c,v 1.10 1998/12/04 22:54:45 archie Exp $"
 
 #include "opt_dpt.h"
 

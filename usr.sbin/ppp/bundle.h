@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.h,v 1.19 1998/10/29 02:12:54 brian Exp $
+ *	$Id: bundle.h,v 1.20 1998/12/10 18:36:30 brian Exp $
  */
 
 #define	PHASE_DEAD		0	/* Link is dead */

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)fifo_vnops.c	8.10 (Berkeley) 5/27/95
- * $Id: fifo_vnops.c,v 1.42 1998/02/04 22:32:45 eivind Exp $
+ * $Id: fifo_vnops.c,v 1.43 1998/02/06 12:13:36 eivind Exp $
  */
 
 #include <sys/param.h>

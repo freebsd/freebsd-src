@@ -32,7 +32,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: mount_msdos.c,v 1.14 1998/02/23 16:49:16 ache Exp $";
+	"$Id: mount_msdos.c,v 1.15 1998/06/30 06:23:42 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>

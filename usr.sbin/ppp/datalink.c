@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.c,v 1.25.2.1 1999/02/01 13:48:24 brian Exp $
+ *	$Id: datalink.c,v 1.25.2.2 1999/02/02 09:40:46 brian Exp $
  */
 
 #include <sys/types.h>

@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: pipe.h,v 1.11 1998/11/11 10:04:12 truckman Exp $
+ * $Id: pipe.h,v 1.12 1998/11/11 10:56:05 truckman Exp $
  */
 
 #ifndef _SYS_PIPE_H_

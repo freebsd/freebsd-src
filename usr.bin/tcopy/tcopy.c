@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)tcopy.c	8.2 (Berkeley) 4/17/94";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: tcopy.c,v 1.4 1997/08/14 06:41:00 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>

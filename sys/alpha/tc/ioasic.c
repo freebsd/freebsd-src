@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: ioasic.c,v 1.1 1998/08/20 08:27:10 dfr Exp $ */
 /* from $NetBSD: ioasic.c,v 1.19 1998/05/27 00:18:13 thorpej Exp $ */
 
 /*-

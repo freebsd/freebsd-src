@@ -35,7 +35,7 @@
  *	trace.h - header file for isdn trace
  *	------------------------------------
  *
- *	$Id: trace.h,v 1.7 1998/10/19 12:32:23 hm Exp $ 
+ *	$Id: trace.h,v 1.1 1998/12/27 21:47:10 phk Exp $ 
  *
  *      last edit-date: [Mon Oct 19 14:27:21 1998]
  *

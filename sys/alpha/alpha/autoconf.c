@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: autoconf.c,v 1.12 1998/10/30 01:36:40 jkh Exp $
+ *	$Id: autoconf.c,v 1.13 1999/01/20 19:22:24 peter Exp $
  */
 
 #include "opt_bootp.h"

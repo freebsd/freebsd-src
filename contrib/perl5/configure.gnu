@@ -1,6 +1,6 @@
 #! /bin/sh
 #
-# $Id: configure,v 3.0.1.1 1995/07/25 14:16:21 ram Exp $
+# $Id: configure.gnu,v 1.1.1.1 1998/09/09 06:59:48 markm Exp $
 #
 # GNU configure-like front end to metaconfig's Configure.
 #
@@ -15,7 +15,10 @@
 # The remaining of this leading shell comment may be removed if you
 # include this script in your own package.
 #
-# $Log: configure,v $
+# $Log: configure.gnu,v $
+# Revision 1.1.1.1  1998/09/09 06:59:48  markm
+# Initial import of Perl5. The king is dead; long live the king!
+#
 # Revision 3.0.1.1  1995/07/25  14:16:21  ram
 # patch56: created
 #

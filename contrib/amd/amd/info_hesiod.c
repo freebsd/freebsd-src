@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: info_hesiod.c,v 1.1.1.1 1998/11/05 02:04:49 ezk Exp $
+ * $Id: info_hesiod.c,v 1.1.1.2 1999/01/13 19:21:20 obrien Exp $
  *
  */
 

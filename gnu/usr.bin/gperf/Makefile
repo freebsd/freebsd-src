@@ -1,4 +1,4 @@
-# $Id$
+# $Id: Makefile,v 1.3 1997/02/22 15:45:35 peter Exp $
 
 .PATH:	${.CURDIR}/../../../contrib/gperf
 .PATH:	${.CURDIR}/../../../contrib/gperf/src

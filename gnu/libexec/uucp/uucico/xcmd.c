@@ -26,7 +26,7 @@
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char xcmd_rcsid[] = "$Id$";
+const char xcmd_rcsid[] = "$Id: xcmd.c,v 1.5 1997/02/22 15:28:34 peter Exp $";
 #endif
 
 #include <errno.h>

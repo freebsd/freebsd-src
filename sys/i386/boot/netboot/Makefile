@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.21 1998/11/28 08:03:24 joerg Exp $
+#	$Id: Makefile,v 1.22 1998/12/30 10:48:09 bde Exp $
 #
 # Makefile for NETBOOT
 #

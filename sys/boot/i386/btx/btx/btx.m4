@@ -13,7 +13,7 @@
 # purpose.
 #
 
-#	$Id:$
+#	$Id: btx.m4,v 1.1.1.1 1998/09/12 04:29:23 rnordier Exp $
 
 define(_al,0x0)dnl
 define(_cl,0x1)dnl

@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: iostat.c,v 1.6 1998/09/15 08:16:40 gibbs Exp $
+ *	$Id: iostat.c,v 1.7 1998/10/08 09:56:10 obrien Exp $
  */
 /*
  * Copyright (c) 1980, 1992, 1993

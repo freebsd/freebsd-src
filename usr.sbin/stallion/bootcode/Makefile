@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.7 1997/10/20 12:50:56 charnier Exp $
+# $Id: Makefile,v 1.8 1997/12/17 13:04:18 bde Exp $
 
 .SUFFIXES: .uu
 .uu:

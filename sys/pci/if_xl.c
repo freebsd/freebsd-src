@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_xl.c,v 1.22.2.1 1999/02/01 21:32:52 wpaul Exp $
+ *	$Id: if_xl.c,v 1.22.2.2 1999/02/12 16:06:29 wpaul Exp $
  */
 
 /*
@@ -147,7 +147,7 @@
 
 #if !defined(lint)
 static const char rcsid[] =
-	"$Id: if_xl.c,v 1.22.2.1 1999/02/01 21:32:52 wpaul Exp $";
+	"$Id: if_xl.c,v 1.22.2.2 1999/02/12 16:06:29 wpaul Exp $";
 #endif
 
 /*

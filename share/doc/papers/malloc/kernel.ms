@@ -6,7 +6,7 @@
 .\" this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
 .\" ----------------------------------------------------------------------------
 .\"
-.\" $Id$
+.\" $Id: kernel.ms,v 1.6 1997/02/22 13:03:36 peter Exp $
 .\"
 .ds RH The kernel and memory
 .NH

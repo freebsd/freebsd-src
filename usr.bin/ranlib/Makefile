@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/6/93
-#	$Id$
+#	$Id: Makefile,v 1.6 1998/10/10 12:48:48 bde Exp $
 
 PROG=	ranlib
 SRCS=	archive.c build.c misc.c ranlib.c touch.c

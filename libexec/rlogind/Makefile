@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/4/93
-#	$Id: Makefile,v 1.9 1998/08/06 21:35:47 markm Exp $
+#	$Id: Makefile,v 1.10 1998/09/05 00:29:34 jb Exp $
 
 PROG=	rlogind
 SRCS=	rlogind.c

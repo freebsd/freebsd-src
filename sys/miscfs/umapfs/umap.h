@@ -35,7 +35,7 @@
  *
  *	@(#)umap.h	8.4 (Berkeley) 8/20/94
  *
- * $Id: umap.h,v 1.8 1997/02/22 09:40:37 peter Exp $
+ * $Id: umap.h,v 1.9 1997/09/07 05:26:21 bde Exp $
  */
 
 #define MAPFILEENTRIES 64

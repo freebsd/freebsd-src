@@ -33,7 +33,7 @@
  *
  *	@(#)spx_timer.h
  *
- * $Id: spx_timer.h,v 1.8 1997/05/10 09:58:57 jhay Exp $
+ * $Id: spx_timer.h,v 1.9 1997/06/26 19:36:02 jhay Exp $
  */
 
 #ifndef _NETIPX_SPX_TIMER_H_

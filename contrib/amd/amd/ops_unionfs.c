@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: ops_unionfs.c,v 1.1.1.1 1998/11/05 02:04:51 ezk Exp $
+ * $Id: ops_unionfs.c,v 1.1.1.2 1999/01/13 19:21:51 obrien Exp $
  *
  */
 

@@ -1,4 +1,4 @@
-#	$Id:$
+#	$Id: sendmail.cf.additions,v 1.10 1998/09/02 01:34:57 brian Exp $
 #
 # list of hosts and domains for whom we relay mail.
 # all .forward hosts, domains must be listed in this file.

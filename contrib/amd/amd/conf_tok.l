@@ -39,7 +39,7 @@
  *
  *	%W% (Berkeley) %G%
  *
- * $Id: conf_tok.l,v 1.1.1.1 1998/11/05 02:04:51 ezk Exp $
+ * $Id: conf_tok.l,v 1.1.1.2 1999/01/13 19:21:54 obrien Exp $
  *
  */
 

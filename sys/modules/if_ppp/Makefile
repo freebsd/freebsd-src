@@ -1,4 +1,4 @@
-#       $Id: Makefile,v 1.15 1998/10/16 04:30:44 peter Exp $
+#       $Id: Makefile,v 1.16 1999/01/17 20:53:48 peter Exp $
 
 .PATH:  ${.CURDIR}/../../net
 KMOD=   if_ppp

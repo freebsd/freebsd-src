@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.1.1.1 1997/08/16 17:04:01 pst Exp $
+#	$Id: Makefile,v 1.2 1997/11/22 04:02:51 brian Exp $
 
 BIN=    100.clean-disks \
 	110.clean-tmps \

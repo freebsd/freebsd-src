@@ -1,4 +1,4 @@
-/* $Id: SYS.h,v 1.4 1998/12/23 11:50:51 dfr Exp $ */
+/* $Id: SYS.h,v 1.5 1998/12/23 11:55:42 dfr Exp $ */
 /*	From: NetBSD: SYS.h,v 1.5 1997/05/02 18:15:15 kleink Exp */
 
 /*

@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.5 1997/02/22 15:08:39 peter Exp $
+#	$Id: Makefile,v 1.6 1998/10/11 04:10:14 peter Exp $
 
 LIB=		y
 SHLIB_MAJOR=	2

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.76 1999/01/19 00:21:53 peter Exp $
+ *	$Id: sio.c,v 1.76.2.1 1999/01/27 08:27:36 kato Exp $
  */
 
 #include "opt_comconsole.h"

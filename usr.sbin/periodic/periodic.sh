@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-# $Id: periodic.sh,v 1.7 1999/01/01 17:37:33 billf Exp $
+# $Id: periodic.sh,v 1.7.2.1 1999/02/14 20:06:52 jkh Exp $
 #
 # Run nightly periodic scripts
 #

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: view.c,v 1.2 1998/10/09 12:42:56 abial Exp $
+ * $Id: view.c,v 1.3 1998/10/23 19:34:50 abial Exp $
  */
 
 /*

@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.3 1998/10/25 03:16:02 abial Exp $
+#	$Id: Makefile,v 1.4 1999/01/08 21:09:42 abial Exp $
 #
 SRC?=/usr/src
 PROG=kget

@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  *
  *	From: wd82371reg.h,v 1.3 1997/02/22 09:44:15 peter Exp $
- *	$Id$
+ *	$Id: ide_pcireg.h,v 1.1 1997/07/29 12:57:10 sos Exp $
  */
 
 #ifndef _PCI_IDEPCIREG_H_

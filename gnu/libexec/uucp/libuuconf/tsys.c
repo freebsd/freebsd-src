@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_tsys_rcsid[] = "$Id$";
+const char _uuconf_tsys_rcsid[] = "$Id: tsys.c,v 1.5 1997/02/22 15:27:56 peter Exp $";
 #endif
 
 /* Get system information from the Taylor UUCP configuration files.

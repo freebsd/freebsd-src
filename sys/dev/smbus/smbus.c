@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: smbus.c,v 1.6 1998/12/28 19:07:51 nsouch Exp $
+ *	$Id: smbus.c,v 1.7 1999/01/09 18:08:24 nsouch Exp $
  *
  */
 #include <sys/param.h>

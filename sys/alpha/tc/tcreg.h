@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: tcreg.h,v 1.1 1998/08/20 08:27:11 dfr Exp $ */
 /*	$NetBSD: tcreg.h,v 1.1 1995/12/20 00:48:36 cgd Exp $	*/
 
 /*

@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)telnetd.c	8.2 (Berkeley) 12/15/93";
 #endif
 static const char rcsid[] =
-	"$Id: telnetd.c,v 1.14 1998/04/26 06:51:36 phk Exp $";
+	"$Id: telnetd.c,v 1.15 1998/12/16 06:04:29 peter Exp $";
 #endif /* not lint */
 
 #include "telnetd.h"

@@ -27,7 +27,7 @@
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: fsdb.h,v 1.2 1997/03/13 12:44:52 peter Exp $
+ * $Id: fsdb.h,v 1.3 1997/04/15 09:02:48 joerg Exp $
  */
 
 extern int bread __P((int fd, char *buf, daddr_t blk, long size));

@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: libc_private.h,v 1.1 1998/04/11 06:57:33 jb Exp $
+ * $Id: libc_private.h,v 1.2 1998/05/05 22:02:29 jb Exp $
  *
  * Private definitions for libc, libc_r and libpthread.
  *

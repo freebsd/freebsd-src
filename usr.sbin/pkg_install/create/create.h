@@ -1,4 +1,4 @@
-/* $Id: create.h,v 1.13 1997/10/08 07:46:19 charnier Exp $ */
+/* $Id: create.h,v 1.14 1998/12/16 13:59:30 jkh Exp $ */
 
 /*
  * FreeBSD install - a package for the installation and maintainance

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: assert.c,v 1.1 1998/11/01 09:31:08 msmith Exp $
  */
 
 #include <stand.h>

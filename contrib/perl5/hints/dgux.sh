@@ -1,4 +1,4 @@
-# $Id: dgux.sh,v 1.8 1996-11-29 18:16:43-05 roderick Exp $
+# $Id: dgux.sh,v 1.1.1.1 1998/09/09 06:59:53 markm Exp $
 
 # This is a hints file for DGUX, which is Data General's Unix.  It was
 # originally developed with version 5.4.3.10 of the OS, and then was

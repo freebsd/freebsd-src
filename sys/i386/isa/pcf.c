@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: pcf.c,v 1.5 1998/11/04 22:09:17 nsouch Exp $
+ *	$Id: pcf.c,v 1.6 1998/12/07 21:58:22 archie Exp $
  *
  */
 #include <sys/param.h>

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: tun.c,v 1.9 1998/08/09 16:41:01 brian Exp $
+ *	$Id: tun.c,v 1.10 1998/10/22 02:32:50 brian Exp $
  */
 
 #include <sys/types.h>

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: adwcam.c,v 1.1 1998/10/07 03:20:46 gibbs Exp $
+ *      $Id: adwcam.c,v 1.2 1998/10/15 23:47:14 gibbs Exp $
  */
 /*
  * Ported from:

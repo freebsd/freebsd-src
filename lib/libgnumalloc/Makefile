@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.12 1997/02/22 15:06:55 peter Exp $
+#	$Id: Makefile,v 1.13 1998/10/11 04:18:30 peter Exp $
 
 LIB=		gnumalloc
 INTERNALLIB=	yes		# Do not build or install ${LIB}*.a

@@ -32,7 +32,7 @@
 #
 
 #
-# $Id: tar.sh,v 1.3 1997/02/22 14:10:30 peter Exp $
+# $Id: tar.sh,v 1.4 1998/12/05 22:15:10 jdp Exp $
 #
 
 archive=${TAPE:-/dev/rst0}

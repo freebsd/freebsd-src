@@ -1,6 +1,6 @@
 # icelandic (backward compatible with ASCII)
 #
-# $Id$
+# $Id: is_IS.ISO_8859-1.src,v 1.4 1997/02/22 19:54:38 peter Exp $
 #
 charmap map.ISO_8859-1
 order \

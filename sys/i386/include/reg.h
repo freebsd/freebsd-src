@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)reg.h	5.5 (Berkeley) 1/18/91
- *	$Id: reg.h,v 1.15 1997/06/07 04:36:06 bde Exp $
+ *	$Id: reg.h,v 1.16 1998/09/14 22:43:40 jdp Exp $
  */
 
 #ifndef _MACHINE_REG_H_

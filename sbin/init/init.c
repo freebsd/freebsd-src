@@ -45,7 +45,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)init.c	8.1 (Berkeley) 7/15/93";
 #endif
 static const char rcsid[] =
-	"$Id: init.c,v 1.30 1998/07/06 06:56:08 charnier Exp $";
+	"$Id: init.c,v 1.31 1998/07/22 05:45:11 phk Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>

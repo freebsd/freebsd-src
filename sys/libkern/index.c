@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: index.c,v 1.3 1997/02/22 09:39:53 peter Exp $
  */
 
 #include <string.h>

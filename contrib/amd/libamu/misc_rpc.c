@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: misc_rpc.c,v 1.1.1.1 1998/11/05 02:04:45 ezk Exp $
+ * $Id: misc_rpc.c,v 1.1.1.2 1999/01/13 19:20:27 obrien Exp $
  *
  */
 

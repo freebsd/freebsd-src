@@ -1,4 +1,4 @@
-$Id: majors.i386,v 1.64 1999/01/14 03:47:55 msmith Exp $
+$Id: majors.i386,v 1.65 1999/01/20 03:29:52 msmith Exp $
 
 Hopefully, this list will one day be obsoleted by DEVFS, but for now
 this is the current allocation of device major numbers.

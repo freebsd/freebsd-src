@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: xutil.c,v 1.2 1998/12/27 06:25:24 ezk Exp $
+ * $Id: xutil.c,v 1.1.1.3 1999/01/13 19:20:33 obrien Exp $
  *
  */
 

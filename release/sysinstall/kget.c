@@ -97,18 +97,18 @@ kget(char *out)
 	}
 	i += sizeof(struct isa_device) + 8;
     }
-    free(buf), buf = NULL;
+    free(buf);
     /* Now, print the changes to PnP override table */
     i = sysctlbyname(mib2, NULL, &len, NULL, NULL);
     if (i) {
 	msgDebug("kget: error sizing buffer\n");
-	goto bail;
+	return -1;
     }
     buf = (char *)malloc(len * sizeof(char));
     i = sysctlbyname(mib2, buf, &len, NULL, NULL);
     if (i) {
 	msgDebug("kget: error retrieving data\n");
-	goto bail;
+	return -1;
     }
     i = 0;
     /* Print the PnP override table. Taken from userconfig.c */
@@ -141,10 +141,7 @@ kget(char *out)
 	    bytes_written += fprintf(fout,"\n");
         }
     } while ((i += sizeof(struct pnp_cinfo)) < len);
-bail:
     fprintf(fout, "q\n");
     fclose(fout);
-    if (buf)
-       free(buf);
     return 0;
 }

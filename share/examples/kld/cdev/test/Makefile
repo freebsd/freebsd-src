@@ -64,7 +64,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $Id: Makefile,v 1.5 1997/02/22 13:55:56 peter Exp $
+# $Id: Makefile,v 1.1 1998/12/11 10:44:30 dfr Exp $
 #
 PROG=	testcdev
 NOMAN=

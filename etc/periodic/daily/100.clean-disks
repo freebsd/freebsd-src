@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $Id: 100.clean-disks,v 1.1.1.1 1997/08/12 17:51:15 pst Exp $
+# $Id: 100.clean-disks,v 1.1.1.1 1997/08/16 17:04:00 pst Exp $
 #
 # This is a security hole, never use 'find' on a public directory
 # with -exec rm -f as root.  This can be exploited to delete any file

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: elfhints.c,v 1.1 1998/09/05 03:30:54 jdp Exp $
  */
 
 #include <sys/param.h>

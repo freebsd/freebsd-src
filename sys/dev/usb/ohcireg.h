@@ -1,5 +1,5 @@
 /*	$NetBSD: ohcireg.h,v 1.7 1998/12/10 23:16:47 augustss Exp $	*/
-/*	FreeBSD $Id$ */
+/*	FreeBSD $Id: ohcireg.h,v 1.5 1999/01/07 23:31:30 n_hibma Exp $ */
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.

@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_dnams_rcsid[] = "$Id$";
+const char _uuconf_dnams_rcsid[] = "$Id: dnams.c,v 1.5 1997/02/22 15:27:29 peter Exp $";
 #endif
 
 /* Get all known dialer names.  */

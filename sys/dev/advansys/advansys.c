@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: advansys.c,v 1.6 1998/12/04 22:54:44 archie Exp $
+ *      $Id: advansys.c,v 1.7 1998/12/22 18:12:09 gibbs Exp $
  */
 /*
  * Ported from:

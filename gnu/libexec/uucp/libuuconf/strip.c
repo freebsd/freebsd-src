@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_strip_rcsid[] = "$Id$";
+const char _uuconf_strip_rcsid[] = "$Id: strip.c,v 1.3 1997/02/22 15:27:50 peter Exp $";
 #endif
 
 /* Get information about what types of global information should be

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: iso646.h,v 1.1 1998/08/01 13:42:12 alex Exp $
+ *	$Id: iso646.h,v 1.2 1998/08/03 10:59:02 bde Exp $
  */
 
 #ifndef _ISO646_H_

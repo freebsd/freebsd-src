@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumstate.h,v 1.12 1998/12/30 01:31:52 grog Exp grog $
+ * $Id: vinumstate.h,v 1.4.2.1 1999/01/29 01:13:43 grog Exp $
  */
 
 /*

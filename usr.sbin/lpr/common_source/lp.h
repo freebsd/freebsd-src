@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  * 	From: @(#)lp.h	8.2 (Berkeley) 4/28/95
- *	$Id$
+ *	$Id: lp.h,v 1.7 1997/12/02 20:45:21 wollman Exp $
  */
 
 #include <sys/queue.h>

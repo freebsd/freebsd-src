@@ -18,7 +18,7 @@
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * @(#) $Header: os-ultrix4.h,v 1.19 96/11/29 15:33:19 leres Exp $ (LBL)
+ * @(#) $Header: /home/ncvs/src/contrib/libpcap/lbl/os-ultrix4.h,v 1.1.1.1 1997/05/27 00:01:12 fenner Exp $ (LBL)
  */
 
 /* Prototypes missing in Ultrix 4 */

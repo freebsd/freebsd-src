@@ -27,7 +27,7 @@
  *	layer3_subr.c - subroutines for IE decoding
  *	-------------------------------------------
  *
- *	$Id: layer3_subr.c,v 1.4 1998/12/18 17:09:38 hm Exp $
+ *	$Id: layer3_subr.c,v 1.1 1998/12/27 21:47:04 phk Exp $
  *
  *      last edit-date: [Fri Dec 18 18:12:37 1998]
  *

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)idp.h	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: idp.h,v 1.7 1997/02/22 09:42:10 peter Exp $
  */
 
 #ifndef _NETNS_IDP_H_

@@ -1,5 +1,5 @@
 /*
- *	$Id$
+ *	$Id: dgmfep.h,v 1.2 1998/08/05 20:19:04 brian Exp $
  *
  * This file is an ascii copy of the file sxbios.bin included in the
  * Digiboard PC/Xem driver for Linux.  It is copyright 1992, DIGI 

@@ -27,7 +27,7 @@
  *	i4b_l4if.c - Layer 3 interface to Layer 4
  *	-------------------------------------------
  *
- *	$Id: i4b_l4if.c,v 1.17 1998/12/05 18:05:36 hm Exp $ 
+ *	$Id: i4b_l4if.c,v 1.1 1998/12/27 21:46:51 phk Exp $ 
  *
  *      last edit-date: [Sat Dec  5 18:33:16 1998]
  *

@@ -27,7 +27,7 @@
  *	i4b_ioctl.h - messages kernel <--> userland
  *	-------------------------------------------
  *
- *	$Id: i4b_ioctl.h,v 1.58 1998/12/22 19:48:24 hm Exp $ 
+ *	$Id: i4b_ioctl.h,v 1.1 1998/12/27 21:46:56 phk Exp $ 
  *
  *      last edit-date: [Tue Dec 22 20:33:46 1998]
  *

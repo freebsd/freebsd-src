@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: var.c,v 1.10 1997/09/29 03:53:53 imp Exp $
+ *	$Id: var.c,v 1.11 1998/06/02 13:11:04 thepish Exp $
  */
 
 #ifndef lint

@@ -38,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_lock.c	8.18 (Berkeley) 5/21/95
- * $Id: kern_lock.c,v 1.22 1999/01/10 01:58:24 eivind Exp $
+ * $Id: kern_lock.c,v 1.23 1999/01/20 14:49:11 eivind Exp $
  */
 
 #include "opt_lint.h"

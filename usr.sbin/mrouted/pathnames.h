@@ -7,7 +7,7 @@
  * Leland Stanford Junior University.
  *
  *
- * $Id: pathnames.h,v 1.5 1997/02/22 16:07:01 peter Exp $
+ * $Id: pathnames.h,v 1.6 1999/01/20 07:55:51 fenner Exp $
  * pathnames.h,v 3.8 1995/11/29 22:36:57 fenner Rel
  */
 

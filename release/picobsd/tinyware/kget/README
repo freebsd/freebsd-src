@@ -38,4 +38,4 @@ it to /kernel.config file - it already contains required keywords.
 Andrzej Bialecki
 <abial@freebsd.org>
 
-$Id: README,v 1.4 1999/01/08 21:09:42 abial Exp $
+$Id: README,v 1.4.2.1 1999/02/05 12:20:35 abial Exp $

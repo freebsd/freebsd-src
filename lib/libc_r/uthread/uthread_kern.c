@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: uthread_kern.c,v 1.14 1998/10/09 19:01:30 dt Exp $
+ * $Id: uthread_kern.c,v 1.15 1998/11/15 09:58:26 jb Exp $
  *
  */
 #include <errno.h>

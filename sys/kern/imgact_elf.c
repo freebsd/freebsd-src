@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: imgact_elf.c,v 1.44.2.2 1999/02/08 01:27:07 newton Exp $
+ *	$Id: imgact_elf.c,v 1.44.2.3 1999/02/08 18:58:36 jdp Exp $
  */
 
 #include "opt_rlimit.h"

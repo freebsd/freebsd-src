@@ -27,7 +27,7 @@
  *	i4b_util.c - layer 2 utility routines
  *	-------------------------------------
  *
- *	$Id: i4b_util.c,v 1.15 1998/12/05 18:05:26 hm Exp $ 
+ *	$Id: i4b_util.c,v 1.1 1998/12/27 21:46:50 phk Exp $ 
  *
  *      last edit-date: [Sat Dec  5 18:31:10 1998]
  *

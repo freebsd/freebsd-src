@@ -33,7 +33,7 @@
  *	ELSA MicroLink ISDN/MC card specific routines
  *	---------------------------------------------
  *
- *	$Id: i4b_elsa_isdnmc.c,v 1.2 1998/12/05 18:04:33 hm Exp $
+ *	$Id: i4b_elsa_isdnmc.c,v 1.1 1998/12/27 21:46:45 phk Exp $
  *
  *      last edit-date: [Tue Dec  1 07:45:53 1998]
  *

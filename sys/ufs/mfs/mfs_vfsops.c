@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mfs_vfsops.c	8.11 (Berkeley) 6/19/95
- * $Id: mfs_vfsops.c,v 1.52 1998/12/07 21:58:49 archie Exp $
+ * $Id: mfs_vfsops.c,v 1.53 1999/01/01 04:14:11 dillon Exp $
  */
 
 

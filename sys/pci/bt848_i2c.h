@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: bt848_i2c.h,v 1.1 1998/10/31 11:26:38 nsouch Exp $
  *
  */
 #ifndef _BT848_I2C_H

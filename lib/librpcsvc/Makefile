@@ -1,5 +1,5 @@
 #	from: @(#)Makefile    5.10 (Berkeley) 6/24/90
-#	$Id: Makefile,v 1.11 1998/02/25 01:30:05 bde Exp $
+#	$Id: Makefile,v 1.12 1998/05/18 21:59:52 wpaul Exp $
 
 .PATH: ${DESTDIR}/usr/include/rpcsvc
 

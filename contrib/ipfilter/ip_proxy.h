@@ -5,7 +5,7 @@
  * provided that this notice is preserved and due credit is given
  * to the original author and the contributors.
  *
- * $Id: ip_proxy.h,v 2.0.2.10.2.1 1997/11/27 09:33:27 darrenr Exp $
+ * $Id: ip_proxy.h,v 1.1.1.3 1998/03/21 10:00:40 peter Exp $
  */
 
 #ifndef	__IP_PROXY_H__

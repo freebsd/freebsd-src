@@ -1310,4 +1310,4 @@ All opinions expressed herein are those of the authorZ<>(s).
 
 =head1 LAST MODIFIED
 
-$Id: pumpkin.pod,v 1.22 1998/07/22 16:33:55 doughera Released $
+$Id: pumpkin.pod,v 1.1.1.1 1998/09/09 06:59:49 markm Exp $

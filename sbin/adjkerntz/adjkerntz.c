@@ -32,7 +32,7 @@ static const char copyright[] =
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: adjkerntz.c,v 1.24 1998/06/04 06:35:12 charnier Exp $";
 #endif /* not lint */
 
 /*

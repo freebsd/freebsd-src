@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# $Id: linux,v 1.5 1998/09/07 16:15:59 cracauer Exp $
+# $Id: linux.sh,v 1.6 1998/11/05 04:19:26 peter Exp $
 
 FOUND=`kldstat -v | egrep 'linux(aout|elf)'`
 

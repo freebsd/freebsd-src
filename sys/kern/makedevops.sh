@@ -32,7 +32,7 @@
 # SUCH DAMAGE.
 #
 # From @(#)vnode_if.sh	8.1 (Berkeley) 6/10/93
-# $Id: makedevops.sh,v 1.1 1998/06/14 13:53:12 dfr Exp $
+# $Id: makedevops.sh,v 1.2 1998/10/15 09:50:45 dfr Exp $
 #
 
 # Script to produce device front-end sugar.

@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.1 (Berkeley) 7/27/93
-#	$Id$
+#	$Id: Makefile,v 1.4 1997/02/22 13:05:24 peter Exp $
 
 VOLUME=	smm/01.setup
 SRCS=	0.t 1.t 2.t 3.t 4.t 5.t 6.t

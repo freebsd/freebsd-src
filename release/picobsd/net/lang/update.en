@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: update.en,v 1.1.1.1 1998/08/27 17:38:43 abial Exp $
+# $Id: update.en,v 1.2 1999/01/14 23:22:29 abial Exp $
 pwd=`pwd`
 echo -n "Updating /etc contents on startup floppy...  "
 mount /dev/fd0a /start_floppy

@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.1.1.1 1997/05/22 08:58:18 msmith Exp $
+#	$Id: Makefile,v 1.2 1997/05/23 04:04:15 msmith Exp $
 PROG=	wlconfig
 SRCS=	wlconfig.c
 CFLAGS+= -Wall

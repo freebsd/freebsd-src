@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: apic_ipl.h,v 1.1 1997/05/31 08:49:08 peter Exp $
+ *	$Id: apic_ipl.h,v 1.2 1997/07/20 12:18:53 bde Exp $
  */
 
 #ifndef _I386_ISA_APIC_IPL_H_

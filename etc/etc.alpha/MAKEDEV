@@ -107,7 +107,7 @@
 #	pci	PCI configuration-space access from user mode
 #	ipl	ipfilter control devices (ipl, ipnat, ipstate, ipauth)
 #
-#	$Id: MAKEDEV,v 1.4 1999/02/04 20:35:07 mjacob Exp $
+#	$Id: MAKEDEV,v 1.3.2.1 1999/02/05 08:21:51 mjacob Exp $
 #	from etc.i386 MAKEDEV,v 1.171 1998/09/15 10:21:35 gibbs Exp
 #
 

@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)log.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: log.c,v 1.2 1997/08/18 07:16:03 charnier Exp $";
+	"$Id: log.c,v 1.3 1998/06/29 17:06:00 bde Exp $";
 #endif /* not lint */
 
 #include "tipconf.h"

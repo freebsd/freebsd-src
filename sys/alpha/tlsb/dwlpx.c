@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: dwlpx.c,v 1.6 1998/09/04 08:01:26 dfr Exp $
+ *	$Id: dwlpx.c,v 1.7 1998/11/15 18:25:16 dfr Exp $
  */
 
 #include "opt_simos.h"

@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: make.c,v 1.8 1997/02/22 19:27:16 peter Exp $
  */
 
 #ifndef lint

@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: ops_nfs.c,v 1.1.1.1 1998/11/05 02:04:50 ezk Exp $
+ * $Id: ops_nfs.c,v 1.1.1.2 1999/01/13 19:21:38 obrien Exp $
  *
  */
 

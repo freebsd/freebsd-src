@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: mtab_bsd.c,v 1.1.1.1 1998/11/05 02:04:37 ezk Exp $
+ * $Id: mtab_bsd.c,v 1.1.1.2 1999/01/13 19:20:18 obrien Exp $
  *
  */
 

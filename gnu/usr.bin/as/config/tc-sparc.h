@@ -18,7 +18,7 @@
    to the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA. */
 
 /*
- * $Id$
+ * $Id: tc-sparc.h,v 1.5 1997/02/22 15:44:25 peter Exp $
  */
 
 #define TC_SPARC 1

@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.7 1998/05/04 05:12:49 peter Exp $
+# $Id: Makefile,v 1.8 1998/06/11 09:17:58 peter Exp $
 
 USE_LIBBIND=	true
 .include "${.CURDIR}/../../usr.sbin/named/Makefile.inc"

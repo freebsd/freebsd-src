@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: sched.c,v 1.1.1.1 1998/11/05 02:04:49 ezk Exp $
+ * $Id: sched.c,v 1.1.1.2 1999/01/13 19:21:13 obrien Exp $
  *
  */
 

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mfsnode.h	8.3 (Berkeley) 5/19/95
- * $Id: mfsnode.h,v 1.10 1997/10/16 10:50:05 phk Exp $
+ * $Id: mfsnode.h,v 1.11 1997/11/01 20:40:14 tegge Exp $
  */
 
 #ifndef _UFS_MFS_MFSNODE_H_

@@ -1,4 +1,4 @@
-#	$Id: dot.profile,v 1.17 1998/08/14 13:49:57 thepish Exp $
+#	$Id: dot.profile,v 1.18 1998/09/02 14:10:22 bde Exp $
 #
 # .profile - Bourne Shell startup script for login shells
 #

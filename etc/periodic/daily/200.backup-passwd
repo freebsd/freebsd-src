@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $Id: 200.backup-passwd,v 1.1.1.1 1997/08/16 17:04:00 pst Exp $
+# $Id: 200.backup-passwd,v 1.2 1998/05/24 15:57:31 des Exp $
 #
 bak=/var/backups
 

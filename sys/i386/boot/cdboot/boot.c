@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, [92/04/03  16:51:14  rvb]
- *	$Id: boot.c,v 1.1 1997/07/11 05:52:37 joerg Exp $
+ *	$Id: boot.c,v 1.2 1998/10/10 13:51:24 bde Exp $
  */
 
 

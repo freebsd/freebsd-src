@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 5/31/93
-#	$Id: Makefile,v 1.2 1998/08/06 21:19:10 eivind Exp $
+#	$Id: Makefile,v 1.3 1998/09/19 22:42:06 obrien Exp $
 
 PROG=	dpt_ctls
 SRCS=	dpt_ctls.c

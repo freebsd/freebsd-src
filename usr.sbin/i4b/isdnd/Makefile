@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: Makefile,v 1.2 1999/01/01 09:51:46 bde Exp $
 
 PROG	=	isdnd
 
