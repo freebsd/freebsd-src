@@ -37,7 +37,7 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <sys/ioctl.h>
-#include <cam/scsi/scsi_ses.h>
+#include "ses.h"
 
 /*
  * Continuously monitor all named SES devices
@@ -47,7 +47,9 @@
 #define	BADSTAT	\
 	(SES_ENCSTAT_UNRECOV|SES_ENCSTAT_CRITICAL|SES_ENCSTAT_NONCRITICAL)
 int
-main(int a, char **v)
+main(a, v)
+	int a;
+	char **v;
 {
 	int fd, delay, dev;
 	ses_encstat stat, *carray;
@@ -63,7 +65,7 @@ main(int a, char **v)
 		perror("malloc");
 		return (1);
 	}
-	memset(carray, 0, a);
+	bzero((void *)carray, a);
 
 	for (;;) {
 		for (dev = 2; dev < a; dev++) {

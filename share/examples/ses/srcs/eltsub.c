@@ -36,10 +36,11 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <sys/ioctl.h>
-#include <cam/scsi/scsi_ses.h>
+#include SESINC
 
 char *
-geteltnm(int type)
+geteltnm(type)
+	int type;
 {
 	static char rbuf[132];
 
@@ -115,7 +116,8 @@ geteltnm(int type)
 }
 
 static char *
-scode2ascii(u_char code)
+scode2ascii(code)
+	u_char code;
 {
 	static char rbuf[32];
 	switch (code & 0xf) {
@@ -152,7 +154,9 @@ scode2ascii(u_char code)
 
 
 char *
-stat2ascii(int eletype, u_char *cstat)
+stat2ascii(eletype, cstat)
+	int eletype;
+	u_char *cstat;
 {
 	static char ebuf[256], *scode;
 
