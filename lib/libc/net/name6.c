@@ -1024,7 +1024,7 @@ getanswer(answer, anslen, qname, qtype, template, errp)
 	register const u_char *cp;
 	register int n;
 	const u_char *eom, *erdata;
-	char *bp, **ap, **hap;
+	char *bp, **ap, **hap, *obp;
 	int type, class, buflen, ancount, qdcount;
 	int haveanswer, had_error;
 	char tbuf[MAXDNAME];
@@ -1238,7 +1238,9 @@ getanswer(answer, anslen, qname, qtype, template, errp)
 				bp += nn;
 				buflen -= nn;
 			}
+			obp = bp; /* ALIGN rounds up */
 			bp = (char *)ALIGN(bp);
+			buflen -= (bp - obp);
 
 			DNS_FATAL(bp + n < &hostbuf[sizeof hostbuf]);
 			DNS_ASSERT(hap < &h_addr_ptrs[MAXADDRS-1]);
