@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)jot.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: jot.c,v 1.7 1997/07/15 09:59:30 charnier Exp $";
+	"$Id: jot.c,v 1.8 1997/11/03 07:45:33 charnier Exp $";
 #endif /* not lint */
 
 /*
@@ -101,12 +101,8 @@ main(argc, argv)
 	getargs(argc, argv);
 	if (randomize) {
 		*x = (ender - begin) * (ender > begin ? 1 : -1);
-		if (s == -1.0)
-			srandomdev();
-		else
-			srandom((unsigned long) s);
 		for (*i = 1; *i <= reps || infinity; (*i)++) {
-			*y = (double) random() / LONG_MAX;
+			*y = (double) arc4random() / ULONG_MAX;
 			putdata(*y * *x + begin, reps - *i);
 		}
 	}
