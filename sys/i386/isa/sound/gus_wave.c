@@ -3188,7 +3188,7 @@ gus_wave_init (long mem_start, int irq, int dma)
     {
       dsp_devs[gus_devnum = num_dspdevs++] = &gus_sampling_operations;
       sound_dsp_dmachan[gus_devnum] = dma;
-      sound_buffcounts[gus_devnum] = 1;
+      sound_buffcounts[gus_devnum] = DSP_BUFFCOUNT;
       sound_buffsizes[gus_devnum] = DSP_BUFFSIZE;
       sound_dma_automode[gus_devnum] = 0;
     }
