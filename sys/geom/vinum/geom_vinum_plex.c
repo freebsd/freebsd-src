@@ -773,6 +773,17 @@ gv_plex_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 		if (p->vol_sc != NULL)
 			gv_update_vol_size(p->vol_sc, p->size);
 
+		/*
+		 * If necessary, create a bio queue mutex and a worker thread.
+		 */
+		if (mtx_initialized(&p->bqueue_mtx) == 0)
+			mtx_init(&p->bqueue_mtx, "gv_plex", NULL, MTX_DEF);
+		if (!(p->flags & GV_PLEX_THREAD_ACTIVE)) {
+			kthread_create(gv_plex_worker, p, NULL, 0, 0, "gv_p %s",
+			    p->name);
+			p->flags |= GV_PLEX_THREAD_ACTIVE;
+		}
+
 		return (NULL);
 
 	/* We need to create a new geom. */
