@@ -44,10 +44,6 @@
  *	@(#)ufs_lookup.c	8.6 (Berkeley) 4/1/94
  */
 
-#if !defined(__FreeBSD__)
-#include "diagnostic.h"
-#endif
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/namei.h>

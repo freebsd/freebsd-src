@@ -39,12 +39,7 @@
  *	@(#)ext2_alloc.c	8.8 (Berkeley) 2/21/94
  */
 
-#if !defined(__FreeBSD__)
-#include "quota.h"
-#include "diagnostic.h"
-#else
 #include "opt_quota.h"
-#endif
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -395,9 +390,6 @@ ext2_valloc(pvp, mode, cred, vpp)
 	register struct inode *ip;
 	ino_t ino;
 	int i, error;
-#if !defined(__FreeBSD__)
-	struct timeval time;
-#endif
 	
 	*vpp = NULL;
 	pip = VTOI(pvp);
@@ -434,9 +426,6 @@ ext2_valloc(pvp, mode, cred, vpp)
 	 * Set up a new generation number for this inode.
 	 * XXX check if this makes sense in ext2
 	 */
-#if !defined(__FreeBSD__)
-	gettime(&time);
-#endif
 	if (++nextgennumber < (u_long)time.tv_sec)
 		nextgennumber = time.tv_sec;
 	ip->i_gen = nextgennumber;

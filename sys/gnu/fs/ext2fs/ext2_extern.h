@@ -93,11 +93,6 @@ void	ext2_ei2di __P((struct ext2_inode *ei, struct dinode *di));
 void	ext2_di2ei __P((struct dinode *di, struct ext2_inode *ei));
 void	mark_buffer_dirty __P((struct buf *bh));
 
-#if !defined(__FreeBSD__)
-int	bwrite();		/* FFS needs a bwrite routine.  XXX */
-#define	gettime	get_time
-#endif
-
 /*
  * This macro allows the ufs code to distinguish between an EXT2 and a
  * non-ext2(FFS/LFS) vnode.

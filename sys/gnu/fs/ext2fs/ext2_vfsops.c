@@ -39,11 +39,7 @@
  *	@(#)ffs_vfsops.c	8.8 (Berkeley) 4/18/94
  */
 
-#if !defined(__FreeBSD__)
-#include "quota.h"
-#else
 #include "opt_quota.h"
-#endif
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -102,16 +98,12 @@ static struct vfsops ext2fs_vfsops = {
 	ext2_init,
 };
 
-#if defined(__FreeBSD__)
 VFS_SET(ext2fs_vfsops, ext2fs, MOUNT_EXT2FS, 0);
 #define bsd_malloc malloc
 #define bsd_free free
-#endif
 
 extern u_long nextgennumber;
-#ifdef __FreeBSD__
 static int ext2fs_inode_hash_lock;
-#endif
 
 static int	compute_sb_data __P((struct vnode * devvp,
 				     struct ext2_super_block * es,
@@ -130,16 +122,9 @@ static int ext2_mountroot __P((void));
 static int
 ext2_mountroot()
 {
-#if !defined(__FreeBSD__)
-	extern struct vnode *rootvp;
-#endif
 	register struct ext2_sb_info *fs;
 	register struct mount *mp;
-#if defined(__FreeBSD__)
 	struct proc *p = curproc;
-#else
-	struct proc *p = get_proc();	/* XXX */
-#endif
 	struct ufsmount *ump;
 	u_int size;
 	int error;
@@ -165,11 +150,7 @@ ext2_mountroot()
 		bsd_free(mp, M_MOUNT);
 		return (error);
 	}
-#if defined(__FreeBSD__)
 	CIRCLEQ_INSERT_HEAD(&mountlist, mp, mnt_list);
-#else
-	TAILQ_INSERT_TAIL(&mountlist, mp, mnt_list);
-#endif
 	mp->mnt_flag |= MNT_ROOTFS;
 	mp->mnt_vnodecovered = NULLVP;
 	ump = VFSTOUFS(mp);
@@ -571,9 +552,6 @@ ext2_mountfs(devvp, mp, p)
 	int havepart = 0;
 	int error, i, size;
 	int ronly;
-#if !defined(__FreeBSD__)
-	extern struct vnode *rootvp;
-#endif
 
 	/*
 	 * Disallow multiple mounts of the same device.
@@ -854,18 +832,11 @@ ext2_sync(mp, waitfor, cred, p)
 	 * is still in the buffer cache.
 	 */
 	if (fs->s_dirt) {
-#if !defined(__FreeBSD__)
-		struct timeval time;
-#endif
-
 		if (fs->s_rd_only != 0) {		/* XXX */
 			printf("fs = %s\n", fs->fs_fsmnt);
 			panic("update: rofs mod");
 		}
 		fs->s_dirt = 0;
-#if !defined(__FreeBSD__)
-		get_time(&time);
-#endif
 		fs->s_es->s_wtime = time.tv_sec;
 		allerror = ext2_sbupdate(ump, waitfor);
 	}
@@ -933,7 +904,6 @@ restart:
 	if ((*vpp = ufs_ihashget(dev, ino)) != NULL)
 		return (0);
 
-#ifdef __FreeBSD__
 	/*
 	 * Lock out the creation of new entries in the FFS hash table in
 	 * case getnewvnode() or MALLOC() blocks, otherwise a duplicate
@@ -947,7 +917,6 @@ restart:
 		goto restart;
 	}
 	ext2fs_inode_hash_lock = 1;
-#endif
 
 	/* Allocate a new vnode/inode. */
 	if (error = getnewvnode(VT_UFS, mp, ext2_vnodeop_p, &vp)) {
@@ -955,9 +924,6 @@ restart:
 		return (error);
 	}
 	MALLOC(ip, struct inode *, sizeof(struct inode), M_EXT2NODE, M_WAITOK);
-#ifndef __FreeBSD__
-	insmntque(vp, mp);
-#endif
 	bzero((caddr_t)ip, sizeof(struct inode));
 	vp->v_data = ip;
 	ip->i_vnode = vp;
@@ -976,11 +942,9 @@ restart:
 	 */
 	ufs_ihashins(ip);
 
-#ifdef __FreeBSD__
 	if (ext2fs_inode_hash_lock < 0)
 		wakeup(&ext2fs_inode_hash_lock);
 	ext2fs_inode_hash_lock = 0;
-#endif
 
 	/* Read in the disk contents for the inode, copy into the inode. */
 	/* Read in the disk contents for the inode, copy into the inode. */
@@ -1041,10 +1005,6 @@ printf("ext2_vget(%d) dbn= %d ", ino, fsbtodb(fs, ino_to_fsba(fs, ino)));
 	 * already have one. This should only happen on old filesystems.
 	 */
 	if (ip->i_gen == 0) {
-#if !defined(__FreeBSD__)
-		struct timeval time;
-		get_time(&time);
-#endif
 		if (++nextgennumber < (u_long)time.tv_sec)
 			nextgennumber = time.tv_sec;
 		ip->i_gen = nextgennumber;
