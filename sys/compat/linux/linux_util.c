@@ -57,39 +57,6 @@ const char      linux_emul_path[] = "/compat/linux";
  * be in exists.
  */
 int
-linux_emul_find(td, sgp, path, pbuf, cflag)
-	struct thread	 *td;
-	caddr_t		 *sgp;		/* Pointer to stackgap memory */
-	char		 *path;
-	char		**pbuf;
-	int		  cflag;
-{
-	char *newpath;
-	size_t sz;
-	int error;
-
-	error = linux_emul_convpath(td, path, (sgp == NULL) ? UIO_SYSSPACE :
-	    UIO_USERSPACE, &newpath, cflag);
-	if (newpath == NULL)
-		return (error);
-
-	if (sgp == NULL) {
-		*pbuf = newpath;
-		return (error);
-	}
-
-	sz = strlen(newpath);
-	*pbuf = stackgap_alloc(sgp, sz + 1);
-	if (*pbuf != NULL)
-		error = copyout(newpath, *pbuf, sz + 1);
-	else
-		error = ENAMETOOLONG;
-	free(newpath, M_TEMP);
-
-	return (error);
-}
-
-int
 linux_emul_convpath(td, path, pathseg, pbuf, cflag)
 	struct thread	 *td;
 	char		 *path;
