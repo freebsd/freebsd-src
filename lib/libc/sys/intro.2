@@ -502,7 +502,7 @@ as the group,
 but is in a different process group.
 Note that when a process exits, the parent process for its children
 is changed to be
-.Nm init ,
+.Xr init 8 ,
 which is in a separate session.
 Not all members of an orphaned process group are necessarily orphaned
 processes (those whose creating process has exited).
@@ -562,7 +562,7 @@ process and is granted special privileges if its effective user ID is 0.
 .It  Special Processes
 The processes with process IDs of 0, 1, and 2 are special.
 Process 0 is the scheduler.  Process 1 is the initialization process
-.Xr init ,
+.Xr init 8 ,
 and is the ancestor of every other process in the system.
 It is used to control the process structure.
 Process 2 is the paging daemon.
