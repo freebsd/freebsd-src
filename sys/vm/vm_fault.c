@@ -919,30 +919,29 @@ readrest:
  *	Wire down a range of virtual addresses in a map.
  */
 int
-vm_fault_wire(map, start, end)
+vm_fault_wire(map, start, end, user_wire)
 	vm_map_t map;
 	vm_offset_t start, end;
+	boolean_t user_wire;
 {
-
 	vm_offset_t va;
-	pmap_t pmap;
 	int rv;
-
-	pmap = vm_map_pmap(map);
 
 	/*
 	 * Inform the physical mapping system that the range of addresses may
 	 * not fault, so that page tables and such can be locked down as well.
 	 */
-	pmap_pageable(pmap, start, end, FALSE);
+	pmap_pageable(map->pmap, start, end, FALSE);
 
 	/*
 	 * We simulate a fault to get the page and enter it in the physical
-	 * map.
+	 * map.  For user wiring, we only ask for read access on currently
+	 * read-only sections.
 	 */
 	for (va = start; va < end; va += PAGE_SIZE) {
-		rv = vm_fault(map, va, VM_PROT_READ|VM_PROT_WRITE,
-			VM_FAULT_CHANGE_WIRING);
+		rv = vm_fault(map, va,
+		    user_wire ? VM_PROT_READ : VM_PROT_READ | VM_PROT_WRITE,
+		    user_wire ? VM_FAULT_USER_WIRE : VM_FAULT_CHANGE_WIRING);
 		if (rv) {
 			if (va != start)
 				vm_fault_unwire(map, start, va);
@@ -951,46 +950,6 @@ vm_fault_wire(map, start, end)
 	}
 	return (KERN_SUCCESS);
 }
-
-/*
- *	vm_fault_user_wire:
- *
- *	Wire down a range of virtual addresses in a map.  This
- *	is for user mode though, so we only ask for read access
- *	on currently read only sections.
- */
-int
-vm_fault_user_wire(map, start, end)
-	vm_map_t map;
-	vm_offset_t start, end;
-{
-	vm_offset_t va;
-	pmap_t pmap;
-	int rv;
-
-	pmap = vm_map_pmap(map);
-
-	/*
-	 * Inform the physical mapping system that the range of addresses may
-	 * not fault, so that page tables and such can be locked down as well.
-	 */
-	pmap_pageable(pmap, start, end, FALSE);
-
-	/*
-	 * We simulate a fault to get the page and enter it in the physical
-	 * map.
-	 */
-	for (va = start; va < end; va += PAGE_SIZE) {
-		rv = vm_fault(map, va, VM_PROT_READ, VM_FAULT_USER_WIRE);
-		if (rv) {
-			if (va != start)
-				vm_fault_unwire(map, start, va);
-			return (rv);
-		}
-	}
-	return (KERN_SUCCESS);
-}
-
 
 /*
  *	vm_fault_unwire:
