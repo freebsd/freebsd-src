@@ -1,4 +1,4 @@
-.\"	$KAME: rtadvd.conf.5,v 1.5 2000/05/22 22:22:56 itojun Exp $
+.\"	$KAME: rtadvd.conf.5,v 1.8 2000/10/25 05:37:43 jinmei Exp $
 .\"
 .\" Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
 .\" All rights reserved.
@@ -38,6 +38,14 @@
 .Sh DESCRIPTION
 This file describes how the router advertisement packet must be constructed
 for each of the interfaces.
+As described in
+.Xr rtadvd 8 ,
+you do not have to set this configuration file up at all,
+unless you need some special configurations.
+You may even omit to create this file. In such cases, the
+.Nm rtadvd
+daemon will automatically configure itself using default values
+specified in the specification.
 .Pp
 It obeys the famous
 .Xr termcap 5
@@ -58,13 +66,16 @@ Capabilities describe the value to be filled into ICMPv6 router
 advertisement messages and to control
 .Xr rtadvd 8
 behavior.
-Therefore, you are encouraged to read IETF neighbor discovery documents
+You are therefore encouraged to read IETF neighbor discovery documents
 if you would like to modify the sample configuration file.
 .Pp
-Note that almost all items have default values.
+As explained above, note that almost all items have default values.
 If you omit an item, the default value of the item will be used.
 .Pp
 There are two items which control the interval of sending router advertisements.
+These items can be omitted, then
+.Nm rtadvd
+will use the default values.
 .Bl -tag -width indent
 .It Cm \&maxinterval
 (num) The maximum time allowed between sending unsolicited
@@ -86,6 +97,9 @@ the value of
 .Pp
 The following items are for ICMPv6 router advertisement message
 header.
+These items can be omitted, then
+.Nm rtadvd
+will use the default values.
 .Bl -tag -width indent
 .It Cm \&chlim
 (num) The value for Cur Hop Limit field.
@@ -120,6 +134,10 @@ The default value is 0, which means unspecified by this router.
 .Pp
 The following items are for ICMPv6 prefix information option,
 which will be attached to router advertisement header.
+These items can be omitted, then
+.Nm rtadvd
+will automatically get appropriate prefixes from the kernel's routing table,
+and advertise the prefixes with the default parameters.
 .Bl -tag -width indent
 .It Cm \&addrs
 (num) Number of prefixes.
@@ -175,8 +193,11 @@ The default value is 2592000(30 days).
 The default value is 604800(7 days).
 .El
 .Pp
-The following items are for ICMPv6 MTU option,
+The following item is for ICMPv6 MTU option,
 which will be attached to router advertisement header.
+This item can be omitted, then
+.Nm rtadvd
+will use the default value.
 .Bl -tag -width indent
 .It Cm \&mtu
 (num or str) MTU (maximum transmission unit) field.
@@ -190,6 +211,9 @@ will be set to the interface MTU automatically.
 .Pp
 The following item controls ICMPv6 source link-layer address option,
 which will be attached to router advertisement header.
+As noted above, you can just omit the item, then
+.Nm rtadvd
+will use the default value.
 .Bl -tag -width indent
 .It Cm \&nolladdr
 (bool) By default
@@ -207,26 +231,6 @@ will not attach source link-layer address option to
 router advertisement packets.
 .El
 .Pp
-The following item controls ICMPV6 home agent information option,
-which was defined with mobile IPv6 support.
-It will be attached to router advertisement header just like other options do.
-.Bl -tag -width indent
-.It Cm \&hapref
-(num) Specifies home agent preference.
-If set to non-zero,
-.Cm \&hatime
-must be present as well.
-.It Cm \&hatime
-(num) Specifies home agent lifetime.
-.El
-.Pp
-When mobile IPv6 support is turned on for
-.Xr rtadvd 8 ,
-advertisement interval option will be attached to router advertisement
-packet, by configuring
-.Cm \&maxinterval
-explicitly.
-.Pp
 You can also refer one line from another by using
 .Cm tc
 capability.
@@ -238,21 +242,30 @@ for details on the capability.
 #
 # common definitions.
 #
-default:\\
-	:raflags#0:rltime#3600:\\
-	:pinfoflags#64:vltime#360000:pltime#360000:mtu#1500:
-ether:\\
-	:mtu#1280:tc=default:
+# Note: All of the following parameters have default values defined
+#       in specifications, and hence you usually do not have to set them
+#       by hand unless you need special non-default values.
+#
+#       You even do not need to create the configuration file. rtadvd
+#       would usually work well without a configuration file.
+#       See also: rtadvd(8)
 
-#
-# interfaces.
-#
-ef0:\\
-	:addrs#1:\\
-	:addr="3ffe:501:4819:1000::":tc=ether:
-ef1:\\
-	:addrs#2:addr0="3ffe:501:4819:2000::":\\
-	:addr1="3ffe:501:4819:3000::":tc=ether:
+#default:\\
+#	:chlim#64:raflags#0:rltime#1800:rtime#30000:retrans#1000:\\
+#	:pinfoflags#192:vltime#3600000:pltime#3600000:mtu#1500:
+#ether:\\
+#	:mtu#1500:tc=default:
+
+# per-interface definitions.
+#   Mainly IPv6 prefixes are configured in this part. However, rtadvd
+#   automatically learns appropriate prefixes from the kernel's routing
+#   table, and advertises the prefixes, so you don't have to configure
+#   this part, either.
+#   If you don't want the automatic advertisement, invoke rtadvd with
+#   the -s option and configure this part by hand.
+ 
+#ef0:\\
+#	:addrs#1:addr="3ffe:501:4819:1000::":prefixlen#64:tc=ether:
 
 .Ed
 .Sh SEE ALSO
