@@ -7,7 +7,6 @@ SUBDIR=	atrun \
 	fingerd \
 	ftpd \
 	${_ftp-proxy} \
-	getNAME \
 	getty \
 	${_lukemftpd} \
 	${_mail.local} \
