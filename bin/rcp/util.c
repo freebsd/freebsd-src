@@ -155,7 +155,7 @@ allocbuf(BUF *bp, int fd, int blksize)
 }
 
 void
-lostconn(int signo)
+lostconn(int signo __unused)
 {
 	if (!iamremote)
 		warnx("lost connection");
