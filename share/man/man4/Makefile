@@ -173,6 +173,7 @@ MAN=	aac.4 \
 	uscanner.4 \
 	vga.4 \
 	vinum.4 \
+	vlan.4 \
 	vpo.4 \
 	vr.4 \
 	wb.4 \
