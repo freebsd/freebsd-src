@@ -1,4 +1,4 @@
-<!-- $Id: sup.sgml,v 1.5 1995/07/07 22:25:54 jfieber Exp $ -->
+<!-- $Id: sup.sgml,v 1.6 1995/09/01 04:54:14 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 
@@ -25,7 +25,7 @@ your /etc/services file:
 SUP gets the information it needs to run from a configuration file 
 called a supfile.  This file tells sup what collections it will be updating
 and/or installing and where they go.  The supfile in this directory will
-sup both the source and ports collection - look for the blank line seperating
+sup both the source and ports collection - look for the blank line separating
 the two collections; if you don't want ports, you can simply delete all the
 ports entries.  If you're inside the United States, you may also uncomment
 the `secure' collection line to grab the DES code.  If you're outside the
@@ -35,7 +35,7 @@ collection and then go look on braae.ru.ac.za, where it's available for
 anonymous ftp for those outside the U.S.
 
 Any other distributions you do not wish to receive can be commented out
-with a &num; at the begining of the distribution line.
+with a &num; at the beginning of the distribution line.
 
 Once this is setup, you're ready to go.  To start sup type:
 <verb>
