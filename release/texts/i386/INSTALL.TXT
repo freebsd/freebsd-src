@@ -266,7 +266,7 @@ the distributions you're interested in, simply tar them onto the tape
 with a command something like this:
 
         cd /where/you/have/your/dists
-        tar cvf /dev/rwt0 (or /dev/rst0) dist1 .. dist2
+        tar cvf /dev/rwt0 (or /dev/rsa0) dist1 .. dist2
 
 When you go to do the installation, you should also make sure that you
 leave enough room in some temporary directory (which you'll be allowed
