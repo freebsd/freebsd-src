@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.196 1999/05/12 19:06:40 peter Exp $
+ * $Id: vfs_subr.c,v 1.197 1999/05/14 01:29:21 mckusick Exp $
  */
 
 /*
@@ -1175,9 +1175,7 @@ bdevvp(dev, vpp)
 	struct vnode *nvp;
 	int error;
 
-	/* XXX 255 is for mfs. */
-	if (dev == NODEV || (major(dev) != 255 && (major(dev) >= nblkdev ||
-	    bdevsw(dev) == NULL))) {
+	if (dev == NODEV || major(dev) >= nblkdev || bdevsw(dev) == NULL) {
 		*vpp = NULLVP;
 		return (ENXIO);
 	}
@@ -1279,7 +1277,6 @@ loop:
 
 		if (nvp->v_type == VBLK && rmaj < nblkdev) {
 			if (bdevsw(dev) && bdevsw(dev)->d_parms)
-				
 				(*bdevsw(dev)->d_parms)(dev, sinfo, DPARM_GET);
 		} else if (nvp->v_type == VCHR && rmaj < nchrdev) {
 			if (devsw(dev) && devsw(dev)->d_parms)
