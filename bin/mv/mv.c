@@ -76,8 +76,8 @@ void	usage(void);
 int
 main(int argc, char *argv[])
 {
-	register int baselen, len, rval;
-	register char *p, *endp;
+	int baselen, len, rval;
+	char *p, *endp;
 	struct stat sb;
 	int ch;
 	char path[PATH_MAX];
@@ -234,7 +234,7 @@ fastcopy(char *from, char *to, struct stat *sbp)
 	static u_int blen;
 	static char *bp;
 	mode_t oldmode;
-	register int nread, from_fd, to_fd;
+	int nread, from_fd, to_fd;
 
 	if ((from_fd = open(from, O_RDONLY, 0)) < 0) {
 		warn("%s", from);
