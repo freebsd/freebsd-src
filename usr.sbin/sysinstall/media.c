@@ -317,7 +317,7 @@ mediaSetFTP(dialogMenuItem *self)
     static Device ftpDevice;
     char *cp, hbuf[MAXHOSTNAMELEN], *hostname, *dir;
     struct addrinfo hints, *res;
-    int af;
+    int af, urllen;
     extern int FtpPort;
     static Device *networkDev = NULL;
 
@@ -344,6 +344,13 @@ mediaSetFTP(dialogMenuItem *self)
 				"Where <path> is relative to the anonymous ftp directory or the\n"
 				"home directory of the user being logged in as.", 0);
 	if (!cp || !*cp || !strcmp(cp, "ftp://")) {
+	    variable_unset(VAR_FTP_PATH);
+	    return DITEM_FAILURE;
+	}
+	urllen = strlen(cp);
+	if (urllen >= sizeof(ftpDevice.name)) {
+	    msgConfirm("Length of specified URL is %d characters. Allowable maximum is %d.",
+			urllen,sizeof(ftpDevice.name)-1);
 	    variable_unset(VAR_FTP_PATH);
 	    return DITEM_FAILURE;
 	}
@@ -539,6 +546,7 @@ mediaSetNFS(dialogMenuItem *self)
     static Device *networkDev = NULL;
     char *cp, *idx;
     char hostname[MAXPATHLEN];
+    int pathlen;
 
     mediaClose();
     cp = variable_get_value(VAR_NFS_PATH, "Please enter the full NFS file specification for the remote\n"
@@ -550,6 +558,13 @@ mediaSetNFS(dialogMenuItem *self)
     if (!(idx = index(hostname, ':'))) {
 	msgConfirm("Invalid NFS path specification.  Must be of the form:\n"
 		   "host:/full/pathname/to/FreeBSD/distdir");
+	return DITEM_FAILURE;
+    }
+    pathlen = strlen(hostname);
+    if (pathlen >= sizeof(nfsDevice.name)) {
+	msgConfirm("Length of specified NFS path is %d characters. Allowable maximum is %d.",
+		   pathlen,sizeof(nfsDevice.name)-1);
+	variable_unset(VAR_NFS_PATH);
 	return DITEM_FAILURE;
     }
     SAFE_STRCPY(nfsDevice.name, hostname);
