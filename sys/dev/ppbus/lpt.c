@@ -377,8 +377,9 @@ lpt_attach(device_t dev)
 {
 	device_t ppbus = device_get_parent(dev);
 	struct lpt_data *sc = DEVTOSOFTC(dev);
-	int zero = 0, irq, unit = device_get_unit(dev);
+	int zero = 0, unit = device_get_unit(dev);
 	int error;
+	u_long irq;
 
 	sc->sc_primed = 0;	/* not primed yet */
 
@@ -830,7 +831,7 @@ lpt_intr(void *arg)
 	device_t lptdev = (device_t)arg;
         device_t ppbus = device_get_parent(lptdev);
 	struct lpt_data *sc = DEVTOSOFTC(lptdev);
-	int sts;
+	int sts = 0;
 	int i;
 	
 	/* we must own the bus to use it */
