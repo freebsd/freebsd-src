@@ -393,7 +393,7 @@ kse_thr_interrupt(struct thread *td, struct kse_thr_interrupt_args *uap)
 	struct thread *td2;
 
 	p = td->td_proc;
-	if (!(p->p_flag & P_THREADED) || (uap->tmbx == NULL))
+	if (!(p->p_flag & P_SA) || (uap->tmbx == NULL))
 		return (EINVAL);
 	mtx_lock_spin(&sched_lock);
 	FOREACH_THREAD_IN_PROC(p, td2) {
@@ -456,7 +456,7 @@ kse_exit(struct thread *td, struct kse_exit_args *uap)
 	ke = td->td_kse;
 	if (p->p_numthreads == 1) {
 		kse_purge(p, td);
-		p->p_flag &= ~P_THREADED;
+		p->p_flag &= ~P_SA;
 		mtx_unlock_spin(&sched_lock);
 		PROC_UNLOCK(p);
 	} else {
@@ -545,7 +545,7 @@ kse_wakeup(struct thread *td, struct kse_wakeup_args *uap)
 	td2 = NULL;
 	ku = NULL;
 	/* KSE-enabled processes only, please. */
-	if (!(p->p_flag & P_THREADED))
+	if (!(p->p_flag & P_SA))
 		return (EINVAL);
 	PROC_LOCK(p);
 	mtx_lock_spin(&sched_lock);
@@ -620,7 +620,7 @@ kse_create(struct thread *td, struct kse_create_args *uap)
 
 	/* Easier to just set it than to test and set */
 	PROC_LOCK(p);
-	p->p_flag |= P_THREADED;
+	p->p_flag |= P_SA;
 	PROC_UNLOCK(p);
 	kg = td->td_ksegrp;
 	if (uap->newgroup) {
@@ -1764,7 +1764,7 @@ thread_single(int force_exit)
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	KASSERT((td != NULL), ("curthread is NULL"));
 
-	if ((p->p_flag & P_THREADED) == 0 && p->p_numthreads == 1)
+	if ((p->p_flag & P_SA) == 0 && p->p_numthreads == 1)
 		return (0);
 
 	/* Is someone already single threading? */
@@ -1906,7 +1906,7 @@ thread_suspend_check(int return_instead)
 		if ((p->p_flag & P_SINGLE_EXIT) && (p->p_singlethread != td)) {
 			while (mtx_owned(&Giant))
 				mtx_unlock(&Giant);
-			if (p->p_flag & P_THREADED)
+			if (p->p_flag & P_SA)
 				thread_exit();
 			else
 				thr_exit1();

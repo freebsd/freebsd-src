@@ -142,7 +142,7 @@ retry:
 		td = ke->ke_thread;
 		KASSERT((td->td_kse == ke), ("kse/thread mismatch"));
 		kg = ke->ke_ksegrp;
-		if (td->td_proc->p_flag & P_THREADED) {
+		if (td->td_proc->p_flag & P_SA) {
 			if (kg->kg_last_assigned == td) {
 				kg->kg_last_assigned = TAILQ_PREV(td,
 				    threadqueue, td_runq);
@@ -247,7 +247,7 @@ remrunqueue(struct thread *td)
 	/*
 	 * If it is not a threaded process, take the shortcut.
 	 */
-	if ((td->td_proc->p_flag & P_THREADED) == 0) {
+	if ((td->td_proc->p_flag & P_SA) == 0) {
 		/* Bring its kse with it, leave the thread attached */
 		sched_rem(ke);
 		ke->ke_state = KES_THREAD; 
@@ -290,7 +290,7 @@ adjustrunqueue( struct thread *td, int newpri)
 	/*
 	 * If it is not a threaded process, take the shortcut.
 	 */
-	if ((td->td_proc->p_flag & P_THREADED) == 0) {
+	if ((td->td_proc->p_flag & P_SA) == 0) {
 		/* We only care about the kse in the run queue. */
 		td->td_priority = newpri;
 		if (ke->ke_rqindex != (newpri / RQ_PPQ)) {
@@ -331,7 +331,7 @@ setrunqueue(struct thread *td)
 	TD_SET_RUNQ(td);
 	kg = td->td_ksegrp;
 	kg->kg_runnable++;
-	if ((td->td_proc->p_flag & P_THREADED) == 0) {
+	if ((td->td_proc->p_flag & P_SA) == 0) {
 		/*
 		 * Common path optimisation: Only one of everything
 		 * and the KSE is always already attached.
@@ -651,7 +651,7 @@ thread_sanity_check(struct thread *td, char *string)
 		}
 	}
 	
-	if ((p->p_flag & P_THREADED) == 0) {
+	if ((p->p_flag & P_SA) == 0) {
 		if (ke == NULL) {
 			panc(string, "non KSE thread lost kse");
 		}
