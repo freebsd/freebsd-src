@@ -9,6 +9,8 @@ CPUTYPE ?= i386
 CPUTYPE ?= ev4
 .elif ${MACHINE_ARCH} == "ia64"
 CPUTYPE ?= itanium
+.elif ${MACHINE_ARCH} == "sparc64"
+CPUTYPE ?= ultrasparc
 .endif
 
 # Handle aliases (not documented in make.conf to avoid user confusion
