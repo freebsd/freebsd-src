@@ -362,9 +362,11 @@ ReadCmd(int ac, char **av)
 	/* Open file */
 	switch (ac) {
 	case 2:
-		if ((fp = fopen(av[1], "r")) == NULL)
+		if ((fp = fopen(av[1], "r")) == NULL) {
 			warn("%s", av[1]);
-		return(CMDRTN_ERROR);
+			return(CMDRTN_ERROR);
+		}
+		break;
 	default:
 		return(CMDRTN_USAGE);
 	}
