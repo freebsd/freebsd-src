@@ -305,8 +305,11 @@ disable_slot(struct slot *sp)
 				unregister_intr(sp->irq, slot_irq_handler);
 				if (devp->drv->imask)
 					INTRUNMASK(*devp->drv->imask,(1<<sp->irq));
+				/* Remove from the PCIC controller imask */
+				if (sp->ctrl->imask)
+					INTRUNMASK(*(sp->ctrl->imask), (i<<sp->irq));
 				sp->irq = 0;
-				}
+			}
 			splx(s);
 		}
 	}
@@ -439,7 +442,8 @@ pccard_alloc_slot(struct slot_ctrl *cp)
  *	allowed are passed as a mask.
  */
 int
-pccard_alloc_intr(int imask, inthand2_t *hand, int unit, int *maskp)
+pccard_alloc_intr(u_int imask, inthand2_t *hand, int unit,
+		  u_int *maskp, u_int *pcic_imask)
 {
 	int irq;
 	unsigned int mask;
@@ -451,6 +455,8 @@ pccard_alloc_intr(int imask, inthand2_t *hand, int unit, int *maskp)
 		if (maskp)
 			INTRMASK (*maskp, mask);
 		if (register_intr(irq, 0, 0, hand, maskp, unit)==0) {
+			/* add this to the PCIC controller's mask */
+			INTRMASK(*pcic_imask, (1 << irq));
 			INTREN (mask);
 			return(irq);
 		}
@@ -506,7 +512,8 @@ allocate_driver(struct slot *sp, struct drv_desc *drvp)
 			 * device relies on a different interrupt mask.
 			 */
 			irq = pccard_alloc_intr(drvp->irqmask,
-				slot_irq_handler, (int)sp, dp->imask);
+				slot_irq_handler, (int)sp,
+				dp->imask, sp->ctrl->imask);
 			if (irq < 0)
 				return(EINVAL);
 			sp->irq = irq;
@@ -578,6 +585,9 @@ remove_device(struct pccard_dev *devp)
 		unregister_intr(sp->irq, slot_irq_handler);
 		if (devp->drv->imask)
 			INTRUNMASK(*devp->drv->imask,(1<<sp->irq));
+		/* Remove from PCIC controller imask */
+		if (sp->ctrl->imask)
+			INTRUNMASK(*(sp->ctrl->imask),(1<<sp->irq));
 		sp->irq = 0;
 	}
 	splx(s);
