@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.85 1997/09/25 00:52:33 brian Exp $
+ * $Id: command.c,v 1.86 1997/10/12 01:49:37 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -167,7 +167,7 @@ DialCommand(struct cmdtab const * cmdlist, int argc, char **argv)
       break;
     }
     if ((res = DialModem()) == EX_DONE) {
-      sleep(1);
+      nointr_sleep(1);
       ModemTimeout();
       PacketMode();
       break;

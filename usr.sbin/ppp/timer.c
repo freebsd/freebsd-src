@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: timer.c,v 1.19 1997/10/23 20:11:01 ache Exp $
+ * $Id: timer.c,v 1.20 1997/10/23 21:32:48 ache Exp $
  *
  *  TODO:
  */
@@ -198,7 +198,7 @@ ShowTimers()
 
 #ifdef SIGALRM
 u_int
-sleep(u_int sec)
+nointr_sleep(u_int sec)
 {
   struct timeval to, st, et;
   long sld, nwd, std;
@@ -229,7 +229,7 @@ sleep(u_int sec)
 }
 
 void
-usleep(u_int usec)
+nointr_usleep(u_int usec)
 {
   struct timeval to, st, et;
   long sld, nwd, std;

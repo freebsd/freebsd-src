@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: defs.h,v 1.19 1997/09/10 02:20:28 brian Exp $
+ * $Id: defs.h,v 1.20 1997/10/23 21:32:48 ache Exp $
  *
  *	TODO:
  */
@@ -106,10 +106,8 @@ char *dstsystem;
 #endif
 
 #ifdef SIGALRM
-#define sleep nointr_sleep
-#define usleep nointr_usleep
-u_int sleep(u_int sec);
-void usleep(u_int usec);
+u_int nointr_sleep(u_int sec);
+void nointr_usleep(u_int usec);
 #endif
 
 #endif				/* _DEFS_H_ */
