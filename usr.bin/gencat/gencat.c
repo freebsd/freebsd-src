@@ -85,7 +85,7 @@ usage()
 	exit(1);
 }
 
-void main(
+int main(
 #if ANSI_C || defined(__cplusplus)
 		int argc, char *argv[])
 #else
@@ -155,6 +155,7 @@ char *argv[];
     } else {
 	usage();
     }
+    return 0;
 }
 
 static void writeIfChanged(

@@ -73,13 +73,15 @@ c_special(fd1, file1, skip1, fd2, file2, skip2)
 		ch2 = getc(fp2);
 		if (ch1 == EOF || ch2 == EOF)
 			break;
-		if (ch1 != ch2)
+		if (ch1 != ch2) {
 			if (lflag) {
 				dfound = 1;
 				(void)printf("%6qd %3o %3o\n", byte, ch1, ch2);
-			} else
+			} else {
 				diffmsg(file1, file2, byte, line);
 				/* NOTREACHED */
+			}
+		}
 		if (ch1 == '\n')
 			++line;
 	}

@@ -80,8 +80,8 @@ main(argc, argv)
 	int argc;
 	char *argv[];
 {
-	register c;
-	register char *cp, *dp;
+	int c;
+	char *cp, *dp;
 
 	argc--;
 	argv++;

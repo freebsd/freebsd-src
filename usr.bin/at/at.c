@@ -92,12 +92,12 @@ enum { ATQ, ATRM, AT, BATCH, CAT };	/* what program we want to run */
 
 /* File scope variables */
 
-static const char rcsid[] = "$Id: at.c,v 1.14 1998/10/15 13:30:48 mckay Exp $";
+static const char rcsid[] = "$Id: at.c,v 1.15 1998/12/06 07:42:09 archie Exp $";
 char *no_export[] =
 {
     "TERM", "TERMCAP", "DISPLAY", "_"
 } ;
-static send_mail = 0;
+static int send_mail = 0;
 
 /* External variables */
 
