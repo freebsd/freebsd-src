@@ -4,6 +4,6 @@
 PROG=	fmt
 SRCS=	fmt.c
 
-WARNS=	2
+WARNS?=	2
 
 .include <bsd.prog.mk>

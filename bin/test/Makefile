@@ -5,6 +5,6 @@ PROG=	test
 LINKS=	${BINDIR}/test ${BINDIR}/[
 MLINKS=	test.1 '[.1'
 
-WARNS=	2
+WARNS?=	2
 
 .include <bsd.prog.mk>
