@@ -1,9 +1,9 @@
 # $FreeBSD$
 
 PROG=	elf2aout
-CFLAGS+=-I${.CURDIR}/../crunch/crunchide
-WARNS?=	5
-NO_WERROR?=
 NOMAN=
+NO_WERROR?=
+WARNS?=	5
+CFLAGS+= -I${.CURDIR}/../../usr.sbin/crunch/crunchide
 
 .include <bsd.prog.mk>
