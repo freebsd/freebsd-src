@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: rrs.c,v 1.4 1993/11/22 19:04:44 jkh Exp $
+ *	$Id: rrs.c,v 1.7 1993/12/02 00:56:39 jkh Exp $
  */
 
 #include <sys/param.h>
@@ -318,11 +318,11 @@ long	*relocation;
 {
 	struct relocation_info	*r = rrs_next_reloc();
 
+#ifdef DEBUG
 	if (rp->r_address < text_start + text_size)
 		error("%s: RRS text relocation at %#x for \"%s\"",
 			get_file_name(entry), rp->r_address, sp->name);
 
-#ifdef DEBUG
 printf("claim_rrs_reloc: %s in %s\n", sp->name, get_file_name(entry));
 #endif
 	r->r_address = rp->r_address;
