@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)segments.h	7.1 (Berkeley) 5/9/91
- *	$Id: segments.h,v 1.2 1993/10/16 14:39:30 rgrimes Exp $
+ *	$Id: segments.h,v 1.3 1993/11/07 17:43:08 wollman Exp $
  */
 
 #ifndef _MACHINE_SEGMENTS_H_
@@ -64,7 +64,8 @@
  */
 struct	segment_descriptor	{
 	unsigned sd_lolimit:16 ;	/* segment extent (lsb) */
-	unsigned sd_lobase:24 ;		/* segment base address (lsb) */
+	unsigned sd_lobase:24 __attribute__ ((packed));
+					/* segment base address (lsb) */
 	unsigned sd_type:5 ;		/* segment type */
 	unsigned sd_dpl:2 ;		/* segment descriptor priority level */
 	unsigned sd_p:1 ;		/* segment descriptor present */
@@ -178,8 +179,8 @@ extern sdtossd() ;	/* to encode a sd */
  * region descriptors, used to load gdt/idt tables before segments yet exist.
  */
 struct region_descriptor {
-	unsigned rd_limit:16;		/* segment extent */
-	unsigned rd_base:32;		/* base address  */
+	unsigned rd_limit:16;				/* segment extent */
+	unsigned rd_base:32 __attribute__ ((packed));	/* base address  */
 };
 
 /*
@@ -198,4 +199,37 @@ struct region_descriptor {
 
 #define	NIDT	256
 #define	NRSVIDT	32		/* reserved entries for cpu exceptions */
+
+/*
+ * Entries in the Global Descriptor Table (GDT)
+ */
+#define	GNULL_SEL	0	/* Null Descriptor */
+#define	GCODE_SEL	1	/* Kernel Code Descriptor */
+#define	GDATA_SEL	2	/* Kernel Data Descriptor */
+#define	GLDT_SEL	3	/* LDT - eventually one per process */
+#define	GTGATE_SEL	4	/* Process task switch gate */
+#define	GPANIC_SEL	5	/* Task state to consider panic from */
+#define	GPROC0_SEL	6	/* Task state process slot zero and up */
+#define	GUSERLDT_SEL	7	/* User LDT */
+#define NGDT 	GUSERLDT_SEL+1
+
+/*
+ * Entries in the Local Descriptor Table (LDT)
+ */
+#define	LSYS5CALLS_SEL	0	/* forced by intel BCS */
+#define	LSYS5SIGR_SEL	1
+#define	L43BSDCALLS_SEL	2	/* notyet */
+#define	LUCODE_SEL	3
+#define	LUDATA_SEL	4
+/* seperate stack, es,fs,gs sels ? */
+/* #define	LPOSIXCALLS_SEL	5*/	/* notyet */
+#define NLDT		LUDATA_SEL+1
+
+#ifdef KERNEL
+extern int currentldt;
+extern union descriptor gdt[NGDT];
+extern union descriptor ldt[NLDT];
+extern struct soft_segment_descriptor gdt_segs[];
+#endif
+
 #endif /* _MACHINE_SEGMENTS_H_ */

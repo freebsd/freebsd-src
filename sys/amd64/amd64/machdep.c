@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.29 1994/01/21 09:56:05 davidg Exp $
+ *	$Id: machdep.c,v 1.30 1994/01/31 04:18:32 davidg Exp $
  */
 
 #include "npx.h"
@@ -453,9 +453,17 @@ sendsig(catcher, sig, mask, code)
 	fp->sf_handler = catcher;
 
 	/* save scratch registers */
-	fp->sf_eax = regs[tEAX];
-	fp->sf_edx = regs[tEDX];
-	fp->sf_ecx = regs[tECX];
+	fp->sf_sc.sc_eax = regs[tEAX];
+	fp->sf_sc.sc_ebx = regs[tEBX];
+	fp->sf_sc.sc_ecx = regs[tECX];
+	fp->sf_sc.sc_edx = regs[tEDX];
+	fp->sf_sc.sc_esi = regs[tESI];
+	fp->sf_sc.sc_edi = regs[tEDI];
+	fp->sf_sc.sc_cs = regs[tCS];
+	fp->sf_sc.sc_ds = regs[tDS];
+	fp->sf_sc.sc_ss = regs[tSS];
+	fp->sf_sc.sc_es = regs[tES];
+	fp->sf_sc.sc_isp = regs[tISP];
 
 	/*
 	 * Build the signal context to be used by sigreturn.
@@ -508,9 +516,17 @@ sigreturn(p, uap, retval)
 		return(EINVAL);
 
 	/* restore scratch registers */
-	regs[tEAX] = fp->sf_eax ;
-	regs[tEDX] = fp->sf_edx ;
-	regs[tECX] = fp->sf_ecx ;
+	regs[tEAX] = scp->sc_eax;
+	regs[tEBX] = scp->sc_ebx;
+	regs[tECX] = scp->sc_ecx;
+	regs[tEDX] = scp->sc_edx;
+	regs[tESI] = scp->sc_esi;
+	regs[tEDI] = scp->sc_edi;
+	regs[tCS] = scp->sc_cs;
+	regs[tDS] = scp->sc_ds;
+	regs[tES] = scp->sc_es;
+	regs[tSS] = scp->sc_ss;
+	regs[tISP] = scp->sc_isp;
 
 	if (useracc((caddr_t)scp, sizeof (*scp), 0) == 0)
 		return(EINVAL);
@@ -765,32 +781,12 @@ setregs(p, entry, stack)
 /*
  * Initialize segments & interrupt table
  */
-#define DESCRIPTOR_SIZE	8
 
-#define	GNULL_SEL	0	/* Null Descriptor */
-#define	GCODE_SEL	1	/* Kernel Code Descriptor */
-#define	GDATA_SEL	2	/* Kernel Data Descriptor */
-#define	GLDT_SEL	3	/* LDT - eventually one per process */
-#define	GTGATE_SEL	4	/* Process task switch gate */
-#define	GPANIC_SEL	5	/* Task state to consider panic from */
-#define	GPROC0_SEL	6	/* Task state process slot zero and up */
-#define NGDT 	GPROC0_SEL+1
+union descriptor gdt[NGDT];
+union descriptor ldt[NLDT];		/* local descriptor table */
+struct gate_descriptor idt[NIDT];	/* interrupt descriptor table */
 
-unsigned char gdt[GPROC0_SEL+1][DESCRIPTOR_SIZE];
-
-/* interrupt descriptor table */
-struct gate_descriptor idt[NIDT];
-
-/* local descriptor table */
-unsigned char ldt[5][DESCRIPTOR_SIZE];
-#define	LSYS5CALLS_SEL	0	/* forced by intel BCS */
-#define	LSYS5SIGR_SEL	1
-
-#define	L43BSDCALLS_SEL	2	/* notyet */
-#define	LUCODE_SEL	3
-#define	LUDATA_SEL	4
-/* seperate stack, es,fs,gs sels ? */
-/* #define	LPOSIXCALLS_SEL	5*/	/* notyet */
+int _default_ldt, currentldt;
 
 struct	i386tss	tss, panic_tss;
 
@@ -860,7 +856,17 @@ struct soft_segment_descriptor gdt_segs[] = {
 	1,			/* segment descriptor present */
 	0, 0,
 	0,			/* unused - default 32 vs 16 bit size */
-	0  			/* limit granularity (byte/page units)*/ }};
+	0  			/* limit granularity (byte/page units)*/ },
+	/* User LDT Descriptor per process */
+{	(int) ldt,			/* segment base address  */
+	(512 * sizeof(union descriptor)-1),		/* length */
+	SDT_SYSLDT,		/* segment type */
+	0,			/* segment descriptor priority level */
+	1,			/* segment descriptor present */
+	0, 0,
+	0,			/* unused - default 32 vs 16 bit size */
+	0  			/* limit granularity (byte/page units)*/ },
+};
 
 struct soft_segment_descriptor ldt_segs[] = {
 	/* Null Descriptor - overwritten by call gate */
@@ -953,7 +959,7 @@ init386(first)
 	struct gate_descriptor *gdp;
 	extern int sigcode,szsigcode;
 	/* table descriptors - used to load tables by microp */
-	unsigned short	r_gdt[3], r_idt[3];
+	struct region_descriptor r_gdt, r_idt;
 	int	pagesinbase, pagesinext;
 
 
@@ -1036,15 +1042,15 @@ init386(first)
 	isa_defaultirq();
 #endif
 
-	r_gdt[0] = (unsigned short) (sizeof(gdt) - 1);
-	r_gdt[1] = (unsigned short) ((int) gdt & 0xffff);
-	r_gdt[2] = (unsigned short) ((int) gdt >> 16);
+	r_gdt.rd_limit = sizeof(gdt) - 1;
+	r_gdt.rd_base =  (int) gdt;
 	lgdt(&r_gdt);
-	r_idt[0] = (unsigned short) (sizeof(idt) - 1);
-	r_idt[1] = (unsigned short) ((int) idt & 0xfffff);
-	r_idt[2] = (unsigned short) ((int) idt >> 16);
+	r_idt.rd_limit = sizeof(idt) - 1;
+	r_idt.rd_base = (int) idt;
 	lidt(&r_idt);
-	lldt(GSEL(GLDT_SEL, SEL_KPL));
+	_default_ldt = GSEL(GLDT_SEL, SEL_KPL);
+	lldt(_default_ldt);
+	currentldt = _default_ldt;
 
 #include "ddb.h"
 #if NDDB > 0
@@ -1145,8 +1151,8 @@ init386(first)
 	ltr(_gsel_tss);
 
 	/* make a call gate to reenter kernel with */
-	gdp = (struct gate_descriptor *) &ldt[LSYS5CALLS_SEL][0];
-	
+	gdp = &ldt[LSYS5CALLS_SEL].gd;
+
 	x = (int) &IDTVEC(syscall);
 	gdp->gd_looffset = x++;
 	gdp->gd_selector = GSEL(GCODE_SEL,SEL_KPL);
