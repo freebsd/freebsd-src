@@ -4036,5 +4036,5 @@ sysctl_vfs_ctl(SYSCTL_HANDLER_ARGS)
 	return (VFS_SYSCTL(mp, vc.vc_op, req));
 }
 
-SYSCTL_PROC(_vfs, OID_AUTO, ctl, CTLFLAG_RD,
-        NULL, 0, sysctl_vfs_ctl, "", "Message queue IDs");
+SYSCTL_PROC(_vfs, OID_AUTO, ctl, CTLFLAG_WR,
+        NULL, 0, sysctl_vfs_ctl, "", "Sysctl by fsid");
