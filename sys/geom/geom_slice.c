@@ -186,6 +186,11 @@ g_slice_start(struct bio *bp)
 		 * method once if so.
 		 */
 		t = bp->bio_offset + gsl->offset;
+		/* .ctl devices may take us negative */
+		if (t < 0 || (t + bp->bio_length) < 0) {
+			g_io_deliver(bp, EINVAL);
+			return;
+		}
 		for (m_index = 0; m_index < gsp->nhot; m_index++) {
 			gmp = &gsp->hot[m_index];
 			if (t >= gmp->offset + gmp->length)
