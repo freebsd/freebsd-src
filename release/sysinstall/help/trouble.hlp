@@ -258,4 +258,12 @@ A: There appears to be a bug in the BIOS on at least some of these boards,
    Slice the disk in 'compatible' mode and install BootEasy during the
    FreeBSD installation to avoid the bug.
 
+Q: When installing on an Dell Poweredge XE, Dell proprietary RAID controller
+   DSA (Dell SCSI Array) isn't recognized.
+
+A: Configure DSA to use AHA-1540 emulation using EISA configuration utility.
+   After that FreeBSD detects DSA as Adaptec AHA-1540 SCSI controller, with
+   irq 11 and port 340. Under emulation mode system will use DSA RAID disks,
+   but you cannot use DSA specific features such as watching RAID health.
+
 [ Please add more hardware tips to this Q&A section! ]
