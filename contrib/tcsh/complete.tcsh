@@ -1,5 +1,5 @@
 #
-# $Id: complete.tcsh,v 1.32 1999/06/09 19:09:12 christos Exp $
+# $Id: complete.tcsh,v 1.33 2000/06/10 18:54:34 kim Exp $
 # example file using the new completion code
 #
 
@@ -408,14 +408,12 @@ if ($?complete) then
 
     #from Dan Nicolaescu <dann@ics.uci.edu>
     if ( $?MODULESHOME ) then
-
-	alias Compl_module ' set q = "$MODULEPATH:as/:/ /" ; find $q -name .version -o -name .modulea\* -prune -o -print  | sed `echo "-e s@"$MODULEPATH:as%:%/\*@@g -e s@%"/\*@@g"`'
-
+	alias Compl_module 'find ${MODULEPATH:as/:/ /} -name .version -o -name .modulea\* -prune -o -print  | sed `echo "-e s@${MODULEPATH:as%:%/\*@@g -e s@%}/\*@@g"`'
 	complete module 'p%1%(add load unload switch display avail use unuse update purge list clear help initadd initrm initswitch initlist initclear)%' \
-    'n%unload%`echo "$LOADEDMODULES:as/:/ /"`%' \
-    'n%{lo*,sw*,di*,he*,inita*,initr*,inits*}%`eval Compl_module`%' \
-    'N%{sw*,initsw*}%`eval Compl_module`%' 'C%-%(-append)%' 'n%{use,unu*,av*}%d%' 'n%-append%d%' \
-    'C%[^-]*%`eval Compl_module`%'
+	'n%{unl*,sw*,inits*}%`echo "$LOADEDMODULES:as/:/ /"`%' \
+	'n%{lo*,di*,he*,inita*,initr*}%`eval Compl_module`%' \
+	'N%{sw*,initsw*}%`eval Compl_module`%' 'C%-%(-append)%' 'n%{use,unu*,av*}%d%' 'n%-append%d%' \
+	'C%[^-]*%`eval Compl_module`%'
     endif
 
     # these from Tom Warzeka <waz@quahog.npt.nuwc.navy.mil>
