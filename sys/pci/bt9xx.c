@@ -19,7 +19,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: bt9xx.c,v 1.5 1996/02/12 17:00:39 gibbs Exp $
+ *	$Id: bt9xx.c,v 1.6 1996/02/16 17:24:19 gibbs Exp $
  */
 
 #include <pci.h>
@@ -36,6 +36,7 @@
 
 /* XXX Need more device IDs */
 #define PCI_DEVICE_ID_BUSLOGIC_946	0x1040104Bul
+#define PCI_DEVICE_ID_BUSLOGIC_946_OLD	0x0140104Bul
 
 static char* bt_pci_probe __P((pcici_t tag, pcidi_t type));
 static void bt_pci_attach __P((pcici_t config_id, int unit));
@@ -54,6 +55,7 @@ static  char*
 bt_pci_probe (pcici_t tag, pcidi_t type)
 {
 	switch(type) {
+		case PCI_DEVICE_ID_BUSLOGIC_946_OLD:
 		case PCI_DEVICE_ID_BUSLOGIC_946:
 			return ("Buslogic 946 SCSI host adapter");
 			break;
