@@ -13,11 +13,13 @@
 static char *LogNames[] = {
     "Async",
     "Carrier",
+    "CCP",
     "Chat",
     "Command",
     "Connect",
     "Debug",
     "HDLC",
+    "IPCP",
     "LCP",
     "Link",
     "LQM",

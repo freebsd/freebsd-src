@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.69 1997/08/18 20:15:09 brian Exp $
+ * $Id: command.c,v 1.70 1997/08/19 01:10:19 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -415,10 +415,27 @@ static int ShowStopped()
 {
   if (!VarTerm)
     return 0;
-  if (!VarStoppedTimeout)
-    fprintf(VarTerm, " Stopped Timer: Disabled\n");
+
+  fprintf(VarTerm, " Stopped Timer:  LCP: ");
+  if (!LcpFsm.StoppedTimer.load)
+    fprintf(VarTerm, "Disabled");
   else
-    fprintf(VarTerm, " Stopped Timer: %d secs\n", VarStoppedTimeout);
+    fprintf(VarTerm, "%ld secs", LcpFsm.StoppedTimer.load / SECTICKS);
+
+  fprintf(VarTerm, ", IPCP: ");
+  if (!IpcpFsm.StoppedTimer.load)
+    fprintf(VarTerm, "Disabled");
+  else
+    fprintf(VarTerm, "%ld secs", IpcpFsm.StoppedTimer.load / SECTICKS);
+
+  fprintf(VarTerm, ", CCP: ");
+  if (!CcpFsm.StoppedTimer.load)
+    fprintf(VarTerm, "Disabled");
+  else
+    fprintf(VarTerm, "%ld secs", CcpFsm.StoppedTimer.load / SECTICKS);
+
+  fprintf(VarTerm, "\n");
+
   return 1;
 }
 
@@ -887,8 +904,18 @@ struct cmdtab *list;
 int argc;
 char **argv;
 {
-  if (argc == 1) {
-    VarStoppedTimeout = atoi(argv[0]);
+  LcpFsm.StoppedTimer.load = 0;
+  IpcpFsm.StoppedTimer.load = 0;
+  CcpFsm.StoppedTimer.load = 0;
+  if (argc <= 3) {
+    if (argc > 0) {
+      LcpFsm.StoppedTimer.load = atoi(argv[0]) * SECTICKS;
+      if (argc > 1) {
+        IpcpFsm.StoppedTimer.load = atoi(argv[1]) * SECTICKS;
+        if (argc > 2)
+          CcpFsm.StoppedTimer.load = atoi(argv[2]) * SECTICKS;
+      }
+    }
     return 0;
   }
   return -1;
