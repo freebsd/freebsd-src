@@ -212,7 +212,7 @@ extern void isp_uninit(struct ispsoftc *);
 
 #define	IDPRINTF(lev, x)	if (isp->isp_dblev >= (u_int8_t) lev) printf x
 #define	PRINTF			printf
-#define	CFGPRINTF		if (bootverbose || DFLT_DBLEVEL > 0) printf
+#define	CFGPRINTF		if (bootverbose || DFLT_DBLEVEL > 1) printf
 
 #define	SYS_DELAY(x)	DELAY(x)
 
