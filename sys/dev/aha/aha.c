@@ -55,7 +55,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aha.c,v 1.8 1998/10/09 21:38:36 gibbs Exp $
+ *      $Id: aha.c,v 1.9 1998/10/15 19:53:30 imp Exp $
  */
 
 #include <sys/param.h>
@@ -193,7 +193,6 @@ struct aha_softc *
 aha_alloc(int unit, bus_space_tag_t tag, bus_space_handle_t bsh)
 {
 	struct  aha_softc *aha;  
-	int	i;
 
 	if (unit != AHA_TEMP_UNIT) {
 		if (unit >= NAHA) {
@@ -283,7 +282,6 @@ aha_probe(struct aha_softc* aha)
 	u_int	 status;
 	u_int	 intstat;
 	int	 error;
-	u_int8_t param;
 	board_id_data_t	board_id;
 
 	/*
@@ -768,7 +766,6 @@ static void
 ahaaction(struct cam_sim *sim, union ccb *ccb)
 {
 	struct	aha_softc *aha;
-	int	s;
 
 	CAM_DEBUG(ccb->ccb_h.path, CAM_DEBUG_TRACE, ("ahaaction\n"));
 	
@@ -1050,7 +1047,7 @@ ahaexecuteccb(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 	struct	 aha_ccb *bccb;
 	union	 ccb *ccb;
 	struct	 aha_softc *aha;
-	int	 s, i;
+	int	 s;
 	u_int32_t paddr;
 
 	bccb = (struct aha_ccb *)arg;

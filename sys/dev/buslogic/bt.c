@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: bt.c,v 1.5 1998/10/09 21:38:34 gibbs Exp $
+ *      $Id: bt.c,v 1.6 1998/10/15 23:17:58 gibbs Exp $
  */
 
  /*
@@ -194,7 +194,6 @@ struct bt_softc *
 bt_alloc(int unit, bus_space_tag_t tag, bus_space_handle_t bsh)
 {
 	struct  bt_softc *bt;  
-	int	i;
 
 	if (unit != BT_TEMP_UNIT) {
 		if (unit >= NBT) {
@@ -948,7 +947,6 @@ static void
 btaction(struct cam_sim *sim, union ccb *ccb)
 {
 	struct	bt_softc *bt;
-	int	s;
 
 	CAM_DEBUG(ccb->ccb_h.path, CAM_DEBUG_TRACE, ("btaction\n"));
 	
@@ -1261,7 +1259,7 @@ btexecuteccb(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 	struct	 bt_ccb *bccb;
 	union	 ccb *ccb;
 	struct	 bt_softc *bt;
-	int	 s, i;
+	int	 s;
 
 	bccb = (struct bt_ccb *)arg;
 	ccb = bccb->ccb;
