@@ -1330,7 +1330,7 @@ sbp_recv1(struct fw_xfer *xfer){
 	struct sbp_login_res *login_res = NULL;
 	struct sbp_status *sbp_status;
 	struct sbp_target *target;
-	int	orb_fun, status_valid;
+	int	orb_fun, status_valid, t, l;
 	u_int32_t addr;
 /*
 	u_int32_t *ld;
@@ -1362,10 +1362,45 @@ printf("sbp %08x %08x %08x %08x\n", ntohl(ld[8]), ntohl(ld[9]), ntohl(ld[10]), n
 SBP_DEBUG(2)
 	printf("received address 0x%x\n", addr);
 END_DEBUG
-	target = &sbp->targets[SBP_ADDR2TRG(addr)];
-	sdev = &target->luns[SBP_ADDR2LUN(addr)];
+	t = SBP_ADDR2TRG(addr);
+	if (t >= SBP_NUM_TARGETS) {
+		device_printf(sbp->fd.dev,
+			"sbp_recv1: invalid target %d\n", t);
+		fw_xfer_free(xfer);
+		return;
+	}
+	target = &sbp->targets[t];
+	l = SBP_ADDR2LUN(addr);
+	if (l >= target->num_lun) {
+		device_printf(sbp->fd.dev,
+			"sbp_recv1: invalid lun %d (target=%d)\n", l, t);
+		fw_xfer_free(xfer);
+		return;
+	}
+	sdev = &target->luns[l];
 
-	status_valid = (sbp_status->resp == ORB_RES_CMPL
+	ocb = NULL;
+	switch (sbp_status->src) {
+	case 0:
+	case 1:
+		ocb = sbp_dequeue_ocb(sdev, ntohl(sbp_status->orb_lo));
+		if (ocb == NULL) {
+			sbp_show_sdev_info(sdev, 2);
+			printf("No ocb on the queue\n");
+		}
+		break;
+	case 2:
+		/* unsolicit */
+		sbp_show_sdev_info(sdev, 2);
+		printf("unsolicit status received\n");
+		break;
+	default:
+		sbp_show_sdev_info(sdev, 2);
+		printf("unknown sbp_status->src\n");
+	}
+
+	status_valid = (sbp_status->src < 2
+			&& sbp_status->resp == ORB_RES_CMPL
 			&& sbp_status->dead == 0
 			&& sbp_status->status == 0);
 
@@ -1389,10 +1424,8 @@ END_DEBUG
 		case 0:
 			if (status > MAX_ORB_STATUS0)
 				printf("%s\n", orb_status0[MAX_ORB_STATUS0]);
-			else if (status > 0)
-				printf("%s\n", orb_status0[status]);
 			else
-				printf("\n");
+				printf("%s\n", orb_status0[status]);
 			break;
 		case 1:
 			printf("Object: %s, Serial Bus Error: %s\n",
@@ -1409,19 +1442,18 @@ END_DEBUG
 			printf("unknown respose code %d\n", sbp_status->resp);
 		}
 	}
-	ocb = sbp_dequeue_ocb(sdev, ntohl(sbp_status->orb_lo));
 
 	/* we have to reset the fetch agent if it's dead */
 	if (sbp_status->dead) {
 		if (sdev->path)
 			xpt_freeze_devq(sdev->path, 1);
+		sbp_show_sdev_info(sdev, 2);
+		printf("reset agent\n");
 		sbp_agent_reset(sdev, 0);
 	}
 
-
 	if (ocb == NULL) {
-		printf("No ocb on the queue for target %d.\n", sdev->target->target_id);
-		fw_xfer_free( xfer);
+		fw_xfer_free(xfer);
 		return;
 	}
 
