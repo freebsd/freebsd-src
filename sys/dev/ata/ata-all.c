@@ -81,7 +81,8 @@ static void bswap(int8_t *, int);
 static void btrim(int8_t *, int);
 static void bpack(int8_t *, int8_t *, int);
 static void ata_change_mode(struct ata_device *, int);
-static u_int8_t ata_drawersensor(struct ata_device *, int, u_int8_t, u_int8_t);
+static u_int8_t ata_enclosure_sensor(struct ata_device *, int, u_int8_t, u_int8_t);
+static int ata_enclosure_status(struct ata_device *, int *, int *, int *, int *);
 
 /* sysctl vars */
 SYSCTL_NODE(_hw, OID_AUTO, ata, CTLFLAG_RD, 0, "ATA driver parameters");
@@ -202,7 +203,7 @@ ata_attach(device_t dev)
 	    if (ata_getparam(&ch->device[MASTER], ATA_C_ATAPI_IDENTIFY))
 		ch->devices &= ~ATA_ATAPI_MASTER;
 #ifdef DEV_ATADISK
-	if (ch->devices & ATA_ATA_MASTER)
+	if (ch->devices & ATA_ATA_MASTER) 
 	    ad_attach(&ch->device[MASTER]);
 	if (ch->devices & ATA_ATA_SLAVE)
 	    ad_attach(&ch->device[SLAVE]);
@@ -398,49 +399,20 @@ ataioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct thread *td)
 
 	case ATAENCSTAT: {
 	    struct ata_device *atadev;
-	    u_int8_t id1, id2, cnt, div;
-	    int fan, temp;
 
 	    if (!device || !(ch = device_get_softc(device)))
 		return ENXIO;
 
-	    ch->lock_func(ch, ATA_LF_LOCK);
-	    ATA_SLEEPLOCK_CH(ch, ATA_ACTIVE);
-	    
 	    if (iocmd->device == SLAVE)
 		atadev = &ch->device[SLAVE];
 	    else
 		atadev = &ch->device[MASTER];
 
-	    ata_drawersensor(atadev, 1, 0x4e, 0);
-	    id1 = ata_drawersensor(atadev, 0, 0x4f, 0);
-	    ata_drawersensor(atadev, 1, 0x4e, 0x80);
-	    id2 = ata_drawersensor(atadev, 0, 0x4f, 0);
-	    if (id1 != 0xa3 || id2 != 0x5c) {
-		ATA_UNLOCK_CH(ch);
-		ch->lock_func(ch, ATA_LF_UNLOCK);
-		return ENXIO;
-	    }
-
-	    div = 1 << (((ata_drawersensor(atadev, 0, 0x5d, 0)&0x20)>>3) +
-			((ata_drawersensor(atadev, 0, 0x47, 0)&0x30)>>4) + 1);
-	    cnt = ata_drawersensor(atadev, 0, 0x28, 0);
-	    if (cnt == 0xff)
-		fan = 0;
-	    else
-		fan = 1350000 / cnt / div;
-	    ata_drawersensor(atadev, 1, 0x4e, 0x01);
-	    temp = (ata_drawersensor(atadev, 0, 0x50, 0) * 10) +
-		   (ata_drawersensor(atadev, 0, 0x50, 0) & 0x80 ? 5 : 0);
-	
-	    iocmd->u.enclosure.fan = fan;
-	    iocmd->u.enclosure.temp = temp;
-	    iocmd->u.enclosure.v05 = ata_drawersensor(atadev, 0, 0x23, 0) * 27;
-	    iocmd->u.enclosure.v12 = ata_drawersensor(atadev, 0, 0x24, 0) * 61;
-
-	    ATA_UNLOCK_CH(ch);
-	    ch->lock_func(ch, ATA_LF_UNLOCK);
-	    return 0;
+	    return ata_enclosure_status(atadev,
+					&iocmd->u.enclosure.fan,
+					&iocmd->u.enclosure.temp,
+					&iocmd->u.enclosure.v05,
+					&iocmd->u.enclosure.v12);
 	}
 
 #ifdef DEV_ATADISK
@@ -1161,9 +1133,13 @@ ata_command(struct ata_device *atadev, u_int8_t command,
 }
 
 static void
-ata_drawer_start(struct ata_device *atadev)
+ata_enclosure_start(struct ata_device *atadev)
 {
     ATA_INB(atadev->channel->r_io, ATA_DRIVE);	  
+    DELAY(1);
+    ATA_INB(atadev->channel->r_io, ATA_DRIVE);	  
+    DELAY(1);
+    ATA_INB(atadev->channel->r_io, ATA_CMD);	  
     DELAY(1);
     ATA_OUTB(atadev->channel->r_io, ATA_DRIVE, ATA_D_IBM | atadev->unit);    
     DELAY(1);
@@ -1178,14 +1154,14 @@ ata_drawer_start(struct ata_device *atadev)
 }
 
 static void
-ata_drawer_end(struct ata_device *atadev)
+ata_enclosure_end(struct ata_device *atadev)
 {
     ATA_OUTB(atadev->channel->r_io, ATA_DRIVE, ATA_D_IBM | atadev->unit);    
     DELAY(1);
 }
 
 static void
-ata_chip_start(struct ata_device *atadev)
+ata_enclosure_chip_start(struct ata_device *atadev)
 {
     ATA_OUTB(atadev->channel->r_io, ATA_SECTOR, 0x0b);
     ATA_OUTB(atadev->channel->r_io, ATA_SECTOR, 0x0a);
@@ -1194,7 +1170,7 @@ ata_chip_start(struct ata_device *atadev)
 }
 
 static void
-ata_chip_end(struct ata_device *atadev)
+ata_enclosure_chip_end(struct ata_device *atadev)
 {
     ATA_OUTB(atadev->channel->r_io, ATA_SECTOR, 0x08);
     DELAY(64);
@@ -1205,7 +1181,7 @@ ata_chip_end(struct ata_device *atadev)
 }
 
 static u_int8_t
-ata_chip_rdbit(struct ata_device *atadev)
+ata_enclosure_chip_rdbit(struct ata_device *atadev)
 {
     u_int8_t val;
 
@@ -1219,7 +1195,7 @@ ata_chip_rdbit(struct ata_device *atadev)
 }
 
 static void
-ata_chip_wrbit(struct ata_device *atadev, u_int8_t data)
+ata_enclosure_chip_wrbit(struct ata_device *atadev, u_int8_t data)
 {
     ATA_OUTB(atadev->channel->r_io, ATA_SECTOR, 0x08 | (data & 0x01));
     DELAY(64);
@@ -1228,50 +1204,133 @@ ata_chip_wrbit(struct ata_device *atadev, u_int8_t data)
 }
 
 static u_int8_t
-ata_chip_rw(struct ata_device *atadev, int rw, u_int8_t val)
+ata_enclosure_chip_rw(struct ata_device *atadev, int rw, u_int8_t val)
 {
     int i;
 
     if (rw) {
 	for (i = 0; i < 8; i++)
-	    ata_chip_wrbit(atadev, (val & (0x80 >> i)) ? 1 : 0);
+	    ata_enclosure_chip_wrbit(atadev, (val & (0x80 >> i)) ? 1 : 0);
     }
     else {
 	for (i = 0; i < 8; i++)
-	    val = (val << 1) | ata_chip_rdbit(atadev);
+	    val = (val << 1) | ata_enclosure_chip_rdbit(atadev);
     }
-    ata_chip_wrbit(atadev, 0);
+    ata_enclosure_chip_wrbit(atadev, 0);
     return val;
 }
 
 static u_int8_t
-ata_drawersensor(struct ata_device *atadev, int rw, u_int8_t idx, u_int8_t data)
+ata_enclosure_sensor(struct ata_device *atadev, 
+		     int rw, u_int8_t idx, u_int8_t data)
 {
-    ata_drawer_start(atadev);
-    ata_chip_start(atadev);
-    ata_chip_rw(atadev, 1, 0x5a);
-    ata_chip_rw(atadev, 1, idx);
+    ata_enclosure_start(atadev);
+    ata_enclosure_chip_start(atadev);
+    ata_enclosure_chip_rw(atadev, 1, 0x5a);
+    ata_enclosure_chip_rw(atadev, 1, idx);
     if (rw) {
-	ata_chip_rw(atadev, 1, data);
+	ata_enclosure_chip_rw(atadev, 1, data);
     }
     else {
-	ata_chip_end(atadev);
-	ata_chip_start(atadev);
-	ata_chip_rw(atadev, 1, 0x5b);
-	data = ata_chip_rw(atadev, 0, 0);
+	ata_enclosure_chip_end(atadev);
+	ata_enclosure_chip_start(atadev);
+	ata_enclosure_chip_rw(atadev, 1, 0x5b);
+	data = ata_enclosure_chip_rw(atadev, 0, 0);
     }
-    ata_chip_end(atadev); 
-    ata_drawer_end(atadev);
+    ata_enclosure_chip_end(atadev); 
+    ata_enclosure_end(atadev);
     return data;
 }
 
-void
-ata_drawerleds(struct ata_device *atadev, u_int8_t color)
+static int
+ata_enclosure_status(struct ata_device *atadev,
+		     int *fan, int *temp, int *v05, int *v12)
 {
-    ata_drawer_start(atadev);
-    ATA_OUTB(atadev->channel->r_io, ATA_COUNT, color);	  
+    u_int8_t id1, id2, cnt, div;
+
+    if (atadev->flags & ATA_D_ENC_PRESENT) {
+	atadev->channel->lock_func(atadev->channel, ATA_LF_LOCK);
+	ATA_SLEEPLOCK_CH(atadev->channel, ATA_CONTROL);
+	ata_enclosure_sensor(atadev, 1, 0x4e, 0);
+	id1 = ata_enclosure_sensor(atadev, 0, 0x4f, 0);
+	ata_enclosure_sensor(atadev, 1, 0x4e, 0x80);
+	id2 = ata_enclosure_sensor(atadev, 0, 0x4f, 0);
+	if (id1 != 0xa3 || id2 != 0x5c)
+	    return ENXIO;
+	div = 1 << (((ata_enclosure_sensor(atadev, 0, 0x5d, 0) & 0x20) >> 3)+
+		    ((ata_enclosure_sensor(atadev, 0, 0x47, 0) & 0x30) >> 4)+1);
+	cnt = ata_enclosure_sensor(atadev, 0, 0x28, 0);
+	if (cnt == 0xff)
+	    *fan = 0;
+	else
+	    *fan = 1350000 / cnt / div;
+	ata_enclosure_sensor(atadev, 1, 0x4e, 0x01);
+	*temp = (ata_enclosure_sensor(atadev, 0, 0x50, 0) * 10) +
+	       (ata_enclosure_sensor(atadev, 0, 0x50, 0) & 0x80 ? 5 : 0);
+	*v05 = ata_enclosure_sensor(atadev, 0, 0x23, 0) * 27;
+	*v12 = ata_enclosure_sensor(atadev, 0, 0x24, 0) * 61;
+	ATA_UNLOCK_CH(atadev->channel);
+	atadev->channel->lock_func(atadev->channel, ATA_LF_UNLOCK);
+	return 0;
+    }
+    return ENXIO;
+}
+    
+void
+ata_enclosure_print(struct ata_device *atadev)
+{
+    u_int8_t id, st;
+    int fan, temp, v05, v12;
+
+    atadev->channel->lock_func(atadev->channel, ATA_LF_LOCK);
+    ATA_SLEEPLOCK_CH(atadev->channel, ATA_CONTROL);
+    ata_enclosure_start(atadev);
+    id = ATA_INB(atadev->channel->r_io, ATA_DRIVE);
     DELAY(1);
-    ata_drawer_end(atadev);
+    st = ATA_INB(atadev->channel->r_io, ATA_COUNT);
+    DELAY(1);
+    ata_enclosure_end(atadev);
+    ATA_UNLOCK_CH(atadev->channel);
+    atadev->channel->lock_func(atadev->channel, ATA_LF_UNLOCK);
+
+    switch (id & 0x93) {
+    case 0x00:
+	ata_prtdev(atadev, "Universal enclosure");
+	break;
+    case 0x01:
+	ata_prtdev(atadev, "FastSwap enclosure");
+	break;
+    case 0x10:
+    case 0x11:
+	ata_prtdev(atadev, "SuperSwap enclosure");
+	break;
+    default:
+        atadev->flags &= ~ATA_D_ENC_PRESENT;
+	return;
+    }
+    atadev->flags |= ATA_D_ENC_PRESENT;
+
+    if (ata_enclosure_status(atadev, &fan, &temp, &v05, &v12))
+	printf(" detected\n");
+    else
+	printf(" [FAN:%drpm TEMP:%d.%01dC %d.%03dV %d.%03dV]\n",
+	       fan, temp/10, temp%10, v05/1000, v05%1000, v12/1000, v12%1000);
+}
+
+void
+ata_enclosure_leds(struct ata_device *atadev, u_int8_t color)
+{
+    if (atadev->flags & ATA_D_ENC_PRESENT) {
+	u_int8_t reg;
+
+	ata_enclosure_start(atadev);
+	reg = ATA_INB(atadev->channel->r_io, ATA_COUNT);	  
+	DELAY(1);
+	ATA_OUTB(atadev->channel->r_io, ATA_COUNT,
+		 (color & ATA_LED_MASK) | (reg & ~ATA_LED_MASK));	  
+	DELAY(1);
+	ata_enclosure_end(atadev);
+    }
 }
 
 static void
