@@ -368,7 +368,7 @@ ng_mppc_rcvdata(hook_p hook, item_p item)
 		if ((error = ng_mppc_decompress(node, m, &out)) != 0) {
 			NG_FREE_M(m);
 			NG_FREE_ITEM(item);
-			if (error == EINVAL && priv->ctrlnode != NULL) {
+			if (error == EINVAL && priv->ctrlnode != 0) {
 				struct ng_mesg *msg;
 
 				/* Need to send a reset-request */
@@ -377,7 +377,7 @@ ng_mppc_rcvdata(hook_p hook, item_p item)
 				if (msg == NULL)
 					return (error);
 				NG_SEND_MSG_ID(error, node, msg,
-					priv->ctrlnode, NULL); 
+					priv->ctrlnode, 0); 
 			}
 			return (error);
 		}

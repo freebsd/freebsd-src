@@ -3124,7 +3124,7 @@ ng_free_item(item_p item)
 		NG_FREE_META(_NGI_META(item));
 		break;
 	case NGQF_MESG:
-		_NGI_RETADDR(item) = NULL;
+		_NGI_RETADDR(item) = 0;
 		NG_FREE_MSG(_NGI_MSG(item));
 		break;
 	case NGQF_FN:
@@ -3453,7 +3453,7 @@ ng_package_msg(struct ng_mesg *msg)
 	 * Set the current lasthook into the queue item
 	 */
 	NGI_MSG(item) = msg;
-	NGI_RETADDR(item) = NULL;
+	NGI_RETADDR(item) = 0;
 	return (item);
 }
 
