@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: fla.c,v 1.3 1999/08/14 11:40:32 phk Exp $ 
+ * $FreeBSD$ 
  *
  */
 
