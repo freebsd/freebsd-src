@@ -31,18 +31,19 @@
  * SUCH DAMAGE.
  *
  *	@(#)kvm.h	8.1 (Berkeley) 6/2/93
- *	$Id: kvm.h,v 1.7 1999/01/23 04:58:35 dillon Exp $
+ *	$Id: kvm.h,v 1.8 1999/01/27 11:29:15 bde Exp $
  */
 
 #ifndef _KVM_H_
 #define	_KVM_H_
 
+#include <sys/cdefs.h>
+#include <machine/ansi.h>
+#include <nlist.h>
+
 /* Default version symbol. */
 #define	VRS_SYM		"_version"
 #define	VRS_KEY		"VERSION"
-
-#include <nlist.h>
-#include <sys/cdefs.h>
 
 #ifdef	_BSD_SIZE_T_
 typedef	_BSD_SIZE_T_	size_t;
