@@ -61,11 +61,14 @@ sndbuf_setmap(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 	struct snd_dbuf *b = (struct snd_dbuf *)arg;
 
 	if (bootverbose) {
-		device_printf(b->dev, "sndbuf_setmap %lx, %lx; ", (unsigned long)segs->ds_addr,
-		       (unsigned long)segs->ds_len);
-		printf("%p -> %lx\n", b->buf, (unsigned long)vtophys(b->buf));
+		device_printf(b->dev, "sndbuf_setmap %lx, %lx; ",
+		    (u_long)segs[0].ds_addr, (u_long)segs[0].ds_len);
+		printf("%p -> %lx\n", b->buf, (u_long)segs[0].ds_addr);
 	}
-	b->buf_addr = segs->ds_addr;
+	if (error == 0)
+		b->buf_addr = segs[0].ds_addr;
+	else
+		b->buf_addr = 0;
 }
 
 /*
@@ -76,14 +79,26 @@ sndbuf_setmap(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 int
 sndbuf_alloc(struct snd_dbuf *b, bus_dma_tag_t dmatag, unsigned int size)
 {
+	int ret;
+
 	b->dmatag = dmatag;
 	b->maxsize = size;
 	b->bufsize = b->maxsize;
-	if (bus_dmamem_alloc(b->dmatag, (void **)&b->buf, BUS_DMA_NOWAIT, &b->dmamap))
-		return ENOSPC;
-	if (bus_dmamap_load(b->dmatag, b->dmamap, b->buf, b->maxsize, sndbuf_setmap, b, 0))
-		return ENOSPC;
-	return sndbuf_resize(b, 2, b->maxsize / 2);
+	b->buf_addr = 0;
+	if (bus_dmamem_alloc(b->dmatag, (void **)&b->buf, BUS_DMA_NOWAIT,
+	    &b->dmamap))
+		return (ENOMEM);
+	if (bus_dmamap_load(b->dmatag, b->dmamap, b->buf, b->maxsize,
+	    sndbuf_setmap, b, 0) != 0 || b->buf_addr == 0) {
+		bus_dmamem_free(b->dmatag, b->buf, b->dmamap);
+		b->dmamap = NULL;
+		return (ENOMEM);
+	}
+
+	ret = sndbuf_resize(b, 2, b->maxsize / 2);
+	if (ret != 0)
+		sndbuf_free(b);
+	return (ret);
 }
 
 int
