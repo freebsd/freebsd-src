@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $Id: init_main.c,v 1.27 1995/08/28 09:18:42 julian Exp $
+ * $Id: init_main.c,v 1.28 1995/08/29 23:59:22 bde Exp $
  */
 
 #include <sys/param.h>
@@ -223,7 +223,7 @@ main(framep)
 /* ARGSUSED*/
 void
 kproc_start( udata)
-caddr_t		udata;	/* not used*/
+caddr_t		udata;	/* pointer to a 'kproc_desc' ? */
 {
 	struct kproc_desc	*kp = (struct kproc_desc *)udata;
 	struct proc		*p = curproc;

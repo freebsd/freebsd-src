@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernel.h	8.3 (Berkeley) 1/21/94
- * $Id: kernel.h,v 1.10 1995/08/28 09:19:04 julian Exp $
+ * $Id: kernel.h,v 1.11 1995/08/31 06:28:29 bde Exp $
  */
 
 #ifndef _SYS_KERNEL_H_
@@ -118,6 +118,8 @@ enum sysinit_sub_id {
 	SI_SUB_VM		= 0x10000000,	/* virtual memory system init*/
 	SI_SUB_KMEM		= 0x18000000,	/* kernel memory*/
 	SI_SUB_CPU		= 0x20000000,	/* CPU resource(s)*/
+	SI_SUB_DEVFS		= 0x22000000,	/* get DEVFS ready */
+	SI_SUB_CONFIGURE	= 0x24000000,	/* Configure devices */
 	SI_SUB_INTRINSIC	= 0x28000000,	/* proc 0*/
 	SI_SUB_RUN_QUEUE	= 0x30000000,	/* the run queue*/
 	SI_SUB_VM_CONF		= 0x38000000,	/* config VM, set limits*/
@@ -197,8 +199,8 @@ struct sysinit {
 	DATA_SET(sysinit_set,uniquifier ## _sys_init);
 
 /*
- * Call 'fork()' before calling '(*func)(ident)'; kernel 'thread' or
- * builtin process.
+ * Call 'fork()' before calling '(*func)(ident)';
+ * for making a kernel 'thread' (or builtin process.)
  */
 #define	SYSINIT_KT(uniquifier, subsystem, order, func, ident)	\
 	static struct sysinit uniquifier ## _sys_init = {	\

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.35 1995/08/28 09:17:44 julian Exp $
+ *	$Id: autoconf.c,v 1.36 1995/08/30 01:34:20 bde Exp $
  */
 
 /*
@@ -159,7 +159,7 @@ configure_finish()
  * Determine i/o configuration for a machine.
  */
 void
-configure()
+configure( caddr_t dummy ) /* arg not used */
 {
 
 	configure_start();
@@ -239,6 +239,11 @@ configure()
 	setconf();
 	cold = 0;
 }
+/*
+ * Add a SYSINIT entry so that Configure gets called at the right time.
+ */
+SYSINIT(configure, SI_SUB_CONFIGURE, SI_ORDER_FIRST, configure, NULL)
+
 
 int
 setdumpdev(dev)

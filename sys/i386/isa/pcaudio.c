@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: pcaudio.c,v 1.12 1995/03/30 14:33:03 sos Exp $
+ *	$Id: pcaudio.c,v 1.13 1995/05/30 08:02:55 rgrimes Exp $
  */
 
 #include "pca.h"
@@ -245,6 +245,18 @@ pca_registerdev(struct isa_device *id)
 	dev_attach(&kdc_pca[id->id_unit]);
 }
 
+#ifdef	DEVFS
+#include <sys/devfsext.h>
+
+void pcadev_init(caddr_t data) /* data not used */
+{
+  void * x;
+/*            path	name		devsw   minor	type   uid gid perm*/
+   x=dev_add("/misc",	"pcaudio",	pcaopen, 0,	DV_CHR, 0,  0, 0666);
+   x=dev_add("/misc",	"pcaudioctl",	pcaopen, 128,	DV_CHR, 0,  0, 0666);
+}
+#endif /*DEVFS*/
+
 
 int
 pcaattach(struct isa_device *dvp)
@@ -252,6 +264,9 @@ pcaattach(struct isa_device *dvp)
 	printf("pca%d: PC speaker audio driver\n", dvp->id_unit);
 	pca_init();
 	pca_registerdev(dvp);
+#ifdef DEVFS
+	pcadev_init(NULL);
+#endif /*DEVFS*/
 	return 1;
 }
 
