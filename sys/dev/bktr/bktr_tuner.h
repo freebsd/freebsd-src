@@ -71,7 +71,6 @@
  */
 void	select_tuner( bktr_ptr_t bktr, int tuner_type );
 
-
 /*
  * The Channel Set maps TV channels eg Ch 36, Ch 51, onto frequencies
  * and is country specific.
@@ -93,6 +92,7 @@ int	get_tuner_status( bktr_ptr_t bktr );
 int	do_afc( bktr_ptr_t bktr, int addr, int frequency );
 #endif /* TUNER_AFC */
 
+int TDA9887_init(bktr_ptr_t bktr, int output2_enable);
 
 /* 
  * This is for start-up convenience only, NOT mandatory.
@@ -100,5 +100,4 @@ int	do_afc( bktr_ptr_t bktr, int addr, int frequency );
 #if !defined( DEFAULT_CHNLSET )
 #define DEFAULT_CHNLSET CHNLSET_WEUROPE
 #endif
-
 
