@@ -169,6 +169,7 @@ contigmalloc1(
 	start = 0;
 	for (pass = 0; pass <= 1; pass++) {
 		vm_page_lock_queues();
+again0:
 		mtx_lock_spin(&vm_page_queue_free_mtx);
 again:
 		/*
@@ -213,6 +214,7 @@ again1:
 				goto again;
 			}
 		}
+		mtx_unlock_spin(&vm_page_queue_free_mtx);
 		for (i = start; i < (start + size / PAGE_SIZE); i++) {
 			vm_page_t m = &pga[i];
 
@@ -220,11 +222,21 @@ again1:
 				object = m->object;
 				if (!VM_OBJECT_TRYLOCK(object)) {
 					start++;
-					goto again;
+					goto again0;
 				}
 				vm_page_busy(m);
 				vm_page_free(m);
 				VM_OBJECT_UNLOCK(object);
+			}
+		}
+		mtx_lock_spin(&vm_page_queue_free_mtx);
+		for (i = start; i < (start + size / PAGE_SIZE); i++) {
+			pqtype = pga[i].queue - pga[i].pc;
+			if ((VM_PAGE_TO_PHYS(&pga[i]) !=
+			    (VM_PAGE_TO_PHYS(&pga[i - 1]) + PAGE_SIZE)) ||
+			    (pqtype != PQ_FREE)) {
+				start++;
+				goto again;
 			}
 		}
 		for (i = start; i < (start + size / PAGE_SIZE); i++) {
