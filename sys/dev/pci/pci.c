@@ -1207,11 +1207,7 @@ pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 		 * If device doesn't have an interrupt routed, and is deserving of 
 		 * an interrupt, try to assign it one.
 		 */
-		if ((type == SYS_RES_IRQ) 
-#ifndef __alpha__
-			&& (cfg->intline == 255) && (cfg->intpin != 0)
-#endif
-									) {
+		if ((type == SYS_RES_IRQ) && (cfg->intline == 255) && (cfg->intpin != 0)) {
 			cfg->intline = PCIB_ROUTE_INTERRUPT(device_get_parent(dev), child,
 							    cfg->intpin);
 			if (cfg->intline != 255) {
