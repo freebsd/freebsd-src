@@ -29,7 +29,7 @@ CFLAGS+= -I${.CURDIR} -I${.CURDIR}/../lib -DHAVE_CONFIG_H \
 DPADD+=	${LIBCVS} ${LIBDIFF} ${LIBGNUREGEX} ${LIBMD} ${LIBCRYPT} ${LIBZ}
 LDADD+=	${LIBCVS} ${LIBDIFF} -lgnuregex -lmd -lcrypt -lz
 
-.if exists(${DESTDIR}${LIBDIR}/libkrb.a) && defined(MAKE_KERBEROS4)
+.if defined(MAKE_KERBEROS4) && !defined(NO_OPENSSL) && !defined(NOCRYPT)
 CFLAGS+=-DHAVE_KERBEROS -DHAVE_KRB_GET_ERR_TEXT
 LDADD+=	-lkrb -lcrypto -lcom_err
 DPADD+=	${LIBKRB} ${LIBCRYPTO} ${LIBCOM_ERR}
