@@ -21,28 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pdq.c,v 1.5 1995/05/30 08:13:13 rgrimes Exp $
- *
- * $Log: pdq.c,v $
- * Revision 1.5  1995/05/30  08:13:13  rgrimes
- * Remove trailing whitespace.
- *
- * Revision 1.4  1995/04/01  01:43:56  davidg
- * Patch from Matt Thomas to fix mbuf leak in FDDI driver.
- *
- * Revision 1.3  1995/03/25  22:40:48  bde
- * Remove wrong redeclarations of printf() and bzero().  Include the correct
- * header to declare DELAY().
- *
- * Revision 1.2  1995/03/21  22:43:04  se
- * Silence "gcc -Wall".
- *
- * Submitted by:	Wolfgang Stanglmeier <wolf@kintaro.cologne.de>
- *
- * Revision 1.1  1995/03/14  09:16:06  davidg
- * Added support for generic FDDI and the DEC DEFEA and DEFPA FDDI adapters.
- *
- * Submitted by:	Matt Thomas
+ * $Id: pdq.c,v 1.6 1995/10/29 15:33:31 phk Exp $
  *
  * Revision 1.8  1995/03/14  01:52:52  thomas
  * Update for new FreeBSD PCI Interrupt interface
