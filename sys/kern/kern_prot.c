@@ -1357,13 +1357,13 @@ securelevel_ge(struct ucred *cr, int level)
 }
 
 /*
- * 'seeotheruids_permitted' determines whether or not visibility of processes
+ * 'see_other_uids' determines whether or not visibility of processes
  * and sockets with credentials holding different real uid's is possible
  * using a variety of system MIBs.
  */
-static int	seeotheruids_permitted = 1;
-SYSCTL_INT(_kern_security_bsd, OID_AUTO, seeotheruids_permitted,
-    CTLFLAG_RW, &seeotheruids_permitted, 0,
+static int	see_other_uids = 1;
+SYSCTL_INT(_kern_security_bsd, OID_AUTO, see_other_uids,
+    CTLFLAG_RW, &see_other_uids, 0,
     "Unprivileged processes may see subjects/objects with different real uid");
 
 /*-
@@ -1381,7 +1381,7 @@ cr_cansee(struct ucred *u1, struct ucred *u2)
 
 	if ((error = prison_check(u1, u2)))
 		return (error);
-	if (!seeotheruids_permitted && u1->cr_ruid != u2->cr_ruid) {
+	if (!see_other_uids && u1->cr_ruid != u2->cr_ruid) {
 		if (suser_xxx(u1, NULL, PRISON_ROOT) != 0)
 			return (ESRCH);
 	}
@@ -1525,9 +1525,9 @@ p_cansched(struct proc *p1, struct proc *p2)
  *
  * XXX: Should modifying and reading this variable require locking?
  */
-static int	unprivileged_procdebug_permitted = 1;
-SYSCTL_INT(_kern_security_bsd, OID_AUTO, unprivileged_procdebug_permitted,
-    CTLFLAG_RW, &unprivileged_procdebug_permitted, 0,
+static int	unprivileged_proc_debug = 1;
+SYSCTL_INT(_kern_security_bsd, OID_AUTO, unprivileged_proc_debug,
+    CTLFLAG_RW, &unprivileged_proc_debug, 0,
     "Unprivileged processes may use process debugging facilities");
 
 /*-
@@ -1543,7 +1543,7 @@ p_candebug(struct proc *p1, struct proc *p2)
 {
 	int error, i, grpsubset, uidsubset, credentialchanged;
 
-	if (!unprivileged_procdebug_permitted) {
+	if (!unprivileged_proc_debug) {
 		error = suser_xxx(NULL, p1, PRISON_ROOT);
 		if (error)
 			return (error);
