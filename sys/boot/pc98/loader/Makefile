@@ -85,7 +85,10 @@ FILESDIR_loader.conf=	/boot/defaults
 FILES+=	${.CURDIR}/../../i386/loader/loader.rc
 .endif
 
-DPADD=	${BTXCRT} ${LIBFICL} ${LIBPC98} ${LIBSTAND}
-LDADD=	${BTXCRT} ${LIBFICL} ${LIBPC98} -lstand
+# XXX crt0.o needs to be first for pxeboot(8) to work
+OBJS=	${BTXCRT} 
+
+DPADD=	${LIBFICL} ${LIBPC98} ${LIBSTAND}
+LDADD=	${LIBFICL} ${LIBPC98} -lstand
 
 .include <bsd.prog.mk>
