@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.17 1997/02/22 16:07:57 peter Exp $
+# $Id: Makefile,v 1.18 1998/05/03 05:09:11 peter Exp $
 
 .include "${.CURDIR}/Makefile.inc"
 
@@ -20,6 +20,6 @@ CLEANFILES+= ns_parser.c ns_parser.h y.tab.c t.tab.h
 afterinstall:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
 		${BIND_DIR}/bin/named/named-bootconf.pl \
-		${DESTDIR}${DESTETC}/named-bootconf.pl
+		${DESTDIR}${DESTSBIN}/named-bootconf
 
 .include <bsd.prog.mk>
