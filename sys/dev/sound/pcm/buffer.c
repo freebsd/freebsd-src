@@ -113,6 +113,7 @@ sndbuf_free(struct snd_dbuf *b)
 int
 sndbuf_resize(struct snd_dbuf *b, unsigned int blkcnt, unsigned int blksz)
 {
+	u_int8_t *tmpbuf;
 	if (b->maxsize == 0)
 		return 0;
 	if (blkcnt == 0)
@@ -126,9 +127,12 @@ sndbuf_resize(struct snd_dbuf *b, unsigned int blkcnt, unsigned int blksz)
 	b->blkcnt = blkcnt;
 	b->blksz = blksz;
 	b->bufsize = blkcnt * blksz;
-	if (b->tmpbuf)
-		free(b->tmpbuf, M_DEVBUF);
-	b->tmpbuf = malloc(b->bufsize, M_DEVBUF, M_NOWAIT);
+
+	tmpbuf = malloc(b->bufsize, M_DEVBUF, M_NOWAIT);
+	if (tmpbuf == NULL) 
+		return ENOMEM;
+	free(b->tmpbuf, M_DEVBUF);
+	b->tmpbuf = tmpbuf;
 	sndbuf_reset(b);
 	return 0;
 }
@@ -143,7 +147,6 @@ sndbuf_remalloc(struct snd_dbuf *b, unsigned int blkcnt, unsigned int blksz)
 		return EINVAL;
 
 	bufsize = blksz * blkcnt;
-
 
 	buf = malloc(bufsize, M_DEVBUF, M_NOWAIT);
 	if (buf == NULL)
