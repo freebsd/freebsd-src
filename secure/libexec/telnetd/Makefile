@@ -4,7 +4,7 @@
 # telnet implementations.
 
 PROG=		telnetd
-MAN8=		telnetd.8
+MAN=		telnetd.8
 
 CFLAGS+=	-DLINEMODE -DUSE_TERMIO -DDIAGNOSTICS -DOLD_ENVIRON \
 		-DENV_HACK -DAUTHENTICATION -DENCRYPTION \
@@ -15,7 +15,7 @@ SRCS=		global.c slc.c state.c sys_term.c telnetd.c \
 
 DPADD=		${LIBUTIL} ${LIBTERMCAP} ${LIBTELNET} ${LIBCRYPTO} ${LIBMP} \
                 ${LIBCRYPT}
-LDADD=		-lutil -ltermcap -L${TELNETOBJDIR} -ltelnet -lcrypto -lcrypt -lmp
+LDADD=		-lutil -ltermcap -ltelnet -lcrypto -lcrypt -lmp
 
 .include <bsd.prog.mk>
 
