@@ -22,12 +22,16 @@
 #endif /* _SYS_DISKLABEL */
 
 struct disk {
-	int			d_flags;
+	u_int			d_flags;
+	u_int			d_dsflags;
 	struct cdevsw		*d_devsw;
 	dev_t			d_dev;
 	struct diskslices	*d_slice;
 	struct disklabel	d_label;
 };
+
+#define DISKFLAG_LOCK		0x1
+#define DISKFLAG_WANTED		0x2
 
 dev_t disk_create __P((int unit, struct disk *disk, int flags, struct cdevsw *cdevsw, struct cdevsw *diskdevsw));
 void disk_delete __P((dev_t dev));
