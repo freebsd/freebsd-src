@@ -224,7 +224,7 @@ fetchParseURL(char *URL)
     int i;
 
     /* allocate struct url */
-    if ((u = calloc(1, sizeof(struct url))) == NULL) {
+    if ((u = calloc(1, sizeof *u)) == NULL) {
 	errno = ENOMEM;
 	_fetch_syserr();
 	return NULL;
@@ -284,7 +284,7 @@ nohost:
     /* document */
     if (*p) {
 	struct url *t;
-	t = realloc(u, sizeof(*u)+strlen(p)-1);
+	t = realloc(u, sizeof *u + strlen(p) - 1);
 	if (t == NULL) {
 	    errno = ENOMEM;
 	    _fetch_syserr();
