@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.324 1997/09/30 08:09:03 jkh Exp $
+#	$Id: Makefile,v 1.325 1997/10/01 09:01:16 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -378,9 +378,9 @@ release.7:
 .endif
 	( cd ${RD}/dists/src && \
 		if [ -f ssecure.aa ] ; then mv ssecure.* ../des ; fi && \
-		if [ -f sebones.aa ] ; then mv sebones.* ../des ; fi && \
+		if [ -f scrypto.aa ] ; then mv scrypto.* ../des ; fi && \
 		if [ -f ssecure.inf ] ; then mv ssecure.inf ../des ; fi && \
-		if [ -f sebones.inf ] ; then mv sebones.inf ../des ; fi ; )
+		if [ -f scrypto.inf ] ; then mv scrypto.inf ../des ; fi ; )
 	@echo "src distribution is finished."
 .endif
 	touch release.7
