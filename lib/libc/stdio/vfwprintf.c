@@ -1232,6 +1232,7 @@ number:			if ((dprec = prec) >= 0)
 	}
 done:
 error:
+	va_end(orgap);
 	if (convbuf != NULL)
 		free(convbuf);
 	if (__sferror(fp))
