@@ -10,7 +10,6 @@ struct cmdargs;
 extern int nat_RedirectPort(struct cmdargs const *);
 extern int nat_RedirectAddr(struct cmdargs const *);
 extern int nat_ProxyRule(struct cmdargs const *);
-extern int nat_Pptp(struct cmdargs const *);
 extern int nat_SetTarget(struct cmdargs const *);
 
 extern struct layer natlayer;
