@@ -130,14 +130,14 @@
 XentSys1: LDGP(pv)	
 	CALL(syscall)
 
+	/* Handle any AST's. */
+	mov	sp, a0				/* only arg is frame */
+	CALL(ast)
+
 	/* see if we need a full exception_return */
 	ldq	t1, (FRAME_FLAGS*8)(sp)
 	and	t1, FRAME_FLAGS_SYSCALL
 	beq	t1, exception_return
-
-	/* Handle any AST's. */
-	mov	sp, a0				/* only arg is frame */
-	CALL(ast)
 
 	/* set the hae register if this process has specified a value */
 	ldq	t0, GD_CURPROC(globalp)
