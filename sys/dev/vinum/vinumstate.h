@@ -33,13 +33,13 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumstate.h,v 1.13 1999/02/28 04:58:47 grog Exp grog $
+ * $Id: vinumstate.h,v 1.14 1999/03/25 02:17:38 grog Exp grog $
  */
 
 /*
  * This file gets read by makestatetext to create text files
  * with the names of the states, so don't change the file
- * format 
+ * format
  */
 
 enum volumestate {
@@ -64,19 +64,19 @@ enum plexstate {
     plex_referenced,
     /*
      * The plex has been allocated, but there configuration
-     * is not complete 
+     * is not complete
      */
     plex_init,
 
     /*
      * A plex which has gone completely down because of
-     * I/O errors. 
+     * I/O errors.
      */
     plex_faulty,
 
     /*
      * A plex which has been taken down by the
-     * administrator. 
+     * administrator.
      */
     plex_down,
 
@@ -86,14 +86,14 @@ enum plexstate {
     /*
      * *** The remaining states represent plexes which are
      * at least partially up.  Keep these separate so that
-     * they can be checked more easily. 
+     * they can be checked more easily.
      */
 
     /*
      * A plex entry which is at least partially up.  Not
      * all subdisks are available, and an inconsistency
      * has occurred.  If no other plex is uncorrupted,
-     * the volume is no longer consistent. 
+     * the volume is no longer consistent.
      */
     plex_corrupt,
 
@@ -102,20 +102,20 @@ enum plexstate {
     /*
      * A RAID-5 plex entry which is accessible, but one
      * subdisk is down, requiring recovery for many
-     * I/O requests. 
+     * I/O requests.
      */
     plex_degraded,
 
     /*
      * A plex which is really up, but which has a reborn
      * subdisk which we don't completely trust, and
-     * which we don't want to read if we can avoid it 
+     * which we don't want to read if we can avoid it
      */
     plex_flaky,
 
     /*
      * A plex entry which is completely up.  All subdisks
-     * are up. 
+     * are up.
      */
     plex_up,
 
@@ -152,9 +152,16 @@ enum sdstate {
 
     /*
      * A subdisk entry which has been created completely and
-     * which is currently being initialized 
+     * which is currently being initialized
      */
     sd_initializing,
+
+    /*
+     * A subdisk entry which has been initialized,
+     * but which can't come up because it would
+     * cause inconsistencies.
+     */
+    sd_initialized,
 
     /* *** The following states represent invalid data */
     /*
@@ -188,20 +195,20 @@ enum sdstate {
     /*
      * A subdisk entry which was up, which contained
      * valid data, and which was taken down by the
-     * administrator.  The data is valid. 
+     * administrator.  The data is valid.
      */
     sd_down,
 
     /*
      * *** This is invalid data (the subdisk previously had
      * a numerically lower state), but it is currently in the
-     * process of being revived.  We can write but not read. 
+     * process of being revived.  We can write but not read.
      */
     sd_reviving,
 
     /*
      * *** The following states represent accessible subdisks
-     * with valid data 
+     * with valid data
      */
 
     /*
@@ -215,7 +222,7 @@ enum sdstate {
      * covers this address space in the plex, we set its
      * state to sd_up under these circumstances, so this
      * status implies that there is another subdisk to
-     * fulfil the request. 
+     * fulfil the request.
      */
     sd_reborn,
 
@@ -244,3 +251,7 @@ enum drivestate {
 
     drive_laststate = drive_up				    /* last value, for table dimensions */
 };
+
+/* Local Variables: */
+/* fill-column: 50 */
+/* End: */
