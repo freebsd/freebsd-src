@@ -21,7 +21,7 @@
  *
  * High-level routines relating to use of the user capabilities database
  *
- *	$Id: login_class.c,v 1.5 1997/02/22 15:08:22 peter Exp $
+ *	$Id: login_class.c,v 1.6 1997/05/10 18:55:38 davidn Exp $
  */
 
 #include <stdio.h>
@@ -38,6 +38,7 @@
 #include <syslog.h>
 #include <login_cap.h>
 #include <paths.h>
+#include <sys/rtprio.h>
 
 
 #undef	UNKNOWN
@@ -315,6 +316,7 @@ setusercontext(login_cap_t *lc, const struct passwd *pwd, uid_t uid, unsigned in
     quad_t	p;
     mode_t	mymask;
     login_cap_t *llc = NULL;
+    struct rtprio rtp;
 
     if (lc == NULL) {
 	if (pwd != NULL && (lc = login_getpwclass(pwd)) != NULL)
@@ -332,10 +334,25 @@ setusercontext(login_cap_t *lc, const struct passwd *pwd, uid_t uid, unsigned in
     if (flags & LOGIN_SETPRIORITY) {
 	p = login_getcapnum(lc, "priority", LOGIN_DEFPRI, LOGIN_DEFPRI);
 
-	p = (p < PRIO_MIN || p > PRIO_MAX) ? LOGIN_DEFPRI : p;
-	if (setpriority(PRIO_PROCESS, 0, (int)p) != 0)
-	    syslog(LOG_WARNING, "setpriority '%s' (%s): %m",
-		   pwd->pw_name, lc ? lc->lc_class : LOGIN_DEFCLASS);
+	if(p > PRIO_MAX) {
+	    rtp.type = RTP_PRIO_IDLE;
+	    rtp.prio = p - PRIO_MAX - 1;
+	    p = (rtp.prio > RTP_PRIO_MAX) ? 31 : p;
+	    if(rtprio(RTP_SET, 0, &rtp))
+		syslog(LOG_WARNING, "rtprio '%s' (%s): %m",
+		    pwd->pw_name, lc ? lc->lc_class : LOGIN_DEFCLASS);
+	} else if(p < PRIO_MIN) {
+	    rtp.type = RTP_PRIO_REALTIME;
+	    rtp.prio = abs(p - PRIO_MIN + RTP_PRIO_MAX);
+	    p = (rtp.prio > RTP_PRIO_MAX) ? 1 : p;
+	    if(rtprio(RTP_SET, 0, &rtp))
+		syslog(LOG_WARNING, "rtprio '%s' (%s): %m",
+		    pwd->pw_name, lc ? lc->lc_class : LOGIN_DEFCLASS);
+	} else {
+	    if (setpriority(PRIO_PROCESS, 0, (int)p) != 0)
+		syslog(LOG_WARNING, "setpriority '%s' (%s): %m",
+		    pwd->pw_name, lc ? lc->lc_class : LOGIN_DEFCLASS);
+	}
     }
 
     /* Setup the user's group permissions */
