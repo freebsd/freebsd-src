@@ -42,6 +42,8 @@ static char sccsid[] = "@(#)sys_term.c	8.4+1 (Berkeley) 5/30/95";
 #include <libtelnet/auth.h>
 #endif
 
+extern char *altlogin;
+
 #if defined(CRAY) || defined(__hpux)
 # define PARENT_DOES_UTMP
 #endif
@@ -1781,10 +1783,14 @@ start_login(host, autologin, name)
 		close(pty);
 #endif
 	closelog();
-	execv(_PATH_LOGIN, argv);
 
-	syslog(LOG_ERR, "%s: %m\n", _PATH_LOGIN);
-	fatalperror(net, _PATH_LOGIN);
+	if (altlogin == NULL) {
+		altlogin = _PATH_LOGIN;
+	}
+	execv(altlogin, argv);
+
+	syslog(LOG_ERR, "%s: %m\n", altlogin);
+	fatalperror(net, altlogin);
 	/*NOTREACHED*/
 }
 
