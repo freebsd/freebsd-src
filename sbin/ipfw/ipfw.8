@@ -790,8 +790,8 @@ and the mask of
 specified as a dotted quad.
 As an example, 1.2.3.4/255.0.255.0 will match
 1.*.3.*.
-We suggest to use this form only for non-contiguous
-masks, and resort to the
+This form is advised only for non-contiguous
+masks. It is better to resort to the
 .Ar addr Ns / Ns Ar masklen
 format for contiguous masks, which is more compact and less
 error-prone.
@@ -1539,7 +1539,7 @@ size short or your traffic might be affected by a significant
 queueing delay.
 E.g., 50 max-sized ethernet packets (1500 bytes) mean 600Kbit
 or 20s of queue on a 30Kbit/s pipe.
-Even worse effect can result if you get packets from an
+Even worse effects can result if you get packets from an
 interface with a much larger MTU, e.g. the loopback interface
 with its 16KB packets.
 .Pp
@@ -1782,7 +1782,7 @@ This Section lists the features that have been introduced in
 .Nm ipfw2
 which were not present in
 .Nm ipfw1 .
-We list them in order of the potential impact that they can
+They are listed in order of the potential impact that they can
 have in writing your rulesets.
 You might want to consider using these features in order to
 write your rulesets in a more efficient way.
@@ -1790,7 +1790,7 @@ write your rulesets in a more efficient way.
 .It Syntax and flags
 .Nm ipfw1
 does not support the -n flag (only test syntax),
-nor it allows spaces after commas or supports all
+nor does it allow spaces after commas or support all
 rule fields in a single argument.
 .Nm ipfw1
 does not allow the -f flag (force) in conjunction with
@@ -1823,7 +1823,7 @@ pattern will always fail on them, and the
 operator will make this rule into a pass-all.
 .It Addresses
 .Nm ipfw1
-does not supports address sets or lists of addresses.
+does not support address sets or lists of addresses.
 .Pp
 .It Port specifications
 .Nm ipfw1
