@@ -46,6 +46,15 @@ char eth_driver[] = "ed0";
 char packet[ETH_MAX_PACKET];
 int  packetlen;
 
+#ifdef	INCLUDE_NE
+static unsigned short ne_base_list[]= {
+#ifdef	NE_BASE
+	NE_BASE,
+#endif
+	0xff80, 0xff40, 0xff00, 0xfec0,
+	0x280, 0x300, 0
+};
+#endif
 /**************************************************************************
 ETH_PROBE - Look for an adapter
 **************************************************************************/
@@ -133,8 +142,7 @@ eth_probe()
 					WD_LAAR_M16EN | WD_LAAR_L16EN | 1));
 			}
 		}
-		printf("\r\n");
-
+		goto found_board;
 	}
 #endif
 #ifdef INCLUDE_3COM
@@ -256,7 +264,7 @@ eth_probe()
                 outb(eth_asic_base + _3COM_PSTR, eth_tx_start);
                 outb(eth_asic_base + _3COM_PSPR, eth_memsize);
 
-                printf ("\r\n");
+		goto found_board;
 
         }
 #endif
@@ -267,9 +275,12 @@ eth_probe()
 	if (eth_vendor == VENDOR_NONE) {
 		char romdata[16], testbuf[32];
 		char test[] = "NE1000/2000 memory";
+		unsigned short *tent_base=ne_base_list;
 		eth_bmem = (char *)0;		/* No shared memory */
-		eth_asic_base = NE_BASE + NE_ASIC_OFFSET;
-		eth_nic_base = NE_BASE;
+ne_again:
+		eth_asic_base = *tent_base + NE_ASIC_OFFSET;
+		eth_nic_base = *tent_base;
+
 		eth_vendor = VENDOR_NOVELL;
 		eth_flags = FLAG_PIO;
 		eth_memsize = MEM_16384;
@@ -295,7 +306,11 @@ eth_probe()
 			outb(eth_nic_base + D8390_P0_PSTOP, MEM_32768);
 			eth_pio_write(test, 16384, sizeof(test));
 			eth_pio_read(16384, testbuf, sizeof(test));
-			if (!bcompare(testbuf, test, sizeof(test))) return (0);
+			if (!bcompare(testbuf, test, sizeof(test)))
+				if (*++tent_base)
+					goto ne_again;
+				else
+					return (0);
 		}
 		eth_pio_read(0, romdata, 16);
 		printf("\r\nNE1000/NE2000 base 0x%x, addr ", eth_nic_base);
@@ -304,9 +319,11 @@ eth_probe()
 				+ ((eth_flags & FLAG_16BIT) ? i : 0)]));
 			if (i < 5) printf (":");
 		}
-		printf("\r\n");
+		goto found_board;
 	}
 #endif
+found_board:
+	printf("\r\n");
 	if (eth_vendor == VENDOR_NONE) return(0);
 
         if (eth_vendor != VENDOR_3COM) eth_rmem = eth_bmem;

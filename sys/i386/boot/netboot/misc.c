@@ -200,10 +200,13 @@ printf(fmt,data)
 	char *fmt;
 	int data;
 {
-	char buf[80],*p;
+	char buf[1024],*p;
 	p = buf;
 	do_printf(buf,fmt,&data);
-	while (*p) putchar(*p++);
+	while (*p) {
+		if (*p=='\n') putchar('\r');
+		putchar(*p++);
+	}
 }
 
 /**************************************************************************

@@ -112,18 +112,22 @@ load()
 	printf("\n=>>"); getchar();
 #endif
 
-		/* Now use TFTP to load configuration file */
-	sprintf(cfg,"cfg.%I",arptable[ARP_CLIENT].ipaddr);
-	printf("Loading %s...\r\n",cfg);
-	if (!tftp(cfg)) {
-		sprintf(cfg,"/tftpboot/cfg.%I",arptable[ARP_CLIENT].ipaddr);
-		printf("Loading %s...\r\n",cfg);
-		if (!tftp(cfg)) {
-			printf("Unable to load config file.\r\n");
-			longjmp(jmp_bootmenu,1);
-		}
-	}
+	/* Now use TFTP to load configuration file */
+	sprintf(cfg,"/tftpboot/freebsd.%I",arptable[ARP_CLIENT].ipaddr);
+	if (tftp(cfg) || tftp(cfg+10))
+		goto cfg_done;
+	cfg[17]='\0';
+	if (tftp(cfg) || tftp(cfg+10))
+		goto cfg_done;
+	sprintf(cfg,"/tftpboot/cfg.%I",arptable[ARP_CLIENT].ipaddr);
+	if (tftp(cfg) || tftp(cfg+10))
+		goto cfg_done;
+	sprintf(config_buffer,"rootfs %I:/usr/diskless_root",
+		arptable[ARP_SERVER].ipaddr);
+	printf("Unable to load config file, guessing:\r\n\t%s\r\n",
+		config_buffer);
 
+cfg_done:
 #ifdef MDEBUG
 	printf("\n=>>"); getchar();
 #endif
@@ -406,6 +410,7 @@ tftp(name)
 	unsigned short len, block=1;
 	struct tftp_t tp;
 	int code;
+	printf("Loading %s...\r\n",name);
 	isocket++;
 	tp.opcode = htons(TFTP_RRQ);
 	len = (sprintf((char *)tp.u.rrq,"%s%c%s",name,0,"octet")
