@@ -180,6 +180,7 @@ vm_object_zinit(void *mem, int size)
 	vm_object_t object;
 
 	object = (vm_object_t)mem;
+	bzero(&object->mtx, sizeof(object->mtx));
 
 	/* These are true for any object that has been freed */
 	object->paging_in_progress = 0;
@@ -192,7 +193,6 @@ _vm_object_allocate(objtype_t type, vm_pindex_t size, vm_object_t object)
 {
 	int incr;
 
-	bzero(&object->mtx, sizeof(object->mtx));
 	mtx_init(&object->mtx, "vm object", NULL, MTX_DEF);
 
 	TAILQ_INIT(&object->memq);
@@ -250,11 +250,6 @@ vm_object_init(void)
 #endif
 	    vm_object_zinit, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
 	uma_prealloc(obj_zone, VM_OBJECTS_INIT);
-}
-
-void
-vm_object_init2(void)
-{
 }
 
 void
@@ -1629,6 +1624,8 @@ vm_object_collapse(vm_object_t object)
 			    object_list
 			);
 			mtx_unlock(&vm_object_list_mtx);
+
+			mtx_destroy(&backing_object->mtx);
 
 			uma_zfree(obj_zone, backing_object);
 
