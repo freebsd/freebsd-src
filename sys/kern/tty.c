@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.c	8.8 (Berkeley) 1/21/94
- * $Id: tty.c,v 1.47 1995/06/23 21:20:10 ache Exp $
+ * $Id: tty.c,v 1.48 1995/06/24 16:28:20 ache Exp $
  */
 
 #include "snp.h"
@@ -1992,7 +1992,7 @@ ttyecho(c, tp)
 	if (!ISSET(tp->t_state, TS_CNTTB))
 		CLR(tp->t_lflag, FLUSHO);
 	if ((!ISSET(tp->t_lflag, ECHO) &&
-	    (!ISSET(tp->t_lflag, ECHONL) || c == '\n')) ||
+	     (c != '\n' || !ISSET(tp->t_lflag, ECHONL))) ||
 	    ISSET(tp->t_lflag, EXTPROC))
 		return;
 	if (ISSET(tp->t_lflag, ECHOCTL) &&
