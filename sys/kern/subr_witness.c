@@ -675,7 +675,7 @@ witness_lock(struct lock_object *lock, int flags, const char *file, int line)
 			 * is Giant, then skip it.
 			 */
 			if ((lock->lo_flags & LO_SLEEPABLE) != 0 &&
-			    lock1->li_lock != &Giant.mtx_object)
+			    lock1->li_lock == &Giant.mtx_object)
 				continue;
 			/*
 			 * If we are locking a sleepable lock and this lock
