@@ -82,10 +82,11 @@ g_load_class(void *arg, int flag)
 
 	hh = arg;
 	mp = hh->mp;
-	if (hh->post)
+	hh->error = 0;
+	if (hh->post) {
 		g_free(hh);
-	else
-		hh->error = 0;
+		hh = NULL;
+	}
 	g_trace(G_T_TOPOLOGY, "g_load_class(%s)", mp->name);
 	KASSERT(mp->name != NULL && *mp->name != '\0',
 	    ("GEOM class has no name"));
@@ -93,12 +94,14 @@ g_load_class(void *arg, int flag)
 		if (mp2 == mp) {
 			printf("The GEOM class %s is already loaded.\n",
 			    mp2->name);
-			hh->error = EEXIST;
+			if (hh != NULL)
+				hh->error = EEXIST;
 			return;
 		} else if (strcmp(mp2->name, mp->name) == 0) {
 			printf("A GEOM class %s is already loaded.\n",
 			    mp2->name);
-			hh->error = EEXIST;
+			if (hh != NULL)
+				hh->error = EEXIST;
 			return;
 		}
 	}
