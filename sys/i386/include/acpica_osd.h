@@ -32,14 +32,13 @@
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <machine/bus.h>
+#include <machine/acpi_machdep.h>
 #include <machine/vmparam.h>
 #include <sys/acpi.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
 #include "pcib_if.h"
-
-#define ACPI_BUS_SPACE_IO	I386_BUS_SPACE_IO
 
 /*
  * ACPICA compatibility
