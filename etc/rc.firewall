@@ -228,7 +228,9 @@ case ${firewall_type} in
 [Uu][Nn][Kk][Nn][Oo][Ww][Nn])
 	;;
 *)
-	if [ -r "${firewall_type}" ]; then
+	if [ -x "${firewall_type}" ]; then
+		. ${firewall_type}
+	elif [ -r "${firewall_type}" ]; then
 		${fwcmd} ${firewall_flags} ${firewall_type}
 	fi
 	;;
