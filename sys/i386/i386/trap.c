@@ -82,6 +82,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_extern.h>
 
 #include <machine/cpu.h>
+#include <machine/intr_machdep.h>
 #include <machine/md_var.h>
 #include <machine/pcb.h>
 #ifdef SMP
@@ -89,9 +90,6 @@ __FBSDID("$FreeBSD$");
 #endif
 #include <machine/tss.h>
 #include <machine/vm86.h>
-
-#include <i386/isa/icu.h>
-#include <i386/isa/intr_machdep.h>
 
 #ifdef POWERFAIL_NMI
 #include <sys/syslog.h>
@@ -764,7 +762,7 @@ trap_fatal(frame, eva)
 #ifdef SMP
 	/* two separate prints in case of a trap on an unmapped page */
 	printf("cpuid = %d; ", PCPU_GET(cpuid));
-	printf("lapic.id = %08x\n", lapic.id);
+	printf("apic id = %02x\n", PCPU_GET(apic_id));
 #endif
 	if (type == T_PAGEFLT) {
 		printf("fault virtual address	= 0x%x\n", eva);
@@ -847,7 +845,7 @@ dblfault_handler()
 #ifdef SMP
 	/* two separate prints in case of a trap on an unmapped page */
 	printf("cpuid = %d; ", PCPU_GET(cpuid));
-	printf("lapic.id = %08x\n", lapic.id);
+	printf("apic id = %02x\n", PCPU_GET(apic_id));
 #endif
 	panic("double fault");
 }

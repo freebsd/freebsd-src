@@ -82,9 +82,8 @@
  * This is "constructed" in locore.s on the BSP and in mp_machdep.c
  * for each AP.  DO NOT REORDER THESE WITHOUT UPDATING THE REST!
  */
-	.globl	SMP_prvspace, lapic
+	.globl	SMP_prvspace
 	.set	SMP_prvspace,(MPPTDI << PDRSHIFT)
-	.set	lapic,SMP_prvspace + (NPTEPG-1) * PAGE_SIZE
 #endif /* SMP */
 
 /*

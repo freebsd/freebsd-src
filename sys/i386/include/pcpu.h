@@ -48,10 +48,8 @@
 	struct	segment_descriptor pc_common_tssd;			\
 	struct	segment_descriptor *pc_tss_gdt;				\
 	int	pc_currentldt;						\
-	u_int32_t pc_int_pending;	/* master int pending flag */   \
-	u_int32_t pc_ipending;	/* pending slow interrupts */		\
-	u_int32_t pc_fpending;	/* pending fast interrupts */		\
-	u_int32_t pc_spending 	/* pending soft interrupts */
+	u_int	pc_acpi_id;						\
+	u_int	pc_apic_id;
 
 #if defined(lint)
  
