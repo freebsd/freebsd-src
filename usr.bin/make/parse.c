@@ -2281,7 +2281,7 @@ test_char:
 
 	/*
 	 * Strip trailing blanks and tabs from the line.
-	 * Do not strip a blank or tab that is preceeded by
+	 * Do not strip a blank or tab that is preceded by
 	 * a '\'
 	 */
 	ep = line;
