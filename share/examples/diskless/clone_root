@@ -66,20 +66,20 @@
 #	some manual init is needed here.
 # DEST	the diskless_root dir (goes into /etc/bootptab and /etc/exports
 #	on the server)
-# DEVICES	device entries to create in /dev
 DEST=/diskless_root
-DEVICES="all snd1 bktr0"
 
 # you should not touch these vars:
 # SYSDIRS	system directories and mountpoints
 # DIRS		mountpoints (empty dirs)
 # PWFILES	files related to passwords
 # TOCOPY	files and dirs to copy from root partition
+# USRBINS	binaries from /usr needed for tmp and var scripts
 
 SYSDIRS="dev proc root usr var"
 DIRS="cdrom home mnt"
 PWFILES="master.passwd passwd spwd.db pwd.db"
 TOCOPY="bin boot compat etc modules sbin stand sys"
+USRBINS="/usr/sbin/mtree /usr/sbin/newsyslog /usr/bin/touch"
 
 init_diskless_root() {
 	echo "Cleaning old diskless root ($DEST)"
@@ -89,7 +89,7 @@ init_diskless_root() {
 	mkdir -p $DEST && echo "New diskless root created."
 	echo "+++ Now copy original tree from / ..."
 	ex=""
-	(cd / ; tar -clf - ${TOCOPY} ) | (cd $DEST; tar xvf - )
+	(cd / ; tar -clf - ${TOCOPY} ${USRBINS} ) | (cd $DEST; tar xvf - )
 	#(cd / ; find -x dev | cpio -o -H newc ) | \
 	#	(cd $DEST; cpio -i -H newc -d )
 	echo "+++ Fixing permissions on some objects"
@@ -113,10 +113,6 @@ update() {
 	done
 	echo "."
 	ln -s /var/tmp ${DEST}/tmp
-	echo "+++ Now use MAKEDEV to create devices ${DEVICES}"
-	(cd $DEST/dev ; cp /dev/MAKEDEV . )
-	(cd $DEST/dev ; /dev/MAKEDEV ${DEVICES} )
-	(cd $DEST/dev ; ln -s /dev/sysmouse mouse )
 	echo "+++ Copying kernel from /sys/compile/DISKLESS"
 	cp /sys/compile/DISKLESS/kernel $DEST/kernel
 	echo "."
