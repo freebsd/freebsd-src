@@ -14,9 +14,10 @@
 #define _SYS_JAIL_H_
 
 struct jail {
-	char *path;
-	char *hostname;
-	u_int32_t ip_number;
+	u_int32_t	version;
+	char		*path;
+	char		*hostname;
+	u_int32_t	ip_number;
 };
 
 #ifndef KERNEL
