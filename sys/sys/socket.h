@@ -128,8 +128,12 @@ struct	linger {
 #define	AF_INET6	28		/* IPv6 */
 #define	AF_NATM		29		/* native ATM access */
 #define	AF_ATM		30		/* ATM */
+#define	pseudo_AF_HDRCMPLT 31		/* Used by BPF in 4.x to not rewrite
+					 * headers in interface output routine
+					 */
+#define	AF_NETGRAPH	32		/* Netgraph sockets */
 
-#define	AF_MAX		31
+#define	AF_MAX		33
 
 /*
  * Structure used by kernel to store most
@@ -187,6 +191,7 @@ struct sockproto {
 #define	PF_INET6	AF_INET6
 #define	PF_NATM		AF_NATM
 #define	PF_ATM		AF_ATM
+#define	PF_NETGRAPH	AF_NETGRAPH
 
 #define	PF_MAX		AF_MAX
 
@@ -231,6 +236,7 @@ struct sockproto {
 	{ "key", CTLTYPE_NODE }, \
 	{ "inet6", CTLTYPE_NODE }, \
 	{ "natm", CTLTYPE_NODE }, \
+	{ "netgraph", CTLTYPE_NODE } \
 }
 
 /*

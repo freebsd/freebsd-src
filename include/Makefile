@@ -38,8 +38,8 @@ PFILES=	mqueue.h sched.h semaphore.h \
 
 LFILES=	aio.h errno.h fcntl.h inttypes.h linker_set.h poll.h syslog.h termios.h
 
-LDIRS=	cam msdosfs net netatalk netatm netinet netipx netkey netns nfs \
-	pccard posix4 sys vm
+LDIRS=	cam msdosfs net netatalk netatm netgraph netinet netipx netkey \
+	netns nfs pccard posix4 sys vm
 
 LNOHEADERDIRS=	isofs ufs
 LSUBDIRS=	isofs/cd9660 ufs/ffs ufs/mfs ufs/ufs cam/scsi
