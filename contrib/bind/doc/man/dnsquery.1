@@ -1,4 +1,4 @@
-.\" $Id: dnsquery.1,v 8.4 2001/08/08 07:49:58 marka Exp $
+.\" $Id: dnsquery.1,v 8.5 2002/06/18 02:04:54 marka Exp $
 .\"
 .\"Copyright (c) 1995,1996,1999 by Internet Software Consortium
 .\"
@@ -49,8 +49,10 @@ are treated without case-sensitivity.
 .Bl -tag -width Fl
 .It Fl n Ar nameserver
 The nameserver to be used in the query.  Nameservers can appear as either 
-Internet addresses of the form 
-.Ar w.x.y.z 
+Internet addresses of the form
+.Ar ( w.x.y.z
+or
+.Ar xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx )
 or can appear as domain names.
 (Default: as specified in 
 .Pa /etc/resolv.conf . ) 

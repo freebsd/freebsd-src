@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static const char sccsid[] = "@(#)ns_main.c	4.55 (Berkeley) 7/1/91";
-static const char rcsid[] = "$Id: ns_signal.c,v 8.14 2001/06/18 14:43:25 marka Exp $";
+static const char rcsid[] = "$Id: ns_signal.c,v 8.15 2002/05/18 01:39:15 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -87,7 +87,9 @@ static const char rcsid[] = "$Id: ns_signal.c,v 8.14 2001/06/18 14:43:25 marka E
 #ifdef SVR4	/* XXX */
 # include <sys/sockio.h>
 #else
+#ifndef __hpux
 # include <sys/mbuf.h>
+#endif
 #endif
 
 #include <netinet/in.h>

@@ -1,6 +1,6 @@
 %{
 #if !defined(lint) && !defined(SABER)
-static char rcsid[] = "$Id: ns_parser.y,v 8.79 2002/04/25 05:27:13 marka Exp $";
+static char rcsid[] = "$Id: ns_parser.y,v 8.80 2002/05/24 03:05:01 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -191,6 +191,7 @@ int yyparse();
 %token			T_TRANSFERS 
 %token			T_KEYS
 %token			T_SUPPORT_IXFR
+%token			T_EDNS
 
 /* Items used for "zone" statements: */
 %token			T_ZONE
@@ -1268,6 +1269,10 @@ server_info: T_BOGUS yea_or_nay
 		set_server_transfer_format(current_server, $2);
 	}
 	| T_KEYS '{' key_list '}'
+	| T_EDNS yea_or_nay
+	{
+		set_server_option(current_server, SERVER_INFO_EDNS, $2);
+	}
 	| error
 	;
 
