@@ -327,21 +327,34 @@ static int
 S_vmtotal(int l2, void *p)
 {
 	struct vmtotal *v = (struct vmtotal *)p;
+	int pageKilo = getpagesize() / 1024;
 
 	if (l2 != sizeof(*v)) {
 		warnx("S_vmtotal %d != %d", l2, sizeof(*v));
 		return (0);
 	}
 
-	printf("\nSystem wide totals computed every five seconds:\n");
+	printf(
+	    "\nSystem wide totals computed every five seconds:"
+	    " (values in kilobytes)\n");
 	printf("===============================================\n");
-	printf("Processes: (RUNQ:\t %hu Disk Wait: %hu Page Wait: %hu Sleep: %hu)\n",
-		v->t_rq, v->t_dw, v->t_pw, v->t_sl);
-	printf("Virtual Memory:\t\t (Total: %hu Active %hu)\n", v->t_vm, v->t_avm);
-	printf("Real Memory:\t\t (Total: %hu Active %hu)\n", v->t_rm, v->t_arm);
-	printf("Shared Virtual Memory:\t (Total: %hu Active: %hu)\n", v->t_vmshr, v->t_avmshr);
-	printf("Shared Real Memory:\t (Total: %hu Active: %hu)\n", v->t_rmshr, v->t_armshr);
-	printf("Free Memory Pages:\t %hu\n", v->t_free);
+	printf(
+	    "Processes:\t\t(RUNQ: %hu Disk Wait: %hu Page Wait: "
+	    "%hu Sleep: %hu)\n",
+	    v->t_rq, v->t_dw, v->t_pw, v->t_sl);
+	printf(
+	    "Virtual Memory:\t\t(Total: %luK, Active %lldK)\n",
+	    (unsigned long)v->t_vm / 1024,
+	    (long long)v->t_avm * pageKilo);
+	printf("Real Memory:\t\t(Total: %lldK Active %lldK)\n",
+	    (long long)v->t_rm * pageKilo, (long long)v->t_arm * pageKilo);
+	printf("Shared Virtual Memory:\t(Total: %lldK Active: %lldK)\n",
+	    (long long)v->t_vmshr * pageKilo, 
+	    (long long)v->t_avmshr * pageKilo);
+	printf("Shared Real Memory:\t(Total: %lldK Active: %lldK)\n",
+	    (long long)v->t_rmshr * pageKilo,
+	    (long long)v->t_armshr * pageKilo);
+	printf("Free Memory Pages:\t%ldK\n", (long long)v->t_free * pageKilo);
 	
 	return (0);
 }
