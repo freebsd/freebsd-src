@@ -121,7 +121,7 @@ typedef enum {
 } devstat_type_flags;
 
 struct devstat {
-	STAILQ_ENTRY(devstat) 	dev_links;
+	STAILQ_ENTRY(struct devstat) 	dev_links;
 	u_int32_t		device_number;	     /*
 						      * Devstat device
 						      * number.

@@ -67,7 +67,7 @@ struct umap_mount {
  * A cache of vnode references
  */
 struct umap_node {
-	LIST_ENTRY(umap_node) umap_hash;	/* Hash list */
+	LIST_ENTRY(struct umap_node) umap_hash;	/* Hash list */
 	struct vnode	*umap_lowervp;	/* Aliased vnode - VREFed once */
 	struct vnode	*umap_vnode;	/* Back pointer to vnode/umap_node */
 };

@@ -453,11 +453,11 @@ do {									\
  */
 struct in6_multi_mship {
 	struct	in6_multi *i6mm_maddr;	/* Multicast address pointer */
-	LIST_ENTRY(in6_multi_mship)	i6mm_chain;  /* multicast options chain */
+	LIST_ENTRY(struct in6_multi_mship) i6mm_chain;  /* multicast options chain */
 };
 
 struct	in6_multi {
-	LIST_ENTRY(in6_multi)	in6m_entry; /* list glue */
+	LIST_ENTRY(struct in6_multi)	in6m_entry; /* list glue */
 	struct	in6_addr in6m_addr;	/* IP6 multicast address */
 	struct	ifnet *in6m_ifp;	/* back pointer to ifnet */
 	struct	ifmultiaddr *in6m_ifma;	/* back pointer to ifmultiaddr */
@@ -472,7 +472,7 @@ struct	in6_multi {
 SYSCTL_DECL(_net_inet6_ip6);
 #endif
 
-extern LIST_HEAD(in6_multihead, in6_multi) in6_multihead;
+extern LIST_HEAD(in6_multihead, struct in6_multi) in6_multihead;
 
 /*
  * Structure used by macros below to remember position when stepping through

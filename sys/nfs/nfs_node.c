@@ -55,7 +55,7 @@
 #include <nfs/nfsmount.h>
 
 static vm_zone_t nfsnode_zone;
-static LIST_HEAD(nfsnodehashhead, nfsnode) *nfsnodehashtbl;
+static LIST_HEAD(nfsnodehashhead, struct nfsnode) *nfsnodehashtbl;
 static u_long nfsnodehash;
 
 #define TRUE	1

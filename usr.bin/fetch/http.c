@@ -68,13 +68,13 @@ struct http_state {
 };
 
 struct http_auth {
-	TAILQ_ENTRY(http_auth) ha_link;
+	TAILQ_ENTRY(struct http_auth) ha_link;
 	char *ha_scheme;
 	char *ha_realm;
 	char *ha_params;
 	const struct http_auth_method *ha_ham;
 };
-TAILQ_HEAD(http_auth_head, http_auth);
+TAILQ_HEAD(http_auth_head, struct http_auth);
 
 static int http_parse(struct fetch_state *fs, const char *uri);
 static int http_proxy_parse(struct fetch_state *fs, const char *uri);

@@ -54,7 +54,7 @@ MALLOC_DEFINE(M_NTFSNTHASH, "NTFS nthash", "NTFS ntnode hash tables");
 /*
  * Structures associated with inode cacheing.
  */
-static LIST_HEAD(nthashhead, ntnode) *ntfs_nthashtbl;
+static LIST_HEAD(nthashhead, struct ntnode) *ntfs_nthashtbl;
 static u_long	ntfs_nthash;		/* size of hash table - 1 */
 #define	NTNOHASH(device, inum)	(&ntfs_nthashtbl[(minor(device) + (inum)) & ntfs_nthash])
 #ifndef NULL_SIMPLELOCKS

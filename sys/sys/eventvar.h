@@ -33,7 +33,7 @@
 #define KQEXTENT	256		/* linear growth by this amount */
 
 struct kqueue {
-	TAILQ_HEAD(kqlist, knote) kq_head;	/* list of pending event */
+	TAILQ_HEAD(kqlist, struct knote) kq_head; /* list of pending event */
 	int		kq_count;		/* number of pending events */
 	struct		selinfo kq_sel;	
 	struct		filedesc *kq_fdp;

@@ -55,8 +55,8 @@ struct specinfo {
 #define SI_STASHED	0x0001	/* created in stashed storage */
 #define SI_WHINED	0x0002	/* whined about already */
 	udev_t		si_udev;
-	LIST_ENTRY(specinfo)	si_hash;
-	SLIST_HEAD(, vnode) si_hlist;
+	LIST_ENTRY(struct specinfo)	si_hash;
+	SLIST_HEAD(, struct vnode) si_hlist;
 	char		si_name[SPECNAMELEN + 1];
 	void		*si_drv1, *si_drv2;
 	struct cdevsw	*si_devsw;

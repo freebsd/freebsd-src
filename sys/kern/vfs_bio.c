@@ -137,7 +137,7 @@ SYSCTL_INT(_vfs, OID_AUTO, bufreusecnt, CTLFLAG_RW,
 	&bufreusecnt, 0, "");
 
 static int bufhashmask;
-static LIST_HEAD(bufhashhdr, buf) *bufhashtbl, invalhash;
+static LIST_HEAD(bufhashhdr, struct buf) *bufhashtbl, invalhash;
 struct bqueues bufqueues[BUFFER_QUEUES] = { { 0 } };
 char *buf_wmesg = BUF_WMESG;
 

@@ -174,7 +174,7 @@ struct atapi_request {
     int8_t			*data;		/* pointer to data buf */
     atapi_callback_t		*callback;	/* ptr to callback func */
     void 			*driver;	/* driver specific */
-    TAILQ_ENTRY(atapi_request)	chain;		/* list management */
+    TAILQ_ENTRY(struct atapi_request)	chain;	/* list management */
 };
 
 void atapi_attach(struct ata_softc *, int32_t);

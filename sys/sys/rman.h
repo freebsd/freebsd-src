@@ -42,11 +42,11 @@
  * address space).  That is also why the indices are defined to have type
  * `unsigned long' -- that being the largest integral type in Standard C.
  */
-CIRCLEQ_HEAD(resource_head, resource);
+CIRCLEQ_HEAD(resource_head, struct resource);
 struct	resource {
-	CIRCLEQ_ENTRY(resource)	r_link;
-	LIST_ENTRY(resource)	r_sharelink;
-	LIST_HEAD(, resource) 	*r_sharehead;
+	CIRCLEQ_ENTRY(struct resource)	r_link;
+	LIST_ENTRY(struct resource)	r_sharelink;
+	LIST_HEAD(, struct resource) 	*r_sharehead;
 	u_long	r_start;	/* index of the first entry in this resource */
 	u_long	r_end;		/* index of the last entry (inclusive) */
 	u_int	r_flags;
@@ -69,13 +69,13 @@ enum	rman_type { RMAN_UNINIT = 0, RMAN_GAUGE, RMAN_ARRAY };
 struct	rman {
 	struct	resource_head 	rm_list;
 	struct	simplelock *rm_slock; /* mutex used to protect rm_list */
-	TAILQ_ENTRY(rman)	rm_link; /* link in list of all rmans */
+	TAILQ_ENTRY(struct rman)	rm_link; /* link in list of all rmans */
 	u_long	rm_start;	/* index of globally first entry */
 	u_long	rm_end;		/* index of globally last entry */
 	enum	rman_type rm_type; /* what type of resource this is */
 	const	char *rm_descr;	/* text descripion of this resource */
 };
-TAILQ_HEAD(rman_head, rman);
+TAILQ_HEAD(rman_head, struct rman);
 
 #ifdef _KERNEL
 

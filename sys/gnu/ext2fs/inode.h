@@ -67,7 +67,7 @@ typedef long ufs_lbn_t;
  */
 struct inode {
 	struct	 lock i_lock;	/* Inode lock. >Keep this first< */
-	LIST_ENTRY(inode) i_hash;/* Hash chain. */
+	LIST_ENTRY(struct inode) i_hash;/* Hash chain. */
 	struct	vnode  *i_vnode;/* Vnode associated with this inode. */
 	struct	vnode  *i_devvp;/* Vnode for block I/O. */
 	u_int32_t i_flag;	/* flags, see below */

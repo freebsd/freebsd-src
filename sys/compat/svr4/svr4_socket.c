@@ -68,10 +68,10 @@ struct svr4_sockcache_entry {
 	struct sockaddr_un sock;/* Pathname for the socket		*/
 	udev_t dev;		/* Device where the socket lives on	*/
 	ino_t ino;		/* Inode where the socket lives on	*/
-	TAILQ_ENTRY(svr4_sockcache_entry) entries;
+	TAILQ_ENTRY(struct svr4_sockcache_entry) entries;
 };
 
-extern TAILQ_HEAD(svr4_sockcache_head, svr4_sockcache_entry) svr4_head;
+extern TAILQ_HEAD(svr4_sockcache_head, struct svr4_sockcache_entry) svr4_head;
 extern int svr4_str_initialized;
 
 struct sockaddr_un *

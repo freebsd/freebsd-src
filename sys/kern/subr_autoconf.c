@@ -55,7 +55,7 @@
 /*
  * "Interrupt driven config" functions.
  */
-static TAILQ_HEAD(, intr_config_hook) intr_config_hook_list =
+static TAILQ_HEAD(, struct intr_config_hook) intr_config_hook_list =
 	TAILQ_HEAD_INITIALIZER(intr_config_hook_list);
 
 

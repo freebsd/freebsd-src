@@ -45,7 +45,7 @@
 #define	NVOLUME		0x0010		/* vnode references a volume */
 
 struct nwnode {
-	LIST_ENTRY(nwnode)	n_hash;
+	LIST_ENTRY(struct nwnode)	n_hash;
 	struct vnode 		*n_vnode;
 	struct vattr		n_vattr;
 	struct nwmount		*n_mount;

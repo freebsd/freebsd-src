@@ -38,7 +38,7 @@
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>
 
-TAILQ_HEAD(ccb_queue, ccb_hdr);
+TAILQ_HEAD(ccb_queue, struct ccb_hdr);
 
 /* Determine and clear exception state in the driver */
 typedef enum {

@@ -58,7 +58,7 @@ struct reg_info {
 	int	 typecheck_masks;
 };
 
-typedef SLIST_HEAD(symlist, symbol_node) symlist_t;
+typedef SLIST_HEAD(symlist, struct symbol_node) symlist_t;
 
 struct mask_info {
 	symlist_t symrefs;
@@ -106,7 +106,7 @@ typedef struct symbol_ref {
 } symbol_ref_t;
 
 typedef struct symbol_node {
-	SLIST_ENTRY(symbol_node) links;
+	SLIST_ENTRY(struct symbol_node) links;
 	symbol_t *symbol;
 }symbol_node_t;
 
@@ -123,9 +123,9 @@ typedef struct patch_info {
 } patch_info_t;
 
 typedef struct scope {
-	SLIST_ENTRY(scope) scope_stack_links;
-	TAILQ_ENTRY(scope) scope_links;
-	TAILQ_HEAD(, scope) inner_scope;
+	SLIST_ENTRY(struct scope) scope_stack_links;
+	TAILQ_ENTRY(struct scope) scope_links;
+	TAILQ_HEAD(, struct scope) inner_scope;
 	scope_type type;
 	int inner_scope_patches;
 	int begin_addr;
@@ -134,8 +134,8 @@ typedef struct scope {
 	int func_num;
 } scope_t;
 
-SLIST_HEAD(scope_list, scope);
-TAILQ_HEAD(scope_tailq, scope);
+SLIST_HEAD(scope_list, struct scope);
+TAILQ_HEAD(scope_tailq, struct scope);
 
 void	symbol_delete __P((symbol_t *symbol));
 

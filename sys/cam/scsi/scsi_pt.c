@@ -78,7 +78,7 @@ typedef enum {
 struct pt_softc {
 	struct	 bio_queue_head bio_queue;
 	struct	 devstat device_stats;
-	LIST_HEAD(, ccb_hdr) pending_ccbs;
+	LIST_HEAD(, struct ccb_hdr) pending_ccbs;
 	pt_state state;
 	pt_flags flags;	
 	union	 ccb saved_ccb;

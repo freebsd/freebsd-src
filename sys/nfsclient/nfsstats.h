@@ -333,7 +333,7 @@ struct uio; struct buf; struct vattr; struct nameidata;	/* XXX */
  * Nfs outstanding request list element
  */
 struct nfsreq {
-	TAILQ_ENTRY(nfsreq) r_chain;
+	TAILQ_ENTRY(struct nfsreq) r_chain;
 	struct mbuf	*r_mreq;
 	struct mbuf	*r_mrep;
 	struct mbuf	*r_md;
@@ -353,7 +353,7 @@ struct nfsreq {
 /*
  * Queue head for nfsreq's
  */
-extern TAILQ_HEAD(nfs_reqq, nfsreq) nfs_reqq;
+extern TAILQ_HEAD(nfs_reqq, struct nfsreq) nfs_reqq;
 
 /* Flag values for r_flags */
 #define R_TIMING	0x01		/* timing request (in mntp) */
@@ -398,8 +398,8 @@ union nethostaddr {
 };
 
 struct nfsuid {
-	TAILQ_ENTRY(nfsuid) nu_lru;	/* LRU chain */
-	LIST_ENTRY(nfsuid) nu_hash;	/* Hash list */
+	TAILQ_ENTRY(struct nfsuid) nu_lru;	/* LRU chain */
+	LIST_ENTRY(struct nfsuid) nu_hash;	/* Hash list */
 	int		nu_flag;	/* Flags */
 	union nethostaddr nu_haddr;	/* Host addr. for dgram sockets */
 	struct ucred	nu_cr;		/* Cred uid mapped to */
@@ -417,20 +417,20 @@ struct nfsuid {
 #define NU_NETFAM(u)	(((u)->nu_flag & NU_INETADDR) ? AF_INET : AF_ISO)
 
 struct nfsrv_rec {
-	STAILQ_ENTRY(nfsrv_rec) nr_link;
+	STAILQ_ENTRY(struct nfsrv_rec) nr_link;
 	struct sockaddr	*nr_address;
 	struct mbuf	*nr_packet;
 };
 
 struct nfssvc_sock {
-	TAILQ_ENTRY(nfssvc_sock) ns_chain;	/* List of all nfssvc_sock's */
-	TAILQ_HEAD(, nfsuid) ns_uidlruhead;
+	TAILQ_ENTRY(struct nfssvc_sock) ns_chain;/* List of all nfssvc_sock's */
+	TAILQ_HEAD(, struct nfsuid) ns_uidlruhead;
 	struct file	*ns_fp;
 	struct socket	*ns_so;
 	struct sockaddr	*ns_nam;
 	struct mbuf	*ns_raw;
 	struct mbuf	*ns_rawend;
-	STAILQ_HEAD(, nfsrv_rec) ns_rec;
+	STAILQ_HEAD(, struct nfsrv_rec) ns_rec;
 	struct mbuf	*ns_frag;
 	int		ns_flag;
 	int		ns_solock;
@@ -438,9 +438,9 @@ struct nfssvc_sock {
 	int		ns_reclen;
 	int		ns_numuids;
 	u_int32_t	ns_sref;
-	LIST_HEAD(, nfsrv_descript) ns_tq;	/* Write gather lists */
-	LIST_HEAD(, nfsuid) ns_uidhashtbl[NFS_UIDHASHSIZ];
-	LIST_HEAD(nfsrvw_delayhash, nfsrv_descript) ns_wdelayhashtbl[NFS_WDELAYHASHSIZ];
+	LIST_HEAD(, struct nfsrv_descript) ns_tq;	/* Write gather lists */
+	LIST_HEAD(, struct nfsuid) ns_uidhashtbl[NFS_UIDHASHSIZ];
+	LIST_HEAD(nfsrvw_delayhash, struct nfsrv_descript) ns_wdelayhashtbl[NFS_WDELAYHASHSIZ];
 };
 
 /* Bits for "ns_flag" */
@@ -452,7 +452,7 @@ struct nfssvc_sock {
 #define	SLP_LASTFRAG	0x20
 #define SLP_ALLFLAGS	0xff
 
-extern TAILQ_HEAD(nfssvc_sockhead, nfssvc_sock) nfssvc_sockhead;
+extern TAILQ_HEAD(nfssvc_sockhead, struct nfssvc_sock) nfssvc_sockhead;
 extern int nfssvc_sockhead_flag;
 #define	SLP_INIT	0x01
 #define	SLP_WANTINIT	0x02
@@ -461,7 +461,7 @@ extern int nfssvc_sockhead_flag;
  * One of these structures is allocated for each nfsd.
  */
 struct nfsd {
-	TAILQ_ENTRY(nfsd) nfsd_chain;	/* List of all nfsd's */
+	TAILQ_ENTRY(struct nfsd) nfsd_chain;	/* List of all nfsd's */
 	int		nfsd_flag;	/* NFSD_ flags */
 	struct nfssvc_sock *nfsd_slp;	/* Current socket */
 	int		nfsd_authlen;	/* Authenticator len */
@@ -486,9 +486,9 @@ struct nfsrv_descript {
 	u_quad_t		nd_time;	/* Write deadline (usec) */
 	off_t			nd_off;		/* Start byte offset */
 	off_t			nd_eoff;	/* and end byte offset */
-	LIST_ENTRY(nfsrv_descript) nd_hash;	/* Hash list */
-	LIST_ENTRY(nfsrv_descript) nd_tq;		/* and timer list */
-	LIST_HEAD(,nfsrv_descript) nd_coalesce;	/* coalesced writes */
+	LIST_ENTRY(struct nfsrv_descript) nd_hash;	/* Hash list */
+	LIST_ENTRY(struct nfsrv_descript) nd_tq;	/* and timer list */
+	LIST_HEAD(, struct nfsrv_descript) nd_coalesce;	/* coalesced writes */
 	struct mbuf		*nd_mrep;	/* Request mbuf list */
 	struct mbuf		*nd_md;		/* Current dissect mbuf */
 	struct mbuf		*nd_mreq;	/* Reply mbuf list */
@@ -518,7 +518,7 @@ struct nfsrv_descript {
 #define ND_KERBFULL	0x40
 #define ND_KERBAUTH	(ND_KERBNICK | ND_KERBFULL)
 
-extern TAILQ_HEAD(nfsd_head, nfsd) nfsd_head;
+extern TAILQ_HEAD(nfsd_head, struct nfsd) nfsd_head;
 extern int nfsd_head_flag;
 #define	NFSD_CHECKSLP	0x01
 

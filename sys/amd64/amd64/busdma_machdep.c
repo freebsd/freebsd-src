@@ -61,12 +61,12 @@ struct bounce_page {
 	bus_addr_t	busaddr;	/* Physical address */
 	vm_offset_t	datavaddr;	/* kva of client data */
 	bus_size_t	datacount;	/* client data count */
-	STAILQ_ENTRY(bounce_page) links;
+	STAILQ_ENTRY(struct bounce_page) links;
 };
 
 int busdma_swi_pending;
 
-static STAILQ_HEAD(bp_list, bounce_page) bounce_page_list;
+static STAILQ_HEAD(bp_list, struct bounce_page) bounce_page_list;
 static int free_bpages;
 static int reserved_bpages;
 static int active_bpages;
@@ -82,11 +82,11 @@ struct bus_dmamap {
 	bus_size_t	       buflen;		/* unmapped buffer length */
 	bus_dmamap_callback_t *callback;
 	void		      *callback_arg;
-	STAILQ_ENTRY(bus_dmamap) links;
+	STAILQ_ENTRY(struct bus_dmamap) links;
 };
 
-static STAILQ_HEAD(, bus_dmamap) bounce_map_waitinglist;
-static STAILQ_HEAD(, bus_dmamap) bounce_map_callbacklist;
+static STAILQ_HEAD(, struct bus_dmamap) bounce_map_waitinglist;
+static STAILQ_HEAD(, struct bus_dmamap) bounce_map_callbacklist;
 static struct bus_dmamap nobounce_dmamap;
 
 static int alloc_bounce_pages(bus_dma_tag_t dmat, u_int numpages);

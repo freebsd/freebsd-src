@@ -13,13 +13,13 @@
 */
 
 struct callback {
-    LIST_ENTRY(callback) chain;
+    LIST_ENTRY(struct callback) chain;
     u_long vec;
     callback_t func;
     char *name;
 };
 
-LIST_HEAD(cbhead , callback) cbhead[127];
+LIST_HEAD(cbhead, struct callback) cbhead[127];
 
 #define	CBHASH(x)	(((x) * 17) % 127)
 

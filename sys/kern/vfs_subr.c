@@ -95,7 +95,7 @@ int vttoif_tab[9] = {
 	S_IFSOCK, S_IFIFO, S_IFMT,
 };
 
-static TAILQ_HEAD(freelst, vnode) vnode_free_list;	/* vnode free list */
+static TAILQ_HEAD(freelst, struct vnode) vnode_free_list; /* vnode free list */
 struct tobefreelist vnode_tobefree_list;	/* vnode free list */
 
 static u_long wantfreevnodes = 25;
@@ -149,7 +149,7 @@ SYSCTL_INT(_debug, OID_AUTO, rush_requests, CTLFLAG_RW, &stat_rush_requests, 0, 
 
 static int syncer_delayno = 0;
 static long syncer_mask; 
-LIST_HEAD(synclist, vnode);
+LIST_HEAD(synclist, struct vnode);
 static struct synclist *syncer_workitem_pending;
 
 int desiredvnodes;
@@ -453,7 +453,7 @@ getnewvnode(tag, mp, vops, vpp)
 	struct proc *p = curproc;	/* XXX */
 	struct vnode *vp, *tvp, *nvp;
 	vm_object_t object;
-	TAILQ_HEAD(freelst, vnode) vnode_tmp_list;
+	TAILQ_HEAD(freelst, struct vnode) vnode_tmp_list;
 
 	/*
 	 * We take the least recently used vnode from the freelist
@@ -1851,7 +1851,7 @@ vgonel(vp, p)
 	 */
 	if ((vp->v_type == VBLK || vp->v_type == VCHR) && vp->v_rdev != NULL) {
 		simple_lock(&spechash_slock);
-		SLIST_REMOVE(&vp->v_hashchain, vp, vnode, v_specnext);
+		SLIST_REMOVE(&vp->v_hashchain, vp, struct vnode, v_specnext);
 		freedev(vp->v_rdev);
 		simple_unlock(&spechash_slock);
 		vp->v_rdev = NULL;

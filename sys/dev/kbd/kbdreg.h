@@ -157,7 +157,7 @@ typedef struct keyboard_switch {
 
 /* keyboard driver */
 typedef struct keyboard_driver {
-    SLIST_ENTRY(keyboard_driver) link;
+    SLIST_ENTRY(struct keyboard_driver) link;
     char		*name;
     keyboard_switch_t	*kbdsw;
     int			(*configure)(int); /* backdoor for the console driver */

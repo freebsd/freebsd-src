@@ -79,11 +79,11 @@ struct dbent {
 	int flags;
 };
 
-static CIRCLEQ_HEAD(circlehead, circleq_entry) qhead;
+static CIRCLEQ_HEAD(circlehead, struct circleq_entry) qhead;
 
 struct circleq_entry {
 	struct dbent *dbptr;
-	CIRCLEQ_ENTRY(circleq_entry) links;
+	CIRCLEQ_ENTRY(struct circleq_entry) links;
 };
 
 /*

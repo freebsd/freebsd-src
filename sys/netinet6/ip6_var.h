@@ -109,7 +109,7 @@ struct	ip6_moptions {
 	struct	ifnet *im6o_multicast_ifp; /* ifp for outgoing multicasts */
 	u_char	im6o_multicast_hlim;	/* hoplimit for outgoing multicasts */
 	u_char	im6o_multicast_loop;	/* 1 >= hear sends if a member */
-	LIST_HEAD(, in6_multi_mship) im6o_memberships;
+	LIST_HEAD(, struct in6_multi_mship) im6o_memberships;
 };
 
 /*
