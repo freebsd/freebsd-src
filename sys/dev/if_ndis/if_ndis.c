@@ -1064,15 +1064,19 @@ ndis_ticktask(xsc)
 		if (sc->ndis_80211)
 			ndis_getstate_80211(sc);
 		NDIS_LOCK(sc);
+#ifdef LINK_STATE_UP
 		sc->arpcom.ac_if.if_link_state = LINK_STATE_UP;
 		rt_ifmsg(&(sc->arpcom.ac_if));
+#endif /* LINK_STATE_UP */
 	}
 
 	if (sc->ndis_link == 1 && linkstate == nmc_disconnected) {
 		device_printf(sc->ndis_dev, "link down\n");
 		sc->ndis_link = 0;
+#ifdef LINK_STATE_DOWN
 		sc->arpcom.ac_if.if_link_state = LINK_STATE_DOWN;
 		rt_ifmsg(&(sc->arpcom.ac_if));
+#endif /* LINK_STATE_DOWN */
 	}
 
 	NDIS_UNLOCK(sc);
