@@ -62,9 +62,10 @@
 #define UHUB_DEBUG 1
 #define ULPT_DEBUG 1
 #define UAUDIO_DEBUG 1
-#endif
-
+#define Static
+#else
 #define Static static
+#endif
 
 typedef struct proc *usb_proc_ptr;
 
