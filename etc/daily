@@ -29,9 +29,23 @@ echo "You did not enable the cleaning of / in /etc/daily!"
 #	   -o -name '*.CKP' -o -name '.emacs_[0-9]*' \) \
 #		-a -atime +3 -exec rm -f -- {} \;
 #
+
+# remove system	messages older than 21 days
 msgs -c
+
 if [ -f /etc/news.expire ]; then
 	/etc/news.expire
+fi
+
+if [ -f /var/account/acct ] ; then
+	echo ""
+	echo "Gathering accounting statistics:"
+	cd /var/account
+	if [ -f acct.2 ] ; then mv -f acct.2 acct.3 ; fi
+	if [ -f acct.1 ] ; then mv -f acct.1 acct.2 ; fi
+	if [ -f acct.0 ] ; then mv -f acct.0 acct.1 ; fi
+	cp -pf acct acct.0
+	sa -s > /dev/null
 fi
 
 echo ""
