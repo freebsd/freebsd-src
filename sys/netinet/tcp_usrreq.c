@@ -778,22 +778,43 @@ tcp_usr_rcvoob(struct socket *so, struct mbuf *m, int flags)
 	COMMON_END(PRU_RCVOOB);
 }
 
-/* xxx - should be const */
 struct pr_usrreqs tcp_usrreqs = {
-	tcp_usr_abort, tcp_usr_accept, tcp_usr_attach, tcp_usr_bind,
-	tcp_usr_connect, pru_connect2_notsupp, in_control, tcp_usr_detach,
-	tcp_usr_disconnect, tcp_usr_listen, tcp_peeraddr, tcp_usr_rcvd,
-	tcp_usr_rcvoob, tcp_usr_send, pru_sense_null, tcp_usr_shutdown,
-	tcp_sockaddr, sosend, soreceive, sopoll, in_pcbsosetlabel
+	.pru_abort =		tcp_usr_abort,
+	.pru_accept =		tcp_usr_accept,
+	.pru_attach =		tcp_usr_attach,
+	.pru_bind =		tcp_usr_bind,
+	.pru_connect =		tcp_usr_connect,
+	.pru_control =		in_control,
+	.pru_detach =		tcp_usr_detach,
+	.pru_disconnect =	tcp_usr_disconnect,
+	.pru_listen =		tcp_usr_listen,
+	.pru_peeraddr =		tcp_peeraddr,
+	.pru_rcvd =		tcp_usr_rcvd,
+	.pru_rcvoob =		tcp_usr_rcvoob,
+	.pru_send =		tcp_usr_send,
+	.pru_shutdown =		tcp_usr_shutdown,
+	.pru_sockaddr =		tcp_sockaddr,
+	.pru_sosetlabel =	in_pcbsosetlabel
 };
 
 #ifdef INET6
 struct pr_usrreqs tcp6_usrreqs = {
-	tcp_usr_abort, tcp6_usr_accept, tcp_usr_attach, tcp6_usr_bind,
-	tcp6_usr_connect, pru_connect2_notsupp, in6_control, tcp_usr_detach,
-	tcp_usr_disconnect, tcp6_usr_listen, in6_mapped_peeraddr, tcp_usr_rcvd,
-	tcp_usr_rcvoob, tcp_usr_send, pru_sense_null, tcp_usr_shutdown,
-	in6_mapped_sockaddr, sosend, soreceive, sopoll, in_pcbsosetlabel
+	.pru_abort =		tcp_usr_abort,
+	.pru_accept =		tcp6_usr_accept,
+	.pru_attach =		tcp_usr_attach,
+	.pru_bind =		tcp6_usr_bind,
+	.pru_connect =		tcp6_usr_connect,
+	.pru_control =		in6_control,
+	.pru_detach =		tcp_usr_detach,
+	.pru_disconnect =	tcp_usr_disconnect,
+	.pru_listen =		tcp6_usr_listen,
+	.pru_peeraddr =		in6_mapped_peeraddr,
+	.pru_rcvd =		tcp_usr_rcvd,
+	.pru_rcvoob =		tcp_usr_rcvoob,
+	.pru_send =		tcp_usr_send,
+	.pru_shutdown =		tcp_usr_shutdown,
+	.pru_sockaddr =		in6_mapped_sockaddr,
+ 	.pru_sosetlabel =	in_pcbsosetlabel
 };
 #endif /* INET6 */
 

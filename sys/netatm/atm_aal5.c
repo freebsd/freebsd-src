@@ -93,27 +93,20 @@ static caddr_t	atm_aal5_getname(void *);
  * New-style socket request routines
  */
 struct pr_usrreqs	atm_aal5_usrreqs = {
-	atm_aal5_abort,			/* pru_abort */
-	atm_aal5_accept,		/* pru_accept */
-	atm_aal5_attach,		/* pru_attach */
-	atm_aal5_bind,			/* pru_bind */
-	atm_aal5_connect,		/* pru_connect */
-	pru_connect2_notsupp,		/* pru_connect2 */
-	atm_aal5_control,		/* pru_control */
-	atm_aal5_detach,		/* pru_detach */
-	atm_aal5_disconnect,		/* pru_disconnect */
-	atm_aal5_listen,		/* pru_listen */
-	atm_aal5_peeraddr,		/* pru_peeraddr */
-	pru_rcvd_notsupp,		/* pru_rcvd */
-	pru_rcvoob_notsupp,		/* pru_rcvoob */
-	atm_aal5_send,			/* pru_send */
-	atm_aal5_sense,			/* pru_sense */
-	atm_aal5_shutdown,		/* pru_shutdown */
-	atm_aal5_sockaddr,		/* pru_sockaddr */
-	sosend,				/* pru_sosend */
-	soreceive,			/* pru_soreceive */
-	sopoll,				/* pru_sopoll */
-	pru_sosetlabel_null		/* pru_sosetlabel */
+	.pru_abort =		atm_aal5_abort,
+	.pru_accept =		atm_aal5_accept,
+	.pru_attach =		atm_aal5_attach,
+	.pru_bind =		atm_aal5_bind,
+	.pru_connect =		atm_aal5_connect,
+	.pru_control =		atm_aal5_control,
+	.pru_detach =		atm_aal5_detach,
+	.pru_disconnect =	atm_aal5_disconnect,
+	.pru_listen =		atm_aal5_listen,
+	.pru_peeraddr =		atm_aal5_peeraddr,
+	.pru_send =		atm_aal5_send,
+	.pru_sense =		atm_aal5_sense,
+	.pru_shutdown =		atm_aal5_shutdown,
+	.pru_sockaddr =		atm_aal5_sockaddr,
 };
 
 /*

@@ -576,11 +576,24 @@ uipc_sockaddr(struct socket *so, struct sockaddr **nam)
 }
 
 struct pr_usrreqs uipc_usrreqs = {
-	uipc_abort, uipc_accept, uipc_attach, uipc_bind, uipc_connect,
-	uipc_connect2, pru_control_notsupp, uipc_detach, uipc_disconnect,
-	uipc_listen, uipc_peeraddr, uipc_rcvd, pru_rcvoob_notsupp,
-	uipc_send, uipc_sense, uipc_shutdown, uipc_sockaddr,
-	sosend, soreceive, sopoll, pru_sosetlabel_null
+	.pru_abort = 		uipc_abort,
+	.pru_accept =		uipc_accept,
+	.pru_attach =		uipc_attach,
+	.pru_bind =		uipc_bind,
+	.pru_connect =		uipc_connect,
+	.pru_connect2 =		uipc_connect2,
+	.pru_detach =		uipc_detach,
+	.pru_disconnect =	uipc_disconnect,
+	.pru_listen =		uipc_listen,
+	.pru_peeraddr =		uipc_peeraddr,
+	.pru_rcvd =		uipc_rcvd,
+	.pru_send =		uipc_send,
+	.pru_sense =		uipc_sense,
+	.pru_shutdown =		uipc_shutdown,
+	.pru_sockaddr =		uipc_sockaddr,
+	.pru_sosend =		sosend,
+	.pru_soreceive =	soreceive,
+	.pru_sopoll =		sopoll,
 };
 
 int

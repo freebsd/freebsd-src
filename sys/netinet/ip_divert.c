@@ -661,11 +661,17 @@ SYSCTL_PROC(_net_inet_divert, OID_AUTO, pcblist, CTLFLAG_RD, 0, 0,
 #endif
 
 struct pr_usrreqs div_usrreqs = {
-	div_abort, pru_accept_notsupp, div_attach, div_bind,
-	pru_connect_notsupp, pru_connect2_notsupp, in_control, div_detach,
-	div_disconnect, pru_listen_notsupp, div_peeraddr, pru_rcvd_notsupp,
-	pru_rcvoob_notsupp, div_send, pru_sense_null, div_shutdown,
-	div_sockaddr, sosend, soreceive, sopoll, in_pcbsosetlabel
+	.pru_abort =		div_abort,
+	.pru_attach =		div_attach,
+	.pru_bind =		div_bind,
+	.pru_control =		in_control,
+	.pru_detach =		div_detach,
+	.pru_disconnect =	div_disconnect,
+	.pru_peeraddr =		div_peeraddr,
+	.pru_send =		div_send,
+	.pru_shutdown =		div_shutdown,
+	.pru_sockaddr =		div_sockaddr,
+	.pru_sosetlabel		in_pcbsosetlabel
 };
 
 struct protosw div_protosw = {

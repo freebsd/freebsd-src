@@ -1111,9 +1111,16 @@ udp_peeraddr(struct socket *so, struct sockaddr **nam)
 }
 
 struct pr_usrreqs udp_usrreqs = {
-	udp_abort, pru_accept_notsupp, udp_attach, udp_bind, udp_connect,
-	pru_connect2_notsupp, in_control, udp_detach, udp_disconnect,
-	pru_listen_notsupp, udp_peeraddr, pru_rcvd_notsupp,
-	pru_rcvoob_notsupp, udp_send, pru_sense_null, udp_shutdown,
-	udp_sockaddr, sosend, soreceive, sopoll, in_pcbsosetlabel
+	.pru_abort =		udp_abort,
+	.pru_attach =		udp_attach,
+	.pru_bind =		udp_bind,
+	.pru_connect =		udp_connect,
+	.pru_control =		in_control,
+	.pru_detach =		udp_detach,
+	.pru_disconnect =	udp_disconnect,
+	.pru_peeraddr =		udp_peeraddr,
+	.pru_send =		udp_send,
+	.pru_shutdown =		udp_shutdown,
+	.pru_sockaddr =		udp_sockaddr,
+	.pru_sosetlabel =	in_pcbsosetlabel
 };
