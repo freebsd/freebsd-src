@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: tsunamireg.h,v 1.1 1999/05/26 23:22:03 gallatin Exp $ */
 
 /*
  * 21271 Chipset registers and constants.
@@ -46,6 +46,12 @@ typedef struct {
 	tsunami_reg	pwr;		/* rw */
 } tsunami_cchip;
 
+/*
+ *  cchip csc defines
+ */
+#define  CSC_P1P (1L << 14)     /* pchip1 present if this bit is set in 
+				   chip->csc */
+
 typedef struct {
 	tsunami_reg	dsc;
 	tsunami_reg	str;
@@ -67,6 +73,15 @@ typedef struct {
 	tsunami_reg	pmonctl;	/* rw */
 	tsunami_reg	pmoncnt;	/* rw */
 } tsunami_pchip;
+
+/*
+ * pchip window defines
+ */
+#define WINDOW_ENABLE           0x1
+#define WINDOW_DISABLE          0x0
+#define WINDOW_SCATTER_GATHER   0x2
+#define WINDOW_DIRECT_MAPPED    0x0
+
 
 
 #define KV(pa)          ALPHA_PHYS_TO_K0SEG(pa)

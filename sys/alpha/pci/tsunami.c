@@ -48,15 +48,23 @@
 #include <machine/cpuconf.h>
 #include <machine/rpb.h>
 #include <machine/resource.h>
+#include <machine/sgmap.h>
+
+#include <vm/vm.h>
+#include <vm/vm_prot.h>
+#include <vm/vm_page.h>
 
 #define KV(pa)			ALPHA_PHYS_TO_K0SEG(pa)
 
 static devclass_t	tsunami_devclass;
 static device_t		tsunami0;		/* XXX only one for now */
-extern vm_offset_t      alpha_XXX_dmamap_or;
+
 struct tsunami_softc {
 	int		junk;		/* no softc */
 };
+
+static int num_pchips = 0;
+static volatile tsunami_pchip *pchip[2] = {pchip0, pchip1};
 
 #define TSUNAMI_SOFTC(dev)	(struct tsunami_softc*) device_get_softc(dev)
 
@@ -396,7 +404,7 @@ static driver_t tsunami_driver = {
 };
 
 static void
-pchip_init(tsunami_pchip *pchip, int index)
+pchip_init(volatile tsunami_pchip *pchip, int index)
 {
 #if 0
 
@@ -429,9 +437,64 @@ pchip_init(tsunami_pchip *pchip, int index)
 
 	alpha_mb();
 #endif	
-
 }	
 
+#define TSUNAMI_SGMAP_BASE		(8*1024*1024)
+#define TSUNAMI_SGMAP_SIZE		(8*1024*1024)
+
+static void
+tsunami_sgmap_invalidate(void)
+{
+	alpha_mb();
+	switch (num_pchips) {
+	case 2:
+		pchip[1]->tlbia.reg = (u_int64_t)0;
+	case 1:
+		pchip[0]->tlbia.reg = (u_int64_t)0;
+	}
+	alpha_mb();
+}
+
+static void
+tsunami_sgmap_map(void *arg, vm_offset_t ba, vm_offset_t pa)
+{
+	u_int64_t *sgtable = arg;
+	int index = alpha_btop(ba - TSUNAMI_SGMAP_BASE);
+
+	if (pa) {
+		if (pa > (1L<<32))
+			panic("tsunami_sgmap_map: can't map address 0x%lx", pa);
+		sgtable[index] = ((pa >> 13) << 1) | 1;
+	} else {
+		sgtable[index] = 0;
+	}
+	alpha_mb();
+	tsunami_sgmap_invalidate();
+}
+
+
+static void
+tsunami_init_sgmap(void)
+{
+	void *sgtable;
+	int i;
+
+	sgtable = contigmalloc(8192, M_DEVBUF, M_NOWAIT,
+			       0, (1L<<34),
+			       32*1024, (1L<<34));
+	if (!sgtable)
+		panic("tsunami_init_sgmap: can't allocate page table");
+
+	for(i=0; i < num_pchips; i++){
+		pchip[i]->tba[0].reg =
+			pmap_kextract((vm_offset_t) sgtable);
+		pchip[i]->wsba[0].reg |= WINDOW_ENABLE | WINDOW_SCATTER_GATHER;
+	}
+
+	chipset.sgmap = sgmap_map_create(TSUNAMI_SGMAP_BASE,
+					 TSUNAMI_SGMAP_BASE + TSUNAMI_SGMAP_SIZE,
+					 tsunami_sgmap_map, sgtable);
+}
 
 void
 tsunami_init()
@@ -459,17 +522,21 @@ tsunami_probe(device_t dev)
 		return ENXIO;
 	tsunami0 = dev;
 	device_set_desc(dev, "21271 Core Logic chipset"); 
+	if(cchip->csc.reg & CSC_P1P)
+		num_pchips = 2;
+	else
+		num_pchips = 1;
 
 	pci_init_resources();
 	isa_init_intr();
 
-	for(i = 0; i < 2; i++) {
+	for(i = 0; i < num_pchips; i++) {
 		hose = malloc(sizeof(int), M_DEVBUF, M_NOWAIT);
 		*hose = i;
 		device_add_child(dev, "pcib", i, hose);
+		pchip_init(pchip[i], i);		
 	}
-	pchip_init(pchip0, 0);
-	pchip_init(pchip1, 1);
+
 	return 0;
 }
 
@@ -490,7 +557,8 @@ tsunami_attach(device_t dev)
 	chipset_memory = TSUNAMI_MEM(0);
 	chipset_dense = TSUNAMI_MEM(0);
 	bus_generic_attach(dev);
-	
+	tsunami_init_sgmap();
+
 	return 0;
 }
 
