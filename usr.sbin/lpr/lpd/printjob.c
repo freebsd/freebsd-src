@@ -77,8 +77,8 @@ static const char rcsid[] =
 #include "pathnames.h"
 #include "extern.h"
 
-#define DORETURN	0	/* absorb fork error */
-#define DOABORT		1	/* abort if dofork fails */
+#define DORETURN	0	/* dofork should return "can't fork" error */
+#define DOABORT		1	/* dofork should just die if fork() fails */
 
 /*
  * Error tokens
@@ -105,6 +105,10 @@ static int	 pid;		/* pid of lpd process */
 static int	 prchild;	/* id of pr process */
 static char	 title[80];	/* ``pr'' title */
 static char      locale[80];    /* ``pr'' locale */
+
+/* these two are set from pp->daemon_user, but only if they are needed */
+static char	*daemon_uname;	/* set from pwd->pw_name */
+static int	 daemon_defgid;
 
 static char	class[32];		/* classification field */
 static char	origin_host[MAXHOSTNAMELEN];	/* user's host machine */
@@ -1401,11 +1405,24 @@ sendmail(struct printer *pp, char *user, int bombed)
 static int
 dofork(const struct printer *pp, int action)
 {
-	register int i, forkpid;
+	int i, fail, forkpid;
 	struct passwd *pwd;
 
+	forkpid = -1;
+	if (daemon_uname == NULL) {
+		pwd = getpwuid(pp->daemon_user);
+		if (pwd == NULL) {
+			syslog(LOG_ERR, "%s: Can't lookup default daemon uid (%ld) in password file",
+			    pp->printer, pp->daemon_user);
+			goto error_ret;
+		}
+		daemon_uname = strdup(pwd->pw_name);
+		daemon_defgid = pwd->pw_gid;
+	}
+
 	for (i = 0; i < 20; i++) {
-		if ((forkpid = fork()) < 0) {
+		forkpid = fork();
+		if (forkpid < 0) {
 			sleep((unsigned)(i*i));
 			continue;
 		}
@@ -1413,25 +1430,49 @@ dofork(const struct printer *pp, int action)
 		 * Child should run as daemon instead of root
 		 */
 		if (forkpid == 0) {
-			if ((pwd = getpwuid(pp->daemon_user)) == NULL) {
-				syslog(LOG_ERR, "Can't lookup default daemon uid (%ld) in password file",
-				    pp->daemon_user);
+			errno = 0;
+			fail = initgroups(daemon_uname, daemon_defgid);
+			if (fail) {
+				syslog(LOG_ERR, "%s: initgroups(%s,%u): %m",
+				    pp->printer, daemon_uname, daemon_defgid);
 				break;
 			}
-			initgroups(pwd->pw_name, pwd->pw_gid);
-			setgid(pwd->pw_gid);
-			setuid(pp->daemon_user);
+			fail = setgid(daemon_defgid);
+			if (fail) {
+				syslog(LOG_ERR, "%s: setgid(%u): %m",
+				    pp->printer, daemon_defgid);
+				break;
+			}
+			fail = setuid(pp->daemon_user);
+			if (fail) {
+				syslog(LOG_ERR, "%s: setuid(%ld): %m",
+				    pp->printer, pp->daemon_user);
+				break;
+			}
 		}
-		return(forkpid);
+		return forkpid;
 	}
-	syslog(LOG_ERR, "can't fork");
 
+	/*
+	 * An error occurred.  If the error is in the child process, then
+	 * this routine MUST always exit().  DORETURN only effects how
+	 * errors should be handled in the parent process.
+	 */
+error_ret:
+	if (forkpid == 0) {
+		syslog(LOG_ERR, "%s: dofork(): aborting child process...",
+		    pp->printer);
+		exit(1);
+	}
+	syslog(LOG_ERR, "%s: dofork(): failure in fork", pp->printer);
+
+	sleep(1);		/* throttle errors, as a safety measure */
 	switch (action) {
 	case DORETURN:
-		return (-1);
+		return -1;
 	default:
 		syslog(LOG_ERR, "bad action (%d) to dofork", action);
-		/*FALL THRU*/
+		/* FALLTHROUGH */
 	case DOABORT:
 		exit(1);
 	}
