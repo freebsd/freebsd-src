@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.3 (Berkeley) 1/7/94
-#	$Id: Makefile,v 1.50 1995/04/28 17:38:54 jkh Exp $
+#	$Id: Makefile,v 1.51 1995/05/10 00:38:30 jfieber Exp $
 
 # XXX MISSING:		deroff diction graph learn plot
 #			spell spline struct units xsend
@@ -9,7 +9,7 @@
 SUBDIR=	apply ar at banner basename biff cal calendar \
 	cap_mkdb chat checknr chflags chpass cksum col colcrt colldef colrm \
 	column comm compile_et compress cpp ctags cut devmenu \
-	dig dirname dmenu du env error expand f2c false file file2c \
+	dig dirname du env error expand f2c false file file2c \
 	find finger fmt fold fpr from fsplit fstat ftp gcore gencat getopt \
 	gprof head hexdump host id indent ipcrm ipcs \
 	join jot kdump ktrace key keyinfo keyinit lam last \
