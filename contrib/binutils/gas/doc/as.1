@@ -1,5 +1,6 @@
 .\" Copyright (c) 1991, 1992, 1996, 1997, 1998 Free Software Foundation
 .\" See section COPYING for conditions for redistribution
+.\" $FreeBSD$
 .TH as 1 "29 March 1996" "cygnus support" "GNU Development Tools"
 
 .SH NAME
@@ -195,8 +196,14 @@ Announce \c
 .B as\c
 \& version
 .TP
-.B \-W
-Suppress warning messages
+.B \-W, \-\-no-warn
+Suppress warning messages.
+.TP
+.B \-\-fatal\-warnings
+Consider warnings to be fatal.
+.TP
+.B \-\-warn
+Just warn on warnings.
 .TP
 .IR "\-\^\-" "\ |\ " "files\|.\|.\|."
 Source files to assemble, or standard input (\c

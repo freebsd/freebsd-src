@@ -1,5 +1,6 @@
-.\" Copyright (c) 1991, 92, 93, 94, 95, 96, 1997 Free Software Foundation
+.\" Copyright (c) 1991, 92, 93, 94, 95, 96, 97, 98, 1999 Free Software Foundation
 .\" See section COPYING for conditions for redistribution
+.\" $FreeBSD$
 .TH ld 1 "17 August 1992" "cygnus support" "GNU Development Tools"
 .de BP
 .sp
@@ -42,6 +43,8 @@ ld \- the GNU linker
 \& = \c
 .I expression\c
 \&\|]
+.RB "[\|" \-\-demangle "\|]"
+.RB "[\|" \-\-no\-demangle "\|]"
 .RB "[\|" "\-e\ "\c
 .I entry\c
 \&\|] 
@@ -92,6 +95,9 @@ ld \- the GNU linker
 .RB "[\|" \-noinhibit-exec "\|]" 
 .RB "[\|" \-no\-keep\-memory "\|]" 
 .RB "[\|" \-no\-warn\-mismatch "\|]" 
+.RB "[\|" \-O\c
+.I level\c
+\&\|]
 .RB "[\|" "\-oformat\ "\c
 .I output-format\c
 \&\|] 
@@ -468,6 +474,19 @@ constants or symbols.  If you need more elaborate expressions, consider
 using the linker command language from a script.
 
 .TP
+.B \-\-demangle
+.TP
+.B \-\-no\-demangle
+These options control whether to demangle symbol names in error
+messages and other output.  When the linker is told to demangle, it
+tries to present symbol names in a readable fashion: it strips leading
+underscores if they are used by the object file format, and converts
+C++ mangled symbol names into user readable names.  The linker will
+demangle by default unless the environment variable
+.B COLLECT_NO_DEMANGLE
+is set.  These options may be used to override the default.
+
+.TP
 .BI "-e " "entry"\c
 \& 
 Use \c
@@ -692,6 +711,16 @@ option is not specified, the name `\|\c
 script command \c
 .B OUTPUT\c
 \& can also specify the output file name.
+
+.TP
+.BI "\-O" "level"
+Generate optimized output files.  This might use significantly more
+time and therefore probably should be enabled only for generating the
+final binary.
+\c
+.I level\c
+\& is supposed to be a numeric value.  Any value greater than zero enables
+the optimizations.
 
 .TP
 .BI "\-oformat " "output\-format"
@@ -1069,7 +1098,7 @@ The GNU Binary Utilities\c
 , Roland H. Pesch.
 
 .SH COPYING
-Copyright (c) 1991, 1992 Free Software Foundation, Inc.
+Copyright (c) 1991, 92, 93, 94, 95, 96, 97, 1998 Free Software Foundation, Inc.
 .PP
 Permission is granted to make and distribute verbatim copies of
 this manual provided the copyright notice and this permission notice

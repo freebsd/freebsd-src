@@ -1,5 +1,6 @@
 /* tc-i386.h -- Header file for tc-i386.c
-   Copyright (C) 1989, 92, 93, 94, 95, 96, 97, 1998 Free Software Foundation.
+   Copyright (C) 1989, 92, 93, 94, 95, 96, 97, 98, 99, 2000
+   Free Software Foundation.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -17,6 +18,8 @@
    along with GAS; see the file COPYING.  If not, write to the Free
    Software Foundation, 59 Temple Place - Suite 330, Boston, MA
    02111-1307, USA.  */
+
+/* $FreeBSD$ */
 
 #ifndef TC_I386
 #define TC_I386 1
@@ -37,11 +40,6 @@ struct fix;
    type.  The idea is that if the original type is already some kind of PIC
    relocation, we leave it alone, otherwise we give it the desired type */
 
-#define TC_RELOC(X,Y) (((X) != BFD_RELOC_386_PLT32 && \
-	   (X) != BFD_RELOC_386_GOTOFF && \
-	   (X) != BFD_RELOC_386_GOT32 && \
-	   (X) != BFD_RELOC_386_GOTPC) ? Y : X)
-
 #define tc_fix_adjustable(X)  tc_i386_fix_adjustable(X)
 extern int tc_i386_fix_adjustable PARAMS ((struct fix *));
 
@@ -61,45 +59,51 @@ extern int tc_i386_fix_adjustable PARAMS ((struct fix *));
    checked here.  I am not sure if some of the others are ever used with
    pcrel, but it is easier to be safe than sorry. */
 
-#define TC_RELOC_RTSYM_LOC_FIXUP(FIX)  \
-  ((FIX)->fx_r_type != BFD_RELOC_386_PLT32 \
-   && (FIX)->fx_r_type != BFD_RELOC_386_GOT32 \
-   && (FIX)->fx_r_type != BFD_RELOC_386_GOTPC)
+#define TC_RELOC_RTSYM_LOC_FIXUP(FIX)				\
+  ((FIX)->fx_r_type != BFD_RELOC_386_PLT32			\
+   && (FIX)->fx_r_type != BFD_RELOC_386_GOT32			\
+   && (FIX)->fx_r_type != BFD_RELOC_386_GOTPC			\
+   && ((FIX)->fx_addsy == NULL					\
+       || (! S_IS_EXTERNAL ((FIX)->fx_addsy)			\
+	   && ! S_IS_WEAK ((FIX)->fx_addsy)			\
+	   && S_IS_DEFINED ((FIX)->fx_addsy)			\
+	   && ! S_IS_COMMON ((FIX)->fx_addsy))))
 
 #define TARGET_ARCH		bfd_arch_i386
 
-#ifdef OBJ_AOUT
 #ifdef TE_FreeBSD
-#define TARGET_FORMAT		"a.out-i386-freebsd"
+#define AOUT_TARGET_FORMAT	"a.out-i386-freebsd"
 #endif
 #ifdef TE_NetBSD
-#define TARGET_FORMAT		"a.out-i386-netbsd"
+#define AOUT_TARGET_FORMAT	"a.out-i386-netbsd"
 #endif
 #ifdef TE_386BSD
-#define TARGET_FORMAT		"a.out-i386-bsd"
+#define AOUT_TARGET_FORMAT	"a.out-i386-bsd"
 #endif
 #ifdef TE_LINUX
-#define TARGET_FORMAT		"a.out-i386-linux"
+#define AOUT_TARGET_FORMAT	"a.out-i386-linux"
 #endif
 #ifdef TE_Mach
-#define TARGET_FORMAT		"a.out-mach3"
+#define AOUT_TARGET_FORMAT	"a.out-mach3"
 #endif
 #ifdef TE_DYNIX
-#define TARGET_FORMAT		"a.out-i386-dynix"
+#define AOUT_TARGET_FORMAT	"a.out-i386-dynix"
 #endif
-#ifndef TARGET_FORMAT
-#define TARGET_FORMAT		"a.out-i386"
+#ifndef AOUT_TARGET_FORMAT
+#define AOUT_TARGET_FORMAT	"a.out-i386"
 #endif
-#endif /* OBJ_AOUT */
 
+#if ((defined (OBJ_MAYBE_ELF) && defined (OBJ_MAYBE_COFF)) \
+     || (defined (OBJ_MAYBE_ELF) && defined (OBJ_MAYBE_AOUT)) \
+     || (defined (OBJ_MAYBE_COFF) && defined (OBJ_MAYBE_AOUT)))
+extern const char *i386_target_format PARAMS ((void));
+#define TARGET_FORMAT i386_target_format ()
+#else
 #ifdef OBJ_ELF
 #define TARGET_FORMAT		"elf32-i386"
 #endif
-
-#ifdef OBJ_MAYBE_ELF
-#ifdef OBJ_MAYBE_COFF
-extern const char *i386_target_format PARAMS ((void));
-#define TARGET_FORMAT i386_target_format ()
+#ifdef OBJ_AOUT
+#define TARGET_FORMAT		AOUT_TARGET_FORMAT
 #endif
 #endif
 
@@ -111,12 +115,26 @@ extern const char *i386_target_format PARAMS ((void));
 #define BFD_ARCH bfd_arch_i386
 #define COFF_FLAGS F_AR32WR
 #define TC_COUNT_RELOC(x) ((x)->fx_addsy || (x)->fx_r_type==7)
-#define TC_FORCE_RELOCATION(x) ((x)->fx_r_type==7)
 #define TC_COFF_FIX2RTYPE(fixP) tc_coff_fix2rtype(fixP)
 extern short tc_coff_fix2rtype PARAMS ((struct fix *));
 #define TC_COFF_SIZEMACHDEP(frag) tc_coff_sizemachdep(frag)
 extern int tc_coff_sizemachdep PARAMS ((fragS *frag));
+
+#ifdef TE_GO32
+/* DJGPP now expects some sections to be 2**4 aligned.  */
+#define SUB_SEGMENT_ALIGN(SEG)						\
+  ((strcmp (obj_segment_name (SEG), ".text") == 0			\
+    || strcmp (obj_segment_name (SEG), ".data") == 0			\
+    || strcmp (obj_segment_name (SEG), ".bss") == 0			\
+    || strncmp (obj_segment_name (SEG), ".gnu.linkonce.t", 15) == 0	\
+    || strncmp (obj_segment_name (SEG), ".gnu.linkonce.d", 15) == 0	\
+    || strncmp (obj_segment_name (SEG), ".gnu.linkonce.r", 15) == 0)	\
+   ? 4									\
+   : 2)
+#else
 #define SUB_SEGMENT_ALIGN(SEG) 2
+#endif
+
 #define TC_RVA_RELOC 7
 /* Need this for PIC relocations */
 #define NEED_FX_R_TYPE
@@ -134,6 +152,9 @@ extern int tc_coff_sizemachdep PARAMS ((fragS *frag));
 
 #endif /* ! BFD_ASSEMBLER */
 
+#define TC_FORCE_RELOCATION(fixp) tc_i386_force_relocation(fixp)
+extern int tc_i386_force_relocation PARAMS ((struct fix *));
+
 #ifdef BFD_ASSEMBLER
 #define NO_RELOC BFD_RELOC_NONE
 #else
@@ -144,9 +165,11 @@ extern int tc_coff_sizemachdep PARAMS ((fragS *frag));
 #ifndef BFD_ASSEMBLER
 #ifndef OBJ_AOUT
 #ifndef TE_PE
+#ifndef TE_GO32
 /* Local labels starts with .L */
 #define LOCAL_LABEL(name) (name[0] == '.' \
 		 && (name[1] == 'L' || name[1] == 'X' || name[1] == '.'))
+#endif
 #endif
 #endif
 #endif
@@ -157,16 +180,27 @@ extern int tc_coff_sizemachdep PARAMS ((fragS *frag));
 #define tc_crawl_symbol_chain(a)	{;}	/* not used */
 #define tc_headers_hook(a)		{;}	/* not used */
 
+extern const char extra_symbol_chars[];
+#define tc_symbol_chars extra_symbol_chars
+
 #define MAX_OPERANDS 3		/* max operands per insn */
-#define MAX_PREFIXES 5		/* max prefixes per opcode */
-#define MAX_IMMEDIATE_OPERANDS 2/* max immediates per insn */
-#define MAX_MEMORY_OPERANDS 2	/* max memory ref per insn (lcall uses 2) */
+#define MAX_IMMEDIATE_OPERANDS 2/* max immediates per insn (lcall, ljmp) */
+#define MAX_MEMORY_OPERANDS 2	/* max memory refs per insn (string ops) */
+
+/* Prefixes will be emitted in the order defined below.
+   WAIT_PREFIX must be the first prefix since FWAIT is really is an
+   instruction, and so must come before any prefixes. */
+#define WAIT_PREFIX	0
+#define LOCKREP_PREFIX	1
+#define ADDR_PREFIX	2
+#define DATA_PREFIX	3
+#define SEG_PREFIX	4
+#define MAX_PREFIXES	5	/* max prefixes per opcode */
 
 /* we define the syntax here (modulo base,index,scale syntax) */
 #define REGISTER_PREFIX '%'
 #define IMMEDIATE_PREFIX '$'
 #define ABSOLUTE_PREFIX '*'
-#define PREFIX_SEPERATOR '/'
 
 #define TWO_BYTE_OPCODE_ESCAPE 0x0f
 #define NOP_OPCODE (char) 0x90
@@ -181,11 +215,17 @@ extern int tc_coff_sizemachdep PARAMS ((fragS *frag));
 #define NO_INDEX_REGISTER ESP_REG_NUM
 /* index_base_byte.base for no base register addressing */
 #define NO_BASE_REGISTER EBP_REG_NUM
+#define NO_BASE_REGISTER_16 6
 
-/* these are the att as opcode suffixes, making movl --> mov, for example */
-#define DWORD_OPCODE_SUFFIX 'l'
-#define WORD_OPCODE_SUFFIX  'w'
-#define BYTE_OPCODE_SUFFIX  'b'
+/* these are the instruction mnemonic suffixes.  */
+#define WORD_MNEM_SUFFIX  'w'
+#define BYTE_MNEM_SUFFIX  'b'
+#define SHORT_MNEM_SUFFIX 's'
+#define LONG_MNEM_SUFFIX  'l'
+/* Intel Syntax */
+#define LONG_DOUBLE_MNEM_SUFFIX 'x'
+/* Intel Syntax */
+#define DWORD_MNEM_SUFFIX 'd'
 
 /* modrm.mode = REGMEM_FIELD_HAS_REG when a register is in there */
 #define REGMEM_FIELD_HAS_REG 0x3/* always = 0x3 */
@@ -193,67 +233,88 @@ extern int tc_coff_sizemachdep PARAMS ((fragS *frag));
 
 #define END_OF_INSN '\0'
 
+/* Intel Syntax */
+/* Values 0-4 map onto scale factor */
+#define BYTE_PTR     0
+#define WORD_PTR     1
+#define DWORD_PTR    2
+#define QWORD_PTR    3
+#define XWORD_PTR    4
+#define SHORT        5
+#define OFFSET_FLAT  6
+#define FLAT         7
+#define NONE_FOUND   8
 /*
   When an operand is read in it is classified by its type.  This type includes
   all the possible ways an operand can be used.  Thus, '%eax' is both 'register
   # 0' and 'The Accumulator'.  In our language this is expressed by OR'ing
   'Reg32' (any 32 bit register) and 'Acc' (the accumulator).
   Operands are classified so that we can match given operand types with
-  the opcode table in i386-opcode.h.
+  the opcode table in opcode/i386.h.
   */
-#define Unknown 0x0
 /* register */
-#define Reg8    0x1		/* 8 bit reg */
-#define Reg16   0x2		/* 16 bit reg */
-#define Reg32   0x4		/* 32 bit reg */
-#define Reg     (Reg8|Reg16|Reg32)	/* gen'l register */
-#define WordReg (Reg16|Reg32)	/* for push/pop operands */
+#define Reg8		   0x1	/* 8 bit reg */
+#define Reg16		   0x2	/* 16 bit reg */
+#define Reg32		   0x4	/* 32 bit reg */
 /* immediate */
-#define Imm8    0x8		/* 8 bit immediate */
-#define Imm8S	0x10		/* 8 bit immediate sign extended */
-#define Imm16   0x20		/* 16 bit immediate */
-#define Imm32   0x40		/* 32 bit immediate */
-#define Imm1    0x80		/* 1 bit immediate */
-#define ImmUnknown Imm32	/* for unknown expressions */
-#define Imm     (Imm8|Imm8S|Imm16|Imm32)	/* gen'l immediate */
+#define Imm8		   0x8	/* 8 bit immediate */
+#define Imm8S		  0x10	/* 8 bit immediate sign extended */
+#define Imm16		  0x20	/* 16 bit immediate */
+#define Imm32		  0x40	/* 32 bit immediate */
+#define Imm1		  0x80	/* 1 bit immediate */
 /* memory */
-#define Disp8   0x200		/* 8 bit displacement (for jumps) */
-#define Disp16  0x400		/* 16 bit displacement */
-#define Disp32  0x800		/* 32 bit displacement */
-#define Disp    (Disp8|Disp16|Disp32)	/* General displacement */
-#define DispUnknown Disp32	/* for unknown size displacements */
-#define Mem8    0x1000
-#define Mem16   0x2000
-#define Mem32   0x4000
-#define BaseIndex 0x8000
-#define Mem     (Disp|Mem8|Mem16|Mem32|BaseIndex)	/* General memory */
-#define WordMem   (Mem16|Mem32|Disp|BaseIndex)
-#define ByteMem   (Mem8|Disp|BaseIndex)
+#define BaseIndex	 0x100
+/* Disp8,16,32 are used in different ways, depending on the
+   instruction.  For jumps, they specify the size of the PC relative
+   displacement, for baseindex type instructions, they specify the
+   size of the offset relative to the base register, and for memory
+   offset instructions such as `mov 1234,%al' they specify the size of
+   the offset relative to the segment base.  */
+#define Disp8		 0x200	/* 8 bit displacement */
+#define Disp16		 0x400	/* 16 bit displacement */
+#define Disp32		 0x800	/* 32 bit displacement */
 /* specials */
-#define InOutPortReg 0x10000	/* register to hold in/out port addr = dx */
-#define ShiftCount 0x20000	/* register to hold shift cound = cl */
-#define Control 0x40000		/* Control register */
-#define Debug   0x80000		/* Debug register */
-#define Test    0x100000	/* Test register */
-#define FloatReg 0x200000	/* Float register */
-#define FloatAcc 0x400000	/* Float stack top %st(0) */
-#define SReg2   0x800000	/* 2 bit segment register */
-#define SReg3   0x1000000	/* 3 bit segment register */
-#define Acc     0x2000000	/* Accumulator %al or %ax or %eax */
-#define ImplicitRegister (InOutPortReg|ShiftCount|Acc|FloatAcc)
-#define JumpAbsolute 0x4000000
-#define Abs8  0x08000000
-#define Abs16 0x10000000
-#define Abs32 0x20000000
-#define Abs (Abs8|Abs16|Abs32)
-#define RegMMX 0x40000000	/* MMX register */
+#define InOutPortReg	0x1000	/* register to hold in/out port addr = dx */
+#define ShiftCount	0x2000	/* register to hold shift cound = cl */
+#define Control	        0x4000	/* Control register */
+#define Debug	        0x8000	/* Debug register */
+#define Test	       0x10000	/* Test register */
+#define FloatReg       0x20000	/* Float register */
+#define FloatAcc       0x40000	/* Float stack top %st(0) */
+#define SReg2	       0x80000	/* 2 bit segment register */
+#define SReg3	      0x100000	/* 3 bit segment register */
+#define Acc	      0x200000	/* Accumulator %al or %ax or %eax */
+#define JumpAbsolute  0x400000
+#define RegMMX	      0x800000	/* MMX register */
+#define RegXMM	     0x1000000	/* XMM registers in PIII */
+#define EsSeg	     0x2000000	/* String insn operand with fixed es segment */
+/* InvMem is for instructions with a modrm byte that only allow a
+   general register encoding in the i.tm.mode and i.tm.regmem fields,
+   eg. control reg moves.  They really ought to support a memory form,
+   but don't, so we add an InvMem flag to the register operand to
+   indicate that it should be encoded in the i.tm.regmem field.  */
+#define InvMem	     0x4000000
 
-#define Byte (Reg8|Imm8|Imm8S)
-#define Word (Reg16|Imm16)
-#define DWord (Reg32|Imm32)
+#define Reg	(Reg8|Reg16|Reg32)	/* gen'l register */
+#define WordReg (Reg16|Reg32)
+#define ImplicitRegister (InOutPortReg|ShiftCount|Acc|FloatAcc)
+#define Imm	(Imm8|Imm8S|Imm16|Imm32) /* gen'l immediate */
+#define Disp	(Disp8|Disp16|Disp32)	/* General displacement */
+#define AnyMem	(Disp|BaseIndex|InvMem)	/* General memory */
+/* The following aliases are defined because the opcode table
+   carefully specifies the allowed memory types for each instruction.
+   At the moment we can only tell a memory reference size by the
+   instruction suffix, so there's not much point in defining Mem8,
+   Mem16, Mem32 and Mem64 opcode modifiers - We might as well just use
+   the suffix directly to check memory operands.  */
+#define LLongMem AnyMem		/* 64 bits (or more) */
+#define LongMem AnyMem		/* 32 bit memory ref */
+#define ShortMem AnyMem		/* 16 bit memory ref */
+#define WordMem AnyMem		/* 16 or 32 bit memory ref */
+#define ByteMem AnyMem		/* 8 bit memory ref */
 
 #define SMALLEST_DISP_TYPE(num) \
-    fits_in_signed_byte(num) ? (Disp8|Disp32|Abs8|Abs32) : (Disp32|Abs32)
+    (fits_in_signed_byte(num) ? (Disp8|Disp32) : Disp32)
 
 typedef struct
 {
@@ -263,13 +324,16 @@ typedef struct
   /* how many operands */
   unsigned int operands;
 
-  /* base_opcode is the fundamental opcode byte with a optional prefix(es). */
+  /* base_opcode is the fundamental opcode byte without optional
+     prefix(es).  */
   unsigned int base_opcode;
 
   /* extension_opcode is the 3 bit extension for group <n> insns.
+     This field is also used to store the 8-bit opcode suffix for the
+     AMD 3DNow! instructions.
      If this template has no extension opcode (the usual case) use None */
-  unsigned char extension_opcode;
-#define None 0xff		/* If no extension_opcode is possible. */
+  unsigned int extension_opcode;
+#define None 0xffff		/* If no extension_opcode is possible. */
 
   /* the bits in opcode_modifier are used to generate the final opcode from
      the base_opcode.  These bits also are used to detect alternate forms of
@@ -277,41 +341,37 @@ typedef struct
   unsigned int opcode_modifier;
 
   /* opcode_modifier bits: */
-#define W        0x1		/* set if operands are words or dwords */
-#define D        0x2		/* D = 0 if Reg --> Regmem; D = 1 if Regmem --> Reg */
-  /* direction flag for floating insns:  MUST BE 0x400 */
-#define FloatD 0x400
-  /* shorthand */
-#define DW (D|W)
-#define ShortForm 0x10		/* register is in low 3 bits of opcode */
-#define ShortFormW 0x20		/* ShortForm and W bit is 0x8 */
-#define Seg2ShortForm 0x40	/* encoding of load segment reg insns */
-#define Seg3ShortForm 0x80	/* fs/gs segment register insns. */
-#define Jump 0x100		/* special case for jump insns. */
+#define W		   0x1	/* set if operands can be words or dwords
+				   encoded the canonical way */
+#define D		   0x2	/* D = 0 if Reg --> Regmem;
+				   D = 1 if Regmem --> Reg:    MUST BE 0x2 */
+#define Modrm		   0x4
+#define FloatR		   0x8	/* src/dest swap for floats:   MUST BE 0x8 */
+#define ShortForm	  0x10	/* register is in low 3 bits of opcode */
+#define FloatMF		  0x20	/* FP insn memory format bit, sized by 0x4 */
+#define Jump		  0x40	/* special case for jump insns. */
+#define JumpDword	  0x80  /* call and jump */
+#define JumpByte	 0x100  /* loop and jecxz */
 #define JumpInterSegment 0x200	/* special case for intersegment leaps/calls */
-  /* 0x400 CANNOT BE USED since it's already used by FloatD above */
-#define DONT_USE 0x400
-#define NoModrm 0x800
-#define Modrm 0x1000
-#define imulKludge 0x2000
-#define JumpByte 0x4000
-#define JumpDword 0x8000
-#define ReverseRegRegmem 0x10000
-#define Data16 0x20000		/* needs data prefix if in 32-bit mode */
-#define Data32 0x40000		/* needs data prefix if in 16-bit mode */
-#define iclrKludge 0x80000	/* used to convert clr to xor */
-#define FWait 0x100000		/* instruction needs FWAIT */
-
-  /* (opcode_modifier & COMES_IN_ALL_SIZES) is true if the
-     instuction comes in byte, word, and dword sizes and is encoded into
-     machine code in the canonical way. */
-#define COMES_IN_ALL_SIZES (W)
-
-  /* (opcode_modifier & COMES_IN_BOTH_DIRECTIONS) indicates that the
-     source and destination operands can be reversed by setting either
-     the D (for integer insns) or the FloatD (for floating insns) bit
-     in base_opcode. */
-#define COMES_IN_BOTH_DIRECTIONS (D|FloatD)
+#define FloatD		 0x400	/* direction for float insns:  MUST BE 0x400 */
+#define Seg2ShortForm	 0x800	/* encoding of load segment reg insns */
+#define Seg3ShortForm	0x1000	/* fs/gs segment register insns. */
+#define Size16		0x2000	/* needs size prefix if in 32-bit mode */
+#define Size32		0x4000	/* needs size prefix if in 16-bit mode */
+#define IgnoreSize	0x8000  /* instruction ignores operand size prefix */
+#define DefaultSize    0x10000  /* default insn size depends on mode */
+#define No_bSuf	       0x20000	/* b suffix on instruction illegal */
+#define No_wSuf	       0x40000	/* w suffix on instruction illegal */
+#define No_lSuf	       0x80000	/* l suffix on instruction illegal */
+#define No_sSuf	      0x100000	/* s suffix on instruction illegal */
+#define No_dSuf       0x200000  /* d suffix on instruction illegal */
+#define No_xSuf       0x400000  /* x suffix on instruction illegal */
+#define FWait	      0x800000	/* instruction needs FWAIT */
+#define IsString     0x1000000	/* quick test for string instructions */
+#define regKludge    0x2000000	/* fake an extra reg operand for clr, imul */
+#define IsPrefix     0x4000000	/* opcode is a prefix */
+#define ImmExt	     0x8000000	/* instruction has extension in 8 bit imm */
+#define Ugh	    0x80000000	/* deprecated fp insn, gets a warning */
 
   /* operand_types[i] describes the type of operand i.  This is made
      by OR'ing together all of the possible type masks.  (e.g.
@@ -330,8 +390,8 @@ template;
   */
 typedef struct
   {
-    template *start;
-    template *end;
+    const template *start;
+    const template *end;
   } templates;
 
 /* these are for register name --> number & type hash lookup */
@@ -341,7 +401,6 @@ typedef struct
     unsigned int reg_type;
     unsigned int reg_num;
   }
-
 reg_entry;
 
 typedef struct
@@ -349,37 +408,25 @@ typedef struct
     char *seg_name;
     unsigned int seg_prefix;
   }
-
 seg_entry;
-
-/* these are for prefix name --> prefix code hash lookup */
-typedef struct
-  {
-    char *prefix_name;
-    unsigned char prefix_code;
-  }
-
-prefix_entry;
 
 /* 386 operand encoding bytes:  see 386 book for details of this. */
 typedef struct
   {
-    unsigned regmem:3;		/* codes register or memory operand */
-    unsigned reg:3;		/* codes register operand (or extended opcode) */
-    unsigned mode:2;		/* how to interpret regmem & reg */
+    unsigned int regmem;	/* codes register or memory operand */
+    unsigned int reg;		/* codes register operand (or extended opcode) */
+    unsigned int mode;		/* how to interpret regmem & reg */
   }
-
 modrm_byte;
 
 /* 386 opcode byte to code indirect addressing. */
 typedef struct
   {
-    unsigned base:3;
-    unsigned index:3;
-    unsigned scale:2;
+    unsigned base;
+    unsigned index;
+    unsigned scale;
   }
-
-base_index_byte;
+sib_byte;
 
 /* The name of the global offset table generated by the compiler. Allow
    this to be overridden if need be. */
@@ -399,21 +446,10 @@ void i386_validate_fix PARAMS ((struct fix *));
 extern const struct relax_type md_relax_table[];
 #define TC_GENERIC_RELAX_TABLE md_relax_table
 
-
-extern int flag_16bit_code;
-
-#ifdef BFD_ASSEMBLER
-#define md_maybe_text() \
-  ((bfd_get_section_flags (stdoutput, now_seg) & SEC_CODE) != 0)
-#else
-#define md_maybe_text() \
-  (now_seg != data_section && now_seg != bss_section)
-#endif
-
 #define md_do_align(n, fill, len, max, around)				\
 if ((n) && !need_pass_2							\
     && (!(fill) || ((char)*(fill) == (char)0x90 && (len) == 1))		\
-    && md_maybe_text ())						\
+    && subseg_text_p (now_seg))						\
   {									\
     char *p;								\
     p = frag_var (rs_align_code, 15, 1, (relax_substateT) max,		\
