@@ -18,13 +18,17 @@
 .Sh DESCRIPTION
 .Fn ptrace
 provides tracing and debugging facilities.
-It allows one process (the
+It allows one process 
+(the
 .Em tracing
-process) to control another (the
+process) 
+to control another 
+(the
 .Em traced
-process).
+process.)
 Most of the time, the traced process runs normally, but when it
-receives a signal (see
+receives a signal 
+(see
 .Xr sigaction 2 ) ,
 it stops.
 The tracing process is expected to notice this via
@@ -67,7 +71,7 @@ be ignored.
 .It Dv PT_READ_I , Dv PT_READ_D
 These requests read a single
 .Vt int
-of data from the traced process' address space.
+of data from the traced process's address space.
 Traditionally,
 .Fn ptrace
 has allowed for machines with distinct address spaces for instruction
@@ -81,8 +85,9 @@ In the current
 implementation, these two requests are completely identical.
 The
 .Fa addr
-argument specifies the address (in the traced process' virtual address
-space) at which the read is to be done.
+argument specifies the address 
+(in the traced process's virtual address space) 
+at which the read is to be done.
 This address does not have to meet any alignment constraints.  
 The value read is returned as the return value from
 .Eo \&
@@ -100,8 +105,9 @@ argument supplies the value to be written.
 .It Dv PT_CONTINUE
 The traced process continues execution.
 .Fa addr
-is an address specifying the place where execution is to be resumed (a
-new value for the program counter), or
+is an address specifying the place where execution is to be resumed 
+(a new value for the program counter,) 
+or
 .Po Vt caddr_t Pc Ns 1
 to indicate that execution is to pick up where it left off.
 .Fa data
@@ -146,7 +152,7 @@ Additionally, machine-specific requests can exist.
 On the i386, these are:
 .Bl -tag -width 12n
 .It Dv PT_GETREGS
-This request reads the traced process' machine registers into the
+This request reads the traced process's machine registers into the
 .Do
 .Vt "struct reg"
 .Dc
@@ -157,7 +163,7 @@ pointed to by
 .It Dv PT_SETREGS
 This request is the converse of
 .Dv PT_GETREGS ;
-it loads the traced process' machine registers from the
+it loads the traced process's machine registers from the
 .Do
 .Vt "struct reg"
 .Dc
@@ -166,7 +172,7 @@ it loads the traced process' machine registers from the
 pointed to by
 .Fa addr .
 .It Dv PT_GETFPREGS
-This request reads the traced process' floating-point registers into
+This request reads the traced process's floating-point registers into
 the
 .Do
 .Vt "struct fpreg"
@@ -178,7 +184,7 @@ pointed to by
 .It Dv PT_SETFPREGS
 This request is the converse of
 .Dv PT_GETFPREGS ;
-it loads the traced process' floating-point registers from the
+it loads the traced process's floating-point registers from the
 .Do
 .Vt "struct fpreg"
 .Dc
@@ -187,7 +193,7 @@ it loads the traced process' floating-point registers from the
 pointed to by
 .Fa addr .
 .It Dv PT_GETDBREGS
-This request reads the traced process' debug registers into
+This request reads the traced process's debug registers into
 the
 .Do
 .Vt "struct dbreg"
@@ -199,7 +205,7 @@ pointed to by
 .It Dv PT_SETDBREGS
 This request is the converse of
 .Dv PT_GETDBREGS ;
-it loads the traced process' debug registers from the
+it loads the traced process's debug registers from the
 .Do
 .Vt "struct dbreg"
 .Dc
@@ -237,7 +243,8 @@ The
 .Fa request
 was not one of the legal requests.
 .It
-The signal number (in
+The signal number 
+(in
 .Fa data )
 to
 .Dv PT_CONTINUE
@@ -262,14 +269,16 @@ was attempted on a process that was already being traced.
 A request attempted to manipulate a process that was being traced by
 some process other than the one making the request.
 .It
-A request (other than
+A request 
+(other than
 .Dv PT_ATTACH )
 specified a process that wasn't stopped.
 .El
 .It Bq Er EPERM
 .Bl -bullet -compact
 .It
-A request (other than
+A request 
+(other than
 .Dv PT_ATTACH )
 attempted to manipulate a process that wasn't being traced at all.
 .It
