@@ -1,0 +1,9 @@
+#!/bin/sh -
+#
+# $FreeBSD$
+#	Do sparc64 specific processing
+#
+
+echo -n 'Initial rc.sparc64 initialization:'
+
+echo '.'
