@@ -113,7 +113,7 @@ interrupt(u_int64_t vector, struct trapframe *framep)
 		printf("ExtINT interrupt: vector=%ld\n", vector);
 	}
 
-	if (vector == 255) {/* clock interrupt */
+	if (vector == CLOCK_VECTOR) {/* clock interrupt */
 		/* CTR0(KTR_INTR, "clock interrupt"); */
 			
 		cnt.v_intr++;
