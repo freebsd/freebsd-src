@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)npx.c	7.2 (Berkeley) 5/12/91
- *	$Id: npx.c,v 1.45 1997/06/02 08:19:05 dfr Exp $
+ *	$Id: npx.c,v 1.46 1997/06/22 16:04:06 peter Exp $
  */
 
 #include "npx.h"
@@ -413,8 +413,7 @@ npxattach(dvp)
 	}
 	npxinit(__INITIAL_NPXCW__);
 
-#if defined(I586_CPU) && !defined(SMP)
-	/* FPU not working under SMP yet */
+#if defined(I586_CPU)
 	if (cpu_class == CPUCLASS_586 && npx_ex16) {
 		if (!(dvp->id_flags & NPX_DISABLE_I586_OPTIMIZED_BCOPY)) {
 			bcopy_vector = i586_bcopy;
