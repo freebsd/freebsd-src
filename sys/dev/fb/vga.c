@@ -48,7 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 
 #include <machine/md_var.h>
-#ifdef __i386__
+#if defined(__i386__) || defined(__amd64__)
 #include <machine/pc/bios.h>
 #endif
 #include <machine/bus.h>
@@ -64,11 +64,7 @@ __FBSDID("$FreeBSD$");
 
 /* XXX machine/pc/bios.h has got too much i386-specific stuff in it */
 #ifndef BIOS_PADDRTOVADDR
-#if !defined(__amd64__)
 #define	BIOS_PADDRTOVADDR(x)	(x)
-#else
-#define BIOS_PADDRTOVADDR(x)	((x) + KERNBASE)
-#endif
 #endif
 
 int

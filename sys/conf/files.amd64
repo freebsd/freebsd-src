@@ -56,6 +56,7 @@ amd64/amd64/amd64_mem.c		standard
 #amd64/amd64/apic_vector.S	standard
 amd64/amd64/atomic.c		standard
 amd64/amd64/autoconf.c		standard
+amd64/amd64/bios.c		standard
 amd64/amd64/busdma_machdep.c	standard
 amd64/amd64/cpu_switch.S	standard
 amd64/amd64/critical.c		standard
