@@ -10,7 +10,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: instdist.sh,v 1.35 1994/11/30 11:58:29 jkh Exp $
+# $Id: instdist.sh,v 1.37 1994/12/01 13:46:11 jkh Exp $
 
 if [ "${_INSTINST_SH_LOADED_}" = "yes" ]; then
 	return 0
@@ -187,15 +187,12 @@ media_install_set()
 		confirm "Please mount tape for ${MEDIA_DEVICE}."
 		if [ "${MEDIA_DEVICE}" = "ftape" ]; then
 			progress "${FT_CMD} | ${TAR_CMD} ${TAR_FLAGS} -"
-			dialog --title "Results of floppy tape extract" \
-			  --prgbox "${FT_CMD} | ${TAR_CMD} ${TAR_FLAGS} -" \
-				10 72
+			${FT_CMD} | ${TAR_CMD} ${TAR_FLAGS} - > /dev/ttyv1 2>&1
 		else
 			progress "${TAR_CMD} ${TAR_FLAGS} ${MEDIA_DEVICE}"
-			dialog --title "Results of tape extraction" \
-			  --prgbox "${TAR_CMD} ${TAR_FLAGS} ${MEDIA_DEVICE}" \
-				10 72
+			${TAR_CMD} ${TAR_FLAGS} ${MEDIA_DEVICE} > /dev/ttyv1 2>&1
 		fi
+		if [ -d ${MEDIA_DISTRIBUTION} ]; then cd ${MEDIA_DISTRIBUTION}; fi
 		media_extract_dist
 		media_rm_tmpdir
 	;;
