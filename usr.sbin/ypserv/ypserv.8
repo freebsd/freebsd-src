@@ -273,18 +273,7 @@ The
 .Nm
 program also has support for Wietse Venema's
 .Em tcpwrapper
-package, though it is not compiled in by default since
-the
-.Em tcpwrapper
-package is not distributed with
-.Fx .
-However, if you have
-.Pa libwrap.a
-and
-.Pa tcpd.h ,
-you can easily recompile
-.Nm
-with them.
+package.
 This allows the administrator to use the tcpwrapper
 configuration files
 .Pa ( /etc/hosts.allow
@@ -442,6 +431,7 @@ host access control file
 .Sh SEE ALSO
 .Xr ypcat 1 ,
 .Xr db 3 ,
+.Xr hosts_access 5 ,
 .Xr rpc.yppasswdd 8 ,
 .Xr yp 8 ,
 .Xr ypbind 8 ,
