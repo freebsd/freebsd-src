@@ -267,7 +267,7 @@ nfs_statfs(struct mount *mp, struct statfs *sbp, struct thread *td)
 			m_freem(mrep);
 		goto nfsmout;
 	}
-	nfsm_dissect(sfp, struct nfs_statfs *, NFSX_STATFS(v3));
+	sfp = nfsm_dissect(struct nfs_statfs *, NFSX_STATFS(v3));
 	sbp->f_flags = nmp->nm_flag;
 	sbp->f_iosize = nfs_iosize(nmp);
 	if (v3) {
@@ -323,7 +323,7 @@ nfs_fsinfo(struct nfsmount *nmp, struct vnode *vp, struct ucred *cred,
 	nfsm_request(vp, NFSPROC_FSINFO, td, cred);
 	nfsm_postop_attr(vp, retattr);
 	if (!error) {
-		nfsm_dissect(fsp, struct nfsv3_fsinfo *, NFSX_V3FSINFO);
+		fsp = nfsm_dissect(struct nfsv3_fsinfo *, NFSX_V3FSINFO);
 		pref = fxdr_unsigned(u_int32_t, fsp->fs_wtpref);
 		if (pref < nmp->nm_wsize && pref >= NFS_FABLKSIZE)
 			nmp->nm_wsize = (pref + NFS_FABLKSIZE - 1) &

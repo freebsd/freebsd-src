@@ -187,7 +187,7 @@ nfsrv3_access(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 		panic("nfsrv3_access: v3 proc called on a v2 connection");
 	fhp = &nfh.fh_generic;
 	nfsm_srvmtofh(fhp);
-	nfsm_dissect(tl, u_int32_t *, NFSX_UNSIGNED);
+	tl = nfsm_dissect(u_int32_t *, NFSX_UNSIGNED);
 	error = nfsrv_fhtovp(fhp, 1, &vp, cred, slp, nam, &rdonly, TRUE);
 	if (error) {
 		nfsm_reply(NFSX_UNSIGNED);
@@ -320,14 +320,14 @@ nfsrv_setattr(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	VATTR_NULL(vap);
 	if (v3) {
 		nfsm_srvsattr(vap);
-		nfsm_dissect(tl, u_int32_t *, NFSX_UNSIGNED);
+		tl = nfsm_dissect(u_int32_t *, NFSX_UNSIGNED);
 		gcheck = fxdr_unsigned(int, *tl);
 		if (gcheck) {
-			nfsm_dissect(tl, u_int32_t *, 2 * NFSX_UNSIGNED);
+			tl = nfsm_dissect(u_int32_t *, 2 * NFSX_UNSIGNED);
 			fxdr_nfsv3time(tl, &guard);
 		}
 	} else {
-		nfsm_dissect(sp, struct nfsv2_sattr *, NFSX_V2SATTR);
+		sp = nfsm_dissect(struct nfsv2_sattr *, NFSX_V2SATTR);
 		/*
 		 * Nah nah nah nah na nah
 		 * There is a bug in the Sun client that puts 0xffff in the mode
@@ -764,10 +764,10 @@ nfsrv_read(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	fhp = &nfh.fh_generic;
 	nfsm_srvmtofh(fhp);
 	if (v3) {
-		nfsm_dissect(tl, u_int32_t *, 2 * NFSX_UNSIGNED);
+		tl = nfsm_dissect(u_int32_t *, 2 * NFSX_UNSIGNED);
 		off = fxdr_hyper(tl);
 	} else {
-		nfsm_dissect(tl, u_int32_t *, NFSX_UNSIGNED);
+		tl = nfsm_dissect(u_int32_t *, NFSX_UNSIGNED);
 		off = (off_t)fxdr_unsigned(u_int32_t, *tl);
 	}
 	nfsm_srvstrsiz(reqlen, NFS_SRVMAXDATA(nfsd));
@@ -1027,12 +1027,12 @@ nfsrv_write(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	vput(vp);
 	vp = NULL;
 	if (v3) {
-		nfsm_dissect(tl, u_int32_t *, 5 * NFSX_UNSIGNED);
+		tl = nfsm_dissect(u_int32_t *, 5 * NFSX_UNSIGNED);
 		off = fxdr_hyper(tl);
 		tl += 3;
 		stable = fxdr_unsigned(int, *tl++);
 	} else {
-		nfsm_dissect(tl, u_int32_t *, 4 * NFSX_UNSIGNED);
+		tl = nfsm_dissect(u_int32_t *, 4 * NFSX_UNSIGNED);
 		off = (off_t)fxdr_unsigned(u_int32_t, *++tl);
 		tl += 2;
 		if (nfs_async)
@@ -1245,12 +1245,12 @@ nfsrv_writegather(struct nfsrv_descript **ndp, struct nfssvc_sock *slp,
 	     */
 	    nfsm_srvmtofh(&nfsd->nd_fh);
 	    if (v3) {
-		nfsm_dissect(tl, u_int32_t *, 5 * NFSX_UNSIGNED);
+		tl = nfsm_dissect(u_int32_t *, 5 * NFSX_UNSIGNED);
 		nfsd->nd_off = fxdr_hyper(tl);
 		tl += 3;
 		nfsd->nd_stable = fxdr_unsigned(int, *tl++);
 	    } else {
-		nfsm_dissect(tl, u_int32_t *, 4 * NFSX_UNSIGNED);
+		tl = nfsm_dissect(u_int32_t *, 4 * NFSX_UNSIGNED);
 		nfsd->nd_off = (off_t)fxdr_unsigned(u_int32_t, *++tl);
 		tl += 2;
 		if (nfs_async)
@@ -1665,7 +1665,7 @@ nfsrv_create(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 
 	VATTR_NULL(vap);
 	if (v3) {
-		nfsm_dissect(tl, u_int32_t *, NFSX_UNSIGNED);
+		tl = nfsm_dissect(u_int32_t *, NFSX_UNSIGNED);
 		how = fxdr_unsigned(int, *tl);
 		switch (how) {
 		case NFSV3CREATE_GUARDED:
@@ -1678,7 +1678,7 @@ nfsrv_create(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 			nfsm_srvsattr(vap);
 			break;
 		case NFSV3CREATE_EXCLUSIVE:
-			nfsm_dissect(cp, caddr_t, NFSX_V3CREATEVERF);
+			cp = nfsm_dissect(caddr_t, NFSX_V3CREATEVERF);
 			bcopy(cp, cverf, NFSX_V3CREATEVERF);
 			exclusive_flag = 1;
 			if (nd.ni_vp == NULL)
@@ -1687,7 +1687,7 @@ nfsrv_create(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 		};
 		vap->va_type = VREG;
 	} else {
-		nfsm_dissect(sp, struct nfsv2_sattr *, NFSX_V2SATTR);
+		sp = nfsm_dissect(struct nfsv2_sattr *, NFSX_V2SATTR);
 		vap->va_type = IFTOVT(fxdr_unsigned(u_int32_t, sp->sa_mode));
 		if (vap->va_type == VNON)
 			vap->va_type = VREG;
@@ -1922,7 +1922,7 @@ nfsrv_mknod(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 		error = 0;
 		goto nfsmout;
 	}
-	nfsm_dissect(tl, u_int32_t *, NFSX_UNSIGNED);
+	tl = nfsm_dissect(u_int32_t *, NFSX_UNSIGNED);
 	vtyp = nfsv3tov_type(*tl);
 	if (vtyp != VCHR && vtyp != VBLK && vtyp != VSOCK && vtyp != VFIFO) {
 		error = NFSERR_BADTYPE;
@@ -1931,7 +1931,7 @@ nfsrv_mknod(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	VATTR_NULL(vap);
 	nfsm_srvsattr(vap);
 	if (vtyp == VCHR || vtyp == VBLK) {
-		nfsm_dissect(tl, u_int32_t *, 2 * NFSX_UNSIGNED);
+		tl = nfsm_dissect(u_int32_t *, 2 * NFSX_UNSIGNED);
 		major = fxdr_unsigned(u_int32_t, *tl++);
 		minor = fxdr_unsigned(u_int32_t, *tl);
 		vap->va_rdev = makeudev(major, minor);
@@ -2570,7 +2570,7 @@ nfsrv_symlink(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	io.uio_td = (struct thread *)0;
 	nfsm_mtouio(&io, len2);
 	if (!v3) {
-		nfsm_dissect(sp, struct nfsv2_sattr *, NFSX_V2SATTR);
+		sp = nfsm_dissect(struct nfsv2_sattr *, NFSX_V2SATTR);
 		vap->va_mode = fxdr_unsigned(u_int16_t, sp->sa_mode);
 	}
 	*(pathcp + len2) = '\0';
@@ -2746,7 +2746,7 @@ nfsrv_mkdir(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	if (v3) {
 		nfsm_srvsattr(vap);
 	} else {
-		nfsm_dissect(tl, u_int32_t *, NFSX_UNSIGNED);
+		tl = nfsm_dissect(u_int32_t *, NFSX_UNSIGNED);
 		vap->va_mode = nfstov_mode(*tl++);
 	}
 
@@ -3003,13 +3003,13 @@ nfsrv_readdir(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	fhp = &nfh.fh_generic;
 	nfsm_srvmtofh(fhp);
 	if (v3) {
-		nfsm_dissect(tl, u_int32_t *, 5 * NFSX_UNSIGNED);
+		tl = nfsm_dissect(u_int32_t *, 5 * NFSX_UNSIGNED);
 		toff = fxdr_hyper(tl);
 		tl += 2;
 		verf = fxdr_hyper(tl);
 		tl += 2;
 	} else {
-		nfsm_dissect(tl, u_int32_t *, 2 * NFSX_UNSIGNED);
+		tl = nfsm_dissect(u_int32_t *, 2 * NFSX_UNSIGNED);
 		toff = fxdr_unsigned(u_quad_t, *tl++);
 		verf = 0;	/* shut up gcc */
 	}
@@ -3295,7 +3295,7 @@ nfsrv_readdirplus(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 		panic("nfsrv_readdirplus: v3 proc called on a v2 connection");
 	fhp = &nfh.fh_generic;
 	nfsm_srvmtofh(fhp);
-	nfsm_dissect(tl, u_int32_t *, 6 * NFSX_UNSIGNED);
+	tl = nfsm_dissect(u_int32_t *, 6 * NFSX_UNSIGNED);
 	toff = fxdr_hyper(tl);
 	tl += 2;
 	verf = fxdr_hyper(tl);
@@ -3630,7 +3630,7 @@ nfsrv_commit(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	(void) vn_start_write(vp, &mp, V_WAIT);
 	vput(vp);
 	vp = NULL;
-	nfsm_dissect(tl, u_int32_t *, 3 * NFSX_UNSIGNED);
+	tl = nfsm_dissect(u_int32_t *, 3 * NFSX_UNSIGNED);
 
 	/*
 	 * XXX At this time VOP_FSYNC() does not accept offset and byte
