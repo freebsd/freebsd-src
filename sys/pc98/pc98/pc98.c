@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: pc98.c,v 1.29 1997/05/31 12:43:17 kato Exp $
+ *	$Id: pc98.c,v 1.30 1997/06/02 15:45:40 kato Exp $
  */
 
 /*
@@ -560,9 +560,14 @@ config_isadev_c(isdp, mp, reconfig)
 				undirect_isa_irq(rirq);	/* free for ISA */
 			}
 #endif  /* APIC_IO */
-			register_intr(ffs(isdp->id_irq) - 1, isdp->id_id,
-				      isdp->id_ri_flags, isdp->id_intr,
-				      mp, isdp->id_unit);
+			if (!isdp->id_conflicts
+			    || (!intr_registered(ffs(isdp->id_irq) - 1)
+			    && isdp->id_intr != NULL))
+				register_intr(ffs(isdp->id_irq) - 1,
+					      isdp->id_id,
+					      isdp->id_ri_flags,
+					      isdp->id_intr,
+					      mp, isdp->id_unit);
 		}
 	} else {
 		if (isdp->id_reconfig) {
