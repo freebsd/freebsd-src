@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *	$Id: scsiconf.h,v 1.33 1995/12/10 10:58:27 julian Exp $
+ *	$Id: scsiconf.h,v 1.34 1995/12/14 09:54:30 phk Exp $
  */
 #ifndef	SCSI_SCSICONF_H
 #define SCSI_SCSICONF_H 1
@@ -173,28 +173,26 @@ struct scsi_device
 
 /* SCSI_DEVICE_ENTRIES: A macro to generate all the entry points from the
  * name.
- * XXX as usual, the extern prototypes belong in a header so that they are
- * visible to callers.
  */
 #define SCSI_DEVICE_ENTRIES(NAME) \
 static errval NAME##attach(struct scsi_link *sc_link); \
-extern struct scsi_device NAME##_switch; \
+extern struct scsi_device NAME##_switch;	/* XXX actually static */ \
 void NAME##init(void) { \
 	scsi_device_register(&NAME##_switch); \
 } \
-int NAME##open(dev_t dev, int flags, int fmt, struct proc *p) { \
+static int NAME##open(dev_t dev, int flags, int fmt, struct proc *p) { \
 	return scsi_open(dev, flags, fmt, p, &NAME##_switch); \
 } \
-int NAME##ioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p) { \
+static int NAME##ioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p) { \
 	return scsi_ioctl(dev, cmd, addr, flag, p, &NAME##_switch); \
 } \
-int NAME##close(dev_t dev, int flag, int fmt, struct proc *p) { \
+static int NAME##close(dev_t dev, int flag, int fmt, struct proc *p) { \
 	return scsi_close(dev, flag, fmt, p, &NAME##_switch); \
 } \
 static void NAME##minphys(struct buf *bp) { \
 	scsi_minphys(bp, &NAME##_switch); \
 }  \
-void NAME##strategy(struct buf *bp) { \
+static void NAME##strategy(struct buf *bp) { \
 	scsi_strategy(bp, &NAME##_switch); \
 }
 
@@ -467,7 +465,7 @@ void sc_print_addr __P((struct scsi_link *));
 void sc_print_start __P((struct scsi_link *));
 void sc_print_finish __P((void));
 
-extern	int scsi_externalize __P((struct scsi_link *, struct sysctl_req *));
+int	scsi_externalize __P((struct scsi_link *, struct sysctl_req *));
 
 void	scsi_device_register __P((struct scsi_device *sd));
 
