@@ -11,7 +11,7 @@
  * or modify this software as long as this message is kept with the software,
  * all derivative works or modified versions.
  *
- * Version 1.3, Mon Aug 28 21:44:01 MSD 1995
+ * Version 1.5, Thu Sep 21 23:08:11 MSD 1995
  */
 
 /*
@@ -129,6 +129,7 @@
 #define PHASE_DATAIN    (ARS_DRQ | ARI_IN)
 #define PHASE_DATAOUT   ARS_DRQ
 #define PHASE_COMPLETED (ARI_IN | ARI_CMD)
+#define PHASE_ABORTED   0                       /* nonstandard - for NEC 260 */
 
 struct atapicmd {                       /* ATAPI command block */
 	struct atapicmd *next;          /* next command in queue */
@@ -172,6 +173,7 @@ void atapi_attach (int ctlr, int unit, int port, struct kern_devconf *parent)
 	struct atapi *ata = atapitab + ctlr;
 	struct atapi_params *ap;
 	char buf [sizeof(ap->model) + 1];
+	char revbuf [sizeof(ap->revision) + 1];
 	struct atapicmd *ac;
 
 	print (("atapi%d.%d at 0x%x: attach called\n", ctlr, unit, port));
@@ -181,7 +183,11 @@ void atapi_attach (int ctlr, int unit, int port, struct kern_devconf *parent)
 
 	bcopy (ap->model, buf, sizeof(buf)-1);
 	buf[sizeof(buf)-1] = 0;
-	printf ("wdc%d: unit %d (atapi): <%s>", ctlr, unit, buf);
+
+	bcopy (ap->revision, revbuf, sizeof(revbuf)-1);
+	revbuf[sizeof(revbuf)-1] = 0;
+
+	printf ("wdc%d: unit %d (atapi): <%s/%s>", ctlr, unit, buf, revbuf);
 
 	/* device is removable */
 	if (ap->removable)
@@ -199,7 +205,7 @@ void atapi_attach (int ctlr, int unit, int port, struct kern_devconf *parent)
 	case AT_DRQT_MPROC: ata->slow = 1; break;
 	case AT_DRQT_INTR:  printf (", intr"); ata->intrcmd = 1; break;
 	case AT_DRQT_ACCEL: printf (", accel"); break;
-	default:            printf (", drq%d", ap->cmdsz);
+	default:            printf (", drq%d", ap->drqtype);
 	}
 
 	/* overlap operation supported */
@@ -242,22 +248,16 @@ void atapi_attach (int ctlr, int unit, int port, struct kern_devconf *parent)
 		return;
 	}
 	switch (ap->devtype) {
-	default: 			/* unknown ATAPI device */
-		printf ("wdc%d: unit %d: unknown ATAPI device type=%d\n",
+	default:
+		/* unknown ATAPI device */
+		printf ("wdc%d: unit %d: unknown ATAPI type=%d\n",
 			ctlr, unit, ap->devtype);
 		break;
 
-	case AT_TYPE_DIRECT:            /* direct-access (magnetic disk) */
-#if NWHD > 0
-		/* Add your driver here */
-#else
-		printf ("wdc%d: ATAPI hard disks not supported\n", ctlr);
-		printf ("wdc%d: Could be old ATAPI CDROM, trying...\n", ctlr);
-		break;
-#endif
-
+	case AT_TYPE_DIRECT:            /* direct-access */
 	case AT_TYPE_CDROM:             /* CD-ROM device */
 #if NWCD > 0
+		/* ATAPI CD-ROM */
 		{
 			int wcdattach (struct atapi*, int, struct atapi_params*,
 				int, struct kern_devconf*);
@@ -275,7 +275,7 @@ void atapi_attach (int ctlr, int unit, int port, struct kern_devconf *parent)
 #if NWMT > 0
 		/* Add your driver here */
 #else
-		printf ("wdc%d: ATAPI streaming tapes not supported\n", ctlr);
+		printf ("wdc%d: ATAPI streaming tapes not supported yet\n", ctlr);
 		break;
 #endif
 
@@ -283,12 +283,31 @@ void atapi_attach (int ctlr, int unit, int port, struct kern_devconf *parent)
 #if NWMD > 0
 		/* Add your driver here */
 #else
-		printf ("wdc%d: ATAPI optical disks not supported\n", ctlr);
+		printf ("wdc%d: ATAPI optical disks not supported yet\n", ctlr);
 		break;
 #endif
 	}
 	/* Attach failed. */
 	free (ap, M_TEMP);
+}
+
+static void bswap (char *buf, int len)
+{
+	u_short *p = (u_short*) (buf + len);
+	while (--p >= (u_short*) buf)
+		*p = ntohs (*p);
+}
+
+static void btrim (char *buf, int len)
+{
+	char *p;
+
+	/* Remove the trailing spaces. */
+	for (p=buf; p<buf+len; ++p)
+		if (! *p)
+			*p = ' ';
+	for (p=buf+len-1; p>=buf && *p==' '; --p)
+		*p = 0;
 }
 
 /*
@@ -298,11 +317,10 @@ static struct atapi_params *atapi_probe (int port, int unit)
 {
 	struct atapi_params *ap;
 	char tb [DEV_BSIZE];
-	int i;
 
 	/* Wait for controller not busy. */
 	if (atapi_wait (port, 0) < 0) {
-		print (("atapi.%d at 0x%x: controller busy, status=%b\n",
+		print (("atapiX.%d at 0x%x: controller busy, status=%b\n",
 			unit, port, inb (port + AR_STATUS), ARS_BITS));
 		return (0);
 	}
@@ -313,7 +331,7 @@ static struct atapi_params *atapi_probe (int port, int unit)
 
 	/* Check that device is present. */
 	if (inb (port + AR_STATUS) == 0xff) {
-		print (("atapi.%d at 0x%x: no device\n", unit, port));
+		print (("atapiX.%d at 0x%x: no device\n", unit, port));
 		if (unit == 1)
 			/* Select unit 0. */
 			outb (port + AR_DRIVE, ARD_DRIVE0);
@@ -322,7 +340,7 @@ static struct atapi_params *atapi_probe (int port, int unit)
 
 	/* Wait for data ready. */
 	if (atapi_wait (port, ARS_DRQ) != 0) {
-		print (("atapi.%d at 0x%x: identify not ready, status=%b\n",
+		print (("atapiX.%d at 0x%x: identify not ready, status=%b\n",
 			unit, port, inb (port + AR_STATUS), ARS_BITS));
 		if (unit == 1)
 			/* Select unit 0. */
@@ -344,18 +362,15 @@ static struct atapi_params *atapi_probe (int port, int unit)
 	 */
 	if (! ((ap->model[0] == 'N' && ap->model[1] == 'E') ||
 	    (ap->model[0] == 'F' && ap->model[1] == 'X'))) {
-		u_short *p = (u_short*) (ap->model + sizeof(ap->model));
-		while (--p >= (u_short*) ap->model)
-			*p = ntohs (*p);
+		bswap (ap->model, sizeof(ap->model));
+		bswap (ap->serial, sizeof(ap->serial));
+		bswap (ap->revision, sizeof(ap->revision));
 	}
 
-	/* Clean up the model by converting nulls to spaces, and
-	 * then removing the trailing spaces. */
-	for (i=0; i < sizeof(ap->model); i++)
-		if (! ap->model[i])
-			ap->model[i] = ' ';
-	for (i=sizeof(ap->model)-1; i>=0 && ap->model[i]==' '; i--)
-		ap->model[i] = 0;
+	/* Clean up the model name, serial and revision numbers. */
+	btrim (ap->model, sizeof(ap->model));
+	btrim (ap->serial, sizeof(ap->serial));
+	btrim (ap->revision, sizeof(ap->revision));
 	return (ap);
 }
 
@@ -585,7 +600,7 @@ int atapi_intr (int ctrlr)
 int atapi_io (struct atapi *ata, struct atapicmd *ac)
 {
 	u_char ireason;
-	u_short len;
+	u_short len, i;
 
 	if (atapi_wait (ata->port, 0) < 0) {
 		ac->result.status = inb (ata->port + AR_STATUS);
@@ -635,12 +650,16 @@ int atapi_io (struct atapi *ata, struct atapicmd *ac)
 			break;
 		}
 		if (-ac->count < len) {
-			printf ("atapi%d.%d: send data underrun, %d bytes left\n",
-				ata->ctrlr, ac->unit, -ac->count);
+			print (("atapi%d.%d: send data underrun, %d bytes left\n",
+				ata->ctrlr, ac->unit, -ac->count));
 			ac->result.code = RES_UNDERRUN;
-			break;
-		}
-		outsw (ata->port + AR_DATA, ac->addr, len / sizeof(short));
+			outsw (ata->port + AR_DATA, ac->addr,
+				-ac->count / sizeof(short));
+			for (i= -ac->count; i<len; i+=sizeof(short))
+				outw (ata->port + AR_DATA, 0);
+		} else
+			outsw (ata->port + AR_DATA, ac->addr,
+				len / sizeof(short));
 		ac->addr += len;
 		ac->count += len;
 		return (1);
@@ -654,34 +673,35 @@ int atapi_io (struct atapi *ata, struct atapicmd *ac)
 			break;
 		}
 		if (ac->count < len) {
-			printf ("atapi%d.%d: recv data overrun, %d bytes left\n",
-				ata->ctrlr, ac->unit, ac->count);
+			print (("atapi%d.%d: recv data overrun, %d bytes left\n",
+				ata->ctrlr, ac->unit, ac->count));
 			ac->result.code = RES_OVERRUN;
-			break;
-		}
-		insw (ata->port + AR_DATA, ac->addr, len / sizeof(short));
+			insw (ata->port + AR_DATA, ac->addr,
+				ac->count / sizeof(short));
+			for (i=ac->count; i<len; i+=sizeof(short))
+				inw (ata->port + AR_DATA);
+		} else
+			insw (ata->port + AR_DATA, ac->addr,
+				len / sizeof(short));
 		ac->addr += len;
 		ac->count -= len;
 		return (1);
 
+	case PHASE_ABORTED:
 	case PHASE_COMPLETED:
-		if (ac->result.status & (ARS_CHECK | ARS_DF)) {
+		if (ac->result.status & (ARS_CHECK | ARS_DF))
 			ac->result.code = RES_ERR;
-			break;
-		}
-		if (ac->count < 0) {
-			printf ("atapi%d.%d: send data overrun, %d bytes left\n",
-				ata->ctrlr, ac->unit, -ac->count);
+		else if (ac->count < 0) {
+			print (("atapi%d.%d: send data overrun, %d bytes left\n",
+				ata->ctrlr, ac->unit, -ac->count));
 			ac->result.code = RES_OVERRUN;
-			break;
-		}
-		if (ac->count > 0) {
-			printf ("atapi%d.%d: recv data underrun, %d bytes left\n",
-				ata->ctrlr, ac->unit, ac->count);
+		} else if (ac->count > 0) {
+			print (("atapi%d.%d: recv data underrun, %d bytes left\n",
+				ata->ctrlr, ac->unit, ac->count));
 			ac->result.code = RES_UNDERRUN;
-			break;
-		}
-		ac->result.code = RES_OK;
+			bzero (ac->addr, ac->count);
+		} else
+			ac->result.code = RES_OK;
 		break;
 	}
 	return (0);
@@ -817,6 +837,12 @@ struct atapires atapi_request_immediate (struct atapi *ata, int unit,
 	if (atapi_start_cmd (ata, ac) >= 0 && atapi_wait_cmd (ata, ac) >= 0) {
 		/* Send packet command. */
 		atapi_send_cmd (ata, ac);
+
+		/* Wait for data i/o phase. */
+		for (cnt=20000; cnt>0; --cnt)
+			if (((inb (ata->port + AR_IREASON) & (ARI_CMD | ARI_IN)) |
+			    (inb (ata->port + AR_STATUS) & ARS_DRQ)) != PHASE_CMDOUT)
+				break;
 
 		/* Do all needed i/o. */
 		while (atapi_io (ata, ac))
