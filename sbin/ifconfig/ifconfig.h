@@ -42,6 +42,7 @@ extern int supmedia;
 struct afswtch;
 
 extern void setmedia(const char *, int, int, const struct afswtch *rafp);
+extern void setmediamode(const char *, int, int, const struct afswtch *rafp);
 extern void setmediaopt(const char *, int, int, const struct afswtch *rafp);
 extern void unsetmediaopt(const char *, int, int, const struct afswtch *rafp);
 extern void media_status(int s, struct rt_addrinfo *);
