@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.81 1997/02/22 09:32:22 peter Exp $
+ *	$Id: locore.s,v 1.82 1997/03/22 18:52:03 kato Exp $
  *
  *		originally from: locore.s, by William F. Jolitz
  *
@@ -85,14 +85,6 @@
 	.set	_APTmap,APTDPTDI << PDRSHIFT
 	.set	_APTD,_APTmap + (APTDPTDI * PAGE_SIZE)
 	.set	_APTDpde,_PTD + (APTDPTDI * PDESIZE)
-
-/*
- * Access to each processes kernel stack is via a region of
- * per-process address space (at the beginning), immediately above
- * the user process stack.
- */
-	.set	_kstack,USRSTACK
-	.globl	_kstack
 
 /*
  * Globals
@@ -336,7 +328,8 @@ _pc98_system_parameter:
 /* now running relocated at KERNBASE where the system is linked to run */
 begin:
 	/* set up bootstrap stack */
-	movl	$_kstack+UPAGES*PAGE_SIZE,%esp	/* bootstrap stack end location */
+	movl	_proc0paddr,%esp	/* location of in-kernel pages */
+	addl	$UPAGES*PAGE_SIZE,%esp	/* bootstrap stack end location */
 	xorl	%eax,%eax			/* mark end of frames */
 	movl	%eax,%ebp
 	movl	_proc0paddr,%eax
@@ -361,8 +354,13 @@ begin:
 	pushl	%esp				/* call main with frame pointer */
 	call	_main				/* autoconfiguration, mountroot etc */
 
-	addl	$(13*4),%esp			/* back to a frame we can return with */
+	hlt		/* never returns to here */
 
+/*
+ * When starting init, call this to configure the process for user
+ * mode.  This will be inherited by other processes.
+ */
+NON_GPROF_ENTRY(prepare_usermode)
 	/*
 	 * Now we've run main() and determined what cpu-type we are, we can
 	 * enable write protection and alignment checking on i486 cpus and
@@ -383,11 +381,14 @@ begin:
 	movl	__ucodesel,%eax
 	movl	__udatasel,%ecx
 
+#if 0
 	movl	%cx,%ds
+#endif
 	movl	%cx,%es
 	movl	%ax,%fs				/* double map cs to fs */
 	movl	%cx,%gs				/* and ds to gs */
-	iret					/* goto user! */
+	ret					/* goto user! */
+
 
 #define LCALL(x,y)	.byte 0x9a ; .long y ; .word x
 

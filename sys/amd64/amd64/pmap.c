@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id$
+ *	$Id: pmap.c,v 1.138 1997/02/22 09:32:40 peter Exp $
  */
 
 /*
@@ -685,32 +685,22 @@ pmap_new_proc(p)
 {
 	int i;
 	vm_object_t upobj;
-	pmap_t pmap;
 	vm_page_t m;
 	struct user *up;
-	unsigned *ptep, *ptek;
-
-	pmap = &p->p_vmspace->vm_pmap;
+	unsigned *ptek;
 
 	/*
 	 * allocate object for the upages
 	 */
 	upobj = vm_object_allocate( OBJT_DEFAULT,
 		UPAGES);
-	p->p_vmspace->vm_upages_obj = upobj;
+	p->p_upages_obj = upobj;
 
 	/* get a kernel virtual address for the UPAGES for this proc */
 	up = (struct user *) kmem_alloc_pageable(u_map, UPAGES * PAGE_SIZE);
 	if (up == NULL)
-		panic("vm_fork: u_map allocation failed");
+		panic("pmap_new_proc: u_map allocation failed");
 
-	/*
-	 * Allocate the ptp and incr the hold count appropriately
-	 */
-	m = pmap_allocpte(pmap, (vm_offset_t) kstack);
-	m->hold_count += (UPAGES - 1);
-
-	ptep = (unsigned *) pmap_pte(pmap, (vm_offset_t) kstack);
 	ptek = (unsigned *) vtopte((vm_offset_t) up);
 
 	for(i=0;i<UPAGES;i++) {
@@ -729,18 +719,15 @@ pmap_new_proc(p)
 		++cnt.v_wire_count;
 
 		/*
-		 * Enter the page into both the kernel and the process
-		 * address space.
+		 * Enter the page into the kernel address space.
 		 */
-		*(ptep + i) = VM_PAGE_TO_PHYS(m) | PG_RW | PG_V;
-		*(ptek + i) = VM_PAGE_TO_PHYS(m) | PG_RW | PG_V;
+		*(ptek + i) = VM_PAGE_TO_PHYS(m) | PG_RW | PG_V | pgeflag;
 
 		m->flags &= ~(PG_ZERO|PG_BUSY);
 		m->flags |= PG_MAPPED|PG_WRITEABLE;
 		m->valid = VM_PAGE_BITS_ALL;
 	}
 
-	pmap->pm_stats.resident_count += UPAGES;
 	p->p_addr = up;
 }
 
@@ -754,26 +741,26 @@ pmap_dispose_proc(p)
 {
 	int i;
 	vm_object_t upobj;
-	pmap_t pmap;
 	vm_page_t m;
-	unsigned *ptep, *ptek;
+	unsigned *ptek;
 
-	pmap = &p->p_vmspace->vm_pmap;
-	ptep = (unsigned *) pmap_pte(pmap, (vm_offset_t) kstack);
 	ptek = (unsigned *) vtopte((vm_offset_t) p->p_addr);
 
-	upobj = p->p_vmspace->vm_upages_obj;
+	upobj = p->p_upages_obj;
 
 	for(i=0;i<UPAGES;i++) {
+		unsigned oldpte;
 		if ((m = vm_page_lookup(upobj, i)) == NULL)
 			panic("pmap_dispose_proc: upage already missing???");
-		*(ptep + i) = 0;
+		oldpte = *(ptek + i);
 		*(ptek + i) = 0;
-		pmap_unuse_pt(pmap, (vm_offset_t) kstack + i * PAGE_SIZE, NULL);
+		if (oldpte & PG_G)
+			invlpg((vm_offset_t) p->p_addr + i * PAGE_SIZE);
 		vm_page_unwire(m);
 		vm_page_free(m);
 	}
-	pmap->pm_stats.resident_count -= UPAGES;
+
+	vm_object_deallocate(upobj);
 
 	kmem_free(u_map, (vm_offset_t)p->p_addr, ctob(UPAGES));
 }
@@ -787,29 +774,20 @@ pmap_swapout_proc(p)
 {
 	int i;
 	vm_object_t upobj;
-	pmap_t pmap;
 	vm_page_t m;
-	unsigned *pte;
 
-	pmap = &p->p_vmspace->vm_pmap;
-	pte = (unsigned *) pmap_pte(pmap, (vm_offset_t) kstack);
-
-	upobj = p->p_vmspace->vm_upages_obj;
+	upobj = p->p_upages_obj;
 	/*
 	 * let the upages be paged
 	 */
 	for(i=0;i<UPAGES;i++) {
 		if ((m = vm_page_lookup(upobj, i)) == NULL)
-			panic("pmap_pageout_proc: upage already missing???");
+			panic("pmap_swapout_proc: upage already missing???");
 		m->dirty = VM_PAGE_BITS_ALL;
-		*(pte + i) = 0;
-		pmap_unuse_pt(pmap, (vm_offset_t) kstack + i * PAGE_SIZE, NULL);
-
 		vm_page_unwire(m);
 		vm_page_deactivate(m);
 		pmap_kremove( (vm_offset_t) p->p_addr + PAGE_SIZE * i);
 	}
-	pmap->pm_stats.resident_count -= UPAGES;
 }
 
 /*
@@ -821,19 +799,10 @@ pmap_swapin_proc(p)
 {
 	int i;
 	vm_object_t upobj;
-	pmap_t pmap;
 	vm_page_t m;
 	unsigned *pte;
 
-	pmap = &p->p_vmspace->vm_pmap;
-	/*
-	 * Allocate the ptp and incr the hold count appropriately
-	 */
-	m = pmap_allocpte(pmap, (vm_offset_t) kstack);
-	m->hold_count += (UPAGES - 1);
-	pte = (unsigned *) pmap_pte(pmap, (vm_offset_t) kstack);
-
-	upobj = p->p_vmspace->vm_upages_obj;
+	upobj = p->p_upages_obj;
 	for(i=0;i<UPAGES;i++) {
 		int s;
 		s = splvm();
@@ -854,7 +823,6 @@ retry:
 		vm_page_wire(m);
 		splx(s);
 
-		*(pte+i) = VM_PAGE_TO_PHYS(m) | PG_RW | PG_V;
 		pmap_kenter(((vm_offset_t) p->p_addr) + i * PAGE_SIZE,
 			VM_PAGE_TO_PHYS(m));
 
@@ -862,13 +830,12 @@ retry:
 			int rv;
 			rv = vm_pager_get_pages(upobj, &m, 1, 0);
 			if (rv != VM_PAGER_OK)
-				panic("faultin: cannot get upages for proc: %d\n", p->p_pid);
+				panic("pmap_swapin_proc: cannot get upages for proc: %d\n", p->p_pid);
 			m->valid = VM_PAGE_BITS_ALL;
 		}
 		PAGE_WAKEUP(m);
 		m->flags |= PG_MAPPED|PG_WRITEABLE;
 	}
-	pmap->pm_stats.resident_count += UPAGES;
 }
 
 /***************************************************

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_fork.c	8.6 (Berkeley) 4/8/94
- * $Id$
+ * $Id: kern_fork.c,v 1.32 1997/02/22 09:39:05 peter Exp $
  */
 
 #include "opt_ktrace.h"
@@ -324,34 +324,10 @@ again:
 	p1->p_flag |= P_NOSWAP;
 
 	/*
-	 * share as much address space as possible
-	 * XXX this should probably go in vm_fork()
+	 * Finish creating the child process.  It will return via a different
+	 * execution path later.  (ie: directly into user mode)
 	 */
-	if (flags & RFMEM)
-		(void) vm_map_inherit(&p1->p_vmspace->vm_map,
-		    VM_MIN_ADDRESS, VM_MAXUSER_ADDRESS - MAXSSIZ,
-		    VM_INHERIT_SHARE);
-
-	/*
-	 * Set return values for child before vm_fork,
-	 * so they can be copied to child stack.
-	 * We return parent pid, and mark as child in retval[1].
-	 * NOTE: the kernel stack may be at a different location in the child
-	 * process, and thus addresses of automatic variables (including retval)
-	 * may be invalid after vm_fork returns in the child process.
-	 */
-	retval[0] = p1->p_pid;
-	retval[1] = 1;
-	if (vm_fork(p1, p2)) {
-		/*
-		 * Child process.  Set start time and get to work.
-		 */
-		microtime(&runtime);
-		(void) spl0();
-		p2->p_stats->p_start = runtime;
-		p2->p_acflag = AFORK;
-		return (0);
-	}
+	vm_fork(p1, p2, flags);
 
 	/*
 	 * Both processes are set up, now check if any LKMs want
@@ -366,6 +342,8 @@ again:
 	/*
 	 * Make child runnable and add to run queue.
 	 */
+	microtime(&(p2->p_stats->p_start));
+	p2->p_acflag = AFORK;
 	(void) splhigh();
 	p2->p_stat = SRUN;
 	setrunqueue(p2);

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cpu.h	5.4 (Berkeley) 5/9/91
- *	$Id$
+ *	$Id: cpu.h,v 1.28 1997/02/22 09:34:04 peter Exp $
  */
 
 #ifndef _MACHINE_CPU_H_
@@ -134,6 +134,10 @@ extern int	cpu;
 extern int	cpu_class;
 extern u_char	intr_nesting_level;
 extern int	want_resched;	/* resched was called */
+
+void	fork_trampoline __P((void));
+void	fork_return __P((struct proc *, struct trapframe));
+void	cpu_set_fork_handler __P((struct proc *, void (*pc)(void *), void *));
 #endif
 
 #endif /* !_MACHINE_CPU_H_ */

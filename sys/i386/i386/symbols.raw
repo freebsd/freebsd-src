@@ -1,6 +1,6 @@
 #	@(#)symbols.raw	7.6 (Berkeley) 5/8/91
 #
-#	$Id$
+#	$Id: symbols.raw,v 1.8 1997/02/22 09:32:52 peter Exp $
 #
 
 
@@ -8,7 +8,6 @@
 	_IdlePTD
 	_PTD
 	_curpcb
-	_kstack
 	_panicstr
 	_atdevbase
 #	_version

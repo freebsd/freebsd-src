@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: swtch.s,v 1.43 1997/02/22 09:32:51 peter Exp $
  */
 
 #include "apm.h"
@@ -234,6 +234,19 @@ _idle:
 	movl	$tmpstk,%esp
 	movl	_IdlePTD,%ecx
 	movl	%ecx,%cr3
+
+	/* update common_tss.tss_esp0 pointer */
+	movl	$_common_tss, %eax
+	movl	%esp, TSS_ESP0(%eax)
+
+#ifdef TSS_IS_CACHED				/* example only */
+	/* Reload task register to force reload of selector */
+	movl	_tssptr, %ebx
+	andb	$~0x02, 5(%ebx)			/* Flip 386BSY -> 386TSS */
+	movl	_gsel_tss, %ebx
+	ltr	%bx
+#endif
+
 	sti
 
 	/*
@@ -405,6 +418,34 @@ swtch_com:
 
 	/* switch address space */
 	movl	%ebx,%cr3
+
+#ifdef HOW_TO_SWITCH_TSS			/* example only */
+	/* Fix up tss pointer to floating pcb/stack structure */
+	/* XXX probably lots faster to store the 64 bits of tss entry
+	 * in the pcb somewhere and copy them on activation.
+	 */
+	movl	_tssptr, %ebx
+	movl	%edx, %eax			/* edx = pcb/tss */
+	movw	%ax, 2(%ebx)			/* store bits 0->15 */
+	roll	$16, %eax			/* swap upper and lower */
+	movb	%al, 4(%ebx)			/* store bits 16->23 */
+	movb	%ah, 7(%ebx)			/* store bits 24->31 */
+	andb	$~0x02, 5(%ebx)			/* Flip 386BSY -> 386TSS */
+#endif
+
+	/* update common_tss.tss_esp0 pointer */
+	movl	$_common_tss, %eax
+	movl	%edx, %ebx			/* pcb */
+	addl	$(UPAGES * PAGE_SIZE), %ebx
+	movl	%ebx, TSS_ESP0(%eax)
+
+#ifdef TSS_IS_CACHED				/* example only */
+	/* Reload task register to force reload of selector */
+	movl	_tssptr, %ebx
+	andb	$~0x02, 5(%ebx)			/* Flip 386BSY -> 386TSS */
+	movl	_gsel_tss, %ebx
+	ltr	%bx
+#endif
 
 	/* restore context */
 	movl	PCB_EBX(%edx),%ebx
