@@ -408,6 +408,18 @@ main(argc, argv)
 
 #define	DEFAULT_WARN  (2L * 7L * 86400L)  /* Two weeks */
 
+	warntime = login_getcaptime(lc, "warnexpire", DEFAULT_WARN,
+	    DEFAULT_WARN);
+
+	if (pwd->pw_expire) {
+		if (tp.tv_sec >= pwd->pw_expire) {
+			refused("Sorry -- your account has expired", "EXPIRED",
+			    1);
+		} else if (pwd->pw_expire - tp.tv_sec < warntime && !quietlog)
+			(void)printf("Warning: your account expires on %s",
+			    ctime(&pwd->pw_expire));
+	}
+
 	warntime = login_getcaptime(lc, "warnpassword", DEFAULT_WARN,
 	    DEFAULT_WARN);
 
@@ -421,18 +433,6 @@ main(argc, argv)
 		} else if (pwd->pw_change - tp.tv_sec < warntime && !quietlog)
 		    (void)printf("Warning: your password expires on %s",
 				 ctime(&pwd->pw_change));
-	}
-
-	warntime = login_getcaptime(lc, "warnexpire", DEFAULT_WARN,
-	    DEFAULT_WARN);
-
-	if (pwd->pw_expire) {
-		if (tp.tv_sec >= pwd->pw_expire) {
-			refused("Sorry -- your account has expired", "EXPIRED",
-			    1);
-		} else if (pwd->pw_expire - tp.tv_sec < warntime && !quietlog)
-			(void)printf("Warning: your account expires on %s",
-			    ctime(&pwd->pw_expire));
 	}
 
 	if (lc != NULL) {
