@@ -69,7 +69,7 @@
  * Paul Mackerras (paulus@cs.anu.edu.au).
  */
 
-/* $Id$ */
+/* $Id: if_ppp.c,v 1.25 1995/10/31 20:24:08 peter Exp $ */
 /* from if_ppp.c,v 1.5 1995/08/16 01:36:38 paulus Exp */
 /* from if_sl.c,v 1.11 84/10/04 12:54:47 rick Exp */
 
@@ -577,7 +577,6 @@ pppoutput(ifp, m0, dst, rtp)
     struct rtentry *rtp;
 {
     register struct ppp_softc *sc = &ppp_softc[ifp->if_unit];
-    struct ppp_header *ph;
     int protocol, address, control;
     u_char *cp;
     int s, error;
@@ -830,11 +829,9 @@ static void
 ppp_outpkt(sc)
     struct ppp_softc *sc;
 {
-    int s;
     struct mbuf *m, *mp;
     u_char *cp;
     int address, control, protocol;
-    enum NPmode mode;
 
     /*
      * Grab a packet to send: first try the fast queue, then the
