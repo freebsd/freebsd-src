@@ -49,47 +49,54 @@ static int sbchan_trigger(void *data, int go);
 static int sbchan_getptr(void *data);
 static pcmchan_caps *sbchan_getcaps(void *data);
 
-static pcmchan_caps sb_playcaps = {
-	4000, 22050,
+static u_int32_t sb_playfmt[] = {
 	AFMT_U8,
-	AFMT_U8
+	0
 };
+static pcmchan_caps sb_playcaps = {4000, 22050, sb_playfmt, 0};
 
-static pcmchan_caps sb_reccaps = {
-	4000, 13000,
+static u_int32_t sb_recfmt[] = {
 	AFMT_U8,
-	AFMT_U8
+	0
 };
+static pcmchan_caps sb_reccaps = {4000, 13000, sb_recfmt, 0};
 
-static pcmchan_caps sbpro_playcaps = {
-	4000, 45000,
+static u_int32_t sbpro_playfmt[] = {
+	AFMT_U8,
 	AFMT_STEREO | AFMT_U8,
-	AFMT_STEREO | AFMT_U8
+	0
 };
+static pcmchan_caps sbpro_playcaps = {4000, 45000, sbpro_playfmt, 0};
 
-static pcmchan_caps sbpro_reccaps = {
-	4000, 15000,
+static u_int32_t sbpro_recfmt[] = {
+	AFMT_U8,
 	AFMT_STEREO | AFMT_U8,
-	AFMT_STEREO | AFMT_U8
+	0
 };
+static pcmchan_caps sbpro_reccaps = {4000, 15000, sbpro_recfmt, 0};
 
-static pcmchan_caps sb16_hcaps = {
-	5000, 45000,
+static u_int32_t sb16_hfmt[] = {
+	AFMT_S16_LE,
 	AFMT_STEREO | AFMT_S16_LE,
-	AFMT_STEREO | AFMT_S16_LE
+	0
 };
+static pcmchan_caps sb16_hcaps = {5000, 45000, sb16_hfmt, 0};
 
-static pcmchan_caps sb16_lcaps = {
-	5000, 45000,
+static u_int32_t sb16_lfmt[] = {
+	AFMT_U8,
 	AFMT_STEREO | AFMT_U8,
-	AFMT_STEREO | AFMT_U8
+	0
 };
+static pcmchan_caps sb16_lcaps = {5000, 45000, sb16_lfmt, 0};
 
-static pcmchan_caps sb16x_caps = {
-	5000, 49000,
-	AFMT_STEREO | AFMT_U8 | AFMT_S16_LE,
-	AFMT_STEREO | AFMT_S16_LE
+static u_int32_t sb16x_fmt[] = {
+	AFMT_U8,
+	AFMT_STEREO | AFMT_U8,
+	AFMT_S16_LE,
+	AFMT_STEREO | AFMT_S16_LE,
+	0
 };
+static pcmchan_caps sb16x_caps = {5000, 49000, sb16x_fmt, 0};
 
 static pcm_channel sb_chantemplate = {
 	sbchan_init,
@@ -100,6 +107,14 @@ static pcm_channel sb_chantemplate = {
 	sbchan_trigger,
 	sbchan_getptr,
 	sbchan_getcaps,
+	NULL, 			/* free */
+	NULL, 			/* nop1 */
+	NULL, 			/* nop2 */
+	NULL, 			/* nop3 */
+	NULL, 			/* nop4 */
+	NULL, 			/* nop5 */
+	NULL, 			/* nop6 */
+	NULL, 			/* nop7 */
 };
 
 struct sb_info;
@@ -117,6 +132,7 @@ struct sb_info {
     	struct resource *irq;
    	struct resource *drq1;
     	struct resource *drq2;
+    	void *ih;
     	bus_dma_tag_t parent_dmat;
 
     	int bd_id;
@@ -145,10 +161,11 @@ static int sbmix_set(snd_mixer *m, unsigned dev, unsigned left, unsigned right);
 static int sbmix_setrecsrc(snd_mixer *m, u_int32_t src);
 
 static snd_mixer sb_mixer = {
-    "SoundBlaster mixer",
-    sbmix_init,
-    sbmix_set,
-    sbmix_setrecsrc,
+    	"SoundBlaster mixer",
+    	sbmix_init,
+	NULL,
+    	sbmix_set,
+    	sbmix_setrecsrc,
 };
 
 static devclass_t pcm_devclass;
@@ -313,9 +330,10 @@ sb_reset_dsp(struct sb_info *sb)
 static void
 sb_release_resources(struct sb_info *sb, device_t dev)
 {
-    	/* should we bus_teardown_intr here? */
     	if (sb->irq) {
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sb->irq);
+    		if (sb->ih)
+			bus_teardown_intr(dev, sb->irq, sb->ih);
+ 		bus_release_resource(dev, SYS_RES_IRQ, 0, sb->irq);
 		sb->irq = 0;
     	}
     	if (sb->drq1) {
@@ -330,7 +348,11 @@ sb_release_resources(struct sb_info *sb, device_t dev)
 		bus_release_resource(dev, SYS_RES_IOPORT, 0, sb->io_base);
 		sb->io_base = 0;
     	}
-    	free(sb, M_DEVBUF);
+    	if (sb->parent_dmat) {
+		bus_dma_tag_destroy(sb->parent_dmat);
+		sb->parent_dmat = 0;
+    	}
+     	free(sb, M_DEVBUF);
 }
 
 static int
@@ -405,8 +427,6 @@ sb16_swap(void *v, int dir)
 static int
 sb_doattach(device_t dev, struct sb_info *sb)
 {
-    	snddev_info *d = device_get_softc(dev);
-    	void *ih;
     	char status[SND_STATUSLEN];
 	int bs = DSP_BUFFSIZE;
 
@@ -414,9 +434,9 @@ sb_doattach(device_t dev, struct sb_info *sb)
 		goto no;
     	if (sb_reset_dsp(sb))
 		goto no;
-    	mixer_init(d, &sb_mixer, sb);
+    	mixer_init(dev, &sb_mixer, sb);
 
-	bus_setup_intr(dev, sb->irq, INTR_TYPE_TTY, sb_intr, sb, &ih);
+	bus_setup_intr(dev, sb->irq, INTR_TYPE_TTY, sb_intr, sb, &sb->ih);
     	if ((sb->bd_flags & BD_F_SB16) && !(sb->bd_flags & BD_F_SB16X))
 		pcm_setswap(dev, sb16_swap);
     	if (!sb->drq2)
@@ -451,6 +471,21 @@ sb_doattach(device_t dev, struct sb_info *sb)
 no:
     	sb_release_resources(sb, dev);
     	return ENXIO;
+}
+
+static int
+sb_detach(device_t dev)
+{
+	int r;
+	struct sb_info *sb;
+
+	r = pcm_unregister(dev);
+	if (r)
+		return r;
+
+	sb = pcm_getdevinfo(dev);
+    	sb_release_resources(sb, dev);
+	return 0;
 }
 
 static void
@@ -882,6 +917,7 @@ static device_method_t sbsbc_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		sbsbc_probe),
 	DEVMETHOD(device_attach,	sbsbc_attach),
+	DEVMETHOD(device_detach,	sb_detach),
 
 	{ 0, 0 }
 };

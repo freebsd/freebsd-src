@@ -88,6 +88,10 @@ struct es_info {
 	bus_space_handle_t sh;
 	bus_dma_tag_t	parent_dmat;
 
+	struct resource *reg, *irq;
+	int regtype, regid, irqid;
+	void *ih;
+
 	device_t dev;
 	int num;
 	/* Contents of board's registers */
@@ -122,17 +126,23 @@ static int   eschan_trigger(void *data, int go);
 static int   eschan_getptr(void *data);
 static pcmchan_caps *eschan_getcaps(void *data);
 
-static pcmchan_caps es_playcaps = {
-	4000, 48000,
-	AFMT_STEREO | AFMT_U8 | AFMT_S16_LE,
-	AFMT_STEREO | AFMT_S16_LE
+static u_int32_t es_playfmt[] = {
+	AFMT_U8,
+	AFMT_STEREO | AFMT_U8,
+	AFMT_S16_LE,
+	AFMT_STEREO | AFMT_S16_LE,
+	0
 };
+static pcmchan_caps es_playcaps = {4000, 48000, es_playfmt, 0};
 
-static pcmchan_caps es_reccaps = {
-	4000, 48000,
-	AFMT_STEREO | AFMT_U8 | AFMT_S16_LE,
-	AFMT_STEREO | AFMT_S16_LE
+static u_int32_t es_recfmt[] = {
+	AFMT_U8,
+	AFMT_STEREO | AFMT_U8,
+	AFMT_S16_LE,
+	AFMT_STEREO | AFMT_S16_LE,
+	0
 };
+static pcmchan_caps es_reccaps = {4000, 48000, es_recfmt, 0};
 
 static pcm_channel es1370_chantemplate = {
 	eschan_init,
@@ -143,6 +153,14 @@ static pcm_channel es1370_chantemplate = {
 	eschan_trigger,
 	eschan_getptr,
 	eschan_getcaps,
+	NULL, 			/* free */
+	NULL, 			/* nop1 */
+	NULL, 			/* nop2 */
+	NULL, 			/* nop3 */
+	NULL, 			/* nop4 */
+	NULL, 			/* nop5 */
+	NULL, 			/* nop6 */
+	NULL, 			/* nop7 */
 };
 
 static pcm_channel es1371_chantemplate = {
@@ -154,6 +172,14 @@ static pcm_channel es1371_chantemplate = {
 	eschan_trigger,
 	eschan_getptr,
 	eschan_getcaps,
+	NULL, 			/* free */
+	NULL, 			/* nop1 */
+	NULL, 			/* nop2 */
+	NULL, 			/* nop3 */
+	NULL, 			/* nop4 */
+	NULL, 			/* nop5 */
+	NULL, 			/* nop6 */
+	NULL, 			/* nop7 */
 };
 
 /* -------------------------------------------------------------------- */
@@ -167,6 +193,7 @@ static int es1370_mixsetrecsrc(snd_mixer *m, u_int32_t src);
 static snd_mixer es1370_mixer = {
 	"AudioPCI 1370 mixer",
 	es1370_mixinit,
+	NULL,
 	es1370_mixset,
 	es1370_mixsetrecsrc,
 };
@@ -736,21 +763,13 @@ es_pci_probe(device_t dev)
 static int
 es_pci_attach(device_t dev)
 {
-	snddev_info    *d;
 	u_int32_t	data;
 	struct es_info *es = 0;
-	int		type = 0;
-	int		regid;
-	struct resource *reg = 0;
 	int		mapped;
-	int		irqid;
-	struct resource *irq = 0;
-	void		*ih = 0;
 	char		status[SND_STATUSLEN];
-	struct ac97_info *codec;
+	struct ac97_info *codec = 0;
 	pcm_channel     *ct = NULL;
 
-	d = device_get_softc(dev);
 	if ((es = malloc(sizeof *es, M_DEVBUF, M_NOWAIT)) == NULL) {
 		device_printf(dev, "cannot allocate softc\n");
 		return ENXIO;
@@ -764,24 +783,24 @@ es_pci_attach(device_t dev)
 	pci_write_config(dev, PCIR_COMMAND, data, 2);
 	data = pci_read_config(dev, PCIR_COMMAND, 2);
 	if (mapped == 0 && (data & PCIM_CMD_MEMEN)) {
-		regid = MEM_MAP_REG;
-		type = SYS_RES_MEMORY;
-		reg = bus_alloc_resource(dev, type, &regid,
+		es->regid = MEM_MAP_REG;
+		es->regtype = SYS_RES_MEMORY;
+		es->reg = bus_alloc_resource(dev, es->regtype, &es->regid,
 					 0, ~0, 1, RF_ACTIVE);
-		if (reg) {
-			es->st = rman_get_bustag(reg);
-			es->sh = rman_get_bushandle(reg);
+		if (es->reg) {
+			es->st = rman_get_bustag(es->reg);
+			es->sh = rman_get_bushandle(es->reg);
 			mapped++;
 		}
 	}
 	if (mapped == 0 && (data & PCIM_CMD_PORTEN)) {
-		regid = PCIR_MAPS;
-		type = SYS_RES_IOPORT;
-		reg = bus_alloc_resource(dev, type, &regid,
+		es->regid = PCIR_MAPS;
+		es->regtype = SYS_RES_IOPORT;
+		es->reg = bus_alloc_resource(dev, es->regtype, &es->regid,
 					 0, ~0, 1, RF_ACTIVE);
-		if (reg) {
-			es->st = rman_get_bustag(reg);
-			es->sh = rman_get_bushandle(reg);
+		if (es->reg) {
+			es->st = rman_get_bustag(es->reg);
+			es->sh = rman_get_bushandle(es->reg);
 			mapped++;
 		}
 	}
@@ -791,7 +810,7 @@ es_pci_attach(device_t dev)
 	}
 
 	if (pci_get_devid(dev) == ES1371_PCI_ID ||
-	    pci_get_devid(dev) == ES1371_PCI_ID2 || 
+	    pci_get_devid(dev) == ES1371_PCI_ID2 ||
 	    pci_get_devid(dev) == ES1371_PCI_ID3) {
 		if(-1 == es1371_init(es, pci_get_revid(dev))) {
 			device_printf(dev, "unable to initialize the card\n");
@@ -802,22 +821,22 @@ es_pci_attach(device_t dev)
 	  	/* our init routine does everything for us */
 	  	/* set to NULL; flag mixer_init not to run the ac97_init */
 	  	/*	  ac97_mixer.init = NULL;  */
-		if (mixer_init(d, &ac97_mixer, codec) == -1) goto bad;
+		if (mixer_init(dev, &ac97_mixer, codec) == -1) goto bad;
 		ct = &es1371_chantemplate;
 	} else if (pci_get_devid(dev) == ES1370_PCI_ID) {
 	  	if (-1 == es1370_init(es)) {
 			device_printf(dev, "unable to initialize the card\n");
 			goto bad;
 	  	}
-	  	mixer_init(d, &es1370_mixer, es);
+	  	mixer_init(dev, &es1370_mixer, es);
 		ct = &es1370_chantemplate;
 	} else goto bad;
 
-	irqid = 0;
-	irq = bus_alloc_resource(dev, SYS_RES_IRQ, &irqid,
+	es->irqid = 0;
+	es->irq = bus_alloc_resource(dev, SYS_RES_IRQ, &es->irqid,
 				 0, ~0, 1, RF_ACTIVE | RF_SHAREABLE);
-	if (!irq
-	    || bus_setup_intr(dev, irq, INTR_TYPE_TTY, es_intr, es, &ih)) {
+	if (!es->irq
+	    || bus_setup_intr(dev, es->irq, INTR_TYPE_TTY, es_intr, es, &es->ih)) {
 		device_printf(dev, "unable to map interrupt\n");
 		goto bad;
 	}
@@ -833,8 +852,8 @@ es_pci_attach(device_t dev)
 	}
 
 	snprintf(status, SND_STATUSLEN, "at %s 0x%lx irq %ld",
-		 (type == SYS_RES_IOPORT)? "io" : "memory",
-		 rman_get_start(reg), rman_get_start(irq));
+		 (es->regtype == SYS_RES_IOPORT)? "io" : "memory",
+		 rman_get_start(es->reg), rman_get_start(es->irq));
 
 	if (pcm_register(dev, es, 1, 1)) goto bad;
 	pcm_addchan(dev, PCMDIR_REC, ct, es);
@@ -844,17 +863,40 @@ es_pci_attach(device_t dev)
 	return 0;
 
  bad:
+	if (codec) ac97_destroy(codec);
+	if (es->reg) bus_release_resource(dev, es->regtype, es->regid, es->reg);
+	if (es->ih) bus_teardown_intr(dev, es->irq, es->ih);
+	if (es->irq) bus_release_resource(dev, SYS_RES_IRQ, es->irqid, es->irq);
+	if (es->parent_dmat) bus_dma_tag_destroy(es->parent_dmat);
 	if (es) free(es, M_DEVBUF);
-	if (reg) bus_release_resource(dev, type, regid, reg);
-	if (ih) bus_teardown_intr(dev, irq, ih);
-	if (irq) bus_release_resource(dev, SYS_RES_IRQ, irqid, irq);
 	return ENXIO;
+}
+
+static int
+es_pci_detach(device_t dev)
+{
+	int r;
+	struct es_info *es;
+
+	r = pcm_unregister(dev);
+	if (r)
+		return r;
+
+	es = pcm_getdevinfo(dev);
+	bus_release_resource(dev, es->regtype, es->regid, es->reg);
+	bus_teardown_intr(dev, es->irq, es->ih);
+	bus_release_resource(dev, SYS_RES_IRQ, es->irqid, es->irq);
+	bus_dma_tag_destroy(es->parent_dmat);
+	free(es, M_DEVBUF);
+
+	return 0;
 }
 
 static device_method_t es_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		es_pci_probe),
 	DEVMETHOD(device_attach,	es_pci_attach),
+	DEVMETHOD(device_detach,	es_pci_detach),
 
 	{ 0, 0 }
 };

@@ -113,6 +113,7 @@ struct sc_info {
 
 /* channel interface */
 static void *emupchan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir);
+static int emupchan_free(void *data);
 static int emupchan_setdir(void *data, int dir);
 static int emupchan_setformat(void *data, u_int32_t format);
 static int emupchan_setspeed(void *data, u_int32_t speed);
@@ -140,9 +141,7 @@ static int emu_init(struct sc_info *);
 static void emu_intr(void *);
 static void *emu_malloc(struct sc_info *sc, u_int32_t sz);
 static void *emu_memalloc(struct sc_info *sc, u_int32_t sz);
-#ifdef notyet
 static int emu_memfree(struct sc_info *sc, void *buf);
-#endif
 static int emu_memstart(struct sc_info *sc, void *buf);
 #ifdef EMUDEBUG
 static void emu_vdump(struct sc_info *sc, struct emu_voice *v);
@@ -154,17 +153,37 @@ static void emu_wr(struct sc_info *, int, u_int32_t, int);
 
 /* -------------------------------------------------------------------- */
 
-static pcmchan_caps emu_reccaps[3] = {
-	{8000, 48000, AFMT_STEREO | AFMT_S16_LE, AFMT_STEREO | AFMT_S16_LE},
-	{8000, 8000, AFMT_U8, AFMT_U8},
-	{48000, 48000, AFMT_STEREO | AFMT_S16_LE, AFMT_STEREO | AFMT_S16_LE},
+static u_int32_t emu_rfmt_ac97[] = {
+	AFMT_S16_LE,
+	AFMT_STEREO | AFMT_S16_LE,
+	0
 };
 
-static pcmchan_caps emu_playcaps = {
-	4000, 48000,
-	AFMT_STEREO | AFMT_U8 | AFMT_S16_LE,
-	AFMT_STEREO | AFMT_S16_LE
+static u_int32_t emu_rfmt_mic[] = {
+	AFMT_U8,
+	0
 };
+
+static u_int32_t emu_rfmt_efx[] = {
+	AFMT_STEREO | AFMT_S16_LE,
+	0
+};
+
+static pcmchan_caps emu_reccaps[3] = {
+	{8000, 48000, emu_rfmt_ac97, 0},
+	{8000, 8000, emu_rfmt_mic, 0},
+	{48000, 48000, emu_rfmt_efx, 0},
+};
+
+static u_int32_t emu_pfmt[] = {
+	AFMT_U8,
+	AFMT_STEREO | AFMT_U8,
+	AFMT_S16_LE,
+	AFMT_STEREO | AFMT_S16_LE,
+	0
+};
+
+static pcmchan_caps emu_playcaps = {48000, 48000, emu_pfmt, 0};
 
 static pcm_channel emu_chantemplate = {
 	emupchan_init,
@@ -175,6 +194,14 @@ static pcm_channel emu_chantemplate = {
 	emupchan_trigger,
 	emupchan_getptr,
 	emupchan_getcaps,
+	emupchan_free, 		/* free */
+	NULL, 			/* nop1 */
+	NULL, 			/* nop2 */
+	NULL, 			/* nop3 */
+	NULL, 			/* nop4 */
+	NULL, 			/* nop5 */
+	NULL, 			/* nop6 */
+	NULL, 			/* nop7 */
 };
 
 static pcm_channel emur_chantemplate = {
@@ -186,6 +213,14 @@ static pcm_channel emur_chantemplate = {
 	emurchan_trigger,
 	emurchan_getptr,
 	emurchan_getcaps,
+	NULL, 			/* free */
+	NULL, 			/* nop1 */
+	NULL, 			/* nop2 */
+	NULL, 			/* nop3 */
+	NULL, 			/* nop4 */
+	NULL, 			/* nop5 */
+	NULL, 			/* nop6 */
+	NULL, 			/* nop7 */
 };
 
 static int adcspeed[8] = {48000, 44100, 32000, 24000, 22050, 16000, 11025, 8000};
@@ -656,6 +691,15 @@ emupchan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
 }
 
 static int
+emupchan_free(void *data)
+{
+	struct sc_pchinfo *ch = data;
+	struct sc_info *sc = ch->parent;
+
+	return emu_memfree(sc, ch->buffer->buf);
+}
+
+static int
 emupchan_setdir(void *data, int dir)
 {
 	return 0;
@@ -689,7 +733,7 @@ static int
 emupchan_trigger(void *data, int go)
 {
 	struct sc_pchinfo *ch = data;
-	struct sc_info *sc  = ch->parent;
+	struct sc_info *sc = ch->parent;
 
 	if (go == PCMTRIG_EMLDMAWR || go == PCMTRIG_EMLDMARD)
 		return 0;
@@ -1019,7 +1063,6 @@ emu_memalloc(struct sc_info *sc, u_int32_t sz)
 	return buf;
 }
 
-#ifdef notyet
 static int
 emu_memfree(struct sc_info *sc, void *buf)
 {
@@ -1044,7 +1087,6 @@ emu_memfree(struct sc_info *sc, void *buf)
 	free(blk, M_DEVBUF);
 	return 0;
 }
-#endif
 
 static int
 emu_memstart(struct sc_info *sc, void *buf)
@@ -1304,6 +1346,51 @@ emu_init(struct sc_info *sc)
 }
 
 static int
+emu_uninit(struct sc_info *sc)
+{
+	u_int32_t ch;
+
+	emu_wr(sc, INTE, 0, 4);
+	for (ch = 0; ch < NUM_G; ch++)
+		emu_wrptr(sc, ch, DCYSUSV, ENV_OFF);
+	for (ch = 0; ch < NUM_G; ch++) {
+		emu_wrptr(sc, ch, VTFT, 0);
+		emu_wrptr(sc, ch, CVCF, 0);
+		emu_wrptr(sc, ch, PTRX, 0);
+		emu_wrptr(sc, ch, CPF, 0);
+       }
+
+   	/* disable audio and lock cache */
+	emu_wr(sc, HCFG, HCFG_LOCKSOUNDCACHE | HCFG_LOCKTANKCACHE | HCFG_MUTEBUTTONENABLE, 4);
+
+	emu_wrptr(sc, 0, PTB, 0);
+	/* reset recording buffers */
+	emu_wrptr(sc, 0, MICBS, ADCBS_BUFSIZE_NONE);
+	emu_wrptr(sc, 0, MICBA, 0);
+	emu_wrptr(sc, 0, FXBS, ADCBS_BUFSIZE_NONE);
+	emu_wrptr(sc, 0, FXBA, 0);
+	emu_wrptr(sc, 0, FXWC, 0);
+	emu_wrptr(sc, 0, ADCBS, ADCBS_BUFSIZE_NONE);
+	emu_wrptr(sc, 0, ADCBA, 0);
+	emu_wrptr(sc, 0, TCB, 0);
+	emu_wrptr(sc, 0, TCBS, 0);
+
+	/* disable channel interrupt */
+	emu_wrptr(sc, 0, CLIEL, 0);
+	emu_wrptr(sc, 0, CLIEH, 0);
+	emu_wrptr(sc, 0, SOLEL, 0);
+	emu_wrptr(sc, 0, SOLEH, 0);
+
+	/* init envelope engine */
+	if (!SLIST_EMPTY(&sc->mem.blocks))
+		device_printf(sc->dev, "warning: memblock list not empty\n");
+	emu_free(sc, sc->mem.ptb_pages);
+	emu_free(sc, sc->mem.silent_page);
+
+	return 0;
+}
+
+static int
 emu_pci_probe(device_t dev)
 {
 	char *s = NULL;
@@ -1321,14 +1408,12 @@ emu_pci_probe(device_t dev)
 static int
 emu_pci_attach(device_t dev)
 {
-	snddev_info    *d;
 	u_int32_t	data;
 	struct sc_info *sc;
-	struct ac97_info *codec;
+	struct ac97_info *codec = NULL;
 	int		i, mapped;
 	char 		status[SND_STATUSLEN];
 
-	d = device_get_softc(dev);
 	if ((sc = malloc(sizeof(*sc), M_DEVBUF, M_NOWAIT)) == NULL) {
 		device_printf(dev, "cannot allocate softc\n");
 		return ENXIO;
@@ -1385,7 +1470,7 @@ emu_pci_attach(device_t dev)
 
 	codec = ac97_create(dev, sc, NULL, emu_rdcd, emu_wrcd);
 	if (codec == NULL) goto bad;
-	if (mixer_init(d, &ac97_mixer, codec) == -1) goto bad;
+	if (mixer_init(dev, &ac97_mixer, codec) == -1) goto bad;
 
 	sc->irqid = 0;
 	sc->irq = bus_alloc_resource(dev, SYS_RES_IRQ, &sc->irqid,
@@ -1411,18 +1496,44 @@ emu_pci_attach(device_t dev)
 	return 0;
 
 bad:
+	if (codec) ac97_destroy(codec);
 	if (sc->reg) bus_release_resource(dev, sc->regtype, sc->regid, sc->reg);
 	if (sc->ih) bus_teardown_intr(dev, sc->irq, sc->ih);
 	if (sc->irq) bus_release_resource(dev, SYS_RES_IRQ, sc->irqid, sc->irq);
+	if (sc->parent_dmat) bus_dma_tag_destroy(sc->parent_dmat);
 	free(sc, M_DEVBUF);
 	return ENXIO;
 }
 
-/* add suspend, resume, unload */
+static int
+emu_pci_detach(device_t dev)
+{
+	int r;
+	struct sc_info *sc;
+
+	r = pcm_unregister(dev);
+	if (r)
+		return r;
+
+	sc = pcm_getdevinfo(dev);
+	/* shutdown chip */
+	emu_uninit(sc);
+
+	bus_release_resource(dev, sc->regtype, sc->regid, sc->reg);
+	bus_teardown_intr(dev, sc->irq, sc->ih);
+	bus_release_resource(dev, SYS_RES_IRQ, sc->irqid, sc->irq);
+	bus_dma_tag_destroy(sc->parent_dmat);
+	free(sc, M_DEVBUF);
+
+	return 0;
+}
+
+/* add suspend, resume */
 static device_method_t emu_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		emu_pci_probe),
 	DEVMETHOD(device_attach,	emu_pci_attach),
+	DEVMETHOD(device_detach,	emu_pci_detach),
 
 	{ 0, 0 }
 };
@@ -1462,9 +1573,16 @@ emujoy_pci_attach(device_t dev)
 	return 0;
 }
 
+static int
+emujoy_pci_detach(device_t dev)
+{
+	return 0;
+}
+
 static device_method_t emujoy_methods[] = {
 	DEVMETHOD(device_probe,		emujoy_pci_probe),
 	DEVMETHOD(device_attach,	emujoy_pci_attach),
+	DEVMETHOD(device_detach,	emujoy_pci_detach),
 
 	{ 0, 0 }
 };

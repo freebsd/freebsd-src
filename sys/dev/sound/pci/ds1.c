@@ -109,11 +109,13 @@ struct sc_info {
 	bus_space_tag_t st;
 	bus_space_handle_t sh;
 	bus_dma_tag_t parent_dmat;
+	bus_dmamap_t map;
 
 	struct resource *reg, *irq;
 	int		regid, irqid;
 	void		*ih;
 
+	void *regbase;
 	u_int32_t *pbase, pbankbase, pbanksize;
 	volatile struct pbank *pbank[2 * 64];
 	volatile struct rbank *rbank;
@@ -153,7 +155,6 @@ struct {
 
 /* channel interface */
 static void *ds1pchan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir);
-static int ds1pchan_setdir(void *data, int dir);
 static int ds1pchan_setformat(void *data, u_int32_t format);
 static int ds1pchan_setspeed(void *data, u_int32_t speed);
 static int ds1pchan_setblocksize(void *data, u_int32_t blocksize);
@@ -162,7 +163,6 @@ static int ds1pchan_getptr(void *data);
 static pcmchan_caps *ds1pchan_getcaps(void *data);
 
 static void *ds1rchan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir);
-static int ds1rchan_setdir(void *data, int dir);
 static int ds1rchan_setformat(void *data, u_int32_t format);
 static int ds1rchan_setspeed(void *data, u_int32_t speed);
 static int ds1rchan_setblocksize(void *data, u_int32_t blocksize);
@@ -184,38 +184,64 @@ static void 	 ds_wr(struct sc_info *, int, u_int32_t, int);
 
 /* -------------------------------------------------------------------- */
 
-static pcmchan_caps ds_reccaps = {
-	4000, 48000,
-	AFMT_STEREO | AFMT_U8 | AFMT_S8 | AFMT_S16_LE | AFMT_U16_LE,
-	AFMT_STEREO | AFMT_S16_LE
+static u_int32_t ds_recfmt[] = {
+	AFMT_U8,
+	AFMT_STEREO | AFMT_U8,
+	AFMT_S8,
+	AFMT_STEREO | AFMT_S8,
+	AFMT_S16_LE,
+	AFMT_STEREO | AFMT_S16_LE,
+	AFMT_U16_LE,
+	AFMT_STEREO | AFMT_U16_LE,
+	0
 };
+static pcmchan_caps ds_reccaps = {4000, 48000, ds_recfmt, 0};
 
-static pcmchan_caps ds_playcaps = {
-	4000, 96000,
-	AFMT_STEREO | AFMT_U8 | AFMT_S16_LE,
-	AFMT_STEREO | AFMT_S16_LE
+static u_int32_t ds_playfmt[] = {
+	AFMT_U8,
+	AFMT_STEREO | AFMT_U8,
+	/* AFMT_S16_LE, */
+	AFMT_STEREO | AFMT_S16_LE,
+	0
 };
+static pcmchan_caps ds_playcaps = {4000, 96000, ds_playfmt, 0};
 
 static pcm_channel ds_pchantemplate = {
 	ds1pchan_init,
-	ds1pchan_setdir,
+	NULL, 			/* setdir */
 	ds1pchan_setformat,
 	ds1pchan_setspeed,
 	ds1pchan_setblocksize,
 	ds1pchan_trigger,
 	ds1pchan_getptr,
 	ds1pchan_getcaps,
+	NULL, 			/* free */
+	NULL, 			/* nop1 */
+	NULL, 			/* nop2 */
+	NULL, 			/* nop3 */
+	NULL, 			/* nop4 */
+	NULL, 			/* nop5 */
+	NULL, 			/* nop6 */
+	NULL, 			/* nop7 */
 };
 
 static pcm_channel ds_rchantemplate = {
 	ds1rchan_init,
-	ds1rchan_setdir,
+	NULL, 			/* setdir */
 	ds1rchan_setformat,
 	ds1rchan_setspeed,
 	ds1rchan_setblocksize,
 	ds1rchan_trigger,
 	ds1rchan_getptr,
 	ds1rchan_getcaps,
+	NULL, 			/* free */
+	NULL, 			/* nop1 */
+	NULL, 			/* nop2 */
+	NULL, 			/* nop3 */
+	NULL, 			/* nop4 */
+	NULL, 			/* nop5 */
+	NULL, 			/* nop6 */
+	NULL, 			/* nop7 */
 };
 
 /* -------------------------------------------------------------------- */
@@ -255,7 +281,7 @@ static void
 wrl(struct sc_info *sc, u_int32_t *ptr, u_int32_t val)
 {
 	*(volatile u_int32_t *)ptr = val;
-	bus_space_barrier(sc->sh, sc->st, 0, 0, BUS_SPACE_BARRIER_WRITE);
+	bus_space_barrier(sc->st, sc->sh, 0, 0, BUS_SPACE_BARRIER_WRITE);
 }
 
 /* ac97 codec */
@@ -297,7 +323,7 @@ ds_initcd(void *devinfo)
 		DELAY(500000);
 	}
 
-	return ds_cdbusy(sc, 0);
+	return ds_cdbusy(sc, 0)? 0 : 1;
 }
 
 static u_int32_t
@@ -522,12 +548,6 @@ ds1pchan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
 }
 
 static int
-ds1pchan_setdir(void *data, int dir)
-{
-	return 0;
-}
-
-static int
 ds1pchan_setformat(void *data, u_int32_t format)
 {
 	struct sc_pchinfo *ch = data;
@@ -630,12 +650,6 @@ ds1rchan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
 		ds_setuprch(ch);
 		return ch;
 	}
-}
-
-static int
-ds1rchan_setdir(void *data, int dir)
-{
-	return 0;
 }
 
 static int
@@ -767,7 +781,6 @@ ds_init(struct sc_info *sc)
 	u_int32_t *ci, r, pcs, rcs, ecs, ws, memsz, cb;
 	u_int8_t *t;
 	void *buf;
-	bus_dmamap_t map;
 
 	ci = ds_devs[sc->type].mcode;
 
@@ -809,14 +822,18 @@ ds_init(struct sc_info *sc)
 	memsz = 64 * 2 * pcs + 2 * 2 * rcs + 5 * 2 * ecs + ws;
 	memsz += (64 + 1) * 4;
 
-	if (bus_dmamem_alloc(sc->parent_dmat, &buf, BUS_DMA_NOWAIT, &map))
-		return -1;
-	if (bus_dmamap_load(sc->parent_dmat, map, buf, memsz, ds_setmap, sc, 0)
-	    || !sc->ctrlbase) {
-		device_printf(sc->dev, "pcs=%d, rcs=%d, ecs=%d, ws=%d, memsz=%d\n",
-			      pcs, rcs, ecs, ws, memsz);
-		return -1;
-	}
+	if (sc->regbase == NULL) {
+		if (bus_dmamem_alloc(sc->parent_dmat, &buf, BUS_DMA_NOWAIT, &sc->map))
+			return -1;
+		if (bus_dmamap_load(sc->parent_dmat, sc->map, buf, memsz, ds_setmap, sc, 0)
+	    	|| !sc->ctrlbase) {
+			device_printf(sc->dev, "pcs=%d, rcs=%d, ecs=%d, ws=%d, memsz=%d\n",
+			      	pcs, rcs, ecs, ws, memsz);
+			return -1;
+		}
+		sc->regbase = buf;
+	} else
+		buf = sc->regbase;
 
 	cb = 0;
 	t = buf;
@@ -853,6 +870,27 @@ ds_init(struct sc_info *sc)
 }
 
 static int
+ds_uninit(struct sc_info *sc)
+{
+	ds_wr(sc, YDSXGR_NATIVEDACOUTVOL, 0x00000000, 4);
+	ds_wr(sc, YDSXGR_NATIVEADCINVOL, 0, 4);
+	ds_wr(sc, YDSXGR_NATIVEDACINVOL, 0, 4);
+	ds_enadsp(sc, 0);
+	ds_wr(sc, YDSXGR_MODE, 0x00010000, 4);
+	ds_wr(sc, YDSXGR_MAPOFREC, 0x00000000, 4);
+	ds_wr(sc, YDSXGR_MAPOFEFFECT, 0x00000000, 4);
+	ds_wr(sc, YDSXGR_PLAYCTRLBASE, 0x00000000, 4);
+	ds_wr(sc, YDSXGR_RECCTRLBASE, 0x00000000, 4);
+	ds_wr(sc, YDSXGR_EFFCTRLBASE, 0x00000000, 4);
+	ds_wr(sc, YDSXGR_GLOBALCTRL, 0, 2);
+
+	bus_dmamap_unload(sc->parent_dmat, sc->map);
+	bus_dmamem_free(sc->parent_dmat, sc->regbase, sc->map);
+
+	return 0;
+}
+
+static int
 ds_finddev(u_int32_t dev, u_int32_t subdev)
 {
 	int i;
@@ -883,14 +921,12 @@ ds_pci_probe(device_t dev)
 static int
 ds_pci_attach(device_t dev)
 {
-	snddev_info    *d;
 	u_int32_t	data;
 	u_int32_t subdev, i;
 	struct sc_info *sc;
-	struct ac97_info *codec;
+	struct ac97_info *codec = NULL;
 	char 		status[SND_STATUSLEN];
 
-	d = device_get_softc(dev);
 	if ((sc = malloc(sizeof(*sc), M_DEVBUF, M_NOWAIT)) == NULL) {
 		device_printf(dev, "cannot allocate softc\n");
 		return ENXIO;
@@ -928,6 +964,7 @@ ds_pci_attach(device_t dev)
 		goto bad;
 	}
 
+	sc->regbase = NULL;
 	if (ds_init(sc) == -1) {
 		device_printf(dev, "unable to initialize the card\n");
 		goto bad;
@@ -936,7 +973,7 @@ ds_pci_attach(device_t dev)
 	codec = ac97_create(dev, sc, ds_initcd, ds_rdcd, ds_wrcd);
 	if (codec == NULL)
 		goto bad;
-	mixer_init(d, &ac97_mixer, codec);
+	mixer_init(dev, &ac97_mixer, codec);
 
 	sc->irqid = 0;
 	sc->irq = bus_alloc_resource(dev, SYS_RES_IRQ, &sc->irqid,
@@ -961,21 +998,64 @@ ds_pci_attach(device_t dev)
 	return 0;
 
 bad:
+	if (codec)
+		ac97_destroy(codec);
 	if (sc->reg)
 		bus_release_resource(dev, SYS_RES_MEMORY, sc->regid, sc->reg);
 	if (sc->ih)
 		bus_teardown_intr(dev, sc->irq, sc->ih);
 	if (sc->irq)
 		bus_release_resource(dev, SYS_RES_IRQ, sc->irqid, sc->irq);
+	if (sc->parent_dmat)
+		bus_dma_tag_destroy(sc->parent_dmat);
 	free(sc, M_DEVBUF);
 	return ENXIO;
+}
+
+static int
+ds_pci_resume(device_t dev)
+{
+       struct sc_info *sc;
+
+       sc = pcm_getdevinfo(dev);
+
+       if (ds_init(sc) == -1) {
+           device_printf(dev, "unable to reinitialize the card\n");
+           return ENXIO;
+       }
+       if (mixer_reinit(dev) == -1) {
+               device_printf(dev, "unable to reinitialize the mixer\n");
+               return ENXIO;
+       }
+       return 0;
+}
+
+static int
+ds_pci_detach(device_t dev)
+{
+    	int r;
+	struct sc_info *sc;
+
+	r = pcm_unregister(dev);
+	if (r)
+    		return r;
+
+	sc = pcm_getdevinfo(dev);
+	ds_uninit(sc);
+	bus_release_resource(dev, SYS_RES_MEMORY, sc->regid, sc->reg);
+	bus_teardown_intr(dev, sc->irq, sc->ih);
+	bus_release_resource(dev, SYS_RES_IRQ, sc->irqid, sc->irq);
+	bus_dma_tag_destroy(sc->parent_dmat);
+	free(sc, M_DEVBUF);
+       	return 0;
 }
 
 static device_method_t ds1_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		ds_pci_probe),
 	DEVMETHOD(device_attach,	ds_pci_attach),
-
+	DEVMETHOD(device_detach,	ds_pci_detach),
+	DEVMETHOD(device_resume,        ds_pci_resume),
 	{ 0, 0 }
 };
 

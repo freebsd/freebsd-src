@@ -78,7 +78,7 @@ struct sc_info {
 
 /* channel interface */
 static void *nmchan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir);
-static int nmchan_setdir(void *data, int dir);
+static int nmchan_free(void *data);
 static int nmchan_setformat(void *data, u_int32_t format);
 static int nmchan_setspeed(void *data, u_int32_t speed);
 static int nmchan_setblocksize(void *data, u_int32_t blocksize);
@@ -125,21 +125,32 @@ static int samplerates[9] = {
 
 /* -------------------------------------------------------------------- */
 
-static pcmchan_caps nm_caps = {
-	4000, 48000,
-	AFMT_STEREO | AFMT_U8 | AFMT_S16_LE,
-	AFMT_STEREO | AFMT_S16_LE
+static u_int32_t nm_fmt[] = {
+	AFMT_U8,
+	AFMT_STEREO | AFMT_U8,
+	AFMT_S16_LE,
+	AFMT_STEREO | AFMT_S16_LE,
+	0
 };
+static pcmchan_caps nm_caps = {4000, 48000, nm_fmt, 0};
 
 static pcm_channel nm_chantemplate = {
 	nmchan_init,
-	nmchan_setdir,
+	NULL, 			/* setdir */
 	nmchan_setformat,
 	nmchan_setspeed,
 	nmchan_setblocksize,
 	nmchan_trigger,
 	nmchan_getptr,
 	nmchan_getcaps,
+	nmchan_free, 		/* free */
+	NULL, 			/* nop1 */
+	NULL, 			/* nop2 */
+	NULL, 			/* nop3 */
+	NULL, 			/* nop4 */
+	NULL, 			/* nop5 */
+	NULL, 			/* nop6 */
+	NULL, 			/* nop7 */
 };
 
 /* -------------------------------------------------------------------- */
@@ -243,7 +254,7 @@ nm_initcd(void *devinfo)
 	nm_wr(sc, 0x6cc, 0x87, 1);
 	nm_wr(sc, 0x6cc, 0x80, 1);
 	nm_wr(sc, 0x6cc, 0x00, 1);
-	return 0;
+	return 1;
 }
 
 static u_int32_t
@@ -361,7 +372,7 @@ nmchan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
 }
 
 static int
-nmchan_setdir(void *data, int dir)
+nmchan_free(void *data)
 {
 	return 0;
 }
@@ -579,13 +590,11 @@ nm_pci_probe(device_t dev)
 static int
 nm_pci_attach(device_t dev)
 {
-	snddev_info    *d;
 	u_int32_t	data;
 	struct sc_info *sc;
-	struct ac97_info *codec;
+	struct ac97_info *codec = 0;
 	char 		status[SND_STATUSLEN];
 
-	d = device_get_softc(dev);
 	if ((sc = malloc(sizeof(*sc), M_DEVBUF, M_NOWAIT)) == NULL) {
 		device_printf(dev, "cannot allocate softc\n");
 		return ENXIO;
@@ -619,7 +628,7 @@ nm_pci_attach(device_t dev)
 
 	codec = ac97_create(dev, sc, nm_initcd, nm_rdcd, nm_wrcd);
 	if (codec == NULL) goto bad;
-	if (mixer_init(d, &ac97_mixer, codec) == -1) goto bad;
+	if (mixer_init(dev, &ac97_mixer, codec) == -1) goto bad;
 
 	sc->irqid = 0;
 	sc->irq = bus_alloc_resource(dev, SYS_RES_IRQ, &sc->irqid,
@@ -642,6 +651,7 @@ nm_pci_attach(device_t dev)
 	return 0;
 
 bad:
+	if (codec) ac97_destroy(codec);
 	if (sc->buf) bus_release_resource(dev, SYS_RES_MEMORY, sc->bufid, sc->buf);
 	if (sc->reg) bus_release_resource(dev, SYS_RES_MEMORY, sc->regid, sc->reg);
 	if (sc->ih) bus_teardown_intr(dev, sc->irq, sc->ih);
@@ -651,12 +661,30 @@ bad:
 }
 
 static int
-nm_pci_resume(device_t dev)
+nm_pci_detach(device_t dev)
 {
-	snddev_info *d;
+	int r;
 	struct sc_info *sc;
 
-	d = device_get_softc(dev);
+	r = pcm_unregister(dev);
+	if (r)
+		return r;
+
+	sc = pcm_getdevinfo(dev);
+	bus_release_resource(dev, SYS_RES_MEMORY, sc->bufid, sc->buf);
+	bus_release_resource(dev, SYS_RES_MEMORY, sc->regid, sc->reg);
+	bus_teardown_intr(dev, sc->irq, sc->ih);
+	bus_release_resource(dev, SYS_RES_IRQ, sc->irqid, sc->irq);
+	free(sc, M_DEVBUF);
+
+	return 0;
+}
+
+static int
+nm_pci_resume(device_t dev)
+{
+	struct sc_info *sc;
+
 	sc = pcm_getdevinfo(dev);
 
 	/* Reinit audio device */
@@ -665,7 +693,7 @@ nm_pci_resume(device_t dev)
 		return ENXIO;
 	}
 	/* Reinit mixer */
-    	if (mixer_reinit(d) == -1) {
+    	if (mixer_reinit(dev) == -1) {
 		device_printf(dev, "unable to reinitialize the mixer\n");
 		return ENXIO;
 	}
@@ -676,6 +704,7 @@ static device_method_t nm_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		nm_pci_probe),
 	DEVMETHOD(device_attach,	nm_pci_attach),
+	DEVMETHOD(device_detach,	nm_pci_detach),
 	DEVMETHOD(device_resume,	nm_pci_resume),
 	{ 0, 0 }
 };

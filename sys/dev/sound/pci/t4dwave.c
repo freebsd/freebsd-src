@@ -115,17 +115,31 @@ static void 	 tr_stopch(struct tr_info *, char);
 
 /* -------------------------------------------------------------------- */
 
-static pcmchan_caps tr_reccaps = {
-	4000, 48000,
-	AFMT_STEREO | AFMT_U8 | AFMT_S8 | AFMT_S16_LE | AFMT_U16_LE,
-	AFMT_STEREO | AFMT_S16_LE
+static u_int32_t tr_recfmt[] = {
+	AFMT_U8,
+	AFMT_STEREO | AFMT_U8,
+	AFMT_S8,
+	AFMT_STEREO | AFMT_S8,
+	AFMT_S16_LE,
+	AFMT_STEREO | AFMT_S16_LE,
+	AFMT_U16_LE,
+	AFMT_STEREO | AFMT_U16_LE,
+	0
 };
+static pcmchan_caps tr_reccaps = {4000, 48000, tr_recfmt, 0};
 
-static pcmchan_caps tr_playcaps = {
-	4000, 48000,
-	AFMT_STEREO | AFMT_U8 | AFMT_S8 | AFMT_S16_LE | AFMT_U16_LE,
-	AFMT_STEREO | AFMT_S16_LE
+static u_int32_t tr_playfmt[] = {
+	AFMT_U8,
+	AFMT_STEREO | AFMT_U8,
+	AFMT_S8,
+	AFMT_STEREO | AFMT_S8,
+	AFMT_S16_LE,
+	AFMT_STEREO | AFMT_S16_LE,
+	AFMT_U16_LE,
+	AFMT_STEREO | AFMT_U16_LE,
+	0
 };
+static pcmchan_caps tr_playcaps = {4000, 48000, tr_playfmt, 0};
 
 static pcm_channel tr_chantemplate = {
 	trchan_init,
@@ -136,6 +150,14 @@ static pcm_channel tr_chantemplate = {
 	trchan_trigger,
 	trchan_getptr,
 	trchan_getcaps,
+	NULL, 			/* free */
+	NULL, 			/* nop1 */
+	NULL, 			/* nop2 */
+	NULL, 			/* nop3 */
+	NULL, 			/* nop4 */
+	NULL, 			/* nop5 */
+	NULL, 			/* nop6 */
+	NULL, 			/* nop7 */
 };
 
 /* -------------------------------------------------------------------- */
@@ -587,15 +609,13 @@ tr_pci_probe(device_t dev)
 static int
 tr_pci_attach(device_t dev)
 {
-	snddev_info    *d;
 	u_int32_t	data;
 	struct tr_info *tr;
-	struct ac97_info *codec;
+	struct ac97_info *codec = 0;
 	int		i;
 	int		mapped;
 	char 		status[SND_STATUSLEN];
 
-	d = device_get_softc(dev);
 	if ((tr = malloc(sizeof(*tr), M_DEVBUF, M_NOWAIT)) == NULL) {
 		device_printf(dev, "cannot allocate softc\n");
 		return ENXIO;
@@ -641,7 +661,7 @@ tr_pci_attach(device_t dev)
 
 	codec = ac97_create(dev, tr, NULL, tr_rdcd, tr_wrcd);
 	if (codec == NULL) goto bad;
-	if (mixer_init(d, &ac97_mixer, codec) == -1) goto bad;
+	if (mixer_init(dev, &ac97_mixer, codec) == -1) goto bad;
 
 	tr->irqid = 0;
 	tr->irq = bus_alloc_resource(dev, SYS_RES_IRQ, &tr->irqid,
@@ -675,17 +695,40 @@ tr_pci_attach(device_t dev)
 	return 0;
 
 bad:
+	if (codec) ac97_destroy(codec);
 	if (tr->reg) bus_release_resource(dev, tr->regtype, tr->regid, tr->reg);
 	if (tr->ih) bus_teardown_intr(dev, tr->irq, tr->ih);
 	if (tr->irq) bus_release_resource(dev, SYS_RES_IRQ, tr->irqid, tr->irq);
+	if (tr->parent_dmat) bus_dma_tag_destroy(tr->parent_dmat);
 	free(tr, M_DEVBUF);
 	return ENXIO;
+}
+
+static int
+tr_pci_detach(device_t dev)
+{
+	int r;
+	struct tr_info *tr;
+
+	r = pcm_unregister(dev);
+	if (r)
+		return r;
+
+	tr = pcm_getdevinfo(dev);
+	bus_release_resource(dev, tr->regtype, tr->regid, tr->reg);
+	bus_teardown_intr(dev, tr->irq, tr->ih);
+	bus_release_resource(dev, SYS_RES_IRQ, tr->irqid, tr->irq);
+	bus_dma_tag_destroy(tr->parent_dmat);
+	free(tr, M_DEVBUF);
+
+	return 0;
 }
 
 static device_method_t tr_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		tr_pci_probe),
 	DEVMETHOD(device_attach,	tr_pci_attach),
+	DEVMETHOD(device_detach,	tr_pci_detach),
 
 	{ 0, 0 }
 };
