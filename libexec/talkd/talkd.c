@@ -49,6 +49,7 @@ static char sccsid[] = "@(#)talkd.c	8.1 (Berkeley) 6/4/93";
  */
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/param.h>
 #include <protocols/talkd.h>
 #include <signal.h>
 #include <syslog.h>
@@ -68,7 +69,7 @@ int	debug = 0;
 void	timeout();
 long	lastmsgtime;
 
-char	hostname[32];
+char    hostname[MAXHOSTNAMELEN];
 
 #define TIMEOUT 30
 #define MAXIDLE 120
