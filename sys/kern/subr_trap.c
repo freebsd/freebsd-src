@@ -83,7 +83,7 @@ userret(td, frame, oticks)
 
 	CTR3(KTR_SYSC, "userret: thread %p (pid %d, %s)", td, p->p_pid,
             p->p_comm);
-#ifdef INVARIANTS
+#ifdef DIAGNOSTIC
 	/* Check that we called signotify() enough. */
 	PROC_LOCK(p);
 	mtx_lock_spin(&sched_lock);
