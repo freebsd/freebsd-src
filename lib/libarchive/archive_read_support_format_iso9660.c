@@ -59,7 +59,7 @@ __FBSDID("$FreeBSD$");
  *     else follows from there.
  *
  * This module works by first reading the volume descriptors, then
- * building a heap of directory entries, sorted by starting
+ * building a list of directory entries, sorted by starting
  * sector.  At each step, I look for the earliest dir entry that
  * hasn't yet been read, seek forward to that location and read
  * that entry.  If it's a dir, I slurp in the new dir entries and
@@ -131,6 +131,8 @@ struct file_info {
 	int		 refcount;
 	uint64_t	 offset;  /* Offset on disk. */
 	uint64_t	 size;	/* File size in bytes. */
+	uint64_t	 ce_offset; /* Offset of CE */
+	uint64_t	 ce_size; /* Size of CE */
 	time_t		 mtime;	/* File last modified time. */
 	time_t		 atime;	/* File last accessed time. */
 	time_t		 ctime;	/* File creation time. */
@@ -165,6 +167,7 @@ struct iso9660 {
 	ssize_t	entry_bytes_remaining;
 };
 
+static void	add_entry(struct iso9660 *iso9660, struct file_info *file);
 static int	archive_read_format_iso9660_bid(struct archive *);
 static int	archive_read_format_iso9660_cleanup(struct archive *);
 static int	archive_read_format_iso9660_read_data(struct archive *,
@@ -177,12 +180,16 @@ static time_t	isodate17(const void *);
 static time_t	isodate7(const void *);
 static int	isPVD(struct iso9660 *, const char *);
 static struct file_info *next_entry(struct iso9660 *);
+static int	next_entry_seek(struct archive *a, struct iso9660 *iso9660,
+		    struct file_info **pfile);
+static struct file_info *
+		parse_file_info(struct iso9660 *iso9660,
+		    struct file_info *parent,
+		    const struct iso9660_directory_record *isodirrec);
 static void	parse_rockridge(struct iso9660 *iso9660,
-		    const struct iso9660_directory_record *isodirrec,
-		    struct file_info *file);
+		    struct file_info *file, const unsigned char *start,
+		    const unsigned char *end);
 static void	release_file(struct iso9660 *, struct file_info *);
-static int	store_pending(struct iso9660 *, struct file_info *parent,
-		    const struct iso9660_directory_record *);
 static int	toi(const void *p, int n);
 
 int
@@ -256,6 +263,7 @@ static int
 isPVD(struct iso9660 *iso9660, const char *h)
 {
 	const struct iso9660_primary_volume_descriptor *voldesc;
+	struct file_info *file;
 
 	if (h[0] != 1)
 		return (0);
@@ -267,8 +275,9 @@ isPVD(struct iso9660 *iso9660, const char *h)
 	iso9660->logical_block_size = toi(&voldesc->logical_block_size, 2);
 
 	/* Store the root directory in the pending list. */
-	store_pending(iso9660, NULL,
+	file = parse_file_info(iso9660, NULL, 
 	    (struct iso9660_directory_record *)&voldesc->root_directory_record);
+	add_entry(iso9660, file);
 	return (48);
 }
 
@@ -280,14 +289,14 @@ archive_read_format_iso9660_read_header(struct archive *a,
 	struct iso9660 *iso9660;
 	struct file_info *file;
 	ssize_t bytes_read;
-	const void *buff;
+	int r;
 
 	iso9660 = *(a->pformat_data);
 
 	/* Get the next entry that appears after the current offset. */
-	file = next_entry(iso9660);
-	if (file == NULL)
-		return (ARCHIVE_EOF);
+	r = next_entry_seek(a, iso9660, &file);
+	if (r != ARCHIVE_OK)
+		return (r);
 
 	iso9660->entry_bytes_remaining = file->size;
 	iso9660->entry_sparse_offset = 0; /* Offset for sparse-file-aware clients. */
@@ -334,22 +343,6 @@ archive_read_format_iso9660_read_header(struct archive *a,
 		return (ARCHIVE_WARN);
 	}
 
-	/* Seek forward to the start of the entry. */
-	while (iso9660->current_position < file->offset) {
-		ssize_t step = file->offset - iso9660->current_position;
-		if (step > iso9660->logical_block_size)
-			step = iso9660->logical_block_size;
-		bytes_read = (a->compression_read_ahead)(a, &buff, step);
-		if (bytes_read <= 0) {
-			release_file(iso9660, file);
-			return (ARCHIVE_FATAL);
-		}
-		if (bytes_read > step)
-			bytes_read = step;
-		iso9660->current_position += bytes_read;
-		(a->compression_read_consume)(a, bytes_read);
-	}
-
 	iso9660->previous_size = file->size;
 	iso9660->previous_offset = file->offset;
 	archive_strcpy(&iso9660->previous_pathname, iso9660->pathname.s);
@@ -379,6 +372,8 @@ archive_read_format_iso9660_read_header(struct archive *a,
 			     p += *p) {
 				const struct iso9660_directory_record *dr
 				    = (const struct iso9660_directory_record *)p;
+				struct file_info *child;
+
 				/* Skip '.' entry. */
 				if (dr->name_len[0] == 1
 				    && dr->name[0] == '\0')
@@ -387,7 +382,8 @@ archive_read_format_iso9660_read_header(struct archive *a,
 				if (dr->name_len[0] == 1
 				    && dr->name[0] == '\001')
 					continue;
-				store_pending(iso9660, file, dr);
+				child = parse_file_info(iso9660, file, dr);
+				add_entry(iso9660, child);
 			}
 		}
 	}
@@ -445,29 +441,13 @@ archive_read_format_iso9660_cleanup(struct archive *a)
  * This routine parses a single ISO directory record, makes sense
  * of any extensions, and stores the result in memory.
  */
-static int
-store_pending(struct iso9660 *iso9660, struct file_info *parent,
+static struct file_info *
+parse_file_info(struct iso9660 *iso9660, struct file_info *parent,
     const struct iso9660_directory_record *isodirrec)
 {
 	struct file_info *file;
 
 	/* TODO: Sanity check that name_len doesn't exceed length, etc. */
-
-	/* Expand our pending files list as necessary. */
-	if (iso9660->pending_files_used >= iso9660->pending_files_allocated) {
-		struct file_info **new_pending_files;
-		int new_size = iso9660->pending_files_allocated * 2;
-
-		if (new_size < 1024)
-			new_size = 1024;
-		new_pending_files = malloc(new_size * sizeof(new_pending_files[0]));
-		memcpy(new_pending_files, iso9660->pending_files,
-		    iso9660->pending_files_allocated * sizeof(new_pending_files[0]));
-		if (iso9660->pending_files != NULL)
-			free(iso9660->pending_files);
-		iso9660->pending_files = new_pending_files;
-		iso9660->pending_files_allocated = new_size;
-	}
 
 	/* Create a new file entry and copy data from the ISO dir record. */
 	file = malloc(sizeof(*file));
@@ -489,9 +469,15 @@ store_pending(struct iso9660 *iso9660, struct file_info *parent,
 		file->mode = S_IFREG | 0400;
 
 	/* Rockridge extensions overwrite information from above. */
-	parse_rockridge(iso9660, isodirrec, file);
-
-	iso9660->pending_files[iso9660->pending_files_used++] = file;
+	{
+		const unsigned char *rr_start, *rr_end;
+		rr_end = (const unsigned char *)isodirrec
+		    + isodirrec->length[0];
+		rr_start = isodirrec->name + isodirrec->name_len[0];
+		if ((isodirrec->name_len[0] & 1) == 0)
+			rr_start++;
+		parse_rockridge(iso9660, file, rr_start, rr_end);
+	}
 
 	/* DEBUGGING: Warn about attributes I don't yet fully support. */
 	if ((isodirrec->flags[0] & ~0x02) != 0) {
@@ -516,21 +502,36 @@ store_pending(struct iso9660 *iso9660, struct file_info *parent,
 		fprintf(stderr, "\n");
 	}
 
-	return (ARCHIVE_OK);
+	return (file);
 }
 
 static void
-parse_rockridge(struct iso9660 *iso9660,
-    const struct iso9660_directory_record *isodirrec, struct file_info *file)
+add_entry(struct iso9660 *iso9660, struct file_info *file)
 {
-	const unsigned char *p, *end;
+	/* Expand our pending files list as necessary. */
+	if (iso9660->pending_files_used >= iso9660->pending_files_allocated) {
+		struct file_info **new_pending_files;
+		int new_size = iso9660->pending_files_allocated * 2;
 
+		if (new_size < 1024)
+			new_size = 1024;
+		new_pending_files = malloc(new_size * sizeof(new_pending_files[0]));
+		memcpy(new_pending_files, iso9660->pending_files,
+		    iso9660->pending_files_allocated * sizeof(new_pending_files[0]));
+		if (iso9660->pending_files != NULL)
+			free(iso9660->pending_files);
+		iso9660->pending_files = new_pending_files;
+		iso9660->pending_files_allocated = new_size;
+	}
+
+	iso9660->pending_files[iso9660->pending_files_used++] = file;
+}
+
+static void
+parse_rockridge(struct iso9660 *iso9660, struct file_info *file,
+    const unsigned char *p, const unsigned char *end)
+{
 	(void)iso9660; /* UNUSED */
-
-	end = (const unsigned char *)isodirrec + isodirrec->length[0];
-	p = isodirrec->name + isodirrec->name_len[0];
-	if ((isodirrec->name_len[0] & 1) == 0)
-		p++;
 
 	while (p + 4 < end  /* Enough space for another entry. */
 	    && p[0] >= 'A' && p[0] <= 'Z' /* Sanity-check 1st char of name. */
@@ -538,9 +539,29 @@ parse_rockridge(struct iso9660 *iso9660,
 	    && p + p[2] <= end) { /* Sanity-check length. */
 		const unsigned char *data = p + 4;
 		int data_length = p[2] - 4;
-		int version = p[3]; /* Currently unused. */
+		int version = p[3];
 
+		/*
+		 * Yes, each 'if' here does test p[0] again.
+		 * Otherwise, the fall-through handling to catch
+		 * unsupported extensions doesn't work.
+		 */
 		switch(p[0]) {
+		case 'C':
+			if (p[0] == 'C' && p[1] == 'E' && version == 1) {
+				/*
+				 * CE extension comprises:
+				 *   8 byte sector containing extension
+				 *   8 byte offset w/in above sector
+				 *   8 byte length of continuation
+				 */
+				file->ce_offset = toi(data, 4)
+				    * iso9660->logical_block_size
+				    + toi(data + 8, 4);
+				file->ce_size = toi(data + 16, 4);
+				break;
+			}
+			/* FALLTHROUGH */
 		case 'N':
 			if (p[0] == 'N' && p[1] == 'M' && version == 1
 				&& *data == 0) {
@@ -691,7 +712,7 @@ parse_rockridge(struct iso9660 *iso9660,
 			}
 			/* FALLTHROUGH */
 		default:
-			/* The fall throughs above leave us here for
+			/* The FALLTHROUGHs above leave us here for
 			 * any unsupported extension. */
 			{
 				const unsigned char *t;
@@ -727,6 +748,77 @@ release_file(struct iso9660 *iso9660, struct file_info *file)
 	}
 }
 
+static int
+next_entry_seek(struct archive *a, struct iso9660 *iso9660,
+    struct file_info **pfile)
+{
+	struct file_info *file;
+	uint64_t offset;
+
+	*pfile = NULL;
+	for (;;) {
+		*pfile = file = next_entry(iso9660);
+		if (file == NULL)
+			return (ARCHIVE_EOF);
+
+		/* CE area precedes actual file data? Ignore it. */
+		if (file->ce_offset > file->offset) {
+fprintf(stderr, " *** Discarding CE data.\n");
+			file->ce_offset = 0;
+			file->ce_size = 0;
+		}
+
+		/* If CE exists, find and read it now. */
+		if (file->ce_offset > 0)
+			offset = file->ce_offset;
+		else
+			offset = file->offset;
+
+		/* Seek forward to the start of the entry. */
+		while (iso9660->current_position < offset) {
+			ssize_t step = offset - iso9660->current_position;
+			ssize_t bytes_read;
+			const void *buff;
+
+			if (step > iso9660->logical_block_size)
+				step = iso9660->logical_block_size;
+			bytes_read = (a->compression_read_ahead)(a, &buff, step);
+			if (bytes_read <= 0) {
+				release_file(iso9660, file);
+				return (ARCHIVE_FATAL);
+			}
+			if (bytes_read > step)
+				bytes_read = step;
+			iso9660->current_position += bytes_read;
+			(a->compression_read_consume)(a, bytes_read);
+		}
+
+		/* We found body of file; handle it now. */
+		if (offset == file->offset)
+			return (ARCHIVE_OK);
+
+		/* Found CE?  Process it and push the file back onto list. */
+		if (offset == file->ce_offset) {
+			const void *p;
+			ssize_t size = file->ce_size;
+			ssize_t bytes_read;
+			const unsigned char *rr_start;
+
+			file->ce_offset = 0;
+			file->ce_size = 0;
+			bytes_read = (a->compression_read_ahead)(a, &p, size);
+			if (bytes_read > size)
+				bytes_read = size;
+			rr_start = (const unsigned char *)p;
+			parse_rockridge(iso9660, file, rr_start,
+			    rr_start + bytes_read);
+			(a->compression_read_consume)(a, bytes_read);
+			iso9660->current_position += bytes_read;
+			add_entry(iso9660, file);
+		}
+	}
+}
+
 static struct file_info *
 next_entry(struct iso9660 *iso9660)
 {
@@ -748,6 +840,10 @@ next_entry(struct iso9660 *iso9660)
 		/* Use the position of the file *end* as our comparison. */
 		uint64_t end_offset = iso9660->pending_files[i]->offset
 		    + iso9660->pending_files[i]->size;
+		if (iso9660->pending_files[i]->ce_offset > 0
+		    && iso9660->pending_files[i]->ce_offset < iso9660->pending_files[i]->offset)
+			end_offset = iso9660->pending_files[i]->ce_offset
+		    + iso9660->pending_files[i]->ce_size;
 		if (least_end_offset > end_offset) {
 			least_index = i;
 			least_end_offset = end_offset;
