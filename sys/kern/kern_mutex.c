@@ -81,7 +81,7 @@ int witness_watch;
 typedef struct witness {
 	struct witness	*w_next;
 	char		*w_description;
-	char		*w_file;
+	const char	*w_file;
 	int		 w_line;
 	struct witness	*w_morechildren;
 	u_char		 w_childcnt;
@@ -393,7 +393,7 @@ witness_exit(mtx_t *m, int flags, char *file, int line)
 }
 
 void
-witness_try_enter(mtx_t *m, int flags, char *file, int line)
+witness_try_enter(mtx_t *m, int flags, const char *file, int line)
 {
 	struct proc *p;
 	witness_t *w = m->mtx_witness;
@@ -783,14 +783,14 @@ witness_list(struct proc *p)
 }
 
 void
-witness_save(mtx_t *m, char **filep, int *linep)
+witness_save(mtx_t *m, const char **filep, int *linep)
 {
 	*filep = m->mtx_witness->w_file;
 	*linep = m->mtx_witness->w_line;
 }
 
 void
-witness_restore(mtx_t *m, char *file, int line)
+witness_restore(mtx_t *m, const char *file, int line)
 {
 	m->mtx_witness->w_file = file;
 	m->mtx_witness->w_line = line;
