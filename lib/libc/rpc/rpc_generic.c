@@ -52,6 +52,7 @@
 #include <arpa/inet.h>
 #include <rpc/rpc.h>
 #include <ctype.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <netdb.h>
 #include <netconfig.h>
@@ -621,8 +622,10 @@ __rpc_taddr2uaddr_af(int af, const struct netbuf *nbuf)
 #endif
 	case AF_LOCAL:
 		sun = nbuf->buf;
-		sun->sun_path[sizeof(sun->sun_path) - 1] = '\0'; /* safety */
-		ret = strdup(sun->sun_path);
+		if (asprintf(&ret, "%.*s", (int)(sun->sun_len -
+		    offsetof(struct sockaddr_un, sun_path)),
+		    sun->sun_path) < 0)
+			return (NULL);
 		break;
 	default:
 		return NULL;
