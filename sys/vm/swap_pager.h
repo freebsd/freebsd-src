@@ -48,6 +48,24 @@
 #define	_VM_SWAP_PAGER_H_ 1
 
 /*
+ * Swap device table
+ */
+struct swdevt {
+	udev_t	sw_dev;			/* For quasibogus swapdev reporting */
+	int	sw_flags;
+	int	sw_nblks;
+	int     sw_used;
+	struct	vnode *sw_vp;
+	dev_t	sw_device;
+};
+#define	SW_FREED	0x01
+#define	SW_SEQUENTIAL	0x02
+#define	SW_CLOSING	0x04
+#define	sw_freed	sw_flags	/* XXX compat */
+
+#ifdef _KERNEL
+
+/*
  * SWB_NPAGES must be a power of 2.  It may be set to 1, 2, 4, 8, or 16
  * pages per allocation.  We recommend you stick with the default of 8.
  * The 16-page limit is due to the radix code (kern/subr_blist.c).
@@ -78,7 +96,6 @@ struct swblock {
 	daddr_t		swb_pages[SWAP_META_PAGES];
 };
 
-#ifdef _KERNEL
 extern struct pagerlst swap_pager_un_object_list;
 extern int swap_pager_full;
 extern struct blist *swapblist;
