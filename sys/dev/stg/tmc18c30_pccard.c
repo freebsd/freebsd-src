@@ -138,12 +138,17 @@ static int
 stg_alloc_resource(DEVPORT_PDEVICE dev)
 {
 	struct stg_softc	*sc = device_get_softc(dev);
-	u_long			maddr, msize;
+	u_long			ioaddr, iosize, maddr, msize;
 	int			error;
+
+	error = bus_get_resource(dev, SYS_RES_IOPORT, 0, &ioaddr, &iosize);
+	if (error || iosize < STGIOSZ) {
+		return(ENOMEM);
+	}
 
 	sc->port_rid = 0;
 	sc->port_res = bus_alloc_resource(dev, SYS_RES_IOPORT, &sc->port_rid,
-					  0, ~0, STGIOSZ, RF_ACTIVE);
+					  0, ~0, 0, RF_ACTIVE);
 	if (sc->port_res == NULL) {
 		stg_release_resource(dev);
 		return(ENOMEM);
