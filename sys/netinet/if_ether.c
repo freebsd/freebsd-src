@@ -530,7 +530,7 @@ arpintr(struct mbuf *m)
 		return;
 	}
 
-	if (m->m_pkthdr.len < arphdr_len(ar)) {
+	if (m->m_len < arphdr_len(ar)) {
 		if ((m = m_pullup(m, arphdr_len(ar))) == NULL) {
 			log(LOG_ERR, "arp: runt packet\n");
 			m_freem(m);
