@@ -1671,8 +1671,18 @@ cpu	EV4</programlisting>
       <para>Early machines had Fast SCSI interfaces, later ones are Ultra 
       SCSI capable. AS500 shares its single SCSI bus with internal and external 
       devices. For a Fast SCSI bus you are limited to 1.8 meters bus 
-      length external to the box. +++ This is what some DEC docs suggest. 
-      Did they ever go UltraSCSI?</para>
+      length external to the box. The AS500 Qlogic ISP1020A chip can be set
+      to run in Ultra mode by setting a SRM variable. &os; however follows
+      the Qlogic chip errata and limits the bus speed to Fast.</para>
+
+      <para>Beware of ancient SRM versions on AS500. When you see weird
+      SCSI speeds being reported by &os; like</para>
+
+      <programlisting>cd0 at isp0 bus 0 target 4 lun 0
+cd0: &lt;DEC RRD45   DEC 0436&gt; Removable CD-ROM SCSI-2 device
+cd0: 250.000MB/s transfers (250.000MHz, offset 12)</programlisting>
+
+      <para> it is time to do a SRM console firmware upgrade.</para>
   
       <para>AS600 has one Qlogic SCSI chip dedicated to the internal devices 
       whereas the other Qlogic SCSI chip is dedicated to external SCSI devices.
