@@ -1,5 +1,5 @@
 /*	$NetBSD: if_de.c,v 1.56 1997/10/20 14:32:46 matt Exp $	*/
-/*	$Id: if_de.c,v 1.73 1997/10/25 14:32:15 phk Exp $ */
+/*	$Id: if_de.c,v 1.74 1997/11/08 14:46:53 peter Exp $ */
 
 /*-
  * Copyright (c) 1994-1997 Matt Thomas (matt@3am-software.com)
@@ -64,7 +64,9 @@
 #include <net/if_media.h>
 #endif
 #include <net/if_dl.h>
+#ifdef TULIP_USE_SOFTINTR
 #include <net/netisr.h>
+#endif
 
 #if defined(__bsdi__) && _BSDI_VERSION >= 199701
 #include <dev/mii/mii.h>
@@ -4897,7 +4899,7 @@ tulip_pci_probe(
 static void  tulip_pci_attach(TULIP_PCI_ATTACH_ARGS);
 static u_long tulip_pci_count;
 
-struct pci_device dedevice = {
+static struct pci_device dedevice = {
     "de",
     tulip_pci_probe,
     tulip_pci_attach,
