@@ -31,6 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)misc-proto.h	8.1 (Berkeley) 6/4/93
+ * $FreeBSD$
  */
 
 /*
@@ -76,4 +77,5 @@ void net_encrypt P((void));
 int telnet_spin P((void));
 char *telnet_getenv P((char *));
 char *telnet_gets P((char *, char *, int, int));
+void printsub P((int, unsigned char *, int));
 #endif

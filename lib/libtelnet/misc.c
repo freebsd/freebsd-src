@@ -32,7 +32,12 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)misc.c	8.1 (Berkeley) 6/4/93";
+#if 0
+static const char sccsid[] = "@(#)misc.c	8.1 (Berkeley) 6/4/93";
+#else
+static const char rcsid[] =
+ "$FreeBSD$";
+#endif
 #endif /* not lint */
 
 #include <stdio.h>
@@ -53,9 +58,6 @@ auth_encrypt_init(local, remote, name, server)
 {
 	RemoteHostName = remote;
 	LocalHostName = local;
-#if	defined(AUTHENTICATION)
-	auth_init(name, server);
-#endif
 	if (UserNameRequested) {
 		free(UserNameRequested);
 		UserNameRequested = 0;
