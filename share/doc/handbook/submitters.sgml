@@ -1,4 +1,4 @@
-<!-- $Id: submitters.sgml,v 1.49 1997/04/14 13:20:21 jkh Exp $ -->
+<!-- $Id: submitters.sgml,v 1.50 1997/04/16 17:55:22 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>Contributing to FreeBSD<label id="submitters"></heading>
@@ -538,7 +538,7 @@ like to publically thank them here!
 	<item><htmlurl url="http://www.epilogue.com/" name="Epilogue
         Technology Corporation">
 
-	<item><htmlurl url="mailto:sef@freebsd.org" name="Sean Eric Fagan">
+	<item>Sean Eric Fagan
 
 	<item><htmlurl url="mailto:gmarco@masternet.it"
 	name="Gianmarco Giovannelli">
