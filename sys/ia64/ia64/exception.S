@@ -608,8 +608,7 @@ END(exception_restore)
 ivt_##name:
 
 #define	IVT_END(name)				\
-	.endp	ivt_##name;			\
-	.align	0x100
+	.endp	ivt_##name
 
 /*
  * The IA64 Interrupt Vector Table (IVT) contains 20 slots with 64
