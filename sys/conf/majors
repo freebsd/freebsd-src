@@ -185,6 +185,7 @@ chrdev	name		comments
 167	ufm		USB Fm Radio
 168	sab		Siemens SAB82532 serial chip <jake>
 169	ofwd		OpenFirmware disk <benno>
+170	pst		Promise SuperTrak
 200	??		entries from 200-252 are reserved for local use
 252	??		entries from 200-252 are reserved for local use
 254	internal	Used internally by the kernel
