@@ -363,7 +363,9 @@ curses.h:	curses.h.in
 	    -e "s%@cf_cv_typeof_chtype@%${TYPEOF_CHTYPE}%g" \
 	    -e "s%@cf_cv_widec_shift@%${WIDEC_SHIFT}%g" \
 	    -e "s%@cf_cv_shift_limit@%${SHIFT_LIMIT}%g" \
-	    -e "s%@cf_cv_1UL@%${ONEUL}%g"
+	    -e "s%@cf_cv_1UL@%${ONEUL}%g" \
+	    -e "s/ _WCHAR_T/ _BSD_WCHAR_T_/g" \
+	    -e "s/ _WINT_T/ _BSD_WINT_T_/g"
 
 unctrl.h:	unctrl.h.in
 	sed <${NCURSES}/include/$@.in >$@ \
