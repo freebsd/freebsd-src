@@ -146,12 +146,12 @@ exit1(struct thread *td, int rv)
 		 * With this state set:
 		 * Any thread entering the kernel from userspace will
 		 * thread_exit() in trap().  Any thread attempting to
-		 * sleep will return immediatly
-		 * with EINTR or EWOULDBLOCK, which will hopefully force them
-		 * to back out to userland, freeing resources as they go, and
-		 * anything attempting to return to userland will thread_exit()
-		 * from userret().  thread_exit() will unsuspend us
-		 * when the last other thread exits.
+		 * sleep will return immediatly with EINTR or EWOULDBLOCK,
+		 * which will hopefully force them to back out to userland,
+		 * freeing resources as they go, and anything attempting
+		 * to return to userland will thread_exit() from userret().
+		 * thread_exit() will unsuspend us when the last other
+		 * thread exits.
 		 */
 		if (thread_single(SINGLE_EXIT))
 			panic ("Exit: Single threading fouled up");
@@ -164,16 +164,6 @@ exit1(struct thread *td, int rv)
 		p->p_flag &= ~P_SA;
 		thread_single_end();	/* Don't need this any more. */
 	}
-	/*
-	 * With this state set:
-	 * Any thread entering the kernel from userspace will thread_exit()
-	 * in trap().  Any thread attempting to sleep will return immediatly
-	 * with EINTR or EWOULDBLOCK, which will hopefully force them
-	 * to back out to userland, freeing resources as they go, and
-	 * anything attempting to return to userland will thread_exit()
-	 * from userret().  thread_exit() will do a wakeup on p->p_numthreads
-	 * if it transitions to 1.
-	 */
 
 	p->p_flag |= P_WEXIT;
 	PROC_UNLOCK(p);
