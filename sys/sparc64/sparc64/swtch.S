@@ -27,6 +27,7 @@
  */
 
 #include <machine/asmacros.h>
+#include <machine/asi.h>
 
 #include "assym.s"
 
@@ -70,32 +71,109 @@
 	.endm
 
 ENTRY(cpu_switch)
+	/*
+	 * Choose a new process.  If its the same as the current one, do
+	 * nothing.
+	 */
 	save	%sp, -CCFSZ, %sp
 	call	chooseproc
 	 ldx	[PCPU(CURPROC)], %l0
 	cmp	%l0, %o0
 	be,pn	%xcc, 3f
-	 ldx	[%l0 + P_FRAME], %l2
-	ldx	[%l2 + TF_TSTATE], %l2
-	andcc	%l2, TSTATE_PEF, %l2
+	 EMPTY
+
+	/*
+	 * If the process was using floating point, save its context.
+	 */
+	 ldx	[%l0 + P_FRAME], %l1
+	ldx	[%l1 + TF_TSTATE], %l1
+	andcc	%l1, TSTATE_PEF, %l1
 	be,pt	%xcc, 1f
-	 ldx	[PCPU(CURPCB)], %l1
-	savefp	%l1 + PCB_FPSTATE, %l3
+	 ldx	[PCPU(CURPCB)], %l2
+	savefp	%l2 + PCB_FPSTATE, %l3
+
+	/*
+	 * Flush the windows out to the stack and save the current frame
+	 * pointer and program counter.
+	 */
 1:	flushw
 	wrpr	%g0, 0, %cleanwin
-	stx	%fp, [%l1 + PCB_FP]
-	stx	%i7, [%l1 + PCB_PC]
+	stx	%fp, [%l2 + PCB_FP]
+	stx	%i7, [%l2 + PCB_PC]
+
+	/*
+	 * Load the new process's frame pointer and program counter, and set
+	 * the current process and pcb.
+	 */
 	ldx	[%o0 + P_ADDR], %o1
 	ldx	[%o1 + U_PCB + PCB_FP], %fp
 	ldx	[%o1 + U_PCB + PCB_PC], %i7
-	ldx	[%o0 + P_FRAME], %l2
-	ldx	[%l2 + TF_TSTATE], %l2
-	andcc	%l2, TSTATE_PEF, %l2
+	sub	%fp, CCFSZ, %sp
+	stx	%o0, [PCPU(CURPROC)]
+	stx	%o1, [PCPU(CURPCB)]
+
+	/*
+	 * Point to the new process's vmspace and load its vm context number.
+	 * If its nucleus context we are done.
+	 */
+	ldx	[%o0 + P_VMSPACE], %o2
+	lduw	[%o2 + VM_PMAP + PM_CONTEXT], %o3
+	brz,pn	%o3, 3f
+	 EMPTY
+
+	/*
+	 * If the new process was using floating point, restore its context.
+	 */
+	 ldx	[%o0 + P_FRAME], %o4
+	ldx	[%o4 + TF_TSTATE], %o4
+	andcc	%o4, TSTATE_PEF, %o4
 	be,pt	%xcc, 2f
-	 stx	%o0, [PCPU(CURPROC)]
-	restrfp	%o1 + U_PCB + PCB_FPSTATE, %l4
-2:	stx	%o1, [PCPU(CURPCB)]
-	sub     %fp, CCFSZ, %sp
+	 nop
+	restrfp	%o1 + U_PCB + PCB_FPSTATE, %o4
+
+	/*
+	 * Point to the current process's vmspace and load the hardware
+	 * context number.  If its the same as the new process, we are
+	 * done.
+	 */
+	ldx	[%l0 + P_VMSPACE], %l1
+	lduw	[%l1 + VM_PMAP + PM_CONTEXT], %l3
+	cmp	%l3, %o3
+	be,pn	%xcc, 3f
+	 EMPTY
+
+	/*
+	 * Install the new primary context.
+	 */
+2:	mov	AA_DMMU_PCXR, %o1
+	stxa	%o3, [%o1] ASI_DMMU
+	flush	%o0
+
+	/*
+	 * Map the primary user tsb.
+	 */
+	setx	TSB_USER_MIN_ADDRESS, %o1, %o0
+	mov	AA_DMMU_TAR, %o1
+	stxa	%o0, [%o1] ASI_DMMU
+	mov	TLB_DAR_TSB_USER_PRIMARY, %o1
+	ldx	[%o2 + VM_PMAP + PM_STTE + TTE_DATA], %o3
+	stxa	%o3, [%o1] ASI_DTLB_DATA_ACCESS_REG
+	membar	#Sync
+
+	/*
+	 * If the primary tsb page hasn't been initialized, initialize it
+	 * and update the bit in the tte.
+	 */
+	andcc	%o3, TD_INIT, %g0
+	bnz	%xcc, 3f
+	 or	%o3, TD_INIT, %o3
+	stx	%o3, [%o2 + VM_PMAP + PM_STTE + TTE_DATA]
+	call	tsb_page_init
+	 clr	%o1
+
+	/*
+	 * Done.  Return and load the new process's window from the stack.
+	 */
 3:	ret
 	 restore
 END(cpu_switch)
