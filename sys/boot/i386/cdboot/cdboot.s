@@ -103,9 +103,6 @@ start:		cld				# string ops inc
 		mov %ax,%ds			# setup the
 		mov %ax,%es			#  data segments
 		mov %dl,drive			# Save BIOS boot device
-		mov $0xe3,%al
-		xor %dx,%dx
-		int $0x14			# Init COM1 9600,n,8,1
 		mov $msg_welcome,%si		# %ds:(%si) -> welcome message
 		call putstr			# display the welcome message
 #
@@ -140,8 +137,7 @@ load_vd:	push %eax			# Save %eax
 		jne load_vd			# No, read next
 		mov $msg_novd,%si		# No VD
 		jmp error			# Halt
-have_vd:	mov $msg_vd,%si			# Have Primary VD
-		call putstr
+have_vd:					# Have Primary VD
 #
 # Lookup the loader binary.
 #
@@ -387,7 +383,7 @@ read:		push %si			# Save
 		mov %ebx,%eax			# Convert address
 		shr $4,%eax			#  to segment
 		mov %ax,edd_addr+0x2		#  and store
-read.retry:	#call twiddle			# Entertain the user
+read.retry:	call twiddle			# Entertain the user
 		push %dx			# Save
 		mov $edd_packet,%si		# Address Packet
 		mov %dh,edd_len			# Set length
@@ -429,14 +425,7 @@ putstr.putc:	call putc			# output char
 #
 # Display a single char.
 #
-putc:		push %ax
-		push %dx
-		mov $0x1,%ah
-		xor %dx,%dx
-		int $0x14
-		pop %dx
-		pop %ax
-		mov $0x7,%bx			# attribute for output
+putc:		mov $0x7,%bx			# attribute for output
 		mov $0xe,%ah			# BIOS: put_char
 		int $0x10			# call BIOS, print char in %al
 		ret				# Return to caller
@@ -553,7 +542,6 @@ msg_relocate:	.asciz	"Relocating the loader and the BTX\r\n"
 msg_jump:	.asciz	"Starting the BTX loader\r\n"
 msg_badread:	.ascii  "Read Error: 0x"
 hex_error:	.ascii	"00\r\n"
-msg_vd:		.asciz  "Read Volume Descriptor\r\n"
 msg_novd:	.asciz  "Could not find Primary Volume Descriptor\r\n"
 msg_lookup:	.asciz  "Looking up "
 msg_lookup2:	.asciz  "... "
