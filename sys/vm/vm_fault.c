@@ -66,7 +66,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_fault.c,v 1.46 1996/05/26 05:30:33 dyson Exp $
+ * $Id: vm_fault.c,v 1.47 1996/05/31 00:37:56 dyson Exp $
  */
 
 /*
@@ -335,7 +335,8 @@ readrest:
 				behind = 0;
 			}
 
-			if (first_object->behavior == OBJ_SEQUENTIAL) {
+			if ((first_object->type != OBJT_DEVICE) &&
+				(first_object->behavior == OBJ_SEQUENTIAL)) {
 				vm_pindex_t firstpindex, tmppindex;
 				if (first_pindex <
 					2*(VM_FAULT_READ_BEHIND + VM_FAULT_READ_AHEAD + 1))
@@ -351,7 +352,9 @@ readrest:
 					mt = vm_page_lookup( first_object, tmppindex);
 					if (mt == NULL || (mt->valid != VM_PAGE_BITS_ALL))
 						break;
-					if (mt->busy || (mt->flags & PG_BUSY) || mt->hold_count ||
+					if (mt->busy ||
+						(mt->flags & (PG_BUSY|PG_FICTITIOUS)) ||
+						mt->hold_count ||
 						mt->wire_count) 
 						continue;
 					if (mt->dirty == 0)
@@ -748,14 +751,14 @@ readrest:
 	}
 
 	UNLOCK_THINGS;
-
-	m->flags |= PG_MAPPED|PG_REFERENCED;
-	m->flags &= ~PG_ZERO;
 	m->valid = VM_PAGE_BITS_ALL;
+	m->flags &= ~PG_ZERO;
 
 	pmap_enter(map->pmap, vaddr, VM_PAGE_TO_PHYS(m), prot, wired);
 	if ((change_wiring == 0) && (wired == 0))
 		pmap_prefault(map->pmap, vaddr, entry, first_object);
+
+	m->flags |= PG_MAPPED|PG_REFERENCED;
 
 	/*
 	 * If the page is not wired down, then put it where the pageout daemon
