@@ -763,6 +763,26 @@ options 	_KPOSIX_VERSION=199309L
 
 
 #####################################################################
+# CLOCK OPTIONS
+
+# The granularity of operation is controlled by the kernel option HZ whose
+# default value (100) means a granularity of 10ms.  For an accurate simulation
+# of high data rates it might be necessary to reduce the timer granularity to
+# 1ms or less.  Consider, however, that some interfaces using programmed I/O
+# may require a considerable time to output packets.  So, reducing the
+# granularity too much might actually cause ticks to be missed thus reducing
+# the accuracy of operation.
+
+options 	HZ=100
+
+# Other clock options
+
+options 	CLK_CALIBRATION_LOOP
+options 	CLK_USE_I8254_CALIBRATION
+options 	CLK_USE_TSC_CALIBRATION
+
+
+#####################################################################
 # SCSI DEVICES
 
 # SCSI DEVICE CONFIGURATION
@@ -2544,9 +2564,6 @@ options 	NPX_DEBUG       # enable npx debugging (FPU/math emu)
 options 	AHC_DUMP_EEPROM
 options 	AHC_TMODE_ENABLE
 options 	CAM_DEBUG_DELAY
-options 	CLK_CALIBRATION_LOOP
-options 	CLK_USE_I8254_CALIBRATION
-options 	CLK_USE_TSC_CALIBRATION
 options 	CLUSTERDEBUG
 options 	COMPAT_LINUX
 options 	CPU_UPGRADE_HW_CACHE
