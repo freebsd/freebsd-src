@@ -2131,7 +2131,7 @@ alpha_fpstate_save(struct proc *p, int write)
 	critical_t s;
 
 	s = critical_enter();
-	if (p == PCPU_GET(fpcurproc)) {
+	if (p != NULL && p == PCPU_GET(fpcurproc)) {
 		/*
 		 * If curproc != fpcurproc, then we need to enable FEN 
 		 * so that we can dump the fp state.
