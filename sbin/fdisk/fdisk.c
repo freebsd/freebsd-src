@@ -390,11 +390,11 @@ struct dos_partition *partp = ((struct dos_partition *) &mboot.parts);
 
 	if (a_flag && which != -1)
 		active = which;
-	if (ok("Do you want to change the active partition?")) {
-		do
-			Decimal("active partition", active, tmp);
-		while(!ok("Are you happy with this choice"));
-	}
+	if (!ok("Do you want to change the active partition?"))
+		return;
+	do
+		Decimal("active partition", active, tmp);
+	while (!ok("Are you happy with this choice"));
 	for (i = 0; i < NDOSPART; i++)
 		partp[i].dp_flag = 0;
 	partp[active].dp_flag = ACTIVE;
@@ -429,6 +429,11 @@ unsigned char *c, *s, *h;
 int cy;
 int hd;
 
+	if (sec == 0) {
+		*s = *c = *h = 0;
+		return;
+	}
+
 	cy = sec / ( dos_cylsecs );
 	sec = sec - cy * ( dos_cylsecs );
 
@@ -456,7 +461,7 @@ struct stat 	st;
 	if ( !(st.st_mode & S_IFCHR) )
 		fprintf(stderr,"%s: Device %s is not character special\n",
 			name, disk);
-	if ((fd = open(disk, u_flag?O_RDWR:O_RDONLY)) == -1) {
+	if ((fd = open(disk, a_flag || u_flag ? O_RDWR : O_RDONLY)) == -1) {
 		fprintf(stderr,"%s: Can't open device %s\n", name, disk);
 		return -1;
 	}
