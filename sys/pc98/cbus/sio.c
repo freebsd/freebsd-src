@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.51 1998/02/02 07:59:05 kato Exp $
+ *	$Id: sio.c,v 1.52 1998/02/13 12:46:20 phk Exp $
  */
 
 #include "opt_comconsole.h"
@@ -1957,7 +1957,7 @@ recv_data=0;
 	int_ctl = inb(com->intr_ctl_port);
 	int_ctl_new = int_ctl;
 
-	while (TRUE) {
+	while (!com->gone) {
 #ifdef PC98
 status_read:;
 		if (IS_8251(com->pc98_if_type)) {
