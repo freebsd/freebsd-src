@@ -184,7 +184,7 @@ static void
 lp_identify(driver_t *driver, device_t parent)
 {
 
-	BUS_ADD_CHILD(parent, 0, "plip", 0);
+	BUS_ADD_CHILD(parent, 0, "plip", -1);
 }
 /*
  * lpprobe()

@@ -56,7 +56,7 @@ static void
 lpbb_identify(driver_t *driver, device_t parent)
 {
 
-	BUS_ADD_CHILD(parent, 0, "lpbb", 0);
+	BUS_ADD_CHILD(parent, 0, "lpbb", -1);
 }
 
 static int

@@ -137,7 +137,7 @@ static void
 ppi_identify(driver_t *driver, device_t parent)
 {
 
-	BUS_ADD_CHILD(parent, 0, "ppi", 0);
+	BUS_ADD_CHILD(parent, 0, "ppi", -1);
 }
 
 /*
