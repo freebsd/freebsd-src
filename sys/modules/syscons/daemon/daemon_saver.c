@@ -165,7 +165,7 @@ static void
 daemon_saver(int blank)
 {
 #ifndef DAEMON_ONLY
-	static const char message[] = {"FreeBSD 2.2 STABLE"};
+	static const char message[] = {"FreeBSD 3.0 CURRENT"};
 	static int txpos = 10, typos = 10;
 	static int txdir = -1, tydir = -1;
 #endif
@@ -249,6 +249,6 @@ daemon_saver_unload(struct lkm_table *lkmtp, int cmd)
 int
 daemon_saver_mod(struct lkm_table *lkmtp, int cmd, int ver)
 {
-	DISPATCH(lkmtp, cmd, ver, daemon_saver_load, daemon_saver_unload,
-		 lkm_nullcmd);
+	MOD_DISPATCH(daemon_saver, lkmtp, cmd, ver,
+		daemon_saver_load, daemon_saver_unload, lkm_nullcmd);
 }
