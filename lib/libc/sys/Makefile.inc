@@ -128,6 +128,7 @@ MLINKS+=pathconf.2 fpathconf.2
 MLINKS+=read.2 readv.2
 MLINKS+=recv.2 recvfrom.2 recv.2 recvmsg.2
 MLINKS+=send.2 sendmsg.2 send.2 sendto.2
+MLINKS+=setpgid.2 setpgrp.2
 MLINKS+=setuid.2 setegid.2 setuid.2 seteuid.2 setuid.2 setgid.2
 MLINKS+=stat.2 fstat.2 stat.2 lstat.2
 MLINKS+=statfs.2 fstatfs.2
