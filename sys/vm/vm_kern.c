@@ -206,6 +206,7 @@ kmem_alloc(map, size)
 			pmap_zero_page(mem);
 		mem->valid = VM_PAGE_BITS_ALL;
 		vm_page_lock_queues();
+		vm_page_unmanage(mem);
 		vm_page_wakeup(mem);
 		vm_page_unlock_queues();
 	}
