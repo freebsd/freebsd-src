@@ -96,7 +96,7 @@ int crunched_usage()
     int columns, len;
     struct stub *ep;
 
-    fprintf(stderr, "Usage: %s <prog> <args> ..., where <prog> is one of:\n",
+    fprintf(stderr, "usage: %s <prog> <args> ..., where <prog> is one of:\n",
 	    EXECNAME);
     columns = 0;
     for(ep=entry_points; ep->name != NULL; ep++) {

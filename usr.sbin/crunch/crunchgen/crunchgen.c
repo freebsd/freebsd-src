@@ -30,11 +30,12 @@
  * Generates a Makefile and main C file for a crunched executable,
  * from specs given in a .conf file.
  */
-#include <stdlib.h>
-#include <unistd.h>
-#include <stdio.h>
 #include <ctype.h>
+#include <err.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -81,8 +82,6 @@ char tempfname[MAXPATHLEN], cachename[MAXPATHLEN], curfilename[MAXPATHLEN];
 int linenum = -1;
 int goterror = 0;
 
-char *pname = "crunchgen";
-
 int verbose, readcache;	/* options */
 int reading_cache;
 
@@ -107,14 +106,10 @@ int main(int argc, char **argv)
 {
     char *p;
     int optc;
-    extern int optind;
-    extern char *optarg;
 
     verbose = 1;
     readcache = 1;
     *outmkname = *outcfname = *execfname = '\0';
-
-    if(argc > 0) pname = argv[0];
 
     while((optc = getopt(argc, argv, "lm:c:e:fq")) != -1) {
 	switch(optc) {
@@ -171,9 +166,9 @@ int main(int argc, char **argv)
 
 void usage(void)
 {
-    fprintf(stderr,
-	"%s [-fq] [-m <makefile>] [-c <c file>] [-e <exec file>] <conffile>\n",
-	    pname);
+    fprintf(stderr, "%s\n%s\n",
+		"usage: crunchgen [-fq] [-m <makefile>] [-c <c file>]",
+		"                 [-e <exec file>] <conffile>");
     exit(1);
 }
 
@@ -200,11 +195,8 @@ void add_prog(char *progname);
 
 void parse_conf_file(void)
 {
-    if(!is_nonempty_file(infilename)) {
-	fprintf(stderr, "%s: fatal: input file \"%s\" not found.\n",
-		pname, infilename);
-	exit(1);
-    }
+    if(!is_nonempty_file(infilename))
+		errx(1, "fatal: input file \"%s\" not found", infilename);
     parse_one_file(infilename);
     if(readcache && is_nonempty_file(cachename)) {
 	reading_cache = 1;
@@ -225,7 +217,7 @@ void parse_one_file(char *filename)
     strcpy(curfilename, filename);
 
     if((cf = fopen(curfilename, "r")) == NULL) {
-	perror(curfilename);
+	warn("%s", curfilename);
 	goterror = 1;
 	return;
     }
@@ -241,14 +233,13 @@ void parse_one_file(char *filename)
 	else if(!strcmp(fieldv[0], "libs"))	f = add_libs;
 	else if(!strcmp(fieldv[0], "special"))	f = add_special;
 	else {
-	    fprintf(stderr, "%s:%d: skipping unknown command `%s'.\n",
+	    warnx("%s:%d: skipping unknown command `%s'",
 		    curfilename, linenum, fieldv[0]);
 	    goterror = 1;
 	    continue;
 	}
 	if(fieldc < 2) {
-	    fprintf(stderr,
-		    "%s:%d: %s command needs at least 1 argument, skipping.\n",
+	    warnx("%s:%d: %s command needs at least 1 argument, skipping",
 		    curfilename, linenum, fieldv[0]);
 	    goterror = 1;
 	    continue;
@@ -257,7 +248,7 @@ void parse_one_file(char *filename)
     }
 
     if(ferror(cf)) {
-	perror(curfilename);
+	warn("%s", curfilename);
 	goterror = 1;
     }
     fclose(cf);
@@ -291,7 +282,7 @@ void add_srcdirs(int argc, char **argv)
 	if(is_dir(argv[i]))
 	    add_string(&srcdirs, argv[i]);
 	else {
-	    fprintf(stderr, "%s:%d: `%s' is not a directory, skipping it.\n",
+	    warnx("%s:%d: `%s' is not a directory, skipping it",
 		    curfilename, linenum, argv[i]);
 	    goterror = 1;
 	}
@@ -343,8 +334,7 @@ void add_link(int argc, char **argv)
     prog_t *p = find_prog(argv[1]);
 
     if(p == NULL) {
-	fprintf(stderr,
-		"%s:%d: no prog %s previously declared, skipping link.\n",
+	warnx("%s:%d: no prog %s previously declared, skipping link",
 		curfilename, linenum, argv[1]);
 	goterror = 1;
 	return;
@@ -373,8 +363,7 @@ void add_special(int argc, char **argv)
 
     if(p == NULL) {
 	if(reading_cache) return;
-	fprintf(stderr,
-		"%s:%d: no prog %s previously declared, skipping special.\n",
+	warnx("%s:%d: no prog %s previously declared, skipping special",
 		curfilename, linenum, argv[1]);
 	goterror = 1;
 	return;
@@ -406,7 +395,7 @@ void add_special(int argc, char **argv)
 	    add_string(&p->objpaths, argv[i]);
     }
     else {
-	fprintf(stderr, "%s:%d: bad parameter name `%s', skipping line.\n",
+	warnx("%s:%d: bad parameter name `%s', skipping line",
 		curfilename, linenum, argv[2]);
 	goterror = 1;
     }
@@ -414,8 +403,7 @@ void add_special(int argc, char **argv)
 
 
  argcount:
-    fprintf(stderr,
-	    "%s:%d: too %s arguments, expected \"special %s %s <string>\".\n",
+    warnx("%s:%d: too %s arguments, expected \"special %s %s <string>\"",
 	    curfilename, linenum, argc < 4? "few" : "many", argv[1], argv[2]);
     goterror = 1;
 }
@@ -518,15 +506,14 @@ void fillin_program(prog_t *p)
 	}
 
     if(!p->srcdir && verbose)
-	fprintf(stderr, "%s: %s: warning: could not find source directory.\n",
+	warnx("%s: %s: warning: could not find source directory",
 		infilename, p->name);
     if(!p->objs && verbose)
-	fprintf(stderr, "%s: %s: warning: could not find any .o files.\n",
+	warnx("%s: %s: warning: could not find any .o files",
 		infilename, p->name);
 
     if(!p->objpaths) {
-	fprintf(stderr,
-		"%s: %s: error: no objpaths specified or calculated.\n",
+	warnx("%s: %s: error: no objpaths specified or calculated",
 		infilename, p->name);
 	p->goterror = goterror = 1;
     }
@@ -541,7 +528,7 @@ void fillin_program_objs(prog_t *p, char *path)
     /* discover the objs from the srcdir Makefile */
 
     if((f = fopen(tempfname, "w")) == NULL) {
-	perror(tempfname);
+	warn("%s", tempfname);
 	goterror = 1;
 	return;
     }
@@ -555,14 +542,14 @@ void fillin_program_objs(prog_t *p, char *path)
 
     sprintf(line, "make -f %s crunchgen_objs 2>&1", tempfname);
     if((f = popen(line, "r")) == NULL) {
-	perror("submake pipe");
+	warn("submake pipe");
 	goterror = 1;
 	return;
     }
 
     while(fgets(line, MAXLINELEN, f)) {
 	if(strncmp(line, "OBJS= ", 6)) {
-	    fprintf(stderr, "make error: %s", line);
+	    warnx("make error: %s", line);
 	    goterror = 1;
 	    continue;
 	}
@@ -577,7 +564,7 @@ void fillin_program_objs(prog_t *p, char *path)
 	}
     }
     if((rc=pclose(f)) != 0) {
-	fprintf(stderr, "make error: make returned %d\n", rc);
+	warnx("make error: make returned %d", rc);
 	goterror = 1;
     }
     unlink(tempfname);
@@ -593,7 +580,7 @@ void remove_error_progs(void)
 	    p1 = p2, p2 = p2->next;
 	else {
 	    /* delete it from linked list */
-	    fprintf(stderr, "%s: %s: ignoring program because of errors.\n",
+	    warnx("%s: %s: ignoring program because of errors",
 		    infilename, p2->name);
 	    if(p1) p1->next = p2->next;
 	    else progs = p2->next;
@@ -611,7 +598,7 @@ void gen_specials_cache(void)
     status(line);
 
     if((cachef = fopen(cachename, "w")) == NULL) {
-	perror(cachename);
+	warn("%s", cachename);
 	goterror = 1;
 	return;
     }
@@ -645,7 +632,7 @@ void gen_output_makefile(void)
     status(line);
 
     if((outmk = fopen(outmkname, "w")) == NULL) {
-	perror(outmkname);
+	warn("%s", outmkname);
 	goterror = 1;
 	return;
     }
@@ -675,7 +662,7 @@ void gen_output_cfile(void)
     status(line);
 
     if((outcf = fopen(outcfname, "w")) == NULL) {
-	perror(outcfname);
+	warn("%s", outcfname);
 	goterror = 1;
 	return;
     }
@@ -834,8 +821,7 @@ void status(char *str)
 
 void out_of_memory(void)
 {
-    fprintf(stderr, "%s: %d: out of memory, stopping.\n", infilename, linenum);
-    exit(1);
+    errx(1, "%s: %d: out of memory, stopping", infilename, linenum);
 }
 
 
