@@ -505,6 +505,21 @@ struct	mbuf	*m_split(struct mbuf *, int, int);
  *	struct m_tag *mtag = &p->tag;
  */
 
+/*
+ * Persistent tags stay with an mbuf until the mbuf is reclaimed.
+ * Otherwise tags are expected to ``vanish'' when they pass through
+ * a network interface.  For most interfaces this happens normally
+ * as the tags are reclaimed when the mbuf is free'd.  However in
+ * some special cases reclaiming must be done manually.  An example
+ * is packets that pass through the loopback interface.  Also, one
+ * must be careful to do this when ``turning around'' packets (e.g.
+ * icmp_reflect).
+ *
+ * To mark a tag persistent bit-or this flag in when defining the
+ * tag id.  The tag will then be treated as described above.
+ */
+#define	MTAG_PERSISTENT				0x800
+
 #define	PACKET_TAG_NONE				0  /* Nadda */
 
 /* Packet tag for use with PACKET_ABI_COMPAT */
@@ -542,7 +557,7 @@ struct	mbuf	*m_split(struct mbuf *, int, int);
 #define	PACKET_TAG_IPFW				16 /* ipfw classification */
 #define	PACKET_TAG_DIVERT			17 /* divert info */
 #define	PACKET_TAG_IPFORWARD			18 /* ipforward info */
-#define	PACKET_TAG_MACLABEL			19 /* MAC label */
+#define	PACKET_TAG_MACLABEL	(19 | MTAG_PERSISTENT) /* MAC label */
 
 /* Packet tag routines */
 struct	m_tag 	*m_tag_alloc(u_int32_t, int, int, int);
@@ -557,6 +572,7 @@ int		 m_tag_copy_chain(struct mbuf *, struct mbuf *, int);
 void		 m_tag_init(struct mbuf *);
 struct	m_tag	*m_tag_first(struct mbuf *);
 struct	m_tag	*m_tag_next(struct mbuf *, struct m_tag *);
+void		 m_tag_delete_nonpersistent(struct mbuf *);
 
 /* these are for openbsd compatibility */
 #define	MTAG_ABI_COMPAT		0		/* compatibility ABI */
