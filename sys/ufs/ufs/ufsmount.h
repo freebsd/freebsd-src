@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufsmount.h	8.6 (Berkeley) 3/30/95
- * $Id: ufsmount.h,v 1.11 1997/10/16 10:50:27 phk Exp $
+ * $Id: ufsmount.h,v 1.12 1997/10/16 20:32:40 phk Exp $
  */
 
 #ifndef _UFS_UFS_UFSMOUNT_H_
@@ -77,12 +77,10 @@ struct ufsmount {
 	struct	vnode *um_devvp;		/* block device mounted vnode */
 
 	union {					/* pointer to superblock */
-		struct	lfs *lfs;		/* LFS */
 		struct	fs *fs;			/* FFS */
 		struct	ext2_sb_info *e2fs;	/* EXT2FS */
 	} ufsmount_u;
 #define	um_fs	ufsmount_u.fs
-#define	um_lfs	ufsmount_u.lfs
 #define	um_e2fs	ufsmount_u.e2fs
 #define um_e2fsb ufsmount_u.e2fs->s_es
 
