@@ -15,9 +15,6 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 3. The name of the author may not be used to endorse or promote
-.\"    products derived from this software without specific prior written
-.\"    permission.
 .\"
 .\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
 .\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -33,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 21, 2001
+.Dd January 14, 2003
 .Dt MAC_SET 3
 .Os
 .Sh NAME
@@ -46,7 +43,9 @@
 .Sh SYNOPSIS
 .In sys/mac.h
 .Ft int
-.Fn mac_set_file "const char *path_p" "mac_t label"
+.Fn mac_set_file "const char *path" "mac_t label"
+.Ft int
+.Fn mac_set_link "const char *path" "mac_t label"
 .Ft int
 .Fn mac_set_fd "int fd" "mac_t label"
 .Ft int
@@ -69,6 +68,11 @@ For information on
 setting MAC labels on socket descriptors see
 .Xr setsockopt 2 .
 The
+.Fn mac_set_link
+function is the same as
+.Fn mac_set_file ,
+except that it does not follow symlinks.
+The
 .Fn mac_set_proc
 function associates the MAC label
 specified by
@@ -81,23 +85,27 @@ and its effective user ID is equal to
 the owner of the file,
 or has appropriate privileges.
 .Sh RETURN VALUES
-.Rv -std mac_set_fd mac_set_file mac_set_proc
+.Rv -std mac_set_fd mac_set_file mac_set_link mac_set_proc
 .Sh ERRORS
 .Bl -tag -width Er
 .It Bq Er EACCES
 MAC write access to the file is denied.
 .It Bq Er EBADF
+The
 .Fa fd
+argument
 is not a valid file descriptor.
 .It Bq Er EINVAL
+The
 .Fa label
+argument
 is not a valid MAC label.
 .It Bq Er EOPNOTSUPP
 Setting MAC labels is not supported
 by the file referenced by
 .Fa fd .
 .It Bq Er EPERM
-The calling process had insufficient privelege
+The calling process had insufficient privilege
 to change the MAC label.
 .It Bq Er EROFS
 File system for the object being modified
@@ -121,8 +129,12 @@ referenced by
 .Fa path_p
 is not a directory.
 .El
-.Sh SEE_ALSO
+.Sh SEE ALSO
 .Xr mac 3 ,
 .Xr mac_free 3 ,
 .Xr mac_get 3 ,
-.Xr mac_text 3
+.Xr mac_is_present_np 3 ,
+.Xr mac_prepare 3 ,
+.Xr mac_text 3 ,
+.Xr mac 4 ,
+.Xr mac 9
