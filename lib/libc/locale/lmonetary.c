@@ -78,7 +78,7 @@ __monetary_load_locale(const char *name)
 	int ret;
 
 	ret = __part_load_locale(name, &_monetary_using_locale,
-		_monetary_locale_buf, "LC_MONETARY",
+		&_monetary_locale_buf, "LC_MONETARY",
 		LCMONETARY_SIZE, LCMONETARY_SIZE,
 		(const char **)&_monetary_locale);
 	if (ret != _LDP_ERROR)
