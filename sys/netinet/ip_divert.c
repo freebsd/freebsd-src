@@ -31,9 +31,13 @@
 
 #if !defined(KLD_MODULE)
 #include "opt_inet.h"
+#include "opt_ipfw.h"
 #include "opt_mac.h"
 #ifndef INET
 #error "IPDIVERT requires INET."
+#endif
+#ifndef IPFIREWALL
+#error "IPDIVERT requires IPFIREWALL"
 #endif
 #endif
 
