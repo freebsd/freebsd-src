@@ -347,6 +347,8 @@ chn_wrintr(pcm_channel *c)
 		DEB(printf("cannot start wr-dma flags 0x%08x rp %d rl %d\n",
 			   c->flags, b->rp, b->rl));
 		if (b->dl) { /* DMA was active */
+	    		chn_trigger(c, PCMTRIG_STOP);
+			b->dl = 0;
 			b->underflow = 1; /* set underflow flag */
 			chn_clearbuf(c, b->bufsize); /* and clear all DMA buffer */
 		}
