@@ -37,7 +37,6 @@ u_long tick_MHz;
 void
 cpu_initclocks(void)
 {
-	/* XXX */
 }
 
 void
@@ -51,18 +50,6 @@ DELAY(int n)
 	end = start + (u_long)n * tick_MHz;
 	while (rd(tick) < end)
 		;
-}
-
-void
-inittodr(time_t base)
-{
-	/* XXX */
-}
-
-void
-resettodr(void)
-{
-	TODO;
 }
 
 void
