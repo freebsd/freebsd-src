@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.c,v 1.32 1999/02/18 00:52:13 brian Exp $
+ *	$Id: datalink.c,v 1.33 1999/02/25 12:00:04 brian Exp $
  */
 
 #include <sys/param.h>
@@ -808,10 +808,10 @@ datalink_Clone(struct datalink *odl, const char *name)
     return NULL;
   }
   pap_Init(&dl->pap, dl->physical);
-  dl->pap.cfg.fsmretry = odl->pap.cfg.fsmretry;
+  dl->pap.cfg = odl->pap.cfg;
 
   chap_Init(&dl->chap, dl->physical);
-  dl->chap.auth.cfg.fsmretry = odl->chap.auth.cfg.fsmretry;
+  dl->chap.auth.cfg = odl->chap.auth.cfg;
 
   memcpy(&dl->physical->cfg, &odl->physical->cfg, sizeof dl->physical->cfg);
   memcpy(&dl->physical->link.lcp.cfg, &odl->physical->link.lcp.cfg,
@@ -1149,7 +1149,7 @@ iov2datalink(struct bundle *bundle, struct iovec *iov, int *niov, int maxiov,
              int fd)
 {
   struct datalink *dl, *cdl;
-  u_int retry;
+  struct fsm_retry copy;
   char *oname;
 
   dl = (struct datalink *)iov[(*niov)++].iov_base;
@@ -1214,13 +1214,13 @@ iov2datalink(struct bundle *bundle, struct iovec *iov, int *niov, int maxiov,
     free(dl);
     dl = NULL;
   } else {
-    retry = dl->pap.cfg.fsmretry;
+    copy = dl->pap.cfg.fsm;
     pap_Init(&dl->pap, dl->physical);
-    dl->pap.cfg.fsmretry = retry;
+    dl->pap.cfg.fsm = copy;
 
-    retry = dl->chap.auth.cfg.fsmretry;
+    copy = dl->chap.auth.cfg.fsm;
     chap_Init(&dl->chap, dl->physical);
-    dl->chap.auth.cfg.fsmretry = retry;
+    dl->chap.auth.cfg.fsm = copy;
 
     cbcp_Init(&dl->cbcp, dl->physical);
     chat_Init(&dl->chat, dl->physical, NULL, 1, NULL);

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.70 1999/02/02 20:27:12 brian Exp $
+ * $Id: ipcp.c,v 1.71 1999/02/06 02:54:45 brian Exp $
  *
  *	TODO:
  *		o More RFC1772 backward compatibility
@@ -96,7 +96,7 @@ static int IpcpLayerUp(struct fsm *);
 static void IpcpLayerDown(struct fsm *);
 static void IpcpLayerStart(struct fsm *);
 static void IpcpLayerFinish(struct fsm *);
-static void IpcpInitRestartCounter(struct fsm *);
+static void IpcpInitRestartCounter(struct fsm *, int);
 static void IpcpSendConfigReq(struct fsm *);
 static void IpcpSentTerminateReq(struct fsm *);
 static void IpcpSendTerminateAck(struct fsm *, u_char);
@@ -282,6 +282,10 @@ ipcp_Show(struct cmdargs const *arg)
   }
 
   prompt_Printf(arg->prompt, "\nDefaults:\n");
+  prompt_Printf(arg->prompt, " FSM retry = %us, max %u Config"
+                " REQ%s, %u Term REQ%s\n", ipcp->cfg.fsm.timeout,
+                ipcp->cfg.fsm.maxreq, ipcp->cfg.fsm.maxreq == 1 ? "" : "s",
+                ipcp->cfg.fsm.maxtrm, ipcp->cfg.fsm.maxtrm == 1 ? "" : "s");
   prompt_Printf(arg->prompt, " My Address:      %s/%d",
 	        inet_ntoa(ipcp->cfg.my_range.ipaddr), ipcp->cfg.my_range.width);
 
@@ -348,7 +352,7 @@ ipcp_Init(struct ipcp *ipcp, struct bundle *bundle, struct link *l,
   static const char *timer_names[] =
     {"IPCP restart", "IPCP openmode", "IPCP stopped"};
 
-  fsm_Init(&ipcp->fsm, "IPCP", PROTO_IPCP, 1, IPCP_MAXCODE, 10, LogIPCP,
+  fsm_Init(&ipcp->fsm, "IPCP", PROTO_IPCP, 1, IPCP_MAXCODE, LogIPCP,
            bundle, l, parent, &ipcp_Callbacks, timer_names);
 
   ipcp->route = NULL;
@@ -371,7 +375,9 @@ ipcp_Init(struct ipcp *ipcp, struct bundle *bundle, struct link *l,
   ipcp->cfg.ns.nbns[0].s_addr = INADDR_ANY;
   ipcp->cfg.ns.nbns[1].s_addr = INADDR_ANY;
 
-  ipcp->cfg.fsmretry = DEF_FSMRETRY;
+  ipcp->cfg.fsm.timeout = DEF_FSMRETRY;
+  ipcp->cfg.fsm.maxreq = DEF_FSMTRIES;
+  ipcp->cfg.fsm.maxtrm = DEF_FSMTRIES;
   ipcp->cfg.vj.neg = NEG_ENABLED|NEG_ACCEPTED;
 
   memset(&ipcp->vj, '\0', sizeof ipcp->vj);
@@ -394,7 +400,6 @@ ipcp_Setup(struct ipcp *ipcp, u_int32_t mask)
   int pos, n;
 
   ipcp->fsm.open_mode = 0;
-  ipcp->fsm.maxconfig = 10;
   ipcp->ifmask.s_addr = mask == INADDR_NONE ? ipcp->cfg.netmask.s_addr : mask;
 
   if (iplist_isvalid(&ipcp->cfg.peer_list)) {
@@ -571,13 +576,23 @@ ChooseHisAddr(struct bundle *bundle, struct in_addr gw)
 }
 
 static void
-IpcpInitRestartCounter(struct fsm * fp)
+IpcpInitRestartCounter(struct fsm *fp, int what)
 {
   /* Set fsm timer load */
   struct ipcp *ipcp = fsm2ipcp(fp);
 
-  fp->FsmTimer.load = ipcp->cfg.fsmretry * SECTICKS;
-  fp->restart = DEF_REQs;
+  fp->FsmTimer.load = ipcp->cfg.fsm.timeout * SECTICKS;
+  switch (what) {
+    case FSM_REQ_TIMER:
+      fp->restart = ipcp->cfg.fsm.maxreq;
+      break;
+    case FSM_TRM_TIMER:
+      fp->restart = ipcp->cfg.fsm.maxtrm;
+      break;
+    default:
+      fp->restart = 1;
+      break;
+  }
 }
 
 static void
@@ -628,7 +643,7 @@ IpcpSendConfigReq(struct fsm *fp)
 }
 
 static void
-IpcpSentTerminateReq(struct fsm * fp)
+IpcpSentTerminateReq(struct fsm *fp)
 {
   /* Term REQ just sent by FSM */
 }
@@ -649,8 +664,7 @@ IpcpLayerStart(struct fsm *fp)
   log_Printf(LogIPCP, "%s: LayerStart.\n", fp->link->name);
   throughput_start(&ipcp->throughput, "IPCP throughput",
                    Enabled(fp->bundle, OPT_THROUGHPUT));
-
-  /* This is where we should be setting up the interface in AUTO mode */
+  fp->more.reqs = fp->more.naks = fp->more.rejs = ipcp->cfg.fsm.maxreq * 3;
 }
 
 static void
@@ -765,7 +779,9 @@ IpcpLayerUp(struct fsm *fp)
       system_Select(fp->bundle, "MYADDR", LINKUPFILE, NULL, NULL);
   }
 
+  fp->more.reqs = fp->more.naks = fp->more.rejs = ipcp->cfg.fsm.maxreq * 3;
   log_DisplayPrompts();
+
   return 1;
 }
 

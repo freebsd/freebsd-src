@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.h,v 1.22 1998/10/26 19:07:39 brian Exp $
+ * $Id: ipcp.h,v 1.23 1999/01/28 01:56:32 brian Exp $
  *
  *	TODO:
  */
@@ -77,7 +77,7 @@ struct ipcp {
       struct in_addr nbns[2];		/* NetBIOS NS addresses offered */
     } ns;
 
-    u_int fsmretry;			/* FSM retry frequency */
+    struct fsm_retry fsm;	/* How often/frequently to resend requests */
   } cfg;
 
   struct {
