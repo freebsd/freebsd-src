@@ -88,8 +88,9 @@ Malloc(size_t bytes, const char *file, int line)
 #endif
     res->ga_Bytes = bytes;
 #ifdef USEENDGUARD
-    *((char *)res + bytes - 1) = -2;
+    *((signed char *)res + bytes - 1) = -2;
 #endif
+
     return((char *)res + MALLOCALIGN);
 }
 
@@ -113,13 +114,13 @@ Free(void *ptr, const char *file, int line)
 	res->ga_Magic = GAFREE;
 #endif
 #ifdef USEENDGUARD
-	if (*((char *)res + res->ga_Bytes - 1) == -1) {
+	if (*((signed char *)res + res->ga_Bytes - 1) == -1) {
 	    printf("free: duplicate2 free @ %p from %s:%d\n", ptr, file, line);
 	    return;
 	}
-	if (*((char *)res + res->ga_Bytes - 1) != -2)
+	if (*((signed char *)res + res->ga_Bytes - 1) != -2)
 	    panic("free: guard2 fail @ %p + %d from %s:%d", ptr, res->ga_Bytes - MALLOCALIGN, file, line);
-	*((char *)res + res->ga_Bytes - 1) = -1;
+	*((signed char *)res + res->ga_Bytes - 1) = -1;
 #endif
 
 	bytes = res->ga_Bytes;
