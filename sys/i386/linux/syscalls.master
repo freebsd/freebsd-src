@@ -2,7 +2,7 @@
 
 ;	@(#)syscalls.master	8.1 (Berkeley) 7/19/93
 ; System call name/number master file (or rather, slave, from LINUX).
-; Processed to created linux_sysent.c, linux_syscalls.c and linux_syscall.h.
+; Processed to create linux_sysent.c, linux_proto.h and linux_syscall.h.
 
 ; Columns: number type nargs namespc name alt{name,tag,rtyp}/comments
 ;	number	system call number, must be in order
@@ -27,7 +27,7 @@
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
 #include <i386/linux/linux.h>
-#include <i386/linux/linux_proto.h>
+#include <linux_proto.h>
 
 ; #ifdef's, etc. may be included, and are copied to the output files.
 
