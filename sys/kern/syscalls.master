@@ -546,3 +546,6 @@
 375	NOIMPL	BSD	{ int nfsclnt(int flag, caddr_t argp); }
 376	STD	BSD	{ int eaccess(char *path, int flags); }
 377	UNIMPL	BSD	afs_syscall
+378	STD	BSD	{ int nmount(struct iovec *iovp, unsigned int iovcnt, \
+			    int flags); }
+
