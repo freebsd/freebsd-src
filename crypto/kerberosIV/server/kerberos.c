@@ -5,6 +5,7 @@
  * For copying and distribution information, please see the file
  * <mit-copyright.h>.
  */
+/* $FreeBSD$ */
 
 #include "config.h"
 #include "protos.h"
@@ -73,7 +74,7 @@ RCSID("$Id: kerberos.c,v 1.87 1999/11/13 06:35:39 assar Exp $");
 #include <roken.h>
 #include <base64.h>
 
-#include <des.h>
+#include <openssl/des.h>
 #include <krb.h>
 #include <krb_db.h>
 #include <prot.h>

@@ -32,6 +32,7 @@
  */
 
 /* $Id: kadm_locl.h,v 1.12 1999/12/02 16:58:39 joda Exp $ */
+/* $FreeBSD$ */
 
 #include "config.h"
 #include "protos.h"
@@ -69,7 +70,7 @@ struct hostent  *gethostbyname(const char *);
 
 #include <roken.h>
 
-#include <des.h>
+#include <openssl/des.h>
 #include <krb.h>
 #include <krb_err.h>
 #include <krb_db.h>

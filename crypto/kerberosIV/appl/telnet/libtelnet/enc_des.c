@@ -30,6 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
+/* $FreeBSD$ */
 
 #include <config.h>
 
@@ -50,7 +51,7 @@ RCSID("$Id: enc_des.c,v 1.16 1998/07/09 23:16:23 assar Exp $");
 #include "encrypt.h"
 #include "misc-proto.h"
 
-#include <des.h>
+#include <openssl/des.h>
 
 extern int encrypt_debug_mode;
 
