@@ -27,7 +27,6 @@
  * $FreeBSD$
  */
 
-
 /*
  * Per-channel soft information structure, stored in the driver.  It's called
  * "sx_port" just because the si driver calls it "si_port."
@@ -38,16 +37,9 @@ struct sx_port {
 	int		sp_chan;	/* Channel number, for convenience.   */
 	struct tty	*sp_tty;
 	int		sp_state;
-	int		sp_active_out;	/* callout is open */
 	int		sp_delta_overflows;
-	u_int		sp_wopeners;	/* Processes waiting for DCD.         */
-	struct termios	sp_iin;		/* Initial state.                     */
-	struct termios	sp_iout;
-	struct termios	sp_lin;		/* Lock state.                        */
-	struct termios	sp_lout;
-#ifdef	SX_DEBUG
+	struct sx_softc *sp_sc;
 	int		sp_debug;	/* debug mask */
-#endif
 };
 
 /*
@@ -70,51 +62,6 @@ struct sx_port {
 #define SX_CD1865_CLOCK	12500000	/* CD1865 clock on I/O8+.             */
 #define SX_CD1865_TICK 4000		/* Timer tick rate, via prescaler.    */
 #define SX_CD1865_PRESCALE (SX_CD1865_CLOCK/SX_CD1865_TICK) /* Prescale value.*/
-
-#include <sys/callout.h>
-
-/*
- * Device numbering for the sx device.
- *
- * The minor number is broken up into four fields as follows:
- *	Field			Bits	Mask
- *      ---------------------	----	----
- *	Channel (port) number	0-2	0x07
- *	"DTR pin is DTR" flag	3	0x08
- *	Unused (zero)		4	0x10
- *	Card number		5-6	0x60
- *	Callout device flag	7	0x80
- *
- * The next 8 bits in the word is the major number, followed by the
- * "initial state device" flag and then the "lock state device" flag.
- */
-#define	SX_CHAN_MASK		0x07
-#define SX_DTRPIN_MASK		0x08
-#define	SX_CARD_MASK		0x60
-#define	SX_TTY_MASK		0x7f
-#define SX_CALLOUT_MASK		0x80
-#define	SX_INIT_STATE_MASK	0x10000
-#define	SX_LOCK_STATE_MASK	0x20000
-#define	SX_STATE_MASK		0x30000
-#define	SX_SPECIAL_MASK		0x30000
-
-#define SX_CARDSHIFT		5
-#define	SX_MINOR2CHAN(m)	(m & SX_CHAN_MASK)
-#define	SX_MINOR2CARD(m)	((m & SX_CARD_MASK) >> SX_CARDSHIFT)
-#define	SX_MINOR2TTY(m)		(m & SX_TTY_MASK)
-
-#define	DEV_IS_CALLOUT(m)	(m & SX_CALLOUT_MASK)
-#define	DEV_IS_STATE(m)		(m & SX_STATE_MASK)
-#define	DEV_IS_SPECIAL(m)	(m & SX_SPECIAL_MASK)
-#define DEV_DTRPIN(m)		(m & SX_DTRPIN_MASK)
-
-#define	MINOR2SC(m)	((struct sx_softc *)devclass_get_softc(sx_devclass,\
-							      SX_MINOR2CARD(m)))
-#define	MINOR2PP(m)	(MINOR2SC((m))->sc_ports + SX_MINOR2CHAN((m)))
-#define	MINOR2TP(m)	(MINOR2PP((m))->sp_tty)
-#define	TP2PP(tp)	(MINOR2PP(SX_MINOR2TTY(minor((tp)->t_dev))))
-#define TP2SC(tp)	(MINOR2SC(minor((tp)->t_dev)))
-#define PP2SC(pp)	(MINOR2SC(minor((pp)->sp_tty->t_dev)))
 
 /* Buffer parameters */
 #define	SX_BUFFERSIZE	CD1865_RFIFOSZ	/* Just the size of the receive FIFO. */
