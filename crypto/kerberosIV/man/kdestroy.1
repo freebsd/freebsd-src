@@ -1,4 +1,4 @@
-.\" $Id: kdestroy.1,v 1.3 1996/06/12 21:29:16 bg Exp $
+.\" $Id: kdestroy.1,v 1.4 1999/06/15 13:29:32 bg Exp $
 .\" Copyright 1989 by the Massachusetts Institute of Technology.
 .\"
 .\" For copying and distribution information,
@@ -65,9 +65,17 @@ runs without displaying the status message.
 will not make your terminal beep if it fails to destroy the tickets.
 .TP
 .B \-t
-.I kdestroy
-will not remove any afs-tokens. Without this flag the tokens
-associated with the current PAG is destroyed.
+destroy tickets only and keep all AFS tokens.
+.TP
+.B \-u
+unlog, i.e remove any AFS tokens associated with the current PAG
+but leave the ticket file alone.
+.PP
+If neither
+.B \-t
+nor 
+.B \-u
+is given, both tickets and AFS tokens are destroyed.
 .SH FILES
 KRBTKFILE environment variable if set, otherwise
 .br

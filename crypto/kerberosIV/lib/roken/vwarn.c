@@ -38,7 +38,7 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: vwarn.c,v 1.6 1997/03/30 08:05:39 joda Exp $");
+RCSID("$Id: vwarn.c,v 1.7 1997/11/12 00:10:32 joda Exp $");
 #endif
 
 #include "err.h"
@@ -46,5 +46,5 @@ RCSID("$Id: vwarn.c,v 1.6 1997/03/30 08:05:39 joda Exp $");
 void
 vwarn(const char *fmt, va_list ap)
 {
-    warnerr(0, 0, 1, fmt, ap);
+    warnerr(1, fmt, ap);
 }

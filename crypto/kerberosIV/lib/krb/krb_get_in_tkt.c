@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 1996, 1997 Kungliga Tekniska Högskolan
+ * Copyright (c) 1995, 1996, 1997, 1998 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  * 
@@ -38,7 +38,7 @@
 
 #include "krb_locl.h"
 
-RCSID("$Id: krb_get_in_tkt.c,v 1.20 1997/04/01 08:18:34 joda Exp $");
+RCSID("$Id: krb_get_in_tkt.c,v 1.29 1999/06/29 21:18:07 bg Exp $");
 
 /*
  * decrypt_tkt(): Given user, instance, realm, passwd, key_proc
@@ -47,8 +47,12 @@ RCSID("$Id: krb_get_in_tkt.c,v 1.20 1997/04/01 08:18:34 joda Exp $");
  */
 
 static int
-decrypt_tkt(char *user, char *instance, char *realm,
-	    void *arg, key_proc_t key_proc, KTEXT *cip)
+decrypt_tkt(const char *user,
+	    char *instance,
+	    const char *realm,
+	    const void *arg,
+	    key_proc_t key_proc,
+	    KTEXT *cip)
 {
     des_cblock key;		/* Key for decrypting cipher */
     int ret;
@@ -105,32 +109,64 @@ decrypt_tkt(char *user, char *instance, char *realm,
  */
 
 int
-krb_get_in_tkt(char *user, char *instance, char *realm, 
-	       char *service, char *sinstance, int life,
-	       key_proc_t key_proc, decrypt_proc_t decrypt_proc, void *arg)
+krb_mk_as_req(const char *user,
+	      const char *instance,
+	      const char *realm, 
+	      const char *service,
+	      const char *sinstance,
+	      int life,
+	      KTEXT cip)
 {
     KTEXT_ST pkt_st;
     KTEXT pkt = &pkt_st;	/* Packet to KDC */
     KTEXT_ST rpkt_st;
-    KTEXT rpkt = &rpkt_st;	/* Returned packet */
-
+    KTEXT rpkt = &rpkt_st;	/* Reply from KDC */
+    
     int kerror;
     struct timeval tv;
 
     /* BUILD REQUEST PACKET */
 
     unsigned char *p = pkt->dat;
+    int tmp;
+    size_t rem = sizeof(pkt->dat);
     
-    p += krb_put_int(KRB_PROT_VERSION, p, 1);
-    p += krb_put_int(AUTH_MSG_KDC_REQUEST, p, 1);
+    tmp = krb_put_int(KRB_PROT_VERSION, p, rem, 1);
+    if (tmp < 0)
+	return KFAILURE;
+    p += tmp;
+    rem -= tmp;
 
-    p += krb_put_nir(user, instance, realm, p);
+    tmp = krb_put_int(AUTH_MSG_KDC_REQUEST, p, rem, 1);
+    if (tmp < 0)
+	return KFAILURE;
+    p += tmp;
+    rem -= tmp;
+
+    tmp = krb_put_nir(user, instance, realm, p, rem);
+    if (tmp < 0)
+	return KFAILURE;
+    p += tmp;
+    rem -= tmp;
 
     gettimeofday(&tv, NULL);
-    p += krb_put_int(tv.tv_sec, p, 4);
-    p += krb_put_int(life, p, 1);
+    tmp = krb_put_int(tv.tv_sec, p, rem, 4);
+    if (tmp < 0)
+	return KFAILURE;
+    p += tmp;
+    rem -= tmp;
 
-    p += krb_put_nir(service, sinstance, NULL, p);
+    tmp = krb_put_int(life, p, rem, 1);
+    if (tmp < 0)
+	return KFAILURE;
+    p += tmp;
+    rem -= tmp;
+
+    tmp = krb_put_nir(service, sinstance, NULL, p, rem);
+    if (tmp < 0)
+	return KFAILURE;
+    p += tmp;
+    rem -= tmp;
 
     pkt->length = p - pkt->dat;
 
@@ -138,38 +174,67 @@ krb_get_in_tkt(char *user, char *instance, char *realm,
 
     /* SEND THE REQUEST AND RECEIVE THE RETURN PACKET */
 
-    if ((kerror = send_to_kdc(pkt, rpkt, realm))) return(kerror);
+    kerror = send_to_kdc(pkt, rpkt, realm);
+    if(kerror) return kerror;
+    kerror = kdc_reply_cipher(rpkt, cip);
+    return kerror;
+}
+
+int
+krb_decode_as_rep(const char *user,
+		  char *instance,
+		  const char *realm,
+		  const char *service,
+		  const char *sinstance, 
+		  key_proc_t key_proc,
+		  decrypt_proc_t decrypt_proc,
+		  const void *arg,
+		  KTEXT as_rep,
+		  CREDENTIALS *cred)
+{
+    int kerror;
+    time_t now;
     
-    p = rpkt->dat;
-    
-    {
-	CREDENTIALS cred;
-	KTEXT_ST cip;
-	KTEXT foo = &cip; /* braindamage */
+    if (decrypt_proc == NULL)
+        decrypt_tkt(user, instance, realm, arg, key_proc, &as_rep);
+    else
+        (*decrypt_proc)(user, instance, realm, arg, key_proc, &as_rep);
+
+    kerror = kdc_reply_cred(as_rep, cred);
+    if(kerror != KSUCCESS)
+	return kerror;
 	
-	kerror = kdc_reply_cipher(rpkt, &cip);
-	if(kerror != KSUCCESS)
-	    return kerror;
+    if (strcmp(cred->service, service) || 
+	strcmp(cred->instance, sinstance) ||
+	strcmp(cred->realm, realm))	/* not what we asked for */
+	return INTK_ERR;	/* we need a better code here XXX */
 
-	if (decrypt_proc == NULL)
-	    decrypt_proc = decrypt_tkt;
-	(*decrypt_proc)(user, instance, realm, arg, key_proc, &foo);
+    now = time(NULL);
+    if(krb_get_config_bool("kdc_timesync"))
+	krb_set_kdc_time_diff(cred->issue_date - now);
+    else if (abs((int)(now - cred->issue_date)) > CLOCK_SKEW)
+	return RD_AP_TIME; /* XXX should probably be better code */
 
-	kerror = kdc_reply_cred(&cip, &cred);
-	if(kerror != KSUCCESS)
-	    return kerror;
-	
-	if (strcmp(cred.service, service) || 
-	    strcmp(cred.instance, sinstance) ||
-	    strcmp(cred.realm, realm))	/* not what we asked for */
-	    return INTK_ERR;	/* we need a better code here XXX */
+    return 0;
+}
 
-	if (abs((int)(tv.tv_sec - cred.issue_date)) > CLOCK_SKEW) {
-	    return RD_AP_TIME; /* XXX should probably be better code */
-	}
+int
+krb_get_in_tkt(char *user, char *instance, char *realm, 
+	       char *service, char *sinstance, int life,
+	       key_proc_t key_proc, decrypt_proc_t decrypt_proc, void *arg)
+{
+    KTEXT_ST as_rep;
+    CREDENTIALS cred;
+    int ret;
 
-	/* initialize ticket cache */
+    ret = krb_mk_as_req(user, instance, realm, 
+			service, sinstance, life, &as_rep);
+    if(ret)
+	return ret;
+    ret = krb_decode_as_rep(user, instance, realm, service, sinstance, 
+			    key_proc, decrypt_proc, arg, &as_rep, &cred);
+    if(ret)
+	return ret;
 
-	return tf_setup(&cred, user, instance);
-    }
+    return tf_setup(&cred, user, instance);
 }

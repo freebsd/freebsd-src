@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 1996, 1997 Kungliga Tekniska Högskolan
+ * Copyright (c) 1995 - 1999 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  * 
@@ -38,15 +38,16 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: strnlen.c,v 1.5 1997/04/01 08:19:11 joda Exp $");
+RCSID("$Id: strnlen.c,v 1.6 1999/05/07 23:56:25 assar Exp $");
 #endif
 
 #include "roken.h"
 
-int
-strnlen(char *s, int len)
+size_t
+strnlen(const char *s, size_t len)
 {
-    int i;
+    size_t i;
+
     for(i = 0; i < len && s[i]; i++)
 	;
     return i;

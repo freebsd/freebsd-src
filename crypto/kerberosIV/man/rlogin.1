@@ -1,0 +1,190 @@
+.\"	$NetBSD: rlogin.1,v 1.3 1995/03/21 07:58:37 cgd Exp $
+.\"
+.\" Copyright (c) 1983, 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)rlogin.1	8.1 (Berkeley) 6/6/93
+.\"
+.Dd June 6, 1993
+.Dt RLOGIN 1
+.Os BSD 4.2
+.Sh NAME
+.Nm rlogin
+.Nd remote login
+.Sh SYNOPSIS
+.Ar rlogin
+.Op Fl 8EKLdx
+.Op Fl e Ar char
+.Op Fl k Ar realm
+.Op Fl l Ar username
+.Op Fl p Ar portnumber
+.Ar host
+.Sh DESCRIPTION
+.Nm Rlogin
+starts a terminal session on a remote host
+.Ar host  .
+.Pp
+.Nm Rlogin
+first attempts to use the Kerberos authorization mechanism, described below.
+If the remote host does not supporting Kerberos the standard Berkeley
+.Pa rhosts
+authorization mechanism is used.
+The options are as follows:
+.Bl -tag -width flag
+.It Fl 8
+The
+.Fl 8
+option allows an eight-bit input data path at all times; otherwise
+parity bits are stripped except when the remote side's stop and start
+characters are other than
+^S/^Q .
+.It Fl E
+The
+.Fl E
+option stops any character from being recognized as an escape character.
+When used with the
+.Fl 8
+option, this provides a completely transparent connection.
+.It Fl K
+The
+.Fl K
+option turns off all Kerberos authentication.
+.It Fl L
+The
+.Fl L
+option allows the rlogin session to be run in ``litout'' (see
+.Xr tty 4 )
+mode.
+.It Fl d
+The
+.Fl d
+option turns on socket debugging (see
+.Xr setsockopt 2 )
+on the TCP sockets used for communication with the remote host.
+.It Fl e
+The
+.Fl e
+option allows user specification of the escape character, which is
+``~'' by default.
+This specification may be as a literal character, or as an octal
+value in the form \ennn.
+.It Fl k
+The
+.FL k
+option requests rlogin to obtain tickets for the remote host
+in realm
+.Ar realm
+instead of the remote host's realm as determined by
+.Xr krb_realmofhost  3  .
+.It Fl x
+The
+.Fl x
+option turns on
+.Tn DES
+encryption for all data passed via the
+rlogin session.
+This may impact response time and
+.Tn CPU
+utilization, but provides
+increased security.
+.It Fl D
+Use the TCP nodelay option (see setsockopt(2)).
+.It Fl p portnumber
+Specifies the port number to connect to on the remote host.
+.El
+.Pp
+A line of the form ``<escape char>.'' disconnects from the remote host.
+Similarly, the line ``<escape char>^Z'' will suspend the
+.Nm rlogin
+session, and ``<escape char><delayed-suspend char>'' suspends the
+send portion of the rlogin, but allows output from the remote system.
+By default, the tilde (``~'') character is the escape character, and
+normally control-Y (``^Y'') is the delayed-suspend character.
+.Pp
+All echoing takes place at the remote site, so that (except for delays)
+the
+.Nm rlogin
+is transparent.
+Flow control via ^S/^Q and flushing of input and output on interrupts
+are handled properly.
+.Sh KERBEROS AUTHENTICATION
+Each user may have a private authorization list in the file
+.Pa .klogin
+in their home directory.
+Each line in this file should contain a Kerberos principal name of the
+form
+.Ar principal.instance@realm  .
+If the originating user is authenticated to one of the principals named
+in
+.Pa .klogin ,
+access is granted to the account.
+The principal
+.Ar accountname.@localrealm
+is granted access if
+there is no
+.Pa .klogin
+file.
+Otherwise a login and password will be prompted for on the remote machine
+as in
+.Xr login  1  .
+To avoid certain security problems, the
+.Pa .klogin
+file must be owned by
+the remote user.
+.Pp
+If Kerberos authentication fails, a warning message is printed and the
+standard Berkeley
+.Nm rlogin
+is used instead.
+.Sh ENVIRONMENT
+The following environment variable is utilized by
+.Nm rlogin :
+.Bl -tag -width TERM
+.It Ev TERM
+Determines the user's terminal type.
+.El
+.Sh SEE ALSO
+.Xr rsh 1 ,
+.Xr kerberos 3 ,
+.Xr krb_sendauth 3 ,
+.Xr krb_realmofhost 3
+.Sh HISTORY
+The
+.Nm rlogin
+command appeared in
+.Bx 4.2 .
+.Sh BUGS
+.Nm Rlogin
+will be replaced by
+.Xr telnet  1
+in the near future.
+.Pp
+More of the environment should be propagated.

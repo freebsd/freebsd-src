@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 1996, 1997 Kungliga Tekniska Högskolan
+ * Copyright (c) 1995, 1996, 1997, 1998, 1999 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  * 
@@ -38,7 +38,7 @@
 
 #include "kip.h"
 
-RCSID("$Id: kipd.c,v 1.13 1997/05/18 20:38:01 assar Exp $");
+RCSID("$Id: kipd.c,v 1.15 1999/03/10 18:33:24 joda Exp $");
 
 static int
 fatal (int fd, char *s)
@@ -58,7 +58,7 @@ recv_conn (int sock, des_cblock *key, des_key_schedule schedule,
      int status;
      KTEXT_ST ticket;
      AUTH_DAT auth;
-     char instance[INST_SZ + 1];
+     char instance[INST_SZ];
      struct sockaddr_in thisaddr, thataddr;
      int addrlen;
      char version[KRB_SENDAUTH_VLEN + 1];
@@ -122,7 +122,7 @@ main (int argc, char **argv)
 {
     set_progname (argv[0]);
 
-    openlog(__progname, LOG_PID|LOG_CONS, LOG_DAEMON);
+    roken_openlog(__progname, LOG_PID|LOG_CONS, LOG_DAEMON);
     signal (SIGCHLD, childhandler);
     return doit(0);
 }

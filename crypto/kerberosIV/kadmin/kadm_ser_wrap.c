@@ -30,7 +30,7 @@ unwraps wrapped packets and calls the appropriate server subroutine
 
 #include "kadm_locl.h"
 
-RCSID("$Id: kadm_ser_wrap.c,v 1.20 1997/05/02 10:29:14 joda Exp $");
+RCSID("$Id: kadm_ser_wrap.c,v 1.24 1998/06/13 00:45:52 assar Exp $");
 
 /* GLOBAL */
 Kadm_Server server_parm;
@@ -40,21 +40,27 @@ kadm_ser_init
 set up the server_parm structure
 */
 int
-kadm_ser_init(int inter, char *realm)
-          			/* interactive or from file */
-             
+kadm_ser_init(int inter,	/* interactive or from file */
+	      char *realm,
+	      struct in_addr addr)
 {
   struct hostent *hp;
   char hostname[MaxHostNameLen];
 
   init_kadm_err_tbl();
   init_krb_err_tbl();
-  if (k_gethostname(hostname, sizeof(hostname)))
+  if (gethostname(hostname, sizeof(hostname)))
       return KADM_NO_HOSTNAME;
 
-  strcpy(server_parm.sname, PWSERV_NAME);
-  strcpy(server_parm.sinst, KRB_MASTER);
-  strcpy(server_parm.krbrlm, realm);
+  strcpy_truncate(server_parm.sname,
+		  PWSERV_NAME,
+		  sizeof(server_parm.sname));
+  strcpy_truncate(server_parm.sinst,
+		  KRB_MASTER,
+		  sizeof(server_parm.sinst));
+  strcpy_truncate(server_parm.krbrlm,
+		  realm,
+		  sizeof(server_parm.krbrlm));
 
   server_parm.admin_fd = -1;
   /* setting up the addrs */
@@ -66,7 +72,7 @@ kadm_ser_init(int inter, char *realm)
   server_parm.admin_addr.sin_family = AF_INET;
   if ((hp = gethostbyname(hostname)) == NULL)
       return KADM_NO_HOSTNAME;
-  server_parm.admin_addr.sin_addr.s_addr = INADDR_ANY;
+  server_parm.admin_addr.sin_addr = addr;
 				/* setting up the database */
   if (kdb_get_master_key((inter==1), &server_parm.master_key,
 			 server_parm.master_key_schedule) != 0)
@@ -78,19 +84,18 @@ kadm_ser_init(int inter, char *realm)
   return KADM_SUCCESS;
 }
 
-static void errpkt(u_char **dat, int *dat_len, int code)
-{
-    u_int32_t retcode;
-    char *pdat;
+/*
+ *
+ */
 
+static void
+errpkt(u_char *errdat, u_char **dat, int *dat_len, int code)
+{
     free(*dat);			/* free up req */
-    *dat_len = KADM_VERSIZE + sizeof(u_int32_t);
-    *dat = (u_char *) malloc((unsigned)*dat_len);
-    pdat = (char *) *dat;
-    retcode = htonl((u_int32_t) code);
-    strncpy(pdat, KADM_ULOSE, KADM_VERSIZE);
-    memcpy(&pdat[KADM_VERSIZE], &retcode, sizeof(u_int32_t));
-    return;
+    *dat_len = KADM_VERSIZE + 4;
+    memcpy(errdat, KADM_ULOSE, KADM_VERSIZE);
+    krb_put_int (code, errdat + KADM_VERSIZE, 4, 4);
+    *dat = errdat;
 }
 
 /*
@@ -98,7 +103,7 @@ kadm_ser_in
 unwrap the data stored in dat, process, and return it.
 */
 int
-kadm_ser_in(u_char **dat, int *dat_len)
+kadm_ser_in(u_char **dat, int *dat_len, u_char *errdat)
 {
     u_char *in_st;			/* pointer into the sent packet */
     int in_len,retc;			/* where in packet we are, for
@@ -113,7 +118,7 @@ kadm_ser_in(u_char **dat, int *dat_len)
     int retval, retlen;
 
     if (strncmp(KADM_VERSTR, (char *)*dat, KADM_VERSIZE)) {
-	errpkt(dat, dat_len, KADM_BAD_VER);
+	errpkt(errdat, dat, dat_len, KADM_BAD_VER);
 	return KADM_BAD_VER;
     }
     in_len = KADM_VERSIZE;
@@ -128,7 +133,7 @@ kadm_ser_in(u_char **dat, int *dat_len)
     if ((retc = krb_rd_req(&authent, server_parm.sname, server_parm.sinst,
 			  server_parm.recv_addr.sin_addr.s_addr, &ad, NULL)))
     {
-	errpkt(dat, dat_len,retc + krb_err_base);
+	errpkt(errdat, dat, dat_len, retc + krb_err_base);
 	return retc + krb_err_base;
     }
 
@@ -142,7 +147,7 @@ kadm_ser_in(u_char **dat, int *dat_len)
 #endif
     if (ncksum!=ad.checksum) {		/* yow, are we correct yet */
 	clr_cli_secrets();
-	errpkt(dat, dat_len,KADM_BAD_CHK);
+	errpkt(errdat, dat, dat_len, KADM_BAD_CHK);
 	return KADM_BAD_CHK;
     }
 #ifdef NOENCRYPTION
@@ -154,7 +159,7 @@ kadm_ser_in(u_char **dat, int *dat_len)
 				 &server_parm.recv_addr,
 				 &server_parm.admin_addr, &msg_st))) {
 	clr_cli_secrets();
-	errpkt(dat, dat_len,retc + krb_err_base);
+	errpkt(errdat, dat, dat_len, retc + krb_err_base);
 	return retc + krb_err_base;
     }
     switch (msg_st.app_data[0]) {
@@ -180,24 +185,31 @@ kadm_ser_in(u_char **dat, int *dat_len)
 	break;
     default:
 	clr_cli_secrets();
-	errpkt(dat, dat_len, KADM_NO_OPCODE);
+	errpkt(errdat, dat, dat_len, KADM_NO_OPCODE);
 	return KADM_NO_OPCODE;
     }
     /* Now seal the response back into a priv msg */
+    tmpdat = (u_char *) malloc(retlen + KADM_VERSIZE + 4);
+    if (tmpdat == NULL) {
+	clr_cli_secrets();
+	errpkt(errdat, dat, dat_len, KADM_NOMEM);
+	return KADM_NOMEM;
+    }
     free(*dat);
-    tmpdat = (u_char *) malloc((unsigned)(retlen + KADM_VERSIZE +
-					  sizeof(u_int32_t)));
-    strncpy((char *)tmpdat, KADM_VERSTR, KADM_VERSIZE);
-    retval = htonl((u_int32_t)retval);
-    memcpy((char *)tmpdat + KADM_VERSIZE, &retval, sizeof(u_int32_t));
+    memcpy(tmpdat, KADM_VERSTR, KADM_VERSIZE);
+    krb_put_int(retval, tmpdat + KADM_VERSIZE, 4, 4);
     if (retlen) {
-        memcpy((char *)tmpdat + KADM_VERSIZE + sizeof(u_int32_t), retdat,
-	       retlen);
+        memcpy(tmpdat + KADM_VERSIZE + 4, retdat, retlen);
 	free(retdat);
     }
     /* slop for mk_priv stuff */
-    *dat = (u_char *) malloc((unsigned) (retlen + KADM_VERSIZE +
-					 sizeof(u_int32_t) + 200));
+    *dat = (u_char *) malloc(retlen + KADM_VERSIZE +
+			     sizeof(u_int32_t) + 200);
+    if (*dat == NULL) {
+	clr_cli_secrets();
+	errpkt(errdat, dat, dat_len, KADM_NOMEM);
+	return KADM_NOMEM;
+    }
     if ((*dat_len = krb_mk_priv(tmpdat, *dat,
 				(u_int32_t) (retlen + KADM_VERSIZE +
 					  sizeof(u_int32_t)),
@@ -205,7 +217,7 @@ kadm_ser_in(u_char **dat, int *dat_len)
 				&ad.session, &server_parm.admin_addr,
 				&server_parm.recv_addr)) < 0) {
 	clr_cli_secrets();
-	errpkt(dat, dat_len, KADM_NO_ENCRYPT);
+	errpkt(errdat, dat, dat_len, KADM_NO_ENCRYPT);
 	return KADM_NO_ENCRYPT;
     }
     clr_cli_secrets();

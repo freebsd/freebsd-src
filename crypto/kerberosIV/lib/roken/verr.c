@@ -38,7 +38,7 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: verr.c,v 1.6 1997/03/30 08:05:38 joda Exp $");
+RCSID("$Id: verr.c,v 1.7 1997/11/12 00:10:19 joda Exp $");
 #endif
 
 #include "err.h"
@@ -46,5 +46,6 @@ RCSID("$Id: verr.c,v 1.6 1997/03/30 08:05:38 joda Exp $");
 void
 verr(int eval, const char *fmt, va_list ap)
 {
-    warnerr(1, eval, 1, fmt, ap);
+    warnerr(1, fmt, ap);
+    exit(eval);
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 1996, 1997 Kungliga Tekniska Högskolan
+ * Copyright (c) 1995, 1996, 1997, 1998 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  * 
@@ -38,12 +38,12 @@
 
 #include "kauth.h"
 
-RCSID("$Id: kauthd.c,v 1.22 1997/05/18 20:37:55 assar Exp $");
+RCSID("$Id: kauthd.c,v 1.24 1999/06/29 21:19:35 bg Exp $");
 
 krb_principal princ;
-static char locuser[SNAME_SZ + 1];
+static char locuser[SNAME_SZ];
 static int  lifetime;
-static char tktfile[MaxPathLen + 1];
+static char tktfile[MaxPathLen];
 
 struct remote_args {
      int sock;
@@ -53,8 +53,12 @@ struct remote_args {
 };
 
 static int
-decrypt_remote_tkt (char *user, char *inst, char *realm, void *varg,
-		    key_proc_t key_proc, KTEXT *cipp)
+decrypt_remote_tkt (const char *user,
+		    const char *inst,
+		    const char *realm,
+		    const void *varg,
+		    key_proc_t key_proc,
+		    KTEXT *cipp)
 {
      char buf[BUFSIZ];
      void *ptr;
@@ -78,7 +82,7 @@ doit(int sock)
      int status;
      KTEXT_ST ticket;
      AUTH_DAT auth;
-     char instance[INST_SZ + 1];
+     char instance[INST_SZ];
      des_key_schedule schedule;
      struct sockaddr_in thisaddr, thataddr;
      int addrlen;

@@ -2,7 +2,7 @@
 
 #include "bsd_locl.h"
 
-RCSID("$Id: sysv_shadow.c,v 1.7 1997/03/23 04:56:05 assar Exp $");
+RCSID("$Id: sysv_shadow.c,v 1.8 1997/12/29 19:56:07 bg Exp $");
 
 #ifdef SYSV_SHADOW
 
@@ -16,7 +16,7 @@ sysv_expire(struct spwd *spwd)
     long    today;
 
     tzset();
-    today = time(0);
+    today = time(0)/(60*60*24);	/* In days since Jan. 1, 1970 */
 
     if (spwd->sp_expire > 0) {
 	if (today > spwd->sp_expire) {

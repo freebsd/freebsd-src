@@ -21,9 +21,11 @@ or implied warranty.
 
 #include "krb_locl.h"
 
-RCSID("$Id: getrealm.c,v 1.25 1997/05/02 14:29:14 assar Exp $");
+RCSID("$Id: getrealm.c,v 1.35 1998/08/31 10:40:06 assar Exp $");
 
-#define MATCH_SUBDOMAINS        0
+#ifndef MATCH_SUBDOMAINS
+#define MATCH_SUBDOMAINS 0
+#endif
 
 /*
  * krb_realmofhost.
@@ -66,13 +68,16 @@ dns_find_realm(char *hostname, char *realm)
 
     while(1){
 	snprintf(domain, sizeof(domain), "krb4-realm.%s.", p);
+	p = strchr(p, '.');
+	if(p == NULL)
+	    break;
+	p++;
 	r = dns_lookup(domain, "TXT");
 	if(r){
 	    struct resource_record *rr = r->head;
 	    while(rr){
 		if(rr->type == T_TXT){
-		    strncpy(realm, rr->u.txt, REALM_SZ);
-		    realm[REALM_SZ - 1] = 0;
+		    strcpy_truncate(realm, rr->u.txt, REALM_SZ);
 		    dns_free_data(r);
 		    return level;
 		}
@@ -81,10 +86,6 @@ dns_find_realm(char *hostname, char *realm)
 	    dns_free_data(r);
 	}
 	level++;
-	p = strchr(p, '.');
-	if(p == NULL)
-	    break;
-	p++;
     }
     return -1;
 }
@@ -93,92 +94,92 @@ dns_find_realm(char *hostname, char *realm)
 static FILE *
 open_krb_realms(void)
 {
-  static const char *const files[] = KRB_RLM_FILES;
-  FILE *res;
-  int i;
-  
-  const char *dir = getenv("KRBCONFDIR");
+    int i;
+    char file[MaxPathLen];
+    FILE *res;
 
-  /* First try user specified file */
-  if (dir != 0) {
-    char fname[MaxPathLen];
-
-    if(k_concat(fname, sizeof(fname), dir, "/krb.realms", NULL) == 0)
-	if ((res = fopen(fname, "r")) != NULL)
+    for(i = 0; krb_get_krbrealms(i, file, sizeof(file)) == 0; i++)
+	if ((res = fopen(file, "r")) != NULL)
 	    return res;
-  }
-
-  for (i = 0; files[i] != 0; i++)
-    if ((res = fopen(files[i], "r")) != NULL)
-      return res;
-
   return NULL;
+}
+
+static int
+file_find_realm(const char *phost, const char *domain,
+		char *ret_realm, size_t ret_realm_sz)
+{
+    FILE *trans_file;
+    char buf[1024];
+    int ret = -1;
+    
+    if ((trans_file = open_krb_realms()) == NULL)
+	return -1;
+
+    while (fgets(buf, sizeof(buf), trans_file) != NULL) {
+	char *save = NULL;
+	char *tok;
+	char *tmp_host;
+	char *tmp_realm;
+
+	tok = strtok_r(buf, " \t\r\n", &save);
+	if(tok == NULL)
+	    continue;
+	tmp_host = tok;
+	tok = strtok_r(NULL, " \t\r\n", &save);
+	if(tok == NULL)
+	    continue;
+	tmp_realm = tok;
+	if (strcasecmp(tmp_host, phost) == 0) {
+	    /* exact match of hostname, so return the realm */
+	    strcpy_truncate(ret_realm, tmp_realm, ret_realm_sz);
+	    ret = 0;
+	    break;
+	}
+	if ((tmp_host[0] == '.') && domain) { 
+	    const char *cp = domain;
+	    do {
+		if(strcasecmp(tmp_host, cp) == 0){
+		    /* domain match, save for later */ 
+		    strcpy_truncate(ret_realm, tmp_realm, ret_realm_sz);
+		    ret = 0;
+		    break;
+		}
+		cp = strchr(cp + 1, '.');
+	    } while(MATCH_SUBDOMAINS && cp);
+	}
+	if (ret == 0)
+	    break;
+    }
+    fclose(trans_file);
+    return ret;
 }
 
 char *
 krb_realmofhost(const char *host)
 {
-  static char ret_realm[REALM_SZ];
-  char *domain;
-  FILE *trans_file;
-  char trans_host[MaxHostNameLen];
-  char trans_realm[REALM_SZ];
-  char buf[1024];
-
-  char phost[MaxHostNameLen];
+    static char ret_realm[REALM_SZ];
+    char *domain;
+    char phost[MaxHostNameLen];
 	
-  krb_name_to_name(host, phost, sizeof(phost));
+    krb_name_to_name(host, phost, sizeof(phost));
 	
-  domain = strchr(phost, '.');
+    domain = strchr(phost, '.');
 
-  /* prepare default */
-  if(dns_find_realm(phost, ret_realm) < 0){
-      if (domain) {
-	  char *cp;
+    if(file_find_realm(phost, domain, ret_realm, sizeof ret_realm) == 0)
+	return ret_realm;
+
+    if(dns_find_realm(phost, ret_realm) >= 0)
+	return ret_realm;
+  
+    if (domain) {
+	char *cp;
 	  
-	  strncpy(ret_realm, &domain[1], REALM_SZ);
-	  ret_realm[REALM_SZ - 1] = 0;
-	  /* Upper-case realm */
-	  for (cp = ret_realm; *cp; cp++)
-	      *cp = toupper(*cp);
-      } else {
-	  krb_get_lrealm(ret_realm, 1);
-      }
-  }
-
-  if ((trans_file = open_krb_realms()) == NULL)
-      return(ret_realm); /* krb_errno = KRB_NO_TRANS */
-
-  while (fgets(buf, sizeof(buf), trans_file)) {
-      char *save = NULL;
-      char *tok = strtok_r(buf, " \t\r\n", &save);
-      if(tok == NULL)
-	  continue;
-      strncpy(trans_host, tok, MaxHostNameLen);
-      trans_host[MaxHostNameLen - 1] = 0;
-      tok = strtok_r(NULL, " \t\r\n", &save);
-      if(tok == NULL)
-	  continue;
-      strcpy(trans_realm, tok);
-      trans_realm[REALM_SZ - 1] = 0;
-      if (!strcasecmp(trans_host, phost)) {
-	  /* exact match of hostname, so return the realm */
-	  strcpy(ret_realm, trans_realm);
-	  fclose(trans_file);
-	  return(ret_realm);
-      }
-      if ((trans_host[0] == '.') && domain) { 
-	  char *cp = domain;
-	  do {
-	      if(strcasecmp(trans_host, domain) == 0){
-		  /* domain match, save for later */ 
-		  strcpy(ret_realm, trans_realm);
-		  break;
-	      }
-	      cp = strchr(cp + 1, '.');
-	  } while(MATCH_SUBDOMAINS && cp);
-      }
-  }
-  fclose(trans_file);
-  return ret_realm;
+	strcpy_truncate(ret_realm, &domain[1], REALM_SZ);
+	/* Upper-case realm */
+	for (cp = ret_realm; *cp; cp++)
+	    *cp = toupper(*cp);
+    } else {
+	strncpy(ret_realm, krb_get_default_realm(), REALM_SZ); /* Wild guess */
+    }
+    return ret_realm;
 }

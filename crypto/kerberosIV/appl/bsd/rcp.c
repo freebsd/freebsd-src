@@ -33,7 +33,7 @@
 
 #include "bsd_locl.h"
 
-RCSID("$Id: rcp.c,v 1.43 1997/05/13 09:41:26 bg Exp $");
+RCSID("$Id: rcp.c,v 1.49 1999/07/06 03:17:58 assar Exp $");
 
 /* Globals */
 static char	dst_realm_buf[REALM_SZ];
@@ -49,6 +49,9 @@ static u_short	port;
 static uid_t	userid;
 static int pflag, iamremote, iamrecursive, targetshouldbedirectory;
 
+static int argc_copy;
+static char **argv_copy;
+
 #define	CMDNEEDS	64
 static char cmd[CMDNEEDS];		/* must hold "rcp -r -p -d\0" */
 
@@ -58,7 +61,7 @@ void rsource(char *name, struct stat *statp);
 
 CREDENTIALS cred;
 MSG_DAT msg_data;
-struct sockaddr_in foreign, local;
+struct sockaddr_in foreign_addr, local_addr;
 Key_schedule schedule;
 
 KTEXT_ST ticket;
@@ -71,18 +74,18 @@ send_auth(char *h, char *r)
     long opts;
 
     lslen = sizeof(struct sockaddr_in);
-    if (getsockname(rem, (struct sockaddr *)&local, &lslen) < 0)
+    if (getsockname(rem, (struct sockaddr *)&local_addr, &lslen) < 0)
 	err(1, "getsockname");
     fslen = sizeof(struct sockaddr_in);
-    if (getpeername(rem, (struct sockaddr *)&foreign, &fslen) < 0)
+    if (getpeername(rem, (struct sockaddr *)&foreign_addr, &fslen) < 0)
 	err(1, "getpeername");
     if ((r == NULL) || (*r == '\0'))
 	r = krb_realmofhost(h);
     opts = KOPT_DO_MUTUAL;
     if ((status = krb_sendauth(opts, rem, &ticket, SERVICE_NAME, h, r, 
 			       (unsigned long)getpid(), &msg_data, &cred, 
-			       schedule, &local, 
-			       &foreign, "KCMDV0.1")) != KSUCCESS)
+			       schedule, &local_addr, 
+			       &foreign_addr, "KCMDV0.1")) != KSUCCESS)
 	errx(1, "krb_sendauth failure: %s", krb_get_err_text(status));
 }
 
@@ -94,15 +97,15 @@ answer_auth(void)
     char inst[INST_SZ], v[9];
 
     lslen = sizeof(struct sockaddr_in);
-    if (getsockname(rem, (struct sockaddr *)&local, &lslen) < 0)
+    if (getsockname(rem, (struct sockaddr *)&local_addr, &lslen) < 0)
 	err(1, "getsockname");
     fslen = sizeof(struct sockaddr_in);
-    if(getpeername(rem, (struct sockaddr *)&foreign, &fslen) < 0)
+    if(getpeername(rem, (struct sockaddr *)&foreign_addr, &fslen) < 0)
 	    err(1, "getperrname");
     k_getsockinst(rem, inst, sizeof(inst));
     opts = KOPT_DO_MUTUAL;
     if ((status = krb_recvauth(opts, rem, &ticket, SERVICE_NAME, inst,
-			       &foreign, &local, 
+			       &foreign_addr, &local_addr, 
 			       &kdata, "", schedule, v)) != KSUCCESS)
 	errx(1, "krb_recvauth failure: %s", krb_get_err_text(status));
 }
@@ -143,10 +146,11 @@ run_err(const char *fmt, ...)
 	va_start(args, fmt);
 	++errs;
 #define RCPERR "\001rcp: "
-	strcpy (errbuf, RCPERR);
-	vsnprintf (errbuf + strlen(RCPERR), sizeof(errbuf) - strlen(RCPERR),
+	strcpy_truncate (errbuf, RCPERR, sizeof(errbuf));
+	vsnprintf (errbuf + strlen(errbuf),
+		   sizeof(errbuf) - strlen(errbuf),
 		   fmt, args);
-	strcat (errbuf, "\n");
+	strcat_truncate (errbuf, "\n", sizeof(errbuf));
 	des_write (rem, errbuf, strlen(errbuf));
 	if (!iamremote)
 		vwarnx(fmt, args);
@@ -351,11 +355,15 @@ rsource(char *name, struct stat *statp)
 	DIR *dirp;
 	struct dirent *dp;
 	char *last, *vect[1], path[MaxPathLen];
+	char *p;
 
 	if (!(dirp = opendir(name))) {
 		run_err("%s: %s", name, strerror(errno));
 		return;
 	}
+	for (p = name + strlen(name) - 1; p >= name && *p == '/'; --p)
+	    *p = '\0';
+
 	last = strrchr(name, '/');
 	if (last == 0)
 		last = name;
@@ -403,8 +411,9 @@ static int
 kerberos(char **host, char *bp, char *locuser, char *user)
 {
         int sock = -1, err;
-again:
+
 	if (use_kerberos) {
+	        setuid(getuid());
 		rem = KSUCCESS;
 		errno = 0;
 		if (dest_realm == NULL)
@@ -439,13 +448,11 @@ again:
 		    rem = sock;
 #endif
 		if (rem < 0) {
-			use_kerberos = 0;
-			port = get_shell_port(use_kerberos, 0);
 			if (errno == ECONNREFUSED)
 			    oldw("remote host doesn't support Kerberos");
 			else if (errno == ENOENT)
 			    oldw("can't provide Kerberos authentication data");
-			goto again;
+			execv(_PATH_RCP, argv_copy);
 		}
 	} else {
 		if (doencrypt)
@@ -493,29 +500,24 @@ toremote(char *targ, int argc, char **argv)
 			if (*src == 0)
 				src = ".";
 			host = strchr(argv[i], '@');
-			len = strlen(_PATH_RSH) + strlen(argv[i]) +
-			    strlen(src) + (tuser ? strlen(tuser) : 0) +
-			    strlen(thost) + strlen(targ) + CMDNEEDS + 20;
-			if (!(bp = malloc(len)))
-				err(1, " ");
 			if (host) {
-				*host++ = 0;
-				suser = argv[i];
-				if (*suser == '\0')
-					suser = pwd->pw_name;
-				else if (!okname(suser))
-					continue;
-				snprintf(bp, len,
-					 "%s %s -l %s -n %s %s '%s%s%s:%s'",
-					 _PATH_RSH, host, suser, cmd, src,
-					 tuser ? tuser : "", tuser ? "@" : "",
-					 thost, targ);
+			    *host++ = 0;
+			    suser = argv[i];
+			    if (*suser == '\0')
+				suser = pwd->pw_name;
+			    else if (!okname(suser))
+				continue;
+			    asprintf(&bp, "%s %s -l %s -n %s %s '%s%s%s:%s'",
+				     _PATH_RSH, host, suser, cmd, src,
+				     tuser ? tuser : "", tuser ? "@" : "",
+				     thost, targ);
 			} else
-				snprintf(bp, len,
-					 "exec %s %s -n %s %s '%s%s%s:%s'",
-					 _PATH_RSH, argv[i], cmd, src,
-					 tuser ? tuser : "", tuser ? "@" : "",
-					 thost, targ);
+			    asprintf(&bp, "exec %s %s -n %s %s '%s%s%s:%s'",
+				     _PATH_RSH, argv[i], cmd, src,
+				     tuser ? tuser : "", tuser ? "@" : "",
+				     thost, targ);
+			if(bp == NULL)
+			    errx(1, "out of memory");
 			susystem(bp, userid);
 			free(bp);
 		} else {			/* local to remote */
@@ -623,7 +625,13 @@ sink(int argc, char **argv)
 		if (ch == '\n')
 			*--cp = 0;
 
-#define getnum(t) (t) = 0; while (isdigit(*cp)) (t) = (t) * 10 + (*cp++ - '0');
+#define getnum(t)					\
+		do {					\
+		    (t) = 0;				\
+		    while (isdigit((unsigned char)*cp))	\
+			(t) = (t) * 10 + (*cp++ - '0');	\
+		} while(0)
+
 		cp = buf;
 		if (*cp == 'T') {
 			setimes++;
@@ -666,7 +674,7 @@ sink(int argc, char **argv)
 		if (*cp++ != ' ')
 			SCREWUP("mode not delimited");
 
-		for (size = 0; isdigit(*cp);)
+		for (size = 0; isdigit((unsigned char)*cp);)
 			size = size * 10 + (*cp++ - '0');
 		if (*cp++ != ' ')
 			SCREWUP("size not delimited");
@@ -906,8 +914,28 @@ main(int argc, char **argv)
 {
 	int ch, fflag, tflag;
 	char *targ;
+	int i;
 
 	set_progname(argv[0]);
+
+	/*
+	 * Prepare for execing ourselves.
+	 */
+
+	argc_copy = argc + 1;
+	argv_copy = malloc((argc_copy + 1) * sizeof(*argv_copy));
+	if (argv_copy == NULL)
+	    err(1, "malloc");
+	argv_copy[0] = argv[0];
+	argv_copy[1] = "-K";
+	for(i = 1; i < argc; ++i) {
+	    argv_copy[i + 1] = strdup(argv[i]);
+	    if (argv_copy[i + 1] == NULL)
+		errx(1, "strdup: out of memory");
+	}
+	argv_copy[argc + 1] = NULL;
+
+
 	fflag = tflag = 0;
 	while ((ch = getopt(argc, argv, OPTIONS)) != EOF)
 		switch(ch) {			/* User-visible flags. */
@@ -916,7 +944,7 @@ main(int argc, char **argv)
 			break;
 		case 'k':
 			dest_realm = dst_realm_buf;
-			strncpy(dst_realm_buf, optarg, REALM_SZ);
+			strcpy_truncate(dst_realm_buf, optarg, REALM_SZ);
 			break;
 		case 'x':
 			doencrypt = 1;
@@ -951,47 +979,40 @@ main(int argc, char **argv)
 	 * kshell service, pass 0 for no encryption */
 	port = get_shell_port(use_kerberos, 0);
 
+	userid = getuid();
+
 #ifndef __CYGWIN32__
-	if ((pwd = k_getpwuid(userid = getuid())) == NULL)
+	if ((pwd = k_getpwuid(userid)) == NULL)
 		errx(1, "unknown user %d", (int)userid);
 #endif
 
 	rem = STDIN_FILENO;		/* XXX */
 
-	if (fflag) {			/* Follow "protocol", send data. */
-		if (doencrypt)
-			answer_auth();
+	if (fflag || tflag) {
+	    if (doencrypt)
+		answer_auth();
+	    if(fflag)
 		response();
-		setuid(userid);
-		if (k_hasafs()) {
-		       /* Sometimes we will need cell specific tokens
-			* to be able to read and write files, thus,
-			* the token stuff done in rshd might not
-			* suffice.
-			*/
-			char cell[64];
-			if (k_afs_cell_of_file(pwd->pw_dir,
-					       cell, sizeof(cell)) == 0)
-				k_afsklog(cell, 0);
-			k_afsklog(0, 0);
-		}
+	    if(do_osfc2_magic(pwd->pw_uid))
+		exit(1);
+	    setuid(userid);
+	    if (k_hasafs()) {
+		/* Sometimes we will need cell specific tokens
+		 * to be able to read and write files, thus,
+		 * the token stuff done in rshd might not
+		 * suffice.
+		 */
+		char cell[64];
+		if (k_afs_cell_of_file(pwd->pw_dir,
+				       cell, sizeof(cell)) == 0)
+		    krb_afslog(cell, 0);
+		krb_afslog(0, 0);
+	    }
+	    if(fflag)
 		source(argc, argv);
-		exit(errs);
-	}
-
-	if (tflag) {			/* Receive data. */
-		if (doencrypt)
-			answer_auth();
-		setuid(userid);
-		if (k_hasafs()) {
-			char cell[64];
-			if (k_afs_cell_of_file(pwd->pw_dir,
-					       cell, sizeof(cell)) == 0)
-				k_afsklog(cell, 0);
-			k_afsklog(0, 0);
-		}
+	    else
 		sink(argc, argv);
-		exit(errs);
+	    exit(errs);
 	}
 
 	if (argc < 2)

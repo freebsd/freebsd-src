@@ -33,7 +33,7 @@
  *	@(#)extern.h	8.3 (Berkeley) 10/9/94
  */
 
-/* $Id: extern.h,v 1.13 1997/04/20 05:46:48 assar Exp $ */
+/* $Id: extern.h,v 1.16 1999/05/21 09:21:51 assar Exp $ */
 
 #include <setjmp.h>
 #include <stdlib.h>
@@ -107,7 +107,7 @@ void	pwd (int, char **);
 void	quit (int, char **);
 void	quote (int, char **);
 void	quote1 (char *, int, char **);
-void    recvrequest (char *, char *, char *, char *, int);
+void    recvrequest (char *, char *, char *, char *, int, int);
 void	reget (int, char **);
 char   *remglob (char **, int);
 void	removedir (int, char **);
@@ -117,7 +117,7 @@ void	restart (int, char **);
 void	rmthelp (int, char **);
 void	rmtstatus (int, char **);
 int	ruserpass (char *, char **, char **, char **);
-void    sendrequest (char *, char *, char *, int);
+void    sendrequest (char *, char *, char *, char *, int);
 void	setascii (int, char **);
 void	setbell (int, char **);
 void	setbinary (int, char **);
@@ -165,3 +165,9 @@ extern int	NCMDS;
 extern char 	username[32];
 extern char	myhostname[];
 extern char	*mydomain;
+
+void afslog (int, char **);
+void kauth (int, char **);
+void kdestroy (int, char **);
+void klist (int, char **);
+void krbtkfile (int, char **);

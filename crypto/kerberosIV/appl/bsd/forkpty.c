@@ -40,7 +40,7 @@
 
 #ifndef HAVE_FORKPTY
 
-RCSID("$Id: forkpty.c,v 1.52 1997/05/25 07:37:01 assar Exp $");
+RCSID("$Id: forkpty.c,v 1.53.2.2 1999/08/19 13:37:16 assar Exp $");
 
 /* Only CRAY is known to have problems with forkpty(). */
 #if defined(CRAY)
@@ -150,7 +150,9 @@ pty_scan_tty(char *buf, size_t sz)
 }
 
 static int
-ptym_open_streams_flavor(char *pts_name, int *streams_pty)
+ptym_open_streams_flavor(char *pts_name,
+			 size_t pts_name_sz,
+			 int *streams_pty)
 {
     /* Try clone device master ptys */
     const char *const clone[] = { "/dev/ptc", "/dev/ptmx",
@@ -166,7 +168,8 @@ ptym_open_streams_flavor(char *pts_name, int *streams_pty)
     if (fdm >= 0) {
 	char *ptr1;
 	if ((ptr1 = ptsname(fdm)) != NULL) /* Get slave's name */
-	    strcpy(pts_name, ptr1); /* Return name of slave */  
+	    /* Return name of slave */  
+	    strcpy_truncate(pts_name, ptr1, pts_name_sz);
 	else {
 	    close(fdm);
 	    return(-4);
@@ -185,7 +188,7 @@ ptym_open_streams_flavor(char *pts_name, int *streams_pty)
 }
 
 static int
-ptym_open_bsd_flavor(char *pts_name, int *streams_pty)
+ptym_open_bsd_flavor(char *pts_name, size_t pts_name_sz, int *streams_pty)
 {
     int fdm;
     char ptm[MaxPathLen];
@@ -196,7 +199,7 @@ ptym_open_bsd_flavor(char *pts_name, int *streams_pty)
 	fdm = open(ptm, O_RDWR);
 	if (fdm < 0)
 	    continue;
-#if SunOS == 4
+#if SunOS == 40
 	/* Avoid a bug in SunOS4 ttydriver */
 	if (fdm > 0) {
 	    int pgrp;
@@ -265,14 +268,14 @@ ptym_open(char *pts_name, size_t pts_name_sz, int *streams_pty)
 	char *p = _getpty(&fdm, O_RDWR, 0600, 1);
 	if (p) {
 	    *streams_pty = 1;
-	    strcpy (pts_name, p);
+	    strcpy_truncate (pts_name, p, pts_name_sz);
 	    return fdm;
 	}
     }
 #endif
 
 #ifdef STREAMSPTY
-    fdm = ptym_open_streams_flavor(pts_name, streams_pty);
+    fdm = ptym_open_streams_flavor(pts_name, pts_name_sz, streams_pty);
     if (fdm >= 0)
       {
 	*streams_pty = 1;
@@ -280,7 +283,7 @@ ptym_open(char *pts_name, size_t pts_name_sz, int *streams_pty)
       }
 #endif
     
-    fdm = ptym_open_bsd_flavor(pts_name, streams_pty);
+    fdm = ptym_open_bsd_flavor(pts_name, pts_name_sz, streams_pty);
     if (fdm >= 0)
       {
 	*streams_pty = 0;
@@ -288,7 +291,7 @@ ptym_open(char *pts_name, size_t pts_name_sz, int *streams_pty)
       }
 
 #ifndef STREAMSPTY
-    fdm = ptym_open_streams_flavor(pts_name, streams_pty);
+    fdm = ptym_open_streams_flavor(pts_name, pts_name_sz, streams_pty);
     if (fdm >= 0)
       {
 	*streams_pty = 1;
@@ -363,8 +366,10 @@ ptys_open(int fdm, char *pts_name, int streams_pty)
 	    gid = -1;	/* group tty is not in the group file */
 
 	/* Grant access to slave */
-	chown(pts_name, getuid(), gid);
-	chmod(pts_name, S_IRUSR | S_IWUSR | S_IWGRP);
+	if (chown(pts_name, getuid(), gid) < 0)
+	  fatal(0, "chown slave tty failed", 1);
+	if (chmod(pts_name, S_IRUSR | S_IWUSR | S_IWGRP) < 0)
+	  fatal(0, "chmod slave tty failed", 1);
 
 	if ( (fds = open(pts_name, O_RDWR)) < 0) {
 	    close(fdm);
@@ -375,10 +380,11 @@ ptys_open(int fdm, char *pts_name, int streams_pty)
 }
 
 int
-forkpty(int *ptrfdm,
-	char *slave_name,
-	struct termios *slave_termios,
-	struct winsize *slave_winsize)
+forkpty_truncate(int *ptrfdm,
+		 char *slave_name,
+		 size_t slave_name_sz,
+		 struct termios *slave_termios,
+		 struct winsize *slave_winsize)
 {
     int		fdm, fds, streams_pty;
     pid_t	pid;
@@ -391,7 +397,8 @@ forkpty(int *ptrfdm,
 	return -1;
 
     if (slave_name != NULL)
-	strcpy(slave_name, pts_name);	/* Return name of slave */
+	/* Return name of slave */
+	strcpy_truncate(slave_name, pts_name, slave_name_sz);
 
     pid = fork();
     if (pid < 0)
@@ -458,4 +465,18 @@ forkpty(int *ptrfdm,
 	return(pid);	/* Parent returns pid of child */
     }
 }
+
+int
+forkpty(int *ptrfdm,
+	char *slave_name,
+	struct termios *slave_termios,
+	struct winsize *slave_winsize)
+{
+    return forkpty_truncate (ptrfdm,
+			     slave_name,
+			     MaxPathLen,
+			     slave_termios,
+			     slave_winsize);
+}
+
 #endif /* HAVE_FORKPTY */

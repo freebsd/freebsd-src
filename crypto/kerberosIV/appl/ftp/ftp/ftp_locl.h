@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 1996, 1997 Kungliga Tekniska Högskolan
+ * Copyright (c) 1995, 1996, 1997, 1998 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  * 
@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: ftp_locl.h,v 1.29 1997/05/20 18:40:28 bg Exp $ */
+/* $Id: ftp_locl.h,v 1.33 1998/06/13 00:06:40 assar Exp $ */
 
 #ifndef __FTP_LOCL_H__
 #define __FTP_LOCL_H__
@@ -44,8 +44,6 @@
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif
-
-#include <sys/cdefs.h>
 
 #ifdef HAVE_PWD_H
 #include <pwd.h>
@@ -121,7 +119,12 @@
 
 #ifdef SOCKS
 #include <socks.h>
-extern int LIBPREFIX(fclose)      __P((FILE *));
+extern int LIBPREFIX(fclose)      (FILE *);
+
+/* This doesn't belong here. */
+struct tm *localtime(const time_t *);
+struct hostent  *gethostbyname(const char *);
+
 #endif
 
 #include "ftp_var.h"
@@ -129,13 +132,9 @@ extern int LIBPREFIX(fclose)      __P((FILE *));
 #include "common.h"
 #include "pathnames.h"
 
-#include <des.h>
-
-#include <krb.h>
-
-#include "krb4.h"
-
 #include "roken.h"
+#include "security.h"
+#include <des.h> /* for des_read_pw_string */
 
 #if defined(__sun__) && !defined(__svr4)
 int fclose(FILE*);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 1996, 1997 Kungliga Tekniska Högskolan
+ * Copyright (c) 1995 - 1999 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  * 
@@ -38,15 +38,22 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: hstrerror.c,v 1.17 1997/06/01 03:37:25 assar Exp $");
+RCSID("$Id: hstrerror.c,v 1.20.2.1 1999/07/22 03:20:06 assar Exp $");
 #endif
-
-#include "roken.h"
 
 #ifndef HAVE_HSTRERROR
 
+#include "roken.h"
+
 #include <stdio.h>
+
+#ifdef HAVE_NETDB_H
+#if (defined(SunOS) && (SunOS >= 50))
+#define hstrerror broken_proto
+#endif
 #include <netdb.h>
+#undef hstrerror
+#endif
 
 #ifndef HAVE_H_ERRNO
 int h_errno = -17; /* Some magic number */
@@ -73,11 +80,11 @@ extern int h_nerr;
 
 #endif
 
-char *
+const char *
 hstrerror(int herr)
 {
     if (0 <= herr && herr < h_nerr)
-	return (char *) h_errlist[herr];
+	return h_errlist[herr];
     else if(herr == -17)
 	return "unknown error";
     else

@@ -1,6 +1,6 @@
 \input texinfo @c -*- texinfo -*-
 @c %**start of header
-@c $Id: kth-krb.texi,v 1.71 1997/05/25 21:31:00 assar Exp $
+@c $Id: kth-krb.texi,v 1.77.2.1 1999/08/18 21:11:25 joda Exp $
 @setfilename kth-krb.info
 @settitle KTH-KRB
 @iftex
@@ -14,27 +14,29 @@
 @syncodeindex pg cp
 @c %**end of header
 
+@ifinfo
 @dircategory Kerberos
 @direntry
 * Kth-krb: (kth-krb).           The Kerberos IV distribution from KTH
 @end direntry
+@end ifinfo
 
 @c title page
 @titlepage
 @title KTH-KRB
 @subtitle Kerberos 4 from KTH
-@subtitle Edition -1.0, for version 0.9.5
-@subtitle 1997
+@subtitle For release 0.10.
+@subtitle 1999
 @author Johan Danielsson
 @author Assar Westerlund
-@author last updated $Date: 1997/05/25 21:31:00 $
+@author last updated $Date: 1999/08/18 21:11:25 $
 
 @def@copynext{@vskip 20pt plus 1fil@penalty-1000}
 @def@copyrightstart{}
 @def@copyrightend{}
 @page
 @copyrightstart
-Copyright (c) 1995, 1996, 1997 Kungliga Tekniska Högskolan 
+Copyright (c) 1995-1999 Kungliga Tekniska Högskolan 
 (Royal Institute of Technology, Stockholm, Sweden).
 All rights reserved.
 
@@ -230,6 +232,7 @@ to the following restrictions:
 * Acknowledgments::             
 * Index::                       
 
+@detailmenu
  --- The Detailed Node Listing ---
 
 Installing programs
@@ -282,7 +285,11 @@ One-Time Passwords
 Resolving frequent problems
 
 * Problems compiling Kerberos::  
+* Problems with firewalls::     
 * Common error messages::       
+* Is Kerberos year 2000 safe?::  
+
+@end detailmenu
 @end menu
 
 @include intro.texi

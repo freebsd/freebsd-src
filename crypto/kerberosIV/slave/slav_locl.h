@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: slav_locl.h,v 1.11 1997/05/20 18:40:47 bg Exp $ */
+/* $Id: slav_locl.h,v 1.13 1998/06/13 00:07:00 assar Exp $ */
 
 #ifndef __slav_locl_h
 #define __slav_locl_h
@@ -86,6 +86,9 @@
 
 #ifdef SOCKS
 #include <socks.h>
+/* This doesn't belong here. */
+struct tm *localtime(const time_t *);
+struct hostent  *gethostbyname(const char *);
 #endif
 
 #include <roken.h>
@@ -95,6 +98,8 @@
 #include <klog.h>
 #include <prot.h>
 #include <kdc.h>
+
+#include <krb_log.h>
 
 #include "kprop.h"
 
