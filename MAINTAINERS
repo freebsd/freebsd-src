@@ -69,3 +69,5 @@ m4		jmallett	Pre-commit review required.
 ipfw		ipfw	Pre-commit review preferred. send to ipfw@freebsd.org
 xten		imp	Looking after it, don't remove, don't break it.
 drm		anholt	Just keep me informed of changes, try not to break it.
+xargs		jmallett	Willing to handle problems. appreciate heads-up
+				but just try not to break it.
