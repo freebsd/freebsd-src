@@ -56,7 +56,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- *     $Id: poly_sin.c,v 1.3 1994/04/29 21:23:30 gclarkii Exp $
+ *     $Id: poly_sin.c,v 1.4 1994/06/10 07:44:41 rich Exp $
  *
  */
 
@@ -138,14 +138,14 @@ poly_sine(FPU_REG * arg, FPU_REG * result)
 	accum.exp = 0;
 
 	/* Do the basic fixed point polynomial evaluation */
-	polynomial((u_int *) &(accum.sigl), &(Xx4.sigl), lterms, HIPOWER - 1);
+	polynomial((u_int *) &(accum.sigl), (u_int *)&(Xx4.sigl), lterms, HIPOWER - 1);
 
 	/* will be a valid positive nr with expon = 0 */
 	*(short *) &(negaccum.sign) = 0;
 	negaccum.exp = 0;
 
 	/* Do the basic fixed point polynomial evaluation */
-	polynomial((u_int *) &(negaccum.sigl), &(Xx4.sigl), negterms, HIPOWER - 1);
+	polynomial((u_int *) &(negaccum.sigl), (u_int *)&(Xx4.sigl), negterms, HIPOWER - 1);
 	mul64((long long *) &(Xx2.sigl), (long long *) &(negaccum.sigl),
 	    (long long *) &(negaccum.sigl));
 
