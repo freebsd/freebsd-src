@@ -50,7 +50,7 @@ typedef struct {
  * a different one
  */
 typedef	char *		db_sym_t;	/* opaque handle on symbols */
-typedef	const char *	c_db_sym_t;	/* opaque handle on symbols */
+typedef	const char *	c_db_sym_t;	/* const opaque handle on symbols */
 #define	DB_SYM_NULL	((db_sym_t)0)
 #define	C_DB_SYM_NULL	((c_db_sym_t)0)
 
