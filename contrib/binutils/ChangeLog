@@ -1,3 +1,12 @@
+2000-11-07  Philip Blundell  <pb@futuretv.com>
+
+	* Makefile.in (ETC_SUPPORT): Also add configbuild.* and configdev.*.
+
+2000-11-03  Philip Blundell  <pb@futuretv.com>
+
+	* Makefile.in (ETC_SUPPORT): Add configure.texi and associated info
+	files.
+
 2000-03-29  Jason Merrill  <jason@casey.cygnus.com>
 
 	* configure.in: -linux-gnu*, not -linux-gnu.
