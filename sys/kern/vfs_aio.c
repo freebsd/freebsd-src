@@ -13,7 +13,7 @@
  * bad that happens because of using this software isn't the responsibility
  * of the author.  This software is distributed AS-IS.
  *
- * $Id: vfs_aio.c,v 1.6 1997/10/11 01:07:03 dyson Exp $
+ * $Id: vfs_aio.c,v 1.7 1997/10/11 18:31:25 phk Exp $
  */
 
 /*
@@ -54,7 +54,7 @@
 
 #include <machine/cpu.h>
 
-MALLOC_DEFINE(M_AIO, "AIO", "AIO structure(s)");
+static MALLOC_DEFINE(M_AIO, "AIO", "AIO structure(s)");
 
 #define AIOCBLIST_CANCELLED	0x1
 #define AIOCBLIST_RUNDOWN	0x4

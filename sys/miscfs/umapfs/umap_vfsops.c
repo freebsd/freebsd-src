@@ -35,7 +35,7 @@
  *
  *	@(#)umap_vfsops.c	8.8 (Berkeley) 5/14/95
  *
- * $Id: umap_vfsops.c,v 1.15 1997/08/02 14:32:25 bde Exp $
+ * $Id: umap_vfsops.c,v 1.16 1997/08/16 19:15:21 wollman Exp $
  */
 
 /*
@@ -52,6 +52,8 @@
 #include <sys/namei.h>
 #include <sys/malloc.h>
 #include <miscfs/umapfs/umap.h>
+
+static MALLOC_DEFINE(M_UMAPFSMNT, "UMAP mount", "UMAP mount structure");
 
 static int	umapfs_fhtovp __P((struct mount *mp, struct fid *fidp,
 				   struct sockaddr *nam, struct vnode **vpp,
@@ -138,7 +140,7 @@ umapfs_mount(mp, path, data, ndp, p)
 #endif
 
 	amp = (struct umap_mount *) malloc(sizeof(struct umap_mount),
-				M_UFSMNT, M_WAITOK);	/* XXX */
+				M_UMAPFSMNT, M_WAITOK);	/* XXX */
 
 	/*
 	 * Save reference to underlying FS
@@ -190,7 +192,7 @@ umapfs_mount(mp, path, data, ndp, p)
 	 */
 	if (error) {
 		vrele(lowerrootvp);
-		free(amp, M_UFSMNT);	/* XXX */
+		free(amp, M_UMAPFSMNT);	/* XXX */
 		return (error);
 	}
 
@@ -283,7 +285,7 @@ umapfs_unmount(mp, mntflags, p)
 	/*
 	 * Finally, throw away the umap_mount structure
 	 */
-	free(mp->mnt_data, M_UFSMNT);	/* XXX */
+	free(mp->mnt_data, M_UMAPFSMNT);	/* XXX */
 	mp->mnt_data = 0;
 	return (0);
 }

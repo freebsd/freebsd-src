@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)filedesc.h	8.1 (Berkeley) 6/2/93
- * $Id$
+ * $Id: filedesc.h,v 1.11 1997/02/22 09:45:14 peter Exp $
  */
 
 #ifndef _SYS_FILEDESC_H_
@@ -92,6 +92,9 @@ struct filedesc0 {
 #define OFILESIZE (sizeof(struct file *) + sizeof(char))
 
 #ifdef KERNEL
+#ifdef MALLOC_DECLARE
+MALLOC_DECLARE(M_IOV);
+#endif
 /*
  * Kernel global variables and routines.
  */

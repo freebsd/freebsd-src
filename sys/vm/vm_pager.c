@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pager.c,v 1.28 1997/08/25 22:15:28 bde Exp $
+ * $Id: vm_pager.c,v 1.29 1997/09/01 03:17:28 bde Exp $
  */
 
 /*
@@ -73,6 +73,7 @@
 #include <sys/systm.h>
 #include <sys/buf.h>
 #include <sys/ucred.h>
+#include <sys/malloc.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -81,6 +82,8 @@
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
 #include <vm/vm_extern.h>
+
+MALLOC_DEFINE(M_VMPGDATA, "VM pgdata", "XXX: VM pager private data");
 
 extern struct pagerops defaultpagerops;
 extern struct pagerops swappagerops;

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.c	8.3 (Berkeley) 1/4/94
- *	$Id: if.c,v 1.53 1997/09/07 11:09:22 joerg Exp $
+ *	$Id: if.c,v 1.54 1997/10/07 07:40:35 joerg Exp $
  */
 
 #include <sys/param.h>
@@ -66,6 +66,8 @@ static void link_rtrequest __P((int, struct rtentry *, struct sockaddr *));
 
 SYSINIT(interfaces, SI_SUB_PROTO_IF, SI_ORDER_FIRST, ifinit, NULL)
 
+MALLOC_DEFINE(M_IFADDR, "ifaddr", "interface address");
+MALLOC_DEFINE(M_IFMADDR, "ether_multi", "link-level multicast address");
 
 int	ifqmaxlen = IFQ_MAXLEN;
 struct	ifnethead ifnet;	/* depend on static init XXX */

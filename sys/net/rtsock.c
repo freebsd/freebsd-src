@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)rtsock.c	8.5 (Berkeley) 11/2/94
- *	$Id: rtsock.c,v 1.33 1997/09/02 01:18:49 bde Exp $
+ *	$Id: rtsock.c,v 1.34 1997/09/14 03:10:38 peter Exp $
  */
 
 
@@ -51,6 +51,8 @@
 #include <net/if.h>
 #include <net/route.h>
 #include <net/raw_cb.h>
+
+MALLOC_DEFINE(M_RTABLE, "routetbl", "routing tables");
 
 static struct	sockaddr route_dst = { 2, PF_ROUTE, };
 static struct	sockaddr route_src = { 2, PF_ROUTE, };

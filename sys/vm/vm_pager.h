@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_pager.h	8.4 (Berkeley) 1/12/94
- * $Id$
+ * $Id: vm_pager.h,v 1.13 1997/02/22 09:48:37 peter Exp $
  */
 
 /*
@@ -75,6 +75,11 @@ struct pagerops {
 #define VM_PAGER_AGAIN	5
 
 #ifdef KERNEL
+
+#ifdef MALLOC_DECLARE
+MALLOC_DECLARE(M_VMPGDATA);
+#endif
+
 extern vm_map_t pager_map;
 extern int pager_map_size;
 

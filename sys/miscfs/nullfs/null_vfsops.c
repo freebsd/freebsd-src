@@ -36,7 +36,7 @@
  *	@(#)null_vfsops.c	8.2 (Berkeley) 1/21/94
  *
  * @(#)lofs_vfsops.c	1.2 (Berkeley) 6/18/92
- * $Id: null_vfsops.c,v 1.18 1997/08/02 14:32:05 bde Exp $
+ * $Id: null_vfsops.c,v 1.19 1997/08/16 19:15:16 wollman Exp $
  */
 
 /*
@@ -48,11 +48,13 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/proc.h>
+#include <sys/malloc.h>
 #include <sys/vnode.h>
 #include <sys/mount.h>
 #include <sys/namei.h>
-#include <sys/malloc.h>
 #include <miscfs/nullfs/null.h>
+
+static MALLOC_DEFINE(M_NULLFSMNT, "NULLFS mount", "NULLFS mount structure");
 
 static int	nullfs_fhtovp __P((struct mount *mp, struct fid *fidp,
 				   struct sockaddr *nam, struct vnode **vpp,
@@ -154,7 +156,7 @@ nullfs_mount(mp, path, data, ndp, p)
 	}
 
 	xmp = (struct null_mount *) malloc(sizeof(struct null_mount),
-				M_UFSMNT, M_WAITOK);	/* XXX */
+				M_NULLFSMNT, M_WAITOK);	/* XXX */
 
 	/*
 	 * Save reference to underlying FS
@@ -175,7 +177,7 @@ nullfs_mount(mp, path, data, ndp, p)
 	 */
 	if (error) {
 		vrele(lowerrootvp);
-		free(xmp, M_UFSMNT);	/* XXX */
+		free(xmp, M_NULLFSMNT);	/* XXX */
 		return (error);
 	}
 
@@ -268,7 +270,7 @@ nullfs_unmount(mp, mntflags, p)
 	/*
 	 * Finally, throw away the null_mount structure
 	 */
-	free(mp->mnt_data, M_UFSMNT);	/* XXX */
+	free(mp->mnt_data, M_NULLFSMNT);	/* XXX */
 	mp->mnt_data = 0;
 	return 0;
 }

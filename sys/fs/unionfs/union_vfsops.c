@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)union_vfsops.c	8.20 (Berkeley) 5/20/95
- * $Id: union_vfsops.c,v 1.19 1997/08/16 19:15:22 wollman Exp $
+ * $Id: union_vfsops.c,v 1.20 1997/09/27 13:39:29 kato Exp $
  */
 
 /*
@@ -52,6 +52,8 @@
 #include <sys/malloc.h>
 #include <sys/filedesc.h>
 #include <miscfs/union/union.h>
+
+static MALLOC_DEFINE(M_UNIONFSMNT, "UNION mount", "UNION mount structure");
 
 extern int	union_init __P((struct vfsconf *));
 
@@ -176,7 +178,7 @@ union_mount(mp, path, data, ndp, p)
 	}
 
 	um = (struct union_mount *) malloc(sizeof(struct union_mount),
-				M_UFSMNT, M_WAITOK);	/* XXX */
+				M_UNIONFSMNT, M_WAITOK);	/* XXX */
 
 	/*
 	 * Keep a held reference to the target vnodes.
@@ -286,7 +288,7 @@ union_mount(mp, path, data, ndp, p)
 
 bad:
 	if (um)
-		free(um, M_UFSMNT);
+		free(um, M_UNIONFSMNT);
 	if (cred)
 		crfree(cred);
 	if (upperrootvp)
@@ -390,7 +392,7 @@ union_unmount(mp, mntflags, p)
 	/*
 	 * Finally, throw away the union_mount structure
 	 */
-	free(mp->mnt_data, M_UFSMNT);	/* XXX */
+	free(mp->mnt_data, M_UNIONFSMNT);	/* XXX */
 	mp->mnt_data = 0;
 	return (0);
 }

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_syscalls.c	8.5 (Berkeley) 3/30/95
- * $Id: nfs_syscalls.c,v 1.27 1997/08/16 19:16:00 wollman Exp $
+ * $Id: nfs_syscalls.c,v 1.28 1997/10/11 18:31:35 phk Exp $
  */
 
 #include <sys/param.h>
@@ -46,10 +46,10 @@
 #include <sys/filedesc.h>
 #include <sys/stat.h>
 #include <sys/vnode.h>
+#include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/proc.h>
 #include <sys/uio.h>
-#include <sys/malloc.h>
 #include <sys/buf.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
@@ -75,7 +75,7 @@
 #include <nfs/nqnfs.h>
 #include <nfs/nfsrtt.h>
 
-MALLOC_DEFINE(M_NFSSVC, "NFS srvsock", "Nfs server structure");
+static MALLOC_DEFINE(M_NFSSVC, "NFS srvsock", "Nfs server structure");
 
 /* Global defs. */
 extern int (*nfsrv3_procs[NFS_NPROCS]) __P((struct nfsrv_descript *nd,

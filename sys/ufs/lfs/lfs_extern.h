@@ -31,13 +31,16 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_extern.h	8.6 (Berkeley) 5/8/95
- * $Id: lfs_extern.h,v 1.15 1997/03/23 00:45:15 bde Exp $
+ * $Id: lfs_extern.h,v 1.16 1997/10/10 18:17:20 phk Exp $
  */
 
 #ifndef _UFS_LFS_LFS_EXTERN_H_
 #define	_UFS_LFS_LFS_EXTERN_H_
 
 #ifdef KERNEL
+
+MALLOC_DECLARE(M_LFSNODE);
+MALLOC_DECLARE(M_SEGMENT); /* XXX should be M_LFSSEGMENT ?? */
 
 struct inode;
 struct mount;

@@ -101,7 +101,7 @@ Research Laboratory (NRL).
 #include <netkey/key.h>
 #include <netkey/key_debug.h>
 
-MALLOC_DEFINE(M_SECA, "key mgmt", "security associations, key management");
+static MALLOC_DEFINE(M_SECA, "key mgmt", "security associations, key management");
 
 #define SOCKADDR struct sockaddr
 

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.h	8.1 (Berkeley) 6/10/93
- *	$Id: if.h,v 1.45 1997/02/22 09:40:58 peter Exp $
+ *	$Id: if.h,v 1.46 1997/05/03 21:07:12 peter Exp $
  */
 
 #ifndef _NET_IF_H_
@@ -198,6 +198,13 @@ struct	ifconf {
 #define	ifc_buf	ifc_ifcu.ifcu_buf	/* buffer address */
 #define	ifc_req	ifc_ifcu.ifcu_req	/* array of structures returned */
 };
+
+#ifdef KERNEL
+#ifdef MALLOC_DECLARE
+MALLOC_DECLARE(M_IFADDR);
+MALLOC_DECLARE(M_IFMADDR);
+#endif
+#endif
 
 /* XXX - this should go away soon */
 #ifdef KERNEL

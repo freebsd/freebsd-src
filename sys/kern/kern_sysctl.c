@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sysctl.c	8.4 (Berkeley) 4/14/94
- * $Id: kern_sysctl.c,v 1.70 1997/04/09 15:23:09 bde Exp $
+ * $Id: kern_sysctl.c,v 1.71 1997/10/11 18:31:24 phk Exp $
  */
 
 #include <sys/param.h>
@@ -51,7 +51,7 @@
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 
-MALLOC_DEFINE(M_SYSCTL, "sysctl", "sysctl internal magic");
+static MALLOC_DEFINE(M_SYSCTL, "sysctl", "sysctl internal magic");
 
 /*
  * Locking and stats

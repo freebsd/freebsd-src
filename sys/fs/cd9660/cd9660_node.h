@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_node.h	8.6 (Berkeley) 5/14/95
- * $Id: cd9660_node.h,v 1.11 1997/04/14 18:15:45 phk Exp $
+ * $Id: cd9660_node.h,v 1.12 1997/08/26 07:32:31 phk Exp $
  */
 
 /*
@@ -91,6 +91,11 @@ struct iso_node {
 
 #define VTOI(vp) ((struct iso_node *)(vp)->v_data)
 #define ITOV(ip) ((ip)->i_vnode)
+
+#ifdef MALLOC_DECLARE
+MALLOC_DECLARE(M_ISOFSMNT);
+MALLOC_DECLARE(M_ISOFSNODE);
+#endif
 
 /*
  * Prototypes for ISOFS vnode operations
