@@ -29,28 +29,54 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     @(#)whois.1	8.1 (Berkeley) 6/6/93
+.\"     From: @(#)whois.1	8.1 (Berkeley) 6/6/93
+.\"	$Id$
 .\"
-.Dd June 6, 1993
+.Dd February 19, 1998
 .Dt WHOIS 1
 .Os BSD 4.3
 .Sh NAME
 .Nm whois
-.Nd Internet user name directory service
+.Nd Internet domain name and network number directory service
 .Sh SYNOPSIS
 .Nm whois
-.Op Fl h Ar hostname
+.Op Fl adpr
+.Op Fl h Ar host
 .Ar name ...
 .Sh DESCRIPTION
 .Nm Whois
-looks up records in the Network Information Center
-.Pq Tn NIC
-database.
+looks up records in the databases maintained by several
+Network Information Centers
+.Pq Tn NICs .
 .Pp
 The options are as follows:
 .Bl -tag -width Ds
-.It Fl h
-Use the specified host instead of the default NIC (whois.internic.net).
+.It Fl a
+Use the American Registry for Internet Numbers
+.Pq Tn ARIN
+database.  It contains network numbers used in those parts of the world
+covered neither by
+.Tn APNIC nor by
+.Tn RIPE .
+.It Fl d
+Use the (US Military) Defense Data Network
+.Pq Tn DDN
+database.  It contains points of contact for subdomains of
+.Tn \&.MIL .
+.It Fl h Ar host
+Use the specified host instead of the default NIC
+(whois.internic.net).
+Either a host name or an IP address may be specified.
+.It Fl p
+Use the Asia/Pacific Network Information Center
+.Pq Tn APNIC
+database.  It contains network numbers used in East Asia, Australia,
+New Zealand, and the Pacific islands.
+.It Fl r
+Use the R\(aaeseaux IP Europ\(aaeens
+.Pq Tn RIPE
+database.  It contains network numbers and domain contact information
+for Europe.
 .El
 .Pp
 The operands specified to
