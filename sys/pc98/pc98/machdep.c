@@ -56,6 +56,7 @@
 #include <sys/sysproto.h>
 #include <sys/signalvar.h>
 #include <sys/imgact.h>
+#include <sys/kdb.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/linker.h>
@@ -164,6 +165,10 @@ SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL)
 #ifdef PC98
 int	need_pre_dma_flush;	/* If 1, use wbinvd befor DMA transfer. */
 int	need_post_dma_flush;	/* If 1, use invd after DMA transfer. */
+#endif
+
+#ifdef DDB
+extern vm_offset_t ksym_start, ksym_end;
 #endif
 
 int	_udatasel, _ucodesel;
@@ -2146,9 +2151,15 @@ init386(first)
 #endif
 
 #ifdef DDB
+	ksym_start = bootinfo.bi_symtab;
+	ksym_end = bootinfo.bi_esymtab;
+#endif
+
 	kdb_init();
+
+#ifdef KDB
 	if (boothowto & RB_KDB)
-		Debugger("Boot flags requested debugger");
+		kdb_enter("Boot flags requested debugger");
 #endif
 
 	finishidentcpu();	/* Final stage of CPU initialization */
@@ -2262,6 +2273,25 @@ f00f_hack(void *unused)
 		panic("vm_map_protect failed");
 }
 #endif /* defined(I586_CPU) && !NO_F00F_HACK */
+
+/*
+ * Construct a PCB from a trapframe. This is called from kdb_trap() where
+ * we want to start a backtrace from the function that caused us to enter
+ * the debugger. We have the context in the trapframe, but base the trace
+ * on the PCB. The PCB doesn't have to be perfect, as long as it contains
+ * enough for a backtrace.
+ */
+void
+makectx(struct trapframe *tf, struct pcb *pcb)
+{
+
+	pcb->pcb_edi = tf->tf_edi;
+	pcb->pcb_esi = tf->tf_esi;
+	pcb->pcb_ebp = tf->tf_ebp;
+	pcb->pcb_ebx = tf->tf_ebx;
+	pcb->pcb_eip = tf->tf_eip;
+	pcb->pcb_esp = (ISPL(tf->tf_cs)) ? tf->tf_esp : (int)(tf + 1) - 8;
+}
 
 int
 ptrace_set_pc(struct thread *td, u_long addr)
@@ -2782,20 +2812,12 @@ user_dbreg_trap(void)
         return 0;
 }
 
-#ifndef DDB
-void
-Debugger(const char *msg)
-{
-	printf("Debugger(\"%s\") called.\n", msg);
-}
-#endif /* no DDB */
-
-#ifdef DDB
+#ifdef KDB
 
 /*
  * Provide inb() and outb() as functions.  They are normally only
  * available as macros calling inlined functions, thus cannot be
- * called inside DDB.
+ * called from the debugger.
  *
  * The actual code is stolen from <machine/cpufunc.h>, and de-inlined.
  */
@@ -2834,4 +2856,4 @@ outb(u_int port, u_char data)
 	__asm __volatile("outb %0,%%dx" : : "a" (al), "d" (port));
 }
 
-#endif /* DDB */
+#endif /* KDB */
