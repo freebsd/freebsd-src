@@ -1202,7 +1202,6 @@ net/if_faith.c		optional faith
 net/if_fddisubr.c	optional fddi
 net/if_gif.c		optional gif
 net/if_gre.c		optional gre
-net/if_ieee80211subr.c	optional wlan
 net/if_iso88025subr.c	optional token
 net/if_loop.c		optional loop
 net/if_media.c		standard
@@ -1232,6 +1231,13 @@ net/slcompress.c	optional sppp
 net/zlib.c		optional ppp_deflate
 net/zlib.c		optional ipsec
 net/zlib.c		optional crypto
+net80211/ieee80211.c	optional wlan
+net80211/ieee80211_crypto.c	optional wlan
+net80211/ieee80211_input.c	optional wlan
+net80211/ieee80211_ioctl.c	optional wlan
+net80211/ieee80211_node.c	optional wlan
+net80211/ieee80211_output.c	optional wlan
+net80211/ieee80211_proto.c	optional wlan
 netatalk/aarp.c		optional netatalk
 netatalk/at_control.c	optional netatalk
 netatalk/at_proto.c	optional netatalk
