@@ -23,7 +23,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $Id: strptime.3,v 1.1 1997/08/09 15:43:54 joerg Exp $
+.\" $Id: strptime.3,v 1.2 1998/09/12 21:13:29 dt Exp $
 .\" "
 .Dd May 8, 1997
 .Dt STRPTIME 3
@@ -56,6 +56,14 @@ white space in the format string will match any amount of white space
 in the buffer.
 All conversion specifications are identical to those described in
 .Xr strftime 3 .
+.Pp
+Two-digit year values, including formats
+.Fa %y
+and 
+.Fa %D ,
+are now interpreted as beginning at 1969 per POSIX requirements.
+Years 69-00 are interpreted in the 20th century (1969-2000), years
+01-68 in the 21st century (2001-2068).
 .Sh RETURN VALUES
 Upon successful completion,
 .Fn strptime
