@@ -185,10 +185,12 @@ vm_offset_t phys_avail[10];
 #define PHYS_AVAIL_ARRAY_END ((sizeof(phys_avail) / sizeof(vm_offset_t)) - 2)
 
 static void dumpsys __P((void));
+static void setup_netisrs __P((struct linker_set *)); /* XXX declare elsewhere */
 
 static vm_offset_t buffer_sva, buffer_eva;
 vm_offset_t clean_sva, clean_eva;
 static vm_offset_t pager_sva, pager_eva;
+extern struct linker_set netisr_set;
 
 #define offsetof(type, member)	((size_t)(&((type *)0)->member))
 
@@ -248,6 +250,17 @@ cpu_startup(dummy)
 			    phys_avail[indx + 1] - 1, size, size / PAGE_SIZE);
 		}
 	}
+
+	/*
+	 * Quickly wire in netisrs.
+	 */
+	setup_netisrs(&netisr_set);
+
+/*
+#ifdef ISDN
+	DONET(isdnintr, NETISR_ISDN);
+#endif
+*/
 
 	/*
 	 * Allocate space for system data structures.
@@ -424,6 +437,33 @@ again:
 			       max_sector, max_sector);
 		}
 		printf(" %d accounted for\n", bootinfo.bi_n_bios_used);
+	}
+}
+
+int
+register_netisr(num, handler)
+	int num;
+	netisr_t *handler;
+{
+	
+	if (num < 0 || num >= (sizeof(netisrs)/sizeof(*netisrs)) ) {
+		printf("register_netisr: bad isr number: %d\n", num);
+		return (EINVAL);
+	}
+	netisrs[num] = handler;
+	return (0);
+}
+
+static void
+setup_netisrs(ls)
+	struct linker_set *ls;
+{
+	int i;
+	const struct netisrtab *nit;
+
+	for(i = 0; ls->ls_items[i]; i++) {
+		nit = (const struct netisrtab *)ls->ls_items[i];
+		register_netisr(nit->nit_num, nit->nit_isr);
 	}
 }
 
