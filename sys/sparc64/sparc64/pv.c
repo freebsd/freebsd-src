@@ -215,15 +215,24 @@ pv_bit_test(vm_page_t m, u_long bits)
 	return (FALSE);
 }
 
+/*
+ * See pmap_page_exists_quick for operational explanation of
+ * pv_page_exists.
+ */
+
 int
 pv_page_exists(pmap_t pm, vm_page_t m)
 {
 	pv_entry_t pv;
+	int loops = 0;
 
 	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
 		if (pv->pv_pmap == pm) {
 			return (TRUE);
 		}
+		loops++;
+		if (loops >= 16)
+			break;
 	}
 	return (FALSE);
 }

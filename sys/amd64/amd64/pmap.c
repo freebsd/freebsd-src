@@ -2933,15 +2933,19 @@ pmap_pageable(pmap, sva, eva, pageable)
 }
 
 /*
- * this routine returns true if a physical page resides
- * in the given pmap.
+ * Returns true if the pmap's pv is one of the first
+ * 16 pvs linked to from this page.  This count may
+ * be changed upwards or downwards in the future; it
+ * is only necessary that true be returned for a small
+ * subset of pmaps for proper page aging.
  */
 boolean_t
-pmap_page_exists(pmap, m)
+pmap_page_exists_quick(pmap, m)
 	pmap_t pmap;
 	vm_page_t m;
 {
-	register pv_entry_t pv;
+	pv_entry_t pv;
+	int loops = 0;
 	int s;
 
 	if (!pmap_initialized || (m->flags & PG_FICTITIOUS))
@@ -2949,14 +2953,14 @@ pmap_page_exists(pmap, m)
 
 	s = splvm();
 
-	/*
-	 * Not found, check current mappings returning immediately if found.
-	 */
 	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
 		if (pv->pv_pmap == pmap) {
 			splx(s);
 			return TRUE;
 		}
+		loops++;
+		if (loops >= 16)
+			break;
 	}
 	splx(s);
 	return (FALSE);
@@ -3186,7 +3190,14 @@ pmap_phys_address(ppn)
 /*
  *	pmap_ts_referenced:
  *
- *	Return the count of reference bits for a page, clearing all of them.
+ *	Return a count of reference bits for a page, clearing those bits.
+ *	It is not necessary for every reference bit to be cleared, but it
+ *	is necessary that 0 only be returned when there are truly no
+ *	reference bits set.
+ *
+ *	XXX: The exact number of bits to check and clear is a matter that
+ *	should be tested and standardized at some point in the future for
+ *	optimal aging of shared pages.
  */
 int
 pmap_ts_referenced(vm_page_t m)
