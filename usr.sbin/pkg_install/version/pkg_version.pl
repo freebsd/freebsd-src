@@ -264,11 +264,11 @@ sub GetNameAndVersion {
 #
 sub PrintHelp {
     print <<"EOF"
-Usage:	pkg_version [-c] [-d debug] [-h] [-l limchar] [-L limchar] [-s string] 
+Usage:	pkg_version [-c] [-d] [-h] [-l limchar] [-L limchar] [-s string] 
 		    [-v] [index]
 	pkg_version [-d debug] -t v1 v2
 -c              Show commands to update installed packages
--d debug	Debugging output (debug controls level of output)
+-d		Enable debugging output
 -h		Help (this message)
 -l limchar	Limit output to status flags that match
 -L limchar	Limit output to status flags that DON\'T match
