@@ -238,7 +238,7 @@ Proc(char *filename, unsigned applied)
 	    return Exit_Broke;
 	}
 	if ((fd = mkstemp(fn)) == -1 || (f2 = fdopen(fd, "w+")) == NULL) {
- 	    perror(fn);
+ 	    warn("%s", fn);
 	    free(fn);
 	    if (fd != -1)
 		close(fd);
