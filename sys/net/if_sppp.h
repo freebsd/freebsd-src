@@ -97,6 +97,13 @@ enum ppp_phase {
 struct sppp_parms {
 	enum ppp_phase pp_phase;	/* phase we're currently in */
 	int	enable_vj;		/* VJ header compression enabled */
+	int	enable_ipv6;		/*
+					 * Enable IPv6 negotiations -- only
+					 * needed since each IPv4 i/f auto-
+					 * matically gets an IPv6 address
+					 * assigned, so we can't use this as
+					 * a decision.
+					 */
 	struct slcp lcp;		/* LCP params */
 	struct sipcp ipcp;		/* IPCP params */
 	struct sipcp ipv6cp;		/* IPv6CP params */
@@ -144,7 +151,9 @@ struct sppp {
 	u_char  confid[IDX_COUNT];	/* id of last configuration request */
 	int	rst_counter[IDX_COUNT];	/* restart counter */
 	int	fail_counter[IDX_COUNT]; /* negotiation failure counter */
-	int	enable_vj;	/* VJ header compression enabled */
+	int	confflags;	/* administrative configuration flags */
+#define CONF_ENABLE_VJ    0x01	/* VJ header compression enabled */
+#define CONF_ENABLE_IPV6  0x02	/* IPv6 administratively enabled */
 	time_t	pp_last_recv;	/* time last packet has been received */
 	time_t	pp_last_sent;	/* time last packet has been sent */
 	struct callout_handle ch[IDX_COUNT]; /* per-proto and if callouts */
