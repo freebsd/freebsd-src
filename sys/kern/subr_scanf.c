@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: subr_scanf.c,v 1.3 1999/01/28 00:57:47 dillon Exp $
+ * $Id: subr_scanf.c,v 1.4 1999/01/29 08:09:32 dillon Exp $
  * From: Id: vfscanf.c,v 1.13 1998/09/25 12:20:27 obrien Exp 
  */
 
@@ -323,7 +323,7 @@ literal:
 			/* take only those things in the class */
 			if (flags & SUPPRESS) {
 				n = 0;
-				while (ccltab[(int)(unsigned char)*inp]) {
+				while (ccltab[(unsigned char)*inp]) {
 					n++, inr--, inp++;
 					if (--width == 0)
 						break;
@@ -337,7 +337,7 @@ literal:
 					goto match_failure;
 			} else {
 				p0 = p = va_arg(ap, char *);
-				while (ccltab[(int)(unsigned char)*inp]) {
+				while (ccltab[(unsigned char)*inp]) {
 					inr--;
 					*p++ = *inp++;
 					if (--width == 0)
