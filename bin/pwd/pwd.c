@@ -82,7 +82,7 @@ main(argc, argv)
 	if (argc == 1) {
 		p = realpath(argv[0], buf);
 		if (p == NULL)
-			err(1, argv[0]);
+			err(1, "%s", argv[0]);
 		(void)printf("%s\n", p);
 	} else  if (argc == 0) {
 		p = getcwd(NULL, 0);
