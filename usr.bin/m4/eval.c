@@ -717,22 +717,22 @@ register int argc;
 	register unsigned char *ap, *fc, *k;
 	register int nc;
 
-	if (argc < 5)
-		nc = MAXTOK;
-	else
-#ifdef EXPR
-		nc = expr(argv[4]);
-#else
-		nc = atoi(argv[4]);
-#endif
 	ap = argv[2];		       /* target string */
 #ifdef EXPR
 	fc = ap + expr(argv[3]);       /* first char */
 #else
 	fc = ap + atoi(argv[3]);       /* first char */
 #endif
+	if (argc < 5)
+		nc = strlen(fc);
+	else
+#ifdef EXPR
+		nc = expr(argv[4]);
+#else
+		nc = atoi(argv[4]);
+#endif
 	if (fc >= ap && fc < ap + strlen(ap))
-		for (k = fc + min(nc, strlen(fc)) - 1; k >= fc; k--)
+		for (k = fc + nc - 1; k >= fc; k--)
 			putback(*k);
 }
 
