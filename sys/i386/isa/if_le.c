@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_le.c,v 1.38 1997/07/20 14:10:00 bde Exp $
+ * $Id: if_le.c,v 1.39 1997/08/21 07:55:10 fsmp Exp $
  */
 
 /*
@@ -39,6 +39,7 @@
 #if NLE > 0
 
 #include <sys/param.h>
+#include <sys/conf.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
@@ -79,7 +80,6 @@
 #endif
 
 /* Forward declarations */
-void le_intr __P((int unit));
 typedef struct le_softc le_softc_t;
 typedef struct le_board le_board_t;
 
