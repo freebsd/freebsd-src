@@ -560,6 +560,9 @@ struct xl_mii_frame {
 #define XL_FLAG_8BITROM			0x0010
 #define XL_FLAG_INVERT_LED_PWR		0x0020
 #define XL_FLAG_INVERT_MII_PWR		0x0040
+#define XL_FLAG_NO_XCVR_PWR		0x0080
+
+#define XL_NO_XCVR_PWR_MAGICBITS	0x0900
 
 struct xl_softc {
 	struct arpcom		arpcom;		/* interface info */
