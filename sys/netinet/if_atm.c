@@ -125,8 +125,9 @@ atm_rtrequest(req, rt, info)
 			break;
 		}
 
-#ifdef DIAGNOSTIC
-		if (rt->rt_ifp->if_ioctl == NULL) panic("atm null ioctl");
+#ifdef	INVARIANTS 
+		if (rt->rt_ifp->if_ioctl == NULL)
+			panic("atm_rtrequest: atm null ioctl");
 #endif
 
 #ifdef NATM
