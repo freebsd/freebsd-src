@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_misc.c,v 1.12 1996/02/16 18:40:50 peter Exp $
+ *  $Id: linux_misc.c,v 1.13 1996/03/02 19:37:57 peter Exp $
  */
 
 #include <sys/param.h>
@@ -675,25 +675,36 @@ struct linux_times_argv {
     long    tms_cstime;
 };
 
+#define CLK_TCK 100	/* Linux uses 100 */
+#define CONVTCK(r)	(r.tv_sec * CLK_TCK + r.tv_usec / (1000000 / CLK_TCK))
+
 int
 linux_times(struct proc *p, struct linux_times_args *args, int *retval)
 {
     struct timeval tv;
     struct linux_times_argv tms;
+    struct rusage ru;
+    int error, s;
 
 #ifdef DEBUG
     printf("Linux-emul(%d): times(*)\n", p->p_pid);
 #endif
-    tms.tms_utime = p->p_uticks;
-    tms.tms_stime = p->p_sticks;
-    tms.tms_cutime = p->p_stats->p_cru.ru_utime.tv_sec * hz +
-	    ((p->p_stats->p_cru.ru_utime.tv_usec * hz)/1000000);
-    tms.tms_cstime = p->p_stats->p_cru.ru_stime.tv_sec * hz +
-	    ((p->p_stats->p_cru.ru_stime.tv_usec * hz)/1000000);
+    calcru(p, &ru.ru_utime, &ru.ru_stime, NULL);
+
+    tms.tms_utime = CONVTCK(ru.ru_utime);
+    tms.tms_stime = CONVTCK(ru.ru_stime);
+
+    tms.tms_cutime = CONVTCK(p->p_stats->p_cru.ru_utime);
+    tms.tms_cstime = CONVTCK(p->p_stats->p_cru.ru_stime);
+
+    if ((error = copyout((caddr_t)&tms, (caddr_t)args->buf,
+	    	    sizeof(struct linux_times_argv))))
+	return error;
+
     microtime(&tv);
-    *retval = tv.tv_sec * hz + (tv.tv_usec * hz)/1000000;
-    return (copyout((caddr_t)&tms, (caddr_t)args->buf,
-	    	    sizeof(struct linux_times_argv)));
+    timevalsub(&tv, &boottime);
+    *retval = (int)CONVTCK(tv);
+    return 0;
 }
 
 /* XXX move */
@@ -725,6 +736,10 @@ linux_newuname(struct proc *p, struct linux_newuname_args *args, int *retval)
 	    	    sizeof(struct linux_newuname_t)));
 }
 
+struct linux_utimbuf {
+	linux_time_t l_actime;
+	linux_time_t l_modtime;
+};
 
 int
 linux_utime(struct proc *p, struct linux_utime_args *args, int *retval)
@@ -733,7 +748,9 @@ linux_utime(struct proc *p, struct linux_utime_args *args, int *retval)
 	char	*path;
 	struct	timeval *tptr;
     } */ bsdutimes;
-    struct timeval tv;
+    struct timeval tv[2], *tvp;
+    struct linux_utimbuf lut;
+    int error;
     caddr_t sg;
 
     sg = stackgap_init();
@@ -742,9 +759,21 @@ linux_utime(struct proc *p, struct linux_utime_args *args, int *retval)
 #ifdef DEBUG
     printf("Linux-emul(%d): utime(%s, *)\n", p->p_pid, args->fname);
 #endif
-    tv.tv_sec = (long)args->timeptr;	/* XXX: wrong?? */
-    tv.tv_usec = 0;
-    bsdutimes.tptr = &tv;
+    if (args->times) {
+	if ((error = copyin(args->times, &lut, sizeof lut)))
+	    return error;
+	tv[0].tv_sec = lut.l_actime;
+	tv[0].tv_usec = 0;
+	tv[1].tv_sec = lut.l_modtime;
+	tv[1].tv_usec = 0;
+	/* so that utimes can copyin */
+	tvp = (struct timeval *)stackgap_alloc(&sg, sizeof(tv));
+	if ((error = copyout(tv, tvp, sizeof(tv))))
+	    return error;
+	bsdutimes.tptr = tvp;
+    } else
+	bsdutimes.tptr = NULL;
+
     bsdutimes.path = args->fname;
     return utimes(p, &bsdutimes, retval);
 }
