@@ -668,7 +668,8 @@ kvm_getargv(kd, kp, nchr)
 	int nchr;
 {
 	int oid[4];
-	int i, l;
+	int i;
+	size_t bufsz;
 	static int buflen;
 	static char *buf, *p;
 	static char **bufp;
@@ -681,11 +682,11 @@ kvm_getargv(kd, kp, nchr)
 	}
 
 	if (!buflen) {
-		l = sizeof(buflen);
+		bufsz = sizeof(buflen);
 		i = sysctlbyname("kern.ps_arg_cache_limit", 
-		    &buflen, &l, NULL, 0);
+		    &buflen, &bufsz, NULL, 0);
 		if (i == -1) {
-			buflen == 0;
+			buflen = 0;
 		} else {
 			buf = malloc(buflen);
 			if (buf == NULL)
@@ -699,9 +700,9 @@ kvm_getargv(kd, kp, nchr)
 		oid[1] = KERN_PROC;
 		oid[2] = KERN_PROC_ARGS;
 		oid[3] = kp->kp_proc.p_pid;
-		l = buflen;
-		i = sysctl(oid, 4, buf, &l, 0, 0);
-		if (i == 0 && l > 0) {
+		bufsz = buflen;
+		i = sysctl(oid, 4, buf, &bufsz, 0, 0);
+		if (i == 0 && bufsz > 0) {
 			i = 0;
 			p = buf;
 			do {
@@ -712,7 +713,7 @@ kvm_getargv(kd, kp, nchr)
 					bufp = realloc(bufp,
 					    sizeof(char *) * argc);
 				}
-			} while (p < buf + l);
+			} while (p < buf + bufsz);
 			bufp[i++] = 0;
 			return (bufp);
 		}
