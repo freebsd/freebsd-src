@@ -1,5 +1,5 @@
 /*
- * $Id: user.c,v 1.1 1996/12/09 06:02:33 jkh Exp $
+ * $Id: user.c,v 1.2 1996/12/09 14:08:26 joerg Exp $
  *
  * Copyright (c) 1996
  *      Jörg Wunsch. All rights reserved.
@@ -38,6 +38,7 @@
 #include <unistd.h>
 #include <sys/param.h>
 #include <string.h>
+#include <sysexits.h>
 #include <dialog.h>
 #include "ui_objects.h"
 #include "dir.h"
@@ -134,7 +135,7 @@ static Layout userLayout[] = {
 	uid, STRINGOBJ, NULL },
 #define LAYOUT_UID		1
 { 3, 43, 15, UGROUP_FIELD_LEN - 1,
-	"Group:", "The login group name for this user (mandatory)",
+	"Group:", "The login group name for this user (leave blank for automatic choice)",
 	ugroup, STRINGOBJ, NULL },
 #define LAYOUT_UGROUP		2
 { 8, 6, 33, GECOS_FIELD_LEN - 1,
@@ -213,6 +214,66 @@ verifyGroupSettings(void)
     return 1;
 }
 
+/*
+ * Ask pw(8) to fill in the blanks for us.
+ * Works solely on the global variables.
+ */
+
+static void
+completeGroup(void)
+{
+    int pfd[2], i;
+    char tmp[256], *cp;
+    ssize_t l;
+    size_t amnt;
+    pid_t pid;
+    char *vec[4] =
+    {
+	"pw", "group", "next", 0
+    };
+
+    pipe (pfd);
+    if ((pid = fork()) == 0)
+    {
+	/* The kiddy. */
+	dup2(pfd[1], 1);
+	dup2(pfd[1], 2);
+	for (i = getdtablesize(); i > 2; i--)
+	    close(i);
+
+	chroot(variable_get(VAR_INSTALL_ROOT));
+	execv("/usr/sbin/pw", vec);
+	msgDebug("Cannot execv() /usr/sbin/pw.\n");
+	_exit(99);
+    }
+    else
+    {
+	/* The oldie. */
+	close(pfd[1]);
+	amnt = sizeof tmp;
+	i = 0;
+	while((l = read(pfd[0], &tmp[i], amnt)) > 0)
+	{
+	    amnt -= l;
+	    i += l;
+	    if (amnt == 0)
+	    {
+		close(pfd[0]);
+		break;
+	    }
+	}
+	close(pfd[0]);
+	tmp[i] = '\0';
+	waitpid(pid, &i, 0);
+	if (WIFSIGNALED(i) || WEXITSTATUS(i) != 0)
+	    /* ignore by now */
+	    return;
+	if ((cp = strchr(tmp, '\n')) != NULL)
+	    *cp = '\0';
+	strncpy(gid, tmp, sizeof gid);
+    }
+}
+
 static void
 addGroup(WINDOW *ds_win)
 {
@@ -283,6 +344,8 @@ addGroup(WINDOW *ds_win)
 		       &tmp[i]);
 	}
     }
+#undef VEC_GNAME
+#undef VEC_GID
 }
 
 int
@@ -292,7 +355,7 @@ userAddGroup(dialogMenuItem *self)
     ComposeObj          *obj = NULL;
     ComposeObj		*first, *last;
     int                 n=0, quit=FALSE, cancel=FALSE, ret;
-    int			max;
+    int			max, firsttime=TRUE;
     char		help[FILENAME_MAX];
 
     if (RunningAsInit && !strstr(variable_get(SYSTEM_STATE), "install")) {
@@ -393,6 +456,13 @@ userAddGroup(dialogMenuItem *self)
 	case KEY_DOWN:
 	case SEL_TAB:
 	case SEL_CR:
+	    if (firsttime && n == LAYOUT_GNAME)
+	    {
+		/* fill in the blanks, well, just the GID */
+		completeGroup();
+		RefreshStringObj(groupLayout[LAYOUT_GID].obj);
+		firsttime = FALSE;
+	    }
 	    if (n < max)
 		++n;
 	    else
@@ -454,7 +524,7 @@ verifyUserSettings(WINDOW *ds_win)
 	feepout("The user name field must not be empty!");
 	return 0;
     }
-    snprintf(tmp, 256, "pw user show -q -n %s > /dev/null", gname);
+    snprintf(tmp, 256, "pw user show -q -n %s > /dev/null", uname);
     if (vsystem(tmp) == 0) {
 	feepout("This user name is already in use.");
 	return 0;
@@ -465,15 +535,6 @@ verifyUserSettings(WINDOW *ds_win)
 	    feepout("The UID must be a number between 1 and 65535.");
 	    return 0;
 	}
-    }
-    if (strlen(ugroup) == 0) {
-	feepout("The login group field must not be empty!");
-	return 0;
-    }
-    snprintf(tmp, 256, "pw group show -q -n %s > /dev/null", ugroup);
-    if (vsystem(tmp) != 0) {
-	feepout("This group name does not yet exist.");
-	return 0;
     }
     if (strlen(shell) > 0) {
 	while((cp = getusershell()) != NULL)
@@ -505,11 +566,102 @@ verifyUserSettings(WINDOW *ds_win)
     return 1;
 }
 
+/*
+ * Ask pw(8) to fill in the blanks for us.
+ * Works solely on the global variables.
+ */
+
+static void
+completeUser(void)
+{
+    int pfd[2], i;
+    char tmp[256], *cp, *cp2;
+    ssize_t l;
+    size_t amnt;
+    pid_t pid;
+    char *vec[7] =
+    {
+	"pw", "user", "add", "-N", "-n", 0, 0
+    };
+#define VEC_UNAME 5
+
+    pipe (pfd);
+    if ((pid = fork()) == 0)
+    {
+	/* The kiddy. */
+	dup2(pfd[1], 1);
+	dup2(pfd[1], 2);
+	for (i = getdtablesize(); i > 2; i--)
+	    close(i);
+
+	vec[VEC_UNAME] = uname;
+
+	chroot(variable_get(VAR_INSTALL_ROOT));
+	execv("/usr/sbin/pw", vec);
+	msgDebug("Cannot execv() /usr/sbin/pw.\n");
+	_exit(99);
+    }
+    else
+    {
+	/* The oldie. */
+	close(pfd[1]);
+	amnt = sizeof tmp;
+	i = 0;
+	while((l = read(pfd[0], &tmp[i], amnt)) > 0)
+	{
+	    amnt -= l;
+	    i += l;
+	    if (amnt == 0)
+	    {
+		close(pfd[0]);
+		break;
+	    }
+	}
+	close(pfd[0]);
+	tmp[i] = '\0';
+	waitpid(pid, &i, 0);
+	if (WIFSIGNALED(i) || WEXITSTATUS(i) != 0)
+	    /* ignore by now */
+	    return;
+	if ((cp = strchr(tmp, '\n')) != NULL)
+	    *cp = '\0';
+	if ((cp = strchr(tmp, ':')) == NULL || (cp = strchr(++cp, ':')) == NULL)
+	    return;
+	cp++;
+	if ((cp2 = strchr(cp, ':')) == NULL)
+	    return;
+	*cp2++ = '\0';
+	strncpy(uid, cp, sizeof uid);
+	cp = cp2;
+	if ((cp2 = strchr(cp, ':')) == NULL)
+	    return;
+	*cp2++ = '\0';
+#ifdef notyet /* XXX pw user add -g doesn't accept a numerical GID */
+	strncpy(ugroup, cp, sizeof ugroup);
+#endif
+	cp = cp2;
+	if ((cp2 = strchr(cp, ':')) == NULL || (cp2 = strchr(++cp2, ':')) == NULL ||
+	    (cp = cp2 = strchr(++cp2, ':')) == NULL || (cp2 = strchr(++cp2, ':')) == NULL)
+	    return;
+	*cp2++ = '\0';
+	cp++;
+	strncpy(gecos, cp, sizeof gecos);
+	cp = cp2;
+	if ((cp2 = strchr(cp, ':')) == NULL)
+	    return;
+	*cp2++ = '\0';
+	strncpy(homedir, cp, sizeof homedir);
+	if (*cp2)
+	    strncpy(shell, cp2, sizeof shell);
+    }
+#undef VEC_UNAME
+}
+
 static void
 addUser(WINDOW *ds_win)
 {
-    char tmp[256];
-    int pfd[2], i;
+    char tmp[256], *msg;
+    int pfd[2], i, j;
     ssize_t l;
     size_t amnt;
     pid_t pid;
@@ -517,7 +669,7 @@ addUser(WINDOW *ds_win)
      * Maximal list:
      * pw user add -m -n uname -g grp -u uid -c comment -d homedir -s shell -G grplist
      */
-    char *vec[18] =
+    char *vec[19] =
     {
 	"pw", "user", "add", "-m", "-n", /* ... */
     };
@@ -536,12 +688,11 @@ addUser(WINDOW *ds_win)
 
 	vec[i = VEC_UNAME] = uname;
 	i++;
-	vec[i++] = "-g";
-	vec[i++] = ugroup;
 #define ADDVEC(var, option) do { if (strlen(var) > 0) { vec[i++] = option; vec[i++] = var; } } while (0)
+	ADDVEC(ugroup, "-g");
 	ADDVEC(uid, "-u");
 	ADDVEC(gecos, "-c");
-	ADDVEC(homedir, "-h");
+	ADDVEC(homedir, "-d");
 	ADDVEC(shell, "-s");
 	ADDVEC(umemb, "-G");
 	vec[i] = 0;
@@ -571,16 +722,29 @@ addUser(WINDOW *ds_win)
 	tmp[i] = '\0';
 	waitpid(pid, &i, 0);
 	if (WIFSIGNALED(i))
-	    msgDebug("pw(8) exited with signal %d.\n", WTERMSIG(i));
-	else if(WEXITSTATUS(i))
+	{
+	    j = WTERMSIG(i);
+	    msg = "The `pw' command exited with signal %d.\n";
+	    goto sysfail;
+	}
+	else if((j = WEXITSTATUS(i)))
 	{
 	    i = 0;
 	    if(strncmp(tmp, "pw: ", 4) == 0)
 		i = 4;
 	    tmp[sizeof tmp - 1] = '\0';	/* sanity */
-	    msgConfirm("The `pw' command exited with an error status.\n"
-		       "Its error message was:\n\n%s",
-		       &tmp[i]);
+	    if (j == EX_DATAERR || j == EX_NOUSER || j == EX_SOFTWARE)
+		msgConfirm("The `pw' command exited with an error status.\n"
+			   "Its error message was:\n\n%s",
+			   &tmp[i]);
+	    else
+	    {
+		msg = "The `pw' command exited with unexpected status %d.\n";
+	sysfail:
+		msgDebug(msg, j);
+		msgDebug("Command stdout and stderr was:\n\n%s", tmp);
+		msgConfirm(msg, j);
+	    }
 	}
 	else
 	    msgConfirm("You will need to enter a password for this user\n"
@@ -588,6 +752,8 @@ addUser(WINDOW *ds_win)
 		       "The account for `%s' is currently still disabled.",
 		       uname);
     }
+#undef VEC_UNAME
+#undef ADDVEC
 }
 
 int
@@ -597,7 +763,7 @@ userAddUser(dialogMenuItem *self)
     ComposeObj          *obj = NULL;
     ComposeObj		*first, *last;
     int                 n=0, quit=FALSE, cancel=FALSE, ret;
-    int			max;
+    int			max, firsttime=TRUE;
     char		help[FILENAME_MAX];
 
     if (RunningAsInit && !strstr(variable_get(SYSTEM_STATE), "install")) {
@@ -702,6 +868,18 @@ userAddUser(dialogMenuItem *self)
 	case KEY_DOWN:
 	case SEL_TAB:
 	case SEL_CR:
+	    if (firsttime && n == LAYOUT_UNAME)
+	    {
+		/* fill in the blanks, well, just the GID */
+		completeUser();
+		RefreshStringObj(userLayout[LAYOUT_UID].obj);
+		RefreshStringObj(userLayout[LAYOUT_UGROUP].obj);
+		RefreshStringObj(userLayout[LAYOUT_GECOS].obj);
+		RefreshStringObj(userLayout[LAYOUT_UMEMB].obj);
+		RefreshStringObj(userLayout[LAYOUT_HOMEDIR].obj);
+		RefreshStringObj(userLayout[LAYOUT_SHELL].obj);
+		firsttime = FALSE;
+	    }
 	    if (n < max)
 		++n;
 	    else
