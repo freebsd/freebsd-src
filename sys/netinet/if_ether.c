@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ether.c	8.1 (Berkeley) 6/10/93
- * $Id: if_ether.c,v 1.16 1995/05/11 00:13:16 wollman Exp $
+ * $Id: if_ether.c,v 1.17 1995/05/30 08:09:18 rgrimes Exp $
  */
 
 /*
@@ -147,16 +147,6 @@ arp_rtrequest(req, rt, sa)
 		if ((rt->rt_flags & RTF_HOST) == 0 &&
 		    SIN(rt_mask(rt))->sin_addr.s_addr != 0xffffffff)
 			rt->rt_flags |= RTF_CLONING;
-#if 0
-		/*
-		 * Actually, all IP gateway routes should have the cloning
-		 * flag turned on.  We can't do this yet because the expiration
-		 * stuff isn't working yet.
-		 */
-		if (rt->rt_flags & RTF_GATEWAY) {
-			rt->rt_flags |= RTF_CLONING;
-		}
-#endif
 		if (rt->rt_flags & RTF_CLONING) {
 			/*
 			 * Case 1: This route should come from a route to iface.
