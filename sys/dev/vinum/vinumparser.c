@@ -33,6 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
+ * $Id: vinumparser.c,v 1.18 1999/12/30 09:31:22 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -78,7 +79,12 @@
 #include <dev/vinum/vinumio.h>
 #include <dev/vinum/vinumext.h>
 
-#define SPACETAB(c) ((c == ' ') || (c == '\t'))		    /* check for white space */
+#ifdef _KERNEL
+#define iswhite(c) ((c == ' ') || (c == '\t'))		    /* check for white space */
+#else /* get it from the headers */
+#include <ctype.h>
+#define iswhite isspace					    /* use the ctype macro */
+#endif
 
 /* enum keyword is defined in vinumvar.h */
 
@@ -139,6 +145,8 @@ struct _keywords keywords[] =
     keypair(info),
     keypair(set),
     keypair(rm),
+    keypair(mv),
+    keypair(move),
     keypair(init),
     keypair(label),
     keypair(resetconfig),
@@ -172,6 +180,13 @@ struct keywordset flag_set = KEYWORDSET(flag_keywords);
 
 #endif
 
+/*
+ * Take a blank separated list of tokens and turn it into a list of
+ * individual nul-delimited strings.  Build a list of pointers at
+ * token, which must have enough space for the tokens.  Return the
+ * number of tokens, or -1 on error (typically a missing string
+ * delimiter).
+ */
 int
 tokenize(char *cptr, char *token[])
 {
@@ -180,7 +195,7 @@ tokenize(char *cptr, char *token[])
     tokennr = 0;					    /* none found yet */
 
     for (;;) {
-	while (SPACETAB(*cptr))
+	while (iswhite(*cptr))
 	    cptr++;					    /* skip initial white space */
 	if ((*cptr == '\0') || (*cptr == '\n') || (*cptr == '#')) /* end of line */
 	    return tokennr;				    /* return number of tokens found */
@@ -193,14 +208,14 @@ tokenize(char *cptr, char *token[])
 		cptr++;
 		if ((*cptr == delim) && (cptr[-1] != '\\')) { /* found the partner */
 		    cptr++;				    /* move on past */
-		    if (!SPACETAB(*cptr))		    /* error, no space after closing quote */
+		    if (!iswhite(*cptr))		    /* error, no space after closing quote */
 			return -1;
 		    *cptr++ = '\0';			    /* delimit */
 		} else if ((*cptr == '\0') || (*cptr == '\n')) /* end of line */
 		    return -1;
 	    }
 	} else {					    /* not quoted */
-	    while ((*cptr != '\0') && (!SPACETAB(*cptr)) && (*cptr != '\n'))
+	    while ((*cptr != '\0') && (!iswhite(*cptr)) && (*cptr != '\n'))
 		cptr++;
 	    if (*cptr != '\0')				    /* not end of the line, */
 		*cptr++ = '\0';				    /* delimit and move to the next */
