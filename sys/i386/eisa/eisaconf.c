@@ -18,7 +18,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: eisaconf.c,v 1.4 1995/11/06 05:20:59 gibbs Exp $
+ *	$Id: eisaconf.c,v 1.5 1995/11/09 07:14:11 gibbs Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -111,12 +111,12 @@ eisa_configure()
 		 * be responsible for creating the list of devices in the system
 		 * for the configuration manager to use.
 		 */
-		e_dev->full_name = (char *)malloc(14*sizeof(char),
+		e_dev->full_name = (char *)malloc(10*sizeof(char),
 						  M_DEVBUF, M_NOWAIT);
 		if (!e_dev->full_name) {
 			panic("Eisa probe unable to malloc");
 		}
-		sprintf(e_dev->full_name, "%c%c%c%x rev %x",
+		sprintf(e_dev->full_name, "%c%c%c%x%x",
 			EISA_MFCTR_CHAR0(e_dev->id),
 			EISA_MFCTR_CHAR1(e_dev->id),
 			EISA_MFCTR_CHAR2(e_dev->id),
