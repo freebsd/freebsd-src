@@ -38,6 +38,7 @@ maxusers	32
 
 options 	MATH_EMULATE		#Support for x87 emulation
 options 	INET			#InterNETworking
+options 	INET6			#IPv6 communications protocols
 options 	FFS			#Berkeley Fast Filesystem
 options 	FFS_ROOT		#FFS usable as root device [keep this!]
 options 	MFS			#Memory Filesystem
@@ -49,7 +50,7 @@ options 	CD9660			#ISO 9660 Filesystem
 options 	CD9660_ROOT		#CD-ROM usable as root, CD9660 required
 options 	PROCFS			#Process filesystem
 options 	COMPAT_43		#Compatible with BSD 4.3 [KEEP THIS!]
-options 	SCSI_DELAY=15000	#Be pessimistic about Joe SCSI device
+options 	SCSI_DELAY=15000	#Delay (in ms) before probing SCSI
 options 	UCONSOLE		#Allow users to grab the console
 options 	USERCONFIG		#boot -c editor
 options 	VISUAL_USERCONFIG	#visual boot -c editor
@@ -57,6 +58,9 @@ options 	KTRACE			#ktrace(1) support
 options 	SYSVSHM			#SYSV-style shared memory
 options 	SYSVMSG			#SYSV-style message queues
 options 	SYSVSEM			#SYSV-style semaphores
+options 	P1003_1B		#Posix P1003_1B real-time extentions
+options 	_KPOSIX_PRIORITY_SCHEDULING
+options		ICMP_BANDLIM		#Rate limit bad replies
 
 # To make an SMP kernel, the next two are needed
 #options 	SMP			# Symmetric MultiProcessor Kernel
@@ -92,17 +96,17 @@ options 	ATA_STATIC_ID		#Static device numbering
 # SCSI Controllers
 device		ahb		# EISA AHA1742 family
 device		ahc		# AHA2940 and onboard AIC7xxx devices
-device		amd		# AMD 53C974 (Teckram DC-390(T))
-device		dpt		# DPT Smartcache - See LINT for options!
+#device		amd		# AMD 53C974 (Teckram DC-390(T))
+#device		dpt		# DPT Smartcache - See LINT for options!
 device		isp		# Qlogic family
-device		ncr		# NCR/Symbios Logic
+#device		ncr		# NCR/Symbios Logic
 device		sym		# NCR/Symbios Logic (newer chipsets)
 
-device		adv0	at isa? port ? irq ?
+#device		adv0	at isa?
 device		adw
-device		bt0	at isa? port ? irq ?
-device		aha0	at isa? port ? irq ?
-device		aic0	at isa? port ? irq ?
+device		bt0	at isa?
+device		aha0	at isa?
+device		aic0	at isa?
 
 # SCSI peripherals
 device		scbus		# SCSI bus (required)
@@ -112,15 +116,16 @@ device		cd		# CD
 device		pass		# Passthrough device (direct SCSI access)
 
 # RAID controllers
-#device		amr		# AMI MegaRAID
-#device		mlx		# Mylex DAC960 family
+device		ida		# Compaq Smart RAID
+device		amr		# AMI MegaRAID
+device		mlx		# Mylex DAC960 family
 
 # atkbdc0 controls both the keyboard and the PS/2 mouse
 device		atkbdc0	at isa? port IO_KBD
 device		atkbd0	at atkbdc? irq 1
 device		psm0	at atkbdc? irq 12
 
-device		vga0	at isa? port ? conflicts
+device		vga0	at isa?
 
 # splash screen/screen saver
 pseudo-device	splash
@@ -152,18 +157,19 @@ device		sio2	at isa? disable port IO_COM3 irq 5
 device		sio3	at isa? disable port IO_COM4 irq 9
 
 # Parallel port
-device		ppc0	at isa? port? flags 0x40 irq 7
+device		ppc0	at isa? irq 7
 device		ppbus		# Parallel port bus (required)
 device		lpt		# Printer
 device		plip		# TCP/IP over parallel
 device		ppi		# Parallel port interface device
-#device		vpo		# Requires scbus and da0
+#device		vpo		# Requires scbus and da
 
 # PCI Ethernet NICs.
 device		de		# DEC/Intel DC21x4x (``Tulip'')
 device		fxp		# Intel EtherExpress PRO/100B (82557, 82558)
-device		tx		# SMC 9432TX (83c170 ``EPIC'')
-device		vx		# 3Com 3c590, 3c595 (``Vortex'')
+#device		tx		# SMC 9432TX (83c170 ``EPIC'')
+#device		vx		# 3Com 3c590, 3c595 (``Vortex'')
+device		wx		# Intel Gigabit Ethernet Card (``Wiseman'')
 
 # PCI Ethernet NICs that use the common MII bus controller code.
 device		miibus		# MII bus support
@@ -193,10 +199,10 @@ device		wi
 device		an
 # The probe order of these is presently determined by i386/isa/isa_compat.c.
 #device		ie0	at isa? port 0x300 irq 10 iomem 0xd0000
-device		fe0	at isa? port 0x300 irq ?
+#device		fe0	at isa? port 0x300
 #device		le0	at isa? port 0x300 irq 5 iomem 0xd0000
-device		lnc0	at isa? port 0x280 irq 10 drq 0
-device		cs0	at isa? port 0x300 irq ?
+#device		lnc0	at isa? port 0x280 irq 10 drq 0
+#device		cs0	at isa? port 0x300
 device		sn0	at isa? port 0x300 irq 10
 # requires PCCARD (PCMCIA) support to be activated
 # XXX BROKEN
@@ -210,6 +216,8 @@ pseudo-device	ppp	1	# Kernel PPP
 pseudo-device	tun		# Packet tunnel.
 pseudo-device	pty		# Pseudo-ttys (telnet etc)
 pseudo-device	md		# Memory "disks"
+pseudo-device	gif	4	# IPv6 and IPv4 tunneling
+pseudo-device	faith	1	# IPv6-to-IPv4 relaying (translation)
 
 # The `bpf' pseudo-device enables the Berkeley Packet Filter.
 # Be aware of the administrative consequences of enabling this!
@@ -223,7 +231,7 @@ pseudo-device	bpf		#Berkeley packet filter
 #device		uhid		# "Human Interface Devices"
 #device		ukbd		# Keyboard
 #device		ulpt		# Printer
-#device		umass		# Disks/Mass storage - Requires scbus and da0
+#device		umass		# Disks/Mass storage - Requires scbus and da
 #device		ums		# Mouse
 #device		aue		# ADMtek USB ethernet
 #device		cue		# CATC USB ethernet
