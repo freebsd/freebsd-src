@@ -76,7 +76,7 @@ perfect filtering, inverse perfect filtering and hash table
 filtering.
 .Pp
 Some clone chips duplicate the 21143 fairly closely while others
-only maintain superficial simularities.
+only maintain superficial similarities.
 Some support only MII
 media attachments.
 Others use different receiver filter programming
@@ -91,7 +91,7 @@ driver does its best to provide generalized support for all
 of these chipsets in order to keep special case code to a minimun.
 .Pp
 These chips are used by many vendors which makes it
-difficult provide a complete list of all supported cards.
+difficult to provide a complete list of all supported cards.
 The
 following NICs are known to work with the
 .Nm
@@ -156,8 +156,9 @@ file.
 Note: the built-in NWAY autonegotiation on the original PNIC 82c168
 chip is horribly broken and is not supported by the
 .Nm
-driver at this time: the chip will operate in any speed or duplex
-mode, however these must be set manually.
+driver at this time (see the
+.Sx BUGS
+section for details).
 The original 82c168 appears
 on very early revisions of the LinkSys LNE100TX and Matrox FastNIC.
 .It 10baseT/UTP
@@ -209,11 +210,12 @@ A fatal initialization error has occurred.
 A fatal initialization error has occurred.
 .It "dc%d: watchdog timeout"
 A packet was queued for transmission and a transmit command was
-issued, however the device failed to acknowledge the transmission
+issued, but the device failed to acknowledge the transmission
 before a timeout expired.
 This can happen if the device is unable
 to deliver interrupts for some reason, of if there is a problem with
-the network connection (cable).
+the network connection (cable or network equipment) that results in a loss
+of link.
 .It "dc%d: no memory for rx list"
 The driver failed to allocate an mbuf for the receiver ring.
 .It "dc%d: TX underrun -- increasing TX threshold"
@@ -337,7 +339,7 @@ data along with the received frame data, dirtying several RX buffers
 instead of just the expected one.
 The
 .Nm
-driver detects this condition and will salvage the frame, however
+driver detects this condition and will salvage the frame; however,
 it incurs a serious performance penalty in the process.
 .Pp
 The PNIC chips also sometimes generate a transmit underrun error when
@@ -351,7 +353,7 @@ it is transfered successfully.
 The ADMtek AL981 chip (and possibly the AN985 as well) has been observed
 to sometimes wedge on transmit: this appears to happen when the driver
 queues a sequence of frames which cause it to wrap from the end of the
-the transmit descriptor ring back to the beginning.
+transmit descriptor ring back to the beginning.
 The
 .Nm
 driver attempts to avoid this condition by not queing any frames past
