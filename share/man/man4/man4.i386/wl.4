@@ -42,7 +42,7 @@ The
 .Nm
 driver controls a radio lan card system made originally by
 NCR, then ATT, now Lucent.  The system is spread-spectrum radio
-at around 915 mhz (or 2.4 ghz).  With the supplied omni-directional antennae,
+at around 915 MHz (or 2.4 GHz).  With the supplied omni-directional antennae,
 about 400 feet (indoors, more outdoors) can be covered in circumference.
 This card can talk to the companion (wlp0) pccard.  Speeds vary
 from 1 megabit to theoretically 2 megabits (roughly T1 in speed).
@@ -53,8 +53,8 @@ and a ethernet lan controller.  The latter component is the
 ancient (and not very honorable) Intel 82586 ethernet chip.
 Fundamentally it appears to the operating system as an ethernet system,
 and speaks IEEE MAC addresses.  The radio modem simply translates
-ethernet packets to/from radio packets, that are either at 2.4 Ghz
-or 915 mhz depending on the radio modem.  It supports a collision
+ethernet packets to/from radio packets, that are either at 2.4 GHz
+or 915 MHz depending on the radio modem.  It supports a collision
 avoidance scheme.  The lan controller
 supports promiscuous mode, broadcast, and multicasting
 (although there is a glitch
