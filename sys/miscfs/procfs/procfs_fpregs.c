@@ -59,6 +59,9 @@ procfs_dofpregs(curp, p, pfs, uio)
 	char *kv;
 	int kl;
 
+	/* Can't trace a process that's currently exec'ing. */ 
+	if ((p->p_flag & P_INEXEC) != 0)
+		return EAGAIN;
 	if (!CHECKIO(curp, p) || p_trespass(curp, p))
 		return EPERM;
 	kl = sizeof(r);

@@ -291,6 +291,7 @@ struct	proc {
 #define	P_JAILED	0x1000000 /* Process is in jail */
 #define	P_OLDMASK	0x2000000 /* need to restore mask before pause */
 #define	P_ALTSTACK	0x4000000 /* have alternate signal stack */
+#define	P_INEXEC	0x8000000 /* Process is in execve(). */
 
 /*
  * MOVE TO ucred.h?

@@ -220,6 +220,10 @@ ptrace(curp, uap)
 	if (!PRISON_CHECK(curp, p))
 		return (ESRCH);
 
+	/* Can't trace a process that's currently exec'ing. */ 
+	if ((p->p_flag & P_INEXEC) != 0)
+		return EAGAIN;
+
 	/*
 	 * Permissions check
 	 */

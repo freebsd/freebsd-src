@@ -113,6 +113,15 @@ execve(p, uap)
 	imgp = &image_params;
 
 	/*
+	 * Lock the process and set the P_INEXEC flag to indicate that
+	 * it should be left alone until we're done here.  This is
+	 * necessary to avoid race conditions - e.g. in ptrace() -
+	 * that might allow a local user to illicitly obtain elevated
+	 * privileges.
+	 */
+	p->p_flag |= P_INEXEC;
+
+	/*
 	 * Initialize part of the common data
 	 */
 	imgp->proc = p;
@@ -342,10 +351,12 @@ interpret:
 	VREF(ndp->ni_vp);
 	p->p_textvp = ndp->ni_vp;
 
-	/*
-	 * notify others that we exec'd
-	 */
+        /*
+         * Notify others that we exec'd, and clear the P_INEXEC flag
+         * as we're now a bona fide freshly-execed process.
+         */
 	KNOTE(&p->p_klist, NOTE_EXEC);
+	p->p_flag &= ~P_INEXEC;
 
 	/*
 	 * If tracing the process, trap to debugger so breakpoints
@@ -399,6 +410,8 @@ exec_fail_dealloc:
 		return (0);
 
 exec_fail:
+	/* we're done here, clear P_INEXEC */
+	p->p_flag &= ~P_INEXEC;
 	if (imgp->vmspace_destroyed) {
 		/* sorry, no more process anymore. exit gracefully */
 		exit1(p, W_EXITCODE(0, SIGABRT));
