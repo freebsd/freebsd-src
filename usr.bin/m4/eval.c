@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)eval.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: eval.c,v 1.7 1997/07/23 06:50:04 charnier Exp $";
+	"$Id: eval.c,v 1.8 1997/08/18 21:01:45 jlemon Exp $";
 #endif /* not lint */
 
 /*
@@ -368,6 +368,10 @@ register int td;
 		if (argc > 2)
 			for (n = 2; n < argc; n++)
 				dodefn(argv[n]);
+		break;
+
+	case MACRTYPE:
+		pbstr("");
 		break;
 
 	default:
