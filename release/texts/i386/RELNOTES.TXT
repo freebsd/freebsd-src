@@ -36,11 +36,11 @@ Table of contents:
 
 5. Reporting problems, making suggestions, submitting code
 
-6. Acknowledgements
+6. Acknowledgments
 
 
 1. What's new since 4.2-RELEASE
---------------------------------------
+-------------------------------
 
 1.1. KERNEL CHANGES
 -------------------
@@ -77,7 +77,7 @@ filesystems has been corrected.
 
 The cs(4) driver has been updated.
 
-bridge(4) and dummynet(4) have received some enhancements and bugfixes.
+bridge(4) and dummynet(4) have received some enhancements and bug fixes.
 
 The ahc(4) driver has been updated.
 
@@ -191,7 +191,7 @@ and non-threaded programs.  /usr/lib/libgcc_r.a can be removed.
 
 config(8) is now better about converting various warnings that should
 have been errors into actual fatal errors with an exit code.  This
-ensures that that 'make buildkernel' doesn't quitely ignore them and
+ensures that that 'make buildkernel' doesn't quietly ignore them and
 build a bogus kernel without a human to read the errors.
 
 In /etc/ssh/sshd_config, the ConnectionsPerPeriod parameter has been
@@ -652,10 +652,10 @@ DEC FDDI (DEFPA/DEFEA) NICs
         - Efficient Networks, Inc. ENI-155p ATM PCI Adapters
 
    o ATM Signalling Protocols
-        - The ATM Forum UNI 3.1 signalling protocol
-        - The ATM Forum UNI 3.0 signalling protocol
+        - The ATM Forum UNI 3.1 signaling protocol
+        - The ATM Forum UNI 3.0 signaling protocol
         - The ATM Forum ILMI address registration
-        - FORE Systems's proprietary SPANS signalling protocol
+        - FORE Systems' proprietary SPANS signaling protocol
         - Permanent Virtual Channels (PVCs)
 
    o IETF "Classical IP and ARP over ATM" model
@@ -912,8 +912,8 @@ special interest groups not mentioned here, so send mail to majordomo
 and ask about them!
 
 
-6. Acknowledgements
--------------------
+6. Acknowledgments
+------------------
 
 FreeBSD represents the cumulative work of many hundreds, if not
 thousands, of individuals from around the world who have worked very
