@@ -1471,7 +1471,7 @@ camperiphscsisenseerror(union ccb *ccb, cam_flags camflags,
 			break;
 		}
 		default:
-			panic("Unhandled error action %x\n", err_action);
+			panic("Unhandled error action %x", err_action);
 		}
 		
 		if ((err_action & SS_MASK) >= SS_START) {
