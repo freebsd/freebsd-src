@@ -35,6 +35,7 @@
 # SUCH DAMAGE.
 #
 #	@(#)mkbuiltins	8.1 (Berkeley) 5/31/93
+#	$Id$
 
 temp=/tmp/ka$$
 havejobs=0

@@ -34,6 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)jobs.h	8.1 (Berkeley) 5/31/93
+ *	$Id$
  */
 
 /* Mode argument to forkshell.  Don't change FORK_FG or FORK_BG. */

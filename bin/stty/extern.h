@@ -31,6 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)extern.h	8.1 (Berkeley) 5/31/93
+ *	$Id$
  */
 
 int	c_cchars __P((const void *, const void *));

@@ -33,6 +33,7 @@
 # SUCH DAMAGE.
 #
 #	@(#)popd	8.1 (Berkeley) 5/31/93
+#	$Id$
 
 # pushd, popd, and dirs --- written by Chris Bertin
 # Pixel Computer Inc. ...!wjh12!pixel!pixutl!chris

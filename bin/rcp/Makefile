@@ -1,4 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 7/19/93
+#	$Id$
 
 PROG=	rcp
 SRCS=	rcp.c util.c #kcmd.c krcmd.c
