@@ -428,7 +428,7 @@ configRC_conf(void)
 		fprintf(rcSite, "#REMOVED: %s", line);
 	}
 	fclose(rcOld);
-    } else {
+    } else if (write_header) {
 	fprintf(rcSite, "# This file now contains just the overrides from /etc/defaults/rc.conf.\n");
 	fprintf(rcSite, "# Please make all changes to this file, not to /etc/defaults/rc.conf.\n\n");
 	fprintf(rcSite, "# Enable network daemons for user convenience.\n");
