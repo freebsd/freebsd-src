@@ -2695,7 +2695,8 @@ ata_via_family_setmode(struct ata_device *atadev, int mode)
     if (ctlr->chip->cfg2 & NVIDIA)
 	reg += 0x10;
 
-    pci_write_config(parent, reg - 0x08, timings[ata_mode2idx(mode)], 1);
+    if (ctlr->chip->cfg1 != VIA133)
+	pci_write_config(parent, reg - 0x08, timings[ata_mode2idx(mode)], 1);
 
     error = ata_controlcmd(atadev, ATA_SETFEATURES, ATA_SF_SETXFER, 0, mode);
 
