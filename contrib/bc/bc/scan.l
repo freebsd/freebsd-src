@@ -63,6 +63,7 @@ static char *rl_start = (char *)NULL;
 static char  rl_len = 0;
 
 /* Definitions for readline access. */
+extern FILE *rl_outstream;
 extern FILE *rl_instream;
 _PROTOTYPE(char *readline, (char *));
 
@@ -107,8 +108,8 @@ rl_input (buf, result, max)
       if (rl_len != 1)
 	add_history (rl_line); 
       rl_line[rl_len-1] = '\n';
-      printf ("\r");
-      fflush (stdout);
+      fprintf (rl_outstream,"\r");
+      fflush (rl_outstream);
     }
 
   if (rl_len <= max)
