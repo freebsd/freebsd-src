@@ -31,34 +31,28 @@
  * $FreeBSD$
  */
 
-/* #include "pnp.h" */
-#define NPNP 0
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
 
 #include <machine/bus_pio.h>
 #include <machine/bus.h>
+#include <machine/resource.h>
+#include <sys/module.h>
+#include <sys/bus.h>
+#include <sys/rman.h>
 
-#include <i386/isa/isa_device.h>
+#include <isa/isareg.h>
+#include <isa/isavar.h>
+
 #include <dev/aha/ahareg.h>
 
 #include <cam/scsi/scsi_all.h>
 
-#if NPNP > 0
-#include <i386/isa/pnp.h>
-#endif
-
-static	int aha_isa_probe(struct isa_device *dev);
-static	int aha_isa_attach(struct isa_device *dev);
-static	void aha_isa_intr(void *unit);
-
-struct isa_driver ahadriver =
-{
-    aha_isa_probe,
-    aha_isa_attach,
-    "aha"
+static struct isa_pnp_id aha_ids[] = {
+	{AHA1542_PNP,		NULL},		/* ADP1542 */
+	{AHA1542_PNPCOMPAT,	NULL},		/* PNP00A0 */
+	{0}
 };
 
 /*
@@ -68,26 +62,41 @@ struct isa_driver ahadriver =
  * autoconf.c
  */
 static int
-aha_isa_probe(dev)
-	struct isa_device *dev;
+aha_isa_probe(device_t dev)
 {
 	/*
 	 * find unit and check we have that many defined
 	 */
+	struct	aha_softc **sc = device_get_softc(dev);
 	struct	aha_softc *aha;
 	int	port_index;
 	int	max_port_index;
+	int	error;
+	u_long	port_start, port_count;
+	struct resource *port_res;
+	int	port_rid;
+	int	drq;
+	int	irq;
 
 	aha = NULL;
+
+	/* Check isapnp ids */
+	if (ISA_PNP_PROBE(device_get_parent(dev), dev, aha_ids) == ENXIO)
+		return (ENXIO);
+
+	error = ISA_GET_RESOURCE(device_get_parent(dev), dev, SYS_RES_IOPORT,
+	    0, &port_start, &port_count);
+	if (error != 0)
+		port_start = 0;
 
 	/*
 	 * Bound our board search if the user has
 	 * specified an exact port.
 	 */
-	aha_find_probe_range(dev->id_iobase, &port_index, &max_port_index);
+	aha_find_probe_range(port_start, &port_index, &max_port_index);
 
 	if (port_index < 0)
-		return 0;
+		return ENXIO;
 
 	/* Attempt to find an adapter */
 	for (;port_index <= max_port_index; port_index++) {
@@ -103,15 +112,26 @@ aha_isa_probe(dev)
 		 */
 		if (aha_check_probed_iop(ioport) != 0)
 			continue;
-		dev->id_iobase = ioport;
-		if (haveseen_iobase(dev, AHA_NREGS))
+		error = ISA_SET_RESOURCE(device_get_parent(dev), dev,
+		    SYS_RES_IOPORT, 0, ioport, AHA_NREGS);
+		if (error)
+			return error;
+		
+		port_rid = 0;
+		port_res = bus_alloc_resource(dev, SYS_RES_IOPORT, &port_rid,
+		    0, ~0, AHA_NREGS, RF_ACTIVE);
+		if (!port_res)
 			continue;
 
 		/* Allocate a softc for use during probing */
-		aha = aha_alloc(dev->id_unit, I386_BUS_SPACE_IO, ioport);
+		aha = aha_alloc(device_get_unit(dev), I386_BUS_SPACE_IO,
+		    ioport);
 
-		if (aha == NULL)
+		if (aha == NULL) {
+			bus_release_resource(dev, SYS_RES_IOPORT, port_rid, 
+			    port_res);
 			break;
+		}
 
 		/* We're going to attempt to probe it now, so mark it probed */
 		aha_mark_probed_bio(port_index);
@@ -119,6 +139,8 @@ aha_isa_probe(dev)
 		/* See if there is really a card present */
 		if (aha_probe(aha) || aha_fetch_adapter_info(aha)) {
 			aha_free(aha);
+			bus_release_resource(dev, SYS_RES_IOPORT, port_rid,
+			    port_res);
 			continue;
 		}
 
@@ -127,56 +149,110 @@ aha_isa_probe(dev)
 		 * export them to the configuration system.
 		 */
 		error = aha_cmd(aha, AOP_INQUIRE_CONFIG, NULL, /*parmlen*/0,
-			       (u_int8_t*)&config_data, sizeof(config_data),
-			       DEFAULT_CMD_TIMEOUT);
+		    (u_int8_t*)&config_data, sizeof(config_data), 
+		    DEFAULT_CMD_TIMEOUT);
+
 		if (error != 0) {
 			printf("aha_isa_probe: Could not determine IRQ or DMA "
-			       "settings for adapter at 0x%x.  Failing probe\n",
-			       ioport);
+			    "settings for adapter at 0x%x.  Failing probe\n",
+			    ioport);
 			aha_free(aha);
+			bus_release_resource(dev, SYS_RES_IOPORT, port_rid, 
+			    port_res);
 			continue;
 		}
 
+		bus_release_resource(dev, SYS_RES_IOPORT, port_rid, port_res);
+
 		switch (config_data.dma_chan) {
 		case DMA_CHAN_5:
-			dev->id_drq = 5;
+			drq = 5;
 			break;
 		case DMA_CHAN_6:
-			dev->id_drq = 6;
+			drq = 6;
 			break;
 		case DMA_CHAN_7:
-			dev->id_drq = 7;
+			drq = 7;
 			break;
 		default:
 			printf("aha_isa_probe: Invalid DMA setting "
-				"detected for adapter at 0x%x.  "
-				"Failing probe\n", ioport);
-			return (0);
+			    "detected for adapter at 0x%x.  "
+			    "Failing probe\n", ioport);
+			return (ENXIO);
 		}
-		dev->id_irq = (config_data.irq << 9);
-		dev->id_intr = aha_isa_intr;
+		error = ISA_SET_RESOURCE(device_get_parent(dev), dev,
+		    SYS_RES_DRQ, 0, drq, 1);
+		if (error)
+			return error;
+
+		irq = ffs(config_data.irq) + 8;
+		error = ISA_SET_RESOURCE(device_get_parent(dev), dev,
+		    SYS_RES_IRQ, 0, irq, 1);
+		if (error)
+			return error;
+
+		*sc = aha;
 		aha_unit++;
-		return (AHA_NREGS);
+
+		return (0);
 	}
 
-	return (0);
+	return (ENXIO);
 }
 
 /*
  * Attach all the sub-devices we can find
  */
 static int
-aha_isa_attach(dev)
-	struct isa_device *dev;
+aha_isa_attach(device_t dev)
 {
+	struct	aha_softc **sc = device_get_softc(dev);
 	struct	aha_softc *aha;
 	bus_dma_filter_t *filter;
 	void		 *filter_arg;
 	bus_addr_t	 lowaddr;
+	struct resource	 *port_res;
+	int		 port_rid;
+	struct resource	 *irq_res;
+	int		 irq_rid;
+	struct resource	 *drq_res;
+	int		 drq_rid;
+	void		 *ih;
+	int		 error;
 
-	aha = aha_softcs[dev->id_unit];
+	port_rid = 0;
+	port_res = bus_alloc_resource(dev, SYS_RES_IOPORT, &port_rid,
+	    0, ~0, AHA_NREGS, RF_ACTIVE);
+	if (!port_res) {
+		device_printf(dev, "Unable to allocate I/O ports\n");
+		return ENOMEM;
+	}
+
+	irq_rid = 0;
+	irq_res = bus_alloc_resource(dev, SYS_RES_IRQ, &irq_rid, 0, ~0, 1,
+	    RF_ACTIVE);
+	if (!irq_res) {
+		device_printf(dev, "Unable to allocate excluse use of irq\n");
+		bus_release_resource(dev, SYS_RES_IOPORT, port_rid, port_res);
+		return ENOMEM;
+	}
+
+	drq_rid = 0;
+	drq_res = bus_alloc_resource(dev, SYS_RES_DRQ, &drq_rid, 0, ~0, 1,
+	    RF_ACTIVE);
+	if (!drq_res) {
+		device_printf(dev, "Unable to allocate drq\n");
+		bus_release_resource(dev, SYS_RES_IOPORT, port_rid, port_res);
+		bus_release_resource(dev, SYS_RES_IRQ, irq_rid, irq_res);
+		return ENOMEM;
+	}
+
+	aha = *sc;
+#if 0				/* is the drq ever unset? */
 	if (dev->id_drq != -1)
 		isa_dmacascade(dev->id_drq);
+#endif
+	isa_dmacascade(rman_get_start(drq_res));
 
 	/* Allocate our parent dmatag */
 	filter = NULL;
@@ -184,106 +260,66 @@ aha_isa_attach(dev)
 	lowaddr = BUS_SPACE_MAXADDR_24BIT;
 
 	if (bus_dma_tag_create(/*parent*/NULL, /*alignemnt*/1, /*boundary*/0,
-                               lowaddr, /*highaddr*/BUS_SPACE_MAXADDR,
-                               filter, filter_arg,
-                               /*maxsize*/BUS_SPACE_MAXSIZE_24BIT,
-                               /*nsegments*/BUS_SPACE_UNRESTRICTED,
-                               /*maxsegsz*/BUS_SPACE_MAXSIZE_24BIT,
-                               /*flags*/0, &aha->parent_dmat) != 0) {
+	    lowaddr, /*highaddr*/BUS_SPACE_MAXADDR,
+	    filter, filter_arg,
+	    /*maxsize*/BUS_SPACE_MAXSIZE_24BIT,
+	    /*nsegments*/BUS_SPACE_UNRESTRICTED,
+	    /*maxsegsz*/BUS_SPACE_MAXSIZE_24BIT,
+	    /*flags*/0, &aha->parent_dmat) != 0) {
                 aha_free(aha);
-                return (-1);
+		bus_release_resource(dev, SYS_RES_IOPORT, port_rid, port_res);
+		bus_release_resource(dev, SYS_RES_IRQ, irq_rid, irq_res);
+		bus_release_resource(dev, SYS_RES_DRQ, drq_rid, drq_res);
+                return (ENOMEM);
         }                              
 
         if (aha_init(aha)) {
-		printf("aha init failed\n");
+		device_printf(dev, "init failed\n");
                 aha_free(aha);
-                return (-1);
+		bus_release_resource(dev, SYS_RES_IOPORT, port_rid, port_res);
+		bus_release_resource(dev, SYS_RES_IRQ, irq_rid, irq_res);
+		bus_release_resource(dev, SYS_RES_DRQ, drq_rid, drq_res);
+                return (ENOMEM);
         }
 
-	return (aha_attach(aha));
+	error = aha_attach(aha);
+	if (error) {
+		device_printf(dev, "attach failed\n");
+                aha_free(aha);
+		bus_release_resource(dev, SYS_RES_IOPORT, port_rid, port_res);
+		bus_release_resource(dev, SYS_RES_IRQ, irq_rid, irq_res);
+		bus_release_resource(dev, SYS_RES_DRQ, drq_rid, drq_res);
+                return (error);
+	}
+
+	error = bus_setup_intr(dev, irq_res, INTR_TYPE_CAM, aha_intr, aha,
+	    &ih);
+	if (error) {
+		device_printf(dev, "Unable to register interrupt handler\n");
+                aha_free(aha);
+		bus_release_resource(dev, SYS_RES_IOPORT, port_rid, port_res);
+		bus_release_resource(dev, SYS_RES_IRQ, irq_rid, irq_res);
+		bus_release_resource(dev, SYS_RES_DRQ, drq_rid, drq_res);
+                return (error);
+	}
+
+	return (0);
 }
 
-/*
- * Handle an ISA interrupt.
- * XXX should go away as soon as ISA interrupt handlers
- * take a (void *) arg.
- */
-static void
-aha_isa_intr(void *unit)
-{
-	struct aha_softc* arg = aha_softcs[(int)unit];
-	aha_intr((void *)arg);
-}
+static device_method_t aha_isa_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		aha_isa_probe),
+	DEVMETHOD(device_attach,	aha_isa_attach),
 
-/*
- * support PnP cards if we are using 'em
- */
-
-#if NPNP > 0
-
-static char *ahapnp_probe(u_long csn, u_long vend_id);
-static void ahapnp_attach(u_long csn, u_long vend_id, char *name,
-	struct isa_device *dev);
-static u_long nahapnp = NAHA;
-
-static struct pnp_device ahapnp = {
-	"ahapnp",
-	ahapnp_probe,
-	ahapnp_attach,
-	&nahapnp,
-	&bio_imask
+	{ 0, 0 }
 };
-DATA_SET (pnpdevice_set, ahapnp);
 
-static char *
-ahapnp_probe(u_long csn, u_long vend_id)
-{
-	struct pnp_cinfo d;
-	char *s = NULL;
+static driver_t aha_isa_driver = {
+	"aha",
+	aha_isa_methods,
+	sizeof(struct aha_softc*),
+};
 
-	if (vend_id != AHA1542_PNP && vend_id != AHA1542_PNPCOMPAT)
-		return (NULL);
+static devclass_t aha_devclass;
 
-	read_pnp_parms(&d, 0);
-	if (d.enable == 0 || d.flags & 1) {
-		printf("CSN %lu is disabled.\n", csn);
-		return (NULL);
-	}
-	s = "Adaptec 1542CP";
-
-	return (s);
-}
-
-static void
-ahapnp_attach(u_long csn, u_long vend_id, char *name, struct isa_device *dev)
-{
-	struct pnp_cinfo d;
-
-	if (dev->id_unit >= NAHATOT)
-		return;
-
-	if (read_pnp_parms(&d, 0) == 0) {
-		printf("failed to read pnp parms\n");
-		return;
-	}
-
-	write_pnp_parms(&d, 0);
-
-	enable_pnp_card();
-
-	dev->id_iobase = d.port[0];
-	dev->id_irq = (1 << d.irq[0]);
-	dev->id_intr = aha_intr;
-	dev->id_drq = d.drq[0];
-
-	if (dev->id_driver == NULL) {
-		dev->id_driver = &ahadriver;
-		dev->id_id = isa_compat_nextid();
-	}
-
-	if ((dev->id_alive = aha_isa_probe(dev)) != 0)
-		aha_isa_attach(dev);
-	else
-		printf("aha%d: probe failed\n", dev->id_unit);
-}
-#endif
+DRIVER_MODULE(aha, isa, aha_isa_driver, aha_devclass, 0, 0);
