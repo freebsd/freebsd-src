@@ -49,10 +49,14 @@
 .Ft int
 .Fn i386_set_ldt "int start_sel" "union descriptor *descs" "int num_sels"
 .Sh DESCRIPTION
+The
 .Fn i386_get_ldt
+system call
 will return the list of i386 descriptors that the process has in its
 LDT.
+The
 .Fn i386_set_ldt
+system call
 will set a list of i386 descriptors for the current process in its
 LDT.
 Both routines accept a starting selector number
@@ -77,16 +81,20 @@ in your kernel configuration file to use these functions.
 Upon successful completion,
 .Fn i386_get_ldt
 returns the number of descriptors currently in the LDT.
+The
 .Fn i386_set_ldt
+system call
 returns the first selector set.
 Otherwise, a value of -1 is returned and the global
 variable
 .Va errno
 is set to indicate the error.
 .Sh ERRORS
+The
 .Fn i386_get_ldt
 and
 .Fn i386_set_ldt
+system calls
 will fail if:
 .Bl -tag -width Er
 .It Bq Er EINVAL
