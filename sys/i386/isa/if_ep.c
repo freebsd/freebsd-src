@@ -22,7 +22,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *	From: if_ep.c,v 1.9 1994/01/25 10:46:29 deraadt Exp $
- *	$Id: if_ep.c,v 1.10 1994/05/25 08:59:10 rgrimes Exp $
+ *	$Id: if_ep.c,v 1.11 1994/08/08 13:33:14 davidg Exp $
  */
 
 #include "ep.h"
@@ -72,6 +72,13 @@
 #include <i386/isa/isa_device.h>
 #include <i386/isa/icu.h>
 #include <i386/isa/if_epreg.h>
+#include <i386/isa/elink.h>
+
+/* For backwards compatibility */
+#ifndef IFF_ALTPHYS
+#define IFF_ALTPHYS IFF_LINK0
+#endif
+
 
 #define ETHER_MIN_LEN	64
 #define ETHER_MAX_LEN	1518
@@ -82,13 +89,14 @@
  */
 struct ep_softc {
 	struct arpcom arpcom;		/* Ethernet common part		*/
-	short   ep_io_addr;		/* i/o bus address		*/
+	ushort   ep_iobase;		/* i/o bus address		*/
 	char    ep_connectors;		/* Connectors on this card.	*/
 #define MAX_MBS  8			/* # of mbufs we keep around	*/
 	struct mbuf *mb[MAX_MBS];	/* spare mbuf storage.		*/
 	int     next_mb;		/* Which mbuf to use next. 	*/
 	int     last_mb;		/* Last mbuf.			*/
 	int     tx_start_thresh;	/* Current TX_start_thresh.	*/
+	int	tx_succ_ok;		/* # packets sent in sequence w/o underrun */
 	caddr_t bpf;			/* BPF  "magic cookie"		*/
 	char	bus32bit;		/* 32bit access possible	*/
 }       ep_softc[NEP];
@@ -99,8 +107,8 @@ static int epioctl __P((struct ifnet * ifp, int, caddr_t));
 
 void epinit __P((int));
 void epintr __P((int));
-void epmbuffill __P((caddr_t));
-void epmbufempty __P((struct ep_softc *));
+void epmbuffill __P((void *));
+static void epmbufempty __P((struct ep_softc *));
 void epread __P((struct ep_softc *));
 void epreset __P((int));
 void epstart __P((struct ifnet *));
@@ -114,53 +122,194 @@ struct isa_driver epdriver = {
 };
 
 static int send_ID_sequence __P((u_short));
-static u_short get_eeprom_data __P((int, int));
-static int is_eeprom_busy __P((struct isa_device *));
+static u_short epreadeeprom __P((int, int));
+static int epbusyeeprom __P((int, ushort));
+
+
+#define	MAXEPCARDS 20	/* if you have 21 cards in your machine... you lose */
+
+static struct epcard {
+	int iobase;
+	u_short irq;
+	char    available;
+	char    bus32bit;
+} epcards[MAXEPCARDS];
+
+static int nepcards;
+
+static void
+epaddcard(p, i, mode)
+	short p;
+	u_short i;
+	char mode;
+{
+	if (nepcards >= sizeof(epcards)/sizeof(epcards[0]))
+		return;
+	epcards[nepcards].iobase = p;
+	epcards[nepcards].irq = 1 << ((i == 2) ? 9 : i);
+	epcards[nepcards].available = 1;
+	epcards[nepcards].bus32bit = mode;
+	nepcards++;
+}
+
 
 /*
- * Rudimentary support for multiple cards is here but is not
- * currently handled.  In the future we will have to add code
- * for tagging the cards for later activation.  We wanna do something
- * about the id_port.  We're limited due to current config procedure.
- * Magnum config holds promise of a fix but we'll have to wait a bit.
+ * 3c579 cards on the EISA bus are probed by their slot number. 3c509
+ * cards on the ISA bus are probed in ethernet address order. The probe
+ * sequence requires careful orchestration, and we'd like like to allow
+ * the irq and base address to be wildcarded. So, we probe all the cards
+ * the first time epprobe() is called. On subsequent calls we look for
+ * matching cards.
  */
 int
 epprobe(is)
 	struct isa_device *is;
 {
 	struct ep_softc *sc = &ep_softc[is->id_unit];
-	u_short k;
-	int     id_port = 0x100;	/* XXX */
+	static	int probed;
+	int	slot, iobase, i;
+	u_short k, k2;
+	u_short prodid;
 
-	outw(BASE + EP_COMMAND, GLOBAL_RESET);
-	DELAY(1000);
-	outb(id_port, 0xc0);	/* Global reset to id_port. */
-	DELAY(1000);
-	send_ID_sequence(id_port);
-	DELAY(1000);
+	if (probed==0) {
+		probed = 1;
+
+		/* find all EISA cards */
+		for (slot = 1; slot < 16; slot++) {
+			iobase = 0x1000 * slot;
+			outw(iobase + EP_COMMAND, GLOBAL_RESET);
+			DELAY(1000);
+			if (inw(iobase + EISA_VENDOR) != MFG_ID)
+				continue;
+			k = inw(iobase + EISA_MODEL);
+#ifdef EP_DEBUG
+printf("prod id = %x  ", k);
+prodid = k;
+#endif
+			if ((k & 0xf0ff) != PROD_ID)
+				continue;
+
+			k = inw(iobase + EP_W0_CONFIG_CTRL);
+			/* enable adapter */
+			outw(iobase + EP_W0_CONFIG_CTRL, k | 1); 
+#ifdef EP_DEBUG
+printf("config = %x  ", k);
+#endif
+
+			/* read in eeprom address configuration */
+			if (epbusyeeprom(slot - 1, iobase))
+				continue;
+			outw(iobase + EP_W0_EEPROM_COMMAND, READ_EEPROM | EEPROM_ADDR_CFG);
+			if (epbusyeeprom(slot - 1, iobase))
+				continue;
+			k = inw(iobase + EP_W0_EEPROM_DATA);
+#ifdef EP_DEBUG
+printf("addr_cfg = %x  ", k);
+#endif
+			outw(iobase + EP_W0_ADDRESS_CFG, k);
+			/* read in eeprom resource configuration */
+			if (epbusyeeprom(slot - 1, iobase))
+				continue;
+			outw(iobase + EP_W0_EEPROM_COMMAND, READ_EEPROM | EEPROM_RESOURCE_CFG);
+			if (epbusyeeprom(slot - 1, iobase))
+				continue;
+			k2 = inw(iobase + EP_W0_EEPROM_DATA);
+
+#ifdef EP_DEBUG
+/** XXXXXXXXXXXXXXXXXXXXX*/
+/* This doesn't give back the actual IRQ number as it should be , ATS */
+/* In the moment simply hardcoded the IRQ's for testing purposes */
+printf("resource config = %x\n", k2);
+if (prodid == 0x9150) /* the 3c509 card */
+	k2 = 7 << 12;
+else
+	k2 = 3 << 12; /* the eisa 3c579 card set to irq 3 */
+#endif
+
+			outw(iobase + EP_W0_RESOURCE_CFG, k2);
+			epaddcard(iobase, k2 >> 12, 1);
+		}
+
+		/* find all isa cards */
+#ifdef 0
+		outw(BASE + EP_COMMAND, GLOBAL_RESET);
+#endif
+		DELAY(1000);
+		elink_reset();	/* global reset to ELINK_ID_PORT */
+		DELAY(1000);
+
+		for (slot = 0; slot < 10; slot++) {
+			outb(ELINK_ID_PORT, 0x00);
+			elink_idseq(ELINK_509_POLY);
+			DELAY(1000);
+
+			k = epreadeeprom(ELINK_ID_PORT, EEPROM_MFG_ID);
+			if (k != MFG_ID)
+				continue;
+			k = epreadeeprom(ELINK_ID_PORT, EEPROM_PROD_ID);
+			if ((k & 0xf0ff) != PROD_ID)
+				continue;
+
+			k = epreadeeprom(ELINK_ID_PORT, EEPROM_ADDR_CFG);
+			k = (k & 0x1f) * 0x10 + 0x200;
+
+			k2 = epreadeeprom(ELINK_ID_PORT, EEPROM_RESOURCE_CFG);
+			k2 >>= 12;
+			epaddcard(k, k2, 0);
+
+			/* so card will not respond to contention again */
+			outb(ELINK_ID_PORT, TAG_ADAPTER_0 + 1);
+
+			/*
+			 * XXX: this should probably not be done here
+			 * because it enables the drq/irq lines from
+			 * the board. Perhaps it should be done after
+			 * we have checked for irq/drq collisions?
+			 */
+			outb(ELINK_ID_PORT, ACTIVATE_ADAPTER_TO_CONFIG);
+		}
+		/* XXX should we sort by ethernet address? */
+	}
 
 	/*
-	 * MFG_ID should have 0x6d50.
-	 * PROD_ID should be 0x9[0-f]50
+	 * a very specific search order:
+	 *	exact iobase & irq
+	 *	exact iobase, wildcard irq
+	 *	wildcard iobase, exact irq
+	 *	wildcard iobase & irq
+	 * else fail..
 	 */
-	k = get_eeprom_data(id_port, EEPROM_MFG_ID);
-	if (k != MFG_ID)
-		return (0);
-	k = get_eeprom_data(id_port, EEPROM_PROD_ID);
-	if ((k & 0xf0ff) != (PROD_ID & 0xf0ff))
-		return (0);
+	if (is->id_iobase != 0 && is->id_irq != (u_short)0) {
+		for (i = 0; i<nepcards; i++) {
+			if (epcards[i].available == 0)
+				continue;
+			if (is->id_iobase == epcards[i].iobase &&
+			    is->id_irq == epcards[i].irq)
+				goto good;
+		}
+	}
+	if (is->id_iobase != 0 && is->id_irq == (u_short)0) {
+		for (i = 0; i<nepcards; i++) {
+			if (epcards[i].available == 0)
+				continue;
+			if (is->id_iobase == epcards[i].iobase)
+				goto good;
+		}
+	}
+	if (is->id_iobase == 0 && is->id_irq != (u_short)0) {
+		for (i = 0; i<nepcards; i++) {
+			if (epcards[i].available == 0)
+				continue;
+			if (is->id_irq == epcards[i].irq)
+				goto good;
+		}
+	}
+	return 0;
 
-	k = get_eeprom_data(id_port, EEPROM_ADDR_CFG);	/* get addr cfg */
-	k = (k & 0x1f) * 0x10 + 0x200;			/* decode base addr. */
-	if (k != (u_short)is->id_iobase)
-		return (0);
-
-	k = get_eeprom_data(id_port, EEPROM_RESOURCE_CFG);
-	k >>= 12;
-	if (is->id_irq != (1 << ((k == 2) ? 9 : k)))
-		return (0);
-
-	outb(id_port, ACTIVATE_ADAPTER_TO_CONFIG);
+good:
+	epcards[i].available = 0;
+	sc->bus32bit = epcards[i].bus32bit;
+	is->id_iobase = epcards[i].iobase;
 
 	return (0x10);		/* 16 bytes of I/O space used. */
 }
@@ -175,7 +324,7 @@ epattach(is)
 	struct ifaddr *ifa;
 	struct sockaddr_dl *sdl;
 
-	sc->ep_io_addr = is->id_iobase;
+	sc->ep_iobase = is->id_iobase;
 
 	printf("ep%d: ", is->id_unit);
 
@@ -206,10 +355,10 @@ epattach(is)
 	for (i = 0; i < 3; i++) {
 		u_short *p;
 		GO_WINDOW(0);
-		if (is_eeprom_busy(is))
+		if (epbusyeeprom(is->id_unit, sc->ep_iobase))
 			return(0);
 		outw(BASE + EP_W0_EEPROM_COMMAND, READ_EEPROM | i);
-		if (is_eeprom_busy(is))
+		if (epbusyeeprom(is->id_unit, sc->ep_iobase))
 			return(0);
 		p =(u_short *)&sc->arpcom.ac_enaddr[i*2];
 		*p = htons(inw(BASE + EP_W0_EEPROM_DATA));
@@ -221,7 +370,8 @@ epattach(is)
 	ifp->if_unit = is->id_unit;
 	ifp->if_name = "ep";
 	ifp->if_mtu = ETHERMTU;
-	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_NOTRAILERS;
+	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_NOTRAILERS |
+		IFF_MULTICAST ;
 	ifp->if_init = epinit;
 	ifp->if_output = ether_output;
 	ifp->if_start = epstart;
@@ -250,6 +400,9 @@ epattach(is)
 #if NBPFILTER > 0
 	bpfattach(&sc->bpf, ifp, DLT_EN10MB, sizeof(struct ether_header));
 #endif
+
+	sc->tx_start_thresh = 20;	/* probably a good starting point. */
+
 	return 1;
 }
 
@@ -304,7 +457,7 @@ epinit(unit)
 	    S_TX_COMPLETE | S_TX_AVAIL);
 
 	outw(BASE + EP_COMMAND, SET_RX_FILTER | FIL_INDIVIDUAL |
-	    FIL_GROUP | FIL_BRDCST);
+	    FIL_MULTICAST | FIL_BRDCST);
 
 	/*
 	 * you can `ifconfig (link0|-link0) ep0' to get the following
@@ -338,7 +491,6 @@ epinit(unit)
 
 	ifp->if_flags |= IFF_RUNNING;
 	ifp->if_flags &= ~IFF_OACTIVE;	/* just in case */
-	sc->tx_start_thresh = 20;	/* probably a good starting point. */
 	/*
 	 * Store up a bunch of mbuf's for use later. (MAX_MBS). First we
 	 * free up any that we had in case we're being called from intr or
@@ -346,7 +498,7 @@ epinit(unit)
 	 */
 	sc->last_mb = 0;
 	sc->next_mb = 0;
-	epmbuffill((caddr_t)sc, 0);
+	epmbuffill((void *)sc);
 
 	epstart(ifp);
 
@@ -404,7 +556,10 @@ startagain:
 		sc->arpcom.ac_if.if_flags |= IFF_OACTIVE;
 		splx(s);
 		return;
+	} else {
+		outw(BASE + EP_COMMAND, SET_TX_AVAIL_THRESH | 2044);
 	}
+
 	IF_DEQUEUE(&sc->arpcom.ac_if.if_snd, m);
 	if (m == 0) {		/* not really needed */
 		splx(s);
@@ -418,17 +573,20 @@ startagain:
 
 	for (top = m; m != 0; m = m->m_next) {
 		if (sc->bus32bit) {
-			outsl(BASE + EP_W1_TX_PIO_WR_1, mtod(m, caddr_t),
-			    m->m_len/4);
-			if (m->m_len & 3)
+			if(m->m_len > 3)
+				outsl(BASE + EP_W1_TX_PIO_WR_1,
+					mtod(m, caddr_t), m->m_len/4);
+			if(m->m_len & 3)
 				outsb(BASE + EP_W1_TX_PIO_WR_1,
-				    mtod(m, caddr_t) + m->m_len/4,
-				    m->m_len & 3);
+					mtod(m, caddr_t) + (m->m_len & ~3), m->m_len & 3);
 		} else {
-			outsw(BASE + EP_W1_TX_PIO_WR_1, mtod(m, caddr_t), m->m_len/2);
+			if (m->m_len > 1)
+				outsw(BASE + EP_W1_TX_PIO_WR_1, mtod(m, caddr_t),
+				    m->m_len/2);
 			if (m->m_len & 1)
 				outb(BASE + EP_W1_TX_PIO_WR_1,
-			    	*(mtod(m, caddr_t) + m->m_len - 1));
+				    *(mtod(m, caddr_t) + m->m_len - 1));
+
 		}
 	}
 	while (pad--)
@@ -673,21 +831,23 @@ epread(sc)
 			lenthisone = min(totlen, M_TRAILINGSPACE(m));
 		}
 		if (sc->bus32bit) {
-			insl(BASE + EP_W1_RX_PIO_RD_1, mtod(m, caddr_t) + m->m_len,
-			    lenthisone / 4);
-			m->m_len += (lenthisone & ~3);
-			if (lenthisone & 3)
+			if(totlen > 3) {
+				lenthisone &= ~3;
+				insl(BASE + EP_W1_RX_PIO_RD_1,
+					mtod(m, caddr_t) + m->m_len, lenthisone / 4);
+			} else
 				insb(BASE + EP_W1_RX_PIO_RD_1,
-				    mtod(m, caddr_t) + m->m_len,
-				    lenthisone & 3);
-			m->m_len += (lenthisone & 3);
+				    mtod(m, caddr_t) + m->m_len, lenthisone);
 		} else {
-			insw(BASE + EP_W1_RX_PIO_RD_1, mtod(m, caddr_t) + m->m_len,
-			    lenthisone / 2);
-			m->m_len += lenthisone;
-			if (lenthisone & 1)
-				*(mtod(m, caddr_t) + m->m_len - 1) = inb(BASE + EP_W1_RX_PIO_RD_1);
+			if (totlen > 1) {
+				lenthisone &= ~1;
+				insw(BASE + EP_W1_RX_PIO_RD_1,
+				    mtod(m, caddr_t) + m->m_len, lenthisone / 2);
+			} else
+				*(mtod(m, caddr_t) + m->m_len) =
+				    inb(BASE + EP_W1_RX_PIO_RD_1);
 		}
+		m->m_len += lenthisone;
 		totlen -= lenthisone;
 	}
 	if (off) {
@@ -927,7 +1087,7 @@ loop1:	cx--;
  * bit of data with each read.
  */
 static u_short
-get_eeprom_data(id_port, offset)
+epreadeeprom(id_port, offset)
 	int     id_port;
 	int     offset;
 {
@@ -940,25 +1100,24 @@ get_eeprom_data(id_port, offset)
 }
 
 static int
-is_eeprom_busy(is)
-	struct isa_device *is;
+epbusyeeprom(unit, base)
+	int unit; ushort base;
 {
 	int     i = 0, j;
-	register struct ep_softc *sc = &ep_softc[is->id_unit];
 
 	while (i++ < 100) {
-		j = inw(BASE + EP_W0_EEPROM_COMMAND);
+		j = inw(base + EP_W0_EEPROM_COMMAND);
 		if (j & EEPROM_BUSY)
 			DELAY(100);
 		else
 			break;
 	}
 	if (i >= 100) {
-		printf("\nep%d: eeprom failed to come ready.\n", is->id_unit);
+		printf("\nep%d: eeprom failed to come ready.\n", unit);
 		return (1);
 	}
 	if (j & EEPROM_TST_MODE) {
-		printf("\nep%d: 3c509 in test mode. Erase pencil mark!\n", is->id_unit);
+		printf("\nep%d: 3c509 in test mode. Erase pencil mark!\n", unit);
 		return (1);
 	}
 	return (0);
@@ -966,7 +1125,7 @@ is_eeprom_busy(is)
 
 void
 epmbuffill(sp)
-	caddr_t sp;
+	void *sp;
 {
 	struct ep_softc *sc = (struct ep_softc *)sp;
 	int     s, i;
