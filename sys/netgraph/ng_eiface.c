@@ -46,9 +46,6 @@
 #include <net/if_types.h>
 #include <net/netisr.h>
 
-#include <netinet/in.h>
-#include <netinet/if_ether.h>
-
 #include <netgraph/ng_message.h>
 #include <netgraph/netgraph.h>
 #include <netgraph/ng_parse.h>
