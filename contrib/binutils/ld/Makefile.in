@@ -1,6 +1,6 @@
-# Makefile.in generated automatically by automake 1.4 from Makefile.am
+# Makefile.in generated automatically by automake 1.4-p5 from Makefile.am
 
-# Copyright (C) 1994, 1995-8, 1999 Free Software Foundation, Inc.
+# Copyright (C) 1994, 1995-8, 1999, 2001 Free Software Foundation, Inc.
 # This Makefile.in is free software; the Free Software Foundation
 # gives unlimited permission to copy and/or distribute it,
 # with or without modifications, as long as this notice is preserved.
@@ -511,7 +511,7 @@ deffilep.c ldgram.c ldlex.c
 
 DISTFILES = $(DIST_COMMON) $(SOURCES) $(HEADERS) $(TEXINFOS) $(EXTRA_DIST)
 
-TAR = gtar
+TAR = tar
 GZIP_ENV = --best
 SOURCES = $(ld_new_SOURCES) $(EXTRA_ld_new_SOURCES)
 OBJECTS = $(ld_new_OBJECTS)
@@ -699,7 +699,7 @@ uninstall-info:
 	else ii=; fi; \
 	list='$(INFO_DEPS)'; \
 	for file in $$list; do \
-	  test -z "$ii" \
+	  test -z "$$ii" \
 	    || install-info --info-dir=$(DESTDIR)$(infodir) --remove $$file; \
 	done
 	@$(NORMAL_UNINSTALL)
@@ -812,7 +812,7 @@ maintainer-clean-recursive:
 	dot_seen=no; \
 	rev=''; list='$(SUBDIRS)'; for subdir in $$list; do \
 	  rev="$$subdir $$rev"; \
-	  test "$$subdir" = "." && dot_seen=yes; \
+	  test "$$subdir" != "." || dot_seen=yes; \
 	done; \
 	test "$$dot_seen" = "no" && rev=". $$rev"; \
 	target=`echo $@ | sed s/-recursive//`; \
@@ -1877,7 +1877,9 @@ DEP1: $(CFILES) $(GENERATED_CFILES)
 dep.sed: dep-in.sed config.status
 	sed <$(srcdir)/dep-in.sed >dep.sed	\
 		-e 's!@INCDIR@!$(INCDIR)!'	\
-		-e 's!@SRCDIR@!$(srcdir)!'
+		-e 's!@BFDDIR@!$(BFDDIR)!'	\
+		-e 's!@SRCDIR@!$(srcdir)!'	\
+		-e 's!@TOPDIR@!'`echo $(srcdir) | sed -e s,/ld$$,,`'!'
 
 dep: DEP
 	sed -e '/^..DO NOT DELETE THIS LINE/,$$d' < Makefile > tmp-Makefile
@@ -1960,16 +1962,17 @@ pe-dll.o: pe-dll.c ../bfd/bfd.h $(INCDIR)/ansidecl.h \
   $(INCDIR)/bfdlink.h $(INCDIR)/libiberty.h $(INCDIR)/safe-ctype.h \
   ld.h $(INCDIR)/bin-bugs.h ldexp.h ldlang.h ldwrite.h \
   ldmisc.h ldgram.h ldmain.h ldfile.h ldemul.h $(INCDIR)/coff/internal.h \
-  ../bfd/libcoff.h deffile.h pe-dll.h
+  $(BFDDIR)/libcoff.h deffile.h pe-dll.h
 ldgram.o: ldgram.c ../bfd/bfd.h $(INCDIR)/ansidecl.h \
   $(INCDIR)/symcat.h sysdep.h config.h $(INCDIR)/fopen-same.h \
   $(INCDIR)/bfdlink.h ld.h $(INCDIR)/bin-bugs.h ldexp.h \
   ldver.h ldlang.h ldfile.h ldemul.h ldmisc.h ldmain.h \
   mri.h ldctor.h ldlex.h
-ldlex.o: ldlex.c ../bfd/bfd.h $(INCDIR)/symcat.h sysdep.h \
-  config.h $(INCDIR)/fopen-same.h $(INCDIR)/safe-ctype.h \
-  ld.h $(INCDIR)/bin-bugs.h ldgram.h ldmisc.h ldexp.h \
-  ldlang.h ldfile.h ldlex.h ldmain.h $(INCDIR)/libiberty.h
+ldlex.o: ldlex.c $(INCDIR)/ansidecl.h ../bfd/bfd.h \
+  $(INCDIR)/symcat.h sysdep.h config.h $(INCDIR)/fopen-same.h \
+  $(INCDIR)/safe-ctype.h ld.h $(INCDIR)/bin-bugs.h ldgram.h \
+  ldmisc.h ldexp.h ldlang.h ldfile.h ldlex.h ldmain.h \
+  $(INCDIR)/libiberty.h
 deffilep.o: deffilep.c $(INCDIR)/libiberty.h $(INCDIR)/ansidecl.h \
   $(INCDIR)/safe-ctype.h ../bfd/bfd.h $(INCDIR)/symcat.h \
   sysdep.h config.h $(INCDIR)/fopen-same.h ld.h $(INCDIR)/bin-bugs.h \
