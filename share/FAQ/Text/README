@@ -14,7 +14,7 @@ features and a greatly enhanced           <----.     __ / __   \
 installation program.  See the release    <----|====O)))==) \) /====
 notes for more details on what's new in   <----'    `--' `.__,' \
 FreeBSD 2.0.5!                                         |        |
-                                                        \       /	/\
+                                                        \       /       /\
                                                    ______( (_  / \______/
                                                  ,'  ,-----'   |
                                                  `--{__________)
@@ -65,13 +65,13 @@ data first!  We really mean it!
 
 Technical comments on this release should be sent to:
 
-	hackers@FreeBSD.org
+        hackers@FreeBSD.org
 
 
 Bug reports should be sent using the `send-pr' command, if you were
 able to get the system installed, otherwise to:
 
-	bugs@FreeBSD.org
+        bugs@FreeBSD.org
 
 Please be sure to indicate WHICH VERSION of FreeBSD you're running in
 any bug reports!
@@ -79,7 +79,7 @@ any bug reports!
 
 General questions should be sent to:
 
-	questions@FreeBSD.org
+        questions@FreeBSD.org
 
 Please have patience if your questions are not answered right away -
 this is an especially busy time for us, and our volunteer resources
@@ -100,5 +100,5 @@ further information on the system.
 Thanks for reading all of this, and we sincerely hope you enjoy this
 release of FreeBSD!
 
-				Jordan Hubbard,
-				for The FreeBSD Project
+                                Jordan Hubbard,
+                                for The FreeBSD Project
