@@ -905,7 +905,12 @@ static struct isa_pnp_id essc_ids[] = {
 static int
 esscontrol_probe(device_t dev)
 {
-	return ISA_PNP_PROBE(device_get_parent(dev), dev, essc_ids);
+	int i;
+
+	i = ISA_PNP_PROBE(device_get_parent(dev), dev, essc_ids);
+	if (i == 0)
+		device_quiet(dev);
+	return i;
 }
 
 static int
