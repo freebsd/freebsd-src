@@ -85,7 +85,6 @@ static int free_bpages;
 static int reserved_bpages;
 static int active_bpages;
 static int total_bpages;
-static bus_addr_t bounce_lowaddr = BUS_SPACE_MAXADDR;
 
 struct bus_dmamap {
 	struct bp_list	       bpages;
@@ -250,14 +249,6 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 	if (newtag->lowaddr < ptoa(Maxmem) && (flags & BUS_DMA_ALLOCNOW) != 0) {
 		/* Must bounce */
 
-		if (lowaddr > bounce_lowaddr) {
-			/*
-			 * Go through the pool and kill any pages
-			 * that don't reside below lowaddr.
-			 */
-			panic("bus_dma_tag_create: page reallocation "
-			      "not implemented");
-		}
 		if (ptoa(total_bpages) < maxsize) {
 			int pages;
 
@@ -367,14 +358,6 @@ bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp)
 		  && total_bpages < maxpages)) {
 			int pages;
 
-			if (dmat->lowaddr > bounce_lowaddr) {
-				/*
-				 * Go through the pool and kill any pages
-				 * that don't reside below lowaddr.
-				 */
-				panic("bus_dmamap_create: page reallocation "
-				      "not implemented");
-			}
 			pages = atop(dmat->maxsize) + 1;
 			pages = MIN(maxpages - total_bpages, pages);
 
