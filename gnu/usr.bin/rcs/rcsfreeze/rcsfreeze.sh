@@ -28,7 +28,7 @@
 PATH=/bin:/usr/bin:$PATH
 export PATH
 
-DATE=`LC_TIME=C date` || exit
+DATE=`LC_ALL=C date` || exit
 # Check whether we have an RCS subdirectory, so we can have the right
 # prefix for our paths.
 if test -d RCS

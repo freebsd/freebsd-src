@@ -39,7 +39,7 @@ if ($x11) {
 
 sub variables_static {
     $lang_default = "en";	# set default language
-    $lang = $ENV{'LC_CTYPE'} || $ENV{'LANG'} || $lang_default;
+    $lang = $ENV{'LC_ALL'} || $ENV{'LC_CTYPE'} || $ENV{'LANG'} || $lang_default;
     $lang = &lang($lang);
     $program = $0; $program =~ s|.*/||; $program =~ s/\.(pl|perl)$//;
     $keymapdir = "/usr/share/syscons/keymaps";

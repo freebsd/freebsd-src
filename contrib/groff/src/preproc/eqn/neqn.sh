@@ -4,7 +4,7 @@
 # $FreeBSD$
 
 # Default device.
-locale=${LC_CTYPE:-$LANG}
+locale=${LC_ALL:-${LC_CTYPE:-$LANG}}
 if test `expr "$locale" : ".*\.ISO_8859-1"` -gt 0
 then
 	T=latin1

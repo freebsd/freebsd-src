@@ -46,14 +46,8 @@ sub variables {
     $remove = 0;		# unlink forgotten man/catpages
     $locale = 0;		# go through localized man directories only
 
-    # choose localized man directories suffix. If $LC_CTYPE is set, then
-    # its value should be used as suffix, otherwise $LANG (if set)
-    $local_suffix = "";
-    if ($ENV{'LC_CTYPE'}) {
-	$local_suffix = $ENV{'LC_CTYPE'}
-    } elsif ($ENV{'LANG'}) {
-	$local_suffix = $ENV{'LANG'}
-    }
+    # choose localized man directories suffix.
+    $local_suffix = $ENV{'LC_ALL'} || $ENV{'LC_CTYPE'} || $ENV{'LANG'};
 
     # if no argument for directories given
     @defaultmanpath = ( '/usr/share/man' ); 
