@@ -1249,17 +1249,18 @@ fdshare(fdp)
 
 /*
  * Copy a filedesc structure.
+ * A NULL pointer in returns a NULL reference, this is to ease callers,
+ * not catch errors.
  */
 struct filedesc *
-fdcopy(td)
-	struct thread *td;
+fdcopy(fdp)
+	struct filedesc *fdp;
 {
-	struct filedesc *newfdp, *fdp;
+	struct filedesc *newfdp;
 	struct file **fpp;
 	int i, j;
 
 	/* Certain daemons might not have file descriptors. */
-	fdp = td->td_proc->p_fd;
 	if (fdp == NULL)
 		return (NULL);
 
