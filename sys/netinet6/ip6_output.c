@@ -64,9 +64,7 @@
  *	@(#)ip_output.c	8.3 (Berkeley) 1/21/94
  */
 
-#include "opt_ip6fw.h"
 #include "opt_inet.h"
-#include "opt_ipsec.h"
 #include "opt_key.h"
 
 #include <sys/param.h>
