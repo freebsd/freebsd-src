@@ -234,7 +234,7 @@ vinum_ld(int argc, char *argv[], char *argv0[])
 	return;
     }
     if (argc == 0) {
-	for (driveno = 0; driveno < vinum_conf.drives_used; driveno++)
+	for (driveno = 0; driveno < vinum_conf.drives_allocated; driveno++)
 	    vinum_ldi(driveno, recurse);
     } else {
 	for (i = 0; i < argc; i++) {
@@ -352,7 +352,7 @@ vinum_lv(int argc, char *argv[], char *argv0[])
 	return;
     }
     if (argc == 0)
-	for (volno = 0; volno < vinum_conf.volumes_used; volno++)
+	for (volno = 0; volno < vinum_conf.volumes_allocated; volno++)
 	    vinum_lvi(volno, recurse);
     else {
 	for (i = 0; i < argc; i++) {
@@ -490,7 +490,7 @@ vinum_lp(int argc, char *argv[], char *argv0[])
 	return;
     }
     if (argc == 0) {
-	for (plexno = 0; plexno < vinum_conf.plexes_used; plexno++)
+	for (plexno = 0; plexno < vinum_conf.plexes_allocated; plexno++)
 	    vinum_lpi(plexno, recurse);
     } else {
 	for (i = 0; i < argc; i++) {
@@ -517,7 +517,9 @@ vinum_lsi(int sdno, int recurse)
 	    if (sd.plexno >= 0) {
 		get_plex_info(&plex, sd.plexno);
 		printf("\t\tPlex %s", plex.name);
-		printf(" at offset %qd\n", (long long) sd.plexoffset * DEV_BSIZE);
+		printf(" at offset %qd (%s)\n",
+		    (long long) sd.plexoffset * DEV_BSIZE,
+		    roughlength((long long) sd.plexoffset * DEV_BSIZE, 1));
 	    }
 	    if (sd.state == sd_reviving) {
 		printf("\t\tRevive pointer:\t\t%s (%d%%)\n",
@@ -528,6 +530,17 @@ vinum_lsi(int sdno, int recurse)
 		    roughlength(sd.revive_blocksize, 0),
 		    sd.revive_interval);
 	    }
+	    get_drive_info(&drive, sd.driveno);
+	    if (sd.driveoffset < 0)
+		printf("\t\tDrive %s (%s), no offset\n",
+		    drive.label.name,
+		    drive.devicename);
+	    else
+		printf("\t\tDrive %s (%s) at offset %qd (%s)\n",
+		    drive.label.name,
+		    drive.devicename,
+		    sd.driveoffset * DEV_BSIZE,
+		    roughlength(sd.driveoffset * DEV_BSIZE, 1));
 	} else if (!stats) {				    /* brief listing, no stats */
 	    printf("S %-21s State: %s\tPO: %s ",
 		sd.name,
@@ -564,16 +577,6 @@ vinum_lsi(int sdno, int recurse)
 		    printf("\n");
 	    }
 	}
-	if (Verbose) {
-	    get_drive_info(&drive, sd.driveno);
-	    printf("\t\tDrive %15s\n\t\t\tDevice  %-15s\n",
-		drive.label.name,
-		drive.devicename);
-	    if (sd.driveoffset < 0)
-		printf("\t\t\tDrive offset\t   *none*\n");
-	    else
-		printf("\t\t\tDrive offset\t%9ld\n", (long) sd.driveoffset * DEV_BSIZE);
-	}
 	if (recurse)
 	    vinum_ldi(sd.driveno, recurse);
 	if (verbose)
@@ -596,7 +599,7 @@ vinum_ls(int argc, char *argv[], char *argv0[])
 	return;
     }
     if (argc == 0) {
-	for (sdno = 0; sdno < vinum_conf.subdisks_used; sdno++)
+	for (sdno = 0; sdno < vinum_conf.subdisks_allocated; sdno++)
 	    vinum_lsi(sdno, recurse);
     } else {						    /* specific subdisks */
 	for (i = 0; i < argc; i++) {
@@ -819,7 +822,7 @@ vinum_printconfig(int argc, char *argv[], char *argv0[])
 	uname_s.nodename,
 	ctime(&now));					    /* say who did it */
 
-    for (i = 0; i < vinum_conf.drives_used; i++) {
+    for (i = 0; i < vinum_conf.drives_allocated; i++) {
 	get_drive_info(&drive, i);
 	if (drive.state != drive_unallocated) {
 	    fprintf(of,
@@ -829,7 +832,7 @@ vinum_printconfig(int argc, char *argv[], char *argv0[])
 	}
     }
 
-    for (i = 0; i < vinum_conf.volumes_used; i++) {
+    for (i = 0; i < vinum_conf.volumes_allocated; i++) {
 	get_volume_info(&vol, i);
 	if (vol.state != volume_unallocated) {
 	    if (vol.preferred_plex >= 0)		    /* preferences, */
@@ -843,7 +846,7 @@ vinum_printconfig(int argc, char *argv[], char *argv0[])
     }
 
     /* Then the plex configuration */
-    for (i = 0; i < vinum_conf.plexes_used; i++) {
+    for (i = 0; i < vinum_conf.plexes_allocated; i++) {
 	get_plex_info(&plex, i);
 	if (plex.state != plex_unallocated) {
 	    fprintf(of, "plex name %s org %s ",
@@ -862,7 +865,7 @@ vinum_printconfig(int argc, char *argv[], char *argv0[])
     }
 
     /* And finally the subdisk configuration */
-    for (i = 0; i < vinum_conf.subdisks_used; i++) {
+    for (i = 0; i < vinum_conf.subdisks_allocated; i++) {
 	get_sd_info(&sd, i);
 	if (sd.state != sd_unallocated) {
 	    get_drive_info(&drive, sd.driveno);
