@@ -71,6 +71,7 @@ pccardInitialize(void)
     char *card_irq = "";
     char *spcic_mem;
     char *scard_irq;
+    char pccardd_flags[128];
     char pccardd_cmd[256];
 
     pccard_mode = 1;
@@ -109,13 +110,13 @@ pccardInitialize(void)
 
     switch (t) {
       case 0:
-	card_irq = " -i 10 -i 11 ";
+	card_irq = "-i 10 -i 11";
 	break;
       case 1:
-	card_irq = " -i 5 -i 11 ";
+	card_irq = "-i 5 -i 11";
 	break;
       case 2:
-	card_irq = " -i 11 ";
+	card_irq = "-i 11";
 	break;
     }
 
@@ -150,6 +151,10 @@ pccardInitialize(void)
     strcpy(pccardd_cmd, "/stand/pccardd ");
     strcat(pccardd_cmd, card_irq);
     strcat(pccardd_cmd, " -z");
+
+    strcpy(pccardd_flags, card_irq);
+    variable_set2("pccardd_flags", card_irq, 1);
+
     vsystem(pccardd_cmd);
 }
 
