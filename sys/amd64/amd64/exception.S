@@ -199,7 +199,7 @@ IDTVEC(int0x80_syscall)
  * XXX The PCPU stuff is stubbed out right now...
  */
 IDTVEC(fast_syscall)
-	#swapgs
+	/* XXX swapgs */
 	movq	%rsp,PCPU(SCRATCH_RSP)
 	movq	common_tss+COMMON_TSS_RSP0,%rsp
 	/* Now emulate a trapframe. Ugh. */
@@ -255,7 +255,7 @@ IDTVEC(fast_syscall)
 	movq	TF_RIP(%rsp),%rcx	/* original %rip */
 	movq	TF_RSP(%rsp),%r9	/* user stack pointer */
 	movq	%r9,%rsp		/* original %rsp */
-	#swapgs
+	/* XXX swapgs */
 	sysretq
 3:	/* Requested full context restore, use doreti for that */
 	andq	$~PCB_FULLCTX,PCB_FLAGS(%rax)
