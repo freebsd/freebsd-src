@@ -7,7 +7,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: imgact_gzip.c,v 1.4 1994/10/04 06:51:42 phk Exp $
+ * $Id: imgact_gzip.c,v 1.5 1994/10/05 00:58:33 phk Exp $
  *
  * This module handles execution of a.out files which have been run through
  * "gzip -9".
@@ -388,6 +388,13 @@ Flush(struct gzip *gz,u_long siz)
 		bcopy(&gz->a_out,q,sizeof gz->a_out - gz->file_offset);
 	    }
 	}
+    }
+    /* Skip over zero-padded first PAGE if needed */
+    if(gz->output < gz->file_offset && (gz->output+siz) > gz->file_offset) {
+	i = min(siz, gz->file_offset - gz->output);
+	gz->output += i;
+	p += i;
+	siz -= i;
     }
     if(gz->output >= gz->file_offset && gz->output < gz->file_end) {
 	i = min(siz, gz->file_end - gz->output);
