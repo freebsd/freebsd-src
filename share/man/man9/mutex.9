@@ -32,17 +32,102 @@
 .Dt MUTEX 9
 .Sh NAME
 .Nm mutex,
+.Nm mtx_init,
 .Nm mtx_enter,
-.Nm mtx_exit
+.Nm mtx_try_enter,
+.Nm mtx_exit,
+.Nm mtx_destroy,
+.Nm mtx_owned,
+.Nm mtx_assert
 .Nd kernel synchronization primitives
 .Sh SYNOPSIS
-.Ft void
-.Fn mtx_enter "mtx_t *mutex" "int flags"
-.Ft void
-.Fn mtx_exit "mtx_t *mutex" "int flags"
+.Fd #include <machine/mutex.h>
 .Ft int
-.Fn mtx_owned "mtx_t *mutex"
+.Fn mtx_init "struct mtx *mutex" "char *name" "flags"
+.Ft void
+.Fn mtx_enter "struct mtx *mutex" "int flags"
+.Ft void
+.Fn mtx_try_enter "struct mtx *mutex" "int flags"
+.Ft void
+.Fn mtx_exit "struct mtx *mutex" "int flags"
+.Ft void
+.Fn mtx_destroy "struct mtx *mutex"
+.Ft int
+.Fn mtx_owned "struct mtx *mutex"
+.Ft void
+.Fn mtx_assert "struct mtx *mutex" "int what"
 .Sh DESCRIPTION
+Mutexes are the most basic and primary method of process synchronization.
+The major design considerations for mutexes are:
+.Bl -enum
+.It
+Acquiring and releasing uncontested mutexes should be as cheap
+as possible.
+.It
+They must have the information and storage space to support
+priority propagation.
+.It
+A process must be able to recursively acquire a mutex.
+.El
+.Pp
+There are currently two flavors of mutexes, those that context switch
+when they block and those that do not.
+.Pp
+By default mutexes will context switch when they are already held.
+As a machine dependent optimization they may spin for some amount
+of time before context switching.
+It is important to remember that since a process may be preempted
+at any time, the possible context switch introduced by acquiring a
+mutex is guaranteed to not break anything that isn't already broken.
+.Pp
+Mutexes which do not context switch are spin mutexes.
+These should only be used to protect data shared with device that
+require non-preemptive interrupts, and low level scheduling code.
+In most/all architectures both acquiring and releasing of a
+uncontested spin mutex is more expensive than the same operation
+on a non spin mutex.
+In order to protect an interrupt service routine from blocking
+against itself all interrupts are blocked on a processor while
+holding a spin lock. It is permissible to hold multiple spin mutexes.
+In this case it is a required that they be released in the opposite
+order to that which they were acquired.
+.Pp
+Once a spin mutex has been acquired it is not permissible to acquire a
+blocking mutex.
+.Pp
+The storage needed to implement a mutex is provided by a
+.Dv struct mtx .
+In general this should be treated as an opaque object and
+referenced only with the mutex primitives.
+.Pp
+The
+.Fn mtx_init
+function must be used to initialize a mutex
+before it can be passed to
+.Fn mtx_enter .
+The
+.Ar name
+argument is used by the witness code
+to classify a mutex when doing checks of lock ordering.
+The pointer passed in as the
+.Ar name
+is saved rather than the data it points to.
+The data pointed to must remain stable
+until the mutex is destroyed.
+Currently the
+.Ar flag
+argument is unused.
+In the future it will likely be at least
+used to identify spin mutexes
+so that debug code can verify
+consistent use of a mutex.
+It is not permissible to pass the same
+.Ar mutex
+to
+.Fn mtx_init
+multiple times without intervening calls to
+.Fn mtx_destroy .
+.Pp
 The
 .Fn mtx_enter
 function acquires a mutual exclusion lock
@@ -59,12 +144,74 @@ with no ill effects;
 if recursion on a given mutex can be avoided,
 faster and smaller code will usually be generated.
 .Pp
+The 
+.Fn mtx_try_enter
+function is used to acquire exclusive access
+to those objects protected by the mutex
+pointed to by
+.Ar mutex .
+The
+.Ar flag
+argument is used to specify various options,
+typically
+.Dv M_DEF
+is supplied.
+If the mutex can not be immediately acquired
+.Fn mtx_try_enter
+will return 0,
+otherwise the mutex will be acquired
+and a non-zero value will be returned.
+.Pp
 The
 .Fn mtx_exit
 function releases a mutual exclusion lock;
 if a higher priority thread is waiting for the mutex,
 the releasing thread may be disconnected
 to allow the higher priority thread to acquire the mutex and run.
+.Pp
+The
+.Fn mtx_destroy
+function is used to destroy
+.Ar mutex
+so the data associated with it may be freed
+or otherwise overwritten.
+Any mutex which is destroyed
+must previously have been initialized with
+.Fn mtx_init .
+It is permissible to have a single hold count
+on a mutex when it is destroyed.
+It is not permissible to hold the mutex recursively,
+or have another process blocked on the mutex
+when it is destroyed.
+.Pp
+The
+.Fn mtx_owned
+function returns non-zero
+if the current process holds
+.Ar mutex .
+If the current process does not hold
+.Ar mutex
+zero is returned.
+.Pp
+The
+.Fn mtx_assert
+function  allows assertions to be made about
+.Ar mutex .
+If the assertions are not true the kernel
+will panic.
+Currently the following assertions are supported:
+.Bl -enum
+.It
+.Dv MA_OWNED
+Assert that the current thread
+holds the mutex
+pointed to by the first argument.
+.It
+.Dv MA_NOTOWNED
+Assert that the current thread
+does not hold the mutex
+pointed to by the first argument.
+.El
 .Pp
 The type of a mutex is not an attribute of the mutex,
 but instead a function of the
@@ -87,11 +234,6 @@ and release it in another (e.g. default).
 It is also an error to get the lock in one mode
 and allow another thread to attempt to get the lock in another mode.
 A good general rule is to always use a given mutex in one mode only.
-.Pp
-The
-.Fn mtx_owned
-function returns a non-zero value
-if the mutex pointed to is already held by the current thread.
 .Ss The default Mutex Type
 Most kernel code should use the default lock type;
 the default lock type will allow the thread
