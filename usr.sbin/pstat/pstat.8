@@ -30,9 +30,10 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     @(#)pstat.8	8.4 (Berkeley) 4/19/94
+.\"	From: @(#)pstat.8	8.4 (Berkeley) 4/19/94
+.\"	$Id: pstat.8,v 1.5 1995/10/06 20:58:24 bde Exp $
 .\"
-.Dd April 19, 1994
+.Dd October 7, 1995
 .Dt PSTAT 8
 .Os BSD 4
 .Sh NAME
@@ -182,6 +183,20 @@ output stopped (DSR flow control)
 input stopped
 .It Y
 send SIGIO for input events
+.It D
+state for lowercase
+.Ql \e
+work
+.It E
+within a
+.Ql \e.../
+for PRTRUB
+.It L
+next character is literal
+.It P
+retyping suspended input (PENDIN)
+.It N
+counting tab width, ignore FLUSHO
 .It l
 block mode input routine in use
 .It s
@@ -189,7 +204,9 @@ i/o being snooped
 .It Z
 connection lost
 .El
-.It PGRP
+.It SESS
+Kernel address of the session structure.
+.It PGID
 Process group for which this is controlling terminal.
 .It DISC
 Line discipline;
