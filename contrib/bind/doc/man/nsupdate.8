@@ -1,4 +1,5 @@
-.\" $Id: nsupdate.8,v 8.5 2000/02/29 03:50:48 vixie Exp $
+.\" $FreeBSD$
+.\" $Id: nsupdate.8,v 8.6 2000/10/30 23:06:57 cyarnell Exp $
 .\"
 .\"Copyright (c) 1999 by Internet Software Consortium
 .\"
@@ -55,6 +56,8 @@ each line contributing a resource record to an
 update request.
 All domain names used in a single update request
 must belong to the same DNS zone.
+Updates are sent to the master server as defined in the SOA
+MNAME field.
 A blank line causes the accumulated
 records to be formated into a single update request
 and transmitted to the zone's authoritative name servers.
