@@ -37,7 +37,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  *
- * $Id: //depot/aic7xxx/aic7xxx/aic7xxx.h#62 $
+ * $Id: //depot/aic7xxx/aic7xxx/aic7xxx.h#70 $
  *
  * $FreeBSD$
  */
@@ -98,6 +98,14 @@ struct seeprom_descriptor;
 	(SCB_GET_TARGET(ahc, scb) + (SCB_IS_SCSIBUS_B(ahc, scb) ? 8 : 0))
 #define SCB_GET_TARGET_MASK(ahc, scb) \
 	(0x01 << (SCB_GET_TARGET_OFFSET(ahc, scb)))
+#ifdef AHC_DEBUG
+#define SCB_IS_SILENT(scb)					\
+	((ahc_debug & AHC_SHOW_MASKED_ERRORS) == 0		\
+      && (((scb)->flags & SCB_SILENT) != 0))
+#else
+#define SCB_IS_SILENT(scb)					\
+	(((scb)->flags & SCB_SILENT) != 0)
+#endif
 #define TCL_TARGET_OFFSET(tcl) \
 	((((tcl) >> 4) & TID) >> 4)
 #define TCL_LUN(tcl) \
@@ -310,11 +318,11 @@ typedef enum {
  */
 typedef enum {
 	AHC_FNONE	      = 0x000,
-	AHC_PRIMARY_CHANNEL   = 0x003,/*
+	AHC_PRIMARY_CHANNEL   = 0x003,  /*
 					 * The channel that should
 					 * be probed first.
 					 */
-	AHC_USEDEFAULTS	      = 0x004,/*
+	AHC_USEDEFAULTS	      = 0x004,  /*
 					 * For cards without an seeprom
 					 * or a BIOS to initialize the chip's
 					 * SRAM, we use the default target
@@ -322,29 +330,29 @@ typedef enum {
 					 */
 	AHC_SEQUENCER_DEBUG   = 0x008,
 	AHC_SHARED_SRAM	      = 0x010,
-	AHC_LARGE_SEEPROM     = 0x020,/* Uses C56_66 not C46 */
+	AHC_LARGE_SEEPROM     = 0x020,  /* Uses C56_66 not C46 */
 	AHC_RESET_BUS_A	      = 0x040,
 	AHC_RESET_BUS_B	      = 0x080,
 	AHC_EXTENDED_TRANS_A  = 0x100,
 	AHC_EXTENDED_TRANS_B  = 0x200,
 	AHC_TERM_ENB_A	      = 0x400,
 	AHC_TERM_ENB_B	      = 0x800,
-	AHC_INITIATORROLE     = 0x1000,/*
+	AHC_INITIATORROLE     = 0x1000,  /*
 					  * Allow initiator operations on
 					  * this controller.
 					  */
-	AHC_TARGETROLE	      = 0x2000,/*
+	AHC_TARGETROLE	      = 0x2000,  /*
 					  * Allow target operations on this
 					  * controller.
 					  */
 	AHC_NEWEEPROM_FMT     = 0x4000,
 	AHC_RESOURCE_SHORTAGE = 0x8000,
-	AHC_TQINFIFO_BLOCKED  = 0x10000,/* Blocked waiting for ATIOs */
-	AHC_INT50_SPEEDFLEX   = 0x20000,/*
+	AHC_TQINFIFO_BLOCKED  = 0x10000,  /* Blocked waiting for ATIOs */
+	AHC_INT50_SPEEDFLEX   = 0x20000,  /*
 					   * Internal 50pin connector
 					   * sits behind an aic3860
 					   */
-	AHC_SCB_BTT	      = 0x40000,/*
+	AHC_SCB_BTT	      = 0x40000,  /*
 					   * The busy targets table is
 					   * stored in SCB space rather
 					   * than SRAM.
@@ -355,7 +363,9 @@ typedef enum {
 	AHC_EDGE_INTERRUPT    = 0x800000,  /* Device uses edge triggered ints */
 	AHC_39BIT_ADDRESSING  = 0x1000000, /* Use 39 bit addressing scheme. */
 	AHC_LSCBS_ENABLED     = 0x2000000, /* 64Byte SCBs enabled */
-	AHC_SCB_CONFIG_USED   = 0x4000000  /* No SEEPROM but SCB2 had info. */
+	AHC_SCB_CONFIG_USED   = 0x4000000, /* No SEEPROM but SCB2 had info. */
+	AHC_NO_BIOS_INIT      = 0x8000000, /* No BIOS left over settings. */
+	AHC_DISABLE_PCI_PERR  = 0x10000000
 } ahc_flag;
 
 /************************* Hardware  SCB Definition ***************************/
@@ -548,7 +558,13 @@ typedef enum {
 					  * responding to our attempt
 					  * to report the error.
 					  */
-	SCB_TARGET_SCB		= 0x2000
+	SCB_TARGET_SCB		= 0x2000,
+	SCB_SILENT		= 0x4000 /*
+					  * Be quiet about transmission type
+					  * errors.  They are expected and we
+					  * don't want to upset the user.  This
+					  * flag is typically used during DV.
+					  */
 } scb_flag;
 
 struct scb {
@@ -733,7 +749,7 @@ struct ahc_syncrate {
 };
 
 /* Safe and valid period for async negotiations. */
-#define	AHC_ASYNC_XFER_PERIOD 0x44
+#define	AHC_ASYNC_XFER_PERIOD 0x45
 #define	AHC_ULTRA2_XFER_PERIOD 0x0a
 
 /*
@@ -743,6 +759,8 @@ struct ahc_syncrate {
 #define AHC_SYNCRATE_ULTRA2	1
 #define AHC_SYNCRATE_ULTRA	3
 #define AHC_SYNCRATE_FAST	6
+#define AHC_SYNCRATE_MAX	AHC_SYNCRATE_DT
+#define	AHC_SYNCRATE_MIN	13
 
 /***************************** Lookup Tables **********************************/
 /*
@@ -1038,7 +1056,6 @@ struct ahc_softc {
 	u_int			  pci_cachesize;
 
 	u_int			  stack_size;
-	uint16_t		 *saved_stack;
 
 	/* Per-Unit descriptive information */
 	const char		 *description;
@@ -1273,7 +1290,8 @@ extern uint32_t ahc_debug;
 #define AHC_SHOW_QFULL		0x0200
 #define AHC_SHOW_QUEUE		0x0400
 #define AHC_SHOW_TQIN		0x0800
-#define AHC_DEBUG_SEQUENCER	0x1000
+#define AHC_SHOW_MASKED_ERRORS	0x1000
+#define AHC_DEBUG_SEQUENCER	0x2000
 #endif
 void			ahc_print_scb(struct scb *scb);
 void			ahc_print_devinfo(struct ahc_softc *ahc,
