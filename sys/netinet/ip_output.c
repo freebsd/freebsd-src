@@ -127,6 +127,7 @@ ip_output(m0, opt, ro, flags, imo)
 	struct sockaddr_in *dst;
 	struct in_ifaddr *ia;
 	int isbroadcast, sw_csum;
+	struct in_addr pkt_dst;
 #ifdef IPSEC
 	struct socket *so = NULL;
 	struct secpolicy *sp = NULL;
@@ -194,6 +195,9 @@ ip_output(m0, opt, ro, flags, imo)
 		hlen = len;
 	}
 	ip = mtod(m, struct ip *);
+	pkt_dst = ip_fw_fwd_addr == NULL
+		? ip->ip_dst : ip_fw_fwd_addr->sin_addr;
+
 	/*
 	 * Fill in IP header.
 	 */
@@ -222,14 +226,14 @@ ip_output(m0, opt, ro, flags, imo)
 	 * and is still up.  If not, free it and try again.
 	 */
 	if (ro->ro_rt && ((ro->ro_rt->rt_flags & RTF_UP) == 0 ||
-	   dst->sin_addr.s_addr != ip->ip_dst.s_addr)) {
+	   dst->sin_addr.s_addr != pkt_dst.s_addr)) {
 		RTFREE(ro->ro_rt);
 		ro->ro_rt = (struct rtentry *)0;
 	}
 	if (ro->ro_rt == 0) {
 		dst->sin_family = AF_INET;
 		dst->sin_len = sizeof(*dst);
-		dst->sin_addr = ip->ip_dst;
+		dst->sin_addr = pkt_dst;
 	}
 	/*
 	 * If routing to interface only,
@@ -281,7 +285,7 @@ ip_output(m0, opt, ro, flags, imo)
 		else
 			isbroadcast = in_broadcast(dst->sin_addr, ifp);
 	}
-	if (IN_MULTICAST(ntohl(ip->ip_dst.s_addr))) {
+	if (IN_MULTICAST(ntohl(pkt_dst.s_addr))) {
 		struct in_multi *inm;
 
 		m->m_flags |= M_MCAST;
@@ -321,7 +325,7 @@ ip_output(m0, opt, ro, flags, imo)
 				ip->ip_src = IA_SIN(ia)->sin_addr;
 		}
 
-		IN_LOOKUP_MULTI(ip->ip_dst, ifp, inm);
+		IN_LOOKUP_MULTI(pkt_dst, ifp, inm);
 		if (inm != NULL &&
 		   (imo == NULL || imo->imo_multicast_loop)) {
 			/*
@@ -587,8 +591,9 @@ skip_ipsec:
 
 	/*
 	 * Check with the firewall...
+	 * but not if we are already being fwd'd from a firewall.
 	 */
-	if (fw_enable && IPFW_LOADED) {
+	if (fw_enable && IPFW_LOADED && !ip_fw_fwd_addr) {
 		struct sockaddr_in *old = dst;
 
 		off = ip_fw_chk_ptr(&ip,
@@ -790,6 +795,7 @@ skip_ipsec:
                 goto done;
 	}
 
+	ip_fw_fwd_addr = NULL;
 pass:
 	m->m_pkthdr.csum_flags |= CSUM_IP;
 	sw_csum = m->m_pkthdr.csum_flags & ~ifp->if_hwassist;
