@@ -155,6 +155,9 @@ Perform the hardware reset of the device.
 Set minute-second-frame ioctl mode (default).
 .It Cm set Ar lba
 Set LBA ioctl mode.
+.It Cm speed Ar s
+Set the highest speed that the drive should use. The speed is a multiple of
+the single speed. This command is currently only supported on ATAPI drives.
 .It Cm quit
 Quit the program.
 .El
