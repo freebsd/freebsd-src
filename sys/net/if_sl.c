@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_sl.c	8.6 (Berkeley) 2/1/94
- * $Id: if_sl.c,v 1.25 1995/07/06 11:55:18 davidg Exp $
+ * $Id: if_sl.c,v 1.26 1995/07/07 01:13:49 davidg Exp $
  */
 
 /*
@@ -190,7 +190,7 @@ static timeout_t sl_outfill;
 
 static struct linesw slipdisc =
 	{ slopen, slclose, ttyerrio, ttyerrio, sltioctl,
-	  slinput, slstart, nullmodem };
+	  slinput, slstart, ttymodem };
 
 /*
  * Called from boot code to establish sl interfaces.
