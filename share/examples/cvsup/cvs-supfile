@@ -74,6 +74,7 @@ src-all
 #src-games
 #src-gnu
 #src-include
+#src-kerberos5
 #src-kerberosIV
 #src-lib
 #src-libexec
