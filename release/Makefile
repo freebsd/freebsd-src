@@ -845,7 +845,7 @@ doc.1:
 		make all install clean BATCH=yes WITHOUT_X11=yes JADETEX=no \
 		WITHOUT_PYTHON=yes FORCE_PKG_REGISTER=yes; \
 	done
-	@cd /usr/doc && make all install 'FORMATS=html html-split txt' INSTALL_COMPRESSED='' DOCDIR=${RD}/trees/bin/usr/share/doc
+	@cd /usr/doc && make all install 'FORMATS=html html-split txt' INSTALL_COMPRESSED='' DOCDIR=${RD}/trees/bin/usr/share/doc URLS_ABSOLUTE=YES
 	touch doc.1
 
 #
