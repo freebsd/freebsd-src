@@ -156,7 +156,6 @@ coff_load_file(struct proc *p, char *name)
   	struct nameidata nd;
   	struct vnode *vp;
   	struct vattr attr;
-	struct ucred *uc;
   	struct filehdr *fhdr;
   	struct aouthdr *ahdr;
   	struct scnhdr *scns;
@@ -182,38 +181,24 @@ coff_load_file(struct proc *p, char *name)
     		goto fail;
   	}
 
-	PROC_LOCK(p);
-	uc = p->p_ucred;
-	crhold(uc);
-	PROC_UNLOCK(p);
-  	if ((error = VOP_GETATTR(vp, &attr, uc, p)) != 0) {
-		crfree(uc);
+  	if ((error = VOP_GETATTR(vp, &attr, p->p_ucred, p)) != 0)
     		goto fail;
-	}
 
   	if ((vp->v_mount->mnt_flag & MNT_NOEXEC)
 	    || ((attr.va_mode & 0111) == 0)
-	    || (attr.va_type != VREG)) {
-		crfree(uc);
+	    || (attr.va_type != VREG))
     		goto fail;
-	}
 
   	if (attr.va_size == 0) {
     		error = ENOEXEC;
-		crfree(uc);
     		goto fail;
   	}
 
-  	if ((error = VOP_ACCESS(vp, VEXEC, uc, p)) != 0) {
-		crfree(uc);
+  	if ((error = VOP_ACCESS(vp, VEXEC, p->p_ucred, p)) != 0)
     		goto fail;
-	}
 
-  	if ((error = VOP_OPEN(vp, FREAD, uc, p)) != 0) {
-		crfree(uc);
+  	if ((error = VOP_OPEN(vp, FREAD, p->p_ucred, p)) != 0)
     		goto fail;
-	}
-	crfree(uc);
 
 	/*
 	 * Lose the lock on the vnode. It's no longer needed, and must not

@@ -405,7 +405,6 @@ linux_getdents(struct proc *p, struct linux_getdents_args *args)
     int buflen, error, eofflag, nbytes, justone;
     u_long *cookies = NULL, *cookiep;
     int ncookies;
-    struct ucred *uc;
 
 #ifdef DEBUG
     printf("Linux-emul(%d): getdents(%d, *, %d)\n",
@@ -423,13 +422,7 @@ linux_getdents(struct proc *p, struct linux_getdents_args *args)
     if (vp->v_type != VDIR)
 	return (EINVAL);
 
-    PROC_LOCK(p);
-    uc = p->p_ucred;
-    crhold(uc);
-    PROC_UNLOCK(p);
-    error = VOP_GETATTR(vp, &va, uc, p);
-    crfree(uc);
-    if (error) {
+    if ((error = VOP_GETATTR(vp, &va, p->p_ucred, p))) {
 	return error;
     }
 
