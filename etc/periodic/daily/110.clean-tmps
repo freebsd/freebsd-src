@@ -3,44 +3,41 @@
 # $FreeBSD$
 #
 # Perform temporary directory cleaning so that long-lived systems
-# don't end up with excessively old files there.  If /var/tmp and
-# /tmp are symlinked together, only one of the below will actually
-# run.
+# don't end up with excessively old files there.
 #
 
 # If there is a global system configuration file, suck it in.
 #
-if [ -r /etc/defaults/rc.conf ]; then
-	. /etc/defaults/rc.conf
-	source_rc_confs
-elif [ -r /etc/rc.conf ]; then
-	. /etc/rc.conf
+if [ -r /etc/defaults/periodic.conf ]
+then
+    . /etc/defaults/periodic.conf
+    source_periodic_confs
 fi
 
-case "$clear_daily_enable" in
+case "$daily_clean_tmps_enable" in
     [Yy][Ee][Ss])
-	if [ -n "$clear_daily_days" ]
+	if [ -n "$daily_clean_tmps_days" ]
 	then
 	    echo ""
 	    echo "Removing old temporary files:"
 
 	    set -f noglob
-	    args="-atime +$clear_daily_days -mtime +$clear_daily_days"
-	    [ -n "$clear_daily_ignore" ] &&
-		args="$args "`echo " ${clear_daily_ignore% }" |
+	    args="-atime +$daily_clean_tmps_days -mtime +$daily_clean_tmps_days"
+	    [ -n "$daily_clean_tmps_ignore" ] &&
+		args="$args "`echo " ${daily_clean_tmps_ignore% }" |
 		    sed 's/[ 	][ 	]*/ ! -name /g'`
-	    case "$clear_daily_verbose" in
+	    case "$daily_clean_tmps_verbose" in
 		[Yy][Ee][Ss])
 		    print=-print;;
 		*)
 		    print=;;
 	    esac
 
-	    for dir in $clear_daily_dirs
+	    for dir in $daily_clean_tmps_dirs
 	    do
 		[ ."${dir#/}" != ."$dir" -a -d $dir ] && cd $dir && {
 		    find -d . -type f $args -delete $print
-		    find -d . ! -name . -type d -mtime +$clear_daily_days \
+		    find -d . ! -name . -type d -mtime +$daily_clean_tmps_days \
 			-delete $print
 		} | sed "s,^\\.,  $dir,"
 	    done

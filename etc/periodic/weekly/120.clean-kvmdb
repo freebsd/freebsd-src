@@ -3,13 +3,31 @@
 # $FreeBSD$
 #
 
-if [ -d /var/db ] ; then
-    echo ""
-    echo "Cleaning up kernel database files:"
-
-    kernel=`sysctl -n kern.bootfile`
-    kernel=kvm_`basename ${kernel}`.db
-
-    find /var/db -name "kvm_*.db" -a ! -name ${kernel} -a \
-	-atime +7 -delete
+# If there is a global system configuration file, suck it in.
+#
+if [ -r /etc/defaults/periodic.conf ]; then
+    . /etc/defaults/periodic.conf
+    source_periodic_confs
 fi
+
+case "$weekly_clean_kvmdb_enable" in
+    [Yy][Ee][Ss])
+	if [ -d /var/db -a -n "$weekly_clean_kvmdb_days" ]
+	then
+	    echo ""
+	    echo "Cleaning up kernel database files:"
+
+	    kernel=`sysctl -n kern.bootfile`
+	    kernel=kvm_${kernel##*/}.db
+
+	    case "$weekly_clean_kvmdb_verbose" in
+		[Yy][Ee][Ss])
+		    print=-print;;
+		*)
+		    print=;;
+	    esac
+
+	    find /var/db -name "kvm_*.db" ! -name $kernel \
+		-atime +$weekly_clean_kvmdb_days -delete $print
+	fi;;
+esac

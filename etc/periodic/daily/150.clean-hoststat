@@ -2,10 +2,33 @@
 #
 # $FreeBSD$
 #
+# Remove stale files in /var/spool/.hoststat
+#
 
-if [ -d /var/spool/.hoststat ] ; then
-	echo ""
-	echo "Removing stale files from /var/spool/.hoststat:"
-
-	cd /var/spool/.hoststat && find * -mtime +3 -delete
+# If there is a global system configuration file, suck it in.
+#
+if [ -r /etc/defaults/periodic.conf ]
+then
+    . /etc/defaults/periodic.conf
+    source_periodic_confs
 fi
+
+case "$daily_clean_hoststat_enable" in
+    [Yy][Ee][Ss])
+	if [ -n "$daily_clean_hoststat_days" -a -d /var/spool/.hoststat ]
+	then
+	    echo ""
+	    echo "Removing stale files from /var/spool/.hoststat:"
+
+	    case "$daily_clean_hoststat_verbose" in
+		[Yy][Ee][Ss])
+		    print=-print;;
+		*)
+		    print=;;
+	    esac
+
+	    cd /var/hoststat &&
+		find . ! -name . -mtime +$daily_clean_hoststat_days \
+		    -delete $print
+	fi;;
+esac

@@ -3,13 +3,25 @@
 # $FreeBSD$
 #
 
-if [ -d /etc/mail -a -f /var/log/maillog ]; then
-  echo
-  echo Checking for rejected mail hosts:
-
-  start=`date -v-1d '+%b %d' | sed 's/0\(.\)$/ \1/'`
-  zcat -fc /var/log/maillog.0* /var/log/maillog | grep reject= |
-	perl -ne "print \"\$2\n\" 
-	if /^$start.*ruleset=check_\S+,\s+arg1=(<[^@]+@)?([^>,]+).*reject=/o;" |
-	sort | uniq -c | sort -nr
+# If there is a global system configuration file, suck it in.
+#
+if [ -r /etc/defaults/periodic.conf ]
+then
+    . /etc/defaults/periodic.conf
+    source_periodic_confs
 fi
+
+case "$daily_status_mail_rejects_enable" in
+    [Yy][Ee][Ss])
+	if [ -d /etc/mail -a -f /var/log/maillog ]
+	then
+	    echo
+	    echo Checking for rejected mail hosts:
+
+	    start=`date -v-1d '+%b %d' | sed 's/0\(.\)$/ \1/'`
+	    zcat -fc /var/log/maillog.0* /var/log/maillog |
+		perl -ne "print \"\$2\n\"
+		    if (/reject=/ and /^$start.*ruleset=check_\S+,\s+arg1=(<[^@]+@)?([^>,]+).*reject=/o);" |
+		sort | uniq -c | sort -nr
+	fi;;
+esac

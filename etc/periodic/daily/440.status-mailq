@@ -2,15 +2,32 @@
 #
 # $FreeBSD$
 #
-if [ -x /usr/bin/mailq -a -d /var/spool/mqueue ] ; then
-    echo ""
-    echo "Mail in local queue:"
 
-    mailq
-
-    # If you run a busy mail server or mail relay, you may prefer
-    # a shorter and better formatted message.
-    #
-    # mailq | perl -ne  'print if /^\s+\S+@/' |
-    #         sort | uniq -c | sort -nr | awk '$1 > 1 {print $1, $2}'
+# If there is a global system configuration file, suck it in.
+#
+if [ -r /etc/defaults/periodic.conf ]
+then
+    . /etc/defaults/periodic.conf
+    source_periodic_confs
 fi
+
+case "$daily_status_mailq_enable" in
+    [Yy][Ee][Ss])
+	if [ -x /usr/bin/mailq -a -d /var/spool/mqueue ]
+	then
+	    echo ""
+	    echo "Mail in local queue:"
+
+	    case "$daily_status_mailq_shorten" in
+		[Yy][Ee][Ss])
+		    mailq |
+			perl -ne  'print if /^\s+\S+@/' |
+			sort |
+			uniq -c |
+			sort -nr |
+			awk '$1 > 1 {print $1, $2}';;
+		*)
+		    mailq;;
+	    esac
+	fi;;
+esac
