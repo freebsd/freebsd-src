@@ -155,7 +155,6 @@ save_config() {
 	echo "udotdir=$udotdir"		>> ${ADDUSERCONF}
 	echo "msgfile=$msgfile"		>> ${ADDUSERCONF}
 	echo "disableflag=$disableflag" >> ${ADDUSERCONF}
-	echo "adduserlog=$adduserlog"	>> ${ADDUSERCONF}
 }
 
 # add_user
@@ -238,9 +237,6 @@ add_user() {
 			info "Account ($username) could NOT be locked."
 		fi
 	fi
-
-	_log=${adduserlog:-no}
-	[ x"$_log" = x"no" ] || (echo "$(${DATECMD} +'%Y/%m/%d %T') $(${PWCMD} 2>/dev/null usershow -n $username)" >> $_log)
 
 	_line=
 	_owner=
@@ -715,7 +711,6 @@ input_interactive() {
 THISCMD=`/usr/bin/basename $0`
 DEFAULTSHELL=/bin/sh
 ADDUSERCONF="${ADDUSERCONF:-/etc/adduser.conf}"
-ADDUSERLOG="${ADDUSERLOG:-/var/log/adduser}"
 PWCMD="${PWCMD:-/usr/sbin/pw}"
 MAILCMD="${MAILCMD:-mail}"
 ETCSHELLS="${ETCSHELLS:-/etc/shells}"
@@ -746,7 +741,6 @@ configflag=
 fflag=
 infile=
 disableflag=
-adduserlog="${ADDUSERLOG}"
 readconfig="yes"
 homeprefix="/home"
 randompass=
