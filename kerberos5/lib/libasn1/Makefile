@@ -33,6 +33,7 @@ INCLUDES=asn1.h asn1_err.h
 
 .PATH:		${KRB5DIR}/lib/asn1
 .PATH:		${KRB5DIR}/lib/roken
+.ORDER:		parse.o lex.o
 
 build-tools:	make-print-version asn1_compile
 
@@ -63,7 +64,7 @@ parse.h parse.c:	parse.y
 	mv y.tab.c parse.c
 	mv y.tab.h parse.h
 
-lex.o:		lex.l parse.h
+lex.o:		lex.l
 
 print_version.o: print_version.h print_version.c roken.h
 	${CC} ${CFLAGS} -c -o ${.TARGET} ${KRB5DIR}/lib/roken/print_version.c
