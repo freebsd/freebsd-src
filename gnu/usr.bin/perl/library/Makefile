@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-SUBDIR= B ByteLoader DB_File Dumper DProf Peek Fcntl Glob IO SysV \
+SUBDIR= B ByteLoader DB_File Dumper DProf Errno Peek Fcntl Glob IO SysV \
 	NDBM_File Opcode POSIX SDBM_File Socket Hostname Syslog attrs re
 
 all:	man3pages
