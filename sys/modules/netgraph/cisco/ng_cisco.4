@@ -62,10 +62,11 @@ The
 hook should connect to the synchronous line. On the other side
 of the node are the
 .Dv inet ,
+.Dv inet6 ,
 .Dv atalk ,
 and
 .Dv ipx
-hooks, which transmit and receive raw IP, AppleTalk, and IPX packets,
+hooks, which transmit and receive raw IP, IPv6, AppleTalk, and IPX packets,
 respectively.  Typically these hooks would connect to the corresponding
 hooks on an
 .Xr ng_iface 4
@@ -110,6 +111,8 @@ This node type supports the following hooks:
 The connection to the synchronous line.
 .It Dv inet
 IP hook.
+.It Dv inet6
+IPv6 hook.
 .It Dv atalk
 AppleTalk hook.
 .It Dv ipx
