@@ -1,6 +1,6 @@
-static char     _isdnid[] = "@(#)$Id: isdn.c,v 1.4 1995/05/30 07:58:02 rgrimes Exp $";
+static char     _isdnid[] = "@(#)$Id: isdn.c,v 1.5 1995/09/08 11:06:58 bde Exp $";
 /*******************************************************************************
- *  II - Version 0.1 $Revision: 1.4 $   $State: Exp $
+ *  II - Version 0.1 $Revision: 1.5 $   $State: Exp $
  *
  * Copyright 1994 Dietmar Friede
  *******************************************************************************
@@ -10,6 +10,10 @@ static char     _isdnid[] = "@(#)$Id: isdn.c,v 1.4 1995/05/30 07:58:02 rgrimes E
  *
  *******************************************************************************
  * $Log: isdn.c,v $
+ * Revision 1.5  1995/09/08  11:06:58  bde
+ * Fix benign type mismatches in devsw functions.  82 out of 299 devsw
+ * functions were wrong.
+ *
  * Revision 1.4  1995/05/30  07:58:02  rgrimes
  * Remove trailing whitespace.
  *
@@ -55,6 +59,7 @@ static char     _isdnid[] = "@(#)$Id: isdn.c,v 1.4 1995/05/30 07:58:02 rgrimes E
 #include "ioctl.h"
 #include "kernel.h"
 #include "systm.h"
+#include "conf.h"
 #include "proc.h"
 
 #include "gnu/isdn/isdn_ioctl.h"
@@ -63,11 +68,13 @@ isdn_appl_t     isdn_appl[N_ISDN_APPL];
 isdn_ctrl_t     isdn_ctrl[N_ISDN_CTRL];
 int Isdn_Appl, Isdn_Ctrl, Isdn_Typ;
 
-int             ii_input(), ii_out(), ii_connect(), ii_disconnect();
-int             ity_input(), ity_out(), ity_connect(), ity_disconnect();
-int             itel_input(), itel_out(), itel_connect(), itel_disconnect();
-int		ispy_input();
-int		isdn_stat();
+extern void	isdn_attach __P((void));
+static timeout_t isdn_check;
+extern char	*isdn_get_prot __P((int ap, int dir));
+extern int	isdn_get_prot_size __P((int ap));
+extern int	isdn_set_prot __P((int ap, int dir, char *p));
+extern int	isdn_stat __P((int cn));
+static void	passout __P((int unit, int l, char *buf));
 
 static int      o_flags, r_flags, bufind[TYPNR];
 static char     buffer[TYPNR][257];
@@ -77,7 +84,6 @@ typedef u_char  prot[2];
 static u_char   prot_size[2] = {0, 2};
 static prot     passiv[6]    = {{0}, {3, 3}};
 static prot     activ[6]     = {{0}, {1, 3}};
-static void passout();
 
 u_short isdn_state= 0;
 static isdn_timeout= 0;
@@ -285,7 +291,7 @@ isdnioctl(dev_t dev, int cmd, caddr_t data, int flags, struct proc *p)
 
 			isdn_state = 0xffff;
 			while((err = (*ctrl->listen) (s->ctrl, minor(dev) | 0x30
-				, s->inf_mask ,s->subadr_mask ,s->si_mask)) == EBUSY)
+				, s->inf_mask ,s->subadr_mask ,s->si_mask, /* XXX */ 0)) == EBUSY)
 			{
 				err = tsleep((caddr_t) ctrl, PZERO | PCATCH, "blisten", 2);
 				if (err != EWOULDBLOCK)
@@ -537,7 +543,7 @@ isdn_info(int an, int typ, int len, char *data)
 }
 
 static void
-isdn_check()
+isdn_check(void *chan)
 {
 	int i;
 
