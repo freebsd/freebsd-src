@@ -58,7 +58,7 @@ setlocale(category, locale)
 	int found, i, len;
 	char *env, *r;
 
-	if (!PathLocale && !(PathLocale = getenv("PATH_LOCALE")))
+	if (!PathLocale)
 		PathLocale = _PATH_LOCALE;
 
 	if (category < 0 || category >= _LC_LAST)
