@@ -3,13 +3,11 @@
 
 PROG=	gcore
 SRCS=	elfcore.c gcore.c
+
+.if ${MACHINE_ARCH} == i386
+SRCS+=	aoutcore.c
 DPADD=	${LIBKVM}
 LDADD=	-lkvm
-
-.if	${MACHINE_ARCH} != "sparc"
-SRCS+=	md-nop.c
-.else
-SRCS+=	md-${MACHINE_ARCH}.c
 .endif
 
 .include <bsd.prog.mk>
