@@ -1,9 +1,10 @@
 #	@(#)Makefile	8.5 (Berkeley) 3/31/94
-#	$Id: Makefile,v 1.56 1998/09/15 11:44:41 phk Exp $
+#	$Id: Makefile,v 1.57 1998/09/28 05:38:52 grog Exp $
 
 # XXX MISSING:		icheck ncheck
 
 SUBDIR=	atm \
+	adjkerntz \
 	badsect \
 	camcontrol \
 	ccdconfig \
@@ -63,10 +64,6 @@ SUBDIR=	atm \
 
 .if exists(${.CURDIR}/${MACHINE_ARCH})
 SUBDIR+= ${MACHINE_ARCH}
-.endif
-
-.if ${MACHINE_ARCH} == "i386"
-SUBDIR+=adjkerntz
 .endif
 
 .include <bsd.subdir.mk>
