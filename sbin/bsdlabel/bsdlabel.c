@@ -134,8 +134,6 @@ char	namebuf[BBSIZE], *np = namebuf;
 struct	disklabel lab;
 char	bootarea[BBSIZE];
 
-/* partition 'c' is the full disk and is special */
-#define FULL_DISK_PART 2
 #define MAX_PART ('z')
 #define MAX_NUM_PARTS (1 + MAX_PART - 'a')
 char    part_size_type[MAX_NUM_PARTS];
@@ -930,10 +928,11 @@ word(char *cp)
 int
 getasciilabel(FILE *f, struct disklabel *lp)
 {
-	char **cpp, *cp;
+	char *cp;
+	const char **cpp;
 	struct partition *pp;
 	unsigned int part;
-	char *tp, *s, line[BUFSIZ];
+	char *tp, line[BUFSIZ];
 	int v, lineno = 0, errors = 0;
 	int i;
 
@@ -958,7 +957,7 @@ getasciilabel(FILE *f, struct disklabel *lp)
 				tp = "unknown";
 			cpp = dktypenames;
 			for (; cpp < &dktypenames[DKMAXTYPES]; cpp++)
-				if ((s = *cpp) && streq(s, tp)) {
+				if (*cpp && streq(*cpp, tp)) {
 					lp->d_type = cpp - dktypenames;
 					goto next;
 				}
@@ -1201,7 +1200,7 @@ getasciilabel(FILE *f, struct disklabel *lp)
 					cp = tp, tp = word(cp);
 					cpp = fstypenames;
 					for (; cpp < &fstypenames[FSMAXTYPES]; cpp++)
-						if ((s = *cpp) && streq(s, cp)) {
+						if (*cpp && streq(*cpp, cp)) {
 							pp->p_fstype = cpp -
 							    fstypenames;
 							goto gottype;
@@ -1351,8 +1350,7 @@ checklabel(struct disklabel *lp)
 		pp = &lp->d_partitions[i];
 		if (part_set[i]) {
 			if (part_size_type[i] == '*') {
-				/* partition 2 ('c') is special */
-				if (i == FULL_DISK_PART) {
+				if (i == RAW_PART) {
 					pp->p_size = lp->d_secperunit;
 				} else {
 					if (hog_part != -1)
@@ -1401,8 +1399,7 @@ checklabel(struct disklabel *lp)
 						pp->p_size = size;
 					}
 					/* else already in sectors */
-					/* partition 2 ('c') is special */
-					if (i != FULL_DISK_PART)
+					if (i != RAW_PART)
 						total_size += size;
 				}
 			}
@@ -1412,7 +1409,7 @@ checklabel(struct disklabel *lp)
 	if (total_percent != 0) {
 		long free_space = lp->d_secperunit - total_size;
 		if (total_percent > 100) {
-			fprintf(stderr,"total percentage %d is greater than 100\n",
+			fprintf(stderr,"total percentage %lu is greater than 100\n",
 			    total_percent);
 			errors++;
 		}
@@ -1431,7 +1428,7 @@ checklabel(struct disklabel *lp)
 			}
 		} else {
 			fprintf(stderr,
-			    "%ld sectors available to give to '*' and '%' partitions\n",
+			    "%ld sectors available to give to '*' and '%%' partitions\n",
 			    free_space);
 			errors++;
 			/* fix?  set all % partitions to size 0? */
@@ -1451,8 +1448,7 @@ checklabel(struct disklabel *lp)
 		pp = &lp->d_partitions[i];
 		if (part_set[i]) {
 			if (part_offset_type[i] == '*') {
-				/* partition 2 ('c') is special */
-				if (i == FULL_DISK_PART) {
+				if (i == RAW_PART) {
 					pp->p_offset = 0;
 				} else {
 					pp->p_offset = current_offset;
@@ -1460,28 +1456,26 @@ checklabel(struct disklabel *lp)
 				}
 			} else {
 				/* allow them to be out of order for old-style tables */
-				/* partition 2 ('c') is special */
 				if (pp->p_offset < current_offset && 
-				    seen_default_offset && i != FULL_DISK_PART) {
+				    seen_default_offset && i != RAW_PART) {
 					fprintf(stderr,
-"Offset %ld for partition %c overlaps previous partition which ends at %ld\n",
-					    pp->p_offset,i+'a',current_offset);
+"Offset %ld for partition %c overlaps previous partition which ends at %lu\n",
+					    (long)pp->p_offset,i+'a',current_offset);
 					fprintf(stderr,
 "Labels with any *'s for offset must be in ascending order by sector\n");
 					errors++;
 				} else if (pp->p_offset != current_offset &&
-				    i != FULL_DISK_PART && seen_default_offset) {
+				    i != RAW_PART && seen_default_offset) {
 					/* 
 					 * this may give unneeded warnings if 
 					 * partitions are out-of-order
 					 */
 					Warning(
 "Offset %ld for partition %c doesn't match expected value %ld",
-					    pp->p_offset, i + 'a', current_offset);
+					    (long)pp->p_offset, i + 'a', current_offset);
 				}
 			}
-			/* partition 2 ('c') is special */
-			if (i != FULL_DISK_PART)
+			if (i != RAW_PART)
 				current_offset = pp->p_offset + pp->p_size; 
 		}
 	}
@@ -1519,7 +1513,7 @@ checklabel(struct disklabel *lp)
 			    part);
 			errors++;
 		}
-		if (i == FULL_DISK_PART)
+		if (i == RAW_PART)
 		{
 			if (pp->p_fstype != FS_UNUSED)
 				Warning("partition %c is not marked as unused!",part);
@@ -1538,8 +1532,7 @@ checklabel(struct disklabel *lp)
 		/* check for overlaps */
 		/* this will check for all possible overlaps once and only once */
 		for (j = 0; j < i; j++) {
-			/* partition 2 ('c') is special */
-			if (j != FULL_DISK_PART && i != FULL_DISK_PART &&
+			if (j != RAW_PART && i != RAW_PART &&
 			    part_set[i] && part_set[j]) {
 				pp2 = &lp->d_partitions[j];
 				if (pp2->p_offset < pp->p_offset + pp->p_size &&
