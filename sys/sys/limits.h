@@ -66,6 +66,9 @@
 #define	LONG_MAX	__LONG_MAX	/* max for a long */
 #define	LONG_MIN	__LONG_MIN	/* min for a long */
 
+#define	UID_MAX		UINT_MAX	/* max value for a uid_t */
+#define	GID_MAX		UINT_MAX	/* max value for a gid_t */
+
 #ifdef __LONG_LONG_SUPPORTED
 #define	ULLONG_MAX	__ULLONG_MAX	/* max for an unsigned long long */
 #define	LLONG_MAX	__LLONG_MAX	/* max for a long long */
