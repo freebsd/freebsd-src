@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.114 1995/05/09 00:15:30 jkh Exp $
+#	$Id: Makefile,v 1.115 1995/05/11 05:22:29 jkh Exp $
 
 # disktab may be wrong -- hcx9 is a tahoe, but gets its own.
 # -rw-r--r--
@@ -450,7 +450,8 @@ distrib-dirs:
 	cd ${DESTDIR}/; rm -f ${DESTDIR}/sys; ln -s usr/src/sys sys
 	cd ${DESTDIR}/usr/share/locale; \
 	for l in ${LATIN1LINKS} ; do \
-		ln -sf lt_LN.ISO8859-1 $$l.ISO8859-1; \
+		rm -f $$l.ISO8859-1; \
+		ln -s lt_LN.ISO8859-1 $$l.ISO8859-1; \
 	done
 
 floppies:	kcopy.flp filesyst.flp cpio.flp cdins.flp
