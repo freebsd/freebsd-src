@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)ping.8	8.2 (Berkeley) 12/11/93
-.\"	$Id$
+.\"	$Id: ping.8,v 1.3 1996/10/05 22:27:04 wosch Exp $
 .\"
 .Dd December 11, 1993
 .Dt PING 8
@@ -42,12 +42,15 @@
 packets to network hosts
 .Sh SYNOPSIS
 .Nm ping
-.Op Fl dfnqrvRQ
+.Op Fl dfnqrvLRQ
 .Op Fl c Ar count
 .Op Fl i Ar wait
+.Op Fl I Ar interface
 .Op Fl l Ar preload
 .Op Fl p Ar pattern
 .Op Fl s Ar packetsize
+.Op Fl T Ar ttl
+.Ar host
 .Sh DESCRIPTION
 .Nm Ping
 uses the
@@ -99,6 +102,9 @@ The default is to wait for one second between each packet.
 This option is incompatible with the
 .Fl f
 option.
+.It Fl I Ar interface
+Source multicast packets with the given interface address.
+This flag only applies if the ping destination is a multicast address.
 .It Fl l Ar preload
 If
 .Ar preload
@@ -106,6 +112,9 @@ is specified,
 .Nm ping
 sends that many packets as fast as possible before falling into its normal
 mode of behavior.
+.It Fl L
+Suppress loopback of multicast packets.
+This flag only applies if the ping destination is a multicast address.
 .It Fl n
 Numeric output only.
 No attempt will be made to lookup symbolic names for host addresses.
@@ -159,6 +168,9 @@ data bytes when combined
 with the 8 bytes of
 .Tn ICMP
 header data.
+.It Fl T Ar ttl
+Set the IP Time To Live for multicasted packets.
+This flag only applies if the ping destination is a multicast address.
 .It Fl v
 Verbose output.
 .Tn ICMP
@@ -216,11 +228,15 @@ given.
 .Sh DUPLICATE AND DAMAGED PACKETS
 .Nm Ping
 will report duplicate and damaged packets.
-Duplicate packets should never occur, and seem to be caused by
+Duplicate packets should never occur when pinging a unicast address,
+and seem to be caused by
 inappropriate link-level retransmissions.
 Duplicates may occur in many situations and are rarely (if ever) a
 good sign, although the presence of low levels of duplicates may not
 always be cause for alarm.
+Duplicates are expected when pinging a broadcast or multicast address,
+since they are not really duplicates but replies from different hosts
+to the same request.
 .Pp
 Damaged packets are obviously serious cause for alarm and often
 indicate broken hardware somewhere in the
