@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: async.c,v 1.15.2.2 1998/01/30 19:45:25 brian Exp $
+ * $Id: async.c,v 1.15.2.3 1998/02/02 19:32:00 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -44,49 +44,34 @@
 #include "link.h"
 #include "physical.h"
 
-#define HDLCSIZE	(MAX_MRU*2+6)
-
-static struct async_state {
-  int mode;
-  int length;
-  u_char hbuff[HDLCSIZE];	/* recv buffer */
-  u_char xbuff[HDLCSIZE];	/* xmit buffer */
-  u_long my_accmap;
-  u_long his_accmap;
-} AsyncState;
-
 #define MODE_HUNT 0x01
 #define MODE_ESC  0x02
 
 void
-AsyncInit()
+async_Init(struct async *async)
 {
-  struct async_state *stp = &AsyncState;
-
-  stp->mode = MODE_HUNT;
-  stp->length = 0;
-  stp->my_accmap = stp->his_accmap = 0xffffffff;
+  async->mode = MODE_HUNT;
+  async->length = 0;
+  async->my_accmap = async->his_accmap = 0xffffffff;
 }
 
 void
-SetLinkParams(struct lcpstate *lcp)
+async_SetLinkParams(struct async *async, struct lcpstate *lcp)
 {
-  struct async_state *stp = &AsyncState;
-
-  stp->my_accmap = lcp->want_accmap;
-  stp->his_accmap = lcp->his_accmap;
+  async->my_accmap = lcp->want_accmap;
+  async->his_accmap = lcp->his_accmap;
 }
 
 /*
  * Encode into async HDLC byte code if necessary
  */
 static void
-HdlcPutByte(u_char **cp, u_char c, int proto)
+HdlcPutByte(struct async *async, u_char **cp, u_char c, int proto)
 {
   u_char *wp;
 
   wp = *cp;
-  if ((c < 0x20 && (proto == PROTO_LCP || (AsyncState.his_accmap & (1 << c))))
+  if ((c < 0x20 && (proto == PROTO_LCP || (async->his_accmap & (1 << c))))
       || (c == HDLC_ESC) || (c == HDLC_SYN)) {
     *wp++ = HDLC_ESC;
     c ^= HDLC_XOR;
@@ -100,9 +85,8 @@ HdlcPutByte(u_char **cp, u_char c, int proto)
 }
 
 void
-AsyncOutput(int pri, struct mbuf *bp, int proto, struct link *l)
+async_Output(int pri, struct mbuf *bp, int proto, struct physical *physical)
 {
-  struct async_state *hs = &AsyncState;
   u_char *cp, *sp, *ep;
   struct mbuf *wp;
   int cnt;
@@ -111,14 +95,14 @@ AsyncOutput(int pri, struct mbuf *bp, int proto, struct link *l)
     pfree(bp);
     return;
   }
-  cp = hs->xbuff;
+  cp = physical->async.xbuff;
   ep = cp + HDLCSIZE - 10;
   wp = bp;
   *cp++ = HDLC_SYN;
   while (wp) {
     sp = MBUF_CTOP(wp);
     for (cnt = wp->cnt; cnt > 0; cnt--) {
-      HdlcPutByte(&cp, *sp++, proto);
+      HdlcPutByte(&physical->async, &cp, *sp++, proto);
       if (cp >= ep) {
 	pfree(bp);
 	return;
@@ -128,59 +112,58 @@ AsyncOutput(int pri, struct mbuf *bp, int proto, struct link *l)
   }
   *cp++ = HDLC_SYN;
 
-  cnt = cp - hs->xbuff;
-  LogDumpBuff(LogASYNC, "WriteModem", hs->xbuff, cnt);
-  link_Write(l, pri, (char *)hs->xbuff, cnt);
-  link_AddOutOctets(l, cnt);
+  cnt = cp - physical->async.xbuff;
+  LogDumpBuff(LogASYNC, "WriteModem", physical->async.xbuff, cnt);
+  link_Write(physical2link(physical), pri, (char *)physical->async.xbuff, cnt);
+  link_AddOutOctets(physical2link(physical), cnt);
   pfree(bp);
 }
 
 static struct mbuf *
-AsyncDecode(u_char c)
+async_Decode(struct async *async, u_char c)
 {
-  struct async_state *hs = &AsyncState;
   struct mbuf *bp;
 
-  if ((hs->mode & MODE_HUNT) && c != HDLC_SYN)
+  if ((async->mode & MODE_HUNT) && c != HDLC_SYN)
     return NULL;
 
   switch (c) {
   case HDLC_SYN:
-    hs->mode &= ~MODE_HUNT;
-    if (hs->length) {		/* packet is ready. */
-      bp = mballoc(hs->length, MB_ASYNC);
-      mbwrite(bp, hs->hbuff, hs->length);
-      hs->length = 0;
+    async->mode &= ~MODE_HUNT;
+    if (async->length) {		/* packet is ready. */
+      bp = mballoc(async->length, MB_ASYNC);
+      mbwrite(bp, async->hbuff, async->length);
+      async->length = 0;
       return bp;
     }
     break;
   case HDLC_ESC:
-    if (!(hs->mode & MODE_ESC)) {
-      hs->mode |= MODE_ESC;
+    if (!(async->mode & MODE_ESC)) {
+      async->mode |= MODE_ESC;
       break;
     }
     /* Fall into ... */
   default:
-    if (hs->length >= HDLCSIZE) {
+    if (async->length >= HDLCSIZE) {
       /* packet is too large, discard it */
-      LogPrintf(LogERROR, "Packet too large (%d), discarding.\n", hs->length);
-      hs->length = 0;
-      hs->mode = MODE_HUNT;
+      LogPrintf(LogERROR, "Packet too large (%d), discarding.\n", async->length);
+      async->length = 0;
+      async->mode = MODE_HUNT;
       break;
     }
-    if (hs->mode & MODE_ESC) {
+    if (async->mode & MODE_ESC) {
       c ^= HDLC_XOR;
-      hs->mode &= ~MODE_ESC;
+      async->mode &= ~MODE_ESC;
     }
-    hs->hbuff[hs->length++] = c;
+    async->hbuff[async->length++] = c;
     break;
   }
   return NULL;
 }
 
 void
-AsyncInput(struct bundle *bundle, u_char *buff, int cnt,
-           struct physical *physical)
+async_Input(struct bundle *bundle, u_char *buff, int cnt,
+            struct physical *physical)
 {
   struct mbuf *bp;
 
@@ -193,7 +176,7 @@ AsyncInput(struct bundle *bundle, u_char *buff, int cnt,
     HdlcInput(bundle, bp, physical);
   } else {
     while (cnt > 0) {
-      bp = AsyncDecode(*buff++);
+      bp = async_Decode(&physical->async, *buff++);
       if (bp)
 	HdlcInput(bundle, bp, physical);
       cnt--;

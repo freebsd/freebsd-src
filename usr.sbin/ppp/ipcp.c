@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.50.2.5 1998/02/02 19:32:08 brian Exp $
+ * $Id: ipcp.c,v 1.50.2.6 1998/02/02 19:32:31 brian Exp $
  *
  *	TODO:
  *		o More RFC1772 backwoard compatibility
@@ -33,6 +33,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <termios.h>
 #include <unistd.h>
 
 #include "command.h"
@@ -56,6 +57,7 @@
 #include "route.h"
 #include "filter.h"
 #include "hdlc.h"
+#include "async.h"
 #include "link.h"
 #include "physical.h"
 
@@ -252,6 +254,7 @@ IpcpInit(struct bundle *bundle, struct link *l)
                               IpcpInfo.VJInitComp;
   else
     IpcpInfo.want_compproto = 0;
+  VjInit(IpcpInfo.VJInitSlots - 1);
 
   IpcpInfo.heis1172 = 0;
   IpcpInfo.fsm.maxconfig = 10;

@@ -18,7 +18,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: pap.c,v 1.20.2.4 1998/01/31 02:48:27 brian Exp $
+ * $Id: pap.c,v 1.20.2.5 1998/02/02 19:32:12 brian Exp $
  *
  *	TODO:
  */
@@ -29,6 +29,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
+#include <termios.h>
 #include <unistd.h>
 #ifdef __OpenBSD__
 #include <util.h>
@@ -51,6 +52,9 @@
 #include "lcpproto.h"
 #include "phase.h"
 #include "auth.h"
+#include "async.h"
+#include "throughput.h"
+#include "link.h"
 #include "physical.h"
 
 static const char *papcodes[] = { "???", "REQUEST", "ACK", "NAK" };

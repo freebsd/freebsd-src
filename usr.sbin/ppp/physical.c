@@ -16,7 +16,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- *  $Id: physical.c,v 1.1.2.1 1998/01/29 00:49:29 brian Exp $
+ *  $Id: physical.c,v 1.1.2.2 1998/01/30 19:46:02 brian Exp $
  *
  */
 
@@ -44,11 +44,12 @@
 #include "hdlc.h"
 #include "timer.h"
 #include "throughput.h"
+#include "fsm.h"
+#include "lcp.h"
+#include "async.h"
 #include "link.h"
 
-#define PHYSICAL_DEVICE
 #include "physical.h"
-
 
 #include "vars.h"
 

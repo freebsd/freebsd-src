@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.121.2.4 1998/01/31 02:48:25 brian Exp $
+ * $Id: main.c,v 1.121.2.5 1998/02/02 19:32:10 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -578,8 +578,6 @@ PacketMode(struct bundle *bundle, int delay)
     LogPrintf(LogWARN, "PacketMode: Not connected.\n");
     return;
   }
-  AsyncInit();
-  VjInit(15);
   LcpInit(bundle, pppVars.physical);
   IpcpInit(bundle, physical2link(pppVars.physical));
   CcpInit(bundle, physical2link(pppVars.physical));
@@ -1052,7 +1050,7 @@ DoLoop(struct bundle *bundle)
 	}
       } else {
 	if (n > 0)
-	  AsyncInput(bundle, rbuff, n, pppVars.physical);
+	  async_Input(bundle, rbuff, n, pppVars.physical);
       }
     }
     if (bundle->tun_fd >= 0 && FD_ISSET(bundle->tun_fd, &rfds)) {

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: hdlc.c,v 1.28.2.4 1998/01/31 02:48:19 brian Exp $
+ * $Id: hdlc.c,v 1.28.2.5 1998/02/02 19:32:06 brian Exp $
  *
  *	TODO:
  */
@@ -237,7 +237,7 @@ HdlcOutput(struct link *l, int pri, u_short proto, struct mbuf *bp)
   if (Physical_IsSync(p))
     link_Output(l, pri, mhp);          /* Send it raw */
   else
-    AsyncOutput(pri, mhp, proto, l);
+    async_Output(pri, mhp, proto, p);
 }
 
 /* Check out the latest ``Assigned numbers'' rfc (rfc1700.txt) */

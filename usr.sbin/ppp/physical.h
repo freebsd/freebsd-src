@@ -16,13 +16,13 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- *  $Id: physical.h,v 1.1.2.1 1998/01/29 00:49:30 brian Exp $
+ *  $Id: physical.h,v 1.1.2.2 1998/01/30 19:46:03 brian Exp $
  *
  */
 
-#ifdef PHYSICAL_DEVICE
 struct physical {
   struct link link;
+  struct async async;          /* Our async state */
   int fd;                      /* File descriptor for this device */
   int mbits;                   /* Current DCD status */
   unsigned dev_is_modem : 1;   /* Is the device an actual modem?
@@ -42,9 +42,6 @@ struct physical {
   unsigned int speed;          /* Modem speed */
   struct termios ios;          /* To be able to reset from raw mode */
 };
-#else
-struct physical;
-#endif
 
 #define physical2link(p) ((struct link *)p)
 #define link2physical(l) (l->type == PHYSICAL_LINK ? (struct physical *)l : 0)

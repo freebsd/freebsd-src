@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.77.2.2 1998/01/30 19:45:57 brian Exp $
+ * $Id: modem.c,v 1.77.2.3 1998/02/02 19:32:11 brian Exp $
  *
  *  TODO:
  */
@@ -59,12 +59,11 @@
 #include "main.h"
 #include "chat.h"
 #include "throughput.h"
+#include "async.h"
 
 #undef mode
 
-/* We're defining a physical device, and thus need the real
-   headers. */
-#define PHYSICAL_DEVICE
+/* We're defining a physical device, and thus need the real headers. */
 #include "link.h"
 #include "physical.h"
 
@@ -93,6 +92,7 @@ struct physical phys_modem = {
     ModemIsActive,
     ModemHangup
   },
+  { 0 },
   -1
 };
 

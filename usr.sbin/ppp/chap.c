@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: chap.c,v 1.28.2.4 1998/01/31 02:48:15 brian Exp $
+ * $Id: chap.c,v 1.28.2.5 1998/02/02 19:32:03 brian Exp $
  *
  *	TODO:
  */
@@ -32,6 +32,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <termios.h>
 #include <time.h>
 #include <unistd.h>
 #ifdef __OpenBSD__
@@ -56,6 +57,9 @@
 #include "loadalias.h"
 #include "vars.h"
 #include "auth.h"
+#include "async.h"
+#include "throughput.h"
+#include "link.h"
 #include "physical.h"
 
 static const char *chapcodes[] = {

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lqr.c,v 1.22.2.3 1998/01/30 19:45:51 brian Exp $
+ * $Id: lqr.c,v 1.22.2.4 1998/01/31 02:48:23 brian Exp $
  *
  *	o LQR based on RFC1333
  *
@@ -29,6 +29,7 @@
 #include <netinet/in.h>
 
 #include <stdio.h>
+#include <termios.h>
 
 #include "command.h"
 #include "mbuf.h"
@@ -37,10 +38,13 @@
 #include "timer.h"
 #include "fsm.h"
 #include "lcpproto.h"
+#include "lcp.h"
+#include "hdlc.h"
+#include "async.h"
+#include "throughput.h"
+#include "link.h"
 #include "physical.h"
 #include "lqr.h"
-#include "hdlc.h"
-#include "lcp.h"
 #include "loadalias.h"
 #include "vars.h"
 
