@@ -1,4 +1,4 @@
-<!-- $Id: current.sgml,v 1.6 1995/10/16 09:01:52 jkh Exp $ -->
+<!-- $Id: current.sgml,v 1.7 1995/12/11 15:09:10 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 
@@ -10,7 +10,7 @@
 
                         THE FREEBSD CURRENT POLICY 
 
-Last updated: $Date: 1995/10/16 09:01:52 $
+Last updated: $Date: 1995/12/11 15:09:10 $
 
 This document attempts to explain the rationale behind
 FreeBSD-current, what you should expect should you decide to run it,
@@ -25,7 +25,7 @@ snapshot of the working sources for FreeBSD.  These include work in
 progress, experimental changes and transitional mechanisms that may or
 may not be present in the next official release of the software.
 While many of us compile almost daily from FreeBSD-current sources,
-there are periods of time when the sources are literally uncompilable.
+there are periods of time when the sources are literally un-compilable.
 These problems are generally resolved as expeditiously as possible,
 but whether or not FreeBSD-current sources bring disaster or greatly
 desired functionality can literally be a matter of which part of any
