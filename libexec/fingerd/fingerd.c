@@ -102,13 +102,11 @@ main(argc, argv)
 	 * Enable server-side Transaction TCP.
 	 */
 	{
-#if	!defined(__alpha__) /* XXX FIXME */
 		int one = 1;
 		if (setsockopt(STDOUT_FILENO, IPPROTO_TCP, TCP_NOPUSH, &one, 
 			       sizeof one) < 0) {
 			logerr("setsockopt(TCP_NOPUSH) failed: %m");
 		}
-#endif
 	}
 
 	if (!fgets(line, sizeof(line), stdin))
