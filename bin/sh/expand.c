@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)expand.c	8.5 (Berkeley) 5/15/95";
 #endif
 static const char rcsid[] =
-	"$Id: expand.c,v 1.22 1998/05/18 06:43:40 charnier Exp $";
+	"$Id: expand.c,v 1.23 1998/09/06 21:13:09 tegge Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -142,8 +142,7 @@ expandhere(arg, fd)
 	{
 	herefd = fd;
 	expandarg(arg, (struct arglist *)NULL, 0);
-	xwrite(fd, stackblock(), 
-	       rmquotes(stackblock(), expdest - stackblock()));
+	xwrite(fd, stackblock(), expdest - stackblock());
 }
 
 
@@ -185,8 +184,6 @@ expandarg(arg, arglist, flag)
 	} else {
 		if (flag & EXP_REDIR) /*XXX - for now, just remove escapes */
 			rmescapes(p);
-		else
-			rmquotes0(p);
 		sp = (struct strlist *)stalloc(sizeof (struct strlist));
 		sp->text = p;
 		*exparg.lastp = sp;
@@ -235,7 +232,8 @@ argstr(p, flag)
 			/* "$@" syntax adherence hack */
 			if (p[0] == CTLVAR && p[2] == '@' && p[3] == '=')
 				break;
-			STPUTC(c, expdest);
+			if ((flag & EXP_FULL) != 0)
+				STPUTC(c, expdest);
 			break;
 		case CTLESC:
 			if (quotes)
@@ -291,6 +289,8 @@ exptilde(p, flag)
 	while ((c = *p) != '\0') {
 		switch(c) {
 		case CTLESC:
+			return (startp);
+		case CTLQUOTEMARK:
 			return (startp);
 		case ':':
 			if (flag & EXP_VARTILDE)
@@ -1462,58 +1462,6 @@ rmescapes(str)
 		*q++ = *p++;
 	}
 	*q = '\0';
-}
-
-void rmquotes0(str)
-	char *str;
-{
-	char *p, *q;
-
-	p = str;
-	while (*p != CTLQUOTEMARK) {
-		if (*p == CTLESC) {
-			p++;
-			p++;
-			continue;
-		}
-		if (*p++ == '\0')
-			return;
-	}
-	q = p;
-	while (*p) {
-		if (*p == CTLQUOTEMARK) {
-			p++;
-			continue;
-		}
-		if (*p == CTLESC)
-			*q++ = *p++;
-		*q++ = *p++;
-	}
-	*q = '\0';
-}
-
-int 
-rmquotes(str, len)
-	char *str;
-	int len;
-{
-	char *p, *q, *pe;
-
-	p = str;
-	pe = str + len;
-	while (*p != CTLQUOTEMARK) {
-		if (++p == pe)
-			return len;
-	}
-	q = p;
-	while (p < pe) {
-		if (*p == CTLQUOTEMARK) {
-			p++;
-			continue;
-		}
-		*q++ = *p++;
-	}
-	return q - str;
 }
 
 
