@@ -80,6 +80,9 @@
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/vm_map.h>
+#if defined(__FreeBSD__)
+#include <vm/vm_zone.h>
+#endif
 
 #if defined(NetBSD)
 # if defined(UVM)
@@ -245,6 +248,7 @@ svr4_sys_getdents64(p, uap)
 	struct uio auio;
 	struct iovec aiov;
 	struct vattr va;
+	struct ucred *uc;
 	off_t off;
 	struct svr4_dirent64 svr4_dirent;
 	int buflen, error, eofflag, nbytes, justone;
@@ -265,7 +269,13 @@ svr4_sys_getdents64(p, uap)
 	if (vp->v_type != VDIR)
 		return (EINVAL);
 
-	if ((error = VOP_GETATTR(vp, &va, p->p_ucred, p))) {
+	PROC_LOCK(p);
+	uc = p->p_ucred;
+	crhold(uc);
+	PROC_UNLOCK(p);
+	error = VOP_GETATTR(vp, &va, uc, p);
+	crfree(uc);
+	if (error != 0) {
 		return error;
 	}
 
@@ -587,6 +597,7 @@ svr4_sys_fchroot(p, uap)
 	struct filedesc	*fdp = p->p_fd;
 	struct vnode	*vp;
 	struct file	*fp;
+	struct ucred	*uc;
 	int		 error;
 
 	if ((error = suser(p)) != 0)
@@ -597,8 +608,14 @@ svr4_sys_fchroot(p, uap)
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
 	if (vp->v_type != VDIR)
 		error = ENOTDIR;
-	else
+	else {
+		PROC_LOCK(p);
+		uc = p->p_ucred;
+		crhold(uc);
+		PROC_UNLOCK(p);
 		error = VOP_ACCESS(vp, VEXEC, p->p_ucred, p);
+		crfree(uc);
+	}
 	VOP_UNLOCK(vp, 0, p);
 	if (error)
 		return error;
@@ -784,6 +801,8 @@ svr4_sys_break(p, uap)
 	base = round_page((vm_offset_t) vm->vm_daddr);
 	ns = (vm_offset_t)SCARG(uap, nsize);
 	new = round_page(ns);
+	/* For p_rlimit. */
+	mtx_assert(&Giant, MA_OWNED);
 	if (new > base) {
 	  if ((new - base) > (unsigned) p->p_rlimit[RLIMIT_DATA].rlim_cur) {
 			return ENOMEM;
@@ -888,6 +907,8 @@ svr4_sys_ulimit(p, uap)
 
 	switch (SCARG(uap, cmd)) {
 	case SVR4_GFILLIM:
+		/* For p_rlimit below. */
+		mtx_assert(&Giant, MA_OWNED);
 		*retval = p->p_rlimit[RLIMIT_FSIZE].rlim_cur / 512;
 		if (*retval == -1)
 			*retval = 0x7fffffff;
@@ -903,6 +924,7 @@ svr4_sys_ulimit(p, uap)
 				stackgap_alloc(&sg, sizeof *url);
 
 			krl.rlim_cur = SCARG(uap, newlimit) * 512;
+			mtx_assert(&Giant, MA_OWNED);
 			krl.rlim_max = p->p_rlimit[RLIMIT_FSIZE].rlim_max;
 
 			error = copyout(&krl, url, sizeof(*url));
@@ -916,6 +938,7 @@ svr4_sys_ulimit(p, uap)
 			if (error)
 				return error;
 
+			mtx_assert(&Giant, MA_OWNED);
 			*retval = p->p_rlimit[RLIMIT_FSIZE].rlim_cur;
 			if (*retval == -1)
 				*retval = 0x7fffffff;
@@ -925,7 +948,10 @@ svr4_sys_ulimit(p, uap)
 	case SVR4_GMEMLIM:
 		{
 			struct vmspace *vm = p->p_vmspace;
-			register_t r = p->p_rlimit[RLIMIT_DATA].rlim_cur;
+			register_t r;
+
+			mtx_assert(&Giant, MA_OWNED);
+			r = p->p_rlimit[RLIMIT_DATA].rlim_cur;
 
 			if (r == -1)
 				r = 0x7fffffff;
@@ -937,6 +963,7 @@ svr4_sys_ulimit(p, uap)
 		}
 
 	case SVR4_GDESLIM:
+		mtx_assert(&Giant, MA_OWNED);
 		*retval = p->p_rlimit[RLIMIT_NOFILE].rlim_cur;
 		if (*retval == -1)
 			*retval = 0x7fffffff;
@@ -953,17 +980,10 @@ svr4_pfind(pid)
 {
 	struct proc *p;
 
-	ALLPROC_LOCK(AP_SHARED);
 	/* look in the live processes */
-	if ((p = pfind(pid)) != NULL)
-		goto out;
-
-	/* look in the zombies */
-	for (p = zombproc.lh_first; p != 0; p = p->p_list.le_next)
-		if (p->p_pid == pid)
-			break;
-out:
-	ALLPROC_LOCK(AP_RELEASE);
+	if ((p = pfind(pid)) == NULL)
+		/* look in the zombies */
+		p = zpfind(pid);
 
 	return p;
 }
@@ -1133,6 +1153,7 @@ svr4_setinfo(p, st, s)
 
 	if (p) {
 		i.si_pid = p->p_pid;
+		mtx_enter(&sched_lock, MTX_SPIN);
 		if (p->p_stat == SZOMB) {
 			i.si_stime = p->p_ru->ru_stime.tv_sec;
 			i.si_utime = p->p_ru->ru_utime.tv_sec;
@@ -1141,6 +1162,7 @@ svr4_setinfo(p, st, s)
 			i.si_stime = p->p_stats->p_ru.ru_stime.tv_sec;
 			i.si_utime = p->p_stats->p_ru.ru_utime.tv_sec;
 		}
+		mtx_exit(&sched_lock, MTX_SPIN);
 	}
 
 	if (WIFEXITED(st)) {
@@ -1206,7 +1228,7 @@ svr4_sys_waitsys(p, uap)
 loop:
 	nfound = 0;
 	PROCTREE_LOCK(PT_SHARED);
-	for (q = p->p_children.lh_first; q != 0; q = q->p_sibling.le_next) {
+	LIST_FOREACH(q, &p->p_children, p_sibling) {
 		if (SCARG(uap, id) != WAIT_ANY &&
 		    q->p_pid != SCARG(uap, id) &&
 		    q->p_pgid != -SCARG(uap, id)) {
@@ -1215,13 +1237,17 @@ loop:
 			continue;
 		}
 		nfound++;
+		PROC_LOCK(q);
+		mtx_enter(&sched_lock, MTX_SPIN);
 		if (q->p_stat == SZOMB && 
 		    ((SCARG(uap, options) & (SVR4_WEXITED|SVR4_WTRAPPED)))) {
+			mtx_exit(&sched_lock, MTX_SPIN);
+			PROC_UNLOCK(q);
 			PROCTREE_LOCK(PT_RELEASE);
 			*retval = 0;
 			DPRINTF(("found %d\n", q->p_pid));
-			if ((error = svr4_setinfo(q, q->p_xstat,
-						  SCARG(uap, info))) != 0)
+			error = svr4_setinfo(q, q->p_xstat, SCARG(uap, info));
+			if (error != 0)
 				return error;
 
 
@@ -1234,27 +1260,72 @@ loop:
 			 * If we got the child via ptrace(2) or procfs, and
 			 * the parent is different (meaning the process was
 			 * attached, rather than run as a child), then we need
-			 * to give it back to the ol dparent, and send the
+			 * to give it back to the old parent, and send the
 			 * parent a SIGCHLD.  The rest of the cleanup will be
 			 * done when the old parent waits on the child.
 			 */
+			PROC_LOCK(q);
 			if (q->p_flag & P_TRACED) {
+				PROC_UNLOCK(q);
 				PROCTREE_LOCK(PT_EXCLUSIVE);
 				if (q->p_oppid != q->p_pptr->p_pid) {
 					t = pfind(q->p_oppid);
 					proc_reparent(q, t ? t : initproc);
+ 					PROCTREE_LOCK(PT_RELEASE);
+					PROC_LOCK(q);
 					q->p_oppid = 0;
 					q->p_flag &= ~(P_TRACED | P_WAITED);
+					PROC_UNLOCK(q);
+					PROCTREE_LOCK(PT_SHARED);
 					wakeup((caddr_t)q->p_pptr);
 					PROCTREE_LOCK(PT_RELEASE);
 					return 0;
 				}
 				PROCTREE_LOCK(PT_RELEASE);
-			}
+			} else
+				PROC_UNLOCK(q);
 			q->p_xstat = 0;
 			ruadd(&p->p_stats->p_cru, q->p_ru);
-
 			FREE(q->p_ru, M_ZOMBIE);
+			q->p_ru = 0;
+
+			/*
+			 * Decrement the count of procs running with this uid.
+			 */
+			(void)chgproccnt(q->p_cred->p_uidinfo, -1, 0);
+
+			/*
+			 * Release reference to text vnode.
+			 */
+			if (q->p_textvp)
+				vrele(q->p_textvp);
+
+			/*
+			 * Free up credentials.
+			 */
+			PROC_LOCK(q);
+			if (--q->p_cred->p_refcnt == 0) {
+				crfree(q->p_ucred);
+				uifree(q->p_cred->p_uidinfo);
+				FREE(q->p_cred, M_SUBPROC);
+				q->p_cred = NULL;
+			}
+
+	                /*
+			 * Destroy empty prisons
+			 */
+			if (q->p_prison && !--q->p_prison->pr_ref) {
+				if (q->p_prison->pr_linux != NULL)
+					FREE(q->p_prison->pr_linux, M_PRISON);
+				FREE(q->p_prison, M_PRISON);
+			}
+
+			/*
+			 * Remove unused arguments
+			 */
+			if (q->p_args && --q->p_args->ar_ref == 0)
+				FREE(q->p_args, M_PARGS);
+			PROC_UNLOCK(q);
 
 			/*
 			 * Finally finished with old proc entry.
@@ -1270,24 +1341,14 @@ loop:
 			LIST_REMOVE(q, p_sibling);
 			PROCTREE_LOCK(PT_RELEASE);
 
-			/*
-			 * Decrement the count of procs running with this uid.
-			 */
-			(void)chgproccnt(q->p_cred->p_uidinfo, -1, 0);
-
-			/*
-			 * Free up credentials.
-			 */
-			if (--q->p_cred->p_refcnt == 0) {
-				crfree(q->p_ucred);
-				FREE(q->p_cred, M_SUBPROC);
+			PROC_LOCK(q);
+			if (--q->p_procsig->ps_refcnt == 0) {
+				if (q->p_sigacts != &q->p_addr->u_sigacts)
+					FREE(p->q_sigacts, M_SUBPROC);
+				FREE(q->p_procsig, M_SUBPROC);
+				q->p_procsig = NULL;
 			}
-
-			/*
-			 * Release reference to text vnode
-			 */
-			if (q->p_textvp)
-				vrele(q->p_textvp);
+			PROC_UNLOCK(q);
 
 			/*
 			 * Give machine-dependent layer a chance
@@ -1298,19 +1359,27 @@ loop:
 #if defined(__NetBSD__)
 			pool_put(&proc_pool, q);
 #endif
+#ifdef __FreeBSD__
+			mtx_destroy(&q->p_mtx);
+			zfree(proc_zone, q);
+#endif
 			nprocs--;
 			return 0;
 		}
 		if (q->p_stat == SSTOP && (q->p_flag & P_WAITED) == 0 &&
 		    (q->p_flag & P_TRACED ||
 		     (SCARG(uap, options) & (SVR4_WSTOPPED|SVR4_WCONTINUED)))) {
+			mtx_exit(&sched_lock, MTX_SPIN);
 			DPRINTF(("jobcontrol %d\n", q->p_pid));
 		        if (((SCARG(uap, options) & SVR4_WNOWAIT)) == 0)
 				q->p_flag |= P_WAITED;
+			PROC_UNLOCK(q);
 			*retval = 0;
 			return svr4_setinfo(q, W_STOPCODE(q->p_xstat),
 					    SCARG(uap, info));
 		}
+		mtx_exit(&sched_lock, MTX_SPIN);
+		PROC_UNLOCK(q);
 	}
 
 	if (nfound == 0)
