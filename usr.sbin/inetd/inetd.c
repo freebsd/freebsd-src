@@ -751,7 +751,7 @@ main(int argc, char **argv)
 				inetd_setproctitle("wrapping", ctrl);
 				service = sep->se_server_name ?
 				    sep->se_server_name : sep->se_service;
-				request_init(&req, RQ_DAEMON, service, RQ_FILE, ctrl, NULL);
+				request_init(&req, RQ_DAEMON, service, RQ_FILE, ctrl, 0);
 				fromhost(&req);
 				deny_severity = LIBWRAP_DENY_FACILITY|LIBWRAP_DENY_SEVERITY;
 				allow_severity = LIBWRAP_ALLOW_FACILITY|LIBWRAP_ALLOW_SEVERITY;
