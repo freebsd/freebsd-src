@@ -21,9 +21,13 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pdq.c,v 1.2 1995/03/21 22:43:04 se Exp $
+ * $Id: pdq.c,v 1.3 1995/03/25 22:40:48 bde Exp $
  *
  * $Log: pdq.c,v $
+ * Revision 1.3  1995/03/25  22:40:48  bde
+ * Remove wrong redeclarations of printf() and bzero().  Include the correct
+ * header to declare DELAY().
+ *
  * Revision 1.2  1995/03/21  22:43:04  se
  * Silence "gcc -Wall".
  *
@@ -715,6 +719,7 @@ pdq_process_received_data(
     pdq_uint32_t ring_mask)
 {
     pdq_uint32_t completion = rx->rx_completion;
+    pdq_uint32_t producer = rx->rx_producer;
     PDQ_OS_DATABUF_T **buffers = (PDQ_OS_DATABUF_T **) rx->rx_buffers;
     pdq_rxdesc_t *rxd;
     pdq_uint32_t idx;
@@ -779,7 +784,7 @@ pdq_process_received_data(
 	    }
 	    PDQ_OS_DATABUF_NEXT_SET(lpdu, NULL);
 	    for (idx = 0; idx < PDQ_RX_SEGCNT; idx++) {
-		buffers[(rx->rx_producer + idx) & ring_mask] = 
+		buffers[(producer + idx) & ring_mask] = 
 		    buffers[(completion + idx) & ring_mask];
 		buffers[(completion + idx) & ring_mask] = NULL;
 	    }
@@ -792,6 +797,7 @@ pdq_process_received_data(
 	    }
 	    pdq_os_receive_pdu(pdq, fpdu, pdulen);
 	    rx->rx_free += PDQ_RX_SEGCNT;
+	    PDQ_ADVANCE(producer, PDQ_RX_SEGCNT, ring_mask);
 	    PDQ_ADVANCE(completion, PDQ_RX_SEGCNT, ring_mask);
 	    continue;
 	} else {
@@ -816,7 +822,7 @@ pdq_process_received_data(
 	 * ring entries were freed.
 	 */
 	for (idx = 0; idx < PDQ_RX_SEGCNT; idx++) {
-	    buffers[rx->rx_producer] = buffers[completion];
+	    buffers[producer] = buffers[completion];
 	    buffers[completion] = NULL;
 	    rxd = &receives[rx->rx_producer];
 	    if (idx == 0) {
@@ -828,6 +834,7 @@ pdq_process_received_data(
 	    rxd->rxd_seg_len_hi = PDQ_OS_DATABUF_SIZE / 16;
 	    rxd->rxd_pa_lo = PDQ_OS_VA_TO_PA(PDQ_OS_DATABUF_PTR(buffers[rx->rx_producer]));
 	    PDQ_ADVANCE(rx->rx_producer, 1, ring_mask);	
+	    PDQ_ADVANCE(producer, 1, ring_mask);	
 	    PDQ_ADVANCE(completion, 1, ring_mask);
 	}
     }
