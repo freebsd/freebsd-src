@@ -29,38 +29,42 @@
 my $srcdir = `dirname $0`;
 chomp $srcdir;
 
-my $tmpfile = "/tmp/unaligned." . $$;
+my @accesses = ("Load", "Store");
+my @types = ("Integer", "FloatingPoint");
+my @sizes = ("Small", "Medium", "Large");
+my @postincs = ("NoPostInc", "MinConstPostInc", "PlusConstPostInc",
+		"ScratchRegPostInc", "PreservedRegPostInc");
 
-my @types = ("short", "int", "long", "float", "double", "long double");
-my %values = (	"short" => "0x1234",
-		"int" => "0x12345678",
-		"long" => "0x123456789abcdef0",
-		"float" => "1.04716",
-		"double" => "3.1415",
-		"long double" => "0.33312112048384"
-	     );
-my @tests = ("TEST_LOAD", "TEST_STORE");
+sub run ($$$$$) {
+    local ($nr, $access, $type, $size, $postinc) = @_;
+    local $test = "${access}_${type}_${size}_${postinc}";
+    local $tmpfile = "/tmp/" . $$ . "_$test";
+    local $st;
 
-sub run ($$$) {
-	local ($nr, $type, $test) = @_;
-	local $value = $values{$type};
-	local $st;
-	$st = system("cc -o $tmpfile -DDATA_TYPE='$type' -DDATA_VALUE=$value -D$test -Wall $srcdir/test.c"); 
-	if ($st != 0) {
-		print "not ok $nr ($type,$test) # compiling $tmpfile\n";
-		return;
-	}
+    $st = system("cc -o $tmpfile -DACCESS=$access -DTYPE=$type -DSIZE=$size -DPOSTINC=$postinc -Wall -O -g $srcdir/test.c");
+    if ($st != 0) {
+	print "not ok $nr $test # compiling $test\n";
+    }
+    else {
 	$st = system($tmpfile);
 	if ($st == 0) {
-		print "ok $nr ($type,$test)\n";
+	    print "ok $nr $test\n";
 	}
-	elsif ($st == 1) {
-		print "not ok $nr ($type,$test) # value mismatch\n";
+	elsif ($st == 256) {
+	    print "ok $nr $test # SKIP nonexistent combination\n";
+	}
+	elsif ($st == 512) {
+	    print "not ok $nr $test # value mismatch\n";
+	}
+	elsif ($st == 1024) {
+	    print "not ok $nr $test # post increment mismatch\n";
 	}
 	else {
-		print "not ok $nr ($type,$test) # signalled\n";
+	    print "not ok $nr $test # signalled (exit status $st)\n";
+	    return; # Preserve the executable
 	}
-	unlink $tmpfile;
+    }
+    unlink $tmpfile;
 }
 
 system("sysctl debug.unaligned_test=1");
@@ -69,14 +73,18 @@ if (`sysctl -n debug.unaligned_test` != "1") {
     exit 0;
 }
 
-my $count = @types * @tests;
+my $count = @accesses * @types * @sizes * @postincs;
 print "1..$count\n";
 
 my $nr=0;
-foreach $type (@types) {
-	foreach $test (@tests) {
-		run ++$nr, $type, $test;
+foreach $access (@accesses) {
+    foreach $type (@types) {
+	foreach $size (@sizes) {
+	    foreach $postinc (@postincs) {
+		run ++$nr, $access, $type, $size, $postinc;
+	    }
 	}
+    }
 }
 
 system("sysctl debug.unaligned_test=0");
