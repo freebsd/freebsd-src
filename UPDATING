@@ -17,6 +17,10 @@ NOTE TO PEOPLE WHO THINK THAT 5.0-CURRENT IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20030926:
+	kiconv(3) has been added. mount_msdosfs(8), mount_ntfs(8) and
+	mount_cd9660(8) need to be in sync with kernel.
+
 20030925:
 	Configuring a system to use IPFILTER now requires that PFIL_HOOKS
 	also be explicitly configured.  Previously this dependency was
