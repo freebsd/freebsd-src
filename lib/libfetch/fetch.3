@@ -120,6 +120,28 @@ all URL schemes.
 For instance, the file scheme only needs the <scheme>
 and <document> components.
 .Pp
+.Fn fetchParseURL
+returns a pointer to a
+.Fa url
+structure, which is defined as follows in
+.Aq Pa fetch.h :
+.Bd -literal
+#define URL_SCHEMELEN 16
+#define URL_USERLEN 256
+#define URL_PWDLEN 256
+
+struct url {
+    char	 scheme[URL_SCHEMELEN+1];
+    char	 user[URL_USERLEN+1];
+    char	 pwd[URL_PWDLEN+1];
+    char	 host[MAXHOSTNAMELEN+1];
+    int		 port;
+    char	*doc;
+    off_t	 offset;
+    size_t	 length;
+};
+.Ed
+.Pp
 The pointer returned by
 .Fn fetchParseURL
 should be freed using
@@ -155,6 +177,16 @@ struct url_stat {
     time_t	 mtime;
 };
 .Ed
+.Pp
+If the size could not be obtained from the server, the
+.Fa size
+field is set to -1.
+If the modification time could not be obtained from the server, the
+.Fa mtime
+field is set to the epoch.
+If the access time could not be obtained from the server, the
+.Fa atime
+field is set to the modification time.
 .Pp
 .Fn fetchListURL
 attempts to list the contents of the directory pointed to by the URL
