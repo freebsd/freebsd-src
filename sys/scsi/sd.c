@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.28 1994/08/30 14:31:38 ache Exp $
+ *      $Id: sd.c,v 1.29 1994/08/31 06:17:45 davidg Exp $
  */
 
 #define SPLSD splbio
@@ -1002,7 +1002,7 @@ sddump(dev_t dev)
 	while (num > 0) {
                 *(int *)CMAP1 =
 			PG_V | PG_KW | trunc_page(addr);
-                tlbflush();
+                pmap_update();
 		/*
 		 *  Fill out the scsi command
 		 */

@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.32 1994/08/13 03:49:44 wollman Exp $
+ *	$Id: pmap.c,v 1.33 1994/08/18 22:34:42 wollman Exp $
  */
 
 /*
@@ -194,7 +194,7 @@ const pmap_pte(pmap, va)
 		else {
 			if ( frame != ((int) APTDpde & PG_FRAME) ) {
 				APTDpde = pmap->pm_pdir[PTDPTDI];
-				tlbflush();
+				pmap_update();
 			}
 			return((pt_entry_t *) avtopte(va));
 		}
@@ -228,7 +228,7 @@ pmap_extract(pmap, va)
 		} else {
 			if ( frame != ((int) APTDpde & PG_FRAME)) {
 				APTDpde = pmap->pm_pdir[PTDPTDI];
-				tlbflush();
+				pmap_update();
 			}
 			pa = *(int *) avtopte(va);
 		}
@@ -392,7 +392,7 @@ pmap_bootstrap(firstaddr, loadaddr)
 	}
 
 	*(int *)CMAP1 = *(int *)CMAP2 = *(int *)PTD = 0;
-	tlbflush();
+	pmap_update();
 
 }
 
@@ -750,7 +750,7 @@ get_pt_entry(pmap)
 	} else {
 		if ( frame != ((int) APTDpde & PG_FRAME)) {
 			APTDpde = pmap->pm_pdir[PTDPTDI];
-			tlbflush();
+			pmap_update();
 		}
 		ptp=APTmap;
 	     }
@@ -865,7 +865,7 @@ pmap_remove(pmap, sva, eva)
 			pmap_remove_entry(pmap, pv, sva);
 			pmap_unuse_pt(pmap, sva); 
 		}
-		tlbflush();
+		pmap_update();
 		return;
 	}
 	
@@ -956,7 +956,7 @@ pmap_remove(pmap, sva, eva)
 		pmap_unuse_pt(pmap, va); 
 		++sva;
 	}
-	tlbflush();
+	pmap_update();
 }
 
 /*
@@ -1031,7 +1031,7 @@ pmap_remove_all(pa)
 	}
 	splx(s);
 	if (anyvalid)
-		tlbflush();
+		pmap_update();
 }
 
 
@@ -1123,7 +1123,7 @@ nextpde:
 		va += PAGE_SIZE;
 	}
 	if (anyvalid)
-		tlbflush();
+		pmap_update();
 }
 
 /*
@@ -1282,7 +1282,7 @@ validate:
 		*pte = npte;
 	}
 	if (ptevalid)
-		tlbflush();
+		pmap_update();
 }
 
 /*
@@ -1310,7 +1310,7 @@ pmap_qenter(va, m, count)
 		*pte = (pt_entry_t) ( (int) (VM_PAGE_TO_PHYS(m[i]) | PG_RW | PG_V | PG_W));
 	}
 	if (anyvalid)
-		tlbflush();
+		pmap_update();
 }
 /*
  * this routine jerks page mappings from the
@@ -1327,13 +1327,13 @@ pmap_qremove(va, count)
 		pte = vtopte(va + i * NBPG);
 		*pte = 0;
 	}
-	tlbflush();
+	pmap_update();
 }
 
 /*
  * add a wired page to the kva
  * note that in order for the mapping to take effect -- you
- * should do a tlbflush after doing the pmap_kenter...
+ * should do a pmap_update after doing the pmap_kenter...
  */
 void
 pmap_kenter(va, pa)
@@ -1351,7 +1351,7 @@ pmap_kenter(va, pa)
 	*pte = (pt_entry_t) ( (int) (pa | PG_RW | PG_V | PG_W));
 
 	if (wasvalid)
-		tlbflush();
+		pmap_update();
 }
 
 /*
@@ -1365,7 +1365,7 @@ pmap_kremove( va)
 	pte = vtopte(va);
 
 	*pte = (pt_entry_t) 0;
-	tlbflush();
+	pmap_update();
 }
 
 /*
@@ -1517,7 +1517,7 @@ pmap_object_init_pt(pmap, addr, object, offset, size)
 	}
 
 	if (anyvalid)
-		tlbflush();
+		pmap_update();
 }
 
 /*
@@ -1575,19 +1575,6 @@ pmap_copy(dst_pmap, src_pmap, dst_addr, len, src_addr)
 	vm_offset_t	src_addr;
 {
 }
-/*
- *	Require that all active physical maps contain no
- *	incorrect entries NOW.  [This update includes
- *	forcing updates of any address map caching.]
- *
- *	Generally used to insure that a thread about
- *	to run will see a semantically correct world.
- */
-void
-pmap_update()
-{
-	tlbflush();
-}
 
 /*
  *	Routine:	pmap_kernel
@@ -1617,7 +1604,7 @@ pmap_zero_page(phys)
 	bzero(CADDR2,NBPG);
 
 	*(int *)CMAP2 = 0;
-	tlbflush();
+	pmap_update();
 }
 
 /*
@@ -1644,7 +1631,7 @@ pmap_copy_page(src, dst)
 #endif
 	*(int *)CMAP1 = 0;
 	*(int *)CMAP2 = 0;
-	tlbflush();
+	pmap_update();
 }
 
 
@@ -1819,7 +1806,7 @@ pmap_changebit(pa, bit, setem)
 		}
 	}
 	splx(s);
-	tlbflush();
+	pmap_update();
 }
 
 /*
