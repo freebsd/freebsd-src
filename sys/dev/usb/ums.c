@@ -78,6 +78,8 @@ int	umsdebug = 1;
 
 #define UMSUNIT(s)	(minor(s)&0x1f)
 
+#define MS_TO_TICKS(ms) ((ms) * hz / 1000)                            
+
 #define QUEUE_BUFSIZE	400	/* MUST be divisible by 5 _and_ 8 */
 
 struct ums_softc {
@@ -92,11 +94,14 @@ struct ums_softc {
 	struct hid_location sc_loc_x, sc_loc_y, sc_loc_z;
 	struct hid_location *sc_loc_btn;
 
+	struct callout_handle	timeout_handle;	/* for spurious button ups */
+
 	int sc_enabled;
 	int sc_disconnected;	/* device is gone */
 
 	int flags;		/* device configuration */
 #define UMS_Z		0x01	/* z direction available */
+#define UMS_SPUR_BUT_UP	0x02	/* spurious button up events */
 	int nbuttons;
 #define MAX_BUTTONS	7	/* chosen because sc_buttons is u_char */
 
@@ -118,16 +123,21 @@ struct ums_softc {
 #define MOUSE_FLAGS_MASK (HIO_CONST|HIO_RELATIVE)
 #define MOUSE_FLAGS (HIO_RELATIVE)
 
-void ums_intr __P((usbd_request_handle, usbd_private_handle, usbd_status));
+static void ums_intr __P((usbd_request_handle reqh,
+			  usbd_private_handle priv, usbd_status status));
 
-static int	ums_enable __P((void *));
-static void	ums_disable __P((void *));
+static void ums_add_to_queue __P((struct ums_softc *sc,
+				int dx, int dy, int dz, int buttons));
+static void ums_add_to_queue_timeout __P((void *priv));
 
-static d_open_t ums_open;
+static int  ums_enable __P((void *));
+static void ums_disable __P((void *));
+
+static d_open_t  ums_open;
 static d_close_t ums_close;
-static d_read_t ums_read;
+static d_read_t  ums_read;
 static d_ioctl_t ums_ioctl;
-static d_poll_t ums_poll;
+static d_poll_t  ums_poll;
 
 #define UMS_CDEV_MAJOR	111
 
@@ -332,8 +342,15 @@ USB_ATTACH(ums)
 	sc->rsel.si_flags = 0;
 	sc->rsel.si_pid = 0;
 
-	sc->dev = make_dev(&ums_cdevsw, device_get_unit(self), UID_ROOT, GID_OPERATOR,
+	sc->dev = make_dev(&ums_cdevsw, device_get_unit(self),
+			UID_ROOT, GID_OPERATOR,
 			0644, "ums%d", device_get_unit(self));
+
+	if (usbd_get_quirks(uaa->device)->uq_flags & UQ_SPUR_BUT_UP) {
+		DPRINTF(("%s: Spurious button up events\n",
+			USBDEVNAME(sc->sc_dev)));
+		sc->flags |= UMS_SPUR_BUT_UP;
+	}
 
 	USB_ATTACH_SUCCESS_RETURN;
 }
@@ -427,57 +444,84 @@ ums_intr(reqh, addr, status)
 		sc->status.dy += dy;
 		sc->status.dz += dz;
 
-		/* Discard data in case of full buffer */
-		if (sc->qcount == sizeof(sc->qbuf)) {
-			DPRINTF(("Buffer full, discarded packet"));
-			return;
-		}
+		/*
+		 * The Qtronix keyboard has a built in PS/2 port for a mouse.
+		 * The firmware once in a while posts a spurious button up
+		 * event. This event we ignore by doing a timeout for 50 msecs.
+		 * If we receive dx=dy=dz=buttons=0 before we add the event to
+		 * the queue.
+		 * In any other case we delete the timeout event.
+		 */
+		if (sc->flags & UMS_SPUR_BUT_UP &&
+		    dx == 0 && dy == 0 && dz == 0 && buttons == 0) {
+			usb_timeout(ums_add_to_queue_timeout, (void *) sc,
+				MS_TO_TICKS(50 /*msecs*/), sc->timeout_handle);
+		} else {
+			usb_untimeout(ums_add_to_queue_timeout, (void *) sc,
+				sc->timeout_handle);
 
-		if (dx >  254)		dx =  254;
-		if (dx < -256)		dx = -256;
-		if (dy >  254)		dy =  254;
-		if (dy < -256)		dy = -256;
-		if (dz >  126)		dz =  126;
-		if (dz < -128)		dz = -128;
-
-		sc->qbuf[sc->qhead] = sc->mode.syncmask[1];
-		sc->qbuf[sc->qhead] |= ~buttons & MOUSE_MSC_BUTTONS;
-		sc->qbuf[sc->qhead+1] = dx >> 1;
-		sc->qbuf[sc->qhead+2] = dy >> 1;
-		sc->qbuf[sc->qhead+3] = dx - (dx >> 1);
-		sc->qbuf[sc->qhead+4] = dy - (dy >> 1);
-
-		if (sc->mode.level == 1) {
-			sc->qbuf[sc->qhead+5] = dz >> 1;
-			sc->qbuf[sc->qhead+6] = dz - (dz >> 1);
-			sc->qbuf[sc->qhead+7] = ((~buttons >> 3)
-						 & MOUSE_SYS_EXTBUTTONS);
-		}
-
-		sc->qhead += sc->mode.packetsize;
-		sc->qcount += sc->mode.packetsize;
-#ifdef UMS_DEBUG
-		if (sc->qhead > sizeof(sc->qbuf))
-			DPRINTF(("Buffer overrun! %d %d\n", 
-				 sc->qhead, sizeof(sc->qbuf)));
-#endif
-		/* wrap round at end of buffer */
-		if (sc->qhead >= sizeof(sc->qbuf))
-			sc->qhead = 0;
-
-		/* someone waiting for data */
-		if (sc->state & UMS_ASLEEP) {
-			sc->state &= ~UMS_ASLEEP;
-			wakeup(sc);
-		}
-		if (sc->state & UMS_SELECT) {
-			sc->state &= ~UMS_SELECT;
-			selwakeup(&sc->rsel);
+			ums_add_to_queue(sc, dx, dy, dz, buttons);
 		}
 	}
 }
 
+static void
+ums_add_to_queue_timeout(void *priv)
+{
+	struct ums_softc *sc = priv;
+	int s;
 
+	s = splusb();
+	ums_add_to_queue(sc, 0, 0, 0, 0);
+	splx(s);
+}
+
+static void
+ums_add_to_queue(struct ums_softc *sc, int dx, int dy, int dz, int buttons)
+{
+	/* Discard data in case of full buffer */
+	if (sc->qhead+sc->mode.packetsize > sizeof(sc->qbuf)) {
+		DPRINTF(("Buffer full, discarded packet"));
+		return;
+	}
+
+	if (dx >  254)		dx =  254;
+	if (dx < -256)		dx = -256;
+	if (dy >  254)		dy =  254;
+	if (dy < -256)		dy = -256;
+	if (dz >  126)		dz =  126;
+	if (dz < -128)		dz = -128;
+
+	sc->qbuf[sc->qhead] = sc->mode.syncmask[1];
+	sc->qbuf[sc->qhead] |= ~buttons & MOUSE_MSC_BUTTONS;
+	sc->qbuf[sc->qhead+1] = dx >> 1;
+	sc->qbuf[sc->qhead+2] = dy >> 1;
+	sc->qbuf[sc->qhead+3] = dx - (dx >> 1);
+	sc->qbuf[sc->qhead+4] = dy - (dy >> 1);
+
+	if (sc->mode.level == 1) {
+		sc->qbuf[sc->qhead+5] = dz >> 1;
+		sc->qbuf[sc->qhead+6] = dz - (dz >> 1);
+		sc->qbuf[sc->qhead+7] = ((~buttons >> 3)
+					 & MOUSE_SYS_EXTBUTTONS);
+	}
+
+	sc->qhead += sc->mode.packetsize;
+	sc->qcount += sc->mode.packetsize;
+	/* wrap round at end of buffer */
+	if (sc->qhead >= sizeof(sc->qbuf))
+		sc->qhead = 0;
+
+	/* someone waiting for data */
+	if (sc->state & UMS_ASLEEP) {
+		sc->state &= ~UMS_ASLEEP;
+		wakeup(sc);
+	}
+	if (sc->state & UMS_SELECT) {
+		sc->state &= ~UMS_SELECT;
+		selwakeup(&sc->rsel);
+	}
+}
 static int
 ums_enable(v)
 	void *v;
@@ -495,6 +539,8 @@ ums_enable(v)
 	sc->status.flags = 0;
 	sc->status.button = sc->status.obutton = 0;
 	sc->status.dx = sc->status.dy = sc->status.dz = 0;
+
+	callout_handle_init(&sc->timeout_handle);
 
 	/* Set up interrupt pipe. */
 	r = usbd_open_pipe_intr(sc->sc_iface, sc->sc_ep_addr, 
@@ -514,6 +560,8 @@ ums_disable(priv)
 	void *priv;
 {
 	struct ums_softc *sc = priv;
+
+	usb_untimeout(ums_add_to_queue_timeout, sc, sc->timeout_handle);
 
 	/* Disable interrupts. */
 	usbd_abort_pipe(sc->sc_intrpipe);
