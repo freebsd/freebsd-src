@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
+#include <sys/malloc.h>
 #include <sys/pcpu.h>
 #include <sys/power.h>
 #include <sys/proc.h>
@@ -142,7 +143,7 @@ static char 		 cpu_cx_supported[64];
 
 static device_t		*cpu_devices;
 static int		 cpu_ndevices;
-static struct acpi_cpu_softc *cpu_softc[MAXCPU];
+static struct acpi_cpu_softc **cpu_softc;
 
 static struct sysctl_ctx_list	acpi_cpu_sysctl_ctx;
 static struct sysctl_oid	*acpi_cpu_sysctl_tree;
@@ -192,6 +193,9 @@ acpi_cpu_probe(device_t dev)
 {
     if (!acpi_disabled("cpu") && acpi_get_type(dev) == ACPI_TYPE_PROCESSOR) {
 	device_set_desc(dev, "CPU");
+	if (cpu_softc == NULL)
+		cpu_softc = malloc(sizeof(struct acpi_cpu_softc *) *
+		    (mp_maxid + 1), M_TEMP /* XXX */, M_WAITOK | M_ZERO);
 	return (0);
     }
 
@@ -300,7 +304,7 @@ acpi_pcpu_get_id(uint32_t idx, uint32_t *acpi_id, uint32_t *cpu_id)
   
     KASSERT(acpi_id != NULL, ("Null acpi_id"));
     KASSERT(cpu_id != NULL, ("Null cpu_id"));
-    for (i = 0; i < MAXCPU; i++) {
+    for (i = 0; i <= mp_maxid; i++) {
 	if (CPU_ABSENT(i))
 	    continue;
 	pcpu_data = pcpu_find(i);
@@ -332,10 +336,8 @@ acpi_cpu_shutdown(device_t dev)
     /* Disable any entry to the idle function. */
     cpu_cx_count = 0;
 
-#ifdef SMP
     /* Wait for all processors to exit acpi_cpu_idle(). */
     smp_rendezvous(NULL, NULL, NULL, NULL);
-#endif
     while (cpu_idle_busy > 0)
 	DELAY(1);
 
@@ -986,7 +988,7 @@ acpi_cpu_quirks(struct acpi_cpu_softc *sc)
      * C3 is not supported on multiple CPUs since this would require
      * flushing all caches which is currently too expensive.
      */
-    if (cpu_ndevices > 1)
+    if (mp_ncpus > 1)
 	cpu_quirks |= CPU_QUIRK_NO_C3;
 
 #ifdef notyet
