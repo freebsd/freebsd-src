@@ -45,6 +45,18 @@ CODE {
 		return 0;
 	}
 
+	static int
+	feeder_noset(struct pcm_feeder* feeder, int what, int value)
+	{
+		return -1;
+	}
+
+	static int
+	feeder_noget(struct pcm_feeder* feeder, int what)
+	{
+		return -1;
+	}
+
 };
 
 METHOD int init {
@@ -59,7 +71,12 @@ METHOD int set {
 	struct pcm_feeder* feeder;
 	int what;
 	int value;
-};
+} DEFAULT feeder_noset;
+
+METHOD int get {
+	struct pcm_feeder* feeder;
+	int what;
+} DEFAULT feeder_noget;
 
 METHOD int feed {
 	struct pcm_feeder* feeder;

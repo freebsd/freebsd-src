@@ -72,6 +72,22 @@ feed_rate_set(struct pcm_feeder *f, int what, int value)
 }
 
 static int
+feed_rate_get(struct pcm_feeder *f, int what)
+{
+	struct feed_rate_info *info = f->data;
+
+	switch(what) {
+	case FEEDRATE_SRC:
+		return info->src;
+	case FEEDRATE_DST:
+		return info->dst;
+	default:
+		return -1;
+	}
+	return -1;
+}
+
+static int
 feed_rate_init(struct pcm_feeder *f)
 {
 	struct feed_rate_info *info;
@@ -167,6 +183,7 @@ static kobj_method_t feeder_rate_methods[] = {
     	KOBJMETHOD(feeder_init,		feed_rate_init),
     	KOBJMETHOD(feeder_free,		feed_rate_free),
     	KOBJMETHOD(feeder_set,		feed_rate_set),
+    	KOBJMETHOD(feeder_get,		feed_rate_get),
     	KOBJMETHOD(feeder_feed,		feed_rate),
 	{ 0, 0 }
 };
