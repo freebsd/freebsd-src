@@ -32,6 +32,7 @@ hints		"GENERIC.hints"
 #makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
 
 # Platforms supported
+options		API_UP1000		# UP1000 (Nautilus)
 options 	DEC_AXPPCI_33		# UDB, Multia, AXPpci33, Noname
 options 	DEC_EB164		# EB164, PC164, PC164LX, PC164SX
 options 	DEC_EB64PLUS		# EB64+, Aspen Alpine, etc
