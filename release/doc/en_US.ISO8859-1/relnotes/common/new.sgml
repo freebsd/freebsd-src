@@ -1243,6 +1243,9 @@
     directive.  See the commented-out examples in
     <filename>/etc/apmd.conf</filename> for the syntax. &merged;</para>
 
+    <para>&man.arp.8; now prints the applicable interface name for
+    each ARP entry.</para>
+
     <para>&man.atacontrol.8; has been added to control various aspects
     of the &man.ata.4; driver.</para>
 
@@ -1693,12 +1696,12 @@
     change leads to better &man.fsck.8; performance and reduced
     fragmentation. &merged;</para>
 
-    <para>NFS now works over IPv6.</para>
+    <para><application>NFS</application> now works over IPv6.</para>
 
     <para>&man.nl.1;, a line numbering filter program, has been
     added. &merged;</para>
 
-    <para>nsswitch support has been merged from NetBSD.  By creating
+    <para><application>nsswitch</application> support has been merged from NetBSD.  By creating
     an &man.nsswitch.conf.5; file, &os; can be configured so that
     various databases such as &man.passwd.5; and &man.group.5; can be
     looked up using flat files, NIS, or Hesiod.  The old
@@ -1797,7 +1800,7 @@
     <para>The performance of the ELF dynamic linker &man.rtld.1; has
     been improved. &merged;</para>
 
-    <para>RSA Security has waived all patent rights to the RSA
+    <para>RSA Security has waived all patent rights to the <application>RSA</application>
     algorithm.  As a
     result, the native <application>OpenSSL</application>
     implementation of the RSA algorithm is now activated by default,
@@ -1836,6 +1839,9 @@
     <literal>struct selinfo</literal> and related functions have been
     moved to <filename>&lt;sys/selinfo.h&gt;</filename>.</para>
 
+    <para>The &man.strnstr.3; and &man.strcasestr.3; variants of
+    &man.strstr.3; have been implemented.</para>
+
     <para>&man.stty.1; now has support for an
     <literal>erase2</literal> control character, so that, for example,
     both the <keycap>Delete</keycap> and <keycap>Backspace</keycap>
@@ -1871,6 +1877,9 @@
     <para>&man.sysinstall.8; now lives in <filename>/usr/sbin</filename>,
     which simplifies the installation process.  The &man.sysinstall.8;
     manpage is also installed in a more consistent fashion now.</para>
+
+    <para>&man.sysinstall.8; now has the ability to load KLDs as a
+    part of the installation.</para>
 
     <para>&man.syslogd.8; can take a <option>-n</option> option to
     disable DNS queries for every request. &merged;</para>
