@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.36 1994/10/10 01:10:21 phk Exp $
+ *	$Id: locore.s,v 1.37 1994/10/20 00:07:47 phk Exp $
  */
 
 /*
@@ -263,6 +263,8 @@ NON_GPROF_ENTRY(btext)
 	cld
 	rep
 	movsb
+	lea	_nfs_diskless_valid-KERNBASE,%edi
+	movl	$1,(%edi)
 #endif
 
 	/*
