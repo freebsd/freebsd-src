@@ -1211,6 +1211,83 @@ pci_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
 	return (0);
 }
 
+
+#include "opt_ddb.h"
+#ifdef DDB
+#include <ddb/ddb.h>
+#include <sys/cons.h>
+
+/*
+ * List resources based on pci map registers, used for within ddb
+ */
+
+DB_SHOW_COMMAND(pciregs, db_pci_dump)
+{
+	struct pci_devinfo *dinfo;
+	struct devlist *devlist_head;
+	struct pci_conf *p;
+	const char *name;
+	int i, error, none_count, nl;
+
+	none_count = 0;
+	nl = 0;
+	/* get the head of the device queue */
+	devlist_head = &pci_devq;
+
+	/*
+	 * Go through the list of devices and print out devices
+	 */
+	for (error = 0, i = 0,
+	     dinfo = STAILQ_FIRST(devlist_head);
+	     (dinfo != NULL) && (error == 0) && (i < pci_numdevs);
+	     dinfo = STAILQ_NEXT(dinfo, pci_links), i++) {
+
+		/* Populate pd_name and pd_unit */
+		name = NULL;
+		if (dinfo->cfg.dev)
+			name = device_get_name(dinfo->cfg.dev);
+
+		p = &dinfo->conf;
+		/*
+		 * XXX just take 20 for now...
+		 */
+		if (nl++ == 20) {
+			int c;
+
+			db_printf("--More--");
+			c = cngetc();
+			db_printf("\r");
+			/*
+			 * A whole screenfull or just one line?
+			 */
+			switch (c) {
+			case '\n':              /* just one line */
+				nl = 20;
+				break;
+			case ' ':
+				nl = 0;         /* another screenfull */
+				break;
+			default:                /* exit */
+				db_printf("\n");
+				return;
+			}
+		}
+
+		db_printf("%s%d@pci%d:%d:%d:\tclass=0x%06x card=0x%08x "
+			"chip=0x%08x rev=0x%02x hdr=0x%02x\n",
+			(name && *name) ? name : "none",
+			(name && *name) ? (int)device_get_unit(dinfo->cfg.dev) :
+			none_count++,
+			p->pc_sel.pc_bus, p->pc_sel.pc_dev,
+			p->pc_sel.pc_func, (p->pc_class << 16) |
+			(p->pc_subclass << 8) | p->pc_progif,
+			(p->pc_subdevice << 16) | p->pc_subvendor,
+			(p->pc_device << 16) | p->pc_vendor,
+			p->pc_revid, p->pc_hdr);
+	}
+}
+#endif /* DDB */
+
 struct resource *
 pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 		   u_long start, u_long end, u_long count, u_int flags)
