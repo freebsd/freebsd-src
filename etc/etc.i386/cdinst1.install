@@ -1,7 +1,7 @@
 #!/bin/sh
 #	cd install floppy disk /install script
 #
-#	$Id: cdinst1.install,v 1.5 1994/06/28 05:56:11 jkh Exp $
+#	$Id: cdinst1.install,v 1.6 1994/06/29 06:46:01 rgrimes Exp $
 
 # ${OPSYSTEM}, the mounting of the cdrom drive, and the path are all
 # setup by .profile
@@ -928,7 +928,7 @@ if [ "$hname" != "" ]; then
 fi
 
 cat /etc/disktab >etc/disktab.install
-cp -p /386bsd /mnt/386bsd
+cp -p /kernel /mnt
 
 echo
 echo "Building /dev files..."
