@@ -23,8 +23,8 @@
 #include <sys/ioctl.h>
 #if BSD < 199103
 #include <sys/fcntlcom.h>
-#endif
 #include <sys/dir.h>
+#endif
 #include <net/bpf.h>
 
 #include <net/if.h>
