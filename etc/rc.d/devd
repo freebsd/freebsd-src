@@ -4,7 +4,7 @@
 #
 
 # PROVIDE: devd
-# REQUIRE: devfs
+# BEFORE: disks
 # KEYWORD: FreeBSD
 
 . /etc/rc.subr
@@ -15,3 +15,8 @@ command="/sbin/devd"
 
 load_rc_config $name
 run_rc_command "$1"
+
+# If devd is disabled, turn it off in the kernel to avoid memory leaks.
+if ! checkyesno ${rcvar}; then
+    sysctl hw.bus.devctl_disable=1
+fi
