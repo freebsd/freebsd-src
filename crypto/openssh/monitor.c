@@ -797,6 +797,8 @@ mm_answer_pam_query(int socket, Buffer *m)
 	debug3("%s", __func__);
 	pam_authok = NULL;
 	ret = (pam_device.query)(pam_ctxt, &name, &info, &num, &prompts, &echo_on);
+	if (ret == 0 && num == 0)
+		pam_authok = pam_ctxt;
 	if (num > 1 || name == NULL || info == NULL)
 		ret = -1;
 	buffer_clear(m);
