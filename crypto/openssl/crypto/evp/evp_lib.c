@@ -68,7 +68,7 @@ int EVP_CIPHER_param_to_asn1(EVP_CIPHER_CTX *c, ASN1_TYPE *type)
 	if (c->cipher->set_asn1_parameters != NULL)
 		ret=c->cipher->set_asn1_parameters(c,type);
 	else
-		ret=1;
+		return -1;
 	return(ret);
 	}
 
@@ -79,7 +79,7 @@ int EVP_CIPHER_asn1_to_param(EVP_CIPHER_CTX *c, ASN1_TYPE *type)
 	if (c->cipher->get_asn1_parameters != NULL)
 		ret=c->cipher->get_asn1_parameters(c,type);
 	else
-		ret=1;
+		return -1;
 	return(ret);
 	}
 
@@ -132,6 +132,30 @@ int EVP_CIPHER_type(const EVP_CIPHER *ctx)
 		case NID_rc4_40:
 
 		return NID_rc4;
+
+		case NID_aes_128_cfb128:
+		case NID_aes_128_cfb8:
+		case NID_aes_128_cfb1:
+
+		return NID_aes_128_cfb128;
+
+		case NID_aes_192_cfb128:
+		case NID_aes_192_cfb8:
+		case NID_aes_192_cfb1:
+
+		return NID_aes_192_cfb128;
+
+		case NID_aes_256_cfb128:
+		case NID_aes_256_cfb8:
+		case NID_aes_256_cfb1:
+
+		return NID_aes_256_cfb128;
+
+		case NID_des_cfb64:
+		case NID_des_cfb8:
+		case NID_des_cfb1:
+
+		return NID_des_cfb64;
 
 		default:
 		/* Check it has an OID and it is valid */

@@ -76,16 +76,6 @@
 #include <openssl/ocsp.h>
 #include <openssl/pem.h>
 
-#ifdef OPENSSL_SYS_WINDOWS
-#define strcasecmp _stricmp
-#else
-#  ifdef NO_STRINGS_H
-    int	strcasecmp();
-#  else
-#    include <strings.h>
-#  endif /* NO_STRINGS_H */
-#endif
-
 #ifndef W_OK
 #  ifdef OPENSSL_SYS_VMS
 #    if defined(__DECC)
@@ -248,6 +238,7 @@ int MAIN(int argc, char **argv)
 	{
 	ENGINE *e = NULL;
 	char *key=NULL,*passargin=NULL;
+	int create_ser = 0;
 	int free_key = 0;
 	int total=0;
 	int total_done=0;
@@ -547,10 +538,6 @@ bad:
 
 	ERR_load_crypto_strings();
 
-#ifndef OPENSSL_NO_ENGINE
-	e = setup_engine(bio_err, engine, 0);
-#endif
-
 	/*****************************************************************/
 	tofree=NULL;
 	if (configfile == NULL) configfile = getenv("OPENSSL_CONF");
@@ -594,6 +581,10 @@ bad:
 
 	if (!load_config(bio_err, conf))
 		goto err;
+
+#ifndef OPENSSL_NO_ENGINE
+	e = setup_engine(bio_err, engine, 0);
+#endif
 
 	/* Lets get the config section we are using */
 	if (section == NULL)
@@ -666,8 +657,10 @@ bad:
 			break;
 			}
 		}
-#ifdef RL_DEBUG
 	else
+		ERR_clear_error();
+#ifdef RL_DEBUG
+	if (!p)
 		BIO_printf(bio_err, "DEBUG: unique_subject undefined\n", p);
 #endif
 #ifdef RL_DEBUG
@@ -1106,7 +1099,7 @@ bad:
 			goto err;
 			}
 
-		if ((serial=load_serial(serialfile, 0, NULL)) == NULL)
+		if ((serial=load_serial(serialfile, create_ser, NULL)) == NULL)
 			{
 			BIO_printf(bio_err,"error while loading serial number\n");
 			goto err;
