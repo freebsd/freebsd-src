@@ -1,4 +1,4 @@
-.\" Copyright (c) 1998-2002 Douglas Barton
+.\" Copyright (c) 1998-2003 Douglas Barton
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -301,8 +301,11 @@ with all values commented out:
 # Strict comparison bypasses the CVS $Id tests and compares every file
 #STRICT=no
 #
-# Flag(s) to use for diff displayed when files differ
+# Type of diff, such as unified, context, etc.
 #DIFF_FLAG='-u'
+#
+# Additional options for diff.  This will get unset when using -s.
+#DIFF_OPTIONS='-I$FreeBSD$'	# Ignores CVS Id tags
 #
 # Verbose mode includes more details and additional checks
 #VERBOSE=
