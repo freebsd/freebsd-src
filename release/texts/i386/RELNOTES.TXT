@@ -170,6 +170,10 @@ A new NFS hash function (based on the Fowler/Noll/Vo hash algorithm)
 has been implemented to improve NFS performance by increasing the
 efficiency of the nfsnode hash tables.
 
+Several minor bugs have been fixed in the VLAN networking code.
+
+Vinum has received some bugfixes.
+
 
 1.2. SECURITY FIXES
 -------------------
@@ -474,6 +478,16 @@ rc.conf(5) variables.
 The default TCP port range used by libfetch for passive FTP retrievals
 has changed; this affects the behavior of fetch(1), which has gained the
 -U option to restore the old behavior.
+
+pkg_version(1) now has a version number comparison routine that
+corresponds to the Porters Handbook.  It also has a -t option for
+testing address comparisons.
+
+portmap(8) now takes a -h option to indicate the IP addresses to which
+it should bind.  This option may be specified multiple times and is
+typically necessary for multi-homed hosts.
+
+GNATS has been updated to 3.113.
 
 
 2. Supported Configurations
