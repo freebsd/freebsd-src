@@ -150,12 +150,6 @@ InterpretArg(const char *from, char *to)
         endpwent();
         break;
 
-      case '#':
-        if (!instring)
-          while (*from != '\0')
-            *to++ = *from++;
-        break;
-
       default:
         *to++ = *from++;
         break;
