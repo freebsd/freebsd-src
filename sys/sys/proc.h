@@ -118,19 +118,39 @@ struct	pargs {
  * are always addressable except for those marked "(PROC ONLY)" below,
  * which might be addressable only on a processor on which the process
  * is running.
+ *
+ * Below is a key of locks used to protect each member of struct proc.  The
+ * lock is indicated by a reference to a specific character in parens in the
+ * associated comment.
+ *      * - not yet protected
+ *      a - only touched by curproc or parent during fork/wait
+ *      b - created at fork, never chagnes 
+ *      c - locked by proc mtx
+ *      d - locked by allproc_lock lock
+ *      e - locked by proc tree lock
+ *      f - session mtx
+ *      g - process group mtx
+ *      h - callout_lock mtx
+ *      i - by curproc or the master session mtx
+ *      j - locked by sched_lock mtx
+ *      k - either by curproc or a lock which prevents the lock from
+ *              going way, such a (d,e).
+ *      l - the attaching proc or attaching proc parent.
+ *      m - Giant
+ *      n - not locked, lazy
  */
 struct	proc {
-	TAILQ_ENTRY(proc) p_procq;	/* Run/mutex queue. */
-	TAILQ_ENTRY(proc) p_slpq;	/* Sleep queue. */
-	LIST_ENTRY(proc) p_list;	/* List of all processes. */
+	TAILQ_ENTRY(proc) p_procq;	/* (j) Run/mutex queue. */
+	TAILQ_ENTRY(proc) p_slpq;	/* (j) Sleep queue. */
+	LIST_ENTRY(proc) p_list;	/* (d) List of all processes. */
 
 	/* substructures: */
-	struct	pcred *p_cred;		/* Process owner's identity. */
-	struct	filedesc *p_fd;		/* Ptr to open files structure. */
-	struct	pstats *p_stats;	/* Accounting/statistics (PROC ONLY). */
-	struct	plimit *p_limit;	/* Process limits. */
-	struct	vm_object *p_upages_obj;/* Upages object. */
-	struct	procsig *p_procsig;	/* Signal actions, state (PROC ONLY). */
+	struct	pcred *p_cred;		/* (b) Process owner's identity. */
+	struct	filedesc *p_fd;		/* (b) Ptr to open files structure. */
+	struct	pstats *p_stats;	/* (b) Accounting/statistics (PROC ONLY). */
+	struct	plimit *p_limit;	/* (m) Process limits. */
+	struct	vm_object *p_upages_obj;/* (c) Upages object. */
+	struct	procsig *p_procsig;	/* (c) Signal actions, state (PROC ONLY). */
 #define	p_sigacts	p_procsig->ps_sigacts
 #define	p_sigignore	p_procsig->ps_sigignore
 #define	p_sigcatch	p_procsig->ps_sigcatch
@@ -138,75 +158,75 @@ struct	proc {
 #define	p_ucred		p_cred->pc_ucred
 #define	p_rlimit	p_limit->pl_rlimit
 
-	int	p_flag;			/* P_* flags. */
-	char	p_stat;			/* S* process status. */
+	int	p_flag;			/* (c/j) P_* flags. */
+	char	p_stat;			/* (j) S* process status. */
 	char	p_pad1[3];
 
-	pid_t	p_pid;			/* Process identifier. */
-	LIST_ENTRY(proc) p_hash;	/* Hash chain. */
-	LIST_ENTRY(proc) p_pglist;	/* List of processes in pgrp. */
-	struct	proc *p_pptr;		/* Pointer to parent process. */
-	LIST_ENTRY(proc) p_sibling;	/* List of sibling processes. */
-	LIST_HEAD(, proc) p_children;	/* Pointer to list of children. */
+	pid_t	p_pid;			/* (b) Process identifier. */
+	LIST_ENTRY(proc) p_hash;	/* (d) Hash chain. */
+	LIST_ENTRY(proc) p_pglist;	/* (c) List of processes in pgrp. */
+	struct	proc *p_pptr;		/* (e) Pointer to parent process. */
+	LIST_ENTRY(proc) p_sibling;	/* (e) List of sibling processes. */
+	LIST_HEAD(, proc) p_children;	/* (e) Pointer to list of children. */
 
 /* The following fields are all zeroed upon creation in fork. */
 #define	p_startzero	p_oppid
 
-	pid_t	p_oppid;	 /* Save parent pid during ptrace. XXX */
-	int	p_dupfd;	 /* Sideways return value from fdopen. XXX */
-	struct	vmspace *p_vmspace;	/* Address space. */
+	pid_t	p_oppid;	 /* (c) Save parent pid during ptrace. XXX */
+	int	p_dupfd;	 /* (c) Sideways return value from fdopen. XXX */
+	struct	vmspace *p_vmspace;	/* (b) Address space. */
 
 	/* scheduling */
-	u_int	p_estcpu;	 /* Time averaged value of p_cpticks. */
-	int	p_cpticks;	 /* Ticks of cpu time. */
-	fixpt_t	p_pctcpu;	 /* %cpu for this process during p_swtime */
-	struct	callout p_slpcallout;	/* Callout for sleep. */
-	void	*p_wchan;	 /* Sleep address. */
-	const char *p_wmesg;	 /* Reason for sleep. */
-	u_int	p_swtime;	 /* Time swapped in or out. */
-	u_int	p_slptime;	 /* Time since last blocked. */
+	u_int	p_estcpu;	 /* (j) Time averaged value of p_cpticks. */
+	int	p_cpticks;	 /* (j) Ticks of cpu time. */
+	fixpt_t	p_pctcpu;	 /* (j) %cpu for this process during p_swtime */
+	struct	callout p_slpcallout;	/* (h) Callout for sleep. */
+	void	*p_wchan;	 /* (j) Sleep address. */
+	const char *p_wmesg;	 /* (j) Reason for sleep. */
+	u_int	p_swtime;	 /* (j) Time swapped in or out. */
+	u_int	p_slptime;	 /* (j) Time since last blocked. */
 
-	struct	callout p_itcallout;	/* Interval timer callout. */
-	struct	itimerval p_realtimer;	/* Alarm timer. */
-	u_int64_t p_runtime;		/* Real time in microsec. */
-	u_int64_t p_uu;			/* Previous user time in microsec. */
-	u_int64_t p_su;			/* Previous system time in microsec. */
-	u_int64_t p_iu;			/* Previous interrupt time in usec. */
-	u_int64_t p_uticks;		/* Statclock hits in user mode. */
-	u_int64_t p_sticks;		/* Statclock hits in system mode. */
-	u_int64_t p_iticks;		/* Statclock hits processing intr. */
+	struct	callout p_itcallout;	/* (h) Interval timer callout. */
+	struct	itimerval p_realtimer;	/* (h?/k?) Alarm timer. */
+	u_int64_t p_runtime;		/* (c) Real time in microsec. */
+	u_int64_t p_uu;			/* (c) Previous user time in microsec. */
+	u_int64_t p_su;			/* (c) Previous system time in microsec. */
+	u_int64_t p_iu;			/* (c) Previous interrupt time in usec. */
+	u_int64_t p_uticks;		/* (j) Statclock hits in user mode. */
+	u_int64_t p_sticks;		/* (j) Statclock hits in system mode. */
+	u_int64_t p_iticks;		/* (j) Statclock hits processing intr. */
 
-	int	p_traceflag;		/* Kernel trace points. */
-	struct	vnode *p_tracep;	/* Trace to vnode. */
+	int	p_traceflag;		/* (j?) Kernel trace points. */
+	struct	vnode *p_tracep;	/* (j?) Trace to vnode. */
 
-	sigset_t p_siglist;		/* Signals arrived but not delivered. */
+	sigset_t p_siglist;		/* (c) Signals arrived but not delivered. */
 
-	struct	vnode *p_textvp;	/* Vnode of executable. */
+	struct	vnode *p_textvp;	/* (b) Vnode of executable. */
 
-	char	p_lock;			/* Process lock (prevent swap) count. */
-	struct	mtx p_mtx;		/* Process stucture lock.  */
-	u_char	p_oncpu;		/* Which cpu we are on. */
-	u_char	p_lastcpu;		/* Last cpu we were on. */
-	char	p_rqindex;		/* Run queue index. */
+	char	p_lock;			/* (c) Process lock (prevent swap) count. */
+	struct	mtx p_mtx;		/* (k) Process structure lock. */
+	u_char	p_oncpu;		/* (j) Which cpu we are on. */
+	u_char	p_lastcpu;		/* (j) Last cpu we were on. */
+	char	p_rqindex;		/* (j) Run queue index. */
 
-	short	p_locks;		/* DEBUG: lockmgr count of held locks */
-	short	p_simple_locks;		/* DEBUG: count of held simple locks */
-	u_int	p_stops;		/* Procfs event bitmask. */
-	u_int	p_stype;		/* Procfs stop event type. */
-	char	p_step;			/* Procfs stop *once* flag. */
-	u_char	p_pfsflags;		/* Procfs flags. */
+	short	p_locks;		/* (*) DEBUG: lockmgr count of held locks */
+	short	p_simple_locks;		/* (*) DEBUG: count of held simple locks */
+	u_int	p_stops;		/* (c) Procfs event bitmask. */
+	u_int	p_stype;		/* (c) Procfs stop event type. */
+	char	p_step;			/* (c) Procfs stop *once* flag. */
+	u_char	p_pfsflags;		/* (c) Procfs flags. */
 	char	p_pad3[2];		/* Alignment. */
-	register_t p_retval[2];		/* Syscall aux returns. */
-	struct	sigiolst p_sigiolst;	/* List of sigio sources. */
-	int	p_sigparent;		/* Signal to parent on exit. */
-	sigset_t p_oldsigmask;		/* Saved mask from before sigpause. */
-	int	p_sig;			/* For core dump/debugger XXX. */
-	u_long	p_code;			/* For core dump/debugger XXX. */
-	struct	klist p_klist;		/* Knotes attached to this process. */
-	LIST_HEAD(, mtx) p_heldmtx;	/* For debugging code. */
-	struct mtx *p_blocked;		/* Mutex process is blocked on. */
-	const char *p_mtxname;		/* Name of mutex blocked on. */
-	LIST_HEAD(, mtx) p_contested;	/* Contested locks. */
+	register_t p_retval[2];		/* (k) Syscall aux returns. */
+	struct	sigiolst p_sigiolst;	/* (c) List of sigio sources. */
+	int	p_sigparent;		/* (c) Signal to parent on exit. */
+	sigset_t p_oldsigmask;		/* (c) Saved mask from before sigpause. */
+	int	p_sig;			/* (n) For core dump/debugger XXX. */
+	u_long	p_code;			/* (n) For core dump/debugger XXX. */
+	struct	klist p_klist;		/* (c?) Knotes attached to this process. */
+	LIST_HEAD(, mtx) p_heldmtx;	/* (j) For debugging code. */
+	struct mtx *p_blocked;		/* (j) Mutex process is blocked on. */
+	const char *p_mtxname;		/* (j) Name of mutex blocked on. */
+	LIST_HEAD(, mtx) p_contested;	/* (j) Contested locks. */
 
 /* End area that is zeroed on creation. */
 #define	p_endzero	p_startcopy
@@ -214,38 +234,38 @@ struct	proc {
 /* The following fields are all copied upon creation in fork. */
 #define	p_startcopy	p_sigmask
 
-	sigset_t p_sigmask;	/* Current signal mask. */
-	stack_t	p_sigstk;	/* Stack pointer and on-stack state variable. */
+	sigset_t p_sigmask;	/* (c) Current signal mask. */
+	stack_t	p_sigstk;	/* (c) Stack pointer and on-stack state variable. */
 
-	int	p_magic;	/* Magic number. */
-	u_char	p_priority;	/* Process priority. */
-	u_char	p_usrpri;	/* User-priority based on p_cpu and p_nice. */
-	u_char	p_nativepri;	/* Priority before propagation. */
-	char	p_nice;		/* Process "nice" value. */
-	char	p_comm[MAXCOMLEN+1];
+	int	p_magic;	/* (b) Magic number. */
+	u_char	p_priority;	/* (j) Process priority. */
+	u_char	p_usrpri;	/* (j) User-priority based on p_cpu and p_nice. */
+	u_char	p_nativepri;	/* (j) Priority before propagation. */
+	char	p_nice;		/* (j/k?) Process "nice" value. */
+	char	p_comm[MAXCOMLEN+1];	/* (b) Process name */
 
-	struct 	pgrp *p_pgrp;	/* Pointer to process group. */
-	struct 	sysentvec *p_sysent; /* System call dispatch information. */
-	struct	rtprio p_rtprio;	/* Realtime priority. */
-	struct	prison *p_prison;
-	struct	pargs *p_args;
+	struct 	pgrp *p_pgrp;	/* (e?/c?) Pointer to process group. */
+	struct 	sysentvec *p_sysent; /* (b) System call dispatch information. */
+	struct	rtprio p_rtprio;	/* (j) Realtime priority. */
+	struct	prison *p_prison;	/* (b?) jail(4). */
+	struct	pargs *p_args;		/* (b?) Process arguments. */
 
 /* End area that is copied on creation. */
 #define	p_endcopy	p_addr
 
-	struct	user *p_addr;	/* Kernel virtual addr of u-area (PROC ONLY). */
-	struct	mdproc p_md;	/* Any machine-dependent fields. */
+	struct	user *p_addr;	/* (k) Kernel virtual addr of u-area (PROC ONLY). */
+	struct	mdproc p_md;	/* (k) Any machine-dependent fields. */
 
-	u_short	p_xstat;	/* Exit status for wait; also stop signal. */
-	u_short	p_acflag;	/* Accounting flags. */
-	struct	rusage *p_ru;	/* Exit information. XXX */
+	u_short	p_xstat;	/* (c) Exit status for wait; also stop signal. */
+	u_short	p_acflag;	/* (c) Accounting flags. */
+	struct	rusage *p_ru;	/* (a) Exit information. XXX */
 
-	void	*p_aioinfo;	/* ASYNC I/O info. */
-	struct proc *p_peers;	
-	struct proc *p_leader;
-	struct	pasleep p_asleep;	/* Used by asleep()/await(). */
-	void	*p_emuldata;	/* Emulator state data. */
-	struct ithd *p_ithd;	/* For interrupt threads only. */
+	void	*p_aioinfo;	/* (c) ASYNC I/O info. */
+	struct proc *p_peers;	/* (c) */
+	struct proc *p_leader;	/* (c) */
+	struct	pasleep p_asleep;	/* (k) Used by asleep()/await(). */
+	void	*p_emuldata;	/* (c) Emulator state data. */
+	struct ithd *p_ithd;	/* (b) For interrupt threads only. */
 };
 
 #define	p_session	p_pgrp->pg_session
