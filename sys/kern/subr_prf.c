@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_prf.c	8.3 (Berkeley) 1/21/94
- * $Id: subr_prf.c,v 1.13 1995/04/08 21:32:11 joerg Exp $
+ * $Id: subr_prf.c,v 1.14 1995/06/14 07:55:07 bde Exp $
  */
 
 #include <sys/param.h>
@@ -509,11 +509,11 @@ putchar(c, flags, tp)
 			mbp->msg_magic = MSG_MAGIC;
 		}
 		mbp->msg_bufc[mbp->msg_bufx++] = c;
-		if (mbp->msg_bufx >= MSG_BSIZE)
+		if (mbp->msg_bufx < 0 || mbp->msg_bufx >= MSG_BSIZE)
 			mbp->msg_bufx = 0;
+		/* If the buffer is full, keep the most recent data. */
 		if (mbp->msg_bufr == mbp->msg_bufx) {
-			mbp->msg_bufr++;
-			if (mbp->msg_bufr >= MSG_BSIZE)
+			if (++mbp->msg_bufr >= MSG_BSIZE)
 				mbp->msg_bufr = 0;
 		}
 	}
