@@ -47,7 +47,7 @@
  *
  *	from: unknown origin, 386BSD 0.1
  *	From Id: lpt.c,v 1.55.2.1 1996/11/12 09:08:38 phk Exp
- *	$Id: nlpt.c,v 1.11 1998/12/04 22:00:33 archie Exp $
+ *	$Id: nlpt.c,v 1.14 1999/02/08 13:55:43 des Exp $
  */
 
 /*
@@ -221,6 +221,9 @@ nlpt_port_test(struct lpt_data *sc, u_char data, u_char mask)
 }
 
 /*
+ * Probe simplified by replacing multiple loops with a hardcoded
+ * test pattern - 1999/02/08 des@freebsd.org
+ *
  * New lpt port probe Geoff Rehmet - Rhodes University - 14/2/94
  * Based partially on Rod Grimes' printer probe
  *
@@ -267,38 +270,29 @@ nlpt_port_test(struct lpt_data *sc, u_char data, u_char mask)
 static int
 nlpt_detect(struct lpt_data *sc)
 {
-	int		status;
-	u_char		data;
-	u_char		mask;
-	int		i, error;
+	static u_char	testbyte[18] = {
+		0x55,			/* alternating zeros */
+		0xaa,			/* alternating ones */
+		0xfe, 0xfd, 0xfb, 0xf7,
+		0xef, 0xdf, 0xbf, 0x7f,	/* walking zero */
+		0x01, 0x02, 0x04, 0x08,
+		0x10, 0x20, 0x40, 0x80	/* walking one */
+	};
+	int		i, error, status;
 
 	status = 1;				/* assume success */
 
 	if ((error = lpt_request_ppbus(sc, PPB_DONTWAIT))) {
 		printf(LPT_NAME ": cannot alloc ppbus (%d)!\n", error);
-		status = 0 ; goto end_probe ;
+		status = 0;
+		goto end_probe;
 	}
 
-	mask = 0xff;
-	data = 0x55;				/* Alternating zeros */
-	if (!nlpt_port_test(sc, data, mask))
-		{ status = 0 ; goto end_probe ; }
-
-	data = 0xaa;				/* Alternating ones */
-	if (!nlpt_port_test(sc, data, mask))
-		{ status = 0 ; goto end_probe ; }
-
-	for (i = 0; i < 8; i++)	{		/* Walking zero */
-		data = ~(1 << i);
-		if (!nlpt_port_test(sc, data, mask))
-			{ status = 0 ; goto end_probe ; }
-	}
-
-	for (i = 0; i < 8; i++)	{		/* Walking one */
-		data = (1 << i);
-		if (!nlpt_port_test(sc, data, mask))
-			{ status = 0 ; goto end_probe ; }
-	}
+	for (i = 0; i < 18 && status; i++)
+		if (!nlpt_port_test(sc, testbyte[i], 0xff)) {
+			status = 0;
+			goto end_probe;
+		}
 
 end_probe:
 	/* write 0's to control and data ports */
@@ -467,7 +461,7 @@ nlptopen(dev_t dev, int flags, int fmt, struct proc *p)
 	}
 
 	/* request the ppbus only if we don't have it already */
-	if (err = lpt_request_ppbus(sc, PPB_WAIT|PPB_INTR))
+	if ((err = lpt_request_ppbus(sc, PPB_WAIT|PPB_INTR)) != 0)
 		return (err);
 
 	s = spltty();
@@ -564,7 +558,7 @@ nlptclose(dev_t dev, int flags, int fmt, struct proc *p)
 	if(sc->sc_flags & LP_BYPASS)
 		goto end_close;
 
-	if (err = lpt_request_ppbus(sc, PPB_WAIT|PPB_INTR))
+	if ((err = lpt_request_ppbus(sc, PPB_WAIT|PPB_INTR)) != 0)
 		return (err);
 
 	sc->sc_state &= ~OPEN;
@@ -708,7 +702,7 @@ nlptwrite(dev_t dev, struct uio *uio, int ioflag)
 	}
 
 	/* request the ppbus only if we don't have it already */
-	if (err = lpt_request_ppbus(sc, PPB_WAIT|PPB_INTR))
+	if ((err = lpt_request_ppbus(sc, PPB_WAIT|PPB_INTR)) != 0)
 		return (err);
 
 	sc->sc_state &= ~INTERRUPTED;
