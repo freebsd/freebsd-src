@@ -86,7 +86,7 @@ sio_puc_probe(dev)
 #ifdef PC98
 	SET_FLAG(dev, SET_IFTYPE(COM_IF_NS16550));
 #endif
-	return (sioprobe(dev, 0, (u_long)rclk, 0));
+	return (sioprobe(dev, 0, (u_long)rclk, 1));
 }
 
 DRIVER_MODULE(sio, puc, sio_puc_driver, sio_devclass, 0, 0);
