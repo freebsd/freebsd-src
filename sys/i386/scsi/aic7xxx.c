@@ -24,7 +24,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aic7xxx.c,v 1.48 1995/12/06 23:51:37 bde Exp $
+ *      $Id: aic7xxx.c,v 1.49 1995/12/07 12:46:28 davidg Exp $
  */
 /*
  * TODO:
@@ -65,30 +65,6 @@
 
 struct ahc_data *ahcdata[NAHC];
 
-static void	ahc_loadseq __P((u_long iobase));
-static int32	ahc_scsi_cmd();
-static timeout_t ahc_timeout;
-static void	ahc_done __P((int unit, struct scb *scbp));
-static struct	scb *ahc_get_scb __P((int unit, int flags));
-static void	ahc_free_scb();
-static void	ahc_scb_timeout __P((int unit, struct ahc_data *ahc, 
-		struct scb *scb));
-static u_char	ahc_abort_wscb __P((int unit, struct scb *scbp, u_char prev,
-		u_long iobase, u_char timedout_scb, u_int32 xs_error));
-static int	ahc_match_scb __P((struct scb *scb, int target, char channel));
-static int	ahc_reset_device __P((int unit, struct ahc_data *ahc,
-		int target, char channel, u_char timedout_scb,
-		u_int32 xs_error));
-static void	ahc_reset_current_bus __P((u_long iobase));
-static int	ahc_reset_channel __P((int unit, struct ahc_data *ahc, 
-		char channel, u_char timedout_scb, u_int32 xs_error));
-static void	ahcminphys();
-static void	ahc_unbusy_target __P((int target, char channel,
-		u_long iobase));
-struct  scb	*ahc_scb_phys_kv();
-static int	ahc_poll __P((int unit, int wait));
-static u_int32	ahc_adapter_info();
-
 u_long ahc_unit = 0;
 
 static int     ahc_debug = AHC_SHOWABORTS;
@@ -102,6 +78,10 @@ typedef enum {
 	list_second,
 	list_tail
 }insert_t;
+
+static u_int32	ahc_adapter_info __P((int unit));
+static void	ahcminphys __P((struct buf *bp));
+static int32	ahc_scsi_cmd __P((struct scsi_xfer *xs));
 
 static struct scsi_adapter ahc_switch =
 {
@@ -218,6 +198,47 @@ struct seeprom_config {
 			 inb(SEQADDR1 + ahc->baseport != 0));     \
                                                         \
                 UNPAUSE_SEQUENCER(ahc);
+
+static u_char	ahc_abort_wscb __P((int unit, struct scb *scbp, u_char prev,
+				    u_long iobase, u_char timedout_scb,
+				    u_int32 xs_error));
+static void	ahc_add_waiting_scb __P((u_long iobase, struct scb *scb,
+					 insert_t where));
+static void	ahc_done __P((int unit, struct scb *scbp));
+static void	ahc_free_scb __P((int unit, struct scb *scb, int flags));
+static void	ahc_getscb __P((u_long iobase, struct scb *scb));
+static struct scb *
+		ahc_get_scb __P((int unit, int flags));
+static int	ahc_intr __P((int unit));
+static void	ahc_loadseq __P((u_long iobase));
+static int	ahc_match_scb __P((struct scb *scb, int target, char channel));
+static int	ahc_poll __P((int unit, int wait));
+#ifdef AHC_DEBUG
+static void	ahc_print_active_scb __P((struct ahc_data *ahc));
+static void	ahc_print_scb __P((struct scb *scb));
+#endif
+static int	ahc_reset_channel __P((int unit, struct ahc_data *ahc, 
+				       char channel, u_char timedout_scb,
+				       u_int32 xs_error));
+static int	ahc_reset_device __P((int unit, struct ahc_data *ahc,
+				      int target, char channel,
+				      u_char timedout_scb, u_int32 xs_error));
+static void	ahc_reset_current_bus __P((u_long iobase));
+static void	ahc_scb_timeout __P((int unit, struct ahc_data *ahc, 
+				     struct scb *scb));
+static void	ahc_scsirate __P((u_char *scsirate, int period, int offset,
+				  int unit, int target));
+static void	ahc_send_scb __P((struct ahc_data *ahc, struct scb *scb));
+static timeout_t
+		ahc_timeout;
+static void	ahc_unbusy_target __P((int target, char channel,
+				       u_long iobase));
+static int	enable_seeprom __P((u_long offset, u_short CS, u_short CK,
+				    u_short DO, u_short DI, u_short RDY,
+				    u_short MS));
+static void	release_seeprom __P((u_long offset, u_short CS, u_short CK,
+				     u_short DO, u_short DI, u_short RDY,
+				     u_short MS));
 
 #ifdef  AHC_DEBUG
 static void
