@@ -895,6 +895,7 @@ isab_match(device_t dev)
 		if (pci_get_class(dev) == PCIC_BRIDGE
 		    && pci_get_subclass(dev) == PCIS_BRIDGE_ISA)
 			return ("Cypress 82C693 PCI-ISA bridge");
+		break;
 
 	/* ServerWorks -- vendor 0x1166 */
 	case 0x02001166:
