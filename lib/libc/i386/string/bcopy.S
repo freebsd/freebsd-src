@@ -69,11 +69,11 @@ ENTRY(bcopy)
 	cmpl	%ecx,%eax	/* overlapping? */
 	jb	1f
 	cld			/* nope, copy forwards. */
-	movl	%ecx, %eax
+	movl	%ecx,%eax
 	shrl	$2,%ecx		/* copy by words */
 	rep
 	movsl
-	movl	%eax, %ecx
+	movl	%eax,%ecx
 	andl	$3,%ecx		/* any bytes left? */
 	rep
 	movsb
@@ -87,13 +87,13 @@ ENTRY(bcopy)
 	addl	%ecx,%edi	/* copy backwards. */
 	addl	%ecx,%esi
 	std
-	movl	%ecx, %eax
+	movl	%ecx,%eax
 	andl	$3,%ecx		/* any fractional bytes? */
 	decl	%edi
 	decl	%esi
 	rep
 	movsb
-	movl	%eax, %ecx	/* copy remainder by words */
+	movl	%eax,%ecx	/* copy remainder by words */
 	shrl	$2,%ecx
 	subl	$3,%esi
 	subl	$3,%edi
