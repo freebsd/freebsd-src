@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.7 1998/11/01 09:31:07 msmith Exp $
+# $Id: Makefile,v 1.8 1998/11/04 00:23:11 msmith Exp $
 #
 # Originally from	$NetBSD: Makefile,v 1.21 1997/10/26 22:08:38 lukem Exp $
 #
@@ -91,9 +91,11 @@ __reml.S: ${.CURDIR}/../libc/alpha/gen/divrem.m4
 SRCS+=	inet_ntoa.c inet_addr.c
 
 # setjmp/longjmp
+.if ${MACHINE_ARCH} == "i386"
 .PATH:	${.CURDIR}/${MACHINE_ARCH}
 CFLAGS+=-I${.CURDIR}/../libc/${MACHINE_ARCH}
 SRCS+=	setjmp.S
+.endif
 
 # decompression functionality from libz
 .PATH:	${.CURDIR}/../libz
