@@ -65,7 +65,6 @@ getopt(nargc, nargv, ostr)
 	extern char *__progname;
 	static char *place = EMSG;		/* option letter processing */
 	char *oli;				/* option letter list index */
-	int ret;
 
 	if (optreset || !*place) {		/* update scanning pointer */
 		optreset = 0;
@@ -105,14 +104,12 @@ getopt(nargc, nargv, ostr)
 		else if (nargc <= ++optind) {	/* no arg */
 			place = EMSG;
 			if (*ostr == ':')
-				ret = BADARG;
-			else
-				ret = BADCH;
+				return (BADARG);
 			if (opterr)
 				(void)fprintf(stderr,
 				    "%s: option requires an argument -- %c\n",
 				    __progname, optopt);
-			return (ret);
+			return (BADCH);
 		}
 	 	else				/* white space */
 			optarg = nargv[optind];
