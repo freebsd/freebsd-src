@@ -12,7 +12,7 @@
  *
  * Sep., 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm_init.S,v 1.3 1994/10/01 21:29:49 phk Exp $
+ *	$Id: apm_init.S,v 1.4 1995/02/17 02:22:31 phk Exp $
  */
 
 /*
@@ -109,17 +109,14 @@ ENTRY(apm_init)
 					/* save the value of %ax */
 	data32
 	call	EXT(real_to_prot)	/* come back again to protected mode */
-	cmpb	$0x50, %bh		/* %bh == 'P'? */
-	jnz	1f
-	cmpb	$0x4d, %bl		/* %bl == 'M'? */
-	jz	2f
+	cmpw	$0x504d, %bx		/* "PM" signature? */
+	jz	1f
 
-1:
 	movl	$(APMINI_CANTFIND), apm_version
 					/* can't find APM BIOS */
 	jmp	finish
 
-2:
+1:
 	testl	$(APM_32BIT_SUPPORT), %ecx
 					/* supports 32bit connection? */
 	jnz	1f
@@ -138,6 +135,16 @@ ENTRY(apm_init)
 	 */
 	call	EXT(prot_to_real)	/* return to real mode */
 
+	/* Disconnect, just in case */
+	movb	$(APM_BIOS), %ah
+	movb	$(APM_DISCONNECT), %al
+	data32
+	movl	$(PMDV_APMBIOS), %ebx
+	sti
+	int	$(SYSTEM_BIOS)
+	cli
+
+	/* Ignore return code, but we can now connect safely */
 	movb	$(APM_BIOS), %ah
 	movb	$(APM_PROT32CONNECT), %al
 	data32
