@@ -106,9 +106,12 @@ namespace std
 
     public:
       /**
-       *  The default constructor gives an undefined state to this %iterator.
+       *  The default constructor default-initializes member @p current.
+       *  If it is a pointer, that means it is zero-initialized.
       */
-      reverse_iterator() { }
+      // _GLIBCPP_RESOLVE_LIB_DEFECTS
+      // 235 No specification of default ctor for reverse_iterator
+      reverse_iterator() : current() { }
 
       /**
        *  This %iterator will move in the opposite direction that @p x does.
@@ -317,6 +320,8 @@ namespace std
 
   // 24.4.2.2.1 back_insert_iterator
   /**
+   *  @brief  Turns assignment into insertion.
+   *
    *  These are output iterators, constructed from a container-of-T.
    *  Assigning a T to the iterator appends it to the container using
    *  push_back.
@@ -387,6 +392,8 @@ namespace std
     { return back_insert_iterator<_Container>(__x); }
 
   /**
+   *  @brief  Turns assignment into insertion.
+   *
    *  These are output iterators, constructed from a container-of-T.
    *  Assigning a T to the iterator prepends it to the container using
    *  push_front.
@@ -456,6 +463,8 @@ namespace std
     { return front_insert_iterator<_Container>(__x); }
 
   /**
+   *  @brief  Turns assignment into insertion.
+   *
    *  These are output iterators, constructed from a container-of-T.
    *  Assigning a T to the iterator inserts it in the container at the
    *  %iterator's position, rather than overwriting the value at that

@@ -1,6 +1,6 @@
 // Wrapper for underlying C-language localization -*- C++ -*-
 
-// Copyright (C) 2001, 2002 Free Software Foundation, Inc.
+// Copyright (C) 2001, 2002, 2003 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -36,7 +36,7 @@
 #include <locale>
 #include <stdexcept>
 #include <langinfo.h>
-#include "c++locale_internal.h"
+#include <bits/c++locale_internal.h>
 
 namespace std 
 {
@@ -191,9 +191,9 @@ namespace std
 				    + _S_extra_categories_size] =
     {
       "LC_CTYPE", 
-      "LC_NUMERIC", 
-      "LC_COLLATE", 
+      "LC_NUMERIC",
       "LC_TIME", 
+      "LC_COLLATE", 
       "LC_MONETARY",
       "LC_MESSAGES", 
       "LC_PAPER", 

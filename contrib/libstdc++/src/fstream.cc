@@ -1,6 +1,6 @@
 // File based streams -*- C++ -*-
 
-// Copyright (C) 1997, 1998, 1999, 2000, 2001, 2002
+// Copyright (C) 1997, 1998, 1999, 2000, 2001, 2002, 2003
 // Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
@@ -50,10 +50,14 @@ namespace std
 	  // normal buffers and jet outta here before expensive
 	  // fileops happen...
 	  if (_M_pback_init)
+	    _M_pback_destroy();
+
+	  if (_M_in_cur && _M_in_cur < _M_in_end)
 	    {
-	      _M_pback_destroy();
-	      if (_M_in_cur < _M_in_end)
-		return traits_type::to_int_type(*_M_in_cur);
+	      __ret = traits_type::to_int_type(*_M_in_cur);
+	      if (__bump)
+		_M_in_cur_move(1);
+	      return __ret;
 	    }
 
 	  // Sync internal and external buffers.
@@ -115,10 +119,14 @@ namespace std
 	  // normal buffers and jet outta here before expensive
 	  // fileops happen...
 	  if (_M_pback_init)
+	    _M_pback_destroy();
+
+	  if (_M_in_cur && _M_in_cur < _M_in_end)
 	    {
-	      _M_pback_destroy();
-	      if (_M_in_cur < _M_in_end)
-		return traits_type::to_int_type(*_M_in_cur);
+	      __ret = traits_type::to_int_type(*_M_in_cur);
+	      if (__bump)
+		_M_in_cur_move(1);
+	      return __ret;
 	    }
 
 	  // Sync internal and external buffers.
@@ -154,9 +162,10 @@ namespace std
 
 		  const char* __eend;
 		  char_type* __iend;
-		  __res_type __r = __cvt.in(_M_state_cur, __buf, 
-					    __buf + __elen, __eend, _M_in_beg, 
-					    _M_in_beg + _M_buf_size, __iend);
+		  codecvt_base::result __r;
+		  __r = __cvt.in(_M_state_cur, __buf, 
+				 __buf + __elen, __eend, _M_in_beg, 
+				 _M_in_beg + _M_buf_size, __iend);
 		  if (__r == codecvt_base::ok)
 		    __ilen = __iend - _M_in_beg;
 		  else 

@@ -38,7 +38,7 @@
  * in supporting documentation.  Silicon Graphics makes no
  * representations about the suitability of this software for any
  * purpose.  It is provided "as is" without express or implied warranty.
- */ 
+ */
 
 #include <bitset>
 
@@ -68,7 +68,7 @@ std::_Base_bitset<1>::_M_do_find_first(std::size_t __not_found) const
 }
 
 std::size_t
-std::_Base_bitset<1>::_M_do_find_next(std::size_t __prev, 
+std::_Base_bitset<1>::_M_do_find_next(std::size_t __prev,
 				      std::size_t __not_found) const
 {
   // make bound inclusive
@@ -103,8 +103,9 @@ std::_Base_bitset<1>::_M_do_find_next(std::size_t __prev,
 } // end _M_do_find_next
 
 
-// Lookup tables for find and count operations.
-unsigned char std::_S_bit_count[256] = 
+// Lookup tables for find and count operations.  In _S_bit_count, the value
+// *at* an index is the number of bits set *in* that index.
+unsigned char std::_S_bit_count[256] =
 {
   0, /*   0 */ 1, /*   1 */ 1, /*   2 */ 2, /*   3 */ 1, /*   4 */
   2, /*   5 */ 2, /*   6 */ 3, /*   7 */ 1, /*   8 */ 2, /*   9 */
@@ -160,7 +161,7 @@ unsigned char std::_S_bit_count[256] =
   8  /* 255 */
 }; // end _S_bit_count
 
-unsigned char std::_S_first_one[256] = 
+unsigned char std::_S_first_one[256] =
 {
   0, /*   0 */ 0, /*   1 */ 1, /*   2 */ 0, /*   3 */ 2, /*   4 */
   0, /*   5 */ 1, /*   6 */ 0, /*   7 */ 3, /*   8 */ 0, /*   9 */
