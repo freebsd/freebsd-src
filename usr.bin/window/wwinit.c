@@ -322,8 +322,8 @@ bad:
 	 * Don't bother to free storage.  We're supposed
 	 * to exit when wwinit fails anyway.
 	 */
-	(void) wwsettty(0, &wwoldtty);
 	(void) signal(SIGIO, SIG_DFL);
+	(void) wwsettty(0, &wwoldtty);
 	(void) sigsetmask(s);
 	return -1;
 }
