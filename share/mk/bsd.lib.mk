@@ -47,7 +47,7 @@ STRIP?=	-s
 # prefer .s to a .c, add .po, remove stuff not used in the BSD libraries
 # .So used for PIC object files
 .SUFFIXES:
-.SUFFIXES: .out .o .po .So .S .s .c .cc .cpp .cxx .m .C .f .y .l .ln
+.SUFFIXES: .out .o .po .So .S .s .asm .c .cc .cpp .cxx .m .C .f .y .l .ln
 
 .c.ln:
 	${LINT} ${LINTOBJFLAGS} ${CFLAGS:M-[DIU]*} ${.IMPSRC} || \
@@ -130,6 +130,24 @@ STRIP?=	-s
 	@mv ${.TARGET}.tmp ${.TARGET}
 
 .s.So:
+	${CC} -x assembler-with-cpp ${PICFLAG} -DPIC ${CFLAGS:M-[BID]*} ${AINC} -c \
+	    ${.IMPSRC} -o ${.TARGET}
+	@${LD} -o ${.TARGET}.tmp -x -r ${.TARGET}
+	@mv ${.TARGET}.tmp ${.TARGET}
+
+.asm.o:
+	${CC} -x assembler-with-cpp ${CFLAGS:M-[BID]*} ${AINC} -c \
+	    ${.IMPSRC} -o ${.TARGET}
+	@${LD} -o ${.TARGET}.tmp -x -r ${.TARGET}
+	@mv ${.TARGET}.tmp ${.TARGET}
+
+.asm.po:
+	${CC} -x assembler-with-cpp -DPROF ${CFLAGS:M-[BID]*} ${AINC} -c \
+	    ${.IMPSRC} -o ${.TARGET}
+	@${LD} -o ${.TARGET}.tmp -X -r ${.TARGET}
+	@mv ${.TARGET}.tmp ${.TARGET}
+
+.asm.So:
 	${CC} -x assembler-with-cpp ${PICFLAG} -DPIC ${CFLAGS:M-[BID]*} ${AINC} -c \
 	    ${.IMPSRC} -o ${.TARGET}
 	@${LD} -o ${.TARGET}.tmp -x -r ${.TARGET}
