@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)dead_vnops.c	8.1 (Berkeley) 6/10/93
- * $Id: dead_vnops.c,v 1.14 1997/09/02 20:06:08 bde Exp $
+ * $Id: dead_vnops.c,v 1.15 1997/09/14 02:57:46 peter Exp $
  */
 
 #include <sys/param.h>
@@ -89,54 +89,47 @@ static int	dead_print __P((struct vop_print_args *));
 
 vop_t **dead_vnodeop_p;
 static struct vnodeopv_entry_desc dead_vnodeop_entries[] = {
-	{ &vop_default_desc, (vop_t *)vn_default_error },
-	{ &vop_lookup_desc, (vop_t *)dead_lookup },	/* lookup */
-/* XXX: vop_cachedlookup */
-	{ &vop_create_desc, (vop_t *)dead_create },	/* create */
-/* XXX: vop_whiteout */
-	{ &vop_mknod_desc, (vop_t *)dead_mknod },	/* mknod */
-	{ &vop_open_desc, (vop_t *)dead_open },		/* open */
-	{ &vop_close_desc, (vop_t *)dead_close },	/* close */
-	{ &vop_access_desc, (vop_t *)dead_access },	/* access */
-	{ &vop_getattr_desc, (vop_t *)dead_getattr },	/* getattr */
-	{ &vop_setattr_desc, (vop_t *)dead_setattr },	/* setattr */
-	{ &vop_read_desc, (vop_t *)dead_read },		/* read */
-	{ &vop_write_desc, (vop_t *)dead_write },	/* write */
-/* XXX: vop_lease */
-	{ &vop_ioctl_desc, (vop_t *)dead_ioctl },	/* ioctl */
-	{ &vop_poll_desc, (vop_t *)dead_poll },		/* poll */
-/* XXX: vop_revoke */
-	{ &vop_mmap_desc, (vop_t *)dead_mmap },		/* mmap */
-	{ &vop_fsync_desc, (vop_t *)dead_fsync },	/* fsync */
-	{ &vop_seek_desc, (vop_t *)dead_seek },		/* seek */
-	{ &vop_remove_desc, (vop_t *)dead_remove },	/* remove */
-	{ &vop_link_desc, (vop_t *)dead_link },		/* link */
-	{ &vop_rename_desc, (vop_t *)dead_rename },	/* rename */
-	{ &vop_mkdir_desc, (vop_t *)dead_mkdir },	/* mkdir */
-	{ &vop_rmdir_desc, (vop_t *)dead_rmdir },	/* rmdir */
-	{ &vop_symlink_desc, (vop_t *)dead_symlink },	/* symlink */
-	{ &vop_readdir_desc, (vop_t *)dead_readdir },	/* readdir */
-	{ &vop_readlink_desc, (vop_t *)dead_readlink },	/* readlink */
-	{ &vop_abortop_desc, (vop_t *)dead_abortop },	/* abortop */
-	{ &vop_inactive_desc, (vop_t *)dead_inactive },	/* inactive */
-	{ &vop_reclaim_desc, (vop_t *)dead_reclaim },	/* reclaim */
-	{ &vop_lock_desc, (vop_t *)dead_lock },		/* lock */
-	{ &vop_unlock_desc, (vop_t *)dead_unlock },	/* unlock */
-	{ &vop_bmap_desc, (vop_t *)dead_bmap },		/* bmap */
-	{ &vop_strategy_desc, (vop_t *)dead_strategy },	/* strategy */
-	{ &vop_print_desc, (vop_t *)dead_print },	/* print */
-	{ &vop_islocked_desc, (vop_t *)dead_islocked },	/* islocked */
-	{ &vop_pathconf_desc, (vop_t *)dead_pathconf },	/* pathconf */
-	{ &vop_advlock_desc, (vop_t *)dead_advlock },	/* advlock */
-	{ &vop_blkatoff_desc, (vop_t *)dead_blkatoff },	/* blkatoff */
-	{ &vop_valloc_desc, (vop_t *)dead_valloc },	/* valloc */
-/* XXX: vop_reallocblks */
-	{ &vop_vfree_desc, (vop_t *)dead_vfree },	/* vfree */
-	{ &vop_truncate_desc, (vop_t *)dead_truncate },	/* truncate */
-	{ &vop_update_desc, (vop_t *)dead_update },	/* update */
-/* XXX: vop_getpages */
-/* XXX: vop_putpages */
-	{ &vop_bwrite_desc, (vop_t *)dead_bwrite },	/* bwrite */
+	{ &vop_default_desc,		(vop_t *) vn_default_error },
+	{ &vop_abortop_desc,		(vop_t *) dead_abortop },
+	{ &vop_access_desc,		(vop_t *) dead_access },
+	{ &vop_advlock_desc,		(vop_t *) dead_advlock },
+	{ &vop_blkatoff_desc,	(vop_t *) dead_blkatoff },
+	{ &vop_bmap_desc,		(vop_t *) dead_bmap },
+	{ &vop_bwrite_desc,		(vop_t *) dead_bwrite },
+	{ &vop_close_desc,		(vop_t *) dead_close },
+	{ &vop_create_desc,		(vop_t *) dead_create },
+	{ &vop_fsync_desc,		(vop_t *) dead_fsync },
+	{ &vop_getattr_desc,		(vop_t *) dead_getattr },
+	{ &vop_inactive_desc,	(vop_t *) dead_inactive },
+	{ &vop_ioctl_desc,		(vop_t *) dead_ioctl },
+	{ &vop_islocked_desc,	(vop_t *) dead_islocked },
+	{ &vop_link_desc,		(vop_t *) dead_link },
+	{ &vop_lock_desc,		(vop_t *) dead_lock },
+	{ &vop_lookup_desc,		(vop_t *) dead_lookup },
+	{ &vop_mkdir_desc,		(vop_t *) dead_mkdir },
+	{ &vop_mknod_desc,		(vop_t *) dead_mknod },
+	{ &vop_mmap_desc,		(vop_t *) dead_mmap },
+	{ &vop_open_desc,		(vop_t *) dead_open },
+	{ &vop_pathconf_desc,	(vop_t *) dead_pathconf },
+	{ &vop_poll_desc,		(vop_t *) dead_poll },
+	{ &vop_print_desc,		(vop_t *) dead_print },
+	{ &vop_read_desc,		(vop_t *) dead_read },
+	{ &vop_readdir_desc,		(vop_t *) dead_readdir },
+	{ &vop_readlink_desc,	(vop_t *) dead_readlink },
+	{ &vop_reclaim_desc,		(vop_t *) dead_reclaim },
+	{ &vop_remove_desc,		(vop_t *) dead_remove },
+	{ &vop_rename_desc,		(vop_t *) dead_rename },
+	{ &vop_rmdir_desc,		(vop_t *) dead_rmdir },
+	{ &vop_seek_desc,		(vop_t *) dead_seek },
+	{ &vop_setattr_desc,		(vop_t *) dead_setattr },
+	{ &vop_strategy_desc,	(vop_t *) dead_strategy },
+	{ &vop_symlink_desc,		(vop_t *) dead_symlink },
+	{ &vop_truncate_desc,	(vop_t *) dead_truncate },
+	{ &vop_unlock_desc,		(vop_t *) dead_unlock },
+	{ &vop_update_desc,		(vop_t *) dead_update },
+	{ &vop_valloc_desc,		(vop_t *) dead_valloc },
+	{ &vop_vfree_desc,		(vop_t *) dead_vfree },
+	{ &vop_write_desc,		(vop_t *) dead_write },
 	{ NULL, NULL }
 };
 static struct vnodeopv_desc dead_vnodeop_opv_desc =

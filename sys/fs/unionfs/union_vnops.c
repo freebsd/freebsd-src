@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)union_vnops.c	8.32 (Berkeley) 6/23/95
- * $Id: union_vnops.c,v 1.41 1997/09/07 06:46:34 bde Exp $
+ * $Id: union_vnops.c,v 1.42 1997/09/14 02:58:04 peter Exp $
  */
 
 #include <sys/param.h>
@@ -1755,56 +1755,44 @@ union_strategy(ap)
  */
 vop_t **union_vnodeop_p;
 static struct vnodeopv_entry_desc union_vnodeop_entries[] = {
-	{ &vop_default_desc, (vop_t *)vn_default_error },
-	{ &vop_lookup_desc, (vop_t *)union_lookup },		/* lookup */
-/* XXX: vop_cachedlookup */
-	{ &vop_create_desc, (vop_t *)union_create },		/* create */
-	{ &vop_whiteout_desc, (vop_t *)union_whiteout },	/* whiteout */
-	{ &vop_mknod_desc, (vop_t *)union_mknod },		/* mknod */
-	{ &vop_open_desc, (vop_t *)union_open },		/* open */
-	{ &vop_close_desc, (vop_t *)union_close },		/* close */
-	{ &vop_access_desc, (vop_t *)union_access },		/* access */
-	{ &vop_getattr_desc, (vop_t *)union_getattr },		/* getattr */
-	{ &vop_setattr_desc, (vop_t *)union_setattr },		/* setattr */
-	{ &vop_read_desc, (vop_t *)union_read },		/* read */
-	{ &vop_write_desc, (vop_t *)union_write },		/* write */
-	{ &vop_lease_desc, (vop_t *)union_lease },		/* lease */
-	{ &vop_ioctl_desc, (vop_t *)union_ioctl },		/* ioctl */
-	{ &vop_poll_desc, (vop_t *)union_poll },		/* poll */
-	{ &vop_revoke_desc, (vop_t *)union_revoke },		/* revoke */
-	{ &vop_mmap_desc, (vop_t *)union_mmap },		/* mmap */
-	{ &vop_fsync_desc, (vop_t *)union_fsync },		/* fsync */
-	{ &vop_seek_desc, (vop_t *)union_seek },		/* seek */
-	{ &vop_remove_desc, (vop_t *)union_remove },		/* remove */
-	{ &vop_link_desc, (vop_t *)union_link },		/* link */
-	{ &vop_rename_desc, (vop_t *)union_rename },		/* rename */
-	{ &vop_mkdir_desc, (vop_t *)union_mkdir },		/* mkdir */
-	{ &vop_rmdir_desc, (vop_t *)union_rmdir },		/* rmdir */
-	{ &vop_symlink_desc, (vop_t *)union_symlink },		/* symlink */
-	{ &vop_readdir_desc, (vop_t *)union_readdir },		/* readdir */
-	{ &vop_readlink_desc, (vop_t *)union_readlink },	/* readlink */
-	{ &vop_abortop_desc, (vop_t *)union_abortop },		/* abortop */
-	{ &vop_inactive_desc, (vop_t *)union_inactive },	/* inactive */
-	{ &vop_reclaim_desc, (vop_t *)union_reclaim },		/* reclaim */
-	{ &vop_lock_desc, (vop_t *)union_lock },		/* lock */
-	{ &vop_unlock_desc, (vop_t *)union_unlock },		/* unlock */
-	{ &vop_bmap_desc, (vop_t *)union_bmap },		/* bmap */
-	{ &vop_strategy_desc, (vop_t *)union_strategy },	/* strategy */
-	{ &vop_print_desc, (vop_t *)union_print },		/* print */
-	{ &vop_islocked_desc, (vop_t *)union_islocked },	/* islocked */
-	{ &vop_pathconf_desc, (vop_t *)union_pathconf },	/* pathconf */
-	{ &vop_advlock_desc, (vop_t *)union_advlock },		/* advlock */
-#ifdef notdef
-	{ &vop_blkatoff_desc, (vop_t *)union_blkatoff },	/* blkatoff */
-	{ &vop_valloc_desc, (vop_t *)union_valloc },		/* valloc */
-/* XXX: vop_reallocblks */
-	{ &vop_vfree_desc, (vop_t *)union_vfree },		/* vfree */
-	{ &vop_truncate_desc, (vop_t *)union_truncate },	/* truncate */
-	{ &vop_update_desc, (vop_t *)union_update },		/* update */
-/* XXX: vop_getpages */
-/* XXX: vop_putpages */
-	{ &vop_bwrite_desc, (vop_t *)union_bwrite },		/* bwrite */
-#endif
+	{ &vop_default_desc,		(vop_t *) vn_default_error },
+	{ &vop_abortop_desc,		(vop_t *) union_abortop },
+	{ &vop_access_desc,		(vop_t *) union_access },
+	{ &vop_advlock_desc,		(vop_t *) union_advlock },
+	{ &vop_bmap_desc,		(vop_t *) union_bmap },
+	{ &vop_close_desc,		(vop_t *) union_close },
+	{ &vop_create_desc,		(vop_t *) union_create },
+	{ &vop_fsync_desc,		(vop_t *) union_fsync },
+	{ &vop_getattr_desc,		(vop_t *) union_getattr },
+	{ &vop_inactive_desc,	(vop_t *) union_inactive },
+	{ &vop_ioctl_desc,		(vop_t *) union_ioctl },
+	{ &vop_islocked_desc,	(vop_t *) union_islocked },
+	{ &vop_lease_desc,		(vop_t *) union_lease },
+	{ &vop_link_desc,		(vop_t *) union_link },
+	{ &vop_lock_desc,		(vop_t *) union_lock },
+	{ &vop_lookup_desc,		(vop_t *) union_lookup },
+	{ &vop_mkdir_desc,		(vop_t *) union_mkdir },
+	{ &vop_mknod_desc,		(vop_t *) union_mknod },
+	{ &vop_mmap_desc,		(vop_t *) union_mmap },
+	{ &vop_open_desc,		(vop_t *) union_open },
+	{ &vop_pathconf_desc,	(vop_t *) union_pathconf },
+	{ &vop_poll_desc,		(vop_t *) union_poll },
+	{ &vop_print_desc,		(vop_t *) union_print },
+	{ &vop_read_desc,		(vop_t *) union_read },
+	{ &vop_readdir_desc,		(vop_t *) union_readdir },
+	{ &vop_readlink_desc,	(vop_t *) union_readlink },
+	{ &vop_reclaim_desc,		(vop_t *) union_reclaim },
+	{ &vop_remove_desc,		(vop_t *) union_remove },
+	{ &vop_rename_desc,		(vop_t *) union_rename },
+	{ &vop_revoke_desc,		(vop_t *) union_revoke },
+	{ &vop_rmdir_desc,		(vop_t *) union_rmdir },
+	{ &vop_seek_desc,		(vop_t *) union_seek },
+	{ &vop_setattr_desc,		(vop_t *) union_setattr },
+	{ &vop_strategy_desc,	(vop_t *) union_strategy },
+	{ &vop_symlink_desc,		(vop_t *) union_symlink },
+	{ &vop_unlock_desc,		(vop_t *) union_unlock },
+	{ &vop_whiteout_desc,	(vop_t *) union_whiteout },
+	{ &vop_write_desc,		(vop_t *) union_write },
 	{ NULL, NULL }
 };
 static struct vnodeopv_desc union_vnodeop_opv_desc =
