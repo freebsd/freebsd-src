@@ -652,11 +652,15 @@ DRIVER_MODULE(pcibios_pcib, pci, pcibios_pcib_driver, pcib_devclass, 0, 0);
 static int
 pcibios_pcib_probe(device_t dev)
 {
+	int bus;
 
 	if ((pci_get_class(dev) != PCIC_BRIDGE) ||
 	    (pci_get_subclass(dev) != PCIS_BRIDGE_PCI))
 		return (ENXIO);
-	if (pci_probe_route_table(pcib_get_bus(dev)) == 0)
+	bus = pci_read_config(dev, PCIR_SECBUS_1, 1);
+	if (bus == 0)
+		return (ENXIO);
+	if (pci_probe_route_table(bus) == 0)
 		return (ENXIO);
 	device_set_desc(dev, "PCIBIOS PCI-PCI bridge");
 	return (-2000);
