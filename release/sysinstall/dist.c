@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.68 1996/08/03 10:10:48 jkh Exp $
+ * $Id: dist.c,v 1.69 1996/09/26 22:12:07 pst Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -364,30 +364,9 @@ distExtract(char *parent, Distribution *me)
 	    goto done;
 	}
 
-	/* First try to get the distribution as a single file */
-        snprintf(buf, 512, "%s/%s.tgz", path, dist);
 	/*
-	 * Passing TRUE as 3rd parm to get routine makes this a "probing" get, for which errors
-	 * are not considered too significant.
-	 */
-	fd = mediaDevice->get(mediaDevice, buf, TRUE);
-	if (fd >= 0) {
-	    char *dir = root_bias(me[i].my_dir);
-
-	    msgNotify("Extracting %s into %s directory...", dist, dir);
-	    status = mediaExtractDist(dir, fd);
-	    mediaDevice->close(mediaDevice, fd);
-	    goto done;
-	}
-	else if (fd == IO_ERROR) {	/* Hard error, can't continue */
-	    mediaDevice->shutdown(mediaDevice);
-	    status = FALSE;
-	    goto done;
-	}
-
-	/*
-	 * If we couldn't get it as one file then we need to get multiple pieces; locate and parse an
-	 * info file telling us how many we need for this distribution.
+	 * Try to get distribution as multiple pieces, locating and parsing an
+	 * info file which tells us how many we need for this distribution.
 	 */
 	dist_attr = NULL;
 	numchunks = 0;
@@ -399,7 +378,7 @@ distExtract(char *parent, Distribution *me)
 		msgDebug("Parsing attributes file for distribution %s\n", dist);
 	    dist_attr = safe_malloc(sizeof(Attribs) * MAX_ATTRIBS);
 	    if (DITEM_STATUS(attr_parse(dist_attr, fd)) == DITEM_FAILURE)
-		msgConfirm("Cannot load information file for %s distribution!\n"
+		msgConfirm("Cannot parse information file for the %s distribution!\n"
 			   "Please verify that your media is valid and try again.", dist);
 	    else {
 		if (isDebug())
@@ -410,15 +389,38 @@ distExtract(char *parent, Distribution *me)
 	    }
 	    safe_free(dist_attr);
 	    mediaDevice->close(mediaDevice, fd);
+	    if (!numchunks)
+		continue;
 	}
 	else if (fd == IO_ERROR) {	/* Hard error, can't continue */
 	    mediaDevice->shutdown(mediaDevice);
 	    status = FALSE;
 	    goto done;
 	}
-	if (!numchunks)
-	    continue;
+	else {
+	    /* Try to get the distribution as a single file */
+	    snprintf(buf, 512, "%s/%s.tgz", path, dist);
+	    /*
+	     * Passing TRUE as 3rd parm to get routine makes this a "probing" get, for which errors
+	     * are not considered too significant.
+	     */
+	    fd = mediaDevice->get(mediaDevice, buf, TRUE);
+	    if (fd >= 0) {
+		char *dir = root_bias(me[i].my_dir);
 
+		msgNotify("Extracting %s into %s directory...", dist, dir);
+		status = mediaExtractDist(dir, fd);
+		mediaDevice->close(mediaDevice, fd);
+		goto done;
+	    }
+	    else if (fd == IO_ERROR) {	/* Hard error, can't continue */
+		mediaDevice->shutdown(mediaDevice);
+		status = FALSE;
+		goto done;
+	    }
+	}
+
+	/* Fall through from "we got the attribute file, now get the pieces" step */
 	if (isDebug())
 	    msgDebug("Attempting to extract distribution from %u chunks.\n", numchunks);
 
