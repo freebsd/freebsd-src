@@ -267,9 +267,8 @@ vinumstart(struct buf *bp, int reviveok)
 	return launch_requests(rq, reviveok);		    /* now start the requests if we can */
     } else
 	/*
-	 * This is a write operation.  We write to all
-	 * plexes.  If this is a RAID 5 plex, we must also
-	 * update the parity stripe.
+	 * This is a write operation.  We write to all plexes.  If this is
+	 * a RAID-4 or RAID-5 plex, we must also update the parity stripe.
 	 */
     {
 	if (vol != NULL) {
@@ -403,7 +402,7 @@ launch_requests(struct request *rq, int reviveok)
 		s = splbio();				    /* lock out the interrupt routines */
 		while ((drive->active >= DRIVE_MAXACTIVE)   /* it has too much to do already, */
 		||(vinum_conf.active >= VINUM_MAXACTIVE))   /* or too many requests globally */
-		    tsleep(&launch_requests, PRIBIO, "vinbuf", 0); /* wait for it to subside */
+		    tsleep(&launch_requests, PRIBIO | PCATCH, "vinbuf", 0); /* wait for it to subside */
 		drive->active++;
 		if (drive->active >= drive->maxactive)
 		    drive->maxactive = drive->active;
@@ -423,17 +422,10 @@ launch_requests(struct request *rq, int reviveok)
 			(u_int) (rqe->b.b_blkno - SD[rqe->sdno].driveoffset),
 			rqe->b.b_blkno,
 			rqe->b.b_bcount);
-		if (debug & DEBUG_NUMOUTPUT)
-		    log(LOG_DEBUG,
-			"  vinumstart sd %d numoutput %ld\n",
-			rqe->sdno,
-			rqe->b.b_vp->v_numoutput);
 		if (debug & DEBUG_LASTREQS)
 		    logrq(loginfo_rqe, (union rqinfou) rqe, rq->bp);
 #endif
 
-		if ((rqe->b.b_flags & B_READ) == 0)
-		    rqe->b.b_vp->v_numoutput++;		    /* one more output going */
 
 		rqe->b.b_flags |= B_ORDERED;		    /* stick to the request order */
 
@@ -664,9 +656,10 @@ bre(struct request *rq,
 	break;
 
 	/*
-	 * RAID5 is complicated enough to have
-	 * its own function
+	 * RAID-4 and RAID-5 are complicated enough to have their own
+	 * function.
 	 */
+    case plex_raid4:
     case plex_raid5:
 	status = bre5(rq, plexno, diskaddr, diskend);
 	break;
@@ -823,8 +816,7 @@ build_rq_buffer(struct rqelement *rqe, struct plex *plex)
      * when the drive is dead.
      */
     if ((rqe->flags & XFR_BAD_SUBDISK) == 0) {		    /* subdisk is accessible, */
-	bp->b_dev = DRIVE[rqe->driveno].vp->v_rdev;	    /* drive device */
-	bp->b_vp = DRIVE[rqe->driveno].vp;		    /* drive vnode */
+	bp->b_dev = DRIVE[rqe->driveno].dev;		    /* drive device */
     }
     bp->b_blkno = rqe->sdoffset + sd->driveoffset;	    /* start address */
     bp->b_bcount = rqe->buflen << DEV_BSHIFT;		    /* number of bytes to transfer */
@@ -906,7 +898,18 @@ sdio(struct buf *bp)
     sd = &SD[Sdno(bp->b_dev)];				    /* point to the subdisk */
     drive = &DRIVE[sd->driveno];
 
-
+    if (drive->state != drive_up) {
+	if (sd->state >= sd_crashed) {
+	    if (bp->b_flags & B_WRITE)			    /* writing, */
+		set_sd_state(sd->sdno, sd_stale, setstate_force);
+	    else
+		set_sd_state(sd->sdno, sd_crashed, setstate_force);
+	}
+	bp->b_flags |= B_ERROR;
+	bp->b_error = EIO;
+	biodone(bp);
+	return;
+    }
     /*
      * We allow access to any kind of subdisk as long as we can expect
      * to get the I/O performed.
@@ -930,14 +933,12 @@ sdio(struct buf *bp)
     sbp->b.b_bufsize = bp->b_bufsize;			    /* buffer size */
     sbp->b.b_bcount = bp->b_bcount;			    /* number of bytes to transfer */
     sbp->b.b_resid = bp->b_resid;			    /* and amount waiting */
-    sbp->b.b_dev = DRIVE[sd->driveno].vp->v_rdev;	    /* device */
+    sbp->b.b_dev = DRIVE[sd->driveno].dev;		    /* device */
     sbp->b.b_data = bp->b_data;				    /* data buffer */
     sbp->b.b_blkno = bp->b_blkno + sd->driveoffset;
     sbp->b.b_iodone = sdio_done;			    /* come here on completion */
     BUF_LOCKINIT(&sbp->b);				    /* get a lock for the buffer */
     BUF_LOCK(&sbp->b, LK_EXCLUSIVE);			    /* and lock it */
-
-    sbp->b.b_vp = DRIVE[sd->driveno].vp;		    /* vnode */
     sbp->bp = bp;					    /* note the address of the original header */
     sbp->sdno = sd->sdno;				    /* note for statistics */
     sbp->driveno = sd->driveno;
@@ -951,8 +952,6 @@ sdio(struct buf *bp)
 	    return;
 	}
     }
-    if ((sbp->b.b_flags & B_READ) == 0)			    /* write */
-	sbp->b.b_vp->v_numoutput++;			    /* one more output going */
 #if VINUMDEBUG
     if (debug & DEBUG_ADDRESSES)
 	log(LOG_DEBUG,
@@ -964,11 +963,6 @@ sdio(struct buf *bp)
 	    (u_int) (sbp->b.b_blkno - SD[sbp->sdno].driveoffset),
 	    (int) sbp->b.b_blkno,
 	    sbp->b.b_bcount);
-    if (debug & DEBUG_NUMOUTPUT)
-	log(LOG_DEBUG,
-	    "  vinumstart sd %d numoutput %ld\n",
-	    sbp->sdno,
-	    sbp->b.b_vp->v_numoutput);
 #endif
     s = splbio();
 #if VINUMDEBUG
@@ -1007,8 +1001,7 @@ vinum_bounds_check(struct buf *bp, struct volume *vol)
 	&& bp->b_blkno + size > LABELSECTOR		    /* and finishes after */
 #endif
 	&& (!(vol->flags & VF_RAW))			    /* and it's not raw */
-	&&major(bp->b_dev) == BDEV_MAJOR		    /* and it's the block device */
-	&& (bp->b_flags & B_READ) == 0			    /* and it's a write */
+	&&(bp->b_flags & B_READ) == 0			    /* and it's a write */
 	&& (!vol->flags & (VF_WLABEL | VF_LABELLING))) {    /* and we're not allowed to write the label */
 	bp->b_error = EROFS;				    /* read-only */
 	bp->b_flags |= B_ERROR;
