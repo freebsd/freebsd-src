@@ -633,6 +633,21 @@ ndis_detach(dev)
 /*
  * A frame has been uploaded: pass the resulting mbuf chain up to
  * the higher level protocols.
+ *
+ * When handling received NDIS packets, the 'status' field in the
+ * out-of-band portion of the ndis_packet has special meaning. In the
+ * most common case, the underlying NDIS driver will set this field
+ * to NDIS_STATUS_SUCCESS, which indicates that it's ok for us to
+ * take posession of it. We then change the status field to
+ * NDIS_STATUS_PENDING to tell the driver that we now own the packet,
+ * and that we will return it at some point in the future via the
+ * return packet handler.
+ *
+ * If the driver hands us a packet with a status of NDIS_STATUS_RESOURCES,
+ * this means the driver is running out of packet/buffer resources and
+ * wants to maintain ownership of the packet. In this case, we have to
+ * copy the packet data into local storage and let the driver keep the
+ * packet.
  */
 __stdcall static void
 ndis_rxeof(adapter, packets, pktcnt)
@@ -644,7 +659,7 @@ ndis_rxeof(adapter, packets, pktcnt)
 	ndis_miniport_block	*block;
 	ndis_packet		*p;
 	struct ifnet		*ifp;
-	struct mbuf		*m0;
+	struct mbuf		*m0, *m;
 	int			i;
 
 	block = (ndis_miniport_block *)adapter;
@@ -657,8 +672,18 @@ ndis_rxeof(adapter, packets, pktcnt)
 		p->np_softc = sc;
 		if (ndis_ptom(&m0, p)) {
 			printf ("ndis%d: ptom failed\n", sc->ndis_unit);
-			ndis_return_packet(sc, p);
+			if (p->np_oob.npo_status == NDIS_STATUS_SUCCESS)
+				ndis_return_packet(sc, p);
 		} else {
+			if (p->np_oob.npo_status == NDIS_STATUS_RESOURCES) {
+				m = m_dup(m0, M_DONTWAIT);
+				m_freem(m0);
+				if (m == NULL)
+					ifp->if_ierrors++;
+				else
+					m0 = m;
+			} else
+				p->np_oob.npo_status = NDIS_STATUS_PENDING;
 			m0->m_pkthdr.rcvif = ifp;
 			ifp->if_ipackets++;
 			(*ifp->if_input)(ifp, m0);
