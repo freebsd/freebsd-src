@@ -164,7 +164,6 @@ extern struct sockaddr key_addr;
 	{ x += ROUNDUP(n); }
 
 static int addrpart_equal __P((struct sockaddr *, struct sockaddr *));
-static int key_freetables __P((void));
 static int key_gethashval __P((char *, int, int));
 static int key_createkey __P((char *, u_int, struct sockaddr *,
 	struct sockaddr *, u_int32_t, u_int));
@@ -447,6 +446,7 @@ key_inittables()
   return 0;
 }
 
+#ifdef notyet
 static int
 key_freetables()
 {
@@ -456,6 +456,7 @@ key_freetables()
   key_acquirelist = NULL;
   return 0;
 }
+#endif
 
 /*----------------------------------------------------------------------
  * key_gethashval():
