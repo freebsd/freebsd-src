@@ -48,6 +48,7 @@ static char sccsid[] = "@(#)quotacheck.c	8.3 (Berkeley) 1/29/94";
  * Fix up / report on disk quotas & usage
  */
 #include <sys/param.h>
+#include <sys/queue.h>
 #include <sys/stat.h>
 
 #include <ufs/ufs/dinode.h>
@@ -166,13 +167,13 @@ main(argc, argv)
 	}
 	if (gflag) {
 		setgrent();
-		while ((gr = getgrent()) != 0)
+		while ((gr = getgrent()) != NULL)
 			(void) addid((u_long)gr->gr_gid, GRPQUOTA, gr->gr_name);
 		endgrent();
 	}
 	if (uflag) {
 		setpwent();
-		while ((pw = getpwent()) != 0)
+		while ((pw = getpwent()) != NULL)
 			(void) addid((u_long)pw->pw_uid, USRQUOTA, pw->pw_name);
 		endpwent();
 	}
@@ -361,10 +362,10 @@ update(fsname, quotafile, type)
 				printf("%s: ", fsname);
 			printf("%-8s fixed:", fup->fu_name);
 			if (dqbuf.dqb_curinodes != fup->fu_curinodes)
-				(void)printf("\tinodes %d -> %d",
+				(void)printf("\tinodes %ld -> %ld",
 					dqbuf.dqb_curinodes, fup->fu_curinodes);
 			if (dqbuf.dqb_curblocks != fup->fu_curblocks)
-				(void)printf("\tblocks %d -> %d",
+				(void)printf("\tblocks %ld -> %ld",
 					dqbuf.dqb_curblocks, fup->fu_curblocks);
 			(void)printf("\n");
 		}
@@ -382,7 +383,7 @@ update(fsname, quotafile, type)
 			dqbuf.dqb_itime = 0;
 		dqbuf.dqb_curinodes = fup->fu_curinodes;
 		dqbuf.dqb_curblocks = fup->fu_curblocks;
-		if (fseek(qfo, offset, SEEK_SET) < 0) {
+		if (fseek(qfo, (long)offset, SEEK_SET) < 0) {
 			(void) fprintf(stderr,
 		    	    "quotacheck: %s: seek failed: %s\n",
 			    quotafile, strerror(errno));
@@ -426,7 +427,7 @@ getquotagid()
 {
 	struct group *gr;
 
-	if (gr = getgrnam(quotagroup))
+	if ((gr = getgrnam(quotagroup)) != NULL)
 		return (gr->gr_gid);
 	return (-1);
 }
@@ -454,7 +455,7 @@ hasquota(fs, type, qfnamep)
 	}
 	strcpy(buf, fs->fs_mntops);
 	for (opt = strtok(buf, ","); opt; opt = strtok(NULL, ",")) {
-		if (cp = index(opt, '='))
+		if ((cp = index(opt, '=')) != NULL)
 			*cp++ = '\0';
 		if (type == USRQUOTA && strcmp(opt, usrname) == 0)
 			break;
@@ -503,7 +504,7 @@ addid(id, type, name)
 	struct fileusage *fup, **fhp;
 	int len;
 
-	if (fup = lookup(id, type))
+	if ((fup = lookup(id, type)) != NULL)
 		return (fup);
 	if (name)
 		len = strlen(name);
@@ -646,3 +647,4 @@ err(fmt, va_alist)
 	exit(1);
 	/* NOTREACHED */
 }
+
