@@ -6,7 +6,7 @@
  * [expediant "port" of linux 8087 emulator to 386BSD, with apologies -wfj]
  *
  *	from: 386BSD 0.1
- *	$Id: math_emulate.c,v 1.15 1995/12/07 12:45:33 davidg Exp $
+ *	$Id: math_emulate.c,v 1.16 1995/12/14 08:21:27 phk Exp $
  */
 
 /*
@@ -1582,7 +1582,7 @@ fpu(struct lkm_table *lkmtp, int cmd, int ver)
 #else /* !LKM */
 
 static void
-fpu_init(void)
+fpu_init(void *unused)
 {
 	if (pmath_emulate)
 		printf("Another Math emulator already present\n");
