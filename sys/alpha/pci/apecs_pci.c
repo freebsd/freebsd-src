@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: apecs_pci.c,v 1.1 1999/04/16 21:21:38 peter Exp $
  */
 
 #include <sys/param.h>
@@ -66,7 +66,6 @@ static device_method_t apecs_pcib_methods[] = {
 static driver_t apecs_pcib_driver = {
 	"pcib",
 	apecs_pcib_methods,
-	DRIVER_TYPE_MISC,
 	1,
 };
 

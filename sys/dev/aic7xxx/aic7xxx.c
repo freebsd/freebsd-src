@@ -36,7 +36,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aic7xxx.c,v 1.24 1999/04/26 22:03:44 ken Exp $
+ *      $Id: aic7xxx.c,v 1.25 1999/05/06 20:16:17 ken Exp $
  */
 /*
  * A few notes on features of the driver.
@@ -1377,8 +1377,8 @@ ahc_attach(struct ahc_softc *ahc)
 
 	s = splcam();
 	/* Hook up our interrupt handler */
-	if ((error = bus_setup_intr(ahc->device, ahc->irq, ahc_intr,
-				    ahc, &ahc->ih)) != 0) {
+	if ((error = bus_setup_intr(ahc->device, ahc->irq, INTR_TYPE_CAM,
+				    ahc_intr, ahc, &ahc->ih)) != 0) {
 		device_printf(ahc->device, "bus_setup_intr() failed: %d\n",
 			      error);
 		goto fail;

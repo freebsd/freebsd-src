@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: iicsmb.c,v 1.1.1.1 1998/09/03 20:51:50 nsouch Exp $
+ *	$Id: iicsmb.c,v 1.2 1998/10/31 11:31:07 nsouch Exp $
  *
  */
 
@@ -130,7 +130,6 @@ static device_method_t iicsmb_methods[] = {
 static driver_t iicsmb_driver = {
 	"iicsmb",
 	iicsmb_methods,
-	DRIVER_TYPE_MISC,
 	sizeof(struct iicsmb_softc),
 };
 

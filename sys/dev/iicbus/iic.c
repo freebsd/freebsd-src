@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: iic.c,v 1.7 1999/02/13 18:01:55 nsouch Exp $
+ *	$Id: iic.c,v 1.8 1999/05/07 10:09:46 phk Exp $
  *
  */
 #include <sys/param.h>
@@ -82,7 +82,6 @@ static device_method_t iic_methods[] = {
 static driver_t iic_driver = {
 	"iic",
 	iic_methods,
-	DRIVER_TYPE_MISC,
 	sizeof(struct iic_softc),
 };
 

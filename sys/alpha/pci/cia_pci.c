@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: cia_pci.c,v 1.1 1999/04/16 21:21:39 peter Exp $
  */
 
 #include <sys/param.h>
@@ -66,7 +66,6 @@ static device_method_t cia_pcib_methods[] = {
 static driver_t cia_pcib_driver = {
 	"pcib",
 	cia_pcib_methods,
-	DRIVER_TYPE_MISC,
 	1,
 };
 

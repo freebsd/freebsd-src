@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ahc_pci.c,v 1.8 1999/03/23 07:26:41 gibbs Exp $
+ *	$Id: ahc_pci.c,v 1.9 1999/04/23 23:30:21 gibbs Exp $
  */
 
 #include <pci.h>
@@ -162,7 +162,6 @@ static device_method_t ahc_pci_methods[] = {
 static driver_t ahc_pci_driver = {
 	"ahc",
 	ahc_pci_methods,
-	DRIVER_TYPE_CAM,
 	sizeof(struct ahc_softc)
 };
 

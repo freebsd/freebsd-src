@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: isa.c,v 1.123 1999/05/08 18:15:49 peter Exp $
+ *	$Id: isa.c,v 1.124 1999/05/08 21:28:39 peter Exp $
  */
 
 /*
@@ -564,11 +564,11 @@ isa_release_resource(device_t bus, device_t child, int type, int rid,
  * deal).
  */
 static int
-isa_setup_intr(device_t bus, device_t child, struct resource *r,
+isa_setup_intr(device_t bus, device_t child, struct resource *r, int flags,
 	       void (*ihand)(void *), void *arg, void **cookiep)
 {
-	return (BUS_SETUP_INTR(device_get_parent(bus), child, r, ihand, arg,
-			       cookiep));
+	return (BUS_SETUP_INTR(device_get_parent(bus), child, r, flags,
+			       ihand, arg, cookiep));
 }
 
 static int
@@ -604,7 +604,6 @@ static device_method_t isa_methods[] = {
 static driver_t isa_driver = {
 	"isa",
 	isa_methods,
-	DRIVER_TYPE_MISC,
 	1,			/* no softc */
 };
 

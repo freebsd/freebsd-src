@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: lpbb.c,v 1.3 1998/12/07 21:58:16 archie Exp $
+ *	$Id: lpbb.c,v 1.4 1999/01/10 12:04:54 nsouch Exp $
  *
  */
 
@@ -91,7 +91,6 @@ static device_method_t lpbb_methods[] = {
 static driver_t lpbb_driver = {
 	"lpbb",
 	lpbb_methods,
-	DRIVER_TYPE_MISC,
 	sizeof(struct lpbb_softc),
 };
 

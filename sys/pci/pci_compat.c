@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pci_compat.c,v 1.24 1999/04/24 19:55:41 peter Exp $
+ * $Id: pci_compat.c,v 1.25 1999/05/07 16:33:08 peter Exp $
  *
  */
 
@@ -163,10 +163,11 @@ pci_map_int_right(pcici_t cfg, pci_inthand_t *handler, void *arg,
 #endif
 	if (cfg->intpin != 0) {
 		int irq = cfg->intline;
-		driver_t *driver = device_get_driver(cfg->dev);
 		int rid = 0;
 		struct resource *res;
+		int flags = 0;
 		void *ih;
+
 		res = bus_alloc_resource(cfg->dev, SYS_RES_IRQ, &rid,
 					 irq, irq, 1, RF_SHAREABLE|RF_ACTIVE);
 		if (!res) {
@@ -175,19 +176,19 @@ pci_map_int_right(pcici_t cfg, pci_inthand_t *handler, void *arg,
 		}
 
 		/*
-		 * This is ugly. Translate the mask into a driver type.
+		 * This is ugly. Translate the mask into an interrupt type.
 		 */
 		if (maskptr == &tty_imask)
-			driver->type |= DRIVER_TYPE_TTY;
+			flags = INTR_TYPE_TTY;
 		else if (maskptr == &bio_imask)
-			driver->type |= DRIVER_TYPE_BIO;
+			flags = INTR_TYPE_BIO;
 		else if (maskptr == &net_imask)
-			driver->type |= DRIVER_TYPE_NET;
+			flags = INTR_TYPE_NET;
 		else if (maskptr == &cam_imask)
-			driver->type |= DRIVER_TYPE_CAM;
+			flags = INTR_TYPE_CAM;
 
 		error = BUS_SETUP_INTR(device_get_parent(cfg->dev), cfg->dev,
-				       res, handler, arg, &ih);
+				       res, flags, handler, arg, &ih);
 		if (error != 0)
 			return 0;
 
@@ -237,8 +238,8 @@ pci_map_int_right(pcici_t cfg, pci_inthand_t *handler, void *arg,
 				return 0;
 			}
 			error = BUS_SETUP_INTR(device_get_parent(cfg->dev),
-					       cfg->dev, res, handler, arg,
-					       &ih);
+					       cfg->dev, res, flags,
+					       handler, arg, &ih);
 			if (error != 0) {
 				printf("pci_map_int: BUS_SETUP_INTR failed\n");
 				return 0;

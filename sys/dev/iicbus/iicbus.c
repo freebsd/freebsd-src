@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: iicbus.c,v 1.7 1999/01/09 18:08:24 nsouch Exp $
+ *	$Id: iicbus.c,v 1.8 1999/04/11 02:55:52 eivind Exp $
  *
  */
 
@@ -114,7 +114,6 @@ static device_method_t iicbus_methods[] = {
 static driver_t iicbus_driver = {
         "iicbus",
         iicbus_methods,
-        DRIVER_TYPE_MISC,
         sizeof(struct iicbus_softc),
 };
 

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: pcf.c,v 1.7 1999/05/02 21:51:17 peter Exp $
+ *	$Id: pcf.c,v 1.8 1999/05/06 18:54:18 peter Exp $
  *
  */
 #include <sys/param.h>
@@ -136,7 +136,6 @@ static device_method_t pcf_methods[] = {
 static driver_t pcf_driver = {
 	"pcf",
 	pcf_methods,
-	DRIVER_TYPE_MISC,
 	sizeof(struct pcf_softc),
 };
 

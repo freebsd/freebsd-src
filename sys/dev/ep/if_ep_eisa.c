@@ -19,7 +19,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: 3c5x9.c,v 1.10 1997/09/21 21:35:21 gibbs Exp $
+ *	$Id: 3c5x9.c,v 1.11 1999/04/18 15:50:33 peter Exp $
  */
 
 #include "eisa.h"
@@ -274,7 +274,7 @@ ep_eisa_attach(device_t dev)
 
 	ep_attach(sc);
 
-	bus_setup_intr(dev, irq, ep_intr, sc, &ih);
+	bus_setup_intr(dev, irq, INTR_TYPE_NET, ep_intr, sc, &ih);
 
 	return 0;
 
@@ -299,7 +299,6 @@ static device_method_t ep_eisa_methods[] = {
 static driver_t ep_eisa_driver = {
 	"ep",
 	ep_eisa_methods,
-	DRIVER_TYPE_NET,
 	1,			/* unused */
 };
 
