@@ -51,8 +51,6 @@
 
 #undef DPT_USE_DLM_SWI
 
-extern u_long dpt_unit;
-
 #define DPT_RELEASE				1
 #define DPT_VERSION				4
 #define DPT_PATCH				5
@@ -1021,6 +1019,19 @@ struct sg_map_node {
 
 /* Main state machine and interface structure */
 typedef struct dpt_softc {
+
+	struct resource *	io_res;
+	int			io_rid;
+	int			io_type;
+	int			io_offset;
+
+	struct resource *	irq_res;
+	int			irq_rid;
+	void *			ih;
+
+	struct resource *	drq_res;
+	int			drq_rid;
+
 	bus_space_tag_t	   tag;
 	bus_space_handle_t bsh;
 	bus_dma_tag_t	   buffer_dmat;		/* dmat for buffer I/O */
@@ -1269,9 +1280,13 @@ dpt_time_delta(struct timeval start,
 extern TAILQ_HEAD(dpt_softc_list, dpt_softc) dpt_softcs;
 
 extern int		dpt_controllers_present;
+extern devclass_t	dpt_devclass;
 
 #ifdef _KERNEL
-dpt_softc_t *		dpt_alloc(device_t, bus_space_tag_t, bus_space_handle_t);
+void			dpt_alloc(device_t);
+int			dpt_detach(device_t);
+int			dpt_alloc_resources(device_t);
+void			dpt_release_resources(device_t);
 #endif
 void			dpt_free(struct dpt_softc *dpt);
 int			dpt_init(struct dpt_softc *dpt);
