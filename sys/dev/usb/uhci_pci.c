@@ -166,6 +166,8 @@ uhci_pci_resume(device_t self)
 {
 	uhci_softc_t *sc = device_get_softc(self);
 
+	pci_write_config(self, PCI_LEGSUP, PCI_LEGSUP_USBPIRQDEN, 2);
+
 	uhci_power(PWR_RESUME, sc);
 	bus_generic_resume(self);
 
