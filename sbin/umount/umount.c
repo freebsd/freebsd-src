@@ -219,12 +219,12 @@ umountfs(name)
 	if (!selected(type))
 		return (0);
 
-	if ((delimp = strchr(name, '@')) != NULL) {
+	if ((delimp = strchr(name, '@')) != NULL && type == MOUNT_NFS) {
 		hostp = delimp + 1;
 		*delimp = '\0';
 		hp = gethostbyname(hostp);
 		*delimp = '@';
-	} else if ((delimp = strchr(name, ':')) != NULL) {
+	} else if ((delimp = strchr(name, ':')) != NULL && type == MOUNT_NFS) {
 		*delimp = '\0';
 		hostp = name;
 		hp = gethostbyname(hostp);
