@@ -220,7 +220,7 @@ Functions used from other parts of the kernel are prototyped in the
 relevant include file.
 .Pp
 Functions that are used locally in more than one module go into a
-separate header file, e.g.
+separate header file, e.g.\&
 .Pa extern.h .
 .Pp
 Only use the __P macro from the include file <sys/cdefs.h> if the source
@@ -242,7 +242,7 @@ void	function(int fd);
 In header files visible to userland applications, prototypes that are
 visible must use either protected names or no names with the types.  It
 is preferable to use protected names.
-e.g., use:
+E.g., use:
 .Bd -literal
 void	function(int);
 .Ed
