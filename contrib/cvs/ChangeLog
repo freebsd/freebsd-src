@@ -1,3 +1,83 @@
+2004-06-09  Derek Price  <derek@ximbiot.com>
+
+	* NEWS: Note Stefan & Sebastian's security fixes.
+	* acinclude.m4 (gl_SIZE_MAX, gl_XSIZE): Import from GNULIB.
+	* configure.in: Call gl_XSIZE.
+
+2004-06-09  Derek Price  <derek@ximbiot.com>
+
+	* NEWS: Note CAN-2004-0414 fix.
+
+2004-05-19  Derek Price  <derek@ximbiot.com>
+
+	* NEWS: Note CAN-2004-0396 fix.
+
+2004-05-17  Derek Price  <derek@ximbiot.com>
+
+	* BUGS: Note assertion failure of r* commands.
+
+2004-05-17  Derek Price  <derek@ximbiot.com>
+
+	* BUGS: Remove out of date comment about out of date Windows build
+	files and several bug reports that are so old, without similar recent
+	reports, that I'm assuming that the problems have been fixed.
+
+2004-05-15  Derek Price  <derek@ximbiot.com>
+
+	* cvsnt.dsp: Header file list updated.
+	* cvsnt.dep: Regenerated for "cvsnt.dsp" change.
+	* cvsnt.mak: Regenerated for "cvsnt.dsp" change.
+	(Patch from Conrad Pino <conrad@pino.com>.)
+
+2004-05-13  Derek Price  <derek@ximbiot.com>
+
+	* NEWS: Note MSVC++ project file regeneration.
+
+2004-05-13  Derek Price  <derek@ximbiot.com>
+
+	* cvsnt.dsw: Rename "zlib/zlib.*" to "zlib/libz.*".
+	Add project "lib/libcvs".
+	* cvsnt.dsp: Revised for "cvsnt.dsw" changes.  Move "lib/*.c" to
+	project "lib/libcvs".  Upgraded to Visual C++ 6.0 format.
+	* cvsnt.dep: Added for "cvsnt.dsp" change.
+	* cvsnt.mak: Regenerated for "cvsnt.dsp" change.
+	(Patch from Conrad Pino <conrad@pino.com>.)
+
+	* configure.in: Generate windows-NT/fix-msvc-mak.
+
+2004-04-30  Derek Price  <derek@ximbiot.com>
+
+	* NEWS: Note that man page is generated from cvs.texinfo now.
+	* configure.in: Build doc/mkman.
+	* configure, Makefile.in: Regenerated.
+
+2004-04-26  Derek Price  <derek@ximbiot.com>
+
+	* NEWS: Note that :ext: no longer relies on an external transport with
+	a GNU argument processor.
+
+2004-04-20  Derek Price  <derek@ximbiot.com>
+
+	* NEWS: Note XP directory deletion fix.
+
+2004-04-16  Derek Price  <derek@ximbiot.com>
+
+	* NEWS: Correct CVS name for piped checkout issue now that we have one.
+
+2004-04-15  Derek Price  <derek@ximbiot.com>
+
+	* NEWS: Retroactively add CVE issue name for the piped etc issue.
+
+2004-04-15  Derek Price  <derek@ximbiot.com>
+
+	* NEWS: Retroactively add CVE issue name for the trojan server issue.
+
+2004-04-14  Derek Price  <derek@ximbiot.com>
+
+	* INSTALL (Building from source code under Unix): Move Autoconf &
+	Automake notes...
+	* HACKING (Regenerating Build Files): ...here.
+
 2004-04-13  Derek Price  <derek@ximbiot.com>
 
 	* NEWS: Note validation of paths passed to the client.

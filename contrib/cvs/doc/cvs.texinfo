@@ -4,12 +4,14 @@
 @macro copyleftnotice
 @noindent
 Copyright @copyright{} 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000,
-                       2001, 2002, 2003 Free Software Foundation, Inc.
+                       2001, 2002, 2003, 2004 Free Software Foundation, Inc.
 
 @multitable @columnfractions .12 .88
 @item Portions
-@item @tab Copyright @copyright{} 1999, 2000, 2001, 2002, 2003 Derek R. Price,
-@item @tab Copyright @copyright{} 2002, 2003 Ximbiot @url{http://ximbiot.com},
+@item @tab Copyright @copyright{} 1999, 2000, 2001, 2002, 2003, 2004
+                                  Derek R. Price,
+@item @tab Copyright @copyright{} 2002, 2003, 2004
+                                  Ximbiot @url{http://ximbiot.com},
 @item @tab Copyright @copyright{} 1992, 1993, 1999 Signum Support AB,
 @item @tab and Copyright @copyright{} others.
 @end multitable
@@ -255,7 +257,7 @@ module and vendor branch support.
 
 @cindex Source, getting CVS source
 You can get @sc{cvs} in a variety of ways, including
-free download from the internet.  For more information
+free download from the Internet.  For more information
 on downloading @sc{cvs} and other @sc{cvs} topics, see:
 
 @example
@@ -271,10 +273,10 @@ devoted to @sc{cvs}.  To subscribe or
 unsubscribe
 write to
 @email{info-cvs-request@@gnu.org}.
-If you prefer a usenet group, there is a one-way mirror (posts to the email
+If you prefer a Usenet group, there is a one-way mirror (posts to the email
 list are usually sent to the news group, but not visa versa) of
 @email{info-cvs@@gnu.org} at @url{news:gnu.cvs.help}.  The right
-usenet group for posts is @url{news:comp.software.config-mgmt} which is for
+Usenet group for posts is @url{news:comp.software.config-mgmt} which is for
 @sc{cvs} discussions (along with other configuration
 management systems).  In the future, it might be
 possible to create a
@@ -291,7 +293,7 @@ if there is sufficient @sc{cvs} traffic on
 You can also subscribe to the @email{bug-cvs@@gnu.org} mailing list,
 described in more detail in @ref{BUGS}.  To subscribe
 send mail to @email{bug-cvs-request@@gnu.org}.  There is a two-way
-usenet mirror (posts to the usenet group are usually sent to the email list and
+Usenet mirror (posts to the Usenet group are usually sent to the email list and
 visa versa) of @email{bug-cvs@@gnu.org} named @url{news:gnu.cvs.bug}.
 
 @c - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -421,11 +423,11 @@ nothing falls through the cracks.
 @item @sc{cvs} is not an automated testing program
 
 It should be possible to enforce mandatory use of a
-testsuite using the @code{commitinfo} file.  I haven't
+test suite using the @code{commitinfo} file.  I haven't
 heard a lot about projects trying to do that or whether
 there are subtle gotchas, however.
 
-@item @sc{cvs} does not have a builtin process model
+@item @sc{cvs} does not have a built-in process model
 
 Some systems provide ways to ensure that changes or
 releases go through various steps, with various
@@ -1002,7 +1004,7 @@ rules see @ref{Tags}.
 @c FIXME: we need to somehow reflect "permissions in
 @c repository" versus "permissions in working
 @c directory" in the index entries.
-@cindex Group, UNIX file premissions, in repository
+@cindex Group, UNIX file permissions, in repository
 @cindex Read-only files, in repository
 All @samp{,v} files are created read-only, and you
 should not change the permission of those files.  The
@@ -1211,7 +1213,7 @@ files.
 This behavior is implemented only by @sc{cvs} 1.7 and
 later; for details see @ref{Watches Compatibility}.
 
-The format of the fileattr file is a series of entries
+The format of the @file{fileattr} file is a series of entries
 of the following form (where @samp{@{} and @samp{@}}
 means the text between the braces can be repeated zero
 or more times):
@@ -1234,7 +1236,7 @@ Note that the order of the lines is not significant;
 a program writing the fileattr file may
 rearrange them at its convenience.
 
-There is currently no way of quoting tabs or linefeeds in the
+There is currently no way of quoting tabs or line feeds in the
 filename, @samp{=} in @var{attrname},
 @samp{;} in @var{attrval}, etc.  Note: some implementations also
 don't handle a NUL character in any of the fields, but
@@ -1244,7 +1246,7 @@ By convention, @var{attrname} starting with @samp{_} is for an attribute given
 special meaning by @sc{cvs}; other @var{attrname}s are for user-defined attributes
 (or will be, once implementations start supporting user-defined attributes).
 
-Builtin attributes:
+Built-in attributes:
 
 @table @code
 @item _watched
@@ -1303,7 +1305,7 @@ For an introduction to @sc{cvs} locks focusing on
 user-visible behavior, see @ref{Concurrency}.  The
 following section is aimed at people who are writing
 tools which want to access a @sc{cvs} repository without
-interfering with other tools acessing the same
+interfering with other tools accessing the same
 repository.  If you find yourself confused by concepts
 described here, like @dfn{read lock}, @dfn{write lock},
 and @dfn{deadlock}, you might consult the literature on
@@ -1320,7 +1322,7 @@ The directory @file{#cvs.lock} serves as a master
 lock.  That is, one must obtain this lock first before
 creating any of the other locks.
 
-To obtain a readlock, first create the @file{#cvs.lock}
+To obtain a read lock, first create the @file{#cvs.lock}
 directory.  This operation must be atomic (which should
 be true for creating a directory under most operating
 systems).  If it fails because the directory already
@@ -1334,8 +1336,8 @@ Then proceed with reading the repository.  When you are
 done, remove the @file{#cvs.rfl} file to release the
 read lock.
 
-To obtain a writelock, first create the
-@file{#cvs.lock} directory, as with a readlock.  Then
+To obtain a write lock, first create the
+@file{#cvs.lock} directory, as with read locks.  Then
 check that there are no files whose names start with
 @file{#cvs.rfl.}.  If there are, remove
 @file{#cvs.lock}, wait for a while, and try again.  If
@@ -1351,7 +1353,7 @@ informational; it has no effect on the locking operation
 beyond what is provided by holding on to the
 @file{#cvs.lock} lock itself.
 
-Note that each lock (writelock or readlock) only locks
+Note that each lock (write lock or read lock) only locks
 a single directory in the repository, including
 @file{Attic} and @file{CVS} but not including
 subdirectories which represent other directories under
@@ -1360,11 +1362,11 @@ lock each directory (note that if you fail to obtain
 any lock you need, you must release the whole tree
 before waiting and trying again, to avoid deadlocks).
 
-Note also that @sc{cvs} expects writelocks to control
+Note also that @sc{cvs} expects write locks to control
 access to individual @file{foo,v} files.  @sc{rcs} has
 a scheme where the @file{,foo,} file serves as a lock,
 but @sc{cvs} does not implement it and so taking out a
-@sc{cvs} writelock is recommended.  See the comments at
+@sc{cvs} write lock is recommended.  See the comments at
 rcs_internal_lockfile in the @sc{cvs} source code for
 further discussion/rationale.
 
@@ -2068,7 +2070,7 @@ described in @ref{Connecting via rsh}.
 * Connecting via rsh::          Using the @code{rsh} program to connect
 * Password authenticated::      Direct connections using passwords
 * GSSAPI authenticated::        Direct connections using GSSAPI
-* Kerberos authenticated::      Direct connections with kerberos
+* Kerberos authenticated::      Direct connections with Kerberos
 * Connecting via fork::         Using a forked @code{cvs server} to connect
 @end menu
 
@@ -2688,7 +2690,7 @@ authenticating with GSSAPI.
 
 To do this, @sc{cvs} needs to be compiled with GSSAPI
 support; when configuring @sc{cvs} it tries to detect
-whether GSSAPI libraries using kerberos version 5 are
+whether GSSAPI libraries using Kerberos version 5 are
 present.  You can also use the @file{--with-gssapi}
 flag to configure.
 
@@ -2720,7 +2722,7 @@ cvs/@var{hostname}, where @var{hostname} is the
 canonical name of the server host.  You will have to
 set this up as required by your GSSAPI mechanism.
 
-To connect using GSSAPI, use @samp{:gserver:}.  For
+To connect using GSSAPI, use the @samp{:gserver:} method.  For
 example,
 
 @example
@@ -2728,27 +2730,27 @@ cvs -d :gserver:faun.example.org:/usr/local/cvsroot checkout foo
 @end example
 
 @node Kerberos authenticated
-@subsection Direct connection with kerberos
+@subsection Direct connection with Kerberos
 
 @cindex Kerberos, using :kserver:
-@cindex Security, kerberos
+@cindex Security, Kerberos
 @cindex :kserver:, setting up
-The easiest way to use kerberos is to use the kerberos
+The easiest way to use Kerberos is to use the Kerberos
 @code{rsh}, as described in @ref{Connecting via rsh}.
 The main disadvantage of using rsh is that all the data
 needs to pass through additional programs, so it may be
-slower.  So if you have kerberos installed you can
+slower.  So if you have Kerberos installed you can
 connect via a direct @sc{tcp} connection,
-authenticating with kerberos.
+authenticating with Kerberos.
 
-This section concerns the kerberos network security
+This section concerns the Kerberos network security
 system, version 4.  Kerberos version 5 is supported via
 the GSSAPI generic network security interface, as
 described in the previous section.
 
-To do this, @sc{cvs} needs to be compiled with kerberos
+To do this, @sc{cvs} needs to be compiled with Kerberos
 support; when configuring @sc{cvs} it tries to detect
-whether kerberos is present or you can use the
+whether Kerberos is present or you can use the
 @file{--with-krb4} flag to configure.
 
 The data transmitted is @emph{not} encrypted by
@@ -3172,6 +3174,9 @@ the repository:
 $ cd tc
 $ cvs import -m "Created directory structure" yoyodyne/@var{dir} yoyo start
 @end example
+
+This will add yoyodyne/@var{dir} as a directory under
+@code{$CVSROOT}.
 
 Then, use @code{add} to add files (and new directories)
 as they appear.
@@ -3810,8 +3815,8 @@ File: driver.c          Status: Up-to-date
 @cindex Deleting sticky tags
 The sticky tags will remain on your working files until
 you delete them with @samp{cvs update -A}.  The
-@samp{-A} option retrieves the version of the file from
-the head of the trunk, removing any sticky tags,
+@samp{-A} option merges local changes into the version of the
+file from the head of the trunk, removing any sticky tags,
 dates, or options.  See @ref{update} for more on the operation
 of @code{cvs update}.
 
@@ -3916,7 +3921,7 @@ out release 1.0 (@pxref{Tags}) and find the bug
 (which turns out to have a trivial fix).  However, the current revision
 of the sources are in a state of flux and are not expected to be stable
 for at least another month.  There is no way to make a
-bugfix release based on the newest sources.
+bug fix release based on the newest sources.
 
 The thing to do in a situation like this is to create a @dfn{branch} on
 the revision trees for all the files that make up
@@ -4461,7 +4466,7 @@ branch since @sc{cvs} does not automatically add static tags to dead revisions.
 The exception to this rule occurs when
 a static tag has been attached to a dead revision manually.  Use the branch tag
 to merge all changes from the branch or use two static tags as merge endpoints
-to be sure that all intended changes are propogated in the merge.
+to be sure that all intended changes are propagated in the merge.
 
 @c - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 @node Merging and keywords
@@ -4505,7 +4510,7 @@ results from a merge:
 
 @example
 $ cat file1
-key $@splitrcskeyword{}Revision: 1.2 $
+key $@splitrcskeyword{Revision}: 1.2 $
 . . .
 $ cvs update -j br1
 U file1
@@ -4516,9 +4521,9 @@ Merging differences between 1.1 and 1.1.2.1 into file1
 rcsmerge: warning: conflicts during merge
 $ cat file1
 @asis{}<<<<<<< file1
-key $@splitrcskeyword{}Revision: 1.2 $
+key $@splitrcskeyword{Revision}: 1.2 $
 @asis{}=======
-key $@splitrcskeyword{}Revision: 1.1.2.1 $
+key $@splitrcskeyword{Revision}: 1.1.2.1 $
 @asis{}>>>>>>> 1.1.2.1
 . . .
 @end example
@@ -4535,7 +4540,7 @@ Here is what happens if you had used @samp{-kk}:
 
 @example
 $ cat file1
-key $@splitrcskeyword{}Revision: 1.2 $
+key $@splitrcskeyword{Revision}: 1.2 $
 . . .
 $ cvs update -kk -j br1
 U file1
@@ -4544,7 +4549,7 @@ retrieving revision 1.1
 retrieving revision 1.1.2.1
 Merging differences between 1.1 and 1.1.2.1 into file1
 $ cat file1
-key $@splitrcskeyword{}Revision$
+key $@splitrcskeyword{Revision}$
 . . .
 @end example
 
@@ -4731,15 +4736,17 @@ directory.
 @c changing right away.
 
 Unlike most other commands, the @code{add} command is
-not recursive.  You cannot even type @samp{cvs add
-foo/bar}!  Instead, you have to
-@c FIXCVS: This is, of course, not a feature.  It is
-@c just that no one has gotten around to fixing "cvs add
-@c foo/bar".
+not recursive.  You have to expcicitly name files and
+directories that you wish to add to the repository.
+However, each directory will need to be added
+separately before you will be able to add new files
+to those directories.
 
 @example
-$ cd foo
-$ cvs add bar
+$ mkdir -p foo/bar
+$ cp ~/myfile foo/bar/myfile
+$ cvs add foo foo/bar
+$ cvs add foo/bar/myfile
 @end example
 
 @cindex add (subcommand)
@@ -5294,7 +5301,6 @@ through the history.
 * log messages::                Log messages
 * history database::            The history database
 * user-defined logging::        User-defined logging
-* annotate::                    What revision modified each line of a file?
 @end menu
 
 @c - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -5390,10 +5396,6 @@ Note: you can control what is logged to this file by using the
 @node user-defined logging
 @section User-defined logging
 
-@c FIXME: should probably also mention the fact the -l
-@c global option can disable most of the mechanisms
-@c discussed here (why?  What is the -l global option for?).
-@c
 @c FIXME: probably should centralize this information
 @c here, at least to some extent.  Maybe by moving the
 @c loginfo, etc., nodes here and replacing
@@ -5420,45 +5422,6 @@ the way of keeping centralized scripts up to date, use
 the @code{cvs watch add} command (@pxref{Getting
 Notified}); this command is useful even if you are not
 using @code{cvs watch on}.
-
-@node annotate
-@section Annotate command
-@cindex annotate (subcommand)
-
-@deffn Command {cvs annotate} [@code{-FflR}] [@code{-r rev}|@code{-D date}] files @dots{}
-
-For each file in @var{files}, print the head revision
-of the trunk, together with information on the last
-modification for each line.  For example:
-
-@example
-$ cvs annotate ssfile
-Annotations for ssfile
-***************
-1.1          (mary     27-Mar-96): ssfile line 1
-1.2          (joe      28-Mar-96): ssfile line 2
-@end example
-
-The file @file{ssfile} currently contains two lines.
-The @code{ssfile line 1} line was checked in by
-@code{mary} on March 27.  Then, on March 28, @code{joe}
-added a line @code{ssfile line 2}, without modifying
-the @code{ssfile line 1} line.  This report doesn't
-tell you anything about lines which have been deleted
-or replaced; you need to use @code{cvs diff} for that
-(@pxref{diff}).
-
-@end deffn
-
-The options to @code{cvs annotate} are listed in
-@ref{Invoking CVS}, and can be used to select the files
-and revisions to annotate.  The options are described
-in more detail there and in @ref{Common options}.
-
-@c FIXME: maybe an example using the options?  Just
-@c what it means to select a revision might be worth a
-@c few words of explanation ("you want to see who
-@c changed this line *before* 1.4"...).
 
 @c ---------------------------------------------------------------------
 @node Binary files
@@ -5558,7 +5521,7 @@ Here is an example of how you can create a new file
 using the @samp{-kb} flag:
 
 @example
-$ echo '$@splitrcskeyword{}Id$' > kotest
+$ echo '$@splitrcskeyword{Id}$' > kotest
 $ cvs add -kb -m"A test file" kotest
 $ cvs ci -m"First checkin; contains a keyword" kotest
 @end example
@@ -5568,7 +5531,7 @@ one can use the @code{cvs admin} command to recover.
 For example:
 
 @example
-$ echo '$@splitrcskeyword{}Id$' > kotest
+$ echo '$@splitrcskeyword{Id}$' > kotest
 $ cvs add -m"A test file" kotest
 $ cvs ci -m"First checkin; contains a keyword" kotest
 $ cvs admin -kb kotest
@@ -5747,7 +5710,7 @@ to RCS wouldn't think to use chmod anyway).
 
 Implementation: use file attributes or use RCS
 locking.  The former avoids more dependence on RCS
-behaviors we will need to reimplement as we librarify
+behaviors we will need to re-implement as we librarify
 RCS, and makes it easier to import/export RCS files (in
 that context, want to ignore the locker field).  But
 note that RCS locks are per-branch, which is the
@@ -6820,7 +6783,7 @@ a new revision of the file.
 * Using keywords::              Using keywords
 * Avoiding substitution::       Avoiding substitution
 * Substitution modes::          Substitution modes
-* Log keyword::                 Problems with the $@splitrcskeyword{}Log$ keyword.
+* Log keyword::                 Problems with the $@splitrcskeyword{Log}$ keyword.
 @end menu
 
 @c - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -6876,7 +6839,7 @@ The log message supplied during commit, preceded by a
 header containing the @sc{rcs} filename, the revision
 number, the author, and the date (UTC).  Existing log
 messages are @emph{not} replaced.  Instead, the new log
-message is inserted after @code{$@splitrcskeyword{Log:@dots{}}$}.
+message is inserted after @code{$@splitrcskeyword{Log}:@dots{}$}.
 Each new line is prefixed with the same string which
 precedes the @code{$Log} keyword.  For example, if the
 file contains:
@@ -6884,7 +6847,7 @@ file contains:
 @example
   /* Here is what people have been up to:
    *
-   * $@splitrcskeyword{}Log: frob.c,v $
+   * $@splitrcskeyword{Log}: frob.c,v $
    * Revision 1.1  1997/01/03 14:23:51  joe
    * Add the superfrobnicate option
    *
@@ -6926,10 +6889,12 @@ assigned with @code{cvs admin -s}---see @ref{admin options}.
 
 To include a keyword string you simply include the
 relevant text string, such as @code{$@splitrcskeyword{Id}$}, inside the
-file, and commit the file.  @sc{cvs} will automatically
+file, and commit the file.  @sc{cvs} will automatically (Or,
+more accurately, as part of the update run that
+automatically happens after a commit.)
 expand the string as part of the commit operation.
 
-It is common to embed the @code{$@splitrcskeyword{}Id$} string in
+It is common to embed the @code{$@splitrcskeyword{Id}$} string in
 the source files so that it gets passed through to
 generated files.  For example, if you are managing
 computer program source code, you might include a
@@ -6955,11 +6920,11 @@ binary files.
 @example
 $ ident samp.c
 samp.c:
-     $@splitrcskeyword{}Id: samp.c,v 1.5 1993/10/19 14:57:32 ceder Exp $
+     $@splitrcskeyword{Id}: samp.c,v 1.5 1993/10/19 14:57:32 ceder Exp $
 $ gcc samp.c
 $ ident a.out
 a.out:
-     $@splitrcskeyword{}Id: samp.c,v 1.5 1993/10/19 14:57:32 ceder Exp $
+     $@splitrcskeyword{Id}: samp.c,v 1.5 1993/10/19 14:57:32 ceder Exp $
 @end example
 
 @cindex What (shell command)
@@ -6973,7 +6938,7 @@ command.  Simply prefix the keyword with the
 magic @sc{sccs} phrase, like this:
 
 @example
-static char *id="@@(#) $@splitrcskeyword{}Id: ab.c,v 1.5 1993/10/19 14:57:32 ceder Exp $";
+static char *id="@@(#) $@splitrcskeyword{Id}: ab.c,v 1.5 1993/10/19 14:57:32 ceder Exp $";
 @end example
 
 @c - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -6982,9 +6947,9 @@ static char *id="@@(#) $@splitrcskeyword{}Id: ab.c,v 1.5 1993/10/19 14:57:32 ced
 
 Keyword substitution has its disadvantages.  Sometimes
 you might want the literal text string
-@samp{$@splitrcskeyword{}Author$} to appear inside a file without
+@samp{$@splitrcskeyword{Author}$} to appear inside a file without
 @sc{cvs} interpreting it as a keyword and expanding it
-into something like @samp{$@splitrcskeyword{}Author: ceder $}.
+into something like @samp{$@splitrcskeyword{Author}: ceder $}.
 
 There is unfortunately no way to selectively turn off
 keyword substitution.  You can use @samp{-ko}
@@ -6995,7 +6960,7 @@ In many cases you can avoid using keywords in
 the source, even though they appear in the final
 product.  For example, the source for this manual
 contains @samp{$@@asis@{@}Author$} whenever the text
-@samp{$@splitrcskeyword{}Author$} should appear.  In @code{nroff}
+@samp{$@splitrcskeyword{Author}$} should appear.  In @code{nroff}
 and @code{troff} you can embed the null-character
 @code{\&} inside the keyword for a similar effect.
 
@@ -7035,7 +7000,7 @@ The modes available are:
 @table @samp
 @item -kkv
 Generate keyword strings using the default form, e.g.
-@code{$@splitrcskeyword{}Revision: 5.7 $} for the @code{Revision}
+@code{$@splitrcskeyword{Revision}: 5.7 $} for the @code{Revision}
 keyword.
 
 @item -kkvl
@@ -7047,8 +7012,8 @@ The locker's name is only relevant if @code{cvs admin
 @item -kk
 Generate only keyword names in keyword strings; omit
 their values.  For example, for the @code{Revision}
-keyword, generate the string @code{$@splitrcskeyword{}Revision$}
-instead of @code{$@splitrcskeyword{}Revision: 5.7 $}.  This option
+keyword, generate the string @code{$@splitrcskeyword{Revision}$}
+instead of @code{$@splitrcskeyword{Revision}: 5.7 $}.  This option
 is useful to ignore differences due to keyword
 substitution when comparing different revisions of a
 file (@pxref{Merging and keywords}).
@@ -7057,8 +7022,8 @@ file (@pxref{Merging and keywords}).
 Generate the old keyword string, present in the working
 file just before it was checked in.  For example, for
 the @code{Revision} keyword, generate the string
-@code{$@splitrcskeyword{}Revision: 1.1 $} instead of
-@code{$@splitrcskeyword{}Revision: 5.7 $} if that is how the
+@code{$@splitrcskeyword{Revision}: 1.1 $} instead of
+@code{$@splitrcskeyword{Revision}: 5.7 $} if that is how the
 string appeared when the file was checked in.
 
 @item -kb
@@ -7074,10 +7039,10 @@ only to terminate lines, this is the same as
 @item -kv
 Generate only keyword values for keyword strings.  For
 example, for the @code{Revision} keyword, generate the string
-@code{5.7} instead of @code{$@splitrcskeyword{}Revision: 5.7 $}.
+@code{5.7} instead of @code{$@splitrcskeyword{Revision}: 5.7 $}.
 This can help generate files in programming languages
 where it is hard to strip keyword delimiters like
-@code{$@splitrcskeyword{}Revision: $} from a string.  However,
+@code{$@splitrcskeyword{Revision}: $} from a string.  However,
 further keyword substitution cannot be performed once
 the keyword names are removed, so this option should be
 used with care.
@@ -7090,18 +7055,18 @@ handle an export containing binary files correctly.
 
 @c - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 @node Log keyword
-@section Problems with the $@splitrcskeyword{}Log$ keyword.
+@section Problems with the $@splitrcskeyword{Log}$ keyword.
 
-The @code{$@splitrcskeyword{}Log$} keyword is somewhat
+The @code{$@splitrcskeyword{Log}$} keyword is somewhat
 controversial.  As long as you are working on your
 development system the information is easily accessible
-even if you do not use the @code{$@splitrcskeyword{}Log$}
+even if you do not use the @code{$@splitrcskeyword{Log}$}
 keyword---just do a @code{cvs log}.  Once you export
 the file the history information might be useless
 anyhow.
 
 A more serious concern is that @sc{cvs} is not good at
-handling @code{$@splitrcskeyword{}Log$} entries when a branch is
+handling @code{$@splitrcskeyword{Log}$} entries when a branch is
 merged onto the main trunk.  Conflicts often result
 from the merging operation.
 @c Might want to check whether the CVS implementation
@@ -7115,7 +7080,7 @@ errors).  If that is done the information from
 information inside the file.  This may or may not be a
 problem in real life.
 
-It has been suggested that the @code{$@splitrcskeyword{}Log$}
+It has been suggested that the @code{$@splitrcskeyword{Log}$}
 keyword should be inserted @emph{last} in the file, and
 not in the files header, if it is to be used at all.
 That way the long list of change messages will not
@@ -7435,7 +7400,7 @@ to break a project down into smaller
 @c may not use the modules file.
 separately-compiled subsystems, and arrange a way of
 releasing them internally so that each developer need
-check out only those subsystems which are they are
+check out only those subsystems which they are
 actively working on.
 
 Another approach is to set up a structure which allows
@@ -7575,6 +7540,7 @@ supported.
 @end ignore
 
 @c ---------------------------------------------------------------------
+@c ----- START MAN 1 -----
 @node CVS commands
 @appendix Guide to CVS commands
 
@@ -7604,6 +7570,7 @@ reference to @sc{cvs} commands, @pxref{Invoking CVS}).
 * Global options::              Options you give to the left of cvs_command
 * Common options::              Options you give to the right of cvs_command
 * admin::                       Administration
+* annotate::                    What revision modified each line of a file?
 * checkout::                    Checkout sources for editing
 * commit::                      Check files into the repository
 * diff::                        Show differences between revisions
@@ -7655,10 +7622,10 @@ Arguments to the commands.
 
 There is unfortunately some confusion between
 @code{cvs_options} and @code{command_options}.
-@samp{-l}, when given as a @code{cvs_option}, only
-affects some of the commands.  When it is given as a
-@code{command_option} is has a different meaning, and
-is accepted by more commands.  In other words, do not
+When given as a @code{cvs_option}, some options only
+affect some of the commands.  When given as a
+@code{command_option} it may have a different meaning, and
+be accepted by more commands.  In other words, do not
 take the above categorization too seriously.  Look at
 the documentation instead.
 
@@ -7843,10 +7810,6 @@ a command name, @samp{cvs -H} displays overall help for
 @c rather than trying to update this documentation
 @c every time that we add a --help-foo option.  But
 @c perhaps that is confusing...
-
-@item -l
-Do not log the @samp{cvs_command} in the command history (but execute it
-anyway).  @xref{history}, for information on command history.
 
 @cindex Read-only mode
 @item -n
@@ -8574,7 +8537,7 @@ stable), and @samp{Rel} (for released).  By default,
 the state of a new revision is set to @samp{Exp} when
 it is created.  The state is visible in the output from
 @var{cvs log} (@pxref{log}), and in the
-@samp{$@splitrcskeyword{}Log$} and @samp{$@splitrcskeyword{}State$} keywords
+@samp{$@splitrcskeyword{Log}$} and @samp{$@splitrcskeyword{State}$} keywords
 (@pxref{Keyword substitution}).  Note that @sc{cvs}
 uses the @code{dead} state for its own purposes; to
 take a file to or from the @code{dead} state use
@@ -8642,6 +8605,91 @@ this option has never done anything useful.
 @c The rcs -z option, to specify the timezone, has
 @c never been documented as a cvs admin option.
 @end table
+
+
+@c - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+@node annotate
+@appendixsec annotate---What revision modified each line of a file?
+@cindex annotate (subcommand)
+
+@itemize @bullet
+@item
+Synopsis: annotate [options] files@dots{}
+@item
+Requires: repository.
+@item
+Changes: nothing.
+@end itemize
+
+For each file in @var{files}, print the head revision
+of the trunk, together with information on the last
+modification for each line.  
+
+@menu
+* annotate options::            annotate options
+* annotate example::            annotate example
+@end menu
+
+@c . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+@node annotate options
+@appendixsubsec annotate options
+
+These standard options are supported by @code{annotate}
+(@pxref{Common options}, for a complete description of
+them):
+
+@table @code
+@item -l
+Local directory only, no recursion.
+
+@item -R
+Process directories recursively.
+
+@item -f
+Use head revision if tag/date not found.
+
+@item -F
+Annotate binary files.
+
+@item -r @var{revision}
+Annotate file as of specified revision/tag.
+
+@item -D @var{date}
+Annotate file as of specified date.
+@end table
+
+@c . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+@node annotate example
+@appendixsubsec annotate example
+
+For example:
+
+@example
+$ cvs annotate ssfile
+Annotations for ssfile
+***************
+1.1          (mary     27-Mar-96): ssfile line 1
+1.2          (joe      28-Mar-96): ssfile line 2
+@end example
+
+The file @file{ssfile} currently contains two lines.
+The @code{ssfile line 1} line was checked in by
+@code{mary} on March 27.  Then, on March 28, @code{joe}
+added a line @code{ssfile line 2}, without modifying
+the @code{ssfile line 1} line.  This report doesn't
+tell you anything about lines which have been deleted
+or replaced; you need to use @code{cvs diff} for that
+(@pxref{diff}).
+
+The options to @code{cvs annotate} are listed in
+@ref{Invoking CVS}, and can be used to select the files
+and revisions to annotate.  The options are described
+in more detail there and in @ref{Common options}.
+
+@c FIXME: maybe an example using the options?  Just
+@c what it means to select a revision might be worth a
+@c few words of explanation ("you want to see who
+@c changed this line *before* 1.4"...).
 
 
 @c - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -9464,7 +9512,7 @@ it is specified; otherwise it is a format that outputs the line group as-is.
 
 @item --new-group-format=@var{format}
 These line groups are hunks containing only lines from the second
-file.  The default new group format is same as the the changed group
+file.  The default new group format is same as the changed group
 format if it is specified; otherwise it is a format that outputs the
 line group as-is.
 
@@ -9555,7 +9603,7 @@ This format spec is equivalent to @var{T} if
 @var{A}'s value equals @var{B}'s; otherwise it is equivalent to @var{E}.
 
 For example, @samp{%(N=0?no:%dN) line%(N=1?:s)} is equivalent to
-@samp{no lines} if @var{N} (the number of lines in the group in the the
+@samp{no lines} if @var{N} (the number of lines in the group in the
 new file) is 0, to @samp{1 line} if @var{N} is 1, and to @samp{%dN lines}
 otherwise.
 @end table
@@ -9607,11 +9655,11 @@ following forms.
 
 @table @samp
 @item %l
-stands for the the contents of the line, not counting its trailing
+stands for the contents of the line, not counting its trailing
 newline (if any).  This format ignores whether the line is incomplete.
 
 @item %L
-stands for the the contents of the line, including its trailing newline
+stands for the contents of the line, including its trailing newline
 (if any).  If a line is incomplete, this format preserves its
 incompleteness.
 
@@ -10484,7 +10532,7 @@ $$ Mail -s 'The patches you asked for' foo@@example.net
 @end example
 
 Suppose you have made release 1.3, and forked a branch
-called @samp{R_1_3fix} for bugfixes.  @samp{R_1_3_1}
+called @samp{R_1_3fix} for bug fixes.  @samp{R_1_3_1}
 corresponds to release 1.3.1, which was made some time
 ago.  Now, you want to see how much development has been
 done on the branch.  This command can be used:
@@ -10849,6 +10897,8 @@ description of the @samp{-I} option, and
 @pxref{cvsignore}).
 @end table
 
+@c ----- END MAN 1 -----
+@c ---------------------------------------------------------------------
 @node Invoking CVS
 @appendix Quick reference to CVS commands
 @cindex Command reference
@@ -10897,10 +10947,6 @@ options}.
 @itemx --help
 Print a help message.  See @ref{Global options}.
 
-@item -l
-Do not log in @file{$CVSROOT/CVSROOT/history} file.  See @ref{Global
-options}.
-
 @item -n
 Do not change any files.  See @ref{Global options}.
 
@@ -10945,9 +10991,9 @@ See @ref{Global options}.
 Keyword expansion modes (@pxref{Substitution modes}):
 
 @example
--kkv  $@splitrcskeyword{}Id: file1,v 1.1 1993/12/09 03:21:13 joe Exp $
--kkvl $@splitrcskeyword{}Id: file1,v 1.1 1993/12/09 03:21:13 joe Exp harry $
--kk   $@splitrcskeyword{}Id$
+-kkv  $@splitrcskeyword{Id}: file1,v 1.1 1993/12/09 03:21:13 joe Exp $
+-kkvl $@splitrcskeyword{Id}: file1,v 1.1 1993/12/09 03:21:13 joe Exp harry $
+-kk   $@splitrcskeyword{Id}$
 -kv   file1,v 1.1 1993/12/09 03:21:13 joe Exp
 -ko   @i{no expansion}
 -kb   @i{no expansion, file is binary}
@@ -10956,17 +11002,17 @@ Keyword expansion modes (@pxref{Substitution modes}):
 Keywords (@pxref{Keyword list}):
 
 @example
-$@splitrcskeyword{}Author: joe $
-$@splitrcskeyword{}Date: 1993/12/09 03:21:13 $
-$@splitrcskeyword{}Header: /home/files/file1,v 1.1 1993/12/09 03:21:13 joe Exp harry $
-$@splitrcskeyword{}Id: file1,v 1.1 1993/12/09 03:21:13 joe Exp harry $
-$@splitrcskeyword{}Locker: harry $
-$@splitrcskeyword{}Name: snapshot_1_14 $
-$@splitrcskeyword{}RCSfile: file1,v $
-$@splitrcskeyword{}Revision: 1.1 $
-$@splitrcskeyword{}Source: /home/files/file1,v $
-$@splitrcskeyword{}State: Exp $
-$@splitrcskeyword{}Log: file1,v $
+$@splitrcskeyword{Author}: joe $
+$@splitrcskeyword{Date}: 1993/12/09 03:21:13 $
+$@splitrcskeyword{Header}: /home/files/file1,v 1.1 1993/12/09 03:21:13 joe Exp harry $
+$@splitrcskeyword{Id}: file1,v 1.1 1993/12/09 03:21:13 joe Exp harry $
+$@splitrcskeyword{Locker}: harry $
+$@splitrcskeyword{Name}: snapshot_1_14 $
+$@splitrcskeyword{RCSfile}: file1,v $
+$@splitrcskeyword{Revision}: 1.1 $
+$@splitrcskeyword{Source}: /home/files/file1,v $
+$@splitrcskeyword{State}: Exp $
+$@splitrcskeyword{Log}: file1,v $
 Revision 1.1  1993/12/09 03:30:17  joe
 Initial revision
 
@@ -11572,7 +11618,7 @@ be tagged.  See @ref{Tagging add/remove}.
 Create a branch named @var{tag}.  See @ref{Branching and merging}.
 
 @item -B
-Used in conjuntion with -F or -d, enables movement and deletion of
+Used in conjunction with -F or -d, enables movement and deletion of
 branch tags.  Use with extreme caution. 
 
 @item -D @var{date}
@@ -12314,7 +12360,7 @@ committed (@pxref{modules}).  The files described in
 this section provide other, more flexible, ways to run
 programs whenever something is committed.
 
-There are three kind of programs that can be run on
+There are three kinds of programs that can be run on
 commit.  They are specified in files in the repository,
 as described below.  The following table summarizes the
 file names and the purpose of the corresponding
@@ -13440,7 +13486,7 @@ log message after running the program specified by @file{verifymsg}.
 the log message should always be reread; @samp{no}
 or @samp{never}, indicating that it should never be
 reread; or @var{value} may be @samp{stat}, indicating
-that the file should be checked with the filesystem
+that the file should be checked with the file system
 @samp{stat()} function to see if it has changed (see warning below)
 before rereading.  The default value is @samp{always}.
 
@@ -13686,7 +13732,7 @@ The remote protocol is interoperable going back to @sc{cvs} 1.5, but no
 further (1.5 was the first official release with the remote protocol,
 but some older versions might still be floating around).  In many
 cases you need to upgrade both the client and the server to take
-advantage of new features and bugfixes, however.
+advantage of new features and bug fixes, however.
 
 @c Perhaps should be saying something here about the
 @c "D" lines in Entries (written by CVS 1.9; 1.8 and
@@ -13787,7 +13833,7 @@ This message has been happening in a non-reproducible,
 occasional way when we run the client/server testsuite,
 both on Red Hat Linux 3.0.3 and 4.1.  We haven't been
 able to figure out what causes it, nor is it known
-whether it is specific to linux (or even to this
+whether it is specific to Linux (or even to this
 particular machine!).  If the problem does occur on
 other unices, @samp{Operation not permitted} would be
 likely to read @samp{Not owner} or whatever the system
@@ -14056,9 +14102,9 @@ called from the @file{loginfo} administrative file.
 Check that the arguments passed in @file{loginfo} match
 what your version of @file{log.pl} expects.  In
 particular, the @file{log.pl} from @sc{cvs} 1.3 and
-older expects the logfile as an argument whereas the
+older expects the log file as an argument whereas the
 @file{log.pl} from @sc{cvs} 1.5 and newer expects the
-logfile to be specified with a @samp{-f} option.  Of
+log file to be specified with a @samp{-f} option.  Of
 course, if you don't need @file{log.pl} you can just
 comment it out of @file{loginfo}.
 
