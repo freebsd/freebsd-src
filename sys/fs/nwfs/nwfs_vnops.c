@@ -526,20 +526,22 @@ nwfs_rename(ap)
 		error = EBUSY;
 		goto out;
 	}
+	if (fvp->v_type == VDIR) {
+		oldtype |= NW_TYPE_SUBDIR;
+	} else if (fvp->v_type == VREG) {
+		oldtype |= NW_TYPE_FILE;
+	} else {
+		error = EINVAL;
+		goto out;
+	}
 	if (tvp && tvp != fvp) {
 		error = ncp_DeleteNSEntry(nmp, VTONW(tdvp)->n_fid.f_id,
 		    tcnp->cn_namelen, tcnp->cn_nameptr, 
 		    tcnp->cn_thread, tcnp->cn_cred);
 		if (error == 0x899c) error = EACCES;
 		if (error)
-			goto out;
+			goto out_cacherem;
 	}
-	if (fvp->v_type == VDIR) {
-		oldtype |= NW_TYPE_SUBDIR;
-	} else if (fvp->v_type == VREG) {
-		oldtype |= NW_TYPE_FILE;
-	} else
-		return EINVAL;
 	error = ncp_nsrename(NWFSTOCONN(nmp), nmp->n_volume, nmp->name_space, 
 		oldtype, &nmp->m.nls,
 		VTONW(fdvp)->n_fid.f_id, fcnp->cn_nameptr, fcnp->cn_namelen,
@@ -553,6 +555,10 @@ nwfs_rename(ap)
 			cache_purge(tdvp);
 		cache_purge(fdvp);
 	}
+out_cacherem:
+	nwfs_attr_cacheremove(fdvp);
+	nwfs_attr_cacheremove(tdvp);
+	nwfs_attr_cacheremove(fvp);
 out:
 	if (tdvp == tvp)
 		vrele(tdvp);
@@ -562,9 +568,6 @@ out:
 		vput(tvp);
 	vrele(fdvp);
 	vrele(fvp);
-	nwfs_attr_cacheremove(fdvp);
-	nwfs_attr_cacheremove(tdvp);
-	nwfs_attr_cacheremove(fvp);
 	if (tvp)
 		nwfs_attr_cacheremove(tvp);
 	/*
