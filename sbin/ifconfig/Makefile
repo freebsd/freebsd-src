@@ -20,8 +20,14 @@ SRCS+=	ifieee80211.c
 CFLAGS+=-DUSE_IEEE80211
 
 MAN=	ifconfig.8
+
+.if defined(RELEASE_CRUNCH)
+CFLAGS+=-DNO_IPX
+.else
 DPADD=	${LIBIPX}
 LDADD=	-lipx
+.endif
+
 COPTS=	-DNS -Wall -Wmissing-prototypes -Wcast-qual -Wwrite-strings \
 	-Wnested-externs -I..
 
