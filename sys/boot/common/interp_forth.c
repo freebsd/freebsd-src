@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: interp_forth.c,v 1.6 1998/11/07 03:44:10 jkh Exp $
+ *	$Id: interp_forth.c,v 1.7 1998/11/07 06:18:00 jkh Exp $
  */
 
 #include <stand.h>
@@ -42,7 +42,7 @@
  * BootForth   Interface to Ficl Forth interpreter.
  */
 
-static FICL_VM	*bf_vm;
+FICL_VM	*bf_vm;
 
 /*
  * Shim for taking commands from BF and passing them out to 'standard'
@@ -89,14 +89,17 @@ bf_command(FICL_VM *vm)
     if (!parse(&argc, &argv, line)) {
 	result = (cmd)(argc, argv);
 	free(argv);
-	if (result != 0) {
-	    strcpy(command_errmsg, vm->pad);
-	    vmTextOut(vm, vm->pad, 1);
+	if(result != 0) {
+		vmTextOut(vm,argv[0],0);
+		vmTextOut(vm,": ",0);
+		vmTextOut(vm,command_errmsg,1);
 	}
     } else {
 	vmTextOut(vm, "parse error\n", 1);
+	result=1;
     }
     free(line);
+    stackPushINT32(vm->pStack,!result);
 }
 
 /*
