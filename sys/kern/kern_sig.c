@@ -95,7 +95,7 @@ static int	filt_signal(struct knote *kn, long hint);
 static struct thread *sigtd(struct proc *p, int sig, int prop);
 static int	kern_sigtimedwait(struct thread *td, sigset_t set,
 				siginfo_t *info, struct timespec *timeout);
-static void	do_tdsignal(struct thread *td, int sig);
+static void	do_tdsignal(struct thread *td, int sig, sigtarget_t target);
 
 struct filterops sig_filtops =
 	{ 0, filt_sigattach, filt_sigdetach, filt_signal };
@@ -761,7 +761,7 @@ sigwait(struct thread *td, struct sigwait_args *uap)
 	/* Repost if we got an error. */
 	if (error && info.si_signo) {
 		PROC_LOCK(td->td_proc);
-		tdsignal(td, info.si_signo);
+		tdsignal(td, info.si_signo, SIGTARGET_TD);
 		PROC_UNLOCK(td->td_proc);
 	}
 	return (error);
@@ -800,7 +800,7 @@ sigtimedwait(struct thread *td, struct sigtimedwait_args *uap)
 	/* Repost if we got an error. */
 	if (error && info.si_signo) {
 		PROC_LOCK(td->td_proc);
-		tdsignal(td, info.si_signo);
+		tdsignal(td, info.si_signo, SIGTARGET_TD);
 		PROC_UNLOCK(td->td_proc);
 	} else {
 		td->td_retval[0] = info.si_signo; 
@@ -831,7 +831,7 @@ sigwaitinfo(struct thread *td, struct sigwaitinfo_args *uap)
 	/* Repost if we got an error. */
 	if (error && info.si_signo) {
 		PROC_LOCK(td->td_proc);
-		tdsignal(td, info.si_signo);
+		tdsignal(td, info.si_signo, SIGTARGET_TD);
 		PROC_UNLOCK(td->td_proc);
 	} else {
 		td->td_retval[0] = info.si_signo;
@@ -1538,7 +1538,7 @@ trapsignal(struct thread *td, int sig, u_long code)
 		mtx_unlock(&ps->ps_mtx);
 		p->p_code = code;	/* XXX for core dump/debugger */
 		p->p_sig = sig;		/* XXX to verify code */
-		tdsignal(td, sig);
+		tdsignal(td, sig, SIGTARGET_TD);
 	}
 	PROC_UNLOCK(p);
 }
@@ -1607,21 +1607,21 @@ psignal(struct proc *p, int sig)
 	 */
 	td = sigtd(p, sig, prop);
 
-	tdsignal(td, sig);
+	tdsignal(td, sig, SIGTARGET_P);
 }
 
 /*
  * MPSAFE
  */
 void
-tdsignal(struct thread *td, int sig)
+tdsignal(struct thread *td, int sig, sigtarget_t target)
 {
 	sigset_t saved;
 	struct proc *p = td->td_proc;
 
 	if (p->p_flag & P_SA)
 		saved = p->p_siglist;
-	do_tdsignal(td, sig);
+	do_tdsignal(td, sig, target);
 	if ((p->p_flag & P_SA) && !(p->p_flag & P_SIGEVENT)) {
 		if (SIGSETEQ(saved, p->p_siglist))
 			return;
@@ -1634,7 +1634,7 @@ tdsignal(struct thread *td, int sig)
 }
 
 static void
-do_tdsignal(struct thread *td, int sig)
+do_tdsignal(struct thread *td, int sig, sigtarget_t target)
 {
 	struct proc *p;
 	register sig_t action;
@@ -1656,10 +1656,12 @@ do_tdsignal(struct thread *td, int sig)
 
 	/*
 	 * If this thread is blocking this signal then we'll leave it in the
-	 * proc so that we can find it in the first thread that unblocks it.
+	 * proc so that we can find it in the first thread that unblocks
+	 * it--  unless the signal is meant for the thread and not the process.
 	 */
-	if (SIGISMEMBER(td->td_sigmask, sig))
-		siglist = &p->p_siglist;
+	if (target == SIGTARGET_P)
+		siglist = SIGISMEMBER(td->td_sigmask, sig) ?
+			      &p->p_siglist : &td->td_siglist;
 	else
 		siglist = &td->td_siglist;
 
