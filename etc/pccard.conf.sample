@@ -8,7 +8,7 @@
 # IRQ == 0 means "allocate free IRQ from IRQ pool"
 # IRQ == 16 means "do not use IRQ (e.g. PIO mode)"
 #
-# $Id$
+# $Id: pccard.conf.sample,v 1.6 1997/02/23 09:20:43 peter Exp $
 
 # Generally available IO ports
 io	0x240-0x360
@@ -248,8 +248,8 @@ card "Maxtor" "MXL131"
 	insert	echo Maxtor 131MB HDD inserted
 	remove	echo Maxtor 131MB HDD removed
 
-# Adaptec SlimSCSI 
-card "Adaptec, Inc." "APA-1460 SCSI Host "
+# Adaptec SlimSCSI (also included with Sony CD-ROM players)
+card "Adaptec, Inc." "APA-1460 SCSI Host Adapter"
 	config	0x9 "aic0" 10
 	insert	echo Adaptec Slim SCSI inserted
 	remove	echo Adaptec Slim SCSI removed
