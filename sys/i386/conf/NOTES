@@ -525,6 +525,7 @@ device		aacp	# SCSI Passthrough interface (optional, CAM required)
 # pmtimer: Timer device driver for power management events (APM or ACPI)
 # spigot: The Creative Labs Video Spigot video-acquisition board
 # dgb: Digiboard PC/Xi and PC/Xe series driver (ALPHA QUALITY!)
+# digi: Digiboard driver
 # gp:  National Instruments AT-GPIB and AT-GPIB/TNT board, PCMCIA-GPIB
 # asc: GI1904-based hand scanners, e.g. the Trust Amiscan Grey
 # gsc: Genius GS-4500 hand scanner.
@@ -623,6 +624,18 @@ options		NDGBPORTS=17
 hint.dgb.0.at="isa"
 hint.dgb.0.port="0x220"
 hint.dgb.0.maddr="0xfc000"
+device		digi
+hint.digi.0.at="isa"
+hint.digi.0.port="0x104"
+hint.digi.0.maddr="0xd0000"
+# BIOS & FEP/OS components of device digi.
+device		digi_CX
+device		digi_CX_PCI
+device		digi_EPCX
+device		digi_EPCX_PCI
+device		digi_Xe
+device		digi_Xem
+device		digi_Xr
 device		rc
 hint.rc.0.at="isa"
 hint.rc.0.port="0x220"
