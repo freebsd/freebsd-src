@@ -260,12 +260,10 @@ g_dev_ioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
 		error = g_io_getattr("GEOM::ioctl", cp, &i, gio, td);
 	g_free(gio);
 
-	if (error == 0) {
-		if (error != 0 && cmd == DIOCGDVIRGIN) {
-			g_topology_lock();
-			gp = g_create_geomf("BSD-method", cp->provider, NULL);
-			g_topology_unlock();
-		}
+	if (error != 0 && cmd == DIOCGDVIRGIN) {
+		g_topology_lock();
+		gp = g_create_geomf("BSD-method", cp->provider, NULL);
+		g_topology_unlock();
 	}
 	mtx_lock(&Giant);
 	g_rattle();
