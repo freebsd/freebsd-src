@@ -22,18 +22,28 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
+#include <sys/types.h>
+#include <sys/param.h>
+
+#include <ctype.h>
+#include <err.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
 
 #include "randomize_fd.h"
 
-struct rand_node *rand_root;
-struct rand_node *rand_tail;
+static struct rand_node *rand_root;
+static struct rand_node *rand_tail;
 
-
-static
-struct rand_node *rand_node_allocate(void)
+static struct rand_node *
+rand_node_allocate(void)
 {
 	struct rand_node *n;
 
@@ -47,9 +57,8 @@ struct rand_node *rand_node_allocate(void)
 	return(n);
 }
 
-
-static
-void rand_node_free(struct rand_node *n)
+static void
+rand_node_free(struct rand_node *n)
 {
 	if (n != NULL) {
 		if (n->cp != NULL)
@@ -59,9 +68,8 @@ void rand_node_free(struct rand_node *n)
 	}
 }
 
-
-static
-void rand_node_free_rec(struct rand_node *n)
+static void
+rand_node_free_rec(struct rand_node *n)
 {
 	if (n != NULL) {
 		if (n->next != NULL)
@@ -71,31 +79,30 @@ void rand_node_free_rec(struct rand_node *n)
 	}
 }
 
-
-static
-struct rand_node *rand_node_append(struct rand_node *n)
+static void
+rand_node_append(struct rand_node *n)
 {
-	if (rand_root == NULL) {
+	if (rand_root == NULL)
 		rand_root = rand_tail = n;
-		return(n);
-	} else {
+	else {
 		rand_tail->next = n;
 		rand_tail = n;
-
-		return(n);
 	}
 }
 
-
-int randomize_fd(int fd, int type, int unique, double denom)
+int
+randomize_fd(int fd, int type, int unique, double denom)
 {
 	u_char *buf, *p;
 	u_int numnode, j, selected, slen;
 	struct rand_node *n, *prev;
-	int bufc, bufleft, buflen, eof, fndstr, i, len, ret;
+	int bufleft, eof, fndstr, ret;
+	size_t bufc, buflen, i;
+	ssize_t len;
 
 	rand_root = rand_tail = NULL;
-	bufc = bufleft = eof = fndstr = numnode = 0;
+	bufc = i = 0;
+	bufleft = eof = fndstr = numnode = ret = 0;
 
 	if (type == RANDOM_TYPE_UNSET)
 		type = RANDOM_TYPE_LINES;
@@ -111,23 +118,22 @@ int randomize_fd(int fd, int type, int unique, double denom)
 			len = read(fd, buf, buflen);
 			if (len == -1)
 				err(1, "read");
-			else if (len == 0)
-				break;
-			else if (len < buflen) {
-				buflen = len;
+			else if (len == 0) {
 				eof++;
-			}
+				break;
+			} else if ((size_t)len < buflen)
+				buflen = (size_t)len;
 
-			bufleft = len;
+			bufleft = (int)len;
 		}
 
 		/* Look for a newline */
-		for (i = bufc; i <= buflen; i++, bufleft--) {
+		for (i = bufc; i <= buflen && bufleft >= 0; i++, bufleft--) {
 			if (i == buflen) {
 				if (fndstr) {
 					if (!eof) {
 						memmove(buf, &buf[bufc], i - bufc);
-						i = i - bufc;
+						i -= bufc;
 						bufc = 0;
 						len = read(fd, &buf[i], buflen - i);
 						if (len == -1)
@@ -135,10 +141,10 @@ int randomize_fd(int fd, int type, int unique, double denom)
 						else if (len == 0) {
 							eof++;
 							break;
-						} else if (len < buflen -i )
-							buflen = i + len;
+						} else if (len < (ssize_t)(buflen - i))
+							buflen = i + (size_t)len;
 
-						bufleft = len;
+						bufleft = (int)len;
 						fndstr = 0;
 					}
 				} else {
@@ -154,10 +160,10 @@ int randomize_fd(int fd, int type, int unique, double denom)
 						else if (len == 0) {
 							eof++;
 							break;
-						} else if (len < buflen -i )
-							buflen = len;
+						} else if (len < (ssize_t)(buflen - i))
+							buflen = (size_t)len;
 
-						bufleft = len;
+						bufleft = (int)len;
 					}
 
 					buflen *= 2;
@@ -167,19 +173,22 @@ int randomize_fd(int fd, int type, int unique, double denom)
 			if ((type == RANDOM_TYPE_LINES && buf[i] == '\n') ||
 			    (type == RANDOM_TYPE_WORDS && isspace((int)buf[i])) ||
 			    (eof && i == buflen - 1)) {
+			make_token:
 				n = rand_node_allocate();
-				slen = i - bufc;
-				n->len = slen + 2;
-				n->cp = (u_char *)malloc(slen + 2);
-				if (n->cp == NULL)
-					err(1, "malloc");
+				if (-1 != (int)i) {
+					slen = i - (u_long)bufc;
+					n->len = slen + 2;
+					n->cp = (u_char *)malloc(slen + 2);
+					if (n->cp == NULL)
+						err(1, "malloc");
 
-				memmove(n->cp, &buf[bufc], slen);
-				n->cp[slen] = buf[i];
-				n->cp[slen + 1] = '\0';
-				bufc = i + 1;
-				fndstr = 1;
+					memmove(n->cp, &buf[bufc], slen);
+					n->cp[slen] = buf[i];
+					n->cp[slen + 1] = '\0';
+					bufc = i + 1;
+				}
 				rand_node_append(n);
+				fndstr = 1;
 				numnode++;
 			}
 		}
@@ -187,12 +196,21 @@ int randomize_fd(int fd, int type, int unique, double denom)
 
 	(void)close(fd);
 
+	/* Necessary evil to compensate for files that don't end with a newline */
+	if (bufc != i) {
+		i--;
+		goto make_token;
+	}
+
 	for (i = numnode; i > 0; i--) {
 		selected = ((int)denom * random())/(((double)RAND_MAX + 1) / numnode);
 
 		for (j = 0, prev = n = rand_root; n != NULL; j++, prev = n, n = n->next) {
 			if (j == selected) {
-				ret = printf("%.*s", n->len - 1, n->cp);
+				if (n->cp == NULL)
+					break;
+
+				ret = printf("%.*s", (int)n->len - 1, n->cp);
 				if (ret < 0)
 					err(1, "printf");
 				if (unique) {
