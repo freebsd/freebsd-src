@@ -1,7 +1,7 @@
 /*
  * Miscellaneous support routines..
  *
- * $Id: misc.c,v 1.12.2.13 1996/05/24 06:08:56 jkh Exp $
+ * $Id: misc.c,v 1.12.2.14 1996/06/17 21:57:50 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -255,7 +255,7 @@ Mkdir(char *ipath, void *data)
     int final=0;
     char *p, *path;
 
-    if (file_readable(ipath))
+    if (file_readable(ipath) || Fake)
 	return DITEM_SUCCESS;
 
     path = strdup(ipath);
@@ -294,6 +294,9 @@ Mount(char *mountp, void *dev)
     struct ufs_args ufsargs;
     char device[80];
     char mountpoint[FILENAME_MAX];
+
+    if (Fake)
+	return DITEM_SUCCESS;
 
     if (*((char *)dev) != '/') {
     	sprintf(device, "/mnt/dev/%s", (char *)dev);
