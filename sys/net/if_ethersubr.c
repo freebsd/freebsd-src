@@ -359,10 +359,10 @@ ether_output(ifp, m, dst, rt0)
 		if ((m->m_flags & M_BCAST) || (loop_copy > 0)) {
 			struct mbuf *n = m_copy(m, 0, (int)M_COPYALL);
 
-			(void) if_simloop(ifp, n, dst, hlen);
+			(void) if_simloop(ifp, n, dst->sa_family, hlen);
 		} else if (bcmp(eh->ether_dhost,
 		    eh->ether_shost, ETHER_ADDR_LEN) == 0) {
-			(void) if_simloop(ifp, m, dst, hlen);
+			(void) if_simloop(ifp, m, dst->sa_family, hlen);
 			return (0);	/* XXX */
 		}
 	}

@@ -1643,7 +1643,7 @@ pim6_input(mp, offp, proto)
 #endif
 
  		rc = if_simloop(mif6table[reg_mif_num].m6_ifp, m,
-			      (struct sockaddr *) &dst, NULL);
+			      dst.sin6_family, NULL);
 
 		/* prepare the register head to send to the mrouting daemon */
 		m = mcp;

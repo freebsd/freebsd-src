@@ -1874,7 +1874,7 @@ ip_mloopback(ifp, m, dst, hlen)
 			    CSUM_DATA_VALID | CSUM_PSEUDO_HDR;
 			copym->m_pkthdr.csum_data = 0xffff;
 		}
-		if_simloop(ifp, copym, (struct sockaddr *)dst, 0);
+		if_simloop(ifp, copym, dst->sin_family, 0);
 #endif
 	}
 }
