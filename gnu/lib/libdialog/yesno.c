@@ -19,7 +19,8 @@
  */
 
 #ifndef lint
-static const char rcsid[] = "$FreeBSD$";
+static const char rcsid[] =
+  "$FreeBSD$";
 #endif
 
 #include <dialog.h>
@@ -121,6 +122,10 @@ dialog_yesno_proc(unsigned char *title, unsigned char *prompt, int height, int w
   while (key != ESC) {
     print_button(dialog, "  No  ", y, x+13, button);
     print_button(dialog, " Yes " , y, x, !button);
+    if (button)
+	wmove(dialog, y, x+16);
+    else
+	wmove(dialog, y, x+2);
     wrefresh(dialog);
 
     key = wgetch(dialog);
