@@ -316,6 +316,9 @@ _mtx_lock_flags(struct mtx *m, int opts, const char *file, int line)
 {
 
 	MPASS(curthread != NULL);
+	KASSERT(m->mtx_object.lo_class == &lock_class_mtx_sleep,
+	    ("mtx_lock() of spin mutex %s @ %s:%d", m->mtx_object.lo_name,
+	    file, line));
 	_get_sleep_lock(m, curthread, opts, file, line);
 	LOCK_LOG_LOCK("LOCK", &m->mtx_object, opts, m->mtx_recurse, file,
 	    line);
@@ -336,6 +339,12 @@ _mtx_unlock_flags(struct mtx *m, int opts, const char *file, int line)
 {
 
 	MPASS(curthread != NULL);
+	KASSERT(m->mtx_object.lo_class == &lock_class_mtx_sleep,
+	    ("mtx_unlock() of spin mutex %s @ %s:%d", m->mtx_object.lo_name,
+	    file, line));
+ 	WITNESS_UNLOCK(&m->mtx_object, opts | LOP_EXCLUSIVE, file, line);
+	LOCK_LOG_LOCK("UNLOCK", &m->mtx_object, opts, m->mtx_recurse, file,
+	    line);
 	mtx_assert(m, MA_OWNED);
 #ifdef MUTEX_PROFILING
 	if (m->mtx_acqtime != 0) {
@@ -392,9 +401,6 @@ unlock:
 	}
 out:
 #endif
- 	WITNESS_UNLOCK(&m->mtx_object, opts | LOP_EXCLUSIVE, file, line);
-	LOCK_LOG_LOCK("UNLOCK", &m->mtx_object, opts, m->mtx_recurse, file,
-	    line);
 	_rel_sleep_lock(m, curthread, opts, file, line);
 }
 
@@ -403,6 +409,9 @@ _mtx_lock_spin_flags(struct mtx *m, int opts, const char *file, int line)
 {
 
 	MPASS(curthread != NULL);
+	KASSERT(m->mtx_object.lo_class == &lock_class_mtx_spin,
+	    ("mtx_lock_spin() of sleep mutex %s @ %s:%d",
+	    m->mtx_object.lo_name, file, line));
 #if defined(SMP) || LOCK_DEBUG > 0 || 1
 	_get_spin_lock(m, curthread, opts, file, line);
 #else
@@ -418,10 +427,13 @@ _mtx_unlock_spin_flags(struct mtx *m, int opts, const char *file, int line)
 {
 
 	MPASS(curthread != NULL);
-	mtx_assert(m, MA_OWNED);
+	KASSERT(m->mtx_object.lo_class == &lock_class_mtx_spin,
+	    ("mtx_unlock_spin() of sleep mutex %s @ %s:%d",
+	    m->mtx_object.lo_name, file, line));
  	WITNESS_UNLOCK(&m->mtx_object, opts | LOP_EXCLUSIVE, file, line);
 	LOCK_LOG_LOCK("UNLOCK", &m->mtx_object, opts, m->mtx_recurse, file,
 	    line);
+	mtx_assert(m, MA_OWNED);
 #if defined(SMP) || LOCK_DEBUG > 0 || 1
 	_rel_spin_lock(m);
 #else
