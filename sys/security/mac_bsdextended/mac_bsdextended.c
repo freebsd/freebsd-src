@@ -58,6 +58,7 @@
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
+#include <sys/syslog.h>
 
 #include <net/bpfdesc.h>
 #include <net/if.h>
@@ -92,9 +93,22 @@ SYSCTL_INT(_security_mac_bsdextended, OID_AUTO, rule_count, CTLFLAG_RD,
 SYSCTL_INT(_security_mac_bsdextended, OID_AUTO, rule_slots, CTLFLAG_RD,
     &rule_slots, 0, "Number of used rule slots\n");
 
+/*
+ * This tunable spits out information about what is going on which
+ * would be more suited for a log file.  Eventually
+ * this will go away as we do not currently use it.
+ */
 static int mac_bsdextended_debugging;
 SYSCTL_INT(_security_mac_bsdextended, OID_AUTO, debugging, CTLFLAG_RW,
     &mac_bsdextended_debugging, 0, "Enable debugging on failure");
+
+/*
+ * This is just used for logging purposes as eventually we would like
+ * to log much more then failed requests.
+ */
+static int mac_bsdextended_logging;
+SYSCTL_INT(_security_mac_bsdextended, OID_AUTO, logging, CTLFLAG_RW,
+    &mac_bsdextended_logging, 0, "Log failed authorization requests");
 
 /*
  * This tunable is here for compatibility.  It will allow the user
@@ -270,11 +284,11 @@ mac_bsdextended_rulecheck(struct mac_bsdextended_rule *rule,
 	 * Is the access permitted?
 	 */
 	if ((rule->mbr_mode & acc_mode) != acc_mode) {
-		if (mac_bsdextended_debugging)
-			printf("mac_bsdextended: %d:%d request %d on %d:%d"
-			    " fails\n", cred->cr_ruid, cred->cr_rgid,
-			    acc_mode, object_uid, object_gid);
-		return (EACCES);
+		if (mac_bsdextended_logging)
+			log(LOG_AUTHPRIV, "mac_bsdextended: %d:%d request %d"
+			    " on %d:%d failed. \n", cred->cr_ruid,
+			    cred->cr_rgid, acc_mode, object_uid, object_gid);
+		return (EACCES); /* Matching rule denies access */
 	}
 	/*
 	 * If the rule matched and allowed access and first match is
