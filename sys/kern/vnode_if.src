@@ -222,6 +222,14 @@ vop_poll {
 };
 
 #
+#% kqfilter	vp	U U U
+#
+vop_kqfilter {
+	IN struct vnode *vp;
+	IN struct knote *kn;
+};
+
+#
 #% revoke	vp	U U U
 #
 vop_revoke {

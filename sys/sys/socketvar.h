@@ -306,6 +306,7 @@ struct sockaddr;
 struct stat;
 struct ucred;
 struct uio;
+struct knote;
 
 /*
  * File operations on sockets.
@@ -320,6 +321,7 @@ int	soo_ioctl __P((struct file *fp, u_long cmd, caddr_t data,
 int	soo_poll __P((struct file *fp, int events, struct ucred *cred,
 	    struct proc *p));
 int	soo_stat __P((struct file *fp, struct stat *ub, struct proc *p));
+int	sokqfilter __P((struct file *fp, struct knote *kn));
 
 /*
  * From uipc_socket and friends

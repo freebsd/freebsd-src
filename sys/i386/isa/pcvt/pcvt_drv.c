@@ -114,8 +114,9 @@ static struct cdevsw pc_cdevsw = {
 	/* maj */	CDEV_MAJOR,
 	/* dump */	nodump,
 	/* psize */	nopsize,
-	/* flags */	D_TTY,
-	/* bmaj */	-1
+	/* flags */	D_TTY | D_KQFILTER,
+	/* bmaj */	-1,
+	/* kqfilter */	ttykqfilter,
 };
 
 #if PCVT_NETBSD > 100	/* NetBSD-current Feb 20 1995 */

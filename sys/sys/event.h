@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999,2000 Jonathan Lemon <jlemon@FreeBSD.org>
+ * Copyright (c) 1999,2000,2001 Jonathan Lemon <jlemon@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,6 +38,15 @@
 
 #define EVFILT_SYSCOUNT		6
 
+#define EV_SET(kevp, a, b, c, d, e, f) do {	\
+	(kevp)->ident = (a);			\
+	(kevp)->filter = (b);			\
+	(kevp)->flags = (c);			\
+	(kevp)->fflags = (d);			\
+	(kevp)->data = (e);			\
+	(kevp)->udata = (f);			\
+} while(0)
+
 struct kevent {
 	uintptr_t	ident;		/* identifier for this event */
 	short		filter;		/* filter for event */
@@ -65,6 +74,11 @@ struct kevent {
 #define EV_ERROR	0x4000		/* error, data contains errno */
 
 /*
+ * data/hint flags for EVFILT_{READ|WRITE}, shared with userspace
+ */
+#define NOTE_LOWAT	0x0001			/* low water mark */
+
+/*
  * data/hint flags for EVFILT_VNODE, shared with userspace
  */
 #define	NOTE_DELETE	0x0001			/* vnode was removed */
@@ -73,6 +87,7 @@ struct kevent {
 #define	NOTE_ATTRIB	0x0008			/* attributes changed */
 #define	NOTE_LINK	0x0010			/* link count changed */
 #define	NOTE_RENAME	0x0020			/* vnode was renamed */
+#define	NOTE_REVOKE	0x0040			/* vnode access was revoked */
 
 /*
  * data/hint flags for EVFILT_PROC, shared with userspace
@@ -127,6 +142,7 @@ struct knote {
 		struct		proc *p_proc;	/* proc pointer */
 	} kn_ptr;
 	struct			filterops *kn_fop;
+	caddr_t			kn_hook;
 #define KN_ACTIVE	0x01			/* event has been triggered */
 #define KN_QUEUED	0x02			/* event is on queue */
 #define KN_DISABLED	0x04			/* event is disabled */

@@ -50,8 +50,10 @@
 #include <net/if.h>
 #include <net/route.h>
 
-struct	fileops socketops =
-    { soo_read, soo_write, soo_ioctl, soo_poll, soo_stat, soo_close };
+struct	fileops socketops = {
+	soo_read, soo_write, soo_ioctl, soo_poll, sokqfilter,
+	soo_stat, soo_close
+};
 
 /* ARGSUSED */
 int
