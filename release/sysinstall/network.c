@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: network.c,v 1.5 1995/05/29 11:01:34 jkh Exp $
+ * $Id: network.c,v 1.6 1995/05/30 08:28:53 rgrimes Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -68,6 +68,8 @@ mediaInitNetwork(Device *dev)
 		msgConfirm("Unable to start PPP!  This installation method\ncannot be used.");
 		return FALSE;
 	    }
+	    networkInitialized = TRUE;
+	    return TRUE;
 	}
 	else {
 	    char *val;
@@ -157,7 +159,7 @@ startPPP(Device *devp)
     int fd, fd2;
     FILE *fp;
     char *val;
-    char myaddr[16], provider[16];
+    char myaddr[16], provider[16], netmask[16];
 
     fd = open("/dev/ttyv2", O_RDWR);
     if (fd == -1)
@@ -187,10 +189,7 @@ startPPP(Device *devp)
     if (!val)
 	val = "115200";
     fprintf(fp, " set speed %s\n", val);
-    if (getenv(VAR_GATEWAY))
-	strcpy(provider, getenv(VAR_GATEWAY));
-    else
-	strcpy(provider, "0");
+    strcpy(provider, getenv(VAR_GATEWAY) ? getenv(VAR_GATEWAY) : "0");
     val = msgGetInput(provider, "Enter the IP address of your service provider or 0 if you\ndon't know it and would prefer to negotiate it dynamically.");
     if (!val)
 	val = "0";
@@ -199,6 +198,9 @@ startPPP(Device *devp)
     else
 	strcpy(myaddr, "0");
     fprintf(fp, " set ifaddr %s %s\n", myaddr, val);
+
+    strcpy(netmask, getenv(VAR_NETMASK) ? getenv(VAR_NETMASK) : "0xffffffff");
+    fprintf(fp, "add 0 %s %s\n", netmask, provider);
     fclose(fp);
     if (!fork()) {
 	dup2(fd, 0);
