@@ -27,6 +27,8 @@
 #include <dev/sound/pcm/sound.h>
 #include <dev/sound/isa/sb.h>
 
+#include <isa/isavar.h>
+
 SND_DECLARE_FILE("$FreeBSD$");
 
 #ifdef __alpha__
