@@ -874,9 +874,6 @@ options 	COMPAT_LINUX
 # and PSEUDOFS)
 options 	LINPROCFS
 
-# Enable FreeBSD4 compatibility syscalls
-options		COMPAT_FREEBSD4
-
 #
 # SysVR4 ABI emulation
 #
