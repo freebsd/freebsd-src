@@ -31,6 +31,7 @@
  */
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/sysent.h>
 #include <sys/proc.h>
 
