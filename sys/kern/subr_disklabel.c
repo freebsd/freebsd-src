@@ -50,6 +50,7 @@
 #include <sys/syslog.h>
 #include <machine/atomic.h>
 
+#ifdef notquite
 /*
  * Mutex to use when delaying niced I/O bound processes in bioqdisksort().
  */
@@ -61,6 +62,7 @@ dksort_init(void)
 	mtx_init(&dksort_mtx, "dksort", NULL, MTX_DEF);
 }
 SYSINIT(dksort, SI_SUB_DRIVERS, SI_ORDER_MIDDLE, dksort_init, NULL)
+#endif
 
 /*
  * Seek sort for disks.
@@ -85,6 +87,8 @@ bioqdisksort(bioq, bp)
 	struct bio *bq;
 	struct bio *bn;
 	struct bio *be;
+
+#ifdef notquite
 	struct thread *td = curthread;
 	
 	if (td && td->td_ksegrp->kg_nice > 0) {
@@ -98,6 +102,7 @@ bioqdisksort(bioq, bp)
 			    td->td_ksegrp->kg_nice);
 		}
 	}
+#endif
 	if (!atomic_cmpset_int(&bioq->busy, 0, 1))
 		panic("Recursing in bioqdisksort()");
 	be = TAILQ_LAST(&bioq->queue, bio_queue);
