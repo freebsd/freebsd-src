@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)mkheaders.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: mkheaders.c,v 1.7 1997/10/28 07:21:02 joerg Exp $";
+	"$Id: mkheaders.c,v 1.8 1997/11/07 00:09:40 joerg Exp $";
 #endif /* not lint */
 
 /*
@@ -52,8 +52,10 @@ static const char rcsid[] =
 
 #define ns(s) strdup(s)
 
-void do_header __P((char *, char *, int));
-void do_count __P((char *, char *, int));
+static void do_header __P((char *, char *, int));
+static void do_count __P((char *, char *, int));
+static char *toheader __P((char *));
+static char *tomacro __P((char *));
 
 void
 headers()
@@ -78,7 +80,7 @@ headers()
  * count all the devices of a certain type and recurse to count
  * whatever the device is connected to
  */
-void
+static void
 do_count(dev, hname, search)
 	register char *dev, *hname;
 	int search;
@@ -119,12 +121,12 @@ do_count(dev, hname, search)
 	do_header(dev, hname, count > hicount ? count : hicount);
 }
 
-void
+static void
 do_header(dev, hname, count)
 	char *dev, *hname;
 	int count;
 {
-	char *file, *name, *inw, *toheader(), *tomacro();
+	char *file, *name, *inw;
 	struct file_list *fl, *fl_head, *tflp;
 	FILE *inf, *outf;
 	int inc, oldcount;
@@ -200,7 +202,7 @@ do_header(dev, hname, count)
 /*
  * convert a dev name to a .h file name
  */
-char *
+static char *
 toheader(dev)
 	char *dev;
 {
@@ -214,7 +216,8 @@ toheader(dev)
 /*
  * convert a dev name to a macro name
  */
-char *tomacro(dev)
+static char *
+tomacro(dev)
 	register char *dev;
 {
 	static char mbuf[20];

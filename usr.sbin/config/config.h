@@ -153,16 +153,9 @@ struct config {
  */
 int	machine;
 char	*machinename;
-#define	MACHINE_VAX	1
-#define	MACHINE_TAHOE	2
-#define MACHINE_HP300	3
-#define	MACHINE_I386	4
-#define MACHINE_MIPS	5
-#define MACHINE_PMAX	6
-#define MACHINE_LUNA68K	7
-#define MACHINE_NEWS3400	8
-#define MACHINE_PC98	9
-#define MACHINE_ALPHA	10
+#define	MACHINE_I386	1
+#define MACHINE_PC98	2
+#define MACHINE_ALPHA	3
 
 /*
  * For each machine, a set of CPU's may be specified as supported.
@@ -192,45 +185,38 @@ struct opt_list {
 	struct opt_list *o_next;
 } *otab;
 
-char	*ident;
+extern char	*ident;
+extern int	do_trace;
+
 char	*ns();
 char	*tc();
-char	*qu();
 char	*get_word();
 char	*get_quoted_word();
 char	*path();
-char	*raise();
+char	*raisestr();
 void	moveifchanged();
-
-int	do_trace;
-
-#if MACHINE_VAX
-int	seen_mba, seen_uba;
-#endif
-#if MACHINE_TAHOE
-int	seen_vba;
-#endif
-#if MACHINE_I386
-int	seen_isa;
-int	seen_scbus;
-#endif
-int	seen_cd;
-
-struct	device *connect();
-struct	device *dtab;
 dev_t	nametodev();
 char	*devtoname();
+void	init_dev __P((struct device *));       
 
-char	errbuf[80];
-int	yyline;
 
-struct	file_list *ftab, *conf_list, **confp, *comp_list, **compp;
+#if MACHINE_I386
+extern int	seen_isa;
+extern int	seen_scbus;
+#endif
 
-int	profiling;
-int	debugging;
+extern struct	device *dtab;
 
-int	maxusers;
-u_int	loadaddress;
+extern char	errbuf[80];
+extern int	yyline;
+
+extern struct	file_list *ftab, *conf_list, **confp, *comp_list, **compp;
+
+extern int	profiling;
+extern int	debugging;
+
+extern int	maxusers;
+extern u_int	loadaddress;
 
 extern	int old_config_present;	/* Old config/build directory still there */
 
