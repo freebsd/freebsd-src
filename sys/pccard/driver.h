@@ -13,7 +13,7 @@ struct pccard_device;
 
 void	pccard_add_driver __P((struct pccard_device *));
 
-enum beepstate { BEEP_ON, BEEP_OFF };
+enum beepstate { BEEP_OFF, BEEP_ON };
 
 void	pccard_insert_beep __P((void));
 void	pccard_remove_beep __P((void));
