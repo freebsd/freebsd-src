@@ -352,7 +352,7 @@ IcmpAliasIn2(struct ip *pip)
         if (ip->ip_p == IPPROTO_UDP || ip->ip_p == IPPROTO_TCP)
         {
             u_short *sptr;
-            int accumulate;
+            int accumulate, accumulate2;
             struct in_addr original_address;
             u_short original_port;
 
@@ -368,7 +368,11 @@ IcmpAliasIn2(struct ip *pip)
             accumulate -= *sptr;
             accumulate += ud->uh_sport;
             accumulate -= original_port;
-            ADJUST_CHECKSUM(accumulate, ic->icmp_cksum);
+            accumulate2 = accumulate;
+            accumulate2 += ip->ip_sum;
+            ADJUST_CHECKSUM(accumulate, ip->ip_sum);
+            accumulate2 -= ip->ip_sum;
+            ADJUST_CHECKSUM(accumulate2, ic->icmp_cksum);
 
 /* Un-alias address in IP header */
             DifferentialChecksum(&pip->ip_sum,
@@ -385,7 +389,7 @@ fragment contained in ICMP data section */
         else if (ip->ip_p == IPPROTO_ICMP)
         {
             u_short *sptr;
-            int accumulate;
+            int accumulate, accumulate2;
             struct in_addr original_address;
             u_short original_id;
 
@@ -401,7 +405,11 @@ fragment contained in ICMP data section */
             accumulate -= *sptr;
             accumulate += ic2->icmp_id;
             accumulate -= original_id;
-            ADJUST_CHECKSUM(accumulate, ic->icmp_cksum);
+            accumulate2 = accumulate;
+            accumulate2 += ip->ip_sum;
+            ADJUST_CHECKSUM(accumulate, ip->ip_sum);
+            accumulate2 -= ip->ip_sum;
+            ADJUST_CHECKSUM(accumulate2, ic->icmp_cksum);
 
 /* Un-alias address in IP header */
             DifferentialChecksum(&pip->ip_sum,
