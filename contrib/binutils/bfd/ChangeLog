@@ -1,3 +1,31 @@
+2001-07-06  Philip Blundell  <philb@gnu.org>
+
+	* elf32-arm.h (elf32_arm_merge_private_bfd_data): Correct sense of
+	`interworking' warning message.
+
+2001-07-05  Nick Clifton  <nickc@cambridge.redhat.com>
+
+	* peicode.h (coff_swap_scnhdr_in): For sections containing
+	uninitialised data, only set their size to s_paddr if this does
+	not reset their size to zero.  MS's latest compilers will set
+	s_paddr to zero.
+
+2001-06-20  Bo Thorsen  <bo@suse.co.uk>
+
+        * elf64-x86-64.c (elf64_x86_64_relocate_section): Fix linking of
+        shared libraries.
+
+2001-06-21  Alan Modra  <amodra@bigpond.net.au>
+
+	* elf32-hppa.c (elf32_hppa_size_dynamic_sections): Always
+	allocate local .got space.  Use shortcuts from hash table for .got
+	and .plt rather than comparing section names.
+	(elf32_hppa_check_relocs): Use local_plt_refcounts var rather than
+	adjusting index into local_got_refcounts to document what we are
+	really doing.
+	(elf32_hppa_relocate_section): Similarly for local_plt_offsets.
+	Tidy .got and .plt error checking.
+
 2001-06-19  Philip Blundell  <philb@gnu.org>
 
 	* configure.in: Set version to 2.11.2.

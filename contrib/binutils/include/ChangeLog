@@ -1,3 +1,7 @@
+2001-07-19  David O'Brien  <obrien@FreeBSD.org>
+
+	* libiberty.h: Add lbasename.
+
 2001-06-07  Alan Modra  <amodra@bigpond.net.au>
 
 	* Many files: Update copyright notices.

@@ -1,3 +1,11 @@
+2001-06-29  James Cownie <jcownie@etnus.com>
+
+	* readelf.c: Support DWARF 2.1 attributes.
+
+2001-06-27  Nick Clifton  <nickc@cambridge.redhat.com>
+
+	* objcopy.c (strip_main): Accept -o command line switch.
+
 2001-06-11  Alan Modra  <amodra@bigpond.net.au>
 
 	Merge from mainline.

@@ -4431,38 +4431,52 @@ do_ldst (str, flags)
 	  return;
 	}
 
-      if (inst.reloc.exp.X_op == O_constant
-	  && (value = validate_immediate (inst.reloc.exp.X_add_number)) != FAIL)
+      if (inst.reloc.exp.X_op == O_constant)
 	{
-	  /* This can be done with a mov instruction.  */
-	  inst.instruction &= LITERAL_MASK;
-	  inst.instruction |= INST_IMMEDIATE | (OPCODE_MOV << DATA_OP_SHIFT);
-	  inst.instruction |= (flags & COND_MASK) | (value & 0xfff);
-	  end_of_line (str);
-	  return;
-	}
-      else
-	{
-	  /* Insert into literal pool.  */
-	  if (add_to_lit_pool () == FAIL)
+	  value = validate_immediate (inst.reloc.exp.X_add_number);
+
+	  if (value != FAIL)
 	    {
-	      if (!inst.error)
-		inst.error = _("literal pool insertion failed");
+	      /* This can be done with a mov instruction.  */
+	      inst.instruction &= LITERAL_MASK;
+	      inst.instruction |= INST_IMMEDIATE | (OPCODE_MOV << DATA_OP_SHIFT);
+	      inst.instruction |= (flags & COND_MASK) | (value & 0xfff);
+	      end_of_line (str);
 	      return;
 	    }
+	  
+	  value = validate_immediate (~ inst.reloc.exp.X_add_number);
 
-	  /* Change the instruction exp to point to the pool.  */
-	  if (halfword)
+	  if (value != FAIL)
 	    {
-	      inst.instruction |= HWOFFSET_IMM;
-	      inst.reloc.type = BFD_RELOC_ARM_HWLITERAL;
+	      /* This can be done with a mvn instruction.  */
+	      inst.instruction &= LITERAL_MASK;
+	      inst.instruction |= INST_IMMEDIATE | (OPCODE_MVN << DATA_OP_SHIFT);
+	      inst.instruction |= (flags & COND_MASK) | (value & 0xfff);
+	      end_of_line (str);
+	      return;
 	    }
-	  else
-	    inst.reloc.type = BFD_RELOC_ARM_LITERAL;
-	  inst.reloc.pc_rel = 1;
-	  inst.instruction |= (REG_PC << 16);
-	  pre_inc = 1;
 	}
+
+      /* Insert into literal pool.  */
+      if (add_to_lit_pool () == FAIL)
+	{
+	  if (!inst.error)
+	    inst.error = _("literal pool insertion failed");
+	  return;
+	}
+
+      /* Change the instruction exp to point to the pool.  */
+      if (halfword)
+	{
+	  inst.instruction |= HWOFFSET_IMM;
+	  inst.reloc.type = BFD_RELOC_ARM_HWLITERAL;
+	}
+      else
+	inst.reloc.type = BFD_RELOC_ARM_LITERAL;
+      inst.reloc.pc_rel = 1;
+      inst.instruction |= (REG_PC << 16);
+      pre_inc = 1;
     }
   else
     {
