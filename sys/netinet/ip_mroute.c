@@ -24,6 +24,7 @@
 #include <sys/protosw.h>
 #include <sys/time.h>
 #include <sys/kernel.h>
+#include <sys/sysctl.h>
 #include <sys/sockio.h>
 #include <sys/syslog.h>
 #include <net/if.h>
@@ -34,23 +35,11 @@
 #include <netinet/ip_var.h>
 #include <netinet/in_var.h>
 #include <netinet/igmp.h>
+#include <netinet/ip_encap.h>
 #include <netinet/ip_mroute.h>
+#include <netinet/ipprotosw.h>
 #include <netinet/udp.h>
 #include <machine/in_cksum.h>
-
-#ifndef NTOHL
-#if BYTE_ORDER != BIG_ENDIAN
-#define NTOHL(d) ((d) = ntohl((d)))
-#define NTOHS(d) ((d) = ntohs((u_short)(d)))
-#define HTONL(d) ((d) = htonl((d)))
-#define HTONS(d) ((d) = htons((u_short)(d)))
-#else
-#define NTOHL(d)
-#define NTOHS(d)
-#define HTONL(d)
-#define HTONS(d)
-#endif
-#endif
 
 #ifndef MROUTING
 extern u_long	_ip_mcast_src __P((int vifi));
@@ -59,7 +48,7 @@ extern int	_ip_mforward __P((struct ip *ip, struct ifnet *ifp,
 extern int	_ip_mrouter_done __P((void));
 extern int	_ip_mrouter_get __P((struct socket *so, struct sockopt *sopt));
 extern int	_ip_mrouter_set __P((struct socket *so, struct sockopt *sopt));
-extern int	_mrt_ioctl __P((int req, caddr_t data, struct proc *p));
+extern int	_mrt_ioctl __P((int req, caddr_t data));
 
 /*
  * Dummy routines and globals used when multicast routing is not compiled in.
@@ -111,12 +100,12 @@ int (*ip_mforward)(struct ip *, struct ifnet *, struct mbuf *,
 		   struct ip_moptions *) = _ip_mforward;
 
 int
-_mrt_ioctl(int req, caddr_t data, struct proc *p)
+_mrt_ioctl(int req, caddr_t data)
 {
 	return EOPNOTSUPP;
 }
 
-int (*mrt_ioctl)(int, caddr_t, struct proc *) = _mrt_ioctl;
+int (*mrt_ioctl)(int, caddr_t) = _mrt_ioctl;
 
 void
 rsvp_input(m, off, proto)		/* XXX must fixup manually */
@@ -185,27 +174,18 @@ ip_rsvp_force_done(so)
 
 #define M_HASCL(m)	((m)->m_flags & M_EXT)
 
-#define INSIZ		sizeof(struct in_addr)
-#define	same(a1, a2) \
-	(bcmp((caddr_t)(a1), (caddr_t)(a2), INSIZ) == 0)
-
 static MALLOC_DEFINE(M_MRTABLE, "mroutetbl", "multicast routing tables");
 
-/*
- * Globals.  All but ip_mrouter and ip_mrtproto could be static,
- * except for netstat or debugging purposes.
- */
-#ifndef MROUTE_LKM
+#ifndef MROUTE_KLD
+/* The socket used to communicate with the multicast routing daemon.  */
 struct socket  *ip_mrouter  = NULL;
-static struct mrtstat	mrtstat;
-#else /* MROUTE_LKM */
-extern void	X_ipip_input __P((struct mbuf *m, int iphlen));
-extern struct mrtstat mrtstat;
-static int ip_mrtproto;
 #endif
 
-#define NO_RTE_FOUND 	0x1
-#define RTE_FOUND	0x2
+#if defined(MROUTING) || defined(MROUTE_KLD)
+static struct mrtstat	mrtstat;
+SYSCTL_STRUCT(_net_inet_ip, OID_AUTO, mrtstat, CTLFLAG_RW,
+    &mrtstat, mrtstat, "Multicast Routing Statistics (struct mrtstat, netinet/ip_mroute.h)");
+#endif
 
 static struct mfc	*mfctable[MFCTBLSIZ];
 static u_char		nexpire[MFCTBLSIZ];
@@ -263,7 +243,7 @@ static struct ip multicast_encap_iphdr = {
  * Private variables.
  */
 static vifi_t	   numvifs = 0;
-static int have_encap_tunnel = 0;
+static const struct encaptab *encap_cookie = NULL;
 
 /*
  * one-back cache used by ipip_input to locate a tunnel's vif
@@ -302,7 +282,6 @@ static int tbf_dq_sel(struct vif *, struct ip *);
 static void tbf_send_packet(struct vif *, struct mbuf *);
 static void tbf_update_tokens(struct vif *);
 static int priority(struct vif *, struct ip *);
-void multiencap_decap(struct mbuf *);
 
 /*
  * whether or not special PIM assert processing is enabled.
@@ -444,7 +423,7 @@ X_ip_mrouter_set(so, sopt)
 	return (error);
 }
 
-#ifndef MROUTE_LKM
+#ifndef MROUTE_KLD
 int (*ip_mrouter_set)(struct socket *, struct sockopt *) = X_ip_mrouter_set;
 #endif
 
@@ -474,7 +453,7 @@ X_ip_mrouter_get(so, sopt)
 	return (error);
 }
 
-#ifndef MROUTE_LKM
+#ifndef MROUTE_KLD
 int (*ip_mrouter_get)(struct socket *, struct sockopt *) = X_ip_mrouter_get;
 #endif
 
@@ -502,7 +481,7 @@ X_mrt_ioctl(cmd, data)
     return error;
 }
 
-#ifndef MROUTE_LKM
+#ifndef MROUTE_KLD
 int (*mrt_ioctl)(int, caddr_t) = X_mrt_ioctl;
 #endif
 
@@ -646,7 +625,10 @@ X_ip_mrouter_done()
      */
     last_encap_src = 0;
     last_encap_vif = NULL;
-    have_encap_tunnel = 0;
+    if (encap_cookie) {
+	encap_detach(encap_cookie);
+	encap_cookie = NULL;
+    }
  
     ip_mrouter = NULL;
 
@@ -658,7 +640,7 @@ X_ip_mrouter_done()
     return 0;
 }
 
-#ifndef MROUTE_LKM
+#ifndef MROUTE_KLD
 int (*ip_mrouter_done)(void) = X_ip_mrouter_done;
 #endif
 
@@ -676,6 +658,87 @@ set_assert(i)
 
     return 0;
 }
+
+/*
+ * Decide if a packet is from a tunnelled peer.
+ * Return 0 if not, 64 if so.
+ */
+static int
+mroute_encapcheck(const struct mbuf *m, int off, int proto, void *arg)
+{
+    struct ip *ip = mtod(m, struct ip *);
+    int hlen = ip->ip_hl << 2;
+    register struct vif *vifp;
+
+    /*
+     * don't claim the packet if it's not to a multicast destination or if
+     * we don't have an encapsulating tunnel with the source.
+     * Note:  This code assumes that the remote site IP address
+     * uniquely identifies the tunnel (i.e., that this site has
+     * at most one tunnel with the remote site).
+     */
+    if (! IN_MULTICAST(ntohl(((struct ip *)((char *)ip + hlen))->ip_dst.s_addr))) {
+	return 0;
+    }
+    if (ip->ip_src.s_addr != last_encap_src) {
+	register struct vif *vife;
+	
+	vifp = viftable;
+	vife = vifp + numvifs;
+	last_encap_src = ip->ip_src.s_addr;
+	last_encap_vif = 0;
+	for ( ; vifp < vife; ++vifp)
+	    if (vifp->v_rmt_addr.s_addr == ip->ip_src.s_addr) {
+		if ((vifp->v_flags & (VIFF_TUNNEL|VIFF_SRCRT))
+		    == VIFF_TUNNEL)
+		    last_encap_vif = vifp;
+		break;
+	    }
+    }
+    if ((vifp = last_encap_vif) == 0) {
+	last_encap_src = 0;
+	return 0;
+    }
+    return 64;
+}
+
+/*
+ * De-encapsulate a packet and feed it back through ip input (this
+ * routine is called whenever IP gets a packet that mroute_encap_func()
+ * claimed).
+ */
+static void
+mroute_encap_input(struct mbuf *m, int off, int proto)
+{
+    struct ip *ip = mtod(m, struct ip *);
+    int hlen = ip->ip_hl << 2;
+
+    if (hlen > sizeof(struct ip))
+      ip_stripoptions(m, (struct mbuf *) 0);
+    m->m_data += sizeof(struct ip);
+    m->m_len -= sizeof(struct ip);
+    m->m_pkthdr.len -= sizeof(struct ip);
+
+    m->m_pkthdr.rcvif = last_encap_vif->v_ifp;
+
+    (void) IF_HANDOFF(&ipintrq, m, NULL);
+	/*
+	 * normally we would need a "schednetisr(NETISR_IP)"
+	 * here but we were called by ip_input and it is going
+	 * to loop back & try to dequeue the packet we just
+	 * queued as soon as we return so we avoid the
+	 * unnecessary software interrrupt.
+	 */
+}
+
+extern struct domain inetdomain;
+static struct ipprotosw mroute_encap_protosw =
+{ SOCK_RAW,	&inetdomain,	IPPROTO_IPV4,	PR_ATOMIC|PR_ADDR,
+  mroute_encap_input,	0,	0,		rip_ctloutput,
+  0,
+  0,		0,		0,		0,
+  &rip_usrreqs
+};
 
 /*
  * Add a vif to the vif table
@@ -703,11 +766,19 @@ add_vif(vifcp)
     if (vifcp->vifc_flags & VIFF_TUNNEL) {
 	if ((vifcp->vifc_flags & VIFF_SRCRT) == 0) {
 		/*
-		 * An encapsulating tunnel is wanted.  Tell ipip_input() to
-		 * start paying attention to encapsulated packets.
+		 * An encapsulating tunnel is wanted.  Tell
+		 * mroute_encap_input() to start paying attention
+		 * to encapsulated packets.
 		 */
-		if (have_encap_tunnel == 0) {
-			have_encap_tunnel = 1;
+		if (encap_cookie == NULL) {
+			encap_cookie = encap_attach_func(AF_INET, -1,
+				mroute_encapcheck,
+				(struct protosw *)&mroute_encap_protosw, NULL);
+
+			if (encap_cookie == NULL) {
+				printf("ip_mroute: unable to attach encap\n");
+				return (EIO);	/* XXX */
+			}
 			for (s = 0; s < MAXVIFS; ++s) {
 				multicast_decap_if[s].if_name = "mdecap";
 				multicast_decap_if[s].if_unit = s;
@@ -1084,7 +1155,6 @@ socket_send(s, mm, src)
  * discard it.
  */
 
-#define IP_HDR_LEN  20	/* # bytes of fixed IP header (excluding options) */
 #define TUNNEL_LEN  12  /* # bytes of IP option for tunnel encapsulation  */
 
 static int
@@ -1108,7 +1178,7 @@ X_ip_mforward(ip, ifp, m, imo)
 	    (u_long)ntohl(ip->ip_src.s_addr), (u_long)ntohl(ip->ip_dst.s_addr),
 	    (void *)ifp);
 
-    if (ip->ip_hl < (IP_HDR_LEN + TUNNEL_LEN) >> 2 ||
+    if (ip->ip_hl < (sizeof(struct ip) + TUNNEL_LEN) >> 2 ||
 	(ipoptions = (u_char *)(ip + 1))[1] != IPOPT_LSRR ) {
 	/*
 	 * Packet arrived via a physical interface or
@@ -1306,7 +1376,7 @@ X_ip_mforward(ip, ifp, m, imo)
     }		
 }
 
-#ifndef MROUTE_LKM
+#ifndef MROUTE_KLD
 int (*ip_mforward)(struct ip *, struct ifnet *, struct mbuf *,
 		   struct ip_moptions *) = X_ip_mforward;
 #endif
@@ -1497,7 +1567,7 @@ X_legal_vif_num(vif)
        return(0);
 }
 
-#ifndef MROUTE_LKM
+#ifndef MROUTE_KLD
 int (*legal_vif_num)(int) = X_legal_vif_num;
 #endif
 
@@ -1514,7 +1584,7 @@ X_ip_mcast_src(vifi)
 	return INADDR_ANY;
 }
 
-#ifndef MROUTE_LKM
+#ifndef MROUTE_KLD
 u_long (*ip_mcast_src)(int) = X_ip_mcast_src;
 #endif
 
@@ -1607,85 +1677,6 @@ encap_send(ip, vifp, m)
 	tbf_send_packet(vifp, mb_copy);
     else
 	tbf_control(vifp, mb_copy, ip, ip_copy->ip_len);
-}
-
-/*
- * De-encapsulate a packet and feed it back through ip input (this
- * routine is called whenever IP gets a packet with proto type
- * ENCAP_PROTO and a local destination address).
- */
-void
-#ifdef MROUTE_LKM
-X_ipip_input(m, off, proto)
-#else
-ipip_input(m, off, proto)
-#endif
-	register struct mbuf *m;
-	int off;
-	int proto;
-{
-    struct ifnet *ifp = m->m_pkthdr.rcvif;
-    register struct ip *ip = mtod(m, struct ip *);
-    register int hlen = ip->ip_hl << 2;
-    register struct vif *vifp;
-
-    if (!have_encap_tunnel) {
-	    rip_input(m, off, proto);
-	    return;
-    }
-    /*
-     * dump the packet if it's not to a multicast destination or if
-     * we don't have an encapsulating tunnel with the source.
-     * Note:  This code assumes that the remote site IP address
-     * uniquely identifies the tunnel (i.e., that this site has
-     * at most one tunnel with the remote site).
-     */
-    if (! IN_MULTICAST(ntohl(((struct ip *)((char *)ip + hlen))->ip_dst.s_addr))) {
-	++mrtstat.mrts_bad_tunnel;
-	m_freem(m);
-	return;
-    }
-    if (ip->ip_src.s_addr != last_encap_src) {
-	register struct vif *vife;
-	
-	vifp = viftable;
-	vife = vifp + numvifs;
-	last_encap_src = ip->ip_src.s_addr;
-	last_encap_vif = 0;
-	for ( ; vifp < vife; ++vifp)
-	    if (vifp->v_rmt_addr.s_addr == ip->ip_src.s_addr) {
-		if ((vifp->v_flags & (VIFF_TUNNEL|VIFF_SRCRT))
-		    == VIFF_TUNNEL)
-		    last_encap_vif = vifp;
-		break;
-	    }
-    }
-    if ((vifp = last_encap_vif) == 0) {
-	last_encap_src = 0;
-	mrtstat.mrts_cant_tunnel++; /*XXX*/
-	m_freem(m);
-	if (mrtdebug)
-	  log(LOG_DEBUG, "ip_mforward: no tunnel with %lx\n",
-		(u_long)ntohl(ip->ip_src.s_addr));
-	return;
-    }
-    ifp = vifp->v_ifp;
-
-    if (hlen > IP_HDR_LEN)
-      ip_stripoptions(m, (struct mbuf *) 0);
-    m->m_data += IP_HDR_LEN;
-    m->m_len -= IP_HDR_LEN;
-    m->m_pkthdr.len -= IP_HDR_LEN;
-    m->m_pkthdr.rcvif = ifp;
-
-    (void) IF_HANDOFF(&ipintrq, m, NULL);
-	/*
-	 * normally we would need a "schednetisr(NETISR_IP)"
-	 * here but we were called by ip_input and it is going
-	 * to loop back & try to dequeue the packet we just
-	 * queued as soon as we return so we avoid the
-	 * unnecessary software interrrupt.
-	 */
 }
 
 /*
@@ -2193,76 +2184,72 @@ rsvp_input(m, off, proto)
     splx(s);
 }
 
-#ifdef MROUTE_LKM
-#include <sys/conf.h>
-#include <sys/exec.h>
-#include <sys/sysent.h>
-#include <sys/lkm.h>
-
-MOD_MISC("ip_mroute_mod")
+#ifdef MROUTE_KLD
 
 static int
-ip_mroute_mod_handle(struct lkm_table *lkmtp, int cmd)
+ip_mroute_modevent(module_t mod, int type, void *unused)
 {
-	int i;
-	struct lkm_misc	*args = lkmtp->private.lkm_misc;
-	int err = 0;
+	int s;
 
-	switch(cmd) {
-		static int (*old_ip_mrouter_cmd)();
-		static int (*old_ip_mrouter_done)();
-		static int (*old_ip_mforward)();
-		static int (*old_mrt_ioctl)();
-		static void (*old_proto4_input)();
-		static int (*old_legal_vif_num)();
-		extern struct protosw inetsw[];
+	switch (type) {
+		static u_long (*old_ip_mcast_src)(int);
+		static int (*old_ip_mrouter_set)(struct socket *,
+			struct sockopt *);
+		static int (*old_ip_mrouter_get)(struct socket *,
+			struct sockopt *);
+		static int (*old_ip_mrouter_done)(void);
+		static int (*old_ip_mforward)(struct ip *, struct ifnet *,
+			struct mbuf *, struct ip_moptions *);
+		static int (*old_mrt_ioctl)(int, caddr_t);
+		static int (*old_legal_vif_num)(int);
 
-	case LKM_E_LOAD:
-		if(lkmexists(lkmtp) || ip_mrtproto)
-		  return(EEXIST);
-		old_ip_mrouter_cmd = ip_mrouter_cmd;
-		ip_mrouter_cmd = X_ip_mrouter_cmd;
+	case MOD_LOAD:
+		s = splnet();
+		/* XXX Protect against multiple loading */
+		old_ip_mcast_src = ip_mcast_src;
+		ip_mcast_src = X_ip_mcast_src;
+		old_ip_mrouter_get = ip_mrouter_get;
+		ip_mrouter_get = X_ip_mrouter_get;
+		old_ip_mrouter_set = ip_mrouter_set;
+		ip_mrouter_set = X_ip_mrouter_set;
 		old_ip_mrouter_done = ip_mrouter_done;
 		ip_mrouter_done = X_ip_mrouter_done;
 		old_ip_mforward = ip_mforward;
 		ip_mforward = X_ip_mforward;
 		old_mrt_ioctl = mrt_ioctl;
 		mrt_ioctl = X_mrt_ioctl;
-              old_proto4_input = inetsw[ip_protox[ENCAP_PROTO]].pr_input;
-              inetsw[ip_protox[ENCAP_PROTO]].pr_input = X_ipip_input;
 		old_legal_vif_num = legal_vif_num;
 		legal_vif_num = X_legal_vif_num;
-		ip_mrtproto = IGMP_DVMRP;
 
-		printf("\nIP multicast routing loaded\n");
-		break;
+		splx(s);
+		return 0;
 
-	case LKM_E_UNLOAD:
+	case MOD_UNLOAD:
 		if (ip_mrouter)
 		  return EINVAL;
 
-		ip_mrouter_cmd = old_ip_mrouter_cmd;
+		s = splnet();
+		ip_mrouter_get = old_ip_mrouter_get;
+		ip_mrouter_set = old_ip_mrouter_set;
 		ip_mrouter_done = old_ip_mrouter_done;
 		ip_mforward = old_ip_mforward;
 		mrt_ioctl = old_mrt_ioctl;
-              inetsw[ip_protox[ENCAP_PROTO]].pr_input = old_proto4_input;
 		legal_vif_num = old_legal_vif_num;
-		ip_mrtproto = 0;
-		break;
+		splx(s);
+		return 0;
 
 	default:
-		err = EINVAL;
 		break;
 	}
-
-	return(err);
+	return 0;
 }
 
-int
-ip_mroute_mod(struct lkm_table *lkmtp, int cmd, int ver) {
-	DISPATCH(lkmtp, cmd, ver, ip_mroute_mod_handle, ip_mroute_mod_handle,
-		 nosys);
-}
+static moduledata_t ip_mroutemod = {
+	"ip_mroute",
+	ip_mroute_modevent,
+	0
+};
+DECLARE_MODULE(ip_mroute, ip_mroutemod, SI_SUB_PSEUDO, SI_ORDER_ANY);
 
-#endif /* MROUTE_LKM */
+#endif /* MROUTE_KLD */
 #endif /* MROUTING */
