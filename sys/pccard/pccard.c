@@ -58,8 +58,6 @@
 #define suser_td(a)	suser(a)
 #endif
 
-SYSCTL_NODE(_machdep, OID_AUTO, pccard, CTLFLAG_RW, 0, "pccard");
-
 /* The following might now be obsolete */
 static int pcic_resume_reset = 1;
 
