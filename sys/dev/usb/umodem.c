@@ -99,11 +99,11 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/usb/usbdi.h>
 #include <dev/usb/usbdi_util.h>
-#include <dev/usb/usbdevs.h>
 #include <dev/usb/usb_quirks.h>
 
-#include <dev/usb/usbdevs.h>
 #include <dev/usb/ucomvar.h>
+
+#include "usbdevs.h"
 
 #ifdef USB_DEBUG
 int	umodemdebug = 0;

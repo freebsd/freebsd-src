@@ -76,7 +76,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/usbdi.h>
 #include <dev/usb/usbdi_util.h>
 
-#include <dev/usb/usbdevs.h>
+#include "usbdevs.h"
 
 #ifdef USB_DEBUG
 #define DPRINTF(x)	if (uscannerdebug) logprintf x

@@ -69,7 +69,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/usbdi.h>
 #include <dev/usb/usbdi_util.h>
 #include <dev/usb/usbdivar.h>
-#include <dev/usb/usbdevs.h>
+#include "usbdevs.h"
 #include <dev/usb/usb_quirks.h>
 
 #if defined(__FreeBSD__)
@@ -119,7 +119,7 @@ struct usb_knowndev {
 };
 #define	USB_KNOWNDEV_NOPROD	0x01		/* match on vendor only */
 
-#include <dev/usb/usbdevs_data.h>
+#include "usbdevs_data.h"
 #endif /* USBVERBOSE */
 
 Static const char * const usbd_error_strs[] = {
