@@ -44,8 +44,8 @@
 static int split_lines(char *, const char *);
 static void set_from_buf(const char *, int);
 
-struct lc_time_T _time_localebuf;
-int _time_using_locale;
+static struct lc_time_T _time_localebuf;
+static int _time_using_locale;
 
 #define	LCTIME_SIZE_FULL (sizeof(struct lc_time_T) / sizeof(char *))
 #define	LCTIME_SIZE_1 \
@@ -53,7 +53,7 @@ int _time_using_locale;
 #define LCTIME_SIZE_2 \
 	(offsetof(struct lc_time_T, Ef_fmt) / sizeof(char *))
 
-const struct lc_time_T	_C_time_locale = {
+static const struct lc_time_T	_C_time_locale = {
 	{
 		"Jan", "Feb", "Mar", "Apr", "May", "Jun",
 		"Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
@@ -111,6 +111,12 @@ const struct lc_time_T	_C_time_locale = {
 	"%B %e"
 };
 
+struct lc_time_T *
+__get_current_time_locale(void) {
+	return (_time_using_locale
+		? &_time_localebuf
+		: (struct lc_time_T *)&_C_time_locale);
+}
 
 int
 __time_load_locale(const char *name)

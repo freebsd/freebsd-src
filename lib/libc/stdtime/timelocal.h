@@ -26,6 +26,9 @@
  * $FreeBSD$
  */
 
+#ifndef _TIMELOCAL_H
+#define _TIMELOCAL_H
+
 /*
  * Private header file for the strftime and strptime localization
  * stuff.
@@ -46,9 +49,6 @@ struct lc_time_T {
 	const char *    EF_fmt;
 };
 
-extern	struct lc_time_T _time_localebuf;
-extern	int _time_using_locale;
-extern	const struct lc_time_T _C_time_locale;
+struct lc_time_T * __get_current_time_locale(void);
 
-#define Locale	(_time_using_locale ? &_time_localebuf : &_C_time_locale)
-
+#endif /* _TIMELOCAL_H */
