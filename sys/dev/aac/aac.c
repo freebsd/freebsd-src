@@ -1299,7 +1299,7 @@ aac_sync_fib(struct aac_softc *sc, u_int32_t command, u_int32_t xferstate,
      */
     if (data != NULL) {
 	KASSERT(datasize <= sizeof(fib->data),
-		"aac_sync_fib: datasize to large");
+		("aac_sync_fib: datasize to large"));
 	bcopy(data, fib->data, datasize);
 	fib->Header.XferState |= AAC_FIBSTATE_FROMHOST | AAC_FIBSTATE_NORM;
     }
