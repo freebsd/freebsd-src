@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.29 1997/03/01 10:53:07 kato Exp $
+ *  $Id: syscons.c,v 1.30 1997/03/04 06:25:54 kato Exp $
  */
 
 #include "sc.h"
@@ -37,7 +37,6 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
-#include <sys/ioctl.h>
 #include <sys/proc.h>
 #include <sys/signalvar.h>
 #include <sys/tty.h>
