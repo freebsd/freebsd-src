@@ -54,7 +54,7 @@ Let's examine a typical .mc file:
 
 	divert(-1)
 	#
-	# Copyright (c) 1998-2000 Sendmail, Inc. and its suppliers.
+	# Copyright (c) 1998-2001 Sendmail, Inc. and its suppliers.
 	#	All rights reserved.
 	# Copyright (c) 1983 Eric P. Allman.  All rights reserved.
 	# Copyright (c) 1988, 1993
@@ -254,12 +254,13 @@ HELP_FILE		[/etc/mail/helpfile] The name of the file
 QUEUE_DIR		[/var/spool/mqueue] The directory containing
 			queue files.  To use multiple queues, supply
 			a value ending with an asterisk.  For
-			example, /var/spool/mqueue/q* will use all of the
+			example, /var/spool/mqueue/qd* will use all of the
 			directories or symbolic links to directories
-			beginning with 'q' in /var/spool/mqueue as queue
+			beginning with 'qd' in /var/spool/mqueue as queue
 			directories.  The names 'qf', 'df', and 'xf' are
-			used as specific subdirectories for the corresponding
-			queue file types.
+			reserved as specific subdirectories for the
+			corresponding queue file types as explained in
+			doc/op/op.me.
 STATUS_FILE		[/etc/mail/statistics] The file containing status
 			information.
 LOCAL_MAILER_PATH	[/bin/mail] The program used to deliver local mail.
@@ -665,7 +666,7 @@ stickyhost	This feature is sometimes used with LOCAL_RELAY,
 		although it can be used for a different effect with
 		MAIL_HUB.
 
-		When used with without MAIL_HUB, email sent to
+		When used without MAIL_HUB, email sent to
 		"user@local.host" are marked as "sticky" -- that
 		is, the local addresses aren't matched against UDB,
 		don't go through ruleset 5, and are not forwarded to
@@ -1860,8 +1861,8 @@ for your purposes.  There is now the option to tag entries in the
 access map according to their type.  Three tags are available:
 
 	Connect:	connection information (${client_addr}, ${client_name})
-	From:		sender
-	To:		recipient
+	From:		envelope sender
+	To:		envelope recipient
 
 If the required item is looked up in a map, it will be tried first
 with the corresponding tag in front, then (as fallback to enable
@@ -1913,7 +1914,7 @@ avoid this problem you have to use tagged entries:
 	Connect:my.domain	RELAY
 
 if you need those entries at all (class {R} may take care of them).
- 
+
 FEATURE(`delay_checks') can take an optional argument:
 
 	FEATURE(`delay_checks', `friend')
@@ -1965,6 +1966,11 @@ A default ruleset for headers which don't have a specific ruleset
 defined for them can be given by:
 
 	H*: $>CheckHdr
+
+Notice: All rules act on tokens as explained in doc/op/op.{me,ps,txt}.
+That may cause problems with simple header checks due to the
+tokenization. It might be simpler to use a regex map and apply it
+to $&{currHeader}.
 
 After all of the headers are read, the check_eoh ruleset will be called for
 any final header-related checks.  The ruleset is called with the number of
@@ -2112,6 +2118,20 @@ connection. e-mail received from hosts within the laptop.example.com domain
 should only be accepted if they have been authenticated.
 TLS_Srv:secure.example.com      ENCR:112
 TLS_Clt:laptop.example.com      PERM+VERIFY:112
+
+Notice: requiring that e-mail is sent to a server only encrypted,
+e.g., via
+
+TLS_Srv:secure.domain	ENCR:112
+
+doesn't necessarily mean that e-mail sent to that domain is encrypted.
+If the domain has multiple MX servers, e.g.,
+
+secure.domain.	IN MX 10	mail.secure.domain.
+secure.domain.	IN MX 50	mail.other.domain.
+
+then mail to user@secure.domain may go unencrypted to mail.other.domain.
+
 
 Received: Header
 
@@ -2979,7 +2999,7 @@ confAUTH_MECHANISMS	AuthMechanisms	[GSSAPI KERBEROS_V4 DIGEST-MD5
 					intersection of this list and the list
 					of available mechanisms as determined
 					by the CYRUS SASL library.
-confDEF_AUTH_INFO	DefaultAuthInfo	[undefined] Filename that contains
+confDEF_AUTH_INFO	DefaultAuthInfo	[undefined] Name of file that contains
 					authentication information for
 					outgoing connections.  This file
 					must contain the user id, the
@@ -3257,4 +3277,4 @@ M4 DIVERSIONS
    8	DNS based blacklists
    9	special local rulesets (1 and 2)
 
-$Revision: 8.383.2.1.2.35 $, Last updated $Date: 2000/12/17 17:19:11 $
+$Revision: 8.383.2.1.2.42 $, Last updated $Date: 2001/02/15 23:40:10 $

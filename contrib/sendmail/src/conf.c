@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2000 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2001 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -12,7 +12,7 @@
  */
 
 #ifndef lint
-static char id[] = "@(#)$Id: conf.c,v 8.646.2.2.2.61 2000/12/28 23:46:41 gshapiro Exp $";
+static char id[] = "@(#)$Id: conf.c,v 8.646.2.2.2.69 2001/02/27 19:50:11 gshapiro Exp $";
 #endif /* ! lint */
 
 #include <sendmail.h>
@@ -4358,7 +4358,7 @@ getipnodebyname(name, family, flags, err)
 		resv6 = bitset(RES_USE_INET6, _res.options);
 		_res.options |= RES_USE_INET6;
 	}
-	h_errno = 0;
+	SM_SET_H_ERRNO(0);
 	h = gethostbyname(name);
 	*err = h_errno;
 	if (family == AF_INET6 && !resv6)
@@ -4375,7 +4375,7 @@ getipnodebyaddr(addr, len, family, err)
 {
 	struct hostent *h;
 
-	h_errno = 0;
+	SM_SET_H_ERRNO(0);
 	h = gethostbyaddr(addr, len, family);
 	*err = h_errno;
 	return h;
@@ -4401,6 +4401,7 @@ sm_gethostbyname(name, family)
 	char *name;
 	int family;
 {
+	int save_errno;
 	struct hostent *h = NULL;
 #if (SOLARIS > 10000 && SOLARIS < 20400) || (defined(SOLARIS) && SOLARIS < 204) || (defined(sony_news) && defined(__svr4))
 # if SOLARIS == 20300 || SOLARIS == 203
@@ -4411,12 +4412,14 @@ sm_gethostbyname(name, family)
 	if (tTd(61, 10))
 		dprintf("_switch_gethostbyname_r(%s)... ", name);
 	h = _switch_gethostbyname_r(name, &hp, buf, sizeof(buf), &h_errno);
+	save_errno = errno;
 # else /* SOLARIS == 20300 || SOLARIS == 203 */
 	extern struct hostent *__switch_gethostbyname();
 
 	if (tTd(61, 10))
 		dprintf("__switch_gethostbyname(%s)... ", name);
 	h = __switch_gethostbyname(name);
+	save_errno = errno;
 # endif /* SOLARIS == 20300 || SOLARIS == 203 */
 #else /* (SOLARIS > 10000 && SOLARIS < 20400) || (defined(SOLARIS) && SOLARIS < 204) || (defined(sony_news) && defined(__svr4)) */
 	int nmaps;
@@ -4424,7 +4427,6 @@ sm_gethostbyname(name, family)
 	int flags = AI_DEFAULT|AI_ALL;
 	int err;
 # endif /* NETINET6 */
-	int save_errno;
 	char *maptype[MAXMAPSTACK];
 	short mapreturn[MAXMAPACTIONS];
 	char hbuf[MAXNAME];
@@ -4437,7 +4439,7 @@ sm_gethostbyname(name, family)
 	flags &= ~AI_ADDRCONFIG;
 #  endif /* ADDRCONFIG_IS_BROKEN */
 	h = getipnodebyname(name, family, flags, &err);
-	h_errno = err;
+	SM_SET_H_ERRNO(err);
 # else /* NETINET6 */
 	h = gethostbyname(name);
 # endif /* NETINET6 */
@@ -4465,7 +4467,7 @@ sm_gethostbyname(name, family)
 				return NULL;
 			}
 			(void) strlcpy(hbuf, name, sizeof hbuf);
-			shorten_hostname(hbuf);
+			(void) shorten_hostname(hbuf);
 
 			/* if it hasn't been shortened, there's no point */
 			if (strcmp(hbuf, name) != 0)
@@ -4478,7 +4480,7 @@ sm_gethostbyname(name, family)
 				h = getipnodebyname(hbuf, family,
 						    AI_V4MAPPED|AI_ALL,
 						    &err);
-				h_errno = err;
+				SM_SET_H_ERRNO(err);
 				save_errno = errno;
 # else /* NETINET6 */
 				h = gethostbyname(hbuf);
@@ -4541,26 +4543,42 @@ sm_gethostbyaddr(addr, len, type)
 	int type;
 {
 	struct hostent *hp;
+
+#if NETINET6
+	if (type == AF_INET6 &&
+	    IN6_IS_ADDR_UNSPECIFIED((struct in6_addr *) addr))
+	{
+		/* Avoid reverse lookup for IPv6 unspecified address */
+		SM_SET_H_ERRNO(HOST_NOT_FOUND);
+		return NULL;
+	}
+#endif /* NETINET6 */
+
 #if (SOLARIS > 10000 && SOLARIS < 20400) || (defined(SOLARIS) && SOLARIS < 204)
 # if SOLARIS == 20300 || SOLARIS == 203
-	static struct hostent he;
-	static char buf[1000];
-	extern struct hostent *_switch_gethostbyaddr_r();
+	{
+		static struct hostent he;
+		static char buf[1000];
+		extern struct hostent *_switch_gethostbyaddr_r();
 
-	hp = _switch_gethostbyaddr_r(addr, len, type, &he, buf, sizeof(buf), &h_errno);
+		hp = _switch_gethostbyaddr_r(addr, len, type, &he,
+					     buf, sizeof(buf), &h_errno);
+	}
 # else /* SOLARIS == 20300 || SOLARIS == 203 */
-	extern struct hostent *__switch_gethostbyaddr();
+	{
+		extern struct hostent *__switch_gethostbyaddr();
 
-	hp = __switch_gethostbyaddr(addr, len, type);
+		hp = __switch_gethostbyaddr(addr, len, type);
+	}
 # endif /* SOLARIS == 20300 || SOLARIS == 203 */
 #else /* (SOLARIS > 10000 && SOLARIS < 20400) || (defined(SOLARIS) && SOLARIS < 204) */
 # if NETINET6
-	int err;
-# endif /* NETINET6 */
+	{
+		int err;
 
-# if NETINET6
-	hp = getipnodebyaddr(addr, len, type, &err);
-	h_errno = err;
+		hp = getipnodebyaddr(addr, len, type, &err);
+		SM_SET_H_ERRNO(err);
+	}
 # else /* NETINET6 */
 	hp = gethostbyaddr(addr, len, type);
 # endif /* NETINET6 */
@@ -4935,18 +4953,21 @@ load_if_names()
 		switch (af)
 		{
 		  case AF_INET6:
-			ia6 = sa->sin6.sin6_addr;
-#   ifdef __KAME__
-			/* convert into proper scoped address - */
-			if ((IN6_IS_ADDR_LINKLOCAL(&ia6) ||
-			     IN6_IS_ADDR_SITELOCAL(&ia6)) &&
+#  ifdef __KAME__
+			/* convert into proper scoped address */
+			if ((IN6_IS_ADDR_LINKLOCAL(&sa->sin6.sin6_addr) ||
+			     IN6_IS_ADDR_SITELOCAL(&sa->sin6.sin6_addr)) &&
 			    sa->sin6.sin6_scope_id == 0)
 			{
-				sa->sin6.sin6_scope_id = ntohs(ia6.s6_addr[3] |
-					((unsigned int) ia6.s6_addr[2] << 8));
-				ia6.s6_addr[2] = ia6.s6_addr[3] = 0;
+				struct in6_addr *ia6p;
+
+				ia6p = &sa->sin6.sin6_addr;
+				sa->sin6.sin6_scope_id = ntohs(ia6p->s6_addr[3] |
+							       ((unsigned int)ia6p->s6_addr[2] << 8));
+				ia6p->s6_addr[2] = ia6p->s6_addr[3] = 0;
 			}
-#   endif /* __KAME__ */
+#  endif /* __KAME__ */
+			ia6 = sa->sin6.sin6_addr;
 			if (IN6_IS_ADDR_UNSPECIFIED(&ia6))
 			{
 				addr = anynet_ntop(&ia6, buf6, sizeof buf6);
@@ -5129,6 +5150,20 @@ load_if_names()
 
 #   if NETINET6
 		  case AF_INET6:
+#    ifdef __KAME__
+			/* convert into proper scoped address */
+			if ((IN6_IS_ADDR_LINKLOCAL(&sa->sin6.sin6_addr) ||
+			     IN6_IS_ADDR_SITELOCAL(&sa->sin6.sin6_addr)) &&
+			    sa->sin6.sin6_scope_id == 0)
+			{
+				struct in6_addr *ia6p;
+
+				ia6p = &sa->sin6.sin6_addr;
+				sa->sin6.sin6_scope_id = ntohs(ia6p->s6_addr[3] |
+							       ((unsigned int)ia6p->s6_addr[2] << 8));
+				ia6p->s6_addr[2] = ia6p->s6_addr[3] = 0;
+			}
+#    endif /* __KAME__ */
 			ia6 = sa->sin6.sin6_addr;
 			if (IN6_IS_ADDR_UNSPECIFIED(&ia6))
 			{

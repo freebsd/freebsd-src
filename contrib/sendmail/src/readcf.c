@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2000 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2001 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -12,7 +12,7 @@
  */
 
 #ifndef lint
-static char id[] = "@(#)$Id: readcf.c,v 8.382.4.31 2000/12/18 18:00:43 ca Exp $";
+static char id[] = "@(#)$Id: readcf.c,v 8.382.4.38 2001/02/17 00:05:12 geir Exp $";
 #endif /* ! lint */
 
 #include <sendmail.h>
@@ -844,6 +844,8 @@ fileclass(class, filename, fmt, safe, optional)
 **			   T -- the mailer type (for DSNs)
 **			   U -- the uid to run as
 **			   W -- the time to wait at the end
+**			   m -- maximum messages per connection
+**			   / -- new root directory
 **			The first word is the canonical name of the mailer.
 **
 **	Returns:
@@ -2059,7 +2061,9 @@ setoption(opt, val, safe, sticky, e)
 		if (val[0] == '\0')
 			HelpFile = "helpfile";
 		else
+		{
 			HelpFile = newstr(val);
+		}
 		break;
 
 	  case 'h':		/* maximum hop count */
@@ -2094,6 +2098,13 @@ setoption(opt, val, safe, sticky, e)
 				HasWildcardMX = !clearmode;
 				continue;
 			}
+#if _FFR_WORKAROUND_BROKEN_NAMESERVERS
+			if (sm_strcasecmp(q, "WorkAroundBrokenAAAA") == 0)
+			{
+				WorkAroundBrokenAAAA = !clearmode;
+				continue;
+			}
+#endif /* _FFR_WORKAROUND_BROKEN_NAMESERVERS */
 			for (rfp = ResolverFlags; rfp->rf_name != NULL; rfp++)
 			{
 				if (strcasecmp(q, rfp->rf_name) == 0)
@@ -2248,7 +2259,9 @@ setoption(opt, val, safe, sticky, e)
 		if (val[0] == '\0')
 			StatFile = "statistics";
 		else
+		{
 			StatFile = newstr(val);
+		}
 		break;
 
 	  case 's':		/* be super safe, even if expensive */
@@ -2549,7 +2562,9 @@ setoption(opt, val, safe, sticky, e)
 
 	  case O_HSDIR:		/* persistent host status directory */
 		if (val[0] != '\0')
+		{
 			HostStatDir = newstr(val);
+		}
 		break;
 
 	  case O_SINGTHREAD:	/* single thread deliveries (requires hsdir) */

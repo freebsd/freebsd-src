@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 1999-2000 Sendmail, Inc. and its suppliers.
+ *  Copyright (c) 1999-2001 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -9,7 +9,7 @@
  */
 
 #ifndef lint
-static char id[] = "@(#)$Id: engine.c,v 8.67.4.15 2000/12/29 19:43:10 gshapiro Exp $";
+static char id[] = "@(#)$Id: engine.c,v 8.67.4.17 2001/01/22 19:00:16 gshapiro Exp $";
 #endif /* ! lint */
 
 #if _FFR_MILTER
@@ -122,7 +122,7 @@ static int	dec_arg2 __P((char *, size_t, char **, char **));
 #define NX_INIT	(MASK(ST_OPTS))
 #define NX_OPTS	(MASK(ST_CONN))
 #define NX_CONN	(MASK(ST_HELO) | MASK(ST_MAIL))
-#define NX_HELO	(MASK(ST_MAIL))
+#define NX_HELO	(MASK(ST_HELO) | MASK(ST_MAIL))
 #define NX_MAIL	(MASK(ST_RCPT) | MASK(ST_ABRT))
 #define NX_RCPT	(MASK(ST_HDRS) | MASK(ST_EOHS) | MASK(ST_RCPT) | MASK(ST_ABRT))
 #define NX_HDRS	(MASK(ST_EOHS) | MASK(ST_HDRS) | MASK(ST_ABRT))

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2000 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2001 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -10,7 +10,7 @@
  * the sendmail distribution.
  *
  *
- *	$Id: conf.h,v 8.496.4.32 2000/12/15 19:20:53 gshapiro Exp $
+ *	$Id: conf.h,v 8.496.4.37 2001/02/12 21:40:16 gshapiro Exp $
  */
 
 /*
@@ -488,6 +488,9 @@ typedef int		pid_t;
 #  endif /* ! __svr4__ */
 #  define GIDSET_T	gid_t
 #  define USE_SA_SIGACTION	1	/* use sa_sigaction field */
+#  if _FFR_MILTER
+#   define BROKEN_PTHREAD_SLEEP	1	/* sleep after pthread_create() fails */
+#  endif /* _FFR_MILTER */
 #  ifndef _PATH_UNIX
 #   define _PATH_UNIX		"/dev/ksyms"
 #  endif /* ! _PATH_UNIX */
@@ -1004,6 +1007,12 @@ typedef int		pid_t;
 #   define HASSTRL	0	/* strlcat(3) is broken in 2.5 and earlier */
 #  else /* OpenBSD < 199912 */
 #   define HASSTRL	1	/* has strlc{py,at}(3) functions */
+#   if OpenBSD >= 200006
+#    define HASSRANDOMDEV	1	/* has srandomdev(3) */
+#   endif
+#   if OpenBSD >= 200012
+#    define HASSETUSERCONTEXT	1	/* BSDI-style login classes */
+#   endif
 #  endif /* OpenBSD < 199912 */
 # endif /* defined(__OpenBSD__) */
 #endif /* defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) */
@@ -1727,6 +1736,9 @@ typedef int		pid_t;
 #  define _PATH_SENDMAILPID	"/etc/sendmail.pid"
 # endif /* ! _PATH_SENDMAILPID */
 # undef offsetof		/* avoid stddefs.h, sys/sysmacros.h conflict */
+#if !defined(SM_SET_H_ERRNO) && defined(_REENTRANT)
+# define SM_SET_H_ERRNO(err)	set_h_errno((err))
+#endif /* ! SM_SET_H_ERRNO && _REENTRANT */
 #endif /* __svr5__ */
 
 /* ###################################################################### */
@@ -2722,6 +2734,10 @@ typedef void		(*sigfunc_t) __P((int));
 # define FORK		fork		/* function to call to fork mailer */
 #endif /* ! FORK */
 
+/* setting h_errno */
+#ifndef SM_SET_H_ERRNO
+# define SM_SET_H_ERRNO(err)	h_errno = (err)
+#endif /* SM_SET_H_ERRNO */
 
 /* random routine -- set above using #ifdef _osname_ or in Makefile */
 #if HASRANDOM
@@ -2809,7 +2825,6 @@ typedef void		(*sigfunc_t) __P((int));
 #  define HASSNPRINTF	1	/* sfio includes snprintf() */
 # endif /* !HASSNPRINTF */
 #endif /* SFIO */
-
 
 #ifndef SFIO_STDIO_COMPAT
 # define SFIO_STDIO_COMPAT	0

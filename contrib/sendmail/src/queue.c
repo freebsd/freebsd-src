@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2000 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2001 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -16,9 +16,9 @@
 
 #ifndef lint
 # if QUEUE
-static char id[] = "@(#)$Id: queue.c,v 8.343.4.38 2000/12/08 14:33:02 ca Exp $ (with queueing)";
+static char id[] = "@(#)$Id: queue.c,v 8.343.4.44 2001/02/22 00:55:35 ca Exp $ (with queueing)";
 # else /* QUEUE */
-static char id[] = "@(#)$Id: queue.c,v 8.343.4.38 2000/12/08 14:33:02 ca Exp $ (without queueing)";
+static char id[] = "@(#)$Id: queue.c,v 8.343.4.44 2001/02/22 00:55:35 ca Exp $ (without queueing)";
 # endif /* QUEUE */
 #endif /* ! lint */
 
@@ -835,6 +835,7 @@ run_single_queue(queuedir, forkflag, verbose)
 	CurEnv = &QueueEnvelope;
 	e = newenvelope(&QueueEnvelope, CurEnv);
 	e->e_flags = BlankEnvelope.e_flags;
+	e->e_parent = NULL;
 
 	/* make sure we have disconnected from parent */
 	if (forkflag)
@@ -1558,7 +1559,7 @@ workcmpf1(a, b)
 		return b->w_lock - a->w_lock;
 
 	/* job priority */
-	return a->w_pri - b->w_pri;
+	return workcmpf0(a, b);
 }
 /*
 **  WORKCMPF2 -- second compare function for ordering work based on host name.
@@ -1599,7 +1600,7 @@ workcmpf2(a, b)
 		return i;
 
 	/* job priority */
-	return a->w_pri - b->w_pri;
+	return workcmpf0(a, b);
 }
 /*
 **  WORKCMPF3 -- simple submission-time-only compare function.
