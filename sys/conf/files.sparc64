@@ -8,6 +8,8 @@
 # dependency lines other than the first are silently ignored.
 #
 
+dev/ofw/ofw_console.c		optional ofw_console
+dev/ofw/openfirm.c		standard
 libkern/ffs.c			standard
 kern/subr_diskmbr.c		standard
 sparc64/sparc64/autoconf.c	standard
@@ -21,8 +23,10 @@ sparc64/sparc64/elf_machdep.c	standard
 # Otherwise it's they're normal.
 # sparc64/sparc64/locore.s	standard
 # sparc64/sparc64/exception.s	standard
+sparc64/sparc64/emul.c		standard
 sparc64/sparc64/fp.c		standard
 sparc64/sparc64/identcpu.c	standard
+sparc64/sparc64/in_cksum.c	optional inet
 sparc64/sparc64/intr_machdep.c	standard
 sparc64/sparc64/machdep.c	standard
 sparc64/sparc64/pmap.c		standard
@@ -36,6 +40,3 @@ sparc64/sparc64/trap.c		standard
 sparc64/sparc64/tsb.c		standard
 sparc64/sparc64/upa.c		standard
 sparc64/sparc64/vm_machdep.c	standard
-
-dev/ofw/openfirm.c		standard
-dev/ofw/ofw_console.c		standard
