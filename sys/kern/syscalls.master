@@ -1,4 +1,4 @@
-	$Id: syscalls.master,v 1.16 1995/09/19 13:30:51 bde Exp $
+	$Id: syscalls.master,v 1.17 1995/10/07 06:24:08 swallace Exp $
 ;	from: @(#)syscalls.master	8.2 (Berkeley) 1/13/94
 ;
 ; System call name/number master file.
@@ -117,7 +117,7 @@
 64	COMPAT	BSD	{ int getpagesize(void); } \
 			    getpagesize getpagesize_args int
 65	STD	BSD	{ int msync(caddr_t addr, size_t len, int flags); }
-66	STD	BSD	{ int vfork(void); } vfork fork_args int
+66	NOARGS	BSD	{ int vfork(void); } vfork fork_args int
 67	OBSOL	NOHIDE	vread
 68	OBSOL	NOHIDE	vwrite
 69	STD	BSD	{ int sbrk(int incr); }
@@ -137,7 +137,7 @@
 82	STD	POSIX	{ int setpgid(int pid, int pgid); }
 83	STD	BSD	{ int setitimer(u_int which, struct itimerval *itv, \
 			    struct itimerval *oitv); }
-84	COMPAT	BSD	{ int wait(void); } wait wait_args int
+84	COMPAT	BSD	{ int wait(void); }
 85	STD	BSD	{ int swapon(char *name); }
 86	STD	BSD	{ int getitimer(u_int which, struct itimerval *itv); }
 87	COMPAT	BSD	{ int gethostname(char *hostname, u_int len); } \
@@ -155,7 +155,7 @@
 96	STD	BSD	{ int setpriority(int which, int who, int prio); }
 97	STD	BSD	{ int socket(int domain, int type, int protocol); }
 98	STD	BSD	{ int connect(int s, caddr_t name, int namelen); }
-99	COMPAT	BSD	{ int accept(int s, caddr_t name, int *anamelen); } \
+99	CPT_NOA	BSD	{ int accept(int s, caddr_t name, int *anamelen); } \
 			    accept accept_args int
 100	STD	BSD	{ int getpriority(int which, int who); }
 101	COMPAT	BSD	{ int send(int s, caddr_t buf, int len, int flags); }
@@ -189,7 +189,7 @@
 			    struct timezone *tzp); }
 123	STD	BSD	{ int fchown(int fd, int uid, int gid); }
 124	STD	BSD	{ int fchmod(int fd, int mode); }
-125	COMPAT	BSD	{ int recvfrom(int s, caddr_t buf, size_t len, \
+125	CPT_NOA	BSD	{ int recvfrom(int s, caddr_t buf, size_t len, \
 			    int flags, caddr_t from, int *fromlenaddr); } \
 			    recvfrom recvfrom_args int
 126	STD	BSD	{ int setreuid(int ruid, int euid); }
@@ -220,7 +220,8 @@
 148	STD	BSD	{ int quotactl(char *path, int cmd, int uid, \
 			    caddr_t arg); }
 149	COMPAT	BSD	{ int quota(void); }
-150	COMPAT	BSD	{ int getsockname(int fdec, caddr_t asa, int *alen); }
+150	CPT_NOA	BSD	{ int getsockname(int fdec, caddr_t asa, int *alen); }\
+			    getsockname getsockname_args int
 
 ; Syscalls 151-180 inclusive are reserved for vendor-specific
 ; system calls.  (This includes various calls added for compatibity
@@ -305,10 +306,10 @@
 192	STD	POSIX	{ int fpathconf(int fd, int name); }
 193	UNIMPL	NOHIDE	nosys
 194	STD	BSD	{ int getrlimit(u_int which, \
-			    struct ogetrlimit *rlp); } \
+			    struct orlimit *rlp); } \
 			    getrlimit __getrlimit_args int
 195	STD	BSD	{ int setrlimit(u_int which, \
-			    struct ogetrlimit *rlp); } \
+			    struct orlimit *rlp); } \
 			    setrlimit __setrlimit_args int
 196	STD	BSD	{ int getdirentries(int fd, char *buf, u_int count, \
 			    long *basep); }
