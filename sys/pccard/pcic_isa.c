@@ -96,7 +96,8 @@ pcic_isa_probe(device_t dev)
 		return (ENXIO);
 
 	if (bus_get_resource_start(dev, SYS_RES_IOPORT, 0) == 0)
-		bus_set_resource(dev, SYS_RES_IOPORT, 0, PCIC_INDEX0, 2);
+		bus_set_resource(dev, SYS_RES_IOPORT, 0, PCIC_PORT_0,
+		    PCIC_NPORT);
 	rid = 0;
 	r = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0, 1, RF_ACTIVE);
 	if (!r) {
@@ -114,8 +115,8 @@ pcic_isa_probe(device_t dev)
 		 */
 		sp->getb = pcic_getb_io;
 		sp->putb = pcic_putb_io;
-		sp->index = rman_get_start(r);
-		sp->data = sp->index + 1;
+		sp->bst = rman_get_bustag(r);
+		sp->bsh = rman_get_bushandle(r);
 		sp->offset = slotnum * PCIC_SLOT_SIZE;
 		sp->controller = -1;
 	}
@@ -138,8 +139,7 @@ pcic_isa_probe(device_t dev)
 	if (sp0->getb(sp0, PCIC_ID_REV) == PCIC_VLSI82C146 &&
 	    sp1->getb(sp1, PCIC_ID_REV) != PCIC_VLSI82C146) {
 		spsave = *sp1;
-		sp1->index += 4;
-		sp1->data += 4;
+		sp1->bsh += 4;
 		sp1->offset = PCIC_SLOT_SIZE << 1;
 		if (sp1->getb(sp1, PCIC_ID_REV) != PCIC_VLSI82C146) {
 			*sp1 = spsave;
@@ -170,10 +170,14 @@ pcic_isa_probe(device_t dev)
 			sp->controller = PCIC_I82365;
 			sp->revision = c & 1;
 			/*
-			 *	Now check for VADEM chips.
+			 * Check for Vadem chips by unlocking their extra
+			 * registers and looking for valid ID.  Bit 3 in
+			 * the ID register is normally 0, except when
+			 * PCIC_VADEMREV is set.  Other bridges appear
+			 * to ignore this frobbing.
 			 */
-			outb(sp->index, 0x0E);	/* Unlock VADEM's extra regs */
-			outb(sp->index, 0x37);
+			bus_space_write_1(sp->bst, sp->bsh, PCIC_INDEX, 0x0E);
+			bus_space_write_1(sp->bst, sp->bsh, PCIC_INDEX, 0x37);
 			pcic_setb(sp, PCIC_VMISC, PCIC_VADEMREV);
 			c = sp->getb(sp, PCIC_ID_REV);
 			if (c & 0x08) {
