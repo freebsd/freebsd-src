@@ -41,7 +41,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id: conf.c,v 1.42 1994/12/03 00:18:15 wollman Exp $
+ *	$Id: conf.c,v 1.43 1994/12/04 07:14:16 phk Exp $
  */
 
 #include <sys/param.h>
@@ -214,12 +214,22 @@ d_ioctl_t fdioctl;
 #define	fdsize		(d_psize_t *)0
 #endif
 
+#include "vn.h"
+#if NVN > 0
+d_open_t vnopen;
+d_close_t vnclose;
+d_strategy_t vnstrategy;
+d_ioctl_t vnioctl;
+d_dump_t vndump;
+d_psize_t vnsize;
+#else
 #define	vnopen		(d_open_t *)enxio
 #define	vnclose		(d_close_t *)enxio
 #define	vnstrategy	(d_strategy_t *)enxio
 #define	vnioctl		(d_ioctl_t *)enxio
 #define	vndump		(d_dump_t *)enxio
 #define	vnsize		(d_psize_t *)0
+#endif
 
 #define swopen		(d_open_t *)enodev
 #define swclose		(d_close_t *)enodev
@@ -823,6 +833,8 @@ isdisk(dev, type)
 {
 
 	switch (major(dev)) {
+	case 15:
+		return (1);
 	case 0:
 	case 2:
 	case 4:
@@ -834,8 +846,8 @@ isdisk(dev, type)
 	case 3:
 	case 9:
 	case 13:
-	case 15:
 	case 29:
+	case 43:
 		if (type == VCHR)
 			return (1);
 		/* fall through */
@@ -845,53 +857,28 @@ isdisk(dev, type)
 	/* NOTREACHED */
 }
 
-#define MAXDEV 32
-static int chrtoblktbl[MAXDEV] =  {
-	/* VCHR */	/* VBLK */
-	/* 0 */		NODEV,
-	/* 1 */		NODEV,
-	/* 2 */		NODEV,
-	/* 3 */		0,
-	/* 4 */		NODEV,
-	/* 5 */		NODEV,
-	/* 6 */		NODEV,
-	/* 7 */		NODEV,
-	/* 8 */		NODEV,
-	/* 9 */		2,
-	/* 10 */	3,
-	/* 11 */	NODEV,
-	/* 12 */	NODEV,
-	/* 13 */	4,
-	/* 14 */	5,
-	/* 15 */	6,
-	/* 16 */	NODEV,
-	/* 17 */	NODEV,
-	/* 18 */	NODEV,
-	/* 19 */	NODEV,
-	/* 20 */	NODEV,
-	/* 21 */	NODEV,
-	/* 22 */	NODEV,
-	/* 23 */	NODEV,
-	/* 25 */	NODEV,
-	/* 26 */	NODEV,
-	/* 27 */	NODEV,
-	/* 28 */	NODEV,
-	/* 29 */	7,
-	/* 30 */	NODEV,
-	/* 31 */	NODEV,
-};
 /*
  * Routine to convert from character to block device number.
  *
  * A minimal stub routine can always return NODEV.
  */
-int
+dev_t
 chrtoblk(dev)
 	dev_t dev;
 {
 	int blkmaj;
 
-	if (major(dev) >= MAXDEV || (blkmaj = chrtoblktbl[major(dev)]) == NODEV)
+	switch (major(dev)) {
+	case 3:		blkmaj = 0;  break;
+	case 9:		blkmaj = 2;  break;
+	case 10:	blkmaj = 3;  break;
+	case 13:	blkmaj = 4;  break;
+	case 14:	blkmaj = 5;  break;
+	case 15:	blkmaj = 6;  break;
+	case 29:	blkmaj = 7;  break;
+	case 43:	blkmaj = 15; break;
+	default:
 		return (NODEV);
+	}
 	return (makedev(blkmaj, minor(dev)));
 }
