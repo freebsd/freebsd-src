@@ -15,8 +15,11 @@ struct proc;
 #define SVR4_MACHDEP_JUST_REGS
 #include <i386/svr4/svr4_machdep.h>
 
-ASSYM(SVR4_SIGF_HANDLER, offsetof(svr4_sigframe, sf_handler));
-ASSYM(SVR4_SIGF_UC, offsetof(svr4_sigframe, sf_uc));
-ASSYM(SVR4_UC_FS, offsetof(svr4_ucontext, uc_mcontext.greg[SVR4_X86_FS]));
-ASSYM(SVR4_UC_GS, offsetof(svr4_ucontext, uc_mcontext.greg[SVR4_X86_GS]));
-ASSYM(SVR4_UC_EFLAGS, offsetof(svr4_ucontext, uc_mcontext.greg[SVR4_X86_EFL]));
+ASSYM(SVR4_SIGF_HANDLER, offsetof(struct svr4_sigframe, sf_handler));
+ASSYM(SVR4_SIGF_UC, offsetof(struct svr4_sigframe, sf_uc));
+ASSYM(SVR4_UC_FS, offsetof(struct svr4_ucontext,
+    uc_mcontext.greg[SVR4_X86_FS]));
+ASSYM(SVR4_UC_GS, offsetof(struct svr4_ucontext,
+    uc_mcontext.greg[SVR4_X86_GS]));
+ASSYM(SVR4_UC_EFLAGS, offsetof(struct svr4_ucontext,
+    uc_mcontext.greg[SVR4_X86_EFL]));
