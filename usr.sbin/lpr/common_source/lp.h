@@ -36,6 +36,7 @@
 
 #include <sys/queue.h>
 #include <time.h>
+#include <netdb.h>
 
 /*
  * All this information used to be in global static variables shared
@@ -156,14 +157,14 @@ extern char	*name;		/* program name */
 				/* host machine name */
 extern char	host[MAXHOSTNAMELEN];
 extern char	*from;		/* client's machine name */
-#define MAXIPSTRLEN 32		/* maxlen of an IP-address as a string */
-extern char	from_ip[MAXIPSTRLEN];   /* client machine's IP address */
+extern char	from_ip[NI_MAXHOST];   /* client machine's IP address */
 
 extern int	requ[];		/* job number of spool entries */
 extern int	requests;	/* # of spool requests */
 extern char	*user[];        /* users to process */
 extern int	users;		/* # of users in user array */
 extern char	*person;	/* name of person doing lprm */
+extern u_char	family;		/* address family */
 
 /*
  * Structure used for building a sorted list of control files.
