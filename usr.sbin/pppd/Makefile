@@ -6,7 +6,9 @@ PROG=	pppd
 SRCS=	main.c magic.c fsm.c lcp.c ipcp.c ipxcp.c upap.c chap.c ccp.c \
 	demand.c auth.c options.c sys-bsd.c
 MAN=	pppd.8
-BINMODE=4555
+BINMODE=4550
+BINOWN=	root
+BINGRP=	dialer
 
 # as per handbook policies section
 MAINTAINER=	peter@freebsd.org
