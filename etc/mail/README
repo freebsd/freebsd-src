@@ -9,7 +9,7 @@ only, as explained in /etc/mail/sendmail.cf.additions.) These
 rulesets use three databases.  The denyip, a list of IP addresses,
 spamsites, a list of domains, and fakenames, a list of bogus
 usernames (such as investor and success).  We do not accept mail
-from any machine that matches a entry in either database, or usersr
+from any machine that matches a entry in either database, or users
 in the fakenames database.
 
 Filtering at your site:
