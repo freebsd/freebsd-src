@@ -1,89 +1,49 @@
 <!-- $FreeBSD$ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.191 -->
+<!-- Original revision: 1.199 -->
 
 <!-- Please try to keep the file 'avail' (from CVSROOT) 
      in sync with the list of FreeBSD Developers -->
 
+<chapt><heading>FreeBSDプロジェクトスタッフ<label id="staff"></heading>
 
-<chapt><heading>FreeBSD へのコントリビュータ<label id="contrib"></heading>
-
-<p><em>原作: 不明</em>
 <p><em>訳: &a.hanai;<newline>28 August 1996.</em>
 
-  <sect><heading>BSD派生ソフトウェアへのコントリビュータ</heading>
-
-    <p>このソフトウェアは最初は William F. Jolitz の 386BSD release 0.1
-      から派生しましたが, オリジナルの 386BSD に固有のコードはほとんど
-      残っていません. このソフトウェアは基本的にはカリフォルニア大学
-      バークレイ校の Computer Science Research Group (CSRG) とその共同研究者
-      たちによる 4.4BSD-Lite リリースから再実装されました.
-
-      また, NetBSD の一部も FreeBSD に取り込まれています. したがって私たちは
-      NetBSD へ貢献した人々すべてに感謝します.二つのグループの関係が
-      ギクシャクすることも時にはありますが, 私たちは基本的には共に同じ目的
-      を持っています. すなわち, 人々のコンピュータにもっと BSD をベースに
-      したオペレーティングシステムを! ということです. 私たちは NetBSD
-      の努力が常に成功してほしいと思っています.
-
-  <sect><heading>ハードウェアのコントリビュータ</heading>
-
-    <p>特に Walnut Creek CDROM にはネットワークへのアクセス及び他のハードウェア
-      リソースの寄贈はいうまでもなく, 開発に使うための Pentium P5-90 と
-      486/DX2-66 EISA/VL システムを提供してくれたことについて感謝しています.
-      彼らのサポートがなければこのリリースをおこなうことは不可能であったで
-      しょう.
-
-      TRW Financial Sysytems社は, PC 130台,三つの 68 GB のファイルサーバ
-      12のイーサネット, ディスクレスコードのデバッグをおこなうための
-     二つのルータ及び ATM スイッチを提供してくれました. 
-      また, かれらは 2, 3人の FreeBSD ハッカーを雇って, FreeBSD に専念させて
-      くれています. ありがとう!
-
-      また, 東芝 XM3401B CDROM ドライブ を寄付してくれた Dermot McDonnell
-      に感謝します. その CDROM ドライブはもっとも役に立ちました.
-
-      実験的な仕事としてフロッピーテープストリーマを寄付してくれた
-      &a.chuck; に感謝します.
-
-      <tt>wt</tt>ドライバを改良するために Wangtek と Archive の
-      QIC-02 テープドライブを提供してくれた Larry Altneu &lt;larry@ALR.COM&gt;
-      と &a.wilko; に感謝します.
-
-      このプロジェクトへ 2.88 MB のフロッピードライブを提供してくれた
-      Ernst Winter &lt;ewinter@lobo.muc.de&gt; に感謝します.
-      うまくいけば, これでフロッピーディスクドライバを書き直すための
-      プレッシャーが増えるでしょう. ;-)
-
-      また, FreeBSDプロジェクトへ資金やサービスを提供してくれた人々の
-      リストは <ref id="donors" name="寄贈者ギャラリー"> をご覧ください.
+<p>FreeBSDプロジェクトは, 以下の人々によって管理運営されています.
 
   <sect><heading>FreeBSD コアチーム<label id="contrib:core"></heading>
+    <p>FreeBSD コアチームは, プロジェクトの運用委員会を形成し, FreeBSD
+      プロジェクトの全般的な目的や方針の決定を行います. さらに,
+      FreeBSDプロジェクトの<ref id="contrib:who" name="特定の分野">の
+      運用も行っています.
 
     <p>(姓でアルファベット順):
 
       <itemize>
-	<item>&a.asami
-	<item>&a.ache
-	<item>&a.dyson
-	<item>&a.bde
-	<item>&a.gibbs
-	<item>&a.davidg
-	<item>&a.jkh
-	<item>&a.phk
-	<item>&a.rich
-	<item>&a.gpalmer
-	<item>&a.sos
-	<item>&a.peter
-	<item>&a.wollman
-	<item>&a.joerg
+	<item>&a.asami;
+	<item>&a.jmb;
+	<item>&a.ache;
+	<item>&a.dyson;
+	<item>&a.bde;
+	<item>&a.gibbs;
+	<item>&a.davidg;
+	<item>&a.jkh;
+	<item>&a.phk;
+	<item>&a.rich;
+	<item>&a.gpalmer;
+	<item>&a.jmb;
+	<item>&a.sos;
+	<item>&a.peter;
+	<item>&a.wollman;
+	<item>&a.joerg;
       </itemize>
 
   <sect><heading>FreeBSD の開発者たち<label id="contrib:committers"></heading>
 
     <p>(CVSの)commitする権利を持っていて, FreeBSD のソースツリーについて
-       作業をおこなっている人々がいます. すべてのコアチームのメンバはまた
-       開発者でもあります.
+       作業をおこなっている人々がいます. すべてのコアチームのメンバと
+      ほとんどの FreeBSDドキュメンテーションプロジェクトのスタッフはま
+      た 開発者でもあります.
 
       <itemize>
 	<item>&a.mbarkah;
@@ -125,7 +85,6 @@
 	<item>&a.smpatel;
         <item>&a.wpaul; 
         <item>&a.jmacd; 
-        <item>&a.jdp;
         <item>&a.steve; 
         <item>&a.mpp;
         <item>&a.dfr;  
@@ -139,6 +98,7 @@
         <item>&a.wosch;
         <item>&a.ats;
         <item>&a.msmith;
+        <item>&a.brian; 
         <item>&a.karl;
         <item>&a.pst;
         <item>&a.guido;
@@ -146,6 +106,27 @@
         <item>&a.nate;
         <item>&a.jmz; 
       </itemize>
+
+    <sect><heading>FreeBSD ドキュメンテーションプロジェクト<label
+	id="contrib:doc"></heading>
+
+    <p>FreeBSD ドキュメンテーションプロジェクトは複数のサービスを提供
+      しています. それぞれのサービスは, 以下の担当者とその
+      <em>副担当者</em>によって運用されています.
+
+      <p><descrip>
+        <tag/ドキュメンテーションプロジェクト担当/ &a.jfieber
+        <tag/Web 管理責任者/ &a.mbarkah; <p><em>副責任者</em> &a.paul
+        <tag/ハンドブックおよび FAQ 編集担当/ &a.pds
+        <tag/ドキュメント構築環境の技術責任者/ &a.paul; <p><em>副責任者</em> &a.dave
+        <tag/Mirror 担当/ &a.ulf; <p><em>副担当</em>&a.john
+        <tag/ニュースフラッシュ編集担当/ &a.john; <p><em>副担当</em>&a.nsj;
+        <tag/FreeBSD ギャラリーおよび商用ベンダ情報ページ担当/ &a.ricardag; <p><em>副担当</em>&a.cawimm
+        <tag/WEB ページデザイン等の美術担当/ &a.dave; <p><em>副担当</em>&a.opsys
+        <tag/データベース技術担当/ &a.mayo; <p><em>副担当</em>&a.cracauer
+        <tag/CGI 技術担当/ &a.cracauer
+        <tag/雑務担当/ &a.nsj
+      </descrip>
 
   <sect><heading>担当者<label id="contrib:who"></heading>
  
@@ -163,25 +144,54 @@
         <tag/XFree86 Project, Inc. との渉外担当/ &a.rich 
       </descrip>
 
-    <sect><heading>FreeBSD ドキュメンテーションプロジェクト<label
-	id="contrib:doc"></heading>
+<chapt><heading>FreeBSDへのコントリビュータ<label id="contrib"></heading>
 
-    <p>FreeBSD ドキュメンテーションプロジェクトは複数のサービスを提供
-      しています. それぞれのサービスの担当者は以下のとおりです.
+  <sect><heading>BSD派生ソフトウェアへのコントリビュータ</heading>
 
-      <p><descrip>
-        <tag/ドキュメンテーションプロジェクト担当/ &a.jfieber
-        <tag/Web 管理者/ &a.mbarkah; and &a.paul
-        <tag/ハンドブックおよび FAQ 編集担当/ &a.pds
-        <tag/ドキュメント構築環境の技術担当/ &a.paul; and &a.dave
-        <tag/Mirror 担当/ &a.ulf; and &a.john
-        <tag/News 編集担当/ &a.john; and &a.nsj;
-        <tag/FreeBSD ギャラリーおよび商用ベンダ情報ページ担当/ &a.cawimm; and &a.ricardag
-        <tag/WEB ページ等の美術担当/ &a.dave; and &a.opsys
-        <tag/データベース技術担当/ &a.mayo; and &a.cracauer
-        <tag/CGI 技術担当/ &a.cracauer
-        <tag/雑務担当/ &a.nsj
-      </descrip>
+    <p>このソフトウェアは最初は William F. Jolitz の 386BSD release 0.1
+      から派生しましたが, オリジナルの 386BSD に固有のコードはほとんど
+      残っていません. このソフトウェアは基本的にはカリフォルニア大学
+      バークレイ校の Computer Science Research Group (CSRG) とその共同研究者
+      たちによる 4.4BSD-Lite リリースから再実装されました.
+
+      また, NetBSD の一部も FreeBSD に取り込まれています. したがって私たちは
+      NetBSD へ貢献した人々すべてに感謝します.二つのグループの関係が
+      ギクシャクすることも時にはありますが, 私たちは基本的には共に同じ目的
+      を持っています. すなわち, 人々のコンピュータにもっと BSD をベースに
+      したオペレーティングシステムを! ということです. 私たちは NetBSD
+      の努力が常に成功してほしいと思っています.
+
+  <sect><heading>ハードウェアのコントリビュータ</heading>
+
+    <p>特に Walnut Creek CDROM にはネットワークへのアクセス及び他のハードウェア
+      リソースの寄贈はいうまでもなく, 開発に使うための Pentium P5-90 と
+      486/DX2-66 EISA/VL システムを提供してくれたことについて感謝しています.
+      彼らのサポートがなければこのリリースをおこなうことは不可能であったで
+      しょう.
+
+      TRW Financial Sysytems社は, PC 130台,三つの 68 GB のファイルサーバ
+      12のイーサネット, ディスクレスコードのデバッグをおこなうための
+     二つのルータ及び ATM スイッチを提供してくれました. 
+      また, かれらは 2, 3人の FreeBSD ハッカーを雇って, FreeBSD に専念させて
+      くれています. ありがとう!
+
+      また, 東芝 XM3401B CDROM ドライブ を寄付してくれた Dermot McDonnell
+      に感謝します. その CDROM ドライブはもっとも役に立ちました.
+
+      実験のためにフロッピーテープストリーマを寄付してくれた
+      &a.chuck; に感謝します.
+
+      <tt>wt</tt>ドライバを改良するために Wangtek と Archive の
+      QIC-02 テープドライブを提供してくれた Larry Altneu &lt;larry@ALR.COM&gt;
+      と &a.wilko; に感謝します.
+
+      このプロジェクトへ 2.88 MB のフロッピードライブを提供してくれた
+      Ernst Winter &lt;ewinter@lobo.muc.de&gt; に感謝します.
+      うまくいけば, これでフロッピーディスクドライバを書き直すための
+      プレッシャーが増えるでしょう. ;-)
+
+      また, FreeBSDプロジェクトへ資金やサービスを提供してくれた人々の
+      リストは <ref id="donors" name="寄贈者ギャラリー"> をご覧ください.
 
     <sect><heading>その他の FreeBSD へのコントリビュータ<label
       id="contrib:additional"></heading>
