@@ -171,7 +171,7 @@ int main(int argc, unsigned char *argv[])
                            atoi(argv[offset+4]), 1);
 
     dialog_update();
-    if (clear_screen){   /* clear screen before exit */
+    if (clear_screen)   /* clear screen before exit */
       dialog_clear();
     end_dialog();
     return retval;
