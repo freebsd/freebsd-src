@@ -1,0 +1,80 @@
+#!/bin/sh -
+#
+#	$Id$
+#	Do i386 specific processing
+#
+
+echo -n 'enabling FreeBSD/386 options:'
+
+# Start the SCO binary emulation if requested.
+if [ "X${ibcs2}" = X"YES" ]; then
+	echo -n ' ibcs2';  ibcs2
+fi
+
+if [ "X${xtend}" != X"NO" -a -x /usr/libexec/xtend ]; then
+ 	echo -n ' xtend';   /usr/libexec/xtend
+fi
+
+##########################################################################
+####### Syscons section						  ########
+##########################################################################
+
+# don't change these, they're modified below
+kbdadjust=NO
+vidadjust=NO
+
+[ "X${keymap}" != X"NO" -o "X${keyrate}" != X"NO" ] && kbdadjust=YES
+[ "X${scrnmap}" != X"NO" -o "X${font8x16}" != X"NO" -o \
+	"X${font8x14}" != X"NO" -o "X${font8x8}" != X"NO" -o \
+	"X${blanktime}" != X"NO" ] && vidadjust=YES
+
+[ "X${kbdadjust}" != X"NO" ] && echo -n ' [kbdcontrol:'
+
+# keymap
+if [ "X${keymap}" != X"NO" ]; then
+	echo -n ' keymap';	kbdcontrol -l ${keymap}
+fi
+
+# keyrate
+if [ "X${keyrate}" != X"NO" ]; then
+	echo -n ' keyrate';    kbdcontrol -r ${keyrate}
+fi
+
+[ "X${kbdadjust}" != X"NO" ] && echo ']'
+
+
+[ "X${vidadjust}" != X"NO" ] && echo -n ' [vidcontrol:'
+
+# screen mapping
+if [ "X${scrnmap}" != X"NO" ]; then
+	echo -n ' screen_map';	vidcontrol -l ${scrnmap}
+fi
+
+# font 8x16
+if [ "X${font8x16}" != X"NO" ]; then
+	echo -n ' font8x16';	vidcontrol -f 8x16 ${font8x16}
+fi
+
+# font 8x14
+if [ "X${font8x14}" != X"NO" ]; then
+	echo -n ' font8x14';	vidcontrol -f 8x14 ${font8x14}
+fi
+
+# font 8x8
+if [ "X${font8x8}" != X"NO" ]; then
+	echo -n ' font8x8';	vidcontrol -f 8x8 ${font8x8}
+fi
+
+# blank time
+if [ "X${blanktime}" != X"NO" ]; then
+	echo -n ' blank_time';	vidcontrol -t ${blanktime}
+fi
+
+[ "X${vidadjust}" != X"NO" ] && echo ']'
+
+# screen saver
+if [ "X${saver}" != X"NO" ] ; then
+	echo -n ' screensaver: '
+	modstat | grep _saver || modload -u -o /tmp/saver_mod -e \
+				 saver_init -q /lkm/${saver}_saver_mod.o
+fi
