@@ -1081,27 +1081,14 @@ witness_lock_list_free(struct lock_list_entry *lle)
 	mtx_unlock_spin(&w_mtx);
 }
 
-/*
- * Calling this on p != curproc is bad unless we are in ddb.
- */
 int
-witness_list(struct proc *p)
+witness_list_locks(struct lock_list_entry **lock_list)
 {
-	struct lock_list_entry **lock_list, *lle;
+	struct lock_list_entry *lle;
 	struct lock_object *lock;
-	critical_t savecrit;
 	int i, nheld;
 
-	KASSERT(p == curproc || db_active,
-	    ("%s: p != curproc and we aren't in the debugger", __func__));
-	KASSERT(!witness_cold, ("%s: witness_cold", __func__));
 	nheld = 0;
-	/*
-	 * Preemption bad because we need PCPU_PTR(spinlocks) to not change.
-	 */
-	savecrit = critical_enter();
-	lock_list = &p->p_sleeplocks;
-again:
 	for (lle = *lock_list; lle != NULL; lle = lle->ll_next)
 		for (i = lle->ll_count - 1; i >= 0; i--) {
 			lock = lle->ll_children[i];
@@ -1110,16 +1097,40 @@ again:
 			    lock->lo_file, lock->lo_line);
 			nheld++;
 		}
+	return (nheld);
+}
+
+/*
+ * Calling this on p != curproc is bad unless we are in ddb.
+ */
+int
+witness_list(struct proc *p)
+{
+	critical_t savecrit;
+	int nheld;
+
+	KASSERT(p == curproc || db_active,
+	    ("%s: p != curproc and we aren't in the debugger", __func__));
+	KASSERT(!witness_cold, ("%s: witness_cold", __func__));
+
+	nheld = witness_list_locks(&p->p_sleeplocks);
+
 	/*
 	 * We only handle spinlocks if p == curproc.  This is somewhat broken
 	 * if p is currently executing on some other CPU and holds spin locks
-	 * as we won't display those locks.
+	 * as we won't display those locks.  If we had a MI way of getting
+	 * the per-cpu data for a given cpu then we could use p->p_oncpu to
+	 * get the list of spinlocks for this process and "fix" this.
 	 */
-	if (lock_list == &p->p_sleeplocks && p == curproc) {
-		lock_list = PCPU_PTR(spinlocks);
-		goto again;
+	if (p == curproc) {
+		/*
+		 * Preemption bad because we need PCPU_PTR(spinlocks) to not
+		 * change.
+		 */
+		savecrit = critical_enter();
+		nheld += witness_list_locks(PCPU_PTR(spinlocks));
+		critical_exit(savecrit);
 	}
-	critical_exit(savecrit);
 
 	return (nheld);
 }
@@ -1154,8 +1165,28 @@ witness_restore(struct lock_object *lock, const char *file, int line)
 
 DB_SHOW_COMMAND(locks, db_witness_list)
 {
+	struct proc *p;
+	pid_t pid;
 
-	witness_list(curproc);
+	if (have_addr) {
+		pid = (addr % 16) + ((addr >> 4) % 16) * 10 +
+		    ((addr >> 8) % 16) * 100 + ((addr >> 12) % 16) * 1000 +
+		    ((addr >> 16) % 16) * 10000;
+
+		/* sx_slock(&allproc_lock); */
+		LIST_FOREACH(p, &allproc, p_list) {
+			if (p->p_pid == pid)
+				break;
+		}
+		/* sx_sunlock(&allproc_lock); */
+		if (p == NULL) {
+			db_printf("pid %d not found\n", pid);
+			return;
+		}
+	} else
+		p = curproc;
+		
+	witness_list(p);
 }
 
 DB_SHOW_COMMAND(witness, db_witness_display)
