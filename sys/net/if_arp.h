@@ -51,6 +51,7 @@ struct	arphdr {
 	u_short	ar_hrd;		/* format of hardware address */
 #define ARPHRD_ETHER 	1	/* ethernet hardware format */
 #define ARPHRD_IEEE802	6	/* token-ring hardware format */
+#define ARPHRD_ARCNET	7	/* arcnet hardware format */
 #define ARPHRD_FRELAY 	15	/* frame relay hardware format */
 	u_short	ar_pro;		/* format of protocol address */
 	u_char	ar_hln;		/* length of hardware address */
@@ -73,6 +74,15 @@ struct	arphdr {
 	u_char	ar_tpa[];	/* target protocol address */
 #endif
 };
+
+#define ar_sha(ap)	(((caddr_t)((ap)+1)) +   0)
+#define ar_spa(ap)	(((caddr_t)((ap)+1)) +   (ap)->ar_hln)
+#define ar_tha(ap)	(((caddr_t)((ap)+1)) +   (ap)->ar_hln + (ap)->ar_pln)
+#define ar_tpa(ap)	(((caddr_t)((ap)+1)) + 2*(ap)->ar_hln + (ap)->ar_pln)
+
+#define arphdr_len2(ar_hln, ar_pln)					\
+	(sizeof(struct arphdr) + 2*(ar_hln) + 2*(ar_pln))
+#define arphdr_len(ap)	(arphdr_len2((ap)->ar_hln, (ap)->ar_pln))
 
 /*
  * ARP ioctl request

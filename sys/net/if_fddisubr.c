@@ -166,7 +166,7 @@ fddi_output(ifp, m, dst, rt0)
 #ifdef INET
 	case AF_INET: {
 #if !defined(__bsdi__) || _BSDI_VERSION >= 199401
-		if (!ARPRESOLVE(ac, rt, m, dst, edst, rt0))
+		if (!ARPRESOLVE(ifp, rt, m, dst, edst, rt0))
 			return (0);	/* if not yet resolved */
 #else
 		int usetrailers;
@@ -525,6 +525,7 @@ fddi_ifattach(ifp)
 #ifdef IFF_NOTRAILERS
 	ifp->if_flags |= IFF_NOTRAILERS;
 #endif
+	ifp->if_broadcastaddr = fddibroadcastaddr;
 #if defined(__FreeBSD__)
 	ifa = ifaddr_byindex(ifp->if_index);
 	sdl = (struct sockaddr_dl *)ifa->ifa_addr;

@@ -429,6 +429,7 @@ if_attach(ifp)
 			sdl->sdl_data[--namelen] = 0xff;
 		TAILQ_INSERT_HEAD(&ifp->if_addrhead, ifa, ifa_link);
 	}
+	ifp->if_broadcastaddr = 0; /* reliably crash if used uninitialized */
 }
 
 /*
