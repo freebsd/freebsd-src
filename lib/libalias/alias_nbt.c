@@ -23,13 +23,14 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
- *
  *  TODO:
  *       oClean up. 
  *       oConsidering for word alignment for other platform.
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 /*
     alias_nbt.c performs special processing for NetBios over TCP/IP
     sessions by UDP.
