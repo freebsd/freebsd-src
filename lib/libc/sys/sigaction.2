@@ -437,10 +437,12 @@ functions when called from a signal handler is undefined.
 In general though, signal handlers should do little more than set a
 flag; most other actions are not safe.
 .Pp
-As well, inside the signal handler it is also considered more safe to
-make a copy the global variable
+Also, it is good practice to make a copy of the global variable
 .Va errno
 and restore it before returning from the signal handler.
+This protects against the side effect of
+.Va errno
+being set by functions called from inside the signal handler.
 .Sh RETURN VALUES
 A 0 value indicated that the call succeeded.  A \-1 return value
 indicates an error occurred and
