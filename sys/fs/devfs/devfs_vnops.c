@@ -197,7 +197,7 @@ loop:
 		vp->v_type = VCHR;
 		VI_LOCK(vp);
 		dev_lock();
-		dev->si_refcount++;
+		dev_ref(dev);
 		vp->v_rdev = dev;
 		SLIST_INSERT_HEAD(&dev->si_hlist, vp, v_specnext);
 		dev->si_usecount += vp->v_usecount;
