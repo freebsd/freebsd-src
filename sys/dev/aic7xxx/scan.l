@@ -9,8 +9,8 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice immediately at the beginning of the file, without modification,
- *    this list of conditions, and the following disclaimer.
+ *    notice, this list of conditions, and the following disclaimer,
+ *    without modification, immediately at the beginning of the file.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scan.l,v 1.1 1997/03/16 07:08:17 gibbs Exp $
+ *      $Id: scan.l,v 1.2 1997/03/16 17:31:59 bde Exp $
  */
 
 #include <sys/types.h>
@@ -208,15 +208,19 @@ include_file(file_name, type)
 		stop("Unable to open input file", EX_SOFTWARE);
 		/* NOTREACHED */
 	}
-	include = (include_t *)malloc(sizeof(include_t));
-	if (include == NULL) {
-		stop("Unable to allocate include stack entry", EX_SOFTWARE);
-		/* NOTREACHED */
+
+	if (type != SOURCE_FILE) {
+		include = (include_t *)malloc(sizeof(include_t));
+		if (include == NULL) {
+			stop("Unable to allocate include stack entry",
+			     EX_SOFTWARE);
+			/* NOTREACHED */
+		}
+		include->buffer = YY_CURRENT_BUFFER;
+		include->lineno = yylineno;
+		include->filename = yyfilename;
+		SLIST_INSERT_HEAD(&include_stack, include, links);
 	}
-	include->buffer = YY_CURRENT_BUFFER;
-	include->lineno = yylineno;
-	include->filename = yyfilename;
-	SLIST_INSERT_HEAD(&include_stack, include, links);
 	yy_switch_to_buffer(yy_create_buffer(newfile, YY_BUF_SIZE));
 	yylineno = 1;
 	yyfilename = strdup(file_name);
@@ -231,6 +235,7 @@ yywrap()
 	(void)fclose(yyin);
 	if (yyfilename != NULL)
 		free(yyfilename);
+	yyfilename = NULL;
 	include = include_stack.slh_first;
 	if (include != NULL) {
 		yy_switch_to_buffer(include->buffer);
