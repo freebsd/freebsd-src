@@ -1,6 +1,6 @@
 /*
  *	from: vector.s, 386BSD 0.1 unknown origin
- *	$Id: apic_vector.s,v 1.32 1998/08/11 17:01:32 bde Exp $
+ *	$Id: apic_vector.s,v 1.33 1998/09/04 23:03:04 luoqi Exp $
  */
 
 
@@ -166,13 +166,17 @@ IDTVEC(vec_name) ;							\
 	popal ;								\
 	addl	$4+4,%esp
 
+#define IOAPICADDR(irq_num) CNAME(int_to_apicintpin) + 16 * (irq_num) + 8
+#define REDIRIDX(irq_num) CNAME(int_to_apicintpin) + 16 * (irq_num) + 12
+	
 #define MASK_IRQ(irq_num)						\
 	IMASK_LOCK ;				/* into critical reg */	\
 	testl	$IRQ_BIT(irq_num), _apic_imen ;				\
 	jne	7f ;			/* masked, don't mask */	\
 	orl	$IRQ_BIT(irq_num), _apic_imen ;	/* set the mask bit */	\
-	movl	_ioapic, %ecx ;			/* ioapic[0] addr */	\
-	movl	$REDTBL_IDX(irq_num), (%ecx) ;	/* write the index */	\
+	movl	IOAPICADDR(irq_num), %ecx ;	/* ioapic addr */	\
+	movl	REDIRIDX(irq_num), %eax ;	/* get the index */	\
+	movl	%eax, (%ecx) ;			/* write the index */	\
 	movl	IOAPIC_WINDOW(%ecx), %eax ;	/* current value */	\
 	orl	$IOART_INTMASK, %eax ;		/* set the mask */	\
 	movl	%eax, IOAPIC_WINDOW(%ecx) ;	/* new value */		\
@@ -218,8 +222,9 @@ IDTVEC(vec_name) ;							\
 	testl	$IRQ_BIT(irq_num), _apic_imen ;				\
 	je	7f ;			/* bit clear, not masked */	\
 	andl	$~IRQ_BIT(irq_num), _apic_imen ;/* clear mask bit */	\
-	movl	_ioapic,%ecx ;			/* ioapic[0]addr */	\
-	movl	$REDTBL_IDX(irq_num),(%ecx) ;	/* write the index */	\
+	movl	IOAPICADDR(irq_num),%ecx ;	/* ioapic addr */	\
+	movl	REDIRIDX(irq_num), %eax ;	/* get the index */	\
+	movl	%eax,(%ecx) ;			/* write the index */	\
 	movl	IOAPIC_WINDOW(%ecx),%eax ;	/* current value */	\
 	andl	$~IOART_INTMASK,%eax ;		/* clear the mask */	\
 	movl	%eax,IOAPIC_WINDOW(%ecx) ;	/* new value */		\
@@ -990,7 +995,7 @@ CNAME(cpustop_restartfunc):
 
 	.globl	_apic_pin_trigger
 _apic_pin_trigger:
-	.space	(NAPIC * 4), 0
+	.long	0
 
 
 /*

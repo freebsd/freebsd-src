@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mpapic.c,v 1.30 1998/04/19 23:19:20 tegge Exp $
+ *	$Id: mpapic.c,v 1.31 1998/05/17 17:32:10 tegge Exp $
  */
 
 #include "opt_smp.h"
@@ -146,7 +146,7 @@ static void polarity __P((int apic, int pin, u_int32_t * flags, int level));
 /*
  * Setup the IO APIC.
  */
-extern int	apic_pin_trigger[];	/* 'opaque' */
+extern int	apic_pin_trigger;	/* 'opaque' */
 int
 io_apic_setup(int apic)
 {
@@ -159,56 +159,55 @@ io_apic_setup(int apic)
 
 	target = IOART_DEST;
 
-	apic_pin_trigger[apic] = 0;	/* default to edge-triggered */
+	if (apic == 0)
+		apic_pin_trigger = 0;	/* default to edge-triggered */
 
-	if (apic == 0) {
-		maxpin = REDIRCNT_IOAPIC(apic);		/* pins in APIC */
-		for (pin = 0; pin < maxpin; ++pin) {
-			int bus, bustype;
+	maxpin = REDIRCNT_IOAPIC(apic);		/* pins in APIC */
+	printf("Programming %d pins in IOAPIC #%d\n", maxpin, apic);
+	
+	for (pin = 0; pin < maxpin; ++pin) {
+		int bus, bustype, irq;
+		
+		/* we only deal with vectored INTs here */
+		if (apic_int_type(apic, pin) != 0)
+			continue;
 
-			/* we only deal with vectored INTs here */
-			if (apic_int_type(apic, pin) != 0)
-                		continue;
-
-			/* determine the bus type for this pin */
-			bus = apic_src_bus_id(apic, pin);
-			if (bus == -1)
-				continue;
-			bustype = apic_bus_type(bus);
-
-			/* the "ISA" type INTerrupts */
-			if ((bustype == ISA) &&
-			    (pin < IOAPIC_ISA_INTS) && 
-			    (isa_apic_pin(pin) == pin) &&
-			    (apic_polarity(apic, pin) == 0x1) &&
-			    (apic_trigger(apic, pin) == 0x3)) {
-				flags = DEFAULT_ISA_FLAGS;
-			}
-
-			/* PCI or other bus */
-			else {
-				flags = DEFAULT_FLAGS;
-				level = trigger(apic, pin, &flags);
-				if (level == 1)
-					apic_pin_trigger[apic] |= (1 << pin);
-				polarity(apic, pin, &flags, level);
-			}
-
-			/* program the appropriate registers */
-			select = pin * 2 + IOAPIC_REDTBL0;	/* register */
-			vector = NRSVIDT + pin;			/* IDT vec */
-			io_apic_write(apic, select, flags | vector);
-			io_apic_write(apic, select + 1, target);
+		irq = apic_irq(apic, pin);
+		if (irq == 0xff)
+			continue;
+		
+		/* determine the bus type for this pin */
+		bus = apic_src_bus_id(apic, pin);
+		if (bus == -1)
+			continue;
+		bustype = apic_bus_type(bus);
+		
+		/* the "ISA" type INTerrupts */
+		if ((bustype == ISA) &&
+		    (pin < IOAPIC_ISA_INTS) && 
+		    (irq == pin) &&
+		    (apic_polarity(apic, pin) == 0x1) &&
+		    (apic_trigger(apic, pin) == 0x3)) {
+			flags = DEFAULT_ISA_FLAGS;
 		}
-        }
-
-	/* program entry according to MP table. */
-        else {
-#if defined(MULTIPLE_IOAPICS)
-#error MULTIPLE_IOAPICSXXX
-#else
-        	panic("io_apic_setup: apic #%d", apic);
-#endif/* MULTIPLE_IOAPICS */
+		
+		/* PCI or other bus */
+		else {
+			flags = DEFAULT_FLAGS;
+			level = trigger(apic, pin, &flags);
+			if (level == 1)
+				apic_pin_trigger |= (1 << irq);
+			polarity(apic, pin, &flags, level);
+		}
+		
+		/* program the appropriate registers */
+		if (apic != 0 || pin != irq)
+			printf("IOAPIC #%d intpint %d -> irq %d\n",
+			       apic, pin, irq);
+		select = pin * 2 + IOAPIC_REDTBL0;	/* register */
+		vector = NRSVIDT + irq;			/* IDT vec */
+		io_apic_write(apic, select, flags | vector);
+		io_apic_write(apic, select + 1, target);
 	}
 
 	/* return GOOD status */

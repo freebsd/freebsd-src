@@ -31,7 +31,7 @@
  * mpboot.s:	FreeBSD machine support for the Intel MP Spec
  *		multiprocessor systems.
  *
- *	$Id: mpboot.s,v 1.5 1997/09/22 05:03:03 peter Exp $
+ *	$Id: mpboot.s,v 1.6 1997/10/10 09:44:05 peter Exp $
  */
 
 #include "opt_vm86.h"
@@ -124,6 +124,12 @@ mp_begin:	/* now running relocated at KERNBASE */
 	/* Now, let's prepare for some REAL WORK :-) */
 	call	_ap_init
 
+	call	_rel_mplock
+2:	
+	cmpl	$0, CNAME(smp_started)	/* Wait for last AP to be ready */
+	jz	2b
+	call _get_mplock
+	
 	/* let her rip! (loads new stack) */
 	jmp 	_cpu_switch
 
