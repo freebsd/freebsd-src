@@ -26,7 +26,7 @@
  */
 #ifndef	lint
 static char *moduleid =
-	"@(#)$Id: file.c,v 1.2 1995/05/30 06:30:01 rgrimes Exp $";
+	"@(#)$Id: file.c,v 1.3 1996/01/23 12:40:11 mpp Exp $";
 #endif	/* lint */
 
 #include <stdio.h>
@@ -342,6 +342,10 @@ int nb, zflag;
 	/* try known keywords, check whether it is ASCII */
 	if (ascmagic(buf, nb))
 		return 'a';
+
+	/* see if it's international language text */
+	if (internatmagic(buf, nb))
+		return 'i';
 
 	/* abandon hope, all ye who remain here */
 	ckfputs("data", stdout);
