@@ -135,7 +135,8 @@ pccard_scan_cis(device_t dev, int (*fct)(struct pccard_tuple *, void *),
 	tuple.memh = rman_get_bushandle(res);
 	tuple.ptr = 0;
 
-	DPRINTF(("cis mem map %x\n", (unsigned int) tuple.memh));
+	DPRINTF(("cis mem map 0x%x (resource: 0x%lx)\n",
+	    (unsigned int) tuple.memh, rman_get_start(res)));
 
 	tuple.mult = 2;
 
@@ -150,9 +151,20 @@ pccard_scan_cis(device_t dev, int (*fct)(struct pccard_tuple *, void *),
 
 	while (1) {
 		while (1) {
-			/* get the tuple code */
-
-			tuple.code = pccard_cis_read_1(&tuple, tuple.ptr);
+			/*
+			 * Perform boundary check for insane cards.
+			 * If CIS is too long, simulate CIS end.
+			 * (This check may not be sufficient for
+			 * malicious cards.)
+			 */
+			if (tuple.mult * tuple.ptr >= PCCARD_CIS_SIZE - 1
+			    - 32 /* ad hoc value */ ) {
+				printf("CIS is too long -- truncating\n");
+				tuple.code = PCCARD_CISTPL_END;
+			} else {
+				/* get the tuple code */
+				tuple.code = pccard_cis_read_1(&tuple, tuple.ptr);
+			}
 
 			/* two special-case tuples */
 
@@ -361,7 +373,6 @@ pccard_scan_cis(device_t dev, int (*fct)(struct pccard_tuple *, void *),
 		 * In general, this means that if one pointer fails, it will
 		 * try the next one, instead of just bailing.
 		 */
-
 		while (1) {
 			if (longlink_present) {
 				CARD_SET_RES_FLAGS(device_get_parent(dev), dev,
