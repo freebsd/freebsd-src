@@ -491,8 +491,8 @@ vt_str(struct video_state *svsp)
 		svsp->G1 = cse_ascii;		/* G1 = ascii	*/
 		svsp->G2 = cse_supplemental;	/* G2 = supplemental */
 		svsp->G3 = cse_supplemental;	/* G3 = supplemental */
-		svsp->GL = svsp->G0;		/* GL = G0 */
-		svsp->GR = svsp->G2;		/* GR = G2 */
+		svsp->GL = &svsp->G0;		/* GL = G0 */
+		svsp->GR = &svsp->G2;		/* GR = G2 */
 	}
 	else
 	{
@@ -500,8 +500,8 @@ vt_str(struct video_state *svsp)
 		svsp->G1 = csd_ascii;		/* G1 = ascii	*/
 		svsp->G2 = csd_supplemental;	/* G2 = supplemental */
 		svsp->G3 = csd_supplemental;	/* G3 = supplemental */
-		svsp->GL = svsp->G0;		/* GL = G0 */
-		svsp->GR = svsp->G2;		/* GR = G2 */
+		svsp->GL = &svsp->G0;		/* GL = G0 */
+		svsp->GR = &svsp->G2;		/* GR = G2 */
 	}
 
 	svsp->vtsgr = VT_NORMAL;		/* no attributes */
