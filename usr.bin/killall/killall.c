@@ -50,7 +50,7 @@ static void __dead2
 usage(void)
 {
 
-	fprintf(stderr, "usage: killall [-dlmsvz] [-help] [-j jid]\n");
+	fprintf(stderr, "usage: killall [-delmsvz] [-help] [-j jid]\n");
 	fprintf(stderr,
 	    "               [-u user] [-t tty] [-c cmd] [-SIGNAL] [cmd]...\n");
 	fprintf(stderr, "At least one option or argument to specify processes must be given.\n");
@@ -113,6 +113,7 @@ main(int ac, char **av)
 	int		vflag = 0;
 	int		sflag = 0;
 	int		dflag = 0;
+	int		eflag = 0;
 	int		jflag = 0;
 	int		mflag = 0;
 	int		zflag = 0;
@@ -191,6 +192,9 @@ main(int ac, char **av)
 				break;
 			case 'd':
 				dflag++;
+				break;
+			case 'e':
+				eflag++;
 				break;
 			case 'm':
 				mflag++;
@@ -272,7 +276,7 @@ main(int ac, char **av)
 	miblen = 3;
 
 	if (user) {
-		mib[2] = KERN_PROC_RUID;
+		mib[2] = eflag ? KERN_PROC_UID : KERN_PROC_RUID;
 		mib[3] = uid;
 		miblen = 4;
 	} else if (tty) {
@@ -313,7 +317,10 @@ main(int ac, char **av)
 		strncpy(thiscmd, procs[i].ki_comm, MAXCOMLEN);
 		thiscmd[MAXCOMLEN] = '\0';
 		thistdev = procs[i].ki_tdev;
-		thisuid = procs[i].ki_ruid;	/* real uid */
+		if (eflag)
+			thisuid = procs[i].ki_uid;	/* effective uid */
+		else
+			thisuid = procs[i].ki_ruid;	/* real uid */
 
 		if (thispid == mypid)
 			continue;
