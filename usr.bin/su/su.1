@@ -159,13 +159,10 @@ prompt is set to
 .Dq Sy \&#
 to remind one of its awesome power.
 .Sh FILES
-.Bl -tag -width /etc/pam.conf -compact
-.It Pa /etc/pam.conf
-.Nm
-is configured with PAM support; it uses
-.Pa /etc/pam.conf
-entries with service name
-.Dq su
+.Bl -tag -width ".Pa /etc/pam.d/su" -compact
+.It Pa /etc/pam.d/su
+PAM configuration for
+.Nm .
 .El
 .Sh SEE ALSO
 .Xr csh 1 ,
