@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.8 1999/05/02 15:29:35 markm Exp $
+# $FreeBSD$
 
 .if !defined(NOSUIDPERL)
 _suidperl=	suidperl

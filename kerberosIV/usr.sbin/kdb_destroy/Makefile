@@ -1,4 +1,4 @@
-#	$Id$
+# $FreeBSD$
 
 PROG=		kdb_destroy
 MAN8=		${KRB4DIR}/man/kdb_destroy.8

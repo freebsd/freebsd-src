@@ -1,4 +1,4 @@
-#	$Id$
+# $FreeBSD$
 
 PROG=		ext_srvtab
 MAN8=		${KRB4DIR}/man/ext_srvtab.8

@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.4 1997/02/22 15:45:26 peter Exp $
+# $FreeBSD$
 
 INFO = diff
 

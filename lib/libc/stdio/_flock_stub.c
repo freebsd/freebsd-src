@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: _flock_stub.c,v 1.1 1998/04/11 07:40:41 jb Exp $
+ * $FreeBSD$
  *
  */
 

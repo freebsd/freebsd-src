@@ -35,7 +35,7 @@
 %#ifndef lint
 %/*static char sccsid[] = "from: @(#)mount.x 1.2 87/09/18 Copyr 1987 Sun Micro";*/
 %/*static char sccsid[] = "from: @(#)mount.x	2.1 88/08/01 4.0 RPCSRC";*/
-%static const char rcsid[] = "$Id: mount.x,v 1.4 1997/04/18 12:31:26 dfr Exp $";
+%static const char rcsid[] = "$FreeBSD$";
 %#endif /* not lint */
 #endif
 

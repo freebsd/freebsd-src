@@ -1,5 +1,5 @@
 #
-# $Id: Makefile.i386,v 1.1 1998/03/12 02:55:30 jdp Exp $
+# $FreeBSD$
 #
 
 TARGET=		alpha-unknown-freebsdelf

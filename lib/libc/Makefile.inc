@@ -1,4 +1,4 @@
-#	$Id: Makefile.inc,v 1.3 1997/10/16 13:46:42 bde Exp $
+# $FreeBSD$
 #
 # This file contains make rules that are shared by libc and libc_r.
 #

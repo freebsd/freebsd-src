@@ -1,5 +1,5 @@
 #
-# $Id$
+# $FreeBSD$
 #
 
 PROG=	s2p

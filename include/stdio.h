@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)stdio.h	8.5 (Berkeley) 4/29/95
- *	$Id: stdio.h,v 1.22 1999/02/08 21:32:24 dt Exp $
+ * $FreeBSD$
  */
 
 #ifndef	_STDIO_H_

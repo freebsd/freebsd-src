@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.12 1997/06/29 06:03:27 pst Exp $
+# $FreeBSD$
 #
 
 #First, so that we get cp/tree.c and cp/expr.c instead of the C version

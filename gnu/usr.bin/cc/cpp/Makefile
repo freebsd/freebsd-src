@@ -1,4 +1,4 @@
-#	$Id$
+# $FreeBSD$
 
 PROG=	cpp
 SRCS=	cccp.c cexp.y obstack.c version.c

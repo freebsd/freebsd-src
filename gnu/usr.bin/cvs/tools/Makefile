@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.3 1997/02/22 15:45:21 peter Exp $
+# $FreeBSD$
 
 FILES=	INSTALL NEWS README \
 	pcl-cvs-lucid.el pcl-cvs-startup.el \

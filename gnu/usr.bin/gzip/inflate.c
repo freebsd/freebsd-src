@@ -97,7 +97,7 @@
  */
 
 #ifdef RCSID
-static char rcsid[] = "$Id: inflate.c,v 1.6 1997/02/22 15:45:58 peter Exp $";
+static char rcsid[] = "$FreeBSD$";
 #endif
 
 #include <sys/types.h>

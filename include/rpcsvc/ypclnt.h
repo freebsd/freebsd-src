@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ypclnt.h,v 1.9 1997/05/28 04:38:25 wpaul Exp $
+ * $FreeBSD$
  */
 
 #ifndef _RPCSVC_YPCLNT_H_

@@ -1,4 +1,4 @@
-#	$Id$
+# $FreeBSD$
 
 PROG=		pic
 SRCS=		lex.cc main.cc object.cc pic.cc pic.tab.h \

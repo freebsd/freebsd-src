@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: strxfrm.c,v 1.10 1999/02/12 23:40:41 ache Exp $
+ * $FreeBSD$
  */
 
 #include <stdlib.h>

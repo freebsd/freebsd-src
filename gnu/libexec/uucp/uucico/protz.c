@@ -181,7 +181,7 @@
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char protz_rcsid[] = "$Id$";
+const char protz_rcsid[] = "$FreeBSD$";
 #endif
 
 #include <errno.h>

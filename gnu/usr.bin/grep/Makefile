@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.13 1998/10/02 07:14:32 obrien Exp $
+# $FreeBSD$
 
 GREP_LIBZ= YES
 GREP_FTS=  YES

@@ -25,7 +25,7 @@
 
 #include "uucp.h"
 #if USE_RCS_ID
-char uusnap_rcsid[] = "$Id$";
+char uusnap_rcsid[] = "$FreeBSD$";
 #endif
 
 #include <ctype.h>

@@ -23,7 +23,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id$";
+static char rcsid[] = "$FreeBSD$";
 #endif
 
 #define __ (42)			/* blatently illegal digit value */

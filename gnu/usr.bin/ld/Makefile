@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.26 1998/09/07 05:46:09 jb Exp $
+# $FreeBSD$
 #
 
 RTLD=	${.CURDIR}/../../../libexec/rtld-aout

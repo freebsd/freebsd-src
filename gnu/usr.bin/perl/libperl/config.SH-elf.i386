@@ -1,22 +1,22 @@
 #!/bin/sh
 #
-# $Id: config.SH-elf.i386,v 1.10.2.1 1999/05/05 13:28:40 markm Exp $
+# $FreeBSD$
 #
 
 # Package name      : perl5
 # Source directory  : .
-# Configuration time: $Date: 1999/05/05 13:28:40 $
+# Configuration time: $Date: 1999/05/05 19:42:40 $
 # Configured by     : markm
 # Target system     : freebsd 3.0-current #0:
 
 Author=''
-Date='$Date: 1999/05/05 13:28:40 $'
+Date='$Date: 1999/05/05 19:42:40 $'
 Header=''
-Id='$Id: config.SH-elf.i386,v 1.10.2.1 1999/05/05 13:28:40 markm Exp $'
+Id='$FreeBSD$'
 Locker=''
 Mcc='Mcc'
 RCSfile='$RCSfile: config.SH-elf.i386,v $'
-Revision='$Revision: 1.10.2.1 $'
+Revision='$Revision: 1.10.2.2 $'
 Source=''
 State=''
 _a='.a'
@@ -50,7 +50,7 @@ ccflags=''
 ccsymbols='__ELF__=1 __FreeBSD__=4 __FreeBSD_cc_version=400002 __GNUC_MINOR__=91 __GNUC__=2 cpu=i386 machine=i386 system=FreeBSD system=unix'
 cf_by='markm'
 cf_email='markm@freebsd.org'
-cf_time='$Date: 1999/05/05 13:28:40 $'
+cf_time='$Date: 1999/05/05 19:42:40 $'
 chgrp=''
 chmod=''
 chown=''
@@ -457,7 +457,7 @@ mv=''
 myarchname='i386-freebsd'
 mydomain='.freebsd.org'
 myhostname='freefall'
-myuname='freebsd freefall.freebsd.org 4.0-current freebsd 4.0-current #0: $Date: 1999/05/05 13:28:40 $'
+myuname='freebsd freefall.freebsd.org 4.0-current freebsd 4.0-current #0: $Date: 1999/05/05 19:42:40 $'
 n='-n'
 netdb_hlen_type='int'
 netdb_host_type='const char *'

@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.18 1998/10/06 11:28:29 peter Exp $
+# $FreeBSD$
 #
 
 LIB=	gcc

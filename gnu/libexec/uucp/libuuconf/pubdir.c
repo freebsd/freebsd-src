@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_pubdir_rcsid[] = "$Id$";
+const char _uuconf_pubdir_rcsid[] = "$FreeBSD$";
 #endif
 
 /* Get the name of the UUCP public directory.  */

@@ -1,5 +1,5 @@
 char rcsid[] =
-	"$Header: /home/ncvs/src/gnu/usr.bin/patch/patch.c,v 1.13 1998/01/21 15:15:39 ache Exp $";
+  "$FreeBSD$";
 
 /* patch - a program to apply diffs to original files
  *
@@ -9,6 +9,9 @@ char rcsid[] =
  * money off of it, or pretend that you wrote it.
  *
  * $Log: patch.c,v $
+ * Revision 1.14  1998/01/22 07:44:04  ache
+ * Add PATCH_INDEX_FIRST environment variable to do the same as -I option
+ *
  * Revision 1.13  1998/01/21 15:15:39  ache
  * Update usage line with new option
  *

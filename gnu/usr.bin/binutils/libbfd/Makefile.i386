@@ -1,5 +1,5 @@
 #
-# $Id: Makefile.i386,v 1.4 1998/05/04 21:16:46 jb Exp $
+# $FreeBSD$
 #
 SRCS+=		cpu-i386.c elf32-i386.c elf32-target.h elf32.c elflink.c
 VECS+=		bfd_elf32_i386_vec

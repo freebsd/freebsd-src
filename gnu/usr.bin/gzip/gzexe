@@ -12,7 +12,7 @@
 # The : is required for some old versions of csh.
 # On Ultrix, /bin/sh is too buggy, change the first line to: #!/bin/sh5
 #
-# $Id: gzexe,v 1.6 1999/05/28 13:23:14 kris Exp $
+# $FreeBSD$
 
 x=`basename $0`
 if test $# = 0; then

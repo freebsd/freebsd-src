@@ -1,4 +1,4 @@
-#	$Id$
+# $FreeBSD$
 
 # Do not define -DKLUDGELINEMODE, as it does not interact well with many
 # telnet implementations.

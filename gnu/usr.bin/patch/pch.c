@@ -1,6 +1,10 @@
-/* $Header: /home/ncvs/src/gnu/usr.bin/patch/pch.c,v 1.13 1998/01/21 14:37:23 ache Exp $
+/* $FreeBSD$
  *
  * $Log: pch.c,v $
+ * Revision 1.14  1998/01/21 15:10:14  ache
+ * Add -I or --index-first option to take Index: precedence over context diff,
+ * as it was in hacked FreeBSD version
+ *
  * Revision 1.13  1998/01/21 14:37:23  ache
  * Resurrect patch 2.1 without FreeBSD Index: hack
  *
@@ -32,6 +36,10 @@
  *
  * Revision 1.8  1996/04/12 11:37:32  markm
  * Attempt to break a $Log: pch.c,v $
+ * Attempt to break a Revision 1.14  1998/01/21 15:10:14  ache
+ * Attempt to break a Add -I or --index-first option to take Index: precedence over context diff,
+ * Attempt to break a as it was in hacked FreeBSD version
+ * Attempt to break a
  * Attempt to break a Revision 1.13  1998/01/21 14:37:23  ache
  * Attempt to break a Resurrect patch 2.1 without FreeBSD Index: hack
  * Attempt to break a

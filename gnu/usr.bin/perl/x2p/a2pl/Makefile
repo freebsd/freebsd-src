@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.5 1998/09/16 17:25:52 markm Exp $
+# $FreeBSD$
 #
 
 PROG=	a2p

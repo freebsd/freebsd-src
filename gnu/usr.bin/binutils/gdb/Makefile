@@ -1,5 +1,5 @@
 #
-# $Id$
+# $FreeBSD$
 #
 
 .include "../Makefile.inc0"
