@@ -1244,6 +1244,18 @@ ast(frame)
 		addupc_task(p, p->p_stats->p_prof.pr_addr,
 			    p->p_stats->p_prof.pr_ticks);
 	}
+	if (p->p_flag & P_ALRMPEND) {
+		if (!mtx_owned(&Giant))
+			mtx_enter(&Giant, MTX_DEF);
+		p->p_flag &= ~P_ALRMPEND;
+		psignal(p, SIGVTALRM);
+	}
+	if (p->p_flag & P_PROFPEND) {
+		if (!mtx_owned(&Giant))
+			mtx_enter(&Giant, MTX_DEF);
+		p->p_flag &= ~P_PROFPEND;
+		psignal(p, SIGPROF);
+	}
 	if (userret(p, &frame, sticks, mtx_owned(&Giant)) != 0)
 		mtx_exit(&Giant, MTX_DEF);
 }

@@ -62,8 +62,6 @@ struct clockframe {
 };
 #define	CLKF_USERMODE(framep)						\
 	(((framep)->cf_tf.tf_regs[FRAME_PS] & ALPHA_PSL_USERMODE) != 0)
-#define	CLKF_BASEPRI(framep)						\
-	(((framep)->cf_tf.tf_regs[FRAME_PS] & ALPHA_PSL_IPL_MASK) == 0)
 #define	CLKF_PC(framep)		((framep)->cf_tf.tf_regs[FRAME_PC])
 #define	CLKF_INTR(framep)	(PCPU_GET(intr_nesting_level) >= 2)
 

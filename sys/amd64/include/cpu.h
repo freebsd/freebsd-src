@@ -62,21 +62,6 @@
 	((ISPL((framep)->cf_cs) == SEL_UPL) || (framep->cf_eflags & PSL_VM))
 
 #define CLKF_INTR(framep)	(intr_nesting_level >= 2)
-#if 0
-/*
- * XXX splsoftclock() is very broken and barely worth fixing.  It doesn't
- * turn off the clock bit in imen or in the icu.  (This is not a serious
- * problem at 100 Hz but it is serious at 16000 Hz for pcaudio.  softclock()
- * can take more than 62.5 usec so clock interrupts are lost.)  It doesn't
- * check for pending interrupts being unmasked.  clkintr() and Xintr0()
- * assume that the ipl is high when hardclock() returns.  Our SWI_CLOCK
- * handling is efficient enough that little is gained by calling
- * softclock() directly.
- */
-#define	CLKF_BASEPRI(framep)	((framep)->cf_ppl == 0)
-#else
-#define	CLKF_BASEPRI(framep)	(0)
-#endif
 #define	CLKF_PC(framep)		((framep)->cf_eip)
 
 /*

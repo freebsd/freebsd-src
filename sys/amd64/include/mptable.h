@@ -1900,11 +1900,6 @@ struct simplelock	mcount_lock;
 struct simplelock	com_lock;
 #endif /* USE_COMLOCK */
 
-#ifdef USE_CLOCKLOCK
-/* lock regions around the clock hardware */
-struct simplelock	clock_lock;
-#endif /* USE_CLOCKLOCK */
-
 /* lock around the MP rendezvous */
 static struct simplelock smp_rv_lock;
 
@@ -1930,9 +1925,6 @@ init_locks(void)
 #ifdef USE_COMLOCK
 	s_lock_init((struct simplelock*)&com_lock);
 #endif /* USE_COMLOCK */
-#ifdef USE_CLOCKLOCK
-	s_lock_init((struct simplelock*)&clock_lock);
-#endif /* USE_CLOCKLOCK */
 
 	s_lock_init(&ap_boot_lock);
 }
@@ -2425,7 +2417,6 @@ ap_init(void)
 	 * something unique to lock with.
 	 */
 	PCPU_SET(curproc,idleproc);
-	PCPU_SET(prevproc,idleproc);
 
 	microuptime(&switchtime);
 	switchticks = ticks;

@@ -87,14 +87,12 @@
  * protected via cli/sti in the UP kernel.
  *
  * COMLOCK protects the sio/cy drivers.
- * CLOCKLOCK protects clock hardware and data
  * known to be incomplete:
  *	joystick lkm
  *	?
  */
 #ifdef PUSHDOWN_LEVEL_1
 #define USE_COMLOCK
-#define USE_CLOCKLOCK
 #endif
 
 
