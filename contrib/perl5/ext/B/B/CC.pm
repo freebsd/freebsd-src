@@ -151,7 +151,7 @@ sub init_pp {
     $ppname = shift;
     $runtime_list_ref = [];
     $declare_ref = {};
-    runtime("djSP;");
+    runtime("dSP;");
     declare("I32", "oldsave");
     declare("SV", "**svp");
     map { declare("SV", "*$_") } qw(sv src dst left right);

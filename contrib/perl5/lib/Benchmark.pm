@@ -552,7 +552,9 @@ sub countit {
 	# accuracy since we're not couting these times.
 	$n = int( $tpra * 1.05 * $n / $tc ); # Linear approximation.
 	my $td = timeit($n, $code);
-	$tc = $td->[1] + $td->[2];
+	my $new_tc = $td->[1] + $td->[2];
+        # Make sure we are making progress.
+        $tc = $new_tc > 1.2 * $tc ? $new_tc : 1.2 * $tc;
     }
 
     # Now, do the 'for real' timing(s), repeating until we exceed
@@ -581,6 +583,7 @@ sub countit {
 	$ttot = $utot + $stot;
 	last if $ttot >= $tmax;
 
+        $ttot = 0.01 if $ttot < 0.01;
 	my $r = $tmax / $ttot - 1; # Linear approximation.
 	$n = int( $r * $ntot );
 	$n = $nmin if $n < $nmin;

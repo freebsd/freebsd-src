@@ -4,7 +4,7 @@ print "1..7\n";
 
 BEGIN {
     chdir 't' if -d 't';
-    unshift @INC, '../lib';
+    @INC = '../lib';
 }
 
 use Text::Abbrev;

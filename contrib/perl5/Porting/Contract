@@ -19,7 +19,7 @@ community, mutual respect, trust, and good-faith cooperation.
 
 We recognize that the Perl core, defined as the software distributed with
 the heart of Perl itself, is a joint project on the part of all of us.
->From time to time, a script, module, or set of modules (hereafter referred
+From time to time, a script, module, or set of modules (hereafter referred
 to simply as a "module") will prove so widely useful and/or so integral to
 the correct functioning of Perl itself that it should be distributed with
 Perl core.  This should never be done without the author's explicit

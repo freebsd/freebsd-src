@@ -1,8 +1,13 @@
 =head1 NAME
 
-perlfork - Perl's fork() emulation
+perlfork - Perl's fork() emulation (EXPERIMENTAL, subject to change)
 
 =head1 SYNOPSIS
+
+    WARNING:  As of the 5.6.1 release, the fork() emulation continues
+    to be an experimental feature.  Use in production applications is
+    not recommended.  See the "BUGS" and "CAVEATS AND LIMITATIONS"
+    sections below.
 
 Perl provides a fork() keyword that corresponds to the Unix system call
 of the same name.  On most Unix-like platforms where the fork() system
@@ -11,7 +16,7 @@ call is available, Perl's fork() simply calls it.
 On some platforms such as Windows where the fork() system call is not
 available, Perl can be built to emulate fork() at the interpreter level.
 While the emulation is designed to be as compatible as possible with the
-real fork() at the the level of the Perl program, there are certain
+real fork() at the level of the Perl program, there are certain
 important differences that stem from the fact that all the pseudo child
 "processes" created this way live in the same real process as far as the
 operating system is concerned.
@@ -51,7 +56,7 @@ pseudo-processes are launched after others have been wait()-ed on.
 
 =item %ENV
 
-Each pseudo-process maintains its own virtual enviroment.  Modifications
+Each pseudo-process maintains its own virtual environment.  Modifications
 to %ENV affect the virtual environment, and are only visible within that
 pseudo-process, and in any processes (or pseudo-processes) launched from
 it.
@@ -271,6 +276,17 @@ are expected to be fixed for thread-safety.
 =head1 BUGS
 
 =over 8
+
+=item *
+
+Perl's regular expression engine currently does not play very nicely
+with the fork() emulation.  There are known race conditions arising
+from the regular expression engine modifying state carried in the opcode
+tree at run time (the fork() emulation relies on the opcode tree being
+immutable).  This typically happens when the regex contains paren groups
+or variables interpolated within it that force a run time recompilation
+of the regex.  Due to this major bug, the fork() emulation is not
+recommended for use in production applications at this time.
 
 =item *
 

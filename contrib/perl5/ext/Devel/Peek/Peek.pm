@@ -10,7 +10,8 @@ require Exporter;
 use XSLoader ();
 
 @ISA = qw(Exporter);
-@EXPORT = qw(Dump mstat DeadCode DumpArray DumpWithOP DumpProg);
+@EXPORT = qw(Dump mstat DeadCode DumpArray DumpWithOP DumpProg
+	     fill_mstats mstats_fillhash mstats2hash);
 @EXPORT_OK = qw(SvREFCNT SvREFCNT_inc SvREFCNT_dec CvGV);
 %EXPORT_TAGS = ('ALL' => [@EXPORT, @EXPORT_OK]);
 
@@ -58,15 +59,75 @@ C<CV>.  Devel::Peek also supplies C<SvREFCNT()>, C<SvREFCNT_inc()>, and
 C<SvREFCNT_dec()> which can query, increment, and decrement reference
 counts on SVs.  This document will take a passive, and safe, approach
 to data debugging and for that it will describe only the C<Dump()>
-function.  For format of output of mstats() see
-L<perldebug/Using C<$ENV{PERL_DEBUG_MSTATS}>>.
+function.
 
 Function C<DumpArray()> allows dumping of multiple values (useful when you
-need to analize returns of functions).
+need to analyze returns of functions).
 
 The global variable $Devel::Peek::pv_limit can be set to limit the
 number of character printed in various string values.  Setting it to 0
 means no limit.
+
+=head2 Memory footprint debugging
+
+When perl is compiled with support for memory footprint debugging
+(default with Perl's malloc()), Devel::Peek provides an access to this API.
+
+Use mstat() function to emit a memory state statistic to the terminal.
+For more information on the format of output of mstat() see
+L<perldebug/Using C<$ENV{PERL_DEBUG_MSTATS}>>.
+
+Three additional functions allow access to this statistic from Perl.
+First, use C<mstats_fillhash(%hash)> to get the information contained
+in the output of mstat() into %hash. The field of this hash are
+
+  minbucket nbuckets sbrk_good sbrk_slack sbrked_remains sbrks start_slack
+  topbucket topbucket_ev topbucket_odd total total_chain total_sbrk totfree
+
+Two additional fields C<free>, C<used> contain array references which
+provide per-bucket count of free and used chunks.  Two other fields
+C<mem_size>, C<available_size> contain array references which provide
+the information about the allocated size and usable size of chunks in
+each bucket.  Again, see L<perldebug/Using C<$ENV{PERL_DEBUG_MSTATS}>>
+for details.
+
+Keep in mind that only the first several "odd-numbered" buckets are
+used, so the information on size of the "odd-numbered" buckets which are
+not used is probably meaningless.
+
+The information in
+
+ mem_size available_size minbucket nbuckets
+
+is the property of a particular build of perl, and does not depend on
+the current process.  If you do not provide the optional argument to
+the functions mstats_fillhash(), fill_mstats(), mstats2hash(), then
+the information in fields C<mem_size>, C<available_size> is not
+updated.
+
+C<fill_mstats($buf)> is a much cheaper call (both speedwise and
+memory-wise) which collects the statistic into $buf in
+machine-readable form.  At a later moment you may need to call
+C<mstats2hash($buf, %hash)> to use this information to fill %hash.
+
+All three APIs C<fill_mstats($buf)>, C<mstats_fillhash(%hash)>, and
+C<mstats2hash($buf, %hash)> are designed to allocate no memory if used
+I<the second time> on the same $buf and/or %hash.
+
+So, if you want to collect memory info in a cycle, you may call
+
+  $#buf = 999;
+  fill_mstats($_) for @buf;
+  mstats_fillhash(%report, 1);		# Static info too
+
+  foreach (@buf) {
+    # Do something...
+    fill_mstats $_;			# Collect statistic
+  }
+  foreach (@buf) {
+    mstats2hash($_, %report);		# Preserve static info
+    # Do something with %report
+  }
 
 =head1 EXAMPLES
 
@@ -403,8 +464,9 @@ it has no prototype (C<PROTOTYPE> field is missing).
 =head1 EXPORTS
 
 C<Dump>, C<mstat>, C<DeadCode>, C<DumpArray>, C<DumpWithOP> and
-C<DumpProg> by default. Additionally available C<SvREFCNT>,
-C<SvREFCNT_inc> and C<SvREFCNT_dec>.
+C<DumpProg>, C<fill_mstats>, C<mstats_fillhash>, C<mstats2hash> by
+default. Additionally available C<SvREFCNT>, C<SvREFCNT_inc> and
+C<SvREFCNT_dec>.
 
 =head1 BUGS
 

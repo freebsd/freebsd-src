@@ -9,12 +9,14 @@
 
 BEGIN {
     chdir 't' if -d 't';
-    unshift @INC, '../lib';
+    @INC = '../lib';
 }
 
 use Math::Complex;
 
-my $VERSION = sprintf("%s", q$Id: complex.t,v 1.9 1998/11/01 00:00:00 dsl Exp $ =~ /(\d+\.d+)/);
+use vars qw($VERSION);
+
+$VERSION = 1.91;
 
 my ($args, $op, $target, $test, $test_set, $try, $val, $zvalue, @set, @val);
 
@@ -27,7 +29,7 @@ my @script = (
 my $eps = 1e-13;
 
 if ($^O eq 'unicos') { 	# For some reason root() produces very inaccurate
-    $eps = 1e-11;	# results in Cray UNICOS, and occasionally also
+    $eps = 1e-10;	# results in Cray UNICOS, and occasionally also
 }			# cos(), sin(), cosh(), sinh().  The division
 			# of doubles is the current suspect.
 
@@ -159,20 +161,18 @@ test_dbz(
 	 'acsch(0)',
 	 'asec(0)',
 	 'asech(0)',
-	 'atan(-$i)',
 	 'atan($i)',
 #	 'atanh(-1)',	# Log of zero.
 	 'atanh(+1)',
 	 'cot(0)',
 	 'coth(0)',
 	 'csc(0)',
-	 'tan($pip2)',
 	 'csch(0)',
-	 'tan($pip2)',
 	);
 
 test_loz(
 	 'log($zero)',
+	 'atan(-$i)',
 	 'acot(-$i)',
 	 'atanh(-1)',
 	 'acoth(-1)',
@@ -187,7 +187,7 @@ sub test_broot {
 	eval 'root(2, $op)';
 	(\$bad) = (\$@ =~ /(.+)/);
 	print "# $test op = $op badroot? \$bad...\n";
-	print 'not ' unless (\$@ =~ /root must be/);
+	print 'not ' unless (\$@ =~ /root rank must be/);
 EOT
         push(@script, qq(print "ok $test\\n";\n));
     }
@@ -196,6 +196,13 @@ EOT
 test_broot(qw(-3 -2.1 0 0.99));
 
 sub test_display_format {
+    $test++;
+    push @script, <<EOS;
+    print "# package display_format cartesian?\n";
+    print "not " unless Math::Complex->display_format eq 'cartesian';
+    print "ok $test\n";
+EOS
+
     push @script, <<EOS;
     my \$j = (root(1,3))[1];
 
@@ -204,7 +211,7 @@ EOS
 
     $test++;
     push @script, <<EOS;
-    print "# display_format polar?\n";
+    print "# j display_format polar?\n";
     print "not " unless \$j->display_format eq 'polar';
     print "ok $test\n";
 EOS
@@ -264,7 +271,7 @@ EOS
     $test++;
     push @script, <<EOS;
     print "# j = \$j\n";
-    print "not " unless "\$j" =~ /^-0\\.5\\+0.86602540\\d+i\$/;
+    print "not " unless "\$j" =~ /^-0(?:\\.5(?:0000\\d+)?|\\.49999\\d+)\\+0.86602540\\d+i\$/;
     print "ok $test\n";
 
     \$j->display_format('style' => 'polar', 'polar_pretty_print' => 0);
@@ -278,10 +285,18 @@ EOS
 
     \$j->display_format('style' => 'cartesian', 'format' => '(%.5g)');
 EOS
+
     $test++;
     push @script, <<EOS;
     print "# j = \$j\n";
     print "not " unless "\$j" eq "(-0.5)+(0.86603)i";
+    print "ok $test\n";
+EOS
+
+    $test++;
+    push @script, <<EOS;
+    print "# j display_format cartesian?\n";
+    print "not " unless \$j->display_format eq 'cartesian';
     print "ok $test\n";
 EOS
 }
@@ -894,7 +909,7 @@ __END__
 ( 2,-3):(  1.96863792579310, -0.96465850440760)
 
 &acosh
-(-2.0,0):(  -1.31695789692482,  3.14159265358979)
+(-2.0,0):(   1.31695789692482,  3.14159265358979)
 (-1.0,0):(   0,                 3.14159265358979)
 (-0.5,0):(   0,                 2.09439510239320)
 ( 0.0,0):(   0,                 1.57079632679490)
@@ -904,8 +919,8 @@ __END__
 
 &acosh
 ( 2, 3):(  1.98338702991654,  1.00014354247380)
-(-2, 3):( -1.98338702991653, -2.14144911111600)
-(-2,-3):( -1.98338702991653,  2.14144911111600)
+(-2, 3):(  1.98338702991653,  2.14144911111600)
+(-2,-3):(  1.98338702991653, -2.14144911111600)
 ( 2,-3):(  1.98338702991654, -1.00014354247380)
 
 &atanh
@@ -924,15 +939,15 @@ __END__
 &asech
 (-2.0,0):(   0               , 2.09439510239320)
 (-1.0,0):(   0               , 3.14159265358979)
-(-0.5,0):(  -1.31695789692482, 3.14159265358979)
+(-0.5,0):(   1.31695789692482, 3.14159265358979)
 ( 0.5,0):(   1.31695789692482, 0               )
 ( 1.0,0):(   0               , 0               )
 ( 2.0,0):(   0               , 1.04719755119660)
 
 &asech
 ( 2, 3):(  0.23133469857397, -1.42041072246703)
-(-2, 3):( -0.23133469857397,  1.72118193112276)
-(-2,-3):( -0.23133469857397, -1.72118193112276)
+(-2, 3):(  0.23133469857397, -1.72118193112276)
+(-2,-3):(  0.23133469857397,  1.72118193112276)
 ( 2,-3):(  0.23133469857397,  1.42041072246703)
 
 &acsch

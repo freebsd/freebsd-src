@@ -47,7 +47,7 @@ ld='cc';
 so='dylib';
 dlext='bundle';
 dlsrc='dl_dyld.xs'; usedl='define';
-cccdlflags='';
+cccdlflags=' '; # space, not empty, because otherwise we get -fpic
 lddlflags="${ldflags} -bundle -undefined suppress";
 ldlibpthname='DYLD_LIBRARY_PATH';
 useshrplib='true';

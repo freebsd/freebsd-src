@@ -45,3 +45,5 @@ Revision history for Perl extension File::Glob
 	- Add support for either \ or / as separators on DOSISH systems
 	- Limit effect of \ as a quoting operator on DOSISH systems to
 	  when it precedes one of []{}-~\ (to minimise backslashitis).
+0.992 Tue Mar 20 09:25:48 2001
+	- Add alphabetic sorting for csh compatibility (GLOB_ALPHASORT)

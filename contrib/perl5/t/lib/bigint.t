@@ -1,6 +1,6 @@
 #!./perl
 
-BEGIN { unshift @INC, '../lib' }
+BEGIN { @INC = '../lib' }
 require "bigint.pl";
 
 $test = 0;

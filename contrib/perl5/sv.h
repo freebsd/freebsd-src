@@ -1,6 +1,6 @@
 /*    sv.h
  *
- *    Copyright (c) 1991-2000, Larry Wall
+ *    Copyright (c) 1991-2001, Larry Wall
  *
  *    You may distribute under the terms of either the GNU General Public
  *    License or the Artistic License, as specified in the README file.
@@ -61,7 +61,7 @@ typedef enum {
 
 /* Using C's structural equivalence to help emulate C++ inheritance here... */
 
-struct sv {
+struct STRUCT_SV {
     void*	sv_any;		/* pointer to something */
     U32		sv_refcnt;	/* how many references to us */
     U32		sv_flags;	/* what we are */
@@ -123,21 +123,26 @@ perform the upgrade if necessary.  See C<svtype>.
 
 #ifdef USE_THREADS
 
-#  ifdef EMULATE_ATOMIC_REFCOUNTS
-#    define ATOMIC_INC(count) STMT_START {	\
-	MUTEX_LOCK(&PL_svref_mutex);		\
-	++count;				\
-	MUTEX_UNLOCK(&PL_svref_mutex);		\
-     } STMT_END
-#    define ATOMIC_DEC_AND_TEST(res,count) STMT_START {	\
-	MUTEX_LOCK(&PL_svref_mutex);			\
-	res = (--count == 0);				\
-	MUTEX_UNLOCK(&PL_svref_mutex);			\
-     } STMT_END
-#  else
-#    define ATOMIC_INC(count) atomic_inc(&count)
-#    define ATOMIC_DEC_AND_TEST(res,count) (res = atomic_dec_and_test(&count))
-#  endif /* EMULATE_ATOMIC_REFCOUNTS */
+#  if defined(VMS)
+#    define ATOMIC_INC(count) __ATOMIC_INCREMENT_LONG(&count)
+#    define ATOMIC_DEC_AND_TEST(res,count) res=(1==__ATOMIC_DECREMENT_LONG(&count))
+ #  else
+#    ifdef EMULATE_ATOMIC_REFCOUNTS
+ #      define ATOMIC_INC(count) STMT_START {	\
+	  MUTEX_LOCK(&PL_svref_mutex);		\
+	  ++count;				\
+	  MUTEX_UNLOCK(&PL_svref_mutex);		\
+       } STMT_END
+#      define ATOMIC_DEC_AND_TEST(res,count) STMT_START {	\
+	  MUTEX_LOCK(&PL_svref_mutex);			\
+	  res = (--count == 0);				\
+	  MUTEX_UNLOCK(&PL_svref_mutex);			\
+       } STMT_END
+#    else
+#      define ATOMIC_INC(count) atomic_inc(&count)
+#      define ATOMIC_DEC_AND_TEST(res,count) (res = atomic_dec_and_test(&count))
+#    endif /* EMULATE_ATOMIC_REFCOUNTS */
+#  endif /* VMS */
 #else
 #  define ATOMIC_INC(count) (++count)
 #  define ATOMIC_DEC_AND_TEST(res, count) (res = (--count == 0))
@@ -153,7 +158,12 @@ perform the upgrade if necessary.  See C<svtype>.
     })
 #else
 #  if defined(CRIPPLED_CC) || defined(USE_THREADS)
-#    define SvREFCNT_inc(sv) sv_newref((SV*)sv)
+#    if defined(VMS) && defined(__ALPHA)
+#      define SvREFCNT_inc(sv) \
+          (PL_Sv=(SV*)(sv), (PL_Sv && __ATOMIC_INCREMENT_LONG(&(SvREFCNT(PL_Sv)))), (SV *)PL_Sv)
+#    else
+#      define SvREFCNT_inc(sv) sv_newref((SV*)sv)
+#    endif
 #  else
 #    define SvREFCNT_inc(sv)	\
 	((PL_Sv=(SV*)(sv)), (PL_Sv && ATOMIC_INC(SvREFCNT(PL_Sv))), (SV*)PL_Sv)
@@ -353,7 +363,19 @@ struct xpvio {
 
     PerlIO *	xio_ifp;	/* ifp and ofp are normally the same */
     PerlIO *	xio_ofp;	/* but sockets need separate streams */
-    DIR *	xio_dirp;	/* for opendir, readdir, etc */
+    /* Cray addresses everything by word boundaries (64 bits) and
+     * code and data pointers cannot be mixed (which is exactly what
+     * Perl_filter_add() tries to do with the dirp), hence the following
+     * union trick (as suggested by Gurusamy Sarathy).
+     * For further information see Geir Johansen's problem report titled
+       [ID 20000612.002] Perl problem on Cray system
+     * The any pointer (known as IoANY()) will also be a good place
+     * to hang any IO disciplines to.
+     */
+    union {
+	DIR *	xiou_dirp;	/* for opendir, readdir, etc */
+	void *	xiou_any;	/* for alignment */
+    } xio_dirpu;
     long	xio_lines;	/* $. */
     long	xio_page;	/* $% */
     long	xio_page_len;	/* $= */
@@ -368,6 +390,8 @@ struct xpvio {
     char	xio_type;
     char	xio_flags;
 };
+#define xio_dirp	xio_dirpu.xiou_dirp
+#define xio_any		xio_dirpu.xiou_any
 
 #define IOf_ARGV	1	/* this fp iterates over ARGV */
 #define IOf_START	2	/* check for null ARGV and substitute '-' */
@@ -417,6 +441,15 @@ Unsets the IV status of an SV.
 
 =for apidoc Am|void|SvIOK_only|SV* sv
 Tells an SV that it is an integer and disables all other OK bits.
+
+=for apidoc Am|void|SvIOK_only_UV|SV* sv
+Tells and SV that it is an unsigned integer and disables all other OK bits.
+
+=for apidoc Am|void|SvIOK_UV|SV* sv
+Returns a boolean indicating whether the SV contains an unsigned integer.
+
+=for apidoc Am|void|SvIOK_notUV|SV* sv
+Returns a boolean indicating whether the SV contains an signed integer.
 
 =for apidoc Am|bool|SvNOK|SV* sv
 Returns a boolean indicating whether the SV contains a double.
@@ -481,7 +514,8 @@ string.
 Returns the length of the string which is in the SV.  See C<SvLEN>.
 
 =for apidoc Am|STRLEN|SvLEN|SV* sv
-Returns the size of the string buffer in the SV.  See C<SvCUR>.
+Returns the size of the string buffer in the SV, not including any part
+attributable to C<SvOOK>.  See C<SvCUR>.
 
 =for apidoc Am|char*|SvEND|SV* sv
 Returns a pointer to the last character in the string which is in the SV.
@@ -541,6 +575,23 @@ Set the length of the string which is in the SV.  See C<SvCUR>.
 #define SvNOK_only(sv)		((void)SvOK_off(sv), \
 				    SvFLAGS(sv) |= (SVf_NOK|SVp_NOK))
 
+/*
+=for apidoc Am|void|SvUTF8|SV* sv
+Returns a boolean indicating whether the SV contains UTF-8 encoded data.
+
+=for apidoc Am|void|SvUTF8_on|SV *sv
+Tells an SV that it is a string and encoded in UTF8.  Do not use frivolously.
+
+=for apidoc Am|void|SvUTF8_off|SV *sv
+Unsets the UTF8 status of an SV.
+
+=for apidoc Am|void|SvPOK_only_UTF8|SV* sv
+Tells an SV that it is a UTF8 string (do not use frivolously)
+and disables all other OK bits.
+  
+=cut
+ */
+
 #define SvUTF8(sv)		(SvFLAGS(sv) & SVf_UTF8)
 #define SvUTF8_on(sv)		(SvFLAGS(sv) |= (SVf_UTF8))
 #define SvUTF8_off(sv)		(SvFLAGS(sv) &= ~(SVf_UTF8))
@@ -586,6 +637,8 @@ Set the length of the string which is in the SV.  See C<SvCUR>.
 #define SvAMAGIC(sv)		(SvFLAGS(sv) & SVf_AMAGIC)
 #define SvAMAGIC_on(sv)		(SvFLAGS(sv) |= SVf_AMAGIC)
 #define SvAMAGIC_off(sv)	(SvFLAGS(sv) &= ~SVf_AMAGIC)
+
+#define SvGAMAGIC(sv)           (SvFLAGS(sv) & (SVs_GMG|SVf_AMAGIC)) 
 
 /*
 #define Gv_AMG(stash) \
@@ -694,6 +747,7 @@ Set the length of the string which is in the SV.  See C<SvCUR>.
 #define IoIFP(sv)	((XPVIO*)  SvANY(sv))->xio_ifp
 #define IoOFP(sv)	((XPVIO*)  SvANY(sv))->xio_ofp
 #define IoDIRP(sv)	((XPVIO*)  SvANY(sv))->xio_dirp
+#define IoANY(sv)	((XPVIO*)  SvANY(sv))->xio_any
 #define IoLINES(sv)	((XPVIO*)  SvANY(sv))->xio_lines
 #define IoPAGE(sv)	((XPVIO*)  SvANY(sv))->xio_page
 #define IoPAGE_LEN(sv)	((XPVIO*)  SvANY(sv))->xio_page_len
@@ -707,6 +761,16 @@ Set the length of the string which is in the SV.  See C<SvCUR>.
 #define IoSUBPROCESS(sv)((XPVIO*)  SvANY(sv))->xio_subprocess
 #define IoTYPE(sv)	((XPVIO*)  SvANY(sv))->xio_type
 #define IoFLAGS(sv)	((XPVIO*)  SvANY(sv))->xio_flags
+
+/* IoTYPE(sv) is a single character telling the type of I/O connection. */
+#define IoTYPE_RDONLY	'<'
+#define IoTYPE_WRONLY	'>'
+#define IoTYPE_RDWR	'+'
+#define IoTYPE_APPEND 	'a'
+#define IoTYPE_PIPE	'|'
+#define IoTYPE_STD	'-'	/* stdin or stdout */
+#define IoTYPE_SOCKET	's'
+#define IoTYPE_CLOSED	' '
 
 /*
 =for apidoc Am|bool|SvTAINTED|SV* sv
@@ -737,7 +801,6 @@ Taints an SV if tainting is enabled
 #define SvTAINT(sv)			\
     STMT_START {			\
 	if (PL_tainting) {		\
-	    dTHR;			\
 	    if (PL_tainted)		\
 		SvTAINTED_on(sv);	\
 	}				\
@@ -1032,3 +1095,7 @@ Returns a pointer to the character buffer.
 
 #define SvGROW(sv,len) (SvLEN(sv) < (len) ? sv_grow(sv,len) : SvPVX(sv))
 #define Sv_Grow sv_grow
+
+#define CLONEf_COPY_STACKS 1
+#define CLONEf_KEEP_PTR_TABLE 2
+

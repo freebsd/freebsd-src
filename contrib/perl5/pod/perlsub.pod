@@ -39,7 +39,7 @@ To call subroutines:
 Like many languages, Perl provides for user-defined subroutines.
 These may be located anywhere in the main program, loaded in from
 other files via the C<do>, C<require>, or C<use> keywords, or
-generated on the fly using C<eval> or anonymous subroutines (closures).
+generated on the fly using C<eval> or anonymous subroutines.
 You can even call a function indirectly using a variable containing
 its name or a CODE reference.
 
@@ -154,7 +154,7 @@ of changing them in place:
     }
 
 Notice how this (unprototyped) function doesn't care whether it was
-passed real scalars or arrays.  Perl sees all arugments as one big,
+passed real scalars or arrays.  Perl sees all arguments as one big,
 long, flat parameter list in C<@_>.  This is one area where
 Perl's simple argument-passing style shines.  The C<upcase()>
 function would work perfectly well without changing the C<upcase()>
@@ -169,8 +169,8 @@ Do not, however, be tempted to do this:
 
 Like the flattened incoming parameter list, the return list is also
 flattened on return.  So all you have managed to do here is stored
-everything in C<@a> and made C<@b> an empty list.  See L<Pass by
-Reference> for alternatives.
+everything in C<@a> and made C<@b> an empty list.  See 
+L<Pass by Reference> for alternatives.
 
 A subroutine may be called using an explicit C<&> prefix.  The
 C<&> is optional in modern Perl, as are parentheses if the
@@ -357,7 +357,7 @@ A compilation error results otherwise.  An inner block may countermand
 this with C<no strict 'vars'>.
 
 A C<my> has both a compile-time and a run-time effect.  At compile
-time, the compiler takes notice of it.  The principle usefulness
+time, the compiler takes notice of it.  The principal usefulness
 of this is to quiet C<use strict 'vars'>, but it is also essential
 for generation of closures as detailed in L<perlref>.  Actual
 initialization is delayed until run time, though, so it gets executed
@@ -645,10 +645,6 @@ and in:
 
 all the subroutines are called in a list context.
 
-The current implementation does not allow arrays and hashes to be
-returned from lvalue subroutines directly.  You may return a
-reference instead.  This restriction may be lifted in future.
-
 =head2 Passing Symbol Table Entries (typeglobs)
 
 B<WARNING>: The mechanism described in this section was originally
@@ -697,9 +693,11 @@ Despite the existence of C<my>, there are still three places where the
 C<local> operator still shines.  In fact, in these three places, you
 I<must> use C<local> instead of C<my>.
 
-=over
+=over 4
 
-=item 1. You need to give a global variable a temporary value, especially $_.
+=item 1.
+
+You need to give a global variable a temporary value, especially $_.
 
 The global variables, like C<@ARGV> or the punctuation variables, must be 
 C<local>ized with C<local()>.  This block reads in F</etc/motd>, and splits
@@ -716,7 +714,9 @@ in C<@Fields>.
 It particular, it's important to C<local>ize $_ in any routine that assigns
 to it.  Look out for implicit assignments in C<while> conditionals.
 
-=item 2. You need to create a local file or directory handle or a local function.
+=item 2.
+
+You need to create a local file or directory handle or a local function.
 
 A function that needs a filehandle of its own must use
 C<local()> on a complete typeglob.   This can be used to create new symbol
@@ -746,7 +746,9 @@ a local alias.
 See L<perlref/"Function Templates"> for more about manipulating
 functions by name in this way.
 
-=item 3. You want to temporarily change just one element of an array or hash.
+=item 3.
+
+You want to temporarily change just one element of an array or hash.
 
 You can C<local>ize just one element of an aggregate.  Usually this
 is done on dynamics:
@@ -1270,7 +1272,7 @@ see L<attributes>.
 
 See L<perlref/"Function Templates"> for more about references and closures.
 See L<perlxs> if you'd like to learn about calling C subroutines from Perl.  
-See L<perlembed> if you'd like to learn about calling PErl subroutines from C.  
+See L<perlembed> if you'd like to learn about calling Perl subroutines from C.  
 See L<perlmod> to learn about bundling up your functions in separate files.
 See L<perlmodlib> to learn what library modules come standard on your system.
 See L<perltoot> to learn how to make object method calls.

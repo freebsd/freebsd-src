@@ -2,9 +2,8 @@
 
 BEGIN {
     chdir 't' if -d 't';
-    unshift @INC, '../lib';
+    @INC = '../lib';
 }
-use Text::Wrap qw(&wrap);
 
 @tests = (split(/\nEND\n/s, <<DONE));
 TEST1
@@ -84,21 +83,57 @@ END
  a123456789b123456789c123456789d123456789e123456789f123456789g123456789g123
  4567
 END
+TEST10
+my mother once said
+"never eat paste my darling"
+would that I heeded
+END
+   my mother once said
+ "never eat paste my darling"
+ would that I heeded
+END
+TEST11
+This_is_a_word_that_is_too_long_to_wrap_we_want_to_make_sure_that_the_program_does_not_crash_and_burn
+END
+   This_is_a_word_that_is_too_long_to_wrap_we_want_to_make_sure_that_the_pr
+ ogram_does_not_crash_and_burn
+END
+TEST12
+This
+
+Has
+
+Blank
+
+Lines
+
+END
+   This
+ 
+ Has
+ 
+ Blank
+ 
+ Lines
+
+END
 DONE
 
 
 $| = 1;
 
-print "1..", @tests/2, "\n";
+print "1..", 1 +@tests, "\n";
 
 use Text::Wrap;
 
 $rerun = $ENV{'PERL_DL_NONLAZY'} ? 0 : 1;
 
 $tn = 1;
-while (@tests) {
-	my $in = shift(@tests);
-	my $out = shift(@tests);
+
+@st = @tests;
+while (@st) {
+	my $in = shift(@st);
+	my $out = shift(@st);
 
 	$in =~ s/^TEST(\d+)?\n//;
 
@@ -126,4 +161,49 @@ while (@tests) {
 		print "not ok $tn\n";
 	}
 	$tn++;
+
 }
+
+@st = @tests;
+while(@st) {
+	my $in = shift(@st);
+	my $out = shift(@st);
+
+	$in =~ s/^TEST(\d+)?\n//;
+
+	my @in = split("\n", $in, -1);
+	@in = ((map { "$_\n" } @in[0..$#in-1]), $in[-1]);
+	
+	my $back = wrap('   ', ' ', @in);
+
+	if ($back eq $out) {
+		print "ok $tn\n";
+	} elsif ($rerun) {
+		my $oi = $in;
+		foreach ($in, $back, $out) {
+			s/\t/^I\t/gs;
+			s/\n/\$\n/gs;
+		}
+		print "------------ input2 ------------\n";
+		print $in;
+		print "\n------------ output2 -----------\n";
+		print $back;
+		print "\n------------ expected2 ---------\n";
+		print $out;
+		print "\n-------------------------------\n";
+		$Text::Wrap::debug = 1;
+		wrap('   ', ' ', $oi);
+		exit(1);
+	} else {
+		print "not ok $tn\n";
+	}
+	$tn++;
+}
+
+$Text::Wrap::huge = 'overflow';
+
+my $tw = 'This_is_a_word_that_is_too_long_to_wrap_we_want_to_make_sure_that_the_program_does_not_crash_and_burn';
+my $w = wrap('zzz','yyy',$tw);
+print (($w eq "zzz$tw") ? "ok $tn\n" : "not ok $tn");
+$tn++;
+

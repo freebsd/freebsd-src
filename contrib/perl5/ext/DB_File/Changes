@@ -291,3 +291,46 @@
      to David Harris for spotting the underlying problem, contributing
      the updates to the documentation and writing DB_File::Lock (available
      on CPAN).
+
+1.73 31st May 2000
+
+   * Added support in version.c for building with threaded Perl.
+
+   * Berkeley DB 3.1 has reenabled support for null keys. The test
+     harness has been updated to reflect this.
+
+1.74 10th December 2000
+
+   * A "close" call in DB_File.xs needed parenthesised to stop win32 from
+     thinking it was one of its macros.
+
+   * Updated dbinfo to support Berkeley DB 3.1 file format changes.
+
+   * DB_File.pm & the test hasness now use the warnings pragma (when
+     available).
+
+   * Included Perl core patch 7703 -- size argument for hash_cb is different
+     for Berkeley DB 3.x
+
+   * Included Perl core patch 7801 -- Give __getBerkeleyDBInfo the ANSI C
+     treatment.
+
+   * @a = () produced the warning 'Argument "" isn't numeric in entersub'
+     This has been fixed. Thanks to Edward Avis for spotting this bug.
+
+   * Added note about building under Linux. Included patches.
+
+   * Included Perl core patch 8068 -- fix for bug 20001013.009 
+     When run with warnings enabled "$hash{XX} = undef " produced an
+     "Uninitialized value" warning. This has been fixed.
+
+1.75 17th December 2000
+
+   * Fixed perl core patch 7703
+
+   * Added suppport to allow DB_File to be built with Berkeley DB 3.2 --
+     btree_compare, btree_prefix and hash_cb needed to be changed.
+
+   * Updated dbinfo to support Berkeley DB 3.2 file format changes.
+
+

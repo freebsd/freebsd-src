@@ -1,8 +1,8 @@
 #!./perl -w
 
 BEGIN {
-    chdir 't' if -d 't';
-    unshift @INC, '../lib';
+    chdir('t') if -d 't';
+    @INC = '../lib';
 }
 
 use Getopt::Long;

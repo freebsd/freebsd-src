@@ -596,7 +596,7 @@ pm_to_blib: $(TO_INST_PM)
 	($NMAKE ? 'qw[ <<pmfiles.dat ],'
 	        : $DMAKE ? 'qw[ $(mktmp,pmfiles.dat $(PM_TO_BLIB:s,\\,\\\\,)\n) ],'
 			 : '{ qw[$(PM_TO_BLIB)] },'
-	 ).q{'}.$autodir.q{')"
+	 ).q{'}.$autodir.q{','$(PM_FILTER)')"
 	}. ($NMAKE ? q{
 $(PM_TO_BLIB)
 <<
@@ -684,7 +684,7 @@ MOD_INSTALL = $(PERL) -I$(INST_LIB) -I$(PERL_LIB) -MExtUtils::Install \
 -e "install({ @ARGV },'$(VERBINST)',0,'$(UNINST)');"
 
 DOC_INSTALL = $(PERL) -e "$$\=\"\n\n\";" \
--e "print '=head2 ', scalar(localtime), ': C<', shift, '>', ' L<', shift, '>';" \
+-e "print '=head2 ', scalar(localtime), ': C<', shift, '>', ' L<', $$arg=shift, '|', $$arg, '>';" \
 -e "print '=over 4';" \
 -e "while (defined($$key = shift) and defined($$val = shift)) { print '=item *';print 'C<', \"$$key: $$val\", '>'; }" \
 -e "print '=back';"

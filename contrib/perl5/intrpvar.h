@@ -34,7 +34,7 @@ PERLVAR(Iminus_F,	bool)
 PERLVAR(Idoswitches,	bool)
 
 /*
-=for apidoc Amn|bool|PL_dowarn
+=for apidoc mn|bool|PL_dowarn
 
 The C variable which corresponds to Perl's $^W warning variable.
 
@@ -89,20 +89,20 @@ PERLVAR(IDBgv,		GV *)
 PERLVAR(IDBline,	GV *)
 
 /*
-=for apidoc Amn|GV *|PL_DBsub
+=for apidoc mn|GV *|PL_DBsub
 When Perl is run in debugging mode, with the B<-d> switch, this GV contains
 the SV which holds the name of the sub being debugged.  This is the C
 variable which corresponds to Perl's $DB::sub variable.  See
 C<PL_DBsingle>.
 
-=for apidoc Amn|SV *|PL_DBsingle
+=for apidoc mn|SV *|PL_DBsingle
 When Perl is run in debugging mode, with the B<-d> switch, this SV is a
 boolean which indicates whether subs are being single-stepped. 
 Single-stepping is automatically turned on after every step.  This is the C
 variable which corresponds to Perl's $DB::single variable.  See
 C<PL_DBsub>.
 
-=for apidoc Amn|SV *|PL_DBtrace
+=for apidoc mn|SV *|PL_DBtrace
 Trace variable used when Perl is run in debugging mode, with the B<-d>
 switch.  This is the C variable which corresponds to Perl's $DB::trace
 variable.  See C<PL_DBsingle>.
@@ -245,19 +245,19 @@ PERLVARI(Ish_path,	char *,	SH_PATH)/* full path of shell */
 PERLVAR(Isighandlerp,	Sighandler_t)
 
 PERLVAR(Ixiv_arenaroot,	XPV*)		/* list of allocated xiv areas */
-PERLVAR(Ixiv_root,	IV *)		/* free xiv list--shared by interpreters */
-PERLVAR(Ixnv_root,	NV *)		/* free xnv list--shared by interpreters */
-PERLVAR(Ixrv_root,	XRV *)		/* free xrv list--shared by interpreters */
-PERLVAR(Ixpv_root,	XPV *)		/* free xpv list--shared by interpreters */
-PERLVAR(Ixpviv_root,	XPVIV *)	/* free xpviv list--shared by interpreters */
-PERLVAR(Ixpvnv_root,	XPVNV *)	/* free xpvnv list--shared by interpreters */
-PERLVAR(Ixpvcv_root,	XPVCV *)	/* free xpvcv list--shared by interpreters */
-PERLVAR(Ixpvav_root,	XPVAV *)	/* free xpvav list--shared by interpreters */
-PERLVAR(Ixpvhv_root,	XPVHV *)	/* free xpvhv list--shared by interpreters */
-PERLVAR(Ixpvmg_root,	XPVMG *)	/* free xpvmg list--shared by interpreters */
-PERLVAR(Ixpvlv_root,	XPVLV *)	/* free xpvlv list--shared by interpreters */
-PERLVAR(Ixpvbm_root,	XPVBM *)	/* free xpvbm list--shared by interpreters */
-PERLVAR(Ihe_root,	HE *)		/* free he list--shared by interpreters */
+PERLVAR(Ixiv_root,	IV *)		/* free xiv list */
+PERLVAR(Ixnv_root,	NV *)		/* free xnv list */
+PERLVAR(Ixrv_root,	XRV *)		/* free xrv list */
+PERLVAR(Ixpv_root,	XPV *)		/* free xpv list */
+PERLVAR(Ixpviv_root,	XPVIV *)	/* free xpviv list */
+PERLVAR(Ixpvnv_root,	XPVNV *)	/* free xpvnv list */
+PERLVAR(Ixpvcv_root,	XPVCV *)	/* free xpvcv list */
+PERLVAR(Ixpvav_root,	XPVAV *)	/* free xpvav list */
+PERLVAR(Ixpvhv_root,	XPVHV *)	/* free xpvhv list */
+PERLVAR(Ixpvmg_root,	XPVMG *)	/* free xpvmg list */
+PERLVAR(Ixpvlv_root,	XPVLV *)	/* free xpvlv list */
+PERLVAR(Ixpvbm_root,	XPVBM *)	/* free xpvbm list */
+PERLVAR(Ihe_root,	HE *)		/* free he list */
 PERLVAR(Inice_chunk,	char *)		/* a nice chunk of memory to reuse */
 PERLVAR(Inice_chunk_size,	U32)	/* how nice the chunk of memory is */
 
@@ -363,8 +363,8 @@ PERLVARI(Inumeric_standard,	bool,	TRUE)
 					/* Assume simple numerics */
 PERLVARI(Inumeric_local,	bool,	TRUE)
 					/* Assume local numerics */
-PERLVAR(Inumeric_radix,		char)
-					/* The radix character if not '.' */
+PERLVAR(Idummy1_bincompat,		char)
+					/* Used to be numeric_radix */
 
 #endif /* !USE_LOCALE_NUMERIC */
 
@@ -443,3 +443,33 @@ PERLVAR(IProc,		struct IPerlProc*)
 #if defined(USE_ITHREADS)
 PERLVAR(Iptr_table,	PTR_TBL_t*)
 #endif
+PERLVARI(Ibeginav_save, AV*, Nullav)	/* save BEGIN{}s when compiling */
+
+#ifdef USE_THREADS
+PERLVAR(Ifdpid_mutex,	perl_mutex)	/* mutex for fdpid array */
+PERLVAR(Isv_lock_mutex,	perl_mutex)	/* mutex for SvLOCK macro */
+#endif
+
+PERLVAR(Inullstash,	HV *)		/* illegal symbols end up here */
+
+PERLVAR(Ixnv_arenaroot,	XPV*)		/* list of allocated xnv areas */
+PERLVAR(Ixrv_arenaroot,	XPV*)		/* list of allocated xrv areas */
+PERLVAR(Ixpv_arenaroot,	XPV*)		/* list of allocated xpv areas */
+PERLVAR(Ixpviv_arenaroot,XPVIV*)	/* list of allocated xpviv areas */
+PERLVAR(Ixpvnv_arenaroot,XPVNV*)	/* list of allocated xpvnv areas */
+PERLVAR(Ixpvcv_arenaroot,XPVCV*)	/* list of allocated xpvcv areas */
+PERLVAR(Ixpvav_arenaroot,XPVAV*)	/* list of allocated xpvav areas */
+PERLVAR(Ixpvhv_arenaroot,XPVHV*)	/* list of allocated xpvhv areas */
+PERLVAR(Ixpvmg_arenaroot,XPVMG*)	/* list of allocated xpvmg areas */
+PERLVAR(Ixpvlv_arenaroot,XPVLV*)	/* list of allocated xpvlv areas */
+PERLVAR(Ixpvbm_arenaroot,XPVBM*)	/* list of allocated xpvbm areas */
+PERLVAR(Ihe_arenaroot,	XPV*)		/* list of allocated he areas */
+
+#ifdef USE_LOCALE_NUMERIC
+
+PERLVAR(Inumeric_radix_sv,	SV *)	/* The radix separator if not '.' */
+#endif
+
+/* New variables must be added to the very end for binary compatibility.
+ * XSUB.h provides wrapper functions via perlapi.h that make this
+ * irrelevant, but not all code may be expected to #include XSUB.h. */

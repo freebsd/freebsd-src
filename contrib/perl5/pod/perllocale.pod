@@ -124,8 +124,8 @@ B<The POSIX date formatting function> (strftime()) uses C<LC_TIME>.
 
 =back
 
-C<LC_COLLATE>, C<LC_CTYPE>, and so on, are discussed further in L<LOCALE
-CATEGORIES>.
+C<LC_COLLATE>, C<LC_CTYPE>, and so on, are discussed further in 
+L<LOCALE CATEGORIES>.
 
 The default behavior is restored with the S<C<no locale>> pragma, or
 upon reaching the end of block enclosing C<use locale>.
@@ -289,7 +289,7 @@ than the PERL_BADLANG approach, but setting LC_ALL (or
 other locale variables) may affect other programs as well, not just
 Perl.  In particular, external programs run from within Perl will see
 these changes.  If you make the new settings permanent (read on), all
-programs you run see the changes.  See L<ENVIRONMENT> for for
+programs you run see the changes.  See L<ENVIRONMENT> for
 the full list of relevant environment variables and L<USING LOCALES>
 for their effects in Perl.  Effects in other programs are 
 easily deducible.  For example, the variable LC_COLLATE may well affect
@@ -348,8 +348,8 @@ commands.  You may see things like "en_US.ISO8859-1", but that isn't
 the same.  In this case, try running under a locale
 that you can list and which somehow matches what you tried.  The
 rules for matching locale names are a bit vague because
-standardization is weak in this area.  See again the L<Finding
-locales> about general rules.
+standardization is weak in this area.  See again the 
+L<Finding locales> about general rules.
 
 =head2 Fixing system locale configuration
 
@@ -381,7 +381,7 @@ with a single parameter--see L<The setlocale function>.)
 localeconv() takes no arguments, and returns B<a reference to> a hash.
 The keys of this hash are variable names for formatting, such as
 C<decimal_point> and C<thousands_sep>.  The values are the
-corresponding, er, values.  See L<POSIX (3)/localeconv> for a longer
+corresponding, er, values.  See L<POSIX/localeconv> for a longer
 example listing the categories an implementation might be expected to
 provide; some provide more and others fewer.  You don't need an
 explicit C<use locale>, because localeconv() always observes the
@@ -445,21 +445,21 @@ The following collations all make sense and you may meet any of them
 if you "use locale".
 
 	A B C D E a b c d e
-	A a B b C c D d D e
+	A a B b C c D d E e
 	a A b B c C d D e E
 	a b c d e A B C D E
 
-Here is a code snippet to tell what alphanumeric
+Here is a code snippet to tell what "word"
 characters are in the current locale, in that locale's order:
 
         use locale;
-        print +(sort grep /\w/, map { chr() } 0..255), "\n";
+        print +(sort grep /\w/, map { chr } 0..255), "\n";
 
 Compare this with the characters that you see and their order if you
 state explicitly that the locale should be ignored:
 
         no locale;
-        print +(sort grep /\w/, map { chr() } 0..255), "\n";
+        print +(sort grep /\w/, map { chr } 0..255), "\n";
 
 This machine-native collation (which is what you get unless S<C<use
 locale>> has appeared earlier in the same block) must be used for
@@ -518,8 +518,9 @@ results, and so always obey the current C<LC_COLLATE> locale.
 In the scope of S<C<use locale>>, Perl obeys the C<LC_CTYPE> locale
 setting.  This controls the application's notion of which characters are
 alphabetic.  This affects Perl's C<\w> regular expression metanotation,
-which stands for alphanumeric characters--that is, alphabetic and
-numeric characters.  (Consult L<perlre> for more information about
+which stands for alphanumeric characters--that is, alphabetic,
+numeric, and including other special characters such as the underscore or
+hyphen.  (Consult L<perlre> for more information about
 regular expressions.)  Thanks to C<LC_CTYPE>, depending on your locale
 setting, characters like 'E<aelig>', 'E<eth>', 'E<szlig>', and
 'E<oslash>' may be understood as C<\w> characters.
@@ -553,20 +554,20 @@ change the character used for the decimal point--perhaps from '.'  to ','.
 These functions aren't aware of such niceties as thousands separation and
 so on.  (See L<The localeconv function> if you care about these things.)
 
-Output produced by print() is B<never> affected by the
-current locale: it is independent of whether C<use locale> or C<no
-locale> is in effect, and corresponds to what you'd get from printf()
-in the "C" locale.  The same is true for Perl's internal conversions
-between numeric and string formats:
+Output produced by print() is also affected by the current locale: it
+depends on whether C<use locale> or C<no locale> is in effect, and
+corresponds to what you'd get from printf() in the "C" locale.  The
+same is true for Perl's internal conversions between numeric and
+string formats:
 
         use POSIX qw(strtod);
         use locale;
 
         $n = 5/2;   # Assign numeric 2.5 to $n
 
-        $a = " $n"; # Locale-independent conversion to string
+        $a = " $n"; # Locale-dependent conversion to string
 
-        print "half five is $n\n";       # Locale-independent output
+        print "half five is $n\n";       # Locale-dependent output
 
         printf "half five is %g\n", $n;  # Locale-dependent output
 
@@ -579,11 +580,12 @@ The C standard defines the C<LC_MONETARY> category, but no function
 that is affected by its contents.  (Those with experience of standards
 committees will recognize that the working group decided to punt on the
 issue.)  Consequently, Perl takes no notice of it.  If you really want
-to use C<LC_MONETARY>, you can query its contents--see L<The localeconv
-function>--and use the information that it returns in your application's
-own formatting of currency amounts.  However, you may well find that
-the information, voluminous and complex though it may be, still does not
-quite meet your requirements: currency formatting is a hard nut to crack.
+to use C<LC_MONETARY>, you can query its contents--see 
+L<The localeconv function>--and use the information that it returns in your 
+application's own formatting of currency amounts.  However, you may well 
+find that the information, voluminous and complex though it may be, still 
+does not quite meet your requirements: currency formatting is a hard nut 
+to crack.
 
 =head2 LC_TIME
 
@@ -641,15 +643,6 @@ case-mapping table is in effect.
 
 =item *
 
-Some systems are broken in that they allow the "C" locale to be
-overridden by users.  If the decimal point character in the
-C<LC_NUMERIC> category of the "C" locale is surreptitiously changed
-from a dot to a comma, C<sprintf("%g", 0.123456e3)> produces a
-string result of "123,456".  Many people would interpret this as
-one hundred and twenty-three thousand, four hundred and fifty-six.
-
-=item *
-
 A sneaky C<LC_COLLATE> locale could result in the names of students with
 "D" grades appearing ahead of those with "A"s.
 
@@ -685,16 +678,22 @@ the locale:
 
 =over 4
 
-=item B<Comparison operators> (C<lt>, C<le>, C<ge>, C<gt> and C<cmp>):
+=item  *
+
+B<Comparison operators> (C<lt>, C<le>, C<ge>, C<gt> and C<cmp>):
 
 Scalar true/false (or less/equal/greater) result is never tainted.
 
-=item B<Case-mapping interpolation> (with C<\l>, C<\L>, C<\u> or C<\U>)
+=item  *
+
+B<Case-mapping interpolation> (with C<\l>, C<\L>, C<\u> or C<\U>)
 
 Result string containing interpolated material is tainted if
 C<use locale> is in effect.
 
-=item B<Matching operator> (C<m//>):
+=item  *
+
+B<Matching operator> (C<m//>):
 
 Scalar true/false result never tainted.
 
@@ -707,7 +706,9 @@ expression contains C<\w> (to match an alphanumeric character), C<\W>
 C<use locale> is in effect and the regular expression contains C<\w>,
 C<\W>, C<\s>, or C<\S>.
 
-=item B<Substitution operator> (C<s///>):
+=item  *
+
+B<Substitution operator> (C<s///>):
 
 Has the same behavior as the match operator.  Also, the left
 operand of C<=~> becomes tainted when C<use locale> in effect
@@ -715,20 +716,30 @@ if modified as a result of a substitution based on a regular
 expression match involving C<\w>, C<\W>, C<\s>, or C<\S>; or of
 case-mapping with C<\l>, C<\L>,C<\u> or C<\U>.
 
-=item B<Output formatting functions> (printf() and write()):
+=item  *
 
-Success/failure result is never tainted.
+B<Output formatting functions> (printf() and write()):
 
-=item B<Case-mapping functions> (lc(), lcfirst(), uc(), ucfirst()):
+Results are never tainted because otherwise even output from print,
+for example C<print(1/7)>, should be tainted if C<use locale> is in
+effect.
+
+=item  *
+
+B<Case-mapping functions> (lc(), lcfirst(), uc(), ucfirst()):
 
 Results are tainted if C<use locale> is in effect.
 
-=item B<POSIX locale-dependent functions> (localeconv(), strcoll(),
+=item  *
+
+B<POSIX locale-dependent functions> (localeconv(), strcoll(),
 strftime(), strxfrm()):
 
 Results are never tainted.
 
-=item B<POSIX character class tests> (isalnum(), isalpha(), isdigit(),
+=item  *
+
+B<POSIX character class tests> (isalnum(), isalpha(), isdigit(),
 isgraph(), islower(), isprint(), ispunct(), isspace(), isupper(),
 isxdigit()):
 
@@ -946,44 +957,19 @@ In certain systems, the operating system's locale support
 is broken and cannot be fixed or used by Perl.  Such deficiencies can
 and will result in mysterious hangs and/or Perl core dumps when the
 C<use locale> is in effect.  When confronted with such a system,
-please report in excruciating detail to <F<perlbug@perl.com>>, and
+please report in excruciating detail to <F<perlbug@perl.org>>, and
 complain to your vendor: bug fixes may exist for these problems
 in your operating system.  Sometimes such bug fixes are called an
 operating system upgrade.
 
 =head1 SEE ALSO
 
-L<POSIX (3)/isalnum>
-
-L<POSIX (3)/isalpha>
-
-L<POSIX (3)/isdigit>
-
-L<POSIX (3)/isgraph>
-
-L<POSIX (3)/islower>
-
-L<POSIX (3)/isprint>,
-
-L<POSIX (3)/ispunct>
-
-L<POSIX (3)/isspace>
-
-L<POSIX (3)/isupper>,
-
-L<POSIX (3)/isxdigit>
-
-L<POSIX (3)/localeconv>
-
-L<POSIX (3)/setlocale>,
-
-L<POSIX (3)/strcoll>
-
-L<POSIX (3)/strftime>
-
-L<POSIX (3)/strtod>,
-
-L<POSIX (3)/strxfrm>
+L<POSIX/isalnum>, L<POSIX/isalpha>, L<POSIX/isdigit>, 
+L<POSIX/isgraph>, L<POSIX/islower>, L<POSIX/isprint>, 
+L<POSIX/ispunct>, L<POSIX/isspace>, L<POSIX/isupper>, 
+L<POSIX/isxdigit>, L<POSIX/localeconv>, L<POSIX/setlocale>, 
+L<POSIX/strcoll>, L<POSIX/strftime>, L<POSIX/strtod>, 
+L<POSIX/strxfrm>.
 
 =head1 HISTORY
 

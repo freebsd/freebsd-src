@@ -7,12 +7,20 @@ REALPERL = ../perl
 
 pl = c2ph.PL h2ph.PL h2xs.PL perlbug.PL perldoc.PL pl2pm.PL splain.PL perlcc.PL dprofpp.PL
 plextract  = c2ph h2ph h2xs perlbug perldoc pl2pm splain perlcc dprofpp
-plextractexe  = c2ph.exe h2ph.exe h2xs.exe perlbug.exe perldoc.exe pl2pm.exe splain.exe perlcc.exe dprofpp.exe
+plextractexe  = ./c2ph ./h2ph ./h2xs ./perlbug ./perldoc ./pl2pm ./splain ./perlcc ./dprofpp
 
 all: $(plextract) 
 
-compile: all
-	$(REALPERL) -I../lib perlcc -opt -regex 's/$$/.exe/' $(plextract) -prog -verbose dcf -log ../compilelog;
+compile: all $(plextract)
+	$(REALPERL) -I../lib perlcc c2ph -o c2ph.exe -v 10 -log ../compilelog;
+	$(REALPERL) -I../lib perlcc h2ph -o h2ph.exe -v 10 -log ../compilelog;
+	$(REALPERL) -I../lib perlcc h2xs -o h2xs.exe -v 10 -log ../compilelog;
+	$(REALPERL) -I../lib perlcc perlbug -o perlbug.exe -v 10 -log ../compilelog;
+	$(REALPERL) -I../lib perlcc perldoc -o perldoc.exe -v 10 -log ../compilelog;
+	$(REALPERL) -I../lib perlcc pl2pm -o pl2pm.exe -v 10 -log ../compilelog;
+	$(REALPERL) -I../lib perlcc splain -o splain.exe -v 10 -log ../compilelog;
+	$(REALPERL) -I../lib perlcc perlcc -o perlcc.exe -v 10 -log ../compilelog;
+	$(REALPERL) -I../lib perlcc dprofpp -o dprofpp.exe -v 10 -log ../compilelog;
 
 $(plextract):
 	$(PERL) -I../lib $@.PL
@@ -44,3 +52,6 @@ realclean:
 clobber:	realclean
 
 distclean:	clobber
+
+veryclean:	distclean
+	-rm -f *~ *.org

@@ -66,7 +66,7 @@
  *
  ****    Alterations to Henry's code are...
  ****
- ****    Copyright (c) 1991-2000, Larry Wall
+ ****    Copyright (c) 1991-2001, Larry Wall
  ****
  ****    You may distribute under the terms of either the GNU General Public
  ****    License or the Artistic License, as specified in the README file.
@@ -106,7 +106,11 @@
  */
 
 #define REGINCLASS(p,c)  (ANYOF_FLAGS(p) ? reginclass(p,c) : ANYOF_BITMAP_TEST(p,c))
-#define REGINCLASSUTF8(f,p)  (ARG1(f) ? reginclassutf8(f,p) : swash_fetch((SV*)PL_regdata->data[ARG2(f)],p))
+#ifdef DEBUGGING
+#   define REGINCLASSUTF8(f,p)  (ARG1(f) ? reginclassutf8(f,p) : swash_fetch(*av_fetch((AV*)SvRV((SV*)PL_regdata->data[ARG2(f)]),0,FALSE),p))
+#else
+#   define REGINCLASSUTF8(f,p)  (ARG1(f) ? reginclassutf8(f,p) : swash_fetch((SV*)PL_regdata->data[ARG2(f)],p))
+#endif
 
 #define CHR_SVLEN(sv) (UTF ? sv_len_utf8(sv) : SvCUR(sv))
 #define CHR_DIST(a,b) (UTF ? utf8_distance(a,b) : a - b)
@@ -124,50 +128,62 @@ static void restore_pos(pTHXo_ void *arg);
 STATIC CHECKPOINT
 S_regcppush(pTHX_ I32 parenfloor)
 {
-    dTHR;
     int retval = PL_savestack_ix;
-    int i = (PL_regsize - parenfloor) * 4;
+#define REGCP_PAREN_ELEMS 4
+    int paren_elems_to_push = (PL_regsize - parenfloor) * REGCP_PAREN_ELEMS;
     int p;
 
-    SSCHECK(i + 5);
+#define REGCP_OTHER_ELEMS 5
+    SSCHECK(paren_elems_to_push + REGCP_OTHER_ELEMS);
     for (p = PL_regsize; p > parenfloor; p--) {
+/* REGCP_PARENS_ELEMS are pushed per pairs of parentheses. */
 	SSPUSHINT(PL_regendp[p]);
 	SSPUSHINT(PL_regstartp[p]);
 	SSPUSHPTR(PL_reg_start_tmp[p]);
 	SSPUSHINT(p);
     }
+/* REGCP_OTHER_ELEMS are pushed in any case, parentheses or no. */
     SSPUSHINT(PL_regsize);
     SSPUSHINT(*PL_reglastparen);
     SSPUSHPTR(PL_reginput);
-    SSPUSHINT(i + 3);
-    SSPUSHINT(SAVEt_REGCONTEXT);
+#define REGCP_FRAME_ELEMS 2
+/* REGCP_FRAME_ELEMS are part of the REGCP_OTHER_ELEMS and
+ * are needed for the regexp context stack bookkeeping. */
+    SSPUSHINT(paren_elems_to_push + REGCP_OTHER_ELEMS - REGCP_FRAME_ELEMS);
+    SSPUSHINT(SAVEt_REGCONTEXT); /* Magic cookie. */
+
     return retval;
 }
 
 /* These are needed since we do not localize EVAL nodes: */
-#  define REGCP_SET  DEBUG_r(PerlIO_printf(Perl_debug_log,		\
+#  define REGCP_SET(cp)  DEBUG_r(PerlIO_printf(Perl_debug_log,		\
 			     "  Setting an EVAL scope, savestack=%"IVdf"\n",	\
-			     (IV)PL_savestack_ix)); lastcp = PL_savestack_ix
+			     (IV)PL_savestack_ix)); cp = PL_savestack_ix
 
-#  define REGCP_UNWIND  DEBUG_r(lastcp != PL_savestack_ix ?		\
+#  define REGCP_UNWIND(cp)  DEBUG_r(cp != PL_savestack_ix ?		\
 				PerlIO_printf(Perl_debug_log,		\
 				"  Clearing an EVAL scope, savestack=%"IVdf"..%"IVdf"\n", \
-				(IV)lastcp, (IV)PL_savestack_ix) : 0); regcpblow(lastcp)
+				(IV)(cp), (IV)PL_savestack_ix) : 0); regcpblow(cp)
 
 STATIC char *
 S_regcppop(pTHX)
 {
-    dTHR;
-    I32 i = SSPOPINT;
+    I32 i;
     U32 paren = 0;
     char *input;
     I32 tmps;
-    assert(i == SAVEt_REGCONTEXT);
+
+    /* Pop REGCP_OTHER_ELEMS before the parentheses loop starts. */
     i = SSPOPINT;
+    assert(i == SAVEt_REGCONTEXT); /* Check that the magic cookie is there. */
+    i = SSPOPINT; /* Parentheses elements to pop. */
     input = (char *) SSPOPPTR;
     *PL_reglastparen = SSPOPINT;
     PL_regsize = SSPOPINT;
-    for (i -= 3; i > 0; i -= 4) {
+
+    /* Now restore the parentheses context. */
+    for (i -= (REGCP_OTHER_ELEMS - REGCP_FRAME_ELEMS);
+	 i > 0; i -= REGCP_PAREN_ELEMS) {
 	paren = (U32)SSPOPINT;
 	PL_reg_start_tmp[paren] = (char *) SSPOPPTR;
 	PL_regstartp[paren] = SSPOPINT;
@@ -190,18 +206,29 @@ S_regcppop(pTHX)
 			  (IV)(*PL_reglastparen + 1), (IV)PL_regnpar);
 	}
     );
+#if 1
+    /* It would seem that the similar code in regtry()
+     * already takes care of this, and in fact it is in
+     * a better location to since this code can #if 0-ed out
+     * but the code in regtry() is needed or otherwise tests
+     * requiring null fields (pat.t#187 and split.t#{13,14}
+     * (as of patchlevel 7877)  will fail.  Then again,
+     * this code seems to be necessary or otherwise
+     * building DynaLoader will fail:
+     * "Error: '*' not in typemap in DynaLoader.xs, line 164"
+     * --jhi */
     for (paren = *PL_reglastparen + 1; paren <= PL_regnpar; paren++) {
 	if (paren > PL_regsize)
 	    PL_regstartp[paren] = -1;
 	PL_regendp[paren] = -1;
     }
+#endif
     return input;
 }
 
 STATIC char *
 S_regcp_set_to(pTHX_ I32 ss)
 {
-    dTHR;
     I32 tmp = PL_savestack_ix;
 
     PL_savestack_ix = ss;
@@ -219,7 +246,23 @@ typedef struct re_cc_state
     regexp *re;
 } re_cc_state;
 
-#define regcpblow(cp) LEAVE_SCOPE(cp)
+#define regcpblow(cp) LEAVE_SCOPE(cp)	/* Ignores regcppush()ed data. */
+
+#define TRYPAREN(paren, n, input) {				\
+    if (paren) {						\
+	if (n) {						\
+	    PL_regstartp[paren] = HOPc(input, -1) - PL_bostr;	\
+	    PL_regendp[paren] = input - PL_bostr;		\
+	}							\
+	else							\
+	    PL_regendp[paren] = -1;				\
+    }								\
+    if (regmatch(next))						\
+	sayYES;							\
+    if (paren && n)						\
+	PL_regendp[paren] = -1;					\
+}
+
 
 /*
  * pregexec and friends
@@ -244,7 +287,6 @@ Perl_pregexec(pTHX_ register regexp *prog, char *stringarg, register char *stren
 STATIC void
 S_cache_re(pTHX_ regexp *prog)
 {
-    dTHR;
     PL_regprecomp = prog->precomp;		/* Needed for FAIL. */
 #ifdef DEBUGGING
     PL_regprogram = prog->program;
@@ -309,6 +351,7 @@ Perl_re_intuit_start(pTHX_ regexp *prog, SV *sv, char *strpos,
     register I32 end_shift;
     register char *s;
     register SV *check;
+    char *strbeg;
     char *t;
     I32 ml_anch;
     char *tmp;
@@ -335,21 +378,25 @@ Perl_re_intuit_start(pTHX_ regexp *prog, SV *sv, char *strpos,
 	DEBUG_r(PerlIO_printf(Perl_debug_log, "String too short...\n"));
 	goto fail;
     }
+    strbeg = (sv && SvPOK(sv)) ? strend - SvCUR(sv) : strpos;
     check = prog->check_substr;
     if (prog->reganch & ROPT_ANCH) {	/* Match at beg-of-str or after \n */
 	ml_anch = !( (prog->reganch & ROPT_ANCH_SINGLE)
 		     || ( (prog->reganch & ROPT_ANCH_BOL)
 			  && !PL_multiline ) );	/* Check after \n? */
 
-	if ((prog->check_offset_min == prog->check_offset_max) && !ml_anch) {
+	if (!ml_anch) {
+	  if ( !(prog->reganch & ROPT_ANCH_GPOS) /* Checked by the caller */
+	       /* SvCUR is not set on references: SvRV and SvPVX overlap */
+	       && sv && !SvROK(sv)
+	       && (strpos != strbeg)) {
+	      DEBUG_r(PerlIO_printf(Perl_debug_log, "Not at start...\n"));
+	      goto fail;
+	  }
+	  if (prog->check_offset_min == prog->check_offset_max) {
 	    /* Substring at constant offset from beg-of-str... */
 	    I32 slen;
 
-	    if ( !(prog->reganch & ROPT_ANCH_GPOS) /* Checked by the caller */
-		 && (sv && (strpos + SvCUR(sv) != strend)) ) {
-		DEBUG_r(PerlIO_printf(Perl_debug_log, "Not at start...\n"));
-		goto fail;
-	    }
 	    PL_regeol = strend;			/* Used in HOP() */
 	    s = HOPc(strpos, prog->check_offset_min);
 	    if (SvTAIL(check)) {
@@ -375,6 +422,7 @@ Perl_re_intuit_start(pTHX_ regexp *prog, SV *sv, char *strpos,
 			 && memNE(SvPVX(check), s, slen)))
 		goto report_neq;
 	    goto success_at_start;
+	  }
 	}
 	/* Match is anchored, but substr is not anchored wrt beg-of-str. */
 	s = strpos;
@@ -405,10 +453,11 @@ Perl_re_intuit_start(pTHX_ regexp *prog, SV *sv, char *strpos,
 #endif
 
   restart:
+    other_last = Nullch;
+
     /* Find a possible match in the region s..strend by looking for
        the "check" substring in the region corrected by start/end_shift. */
     if (flags & REXEC_SCREAM) {
-	char *strbeg = SvPVX(sv);	/* XXXX Assume PV_force() on SCREAM! */
 	I32 p = -1;			/* Internal iterator of scream. */
 	I32 *pp = data ? data->scream_pos : &p;
 
@@ -559,7 +608,7 @@ Perl_re_intuit_start(pTHX_ regexp *prog, SV *sv, char *strpos,
 		    DEBUG_r(PerlIO_printf(Perl_debug_log,
 			", trying anchored starting at offset %ld...\n",
 			(long)(s1 + 1 - i_strpos)));
-		    other_last = last + 1;
+		    other_last = last;
 		    PL_regeol = strend;			/* Used in HOP() */
 		    s = HOPc(t, 1);
 		    goto restart;
@@ -567,7 +616,7 @@ Perl_re_intuit_start(pTHX_ regexp *prog, SV *sv, char *strpos,
 		else {
 		    DEBUG_r(PerlIO_printf(Perl_debug_log, " at offset %ld...\n",
 			  (long)(s - i_strpos)));
-		    other_last = s + 1;
+		    other_last = s; /* Fix this later. --Hugo */
 		    s = s1;
 		    if (t == strpos)
 			goto try_at_start;
@@ -597,9 +646,10 @@ Perl_re_intuit_start(pTHX_ regexp *prog, SV *sv, char *strpos,
 	  find_anchor:
 	    while (t < strend - prog->minlen) {
 		if (*t == '\n') {
-		    if (t < s - prog->check_offset_min) {
+		    if (t < check_at - prog->check_offset_min) {
 			if (prog->anchored_substr) {
-			    /* We definitely contradict the found anchored
+			    /* Since we moved from the found position,
+			       we definitely contradict the found anchored
 			       substr.  Due to the above check we do not
 			       contradict "check" substr.
 			       Thus we can arrive here only if check substr
@@ -610,14 +660,19 @@ Perl_re_intuit_start(pTHX_ regexp *prog, SV *sv, char *strpos,
 				PL_colors[0],PL_colors[1], (long)(strpos - i_strpos), (long)(strpos - i_strpos + prog->anchored_offset)));
 			    goto do_other_anchored;
 			}
+			/* We don't contradict the found floating substring. */
+			/* XXXX Why not check for STCLASS? */
 			s = t + 1;
 			DEBUG_r(PerlIO_printf(Perl_debug_log, "Found /%s^%s/m at offset %ld...\n",
 			    PL_colors[0],PL_colors[1], (long)(s - i_strpos)));
 			goto set_useful;
 		    }
-		    DEBUG_r(PerlIO_printf(Perl_debug_log, "Found /%s^%s/m, restarting at offset %ld...\n",
+		    /* Position contradicts check-string */
+		    /* XXXX probably better to look for check-string
+		       than for "\n", so one should lower the limit for t? */
+		    DEBUG_r(PerlIO_printf(Perl_debug_log, "Found /%s^%s/m, restarting lookup for check-string at offset %ld...\n",
 			PL_colors[0],PL_colors[1], (long)(t + 1 - i_strpos)));
-		    strpos = s = t + 1;
+		    other_last = strpos = s = t + 1;
 		    goto restart;
 		}
 		t++;
@@ -626,20 +681,25 @@ Perl_re_intuit_start(pTHX_ regexp *prog, SV *sv, char *strpos,
 			PL_colors[0],PL_colors[1]));
 	    goto fail_finish;
 	}
+	else {
+	    DEBUG_r(PerlIO_printf(Perl_debug_log, "Starting position does not contradict /%s^%s/m...\n",
+			PL_colors[0],PL_colors[1]));
+	}
 	s = t;
       set_useful:
 	++BmUSEFUL(prog->check_substr);	/* hooray/5 */
     }
     else {
 	PL_bostr = tmp;
-	/* The found string does not prohibit matching at beg-of-str
+	/* The found string does not prohibit matching at strpos,
 	   - no optimization of calling REx engine can be performed,
-	   unless it was an MBOL and we are not after MBOL. */
+	   unless it was an MBOL and we are not after MBOL,
+	   or a future STCLASS check will fail this. */
       try_at_start:
 	/* Even in this situation we may use MBOL flag if strpos is offset
 	   wrt the start of the string. */
-	if (ml_anch && sv
-	    && (strpos + SvCUR(sv) != strend) && strpos[-1] != '\n'
+	if (ml_anch && sv && !SvROK(sv)	/* See prev comment on SvROK */
+	    && (strpos != strbeg) && strpos[-1] != '\n'
 	    /* May be due to an implicit anchor of m{.*foo}  */
 	    && !(prog->reganch & ROPT_IMPLICIT))
 	{
@@ -647,8 +707,8 @@ Perl_re_intuit_start(pTHX_ regexp *prog, SV *sv, char *strpos,
 	    goto find_anchor;
 	}
 	DEBUG_r( if (ml_anch)
-	    PerlIO_printf(Perl_debug_log, "Does not contradict /%s^%s/m...\n",
-			PL_colors[0],PL_colors[1]);
+	    PerlIO_printf(Perl_debug_log, "Position at offset %ld does not contradict /%s^%s/m...\n",
+			(long)(strpos - i_strpos), PL_colors[0],PL_colors[1]);
 	);
       success_at_start:
 	if (!(prog->reganch & ROPT_NAUGHTY)	/* XXXX If strpos moved? */
@@ -657,9 +717,11 @@ Perl_re_intuit_start(pTHX_ regexp *prog, SV *sv, char *strpos,
 	    && prog->check_substr == prog->float_substr)
 	{
 	    /* If flags & SOMETHING - do not do it many times on the same match */
+	    DEBUG_r(PerlIO_printf(Perl_debug_log, "... Disabling check substring...\n"));
 	    SvREFCNT_dec(prog->check_substr);
 	    prog->check_substr = Nullsv;	/* disable */
 	    prog->float_substr = Nullsv;	/* clear */
+	    check = Nullsv;			/* abort */
 	    s = strpos;
 	    /* XXXX This is a remnant of the old implementation.  It
 	            looks wasteful, since now INTUIT can use many
@@ -688,7 +750,7 @@ Perl_re_intuit_start(pTHX_ regexp *prog, SV *sv, char *strpos,
 		? s + (prog->minlen? cl_l : 0)
 		: (prog->float_substr ? check_at - start_shift + cl_l
 				      : strend) ;
-	char *startpos = sv && SvPOK(sv) ? strend - SvCUR(sv) : s;
+	char *startpos = strbeg;
 
 	t = s;
 	if (prog->reganch & ROPT_UTF8) {	
@@ -722,8 +784,10 @@ Perl_re_intuit_start(pTHX_ regexp *prog, SV *sv, char *strpos,
 					       "Could not match STCLASS...\n") );
 			goto fail;
 		    }
+		    if (!check)
+			goto giveup;
 		    DEBUG_r( PerlIO_printf(Perl_debug_log,
-				"Trying %s substr starting at offset %ld...\n",
+				"Looking for %s substr starting at offset %ld...\n",
 				 what, (long)(s + start_shift - i_strpos)) );
 		    goto restart;
 		}
@@ -732,8 +796,10 @@ Perl_re_intuit_start(pTHX_ regexp *prog, SV *sv, char *strpos,
 		    goto retry_floating_check;
 		/* Recheck anchored substring, but not floating... */
 		s = check_at; 
+		if (!check)
+		    goto giveup;
 		DEBUG_r( PerlIO_printf(Perl_debug_log,
-			  "Trying anchored substr starting at offset %ld...\n",
+			  "Looking for anchored substr starting at offset %ld...\n",
 			  (long)(other_last - i_strpos)) );
 		goto do_other_anchored;
 	    }
@@ -741,9 +807,11 @@ Perl_re_intuit_start(pTHX_ regexp *prog, SV *sv, char *strpos,
                current position only: */
 	    if (ml_anch) {
 		s = t = t + 1;
+		if (!check)
+		    goto giveup;
 		DEBUG_r( PerlIO_printf(Perl_debug_log,
-			  "Trying /^/m starting at offset %ld...\n",
-			  (long)(t - i_strpos)) );
+			  "Looking for /%s^%s/m starting at offset %ld...\n",
+			  PL_colors[0],PL_colors[1], (long)(t - i_strpos)) );
 		goto try_at_offset;
 	    }
 	    if (!prog->float_substr)	/* Could have been deleted */
@@ -762,8 +830,10 @@ Perl_re_intuit_start(pTHX_ regexp *prog, SV *sv, char *strpos,
 		     PerlIO_printf(Perl_debug_log, 
 			"Does not contradict STCLASS...\n") );
     }
-    DEBUG_r(PerlIO_printf(Perl_debug_log, "%sGuessed:%s match at offset %ld\n",
-			  PL_colors[4], PL_colors[5], (long)(s - i_strpos)) );
+  giveup:
+    DEBUG_r(PerlIO_printf(Perl_debug_log, "%s%s:%s match at offset %ld\n",
+			  PL_colors[4], (check ? "Guessed" : "Giving up"),
+			  PL_colors[5], (long)(s - i_strpos)) );
     return s;
 
   fail_finish:				/* Substring not found */
@@ -875,8 +945,15 @@ S_find_byclass(pTHX_ regexp * prog, regnode *c, char *s, char *strend, char *sta
 	    PL_reg_flags |= RF_tainted;
 	    /* FALL THROUGH */
 	case BOUNDUTF8:
-	    tmp = (I32)(s != startpos) ? utf8_to_uv(reghop((U8*)s, -1), 0) : '\n';
-	    tmp = ((OP(c) == BOUNDUTF8 ? isALNUM_uni(tmp) : isALNUM_LC_uni(tmp)) != 0);
+	    if (s == startpos)
+		tmp = '\n';
+	    else {
+		U8 *r = reghop((U8*)s, -1);
+
+		tmp = (I32)utf8_to_uv(r, s - (char*)r, 0, 0);
+	    }
+	    tmp = ((OP(c) == BOUNDUTF8 ?
+		    isALNUM_uni(tmp) : isALNUM_LC_uni(tmp)) != 0);
 	    while (s < strend) {
 		if (tmp == !(OP(c) == BOUNDUTF8 ?
 			     swash_fetch(PL_utf8_alnum, (U8*)s) :
@@ -911,8 +988,15 @@ S_find_byclass(pTHX_ regexp * prog, regnode *c, char *s, char *strend, char *sta
 	    PL_reg_flags |= RF_tainted;
 	    /* FALL THROUGH */
 	case NBOUNDUTF8:
-	    tmp = (I32)(s != startpos) ? utf8_to_uv(reghop((U8*)s, -1), 0) : '\n';
-	    tmp = ((OP(c) == NBOUNDUTF8 ? isALNUM_uni(tmp) : isALNUM_LC_uni(tmp)) != 0);
+	    if (s == startpos)
+		tmp = '\n';
+	    else {
+		U8 *r = reghop((U8*)s, -1);
+
+		tmp = (I32)utf8_to_uv(r, s - (char*)r, 0, 0);
+	    }
+	    tmp = ((OP(c) == NBOUNDUTF8 ?
+		    isALNUM_uni(tmp) : isALNUM_LC_uni(tmp)) != 0);
 	    while (s < strend) {
 		if (tmp == !(OP(c) == NBOUNDUTF8 ?
 			     swash_fetch(PL_utf8_alnum, (U8*)s) :
@@ -1270,7 +1354,6 @@ Perl_regexec_flags(pTHX_ register regexp *prog, char *stringarg, register char *
 /* data: May be used for some additional optimizations. */
 /* nosave: For optimizations. */
 {
-    dTHR;
     register char *s;
     register regnode *c;
     register char *startpos = stringarg;
@@ -1432,9 +1515,14 @@ Perl_regexec_flags(pTHX_ register regexp *prog, char *stringarg, register char *
 	/* we have /x+whatever/ */
 	/* it must be a one character string (XXXX Except UTF?) */
 	char ch = SvPVX(prog->anchored_substr)[0];
+#ifdef DEBUGGING
+	int did_match = 0;
+#endif
+
 	if (UTF) {
 	    while (s < strend) {
 		if (*s == ch) {
+		    DEBUG_r( did_match = 1 );
 		    if (regtry(prog, s)) goto got_it;
 		    s += UTF8SKIP(s);
 		    while (s < strend && *s == ch)
@@ -1446,6 +1534,7 @@ Perl_regexec_flags(pTHX_ register regexp *prog, char *stringarg, register char *
 	else {
 	    while (s < strend) {
 		if (*s == ch) {
+		    DEBUG_r( did_match = 1 );
 		    if (regtry(prog, s)) goto got_it;
 		    s++;
 		    while (s < strend && *s == ch)
@@ -1454,6 +1543,9 @@ Perl_regexec_flags(pTHX_ register regexp *prog, char *stringarg, register char *
 		s++;
 	    }
 	}
+	DEBUG_r(did_match ||
+		PerlIO_printf(Perl_debug_log,
+			      "Did not find anchored character...\n"));
     }
     /*SUPPRESS 560*/
     else if (prog->anchored_substr != Nullsv
@@ -1469,6 +1561,9 @@ Perl_regexec_flags(pTHX_ register regexp *prog, char *stringarg, register char *
 			  -(I32)(CHR_SVLEN(must)
 				 - (SvTAIL(must) != 0) + back_min));
 	char *last1;		/* Last position checked before */
+#ifdef DEBUGGING
+	int did_match = 0;
+#endif
 
 	if (s > PL_bostr)
 	    last1 = HOPc(s, -1);
@@ -1487,6 +1582,7 @@ Perl_regexec_flags(pTHX_ register regexp *prog, char *stringarg, register char *
 		 : (s = fbm_instr((unsigned char*)HOP(s, back_min),
 				  (unsigned char*)strend, must, 
 				  PL_multiline ? FBMrf_MULTILINE : 0))) ) {
+	    DEBUG_r( did_match = 1 );
 	    if (HOPc(s, -back_max) > last1) {
 		last1 = HOPc(s, -back_min);
 		s = HOPc(s, -back_max);
@@ -1512,6 +1608,14 @@ Perl_regexec_flags(pTHX_ register regexp *prog, char *stringarg, register char *
 		}
 	    }
 	}
+	DEBUG_r(did_match ||
+		PerlIO_printf(Perl_debug_log, "Did not find %s substr `%s%.*s%s'%s...\n",
+			      ((must == prog->anchored_substr)
+			       ? "anchored" : "floating"),
+			      PL_colors[0],
+			      (int)(SvCUR(must) - (SvTAIL(must)!=0)),
+			      SvPVX(must),
+			      PL_colors[1], (SvTAIL(must) ? "$" : "")));
 	goto phooey;
     }
     else if ((c = prog->regstclass)) {
@@ -1520,6 +1624,7 @@ Perl_regexec_flags(pTHX_ register regexp *prog, char *stringarg, register char *
 	    strend = HOPc(strend, -(minlen - 1));
   	if (find_byclass(prog, c, s, strend, startpos, 0))
 	    goto got_it;
+	DEBUG_r(PerlIO_printf(Perl_debug_log, "Contradicts stclass...\n"));
     }
     else {
 	dontbother = 0;
@@ -1552,7 +1657,12 @@ Perl_regexec_flags(pTHX_ register regexp *prog, char *stringarg, register char *
 			last = strend;	/* matching `$' */
 		}
 	    }
-	    if (last == NULL) goto phooey; /* Should not happen! */
+	    if (last == NULL) {
+		DEBUG_r(PerlIO_printf(Perl_debug_log,
+				      "%sCan't trim the tail, match fails (should not happen)%s\n",
+				      PL_colors[4],PL_colors[5]));
+		goto phooey; /* Should not happen! */
+	    }
 	    dontbother = strend - last + prog->float_min_offset;
 	}
 	if (minlen && (dontbother < minlen))
@@ -1614,6 +1724,8 @@ got_it:
     return 1;
 
 phooey:
+    DEBUG_r(PerlIO_printf(Perl_debug_log, "%sMatch failed%s\n",
+			  PL_colors[4],PL_colors[5]));
     if (PL_reg_eval_set)
 	restore_pos(aTHXo_ 0);
     return 0;
@@ -1625,12 +1737,14 @@ phooey:
 STATIC I32			/* 0 failure, 1 success */
 S_regtry(pTHX_ regexp *prog, char *startpos)
 {
-    dTHR;
     register I32 i;
     register I32 *sp;
     register I32 *ep;
     CHECKPOINT lastcp;
 
+#ifdef DEBUGGING
+    PL_regindent = 0;	/* XXXX Not good when matches are reenterable... */
+#endif
     if ((prog->reganch & ROPT_EVAL_SEEN) && !PL_reg_eval_set) {
 	MAGIC *mg;
 
@@ -1702,23 +1816,66 @@ S_regtry(pTHX_ regexp *prog, char *startpos)
 
     /* XXXX What this code is doing here?!!!  There should be no need
        to do this again and again, PL_reglastparen should take care of
-       this!  */
+       this!  --ilya*/
+
+    /* Tests pat.t#187 and split.t#{13,14} seem to depend on this code.
+     * Actually, the code in regcppop() (which Ilya may be meaning by
+     * PL_reglastparen), is not needed at all by the test suite
+     * (op/regexp, op/pat, op/split), but that code is needed, oddly
+     * enough, for building DynaLoader, or otherwise this
+     * "Error: '*' not in typemap in DynaLoader.xs, line 164"
+     * will happen.  Meanwhile, this code *is* needed for the
+     * above-mentioned test suite tests to succeed.  The common theme
+     * on those tests seems to be returning null fields from matches.
+     * --jhi */
+#if 1
     sp = prog->startp;
     ep = prog->endp;
     if (prog->nparens) {
-	for (i = prog->nparens; i >= 1; i--) {
+	for (i = prog->nparens; i > *PL_reglastparen; i--) {
 	    *++sp = -1;
 	    *++ep = -1;
 	}
     }
-    REGCP_SET;
+#endif
+    REGCP_SET(lastcp);
     if (regmatch(prog->program + 1)) {
 	prog->endp[0] = PL_reginput - PL_bostr;
 	return 1;
     }
-    REGCP_UNWIND;
+    REGCP_UNWIND(lastcp);
     return 0;
 }
+
+#define RE_UNWIND_BRANCH	1
+#define RE_UNWIND_BRANCHJ	2
+
+union re_unwind_t;
+
+typedef struct {		/* XX: makes sense to enlarge it... */
+    I32 type;
+    I32 prev;
+    CHECKPOINT lastcp;
+} re_unwind_generic_t;
+
+typedef struct {
+    I32 type;
+    I32 prev;
+    CHECKPOINT lastcp;
+    I32 lastparen;
+    regnode *next;
+    char *locinput;
+    I32 nextchr;
+#ifdef DEBUGGING
+    int regindent;
+#endif
+} re_unwind_branch_t;
+
+typedef union re_unwind_t {
+    I32 type;
+    re_unwind_generic_t generic;
+    re_unwind_branch_t branch;
+} re_unwind_t;
 
 /*
  - regmatch - main matching routine
@@ -1737,7 +1894,6 @@ S_regtry(pTHX_ regexp *prog, char *startpos)
 STATIC I32			/* 0 failure, 1 success */
 S_regmatch(pTHX_ regnode *prog)
 {
-    dTHR;
     register regnode *scan;	/* Current node. */
     regnode *next;		/* Next node. */
     regnode *inner;		/* Next node in internal branch. */
@@ -1749,6 +1905,9 @@ S_regmatch(pTHX_ regnode *prog)
     register char *locinput = PL_reginput;
     register I32 c1, c2, paren;	/* case fold search, parenth */
     int minmod = 0, sw = 0, logical = 0;
+    I32 unwind = 0;
+    I32 firstcp = PL_savestack_ix;
+
 #ifdef DEBUGGING
     PL_regindent++;
 #endif
@@ -1758,7 +1917,7 @@ S_regmatch(pTHX_ regnode *prog)
     scan = prog;
     while (scan != NULL) {
 #define sayNO_L (logical ? (logical = 0, sw = 0, goto cont) : sayNO)
-#ifdef DEBUGGING
+#if 1
 #  define sayYES goto yes
 #  define sayNO goto no
 #  define sayYES_FINAL goto yes_final
@@ -1838,7 +1997,7 @@ S_regmatch(pTHX_ regnode *prog)
 	    }
 	    sayNO;
 	case SBOL:
-	    if (locinput == PL_regbol && PL_regprev == '\n')
+	    if (locinput == PL_bostr)
 		break;
 	    sayNO;
 	case GPOS:
@@ -1927,9 +2086,10 @@ S_regmatch(pTHX_ regnode *prog)
 		while (s < e) {
 		    if (l >= PL_regeol)
 			sayNO;
-		    if (utf8_to_uv((U8*)s, 0) != (c1 ?
-						  toLOWER_utf8((U8*)l) :
-						  toLOWER_LC_utf8((U8*)l)))
+		    if (utf8_to_uv((U8*)s, e - s, 0, 0) !=
+			(c1 ?
+			 toLOWER_utf8((U8*)l) :
+			 toLOWER_LC_utf8((U8*)l)))
 		    {
 			sayNO;
 		    }
@@ -2064,8 +2224,13 @@ S_regmatch(pTHX_ regnode *prog)
 	case BOUNDUTF8:
 	case NBOUNDUTF8:
 	    /* was last char in word? */
-	    ln = (locinput != PL_regbol)
-		? utf8_to_uv(reghop((U8*)locinput, -1), 0) : PL_regprev;
+	    if (locinput == PL_regbol)
+		ln = PL_regprev;
+	    else {
+		U8 *r = reghop((U8*)locinput, -1);
+
+		ln = utf8_to_uv(r, s - (char*)r, 0, 0);
+	    }
 	    if (OP(scan) == BOUNDUTF8 || OP(scan) == NBOUNDUTF8) {
 		ln = isALNUM_uni(ln);
 		n = swash_fetch(PL_utf8_alnum, (U8*)locinput);
@@ -2363,7 +2528,7 @@ S_regmatch(pTHX_ regnode *prog)
 		    PL_regcc = 0;
 		    
 		    cp = regcppush(0);	/* Save *all* the positions. */
-		    REGCP_SET;
+		    REGCP_SET(lastcp);
 		    cache_re(re);
 		    state.ss = PL_savestack_ix;
 		    *PL_reglastparen = 0;
@@ -2393,7 +2558,7 @@ S_regmatch(pTHX_ regnode *prog)
 			sayYES;
 		    }
 		    ReREFCNT_dec(re);
-		    REGCP_UNWIND;
+		    REGCP_UNWIND(lastcp);
 		    regcppop();
 		    PL_reg_call_cc = state.prev;
 		    PL_regcc = state.cc;
@@ -2520,12 +2685,18 @@ S_regmatch(pTHX_ regnode *prog)
 	case CURLYX: {
 		CURCUR cc;
 		CHECKPOINT cp = PL_savestack_ix;
+		/* No need to save/restore up to this paren */
+		I32 parenfloor = scan->flags;
 
 		if (OP(PREVOPER(next)) == NOTHING) /* LONGJMP */
 		    next += ARG(next);
 		cc.oldcc = PL_regcc;
 		PL_regcc = &cc;
-		cc.parenfloor = *PL_reglastparen;
+		/* XXXX Probably it is better to teach regpush to support
+		   parenfloor > PL_regsize... */
+		if (parenfloor > *PL_reglastparen)
+		    parenfloor = *PL_reglastparen; /* Pessimization... */
+		cc.parenfloor = parenfloor;
 		cc.cur = -1;
 		cc.min = ARG1(scan);
 		cc.max  = ARG2(scan);
@@ -2648,12 +2819,12 @@ S_regmatch(pTHX_ regnode *prog)
 		    if (PL_regcc)
 			ln = PL_regcc->cur;
 		    cp = regcppush(cc->parenfloor);
-		    REGCP_SET;
+		    REGCP_SET(lastcp);
 		    if (regmatch(cc->next)) {
 			regcpblow(cp);
 			sayYES;	/* All done. */
 		    }
-		    REGCP_UNWIND;
+		    REGCP_UNWIND(lastcp);
 		    regcppop();
 		    if (PL_regcc)
 			PL_regcc->cur = ln;
@@ -2680,12 +2851,12 @@ S_regmatch(pTHX_ regnode *prog)
 		    cc->cur = n;
 		    cc->lastloc = locinput;
 		    cp = regcppush(cc->parenfloor);
-		    REGCP_SET;
+		    REGCP_SET(lastcp);
 		    if (regmatch(cc->scan)) {
 			regcpblow(cp);
 			sayYES;
 		    }
-		    REGCP_UNWIND;
+		    REGCP_UNWIND(lastcp);
 		    regcppop();
 		    cc->cur = n - 1;
 		    cc->lastloc = lastloc;
@@ -2698,12 +2869,12 @@ S_regmatch(pTHX_ regnode *prog)
 		    cp = regcppush(cc->parenfloor);
 		    cc->cur = n;
 		    cc->lastloc = locinput;
-		    REGCP_SET;
+		    REGCP_SET(lastcp);
 		    if (regmatch(cc->scan)) {
 			regcpblow(cp);
 			sayYES;
 		    }
-		    REGCP_UNWIND;
+		    REGCP_UNWIND(lastcp);
 		    regcppop();		/* Restore some previous $<digit>s? */
 		    PL_reginput = locinput;
 		    DEBUG_r(
@@ -2749,30 +2920,30 @@ S_regmatch(pTHX_ regnode *prog)
 		if (OP(next) != c1)	/* No choice. */
 		    next = inner;	/* Avoid recursion. */
 		else {
-		    int lastparen = *PL_reglastparen;
+		    I32 lastparen = *PL_reglastparen;
+		    I32 unwind1;
+		    re_unwind_branch_t *uw;
 
-		    REGCP_SET;
-		    do {
-			PL_reginput = locinput;
-			if (regmatch(inner))
-			    sayYES;
-			REGCP_UNWIND;
-			for (n = *PL_reglastparen; n > lastparen; n--)
-			    PL_regendp[n] = -1;
-			*PL_reglastparen = n;
-			scan = next;
-			/*SUPPRESS 560*/
-			if ((n = (c1 == BRANCH ? NEXT_OFF(next) : ARG(next))))
-			    next += n;
-			else
-			    next = NULL;
-			inner = NEXTOPER(scan);
-			if (c1 == BRANCHJ) {
-			    inner = NEXTOPER(inner);
-			}
-		    } while (scan != NULL && OP(scan) == c1);
-		    sayNO;
-		    /* NOTREACHED */
+		    /* Put unwinding data on stack */
+		    unwind1 = SSNEWt(1,re_unwind_branch_t);
+		    uw = SSPTRt(unwind1,re_unwind_branch_t);
+		    uw->prev = unwind;
+		    unwind = unwind1;
+		    uw->type = ((c1 == BRANCH)
+				? RE_UNWIND_BRANCH
+				: RE_UNWIND_BRANCHJ);
+		    uw->lastparen = lastparen;
+		    uw->next = next;
+		    uw->locinput = locinput;
+		    uw->nextchr = nextchr;
+#ifdef DEBUGGING
+		    uw->regindent = ++PL_regindent;
+#endif
+
+		    REGCP_SET(uw->lastcp);
+
+		    /* Now go into the first branch */
+		    next = inner;
 		}
 	    }
 	    break;
@@ -2822,7 +2993,7 @@ S_regmatch(pTHX_ regnode *prog)
 		}
 		else
 		    c1 = c2 = -1000;
-		REGCP_SET;
+		REGCP_SET(lastcp);
 		/* This may be improved if l == 0.  */
 		while (n >= ln || (n == REG_INFTY && ln > 0 && l)) { /* ln overflow ? */
 		    /* If it could work, try it. */
@@ -2841,7 +3012,7 @@ S_regmatch(pTHX_ regnode *prog)
 			}
 			if (regmatch(next))
 			    sayYES;
-			REGCP_UNWIND;
+			REGCP_UNWIND(lastcp);
 		    }
 		    /* Couldn't or didn't -- move forward. */
 		    PL_reginput = locinput;
@@ -2881,7 +3052,7 @@ S_regmatch(pTHX_ regnode *prog)
 		    else
 			c1 = c2 = -1000;
 		}
-		REGCP_SET;
+		REGCP_SET(lastcp);
 		while (n >= ln) {
 		    /* If it could work, try it. */
 		    if (c1 == -1000 ||
@@ -2903,7 +3074,7 @@ S_regmatch(pTHX_ regnode *prog)
 			}
 			if (regmatch(next))
 			    sayYES;
-			REGCP_UNWIND;
+			REGCP_UNWIND(lastcp);
 		    }
 		    /* Couldn't or didn't -- back up. */
 		    n--;
@@ -2964,7 +3135,7 @@ S_regmatch(pTHX_ regnode *prog)
 		if (ln && regrepeat(scan, ln) < ln)
 		    sayNO;
 		locinput = PL_reginput;
-		REGCP_SET;
+		REGCP_SET(lastcp);
 		if (c1 != -1000) {
 		    char *e = locinput + n - ln; /* Should not check after this */
 		    char *old = locinput;
@@ -2992,18 +3163,9 @@ S_regmatch(pTHX_ regnode *prog)
 				sayNO;
 			}
 			/* PL_reginput == locinput now */
-			if (paren) {
-			    if (ln) {
-				PL_regstartp[paren] = HOPc(locinput, -1) - PL_bostr;
-				PL_regendp[paren] = locinput - PL_bostr;
-			    }
-			    else
-				PL_regendp[paren] = -1;
-			}
-			if (regmatch(next))
-			    sayYES;
+			TRYPAREN(paren, ln, locinput);
 			PL_reginput = locinput;	/* Could be reset... */
-			REGCP_UNWIND;
+			REGCP_UNWIND(lastcp);
 			/* Couldn't or didn't -- move forward. */
 			old = locinput++;
 		    }
@@ -3015,17 +3177,8 @@ S_regmatch(pTHX_ regnode *prog)
 			UCHARAT(PL_reginput) == c1 ||
 			UCHARAT(PL_reginput) == c2)
 		    {
-			if (paren) {
-			    if (n) {
-				PL_regstartp[paren] = HOPc(PL_reginput, -1) - PL_bostr;
-				PL_regendp[paren] = PL_reginput - PL_bostr;
-			    }
-			    else
-				PL_regendp[paren] = -1;
-			}
-			if (regmatch(next))
-			    sayYES;
-			REGCP_UNWIND;
+			TRYPAREN(paren, n, PL_reginput);
+			REGCP_UNWIND(lastcp);
 		    }
 		    /* Couldn't or didn't -- move forward. */
 		    PL_reginput = locinput;
@@ -3050,7 +3203,7 @@ S_regmatch(pTHX_ regnode *prog)
 		    if (UCHARAT(PL_reginput - 1) == '\n' && OP(next) != EOS)
 			ln--;
 		}
-		REGCP_SET;
+		REGCP_SET(lastcp);
 		if (paren) {
 		    while (n >= ln) {
 			/* If it could work, try it. */
@@ -3058,17 +3211,8 @@ S_regmatch(pTHX_ regnode *prog)
 			    UCHARAT(PL_reginput) == c1 ||
 			    UCHARAT(PL_reginput) == c2)
 			    {
-				if (paren && n) {
-				    if (n) {
-					PL_regstartp[paren] = HOPc(PL_reginput, -1) - PL_bostr;
-					PL_regendp[paren] = PL_reginput - PL_bostr;
-				    }
-				    else
-					PL_regendp[paren] = -1;
-				}
-				if (regmatch(next))
-				    sayYES;
-				REGCP_UNWIND;
+				TRYPAREN(paren, n, PL_reginput);
+				REGCP_UNWIND(lastcp);
 			    }
 			/* Couldn't or didn't -- back up. */
 			n--;
@@ -3082,9 +3226,8 @@ S_regmatch(pTHX_ regnode *prog)
 			    UCHARAT(PL_reginput) == c1 ||
 			    UCHARAT(PL_reginput) == c2)
 			    {
-				if (regmatch(next))
-				    sayYES;
-				REGCP_UNWIND;
+				TRYPAREN(paren, n, PL_reginput);
+				REGCP_UNWIND(lastcp);
 			    }
 			/* Couldn't or didn't -- back up. */
 			n--;
@@ -3102,7 +3245,7 @@ S_regmatch(pTHX_ regnode *prog)
 		CHECKPOINT cp, lastcp;
 		
 		cp = regcppush(0);	/* Save *all* the positions. */
-		REGCP_SET;
+		REGCP_SET(lastcp);
 		regcp_set_to(PL_reg_call_cc->ss); /* Restore parens of
 						    the caller. */
 		PL_reginput = locinput;	/* Make position available to
@@ -3115,7 +3258,7 @@ S_regmatch(pTHX_ regnode *prog)
 		    regcpblow(cp);
 		    sayYES;
 		}
-		REGCP_UNWIND;
+		REGCP_UNWIND(lastcp);
 		regcppop();
 		PL_reg_call_cc = cur_call_cc;
 		PL_regcc = cctmp;
@@ -3222,6 +3365,7 @@ S_regmatch(pTHX_ regnode *prog)
 			  PTR2UV(scan), OP(scan));
 	    Perl_croak(aTHX_ "regexp memory corruption");
 	}
+      reenter:
 	scan = next;
     }
 
@@ -3247,6 +3391,11 @@ yes:
 #ifdef DEBUGGING
     PL_regindent--;
 #endif
+
+#if 0					/* Breaks $^R */
+    if (unwind)
+	regcpblow(firstcp);
+#endif
     return 1;
 
 no:
@@ -3258,6 +3407,55 @@ no:
     goto do_no;
 no_final:
 do_no:
+    if (unwind) {
+	re_unwind_t *uw = SSPTRt(unwind,re_unwind_t);
+
+	switch (uw->type) {
+	case RE_UNWIND_BRANCH:
+	case RE_UNWIND_BRANCHJ:
+	{
+	    re_unwind_branch_t *uwb = &(uw->branch);
+	    I32 lastparen = uwb->lastparen;
+	    
+	    REGCP_UNWIND(uwb->lastcp);
+	    for (n = *PL_reglastparen; n > lastparen; n--)
+		PL_regendp[n] = -1;
+	    *PL_reglastparen = n;
+	    scan = next = uwb->next;
+	    if ( !scan || 
+		 OP(scan) != (uwb->type == RE_UNWIND_BRANCH 
+			      ? BRANCH : BRANCHJ) ) {		/* Failure */
+		unwind = uwb->prev;
+#ifdef DEBUGGING
+		PL_regindent--;
+#endif
+		goto do_no;
+	    }
+	    /* Have more choice yet.  Reuse the same uwb.  */
+	    /*SUPPRESS 560*/
+	    if ((n = (uwb->type == RE_UNWIND_BRANCH
+		      ? NEXT_OFF(next) : ARG(next))))
+		next += n;
+	    else
+		next = NULL;	/* XXXX Needn't unwinding in this case... */
+	    uwb->next = next;
+	    next = NEXTOPER(scan);
+	    if (uwb->type == RE_UNWIND_BRANCHJ)
+		next = NEXTOPER(next);
+	    locinput = uwb->locinput;
+	    nextchr = uwb->nextchr;
+#ifdef DEBUGGING
+	    PL_regindent = uwb->regindent;
+#endif
+
+	    goto reenter;
+	}
+	/* NOT REACHED */
+	default:
+	    Perl_croak(aTHX_ "regexp unwind memory corruption");
+	}
+	/* NOT REACHED */
+    }
 #ifdef DEBUGGING
     PL_regindent--;
 #endif
@@ -3275,7 +3473,6 @@ do_no:
 STATIC I32
 S_regrepeat(pTHX_ regnode *p, I32 max)
 {
-    dTHR;
     register char *scan;
     register I32 c;
     register char *loceol = PL_regeol;
@@ -3487,7 +3684,6 @@ S_regrepeat(pTHX_ regnode *p, I32 max)
 STATIC I32
 S_regrepeat_hard(pTHX_ regnode *p, I32 max, I32 *lp)
 {
-    dTHR;
     register char *scan;
     register char *start;
     register char *loceol = PL_regeol;
@@ -3538,7 +3734,6 @@ S_regrepeat_hard(pTHX_ regnode *p, I32 max, I32 *lp)
 STATIC bool
 S_reginclass(pTHX_ register regnode *p, register I32 c)
 {
-    dTHR;
     char flags = ANYOF_FLAGS(p);
     bool match = FALSE;
 
@@ -3585,7 +3780,11 @@ S_reginclass(pTHX_ register regnode *p, register I32 c)
 	    (ANYOF_CLASS_TEST(p, ANYOF_UPPER)   &&  isUPPER_LC(c))  ||
 	    (ANYOF_CLASS_TEST(p, ANYOF_NUPPER)  && !isUPPER_LC(c))  ||
 	    (ANYOF_CLASS_TEST(p, ANYOF_XDIGIT)  &&  isXDIGIT(c))    ||
-	    (ANYOF_CLASS_TEST(p, ANYOF_NXDIGIT) && !isXDIGIT(c))
+	    (ANYOF_CLASS_TEST(p, ANYOF_NXDIGIT) && !isXDIGIT(c))    ||
+	    (ANYOF_CLASS_TEST(p, ANYOF_PSXSPC)  &&  isPSXSPC(c))    ||
+	    (ANYOF_CLASS_TEST(p, ANYOF_NPSXSPC) && !isPSXSPC(c))    ||
+	    (ANYOF_CLASS_TEST(p, ANYOF_BLANK)   &&  isBLANK(c))     ||
+	    (ANYOF_CLASS_TEST(p, ANYOF_NBLANK)  && !isBLANK(c))
 	    ) /* How's that for a conditional? */
 	{
 	    match = TRUE;
@@ -3598,22 +3797,28 @@ S_reginclass(pTHX_ register regnode *p, register I32 c)
 STATIC bool
 S_reginclassutf8(pTHX_ regnode *f, U8 *p)
 {                                           
-    dTHR;
     char flags = ARG1(f);
     bool match = FALSE;
-    SV *sv = (SV*)PL_regdata->data[ARG2(f)];
+#ifdef DEBUGGING
+    SV *rv = (SV*)PL_regdata->data[ARG2(f)];
+    AV *av = (AV*)SvRV((SV*)rv);
+    SV *sw = *av_fetch(av, 0, FALSE);
+    SV *lv = *av_fetch(av, 1, FALSE);
+#else
+    SV *sw = (SV*)PL_regdata->data[ARG2(f)];
+#endif
 
-    if (swash_fetch(sv, p))
+    if (swash_fetch(sw, p))
 	match = TRUE;
     else if (flags & ANYOF_FOLD) {
-	U8 tmpbuf[UTF8_MAXLEN];
+	U8 tmpbuf[UTF8_MAXLEN+1];
 	if (flags & ANYOF_LOCALE) {
 	    PL_reg_flags |= RF_tainted;
 	    uv_to_utf8(tmpbuf, toLOWER_LC_utf8(p));
 	}
 	else
 	    uv_to_utf8(tmpbuf, toLOWER_utf8(p));
-	if (swash_fetch(sv, tmpbuf))
+	if (swash_fetch(sw, tmpbuf))
 	    match = TRUE;
     }
 
@@ -3625,7 +3830,6 @@ S_reginclassutf8(pTHX_ regnode *f, U8 *p)
 STATIC U8 *
 S_reghop(pTHX_ U8 *s, I32 off)
 {                               
-    dTHR;
     if (off >= 0) {
 	while (off-- && s < (U8*)PL_regeol)
 	    s += UTF8SKIP(s);
@@ -3647,7 +3851,6 @@ S_reghop(pTHX_ U8 *s, I32 off)
 STATIC U8 *
 S_reghopmaybe(pTHX_ U8* s, I32 off)
 {
-    dTHR;
     if (off >= 0) {
 	while (off-- && s < (U8*)PL_regeol)
 	    s += UTF8SKIP(s);
@@ -3679,7 +3882,6 @@ S_reghopmaybe(pTHX_ U8* s, I32 off)
 static void
 restore_pos(pTHXo_ void *arg)
 {
-    dTHR;
     if (PL_reg_eval_set) {
 	if (PL_reg_oldsaved) {
 	    PL_reg_re->subbeg = PL_reg_oldsaved;
@@ -3691,4 +3893,3 @@ restore_pos(pTHXo_ void *arg)
 	PL_curpm = PL_reg_oldcurpm;
     }	
 }
-

@@ -1,28 +1,47 @@
 #!../../miniperl
 
-$UnicodeData = "Unicode.300";
+use bytes;
+
+$UnicodeData = "Unicode.301";
+$SyllableData = "syllables.txt";
+$PropData = "PropList.txt";
+
 
 # Note: we try to keep filenames unique within first 8 chars.  Using
 # subdirectories for the following helps.
-mkdir "In", 0777;
-mkdir "Is", 0777;
-mkdir "To", 0777;
+mkdir "In", 0755;
+mkdir "Is", 0755;
+mkdir "To", 0755;
 
 @todo = (
 # typical
 
-    ['IsWord',  '$cat =~ /^L[ulo]|^Nd/ or $code eq "005F"',	''],
-    ['IsAlnum', '$cat =~ /^L[ulo]|^Nd/',	''],
-    ['IsAlpha',  '$cat =~ /^L[ulo]/',	''],
-    ['IsSpace',  '$cat =~ /^Z/ or $code lt "0020" and chr(hex $code) =~ /^\s/',	''],
+    # 005F: SPACING UNDERSCROE
+    ['IsWord',   '$cat =~ /^[LMN]/ or $code eq "005F"',	''],
+    ['IsAlnum',  '$cat =~ /^[LMN]/',	''],
+    ['IsAlpha',  '$cat =~ /^[LM]/',	''],
+    # 0009: HORIZONTAL TABULATION
+    # 000A: LINE FEED
+    # 000B: VERTICAL TABULATION
+    # 000C: FORM FEED
+    # 000D: CARRIAGE RETURN
+    # 0020: SPACE
+    ['IsSpace',  '$cat  =~ /^Z/ ||
+                  $code =~ /^(0009|000A|000B|000C|000D)$/',	''],
+    ['IsSpacePerl',
+                 '$cat  =~ /^Z/ ||
+                  $code =~ /^(0009|000A|000C|000D)$/',		''],
+    ['IsBlank',  '$code =~ /^(0020|0009)$/ ||
+		  $cat  =~ /^Z[^lp]$/',	''],
     ['IsDigit',  '$cat =~ /^Nd$/',	''],
-    ['IsUpper',  '$cat =~ /^Lu$/',	''],
+    ['IsUpper',  '$cat =~ /^L[ut]$/',	''],
     ['IsLower',  '$cat =~ /^Ll$/',	''],
-    ['IsASCII',  'hex $code <= 127',	''],
+    ['IsASCII',  '$code le "007f"',	''],
     ['IsCntrl',  '$cat =~ /^C/',	''],
-    ['IsGraph',  '$cat =~ /^[^C]/ and $code ne "0020"',	''],
-    ['IsPrint',  '$cat =~ /^[^C]/',	''],
+    ['IsGraph',  '$cat =~ /^([LMNPS]|Co)/',	''],
+    ['IsPrint',  '$cat =~ /^([LMNPS]|Co|Zs)/',	''],
     ['IsPunct',  '$cat =~ /^P/',	''],
+    # 003[0-9]: DIGIT ZERO..NINE, 00[46][1-6]: A..F, a..f
     ['IsXDigit', '$code =~ /^00(3[0-9]|[46][1-6])$/',	''],
     ['ToUpper',  '$up',			'$up'],
     ['ToLower',  '$down',		'$down'],
@@ -42,12 +61,14 @@ mkdir "To", 0777;
     ['IsM',	'$cat =~ /^M/',		''],	# Mark
     ['IsMn',	'$cat eq "Mn"',		''],	# Mark, Non-Spacing 
     ['IsMc',	'$cat eq "Mc"',		''],	# Mark, Combining
+    ['IsMe',	'$cat eq "Me"',		''],    # Mark, Enclosing
 
     ['IsN',	'$cat =~ /^N/',		''],	# Number
     ['IsNd',	'$cat eq "Nd"',		''],	# Number, Decimal Digit
     ['IsNo',	'$cat eq "No"',		''],	# Number, Other
+    ['IsNl',	'$cat eq "Nl"',		''],    # Number, Letter
 
-    ['IsZ',	'$cat =~ /^Z/',		''],	# Zeparator
+    ['IsZ',	'$cat =~ /^Z/',		''],	# Separator
     ['IsZs',	'$cat eq "Zs"',		''],	# Separator, Space
     ['IsZl',	'$cat eq "Zl"',		''],	# Separator, Line
     ['IsZp',	'$cat eq "Zp"',		''],	# Separator, Paragraph
@@ -56,6 +77,9 @@ mkdir "To", 0777;
     ['IsCc',	'$cat eq "Cc"',		''],	# Other, Control or Format
     ['IsCo',	'$cat eq "Co"',		''],	# Other, Private Use
     ['IsCn',	'$cat eq "Cn"',		''],	# Other, Not Assigned
+    ['IsCf',	'$cat eq "Cf"',		''],    # Other, Format
+    ['IsCs',	'$cat eq "Cs"',		''],    # Other, Surrogate
+    ['IsCn',	'Unassigned Code Value',$PropData],	# Other, Not Assigned
  
 # Informative
 
@@ -71,9 +95,13 @@ mkdir "To", 0777;
     ['IsPs',	'$cat eq "Ps"',		''],	# Punctuation, Open
     ['IsPe',	'$cat eq "Pe"',		''],	# Punctuation, Close
     ['IsPo',	'$cat eq "Po"',		''],	# Punctuation, Other
+    ['IsPc',	'$cat eq "Pc"',		''],	# Punctuation, Connector
+    ['IsPi',	'$cat eq "Pi"',		''],	# Punctuation, Initial quote
+    ['IsPf',	'$cat eq "Pf"',		''],	# Punctuation, Final quote
 
     ['IsS',	'$cat =~ /^S/',		''],	# Symbol
     ['IsSm',	'$cat eq "Sm"',		''],	# Symbol, Math
+    ['IsSk',	'$cat eq "Sk"',		''],	# Symbol, Modifier
     ['IsSc',	'$cat eq "Sc"',		''],	# Symbol, Currency
     ['IsSo',	'$cat eq "So"',		''],	# Symbol, Other
 
@@ -93,6 +121,15 @@ mkdir "To", 0777;
     ['IsBidiR',	'$bid eq "R"',		''],	# Right-Left; Arabic, Hebrew,
 						# and punctuation specific to
 						# those scripts
+
+    ['IsBidiLRE', '$bid eq "LRE"',       ''],    # Left-to-Right Embedding
+    ['IsBidiLRO', '$bid eq "LRO"',       ''],    # Left-to-Right Override
+    ['IsBidiAL', '$bid eq "AL"',         ''],    # Right-to-Left Arabic
+    ['IsBidiRLE', '$bid eq "RLE"',       ''],    # Right-to-Left Embedding
+    ['IsBidiRLO', '$bid eq "RLO"',       ''],    # Right-to-Left Override
+    ['IsBidiPDF', '$bid eq "PDF"',       ''],    # Pop Directional Format
+    ['IsBidiNSM', '$bid eq "NSM"',       ''],    # Non-Spacing Mark
+    ['IsBidiBN', '$bid eq "BN"',         ''],    # Boundary Neutral
 
 # Weak types:
 
@@ -122,7 +159,7 @@ mkdir "To", 0777;
     ['IsDCfont',	'$decomp =~ /^<font>/',		''],
     ['IsDCnoBreak',	'$decomp =~ /^<noBreak>/',	''],
     ['IsDCinitial',	'$decomp =~ /^<initial>/',	''],
-    ['IsDCinital',	'$decomp =~ /^<medial>/',	''],
+    ['IsDCmedial',	'$decomp =~ /^<medial>/',	''],
     ['IsDCfinal',	'$decomp =~ /^<final>/',	''],
     ['IsDCisolated',	'$decomp =~ /^<isolated>/',	''],
     ['IsDCcircle',	'$decomp =~ /^<circle>/',	''],
@@ -133,11 +170,12 @@ mkdir "To", 0777;
     ['IsDCnarrow',	'$decomp =~ /^<narrow>/',	''],
     ['IsDCsmall',	'$decomp =~ /^<small>/',	''],
     ['IsDCsquare',	'$decomp =~ /^<square>/',	''],
+    ['IsDCfraction',	'$decomp =~ /^<fraction>/',	''],
     ['IsDCcompat',	'$decomp =~ /^<compat>/',	''],
 
 # Number
 
-    ['Number', 	'$num',			'$num'],
+    ['Number', 	'$num ne ""',		'$num'],
 
 # Mirrored
 
@@ -154,18 +192,41 @@ mkdir "To", 0777;
 
 # Syllables
 
-    ['IsSylV',	'$syl eq "V"',		''],
-    ['IsSylU',	'$syl eq "U"',		''],
-    ['IsSylI',	'$syl eq "I"',		''],
-    ['IsSylA',	'$syl eq "A"',		''],
-    ['IsSylE',	'$syl eq "E"',		''],
-    ['IsSylC',	'$syl eq "C"',		''],
-    ['IsSylO',	'$syl eq "O"',		''],
-    ['IsSylWV',	'$syl eq "V"',		''],
-    ['IsSylWI',	'$syl eq "I"',		''],
-    ['IsSylWA',	'$syl eq "A"',		''],
-    ['IsSylWE',	'$syl eq "E"',		''],
-    ['IsSylWC',	'$syl eq "C"',		''],
+    syllable_defs(),
+
+# Line break properties - Normative
+
+    ['IsLbrkBK','$brk eq "BK"',		''],	# Mandatory Break
+    ['IsLbrkCR','$brk eq "CR"',		''],	# Carriage Return
+    ['IsLbrkLF','$brk eq "LF"',		''],	# Line Feed
+    ['IsLbrkCM','$brk eq "CM"',		''],	# Attached Characters and Combining Marks
+    ['IsLbrkSG','$brk eq "SG"',		''],	# Surrogates
+    ['IsLbrkGL','$brk eq "GL"',		''],	# Non-breaking (Glue)
+    ['IsLbrkCB','$brk eq "CB"',		''],	# Contingent Break Opportunity
+    ['IsLbrkSP','$brk eq "SP"',		''],	# Space
+    ['IsLbrkZW','$brk eq "ZW"',		''],	# Zero Width Space
+
+# Line break properties - Informative
+    ['IsLbrkXX','$brk eq "XX"',		''],	# Unknown
+    ['IsLbrkOP','$brk eq "OP"',		''],	# Opening Punctuation
+    ['IsLbrkCL','$brk eq "CL"',		''],	# Closing Punctuation
+    ['IsLbrkQU','$brk eq "QU"',		''],	# Ambiguous Quotation
+    ['IsLbrkNS','$brk eq "NS"',		''],	# Non Starter
+    ['IsLbrkEX','$brk eq "EX"',		''],	# Exclamation/Interrogation
+    ['IsLbrkSY','$brk eq "SY"',		''],	# Symbols Allowing Breaks
+    ['IsLbrkIS','$brk eq "IS"',		''],	# Infix Separator (Numeric)
+    ['IsLbrkPR','$brk eq "PR"',		''],	# Prefix (Numeric)
+    ['IsLbrkPO','$brk eq "PO"',		''],	# Postfix (Numeric)
+    ['IsLbrkNU','$brk eq "NU"',		''],	# Numeric
+    ['IsLbrkAL','$brk eq "AL"',		''],	# Ordinary Alphabetic and Symbol Characters
+    ['IsLbrkID','$brk eq "ID"',		''],	# Ideographic
+    ['IsLbrkIN','$brk eq "IN"',		''],	# Inseparable
+    ['IsLbrkHY','$brk eq "HY"',		''],	# Hyphen
+    ['IsLbrkBB','$brk eq "BB"',		''],	# Break Opportunity Before
+    ['IsLbrkBA','$brk eq "BA"',		''],	# Break Opportunity After
+    ['IsLbrkSA','$brk eq "SA"',		''],	# Complex Context (South East Asian)
+    ['IsLbrkAI','$brk eq "AI"',		''],	# Ambiguous (Alphabetic or Ideographic)
+    ['IsLbrkB2','$brk eq "B2"',		''],	# Break Opportunity Before and After
 );
 
 # This is not written for speed...
@@ -197,8 +258,8 @@ END
 
 exit if @ARGV and not grep { $_ eq Block } @ARGV;
 print "Block\n";
-open(UD, 'Blocks.txt') or die "Can't open blocks.txt: $!\n";
-open(OUT, ">Block.pl") or die "Can't create $table.pl: $!\n";
+open(UD, 'Blocks.txt') or die "Can't open Blocks.txt: $!\n";
+open(OUT, ">Block.pl") or die "Can't create Block.pl: $!\n";
 print OUT <<EOH;
 # !!!!!!!   DO NOT EDIT THIS FILE   !!!!!!! 
 # This file is built by $0 from e.g. $UnicodeData.
@@ -242,6 +303,8 @@ sub proplist {
     my $out;
     my $split;
 
+    return listFromPropFile($wanted) if $val eq $PropData;
+
     if ($table =~ /^Arab/) {
 	open(UD, "ArabShap.txt") or warn "Can't open $table: $!";
 
@@ -253,9 +316,14 @@ sub proplist {
 	$split = '($code, $short, $name) = split(/; */); $code =~ s/^U\+//;';
     }
     elsif ($table =~ /^IsSyl/) {
-	open(UD, "syllables.txt") or warn "Can't open $table: $!";
+	open(UD, $SyllableData) or warn "Can't open $table: $!";
 
 	$split = '($code, $short, $syl) = split(/; */); $code =~ s/^U\+//;';
+    }
+    elsif ($table =~ /^IsLbrk/) {
+	open(UD, "LineBrk.txt") or warn "Can't open $table: $!";
+
+	$split = '($code, $brk, $name) = split(/;/);';
     }
     else {
 	open(UD, $UnicodeData) or warn "Can't open $UnicodeData: $!";
@@ -268,8 +336,8 @@ sub proplist {
 	eval <<"END";
 	    while (<UD>) {
 		next if /^#/;
-		next if /^\s/;
-		chop;
+		next if /^\\s/;
+		s/\\s+\$//;
 		$split
 		if ($wanted) {
 		    push(\@wanted, [hex \$code, hex $val, \$name =~ /, First>\$/]);
@@ -303,7 +371,7 @@ END
 	eval <<"END";
 	    while (<UD>) {
 		next if /^#/;
-		next if /^\s*\$/;
+		next if /^\\s*\$/;
 		chop;
 		$split
 		if ($wanted) {
@@ -334,6 +402,46 @@ END
 	}
     }
     $out;
+}
+
+sub listFromPropFile {
+    my ($wanted) = @_;
+    my $out;
+
+    open (UD, $PropData) or die "Can't open $PropData: $!\n";
+    local($/) = "\n" . '*' x 43 . "\n\nProperty dump for:";   # not 42?
+
+    <UD>;
+    while (<UD>) {
+        chomp;
+        if (s/0x[\d\w]+\s+\((.*?)\)// and $wanted eq $1) {
+            s/\(\d+ chars\)//g;
+            s/^\s+//mg;
+            s/\s+$//mg;
+            s/\.\./\t/g;
+	    $out = lc $_;
+	    last;
+        }
+    }
+    close (UD);
+    "$out\n";
+}
+
+sub syllable_defs {
+    my @defs;
+    my %seen;
+
+    open (SD, $SyllableData) or die "Can't open $SyllableData: $!\n";
+    while (<SD>) {
+        next if /^\s*(#|$)/;
+        s/\s+$//;
+        ($code, $name, $syl) = split /; */;
+        next unless $syl;
+        push (@defs, ["IsSyl$syl", qq{\$syl eq "$syl"}, ''])
+                                                     unless $seen{$syl}++;
+    }
+    close (SD);
+    return (@defs);
 }
 
 # eof

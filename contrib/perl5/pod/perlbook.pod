@@ -4,12 +4,13 @@ perlbook - Perl book information
 
 =head1 DESCRIPTION
 
-The Camel Book, officially known as I<Programming Perl, Second Edition>,
-by Larry Wall et al, is the definitive reference work covering nearly
-all of Perl.  You can order it and other Perl books from O'Reilly &
-Associates, 1-800-998-9938.  Local/overseas is +1 707 829 0515.  If you
-can locate an O'Reilly order form, you can also fax to +1 707 829 0104.
-If you're web-connected, you can even mosey on over to http://www.ora.com/
+The Camel Book, officially known as I<Programming Perl, Third Edition,
+July 2000>, by Larry Wall et al, ISBN 0-596-00027-8, is the definitive
+reference work covering nearly all of Perl.  You can order it and
+other Perl books from O'Reilly & Associates, 1-800-998-9938.
+Local/overseas is +1 707 829 0515.  If you can locate an O'Reilly
+order form, you can also fax to +1 707 829 0104.  If you're
+web-connected, you can even mosey on over to http://www.oreilly.com/
 for an online order form.
 
 Other Perl books from various publishers and authors 

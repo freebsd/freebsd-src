@@ -214,21 +214,27 @@ demonstrating:
 =over 4
 
 =item 0
+
 a simple word
 
 =item 1
+
 multiple spaces are skipped because of our $delim
 
 =item 2
+
 use of quotes to include a space in a word
 
 =item 3
+
 use of a backslash to include a space in a word
 
 =item 4
+
 use of a backslash to remove the special meaning of a double-quote
 
 =item 5
+
 another simple word (note the lack of effect of the
 backslashed double-quote)
 

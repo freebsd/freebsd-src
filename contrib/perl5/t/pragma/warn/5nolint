@@ -94,3 +94,111 @@ $^W = 1 ;
 require "./abc";
 my $a ; chop $a ;
 EXPECT
+########
+-X
+# Check scope of pragma with eval
+use warnings;
+{
+    no warnings ;
+    eval '
+        my $b ; chop $b ;
+    '; print STDERR $@ ;
+    my $b ; chop $b ;
+}
+EXPECT
+
+########
+-X
+# Check scope of pragma with eval
+use warnings;
+{
+    no warnings ;
+    eval q[ 
+        use warnings 'uninitialized' ;
+        my $b ; chop $b ;
+    ]; print STDERR $@;
+    my $b ; chop $b ;
+}
+EXPECT
+
+########
+-X
+# Check scope of pragma with eval
+no warnings;
+{
+    use warnings 'uninitialized' ;
+    eval '
+        my $b ; chop $b ;
+    '; print STDERR $@ ;
+    my $b ; chop $b ;
+}
+EXPECT
+
+########
+-X
+# Check scope of pragma with eval
+no warnings;
+{
+    use warnings 'uninitialized' ;
+    eval '
+        no warnings ;
+        my $b ; chop $b ;
+    '; print STDERR $@ ;
+    my $b ; chop $b ;
+}
+EXPECT
+
+########
+-X
+# Check scope of pragma with eval
+use warnings;
+{
+    no warnings ;
+    eval '
+        1 if $a EQ $b ;
+    '; print STDERR $@ ;
+    1 if $a EQ $b ;
+}
+EXPECT
+
+########
+-X
+# Check scope of pragma with eval
+use warnings;
+{
+    no warnings ;
+    eval q[ 
+        use warnings 'deprecated' ;
+        1 if $a EQ $b ;
+    ]; print STDERR $@;
+    1 if $a EQ $b ;
+}
+EXPECT
+
+########
+-X
+# Check scope of pragma with eval
+no warnings;
+{
+    use warnings 'deprecated' ;
+    eval '
+        1 if $a EQ $b ;
+    '; print STDERR $@;
+    1 if $a EQ $b ;
+}
+EXPECT
+
+########
+-X
+# Check scope of pragma with eval
+no warnings;
+{
+    use warnings 'deprecated' ;
+    eval '
+        no warnings ;
+        1 if $a EQ $b ;
+    '; print STDERR $@;
+    1 if $a EQ $b ;
+}
+EXPECT
+

@@ -74,7 +74,7 @@
 # No longer call die expect on fatal errors.  Just return fail codes.
 # Changed returns so higher up routines can tell whats happening.
 # Get expect/accept in correct order for dir listing.
-# When ftp_show is set then print hashes every 1k transfered (like ftp).
+# When ftp_show is set then print hashes every 1k transferred (like ftp).
 # Allow for stripping returns out of incoming data.
 # Save last error in a global string.
 #

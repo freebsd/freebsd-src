@@ -4,7 +4,7 @@
 # separate executable and can't simply use eval.
 
 chdir 't' if -d 't';
-unshift @INC, "../lib";
+@INC = '../lib';
 $ENV{PERL5LIB} = "../lib";
 
 $|=1;
@@ -15,7 +15,7 @@ print "1..", scalar @prgs, "\n";
 
 $tmpfile = "misctmp000";
 1 while -f ++$tmpfile;
-END { unlink $tmpfile if $tmpfile; }
+END { while($tmpfile && unlink $tmpfile){} }
 
 $CAT = (($^O eq 'MSWin32') ? '.\perl -e "print <>"' : 'cat');
 
@@ -26,6 +26,9 @@ for (@prgs){
     }
     my($prog,$expected) = split(/\nEXPECT\n/, $_);
     open TEST, ">$tmpfile" or die "Cannot open $tmpfile: $!";
+    $prog =~ s#/dev/null#NL:# if $^O eq 'VMS';     
+    $prog =~ s#if \(-e _ and -f _ and -r _\)#if (-e _ and -f _)# if $^O eq 'VMS';  # VMS file locking 
+
     print TEST $prog, "\n";
     close TEST or die "Cannot close $tmpfile: $!";
 
@@ -59,12 +62,12 @@ $a = ":="; split /($a)/o, "a:=b:=c"; print "@_"
 EXPECT
 a := b := c
 ########
-use integer;
 $cusp = ~0 ^ (~0 >> 1);
+use integer;
 $, = " ";
-print +($cusp - 1) % 8, $cusp % 8, -$cusp % 8, ($cusp + 1) % 8, "!\n";
+print +($cusp - 1) % 8, $cusp % 8, -$cusp % 8, 8 | (($cusp + 1) % 8 + 7), "!\n";
 EXPECT
--1 0 0 1 !
+7 0 0 8 !
 ########
 $foo=undef; $foo->go;
 EXPECT
@@ -346,7 +349,7 @@ print "you die joe!\n" unless "@x" eq 'x y z';
 /(?{"{"})/	# Check it outside of eval too
 EXPECT
 Sequence (?{...}) not terminated or not {}-balanced at - line 1, within pattern
-/(?{"{"})/: Sequence (?{...}) not terminated or not {}-balanced at - line 1.
+Sequence (?{...}) not terminated or not {}-balanced before HERE mark in regex m/(?{ << HERE "{"})/ at - line 1.
 ########
 /(?{"{"}})/	# Check it outside of eval too
 EXPECT
@@ -371,8 +374,8 @@ argv <e>
 # fdopen from a system descriptor to a system descriptor used to close
 # the former.
 open STDERR, '>&=STDOUT' or die $!;
-select STDOUT; $| = 1; print fileno STDOUT;
-select STDERR; $| = 1; print fileno STDERR;
+select STDOUT; $| = 1; print fileno STDOUT or die $!;
+select STDERR; $| = 1; print fileno STDERR or die $!;
 EXPECT
 1
 2
@@ -545,3 +548,56 @@ ucfirst - World
 lcfirst - world
 uc - WORLD
 lc - world
+########
+sub f { my $a = 1; my $b = 2; my $c = 3; my $d = 4; next }
+my $x = "foo";
+{ f } continue { print $x, "\n" }
+EXPECT
+foo
+########
+sub C () { 1 }
+sub M { $_[0] = 2; }
+eval "C";
+M(C);
+EXPECT
+Modification of a read-only value attempted at - line 2.
+########
+print qw(ab a\b a\\b);
+EXPECT
+aba\ba\b
+########
+# This test is here instead of pragma/locale.t because
+# the bug depends on in the internal state of the locale
+# settings and pragma/locale messes up that state pretty badly.
+# We need a "fresh run".
+BEGIN {
+    eval { require POSIX };
+    if ($@) {
+	exit(0); # running minitest?
+    }
+}
+use Config;
+my $have_setlocale = $Config{d_setlocale} eq 'define';
+$have_setlocale = 0 if $@;
+# Visual C's CRT goes silly on strings of the form "en_US.ISO8859-1"
+# and mingw32 uses said silly CRT
+$have_setlocale = 0 if $^O eq 'MSWin32' && $Config{cc} =~ /^(cl|gcc)/i;
+exit(0) unless $have_setlocale;
+my @locales;
+if (-x "/usr/bin/locale" && open(LOCALES, "/usr/bin/locale -a|")) {
+    while(<LOCALES>) {
+        chomp;
+        push(@locales, $_);
+    }
+    close(LOCALES);
+}
+exit(0) unless @locales;
+for (@locales) {
+    use POSIX qw(locale_h);
+    use locale;
+    setlocale(LC_NUMERIC, $_) or next;
+    my $s = sprintf "%g %g", 3.1, 3.1;
+    next if $s eq '3.1 3.1' || $s =~ /^(3.+1) \1$/;
+    print "$_ $s\n";
+}
+EXPECT

@@ -55,7 +55,7 @@ Execution of - aborted due to compilation errors.
 
 # strict vars - error
 use strict 'vars' ;
-$fred ;
+<$fred> ;
 EXPECT
 Global symbol "$fred" requires explicit package name at - line 4.
 Execution of - aborted due to compilation errors.
@@ -151,8 +151,6 @@ $d = 1;$i = 1;$n = 1;
 $e = 1;$j = 1;$o = 1;
 $p = 0b12;
 --FILE-- 
-# known scalar leak
-BEGIN { $ENV{PERL_DESTRUCT_LEVEL} = 0 unless $ENV{PERL_DESTRUCT_LEVEL} > 3; }
 use abc;
 EXPECT
 Global symbol "$f" requires explicit package name at abc.pm line 3.
@@ -171,8 +169,8 @@ Global symbol "$o" requires explicit package name at abc.pm line 7.
 Global symbol "$p" requires explicit package name at abc.pm line 8.
 Illegal binary digit '2' at abc.pm line 8, at end of line
 abc.pm has too many errors.
-Compilation failed in require at - line 3.
-BEGIN failed--compilation aborted at - line 3.
+Compilation failed in require at - line 1.
+BEGIN failed--compilation aborted at - line 1.
 ########
 
 # Check scope of pragma with eval
@@ -387,6 +385,8 @@ EXPECT
 # multiple our declarations in same scope, same package, warning
 use strict 'vars';
 use warnings;
+{ our $x = 1 }
+{ our $x = 0 }
 our $foo;
 {
     our $foo;
@@ -394,6 +394,17 @@ our $foo;
     our $foo;
 }
 EXPECT
-"our" variable $foo redeclared at - line 7.
+"our" variable $foo redeclared at - line 9.
 	(Did you mean "local" instead of "our"?)
-Name "Foo::foo" used only once: possible typo at - line 9.
+Name "Foo::foo" used only once: possible typo at - line 11.
+########
+
+# Make sure the strict vars failure still occurs
+# now that the `@i should be written as \@i' failure does not occur
+# 20000522 mjd@plover.com (MJD)
+use strict 'vars';
+no warnings;
+"@i_like_crackers";
+EXPECT
+Global symbol "@i_like_crackers" requires explicit package name at - line 7.
+Execution of - aborted due to compilation errors.

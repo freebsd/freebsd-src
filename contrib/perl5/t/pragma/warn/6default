@@ -51,3 +51,71 @@ EXPECT
 Integer overflow in binary number at - line 3.
 Illegal binary digit '2' ignored at - line 3.
 Binary number > 0b11111111111111111111111111111111 non-portable at - line 3.
+########
+
+# Check scope of pragma with eval
+use warnings;
+{
+    no warnings ;
+    eval '
+	my $a = oct "0xfffffffffffffffffg" ;
+    '; print STDERR $@ ;
+    my $a = oct "0xfffffffffffffffffg" ;
+}
+EXPECT
+
+########
+
+# Check scope of pragma with eval
+use warnings;
+{
+    no warnings ;
+    eval q[ 
+        use warnings ;
+	my $a = oct "0xfffffffffffffffffg" ;
+    ]; print STDERR $@;
+    my $a = oct "0xfffffffffffffffffg" ;
+}
+EXPECT
+Integer overflow in hexadecimal number at (eval 1) line 3.
+Illegal hexadecimal digit 'g' ignored at (eval 1) line 3.
+Hexadecimal number > 0xffffffff non-portable at (eval 1) line 3.
+########
+
+# Check scope of pragma with eval
+no warnings;
+{
+    use warnings ;
+    eval '
+	my $a = oct "0xfffffffffffffffffg" ;
+    '; print STDERR $@ ;
+}
+EXPECT
+Integer overflow in hexadecimal number at (eval 1) line 2.
+Illegal hexadecimal digit 'g' ignored at (eval 1) line 2.
+Hexadecimal number > 0xffffffff non-portable at (eval 1) line 2.
+########
+
+# Check scope of pragma with eval
+no warnings;
+{
+    use warnings;
+    eval '
+        no warnings ;
+	my $a = oct "0xfffffffffffffffffg" ;
+    '; print STDERR $@ ;
+}
+EXPECT
+
+########
+
+# Check scope of pragma with eval
+no warnings;
+{
+    use warnings 'deprecated' ;
+    eval '
+	my $a = oct "0xfffffffffffffffffg" ;
+    '; print STDERR $@;
+}
+EXPECT
+

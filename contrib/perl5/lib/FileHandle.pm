@@ -238,12 +238,12 @@ See L<perlfunc/printf>.
 =item $fh->getline
 
 This works like <$fh> described in L<perlop/"I/O Operators">
-except that it's more readable and can be safely called in an
-array context but still returns just one line.
+except that it's more readable and can be safely called in a
+list context but still returns just one line.
 
 =item $fh->getlines
 
-This works like <$fh> when called in an array context to
+This works like <$fh> when called in a list context to
 read all the remaining lines in a file, except that it's more readable.
 It will also croak() if accidentally called in a scalar context.
 

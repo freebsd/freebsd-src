@@ -8,8 +8,9 @@ This section is surprisingly small because the rest of the FAQ is
 littered with answers involving regular expressions.  For example,
 decoding a URL and checking whether something is a number are handled
 with regular expressions, but those answers are found elsewhere in
-this document (in the section on Data and the Networking one on
-networking, to be precise).
+this document (in L<perlfaq9>: ``How do I decode or create those %-encodings 
+on the web'' and L<perfaq4>: ``How do I determine whether a scalar is
+a number/whole/integer/float'', to be precise).
 
 =head2 How can I hope to use regular expressions without creating illegible and unmaintainable code?
 
@@ -175,7 +176,7 @@ appear within a certain time.
     $file->waitfor('/second line\n/');
     print $file->getline;
 
-=head2 How do I substitute case insensitively on the LHS, but preserving case on the RHS?
+=head2 How do I substitute case insensitively on the LHS while preserving case on the RHS?
 
 Here's a lovely Perlish solution by Larry Rosler.  It exploits
 properties of bitwise xor on ASCII strings.
@@ -185,7 +186,7 @@ properties of bitwise xor on ASCII strings.
     $old = 'test';
     $new = 'success';
 
-    s{(\Q$old\E}
+    s{(\Q$old\E)}
      { uc $new | (uc $1 ^ $1) .
 	(uc(substr $1, -1) ^ substr $1, -1) x
 	    (length($new) - length $1)
@@ -280,10 +281,11 @@ Without the \Q, the regex would also spuriously match "di".
 =head2 What is C</o> really for?
 
 Using a variable in a regular expression match forces a re-evaluation
-(and perhaps recompilation) each time through.  The C</o> modifier
-locks in the regex the first time it's used.  This always happens in a
-constant regular expression, and in fact, the pattern was compiled
-into the internal format at the same time your entire program was.
+(and perhaps recompilation) each time the regular expression is
+encountered.  The C</o> modifier locks in the regex the first time
+it's used.  This always happens in a constant regular expression, and
+in fact, the pattern was compiled into the internal format at the same
+time your entire program was.
 
 Use of C</o> is irrelevant unless variable interpolation is used in
 the pattern, and if so, the regex engine will neither know nor care
@@ -367,8 +369,8 @@ A slight modification also removes C++ comments:
 =head2 Can I use Perl regular expressions to match balanced text?
 
 Although Perl regular expressions are more powerful than "mathematical"
-regular expressions, because they feature conveniences like backreferences
-(C<\1> and its ilk), they still aren't powerful enough -- with
+regular expressions because they feature conveniences like backreferences
+(C<\1> and its ilk), they still aren't powerful enough--with
 the possible exception of bizarre and experimental features in the
 development-track releases of Perl.  You still need to use non-regex
 techniques to parse balanced text, such as the text enclosed between
@@ -379,7 +381,7 @@ and possibly nested single chars, like C<`> and C<'>, C<{> and C<}>,
 or C<(> and C<)> can be found in
 http://www.perl.com/CPAN/authors/id/TOMC/scripts/pull_quotes.gz .
 
-The C::Scan module from CPAN contains such subs for internal usage,
+The C::Scan module from CPAN contains such subs for internal use,
 but they are undocumented.
 
 =head2 What does it mean that regexes are greedy?  How can I get around it?
@@ -402,7 +404,7 @@ expression engine to find a match as quickly as possible and pass
 control on to whatever is next in line, like you would if you were
 playing hot potato.
 
-=head2  How do I process each word on each line?
+=head2 How do I process each word on each line?
 
 Use the split function:
 
@@ -415,7 +417,8 @@ Use the split function:
 Note that this isn't really a word in the English sense; it's just
 chunks of consecutive non-whitespace characters.
 
-To work with only alphanumeric sequences, you might consider
+To work with only alphanumeric sequences (including underscores), you
+might consider
 
     while (<>) {
 	foreach $word (m/(\w+)/g) {
@@ -449,7 +452,8 @@ regular expression:
 	print "$count $line";
     }
 
-If you want these output in a sorted order, see the section on Hashes.
+If you want these output in a sorted order, see L<perlfaq4>: ``How do I
+sort a hash (optionally by value instead of key)?''.
 
 =head2 How can I do approximate matching?
 
@@ -486,7 +490,7 @@ approach, one which makes use of the new C<qr//> operator:
 
 =head2 Why don't word-boundary searches with C<\b> work for me?
 
-Two common misconceptions are that C<\b> is a synonym for C<\s+>, and
+Two common misconceptions are that C<\b> is a synonym for C<\s+> and
 that it's the edge between whitespace characters and non-whitespace
 characters.  Neither is correct.  C<\b> is the place between a C<\w>
 character and a C<\W> character (that is, C<\b> is the edge of a
@@ -513,11 +517,11 @@ not "this" or "island".
 
 =head2 Why does using $&, $`, or $' slow my program down?
 
-Because once Perl sees that you need one of these variables anywhere in
-the program, it has to provide them on each and every pattern match.
+Once Perl sees that you need one of these variables anywhere in
+the program, it provides them on each and every pattern match.
 The same mechanism that handles these provides for the use of $1, $2,
 etc., so you pay the same price for each regex that contains capturing
-parentheses. But if you never use $&, etc., in your script, then regexes
+parentheses.  If you never use $&, etc., in your script, then regexes
 I<without> capturing parentheses won't be penalized. So avoid $&, $',
 and $` if you can, but if you can't, once you've used them at all, use
 them at will because you've already paid the price.  Remember that some
@@ -526,11 +530,16 @@ variable is no longer "expensive" the way the other two are.
 
 =head2 What good is C<\G> in a regular expression?
 
-The notation C<\G> is used in a match or substitution in conjunction the
-C</g> modifier (and ignored if there's no C</g>) to anchor the regular
-expression to the point just past where the last match occurred, i.e. the
-pos() point.  A failed match resets the position of C<\G> unless the
-C</c> modifier is in effect.
+The notation C<\G> is used in a match or substitution in conjunction with
+the C</g> modifier to anchor the regular expression to the point just past
+where the last match occurred, i.e. the pos() point.  A failed match resets
+the position of C<\G> unless the C</c> modifier is in effect. C<\G> can be
+used in a match without the C</g> modifier; it acts the same (i.e. still
+anchors at the pos() point) but of course only matches once and does not
+update pos(), as non-C</g> expressions never do. C<\G> in an expression
+applied to a target string that has never been matched against a C</g>
+expression before or has had its pos() reset is functionally equivalent to
+C<\A>, which matches at the beginning of the string.
 
 For example, suppose you had a line of text quoted in standard mail
 and Usenet notation, (that is, with leading C<< > >> characters), and
@@ -583,7 +592,7 @@ Of course, that could have been written as
       }
     }
 
-But then you lose the vertical alignment of the regular expressions.
+but then you lose the vertical alignment of the regular expressions.
 
 =head2 Are Perl regexes DFAs or NFAs?  Are they POSIX compliant?
 
@@ -664,12 +673,12 @@ Well, if it's really a pattern, then just use
     chomp($pattern = <STDIN>);
     if ($line =~ /$pattern/) { }
 
-Or, since you have no guarantee that your user entered
+Alternatively, since you have no guarantee that your user entered
 a valid regular expression, trap the exception this way:
 
     if (eval { $line =~ /$pattern/ }) { }
 
-But if all you really want to search for a string, not a pattern,
+If all you really want to search for a string, not a pattern,
 then you should either use the index() function, which is made for
 string searching, or if you can't be disabused of using a pattern
 match on a non-pattern, then be sure to use C<\Q>...C<\E>, documented

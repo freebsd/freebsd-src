@@ -2,7 +2,12 @@
 
 BEGIN {
     chdir 't' if -d 't';
-    unshift @INC, '../lib' if -d '../lib';
+    @INC = '../lib';
+    require Config; import Config;
+    if ($Config{'extensions'} !~ /\bData\/Dumper\b/) {
+      print "1..0 # Skip: Data::Dumper was not built\n";
+      exit 0;
+    }
 }
 
 use Data::Dumper;

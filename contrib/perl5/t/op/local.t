@@ -2,9 +2,6 @@
 
 print "1..69\n";
 
-# XXX known to leak scalars
-$ENV{PERL_DESTRUCT_LEVEL} = 0 unless $ENV{PERL_DESTRUCT_LEVEL} > 3;
-
 sub foo {
     local($a, $b) = @_;
     local($c, $d);

@@ -1,7 +1,7 @@
 #!./perl -w
 
 BEGIN {
-    unshift @INC, '../lib' if -d '../lib' ;
+    @INC = '../lib';
     require Config; import Config;
     if ($Config{'extensions'} !~ /\bDB_File\b/) {
 	print "1..0 # Skip: DB_File was not built\n";
@@ -9,10 +9,12 @@ BEGIN {
     }
 }
 
+use strict;
+use warnings;
 use DB_File; 
 use Fcntl;
 
-print "1..109\n";
+print "1..111\n";
 
 sub ok
 {
@@ -57,6 +59,9 @@ sub docat_del
 }   
 
 my $Dfile = "dbhash.tmp";
+my $null_keys_allowed = ($DB_File::db_ver < 2.004010 
+				|| $DB_File::db_ver >= 3.1 );
+
 unlink $Dfile;
 
 umask(0);
@@ -98,13 +103,14 @@ ok(14, $@ =~ /^DB_File::HASHINFO::FETCH - Unknown element 'fred' at/ );
 
 
 # Now check the interface to HASH
-
+my ($X, %h);
 ok(15, $X = tie(%h, 'DB_File',$Dfile, O_RDWR|O_CREAT, 0640, $DB_HASH ) );
 
-($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$size,$atime,$mtime,$ctime,
+my ($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$size,$atime,$mtime,$ctime,
    $blksize,$blocks) = stat($Dfile);
 ok(16, ($mode & 0777) == ($^O eq 'os2' ? 0666 : 0640) || $^O eq 'amigaos' || $^O eq 'MSWin32');
 
+my ($key, $value, $i);
 while (($key,$value) = each(%h)) {
     $i++;
 }
@@ -176,8 +182,8 @@ $h{'goner3'} = 'snork';
 delete $h{'goner1'};
 $X->DELETE('goner3');
 
-@keys = keys(%h);
-@values = values(%h);
+my @keys = keys(%h);
+my @values = values(%h);
 
 ok(23, $#keys == 29 && $#values == 29) ;
 
@@ -197,14 +203,19 @@ ok(25, $#keys == 31) ;
 $h{'foo'} = '';
 ok(26, $h{'foo'} eq '' );
 
-# Berkeley DB 2 from version 2.4.10 onwards does not allow null keys.
-# This feature will be reenabled in a future version of Berkeley DB.
-#$h{''} = 'bar';
-#ok(27, $h{''} eq 'bar' );
-ok(27,1) ;
+# Berkeley DB from version 2.4.10 to 3.0 does not allow null keys.
+# This feature was reenabled in version 3.1 of Berkeley DB.
+my $result = 0 ;
+if ($null_keys_allowed) {
+    $h{''} = 'bar';
+    $result = ( $h{''} eq 'bar' );
+}
+else
+  { $result = 1 }
+ok(27, $result) ;
 
 # check cache overflow and numeric keys and contents
-$ok = 1;
+my $ok = 1;
 for ($i = 1; $i < 200; $i++) { $h{$i + 0} = $i + 0; }
 for ($i = 1; $i < 200; $i++) { $ok = 0 unless $h{$i} == $i; }
 ok(28, $ok );
@@ -214,7 +225,7 @@ ok(28, $ok );
 ok(29, $size > 0 );
 
 @h{0..200} = 200..400;
-@foo = @h{0..200};
+my @foo = @h{0..200};
 ok(30, join(':',200..400) eq join(':',@foo) );
 
 
@@ -223,7 +234,7 @@ ok(30, join(':',200..400) eq join(':',@foo) );
 # Check NOOVERWRITE will make put fail when attempting to overwrite
 # an existing record.
  
-$status = $X->put( 'x', 'newvalue', R_NOOVERWRITE) ;
+my $status = $X->put( 'x', 'newvalue', R_NOOVERWRITE) ;
 ok(31, $status == 1 );
  
 # check that the value of the key 'x' has not been changed by the 
@@ -246,9 +257,10 @@ $status = $X->del('q') ;
 ok(36, $status == 0 );
 
 # Make sure that the key deleted, cannot be retrieved
-$^W = 0 ;
-ok(37, $h{'q'} eq undef );
-$^W = 1 ;
+{
+    no warnings 'uninitialized' ;
+    ok(37, $h{'q'} eq undef );
+}
 
 # Attempting to delete a non-existant key should fail
 
@@ -361,6 +373,7 @@ untie %h ;
 
    package Another ;
 
+   use warnings ;
    use strict ;
 
    open(FILE, ">SubDB.pm") or die "Cannot open SubDB.pm: $!\n" ;
@@ -368,6 +381,7 @@ untie %h ;
 
    package SubDB ;
 
+   use warnings ;
    use strict ;
    use vars qw( @ISA @EXPORT) ;
 
@@ -451,6 +465,7 @@ EOM
 
 {
    # DBM Filter tests
+   use warnings ;
    use strict ;
    my (%h, $db) ;
    my ($fetch_key, $store_key, $fetch_value, $store_value) = ("") x 4 ;
@@ -557,6 +572,7 @@ EOM
 {    
     # DBM Filter with a closure
 
+    use warnings ;
     use strict ;
     my (%h, $db) ;
 
@@ -619,6 +635,7 @@ EOM
 
 {
    # DBM Filter recursion detection
+   use warnings ;
    use strict ;
    my (%h, $db) ;
    unlink $Dfile;
@@ -643,6 +660,7 @@ EOM
   {
     my $redirect = new Redirect $file ;
 
+    use warnings FATAL => qw(all);
     use strict ;
     use DB_File ;
     use vars qw( %h $k $v ) ;
@@ -680,6 +698,46 @@ tomato -> red
 banana -> yellow
 EOM
    
+}
+
+{
+    # Bug ID 20001013.009
+    #
+    # test that $hash{KEY} = undef doesn't produce the warning
+    #     Use of uninitialized value in null operation 
+    use warnings ;
+    use strict ;
+    use DB_File ;
+
+    unlink $Dfile;
+    my %h ;
+    my $a = "";
+    local $SIG{__WARN__} = sub {$a = $_[0]} ;
+    
+    tie %h, 'DB_File', $Dfile or die "Can't open file: $!\n" ;
+    $h{ABC} = undef;
+    ok(110, $a eq "") ;
+    untie %h ;
+    unlink $Dfile;
+}
+
+{
+    # test that %hash = () doesn't produce the warning
+    #     Argument "" isn't numeric in entersub
+    use warnings ;
+    use strict ;
+    use DB_File ;
+
+    unlink $Dfile;
+    my %h ;
+    my $a = "";
+    local $SIG{__WARN__} = sub {$a = $_[0]} ;
+    
+    tie %h, 'DB_File', $Dfile or die "Can't open file: $!\n" ;
+    %h = (); ;
+    ok(111, $a eq "") ;
+    untie %h ;
+    unlink $Dfile;
 }
 
 exit ;

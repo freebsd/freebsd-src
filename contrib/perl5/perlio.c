@@ -1,6 +1,6 @@
 /*    perlio.c
  *
- *    Copyright (c) 1996-2000, Nick Ing-Simmons
+ *    Copyright (c) 1996-2001, Nick Ing-Simmons
  *
  *    You may distribute under the terms of either the GNU General Public
  *    License or the Artistic License, as specified in the README file.
@@ -172,10 +172,14 @@ PerlIO_set_ptrcnt(PerlIO *f, STDCHAR *ptr, int cnt)
 #else
   Perl_croak(aTHX_ "Cannot set 'ptr' of FILE * on this system");
 #endif
-#if defined(USE_STDIO_PTR) && defined(STDIO_CNT_LVALUE)
+#if defined(USE_STDIO_PTR) && defined(STDIO_CNT_LVALUE) && defined (STDIO_PTR_LVAL_NOCHANGE_CNT)
   FILE_cnt(f) = cnt;
 #else
-  Perl_croak(aTHX_ "Cannot set 'cnt' of FILE * on this system");
+#if defined(STDIO_PTR_LVAL_SETS_CNT)
+  assert (FILE_cnt(f) == cnt);
+#else
+  Perl_croak(aTHX_ "Cannot set 'cnt' of FILE * on this system when setting 'ptr'");
+#endif
 #endif
 }
 
@@ -485,7 +489,11 @@ PerlIO_init(void)
 #ifndef HAS_FSETPOS
 #undef PerlIO_setpos
 int
+#ifdef USE_SFIO
+PerlIO_setpos(PerlIO *f, const Off_t *pos)
+#else
 PerlIO_setpos(PerlIO *f, const Fpos_t *pos)
+#endif
 {
  return PerlIO_seek(f,*pos,0); 
 }
@@ -507,11 +515,19 @@ PerlIO_setpos(PerlIO *f, const Fpos_t *pos)
 #ifndef HAS_FGETPOS
 #undef PerlIO_getpos
 int
+#ifdef USE_SFIO
+PerlIO_getpos(PerlIO *f, Off_t *pos)
+{
+ *pos = PerlIO_seek(f,0,0);
+ return 0;
+}
+#else
 PerlIO_getpos(PerlIO *f, Fpos_t *pos)
 {
  *pos = PerlIO_tell(f);
  return 0;
 }
+#endif
 #else
 #ifndef PERLIO_IS_STDIO
 #undef PerlIO_getpos

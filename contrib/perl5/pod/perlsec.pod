@@ -38,9 +38,22 @@ msgrcv(), the password, gcos and shell fields returned by the
 getpwxxx() calls), and all file input are marked as "tainted".
 Tainted data may not be used directly or indirectly in any command
 that invokes a sub-shell, nor in any command that modifies files,
-directories, or processes. (B<Important exception>: If you pass a list
-of arguments to either C<system> or C<exec>, the elements of that list
-are B<NOT> checked for taintedness.) Any variable set to a value
+directories, or processes, B<with the following exceptions>:
+
+=over 4
+
+=item *
+
+If you pass a list of arguments to either C<system> or C<exec>,
+the elements of that list are B<not> checked for taintedness.
+
+=item *
+
+Arguments to C<print> and C<syswrite> are B<not> checked for taintedness.
+
+=back
+
+Any variable set to a value
 derived from tainted data will itself be tainted, even if it is
 logically impossible for the tainted data to alter the variable.
 Because taintedness is associated with each scalar value, some
@@ -217,25 +230,31 @@ not called with a string that the shell could expand.  This is by far the
 best way to call something that might be subjected to shell escapes: just
 never call the shell at all.  
 
-    use English;
-    die "Can't fork: $!" unless defined $pid = open(KID, "-|");
-    if ($pid) {	          # parent
-	while (<KID>) {
-	    # do something
-	}
-	close KID;
-    } else {
-	my @temp = ($EUID, $EGID);
-	$EUID = $UID;
-	$EGID = $GID;    # 	initgroups() also called!
-	# Make sure privs are really gone
-	($EUID, $EGID) = @temp;
-	die "Can't drop privileges" 
-		unless $UID == $EUID  && $GID eq $EGID;	
-	$ENV{PATH} = "/bin:/usr/bin";
-	exec 'myprog', 'arg1', 'arg2' 
-	    or die "can't exec myprog: $!";
-    }
+        use English;
+        die "Can't fork: $!" unless defined($pid = open(KID, "-|"));
+        if ($pid) {           # parent
+            while (<KID>) {
+                # do something
+            }
+            close KID;
+        } else {
+            my @temp     = ($EUID, $EGID);
+            my $orig_uid = $UID;
+            my $orig_gid = $GID;
+            $EUID = $UID;
+            $EGID = $GID;
+            # Drop privileges
+            $UID  = $orig_uid;
+            $GID  = $orig_gid;
+            # Make sure privs are really gone
+            ($EUID, $EGID) = @temp;
+            die "Can't drop privileges"
+                unless $UID == $EUID  && $GID eq $EGID;
+            $ENV{PATH} = "/bin:/usr/bin"; # Minimal PATH.
+	    # Consider sanitizing the environment even more.
+            exec 'myprog', 'arg1', 'arg2'
+                or die "can't exec myprog: $!";
+        }
 
 A similar strategy would work for wildcard expansion via C<glob>, although
 you can use C<readdir> instead.
@@ -291,12 +310,6 @@ in C:
 Compile this wrapper into a binary executable and then make I<it> rather
 than your script setuid or setgid.
 
-See the program B<wrapsuid> in the F<eg> directory of your Perl
-distribution for a convenient way to do this automatically for all your
-setuid Perl programs.  It moves setuid scripts into files with the same
-name plus a leading dot, and then compiles a wrapper like the one above
-for each of them.
-
 In recent years, vendors have begun to supply systems free of this
 inherent security bug.  On such systems, when the kernel passes the name
 of the set-id script to open to the interpreter, rather than using a
@@ -308,9 +321,8 @@ program that builds Perl tries to figure this out for itself, so you
 should never have to specify this yourself.  Most modern releases of
 SysVr4 and BSD 4.4 use this approach to avoid the kernel race condition.
 
-Prior to release 5.003 of Perl, a bug in the code of B<suidperl> could
-introduce a security hole in systems compiled with strict POSIX
-compliance.
+Prior to release 5.6.1 of Perl, bugs in the code of B<suidperl> could
+introduce a security hole.
 
 =head2 Protecting Your Programs
 

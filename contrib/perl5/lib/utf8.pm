@@ -1,5 +1,7 @@
 package utf8;
 
+if (ord('A') != 193) { # make things more pragmatic for EBCDIC folk
+
 $utf8::hint_bits = 0x00800000;
 
 sub import {
@@ -13,7 +15,10 @@ sub unimport {
 
 sub AUTOLOAD {
     require "utf8_heavy.pl";
-    goto &$AUTOLOAD;
+    goto &$AUTOLOAD if defined &$AUTOLOAD;
+    Carp::croak("Undefined subroutine $AUTOLOAD called");
+}
+
 }
 
 1;
@@ -44,7 +49,9 @@ in future we would like to standardize on the UTF-8 encoding for
 source text.  Until UTF-8 becomes the default format for source
 text, this pragma should be used to recognize UTF-8 in the source.
 When UTF-8 becomes the standard source format, this pragma will
-effectively become a no-op.
+effectively become a no-op.  This pragma already is a no-op on
+EBCDIC platforms (where it is alright to code perl in EBCDIC 
+rather than UTF-8).
 
 Enabling the C<utf8> pragma has the following effects:
 

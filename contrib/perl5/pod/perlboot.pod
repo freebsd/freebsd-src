@@ -790,9 +790,13 @@ Hopefully, this gets you started, though.
 
 For more information, see L<perlobj> (for all the gritty details about
 Perl objects, now that you've seen the basics), L<perltoot> (the
-tutorial for those who already know objects), L<perlbot> (for some
-more tricks), and books such as Damian Conway's excellent I<Object
-Oriented Perl>.
+tutorial for those who already know objects), L<perltootc> (dealing
+with class data), L<perlbot> (for some more tricks), and books such as
+Damian Conway's excellent I<Object Oriented Perl>.
+
+Some modules which might prove interesting are Class::Accessor,
+Class::Class, Class::Contract, Class::Data::Inheritable,
+Class::MethodMaker and Tie::SecureHash
 
 =head1 COPYRIGHT
 

@@ -57,7 +57,7 @@ print OUT <<EOP;
 
 
 #ifdef REG_COMP_C
-const static U8 regarglen[] = {
+static const U8 regarglen[] = {
 EOP
 
 $ind = 0;
@@ -73,7 +73,7 @@ EOP
 print OUT <<EOP;
 };
 
-const static char reg_off_by_arg[] = {
+static const char reg_off_by_arg[] = {
 EOP
 
 $ind = 0;
@@ -89,7 +89,7 @@ print OUT <<EOP;
 };
 
 #ifdef DEBUGGING
-const static char * const reg_name[] = {
+static const char * const reg_name[] = {
 EOP
 
 $ind = 0;
@@ -105,7 +105,7 @@ EOP
 print OUT <<EOP;
 };
 
-const static int reg_num = $tot;
+static const int reg_num = $tot;
 
 #endif /* DEBUGGING */
 #endif /* REG_COMP_C */

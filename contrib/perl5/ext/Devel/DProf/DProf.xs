@@ -3,11 +3,6 @@
 #include "perl.h"
 #include "XSUB.h"
 
-/* For older Perls */
-#ifndef dTHR
-#  define dTHR int dummy_thr
-#endif	/* dTHR */ 
-
 /*#define DBG_SUB 1      */
 /*#define DBG_TIMER 1    */
 
@@ -28,6 +23,7 @@
 #  define HZ ((I32)CLK_TCK)
 #  define DPROF_HZ HZ
 #  include <starlet.h>  /* prototype for sys$gettim() */
+#  include <lib$routines.h>
 #  define Times(ptr) (dprof_times(aTHX_ ptr))
 #else
 #  ifndef HZ
@@ -280,10 +276,6 @@ prof_mark(pTHX_ opcode ptype)
 {
     struct tms t;
     clock_t realtime, rdelta, udelta, sdelta;
-    char *name, *pv;
-    char *hvname;
-    STRLEN len;
-    SV *sv;
     U32 id;
     SV *Sub = GvSV(PL_DBsub);	/* name of current sub */
 
@@ -388,7 +380,6 @@ prof_mark(pTHX_ opcode ptype)
 static void
 test_time(pTHX_ clock_t *r, clock_t *u, clock_t *s)
 {
-    dTHR;
     CV *cv = perl_get_cv("Devel::DProf::NONESUCH_noxs", FALSE);
     int i, j, k = 0;
     HV *oldstash = PL_curstash;
@@ -477,8 +468,6 @@ prof_record(pTHX)
     /* Now that we know the runtimes, fill them in at the recorded
        location -JH */
 
-    clock_t r, u, s;
-
     if (g_SAVE_STACK) {
 	prof_dump_until(aTHX_ g_profstack_ix);
     }
@@ -502,7 +491,7 @@ prof_record(pTHX)
 static void
 check_depth(pTHX_ void *foo)
 {
-    U32 need_depth = (U32)foo;
+    U32 need_depth = PTR2UV(foo);
     if (need_depth != g_depth) {
 	if (need_depth > g_depth) {
 	    warn("garbled call depth when profiling");
@@ -547,6 +536,7 @@ XS(XS_DB_sub)
         prof_mark(aTHX_ OP_ENTERSUB);
         PUSHMARK(ORIGMARK);
         perl_call_sv(INT2PTR(SV*,SvIV(Sub)), GIMME | G_NODEBUG);
+        PL_curstash = oldstash;
         prof_mark(aTHX_ OP_LEAVESUB);
 	g_depth--;
     }

@@ -31,7 +31,7 @@ WriteMakefile(
  
 	'clean'   	=> {FILES => join(" ",
 					map { "$_ */$_ */*/$_" }
-					qw(*% *.html *.b[ac]k *.old *.orig))
+					qw(*% *.html *.b[ac]k *.old))
 			   },
 	'macro'		=> { INSTALLDIRS => 'perl' },
 );

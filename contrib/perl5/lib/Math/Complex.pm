@@ -5,17 +5,39 @@
 # -- Daniel S. Lewart	Since Sep 1997
 #
 
-require Exporter;
 package Math::Complex;
 
-use 5.005_64;
+our($VERSION, @ISA, @EXPORT, %EXPORT_TAGS, $Inf);
+
+$VERSION = 1.31;
+
+BEGIN {
+    unless ($^O eq 'unicosmk') {
+        my $e = $!;
+	# We do want an arithmetic overflow, Inf INF inf Infinity:.
+        undef $Inf unless eval <<'EOE' and $Inf =~ /^inf(?:inity)?$/i;
+	  local $SIG{FPE} = sub {die};
+	  my $t = CORE::exp 30;
+	  $Inf = CORE::exp $t;
+EOE
+	if (!defined $Inf) {		# Try a different method
+	  undef $Inf unless eval <<'EOE' and $Inf =~ /^inf(?:inity)?$/i;
+	    local $SIG{FPE} = sub {die};
+	    my $t = 1;
+	    $Inf = $t + "1e99999999999999999999999999999999";
+EOE
+	}
+        $! = $e; # Clear ERANGE.
+    }
+    $Inf = "Inf" if !defined $Inf || !($Inf > 0); # Desperation.
+}
+
 use strict;
 
-our($VERSION, @ISA, @EXPORT, %EXPORT_TAGS);
+my $i;
+my %LOGN;
 
-my ( $i, $ip2, %logn );
-
-$VERSION = sprintf("%s", q$Id: Complex.pm,v 1.26 1998/11/01 00:00:00 dsl Exp $ =~ /(\d+\.\d+)/);
+require Exporter;
 
 @ISA = qw(Exporter);
 
@@ -49,6 +71,7 @@ use overload
 	'*'	=> \&multiply,
 	'/'	=> \&divide,
 	'**'	=> \&power,
+	'=='	=> \&numeq,
 	'<=>'	=> \&spaceship,
 	'neg'	=> \&negate,
 	'~'	=> \&conjugate,
@@ -66,7 +89,6 @@ use overload
 # Package "privates"
 #
 
-my $package        = 'Math::Complex';	# Package name
 my %DISPLAY_FORMAT = ('style' => 'cartesian',
 		      'polar_pretty_print' => 1);
 my $eps            = 1e-14;		# Epsilon
@@ -228,6 +250,13 @@ sub i () {
 }
 
 #
+# ip2
+#
+# Half of i.
+#
+sub ip2 () { i / 2 }
+
+#
 # Attribute access/set routines
 #
 
@@ -262,7 +291,8 @@ sub update_polar {
 	my ($x, $y) = @{$self->{'cartesian'}};
 	$self->{p_dirty} = 0;
 	return $self->{'polar'} = [0, 0] if $x == 0 && $y == 0;
-	return $self->{'polar'} = [CORE::sqrt($x*$x + $y*$y), CORE::atan2($y, $x)];
+	return $self->{'polar'} = [CORE::sqrt($x*$x + $y*$y),
+				   CORE::atan2($y, $x)];
 }
 
 #
@@ -342,7 +372,7 @@ sub _divbyzero {
 
     if (defined $_[1]) {
 	$mess .= "(Because in the definition of $_[0], the divisor ";
-	$mess .= "$_[1] " unless ($_[1] eq '0');
+	$mess .= "$_[1] " unless ("$_[1]" eq '0');
 	$mess .= "is 0)\n";
     }
 
@@ -416,8 +446,8 @@ sub power {
 	    return 1 if $z2 == 0 || $z1 == 1;
 	    return 0 if $z1 == 0 && Re($z2) > 0;
 	}
-	my $w = $inverted ? CORE::exp($z1 * CORE::log($z2))
-	                  : CORE::exp($z2 * CORE::log($z1));
+	my $w = $inverted ? &exp($z1 * &log($z2))
+	                  : &exp($z2 * &log($z1));
 	# If both arguments cartesian, return cartesian, else polar.
 	return $z1->{c_dirty} == 0 &&
 	       (not ref $z2 or $z2->{c_dirty} == 0) ?
@@ -437,6 +467,19 @@ sub spaceship {
 	my $sgn = $inverted ? -1 : 1;
 	return $sgn * ($re1 <=> $re2) if $re1 != $re2;
 	return $sgn * ($im1 <=> $im2);
+}
+
+#
+# (numeq)
+#
+# Computes z1 == z2.
+#
+# (Required in addition to spaceship() because of NaNs.)
+sub numeq {
+	my ($z1, $z2, $inverted) = @_;
+	my ($re1, $im1) = ref $z1 ? @{$z1->cartesian} : ($z1, 0);
+	my ($re2, $im2) = ref $z2 ? @{$z2->cartesian} : ($z2, 0);
+	return $re1 == $re2 && $im1 == $im2 ? 1 : 0;
 }
 
 #
@@ -477,7 +520,13 @@ sub conjugate {
 #
 sub abs {
 	my ($z, $rho) = @_;
-	return $z unless ref $z;
+	unless (ref $z) {
+	    if (@_ == 2) {
+		$_[0] = $_[1];
+	    } else {
+		return CORE::abs($z);
+	    }
+	}
 	if (defined $rho) {
 	    $z->{'polar'} = [ $rho, ${$z->polar}[1] ];
 	    $z->{p_dirty} = 0;
@@ -533,7 +582,8 @@ sub arg {
 sub sqrt {
 	my ($z) = @_;
 	my ($re, $im) = ref $z ? @{$z->cartesian} : ($z, 0);
-	return $re < 0 ? cplx(0, CORE::sqrt(-$re)) : CORE::sqrt($re) if $im == 0;
+	return $re < 0 ? cplx(0, CORE::sqrt(-$re)) : CORE::sqrt($re)
+	    if $im == 0;
 	my ($r, $t) = @{$z->polar};
 	return (ref $z)->emake(CORE::sqrt($r), $t/2);
 }
@@ -547,9 +597,12 @@ sub sqrt {
 #
 sub cbrt {
 	my ($z) = @_;
-	return $z < 0 ? -CORE::exp(CORE::log(-$z)/3) : ($z > 0 ? CORE::exp(CORE::log($z)/3): 0)
+	return $z < 0 ?
+	    -CORE::exp(CORE::log(-$z)/3) :
+		($z > 0 ? CORE::exp(CORE::log($z)/3): 0)
 	    unless ref $z;
 	my ($r, $t) = @{$z->polar};
+	return 0 if $r == 0;
 	return (ref $z)->emake(CORE::exp(CORE::log($r)/3), $t/3);
 }
 
@@ -559,7 +612,7 @@ sub cbrt {
 # Die on bad root.
 #
 sub _rootbad {
-    my $mess = "Root $_[0] not defined, root must be positive integer.\n";
+    my $mess = "Root $_[0] illegal, root rank must be positive integer.\n";
 
     my @up = caller(1);
 
@@ -581,7 +634,8 @@ sub _rootbad {
 sub root {
 	my ($z, $n) = @_;
 	_rootbad($n) if ($n < 1 or int($n) != $n);
-	my ($r, $t) = ref $z ? @{$z->polar} : (CORE::abs($z), $z >= 0 ? 0 : pi);
+	my ($r, $t) = ref $z ?
+	    @{$z->polar} : (CORE::abs($z), $z >= 0 ? 0 : pi);
 	my @root;
 	my $k;
 	my $theta_inc = pit2 / $n;
@@ -620,7 +674,7 @@ sub Re {
 #
 sub Im {
 	my ($z, $Im) = @_;
-	return $z unless ref $z;
+	return 0 unless ref $z;
 	if (defined $Im) {
 	    $z->{'cartesian'} = [ ${$z->cartesian}[0], $Im ];
 	    $z->{c_dirty} = 0;
@@ -723,9 +777,9 @@ sub log10 {
 sub logn {
 	my ($z, $n) = @_;
 	$z = cplx($z, 0) unless ref $z;
-	my $logn = $logn{$n};
-	$logn = $logn{$n} = CORE::log($n) unless defined $logn;	# Cache log(n)
-	return CORE::log($z) / $logn;
+	my $logn = $LOGN{$n};
+	$logn = $LOGN{$n} = CORE::log($n) unless defined $logn;	# Cache log(n)
+	return &log($z) / $logn;
 }
 
 #
@@ -735,11 +789,14 @@ sub logn {
 #
 sub cos {
 	my ($z) = @_;
+	return CORE::cos($z) unless ref $z;
 	my ($x, $y) = @{$z->cartesian};
 	my $ey = CORE::exp($y);
-	my $ey_1 = 1 / $ey;
-	return (ref $z)->make(CORE::cos($x) * ($ey + $ey_1)/2,
-			      CORE::sin($x) * ($ey_1 - $ey)/2);
+	my $sx = CORE::sin($x);
+	my $cx = CORE::cos($x);
+	my $ey_1 = $ey ? 1 / $ey : $Inf;
+	return (ref $z)->make($cx * ($ey + $ey_1)/2,
+			      $sx * ($ey_1 - $ey)/2);
 }
 
 #
@@ -749,11 +806,14 @@ sub cos {
 #
 sub sin {
 	my ($z) = @_;
+	return CORE::sin($z) unless ref $z;
 	my ($x, $y) = @{$z->cartesian};
 	my $ey = CORE::exp($y);
-	my $ey_1 = 1 / $ey;
-	return (ref $z)->make(CORE::sin($x) * ($ey + $ey_1)/2,
-			      CORE::cos($x) * ($ey - $ey_1)/2);
+	my $sx = CORE::sin($x);
+	my $cx = CORE::cos($x);
+	my $ey_1 = $ey ? 1 / $ey : $Inf;
+	return (ref $z)->make($sx * ($ey + $ey_1)/2,
+			      $cx * ($ey - $ey_1)/2);
 }
 
 #
@@ -763,9 +823,9 @@ sub sin {
 #
 sub tan {
 	my ($z) = @_;
-	my $cz = CORE::cos($z);
-	_divbyzero "tan($z)", "cos($z)" if (CORE::abs($cz) < $eps);
-	return CORE::sin($z) / $cz;
+	my $cz = &cos($z);
+	_divbyzero "tan($z)", "cos($z)" if $cz == 0;
+	return &sin($z) / $cz;
 }
 
 #
@@ -775,7 +835,7 @@ sub tan {
 #
 sub sec {
 	my ($z) = @_;
-	my $cz = CORE::cos($z);
+	my $cz = &cos($z);
 	_divbyzero "sec($z)", "cos($z)" if ($cz == 0);
 	return 1 / $cz;
 }
@@ -787,7 +847,7 @@ sub sec {
 #
 sub csc {
 	my ($z) = @_;
-	my $sz = CORE::sin($z);
+	my $sz = &sin($z);
 	_divbyzero "csc($z)", "sin($z)" if ($sz == 0);
 	return 1 / $sz;
 }
@@ -806,9 +866,9 @@ sub cosec { Math::Complex::csc(@_) }
 #
 sub cot {
 	my ($z) = @_;
-	my $sz = CORE::sin($z);
+	my $sz = &sin($z);
 	_divbyzero "cot($z)", "sin($z)" if ($sz == 0);
-	return CORE::cos($z) / $sz;
+	return &cos($z) / $sz;
 }
 
 #
@@ -825,8 +885,11 @@ sub cotan { Math::Complex::cot(@_) }
 #
 sub acos {
 	my $z = $_[0];
-	return CORE::atan2(CORE::sqrt(1-$z*$z), $z) if (! ref $z) && CORE::abs($z) <= 1;
-	my ($x, $y) = ref $z ? @{$z->cartesian} : ($z, 0);
+	return CORE::atan2(CORE::sqrt(1-$z*$z), $z)
+	    if (! ref $z) && CORE::abs($z) <= 1;
+	$z = cplx($z, 0) unless ref $z;
+	my ($x, $y) = @{$z->cartesian};
+	return 0 if $x == 1 && $y == 0;
 	my $t1 = CORE::sqrt(($x+1)*($x+1) + $y*$y);
 	my $t2 = CORE::sqrt(($x-1)*($x-1) + $y*$y);
 	my $alpha = ($t1 + $t2)/2;
@@ -837,7 +900,7 @@ sub acos {
 	my $u = CORE::atan2(CORE::sqrt(1-$beta*$beta), $beta);
 	my $v = CORE::log($alpha + CORE::sqrt($alpha*$alpha-1));
 	$v = -$v if $y > 0 || ($y == 0 && $x < -1);
-	return __PACKAGE__->make($u, $v);
+	return (ref $z)->make($u, $v);
 }
 
 #
@@ -847,8 +910,11 @@ sub acos {
 #
 sub asin {
 	my $z = $_[0];
-	return CORE::atan2($z, CORE::sqrt(1-$z*$z)) if (! ref $z) && CORE::abs($z) <= 1;
-	my ($x, $y) = ref $z ? @{$z->cartesian} : ($z, 0);
+	return CORE::atan2($z, CORE::sqrt(1-$z*$z))
+	    if (! ref $z) && CORE::abs($z) <= 1;
+	$z = cplx($z, 0) unless ref $z;
+	my ($x, $y) = @{$z->cartesian};
+	return 0 if $x == 0 && $y == 0;
 	my $t1 = CORE::sqrt(($x+1)*($x+1) + $y*$y);
 	my $t2 = CORE::sqrt(($x-1)*($x-1) + $y*$y);
 	my $alpha = ($t1 + $t2)/2;
@@ -859,7 +925,7 @@ sub asin {
 	my $u =  CORE::atan2($beta, CORE::sqrt(1-$beta*$beta));
 	my $v = -CORE::log($alpha + CORE::sqrt($alpha*$alpha-1));
 	$v = -$v if $y > 0 || ($y == 0 && $x < -1);
-	return __PACKAGE__->make($u, $v);
+	return (ref $z)->make($u, $v);
 }
 
 #
@@ -870,11 +936,12 @@ sub asin {
 sub atan {
 	my ($z) = @_;
 	return CORE::atan2($z, 1) unless ref $z;
+	my ($x, $y) = ref $z ? @{$z->cartesian} : ($z, 0);
+	return 0 if $x == 0 && $y == 0;
 	_divbyzero "atan(i)"  if ( $z == i);
-	_divbyzero "atan(-i)" if (-$z == i);
-	my $log = CORE::log((i + $z) / (i - $z));
-	$ip2 = 0.5 * i unless defined $ip2;
-	return $ip2 * $log;
+	_logofzero "atan(-i)" if (-$z == i); # -i is a bad file test...
+	my $log = &log((i + $z) / (i - $z));
+	return ip2 * $log;
 }
 
 #
@@ -913,10 +980,11 @@ sub acosec { Math::Complex::acsc(@_) }
 #
 sub acot {
 	my ($z) = @_;
-	_divbyzero "acot(0)"  if (CORE::abs($z)     < $eps);
-	return ($z >= 0) ? CORE::atan2(1, $z) : CORE::atan2(-1, -$z) unless ref $z;
-	_divbyzero "acot(i)"  if (CORE::abs($z - i) < $eps);
-	_logofzero "acot(-i)" if (CORE::abs($z + i) < $eps);
+	_divbyzero "acot(0)"  if $z == 0;
+	return ($z >= 0) ? CORE::atan2(1, $z) : CORE::atan2(-1, -$z)
+	    unless ref $z;
+	_divbyzero "acot(i)"  if ($z - i == 0);
+	_logofzero "acot(-i)" if ($z + i == 0);
 	return atan(1 / $z);
 }
 
@@ -937,11 +1005,11 @@ sub cosh {
 	my $ex;
 	unless (ref $z) {
 	    $ex = CORE::exp($z);
-	    return ($ex + 1/$ex)/2;
+	    return $ex ? ($ex + 1/$ex)/2 : $Inf;
 	}
 	my ($x, $y) = @{$z->cartesian};
 	$ex = CORE::exp($x);
-	my $ex_1 = 1 / $ex;
+	my $ex_1 = $ex ? 1 / $ex : $Inf;
 	return (ref $z)->make(CORE::cos($y) * ($ex + $ex_1)/2,
 			      CORE::sin($y) * ($ex - $ex_1)/2);
 }
@@ -955,12 +1023,15 @@ sub sinh {
 	my ($z) = @_;
 	my $ex;
 	unless (ref $z) {
+	    return 0 if $z == 0;
 	    $ex = CORE::exp($z);
-	    return ($ex - 1/$ex)/2;
+	    return $ex ? ($ex - 1/$ex)/2 : "-$Inf";
 	}
 	my ($x, $y) = @{$z->cartesian};
+	my $cy = CORE::cos($y);
+	my $sy = CORE::sin($y);
 	$ex = CORE::exp($x);
-	my $ex_1 = 1 / $ex;
+	my $ex_1 = $ex ? 1 / $ex : $Inf;
 	return (ref $z)->make(CORE::cos($y) * ($ex - $ex_1)/2,
 			      CORE::sin($y) * ($ex + $ex_1)/2);
 }
@@ -1016,7 +1087,7 @@ sub cosech { Math::Complex::csch(@_) }
 sub coth {
 	my ($z) = @_;
 	my $sz = sinh($z);
-	_divbyzero "coth($z)", "sinh($z)" if ($sz == 0);
+	_divbyzero "coth($z)", "sinh($z)" if $sz == 0;
 	return cosh($z) / $sz;
 }
 
@@ -1035,25 +1106,44 @@ sub cotanh { Math::Complex::coth(@_) }
 sub acosh {
 	my ($z) = @_;
 	unless (ref $z) {
-	    return CORE::log($z + CORE::sqrt($z*$z-1)) if $z >= 1;
 	    $z = cplx($z, 0);
 	}
 	my ($re, $im) = @{$z->cartesian};
 	if ($im == 0) {
-	    return cplx(CORE::log($re + CORE::sqrt($re*$re - 1)), 0) if $re >= 1;
-	    return cplx(0, CORE::atan2(CORE::sqrt(1-$re*$re), $re)) if CORE::abs($re) <= 1;
+	    return CORE::log($re + CORE::sqrt($re*$re - 1))
+		if $re >= 1;
+	    return cplx(0, CORE::atan2(CORE::sqrt(1 - $re*$re), $re))
+		if CORE::abs($re) < 1;
 	}
-	return CORE::log($z + CORE::sqrt($z*$z - 1));
+	my $t = &sqrt($z * $z - 1) + $z;
+	# Try Taylor if looking bad (this usually means that
+	# $z was large negative, therefore the sqrt is really
+	# close to abs(z), summing that with z...)
+	$t = 1/(2 * $z) - 1/(8 * $z**3) + 1/(16 * $z**5) - 5/(128 * $z**7)
+	    if $t == 0;
+	my $u = &log($t);
+	$u->Im(-$u->Im) if $re < 0 && $im == 0;
+	return $re < 0 ? -$u : $u;
 }
 
 #
 # asinh
 #
-# Computes the arc hyperbolic sine asinh(z) = log(z + sqrt(z*z-1))
+# Computes the arc hyperbolic sine asinh(z) = log(z + sqrt(z*z+1))
 #
 sub asinh {
 	my ($z) = @_;
-	return CORE::log($z + CORE::sqrt($z*$z + 1));
+	unless (ref $z) {
+	    my $t = $z + CORE::sqrt($z*$z + 1);
+	    return CORE::log($t) if $t;
+	}
+	my $t = &sqrt($z * $z + 1) + $z;
+	# Try Taylor if looking bad (this usually means that
+	# $z was large negative, therefore the sqrt is really
+	# close to abs(z), summing that with z...)
+	$t = 1/(2 * $z) - 1/(8 * $z**3) + 1/(16 * $z**5) - 5/(128 * $z**7)
+	    if $t == 0;
+	return &log($t);
 }
 
 #
@@ -1067,9 +1157,9 @@ sub atanh {
 	    return CORE::log((1 + $z)/(1 - $z))/2 if CORE::abs($z) < 1;
 	    $z = cplx($z, 0);
 	}
-	_divbyzero 'atanh(1)',  "1 - $z" if ($z ==  1);
-	_logofzero 'atanh(-1)'           if ($z == -1);
-	return 0.5 * CORE::log((1 + $z) / (1 - $z));
+	_divbyzero 'atanh(1)',  "1 - $z" if (1 - $z == 0);
+	_logofzero 'atanh(-1)'           if (1 + $z == 0);
+	return 0.5 * &log((1 + $z) / (1 - $z));
 }
 
 #
@@ -1079,7 +1169,7 @@ sub atanh {
 #
 sub asech {
 	my ($z) = @_;
-	_divbyzero 'asech(0)', $z if ($z == 0);
+	_divbyzero 'asech(0)', "$z" if ($z == 0);
 	return acosh(1 / $z);
 }
 
@@ -1108,14 +1198,14 @@ sub acosech { Math::Complex::acsch(@_) }
 #
 sub acoth {
 	my ($z) = @_;
-	_divbyzero 'acoth(0)'            if (CORE::abs($z)     < $eps);
+	_divbyzero 'acoth(0)'            if ($z == 0);
 	unless (ref $z) {
 	    return CORE::log(($z + 1)/($z - 1))/2 if CORE::abs($z) > 1;
 	    $z = cplx($z, 0);
 	}
-	_divbyzero 'acoth(1)',  "$z - 1" if (CORE::abs($z - 1) < $eps);
-	_logofzero 'acoth(-1)', "1 / $z" if (CORE::abs($z + 1) < $eps);
-	return CORE::log((1 + $z) / ($z - 1)) / 2;
+	_divbyzero 'acoth(1)',  "$z - 1" if ($z - 1 == 0);
+	_logofzero 'acoth(-1)', "1 + $z" if (1 + $z == 0);
+	return &log((1 + $z) / ($z - 1)) / 2;
 }
 
 #
@@ -1141,8 +1231,8 @@ sub atan2 {
 	    ($re2, $im2) = ref $z2 ? @{$z2->cartesian} : ($z2, 0);
 	}
 	if ($im2 == 0) {
-	    return cplx(CORE::atan2($re1, $re2), 0) if $im1 == 0;
-	    return cplx(($im1<=>0) * pip2, 0) if $re2 == 0;
+	    return CORE::atan2($re1, $re2) if $im1 == 0;
+	    return ($im1<=>0) * pip2 if $re2 == 0;
 	}
 	my $w = atan($z1/$z2);
 	my ($u, $v) = ref $w ? @{$w->cartesian} : ($w, 0);
@@ -1173,23 +1263,15 @@ sub display_format {
 		my %obj = %{$self->{display_format}};
 		@display_format{keys %obj} = values %obj;
 	    }
-	    if (@_ == 1) {
-		$display_format{style} = shift;
-	    } else {
-		my %new = @_;
-		@display_format{keys %new} = values %new;
-	    }
-	} else {				# Called as a class method
-	    if (@_ = 1) {
-		$display_format{style} = $self;
-	    } else {
-		my %new = @_;
-		@display_format{keys %new} = values %new;
-	    }
-	    undef $self;
+	}
+	if (@_ == 1) {
+	    $display_format{style} = shift;
+	} else {
+	    my %new = @_;
+	    @display_format{keys %new} = values %new;
 	}
 
-	if (defined $self) {
+	if (ref $self) { # Called as an object method
 	    $self->{display_format} = { %display_format };
 	    return
 		wantarray ?
@@ -1197,6 +1279,7 @@ sub display_format {
 		    $self->{display_format}->{style};
 	}
 
+        # Called as a class method
 	%DISPLAY_FORMAT = %display_format;
 	return
 	    wantarray ?
@@ -1235,66 +1318,57 @@ sub stringify_cartesian {
 	my ($x, $y) = @{$z->cartesian};
 	my ($re, $im);
 
-	$x = int($x + ($x < 0 ? -1 : 1) * $eps)
-		if int(CORE::abs($x)) != int(CORE::abs($x) + $eps);
-	$y = int($y + ($y < 0 ? -1 : 1) * $eps)
-		if int(CORE::abs($y)) != int(CORE::abs($y) + $eps);
-
-	$re = "$x" if CORE::abs($x) >= $eps;
-
 	my %format = $z->display_format;
 	my $format = $format{format};
 
-	if ($y == 1)			       { $im = 'i' }
-	elsif ($y == -1)		       { $im = '-i' }
-	elsif (CORE::abs($y) >= $eps) {
-	    $im = (defined $format ? sprintf($format, $y) : $y) . "i";
+	if ($x) {
+	    if ($x =~ /^NaN[QS]?$/i) {
+		$re = $x;
+	    } else {
+		if ($x =~ /^-?$Inf$/oi) {
+		    $re = $x;
+		} else {
+		    $re = defined $format ? sprintf($format, $x) : $x;
+		}
+	    }
+	} else {
+	    undef $re;
 	}
 
-	my $str = '';
-	$str = defined $format ? sprintf($format, $re) : $re
-	    if defined $re;
+	if ($y) {
+	    if ($y =~ /^(NaN[QS]?)$/i) {
+		$im = $y;
+	    } else {
+		if ($y =~ /^-?$Inf$/oi) {
+		    $im = $y;
+		} else {
+		    $im =
+			defined $format ?
+			    sprintf($format, $y) :
+			    ($y == 1 ? "" : ($y == -1 ? "-" : $y));
+		}
+	    }
+	    $im .= "i";
+	} else {
+	    undef $im;
+	}
+
+	my $str = $re;
+
 	if (defined $im) {
 	    if ($y < 0) {
 		$str .= $im;
-	    } elsif ($y > 0)  {
+	    } elsif ($y > 0 || $im =~ /^NaN[QS]?i$/i)  {
 		$str .= "+" if defined $re;
 		$str .= $im;
 	    }
+	} elsif (!defined $re) {
+	    $str = "0";
 	}
 
 	return $str;
 }
 
-
-# Helper for stringify_polar, a Greatest Common Divisor with a memory.
-
-sub _gcd {
-    my ($a, $b) = @_;
-
-    use integer;
-
-    # Loops forever if given negative inputs.
-
-    if    ($b and $a > $b) { return gcd($a % $b, $b) }
-    elsif ($a and $b > $a) { return gcd($b % $a, $a) }
-    else                   { return $a ? $a : $b     }
-}
-
-my %gcd;
-
-sub gcd {
-    my ($a, $b) = @_;
-
-    my $id = "$a $b";
-
-    unless (exists $gcd{$id}) {
-	$gcd{$id} = _gcd($a, $b);
-	$gcd{"$b $a"} = $gcd{$id};
-    }
-
-    return $gcd{$id};
-}
 
 #
 # ->stringify_polar
@@ -1306,74 +1380,52 @@ sub stringify_polar {
 	my ($r, $t) = @{$z->polar};
 	my $theta;
 
-	return '[0,0]' if $r <= $eps;
-
 	my %format = $z->display_format;
+	my $format = $format{format};
 
-	my $nt = $t / pit2;
-	$nt = ($nt - int($nt)) * pit2;
-	$nt += pit2 if $nt < 0;			# Range [0, 2pi]
-
-	if (CORE::abs($nt) <= $eps)		{ $theta = 0 }
-	elsif (CORE::abs(pi-$nt) <= $eps)	{ $theta = 'pi' }
-
-	if (defined $theta) {
-		$r = int($r + ($r < 0 ? -1 : 1) * $eps)
-			if int(CORE::abs($r)) != int(CORE::abs($r) + $eps);
-		$theta = int($theta + ($theta < 0 ? -1 : 1) * $eps)
-			if ($theta ne 'pi' and
-			    int(CORE::abs($theta)) != int(CORE::abs($theta) + $eps));
-		return "\[$r,$theta\]";
+	if ($t =~ /^NaN[QS]?$/i || $t =~ /^-?$Inf$/oi) {
+	    $theta = $t; 
+	} elsif ($t == pi) {
+	    $theta = "pi";
+	} elsif ($r == 0 || $t == 0) {
+	    $theta = defined $format ? sprintf($format, $t) : $t;
 	}
 
+	return "[$r,$theta]" if defined $theta;
+
 	#
-	# Okay, number is not a real. Try to identify pi/n and friends...
+	# Try to identify pi/n and friends.
 	#
 
-	$nt -= pit2 if $nt > pi;
+	$t -= int(CORE::abs($t) / pit2) * pit2;
 
-	if ($format{polar_pretty_print} && CORE::abs($nt) >= deg1) {
-	    my ($n, $k, $kpi);
-
-	    for ($k = 1, $kpi = pi; $k < 10; $k++, $kpi += pi) {
-		$n = int($kpi / $nt + ($nt > 0 ? 1 : -1) * 0.5);
-		if (CORE::abs($kpi/$n - $nt) <= $eps) {
-		    $n = CORE::abs($n);
-		    my $gcd = gcd($k, $n);
-		    if ($gcd > 1) {
-			$k /= $gcd;
-			$n /= $gcd;
-		    }
-		    next if $n > 360;
-		    $theta = ($nt < 0 ? '-':'').
-			     ($k == 1 ? 'pi':"${k}pi");
-		    $theta .= '/'.$n if $n > 1;
+	if ($format{polar_pretty_print} && $t) {
+	    my ($a, $b);
+	    for $a (2..9) {
+		$b = $t * $a / pi;
+		if ($b =~ /^-?\d+$/) {
+		    $b = $b < 0 ? "-" : "" if CORE::abs($b) == 1;
+		    $theta = "${b}pi/$a";
 		    last;
 		}
 	    }
 	}
 
-	$theta = $nt unless defined $theta;
-
-	$r = int($r + ($r < 0 ? -1 : 1) * $eps)
-		if int(CORE::abs($r)) != int(CORE::abs($r) + $eps);
-	$theta = int($theta + ($theta < 0 ? -1 : 1) * $eps)
-		if ($theta !~ m(^-?\d*pi/\d+$) and
-		    int(CORE::abs($theta)) != int(CORE::abs($theta) + $eps));
-
-	my $format = $format{format};
         if (defined $format) {
 	    $r     = sprintf($format, $r);
-	    $theta = sprintf($format, $theta);
+	    $theta = sprintf($format, $theta) unless defined $theta;
+	} else {
+	    $theta = $t unless defined $theta;
 	}
 
-	return "\[$r,$theta\]";
+	return "[$r,$theta]";
 }
 
 1;
 __END__
 
 =pod
+
 =head1 NAME
 
 Math::Complex - complex numbers and associated mathematical functions
@@ -1695,7 +1747,7 @@ For instance:
 	print "j = $j\n";		# Prints "j = -0.5+0.866025403784439i"
 
 The polar style attempts to emphasize arguments like I<k*pi/n>
-(where I<n> is a positive integer and I<k> an integer within [-9,+9]),
+(where I<n> is a positive integer and I<k> an integer within [-9, +9]),
 this is called I<polar pretty-printing>.
 
 =head2 CHANGED IN PERL 5.6
@@ -1705,29 +1757,33 @@ C<display_format> object method can now be called using
 a parameter hash instead of just a one parameter.
 
 The old display format style, which can have values C<"cartesian"> or
-C<"polar">, can be changed using the C<"style"> parameter.  (The one
-parameter calling convention also still works.)
+C<"polar">, can be changed using the C<"style"> parameter.
+
+	$j->display_format(style => "polar");
+
+The one parameter calling convention also still works.
+
+	$j->display_format("polar");
 
 There are two new display parameters.
 
-The first one is C<"format">, which is a sprintf()-style format
-string to be used for both parts of the complex number(s).  The
-default is C<undef>, which corresponds usually (this is somewhat
-system-dependent) to C<"%.15g">.  You can revert to the default by
-setting the format string to C<undef>.
+The first one is C<"format">, which is a sprintf()-style format string
+to be used for both numeric parts of the complex number(s).  The is
+somewhat system-dependent but most often it corresponds to C<"%.15g">.
+You can revert to the default by setting the C<format> to C<undef>.
 
 	# the $j from the above example
 
 	$j->display_format('format' => '%.5f');
 	print "j = $j\n";		# Prints "j = -0.50000+0.86603i"
-	$j->display_format('format' => '%.6f');
+	$j->display_format('format' => undef);
 	print "j = $j\n";		# Prints "j = -0.5+0.86603i"
 
 Notice that this affects also the return values of the
 C<display_format> methods: in list context the whole parameter hash
-will be returned, as opposed to only the style parameter value.  If
-you want to know the whole truth for a complex number, you must call
-both the class method and the object method:
+will be returned, as opposed to only the style parameter value.
+This is a potential incompatibility with earlier versions if you
+have been calling the C<display_format> method in list context.
 
 The second new display parameter is C<"polar_pretty_print">, which can
 be set to true or false, the default being true.  See the previous
@@ -1791,8 +1847,7 @@ is any integer.
 
 Note that because we are operating on approximations of real numbers,
 these errors can happen when merely `too close' to the singularities
-listed above.  For example C<tan(2*atan2(1,1)+1e-15)> will die of
-division by zero.
+listed above.
 
 =head1 ERRORS DUE TO INDIGESTIBLE ARGUMENTS
 

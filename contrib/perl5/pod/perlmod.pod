@@ -8,7 +8,7 @@ perlmod - Perl modules (packages and symbol tables)
 
 Perl provides a mechanism for alternative namespaces to protect
 packages from stomping on each other's variables.  In fact, there's
-really no such thing as a global variable in Perl .  The package
+really no such thing as a global variable in Perl.  The package
 statement declares the compilation unit as being in the given
 namespace.  The scope of the package declaration is from the
 declaration itself through the end of the enclosing block, C<eval>,
@@ -61,8 +61,8 @@ as a pattern match, a substitution, or a transliteration.
 Variables beginning with underscore used to be forced into package
 main, but we decided it was more useful for package writers to be able
 to use leading underscore to indicate private variables and method names.
-$_ is still global though.  See also L<perlvar/"Technical Note on the
-Syntax of Variable Names">.
+$_ is still global though.  See also
+L<perlvar/"Technical Note on the Syntax of Variable Names">.
 
 C<eval>ed strings are compiled in the package in which the eval() was
 compiled.  (Assignments to C<$SIG{}>, however, assume the signal
@@ -85,7 +85,7 @@ and L<perlref> regarding closures.
 
 The symbol table for a package happens to be stored in the hash of that
 name with two colons appended.  The main symbol table's name is thus
-C<%main::>, or C<%::> for short.  Likewise symbol table for the nested
+C<%main::>, or C<%::> for short.  Likewise the symbol table for the nested
 package mentioned earlier is named C<%OUTER::INNER::>.
 
 The value in each entry of the hash is what you are referring to when you
@@ -96,8 +96,14 @@ table lookups at compile time:
     local *main::foo    = *main::bar;
     local $main::{foo}  = $main::{bar};
 
+(Be sure to note the B<vast> difference between the second line above
+and C<local $main::foo = $main::bar>. The former is accessing the hash
+C<%main::>, which is the symbol table of package C<main>. The latter is
+simply assigning scalar C<$bar> in package C<main> to scalar C<$foo> of
+the same package.)
+
 You can use this to print out all the variables in a package, for
-instance.  The standard but antequated F<dumpvar.pl> library and
+instance.  The standard but antiquated F<dumpvar.pl> library and
 the CPAN module Devel::Symdump make use of this.
 
 Assignment to a typeglob performs an aliasing operation, i.e.,
@@ -115,7 +121,7 @@ Which makes $richard and $dick the same variable, but leaves
 @richard and @dick as separate arrays.  Tricky, eh?
 
 This mechanism may be used to pass and return cheap references
-into or from subroutines if you won't want to copy the whole
+into or from subroutines if you don't want to copy the whole
 thing.  It only works when assigning to dynamic variables, not
 lexicals.
 
@@ -132,18 +138,18 @@ lexicals.
 On return, the reference will overwrite the hash slot in the
 symbol table specified by the *some_hash typeglob.  This
 is a somewhat tricky way of passing around references cheaply
-when you won't want to have to remember to dereference variables
+when you don't want to have to remember to dereference variables
 explicitly.
 
 Another use of symbol tables is for making "constant" scalars.
 
     *PI = \3.14159265358979;
 
-Now you cannot alter $PI, which is probably a good thing all in all.
+Now you cannot alter C<$PI>, which is probably a good thing all in all.
 This isn't the same as a constant subroutine, which is subject to
-optimization at compile-time.  This isn't.  A constant subroutine is one
-prototyped to take no arguments and to return a constant expression.
-See L<perlsub> for details on these.  The C<use constant> pragma is a
+optimization at compile-time.  A constant subroutine is one prototyped
+to take no arguments and to return a constant expression.  See 
+L<perlsub> for details on these.  The C<use constant> pragma is a
 convenient shorthand for these.
 
 You can say C<*foo{PACKAGE}> and C<*foo{NAME}> to find out what name and
@@ -163,7 +169,7 @@ This prints
     You gave me bar::baz
 
 The C<*foo{THING}> notation can also be used to obtain references to the
-individual elements of *foo, see L<perlref>.
+individual elements of *foo.  See L<perlref>.
 
 Subroutine definitions (and declarations, for that matter) need
 not necessarily be situated in the package whose symbol table they
@@ -233,7 +239,7 @@ being blown out of the water by a signal--you have to trap that yourself
 (if you can).)  You may have multiple C<END> blocks within a file--they
 will execute in reverse order of definition; that is: last in, first
 out (LIFO).  C<END> blocks are not executed when you run perl with the
-C<-c> switch.
+C<-c> switch, or if compilation fails.
 
 Inside an C<END> subroutine, C<$?> contains the value that the program is
 going to pass to C<exit()>.  You can modify C<$?> to change the exit
@@ -251,10 +257,10 @@ LIFO order.  C<CHECK> blocks are again useful in the Perl compiler
 suite to save the compiled state of the program.
 
 When you use the B<-n> and B<-p> switches to Perl, C<BEGIN> and
-C<END> work just as they do in B<awk>, as a degenerate case.  As currently
-implemented (and subject to change, since its inconvenient at best),
-both C<BEGIN> and<END> blocks are run when you use the B<-c> switch
-for a compile-only syntax check, although your main code is not.
+C<END> work just as they do in B<awk>, as a degenerate case.
+Both C<BEGIN> and C<CHECK> blocks are run when you use the B<-c>
+switch for a compile-only syntax check, although your main code
+is not.
 
 =head2 Perl Classes
 
@@ -268,14 +274,14 @@ For more on this, see L<perltoot> and L<perlobj>.
 
 =head2 Perl Modules
 
-A module is just a set of related function in a library file a Perl
-package with the same name as the file.  It is specifically designed
-to be reusable by other modules or programs.  It may do this by
-providing a mechanism for exporting some of its symbols into the
+A module is just a set of related functions in a library file, i.e.,
+a Perl package with the same name as the file.  It is specifically 
+designed to be reusable by other modules or programs.  It may do this
+by providing a mechanism for exporting some of its symbols into the
 symbol table of any package using it.  Or it may function as a class
 definition and make its semantics available implicitly through
 method calls on the class and its objects, without explicitly
-exportating anything.  Or it can do a little of both.
+exporting anything.  Or it can do a little of both.
 
 For example, to start a traditional, non-OO module called Some::Module,
 create a file called F<Some/Module.pm> and start with this template:
@@ -303,6 +309,10 @@ create a file called F<Some/Module.pm> and start with this template:
         @EXPORT_OK   = qw($Var1 %Hashit &func3);
     }
     our @EXPORT_OK;
+
+    # exported package globals go here
+    our $Var1;
+    our %Hashit;
 
     # non-exported package globals go here
     our @more;
@@ -419,19 +429,19 @@ that other module.  In that case, it's easy to use C<require>s instead.
 
 Perl packages may be nested inside other package names, so we can have
 package names containing C<::>.  But if we used that package name
-directly as a filename it would makes for unwieldy or impossible
+directly as a filename it would make for unwieldy or impossible
 filenames on some systems.  Therefore, if a module's name is, say,
 C<Text::Soundex>, then its definition is actually found in the library
 file F<Text/Soundex.pm>.
 
 Perl modules always have a F<.pm> file, but there may also be
 dynamically linked executables (often ending in F<.so>) or autoloaded
-subroutine definitions (often ending in F<.al> associated with the
+subroutine definitions (often ending in F<.al>) associated with the
 module.  If so, these will be entirely transparent to the user of
 the module.  It is the responsibility of the F<.pm> file to load
 (or arrange to autoload) any additional functionality.  For example,
 although the POSIX module happens to do both dynamic loading and
-autoloading, but the user can say just C<use POSIX> to get it all.
+autoloading, the user can say just C<use POSIX> to get it all.
 
 =head1 SEE ALSO
 

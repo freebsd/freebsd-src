@@ -1,8 +1,13 @@
 package Shell;
 use 5.005_64;
-our($capture_stderr, $VERSION);
+use strict;
+use warnings;
+our($capture_stderr, $VERSION, $AUTOLOAD);
 
-$VERSION = '0.2';
+$VERSION = '0.3';
+
+sub new { bless \$VERSION, shift } # Nothing better to bless
+sub DESTROY { }
 
 sub import {
     my $self = shift;
@@ -10,24 +15,24 @@ sub import {
     my @EXPORT;
     if (@_) {
 	@EXPORT = @_;
-    }
-    else {
+    } else {
 	@EXPORT = 'AUTOLOAD';
     }
-    foreach $sym (@EXPORT) {
+    foreach my $sym (@EXPORT) {
+        no strict 'refs';
         *{"${callpack}::$sym"} = \&{"Shell::$sym"};
     }
-};
+}
 
-AUTOLOAD {
+sub AUTOLOAD {
+    shift if ref $_[0] && $_[0]->isa( 'Shell' );
     my $cmd = $AUTOLOAD;
     $cmd =~ s/^.*:://;
     eval <<"*END*";
 	sub $AUTOLOAD {
 	    if (\@_ < 1) {
 		\$Shell::capture_stderr ? `$cmd 2>&1` : `$cmd`;
-	    }
-	    elsif ('$^O' eq 'os2') {
+	    } elsif ('$^O' eq 'os2') {
 		local(\*SAVEOUT, \*READ, \*WRITE);
 
 		open SAVEOUT, '>&STDOUT' or die;
@@ -46,16 +51,14 @@ AUTOLOAD {
 		    close READ;
 		    waitpid \$pid, 0;
 		    \@ret;
-		}
-		else {
+		} else {
 		    local(\$/) = undef;
 		    my \$ret = <READ>;
 		    close READ;
 		    waitpid \$pid, 0;
 		    \$ret;
 		}
-	    }
-	    else {
+	    } else {
 		my \$a;
 		my \@arr = \@_;
 		if ('$^O' eq 'MSWin32') {
@@ -74,11 +77,10 @@ AUTOLOAD {
 			s/\\\\\\\\"/\\\\\\\\"""/g;
 			\$_ = qq["\$_"] if /\\s/;
 		    }
-		}
-		else {
+		} else {
 		    for (\@arr) {
 			s/(['\\\\])/\\\\\$1/g;
-			\$_ = "'\$_'";
+			\$_ = \$_;
 		    }
 		}
 		push \@arr, '2>&1' if \$Shell::capture_stderr;
@@ -88,8 +90,7 @@ AUTOLOAD {
 		    my \@ret = <SUBPROC>;
 		    close SUBPROC;	# XXX Oughta use a destructor.
 		    \@ret;
-		}
-		else {
+		} else {
 		    local(\$/) = undef;
 		    my \$ret = <SUBPROC>;
 		    close SUBPROC;
@@ -104,6 +105,7 @@ AUTOLOAD {
 }
 
 1;
+
 __END__
 
 =head1 NAME
@@ -155,10 +157,45 @@ The module now should work on Win32.
 
  Jenda
 
+There seemed to be a problem where all arguments to a shell command were
+quoted before being executed.  As in the following example:
+
+ cat('</etc/passwd');
+ ls('*.pl');
+
+really turned into:
+
+ cat '</etc/passwd'
+ ls '*.pl'
+
+instead of:
+
+  cat </etc/passwd
+  ls *.pl
+
+and of course, this is wrong.
+
+I have fixed this bug, it was brought up by Wolfgang Laun [ID 20000326.008]
+
+Casey
+
+=head2 OBJECT ORIENTED SYNTAX
+
+Shell now has an OO interface.  Good for namespace conservation 
+and shell representation.
+
+ use Shell;
+ my $sh = Shell->new;
+ print $sh->ls;
+
+Casey
+
 =head1 AUTHOR
 
 Larry Wall
 
 Changes by Jenda@Krynicky.cz and Dave Cottle <d.cottle@csc.canterbury.ac.nz>
+
+Changes and bug fixes by Casey Tweten <crt@kiski.net>
 
 =cut

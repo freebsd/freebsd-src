@@ -13,8 +13,9 @@
 package Pod::Find;
 
 use vars qw($VERSION);
-$VERSION = 0.12;   ## Current version of this package
-require  5.005;    ## requires this Perl version or later
+$VERSION = 0.21;   ## Current version of this package
+require  5.005;   ## requires this Perl version or later
+use Carp;
 
 #############################################################################
 
@@ -32,12 +33,38 @@ Pod::Find - find POD documents in directory trees
 
   print "podname=",simplify_name('a/b/c/mymodule.pod'),"\n";
 
+  $location = pod_where( { -inc => 1 }, "Pod::Find" );
+
 =head1 DESCRIPTION
 
-B<Pod::Find> provides a function B<pod_find> that searches for POD
-documents in a given set of files and directories. It returns a hash
-with the file names as keys and the POD name as value. The POD name
-is derived from the file name and its position in the directory tree.
+B<Pod::Find> provides a set of functions to locate POD files.  Note that
+no function is exported by default to avoid pollution of your namespace,
+so be sure to specify them in the B<use> statement if you need them:
+
+  use Pod::Find qw(pod_find);
+
+=cut
+
+use strict;
+#use diagnostics;
+use Exporter;
+use File::Spec;
+use File::Find;
+use Cwd;
+
+use vars qw(@ISA @EXPORT_OK $VERSION);
+@ISA = qw(Exporter);
+@EXPORT_OK = qw(&pod_find &simplify_name &pod_where &contains_pod);
+
+# package global variables
+my $SIMPLIFY_RX;
+
+=head2 C<pod_find( { %opts } , @directories )>
+
+The function B<pod_find> searches for POD documents in a given set of
+files and/or directories. It returns a hash with the file names as keys
+and the POD name as value. The POD name is derived from the file name
+and its position in the directory tree.
 
 E.g. when searching in F<$HOME/perl5lib>, the file
 F<$HOME/perl5lib/MyModule.pm> would get the POD name I<MyModule>,
@@ -51,72 +78,38 @@ A warning is printed if more than one POD file with the same POD name
 is found, e.g. F<CPAN.pm> in different directories. This usually
 indicates duplicate occurrences of modules in the I<@INC> search path.
 
-The function B<simplify_name> is equivalent to B<basename>, but also
-strips Perl-like extensions (.pm, .pl, .pod) and extensions like
-F<.bat>, F<.cmd> on Win32 and OS/2, respectively.
-
-Note that neither B<pod_find> nor B<simplify_name> are exported by
-default so be sure to specify them in the B<use> statement if you need
-them:
-
-  use Pod::Find qw(pod_find simplify_name);
-
-=head1 OPTIONS
-
-The first argument for B<pod_find> may be a hash reference with options.
-The rest are either directories that are searched recursively or files.
-The POD names of files are the plain basenames with any Perl-like extension
-(.pm, .pl, .pod) stripped.
+B<OPTIONS> The first argument for B<pod_find> may be a hash reference
+with options. The rest are either directories that are searched
+recursively or files.  The POD names of files are the plain basenames
+with any Perl-like extension (.pm, .pl, .pod) stripped.
 
 =over 4
 
-=item B<-verbose>
+=item C<-verbose =E<gt> 1>
 
 Print progress information while scanning.
 
-=item B<-perl>
+=item C<-perl =E<gt> 1>
 
 Apply Perl-specific heuristics to find the correct PODs. This includes
 stripping Perl-like extensions, omitting subdirectories that are numeric
 but do I<not> match the current Perl interpreter's version id, suppressing
 F<site_perl> as a module hierarchy name etc.
 
-=item B<-script>
+=item C<-script =E<gt> 1>
 
 Search for PODs in the current Perl interpreter's installation 
 B<scriptdir>. This is taken from the local L<Config|Config> module.
 
-=item B<-inc>
+=item C<-inc =E<gt> 1>
 
 Search for PODs in the current Perl interpreter's I<@INC> paths. This
-automatically considers paths specified in the C<PERL5LIB> environment.
+automatically considers paths specified in the C<PERL5LIB> environment
+as this is prepended to I<@INC> by the Perl interpreter itself.
 
 =back
 
-=head1 AUTHOR
-
-Marek Rouchal E<lt>marek@saftsack.fs.uni-bayreuth.deE<gt>,
-heavily borrowing code from Nick Ing-Simmons' PodToHtml.
-
-=head1 SEE ALSO
-
-L<Pod::Parser>, L<Pod::Checker>
-
 =cut
-
-use strict;
-#use diagnostics;
-use Exporter;
-use File::Spec;
-use File::Find;
-use Cwd;
-
-use vars qw(@ISA @EXPORT_OK $VERSION);
-@ISA = qw(Exporter);
-@EXPORT_OK = qw(&pod_find &simplify_name);
-
-# package global variables
-my $SIMPLIFY_RX;
 
 # return a hash of the POD files found
 # first argument may be a hashref (options),
@@ -152,7 +145,7 @@ sub pod_find
         # * remove e.g. 5.00503
         # * remove pod/ if followed by *.pod (e.g. in pod/perlfunc.pod)
         $SIMPLIFY_RX =
-          qq!^(?i:site_perl/|\Q$Config::Config{archname}\E/|\\d+\\.\\d+([_.]?\\d+)?/|pod/(?=.*?\\.pod\\z))*!;
+          qq!^(?i:site(_perl)?/|\Q$Config::Config{archname}\E/|\\d+\\.\\d+([_.]?\\d+)?/|pod/(?=.*?\\.pod\\z))*!;
 
     }
 
@@ -167,7 +160,9 @@ sub pod_find
             $try = File::Spec->catfile($pwd,$try);
         }
         # simplify path
-        $try = File::Spec->canonpath($try);
+        # on VMS canonpath will vmsify:[the.path], but File::Find::find
+        # wants /unixy/paths
+        $try = File::Spec->canonpath($try) if ($^O ne 'VMS');
         my $name;
         if(-f $try) {
             if($name = _check_and_extract_name($try, $opts{-verbose})) {
@@ -222,27 +217,14 @@ sub _check_and_extract_name {
 
     # check extension or executable flag
     # this involves testing the .bat extension on Win32!
-    unless($file =~ /\.(pod|pm|plx?)\z/i || (-f $file && -x _ && -T _)) {
-        return undef;
+    unless(-f $file && -T _ && ($file =~ /\.(pod|pm|plx?)\z/i || -x _ )) {
+      return undef;
     }
 
-    # check for one line of POD
-    unless(open(POD,"<$file")) {
-        warn "Error: $file is unreadable: $!\n";
-        return undef;
-    }
-    local $/ = undef;
-    my $pod = <POD>;
-    close(POD);
-    unless($pod =~ /\n=(head\d|pod|over|item)\b/) {
-        warn "No POD in $file, skipping.\n"
-            if($verbose);
-        return;
-    }
-    undef $pod;
+    return undef unless contains_pod($file,$verbose);
 
     # strip non-significant path components
-    # _TODO_ what happens on e.g. Win32?
+    # TODO what happens on e.g. Win32?
     my $name = $file;
     if(defined $root_rx) {
         $name =~ s!$root_rx!!s;
@@ -255,6 +237,14 @@ sub _check_and_extract_name {
     $name =~ s!/+!::!g; #/
     $name;
 }
+
+=head2 C<simplify_name( $str )>
+
+The function B<simplify_name> is equivalent to B<basename>, but also
+strips Perl-like extensions (.pm, .pl, .pod) and extensions like
+F<.bat>, F<.cmd> on Win32 and OS/2, or F<.com> on VMS, respectively.
+
+=cut
 
 # basic simplification of the POD name:
 # basename & strip extension
@@ -271,8 +261,185 @@ sub _simplify {
     # strip Perl's own extensions
     $_[0] =~ s/\.(pod|pm|plx?)\z//i;
     # strip meaningless extensions on Win32 and OS/2
-    $_[0] =~ s/\.(bat|exe|cmd)\z//i if($^O =~ /win|os2/i);
+    $_[0] =~ s/\.(bat|exe|cmd)\z//i if($^O =~ /mswin|os2/i);
+    # strip meaningless extensions on VMS
+    $_[0] =~ s/\.(com)\z//i if($^O eq 'VMS');
 }
+
+# contribution from Tim Jenness <t.jenness@jach.hawaii.edu>
+
+=head2 C<pod_where( { %opts }, $pod )>
+
+Returns the location of a pod document given a search directory
+and a module (e.g. C<File::Find>) or script (e.g. C<perldoc>) name.
+
+Options:
+
+=over 4
+
+=item C<-inc =E<gt> 1>
+
+Search @INC for the pod and also the C<scriptdir> defined in the
+L<Config|Config> module.
+
+=item C<-dirs =E<gt> [ $dir1, $dir2, ... ]>
+
+Reference to an array of search directories. These are searched in order
+before looking in C<@INC> (if B<-inc>). Current directory is used if
+none are specified.
+
+=item C<-verbose =E<gt> 1>
+
+List directories as they are searched
+
+=back
+
+Returns the full path of the first occurence to the file.
+Package names (eg 'A::B') are automatically converted to directory
+names in the selected directory. (eg on unix 'A::B' is converted to
+'A/B'). Additionally, '.pm', '.pl' and '.pod' are appended to the
+search automatically if required.
+
+A subdirectory F<pod/> is also checked if it exists in any of the given
+search directories. This ensures that e.g. L<perlfunc|perlfunc> is
+found.
+
+It is assumed that if a module name is supplied, that that name
+matches the file name. Pods are not opened to check for the 'NAME'
+entry.
+
+A check is made to make sure that the file that is found does 
+contain some pod documentation.
+
+=cut
+
+sub pod_where {
+
+  # default options
+  my %options = (
+         '-inc' => 0,
+         '-verbose' => 0,
+         '-dirs' => [ '.' ],
+        );
+
+  # Check for an options hash as first argument
+  if (defined $_[0] && ref($_[0]) eq 'HASH') {
+    my $opt = shift;
+
+    # Merge default options with supplied options
+    %options = (%options, %$opt);
+  }
+
+  # Check usage
+  carp 'Usage: pod_where({options}, $pod)' unless (scalar(@_));
+
+  # Read argument
+  my $pod = shift;
+
+  # Split on :: and then join the name together using File::Spec
+  my @parts = split (/::/, $pod);
+
+  # Get full directory list
+  my @search_dirs = @{ $options{'-dirs'} };
+
+  if ($options{'-inc'}) {
+
+    require Config;
+
+    # Add @INC
+    push (@search_dirs, @INC) if $options{'-inc'};
+
+    # Add location of pod documentation for perl man pages (eg perlfunc)
+    # This is a pod directory in the private install tree
+    #my $perlpoddir = File::Spec->catdir($Config::Config{'installprivlib'},
+    #					'pod');
+    #push (@search_dirs, $perlpoddir)
+    #  if -d $perlpoddir;
+
+    # Add location of binaries such as pod2text
+    push (@search_dirs, $Config::Config{'scriptdir'})
+      if -d $Config::Config{'scriptdir'};
+  }
+
+  # Loop over directories
+  Dir: foreach my $dir ( @search_dirs ) {
+
+    # Don't bother if cant find the directory
+    if (-d $dir) {
+      warn "Looking in directory $dir\n" 
+        if $options{'-verbose'};
+
+      # Now concatenate this directory with the pod we are searching for
+      my $fullname = File::Spec->catfile($dir, @parts);
+      warn "Filename is now $fullname\n"
+        if $options{'-verbose'};
+
+      # Loop over possible extensions
+      foreach my $ext ('', '.pod', '.pm', '.pl') {
+        my $fullext = $fullname . $ext;
+        if (-f $fullext && 
+         contains_pod($fullext, $options{'-verbose'}) ) {
+          warn "FOUND: $fullext\n" if $options{'-verbose'};
+          return $fullext;
+        }
+      }
+    } else {
+      warn "Directory $dir does not exist\n"
+        if $options{'-verbose'};
+      next Dir;
+    }
+    if(-d File::Spec->catdir($dir,'pod')) {
+      $dir = File::Spec->catdir($dir,'pod');
+      redo Dir;
+    }
+  }
+  # No match;
+  return undef;
+}
+
+=head2 C<contains_pod( $file , $verbose )>
+
+Returns true if the supplied filename (not POD module) contains some pod
+information.
+
+=cut
+
+sub contains_pod {
+  my $file = shift;
+  my $verbose = 0;
+  $verbose = shift if @_;
+
+  # check for one line of POD
+  unless(open(POD,"<$file")) {
+    warn "Error: $file is unreadable: $!\n";
+    return undef;
+  }
+  
+  local $/ = undef;
+  my $pod = <POD>;
+  close(POD) || die "Error closing $file: $!\n";
+  unless($pod =~ /\n=(head\d|pod|over|item)\b/s) {
+    warn "No POD in $file, skipping.\n"
+      if($verbose);
+    return 0;
+  }
+
+  return 1;
+}
+
+=head1 AUTHOR
+
+Marek Rouchal E<lt>marek@saftsack.fs.uni-bayreuth.deE<gt>,
+heavily borrowing code from Nick Ing-Simmons' PodToHtml.
+
+Tim Jenness E<lt>t.jenness@jach.hawaii.eduE<gt> provided
+C<pod_where> and C<contains_pod>.
+
+=head1 SEE ALSO
+
+L<Pod::Parser>, L<Pod::Checker>, L<perldoc>
+
+=cut
 
 1;
 

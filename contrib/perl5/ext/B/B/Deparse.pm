@@ -1,5 +1,5 @@
 # B::Deparse.pm
-# Copyright (c) 1998, 1999 Stephen McCamant. All rights reserved.
+# Copyright (c) 1998, 1999, 2000 Stephen McCamant. All rights reserved.
 # This module is free software; you can redistribute and/or modify
 # it under the same terms as Perl itself.
 
@@ -8,16 +8,16 @@
 
 package B::Deparse;
 use Carp 'cluck', 'croak';
-use Config;
 use B qw(class main_root main_start main_cv svref_2object opnumber
 	 OPf_WANT OPf_WANT_VOID OPf_WANT_SCALAR OPf_WANT_LIST
 	 OPf_KIDS OPf_REF OPf_STACKED OPf_SPECIAL
 	 OPpLVAL_INTRO OPpENTERSUB_AMPER OPpSLICE OPpCONST_BARE
 	 OPpTRANS_SQUASH OPpTRANS_DELETE OPpTRANS_COMPLEMENT OPpTARGET_MY
 	 SVf_IOK SVf_NOK SVf_ROK SVf_POK
+         CVf_METHOD CVf_LOCKED CVf_LVALUE
 	 PMf_KEEP PMf_GLOBAL PMf_CONTINUE PMf_EVAL PMf_ONCE
 	 PMf_MULTILINE PMf_SINGLELINE PMf_FOLD PMf_EXTENDED);
-$VERSION = 0.59;
+$VERSION = 0.60;
 use strict;
 
 # Changes between 0.50 and 0.51:
@@ -83,6 +83,12 @@ use strict;
 # - added support for Chip's OP_METHOD_NAMED
 # - added support for Ilya's OPpTARGET_MY optimization
 # - elided arrows before `()' subscripts when possible
+# Changes between 0.59 and 0.60
+# - support for method attribues was added
+# - some warnings fixed
+# - separate recognition of constant subs
+# - rewrote continue block handling, now recoginizing for loops
+# - added more control of expanding control structures
 
 # Todo:
 # - finish tr/// changes
@@ -93,8 +99,8 @@ use strict;
 # - left/right context
 # - recognize `use utf8', `use integer', etc
 # - treat top-level block specially for incremental output
-# - interpret in high bit chars in string as utf8 \x{...} (when?)
-# - copy comments (look at real text with $^P?) 
+# - interpret high bit chars in string as utf8 \x{...} (when?)
+# - copy comments (look at real text with $^P?)
 # - avoid semis in one-statement blocks
 # - associativity of &&=, ||=, ?:
 # - ',' => '=>' (auto-unquote?)
@@ -108,7 +114,6 @@ use strict;
 # - version using op_next instead of op_first/sibling?
 # - avoid string copies (pass arrays, one big join?)
 # - auto-apply `-u'?
-# - while{} with one-statement continue => for(; XXX; XXX) {}?
 # - -uPackage:: descend recursively?
 # - here-docs?
 # - <DATA>?
@@ -252,17 +257,17 @@ sub walk_sub {
     walk_tree($op, sub {
 	my $op = shift;
 	if ($op->name eq "gv") {
-	    my $gv = $self->maybe_padgv($op);
+	    my $gv = $self->gv_or_padgv($op);
 	    if ($op->next->name eq "entersub") {
-		next if $self->{'subs_done'}{$$gv}++;
-		next if class($gv->CV) eq "SPECIAL";
+		return if $self->{'subs_done'}{$$gv}++;
+		return if class($gv->CV) eq "SPECIAL";
 		$self->todo($gv, $gv->CV, 0);
 		$self->walk_sub($gv->CV);
 	    } elsif ($op->next->name eq "enterwrite"
 		     or ($op->next->name eq "rv2gv"
 			 and $op->next->next->name eq "enterwrite")) {
-		next if $self->{'forms_done'}{$$gv}++;
-		next if class($gv->FORM) eq "SPECIAL";
+		return if $self->{'forms_done'}{$$gv}++;
+		return if class($gv->FORM) eq "SPECIAL";
 		$self->todo($gv, $gv->FORM, 1);
 		$self->walk_sub($gv->FORM);
 	    }
@@ -345,6 +350,10 @@ sub new {
     $self->{'cuddle'} = "\n";
     $self->{'indent_size'} = 4;
     $self->{'use_tabs'} = 0;
+    $self->{'expand'} = 0;
+    $self->{'unquote'} = 0;
+    $self->{'linenums'} = 0;
+    $self->{'parens'} = 0;
     $self->{'ex_const'} = "'???'";
     while (my $arg = shift @_) {
 	if (substr($arg, 0, 2) eq "-u") {
@@ -357,6 +366,8 @@ sub new {
 	    $self->{'unquote'} = 1;
 	} elsif (substr($arg, 0, 2) eq "-s") {
 	    $self->style_opts(substr $arg, 2);
+	} elsif ($arg =~ /^-x(\d)$/) {
+	    $self->{'expand'} = $1;
 	}
     }
     return $self;
@@ -378,7 +389,7 @@ sub compile {
 	while (scalar(@{$self->{'subs_todo'}})) {
 	    push @text, $self->next_todo;
 	}
-	print indent(join("", @text)), "\n" if @text;
+	print $self->indent(join("", @text)), "\n" if @text;
     }
 }
 
@@ -393,6 +404,7 @@ sub deparse {
     my $self = shift;
     my($op, $cx) = @_;
 #    cluck if class($op) eq "NULL";
+#    cluck unless $op;
 #    return $self->$ {\("pp_" . $op->name)}($op, $cx);
     my $meth = "pp_" . $op->name;
     return $self->$meth($op, $cx);
@@ -433,6 +445,13 @@ sub deparse_sub {
     if ($cv->FLAGS & SVf_POK) {
 	$proto = "(". $cv->PV . ") ";
     }
+    if ($cv->CvFLAGS & (CVf_METHOD|CVf_LOCKED|CVf_LVALUE)) {
+        $proto .= ": ";
+        $proto .= "lvalue " if $cv->CvFLAGS & CVf_LVALUE;
+        $proto .= "locked " if $cv->CvFLAGS & CVf_LOCKED;
+        $proto .= "method " if $cv->CvFLAGS & CVf_METHOD;
+    }
+
     local($self->{'curcv'}) = $cv;
     local($self->{'curstash'}) = $self->{'curstash'};
     if (not null $cv->ROOT) {
@@ -553,7 +572,11 @@ sub maybe_local {
     my $self = shift;
     my($op, $cx, $text) = @_;
     if ($op->private & OPpLVAL_INTRO and not $self->{'avoid_local'}{$$op}) {
-	return $self->maybe_parens_func("local", $text, $cx, 16);
+        if (want_scalar($op)) {
+	    return "local $text";
+	} else {
+	    return $self->maybe_parens_func("local", $text, $cx, 16);
+	}
     } else {
 	return $text;
     }
@@ -581,7 +604,11 @@ sub maybe_my {
     my $self = shift;
     my($op, $cx, $text) = @_;
     if ($op->private & OPpLVAL_INTRO and not $self->{'avoid_local'}{$$op}) {
-	return $self->maybe_parens_func("my", $text, $cx, 16);
+	if (want_scalar($op)) {
+	    return "my $text";
+	} else {
+	    return $self->maybe_parens_func("my", $text, $cx, 16);
+	}
     } else {
 	return $text;
     }
@@ -672,70 +699,69 @@ sub pp_entertry { # see also leavetry
     return "XXX";
 }
 
-# leave and scope/lineseq should probably share code
-sub pp_leave {
+sub lineseq {
     my $self = shift;
-    my($op, $cx) = @_;
-    my ($kid, $expr);
-    my @exprs;
-    local($self->{'curstash'}) = $self->{'curstash'};
-    $kid = $op->first->sibling; # skip enter
-    if (is_miniwhile($kid)) {
-	my $top = $kid->first;
-	my $name = $top->name;
-	if ($name eq "and") {
-	    $name = "while";
-	} elsif ($name eq "or") {
-	    $name = "until";
-	} else { # no conditional -> while 1 or until 0
-	    return $self->deparse($top->first, 1) . " while 1";
+    my(@ops) = @_;
+    my($expr, @exprs);
+    for (my $i = 0; $i < @ops; $i++) {
+	$expr = "";
+	if (is_state $ops[$i]) {
+	    $expr = $self->deparse($ops[$i], 0);
+	    $i++;
+	    last if $i > $#ops;
 	}
-	my $cond = $top->first;
-	my $body = $cond->sibling->first; # skip lineseq
-	$cond = $self->deparse($cond, 1);
-	$body = $self->deparse($body, 1);
-	return "$body $name $cond";
+	if (!is_state $ops[$i] and $ops[$i+1] and !null($ops[$i+1]) and
+	    $ops[$i+1]->name eq "leaveloop" and $self->{'expand'} < 3)
+	{
+	    push @exprs, $expr . $self->for_loop($ops[$i], 0);
+	    $i++;
+	    next;
+	}
+	$expr .= $self->deparse($ops[$i], 0);
+	push @exprs, $expr if length $expr;
+    }
+    return join(";\n", @exprs);
+}
+
+sub scopeop {
+    my($real_block, $self, $op, $cx) = @_;
+    my $kid;
+    my @kids;
+    local($self->{'curstash'}) = $self->{'curstash'} if $real_block;
+    if ($real_block) {
+	$kid = $op->first->sibling; # skip enter
+	if (is_miniwhile($kid)) {
+	    my $top = $kid->first;
+	    my $name = $top->name;
+	    if ($name eq "and") {
+		$name = "while";
+	    } elsif ($name eq "or") {
+		$name = "until";
+	    } else { # no conditional -> while 1 or until 0
+		return $self->deparse($top->first, 1) . " while 1";
+	    }
+	    my $cond = $top->first;
+	    my $body = $cond->sibling->first; # skip lineseq
+	    $cond = $self->deparse($cond, 1);
+	    $body = $self->deparse($body, 1);
+	    return "$body $name $cond";
+	}
+    } else {
+	$kid = $op->first;
     }
     for (; !null($kid); $kid = $kid->sibling) {
-	$expr = "";
-	if (is_state $kid) {
-	    $expr = $self->deparse($kid, 0);
-	    $kid = $kid->sibling;
-	    last if null $kid;
-	}
-	$expr .= $self->deparse($kid, 0);
-	push @exprs, $expr if length $expr;
-    }
-    if ($cx > 0) { # inside an expression
-	return "do { " . join(";\n", @exprs) . " }";
-    } else {
-	return join(";\n", @exprs) . ";";
-    }
-}
-
-sub pp_scope {
-    my $self = shift;
-    my($op, $cx) = @_;
-    my ($kid, $expr);
-    my @exprs;
-    for ($kid = $op->first; !null($kid); $kid = $kid->sibling) {
-	$expr = "";
-	if (is_state $kid) {
-	    $expr = $self->deparse($kid, 0);
-	    $kid = $kid->sibling;
-	    last if null $kid;
-	}
-	$expr .= $self->deparse($kid, 0);
-	push @exprs, $expr if length $expr;
+	push @kids, $kid;
     }
     if ($cx > 0) { # inside an expression, (a do {} while for lineseq)
-	return "do { " . join(";\n", @exprs) . " }";
+	return "do { " . $self->lineseq(@kids) . " }";
     } else {
-	return join(";\n", @exprs) . ";";
+	return $self->lineseq(@kids) . ";";
     }
 }
 
-sub pp_lineseq { pp_scope(@_) }
+sub pp_scope { scopeop(0, @_); }
+sub pp_lineseq { scopeop(0, @_); }
+sub pp_leave { scopeop(1, @_); }
 
 # The BEGIN {} is used here because otherwise this code isn't executed
 # when you run B::Deparse on itself.
@@ -747,7 +773,7 @@ sub gv_name {
     my $self = shift;
     my $gv = shift;
     my $stash = $gv->STASH->NAME;
-    my $name = $gv->NAME;
+    my $name = $gv->SAFENAME;
     if ($stash eq $self->{'curstash'} or $globalnames{$name}
 	or $name =~ /^[^A-Za-z_]/)
     {
@@ -755,8 +781,8 @@ sub gv_name {
     } else {
 	$stash = $stash . "::";
     }
-    if ($name =~ /^([\cA-\cZ])$/) {
-	$name = "^" . chr(64 + ord($1));
+    if ($name =~ /^\^../) {
+        $name = "{$name}";       # ${^WARNING_BITS} etc
     }
     return $stash . $name;
 }
@@ -840,7 +866,7 @@ sub pp_i_preinc { pfixop(@_, "++", 23) }
 sub pp_i_predec { pfixop(@_, "--", 23) }
 sub pp_i_postinc { maybe_targmy(@_, \&pfixop, "++", 23, POSTFIX) }
 sub pp_i_postdec { maybe_targmy(@_, \&pfixop, "--", 23, POSTFIX) }
-sub pp_complement { maybe_targmy(@_. \&pfixop, "~", 21) }
+sub pp_complement { maybe_targmy(@_, \&pfixop, "~", 21) }
 
 sub pp_negate { maybe_targmy(@_, \&real_negate) }
 sub real_negate {
@@ -917,7 +943,6 @@ sub pp_prototype { unop(@_, "prototype") }
 sub pp_close { unop(@_, "close") }
 sub pp_fileno { unop(@_, "fileno") }
 sub pp_umask { unop(@_, "umask") }
-sub pp_binmode { unop(@_, "binmode") }
 sub pp_untie { unop(@_, "untie") }
 sub pp_tied { unop(@_, "tied") }
 sub pp_dbmclose { unop(@_, "dbmclose") }
@@ -1373,11 +1398,14 @@ sub logop {
     my ($op, $cx, $lowop, $lowprec, $highop, $highprec, $blockname) = @_;
     my $left = $op->first;
     my $right = $op->first->sibling;
-    if ($cx == 0 and is_scope($right) and $blockname) { # if ($a) {$b}
+    if ($cx == 0 and is_scope($right) and $blockname
+	and $self->{'expand'} < 7)
+    { # if ($a) {$b}
 	$left = $self->deparse($left, 1);
 	$right = $self->deparse($right, 0);
 	return "$blockname ($left) {\n\t$right\n\b}\cK";
-    } elsif ($cx == 0 and $blockname and not $self->{'parens'}) { # $b if $a
+    } elsif ($cx == 0 and $blockname and not $self->{'parens'}
+	     and $self->{'expand'} < 7) { # $b if $a
 	$right = $self->deparse($right, 1);
 	$left = $self->deparse($left, 1);
 	return "$right $blockname $left";
@@ -1457,6 +1485,7 @@ sub pp_return { listop(@_, "return") }
 sub pp_open { listop(@_, "open") }
 sub pp_pipe_op { listop(@_, "pipe") }
 sub pp_tie { listop(@_, "tie") }
+sub pp_binmode { listop(@_, "binmode") }
 sub pp_dbmopen { listop(@_, "dbmopen") }
 sub pp_sselect { listop(@_, "select") }
 sub pp_select { listop(@_, "select") }
@@ -1653,6 +1682,13 @@ sub pp_list {
     }
 }
 
+sub is_ifelse_cont {
+    my $op = shift;
+    return ($op->name eq "null" and class($op) eq "UNOP"
+	    and $op->first->name =~ /^(and|cond_expr)$/
+	    and is_scope($op->first->first->sibling));
+}
+
 sub pp_cond_expr {
     my $self = shift;
     my($op, $cx) = @_;
@@ -1660,52 +1696,55 @@ sub pp_cond_expr {
     my $true = $cond->sibling;
     my $false = $true->sibling;
     my $cuddle = $self->{'cuddle'};
-    unless ($cx == 0 and is_scope($true) and is_scope($false)) {
+    unless ($cx == 0 and (is_scope($true) and $true->name ne "null") and
+	    (is_scope($false) || is_ifelse_cont($false))
+	    and $self->{'expand'} < 7) {
 	$cond = $self->deparse($cond, 8);
 	$true = $self->deparse($true, 8);
 	$false = $self->deparse($false, 8);
 	return $self->maybe_parens("$cond ? $true : $false", $cx, 8);
-    } 
+    }
+
     $cond = $self->deparse($cond, 1);
     $true = $self->deparse($true, 0);    
-    if ($false->name eq "lineseq") { # braces w/o scope => elsif
-	my $head = "if ($cond) {\n\t$true\n\b}";
-	my @elsifs;
-	while (!null($false) and $false->name eq "lineseq") {
-	    my $newop = $false->first->sibling->first;
-	    my $newcond = $newop->first;
-	    my $newtrue = $newcond->sibling;
-	    $false = $newtrue->sibling; # last in chain is OP_AND => no else
-	    $newcond = $self->deparse($newcond, 1);
-	    $newtrue = $self->deparse($newtrue, 0);
-	    push @elsifs, "elsif ($newcond) {\n\t$newtrue\n\b}";
-	}
-	if (!null($false)) {	    
-	    $false = $cuddle . "else {\n\t" .
-	      $self->deparse($false, 0) . "\n\b}\cK";
-	} else {
-	    $false = "\cK";
-	}
-	return $head . join($cuddle, "", @elsifs) . $false; 
+    my $head = "if ($cond) {\n\t$true\n\b}";
+    my @elsifs;
+    while (!null($false) and is_ifelse_cont($false)) {
+	my $newop = $false->first;
+	my $newcond = $newop->first;
+	my $newtrue = $newcond->sibling;
+	$false = $newtrue->sibling; # last in chain is OP_AND => no else
+	$newcond = $self->deparse($newcond, 1);
+	$newtrue = $self->deparse($newtrue, 0);
+	push @elsifs, "elsif ($newcond) {\n\t$newtrue\n\b}";
     }
-    $false = $self->deparse($false, 0);
-    return "if ($cond) {\n\t$true\n\b}${cuddle}else {\n\t$false\n\b}\cK";
+    if (!null($false)) {	    
+	$false = $cuddle . "else {\n\t" .
+	  $self->deparse($false, 0) . "\n\b}\cK";
+    } else {
+	$false = "\cK";
+    }
+    return $head . join($cuddle, "", @elsifs) . $false; 
 }
 
-sub pp_leaveloop {
+sub loop_common {
     my $self = shift;
-    my($op, $cx) = @_;
+    my($op, $cx, $init) = @_;
     my $enter = $op->first;
     my $kid = $enter->sibling;
     local($self->{'curstash'}) = $self->{'curstash'};
     my $head = "";
     my $bare = 0;
+    my $body;
+    my $cond = undef;
     if ($kid->name eq "lineseq") { # bare or infinite loop 
 	if (is_state $kid->last) { # infinite
 	    $head = "for (;;) "; # shorter than while (1)
+	    $cond = "";
 	} else {
 	    $bare = 1;
 	}
+	$body = $kid;
     } elsif ($enter->name eq "enteriter") { # foreach
 	my $ary = $enter->first->sibling; # first was pushmark
 	my $var = $ary->sibling;
@@ -1737,62 +1776,60 @@ sub pp_leaveloop {
 	    $var = "\$" . $self->deparse($var, 1);
 	}
 	$head = "foreach $var ($ary) ";
-	$kid = $kid->first->first->sibling; # skip OP_AND and OP_ITER
+	$body = $kid->first->first->sibling; # skip OP_AND and OP_ITER
     } elsif ($kid->name eq "null") { # while/until
 	$kid = $kid->first;
-	my $name = {"and" => "while", "or" => "until"}
-	            ->{$kid->name};
-	$head = "$name (" . $self->deparse($kid->first, 1) . ") ";
-	$kid = $kid->first->sibling;
+	my $name = {"and" => "while", "or" => "until"}->{$kid->name};
+	$cond = $self->deparse($kid->first, 1);
+	$head = "$name ($cond) ";
+	$body = $kid->first->sibling;
     } elsif ($kid->name eq "stub") { # bare and empty
 	return "{;}"; # {} could be a hashref
     }
-    # The third-to-last kid is the continue block if the pointer used
-    # by `next BLOCK' points to its first OP, which happens to be the
-    # the op_next of the head of the _previous_ statement. 
-    # Unless it's a bare loop, in which case it's last, since there's
-    # no unstack or extra nextstate.
-    # Except if the previous head isn't null but the first kid is
-    # (because it's a nulled out nextstate in a scope), in which
-    # case the head's next is advanced past the null but the nextop's
-    # isn't, so we need to try nextop->next.
-    my $precont;
-    my $cont = $kid->first;
-    if ($bare) {
-	while (!null($cont->sibling)) {
-	    $precont = $cont;
-	    $cont = $cont->sibling;
-	}	
-    } else {
-	while (!null($cont->sibling->sibling->sibling)) {
-	    $precont = $cont;
-	    $cont = $cont->sibling;
+    # If there isn't a continue block, then the next pointer for the loop
+    # will point to the unstack, which is kid's penultimate child, except
+    # in a bare loop, when it will point to the leaveloop. When neither of
+    # these conditions hold, then the third-to-last child in the continue
+    # block (or the last in a bare loop).
+    my $cont_start = $enter->nextop;
+    my $cont;
+    if ($$cont_start != $$op and $ {$cont_start->sibling} != $ {$body->last}) {
+	if ($bare) {
+	    $cont = $body->last;
+	} else {
+	    $cont = $body->first;
+	    while (!null($cont->sibling->sibling->sibling)) {
+		$cont = $cont->sibling;
+	    }
 	}
-    }
-    if ($precont and $ {$precont->next} == $ {$enter->nextop}
-	|| $ {$precont->next} == $ {$enter->nextop->next} )
-    {
-       my $state = $kid->first;
-       my $cuddle = $self->{'cuddle'};
-       my($expr, @exprs);
-       for (; $$state != $$cont; $state = $state->sibling) {
-	   $expr = "";
-	   if (is_state $state) {
-	       $expr = $self->deparse($state, 0);
-	       $state = $state->sibling;
-	       last if null $kid;
-	   }
-	   $expr .= $self->deparse($state, 0);
-	   push @exprs, $expr if $expr;
-       }
-       $kid = join(";\n", @exprs);
-       $cont = $cuddle . "continue {\n\t" .
-	 $self->deparse($cont, 0) . "\n\b}\cK";
+	my $state = $body->first;
+	my $cuddle = $self->{'cuddle'};
+	my @states;
+	for (; $$state != $$cont; $state = $state->sibling) {
+	    push @states, $state;
+	}
+	$body = $self->lineseq(@states);
+	if (defined $cond and not is_scope $cont and $self->{'expand'} < 3) {
+	    $head = "for ($init; $cond; " . $self->deparse($cont, 1) .") ";
+	    $cont = "\cK";
+	} else {
+	    $cont = $cuddle . "continue {\n\t" .
+	      $self->deparse($cont, 0) . "\n\b}\cK";
+	}
     } else {
 	$cont = "\cK";
-	$kid = $self->deparse($kid, 0);
+	$body = $self->deparse($body, 0);
     }
-    return $head . "{\n\t" . $kid . "\n\b}" . $cont;
+    return $head . "{\n\t" . $body . "\n\b}" . $cont;
+}
+
+sub pp_leaveloop { loop_common(@_, "") }
+
+sub for_loop {
+    my $self = shift;
+    my($op, $cx) = @_;
+    my $init = $self->deparse($op, 1);
+    return $self->loop_common($op->sibling, $cx, $init);
 }
 
 sub pp_leavetry {
@@ -1814,7 +1851,7 @@ sub pp_null {
     } elsif ($op->first->name eq "enter") {
 	return $self->pp_leave($op, $cx);
     } elsif ($op->targ == OP_STRINGIFY) {
-	return $self->dquote($op);
+	return $self->dquote($op, $cx);
     } elsif (!null($op->first->sibling) and
 	     $op->first->sibling->name eq "readline" and
 	     $op->first->sibling->flags & OPf_STACKED) {
@@ -1832,21 +1869,10 @@ sub pp_null {
     }
 }
 
-# the aassign in-common check messes up SvCUR (always setting it
-# to a value >= 100), but it's probably safe to assume there
-# won't be any NULs in the names of my() variables. (with
-# stash variables, I wouldn't be so sure)
-sub padname_fix {
-    my $str = shift;
-    $str = substr($str, 0, index($str, "\0")) if index($str, "\0") != -1;
-    return $str;
-}
-
 sub padname {
     my $self = shift;
     my $targ = shift;
-    my $str = $self->padname_sv($targ)->PV;
-    return padname_fix($str);
+    return $self->padname_sv($targ)->PVX;
 }
 
 sub padany {
@@ -1879,37 +1905,34 @@ sub pp_threadsv {
     return $self->maybe_local($op, $cx, "\$" .  $threadsv_names[$op->targ]);
 }    
 
-sub maybe_padgv {
+sub gv_or_padgv {
     my $self = shift;
     my $op = shift;
-    my $gv;
-    if ($Config{useithreads}) {
-	$gv = $self->padval($op->padix);
+    if (class($op) eq "PADOP") {
+	return $self->padval($op->padix);
+    } else { # class($op) eq "SVOP"
+	return $op->gv;
     }
-    else {
-	$gv = $op->gv;
-    }
-    return $gv;
 }
 
 sub pp_gvsv {
     my $self = shift;
     my($op, $cx) = @_;
-    my $gv = $self->maybe_padgv($op);
+    my $gv = $self->gv_or_padgv($op);
     return $self->maybe_local($op, $cx, "\$" . $self->gv_name($gv));
 }
 
 sub pp_gv {
     my $self = shift;
     my($op, $cx) = @_;
-    my $gv = $self->maybe_padgv($op);
+    my $gv = $self->gv_or_padgv($op);
     return $self->gv_name($gv);
 }
 
 sub pp_aelemfast {
     my $self = shift;
     my($op, $cx) = @_;
-    my $gv = $self->maybe_padgv($op);
+    my $gv = $self->gv_or_padgv($op);
     return "\$" . $self->gv_name($gv) . "[" . $op->private . "]";
 }
 
@@ -2220,7 +2243,7 @@ sub pp_entersub {
 	$amper = "&";
 	$kid = "{" . $self->deparse($kid, 0) . "}";
     } elsif ($kid->first->name eq "gv") {
-	my $gv = $self->maybe_padgv($kid->first);
+	my $gv = $self->gv_or_padgv($kid->first);
 	if (class($gv->CV) ne "SPECIAL") {
 	    $proto = $gv->CV->PV if $gv->CV->FLAGS & SVf_POK;
 	}
@@ -2252,9 +2275,9 @@ sub pp_entersub {
     } else {
 	if (defined $proto and $proto eq "") {
 	    return $kid;
-	} elsif ($proto eq "\$") {
+	} elsif (defined $proto and $proto eq "\$") {
 	    return $self->maybe_parens_func($kid, $args, $cx, 16);
-	} elsif ($proto or $simple) {
+	} elsif (defined($proto) && $proto or $simple) {
 	    return $self->maybe_parens_func($kid, $args, $cx, 5);
 	} else {
 	    return "$kid(" . $args . ")";
@@ -2350,7 +2373,7 @@ sub const {
     if (class($sv) eq "SPECIAL") {
 	return ('undef', '1', '0')[$$sv-1]; # sv_undef, sv_yes, sv_no
     } elsif ($sv->FLAGS & SVf_IOK) {
-	return $sv->IV;
+	return $sv->int_value;
     } elsif ($sv->FLAGS & SVf_NOK) {
 	return $sv->NV;
     } elsif ($sv->FLAGS & SVf_ROK) {
@@ -2381,7 +2404,9 @@ sub pp_const {
 #	return $self->const_sv($op)->PV;
 #    }
     my $sv = $self->const_sv($op);
-    return const($sv);
+#    return const($sv);
+    my $c = const $sv; 
+    return $c =~ /^-\d/ ? $self->maybe_parens($c, $cx, 21) : $c;
 }
 
 sub dq {
@@ -2391,7 +2416,13 @@ sub dq {
     if ($type eq "const") {
 	return uninterp(escape_str(unback($self->const_sv($op)->PV)));
     } elsif ($type eq "concat") {
-	return $self->dq($op->first) . $self->dq($op->last);
+	my $first = $self->dq($op->first);
+	my $last  = $self->dq($op->last);
+	# Disambiguate "${foo}bar", "${foo}{bar}", "${foo}[1]"
+        if ($last =~ /^[{\[\w]/) {
+	    $first =~ s/([%\$@])([A-Za-z_]\w*)$/${1}{$2}/;
+	}
+	return $first . $last;
     } elsif ($type eq "uc") {
 	return '\U' . $self->dq($op->first->sibling) . '\E';
     } elsif ($type eq "lc") {
@@ -2418,7 +2449,7 @@ sub pp_backtick {
 
 sub dquote {
     my $self = shift;
-    my($op, $cx) = shift;
+    my($op, $cx) = @_;
     my $kid = $op->first->sibling; # skip ex-stringify, pushmark
     return $self->deparse($kid, $cx) if $self->{'unquote'};
     $self->maybe_targmy($kid, $cx,
@@ -2486,7 +2517,7 @@ sub pchr { # ASCII
 
 sub collapse {
     my(@chars) = @_;
-    my($c, $str, $tr);
+    my($str, $c, $tr) = ("");
     for ($c = 0; $c < @chars; $c++) {
 	$tr = $chars[$c];
 	$str .= pchr($tr);
@@ -2539,7 +2570,7 @@ sub tr_decode_byte {
 	}
 	@from = @newfrom;
     }
-    unless ($flags & OPpTRANS_DELETE) {
+    unless ($flags & OPpTRANS_DELETE || !@to) {
 	pop @to while $#to and $to[$#to] == $to[$#to -1];
     }
     my($from, $to);
@@ -2678,9 +2709,15 @@ sub re_dq {
     my $op = shift;
     my $type = $op->name;
     if ($type eq "const") {
-	return uninterp($self->const_sv($op)->PV);
+	return re_uninterp($self->const_sv($op)->PV);
     } elsif ($type eq "concat") {
-	return $self->re_dq($op->first) . $self->re_dq($op->last);
+	my $first = $self->re_dq($op->first);
+	my $last  = $self->re_dq($op->last);
+	# Disambiguate "${foo}bar", "${foo}{bar}", "${foo}[1]"
+	if ($last =~ /^[{\[\w]/) {
+	    $first =~ s/([%\$@])([A-Za-z_]\w*)$/${1}{$2}/;
+	}
+	return $first . $last;
     } elsif ($type eq "uc") {
 	return '\U' . $self->re_dq($op->first->sibling) . '\E';
     } elsif ($type eq "lc") {
@@ -2842,8 +2879,8 @@ B::Deparse - Perl compiler backend to produce perl code
 
 =head1 SYNOPSIS
 
-B<perl> B<-MO=Deparse>[B<,-u>I<PACKAGE>][B<,-p>][B<,-q>][B<,-l>][B<,-s>I<LETTERS>]
-     I<prog.pl>
+B<perl> B<-MO=Deparse>[B<,-u>I<PACKAGE>][B<,-p>][B<,-q>][B<,-l>]
+        [B<,-s>I<LETTERS>][B<,-x>I<LEVEL>] I<prog.pl>
 
 =head1 DESCRIPTION
 
@@ -2988,6 +3025,55 @@ file is compiled as a main program.
 
 =back
 
+=item B<-x>I<LEVEL>
+
+Expand conventional syntax constructions into equivalent ones that expose
+their internal operation. I<LEVEL> should be a digit, with higher values
+meaning more expansion. As with B<-q>, this actually involves turning off
+special cases in B::Deparse's normal operations.
+
+If I<LEVEL> is at least 3, for loops will be translated into equivalent
+while loops with continue blocks; for instance
+
+    for ($i = 0; $i < 10; ++$i) {
+        print $i;
+    }
+
+turns into
+
+    $i = 0;
+    while ($i < 10) {
+        print $i;
+    } continue {
+        ++$i
+    }
+
+Note that in a few cases this translation can't be perfectly carried back
+into the source code -- if the loop's initializer declares a my variable,
+for instance, it won't have the correct scope outside of the loop.
+
+If I<LEVEL> is at least 7, if statements will be translated into equivalent
+expressions using C<&&>, C<?:> and C<do {}>; for instance
+
+    print 'hi' if $nice;
+    if ($nice) {
+        print 'hi';
+    }
+    if ($nice) {
+        print 'hi';
+    } else {
+        print 'bye';
+    }
+
+turns into
+
+    $nice and print 'hi';
+    $nice and do { print 'hi' };
+    $nice ? do { print 'hi' } : do { print 'bye' };
+
+Long sequences of elsifs will turn into nested ternary operators, which
+B::Deparse doesn't know how to indent nicely.
+
 =back
 
 =head1 USING B::Deparse AS A MODULE
@@ -3034,7 +3120,7 @@ See the 'to do' list at the beginning of the module file.
 
 =head1 AUTHOR
 
-Stephen McCamant <smccam@uclink4.berkeley.edu>, based on an earlier
+Stephen McCamant <smcc@CSUA.Berkeley.EDU>, based on an earlier
 version by Malcolm Beattie <mbeattie@sable.ox.ac.uk>, with
 contributions from Gisle Aas, James Duncan, Albert Dvornik, Hugo van
 der Sanden, Gurusamy Sarathy, and Nick Ing-Simmons.

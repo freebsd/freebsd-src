@@ -84,8 +84,8 @@ for file do
 
     ccflags="`echo $ccflags | sed -e 's/-DMULTIPLICITY//'`"
 
-    echo "$cc -c $ccflags $optimize $large $split"
-    eval "$also "'"$cc -c $ccflags $optimize $large $split"'
+    echo "$cc -c $ccflags $optimize"
+    eval "$also "'"$cc -c $ccflags $optimize"'
 
     . $TOP/config.sh
 

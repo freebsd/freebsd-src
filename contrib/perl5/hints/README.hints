@@ -9,7 +9,7 @@ can't or doesn't guess properly.  Most of these hint files have been
 tested with at least some version of perl5, but some are still left
 over from perl4.
 
-Please send any problems or suggested changes to perlbug@perl.com.
+Please send any problems or suggested changes to perlbug@perl.org.
 
 =head1 Hint file naming convention.
 

@@ -2,7 +2,7 @@ package ByteLoader;
 
 use XSLoader ();
 
-$VERSION = 0.03;
+$VERSION = 0.04;
 
 XSLoader::load 'ByteLoader', $VERSION;
 
@@ -17,10 +17,10 @@ ByteLoader - load byte compiled perl code
 
 =head1 SYNOPSIS
 
-  use ByteLoader 0.03;
+  use ByteLoader 0.04;
   <byte code>
 
-  use ByteLoader 0.03;
+  use ByteLoader 0.04;
   <byte code>
 
 =head1 DESCRIPTION

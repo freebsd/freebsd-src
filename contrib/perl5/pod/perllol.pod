@@ -4,7 +4,7 @@ perllol - Manipulating Arrays of Arrays in Perl
 
 =head1 DESCRIPTION
 
-=head1 Declaration and Access of Arrays of Arrays
+=head2 Declaration and Access of Arrays of Arrays
 
 The simplest thing to build an array of arrays (sometimes imprecisely
 called a list of lists).  It's reasonably easy to understand, and
@@ -58,7 +58,7 @@ square or curly), you are free to omit the pointer dereferencing arrow.
 But you cannot do so for the very first one if it's a scalar containing
 a reference, which means that $ref_to_AoA always needs it.
 
-=head1 Growing Your Own
+=head2 Growing Your Own
 
 That's all well and good for declaration of a fixed data structure,
 but what if you wanted to add new elements on the fly, or build
@@ -174,7 +174,7 @@ Notice that I I<couldn't> say just:
 In fact, that wouldn't even compile.  How come?  Because the argument
 to push() must be a real array, not just a reference to such.
 
-=head1 Access and Printing
+=head2 Access and Printing
 
 Now it's time to print your data structure out.  How
 are you going to do that?  Well, if you want only one
@@ -231,7 +231,7 @@ Hmm... that's still a bit ugly.  How about this:
 	}
     }
 
-=head1 Slices
+=head2 Slices
 
 If you want to get at a slice (part of a row) in a multidimensional
 array, you're going to have to do some fancy subscripting.  That's

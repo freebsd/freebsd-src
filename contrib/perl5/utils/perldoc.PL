@@ -36,8 +36,15 @@ use strict;
 # make sure creat()s are neither too much nor too little
 INIT { eval { umask(0077) } }   # doubtless someone has no mask
 
+(my \$pager = <<'/../') =~ s/\\s*\\z//;
+$Config{pager}
+/../
 my \@pagers = ();
-push \@pagers, "$Config{'pager'}" if -x "$Config{'pager'}";
+push \@pagers, \$pager if -x \$pager;
+
+(my \$bindir = <<'/../') =~ s/\\s*\\z//;
+$Config{scriptdir}
+/../
 
 !GROK!THIS!
 
@@ -48,6 +55,7 @@ print OUT <<'!NO!SUBS!';
 use Fcntl;    # for sysopen
 use Getopt::Std;
 use Config '%Config';
+use File::Spec::Functions qw(catfile splitdir);
 
 #
 # Perldoc revision #1 -- look up a piece of documentation in .pod format that
@@ -79,6 +87,7 @@ my $global_target = "";
 my $Is_VMS = $^O eq 'VMS';
 my $Is_MSWin32 = $^O eq 'MSWin32';
 my $Is_Dos = $^O eq 'dos';
+my $Is_OS2 = $^O eq 'os2';
 
 sub usage{
     warn "@_\n" if @_;
@@ -147,7 +156,7 @@ usage if $opt_h;
 
 # refuse to run if we should be tainting and aren't
 # (but regular users deserve protection too, though!)
-if (!($Is_VMS || $Is_MSWin32 || $Is_Dos) && ($> == 0 || $< == 0)
+if (!($Is_VMS || $Is_MSWin32 || $Is_Dos || $Is_OS2) && ($> == 0 || $< == 0)
      && !am_taint_checking()) 
 {{
     if ($opt_U) {
@@ -201,8 +210,9 @@ if (-f "Makefile.PL") {
     eval q{ use lib qw(. lib); 1; } or die;
 
     # don't add if superuser
-    if ($< && $>) {   # don't be looking too hard now!
-	eval q{ use blib; 1 } or die;
+    if ($< && $> && -f "blib") {   # don't be looking too hard now!
+	eval q{ use blib; 1 };
+	warn $@ if $@ && $opt_v;
     }
 }
 
@@ -223,7 +233,7 @@ sub containspod {
 
 sub minus_f_nocase {
      my($dir,$file) = @_;
-     my $path = join('/',$dir,$file);	# XXX: dirseps
+     my $path = catfile($dir,$file);
      return $path if -f $path and -r _;
      if (!$opt_i or $Is_VMS or $Is_MSWin32 or $Is_Dos or $^O eq 'os2') {
         # on a case-forgiving file system or if case is important
@@ -237,13 +247,13 @@ sub minus_f_nocase {
      local($")="/";
      my @p = ($dir);
      my($p,$cip);
-     foreach $p (split(m!/!, $file)){	# XXX: dirseps
-	my $try = "@p/$p";
+     foreach $p (splitdir $file){
+	my $try = catfile @p, $p;
 	stat $try;
  	if (-d _) {
  	    push @p, $p;
 	    if ( $p eq $global_target) {
-		my $tmp_path = join ('/', @p);  # XXX: dirseps
+		my $tmp_path = catfile @p;
 		my $path_f = 0;
 		for (@global_found) {
 		    $path_f = 1 if $_ eq $tmp_path;
@@ -302,7 +312,7 @@ sub searchfor {
     my $ret;
     my $i;
     my $dir;
-    $global_target = (split(m!/!, $s))[-1];   # XXX: dirseps
+    $global_target = (splitdir $s)[-1];   # XXX: why not use File::Basename?
     for ($i=0; $i<@dirs; $i++) {
 	$dir = $dirs[$i];
 	($dir = VMS::Filespec::unixpath($dir)) =~ s!/\z!! if $Is_VMS;
@@ -325,10 +335,10 @@ sub searchfor {
 
 	if ($recurse) {
 	    opendir(D,$dir)	or die "Can't opendir $dir: $!";
-	    my @newdirs = map "$dir/$_", grep {  # XXX: dirseps
+	    my @newdirs = map catfile($dir, $_), grep {
 		not /^\.\.?\z/s and
 		not /^auto\z/s  and   # save time! don't search auto dirs
-		-d  "$dir/$_"  # XXX: dirseps
+		-d  catfile($dir, $_)
 	    } readdir D;
 	    closedir(D)		or die "Can't closedir $dir: $!";
 	    next unless @newdirs;
@@ -362,7 +372,7 @@ sub printout {
 	close OUT   or die "can't close $tmp: $!";
     }
     elsif (not $opt_u) {
-	my $cmd = "pod2man --lax $file | $opt_n -man";
+	my $cmd = catfile($bindir, 'pod2man') . " --lax $file | $opt_n -man";
 	$cmd .= " | col -x" if $^O =~ /hpux/;
 	my $rslt = `$cmd`;
 	$rslt = filter_nroff($rslt) if $filter;
@@ -406,7 +416,11 @@ sub page {
     }
     else {
 	foreach my $pager (@pagers) {
-	    last if system("$pager $tmp") == 0;
+          if ($Is_VMS) {
+           last if system("$pager $tmp") == 0; # quoting prevents logical expansion
+          } else {
+	    last if system("$pager \"$tmp\"") == 0;
+          }
 	}
     }
 }
@@ -425,8 +439,7 @@ sub cleanup {
 my @found;
 foreach (@pages) {
     if ($podidx && open(PODIDX, $podidx)) {
-	my $searchfor = $_;
-	$searchfor =~ s,::,/,g;	    # XXX: dirseps
+	my $searchfor = catfile split '::';
 	print STDERR "Searching for '$searchfor' in $podidx\n" if $opt_v;
 	local $_;
 	while (<PODIDX>) {
@@ -437,9 +450,9 @@ foreach (@pages) {
 	next;
     }
     print STDERR "Searching for $_\n" if $opt_v;
-    # We must look both in @INC for library modules and in PATH
+    # We must look both in @INC for library modules and in $bindir
     # for executables, like h2xs or perldoc itself.
-    my @searchdirs = @INC;
+    my @searchdirs = ($bindir, @INC);
     if ($opt_F) {
 	next unless -r;
 	push @found, $_ if $opt_m or containspod($_);
@@ -553,7 +566,10 @@ eval q{
     sub END { cleanup($tmp, $buffer) } 
     1;
 } || die;
-eval q{ use sigtrap qw(die INT TERM HUP QUIT) };
+
+# exit/die in a windows sighandler is dangerous, so let it do the
+# default thing, which is to exit
+eval q{ use sigtrap qw(die INT TERM HUP QUIT) } unless $^O eq 'MSWin32';
 
 if ($opt_m) {
     foreach my $pager (@pagers) {
@@ -790,7 +806,7 @@ One useful value for C<PERLDOC_PAGER> is C<less -+C -E>.
 
 =head1 VERSION
 
-This is perldoc v2.01.
+This is perldoc v2.03.
 
 =head1 AUTHOR
 
@@ -802,6 +818,9 @@ and others.
 =cut
 
 #
+# Version 2.03: Sun Apr 23 16:56:34 BST 2000
+#	Hugo van der Sanden <hv@crypt0.demon.co.uk>
+#	don't die when 'use blib' fails
 # Version 2.02: Mon Mar 13 18:03:04 MST 2000
 #       Tom Christiansen <tchrist@perl.com>
 #	Added -U insecurity option

@@ -2,7 +2,7 @@
 
 BEGIN {
     chdir 't' if -d 't';
-    unshift @INC, '../lib';
+    @INC = '../lib';
 }
 
 package Oscalar;
@@ -919,14 +919,69 @@ test $bar->[3], 13;		# 206
 my $aaa;
 { my $bbbb = 0; $aaa = bless \$bbbb, B }
 
-test !$aaa, 1;
+test !$aaa, 1;			# 207
 
 unless ($aaa) {
-  test 'ok', 'ok';
+  test 'ok', 'ok';		# 208
 } else {
-  test 'is not', 'ok';
+  test 'is not', 'ok';		# 208
 }
 
+# check that overload isn't done twice by join
+{ my $c = 0;
+  package Join;
+  use overload '""' => sub { $c++ };
+  my $x = join '', bless([]), 'pq', bless([]);
+  main::test $x, '0pq1';		# 209
+};
+
+# Test module-specific warning
+{
+    # check the Odd number of arguments for overload::constant warning
+    my $a = "" ;
+    local $SIG{__WARN__} = sub {$a = $_[0]} ;
+    $x = eval ' overload::constant "integer" ; ' ;
+    test($a eq "") ; # 210
+    use warnings 'overload' ;
+    $x = eval ' overload::constant "integer" ; ' ;
+    test($a =~ /^Odd number of arguments for overload::constant at/) ; # 211
+}
+
+{
+    # check the `$_[0]' is not an overloadable type warning
+    my $a = "" ;
+    local $SIG{__WARN__} = sub {$a = $_[0]} ;
+    $x = eval ' overload::constant "fred" => sub {} ; ' ;
+    test($a eq "") ; # 212
+    use warnings 'overload' ;
+    $x = eval ' overload::constant "fred" => sub {} ; ' ;
+    test($a =~ /^`fred' is not an overloadable type at/); # 213
+}
+
+{
+    # check the `$_[1]' is not a code reference warning
+    my $a = "" ;
+    local $SIG{__WARN__} = sub {$a = $_[0]} ;
+    $x = eval ' overload::constant "integer" => 1; ' ;
+    test($a eq "") ; # 214
+    use warnings 'overload' ;
+    $x = eval ' overload::constant "integer" => 1; ' ;
+    test($a =~ /^`1' is not a code reference at/); # 215
+}
+
+# make sure that we don't inifinitely recurse
+{
+  my $c = 0;
+  package Recurse;
+  use overload '""'    => sub { shift },
+               '0+'    => sub { shift },
+               'bool'  => sub { shift },
+               fallback => 1;
+  my $x = bless([]);
+  main::test("$x" =~ /Recurse=ARRAY/);		# 216
+  main::test($x);                               # 217
+  main::test($x+0 =~ /Recurse=ARRAY/);		# 218
+};
 
 # Last test is:
-sub last {208}
+sub last {218}
