@@ -46,7 +46,7 @@
  * SUCH DAMAGE.
  *
  *	from: unknown origin, 386BSD 0.1
- *	$Id: lpt.c,v 1.10 1997/02/22 09:43:39 peter Exp $
+ *	$Id: lpt.c,v 1.11 1997/03/24 12:29:33 bde Exp $
  */
 
 /*
@@ -269,7 +269,7 @@ static struct lpt_softc {
 #define	MAX_SLEEP	(hz*5)	/* Timeout while waiting for device ready */
 #define	MAX_SPIN	20	/* Max delay for device ready in usecs */
 
-static void	lptout (struct lpt_softc * sc);
+static timeout_t lptout;
 static int	lptprobe (struct isa_device *dvp);
 static int	lptattach (struct isa_device *isdp);
 
@@ -597,7 +597,7 @@ lptopen (dev_t dev, int flags, int fmt, struct proc *p)
 	lprintf("irq %x\n", sc->sc_irq);
 	if (sc->sc_irq & LP_USE_IRQ) {
 		sc->sc_state |= TOUT;
-		timeout ((timeout_func_t)lptout, (caddr_t)sc,
+		timeout (lptout, (caddr_t)sc,
 			 (sc->sc_backoff = hz/LPTOUTINITIAL));
 	}
 
@@ -606,15 +606,17 @@ lptopen (dev_t dev, int flags, int fmt, struct proc *p)
 }
 
 static void
-lptout (struct lpt_softc * sc)
-{	int pl;
+lptout (void *arg)
+{
+	struct lpt_softc *sc = arg;
+	int pl;
 
 	lprintf ("T %x ", inb(sc->sc_port+lpt_status));
 	if (sc->sc_state & OPEN) {
 		sc->sc_backoff++;
 		if (sc->sc_backoff > hz/LPTOUTMAX)
 			sc->sc_backoff = sc->sc_backoff > hz/LPTOUTMAX;
-		timeout ((timeout_func_t)lptout, (caddr_t)sc, sc->sc_backoff);
+		timeout (lptout, (caddr_t)sc, sc->sc_backoff);
 	} else
 		sc->sc_state &= ~TOUT;
 
