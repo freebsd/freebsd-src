@@ -354,8 +354,8 @@ ess_intr(void *arg)
 	rirq = (src & sc->rch.hwch)? 1 : 0;
 
 	if (pirq) {
-		if (!sc->pch.run)
-			printf("ess: play intr while not running\n");
+		if (sc->pch.run)
+			chn_intr(sc->pch.channel);
 		if (sc->pch.stopping) {
 			sc->pch.run = 0;
 			sndbuf_isadma(sc->pch.buffer, PCMTRIG_STOP);
@@ -365,12 +365,11 @@ ess_intr(void *arg)
 			else
 				ess_setmixer(sc, 0x78, ess_getmixer(sc, 0x78) & ~0x03);
 		}
-		chn_intr(sc->pch.channel);
 	}
 
 	if (rirq) {
-		if (!sc->rch.run)
-			printf("ess: record intr while not running\n");
+		if (sc->rch.run)
+			chn_intr(sc->rch.channel);
 		if (sc->rch.stopping) {
 			sc->rch.run = 0;
 			sndbuf_isadma(sc->rch.buffer, PCMTRIG_STOP);
@@ -378,7 +377,6 @@ ess_intr(void *arg)
 			/* XXX: will this stop audio2? */
 			ess_write(sc, 0xb8, ess_read(sc, 0xb8) & ~0x01);
 		}
-		chn_intr(sc->rch.channel);
 	}
 
 	if (src & 2)
