@@ -761,7 +761,7 @@ distExtract(char *parent, Distribution *me)
 		if (seconds != last_msg) {
 		    last_msg = seconds;
 		    msgInfo("%10d bytes read from %s dist, chunk %2d of %2d @ %.1f KB/sec.",
-			    total, dist, chunk + 1, numchunks, (total / seconds) / 1024.0);
+			    total, dist, chunk + 1, numchunks, (total / seconds) / 1000.0);
 		}
 	    }
 	    fclose(fp);
