@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.198 1996/08/12 20:03:16 wollman Exp $
+ *	$Id: machdep.c,v 1.199 1996/08/19 20:06:52 julian Exp $
  */
 
 #include "npx.h"
@@ -1081,14 +1081,41 @@ init386(first)
 	biosextmem = rtcin(RTC_EXTLO)+ (rtcin(RTC_EXTHI)<<8);
 
 	/*
-	 * Print a warning if the official BIOS interface disagrees
-	 * with the hackish interface used above.  Eventually only
-	 * the official interface should be used.
+	 * Print a warning and set it to the safest value if the official
+	 * BIOS interface (bootblock supplied) disagrees with the
+	 * hackish interface used above.  Eventually only the official
+	 * interface should be used.  This is necessary for some machines
+	 * who 'steal' memory from the basemem for use as BIOS memory.
 	 */
 	if (bootinfo.bi_memsizes_valid) {
-		if (bootinfo.bi_basemem != biosbasemem)
-			printf("BIOS basemem (%ldK) != RTC basemem (%dK)\n",
+		if (bootinfo.bi_basemem != biosbasemem) {
+			vm_offset_t pa, va,  tmpva;
+			vm_size_t size;
+			unsigned *pte;
+
+			printf("BIOS basemem (%ldK) != RTC basemem (%dK), ",
 			       bootinfo.bi_basemem, biosbasemem);
+			printf("setting to BIOS value.\n");
+			biosbasemem = bootinfo.bi_basemem;
+			/*
+			 * XXX - Map this 'hole' of memory in the same manner
+			 * as the ISA_HOLE (read/write/non-cacheable), since
+			 * the BIOS 'fudges' it to become part of the ISA_HOLE.
+			 * This code is similar to the code used in
+			 * pmap_mapdev, but since no memory needs to be
+			 * allocated we simply change the mapping.
+			 */
+			pa = biosbasemem * 1024;
+			va = pa + KERNBASE;
+			size = roundup(ISA_HOLE_START - pa, PAGE_SIZE);
+			for (tmpva = va; size > 0;) {
+				pte = (unsigned *)vtopte(tmpva);
+				*pte = pa | PG_RW | PG_V | PG_N;
+				size -= PAGE_SIZE;
+				tmpva += PAGE_SIZE;
+				pa += PAGE_SIZE;
+			}
+		}
 		if (bootinfo.bi_extmem != biosextmem)
 			printf("BIOS extmem (%ldK) != RTC extmem (%dK)\n",
 			       bootinfo.bi_extmem, biosextmem);
