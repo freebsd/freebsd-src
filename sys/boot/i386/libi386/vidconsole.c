@@ -49,13 +49,14 @@ static int	vidc_ischar(void);
 static int	vidc_started;
 
 #ifdef TERM_EMU
-void		end_term();
+void		end_term(void);
 void		bail_out(int c);
 void		vidc_term_emu(int c);
 void		get_pos(void);
 void		curs_move(int x, int y);
 void		write_char(int c, int fg, int bg);
 void		scroll_up(int rows, int fg, int bg);
+int		pow10(int i);
 void		AB(void);
 void		AF(void);
 void		CD(void);
@@ -104,7 +105,7 @@ vidc_init(int arg)
     int		i;
 
     if (vidc_started && arg == 0)
-	return;
+	return(0);
     vidc_started = 1;
 #ifdef TERM_EMU
     /* Init terminal emulator */
@@ -234,13 +235,13 @@ curs_move(int x, int y)
  * inserted in the window.
  */
 void
-scroll_up(int rows, int fg, int bg)
+scroll_up(int rows, int fgcol, int bgcol)
 {
 	if(rows==0) rows=25;
 	v86.ctl = 0;
 	v86.addr = 0x10;
 	v86.eax = 0x0600+(0x00ff & rows);
-	v86.ebx = (bg<<12)+(fg<<8);
+	v86.ebx = (bgcol<<12)+(fgcol<<8);
 	v86.ecx = 0x0;
 	v86.edx = 0x184f;
 	v86int();
@@ -248,12 +249,12 @@ scroll_up(int rows, int fg, int bg)
 
 /* Write character and attribute at cursor position. */
 void
-write_char(int c, int fg, int bg)
+write_char(int c, int fgcol, int bgcol)
 {
 	v86.ctl=0;
     	v86.addr = 0x10;
     	v86.eax = 0x0900+(0x00ff & c);
-	v86.ebx = (bg<<4)+fg;
+	v86.ebx = (bgcol<<4)+fgcol;
     	v86.ecx = 0x1;
     	v86int();
 }

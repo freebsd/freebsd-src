@@ -31,7 +31,6 @@
 #include <sys/imgact_aout.h>
 #include <sys/reboot.h>
 #include <sys/linker.h>
-#include <string.h>
 #include <machine/bootinfo.h>
 #include <stand.h>
 

@@ -49,7 +49,7 @@ struct file_metadata*		metadata_next(struct file_metadata *base_mp, int type);
 /* load address should be tweaked by first module loaded (kernel) */
 static vm_offset_t	loadaddr = 0;
 
-static char		*default_searchpath ="/;/boot;/modules";
+static const char	*default_searchpath ="/;/boot;/modules";
 
 struct preloaded_file *preloaded_files = NULL;
 
@@ -434,7 +434,7 @@ file_addmetadata(struct preloaded_file *fp, int type, size_t size, void *p)
 {
     struct file_metadata	*md;
 
-    md = malloc(sizeof(struct file_metadata) + size);
+    md = malloc(sizeof(struct file_metadata) - sizeof(md->md_data) + size);
     md->md_size = size;
     md->md_type = type;
     bcopy(p, md->md_data, size);
