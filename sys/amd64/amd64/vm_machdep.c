@@ -49,7 +49,7 @@
 /*
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
  */
-static char rcsid[] = "$Header: /usr/bill/working/sys/i386/i386/RCS/vm_machdep.c,v 1.2 92/01/21 14:22:17 william Exp $";
+static char rcsid[] = "$Header: /a/cvs/386BSD/src/sys.386bsd/i386/i386/vm_machdep.c,v 1.1.1.1 1993/06/12 14:58:05 rgrimes Exp $";
 
 #include "param.h"
 #include "systm.h"
@@ -139,6 +139,7 @@ cpu_fork(p1, p2)
  * a special case].
  */
 struct proc *swtch_to_inactive();
+volatile void
 cpu_exit(p)
 	register struct proc *p;
 {
@@ -161,6 +162,7 @@ cpu_exit(p)
 	/* NOTREACHED */
 }
 #else
+volatile void
 cpu_exit(p)
 	register struct proc *p;
 {
