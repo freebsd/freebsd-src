@@ -52,6 +52,15 @@
 The
 .Fn islower
 function tests for any lower-case letters.
+For single C
+.Va char Ns s
+locales (see
+.Xr multibyte 3 )
+the value of the argument is
+representable as an
+.Li unsigned char
+or the value of
+.Dv EOF .
 In the ASCII character set, this includes the following characters
 (with their numeric values shown in octal):
 .Pp
@@ -70,6 +79,7 @@ function returns zero if the character tests false and
 returns non-zero if the character tests true.
 .Sh SEE ALSO
 .Xr ctype 3 ,
+.Xr multibyte 3 ,
 .Xr tolower 3 ,
 .Xr ascii 7
 .Sh STANDARDS
