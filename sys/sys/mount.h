@@ -447,7 +447,7 @@ int	vfs_stduninit __P((struct vfsconf *));
 int	vfs_stdextattrctl __P((struct mount *mp, int cmd, const char *attrname,
 		caddr_t arg, struct proc *p));
 
-void	softdep_process_worklist __P((struct mount *));
+int	softdep_process_worklist __P((struct mount *));
 #else /* !_KERNEL */
 
 #include <sys/cdefs.h>
