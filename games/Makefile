@@ -1,8 +1,8 @@
 #	@(#)Makefile	8.2 (Berkeley) 3/31/94
 
-# XXX missing: chess
+# XXX missing: chess ching
 SUBDIR=	adventure arithmetic atc backgammon battlestar bcd boggle caesar \
-	canfield ching cribbage dm factor fish fortune hack hangman \
+	canfield cribbage dm factor fish fortune hack hangman \
 	larn mille monop morse number phantasia pig pom ppt primes quiz \
 	rain random robots rogue sail snake tetris trek wargames worm worms \
 	wump
