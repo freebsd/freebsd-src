@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acgcc.h - GCC specific defines, etc.
- *       $Revision: 15 $
+ *       $Revision: 17 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, 2000, 2001, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -128,8 +128,8 @@
 #define ACPI_ASM_MACROS
 #define causeinterrupt(level)
 #define BREAKPOINT3
-#define disable() __cli()
-#define enable()  __sti()
+#define acpi_disable_irqs() __cli()
+#define acpi_enable_irqs()  __sti()
 
 /*! [Begin] no source code translation */
 
@@ -189,8 +189,8 @@
 #define ACPI_ASM_MACROS
 #define causeinterrupt(level)
 #define BREAKPOINT3
-#define disable() __cli()
-#define enable()  __sti()
+#define acpi_disable_irqs() __cli()
+#define acpi_enable_irqs()  __sti()
 #define halt()    __asm__ __volatile__ ("sti; hlt":::"memory")
 
 /*! [Begin] no source code translation
