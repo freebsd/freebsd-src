@@ -262,33 +262,74 @@ i386/pci/pci_bus.c		optional	pci
 i386/svr4/svr4_locore.s		optional	compat_svr4		\
 	dependency	"svr4_assym.h"
 i386/svr4/svr4_machdep.c	optional	compat_svr4
-i4b/layer1/i4b_asuscom_ipac.c	optional	isic
-i4b/layer1/i4b_avm_a1.c		optional	isic
-i4b/layer1/i4b_avm_fritz_pci.c	optional	isic
-#i4b/layer1/i4b_avm_fritz_pcmcia.c optional	isic
-#i4b/layer1/i4b_avm_fritz_pnp.c	optional	isic
-i4b/layer1/i4b_bchan.c		optional	isic
-i4b/layer1/i4b_ctx_s0P.c	optional	isic
-i4b/layer1/i4b_drn_ngo.c	optional	isic
-#i4b/layer1/i4b_dynalink.c	optional	isic
-i4b/layer1/i4b_elsa_pcc16.c	optional	isic
-i4b/layer1/i4b_elsa_qs1i.c	optional	isic
-i4b/layer1/i4b_elsa_qs1p.c	optional	isic
-i4b/layer1/i4b_hscx.c		optional	isic
-i4b/layer1/i4b_isac.c		optional	isic
-i4b/layer1/i4b_isic.c		count		isic
-i4b/layer1/i4b_isic_isa.c	optional	isic
-#i4b/layer1/i4b_isic_pcmcia.c	optional	isic
-i4b/layer1/i4b_isic_pnp.c	optional	isic
-#i4b/layer1/i4b_itk_ix1.c	optional	isic
-i4b/layer1/i4b_l1.c		optional	isic
-i4b/layer1/i4b_l1fsm.c		optional	isic
-i4b/layer1/i4b_siemens_isurf.c	optional	isic
-i4b/layer1/i4b_sws.c		optional	isic
-i4b/layer1/i4b_tel_s016.c	optional	isic
-i4b/layer1/i4b_tel_s0163.c	optional	isic
-i4b/layer1/i4b_tel_s08.c	optional	isic
-i4b/layer1/i4b_usr_sti.c	optional	isic
+#
+# isdn4bsd, needed for isic | iwic | ifpi | ihfc | ifpnp
+#
+i4b/layer1/i4b_l1dmux.c         	optional        isic
+i4b/layer1/i4b_l1lib.c          	optional        isic
+i4b/layer1/i4b_l1dmux.c         	optional        iwic
+i4b/layer1/i4b_l1lib.c          	optional        iwic
+i4b/layer1/i4b_l1dmux.c         	optional        ifpi
+i4b/layer1/i4b_l1lib.c          	optional        ifpi
+i4b/layer1/i4b_l1dmux.c         	optional        ihfc
+i4b/layer1/i4b_l1lib.c          	optional        ihfc
+i4b/layer1/i4b_l1dmux.c         	optional        ifpnp
+i4b/layer1/i4b_l1lib.c          	optional        ifpnp
+#
+# isdn4bsd, isic
+#
+i4b/layer1/isic/i4b_asuscom_ipac.c	optional	isic
+i4b/layer1/isic/i4b_avm_a1.c		optional	isic
+i4b/layer1/isic/i4b_bchan.c		optional	isic
+i4b/layer1/isic/i4b_ctx_s0P.c		optional	isic
+i4b/layer1/isic/i4b_drn_ngo.c		optional	isic
+i4b/layer1/isic/i4b_dynalink.c		optional	isic
+i4b/layer1/isic/i4b_elsa_qs1i.c		optional	isic
+i4b/layer1/isic/i4b_elsa_qs1p.c		optional	isic
+i4b/layer1/isic/i4b_elsa_pcc16.c	optional	isic
+i4b/layer1/isic/i4b_hscx.c		optional	isic
+i4b/layer1/isic/i4b_isac.c		optional	isic
+i4b/layer1/isic/i4b_isic.c		count		isic
+i4b/layer1/isic/i4b_isic_isa.c		optional	isic
+i4b/layer1/isic/i4b_isic_pnp.c		optional	isic
+i4b/layer1/isic/i4b_itk_ix1.c		optional	isic
+i4b/layer1/isic/i4b_l1.c		optional	isic
+i4b/layer1/isic/i4b_l1fsm.c		optional	isic
+i4b/layer1/isic/i4b_siemens_isurf.c	optional	isic
+i4b/layer1/isic/i4b_sws.c		optional	isic
+i4b/layer1/isic/i4b_tel_s016.c		optional	isic
+i4b/layer1/isic/i4b_tel_s0163.c		optional	isic
+i4b/layer1/isic/i4b_tel_s08.c		optional	isic
+i4b/layer1/isic/i4b_usr_sti.c		optional	isic
+#
+# isdn4bsd, iwic
+#
+i4b/layer1/iwic/i4b_iwic_pci.c		count		iwic
+i4b/layer1/iwic/i4b_iwic_dchan.c	optional	iwic
+i4b/layer1/iwic/i4b_iwic_bchan.c	optional	iwic
+i4b/layer1/iwic/i4b_iwic_fsm.c		optional	iwic
+i4b/layer1/iwic/i4b_iwic_l1if.c		optional	iwic
+#
+# isdn4bsd, ifpi
+#
+i4b/layer1/ifpi/i4b_ifpi_pci.c		count		ifpi
+i4b/layer1/ifpi/i4b_ifpi_isac.c		optional	ifpi
+i4b/layer1/ifpi/i4b_ifpi_l1.c		optional	ifpi
+i4b/layer1/ifpi/i4b_ifpi_l1fsm.c	optional	ifpi
+#
+# isdn4bsd, ifpnp
+#
+i4b/layer1/ifpnp/i4b_ifpnp_avm.c	count		ifpnp
+i4b/layer1/ifpnp/i4b_ifpnp_isac.c	optional	ifpnp
+i4b/layer1/ifpnp/i4b_ifpnp_l1.c		optional	ifpnp
+i4b/layer1/ifpnp/i4b_ifpnp_l1fsm.c	optional	ifpnp
+#
+# isdn4bsd, ihfc
+#
+i4b/layer1/ihfc/i4b_ihfc_l1if.c		count		ihfc
+i4b/layer1/ihfc/i4b_ihfc_pnp.c		optional	ihfc
+i4b/layer1/ihfc/i4b_ihfc_drv.c		optional	ihfc
+#
 isa/psm.c			optional	psm
 kern/subr_diskmbr.c		count		compat_atdisk
 libkern/divdi3.c		standard
