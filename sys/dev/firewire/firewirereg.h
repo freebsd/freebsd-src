@@ -35,7 +35,10 @@
  *
  */
 
-#if __FreeBSD_version >= 500000
+#ifdef __DragonFly__
+typedef	d_thread_t fw_proc;
+#include <sys/select.h>
+#elif __FreeBSD_version >= 500000
 typedef	struct thread fw_proc;
 #include <sys/selinfo.h>
 #else
@@ -68,7 +71,7 @@ struct fw_device{
 };
 
 struct firewire_softc {
-#if __FreeBSD_version >= 500000
+#if defined(__FreeBSD__) && __FreeBSD_version >= 500000
 	dev_t dev;
 #endif
 	struct firewire_comm *fc;
@@ -305,15 +308,19 @@ void fwdev_clone (void *, char *, int, dev_t *);
 extern int firewire_debug;
 extern devclass_t firewire_devclass;
 
-#define		FWPRI		((PZERO+8)|PCATCH)
-
-#if __FreeBSD_version >= 500000
-#define CALLOUT_INIT(x) callout_init(x, 0 /* mpsafe */)
+#ifdef __DragonFly__
+#define		FWPRI		PCATCH
 #else
-#define CALLOUT_INIT(x) callout_init(x)
+#define		FWPRI		((PZERO+8)|PCATCH)
 #endif
 
-#if __FreeBSD_version < 500000
+#if defined(__DragonFly__) || __FreeBSD_version < 500000
+#define CALLOUT_INIT(x) callout_init(x)
+#else
+#define CALLOUT_INIT(x) callout_init(x, 0 /* mpsafe */)
+#endif
+
+#if defined(__DragonFly__) || __FreeBSD_version < 500000
 /* compatibility shim for 4.X */
 #define bio buf
 #define bio_bcount b_bcount

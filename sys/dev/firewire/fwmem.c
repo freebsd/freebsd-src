@@ -33,8 +33,10 @@
  * 
  */
 
+#ifdef __FreeBSD__
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
+#endif
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -44,7 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/conf.h>
 #include <sys/sysctl.h>
-#if __FreeBSD_version < 500000
+#if defined(__DragonFly__) || __FreeBSD_version < 500000
 #include <sys/buf.h>
 #else
 #include <sys/bio.h>
@@ -58,9 +60,15 @@ __FBSDID("$FreeBSD$");
 #include <sys/ioccom.h>
 #include <sys/fcntl.h>
 
+#ifdef __DragonFly__
+#include "firewire.h"
+#include "firewirereg.h"
+#include "fwmem.h"
+#else
 #include <dev/firewire/firewire.h>
 #include <dev/firewire/firewirereg.h>
 #include <dev/firewire/fwmem.h>
+#endif
 
 static int fwmem_speed=2, fwmem_debug=0;
 static struct fw_eui64 fwmem_eui64;
@@ -286,7 +294,7 @@ fwmem_open (dev_t dev, int flags, int fmt, fw_proc *td)
 		fms->refcount = 1;
 	}
 	if (fwmem_debug)
-		printf("%s: refcount=%d\n", __FUNCTION__, fms->refcount);
+		printf("%s: refcount=%d\n", __func__, fms->refcount);
 
 	return (0);
 }
@@ -299,7 +307,7 @@ fwmem_close (dev_t dev, int flags, int fmt, fw_proc *td)
 	fms = (struct fwmem_softc *)dev->si_drv1;
 	fms->refcount --;
 	if (fwmem_debug)
-		printf("%s: refcount=%d\n", __FUNCTION__, fms->refcount);
+		printf("%s: refcount=%d\n", __func__, fms->refcount);
 	if (fms->refcount < 1) {
 		free(dev->si_drv1, M_FW);
 		dev->si_drv1 = NULL;
@@ -319,7 +327,7 @@ fwmem_biodone(struct fw_xfer *xfer)
 
 	if (bp->bio_error != 0) {
 		if (fwmem_debug)
-			printf("%s: err=%d\n", __FUNCTION__, bp->bio_error);
+			printf("%s: err=%d\n", __func__, bp->bio_error);
 		bp->bio_flags |= BIO_ERROR;
 		bp->bio_resid = bp->bio_bcount;
 	}
@@ -389,7 +397,7 @@ error:
 	splx(s);
 	if (err != 0) {
 		if (fwmem_debug)
-			printf("%s: err=%d\n", __FUNCTION__, err);
+			printf("%s: err=%d\n", __func__, err);
 		bp->bio_error = err;
 		bp->bio_flags |= BIO_ERROR;
 		bp->bio_resid = bp->bio_bcount;
@@ -422,7 +430,7 @@ fwmem_poll (dev_t dev, int events, fw_proc *td)
 	return EINVAL;
 }
 int
-#if __FreeBSD_version < 500102
+#if defined(__DragonFly__) || __FreeBSD_version < 500102
 fwmem_mmap (dev_t dev, vm_offset_t offset, int nproto)
 #else
 fwmem_mmap (dev_t dev, vm_offset_t offset, vm_paddr_t *paddr, int nproto)

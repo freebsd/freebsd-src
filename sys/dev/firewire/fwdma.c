@@ -33,14 +33,17 @@
  * 
  */
 
+#ifdef __FreeBSD__
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
+#endif
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/types.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
-#if __FreeBSD_version >= 501102 
+#if defined(__FreeBSD__) && __FreeBSD_version >= 501102 
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #endif
@@ -48,9 +51,15 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <machine/bus.h>
 
+#ifdef __DragonFly__
+#include <bus/firewire/firewire.h>
+#include <bus/firewire/firewirereg.h>
+#include <bus/firewire/fwdma.h>
+#else
 #include <dev/firewire/firewire.h>
 #include <dev/firewire/firewirereg.h>
 #include <dev/firewire/fwdma.h>
+#endif
 
 static void
 fwdma_map_cb(void *arg, bus_dma_segment_t *segs, int nseg, int error)
@@ -81,7 +90,7 @@ fwdma_malloc(struct firewire_comm *fc, int alignment, bus_size_t size,
 		/*nsegments*/ 1,
 		/*maxsegsz*/ BUS_SPACE_MAXSIZE_32BIT,
 		/*flags*/ BUS_DMA_ALLOCNOW,
-#if __FreeBSD_version >= 501102 
+#if defined(__FreeBSD__) && __FreeBSD_version >= 501102 
 		/*lockfunc*/busdma_lock_mutex,
 		/*lockarg*/&Giant,
 #endif
@@ -179,7 +188,7 @@ fwdma_malloc_multiseg(struct firewire_comm *fc, int alignment,
 			/*nsegments*/ 1,
 			/*maxsegsz*/ BUS_SPACE_MAXSIZE_32BIT,
 			/*flags*/ BUS_DMA_ALLOCNOW,
-#if __FreeBSD_version >= 501102
+#if defined(__FreeBSD__) && __FreeBSD_version >= 501102
 			/*lockfunc*/busdma_lock_mutex,
 			/*lockarg*/&Giant,
 #endif
@@ -190,7 +199,7 @@ fwdma_malloc_multiseg(struct firewire_comm *fc, int alignment,
 	}
 
 #if 0
-#if __FreeBSD_version < 500000
+#if defined(__DragonFly__) || __FreeBSD_version < 500000
 	printf("malloc_multi: ssize=%d nseg=%d\n", ssize, nseg);
 #else
 	printf("malloc_multi: ssize=%td nseg=%d\n", ssize, nseg);

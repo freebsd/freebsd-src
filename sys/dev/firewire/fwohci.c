@@ -54,16 +54,25 @@
 
 #include <machine/bus.h>
 
-#if __FreeBSD_version < 500000
+#if defined(__DragonFly__) || __FreeBSD_version < 500000
 #include <machine/clock.h>		/* for DELAY() */
 #endif
 
+#ifdef __DragonFly__
+#include "firewire.h"
+#include "firewirereg.h"
+#include "fwdma.h"
+#include "fwohcireg.h"
+#include "fwohcivar.h"
+#include "firewire_phy.h"
+#else
 #include <dev/firewire/firewire.h>
 #include <dev/firewire/firewirereg.h>
 #include <dev/firewire/fwdma.h>
 #include <dev/firewire/fwohcireg.h>
 #include <dev/firewire/fwohcivar.h>
 #include <dev/firewire/firewire_phy.h>
+#endif
 
 #undef OHCI_DEBUG
 
@@ -1206,7 +1215,7 @@ fwohci_db_init(struct fwohci_softc *sc, struct fwohci_dbch *dbch)
 			/*nsegments*/ dbch->ndesc > 3 ? dbch->ndesc - 2 : 1,
 			/*maxsegsz*/ MAX_REQCOUNT,
 			/*flags*/ 0,
-#if __FreeBSD_version >= 501102
+#if defined(__FreeBSD__) && __FreeBSD_version >= 501102
 			/*lockfunc*/busdma_lock_mutex,
 			/*lockarg*/&Giant,
 #endif
@@ -1814,11 +1823,11 @@ busresetout:
 #ifndef ACK_ALL
 		OWRITE(sc, FWOHCI_INTSTATCLR, OHCI_INT_DMA_IR);
 #endif
-#if __FreeBSD_version >= 500000
-		irstat = atomic_readandclear_int(&sc->irstat);
-#else
+#if defined(__DragonFly__) || __FreeBSD_version < 500000
 		irstat = sc->irstat;
 		sc->irstat = 0;
+#else
+		irstat = atomic_readandclear_int(&sc->irstat);
 #endif
 		for(i = 0; i < fc->nisodma ; i++){
 			struct fwohci_dbch *dbch;
@@ -1838,11 +1847,11 @@ busresetout:
 #ifndef ACK_ALL
 		OWRITE(sc, FWOHCI_INTSTATCLR, OHCI_INT_DMA_IT);
 #endif
-#if __FreeBSD_version >= 500000
-		itstat = atomic_readandclear_int(&sc->itstat);
-#else
+#if defined(__DragonFly__) || __FreeBSD_version < 500000
 		itstat = sc->itstat;
 		sc->itstat = 0;
+#else
+		itstat = atomic_readandclear_int(&sc->itstat);
 #endif
 		for(i = 0; i < fc->nisodma ; i++){
 			if((itstat & (1 << i)) != 0){
@@ -1928,7 +1937,7 @@ busresetout:
 		}
 		for (i = 0; i < plen / 4; i ++)
 			buf[i] = FWOHCI_DMA_READ(sc->sid_buf[i+1]);
-#if 1
+#if 1 /* XXX needed?? */
 		/* pending all pre-bus_reset packets */
 		fwohci_txd(sc, &sc->atrq);
 		fwohci_txd(sc, &sc->atrs);
@@ -2355,12 +2364,12 @@ print_db(struct fwohcidb_tr *db_tr, struct fwohcidb *db,
 		res = FWOHCI_DMA_READ(db[i].db.desc.res);
 		key = cmd & OHCI_KEY_MASK;
 		stat = res >> OHCI_STATUS_SHIFT;
-#if __FreeBSD_version >= 500000
-		printf("%08jx %s %s %s %s %5d %08x %08x %04x:%04x",
-				(uintmax_t)db_tr->bus_addr,
-#else
+#if defined(__DragonFly__) || __FreeBSD_version < 500000
 		printf("%08x %s %s %s %s %5d %08x %08x %04x:%04x",
 				db_tr->bus_addr,
+#else
+		printf("%08jx %s %s %s %s %5d %08x %08x %04x:%04x",
+				(uintmax_t)db_tr->bus_addr,
 #endif
 				dbcode[(cmd >> 28) & 0xf],
 				dbkey[(cmd >> 24) & 0x7],
