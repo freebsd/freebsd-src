@@ -506,20 +506,13 @@ int
 sodisconnect(so)
 	struct socket *so;
 {
-	int s = splnet();
 	int error;
 
-	if ((so->so_state & SS_ISCONNECTED) == 0) {
-		error = ENOTCONN;
-		goto bad;
-	}
-	if (so->so_state & SS_ISDISCONNECTING) {
-		error = EALREADY;
-		goto bad;
-	}
+	if ((so->so_state & SS_ISCONNECTED) == 0)
+		return (ENOTCONN);
+	if (so->so_state & SS_ISDISCONNECTING)
+		return (EALREADY);
 	error = (*so->so_proto->pr_usrreqs->pru_disconnect)(so);
-bad:
-	splx(s);
 	return (error);
 }
 
@@ -1913,8 +1906,16 @@ static int
 filt_soread(struct knote *kn, long hint)
 {
 	struct socket *so = kn->kn_fp->f_data;
-	int result;
+	int need_lock, result;
 
+	/*
+	 * XXXRW: Conditional locking because filt_soread() can be called
+	 * either from KNOTE() in the socket context where the socket buffer
+	 * lock is already held, or from kqueue() itself.
+	 */
+	need_lock = !SOCKBUF_OWNED(&so->so_rcv);
+	if (need_lock)
+		SOCKBUF_LOCK(&so->so_rcv);
 	kn->kn_data = so->so_rcv.sb_cc - so->so_rcv.sb_ctl;
 	if (so->so_rcv.sb_state & SBS_CANTRCVMORE) {
 		kn->kn_flags |= EV_EOF;
@@ -1926,6 +1927,8 @@ filt_soread(struct knote *kn, long hint)
 		result = (kn->kn_data >= kn->kn_sdata);
 	else
 		result = (so->so_rcv.sb_cc >= so->so_rcv.sb_lowat);
+	if (need_lock)
+		SOCKBUF_UNLOCK(&so->so_rcv);
 	return (result);
 }
 
@@ -1946,8 +1949,16 @@ static int
 filt_sowrite(struct knote *kn, long hint)
 {
 	struct socket *so = kn->kn_fp->f_data;
-	int result;
+	int need_lock, result;
 
+	/*
+	 * XXXRW: Conditional locking because filt_soread() can be called
+	 * either from KNOTE() in the socket context where the socket buffer
+	 * lock is already held, or from kqueue() itself.
+	 */
+	need_lock = !SOCKBUF_OWNED(&so->so_snd);
+	if (need_lock)
+		SOCKBUF_LOCK(&so->so_snd);
 	kn->kn_data = sbspace(&so->so_snd);
 	if (so->so_snd.sb_state & SBS_CANTSENDMORE) {
 		kn->kn_flags |= EV_EOF;
@@ -1962,6 +1973,8 @@ filt_sowrite(struct knote *kn, long hint)
 		result = (kn->kn_data >= kn->kn_sdata);
 	else
 		result = (kn->kn_data >= so->so_snd.sb_lowat);
+	if (need_lock)
+		SOCKBUF_UNLOCK(&so->so_snd);
 	return (result);
 }
 
