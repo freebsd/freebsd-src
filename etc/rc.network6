@@ -248,10 +248,12 @@ network6_stf_setup() {
 		gifconfig stf0 ${stf_interface_ipv4addr} 255.255.255.255
 		# assign IPv6 addr and interface route for 6to4 interface
 		stf_prefixlen=$((16+${stf_interface_ipv4plen:-0}))
-		ipv4_in_hexformat=`echo ${stf_interface_ipv4addr} | \
-			sed -e s/"\."/" "/g | \
-			awk '{$5 = $1*256 + $2; $6 = $3*256 + $4; \
-			printf "%x:%x\n", $5, $6}'`
+		OIFS="$IFS"
+		IFS=".$IFS"
+		set ${stf_interface_ipv4addr}
+		IFS="$OIFS"
+		ipv4_in_hexformat=`printf "%x:%x\n", \
+			$(($1*256 + $2)) $(($3*256 + $4))`
 		case ${stf_interface_ipv6_ifid} in
 		[Aa][Uu][Tt][Oo] | '')
 			laddr=`ifconfig stf0 inet6 | grep 'inet6 fe80:' \
