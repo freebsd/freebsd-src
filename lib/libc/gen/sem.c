@@ -182,8 +182,11 @@ __sem_destroy(sem_t *sem)
 	}
 	_pthread_mutex_unlock(&(*sem)->lock);
 
-	if (retval == 0)
+	if (retval == 0) {
+		_pthread_mutex_destroy(&(*sem)->lock);
+		_pthread_cond_destroy(&(*sem)->gtzero);
 		sem_free(*sem);
+	}
 	return (retval);
 }
 
