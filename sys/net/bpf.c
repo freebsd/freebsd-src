@@ -37,7 +37,7 @@
  *
  *      @(#)bpf.c	8.2 (Berkeley) 3/28/94
  *
- * $Id: bpf.c,v 1.25 1996/06/08 06:12:58 davidg Exp $
+ * $Id: bpf.c,v 1.26 1996/06/08 08:18:43 bde Exp $
  */
 
 #include "bpfilter.h"
@@ -227,6 +227,7 @@ bpf_movein(uio, linktype, mp, sockp, datlen)
 	 * Make room for link header.
 	 */
 	if (hlen != 0) {
+		m->m_pkthdr.len -= hlen;
 		m->m_len -= hlen;
 #if BSD >= 199103
 		m->m_data += hlen; /* XXX */
