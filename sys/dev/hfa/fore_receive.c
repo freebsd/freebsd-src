@@ -484,7 +484,7 @@ retry:
 		 * Schedule callback
 		 */
 		if (IF_HANDOFF(&atm_intrq, mhead, NULL)) {
-			SCHED_ATM;
+			schednetisr(NETISR_ATM);
 		} else {
 			fup->fu_stats->st_drv.drv_rv_ifull++;
 			goto free_ent;

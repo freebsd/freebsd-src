@@ -347,7 +347,6 @@ struct atm_ncm {
 typedef	void (atm_intr_t)(void *, KBuffer *); /* Callback function type */
 typedef	atm_intr_t	*atm_intr_func_t; /* Pointer to callback function */
 
-#define	SCHED_ATM	schednetisr(NETISR_ATM) 
 #endif /* _KERNEL */
 
 #endif	/* _NETATM_ATM_IF_H */
