@@ -887,7 +887,7 @@
 #define	ISP2100_NVRAM_RETRY_COUNT(c)		(c)[16]
 #define	ISP2100_NVRAM_RETRY_DELAY(c)		(c)[17]
 
-#define	ISP2100_NVRAM_NODE_NAME(c)	(\
+#define	ISP2100_NVRAM_PORT_NAME(c)	(\
 		(((u_int64_t)(c)[18]) << 56) | \
 		(((u_int64_t)(c)[19]) << 48) | \
 		(((u_int64_t)(c)[20]) << 40) | \
@@ -896,7 +896,18 @@
 		(((u_int64_t)(c)[23]) << 16) | \
 		(((u_int64_t)(c)[24]) <<  8) | \
 		(((u_int64_t)(c)[25]) <<  0))
+
 #define	ISP2100_NVRAM_HARDLOOPID(c)		(c)[26]
+
+#define	ISP2100_NVRAM_NODE_NAME(c)	(\
+		(((u_int64_t)(c)[30]) << 56) | \
+		(((u_int64_t)(c)[31]) << 48) | \
+		(((u_int64_t)(c)[32]) << 40) | \
+		(((u_int64_t)(c)[33]) << 32) | \
+		(((u_int64_t)(c)[34]) << 24) | \
+		(((u_int64_t)(c)[35]) << 16) | \
+		(((u_int64_t)(c)[36]) <<  8) | \
+		(((u_int64_t)(c)[37]) <<  0))
 
 #define	ISP2100_NVRAM_HBA_OPTIONS(c)		(c)[70]
 #define	ISP2100_NVRAM_HBA_DISABLE(c)		ISPBSMX(c, 70, 0, 0x01)
