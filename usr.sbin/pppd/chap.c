@@ -34,7 +34,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id$";
+static char rcsid[] = "$Id: chap.c,v 1.8 1997/08/19 17:52:34 peter Exp $";
 #endif
 
 /*
@@ -587,9 +587,12 @@ ChapReceiveResponse(cstate, inp, id, len)
 	}
 	if (cstate->chal_interval != 0)
 	    TIMEOUT(ChapRechallenge, cstate, cstate->chal_interval);
+	syslog(LOG_NOTICE, "CHAP peer authentication succeeded for %s",
+	       rhostname);
 
     } else {
-	syslog(LOG_ERR, "CHAP peer authentication failed");
+	syslog(LOG_ERR, "CHAP peer authentication failed for remote host %s",
+	       rhostname);
 	cstate->serverstate = CHAPSS_BADAUTH;
 	auth_peer_fail(cstate->unit, PPP_CHAP);
     }
