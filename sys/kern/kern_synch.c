@@ -172,23 +172,8 @@ msleep(ident, mtx, priority, wmesg, timo)
 			td->td_flags &= ~TDF_INTERRUPT;
 			return (EINTR);
 		}
-		mtx_lock_spin(&sched_lock);
-		if ((td->td_flags & (TDF_UNBOUND|TDF_INMSLEEP)) ==
-		    TDF_UNBOUND) {
-			/*
-			 * Arrange for an upcall to be readied.
-			 * it will not actually happen until all
-			 * pending in-kernel work for this KSEGRP
-			 * has been done.
-			 */
-			/* Don't recurse here! */
-			td->td_flags |= TDF_INMSLEEP;
-			thread_schedule_upcall(td, td->td_kse);
-			td->td_flags &= ~TDF_INMSLEEP;
-		}
-	} else {
-		mtx_lock_spin(&sched_lock);
 	}
+	mtx_lock_spin(&sched_lock);
 	if (cold ) {
 		/*
 		 * During autoconfiguration, just give interrupts

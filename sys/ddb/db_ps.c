@@ -38,8 +38,13 @@
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/cons.h>
+#include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/pmap.h>
 
 #include <ddb/ddb.h>
+static void
+dumpthread(volatile struct proc *p, volatile struct thread *td);
 
 void
 db_ps(dummy1, dummy2, dummy3, dummy4)
@@ -123,58 +128,7 @@ db_ps(dummy1, dummy2, dummy3, dummy4)
 		if (p->p_flag & P_KSES) 
 			db_printf("(threaded)  %s\n", p->p_comm);
 		FOREACH_THREAD_IN_PROC(p, td) {
-			if (p->p_flag & P_KSES) 
-				db_printf( "   thread %p ksegrp %p ", td, td->td_ksegrp);
-			if (TD_ON_SLEEPQ(td)) {
-				if (td->td_flags & TDF_CVWAITQ)
-					db_printf("[CVQ ");
-				else
-					db_printf("[SLPQ ");
-				db_printf(" %6s %8p]", td->td_wmesg,
-			    	    (void *)td->td_wchan);
-			}
-			switch (td->td_state) {
-			case TDS_INHIBITED:
-				if (TD_ON_LOCK(td)) {
-					db_printf("[LOCK %6s %8p]",
-					    td->td_lockname,
-				    	    (void *)td->td_blocked);
-				}
-				if (TD_IS_SLEEPING(td)) {
-					db_printf("[SLP]");
-				}  
-				if (TD_IS_SWAPPED(td)) {
-					db_printf("[SWAP]");
-				}
-				if (TD_IS_SUSPENDED(td)) {
-					db_printf("[SUSP]");
-				}
-				if (TD_AWAITING_INTR(td)) {
-					db_printf("[IWAIT]");
-				}
-				if (TD_LENT(td)) {
-					db_printf("[LOAN]");
-				}
-				break;
-			case TDS_CAN_RUN:
-				db_printf("[Can run]");
-				break;
-			case TDS_RUNQ:
-				db_printf("[RUNQ]");
-				break;
-			case TDS_RUNNING:
-				db_printf("[CPU %d]", td->td_kse->ke_oncpu);
-				break;
-			default:
-				panic("unknown thread state");
-			}
-			if (p->p_flag & P_KSES) {
-				if (td->td_kse)
-					db_printf("[kse %p]", td->td_kse);
-				db_printf("\n");
-			} else
-				db_printf(" %s\n", p->p_comm);
-					
+			dumpthread(p, td);
 		}
 		/* PROC_UNLOCK(p); */
 
@@ -183,4 +137,91 @@ db_ps(dummy1, dummy2, dummy3, dummy4)
 			p = LIST_FIRST(&zombproc);
     	}
 	/* sx_sunlock(&allproc_lock); */
+}
+static void
+dumpthread(volatile struct proc *p, volatile struct thread *td)
+{
+	if (p->p_flag & P_KSES) 
+		db_printf( "   thread %p ksegrp %p ", td, td->td_ksegrp);
+	if (TD_ON_SLEEPQ(td)) {
+		if (td->td_flags & TDF_CVWAITQ)
+			db_printf("[CVQ ");
+		else
+			db_printf("[SLPQ ");
+		db_printf(" %6s %8p]", td->td_wmesg,
+		    (void *)td->td_wchan);
+	}
+	switch (td->td_state) {
+	case TDS_INHIBITED:
+		if (TD_ON_LOCK(td)) {
+			db_printf("[LOCK %6s %8p]",
+			    td->td_lockname,
+			    (void *)td->td_blocked);
+		}
+		if (TD_IS_SLEEPING(td)) {
+			db_printf("[SLP]");
+		}  
+		if (TD_IS_SWAPPED(td)) {
+			db_printf("[SWAP]");
+		}
+		if (TD_IS_SUSPENDED(td)) {
+			db_printf("[SUSP]");
+		}
+		if (TD_AWAITING_INTR(td)) {
+			db_printf("[IWAIT]");
+		}
+		if (TD_LENDER(td)) {
+			db_printf("[LOAN]");
+		}
+		if (TD_IS_IDLE(td)) {
+			db_printf("[IDLE]");
+		}
+		if (TD_IS_EXITING(td)) {
+			db_printf("[EXIT]");
+		}
+		break;
+	case TDS_CAN_RUN:
+		db_printf("[Can run]");
+		break;
+	case TDS_RUNQ:
+		db_printf("[RUNQ]");
+		break;
+	case TDS_RUNNING:
+		db_printf("[CPU %d]", td->td_kse->ke_oncpu);
+		break;
+	default:
+		panic("unknown thread state");
+	}
+	if (p->p_flag & P_KSES) {
+		if (td->td_kse)
+			db_printf("[kse %p]", td->td_kse);
+		db_printf("\n");
+	} else
+		db_printf(" %s\n", p->p_comm);
+}
+
+
+#define INKERNEL(va)    (((vm_offset_t)(va)) >= USRSTACK)
+void
+db_show_one_thread(db_expr_t addr, boolean_t have_addr,
+		db_expr_t count, char *modif)
+{
+	struct proc *p;
+	struct thread *td;
+
+	if (!have_addr)
+		td = curthread;
+	else if (!INKERNEL(addr)) {
+		printf("bad thread address");
+		return;
+	} else
+		td = (struct thread *)addr;
+	/* quick sanity check */
+	if ((p = td->td_proc) != td->td_ksegrp->kg_proc)
+		return;
+	printf("Proc %p ",p);
+	dumpthread(p, td);
+#ifdef	__i386__
+	db_stack_thread((db_expr_t)td, 1, count, modif);
+#endif
 }

@@ -383,9 +383,7 @@ static struct command db_show_cmds[] = {
 	{ "all",	0,			0,	db_show_all_cmds },
 	{ "registers",	db_show_regs,		0,	0 },
 	{ "breaks",	db_listbreak_cmd, 	0,	0 },
-#if 0
 	{ "thread",	db_show_one_thread,	0,	0 },
-#endif
 #if 0
 	{ "port",	ipc_port_print,		0,	0 },
 #endif
