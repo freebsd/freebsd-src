@@ -197,8 +197,7 @@ static struct keyfield keyhead;
 
 #ifdef __FreeBSD__
 static int
-COLLDIFF (a, b)
-	int a, b;
+COLLDIFF (int a, int b)
 {
 	static char s[2][2];
 
@@ -207,6 +206,22 @@ COLLDIFF (a, b)
 	s[0][0] = a;
 	s[1][0] = b;
 	return strcoll(s[0], s[1]);
+}
+
+static int
+collcmp(char *a, char *b, int mini)
+{
+	char sa, sb;
+	int r;
+
+	sa = a[mini];
+	a[mini] = '\0';
+	sb = b[mini];
+	b[mini] = '\0';
+	r = strcoll(a, b);
+	a[mini] = sa;
+	b[mini] = sb;
+	return r;
 }
 #endif /* __FreeBSD__ */
 
@@ -1138,7 +1153,7 @@ keycompare (const struct line *a, const struct line *b)
 	  }
       else
 #ifdef __FreeBSD__
-	diff = strcoll (texta, textb);
+	diff = collcmp (texta, textb, min (lena, lenb));
 #else
 	diff = memcmp (texta, textb, min (lena, lenb));
 #endif
@@ -1188,7 +1203,7 @@ compare (register const struct line *a, register const struct line *b)
 	{
 #endif
 #ifdef __FreeBSD__
-	  diff = strcoll (ap, bp);
+	  diff = collcmp (ap, bp, mini);
 #else
 	  diff = memcmp (ap, bp, mini);
 #endif
