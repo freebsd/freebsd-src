@@ -333,8 +333,8 @@ firewire_xfer_timeout(struct firewire_comm *fc)
 				/* the rests are newer than this */
 				break;
 			device_printf(fc->bdev,
-				"split transaction timeout dst=0x%x tl=0x%x\n",
-				xfer->dst, i);
+				"split transaction timeout dst=0x%x tl=0x%x state=%d\n",
+				xfer->dst, i, xfer->state);
 			xfer->resp = ETIMEDOUT;
 			STAILQ_REMOVE_HEAD(&fc->tlabels[i], link);
 			fw_xfer_done(xfer);
@@ -998,8 +998,10 @@ fw_xfer_alloc_buf(struct malloc_type *type, int send_len, int recv_len)
 void
 fw_xfer_done(struct fw_xfer *xfer)
 {
-	if (xfer->act.hand == NULL)
+	if (xfer->act.hand == NULL) {
+		printf("act.hand == NULL\n");
 		return;
+	}
 
 	if (xfer->fc->status != FWBUSRESET)
 		xfer->act.hand(xfer);
@@ -1803,7 +1805,7 @@ fw_rcv(struct firewire_comm *fc, struct iovec *vec, int nvec, u_int sub, u_int s
 			break;
 		case FWXF_START:
 			if (firewire_debug)
-				printf("not sent yet\n");
+				printf("not sent yet tl=%x\n", xfer->tl);
 			break;
 		default:
 			printf("unexpected state %d\n", xfer->state);
