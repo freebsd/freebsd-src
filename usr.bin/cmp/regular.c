@@ -29,6 +29,9 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
+ *
  */
 
 #ifndef lint
@@ -96,7 +99,10 @@ c_regular(fd1, file1, skip1, len1, fd2, file2, skip2, len2)
 	p2 += skip2 - off2;
 	for (byte = line = 1; length--; ++p1, ++p2, ++byte) {
 		if ((ch = *p1) != *p2) {
-			if (lflag) {
+			if (xflag) {
+				dfound = 1;
+				(void)printf("%08x %02x %02x\n", byte - 1, ch, *p2);
+			} else if (lflag) {
 				dfound = 1;
 				(void)printf("%6qd %3o %3o\n", byte, ch, *p2);
 			} else
