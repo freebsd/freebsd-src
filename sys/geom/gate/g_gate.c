@@ -605,7 +605,7 @@ g_gate_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct threa
 }
 
 static void
-g_gate_device(void *unused __unused)
+g_gate_device(void)
 {
 
 	status_dev = make_dev(&g_gate_cdevsw, 0x0, UID_ROOT, GID_WHEEL, 0600,
@@ -620,7 +620,7 @@ g_gate_modevent(module_t mod, int type, void *data)
 	switch (type) {
 	case MOD_LOAD:
 		mtx_init(&g_gate_list_mtx, "gg_list_lock", NULL, MTX_DEF);
-		g_gate_device(NULL);
+		g_gate_device();
 		break;
 	case MOD_UNLOAD:
 		mtx_lock(&g_gate_list_mtx);
