@@ -79,28 +79,8 @@ is_gpt_hdr(struct gpt_hdr *hdr)
 static int
 g_gpt_start(struct bio *bp)
 {
-	struct uuid freebsd = GPT_ENT_TYPE_FREEBSD;
-	struct g_provider *pp = bp->bio_to;
-	struct g_geom *gp = pp->geom;
-	struct g_slicer *gsp = gp->softc;
-	struct g_gpt_softc *gs = gsp->softc;
-	u_int type;
 
-	if (bp->bio_cmd != BIO_GETATTR)
-		return (0);
-
-	/*
-	 * XXX: this is bogus. The BSD class has a strong dependency on
-	 * the MBR/MBREXT class, because it asks for an attribute that's
-	 * specific to the MBR/MBREXT class and the value of the attribute
-	 * is just as specific to the MBR class. In an extensible scheme
-	 * a geom would ask another geom if it could possible accomodate a
-	 * class and the answer should be yes or no. Now we're forced to
-	 * emulate a MBR class :-/
-	 */
-	type = (memcmp(&gs->part[pp->index]->ent_type, &freebsd,
-	    sizeof(freebsd))) ? 0 : 165;
-	return ((g_handleattr_int(bp, "MBR::type", type)) ? 1 : 0);
+	return (0);
 }
 
 static void
