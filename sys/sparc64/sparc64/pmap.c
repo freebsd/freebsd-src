@@ -1108,9 +1108,6 @@ pmap_pinit2(pmap_t pmap)
 void
 pmap_release(pmap_t pm)
 {
-#ifdef INVARIANTS
-	pv_entry_t pv;
-#endif
 	vm_object_t obj;
 	vm_page_t m;
 
@@ -1118,15 +1115,8 @@ pmap_release(pmap_t pm)
 	    pm->pm_tsb);
 	obj = pm->pm_tsb_obj;
 	KASSERT(obj->ref_count == 1, ("pmap_release: tsbobj ref count != 1"));
-#ifdef INVARIANTS
-	if (!TAILQ_EMPTY(&pm->pm_pvlist)) {
-		TAILQ_FOREACH(pv, &pm->pm_pvlist, pv_plist) {
-			CTR3(KTR_PMAP, "pmap_release: m=%p va=%#lx pa=%#lx",
-			    pv->pv_m, pv->pv_va, VM_PAGE_TO_PHYS(pv->pv_m));
-		}
-		panic("pmap_release: leaking pv entries");
-	}
-#endif
+	KASSERT(TAILQ_EMPTY(&pm->pm_pvlist),
+	    ("pmap_release: leaking pv entries"));
 	KASSERT(pmap_resident_count(pm) == 0,
 	    ("pmap_release: resident pages %ld != 0",
 	    pmap_resident_count(pm)));
