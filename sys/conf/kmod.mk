@@ -286,9 +286,9 @@ ${_src}: @/kern/makedevops.pl @/${_srcsrc}
 CLEANFILES+=	vnode_if.${_ext}
 vnode_if.${_ext}: @
 .if exists(@)
-vnode_if.${_ext}: @/kern/vnode_if.sh @/kern/vnode_if.src
+vnode_if.${_ext}: @/kern/vnode_if.pl @/kern/vnode_if.src
 .endif
-	perl @/kern/vnode_if.sh -${_ext} @/kern/vnode_if.src
+	perl @/kern/vnode_if.pl -${_ext} @/kern/vnode_if.src
 .endif
 .endfor
 
