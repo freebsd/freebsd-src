@@ -47,6 +47,7 @@ device		"mk48txx"	# Mostek MK48T02, MK48T08, MK48T59 clock
 # Optional devices:
 #
 
+device		auxio		# auxiliary I/O device
 device		creator		# Creator, Creator3D and Elite3D graphics cards
 
 device		ofw_console	# Open Firmware console device

@@ -12,6 +12,8 @@ crypto/blowfish/bf_enc.c	optional	ipsec ipsec_esp
 crypto/des/des_enc.c		optional	ipsec ipsec_esp
 crypto/blowfish/bf_enc.c	optional	crypto
 crypto/des/des_enc.c		optional	crypto
+dev/auxio/auxio.c		optional	auxio sbus
+dev/auxio/auxio.c		optional	auxio ebus
 dev/esp/esp_sbus.c		optional	esp sbus
 dev/esp/lsi64854.c		optional	esp sbus
 dev/fb/creator.c		optional	creator sc

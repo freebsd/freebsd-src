@@ -27,6 +27,7 @@ SUBDIR=	${_3dfx} \
 	ath \
 	${_ath_hal} \
 	aue \
+	${_auxio} \
 	${_awi} \
 	axe \
 	bfe \
@@ -423,6 +424,7 @@ _gem=		gem
 .endif
 
 .if ${MACHINE_ARCH} == "sparc64"
+_auxio=		auxio
 _gem=		gem
 .endif
 
