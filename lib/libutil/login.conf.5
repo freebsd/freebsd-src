@@ -17,7 +17,7 @@
 .\" 5. Modifications may be freely made to this file providing the above
 .\"    conditions are met.
 .\"
-.\" $Id: login.conf.5,v 1.2 1997/01/07 14:29:50 davidn Exp $
+.\" $Id: login.conf.5,v 1.3 1997/01/08 06:51:32 mpp Exp $
 .\"
 .Dd November 22, 1996
 .Dt LOGIN.CONF 5
@@ -233,9 +233,9 @@ To pass these characters literally into the environment variable, escape
 the character by preceding it with a backslash '\\'.
 .Pp
 The
-.Ar host.allow
+.Em host.allow
 and
-.Ar host.deny
+.Em host.deny
 entries are comma separated lists used for checking remote access to the system,
 and consist of a list of hostnames and/or IP addresses against which remote
 network logins are checked.
@@ -253,9 +253,9 @@ If host.deny contains one or more hosts, then a login from any matching hosts
 will be disallowed.
 .Pp
 The
-.Ar times.allow
+.Em times.allow
 and
-.Ar times.deny
+.Em times.deny
 entries consist of a comma-separated list of time periods during which the users
 in a class are allowed to be logged in.
 These are expressed as one or more day codes followed by a start and end times
@@ -265,13 +265,13 @@ the hours of 2 am and 1 p.m..
 If both of these time lists are empty, users in the class are allowed access at
 any time.
 If
-.Ar times.allow
+.Em times.allow
 is specified, then logins are only allowed during the periods given.
 If
-.Ar times.deny
+.Em times.deny
 is specified, then logins are denied during the periods given, regardless of whether
 one of the periods specified in
-.Ar times.allow
+.Em times.allow
 applies.
 .Pp
 Note that
@@ -281,9 +281,9 @@ Further enforcement over the life of a session requires a separate daemon to
 monitor transitions from an allowed period to a non-allowed one.
 .Pp
 The
-.Ar tty.allow
+.Em tty.allow
 and
-.Ar tty.deny
+.Em tty.deny
 entries contain a comma-separated list of tty devices (without the /dev/ prefix)
 that a user in a class may use to access the system, and/or a list of ttygroups
 (See
@@ -294,11 +294,11 @@ for information on ttygroups).
 If neither entry exists, then the choice of login device used by the user is
 unrestricted.
 If only
-.Ar tty.allow
+.Em tty.allow
 is specified, then the user is restricted only to ttys in the given
 group or device list.
 If only
-.Ar tty.deny
+.Em tty.deny
 is specified, then the user is prevented from using the specified devices or
 devices in the group.
 If both lists are given and are non-empty, the user is restricted to those
@@ -341,21 +341,24 @@ These fields are used by the time accounting system, which regulates,
 controls and records user login access.
 .Pp
 The
-.Ar ttys.accounted
+.Em ttys.accounted
 and
-.Ar ttys.exempt
-fields operate in a similar manner to ttys.allow and ttys.deny as explained
+.Em ttys.exempt
+fields operate in a similar manner to
+.Em ttys.allow
+and
+.Em ttys.deny
+as explained
 above.
 Similarly with the
-.Ar host.accounted
+.Em host.accounted
 and
-.Ar host.exempt
+.Em host.exempt
 lists.
 .Sh SEE ALSO
+.Xr login 1 
 .Xr getcap 3 ,
+.Xr getttyent 3 ,
 .Xr login_cap 3 ,
 .Xr login_class 3 ,
-.Xr getttyent 3 ,
-.Xr ttys 5 ,
-.Xr login 1 
-
+.Xr ttys 5
