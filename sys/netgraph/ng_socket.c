@@ -160,7 +160,7 @@ ngc_attach(struct socket *so, int proto, struct proc *p)
 {
 	struct ngpcb *const pcbp = sotongpcb(so);
 
-	if ((error = suser(p)))
+	if (suser(p))
 		return (EPERM);
 	if (pcbp != NULL)
 		return (EISCONN);
