@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.56 1994/04/18 04:23:33 rgrimes Exp $
+#	$Id: Makefile,v 1.57 1994/05/03 10:11:21 rgrimes Exp $
 
 NOOBJ=	noobj
 
@@ -9,7 +9,7 @@ BINOWN= root
 BINGRP= wheel
 BIN1=	aliases csh.cshrc csh.login csh.logout dm.conf \
 	ftpusers gettytab group hosts host.conf hosts.equiv hosts.lpd \
-	inetd.conf motd myname netstart networks phones \
+	inetd.conf manpath.config motd myname netstart networks phones \
 	printcap protocols rc rc.local remote security services shells \
 	syslog.conf ttys etc.${MACHINE}/disktab rpc
 
