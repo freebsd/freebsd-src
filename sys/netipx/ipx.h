@@ -145,7 +145,7 @@ struct ipx {
 	u_char	ipx_pt;		/* Packet Type (i.e. level 2 protocol) */
 	struct ipx_addr	ipx_dna;	/* Destination Network Address */
 	struct ipx_addr	ipx_sna;	/* Source Network Address */
-};
+} __packed;
 
 #define ipx_neteqnn(a,b) \
 	(((a).s_net[0] == (b).s_net[0]) && ((a).s_net[1] == (b).s_net[1]))
