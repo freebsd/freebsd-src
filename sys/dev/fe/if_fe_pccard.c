@@ -61,9 +61,17 @@ static int fe_pccard_match(device_t);
 
 static const struct fe_pccard_product {
         struct pccard_product mpp_product;
-        u_int32_t mpp_ioalign;                  /* required alignment */
+        uint32_t mpp_ioalign;                  /* required alignment */
         int mpp_enet_maddr;
+	int mpp_flags;
+#define MBH10302		0x1		/* Fujitsu MBH10302 */
 } fe_pccard_products[] = {
+	/* These need to be first */
+	{ PCMCIA_CARD(FUJITSU2, FMV_J181, 0), 0, -1, MBH10302},
+	{ PCMCIA_CARD(FUJITSU2, FMV_J182, 0), 0, 0xf2c},
+	{ PCMCIA_CARD(FUJITSU2, FMV_J182A, 0), 0, 0x1cc},
+	{ PCMCIA_CARD(FUJITSU2, ITCFJ182A, 0), 0, 0x1cc},
+	/* These need to be second */
         { PCMCIA_CARD(TDK, LAK_CD021BX, 0), 0, -1 }, 
         { PCMCIA_CARD(TDK, LAK_CF010, 0), 0, -1 }, 
 #if 0 /* XXX 86960-based? */
@@ -72,7 +80,7 @@ static const struct fe_pccard_product {
         { PCMCIA_CARD(CONTEC, CNETPC, 0), 0, -1 },
 	{ PCMCIA_CARD(FUJITSU, LA501, 0), 0x20, -1 },
 	{ PCMCIA_CARD(FUJITSU, LA10S, 0), 0, -1 },
-	{ PCMCIA_CARD(FUJITSU, NE200T, 0), 0, -1 },	/* Sold by Eagle */
+	{ PCMCIA_CARD(FUJITSU, NE200T, 0), 0, -1, MBH10302},/* Sold by Eagle */
 	{ PCMCIA_CARD(RATOC, REX_R280, 0), 0, 0x1fc },
         { { NULL } }
 };
@@ -164,12 +172,6 @@ fe_pccard_attach(device_t dev)
 
 /*
  *	feunload - unload the driver and clear the table.
- *	XXX TODO:
- *	This is usually called when the card is ejected, but
- *	can be caused by a modunload of a controller driver.
- *	The idea is to reset the driver's view of the device
- *	and ensure that any driver entry points such as
- *	read and write do not hang.
  */
 static int
 fe_pccard_detach(device_t dev)
