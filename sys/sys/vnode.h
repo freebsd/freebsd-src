@@ -148,7 +148,6 @@ struct vnode {
 	const char *filename;			/* Source file doing locking */
 	int line;				/* Line number doing locking */
 #endif
-	dev_t	v_cachedfs;			/* cached fs id */
 	ino_t	v_cachedid;			/* cached file id */
 };
 
