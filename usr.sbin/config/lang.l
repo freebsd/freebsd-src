@@ -36,7 +36,7 @@
 
 #include <ctype.h>
 #include <string.h>
-#include "y.tab.h"
+#include "config.tab.h"
 #include "config.h"
 
 #define tprintf if (do_trace) printf
