@@ -1,8 +1,8 @@
 #	@(#)Makefile	8.2 (Berkeley) 4/19/94
 # $FreeBSD$
 
-FILES=	fortunes fortunes2 freebsd-tips murphy startrek zippy
-BLDS=	fortunes.dat fortunes2.dat murphy.dat startrek.dat zippy.dat \
+FILES=	fortunes freebsd-tips murphy startrek zippy
+BLDS=	fortunes.dat murphy.dat startrek.dat zippy.dat \
 	fortunes-o fortunes-o.dat freebsd-tips.dat
 
 # Pass all new entries by ${MAINTAINER} to preserve some semblance of
@@ -26,7 +26,7 @@ CLEANFILES+=${BLDS}
 
 FILESDIR=	${SHAREDIR}/games/fortune
 
-.for f in fortunes fortunes2 fortunes2-o freebsd-tips gerrold.limerick limerick murphy murphy-o startrek zippy
+.for f in fortunes fortunes2-o freebsd-tips gerrold.limerick limerick murphy murphy-o startrek zippy
 $f.dat: $f
 	PATH=$$PATH:/usr/games:${.OBJDIR}/../strfile \
 	    strfile -Cs ${.ALLSRC} ${.TARGET}
