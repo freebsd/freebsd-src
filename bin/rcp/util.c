@@ -98,7 +98,7 @@ okname(cp0)
 		c = *cp;
 		if (c & 0200)
 			goto bad;
-		if (!isalpha(c) && !isdigit(c) && c != '_' && c != '-')
+		if (!isalpha(c) && !isdigit(c) && c != '_' && c != '-' && c != '.' )
 			goto bad;
 	} while (*++cp);
 	return (1);
