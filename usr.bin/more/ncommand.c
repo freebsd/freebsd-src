@@ -1280,7 +1280,8 @@ cstat(cident, args)
  *
  * The magicasksearch will ask the user for a regexp and intuit whether they
  * want to invert the sense of matching or not: if the first character of the
- * regexp is a '!', it is removed and the sense is inverted.
+ * regexp is a '!', it is removed and the sense is inverted.  If the regexp
+ * entered is null, then we will use ${_ls_regexp} (error if not set).
  *
  * The toggle options are called _ls_direction and _ls_sense.  In addition,
  * ${_ls_regexp} is set to the regexp used.  These variables are only set
@@ -1315,9 +1316,6 @@ csearch(cident, args)
 		else
 			getinput("Search: ?", buf, 2);
 		switch (*buf) {
-		case '\0':
-			/* Cancelled */
-			return args;
 		case '!':
 			/* Magic */
 			if (direction == FORW)
@@ -1333,11 +1331,10 @@ csearch(cident, args)
 				getinput("Search: /", buf, sizeof(buf));
 			else
 				getinput("Search: ?", buf, sizeof(buf));
+		case '\0':
 			sense = NOINVERT;
 			break;
 		}
-		if (!*buf)
-			return args;
 		str = buf;
 		break;
 	case SEARCH:
@@ -1350,8 +1347,14 @@ csearch(cident, args)
 	if (cident == SEARCH || cident == MAGICASKSEARCH) {
 		settog("_ls_direction", direction, 2, "forw", "back");
 		settog("_ls_sense", sense, 2, "noinvert", "invert");
-		setvar("_ls_regexp", str);
+		if (*str)
+			setvar("_ls_regexp", str);
 	}
+	/*
+	 * XXX Currently search() contains magic to deal with (*str=='\0').
+	 * This magic should be moved into this function so that we can work
+	 * as described in the function comment header.
+	 */
 	search(!direction, str, N, !sense);
 	return args;
 }
