@@ -269,7 +269,7 @@ portal_open(ap)
 	/*
 	 * Kick off connection
 	 */
-	error = portal_connect(so, fmp->pm_server->un_data.socket);
+	error = portal_connect(so, fmp->pm_server->f_data);
 	if (error)
 		goto bad;
 

@@ -52,10 +52,6 @@ struct uio;
 struct knote;
 struct vnode;
 struct socket;
-struct kqueue;
-struct pipe;
-struct fcrypt;
-struct vm_object;
 
 
 #endif /* _KERNEL */
@@ -122,15 +118,7 @@ struct file {
 				 * offset of next expected read or write
 				 */
 	off_t	f_offset;
-	union {			/* file descriptor specific data */
-		void		*generic;
-		struct vnode	*vnode;
-		struct socket	*socket;
-		struct kqueue	*kqueue;
-		struct pipe	*pipe;
-		struct fcrypt	*fcrypt;
-		struct vm_object *object;
-	} un_data;
+	void	*f_data;	/* file descriptor specific data */
 	u_int	f_flag;		/* see fcntl.h */
 	struct mtx	*f_mtxp;	/* mutex to protect data */
 };
@@ -150,15 +138,7 @@ struct xfile {
 	int	xf_count;	/* reference count */
 	int	xf_msgcount;	/* references from message queue */
 	off_t	xf_offset;	/* file offset */
-	union {
-		void		*generic;
-		struct vnode	*vnode;
-		struct socket	*socket;
-		struct kqueue	*kqueue;
-		struct pipe	*pipe;
-		struct fcrypt	*fcrypt;
-		struct vm_object *object;
-	} xun_data;
+	void	*xf_data;	/* file descriptor specific data */
 	u_int	xf_flag;	/* flags (see fcntl.h) */
 };
 

@@ -502,7 +502,7 @@ vn_read(fp, uio, active_cred, flags, td)
 	mtx_lock(&Giant);
 	KASSERT(uio->uio_td == td, ("uio_td %p is not td %p",
 	    uio->uio_td, td));
-	vp = fp->un_data.vnode;
+	vp = fp->f_data;
 	ioflag = 0;
 	if (fp->f_flag & FNONBLOCK)
 		ioflag |= IO_NDELAY;
@@ -550,7 +550,7 @@ vn_write(fp, uio, active_cred, flags, td)
 	mtx_lock(&Giant);
 	KASSERT(uio->uio_td == td, ("uio_td %p is not td %p",
 	    uio->uio_td, td));
-	vp = fp->un_data.vnode;
+	vp = fp->f_data;
 	if (vp->v_type == VREG)
 		bwillwrite();
 	ioflag = IO_UNIT;
@@ -598,7 +598,7 @@ vn_statfile(fp, sb, active_cred, td)
 	struct ucred *active_cred;
 	struct thread *td;
 {
-	struct vnode *vp = fp->un_data.vnode;
+	struct vnode *vp = fp->f_data;
 	int error;
 
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
@@ -741,7 +741,7 @@ vn_ioctl(fp, com, data, active_cred, td)
 	struct ucred *active_cred;
 	struct thread *td;
 {
-	struct vnode *vp = fp->un_data.vnode;
+	struct vnode *vp = fp->f_data;
 	struct vnode *vpold;
 	struct vattr vattr;
 	int error;
@@ -823,7 +823,7 @@ vn_poll(fp, events, active_cred, td)
 	int error;
 #endif
 
-	vp = fp->un_data.vnode;
+	vp = fp->f_data;
 #ifdef MAC
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 	error = mac_check_vnode_poll(active_cred, fp->f_cred, vp);
@@ -891,7 +891,7 @@ vn_closefile(fp, td)
 {
 
 	fp->f_ops = &badfileops;
-	return (vn_close(fp->un_data.vnode, fp->f_flag, fp->f_cred, td));
+	return (vn_close(fp->f_data, fp->f_flag, fp->f_cred, td));
 }
 
 /*
@@ -1042,7 +1042,7 @@ static int
 vn_kqfilter(struct file *fp, struct knote *kn)
 {
 
-	return (VOP_KQFILTER(fp->un_data.vnode, kn));
+	return (VOP_KQFILTER(fp->f_data, kn));
 }
 
 /*

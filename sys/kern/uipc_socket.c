@@ -1735,7 +1735,7 @@ sopoll(struct socket *so, int events, struct ucred *active_cred,
 int
 soo_kqfilter(struct file *fp, struct knote *kn)
 {
-	struct socket *so = kn->kn_fp->un_data.socket;
+	struct socket *so = kn->kn_fp->f_data;
 	struct sockbuf *sb;
 	int s;
 
@@ -1765,7 +1765,7 @@ soo_kqfilter(struct file *fp, struct knote *kn)
 static void
 filt_sordetach(struct knote *kn)
 {
-	struct socket *so = kn->kn_fp->un_data.socket;
+	struct socket *so = kn->kn_fp->f_data;
 	int s = splnet();
 
 	SLIST_REMOVE(&so->so_rcv.sb_sel.si_note, kn, knote, kn_selnext);
@@ -1778,7 +1778,7 @@ filt_sordetach(struct knote *kn)
 static int
 filt_soread(struct knote *kn, long hint)
 {
-	struct socket *so = kn->kn_fp->un_data.socket;
+	struct socket *so = kn->kn_fp->f_data;
 
 	kn->kn_data = so->so_rcv.sb_cc - so->so_rcv.sb_ctl;
 	if (so->so_state & SS_CANTRCVMORE) {
@@ -1796,7 +1796,7 @@ filt_soread(struct knote *kn, long hint)
 static void
 filt_sowdetach(struct knote *kn)
 {
-	struct socket *so = kn->kn_fp->un_data.socket;
+	struct socket *so = kn->kn_fp->f_data;
 	int s = splnet();
 
 	SLIST_REMOVE(&so->so_snd.sb_sel.si_note, kn, knote, kn_selnext);
@@ -1809,7 +1809,7 @@ filt_sowdetach(struct knote *kn)
 static int
 filt_sowrite(struct knote *kn, long hint)
 {
-	struct socket *so = kn->kn_fp->un_data.socket;
+	struct socket *so = kn->kn_fp->f_data;
 
 	kn->kn_data = sbspace(&so->so_snd);
 	if (so->so_state & SS_CANTSENDMORE) {
@@ -1831,7 +1831,7 @@ filt_sowrite(struct knote *kn, long hint)
 static int
 filt_solisten(struct knote *kn, long hint)
 {
-	struct socket *so = kn->kn_fp->un_data.socket;
+	struct socket *so = kn->kn_fp->f_data;
 
 	kn->kn_data = so->so_qlen;
 	return (! TAILQ_EMPTY(&so->so_comp));

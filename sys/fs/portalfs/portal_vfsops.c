@@ -106,7 +106,7 @@ portal_mount(mp, path, data, ndp, td)
 		fdrop(fp, td);
                 return(ENOTSOCK);
 	}
-	so = fp->un_data.socket;	/* XXX race against userland */
+	so = fp->f_data;	/* XXX race against userland */
 	if (so->so_proto->pr_domain->dom_family != AF_UNIX) {
 		fdrop(fp, td);
 		return (ESOCKTNOSUPPORT);
@@ -186,7 +186,7 @@ portal_unmount(mp, mntflags, td)
 	 * daemon to wake up, and then the accept will get ECONNABORTED
 	 * which it interprets as a request to go and bury itself.
 	 */
-	soshutdown(VFSTOPORTAL(mp)->pm_server->un_data.socket, 2);
+	soshutdown(VFSTOPORTAL(mp)->pm_server->f_data, 2);
 	/*
 	 * Discard reference to underlying file.  Must call closef because
 	 * this may be the last reference.
