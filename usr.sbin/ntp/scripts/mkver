@@ -9,7 +9,7 @@ case "" in
  *)  ConfStr="$ConfStr RSAREF" ;;
 esac
 
-ConfStr="$ConfStr 4.0.99b `LC_TIME=C date`"
+ConfStr="$ConfStr 4.0.99b `LC_ALL=C date`"
 
 if [ ! -f .version ]; then
   echo 0 > .version
