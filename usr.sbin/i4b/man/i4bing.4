@@ -1,5 +1,5 @@
 .\"
-.\" Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
+.\" Copyright (c) 2000 Hellmuth Michaelis. All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -22,32 +22,45 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: i4btrc.4,v 1.9 1999/12/13 22:11:55 hm Exp $
+.\"	$Id: i4bing.4,v 1.1 2000/01/10 19:14:18 hm Exp $
 .\"
 .\" $FreeBSD$
 .\"
-.\"	last edit-date: [Mon Dec 13 23:14:19 1999]
+.\"	last edit-date: [Mon Jan 10 20:13:11 2000]
 .\"
-.Dd July 30, 1999
-.Dt I4BTRC 4
+.Dd January 10, 2000
+.Dt I4BING 4
 .Os
 .Sh NAME
-.Nm i4btrc
-.Nd isdn4bsd ISDN interface driver for D and B channel tracing
-.Sh FreeBSD SYNOPSIS
-.Cd pseudo-device \&"i4btrc\&" Op count
-.Sh NetBSD SYNOPSIS
-none
+.Nm i4bing
+.Nd isdn4bsd NetGraph ISDN B-channel interface driver
+.Sh SYNOPSIS
+.Cd pseudo-device \&"i4bing\&" Op count
 .Sh DESCRIPTION
 The
 .Nm
-driver is used to add a header to the data got from the D and/or B channel
-and queues it to be read and further processed by the
-.Xr isdntrace 8
-utility.
+driver interfaces the FreeBSD NetGraph subsystem with the 
+isdn4bsd package.
+.Pp
+The driver just packs packets received from the NetGraph subsystem without
+anything appended or prepended into raw HDLC packets on the B channel and
+transfers them to a remote site.
+Packets received from the remote site are queued into the NetGraph
+subsystem
+.Pp
+The format of the resulting packet on the B channel is:
+.Pp
+.Dl (HDLC opening flag) (Packet) (CRC) (HDLC closing flag)
+.Pp
+In the case where a Packet for a remote site arrives in the driver and no
+connection has been established yet, the driver communicates with the
+.Xr isdnd 8
+daemon to establish a connection.
+.Pp
 .Sh SEE ALSO
 .Xr isdnd 8
-.Xr isdntrace 8
+.Xr isdnd.rc 5
+.Xr netgraph 4
 .Sh AUTHOR
 The
 .Nm

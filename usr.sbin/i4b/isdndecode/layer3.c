@@ -27,11 +27,11 @@
  *	layer3.c - decode and print layer 3 (Q.931) information
  *	-------------------------------------------------------
  *
- *	$Id: layer3.c,v 1.7 1999/12/13 21:25:25 hm Exp $
+ *	$Id: layer3.c,v 1.9 2000/02/21 15:17:17 hm Exp $
  *
  * $FreeBSD$
  *
- *      last edit-date: [Mon Dec 13 21:50:48 1999]
+ *      last edit-date: [Mon Feb 21 15:54:58 2000]
  *
  *---------------------------------------------------------------------------*/
 
@@ -206,6 +206,7 @@ extern int f_cnu(char *pbuf, unsigned char *buf, int off);
 extern int f_cgpn(char *pbuf, unsigned char *buf, int off);
 extern int f_cdpn(char *pbuf, unsigned char *buf, int off);
 extern int f_hlc(char *pbuf, unsigned char *buf, int off);
+extern int f_uu(char *pbuf, unsigned char *buf, int off);
 
 struct ie {
 	unsigned char code;	/* information element identifier code */
@@ -263,7 +264,7 @@ struct ie {
 	{ 0x79, "restart indicator",		f_null },
 	{ 0x7c, "low layer compatibility",	f_null },
 	{ 0x7d, "high layer compatibility",	f_hlc },
-	{ 0x7e, "user-user",			f_null },
+	{ 0x7e, "user-user",			f_uu },
 	{ 0x7f, "escape for extension",		f_null },
 	{ 0xff, "unknown information element",	f_null }	
 };
@@ -310,6 +311,13 @@ layer3(char *pbuf, int n, int off, unsigned char *buf)
 
 	sprintline(3, (pbuf+strlen(pbuf)), off+i, pd, 0xff, "Protocol discriminator = %s", buffer);
 	i++;
+
+	if(pd != 0x08)
+	{
+		for (; i < n;i++)
+			sprintline(3, (pbuf+strlen(pbuf)), off+i, buf[i], 0xff, "-");
+		return;
+	}
 	
 	/* call reference */
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,11 +27,11 @@
  *	i4b daemon - config file processing
  *	-----------------------------------
  *
- *	$Id: rc_config.c,v 1.49 1999/12/13 21:25:25 hm Exp $ 
+ *	$Id: rc_config.c,v 1.60 2000/10/09 11:17:07 hm Exp $ 
  *
  * $FreeBSD$
  *
- *      last edit-date: [Mon Dec 13 21:48:38 1999]
+ *      last edit-date: [Fri Oct  6 10:08:09 2000]
  *
  *---------------------------------------------------------------------------*/
 
@@ -39,6 +39,21 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+
+#include <sys/callout.h>
+#include <sys/ioctl.h>
+
+#include <net/if.h>
+#ifdef __NetBSD__
+#include <net/if_sppp.h>
+#else
+#if __FreeBSD__ == 3
+#include <sys/param.h>
+#include <sys/mbuf.h>
+#endif
+#include <net/if_var.h>
+#include <machine/i4b_isppp.h>
+#endif
 
 #include "isdnd.h"
 #include "y.tab.h"
@@ -56,6 +71,7 @@ extern int yyparse();
 static void set_config_defaults(void);
 static void check_config(void);
 static void print_config(void);
+static void parse_valid(int entrycount, char *dt);
 
 static int nregexpr = 0;
 static int nregprog = 0;
@@ -202,6 +218,12 @@ set_config_defaults(void)
 		
 		cep->inout = DIR_INOUT;
 		
+		cep->ppp_expect_auth = AUTH_UNDEF;
+		
+		cep->ppp_send_auth = AUTH_UNDEF;
+		
+		cep->ppp_auth_flags = AUTH_RECHALLENGE | AUTH_REQUIRED;
+		
 		/* ======== filled in after start, then dynamic */
 
 		cep->cdid = CDID_UNUSED;
@@ -221,6 +243,113 @@ cfg_set_controller_default()
 	controllercount = 0;
 	DBGL(DL_RCCF, (log(LL_DBG, "[defaults, no controller section] controller %d: protocol = dss1", controllercount)));
 	isdn_ctrl_tab[controllercount].protocol = PROTOCOL_DSS1;
+}
+
+#define PPP_PAP		0xc023
+#define PPP_CHAP	0xc223
+
+static void
+set_isppp_auth(int entry)
+{
+	cfg_entry_t *cep = &cfg_entry_tab[entry];	/* ptr to config entry */
+
+	struct ifreq ifr;
+	struct spppreq spr;
+	int s;
+	int doioctl = 0;
+
+	if(cep->usrdevicename != BDRV_ISPPP)
+		return;
+
+	if(cep->ppp_expect_auth == AUTH_UNDEF 
+	   && cep->ppp_send_auth == AUTH_UNDEF)
+		return;
+
+	if(cep->ppp_expect_auth == AUTH_NONE 
+	   || cep->ppp_send_auth == AUTH_NONE)
+		doioctl = 1;
+
+	if ((cep->ppp_expect_auth == AUTH_CHAP 
+	     || cep->ppp_expect_auth == AUTH_PAP)
+	    && cep->ppp_expect_name[0] != 0
+	    && cep->ppp_expect_password[0] != 0)
+		doioctl = 1;
+
+	if ((cep->ppp_send_auth == AUTH_CHAP || cep->ppp_send_auth == AUTH_PAP)
+			&& cep->ppp_send_name[0] != 0
+			&& cep->ppp_send_password[0] != 0)
+		doioctl = 1;
+
+	if(!doioctl)
+		return;
+
+	snprintf(ifr.ifr_name, sizeof(ifr.ifr_name), "isp%d", cep->usrdeviceunit);
+
+	/* use a random AF to create the socket */
+	if ((s = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+		log(LL_ERR, "ERROR opening control socket at line %d!", lineno);
+		config_error_flag++;
+		return;
+	}
+	spr.cmd = (int)SPPPIOGDEFS;
+	ifr.ifr_data = (caddr_t)&spr;
+
+	if (ioctl(s, SIOCGIFGENERIC, &ifr) == -1) {
+		log(LL_ERR, "ERROR fetching active PPP authentication info for %s at line %d!", ifr.ifr_name, lineno);
+		close(s);
+		config_error_flag++;
+		return;
+	}
+	if (cep->ppp_expect_auth != AUTH_UNDEF)
+	{
+		if(cep->ppp_expect_auth == AUTH_NONE)
+		{
+			spr.defs.myauth.proto = 0;
+		}
+		else if ((cep->ppp_expect_auth == AUTH_CHAP 
+			  || cep->ppp_expect_auth == AUTH_PAP)
+			 && cep->ppp_expect_name[0] != 0
+			 && cep->ppp_expect_password[0] != 0)
+		{
+			spr.defs.myauth.proto = cep->ppp_expect_auth == AUTH_PAP ? PPP_PAP : PPP_CHAP;
+			strncpy(spr.defs.myauth.name, cep->ppp_expect_name, AUTHNAMELEN);
+			strncpy(spr.defs.myauth.secret, cep->ppp_expect_password, AUTHKEYLEN);
+		}
+	}
+	if (cep->ppp_send_auth != AUTH_UNDEF)
+	{
+		if(cep->ppp_send_auth == AUTH_NONE)
+		{
+			spr.defs.hisauth.proto = 0;
+		}
+		else if ((cep->ppp_send_auth == AUTH_CHAP 
+			  || cep->ppp_send_auth == AUTH_PAP)
+			 && cep->ppp_send_name[0] != 0
+			 && cep->ppp_send_password[0] != 0)
+		{
+			spr.defs.hisauth.proto = cep->ppp_send_auth == AUTH_PAP ? PPP_PAP : PPP_CHAP;
+			strncpy(spr.defs.hisauth.name, cep->ppp_send_name, AUTHNAMELEN);
+			strncpy(spr.defs.hisauth.secret, cep->ppp_send_password, AUTHKEYLEN);
+
+			if(cep->ppp_auth_flags & AUTH_REQUIRED)
+				spr.defs.hisauth.flags &= ~AUTHFLAG_NOCALLOUT;
+			else
+				spr.defs.hisauth.flags |= AUTHFLAG_NOCALLOUT;
+
+			if(cep->ppp_auth_flags & AUTH_RECHALLENGE)
+				spr.defs.hisauth.flags &= ~AUTHFLAG_NORECHALLENGE;
+			else
+				spr.defs.hisauth.flags |= AUTHFLAG_NORECHALLENGE;
+		}
+	}
+
+	spr.cmd = (int)SPPPIOSDEFS;
+
+	if (ioctl(s, SIOCSIFGENERIC, &ifr) == -1) {
+		log(LL_ERR, "ERROR setting new PPP authentication parameters for %s at line %d!", ifr.ifr_name, lineno);
+		config_error_flag++;
+	}
+	close(s);
 }
 
 /*---------------------------------------------------------------------------*
@@ -297,6 +426,128 @@ cfg_setval(int keyword)
 			DBGL(DL_RCCF, (log(LL_DBG, "system: beepconnect = %d", yylval.booln)));
 			break;
 
+		case BUDGETCALLBACKPERIOD:
+			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: budget-callbackperiod = %d", entrycount, yylval.num)));
+			cfg_entry_tab[entrycount].budget_callbackperiod = yylval.num;
+			break;
+
+		case BUDGETCALLBACKNCALLS:
+			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: budget-callbackncalls = %d", entrycount, yylval.num)));
+			cfg_entry_tab[entrycount].budget_callbackncalls = yylval.num;
+			break;
+			
+		case BUDGETCALLOUTPERIOD:
+			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: budget-calloutperiod = %d", entrycount, yylval.num)));
+			cfg_entry_tab[entrycount].budget_calloutperiod = yylval.num;
+			break;
+
+		case BUDGETCALLOUTNCALLS:
+			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: budget-calloutncalls = %d", entrycount, yylval.num)));
+			cfg_entry_tab[entrycount].budget_calloutncalls = yylval.num;
+			break;
+
+		case BUDGETCALLBACKSFILEROTATE:
+			cfg_entry_tab[entrycount].budget_callbacksfile_rotate = yylval.booln;
+			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: budget-callbacksfile-rotate = %d", entrycount, yylval.booln)));
+			break;
+			
+		case BUDGETCALLBACKSFILE:
+			{
+				FILE *fp;
+				int s, l;
+				int n;
+				DBGL(DL_RCCF, (log(LL_DBG, "entry %d: budget-callbacksfile = %s", yylval.str)));
+				fp = fopen(yylval.str, "r");
+				if(fp != NULL)
+				{
+					if((fscanf(fp, "%d %d %d", (int *)&s, (int *)&l, &n)) != 3)
+					{
+						DBGL(DL_RCCF, (log(LL_DBG, "entry %d: initializing budget-callbacksfile %s", entrycount, yylval.str)));
+						fclose(fp);
+						fp = fopen(yylval.str, "w");
+						if(fp != NULL)
+							fprintf(fp, "%d %d %d", (int)time(NULL), (int)time(NULL), 0);
+						fclose(fp);
+					}
+				}
+				else
+				{
+					DBGL(DL_RCCF, (log(LL_DBG, "entry %d: creating budget-callbacksfile %s", entrycount, yylval.str)));
+					fp = fopen(yylval.str, "w");
+					if(fp != NULL)
+						fprintf(fp, "%d %d %d", (int)time(NULL), (int)time(NULL), 0);
+					fclose(fp);
+				}
+
+				fp = fopen(yylval.str, "r");
+				if(fp != NULL)
+				{
+					if((fscanf(fp, "%d %d %d", (int *)&s, (int *)&l, &n)) == 3)
+					{
+						if((cfg_entry_tab[entrycount].budget_callbacks_file = malloc(strlen(yylval.str)+1)) == NULL)
+						{
+							log(LL_ERR, "entry %d: budget-callbacksfile, malloc failed!", entrycount);
+							do_exit(1);
+						}
+						strcpy(cfg_entry_tab[entrycount].budget_callbacks_file, yylval.str);
+						DBGL(DL_RCCF, (log(LL_DBG, "entry %d: using callbacksfile %s", entrycount, yylval.str)));
+					}
+					fclose(fp);
+				}
+			}
+			break;
+
+		case BUDGETCALLOUTSFILEROTATE:
+			cfg_entry_tab[entrycount].budget_calloutsfile_rotate = yylval.booln;
+			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: budget-calloutsfile-rotate = %d", entrycount, yylval.booln)));
+			break;
+
+		case BUDGETCALLOUTSFILE:
+			{
+				FILE *fp;
+				int s, l;
+				int n;
+				DBGL(DL_RCCF, (log(LL_DBG, "entry %d: budget-calloutsfile = %s", entrycount, yylval.str)));
+				fp = fopen(yylval.str, "r");
+				if(fp != NULL)
+				{
+					if((fscanf(fp, "%d %d %d", (int *)&s, (int *)&l, &n)) != 3)
+					{
+						DBGL(DL_RCCF, (log(LL_DBG, "entry %d: initializing budget-calloutsfile %s", entrycount, yylval.str)));
+						fclose(fp);
+						fp = fopen(yylval.str, "w");
+						if(fp != NULL)
+							fprintf(fp, "%d %d %d", (int)time(NULL), (int)time(NULL), 0);
+						fclose(fp);
+					}
+				}
+				else
+				{
+					DBGL(DL_RCCF, (log(LL_DBG, "entry %d: creating budget-calloutsfile %s", entrycount, yylval.str)));
+					fp = fopen(yylval.str, "w");
+					if(fp != NULL)
+						fprintf(fp, "%d %d %d", (int)time(NULL), (int)time(NULL), 0);
+					fclose(fp);
+				}
+
+				fp = fopen(yylval.str, "r");
+				if(fp != NULL)
+				{
+					if((fscanf(fp, "%d %d %d", (int *)&s, (int *)&l, &n)) == 3)
+					{
+						if((cfg_entry_tab[entrycount].budget_callouts_file = malloc(strlen(yylval.str)+1)) == NULL)
+						{
+							log(LL_ERR, "entry %d: budget-calloutsfile, malloc failed!", entrycount);
+							do_exit(1);
+						}
+						strcpy(cfg_entry_tab[entrycount].budget_callouts_file, yylval.str);
+						DBGL(DL_RCCF, (log(LL_DBG, "entry %d: using calloutsfile %s", entrycount, yylval.str)));
+					}
+					fclose(fp);
+				}
+			}
+			break;
+		
 		case CALLBACKWAIT:
 			if(yylval.num < CALLBACKWAIT_MIN)
 			{
@@ -401,6 +652,16 @@ cfg_setval(int keyword)
 		case EARLYHANGUP:
 			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: earlyhangup = %d", entrycount, yylval.num)));
 			cfg_entry_tab[entrycount].earlyhangup = yylval.num;
+			break;
+
+		case EXTCALLATTR:
+			DBGL(DL_RCCF, (log(LL_DBG, "system: extcallattr = %d", yylval.booln)));
+			extcallattr = yylval.booln;
+			break;
+
+		case HOLIDAYFILE:
+			strcpy(holidayfile, yylval.str);
+			DBGL(DL_RCCF, (log(LL_DBG, "system: holidayfile = %s", yylval.str)));
 			break;
 
 		case IDLE_ALG_OUT:
@@ -515,6 +776,82 @@ cfg_setval(int keyword)
 		case NAME:
 			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: name = %s", entrycount, yylval.str)));
 			strcpy(cfg_entry_tab[entrycount].name, yylval.str);
+			break;
+
+		case PPP_AUTH_RECHALLENGE:
+			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: ppp-auth-rechallenge = %d", entrycount, yylval.booln)));
+			if(yylval.booln)
+				cfg_entry_tab[entrycount].ppp_auth_flags |= AUTH_RECHALLENGE;
+			else
+				cfg_entry_tab[entrycount].ppp_auth_flags &= ~AUTH_RECHALLENGE;
+			set_isppp_auth(entrycount);
+			break;
+
+		case PPP_AUTH_PARANOID:
+			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: ppp-auth-paranoid = %d", entrycount, yylval.booln)));
+			if(yylval.booln)
+				cfg_entry_tab[entrycount].ppp_auth_flags |= AUTH_REQUIRED;
+			else
+				cfg_entry_tab[entrycount].ppp_auth_flags &= ~AUTH_REQUIRED;
+			set_isppp_auth(entrycount);
+			break;
+
+		case PPP_EXPECT_AUTH:
+			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: ppp-expect-auth = %s", entrycount, yylval.str)));
+			if(!(strcmp(yylval.str, "none")))
+				cfg_entry_tab[entrycount].ppp_expect_auth = AUTH_NONE;
+			else if(!(strcmp(yylval.str, "pap")))
+				cfg_entry_tab[entrycount].ppp_expect_auth = AUTH_PAP;
+			else if(!(strcmp(yylval.str, "chap")))
+				cfg_entry_tab[entrycount].ppp_expect_auth = AUTH_CHAP;
+			else
+			{
+				log(LL_ERR, "ERROR parsing config file: unknown parameter for keyword \"ppp-expect-auth\" at line %d!", lineno);
+				config_error_flag++;
+				break;
+			}
+			set_isppp_auth(entrycount);
+			break;
+
+		case PPP_EXPECT_NAME:
+			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: ppp-expect-name = %s", entrycount, yylval.str)));
+			strncpy(cfg_entry_tab[entrycount].ppp_expect_name, yylval.str, sizeof(cfg_entry_tab[entrycount].ppp_expect_name) -1);
+			set_isppp_auth(entrycount);
+			break;
+
+		case PPP_EXPECT_PASSWORD:
+			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: ppp-expect-password = %s", entrycount, yylval.str)));
+			strncpy(cfg_entry_tab[entrycount].ppp_expect_password, yylval.str, sizeof(cfg_entry_tab[entrycount].ppp_expect_password) -1);
+			set_isppp_auth(entrycount);
+			break;
+
+		case PPP_SEND_AUTH:
+			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: ppp-send-auth = %s", entrycount, yylval.str)));
+			if(!(strcmp(yylval.str, "none")))
+				cfg_entry_tab[entrycount].ppp_send_auth = AUTH_NONE;
+			else if(!(strcmp(yylval.str, "pap")))
+				cfg_entry_tab[entrycount].ppp_send_auth = AUTH_PAP;
+			else if(!(strcmp(yylval.str, "chap")))
+				cfg_entry_tab[entrycount].ppp_send_auth = AUTH_CHAP;
+			else
+			{
+				log(LL_ERR, "ERROR parsing config file: unknown parameter for keyword \"ppp-send-auth\" at line %d!", lineno);
+				config_error_flag++;
+				break;
+			}
+			set_isppp_auth(entrycount);
+			break;
+
+		case PPP_SEND_NAME:
+			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: ppp-send-name = %s", entrycount, yylval.str)));
+			strncpy(cfg_entry_tab[entrycount].ppp_send_name, yylval.str, sizeof(cfg_entry_tab[entrycount].ppp_send_name) -1);
+			set_isppp_auth(entrycount);
+			break;
+
+		case PPP_SEND_PASSWORD:
+			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: ppp-send-password = %s", entrycount, yylval.str)));
+			strncpy(cfg_entry_tab[entrycount].ppp_send_password, yylval.str, sizeof(cfg_entry_tab[entrycount].ppp_send_password) -1);
+			set_isppp_auth(entrycount);
 			break;
 
 		case PROTOCOL:
@@ -743,6 +1080,8 @@ cfg_setval(int keyword)
 			else if(!strcmp(yylval.str, "ibc"))
 				cfg_entry_tab[entrycount].usrdevicename = BDRV_IBC;
 #endif
+			else if(!strcmp(yylval.str, "ing"))
+				cfg_entry_tab[entrycount].usrdevicename = BDRV_ING;
 			else
 			{
 				log(LL_ERR, "ERROR parsing config file: unknown parameter for keyword \"usrdevicename\" at line %d!", lineno);
@@ -765,11 +1104,97 @@ cfg_setval(int keyword)
 			cfg_entry_tab[entrycount].usedown = yylval.booln;
 			break;
 
+		case VALID:
+			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: valid = %s", entrycount, yylval.str)));
+			parse_valid(entrycount, yylval.str);
+			break;
+
 		default:
 			log(LL_ERR, "ERROR parsing config file: unknown keyword at line %d!", lineno);
 			config_error_flag++;
 			break;			
 	}
+}
+
+/*---------------------------------------------------------------------------*
+ *	parse a date/time range
+ *---------------------------------------------------------------------------*/
+static void
+parse_valid(int entrycount, char *dt)
+{
+	/* a valid string consists of some days of week separated by
+	 * commas, where 0=sunday, 1=monday .. 6=saturday and a special
+	 * value of 7 which is a holiday from the holiday file.
+	 * after the days comes an optional (!) time range in the form
+	 * aa:bb-cc:dd, this format is fixed to be parsable by sscanf.
+	 * Valid specifications looks like this:
+	 * 1,2,3,4,5,09:00-18:00	Monday-Friday 9-18h
+	 * 1,2,3,4,5,18:00-09:00	Monday-Friday 18-9h
+	 * 6				Saturday (whole day)
+	 * 0,7				Sunday and Holidays
+	 */
+
+	int day = 0;
+	int fromhr = 0;
+	int frommin = 0;
+	int tohr = 0;
+	int tomin = 0;
+	int ret;
+	
+	for(;;)
+	{
+		if( ( ((*dt >= '0') && (*dt <= '9')) && (*(dt+1) == ':') ) ||
+		    ( ((*dt >= '0') && (*dt <= '2')) && ((*(dt+1) >= '0') && (*(dt+1) <= '9')) && (*(dt+2) == ':') ) )
+		{
+			/* dt points to time spec */
+			ret = sscanf(dt, "%d:%d-%d:%d", &fromhr, &frommin, &tohr, &tomin);
+			if(ret !=4)
+			{
+				log(LL_ERR, "ERROR parsing config file: timespec [%s] error at line %d!", *dt, lineno);
+				config_error_flag++;
+				return;
+			}
+
+			if(fromhr < 0 || fromhr > 24 || tohr < 0 || tohr > 24 ||
+			   frommin < 0 || frommin > 59 || tomin < 0 || tomin > 59)
+			{
+				log(LL_ERR, "ERROR parsing config file: invalid time [%s] at line %d!", *dt, lineno);
+				config_error_flag++;
+				return;
+			}
+			break;
+		}
+		else if ((*dt >= '0') && (*dt <= '7'))
+		{
+			/* dt points to day spec */
+			day |= 1 << (*dt - '0');
+			dt++;
+			continue;
+		}
+		else if (*dt == ',')
+		{
+			/* dt points to delimiter */
+			dt++;
+			continue;
+		}
+		else if (*dt == '\0')
+		{
+			/* dt points to end of string */
+			break;
+		}
+		else
+		{
+			/* dt points to illegal character */
+			log(LL_ERR, "ERROR parsing config file: illegal character [%c=0x%x] in date/time spec at line %d!", *dt, *dt, lineno);
+			config_error_flag++;
+			return;
+		}
+	}
+	cfg_entry_tab[entrycount].day = day;
+	cfg_entry_tab[entrycount].fromhr = fromhr;
+	cfg_entry_tab[entrycount].frommin = frommin;
+	cfg_entry_tab[entrycount].tohr = tohr;
+	cfg_entry_tab[entrycount].tomin = tomin;
 }
 
 /*---------------------------------------------------------------------------*
@@ -806,8 +1231,7 @@ check_config(void)
 
 		if((cep->isdncontroller < 0) || (cep->isdncontroller > (ncontroller-1)))
 		{
-			log(LL_ERR, "check_config: isdncontroller out of range in entry %d!", i);
-			error++;
+			log(LL_ERR, "check_config: WARNING, isdncontroller out of range in entry %d!", i);
 		}
 
 		/* numbers used for dialout */
@@ -846,6 +1270,33 @@ check_config(void)
 		{
 			log(LL_ERR, "check_config: b1protocol not raw for telephony in entry %d!", i);
 			error++;
+		}
+
+		if((cep->ppp_send_auth == AUTH_PAP) || (cep->ppp_send_auth == AUTH_CHAP))
+		{
+			if(cep->ppp_send_name[0] == 0)
+			{
+				log(LL_ERR, "check_config: no remote authentification name in entry %d!", i);
+				error++;
+			}
+			if(cep->ppp_send_password[0] == 0)
+			{
+				log(LL_ERR, "check_config: no remote authentification password in entry %d!", i);
+				error++;
+			}
+		}
+		if((cep->ppp_expect_auth == AUTH_PAP) || (cep->ppp_expect_auth == AUTH_CHAP))
+		{
+			if(cep->ppp_expect_name[0] == 0)
+			{
+				log(LL_ERR, "check_config: no local authentification name in entry %d!", i);
+				error++;
+			}
+			if(cep->ppp_expect_password[0] == 0)
+			{
+				log(LL_ERR, "check_config: no local authentification secret in entry %d!", i);
+				error++;
+			}
 		}
 	}
 	if(error)
@@ -1162,6 +1613,64 @@ print_config(void)
 				case REACT_CALLBACK:
 					fprintf(PFILE, "callback\t\t# when remote calls in, i will hangup and call back\n");
 					break;
+			}
+		}
+
+		if(cep->usrdevicename == BDRV_ISPPP)
+		{
+			char *s;
+			switch(cep->ppp_expect_auth)
+			{
+				case AUTH_NONE:
+					s = "none";
+					break;
+				case AUTH_PAP:
+					s = "pap";
+					break;
+				case AUTH_CHAP:
+					s = "chap";
+					break;
+				default:
+					s = NULL;
+					break;
+			}
+			if(s != NULL)
+			{
+				fprintf(PFILE, "ppp-expect-auth       = %s\t\t# the auth protocol we expect to receive on dial-in (none,pap,chap)\n", s);
+				if(cep->ppp_expect_auth != AUTH_NONE)
+				{
+					fprintf(PFILE, "ppp-expect-name       = %s\t\t# the user name allowed in\n", cep->ppp_expect_name);
+					fprintf(PFILE, "ppp-expect-password   = %s\t\t# the key expected from the other side\n", cep->ppp_expect_password);
+					fprintf(PFILE, "ppp-auth-paranoid     = %s\t\t# do we require remote to authenticate even if we dial out\n", cep->ppp_auth_flags & AUTH_REQUIRED ? "yes" : "no");
+				}
+			}
+			switch(cep->ppp_send_auth)
+			{
+				case AUTH_NONE:
+					s = "none";
+					break;
+				case AUTH_PAP:
+					s = "pap";
+					break;
+				case AUTH_CHAP:
+					s = "chap";
+					break;
+				default:
+					s = NULL;
+					break;
+			}
+			if(s != NULL)
+			{
+				fprintf(PFILE, "ppp-send-auth         = %s\t\t# the auth protocol we use when dialing out (none,pap,chap)\n", s);
+				if(cep->ppp_send_auth != AUTH_NONE)
+				{
+					fprintf(PFILE, "ppp-send-name         = %s\t\t# our PPP account used for dial-out\n", cep->ppp_send_name);
+					fprintf(PFILE, "ppp-send-password     = %s\t\t# the key sent to the other side\n", cep->ppp_send_password);
+				}
+			}
+			if(cep->ppp_send_auth == AUTH_CHAP ||
+			   cep->ppp_expect_auth == AUTH_CHAP) {
+				fprintf(PFILE, "ppp-auth-rechallenge   = %s\t\t# rechallenge CHAP connections once in a while\n", cep->ppp_auth_flags & AUTH_RECHALLENGE ? "yes" : "no");
 			}
 		}
 

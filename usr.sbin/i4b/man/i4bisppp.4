@@ -1,5 +1,5 @@
 .\"
-.\" Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
+.\" Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -22,13 +22,13 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: i4bisppp.4,v 1.12 1999/12/13 22:11:55 hm Exp $
+.\"	$Id: i4bisppp.4,v 1.13 2000/08/31 08:45:07 hm Exp $
 .\"
 .\" $FreeBSD$
 .\"
-.\"	last edit-date: [Mon Dec 13 23:11:15 1999]
+.\"	last edit-date: [Thu Aug 31 10:40:17 2000]
 .\"
-.Dd December 22, 1998
+.Dd August 31, 2000
 .Dt I4BISPPP 4
 .Os
 .Sh NAME
@@ -48,6 +48,20 @@ is possible.
 The driver is just a glue layer between Serge Vakulenko's sppp 
 backend and the ISDN4BSD package.
 .Pp
+Beginning with i4b version 0.95 (and only for FreeBSD), the sppp 
+subsystem was integrated into the
+.Nm
+driver to support more i4b/ISDN specific options. As a consequence it is no
+longer necessary to add a "options sppp" to your kernel 
+.Xr config 8
+file. For configuration of the i4bsppp driver, either the
+.Xr ispppcontrol 8
+utility is used or it is configured via
+.Xr isdnd 1
+and its associated
+.Xr isdnd.rc 5
+file.
+.Pp
 In case an IP packet for a remote side arrives in the driver and no
 connection is established yet, the driver communicates with the
 .Xr isdnd 8
@@ -62,7 +76,7 @@ with the
 interfaces.
 .Pp
 The 
-.Xr spppcontrol 8
+.Xr ispppcontrol 8
 utility is used to configure all aspects of PPP required to connect to a
 remote site.
 .Sh LINK0 and LINK1
@@ -99,7 +113,7 @@ for a more detailed discussion of the flags,
 .Sh SEE ALSO
 .Xr isdnd 8
 .Xr isdnd.rc 5
-.Xr spppcontrol 8
+.Xr ispppcontrol 8
 .Xr sppp 4
 .Xr bpf 4
 .Xr tcpdump 1
@@ -107,8 +121,9 @@ for a more detailed discussion of the flags,
 The
 .Nm
 device driver was written by 
-.An Joerg Wunsch 
+.An Joerg Wunsch Aq joerg@freebsd.org
 and then added to ISDN4BSD by 
-.An Gary Jennejohn .
+.An Gary Jennejohn Aq gary@freebsd.org .
+.Pp
 This manpage was written by 
 .An Hellmuth Michaelis Aq hm@kts.org .

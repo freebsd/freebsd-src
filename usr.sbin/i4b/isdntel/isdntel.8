@@ -50,14 +50,11 @@ The following options are supported:
 .It Fl a
 Use 
 .Ar aliasfile
-as the pathname for an aliasfile containing aliases for phone numbers.
-The
+as the pathname for an aliasfile containing aliases for phone numbers. The
 default path is
 .Em /etc/isdn/isdntel.alias .
 The format of an alias entry is the number string followed by one or more
-spaces or tabs.
-The rest of the line is taken as the alias string.
-Comments
+spaces or tabs. The rest of the line is taken as the alias string. Comments
 are introduced by a leading blank, tab or "#" character.
 .It Fl d
 Use
@@ -74,11 +71,9 @@ The format of a voice message filename is:
 Use
 .Ar playcommand
 as the command string to execute for playing a voice message to some audio
-output facility.
-The characters
+output facility. The characters
 .Em %s
-are replaced by the currently selected filename.
-The default string is
+are replaced by the currently selected filename. The default string is
 .Em cat %s | alaw2ulaw >/dev/audio
 .It Fl t
 The value for
@@ -87,8 +82,7 @@ specifies the time in seconds the program rereads the spool directory
 when there is no keyboard activity.
 .El
 .Pp
-The screen output should be obvious.
-If in doubt, consult the source.
+The screen output should be obvious. If in doubt, consult the source.
 .Sh SEE ALSO
 .Xr isdnd 8
 .Xr isdnd.rc 5

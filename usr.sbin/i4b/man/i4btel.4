@@ -44,8 +44,7 @@ The
 driver provides an interface to the B-channel for telephony applications
 and is currently used by the
 .Xr isdnd 8
-for answering machine support.
-The driver is part of the isdn4bsd package.
+for answering machine support. The driver is part of the isdn4bsd package.
 .Pp
 The lower six bits of the drivers's minor number is used to specify a
 unit number, wheras the upper two bits specify a functionality.
@@ -86,8 +85,7 @@ parameters are available:
 .Pp
 .Bl -tag -width Ds -compact -offset indent
 .It Ar CVT_NONE
-do no A-law/u-law audio format conversion.
-The conversion path looks like 
+do no A-law/u-law audio format conversion. The conversion path looks like 
 this: 
 .Pp
 USER <--> bitreversing <--> ISDN-line

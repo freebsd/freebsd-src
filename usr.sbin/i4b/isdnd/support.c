@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,15 +27,17 @@
  *	i4b daemon - misc support routines
  *	----------------------------------
  *
- *	$Id: support.c,v 1.63 1999/12/13 21:25:25 hm Exp $ 
+ *	$Id: support.c,v 1.66 2000/10/09 11:17:07 hm Exp $ 
  *
  * $FreeBSD$
  *
- *      last edit-date: [Mon Dec 13 21:49:05 1999]
+ *      last edit-date: [Wed Oct  4 18:24:27 2000]
  *
  *---------------------------------------------------------------------------*/
 
 #include "isdnd.h"
+
+static int isvalidtime(cfg_entry_t *cep);
 	
 /*---------------------------------------------------------------------------*
  *	find an active entry by driver type and driver unit
@@ -56,6 +58,14 @@ find_active_entry_by_driver(int drivertype, int driverunit)
 			continue;
 		}
 
+		/* check time interval */
+		
+		if(isvalidtime(cep) == 0)
+		{
+			DBGL(DL_MSG, (log(LL_DBG, "find_active_entry_by_driver: entry %d, time not valid!", i)));
+			continue;
+		}
+		
 		/* found */
 		
 		if(cep->cdid == CDID_UNUSED)
@@ -96,6 +106,14 @@ find_by_device_for_dialout(int drivertype, int driverunit)
 			continue;
 		}
 
+		/* check time interval */
+		
+		if(isvalidtime(cep) == 0)
+		{
+			DBGL(DL_MSG, (log(LL_DBG, "find_by_device_for_dialout: entry %d, time not valid!", i)));
+			continue;
+		}
+		
 		/* found, check if already reserved */
 		
 		if(cep->cdid == CDID_RESERVED)
@@ -148,6 +166,14 @@ find_by_device_for_dialoutnumber(int drivertype, int driverunit, int cmdlen, cha
 		if(!((cep->usrdevicename == drivertype) &&
 		     (cep->usrdeviceunit == driverunit)))
 		{
+			continue;
+		}
+
+		/* check time interval */
+		
+		if(isvalidtime(cep) == 0)
+		{
+			DBGL(DL_MSG, (log(LL_DBG, "find_by_device_for_dialoutnumber: entry %d, time not valid!", i)));
 			continue;
 		}
 
@@ -275,6 +301,14 @@ get_cep_by_driver(int drivertype, int driverunit)
 			continue;
 		}
 
+		/* check time interval */
+		
+		if(isvalidtime(cep) == 0)
+		{
+			DBGL(DL_MSG, (log(LL_DBG, "get_cep_by_driver: entry %d, time not valid!", i)));
+			continue;
+		}		
+
 		DBGL(DL_MSG, (log(LL_DBG, "get_cep_by_driver: found entry %d!", i)));
 		return(cep);
 	}
@@ -347,35 +381,6 @@ find_matching_entry_incoming(msg_connect_ind_t *mp)
 		}
 		if (n >= cep->incoming_numbers_count)
 			continue;
-
-		/* screening indicator XXX */
-		
-		switch(mp->scr_ind)
-		{
-			case SCR_NONE:
-				DBGL(DL_MSG, (log(LL_DBG, "find_matching_entry_incoming: %s - no screening indicator", mp->src_telno)));
-				break;
-
-			case SCR_USR_NOSC:
-				DBGL(DL_MSG, (log(LL_DBG, "find_matching_entry_incoming: %s - screening user provided, not screened", mp->src_telno)));
-				break;
-
-			case SCR_USR_PASS:
-				DBGL(DL_MSG, (log(LL_DBG, "find_matching_entry_incoming: %s - screening user provided, verified & passed", mp->src_telno)));
-				break;
-
-			case SCR_USR_FAIL:
-				DBGL(DL_MSG, (log(LL_DBG, "find_matching_entry_incoming: %s - screening user provided, verified & failed", mp->src_telno)));
-				break;
-
-			case SCR_NET:
-				DBGL(DL_MSG, (log(LL_DBG, "find_matching_entry_incoming: %s - screening network provided", mp->src_telno)));
-				break;
-
-			default:
-				DBGL(DL_MSG, (log(LL_DBG, "find_matching_entry_incoming: ERROR %s - invalid screening indicator!", mp->src_telno)));
-				break;
-		}
 				
 		/* check b protocol */
 
@@ -476,13 +481,21 @@ find_matching_entry_incoming(msg_connect_ind_t *mp)
 				break;
 		}
 
+		/* check time interval */
+		
+		if(isvalidtime(cep) == 0)
+		{
+			DBGL(DL_MSG, (log(LL_DBG, "find_matching_entry_incoming: entry %d, time not valid!", i)));
+			continue;
+		}
+		
 		/* found a matching entry */
 
 		cep->cdid = mp->header.cdid;
 		cep->isdncontrollerused = mp->controller;
 		cep->isdnchannelused = mp->channel;
 /*XXX*/		cep->disc_cause = 0;
-
+		
 		/* cp number to real one used */
 		
 		strcpy(cep->real_phone_incoming, mp->src_telno);
@@ -589,10 +602,11 @@ bdrivername(int drivertype)
 		"tel",
 		"ipr",
 		"isp",
-		"ibc"
+		"ibc",
+		"ing"
 	};
 
-	if(drivertype >= BDRV_RBCH && drivertype <= BDRV_IBC)
+	if(drivertype >= BDRV_RBCH && drivertype <= BDRV_ING)
 		return(bdtab[drivertype]);
 	else
 		return("unknown");
@@ -849,5 +863,162 @@ dialresponse(cfg_entry_t *cep, int dstat)
 
 	DBGL(DL_DRVR, (log(LL_DBG, "dialresponse: sent [%s]", stattab[dstat])));
 }
-/* EOF */
 
+/*--------------------------------------------------------------------------*
+ *	screening/presentation indicator
+ *--------------------------------------------------------------------------*/
+void
+handle_scrprs(int cdid, int scr, int prs, char *caller)
+{
+	/* screening indicator */
+	
+	if(scr < SCR_NONE || scr > SCR_NET)
+	{
+		log(LL_ERR, "msg_connect_ind: invalid screening indicator value %d!", scr);
+	}
+	else
+	{
+		static char *scrtab[] = {
+			"no screening indicator",
+			"sreening user provided, not screened",
+			"screening user provided, verified & passed",
+			"screening user provided, verified & failed",
+			"screening network provided", };
+
+		if(extcallattr)
+		{
+			log(LL_CHD, "%05d %s %s", cdid, caller, scrtab[scr]);
+		}
+		else
+		{
+			DBGL(DL_MSG, (log(LL_DBG, "%s - %s", caller, scrtab[scr])));
+		}
+	}
+			
+	/* presentation indicator */
+	
+	if(prs < PRS_NONE || prs > PRS_RESERVED)
+	{
+		log(LL_ERR, "msg_connect_ind: invalid presentation indicator value %d!", prs);
+	}
+	else
+	{
+		static char *prstab[] = {
+			"no presentation indicator",
+			"presentation allowed",
+			"presentation restricted",
+			"number not available due to interworking",
+			"reserved presentation value" };
+			
+		if(extcallattr)
+		{
+			log(LL_CHD, "%05d %s %s", cdid, caller, prstab[prs]);
+		}
+		else
+		{
+			DBGL(DL_MSG, (log(LL_DBG, "%s - %s", caller, prstab[prs])));
+		}
+	}
+}
+
+/*--------------------------------------------------------------------------*
+ *	check if the time is valid for an entry
+ *--------------------------------------------------------------------------*/
+static int 
+isvalidtime(cfg_entry_t *cep)
+{
+	time_t t;
+	struct tm *tp;
+
+	if(cep->day == 0)
+		return(1);
+
+	t = time(NULL);
+	tp = localtime(&t);
+
+	if(cep->day & HD)
+	{
+		if(isholiday(tp->tm_mday, (tp->tm_mon)+1, (tp->tm_year)+1900))
+		{
+			DBGL(DL_MSG, (log(LL_DBG, "isvalidtime: holiday %d.%d.%d", tp->tm_mday, (tp->tm_mon)+1, (tp->tm_year)+1900)));
+			goto dayok;
+		}
+	}
+	
+	if(cep->day & (1 << tp->tm_wday))
+	{
+		DBGL(DL_MSG, (log(LL_DBG, "isvalidtime: day match")));	
+		goto dayok;
+	}
+
+	return(0);
+	
+dayok:
+	if(cep->fromhr==0 && cep->frommin==0 && cep->tohr==0 && cep->tomin==0)
+	{
+		DBGL(DL_MSG, (log(LL_DBG, "isvalidtime: no time specified, match!")));
+		return(1);
+	}
+
+	if(cep->tohr < cep->fromhr)
+	{
+		/* before 00:00 */
+		
+		if( (tp->tm_hour > cep->fromhr) ||
+		    (tp->tm_hour == cep->fromhr && tp->tm_min > cep->frommin) )
+		{
+			DBGL(DL_MSG, (log(LL_DBG, "isvalidtime: t<f-1, spec=%02d:%02d-%02d:%02d, curr=%02d:%02d, match!",
+				cep->fromhr, cep->frommin,
+				cep->tohr, cep->tomin,
+				tp->tm_hour, tp->tm_min)));
+			
+			return(1);
+		}
+
+		/* after 00:00 */
+		
+		if( (tp->tm_hour < cep->tohr) ||
+		    (tp->tm_hour == cep->tohr && tp->tm_min < cep->tomin) )
+		{
+			DBGL(DL_MSG, (log(LL_DBG, "isvalidtime: t<f-2, spec=%02d:%02d-%02d:%02d, curr=%02d:%02d, match!",
+				cep->fromhr, cep->frommin,
+				cep->tohr, cep->tomin,
+				tp->tm_hour, tp->tm_min)));
+			
+			return(1);
+		}
+	}
+	else if(cep->fromhr == cep->tohr)
+	{
+		if(tp->tm_min >= cep->frommin && tp->tm_min < cep->tomin)
+		{
+			DBGL(DL_MSG, (log(LL_DBG, "isvalidtime: f=t, spec=%02d:%02d-%02d:%02d, curr=%02d:%02d, match!",
+				cep->fromhr, cep->frommin,
+				cep->tohr, cep->tomin,
+				tp->tm_hour, tp->tm_min)));
+			
+			return(1);
+		}
+	}
+	else
+	{
+		if((tp->tm_hour > cep->fromhr && tp->tm_hour < cep->tohr) ||
+		   (tp->tm_hour == cep->fromhr && tp->tm_min >= cep->frommin) ||
+		   (tp->tm_hour == cep->tohr && tp->tm_min < cep->tomin) )
+		{
+			DBGL(DL_MSG, (log(LL_DBG, "isvalidtime: t>f, spec=%02d:%02d-%02d:%02d, curr=%02d:%02d, match!",
+				cep->fromhr, cep->frommin,
+				cep->tohr, cep->tomin,
+				tp->tm_hour, tp->tm_min)));
+			return(1);
+		}
+	}
+	DBGL(DL_MSG, (log(LL_DBG, "isvalidtime: spec=%02d:%02d-%02d:%02d, curr=%02d:%02d, no match!",
+			cep->fromhr, cep->frommin,
+			cep->tohr, cep->tomin,
+			tp->tm_hour, tp->tm_min)));
+
+	return(0);	
+}
+
+/* EOF */
