@@ -306,8 +306,8 @@ static void randomplace(b, ss)
 int b;
 ship_t *ss;
 {
-    register int bwidth = BWIDTH - ss->length;
-    register int bdepth = BDEPTH - ss->length;
+    int bwidth = BWIDTH - ss->length;
+    int bdepth = BDEPTH - ss->length;
 
     do {
 	ss->y = rnd(bdepth);
@@ -702,7 +702,7 @@ static int awinna()
 }
 
 static ship_t *hitship(x, y)
-/* register a hit on the targeted ship */
+/* a hit on the targeted ship */
 int x, y;
 {
     ship_t *sb, *ss;
@@ -1113,7 +1113,7 @@ static void do_options(c,op)
 int c;
 char *op[];
 {
-    register int i;
+    int i;
 
     if (c > 1)
     {
@@ -1167,8 +1167,8 @@ char *op[];
 static int scount(who)
 int who;
 {
-    register int i, shots;
-    register ship_t *sp;
+    int i, shots;
+    ship_t *sp;
 
     if (who)
 	sp = cpuship;	/* count cpu shots */
@@ -1210,7 +1210,7 @@ char *argv[];
 		}
 		else
 		{
-		    register int i;
+		    int i;
 
 		    i = scount(turn);
 		    while (i--)

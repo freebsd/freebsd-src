@@ -16,9 +16,9 @@ main(argc, argv)
 	int argc;
 	char **argv;
 {
-register int index = 0;
-register int propct = 0;
-register char *sp;
+int index = 0;
+int propct = 0;
+char *sp;
 	if (argc != 2) {
 		(void)fprintf(stderr, "usage: makedefs file\n");
 		exit(1);
@@ -60,7 +60,7 @@ char line[LINSZ], *lp = line, *lp0 = line, *lpe = line;
 int eof;
 
 readline(){
-register int n = read(fd, lp0, (line+LINSZ)-lp0);
+int n = read(fd, lp0, (line+LINSZ)-lp0);
 	if(n < 0){
 		printf("Input error.\n");
 		exit(1);
@@ -79,7 +79,7 @@ nextchar(){
 }
 
 skipuntil(s) char *s; {
-register char *sp0, *sp1;
+char *sp0, *sp1;
 loop:
 	while(*s != nextchar())
 		if(eof) {
@@ -87,7 +87,7 @@ loop:
 			exit(1);
 		}
 	if(strlen(s) > lpe-lp+1){
-		register char *lp1, *lp2;
+		char *lp1, *lp2;
 		lp2 = lp;
 		lp1 = lp = lp0;
 		while(lp2 != lpe) *lp1++ = *lp2++;
@@ -167,7 +167,7 @@ char identif[NSZ], *ip;
 		case '\n':
 			/* watch for #define at begin of line */
 			if((ch = nextchar()) == '#'){
-				register char pch;
+				char pch;
 				/* skip until '\n' not preceded by '\\' */
 				do {
 					pch = ch;
@@ -195,9 +195,9 @@ char identif[NSZ], *ip;
 			continue;
 		case '"':
 			{
-				register char *sp = string + prefix;
-				register char pch;
-				register int store = (inbraces || inparens)
+				char *sp = string + prefix;
+				char pch;
+				int store = (inbraces || inparens)
 					&& !stringseen++ && !commaseen;
 				do {
 					pch = ch;
@@ -212,15 +212,15 @@ char identif[NSZ], *ip;
 	}
 }
 
-capitalize(sp) register char *sp; {
+capitalize(sp) char *sp; {
 	if('a' <= *sp && *sp <= 'z') *sp += 'A'-'a';
 }
 
-letter(ch) register char ch; {
+letter(ch) char ch; {
 	return( ('a' <= ch && ch <= 'z') ||
 		('A' <= ch && ch <= 'Z') );
 }
 
-digit(ch) register char ch; {
+digit(ch) char ch; {
 	return( '0' <= ch && ch <= '9' );
 }

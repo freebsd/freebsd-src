@@ -43,10 +43,10 @@
 *************************************************************************/
 
 getstring(cp, mx)
-register char	*cp;
-register int	mx;
+char	*cp;
+int	mx;
 {
-register char	*inptr;		/* pointer into string for next string */
+char	*inptr;		/* pointer into string for next string */
 int	x, y;			/* original x, y coordinates on screen */
 int	ch;			/* input */
 
@@ -234,7 +234,7 @@ inputoption()
 interrupt()
 {
 char	line[81];		/* a place to store data already on screen */
-register int	loop;		/* counter */
+int	loop;		/* counter */
 int	x, y;			/* coordinates on screen */
 int	ch;			/* input */
 unsigned	savealarm;	/* to save alarm value */

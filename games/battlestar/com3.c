@@ -65,7 +65,7 @@ dig()
 
 jump()
 {
-	register int n;
+	int n;
 
 	switch(position){
 		default:
@@ -167,7 +167,7 @@ bury()
 
 drink()
 {
-	register int n;
+	int n;
 
 	if (testbit(inven,POTION)){
 		puts("The cool liquid runs down your throat but turns to fire and you choke.");
@@ -188,7 +188,7 @@ drink()
 shoot()
 {
 	int firstnumber, value;
-	register int n;
+	int n;
 
 	firstnumber = wordnumber;
 	if (!testbit(inven,LASER))

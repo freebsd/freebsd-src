@@ -47,7 +47,7 @@ static char sccsid[] = "@(#)getpar.c	8.1 (Berkeley) 5/31/93";
 getintpar(s)
 char	*s;
 {
-	register int	i;
+	int	i;
 	int		n;
 
 	while (1)
@@ -71,7 +71,7 @@ char	*s;
 double getfltpar(s)
 char	*s;
 {
-	register int		i;
+	int		i;
 	double			d;
 
 	while (1)
@@ -118,9 +118,9 @@ char		*s;
 struct cvntab	tab[];
 {
 	char				input[100];
-	register struct cvntab		*r;
+	struct cvntab		*r;
 	int				flag;
-	register char			*p, *q;
+	char			*p, *q;
 	int				c;
 	int				f;
 
@@ -196,9 +196,9 @@ char	*r;
 int	l;
 char	*t;
 {
-	register int	i;
+	int	i;
 	char		format[20];
-	register int	f;
+	int	f;
 
 	if (t == 0)
 		t = " \t\n;";
@@ -225,7 +225,7 @@ char	*t;
 
 testnl()
 {
-	register char		c;
+	char		c;
 
 	while ((c = cgetc(0)) != '\n')
 		if ((c >= '0' && c <= '9') || c == '.' || c == '!' ||
@@ -261,7 +261,7 @@ char	c;
 
 testterm()
 {
-	register char		c;
+	char		c;
 
 	if (!(c = cgetc(0)))
 		return (1);
@@ -284,7 +284,7 @@ testterm()
 readdelim(d)
 char	d;
 {
-	register char	c;
+	char	c;
 
 	while (c = cgetc(0))
 	{

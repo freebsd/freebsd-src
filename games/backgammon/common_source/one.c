@@ -40,10 +40,10 @@ static char sccsid[] = "@(#)one.c	8.1 (Berkeley) 5/31/93";
 #include "back.h"
 
 makmove (i)
-register int	i;
+int	i;
 
 {
-	register int	n, d;
+	int	n, d;
 	int		max;
 
 	d = d0;
@@ -94,10 +94,10 @@ register int	i;
 }
 
 moverr (i)
-register int	i;
+int	i;
 
 {
-	register int	j;
+	int	j;
 
 	if (tflag)
 		curmove (20,0);
@@ -117,7 +117,7 @@ register int	i;
 
 
 checkd (d)
-register int	d;
+int	d;
 
 {
 	if (d0 != d)
@@ -126,7 +126,7 @@ register int	d;
 }
 
 last ()  {
-	register int	i;
+	int	i;
 
 	for (i = home-6*cturn; i != home; i += cturn)
 		if (board[i]*cturn > 0)
@@ -134,17 +134,17 @@ last ()  {
 }
 
 movback (i)
-register int	i;
+int	i;
 
 {
-	register int	j;
+	int	j;
 
 	for (j = i-1; j >= 0; j--)
 		backone(j);
 }
 
 backone (i)
-register int	i;
+int	i;
 
 {
 	board[p[i]] += cturn;

@@ -46,8 +46,8 @@ static char sccsid[] = "@(#)score.c	8.1 (Berkeley) 5/31/93";
 
 long score()
 {
-	register int		u;
-	register int		t;
+	int		u;
+	int		t;
 	long			s;
 	double			r;
 	extern struct cvntab	Skitab[];

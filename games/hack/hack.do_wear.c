@@ -8,12 +8,12 @@ extern char *nomovemsg;
 extern char quitchars[];
 extern char *Doname();
 
-off_msg(otmp) register struct obj *otmp; {
+off_msg(otmp) struct obj *otmp; {
 	pline("You were wearing %s.", doname(otmp));
 }
 
 doremarm() {
-	register struct obj *otmp;
+	struct obj *otmp;
 	if(!uarm && !uarmh && !uarms && !uarmg) {
 		pline("Not wearing any armor.");
 		return(0);
@@ -69,14 +69,14 @@ doremring() {
 #endif lint
 }
 
-dorr(otmp) register struct obj *otmp; {
+dorr(otmp) struct obj *otmp; {
 	if(cursed(otmp)) return(0);
 	ringoff(otmp);
 	off_msg(otmp);
 	return(1);
 }
 
-cursed(otmp) register struct obj *otmp; {
+cursed(otmp) struct obj *otmp; {
 	if(otmp->cursed){
 		pline("You can't. It appears to be cursed.");
 		return(1);
@@ -84,8 +84,8 @@ cursed(otmp) register struct obj *otmp; {
 	return(0);
 }
 
-armoroff(otmp) register struct obj *otmp; {
-register int delay = -objects[otmp->otyp].oc_delay;
+armoroff(otmp) struct obj *otmp; {
+int delay = -objects[otmp->otyp].oc_delay;
 	if(cursed(otmp)) return(0);
 	setworn((struct obj *) 0, otmp->owornmask & W_ARMOR);
 	if(delay) {
@@ -107,9 +107,9 @@ register int delay = -objects[otmp->otyp].oc_delay;
 }
 
 doweararm() {
-	register struct obj *otmp;
-	register int delay;
-	register int err = 0;
+	struct obj *otmp;
+	int delay;
+	int err = 0;
 	long mask = 0;
 
 	otmp = getobj("[", "wear");
@@ -166,7 +166,7 @@ doweararm() {
 }
 
 dowearring() {
-	register struct obj *otmp;
+	struct obj *otmp;
 	long mask = 0;
 	long oldprop;
 
@@ -235,9 +235,9 @@ dowearring() {
 }
 
 ringoff(obj)
-register struct obj *obj;
+struct obj *obj;
 {
-register long mask;
+long mask;
 	mask = obj->owornmask & W_RING;
 	setworn((struct obj *) 0, obj->owornmask);
 	if(!(u.uprops[PROP(obj->otyp)].p_flgs & mask))
@@ -271,7 +271,7 @@ register long mask;
 }
 
 find_ac(){
-register int uac = 10;
+int uac = 10;
 	if(uarm) uac -= ARM_BONUS(uarm);
 	if(uarm2) uac -= ARM_BONUS(uarm2);
 	if(uarmh) uac -= ARM_BONUS(uarmh);
@@ -286,7 +286,7 @@ register int uac = 10;
 }
 
 glibr(){
-register struct obj *otmp;
+struct obj *otmp;
 int xfl = 0;
 	if(!uarmg) if(uleft || uright) {
 		/* Note: at present also cursed rings fall off */
@@ -313,7 +313,7 @@ int xfl = 0;
 
 struct obj *
 some_armor(){
-register struct obj *otmph = uarm;
+struct obj *otmph = uarm;
 	if(uarmh && (!otmph || !rn2(4))) otmph = uarmh;
 	if(uarmg && (!otmph || !rn2(4))) otmph = uarmg;
 	if(uarms && (!otmph || !rn2(4))) otmph = uarms;
@@ -321,7 +321,7 @@ register struct obj *otmph = uarm;
 }
 
 corrode_armor(){
-register struct obj *otmph = some_armor();
+struct obj *otmph = some_armor();
 	if(otmph){
 		if(otmph->rustfree ||
 		   otmph->otyp == ELVEN_CLOAK ||

@@ -67,7 +67,7 @@ struct cvntab Udtab[] =
 shield(f)
 int	f;
 {
-	register int		i;
+	int		i;
 	char			c;
 	struct cvntab		*r;
 	char			s[100];

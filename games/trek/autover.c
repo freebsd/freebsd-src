@@ -60,7 +60,7 @@ static char sccsid[] = "@(#)autover.c	8.1 (Berkeley) 5/31/93";
 autover()
 {
 	double			dist;
-	register int		course;
+	int		course;
 
 	printf("\07RED ALERT:  The %s is in a supernova quadrant\n", Ship.shipname);
 	printf("***  Emergency override attempts to hurl %s to safety\n", Ship.shipname);

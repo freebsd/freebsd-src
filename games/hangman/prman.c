@@ -46,7 +46,7 @@ static char sccsid[] = "@(#)prman.c	8.1 (Berkeley) 5/31/93";
  */
 prman()
 {
-	register int	i;
+	int	i;
 
 	for (i = 0; i < Errors; i++)
 		mvaddch(Err_pos[i].y, Err_pos[i].x, Err_pos[i].ch);

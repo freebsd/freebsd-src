@@ -5,7 +5,7 @@
 #include	"hack.h"
 
 timeout(){
-register struct prop *upp;
+struct prop *upp;
 	if(Stoned) stoned_dialogue();
 	for(upp = u.uprops; upp < u.uprops+SIZE(u.uprops); upp++)
 	    if((upp->p_flgs & TIMEOUT) && !--upp->p_flgs) {
@@ -52,7 +52,7 @@ char *stoned_texts[] = {
 
 stoned_dialogue()
 {
-	register long i = (Stoned & TIMEOUT);
+	long i = (Stoned & TIMEOUT);
 
 	if(i > 0 && i <= SIZE(stoned_texts))
 		pline(stoned_texts[SIZE(stoned_texts) - i]);

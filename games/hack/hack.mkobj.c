@@ -9,9 +9,9 @@ struct obj *mkobj(), *mksobj();
 
 struct obj *
 mkobj_at(let,x,y)
-register let,x,y;
+let,x,y;
 {
-	register struct obj *otmp = mkobj(let);
+	struct obj *otmp = mkobj(let);
 	otmp->ox = x;
 	otmp->oy = y;
 	otmp->nobj = fobj;
@@ -20,9 +20,9 @@ register let,x,y;
 }
 
 mksobj_at(otyp,x,y)
-register otyp,x,y;
+otyp,x,y;
 {
-	register struct obj *otmp = mksobj(otyp);
+	struct obj *otmp = mksobj(otyp);
 	otmp->ox = x;
 	otmp->oy = y;
 	otmp->nobj = fobj;
@@ -47,9 +47,9 @@ struct obj zeroobj;
 
 struct obj *
 mksobj(otyp)
-register otyp;
+otyp;
 {
-	register struct obj *otmp;
+	struct obj *otmp;
 	char let = objects[otyp].oc_olet;
 
 	otmp = newobj(0);
@@ -123,17 +123,17 @@ letter(c) {
 }
 
 weight(obj)
-register struct obj *obj;
+struct obj *obj;
 {
-register int wt = objects[obj->otyp].oc_weight;
+int wt = objects[obj->otyp].oc_weight;
 	return(wt ? wt*obj->quan : (obj->quan + 1)/2);
 }
 
 mkgold(num,x,y)
-register long num;
+long num;
 {
-	register struct gold *gold;
-	register long amount = (num ? num : 1 + (rnd(dlevel+2) * rnd(30)));
+	struct gold *gold;
+	long amount = (num ? num : 1 + (rnd(dlevel+2) * rnd(30)));
 
 	if(gold = g_at(x,y))
 		gold->amount += amount;

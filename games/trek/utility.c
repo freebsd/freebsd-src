@@ -54,8 +54,8 @@ char *bmove(a, b, l)
 char	*a, *b;
 int	l;
 {
-	register int		n;
-	register char		*p, *q;
+	int		n;
+	char		*p, *q;
 
 	p = a;
 	q = b;
@@ -76,7 +76,7 @@ int	l;
 sequal(a, b)
 char	*a, *b;
 {
-	register char		*p, *q;
+	char		*p, *q;
 
 	p = a;
 	q = b;
@@ -99,8 +99,8 @@ char	*a, *b;
 char *concat(s1, s2, s3)
 char	*s1, *s2, *s3;
 {
-	register char		*p;
-	register char		*q;
+	char		*p;
+	char		*q;
 
 	p = s3;
 	q = s1;
@@ -124,8 +124,8 @@ char	*s1, *s2, *s3;
 length(s)
 char	*s;
 {
-	register int	l;
-	register char	*p;
+	int	l;
+	char	*p;
 
 	l = 0;
 	p = s;

@@ -11,8 +11,8 @@ int n_rumors = 0;
 int n_used_rumors = -1;
 char *usedbits;
 
-init_rumors(rumf) register FILE *rumf; {
-register int i;
+init_rumors(rumf) FILE *rumf; {
+int i;
 	n_used_rumors = 0;
 	while(skipline(rumf)) n_rumors++;
 	rewind(rumf);
@@ -21,7 +21,7 @@ register int i;
 	for( ; i>=0; i--) usedbits[i] = 0;
 }
 
-skipline(rumf) register FILE *rumf; {
+skipline(rumf) FILE *rumf; {
 char line[COLNO];
 	while(1) {
 		if(!fgets(line, sizeof(line), rumf)) return(0);
@@ -29,9 +29,9 @@ char line[COLNO];
 	}
 }
 
-outline(rumf) register FILE *rumf; {
+outline(rumf) FILE *rumf; {
 char line[COLNO];
-register char *ep;
+char *ep;
 	if(!fgets(line, sizeof(line), rumf)) return;
 	if((ep = index(line, '\n')) != 0) *ep = 0;
 	pline("This cookie has a scrap of paper inside! It reads: ");
@@ -39,8 +39,8 @@ register char *ep;
 }
 
 outrumor(){
-register int rn,i;
-register FILE *rumf;
+int rn,i;
+FILE *rumf;
 	if(n_rumors <= n_used_rumors ||
 	  (rumf = fopen(RUMORFILE, "r")) == (FILE *) 0) return;
 	if(n_used_rumors < 0) init_rumors(rumf);
@@ -59,6 +59,6 @@ none:
 	(void) fclose(rumf);
 }
 
-used(i) register int i; {
+used(i) int i; {
 	return(usedbits[i/CHARSZ] & (1 << (i % CHARSZ)));
 }

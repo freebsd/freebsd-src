@@ -62,7 +62,7 @@ int argc;
 char **argv;
 {
 	extern int errno;
-	register int i;
+	int i;
 	int rval,ll;
 	struct text *kk;
 	extern trapdel();

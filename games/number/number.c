@@ -128,8 +128,8 @@ void
 convert(line)
 	char *line;
 {
-	register flen, len, rval;
-	register char *p, *fraction;
+	flen, len, rval;
+	char *p, *fraction;
 
 	fraction = NULL;
 	for (p = line; *p != '\0' && *p != '\n'; ++p) {
@@ -194,10 +194,10 @@ badnum:			errx(1, "illegal number: %s", line);
 
 int
 unit(len, p)
-	register int len;
-	register char *p;
+	int len;
+	char *p;
 {
-	register int off, rval;
+	int off, rval;
 
 	rval = 0;
 	if (len > 3) {
@@ -230,10 +230,10 @@ unit(len, p)
 
 int
 number(p, len)
-	register char *p;
+	char *p;
 	int len;
 {
-	register int val, rval;
+	int val, rval;
 
 	rval = 0;
 	switch (len) {

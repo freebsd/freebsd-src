@@ -62,7 +62,7 @@ static char sccsid[] = "@(#)destruct.c	8.1 (Berkeley) 5/31/93";
 destruct()
 {
 	char		checkpass[15];
-	register int	i, j;
+	int	i, j;
 	double		zap;
 
 	if (damaged(COMPUTER))

@@ -75,13 +75,13 @@ struct cvntab	Skitab[] =
 setup()
 {
 	struct cvntab		*r;
-	register int		i, j;
+	int		i, j;
 	double			f;
 	int			d;
 	int			fd;
 	int			klump;
 	int			ix, iy;
-	register struct quad	*q;
+	struct quad	*q;
 	struct event		*e;
 
 	while (1)

@@ -52,9 +52,9 @@ char *str;
 }
 
 atl(x,y,ch)
-register x,y;
+x,y;
 {
-	register struct rm *crm = &levl[x][y];
+	struct rm *crm = &levl[x][y];
 
 	if(x<0 || x>COLNO-1 || y<0 || y>ROWNO-1){
 		impossible("atl(%d,%d,%c)",x,y,ch);
@@ -67,7 +67,7 @@ register x,y;
 }
 
 on_scr(x,y)
-register x,y;
+x,y;
 {
 	if(x < scrlx) scrlx = x;
 	if(x > scrhx) scrhx = x;
@@ -114,7 +114,7 @@ Tmp_at(x,y) schar x,y; {
 static char let;
 static xchar cnt;
 static coord tc[COLNO];		/* but watch reflecting beams! */
-register xx,yy;
+xx,yy;
 	if((int)x == -1) {
 		if(y > 0) {	/* open call */
 			let = y;
@@ -152,7 +152,7 @@ setclipped(){
 }
 
 at(x,y,ch)
-register xchar x,y;
+xchar x,y;
 char ch;
 {
 #ifndef lint
@@ -184,9 +184,9 @@ doredraw()
 
 docrt()
 {
-	register x,y;
-	register struct rm *room;
-	register struct monst *mtmp;
+	x,y;
+	struct rm *room;
+	struct monst *mtmp;
 
 	if(u.uswallow) {
 		swallowed();
@@ -221,10 +221,10 @@ docrt()
 	bot();
 }
 
-docorner(xmin,ymax) register xmin,ymax; {
-	register x,y;
-	register struct rm *room;
-	register struct monst *mtmp;
+docorner(xmin,ymax) xmin,ymax; {
+	x,y;
+	struct rm *room;
+	struct monst *mtmp;
 
 	if(u.uswallow) {	/* Can be done more efficiently */
 		swallowed();
@@ -292,9 +292,9 @@ extern struct wseg *m_atseg;
 /* print a position that is visible for @ */
 prl(x,y)
 {
-	register struct rm *room;
-	register struct monst *mtmp;
-	register struct obj *otmp;
+	struct rm *room;
+	struct monst *mtmp;
+	struct obj *otmp;
 
 	if(x == u.ux && y == u.uy && (!Invisible)) {
 		pru();
@@ -333,12 +333,12 @@ prl(x,y)
 
 char
 news0(x,y)
-register xchar x,y;
+xchar x,y;
 {
-	register struct obj *otmp;
-	register struct trap *ttmp;
+	struct obj *otmp;
+	struct trap *ttmp;
 	struct rm *room;
-	register char tmp;
+	char tmp;
 
 	room = &levl[x][y];
 	if(!room->seen) tmp = ' ';
@@ -382,7 +382,7 @@ register xchar x,y;
 }
 
 newsym(x,y)
-register x,y;
+x,y;
 {
 	atl(x,y,news0(x,y));
 }
@@ -390,9 +390,9 @@ register x,y;
 /* used with wand of digging (or pick-axe): fill scrsym and force display */
 /* also when a POOL evaporates */
 mnewsym(x,y)
-register x,y;
+x,y;
 {
-	register struct rm *room;
+	struct rm *room;
 	char newscrsym;
 
 	if(!vism_at(x,y)) {
@@ -406,9 +406,9 @@ register x,y;
 }
 
 nosee(x,y)
-register x,y;
+x,y;
 {
-	register struct rm *room;
+	struct rm *room;
 
 	if(!isok(x,y)) return;
 	room = &levl[x][y];
@@ -421,7 +421,7 @@ register x,y;
 
 #ifndef QUEST
 prl1(x,y)
-register x,y;
+x,y;
 {
 	if(u.dx) {
 		if(u.dy) {
@@ -443,7 +443,7 @@ register x,y;
 }
 
 nose1(x,y)
-register x,y;
+x,y;
 {
 	if(u.dx) {
 		if(u.dy) {
@@ -466,9 +466,9 @@ register x,y;
 #endif QUEST
 
 vism_at(x,y)
-register x,y;
+x,y;
 {
-	register struct monst *mtmp;
+	struct monst *mtmp;
 
 	return((x == u.ux && y == u.uy && !Invisible)
 			? 1 :
@@ -478,8 +478,8 @@ register x,y;
 }
 
 #ifdef NEWSCR
-pobj(obj) register struct obj *obj; {
-register int show = (!obj->oinvis || See_invisible) &&
+pobj(obj) struct obj *obj; {
+int show = (!obj->oinvis || See_invisible) &&
 		cansee(obj->ox,obj->oy);
 	if(obj->odispl){
 		if(obj->odx != obj->ox || obj->ody != obj->oy || !show)
@@ -497,7 +497,7 @@ register int show = (!obj->oinvis || See_invisible) &&
 }
 #endif NEWSCR
 
-unpobj(obj) register struct obj *obj; {
+unpobj(obj) struct obj *obj; {
 /* 	if(obj->odispl){
 		if(!vism_at(obj->odx, obj->ody))
 			newsym(obj->odx, obj->ody);
@@ -509,7 +509,7 @@ unpobj(obj) register struct obj *obj; {
 }
 
 seeobjs(){
-register struct obj *obj, *obj2;
+struct obj *obj, *obj2;
 	for(obj = fobj; obj; obj = obj2) {
 		obj2 = obj->nobj;
 		if(obj->olet == FOOD_SYM && obj->otyp >= CORPSE
@@ -525,7 +525,7 @@ register struct obj *obj, *obj2;
 }
 
 seemons(){
-register struct monst *mtmp;
+struct monst *mtmp;
 	for(mtmp = fmon; mtmp; mtmp = mtmp->nmon){
 		if(mtmp->data->mlet == ';')
 			mtmp->minvis = (u.ustuck != mtmp &&
@@ -537,8 +537,8 @@ register struct monst *mtmp;
 	}
 }
 
-pmon(mon) register struct monst *mon; {
-register int show = (Blind && Telepat) || canseemon(mon);
+pmon(mon) struct monst *mon; {
+int show = (Blind && Telepat) || canseemon(mon);
 	if(mon->mdispl){
 		if(mon->mdx != mon->mx || mon->mdy != mon->my || !show)
 			unpmon(mon);
@@ -554,7 +554,7 @@ register int show = (Blind && Telepat) || canseemon(mon);
 	}
 }
 
-unpmon(mon) register struct monst *mon; {
+unpmon(mon) struct monst *mon; {
 	if(mon->mdispl){
 		newsym(mon->mdx, mon->mdy);
 		mon->mdispl = 0;
@@ -563,8 +563,8 @@ unpmon(mon) register struct monst *mon; {
 
 nscr()
 {
-	register x,y;
-	register struct rm *room;
+	x,y;
+	struct rm *room;
 
 	if(u.uswallow || u.ux == FAR || flags.nscrinh) return;
 	pru();
@@ -582,7 +582,7 @@ nscr()
 /* 100 suffices for bot(); no relation with COLNO */
 char oldbot[100], newbot[100];
 cornbot(lth)
-register int lth;
+int lth;
 {
 	if(lth < sizeof(oldbot)) {
 		oldbot[lth] = 0;
@@ -592,8 +592,8 @@ register int lth;
 
 bot()
 {
-register char *ob = oldbot, *nb = newbot;
-register int i;
+char *ob = oldbot, *nb = newbot;
+int i;
 extern char *eos();
 	if(flags.botlx) *ob = 0;
 	flags.botl = flags.botlx = 0;
@@ -622,7 +622,7 @@ extern char *eos();
 	if(flags.time)
 	    (void) sprintf(eos(newbot), "  %ld", moves);
 	if(strlen(newbot) >= COLNO) {
-		register char *bp0, *bp1;
+		char *bp0, *bp1;
 		bp0 = bp1 = newbot;
 		do {
 			if(*bp0 != ' ' || bp0[1] != ' ' || bp0[2] != ' ')
@@ -642,7 +642,7 @@ extern char *eos();
 }
 
 #ifdef WAN_PROBING
-mstatusline(mtmp) register struct monst *mtmp; {
+mstatusline(mtmp) struct monst *mtmp; {
 	pline("Status of %s: ", monnam(mtmp));
 	pline("Level %-2d  Gold %-5lu  Hp %3d(%d)  Ac %-2d  Dam %d",
 	    mtmp->data->mlevel, mtmp->mgold, mtmp->mhp, mtmp->mhpmax,

@@ -51,8 +51,8 @@ int	read(), write();
  * channel file.  func() is either read or write.
  */
 varpush(file, func)
-reg int	file;
-reg int	(*func)(); {
+int	file;
+int	(*func)(); {
 
 	int	temp;
 

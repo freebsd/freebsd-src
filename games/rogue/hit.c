@@ -62,7 +62,7 @@ extern short add_strength, ring_exp, r_rings;
 extern boolean being_held, interrupted, wizard, con_mon;
 
 mon_hit(monster)
-register object *monster;
+object *monster;
 {
 	short damage, hit_chance;
 	const char *mn;
@@ -123,7 +123,7 @@ register object *monster;
 }
 
 rogue_hit(monster, force_hit)
-register object *monster;
+object *monster;
 boolean force_hit;
 {
 	short damage, hit_chance;
@@ -180,7 +180,7 @@ get_damage(ds, r)
 const char *ds;
 boolean r;
 {
-	register i = 0, j, n, d, total = 0;
+	i = 0, j, n, d, total = 0;
 
 	while (ds[i]) {
 		n = get_number(ds+i);
@@ -206,8 +206,8 @@ get_w_damage(obj)
 const object *obj;
 {
 	char new_damage[12];
-	register to_hit, damage;
-	register i = 0;
+	to_hit, damage;
+	i = 0;
 
 	if ((!obj) || (obj->what_is != WEAPON)) {
 		return(-1);
@@ -224,8 +224,8 @@ const object *obj;
 get_number(s)
 const char *s;
 {
-	register i = 0;
-	register total = 0;
+	i = 0;
+	total = 0;
 
 	while ((s[i] >= '0') && (s[i] <= '9')) {
 		total = (10 * total) + (s[i] - '0');

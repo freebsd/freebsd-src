@@ -120,7 +120,7 @@ ohear()
 othrone(arg)
 	int arg;
 	{
-	register int i,k;
+	int i,k;
 
 	lprcat("\nDo you (p) pry off jewels, (s) sit down"); iopts();
 	while (1)
@@ -162,7 +162,7 @@ othrone(arg)
 
 odeadthrone()
 	{
-	register int k;
+	int k;
 
 	lprcat("\nDo you (s) sit down"); iopts();
 	while (1)
@@ -189,7 +189,7 @@ odeadthrone()
  */
 ochest()
 	{
-	register int i,k;
+	int i,k;
 	lprcat("\nDo you (t) take it, (o) try to open it"); iopts();
 	while (1)
 	  {
@@ -245,7 +245,7 @@ ochest()
 
 ofountain()
 	{
-	register int x;
+	int x;
 	cursors();
 	lprcat("\nDo you (d) drink, (w) wash yourself"); iopts();
 	while (1) switch(getchar())
@@ -326,7 +326,7 @@ fch(how,x)
 fntchange(how)
 	int how;
 	{
-	register long j;
+	long j;
 	lprc('\n');
 	switch(rnd(9))
 		{

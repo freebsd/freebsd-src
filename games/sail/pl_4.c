@@ -68,7 +68,7 @@ changesail()
 acceptsignal()
 {
 	char buf[60];
-	register char *p = buf;
+	char *p = buf;
 
 	*p++ = '"';
 	sgetstr("Message? ", p, sizeof buf - 2);
@@ -81,9 +81,9 @@ acceptsignal()
 
 lookout()
 {
-	register struct ship *sp;
+	struct ship *sp;
 	char buf[3];
-	register char c;
+	char c;
 
 	sgetstr("What ship? ", buf, sizeof buf);
 	foreachship(sp) {
@@ -98,7 +98,7 @@ lookout()
 
 char *
 saywhat(sp, flag)
-register struct ship *sp;
+struct ship *sp;
 char flag;
 {
 	if (sp->file->captain[0])
@@ -114,7 +114,7 @@ char flag;
 }
 
 eyeball(ship)
-register struct ship *ship;
+struct ship *ship;
 {
 	int i;
 

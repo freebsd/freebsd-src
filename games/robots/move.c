@@ -49,8 +49,8 @@ static char sccsid[] = "@(#)move.c	8.1 (Berkeley) 5/31/93";
  */
 get_move()
 {
-	register int	c;
-	register int	y, x, lastmove;
+	int	c;
+	int	y, x, lastmove;
 	static COORD	newpos;
 
 	if (Waiting)
@@ -198,7 +198,7 @@ ret:
  */
 must_telep()
 {
-	register int	x, y;
+	int	x, y;
 	static COORD	newpos;
 
 #ifdef	FANCY
@@ -264,9 +264,9 @@ int	dy, dx;
  *	Player would get eaten at this place
  */
 eaten(pos)
-register COORD	*pos;
+COORD	*pos;
 {
-	register int	x, y;
+	int	x, y;
 
 	for (y = pos->y - 1; y <= pos->y + 1; y++) {
 		if (y <= 0 || y >= Y_FIELDSIZE)

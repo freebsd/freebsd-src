@@ -240,7 +240,7 @@ int row, col;
 
 object *
 object_at(pack, row, col)
-register object *pack;
+object *pack;
 short row, col;
 {
 	object *obj = (object *) 0;

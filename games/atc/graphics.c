@@ -126,7 +126,7 @@ init_gr()
 setup_screen(scp)
 	const C_SCREEN	*scp;
 {
-	register int	i, j;
+	int		i, j;
 	char		str[3];
 	const char	*airstr;
 

@@ -66,8 +66,8 @@ char	*Color[4] =
 srscan(f)
 int	f;
 {
-	register int		i, j;
-	register int		statinfo;
+	int		i, j;
+	int		statinfo;
 	char			*s;
 	int			percent;
 	struct quad		*q;

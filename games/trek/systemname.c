@@ -53,8 +53,8 @@ static char sccsid[] = "@(#)systemname.c	8.1 (Berkeley) 5/31/93";
 char *systemname(q1)
 struct quad	*q1;
 {
-	register struct quad	*q;
-	register int		i;
+	struct quad	*q;
+	int		i;
 
 	q = q1;
 

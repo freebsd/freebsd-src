@@ -48,9 +48,9 @@ static char sccsid[] = "@(#)main.c	8.1 (Berkeley) 5/31/93";
 /*ARGSUSED*/
 main(argc, argv)
 	int argc;
-	register char **argv;
+	char **argv;
 {
-	register char *p;
+	char *p;
 	int i;
 
 	srandomdev();

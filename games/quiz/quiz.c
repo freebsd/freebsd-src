@@ -80,7 +80,7 @@ main(argc, argv)
 	int argc;
 	char *argv[];
 {
-	register int ch;
+	int ch;
 	char *indexfile;
 
 	/* revoke */
@@ -122,8 +122,8 @@ void
 get_file(file)
 	char *file;
 {
-	register FILE *fp;
-	register QE *qp;
+	FILE *fp;
+	QE *qp;
 	size_t len;
 	char *lp;
 
@@ -158,8 +158,8 @@ get_file(file)
 void
 show_index()
 {
-	register QE *qp;
-	register char *p, *s;
+	QE *qp;
+	char *p, *s;
 	FILE *pf;
 
 	if ((pf = popen(_PATH_PAGER, "w")) == NULL)
@@ -185,7 +185,7 @@ void
 get_cats(cat1, cat2)
 	char *cat1, *cat2;
 {
-	register QE *qp;
+	QE *qp;
 	int i;
 	char *s;
 
@@ -217,8 +217,8 @@ get_cats(cat1, cat2)
 void
 quiz()
 {
-	register QE *qp;
-	register int i;
+	QE *qp;
+	int i;
 	size_t len;
 	u_int guesses, rights, wrongs;
 	int next;
@@ -297,7 +297,7 @@ quiz()
 
 char *
 next_cat(s)
-	register char *	s;
+	char *	s;
 {
 	for (;;)
 		switch (*s++) {
@@ -315,11 +315,11 @@ next_cat(s)
 char *
 appdstr(s, tp, len)
 	char *s;
-	register char *tp;
+	char *tp;
 	size_t len;
 {
-	register char *mp, *sp;
-	register int ch;
+	char *mp, *sp;
+	int ch;
 	char *m;
 
 	if ((m = malloc(strlen(s) + len + 1)) == NULL)
@@ -350,9 +350,9 @@ score(r, w, g)
 
 void
 downcase(p)
-	register char *p;
+	char *p;
 {
-	register int ch;
+	int ch;
 
 	for (; ch = *p; ++p)
 		if (isascii(ch) && isupper(ch))

@@ -20,8 +20,8 @@ struct engr {
 } *head_engr;
 
 struct engr *
-engr_at(x,y) register xchar x,y; {
-register struct engr *ep = head_engr;
+engr_at(x,y) xchar x,y; {
+struct engr *ep = head_engr;
 	while(ep) {
 		if(x == ep->engr_x && y == ep->engr_y)
 			return(ep);
@@ -30,10 +30,10 @@ register struct engr *ep = head_engr;
 	return((struct engr *) 0);
 }
 
-sengr_at(s,x,y) register char *s; register xchar x,y; {
-register struct engr *ep = engr_at(x,y);
-register char *t;
-register int n;
+sengr_at(s,x,y) char *s; xchar x,y; {
+struct engr *ep = engr_at(x,y);
+char *t;
+int n;
 	if(ep && ep->engr_time <= moves) {
 		t = ep->engr_txt;
 /*
@@ -49,15 +49,15 @@ register int n;
 }
 
 u_wipe_engr(cnt)
-register int cnt;
+int cnt;
 {
 	if(!u.uswallow && !Levitation)
 		wipe_engr_at(u.ux, u.uy, cnt);
 }
 
-wipe_engr_at(x,y,cnt) register xchar x,y,cnt; {
-register struct engr *ep = engr_at(x,y);
-register int lth,pos;
+wipe_engr_at(x,y,cnt) xchar x,y,cnt; {
+struct engr *ep = engr_at(x,y);
+int lth,pos;
 char ch;
 	if(ep){
 		if((ep->engr_type != DUST) || Levitation) {
@@ -80,8 +80,8 @@ char ch;
 	}
 }
 
-read_engr_at(x,y) register int x,y; {
-register struct engr *ep = engr_at(x,y);
+read_engr_at(x,y) int x,y; {
+struct engr *ep = engr_at(x,y);
 	if(ep && ep->engr_txt[0]) {
 	    switch(ep->engr_type) {
 	    case DUST:
@@ -101,10 +101,10 @@ register struct engr *ep = engr_at(x,y);
 }
 
 make_engr_at(x,y,s)
-register int x,y;
-register char *s;
+int x,y;
+char *s;
 {
-	register struct engr *ep;
+	struct engr *ep;
 
 	if(ep = engr_at(x,y))
 	    del_engr(ep);
@@ -122,13 +122,13 @@ register char *s;
 }
 
 doengrave(){
-register int len;
-register char *sp;
-register struct engr *ep, *oep = engr_at(u.ux,u.uy);
+int len;
+char *sp;
+struct engr *ep, *oep = engr_at(u.ux,u.uy);
 char buf[BUFSZ];
 xchar type;
 int spct;		/* number of leading spaces */
-register struct obj *otmp;
+struct obj *otmp;
 	multi = 0;
 
 	if(u.uswallow) {
@@ -259,7 +259,7 @@ register struct obj *otmp;
 }
 
 save_engravings(fd) int fd; {
-register struct engr *ep = head_engr;
+struct engr *ep = head_engr;
 	while(ep) {
 		if(!ep->engr_lth || !ep->engr_txt[0]){
 			ep = ep->nxt_engr;
@@ -274,7 +274,7 @@ register struct engr *ep = head_engr;
 }
 
 rest_engravings(fd) int fd; {
-register struct engr *ep;
+struct engr *ep;
 unsigned lth;
 	head_engr = 0;
 	while(1) {
@@ -288,8 +288,8 @@ unsigned lth;
 	}
 }
 
-del_engr(ep) register struct engr *ep; {
-register struct engr *ept;
+del_engr(ep) struct engr *ep; {
+struct engr *ept;
 	if(ep == head_engr)
 		head_engr = ep->nxt_engr;
 	else {

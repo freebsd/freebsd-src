@@ -40,10 +40,10 @@ static char sccsid[] = "@(#)odds.c	8.1 (Berkeley) 5/31/93";
 #include "back.h"
 
 odds (r1,r2,val)
-register int	r1;
+int	r1;
 int		r2, val;
 {
-	register int	i, j;
+	int	i, j;
 
 	if (r1 == 0)  {
 		for (i = 0; i < 6; i++)
@@ -65,9 +65,9 @@ int		r2, val;
 }
 
 count ()  {
-	register int	i;
-	register int	j;
-	register int	total;
+	int	i;
+	int	j;
+	int	total;
 
 	total = 0;
 	for (i = 0; i < 6; i++)
@@ -80,7 +80,7 @@ canhit (i,c)
 int	i, c;
 
 {
-	register int	j, k, b;
+	int	j, k, b;
 	int		a, d, diff, place, addon, menstuck;
 
 	if (c == 0)

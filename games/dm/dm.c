@@ -252,7 +252,7 @@ load()
 users()
 {
 
-	register int nusers, utmp;
+	int nusers, utmp;
 	struct utmp buf;
 
 	if ((utmp = open(_PATH_UTMP, O_RDONLY, 0)) < 0) {
@@ -268,7 +268,7 @@ users()
 
 nogamefile()
 {
-	register int fd, n;
+	int fd, n;
 	char buf[BUFSIZ];
 
 	if ((fd = open(_PATH_NOGAMES, O_RDONLY, 0)) >= 0) {

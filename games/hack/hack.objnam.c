@@ -11,8 +11,8 @@ extern char *eos();
 extern int bases[];
 
 char *
-strprepend(s,pref) register char *s, *pref; {
-register int i = strlen(pref);
+strprepend(s,pref) char *s, *pref; {
+int i = strlen(pref);
 	if(i > PREFIX) {
 		pline("WARNING: prefix too short.");
 		return(s);
@@ -31,14 +31,14 @@ static char buf[13];
 
 char *
 typename(otyp)
-register int otyp;
+int otyp;
 {
 static char buf[BUFSZ];
-register struct objclass *ocl = &objects[otyp];
-register char *an = ocl->oc_name;
-register char *dn = ocl->oc_descr;
-register char *un = ocl->oc_uname;
-register int nn = ocl->oc_name_known;
+struct objclass *ocl = &objects[otyp];
+char *an = ocl->oc_name;
+char *dn = ocl->oc_descr;
+char *un = ocl->oc_uname;
+int nn = ocl->oc_name_known;
 	switch(ocl->oc_olet) {
 	case POTION_SYM:
 		Strcpy(buf, "potion");
@@ -82,15 +82,15 @@ register int nn = ocl->oc_name_known;
 
 char *
 xname(obj)
-register struct obj *obj;
+struct obj *obj;
 {
 static char bufr[BUFSZ];
-register char *buf = &(bufr[PREFIX]);	/* leave room for "17 -3 " */
-register int nn = objects[obj->otyp].oc_name_known;
-register char *an = objects[obj->otyp].oc_name;
-register char *dn = objects[obj->otyp].oc_descr;
-register char *un = objects[obj->otyp].oc_uname;
-register int pl = (obj->quan != 1);
+char *buf = &(bufr[PREFIX]);	/* leave room for "17 -3 " */
+int nn = objects[obj->otyp].oc_name_known;
+char *an = objects[obj->otyp].oc_name;
+char *dn = objects[obj->otyp].oc_descr;
+char *un = objects[obj->otyp].oc_uname;
+int pl = (obj->quan != 1);
 	if(!obj->dknown && !Blind) obj->dknown = 1; /* %% doesnt belong here */
 	switch(obj->olet) {
 	case AMULET_SYM:
@@ -210,12 +210,12 @@ register int pl = (obj->quan != 1);
 			obj->olet,obj->olet,obj->otyp,obj->spe);
 	}
 	if(pl) {
-		register char *p;
+		char *p;
 
 		for(p = buf; *p; p++) {
 			if(!strncmp(" of ", p, 4)) {
 				/* pieces of, cloves of, lumps of */
-				register int c1, c2 = 's';
+				int c1, c2 = 's';
 
 				do {
 					c1 = c2; c2 = *p; *p++ = c1;
@@ -242,10 +242,10 @@ nopl:
 
 char *
 doname(obj)
-register struct obj *obj;
+struct obj *obj;
 {
 char prefix[PREFIX];
-register char *bp = xname(obj);
+char *bp = xname(obj);
 	if(obj->quan != 1)
 		Sprintf(prefix, "%u ", obj->quan);
 	else
@@ -290,7 +290,7 @@ register char *bp = xname(obj);
 
 /* used only in hack.fight.c (thitu) */
 setan(str,buf)
-register char *str,*buf;
+char *str,*buf;
 {
 	if(index(vowels,*str))
 		Sprintf(buf, "an %s", str);
@@ -299,8 +299,8 @@ register char *str,*buf;
 }
 
 char *
-aobjnam(otmp,verb) register struct obj *otmp; register char *verb; {
-register char *bp = xname(otmp);
+aobjnam(otmp,verb) struct obj *otmp; char *verb; {
+char *bp = xname(otmp);
 char prefix[PREFIX];
 	if(otmp->quan != 1) {
 		Sprintf(prefix, "%u ", otmp->quan);
@@ -324,9 +324,9 @@ char prefix[PREFIX];
 
 char *
 Doname(obj)
-register struct obj *obj;
+struct obj *obj;
 {
-	register char *s = doname(obj);
+	char *s = doname(obj);
 
 	if('a' <= *s && *s <= 'z') *s -= ('a' - 'A');
 	return(s);
@@ -336,9 +336,9 @@ char *wrp[] = { "wand", "ring", "potion", "scroll", "gem" };
 char wrpsym[] = { WAND_SYM, RING_SYM, POTION_SYM, SCROLL_SYM, GEM_SYM };
 
 struct obj *
-readobjnam(bp) register char *bp; {
-register char *p;
-register int i;
+readobjnam(bp) char *bp; {
+char *p;
+int i;
 int cnt, spe, spesgn, typ, heavy;
 char let;
 char *un, *dn, *an;
@@ -461,7 +461,7 @@ sing:
 		goto srch;
 	}
 	for(i = 0; i < sizeof(wrpsym); i++) {
-		register int j = strlen(wrp[i]);
+		int j = strlen(wrp[i]);
 		if(!strncmp(bp, wrp[i], j)){
 			let = wrpsym[i];
 			bp += j;
@@ -496,7 +496,7 @@ srch:
 	i = 1;
 	if(let) i = bases[letindex(let)];
 	while(i <= NROFOBJECTS && (!let || objects[i].oc_olet == let)){
-		register char *zn = objects[i].oc_name;
+		char *zn = objects[i].oc_name;
 
 		if(!zn) goto nxti;
 		if(an && strcmp(an, zn))
@@ -514,7 +514,7 @@ any:
 	if(!let) let = wrpsym[rn2(sizeof(wrpsym))];
 	typ = probtype(let);
 typfnd:
-	{ register struct obj *otmp;
+	{ struct obj *otmp;
 	  extern struct obj *mksobj();
 	let = objects[typ].oc_olet;
 	otmp = mksobj(typ);

@@ -86,14 +86,14 @@ static int	 rxp__match __P((char *, int, Rxp_t *, Rxp_t *, char *));
 
 int
 rxp_compile(s)
-	register char *	s;
+	char *	s;
 {
 	return (rxp__compile(s, TRUE));
 }
 
 static int
 rxp__compile(s, first)
-	register char *s;
+	char *s;
 	int first;
 {
 	static Rxp_t *rp;
@@ -191,7 +191,7 @@ rxp__compile(s, first)
  */
 int
 rxp_match(s)
-	register char *	s;
+	char *	s;
 {
 	return (rxp__match(s, TRUE, NULL, NULL, NULL));
 }
@@ -206,7 +206,7 @@ rxp__match(s, first, j_succ, j_fail, sp_fail)
 {
 	static Rxp_t *rp;
 	static char *sp;
-	register int ch;
+	int ch;
 	Rxp_t *grp_end;
 	int err;
 

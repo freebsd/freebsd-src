@@ -53,7 +53,7 @@ static char sccsid[] = "@(#)check_out.c	8.1 (Berkeley) 5/31/93";
 check_out(device)
 int	device;
 {
-	register int	dev;
+	int	dev;
 
 	dev = device;
 

@@ -49,7 +49,7 @@ static const char	better[] = "That is a legal move, but there is a better one.\n
 
 void
 tutor ()  {
-	register int	i, j;
+	int	i, j;
 
 	i = 0;
 	begscr = 18;
@@ -133,7 +133,7 @@ tutor ()  {
 }
 
 clrest ()  {
-	register int	r, c, j;
+	int	r, c, j;
 
 	r = curr;
 	c = curc;

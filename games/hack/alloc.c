@@ -24,9 +24,9 @@ long dummy = ftell(stderr);
 
 long *
 alloc(lth)
-register unsigned lth;
+unsigned lth;
 {
-	register char *ptr;
+	char *ptr;
 
 	if(!(ptr = malloc(lth)))
 		panic("Cannot get %d bytes", lth);
@@ -35,10 +35,10 @@ register unsigned lth;
 
 long *
 enlarge(ptr,lth)
-register char *ptr;
-register unsigned lth;
+char *ptr;
+unsigned lth;
 {
-	register char *nptr;
+	char *nptr;
 
 	if(!(nptr = realloc(ptr,lth)))
 		panic("Cannot reallocate %d bytes", lth);

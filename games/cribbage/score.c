@@ -105,15 +105,15 @@ static int pairpoints, runpoints;		/* Globals from pairuns. */
  */
 int
 scorehand(hand, starter, n, crb, do_explain)
-	register CARD hand[];
+	CARD hand[];
 	CARD starter;
 	int n;
 	BOOLEAN crb;		/* true if scoring crib */
 	BOOLEAN do_explain;	/* true if must explain this hand */
 {
-	register int i, k;
-	register int score;
-	register BOOLEAN flag;
+	int i, k;
+	int score;
+	BOOLEAN flag;
 	CARD h[(CINHAND + 1)];
 	char buf[32];
 
@@ -180,12 +180,12 @@ scorehand(hand, starter, n, crb, do_explain)
  */
 int
 fifteens(hand, n)
-	register CARD hand[];
+	CARD hand[];
 	int n;
 {
-	register int *sp, *np;
-	register int i;
-	register CARD *endp;
+	int *sp, *np;
+	int i;
+	CARD *endp;
 	static int sums[15], nsums[15];
 
 	np = nsums;
@@ -226,7 +226,7 @@ pairuns(h, n)
 	CARD h[];
 	int n;
 {
-	register int i;
+	int i;
 	int runlength, runmult, lastmult, curmult;
 	int mult1, mult2, pair1, pair2;
 	BOOLEAN run;
@@ -296,7 +296,7 @@ pegscore(crd, tbl, n, sum)
 	int n, sum;
 {
 	BOOLEAN got[RANKS];
-	register int i, j, scr;
+	int i, j, scr;
 	int k, lo, hi;
 
 	sum += VAL(crd.rank);

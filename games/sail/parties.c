@@ -41,10 +41,10 @@ static char sccsid[] = "@(#)parties.c	8.1 (Berkeley) 5/31/93";
 
 meleeing(from, to)
 struct ship *from;
-register struct ship *to;
+struct ship *to;
 {
-	register struct BP *p = from->file->OBP;
-	register struct BP *q = p + NBP;
+	struct BP *p = from->file->OBP;
+	struct BP *q = p + NBP;
 
 	for (; p < q; p++)
 		if (p->turnsent && p->toship == to)
@@ -53,11 +53,11 @@ register struct ship *to;
 }
 
 boarding(from, isdefense)
-register struct ship *from;
+struct ship *from;
 char isdefense;
 {
-	register struct BP *p = isdefense ? from->file->DBP : from->file->OBP;
-	register struct BP *q = p + NBP;
+	struct BP *p = isdefense ? from->file->DBP : from->file->OBP;
+	struct BP *q = p + NBP;
 
 	for (; p < q; p++)
 		if (p->turnsent)
@@ -66,11 +66,11 @@ char isdefense;
 }
 
 unboard(ship, to, isdefense)
-register struct ship *ship, *to;
-register char isdefense;
+struct ship *ship, *to;
+char isdefense;
 {
-	register struct BP *p = isdefense ? ship->file->DBP : ship->file->OBP;
-	register n;
+	struct BP *p = isdefense ? ship->file->DBP : ship->file->OBP;
+	n;
 
 	for (n = 0; n < NBP; p++, n++)
 		if (p->turnsent && (p->toship == to || isdefense || ship == to))

@@ -46,9 +46,9 @@ static char sccsid[] = "@(#)getguess.c	8.1 (Berkeley) 5/31/93";
  */
 getguess()
 {
-	register int	i;
-	register int	ch;
-	register bool	correct;
+	int	i;
+	int	ch;
+	bool	correct;
 
 	leaveok(stdscr, FALSE);
 	for (;;) {
@@ -90,7 +90,7 @@ getguess()
  */
 readch()
 {
-	register int	cnt, r;
+	int	cnt, r;
 	auto char	ch;
 
 	cnt = 0;

@@ -57,7 +57,7 @@ static char sccsid[] = "@(#)rest.c	8.1 (Berkeley) 5/31/93";
 rest()
 {
 	double			t;
-	register int		percent;
+	int		percent;
 
 	/* get the time to rest */
 	t = getfltpar("How long");

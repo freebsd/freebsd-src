@@ -224,11 +224,11 @@ primes(start, stop)
 	ubig start;	/* where to start generating */
 	ubig stop;	/* don't generate at or above this value */
 {
-	register char *q;		/* sieve spot */
-	register ubig factor;		/* index and factor */
-	register char *tab_lim;		/* the limit to sieve on the table */
-	register ubig *p;		/* prime table pointer */
-	register ubig fact_lim;		/* highest prime for current block */
+	char *q;		/* sieve spot */
+	ubig factor;		/* index and factor */
+	char *tab_lim;		/* the limit to sieve on the table */
+	ubig *p;		/* prime table pointer */
+	ubig fact_lim;		/* highest prime for current block */
 
 	/*
 	 * A number of systems can not convert double values into unsigned

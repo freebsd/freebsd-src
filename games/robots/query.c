@@ -47,8 +47,8 @@ static char sccsid[] = "@(#)query.c	8.1 (Berkeley) 5/31/93";
 query(prompt)
 char	*prompt;
 {
-	register int	c, retval;
-	register int	y, x;
+	int	c, retval;
+	int	y, x;
 
 	getyx(stdscr, y, x);
 	move(Y_PROMPT, X_PROMPT);

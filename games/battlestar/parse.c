@@ -41,7 +41,7 @@ static char sccsid[] = "@(#)parse.c	8.1 (Berkeley) 5/31/93";
 
 wordinit()
 {
-	register struct wlist *w;
+	struct wlist *w;
 
 	for (w = wlist; w->string; w++)
 		install(w);
@@ -51,7 +51,7 @@ int
 hash(s)
 	const char *s;
 {
-	register hashval = 0;
+	int hashval = 0;
 
 	while (*s) {
 		hashval += *s++;
@@ -65,7 +65,7 @@ struct wlist *
 lookup(s)
 	const char *s;
 {
-	register struct wlist *wp;
+	struct wlist *wp;
 
 	for (wp = hashtab[hash(s)]; wp != NULL; wp = wp->next)
 		if (*s == *wp->string && strcmp(s, wp->string) == 0)
@@ -74,7 +74,7 @@ lookup(s)
 }
 
 install(wp)
-	register struct wlist *wp;
+	struct wlist *wp;
 {
 	int hashval;
 
@@ -88,8 +88,8 @@ install(wp)
 
 parse()
 {
-	register struct wlist *wp;
-	register n;
+	struct wlist *wp;
+	int n;
 
 	wordnumber = 0;           /* for cypher */
 	for (n = 0; n <= wordcount; n++) {

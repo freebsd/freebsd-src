@@ -246,8 +246,8 @@ object *obj, *pack;
 
 next_avail_ichar()
 {
-	register object *obj;
-	register i;
+	object *obj;
+	i;
 	boolean ichars[26];
 
 	for (i = 0; i < 26; i++) {
@@ -336,7 +336,7 @@ take_off()
 wear()
 {
 	short ch;
-	register object *obj;
+	object *obj;
 	char desc[DCOLS];
 
 	if (rogue.armor) {
@@ -385,7 +385,7 @@ object *obj;
 wield()
 {
 	short ch;
-	register object *obj;
+	object *obj;
 	char desc[DCOLS];
 
 	if (rogue.weapon && rogue.weapon->is_cursed) {
@@ -438,7 +438,7 @@ object *obj;
 call_it()
 {
 	short ch;
-	register object *obj;
+	object *obj;
 	struct id *id_table;
 	char buf[MAX_TITLE_LENGTH+2];
 

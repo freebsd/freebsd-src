@@ -37,7 +37,7 @@
 
 movelevel()
 {
-register struct charstats	*statptr;	/* for pointing into Stattable */
+struct charstats	*statptr;	/* for pointing into Stattable */
 double	new;			/* new level */
 double	inc;			/* increment between new and old levels */
 
@@ -121,8 +121,8 @@ struct player	*playerp;
 bool	shortflag;
 {
 double	circle;			/* corresponding circle for coordinates */
-register int	quadrant;	/* quandrant of grid */
-register char	*label;		/* pointer to place name */
+int	quadrant;	/* quandrant of grid */
+char	*label;		/* pointer to place name */
 static char	*nametable[4][4] =   /* names of places */
 	{
 	"Anorien",	"Ithilien",	"Rohan",	"Lorien",
@@ -222,8 +222,8 @@ double	numitems;	/* number of items to purchase */
 double	cost;		/* cost of purchase */
 double	blessingcost;	/* cost of blessing */
 int	ch;		/* input */
-register int	size;	/* size of the trading post */
-register int	loop;	/* loop counter */
+int	size;	/* size of the trading post */
+int	loop;	/* loop counter */
 int	cheat = 0;	/* number of times player has tried to cheat */
 bool	dishonest = FALSE;/* set when merchant is dishonest */
 
@@ -604,7 +604,7 @@ descrtype(playerp, shortflag)
 struct player *playerp;
 bool	shortflag;
 {
-register int type;	/* for caluculating result subscript */
+int type;	/* for caluculating result subscript */
 static char	*results[] =	/* description table */
 			{
 			" Magic User", " MU",
@@ -694,8 +694,8 @@ static char	*results[] =	/* description table */
 
 long
 findname(name, playerp)
-register char	*name;
-register struct player *playerp;
+char	*name;
+struct player *playerp;
 {
 long	loc = 0;			/* location in the file */
 
@@ -997,7 +997,7 @@ static	char	*deathmesg[] =
 *************************************************************************/
 
 writerecord(playerp, place)
-register struct player	*playerp;
+struct player	*playerp;
 long	place;
 {
     fseek(Playersfp, place, 0);
@@ -1065,9 +1065,9 @@ double	experience;
 *************************************************************************/
 
 truncstring(string)
-register char	*string;
+char	*string;
 {
-register int	length;		/* length of string */
+int	length;		/* length of string */
 
     length = strlen(string);
     while (string[--length] == ' ')
@@ -1178,7 +1178,7 @@ int	operation;
 *************************************************************************/
 
 readrecord(playerp, loc)
-register struct player	*playerp;
+struct player	*playerp;
 long	loc;
 {
     fseek(Playersfp, loc, 0);
@@ -1327,7 +1327,7 @@ double	dtemp;				/* for temporary calculations */
 *************************************************************************/
 
 initplayer(playerp)
-register struct  player   *playerp;
+struct  player   *playerp;
 {
     playerp->p_experience =
     playerp->p_level =
@@ -1559,7 +1559,7 @@ int whichsig;
 
 char	*
 descrstatus(playerp)
-register struct player	*playerp;
+struct player	*playerp;
 {
     switch (playerp->p_status)
 	{

@@ -11,8 +11,8 @@ static boolean far_noise;
 static long noisetime;
 
 /* hitmm returns 0 (miss), 1 (hit), or 2 (kill) */
-hitmm(magr,mdef) register struct monst *magr,*mdef; {
-register struct permonst *pa = magr->data, *pd = mdef->data;
+hitmm(magr,mdef) struct monst *magr,*mdef; {
+struct permonst *pa = magr->data, *pd = mdef->data;
 int hit;
 schar tmp;
 boolean vis;
@@ -68,8 +68,8 @@ boolean vis;
 }
 
 /* drop (perhaps) a cadaver and remove monster */
-mondied(mdef) register struct monst *mdef; {
-register struct permonst *pd = mdef->data;
+mondied(mdef) struct monst *mdef; {
+struct permonst *pd = mdef->data;
 		if(letter(pd->mlet) && rn2(3)){
 			(void) mkobj_at(pd->mlet,mdef->mx,mdef->my);
 			if(cansee(mdef->mx,mdef->my)){
@@ -82,7 +82,7 @@ register struct permonst *pd = mdef->data;
 }
 
 /* drop a rock and remove monster */
-monstone(mdef) register struct monst *mdef; {
+monstone(mdef) struct monst *mdef; {
 	extern char mlarge[];
 	if(index(mlarge, mdef->data->mlet))
 		mksobj_at(ENORMOUS_ROCK, mdef->mx, mdef->my);
@@ -96,8 +96,8 @@ monstone(mdef) register struct monst *mdef; {
 }
 
 
-fightm(mtmp) register struct monst *mtmp; {
-register struct monst *mon;
+fightm(mtmp) struct monst *mtmp; {
+struct monst *mon;
 	for(mon = fmon; mon; mon = mon->nmon) if(mon != mtmp) {
 		if(DIST(mon->mx,mon->my,mtmp->mx,mtmp->my) < 3)
 		    if(rn2(4))
@@ -108,8 +108,8 @@ register struct monst *mon;
 
 /* u is hit by sth, but not a monster */
 thitu(tlev,dam,name)
-register tlev,dam;
-register char *name;
+tlev,dam;
+char *name;
 {
 char buf[BUFSZ];
 	setan(name,buf);
@@ -129,11 +129,11 @@ char mlarge[] = "bCDdegIlmnoPSsTUwY',&";
 
 boolean
 hmon(mon,obj,thrown)	/* return TRUE if mon still alive */
-register struct monst *mon;
-register struct obj *obj;
-register thrown;
+struct monst *mon;
+struct obj *obj;
+thrown;
 {
-	register tmp;
+	tmp;
 	boolean hittxt = FALSE;
 
 	if(!obj){
@@ -249,11 +249,11 @@ register thrown;
 /* try to attack; return FALSE if monster evaded */
 /* u.dx and u.dy must be set */
 attack(mtmp)
-register struct monst *mtmp;
+struct monst *mtmp;
 {
 	schar tmp;
 	boolean malive = TRUE;
-	register struct permonst *mdat;
+	struct permonst *mdat;
 	mdat = mtmp->data;
 
 	u_wipe_engr(3);   /* andrew@orca: prevent unlimited pick-axe attacks */
@@ -283,7 +283,7 @@ register struct monst *mtmp;
 	wakeup(mtmp);
 
 	if(mtmp->mhide && mtmp->mundetected){
-		register struct obj *obj;
+		struct obj *obj;
 
 		mtmp->mundetected = 0;
 		if((obj = o_at(mtmp->mx,mtmp->my)) && !Blind)

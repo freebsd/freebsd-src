@@ -67,9 +67,9 @@ int	read(), write();
 save() {
 
 	extern int	errno;
-	reg char	*sp;
-	reg int		outf;
-	reg time_t	*tp;
+	char		*sp;
+	int		outf;
+	time_t		*tp;
 	char		buf[80];
 	time_t		tme;
 	STAT		junk;
@@ -143,10 +143,10 @@ over:
  * be cleaned up before the game starts.
  */
 rest_f(file)
-reg char	*file; {
+char	*file; {
 
-	reg char	*sp;
-	reg int		inf;
+	char	*sp;
+	int		inf;
 	char		buf[80];
 	STAT		sbuf;
 

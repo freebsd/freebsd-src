@@ -47,9 +47,9 @@ static char sccsid[] = "@(#)init_field.c	8.1 (Berkeley) 5/31/93";
  */
 init_field()
 {
-	register int	i;
-	register WINDOW	*wp;
-	register int	j;
+	int	i;
+	WINDOW	*wp;
+	int	j;
 	static bool	first = TRUE;
 	static char	*desc[] = {
 				"Directions:",

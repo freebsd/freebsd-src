@@ -22,11 +22,11 @@ struct worn {
 };
 
 setworn(obj, mask)
-register struct obj *obj;
+struct obj *obj;
 long mask;
 {
-	register struct worn *wp;
-	register struct obj *oobj;
+	struct worn *wp;
+	struct obj *oobj;
 
 	for(wp = worn; wp->w_mask; wp++) if(wp->w_mask & mask) {
 		oobj = *(wp->w_obj);
@@ -50,8 +50,8 @@ long mask;
 }
 
 /* called e.g. when obj is destroyed */
-setnotworn(obj) register struct obj *obj; {
-	register struct worn *wp;
+setnotworn(obj) struct obj *obj; {
+	struct worn *wp;
 
 	for(wp = worn; wp->w_mask; wp++)
 		if(obj == *(wp->w_obj)) {

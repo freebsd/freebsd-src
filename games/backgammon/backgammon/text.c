@@ -111,7 +111,7 @@ text (t)
 const char	*const *t;
 
 {
-	register int	i;
+	int		i;
 	const char	*s, *a;
 
 	fixtty (noech);

@@ -47,9 +47,9 @@ static char sccsid[] = "@(#)roll.c	8.1 (Berkeley) 5/31/93";
  */
 
 roll(ndie, nsides)
-reg int	ndie, nsides; {
+int	ndie, nsides; {
 
-	reg int			tot;
+	int			tot;
 
 	tot = 0;
 	while (ndie--)

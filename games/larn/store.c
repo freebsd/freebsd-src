@@ -174,7 +174,7 @@ static void dnditem();
 
 dnd_hed()
 	{
-	register int i;
+	int i;
 	for (i=dnditm; i<26+dnditm; i++)	dnditem(i);
 	cursor(50,18); lprcat("You have ");
 	}
@@ -204,7 +204,7 @@ static void nogold()
 
 dndstore()
   {
-  register int i;
+  int i;
   dnditm = 0;
   nosignal = 1; /* disable signals */
   clear();  dnd_2hed();
@@ -264,9 +264,9 @@ dndstore()
  */
 static void
 dnditem(i)
-	register int i;
+	int i;
 	{
-	register int j,k;
+	int j,k;
 	if (i >= maxitm)  return;
 	cursor( (j=(i&1)*40+1) , (k=((i%26)>>1)+5) );
 	if (itm[i].qty == 0)  { lprintf("%39s","");  return; }
@@ -318,7 +318,7 @@ sch_hed()
 
 oschool()
 	{
-	register int i;
+	int i;
 	long time_used;
 	nosignal = 1; /* disable signals */
 	sch_hed();
@@ -423,7 +423,7 @@ banktitle(str)
 	clear();  lprcat(str);
 	if (outstanding_taxes>0)
 		{
-		register int i;
+		int i;
 		lprcat("\n\nThe Larn Revenue Service has ordered that your account be frozen until all\n"); beep();
 		lprintf("levied taxes have been paid.  They have also told us that you owe %d gp in\n",(long)outstanding_taxes);
 		lprcat("taxes, and we must comply with them. We cannot serve you at this time.  Sorry.\n");
@@ -444,7 +444,7 @@ banktitle(str)
  */
 ointerest()
 	{
-	register int i;
+	int i;
 	if (c[BANKACCOUNT]<0) c[BANKACCOUNT] = 0;
 	else if ((c[BANKACCOUNT]>0) && (c[BANKACCOUNT]<500000))
 		{
@@ -461,7 +461,7 @@ static long gemvalue[26]={0};	/* the appraisal of the gems */
 obanksub()
 	{
 	unsigned long amt;
-	register int i,k;
+	int i,k;
 	ointerest();	/* credit any needed interest */
 
 	for (k=i=0; i<26; i++)
@@ -547,9 +547,9 @@ obanksub()
 	subroutine to appraise any stone for the bank
  */
 appraise(gemstone)
-	register int gemstone;
+	int gemstone;
 	{
-	register int j,amt;
+	int j,amt;
 	for (j=0; j<26; j++)
 	  if (iven[j]==gemstone)
 		{
@@ -589,7 +589,7 @@ static otradhead()
 
 otradepost()
   {
-  register int i,j,value,isub,izarg;
+  int i,j,value,isub,izarg;
   dnditm = dndcount = 0;
   nosignal = 1; /* disable signals */
   resetscroll();	otradhead();
@@ -652,7 +652,7 @@ cnsitm()
  */
 olrs()
 	{
-	register int i,first;
+	int i,first;
 	unsigned long amt;
 	first = nosignal = 1; /* disable signals */
 	clear();  resetscroll(); cursor(1,4);
