@@ -402,15 +402,12 @@ unsigned int mask;
 		if (!(mask & imask))
 			continue;
 printf("IRQ=%d\n",irq);
+		if (maskp)
+			INTRMASK (*maskp, mask);
 		if (register_intr(irq, 0, 0, hand, maskp, unit)==0)
 			{
 printf("IRQ=%d yes!\n",irq);
-			if (maskp)
-				INTRMASK (*maskp, mask);
 
-			update_intr_masks();
-
-			INTREN (mask);
 			return(irq);
 			}
 		}
@@ -464,6 +461,9 @@ int err, irq = 0, s;
  */
 		else
 			{
+/* XXX ED.C
+dp->imask = &net_imask;
+*/
 			irq = pccard_alloc_intr(drvp->irqmask,
 				slot_irq_handler, (int)sp, dp->imask);
 			if (irq < 0)
@@ -509,6 +509,7 @@ int err, irq = 0, s;
 		remove_device(devp);
 	else
 		devp->running = 1;
+	INTREN (1 << irq);
 	return(err);
 }
 static void
