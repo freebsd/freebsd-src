@@ -53,6 +53,7 @@
 #include <sys/poll.h>
 
 #include <machine/limits.h>
+#include <machine/mutex.h>
 
 #include <vm/vm.h>
 #include <vm/vm_object.h>
@@ -449,7 +450,7 @@ vop_nolock(ap)
 	 * the interlock here.
 	 */
 	if (ap->a_flags & LK_INTERLOCK)
-		simple_unlock(&ap->a_vp->v_interlock);
+		mtx_exit(&ap->a_vp->v_interlock, MTX_DEF);
 	return (0);
 #endif
 }
@@ -471,7 +472,7 @@ vop_nounlock(ap)
 	 * the interlock here.
 	 */
 	if (ap->a_flags & LK_INTERLOCK)
-		simple_unlock(&ap->a_vp->v_interlock);
+		mtx_exit(&ap->a_vp->v_interlock, MTX_DEF);
 	return (0);
 }
 

@@ -637,6 +637,7 @@ union_freevp(vp)
 		free(un->un_path, M_TEMP);
 		un->un_path = NULL;
 	}
+	lockdestroy(&un->un_lock);
 
 	FREE(vp->v_data, M_TEMP);
 	vp->v_data = 0;

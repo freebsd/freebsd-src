@@ -57,6 +57,8 @@
 #include <sys/malloc.h>
 #include <sys/stat.h>
 
+#include <machine/mutex.h>
+
 #include <ufs/ufs/extattr.h>
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/ufsmount.h>
@@ -575,7 +577,7 @@ loop:
 		/*
 		 * Step 5: invalidate all cached file data.
 		 */
-		simple_lock(&vp->v_interlock);
+		mtx_enter(&vp->v_interlock, MTX_DEF);
 		simple_unlock(&mntvnode_slock);
 		if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, p)) {
 			goto loop;
@@ -922,14 +924,14 @@ loop:
 		 */
 		if (vp->v_mount != mp)
 			goto loop;
-		simple_lock(&vp->v_interlock);
+		mtx_enter(&vp->v_interlock, MTX_DEF);
 		nvp = vp->v_mntvnodes.le_next;
 		ip = VTOI(vp);
 		if (vp->v_type == VNON ||
 		    ((ip->i_flag &
 		    (IN_ACCESS | IN_CHANGE | IN_MODIFIED | IN_UPDATE)) == 0 &&
 		    (TAILQ_EMPTY(&vp->v_dirtyblkhd) || waitfor == MNT_LAZY))) {
-			simple_unlock(&vp->v_interlock);
+			mtx_exit(&vp->v_interlock, MTX_DEF);
 			continue;
 		}
 		simple_unlock(&mntvnode_slock);

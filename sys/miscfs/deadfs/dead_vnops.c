@@ -41,6 +41,8 @@
 #include <sys/vnode.h>
 #include <sys/poll.h>
 
+#include <machine/mutex.h>
+
 static int	chkvnlock __P((struct vnode *));
 /*
  * Prototypes for dead operations on vnodes.
@@ -210,7 +212,7 @@ dead_lock(ap)
 	 * the interlock here.
 	 */
 	if (ap->a_flags & LK_INTERLOCK) {
-		simple_unlock(&vp->v_interlock);
+		mtx_exit(&vp->v_interlock, MTX_DEF);
 		ap->a_flags &= ~LK_INTERLOCK;
 	}
 	if (!chkvnlock(vp))

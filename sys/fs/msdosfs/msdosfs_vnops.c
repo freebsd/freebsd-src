@@ -68,6 +68,8 @@
 #include <vm/vm_extern.h>
 #include <vm/vnode_pager.h>
 
+#include <machine/mutex.h>
+
 #include <msdosfs/bpb.h>
 #include <msdosfs/direntry.h>
 #include <msdosfs/denode.h>
@@ -231,12 +233,12 @@ msdosfs_close(ap)
 	struct denode *dep = VTODE(vp);
 	struct timespec ts;
 
-	simple_lock(&vp->v_interlock);
+	mtx_enter(&vp->v_interlock, MTX_DEF);
 	if (vp->v_usecount > 1) {
 		getnanotime(&ts);
 		DETIMES(dep, &ts, &ts, &ts);
 	}
-	simple_unlock(&vp->v_interlock);
+	mtx_exit(&vp->v_interlock, MTX_DEF);
 	return 0;
 }
 

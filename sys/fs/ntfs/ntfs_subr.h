@@ -103,6 +103,7 @@ int ntfs_loadntnode __P(( struct ntfsmount *, struct ntnode * ));
 int ntfs_writentvattr_plain __P((struct ntfsmount *, struct ntnode *, struct ntvattr *, off_t, size_t, void *, size_t *, struct uio *));
 int ntfs_writeattr_plain __P((struct ntfsmount *, struct ntnode *, u_int32_t, char *, off_t, size_t, void *, size_t *, struct uio *));
 void ntfs_toupper_init __P((void));
+void ntfs_toupper_destroy __P((void));
 int ntfs_toupper_use __P((struct mount *, struct ntfsmount *));
 void ntfs_toupper_unuse __P((void));
 int ntfs_fget __P((struct ntfsmount *, struct ntnode *, int, char *, struct fnode **));

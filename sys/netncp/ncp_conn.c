@@ -79,6 +79,13 @@ ncp_conn_init(void) {
 }
 
 int
+ncp_conn_destroy(void) {
+	lockdestroy(&listlock);
+	lockdestroy(&lhlock);
+	return 0;
+}
+
+int
 ncp_conn_locklist(int flags, struct proc *p){
 	return lockmgr(&listlock, flags | LK_CANRECURSE, 0, p);
 }
@@ -231,6 +238,7 @@ ncp_conn_free(struct ncp_conn *ncp) {
 	 * if signal is raised - how I do react ?
 	 */
 	lockmgr(&ncp->nc_lock, LK_DRAIN, 0, ncp->procp);
+	lockdestroy(&ncp->nc_lock);
 	while (ncp->nc_lwant) {
 		printf("lwant = %d\n", ncp->nc_lwant);
 		tsleep(&ncp->nc_lwant, PZERO,"ncpdr",2*hz);

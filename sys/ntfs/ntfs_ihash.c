@@ -75,6 +75,15 @@ ntfs_nthashinit()
 }
 
 /*
+ * Destroy inode hash table.
+ */
+void
+ntfs_nthashdestroy(void)
+{
+	lockdestroy(&ntfs_hashlock);
+}
+
+/*
  * Use the device/inum pair to find the incore inode, and return a pointer
  * to it. If it is in core, return it, even if it is locked.
  */
