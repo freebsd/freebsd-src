@@ -6,6 +6,20 @@ chronology since 4.0 was released is included, followed by the common
 items quick how-tos, followed by entries for versions of -current
 prior to 4.0 Release.
 
+20010611:
+	The TCP_RESTRICT_RST option has been removed. You should entirely
+	remove it from your kernel configuration.
+
+	The same functionality is available from the blackhole(4) MIB.
+
+20010521:
+	Minor repo damanged has happened.  This may cause problems
+	with cvsup of ports.  If you get errors, please see
+	http://www.FreeBSD.org/cgi/query-pr.cgi?pr=27495
+	at the bottom for details on a workaround.  The error message
+	is
+Updater failed: Cannot delete "/usr/ports/www/jakarta-tomcat/files": Directory not empty
+
 20010516:
 	Size changes in the cred structures introduced a binary
 	incompatibility for modules using the crhold() macro.  Modules
