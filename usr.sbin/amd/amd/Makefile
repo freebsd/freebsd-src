@@ -21,6 +21,7 @@ CFLAGS+=-DARCH_REP=\"${MACHINE}\"
 CFLAGS+=-DOS_REP=\"${OS}\"
 CFLAGS+=-DOS_HDR=\"os-${OS}.h\"
 CFLAGS+=${CONFIG}
+LDADD= ${XLIBDIR} ${RESOLV}
 CLEANFILES+=vers.${PROG}.c vers.${PROG}.o version.amd
 
 vers.${PROG}.c: ${SRCS:.c=.o}
