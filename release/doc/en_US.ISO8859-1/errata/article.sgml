@@ -21,6 +21,8 @@
 %trademarks;
 <!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
 %release;
+<!ENTITY % misc PUBLIC  "-//FreeBSD//ENTITIES DocBook Miscellaneous FreeBSD Entities//EN">
+%misc;
 ]>
 
 <article>
@@ -45,6 +47,7 @@
       <year>2001</year>
       <year>2002</year>
       <year>2003</year>
+      <year>2004</year>
       <holder role="mailto:doc@FreeBSD.org">The FreeBSD Documentation Project</holder>
     </copyright>
 
@@ -138,7 +141,62 @@
 ]]>
 
 <![ %release.type.snapshot [
-    <para>No open issues.</para>
+
+    <para>(9 Jan 2004) Due to a change in &man.cpp.1; behavior, the
+      login screen for &man.xdm.1; is in black and white, even on
+      systems with color displays.  As a workaround, update to a newer
+      version of the 
+      <filename role="package">x11/XFree86-4-clients</filename>
+      port/package.</para>
+
+    <para>(9 Jan 2004) There remain some residual problems with ACPI.
+      In some cases, systems may behave erratically, or hang at boot
+      time.  As a workaround, disable ACPI, using the <quote>safe
+      mode</quote> option of the bootloader or using the
+      <varname>hint.acpi.0.disabled</varname> kernel environment
+      variable.  These problems are being investigated.  For problems
+      that have not already been reported (check the mailing list
+      archives <emphasis>before</emphasis> posting), sending the
+      output of &man.dmesg.8; and &man.acpidump.8; to the
+      &a.current; may help diagnose the problem.</para>
+
+    <para>(9 Jan 2004) In some cases, ATA devices may behave
+      erratically, particularly SATA devices.  Reported symptoms
+      include command timouts or missing interrupts.  These problems
+      appear to be timing-dependent, making them rather difficult to
+      isolate.  Workarounds include:</para>
+
+    <itemizedlist>
+      <listitem>
+	<para>Turn off ATA DMA using the <quote>safe mode</quote>
+	  option of the bootloader or the
+	  <varname>hw.ata.ata_dma</varname> sysctl variable.</para>
+      </listitem>
+
+      <listitem>
+	<para>Use the host's BIOS setup options to put the ATA
+	  controller in its <quote>legacy mode</quote>, if
+	  available.</para>
+      </listitem>
+
+      <listitem>
+	<para>Disable ACPI, for example using the <quote>safe mode</quote>
+	  option of the bootloader or using the
+	  <varname>hint.acpi.0.disabled</varname> kernel environment
+	  variable.</para>
+      </listitem>
+    </itemizedlist>
+
+    <para>(9 Jan 2004) Installing over NFS when using the install
+      floppies requires that the <filename>nfsclient.ko</filename>
+      module be manually loaded from the third floppy disk.  This can
+      be done by following the prompts when &man.sysinstall.8;
+      launches to load a driver off of the third floppy disk.</para>
+
+    <para>(9 Jan 2004) The use of multiple vchans (virtual audio
+      channels with dynamic mixing in software) in the &man.pcm.4;
+      driver has been known to cause some instability.</para>
+
 ]]>
 
   </sect1>
