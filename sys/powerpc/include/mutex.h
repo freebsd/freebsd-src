@@ -223,9 +223,9 @@ char STR_IDIS[] = "!(fl & 0x200)";
 extern char STR_IEN[];
 extern char STR_IDIS[];
 #endif	/* MTX_STRS */
-#define	ASS_IEN		MPASS2((alpha_pal_rdps & ALPHA_PSL_IPL_MASK)
+#define	ASS_IEN		MPASS2((alpha_pal_rdps & ALPHA_PSL_IPL_MASK)	\
 			       == ALPHA_PSL_IPL_HIGH, STR_IEN)
-#define	ASS_IDIS	MPASS2((alpha_pal_rdps & ALPHA_PSL_IPL_MASK)
+#define	ASS_IDIS	MPASS2((alpha_pal_rdps & ALPHA_PSL_IPL_MASK)	\
 			       != ALPHA_PSL_IPL_HIGH, STR_IDIS)
 #endif	/* INVARIANTS */
 
