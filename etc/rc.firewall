@@ -1,6 +1,6 @@
 ############
 # Setup system for firewall service.
-# $Id: rc.firewall,v 1.3 1996/06/22 00:54:36 alex Exp $
+# $Id: rc.firewall,v 1.4 1996/08/14 14:41:58 jkh Exp $
 
 ############
 #
@@ -13,7 +13,7 @@
 # machine and ``simple'' will try to protect a whole network (entries should
 # be customized appropriately below).  To let no one in, use NONE.
 
-firewall_type=	NONE
+firewall_type=NONE
 
 
 ############
