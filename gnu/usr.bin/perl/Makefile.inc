@@ -2,7 +2,12 @@
 
 PERL5SRC?= ${.CURDIR}/../../../../contrib/perl5
 PERL5LIBSRC?= ${.CURDIR}/../libperl
-MINIPERL!=	echo `PATH=$$PATH:${.OBJDIR}/../miniperl:${.OBJDIR}/../../miniperl which miniperl`
+
+.if exists(${.OBJDIR}/../miniperl/miniperl)
+MINIPERL?=	${.OBJDIR}/../miniperl/miniperl
+.else
+MINIPERL?=	${.OBJDIR}/../../miniperl/miniperl
+.endif
 
 BINDIR?=	/usr/bin
 

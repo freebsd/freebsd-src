@@ -196,7 +196,7 @@ lib${LIB}_p.a:: ${POBJS}
 	${RANLIB} lib${LIB}_p.a
 .endif
 
-.if defined(DESTDIR)
+.if defined(DESTDIR) && !defined(BOOTSTRAPPING)
 LDDESTDIRENV?=	LIBRARY_PATH=${DESTDIR}${SHLIBDIR}:${DESTDIR}${LIBDIR}
 .endif
 
