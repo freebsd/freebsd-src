@@ -15,7 +15,7 @@
    This program must run suid to root.
    */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/gnu/libexec/uucp/contrib/tstout.c,v 1.1.16.1 2000/12/11 01:03:17 obrien Exp $ */
 
 #include <stdio.h>
 #include <string.h>

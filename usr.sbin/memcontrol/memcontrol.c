@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/memcontrol/memcontrol.c,v 1.3.4.2 2000/12/11 01:03:33 obrien Exp $
  */
 
 #include <sys/types.h>

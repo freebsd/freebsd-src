@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/doc/smm/10.named/Makefile,v 1.4.2.1 2000/12/01 13:52:21 ru Exp $
 
 SRCDIR=	${.CURDIR}/../../../../contrib/bind/doc/bog
 

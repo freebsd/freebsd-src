@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/doc/usd/title/Makefile,v 1.5.2.1 2000/11/27 07:20:08 ru Exp $
 
 VOLUME=	usd
 SRCS=	Title

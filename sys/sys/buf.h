@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)buf.h	8.9 (Berkeley) 3/30/95
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/buf.h,v 1.88.2.3 2000/12/30 01:51:10 dillon Exp $
  */
 
 #ifndef _SYS_BUF_H_

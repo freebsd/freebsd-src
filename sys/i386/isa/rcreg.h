@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/isa/rcreg.h,v 1.3.12.1 2000/08/03 01:01:20 peter Exp $
  */
 
 /*

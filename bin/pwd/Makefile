@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 5/31/93
-# $FreeBSD$
+# $FreeBSD: src/bin/pwd/Makefile,v 1.5.2.1 2001/01/23 15:46:00 asmodai Exp $
 
 PROG=	pwd
 LINKS=	${BINDIR}/pwd ${BINDIR}/realpath

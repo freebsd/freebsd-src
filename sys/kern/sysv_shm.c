@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/kern/sysv_shm.c,v 1.45.2.3 2000/11/01 17:58:06 rwatson Exp $ */
 /*	$NetBSD: sysv_shm.c,v 1.23 1994/07/04 23:25:12 glass Exp $	*/
 
 /*

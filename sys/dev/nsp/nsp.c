@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/dev/nsp/nsp.c,v 1.1.2.3 2001/03/03 14:44:55 non Exp $	*/
 /*	$NecBSD: nsp.c,v 1.21 1999/07/23 21:00:05 honda Exp $	*/
 /*	$NetBSD$	*/
 

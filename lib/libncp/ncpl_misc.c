@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libncp/ncpl_misc.c,v 1.3 1999/10/31 03:39:03 bp Exp $
  *
  * calls that don't fit to any other category
  *

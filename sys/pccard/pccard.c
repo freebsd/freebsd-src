@@ -28,7 +28,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/pccard/pccard.c,v 1.106.2.4 2001/03/25 15:32:39 iedowse Exp $
  */
 
 #include "opt_pcic.h"

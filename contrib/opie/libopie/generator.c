@@ -26,7 +26,7 @@ you didn't get a copy, you may request one from <license@inner.net>.
 		Bug fixes.
 	Created at NRL for OPIE 2.2.
 
-$FreeBSD$
+$FreeBSD: src/contrib/opie/libopie/generator.c,v 1.3.6.1 2000/06/09 07:15:01 kris Exp $
 */
 
 #include "opie_cfg.h"

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/sys/dev/mlx/mlx_pci.c,v 1.4.2.4 2000/10/28 10:48:09 msmith Exp $
  */
 
 #include <sys/param.h>

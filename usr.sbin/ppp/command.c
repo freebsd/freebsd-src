@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/ppp/command.c,v 1.230.2.8 2000/12/18 01:46:43 brian Exp $
  *
  */
 #include <sys/param.h>

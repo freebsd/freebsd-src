@@ -10,7 +10,7 @@ you didn't get a copy, you may request one from <license@inner.net>.
 
 	Created by cmetz for OPIE 2.3.
 
-$FreeBSD$
+$FreeBSD: src/contrib/opie/libopie/hashlen.c,v 1.3.6.1 2000/06/09 07:15:01 kris Exp $
 */
 
 #include "opie_cfg.h"

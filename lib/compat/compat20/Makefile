@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/compat/compat20/Makefile,v 1.10 1999/08/27 23:57:46 peter Exp $
 
 DISTRIBUTION=	compat20
 

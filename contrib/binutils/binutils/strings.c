@@ -17,7 +17,7 @@
    Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
    02111-1307, USA.  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/binutils/binutils/strings.c,v 1.2.6.2 2000/07/07 05:33:33 obrien Exp $ */
 
 /* Usage: strings [options] file...
 

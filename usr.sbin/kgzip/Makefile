@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/kgzip/Makefile,v 1.2 1999/08/28 01:16:42 peter Exp $
 
 PROG=	kgzip
 SRCS=	kgzip.c elfhdr.c kgzcmp.c kgzld.c xio.c

@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/4/93
-# $FreeBSD$
+# $FreeBSD: src/lib/Makefile,v 1.107.2.6 2001/03/22 01:43:40 ps Exp $
 
 # To satisfy shared library or ELF linkage when only the libraries being
 # built are visible:

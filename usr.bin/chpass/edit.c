@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/chpass/edit.c,v 1.16.2.1 2000/06/28 00:24:45 davidn Exp $
  */
 
 #ifndef lint

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/contrib/groff/devascii/R.proto,v 1.2.6.1 2000/12/07 09:48:20 ru Exp $
 name R
 internalname 0
 spacewidth 24

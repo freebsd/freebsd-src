@@ -6,7 +6,7 @@
  * William Jolitz.
  *
  *      form: @(#)lptreg.h	1.1 (Berkeley) 12/19/90
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/isa/lptreg.h,v 1.7 1999/08/28 00:44:57 peter Exp $
  */
 
 /*

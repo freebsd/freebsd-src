@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/an/if_an_isa.c,v 1.1.2.2 2000/12/20 21:25:31 archie Exp $
  */
 
 /*
@@ -73,7 +73,7 @@
 
 #ifndef lint
 static const char rcsid[] =
- "$FreeBSD$";
+ "$FreeBSD: src/sys/dev/an/if_an_isa.c,v 1.1.2.2 2000/12/20 21:25:31 archie Exp $";
 #endif
 
 static struct isa_pnp_id an_ids[] = {

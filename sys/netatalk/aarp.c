@@ -2,7 +2,7 @@
  * Copyright (c) 1990,1991 Regents of The University of Michigan.
  * All Rights Reserved.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netatalk/aarp.c,v 1.12.2.1 2000/08/03 01:07:02 peter Exp $
  */
 
 #include "opt_atalk.h"

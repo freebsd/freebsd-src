@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/usr.sbin/tcpdump/tcpdump/config.h,v 1.1.2.1 2000/11/05 00:23:11 fenner Exp $ */
 
 /* config.h.  Generated automatically by configure.  */
 /* config.h.in.  Generated automatically from configure.in by autoheader.  */

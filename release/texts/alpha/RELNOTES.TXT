@@ -1072,4 +1072,4 @@ possible.
 
                         The FreeBSD Project
 
-$FreeBSD$
+$FreeBSD: src/release/texts/alpha/RELNOTES.TXT,v 1.31.2.140.2.1 2001/04/21 05:50:00 jkh Exp $

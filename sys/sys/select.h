@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)select.h	8.2 (Berkeley) 1/4/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/select.h,v 1.6.2.1 2000/05/05 03:50:02 jlemon Exp $
  */
 
 #ifndef _SYS_SELECT_H_

@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/crypto/cast128/cast128.c,v 1.1.2.1 2000/07/15 07:14:21 kris Exp $	*/
 /*	$KAME: cast128.c,v 1.3 2000/03/27 04:36:29 sumikawa Exp $	*/
 
 /*

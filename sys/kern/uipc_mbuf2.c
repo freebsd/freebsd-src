@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/kern/uipc_mbuf2.c,v 1.2.2.1 2000/07/15 07:14:25 kris Exp $	*/
 /*	$KAME: uipc_mbuf2.c,v 1.15 2000/02/22 14:01:37 itojun Exp $	*/
 /*	$NetBSD: uipc_mbuf.c,v 1.40 1999/04/01 00:23:25 thorpej Exp $	*/
 

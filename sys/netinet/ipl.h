@@ -6,7 +6,7 @@
  * to the original author and the contributors.
  *
  * @(#)ipl.h	1.21 6/5/96
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet/ipl.h,v 1.8.2.3 2001/02/17 20:42:08 darrenr Exp $
  */
 
 #ifndef	__IPL_H__

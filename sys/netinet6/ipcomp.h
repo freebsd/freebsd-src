@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/netinet6/ipcomp.h,v 1.1.2.1 2000/07/15 07:14:35 kris Exp $	*/
 /*	$KAME: ipcomp.h,v 1.7 2000/05/18 12:45:13 sumikawa Exp $	*/
 
 /*

@@ -37,7 +37,7 @@
  *
  *	$Id: rates.c,v 1.10 1999/12/13 21:25:25 hm Exp $ 
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/i4b/isdnd/rates.c,v 1.6.2.1 2000/10/29 04:02:35 kris Exp $
  *
  *      last edit-date: [Mon Dec 13 21:48:31 1999]
  *

@@ -19,7 +19,7 @@
    Software Foundation, 59 Temple Place - Suite 330, Boston, MA
    02111-1307, USA.  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/binutils/gas/config/tc-i386.h,v 1.3.6.2 2000/07/07 05:33:52 obrien Exp $ */
 
 #ifndef TC_I386
 #define TC_I386 1

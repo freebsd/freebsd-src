@@ -1,5 +1,5 @@
 /*	$NetBSD: ulpt.c,v 1.29 1999/11/17 23:00:50 augustss Exp $	*/
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/dev/usb/ulpt.c,v 1.26.2.6 2001/01/06 15:20:26 iedowse Exp $	*/
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.

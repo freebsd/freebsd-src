@@ -30,7 +30,7 @@
  *
  * $Id: //depot/src/aic7xxx/aic7xxx.seq#24 $
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/aic7xxx/aic7xxx.seq,v 1.94.2.13 2001/03/21 05:00:00 gibbs Exp $
  */
 
 #include "aic7xxx.reg"

@@ -37,7 +37,7 @@
  *
  *	@(#)nlist.h	8.2 (Berkeley) 1/21/94
  *
- * $FreeBSD$
+ * $FreeBSD: src/include/nlist.h,v 1.7 1999/08/27 23:44:51 peter Exp $
  */
 
 #ifndef _NLIST_H_

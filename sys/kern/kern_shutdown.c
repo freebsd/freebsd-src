@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_shutdown.c	8.3 (Berkeley) 1/21/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/kern/kern_shutdown.c,v 1.72.2.5 2000/10/29 16:59:29 dwmalone Exp $
  */
 
 #include "opt_ddb.h"

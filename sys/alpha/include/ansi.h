@@ -32,7 +32,7 @@
  *
  *	@(#)ansi.h	8.2 (Berkeley) 1/4/94
  *	From: NetBSD: ansi.h,v 1.9 1997/11/23 20:20:53 kleink Exp
- * $FreeBSD$
+ * $FreeBSD: src/sys/alpha/include/ansi.h,v 1.5.2.5 2001/03/05 13:08:49 obrien Exp $
  */
 
 #ifndef	_ANSI_H_

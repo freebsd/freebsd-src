@@ -24,7 +24,7 @@ static char copyright[] =
 static char id[] = "@(#)$Id: makemap.c,v 8.135.4.13 2000/10/05 23:00:50 gshapiro Exp $";
 #endif /* ! lint */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/sendmail/makemap/makemap.c,v 1.3.6.3 2001/02/01 00:54:40 gshapiro Exp $ */
 
 #include <sys/types.h>
 #ifndef ISC_UNIX

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/i386/libi386/Makefile,v 1.15.2.3 2000/12/28 13:12:37 ps Exp $
 #
 LIB=			i386
 NOPIC=

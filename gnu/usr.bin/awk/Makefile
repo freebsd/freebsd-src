@@ -1,6 +1,6 @@
 # Makefile copyright James Raynard (jraynard@freebsd.org) 1997
 #
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/awk/Makefile,v 1.13.2.1 2001/01/23 22:09:01 asmodai Exp $
 
 .include "${.CURDIR}/../Makefile.inc"
 

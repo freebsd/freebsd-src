@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)ifconfig.c	8.2 (Berkeley) 2/16/94";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/sbin/ifconfig/ifconfig.c,v 1.51.2.5 2001/02/26 07:37:27 ume Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>

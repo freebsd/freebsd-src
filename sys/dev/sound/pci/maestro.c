@@ -24,7 +24,7 @@
  * SUCH DAMAGE.
  *
  *	$Id: maestro.c,v 1.12 2000/09/06 03:32:34 taku Exp $
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/sound/pci/maestro.c,v 1.2.2.2 2001/02/03 01:29:10 cg Exp $
  */
 
 /*

@@ -6,7 +6,7 @@
  * to the original author and the contributors.
  *
  * $Id: ip_log.c,v 2.5.2.1 2000/07/19 13:11:47 darrenr Exp $
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet/ip_log.c,v 1.13.2.3 2001/02/17 20:42:07 darrenr Exp $
  */
 #include <sys/param.h>
 #if defined(KERNEL) && !defined(_KERNEL)

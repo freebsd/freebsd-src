@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:35:49  rpd
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/boot/biosboot/disk.c,v 1.28 1999/12/08 09:32:48 phk Exp $
  */
 
 /*

@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/bind/port/freebsd/include/port_after.h,v 1.6.2.3 2001/01/30 12:28:46 asmodai Exp $ */
 #ifndef	PORT_AFTER_H
 #define	PORT_AFTER_H
 #define USE_POSIX

@@ -85,7 +85,7 @@
 
     See HISTORY file for additional revisions.
 
-    $FreeBSD$
+    $FreeBSD: src/lib/libalias/alias.c,v 1.16.2.4 2000/10/31 08:48:21 ru Exp $
 */
 
 #include <sys/types.h>

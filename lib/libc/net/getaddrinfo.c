@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/lib/libc/net/getaddrinfo.c,v 1.9.2.6 2001/03/05 10:39:19 obrien Exp $	*/
 /*	$KAME: getaddrinfo.c,v 1.15 2000/07/09 04:37:24 itojun Exp $	*/
 
 /*

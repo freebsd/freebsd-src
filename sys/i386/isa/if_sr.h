@@ -33,7 +33,7 @@
  * THIS SOFTWARE, EVEN IF WHISTLE COMMUNICATIONS IS ADVISED OF THE POSSIBILITY
  * OF SUCH DAMAGE.
 
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/isa/if_sr.h,v 1.2.2.1 2000/11/21 20:19:38 julian Exp $
  */
 
 #ifndef _I386_ISA_IF_SR_H_

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet/ip_divert.c,v 1.42.2.3 2001/02/27 09:41:15 phk Exp $
  */
 
 #include "opt_inet.h"

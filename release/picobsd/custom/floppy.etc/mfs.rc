@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/release/picobsd/custom/floppy.etc/mfs.rc,v 1.1 1999/12/10 21:52:06 grog Exp $
 ### WARNING !!!!!! #####
 # We remove this file during execution (see EOF).
 # Awful things happen if its size is > 1024B

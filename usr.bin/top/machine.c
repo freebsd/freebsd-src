@@ -19,7 +19,7 @@
  *          Steven Wallace  <swallace@freebsd.org>
  *          Wolfram Schneider <wosch@FreeBSD.org>
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/top/machine.c,v 1.29 1999/11/17 16:31:51 davidn Exp $
  */
 
 

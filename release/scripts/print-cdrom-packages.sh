@@ -2,7 +2,7 @@
 #
 # Author:	Jordan Hubbard
 # Date:		Mon Jul 10 01:18:20 2000
-# Version:	$FreeBSD$
+# Version:	$FreeBSD: src/release/scripts/print-cdrom-packages.sh,v 1.1.2.3 2001/04/16 21:27:52 jkh Exp $
 #
 # This script prints out the list of "minimum required packages" for
 # a given CDROM number, that numer currently referring to the 4 CD

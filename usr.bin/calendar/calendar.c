@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/calendar/calendar.c,v 1.11.2.3 2001/03/04 08:11:20 kris Exp $
  */
 
 #ifndef lint

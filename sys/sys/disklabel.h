@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)disklabel.h	8.2 (Berkeley) 7/10/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/disklabel.h,v 1.49.2.6 2001/03/05 03:15:09 obrien Exp $
  */
 
 #ifndef _SYS_DISKLABEL_H_

@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/alpha/alpha/swtch.s,v 1.14 1999/11/10 21:14:24 dfr Exp $ */
 /* $NetBSD: locore.s,v 1.47 1998/03/22 07:26:32 thorpej Exp $ */
 
 /*

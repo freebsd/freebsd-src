@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/ppp/ccp.c,v 1.54.2.4 2001/02/22 01:19:18 brian Exp $
  *
  *	TODO:
  *		o Support other compression protocols

@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/locale/rune.c,v 1.5.8.1 2001/03/05 10:26:02 obrien Exp $
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)

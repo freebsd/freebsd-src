@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/sound/isa/ad1816.c,v 1.7.2.4 2001/02/03 01:29:08 cg Exp $
  */
 
 #include <dev/sound/pcm/sound.h>

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ps.h	8.1 (Berkeley) 5/31/93
- * $FreeBSD$
+ * $FreeBSD: src/bin/ps/ps.h,v 1.7 1999/08/27 23:14:52 peter Exp $
  */
 
 #define	UNLIMITED	0	/* unlimited terminal width */

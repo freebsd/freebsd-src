@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/compat/compat3x.i386/Makefile,v 1.8.2.4 2001/02/10 06:49:53 obrien Exp $
 
 DISTRIBUTION=	compat3x
 

@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/lib/libc/net/getifaddrs.c,v 1.1.2.2 2000/10/30 17:32:52 ume Exp $	*/
 
 /*
  * Copyright (c) 1995, 1999

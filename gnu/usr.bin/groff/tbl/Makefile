@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/groff/tbl/Makefile,v 1.5.8.1 2000/12/07 09:57:19 ru Exp $
 
 PROG=		tbl
 SRCS=		main.cc table.cc

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THEPOSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/sound/pci/cs4281.c,v 1.2.2.2 2001/03/05 17:47:30 cg Exp $
  *
  * The order of pokes in the initiation sequence is based on Linux
  * driver by Thomas Sailer, gw boynton (wesb@crystal.cirrus.com), tom

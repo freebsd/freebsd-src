@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/alpha/alpha/promcons.c,v 1.15.2.1 2000/03/27 18:27:23 mjacob Exp $ */
 /* $NetBSD: promcons.c,v 1.13 1998/03/21 22:52:59 mycroft Exp $ */
 
 /*

@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/ntp/ntpq/Makefile,v 1.2 2000/01/01 23:58:00 roberto Exp $
 #
 
 .PATH:	${.CURDIR}/../../../contrib/ntp/ntpq

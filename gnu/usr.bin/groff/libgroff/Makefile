@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/groff/libgroff/Makefile,v 1.7.2.1 2000/12/07 09:57:10 ru Exp $
 
 LIB=		groff
 SRCS=		assert.cc change_lf.cc cmap.cc cset.cc device.cc errarg.cc\

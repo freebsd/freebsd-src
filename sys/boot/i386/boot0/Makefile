@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/i386/boot0/Makefile,v 1.8.2.5 2000/12/28 21:52:32 ps Exp $
 
 MAINTAINER=	rnordier
 

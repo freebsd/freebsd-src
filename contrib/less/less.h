@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/less/less.h,v 1.2.2.2 2000/07/19 09:24:26 ps Exp $ */
 /*
  * Copyright (C) 1984-2000  Mark Nudelman
  *

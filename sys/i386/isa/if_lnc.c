@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/isa/if_lnc.c,v 1.68.2.4 2001/01/08 15:37:59 ume Exp $
  */
 
 /*

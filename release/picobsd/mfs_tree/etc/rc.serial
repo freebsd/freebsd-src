@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/release/picobsd/mfs_tree/etc/rc.serial,v 1.1.2.1 2001/02/14 23:47:02 luigi Exp $
 
 # Change some defaults for serial devices.
 # Standard defaults are:

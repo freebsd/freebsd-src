@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/passwd/local_passwd.c,v 1.24.2.1 2000/09/20 11:19:55 green Exp $
  */
 
 #ifndef lint

@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/alpha/include/float.h,v 1.2 1999/08/28 00:38:43 peter Exp $ */
 /* From: NetBSD: float.h,v 1.6 1997/07/17 21:36:03 thorpej Exp */
 
 /*

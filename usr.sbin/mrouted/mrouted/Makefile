@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/mrouted/mrouted/Makefile,v 1.13 1999/08/28 01:17:15 peter Exp $
 
 PROG=	mrouted
 

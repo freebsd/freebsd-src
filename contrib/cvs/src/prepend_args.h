@@ -16,7 +16,7 @@
    Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
    02111-1307, USA.  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/cvs/src/prepend_args.h,v 1.1 1999/12/04 01:23:26 obrien Exp $ */
 
 /* This code, taken from GNU Grep, originally used the "PARAM" macro, as the
    current GNU coding standards requires.  Older GNU code used the "PROTO"

@@ -1,5 +1,5 @@
 /*	$NetBSD: i82365reg.h,v 1.3 1998/12/20 17:53:28 nathanw Exp $	*/
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/pcic/i82365reg.h,v 1.3.2.2 2000/12/23 14:09:25 sanpei Exp $ */
 
 /*
  * Copyright (c) 1997 Marc Horowitz.  All rights reserved.

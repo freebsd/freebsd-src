@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/sys/boot/alpha/common/conf.c,v 1.1.2.1 2000/05/04 13:50:47 ps Exp $
  */
 
 #include <stand.h>

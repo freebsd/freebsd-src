@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/asr/osd_defs.h,v 1.1.2.1 2000/09/21 20:33:50 msmith Exp $ */
 /*	BSDI osd_defs.h,v 1.4 1998/06/03 19:14:58 karels Exp	*/
 /*
  * Copyright (c) 1996-1999 Distributed Processing Technology Corporation

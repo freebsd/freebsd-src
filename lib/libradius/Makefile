@@ -22,7 +22,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-#	$FreeBSD$
+#	$FreeBSD: src/lib/libradius/Makefile,v 1.3 2000/01/14 07:57:39 rgrimes Exp $
 
 LIB=		radius
 SRCS=		radlib.c

@@ -1,5 +1,5 @@
 # @(#)leapseconds	7.12
-# $FreeBSD$
+# $FreeBSD: src/share/zoneinfo/leapseconds,v 1.4.2.2 2000/10/25 19:44:08 wollman Exp $
 
 # Allowance for leapseconds added to each timezone file.
 

@@ -56,7 +56,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/gnu/i386/fpemul/reg_compare.c,v 1.11 1999/08/28 00:42:55 peter Exp $
  *
  */
 

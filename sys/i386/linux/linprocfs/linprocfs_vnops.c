@@ -38,7 +38,7 @@
  *
  *	@(#)procfs_vnops.c	8.18 (Berkeley) 5/21/95
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/linux/linprocfs/linprocfs_vnops.c,v 1.3.2.3 2000/10/30 19:57:04 des Exp $
  */
 
 /*

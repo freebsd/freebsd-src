@@ -7,7 +7,7 @@
  *
  * Dan Moschuk
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/libkern/arc4random.c,v 1.3 1999/11/29 19:23:35 dan Exp $
  */
 
 #include <sys/libkern.h>

@@ -33,7 +33,7 @@
  * 
  *	@(#)ipx_ip.c
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netipx/ipx_ip.c,v 1.24.2.1 2001/02/22 09:44:18 bp Exp $
  */
 
 /*

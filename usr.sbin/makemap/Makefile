@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.4 (Berkeley) 6/10/97
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/makemap/Makefile,v 1.2.6.4 2000/10/26 23:05:15 gshapiro Exp $
 
 MAINTAINER=	gshapiro@FreeBSD.org
 

@@ -1,7 +1,7 @@
 # Czech month and day names
 # by Rudolf Cejka <cejkar@dcse.fee.vutbr.cz>
 #
-# $FreeBSD$
+# $FreeBSD: src/share/timedef/cs_CZ.ISO_8859-2.src,v 1.1.2.1 2000/06/24 12:39:43 ache Exp $
 #
 # WARNING: spaces may be essential at the end of lines
 # WARNING: empty lines are essential too

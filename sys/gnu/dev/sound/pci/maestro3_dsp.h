@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/gnu/dev/sound/pci/maestro3_dsp.h,v 1.1.2.1 2001/03/04 08:15:29 scottl Exp $ */
 /*
  *      ESS Technology allegro audio driver.
  *

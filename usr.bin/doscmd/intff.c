@@ -29,7 +29,7 @@
  *
  *	BSDI intff.c,v 2.2 1996/04/08 19:32:56 bostic Exp
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/doscmd/intff.c,v 1.7 1999/09/29 20:09:18 marcel Exp $
  */
 
 #include "doscmd.h"

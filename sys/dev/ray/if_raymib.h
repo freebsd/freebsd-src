@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/ray/if_raymib.h,v 1.10.2.1 2001/01/03 09:09:07 dmlb Exp $
  *
  */
 

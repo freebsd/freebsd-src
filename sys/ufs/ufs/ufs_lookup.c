@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_lookup.c	8.15 (Berkeley) 6/16/95
- * $FreeBSD$
+ * $FreeBSD: src/sys/ufs/ufs/ufs_lookup.c,v 1.33.2.4 2001/02/10 17:43:29 iedowse Exp $
  */
 
 #include <sys/param.h>

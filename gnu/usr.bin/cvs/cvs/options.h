@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/gnu/usr.bin/cvs/cvs/options.h,v 1.8 1999/12/11 15:12:35 peter Exp $ */
 /*
  * Copyright (c) 1992, Brian Berliner and Jeff Polk
  * Copyright (c) 1989-1992, Brian Berliner

@@ -29,7 +29,7 @@
  *
  *	$Id: q932_fac.h,v 1.6 1999/12/13 21:25:26 hm Exp $ 
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/i4b/isdntrace/q932_fac.h,v 1.6 1999/12/14 21:07:51 hm Exp $
  *
  *      last edit-date: [Mon Dec 13 21:57:18 1999]
  *

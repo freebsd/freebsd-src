@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/netinet6/frag6.c,v 1.2.2.2 2001/03/05 13:09:04 obrien Exp $	*/
 /*	$KAME: frag6.c,v 1.24 2000/03/25 07:23:41 sumikawa Exp $	*/
 
 /*

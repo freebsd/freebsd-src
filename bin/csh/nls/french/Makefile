@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/bin/csh/nls/french/Makefile,v 1.4.2.1 2000/07/04 05:29:27 obrien Exp $
 
 NL=     french
 DL=     fr_FR.ISO_8859-1

@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/usr.sbin/pkg_install/sign/main.c,v 1.1.2.1 2001/03/05 03:43:53 wes Exp $ */
 /* $OpenBSD: main.c,v 1.2 1999/10/04 21:46:28 espie Exp $ */
 /*-
  * Copyright (c) 1999 Marc Espie.

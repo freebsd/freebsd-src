@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/bin/csh/nls/ukrainian/Makefile,v 1.1.2.1 2001/03/05 05:47:06 obrien Exp $
 
 NL=     ukrainian
 DL=     uk_UA.KOI8-U

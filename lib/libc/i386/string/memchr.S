@@ -27,12 +27,12 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/i386/string/memchr.S,v 1.8 1999/08/27 23:59:31 peter Exp $
  */
 
 #if defined(LIBC_RCS) && !defined(lint)
 	.text
-        .asciz "$FreeBSD$"
+        .asciz "$FreeBSD: src/lib/libc/i386/string/memchr.S,v 1.8 1999/08/27 23:59:31 peter Exp $"
 #endif /* LIBC_RCS and not lint */
 
 #include "DEFS.h"

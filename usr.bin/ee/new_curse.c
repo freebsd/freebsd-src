@@ -37,14 +37,14 @@
  |	Copyright (c) 1986, 1987, 1988, 1991, 1992, 1993, 1994, 1995 Hugh Mahon
  |	All are rights reserved.
  |
- | $FreeBSD$
+ | $FreeBSD: src/usr.bin/ee/new_curse.c,v 1.4 1999/09/06 07:33:51 peter Exp $
  |
  */
 
 char *copyright_message[] = { "Copyright (c) 1986, 1987, 1988, 1991, 1992, 1993, 1994, 1995 Hugh Mahon",
 				"All rights are reserved."};
 
-char * new_curse_name= "@(#) new_curse.c $FreeBSD$";
+char * new_curse_name= "@(#) new_curse.c $FreeBSD: src/usr.bin/ee/new_curse.c,v 1.4 1999/09/06 07:33:51 peter Exp $";
 
 #include "new_curse.h"
 #include <signal.h>

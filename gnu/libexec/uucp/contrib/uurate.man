@@ -1,4 +1,4 @@
-''' $FreeBSD$
+''' $FreeBSD: src/gnu/libexec/uucp/contrib/uurate.man,v 1.6 1999/08/28 04:58:22 peter Exp $
 .TH uurate 1
 .SH NAME
 uurate \- Report Taylor UUCP statistics

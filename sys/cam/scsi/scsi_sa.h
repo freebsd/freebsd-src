@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/cam/scsi/scsi_sa.h,v 1.6.2.2 2001/01/12 02:50:39 steve Exp $
  */
 
 #ifndef	_SCSI_SCSI_SA_H

@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/alpha/linux/linux_sysvec.c,v 1.66.2.2 2001/02/22 05:14:58 marcel Exp $
  */
 
 /* XXX we use functions that might not exist. */

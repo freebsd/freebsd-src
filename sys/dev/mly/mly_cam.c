@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/sys/dev/mly/mly_cam.c,v 1.1.2.2.2.1 2001/04/21 04:15:24 jkh Exp $
  */
 /*
  * CAM interface for FreeBSD

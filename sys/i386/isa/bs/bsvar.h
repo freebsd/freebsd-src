@@ -28,7 +28,7 @@
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/isa/bs/bsvar.h,v 1.6.6.1 2000/03/22 03:36:45 nyan Exp $
  */
 /*
  * Copyright (c) 1994, 1995, 1996 Naofumi HONDA.  All rights reserved.

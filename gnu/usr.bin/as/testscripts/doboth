@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/as/testscripts/doboth,v 1.4 1999/08/27 23:34:34 peter Exp $
 
 x=$1 ; shift
 y=$1 ; shift

@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/gnu/usr.bin/binutils/as/sparc-freebsd/config.h,v 1.1.2.2 2001/02/21 21:35:39 obrien Exp $ */
 /* config.h.  Generated automatically by make.  */
 #ifndef GAS_VERSION
 #define GAS_VERSION "2.8.1"

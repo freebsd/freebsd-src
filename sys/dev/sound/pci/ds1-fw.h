@@ -6,7 +6,7 @@
  *	Desc:
  * 		micro-code for CTRL & DSP
  * =============================================================================
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/sound/pci/ds1-fw.h,v 1.1.2.2 2000/10/05 05:12:27 cg Exp $
  */
 #ifndef _HWMCODE_
 #define _HWMCODE_

@@ -1,4 +1,4 @@
-@c $FreeBSD$
+@c $FreeBSD: src/gnu/usr.bin/send-pr/doc/send-pr.texi,v 1.2.6.1 2001/03/05 10:44:05 kris Exp $
 
 \input texinfo   @c -*-texinfo-*-
 @setfilename send-pr.info

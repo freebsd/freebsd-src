@@ -13,7 +13,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet/ip_fw.c,v 1.131.2.23 2001/03/28 05:19:00 simokawa Exp $
  */
 
 #define        DEB(x)

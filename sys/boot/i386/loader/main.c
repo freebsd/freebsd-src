@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/boot/i386/loader/main.c,v 1.17.2.5 2000/12/28 13:12:51 ps Exp $
  */
 
 /*

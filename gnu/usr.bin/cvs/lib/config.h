@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/gnu/usr.bin/cvs/lib/config.h,v 1.6.2.1 2000/10/31 09:37:42 obrien Exp $ */
 /* config.h.  Generated automatically by configure.  */
 /* config.h.in.  Generated automatically from configure.in by autoheader.  */
 

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/syscons/fonts/Makefile,v 1.24.2.3 2000/08/29 08:00:14 ache Exp $
 
 FONTS=	cp437-8x8.fnt cp437-8x14.fnt cp437-8x16.fnt \
 	cp437-thin-8x8.fnt cp437-thin-8x16.fnt \

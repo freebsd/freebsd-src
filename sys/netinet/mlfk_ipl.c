@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet/mlfk_ipl.c,v 1.4.2.2 2001/02/17 20:42:08 darrenr Exp $
  */
 
 

@@ -1,6 +1,6 @@
 #! /usr/bin/awk -f
 #	$NetBSD: devlist2h.awk,v 1.5 1998/01/09 06:54:25 thorpej Exp $
-#	$FreeBSD$
+#	$FreeBSD: src/sys/dev/cardbus/devlist2h.awk,v 1.1 1999/11/18 07:21:51 imp Exp $
 #
 # Copyright (c) 1995, 1996 Christopher G. Demetriou
 # All rights reserved.

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $FreeBSD$
+ * $FreeBSD: src/release/sysinstall/disks.c,v 1.118.2.7 2001/03/16 00:11:56 nyan Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.

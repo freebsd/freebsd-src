@@ -31,7 +31,7 @@
  *
  * $Id: //depot/src/aic7xxx/aicasm/aicasm_gram.y#6 $
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/aic7xxx/aicasm/aicasm_gram.y,v 1.11.2.3 2001/01/07 22:52:35 gibbs Exp $
  */
 
 #include <inttypes.h>

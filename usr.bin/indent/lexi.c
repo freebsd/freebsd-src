@@ -36,7 +36,7 @@
 #ifndef lint
 static char sccsid[] = "@(#)lexi.c	8.1 (Berkeley) 6/6/93";
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.bin/indent/lexi.c,v 1.3.6.2 2000/12/25 02:18:41 obrien Exp $";
 #endif /* not lint */
 
 /*

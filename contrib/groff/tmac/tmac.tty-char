@@ -7,7 +7,7 @@
 .\"   as well as on devices that support overstriking
 .\" - represent the character's graphical shape (not its meaning)
 .\"
-.\" $FreeBSD$
+.\" $FreeBSD: src/contrib/groff/tmac/tmac.tty-char,v 1.3.2.1 2000/12/07 09:48:56 ru Exp $
 .\"
 .nr _C \n(.C
 .cp 0

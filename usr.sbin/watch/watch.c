@@ -15,7 +15,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.sbin/watch/watch.c,v 1.18.2.1 2000/12/11 01:03:42 obrien Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>

@@ -1,5 +1,5 @@
 # ex:ts=8
-$FreeBSD$
+$FreeBSD: src/contrib/libf2c/FREEBSD-upgrade,v 1.4 1999/11/01 07:25:20 obrien Exp $
 
 For the import of lib{f,g}2c, files were pruned by:
 

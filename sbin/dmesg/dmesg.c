@@ -42,7 +42,7 @@ static const char copyright[] =
 static const char sccsid[] = "@(#)dmesg.c	8.1 (Berkeley) 6/5/93";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/sbin/dmesg/dmesg.c,v 1.11.2.1 2001/01/12 12:40:28 phk Exp $";
 #endif /* not lint */
 
 #include <sys/msgbuf.h>

@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_hport_rcsid[] = "$FreeBSD$";
+const char _uuconf_hport_rcsid[] = "$FreeBSD: src/gnu/libexec/uucp/libuuconf/hport.c,v 1.6.2.1 2000/06/03 17:18:12 ume Exp $";
 #endif
 
 #include <sys/socket.h>

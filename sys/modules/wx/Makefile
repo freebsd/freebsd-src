@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/wx/Makefile,v 1.1.2.1 2000/07/04 02:12:13 mjacob Exp $
 
 .PATH:	${.CURDIR}/../../pci
 KMOD	= if_wx

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_bio.c	8.9 (Berkeley) 3/30/95
- * $FreeBSD$
+ * $FreeBSD: src/sys/nfs/nfs_bio.c,v 1.83 2000/01/05 05:11:36 dillon Exp $
  */
 
 

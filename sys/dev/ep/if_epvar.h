@@ -19,7 +19,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/ep/if_epvar.h,v 1.4.2.1 2000/05/24 01:47:45 archie Exp $
  */
 
 struct ep_board {

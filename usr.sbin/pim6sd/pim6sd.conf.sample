@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/pim6sd/pim6sd.conf.sample,v 1.1.2.1 2000/07/15 07:36:37 kris Exp $
 #
 #The timer granularity.
 #More this value is small,more pim6sd will be accurate 

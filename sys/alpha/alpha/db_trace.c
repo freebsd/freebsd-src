@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/alpha/alpha/db_trace.c,v 1.3.2.1 2000/08/03 00:48:03 peter Exp $ */
 /* $NetBSD: db_trace.c,v 1.1 1997/09/06 02:00:50 thorpej Exp $ */
 
 #include <sys/cdefs.h>			/* RCS ID & Copyright macro defns */

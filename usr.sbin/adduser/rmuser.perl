@@ -30,7 +30,7 @@
 #
 # Guy Helmer <ghelmer@cs.iastate.edu>, 02/23/97
 #
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/adduser/rmuser.perl,v 1.8.2.2 2001/01/14 10:21:11 dougb Exp $
 
 sub LOCK_SH {0x01;}
 sub LOCK_EX {0x02;}

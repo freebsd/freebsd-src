@@ -7,7 +7,7 @@
  *
  * @(#)ip_nat.h	1.5 2/4/96
  * $Id: ip_nat.h,v 2.17.2.6 2000/07/15 14:50:06 darrenr Exp $
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet/ip_nat.h,v 1.8.2.4 2001/04/07 03:40:32 darrenr Exp $
  */
 
 #ifndef	__IP_NAT_H__

@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.2 (Berkeley) 3/17/94
-# $FreeBSD$
+# $FreeBSD: src/sbin/disklabel/Makefile,v 1.3.14.2 2001/03/04 13:22:39 obrien Exp $
 
 PROG=	disklabel
 SRCS=	disklabel.c

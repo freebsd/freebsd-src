@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/isa/ppc.c,v 1.26.2.4 2001/03/02 16:03:24 nsouch Exp $
  *
  */
 

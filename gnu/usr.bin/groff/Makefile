@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/groff/Makefile,v 2.6.2.1 2000/12/07 09:56:58 ru Exp $
 
 SUBDIR=		libgroff libdriver libbib \
 		addftinfo afmtodit doc eqn grn \

@@ -1,4 +1,4 @@
-/* $FreeBSD$
+/* $FreeBSD: src/gnu/usr.bin/patch/inp.h,v 1.6 1999/09/05 17:31:55 peter Exp $
  *
  * $Log: inp.h,v $
  * Revision 2.0  86/09/17  15:37:25  lwall

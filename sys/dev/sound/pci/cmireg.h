@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/sound/pci/cmireg.h,v 1.1.2.2 2001/04/08 18:24:49 orion Exp $
  */
 
 /* C-Media CMI8x38 Audio Chip Support */

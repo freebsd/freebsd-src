@@ -27,7 +27,7 @@ The Regents of the University of California.  All rights reserved.\n";
 
 #ifndef lint
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.sbin/rarpd/rarpd.c,v 1.23 1999/11/27 17:06:40 charnier Exp $";
 #endif /* not lint */
 
 /*

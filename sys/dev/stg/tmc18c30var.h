@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/dev/stg/tmc18c30var.h,v 1.1.2.2 2001/03/03 14:45:00 non Exp $	*/
 /*	$NecBSD: tmc18c30var.h,v 1.12 1998/11/30 00:08:30 honda Exp $	*/
 /*	$NetBSD$	*/
 

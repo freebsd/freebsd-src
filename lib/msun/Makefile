@@ -1,5 +1,5 @@
 #  @(#)Makefile 5.1beta 93/09/24
-# $FreeBSD$
+# $FreeBSD: src/lib/msun/Makefile,v 1.23 1999/08/28 00:06:05 peter Exp $
 #
 #  ====================================================
 #  Copyright (C) 1993 by Sun Microsystems, Inc. All rights reserved.

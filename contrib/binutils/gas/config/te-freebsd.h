@@ -18,7 +18,7 @@
    Software Foundation, 59 Temple Place - Suite 330, Boston, MA
    02111-1307, USA.  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/binutils/gas/config/te-freebsd.h,v 1.1.6.2 2000/07/07 05:33:57 obrien Exp $ */
 
 /* Target environment for FreeBSD.  It is the same as the generic
    target, except that it arranges via the TE_FreeBSD define to

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/osf1/Makefile,v 1.1 1999/12/14 22:35:35 gallatin Exp $
 
 MAINTAINER=	gallatin@FreeBSD.org
 

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/include/ipl.h,v 1.17.2.2 2000/07/18 21:12:41 dfr Exp $
  */
 
 #ifndef _MACHINE_IPL_H_

@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/lib/libstand/cd9660.c,v 1.4.2.1 2000/05/04 13:47:49 ps Exp $ */
 /*	$NetBSD: cd9660.c,v 1.5 1997/06/26 19:11:33 drochner Exp $	*/
 
 /*

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/conf/options.alpha,v 1.19.2.2 2000/07/18 20:39:05 dfr Exp $
 
 EV5			opt_global.h
 EV4			opt_global.h

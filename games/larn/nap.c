@@ -1,5 +1,5 @@
 /* nap.c		 Larn is copyrighted 1986 by Noah Morgan. */
-/* $FreeBSD$ */
+/* $FreeBSD: src/games/larn/nap.c,v 1.4 1999/11/16 02:57:23 billf Exp $ */
 #include <signal.h>
 #include <sys/types.h>
 #ifdef SYSV

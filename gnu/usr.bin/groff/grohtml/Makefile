@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/groff/grohtml/Makefile,v 1.1.4.1 2000/12/07 09:57:06 ru Exp $
 
 PROG=		grohtml
 SRCS=		html.cc output.cc

@@ -7,7 +7,7 @@
 ** be renamed!
 *******************************************************************/
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/boot/ficl/math64.c,v 1.2 1999/09/29 04:43:06 dcs Exp $ */
 
 #include "ficl.h"
 #include "math64.h"

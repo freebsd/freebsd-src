@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)mail.c	8.2 (Berkeley) 5/4/95";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/bin/sh/mail.c,v 1.9 1999/08/27 23:15:15 peter Exp $";
 #endif /* not lint */
 
 /*

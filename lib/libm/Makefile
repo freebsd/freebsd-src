@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.1 (Berkeley) 6/4/93
-# $FreeBSD$
+# $FreeBSD: src/lib/libm/Makefile,v 1.8 1999/11/14 13:54:36 marcel Exp $
 #
 # ieee		- for most IEEE machines, we hope.
 # mc68881	- the, ahem, mc68881.

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/spkrtest/Makefile,v 1.8 1999/08/28 01:20:01 peter Exp $
 
 MAINTAINER= wosch
 

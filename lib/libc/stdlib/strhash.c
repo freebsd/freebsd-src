@@ -1,6 +1,6 @@
 #ifndef lint
 static const char *rcsid =
-"$FreeBSD$";
+"$FreeBSD: src/lib/libc/stdlib/strhash.c,v 1.8 1999/09/05 17:42:45 peter Exp $";
 #endif
 
 /*

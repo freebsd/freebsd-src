@@ -40,7 +40,7 @@ static const char copyright[] =
 	The Regents of the University of California.  All rights reserved.\n";
 static const char sccsid[] = "@(#)cut.c	8.3 (Berkeley) 5/4/95";
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.bin/cut/cut.c,v 1.9.2.1 2001/03/04 08:14:30 kris Exp $";
 #endif /* not lint */
 
 #include <ctype.h>

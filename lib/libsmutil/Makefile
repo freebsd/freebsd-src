@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libsmutil/Makefile,v 1.1.2.3 2000/10/26 23:05:12 gshapiro Exp $
 
 MAINTAINER=	gshapiro@FreeBSD.org
 

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/ancontrol/Makefile,v 1.1.2.1 2000/12/20 21:25:53 archie Exp $
 
 PROG=	ancontrol
 SRCS=	ancontrol.c

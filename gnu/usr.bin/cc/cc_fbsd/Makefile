@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/cc/cc_fbsd/Makefile,v 1.3 2000/01/28 08:49:23 jasone Exp $
 
 LIBCDIR=	${.CURDIR}/../../../../lib/libc
 

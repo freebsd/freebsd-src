@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/lib/libss/pager.c,v 1.3.8.2 2000/12/11 01:03:21 obrien Exp $ */
 
 /*
  * Pager: Routines to create a "more" running out of a particular file
@@ -9,7 +9,7 @@
  * For copyright information, see copyright.h.
  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/lib/libss/pager.c,v 1.3.8.2 2000/12/11 01:03:21 obrien Exp $ */
 
 #include "ss_internal.h"
 #include "copyright.h"

@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/sys/dev/twe/twevar.h,v 1.1.2.3 2000/12/07 08:08:45 ps Exp $
  */
 
 #ifdef TWE_DEBUG

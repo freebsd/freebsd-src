@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/ppp/tty.c,v 1.21.2.1 2000/12/04 21:35:23 brian Exp $
  */
 
 #include <sys/param.h>

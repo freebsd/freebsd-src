@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/dev/nsp/nsp_pccard.c,v 1.2.2.2 2001/03/03 14:44:55 non Exp $	*/
 /*	$NecBSD: nsp_pisa.c,v 1.4 1999/04/15 01:35:54 kmatsuda Exp $	*/
 /*	$NetBSD$	*/
 

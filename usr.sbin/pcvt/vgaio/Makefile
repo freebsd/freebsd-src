@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/pcvt/vgaio/Makefile,v 1.12 1999/08/28 01:17:50 peter Exp $
 
 .if !exists(${.CURDIR}/../Makefile.inc)
 error:

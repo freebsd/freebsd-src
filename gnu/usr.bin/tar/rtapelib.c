@@ -31,7 +31,7 @@
    Modified to make all rmtXXX calls into macros for speed by Jay Fenlason.
    Use -DHAVE_NETDB_H for rexec code, courtesy of Dan Kegel, srs!dan.  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/gnu/usr.bin/tar/rtapelib.c,v 1.2.6.1 2001/02/26 07:48:39 ume Exp $ */
 
 #include <stdio.h>
 #include <sys/types.h>

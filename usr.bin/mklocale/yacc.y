@@ -37,7 +37,7 @@
 
 #ifndef lint
 static char sccsid[] = "@(#)yacc.y	8.1 (Berkeley) 6/6/93";
-static char rcsid[] = "$FreeBSD$";
+static char rcsid[] = "$FreeBSD: src/usr.bin/mklocale/yacc.y,v 1.6 2000/02/08 07:43:26 obrien Exp $";
 #endif /* not lint */
 
 #include <ctype.h>

@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/binutils/libbfd/Makefile.mips,v 1.2.2.1 2000/07/06 22:15:54 obrien Exp $
 #
 SRCS+=		cpu-mips.c elf32-mips.c elf32-target.h elf32.c elflink.c
 SRCS+=		coff-mips.c ecoff.c ecofflink.c mips-opc.c mips16-opc.c

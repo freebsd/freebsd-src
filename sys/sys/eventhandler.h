@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/eventhandler.h,v 1.5 2000/01/16 06:11:33 bde Exp $
  */
 
 #include <sys/queue.h>

@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/lib/libc/nls/msgcat.c,v 1.21.2.4 2000/09/27 18:25:35 phantom Exp $ */
 
 /***********************************************************
 Copyright 1990, by Alfalfa Software Incorporated, Cambridge, Massachusetts.
@@ -33,7 +33,7 @@ up-to-date.  Many thanks.
 ******************************************************************/
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static char *rcsid = "$FreeBSD$";
+static char *rcsid = "$FreeBSD: src/lib/libc/nls/msgcat.c,v 1.21.2.4 2000/09/27 18:25:35 phantom Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 /*

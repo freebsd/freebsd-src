@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sbin/ipfstat/Makefile,v 1.4.2.2 2001/03/01 22:53:05 nectar Exp $
 
 .PATH:	${.CURDIR}/../../contrib/ipfilter ${.CURDIR}/../../contrib/ipfilter/man
 

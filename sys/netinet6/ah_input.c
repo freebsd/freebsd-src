@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/netinet6/ah_input.c,v 1.1.2.3 2000/10/31 17:54:39 ume Exp $	*/
 /*	$KAME: ah_input.c,v 1.29 2000/05/29 08:33:53 itojun Exp $	*/
 
 /*

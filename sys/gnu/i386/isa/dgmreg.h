@@ -1,5 +1,5 @@
 /*-
- *  dgmreg.h $FreeBSD$
+ *  dgmreg.h $FreeBSD: src/sys/gnu/i386/isa/dgmreg.h,v 1.2 1999/08/28 00:43:05 peter Exp $
  *
  *  Digiboard driver.
  *

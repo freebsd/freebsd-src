@@ -1,5 +1,5 @@
 /*	$NetBSD: ifconfig.c,v 1.34 1997/04/21 01:17:58 lukem Exp $	*/
-/* $FreeBSD$ */
+/* $FreeBSD: src/sbin/ifconfig/ifmedia.c,v 1.6 1999/08/28 00:13:08 peter Exp $ */
 
 /*
  * Copyright (c) 1997 Jason R. Thorpe.

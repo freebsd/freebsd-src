@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/alpha/include/asm.h,v 1.6.2.1 2000/10/24 16:09:36 gallatin Exp $ */
 /* From: NetBSD: asm.h,v 1.18 1997/11/03 04:22:06 ross Exp */
 
 /* 

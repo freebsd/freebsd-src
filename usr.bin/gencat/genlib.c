@@ -31,7 +31,7 @@ up-to-date.  Many thanks.
 				Cambridge, MA 02139  USA
 				nazgul@alfalfa.com
 
-$FreeBSD$
+$FreeBSD: src/usr.bin/gencat/genlib.c,v 1.8.6.1 2000/07/15 17:19:28 ache Exp $
 
 ******************************************************************/
 

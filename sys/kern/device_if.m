@@ -23,7 +23,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/kern/device_if.m,v 1.7 1999/08/28 00:46:09 peter Exp $
 #
 
 INTERFACE device;

@@ -18,7 +18,7 @@
    file system semantics.  */
 
 /*
- * $FreeBSD$
+ * $FreeBSD: src/contrib/cvs/src/filesubr.c,v 1.6.2.1 2000/10/31 09:37:52 obrien Exp $
  */
 
 #include "cvs.h"

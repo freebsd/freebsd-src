@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libncurses/Makefile,v 1.39.2.4 2000/12/07 12:23:57 tg Exp $
 
 NCURSES=${.CURDIR}/../../contrib/ncurses
 

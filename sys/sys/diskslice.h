@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/diskslice.h,v 1.36.2.1 2001/01/29 01:50:50 ken Exp $
  */
 
 #ifndef	_SYS_DISKSLICE_H_

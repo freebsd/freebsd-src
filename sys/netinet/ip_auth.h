@@ -6,7 +6,7 @@
  * to the original author and the contributors.
  *
  * $Id: ip_auth.h,v 2.1 1999/08/04 17:29:54 darrenr Exp $
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet/ip_auth.h,v 1.8.2.2 2001/02/17 20:42:07 darrenr Exp $
  *
  */
 #ifndef	__IP_AUTH_H__

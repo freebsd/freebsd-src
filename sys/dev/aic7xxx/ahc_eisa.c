@@ -28,7 +28,7 @@
  *
  * $Id$
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/aic7xxx/ahc_eisa.c,v 1.15.2.4 2001/03/12 14:57:40 gibbs Exp $
  */
 
 #include <dev/aic7xxx/aic7xxx_freebsd.h>

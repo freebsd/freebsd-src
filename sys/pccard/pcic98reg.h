@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/pccard/pcic98reg.h,v 1.1.10.1 2000/05/23 03:56:59 imp Exp $ */
 /*
 	pcic98reg.h
 

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/etc/hosts,v 1.11.2.1 2000/08/18 18:29:19 ume Exp $
 #
 # Host Database
 # This file should contain the addresses and aliases

@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 5/31/93
-# $FreeBSD$
+# $FreeBSD: src/games/morse/Makefile,v 1.4.6.3 2001/01/25 21:08:30 phantom Exp $
 
 PROG=	morse
 #MAN6=	morse.6

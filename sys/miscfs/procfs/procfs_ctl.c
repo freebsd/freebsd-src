@@ -37,7 +37,7 @@
  *	@(#)procfs_ctl.c	8.4 (Berkeley) 6/15/94
  *
  * From:
- * $FreeBSD$
+ * $FreeBSD: src/sys/miscfs/procfs/procfs_ctl.c,v 1.20.2.1 2000/12/17 03:13:05 rwatson Exp $
  */
 
 #include <sys/param.h>

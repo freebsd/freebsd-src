@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/gen/vis.c,v 1.5.8.2 2001/03/05 09:44:34 obrien Exp $
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)

@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/lib/libstand/lseek.c,v 1.1.1.1.6.1 2000/09/10 01:32:06 ps Exp $ */
 /*	$NetBSD: lseek.c,v 1.4 1997/01/22 00:38:10 cgd Exp $	*/
 
 /*-

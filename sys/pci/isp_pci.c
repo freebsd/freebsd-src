@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/pci/isp_pci.c,v 1.45.2.7 2001/03/04 22:21:12 mjacob Exp $ */
 /*
  * PCI specific probe and attach routines for Qlogic ISP SCSI adapters.
  * FreeBSD Version.

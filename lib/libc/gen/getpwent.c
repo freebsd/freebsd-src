@@ -34,7 +34,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)getpwent.c	8.2 (Berkeley) 4/27/95";
 static char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/lib/libc/gen/getpwent.c,v 1.53.2.2 2001/03/05 09:52:13 obrien Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <stdio.h>

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/ppp/tcp.c,v 1.10.2.2 2001/02/21 23:37:00 brian Exp $
  */
 
 #include <sys/types.h>

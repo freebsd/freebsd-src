@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)fdreg.h	7.1 (Berkeley) 5/9/91
- * $FreeBSD$
+ * $FreeBSD: src/sys/isa/fdreg.h,v 1.13 2000/01/06 07:13:54 imp Exp $
  */
 
 /*

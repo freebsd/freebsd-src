@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sbin/camcontrol/camcontrol.c,v 1.21.2.9 2001/03/04 07:19:52 kris Exp $
  */
 
 #include <sys/ioctl.h>

@@ -39,7 +39,7 @@
 static const char copyright[] =
 	"@(#) Copyright (c) 1996 Jason R. Thorpe.  All rights reserved.";
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/bin/chio/chio.c,v 1.15.2.2 2000/10/27 16:21:18 asmodai Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>

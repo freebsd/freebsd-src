@@ -24,7 +24,7 @@ static char copyright[] =
 static char id[] = "@(#)$Id: smrsh.c,v 8.31.4.8 2001/01/22 19:00:26 gshapiro Exp $";
 #endif /* ! lint */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/sendmail/smrsh/smrsh.c,v 1.3.6.4 2001/03/06 01:38:47 gshapiro Exp $ */
 
 /*
 **  SMRSH -- sendmail restricted shell

@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/sys/dev/dpt/dpt_pci.c,v 1.17.2.2 2000/08/26 22:21:21 peter Exp $
  */
 
 #include <sys/param.h>

@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/db/hash/hsearch.c,v 1.2.8.1 2000/08/21 22:11:03 jhb Exp $
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)

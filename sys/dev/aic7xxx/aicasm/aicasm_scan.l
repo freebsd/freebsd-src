@@ -31,7 +31,7 @@
  *
  * $Id: //depot/src/aic7xxx/aicasm/aicasm_scan.l#4 $
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/aic7xxx/aicasm/aicasm_scan.l,v 1.13.2.2 2001/01/07 22:52:36 gibbs Exp $
  */
 
 #include <sys/types.h>

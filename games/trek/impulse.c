@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)impulse.c	8.1 (Berkeley) 5/31/93";
 #endif
 static const char rcsid[] =
- "$FreeBSD$";
+ "$FreeBSD: src/games/trek/impulse.c,v 1.4 1999/11/30 03:49:48 billf Exp $";
 #endif /* not lint */
 
 # include	"trek.h"

@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/crypto/blowfish/blowfish.h,v 1.1.2.1 2000/07/15 07:14:18 kris Exp $	*/
 /*	$KAME: blowfish.h,v 1.4 2000/06/14 10:41:16 itojun Exp $	*/
 
 /* crypto/bf/blowfish.h */

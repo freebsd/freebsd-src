@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/ppp/server.c,v 1.28.2.4 2001/02/22 01:19:19 brian Exp $
  */
 
 #include <sys/types.h>

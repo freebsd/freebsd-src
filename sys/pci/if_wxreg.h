@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/pci/if_wxreg.h,v 1.3.2.3 2000/12/06 00:54:33 mjacob Exp $ */
 /*
  * Copyright (c) 1999, Traakan Software
  * All rights reserved.

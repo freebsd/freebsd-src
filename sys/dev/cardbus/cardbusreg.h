@@ -28,7 +28,7 @@
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/cardbus/cardbusreg.h,v 1.1 1999/11/18 07:21:50 imp Exp $ */
 
 typedef u_int32_t cardbusreg_t;
 typedef int cardbus_intr_line_t;

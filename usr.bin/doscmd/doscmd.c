@@ -29,7 +29,7 @@
  *
  *	BSDI doscmd.c,v 2.3 1996/04/08 19:32:30 bostic Exp
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/doscmd/doscmd.c,v 1.13.2.2 2000/12/11 01:03:28 obrien Exp $
  */
 
 #include <sys/types.h>

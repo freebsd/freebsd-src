@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/gen/glob.c,v 1.11.6.4 2001/03/29 01:46:32 peter Exp $
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)

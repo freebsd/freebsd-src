@@ -1,6 +1,6 @@
 /* Copyright (c) Stichting Mathematisch Centrum, Amsterdam, 1985. */
 /* hack.termcap.c - version 1.0.3 */
-/* $FreeBSD$ */
+/* $FreeBSD: src/games/hack/hack.termcap.c,v 1.10 1999/11/16 10:26:38 marcel Exp $ */
 
 #include <stdio.h>
 #include <termcap.h>

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/vpo/Makefile,v 1.2 2000/01/28 11:26:41 bde Exp $
 
 .PATH:	${.CURDIR}/../../dev/ppbus
 KMOD=	vpo

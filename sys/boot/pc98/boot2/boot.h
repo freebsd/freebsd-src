@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:35:03  rpd
- * $FreeBSD$
+ * $FreeBSD: src/sys/boot/pc98/boot2/boot.h,v 1.2 1999/08/28 00:40:25 peter Exp $
  */
 
 #include <sys/param.h>

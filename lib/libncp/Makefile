@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libncp/Makefile,v 1.3 1999/11/12 15:09:56 peter Exp $
 
 NCPLIB=${.CURDIR}
 

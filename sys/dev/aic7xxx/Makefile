@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/dev/aic7xxx/Makefile,v 1.6 1999/08/28 00:41:22 peter Exp $
 
 PROG=	aicasm
 

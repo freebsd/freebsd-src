@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/man/makewhatis/Makefile,v 1.16 1999/08/27 23:36:10 peter Exp $
 MAINTAINER= wosch
 
 MAN1=	makewhatis.1

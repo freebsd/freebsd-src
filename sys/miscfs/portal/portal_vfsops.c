@@ -35,7 +35,7 @@
  *
  *	@(#)portal_vfsops.c	8.11 (Berkeley) 5/14/95
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/miscfs/portal/portal_vfsops.c,v 1.26.2.1 2000/11/26 04:32:41 dillon Exp $
  */
 
 /*

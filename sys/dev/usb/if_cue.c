@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/usb/if_cue.c,v 1.7.2.4 2000/07/17 21:24:28 archie Exp $
  */
 
 /*
@@ -79,7 +79,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/sys/dev/usb/if_cue.c,v 1.7.2.4 2000/07/17 21:24:28 archie Exp $";
 #endif
 
 /*

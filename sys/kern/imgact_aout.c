@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/kern/imgact_aout.c,v 1.59.2.1 2001/02/22 05:15:03 marcel Exp $
  */
 
 #include <sys/param.h>

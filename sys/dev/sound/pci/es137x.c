@@ -38,7 +38,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/sound/pci/es137x.c,v 1.13.2.5 2001/02/21 11:23:24 nyan Exp $
  */
 
 /*

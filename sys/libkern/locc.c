@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)locc.c	8.1 (Berkeley) 6/10/93
- * $FreeBSD$
+ * $FreeBSD: src/sys/libkern/locc.c,v 1.6 1999/08/28 00:46:32 peter Exp $
  */
 
 #include <sys/libkern.h>

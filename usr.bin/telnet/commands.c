@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/telnet/commands.c,v 1.21.2.3 2001/01/26 15:40:50 asmodai Exp $
  */
 
 #ifndef lint

@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.8 (Berkeley) 7/28/90
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/bootparamd/callbootd/Makefile,v 1.10 1999/08/28 01:15:40 peter Exp $
 
 PROG=	callbootd
 SRCS=	callbootd.c ${GENSRCS}

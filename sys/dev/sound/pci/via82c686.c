@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/sound/pci/via82c686.c,v 1.4.2.2 2001/02/03 01:29:10 cg Exp $
  */
 
 #include <dev/sound/pcm/sound.h>

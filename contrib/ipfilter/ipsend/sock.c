@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/ipfilter/ipsend/sock.c,v 1.3.2.1 2001/02/17 20:36:24 darrenr Exp $ */
 /*
  * sock.c (C) 1995-1998 Darren Reed
  *

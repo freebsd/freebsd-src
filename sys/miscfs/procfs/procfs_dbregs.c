@@ -40,7 +40,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/miscfs/procfs/procfs_dbregs.c,v 1.4.2.1 2000/11/01 20:19:48 sef Exp $
  */
 
 #include <sys/param.h>

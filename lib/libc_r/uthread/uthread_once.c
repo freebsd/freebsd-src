@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc_r/uthread/uthread_once.c,v 1.3.2.1 2000/09/22 03:59:37 jdp Exp $
  */
 #ifdef _THREAD_SAFE
 #include <pthread.h>

@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/groff/libgroff/illegal.cc,v 1.3.2.1 2000/12/07 09:48:44 ru Exp $ */
 
 #include "lib.h"
 

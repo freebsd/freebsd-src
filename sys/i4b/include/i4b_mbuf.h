@@ -29,7 +29,7 @@
  *
  *	$Id: i4b_mbuf.h,v 1.8 1999/12/13 21:25:24 hm Exp $
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i4b/include/i4b_mbuf.h,v 1.6 1999/12/14 20:48:16 hm Exp $
  *
  *	last edit-date: [Mon Dec 13 21:45:05 1999]
  *

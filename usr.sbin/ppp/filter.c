@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/ppp/filter.c,v 1.39.2.4 2000/12/18 01:46:43 brian Exp $
  *
  *	TODO: Should send ICMP error message when we discard packets.
  */

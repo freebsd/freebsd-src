@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $FreeBSD$
+ *	@(#) $FreeBSD: src/lib/libatm/ioctl_subr.c,v 1.3 1999/08/27 23:58:04 peter Exp $
  *
  */
 
@@ -56,7 +56,7 @@
 #include "libatm.h"
 
 #ifndef lint
-__RCSID("@(#) $FreeBSD$");
+__RCSID("@(#) $FreeBSD: src/lib/libatm/ioctl_subr.c,v 1.3 1999/08/27 23:58:04 peter Exp $");
 #endif
 
 

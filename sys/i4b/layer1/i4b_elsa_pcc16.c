@@ -29,7 +29,7 @@
  *
  *	$Id: i4b_elsa_pcc16.c,v 1.2 1999/12/13 21:25:26 hm Exp $
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i4b/layer1/i4b_elsa_pcc16.c,v 1.1 1999/12/14 20:48:19 hm Exp $
  *
  *      last edit-date: [Mon Dec 13 21:59:36 1999]
  *

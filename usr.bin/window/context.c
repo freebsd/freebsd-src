@@ -36,7 +36,7 @@
 
 #ifndef lint
 static char sccsid[] = "@(#)context.c	8.1 (Berkeley) 6/6/93";
-static char rcsid[] = "@(#)$FreeBSD$";
+static char rcsid[] = "@(#)$FreeBSD: src/usr.bin/window/context.c,v 1.1.1.1.14.1 2000/10/30 10:13:42 obrien Exp $";
 #endif /* not lint */
 
 #include "value.h"

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/ppp/log.c,v 1.44.2.3 2000/12/18 01:46:44 brian Exp $
  */
 
 #include <sys/types.h>

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/ppp/iface.c,v 1.13.2.4 2001/03/29 00:02:33 brian Exp $
  */
 
 #include <sys/param.h>

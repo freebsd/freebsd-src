@@ -2,7 +2,7 @@
 ** This file is in the public domain, so clarified as of
 ** June 5, 1996 by Arthur David Olson (arthur_david_olson@nih.gov).
 **
-** $FreeBSD$
+** $FreeBSD: src/lib/libc/stdtime/localtime.c,v 1.25.2.1 2001/03/05 11:37:21 obrien Exp $
 */
 
 #ifndef lint

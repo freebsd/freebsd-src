@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libss/Makefile,v 1.22 1999/09/29 15:18:44 marcel Exp $
 
 LIB=	ss
 SHLIB_MAJOR=	3

@@ -2,7 +2,7 @@
  * Copyright (c) 1990,1991 Regents of The University of Michigan.
  * All Rights Reserved.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netatalk/aarp.h,v 1.3 1999/12/29 04:45:57 peter Exp $
  */
 
 #ifndef _NETATALK_AARP_H_

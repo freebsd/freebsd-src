@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)extern.h	8.2 (Berkeley) 4/18/94
- * $FreeBSD$
+ * $FreeBSD: src/bin/pax/extern.h,v 1.6.2.1 2001/03/05 12:30:41 ru Exp $
  */
 
 /*

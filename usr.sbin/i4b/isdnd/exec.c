@@ -29,7 +29,7 @@
  *
  *	$Id: exec.c,v 1.13 1999/12/13 21:25:24 hm Exp $ 
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/i4b/isdnd/exec.c,v 1.6.2.2 2000/12/11 01:03:32 obrien Exp $
  *
  *      last edit-date: [Mon Dec 13 21:45:59 1999]
  *

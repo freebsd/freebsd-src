@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/alpha/include/param.h,v 1.17.2.3 2000/12/29 10:59:10 asmodai Exp $ */
 /* From: NetBSD: param.h,v 1.20 1997/09/19 13:52:53 leo Exp */
 
 /*

@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/ray/if_rayreg.h,v 1.10.2.3 2001/01/03 10:45:39 dmlb Exp $
  *
  */
 

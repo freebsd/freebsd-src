@@ -34,7 +34,7 @@
 #ifndef lint
 static char sccsid[] = "@(#)nlist.c	8.4 (Berkeley) 4/2/94";
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/bin/ps/nlist.c,v 1.12.6.1 2001/03/02 09:32:13 obrien Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>

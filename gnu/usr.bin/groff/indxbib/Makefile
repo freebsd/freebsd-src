@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/groff/indxbib/Makefile,v 1.8.6.1 2000/12/07 09:57:09 ru Exp $
 
 PROG=		indxbib
 SRCS=		indxbib.cc dirnamemax.c signal.c

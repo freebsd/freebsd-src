@@ -1,6 +1,6 @@
 #! /bin/sh
 
-# $FreeBSD$
+# $FreeBSD: src/contrib/binutils/gas/configure,v 1.4.6.3 2000/11/25 10:33:56 obrien Exp $
 
 # Guess values for system-dependent variables and create Makefiles.
 # Generated automatically using autoconf version 2.13 

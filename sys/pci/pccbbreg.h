@@ -28,7 +28,7 @@
  */
 
 /* $Id: pccbbreg.h,v 1.4 1999/08/02 01:35:50 kanaoka Exp $ */
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/pci/pccbbreg.h,v 1.1 1999/11/18 07:14:54 imp Exp $ */
 
 #ifndef _DEV_PCI_PCCBBREG_H_
 #define	_DEV_PCI_PCCBBREG_H_

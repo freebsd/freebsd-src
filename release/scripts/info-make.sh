@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# $FreeBSD$
+# $FreeBSD: src/release/scripts/info-make.sh,v 1.2 1999/09/11 06:11:52 jkh Exp $
 
 # Move the info files out to their own dist
 if [ -d ${RD}/trees/bin/usr/share/info ]; then

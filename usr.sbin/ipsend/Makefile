@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/ipsend/Makefile,v 1.8 1999/12/06 20:50:02 guido Exp $
 
 .PATH:	${.CURDIR}/../../contrib/ipfilter/ipsend \
 	${.CURDIR}/../../contrib/ipfilter/iplang \

@@ -1,6 +1,6 @@
 #! /bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/contrib/groff/mdate.sh,v 1.2.6.2 2001/03/05 13:08:31 ru Exp $
 
 # Print the modification date of $1 `nicely'.
 

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/alpha/pci/irongate.c,v 1.1.2.1 2000/07/04 01:40:18 mjacob Exp $
  */
 
 #include "opt_cpu.h"

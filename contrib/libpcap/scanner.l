@@ -19,7 +19,7 @@
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/contrib/libpcap/scanner.l,v 1.5.2.1 2001/01/10 17:43:41 archie Exp $
  */
 
 #ifndef lint

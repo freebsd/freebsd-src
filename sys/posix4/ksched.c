@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/posix4/ksched.c,v 1.7.2.1 2000/05/16 06:58:13 dillon Exp $
  */
 
 /* ksched: Soft real time scheduling based on "rtprio".

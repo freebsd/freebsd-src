@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/an/if_an.c,v 1.2.2.5 2001/03/12 11:05:52 assar Exp $
  */
 
 /*
@@ -133,7 +133,7 @@
 
 #if !defined(lint)
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/sys/dev/an/if_an.c,v 1.2.2.5 2001/03/12 11:05:52 assar Exp $";
 #endif
 
 /* These are global because we need them in sys/pci/if_an_p.c. */

@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/crypto/rc5/rc5_cbc.c,v 1.1.2.1 2000/07/15 07:14:22 kris Exp $	*/
 /*	$KAME: rc5_cbc.c,v 1.4 2000/06/14 10:41:17 itojun Exp $	*/
 
 /*

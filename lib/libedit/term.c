@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libedit/term.c,v 1.11.6.1 2000/08/16 14:43:40 ache Exp $
  */
 
 #if !defined(lint) && !defined(SCCSID)

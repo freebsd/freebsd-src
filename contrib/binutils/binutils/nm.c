@@ -19,7 +19,7 @@
    Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
    02111-1307, USA.  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/binutils/binutils/nm.c,v 1.3.6.4 2000/11/25 10:33:52 obrien Exp $ */
 
 #include "bfd.h"
 #include "progress.h"

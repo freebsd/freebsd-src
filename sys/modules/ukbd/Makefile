@@ -1,4 +1,4 @@
-#       $FreeBSD$ 
+#       $FreeBSD: src/sys/modules/ukbd/Makefile,v 1.10 2000/01/20 13:25:18 yokota Exp $ 
 
 MAINTAINER	 = n_hibma@freebsd.org
 

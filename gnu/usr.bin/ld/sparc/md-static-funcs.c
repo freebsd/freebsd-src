@@ -1,6 +1,6 @@
 
 /*
- * $FreeBSD$
+ * $FreeBSD: src/gnu/usr.bin/ld/sparc/md-static-funcs.c,v 1.5 1999/08/27 23:36:04 peter Exp $
  *
  * Simple SPARC relocations for the benefit of self-relocation of ld.so
  * avoiding the use of global variables (ie. reloc_bitshift[] et. al.).

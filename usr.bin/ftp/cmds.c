@@ -1,4 +1,4 @@
-/* $FreeBSD$	*/
+/* $FreeBSD: src/usr.bin/ftp/cmds.c,v 1.16.2.2 2000/06/24 15:35:46 ru Exp $	*/
 /*	$NetBSD: cmds.c,v 1.30.2.1 1997/11/18 00:58:26 mellon Exp $	*/
 
 /*
@@ -39,7 +39,7 @@
 #if 0
 static char sccsid[] = "@(#)cmds.c	8.6 (Berkeley) 10/9/94";
 #else
-__RCSID("$FreeBSD$");
+__RCSID("$FreeBSD: src/usr.bin/ftp/cmds.c,v 1.16.2.2 2000/06/24 15:35:46 ru Exp $");
 __RCSID_SOURCE("$NetBSD: cmds.c,v 1.30.2.1 1997/11/18 00:58:26 mellon Exp $");
 #endif
 #endif /* not lint */

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)udp_usrreq.c	8.6 (Berkeley) 5/23/95
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet/udp_usrreq.c,v 1.64.2.9 2001/03/05 13:09:03 obrien Exp $
  */
 
 #include "opt_ipsec.h"

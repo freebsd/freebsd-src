@@ -1236,4 +1236,4 @@ possible.
 
                         The FreeBSD Project
 
-$FreeBSD$
+$FreeBSD: src/release/texts/i386/RELNOTES.TXT,v 1.72.2.134.2.1 2001/04/21 05:50:01 jkh Exp $

@@ -26,7 +26,7 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/string/strlcat.c,v 1.2.4.1 2001/03/05 11:38:46 obrien Exp $
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)

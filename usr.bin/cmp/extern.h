@@ -32,7 +32,7 @@
  *
  *	@(#)extern.h	8.3 (Berkeley) 4/2/94
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/cmp/extern.h,v 1.1.1.1.14.1 2000/07/02 09:28:37 ps Exp $
  *
  */
 

@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/i386/svr4/svr4_genassym.c,v 1.5 2000/01/08 19:56:03 bde Exp $ */
 /* Derived from:  Id: linux_genassym.c,v 1.8 1998/07/29 15:50:41 bde Exp */
 
 #include <stddef.h>

@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/netinet/in_gif.h,v 1.3.2.1 2000/07/15 07:14:30 kris Exp $	*/
 /*	$KAME: in_gif.h,v 1.5 2000/04/14 08:36:02 itojun Exp $	*/
 
 /*

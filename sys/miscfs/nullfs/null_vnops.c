@@ -37,11 +37,11 @@
  *
  * Ancestors:
  *	@(#)lofs_vnops.c	1.2 (Berkeley) 6/18/92
- * $FreeBSD$
+ * $FreeBSD: src/sys/miscfs/nullfs/null_vnops.c,v 1.38.2.2 2000/10/25 04:26:30 bp Exp $
  *	...and...
  *	@(#)null_vnodeops.c 1.20 92/07/07 UCLA Ficus project
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/miscfs/nullfs/null_vnops.c,v 1.38.2.2 2000/10/25 04:26:30 bp Exp $
  */
 
 /*

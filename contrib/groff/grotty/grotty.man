@@ -1,5 +1,5 @@
 .ig \"-*- nroff -*-
-$FreeBSD$
+$FreeBSD: src/contrib/groff/grotty/grotty.man,v 1.2.8.1 2000/12/07 09:48:41 ru Exp $
 Copyright (C) 1989-2000 Free Software Foundation, Inc.
 
 Permission is granted to make and distribute verbatim copies of

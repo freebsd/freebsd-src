@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/netinet/icmp6.h,v 1.2.2.1 2000/07/15 07:14:30 kris Exp $	*/
 /*	$KAME: icmp6.h,v 1.18 2000/07/03 02:51:08 itojun Exp $	*/
 
 /*

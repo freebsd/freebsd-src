@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/libexec/rpc.rusersd/Makefile,v 1.6 1999/08/28 00:09:55 peter Exp $
 
 PROG =	rpc.rusersd
 SRCS =	rusersd.c rusers_proc.c

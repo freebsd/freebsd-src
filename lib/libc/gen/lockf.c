@@ -35,12 +35,12 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/gen/lockf.c,v 1.5 2000/01/27 23:06:17 jasone Exp $
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static const char rcsid[]=
-  "$FreeBSD$";
+  "$FreeBSD: src/lib/libc/gen/lockf.c,v 1.5 2000/01/27 23:06:17 jasone Exp $";
 #endif
 
 #include <errno.h>

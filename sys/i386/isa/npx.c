@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)npx.c	7.2 (Berkeley) 5/12/91
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/isa/npx.c,v 1.80 2000/01/29 16:17:36 peter Exp $
  */
 
 #include "opt_debug_npx.h"

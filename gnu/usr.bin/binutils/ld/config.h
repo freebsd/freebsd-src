@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/gnu/usr.bin/binutils/ld/config.h,v 1.2.6.1 2000/07/06 22:15:52 obrien Exp $ */
 
 /* config.h.  Generated automatically by configure.  */
 /* config.in.  Generated automatically from configure.in by autoheader.  */

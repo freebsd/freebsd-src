@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, [92/04/03  16:51:14  rvb]
- * $FreeBSD$
+ * $FreeBSD: src/sys/boot/pc98/boot2/boot.c,v 1.6.2.2 2000/07/07 00:11:23 obrien Exp $
  */
 
 

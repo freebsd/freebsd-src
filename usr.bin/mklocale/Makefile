@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/7/93
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/mklocale/Makefile,v 1.21.2.1 2000/12/07 16:33:34 obrien Exp $
 
 PROG=	mklocale
 SRCS=	yacc.y lex.l y.tab.h

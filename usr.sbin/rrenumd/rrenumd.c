@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/rrenumd/rrenumd.c,v 1.1.2.2 2001/02/18 02:47:49 kris Exp $
  */
 
 #include <sys/param.h>

@@ -38,7 +38,7 @@
  *	from: @(#)ufs_lookup.c	7.33 (Berkeley) 5/19/91
  *
  *	@(#)cd9660_lookup.c	8.2 (Berkeley) 1/23/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/isofs/cd9660/cd9660_lookup.c,v 1.23.2.1 2000/11/03 15:55:37 bp Exp $
  */
 
 #include <sys/param.h>

@@ -32,7 +32,7 @@
  *
  *	BSDI int14.c,v 2.2 1996/04/08 19:32:45 bostic Exp
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/doscmd/int14.c,v 1.2 1999/08/28 01:00:17 peter Exp $
  */
 
 #include "doscmd.h"

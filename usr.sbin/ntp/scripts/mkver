@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/ntp/scripts/mkver,v 1.4.2.1 2001/03/05 13:08:48 ru Exp $
 PROG=${1-UNKNOWN}
 
 ConfStr="$PROG"

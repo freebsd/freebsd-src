@@ -2,7 +2,7 @@
 #
 # (Based on the German de_DE.DIS_8859-15)
 #
-# $FreeBSD$
+# $FreeBSD: src/share/colldef/sv_SE.DIS_8859-15.src,v 1.1 1999/10/03 02:13:26 ache Exp $
 #
 charmap map.DIS_8859-15
 order \

@@ -1,4 +1,4 @@
-.\" $FreeBSD$
+.\" $FreeBSD: src/contrib/groff/tmac/tmac.andoc,v 1.2.8.2 2001/02/23 09:39:20 ru Exp $
 .\" Load either tmac.an or tmac.doc.
 .if !\n(.g .ab These macros require groff.
 .de Dd

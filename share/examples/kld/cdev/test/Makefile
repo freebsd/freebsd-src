@@ -64,7 +64,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/share/examples/kld/cdev/test/Makefile,v 1.2.2.1 2000/10/25 09:02:34 sobomax Exp $
 #
 PROG=	testcdev
 NOMAN=

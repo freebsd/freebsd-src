@@ -13,7 +13,7 @@
 # purpose.
 #
 
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/i386/boot2/boot1.s,v 1.10.2.2 2000/07/07 21:12:32 jhb Exp $
 
 # Memory Locations
 		.set MEM_REL,0x700		# Relocation address

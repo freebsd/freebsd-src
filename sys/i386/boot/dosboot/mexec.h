@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)exec.h	8.1 (Berkeley) 6/11/93
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/boot/dosboot/mexec.h,v 1.5 1999/08/28 00:43:24 peter Exp $
  */
 
 #ifndef	_EXEC_H_

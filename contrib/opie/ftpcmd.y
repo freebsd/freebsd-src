@@ -22,7 +22,7 @@ you didn't get a copy, you may request one from <license@inner.net>.
 	Modified at NRL for OPIE 2.0.
 	Originally from BSD.
 
-$FreeBSD$
+$FreeBSD: src/contrib/opie/ftpcmd.y,v 1.2.6.1 2000/06/09 07:14:56 kris Exp $
 */
 /*
  * Copyright (c) 1985, 1988 Regents of the University of California.

@@ -21,7 +21,7 @@
  * you will (badly!) need the documentation anyway if you want to mess with
  * this gadget.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/pci/if_mn.c,v 1.11.2.3 2001/01/23 12:47:09 phk Exp $
  */
 
 /*

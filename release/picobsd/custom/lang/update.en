@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/release/picobsd/custom/lang/update.en,v 1.1 1999/12/10 21:51:15 grog Exp $
 pwd=`pwd`
 echo -n "Updating /etc contents on startup floppy...  "
 mount /dev/fd0a /start_floppy

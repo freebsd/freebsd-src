@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc_r/uthread/uthread_attr_getinheritsched.c,v 1.4 1999/11/28 05:38:03 alfred Exp $
  */
 #include <errno.h>
 #ifdef _THREAD_SAFE

@@ -22,7 +22,7 @@
  */
 
 #ifndef lint
-static const char rcsid[] = "$FreeBSD$";
+static const char rcsid[] = "$FreeBSD: src/gnu/lib/libdialog/radiolist.c,v 1.36 1999/12/17 02:44:09 jkh Exp $";
 #endif
 
 #include <dialog.h>

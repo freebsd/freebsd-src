@@ -1,5 +1,5 @@
 #!/bin/sh -
-# $FreeBSD$
+# $FreeBSD: src/release/picobsd/custom/floppy.etc/rc.network,v 1.1 1999/12/10 21:52:08 grog Exp $
 network_pass1() {
     echo -n 'Doing initial network setup:'
     # Set the host name if it is not already set

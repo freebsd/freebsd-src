@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 7/19/93
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/rlogin/Makefile,v 1.21 2000/03/09 06:28:50 kris Exp $
 
 PROG=	rlogin
 SRCS=	rlogin.c

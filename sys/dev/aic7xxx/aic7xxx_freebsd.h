@@ -31,7 +31,7 @@
  *
  * $Id$
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/aic7xxx/aic7xxx_freebsd.h,v 1.2.2.5 2001/03/12 14:57:44 gibbs Exp $
  */
 
 #ifndef _AIC7XXX_FREEBSD_H_

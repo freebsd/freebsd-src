@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libusb/data.c,v 1.1.2.2 2000/07/10 15:37:04 n_hibma Exp $
  */
 
 #include <assert.h>

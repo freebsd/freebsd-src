@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/isa/sound/dmabuf.c,v 1.38.2.2 2000/08/08 19:49:54 peter Exp $
  */
 
 #include <i386/isa/sound/sound_config.h>

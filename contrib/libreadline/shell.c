@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/libreadline/shell.c,v 1.4.2.2 2000/07/06 23:04:24 ache Exp $ */
 /* shell.c -- readline utility functions that are normally provided by
 	      bash when readline is linked as part of the shell. */
 

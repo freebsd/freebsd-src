@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)flush_in.c	8.1 (Berkeley) 5/31/93";
 #endif
 static const char rcsid[] =
- "$FreeBSD$";
+ "$FreeBSD: src/games/robots/flush_in.c,v 1.2 1999/11/30 03:49:17 billf Exp $";
 #endif /* not lint */
 
 # include	<curses.h>

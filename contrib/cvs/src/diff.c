@@ -13,7 +13,7 @@
  * Without any file arguments, runs diff against all the currently modified
  * files.
  *
- * $FreeBSD$
+ * $FreeBSD: src/contrib/cvs/src/diff.c,v 1.14 1999/12/11 12:50:08 peter Exp $
  */
 
 #include "cvs.h"

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/ip6fw/Makefile,v 1.1.2.1 2000/10/24 19:27:43 ume Exp $
 
 .PATH:	${.CURDIR}/../../netinet6
 KMOD=	ip6fw

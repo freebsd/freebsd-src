@@ -13,7 +13,7 @@
  * or in pipe mode.
  */
 
-/* @(#) $FreeBSD$ */
+/* @(#) $FreeBSD: src/lib/libz/minigzip.c,v 1.6.2.2 2001/03/05 06:32:25 kris Exp $ */
 
 #include <stdio.h>
 #include "zlib.h"

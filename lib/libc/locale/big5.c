@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/locale/big5.c,v 1.3.2.2 2001/03/05 10:02:54 obrien Exp $
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)

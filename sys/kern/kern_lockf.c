@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_lockf.c	8.3 (Berkeley) 1/6/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/kern/kern_lockf.c,v 1.25 1999/11/16 16:28:56 phk Exp $
  */
 
 #include "opt_debug_lockf.h"

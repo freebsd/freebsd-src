@@ -1,7 +1,7 @@
 /*
 ** No copyright?!
 **
-** $FreeBSD$
+** $FreeBSD: src/usr.bin/doscmd/int.c,v 1.3 1999/09/29 20:09:18 marcel Exp $
 */
 #include "doscmd.h"
 
