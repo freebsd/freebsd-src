@@ -165,6 +165,7 @@ vendor BE		0x07a4	Be Incorporated
 vendor ADMTEK		0x07a6	ADMtek Incorporated
 vendor COREGA		0x07aa	Corega
 vendor ABOCOM		0x07b8	AboCom Systems, Inc.
+vendor KEISOKUGIKEN	0x07c1	Keisokugiken Corp.
 vendor APG		0x07c5	APG Cash Drawer
 vendor BUG		0x07c8	B.U.G., Inc.
 vendor ALLIEDTELESYN	0x07c9	Allied Telesyn International
@@ -373,6 +374,9 @@ product IOMEGA ZIP100		0x0001	Zip 100
 
 /* Kawatsu products */
 product KAWATSU MH4000P		0x0003	MiniHub 4000P
+
+/* Keisokugiken Corp. products */
+product KEISOKUGIKEN USBDAQ	0x0068	HKS-0200 USBDAQ
 
 /* Kodak products */
 product KODAK DC260		0x0110	Digital Science DC260
