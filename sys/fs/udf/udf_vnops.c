@@ -839,6 +839,7 @@ udf_strategy(struct vop_strategy_args *a)
 	}
 	vp = node->i_devvp;
 	bp->b_dev = vp->v_rdev;
+	bp->b_offset = dbtob(bp->b_blkno);
 	VOP_SPECSTRATEGY(vp, bp);
 	return (0);
 }
