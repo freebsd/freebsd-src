@@ -1250,13 +1250,15 @@ sysctl_hw_ata SYSCTL_HANDLER_ARGS
 	i = 0;
         while (*ptr) {
 	    if (!strncmp(ptr, "pio", 3) || !strncmp(ptr, "PIO", 3)) {
-		if (atadevices[i >> 1]->dev_softc[i & 1] &&
+		if (atadevices[i >> 1] &&
+		    atadevices[i >> 1]->dev_softc[i & 1] &&
 		    atadevices[i >>1 ]->mode[i & 1] >= ATA_DMA)
 		    ata_change_mode(atadevices[i >> 1], 
 				    (i & 1) ? ATA_SLAVE : ATA_MASTER, ATA_PIO);
 	    }
 	    else if (!strncmp(ptr, "dma", 3) || !strncmp(ptr, "DMA", 3)) {
-		if (atadevices[i >> 1]->dev_softc[i & 1] &&
+		if (atadevices[i >> 1] &&
+		    atadevices[i >> 1]->dev_softc[i & 1] &&
 		    atadevices[i >> 1]->mode[i & 1] < ATA_DMA)
 		    ata_change_mode(atadevices[i >> 1], 
 				    (i & 1) ? ATA_SLAVE : ATA_MASTER, ATA_DMA);
