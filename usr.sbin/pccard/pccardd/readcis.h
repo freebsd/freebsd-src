@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: readcis.h,v 1.4 1996/06/17 22:30:30 nate Exp $
+ * $Id: readcis.h,v 1.5 1996/06/18 19:52:30 nate Exp $
  */
 
 #define	CIS_MAXSTR	20
@@ -129,10 +129,5 @@ void   *xmalloc(int);
 void    dumpcis(struct cis *);
 void    freecis(struct cis *);
 struct cis *readcis(int);
-
-struct tuple_list *read_tuples(int);
-struct tuple *find_tuple(struct cis *, unsigned char);
-struct tuple *find_tuple_in_list(struct tuple_list *, unsigned char);
-struct tuple_info *get_tuple_info(unsigned char);
 
 char   *tuple_name(unsigned char);
