@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in.c	8.4 (Berkeley) 1/9/95
- *	$Id: in.c,v 1.18 1995/11/14 20:33:56 phk Exp $
+ *	$Id: in.c,v 1.19 1995/11/20 12:28:21 phk Exp $
  */
 
 #include <sys/param.h>
@@ -42,6 +42,8 @@
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/queue.h>
+#include <sys/kernel.h>
+#include <sys/sysctl.h>
 
 #include <net/if.h>
 #include <net/route.h>
@@ -70,10 +72,9 @@ static int	in_ifinit __P((struct ifnet *,
 	    struct in_ifaddr *, struct sockaddr_in *, int));
 static void	in_ifscrub __P((struct ifnet *, struct in_ifaddr *));
 
-#ifndef SUBNETSARELOCAL
-#define	SUBNETSARELOCAL	1
-#endif
-int subnetsarelocal = SUBNETSARELOCAL;
+static int subnetsarelocal = 1;
+SYSCTL_INT(_net_inet_ip, OID_AUTO, subnets_are_local, CTLFLAG_RW, 
+	&subnetsarelocal, 0, "");
 /*
  * Return 1 if an internet address is for a ``local'' host
  * (one to which we have a connection).  If subnetsarelocal
@@ -139,7 +140,7 @@ struct sockaddr_in *ap;
 	}
 }
 
-int	in_interfaces;		/* number of external internet interfaces */
+static int in_interfaces;	/* number of external internet interfaces */
 
 /*
  * Generic internet control operations (ioctl's).
