@@ -135,6 +135,7 @@ struct ktr_csw {
 /*
  * KTR_USER - data comming from userland
  */
+#define KTR_USER_MAXLEN	2048
 #define KTR_USER	7
 
 /*
