@@ -163,7 +163,7 @@ nwfs_readvnode(struct vnode *vp, struct uio *uiop, struct ucred *cred) {
 	int error, biosize;
 
 	if (vp->v_type != VREG && vp->v_type != VDIR) {
-		printf("%s: vn types other than VREG or VDIR are unsupported !\n",__FUNCTION__);
+		printf("%s: vn types other than VREG or VDIR are unsupported !\n",__func__);
 		return EIO;
 	}
 	if (uiop->uio_resid == 0) return 0;
@@ -208,7 +208,7 @@ nwfs_writevnode(vp, uiop, cred, ioflag)
 	int error = 0;
 
 	if (vp->v_type != VREG) {
-		printf("%s: vn types other than VREG unsupported !\n",__FUNCTION__);
+		printf("%s: vn types other than VREG unsupported !\n",__func__);
 		return EIO;
 	}
 	NCPVNDEBUG("ofs=%d,resid=%d\n",(int)uiop->uio_offset, uiop->uio_resid);

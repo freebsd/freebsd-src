@@ -1254,7 +1254,7 @@ smbfs_smb_lookup(struct smbnode *dnp, const char *name, int nmlen,
 		return error;
 	} else if (nmlen == 2 && name[0] == '.' && name[1] == '.') {
 		error = smbfs_smb_lookup(dnp->n_parent, NULL, 0, fap, scred);
-		printf("%s: knows NOTHING about '..'\n", __FUNCTION__);
+		printf("%s: knows NOTHING about '..'\n", __func__);
 		return error;
 	}
 	error = smbfs_findopen(dnp, name, nmlen,

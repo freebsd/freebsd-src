@@ -216,7 +216,7 @@ agp_intel_detach(device_t dev)
 	case 0x1a218086: /* i840 */
 	case 0x25308086: /* i850 */
 	case 0x25318086: /* i860 */
-		printf("%s: set MCHCFG to %x\n", __FUNCTION__, (unsigned)
+		printf("%s: set MCHCFG to %x\n", __func__, (unsigned)
 				(pci_read_config(dev, AGP_INTEL_MCHCFG, 2)
 				& ~(1 << 9)));
 		pci_write_config(dev, AGP_INTEL_MCHCFG,
@@ -224,7 +224,7 @@ agp_intel_detach(device_t dev)
 				& ~(1 << 9)), 2);
 
 	case 0x25008086: /* i820 */
-		printf("%s: set RDCR to %x\n", __FUNCTION__, (unsigned)
+		printf("%s: set RDCR to %x\n", __func__, (unsigned)
 				(pci_read_config(dev, AGP_INTEL_I820_RDCR, 1)
 				& ~(1 << 1)));
 		pci_write_config(dev, AGP_INTEL_I820_RDCR,
@@ -232,7 +232,7 @@ agp_intel_detach(device_t dev)
 				& ~(1 << 1)), 1);
 
 	case 0x1a308086: /* i845 */
-		printf("%s: set MCHCFG to %x\n", __FUNCTION__, (unsigned)
+		printf("%s: set MCHCFG to %x\n", __func__, (unsigned)
 				(pci_read_config(dev, AGP_INTEL_I845_MCHCFG, 1)
 				& ~(1 << 1)));
 		pci_write_config(dev, AGP_INTEL_MCHCFG,
@@ -240,7 +240,7 @@ agp_intel_detach(device_t dev)
 				& ~(1 << 1)), 1);
 
 	default: /* Intel Generic (maybe) */
-		printf("%s: set NBXCFG to %x\n", __FUNCTION__,
+		printf("%s: set NBXCFG to %x\n", __func__,
 				 (pci_read_config(dev, AGP_INTEL_NBXCFG, 4)
 				  & ~(1 << 9)));
 		pci_write_config(dev, AGP_INTEL_NBXCFG,

@@ -554,8 +554,8 @@ wi_generic_attach(device_t dev)
 
 	if (bootverbose) {
 		device_printf(sc->dev,
-				__FUNCTION__ ":wi_has_wep = %d\n",
-				sc->wi_has_wep);
+				"%s:wi_has_wep = %d\n",
+				__func__, sc->wi_has_wep);
 	}
 
 	bzero((char *)&sc->wi_stats, sizeof(sc->wi_stats));

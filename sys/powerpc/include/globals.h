@@ -33,7 +33,7 @@
 #include <machine/cpufunc.h>
 #include <machine/globaldata.h>
 
-#define GLOBALP	((struct globaldata *) powerpc_get_globalp())
+#define	GLOBALP	((struct globaldata *) powerpc_get_globalp())
 
 #define	PCPU_GET(member)	(GLOBALP->gd_ ## member)
 #define	PCPU_PTR(member)	(&GLOBALP->gd_ ## member)

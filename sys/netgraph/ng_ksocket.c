@@ -965,7 +965,7 @@ static int
 ng_ksocket_disconnect(hook_p hook)
 {
 	KASSERT(NG_NODE_NUMHOOKS(NG_HOOK_NODE(hook)) == 0,
-	    ("%s: numhooks=%d?", __FUNCTION__,
+	    ("%s: numhooks=%d?", __func__,
 	    NG_NODE_NUMHOOKS(NG_HOOK_NODE(hook))));
 	if (NG_NODE_IS_VALID(NG_HOOK_NODE(hook)))
 		ng_rmnode_self(NG_HOOK_NODE(hook));
@@ -1032,7 +1032,7 @@ ng_ksocket_incoming2(node_p node, hook_p hook, void *arg1, int waitflag)
 		return;
 	}
 	/* so = priv->so; *//* XXX could have derived this like so */
-	KASSERT(so == priv->so, ("%s: wrong socket", __FUNCTION__));
+	KASSERT(so == priv->so, ("%s: wrong socket", __func__));
 
 	/* Check whether a pending connect operation has completed */
 	if (priv->flags & KSF_CONNECTING) {

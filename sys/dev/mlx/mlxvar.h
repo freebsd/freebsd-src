@@ -33,8 +33,8 @@
  *  2 - extremely noisy, emit trace items in loops, etc.
  */
 #ifdef MLX_DEBUG
-#define debug(level, fmt, args...)	do { if (level <= MLX_DEBUG) printf("%s: " fmt "\n", __FUNCTION__ , ##args); } while(0)
-#define debug_called(level)		do { if (level <= MLX_DEBUG) printf(__FUNCTION__ ": called\n"); } while(0)
+#define debug(level, fmt, args...)	do { if (level <= MLX_DEBUG) printf("%s: " fmt "\n", __func__ , ##args); } while(0)
+#define debug_called(level)		do { if (level <= MLX_DEBUG) printf(__func__ ": called\n"); } while(0)
 #else
 #define debug(level, fmt, args...)
 #define debug_called(level)

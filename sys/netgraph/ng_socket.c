@@ -547,7 +547,7 @@ ng_detach_common(struct ngpcb *pcbp, int which)
 			priv->datasock = NULL;
 			break;
 		default:
-			panic(__FUNCTION__);
+			panic(__func__);
 		}
 		if ((--priv->refs == 0) && (priv->node != NULL))
 			ng_rmnode_self(priv->node);

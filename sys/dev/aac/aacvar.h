@@ -385,11 +385,11 @@ extern void		aac_dump_complete(struct aac_softc *sc);
 #ifdef AAC_DEBUG
 # define debug(level, fmt, args...)					\
 	do {								\
-	if (level <=AAC_DEBUG) printf("%s: " fmt "\n", __FUNCTION__ , ##args); \
+	if (level <=AAC_DEBUG) printf("%s: " fmt "\n", __func__ , ##args); \
 	} while (0)
 # define debug_called(level)						\
 	do {								\
-	if (level <= AAC_DEBUG) printf(__FUNCTION__ ": called\n");	\
+	if (level <= AAC_DEBUG) printf(__func__ ": called\n");	\
 	} while (0)
 
 extern void	aac_print_queues(struct aac_softc *sc);
@@ -399,7 +399,7 @@ extern void	aac_print_fib(struct aac_softc *sc, struct aac_fib *fib,
 extern void	aac_print_aif(struct aac_softc *sc,
 			      struct aac_aif_command *aif);
 
-# define AAC_PRINT_FIB(sc, fib)	aac_print_fib(sc, fib, __FUNCTION__)
+# define AAC_PRINT_FIB(sc, fib)	aac_print_fib(sc, fib, __func__)
 
 #else
 # define debug(level, fmt, args...)

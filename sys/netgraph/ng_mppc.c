@@ -387,7 +387,7 @@ ng_mppc_rcvdata(hook_p hook, item_p item)
 	}
 
 	/* Oops */
-	panic("%s: unknown hook", __FUNCTION__);
+	panic("%s: unknown hook", __func__);
 #ifdef RESTARTABLE_PANICS
 	return (EINVAL);
 #endif
@@ -499,7 +499,7 @@ ng_mppc_compress(node_p node, struct mbuf *m, struct mbuf **resultp)
 			&destCnt, d->history, flags, 0);
 
 		/* Check return value */
-		KASSERT(rtn != MPPC_INVALID, ("%s: invalid", __FUNCTION__));
+		KASSERT(rtn != MPPC_INVALID, ("%s: invalid", __func__));
 		if ((rtn & MPPC_EXPANDED) == 0
 		    && (rtn & MPPC_COMP_OK) == MPPC_COMP_OK) {
 			outlen -= destCnt;     
@@ -587,7 +587,7 @@ ng_mppc_decompress(node_p node, struct mbuf *m, struct mbuf **resultp)
 	/* Check for insane jumps in sequence numbering (D.O.S. attack) */
 	numLost = ((cc - d->cc) & MPPC_CCOUNT_MASK);
 	if (numLost >= MPPC_INSANE_JUMP) {
-		log(LOG_ERR, "%s: insane jump %d", __FUNCTION__, numLost);
+		log(LOG_ERR, "%s: insane jump %d", __func__, numLost);
 		priv->recv.cfg.enable = 0;
 		goto failed;
 	}
@@ -631,7 +631,7 @@ ng_mppc_decompress(node_p node, struct mbuf *m, struct mbuf **resultp)
 		/* Are we not expecting encryption? */
 		if ((d->cfg.bits & MPPE_BITS) == 0) {
 			log(LOG_ERR, "%s: rec'd unexpectedly %s packet",
-				__FUNCTION__, "encrypted");
+				__func__, "encrypted");
 			goto failed;
 		}
 
@@ -651,7 +651,7 @@ ng_mppc_decompress(node_p node, struct mbuf *m, struct mbuf **resultp)
 		/* Are we expecting encryption? */
 		if ((d->cfg.bits & MPPE_BITS) != 0) {
 			log(LOG_ERR, "%s: rec'd unexpectedly %s packet",
-				__FUNCTION__, "unencrypted");
+				__func__, "unencrypted");
 			goto failed;
 		}
 	}
@@ -663,7 +663,7 @@ ng_mppc_decompress(node_p node, struct mbuf *m, struct mbuf **resultp)
 	if ((header & MPPC_FLAG_COMPRESSED) != 0
 	    && (d->cfg.bits & MPPC_BIT) == 0) {
 		log(LOG_ERR, "%s: rec'd unexpectedly %s packet",
-			__FUNCTION__, "compressed");
+			__func__, "compressed");
 failed:
 		FREE(buf, M_NETGRAPH_MPPC);
 		return (EINVAL);
@@ -699,11 +699,11 @@ failed:
 			&sourceCnt, &destCnt, d->history, flags);
 
 		/* Check return value */
-		KASSERT(rtn != MPPC_INVALID, ("%s: invalid", __FUNCTION__));
+		KASSERT(rtn != MPPC_INVALID, ("%s: invalid", __func__));
 		if ((rtn & MPPC_DEST_EXHAUSTED) != 0
 		    || (rtn & MPPC_DECOMP_OK) != MPPC_DECOMP_OK) {
 			log(LOG_ERR, "%s: decomp returned 0x%x",
-			    __FUNCTION__, rtn);
+			    __func__, rtn);
 			FREE(decompbuf, M_NETGRAPH_MPPC);
 			goto failed;
 		}

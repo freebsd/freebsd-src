@@ -253,7 +253,7 @@ ncp_request_int(struct ncp_rq *rqp)
 	int error, len, dosend, plen = 0, gotpacket;
 
 	if (so == NULL) {
-		printf("%s: ncp_so is NULL !\n",__FUNCTION__);
+		printf("%s: ncp_so is NULL !\n",__func__);
 		ncp_conn_invalidate(conn);
 		return ENOTCONN;
 	}
@@ -334,7 +334,7 @@ ncp_request_int(struct ncp_rq *rqp)
 			if (m->m_len < sizeof(*rp)) {
 				m = m_pullup(m, sizeof(*rp));
 				if (m == NULL) {
-					printf("%s: reply too short\n",__FUNCTION__);
+					printf("%s: reply too short\n",__func__);
 					continue;
 				}
 			}

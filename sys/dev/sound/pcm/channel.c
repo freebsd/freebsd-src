@@ -879,7 +879,7 @@ chn_setblocksize(struct pcm_channel *c, int blkcnt, int blksz)
 		return EINVAL;
 
 	ret = 0;
-	DEB(printf("%s(%d, %d)\n", __FUNCTION__, blkcnt, blksz));
+	DEB(printf("%s(%d, %d)\n", __func__, blkcnt, blksz));
 	if (blksz == 0 || blksz == -1) {
 		if (blksz == -1)
 			c->flags &= ~CHN_F_HAS_SIZE;
@@ -894,11 +894,11 @@ chn_setblocksize(struct pcm_channel *c, int blkcnt, int blksz)
 
 			RANGE(blksz, 16, CHN_2NDBUFMAXSIZE / 2);
 			RANGE(blkcnt, 2, CHN_2NDBUFMAXSIZE / blksz);
-			DEB(printf("%s: defaulting to (%d, %d)\n", __FUNCTION__, blkcnt, blksz));
+			DEB(printf("%s: defaulting to (%d, %d)\n", __func__, blkcnt, blksz));
 		} else {
 			blkcnt = sndbuf_getblkcnt(bs);
 			blksz = sndbuf_getblksz(bs);
-			DEB(printf("%s: updating (%d, %d)\n", __FUNCTION__, blkcnt, blksz));
+			DEB(printf("%s: updating (%d, %d)\n", __func__, blkcnt, blksz));
 		}
 	} else {
 		ret = EINVAL;
@@ -917,7 +917,7 @@ chn_setblocksize(struct pcm_channel *c, int blkcnt, int blksz)
 
 	/* adjust for different hw format/speed */
 	irqhz = (sndbuf_getbps(bs) * sndbuf_getspd(bs)) / sndbuf_getblksz(bs);
-	DEB(printf("%s: soft bps %d, spd %d, irqhz == %d\n", __FUNCTION__, sndbuf_getbps(bs), sndbuf_getspd(bs), irqhz));
+	DEB(printf("%s: soft bps %d, spd %d, irqhz == %d\n", __func__, sndbuf_getbps(bs), sndbuf_getspd(bs), irqhz));
 	RANGE(irqhz, 16, 512);
 
 	sndbuf_setblksz(b, (sndbuf_getbps(b) * sndbuf_getspd(b)) / irqhz);
@@ -930,7 +930,7 @@ chn_setblocksize(struct pcm_channel *c, int blkcnt, int blksz)
 
 	/* round down to fit hw bufhard size */
 	RANGE(blksz, 16, sndbuf_getmaxsize(b) / 2);
-	DEB(printf("%s: hard blksz requested %d (maxsize %d), ", __FUNCTION__, blksz, sndbuf_getmaxsize(b)));
+	DEB(printf("%s: hard blksz requested %d (maxsize %d), ", __func__, blksz, sndbuf_getmaxsize(b)));
 
 	sndbuf_setblksz(b, CHANNEL_SETBLOCKSIZE(c->methods, c->devinfo, blksz));
 

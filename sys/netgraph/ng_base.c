@@ -336,12 +336,12 @@ static	ng_ID_t nextID = 1;
 		int total;						\
 									\
 		if (((m)->m_flags & M_PKTHDR) == 0)			\
-			panic("%s: !PKTHDR", __FUNCTION__);		\
+			panic("%s: !PKTHDR", __func__);		\
 		for (total = 0, n = (m); n != NULL; n = n->m_next)	\
 			total += n->m_len;				\
 		if ((m)->m_pkthdr.len != total) {			\
 			panic("%s: %d != %d",				\
-			    __FUNCTION__, (m)->m_pkthdr.len, total);	\
+			    __func__, (m)->m_pkthdr.len, total);	\
 		}							\
 	} while (0)
 #else
@@ -2590,7 +2590,7 @@ ng_generic_msg(node_p here, item_p item, hook_p lasthook)
 
 			if (ni->hooks >= nhooks) {
 				log(LOG_ERR, "%s: number of %s changed\n",
-				    __FUNCTION__, "hooks");
+				    __func__, "hooks");
 				break;
 			}
 			if (NG_HOOK_NOT_VALID(hook))
@@ -2645,7 +2645,7 @@ ng_generic_msg(node_p here, item_p item, hook_p lasthook)
 
 			if (nl->numnames >= num) {
 				log(LOG_ERR, "%s: number of %s changed\n",
-				    __FUNCTION__, "nodes");
+				    __func__, "nodes");
 				break;
 			}
 			if (NG_NODE_NOT_VALID(node))
@@ -2693,7 +2693,7 @@ ng_generic_msg(node_p here, item_p item, hook_p lasthook)
 
 			if (tl->numtypes >= num) {
 				log(LOG_ERR, "%s: number of %s changed\n",
-				    __FUNCTION__, "types");
+				    __func__, "types");
 				break;
 			}
 			strncpy(tp->type_name, type->name, NG_TYPELEN);

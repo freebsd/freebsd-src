@@ -38,10 +38,10 @@
 MALLOC_DECLARE(M_SMBFSDATA);
 #endif
 
-#define SMBFSERR(format, args...) printf("%s: "format, __FUNCTION__ ,## args)
+#define SMBFSERR(format, args...) printf("%s: "format, __func__ ,## args)
 
 #ifdef SMB_VNODE_DEBUG
-#define SMBVDEBUG(format, args...) printf("%s: "format, __FUNCTION__ ,## args)
+#define SMBVDEBUG(format, args...) printf("%s: "format, __func__ ,## args)
 #else
 #define SMBVDEBUG(format, args...)
 #endif

@@ -460,7 +460,7 @@ ng_bpf_disconnect(hook_p hook)
 {
 	const hinfo_p hip = NG_HOOK_PRIVATE(hook);
 
-	KASSERT(hip != NULL, ("%s: null info", __FUNCTION__));
+	KASSERT(hip != NULL, ("%s: null info", __func__));
 	FREE(hip->prog, M_NETGRAPH_BPF);
 	bzero(hip, sizeof(*hip));
 	FREE(hip, M_NETGRAPH_BPF);

@@ -258,7 +258,7 @@ nga_rcvdata(hook_p hook, item_p item)
 		return (nga_rcv_sync(sc, item));
 	if (hook == sc->async)
 		return (nga_rcv_async(sc, item));
-	panic(__FUNCTION__);
+	panic(__func__);
 }
 
 /*
@@ -374,9 +374,9 @@ nga_disconnect(hook_p hook)
 	else if (hook == sc->sync)
 		hookp = &sc->sync;
 	else
-		panic(__FUNCTION__);
+		panic(__func__);
 	if (!*hookp)
-		panic(__FUNCTION__ "2");
+		panic("%s 2", __func__);
 	*hookp = NULL;
 	bzero(&sc->stats, sizeof(sc->stats));
 	sc->lasttime = 0;

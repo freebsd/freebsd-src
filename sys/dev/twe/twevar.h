@@ -30,11 +30,11 @@
 #ifdef TWE_DEBUG
 #define debug(level, fmt, args...)							\
 	do {										\
-	    if (level <= TWE_DEBUG) printf("%s: " fmt "\n", __FUNCTION__ , ##args);	\
+	    if (level <= TWE_DEBUG) printf("%s: " fmt "\n", __func__ , ##args);	\
 	} while(0)
 #define debug_called(level)						\
 	do {								\
-	    if (level <= TWE_DEBUG) printf(__FUNCTION__ ": called\n");	\
+	    if (level <= TWE_DEBUG) printf("%s: called\n", __func__);	\
 	} while(0)
 #else
 #define debug(level, fmt, args...)

@@ -84,8 +84,8 @@
  *  2 - extremely noisy, emit trace items in loops, etc.
  */
 #ifdef MLY_DEBUG
-# define debug(level, fmt, args...)	do { if (level <= MLY_DEBUG) printf("%s: " fmt "\n", __FUNCTION__ , ##args); } while(0)
-# define debug_called(level)		do { if (level <= MLY_DEBUG) printf(__FUNCTION__ ": called\n"); } while(0)
+# define debug(level, fmt, args...)	do { if (level <= MLY_DEBUG) printf("%s: " fmt "\n", __func__ , ##args); } while(0)
+# define debug_called(level)		do { if (level <= MLY_DEBUG) printf("%s: called\n", __func__); } while(0)
 # define debug_struct(s)		printf("  SIZE %s: %d\n", #s, sizeof(struct s))
 # define debug_union(s)			printf("  SIZE %s: %d\n", #s, sizeof(union s))
 # define debug_field(s, f)		printf("  OFFSET %s.%s: %d\n", #s, #f, ((int)&(((struct s *)0)->f)))

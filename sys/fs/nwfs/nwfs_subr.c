@@ -197,7 +197,7 @@ ncp_lookup(struct vnode *dvp, int len, char *name, struct nw_entry_info *fap,
 		}
 		return error;
 	} else if (len == 2 && name[0] == '.' && name[1] == '.') {
-		printf("%s: knows NOTHING about '..'\n", __FUNCTION__);
+		printf("%s: knows NOTHING about '..'\n", __func__);
 		return EIO;
 	} else {
 		error = ncp_obtain_info(nmp, dnp->n_fid.f_id, 

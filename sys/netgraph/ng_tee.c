@@ -310,7 +310,7 @@ ngt_rcvdata(hook_p hook, item_p item)
 		dup = NULL;
 		dest = &sc->left;
 	} else {
-		panic("%s: no hook!", __FUNCTION__);
+		panic("%s: no hook!", __func__);
 #ifdef	RESTARTABLE_PANICS
 		return(EINVAL);
 #endif
@@ -394,7 +394,7 @@ ngt_disconnect(hook_p hook)
 {
 	struct hookinfo *const hinfo = NG_HOOK_PRIVATE(hook);
 
-	KASSERT(hinfo != NULL, ("%s: null info", __FUNCTION__));
+	KASSERT(hinfo != NULL, ("%s: null info", __func__));
 	hinfo->hook = NULL;
 	if ((NG_NODE_NUMHOOKS(NG_HOOK_NODE(hook)) == 0)
 	&& (NG_NODE_IS_VALID(NG_HOOK_NODE(hook))))

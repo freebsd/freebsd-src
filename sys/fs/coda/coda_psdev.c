@@ -89,7 +89,7 @@ int coda_pcatch = PCATCH;
 #else
 #endif
 
-#define ENTRY if(coda_psdev_print_entry) myprintf(("Entered %s\n",__FUNCTION__))
+#define ENTRY if(coda_psdev_print_entry) myprintf(("Entered %s\n",__func__))
 
 void vcodaattach(int n);
 

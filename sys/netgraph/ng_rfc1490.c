@@ -291,7 +291,7 @@ ng_rfc1490_rcvdata(hook_p hook, item_p item)
 		mtod(m, u_char *)[1] = NLPID_IP;
 		NG_FWD_NEW_DATA(error, item, priv->downlink, m);
 	} else
-		panic(__FUNCTION__);
+		panic(__func__);
 
 done:
 	if (item)
@@ -334,7 +334,7 @@ ng_rfc1490_disconnect(hook_p hook)
 	else if (hook == priv->ppp)
 		priv->ppp = NULL;
 	else
-		panic(__FUNCTION__);
+		panic(__func__);
 	return (0);
 }
 

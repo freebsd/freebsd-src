@@ -1168,7 +1168,7 @@ mlx_periodic_enquiry(struct mlx_command *mc)
 	break;
     }
     default:
-	device_printf(sc->mlx_dev, "%s: unknown command 0x%x", __FUNCTION__, mc->mc_mailbox[0]);
+	device_printf(sc->mlx_dev, "%s: unknown command 0x%x", __func__, mc->mc_mailbox[0]);
 	break;
     }
 

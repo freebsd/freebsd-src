@@ -41,7 +41,7 @@
 	 SIGISMEMBER(set, SIGQUIT))
 
 
-#define	NCP_PRINT(format, args...) printf("FATAL: %s: "format, __FUNCTION__ ,## args)
+#define	NCP_PRINT(format, args...) printf("FATAL: %s: "format, __func__ ,## args)
 #define nwfs_printf	NCP_PRINT
 /* Maybe this should panic, but I dont like that */
 #define NCPFATAL	NCP_PRINT
@@ -49,14 +49,14 @@
 
 /* socket debugging */
 #ifdef NCP_SOCKET_DEBUG
-#define NCPSDEBUG(format, args...) printf("%s: "format, __FUNCTION__ ,## args)
+#define NCPSDEBUG(format, args...) printf("%s: "format, __func__ ,## args)
 #else
 #define NCPSDEBUG(format, args...)
 #endif
 
 /* NCP calls debug */
 #ifdef NCP_NCP_DEBUG
-#define NCPNDEBUG(format, args...) printf("%s: "format, __FUNCTION__ ,## args)
+#define NCPNDEBUG(format, args...) printf("%s: "format, __func__ ,## args)
 #else
 #define NCPNDEBUG(format, args...)
 #endif
@@ -70,14 +70,14 @@
 
 /* FS VOPS debug */
 #ifdef NWFS_VOPS_DEBUG
-#define NCPVODEBUG(format, args...) printf("%s: "format, __FUNCTION__ ,## args)
+#define NCPVODEBUG(format, args...) printf("%s: "format, __func__ ,## args)
 #else
 #define NCPVODEBUG(format, args...)
 #endif
 
 /* FS VNOPS debug */
 #ifdef NWFS_VNOPS_DEBUG
-#define NCPVNDEBUG(format, args...) printf("%s: "format, __FUNCTION__ ,## args)
+#define NCPVNDEBUG(format, args...) printf("%s: "format, __func__ ,## args)
 #else
 #define NCPVNDEBUG(format, args...)
 #endif
