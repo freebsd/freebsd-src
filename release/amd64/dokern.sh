@@ -17,6 +17,7 @@ sed	-e '/	pty	/d' \
 	-e '/KTRACE/d' \
 	-e '/SYSV/d' \
 	-e '/SOFTUPDATES/d' \
+	-e '/UFS_ACL/d' \
 	-e '/UFS_DIRHASH/d' \
 	-e '/MFS/d' \
 	-e '/NFSSERVER/d' \
