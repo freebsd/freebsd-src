@@ -100,7 +100,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "$Id: mtrace.c,v 1.13 1998/01/16 07:17:44 charnier Exp $";
+    "$Id: mtrace.c,v 1.14 1998/06/09 05:01:35 imp Exp $";
 #endif
 
 #include <ctype.h>
@@ -1214,6 +1214,7 @@ void
 passive_mode()
 {
     struct timeval tr;
+    time_t tr_sec;
     struct ip *ip;
     struct igmp *igmp;
     struct tr_resp *r;
@@ -1320,7 +1321,8 @@ passive_mode()
 	if (m)
 	    bcopy(&tr, &m->last, sizeof(tr));
 
-	now = localtime(&tr.tv_sec);
+	tr_sec = tr.tv_sec;
+	now = localtime(&tr_sec);
 	strftime(timebuf, sizeof(timebuf) - 1, "%b %e %k:%M:%S", now);
 	printf("Mtrace %s at %s",
 		len == 0 ? "query" :
@@ -1703,15 +1705,17 @@ stat_line(r, s, have_next, rst)
 
 
     if (debug > 2) {
-	printf("\t\t\t\tv_in: %ld ", ntohl(s->tr_vifin));
-	printf("v_out: %ld ", ntohl(s->tr_vifout));
-	printf("pkts: %ld\n", ntohl(s->tr_pktcnt));
-	printf("\t\t\t\tv_in: %ld ", ntohl(r->tr_vifin));
-	printf("v_out: %ld ", ntohl(r->tr_vifout));
-	printf("pkts: %ld\n", ntohl(r->tr_pktcnt));
-	printf("\t\t\t\tv_in: %ld ",ntohl(s->tr_vifin)-ntohl(r->tr_vifin));
-	printf("v_out: %ld ", ntohl(s->tr_vifout) - ntohl(r->tr_vifout));
-	printf("pkts: %ld ", ntohl(s->tr_pktcnt) - ntohl(r->tr_pktcnt));
+	printf("\t\t\t\tv_in: %ld ", (long)ntohl(s->tr_vifin));
+	printf("v_out: %ld ", (long)ntohl(s->tr_vifout));
+	printf("pkts: %ld\n", (long)ntohl(s->tr_pktcnt));
+	printf("\t\t\t\tv_in: %ld ", (long)ntohl(r->tr_vifin));
+	printf("v_out: %ld ", (long)ntohl(r->tr_vifout));
+	printf("pkts: %ld\n", (long)ntohl(r->tr_pktcnt));
+	printf("\t\t\t\tv_in: %ld ",
+	    (long)(ntohl(s->tr_vifin) - ntohl(r->tr_vifin)));
+	printf("v_out: %ld ",
+	    (long)(ntohl(s->tr_vifout) - ntohl(r->tr_vifout)));
+	printf("pkts: %ld ", (long)(ntohl(s->tr_pktcnt) - ntohl(r->tr_pktcnt)));
 	printf("time: %d\n", timediff);
     }
 }
@@ -1875,15 +1879,18 @@ print_stats(base, prev, new, bugs)
 	    printf("-------     ---------------------\n");
     }
     if (debug > 2) {
-	printf("\t\t\t\tv_in: %ld ", ntohl(n->tr_vifin));
-	printf("v_out: %ld ", ntohl(n->tr_vifout));
-	printf("pkts: %ld\n", ntohl(n->tr_pktcnt));
-	printf("\t\t\t\tv_in: %ld ", ntohl(b->tr_vifin));
-	printf("v_out: %ld ", ntohl(b->tr_vifout));
-	printf("pkts: %ld\n", ntohl(b->tr_pktcnt));
-	printf("\t\t\t\tv_in: %ld ", ntohl(n->tr_vifin) - ntohl(b->tr_vifin));
-	printf("v_out: %ld ", ntohl(n->tr_vifout) - ntohl(b->tr_vifout));
-	printf("pkts: %ld\n", ntohl(n->tr_pktcnt) - ntohl(b->tr_pktcnt));
+	printf("\t\t\t\tv_in: %ld ", (long)ntohl(n->tr_vifin));
+	printf("v_out: %ld ", (long)ntohl(n->tr_vifout));
+	printf("pkts: %ld\n", (long)ntohl(n->tr_pktcnt));
+	printf("\t\t\t\tv_in: %ld ", (long)ntohl(b->tr_vifin));
+	printf("v_out: %ld ", (long)ntohl(b->tr_vifout));
+	printf("pkts: %ld\n", (long)ntohl(b->tr_pktcnt));
+	printf("\t\t\t\tv_in: %ld ",
+	    (long)(ntohl(n->tr_vifin) - ntohl(b->tr_vifin)));
+	printf("v_out: %ld ",
+	    (long)(ntohl(n->tr_vifout) - ntohl(b->tr_vifout)));
+	printf("pkts: %ld\n",
+	    (long)(ntohl(n->tr_pktcnt) - ntohl(b->tr_pktcnt)));
 	printf("\t\t\t\treset: %x\n", *r);
     }
 
