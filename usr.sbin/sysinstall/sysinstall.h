@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.45 1996/03/02 07:31:56 jkh Exp $
+ * $Id: sysinstall.h,v 1.46 1996/03/18 15:28:06 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -582,7 +582,7 @@ extern int	optionsEditor(char *str);
 
 /* package.c */
 extern int	package_add(char *name);
-extern int	package_extract(Device *dev, char *name);
+extern int	package_extract(Device *dev, char *name, Boolean depended);
 
 /* system.c */
 extern void	systemInitialize(int argc, char **argv);
