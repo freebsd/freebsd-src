@@ -234,7 +234,7 @@ datalink_LoginDone(struct datalink *dl)
     dl->dial.incs = 0;
 
     hdlc_Init(&dl->physical->hdlc, &dl->physical->link.lcp);
-    async_Init(&dl->physical->async);
+    async_Setup(&dl->physical->async);
 
     lcp_Setup(&dl->physical->link.lcp, dl->state == DATALINK_READY ?
               0 : dl->physical->link.lcp.cfg.openmode);

@@ -47,6 +47,7 @@ struct physical;
 struct bundle;
 
 extern void async_Init(struct async *);
+extern void async_Setup(struct async *);
 extern void async_SetLinkParams(struct async *, struct lcp *);
 
 extern struct layer asynclayer;
