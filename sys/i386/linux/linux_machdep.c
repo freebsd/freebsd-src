@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/resource.h>
 #include <sys/resourcevar.h>
+#include <sys/signalvar.h>
 #include <sys/syscallsubr.h>
 #include <sys/sysproto.h>
 #include <sys/unistd.h>
@@ -828,3 +829,29 @@ linux_ftruncate64(struct thread *td, struct linux_ftruncate64_args *args)
 	sa.length = args->length;
 	return ftruncate(td, &sa);
 }
+
+int
+linux_set_thread_area(struct thread *td, struct linux_set_thread_area_args *args)
+{
+	/*
+	 * Return an error code instead of raising a SIGSYS so that
+	 * the caller will fall back to simpler LDT methods.
+	 */
+	return (ENOSYS);
+}
+
+int
+linux_gettid(struct thread *td, struct linux_gettid_args *args)
+{
+
+	td->td_retval[0] = td->td_proc->p_pid;
+	return (0);
+}
+
+int
+linux_tkill(struct thread *td, struct linux_tkill_args *args)
+{
+
+	return (linux_kill(td, (struct linux_kill_args *) args));
+}
+
