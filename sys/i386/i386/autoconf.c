@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.38 1995/09/09 18:09:41 davidg Exp $
+ *	$Id: autoconf.c,v 1.39 1995/09/10 18:57:24 bde Exp $
  */
 
 /*
@@ -178,6 +178,10 @@ configure(dummy)
 	eisa_configure();
 #endif
 
+#if NCRD > 0
+	/* Before isa_configure to avoid ISA drivers finding our cards */
+	pccard_configure();
+#endif
 
 #if NISA > 0
 	isa_configure();
@@ -185,10 +189,6 @@ configure(dummy)
 
 #if NPCI > 0
 	pci_configure();
-#endif
-
-#if NCRD > 0
-	pccard_configure();
 #endif
 
 	configure_finish();
