@@ -57,7 +57,7 @@
 #include <vm/vm_page.h>
 #include <vm/vm_object.h>
 #include <vm/vm_extern.h>
-#include <vm/vm_zone.h>
+#include <vm/uma.h>
 
 #include <ufs/ufs/extattr.h>
 #include <ufs/ufs/quota.h>
@@ -247,7 +247,7 @@ ifs_makeinode(mode, dvp, vpp, cnp)
 		mode |= IFREG;
 	error = UFS_VALLOC(dvp, mode, cnp->cn_cred, &tvp);
 	if (error) {
-		zfree(namei_zone, cnp->cn_pnbuf);
+		uma_zfree(namei_zone, cnp->cn_pnbuf);
 		return (error);
 	}
 	ip = VTOI(tvp);
