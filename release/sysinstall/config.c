@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.16.2.16 1995/10/17 02:56:48 jkh Exp $
+ * $Id: config.c,v 1.16.2.17 1995/10/18 00:11:49 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -300,13 +300,14 @@ configSysconfig(void)
 int
 configSaverTimeout(char *str)
 {
-    return variable_get_value("blanktime", "Enter time-out period in seconds for screen saver");
+    return variable_get_value("blanktime", "Enter time-out period in seconds for screen saver")
+	? RET_SUCCESS : RET_FAIL;
 }
 
 int
 configNTP(char *str)
 {
-    return variable_get_value("ntpdate", "Enter the name of an NTP server");
+    return variable_get_value("ntpdate", "Enter the name of an NTP server") ? RET_SUCCESS : RET_FAIL;
 }
 
 void
@@ -358,7 +359,7 @@ configRoutedFlags(char *str)
 {
     return variable_get_value("routedflags", 
 			      "Specify the flags for routed; -q is the default, -s is\n"
-			      "a good choice for gateway machines.");
+			      "a good choice for gateway machines.") ? RET_SUCCESS : RET_FAIL;
 }
 
 int
@@ -376,13 +377,9 @@ configPackages(char *str)
     msgNotify("Attempting to fetch packages/INDEX file from selected media.");
     fd = mediaDevice->get(mediaDevice, "packages/INDEX", TRUE);
     if (fd < 0) {
-	msgNotify("Can't find packages/INDEX file - looking for ports/INDEX.");
-	fd = mediaDevice->get(mediaDevice, "ports/INDEX", FALSE);
-	if (fd < 0) {
-	    msgConfirm("Unable to get ports/INDEX file from selected media.\n"
-		       "Please verify media (or path to media) and try again.");
-	    return RET_FAIL;
-	}
+	msgConfirm("Unable to get packages/INDEX file from selected media.\n"
+		   "Please verify media (or path to media) and try again.");
+	return RET_FAIL;
     }
     index_init(&top, &plist);
     if (index_read(fd, &top)) {
@@ -418,15 +415,16 @@ configPackages(char *str)
 int
 configPorts(char *str)
 {
-    char *cp, *dist;
+    char *cp, *dist = NULL; /* Shut up compiler */
 
     if (file_executable("/usr/X11R6/bin/lndir")) {
-	dist = "/cdrom/ports";
-	while (!file_readable(dist)) {
-	    dist = msgGetInput("/cdrom/ports",
-			       "Unable to locate a ports tree on CDROM.  Please specify the\n"
-			       "location of the master ports directory you wish to create the\n"
-			       "link tree to.");
+	if (!variable_get(PORTS_PATH))
+	    variable_set2(PORTS_PATH, dist = "/cdrom/ports");
+	while (!directoryExists(dist)) {
+	    dist = variable_get_value(PORTS_PATH,
+				      "Unable to locate a ports tree on CDROM.  Please specify the\n"
+				      "location of the master ports directory you wish to create the\n"
+				      "link tree to.");
 	    if (!dist)
 		break;
 	}
@@ -434,16 +432,18 @@ configPorts(char *str)
 	    cp = msgGetInput("/usr/ports",
 			     "Where would you like to create the link tree?"
 			     "(press [ENTER] for default location).");
-	    if (!cp)
+	    if (!cp || !*cp)
 		return RET_FAIL;
-	    if (Mkdir(cp, NULL))
-		msgConfirm("Unable to make %s directory!", cp);
+	    if (Mkdir(cp, NULL)) {
+		msgConfirm("Unable to make the %s directory!", cp);
+		return RET_FAIL;
+	    }
 	    else {
 		msgNotify("Making link tree from %s to %s area.", dist, cp);
-		if (vsystem("lndir %s %s", dist, cp))
+		if (vsystem("/usr/X11R6/bin/lndir %s %s", dist, cp))
 		    msgConfirm("The lndir command returned an error status and may not have.\n"
 			       "successfully generated the link tree.  You may wish to inspect\n"
-			       "%s carefully for any signs of corruption.", cp);
+			       "%s carefully for any missing link files.");
 	    }
 	}
 	else

@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.42.2.23 1995/10/19 15:55:31 jkh Exp $
+ * $Id: sysinstall.h,v 1.42.2.24 1995/10/19 18:37:50 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -108,8 +108,10 @@
 #define USR_SIZE		"usrSize"
 #define VAR_SIZE		"varSize"
 #define SWAP_SIZE		"swapSize"
-#define NFS_PATH		"nfsPath"
-#define FTP_PATH		"ftpPath"
+#define NFS_PATH		"nfs"
+#define FTP_PATH		"ftp"
+#define PORTS_PATH		"ports"
+#define MEDIA_TYPE		"mediaType"
 #define VAR_HOSTNAME		"hostname"
 #define VAR_DOMAINNAME		"domainname"
 #define VAR_NAMESERVER		"nameserver"
@@ -421,6 +423,10 @@ extern char     *dmenuVarCheck(DMenuItem *item);
 extern char     *dmenuFlagCheck(DMenuItem *item);
 extern char     *dmenuRadioCheck(DMenuItem *item);
 
+/* doc.c */
+extern int	docBrowser(char *junk);
+extern int	docShowDocument(char *str);
+
 /* dos.c */
 extern Boolean	mediaInitDOS(Device *dev);
 extern int	mediaGetDOS(Device *dev, char *file, Boolean tentative);
@@ -555,6 +561,7 @@ extern void	mediaShutdownNFS(Device *dev);
 /* options.c */
 extern int	optionsEditor(char *str);
 extern Boolean	optionIsSet(int opt);
+extern void	optionUnset(int opt);
 
 /* package.c */
 extern int	package_extract(Device *dev, char *name);
@@ -598,7 +605,7 @@ extern void	variable_set(char *var);
 extern void	variable_set2(char *name, char *value);
 extern char 	*variable_get(char *var);
 extern void	variable_unset(char *var);
-extern int	variable_get_value(char *var, char *prompt);
+extern char	*variable_get_value(char *var, char *prompt);
 
 /* wizard.c */
 extern void	slice_wizard(Disk *d);
