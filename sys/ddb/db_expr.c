@@ -23,17 +23,17 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_expr.c,v 1.2 1993/10/16 16:47:14 rgrimes Exp $
+ *	$Id: db_expr.c,v 1.3 1993/11/25 01:30:06 wollman Exp $
  */
 
 /*
  *	Author: David B. Golub, Carnegie Mellon University
  *	Date:	7/90
  */
-#include "param.h"
-#include "systm.h"
-#include "proc.h"
-#include "ddb/ddb.h"
+#include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/proc.h>
+#include <ddb/ddb.h>
 #include <ddb/db_lex.h>
 #include <ddb/db_access.h>
 #include <ddb/db_command.h>

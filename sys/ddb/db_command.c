@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_command.c,v 1.3 1993/11/25 01:30:04 wollman Exp $
+ *	$Id: db_command.c,v 1.5 1994/05/25 08:51:12 rgrimes Exp $
  */
 
 /*
@@ -34,10 +34,10 @@
 /*
  * Command dispatcher.
  */
-#include "param.h"
-#include "systm.h"
-#include "proc.h"
-#include "ddb/ddb.h"
+#include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/proc.h>
+#include <ddb/ddb.h>
 
 #include <ddb/db_lex.h>
 #include <ddb/db_output.h>

@@ -35,40 +35,41 @@
  * SUCH DAMAGE.
  *
  *	from:@(#)syscons.c	1.3 940129
- *	$Id: syscons.c,v 1.46 1994/05/25 08:59:56 rgrimes Exp $
+ *	$Id: syscons.c,v 1.47 1994/08/01 10:38:19 davidg Exp $
  *
  */
+
+#include "sc.h"
+
+#if NSC > 0
 
 #if !defined(__FreeBSD__)
 #define FAT_CURSOR
 #endif
 
-#include "param.h"
+#include <sys/param.h>
 #include <sys/systm.h>
-#include "conf.h"
-#include "ioctl.h"
-#include "proc.h"
-#include "user.h"
-#include "tty.h"
-#include "uio.h"
-#include "callout.h"
-#include "kernel.h"
-#include "syslog.h"
-#include "errno.h"
-#include "malloc.h"
-#include "i386/isa/isa.h"
-#include "i386/isa/isa_device.h"
-#include "i386/isa/timerreg.h"
-#include "i386/i386/cons.h"
-#include "machine/console.h"
-#include "machine/psl.h"
-#include "machine/frame.h"
-#include "machine/pc/display.h"
-#include "iso8859.font"
-#include "kbdtables.h"
-#include "sc.h"
-
-#if NSC > 0
+#include <sys/conf.h>
+#include <sys/ioctl.h>
+#include <sys/proc.h>
+#include <sys/user.h>
+#include <sys/tty.h>
+#include <sys/uio.h>
+#include <sys/callout.h>
+#include <sys/kernel.h>
+#include <sys/syslog.h>
+#include <sys/errno.h>
+#include <sys/malloc.h>
+#include <i386/isa/isa.h>
+#include <i386/isa/isa_device.h>
+#include <i386/isa/timerreg.h>
+#include <i386/i386/cons.h>
+#include <machine/console.h>
+#include <machine/psl.h>
+#include <machine/frame.h>
+#include <machine/pc/display.h>
+#include <i386/isa/iso8859.font>
+#include <i386/isa/kbdtables.h>
 
 #if !defined(NCONS)
 #define NCONS 12

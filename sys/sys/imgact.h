@@ -30,15 +30,15 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: imgact.h,v 1.1 1993/12/12 12:31:40 davidg Exp $
+ *	$Id: imgact.h,v 1.3 1994/05/25 09:14:16 rgrimes Exp $
  */
 
 #ifndef __h_imgact
 #define __h_imgact 1
 
-#include "proc.h"
-#include "namei.h"
-#include "vnode.h"
+#include <sys/proc.h>
+#include <sys/namei.h>
+#include <sys/vnode.h>
 
 struct image_params {
 	struct proc *proc;	/* our process struct */

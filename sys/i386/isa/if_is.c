@@ -11,7 +11,7 @@
  *   of this software, nor does the author assume any responsibility
  *   for damages incurred with its use.
  *
- * $Id: if_is.c,v 1.24 1994/08/02 07:39:37 davidg Exp $
+ * $Id: if_is.c,v 1.25 1994/08/08 13:33:16 davidg Exp $
  */
 
 /* TODO
@@ -27,41 +27,41 @@
 
 #include "bpfilter.h"
 
-#include "param.h"
-#include "systm.h"
-#include "errno.h"
-#include "ioctl.h"
-#include "mbuf.h"
-#include "socket.h"
-#include "syslog.h"
+#include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/errno.h>
+#include <sys/ioctl.h>
+#include <sys/mbuf.h>
+#include <sys/socket.h>
+#include <sys/syslog.h>
 
-#include "net/if.h"
-#include "net/if_dl.h"
-#include "net/if_types.h"
+#include <net/if.h>
+#include <net/if_dl.h>
+#include <net/if_types.h>
 
 #ifdef INET
-#include "netinet/in.h"
-#include "netinet/in_systm.h"
-#include "netinet/in_var.h"
-#include "netinet/ip.h"
-#include "netinet/if_ether.h"
+#include <netinet/in.h>
+#include <netinet/in_systm.h>
+#include <netinet/in_var.h>
+#include <netinet/ip.h>
+#include <netinet/if_ether.h>
 #endif
 
 #ifdef NS
-#include "netns/ns.h"
-#include "netns/ns_if.h"
+#include <netns/ns.h>
+#include <netns/ns_if.h>
 #endif
 
 #if NBPFILTER > 0
-#include "net/bpf.h"
-#include "net/bpfdesc.h"
+#include <net/bpf.h>
+#include <net/bpfdesc.h>
 #endif
 
-#include "i386/isa/isa_device.h"
-#include "i386/isa/if_isreg.h"
-#include "i386/isa/icu.h"
+#include <i386/isa/isa_device.h>
+#include <i386/isa/if_isreg.h>
+#include <i386/isa/icu.h>
 
-#include "vm/vm.h"
+#include <vm/vm.h>
 
 #define ETHER_MIN_LEN 64
 #define ETHER_MAX_LEN   1518

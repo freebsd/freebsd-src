@@ -19,7 +19,7 @@
  * the original CMU copyright notice.
  *
  * Version 1.3, Thu Nov 11 12:09:13 MSK 1993
- * $Id: wt.c,v 1.4 1993/12/13 18:38:43 alm Exp $
+ * $Id: wt.c,v 1.7 1994/05/27 04:02:10 rgrimes Exp $
  *
  */
 
@@ -53,18 +53,18 @@
 #include "wt.h"
 #if NWT > 0
 
-#include "sys/param.h"
-#include "systm.h"
-#include "kernel.h"
-#include "sys/buf.h"
-#include "sys/fcntl.h"
-#include "sys/malloc.h"
-#include "sys/ioctl.h"
-#include "sys/mtio.h"
-#include "vm/vm_param.h"
-#include "i386/include/pio.h"
-#include "i386/isa/isa_device.h"
-#include "i386/isa/wtreg.h"
+#include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/buf.h>
+#include <sys/fcntl.h>
+#include <sys/malloc.h>
+#include <sys/ioctl.h>
+#include <sys/mtio.h>
+#include <vm/vm_param.h>
+#include <i386/include/pio.h>
+#include <i386/isa/isa_device.h>
+#include <i386/isa/wtreg.h>
 
 /*
  * Uncomment this to enable internal device tracing.

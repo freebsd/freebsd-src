@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_aout.c,v 1.5 1994/01/03 07:54:08 davidg Exp $
+ *	$Id: db_aout.c,v 1.6 1994/01/14 16:23:00 davidg Exp $
  */
 
 /*
@@ -34,17 +34,17 @@
  * Symbol table routines for a.out format files.
  */
 
-#include "param.h"
-#include "systm.h"
-#include "proc.h"
-#include "ddb/ddb.h"
+#include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/proc.h>
+#include <ddb/ddb.h>
 #include <ddb/db_sym.h>
 
 #ifndef	DB_NO_AOUT
 
 #define _AOUT_INCLUDE_
-#include "nlist.h"
-#include "stab.h"
+#include <nlist.h>
+#include <stab.h>
 
 /*
  * An a.out symbol table as loaded into the kernel debugger:

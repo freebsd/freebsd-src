@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.24 1994/03/08 16:25:29 nate Exp $
+ *	$Id: fd.c,v 1.26 1994/05/25 08:58:39 rgrimes Exp $
  *
  */
 
@@ -60,12 +60,12 @@
 #include <sys/uio.h>
 #include <sys/malloc.h>
 #include <sys/syslog.h>
-#include "i386/isa/isa.h"
-#include "i386/isa/isa_device.h"
-#include "i386/isa/fdreg.h"
-#include "i386/isa/fdc.h"
-#include "i386/isa/icu.h"
-#include "i386/isa/rtc.h"
+#include <i386/isa/isa.h>
+#include <i386/isa/isa_device.h>
+#include <i386/isa/fdreg.h>
+#include <i386/isa/fdc.h>
+#include <i386/isa/icu.h>
+#include <i386/isa/rtc.h>
 
 #if NFT > 0
 extern int ftopen(), ftintr(), ftattach(), ftclose(), ftioctl();

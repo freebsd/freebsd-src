@@ -37,7 +37,7 @@ static int wdtest = 0;
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.40 1994/08/08 13:53:33 davidg Exp $
+ *	$Id: wd.c,v 1.41 1994/08/08 13:56:46 davidg Exp $
  */
 
 /* TODO:
@@ -64,24 +64,24 @@ static int wdtest = 0;
 #include "wd.h"
 #if	NWDC > 0
 
-#include "param.h"
-#include "dkbad.h"
-#include "systm.h"
-#include "kernel.h"
-#include "conf.h"
-#include "file.h"
-#include "stat.h"
-#include "ioctl.h"
-#include "disklabel.h"
-#include "buf.h"
-#include "uio.h"
-#include "malloc.h"
-#include "machine/cpu.h"
-#include "i386/isa/isa.h"
-#include "i386/isa/isa_device.h"
-#include "i386/isa/wdreg.h"
-#include "syslog.h"
-#include "vm/vm.h"
+#include <sys/param.h>
+#include <sys/dkbad.h>
+#include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/conf.h>
+#include <sys/file.h>
+#include <sys/stat.h>
+#include <sys/ioctl.h>
+#include <sys/disklabel.h>
+#include <sys/buf.h>
+#include <sys/uio.h>
+#include <sys/malloc.h>
+#include <machine/cpu.h>
+#include <i386/isa/isa.h>
+#include <i386/isa/isa_device.h>
+#include <i386/isa/wdreg.h>
+#include <sys/syslog.h>
+#include <vm/vm.h>
 
 #define TIMEOUT		10000
 #define	RETRIES		5	/* number of retries before giving up */

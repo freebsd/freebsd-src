@@ -17,7 +17,7 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  *
  *  ft.c - QIC-40/80 floppy tape driver
- *  $Id: ft.c,v 1.6 1994/05/25 08:58:47 rgrimes Exp $
+ *  $Id: ft.c,v 1.7 1994/08/02 07:39:22 davidg Exp $
  *
  *
  *  01/26/94 v0.3b - Jim Babb
@@ -52,7 +52,7 @@
  *  06/03/93 v0.1 Alpha release
  *  Hopefully the last re-write.  Many bugs fixed, many remain.
  *
- * $Id$
+ * $Id: ft.c,v 1.7 1994/08/02 07:39:22 davidg Exp $
  */
 
 #include "ft.h"
@@ -70,12 +70,12 @@
 #include <sys/uio.h>
 #include <sys/ftape.h>
 #include <machine/pio.h>
-#include "i386/isa/isa_device.h"
-#include "i386/isa/fdreg.h"
-#include "i386/isa/fdc.h"
-#include "i386/isa/icu.h"
-#include "i386/isa/rtc.h"
-#include "ftreg.h"
+#include <i386/isa/isa_device.h>
+#include <i386/isa/fdreg.h>
+#include <i386/isa/fdc.h>
+#include <i386/isa/icu.h>
+#include <i386/isa/rtc.h>
+#include <i386/isa/ftreg.h>
 
 /* Enable or disable debugging messages. */
 #define FTDBGALL 0			/* everything */

@@ -2,11 +2,11 @@
  * Dummy driver for a device we can't identify.
  * by Julian Elischer (julian@tfs.com)
  *
- *      $Id: uk.c,v 1.2 1993/11/25 01:37:35 wollman Exp $
+ *      $Id: uk.c,v 1.3 1993/12/19 00:55:01 wollman Exp $
  */
 
 #include <sys/param.h>
-#include "systm.h"
+#include <sys/systm.h>
 #include <sys/errno.h>
 #include <sys/ioctl.h>
 #include <scsi/scsi_all.h>
