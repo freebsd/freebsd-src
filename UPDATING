@@ -37,6 +37,9 @@ build and install as described in the COMMON ITEMS section.
 	and a race condition while creating new files
 	Stale tcb pointer fixes in syncache handling.
 
+20020129:
+	FreeBSD 4.5-RELEASE.
+
 20020105:
 	The locale names have been renamed in -stable to match
 	-current:
