@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)vars.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: vars.c,v 1.2 1997/08/18 07:16:12 charnier Exp $";
 #endif /* not lint */
 
 #include "tipconf.h"
@@ -117,5 +117,5 @@ value_t vtable[] = {
 	  "le",		(char *)FALSE },
 	{ "parity",	STRING|INIT|IREMOTE,	(READ|WRITE)<<PUBLIC,
 	  "par",	(char *)&PA },
-	{ NOSTR, NULL, NULL, NOSTR, NOSTR }
+	{ NOSTR, 0, 0, NOSTR, NOSTR }
 };

@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)uudecode.c	8.2 (Berkeley) 4/2/94";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: uudecode.c,v 1.9 1997/08/22 06:51:43 charnier Exp $";
 #endif /* not lint */
 
 /*
@@ -160,7 +160,7 @@ decode2(flag)
 			warnx("%s: illegal ~user", filename);
 			return(1);
 		}
-		*p++ = NULL;
+		*p++ = '\0';
 		if (!(pw = getpwnam(buf + 1))) {
 			warnx("%s: no user %s", filename, buf);
 			return(1);

@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)map.c	8.1 (Berkeley) 6/9/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: map.c,v 1.4 1997/08/18 07:27:53 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -142,7 +142,7 @@ next:	if (*arg == ':') {
 		mapp->speed = baudrate(p);
 	}
 
-	if (*arg == NULL)			/* Non-optional type. */
+	if (*arg == '\0')			/* Non-optional type. */
 		goto badmopt;
 
 	mapp->type = arg;

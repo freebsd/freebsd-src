@@ -1,5 +1,5 @@
 #ifndef lint
-static char *rcsid = "$Id: main.c,v 1.8 1997/02/22 16:09:36 peter Exp $";
+static char *rcsid = "$Id: main.c,v 1.9 1997/03/31 05:10:48 imp Exp $";
 #endif
 
 /*
@@ -89,7 +89,7 @@ main(int argc, char **argv)
     *pkgs = NULL;
     if (!Fake && getuid() != 0)
 	errx(1, "You must be root to delete packages.");
-    if ((error = pkg_perform(start)) != NULL) {
+    if ((error = pkg_perform(start)) != 0) {
 	if (Verbose)
 	    fprintf(stderr, "%d package deletion(s) failed.\n", error);
 	return error;
