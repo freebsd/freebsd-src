@@ -2475,7 +2475,7 @@ forwarded_statclock(int id, int pscnt, int *astmap)
 	/* XXX */
 	if (p->p_ithd)
 		cpustate = CHECKSTATE_INTR;
-	else if (p == idleproc)
+	else if (p == SMP_prvspace[id].globaldata.gd_idleproc)
 		cpustate = CHECKSTATE_SYS;
 
 	switch (cpustate) {
@@ -2507,7 +2507,7 @@ forwarded_statclock(int id, int pscnt, int *astmap)
 		if (pscnt > 1)
 			return;
 
-		if (p == idleproc) {
+		if (p == SMP_prvspace[id].globaldata.gd_idleproc) {
 			p->p_sticks++;
 			cp_time[CP_IDLE]++;
 		} else {
@@ -2536,7 +2536,7 @@ forwarded_statclock(int id, int pscnt, int *astmap)
 			p->p_iticks++;
 		cp_time[CP_INTR]++;
 	}
-	if (p != idleproc) {
+	if (p != SMP_prvspace[id].globaldata.gd_idleproc) {
 		schedclock(p);
 		
 		/* Update resource usage integrals and maximums. */
