@@ -206,6 +206,21 @@ card_removed(struct slot *sp)
 		pool_irq[sp->irq] = 1;
 }
 
+/* CIS string comparison */
+
+static int
+cis_strcmp(char *db, char *cis)
+{
+	size_t	n;
+
+	if (!db || !cis) {
+		return -1;
+	}
+	n = strlen(db);
+	return strncmp(db, cis, n);
+	/* XXX Add code for regex CIS string comparison here */
+}
+
 /*
  * card_inserted - Card has been inserted;
  *	- Read the CIS
@@ -235,8 +250,8 @@ card_inserted(struct slot *sp)
 	for (cp = cards; cp; cp = cp->next) {
 		switch (cp->deftype) {
 		case DT_VERS:
-			if (strcmp(cp->manuf, sp->cis->manuf) == 0 &&
-			    strcmp(cp->version, sp->cis->vers) == 0) {
+			if (cis_strcmp(cp->manuf, sp->cis->manuf) == 0 &&
+			    cis_strcmp(cp->version, sp->cis->vers) == 0) {
 				logmsg("Card \"%s\"(\"%s\") "
 					"matched \"%s\" (\"%s\") ",
 					sp->cis->manuf, sp->cis->vers,
