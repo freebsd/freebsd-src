@@ -405,8 +405,10 @@ main(argc, argv)
 			error("put");
 	}
 
-	(void)(dp->close)(dp);
-	(void)(sdp->close)(sdp);
+	if ((dp->close)(dp) == -1)
+		error("close");
+	if ((sdp->close)(sdp) == -1)
+		error("close");
 	if (makeold) {
 		(void)fflush(oldfp);
 		(void)fclose(oldfp);
