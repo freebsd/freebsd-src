@@ -649,6 +649,9 @@ int mode;
 	unit = dev;
 #endif
 
+	if (fr_running == 0 && (cmd != SIOCFRENB || unit != IPL_LOGIPF))
+		return ENODEV;
+
 	SPL_NET(s);
 
 	if (unit == IPL_LOGNAT) {
@@ -893,7 +896,8 @@ caddr_t data;
 	 * Check that the group number does exist and that if a head group
 	 * has been specified, doesn't exist.
 	 */
-	if ((req != SIOCZRLST) && fp->fr_grhead &&
+	if ((req != SIOCZRLST) && ((req == SIOCINAFR) || (req == SIOCINIFR) ||
+	     (req == SIOCADAFR) || (req == SIOCADIFR)) && fp->fr_grhead &&
 	    fr_findgroup((u_int)fp->fr_grhead, fp->fr_flags, unit, set, NULL))
 		return EEXIST;
 	if ((req != SIOCZRLST) && fp->fr_group &&
@@ -1227,13 +1231,18 @@ fr_info_t *fin;
 struct mbuf **mp;
 {
 	struct mbuf *m = *mp;
-	char *dpsave;
-	int error;
+	int error, hlen;
+	fr_info_t frn;
 	ip_t *ip;
 
-	dpsave = fin->fin_dp;
+	bzero((char *)&frn, sizeof(frn));
+	frn.fin_ifp = fin->fin_ifp;
+	frn.fin_v = fin->fin_v;
+	frn.fin_out = fin->fin_out;
+	frn.fin_mp = fin->fin_mp;
 
 	ip = mtod(m, ip_t *);
+	hlen = sizeof(*ip);
 
 	ip->ip_v = fin->fin_v;
 	if (ip->ip_v == 4) {
@@ -1248,21 +1257,24 @@ struct mbuf **mp;
 		ip->ip_ttl = ip_defttl;
 # endif
 		ip->ip_sum = 0;
-		fin->fin_dp = (char *)(ip + 1);
+		frn.fin_dp = (char *)(ip + 1);
 	}
 # ifdef	USE_INET6
 	else if (ip->ip_v == 6) {
 		ip6_t *ip6 = (ip6_t *)ip;
 
+		hlen = sizeof(*ip6);
 		ip6->ip6_hlim = 127;
-		fin->fin_dp = (char *)(ip6 + 1);
+		frn.fin_dp = (char *)(ip6 + 1);
 	}
 # endif
 # ifdef	IPSEC
 	m->m_pkthdr.rcvif = NULL;
 # endif
-	error = ipfr_fastroute(m, mp, fin, NULL);
-	fin->fin_dp = dpsave;
+
+	fr_makefrip(hlen, ip, &frn);
+
+	error = ipfr_fastroute(m, mp, &frn, NULL);
 	return error;
 }
 
@@ -1569,6 +1581,9 @@ frdest_t *fdp;
 	/*
 	 * Route packet.
 	 */
+#ifdef	__sgi
+	ROUTE_RDLOCK();
+#endif
 	bzero((caddr_t)ro, sizeof (*ro));
 	dst = (struct sockaddr_in *)&ro->ro_dst;
 	dst->sin_family = AF_INET;
@@ -1605,6 +1620,11 @@ frdest_t *fdp;
 # else
 	rtalloc(ro);
 # endif
+
+#ifdef	__sgi
+	ROUTE_UNLOCK();
+#endif
+
 	if (!ifp) {
 		if (!fr || !(fr->fr_flags & FR_FASTROUTE)) {
 			error = -2;
@@ -2104,7 +2124,7 @@ int code;
 fr_info_t *fin;
 int dst;
 {
-	verbose("- ICMP UNREACHABLE RST sent\n");
+	verbose("- ICMP UNREACHABLE sent\n");
 	return 0;
 }
 

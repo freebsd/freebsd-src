@@ -766,10 +766,10 @@ int rv;
 	i = 0;
 	sel = nat->nat_aps->aps_sel[1 - rv];
 	if (rv) {
-		if (nat->nat_aps->aps_ackmin[sel] > ntohl(tcp->th_seq))
+		if (nat->nat_aps->aps_ackmin[sel] < ntohl(tcp->th_seq))
 			i = nat->nat_aps->aps_ackoff[sel];
 	} else {
-		if (nat->nat_aps->aps_seqmin[sel] > ntohl(tcp->th_seq))
+		if (nat->nat_aps->aps_seqmin[sel] < ntohl(tcp->th_seq))
 			i = nat->nat_aps->aps_seqoff[sel];
 	}
 	/*
@@ -781,6 +781,10 @@ int rv;
 		f->ftps_seq = ntohl(tcp->th_seq);
 	else {
 		inc = ntohl(tcp->th_seq) - f->ftps_seq;
+		if (inc < 0)
+			inc = -inc;
+		if (i < 0)
+			i = -i;
 		if (inc > i) {
 			return APR_ERR(1);
 		}
