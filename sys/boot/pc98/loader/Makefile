@@ -108,7 +108,7 @@ FILES=	${PROG}.help loader.4th support.4th loader.conf
 FILESDIR_loader.conf=	/boot/defaults
 
 .if !exists(${DESTDIR}/boot/loader.rc)
-FILES+=	loader.rc
+FILES+=	${.CURDIR}/../../forth/loader.rc
 .endif
 
 .include <${.CURDIR}/../Makefile.inc>
