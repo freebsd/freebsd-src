@@ -384,8 +384,13 @@ wi_get_id(sc, dev)
 		printf("RF:PRISM3(Mini-PCI)");
 		break;
 	case WI_NIC_LUCENT:
-	case WI_NIC_LUCENT_ALT:
-		printf("Lucent Technologies, WaveLAN/IEEE");
+		printf("Lucent WaveLAN");
+		break;
+	case WI_NIC_SONY:
+		printf("Sony");
+		break;
+	case WI_NIC_LUCENT_EMBEDDED:
+		printf("Lucent WaveLAN (embedded)");
 		break;
 	default:
 		if (le16toh(ver.wi_ver[0]) & 0x8000)
@@ -1295,7 +1300,7 @@ wi_setmulti(sc)
 
 	bzero((char *)&mcast, sizeof(mcast));
 
-	mcast.wi_type = WI_RID_MCAST;
+	mcast.wi_type = WI_RID_MCAST_LIST;
 	mcast.wi_len = (3 * 16) + 1;
 
 	if (ifp->if_flags & IFF_ALLMULTI || ifp->if_flags & IFF_PROMISC) {
