@@ -2,7 +2,7 @@
 
 PROG=	rbootd
 SRCS=	bpf.c conf.c parseconf.c rbootd.c rmpproto.c utils.c
-MAN8=	rbootd.0
+MAN8=	rbootd.8
 
 # XXX BROKEN:	afterinstall:
 XXXafterinstall:
