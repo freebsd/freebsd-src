@@ -107,7 +107,7 @@ static struct	device *curp = 0;
 struct  device *dtab;
 char	*ident;
 int	yyline;
-struct  file_list *ftab, *conf_list, **confp;
+struct  file_list *ftab;
 char	errbuf[80];
 int	maxusers;
 int	do_trace;
@@ -448,20 +448,6 @@ newdev(dp)
 }
 
 
-static struct file_list *
-newflist(ftype)
-	u_char ftype;
-{
-	struct file_list *fl = (struct file_list *)malloc(sizeof (*fl));
-	memset(fl, 0, sizeof(*fl));
-
-	fl->f_type = ftype;
-	fl->f_next = 0;
-	fl->f_needs = 0;
-	fl->f_fn = 0;
-	return (fl);
-}
-
 /*
  * find the pointer to connect to the given device and number.
  * returns 0 if no such device and prints an error message
@@ -593,24 +579,3 @@ check_nexus(dev, num)
 
 	}
 }
-
-/*
- * Check system specification and apply defaulting
- * rules on root, argument, dump, and swap devices.
- */
-static void
-checksystemspec(fl)
-	register struct file_list *fl;
-{
-	char buf[BUFSIZ];
-	register struct file_list *swap;
-	int generic;
-
-	if (fl == 0 || fl->f_type != SYSTEMSPEC) {
-		yyerror("internal error, bad system specification");
-		exit(1);
-	}
-	swap = fl->f_next;
-	generic = swap && swap->f_type == SWAPSPEC && eq(swap->f_fn, "generic");
-}
-

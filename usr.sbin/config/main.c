@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)main.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: main.c,v 1.32 1999/04/24 18:59:19 peter Exp $";
+	"$Id: main.c,v 1.33 1999/05/09 17:23:35 phk Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -73,28 +73,6 @@ int	profiling;
 
 static void usage __P((void));
 static void configfile __P((void));
-
-/*
- * note that a configuration should be made
- */
-static void
-mkconf(sysname)
-	char *sysname;
-{
-	register struct file_list *fl, **flp;
-
-	fl = (struct file_list *) malloc(sizeof *fl);
-	memset(fl, 0, sizeof(*fl));
-	fl->f_type = SYSTEMSPEC;
-	fl->f_needs = sysname;
-	fl->f_rootdev = 0;
-	fl->f_fn = 0;
-	fl->f_next = 0;
-	for (flp = confp; *flp; flp = &(*flp)->f_next)
-		;
-	*flp = fl;
-	confp = flp;
-}
 
 /*
  * Config builds a set of files for building a UNIX
@@ -165,8 +143,6 @@ main(argc, argv)
 		old_config_present = 1;
 
 	dtab = NULL;
-	confp = &conf_list;
-	mkconf("kernel");
 	if (yyparse())
 		exit(3);
 	switch (machine) {
@@ -195,7 +171,6 @@ main(argc, argv)
 	options();			/* make options .h files */
 	makefile();			/* build Makefile */
 	headers();			/* make a lot of .h files */
-	swapconf();			/* swap config files */
 	configfile();			/* put config file into kernel*/
 	printf("Kernel build directory is %s\n", p);
 	exit(0);
