@@ -1,7 +1,7 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-#	$Id: files.i386,v 1.25 1994/02/07 04:27:59 alm Exp $
+#	$Id: files.i386,v 1.26 1994/02/27 21:53:54 phk Exp $
 #
 i386/i386/autoconf.c		standard		device-driver
 i386/i386/cons.c		standard
@@ -41,28 +41,32 @@ i386/isa/psm.c			optional	psm	device-driver
 i386/isa/sb.c			optional	sb	device-driver
 i386/isa/sg.c			optional	sg	device-driver
 i386/isa/sio.c			optional	sio	device-driver
-i386/isa/sound/adlib_card.c	optional 	snd	device-driver
-i386/isa/sound/audio.c		optional 	snd	device-driver
-i386/isa/sound/dev_table.c	optional 	snd	device-driver
-i386/isa/sound/dmabuf.c		optional 	snd	device-driver
-i386/isa/sound/dsp.c		optional 	snd	device-driver
-i386/isa/sound/gus_card.c	optional 	snd	device-driver
-i386/isa/sound/gus_midi.c	optional 	snd	device-driver
-i386/isa/sound/gus_vol.c	optional 	snd	device-driver
-i386/isa/sound/gus_wave.c	optional 	snd	device-driver
-i386/isa/sound/midi.c		optional 	snd	device-driver
-i386/isa/sound/midibuf.c	optional 	snd	device-driver
-i386/isa/sound/mpu401.c		optional 	snd	device-driver
-i386/isa/sound/opl3.c		optional 	snd	device-driver
-i386/isa/sound/pas2_card.c	optional 	snd	device-driver
-i386/isa/sound/pas2_midi.c	optional 	snd	device-driver
-i386/isa/sound/pas2_mixer.c	optional 	snd	device-driver
-i386/isa/sound/pas2_pcm.c	optional 	snd	device-driver
-i386/isa/sound/patmgr.c		optional 	snd	device-driver
-i386/isa/sound/pro_midi.c	optional 	snd	device-driver
-i386/isa/sound/sb_card.c	optional 	snd	device-driver
-i386/isa/sound/sb_dsp.c		optional 	snd	device-driver
-i386/isa/sound/sequencer.c	optional 	snd	device-driver
+i386/isa/sound/adlib_card.c	optional	snd	device-driver
+i386/isa/sound/audio.c		optional	snd	device-driver
+i386/isa/sound/dev_table.c	optional	snd	device-driver
+i386/isa/sound/dmabuf.c		optional	snd	device-driver
+i386/isa/sound/gus_card.c	optional	snd	device-driver
+i386/isa/sound/gus_midi.c	optional	snd	device-driver
+i386/isa/sound/gus_vol.c	optional	snd	device-driver
+i386/isa/sound/gus_wave.c	optional	snd	device-driver
+i386/isa/sound/midi.c		optional	snd	device-driver
+i386/isa/sound/midibuf.c	optional	snd	device-driver
+i386/isa/sound/mpu401.c		optional	snd	device-driver
+i386/isa/sound/opl3.c		optional	snd	device-driver
+i386/isa/sound/pas2_card.c	optional	snd	device-driver
+i386/isa/sound/pas2_midi.c	optional	snd	device-driver
+i386/isa/sound/pas2_mixer.c	optional	snd	device-driver
+i386/isa/sound/pas2_pcm.c	optional	snd	device-driver
+i386/isa/sound/patmgr.c		optional	snd	device-driver
+i386/isa/sound/pro_midi.c	optional	snd	device-driver
+i386/isa/sound/sb16_dsp.c	optional	snd	device-driver
+i386/isa/sound/sb16_midi.c	optional	snd	device-driver
+i386/isa/sound/sb_card.c	optional	snd	device-driver
+i386/isa/sound/sb_dsp.c		optional	snd	device-driver
+i386/isa/sound/sb_midi.c	optional	snd	device-driver
+i386/isa/sound/sb_mixer.c	optional	snd	device-driver
+i386/isa/sound/sequencer.c	optional	snd	device-driver
+i386/isa/sound/sound_switch.c	optional	snd	device-driver
 i386/isa/sound/soundcard.c	optional	snd	device-driver
 i386/isa/spkr.c			optional	speaker
 i386/isa/tw.c			optional	tw	device-driver
