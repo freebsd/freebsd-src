@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.103 1995/02/09 08:36:23 jkh Exp $
+#	$Id: Makefile,v 1.104 1995/02/10 05:41:10 phk Exp $
 #
 
 FLOPPY=		fd0
@@ -40,6 +40,8 @@ CPIO4B=	tzsetup
 CLEANFILES+=	*.o *.c *.cache *.mk *.lo ${CPIO1} ${CPIO2} ${CPIO4B}
 CLEANFILES+=	*.flp *.gz 
 CLEANFILES+=	boot_flp cpio_flp_1 kernel.* kernel *.core
+CLEANFILES+=	${.CURDIR}/../sys/compile/BOOTFLP/kernel \
+		${.CURDIR}/../sys/compile/GENERIC/kernel
 
 MTREE_DIR=	${.CURDIR}/../etc/mtree
 
@@ -68,7 +70,7 @@ hierarchy:
 	ln -s usr/src/sys ${DESTDIR}/sys
 
 kernel:	${.CURDIR}/../sys/i386/conf/GENERIC
-	if [ ! -f ${.CURDIR}/../sys/compile/GENERIC/kernel ]; then \
+	@if [ ! -f ${.CURDIR}/../sys/compile/GENERIC/kernel ]; then \
 		(cd ${.CURDIR}/../sys/i386/conf; config GENERIC); \
 		(cd ${.CURDIR}/../sys/compile/GENERIC; \
 			${MAKE} depend; ${MAKE} all; ) \
@@ -76,7 +78,7 @@ kernel:	${.CURDIR}/../sys/i386/conf/GENERIC
 	cp ${.CURDIR}/../sys/compile/GENERIC/kernel kernel
 
 kernel.BOOTFLP:	${.CURDIR}/../sys/i386/conf/BOOTFLP
-	if [ ! -f ${.CURDIR}/../sys/compile/BOOTFLP/kernel ]; then \
+	@if [ ! -f ${.CURDIR}/../sys/compile/BOOTFLP/kernel ]; then \
 		(cd ${.CURDIR}/../sys/i386/conf; config BOOTFLP); \
 		(cd ${.CURDIR}/../sys/compile/BOOTFLP; \
 			${MAKE} depend; ${MAKE} all; ) \
