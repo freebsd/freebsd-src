@@ -189,6 +189,7 @@ main(int argc, char **argv)
 		    }
 		}
 	    }
+	    packagesite[0] = '\0';
 	}
     }
     /* If no packages, yelp */
