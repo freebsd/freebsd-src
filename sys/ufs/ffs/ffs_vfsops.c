@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vfsops.c	8.8 (Berkeley) 4/18/94
- * $Id: ffs_vfsops.c,v 1.16 1995/04/09 06:03:37 davidg Exp $
+ * $Id: ffs_vfsops.c,v 1.17 1995/04/11 04:23:47 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -67,6 +67,7 @@
 int	ffs_sbupdate __P((struct ufsmount *, int));
 int	ffs_reload __P((struct mount *,struct ucred *,struct proc *));
 int	ffs_oldfscompat __P((struct fs *));
+void ffs_vmlimits __P((struct fs *));
 
 struct vfsops ufs_vfsops = {
 	ffs_mount,
@@ -296,6 +297,7 @@ ffs_reload(mountp, cred, p)
 		bp->b_flags |= B_INVAL;
 	brelse(bp);
 	ffs_oldfscompat(fs);
+	ffs_vmlimits(fs);
 	/*
 	 * Step 3: re-read summary information from disk.
 	 */
@@ -458,6 +460,7 @@ ffs_mountfs(devvp, mp, p)
 		ump->um_quotas[i] = NULLVP;
 	devvp->v_specflags |= SI_MOUNTEDON;
 	ffs_oldfscompat(fs);
+	ffs_vmlimits(fs);
 	if (ronly == 0)
 		ffs_sbupdate(ump, MNT_WAIT);
 	return (0);
@@ -503,6 +506,18 @@ ffs_oldfscompat(fs)
 		fs->fs_qfmask = ~fs->fs_fmask;			/* XXX */
 	}							/* XXX */
 	return (0);
+}
+
+/*
+ * Sanity check for VM file size limits -- temporary until
+ * VM system can support > 32bit offsets
+ */
+void
+ffs_vmlimits(fs)
+	struct fs *fs;
+{
+	if( fs->fs_maxfilesize > (((u_quad_t) 1 << 31) - 1))
+		fs->fs_maxfilesize = ((u_quad_t) 1 << 31) - 1;
 }
 
 /*
