@@ -362,7 +362,7 @@ struct sis_desc {
 #define SIS_TXSTAT_UNDERRUN	0x02000000
 #define SIS_TXSTAT_TX_ABORT	0x04000000
 
-#define SIS_RX_LIST_CNT		128
+#define SIS_RX_LIST_CNT		64
 #define SIS_TX_LIST_CNT		128
 
 #define SIS_RX_LIST_SZ		SIS_RX_LIST_CNT * sizeof(struct sis_desc)
