@@ -10,8 +10,8 @@ LUKEMFTP=	${.CURDIR}/../../contrib/lukemftp
 .PATH: ${LUKEMFTP}/src
 
 PROG=	ftp
-SRCS=	cmds.c cmdtab.c complete.c domacro.c fetch.c ftp.c main.c ruserpass.c \
-	util.c
+SRCS=	cmds.c cmdtab.c complete.c domacro.c fetch.c ftp.c main.c progressbar.c \
+	ruserpass.c util.c
 
 CFLAGS+=-I${.CURDIR} -I${LUKEMFTP}
 LDADD+=	-ledit -ltermcap -lutil
