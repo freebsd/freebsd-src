@@ -714,7 +714,7 @@ device		streams		# STREAMS network driver (required for svr4).
 # VM OPTIONS
 
 # Disable the 4 MByte page PSE CPU feature.  The PSE feature allows the
-# kernel to use a 4 MByte pages to map the kernel instead of 4k pages.
+# kernel to use 4 MByte pages to map the kernel instead of 4k pages.
 # This saves on the amount of memory needed for page tables needed to
 # map the kernel.  You should only disable this feature as a temporary
 # workaround if you are having problems with it enabled.
