@@ -43,7 +43,7 @@
 
 typedef	__ptrdiff_t	ptrdiff_t;
 
-#if !defined(_ANSI_SOURCE) && !defined(_POSIX_SOURCE)
+#if __BSD_VISIBLE
 #ifndef _RUNE_T_DECLARED
 typedef	__rune_t	rune_t;
 #define	_RUNE_T_DECLARED
