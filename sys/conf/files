@@ -107,7 +107,7 @@ dev/aic7xxx/ahc_eisa.c	optional ahc eisa
 dev/aic7xxx/ahc_pci.c	optional ahc pci
 dev/aic7xxx/aic7xxx.c	optional ahc
 dev/aic7xxx/aic7xxx_93cx6.c	optional ahc
-dev/aic7xxx/aic7xxx_freebsd.c	optional ahc 
+dev/aic7xxx/aic7xxx_freebsd.c	optional ahc
 dev/aic7xxx/aic7xxx_pci.c	optional ahc pci
 dev/amr/amr.c		optional amr
 dev/amr/amr_disk.c	optional amr
@@ -310,6 +310,8 @@ dev/sound/pcm/channel.c	optional pcm
 dev/sound/pcm/dsp.c	optional pcm
 dev/sound/pcm/fake.c	optional pcm
 dev/sound/pcm/feeder.c	optional pcm
+dev/sound/pcm/feeder_fmt.c	optional pcm
+#dev/sound/pcm/feeder_rate.c	optional pcm
 dev/sound/pcm/mixer.c	optional pcm
 dev/sound/pcm/sound.c	optional pcm
 #dev/sound/usb/upcm.c	optional pcm usb
