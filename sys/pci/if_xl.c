@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_xl.c,v 1.5.2.12 1998/10/22 16:47:25 wpaul Exp $
+ *	$Id: if_xl.c,v 1.5.2.13 1998/11/18 16:47:50 wpaul Exp $
  */
 
 /*
@@ -156,7 +156,7 @@
 
 #ifndef lint
 static char rcsid[] =
-	"$Id: if_xl.c,v 1.5.2.12 1998/10/22 16:47:25 wpaul Exp $";
+	"$Id: if_xl.c,v 1.5.2.13 1998/11/18 16:47:50 wpaul Exp $";
 #endif
 
 /*
@@ -2239,6 +2239,12 @@ static void xl_start(ifp)
 			bpf_mtap(ifp, cur_tx->xl_mbuf);
 #endif
 	}
+
+	/*
+	 * If there are no packets queued, bail.
+	 */
+	if (cur_tx == NULL)
+		return;
 
 	/*
 	 * Place the request for the upload interrupt
