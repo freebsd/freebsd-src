@@ -803,21 +803,28 @@ emu_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct thread *td)
 }
 
 static int
-emu_callback(mididev_info *devinfo, int reason)
+emu_callback(void *d, int reason)
 {
+	mididev_info *devinfo;
+
+	devinfo = (mididev_info *)d;
+
 	mtx_assert(&devinfo->flagqueue_mtx, MA_OWNED);
 
 	return (0);
 }
 
 static int
-emu_readraw(mididev_info *md, u_char *buf, int len, int nonblock)
+emu_readraw(mididev_info *md, u_char *buf, int len, int *lenr, int nonblock)
 {
 	sc_p scp;
 	int unit;
 
 	if (md == NULL)
 		return (ENXIO);
+	if (lenr == NULL)
+		return (EINVAL);
+
 	unit = md->unit;
 	scp = md->softc;
 	if ((md->fflags & FREAD) == 0) {
@@ -826,17 +833,22 @@ emu_readraw(mididev_info *md, u_char *buf, int len, int nonblock)
 	}
 
 	/* NOP. */
+	*lenr = 0;
+
 	return (0);
 }
 
 static int
-emu_writeraw(mididev_info *md, u_char *buf, int len, int nonblock)
+emu_writeraw(mididev_info *md, u_char *buf, int len, int *lenw, int nonblock)
 {
 	sc_p scp;
 	int unit;
 
 	if (md == NULL)
 		return (ENXIO);
+	if (lenw == NULL)
+		return (EINVAL);
+
 	unit = md->unit;
 	scp = md->softc;
 	if ((md->fflags & FWRITE) == 0) {
@@ -845,6 +857,8 @@ emu_writeraw(mididev_info *md, u_char *buf, int len, int nonblock)
 	}
 
 	/* NOP. */
+	*lenw = 0;
+
 	return (0);
 }
 

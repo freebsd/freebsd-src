@@ -476,8 +476,9 @@ midi_close(dev_t i_dev, int flags, int mode, struct thread *td)
 int
 midi_read(dev_t i_dev, struct uio * buf, int flag)
 {
-	int dev, unit, len, ret;
+	int dev, unit, len, lenr, ret;
 	mididev_info *d ;
+	u_char *uiobuf;
 
 	dev = minor(i_dev);
 
@@ -489,26 +490,32 @@ midi_read(dev_t i_dev, struct uio * buf, int flag)
 
 	ret = 0;
 
+	len = buf->uio_resid;
+	lenr = 0;
+
+	uiobuf = (u_char *)malloc(len, M_DEVBUF, M_WAITOK | M_ZERO);
+	if (uiobuf == NULL)
+		return (ENOMEM);
+
 	mtx_lock(&d->flagqueue_mtx);
 
 	/* Begin recording. */
 	d->callback(d, MIDI_CB_START | MIDI_CB_RD);
 
-	len = 0;
-
 	/* Have we got the data to read? */
 	if ((d->flags & MIDI_F_NBIO) != 0 && d->midi_dbuf_in.rl == 0)
 		ret = EAGAIN;
-	else {
-		len = buf->uio_resid;
-		ret = midibuf_uioread(&d->midi_dbuf_in, buf, len, &d->flagqueue_mtx);
-		if (ret < 0)
-			ret = -ret;
-		else
-			ret = 0;
-	}
+	else
+		ret = midibuf_seqread(&d->midi_dbuf_in, uiobuf, len, &lenr,
+				      d->callback, d, MIDI_CB_START | MIDI_CB_RD,
+				      &d->flagqueue_mtx);
 
 	mtx_unlock(&d->flagqueue_mtx);
+
+	if (lenr > 0)
+		ret = uiomove(uiobuf, lenr, buf);
+
+	free(uiobuf, M_DEVBUF);
 
 	return (ret);
 }
@@ -516,8 +523,9 @@ midi_read(dev_t i_dev, struct uio * buf, int flag)
 int
 midi_write(dev_t i_dev, struct uio * buf, int flag)
 {
-	int dev, unit, len, ret;
+	int dev, unit, len, len2, lenw, ret;
 	mididev_info *d;
+	u_char *uiobuf;
 
 	dev = minor(i_dev);
 	d = get_mididev_info(i_dev, &unit);
@@ -529,6 +537,19 @@ midi_write(dev_t i_dev, struct uio * buf, int flag)
 
 	ret = 0;
 
+	len = buf->uio_resid;
+	lenw = 0;
+
+	uiobuf = (u_char *)malloc(len, M_DEVBUF, M_WAITOK | M_ZERO);
+	if (uiobuf == NULL)
+		return (ENOMEM);
+
+	ret = uiomove(uiobuf, len, buf);
+	if (ret != 0) {
+		free(uiobuf, M_DEVBUF);
+		return (ret);
+	}
+
 	mtx_lock(&d->flagqueue_mtx);
 
 	/* Have we got the data to write? */
@@ -537,21 +558,18 @@ midi_write(dev_t i_dev, struct uio * buf, int flag)
 		d->callback(d, MIDI_CB_START | MIDI_CB_WR);
 		ret = EAGAIN;
 	} else {
-		len = buf->uio_resid;
-		if (len > d->midi_dbuf_out.fl &&
-		    (d->flags & MIDI_F_NBIO))
-			len = d->midi_dbuf_out.fl;
-		ret = midibuf_uiowrite(&d->midi_dbuf_out, buf, len, &d->flagqueue_mtx);
-		if (ret < 0)
-			ret = -ret;
-		else {
-			/* Begin playing. */
-			d->callback(d, MIDI_CB_START | MIDI_CB_WR);
-			ret = 0;
-		}
+		len2 = len;
+		if ((d->flags & MIDI_F_NBIO) != 0 && len2 > d->midi_dbuf_out.fl)
+			len2 = d->midi_dbuf_out.fl;
+		ret = midibuf_seqwrite(&d->midi_dbuf_out, uiobuf, len2, &lenw,
+				       d->callback, d, MIDI_CB_START | MIDI_CB_WR,
+				       &d->flagqueue_mtx);
 	}
 
 	mtx_unlock(&d->flagqueue_mtx);
+
+	free(uiobuf, M_DEVBUF);
+	buf->uio_resid = len - lenw;
 
 	return (ret);
 }
@@ -789,7 +807,10 @@ midi_sync(mididev_info *d)
 		if ((d->flags & MIDI_F_WRITING) == 0)
 			d->callback(d, MIDI_CB_START | MIDI_CB_WR);
 		rl = d->midi_dbuf_out.rl;
-		i = msleep(&d->midi_dbuf_out.tsleep_out, &d->flagqueue_mtx, PRIBIO | PCATCH, "midsnc", (d->midi_dbuf_out.bufsize * 10 * hz / 38400) + MIDI_SYNC_TIMEOUT * hz);
+		i = cv_timedwait_sig(&d->midi_dbuf_out.cv_out,
+				     &d->flagqueue_mtx,
+				     (d->midi_dbuf_out.bufsize * 10 * hz / 38400)
+				     + MIDI_SYNC_TIMEOUT * hz);
 		if (i == EINTR || i == ERESTART) {
 			if (i == EINTR)
 				d->callback(d, MIDI_CB_STOP | MIDI_CB_WR);

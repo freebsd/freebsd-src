@@ -113,7 +113,7 @@ static void csamidi_xmit(sc_p scp);
 static int csamidi_reset(sc_p scp);
 static int csamidi_status(sc_p scp);
 static int csamidi_command(sc_p scp, u_int32_t value);
-static int csamidi_readdata(sc_p scp);
+static int csamidi_readdata(sc_p scp, u_int8_t *value);
 static int csamidi_writedata(sc_p scp, u_int32_t value);
 static u_int32_t csamidi_readio(sc_p scp, u_long offset);
 static void csamidi_writeio(sc_p scp, u_long offset, u_int32_t data);
@@ -261,6 +261,7 @@ csamidi_intr(void *arg)
 	sc_p scp;
 	u_char c;
 	mididev_info *devinfo;
+	int leni;
 
 	scp = (sc_p)arg;
 	devinfo = scp->devinfo;
@@ -271,17 +272,17 @@ csamidi_intr(void *arg)
 	/* Read the received data. */
 	while ((csamidi_status(scp) & MIDSR_RBE) == 0) {
 		/* Receive the data. */
-		c = (u_char)csamidi_readdata(scp);
+		csamidi_readdata(scp, &c);
 		mtx_unlock(&scp->mtx);
 
 		/* Queue into the passthru buffer and start transmitting if we can. */
 		if ((devinfo->flags & MIDI_F_PASSTHRU) != 0 && ((devinfo->flags & MIDI_F_BUSY) == 0 || (devinfo->fflags & FWRITE) == 0)) {
-			midibuf_input_intr(&devinfo->midi_dbuf_passthru, &c, sizeof(c));
+			midibuf_input_intr(&devinfo->midi_dbuf_passthru, &c, sizeof(c), &leni);
 			devinfo->callback(devinfo, MIDI_CB_START | MIDI_CB_WR);
 		}
 		/* Queue if we are reading. Discard an active sensing. */
 		if ((devinfo->flags & MIDI_F_READING) != 0 && c != 0xfe) {
-			midibuf_input_intr(&devinfo->midi_dbuf_in, &c, sizeof(c));
+			midibuf_input_intr(&devinfo->midi_dbuf_in, &c, sizeof(c), &leni);
 		}
 		mtx_lock(&scp->mtx);
 	}
@@ -298,10 +299,13 @@ csamidi_intr(void *arg)
 }
 
 static int
-csamidi_callback(mididev_info *d, int reason)
+csamidi_callback(void *di, int reason)
 {
 	int unit;
 	sc_p scp;
+	mididev_info *d;
+
+	d = (mididev_info *)di;
 
 	mtx_assert(&d->flagqueue_mtx, MA_OWNED);
 
@@ -366,6 +370,7 @@ csamidi_xmit(sc_p scp)
 	register mididev_info *devinfo;
 	register midi_dbuf *dbuf;
 	u_char c;
+	int leno;
 
 	devinfo = scp->devinfo;
 
@@ -391,7 +396,7 @@ csamidi_xmit(sc_p scp)
 				break;
 			}
 			/* Send the data. */
-			midibuf_output_intr(dbuf, &c, sizeof(c));
+			midibuf_output_intr(dbuf, &c, sizeof(c), &leno);
 			csamidi_writedata(scp, c);
 			/* We are playing now. */
 			devinfo->flags |= MIDI_F_WRITING;
@@ -452,17 +457,22 @@ csamidi_command(sc_p scp, u_int32_t value)
 
 /* Reads a byte of data. */
 static int
-csamidi_readdata(sc_p scp)
+csamidi_readdata(sc_p scp, u_int8_t *value)
 {
 	u_int status;
+
+	if (value == NULL)
+		return (EINVAL);
 
 	/* Is the interface ready to read? */
 	status = csamidi_status(scp);
 	if ((status & MIDSR_RBE) != 0)
 		/* The interface is busy. */
-		return (-EAGAIN);
+		return (EAGAIN);
 
-	return (int)csamidi_readio(scp, BA0_MIDRP) & 0xff;
+	*value = (u_int8_t)(csamidi_readio(scp, BA0_MIDRP) & 0xff);
+
+	return (0);
 }
 
 /* Writes a byte of data. */
