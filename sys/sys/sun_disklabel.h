@@ -50,6 +50,9 @@
  */
 
 #define	SUN_DKMAGIC	55998
+#define	SUN_NPART	8
+#define	SUN_RAWPART	2
+#define	SUN_SIZE	512
 
 /* geometry info */
 struct sun_dkgeom {
@@ -95,7 +98,7 @@ struct sun_disklabel {			/* total size = 512 bytes */
 	u_int16_t	sl_ntracks;		/* tracks per cylinder */
 	u_int16_t	sl_nsectors;		/* sectors per track */
 	char		sl_xxx4[4];
-	struct sun_dkpart sl_part[8];	/* partition layout */
+	struct sun_dkpart sl_part[SUN_NPART];	/* partition layout */
 	u_int16_t	sl_magic;		/* == SUN_DKMAGIC */
 	u_int16_t	sl_cksum;		/* xor checksum of all shorts */
 };
