@@ -87,7 +87,7 @@ kenv(td, uap)
 	} */ *uap;
 {
 	char *name, *value;
-	size_t len, done;
+	size_t len, done, needed;
 	int error, i;
 
 	KASSERT(dynamic_kenv, ("kenv: dynamic_kenv = 0"));
@@ -99,30 +99,27 @@ kenv(td, uap)
 		if (error)
 			return (error);
 #endif
-		len = 0;
-		/* Return the size if called with a NULL buffer */
-		if (uap->value == NULL) {
-			sx_slock(&kenv_lock);
-			for (i = 0; kenvp[i] != NULL; i++)
-				len += strlen(kenvp[i]) + 1;
-			sx_sunlock(&kenv_lock);
-			td->td_retval[0] = len;
-			return (0);
-		}
-		done = 0;
+		done = needed = 0;
 		sx_slock(&kenv_lock);
-		for (i = 0; kenvp[i] != NULL && done < uap->len; i++) {
-			len = min(strlen(kenvp[i]) + 1, uap->len - done);
-			error = copyout(kenvp[i], uap->value + done,
-			    len);
-			if (error) {
-				sx_sunlock(&kenv_lock);
-				return (error);
+		for (i = 0; kenvp[i] != NULL; i++) {
+			len = strlen(kenvp[i]) + 1;
+			needed += len;
+			len = min(len, uap->len - done);
+			/*
+			 * If called with a NULL or insufficiently large
+			 * buffer, just keep computing the required size.
+			 */
+			if (uap->value != NULL && len > 0) {
+				error = copyout(kenvp[i], uap->value + done,
+				    len);
+				if (error)
+					break;
+				done += len;
 			}
-			done += len;
 		}
 		sx_sunlock(&kenv_lock);
-		return (0);
+		td->td_retval[0] = ((done == needed) ? 0 : needed);
+		return (error);
 	}
 
 	if ((uap->what == KENV_SET) ||
