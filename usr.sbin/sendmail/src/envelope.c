@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)envelope.c	8.93 (Berkeley) 9/26/96";
+static char sccsid[] = "@(#)envelope.c	8.96 (Berkeley) 11/11/96";
 #endif /* not lint */
 
 #include "sendmail.h"
@@ -153,9 +153,24 @@ dropenvelope(e, fulldrop)
 	e->e_flags &= ~EF_QUEUERUN;
 	for (q = e->e_sendqueue; q != NULL; q = q->q_next)
 	{
-		if (!bitset(QBADADDR|QDONTSEND|QSENT, q->q_flags) ||
-		    bitset(QQUEUEUP, q->q_flags))
+		if (bitset(QQUEUEUP, q->q_flags) &&
+		    bitset(QDONTSEND, q->q_flags))
+		{
+			/* I'm not sure how this happens..... */
+			if (tTd(50, 2))
+			{
+				printf("Bogus flags: ");
+				printaddr(q, FALSE);
+			}
+			q->q_flags &= ~QDONTSEND;
+		}
+		if (!bitset(QBADADDR|QDONTSEND|QSENT, q->q_flags))
 			queueit = TRUE;
+#if XDEBUG
+		else if (bitset(QQUEUEUP, q->q_flags))
+			syslog(LOG_DEBUG, "%s: q_flags = %x",
+				e->e_id, q->q_flags);
+#endif
 
 		/* see if a notification is needed */
 		if (bitset(QPINGONFAILURE, q->q_flags) &&
@@ -203,8 +218,7 @@ dropenvelope(e, fulldrop)
 		fprintf(e->e_xfp, "Message will be deleted from queue\n");
 		for (q = e->e_sendqueue; q != NULL; q = q->q_next)
 		{
-			if (bitset(QQUEUEUP, q->q_flags) ||
-			    !bitset(QBADADDR|QDONTSEND|QSENT, q->q_flags))
+			if (!bitset(QBADADDR|QDONTSEND|QSENT, q->q_flags))
 			{
 				q->q_flags |= QBADADDR;
 				q->q_status = "4.4.7";

@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)mci.c	8.44 (Berkeley) 10/9/96";
+static char sccsid[] = "@(#)mci.c	8.46 (Berkeley) 11/3/96";
 #endif /* not lint */
 
 #include "sendmail.h"
@@ -362,6 +362,7 @@ mci_get(host, m)
 **
 **	Parameters:
 **		mci -- the MCI structure to set.
+**		xstat -- the exit status code.
 **		dstat -- the DSN status code.
 **		rstat -- the SMTP status code.
 **
@@ -370,18 +371,19 @@ mci_get(host, m)
 */
 
 void
-mci_setstat(mci, dstat, rstat)
+mci_setstat(mci, xstat, dstat, rstat)
 	MCI *mci;
+	int xstat;
 	char *dstat;
 	char *rstat;
 {
+	mci->mci_exitstat = xstat;
 	mci->mci_status = dstat;
+	if (mci->mci_rstatus != NULL)
+		free(mci->mci_rstatus);
 	if (rstat != NULL)
-	{
-		if (mci->mci_rstatus != NULL)
-			free(mci->mci_rstatus);
-		mci->mci_rstatus = newstr(rstat);
-	}
+		rstat = newstr(rstat);
+	mci->mci_rstatus = rstat;
 }
 /*
 **  MCI_DUMP -- dump the contents of an MCI structure.
@@ -1032,6 +1034,7 @@ mci_print_persistent(pathname, hostname)
 	int status;
 	int width = Verbose ? 78 : 25;
 	bool locked;
+	char *p;
 	MCI mcib;
 
 	if (!initflag)
@@ -1061,16 +1064,34 @@ mci_print_persistent(pathname, hostname)
 	locked = !lockfile(fileno(fp), pathname, "", LOCK_EX|LOCK_NB);
 	fclose(fp);
 
-	if (mcib.mci_rstatus == NULL)
-		printf("%c%-39s %12s %.*s\n",
-			locked ? '*' : ' ', hostname,
-			pintvl(curtime() - mcib.mci_lastuse, TRUE),
-			width, errstring(mcib.mci_errno));
+	printf("%c%-39s %12s ",
+		locked ? '*' : ' ', hostname,
+		pintvl(curtime() - mcib.mci_lastuse, TRUE));
+	if (mcib.mci_rstatus != NULL)
+		printf("%.*s\n", width, mcib.mci_rstatus);
+	else if (mcib.mci_exitstat == EX_TEMPFAIL && mcib.mci_errno != 0)
+		printf("Deferred: %.*s\n", width - 10, errstring(mcib.mci_errno));
+	else if (mcib.mci_exitstat != 0)
+	{
+		int i = mcib.mci_exitstat - EX__BASE;
+		extern int N_SysEx;
+		extern char *SysExMsg[];
+
+		if (i < 0 || i > N_SysEx)
+		{
+			char buf[80];
+
+			snprintf(buf, sizeof buf, "Unknown mailer error %d",
+				mcib.mci_exitstat);
+			printf("%.*s\n", width, buf);
+		}
+		else
+			printf("%.*s\n", width, &(SysExMsg[i])[5]);
+	}
+	else if (mcib.mci_errno == 0)
+		printf("OK\n");
 	else
-		printf("%c%-39s %12s %.*s\n",
-			locked ? '*' : ' ', hostname,
-			pintvl(curtime() - mcib.mci_lastuse, TRUE),
-			width, mcib.mci_rstatus);
+		printf("OK: %.*s\n", width - 4, errstring(mcib.mci_errno));
 
 	return 0;
 }
