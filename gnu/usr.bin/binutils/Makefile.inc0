@@ -4,8 +4,8 @@
 # use the normal "Makefile.inc" mechanism, because we need some of these
 # definitions before the sub-Makefile is processed.
 
-VERSION=	"2.12.1 [FreeBSD] 2002-07-20"
-VERSION_DATE=	20020720
+VERSION=	"2.13 [FreeBSD] 2002-11-10"
+VERSION_DATE=	20021110
 
 TARGET_ARCH?=	${MACHINE_ARCH}
 
@@ -19,6 +19,8 @@ SRCDIR=	${.CURDIR}/${RELSRC}
 
 .if (${TARGET_ARCH} == "alpha")
 WARNS=	2
+.else
+WARNS=	3
 .endif
 CFLAGS+= -D_GNU_SOURCE
 CFLAGS+= -I.
