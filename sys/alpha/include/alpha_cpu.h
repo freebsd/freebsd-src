@@ -372,8 +372,8 @@ alpha_pal_wripir(u_int64_t ipir)
 	register u_int64_t a0 __asm__("$16") = ipir;
 	__asm__ __volatile__ (
 		"call_pal 0xd #PAL_ipir"
-		: "=r" (a0)
-		: "0" (a0)
+		: "+r" (a0)
+		:
 		: "$1", "$22", "$23", "$24", "$25");
 }
 
@@ -395,8 +395,8 @@ alpha_pal_wrmces(u_int64_t mces)
 	register u_int64_t a0 __asm__("$16") = mces;
 	__asm__ __volatile__ (
 		"call_pal 0x11 #PAL_wrmces"
-		: "=r" (a0)
-		: "0" (a0)
+		: "+r" (a0)
+		:
 		: "$1", "$22", "$23", "$24", "$25");
 }
 
@@ -406,8 +406,8 @@ alpha_pal_wrfen(u_int64_t fen)
 	register u_int64_t a0 __asm__("$16") = fen;
 	__asm__ __volatile__ (
 		"call_pal 0x2b #PAL_wrfen"
-		: "=r" (a0)
-		: "0" (a0)
+		: "+r" (a0)
+		:
 		: "$1", "$22", "$23", "$24", "$25");
 }
 
@@ -417,8 +417,8 @@ alpha_pal_wrvptptr(u_int64_t vptptr)
 	register u_int64_t a0 __asm__("$16") = vptptr;
 	__asm__ __volatile__ (
 		"call_pal 0x2d #PAL_wrvptptr"
-		: "=r" (a0)
-		: "0" (a0)
+		: "+r" (a0)
+		:
 		: "$1", "$22", "$23", "$24", "$25");
 }
 
@@ -429,8 +429,8 @@ alpha_pal_swpctx(u_int64_t pcb)
 	register u_int64_t v0 __asm__("$0");
 	__asm__ __volatile__ (
 		"call_pal 0x30 #PAL_OSF1_swpctx"
-		: "=r" (v0), "=r" (a0)
-		: "1" (a0)
+		: "=r" (v0), "+r" (a0)
+		:
 		: "$1", "$22", "$23", "$24", "$25", "memory");
 	return v0;
 }
@@ -441,8 +441,8 @@ alpha_pal_wrval(u_int64_t sysvalue)
 	register u_int64_t a0 __asm__("$16") = sysvalue;
 	__asm__ __volatile__ (
 		"call_pal 0x31 #PAL_wrval"
-		: "=r" (a0)
-		: "0" (a0)
+		: "+r" (a0)
+		:
 		: "$1", "$22", "$23", "$24", "$25");
 }
 
@@ -465,8 +465,8 @@ alpha_pal_tbi(u_int64_t op, u_int64_t va)
 	register u_int64_t a1 __asm__("$17") = va;
 	__asm__ __volatile__ (
 		"call_pal 0x33 #PAL_OSF1_tbi"
-		: "=r" (a0), "=r" (a1)
-		: "0" (a0), "1" (a1)
+		: "+r" (a0), "+r" (a1)
+		:
 		: "$1", "$22", "$23", "$24", "$25");
 }
 
@@ -477,8 +477,8 @@ alpha_pal_wrent(void *ent, u_int64_t which)
 	register u_int64_t a1 __asm__("$17") = which;
 	__asm__ __volatile__ (
 		"call_pal 0x34 #PAL_OSF1_wrent"
-		: "=r" (a0), "=r" (a1)
-		: "0" (a0), "1" (a1)
+		: "+r" (a0), "+r" (a1)
+		:
 		: "$1", "$22", "$23", "$24", "$25");
 }
 
@@ -489,8 +489,8 @@ alpha_pal_swpipl(u_int64_t newipl)
 	register u_int64_t v0 __asm__("$0");
 	__asm__ __volatile__ (
 		"call_pal 0x35 #PAL_OSF1_swpipl"
-		: "=r" (v0), "=r" (a0)
-		: "1" (a0)
+		: "=r" (v0), "+r" (a0)
+		:
 		: "$1", "$22", "$23", "$24", "$25");
 	return v0;
 }
@@ -513,8 +513,8 @@ alpha_pal_wrusp(u_int64_t usp)
 	register u_int64_t a0 __asm__("$16") = usp;
 	__asm__ __volatile__ (
 		"call_pal 0x38 #PAL_wrusp"
-		: "=r" (a0)
-		: "0" (a0)
+		: "+r" (a0)
+		:
 		: "$1", "$22", "$23", "$24", "$25");
 }
 
@@ -526,8 +526,8 @@ alpha_pal_wrperfmon(u_int64_t arg0, u_int64_t arg1)
 	register u_int64_t a1 __asm__("$17") = arg1;
 	__asm__ __volatile__ (
 		"call_pal 0x39 #PAL_OSF1_wrperfmon"
-		: "=r" (a0), "=r" (a1), "=r" (v0)
-		: "0" (a0), "1" (a1)
+		: "+r" (a0), "+r" (a1), "=r" (v0)
+		:
 		: "$1", "$22", "$23", "$24", "$25");
 	return v0;
 }
