@@ -56,13 +56,12 @@
 
 static int e1000phy_probe(device_t);
 static int e1000phy_attach(device_t);
-static int e1000phy_detach(device_t);
 
 static device_method_t e1000phy_methods[] = {
 	/* device interface */
 	DEVMETHOD(device_probe,		e1000phy_probe),
 	DEVMETHOD(device_attach,	e1000phy_attach),
-	DEVMETHOD(device_detach,	e1000phy_detach),
+	DEVMETHOD(device_detach,	mii_phy_detach),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
 	{ 0, 0 }
 };
@@ -157,24 +156,6 @@ e1000phy_attach(device_t dev)
 
 	MIIBUS_MEDIAINIT(sc->mii_dev);
 	return(0);
-}
-
-static int
-e1000phy_detach(device_t dev)
-{
-	struct mii_softc *sc;
-	struct mii_data *mii;
-
-	sc = device_get_softc(dev);
-	mii = device_get_softc(device_get_parent(dev));
-
-	if (sc->mii_flags & MIIF_DOINGAUTO)
-		untimeout(mii_phy_auto_timeout, sc, sc->mii_auto_ch);
-
-	sc->mii_dev = NULL;
-	LIST_REMOVE(sc, mii_list);
-
-	return 0;
 }
 
 static void

@@ -80,13 +80,12 @@ static const char rcsid[] =
 
 static int nsgphy_probe		(device_t);
 static int nsgphy_attach	(device_t);
-static int nsgphy_detach	(device_t);
 
 static device_method_t nsgphy_methods[] = {
 	/* device interface */
 	DEVMETHOD(device_probe,		nsgphy_probe),
 	DEVMETHOD(device_attach,	nsgphy_attach),
-	DEVMETHOD(device_detach,	nsgphy_detach),
+	DEVMETHOD(device_detach,	mii_phy_detach),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
 	{ 0, 0 }
 };
@@ -156,22 +155,6 @@ nsgphy_attach(device_t dev)
 	printf("\n");
 
 	MIIBUS_MEDIAINIT(sc->mii_dev);
-	return(0);
-}
-
-static int
-nsgphy_detach(device_t dev)
-{
-	struct mii_softc *sc;
-	struct mii_data *mii;
-
-	sc = device_get_softc(dev);
-	mii = device_get_softc(device_get_parent(dev));
-	if (sc->mii_flags & MIIF_DOINGAUTO)
-		untimeout(mii_phy_auto_timeout, sc, sc->mii_auto_ch);
-	sc->mii_dev = NULL;
-	LIST_REMOVE(sc, mii_list);
-
 	return(0);
 }
 

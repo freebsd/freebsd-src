@@ -230,16 +230,6 @@ mii_phy_auto(struct mii_softc *sc, int waitfor)
 }
 
 void
-mii_phy_auto_stop(sc)
-	struct mii_softc *sc;
-{
-	if (sc->mii_flags & MIIF_DOINGAUTO) {
-		sc->mii_flags &= ~MIIF_DOINGAUTO;
-		untimeout(mii_phy_auto_timeout, sc, sc->mii_auto_ch);
-	}
-}
-
-void
 mii_phy_auto_timeout(void *arg)
 {
 	struct mii_softc *sc = arg;
@@ -332,13 +322,22 @@ mii_phy_reset(struct mii_softc *sc)
 }
 
 void
-mii_phy_update(sc, cmd)
-	struct mii_softc *sc;
-	int cmd;
+mii_phy_down(struct mii_softc *sc)
+{
+
+	if (sc->mii_flags & MIIF_DOINGAUTO) {
+		sc->mii_flags &= ~MIIF_DOINGAUTO;
+		untimeout(mii_phy_auto_timeout, sc, sc->mii_auto_ch);
+	}
+}
+
+void
+mii_phy_update(struct mii_softc *sc, int cmd)
 {
 	struct mii_data *mii = sc->mii_pdata;
 
-	if (sc->mii_media_active != mii->mii_media_active || cmd == MII_MEDIACHG) {
+	if (sc->mii_media_active != mii->mii_media_active ||
+	    cmd == MII_MEDIACHG) {
 		MIIBUS_STATCHG(sc->mii_dev);
 		sc->mii_media_active = mii->mii_media_active;
 	}
@@ -580,3 +579,17 @@ mii_phy_add_media(struct mii_softc *sc)
 #undef PRINT
 }
 
+int
+mii_phy_detach(device_t dev)
+{
+	struct mii_softc *sc;
+	struct mii_data *mii;
+
+	sc = device_get_softc(dev);
+	mii = device_get_softc(device_get_parent(dev));
+	mii_phy_down(sc);
+	sc->mii_dev = NULL;
+	LIST_REMOVE(sc, mii_list);
+
+	return(0);
+}
