@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: installPreconfig.c,v 1.13 1995/10/23 13:19:43 jkh Exp $
+ * $Id: installPreconfig.c,v 1.14 1995/10/24 02:18:00 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -101,7 +101,7 @@ static struct _word {
     { "msgConfirm",		msgSimpleConfirm	},
     { "msgNotify",		msgSimpleNotify		},
     { "packageAdd",		package_add		},
-    { "system",			(int (*)(char *))system	},
+    { "system",			(int (*)(char *))vsystem },
     { "systemInteractive",	systemExecute		},
     { "tcpInstallDevice",	tcpInstallDevice	},
     { NULL, NULL },

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: doc.c,v 1.5 1995/10/22 17:39:05 jkh Exp $
+ * $Id: doc.c,v 1.6 1995/10/26 08:55:40 jkh Exp $
  *
  * Jordan Hubbard
  *
@@ -81,13 +81,26 @@ docShowDocument(char *str)
 	where = "http://www.freebsd.org";
     else if (!strcmp(str, "Other"))
 	where = msgGetInput("http://www.freebsd.org", "Please enter the URL of the location you wish to visit.");
-    else {
-	sprintf(target, "/usr/share/doc/%s/%s.html", str, str);
+    else if (!strcmp(str, "FAQ")) {
+	strcpy(target, "/usr/share/doc/FAQ/freebsd-faq.html");
 	if (!file_readable(target))
-	    sprintf(target, "http://www.freebsd.org/%s", str);
+	    strcpy(target, "http://www.freebsd.org/FAQ");
 	where = target;
     }
-    sprintf(tmp, "%s %s", browser, where);
-    systemExecute(tmp);
-    return RET_SUCCESS;
+    else if (!strcmp(str, "Handbook")) {
+	strcpy(target, "/usr/share/doc/handbook/handbook.html");
+	if (!file_readable(target))
+	    strcpy(target, "http://www.freebsd.org/handbook");
+	where = target;
+    }
+    if (where) {
+	sprintf(tmp, "%s %s", browser, where);
+	systemExecute(tmp);
+	return RET_SUCCESS;
+    }
+    else {
+	msgConfirm("Hmmmmm!  I can't seem to access the documentation you selected!\n"
+		   "Have you loaded the bin distribution?  Is your network connected?");
+	return RET_FAIL;
+    }
 }
