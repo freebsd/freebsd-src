@@ -696,8 +696,6 @@ and EISA (Fast) Etherlink III / (Fast) Etherlink XL
 
 3Com 3c450-TX HomeConnect adapter
 
-Toshiba ethernet cards
-
 NE2000 compatible PC-Card (PCMCIA) Ethernet/FastEthernet cards,
 including the following:
     AR-P500 Ethernet card
