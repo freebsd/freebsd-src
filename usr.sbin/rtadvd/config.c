@@ -258,6 +258,8 @@ getconfig(intface)
 				       __FUNCTION__);
 				exit(1);
 			}
+			memset(pfx, 0, sizeof(*pfx));
+
 			/* link into chain */
 			insque(pfx, &tmp->prefix);
 
