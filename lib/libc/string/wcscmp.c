@@ -36,16 +36,10 @@
 
 #include <sys/cdefs.h>
 #if defined(LIBC_SCCS) && !defined(lint)
-#if 0
 static char sccsid[] = "@(#)strcmp.c	8.1 (Berkeley) 6/4/93";
-#else
 __RCSID("$NetBSD$");
-#endif
 #endif /* LIBC_SCCS and not lint */
-#ifndef lint
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif
+__FBSDID("$FreeBSD$");
 
 #include <assert.h>
 #include <wchar.h>
