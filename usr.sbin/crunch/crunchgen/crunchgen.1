@@ -197,6 +197,10 @@ and if that is not found, the
 .Ar srcdir
 itself becomes the
 .Ar objdir .
+.It Nm special Ar progname Nm buildopts Ar buildopts
+Define a set of build options that should be added to make targets
+when processing
+.Ar progname .
 .It Nm special Ar progname Nm objs Ar object-file-name ...
 Set the list of object files for program
 .Ar progname .
@@ -272,10 +276,13 @@ input conf file, named
 	srcdirs /usr/src/bin /usr/src/sbin
 
 	progs test cp echo sh fsck halt init mount umount myinstall
+	progs anotherprog
 	ln test [       # test can be invoked via [
 	ln sh -sh       # init invokes the shell with "-sh" in argv[0]
 
 	special myprog objpaths /homes/leroy/src/myinstall.o # no sources
+
+	special anotherprog -DNO_FOO WITHOUT_BAR=YES
 
 	libs -lutil -lcrypt
 .fi
@@ -286,6 +293,10 @@ for which no source directory is specified, but its object file is
 specified directly with the
 .Nm special
 line.
+.Pp
+Additionally when ``anotherprog'' is built the arguments
+.Ar -DNO_FOO WITHOUT_BAR=YES
+are added to all build targets.
 .Pp
 The crunched binary ``kcopy'' can be built as follows:
 .Pp
