@@ -561,9 +561,9 @@ network_pass2() {
 		;;
 	esac
 
-	case ${xntpd_enable} in
+	case ${ntpd_enable} in
 	[Yy][Ee][Ss])
-		echo -n ' ntpd';	${xntpd_program:-ntpd} ${xntpd_flags}
+		echo -n ' ntpd';	${ntpd_program:-ntpd} ${ntpd_flags}
 		;;
 	esac
 
@@ -573,10 +573,10 @@ network_pass2() {
 		;;
 	esac
 
-	case ${portmap_enable} in
+	case ${rpcbind_enable} in
 	[Yy][Ee][Ss])
-		echo -n ' rpcbind';	${portmap_program:-/usr/sbin/rpcbind} \
-			${portmap_flags}
+		echo -n ' rpcbind';	${rpcbind_program:-/usr/sbin/rpcbind} \
+			${rpcbind_flags}
 
 		# Start ypserv if we're an NIS server.
 		# Run rpc.ypxfrd and rpc.yppasswdd only on the NIS master server.
@@ -645,7 +645,7 @@ network_pass2() {
 network_pass3() {
 	echo -n 'Starting final network daemons:'
 
-	case ${portmap_enable} in
+	case ${rpcbind_enable} in
 	[Yy][Ee][Ss])
 		case ${nfs_server_enable} in
 		[Yy][Ee][Ss])

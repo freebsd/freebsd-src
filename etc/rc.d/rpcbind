@@ -11,25 +11,14 @@
 . /etc/rc.subr
 
 name="rpcbind"
-
-# XXX - Executable may be in a different location. The $name variable
-#	is different from the variable in rc.conf(5) so the
-#	subroutines in rc.subr won't catch it.
-#
-load_rc_config $name
+rcvar=`set_rcvar`
+command="/usr/sbin/${name}"
 
 case `${CMD_OSTYPE}` in
-FreeBSD)
-	pidfile=
-	rcvar="portmap_enable"
-	command="${portmap_program:-/usr/sbin/${name}}"
-	eval ${name}_flags=\"${portmap_flags}\"
-	;;
 NetBSD)
-	rcvar=$name
-	command="/usr/sbin/${name}"
 	pidfile="/var/run/${name}.pid"
 	;;
 esac
 
+load_rc_config $name
 run_rc_command "$1"

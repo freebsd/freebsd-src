@@ -13,11 +13,21 @@ name="ypxfrd"
 rcvar="nis_ypxfrd_enable"
 command="/usr/sbin/rpc.${name}"
 command_args="${nis_ypxfrd_flags}"
-required_vars="portmap_enable nis_server_enable"
 start_precmd="ypxfrd_precmd"
 
 ypxfrd_precmd()
 {
+	if ! checkyesno rpcbind_enable  && \
+	    ! /etc/rc.d/rpcbind forcestatus 1>/dev/null 2>&1
+	then
+		force_depend rpcbind || return 1
+	fi
+	if ! checkyesno nis_server_enable && \
+	    ! /etc/rc.d/ypserv forcestatus 1>/dev/null 2>&1
+	then
+		force_depend ypserv || return 1
+	fi
+
         _domain=`domainname`
         if [ -z "$_domain" ]; then
                 warn "domainname(1) is not set."

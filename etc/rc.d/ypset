@@ -13,11 +13,21 @@ name="ypset"
 rcvar="nis_ypset_enable"
 command="/usr/sbin/${name}"
 command_args="${nis_ypset_flags}"
-required_vars="portmap_enable nis_client_enable"
 start_precmd="ypset_precmd"
 
 ypset_precmd()
 {
+	if ! checkyesno rpcbind_enable  && \
+	    ! /etc/rc.d/rpcbind forcestatus 1>/dev/null 2>&1
+	then
+		force_depend rpcbind || return 1
+	fi
+	if ! checkyesno nis_client_enable && \
+	    ! /etc/rc.d/ypbind forcestatus 1>/dev/null 2>&1
+	then
+		force_depend ypbind || return 1
+	fi
+
         _domain=`domainname`
         if [ -z "$_domain" ]; then
                 warn "domainname(1) is not set."

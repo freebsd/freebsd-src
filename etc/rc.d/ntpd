@@ -11,20 +11,17 @@
 
 . /etc/rc.subr
 
+name=ntpd
+rcvar=`set_rcvar`
+command="/usr/sbin/${name}"
+pidfile="/var/run/${name}.pid"
+required_files="/etc/ntp.conf"
+
 case `${CMD_OSTYPE}` in
-FreeBSD)
-	name="xntpd"
-	;;
 NetBSD)
-	name="ntpd"
 	start_precmd="ntpd_precmd"
 	;;
 esac
-
-rcvar=`set_rcvar`
-command="/usr/sbin/ntpd"
-pidfile="/var/run/ntpd.pid"
-required_files="/etc/ntp.conf"
 
 ntpd_precmd()
 {
