@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: fore_load.c,v 1.6 1999/04/24 20:17:05 peter Exp $
+ *	@(#) $Id: fore_load.c,v 1.7 1999/05/09 17:07:30 peter Exp $
  *
  */
 
@@ -38,7 +38,7 @@
 #include <dev/hfa/fore_include.h>
 
 #ifndef lint
-__RCSID("@(#) $Id: fore_load.c,v 1.6 1999/04/24 20:17:05 peter Exp $");
+__RCSID("@(#) $Id: fore_load.c,v 1.7 1999/05/09 17:07:30 peter Exp $");
 #endif
 
 
@@ -949,8 +949,21 @@ fore_pci_attach(config_id, unit)
 	}
 
 	/*
+	 * Enable Memory Mapping / Bus Mastering 
+	 */
+	val = pci_conf_read(config_id, PCI_COMMAND_STATUS_REG);
+	val |= (PCIM_CMD_MEMEN | PCIM_CMD_BUSMASTEREN);
+	pci_conf_write(config_id, PCI_COMMAND_STATUS_REG, val);
+
+	/*
 	 * Map RAM
 	 */
+	val = pci_conf_read(config_id, PCI_COMMAND_STATUS_REG);
+	if ((val & PCIM_CMD_MEMEN) == 0) {
+		log(LOG_ERR, "%s%d: memory mapping not enabled\n", 
+			FORE_DEV_NAME, unit);
+		goto failed;
+	}
 	if ((pci_map_mem(config_id, PCA200E_PCI_MEMBASE, &va, &pa)) == 0) {
 		log(LOG_ERR, "%s%d: unable to map memory\n", 
 			FORE_DEV_NAME, unit);
