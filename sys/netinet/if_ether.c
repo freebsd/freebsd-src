@@ -506,10 +506,15 @@ arpintr()
  * but formerly didn't normally send requests.
  */
 static int log_arp_wrong_iface = 1;
+static int log_arp_movements = 1;
 
 SYSCTL_INT(_net_link_ether_inet, OID_AUTO, log_arp_wrong_iface, CTLFLAG_RW,
 	&log_arp_wrong_iface, 0,
 	"log arp packets arriving on the wrong interface");
+SYSCTL_INT(_net_link_ether_inet, OID_AUTO, log_arp_movements, CTLFLAG_RW,
+        &log_arp_movements, 0,
+        "log arp replies from MACs different the the one in the cache");
+
 
 static void
 in_arpinput(m)
@@ -595,12 +600,13 @@ in_arpinput(m)
 		}
 		if (sdl->sdl_alen &&
 		    bcmp((caddr_t)ea->arp_sha, LLADDR(sdl), sdl->sdl_alen)) {
-			if (rt->rt_expire)
-			    log(LOG_INFO, "arp: %s moved from %6D to %6D on %s%d\n",
-				inet_ntoa(isaddr), (u_char *)LLADDR(sdl), ":",
-				ea->arp_sha, ":",
-				ac->ac_if.if_name, ac->ac_if.if_unit);
-			else {
+			if (rt->rt_expire) {
+			    if (log_arp_movements)
+				log(LOG_INFO, "arp: %s moved from %6D to %6D on %s%d\n",
+				    inet_ntoa(isaddr), (u_char *)LLADDR(sdl), ":",
+				    ea->arp_sha, ":",
+				    ac->ac_if.if_name, ac->ac_if.if_unit);
+			} else {
 			    log(LOG_ERR,
 				"arp: %6D attempts to modify permanent entry for %s on %s%d\n",
 				ea->arp_sha, ":", inet_ntoa(isaddr),
