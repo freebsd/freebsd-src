@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1997,1998 Doug Rabson
+ * Copyright (c) 1997,1998,2003 Doug Rabson
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -62,8 +62,8 @@ SYSCTL_NODE(_hw, OID_AUTO, bus, CTLFLAG_RW, NULL, NULL);
  */
 typedef struct driverlink *driverlink_t;
 struct driverlink {
-    driver_t	*driver;
-    TAILQ_ENTRY(driverlink) link;	/* list of drivers in devclass */
+	kobj_class_t	driver;
+	TAILQ_ENTRY(driverlink) link;	/* list of drivers in devclass */
 };
 
 /*
@@ -75,6 +75,7 @@ typedef TAILQ_HEAD(device_list, device) device_list_t;
 
 struct devclass {
 	TAILQ_ENTRY(devclass) link;
+	devclass_t	parent;		/* parent in devclass hierarchy */
 	driver_list_t	drivers;     /* bus devclasses store drivers for bus */
 	char		*name;
 	device_t	*devices;	/* array of devices indexed by unit */
@@ -509,7 +510,8 @@ DEFINE_CLASS(null, null_methods, 0);
 static devclass_list_t devclasses = TAILQ_HEAD_INITIALIZER(devclasses);
 
 static devclass_t
-devclass_find_internal(const char *classname, int create)
+devclass_find_internal(const char *classname, const char *parentname,
+		       int create)
 {
 	devclass_t dc;
 
@@ -519,21 +521,25 @@ devclass_find_internal(const char *classname, int create)
 
 	TAILQ_FOREACH(dc, &devclasses, link) {
 		if (!strcmp(dc->name, classname))
-			return (dc);
+			break;
 	}
 
-	PDEBUG(("%s not found%s", classname, (create? ", creating": "")));
-	if (create) {
+	if (create && !dc) {
+		PDEBUG(("creating %s", classname));
 		dc = malloc(sizeof(struct devclass) + strlen(classname) + 1,
 		    M_BUS, M_NOWAIT|M_ZERO);
 		if (!dc)
 			return (NULL);
+		dc->parent = NULL;
 		dc->name = (char*) (dc + 1);
 		strcpy(dc->name, classname);
 		TAILQ_INIT(&dc->drivers);
 		TAILQ_INSERT_TAIL(&devclasses, dc, link);
 
 		bus_data_generation_update();
+	}
+	if (parentname && dc && !dc->parent) {
+		dc->parent = devclass_find_internal(parentname, 0, FALSE);
 	}
 
 	return (dc);
@@ -542,13 +548,13 @@ devclass_find_internal(const char *classname, int create)
 devclass_t
 devclass_create(const char *classname)
 {
-	return (devclass_find_internal(classname, TRUE));
+	return (devclass_find_internal(classname, 0, TRUE));
 }
 
 devclass_t
 devclass_find(const char *classname)
 {
-	return (devclass_find_internal(classname, FALSE));
+	return (devclass_find_internal(classname, 0, FALSE));
 }
 
 int
@@ -574,7 +580,7 @@ devclass_add_driver(devclass_t dc, driver_t *driver)
 	/*
 	 * Make sure the devclass which the driver is implementing exists.
 	 */
-	devclass_find_internal(driver->name, TRUE);
+	devclass_find_internal(driver->name, 0, TRUE);
 
 	dl->driver = driver;
 	TAILQ_INSERT_TAIL(&dc->drivers, dl, link);
@@ -668,7 +674,7 @@ devclass_find_driver_internal(devclass_t dc, const char *classname)
 	return (NULL);
 }
 
-driver_t *
+kobj_class_t
 devclass_find_driver(devclass_t dc, const char *classname)
 {
 	driverlink_t dl;
@@ -749,6 +755,18 @@ devclass_find_free_unit(devclass_t dc, int unit)
 	while (unit < dc->maxunit && dc->devices[unit] != NULL)
 		unit++;
 	return (unit);
+}
+
+void
+devclass_set_parent(devclass_t dc, devclass_t pdc)
+{
+	dc->parent = pdc;
+}
+
+devclass_t
+devclass_get_parent(devclass_t dc)
+{
+	return (dc->parent);
 }
 
 static int
@@ -857,7 +875,7 @@ make_device(device_t parent, const char *name, int unit)
 	PDEBUG(("%s at %s as unit %d", name, DEVICENAME(parent), unit));
 
 	if (name) {
-		dc = devclass_find_internal(name, TRUE);
+		dc = devclass_find_internal(name, 0, TRUE);
 		if (!dc) {
 			printf("make_device: can't find device class %s\n",
 			    name);
@@ -1043,44 +1061,54 @@ device_probe_child(device_t dev, device_t child)
 	if (child->state == DS_ALIVE)
 		return (0);
 
-	for (dl = first_matching_driver(dc, child);
-	     dl;
-	     dl = next_matching_driver(dc, child, dl)) {
-		PDEBUG(("Trying %s", DRIVERNAME(dl->driver)));
-		device_set_driver(child, dl->driver);
-		if (!hasclass)
-			device_set_devclass(child, dl->driver->name);
-		result = DEVICE_PROBE(child);
-		if (!hasclass)
-			device_set_devclass(child, 0);
+	for (; dc; dc = dc->parent) {
+		for (dl = first_matching_driver(dc, child);
+		     dl;
+		     dl = next_matching_driver(dc, child, dl)) {
+			PDEBUG(("Trying %s", DRIVERNAME(dl->driver)));
+			device_set_driver(child, dl->driver);
+			if (!hasclass)
+				device_set_devclass(child, dl->driver->name);
+			result = DEVICE_PROBE(child);
+			if (!hasclass)
+				device_set_devclass(child, 0);
 
+			/*
+			 * If the driver returns SUCCESS, there can be
+			 * no higher match for this device.
+			 */
+			if (result == 0) {
+				best = dl;
+				pri = 0;
+				break;
+			}
+
+			/*
+			 * The driver returned an error so it
+			 * certainly doesn't match.
+			 */
+			if (result > 0) {
+				device_set_driver(child, 0);
+				continue;
+			}
+
+			/*
+			 * A priority lower than SUCCESS, remember the
+			 * best matching driver. Initialise the value
+			 * of pri for the first match.
+			 */
+			if (best == 0 || result > pri) {
+				best = dl;
+				pri = result;
+				continue;
+			}
+		}
 		/*
-		 * If the driver returns SUCCESS, there can be no higher match
-		 * for this device.
+		 * If we have an unambiguous match in this devclass,
+		 * don't look in the parent.
 		 */
-		if (result == 0) {
-			best = dl;
-			pri = 0;
+		if (best && pri == 0)
 			break;
-		}
-
-		/*
-		 * The driver returned an error so it certainly doesn't match.
-		 */
-		if (result > 0) {
-			device_set_driver(child, 0);
-			continue;
-		}
-
-		/*
-		 * A priority lower than SUCCESS, remember the best matching
-		 * driver. Initialise the value of pri for the first match.
-		 */
-		if (best == 0 || result > pri) {
-			best = dl;
-			pri = result;
-			continue;
-		}
 	}
 
 	/*
@@ -1377,7 +1405,7 @@ device_set_devclass(device_t dev, const char *classname)
 		return (EINVAL);
 	}
 
-	dc = devclass_find_internal(classname, TRUE);
+	dc = devclass_find_internal(classname, 0, TRUE);
 	if (!dc)
 		return (ENOMEM);
 
@@ -2242,7 +2270,7 @@ root_bus_module_handler(module_t mod, int what, void* arg)
 		kobj_init((kobj_t) root_bus, (kobj_class_t) &root_driver);
 		root_bus->driver = &root_driver;
 		root_bus->state = DS_ATTACHED;
-		root_devclass = devclass_find_internal("root", FALSE);
+		root_devclass = devclass_find_internal("root", 0, FALSE);
 		devinit();
 		return (0);
 
@@ -2276,12 +2304,13 @@ root_bus_configure(void)
 int
 driver_module_handler(module_t mod, int what, void *arg)
 {
-	int error, i;
+	int error;
 	struct driver_module_data *dmd;
 	devclass_t bus_devclass;
+	kobj_class_t driver;
 
 	dmd = (struct driver_module_data *)arg;
-	bus_devclass = devclass_find_internal(dmd->dmd_busname, TRUE);
+	bus_devclass = devclass_find_internal(dmd->dmd_busname, 0, TRUE);
 	error = 0;
 
 	switch (what) {
@@ -2289,31 +2318,38 @@ driver_module_handler(module_t mod, int what, void *arg)
 		if (dmd->dmd_chainevh)
 			error = dmd->dmd_chainevh(mod,what,dmd->dmd_chainarg);
 
-		for (i = 0; !error && i < dmd->dmd_ndrivers; i++) {
-			PDEBUG(("Loading module: driver %s on bus %s",
-			    DRIVERNAME(dmd->dmd_drivers[i]), dmd->dmd_busname));
-			error = devclass_add_driver(bus_devclass,
-			    dmd->dmd_drivers[i]);
-		}
+		driver = dmd->dmd_driver;
+		PDEBUG(("Loading module: driver %s on bus %s",
+		    DRIVERNAME(driver), dmd->dmd_busname));
+		error = devclass_add_driver(bus_devclass, driver);
 		if (error)
 			break;
 
 		/*
-		 * The drivers loaded in this way are assumed to all
-		 * implement the same devclass.
+		 * If the driver has any base classes, make the
+		 * devclass inherit from the devclass of the driver's
+		 * first base class. This will allow the system to
+		 * search for drivers in both devclasses for children
+		 * of a device using this driver.
 		 */
-		*dmd->dmd_devclass =
-		    devclass_find_internal(dmd->dmd_drivers[0]->name, TRUE);
+		if (driver->baseclasses) {
+			const char *parentname;
+			parentname = driver->baseclasses[0]->name;
+			*dmd->dmd_devclass =
+				devclass_find_internal(driver->name,
+				    parentname, TRUE);
+		} else {
+			*dmd->dmd_devclass =
+				devclass_find_internal(driver->name, 0, TRUE);
+		}
 		break;
 
 	case MOD_UNLOAD:
-		for (i = 0; !error && i < dmd->dmd_ndrivers; i++) {
-			PDEBUG(("Unloading module: driver %s from bus %s",
-			    DRIVERNAME(dmd->dmd_drivers[i]),
-			    dmd->dmd_busname));
-			error = devclass_delete_driver(bus_devclass,
-			    dmd->dmd_drivers[i]);
-		}
+		PDEBUG(("Unloading module: driver %s from bus %s",
+		    DRIVERNAME(dmd->dmd_driver),
+		    dmd->dmd_busname));
+		error = devclass_delete_driver(bus_devclass,
+		    dmd->dmd_driver);
 
 		if (!error && dmd->dmd_chainevh)
 			error = dmd->dmd_chainevh(mod,what,dmd->dmd_chainarg);

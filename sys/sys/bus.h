@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1997,1998 Doug Rabson
+ * Copyright (c) 1997,1998,2003 Doug Rabson
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -75,7 +75,7 @@ struct u_device {
  * Forward declarations
  */
 typedef struct device		*device_t;
-typedef struct driver		driver_t;
+typedef struct kobj_class	driver_t;
 typedef struct devclass		*devclass_t;
 #define device_method_t		kobj_method_t
 
@@ -124,9 +124,12 @@ enum intr_polarity {
 
 typedef int (*devop_t)(void);
 
+/*
+ * This structure is deprecated. Use the kobj(9) macro DEFINE_CLASS to
+ * declare classes which implement device drivers.
+ */
 struct driver {
 	KOBJ_CLASS_FIELDS;
-	void	*priv;			/* driver private data */
 };
 
 /*
@@ -345,17 +348,19 @@ void	device_verbose(device_t dev);
 /*
  * Access functions for devclass.
  */
-int	devclass_add_driver(devclass_t dc, driver_t *driver);
-int	devclass_delete_driver(devclass_t dc, driver_t *driver);
+int	devclass_add_driver(devclass_t dc, kobj_class_t driver);
+int	devclass_delete_driver(devclass_t dc, kobj_class_t driver);
 devclass_t	devclass_create(const char *classname);
 devclass_t	devclass_find(const char *classname);
-driver_t	*devclass_find_driver(devclass_t dc, const char *classname);
+kobj_class_t	devclass_find_driver(devclass_t dc, const char *classname);
 const char 	*devclass_get_name(devclass_t dc);
 device_t	devclass_get_device(devclass_t dc, int unit);
 void	*devclass_get_softc(devclass_t dc, int unit);
 int	devclass_get_devices(devclass_t dc, device_t **listp, int *countp);
 int	devclass_get_maxunit(devclass_t dc);
 int	devclass_find_free_unit(devclass_t dc, int unit);
+void	devclass_set_parent(devclass_t dc, devclass_t pdc);
+devclass_t	devclass_get_parent(devclass_t dc);
 
 /*
  * Access functions for device resources.
@@ -407,40 +412,16 @@ struct driver_module_data {
 	int		(*dmd_chainevh)(struct module *, int, void *);
 	void		*dmd_chainarg;
 	const char	*dmd_busname;
-	driver_t	**dmd_drivers;
-	int		dmd_ndrivers;
+	kobj_class_t	dmd_driver;
 	devclass_t	*dmd_devclass;
 };
 
 #define	DRIVER_MODULE(name, busname, driver, devclass, evh, arg)	\
 									\
-static driver_t *name##_##busname##_driver_list[] = { &driver };	\
 static struct driver_module_data name##_##busname##_driver_mod = {	\
 	evh, arg,							\
 	#busname,							\
-	name##_##busname##_driver_list,					\
-	(sizeof name##_##busname##_driver_list) /			\
-		(sizeof name##_##busname##_driver_list[0]),		\
-	&devclass							\
-};									\
-									\
-static moduledata_t name##_##busname##_mod = {				\
-	#busname "/" #name,						\
-	driver_module_handler,						\
-	&name##_##busname##_driver_mod					\
-};									\
-DECLARE_MODULE(name##_##busname, name##_##busname##_mod,		\
-	       SI_SUB_DRIVERS, SI_ORDER_MIDDLE)
-
-#define	MULTI_DRIVER_MODULE(name, busname, drivers, devclass, evh, arg) \
-									\
-static driver_t name##_##busname##_driver_list[] = drivers;		\
-static struct driver_module_data name##_##busname##_driver_mod = {	\
-	evh, arg,							\
-	#busname,							\
-	name##_##busname##_driver_list,					\
-	(sizeof name##_##busname##_driver_list) /			\
-		(sizeof name##_##busname##_driver_list[0]),		\
+	(kobj_class_t) &driver,						\
 	&devclass							\
 };									\
 									\
