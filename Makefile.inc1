@@ -373,8 +373,8 @@ sparc64_installcheck:
 	@echo "* Note: This installation changes the type used for time_t."
 .endif
 	@echo "* "
-	@echo "* This host (${THISHOST}) presently has a time_t of type ${CUR_TIMET},"
-	@echo "* and this installation will switch time_t to be type ${SRC_TIMET}."
+	@echo "* This host (${THISHOST}) has time_t defined as ${CUR_TIMET},"
+	@echo "* and this installation would change that to type ${SRC_TIMET}."
 .if ${NEWSPARC_TIMETYPE} != ${SRC_TIMET}
 	@echo "* "
 	@echo "* If that is *NOT* what you wanted, then you need to change the"
