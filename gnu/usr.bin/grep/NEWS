@@ -1,3 +1,53 @@
+Version 2.4:
+
+  - egrep is now equivalent to `grep -E' as required by POSIX,
+    removing a longstanding source of confusion and incompatibility.
+    `grep' is now more forgiving about stray `{'s, for backward
+    compatibility with traditional egrep.
+
+  - The lower bound of an interval is not optional.
+    You must use an explicit zero, e.g. `x{0,10}' instead of `x{,10}'.
+    (The old documentation incorrectly claimed that it was optional.)
+
+  - The --revert-match option has been renamed to --invert-match.
+
+  - The --fixed-regexp option has been renamed to --fixed-string.
+
+  - New option -H or --with-filename.
+
+  - New option --mmap.  By default, GNU grep now uses read instead of mmap.
+    This is faster on some hosts, and is safer on all.
+
+  - The new option -z or --null-data causes `grep' to treat a zero byte
+    (the ASCII NUL character) as a line terminator in input data, and
+    to treat newlines as ordinary data.
+
+  - The new option -Z or --null causes `grep' to output a zero byte
+    instead of the normal separator after a file name.
+
+  - These two options can be used with commands like `find -print0',
+    `perl -0', `sort -z', and `xargs -0' to process arbitrary file names,
+    even those that contain newlines.
+
+  - The environment variable GREP_OPTIONS specifies default options;
+    e.g. GREP_OPTIONS='--directories=skip' reestablishes grep 2.1's
+    behavior of silently skipping directories.
+
+  - You can specify a matcher multiple times without error, e.g.
+    `grep -E -E' or `fgrep -F'.  It is still an error to specify
+    conflicting matchers.
+
+  - -u and -U are now allowed on non-DOS hosts, and have no effect.
+
+  - Modifications of the tests scripts to go around the "Broken Pipe"
+    errors from bash. See Bash FAQ.
+
+  - New option -r or --recursive or --directories=recurse.
+    (This option was also in grep 2.3, but wasn't announced here.)
+
+  - --without-included-regex disable, was causing bogus reports .i.e
+    doing more harm then good.
+
 Version 2.3:
 
   - When searching a binary file FOO, grep now just reports
@@ -19,7 +69,7 @@ Version 2.3:
     `grep: DIRECTORY: Binary file matches' (or nothing) otherwise.
 
     The new -d ACTION or --directories=ACTION option affects directory handling.
-    `-d skip' causes `grep' to silently skip directories, as in grep 2.2;
+    `-d skip' causes `grep' to silently skip directories, as in grep 2.1;
     `-d read' (the default) causes `grep' to read directories if possible,
     as in earlier versions of grep.
 
