@@ -109,6 +109,7 @@ static char	*lmktemp __P((char *, int, int));
 static void	 mktemps __P((void));
 static int	 nfile __P((char *));
 static int	 test __P((char *));
+static int	 checkwriteperm __P((char*, char *));
 
 void
 main(argc, argv)
@@ -561,6 +562,7 @@ test(file)
 	char *file;
 {
 	struct exec execb;
+	char	*path;
 	register int fd;
 	register char *cp;
 
@@ -592,14 +594,15 @@ test(file)
 	(void) close(fd);
 	if (rflag) {
 		if ((cp = rindex(file, '/')) == NULL) {
-			if (access(".", 2) == 0)
+			if (checkwriteperm(file,".") == 0)
 				return(1);
 		} else {
 			if (cp == file) {
-				fd = access("/", 2);
+				fd = checkwriteperm(file,"/");
 			} else {
+				strcpy(path,file);
 				*cp = '\0';
-				fd = access(file, 2);
+				fd = checkwriteperm(path,file);
 				*cp = '/';
 			}
 			if (fd == 0)
@@ -612,6 +615,23 @@ test(file)
 error1:
 	printf(" and is unprintable\n");
 	(void) close(fd);
+	return(-1);
+}
+
+static int
+checkwriteperm(file, directory)
+	char *file, *directory;
+{
+	struct	stat	stats;
+	if (access(directory, W_OK) == 0) {
+		stat(directory, &stats);
+		if (stats.st_mode & S_ISVTX) {
+			stat(file, &stats);
+			if(stats.st_uid == userid) {
+				return(0);
+			}
+		} else return(0);
+	}
 	return(-1);
 }
 
