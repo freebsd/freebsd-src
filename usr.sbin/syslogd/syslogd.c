@@ -39,7 +39,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)syslogd.c	8.3 (Berkeley) 4/4/94";
 */
 static const char rcsid[] =
-	"$Id: syslogd.c,v 1.15 1996/11/26 02:35:08 peter Exp $";
+	"$Id: syslogd.c,v 1.16 1996/12/10 17:52:23 peter Exp $";
 #endif /* not lint */
 
 /*
@@ -282,6 +282,7 @@ main(argc, argv)
 	memset(&sunx, 0, sizeof(sunx));
 	sunx.sun_family = AF_UNIX;
 	(void)strncpy(sunx.sun_path, LogName, sizeof(sunx.sun_path));
+	(void)unlink(LogName);
 	funix = socket(AF_UNIX, SOCK_DGRAM, 0);
 	if (funix < 0 ||
 	    bind(funix, (struct sockaddr *)&sunx, SUN_LEN(&sunx)) < 0 ||
