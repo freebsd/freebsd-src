@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *	$Id: scsiconf.h,v 1.52 1997/04/02 09:05:43 jmg Exp $
+ *	$Id: scsiconf.h,v 1.53 1997/04/03 10:09:29 kato Exp $
  */
 #ifndef	SCSI_SCSICONF_H
 #define SCSI_SCSICONF_H 1
@@ -276,6 +276,9 @@ typedef struct st_mode st_modes[4];
 #define CD_Q_BCD_TRACKS		0x0002
 
 
+/* worm specific WORM_Q_* */
+#define WORM_Q_PLASMON	        0x0001
+#define WORM_Q_PHILIPS	        0x0002
 /*
  * This structure describes the connection between an adapter driver and
  * a device driver, and is used by each to call services provided by
