@@ -469,7 +469,7 @@ INSTALLKERNEL= ${_kernel}
 #
 buildkernel:
 .if empty(BUILDKERNELS)
-	@echo ">>> ERROR: Missing kernel configuration file(s) (${KERNCONF})."
+	@echo "ERROR: Missing kernel configuration file(s) (${KERNCONF}).";
 	@false
 .endif
 .if defined(KERNWARN)
@@ -528,6 +528,10 @@ buildkernel:
 # Install the kernel defined by INSTALLKERNEL
 #
 installkernel reinstallkernel:
+.if empty(INSTALLKERNEL)
+	@echo "ERROR: No kernel \"${KERNCONF}\" to install."
+	@false
+.endif
 	cd ${KRNLOBJDIR}/${INSTALLKERNEL}; \
 	    ${CROSSENV} PATH=${TMPPATH} \
 	    ${MAKE} KERNEL=${INSTKERNNAME} ${.TARGET:S/kernel$//}
