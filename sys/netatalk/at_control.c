@@ -56,7 +56,7 @@ at_control(struct socket *so, u_long cmd, caddr_t data,
     /*
      * If we have an ifp, then find the matching at_ifaddr if it exists
      */
-    if (ifp) {
+    if (ifp != NULL) {
 	for (aa = at_ifaddr; aa; aa = aa->aa_next) {
 	    if (aa->aa_ifp == ifp) break;
 	}
@@ -554,7 +554,7 @@ at_ifinit(ifp, aa, sat)
      * Now that we have selected an address, we need to tell the interface
      * about it, just in case it needs to adjust something.
      */
-    if (ifp->if_ioctl &&
+    if (ifp->if_ioctl != NULL&&
 	    (error = (*ifp->if_ioctl)(ifp, SIOCSIFADDR, (caddr_t)aa))) {
 	/*
 	 * of course this could mean that it objects violently

@@ -95,7 +95,7 @@ ddp_input(m, ifp, elh, phase)
 
     bzero((caddr_t)&from, sizeof(struct sockaddr_at));
     bzero((caddr_t)&to, sizeof(struct sockaddr_at));
-    if (elh) {
+    if (elh != NULL) {
 	/*
 	 * Extract the information in the short header.
 	 * netowrk information is defaulted to ATADDR_ANYNET
@@ -345,7 +345,7 @@ ddp_input(m, ifp, elh, phase)
      * We are no longer interested in the link layer.
      * so cut it off.
      */
-    if (elh) {
+    if (elh != NULL) {
 	m_adj(m, sizeof(struct ddpshdr));
     } else {
 	if (ddp_cksum && cksum && cksum != at_cksum(m, sizeof(int))) {
