@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/proc.h>
 #include <sys/pioctl.h>
+#include <sys/ptrace.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/lock.h>
@@ -740,6 +741,8 @@ syscall(frame)
 
 		STOPEVENT(p, S_SCE, narg);
 
+		PTRACESTOP_SC(p, td, S_PT_SCE);
+
 		error = (*callp->sy_call)(td, argp);
 	}
 
@@ -807,6 +810,8 @@ syscall(frame)
 	 * is not the case, this code will need to be revisited.
 	 */
 	STOPEVENT(p, S_SCX, code);
+
+	PTRACESTOP_SC(p, td, S_PT_SCX);
 
 #ifdef DIAGNOSTIC
 	cred_free_thread(td);

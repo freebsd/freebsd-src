@@ -382,6 +382,8 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 	case PT_ATTACH:
 	case PT_STEP:
 	case PT_CONTINUE:
+	case PT_TO_SCE:
+	case PT_TO_SCX:
 	case PT_DETACH:
 		sx_xlock(&proctree_lock);
 		proctree_locked = 1;
@@ -507,6 +509,8 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 
 	case PT_STEP:
 	case PT_CONTINUE:
+	case PT_TO_SCE:
+	case PT_TO_SCX:
 	case PT_DETACH:
 		/* Zero means do not send any signal */
 		if (data < 0 || data > _SIG_MAXSIG) {
@@ -516,12 +520,23 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 
 		_PHOLD(p);
 
-		if (req == PT_STEP) {
+		switch (req) {
+		case PT_STEP:
 			error = ptrace_single_step(td2);
 			if (error) {
 				_PRELE(p);
 				goto fail;
 			}
+			break;
+		case PT_TO_SCE:
+			p->p_stops |= S_PT_SCE;
+			break;
+		case PT_TO_SCX:
+			p->p_stops |= S_PT_SCX;
+			break;
+		case PT_SYSCALL:
+			p->p_stops |= S_PT_SCE | S_PT_SCX;
+			break;
 		}
 
 		if (addr != (void *)1) {
