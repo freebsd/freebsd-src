@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_pnreg.h,v 1.25 1999/04/13 16:57:36 wpaul Exp $
+ *	$Id: if_pnreg.h,v 1.26 1999/04/14 18:52:02 wpaul Exp $
  */
 
 /*
@@ -167,6 +167,7 @@
 #define PN_NETCFG_STORENFWD	0x00200000
 #define PN_NETCFG_SPEEDSEL	0x00400000	/* 1 == 10Mbps 0 == 100Mbps */
 #define PN_NETCFG_PCS		0x00800000	/* 1 == 100baseTX */
+#define PN_NETCFG_SCRAMBLER	0x01000000
 #define PN_NETCFG_NO_RXCRC	0x20000000
 #define PN_NETCFG_EXT_ENDEC	0x40000000	/* 1 == ext, 0 == int PHY */
 

@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_pn.c,v 1.49 1999/04/13 16:57:36 wpaul Exp $
+ *	$Id: if_pn.c,v 1.50 1999/04/14 18:52:02 wpaul Exp $
  */
 
 /*
@@ -97,7 +97,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: if_pn.c,v 1.49 1999/04/13 16:57:36 wpaul Exp $";
+	"$Id: if_pn.c,v 1.50 1999/04/14 18:52:02 wpaul Exp $";
 #endif
 
 /*
@@ -177,11 +177,11 @@ static int pn_list_tx_init	__P((struct pn_softc *));
 
 #define PN_SETBIT(sc, reg, x)				\
 	CSR_WRITE_4(sc, reg,				\
-		CSR_READ_4(sc, reg) | x)
+		CSR_READ_4(sc, reg) | (x))
 
 #define PN_CLRBIT(sc, reg, x)				\
 	CSR_WRITE_4(sc, reg,				\
-		CSR_READ_4(sc, reg) & ~x)
+		CSR_READ_4(sc, reg) & ~(x))
 
 /*
  * Read a word of data stored in the EEPROM at address 'addr.'
@@ -659,7 +659,6 @@ static void pn_setmode(sc, media)
 	struct pn_softc		*sc;
 	int			media;
 {
-	u_int32_t		nway = 0;
 	struct ifnet		*ifp;
 
 	ifp = &sc->arpcom.ac_if;
@@ -677,28 +676,23 @@ static void pn_setmode(sc, media)
 
 	if (IFM_SUBTYPE(media) == IFM_100_T4) {
 		printf("100Mbps/T4, half-duplex\n");
-		nway = PN_NWAY_MODE_100T4;
 	}
 
 	if (IFM_SUBTYPE(media) == IFM_100_TX) {
 		printf("100Mbps, ");
-		nway = PN_NWAY_MODE_100HD;
 	}
 
 	if (IFM_SUBTYPE(media) == IFM_10_T) {
 		printf("10Mbps, ");
-		nway = PN_NWAY_MODE_10HD;
 	}
 
 	if ((media & IFM_GMASK) == IFM_FDX) {
 		printf("full duplex\n");
-		nway |= PN_NWAY_DUPLEX;
 	} else {
 		printf("half duplex\n");
 	}
 
 	pn_setcfg(sc, media);
-	CSR_WRITE_4(sc, PN_NWAY, nway);
 
 	return;
 }
@@ -874,20 +868,33 @@ static void pn_setcfg(sc, media)
 
 	if (IFM_SUBTYPE(media) == IFM_100_TX) {
 		PN_CLRBIT(sc, PN_NETCFG, PN_NETCFG_SPEEDSEL);
-		if (sc->pn_pinfo == NULL)
+		if (sc->pn_pinfo == NULL) {
 			CSR_WRITE_4(sc, PN_GEN, PN_GEN_MUSTBEONE|
 			    PN_GEN_SPEEDSEL|PN_GEN_100TX_LOOP);
+			PN_SETBIT(sc, PN_NETCFG, PN_NETCFG_PCS|
+			    PN_NETCFG_SCRAMBLER|PN_NETCFG_MIIENB);
+			PN_SETBIT(sc, PN_NWAY, PN_NWAY_SPEEDSEL);
+		}
 	} else {
 		PN_SETBIT(sc, PN_NETCFG, PN_NETCFG_SPEEDSEL);
-		if (sc->pn_pinfo == NULL)
+		if (sc->pn_pinfo == NULL) {
 			CSR_WRITE_4(sc, PN_GEN,
 			    PN_GEN_MUSTBEONE|PN_GEN_100TX_LOOP);
+			PN_CLRBIT(sc, PN_NETCFG, PN_NETCFG_PCS|
+			    PN_NETCFG_SCRAMBLER|PN_NETCFG_MIIENB);
+			PN_CLRBIT(sc, PN_NWAY, PN_NWAY_SPEEDSEL);
+		}
 	}
 
-	if ((media & IFM_GMASK) == IFM_FDX)
+	if ((media & IFM_GMASK) == IFM_FDX) {
 		PN_SETBIT(sc, PN_NETCFG, PN_NETCFG_FULLDUPLEX);
-	else
+		if (sc->pn_pinfo == NULL)
+			PN_SETBIT(sc, PN_NWAY, PN_NWAY_DUPLEX);
+	} else {
 		PN_CLRBIT(sc, PN_NETCFG, PN_NETCFG_FULLDUPLEX);
+		if (sc->pn_pinfo == NULL)
+			PN_CLRBIT(sc, PN_NWAY, PN_NWAY_DUPLEX);
+	}
 
 	if (restart)
 		PN_SETBIT(sc, PN_NETCFG, PN_NETCFG_TX_ON|PN_NETCFG_RX_ON);
@@ -2076,6 +2083,18 @@ static void pn_ifmedia_sts(ifp, ifmr)
 	sc = ifp->if_softc;
 
 	ifmr->ifm_active = IFM_ETHER;
+
+	if (sc->pn_pinfo == NULL) {
+		if (CSR_READ_4(sc, PN_NETCFG) & PN_NETCFG_SPEEDSEL)
+			ifmr->ifm_active = IFM_ETHER|IFM_10_T;
+		else
+			ifmr->ifm_active = IFM_ETHER|IFM_100_TX;
+		if (CSR_READ_4(sc, PN_NETCFG) & PN_NETCFG_FULLDUPLEX)
+			ifmr->ifm_active |= IFM_FDX;
+		else
+			ifmr->ifm_active |= IFM_HDX;
+		return;
+	}
 
 	if (!(pn_phy_readreg(sc, PHY_BMCR) & PHY_BMCR_AUTONEGENBL)) {
 		if (pn_phy_readreg(sc, PHY_BMCR) & PHY_BMCR_SPEEDSEL)
