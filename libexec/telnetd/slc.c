@@ -36,14 +36,14 @@
 static char sccsid[] = "@(#)slc.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: slc.c,v 1.6 1997/12/03 07:15:58 charnier Exp $";
 #endif /* not lint */
 
 #include "telnetd.h"
 
 #ifdef	LINEMODE
 /*
- * local varibles
+ * local variables
  */
 static unsigned char	*def_slcbuf = (unsigned char *)0;
 static int		def_slclen = 0;
@@ -292,15 +292,15 @@ change_slc(func, flag, val)
 	register int hislevel, mylevel;
 
 	hislevel = flag & SLC_LEVELBITS;
-	mylevel = slctab[func].defset.flag & SLC_LEVELBITS;
+	mylevel = slctab[(int)func].defset.flag & SLC_LEVELBITS;
 	/*
 	 * If client is setting a function to NOSUPPORT
 	 * or DEFAULT, then we can easily and directly
 	 * accomodate the request.
 	 */
 	if (hislevel == SLC_NOSUPPORT) {
-		slctab[func].current.flag = flag;
-		slctab[func].current.val = (cc_t)_POSIX_VDISABLE;
+		slctab[(int)func].current.flag = flag;
+		slctab[(int)func].current.val = (cc_t)_POSIX_VDISABLE;
 		flag |= SLC_ACK;
 		add_slc(func, flag, val);
 		return;
@@ -313,13 +313,13 @@ change_slc(func, flag, val)
 		 * default level of DEFAULT.
 		 */
 		if (mylevel == SLC_DEFAULT) {
-			slctab[func].current.flag = SLC_NOSUPPORT;
+			slctab[(int)func].current.flag = SLC_NOSUPPORT;
 		} else {
-			slctab[func].current.flag = slctab[func].defset.flag;
+			slctab[(int)func].current.flag = slctab[(int)func].defset.flag;
 		}
-		slctab[func].current.val = slctab[func].defset.val;
-		add_slc(func, slctab[func].current.flag,
-						slctab[func].current.val);
+		slctab[(int)func].current.val = slctab[(int)func].defset.val;
+		add_slc(func, slctab[(int)func].current.flag,
+						slctab[(int)func].current.val);
 		return;
 	}
 
@@ -333,13 +333,13 @@ change_slc(func, flag, val)
 	 * the place to put the new value, so change it,
 	 * otherwise, continue the negotiation.
 	 */
-	if (slctab[func].sptr) {
+	if (slctab[(int)func].sptr) {
 		/*
 		 * We can change this one.
 		 */
-		slctab[func].current.val = val;
-		*(slctab[func].sptr) = val;
-		slctab[func].current.flag = flag;
+		slctab[(int)func].current.val = val;
+		*(slctab[(int)func].sptr) = val;
+		slctab[(int)func].current.flag = flag;
 		flag |= SLC_ACK;
 		slcchange = 1;
 		add_slc(func, flag, val);
@@ -359,24 +359,23 @@ change_slc(func, flag, val)
 		* our value as well.
 		*/
 		if (mylevel == SLC_DEFAULT) {
-			slctab[func].current.flag = flag;
-			slctab[func].current.val = val;
+			slctab[(int)func].current.flag = flag;
+			slctab[(int)func].current.val = val;
 			flag |= SLC_ACK;
 		} else if (hislevel == SLC_CANTCHANGE &&
 				    mylevel == SLC_CANTCHANGE) {
 			flag &= ~SLC_LEVELBITS;
 			flag |= SLC_NOSUPPORT;
-			slctab[func].current.flag = flag;
+			slctab[(int)func].current.flag = flag;
 		} else {
 			flag &= ~SLC_LEVELBITS;
 			flag |= mylevel;
-			slctab[func].current.flag = flag;
+			slctab[(int)func].current.flag = flag;
 			if (mylevel == SLC_CANTCHANGE) {
-				slctab[func].current.val =
-					slctab[func].defset.val;
-				val = slctab[func].current.val;
+				slctab[(int)func].current.val =
+					slctab[(int)func].defset.val;
+				val = slctab[(int)func].current.val;
 			}
-
 		}
 		add_slc(func, flag, val);
 	}
@@ -427,7 +426,6 @@ check_slc()
 						slctab[i].current.val);
 		}
 	}
-
 }  /* check_slc */
 
 /*

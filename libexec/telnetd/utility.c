@@ -343,7 +343,7 @@ fatalperror(f, msg)
 {
 	char buf[BUFSIZ], *strerror();
 
-	(void) sprintf(buf, "%s: %s\r\n", msg, strerror(errno));
+	(void) sprintf(buf, "%s: %s", msg, strerror(errno));
 	fatal(f, buf);
 }
 
