@@ -967,12 +967,13 @@ uhci_idone(ii)
 	/* The transfer is done, compute actual length and status. */
 	/* XXX Is this correct for control xfers? */
 	actlen = 0;
+	status = 0;
 	for (std = ii->stdstart; std; std = std->link.std) {
-		status = LE(std->td.td_status);
-		if (status & UHCI_TD_ACTIVE)
+		if (LE(std->td.td_status) & UHCI_TD_ACTIVE)
 			break;
-		if (UHCI_TD_GET_PID(LE(std->td.td_token)) != 
-		    UHCI_TD_PID_SETUP)
+
+		status = LE(std->td.td_status);
+		if (UHCI_TD_GET_PID(LE(std->td.td_token)) != UHCI_TD_PID_SETUP)
 			actlen += UHCI_TD_GET_ACTLEN(status);
 	}
 	/* If there are left over TDs we need to update the toggle. */
@@ -984,7 +985,7 @@ uhci_idone(ii)
 		      actlen, status));
 	reqh->actlen = actlen;
 	if (status != 0) {
-		DPRINTFN(-1+((status&UHCI_TD_STALLED)!=0),
+		DPRINTFN((status&UHCI_TD_STALLED)*10,
 			 ("uhci_idone: error, addr=%d, endpt=0x%02x, "
 			  "status 0x%b\n",
 			  reqh->pipe->device->address,
@@ -1286,7 +1287,15 @@ uhci_alloc_std_chain(upipe, sc, len, rd, shortok, dma, sp, ep)
 			return (USBD_NOMEM);
 		}
 		p->link.std = lastp;
-		p->td.td_link = LE(lastlink);
+		/* The if statement might be necessary to avoid confusing the
+		 * VIA chipset. It doesn't like extra bits when UHCI_PTR_T
+		 * is set.
+		 */
+		if (lastlink != UHCI_PTR_T)
+			p->td.td_link = LE(lastlink|UHCI_PTR_VF);
+		else
+			p->td.td_link = LE(lastlink);
+
 		lastp = p;
 		lastlink = p->physaddr;
 		p->td.td_status = LE(status);
@@ -1713,7 +1722,7 @@ uhci_device_request(reqh)
 			return (r);
 		next = xfer;
 		xferend->link.std = stat;
-		xferend->td.td_link = LE(stat->physaddr);
+		xferend->td.td_link = LE(stat->physaddr|UHCI_PTR_VF);
 	} else {
 		next = stat;
 	}
@@ -1722,7 +1731,7 @@ uhci_device_request(reqh)
 	memcpy(KERNADDR(&upipe->u.ctl.reqdma), req, sizeof *req);
 
 	setup->link.std = next;
-	setup->td.td_link = LE(next->physaddr);
+	setup->td.td_link = LE(next->physaddr|UHCI_PTR_VF);
 	setup->td.td_status = LE(UHCI_TD_SET_ERRCNT(3) | ls | UHCI_TD_ACTIVE);
 	setup->td.td_token = LE(UHCI_TD_SETUP(sizeof *req, endpt, addr));
 	setup->td.td_buffer = LE(DMAADDR(&upipe->u.ctl.reqdma));
