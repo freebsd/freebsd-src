@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_vnops.c	8.3 (Berkeley) 1/23/94
- * $Id: cd9660_vnops.c,v 1.20 1995/11/12 10:16:53 davidg Exp $
+ * $Id: cd9660_vnops.c,v 1.21 1995/11/12 10:36:19 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -283,7 +283,11 @@ extern int doclusterread;
 #endif
 #else
 /* XXX until cluster routines can handle block sizes less than one page */
+#if defined(__FreeBSD__)
+#define doclusterread 1
+#else
 #define doclusterread 0
+#endif
 #endif
 
 /*
@@ -328,7 +332,7 @@ cd9660_read(ap)
 		rablock = lbn + 1;
 		if (doclusterread) {
 			if (iso_lblktosize(imp, rablock) <= ip->i_size)
-				error = cluster_read(vp, (off_t)ip->i_size,
+				error = cluster_read(vp, ip->i_size,
 						     lbn, size, NOCRED, &bp);
 			else
 				error = bread(vp, lbn, size, NOCRED, &bp);
