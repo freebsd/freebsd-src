@@ -28,7 +28,7 @@
 #		If HTML is defined, htags is also run after gtags.
 
 
-MKDEPCMD?=	env CC=${CC} mkdep
+MKDEPCMD?=	CC=${CC} mkdep
 DEPENDFILE?=	.depend
 
 .if defined(SRCS)
