@@ -31,6 +31,7 @@
 
 #include <netinet/in.h>
 
+#include <err.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
@@ -54,21 +55,19 @@ main(int argc, char *argv[])
 	socklen_t size;
 	int fd1, fd2, fd3, i, s;
 
+	printf("1..1\n");
+
 	/*
 	 * Check for sequential fd allocation, and give up early if not.
 	 */
 	fd1 = dup(STDIN_FILENO);
 	fd2 = dup(STDIN_FILENO);
-	if (fd2 != fd1 + 1) {
-		fprintf(stderr, "Non-sequential fd allocation!\n");
-		exit(-1);
-	}
+	if (fd2 != fd1 + 1)
+		errx(-1, "Non-sequential fd allocation\n");
 
 	s = socket(PF_INET, SOCK_STREAM, 0);
-	if (s == -1) {
-		perror("socket");
-		exit(-1);
-	}
+	if (s == -1)
+		errx(-1, "socket: %s", strerror(errno));
 
 	bzero(&sin, sizeof(sin));
 	sin.sin_len = sizeof(sin);
@@ -76,45 +75,30 @@ main(int argc, char *argv[])
 	sin.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
 	sin.sin_port = htons(8080);
 
-	if (bind(s, (struct sockaddr *) &sin, sizeof(sin)) != 0) {
-		perror("bind");
-		exit(-1);
-	}
+	if (bind(s, (struct sockaddr *) &sin, sizeof(sin)) != 0)
+		errx(-1, "bind: %s", strerror(errno));
 
-	if (listen(s, -1) != 0) {
-		perror("listen");
-		exit(-1);
-	}
+	if (listen(s, -1) != 0)
+		errx(-1, "listen: %s", strerror(errno));
 
 	i = fcntl(s, F_GETFL);
-	if (i == -1) {
-		perror("F_GETFL");
-		exit(-1);
-	}
+	if (i == -1)
+		errx(-1, "ioctl(F_GETFL): %s", strerror(errno));
 	i |= O_NONBLOCK;
-	if (fcntl(s, F_SETFL, i) != 0) {
-		perror("F_SETFL");
-		exit(-1);
-	}
+	if (fcntl(s, F_SETFL, i) != 0)
+		errx(-1, "ioctl(F_SETFL): %s", strerror(errno));
 	i = fcntl(s, F_GETFL);
-	if (i == -1) {
-		perror("F_GETFL");
-		exit(-1);
-	}
-	if ((i & O_NONBLOCK) != O_NONBLOCK) {
-		fprintf(stderr, "Failed to set O_NONBLOCK (i=%d)\n", i);
-		exit(-1);
-	}
+	if (i == -1)
+		errx(-1, "ioctl(F_GETFL): %s", strerror(errno));
+	if ((i & O_NONBLOCK) != O_NONBLOCK)
+		errx(-1, "Failed to set O_NONBLOCK (i=0x%x)\n", i);
 
 	for (i = 0; i < LOOPS; i++) {
-		if (accept(s, (struct sockaddr *)&sin, &size) != -1) {
-			fprintf(stderr, "accept succeeded!\n");
-			exit(-1);
-		}
-		if (errno != EAGAIN) {
-			perror("accept");
-			exit(-1);
-		}
+		size = sizeof(sin);
+		if (accept(s, (struct sockaddr *)&sin, &size) != -1)
+			errx(-1, "accept succeeded\n");
+		if (errno != EAGAIN)
+			errx(-1, "accept: %s", strerror(errno));
 	}
 
 	/*
@@ -122,10 +106,10 @@ main(int argc, char *argv[])
 	 * we allocate an fd for the socket.
 	 */
 	fd3 = dup(STDIN_FILENO);
-	if (fd3 != fd2 + 2) {
-		fprintf(stderr, "TEST FAILED (%d, %d, %d)\n", fd1, fd2, fd3);
-		exit(-1);
-	}
+	if (fd3 != fd2 + 2)
+		printf("not ok 1 - (%d, %d, %d)\n", fd1, fd2, fd3);
+	else
+		printf("ok 1\n");
 
 	return (0);
 }
