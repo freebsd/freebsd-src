@@ -74,6 +74,9 @@ on the ADMtek Inc. AL981 Comet chipset. [MERGED]
 
 Support has been added for the Rise mP6 processor. [MERGED]
 
+Driver support has been added for SysKonnect SK-984x PCI gigabit
+ethernet adapters.
+
 1.2. SECURITY FIXES
 -------------------
 A new jail(2) system call and admin command (jail(8)) have been added for
@@ -268,6 +271,12 @@ VIA Technologies VT3043 "Rhine I" and VT86C100A "Rhine II" fast ethernet
 NICs including the following:
   Hawking Technologies PN102TX
   D-Link DFE530TX
+
+SysKonnect SK-984x PCI gigabit ethernet cards including the following:
+  SK-9841 1000baseLX single mode fiber, single port
+  SK-9842 1000baseSX multimode fiber, single port
+  SK-9843 1000baseLX single mode fiber, dual port
+  SK-9844 1000baseSX multimode fiber, dual port
 
 Texas Instruments ThunderLAN PCI NICs, including the following:
   Compaq Netelligent 10, 10/100, 10/100 Proliant, 10/100 Dual-Port
