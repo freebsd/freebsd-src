@@ -54,13 +54,15 @@ typedef void	kse_func_t(struct kse_mailbox *);
  */
 struct kse_thr_mailbox {
 	ucontext_t		tm_context;	/* User and machine context */
-	unsigned int		tm_flags;	/* Thread flags */
+	uint32_t		tm_flags;	/* Thread flags */
 	struct kse_thr_mailbox	*tm_next;	/* Next thread in list */
 	void			*tm_udata;	/* For use by the UTS */
-	uint32_t		tm_uticks;
-	uint32_t		tm_sticks;
+	uint32_t		tm_uticks;	/* Time in userland */
+	uint32_t		tm_sticks;	/* Time in kernel */
 	siginfo_t		tm_syncsig;
-	int			tm_spare[8];
+	uint32_t		tm_dflags;	/* Debug flags */
+	lwpid_t			tm_lwp;		/* kernel thread UTS runs on */
+	uint32_t		__spare__[6];
 };
 
 /*
@@ -70,40 +72,48 @@ struct kse_thr_mailbox {
  * a single KSE.
  */
 struct kse_mailbox {
-	int			km_version;	/* Mailbox version */
+	uint32_t		km_version;	/* Mailbox version */
 	struct kse_thr_mailbox	*km_curthread;	/* Currently running thread */
 	struct kse_thr_mailbox	*km_completed;	/* Threads back from kernel */
 	sigset_t		km_sigscaught;	/* Caught signals */
-	uint32_t		km_flags;	/* KSE flags */
+	uint32_t		km_flags;	/* Mailbox flags */
 	kse_func_t		*km_func;	/* UTS function */
-	stack_t			km_stack;	/* UTS context */
+	stack_t			km_stack;	/* UTS stack */
 	void			*km_udata;	/* For use by the UTS */
 	struct timespec		km_timeofday;	/* Time of day */
-	int			km_quantum;	/* Upcall quantum in msecs */
-	int			km_spare[8];
+	uint32_t		km_quantum;	/* Upcall quantum in msecs */
+	lwpid_t			km_lwp;		/* kernel thread UTS runs on */
+	uint32_t		__spare2__[7];
 };
 
-#define	KSE_VER_0	0
-#define	KSE_VERSION	KSE_VER_0
+#define KSE_VER_0		0
+#define KSE_VERSION		KSE_VER_0
 
 /* These flags are kept in km_flags */
-#define	KMF_NOUPCALL		0x01
-#define	KMF_NOCOMPLETED		0x02
-#define	KMF_DONE		0x04
-#define	KMF_BOUND		0x08
-#define	KMF_WAITSIGEVENT	0x10
+#define KMF_NOUPCALL		0x01
+#define KMF_NOCOMPLETED		0x02
+#define KMF_DONE		0x04
+#define KMF_BOUND		0x08
+#define KMF_WAITSIGEVENT	0x10
 
 /* These flags are kept in tm_flags */
-#define	TMF_NOUPCALL		0x01
+#define TMF_NOUPCALL		0x01
+
+/* These flags are kept in tm_dlfags */
+#define TMDF_SSTEP		0x01
+#define TMDF_DONOTRUNUSER	0x02
+
+/* Flags for kse_switchin */
+#define KSE_SWITCHIN_SETTMBX	0x01
 
 /* Flags for kse_switchin */
 #define KSE_SWITCHIN_SETTMBX	0x01
 
 /* Commands for kse_thr_interrupt */
-#define	KSE_INTR_INTERRUPT	0x01
-#define	KSE_INTR_RESTART	0x02
-#define	KSE_INTR_SENDSIG	0x03
-#define	KSE_INTR_SIGEXIT	0x04
+#define KSE_INTR_INTERRUPT	0x01
+#define KSE_INTR_RESTART	0x02
+#define KSE_INTR_SENDSIG	0x03
+#define KSE_INTR_SIGEXIT	0x04
 
 #ifndef _KERNEL
 int	kse_create(struct kse_mailbox *, int);
