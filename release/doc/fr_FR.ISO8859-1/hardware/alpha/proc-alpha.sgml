@@ -2,7 +2,7 @@
      The FreeBSD Documentation Project
      The FreeBSD French Documentation Project
 
-     $Id$
+     $Id: proc-alpha.sgml,v 1.5 2002/09/29 17:03:01 eagle Exp $
      $FreeBSD$
      Original revision: 1.43
 -->
@@ -13,103 +13,117 @@
       <author>
 	<firstname>Wilko</firstname>
 	<surname>Bulte</surname>
-	<contrib>Maintained by </contrib>
+	<contrib>Maintenu par </contrib>
       </author>
     </authorgroup>
   </sect1info>
 
-  <title>Supported processors and motherboards</title>
+  <title>Processeurs et cartes m&egrave;res support&eacute;es</title>
 
-  <para>Additions, corrections and constructive criticism are invited. In 
-  particular, information on system quirks is more than welcome.</para>
+  <para>Des retours, mises &agrave; jour et corrections a
+  cette liste sont encourag&eacute;s.</para>
 
   <sect2>
     <title>Overview</title>
 
-    <para>This document tries to provide a starting point for those
-    who want to run &os; on an Alpha-based machine. It is
-    aimed at providing background information on the various hardware
-    designs. It is not a replacement for the systems manuals.</para>
+    <para>Ce document se veut &ecirc;tre un point de d&eacute;part pour tous
+    ceux qui d&eacute;sirent faire fonctionner &os; sur des machine &agrave;
+    base de processeurs Alpha. Ce guide fournit des informations sur
+    les diff&eacute;rentes architectures mat&eacute;rielles. Il ne se veut pas
+    un rempla&ccedil;ant aux pages de manuel du syst&egrave;me.</para>
 
-    <para>The information is structured as follows:</para>
+    <para>L'information est structur&eacute; de la mani&egrave;re
+    suivante:</para>
       <itemizedlist>
         <listitem>
-	  <para>general hardware requirements to run &os; on alpha;</para>
+	  <para>G&eacute;n&eacute;ralit&eacute; sur le mat&eacute;riel
+          Alpha pour fonctionner avec &os;;</para>
 	</listitem>
         <listitem>
-          <para>system specific information for each of the
-          systems/boards supported  by &os;;</para>
+          <para>Information sp&eacute;cifique au syst&egrave;me pour chacune
+          des cartes m&egrave;res support&eacute;es par &os;;</para>
         </listitem>
 	<listitem>
-	  <para>information on expansion boards for &os;,
-	  including things that differ from what is in the generic
-	  supported hardware list.</para>
+	  <para>Informations sur les cartes d'extension sous &os;,
+          incluant les diff&eacute;rences entre ces cartes et la liste de
+          mat&eacute;riel g&eacute;n&eacute;rique support&eacute;e.</para>
 	</listitem>
       </itemizedlist>
 
     <note>
-      <para>You will see references to DEC, Digital Equipment Corporation and 
-      Compaq used more or less interchangeably. Now that Compaq has acquired 
-      Digital Equipment it would be more correct to refer to Compaq only.
-      Given the fact that you will see the mix of names everywhere, I don't
-      bother.</para>
+      <para>Vous trouverez des r&eacute;f&eacute;rences &agrave; DEC, Digital
+      Equipment Corporation et Compaq, utilis&eacute; de fa&ccedil;on
+      interchangeable dans ce document. Compaq ayant rachet&eacute;
+      Digital Equipment, il serait plus correcte de se
+      r&eacute;f&eacute;r&eacute; &agrave; Compaq uniquement. Je vous
+      prie d'accepter mes excuses sur la mixit&eacute; de ces noms
+      trouv&eacute;es dans ce document.</para>
     </note>
 
     <note>
-      <para>SRM commands will be in <userinput>UPPER CASE</userinput>. 
-      Lower case input is also acceptable to SRM. Upper case is used for
-      clarity.</para>
+      <para>Les commandes SRM seront indiqu&eacute;es en
+      <userinput>MAJUSCULE</userinput>. L'utilisation des minuscules
+      en entr&eacute;e est accept&eacute;e par SRM. Les majuscules sont
+      utilis&eacute;es par soucis de clart&eacute;.</para>
     </note>
 
     <note>
-      <para>Compaq has put information on the Web for Linux developers
-      that is also very useful for &os; users. Please check at
-      <ulink url="http://www.support.compaq.com/alpha-tools/">Linux Alpha
-      Power tools</ulink>.</para>
+      <para>Compaq a mis en ligne des informations pour les
+      d&eacute;veloppeurs Linux, qui sont tr&egrave;s utiles aussi pour les
+      utilisateurs de &os;. Voyez la page des <ulink
+      url="http://www.support.compaq.com/alpha-tools/">Utilitaires
+      Linux pour Alpha</ulink>.</para>
+
     </note>
      
   </sect2>
 
   <sect2>
-    <title>In general, what do you need to run &os; on an Alpha?</title>
+    <title>De quoi avez vous besoin pour faire fonctionner &os; sur
+    une plateforme Alpha?</title>
 
-    <para>Obviously you will need an Alpha machine that &os;
-    knows about.  Alpha machines are NOT like PCs. There are
-    considerable differences between the various core logic chip sets and
-    mainboard designs. This means that a kernel needs to know the
-    intimate details of a particular machine before it can run on
-    it. Throwing some odd <filename>GENERIC</filename> kernel at
-    unknown hardware is almost guaranteed to fail miserably.</para>
+    <para>Bien sur, vous devez disposer d'une machine Alpha reconnue
+    par &os. Les machines Alpha ne sont PAS comme des PCs. Il existe
+    un nombre consid&eacute;rable de diff&eacute;rences entre les
+    diff&eacute;rents composants de base et les architectures de cartes
+    m&egrave;res. Cela veut dire que le noyau doit connaîtres les
+    d&eacute;tails les plus fins de la machine sur laquelle il doit
+    fonctionner. Cela veut dire que un noyau
+    <filename>GENERIC</filename> risque, la plupart du temps de ne pas
+    fonctionner.</para>
 
-    <para>For a machine even to be considered for &os; use please
-    make sure it has the SRM console firmware installed. Or at least
-    make sure that SRM console firmware is available for the
-    particular machine type. If &os; does not currently support
-    your machine type, there is a good chance that this will change at
-    some point in time, assuming SRM is available. All bets are off when
-    SRM console firmware is not available.</para>
+    <para>Pour une machine sur laquelle vous d&eacute;sirez faire
+    fonctionner &os;, assurez vous que le microcode de la console SRM
+    est install&eacute;. Ou assurez vous que le microcode de console SRM
+    est disponible pour ce type de machine. Si &os; ne supporte pas
+    encore votre type de machine, il y a beaucoup de chance pour que
+    cela change dans l'avenir, si le SRM est disponible. Toutes ces
+    assomptions sont fausses si le microcode de console SRM n'est pas
+    disponible.</para>
 
-    <para>Machines with the ARC or AlphaBIOS console firmware were
-    intended for WindowsNT. Some have SRM console firmware available
-    in the system ROMs which you only have to select (via an ARC or
-    AlphaBIOS menu). In other cases you will have to re-flash the ROMs
-    with SRM code. Check on
-    http://ftp.digital.com/pub/DEC/Alpha/firmware to see what is
-    available for your particular system. In any case: no SRM means 
-    <emphasis>no</emphasis>
-    &os; (or NetBSD, OpenBSD, Tru64 Unix or OpenVMS for that
-    matter). With the demise of WindowsNT/alpha a lot of former NT
-    boxes are sold on the second hand market. They have little or no
-    trade-in value when they are NT-only from the console firmware
-    perspective. So, be suspicious if the price appears too good.</para>
+    <para>Les machines disposant d'un microcode de console ARC ou
+    AlphaBIOS ont &eacute;t&eacute; pr&eacute;vues pour fonctionner avec
+    WindowsNT. Certaines disposent d'un microcode de console SRM dans
+    la ROM syst&egrave;me, il suffit de le selectionner (via le menu ARC
+    ou AlphaBIOS correspondant). Dans tous les autres cas vous devrez
+    r&eacute;-inscrire le code SRM dans les ROMs. V&eacute;rifiez sur <url
+    ulink="http://ftp.digital.com/pub/DEC/Alpha/firmware"> le site des
+    microcode Alpha</url> pour v&eacute;rifier si il est disponible pour
+    votre syst&egrave;me. Dans tous les cas: <quote>no SRM</quote> veut
+    dir qu'il n'existe pas pour &os; (ou NetBSD, OpenBSD, Tru64 Unix
+    ou OpenVMS). Avec la d&eacute;convenue de WindowNT/alpha, un grand
+    nombre de machines NT de seconde main sont vendues. Elles ont
+    tr&egrave;s peu ou aucune valeur de revente si elles ne disposent que
+    du microcode de console NT. Soyez donc attentif si le prix parait
+    trop bon.</para>
 
-    <para>Known non-SRM machines are:</para>
+    <para>Les machines non-SRM connues sont:</para>
       <itemizedlist>
         <listitem>
-	  <para>Digital XL series</para>
+	  <para>les s&eacute;ries Digital XL</para>
 	</listitem>
 	<listitem>
-	  <para>Digital XLT series</para>
+	  <para>les s&eacute;ries Digital XLT</para>
 	</listitem>
 	<listitem>
 	  <para>Samsung PC164UX (<quote>Ruffian</quote>)</para>
@@ -119,7 +133,8 @@
 	</listitem>
       </itemizedlist>
 
-    <para>Machines that have SRM but are not supported by &os; are:</para>
+    <para>Les machines disposant de code SRM, mais non support&eacute;es
+    par &os; sont: </para>
        <itemizedlist>
 	 <listitem>
            <para>DECpc 150 (<quote>Jensen</quote>)</para>
@@ -135,744 +150,853 @@
          </listitem>
        </itemizedlist>
     
-    <para>To complicate things a bit further: Digital used to have so
-    called <quote>white-box</quote> Alpha machines destined as NT-only
-    and <quote>blue-box</quote> Alpha machines destined for OpenVMS
-    and Digital Unix. These names are based on the color of the
-    cabinets, <quote>FrostWhite</quote> and <quote>TopGunBlue</quote>
-    respectively.  Although you could put the SRM console firmware on a
-    whitebox, OpenVMS and Digital Unix will refuse to boot on
-    them. &os; in post-4.0-RELEASE will run on both the white and the
-    blue-box variants. Before someone asks: the white ones had a
-    rather different (read: cheaper) Digital price tag.</para>
+    <para>Pour compliquer le tout: Digital a appel&eacute;
+    <quote>white-box</quote>, des machines Alpha destin&eacute;es
+    uniquement &agrave; WindowsNT et <quote>blue-box</quote> des machines
+    Alpha destin&eacute;es uniquement &agrave; OpenVMS et Digital Unix. Ces
+    noms correspondent &agrave; la couleur du coffret, respectivement
+    <quote>FrostWhite</quote> et <quote>TopGunBlue</quote>. M&ecirc;me si
+    vous r&eacute;ussisez &agrave; mettre un microcode de console SRM sur une
+    <quote>whitebox</quote>, OpenVMS et Digital Unix refuserons de
+    d&eacute;marrer. &os; dans la version post 4.0-RELEASE fonctionnera
+    sur ces variantes. Avant tout; les machines <quote>white</quote>
+    sont diff&eacute;rentes des autres (lisez: moins cher) machines
+    Digital.</para>
 
-    <para>As part of the SRM you will get the so called OSF/1 PAL code
-    (OSF/1 being the initial name of Digital's UNIX offering on
-    Alpha). The PAL code can be thought of as a software abstraction
-    layer between the hardware and the operating system. It uses
-    normal CPU instruction plus a handful of privileged instructions
-    specific for PAL use. PAL is not microcode.  The ARC console
-    firmware contains a different PAL code, geared towards WinNT and
-    in no way suitable for use by &os; (or more generic: Unix or
-    OpenVMS).  Before someone asks: Linux/alpha brings its own PAL
-    code, allowing it to boot on ARC and AlphaBIOS. There are various
-    reasons why this is not a very good idea in the eyes of the *BSD
-    folks. I don't want to go into details here. If you are interested
-    in the gory details search the &os; and NetBSD web sites.</para>
+    <para>Vous obtiendrez le code PAL OSF/1 (OSF/1 est le nom initial
+    de Digital Unix sur les plateformes Alpha) comme partie du code
+    SRM. Le code PAL peut &ecirc;tre vu comme une couche d'abstraction
+    logicielle entre le mat&eacute;riel et le syst&egrave;me
+    d'exploitation. Il utilise des instructions processeurs standards
+    et r&eacute;serv&eacute;es &agrave; PAL. PAL n'est pas un microcode. Le
+    micro-noyau de console ARC contient une version diff&eacute;rente du
+    code PAL, d&eacute;velopp&eacute; pour WindowsNT et qui n'est pas
+    utilisable par &os; (de fa&ccedil;on plus g&eacute;n&eacute;rale: Unix ou
+    OpenVMS). Linux/alpha fournit une version sp&eacute;cifique du code
+    PAL, permettant de fonctionner sur les machines ARC et
+    AlphaBIOS. Il y a plusieurs raisons pour lesquelles cela n'est pas
+    une bonne id&eacute;es pour les d&eacute;veloppeurs des *BSD. Nous ne
+    rentrerons pas dans les d&eacute;tails ici. Si vous etes
+    intere&eacute;ss&eacute; par les d&eacute;tails, cherchez les sur
+    les site web de &os; et NetBSD.</para>
 
-    <para>There is another pitfall ahead: you will need a disk adapter
-    that the SRM console firmware recognizes in order to be able to boot from
-    a disk. What is acceptable to SRM as a boot adapter is
-    unfortunately highly system and SRM version dependent. For older PCI
-    based machines it means you will need either a NCR/Symbios
-    53C810 based adapter, or a Qlogic 1020/1040 based adapter.  Some
-    machines come with a SCSI chip embedded on the mainboard. Newer
-    machine designs and SRM versions will be able to work with more modern
-    SCSI chips/adapters.  Check out the machine specific info
-    below. Please note that the rest of this discussion only refers to
-    Symbios chips, this is meant to include the older chips that still
-    have NCR stamped on them. Symbios bought NCR sometime.</para>
+    <para>Un autre d&eacute;tail est important: vous devez disposer d'un
+    adaptateur de disque reconnu par le code de console SRM, si vous
+    voulez d&eacute;marrer depuis un disque. Pour les machines anciennes
+    bas&eacute;es sur du PCI, cela veut dire que vous devez disposer d'une
+    adaptateur bas&eacute; sur un NCR/Symbios 53C810 ou Qlogic
+    1020/1040. Certaines machines disposent d'un composant SCSI sur la
+    carte m&egrave;re. Les machines et version de SRM plus r&eacute;centes
+    sont capables de fonctionner avec des composants/adaptateurs SCSI
+    plus modernes. V&eacute;rifiez les informations sp&eacute;cifiques
+    &agrave; la machine utilis&eacute; ci-dessous. Notez que la suite
+    de ce document ref&egrave;re aux machines disposant d'un composant
+    Symbios, cela correspond aussi aux plus vieux composants
+    not&eacute; NCR. Symbios ayant rachet&eacute; Symbios.</para>
 
-    <para>The problem might bite those who have machines that started
-    their lives as WindowsNT boxes. The ARC or AlphaBIOS knows about
-    <emphasis>other</emphasis> adapter types that it can boot from
-    than the SRM. For example you can boot from an Adaptec 2940UW with
-    ARC/AlphaBios but (generally) not with SRM. Some newer machine types have
-    introduced Adaptec boot support. Please consult the machine
-    specific section for details.</para>
+    <para>Les principaux probl&egrave;mes se posent pour les personnes
+    ayant des machines qui ont commenc&eacute; leur vie avec
+    WindowsNT. ARC et AlphaBIOS d&eacute;tectent
+    <emphasis>d'autres</emphasis> adaptateurs que ceux sur lesquels
+    SRM est capable de d&eacute;marrer. Par exemple, vous pouvez
+    d&eacute;marr&eacute; sur une carte Adaptec 2940UW avec ARC/AlphaBios,
+    mais (g&eacute;n&eacute;rallement) pas avec SRM. Certaines nouvelles
+    machines ont introduit le support Adaptec pour le
+    d&eacute;marrage. Consultez la section sp&eacute;cifique de votre machine
+    pour plus de d&eacute;tails.</para>
 
-    <para>Most adapters that cannot be booted from work fine for
-    data-only disks.  The differences between SRM and ARC could also
-    get you pre-packaged IDE CDROMs and hard drives in some (former
-    WindowsNT) systems.  SRM versions exist (depends on the machine type)
-    that can boot from IDE disks and CDROMs. Check the machine
-    specific section for details.</para>
+    <para>La plupart des adaptateurs qui ne permettent pas de
+    d&eacute;marrer fonctionnent parfaitement pour une utilisation en
+    disque de donn&eacute;es. Les diff&eacute;rences entre SRM et ARC peuvent
+    &eacute;galement apparaitre dans les syst&egrave;mes (principalement
+    Windows NT) disposant de disques dur et de CDROM IDE
+    int&eacute;gr&eacute;s. Des versions de SRM permettant de
+    d&eacute;marrer sur des disques IDE ou des CDROM existent (cela
+    d&eacute;pend du type de machine). Consultez la section
+    sp&eacute;cifique &agrave; votre machine pour plus de
+    d&eacute;tails.</para>
 
-    <para>&os; 4.0 and later can be booted from the
-    distribution CDROM.  Earlier versions needed booting from a
-    2 disk floppy set.</para>
+    <para>&os; 4.0 et sup&eacute;rieur peut &ecirc;tre d&eacute;marrer
+    depuis le CDROM de distribution. Les version
+    pr&eacute;c&eacute;dentes doivent d&eacute;marrer depuis une
+    version 2 disquettes.</para>
 
-    <para>In order to be bootable the root partition (partition a)
-    must be at offset 0 of the disk drive. This means you have to 
-    use the installer's partitioning menu and start with assigning 
-    partition a at offset 0 to the root partition. Subsequently layout
-    the rest of the partitions to your liking. If you do not adhere
-    to this rule the install will proceed just fine, but the system
-    will not be bootable from the freshly installed disk.</para>
+    <para>Dans le but d'&ecirc;tre d&eacute;marrable, la partition root
+    (partition a) doit se situer au d&eacute;but du disque (offset
+    0). Cela veut dire que vous devez utiliser l'installeur dans le
+    menu partition et assigner la partition <quote>a</quote> avec un
+    offset de 0 &agrave; la partition de base. La suite du partitionnement
+    peut se faire comme vous le d&eacute;sirer. Si vous ne respecter pas
+    cette r&egrave;gle, le reste de l'installation de passera bien, mais
+    le syst&egrave;me refusera de d&eacute;marrer sur ce disque.</para>
 
-    <para>If you don't have/want a local disk drive you can boot via
-    the Ethernet.  This assumes an Ethernet adapter/chip that is
-    recognized by the SRM console. Generally speaking this boils down to
-    either a 21040 or 21142 or 21143 based Ethernet interface. Older
-    machines or SRM versions may not recognize the 21142 / 21143 Fast
-    Ethernet chips, you are then limited to using 10Mbit Ethernet for net
-    booting those machines. Non-DEC cards based on said chips will
-    generally (but are not guaranteed to) work. Note that Intel took
-    over the 21x4x chips when it bought Digital Semiconductor. So you
-    might see an Intel logo on them these days. Recent machine designs
-    have SRM support for Intel 8255x Ethernet chips.</para>
+    <para>Si vous ne disposez pas de disque local, vous pouvez
+    d&eacute;marrer via le r&eacute;seau Ethernet. Cela n&eacute;cessite un
+    adaptateur Ethernet reconnu par la console SRM. G&eacute;n&eacute;ralement
+    G&eacute;n&eacute;rallement il vous faut dispose d'une interface
+    bas&eacute; sur une interface 21040 ou 21142 ou 21143. Les
+    anciennes machines ou version de SRM ne reconnaissent pas les
+    composants 21142/21143 Fast Ethernet, vous etes donc
+    limit&eacute;s &agrave; 10Mb pour un d&eacute;marrage par le
+    r&eacute;seau de ces machines. Les cartes non fabriqu&eacute;es
+    par DEC bas&eacute;es sur ces composants vont
+    g&eacute;n&eacute;rallement(mais cela n'est pas garanti)
+    fonctionner correctement. Notez que Intel &agrave; continu&eacute;
+    les puces 21x4x lorsqu'ils ont rachet&eacute; Digital
+    Semiconductor. Vous risquez donc de voir un logo Intel sur elle un
+    de ces jours. Les machines r&eacute;centes disposent d'un support
+    SRM pour les puces Ethernet Intel 8255x.</para>
 
-    <para>Alpha machines can be run with SRM on a graphics console or
-    on a serial console. ARC can also be run on a serial consoles if need
-    be. VT100 emulation with 8 bit controls should at least allow you
-    to switch from ARC/AlphaBIOS to SRM mode without having to install a
-    graphics card first.</para>
+    <para>Les machines Alpha peuvent fonctionner avec SRM sur une
+    console graphique ou une console s&eacute;rie. ARC peut aussi
+    fonctionner sur des consoles s&eacute;ries. L'&eacute;mulation VT100 avec
+    8 bits de controle doit vous permettre de passer du mode
+    ARC/AlphaBIOS au mode SRM sans avoir &agrave; installer une carte
+    graphique.</para>
 
-    <para>If you want to run your Alpha machine without a monitor/graphics
-    card just don't connect a keyboard/mouse to the machine. Instead
-    hook up a serial terminal[emulator] to serial port #1.  The SRM
-    will talk 9600N81 to you. This can also be really practical for
-    debugging purposes. Beware: some/most (?) SRMs will also present
-    you with a console prompt at serial port #2. The booting kernel,
-    however, will display the boot messages on serial port #1 and will
-    also put the console there. <emphasis>This can be extremely 
-    confusing.</emphasis></para>
+    <para>Si vous d&eacute;sirez utiliser une machine Alpha sans moniteur
+    ou carte graphique, ne connectez pas de clavier ou de souris
+    dessus. Branchez plutot un terminal s&eacute;rie[emulateur] sur le
+    port s&eacute;rie num&eacute;ro 1. SRM disloguera alors en 9600N81. Cela
+    est tr&egrave;s pratique pour d&eacute;bogguer. Attention: certains/la
+    plupart (?) des codes SRMs vous pr&eacute;senteront un prompt console
+    sur le port s&eacute;rie num&eacute;ro 2. Le noyau de
+    d&eacute;marrage quand a lui, affichera les message de
+    d&eacute;marrage sur le port s&eacute;rie num&eacute;ro 1 et
+    activera la console sur ce port aussi. <emphasis>Cela peut porter
+    &agrave; confusion.</emphasis></para>
 
-    <para>Most PCI based Alphas can use ordinary PC-type VGA
-    cards. The SRM contains enough smarts to make that work. It does
-    not, however, mean that each and every PCI VGA card out on the
-    street will work in an Alpha machine. Things like S3 Trio64,
-    Mach64, and Matrox Millennium generally work. Old ET4000 based ISA
-    cards have also worked for me. But ask around first before buying.</para>
 
-    <para>Most PCI devices from the PC-world will also work in
-    &os; PCI-based machines. Check the
-    <filename>/sys/alpha/conf/GENERIC</filename> file for the latest word
-    on this. Check the appropriate machine type's
-    discussion in case you want to use PCI cards that have PCI bridge
-    chips on them. In some cases you might encounter problems with
-    PCI cards not handling PCI parity correctly. This can lead to
-    panics. PCI parity checking can be disabled using the following
-    SRM command:</para>
+    <para>La plupart des machines Alpha disposant d'un bus PCI,
+    peuvent utiliser des cartes VGA de type PC. Le code SRM est
+    suffisant pour les faire fonctionner. Cela ne veut pas dire que
+    toutes les cartes CGA PCI du march&eacute; fonctionneront sur des
+    machines Alpha. Les cartes de type S3 Trio64, Mach64, et Matrox
+    Millennium fonctionnent. Les vieilles cartes ISA bas&eacute;es sur
+    ET4000 fonctionnent aussi pour moi. Mais poser la question autour
+    de vous avant d'en acheter une.</para>
+
+    <para>La plupart des p&eacute;riph&eacute;riques PCI du monde PC
+    fonctionnent avec des machines &os; bas&eacute;es sur du
+    PCI. V&eacute;rifiez le dernier fichier
+    <filename>/sys/alpha/conf/GENERIC</filename> pour plus
+    d'informations. V&eacute;rifiez la partie sur la machine appropri&eacute;e
+    dans le cas ou vous d&eacute;sirez utilisez des cartes PCI qui
+    disposent de ponts PCI. Dans certains cas vous risquez d'obtenir
+    des probl&egrave;mes avec les cartes PCI qui ne g&egrave;rent pas
+    correctement la parit&eacute; PCI. Cela peut conduire a des panics du
+    syst&egrave;me. Le controle de parit&eacute; PCI peut &ecirc;tre
+    d&eacute;sactiv&eacute; en utilisant la commande SRM suivante:</para>
 
     <screen><prompt>&gt;&gt;&gt;</prompt> <userinput>SET PCI_PARITY OFF</userinput></screen>
 
-    <para>This is not a &os; problem, all operating systems running on 
-    Alpha hardware will need this workaround.</para>
+    <para>Cela n'est pas un probl&egrave;me &os;, tous les syst&egrave;mes
+    d'exploitation fonctionnant sur du mat&eacute;riel Alpha n&eacute;cessite
+    ce contournement.</para>
 
-    <para>If your system (also) contains EISA expansion slots you will
-    need to run the EISA Configuration Utility (ECU) after you have
-    installed EISA cards or after you have upgraded your 
-    console firmware.</para>
+    <para>Si votre syst&egrave;me contient (aussi) des slots d'extension
+    EISA vous devez executer l'utilitaire de configuration EISA(ECU)
+    apr&egrave;s l'installation des cartes EISA ou apr&egrave;s la
+    mise &agrave; jour du micro-noyau de la console.</para>
 
-    <para>For Alpha CPUs you will find multiple generations. The
-    original Alpha design is the 21064. It was produced in a chip
-    process called MOS4, chips made in this process are nicknamed
-    EV4. Newer CPUs are 21164, 21264 etc. You will see designations
-    like EV4S, EV45, EV5, EV56, EV6, EV67, EV68.  The EVs with double digit
-    numbers are slightly improved versions. For example EV45 has an
-    improved FPU and 16 kByte on-chip separate I &amp; D caches compared
-    to the EV4 on which it is based. Rule of thumb: the higher the
-    digit immediately following <quote>EV</quote> the more desirable
-    (read: faster / more modern).</para>
+    <para>Il y a plusieurs g&eacute;n&eacute;rations de processeurs Alpha. La
+    processeur original est le 21064. Il a aussi &eacute;t&eacute;
+    produit sous le nom de MOS4, les puces fabriqu&eacute; sous ce nom
+    sont aussi connues sous le nom de EV4. Les nouveaux processeurs
+    sont 21164, 21264, etc... Vous trouverez les d&eacute;signations
+    suivantes EV4S, EV45, EV5, EV56, EV6, EV67, EV68. Les EVs
+    disposant de 2 num&eacute;ros sont des versions
+    am&eacute;lior&eacute;es. Par example EV45 est une version
+    am&eacute;lior&eacute;e au niveau des nombre flottants et dispose
+    d'une puce de 16 kBytes&eacute;par&eacute;e pour le cache I &amp;
+    D, compar&eacute; &agrave; la version EV4 sur laquelle il est
+    bas&eacute;. Plus grand est le nombre suivant imm&eacute;diatement
+    <quote>EV</quote>, plus il est interessant (lisez: rapide/plus
+    moderne).</para>
 
-    <para>For memory you want at least 32 Mbytes. I have had
-    &os; run on a 16 Mbyte system but you will not enjoy
-    that. Kernel build times halved when I went to 32 Mbytes. Note that
-    the SRM console steals 2Mbyte from the total system memory (and keeps
-    it). For more serious work 64 Mbytes or more are recommended.</para>
+    <para>Au niveau m&eacute;moire, vous devez disposer d'au moins
+    32Mbytes. J'ai r&eacute;ussi &agrave; faire fonctionner &os; sur un
+    syst&egrave;me disposant de 16Mbyte, mais cela n'est pas tr&egrave;s
+    amusant. Le temps de compilation a &eacute;t&eacute; divis&eacute; par 2
+    lorsque j'ai disposer de 32 Mbytes. Notez que la console SRM
+    n&eacute;cessite 2Mbyte de m&eacute;moire. Pour fonctionner correctement
+    64 Mbytes de m&eacute;moire est le minimum recommand&eacute;.</para>
 
-    <para>While on the subject of memory: pay close attention to the
-    type of memory your machine uses. There are very different memory
-    configurations and requirements for the various machines.</para>
+    <para>Pendant que nous sommes dans le sujet de la m&eacute;moire,
+    faites attention au type de m&eacute;moire utilis&eacute; par votre
+    machine. Il y a &eacute;norm&eacute;ment de configurations
+    m&eacute;moire pour chaque machine.</para>
 
-    <para>Final word: I expect the above to sound a bit daunting to
-    the first-time Alpha user. Don't be daunted too much. And do feel
-    free to ask questions if something is not clear after reading this
-    document.</para>
+    <para>Pour finir: j'esp&egrave;re que les informations ci-dessus
+    seront suffisantes pour un utilisateur novice
+    d'Alpha. N'h&eacute;sitez pas &agrave; poser des questions sir quelque
+    chose n'est pas clair apr&egrave;s la lecture de ce document.</para>
 
   </sect2>
 
   <sect2>
-    <title>System-specific information</title>
+    <title>Informations sp&eacute;cifiques aux syst&egrave;mes</title>
 
-    <para>Below is an overview of the hardware that &os; runs on. This list 
-    will definitely grow, a look in 
-    <filename>/sys/alpha/conf/GENERIC</filename> can be enlightening.</para>
+    <para>Ci-dessous, vous trouverez un aper&ccedil;u du mat&eacute;riel sur
+    lequel fonctionner &os;. Cette liste est amen&egrave;e &agrave; grossir,
+    un coup d'oeil &agrave; <filename>/sys/alpha/conf/GENERIC</filename>
+    vous &eacute;clairera.</para>
  
-    <para>Alpha machines are often best known by their project code name. 
-    Where known these are listed below in parentheses.</para>
+    <para>Les machines Alpha sont le plus souvent connu sous leur nom
+    de code. Lorsqu'il est connu, celui-ci est list&eacute; ci-dessous
+    entre parenth&egrave;ses.</para>
 
     <sect3>    
       <title>AXPpci33 (<quote>NoName</quote>)</title>
 
-      <para>The NoName is a baby-AT mainboard based on the 21066 LCA
-      (Low Cost Alpha) processor. NoName was originally designed for
-      OEM-use. The LCA chip includes almost all of the logic to drive
-      a PCI bus and the memory subsystem.  All of this makes for a
-      low-priced design.</para>
+      <para>Le NoName est une carte m&egrave;re &agrave; base de
+      b&eacute;b&eacute;-AT, bas&eacute;ee sur le processeur 21066 LCA
+      (Low Cost Alpha). La puce LCA inclue toute la logique pour
+      g&eacute;rer un bus PCI et le sous-syst&egrave;me
+      m&eacute;moire. Toute ceci con&ccedil;ut &agrave; un faible
+      prix.</para>
 
-      <para>Due to the limited memory interface the system is not
-      particularly fast in case of cache misses. As long as you stay
-      inside the on-chip cache the CPU is comparable to a 21064 (first
-      generation Alpha). These boards should be very cheap to obtain
-      these days. It is a full-fledged 64 bit CPU, just don't expect
-      miracles as far as speed goes.</para>
+      <para>Du &agrave; la limitation de l'interface m&eacute;moire, le
+      syst&egrave;me n'est pas particuli&egrave;rement r&eacute;pide
+      dans le cas ou il ne dispose pas de cache.Comme vous pourrez
+      vous en apercevoir, ce processeur est comparable &agrave; un
+      21064 (premi&egrave;re g&eacute;n&eacute;ration de processeur
+      Alpha). Ces cartes m&egrave;res peuvent &ecirc;tre trouv&eacute;
+      &agrave; un prix tr&egrave;s bas maintenant. Il correspond
+      &agrave; un v&eacute;ritable CPU 64 bit, donc ne vous attendez
+      pas &agrave; des miracles tant que la vitesse n'augmente
+      pas.</para>
 
-      <para>Features:</para>
+      <para>Fonctionnalit&eacute;s:</para>
         <itemizedlist>
           <listitem>
-	    <para>21066 Alpha CPU at 166 MHz or 21066A CPU at 233MHz. 
-	    21068 CPUs are also possible, but are even slower.</para>
+	    <para>Processeurs Alpha 21066 &agrave; 166 MHz ou 21066A
+            CPU &agrave; 233MHz. Les processeurs 21068 sont aussi
+            disponibles mais sont plus lents.</para>
 	  </listitem>
 	  <listitem>
-	    <para>on-board Bcache / L2 cache: 0, 256k or 1 Mbyte (uses
-	    DIL chips)</para>
+	    <para>Bcache embarqu&eacute; / cache de niveau 2: 0, 256k
+            ou 1 Mbyte (utilisation des puces DIL)</para>
 	  </listitem>
 	  <listitem>
-	    <para>PS/2 mouse & keyboard port OR 5pin DIN keyboard (2
-	    mainboard models)</para>
+	    <para>Souris PS/2 & port clavier OU clavier 5 broches DIN
+            (2 mod&egrave;les de carte m&egrave;re)</para>
 	  </listitem>
 	  <listitem>
-	    <para>memory:</para>
+	    <para>M&eacute;moire:</para>
               <itemizedlist>
                <listitem>
-	         <para>bus width: 64 bits</para>
+	         <para>Longueur du bus: 64 bits</para>
                </listitem>
                <listitem>
-                 <para>PS/2 style 72 pin 36 bit Fast Page Mode SIMMs</para>
+                 <para>Style PS/2, 72 pin 36 bit Fast Page Mode SIMMs</para>
                </listitem>
                <listitem>
-	         <para>70ns or better</para>
+	         <para>70ns ou inf&eacute;rieur</para>
                </listitem>
                <listitem>
-                 <para>installed in pairs of 2</para>
+                 <para>install&eacute; par paire</para>
                </listitem>
                <listitem>
-               <para>4 SIMM sockets</para>
+               <para>4 emplacements SIMM</para>
                </listitem>
                <listitem>
-	         <para>uses ECC</para>
+	         <para>utilisation ECC</para>
                </listitem>
               </itemizedlist>
 	  </listitem>
 	  <listitem>
-	    <para>512kB Flash ROM for the console code.</para>
+	    <para>512kB de Flash ROM Flash pour le code de console.</para>
 	  </listitem>
 	  <listitem>
-	    <para>2 16550A serial ports</para>
+	    <para>2 ports s&eacute;ries 16550A</para>
 	  </listitem>
 	  <listitem>
-	    <para>1 parallel port</para>
+	    <para>1 port parall&egrave;le</para>
 	  </listitem>
 	  <listitem>
-	    <para>floppy interface</para>
+	    <para>interface pour disquette</para>
 	  </listitem>
 	  <listitem>
-	    <para>1 embedded IDE interface</para>
+	    <para>1 interface IDE embarqu&eacute;e</para>
 	  </listitem>
 	  <listitem>
-	    <para>expansion:</para>
+	    <para>Extensions:</para>
 	    <itemizedlist>
 	      <listitem>
-	        <para>3 32 bit PCI slots (1 shared with ISA)</para>
+	        <para>3 emplacements 32 bit PCI (1 est partag&eacute; avec
+                de l'ISA)</para>
 	      </listitem>
 	      <listitem>
-	        <para>5 ISA slots (1 shared with PCI)</para>
+	        <para>5 emplacements ISA (1 est partag&eacute; avec le
+                PCI)</para>
 	      </listitem>
 	    </itemizedlist>
 	  </listitem>
 	  <listitem>
-	    <para>embedded Fast SCSI using a Symbios 53C810 chip</para>
+	    <para>Fast SCSI int&eacute;gr&eacute; grace &agrave; l'utilisation
+            d'une puce Symbios 53C810</para>
 	  </listitem>
 	</itemizedlist>
 
-      <para>NoNames can either have SRM <emphasis>or</emphasis> ARC console
-      firmware in their Flash ROM.  The Flash ROM is not big enough to
-      hold both ARC and SRM at the same time and allow software
-      selection of alternate console code. But you only need SRM
-      anyway.</para>
+      <para>Les cartes NoName peuvent disposer d'un micro-noyau de
+      console SRM <emphasis>ou</emphasis> ARC dans la ROM flash. La
+      ROM flash ne permet par de contenir les deux version en m&ecirc;me
+      temps et de choisir par logiciel quelle code utiliser. Mais vous
+      n'avez besoin que du code SRM de toute fa&ccedil;on.</para>
 
-      <para>Cache for the NoNames are 15 or 20 ns DIL chips. For a 256
-      kByte cache you want to check your junked 486 mainboard. Chips
-      for a 1 Mbyte cache are a rarer breed unfortunately. Getting at
-      least a 256kByte cache is recommended performance
-      wise. Cache-less they are really slow.</para>
+      <para>Le cache sur les cartes NoNames est une puce &agrave; 15 ou 20
+      ns. Avec un cache de 256kBytes vous aurez l'impression d'avoir
+      une carte m&egrave;re de 486. Les puces de de cache de 1Mbyte sont
+      tr&egrave;s rare. Un minimum de 256kBytes de cache est recommand&eacute;
+      pour une performance acceptable. Avec moins de cache le
+      syst&egrave;me est vraiment trop lent.</para>
 
-      <para>The NoName mainboard has a PC/AT-standard power
-      connector. It also has a power connector for 3.3 Volts. No need
-      to rush out to get a new power supply. The 3.3 Volts is only
-      needed in case you run 3.3 Volts PCI expansion boards. These are
-      quite rare.</para>
+      <para>La carte m&egrave;re NoName dispose d'un connecteur standard
+      d'alimentation PC/AT. Elle dispose aussi d'une connecteur
+      d'alimentation 3.3 Volts. Il n'y a pas besoin de se fatiguer
+      &agrave; trouver une nouvelle source d'alimentation. Le 3.3 Volts
+      est n&eacute;cessaire uniquement dans le cas ou vous utilisez des
+      cartes d'extension PCI 3.3 Volts. Elles sont tr&egrave;s rare.</para>
 
-      <para>The IDE interface is supported by &os; and requires a
-      line in the kernel configuration file as follows:</para>
+      <para>L'interface IDE est support&eacute;e par &os; et n&eacute;cessite
+      la ligne suivante dans le fichier de configuration du noyau:</para>
 
       <programlisting>device ata</programlisting>
 
-      <para>The ATA interface uses irq 14.</para>
+      <para>L'interface ATA interface utilise l'irq 14.</para>
 
-      <para>The SRM console unfortunately <emphasis> cannot boot</emphasis>
-      from IDE disks. This means you will have to use a SCSI disk as
-      the boot device.</para>
+      <para>La console SRM <emphasis>ne permet n&eacute;anmoins pas de
+      d&eacute;marrer</quote> depuis des disques IDE. Cela veut dire que
+      vous devez utiliser un disque SCSI pour p&eacute;riph&eacute;rique de
+      d&eacute;marrage.</para>
 
-      <para>The NoName is somewhat stubborn when it comes to serial
-      consoles. It needs</para>
+      <para>Les cartes NoName semblent t&ecirc;tues lorsqu'elles
+      utilisent des consoles s&eacute;ries. Elles n&eacute;cessitent</para>
       <screen>&gt;&gt;&gt; <userinput>SET CONSOLE SERIAL</userinput></screen>
-      <para>before it goes for a serial console. Pulling the keyboard from 
-      the machine is not sufficient, like it is on most other Alpha models. 
-      Going back to a graphical console needs</para>
+      <para>avant de fonctionner. Le simple faire de mettre le clavier
+      sur la machine ne suffit pas, comme sur la plupart des autres
+      mod&egrave;les d'Alpha. Le retour &agrave; une console graphique
+      n&eacute;cessite </para>
       <screen>&gt;&gt;&gt; <userinput>SET CONSOLE GRAPHICS</userinput></screen>
-      <para>at the serial console.</para>
+      <para>sur la console s&eacute;rie.</para>
 
-      <para>There have been reports that you sometimes need to press
+      <para>Il y a eut diff&eacute;rents retour sur le fait que vous devez
+      presser les touches
       <keycap>Control</keycap>-<keycap>Alt</keycap>-<keycap>Del</keycap> 
-      to capture the SRM's attention. I have
-      never seen this myself, but it is worth trying if you are greeted
-      by a blank screen after powerup.</para>
+      pour capter l'attention de la console SRM. Je ne l'ai jamais
+      not&eacute; moi-m&ecirc;me, mais si sachez le, si vous obtenez un
+      &eacute;cran blanc apr&egrave;s le d&eacute;marrage.</para>
 
-      <para>Make sure you use true 36 bit SIMMs, and only FPM (Fast
-      Page Mode) DRAM. EDO DRAM or SIMMs with fake parity <emphasis>will not
-      work</emphasis>. The board uses the 4 extra bits for ECC. 33
-      bit FPM SIMMs will for the same reason not work.</para>
+      <para>V&eacute;rifiez que vous utilis&eacute; de vrais barrette
+      SIMMs 36 bit et uniquement des DRAM FPM (Fast Page Mode). Les
+      DRAM EDO ou les barrettes SIMM avec de fausse parit&eacute;
+      <emphasis> ne fonctionne pas </emphasis>. La carte utilise les 4
+      bits suppl&eacute;mentaires pour l'ECC. Les barrettes SIMM FPM
+      33 bits ne fonctionneront pas pour les m&ecirc;mes
+      raisons.</para>
 
-      <para>Given the choice, get the PS/2-variant mainboard. Apart
-      from giving you a mouse port as bonus it is directly supported
-      by Tru64 Unix in case you ever want or need to run it. The
-      <quote>DIN-plug</quote>-variant should work OK for &os;.</para>
+      <para>Si vous avez le choix, prenez la variante de carte m&egrave;re
+      de style PS/2. En plus de vous donner un port suppl&eacute;mentaire
+      pour la souris, elle est directement support&eacute;e par Tru64
+      Unix, dans le cas ou vous voudriez le faire fonctionner. La
+      variante avec un connecteur <quote>DIN</quote> doit fonctionner
+      correctement avec &os;.</para>
 
-      <para>The <ulink
+      <para>La lecture du <ulink
       url="ftp://ftp.digital.com/pub/DEC/axppci/design_guide.ps">
-      OEM manual</ulink> is recommended reading.</para>
+      manuel OEM</ulink> est recommand&eacute;.</para>
 
-      <para>The kernel configuration file for a NoName kernel must
-      contain:</para>
+      <para>Le fichier de configuration du noyau pour un noyau NoName
+      doit contenir la ligne:</para>
 
-      <programlisting>options	DEC_AXPPCI_33           
-cpu	EV4</programlisting>
+      <programlisting>options	DEC_AXPPCI_33   cpu	EV4</programlisting>
 
     </sect3>
 
     <sect3>
-      <title>Universal Desktop Box (UDB or <quote>Multia</quote>)</title>
+      <title>Universal Desktop Box (UDB ou <quote>Multia</quote>)</title>
 
-      <note><para>Multia can be either Intel or Alpha CPU based. We
-      assume Alpha based ones here for obvious reasons.</para></note>
+      <note><para>Multia supporte les processeurs Intel ou Alpha. Nous
+      assumerons que nous utilisons un Alpha.</para></note>
 
-      <para>Multia is a small desktop box intended as a sort of
-      personal workstation. They come in a considerable number of
-      variations, check closely what you get.</para>
+      <para>Multia est destin&eacute; &agrave; &ecirc;tre une sorte de
+      station de travail personnelle. Il existe
+      &eacute;norm&eacute;ment de version, v&eacute;rifiez donc bien
+      ce que vous avez.</para>
 
-      <para>Features:</para>
+
+      <para>Fonctionnalit&eacute;s:</para>
         <itemizedlist>
 	  <listitem>
-	    <para>21066 Alpha CPU at 166 MHz or 21066A CPU at 233MHz</para>
+	    <para>processeur Alpha 21066 &agrave; 166 MHz ou  21066A
+            &agrave; 233MHz</para>
 	  </listitem>
 	  <listitem>
-	    <para>on-board Bcache / L2 cache: COAST-like 256 kByte
-            cache module; 233MHz models have 512kByte of cache; 
-	    166MHz models have soldered-on 256kB caches</para>
+	    <para>Bcache embarqu&eacute; / cache de niveau 2: module de
+            cache 256 kByte de type COAST; les mod&egrave;les &agrave; 233MHz
+            disposent de 512kByte de cache; les mod&egrave;les &agrave; 166MHz
+            sont vendus avec 256kB de cache</para>
 	  </listitem>
 	  <listitem>
-            <para>PS/2 mouse & keyboard port</para>
+            <para>port souris PS/2 & clavier</para>
 	  </listitem>
           <listitem>
-            <para>memory:</para>
+            <para>m&eacute;moire:</para>
               <itemizedlist>
                <listitem>
-                 <para>bus width: 64 bits</para>
+                 <para>longueur du bus: 64 bits</para>
                </listitem>
                <listitem>
-                 <para>PS/2 style 72 pin 36 bit Fast Page Mode SIMMs</para>
+                 <para>barrettes SIMM de type PS/2 72 pin 36 bit Fast
+                 Page Mode</para>
                </listitem>
                <listitem>
-                 <para>70ns or better</para>
+                 <para>70ns ou inf&eacute;rieur</para>
                </listitem>
                <listitem>
-                 <para>SIMMs are installed in pairs of 2</para>
+                 <para>les barrette SIMMs sont &agrave;
+                 install&eacute;es par paire</para>
                </listitem>
                <listitem>
-               <para>4 SIMM sockets</para>
+               <para>4 emplacements de barrette SIMM</para>
                </listitem>
                <listitem>
-                 <para>uses ECC</para>
+                 <para>utilisation de ECC</para>
                </listitem>
               </itemizedlist>
           </listitem>
 	  <listitem>
-            <para>2 16550A serial ports</para>
+            <para>2 ports s&eacute;rie 16550A</para>
 	  </listitem>
 	  <listitem>
-	    <para>1 parallel port</para>
+	    <para>1 port parall&egrave;le</para>
 	  </listitem>
 	  <listitem>
-	    <para>floppy interface</para>
+	    <para>1 interface de lecteur de disquette</para>
 	  </listitem>
 	  <listitem>
-            <para>Intel 82378ZB PCI to ISA bridge</para>
+            <para>1 pont Intel 82378ZB PCI vers ISA</para>
 	  </listitem>
 	  <listitem>
-            <para>1 embedded 21040 based 10Mbit Ethernet, AUI and
-            10base2 connector</para>
+            <para>1 carte 10Mb Ethernet (bas&eacute; sur une puce 21040),
+            avec un connecteur AUI ou 10base2</para>
 	  </listitem>
 	  <listitem>
-            <para>expansion:</para>
+            <para>Extension:</para>
 	      <itemizedlist>
 		<listitem>
-		  <para>1 32 bit PCI slot</para>
+		  <para>1 emplacement 32 bit PCI</para>
 		</listitem>
 		<listitem>
-	          <para>2 PCMCIA slots</para>
+	          <para>2 emplacements PCMCIA</para>
 		</listitem>
               </itemizedlist>
 	  </listitem>
 	  <listitem>
-            <para>on-board Crystal CS4231 or AD1848 sound chip</para>
+            <para>carte son Crystal CS4231 ou AD1848
+            int&eacute;gr&eacute;e</para>
 	  </listitem>
 	  <listitem>
-            <para>embedded Fast SCSI, using a Symbios 53C810[A] chip on the 
-            PCI riser card</para>
+            <para>Fast SCSI int&eacute;gr&eacute;, grace &agrave; l'utilisation
+            d'une puce Symbios 53C810[A] sur une carte PCI</para>
 	  </listitem>
 	</itemizedlist>
 
-      <para>Multia has enough Flash ROM to store both SRM and ARC code
-      at the same time and allow software selection of one of them.</para>
+      <para>Multia dispose d'assez de m&eacute;moire ROM flash pour
+      enregistrer les codes SRM et ARC en m&ecirc;me temps et permettre
+      la s&eacute;lection logicielle de l'un ou l'autre.</para>
 
-      <para>The embeded TGA video adapter is <emphasis>not</emphasis> currently
-      usable as a &os; console. You will need to use a serial console.</para>
+      <para>L'adaptateur vid&eacute;o TGA int&eacute;gr&eacute;, n'est
+      <emphasis>pas</emphasis> pour l'instant utilisable comme console
+      sous &os;. Vous devrez utiliser une console s&eacute;rie.</para>
 
-      <para>Multia has only one 32 bit PCI slot for expansion, and it
-      is only suitable for a small form factor PCI card. By
-      sacrificing the PCI slot space you can mount a 3.5&quot; hard disk
-      drive. Mounting stuff may have come with your Multia. Adding a
-      3.5&quot; disk is <emphasis>not</emphasis> a recommended upgrade 
-      due to the limited power rating of the power supply 
-      and the extremely marginal cooling of
-      the system box.</para>
+      <para>Multia ne dispose que d'un emplacement d'extension PCI 32
+      bits, et il n'est utilisable que pour une faible portion de
+      cartes PCI. En sacrifiant cet emplacement PCI, vous pourrez
+      ajouter une disque dur de 3.5&quot;. Il se peut que cet ajout
+      soit inclu avec votre Multia. Ajouter un disque de 3.5&quot;
+      suppl&eacute;mentaire <emphasis>n'est pas</emphasis> recommend&eacute;
+      du &agrave; la limitation de l'alimentation et du fabile
+      refroidissement de ce mod&egrave;le.</para>
 
-      <para>Multia also has 2 PCMCIA expansion slots. These are
-      currently not supported by &os;.</para>
+      <para>Multia dispose aussi de deux emplacement d'extension
+      PCMCIA. Il ne sont pas actuellement support&eacute;s par &os;.</para>
 
-      <para>The CPU might or might not be socketed, check this before
-      considering CPU upgrade hacks. The low-end Multias have a
-      soldered-in CPU.</para>
+      <para>Le processeur peut ou peut ne pas &ecirc;tre
+      soud&eacute;. V&eacute;rifier cela avec d'envisager une mise
+      &agrave; jour du processeur. Les mod&egrave;les de base de
+      Multia ont un processeur soud&eacute; sur la carte
+      m&egrave;re.</para>
 
-      <para>Multia has 2 serial ports but routes both of them to the
-      outside world on a single 25 pin sub-D connector. The Multia FAQ
-      explains how to build your own Y-cable to allow both ports to be
-      used.</para>
+      <para>Multia dispose de 2 ports s&eacute;ries, mais un seul
+      connecteur externe 25 pin sub-D. Le FAQ des Multia explique
+      comment cr&eacute;er votre propre cable Y pour utiliser les deux
+      ports.</para>
 
-      <para>Although the Multia SRM supports booting from floppy this
-      can be problematic. Typically the errors look like:</para>
+      <para>Bien que le SRM Multia supporte le d&eacute;marrage depuis un
+      lecteur de disquette, cela peut poser des
+      probl&egrave;mes. Typiquement les messages d'erreurs sont:</para>
 
       <screen>*** Soft Error - Error #10 - FDC: Data overrun or underrun</screen>
 
-      <para>This is not a &os; problem, it is a SRM problem. The best available
-      workaround to install &os; is to boot from a SCSI CDROM.</para>
+      <para>Cela n'est pas une probl&egrave;me de &os;, c'est un
+      probl&egrave;me SRM. La meilleur fa&ccedil;on d'installer &os; est de le
+      faire depuis un CDROM SCSI..</para>
 
-      <para>There have been reports that you sometimes need to press
+      <para>Il y a eut diff&eacute;rents retour sur le fait que vous devez
+      presser les touches
       <keycap>Control</keycap>-<keycap>Alt</keycap>-<keycap>Del</keycap> 
-      to capture the SRM's attention. I have
-      never seen this myself, but it is worth trying when you are greeted
-      by a blank screen after powerup.</para>
+      pour capter l'attention de la console SRM. Je ne l'ai jamais
+      not&eacute; moi-m&ecirc;me, mais si sachez le, si vous obtenez un
+      &eacute;cran blanc apr&egrave;s le d&eacute;marrage.</para>
 
-      <para>Sound works fine using &man.pcm.4; driver and a line in the
-      kernel configuration file as follows for the Crystal CS4231
-      chip:</para>
+      <para>La carte son fonctionne correctement via le gestionnaire
+      de p&eacute;riph&eacute;rique &man.pcm.4; et une ligne dans le fichier
+      de configuration du noyau pour la puce Crystal CS4231:</para>
 
       <programlisting>device pcm</programlisting>
 
-      <para>The sound device lives at port 0x530, and uses irq 9 along
-      with drq 3. You also need to specify flags 0x15 in the <filename>device.hints</filename> file.</para>
+      <para>Le p&eacute;riph&eacute;rique sonore r&eacute;side au port
+      0x530, et utilise l'irq 9 avec le drq 3. Vous devez de plus
+      sp&eacute;cifier le drapeau 0x15 dans le fichier
+      <filename>device.hints</filename>.</para>
 
-      <para>I have not yet been successful in getting my Multia with
-      the AD1848 to play any sound.</para>
+      <para>Je n'ai pas r&eacute;ussi &agrave; faire fonctionner correctement
+      le son avec un Multia et une puce AD1848.</para>
 
-      <para>While verifying playback I was reminded of the lack of CPU
-      power of the 166MHz CPU. MP3 only plays acceptable using 22kHz
-      down-sampling.</para>
+      <para>En v&eacute;rifiant &agrave; l'&eacute;coute, je me suis
+      souvenu de la faible alimentation du processeur
+      166MHz. L'&eacute;coute des MP3 est acceptable si vous utilisez
+      un taux de 22kHz.</para>
 
-      <para>Multias are somewhat notorious for dying of heat
-      strokes. The very compact box does not really allow access to cooling air.
-      Please use the Multia on its vertical stand,
-      don't put it horizontally (<quote>pizza style</quote>).  Replacing the 
-      fan with something which pushes around more air is really
-      recommended. You can also cut one of the wires to the fan speed
-      sensor. Once cut, the fan runs at a (loud) full speed.
-      Beware of PCI cards with high power consumption.
-      If your system has died you might want to check the
-      Multia-Heat-Death pages at the 
-      <ulink url="http://www.netbsd.org/">NetBSD Web site</ulink>
-      for help in reviving it.</para>
+      <para>Les Multia sont connues pour arr&egrave;ter de fonctionner du
+      a des probl&egrave;mes de chaleur. L'etroitesse de la boite ne
+      permet vraiment pas d'obtenir une bonne ventilation. Positionnez
+      donc votre Multia &agrave; la verticale, ne la mettez pas &agrave;
+      l'horizontale (<quote>style pizza</quote>). Remplacer le
+      ventilateur par un rafraichissant plus est vraiment
+      recommand&eacute;. Vous pouvez aussi couper un des fils du senseur
+      de vitesse du ventilateur. Une fois couper, le ventilateur
+      tournera &agrave; une vitesse (et un bruit) plus rapide. Faites
+      attention aux cartes PCI avec une forte consommation
+      d'&eacute;nergie. Si votre syst&egrave;me Multia cesse de fonctionner
+      suite &agrave; un probl&egrave;me de chaleur, consultez les pages du
+      <ulink url="http://www.netbsd.org/">site web de NetBSD</ulink>
+      pour de l'aide sur la fa&ccedil;on de le remettre en marche.</para>
 
-      <para>The Intel 82378ZB PCI to ISA bridge enables the use of an
-      IDE disk. This requires a line in the kernel configuration file
-      as follows:</para>
+      <para>Le pont Intel 82378ZB PCI vers ISA permet d'utiliser un
+      disque IDE. Cela n&eacute;cessite la ligne de configuration du noyau
+      suivante:</para>
 
       <programlisting>device ata</programlisting>
 
-      <para>The ATA interface uses IRQ 14.</para>
+      <para>L'interface ATA utilise l'IRQ 14.</para>
 
-      <para>The IDE connector pin spacing is thought for 2.5&quot; laptop
-      disks. A 3.5&quot; IDE disk would not fit in the case anyway. At
-      least not without sacrificing your only PCI slot. The SRM 
-      console unfortunately does not know how to boot from IDE 
-      disks. You will need to use a SCSI disk as the boot disk.</para>
+      <para>Les espacements des connecteurs IDE sont espac&eacute;s pour
+      des disques de portable de 2.5&quot;. Un disque IDE de 3.5&quot;
+      de pourra donc pas &ecirc;tre utilis&eacute;. N&eacute;anmoins sans
+      sacrifier un emplacement PCI vous disposer d'un disque IDE. La
+      console SRM ne permet pas malgr&eacute; tout de d&eacute;marrer depuis
+      un disque IDE. vous devez disposer d'un disque SCSI comme disque
+      de d&eacute;marrage.</para>
 
-      <para>In case you want to change the internal hard drive: the
-      internal flat cable running from the PCI riser board to the 
-      <emphasis>2.5&quot;</emphasis>
-      hard drive has a finer pitch than the standard SCSI flat
-      cables. Otherwise it would not fit on the 2.5&quot; drives. There are
-      also riser cards that have a standard-pitch SCSI cable attached
-      to it, which will fit an ordinary SCSI disk.</para>
+      <para>Dans le cas ou vous d&eacute;sirez changer le disque dur
+      interne: le cable interne reliant la carte PCI au disque dur
+      <emphasis>2.5&quot;</emphasis> &agrave; une taille plus petite que
+      les cables SCSI standards. Sinon il ne pourrait aller avec les
+      disque de 2.5&quot;. Il existe des cartes PCI disposant d'un
+      cable standard, permettant de brancher un disque dur SCSI
+      standard.</para>
 
-      <para>Again, I recommend against trying to cram a replacement
-      hard disk inside. Use the external SCSI connector and put your
-      disk in an external enclosure.  Multias run hot enough as-is. In
-      most cases you will have the external high density 50-pin SCSI
-      connector but some Multia models came without disk and may lack
-      the connector. Something to check before buying one.</para>
+      <para>Encore une fois, je ne recommande pas d'essayer de
+      remplacer le disque dur interne. Utilisez le connecteur SCSI
+      externe et mettez le disque dur dans un boitier externe. Les
+      Multia sont suffisement chaud sans cela. Dans la plupart des cas
+      vous disposerez du connecteur 50 broches SCSI, mais certains
+      mod&egrave;les de Multia peuvent ne pas comporter de disque ni de
+      connecteur. Encore un point &agrave; v&eacute;irifer avec l'achat.</para>
 
-      <para>The kernel configuration file for a Multia kernel must
-      contain:</para>
+      <para>Le fichier de configuration du noyau doit contenir la
+      ligne suivante pour un syst&egrave;me Multia:</para>
 
-      <programlisting>options	DEC_AXPPCI_33
-cpu	EV4</programlisting>
+      <programlisting>options DEC_AXPPCI_33 cpu EV4</programlisting>
 
-      <para>Recommended reading on Multia can be found at 
-      <ulink url="http://www.netbsd.org/Ports/alpha/multiafaq.html">
-      http://www.netbsd.org/Ports/alpha/multiafaq.html</ulink>
-      or <ulink url="http://www.brouhaha.com/~eric/computers/udb.html">
-      http://www.brouhaha.com/~eric/computers/udb.html</ulink>.</para>
+      <para>La lecture du document <ulink
+      url="http://www.netbsd.org/Ports/alpha/multiafaq.html">
+      http://www.netbsd.org/Ports/alpha/multiafaq.html</ulink> ou
+      <ulink
+      url="http://www.brouhaha.com/~eric/computers/udb.html">
+      http://www.brouhaha.com/~eric/computers/udb.html</ulink> est
+      recommand&eacute;.</para>
 
     </sect3>
 
     <sect3>
-      <title>Personal Workstation (<quote>Miata</quote>)</title>
+      <title>Station de travail personnelle (<quote>Miata</quote>)</title>
 
-      <para>The Miata is a small tower machine intended to be put
-      under a desk. There are multiple Miata variants. The original
-      Miata is the MX5 model. Because it suffers from a number of
-      hardware design flaws a redesign was done, yielding the
-      MiataGL. Unfortunately the variants are not easily distinguishable 
-      at first sight from the outside of the case.
-      An easy check is to see if the back of the machine sports two
-      USB connectors. If yes, it is a MiataGL. MX5 models tend to be
-      more common in the used system market place.</para>
+      <para>La Miata est une machine de type tour con&ccedil;ues pour
+      fonctionner sur un bureau. Il existe plusieurs type de
+      Miata. L'original de Miata est le mod&egrave;le MX5. Du au
+      diff&eacute;rents probl&egrave;mes de conception mat&eacute;rielle, une
+      nouvelle conception a &eacute;t&eacute; faite, donnant le mod&egrave;le
+      MiataGL. Quoiqu'il en soit les variantes ne sont pas facilement
+      distinguables &agrave; premi&egrave;re vue en regardant le boitier. La
+      fa&ccedil;on la plus simple est de chercher &agrave; l'arri&egrave;re des
+      machines si il y a deux connecteurs USB. Si oui, c'est un
+      MiataGL. Les mod&egrave;les MX5 semblent &ecirc;tre les plus
+      utilis&eacute;s sur le march&eacute;.</para>
 
-      <para>System designations look like <quote>Personal Workstation
-      433a</quote>. Personal Workstation, being a bit of a mouthful,
-      is often abbreviated to PWS.  This means it has a 433 MHz CPU,
-      and started life as a WinNT workstation (the trailing
-      <quote>a</quote>). Systems designated from day 1 to run Tru64
-      Unix or OpenVMS will sport <quote>433au</quote>. WinNT-Miatas
-      are likely to come pre-configured with an IDE CDROM drive. So,
-      in general systems are named like PWS[433,500,600]a[u].</para>
+      <para>La d&eacute;signation syst&egrave;me resemble &agrave;
+      <quote>Personal Workstation 433a</quote>. Personal Workstation
+      est souvent r&eacute;duit &agrave; PWS. Cela veut dire qu'il
+      dispose d'un processeur 433 MHz et que sa vie &agrave; commencer
+      sous une station de travail WinNT (le <quote>a</quote> de la
+      fin). Les syst&egrave;mes pr&eacute;vus pour fonctionner sous
+      Tru64 Unix ou OpenVMS afficheront <quote>433au</quote>. Les
+      syst&egrave;mes Miatas-WinNT sont souvent
+      pr&eacute;configur&eacute;es avec un lecteur de CDROM IDE. En
+      g&eacute;n&eacute;ral ces syst&egrave;mes sont
+      d&eacute;sign&eacute; comme PWS[433,500,600]a[u].</para> 
 
-      <para>There was also a Miata model with a special CPU cooling
-      system by Kryotech. The Kryotech has a special cooling system 
-      and is housed in a different enclosure.</para>
 
-      <para>Features:</para>
+      <para>Il existe un mod&egrave;le de Miata avec un syst&egrave;me de
+      refroidissement de  processeur sp&eacute;cifique de Kryotech. Le
+      Kryotech &agrave; un refroidissement sp&eacute;cial et est enferm&eacute;
+      dans une boite diff&eacute;rente..</para>
+
+      <para>Fonctionnalit&eacute;s:</para>
         <itemizedlist>
 	  <listitem>
-	    <para>21164A EV56 Alpha CPU at 433, 500 or 600MHz</para>
+	    <para>processeurs Alpha 21164A EV56 &agrave; 433, 500 ou
+            600MHz</para>
 	  </listitem>
 	  <listitem>
-	    <para>21174 Core Logic (<quote>Pyxis</quote>) chip set</para>
+	    <para>jeux de puce 21174 Core Logic (<quote>Pyxis</quote>)</para>
 	  </listitem>
 	  <listitem>
-	    <para>on-board Bcache / L3 cache: 0, 2 or 4 Mbytes (uses a
-	    cache module)</para>
+	    <para>Bcache / cache de niveau 3: 0, 2 ou 4 Mbytes (utilis
+            un module de cache)</para>
 	  </listitem>
-	  <listitem><para>memory:</para>
+	  <listitem><para>M&eacute;moire:</para>
 	    <itemizedlist>
 	      <listitem>
-	        <para>bus width: 128 bits wide, ECC protected</para>
+	        <para>longeur du bus: 128 bits wide, protection par ECC</para>
 	      </listitem>
 	      <listitem>
-	        <para>unbuffered 72 bit wide SDRAMs DIMMs, 
-		installed in pairs of 2</para>
+	        <para>barrette DIMMS 72 bit wide SDRAMs, 
+		install&eacute;es par paire</para>
               </listitem>
 	      <listitem>
-		<para>6 DIMM sockets</para>
+		<para>6 emplacement pour les barrette DIMM</para>
 	      </listitem>
 	      <listitem>
-		<para>maximum memory 1.5 GBytes</para>
+		<para>un maximum de 1.5 GBytes de m&eacute;moire</para>
 	      </listitem>
 	    </itemizedlist>
 	  </listitem>
 	  <listitem>
-	    <para>on-board Fast Ethernet:</para>
+	    <para> Fast Ethernet int&eacute;gr&eacute;:</para>
 	    <itemizedlist>
 	      <listitem>
-	        <para>MX5 uses a 21142 or 21143 Ethernet chip, 
-	        dependent on the version of the PCI riser card</para>
+	        <para>le MX5 utilise une puce Ethernet 21142 ou 21143,
+                suivant la version de la carte PCI utilis&eacute;</para>
 	      </listitem>
 	      <listitem>
-	        <para>MiataGL has a 21143 chip</para>
+	        <para>le MiataGL dispose d'une puce 21143</para>
 	      </listitem>
 	      <listitem>
-	        <para>the bulkhead can be 10/100 Mbit UTP, or 
-		10 Mbit UTP/BNC</para>
+	        <para>le connecteur peut &ecirc;tre 10/100 Mbit UTP, ou
+                10 Mbit UTP/BNC</para>
 	      </listitem>
 	    </itemizedlist>
 	  </listitem>
 	  <listitem>
-	    <para>2 on-board [E]IDE disk interfaces, based on 
-	    the CMD646 (MX5) or the Cypress 82C693 (MiataGL)</para>
+	    <para>2 interfaces de disque dur [E]IDE int&eacute;gr&eacute;s,
+            bas&eacute;es sur CMD646 (MX5) ou Cypress 82C693 (MiataGL)</para>
 	  </listitem>
 	  <listitem>
-	    <para>1 Ultra-Wide SCSI Qlogic 1040 [MiataGL only]</para>
+	    <para>1 controleur Ultra-Wide SCSI Qlogic 1040 [MiataGL
+            uniquement]</para>
 	  </listitem>
 	  <listitem>
-	    <para>2 64-bit PCI slots</para>
+	    <para>2 emplacements PCI 64-bit</para>
 	  </listitem>
 	  <listitem>
-            <para>3 32-bit PCI slots (behind a DEC PCI-PCI bridge chip)</para>
+            <para>3 emplacements PCU 32-bit (derri&egrave;re un pont
+            PCI-PCI DEC)</para>
 	  </listitem>
 	  <listitem>
-            <para>3 ISA slots (physically shared with the 32 bit PCI slots, 
-              via an Intel 82378IB PCI to ISA bridge chip)</para>
+            <para>3 emplacements ISA (physiquement partag&eacute;s avec
+            les emplacements PCI 32 bits via un pont Intel 82378IB PCI
+            vers ISA)</para>
 	  </listitem>
 	  <listitem>
-	    <para>2 16550A serial port</para>
+	    <para>2 ports s&eacute;ries 16550A</para>
 	  </listitem>
 	  <listitem>
-	    <para>1 parallel port</para>
+	    <para>1 port parall&egrave;le</para>
 	  </listitem>
 	  <listitem>
-	    <para>PS/2 keyboard & mouse port</para>
+	    <para>port PS/2 clavier & souris</para>
 	  </listitem>
 	  <listitem>
-	    <para>USB interface [MiataGL only]</para>
+	    <para>interface USB [MiataGL uniquement]</para>
 	  </listitem>
 	  <listitem>
-	    <para>embedded sound based on an ESS1888 chip</para>
+	    <para>carte son int&eacute;gr&eacute;e, bas&eacute;e sur
+            une puce ESS1888</para>
 	  </listitem>
 	</itemizedlist>
 
-      <para>The Miata logic is divided into two printed circuit
-      boards.  The lower board in the bottom of the machine has the
-      PCI and ISA slots and things like the sound chip etc. The top
-      board has the CPU, the Pyxis chip, memory etc. Note that MX5
-      and the MiataGL use a different PCI riser board. This means
-      that you cannot just upgrade to a MiataGL CPU board (with the
-      newer Pyxis chip) but that you will also need a different
-      riser board. Apparently an MX5 riser with a MiataGL CPU board
-      will work but it is definitely not a supported or tested
-      configuration.  Everything else (cabinet, wiring, etc.) is
-      identical for MX5 and MiataGL.</para>
+      <para>La logique des Miata est divis&eacute; en deux cartes de
+      circuits imprim&eacute;es. La carte inf&eacute;rieure dispose des
+      emplacements PCI et ISA ainsi que des choses comme la carte son,
+      etc... La carte sup&eacute;rieure comporte le processeur, la puce
+      Pyxis, la m&eacute;moire, etc.. Notez que le mod&egrave;le MX5
+      diff&egrave;re du mod&egrave;le MiataGL par la carte de canal du bus
+      PCI. Cela veut dire que vous ne pouvez mettre &agrave; jour votre
+      carte vers un mod&egrave;le MiataGL (avec la nouvelle puce Pyxis),
+      cela n&eacute;cessite une carte de canal PCI
+      diff&eacute;rente. Apparemment une carte processeur MiataGL avec un
+      canal PCI de MX5 fonctionne, mais cela n'est d&eacute;finitivement
+      pas support&eacute; ni teste&eacute;. Tout le reste (boitier, cablage,
+      etc...) est identique entre le MX5 et le MiataGL.</para>
 
-      <para>MX5 has problems with DMA via the 2 64-bit PCI slots
-      when this DMA crosses a page boundary. The 32 bit slots don't
-      have this problem because the PCI-PCI bridge chip does not
-      allow the offending transfers. The SRM code knows about the
-      problem and refuses to start the system if there is a PCI card
-      in one of the 64bit slots that it does not know about. Cards
-      that are <quote>known good</quote> to the SRM are allowed to
-      be used in the 64bit slots.</para>
+      <para>Les MX5 ont des probl&egrave;mes avec les emplacements PCI
+      64-bit et le DMA, lorsque le DMA d&eacute;passe un espace de
+      pagination. Les emplacements 32 bits n'ont pas ce probl&egrave;mes
+      car le pont PCI-PCI ne permet pas ce type de transfert. Le code
+      SRM reconnait le probl&egrave;me et refuse de d&eacute;marrer un
+      syst&egrave;me si une carte PCI 64 bit est pr&eacute;sente et qu'il ne
+      la connait pas. Les <quote>bonnes</quote>cartes 64 bits pour SRM
+      peuvent utiliser les emplacements 64 bits.</para>
 
-      <para>If you want to fool the SRM you can type <userinput>set
-      pci_device_override</userinput> at the SRM prompt. Just don't
-      complain if your data mysteriously gets mangled.</para>
+      <para>Si vous d&eacute;sirez ne pas tenir compte de SRM, vous pouvez
+      taper <userinput>set pci_device_override</userinput> &agrave;
+      l'invite de commande SRM. Ne vous &eacute;tonnez pas si vos
+      donn&eacute;es disparaissent mist&eacute;riseusement.</para>
 
-      <para>The complete command is:</para>
+      <para>La commande exacte est:</para>
 
       <screen><prompt>&gt;&gt;&gt;</prompt> <userinput>SET PCI_DEVICE_OVERRIDE <replaceable>&lt;vendor_id&gt;</replaceable><replaceable>&lt;device_id&gt;</replaceable></userinput></screen>
 
-      <para>For example:</para>
+      <para>Par exemple:</para>
 
 <screen><prompt>&gt;&gt;&gt;</prompt> <userinput>SET PCI_DEVICE_OVERRIDE 88c15333</userinput></screen>
 
-      <para>The most radical approach is to use:</para>
+      <para>Une approche plus radicale est d'utiliser:</para>
 
 <screen><prompt>&gt;&gt;&gt;</prompt> <userinput>SET PCI_DEVICE_OVERRIDE -1</userinput></screen>
 
-      <para>This disables PCI ID checking altogether, so that you
-      can install any PCI card without its ID getting
-      checked. For this to work you need a reasonable current SRM version.</para>
-      <important><para>Do this on your own risk..</para></important>
+      <para>Cela d&eacute;sactive la v&eacute;rification de l'ID PCI, cela
+      vous permet d'installer n'importe quelle carte PCI sans que son
+      ID soit v&eacute;rifier. Pour que cela fonctionne vous devez avoir
+      une version raisonnablement r&eacute;cente de SRM.</para>
+      <important><para>Si vous faites cela, c'est &agrave; vos propres
+      risques...</para></important>
 
-      <para>The &os; kernel reports it when it sees a buggy Pyxis chip:</para>
+
+      <para>Le noyau &os; rapporte lorsqu'il voit des puces Pyxis
+      boggu&eacute;es:</para>
 
 <screen>Sep 16 18:39:43 miata /kernel: cia0: Pyxis, pass 1
 Sep 16 18:39:43 miata /kernel: cia0: extended capabilities: 1&lt;BWEN&gt;
 Sep 16 18:39:43 miata /kernel: cia0: WARNING: Pyxis pass 1 DMA bug; no bets...</screen>
 
-      <para>A MiataGL probes as:</para>
+      <para>Un test sur MiataGL donne :</para>
 
 <screen>Jan  3 12:22:32 miata /kernel: cia0: Pyxis, pass 1
 Jan  3 12:22:32 miata /kernel: cia0: extended capabilities: 1&lt;BWEN&gt;
 Jan  3 12:22:32 miata /kernel: pcib0: &lt;2117x PCI host bus adapter&gt; on cia0</screen>
 
-      <para>MiataGL does not have the DMA problems of the MX5. PCI
-      cards that make the MX5 SRM choke when installed in the 64bit
-      slots are accepted without problems by the MiataGL SRM.</para>
+      <para>Le MiataGL n'a pas le probl&egrave;me de DMA du MX5. Les
+      cartes PCI qui posent probl&egrave;me au SRM du MX5 sont
+      accept&eacute;es sans probl&egrave;me dans les emplacements 64 bits de
+      MiataGL.</para>
 
-      <para>The latest mainboard revisions of MX5 contain a hardware
-      workaround for the bug. The SRM does not know about the ECO
-      and will complain about unknown cards as before. So does the
-      &os; kernel by the way.</para>
+      <para>La derni&egrave;re r&eacute;vision de la carte m&egrave;re des MX5,
+      contient un contournement mat&eacute;riel pour ce bogue. SRM ne
+      connait rien de ceci et r&eacute;agit comme avant avec les cartes
+      inconnues. Comme le fait aussi le noyau &os;.</para>
 
-      <para>The Miata SRM can boot from IDE CDROM drives. IDE hard disk
-      boot is known to work for both MiataGL and MX5 disks, so you
-      can root &os; from an IDE disk. Speeds on MX5 are around 14
-      Mbytes/sec assuming a suitable drive. Miata's CMD646 chip will
-      support up to WDMA2 mode as the chip is too buggy for use
-      with UDMA.</para>
+      <para>Le SRM Miata permet de d&eacute;marrer depuis les lecteurs de
+      CDROM IDE. Les d&eacute;marrages sur disques IDE fonctionnent pour
+      les disques MiataGL et MX5, vous pouvez donc mettre la partition
+      principale de &os; sur un disque IDE. La vittesse de transfert
+      est de l'ordre de 14 Mbytes/sec sur un syst&egrave;me MX5. La puce
+      CMD646 du Miata permet de supporter jusque'au mode WDMA2 car
+      cette puce est trop boggu&eacute;e pour utiliser le UDMA.</para>
 
-      <para>Miata MX5s generally use Qlogic 1040 based SCSI adapters.
-      These are bootable by the SRM console. Note that Adaptec cards
-      are <emphasis>not</emphasis> bootable by the Miata SRM console.</para>
+      <para>Les Miata MX5 utilisent g&eacute;n&eacute;ralement des adaptateurs
+      SCSI bas&eacute;s sur des Qlogic 1040. Ils permettent de d&eacute;marrer
+      le noyau depuis la console SRM. Notez que les cartes Adaptec
+      <emphasis>ne permettent pas</emphasis> de d&eacute;marrer depuis la
+      console SRM Miata.</para>
 
-      <para>The MiataGL has a faster PCI-PCI bridge chip on the PCI
-      riser card than some of the MX5 riser card versions. Some of
-      the MX5 risers have the <emphasis>same</emphasis> chip as the
-      MiataGL. All in all there is a lot of variation.</para>
+      <para>Le MiataGL dispose d'un pont PCI-PCI plus rapide que celui
+      des MX5. Certains canaux des MX5 disposent de la
+      <emphasis>m&ecirc;me</emphasis> puce que le MiataGL. De toute
+      fa&ccedil;on il existe &eacute;norm&eacute;ment de variantes.</para>
 
-      <para>Not all VGA cards will work behind the PCI-PCI
-      bridge. This manifests itself as no video at all. Workaround
-      is to put the VGA card <quote>before</quote> the bridge, in
-      one of the 64 bit PCI slots.</para>
+      <para>Toutes les cartes VGA ne fonctionnent pas d&eacute;rri&egrave;re
+      le pont PCI-PCI. Cela se manifeste par aucun affichage
+      vid&eacute;o. La solution consiste &agrave; mettre la carte VGA dans un
+      emplacement 64 bits PCI <quote>avant</quote> le pont.</para>
 
-      <para>Both MX5 and MiataGL have an on-board sound chip, an
-      ESS1888. It emulates a SoundBlaster and can be enabled by
-      putting</para>
-<programlisting>device	pcm
-device	sbc</programlisting>
-      <para>in your kernel configuration file:</para>
+      <para>Les MX5 et MiataGL disposent d'une puce sonore, un
+      ESS1888. C'est une &eacute;mulation SoundBlaster qui peut &ecirc;tre
+      activer en mettant la ligne</para>
+      <programlisting>device pcm device	sbc</programlisting>
 
-      <para>in case your Miata has the optional cache board
-      installed make sure it is firmly seated. A slightly loose
-      cache has been observed to cause weird crashes (not surprising
-      obviously, but maybe not so obvious when troubleshooting). The
-      cache module is identical between MX5 and MiataGL.</para>
+      <para>dans le fichier de configuration du noyau.</para>
 
-      <para>Installing a 2Mb cache module achieves, apart from a
-      10-15% speed increase (based on buildworld elapsed time), a
-      <emphasis>decrease</emphasis> for PCI DMA read bandwidth from
-      64bit PCI cards. A benchmark on a 64-bit Myrinet card resulted
-      in a decrease from 149 Mbytes/sec to 115 Mbytes/sec. Something
-      to keep in mind when doing really high speed things with 64
-      bit PCI adapters.</para>
+      <para>Dans le cas ou votre Miata dispose d'une carte de cache
+      optionnelle, c&eacute;rifiez qu'elle est bien enfonc&eacute;e. Des
+      pertes de cache ont &eacute;t&eacute; observ&eacute;es causant des
+      crashes(cela n'est pas surprenant, mais assez emb&ecirc;tant lors
+      de d&eacute;bogguage). Le module de cache est identique sur les MX5
+      ou les MiataGL.</para>
 
-      <para>Moving to a faster CPU is quite simple, swap out the
-      CPU chip and set the clock multiplier dipswitch to the speed of
-      the new CPU.</para>
+      <para>L'installation d'un cache de 2mb, mis &agrave; part le gain de
+      10-15% de vitesse (bas&eacute; sur la temps de compilation de
+      buildworld), baisse la bande passante pour la lecture PCI DMA
+      des cartes PCI 64 bits. Un test sur une carte 64-bit Myrinet
+      r&eacute;sulte d'une baisse de 149 Mbytes/sec &agrave; 115
+      Mbytes/sec. Ceci est un point important &agrave; garder dans le cas
+      ou vous devez effectuer des transferts tr&egrave;s rapide avec les
+      adaptateurs PCI 64 bits.</para>
 
-      <para>If you experience SRM errors like</para>
+      <para>Le changement vers un processeur plus rapide est tr&egrave;s
+      simple; remplacez le processeur et modifiez les dipswitch de
+      multiplieur de l'horloge &agrave; la vitesse du nouveau
+      processeur.</para>
+
+      <para>Si vous obtenez des erreurs SRM comme</para>
 
       <screen>ERROR: scancode 0xa3 not supported on PCXAL</screen> 
 
-      <para>after halting &os; you should update your SRM firmware to V7.2-1 or
-      later. This SRM version is first available on the Firmware
-      Update CD V5.7, or on <ulink
-      url="http://www.compaq.com/">http://www.compaq.com/</ulink> This SRM
-      problem is fixed on both Miata MX5 and Miata GL.</para>
+      <para>apr&egrave;s avoir arr&eacute;ter &os;, vous devez mettre &agrave;
+      jour votre micro-code SRM en version V7.2-1 ou sup&eacute;rieure. La
+      premi&egrave;re version SRM disponible peut se trouver sur le CD de
+      mise &agrave; jour du micro-code V5.7, ou sur le site <ulink
+      url="http://www.compaq.com/">http://www.compaq.com/</ulink>. Ce
+      probl&egrave;me SRM a &eacute;t&eacute; corrig&eacute; sur les
+      mod&egrave;les Miata MX5 et Miata GL.</para>
 
-      <para>USB is supported by &os; 4.1 and later.</para>
+      <para>L'USB est support&eacute; &agrave; partir de &os; 4.1 et
+      sup&eacute;rieur.</para>
 
-      <para>Disconnect the power cord before dismantling the
-      machine, the soft-power switch keeps part of the logic powered
-      <emphasis>even</emphasis> when the machine is switched off.</para>
+      <para>D&eacute;connectez le cordon d'alimentation avant de
+      d&eacute;sassembler la machine, le bouton d'alimentation logicielle,
+      garde une partie de la carte sous tension
+      <emphasis>m&ecirc;me</emphasis> lorsque la machine est
+      &eacute;teinte.</para>
 
-      <para>The kernel configuration file for a Miata kernel must
-      contain:</para>
+      <para>Le fichier de configuration du noyau pour un mod&egrave;le
+      Miata doit contenir:</para>
 
-      <programlisting>options	DEC_ST550               
-cpu	EV5</programlisting>
+      <programlisting>options DEC_ST550 cpu EV5</programlisting>
     </sect3>
 
     <sect3>
