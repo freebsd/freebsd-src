@@ -455,6 +455,7 @@ init_secondary(void)
 {
 	int	gsel_tss;
 	int	x, myid = bootAP;
+	u_int	cr0;
 
 	gdt_segs[GPRIV_SEL].ssd_base = (int) &SMP_prvspace[myid];
 	gdt_segs[GPROC0_SEL].ssd_base =
@@ -484,6 +485,15 @@ init_secondary(void)
 	tss_gdt = &gdt[myid * NGDT + GPROC0_SEL].sd;
 	common_tssd = *tss_gdt;
 	ltr(gsel_tss);
+
+	/*
+	 * Set to a known state:
+	 * Set by mpboot.s: CR0_PG, CR0_PE
+	 * Set by cpu_setregs: CR0_NE, CR0_MP, CR0_TS, CR0_WP, CR0_AM
+	 */
+	cr0 = rcr0();
+	cr0 &= ~(CR0_CD | CR0_NW | CR0_EM);
+	load_cr0(cr0);
 
 	pmap_set_opt();
 }
