@@ -131,8 +131,6 @@ int	vnopen __P((dev_t dev, int flags, int mode, struct proc *p));
 void	vnstrategy __P((struct buf *bp));
 void	vnstart __P((struct vn_softc *vn));
 void	vniodone __P((struct buf *bp));
-int	vnread __P((dev_t dev, struct uio *uio, int flags, struct proc *p));
-int	vnwrite __P((dev_t dev, struct uio *uio, int flags, struct proc *p));
 int	vnioctl __P((dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p));
 int	vnsetcred __P((struct vn_softc *vn, struct ucred *cred));
 void	vnthrottle __P((struct vn_softc *vn, struct vnode *vp));
@@ -411,28 +409,6 @@ vniodone(struct buf *bp)
 	else
 		vn->sc_tab.b_active--;
 	splx(s);
-}
-
-int
-vnread(dev_t dev, struct uio *uio, int flags, struct proc *p)
-{
-
-#ifdef DEBUG
-	if (vndebug & VDB_FOLLOW)
-		printf("vnread(%x, %x, %x, %x)\n", dev, uio, flags, p);
-#endif
-	return(physio(vnstrategy, NULL, dev, B_READ, minphys, uio));
-}
-
-int
-vnwrite(dev_t dev, struct uio *uio, int flags, struct proc *p)
-{
-
-#ifdef DEBUG
-	if (vndebug & VDB_FOLLOW)
-		printf("vnwrite(%x, %x, %x, %x)\n", dev, uio, flags, p);
-#endif
-	return(physio(vnstrategy, NULL, dev, B_WRITE, minphys, uio));
 }
 
 /* ARGSUSED */
