@@ -89,7 +89,7 @@ exec_iov2device(int type, struct physical *p, struct iovec *iov,
 {
   if (type == EXEC_DEVICE) {
     free(iov[(*niov)++].iov_base);
-    physical_SetupStack(p, execdevice.name, PHYSICAL_FORCE_ASYNC);
+    physical_SetupStack(p, execdevice.name, PHYSICAL_NOFORCE);
     return &execdevice;
   }
 
