@@ -153,7 +153,9 @@ getpwnam(name)
 		return((struct passwd *)NULL);
 
 	bf[0] = _PW_KEYBYNAME;
-	len = MIN(strlen(name), UT_NAMESIZE);
+	len = strlen(name);
+	if (len > UT_NAMESIZE)
+		return(NULL);
 	bcopy(name, bf + 1, len);
 	key.data = (u_char *)bf;
 	key.size = len + 1;
