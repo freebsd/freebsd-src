@@ -64,29 +64,16 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/conf.h>
-#include <sys/errno.h>
 #include <sys/sockio.h>
+#include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
-#include <sys/syslog.h>
 
 #include <net/if.h>
-#include <net/if_dl.h>
-#include <net/if_mib.h>
-#include <net/if_types.h>
 
 #ifdef INET
 #include <netinet/in.h>
-#include <netinet/in_systm.h>
-#include <netinet/in_var.h>
-#include <netinet/ip.h>
 #include <netinet/if_ether.h>
-#endif
-
-#ifdef IPX
-#include <netipx/ipx.h>
-#include <netipx/ipx_if.h>
 #endif
 
 #ifdef NS
@@ -96,11 +83,9 @@
 
 #if NBPFILTER > 0
 #include <net/bpf.h>
-#include <net/bpfdesc.h>
 #endif
 
 #include <machine/clock.h>
-#include <machine/md_var.h>
 
 #include <dev/vx/if_vxreg.h>
 
