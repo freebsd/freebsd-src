@@ -34,6 +34,7 @@
 #include <arpa/inet.h>
 #include <stdio.h>
 #include <grp.h>
+#include <pwd.h>
 #include <ctype.h>
 #include <syslog.h>
 #include <unistd.h>
@@ -333,11 +334,15 @@ struct login_info *login_info;
 static int match_group(login_info)
 struct login_info *login_info;
 {
+    struct passwd *passwd;
     struct group *group;
     char   *tok;
     char  **memp;
 
-    if ((tok = need_token()) && (group = getgrnam(tok))) {
+    if ((tok = need_token()) &&
+	(passwd = getpwnam(login_info->user)) && (group = getgrnam(tok))) {
+	if (passwd->pw_gid == (gid_t)group->gr_gid)
+	    return (1);
 	for (memp = group->gr_mem; *memp; memp++)
 	    if (strcmp(login_info->user, *memp) == 0)
 		return (1);
