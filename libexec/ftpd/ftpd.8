@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)ftpd.8	8.2 (Berkeley) 4/19/94
-.\"	$Id: ftpd.8,v 1.9.2.11 1998/02/18 11:03:48 obrien Exp $
+.\"	$Id: ftpd.8,v 1.9.2.12 1998/02/19 01:07:49 jkh Exp $
 .\"
 .Dd April 19, 1994
 .Dt FTPD 8
@@ -417,14 +417,14 @@ executable need not be placed into the chrooted tree, nor need the
 .Pa ~/bin
 directory exist.
 This support may be added by making ftpd with the
-.Em INTERNAL_LS
+.Em FTPD_INTERNAL_LS
 variable set either in
 .Pa /etc/make.conf
 or in the shell's environment.
 .Sh FILES
 .Bl -tag -width /etc/ftpwelcome -compact
 .It Pa /etc/ftpusers
-List of unwelcome/restricted users and groups.
+List of unwelcome/restricted users.
 .It Pa /etc/ftpchroot
 List of normal users who should be chroot'd.
 .It Pa /etc/ftphosts
