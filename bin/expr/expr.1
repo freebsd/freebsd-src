@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 3, 1993
+.Dd May 10, 2002
 .Dt EXPR 1
 .Os
 .Sh NAME
@@ -46,12 +46,15 @@ utility evaluates
 .Ar expression
 and writes the result on standard output.
 .Pp
-All operators are separate arguments to the
-.Nm
-utility.
-Characters special to the command interpreter must be escaped.
+All operators and operands must be passed as separate arguments.
+Several of the operators have special meaning to command interpreters
+and must therefore be quoted appropriately.
+All integer operands are interpreted in base 10.
 .Pp
-Operators are listed below in order of increasing precedence.
+Arithmetic operations are performed using signed integer math.
+.Pp
+Operators are listed below in order of increasing precedence; all
+are left-associative.
 Operators with equal precedence are grouped within { } symbols.
 .Bl -tag -width indent
 .It Ar expr1 Li | Ar expr2
