@@ -8,30 +8,27 @@
 #
 
 stop_dhcp() {
-	if [ -r /sbin/dhclient ]; then
+	if [ -s /var/run/dhclient.${interface}.pid ]; then
 		pidfile="/var/run/dhclient.${interface}.pid"
-		if [ -s ${pidfile} ]; then
-			kill `cat ${pidfile}`
-			rm ${pidfile}
-		fi
-	elif [ -r /usr/local/sbin/dhcpc ]; then
+	elif [ -s /var/run/dhcpc.${interface}.pid ]; then
 		pidfile="/var/run/dhcpc.${interface}.pid"
-		if [ -s ${pidfile} ]; then
-			kill `cat ${pidfile}`
-			rm ${pidfile}
-		fi
+	else
+		return
 	fi
+	kill `cat ${pidfile}`
+	rm -f ${pidfile}
 }
 
 start_dhcp() {
 	stop_dhcp
-	if [ -r /sbin/dhclient ]; then
-		pidfile="/var/run/dhclient.${interface}.pid"
-		/sbin/dhclient -pf ${pidfile} $interface
-	elif [ -r /usr/local/sbin/dhcpc ]; then
-		/usr/local/sbin/dhcpc $interface
+	if [ -x "${dhcp_program}" ]; then
+		if [ `basename ${dhcp_program}` = "dhclient" ]; then
+			pidfile="/var/run/dhclient.${interface}.pid"
+			dhcp_flags="${dhcp_flags} -pf ${pidfile}"
+		fi
+		${dhcp_program} ${dhcp_flags} ${interface}
 	else
-		echo 'DHCP client software not available (isc-dhcp2)'
+		echo "${dhcp_program}: DHCP client software not available"
 	fi
 }
 
@@ -49,39 +46,78 @@ shift
 startstop=$1
 shift
 
+case ${pccard_ifconfig} in
+[Nn][Oo] | '')
+	expr "${removable_interfaces}" : ".*${interface}" > /dev/null || exit 0
+	;;
+*)
+	# Backward compatible
+	eval ifconfig_${interface}=\${pccard_ifconfig}
+	;;
+esac
+
 case ${startstop} in
 [Ss][Tt][Aa][Rr][Tt] | '')
-	case ${pccard_ifconfig} in
+	if [ -r /etc/start_if.${interface} ]; then
+		. /etc/start_if.${interface}
+	fi
+
+	eval ifconfig_args=\$ifconfig_${interface}
+	case ${ifconfig_args} in
 	[Nn][Oo] | '')
 		;;
 	[Dd][Hh][Cc][Pp])
+		# Start up the DHCP client program
 		start_dhcp
 		;;
 	*)
-		ifconfig ${interface} ${pccard_ifconfig} $*
-		;;
-	esac
+		# Do the primary ifconfig if specified
+		ifconfig ${interface} ${ifconfig_args} $*
 
-	case ${defaultrouter} in
-	[Nn][Oo] | '')
-		;;
-	*)
-		static_routes="default ${static_routes}"
-		route_default="default ${defaultrouter}"
-		;;
-	esac
-
-	# Set up any static routes.
-	#
-	if [ -n "${static_routes}" ]; then
-		# flush beforehand, just in case....
-		route -n flush
-		arp -d -a
-		for i in ${static_routes}; do
-			eval route_args=\$route_${i}
-			route add ${route_args}
+		# Check to see if aliases need to be added
+		alias=0
+		while :
+		do
+			eval ifx_args=\$ifconfig_${interface}_alias${alias}
+			if [ -n "${ifx_args}" ]; then
+				ifconfig ${interface} ${ifx_args} alias
+				alias=`expr ${alias} + 1`
+			else
+				break;
+			fi
 		done
-	fi
+
+		# Do ipx address if specified
+		eval ifx_args=\$ifconfig_${interface}_ipx
+		if [ -n "${ifx_args}" ]; then
+			ifconfig ${interface} ${ifx_args}
+		fi
+
+		# Add default route into $static_routes
+		case ${defaultrouter} in
+		[Nn][Oo] | '')
+		        ;;
+		*)
+			static_routes="default ${static_routes}"
+			route_default="default ${defaultrouter}"
+			;;
+		esac
+
+		# Add private route for this interface into $static_routes
+		eval ifx_routes=\$static_routes_${interface}
+		if [ -n "${ifx_routes}" ]; then
+			static_routes="${ifx_routes} ${static_routes}"
+		fi
+
+		# Set up any static routes if specified
+		if [ -n "${static_routes}" ]; then
+			for i in ${static_routes}; do
+				eval route_args=\$route_${i}
+				route add ${route_args}
+			done
+		fi
+		;;
+	esac
 
 	# IPv6 setup
 	case ${ipv6_enable} in
@@ -101,7 +137,55 @@ case ${startstop} in
 	;;
 # Stop the interface
 *)
-	/sbin/ifconfig ${interface} delete
-	stop_dhcp
+	if [ -r /etc/stop_if.${interface} ]; then
+		. /etc/stop_if.${interface}
+	fi
+
+	eval ifconfig_args=\$ifconfig_${interface}
+	case ${ifconfig_args} in
+	[Nn][Oo] | '')
+	        ;;
+	[Dd][Hh][Cc][Pp])
+		# Stop the DHCP client for this interface
+		stop_dhcp
+		;;
+	*)
+		# Delelte static route if specified
+		eval ifx_routes=\$static_routes_${interface}
+		if [ -n "${ifx_routes}" ]; then
+			for i in ${ifx_routes}; do
+				eval route_args=\$route_${i}
+				route delete ${route_args}
+			done
+		fi
+
+		# Delete aliases if exist
+		alias=0
+		while :
+		do
+			eval ifx_args=\$ifconfig_${interface}_alias${alias}
+			if [ -n "${ifx_args}" ]; then
+				ifconfig ${interface} ${ifx_args} alias delete
+				alias=`expr ${alias} + 1`
+			else
+				break;
+			fi
+		done
+		;;
+	esac
+
+	# Remove the network interface and cleaning ARP table
+	ifconfig ${interface} delete
+	arp -d -a
+
+	# Clean the routing table
+	case ${removable_route_flush} in
+	[Nn][Oo])
+	        ;;
+	*)	
+		# flush beforehand, just in case....
+		route -n flush
+		;;
+	esac
 	;;
 esac
