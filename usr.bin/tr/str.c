@@ -151,17 +151,29 @@ typedef struct {
 } CLASS;
 
 static CLASS classes[] = {
+#undef isalnum
 	{ "alnum",  isalnum,  },
+#undef isalpha
 	{ "alpha",  isalpha,  },
+#undef isblank
 	{ "blank",  isblank,  },
+#undef iscntrl
 	{ "cntrl",  iscntrl,  },
+#undef isdigit
 	{ "digit",  isdigit,  },
+#undef isgraph
 	{ "graph",  isgraph,  },
+#undef islower
 	{ "lower",  islower,  },
+#undef isprint
 	{ "print",  isprint,  },
+#undef ispunct
 	{ "punct",  ispunct,  },
+#undef isspace
 	{ "space",  isspace,  },
+#undef isupper
 	{ "upper",  isupper,  },
+#undef isxdigit
 	{ "xdigit", isxdigit, },
 };
 
@@ -278,9 +290,6 @@ genseq(s)
 
 	s->state = s->cnt ? SEQUENCE : INFINITE;
 }
-
-/* Use the #defines isXXX() here, DON'T use them above. */
-#include <ctype.h>
 
 /*
  * Translate \??? into a character.  Up to 3 octal digits, if no digits either
