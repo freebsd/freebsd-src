@@ -106,6 +106,7 @@ extern vop_t **ffs_fifoop_p;
  * Soft update function prototypes.
  */
 void	softdep_initialize(void);
+void	softdep_uninitialize(void);
 int	softdep_mount(struct vnode *, struct mount *, struct fs *,
 	    struct ucred *);
 int	softdep_flushworklist(struct mount *, int *, struct thread *);

@@ -1132,6 +1132,19 @@ softdep_initialize()
 }
 
 /*
+ * Executed after all filesystems have been unmounted during
+ * filesystem module unload.
+ */
+void
+softdep_uninitialize()
+{
+
+	hashdestroy(pagedep_hashtbl, M_PAGEDEP, pagedep_hash);
+	hashdestroy(inodedep_hashtbl, M_INODEDEP, inodedep_hash);
+	hashdestroy(newblk_hashtbl, M_NEWBLK, newblk_hash);
+}
+
+/*
  * Called at mount time to notify the dependency code that a
  * filesystem wishes to use it.
  */
