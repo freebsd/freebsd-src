@@ -185,6 +185,10 @@ ether_encap_print(u_short ethertype, const u_char *p,
 		aarp_print(p, length);
 		return (1);
 
+	case ETHERTYPE_IPX:
+		ipx_print(p, length);
+		return (1);
+
 	case ETHERTYPE_LAT:
 	case ETHERTYPE_SCA:
 	case ETHERTYPE_MOPRC:
