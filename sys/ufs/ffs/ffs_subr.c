@@ -39,6 +39,7 @@
 #ifndef _KERNEL
 #include <ufs/ufs/dinode.h>
 #include <ufs/ffs/fs.h>
+#include "fsck.h"
 #else
 #include "opt_ddb.h"
 
