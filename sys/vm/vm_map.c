@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.138 1998/10/25 17:44:58 phk Exp $
+ * $Id: vm_map.c,v 1.139 1999/01/06 23:05:41 julian Exp $
  */
 
 /*
@@ -2193,8 +2193,12 @@ vm_map_split(entry)
 		if (m == NULL)
 			continue;
 		if (m->flags & PG_BUSY) {
-			vm_page_flag_set(m, PG_WANTED);
-			tsleep(m, PVM, "spltwt", 0);
+			int s = splvm();
+			if (m->flags & PG_BUSY) {
+				vm_page_flag_set(m, PG_WANTED);
+				tsleep(m, PVM, "spltwt", 0);
+			}
+			splx(s);
 			goto retry;
 		}
 			
