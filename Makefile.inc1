@@ -193,14 +193,14 @@ buildworld:
 	cd ${.CURDIR}; ${XMAKE} includes
 	@echo
 	@echo "--------------------------------------------------------------"
-	@echo ">>> Rebuilding dependencies"
-	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR}; ${XMAKE} par-depend
-	@echo
-	@echo "--------------------------------------------------------------"
 	@echo ">>> Building libraries"
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}; ${XMAKE} -DNOINFO -DNOMAN libraries
+	@echo
+	@echo "--------------------------------------------------------------"
+	@echo ">>> Rebuilding dependencies"
+	@echo "--------------------------------------------------------------"
+	cd ${.CURDIR}; ${XMAKE} par-depend
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Building everything.."
@@ -326,8 +326,12 @@ installmost:
 #
 # tools - Build tools needed to run the actual build.
 #
+.if exists(${.CURDIR}/games) && !defined(NOGAMES)
+_strfile=	games/fortune/strfile
+.endif
+
 tools::
-.for _tool in games/fortune/strfile gnu/usr.bin/binutils usr.bin/objformat \
+.for _tool in ${_strfile} gnu/usr.bin/binutils usr.bin/objformat \
     usr.bin/yacc gnu/usr.bin/bison gnu/usr.bin/cc
 	cd ${.CURDIR}/${_tool}; \
 		${MAKE} obj; \
