@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, [92/04/03  16:51:14  rvb]
- *	$Id: boot.c,v 1.13 1994/06/14 07:31:42 rgrimes Exp $
+ *	$Id: boot.c,v 1.14 1994/06/16 03:53:27 adam Exp $
  */
 
 
@@ -60,7 +60,7 @@ struct exec head;
 int argv[10], esym;
 char *name;
 char *names[] = {
-	"/386bsd", "/o386bsd", "/386bsd.old"
+	"/kernel"
 };
 #define NUMNAMES	(sizeof(names)/sizeof(char *))
 
@@ -71,12 +71,11 @@ int drive;
 	int loadflags, currname = 0;
 	char *t;
 		
-	printf("\n>> FreeBSD BOOT @ 0x%x: %d/%d k of memory  [%s]\n",
+	printf("\n>> FreeBSD BOOT @ 0x%x: %d/%d k of memory\n",
 		ouraddr,
 		argv[7] = memsize(0),
-		argv[8] = memsize(1),
-		"$Revision: 1.14 $");
-	printf("use hd(1,a)/386bsd to boot sd0 when wd0 is also installed\n");
+		argv[8] = memsize(1));
+	printf("use hd(1,a)/kernel to boot sd0 when wd0 is also installed\n");
 	gateA20();
 loadstart:
 	/***************************************************************\
