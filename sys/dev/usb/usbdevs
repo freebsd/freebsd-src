@@ -1016,6 +1016,7 @@ product NEC HUB			0x55aa	hub
 product NEC HUB_B		0x55ab	hub
 
 /* NEODIO products */
+product NEODIO ND3260		0x3260	8-in-1 Multi-format Flash Controller
 product NEODIO ND5010		0x5010	Multi-format Flash Controller
 
 /* NetChip Technology Products */
