@@ -19,7 +19,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: md5.c,v 1.13 1998/07/06 07:04:50 charnier Exp $";
+	"$Id: md5.c,v 1.14 1999/05/01 14:54:21 kris Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -28,6 +28,7 @@ static const char rcsid[] =
 #include <stdio.h>
 #include <time.h>
 #include <unistd.h>
+#include <string.h>
 
 #include "global.h"
 
@@ -100,7 +101,7 @@ static void
 MDString(string)
 	char   *string;
 {
-	unsigned int len = strlen(string);
+	size_t len = strlen(string);
 	char buf[33];
 
 	printf("MD5 (\"%s\") = %s\n", string, MD5Data(string, len, buf));
