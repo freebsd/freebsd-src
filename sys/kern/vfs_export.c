@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.13 (Berkeley) 4/18/94
- * $Id: vfs_subr.c,v 1.30 1995/05/21 21:38:51 davidg Exp $
+ * $Id: vfs_subr.c,v 1.31 1995/06/27 21:29:08 bde Exp $
  */
 
 /*
@@ -448,7 +448,6 @@ vinvalbuf(vp, flags, cred, p, slpflag, slptimeo)
 	register struct buf *bp;
 	struct buf *nbp, *blist;
 	int s, error;
-	vm_pager_t pager;
 	vm_object_t object;
 
 	if (flags & V_SAVE) {
@@ -511,7 +510,7 @@ vinvalbuf(vp, flags, cred, p, slpflag, slptimeo)
 	/*
 	 * Destroy the copy in the VM cache, too.
 	 */
-	object = (vm_object_t) vp->v_vmdata;
+	object = vp->v_object;
 	if (object != NULL) {
 		vm_object_lock(object);
 		vm_object_page_remove(object, 0, object->size,
@@ -1532,11 +1531,11 @@ loop:
 			goto loop;
 		if (VOP_ISLOCKED(vp) && (flags != MNT_WAIT))
 			continue;
-		if (vp->v_vmdata &&
-		   (((vm_object_t) vp->v_vmdata)->flags & OBJ_WRITEABLE)) {
+		if (vp->v_object &&
+		   (((vm_object_t) vp->v_object)->flags & OBJ_WRITEABLE)) {
 			if (vget(vp, 1))
 				goto loop;
-			_vm_object_page_clean( (vm_object_t) vp->v_vmdata,
+			_vm_object_page_clean(vp->v_object,
 					0, 0, TRUE);
 			vput(vp);
 		}

@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vnode_pager.c	7.5 (Berkeley) 4/20/91
- *	$Id: vnode_pager.c,v 1.39 1995/05/18 02:59:26 davidg Exp $
+ *	$Id: vnode_pager.c,v 1.40 1995/05/30 08:16:23 rgrimes Exp $
  */
 
 /*
@@ -141,9 +141,9 @@ vnode_pager_alloc(handle, size, prot, offset)
 	 * with vm_pager_lookup.
 	 */
 	vp = (struct vnode *) handle;
-	while ((object = (vm_object_t) vp->v_vmdata) &&
+	while ((object = vp->v_object) &&
 		(object->flags & OBJ_DEAD))
-		tsleep((caddr_t) object, PVM, "vadead", 0);
+		tsleep(object, PVM, "vadead", 0);
 
 	pager = NULL;
 	if (object != NULL)
@@ -188,7 +188,7 @@ vnode_pager_alloc(handle, size, prot, offset)
 		pager->pg_type = PG_VNODE;
 		pager->pg_ops = &vnodepagerops;
 		pager->pg_data = (caddr_t) vnp;
-		vp->v_vmdata = (caddr_t) object;
+		vp->v_object = (caddr_t) object;
 	} else {
 
 		/*
@@ -214,7 +214,7 @@ vnode_pager_dealloc(pager)
 	if (vp) {
 		int s = splbio();
 
-		object = (vm_object_t) vp->v_vmdata;
+		object = vp->v_object;
 		if (object) {
 			while (object->paging_in_progress) {
 				object->flags |= OBJ_PIPWNT;
@@ -223,7 +223,7 @@ vnode_pager_dealloc(pager)
 		}
 		splx(s);
 
-		vp->v_vmdata = NULL;
+		vp->v_object = NULL;
 		vp->v_flag &= ~(VTEXT | VVMIO);
 		vp->v_flag |= VAGE;
 		vrele(vp);
@@ -344,13 +344,13 @@ vnode_pager_setsize(vp, nsize)
 	/*
 	 * Not a mapped vnode
 	 */
-	if (vp == NULL || vp->v_type != VREG || vp->v_vmdata == NULL)
+	if (vp == NULL || vp->v_type != VREG || vp->v_object == NULL)
 		return;
 
 	/*
 	 * Hasn't changed size
 	 */
-	object = (vm_object_t) vp->v_vmdata;
+	object = vp->v_object;
 	if (object == NULL)
 		return;
 	if ((pager = object->pager) == NULL)
@@ -432,7 +432,7 @@ vnode_pager_uncache(vp)
 	/*
 	 * Not a mapped vnode
 	 */
-	object = (vm_object_t) vp->v_vmdata;
+	object = vp->v_object;
 	if (object == NULL)
 		return (TRUE);
 
@@ -580,7 +580,7 @@ vnode_pager_input_smlfs(vnp, m)
 
 			s = splbio();
 			while ((bp->b_flags & B_DONE) == 0) {
-				tsleep((caddr_t) bp, PVM, "vnsrd", 0);
+				tsleep(bp, PVM, "vnsrd", 0);
 			}
 			splx(s);
 			if ((bp->b_flags & B_ERROR) != 0)
@@ -855,7 +855,7 @@ vnode_pager_input(vnp, m, count, reqpage)
 	/* we definitely need to be at splbio here */
 
 	while ((bp->b_flags & B_DONE) == 0) {
-		tsleep((caddr_t) bp, PVM, "vnread", 0);
+		tsleep(bp, PVM, "vnread", 0);
 	}
 	splx(s);
 	if ((bp->b_flags & B_ERROR) != 0)

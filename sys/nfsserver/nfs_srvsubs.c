@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_subs.c	8.3 (Berkeley) 1/4/94
- * $Id: nfs_subs.c,v 1.16 1995/06/14 06:23:38 joerg Exp $
+ * $Id: nfs_subs.c,v 1.17 1995/06/27 11:06:47 dfr Exp $
  */
 
 /*
@@ -1896,54 +1896,50 @@ nfsrv_errmap(nd, err)
 }
 
 int
-nfsrv_vmio( struct vnode *vp) {
+nfsrv_vmio(struct vnode *vp) {
 	vm_object_t object;
 	vm_pager_t pager;
 
-	if( (vp == NULL) || (vp->v_type != VREG))
+	if ((vp == NULL) || (vp->v_type != VREG))
 		return 1;
 
 retry:
-	if( (vp->v_flag & VVMIO) == 0) {
-		pager = (vm_pager_t) vnode_pager_alloc((caddr_t) vp, 0, 0, 0);
-		object = (vm_object_t) vp->v_vmdata;
-		if( object->pager != pager)
-			panic("nfsrv_vmio: pager/object mismatch");
-		(void) vm_object_lookup( pager);
-		pager_cache( object, TRUE);
+	if ((vp->v_flag & VVMIO) == 0) {
+		if (vnode_pager_alloc(vp, 0, 0, 0) == NULL)
+			panic("nfsrv_vmio: failed to alloc pager");
 		vp->v_flag |= VVMIO;
 	} else {
-		if( (object = (vm_object_t)vp->v_vmdata) &&
+		if ((object = vp->v_object) &&
 			(object->flags & OBJ_DEAD)) {
-			tsleep( (caddr_t) object, PVM, "nfdead", 0);
+			tsleep(object, PVM, "nfdead", 0);
 			goto retry;
 		}
-		if( !object)
+		if (!object)
 			panic("nfsrv_vmio: VMIO object missing");
 		pager = object->pager;
-		if( !pager)
+		if (!pager)
 			panic("nfsrv_vmio: VMIO pager missing");
-		(void) vm_object_lookup( pager);
+		(void) vm_object_lookup(pager);
 	}
 	return 0;
 }
 int
-nfsrv_vput( struct vnode *vp) {
-	if( (vp->v_flag & VVMIO) && vp->v_vmdata) {
-		vput( vp);
-		vm_object_deallocate( (vm_object_t) vp->v_vmdata);
+nfsrv_vput(struct vnode *vp) {
+	if ((vp->v_flag & VVMIO) && vp->v_object) {
+		vput(vp);
+		vm_object_deallocate(vp->v_object);
 	} else {
-		vput( vp);
+		vput(vp);
 	}
 	return 0;
 }
 int
-nfsrv_vrele( struct vnode *vp) {
-	if( (vp->v_flag & VVMIO) && vp->v_vmdata) {
-		vrele( vp);
-		vm_object_deallocate( (vm_object_t) vp->v_vmdata);
+nfsrv_vrele(struct vnode *vp) {
+	if ((vp->v_flag & VVMIO) && vp->v_object) {
+		vrele(vp);
+		vm_object_deallocate(vp->v_object);
 	} else {
-		vrele( vp);
+		vrele(vp);
 	}
 	return 0;
 }
