@@ -187,12 +187,10 @@ tlb_itlb_store(vm_offset_t va, u_long ctx, struct tte tte)
 }
 
 static __inline void
-tlb_context_primary_demap(u_int tlb)
+tlb_context_demap(u_int context)
 {
-	if (tlb & TLB_DTLB)
-		tlb_dtlb_context_primary_demap();
-	if (tlb & TLB_ITLB)
-		tlb_itlb_context_primary_demap();
+	tlb_dtlb_context_primary_demap();
+	tlb_itlb_context_primary_demap();
 }
 
 static __inline void
@@ -214,6 +212,19 @@ tlb_page_demap(u_int tlb, u_int ctx, vm_offset_t va)
 		tlb_dtlb_page_demap(ctx, va);
 	if (tlb & TLB_ITLB)
 		tlb_itlb_page_demap(ctx, va);
+}
+
+static __inline void
+tlb_range_demap(u_int ctx, vm_offset_t start, vm_offset_t end)
+{
+	for (; start < end; start += PAGE_SIZE)
+		tlb_page_demap(TLB_DTLB | TLB_ITLB, ctx, start);
+}
+
+static __inline void
+tlb_tte_demap(struct tte tte, vm_offset_t va)
+{
+	tlb_page_demap(TD_GET_TLB(tte.tte_data), TT_GET_CTX(tte.tte_tag), va);
 }
 
 static __inline void
