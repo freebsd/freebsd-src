@@ -65,8 +65,8 @@ static int f_mode;
 int
 main(int argc, char *argv[])
 {
-	char *modestr;
-	void *modep;
+	const char *modestr = NULL;
+	const void *modep;
 	mode_t fifomode;
 	int ch, exitval;
 
