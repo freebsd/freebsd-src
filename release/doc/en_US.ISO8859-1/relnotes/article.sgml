@@ -123,11 +123,11 @@
   <sect2 id="kernel">
     <title>Kernel Changes</title>
 
-    <para>The dgb (DigiBoard intelligent serial card) driver has been
+    <para arch="i386,pc98">The dgb (DigiBoard intelligent serial card) driver has been
       removed due to breakage.  Its replacement is the digi driver,
       which supports all the hardware of the dgb driver.</para>
 
-    <para>The loran (Loran-C receiver) driver has been removed due to
+    <para arch="i386">The loran (Loran-C receiver) driver has been removed due to
       breakage and lack of maintainership.</para>
 
     <!-- Above this line, sort kernel changes by manpage/keyword-->
@@ -151,11 +151,11 @@
     <sect3 id="net-if">
       <title>Network Interface Support</title>
 
-      <para>The hea (Efficient Networks, Inc. ENI-155p ATM adapter)
+      <para arch="i386,pc98">The hea (Efficient Networks, Inc. ENI-155p ATM adapter)
 	driver has been removed due to breakage.  Its functionality
 	has been subsumed into the &man.en.4; driver.</para>
 
-      <para>The lmc (LAN Media Corp. PCI WAN adapter) driver has been
+      <para arch="i386">The lmc (LAN Media Corp. PCI WAN adapter) driver has been
 	removed due to breakage and lack of maintainership.</para>
 
     </sect3>
