@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: network.c,v 1.33 1998/11/15 09:06:20 jkh Exp $
+ * $Id: network.c,v 1.33.2.1 1999/02/05 22:20:16 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -256,6 +256,8 @@ startPPP(Device *devp)
     fprintf(fp, " set timeout 0\n");
     fprintf(fp, " enable dns\n");
     fprintf(fp, " set log local phase\n");
+    if (fchmod(fileno(fp), 0640) != 0)
+	msgConfirm("Warning: Failed to fix permissions on /etc/ppp/ppp.conf !");
     fclose(fp);
 
     if (!Fake && !file_readable("/dev/tun0") && mknod("/dev/tun0", 0600 | S_IFCHR, makedev(52, 0))) {
