@@ -255,6 +255,7 @@ pipe_zone_ctor(void *mem, int size, void *arg)
 	 */
 	pp->pp_label = NULL;
 
+	atomic_add_int(&amountpipes, 2);
 }
 
 static void
@@ -265,6 +266,8 @@ pipe_zone_dtor(void *mem, int size, void *arg)
 	KASSERT(size == sizeof(*pp), ("pipe_zone_dtor: wrong size"));
 
 	pp = (struct pipepair *)mem;
+
+	atomic_subtract_int(&amountpipes, 2);
 }
 
 static void
@@ -428,7 +431,6 @@ pipespace(cpipe, size)
 	cpipe->pipe_buffer.in = 0;
 	cpipe->pipe_buffer.out = 0;
 	cpipe->pipe_buffer.cnt = 0;
-	atomic_add_int(&amountpipes, 1);
 	atomic_add_int(&amountpipekva, cpipe->pipe_buffer.size);
 	return (0);
 }
@@ -1410,7 +1412,6 @@ pipe_free_kmem(cpipe)
 		if (cpipe->pipe_buffer.size > PIPE_SIZE)
 			atomic_subtract_int(&nbigpipe, 1);
 		atomic_subtract_int(&amountpipekva, cpipe->pipe_buffer.size);
-		atomic_subtract_int(&amountpipes, 1);
 		vm_map_remove(pipe_map,
 		    (vm_offset_t)cpipe->pipe_buffer.buffer,
 		    (vm_offset_t)cpipe->pipe_buffer.buffer + cpipe->pipe_buffer.size);
