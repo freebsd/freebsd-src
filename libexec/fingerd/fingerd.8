@@ -56,7 +56,9 @@ protocol consists mostly of specifying a single
 .Dq command line .
 .Pp
 .Nm Fingerd
-listens for
+is started by
+.Xr inetd 8 ,
+which listens for
 .Tn TCP
 requests at port 79.
 Once connected it reads a single command line
@@ -116,7 +118,8 @@ to have more control over what information is
 provided to remote sites.
 .El
 .Sh SEE ALSO
-.Xr finger 1
+.Xr finger 1 ,
+.Xr inetd 8
 .Sh BUGS
 Connecting directly to the server from a
 .Tn TIP
