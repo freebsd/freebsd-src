@@ -45,7 +45,7 @@ static char sccsid[] = "@(#)kvm_hp300.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
 
 /*
- * i386 machine dependent routines for kvm.  Hopefully, the forthcoming
+ * AMD64 machine dependent routines for kvm.  Hopefully, the forthcoming
  * vm code will one day obsolete this module.
  */
 
@@ -66,8 +66,8 @@ static char sccsid[] = "@(#)kvm_hp300.c	8.1 (Berkeley) 6/4/93";
 #include "kvm_private.h"
 
 #ifndef btop
-#define	btop(x)		(i386_btop(x))
-#define	ptob(x)		(i386_ptob(x))
+#define	btop(x)		(amd64_btop(x))
+#define	ptob(x)		(amd64_ptob(x))
 #endif
 
 struct vmstate {
