@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.82 1995/08/18 11:26:35 jkh Exp $
+ *	$Id: wd.c,v 1.83 1995/09/06 05:06:18 dyson Exp $
  */
 
 /* TODO:
@@ -56,7 +56,12 @@
  */
 
 #include "wd.h"
-#if	NWDC > 0
+#ifdef  NWDC
+#undef  NWDC
+#endif
+
+#include "wdc.h"
+#if     NWDC > 0
 
 #include <sys/param.h>
 #include <sys/dkbad.h>
