@@ -63,6 +63,7 @@ ida	i386
 iir	i386,amd64
 ips	i386,amd64
 ixgb	i386,amd64
+lge	i386,pc98,amd64
 mlx	i386,alpha,amd64
 mly	i386,amd64
 my	i386,pc98
@@ -83,5 +84,6 @@ udav	i386,pc98,amd64
 umodem	i386,pc98,amd64
 uscanner	i386,pc98,amd64
 vr	i386,pc98,alpha,amd64
+vx	i386,pc98,amd64
 xe	i386,amd64
 xl	i386,pc98,alpha,sparc64,amd64
