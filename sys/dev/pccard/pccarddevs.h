@@ -4,7 +4,7 @@
  * THIS FILE AUTOMATICALLY GENERATED.  DO NOT EDIT.
  *
  * generated from:
- *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.22 2001/11/19 05:22:28 imp Exp 
+ *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.23 2001/11/19 06:27:33 imp Exp 
  */
 /* $NetBSD: pcmciadevs,v 1.146 2001/11/18 04:25:43 mrg Exp $ */
 /* $OpenBSD: pcmciadevs,v 1.71 2001/10/28 19:21:37 mickey Exp $ */
@@ -632,6 +632,7 @@
 #define	PCMCIA_VENDOR_SYNERGY21	-1	/* Synergy 21 */
 #define	PCMCIA_VENDOR_TEAC	-1	/* TEAC */
 #define	PCMCIA_VENDOR_YEDATA	-1	/* Y-E DATA */
+#define	PCMCIA_VENDOR_ZOOM	-1	/* ZOOM */
 
 #define	PCMCIA_CIS_ACCTON_EN2212	{ "ACCTON", "EN2212", NULL, NULL }
 #define	PCMCIA_PRODUCT_ACCTON_EN2212	-1
