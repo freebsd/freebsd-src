@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp_machdep.c,v 1.101 1999/05/12 21:38:43 luoqi Exp $
+ *	$Id: mp_machdep.c,v 1.102 1999/06/01 18:19:42 jlemon Exp $
  */
 
 #include "opt_smp.h"
@@ -1056,8 +1056,6 @@ fix_mp_table(void)
 		for (x = 0; x < mp_nbusses; ++x) {
 			if (bus_data[x].bus_type != PCI)
 				continue;
-			if (bus_data[x].bus_id >= num_pci_bus)
-				panic("bad PCI bus numbering");
 		}
 	}
 }
