@@ -324,18 +324,10 @@ again:
     if ( reason & 1 ) { /* possibly a write interrupt */
 	if ( d->dbuf_out.dl )
 	    dsp_wrintr(d);
-	else {
-	    if (PLAIN_SB16(d->bd_flags))
-	       printf("WARNING: wrintr but write DMA inactive!\n");
-	}
     }
     if ( reason & 2 ) {
 	if ( d->dbuf_in.dl )
 	    dsp_rdintr(d);
-	else {
-	    if (PLAIN_SB16(d->bd_flags))
-	       printf("WARNING: rdintr but read DMA inactive!\n");
-	}
     }
     if ( c & 2 )
 	inb(DSP_DATA_AVL16); /* 16-bit int ack */
