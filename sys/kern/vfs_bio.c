@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.55 1995/07/25 05:41:57 davidg Exp $
+ * $Id: vfs_bio.c,v 1.56 1995/07/29 11:40:18 bde Exp $
  */
 
 /*
@@ -837,13 +837,7 @@ loop:
 		 * check for size inconsistancies
 		 */
 		if (bp->b_bcount != size) {
-			if (bp->b_flags & B_VMIO) {
-				allocbuf(bp, size);
-			} else {
-				bp->b_flags |= B_NOCACHE;
-				VOP_BWRITE(bp);
-				goto loop;
-			}
+			allocbuf(bp, size);
 		}
 		splx(s);
 		return (bp);
