@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.2 (Berkeley) 1/4/94
-#	$Id: Makefile,v 1.24 1995/03/26 10:12:51 jkh Exp $
+#	$Id: Makefile,v 1.25 1995/03/30 12:47:55 jkh Exp $
 #
 # Doing a make install builds /usr/include
 #
@@ -41,7 +41,8 @@ SHARED?=	symlinks
 OSREL	= ${DESTDIR}/usr/include/osreldate.h
 beforeinstall: ${SHARED}
 	@${ECHO} installing ${FILES}
-	@-for i in ${FILES}; do \
+	@cd ${.CURDIR}; \
+	for i in ${FILES}; do \
 		cmp -s $$i ${DESTDIR}/usr/include/$$i || \
 		    install -c -o ${BINOWN} -g ${BINGRP} -m 444 $$i \
 		    ${DESTDIR}/usr/include/$$i; \
@@ -71,7 +72,7 @@ beforeinstall: ${SHARED}
 		fi; \
 		chown ${BINOWN}.${BINGRP} ${DESTDIR}/usr/include/$$i; \
 		chmod 755 ${DESTDIR}/usr/include/$$i; \
-		(cd $$i; for j in *.[ih]; do \
+		(cd ${.CURDIR}/$$i; for j in *.[ih]; do \
 			cmp -s $$j ${DESTDIR}/usr/include/$$i/$$j || \
 			    install -c -o ${BINOWN} -g ${BINGRP} -m 444 $$j \
 			    ${DESTDIR}/usr/include/$$i/$$j; \
@@ -97,7 +98,7 @@ copies:
 	@-for i in ${LDIRS} ${UDIRS}; do				\
 		${ECHO} ${SHARED} $$i;					\
 		rm -rf ${DESTDIR}/usr/include/$$i;			\
-		cd ../sys;						\
+		cd ${.CURDIR}/../sys;					\
 		tar cf - $$i/*.h |					\
 			(cd ${DESTDIR}/usr/include; tar xpfB -);	\
 		chown -R ${BINOWN}.${BINGRP} ${DESTDIR}/usr/include/$$i;\
@@ -106,7 +107,7 @@ copies:
 	done
 	rm -rf ${DESTDIR}/usr/include/machine
 	mkdir ${DESTDIR}/usr/include/machine
-	cd ../sys/${MACHINE}/include && \
+	cd ${.CURDIR}/../sys/${MACHINE}/include && \
 	    tar cf - *.h | (cd ${DESTDIR}/usr/include/machine; tar xpfB -);
 	chown -R ${BINOWN}.${BINGRP} ${DESTDIR}/usr/include/machine;
 	chmod -R 444 ${DESTDIR}/usr/include/machine;
