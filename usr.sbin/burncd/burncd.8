@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 6, 2000
+.Dd December 4, 2001
 .Os
 .Dt BURNCD 8
 .Sh NAME
@@ -35,7 +35,7 @@
 .Nd control the ATAPI CD-R/RW driver
 .Sh SYNOPSIS
 .Nm
-.Op Fl delmpqtv
+.Op Fl delmnpqtv
 .Op Fl f Ar device
 .Op Fl s Ar speed
 .Op Ar command
@@ -59,7 +59,7 @@ read a list of image files from filename.
 .It Fl m
 close disk in multisession mode (otherwise disk is closed as singlesession).
 .It Fl n
-dont write gaps between data tracks in DAO mode.
+do not write gaps between data tracks in DAO mode.
 .It Fl p
 use preemphasis on audio tracks.
 .It Fl q
@@ -121,8 +121,14 @@ files on the command line.
 Set the write mode to produce data (XAmode2) tracks for the following image
 files on the command line.
 .It Cm vcd
-Set the write mode to produce VCD/SVCD tracks for the following image files 
-on the command line. This automagically sets DAO and nogap mode.
+Set the write mode to produce VCD/SVCD tracks for the following image files
+on the command line.
+This automatically sets DAO
+.Pq Fl d
+and
+.Dq "no gaps"
+.Pq Fl n
+modes.
 .It Ar file
 All other arguments are treated as filenames of images to write to the media,
 or in case the
