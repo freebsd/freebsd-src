@@ -395,20 +395,15 @@ init_ctrl(struct softc *sc)
 	else
 		sc->ram->grcd |= 0x00000000;	/* !OOFABT */
 
-#if 0
-	sc->ram->grcd |= 0x00000010;	/* MSKOOF */
-#endif
 	sc->ram->grcd |= 0x00000020;	/* MSKCOFA */
 
 	sc->ram->grcd |= 0x00000400;	/* POLLTH=1 */
-#if 0
-	sc->ram->grcd |= 0x00008000;	/* SFALIGN */
-#endif
 
 	sc->ram->mpd = 0;		/* Memory Protection NI [5-18] */
 
 	sc->ram->pcd =  0x0000001;	/* PORTMD=1 (E1/32ts) */
-	sc->ram->pcd |= 0x0000000;	/* XXX */
+	sc->ram->pcd |= 1 << 5;		/* TSYNC_EDGE */
+	sc->ram->pcd |= 1 << 9;		/* TRITX */
 
 	/* Message length descriptor */
 	/* XXX: MTU */
@@ -505,7 +500,7 @@ init_8370(struct softc *sc)
 	if (sc->clocksource == INT) 
 		p[0x002] = 0x40; /* JAT_CR - XXX */
 	else
-		p[0x002] = 0x00; /* JAT_CR - XXX */
+		p[0x002] = 0x20; /* JAT_CR - XXX */
         p[0x00D] = 0x01; /* IER6 - ONESEC */
         p[0x014] = 0x00; /* LOOP - */
         p[0x015] = 0x00; /* DL3_TS - */
@@ -516,7 +511,7 @@ init_8370(struct softc *sc)
 	if (sc->clocksource == INT)
 		p[0x01A] = 0x37; /* CMUX - RSBCKI(RSBCKI), TSBCKI(CLADO), CLADO(RCKO), TCKI(CLADO) */
 	else
-		p[0x01A] = 0x15; /* CMUX - RSBCKI(RSBCKI), TSBCKI(RSBCKI), CLADO(RCKO), TCKI(RCKO) */
+		p[0x01A] = 0x37; /* CMUX - RSBCKI(RSBCKI), TSBCKI(RSBCKI), CLADO(RCKO), TCKI(RCKO) */
 
         /* I.431/G.775 */
         p[0x020] = 0x41; /* LIU_CR - SQUELCH */
@@ -613,13 +608,13 @@ musycc_intr0_tx_eom(struct softc *sc, int ch)
 		status = md->status;
 		if (status & 0x80000000)
 			break;		/* Not our mdesc, done */
+		md->data = 0;
 		m = md->m;
-		if (m) {
+		if (m != NULL) {
 			sch->tx_pending -= m->m_pkthdr.len;
 			m_freem(m);
+			md->m = NULL;
 		}
-		md->m = NULL;
-		md->data = 0;
 		md->status = 0;
 		if (++sch->tx_last_md >= sch->nmd)
 			sch->tx_last_md = 0;
@@ -1077,6 +1072,10 @@ musycc_rcvdata(hook_p hook, struct mbuf *m, meta_p meta, struct mbuf **ret_m, me
 	while (len) {
 		if (m->m_len > 0) {	/* XXX: needed ? */
 			md = &sc->mdt[ch][sch->tx_next_md];
+			if ((md->status & 0x80000000) != 0x00000000) {
+				printf("Out of tx md\n");
+				break;
+			}
 
 			if (++sch->tx_next_md >= sch->nmd)
 				sch->tx_next_md = 0;
@@ -1089,13 +1088,13 @@ musycc_rcvdata(hook_p hook, struct mbuf *m, meta_p meta, struct mbuf **ret_m, me
 			} else {
 				u |= 1 << 29;	/* EOM */
 				md->m = m2;
+				sch->tx_pending += m2->m_pkthdr.len;
 			}	
 			u |= m->m_len;
 			md->status = u;
 		}
 		m = m->m_next;
 	}
-	sch->tx_pending += m2->m_pkthdr.len;
 	return (0);
 }
 
