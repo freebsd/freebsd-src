@@ -92,51 +92,64 @@ acpi_user_find_mapping(vm_offset_t pa, size_t size)
 	return (map);
 }
 
+static struct ACPIrsdp *
+acpi_get_rsdp(u_long addr)
+{
+	struct ACPIrsdp rsdp;
+	size_t		len;
+
+	pread(acpi_mem_fd, &rsdp, 8, addr);
+	if (memcmp(rsdp.signature, "RSD PTR ", 8))
+		return (NULL);
+	/* Read the entire table. */
+	len = sizeof(rsdp);
+	pread(acpi_mem_fd, &rsdp, len, addr);
+	if (acpi_checksum(&rsdp, len))
+		return (NULL);
+	if (rsdp.revision > 0)
+		len = rsdp.length;
+	return (acpi_map_physical(addr, len));
+}
+
 /*
  * Public interfaces
  */
 struct ACPIrsdp *
 acpi_find_rsd_ptr(void)
 {
-	struct ACPIrsdp rsdp;
+	struct ACPIrsdp *rsdp;
 	u_long		addr;
 	size_t		len;
 
 	acpi_user_init();
 
-	/* Attempt to use sysctl to find RSD PTR record */
+	/* Attempt to use sysctl to find RSD PTR record. */
 	len = sizeof(addr);
-	if (sysctlbyname(machdep_acpi_root, &addr, &len, NULL, 0) == 0) {
-		pread(acpi_mem_fd, &rsdp, sizeof(rsdp), addr);
-		if (memcmp(rsdp.signature, "RSD PTR ", 8) != 0)
-			errx(1, "sysctl %s does not point to RSDP",
-			     machdep_acpi_root);
-		len = 20;			/* size of ACPI 1.0 table */
-		if (acpi_checksum(&rsdp, len))
-			warnx("RSDP has invalid checksum");
-		if (rsdp.revision > 0)
-			len = rsdp.length;
-		return (acpi_map_physical(addr, len));
+	if (sysctlbyname(machdep_acpi_root, &addr, &len, NULL, 0) == 0) {	
+		if ((rsdp = acpi_get_rsdp(addr)) != NULL)
+			return (rsdp);
+		else
+			warnx("sysctl %s does not point to RSDP",
+			    machdep_acpi_root);
 	}
 
-#if !defined(__ia64__) && !defined(__amd64__)
-	/* On ia32, scan physical memory for RSD PTR if above failed */
-	for (addr = 0UL; addr < 1024UL * 1024UL; addr += 16UL) {
-		pread(acpi_mem_fd, &rsdp, 8, addr);
-		if (memcmp(rsdp.signature, "RSD PTR ", 8))
-			continue;
-		/* Read the entire table. */
-		pread(acpi_mem_fd, &rsdp, sizeof(rsdp), addr);
-		len = 20;			/* size of ACPI 1.0 table */
-		if (acpi_checksum(&rsdp, len))
-			continue;
-		if (rsdp.revision > 0)
-			len = rsdp.length;
-		return (acpi_map_physical(addr, len));
-	}
+#if defined(__i386__)
+	/*
+	 * On ia32, scan physical memory for the RSD PTR if above failed.
+	 * According to section 5.2.2 of the ACPI spec, we only consider
+	 * two regions for the base address:
+	 * 1. EBDA (0x0 - 0x3FF)
+	 * 2. High memory (0xE0000 - 0xFFFFF)
+	 */
+	for (addr = RSDP_EBDA_START; addr < RSDP_EBDA_END; addr += 16)
+		if ((rsdp = acpi_get_rsdp(addr)) != NULL)
+			return (rsdp);
+	for (addr = RSDP_HI_START; addr < RSDP_HI_END; addr += 16)
+		if ((rsdp = acpi_get_rsdp(addr)) != NULL)
+			return (rsdp);
 #endif
 
-	return (0);
+	return (NULL);
 }
 
 void *
