@@ -147,9 +147,9 @@ static PptpCallId AliasVerifyPptp(struct ip *, u_int16_t *);
 void
 AliasHandlePptpOut(struct libalias *la,
     struct ip *pip,		/* IP packet to examine/patch */
-    struct alias_link *link)
+    struct alias_link *lnk)
 {				/* The PPTP control link */
-	struct alias_link *pptp_link;
+	struct alias_link *pptp_lnk;
 	PptpCallId cptr;
 	PptpCode codes;
 	u_int16_t ctl_type;	/* control message type */
@@ -169,8 +169,8 @@ AliasHandlePptpOut(struct libalias *la,
 		 * Establish PPTP link for address and Call ID found in
 		 * control message.
 		 */
-		pptp_link = AddPptp(la, GetOriginalAddress(link), GetDestAddress(link),
-		    GetAliasAddress(link), cptr->cid1);
+		pptp_lnk = AddPptp(la, GetOriginalAddress(lnk), GetDestAddress(lnk),
+		    GetAliasAddress(lnk), cptr->cid1);
 		break;
 	case PPTP_CallClearRequest:
 	case PPTP_CallDiscNotify:
@@ -178,19 +178,19 @@ AliasHandlePptpOut(struct libalias *la,
 		 * Find PPTP link for address and Call ID found in control
 		 * message.
 		 */
-		pptp_link = FindPptpOutByCallId(la, GetOriginalAddress(link),
-		    GetDestAddress(link),
+		pptp_lnk = FindPptpOutByCallId(la, GetOriginalAddress(lnk),
+		    GetDestAddress(lnk),
 		    cptr->cid1);
 		break;
 	default:
 		return;
 	}
 
-	if (pptp_link != NULL) {
+	if (pptp_lnk != NULL) {
 		int accumulate = cptr->cid1;
 
 		/* alias the Call Id */
-		cptr->cid1 = GetAliasPort(pptp_link);
+		cptr->cid1 = GetAliasPort(pptp_lnk);
 
 		/* Compute TCP checksum for revised packet */
 		tc = (struct tcphdr *)((char *)pip + (pip->ip_hl << 2));
@@ -203,14 +203,14 @@ AliasHandlePptpOut(struct libalias *la,
 			codes = (PptpCode) (cptr + 1);
 			if (codes->resCode == 1)	/* Connection
 							 * established, */
-				SetDestCallId(pptp_link,	/* note the Peer's Call
+				SetDestCallId(pptp_lnk,	/* note the Peer's Call
 								 * ID. */
 				    cptr->cid2);
 			else
-				SetExpire(pptp_link, 0);	/* Connection refused. */
+				SetExpire(pptp_lnk, 0);	/* Connection refused. */
 			break;
 		case PPTP_CallDiscNotify:	/* Connection closed. */
-			SetExpire(pptp_link, 0);
+			SetExpire(pptp_lnk, 0);
 			break;
 		}
 	}
@@ -219,9 +219,9 @@ AliasHandlePptpOut(struct libalias *la,
 void
 AliasHandlePptpIn(struct libalias *la,
     struct ip *pip,		/* IP packet to examine/patch */
-    struct alias_link *link)
+    struct alias_link *lnk)
 {				/* The PPTP control link */
-	struct alias_link *pptp_link;
+	struct alias_link *pptp_lnk;
 	PptpCallId cptr;
 	u_int16_t *pcall_id;
 	u_int16_t ctl_type;	/* control message type */
@@ -243,26 +243,26 @@ AliasHandlePptpIn(struct libalias *la,
 		pcall_id = &cptr->cid2;
 		break;
 	case PPTP_CallDiscNotify:	/* Connection closed. */
-		pptp_link = FindPptpInByCallId(la, GetDestAddress(link),
-		    GetAliasAddress(link),
+		pptp_lnk = FindPptpInByCallId(la, GetDestAddress(lnk),
+		    GetAliasAddress(lnk),
 		    cptr->cid1);
-		if (pptp_link != NULL)
-			SetExpire(pptp_link, 0);
+		if (pptp_lnk != NULL)
+			SetExpire(pptp_lnk, 0);
 		return;
 	default:
 		return;
 	}
 
 	/* Find PPTP link for address and Call ID found in PPTP Control Msg */
-	pptp_link = FindPptpInByPeerCallId(la, GetDestAddress(link),
-	    GetAliasAddress(link),
+	pptp_lnk = FindPptpInByPeerCallId(la, GetDestAddress(lnk),
+	    GetAliasAddress(lnk),
 	    *pcall_id);
 
-	if (pptp_link != NULL) {
+	if (pptp_lnk != NULL) {
 		int accumulate = *pcall_id;
 
 		/* De-alias the Peer's Call Id. */
-		*pcall_id = GetOriginalPort(pptp_link);
+		*pcall_id = GetOriginalPort(pptp_lnk);
 
 		/* Compute TCP checksum for modified packet */
 		tc = (struct tcphdr *)((char *)pip + (pip->ip_hl << 2));
@@ -274,10 +274,10 @@ AliasHandlePptpIn(struct libalias *la,
 
 			if (codes->resCode == 1)	/* Connection
 							 * established, */
-				SetDestCallId(pptp_link,	/* note the Call ID. */
+				SetDestCallId(pptp_lnk,	/* note the Call ID. */
 				    cptr->cid1);
 			else
-				SetExpire(pptp_link, 0);	/* Connection refused. */
+				SetExpire(pptp_lnk, 0);	/* Connection refused. */
 		}
 	}
 }
@@ -296,7 +296,7 @@ AliasVerifyPptp(struct ip *pip, u_int16_t * ptype)
 	dlen = tlen - hlen;
 
 	/* Verify data length */
-	if (dlen < (sizeof(struct pptpMsgHead) + sizeof(struct pptpCallIds)))
+	if (dlen < (int)(sizeof(struct pptpMsgHead) + sizeof(struct pptpCallIds)))
 		return (NULL);
 
 	/* Move up to PPTP message header */
@@ -312,8 +312,8 @@ AliasVerifyPptp(struct ip *pip, u_int16_t * ptype)
 
 	/* Verify data length. */
 	if ((*ptype == PPTP_OutCallReply || *ptype == PPTP_InCallReply) &&
-	    (dlen < sizeof(struct pptpMsgHead) + sizeof(struct pptpCallIds) +
-	    sizeof(struct pptpCodes)))
+	    (dlen < (int)(sizeof(struct pptpMsgHead) + sizeof(struct pptpCallIds) +
+		sizeof(struct pptpCodes))))
 		return (NULL);
 	else
 		return (PptpCallId) (hptr + 1);
@@ -324,7 +324,7 @@ int
 AliasHandlePptpGreOut(struct libalias *la, struct ip *pip)
 {
 	GreHdr *gr;
-	struct alias_link *link;
+	struct alias_link *lnk;
 
 	gr = (GreHdr *) ((char *)pip + (pip->ip_hl << 2));
 
@@ -332,9 +332,9 @@ AliasHandlePptpGreOut(struct libalias *la, struct ip *pip)
 	if ((ntohl(*((u_int32_t *) gr)) & PPTP_INIT_MASK) != PPTP_INIT_VALUE)
 		return (-1);
 
-	link = FindPptpOutByPeerCallId(la, pip->ip_src, pip->ip_dst, gr->gh_call_id);
-	if (link != NULL) {
-		struct in_addr alias_addr = GetAliasAddress(link);
+	lnk = FindPptpOutByPeerCallId(la, pip->ip_src, pip->ip_dst, gr->gh_call_id);
+	if (lnk != NULL) {
+		struct in_addr alias_addr = GetAliasAddress(lnk);
 
 		/* Change source IP address. */
 		DifferentialChecksum(&pip->ip_sum,
@@ -349,7 +349,7 @@ int
 AliasHandlePptpGreIn(struct libalias *la, struct ip *pip)
 {
 	GreHdr *gr;
-	struct alias_link *link;
+	struct alias_link *lnk;
 
 	gr = (GreHdr *) ((char *)pip + (pip->ip_hl << 2));
 
@@ -357,12 +357,12 @@ AliasHandlePptpGreIn(struct libalias *la, struct ip *pip)
 	if ((ntohl(*((u_int32_t *) gr)) & PPTP_INIT_MASK) != PPTP_INIT_VALUE)
 		return (-1);
 
-	link = FindPptpInByPeerCallId(la, pip->ip_src, pip->ip_dst, gr->gh_call_id);
-	if (link != NULL) {
-		struct in_addr src_addr = GetOriginalAddress(link);
+	lnk = FindPptpInByPeerCallId(la, pip->ip_src, pip->ip_dst, gr->gh_call_id);
+	if (lnk != NULL) {
+		struct in_addr src_addr = GetOriginalAddress(lnk);
 
 		/* De-alias the Peer's Call Id. */
-		gr->gh_call_id = GetOriginalPort(link);
+		gr->gh_call_id = GetOriginalPort(lnk);
 
 		/* Restore original IP address. */
 		DifferentialChecksum(&pip->ip_sum,

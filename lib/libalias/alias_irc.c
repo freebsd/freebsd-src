@@ -67,7 +67,7 @@ __FBSDID("$FreeBSD$");
 void
 AliasHandleIrcOut(struct libalias *la,
     struct ip *pip,		/* IP packet to examine */
-    struct alias_link *link,	/* Which link are we on? */
+    struct alias_link *lnk,	/* Which link are we on? */
     int maxsize			/* Maximum size of IP packet including
 				 * headers */
 )
@@ -89,7 +89,7 @@ AliasHandleIrcOut(struct libalias *la,
 	 * Return if data length is too short - assume an entire PRIVMSG in
 	 * each packet.
 	 */
-	if (dlen < sizeof(":A!a@n.n PRIVMSG A :aDCC 1 1a") - 1)
+	if (dlen < (int)sizeof(":A!a@n.n PRIVMSG A :aDCC 1 1a") - 1)
 		return;
 
 /* Place string pointer at beginning of data */
@@ -109,9 +109,9 @@ lFOUND_CTCP:
 	{
 		char newpacket[65536];	/* Estimate of maximum packet size
 					 * :) */
-		int copyat = i;	/* Same */
-		int iCopy = 0;	/* How much data have we written to
-				 * copy-back string? */
+		unsigned int copyat = i;	/* Same */
+		unsigned int iCopy = 0;	/* How much data have we written to
+					 * copy-back string? */
 		unsigned long org_addr;	/* Original IP address */
 		unsigned short org_port;	/* Original source port
 						 * address */
@@ -249,7 +249,7 @@ lCTCP_START:
 
 		/* We've got the address and port - now alias it */
 		{
-			struct alias_link *dcc_link;
+			struct alias_link *dcc_lnk;
 			struct in_addr destaddr;
 
 
@@ -268,11 +268,11 @@ lCTCP_START:
 			 * matter, and this would probably allow it through
 			 * at least _some_ firewalls.
 			 */
-			dcc_link = FindUdpTcpOut(la, true_addr, destaddr,
+			dcc_lnk = FindUdpTcpOut(la, true_addr, destaddr,
 			    true_port, 0,
 			    IPPROTO_TCP, 1);
 			DBprintf(("Got a DCC link\n"));
-			if (dcc_link) {
+			if (dcc_lnk) {
 				struct in_addr alias_address;	/* Address from aliasing */
 				u_short alias_port;	/* Port given by
 							 * aliasing */
@@ -280,10 +280,10 @@ lCTCP_START:
 
 #ifndef NO_FW_PUNCH
 				/* Generate firewall hole as appropriate */
-				PunchFWHole(dcc_link);
+				PunchFWHole(dcc_lnk);
 #endif
 
-				alias_address = GetAliasAddress(link);
+				alias_address = GetAliasAddress(lnk);
 				n = snprintf(&newpacket[iCopy],
 				    sizeof(newpacket) - iCopy,
 				    "%lu ", (u_long) htonl(alias_address.s_addr));
@@ -296,7 +296,7 @@ lCTCP_START:
 					DBprintf(("DCC constructed packet overflow.\n"));
 					goto lBAD_CTCP;
 				}
-				alias_port = GetAliasPort(dcc_link);
+				alias_port = GetAliasPort(dcc_lnk);
 				n = snprintf(&newpacket[iCopy],
 				    sizeof(newpacket) - iCopy,
 				    "%u", htons(alias_port));
@@ -342,9 +342,9 @@ lPACKET_DONE:
 		{
 			int delta;
 
-			SetAckModified(link);
-			delta = GetDeltaSeqOut(pip, link);
-			AddSeq(pip, link, delta + copyat + iCopy - dlen);
+			SetAckModified(lnk);
+			delta = GetDeltaSeqOut(pip, lnk);
+			AddSeq(pip, lnk, delta + copyat + iCopy - dlen);
 		}
 
 		/* Revise IP header */

@@ -274,7 +274,7 @@ RuleNumberDelete(struct libalias *la, int rule_index)
 }
 
 static void
-ProxyEncodeTcpStream(struct alias_link *link,
+ProxyEncodeTcpStream(struct alias_link *lnk,
     struct ip *pip,
     int maxpacketsize)
 {
@@ -287,12 +287,12 @@ ProxyEncodeTcpStream(struct alias_link *link,
 
 /* Don't modify if once already modified */
 
-	if (GetAckModified(link))
+	if (GetAckModified(lnk))
 		return;
 
 /* Translate destination address and port to string form */
 	snprintf(buffer, sizeof(buffer) - 2, "[DEST %s %d]",
-	    inet_ntoa(GetProxyAddress(link)), (u_int) ntohs(GetProxyPort(link)));
+	    inet_ntoa(GetProxyAddress(lnk)), (u_int) ntohs(GetProxyPort(lnk)));
 
 /* Pad string out to a multiple of two in length */
 	slen = strlen(buffer);
@@ -307,7 +307,7 @@ ProxyEncodeTcpStream(struct alias_link *link,
 	}
 
 /* Check for packet overflow */
-	if ((ntohs(pip->ip_len) + strlen(buffer)) > maxpacketsize)
+	if ((int)(ntohs(pip->ip_len) + strlen(buffer)) > maxpacketsize)
 		return;
 
 /* Shift existing TCP data and insert destination string */
@@ -335,9 +335,9 @@ ProxyEncodeTcpStream(struct alias_link *link,
 	{
 		int delta;
 
-		SetAckModified(link);
-		delta = GetDeltaSeqOut(pip, link);
-		AddSeq(pip, link, delta + slen);
+		SetAckModified(lnk);
+		delta = GetDeltaSeqOut(pip, lnk);
+		AddSeq(pip, lnk, delta + slen);
 	}
 
 /* Update IP header packet length and checksum */
@@ -371,6 +371,8 @@ ProxyEncodeIpHeader(struct ip *pip,
 	fprintf(stdout, " ip cksum 1 = %x\n", (u_int) IpChecksum(pip));
 	fprintf(stdout, "tcp cksum 1 = %x\n", (u_int) TcpChecksum(pip));
 #endif
+
+	(void)maxpacketsize;
 
 /* Check to see that there is room to add an IP option */
 	if (pip->ip_hl > (0x0f - OPTION_LEN_INT32))
@@ -481,18 +483,21 @@ ProxyCheck(struct libalias *la, struct ip *pip,
 }
 
 void
-ProxyModify(struct libalias *la, struct alias_link *link,
+ProxyModify(struct libalias *la, struct alias_link *lnk,
     struct ip *pip,
     int maxpacketsize,
     int proxy_type)
 {
+
+	(void)la;
+
 	switch (proxy_type) {
 		case PROXY_TYPE_ENCODE_IPHDR:
 		ProxyEncodeIpHeader(pip, maxpacketsize);
 		break;
 
 	case PROXY_TYPE_ENCODE_TCPSTREAM:
-		ProxyEncodeTcpStream(link, pip, maxpacketsize);
+		ProxyEncodeTcpStream(lnk, pip, maxpacketsize);
 		break;
 	}
 }
@@ -549,7 +554,7 @@ LibAliasProxyRule(struct libalias *la, const char *cmd)
 /* Copy command line into a buffer */
 	cmd += strspn(cmd, " \t");
 	cmd_len = strlen(cmd);
-	if (cmd_len > (sizeof(buffer) - 1))
+	if (cmd_len > (int)(sizeof(buffer) - 1))
 		return (-1);
 	strcpy(buffer, cmd);
 
