@@ -49,6 +49,10 @@ case "$daily_status_security_chkmounts_enable" in
 	    [Yy][Ee][Ss])
 		ignore="${ignore}|^amd:"
 	esac
+	case "$daily_status_security_nomfs" in
+	    [Yy][Ee][Ss])
+		ignore="${ignore}|^mfs:"
+	esac
 	[ -n "$ignore" ] && cmd="egrep -v ${ignore#|}" || cmd=cat
 	if mount -p | ${cmd} > ${TMP}; then
 	    if [ ! -f ${LOG}/mount.today ]; then

@@ -16,35 +16,23 @@ case "$daily_status_security_enable" in
 	echo ""
 	echo "Security check:"
 
-	case "$daily_status_security_noamd" in
-	    [Yy][Ee][Ss])
-		args=-a;;
-	    *)
-		args=;;
-	esac
-
-	case "$daily_status_security_nomfs" in
-	    [Yy][Ee][Ss])
-		args="$args -m";;
-	esac
-
 	case "$daily_status_security_inline" in
 	    [Yy][Ee][Ss])
-		sh /etc/security -s $args
-		rc=$?;;
-
+		export security_output="";;
 	    *)
-		case "${daily_status_security_output:=root}" in
+		export security_output="${daily_status_security_output}"
+		case "${daily_status_security_output}" in
+		    "")
+			;;
 		    /*)
-			echo "    (output logged separately)"
-			sh /etc/security -s $args \
-			    >$daily_status_security_output 2>&1;;
+			echo "    (output logged separately)";;
 		    *)
-			echo "    (output mailed separately)"
-			sh /etc/security $args 2>&1 |
-			    mail -s "`hostname` security check output" $daily_status_security_output;;
+			echo "    (output mailed separately)";;
 		esac;;
-	esac;;
+	esac
+
+	periodic security
+	rc=$?
 
     *)  rc=0;;
 esac

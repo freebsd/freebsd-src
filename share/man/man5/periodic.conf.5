@@ -413,22 +413,27 @@ is set to
 .Pq Vt bool
 Set to
 .Dq YES
-if you want to run
-.Pa /etc/security .
+if you want to run the security check.
+The security check is another set of
+.Xr periodic 8
+scripts.
+The system defaults are in
+.Pa /etc/periodic/security .
+Local scripts should be placed in
+.Pa /usr/local/etc/periodic/security .
+See the
+.Xr periodic 8
+manual page for more information.
 .It Va daily_status_security_inline
 .Pq Vt bool
 Set to
 .Dq YES
-if you want to run
-.Pa /etc/security
-inline.
+if you want the security check output inline.
 The default is to either mail or log the output according to the value of
 .Va daily_status_security_output .
 .It Va daily_status_security_output
 .Pq Vt str
-Where to send the output of
-.Pa /etc/security
-if
+Where to send the output of the security check if
 .Va daily_status_security_inline
 is set to
 .Dq NO .
@@ -436,13 +441,100 @@ This variable behaves in the same way as the
 .Va *_output
 variables above, namely it can be set either to one or more email addresses
 or to an absolute file name.
+.It Va daily_status_security_chksetuid_enable
+.Pq Vt bool
+Set to
+.Dq YES
+to compare the modes and modification times of setuid executables with
+the previous day's values.
+.It Va daily_status_security_chkmounts_enable
+.Pq Vt bool
+Set to
+.Dq YES
+to check for changes mounted filesystems to the previous day's values.
 .It Va daily_status_security_noamd
 .Pq Vt bool
 Set to
 .Dq YES
 if you want to ignore
 .Xr amd 8
-mounts when comparing against yesterdays filesystem mounts.
+mounts when comparing against yesterdays filesystem mounts in the
+.Va daily_status_security_chkmounts_enable
+check.
+.It Va daily_status_security_nomfs
+.Pq Vt bool
+Set to
+.Dq YES
+if you want to ignore
+.Xr mfs 8
+mounts when comparing against yesterdays filesystem mounts in the
+.Va daily_status_security_chkmounts_enable
+check.
+.It Va daily_status_security_chkuid0_enable
+.Pq Vt bool
+Set to
+.Dq YES
+to check
+.Pa /etc/master.passwd
+for accounts with uid 0.
+.It Va daily_status_security_passwdless_enable
+.Pq Vt bool
+Set to
+.Dq YES
+to check
+.Pa /etc/master.passwd
+for accounts with empty passwords.
+.It Va daily_status_security_ipfwdenied_enable
+.Pq Vt bool
+Set to
+.Dq YES
+to show log entries for packets denied by
+.Xr ipfw 8
+since yesterday's check.
+.It Va daily_status_security_ipfwlimit_enable
+.Pq Vt bool
+Set to
+.Dq YES
+to display
+.Xr ipfw 8
+rules that have reached their verbosity limit.
+.It Va daily_status_security_ip6fwdenied_enable
+.Pq Vt bool
+Set to
+.Dq YES
+to show log entries for packets denied by
+.Xr ip6fw 8
+since yesterday's check.
+.It Va daily_status_security_ip6fwlimit_enable
+.Pq Vt bool
+Set to
+.Dq YES
+to display
+.Xr ip6fw 8
+rules that have reached their verbosity limit.
+.It Va daily_status_security_kernelmsg_enable
+.Pq Vt bool
+Set to
+.Dq YES
+to show new
+.Xr dmesg 8
+entries since yesterday's check.
+.It Va daily_status_security_loginfail_enable
+.Pq Vt bool
+Set to
+.Dq YES
+to display failed logins from
+.Pa /var/log/messages
+in the previous day.
+.It Va daily_status_security_tcpwrap_enable
+.Pq Vt bool
+Set to
+.Dq YES
+to display connections denied by tcpwrappers (see
+.Xr hosts_access 5 )
+from
+.Pa /var/log/messages
+during the previous day.
 .It Va daily_status_mail_rejects_enable
 .Pq Vt bool
 Set to
@@ -601,8 +693,10 @@ is shared or distributed.
 .Xr rdist 1 ,
 .Xr rc.conf 5 ,
 .Xr ac 8 ,
+.Xr amd 8 ,
 .Xr chkgrp 8 ,
 .Xr dump 8 ,
+.Xr mfs 8 ,
 .Xr newsyslog 8 ,
 .Xr periodic 8
 .Sh HISTORY
