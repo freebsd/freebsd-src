@@ -780,7 +780,7 @@ arstrategy(struct bio *bp)
 		    (rdp->disks[buf1->drive+rdp->width].flags & AR_DF_ONLINE);
 
 		/* if mirror gone or close to last access on source */
-		if (!(mir_online) || 
+		if (!mir_online || 
 		    ((src_online) &&
 		     buf1->bp.bio_pblkno >=
 		     (rdp->disks[buf1->drive].last_lba - AR_PROXIMITY) &&
@@ -789,7 +789,7 @@ arstrategy(struct bio *bp)
 		    rdp->flags &= ~AR_F_TOGGLE;
 		} 
 		/* if source gone or close to last access on mirror */
-		else if (!src_online) ||
+		else if (!src_online ||
 		         ((mir_online) &&
 			  buf1->bp.bio_pblkno >=
 			  (rdp->disks[buf1->drive + rdp->width].last_lba -
