@@ -43,7 +43,7 @@ static char copyright[] =
 #ifndef lint
 /*static char sccsid[] = "From: @(#)mountd.c	8.8 (Berkeley) 2/20/94";*/
 static const char rcsid[] =
-	"$Id$";
+	"$Id: mountd.c,v 1.3 1994/09/22 22:16:50 wollman Exp $";
 #endif /*not lint*/
 
 #include <sys/param.h>
@@ -1555,7 +1555,8 @@ do_mount(ep, grp, exflags, anoncrp, dirp, dirplen, fsb)
 				return (1);
 			}
 			if (opt_flags & OP_ALLDIRS) {
-				syslog(LOG_ERR, "Not root dir");
+				syslog(LOG_ERR, "Could not remount %s: %m",
+					dirp);
 				return (1);
 			}
 			/* back up over the last component */
