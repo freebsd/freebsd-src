@@ -49,20 +49,19 @@ The
 driver provides support for USB printers that follow the printer
 bi- or uni-directional protocol.
 The bits in the minor number select various features of the driver.
-.Pp
 .Bl -column "Minor Bit" "Functionxxxxxxxxxxxxxxxxxxxxxxxxxxxx" -offset indent
-.It Em "Minor Bit"	Function
-.It  64	Do not initialize (reset) the device on the port.
+.Em "Minor Bit	Function"
+64	Do not initialize (reset) the device on the port.
 .El
 .Pp
 Some printers cannot handle the reset on open; in case of problems try the
-.Pa ulpn
+.Pa unlpt
 device.
 .Sh FILES
-.Bl -tag -width xxxxxxxxxx
+.Bl -tag -width ".Pa /dev/unlpt?" -compact
 .It Pa /dev/ulpt?
 device with reset
-.It Pa /dev/ulpn?
+.It Pa /dev/unlpt?
 device without reset
 .El
 .Sh SEE ALSO
