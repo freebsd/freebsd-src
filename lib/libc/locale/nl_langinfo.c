@@ -121,10 +121,10 @@ nl_langinfo(nl_item item) {
 		ret = (char*) __get_current_messages_locale()->noexpr;
 		break;
 	case YESSTR:            /* deprecated */
-		ret = "";
+		ret = (char*) __get_current_messages_locale()->yesstr;
 		break;
 	case NOSTR:             /* deprecated */
-		ret = "";
+		ret = (char*) __get_current_messages_locale()->nostr;
 		break;
 	case CRNCYSTR:          /* deprecated */
 		/* XXX: need to be implemented */
