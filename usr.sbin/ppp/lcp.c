@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.55.2.35 1998/04/03 19:24:01 brian Exp $
+ * $Id: lcp.c,v 1.55.2.36 1998/04/03 19:25:35 brian Exp $
  *
  * TODO:
  *	o Limit data field length by MRU
@@ -213,21 +213,30 @@ lcp_Setup(struct lcp *lcp, int openmode)
   lcp->fsm.maxconfig = 10;
 
   lcp->his_mru = DEF_MRU;
-  lcp->his_accmap = 0xffffffff;
   lcp->his_magic = 0;
   lcp->his_lqrperiod = 0;
-  lcp->his_protocomp = 0;
   lcp->his_acfcomp = 0;
   lcp->his_auth = 0;
 
   lcp->want_mru = lcp->cfg.mru;
-  lcp->want_accmap = lcp->cfg.accmap;
-  lcp->want_magic = GenerateMagic();
-  lcp->want_auth = Enabled(ConfChap) ? PROTO_CHAP :
-                   Enabled(ConfPap) ?  PROTO_PAP : 0;
-  lcp->want_lqrperiod = Enabled(ConfLqr) ? lcp->cfg.lqrperiod * 100 : 0;
-  lcp->want_protocomp = Enabled(ConfProtocomp) ? 1 : 0;
   lcp->want_acfcomp = Enabled(ConfAcfcomp) ? 1 : 0;
+
+  if (lcp->fsm.parent) {
+    lcp->his_accmap = 0xffffffff;
+    lcp->want_accmap = lcp->cfg.accmap;
+    lcp->his_protocomp = 0;
+    lcp->want_protocomp = Enabled(ConfProtocomp) ? 1 : 0;
+    lcp->want_magic = GenerateMagic();
+    lcp->want_auth = Enabled(ConfChap) ? PROTO_CHAP :
+                     Enabled(ConfPap) ?  PROTO_PAP : 0;
+    lcp->want_lqrperiod = Enabled(ConfLqr) ?  lcp->cfg.lqrperiod * 100 : 0;
+  } else {
+    lcp->his_accmap = lcp->want_accmap = 0;
+    lcp->his_protocomp = lcp->want_protocomp = 1;
+    lcp->want_magic = 0;
+    lcp->want_auth = 0;
+    lcp->want_lqrperiod = 0;
+  }
 
   lcp->his_reject = lcp->my_reject = 0;
   lcp->auth_iwait = lcp->auth_ineed = 0;
