@@ -1,7 +1,7 @@
 /*
  **********************************************************************
  *     emu10k1.h, derived from 8010.h
- *     Copyright 1999, 2000 Creative Labs, Inc.
+ *     Copyright 1999-2001 Creative Labs, Inc.
  *
  **********************************************************************
  *
@@ -11,6 +11,8 @@
  *     November 2, 1999     Alan Cox	    Cleaned of 8bit chars, DOS
  *					    line endings
  *     December 8, 1999     Jon Taylor	    Added lots of new register info
+ *     May 16, 2001         Daniel Bertrand Added unofficial DBG register info
+ *     Oct-Nov 2001         D.B.            Added unofficial Audigy registers 
  *
  **********************************************************************
  *
@@ -35,24 +37,20 @@
  */
 
 
-#ifndef EMU10K1_H
-#define EMU10K1_H
+#ifndef _8010_H
+#define _8010_H
 
-/* ------------------- DEFINES -------------------- */
+	/*
+#include <linux/types.h>
+	*/
 
-#define EMUPAGESIZE	4096	/* don't change */
-#define MAXREQVOICES	8
-#define MAXPAGES	(32768 * 64 / EMUPAGESIZE)	/* WAVEOUT_MAXBUFSIZE * NUM_G / EMUPAGESIZE */
-#define RESERVED	0
-#define NUM_MIDI	16
-#define NUM_G		64		/* use all channels */
-#define NUM_FXSENDS	4
+// Driver version:
+#define MAJOR_VER 0
+#define MINOR_VER 20
+#define DRIVER_VERSION "0.20a"
 
 
-#define TMEMSIZE	256*1024
-#define TMEMSIZEREG	4
-
-#define IP_TO_CP(ip) ((ip == 0) ? 0 : (((0x00001000uL | (ip & 0x00000FFFL)) << (((ip >> 12) & 0x000FL) + 4)) & 0xFFFF0000uL))
+// Audigy specify registers are prefixed with 'A_'
 
 /************************************************************************************************/
 /* PCI function 0 registers, address = <val> + PCIBASE0						*/
@@ -72,6 +70,11 @@
 #define IPR			0x08		/* Global interrupt pending register		*/
 						/* Clear pending interrupts by writing a 1 to	*/
 						/* the relevant bits and zero to the other bits	*/
+
+/* The next two interrupts are for the midi port on the Audigy Drive (A_MPU1)			*/
+#define A_IPR_MIDITRANSBUFEMPTY2	0x10000000	/* MIDI UART transmit buffer empty		*/
+#define A_IPR_MIDIRECVBUFEMPTY2	0x08000000	/* MIDI UART receive buffer empty		*/
+
 #define IPR_SAMPLERATETRACKER	0x01000000	/* Sample rate tracker lock status change	*/
 #define IPR_FXDSP		0x00800000	/* Enable FX DSP interrupts			*/
 #define IPR_FORCEINT		0x00400000	/* Force Sound Blaster interrupt		*/
@@ -96,6 +99,10 @@
 						/* IP is written with CL set, the bit in CLIPL	*/
 						/* or CLIPH corresponding to the CIN value 	*/
 						/* written will be cleared.			*/
+#define A_IPR_MIDITRANSBUFEMPTY1	IPR_MIDITRANSBUFEMPTY	/* MIDI UART transmit buffer empty		*/
+#define A_IPR_MIDIRECVBUFEMPTY1	IPR_MIDIRECVBUFEMPTY	/* MIDI UART receive buffer empty		*/
+
+
 
 #define INTE			0x0c		/* Interrupt enable register			*/
 #define INTE_VIRTUALSB_MASK	0xc0000000	/* Virtual Soundblaster I/O port capture	*/
@@ -123,6 +130,11 @@
 						/* behavior and possibly random segfaults and	*/
 						/* lockups if enabled.				*/
 
+/* The next two interrupts are for the midi port on the Audigy Drive (A_MPU1)			*/
+#define A_INTE_MIDITXENABLE2	0x00020000	/* Enable MIDI transmit-buffer-empty interrupts	*/
+#define A_INTE_MIDIRXENABLE2	0x00010000	/* Enable MIDI receive-buffer-empty interrupts	*/
+
+
 #define INTE_SAMPLERATETRACKER	0x00002000	/* Enable sample rate tracker interrupts	*/
 						/* NOTE: This bit must always be enabled       	*/
 #define INTE_FXDSPENABLE	0x00001000	/* Enable FX DSP interrupts			*/
@@ -138,6 +150,10 @@
 #define INTE_INTERVALTIMERENB	0x00000004	/* Enable interval timer interrupts		*/
 #define INTE_MIDITXENABLE	0x00000002	/* Enable MIDI transmit-buffer-empty interrupts	*/
 #define INTE_MIDIRXENABLE	0x00000001	/* Enable MIDI receive-buffer-empty interrupts	*/
+
+/* The next two interrupts are for the midi port on the Audigy (A_MPU2)	*/
+#define A_INTE_MIDITXENABLE1  	INTE_MIDITXENABLE
+#define A_INTE_MIDIRXENABLE1	INTE_MIDIRXENABLE
 
 #define WC			0x10		/* Wall Clock register				*/
 #define WC_SAMPLECOUNTER_MASK	0x03FFFFC0	/* Sample periods elapsed since reset		*/
@@ -170,7 +186,10 @@
 #define HCFG_CODECFORMAT_I2S	0x00010000	/* I2S CODEC format -- Secondary (Rear) Output	*/
 #define HCFG_GPINPUT0		0x00004000	/* External pin112				*/
 #define HCFG_GPINPUT1		0x00002000	/* External pin110				*/
+
 #define HCFG_GPOUTPUT_MASK	0x00001c00	/* External pins which may be controlled	*/
+#define HCFG_GPOUT0		0x00001000	/* set to enable digital out on 5.1 cards	*/
+
 #define HCFG_JOYENABLE      	0x00000200	/* Internal joystick enable    			*/
 #define HCFG_PHASETRACKENABLE	0x00000100	/* Phase tracking enable			*/
 						/* 1 = Force all 3 async digital inputs to use	*/
@@ -178,6 +197,7 @@
 #define HCFG_AC3ENABLE_MASK	0x0x0000e0	/* AC3 async input control - Not implemented	*/
 #define HCFG_AC3ENABLE_ZVIDEO	0x00000080	/* Channels 0 and 1 replace ZVIDEO		*/
 #define HCFG_AC3ENABLE_CDSPDIF	0x00000040	/* Channels 0 and 1 replace CDSPDIF		*/
+#define HCFG_AC3ENABLE_GPSPDIF  0x00000020      /* Channels 0 and 1 replace GPSPDIF             */
 #define HCFG_AUTOMUTE		0x00000010	/* When set, the async sample rate convertors	*/
 						/* will automatically mute their output when	*/
 						/* they are not rate-locked to the external	*/
@@ -186,6 +206,7 @@
 						/* NOTE: This should generally never be used.  	*/
 #define HCFG_LOCKTANKCACHE_MASK	0x00000004	/* 1 = Cancel bustmaster accesses to tankcache	*/
 						/* NOTE: This should generally never be used.  	*/
+#define HCFG_LOCKTANKCACHE	0x01020014
 #define HCFG_MUTEBUTTONENABLE	0x00000002	/* 1 = Master mute button sets AUDIOENABLE = 0.	*/
 						/* NOTE: This is a 'cheap' way to implement a	*/
 						/* master mute function on the mute button, and	*/
@@ -195,6 +216,8 @@
 #define HCFG_AUDIOENABLE	0x00000001	/* 0 = CODECs transmit zero-valued samples	*/
 						/* Should be set to 1 when the EMU10K1 is	*/
 						/* completely initialized.			*/
+
+//For Audigy, MPU port move to 0x70-0x74 ptr register
 
 #define MUDATA			0x18		/* MPU401 data register (8 bits)       		*/
 
@@ -207,67 +230,22 @@
 #define MUSTAT_IRDYN		0x80		/* 0 = MIDI data or command ACK			*/
 #define MUSTAT_ORDYN		0x40		/* 0 = MUDATA can accept a command or data	*/
 
-#define TIMER			0x1a		/* Timer terminal count register		*/
+#define A_IOCFG			0x18		/* GPIO on Audigy card (16bits)			*/
+#define A_GPINPUT_MASK		0xff00
+#define A_GPOUTPUT_MASK		0x00ff
+
+#define TIMER			0x1a		/* Timer terminal count register (16-bit)	*/
 						/* NOTE: After the rate is changed, a maximum	*/
 						/* of 1024 sample periods should be allowed	*/
 						/* before the new rate is guaranteed accurate.	*/
-#define TIMER_RATE_MASK		0x000003ff	/* Timer interrupt rate in sample periods	*/
+#define TIMER_RATE_MASK		0x03ff		/* Timer interrupt rate in sample periods	*/
 						/* 0 == 1024 periods, [1..4] are not useful	*/
-#define TIMER_RATE		0x0a00001a
 
 #define AC97DATA		0x1c		/* AC97 register set data register (16 bit)	*/
 
 #define AC97ADDRESS		0x1e		/* AC97 register set address register (8 bit)	*/
 #define AC97ADDRESS_READY	0x80		/* Read-only bit, reflects CODEC READY signal	*/
 #define AC97ADDRESS_ADDRESS	0x7f		/* Address of indexed AC97 register		*/
-
-/************************************************************************************************/
-/* PCI function 1 registers, address = <val> + PCIBASE1						*/
-/************************************************************************************************/
-
-#define JOYSTICK1		0x00		/* Analog joystick port register		*/
-#define JOYSTICK2		0x01		/* Analog joystick port register		*/
-#define JOYSTICK3		0x02		/* Analog joystick port register		*/
-#define JOYSTICK4		0x03		/* Analog joystick port register		*/
-#define JOYSTICK5		0x04		/* Analog joystick port register		*/
-#define JOYSTICK6		0x05		/* Analog joystick port register		*/
-#define JOYSTICK7		0x06		/* Analog joystick port register		*/
-#define JOYSTICK8		0x07		/* Analog joystick port register		*/
-
-/* When writing, any write causes JOYSTICK_COMPARATOR output enable to be pulsed on write.	*/
-/* When reading, use these bitfields: */
-#define JOYSTICK_BUTTONS	0x0f		/* Joystick button data				*/
-#define JOYSTICK_COMPARATOR	0xf0		/* Joystick comparator data			*/
-
-
-/********************************************************************************************************/
-/* AC97 pointer-offset register set, accessed through the AC97ADDRESS and AC97DATA registers		*/
-/********************************************************************************************************/
-
-#define AC97_RESET		0x00
-#define AC97_MASTERVOLUME	0x02		/* Master volume					*/
-#define AC97_HEADPHONEVOLUME	0x04		/* Headphone volume					*/
-#define AC97_MASTERVOLUMEMONO	0x06		/* Mast volume mono					*/
-#define AC97_MASTERTONE		0x08
-#define AC97_PCBEEPVOLUME	0x0a		/* PC speaker system beep volume			*/
-#define AC97_PHONEVOLUME	0x0c
-#define AC97_MICVOLUME		0x0e
-#define AC97_LINEINVOLUME	0x10
-#define AC97_CDVOLUME		0x12
-#define AC97_VIDEOVOLUME	0x14
-#define AC97_AUXVOLUME		0x16
-#define AC97_PCMOUTVOLUME	0x18
-#define AC97_RECORDSELECT	0x1a
-#define AC97_RECORDGAIN		0x1c
-#define AC97_RECORDGAINMIC	0x1e
-#define AC97_GENERALPURPOSE	0x20
-#define AC97_3DCONTROL		0x22
-#define AC97_MODEMRATE		0x24
-#define AC97_POWERDOWN		0x26
-#define AC97_VENDORID1		0x7c
-#define AC97_VENDORID2		0x7e
-#define AC97_ZVIDEOVOLUME	0xec
-#define AC97_AC3VOLUME		0xed
 
 /********************************************************************************************************/
 /* Emu10k1 pointer-offset register set, accessed through the PTR and DATA registers			*/
@@ -444,6 +422,8 @@
 #define TREMFRQ 		0x1c		/* Tremolo amount and modulation LFO frequency register	*/
 #define TREMFRQ_DEPTH		0x0000ff00	/* Tremolo depth					*/
 						/* Signed 2's complement, with +/- 12dB extremes	*/
+#define TREMFRQ_FREQUENCY	0x000000ff	/* Tremolo LFO frequency				*/
+						/* ??Hz steps, maximum of ?? Hz.			*/
 
 #define FM2FRQ2 		0x1d		/* Vibrato amount and vibrato LFO frequency register	*/
 #define FM2FRQ2_DEPTH		0x0000ff00	/* Vibrato LFO vibrato depth				*/
@@ -484,7 +464,12 @@
 #define ADCCR_LCHANENABLE	0x00000008	/* Enables left channel for writing to the host		*/
 						/* NOTE: To guarantee phase coherency, both channels	*/
 						/* must be disabled prior to enabling both channels.	*/
+#define A_ADCCR_RCHANENABLE	0x00000020
+#define A_ADCCR_LCHANENABLE	0x00000010
+
+#define A_ADCCR_SAMPLERATE_MASK 0x0000000F      /* Audigy sample rate convertor output rate		*/
 #define ADCCR_SAMPLERATE_MASK	0x00000007	/* Sample rate convertor output rate			*/
+
 #define ADCCR_SAMPLERATE_48	0x00000000	/* 48kHz sample rate					*/
 #define ADCCR_SAMPLERATE_44	0x00000001	/* 44.1kHz sample rate					*/
 #define ADCCR_SAMPLERATE_32	0x00000002	/* 32kHz sample rate					*/
@@ -494,10 +479,16 @@
 #define ADCCR_SAMPLERATE_11	0x00000006	/* 11.025kHz sample rate				*/
 #define ADCCR_SAMPLERATE_8	0x00000007	/* 8kHz sample rate					*/
 
+#define A_ADCCR_SAMPLERATE_12	0x00000006	/* 12kHz sample rate					*/
+#define A_ADCCR_SAMPLERATE_11	0x00000007	/* 11.025kHz sample rate				*/
+#define A_ADCCR_SAMPLERATE_8	0x00000008	/* 8kHz sample rate					*/
+
 #define FXWC			0x43		/* FX output write channels register			*/
 						/* When set, each bit enables the writing of the	*/
-						/* corresponding FX output channel into host memory	*/
-
+						/* corresponding FX output channel (internal registers  */
+						/* 0x20-0x3f) into host memory. This mode of recording	*/
+						/* is 16bit, 48KHz only. All 32	channels can be enabled */
+						/* simultaneously.					*/
 #define TCBS			0x44		/* Tank cache buffer size register			*/
 #define TCBS_MASK		0x00000007	/* Tank cache buffer size field				*/
 #define TCBS_BUFFSIZE_16K	0x00000000
@@ -565,7 +556,24 @@
 
 #define DBG			0x52		/* DO NOT PROGRAM THIS REGISTER!!! MAY DESTROY CHIP */
 
+/* definitions for debug register - taken from the alsa drivers */
+#define DBG_ZC                  0x80000000      /* zero tram counter */
+#define DBG_SATURATION_OCCURED  0x02000000      /* saturation control */
+#define DBG_SATURATION_ADDR     0x01ff0000      /* saturation address */
+#define DBG_SINGLE_STEP         0x00008000      /* single step mode */
+#define DBG_STEP                0x00004000      /* start single step */
+#define DBG_CONDITION_CODE      0x00003e00      /* condition code */
+#define DBG_SINGLE_STEP_ADDR    0x000001ff      /* single step address */
+
+
 #define REG53			0x53		/* DO NOT PROGRAM THIS REGISTER!!! MAY DESTROY CHIP */
+
+#define A_DBG			 0x53
+#define A_DBG_SINGLE_STEP	 0x00020000	/* Set to zero to start dsp */
+#define A_DBG_ZC		 0x40000000	/* zero tram counter */
+#define A_DBG_STEP_ADDR		 0x000003ff
+#define A_DBG_SATURATION_OCCURED 0x20000000
+#define A_DBG_SATURATION_ADDR	 0x0ffc0000
 
 #define SPCS0			0x54		/* SPDIF output Channel Status 0 register	*/
 
@@ -613,6 +621,10 @@
 #define SPBYPASS		0x5e		/* SPDIF BYPASS mode register			*/
 #define SPBYPASS_ENABLE		0x00000001	/* Enable SPDIF bypass mode			*/
 
+#define AC97SLOT		0x5f		/* additional AC97 slots enable bits */
+#define AC97SLOT_CNTR		0x10		/* Center enable */
+#define AC97SLOT_LFE		0x20		/* LFE enable */
+
 #define CDSRCS			0x60		/* CD-ROM Sample Rate Converter status register	*/
 
 #define GPSRCS			0x61		/* General Purpose SPDIF sample rate cvt status */
@@ -626,9 +638,18 @@
 #define SRCS_RATELOCKED		0x01000000	/* Sample rate locked				*/
 #define SRCS_ESTSAMPLERATE	0x0007ffff	/* Do not modify this field.			*/
 
+
+/* Note that these values can vary +/- by a small amount                                        */
+#define SRCS_SPDIFRATE_44	0x0003acd9
+#define SRCS_SPDIFRATE_48	0x00040000
+#define SRCS_SPDIFRATE_96	0x00080000
+
 #define MICIDX                  0x63            /* Microphone recording buffer index register   */
 #define MICIDX_MASK             0x0000ffff      /* 16-bit value                                 */
 #define MICIDX_IDX		0x10000063
+
+#define A_ADCIDX		0x63
+#define A_ADCIDX_IDX		0x10000063
 
 #define ADCIDX			0x64		/* ADC recording buffer index register		*/
 #define ADCIDX_MASK		0x0000ffff	/* 16 bit index field				*/
@@ -638,9 +659,50 @@
 #define FXIDX_MASK		0x0000ffff	/* 16-bit value					*/
 #define FXIDX_IDX		0x10000065
 
+/* This is the MPU port on the card (via the game port)						*/
+#define A_MUDATA1		0x70
+#define A_MUCMD1		0x71
+#define A_MUSTAT1		A_MUCMD1
+
+/* This is the MPU port on the Audigy Drive 							*/
+#define A_MUDATA2		0x72
+#define A_MUCMD2		0x73
+#define A_MUSTAT2		A_MUCMD2	
+
+/* The next two are the Audigy equivalent of FXWC						*/
+/* the Audigy can record any output (16bit, 48kHz, up to 64 channel simultaneously) 		*/
+/* Each bit selects a channel for recording */
+#define A_FXWC1			0x74            /* Selects 0x7f-0x60 for FX recording           */
+#define A_FXWC2			0x75		/* Selects 0x9f-0x80 for FX recording           */
+
+#define A_SPDIF_SAMPLERATE	0x76		/* Set the sample rate of SPDIF output		*/
+#define A_SPDIF_48000		0x00000080
+#define A_SPDIF_44100		0x00000000
+#define A_SPDIF_96000		0x00000040
+
+#define A_FXRT2			0x7c
+#define A_FXRT_CHANNELE		0x0000003f	/* Effects send bus number for channel's effects send E	*/
+#define A_FXRT_CHANNELF		0x00003f00	/* Effects send bus number for channel's effects send F	*/
+#define A_FXRT_CHANNELG		0x003f0000	/* Effects send bus number for channel's effects send G	*/
+#define A_FXRT_CHANNELH		0x3f000000	/* Effects send bus number for channel's effects send H	*/
+
+#define A_SENDAMOUNTS		0x7d
+#define A_FXSENDAMOUNT_E_MASK	0xff000000
+#define A_FXSENDAMOUNT_F_MASK	0x00ff0000
+#define A_FXSENDAMOUNT_G_MASK	0x0000ff00
+#define A_FXSENDAMOUNT_H_MASK	0x000000ff
+
+/* The send amounts for this one are the same as used with the emu10k1 */
+#define A_FXRT1			0x7e
+#define A_FXRT_CHANNELA		0x0000003f
+#define A_FXRT_CHANNELB		0x00003f00
+#define A_FXRT_CHANNELC		0x003f0000
+#define A_FXRT_CHANNELD		0x3f000000
+
+
 /* Each FX general purpose register is 32 bits in length, all bits are used			*/
 #define FXGPREGBASE		0x100		/* FX general purpose registers base       	*/
-
+#define A_FXGPREGBASE		0x400		/* Audigy GPRs, 0x400 to 0x5ff			*/
 /* Tank audio data is logarithmically compressed down to 16 bits before writing to TRAM and is	*/
 /* decompressed back to 20 bits on a read.  There are a total of 160 locations, the last 32	*/
 /* locations are for external TRAM. 								*/
@@ -665,10 +727,14 @@
 #define HIWORD_RESULT_MASK	0x000ffc00	/* Instruction result				*/
 #define HIWORD_OPA_MASK		0x000003ff	/* Instruction operand A			*/
 
-#define ENABLE 			0xffffffff
-#define DISABLE 		0x00000000
 
-#define ENV_ON			0x80
-#define ENV_OFF			0x00
+/* Audigy Soundcard have a different instruction format */
+#define AUDIGY_CODEBASE		0x600
+#define A_LOWORD_OPY_MASK	0x000007ff		
+#define A_LOWORD_OPX_MASK	0x007ff000
+#define A_HIWORD_OPCODE_MASK	0x0f000000
+#define A_HIWORD_RESULT_MASK	0x007ff000
+#define A_HIWORD_OPA_MASK	0x000007ff
 
-#endif /* EMU10K1_H */
+
+#endif /* _8010_H */
