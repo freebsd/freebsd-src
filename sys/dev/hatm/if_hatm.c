@@ -316,10 +316,6 @@ hatm_destroy_smbufs(struct hatm_softc *sc)
 					if_printf(&sc->ifatm.ifnet,
 					    "%s -- mbuf page=%u card buf %u\n",
 					    __func__, i, b);
-				if (MBUF_TST_BIT(pg->hdr.used, b))
-					if_printf(&sc->ifatm.ifnet,
-					    "%s -- mbuf page=%u used buf %u\n",
-					    __func__, i, b);
 			}
 			bus_dmamap_unload(sc->mbuf_tag, pg->hdr.map);
 			bus_dmamap_destroy(sc->mbuf_tag, pg->hdr.map);
@@ -492,8 +488,6 @@ hatm_destroy(struct hatm_softc *sc)
 
 	cv_destroy(&sc->cv_rcclose);
 	cv_destroy(&sc->vcc_cv);
-	mtx_destroy(&sc->mbuf0_mtx);
-	mtx_destroy(&sc->mbuf1_mtx);
 	mtx_destroy(&sc->mtx);
 }
 
@@ -1655,13 +1649,9 @@ hatm_attach(device_t dev)
 	sc->he622 = 0;
 	sc->ifatm.phy = &sc->utopia;
 
-	SLIST_INIT(&sc->mbuf0_list);
-	SLIST_INIT(&sc->mbuf1_list);
 	SLIST_INIT(&sc->tpd_free);
 
 	mtx_init(&sc->mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK, MTX_DEF);
-	mtx_init(&sc->mbuf0_mtx, device_get_nameunit(dev), "HEb0", MTX_DEF);
-	mtx_init(&sc->mbuf1_mtx, device_get_nameunit(dev), "HEb1", MTX_DEF);
 	cv_init(&sc->vcc_cv, "HEVCCcv");
 	cv_init(&sc->cv_rcclose, "RCClose");
 
@@ -2340,7 +2330,6 @@ hatm_stop(struct hatm_softc *sc)
 		for (i = 0; i < pg->hdr.nchunks; i++) {
 			if (MBUF_TST_BIT(pg->hdr.card, i)) {
 				MBUF_CLR_BIT(pg->hdr.card, i);
-				MBUF_CLR_BIT(pg->hdr.used, i);
 				ch = (struct mbuf_chunk_hdr *) ((char *)pg +
 				    i * pg->hdr.chunksize + pg->hdr.hdroff);
 				m_freem(ch->mbuf);
