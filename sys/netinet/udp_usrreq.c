@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)udp_usrreq.c	8.6 (Berkeley) 5/23/95
- *	$Id: udp_usrreq.c,v 1.17 1995/12/06 23:37:44 bde Exp $
+ *	$Id: udp_usrreq.c,v 1.18 1995/12/14 09:53:49 phk Exp $
  */
 
 #include <sys/param.h>
@@ -373,11 +373,12 @@ udp_notify(inp, errno)
 }
 
 void
-udp_ctlinput(cmd, sa, ip)
+udp_ctlinput(cmd, sa, vip)
 	int cmd;
 	struct sockaddr *sa;
-	register struct ip *ip;
+	void *vip;
 {
+	register struct ip *ip = vip;
 	register struct udphdr *uh;
 
 	if (!PRC_IS_REDIRECT(cmd) &&

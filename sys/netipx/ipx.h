@@ -33,7 +33,7 @@
  *
  *	@(#)ipx.h
  *
- * $Id: ipx.h,v 1.4 1995/11/04 09:02:37 julian Exp $
+ * $Id: ipx.h,v 1.5 1995/11/24 12:25:02 bde Exp $
  */
 
 #ifndef _NETIPX_IPX_H_
@@ -174,12 +174,13 @@ extern u_char ipxctlerrmap[];
 extern struct ipxpcb ipxrawpcb;
 
 struct route;
+struct sockaddr;
 struct socket;
 void	ipx_abort __P((struct ipxpcb *ipxp));
 u_short	ipx_cksum __P((struct mbuf *m, int len));
 int	ipx_control __P((struct socket *so, int cmd, caddr_t data,
 			 struct ifnet *ifp));
-void	ipx_ctlinput __P((int cmd, caddr_t arg));
+void	ipx_ctlinput __P((int cmd, struct sockaddr *arg_as_sa, void *dummy));
 int	ipx_ctloutput __P((int req, struct socket *so, int level, int name,
 			   struct mbuf **value));
 int	ipx_do_route __P((struct ipx_addr *src, struct route *ro));
