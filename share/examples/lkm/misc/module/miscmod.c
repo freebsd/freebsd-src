@@ -57,7 +57,7 @@ static struct sysent newent = {
 /*
  * Miscellaneous modules must have their own save areas...
  */
-static struct sysent	oldent;		/* save are for old callslot entry*/
+static struct sysent	oldent;		/* save area for old callslot entry*/
 
 /*
  * Number of syscall entries for a.out executables
