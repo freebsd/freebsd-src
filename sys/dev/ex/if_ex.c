@@ -102,7 +102,6 @@ static void	ex_ifmedia_sts	__P((struct ifnet *, struct ifmediareq *));
 
 static int	ex_get_media	__P((u_int32_t iobase));
 
-       void	ex_stop		__P((struct ex_softc *));
 static void	ex_reset	__P((struct ex_softc *));
 
 static void	ex_tx_intr	__P((struct ex_softc *));
@@ -896,7 +895,6 @@ static int
 ex_ifmedia_upd (ifp)
 	struct ifnet *		ifp;
 {
-	struct ex_softc *	sc = ifp->if_softc;
 
 	return (0);
 }
