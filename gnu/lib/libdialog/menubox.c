@@ -25,6 +25,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dialog.h>
 #include "dialog.priv.h"
+#include <err.h>
 #include <ncurses.h>
 
 static void print_item(WINDOW *win, unsigned char *tag, unsigned char *item, int choice, int selected, dialogMenuItem *me, int menu_width, int tag_x, int item_x);
@@ -442,6 +443,9 @@ static void
 print_item(WINDOW *win, unsigned char *tag, unsigned char *item, int choice, int selected, dialogMenuItem *me, int menu_width, int tag_x, int item_x)
 {
     int i;
+
+    if (tag == NULL)
+	errx(1, "bad parameter to print_item()\n");
     
     /* Clear 'residue' of last item */
     wattrset(win, menubox_attr);
