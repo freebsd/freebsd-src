@@ -102,7 +102,7 @@ static void	rmskey(char const * name);
 int
 pw_user(struct userconf * cnf, int mode, struct cargs * args)
 {
-	int	        r, r1;
+	int	        rc;
 	char           *p = NULL;
 	struct carg    *a_name;
 	struct carg    *a_uid;
@@ -357,12 +357,23 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 			strncpy(home, pwd->pw_dir, sizeof home);
 			home[sizeof home - 1] = '\0';
 
-			if (!delpwent(pwd))
-				err(EX_IOERR, "error updating passwd file");
+			rc = delpwent(pwd);
+			if (rc == -1)
+				err(EX_IOERR, "user '%s' does not exist", pwd->pw_name);
+			else if (rc != 0) {
+				warnc(rc, "passwd update");
+				return EX_IOERR;
+			}
 
-			if (cnf->nispasswd && *cnf->nispasswd=='/' && !delnispwent(cnf->nispasswd, a_name->val))
-				warn("WARNING: NIS passwd update");
-				
+			if (cnf->nispasswd && *cnf->nispasswd=='/') {
+				rc = delnispwent(cnf->nispasswd, a_name->val);
+				if (rc == -1)
+					warnx("WARNING: user '%s' does not exist in NIS passwd", pwd->pw_name);
+				else if (rc != 0)
+					warnc(rc, "WARNING: NIS passwd update");
+				/* non-fatal */
+			}
+
 			editgroups(a_name->val, NULL);
 
 			pw_log(cnf, mode, W_USER, "%s(%ld) account removed", a_name->val, (long) uid);
@@ -535,23 +546,40 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 				  getarg(args, 'P') != NULL,
 				  getarg(args, '7') != NULL);
 
-	r = r1 = 1;
 	if (mode == M_ADD) {
-		r = addpwent(pwd);
-		if (r && cnf->nispasswd && *cnf->nispasswd=='/')
-			r1 = addnispwent(cnf->nispasswd, pwd);
+		rc = addpwent(pwd);
+		if (rc == -1) {
+			warnx("user '%s' already exists", pwd->pw_name);
+			return EX_IOERR;
+		} else if (rc != 0) {
+			warnc(rc, "passwd file update");
+			return EX_IOERR;
+		}
+		if (cnf->nispasswd && *cnf->nispasswd=='/') {
+			rc = addnispwent(cnf->nispasswd, pwd);
+			if (rc == -1)
+				warnx("User '%s' already exists in NIS passwd", pwd->pw_name);
+			else
+				warnc(rc, "NIS passwd update");
+			/* NOTE: we treat NIS-only update errors as non-fatal */
+		}
 	} else if (mode == M_UPDATE) {
-		r = chgpwent(a_name->val, pwd);
-		if (r && cnf->nispasswd && *cnf->nispasswd=='/')
-			r1 = chgnispwent(cnf->nispasswd, a_name->val, pwd);
-	}
-
-	if (!r) {
-		warn("password update");
-		return EX_IOERR;
-	} else if (!r1) {
-		warn("WARNING: NIS password update");
-		/* Keep on trucking */
+		rc = chgpwent(a_name->val, pwd);
+		if (rc == -1) {
+			warnx("user '%s' does not exist (NIS?)", pwd->pw_name);
+			return EX_IOERR;
+		} else if (rc != 0) {
+			warnc(rc, "passwd file update");
+			return EX_IOERR;
+		}
+		if ( cnf->nispasswd && *cnf->nispasswd=='/') {
+			rc = chgnispwent(cnf->nispasswd, a_name->val, pwd);
+			if (rc == -1)
+				warn("User '%s' not found in NIS passwd", pwd->pw_name);
+			else
+				warnc(rc, "NIS passwd update");
+			/* NOTE: NIS-only update errors are not fatal */
+		}
 	}
 
 	/*
