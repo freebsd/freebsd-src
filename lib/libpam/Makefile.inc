@@ -27,7 +27,5 @@
 SHLIB_MAJOR=	2
 
 .if !defined(NOCRYPT) && !defined(NO_OPENSSL)
-.if defined(MAKE_KERBEROS5)
-DISTRIBUTION+=	krb5
-.endif
+DISTRIBUTION+=	crypto
 .endif
