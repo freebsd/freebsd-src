@@ -44,16 +44,13 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
 #include <sys/socket.h>
 #include <net/if.h>
 
 #include <sys/mbuf.h>
 #include <machine/clock.h>
 
-#include <i4b/include/i4b_global.h>
 #include <i4b/include/i4b_mbuf.h>
-#include <i4b/include/i4b_l1l2.h>
 
 #include <machine/i4b_debug.h>
 #include <machine/i4b_ioctl.h>
@@ -67,10 +64,8 @@
 
 #include <machine/bus.h>
 #include <machine/resource.h>
-#include <sys/bus.h>
 #include <sys/rman.h>
 
-#include <isa/isavar.h>
 
 /*---------------------------------------------------------------------------*
  *	Local prototypes

@@ -58,7 +58,6 @@
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <net/if.h>
-#include <sys/proc.h>
 #include <sys/tty.h>
 
 #ifdef __FreeBSD__

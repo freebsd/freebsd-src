@@ -41,7 +41,7 @@
  *
  * $FreeBSD$
  *
- *      last edit-date: [Mon May 29 16:46:56 2000]
+ *      last edit-date: [Fri Oct 13 16:01:20 2000]
  *
  *---------------------------------------------------------------------------*/
 
@@ -51,9 +51,7 @@
 #if NISIC > 0 && defined(TEL_S0_16)
 
 #include <sys/param.h>
-#include <sys/kernel.h>
 #include <sys/systm.h>
-#include <sys/mbuf.h>
 #include <sys/socket.h>
 
 #include <machine/clock.h>
@@ -67,10 +65,6 @@
 #include <i4b/layer1/isic/i4b_isic.h>
 #include <i4b/layer1/isic/i4b_isac.h>
 #include <i4b/layer1/isic/i4b_hscx.h>
-
-#include <i4b/include/i4b_global.h>
-/* #include <i4b/include/i4b_l1l2.h> */
-#include <i4b/include/i4b_mbuf.h>
 
 #define TELES_S016_MEMSIZE 0x1000
 

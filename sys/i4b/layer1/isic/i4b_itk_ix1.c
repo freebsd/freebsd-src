@@ -68,9 +68,7 @@
 #if NISIC > 0 && defined(ITKIX1)
 
 #include <sys/param.h>
-#include <sys/kernel.h>
 #include <sys/systm.h>
-#include <sys/mbuf.h>
 #include <sys/socket.h>
 
 #include <machine/clock.h>
@@ -84,8 +82,6 @@
 #include <i4b/layer1/isic/i4b_isac.h>
 #include <i4b/layer1/isic/i4b_hscx.h>
 
-#include <i4b/include/i4b_global.h>
-#include <i4b/include/i4b_mbuf.h>
 
 /* Register offsets */
 #define	ITK_ISAC_DATA	0
