@@ -14,7 +14,7 @@
  */
 
 /*
- *	$Id: boot2.c,v 1.6 1998/10/13 23:43:38 rnordier Exp $
+ *	$Id: boot2.c,v 1.7 1998/10/15 20:04:21 rnordier Exp $
  */
 
 #include <sys/param.h>
@@ -155,6 +155,7 @@ main(void)
 	bootinfo.bi_bios_geom[i] = drvinfo(i);
     autoboot = 2;
     helpon = 1;
+    readfile(PATH_HELP, help, sizeof(help));
     readfile(PATH_CONFIG, cmd, sizeof(cmd));
     if (parse(cmd))
 	autoboot = 0;
@@ -169,7 +170,6 @@ main(void)
 	if (autoboot == 1)
 	    memcpy(kname, PATH_KERNEL, sizeof(PATH_KERNEL));
     }
-    readfile(PATH_HELP, help, sizeof(help));
     for (;;) {
 	printf(" \n>> FreeBSD/i386 BOOT\n"
 	       "Default: %u:%s(%u,%c)%s\n"
