@@ -58,6 +58,7 @@ static char sccsid[] = "@(#)setup.c	8.1 (Berkeley) 5/31/93";
 #define SIG2 " *      Sterday, 6 Thrimidge S.R. 1993, 15:24"
 
 #include <stdio.h>
+#include <stdlib.h>
 #include "hdr.h"        /* SEED lives in there; keep them coordinated. */
 
 #define USAGE "Usage: setup file > data.c (file is typically glorkz)\n"
