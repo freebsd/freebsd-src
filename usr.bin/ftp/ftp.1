@@ -29,9 +29,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	@(#)ftp.1	8.2 (Berkeley) 12/30/93
+.\"	@(#)ftp.1	8.3 (Berkeley) 10/9/94
 .\"
-.Dd December 30, 1993
+.Dd October 9, 1994
 .Dt FTP 1
 .Os BSD 4.2
 .Sh NAME
@@ -360,7 +360,7 @@ If no local file is specified, or if
 is
 .Sq Fl ,
 the output is sent to the terminal.
-.It Ic macdefNs Ar macro-name
+.It Ic macdef Ar macro-name
 Define a macro.
 Subsequent lines are stored as the macro
 .Ar macro-name  ;
@@ -601,6 +601,27 @@ will also attempt to automatically log the user in to
 the
 .Tn FTP
 server (see below).
+.It Ic passive
+Toggle passive mode.  If passive mode is turned on
+(default is off), the ftp client will
+send a
+.Dv PASV
+command for all data connections instead of the usual
+.Dv PORT
+command.  The
+.Dv PASV
+command requests that the remote server open a port for the data connection
+and return the address of that port.  The remote server listens on that
+port and the client connects to it.  When using the more traditional
+.Dv PORT
+command, the client listens on a port and sends that address to the remote
+server, who connects back to it.  Passive mode is useful when using
+.Nm ftp
+through a gateway router or host that controls the directionality of
+traffic.
+(Note that though ftp servers are required to support the
+.Dv PASV
+command by RFC 1123, some do not.)
 .It Ic prompt
 Toggle interactive prompting.
 Interactive prompting

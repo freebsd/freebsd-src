@@ -29,9 +29,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	@(#)vacation.1	8.1 (Berkeley) 6/16/93
+.\"	@(#)vacation.1	8.2 (Berkeley) 4/28/95
 .\"
-.Dd June 16, 1993
+.Dd April 28, 1995
 .Dt VACATION 1
 .Os BSD 4.3
 .Sh NAME
@@ -114,8 +114,8 @@ case insensitive) nor is a notification sent if a
 or
 .Dq Precedence: junk
 line is included in the mail headers.
-The people who have sent you messages are maintained as an
-.Xr ndbm 3
+The people who have sent you messages are maintained as a
+.Xr db 3
 database in the file
 .Pa .vacation.db
 in your home directory.

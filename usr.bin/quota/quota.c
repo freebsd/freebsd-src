@@ -41,7 +41,7 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)quota.c	8.1 (Berkeley) 6/6/93";
+static char sccsid[] = "@(#)quota.c	8.4 (Berkeley) 4/28/95";
 #endif /* not lint */
 
 /*
@@ -50,13 +50,16 @@ static char sccsid[] = "@(#)quota.c	8.1 (Berkeley) 6/6/93";
 #include <sys/param.h>
 #include <sys/file.h>
 #include <sys/stat.h>
+#include <sys/queue.h>
+
 #include <ufs/ufs/quota.h>
-#include <stdio.h>
-#include <fstab.h>
+
 #include <ctype.h>
-#include <pwd.h>
-#include <grp.h>
 #include <errno.h>
+#include <fstab.h>
+#include <grp.h>
+#include <pwd.h>
+#include <stdio.h>
 
 char *qfname = QUOTAFILENAME;
 char *qfextension[] = INITQFNAMES;
@@ -75,7 +78,8 @@ int	vflag;
 main(argc, argv)
 	char *argv[];
 {
-	int ngroups, gidset[NGROUPS];
+	int ngroups; 
+	gid_t gidset[NGROUPS];
 	int i, gflag = 0, uflag = 0;
 	char ch;
 	extern char *optarg;
@@ -204,7 +208,8 @@ showgid(gid)
 	u_long gid;
 {
 	struct group *grp = getgrgid(gid);
-	int ngroups, gidset[NGROUPS];
+	int ngroups;
+	gid_t gidset[NGROUPS];
 	register int i;
 	char *name;
 
@@ -235,7 +240,8 @@ showgrpname(name)
 	char *name;
 {
 	struct group *grp = getgrnam(name);
-	int ngroups, gidset[NGROUPS];
+	int ngroups;
+	gid_t gidset[NGROUPS];
 	register int i;
 
 	if (grp == NULL) {
@@ -423,7 +429,7 @@ getprivs(id, quotatype)
 				free(qup);
 				continue;
 			}
-			lseek(fd, (long)(id * sizeof(struct dqblk)), L_SET);
+			lseek(fd, (off_t)(id * sizeof(struct dqblk)), L_SET);
 			switch (read(fd, &qup->dqblk, sizeof(struct dqblk))) {
 			case 0:			/* EOF */
 				/*

@@ -38,7 +38,7 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)wc.c	8.1 (Berkeley) 6/6/93";
+static char sccsid[] = "@(#)wc.c	8.2 (Berkeley) 5/2/95";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -160,7 +160,7 @@ cnt(file)
 		if (dochar) {
 			if (fstat(fd, &sb))
 				err("%s: %s", file, strerror(errno));
-			if (S_ISREG(sb.st_mode) || S_ISLNK(sb.st_mode)) {
+			if (S_ISREG(sb.st_mode)) {
 				(void)printf(" %7qu", sb.st_size);
 				tcharct += sb.st_size;
 				(void)close(fd);

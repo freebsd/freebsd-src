@@ -35,7 +35,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)wwopen.c	8.1 (Berkeley) 6/6/93";
+static char sccsid[] = "@(#)wwopen.c	8.2 (Berkeley) 4/28/95";
 #endif /* not lint */
 
 #include "ww.h"
@@ -116,6 +116,8 @@ wwopen(flags, nrow, ncol, row, col, nline)
 		}
 		w->ww_obe = w->ww_ob + 512;
 		w->ww_obp = w->ww_obq = w->ww_ob;
+		if (w->ww_pty >= wwdtablesize)
+			wwdtablesize = w->ww_pty + 1;
 	}
 
 	w->ww_win = wwalloc(w->ww_w.t, w->ww_w.l,

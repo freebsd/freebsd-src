@@ -38,7 +38,7 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)w.c	8.4 (Berkeley) 4/16/94";
+static char sccsid[] = "@(#)w.c	8.6 (Berkeley) 6/30/94";
 #endif /* not lint */
 
 /*
@@ -191,7 +191,8 @@ main(argc, argv)
 		*nextp = ep;
 		nextp = &(ep->next);
 		memmove(&(ep->utmp), &utmp, sizeof(struct utmp));
-		stp = ttystat(ep->utmp.ut_line);
+		if (!(stp = ttystat(ep->utmp.ut_line)))
+			continue;
 		ep->tdev = stp->st_rdev;
 #ifdef CPU_CONSDEV
 		/*
@@ -307,7 +308,8 @@ main(argc, argv)
 			p = hp->h_name;
 		}
 		if (x) {
-			(void)snprintf(buf, sizeof(buf), "%s:%s", p, x);
+			(void)snprintf(buf, sizeof(buf), "%s:%.*s", p,
+				ep->utmp.ut_host + UT_HOSTSIZE - x, x);
 			p = buf;
 		}
 		(void)printf("%-*.*s %-2.2s %-*.*s ",
@@ -409,7 +411,7 @@ ttystat(line)
 
 	(void)snprintf(ttybuf, sizeof(ttybuf), "%s/%s", _PATH_DEV, line);
 	if (stat(ttybuf, &sb))
-		err(1, "%s", ttybuf);
+		return (NULL);
 	return (&sb);
 }
 

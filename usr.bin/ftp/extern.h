@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)extern.h	8.2 (Berkeley) 4/3/94
+ *	@(#)extern.h	8.3 (Berkeley) 10/9/94
  */
 
 struct timeval;
@@ -120,6 +120,7 @@ void	setglob __P((int, char **));
 void	sethash __P((int, char **));
 void	setnmap __P((int, char **));
 void	setntrans __P((int, char **));
+void	setpassive __P((int, char **));
 void	setpeer __P((int, char **));
 void	setport __P((int, char **));
 void	setprompt __P((int, char **));

@@ -41,20 +41,14 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)nfsstat.c	8.1 (Berkeley) 6/6/93";
+static char sccsid[] = "@(#)nfsstat.c	8.2 (Berkeley) 3/31/95";
 #endif /* not lint */
 
 #include <sys/param.h>
-#if BSD >= 199103
-#define NEWVM
-#endif
-#ifndef NEWVM
-#include <sys/vmmac.h>
-#include <sys/ucred.h>
-#include <machine/pte.h>
-#endif
 #include <sys/mount.h>
-#include <nfs/nfsv2.h>
+#include <sys/sysctl.h>
+#include <nfs/rpcv2.h>
+#include <nfs/nfsproto.h>
 #include <nfs/nfs.h>
 #include <signal.h>
 #include <fcntl.h>
@@ -67,6 +61,7 @@ static char sccsid[] = "@(#)nfsstat.c	8.1 (Berkeley) 6/6/93";
 #include <stdlib.h>
 #include <string.h>
 #include <paths.h>
+#include <err.h>
 
 struct nlist nl[] = {
 #define	N_NFSSTAT	0
@@ -75,7 +70,12 @@ struct nlist nl[] = {
 };
 kvm_t *kd;
 
-void intpr(), printhdr(), sidewaysintpr(), usage();
+static int deadkernel = 0;
+
+void intpr __P((void));
+void printhdr __P((void));
+void sidewaysintpr __P((u_int));
+void usage __P((void));
 
 main(argc, argv)
 	int argc;
@@ -123,38 +123,65 @@ main(argc, argv)
 	 * Discard setgid privileges if not the running kernel so that bad
 	 * guys can't print interesting stuff from kernel memory.
 	 */
-	if (nlistf != NULL || memf != NULL)
+	if (nlistf != NULL || memf != NULL) {
 		setgid(getgid());
+		deadkernel = 1;
 
-	if ((kd = kvm_openfiles(nlistf, memf, NULL, O_RDONLY, errbuf)) == 0) {
-		fprintf(stderr, "nfsstat: kvm_openfiles: %s\n", errbuf);
-		exit(1);
-	}
-	if (kvm_nlist(kd, nl) != 0) {
-		fprintf(stderr, "nfsstat: kvm_nlist: can't get names\n");
-		exit(1);
+		if ((kd = kvm_openfiles(nlistf, memf, NULL, O_RDONLY,
+					errbuf)) == 0) {
+			errx(1, "kvm_openfiles: %s", errbuf);
+		}
+		if (kvm_nlist(kd, nl) != 0) {
+			errx(1, "kvm_nlist: can't get names");
+		}
 	}
 
 	if (interval)
-		sidewaysintpr(interval, nl[N_NFSSTAT].n_value);
+		sidewaysintpr(interval);
 	else
-		intpr(nl[N_NFSSTAT].n_value);
+		intpr();
 	exit(0);
+}
+
+/*
+ * Read the nfs stats using sysctl(3) for live kernels, or kvm_read
+ * for dead ones.
+ */
+void
+readstats(stp)
+	struct nfsstats *stp;
+{
+	if(deadkernel) {
+		if(kvm_read(kd, (u_long)nl[N_NFSSTAT].n_value, stp,
+			    sizeof *stp) < 0) {
+			err(1, "kvm_read");
+		}
+	} else {
+		int name[3];
+		size_t buflen = sizeof *stp;
+		struct vfsconf vfc;
+
+		if (getvfsbyname("nfs", &vfc) < 0)
+			err(1, "getvfsbyname: NFS not compiled into kernel");
+		name[0] = CTL_VFS;
+		name[1] = vfc.vfc_typenum;
+		name[2] = NFS_NFSSTATS;
+		if (sysctl(name, 3, stp, &buflen, (void *)0, (size_t)0) < 0) {
+			err(1, "sysctl");
+		}
+	}
 }
 
 /*
  * Print a description of the nfs stats.
  */
 void
-intpr(nfsstataddr)
-	u_long nfsstataddr;
+intpr()
 {
 	struct nfsstats nfsstats;
 
-	if (kvm_read(kd, (u_long)nfsstataddr, (char *)&nfsstats, sizeof(struct nfsstats)) < 0) {
-		fprintf(stderr, "nfsstat: kvm_read failed\n");
-		exit(1);
-	}
+	readstats(&nfsstats);
+
 	printf("Client Info:\n");
 	printf("Rpc Counts:\n");
 	printf("%9.9s %9.9s %9.9s %9.9s %9.9s %9.9s %9.9s %9.9s\n",
@@ -171,7 +198,7 @@ intpr(nfsstataddr)
 		nfsstats.rpccnt[NFSPROC_REMOVE]);
 	printf("%9.9s %9.9s %9.9s %9.9s %9.9s %9.9s %9.9s %9.9s\n",
 		"Rename", "Link", "Symlink", "Mkdir", "Rmdir",
-		"Readdir", "Statfs", "RdirLook");
+		"Readdir", "RdirPlus", "Access");
 	printf("%9d %9d %9d %9d %9d %9d %9d %9d\n",
 		nfsstats.rpccnt[NFSPROC_RENAME],
 		nfsstats.rpccnt[NFSPROC_LINK],
@@ -179,11 +206,17 @@ intpr(nfsstataddr)
 		nfsstats.rpccnt[NFSPROC_MKDIR],
 		nfsstats.rpccnt[NFSPROC_RMDIR],
 		nfsstats.rpccnt[NFSPROC_READDIR],
-		nfsstats.rpccnt[NFSPROC_STATFS],
-		nfsstats.rpccnt[NQNFSPROC_READDIRLOOK]);
-	printf("%9.9s %9.9s %9.9s\n",
+		nfsstats.rpccnt[NFSPROC_READDIRPLUS],
+		nfsstats.rpccnt[NFSPROC_ACCESS]);
+	printf("%9.9s %9.9s %9.9s %9.9s %9.9s %9.9s %9.9s %9.9s\n",
+		"Mknod", "Fsstat", "Fsinfo", "PathConf", "Commit",
 		"GLease", "Vacate", "Evict");
-	printf("%9d %9d %9d\n",
+	printf("%9d %9d %9d %9d %9d %9d %9d %9d\n",
+		nfsstats.rpccnt[NFSPROC_MKNOD],
+		nfsstats.rpccnt[NFSPROC_FSSTAT],
+		nfsstats.rpccnt[NFSPROC_FSINFO],
+		nfsstats.rpccnt[NFSPROC_PATHCONF],
+		nfsstats.rpccnt[NFSPROC_COMMIT],
 		nfsstats.rpccnt[NQNFSPROC_GETLEASE],
 		nfsstats.rpccnt[NQNFSPROC_VACATED],
 		nfsstats.rpccnt[NQNFSPROC_EVICTED]);
@@ -234,7 +267,7 @@ intpr(nfsstataddr)
 		nfsstats.srvrpccnt[NFSPROC_REMOVE]);
 	printf("%9.9s %9.9s %9.9s %9.9s %9.9s %9.9s %9.9s %9.9s\n",
 		"Rename", "Link", "Symlink", "Mkdir", "Rmdir",
-		"Readdir", "Statfs", "RdirLook");
+		"Readdir", "RdirPlus", "Access");
 	printf("%9d %9d %9d %9d %9d %9d %9d %9d\n",
 		nfsstats.srvrpccnt[NFSPROC_RENAME],
 		nfsstats.srvrpccnt[NFSPROC_LINK],
@@ -242,11 +275,17 @@ intpr(nfsstataddr)
 		nfsstats.srvrpccnt[NFSPROC_MKDIR],
 		nfsstats.srvrpccnt[NFSPROC_RMDIR],
 		nfsstats.srvrpccnt[NFSPROC_READDIR],
-		nfsstats.srvrpccnt[NFSPROC_STATFS],
-		nfsstats.srvrpccnt[NQNFSPROC_READDIRLOOK]);
-	printf("%9.9s %9.9s %9.9s\n",
+		nfsstats.srvrpccnt[NFSPROC_READDIRPLUS],
+		nfsstats.srvrpccnt[NFSPROC_ACCESS]);
+	printf("%9.9s %9.9s %9.9s %9.9s %9.9s %9.9s %9.9s %9.9s\n",
+		"Mknod", "Fsstat", "Fsinfo", "PathConf", "Commit",
 		"GLease", "Vacate", "Evict");
-	printf("%9d %9d %9d\n",
+	printf("%9d %9d %9d %9d %9d %9d %9d %9d\n",
+		nfsstats.srvrpccnt[NFSPROC_MKNOD],
+		nfsstats.srvrpccnt[NFSPROC_FSSTAT],
+		nfsstats.srvrpccnt[NFSPROC_FSINFO],
+		nfsstats.srvrpccnt[NFSPROC_PATHCONF],
+		nfsstats.srvrpccnt[NFSPROC_COMMIT],
 		nfsstats.srvrpccnt[NQNFSPROC_GETLEASE],
 		nfsstats.srvrpccnt[NQNFSPROC_VACATED],
 		nfsstats.srvrpccnt[NQNFSPROC_EVICTED]);
@@ -269,6 +308,13 @@ intpr(nfsstataddr)
 		nfsstats.srvnqnfs_leases,
 		nfsstats.srvnqnfs_maxleases,
 		nfsstats.srvnqnfs_getleases);
+	printf("Server Write Gathering:\n");
+	printf("%9.9s %9.9s %9.9s\n",
+		"WriteOps", "WriteRPC", "Opsaved");
+	printf("%9d %9d %9d\n",
+		nfsstats.srvvop_writes,
+		nfsstats.srvrpccnt[NFSPROC_WRITE],
+		nfsstats.srvrpccnt[NFSPROC_WRITE] - nfsstats.srvvop_writes);
 }
 
 u_char	signalled;			/* set if alarm goes off "early" */
@@ -280,9 +326,8 @@ u_char	signalled;			/* set if alarm goes off "early" */
  * First line printed at top of screen is always cumulative.
  */
 void
-sidewaysintpr(interval, off)
+sidewaysintpr(interval)
 	u_int interval;
-	u_long off;
 {
 	struct nfsstats nfsstats, lastst;
 	int hdrcnt, oldmask;
@@ -298,28 +343,27 @@ sidewaysintpr(interval, off)
 			printhdr();
 			hdrcnt = 20;
 		}
-		if (kvm_read(kd, off, (char *)&nfsstats, sizeof nfsstats) < 0) {
-			fprintf(stderr, "nfsstat: kvm_read failed\n");
-			exit(1);
-		}
+		readstats(&nfsstats);
 		printf("Client: %8d %8d %8d %8d %8d %8d %8d %8d\n",
-		    nfsstats.rpccnt[1]-lastst.rpccnt[1],
-		    nfsstats.rpccnt[4]-lastst.rpccnt[4],
-		    nfsstats.rpccnt[5]-lastst.rpccnt[5],
-		    nfsstats.rpccnt[6]-lastst.rpccnt[6],
-		    nfsstats.rpccnt[8]-lastst.rpccnt[8],
-		    nfsstats.rpccnt[11]-lastst.rpccnt[11],
-		    nfsstats.rpccnt[12]-lastst.rpccnt[12],
-		    nfsstats.rpccnt[16]-lastst.rpccnt[16]);
+		    nfsstats.rpccnt[NFSPROC_GETATTR]-lastst.rpccnt[NFSPROC_GETATTR],
+		    nfsstats.rpccnt[NFSPROC_LOOKUP]-lastst.rpccnt[NFSPROC_LOOKUP],
+		    nfsstats.rpccnt[NFSPROC_READLINK]-lastst.rpccnt[NFSPROC_READLINK],
+		    nfsstats.rpccnt[NFSPROC_READ]-lastst.rpccnt[NFSPROC_READ],
+		    nfsstats.rpccnt[NFSPROC_WRITE]-lastst.rpccnt[NFSPROC_WRITE],
+		    nfsstats.rpccnt[NFSPROC_RENAME]-lastst.rpccnt[NFSPROC_RENAME],
+		    nfsstats.rpccnt[NFSPROC_ACCESS]-lastst.rpccnt[NFSPROC_ACCESS],
+		    (nfsstats.rpccnt[NFSPROC_READDIR]-lastst.rpccnt[NFSPROC_READDIR])
+		    +(nfsstats.rpccnt[NFSPROC_READDIRPLUS]-lastst.rpccnt[NFSPROC_READDIRPLUS]));
 		printf("Server: %8d %8d %8d %8d %8d %8d %8d %8d\n",
-		    nfsstats.srvrpccnt[1]-lastst.srvrpccnt[1],
-		    nfsstats.srvrpccnt[4]-lastst.srvrpccnt[4],
-		    nfsstats.srvrpccnt[5]-lastst.srvrpccnt[5],
-		    nfsstats.srvrpccnt[6]-lastst.srvrpccnt[6],
-		    nfsstats.srvrpccnt[8]-lastst.srvrpccnt[8],
-		    nfsstats.srvrpccnt[11]-lastst.srvrpccnt[11],
-		    nfsstats.srvrpccnt[12]-lastst.srvrpccnt[12],
-		    nfsstats.srvrpccnt[16]-lastst.srvrpccnt[16]);
+		    nfsstats.srvrpccnt[NFSPROC_GETATTR]-lastst.srvrpccnt[NFSPROC_GETATTR],
+		    nfsstats.srvrpccnt[NFSPROC_LOOKUP]-lastst.srvrpccnt[NFSPROC_LOOKUP],
+		    nfsstats.srvrpccnt[NFSPROC_READLINK]-lastst.srvrpccnt[NFSPROC_READLINK],
+		    nfsstats.srvrpccnt[NFSPROC_READ]-lastst.srvrpccnt[NFSPROC_READ],
+		    nfsstats.srvrpccnt[NFSPROC_WRITE]-lastst.srvrpccnt[NFSPROC_WRITE],
+		    nfsstats.srvrpccnt[NFSPROC_RENAME]-lastst.srvrpccnt[NFSPROC_RENAME],
+		    nfsstats.srvrpccnt[NFSPROC_ACCESS]-lastst.srvrpccnt[NFSPROC_ACCESS],
+		    (nfsstats.srvrpccnt[NFSPROC_READDIR]-lastst.srvrpccnt[NFSPROC_READDIR])
+		    +(nfsstats.srvrpccnt[NFSPROC_READDIRPLUS]-lastst.srvrpccnt[NFSPROC_READDIRPLUS]));
 		lastst = nfsstats;
 		fflush(stdout);
 		oldmask = sigblock(sigmask(SIGALRM));
@@ -337,7 +381,7 @@ printhdr()
 {
 	printf("        %8.8s %8.8s %8.8s %8.8s %8.8s %8.8s %8.8s %8.8s\n",
 	    "Getattr", "Lookup", "Readlink", "Read", "Write", "Rename",
-	    "Link", "Readdir");
+	    "Access", "Readdir");
 	fflush(stdout);
 }
 

@@ -29,9 +29,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	@(#)rsh.1	8.1 (Berkeley) 6/6/93
+.\"	@(#)rsh.1	8.2 (Berkeley) 4/29/95
 .\"
-.Dd June 6, 1993
+.Dd April 29, 1995
 .Dt RSH 1
 .Os BSD 4.2
 .Sh NAME
@@ -43,6 +43,10 @@
 .Op Fl k Ar realm
 .Op Fl l Ar username
 .Ar host
+.Nm rsh
+.Op Fl Kdnx
+.Op Fl k Ar realm
+.Ar username@host
 .Op command
 .Sh DESCRIPTION
 .Nm Rsh
@@ -86,7 +90,9 @@ instead of the remote host's realm as determined by
 By default, the remote username is the same as the local username.
 The
 .Fl l
-option allows the remote name to be specified.
+option or the
+.Pa username@host
+format allow the remote name to be specified.
 Kerberos authentication is used, and authorization is determined
 as in
 .Xr rlogin  1  .

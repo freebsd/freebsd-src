@@ -38,7 +38,7 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)main.c	8.4 (Berkeley) 4/3/94";
+static char sccsid[] = "@(#)main.c	8.6 (Berkeley) 10/9/94";
 #endif /* not lint */
 
 /*
@@ -78,7 +78,7 @@ main(argc, argv)
 	autologin = 1;
 
 	while ((ch = getopt(argc, argv, "dgintv")) != EOF) {
-		switch (*cp) {
+		switch (ch) {
 		case 'd':
 			options |= SO_DEBUG;
 			debug++;
@@ -118,6 +118,7 @@ main(argc, argv)
 		verbose++;
 	cpend = 0;	/* no pending replies */
 	proxy = 0;	/* proxy not active */
+	passivemode = 0; /* passive mode not active */
 	crflag = 1;	/* strip c.r. on ascii gets */
 	sendport = -1;	/* not using ports */
 	/*

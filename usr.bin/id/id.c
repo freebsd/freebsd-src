@@ -38,7 +38,7 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)id.c	8.2 (Berkeley) 2/16/94";
+static char sccsid[] = "@(#)id.c	8.3 (Berkeley) 4/28/95";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -236,7 +236,7 @@ user(pw)
 	id = pw->pw_uid;
 	(void)printf("uid=%u(%s)", id, pw->pw_name);
 	(void)printf(" gid=%u", pw->pw_gid);
-	if (gr = getgrgid(id))
+	if (gr = getgrgid(pw->pw_gid))
 		(void)printf("(%s)", gr->gr_name);
 	ngroups = NGROUPS + 1;
 	(void) getgrouplist(pw->pw_name, pw->pw_gid, groups, &ngroups);

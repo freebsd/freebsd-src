@@ -32,9 +32,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	@(#)chflags.1	8.2 (Berkeley) 3/31/94
+.\"	@(#)chflags.1	8.4 (Berkeley) 5/2/95
 .\"
-.Dd March 31, 1994
+.Dd May 2, 1995
 .Dt CHFLAGS 1
 .Os
 .Sh NAME
@@ -80,7 +80,8 @@ Flags are a comma separated list of keywords.
 The following keywords are currently defined:
 .Bd -literal -offset indent compact
 .\"arch	nothing yet.
-dump	set the dump flag
+opaque	set the opaque flag (owner or super-user only)
+nodump	set the nodump flag (owner or super-user only)
 sappnd	set the system append-only flag (super-user only)
 schg	set the system immutable flag (super-user only)
 uappnd	set the user append-only flag (owner or super-user only)
@@ -92,7 +93,7 @@ Putting the letters
 before an option causes the flag to be turned off.
 For example:
 .Bd -literal -offset indent compact
-nodump	the file should never be dumped
+nouchg	the immutable bit should be cleared
 .Ed
 .Pp
 Symbolic links do not have flags, so unless the

@@ -35,7 +35,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)archive.c	8.3 (Berkeley) 4/2/94";
+static char sccsid[] = "@(#)archive.c	8.4 (Berkeley) 4/27/95";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -221,7 +221,7 @@ put_arobj(cfp, sb)
 		if (options & AR_TR) {
 			if (lname > OLDARMAXNAME) {
 				(void)fflush(stdout);
-				warnx("warning: %s truncated to %.*s\n",
+				warnx("warning: %s truncated to %.*s",
 				    name, OLDARMAXNAME, name);
 				(void)fflush(stderr);
 			}
@@ -299,7 +299,8 @@ copy_ar(cfp, size)
 		error(cfp->rname);
 	}
 
-	if (cfp->flags & RPAD && size & 1 && (nr = read(from, buf, 1)) != 1) {
+	if (cfp->flags & RPAD && (size + chdr.lname) & 1 &&
+	    (nr = read(from, buf, 1)) != 1) {
 		if (nr == 0)
 			badfmt();
 		error(cfp->rname);

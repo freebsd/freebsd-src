@@ -38,7 +38,7 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)vmstat.c	8.1 (Berkeley) 6/6/93";
+static char sccsid[] = "@(#)vmstat.c	8.2 (Berkeley) 3/1/95";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -582,6 +582,9 @@ dosum()
 	(void)printf("%9u pages active\n", sum.v_active_count);
 	(void)printf("%9u pages inactive\n", sum.v_inactive_count);
 	(void)printf("%9u bytes per page\n", sum.v_page_size);
+	(void)printf("%9u target inactive pages\n", sum.v_inactive_target);
+	(void)printf("%9u target free pages\n", sum.v_free_target);
+	(void)printf("%9u minimum free pages\n", sum.v_free_min);
 #else
 	(void)printf("%9u sequential process pages freed\n", sum.v_seqfree);
 	(void)printf("%9u total reclaims (%d%% fast)\n", sum.v_pgrec,
