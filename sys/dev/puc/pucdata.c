@@ -40,15 +40,9 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 
-#if __FreeBSD_version < 500000
-#include <pci/pcireg.h>
-#include <pci/pcivar.h>
-#include <isa/sioreg.h>
-#else
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 #include <dev/sio/sioreg.h>
-#endif
 #include <dev/puc/pucvar.h>
 
 #define COM_FREQ	DEFAULT_RCLK
