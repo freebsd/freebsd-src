@@ -404,7 +404,8 @@ vm_page_io_start(vm_page_t m)
 void
 vm_page_io_finish(vm_page_t m)
 {
-	GIANT_REQUIRED;
+
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	m->busy--;
 	if (m->busy == 0)
 		vm_page_flash(m);
