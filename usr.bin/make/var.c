@@ -1239,7 +1239,7 @@ modifier_C(VarParser *vp, char value[], Var *v)
  * XXXHB update this comment or remove it and point to the man page.
  */
 static char *
-ParseModifier(VarParser *vp, char startc, Boolean dynamic, Var *v, Boolean *freePtr)
+ParseModifier(VarParser *vp, char startc, Var *v, Boolean *freePtr)
 {
 	char	*value;
 	char	endc;
@@ -1520,31 +1520,6 @@ ParseModifier(VarParser *vp, char startc, Boolean dynamic, Var *v, Boolean *free
 			VarDestroy(v, TRUE);
 			return (value);
 		}
-	} else if (v->flags & VAR_JUNK) {
-		/*
-		 * Perform any free'ing needed and set *freePtr to FALSE so
-		 * the caller doesn't try to free a static pointer.
-		 */
-		if (*freePtr) {
-			free(value);
-		}
-		if (dynamic) {
-			char   *result;
-			size_t	consumed = vp->ptr - vp->input + 1;
-
-			VarDestroy(v, TRUE);
-			result = emalloc(consumed + 1);
-			strncpy(result, vp->input, consumed);
-			result[consumed] = '\0';
-
-			*freePtr = TRUE;
-			return (result);
-		} else {
-			VarDestroy(v, TRUE);
-
-			*freePtr = FALSE;
-			return (vp->err ? var_Error : varNoError);
-		}
 	} else {
 		return (value);
 	}
@@ -1556,21 +1531,31 @@ ParseRestModifier(VarParser *vp, char startc, Buffer *buf, Boolean *freePtr)
 	const char	*vname;
 	size_t		vlen;
 	Var		*v;
-	Boolean	dynamic;	/* TRUE if the variable is local and we're
-				 * expanding it in a non-local context. This
-				 * is done to support dynamic sources. The
-				 * result is just the invocation, unaltered */
+	char		*value;
 
 	vname = Buf_GetAll(buf, &vlen);
 
-	dynamic = FALSE;
-
 	v = VarFind(vname, vp->ctxt, FIND_ENV | FIND_GLOBAL | FIND_CMD);
 	if (v != NULL) {
-		return (ParseModifier(vp, startc, dynamic, v, freePtr));
+		return (ParseModifier(vp, startc, v, freePtr));
 	}
 
 	if ((vp->ctxt == VAR_CMD) || (vp->ctxt == VAR_GLOBAL)) {
+		size_t		consumed;
+		/*
+		 * Still need to get to the end of the variable
+		 * specification, so kludge up a Var structure for
+		 * the modifications
+		 */
+		v = VarCreate(vname, NULL, VAR_JUNK);
+		value = ParseModifier(vp, startc, v, freePtr);
+		if (*freePtr) {
+			free(value);
+		}
+		VarDestroy(v, TRUE);
+
+		consumed = vp->ptr - vp->input + 1;
+
 		if ((vlen == 1) ||
 		    ((vlen == 2) && (vname[1] == 'F' || vname[1] == 'D'))) {
 			/*
@@ -1584,7 +1569,12 @@ ParseRestModifier(VarParser *vp, char startc, Buffer *buf, Boolean *freePtr)
 			 * dynamic sources are expanded.
 			 */
 			if (strchr("!%*@", vname[0]) != NULL) {
-				dynamic = TRUE;
+				value = emalloc(consumed + 1);
+				strncpy(value, vp->input, consumed);
+				value[consumed] = '\0';
+
+				*freePtr = TRUE;
+				return (value);
 			}
 		}
 		if ((vlen > 2) &&
@@ -1594,16 +1584,17 @@ ParseRestModifier(VarParser *vp, char startc, Buffer *buf, Boolean *freePtr)
 			    (strncmp(vname, ".ARCHIVE", vlen - 1) == 0) ||
 			    (strncmp(vname, ".PREFIX", vlen - 1) == 0) ||
 			    (strncmp(vname, ".MEMBER", vlen - 1) == 0)) {
-				dynamic = TRUE;
+				value = emalloc(consumed + 1);
+				strncpy(value, vp->input, consumed);
+				value[consumed] = '\0';
+
+				*freePtr = TRUE;
+				return (value);
 			}
 		}
-		/*
-		 * Still need to get to the end of the variable
-		 * specification, so kludge up a Var structure for
-		 * the modifications
-		 */
-		v = VarCreate(vname, NULL, VAR_JUNK);
-		return (ParseModifier(vp, startc, dynamic, v, freePtr));
+
+		*freePtr = FALSE;
+		return (vp->err ? var_Error : varNoError);
 	} else {
 		/*
 		 * Check for D and F forms of local variables since we're in
@@ -1622,7 +1613,7 @@ ParseRestModifier(VarParser *vp, char startc, Buffer *buf, Boolean *freePtr)
 
 			v = VarFind(name, vp->ctxt, 0);
 			if (v != NULL) {
-				return (ParseModifier(vp, startc, dynamic, v, freePtr));
+				return (ParseModifier(vp, startc, v, freePtr));
 			}
 		}
 
@@ -1632,7 +1623,14 @@ ParseRestModifier(VarParser *vp, char startc, Buffer *buf, Boolean *freePtr)
 		 * the modifications
 		 */
 		v = VarCreate(vname, NULL, VAR_JUNK);
-		return (ParseModifier(vp, startc, dynamic, v, freePtr));
+		value = ParseModifier(vp, startc, v, freePtr);
+		if (*freePtr) {
+			free(value);
+		}
+		VarDestroy(v, TRUE);
+
+		*freePtr = FALSE;
+		return (vp->err ? var_Error : varNoError);
 	}
 }
 
