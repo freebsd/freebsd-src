@@ -1,10 +1,10 @@
-void
+/*
  * The new sysinstall program.
  *
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.35.2.3 1995/05/31 10:17:29 jkh Exp $
+ * $Id: dist.c,v 1.35.2.4 1995/06/01 09:42:29 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
