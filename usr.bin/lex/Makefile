@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.4 1996/05/07 23:19:47 wosch Exp $
+# $Id: Makefile,v 1.5 1996/06/19 20:46:57 nate Exp $
 #
 # By default, flex will be configured to generate 8-bit scanners only if the
 # -8 flag is given.  If you want it to always generate 8-bit scanners, add
@@ -26,8 +26,9 @@ MLINKS+=	lex.1 lex++.1
 
 CLEANFILES+=	parse.c parse.h scan.c y.tab.h y.tab.c
 
-
+.if !defined(NOLIB)
 SUBDIR=		lib
+.endif
 
 beforeinstall:
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 644 \
