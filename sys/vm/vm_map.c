@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.123 1998/05/02 06:36:16 dyson Exp $
+ * $Id: vm_map.c,v 1.124 1998/05/04 03:01:44 dyson Exp $
  */
 
 /*
@@ -1832,7 +1832,7 @@ vm_map_delete(map, start, end)
 		} else {
 			pmap_remove(map->pmap, s, e);
 			if (object &&
-				(object->flags & OBJ_ONEMAPPING) &&
+				((object->flags & (OBJ_NOSPLIT|OBJ_ONEMAPPING)) == OBJ_ONEMAPPING) &&
 				((object->type == OBJT_SWAP) || (object->type == OBJT_DEFAULT))) {
 				vm_object_collapse(object);
 				vm_object_page_remove(object, offidxstart, offidxend, FALSE);
@@ -2051,7 +2051,7 @@ vm_map_copy_entry(src_map, dst_map, src_entry, dst_entry)
 				(src_object->type == OBJT_DEFAULT ||
 				 src_object->type == OBJT_SWAP)) {
 				vm_object_collapse(src_object);
-				if (src_object->flags & OBJ_ONEMAPPING) {
+				if ((src_object->flags & (OBJ_NOSPLIT|OBJ_ONEMAPPING)) == OBJ_ONEMAPPING) {
 					vm_map_split(src_entry);
 					src_map->timestamp++;
 					src_object = src_entry->object.vm_object;
