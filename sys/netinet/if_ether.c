@@ -208,7 +208,10 @@ arp_rtrequest(req, rt, info)
 	case RTM_RESOLVE:
 		if (gate->sa_family != AF_LINK ||
 		    gate->sa_len < sizeof(null_sdl)) {
-			log(LOG_DEBUG, "arp_rtrequest: bad gateway value\n");
+			log(LOG_DEBUG, "arp_rtrequest: bad gateway %s%s\n",
+			    inet_ntoa(SIN(rt_key(rt))->sin_addr),
+			    (gate->sa_family != AF_LINK) ?
+			    " (sa_family != AF_LINK)": "");
 			break;
 		}
 		SDL(gate)->sdl_type = rt->rt_ifp->if_type;
