@@ -1489,8 +1489,7 @@ emu_pci_attach(device_t dev)
 	if (pcm_register(dev, sc, EMU_CHANS, 3)) goto bad;
 	for (i = 0; i < EMU_CHANS; i++)
 		pcm_addchan(dev, PCMDIR_PLAY, &emupchan_class, sc);
-	for (i = 0; i < 3; i++)
-		pcm_addchan(dev, PCMDIR_REC, &emurchan_class, sc);
+	pcm_addchan(dev, PCMDIR_REC, &emurchan_class, sc);
 
 	pcm_setstatus(dev, status);
 
