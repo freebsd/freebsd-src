@@ -570,7 +570,6 @@ vm_page_zero_idle()
 	static int free_rover;
 	static int zero_state;
 	vm_page_t m;
-	int s;
 
 	/*
 	 * Attempt to maintain approximately 1/2 of our free pages in a
@@ -592,7 +591,6 @@ vm_page_zero_idle()
 		return(0);
 	}
 
-		s = splvm();
 		zero_state = 0;
 		m = vm_page_list_find(PQ_FREE, free_rover, FALSE);
 		if (m != NULL && (m->flags & PG_ZERO) == 0) {
@@ -613,7 +611,6 @@ vm_page_zero_idle()
 				zero_state = 1;
 		}
 		free_rover = (free_rover + PQ_PRIME2) & PQ_L2_MASK;
-		splx(s);
 		mtx_unlock(&vm_mtx);
 		return (1);
 }
