@@ -188,6 +188,10 @@ NDGBPORTS		opt_dgb.h
 SCSI_BOUNCE_SIZE	opt_bs.h
 BS_TARG_SAFEMODE	opt_bs.h
 
+# ct driver options
+CT_USE_RELOCATE_OFFSET	opt_ct.h
+CT_BUS_WEIGHT		opt_ct.h
+
 # npx options
 FPU_ERROR_BROKEN	opt_npx.h
 

@@ -1,11 +1,14 @@
 /*	$FreeBSD$	*/
-/*	$NecBSD: nspvar.h,v 1.7 1999/04/15 01:35:55 kmatsuda Exp $	*/
+/*	$NecBSD: nspvar.h,v 1.7.14.5 2001/06/29 06:27:54 honda Exp $	*/
 /*	$NetBSD$	*/
 
 /*
  * [NetBSD for NEC PC-98 series]
- *  Copyright (c) 1998
+ *  Copyright (c) 1998, 1999, 2000, 2001
  *	NetBSD/pc98 porting staff. All rights reserved.
+ *
+ *  Copyright (c) 1998, 1999, 2000, 2001
+ *	Naofumi HONDA. All rights reserved.
  * 
  *  Redistribution and use in source and binary forms, with or without
  *  modification, are permitted provided that the following conditions
@@ -40,48 +43,57 @@
 struct nsp_softc {
 	struct scsi_low_softc sc_sclow;		/* generic data */
 
+#ifdef	__NetBSD__
 	bus_space_tag_t sc_iot;
 	bus_space_handle_t sc_ioh;
 	bus_space_tag_t sc_memt;
 	bus_space_handle_t sc_memh;
 
 	void *sc_ih;
-	int sc_wc;
+#endif	/* __NetBSD__ */
 
-	int sc_seltout;				/* selection timeout counter */
-	int sc_timer;				/* timer start */
+#ifdef __FreeBSD__
+	bus_space_tag_t sc_iot;
+	bus_space_handle_t sc_ioh;
+	bus_space_tag_t sc_memt;
+	bus_space_handle_t sc_memh;
 
-	int sc_xmode;
-#define	NSP_HIGH_SMIT		2		/* write address data mode */
-#define	NSP_MID_SMIT		1		/* mem access */
-#define	NSP_PIO			0		/* io access */
-
-	u_int sc_idbit;				/* host id bit pattern */
-	u_int sc_mask;				/* bus width mask */
-	u_int sc_cnt;				/* fifo R/W count (host) */
-	u_int8_t sc_iclkdiv;			/* scsi chip clock divisor */
-	u_int8_t sc_clkdiv;			/* asic chip clock divisor */
-	u_int8_t sc_xfermr;			/* fifo control reg */
-	u_int8_t sc_icr;			/* interrupt control reg */
-
-	u_int8_t sc_busc;			/* busc registers */
-	u_long sc_ringp;			/* data buffer ring pointer */
-#if defined (__FreeBSD__) && __FreeBSD_version >= 400001
+#if __FreeBSD_version >= 400001
 	int port_rid;
 	int irq_rid;
 	int mem_rid;
 	struct resource *port_res;
 	struct resource *irq_res;
 	struct resource *mem_res;
+
 	void *nsp_intrhand;
-#endif
+#endif	/* __FreeBSD_version */
+#endif	/* __FreeBSD__ */
+
+	int sc_tmaxcnt;				/* timeout count */
+	int sc_seltout;				/* selection timeout counter */
+	int sc_timer;				/* timer start */
+
+	int sc_suspendio;			/* SMIT: data suspendio bytes */
+	u_int8_t sc_xfermr;			/* SMIT: fifo control reg */
+	int sc_dataout_timeout;			/* data out timeout counter */
+
+	u_int sc_idbit;				/* host id bit pattern */
+	u_int sc_cnt;				/* fifo R/W count (host) */
+
+	u_int8_t sc_iclkdiv;			/* scsi chip clock divisor */
+	u_int8_t sc_clkdiv;			/* asic chip clock divisor */
+	u_int8_t sc_icr;			/* interrupt control reg */
+
+	u_int8_t sc_busc;			/* busc registers */
+	u_int8_t sc_parr;			/* parity control register */
 };
 
 /*****************************************************************
- * Target information 
+ * Lun information 
  *****************************************************************/
 struct nsp_targ_info {
-	struct targ_info nti_ti;		/* generic target info */
+	struct targ_info nti_ti;		/* generic lun info */
 
 	u_int8_t nti_reg_syncr;			/* sync registers per devices */
 	u_int8_t nti_reg_ackwidth;		/* ackwidth per devices */

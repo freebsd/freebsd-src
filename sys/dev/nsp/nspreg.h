@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$NecBSD: nspreg.h,v 1.4 1999/04/15 01:35:55 kmatsuda Exp $	*/
+/*	$NecBSD: nspreg.h,v 1.4.14.3 2001/06/29 06:27:53 honda Exp $	*/
 /*	$NetBSD$	*/
 
 /*
@@ -92,6 +92,7 @@
 #define	IRQPHS_RSEL	0x20
 #define	IRQPHS_FIFO	0x40
 #define	IRQPHS_RST	0x80
+#define	IRQPHS_PHMASK   (IRQPHS_LCD | IRQPHS_LMSG | IRQPHS_LIO)
 
 #define	NSPR_TIMERCNT	0x17
 
@@ -125,6 +126,9 @@
 #define	ARBITS_RESEL	0x08
 
 #define	NSPR_PARITYR	0x1B	/* (W/R) */
+#define	PARITYR_ENABLE	0x01
+#define	PARITYR_CLEAR	0x02
+#define	PARITYR_PE	0x02
 
 #define	NSPR_CMDCR	0x1C	/* (W) */
 #define	CMDCR_PTCLR	0x01
@@ -139,6 +143,9 @@
 #define	PTCLRR_REQ	0x04
 #define	PTCLRR_HOST	0x08
 #define	PTCLRR_RSS	0x30
+#define	PTCLRR_RSS_ACK	0x00
+#define	PTCLRR_RSS_REQ	0x10
+#define	PTCLRR_RSS_HOST	0x20
 
 #define	NSPR_XFERCR	0x1E	/* (R) */
 
@@ -185,6 +192,12 @@
 #define	SCBUSMON_PHMASK \
 	(SCBUSMON_SEL | SCBUSMON_CD | SCBUSMON_MSG | SCBUSMON_IO)
 
+/* Data phase */
+#define	NSP_IS_PHASE_DATA(ph) \
+	((((ph) & SCBUSMON_PHMASK) & ~SCBUSMON_IO) == 0)
+#define	NSP_IS_IRQPHS_DATA(ph) \
+	((((ph) & IRQPHS_PHMASK) & ~SCBUSMON_IO) == 0)
+
 /* SCSI phase */
 #define	PHASE_CMD	(SCBUSMON_CMD & SCBUSMON_PHMASK)
 #define	PHASE_DATAIN	(SCBUSMON_DATAIN & SCBUSMON_PHMASK)
@@ -193,6 +206,13 @@
 #define	PHASE_MSGIN	(SCBUSMON_MSGIN & SCBUSMON_PHMASK)
 #define	PHASE_MSGOUT	(SCBUSMON_MSGOUT & SCBUSMON_PHMASK)
 #define	PHASE_SEL	(SCBUSMON_SEL | SCBUSMON_IO)
+
+#define	IRQPHS_CMD	(IRQPHS_LCD)
+#define	IRQPHS_DATAIN	(IRQPHS_LIO)
+#define	IRQPHS_DATAOUT	(0)
+#define	IRQPHS_STATUS	(IRQPHS_LCD | IRQPHS_LIO)
+#define	IRQPHS_MSGIN	(IRQPHS_LCD | IRQPHS_LMSG | IRQPHS_LIO)
+#define	IRQPHS_MSGOUT	(IRQPHS_LCD | IRQPHS_LMSG)
 
 /* Size */
 #define	NSP_MEMSIZE	NBPG
