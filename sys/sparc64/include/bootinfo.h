@@ -43,9 +43,11 @@
 
 struct	bootinfo {
 	u_int	bi_version;	/* Version number of this structure. */
+	u_int	bi_howto;	/* How to boot. */
 	u_long	bi_end;		/* End of kernel space. */
 	u_long	bi_kpa;		/* Physical address of start of kernel. */
 	u_long	bi_metadata;	/* Preload modules. */
+	u_long	bi_envp;	/* Kernel environment. */
 };
 
 #endif /* !_MACHINE_BOOTINFO_H_ */
