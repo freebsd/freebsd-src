@@ -129,6 +129,8 @@ struct schan {
 
 	u_long		rx_drop;	/* mbuf allocation failures */
 	u_long		tx_limit;
+	int		tx_next_md;	/* index to the next MD */
+	int		tx_last_md;	/* index to the last MD */
 	int		rx_last_md;	/* index to next MD */
 	int		nmd;		/* count of MD's. */
 #if 0
@@ -314,6 +316,7 @@ init_ctrl(struct softc *sif)
 	tsleep(sif, PZERO | PCATCH, "ds8370", hz);
 	sif->reg->gbp = vtophys(sif->ram);
 	sif->ram->grcd =  0x00000001;	/* RXENBL */
+	sif->ram->grcd |= 0x00000002;	/* TXENBL */
 	sif->ram->grcd |= 0x00000004;	/* SUBDSBL */
 	sif->ram->grcd |= 0x00000008;	/* OOFABT */
 #if 0
@@ -408,6 +411,40 @@ init_8370(u_int32_t *p)
 /*
  * Interrupts
  */
+
+static void
+musycc_intr0_tx_eom(struct softc *sc, int ch)
+{
+	u_int32_t status;
+	struct schan *sch;
+	struct mbuf *m;
+	struct mdesc *md;
+
+	sch = sc->chan[ch];
+	if (sch == NULL || sch->state != UP) {
+		/* XXX: this should not happen once the driver is done */
+		printf("Xmit packet on uninitialized channel %d\n", ch);
+		return;
+	}
+	if (sc->mdt[ch] == NULL)
+		return; 	/* XXX: can this happen ? */
+	for (;;) {
+		if (sch->tx_last_md == sch->tx_next_md)
+			break;
+		md = &sc->mdt[ch][sch->tx_last_md];
+		status = md->status;
+		if (status & 0x80000000)
+			break;		/* Not our mdesc, done */
+		m = md->m;
+		if (m)
+			m_freem(m);
+		md->m = NULL;
+		md->data = 0;
+		md->status = 0;
+		if (++sch->tx_last_md >= sch->nmd)
+			sch->tx_last_md = 0;
+	}
+}
 
 /*
  * Receive interrupt on controller *sc, channel ch
@@ -525,7 +562,7 @@ musycc_intr0(void *arg)
 			break;
 		case 3: /* EOM		End Of Message			    */
 			if (csc->iqd[j] & 0x80000000)
-				; /* tx */
+				musycc_intr0_tx_eom(sc, ch);
 			else
 				musycc_intr0_rx_eom(sc, ch);
 			break;
@@ -640,10 +677,10 @@ barf:
 static int
 ng_rcvmsg(node_p node, struct ng_mesg *msg, const char *retaddr, struct ng_mesg **resp, hook_p lasthook)
 {
-	struct softc *sif;
+	struct softc *sc;
 	char *s, *r;
 
-	sif = node->private;
+	sc = node->private;
 
 	if (msg->header.typecookie != NGM_GENERIC_COOKIE)
 		goto out;
@@ -656,7 +693,7 @@ ng_rcvmsg(node_p node, struct ng_mesg *msg, const char *retaddr, struct ng_mesg 
 			return (ENOMEM);
 		}
 		s = (char *)(*resp)->data;
-		sprintf(s, "Status for %s\n", sif->nodename);
+		sprintf(s, "Status for %s\n", sc->nodename);
 		(*resp)->header.arglen = strlen(s) + 1;
 		FREE(msg, M_NETGRAPH);
 		return (0);
@@ -732,7 +769,45 @@ static int
 ng_rcvdata(hook_p hook, struct mbuf *m, meta_p meta, struct mbuf **ret_m, meta_p *ret_meta)
 {
 
-	NG_FREE_DATA(m, meta);
+	struct softc *sc;
+	struct csoftc *csc;
+	struct schan *sch;
+	struct mdesc *md;
+	u_int32_t ch, u, len;
+	struct mbuf *m2;
+
+	sch = hook->private;
+	sc = sch->sc;
+	csc = sc->csc;
+	ch = sch->chan;
+
+	NG_FREE_META(meta);
+	meta = NULL;
+
+	/* XXX: check channel state */
+
+	m2 = m;
+	len = m->m_pkthdr.len;
+	while (len) {
+		md = &sc->mdt[ch][sch->tx_next_md];
+
+		if (++sch->tx_next_md >= sch->nmd)
+			sch->tx_next_md = 0;
+
+		md->data = vtophys(m->m_data);
+		len -= m->m_len;
+		u = 0x80000000;	/* OWNER = MUSYCC */
+		if (len > 0) {
+			md->m = 0;
+		} else {
+			u |= 1 << 29;	/* EOM */
+			md->m = m2;
+		}	
+
+		u |= m->m_len;
+		md->status = u;
+		m = m->m_next;
+	}
 	return (0);
 }
 
@@ -801,11 +876,8 @@ ng_connect(hook_p hook)
 	/* Reread the Channel Configuration Descriptor for this channel */
 	sc->reg->srd = sc->last = 0x0b00 + ch;
 	tsleep(&sc->last, PZERO + PCATCH, "con3", hz);
-#if 0
-	/* XXX: not yet xmit */
 	sc->reg->srd = sc->last = 0x0b20 + ch;
 	tsleep(&sc->last, PZERO + PCATCH, "con4", hz);
-#endif
 
 	/*
 	 * Figure out how many receive buffers we want:  10 + nts * 2
@@ -814,6 +886,8 @@ ng_connect(hook_p hook)
 	 */
 	sch->nmd = nmd = 10 + nts * 2;
 	sch->rx_last_md = 0;
+	sch->tx_next_md = 0;
+	sch->tx_last_md = 0;
 	MALLOC(sc->mdt[ch], struct mdesc *, 
 	    sizeof(struct mdesc) * nmd, M_MUSYCC, M_WAITOK);
 	MALLOC(sc->mdr[ch], struct mdesc *, 
@@ -826,7 +900,7 @@ ng_connect(hook_p hook)
 			sc->mdt[ch][i].next = vtophys(&sc->mdt[ch][i + 1]);
 			sc->mdr[ch][i].next = vtophys(&sc->mdr[ch][i + 1]);
 		}
-		sc->mdt[ch][i].status = 0x8000000;
+		sc->mdt[ch][i].status = 0;
 		sc->mdt[ch][i].m = NULL;
 		sc->mdt[ch][i].data = 0;
 
@@ -846,11 +920,8 @@ ng_connect(hook_p hook)
 	/* Activate the Channel */
 	sc->reg->srd = sc->last = 0x0800 + ch;
 	tsleep(&sc->last, PZERO + PCATCH, "con3", hz);
-#if 0
-	/* XXX: not yet xmit */
 	sc->reg->srd = sc->last = 0x0820 + ch;
 	tsleep(&sc->last, PZERO + PCATCH, "con4", hz);
-#endif
 
 	return (0);
 }
@@ -890,11 +961,8 @@ ng_disconnect(hook_p hook)
 	/* Deactivate the channel */
 	sc->reg->srd = sc->last = 0x0900 + sch->chan;
 	tsleep(&sc->last, PZERO + PCATCH, "con3", hz);
-#if 0
-	/* XXX: not yet xmit */
 	sc->reg->srd = sc->last = 0x0920 + sch->chan;
 	tsleep(&sc->last, PZERO + PCATCH, "con4", hz);
-#endif
 
 	for (i = 0; i < 32; i++) {
 		if (sch->ts & (1 << i)) {
@@ -965,7 +1033,7 @@ musycc_probe(device_t self)
 static int
 musycc_attach(device_t self)
 {
-	struct csoftc *sc;
+	struct csoftc *csc;
 	struct resource *res;
 	struct softc *sif;
 	int rid, i, error;
@@ -984,22 +1052,22 @@ musycc_attach(device_t self)
 	f = pci_get_function(self);
 	/* For function zero allocate a csoftc */
 	if (f == 0) {
-		MALLOC(sc, struct csoftc *, sizeof(*sc), M_MUSYCC, M_WAITOK);
-		bzero(sc, sizeof(*sc));
-		sc->bus = pci_get_bus(self);
-		sc->slot = pci_get_slot(self);
-		LIST_INSERT_HEAD(&sc_list, sc, list);
+		MALLOC(csc, struct csoftc *, sizeof(*csc), M_MUSYCC, M_WAITOK);
+		bzero(csc, sizeof(*csc));
+		csc->bus = pci_get_bus(self);
+		csc->slot = pci_get_slot(self);
+		LIST_INSERT_HEAD(&sc_list, csc, list);
 	} else {
-		LIST_FOREACH(sc, &sc_list, list) {
-			if (sc->bus != pci_get_bus(self))
+		LIST_FOREACH(csc, &sc_list, list) {
+			if (csc->bus != pci_get_bus(self))
 				continue;
-			if (sc->slot != pci_get_slot(self))
+			if (csc->slot != pci_get_slot(self))
 				continue;
 			break;
 		}
 	}
-	sc->f[f] = self;
-	device_set_softc(self, sc);
+	csc->f[f] = self;
+	device_set_softc(self, csc);
 	rid = PCIR_MAPS;
 	res = bus_alloc_resource(self, SYS_RES_MEMORY, &rid,
 	    0, ~0, 1, RF_ACTIVE);
@@ -1007,21 +1075,21 @@ musycc_attach(device_t self)
 		device_printf(self, "Could not map memory\n");
 		return ENXIO;
 	}
-	sc->virbase[f] = (u_char *)rman_get_virtual(res);
-	sc->physbase[f] = rman_get_start(res);
+	csc->virbase[f] = (u_char *)rman_get_virtual(res);
+	csc->physbase[f] = rman_get_start(res);
 
 	/* Allocate interrupt */
 	rid = 0;
-	sc->irq[f] = bus_alloc_resource(self, SYS_RES_IRQ, &rid, 0, ~0,
+	csc->irq[f] = bus_alloc_resource(self, SYS_RES_IRQ, &rid, 0, ~0,
 	    1, RF_SHAREABLE | RF_ACTIVE);
 
-	if (sc->irq[f] == NULL) {
+	if (csc->irq[f] == NULL) {
 		printf("couldn't map interrupt\n");
 		return(ENXIO);
 	}
 
-	error = bus_setup_intr(self, sc->irq[f], INTR_TYPE_NET,
-	    f == 0 ? musycc_intr0 : musycc_intr1, sc, &sc->intrhand[f]);
+	error = bus_setup_intr(self, csc->irq[f], INTR_TYPE_NET,
+	    f == 0 ? musycc_intr0 : musycc_intr1, csc, &csc->intrhand[f]);
 
 	if (error) {
 		printf("couldn't set up irq\n");
@@ -1033,29 +1101,29 @@ musycc_attach(device_t self)
 
 	for (i = 0; i < 2; i++)
 		printf("f%d: device %p virtual %p physical %08x\n",
-		    i, sc->f[i], sc->virbase[i], sc->physbase[i]);
+		    i, csc->f[i], csc->virbase[i], csc->physbase[i]);
 
-	sc->reg = (struct globalr *)sc->virbase[0];
-	sc->reg->glcd = 0x3f30;	/* XXX: designer magic */
-	u32p = (u_int32_t *)sc->virbase[1];
+	csc->reg = (struct globalr *)csc->virbase[0];
+	csc->reg->glcd = 0x3f30;	/* XXX: designer magic */
+	u32p = (u_int32_t *)csc->virbase[1];
 	if ((u32p[0x1200] & 0xffffff00) != 0x13760400) {
 		printf("Not a LMC1504 (ID is 0x%08x).  Bailing out.\n",
 		    u32p[0x1200]);
 		return(ENXIO);
 	}
 	printf("Found <LanMedia LMC1504>\n");
-	sc->nchan = 4;
+	csc->nchan = 4;
 
 	u32p[0x1000] = 0xfe;	/* XXX: control-register */
-	for (i = 0; i < sc->nchan; i++) {
-		sif = &sc->serial[i];
-		sif->csc = sc;
+	for (i = 0; i < csc->nchan; i++) {
+		sif = &csc->serial[i];
+		sif->csc = csc;
 		sif->last = 0xffffffff;
 		sif->ds8370 = (u_int32_t *)
-		    (sc->virbase[1] + i * 0x800);
-		sif->ds847x = sc->virbase[0] + i * 0x800;
+		    (csc->virbase[1] + i * 0x800);
+		sif->ds847x = csc->virbase[0] + i * 0x800;
 		sif->reg = (struct globalr *)
-		    (sc->virbase[0] + i * 0x800);
+		    (csc->virbase[0] + i * 0x800);
 		MALLOC(sif->mycg, struct mycg *, 
 		    sizeof(struct mycg), M_MUSYCC, M_WAITOK);
 		bzero(sif->mycg, sizeof(struct mycg));
@@ -1069,13 +1137,13 @@ musycc_attach(device_t self)
 		sif->node->private = sif;
 		sprintf(sif->nodename, "pci%d-%d-%d-%d",
 			device_get_unit(device_get_parent(self)),
-			sc->bus,
-			sc->slot,
+			csc->bus,
+			csc->slot,
 			i);
 		error = ng_name_node(sif->node, sif->nodename);
 	}
-	sc->ram = (struct globalr *)&sc->serial[0].mycg->cg;
-	init_847x(sc);
+	csc->ram = (struct globalr *)&csc->serial[0].mycg->cg;
+	init_847x(csc);
 
 	return 0;
 }
