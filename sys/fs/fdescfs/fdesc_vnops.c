@@ -302,7 +302,7 @@ fdesc_getattr(ap)
 			return (error);
 
 		bzero(&stb, sizeof(stb));
-		error = fo_stat(fp, &stb, ap->a_td);
+		error = fo_stat(fp, &stb, ap->a_td->td_ucred, ap->a_td);
 		fdrop(fp, ap->a_td);
 		if (error == 0) {
 			VATTR_NULL(vap);

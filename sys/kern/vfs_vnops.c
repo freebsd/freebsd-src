@@ -68,10 +68,11 @@ static int vn_ioctl(struct file *fp, u_long com, void *data,
 		struct thread *td);
 static int vn_read(struct file *fp, struct uio *uio, 
 		struct ucred *active_cred, int flags, struct thread *td);
-static int vn_poll(struct file *fp, int events, struct ucred *cred,
+static int vn_poll(struct file *fp, int events, struct ucred *active_cred,
 		struct thread *td);
 static int vn_kqfilter(struct file *fp, struct knote *kn);
-static int vn_statfile(struct file *fp, struct stat *sb, struct thread *td);
+static int vn_statfile(struct file *fp, struct stat *sb,
+		struct ucred *active_cred, struct thread *td);
 static int vn_write(struct file *fp, struct uio *uio, 
 		struct ucred *active_cred, int flags, struct thread *td);
 
@@ -295,17 +296,17 @@ vn_writechk(vp)
  * Vnode close call
  */
 int
-vn_close(vp, flags, cred, td)
+vn_close(vp, flags, file_cred, td)
 	register struct vnode *vp;
 	int flags;
-	struct ucred *cred;
+	struct ucred *file_cred;
 	struct thread *td;
 {
 	int error;
 
 	if (flags & FWRITE)
 		vp->v_writecount--;
-	error = VOP_CLOSE(vp, flags, cred, td);
+	error = VOP_CLOSE(vp, flags, file_cred, td);
 	/*
 	 * XXX - In certain instances VOP_CLOSE has to do the vrele
 	 * itself. If the vrele has been done, it will return EAGAIN
@@ -578,16 +579,17 @@ vn_write(fp, uio, active_cred, flags, td)
  * File table vnode stat routine.
  */
 static int
-vn_statfile(fp, sb, td)
+vn_statfile(fp, sb, active_cred, td)
 	struct file *fp;
 	struct stat *sb;
+	struct ucred *active_cred;
 	struct thread *td;
 {
 	struct vnode *vp = (struct vnode *)fp->f_data;
 	int error;
 
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
-	error = vn_stat(vp, sb, td);
+	error = vn_stat(vp, sb, active_cred, fp->f_cred, td);
 	VOP_UNLOCK(vp, 0, td);
 
 	return (error);
@@ -597,9 +599,11 @@ vn_statfile(fp, sb, td)
  * Stat a vnode; implementation for the stat syscall
  */
 int
-vn_stat(vp, sb, td)
+vn_stat(vp, sb, active_cred, file_cred, td)
 	struct vnode *vp;
 	register struct stat *sb;
+	struct ucred *active_cred;
+	struct ucred *file_cred;
 	struct thread *td;
 {
 	struct vattr vattr;
@@ -608,13 +612,13 @@ vn_stat(vp, sb, td)
 	u_short mode;
 
 #ifdef MAC
-	error = mac_check_vnode_stat(td->td_ucred, vp);
+	error = mac_check_vnode_stat(active_cred, vp);
 	if (error)
 		return (error);
 #endif
 
 	vap = &vattr;
-	error = VOP_GETATTR(vp, vap, td->td_ucred, td);
+	error = VOP_GETATTR(vp, vap, active_cred, td);
 	if (error)
 		return (error);
 
@@ -788,10 +792,10 @@ vn_ioctl(fp, com, data, td)
  * File table vnode poll routine.
  */
 static int
-vn_poll(fp, events, cred, td)
+vn_poll(fp, events, active_cred, td)
 	struct file *fp;
 	int events;
-	struct ucred *cred;
+	struct ucred *active_cred;
 	struct thread *td;
 {
 	struct vnode *vp;
@@ -802,13 +806,13 @@ vn_poll(fp, events, cred, td)
 	vp = (struct vnode *)fp->f_data;
 #ifdef MAC
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
-	error = mac_check_vnode_op(cred, vp, MAC_OP_VNODE_POLL);
+	error = mac_check_vnode_op(active_cred, vp, MAC_OP_VNODE_POLL);
 	VOP_UNLOCK(vp, 0, td);
 	if (error)
 		return (error);
 #endif
 
-	return (VOP_POLL(vp, events, cred, td));
+	return (VOP_POLL(vp, events, fp->f_cred, td));
 }
 
 /*

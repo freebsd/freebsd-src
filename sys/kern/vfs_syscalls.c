@@ -1435,7 +1435,7 @@ ostat(td, uap)
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
-	error = vn_stat(nd.ni_vp, &sb, td);
+	error = vn_stat(nd.ni_vp, &sb, td->td_ucred, NOCRED, td);
 	vput(nd.ni_vp);
 	if (error)
 		return (error);
@@ -1473,7 +1473,7 @@ olstat(td, uap)
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	vp = nd.ni_vp;
-	error = vn_stat(vp, &sb, td);
+	error = vn_stat(vp, &sb, td->td_ucred, NOCRED, td);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vput(vp);
 	if (error)
@@ -1544,7 +1544,7 @@ stat(td, uap)
 #endif
 	if ((error = namei(&nd)) != 0)
 		return (error);
-	error = vn_stat(nd.ni_vp, &sb, td);
+	error = vn_stat(nd.ni_vp, &sb, td->td_ucred, NOCRED, td);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vput(nd.ni_vp);
 	if (error)
@@ -1581,7 +1581,7 @@ lstat(td, uap)
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	vp = nd.ni_vp;
-	error = vn_stat(vp, &sb, td);
+	error = vn_stat(vp, &sb, td->td_ucred, NOCRED, td);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vput(vp);
 	if (error)
@@ -1646,7 +1646,7 @@ nstat(td, uap)
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
-	error = vn_stat(nd.ni_vp, &sb, td);
+	error = vn_stat(nd.ni_vp, &sb, td->td_ucred, NOCRED, td);
 	vput(nd.ni_vp);
 	if (error)
 		return (error);
@@ -1685,7 +1685,7 @@ nlstat(td, uap)
 		return (error);
 	vp = nd.ni_vp;
 	NDFREE(&nd, NDF_ONLY_PNBUF);
-	error = vn_stat(vp, &sb, td);
+	error = vn_stat(vp, &sb, td->td_ucred, NOCRED, td);
 	vput(vp);
 	if (error)
 		return (error);
@@ -3478,7 +3478,7 @@ fhstat(td, uap)
 		return (ESTALE);
 	if ((error = VFS_FHTOVP(mp, &fh.fh_fid, &vp)))
 		return (error);
-	error = vn_stat(vp, &sb, td);
+	error = vn_stat(vp, &sb, td->td_ucred, NOCRED, td);
 	vput(vp);
 	if (error)
 		return (error);
