@@ -50,8 +50,8 @@
 #include <sys/proc.h>
 #endif
 
-#include <pci/pcivar.h>
-#include <pci/pcireg.h>
+#include <dev/pci/pcivar.h>
+#include <dev/pci/pcireg.h>
 #include <pci/agppriv.h>
 #include <pci/agpreg.h>
 
