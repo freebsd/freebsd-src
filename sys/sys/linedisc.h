@@ -72,8 +72,6 @@ struct cdev {
 	LIST_HEAD(, cdev)	si_children;
 	LIST_ENTRY(cdev)	si_siblings;
 	dev_t		si_parent;
-	struct snaphead	si_snapshots;
-	int		(*si_copyonwrite)(struct vnode *, struct buf *);
 	u_int		si_inode;
 	char		si_name[SPECNAMELEN + 1];
 	void		*si_drv1, *si_drv2;
@@ -92,6 +90,10 @@ struct cdev {
 			struct mount *__sid_mountpoint;
 			int __sid_bsize_phys; /* min physical block size */
 			int __sid_bsize_best; /* optimal block size */
+			struct snaphead	__sid_snapshots;
+			daddr_t __sid_snaplistsize; /* size of snapblklist. */
+			daddr_t	*__sid_snapblklist; /* known snapshot blocks. */
+			int (*__sid_copyonwrite)(struct vnode *, struct buf *);
 		} __si_disk;
 	} __si_u;
 };
@@ -101,6 +103,10 @@ struct cdev {
 #define si_mountpoint	__si_u.__si_disk.__sid_mountpoint
 #define si_bsize_phys	__si_u.__si_disk.__sid_bsize_phys
 #define si_bsize_best	__si_u.__si_disk.__sid_bsize_best
+#define si_snapshots	__si_u.__si_disk.__sid_snapshots
+#define si_snaplistsize	__si_u.__si_disk.__sid_snaplistsize
+#define si_snapblklist	__si_u.__si_disk.__sid_snapblklist
+#define si_copyonwrite	__si_u.__si_disk.__sid_copyonwrite
 
 /*
  * Special device management
