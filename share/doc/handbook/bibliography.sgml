@@ -1,4 +1,4 @@
-<!-- $Id: bibliography.sgml,v 1.8 1996/07/29 02:31:43 jfieber Exp $ -->
+<!-- $Id: bibliography.sgml,v 1.9 1996/08/14 17:22:16 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
     <chapt>
@@ -222,6 +222,22 @@
 	    <item>Van Gilluwe, Frank. <em>The Undocumented PC</em>.
 		Reading, Mass: Addison-Wesley Pub. Co., 1994.
 		<newline>ISBN 0-201-62277-7</item>
+
+	  </itemize>
+
+      <sect>
+	<heading>Unix history</heading>
+
+	<p><itemize>
+
+	    <item>Saulus, Peter H. <em>A quarter century of UNIX</em>.
+	      Addison-Wesley Publishing Company, Inc., 1994.
+	      <newline>ISBN 0-201-54777-5</item>
+          
+	    <item>Simon Garfinkel, Daniel Weise, Steven Strassmann.
+	      <em>The UNIX-HATERS Handbook</em>.
+	      IDG Books Worldwide, Inc., 1994.
+	      <newline>ISBN 1-56884-203-1</item>
 
 	  </itemize>
 
