@@ -140,7 +140,7 @@ ffs_snapshot(mp, snapfile)
 	long redo = 0, snaplistsize = 0;
 	int32_t *lp;
 	void *space;
-	struct fs *copy_fs = NULL, *fs = VFSTOUFS(mp)->um_fs;
+	struct fs *copy_fs = NULL, *fs;
 	struct thread *td = curthread;
 	struct inode *ip, *xp;
 	struct buf *bp, *nbp, *ibp, *sbp = NULL;
@@ -151,7 +151,10 @@ ffs_snapshot(mp, snapfile)
 	struct uio auio;
 	struct iovec aiov;
 	struct snapdata *sn;
+	struct ufsmount *ump;
 
+	ump = VFSTOUFS(mp);
+	fs = ump->um_fs;
 	/*
 	 * XXX: make sure we don't go to out1 before we setup sn
 	 */
@@ -163,9 +166,11 @@ ffs_snapshot(mp, snapfile)
 	/*
 	 * Assign a snapshot slot in the superblock.
 	 */
+	UFS_LOCK(ump);
 	for (snaploc = 0; snaploc < FSMAXSNAP; snaploc++)
 		if (fs->fs_snapinum[snaploc] == 0)
 			break;
+	UFS_UNLOCK(ump);
 	if (snaploc == FSMAXSNAP)
 		return (ENOSPC);
 	/*
@@ -285,8 +290,11 @@ restart:
 	 * the suspension period.
 	 */
 	len = howmany(fs->fs_ncg, NBBY);
-	MALLOC(fs->fs_active, int *, len, M_DEVBUF, M_WAITOK);
-	bzero(fs->fs_active, len);
+	MALLOC(space, void *, len, M_DEVBUF, M_WAITOK);
+	bzero(space, len);
+	UFS_LOCK(ump);
+	fs->fs_active = space;
+	UFS_UNLOCK(ump);
 	for (cg = 0; cg < fs->fs_ncg; cg++) {
 		error = UFS_BALLOC(vp, lfragtosize(fs, cgtod(fs, cg)),
 		    fs->fs_bsize, KERNCRED, 0, &nbp);
@@ -419,8 +427,8 @@ restart:
 	 */
 	snaplistsize = fs->fs_ncg + howmany(fs->fs_cssize, fs->fs_bsize) +
 	    FSMAXSNAP + 1 /* superblock */ + 1 /* last block */ + 1 /* size */;
-	mp->mnt_kern_flag &= ~MNTK_SUSPENDED;
 	MNT_ILOCK(mp);
+	mp->mnt_kern_flag &= ~MNTK_SUSPENDED;
 loop:
 	MNT_VNODE_FOREACH(xvp, mp, nvp) {
 		VI_LOCK(xvp);
@@ -467,8 +475,8 @@ loop:
 		if (loc < NDADDR) {
 			len = fragroundup(fs, blkoff(fs, xp->i_size));
 			if (len < fs->fs_bsize) {
-				ffs_blkfree(copy_fs, vp, DIP(xp, i_db[loc]),
-				    len, xp->i_number);
+				ffs_blkfree(ump, copy_fs, vp,
+				    DIP(xp, i_db[loc]), len, xp->i_number);
 				blkno = DIP(xp, i_db[loc]);
 				DIP_SET(xp, i_db[loc], 0);
 			}
@@ -483,7 +491,7 @@ loop:
 		if (blkno)
 			DIP_SET(xp, i_db[loc], blkno);
 		if (!error)
-			error = ffs_freefile(copy_fs, vp, xp->i_number,
+			error = ffs_freefile(ump, copy_fs, vp, xp->i_number,
 			    xp->i_mode);
 		VOP_UNLOCK(xvp, 0, td);
 		if (error) {
@@ -683,10 +691,12 @@ out:
 		mtx_unlock_spin(&sched_lock);
 		PROC_UNLOCK(td->td_proc);
 	}
+	UFS_LOCK(ump);
 	if (fs->fs_active != 0) {
 		FREE(fs->fs_active, M_DEVBUF);
 		fs->fs_active = 0;
 	}
+	UFS_UNLOCK(ump);
 	mp->mnt_flag = flag;
 	if (error)
 		(void) UFS_TRUNCATE(vp, (off_t)0, 0, NOCRED, td);
@@ -734,7 +744,9 @@ cgaccount(cg, vp, nbp, passno)
 		brelse(bp);
 		return (EIO);
 	}
-	atomic_set_int(&ACTIVECGNUM(fs, cg), ACTIVECGOFF(cg));
+	UFS_LOCK(ip->i_ump);
+	ACTIVECLEAR(fs, cg);
+	UFS_UNLOCK(ip->i_ump);
 	bcopy(bp->b_data, nbp->b_data, fs->fs_cgsize);
 	if (fs->fs_cgsize < fs->fs_bsize)
 		bzero(&nbp->b_data[fs->fs_cgsize],
@@ -1081,7 +1093,7 @@ mapacct_ufs1(vp, oldblkp, lastblkp, fs, lblkno, expungetype)
 			*ip->i_snapblklist++ = lblkno;
 		if (blkno == BLK_SNAP)
 			blkno = blkstofrags(fs, lblkno);
-		ffs_blkfree(fs, vp, blkno, fs->fs_bsize, inum);
+		ffs_blkfree(ip->i_ump, fs, vp, blkno, fs->fs_bsize, inum);
 	}
 	return (0);
 }
@@ -1361,7 +1373,7 @@ mapacct_ufs2(vp, oldblkp, lastblkp, fs, lblkno, expungetype)
 			*ip->i_snapblklist++ = lblkno;
 		if (blkno == BLK_SNAP)
 			blkno = blkstofrags(fs, lblkno);
-		ffs_blkfree(fs, vp, blkno, fs->fs_bsize, inum);
+		ffs_blkfree(ip->i_ump, fs, vp, blkno, fs->fs_bsize, inum);
 	}
 	return (0);
 }
@@ -1378,6 +1390,7 @@ ffs_snapgone(ip)
 	struct fs *fs;
 	int snaploc;
 	struct snapdata *sn;
+	struct ufsmount *ump;
 
 	/*
 	 * Find snapshot in incore list.
@@ -1397,6 +1410,8 @@ ffs_snapgone(ip)
 	 * Delete snapshot inode from superblock. Keep list dense.
 	 */
 	fs = ip->i_fs;
+	ump = ip->i_ump;
+	UFS_LOCK(ump);
 	for (snaploc = 0; snaploc < FSMAXSNAP; snaploc++)
 		if (fs->fs_snapinum[snaploc] == ip->i_number)
 			break;
@@ -1408,6 +1423,7 @@ ffs_snapgone(ip)
 		}
 		fs->fs_snapinum[snaploc - 1] = 0;
 	}
+	UFS_UNLOCK(ump);
 }
 
 /*
