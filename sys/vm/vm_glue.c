@@ -361,24 +361,26 @@ retry:
 	sx_slock(&allproc_lock);
 	FOREACH_PROC_IN_SYSTEM(p) {
 		PROC_LOCK(p);
-
 		object = p->p_upages_obj;
-		if (object != NULL &&
-		    swap_pager_isswapped(p->p_upages_obj, devidx)) {
-			sx_sunlock(&allproc_lock);
-			faultin(p);
-			PROC_UNLOCK(p);
+		if (object != NULL) {
 			VM_OBJECT_LOCK(object);
-			vm_page_lock_queues();
-			TAILQ_FOREACH(m, &object->memq, listq)
-				vm_page_dirty(m);
-			vm_page_unlock_queues();
-			swap_pager_freespace(object, 0,
-			    object->un_pager.swp.swp_bcount);
+			if (swap_pager_isswapped(object, devidx)) {
+				VM_OBJECT_UNLOCK(object);
+				sx_sunlock(&allproc_lock);
+				faultin(p);
+				PROC_UNLOCK(p);
+				VM_OBJECT_LOCK(object);
+				vm_page_lock_queues();
+				TAILQ_FOREACH(m, &object->memq, listq)
+					vm_page_dirty(m);
+				vm_page_unlock_queues();
+				swap_pager_freespace(object, 0,
+				    object->un_pager.swp.swp_bcount);
+				VM_OBJECT_UNLOCK(object);
+				goto retry;
+			}
 			VM_OBJECT_UNLOCK(object);
-			goto retry;
 		}
-
 		PROC_UNLOCK(p);
 	}
 	sx_sunlock(&allproc_lock);
