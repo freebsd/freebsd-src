@@ -69,7 +69,6 @@ static void	configure_start __P((void));
 device_t isa_bus_device = 0;
 #endif
 
-struct cam_sim *boot_sim = 0;
 extern int nfs_diskless_valid;
 
 dev_t	rootdev = NODEV;
@@ -217,54 +216,23 @@ configure(void *dummy)
 	cold = 0;
 }
 
+/*
+ * Do legacy root filesystem discovery.  This isn't really
+ * needed on the Alpha, which has always used the loader.
+ */
 void
 cpu_rootconf()
 {
-#ifdef BOOTP_NFSROOT
-        if (!strcmp(bootdev_protocol(), "BOOTP")
-	    && !mountrootfsname && !nfs_diskless_valid) {
-                if (bootverbose)
-                        printf("Considering BOOTP NFS root f/s.\n");
-                mountrootfsname = "nfs";
-        }
-#endif /* BOOTP_NFSROOT */
-#if defined(NFS) || defined(NFS_ROOT)
-        if (!mountrootfsname && nfs_diskless_valid) {
-                if (bootverbose)
-                        printf("Considering NFS root f/s.\n");
-                mountrootfsname = "nfs";
-        }
-#endif /* NFS */
+	int	order = 0;
+#if defined(NFS) && defined(NFS_ROOT)
+#if !defined(BOOTP_NFSROOT)
+	if (nfs_diskless_valid)
+#endif
+		rootdevnames[order++] = "nfs:";
+#endif
 
-
-#if defined(FFS) || defined(FFS_ROOT)
-	if (!mountrootfsname) {
-		static char rootname[] = "da0a";
-
-		if (bootverbose)
-			printf("Considering UFS root f/s.\n");
-		mountrootfsname = "ufs";
-
-		if (boot_sim) {
-			struct cam_path *path;
-			struct cam_periph *periph;
-	    
-			xpt_create_path(&path, NULL,
-					cam_sim_path(boot_sim),
-					bootdev_unit() / 100, 0);
-			periph = cam_periph_find(path, "da");
-
-			if (periph)
-			    rootdev = makebdev
-				(4, dkmakeminor(periph->unit_number,
-						COMPATIBILITY_SLICE, 0));
-
-			xpt_free_path(path);
-		}
-
-		rootdevs[0] = rootdev;
-		rootname[2] += dkunit(rootdev);
-		rootdevnames[0] = rootname;
-	}
+#if defined(FFS) && defined(FFS_ROOT)
+	rootdevnames[order++] = "ufs:da0a";
 #endif
 }
+SYSINIT(cpu_rootconf, SI_SUB_ROOT_CONF, SI_ORDER_FIRST, cpu_rootconf, NULL)

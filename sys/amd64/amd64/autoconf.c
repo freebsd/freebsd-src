@@ -83,11 +83,10 @@ static void	configure_final __P((void *));
 
 static void	configure_finish __P((void));
 static void	configure_start __P((void));
-#if defined(FFS) || defined(FFS_ROOT)
+
+#if defined(FFS) && defined(FFS_ROOT)
 static void	setroot __P((void));
 #endif
-static int	setrootbyname __P((char *name));
-static void	gets __P((char *));
 
 SYSINIT(configure1, SI_SUB_CONFIGURE, SI_ORDER_FIRST, configure_first, NULL);
 /* SI_ORDER_SECOND is hookable */
@@ -98,78 +97,6 @@ SYSINIT(configure3, SI_SUB_CONFIGURE, SI_ORDER_ANY, configure_final, NULL);
 dev_t	rootdev = NODEV;
 dev_t	dumpdev = NODEV;
 
-#if defined(CD9660) || defined(CD9660_ROOT)
-
-#include <sys/fcntl.h>
-#include <sys/proc.h>
-#include <sys/stat.h>
-#include <machine/clock.h>
-
-/*
- * XXX All this CD-ROM root stuff is fairly messy.  Ick.
- *
- * We need to try out all our potential CDROM drives, so we need a table.
- */
-static struct {
-	char *name;
-	int major;
-} try_cdrom[] = {
-	{ "cd", 6 },
-	{ "mcd", 7 },
-	{ "scd", 16 },
-	{ "matcd", 17 },
-	{ "wcd", 19 },
-	{ 0, 0}
-};
-
-static int	find_cdrom_root __P((void));
-
-static int
-find_cdrom_root()
-{
-	int i, j, error;
-	struct cdevsw *bd;
-	dev_t orootdev;
-
-#if CD9660_ROOTDELAY > 0
-	DELAY(CD9660_ROOTDELAY * 1000000);
-#endif
-	orootdev = rootdev;
-	for (i = 0 ; i < 2; i++)
-		for (j = 0 ; try_cdrom[j].name ; j++) {
-			if (try_cdrom[j].major >= NUMCDEVSW)
-				continue;
-			rootdev = makebdev(try_cdrom[j].major, i * 8);
-			bd = devsw(rootdev);
-			if (bd == NULL || bd->d_open == NULL)
-				continue;
-			if (bootverbose)
-				printf("trying %s%d as rootdev (%p)\n",
-				       try_cdrom[j].name, i, (void *)rootdev);
-			error = (bd->d_open)(rootdev, FREAD, S_IFBLK, curproc);
-			if (error == 0) {
-				if (bd->d_close != NULL)
-					(bd->d_close)(rootdev, FREAD, S_IFBLK,
-						      curproc);
-				return 0;
-			}
-		}
-
-	rootdev = orootdev;
-	return EINVAL;
-}
-#endif /* CD9660 || CD9660_ROOT */
-
-static void
-configure_start()
-{
-}
-
-static void
-configure_finish()
-{
-}
-
 device_t nexus_dev;
 
 /*
@@ -179,8 +106,6 @@ static void
 configure_first(dummy)
 	void *dummy;
 {
-
-	configure_start();		/* DDB hook? */
 }
 
 static void
@@ -248,8 +173,6 @@ configure_final(dummy)
 {
 	int i;
 
-	configure_finish();			/* DDB hook? */
-
 	cninit_finish();
 
 	if (bootverbose) {
@@ -293,69 +216,42 @@ configure_final(dummy)
 	cold = 0;
 }
 
-
+/*
+ * Do legacy root filesystem discovery.
+ */
 void
 cpu_rootconf()
 {
-	/*
-	 * XXX NetBSD has a much cleaner approach to finding root.
-	 * XXX We should adopt their code.
-	 */
-#if defined(CD9660) || defined(CD9660_ROOT)
-	if ((boothowto & RB_CDROM)) {
-		if (bootverbose)
-			printf("Considering CD-ROM root f/s.\n");
-		/* NB: find_cdrom_root() sets rootdev if successful. */
-		if (find_cdrom_root() == 0)
-			mountrootfsname = "cd9660";
-		else if (bootverbose)
-			printf("No CD-ROM available as root f/s.\n");
-	}
+#if defined(NFS) && defined(NFS_ROOT)
+#if !defined(BOOTP_NFSROOT)
+	if (nfs_diskless_valid)
 #endif
-
-#ifdef BOOTP_NFSROOT
-	if (!mountrootfsname && !nfs_diskless_valid) {
-		if (bootverbose)
-			printf("Considering BOOTP NFS root f/s.\n");
-		mountrootfsname = "nfs";
-	}
-#endif /* BOOTP_NFSROOT */
-#if defined(NFS) || defined(NFS_ROOT)
-	if (!mountrootfsname && nfs_diskless_valid) {
-		if (bootverbose)
-			printf("Considering NFS root f/s.\n");
-		mountrootfsname = "nfs";
-	}
-#endif /* NFS */
-
-#if defined(FFS) || defined(FFS_ROOT)
-	if (!mountrootfsname) {
-		mountrootfsname = "ufs";
-		if (bootverbose)
-			printf("Considering FFS root f/s.\n");
-		if (boothowto & RB_ASKNAME)
-			setconf();
-		else
-			setroot();
-	}
+		rootdevnames[0] = "nfs:";
 #endif
-
-	if (!mountrootfsname) {
-		panic("Nobody wants to mount my root for me");
-	}
+#if defined(FFS) && defined(FFS_ROOT)
+	setroot();
+#endif
 }
+SYSINIT(cpu_rootconf, SI_SUB_ROOT_CONF, SI_ORDER_FIRST, cpu_rootconf, NULL)
 
 u_long	bootdev = 0;		/* not a dev_t - encoding is different */
 
-#define FDMAJOR 2
+#if defined(FFS) && defined(FFS_ROOT)
+#define FDMAJOR 	2
 #define FDUNITSHIFT     6
 
-#if defined(FFS) || defined(FFS_ROOT)
 /*
  * Attempt to find the device from which we were booted.
  * If we can do so, and not instructed not to do so,
  * set rootdevs[] and rootdevnames[] to correspond to the
  * boot device(s).
+ *
+ * This code survives in order to allow the system to be 
+ * booted from legacy environments that do not correctly
+ * populate the kernel environment. There are significant
+ * restrictions on the bootability of the system in this
+ * situation; it can only be mounting root from a 'da'
+ * 'wd' or 'fd' device, and the root filesystem must be ufs.
  */
 static void
 setroot()
@@ -365,24 +261,14 @@ setroot()
 	char partname[2];
 	char *sname;
 
-	if (boothowto & RB_DFLTROOT) {
-#ifdef ROOTDEVNAME
-		setrootbyname(ROOTDEVNAME);
-#else
-		setconf();
-#endif
-		return;
-	}
 	if ((bootdev & B_MAGICMASK) != B_DEVMAGIC) {
 		printf("no B_DEVMAGIC (bootdev=%#lx)\n", bootdev);
-		setconf();
 		return;
 	}
 	majdev = B_TYPE(bootdev);
 	dev = makebdev(majdev, 0);
 	if (devsw(dev) == NULL) {
 		printf("no devsw (majdev=%d bootdev=%#lx)\n", majdev, bootdev);
-		setconf();
 		return;
 	}
 	unit = B_UNIT(bootdev);
@@ -391,7 +277,6 @@ setroot()
 		slice = COMPATIBILITY_SLICE;
 	if (slice < 0 || slice >= MAX_SLICES) {
 		printf("bad slice\n");
-		setconf();
 		return;
 	}
 
@@ -409,10 +294,9 @@ setroot()
 	}
 
 	newrootdev = makebdev(majdev, mindev);
-	rootdevs[0] = newrootdev;
 	sname = dsname(newrootdev, unit, slice, part, partname);
-	rootdevnames[0] = malloc(strlen(sname) + 2, M_DEVBUF, M_NOWAIT);
-	sprintf(rootdevnames[0], "%s%s", sname, partname);
+	rootdevnames[0] = malloc(strlen(sname) + 6, M_DEVBUF, M_NOWAIT);
+	sprintf(rootdevnames[0], "ufs:%s%s", sname, partname);
 
 	/*
 	 * For properly dangerously dedicated disks (ones with a historical
@@ -426,125 +310,8 @@ setroot()
 	if (slice == COMPATIBILITY_SLICE)
 		return;
 	slice = COMPATIBILITY_SLICE;
-	rootdevs[1] = dkmodslice(newrootdev, slice);
 	sname = dsname(newrootdev, unit, slice, part, partname);
-	rootdevnames[1] = malloc(strlen(sname) + 2, M_DEVBUF, M_NOWAIT);
-	sprintf(rootdevnames[1], "%s%s", sname, partname);
+	rootdevnames[1] = malloc(strlen(sname) + 6, M_DEVBUF, M_NOWAIT);
+	sprintf(rootdevnames[1], "ufs:%s%s", sname, partname);
 }
 #endif
-
-
-
-static int
-setrootbyname(char *name)
-{
-	char *cp;
-	int bd, unit, slice, part;
-	dev_t dev;
-
-	printf("setrootbyname(\"%s\")\n", name);
-	slice = 0;
-	part = 0;
-	cp = name;
-	while (cp != '\0' && (*cp < '0' || *cp > '9'))
-		cp++;
-	if (cp == name) {
-		printf("missing device name\n");
-		return(1);
-	}
-	if (*cp == '\0') {
-		printf("missing unit number\n");
-		return(1);
-	}
-	unit = *cp - '0';
-	*cp++ = '\0';
-	for (bd = 0; bd < NUMCDEVSW; bd++) {
-		dev = makebdev(bd, 0);
-		if (devsw(dev) != NULL &&
-		    strcmp(devsw(dev)->d_name, name) == 0)
-			goto gotit;
-	}
-	return (2);
-gotit:
-	while (*cp >= '0' && *cp <= '9')
-		unit += 10 * unit + *cp++ - '0';
-	if (*cp == 's' && cp[1] >= '0' && cp[1] <= '9') {
-		slice = cp[1] - '0' + 1;
-		cp += 2;
-	}
-	if (*cp >= 'a' && *cp <= 'h') {
-		part = *cp - 'a';
-		cp++;
-	}
-	if (*cp != '\0') {
-		printf("junk after name\n");
-		return (1);
-	}
-	rootdev = makebdev(bd, dkmakeminor(unit, slice, part));
-	printf("driver=%s, unit=%d, slice=%d, part=%d -> rootdev=%p\n",
-		name, unit, slice, part, (void *)rootdev);
-	return 0;
-}
-
-void
-setconf()
-{
-	char name[128];
-	int i;
-	dev_t dev;
-
-	for(;;) {
-		printf("root device? ");
-		gets(name);
-		i = setrootbyname(name);
-		if (!i)
-			return;
-	
-		printf("use one of:\n");
-		for (i = 0; i < NUMCDEVSW; i++) {
-			dev = makebdev(i, 0);
-			if (devsw(dev) != NULL)
-			    printf(" \"%s\"", devsw(dev)->d_name);
-		}
-		printf("\nfollowed by a unit number...\n");
-	}
-}
-
-static void
-gets(cp)
-	char *cp;
-{
-	register char *lp;
-	register int c;
-
-	lp = cp;
-	for (;;) {
-		printf("%c", c = cngetc() & 0177);
-		switch (c) {
-		case -1:
-		case '\n':
-		case '\r':
-			*lp++ = '\0';
-			return;
-		case '\b':
-		case '\177':
-			if (lp > cp) {
-				printf(" \b");
-				lp--;
-			}
-			continue;
-		case '#':
-			lp--;
-			if (lp < cp)
-				lp = cp;
-			continue;
-		case '@':
-		case 'u' & 037:
-			lp = cp;
-			printf("%c", '\n');
-			continue;
-		default:
-			*lp++ = c;
-		}
-	}
-}
