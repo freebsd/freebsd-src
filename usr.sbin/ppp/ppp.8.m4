@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.178 1999/07/17 10:33:57 brian Exp $
+.\" $Id: ppp.8,v 1.179 1999/07/26 11:15:11 brian Exp $
 .Dd 20 September 1995
 .nr XX \w'\fC00'
 .Os FreeBSD
@@ -886,13 +886,13 @@ reverts to
 only after a successful connection is established.  The default value for
 .Ar inc
 is zero.
-.It Ar maxinc
+.It Ar max
 is the maximun number of times
 .Nm
 should increment
 .Ar secs .
 The default value for
-.Ar maxinc
+.Ar max
 is 10.
 .It Ar next
 is the number of seconds to wait before attempting
@@ -4303,9 +4303,9 @@ each time
 tries a new number.
 .Ar secs
 will only be incremented at most
-.Ar maxinc
+.Ar max
 times.
-.Ar maxinc
+.Ar max
 defaults to 10.
 .Pp
 Note, the
