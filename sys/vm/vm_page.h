@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_page.h,v 1.40 1998/06/07 17:13:14 dfr Exp $
+ * $Id: vm_page.h,v 1.41 1998/06/21 18:02:50 bde Exp $
  */
 
 /*
@@ -70,6 +70,8 @@
 
 #ifndef	_VM_PAGE_
 #define	_VM_PAGE_
+
+#include "opt_vmpage.h"
 
 #include <vm/pmap.h>
 /*
