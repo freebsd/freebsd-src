@@ -38,21 +38,21 @@ typedef struct __mcontext {
 	 * and ucontext_t at the same time.
 	 */
 	register_t	mc_onstack;		/* XXX - sigcontext compat. */
-	register_t	mc_r15;			/* machine state (struct trapframe) */
-	register_t	mc_r14;
-	register_t	mc_r13;
-	register_t	mc_r12;
-	register_t	mc_r11;
-	register_t	mc_r10;
-	register_t	mc_r9;
-	register_t	mc_r8;
-	register_t	mc_rdi;
+	register_t	mc_rdi;			/* machine state (struct trapframe) */
 	register_t	mc_rsi;
-	register_t	mc_rbp;
-	register_t	mc_rbx;
 	register_t	mc_rdx;
 	register_t	mc_rcx;
+	register_t	mc_r8;
+	register_t	mc_r9;
 	register_t	mc_rax;
+	register_t	mc_rbx;
+	register_t	mc_rbp;
+	register_t	mc_r10;
+	register_t	mc_r11;
+	register_t	mc_r12;
+	register_t	mc_r13;
+	register_t	mc_r14;
+	register_t	mc_r15;
 	register_t	mc_trapno;
 	register_t	mc_err;
 	register_t	mc_rip;
