@@ -3075,7 +3075,11 @@ unionread:
 				return (error);
 			}
 		}
-		mp_fixme("Accessing vflags w/o vn lock.");
+		/*
+		 * XXX We could delay dropping the lock above but
+		 * union_dircheckp complicates things.
+		 */
+		vn_lock(vp, LK_EXCLUSIVE|LK_RETRY, td);
 		if ((vp->v_vflag & VV_ROOT) &&
 		    (vp->v_mount->mnt_flag & MNT_UNION)) {
 			struct vnode *tvp = vp;
@@ -3083,9 +3087,10 @@ unionread:
 			VREF(vp);
 			fp->f_data = vp;
 			fp->f_offset = 0;
-			vrele(tvp);
+			vput(tvp);
 			goto unionread;
 		}
+		VOP_UNLOCK(vp, 0, td);
 	}
 	error = copyout(&loff, SCARG(uap, basep), sizeof(long));
 	fdrop(fp, td);
@@ -3167,7 +3172,11 @@ unionread:
 				return (error);
 			}
 		}
-		mp_fixme("Accessing vflag without vn lock.");
+		/*
+		 * XXX We could delay dropping the lock above but
+		 * union_dircheckp complicates things.
+		 */
+		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 		if ((vp->v_vflag & VV_ROOT) &&
 		    (vp->v_mount->mnt_flag & MNT_UNION)) {
 			struct vnode *tvp = vp;
@@ -3175,9 +3184,10 @@ unionread:
 			VREF(vp);
 			fp->f_data = vp;
 			fp->f_offset = 0;
-			vrele(tvp);
+			vput(tvp);
 			goto unionread;
 		}
+		VOP_UNLOCK(vp, 0, td);
 	}
 	if (SCARG(uap, basep) != NULL) {
 		error = copyout(&loff, SCARG(uap, basep), sizeof(long));
