@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ed.c,v 1.42 1998/03/29 12:45:39 kato Exp $
+ *	$Id: if_ed.c,v 1.43 1998/03/29 12:48:46 kato Exp $
  */
 
 /*
@@ -81,7 +81,9 @@
 #include <sys/socket.h>
 #include <sys/syslog.h>
 
+#include <net/ethernet.h>
 #include <net/if.h>
+#include <net/if_arp.h>
 #include <net/if_dl.h>
 #include <net/if_mib.h>
 
