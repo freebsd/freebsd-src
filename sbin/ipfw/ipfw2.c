@@ -1569,9 +1569,7 @@ fill_ip(ipfw_insn_ip *cmd, char *av)
 		d = (u_int32_t *)&cmd->mask;
 		cmd->o.opcode = O_IP_DST_SET;	/* default */
 		cmd->o.len |= F_INSN_SIZE(ipfw_insn_u32) + (cmd->o.arg1+31)/32;
-		fprintf(stderr,"-- set size %d cmdlen %d\n",
-			cmd->o.arg1, cmd->o.len );
-		for (i = 0; i < cmd->o.arg1/32 ; i++)
+		for (i = 0; i < (cmd->o.arg1+31)/32 ; i++)
 			d[i] = 0;	/* clear masks */
 
 		av = p+1;
