@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: pcaudio.c,v 1.15 1998/04/16 16:33:21 kato Exp $
+ *	$Id: pcaudio.c,v 1.16 1998/06/08 08:55:44 kato Exp $
  */
 
 #include "pca.h"
@@ -122,7 +122,7 @@ static void pca_init __P((void));
 static void pca_pause __P((void));
 
 static __inline void
-conv(const void *table, void *buff, unsigned long n)
+conv(const void *table, void *buff, unsigned int n)
 {
   __asm__("1:\tmovb (%2), %3\n"
           "\txlatb\n"
@@ -131,7 +131,7 @@ conv(const void *table, void *buff, unsigned long n)
 	  "\tdec %1\n"
 	  "\tjnz 1b\n"
           :
-          :"b" ((long)table), "c" (n), "D" ((long)buff), "a" ((char)n)
+          :"b" (table), "c" (n), "D" (buff), "a" ((char)n)
           :"bx","cx","di","ax");
 }
 
@@ -505,7 +505,7 @@ pcaintr(struct clockframe *frame)
 			"outb %0,$0x42"
 #endif
 			: : "a" ((char)pca_status.buffer[pca_status.index]),
-			    "b" ((long)volume_table) );
+			    "b" (volume_table) );
 		enable_intr();
 		pca_status.counter += pca_status.scale;
 		pca_status.index = (pca_status.counter >> 8);
