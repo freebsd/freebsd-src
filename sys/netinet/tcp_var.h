@@ -179,7 +179,7 @@ struct rmxp_tao {
 #define	TAOF_UNDEF	0		/* we don't know yet */
 #endif /* notyet */
 };
-#define rmx_taop(r)	((struct rmxp_tao *)&(r).rmx_pspec)
+#define rmx_taop(r)	((struct rmxp_tao *)(r).rmx_filler)
 #endif /* TTCP */
 
 #define	intotcpcb(ip)	((struct tcpcb *)(ip)->inp_ppcb)
@@ -333,11 +333,7 @@ struct rmxp_tao *
 #endif
 void	 tcp_init __P((void));
 void	 tcp_input __P((struct mbuf *, int));
-#ifdef TTCP
 void	 tcp_mss __P((struct tcpcb *, int));
-#else
-int	 tcp_mss __P((struct tcpcb *, u_int));
-#endif
 int	 tcp_mssopt __P((struct tcpcb *));
 struct tcpcb *
 	 tcp_newtcpcb __P((struct inpcb *));

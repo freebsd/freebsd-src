@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_usrreq.c	8.2 (Berkeley) 1/3/94
- * $Id: tcp_usrreq.c,v 1.5 1994/09/15 10:36:56 davidg Exp $
+ * $Id: tcp_usrreq.c,v 1.6 1994/12/15 20:39:34 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -84,7 +84,9 @@ tcp_usrreq(so, req, m, nam, control)
 	struct sockaddr_in *sinp;
 	int s;
 	int error = 0;
+#ifdef TCPDEBUG
 	int ostate;
+#endif
 
 	if (req == PRU_CONTROL)
 		return (in_control(so, (int)m, (caddr_t)nam,
@@ -113,9 +115,14 @@ tcp_usrreq(so, req, m, nam, control)
 #ifdef KPROF
 		tcp_acounts[tp->t_state][req]++;
 #endif
+#ifdef TCPDEBUG
 		ostate = tp->t_state;
 	} else
 		ostate = 0;
+#else /* TCPDEBUG */
+	}
+#endif /* TCPDEBUG */
+
 	switch (req) {
 
 	/*
@@ -196,6 +203,10 @@ tcp_usrreq(so, req, m, nam, control)
 			break;
 		}
 			
+#ifdef TTCP
+		if ((error = tcp_connect(tp, nam)) != 0)
+			break;
+#else /* TTCP */
 		if (inp->inp_lport == 0) {
 			error = in_pcbbind(inp, (struct mbuf *)0);
 			if (error)
@@ -220,6 +231,7 @@ tcp_usrreq(so, req, m, nam, control)
 		tp->t_timer[TCPT_KEEP] = TCPTV_KEEP_INIT;
 		tp->iss = tcp_iss; tcp_iss += TCP_ISSINCR/2;
 		tcp_sendseqinit(tp);
+#endif /* TTCP */
 		error = tcp_output(tp);
 		break;
 
@@ -275,9 +287,37 @@ tcp_usrreq(so, req, m, nam, control)
 	 * Do a send by putting data in output queue and updating urgent
 	 * marker if URG set.  Possibly send more data.
 	 */
+#ifdef TTCP
+	case PRU_SEND_EOF:
+#endif
 	case PRU_SEND:
 		sbappend(&so->so_snd, m);
-		error = tcp_output(tp);
+#ifdef TTCP
+		if (nam && tp->t_state < TCPS_SYN_SENT) {
+			/*
+			 * Do implied connect if not yet connected,
+			 * initialize window to default value, and
+			 * initialize maxseg/maxopd using peer's cached
+			 * MSS.
+			 */
+			error = tcp_connect(tp, nam);
+			if (error)
+				break;
+			tp->snd_wnd = TTCP_CLIENT_SND_WND;
+			tcp_mss(tp, -1);
+		}
+
+		if (req == PRU_SEND_EOF) {
+			/*
+			 * Close the send side of the connection after
+			 * the data is sent.
+			 */
+			socantsendmore(so);
+			tp = tcp_usrclosed(tp);
+		}
+		if (tp != NULL)
+#endif TTCP
+			error = tcp_output(tp);
 		break;
 
 	/*
@@ -345,7 +385,9 @@ tcp_usrreq(so, req, m, nam, control)
 	 */
 	case PRU_SLOWTIMO:
 		tp = tcp_timers(tp, (int)nam);
+#ifdef TCPDEBUG
 		req |= (int)nam << 8;		/* for debug's sake */
+#endif
 		break;
 
 	default:
@@ -358,6 +400,83 @@ tcp_usrreq(so, req, m, nam, control)
 	splx(s);
 	return (error);
 }
+
+#ifdef TTCP
+/*
+ * Common subroutine to open a TCP connection to remote host specified
+ * by struct sockaddr_in in mbuf *nam.  Call in_pcbbind to assign a local
+ * port number if needed.  Call in_pcbladdr to do the routing and to choose
+ * a local host address (interface).  If there is an existing incarnation
+ * of the same connection in TIME-WAIT state and if the remote host was
+ * sending CC options and if the connection duration was < MSL, then
+ * truncate the previous TIME-WAIT state and proceed.
+ * Initialize connection parameters and enter SYN-SENT state.
+ */
+int
+tcp_connect(tp, nam)
+	register struct tcpcb *tp;
+	struct mbuf *nam;
+{
+	struct inpcb *inp = tp->t_inpcb, *oinp;
+	struct socket *so = inp->inp_socket;
+	struct tcpcb *otp;
+	struct sockaddr_in *sin = mtod(nam, struct sockaddr_in *);
+	struct sockaddr_in *ifaddr;
+	int error;
+
+	if (inp->inp_lport == 0) {
+		error = in_pcbbind(inp, NULL);
+		if (error)
+			return error;
+	}
+
+	/* 
+	 * Cannot simply call in_pcbconnect, because there might be an
+	 * earlier incarnation of this same connection still in
+	 * TIME_WAIT state, creating an ADDRINUSE error.
+	 */
+	error = in_pcbladdr(inp, nam, &ifaddr);
+	oinp = in_pcblookup(inp->inp_head,
+	    sin->sin_addr, sin->sin_port,
+	    inp->inp_laddr.s_addr != INADDR_ANY ? inp->inp_laddr
+						: ifaddr->sin_addr,
+	    inp->inp_lport,  0);
+	if (oinp) {
+		if (oinp != inp && (otp = intotcpcb(oinp)) != NULL &&
+		otp->t_state == TCPS_TIME_WAIT &&
+		    otp->t_duration < TCPTV_MSL &&
+		    (otp->t_flags & TF_RCVD_CC))
+			otp = tcp_close(otp);
+		else
+			return EADDRINUSE;
+	}
+	if (inp->inp_laddr.s_addr == INADDR_ANY)
+		inp->inp_laddr = ifaddr->sin_addr;
+	inp->inp_faddr = sin->sin_addr;
+	inp->inp_fport = sin->sin_port;
+
+	tp->t_template = tcp_template(tp);
+	if (tp->t_template == 0) {
+		in_pcbdisconnect(inp);
+		return ENOBUFS;
+	}
+
+	/* Compute window scaling to request.  */
+	while (tp->request_r_scale < TCP_MAX_WINSHIFT &&
+	    (TCP_MAXWIN << tp->request_r_scale) < so->so_rcv.sb_hiwat)
+		tp->request_r_scale++;
+
+	soisconnecting(so);
+	tcpstat.tcps_connattempt++;
+	tp->t_state = TCPS_SYN_SENT;
+	tp->t_timer[TCPT_KEEP] = TCPTV_KEEP_INIT;
+	tp->iss = tcp_iss; tcp_iss += TCP_ISSINCR/2;
+	tcp_sendseqinit(tp);
+	tp->cc_send = CC_INC(tcp_ccgen);
+
+	return 0;
+}
+#endif /* TTCP */
 
 int
 tcp_ctloutput(op, so, level, optname, mp)
@@ -409,6 +528,26 @@ tcp_ctloutput(op, so, level, optname, mp)
 				error = EINVAL;
 			break;
 
+#ifdef TTCP
+		case TCP_NOOPT:
+			if (m == NULL || m->m_len < sizeof (int))
+				error = EINVAL;
+			else if (*mtod(m, int *))
+				tp->t_flags |= TF_NOOPT;
+			else
+				tp->t_flags &= ~TF_NOOPT;
+			break;
+
+		case TCP_NOPUSH:
+			if (m == NULL || m->m_len < sizeof (int))
+				error = EINVAL;
+			else if (*mtod(m, int *))
+				tp->t_flags |= TF_NOPUSH;
+			else
+				tp->t_flags &= ~TF_NOPUSH;
+			break;
+#endif /* TTCP */
+
 		default:
 			error = ENOPROTOOPT;
 			break;
@@ -428,6 +567,14 @@ tcp_ctloutput(op, so, level, optname, mp)
 		case TCP_MAXSEG:
 			*mtod(m, int *) = tp->t_maxseg;
 			break;
+#ifdef TTCP
+		case TCP_NOOPT:
+			*mtod(m, int *) = tp->t_flags & TF_NOOPT;
+			break;
+		case TCP_NOPUSH:
+			*mtod(m, int *) = tp->t_flags & TF_NOPUSH;
+			break;
+#endif /* TTCP */
 		default:
 			error = ENOPROTOOPT;
 			break;
@@ -533,12 +680,22 @@ tcp_usrclosed(tp)
 
 	case TCPS_CLOSED:
 	case TCPS_LISTEN:
+#ifndef TTCP
 	case TCPS_SYN_SENT:
+#endif
 		tp->t_state = TCPS_CLOSED;
 		tp = tcp_close(tp);
 		break;
 
+#ifdef TTCP
+	case TCPS_SYN_SENT:
 	case TCPS_SYN_RECEIVED:
+		tp->t_flags |= TF_NEEDFIN;
+		break;
+
+#else
+	case TCPS_SYN_RECEIVED:
+#endif
 	case TCPS_ESTABLISHED:
 		tp->t_state = TCPS_FIN_WAIT_1;
 		break;
@@ -550,4 +707,44 @@ tcp_usrclosed(tp)
 	if (tp && tp->t_state >= TCPS_FIN_WAIT_2)
 		soisdisconnected(tp->t_inpcb->inp_socket);
 	return (tp);
+}
+
+/*
+ * Sysctl for tcp variables.
+ */
+int
+tcp_sysctl(name, namelen, oldp, oldlenp, newp, newlen)
+	int *name;
+	u_int namelen;
+	void *oldp;
+	size_t *oldlenp;
+	void *newp;
+	size_t newlen;
+{
+	extern	int tcp_do_rfc1323;
+#ifdef TTCP
+	extern	int tcp_do_rfc1644;
+#endif
+	extern	int tcp_mssdflt;
+
+	/* All sysctl names at this level are terminal. */
+	if (namelen != 1)
+		return (ENOTDIR);
+
+	switch (name[0]) {
+	case TCPCTL_DO_RFC1323:
+		return (sysctl_int(oldp, oldlenp, newp, newlen,
+		    &tcp_do_rfc1323));
+#ifdef TTCP
+	case TCPCTL_DO_RFC1644:
+		return (sysctl_int(oldp, oldlenp, newp, newlen,
+		    &tcp_do_rfc1644));
+#endif
+	case TCPCTL_MSSDFLT:
+		return (sysctl_int(oldp, oldlenp, newp, newlen,
+		    &tcp_mssdflt));
+	default:
+		return (ENOPROTOOPT);
+	}
+	/* NOTREACHED */
 }
