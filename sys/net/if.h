@@ -131,6 +131,15 @@ struct if_data {
 #define	IFF_ALTPHYS	IFF_LINK2	/* use alternate physical connection */
 #define	IFF_MULTICAST	0x8000		/* supports multicast */
 
+/*
+ * The following flag(s) ought to go in if_flags, but we cannot change
+ * struct ifnet because of binary compatibility, so we store them in
+ * if_ipending, which is not used so far.
+ * If possible, make sure the value is not conflicting with other
+ * IFF flags, so we have an easier time when we want to merge them.
+ */
+#define	IFF_POLLING	0x10000		/* Interface is in polling mode. */
+
 /* flags set internally only: */
 #define	IFF_CANTCHANGE \
 	(IFF_BROADCAST|IFF_POINTOPOINT|IFF_RUNNING|IFF_OACTIVE|\

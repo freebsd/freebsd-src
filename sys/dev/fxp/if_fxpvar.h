@@ -57,7 +57,11 @@
  * Number of receive frame area buffers. These are large so chose
  * wisely.
  */
+#ifdef DEVICE_POLLING
+#define FXP_NRFABUFS	192
+#else
 #define FXP_NRFABUFS    64
+#endif
 
 /*
  * Maximum number of seconds that the receiver can be idle before we
