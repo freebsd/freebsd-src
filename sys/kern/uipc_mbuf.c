@@ -349,8 +349,7 @@ m_clalloc_fail:
 		mbstat.m_drops++;
 		if (ticks < last_report || (ticks - last_report) >= hz) {
 			last_report = ticks;
-			printf("m_clalloc failed, consider increase "
-				"NMBCLUSTERS value\n");
+			printf("All mbuf clusters exhausted, please see tuning(7).\n");
 		}
 		return (0);
 	}
@@ -445,7 +444,7 @@ m_retry(i, t)
 		mbstat.m_drops++;
 		if (ticks < last_report || (ticks - last_report) >= hz) {
 			last_report = ticks;
-			printf("m_retry failed, consider increase mbuf value\n");
+			printf("All mbufs exhausted, please see tuning(7).\n");
 		}
 	}
 
@@ -485,7 +484,7 @@ m_retryhdr(i, t)
 		mbstat.m_drops++;
 		if (ticks < last_report || (ticks - last_report) >= hz) {
 			last_report = ticks;
-			printf("m_retryhdr failed, consider increase mbuf value\n");
+			printf("All mbufs exhausted, please see tuning(7).\n");
 		}
 	}
 	
