@@ -1,0 +1,57 @@
+.Dd January 23, 1995
+.Dt JOY 4
+.Sh NAME
+.Nm joy
+.Nd joystick device driver
+.Sh SYNOPSIS
+.Cd device joy0 at isa? port "IO_GAME"
+.Fd #include <machine/joystick.h>
+.Sh DESCRIPTION
+The joystick device driver allows applications to read the status of
+the PC joystick.
+.Pp
+This device may be opened by only one process at a time.
+.Pp
+The joystick status is get in an array of 4 integers via a read()
+call. 
+.br
+The X and Y positions are stored in values 0 and 1 of the array,
+and the state of the 2 buttons are stores in values 2 and 3 of the
+array. Positions are typically in the range 0-2000.
+.Ss One line perl example:
+perl -e 'open(JOY,"/dev/joy0")||die;while(1)
+.br
+{sysread(JOY,$x,16);@j=unpack("iiii",$x);print "@j\\n";sleep(1);}'
+.Ss ioctl calls
+Several ioctl() calls are also available. They take an argument of
+type int *
+.Bl -tag -width JOY_SET_X_OFFSET 
+.It Dv JOY_SET_TIMEOUT Fa int *limit
+Set the time limit (in microseconds) for reading the joystick
+status. Setting a value
+too small may prevent to get correct values for the positions (which
+are then set to -2147483648), however this can be useful if one is
+only interested by the buttons status. 
+.It Dv JOY_GET_TIMEOUT Fa int *limit
+Get the time limit (in microseconds) used for reading the joystick
+status. 
+.It Dv JOY_SET_X_OFFSET Fa int *offset
+Set the value to be added to the X position  when reading the joystick
+status. 
+.It Dv JOY_SET_Y_OFFSET Fa int *offset
+Set the value to be added to the Y position  when reading the joystick
+status. 
+.It Dv JOY_GET_X_OFFSET Fa int *offset
+Get the value which is added to the X position  when reading the joystick
+status. 
+.It Dv JOY_GET_Y_OFFSET Fa int *offset
+Get the value which is added to the Y position  when reading the joystick
+status. 
+.Sh FILES
+.Bl -tag -width /dev/joy?
+.It Pa /dev/joy?
+joystick device files
+.Sh AUTHOR
+Jean-Marc Zucconi <jmz@cabri.obs-besancon.fr>
+.Sh HISTORY
+The joystick driver appeared in FreeBSD 2.1
