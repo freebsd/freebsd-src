@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 all: access.db mailertable.db virtusertable.db	\
-# /etc/aliases.db
+# /etc/mail/aliases.db
 
 access.db: access
 	/usr/sbin/makemap hash access < access
@@ -12,9 +12,9 @@ virtusertable.db: virtusertable
 mailertable.db: mailertable
 	/usr/sbin/makemap hash mailertable < mailertable
 
-#/etc/aliases.db: /etc/aliases
+#/etc/mail/aliases.db: /etc/mail/aliases
 #	newaliases
-	
+
 mailertable:
 	@echo Generating empty mailertable
 	sed -e 's/^/#/' < mailertable.sample > mailertable

@@ -1,9 +1,22 @@
 #	@(#)Makefile	8.2 (Berkeley) 9/21/96
+# $FreeBSD$
+
+SENDMAIL_DIR=${.CURDIR}/../../contrib/sendmail
+.PATH:	${SENDMAIL_DIR}/mailstats
 
 PROG=	mailstats
+SRCS=	mailstats.c
 MAN8=	mailstats.8
-CFLAGS+=-I${.CURDIR}/../../contrib/sendmail/src
+CFLAGS+=-I${SENDMAIL_DIR}/src -I${SENDMAIL_DIR}/include -DNOT_SENDMAIL
 
-.PATH:	${.CURDIR}/../../contrib/sendmail/mailstats
+.if exists(${.OBJDIR}/../../lib/libsmutil)
+LIBSMUTILDIR:=	${.OBJDIR}/../../lib/libsmutil
+.else
+LIBSMUTILDIR!=	cd ${.CURDIR}/../../lib/libsmutil; make -V .OBJDIR
+.endif
+LIBSMUTIL:=	${LIBSMUTILDIR}/libsmutil.a
+
+DPADD+=	${LIBSMUTIL}
+LDADD+=	${LIBSMUTIL}
 
 .include <bsd.prog.mk>
