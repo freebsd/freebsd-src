@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.70 1995/11/18 23:33:48 dyson Exp $
+ * $Id: vfs_bio.c,v 1.71 1995/11/19 19:54:22 dyson Exp $
  */
 
 /*
@@ -52,20 +52,14 @@
 
 #include <miscfs/specfs/specdev.h>
 
-/*
- * System initialization
- */
-
 static void vfs_update __P((void));
 struct	proc *updateproc;
-
 static struct kproc_desc up_kp = {
 	"update",
 	vfs_update,
 	&updateproc
 };
 SYSINIT_KT(update, SI_SUB_KTHREAD_UPDATE, SI_ORDER_FIRST, kproc_start, &up_kp)
-
 
 struct buf *buf;		/* buffer header pool */
 struct swqueue bswlist;
@@ -1348,10 +1342,10 @@ count_lock_queue()
 
 int vfs_update_interval = 30;
 
-void
+static void
 vfs_update()
 {
-	(void) spl0();
+	(void) spl0();		/* XXX redundant?  wrong place? */
 	while (1) {
 		tsleep(&vfs_update_wakeup, PRIBIO, "update",
 		    hz * vfs_update_interval);

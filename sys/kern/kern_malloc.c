@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_malloc.c	8.3 (Berkeley) 1/4/94
- * $Id: kern_malloc.c,v 1.13 1995/08/28 09:18:44 julian Exp $
+ * $Id: kern_malloc.c,v 1.14 1995/09/09 18:10:03 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -43,13 +43,8 @@
 #include <vm/vm.h>
 #include <vm/vm_kern.h>
 
-/*
- * System initialization
- */
-
 static void kmeminit __P((void *));
 SYSINIT(kmem, SI_SUB_KMEM, SI_ORDER_FIRST, kmeminit, NULL)
-
 
 struct kmembuckets bucket[MINBUCKET + 16];
 struct kmemstats kmemstats[M_LAST];
@@ -366,8 +361,8 @@ free(addr, type)
  */
 /* ARGSUSED*/
 static void
-kmeminit(udata)
-	void *udata;		/* not used*/
+kmeminit(dummy)
+	void *dummy;
 {
 	register long indx;
 	int npg;

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_domain.c	8.2 (Berkeley) 10/18/93
- * $Id: uipc_domain.c,v 1.9 1995/09/09 18:10:11 davidg Exp $
+ * $Id: uipc_domain.c,v 1.10 1995/11/16 18:59:50 phk Exp $
  */
 
 #include <sys/param.h>
@@ -64,7 +64,6 @@ SYSINIT(splimp, SI_SUB_PROTO_BEGIN, SI_ORDER_FIRST, kludge_splimp, &x_save_spl)
 SYSINIT(domain, SI_SUB_PROTO_DOMAIN, SI_ORDER_FIRST, domaininit, NULL)
 SYSINIT(splx, SI_SUB_PROTO_END, SI_ORDER_FIRST, kludge_splx, &x_save_spl)
 
-
 static void	pffasttimo __P((void *));
 static void	pfslowtimo __P((void *));
 
@@ -79,8 +78,8 @@ extern struct linker_set domain_set;
 
 /* ARGSUSED*/
 static void
-domaininit(udata)
-	void *udata;		/* not used*/
+domaininit(dummy)
+	void *dummy;
 {
 	register struct domain *dp, **dpp;
 	register struct protosw *pr;
@@ -130,7 +129,7 @@ static void
 kludge_splimp(udata)
 	void *udata;
 {
-	int	*savesplp = (int *)udata;
+	int	*savesplp = udata;
 
 	*savesplp = splimp();
 }
@@ -139,7 +138,7 @@ static void
 kludge_splx(udata)
 	void *udata;
 {
-	int	*savesplp = (int *)udata;
+	int	*savesplp = udata;
 
 	splx( *savesplp);
 }
