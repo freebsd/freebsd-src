@@ -34,7 +34,7 @@
 #include <ucontext.h>
 
 #define	KSE_STACKSIZE		16384
-#define	DTV_OFFSET		offsetof(struct tcb, tcb_tp.tp_dtv)
+#define	DTV_OFFSET		offsetof(struct tcb, tcb_tp.tp_tdv)
 
 #define	THR_GETCONTEXT(ucp)	_ia64_save_context(&(ucp)->uc_mcontext)
 #define	THR_SETCONTEXT(ucp)	PANIC("THR_SETCONTEXT() now in use!\n")
