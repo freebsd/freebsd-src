@@ -67,7 +67,6 @@
 #include "archive_platform.h"
 __FBSDID("$FreeBSD$");
 
-#include <err.h>
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
@@ -318,9 +317,8 @@ read_consume(struct archive *a, size_t n)
 	a->file_position += n;
 	state->read_next += n;
 	if (state->read_next > state->next_out)
-		errx(1, "Internal error: Request to consume too many "
-		    "bytes from %s decompressor.\n",
-		    a->compression_name);
+		__archive_errx(1, "Request to consume too many "
+		    "bytes from compress decompressor");
 	return (n);
 }
 
