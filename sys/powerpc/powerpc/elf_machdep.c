@@ -198,10 +198,11 @@ elf_reloc_local(linker_file_t lf, Elf_Addr relocbase, const void *data,
 }
 
 int
-elf_cpu_load_file(linker_file_t lf __unused)
+elf_cpu_load_file(linker_file_t lf)
 {
-
-	__syncicache(lf->address, lf->size);
+	/* Only sync the cache for non-kernel modules */
+	if (lf->id != 1)
+		__syncicache(lf->address, lf->size);
 	return (0);
 }
 
