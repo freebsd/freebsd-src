@@ -400,6 +400,7 @@ struct ip_fw_args {
 	int flags;			/* for dummynet			*/
 
 	struct ipfw_flow_id f_id;	/* grabbed from IP header	*/
+	u_int16_t	divert_rule;	/* divert cookie		*/
 	u_int32_t	retval;
 };
 
