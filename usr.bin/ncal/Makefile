@@ -1,7 +1,6 @@
 # $FreeBSD$
 
 PROG=	ncal
-SRCS=	ncal.c
 
 DPADD=	${LIBCALENDAR}
 LDADD=	-lcalendar

@@ -2,7 +2,6 @@
 
 PROG=   getpmac
 MAN=	getpmac.8
-SRCS=   getpmac.c
 
 WARNS?=	6
 
