@@ -15,6 +15,7 @@ SUBDIR=	geom_apple \
 	geom_pc98 \
 	geom_stripe \
 	geom_sunlabel \
+	geom_uzip \
 	geom_vinum \
 	geom_vol_ffs
 
