@@ -89,7 +89,7 @@ static void	ng_ether_attach(struct ifnet *ifp);
 static void	ng_ether_detach(struct ifnet *ifp); 
 
 /* Other functions */
-static void	ng_ether_input2(node_p node,
+static void	ng_ether_input2(hook_p hook,
 		    struct mbuf **mp, struct ether_header *eh);
 static int	ng_ether_glueback_header(struct mbuf **mp,
 			struct ether_header *eh);
@@ -203,7 +203,7 @@ ng_ether_input(struct ifnet *ifp,
 	/* If "lower" hook not connected, let packet continue */
 	if (priv->lower == NULL)
 		return;
-	ng_ether_input2(node, mp, eh);
+	ng_ether_input2(priv->lower, mp, eh);
 }
 
 /*
@@ -224,7 +224,7 @@ ng_ether_input_orphan(struct ifnet *ifp,
 		m_freem(m);
 		return;
 	}
-	ng_ether_input2(node, &m, eh);
+	ng_ether_input2(priv->orphan, &m, eh);
 	if (m != NULL)
 		m_freem(m);
 }
@@ -237,9 +237,9 @@ ng_ether_input_orphan(struct ifnet *ifp,
  * NOTE: this function will get called at splimp()
  */
 static void
-ng_ether_input2(node_p node, struct mbuf **mp, struct ether_header *eh)
+ng_ether_input2(hook_p hook, struct mbuf **mp, struct ether_header *eh)
 {
-	const priv_p priv = node->private;
+	const priv_p priv = hook->node->private;
 	meta_p meta = NULL;
 	int error;
 
@@ -248,7 +248,7 @@ ng_ether_input2(node_p node, struct mbuf **mp, struct ether_header *eh)
 		return;
 
 	/* Send out lower/orphan hook */
-	(void)ng_queue_data(priv->lower, *mp, meta);
+	(void)ng_queue_data(hook, *mp, meta);
 	*mp = NULL;
 }
 
