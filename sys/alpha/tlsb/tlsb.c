@@ -95,7 +95,8 @@ static devclass_t		tlsb_devclass;
 static int tlsb_probe(device_t dev);
 static void tlsb_print_child(device_t dev, device_t child);
 static int tlsb_read_ivar(device_t dev, device_t child, int which, u_long* result);
-static int tlsb_map_intr(device_t dev, device_t child, driver_intr_t *intr, void *arg);
+static void *tlsb_create_intr(device_t dev, device_t child, int irq, driver_intr_t *intr, void *arg);
+static int tlsb_connect_intr(device_t dev, void* ih);
 
 static device_method_t tlsb_methods[] = {
 	/* Device interface */
@@ -108,7 +109,8 @@ static device_method_t tlsb_methods[] = {
 	DEVMETHOD(bus_print_child,	tlsb_print_child),
 	DEVMETHOD(bus_read_ivar,	tlsb_read_ivar),
 	DEVMETHOD(bus_write_ivar,	bus_generic_write_ivar),
-	DEVMETHOD(bus_map_intr,		tlsb_map_intr),
+	DEVMETHOD(bus_create_intr,	tlsb_create_intr),
+	DEVMETHOD(bus_connect_intr,	tlsb_connect_intr),
 
 	{ 0, 0 }
 };
@@ -263,18 +265,27 @@ tlsb_read_ivar(device_t dev, device_t child,
 	return ENOENT;
 }
 
-static int
-tlsb_map_intr(device_t dev, device_t child, driver_intr_t *intr, void *arg)
+static void *
+tlsb_create_intr(device_t dev, device_t child,
+	      int irq, driver_intr_t *intr, void *arg)
 {
 	struct tlsb_softc* sc = device_get_softc(dev);
 	struct intr_mapping* i;
 	i = malloc(sizeof(struct intr_mapping), M_DEVBUF, M_NOWAIT);
 	if (!i)
-		return ENOMEM;
+		return NULL;
 	i->intr = intr;
 	i->arg = arg;
-	STAILQ_INSERT_TAIL(&sc->intr_handlers, i, queue);
+	return i;
+}
 
+static int
+tlsb_connect_intr(device_t dev, void *ih)
+{
+	struct tlsb_softc* sc = device_get_softc(dev);
+	struct intr_mapping* i = ih;
+
+	STAILQ_INSERT_TAIL(&sc->intr_handlers, i, queue);
 	return 0;
 }
 
