@@ -29,7 +29,7 @@
 
 # PROVIDE: mixer
 # REQUIRE: LOGIN usbd
-# KEYWORD: FreeBSD nojail
+# KEYWORD: FreeBSD nojail shutdown
 
 . /etc/rc.subr
 
@@ -44,16 +44,7 @@ extra_commands="reload"
 #
 list_mixers()
 {
-
 	( cd /dev ; ls mixer* 2>/dev/null )
-}
-
-#
-# Echo state file name for an individual mixer ($1) to stdout
-#
-mixer_statefile()
-{
-	echo "/var/db/${1}-state"
 }
 
 #
@@ -61,12 +52,11 @@ mixer_statefile()
 #
 mixer_save()
 {
-	local file dev
+	local dev
 
 	dev="/dev/${1}"
-	file=`mixer_statefile $1`
 	if [ -r ${dev} ]; then
-		/usr/sbin/mixer -f ${dev} -s > ${file} 2>/dev/null
+		/usr/sbin/mixer -f ${dev} -s > /var/db/${1}-state 2>/dev/null
 	fi
 }
 
@@ -78,7 +68,7 @@ mixer_restore()
 	local file dev
 
 	dev="/dev/${1}"
-	file=`mixer_statefile $1`
+	file="/var/db/${1}-state"
 	if [ -r ${dev} -a -r ${file} ]; then
 		/usr/sbin/mixer -f ${dev} `cat ${file}` > /dev/null
 	fi
