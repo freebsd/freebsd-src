@@ -41,7 +41,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
   %{!shared:								\
     %{!static:								\
       %{rdynamic:-export-dynamic}					\
-      %{!dynamic-linker:-dynamic-linker /usr/libexec/ld-elf.so.1}}	\
+      %{!dynamic-linker:-dynamic-linker /libexec/ld-elf.so.1}}		\
     %{static:-Bstatic}}"
 
 
