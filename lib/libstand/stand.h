@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: stand.h,v 1.1.1.1 1998/08/20 08:19:55 msmith Exp $
+ *	$Id: stand.h,v 1.2 1998/08/24 02:54:33 bde Exp $
  * From	$NetBSD: stand.h,v 1.22 1997/06/26 19:17:40 drochner Exp $	
  */
 
@@ -97,8 +97,8 @@ struct open_file;
  *     filesystems that they require.
  */
 struct fs_ops {
-    char	*fs_name;
-    int		(*fo_open)(char *path, struct open_file *f);
+    const char	*fs_name;
+    int		(*fo_open)(const char *path, struct open_file *f);
     int		(*fo_close)(struct open_file *f);
     int		(*fo_read)(struct open_file *f, void *buf,
 			   size_t size, size_t *resid);
@@ -129,7 +129,7 @@ extern struct fs_ops dosfs_fsops;
  * Device switch
  */
 struct devsw {
-    char	dv_name[8];
+    const char	dv_name[8];
     int		dv_type;		/* opaque type constant, arch-dependant */
     int		(*dv_init)(void);	/* early probe call */
     int		(*dv_strategy)(void *devdata, int rw, daddr_t blk, size_t size, void *buf, size_t *rsize);
@@ -188,7 +188,7 @@ extern void	ngets(char *, int);
 #define gets(x)	ngets((x), 0)
 extern int	fgetstr(char *buf, int size, int fd);
 
-extern char	*strerror(int);
+extern const char *strerror(int);
 
 extern int	open(const char *, int);
 #define	O_RDONLY	0x0
@@ -214,7 +214,7 @@ extern int	getopt(int, char * const [], const char *);
 extern void	pager_open(void);
 extern void	pager_close(void);
 extern int	pager_output(const char *lines);
-extern int	pager_file(char *fname);
+extern int	pager_file(const char *fname);
 
 /* environment.c */
 #define EV_DYNAMIC	(1<<0)		/* value was dynamically allocated, free if changed/unset */
@@ -280,15 +280,12 @@ extern int	nodev(void);
 extern int	noioctl(struct open_file *, u_long, void *);
 extern void	nullsys(void);
 
-extern int	null_open(char *path, struct open_file *f);
+extern int	null_open(const char *path, struct open_file *f);
 extern int	null_close(struct open_file *f);
 extern ssize_t	null_read(struct open_file *f, void *buf, size_t size, size_t *resid);
 extern ssize_t	null_write(struct open_file *f, void *buf, size_t size, size_t *resid);
 extern off_t	null_seek(struct open_file *f, off_t offset, int where);
 extern int	null_stat(struct open_file *f, struct stat *sb);
-
-/* stuff should be in bootstrap (undocumented) */
-extern int	getfile(char *prompt, int mode);
 
 /* 
  * Machine dependent functions and data, must be provided or stubbed by 

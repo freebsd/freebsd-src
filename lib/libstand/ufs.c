@@ -74,7 +74,7 @@
 #include "stand.h"
 #include "string.h"
 
-static int	ufs_open(char *path, struct open_file *f);
+static int	ufs_open(const char *path, struct open_file *f);
 static int	ufs_close(struct open_file *f);
 static int	ufs_read(struct open_file *f, void *buf, size_t size, size_t *resid);
 static off_t	ufs_seek(struct open_file *f, off_t offset, int where);
@@ -387,8 +387,8 @@ search_directory(name, f, inumber_p)
  * Open a file.
  */
 static int
-ufs_open(path, f)
-	char *path;
+ufs_open(upath, f)
+	const char *upath;
 	struct open_file *f;
 {
 	register char *cp, *ncp;
@@ -401,6 +401,7 @@ ufs_open(path, f)
 	int nlinks = 0;
 	char namebuf[MAXPATHLEN+1];
 	char *buf = NULL;
+	char *path = NULL;
 
 	/* allocate file system specific data structure */
 	fp = malloc(sizeof(struct file));
@@ -443,7 +444,11 @@ ufs_open(path, f)
 	if ((rc = read_inode(inumber, f)) != 0)
 		goto out;
 
-	cp = path;
+	cp = path = strdup(upath);
+	if (path == NULL) {
+	    rc = ENOMEM;
+	    goto out;
+	}
 	while (*cp) {
 
 		/*
@@ -562,6 +567,8 @@ ufs_open(path, f)
 out:
 	if (buf)
 		free(buf);
+	if (path)
+		free(path);
 	if (rc) {
 		if (fp->f_buf)
 			free(fp->f_buf);
