@@ -52,7 +52,6 @@ SUBDIR=	apply \
 	fsync \
 	ftp \
 	gencat \
-	gensetdefs \
 	getconf \
 	getopt \
 	gprof \
