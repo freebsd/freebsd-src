@@ -599,10 +599,10 @@ bundle_UnlockTun(struct bundle *bundle)
 }
 
 struct bundle *
-bundle_Create(const char *prefix, int type, const char **argv)
+bundle_Create(const char *prefix, int type, int unit, const char **argv)
 {
   static struct bundle bundle;		/* there can be only one */
-  int enoentcount, err;
+  int enoentcount, err, minunit, maxunit;
   const char *ifname;
 #ifdef KLDSYM_LOOKUP
   int kldtried;
@@ -616,12 +616,19 @@ bundle_Create(const char *prefix, int type, const char **argv)
     return NULL;
   }
 
+  if (unit == -1) {
+    minunit = 0;
+    maxunit = -1;
+  } else {
+    minunit = unit;
+    maxunit = unit + 1;
+  }
   err = ENOENT;
   enoentcount = 0;
 #ifdef KLDSYM_LOOKUP
   kldtried = 0;
 #endif
-  for (bundle.unit = 0; ; bundle.unit++) {
+  for (bundle.unit = minunit; bundle.unit != maxunit; bundle.unit++) {
     snprintf(bundle.dev.Name, sizeof bundle.dev.Name, "%s%d",
              prefix, bundle.unit);
     bundle.dev.fd = ID0open(bundle.dev.Name, O_RDWR);
@@ -629,7 +636,7 @@ bundle_Create(const char *prefix, int type, const char **argv)
       break;
     else if (errno == ENXIO) {
 #ifdef KLDSYM_LOOKUP
-      if (bundle.unit == 0 && !kldtried++) {
+      if (bundle.unit == minunit && !kldtried++) {
         /*
          * XXX:  For some odd reason, FreeBSD (right now) allows if_tun.ko to
          *       load even when the kernel contains the tun device. This lookup
@@ -658,8 +665,11 @@ bundle_Create(const char *prefix, int type, const char **argv)
   }
 
   if (bundle.dev.fd < 0) {
-    log_Printf(LogWARN, "No available tunnel devices found (%s).\n",
-              strerror(err));
+    if (unit == -1)
+      log_Printf(LogWARN, "No available tunnel devices found (%s)\n",
+                strerror(err));
+    else
+      log_Printf(LogWARN, "%s%d: %s\n", prefix, unit, strerror(err));
     return NULL;
   }
 
