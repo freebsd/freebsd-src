@@ -76,7 +76,7 @@ static const char rcsid[] =
 #define MAX_CLICKTHRESHOLD	2000	/* 2 seconds */
 #define MAX_BUTTON2TIMEOUT	2000	/* 2 seconds */
 #define DFLT_CLICKTHRESHOLD	 500	/* 0.5 second */
-#define DFLT_BUTTON2TIMEOUT	 500	/* 0.5 second */
+#define DFLT_BUTTON2TIMEOUT	 200	/* 0.2 second */
 
 #define TRUE		1
 #define FALSE		0
