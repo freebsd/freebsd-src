@@ -1,8 +1,10 @@
 
 
-Note: This is the README from the isdn4bsd 0.70.00 ftp-distribution. Shortly
-      after release, i4b was integrated into the FreeBSD sourcetree and so
-      the following parts about FreeBSD may not apply anymore. 
+Note: This is the README from the isdn4bsd 0.71.00 ftp-distribution. 
+
+      In December 1998, i4b was integrated into the FreeBSD sourcetree
+      and so the following parts about FreeBSD may not apply completely
+      anymore. 
 
       For information of how isdn4bsd is integrated into FreeBSD now, please
       read the file ROADMAP in this directory.
@@ -13,7 +15,7 @@ Note: This is the README from the isdn4bsd 0.70.00 ftp-distribution. Shortly
                                   ISDN4BSD
                                   ========
 
-                    beta Version 0.70.00 / December 1998
+                     beta Version 0.71.00 / March 1999
 
                                  written by:
 
@@ -29,7 +31,7 @@ Note: This is the README from the isdn4bsd 0.70.00 ftp-distribution. Shortly
 
                           The isdn4bsd package is:
 
-     Copyright (c) 1997, 1998 by Hellmuth Michaelis. All rights reserved. 
+     Copyright (c) 1997, 1999 by Hellmuth Michaelis. All rights reserved. 
 
                       For details see the file LICENSE.
 
@@ -100,7 +102,7 @@ Contents:
 ---------------------
 
 ISDN4BSD (or in short i4b) is a package for interfacing a computer running
-FreeBSD, NetBSD or OpenBSD to the ISDN.
+FreeBSD, NetBSD, OpenBSD or BSD/OS to the ISDN.
 
 The only ISDN protocol currently supported is the BRI protocol specified in
 I.430, Q.921 and Q.931; better known as DSS1 or Euro-ISDN.  
@@ -116,19 +118,11 @@ machine.
 ------------------------------
 
 FreeBSD:
-	You need FreeBSD 2.2.6 and higher to run i4b out-of-the-box.
+	I4B was integrated into FreeBSD in January 1999, so it is part
+	of FreeBSD-current and FreeBSD 3.1 (stable).
 
-	This is because PnP support is now available in i4b and 
-	FreeBSD 2.2.6 was the first version which included PnP support
-	in the base OS. 
-
-	In case you want to install i4b on FreeBSD < 2.2.6, you have to
-	patch your system with the PnP patches from Luigi Rizzo (available
-	from his home page at http://www.iet.unipi.it/~luigi).
-
-	The install/uninstall script in the FreeBSD directory was tested
-	with 2.2.7 (it should run with 2.2.n, where n >= 6), 3.0-RELEASE
-	and 3.0-CURRENT as of Dec 22, 1998.
+	FreeBSD 2.2.x is no longer supported by i4b, this release might
+	still run on 2.2 but upcoming i4b releases will not!
 
 	Please take the time to read the file FreeBSD/INSTALLATION (and 
 	the other available documentation) carefully. Thank you!
@@ -175,6 +169,11 @@ OpenBSD/i386:
 	it would be great to have someone who likes to work on i4b under
 	OpenBSD regularly and takes over the maintenance for that OS!
 
+BSD/OS
+	The BSD/OS 4.0 specific support was done by Bert Driehuis. The
+	support is not yet complete. Please contact Bert directly in case
+	of questions regarding this at bert_driehuis@nl.compuware.com.
+
 
 4. Which ISDN cards are supported ?
 -----------------------------------
@@ -209,6 +208,7 @@ OpenBSD/i386:
   Type (passive, PnP)	FreeBSD		NetBSD/OpenBSD	Notes
   --------------------- -------		--------------	-----------------------
   ELSA 1000pro PCI	full		full
+  AVM Fritz!Card PCI	full		unsupported	(Note 14)
 
   Type (passive, PCMCIA)FreeBSD		NetBSD/OpenBSD	Notes
   --------------------- -------		--------------	-----------------------
@@ -228,9 +228,10 @@ OpenBSD/i386:
   Stollmann Tina-dd	unsupported	unsupported	(Note 8)
 
 
-Note 1:	Only the ISA, non-PnP AVM Fritz!Card is supported; the PnP and PCI
-	versions are unsupported! The "Teledat 150" sold by the german
-	Telekom seems to be an AVM Fritz!Card.
+Note 1:	Only the ISA, non-PnP AVM Fritz!Card (also now known as "Fritz!Card
+	callsic") is supported; the PnP version is unsupported! 
+	The "Teledat 150" sold by the german Telekom seems to be an AVM 
+	Fritz!Card classic.
 
 Note 2:	FreeBSD
 		This is a PnP card. To run it under FreeBSD, you need
@@ -285,6 +286,10 @@ Note 12: This driver was developed by Ignatios Souvatzis (is@netbsd.org)
 Note 13: This driver was developed by Martin Husemann under NetBSD and has
 	not been tested under FreeBSD yet. Feedback welcome!
 
+Note 14: This driver was developed by Gary Jennejohn who develops under
+	FreeBSD only. In case of problems with this driver, please contact
+	him directly at garyj@muc.de.
+
 
 5. Where do i find documentation for ISDN4BSD ?
 -----------------------------------------------
@@ -306,7 +311,7 @@ Note 13: This driver was developed by Martin Husemann under NetBSD and has
 - misc/Resources contains URL's and ISBN's to more interesting ISDN related
   stuff.
 
-- handbook/i4b.ps is the start of a handbook for isdn4bsd.
+- handbook/i4b.ps contains a handbook for isdn4bsd.
 
 
 6. How do i install ISDN4BSD ?
