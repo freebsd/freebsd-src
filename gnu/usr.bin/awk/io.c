@@ -3,7 +3,7 @@
  */
 
 /* 
- * Copyright (C) 1986, 1988, 1989, 1991, 1992 the Free Software Foundation, Inc.
+ * Copyright (C) 1986, 1988, 1989, 1991, 1992, 1993 the Free Software Foundation, Inc.
  * 
  * This file is part of GAWK, the GNU implementation of the
  * AWK Progamming Language.
@@ -23,6 +23,9 @@
  * the Free Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#if !defined(VMS) && !defined(VMS_POSIX) && !defined(_MSC_VER)
+#include <sys/param.h>
+#endif
 #include "awk.h"
 
 #ifndef O_RDONLY
@@ -33,13 +36,17 @@
 #define	S_ISDIR(m) (((m) & S_IFMT) == S_IFDIR)
 #endif
 
+#ifndef ENFILE
+#define ENFILE EMFILE
+#endif
+
 #ifndef atarist
 #define INVALID_HANDLE (-1)
 #else
 #define INVALID_HANDLE  (__SMALLEST_VALID_HANDLE - 1)
 #endif
 
-#if defined(MSDOS) || defined(atarist)
+#if defined(MSDOS) || defined(OS2) || defined(atarist)
 #define PIPES_SIMULATED
 #endif
 
@@ -48,17 +55,34 @@ static int inrec P((IOBUF *iop));
 static int iop_close P((IOBUF *iop));
 struct redirect *redirect P((NODE *tree, int *errflg));
 static void close_one P((void));
-static int close_redir P((struct redirect *rp));
+static int close_redir P((struct redirect *rp, int exitwarn));
 #ifndef PIPES_SIMULATED
 static int wait_any P((int interesting));
 #endif
 static IOBUF *gawk_popen P((char *cmd, struct redirect *rp));
-static IOBUF *iop_open P((char *file, char *how));
+static IOBUF *iop_open P((const char *file, const char *how));
 static int gawk_pclose P((struct redirect *rp));
-static int do_pathopen P((char *file));
+static int do_pathopen P((const char *file));
+static int str2mode P((const char *mode));
+static void spec_setup P((IOBUF *iop, int len, int allocate));
+static int specfdopen P((IOBUF *iop, const char *name, const char *mode));
+static int pidopen P((IOBUF *iop, const char *name, const char *mode));
+static int useropen P((IOBUF *iop, const char *name, const char *mode));
 
 extern FILE	*fdopen();
+
+#if defined (MSDOS)
+#include "popen.h"
+#define popen(c,m)	os_popen(c,m)
+#define pclose(f)		os_pclose(f)
+#elif defined (OS2)	/* OS/2, but not family mode */
+#if defined (_MSC_VER)
+#define popen(c,m)   _popen(c,m)
+#define pclose(f)    _pclose(f)
+#endif
+#else
 extern FILE	*popen();
+#endif
 
 static struct redirect *red_head = NULL;
 
@@ -87,7 +111,6 @@ int skipping;
 	static int i = 1;
 	static int files = 0;
 	NODE *arg;
-	int fd = INVALID_HANDLE;
 	static IOBUF *curfile = NULL;
 
 	if (skipping) {
@@ -121,8 +144,7 @@ int skipping;
 				/* NOTREACHED */
 			/* This is a kludge.  */
 			unref(FILENAME_node->var_value);
-			FILENAME_node->var_value =
-				dupnode(arg);
+			FILENAME_node->var_value = dupnode(arg);
 			FNR = 0;
 			i++;
 			break;
@@ -131,8 +153,8 @@ int skipping;
 	if (files == 0) {
 		files++;
 		/* no args. -- use stdin */
-		/* FILENAME is init'ed to "-" */
 		/* FNR is init'ed to 0 */
+		FILENAME_node->var_value = make_string("-", 1);
 		curfile = iop_alloc(fileno(stdin));
 	}
 	return curfile;
@@ -141,13 +163,13 @@ int skipping;
 void
 set_FNR()
 {
-	FNR = (int) FNR_node->var_value->numbr;
+	FNR = (long) FNR_node->var_value->numbr;
 }
 
 void
 set_NR()
 {
-	NR = (int) NR_node->var_value->numbr;
+	NR = (long) NR_node->var_value->numbr;
 }
 
 /*
@@ -238,12 +260,15 @@ do_input()
 	IOBUF *iop;
 	extern int exiting;
 
-	if (setjmp(filebuf) != 0) {
-	}
+	(void) setjmp(filebuf);
+
 	while ((iop = nextfile(0)) != NULL) {
 		if (inrec(iop) == 0)
 			while (interpret(expression_value) && inrec(iop) == 0)
-				;
+				continue;
+		/* recover any space from C based alloca */
+		(void) alloca(0);
+
 		if (exiting)
 			break;
 	}
@@ -260,10 +285,10 @@ int *errflg;
 	register char *str;
 	int tflag = 0;
 	int outflag = 0;
-	char *direction = "to";
-	char *mode;
+	const char *direction = "to";
+	const char *mode;
 	int fd;
-	char *what = NULL;
+	const char *what = NULL;
 
 	switch (tree->type) {
 	case Node_redirect_append:
@@ -376,15 +401,19 @@ int *errflg;
 					rp->fp = stdout;
 				else if (fd == fileno(stderr))
 					rp->fp = stderr;
-				else	
-					rp->fp = fdopen(fd, mode);
-				if (isatty(fd))
+				else {
+					rp->fp = fdopen(fd, (char *) mode);
+					/* don't leak file descriptors */
+					if (rp->fp == NULL)
+						close(fd);
+				}
+				if (rp->fp != NULL && isatty(fd))
 					rp->flag |= RED_NOBUF;
 			}
 		}
 		if (rp->fp == NULL && rp->iop == NULL) {
 			/* too many files open -- close one and try again */
-			if (errno == EMFILE)
+			if (errno == EMFILE || errno == ENFILE)
 				close_one();
 			else {
 				/*
@@ -454,16 +483,18 @@ NODE *tree;
 	if (rp == NULL) /* no match */
 		return tmp_number((AWKNUM) 0.0);
 	fflush(stdout);	/* synchronize regular output */
-	tmp = tmp_number((AWKNUM)close_redir(rp));
+	tmp = tmp_number((AWKNUM)close_redir(rp, 0));
 	rp = NULL;
 	return tmp;
 }
 
 static int
-close_redir(rp)
+close_redir(rp, exitwarn)
 register struct redirect *rp;
+int exitwarn;
 {
 	int status = 0;
+	char *what;
 
 	if (rp == NULL)
 		return 0;
@@ -482,14 +513,19 @@ register struct redirect *rp;
 			rp->iop = NULL;
 		}
 	}
+
+	what = (rp->flag & RED_PIPE) ? "pipe" : "file";
+
+	if (exitwarn) 
+		warning("no explicit close of %s \"%s\" provided",
+			what, rp->value);
+
 	/* SVR4 awk checks and warns about status of close */
 	if (status) {
 		char *s = strerror(errno);
 
-		warning("failure status (%d) on %s close of \"%s\" (%s).",
-			status,
-			(rp->flag & RED_PIPE) ? "pipe" :
-			"file", rp->value, s);
+		warning("failure status (%d) on %s close of \"%s\" (%s)",
+			status, what, rp->value, s);
 
 		if (! do_unix) {
 			/* set ERRNO too so that program can get at it */
@@ -544,19 +580,26 @@ close_io ()
 	int status = 0;
 
 	errno = 0;
-	if (fclose(stdout)) {
+	for (rp = red_head; rp != NULL; rp = next) {
+		next = rp->next;
+		/* close_redir() will print a message if needed */
+		/* if do_lint, warn about lack of explicit close */
+		if (close_redir(rp, do_lint))
+			status++;
+		rp = NULL;
+	}
+	/*
+	 * Some of the non-Unix os's have problems doing an fclose
+	 * on stdout and stderr.  Since we don't really need to close
+	 * them, we just flush them, and do that across the board.
+	 */
+	if (fflush(stdout)) {
 		warning("error writing standard output (%s).", strerror(errno));
 		status++;
 	}
-	if (fclose(stderr)) {
+	if (fflush(stderr)) {
 		warning("error writing standard error (%s).", strerror(errno));
 		status++;
-	}
-	for (rp = red_head; rp != NULL; rp = next) {
-		next = rp->next;
-		if (close_redir(rp))
-			status++;
-		rp = NULL;
 	}
 	return status;
 }
@@ -565,7 +608,7 @@ close_io ()
 
 static int
 str2mode(mode)
-char *mode;
+const char *mode;
 {
 	int ret;
 
@@ -581,7 +624,9 @@ char *mode;
 	case 'a':
 		ret = O_WRONLY|O_APPEND|O_CREAT;
 		break;
+
 	default:
+		ret = 0;		/* lint */
 		cant_happen();
 	}
 	return ret;
@@ -598,10 +643,10 @@ char *mode;
 
 int
 devopen(name, mode)
-char *name, *mode;
+const char *name, *mode;
 {
 	int openfd = INVALID_HANDLE;
-	char *cp, *ptr;
+	const char *cp, *ptr;
 	int flag = 0;
 	struct stat buf;
 	extern double strtod();
@@ -618,7 +663,7 @@ char *name, *mode;
 
 	if (STREQ(name, "-"))
 		openfd = fileno(stdin);
-	else if (STREQN(name, "/dev/", 5) && stat(name, &buf) == -1) {
+	else if (STREQN(name, "/dev/", 5) && stat((char *) name, &buf) == -1) {
 		cp = name + 5;
 		
 		if (STREQ(cp, "stdin") && (flag & O_RDONLY) == O_RDONLY)
@@ -647,7 +692,7 @@ strictopen:
 
 /* spec_setup --- setup an IOBUF for a special internal file */
 
-void
+static void
 spec_setup(iop, len, allocate)
 IOBUF *iop;
 int len;
@@ -674,10 +719,10 @@ int allocate;
 
 /* specfdopen --- open a fd special file */
 
-int
+static int
 specfdopen(iop, name, mode)
 IOBUF *iop;
-char *name, *mode;
+const char *name, *mode;
 {
 	int fd;
 	IOBUF *tp;
@@ -694,23 +739,43 @@ char *name, *mode;
 	return 0;
 }
 
+/*
+ * Following mess will improve in 2.16; this is written to avoid
+ * long lines, avoid splitting #if with backslash, and avoid #elif
+ * to maximize portability.
+ */
+#ifndef GETPGRP_NOARG
+#if defined(__svr4__) || defined(BSD4_4) || defined(_POSIX_SOURCE)
+#define GETPGRP_NOARG
+#else
+#if defined(i860) || defined(_AIX) || defined(hpux) || defined(VMS)
+#define GETPGRP_NOARG
+#else
+#if defined(OS2) || defined(MSDOS) || defined(AMIGA) || defined(atarist)
+#define GETPGRP_NOARG
+#endif
+#endif
+#endif
+#endif
+
+#ifdef GETPGRP_NOARG
+#define getpgrp_ARG /* nothing */
+#else
+#define getpgrp_ARG getpid()
+#endif
+
 /* pidopen --- "open" /dev/pid, /dev/ppid, and /dev/pgrpid */
 
-int
+static int
 pidopen(iop, name, mode)
 IOBUF *iop;
-char *name, *mode;
+const char *name, *mode;
 {
 	char tbuf[BUFSIZ];
 	int i;
 
 	if (name[6] == 'g')
-/* following #if will improve in 2.16 */
-#if defined(__svr4__) || defined(i860) || defined(_AIX) || defined(BSD4_4) || defined(__386BSD__)
-		sprintf(tbuf, "%d\n", getpgrp());
-#else
-		sprintf(tbuf, "%d\n", getpgrp(getpid()));
-#endif
+		sprintf(tbuf, "%d\n", getpgrp( getpgrp_ARG ));
 	else if (name[6] == 'i')
 		sprintf(tbuf, "%d\n", getpid());
 	else
@@ -733,15 +798,19 @@ char *name, *mode;
  * supplementary group set.
  */
 
-int
+static int
 useropen(iop, name, mode)
 IOBUF *iop;
-char *name, *mode;
+const char *name, *mode;
 {
 	char tbuf[BUFSIZ], *cp;
 	int i;
 #if defined(NGROUPS_MAX) && NGROUPS_MAX > 0
+#if defined(atarist) || defined(__svr4__) || defined(__osf__)
+	gid_t groupset[NGROUPS_MAX];
+#else
 	int groupset[NGROUPS_MAX];
+#endif
 	int ngroups;
 #endif
 
@@ -755,7 +824,7 @@ char *name, *mode;
 
 	for (i = 0; i < ngroups; i++) {
 		*cp++ = ' ';
-		sprintf(cp, "%d", groupset[i]);
+		sprintf(cp, "%d", (int)groupset[i]);
 		cp += strlen(cp);
 	}
 #endif
@@ -773,18 +842,16 @@ char *name, *mode;
 
 static IOBUF *
 iop_open(name, mode)
-char *name, *mode;
+const char *name, *mode;
 {
 	int openfd = INVALID_HANDLE;
-	char *cp, *ptr;
 	int flag = 0;
-	int i;
 	struct stat buf;
 	IOBUF *iop;
 	static struct internal {
-		char *name;
+		const char *name;
 		int compare;
-		int (*fp)();
+		int (*fp) P((IOBUF*,const char *,const char *));
 		IOBUF iob;
 	} table[] = {
 		{ "/dev/fd/",		8,	specfdopen },
@@ -805,12 +872,12 @@ char *name, *mode;
 
 	if (STREQ(name, "-"))
 		openfd = fileno(stdin);
-	else if (STREQN(name, "/dev/", 5) && stat(name, &buf) == -1) {
+	else if (STREQN(name, "/dev/", 5) && stat((char *) name, &buf) == -1) {
 		int i;
 
 		for (i = 0; i < devcount; i++) {
 			if (STREQN(name, table[i].name, table[i].compare)) {
-				IOBUF *iop = & table[i].iob;
+				iop = & table[i].iob;
 
 				if (iop->buf != NULL) {
 					spec_setup(iop, 0, 0);
@@ -939,8 +1006,9 @@ struct redirect *rp;
 
 #else	/* PIPES_SIMULATED */
 	/* use temporary file rather than pipe */
+	/* except if popen() provides real pipes too */
 
-#ifdef VMS
+#if defined(VMS) || defined(OS2) || defined (MSDOS)
 static IOBUF *
 gawk_popen(cmd, rp)
 char *cmd;
@@ -958,7 +1026,7 @@ gawk_pclose(rp)
 struct redirect *rp;
 {
 	int rval, aval, fd = rp->iop->fd;
-	FILE *kludge = fdopen(fd, "r"); /* pclose needs FILE* w/ right fileno */
+	FILE *kludge = fdopen(fd, (char *) "r"); /* pclose needs FILE* w/ right fileno */
 
 	rp->iop->fd = dup(fd);	  /* kludge to allow close() + pclose() */
 	rval = iop_close(rp->iop);
@@ -966,7 +1034,7 @@ struct redirect *rp;
 	aval = pclose(kludge);
 	return (rval < 0 ? rval : aval);
 }
-#else	/* VMS */
+#else	/* VMS || OS2 || MSDOS */
 
 static
 struct {
@@ -1016,7 +1084,7 @@ struct redirect *rp;
 	free(pipes[cur].command);
 	return rval;
 }
-#endif	/* VMS */
+#endif	/* VMS || OS2 || MSDOS */
 
 #endif	/* PIPES_SIMULATED */
 
@@ -1041,7 +1109,7 @@ NODE *tree;
 			rp = redirect(tree->rnode, &redir_error);
 			if (rp == NULL && redir_error) { /* failed redirect */
 				if (! do_unix) {
-					char *s = strerror(redir_error);
+					s = strerror(redir_error);
 
 					unref(ERRNO_node->var_value);
 					ERRNO_node->var_value =
@@ -1056,7 +1124,7 @@ NODE *tree;
 		errcode = 0;
 		cnt = get_a_record(&s, iop, *RS, & errcode);
 		if (! do_unix && errcode != 0) {
-			char *s = strerror(errcode);
+			s = strerror(errcode);
 
 			unref(ERRNO_node->var_value);
 			ERRNO_node->var_value = make_string(s, strlen(s));
@@ -1102,7 +1170,7 @@ NODE *tree;
 
 int
 pathopen (file)
-char *file;
+const char *file;
 {
 	int fd = do_pathopen(file);
 
@@ -1134,12 +1202,12 @@ char *file;
 
 static int
 do_pathopen (file)
-char *file;
+const char *file;
 {
-	static char *savepath = DEFPATH;	/* defined in config.h */
+	static const char *savepath = DEFPATH;	/* defined in config.h */
 	static int first = 1;
-	char *awkpath, *cp;
-	char trypath[BUFSIZ];
+	const char *awkpath;
+	char *cp, trypath[BUFSIZ];
 	int fd;
 
 	if (STREQ(file, "-"))
@@ -1160,7 +1228,7 @@ char *file;
 	if (strchr(file, ':') != strchr(file, ']')
 	 || strchr(file, '>') != strchr(file, '/'))
 #else /*!VMS*/
-#ifdef MSDOS
+#if defined(MSDOS) || defined(OS2)
 	if (strchr(file, '/') != strchr(file, '\\')
 	 || strchr(file, ':') != NULL)
 #else
@@ -1169,6 +1237,12 @@ char *file;
 #endif	/*VMS*/
 		return (devopen(file, "r"));
 
+#if defined(MSDOS) || defined(OS2)
+	_searchenv(file, "AWKPATH", trypath);
+	if (trypath[0] == '\0')
+		_searchenv(file, "PATH", trypath);
+	return (trypath[0] == '\0') ? 0 : devopen(trypath, "r");
+#else
 	do {
 		trypath[0] = '\0';
 		/* this should take into account limits on size of trypath */
@@ -1180,7 +1254,7 @@ char *file;
 #ifdef VMS
 			if (strchr(":]>/", *(cp-1)) == NULL)
 #else
-#ifdef MSDOS
+#if defined(MSDOS) || defined(OS2)
 			if (strchr(":\\/", *(cp-1)) == NULL)
 #else
 			if (*(cp-1) != '/')
@@ -1204,4 +1278,5 @@ char *file;
 	 * Therefore try to open the file in the current directory.
 	 */
 	return (devopen(file, "r"));
+#endif
 }
