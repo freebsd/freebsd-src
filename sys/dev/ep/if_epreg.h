@@ -231,6 +231,15 @@
  *
  ****************************************/
 
+/* 
+ * Command parameter that disables threshold interrupts
+ *   PIO (3c509) cards use 2044.  The fifo word-oriented and 2044--2047 work.
+ *  "busmastering" cards need 8188.
+ * The implicit two-bit upshift done by busmastering cards means
+ * a value of 2047 disables threshold interrupts on both.
+ */   
+#define EP_THRESH_DISABLE    2047
+
 /*
  * Command register. All windows.
  *
