@@ -139,10 +139,9 @@ static void	vm_object_pip_sleep(vm_object_t object, char *waitid);
 
 struct object_q vm_object_list;
 struct mtx vm_object_list_mtx;	/* lock for object list and count */
-vm_object_t kernel_object;
-vm_object_t kmem_object;
-static struct vm_object kernel_object_store;
-static struct vm_object kmem_object_store;
+
+struct vm_object kernel_object_store;
+struct vm_object kmem_object_store;
 
 static long object_collapses;
 static long object_bypasses;
@@ -233,7 +232,6 @@ vm_object_init(void)
 	TAILQ_INIT(&vm_object_list);
 	mtx_init(&vm_object_list_mtx, "vm object_list", NULL, MTX_DEF);
 	
-	kernel_object = &kernel_object_store;
 	VM_OBJECT_LOCK_INIT(&kernel_object_store);
 	_vm_object_allocate(OBJT_DEFAULT, OFF_TO_IDX(VM_MAX_KERNEL_ADDRESS - VM_MIN_KERNEL_ADDRESS),
 	    kernel_object);
@@ -243,7 +241,6 @@ vm_object_init(void)
 	 * "vm object", to avoid false reports of lock-order reversal
 	 * with a system map mutex.
 	 */
-	kmem_object = &kmem_object_store;
 	mtx_init(VM_OBJECT_MTX(kmem_object), "kmem object", NULL, MTX_DEF);
 	_vm_object_allocate(OBJT_DEFAULT, OFF_TO_IDX(VM_MAX_KERNEL_ADDRESS - VM_MIN_KERNEL_ADDRESS),
 	    kmem_object);
