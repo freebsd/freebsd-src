@@ -5,6 +5,30 @@ directly to him.  See end of file for further details.  For commonly
 done items, please see the end of the file.  Search for 'COMMON
 ITEMS:'
 
+20010330:
+	fsck has changed the meaning of the pass column in /etc/fstab.
+	Please see the cvs commit to fsck.8 or the fsck.8 man page fora
+	details.  It is unclear if changes to /etc/fstab are necessary.
+
+20010319:
+	portmap had changed name to rpcbind for maximum POLA in your
+	current world.  /etc/hosts.{allow,deny} needs changes.  nfs and
+	other rpc based programs that rely on portmapper will not work
+	without updates to /etc/hosts.{allow,deny}.
+
+20010312:
+	The fxp driver was converted to use miibus.  If you compile
+	fxp into your kernel statically, you will need to add miibus.
+
+20010312:
+	The wi device now defaults to BSS (infrastructure) mode
+	instead of ad-hoc.
+
+20010310:
+	/dev/urandmon should be a sumbolic link to /dev/random now.
+	Users of current not using DEVFS need to run MAKEDEV std.
+	ssh might not work if you don't.
+
 20010220:
 	The problems with libc have been corrected.  It is now mostly
 	safe to go back into the water.
