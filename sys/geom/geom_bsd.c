@@ -620,7 +620,7 @@ g_bsd_taste(struct g_class *mp, struct g_provider *pp, int flags)
 		MD5Final(ms->labelsum, &md5sum);
 
 		error = g_getattr("BSD::labelsum", cp, &hash);
-		if (!error && !strncmp(ms->labelsum, hash, sizeof(hash)))
+		if (!error && !bcmp(ms->labelsum, hash, sizeof(hash)))
 			break;
 
 		/*
