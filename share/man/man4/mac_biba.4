@@ -29,25 +29,32 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.Dd NOVEMBER 18, 2002
+.\"
+.Dd November 18, 2002
 .Os
 .Dt MAC_BIBA 4
 .Sh NAME
 .Nm mac_biba
-.Nd Biba data integrity policy
+.Nd "Biba data integrity policy"
 .Sh SYNOPSIS
 To compile Biba into your kernel, place the following lines in your kernel
 configuration file:
+.Bd -ragged -offset indent
 .Cd "options MAC"
 .Cd "options MAC_BIBA"
+.Ed
 .Pp
 Alternately, to load the Biba module at boot time, place the following line
 in your kernel configuration file:
+.Bd -ragged -offset indent
 .Cd "options MAC"
+.Ed
 .Pp
 and in
 .Xr loader.conf 5 :
-.Cd mac_biba_load= Ns \&"YES"
+.Bd -literal -offset indent
+mac_biba_load="YES"
+.Ed
 .Sh DESCRIPTION
 The
 .Nm
@@ -66,28 +73,30 @@ components, numbered from 0 to 255.
 A complete label consists of both hierarchal and non-hierarchal elements.
 .Pp
 Three special label values exist:
-.Bl -column -offset indent "biba/equal" "lower than all other labels"
+.Bl -column -offset indent ".Li biba/equal" "lower than all other labels"
 .It Sy Label Ta Sy Comparison
-.It Li biba/low Ta lower than all other labels
-.It Li biba/equal Ta equal to all other labels
-.It Li biba/high Ta higher than all other labels
+.It Li biba/low Ta "lower than all other labels"
+.It Li biba/equal Ta "equal to all other labels"
+.It Li biba/high Ta "higher than all other labels"
 .El
 .Pp
 The
-.Dq biba/high
+.Dq Li biba/high
 label is assigned to system objects which affect the integrity of the system
 as a whole.
-.Dq biba/equal
+The
+.Dq Li biba/equal
+label
 may be used to indicate that a particular subject or object is exempt from
 the Biba protections.
 These special label values are not specified as containing any compartments,
 although in a label comparison,
-.Dq biba/high
+.Dq Li biba/high
 appears to contain all compartments,
-.Dq biba/equal
+.Dq Li biba/equal
 the same compartments as the other label to which it is being compared,
 and
-.Dq biba/low
+.Dq Li biba/low
 none.
 .Pp
 In general, Biba access control takes the following model:
@@ -137,7 +146,9 @@ reflecting the integrity of the object, or integrity of the data contained
 in the object.
 In general, objects labels are represented in the following form:
 .Pp
-.Dl biba/grade:compartments
+.Sm off
+.D1 Li biba / Ar grade : compartments
+.Sm on
 .Pp
 For example:
 .Pp
@@ -154,8 +165,10 @@ greater or equal integrity to the low end of the range, and lesser or equal
 integrity to the high end of the range.
 In general, subject labels are represented in the following form:
 .Pp
-.Dl biba/singlegrade:singlecompartments(lograde:locompartments-
-.Dl higrade:hicompartments)
+.Sm off
+.D1 Li biba / Ar singlegrade : singlecompartments ( lograde : locompartments -
+.D1 Ar higrade : hicompartments )
+.Sm on
 .Pp
 For example:
 .Bd -literal -offset indent
@@ -166,7 +179,7 @@ biba/high(low-high)
 Valid ranged labels must meet the following requirement regarding their
 elements:
 .Pp
-.Dl rangehigh >= single >= rangelow
+.D1 Ar rangehigh No \[>=] Ar single No \[>=] Ar rangelow
 .Pp
 One class of objects with ranges currently exists, the network interface.
 In the case of the network interface, the single label element references the
@@ -177,23 +190,20 @@ the interface.
 The following
 .Xr sysctl 8
 MIBs are available for fine-tuning the enforcement of this MAC policy.
-.Bl -tag -width 'security.mac.biba.ptys_equal'
+.Bl -tag -width ".Va security.mac.biba.ptys_equal"
 .It Va security.mac.biba.enabled
-Enables enforcement of the Biba integrity policy
-(Default: 1)
+Enables enforcement of the Biba integrity policy.
+(Default: 1).
 .It Va security.mac.biba.ptys_equal
 Label
-.Sm off
-.Xr pty 4
-s
-.Sm on
+.Xr pty 4 Ns s
 as
-.Dq biba/equal
-upon creation
-(Default: 0)
+.Dq Li biba/equal
+upon creation.
+(Default: 0).
 .It Va security.mac.biba.revocation_enabled
-Revoke access to objects if the label is changed to dominate the subject
-(Default: 0)
+Revoke access to objects if the label is changed to dominate the subject.
+(Default: 0).
 .El
 .Sh SEE ALSO
 .Xr lomac 4 ,
@@ -214,11 +224,14 @@ The
 .Nm
 policy module first appeared in
 .Fx 5.0
-and was developed by the TrustedBSD Project.
+and was developed by the
+.Tn TrustedBSD
+Project.
 .Sh AUTHORS
 This software was contributed to the
 .Fx
 Project by Network Associates Labs,
 the Security Research Division of Network Associates
-Inc. under DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"),
+Inc. under DARPA/SPAWAR contract N66001-01-C-8035
+.Pq Dq CBOSS ,
 as part of the DARPA CHATS research program.

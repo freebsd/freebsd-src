@@ -29,7 +29,8 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.Dd DECEMBER 1, 2002
+.\"
+.Dd December 1, 2002
 .Os
 .Dt MAC_TEST 4
 .Sh NAME
@@ -39,16 +40,22 @@
 To compile the testing policy
 into your kernel, place the following lines in your kernel
 configuration file:
+.Bd -ragged -offset indent
 .Cd "options MAC"
 .Cd "options MAC_TEST"
+.Ed
 .Pp
 Alternately, to load the testing module at boot time, place the following line
 in your kernel configuration file:
+.Bd -ragged -offset indent
 .Cd "options MAC"
+.Ed
 .Pp
 and in
 .Xr loader.conf.5 :
-.Cd mac_test_load= Ns \&"YES"
+.Bd -literal -offset indent
+mac_test_load="YES"
+.Ed
 .Sh DESCRIPTION
 The
 .Nm
@@ -82,19 +89,24 @@ The
 .Nm
 policy module first appeared in
 .Fx 5.0
-and was developed by the TrustedBSD Project.
+and was developed by the
+.Tn TrustedBSD
+Project.
 .Sh AUTHORS
 This software was contributed to the
 .Fx
 Project by Network Associates Labs,
 the Security Research Division of Network Associates
-Inc. under DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"),
+Inc. under DARPA/SPAWAR contract N66001-01-C-8035
+.Pq Dq CBOSS ,
 as part of the DARPA CHATS research program.
 .Sh BUGS
 See
 .Xr mac 9
 concerning appropriateness for production use.
-The TrustedBSD MAC Framework is considered experimental in
+The
+.Tn TrustedBSD
+MAC Framework is considered experimental in
 .Fx .
 .Pp
 While the MAC Framework design is intended to support the containment of

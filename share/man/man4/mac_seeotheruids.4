@@ -29,26 +29,33 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.Dd DECEMBER 8, 2002
+.\"
+.Dd December 8, 2002
 .Os
 .Dt MAC_SEEOTHERUIDS 4
 .Sh NAME
 .Nm mac_seeotheruids
-.Nd simple policy controlling whether users see other users
+.Nd "simple policy controlling whether users see other users"
 .Sh SYNOPSIS
-To compile the mac_seeotheruids
+To compile the
 policy into your kernel, place the following lines in your kernel
 configuration file:
+.Bd -ragged -offset indent
 .Cd "options MAC"
 .Cd "options MAC_SEEOTHERUIDS"
+.Ed
 .Pp
 Alternately, to load the module at boot time, place the following line
 in your kernel configuration file:
+.Bd -ragged -offset indent
 .Cd "options MAC"
+.Ed
 .Pp
 and in
 .Xr loader.conf.5 :
-.Cd mac_seeotheruids_load= Ns \&"YES"
+.Bd -literal -offset indent
+mac_seeotheruids_load="YES"
+.Ed
 .Sh DESCRIPTION
 The
 .Nm
@@ -59,23 +66,19 @@ To enable
 .Nm ,
 set the sysctl OID
 .Va security.mac.seeotheruids.enabled
-to
-.Li 1 .
+to 1.
 .Pp
 To allow users to see processes and sockets owned by the same primary group,
 set the sysctl OID
 .Va security.mac.seeotheruids.primarygroup_enabled
-to
-.Li 1 .
+to 1.
 .Pp
 To allow processes with a specific group ID to be exempt from the policy,
 set the sysctl OID
 .Va security.mac.seeotheruids.specificgid_enabled
-to
-.Li 1 ,
-and
+to 1, and
 .Va security.mac.seeotheruids.specificgid
-to the gid to be exempted.
+to the group ID to be exempted.
 .Ss Label Format
 No labels are defined for
 .Nm .
@@ -86,9 +89,9 @@ No labels are defined for
 .Xr mac_ifoff 4 ,
 .Xr mac_lomac 4 ,
 .Xr mac_mls 4 ,
+.Xr mac_none 4 ,
 .Xr mac_partition 4 ,
 .Xr mac_portacl 4 ,
-.Xr mac_none 4 ,
 .Xr mac_test 4 ,
 .Xr mac 9
 .Sh HISTORY
@@ -96,19 +99,24 @@ The
 .Nm
 policy module first appeared in
 .Fx 5.0
-and was developed by the TrustedBSD Project.
+and was developed by the
+.Tn TrustedBSD
+Project.
 .Sh AUTHORS
 This software was contributed to the
 .Fx
 Project by Network Associates Labs,
 the Security Research Division of Network Associates
-Inc. under DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"),
+Inc. under DARPA/SPAWAR contract N66001-01-C-8035
+.Pq Dq CBOSS ,
 as part of the DARPA CHATS research program.
 .Sh BUGS
 See
 .Xr mac 9
 concerning appropriateness for production use.
-The TrustedBSD MAC Framework is considered experimental in
+The
+.Tn TrustedBSD
+MAC Framework is considered experimental in
 .Fx .
 .Pp
 While the MAC Framework design is intended to support the containment of
