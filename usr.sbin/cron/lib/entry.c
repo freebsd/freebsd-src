@@ -35,7 +35,7 @@ static const char rcsid[] =
 
 typedef	enum ecode {
 	e_none, e_minute, e_hour, e_dom, e_month, e_dow,
-	e_cmd, e_timespec, e_username, e_group
+	e_cmd, e_timespec, e_username, e_group, e_mem
 #ifdef LOGIN_CAP
 	, e_class
 #endif
@@ -58,6 +58,7 @@ static char *ecodes[] =
 		"bad time specifier",
 		"bad username",
 		"bad group name",
+		"out of memory",
 #ifdef LOGIN_CAP
 		"bad class name",
 #endif
@@ -106,6 +107,7 @@ load_entry(file, error_func, pw, envp)
 	int	ch;
 	char	cmd[MAX_COMMAND];
 	char	envstr[MAX_ENVSTR];
+	char	**prev_env;
 
 	Debug(DPARS, ("load_entry()...about to eat comments\n"))
 
@@ -122,6 +124,11 @@ load_entry(file, error_func, pw, envp)
 
 	e = (entry *) calloc(sizeof(entry), sizeof(char));
 
+	if (e == NULL) {
+		warn("load_entry: calloc failed");
+		return NULL;
+	}
+
 	if (ch == '@') {
 		/* all of these should be flagged and load-limited; i.e.,
 		 * instead of @hourly meaning "0 * * * *" it should mean
@@ -135,41 +142,56 @@ load_entry(file, error_func, pw, envp)
 		 * anymore.  too much for my overloaded brain. (vix, jan90)
 		 * HINT
 		 */
+		Debug(DPARS, ("load_entry()...about to test shortcuts\n"))
 		ch = get_string(cmd, MAX_COMMAND, file, " \t\n");
 		if (!strcmp("reboot", cmd)) {
+			Debug(DPARS, ("load_entry()...reboot shortcut\n"))
 			e->flags |= WHEN_REBOOT;
 		} else if (!strcmp("yearly", cmd) || !strcmp("annually", cmd)){
+			Debug(DPARS, ("load_entry()...yearly shortcut\n"))
 			bit_set(e->minute, 0);
 			bit_set(e->hour, 0);
 			bit_set(e->dom, 0);
 			bit_set(e->month, 0);
 			bit_nset(e->dow, 0, (LAST_DOW-FIRST_DOW+1));
 		} else if (!strcmp("monthly", cmd)) {
+			Debug(DPARS, ("load_entry()...monthly shortcut\n"))
 			bit_set(e->minute, 0);
 			bit_set(e->hour, 0);
 			bit_set(e->dom, 0);
 			bit_nset(e->month, 0, (LAST_MONTH-FIRST_MONTH+1));
 			bit_nset(e->dow, 0, (LAST_DOW-FIRST_DOW+1));
 		} else if (!strcmp("weekly", cmd)) {
+			Debug(DPARS, ("load_entry()...weekly shortcut\n"))
 			bit_set(e->minute, 0);
 			bit_set(e->hour, 0);
 			bit_nset(e->dom, 0, (LAST_DOM-FIRST_DOM+1));
 			bit_nset(e->month, 0, (LAST_MONTH-FIRST_MONTH+1));
 			bit_set(e->dow, 0);
 		} else if (!strcmp("daily", cmd) || !strcmp("midnight", cmd)) {
+			Debug(DPARS, ("load_entry()...daily shortcut\n"))
 			bit_set(e->minute, 0);
 			bit_set(e->hour, 0);
 			bit_nset(e->dom, 0, (LAST_DOM-FIRST_DOM+1));
 			bit_nset(e->month, 0, (LAST_MONTH-FIRST_MONTH+1));
 			bit_nset(e->dow, 0, (LAST_DOW-FIRST_DOW+1));
 		} else if (!strcmp("hourly", cmd)) {
+			Debug(DPARS, ("load_entry()...hourly shortcut\n"))
 			bit_set(e->minute, 0);
-			bit_set(e->hour, (LAST_HOUR-FIRST_HOUR+1));
+			bit_nset(e->hour, 0, (LAST_HOUR-FIRST_HOUR+1));
 			bit_nset(e->dom, 0, (LAST_DOM-FIRST_DOM+1));
 			bit_nset(e->month, 0, (LAST_MONTH-FIRST_MONTH+1));
 			bit_nset(e->dow, 0, (LAST_DOW-FIRST_DOW+1));
 		} else {
 			ecode = e_timespec;
+			goto eof;
+		}
+		/* Advance past whitespace between shortcut and
+		 * username/command.
+		 */
+		Skip_Blanks(ch, file);
+		if (ch == EOF) {
+			ecode = e_cmd;
 			goto eof;
 		}
 	} else {
@@ -254,8 +276,17 @@ load_entry(file, error_func, pw, envp)
 		if ((s = strrchr(username, '/')) != NULL) {
 			*s = '\0';
 			e->class = strdup(s + 1);
-		} else
+			if (e->class == NULL)
+				warn("strdup(\"%s\")", s + 1);
+		} else {
 			e->class = strdup(RESOURCE_RC);
+			if (e->class == NULL)
+				warn("strdup(\"%s\")", RESOURCE_RC);
+		}
+		if (e->class == NULL) {
+			ecode = e_mem;
+			goto eof;
+		}
 		if (login_getclass(e->class) == NULL) {
 			ecode = e_class;
 			goto eof;
@@ -295,21 +326,61 @@ load_entry(file, error_func, pw, envp)
 	 * others are overrides.
 	 */
 	e->envp = env_copy(envp);
+	if (e->envp == NULL) {
+		warn("env_copy");
+		ecode = e_mem;
+		goto eof;
+	}
 	if (!env_get("SHELL", e->envp)) {
+		prev_env = e->envp;
 		sprintf(envstr, "SHELL=%s", _PATH_BSHELL);
 		e->envp = env_set(e->envp, envstr);
+		if (e->envp == NULL) {
+			warn("env_set(%s)", envstr);
+			env_free(prev_env);
+			ecode = e_mem;
+			goto eof;
+		}
 	}
+	prev_env = e->envp;
 	sprintf(envstr, "HOME=%s", pw->pw_dir);
 	e->envp = env_set(e->envp, envstr);
+	if (e->envp == NULL) {
+		warn("env_set(%s)", envstr);
+		env_free(prev_env);
+		ecode = e_mem;
+		goto eof;
+	}
 	if (!env_get("PATH", e->envp)) {
+		prev_env = e->envp;
 		sprintf(envstr, "PATH=%s", _PATH_DEFPATH);
 		e->envp = env_set(e->envp, envstr);
+		if (e->envp == NULL) {
+			warn("env_set(%s)", envstr);
+			env_free(prev_env);
+			ecode = e_mem;
+			goto eof;
+		}
 	}
+	prev_env = e->envp;
 	sprintf(envstr, "%s=%s", "LOGNAME", pw->pw_name);
 	e->envp = env_set(e->envp, envstr);
+	if (e->envp == NULL) {
+		warn("env_set(%s)", envstr);
+		env_free(prev_env);
+		ecode = e_mem;
+		goto eof;
+	}
 #if defined(BSD)
+	prev_env = e->envp;
 	sprintf(envstr, "%s=%s", "USER", pw->pw_name);
 	e->envp = env_set(e->envp, envstr);
+	if (e->envp == NULL) {
+		warn("env_set(%s)", envstr);
+		env_free(prev_env);
+		ecode = e_mem;
+		goto eof;
+	}
 #endif
 
 	Debug(DPARS, ("load_entry()...about to parse command\n"))
@@ -324,6 +395,7 @@ load_entry(file, error_func, pw, envp)
 	/* a file without a \n before the EOF is rude, so we'll complain...
 	 */
 	if (ch == EOF) {
+		env_free(e->envp);
 		ecode = e_cmd;
 		goto eof;
 	}
@@ -331,7 +403,12 @@ load_entry(file, error_func, pw, envp)
 	/* got the command in the 'cmd' string; save it in *e.
 	 */
 	e->cmd = strdup(cmd);
-
+	if (e->cmd == NULL) {
+		warn("strdup(\"%d\")", cmd);
+		env_free(e->envp);
+		ecode = e_mem;
+		goto eof;
+	}
 	Debug(DPARS, ("load_entry()...returning successfully\n"))
 
 	/* success, fini, return pointer to the entry we just created...
