@@ -468,7 +468,7 @@ bsd_decomp_init(state, options, opt_len, unit, hdrlen, mru, debug)
  *	One change from the BSD compress command is that when the
  *	code size expands, we do not output a bunch of padding.
  */
-int					/* new slen */
+static int					/* new slen */
 bsd_compress(state, mret, mp, slen, maxolen)
     void *state;
     struct mbuf **mret;		/* return compressed mbuf chain here */
@@ -815,7 +815,7 @@ bsd_incomp(state, dmsg)
  * bug, so we return DECOMP_FATALERROR for them in order to turn off
  * compression, even though they are detected by inspecting the input.
  */
-int
+static int
 bsd_decompress(state, cmp, dmpp)
     void *state;
     struct mbuf *cmp, **dmpp;

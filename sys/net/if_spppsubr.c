@@ -2075,7 +2075,7 @@ sppp_to_event(const struct cp *cp, struct sppp *sp)
  * Change the state of a control protocol in the state automaton.
  * Takes care of starting/stopping the restart timer.
  */
-void
+static void
 sppp_cp_change_state(const struct cp *cp, struct sppp *sp, int newstate)
 {
 	sp->state[cp->protoidx] = newstate;
@@ -3876,7 +3876,7 @@ static void sppp_ipv6cp_scr(struct sppp *sp)
 /*
  * Handle incoming CHAP packets.
  */
-void
+static void
 sppp_chap_input(struct sppp *sp, struct mbuf *m)
 {
 	STDDCL;

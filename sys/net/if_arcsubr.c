@@ -353,7 +353,7 @@ arc_frag_next(ifp)
  * NULL. frees imcoming mbuf as necessary.
  */
 
-__inline struct mbuf *
+static __inline struct mbuf *
 arc_defrag(ifp, m)
 	struct ifnet *ifp;
 	struct mbuf *m;
