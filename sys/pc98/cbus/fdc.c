@@ -272,32 +272,38 @@ static struct fd_type fd_native_types[] =
 };
 
 static struct fd_type fd_searchlist_12m[] = {
-{ 15,2,0xFF,0x1B,80,2400,0,2,0x54,1,0,0 },	/* 1.2M */
-{ 10,2,0xFF,0x10,82,1640,1,2,0x30,1,0,0 },	/* 820K */
-{ 10,2,0xFF,0x10,80,1600,1,2,0x30,1,0,0 },	/* 800K */
-{  9,2,0xFF,0x20,80,1440,1,2,0x50,1,0,0 },	/* 720K */
-{  9,2,0xFF,0x20,40, 720,1,2,0x50,1,0,FL_2STEP },/* 360K */
-{  8,2,0xFF,0x2A,80,1280,1,2,0x50,1,0,0 },	/* 640K */
-{  8,3,0xFF,0x35,77,1232,0,2,0x74,1,0,0 },	/* 1.23M 1024/sec */
-
-{  8,3,0xFF,0x35,80,1280,0,2,0x74,1,0,0 },	/* 1.28M 1024/sec */
+{ 15,2,0xFF,0x1B,80,2400,0,2,0x54,1,0,FL_MFM },	/* 1.2M */
+#if 0
+{ 10,2,0xFF,0x10,82,1640,1,2,0x30,1,0,FL_MFM },	/* 820K */
+{ 10,2,0xFF,0x10,80,1600,1,2,0x30,1,0,FL_MFM },	/* 800K */
+#endif
+{  9,2,0xFF,0x20,80,1440,1,2,0x50,1,0,FL_MFM },	/* 720K */
+{  9,2,0xFF,0x20,40, 720,1,2,0x50,1,0,FL_MFM|FL_2STEP },/* 360K */
+{  8,2,0xFF,0x2A,80,1280,1,2,0x50,1,0,FL_MFM },	/* 640K */
+{  8,3,0xFF,0x35,77,1232,0,2,0x74,1,0,FL_MFM },	/* 1.23M 1024/sec */
+#if 0
+{  8,3,0xFF,0x35,80,1280,0,2,0x74,1,0,FL_MFM },	/* 1.28M 1024/sec */
+#endif
 };
 static struct fd_type fd_searchlist_144m[] = {
-{ 21,2,0xFF,0x04,82,3444,2,2,0x0C,2,0,0 },	/* 1.72M in 3mode */
-{ 18,2,0xFF,0x1B,82,2952,2,2,0x54,1,0,0 },	/* 1.48M in 3mode */
-{ 18,2,0xFF,0x1B,80,2880,2,2,0x54,1,0,0 },	/* 1.44M in 3mode */
-{ 15,2,0xFF,0x1B,80,2400,0,2,0x54,1,0,0 },	/* 1.2M */
-{ 10,2,0xFF,0x10,82,1640,1,2,0x30,1,0,0 },	/* 820K */
-{ 10,2,0xFF,0x10,80,1600,1,2,0x30,1,0,0 },	/* 800K */
-{  9,2,0xFF,0x20,80,1440,1,2,0x50,1,0,0 },	/* 720K */
-{  9,2,0xFF,0x20,40, 720,1,2,0x50,1,0,FL_2STEP },/* 360K */
-{  8,2,0xFF,0x2A,80,1280,1,2,0x50,1,0,0 },	/* 640K */
-{  8,3,0xFF,0x35,77,1232,0,2,0x74,1,0,0 },	/* 1.23M 1024/sec */
-
-{  8,3,0xFF,0x35,80,1280,0,2,0x74,1,0,0 },	/* 1.28M 1024/sec */
-{  9,3,0xFF,0x35,82,1476,0,2,0x47,1,0,0 },	/* 1.48M 1024/sec 9sec */
 #if 0
-{ 10,3,0xFF,0x1B,82,1640,2,2,0x54,1,0,0 },	/* 1.64M in 3mode - Reserve */
+{ 21,2,0xFF,0x04,82,3444,2,2,0x0C,2,0,FL_MFM },	/* 1.72M in 3mode */
+{ 18,2,0xFF,0x1B,82,2952,2,2,0x54,1,0,FL_MFM },	/* 1.48M in 3mode */
+#endif
+{ 18,2,0xFF,0x1B,80,2880,2,2,0x54,1,0,FL_MFM },	/* 1.44M in 3mode */
+{ 15,2,0xFF,0x1B,80,2400,0,2,0x54,1,0,FL_MFM },	/* 1.2M */
+#if 0
+{ 10,2,0xFF,0x10,82,1640,1,2,0x30,1,0,FL_MFM },	/* 820K */
+{ 10,2,0xFF,0x10,80,1600,1,2,0x30,1,0,FL_MFM },	/* 800K */
+#endif
+{  9,2,0xFF,0x20,80,1440,1,2,0x50,1,0,FL_MFM },	/* 720K */
+{  9,2,0xFF,0x20,40, 720,1,2,0x50,1,0,FL_MFM|FL_2STEP },/* 360K */
+{  8,2,0xFF,0x2A,80,1280,1,2,0x50,1,0,FL_MFM },	/* 640K */
+{  8,3,0xFF,0x35,77,1232,0,2,0x74,1,0,FL_MFM },	/* 1.23M 1024/sec */
+#if 0
+{  8,3,0xFF,0x35,80,1280,0,2,0x74,1,0,FL_MFM },	/* 1.28M 1024/sec */
+{  9,3,0xFF,0x35,82,1476,0,2,0x47,1,0,FL_MFM },	/* 1.48M 1024/sec 9sec */
+{ 10,3,0xFF,0x1B,82,1640,2,2,0x54,1,0,FL_MFM },	/* 1.64M in 3mode - Reserve */
 #endif
 };
 #else /* PC98 */
@@ -830,7 +836,7 @@ fd_read_status(fdc_p fdc)
 
 #ifdef PC98
 static int pc98_trans = 0; /* 0 : HD , 1 : DD , 2 : 1.44 */
-static int pc98_trans_prev = 0;
+static int pc98_trans_prev = -1;
 
 static void set_density(fdc_p fdc)
 {
@@ -1440,39 +1446,29 @@ fd_probe(device_t dev)
 #ifdef PC98
 	if (fd->type == FDT_NONE && fd->fdu >= 0 && fd->fdu <= 3) {
 		/* Look up what the BIOS thinks we have. */
-		if ((PC98_SYSTEM_PARAMETER(0x5ae) >> fd->fdu) & 0x01)
-			fd->type = FDT_144M;
+		if ((PC98_SYSTEM_PARAMETER(0x55c) >> fd->fdu) & 0x01) {
+			if ((PC98_SYSTEM_PARAMETER(0x5ae) >> fd->fdu) & 0x01)
+				fd->type = FDT_144M;
+			else {
+				fd->type = FDT_12M;
+				switch (epson_machine_id) {
+				case 0x20:
+				case 0x27:
+					if ((PC98_SYSTEM_PARAMETER(0x488) >>
+					     fd->fdu) & 0x01) {
 #ifdef EPSON_NRDISK
-		else if ((PC98_SYSTEM_PARAMETER(0x55c) >> fd->fdu) & 0x01) {
-			fd->type = FDT_12M;
-			switch (epson_machine_id) {
-			case 0x20:
-			case 0x27:
-				if ((PC98_SYSTEM_PARAMETER(0x488) >> fd->fdu)
-				    & 0x01) {
-					if (nrd_check_ready()) {
-						nrd_LED_on();
-						nrdu = fd->fdu;
-					} else {
-						fd->type = FDT_NONE;
+						if (nrd_check_ready()) {
+							nrd_LED_on();
+							nrdu = fd->fdu;
+						} else
+#endif
+							fd->type = FDT_NONE;
 					}
+					break;
 				}
-				break;
 			}
-		}
-#else /* !EPSON_NRDISK */
-		else if ((PC98_SYSTEM_PARAMETER(0x55c) >> fd->fdu) & 0x01) {
-			fd->type = FDT_12M;
-			switch (epson_machine_id) {
-			case 0x20:
-			case 0x27:
-				if ((PC98_SYSTEM_PARAMETER(0x488) >> fd->fdu)
-				    & 0x01)
-					fd->type = FDT_NONE;
-				break;
-			}
-		}
-#endif /* EPSON_NRDISK */
+		} else
+			fd->type = FDT_NONE;
 	}
 #else /* PC98 */
 /*
@@ -2278,7 +2274,12 @@ fdautoselect(dev_t dev)
 	} else {
 		if (bootverbose)
 			device_printf(fd->dev, "autoselected %d KB medium\n",
+#ifdef PC98
+				      (128 << (fd->ft->secsize)) *
+				      fd->ft->size / 1024);
+#else
 				      fd->ft->size / 2);
+#endif
 		return (0);
 	}
 }
@@ -2425,11 +2426,7 @@ fdstate(fdc_p fdc)
 		return (1);	/* will return immediately */
 
 	case DOSEEK:
-#ifdef PC98
-		blknum = bp->bio_pblkno * DEV_BSIZE / fdblk + fd->skip / fdblk;
-#else
 		blknum = bp->bio_pblkno + fd->skip / fdblk;
-#endif
 		cylinder = blknum / (fd->ft->sectrac * fd->ft->heads);
 		if (cylinder == fd->track)
 		{
@@ -2460,11 +2457,7 @@ fdstate(fdc_p fdc)
 		return(0);	/* will return later */
 
 	case SEEKCOMPLETE : /* seek done, start DMA */
-#ifdef PC98
-		blknum = bp->bio_pblkno * DEV_BSIZE / fdblk + fd->skip / fdblk;
-#else
 		blknum = bp->bio_pblkno + fd->skip / fdblk;
-#endif
 		cylinder = blknum / (fd->ft->sectrac * fd->ft->heads);
 
 		/* Make sure seek really happened. */
@@ -2548,11 +2541,7 @@ fdstate(fdc_p fdc)
 		if (!rdsectid && !(fdc->flags & FDC_NODMA))
 			isa_dmastart(idf, bp->bio_data+fd->skip,
 				format ? bp->bio_bcount : fdblk, fdc->dmachan);
-#ifdef PC98
-		blknum = bp->bio_pblkno * DEV_BSIZE / fdblk + fd->skip / fdblk;
-#else
 		blknum = bp->bio_pblkno + fd->skip / fdblk;
-#endif
 		sectrac = fd->ft->sectrac;
 		sec = blknum %  (sectrac * fd->ft->heads);
 		head = sec / sectrac;
