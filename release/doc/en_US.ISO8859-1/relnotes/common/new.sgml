@@ -342,7 +342,17 @@
       default for both buffer sizes was 16K.  To try to avoid
       increasing congestion, the default value for
       <varname>net.inet.tcp.local_slowstart_flightsize</varname> has
-      been changed from infinity to 4.</para>
+      been changed from infinity to 4.
+        <note>
+	  <para>On busy hosts, the new larger buffer sizes may require
+	  manually increasing the
+	  <varname>NMBCLUSTERS</varname> parameter, either in the
+	  kernel configuration file or via the
+	  <varname>kern.ipc.nmbclusters</varname> loader tunable.
+	  <command>netstat -mb</command> can be used to monitor the
+	  state of mbuf clusters.</para>
+	</note>
+      </para>
 
       <para>A bug in the TCP implementation, which could cause
       connections to stall if a sender saw a zero-sized window, has
