@@ -1139,8 +1139,10 @@ sioprobe(dev)
 	/*
 	 * If the port is i8251 UART (internal, B98_01)
 	 */
-	if (pc98_check_if_type(dev, &iod) == -1)
+	if (pc98_check_if_type(dev, &iod) == -1) {
+		bus_release_resource(dev, SYS_RES_IOPORT, rid, port);
 		return (ENXIO);
+	}
 	if (iod.irq > 0)
 		bus_set_resource(dev, SYS_RES_IRQ, 0, iod.irq, 1);
 	if (IS_8251(iod.if_type)) {
@@ -1229,14 +1231,18 @@ sioprobe(dev)
 		mcr_image = 0;
 
 		rsabase = iobase & 0xfff0;
-		if (rsabase != iobase)
-			return(0);
+		if (rsabase != iobase) {
+			bus_release_resource(dev, SYS_RES_IOPORT, rid, port);
+			return (ENXIO);
+		}
 		iobase += 8;
 
 		outb(rsabase + rsa_msr,   0x04);
 		outb(rsabase + rsa_frr,   0x00);
-		if ((inb(rsabase + rsa_srr) & 0x36) != 0x36)
-			return (0);
+		if ((inb(rsabase + rsa_srr) & 0x36) != 0x36) {
+			bus_release_resource(dev, SYS_RES_IOPORT, rid, port);
+			return (ENXIO);
+		}
 		outb(rsabase + rsa_ier,   0x00);
 		outb(rsabase + rsa_frr,   0x00);
 		outb(rsabase + rsa_tivsr, 0x00);
@@ -1254,7 +1260,8 @@ sioprobe(dev)
 	    default:
 		printf("sio%d: irq configuration error\n",
 		       device_get_unit(dev));
-		return (0);
+		bus_release_resource(dev, SYS_RES_IOPORT, rid, port);
+		return (ENXIO);
 	    }
 	    outb((isa_get_port(dev) & 0x00ff) | tmp, irqout);
 	}
@@ -1655,8 +1662,10 @@ sioattach(dev)
 		iobase += 8;
 		obufsize = 2048;
 	}
-	if ((obuf = malloc(obufsize * 2, M_DEVBUF, M_NOWAIT)) == NULL)
+	if ((obuf = malloc(obufsize * 2, M_DEVBUF, M_NOWAIT)) == NULL) {
+		bus_release_resource(dev, SYS_RES_IOPORT, rid, port);
 		return ENXIO;
+	}
 	bzero(obuf, obufsize * 2);
 #endif
 
