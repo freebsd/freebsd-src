@@ -165,7 +165,7 @@ raw_mode(on)
 #if TERMIO
 		ospeed = s.c_cflag & CBAUD;
 #else
-		ospeed = cfgetospeed(&s);
+		_set_ospeed(cfgetospeed(&s));
 #endif
 		erase_char = s.c_cc[VERASE];
 		kill_char = s.c_cc[VKILL];
