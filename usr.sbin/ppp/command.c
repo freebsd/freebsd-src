@@ -1570,7 +1570,7 @@ SetVariable(struct cmdargs const *arg)
       mp_RestartAutoloadTimer(&arg->bundle->ncp.mp);
     } else {
       err = "Set autoload requires three arguments\n";
-      log_Printf(LogWARN, err);
+      log_Printf(LogWARN, "%s", err);
     }
     break;
 
@@ -1605,7 +1605,7 @@ SetVariable(struct cmdargs const *arg)
         l->ccp.cfg.deflate.in.winsize = 0;
     } else {
       err = "No window size specified\n";
-      log_Printf(LogWARN, err);
+      log_Printf(LogWARN, "%s", err);
     }
     break;
 
@@ -1662,7 +1662,7 @@ SetVariable(struct cmdargs const *arg)
       cx->physical->link.lcp.cfg.accmap = (u_int32_t)ulong_val;
     } else {
       err = "No accmap specified\n";
-      log_Printf(LogWARN, err);
+      log_Printf(LogWARN, "%s", err);
     }
     break;
 
@@ -1831,7 +1831,7 @@ SetVariable(struct cmdargs const *arg)
       bundle_SetIdleTimer(arg->bundle, timeout, min);
     }
     if (err)
-      log_Printf(LogWARN, err);
+      log_Printf(LogWARN, "%s", err);
     break;
 
   case VAR_LQRPERIOD:
@@ -2005,7 +2005,7 @@ SetVariable(struct cmdargs const *arg)
       return physical_SetParity(arg->cx->physical, argp);
     else {
       err = "Parity value must be odd, even or none\n";
-      log_Printf(LogWARN, err);
+      log_Printf(LogWARN, "%s", err);
     }
     break;
 
@@ -2016,7 +2016,7 @@ SetVariable(struct cmdargs const *arg)
       physical_SetRtsCts(arg->cx->physical, 0);
     else {
       err = "RTS/CTS value must be on or off\n";
-      log_Printf(LogWARN, err);
+      log_Printf(LogWARN, "%s", err);
     }
     break;
 
