@@ -433,19 +433,19 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 	case F_GETFL:
 		/* mtx_assert(&Giant, MA_NOTOWNED); */
 		FILE_LOCK(fp);
-		FILEDESC_UNLOCK(fdp);
 		td->td_retval[0] = OFLAGS(fp->f_flag);
 		FILE_UNLOCK(fp);
+		FILEDESC_UNLOCK(fdp);
 		break;
 
 	case F_SETFL:
 		mtx_assert(&Giant, MA_OWNED);
 		FILE_LOCK(fp);
-		FILEDESC_UNLOCK(fdp);
 		fhold_locked(fp);
 		fp->f_flag &= ~FCNTLFLAGS;
 		fp->f_flag |= FFLAGS(arg & ~O_ACCMODE) & FCNTLFLAGS;
 		FILE_UNLOCK(fp);
+		FILEDESC_UNLOCK(fdp);
 		tmp = fp->f_flag & FNONBLOCK;
 		error = fo_ioctl(fp, FIONBIO, &tmp, td->td_ucred, td);
 		if (error) {
