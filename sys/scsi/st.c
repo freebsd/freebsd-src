@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- * $Id: st.c,v 1.31 1995/03/21 11:21:08 dufault Exp $
+ * $Id: st.c,v 1.32 1995/04/14 15:10:44 dufault Exp $
  */
 
 /*
@@ -165,7 +165,7 @@ errval	st_mode_select __P((u_int32 unit, u_int32 flags, \
 errval	st_comp __P((u_int32 unit, u_int32 mode));
 void    ststrategy();
 int32   st_chkeod();
-void	ststart(u_int32	unit);
+void	ststart(u_int32	unit, u_int32 flags);
 void	st_unmount();
 errval	st_mount_tape();
 void	st_loadquirks();
@@ -957,7 +957,7 @@ st_strategy(struct buf *bp, struct scsi_link *sc_link)
 	 * not doing anything, otherwise just wait for completion
 	 * (All a bit silly if we're only allowing 1 open but..)
 	 */
-	ststart(unit);
+	ststart(unit, 0);
 
 	splx(opri);
 	return;
@@ -986,14 +986,14 @@ done:
  * ststart() is called at splbio
  */
 void 
-ststart(unit)
+ststart(unit, flags)
 	u_int32	unit;
+	u_int32 flags;
 {
 	struct scsi_link *sc_link = SCSI_LINK(&st_switch, unit);
 	struct scsi_data *st = sc_link->sd;
 	register struct buf *bp = 0;
 	struct scsi_rw_tape cmd;
-	u_int32 flags;
 
 	SC_DEBUG(sc_link, SDEV_DB2, ("ststart "));
 	/*
@@ -1072,10 +1072,10 @@ ststart(unit)
 			cmd.op_code = WRITE_COMMAND_TAPE;
 			st->flags &= ~ST_FM_WRITTEN;
 			st->flags |= ST_WRITTEN;
-			flags = SCSI_DATA_OUT;
+			flags |= SCSI_DATA_OUT;
 		} else {
 			cmd.op_code = READ_COMMAND_TAPE;
-			flags = SCSI_DATA_IN;
+			flags |= SCSI_DATA_IN;
 		}
 		/*
 		 * Handle "fixed-block-mode" tape drives by using the

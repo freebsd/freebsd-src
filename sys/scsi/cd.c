@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *      $Id: cd.c,v 1.37 1995/03/21 11:21:00 dufault Exp $
+ *      $Id: cd.c,v 1.38 1995/04/14 15:10:24 dufault Exp $
  */
 
 #define SPLCD splbio
@@ -66,7 +66,7 @@ int32   cdstrats, cdqueues;
 #define PARTITION(z)	(minor(z) & 0x07)
 #define RAW_PART        2
 
-void	cdstart(u_int32 unit);
+void	cdstart(u_int32 unit, u_int32 flags);
 
 struct scsi_data {
 	u_int32 flags;
@@ -412,7 +412,7 @@ cd_strategy(struct buf *bp, struct scsi_link *sc_link)
 	 * Tell the device to get going on the transfer if it's
 	 * not doing anything, otherwise just wait for completion
 	 */
-	cdstart(unit);
+	cdstart(unit, 0);
 
 	splx(opri);
 	return;
@@ -445,8 +445,9 @@ cd_strategy(struct buf *bp, struct scsi_link *sc_link)
  * cdstart() is called at SPLCD  from cdstrategy and scsi_done
  */
 void 
-cdstart(unit)
+cdstart(unit, flags)
 	u_int32 unit;
+	u_int32 flags;
 {
 	register struct buf *bp = 0;
 	register struct buf *dp;
@@ -518,7 +519,7 @@ cdstart(unit)
 		CDRETRIES,
 		30000,
 		bp,
-		SCSI_NOSLEEP | ((bp->b_flags & B_READ) ?
+		flags | ((bp->b_flags & B_READ) ?
 		    SCSI_DATA_IN : SCSI_DATA_OUT))
 	    != SUCCESSFULLY_QUEUED) {
 	      bad:

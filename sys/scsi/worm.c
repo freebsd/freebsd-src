@@ -37,7 +37,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: worm.c,v 1.2 1995/03/15 14:22:12 dufault Exp $
+ *      $Id: worm.c,v 1.3 1995/04/23 07:39:21 bde Exp $
  */
 
 /* XXX This is PRELIMINARY.
@@ -66,7 +66,7 @@ struct scsi_data {
 	u_int32 blk_size;			/* Size of each blocks */
 };
 
-void wormstart(u_int32 unit);
+void wormstart(u_int32 unit, u_int32 flags);
 
 errval worm_open(dev_t dev, int flags, int fmt, struct proc *p,
 struct scsi_link *sc_link);
@@ -157,8 +157,9 @@ wormattach(struct scsi_link *sc_link)
  * handled in one place.
  */
 void 
-wormstart(unit)
+wormstart(unit, flags)
 	u_int32	unit;
+	u_int32 flags;
 {
 	struct scsi_link *sc_link = SCSI_LINK(&worm_switch, unit);
 	struct scsi_data *worm = sc_link->sd;
@@ -177,7 +178,6 @@ wormstart(unit)
 		u_char	ctl;
 	} cmd;
 
-	u_int32 flags;
 	u_int32 lba;	/* Logical block address */
 	u_int32 tl;		/* Transfer length */
 
@@ -213,10 +213,10 @@ wormstart(unit)
 		bzero(&cmd, sizeof(cmd));
 		if ((bp->b_flags & B_READ) == B_WRITE) {
 			cmd.op_code = WRITE_BIG;
-			flags = SCSI_DATA_OUT;
+			flags |= SCSI_DATA_OUT;
 		} else {
 			cmd.op_code = READ_BIG;
-			flags = SCSI_DATA_IN;
+			flags |= SCSI_DATA_IN;
 		}
 
 
@@ -292,7 +292,7 @@ worm_strategy(struct buf *bp, struct scsi_link *sc_link)
 	*dp = bp;
 	bp->b_actf = NULL;
 
-	wormstart(unit);
+	wormstart(unit, 0);
 
 	splx(opri);
 	return;

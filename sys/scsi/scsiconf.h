@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *	$Id: scsiconf.h,v 1.22 1995/04/14 15:10:39 dufault Exp $
+ *	$Id: scsiconf.h,v 1.23 1995/04/23 07:47:12 bde Exp $
  */
 #ifndef	SCSI_SCSICONF_H
 #define SCSI_SCSICONF_H 1
@@ -164,7 +164,7 @@ struct scsi_device
 {
 /*  4*/	errval	(*err_handler)(struct scsi_xfer *xs);	/* return -1 to say
 											* err processing complete */
-/*	8*/	void	(*start)(u_int32 unit);
+/*	8*/	void	(*start)(u_int32 unit, u_int32 flags);
 /* 12*/	int32	(*async)();
 /* 16*/	int32	(*done)();	/* returns -1 to say done processing complete */
 /* 20*/	char	*name;		/* name of device type */
