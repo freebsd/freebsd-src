@@ -34,18 +34,20 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id: main.c,v 1.16 1997/02/22 19:27:14 peter Exp $
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1988, 1989, 1990, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)main.c	8.3 (Berkeley) 3/19/94";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 /*-
@@ -85,6 +87,7 @@ static char sccsid[] = "@(#)main.c	8.3 (Berkeley) 3/19/94";
 #include <sys/utsname.h>
 #endif
 #include <sys/wait.h>
+#include <err.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
@@ -249,9 +252,7 @@ rearg:	while((c = getopt(argc, argv, OPTFLAGS)) != -1) {
 					debug |= DEBUG_VAR;
 					break;
 				default:
-					(void)fprintf(stderr,
-				"make: illegal argument to d option -- %c\n",
-					    *modules);
+					warnx("illegal argument to d option -- %c", *modules);
 					usage();
 				}
 			Var_Append(MAKEFLAGS, "-d", VAR_GLOBAL);
@@ -387,8 +388,7 @@ chdir_verify_path(path, obpath)
 
 	if (stat(path, &sb) == 0 && S_ISDIR(sb.st_mode)) {
 		if (chdir(path)) {
-			(void)fprintf(stderr, "make warning: %s: %s.\n",
-				      path, strerror(errno));
+			warn("warning: %s", path);
 			return 0;
 		}
 		else {
@@ -460,16 +460,11 @@ main(argc, argv)
 	 * on a different machine with pmake.
 	 */
 	curdir = cdpath;
-	if (getcwd(curdir, MAXPATHLEN) == NULL) {
-		(void)fprintf(stderr, "make: %s.\n", strerror(errno));
-		exit(2);
-	}
+	if (getcwd(curdir, MAXPATHLEN) == NULL)
+		err(2, NULL);
 
-	if (stat(curdir, &sa) == -1) {
-	    (void)fprintf(stderr, "make: %s: %s.\n",
-			  curdir, strerror(errno));
-	    exit(2);
-	}
+	if (stat(curdir, &sa) == -1)
+	    err(2, "%s", curdir);
 
 	if ((pwd = getenv("PWD")) != NULL) {
 	    if (stat(pwd, &sb) == 0 && sa.st_ino == sb.st_ino &&
@@ -1206,8 +1201,7 @@ erealloc(ptr, size)
 void
 enomem()
 {
-	(void)fprintf(stderr, "make: %s.\n", strerror(errno));
-	exit(2);
+	err(2, NULL);
 }
 
 /*
@@ -1237,10 +1231,10 @@ eunlink(file)
 static void
 usage()
 {
-	(void)fprintf(stderr,
-"usage: make [-Beiknqrst] [-D variable] [-d flags] [-f makefile ]\n\
-            [-I directory] [-j max_jobs] [-m directory] [-V variable]\n\
-            [variable=value] [target ...]\n");
+	(void)fprintf(stderr, "%s\n%s\n%s\n",
+"usage: make [-Beiknqrst] [-D variable] [-d flags] [-f makefile ]",
+"            [-I directory] [-j max_jobs] [-m directory] [-V variable]",
+"            [variable=value] [target ...]");
 	exit(2);
 }
 
