@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: label.c,v 1.61 1996/10/02 02:19:35 jkh Exp $
+ * $Id: label.c,v 1.62 1996/10/04 14:53:52 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -108,8 +108,12 @@ diskLabelEditor(dialogMenuItem *self)
 	return DITEM_FAILURE;
     }
     i = diskLabel(devs[0]->name);
-    if (DITEM_STATUS(i) != DITEM_FAILURE)
-	variable_set2(DISK_LABELLED, "yes");
+    if (DITEM_STATUS(i) != DITEM_FAILURE) {
+	char *cp;
+
+	if (((cp = variable_get(DISK_LABELLED)) == NULL) || (strcmp(cp, "written")))
+	    variable_set2(DISK_LABELLED, "yes");
+    }
     return i;
 }
 
@@ -494,6 +498,8 @@ diskLabel(char *str)
 
     clear();
     while (labeling) {
+	char *cp;
+
 	print_label_chunks();
 	print_command_summary();
 	if (msg) {
@@ -506,6 +512,7 @@ diskLabel(char *str)
 	    move(23, 0);
 	    clrtoeol();
 	}
+
 	refresh();
 	key = getch();
 	switch (toupper(key)) {
@@ -647,7 +654,8 @@ diskLabel(char *str)
 		    record_label_chunks(devs);
 		}
 		/* At this point, we're reasonably "labelled" */
-		variable_set2(DISK_LABELLED, "yes");
+		if (((cp = variable_get(DISK_LABELLED)) == NULL) || (strcmp(cp, "written")))
+		    variable_set2(DISK_LABELLED, "yes");
 	    }
 	    break;
 	    
@@ -662,7 +670,7 @@ diskLabel(char *str)
 		break;
 	    }
 	    else {
-		char *val, *cp;
+		char *val;
 		int size;
 		struct chunk *tmp;
 		char osize[80];
@@ -755,7 +763,8 @@ diskLabel(char *str)
 		else
 		    tmp->private_data = p;
 		tmp->private_free = safe_free;
-		variable_set2(DISK_LABELLED, "yes");
+		if (((cp = variable_get(DISK_LABELLED)) == NULL) || (strcmp(cp, "written")))
+		    variable_set2(DISK_LABELLED, "yes");
 		record_label_chunks(devs);
 		clear_wins();
 	    }
@@ -772,7 +781,8 @@ diskLabel(char *str)
 		break;
 	    }
 	    Delete_Chunk(label_chunk_info[here].c->disk, label_chunk_info[here].c);
-	    variable_set2(DISK_LABELLED, "yes");
+	    if (((cp = variable_get(DISK_LABELLED)) == NULL) || (strcmp(cp, "written")))
+		variable_set2(DISK_LABELLED, "yes");
 	    record_label_chunks(devs);
 	    break;
 
@@ -800,7 +810,8 @@ diskLabel(char *str)
 			strcpy(p->mountpoint, "/bogus");
 		    }
 		}
-		variable_set2(DISK_LABELLED, "yes");
+		if (((cp = variable_get(DISK_LABELLED)) == NULL) || (strcmp(cp, "written")))
+		    variable_set2(DISK_LABELLED, "yes");
 		record_label_chunks(devs);
 		clear_wins();
 		break;
@@ -827,7 +838,8 @@ diskLabel(char *str)
 			new_part(pi ? pi->mountpoint : NULL, pi ? !pi->newfs : TRUE, label_chunk_info[here].c->size);
 		    safe_free(pi);
 		    label_chunk_info[here].c->private_free = safe_free;
-		    variable_set2(DISK_LABELLED, "yes");
+		    if (((cp = variable_get(DISK_LABELLED)) == NULL) || (strcmp(cp, "written")))
+			variable_set2(DISK_LABELLED, "yes");
 	    }
 	    else
 		msg = MSG_NOT_APPLICABLE;
@@ -835,27 +847,36 @@ diskLabel(char *str)
 
 	case 'U':
 	    clear();
-	    if (msgYesNo("Are you SURE you want to Undo everything?"))
-		break;
-	    variable_unset(DISK_PARTITIONED);
-	    variable_unset(DISK_LABELLED);
-	    for (i = 0; devs[i]; i++) {
-		Disk *d;
-
-		if (!devs[i]->enabled)
-		    continue;
-		else if ((d = Open_Disk(devs[i]->name)) != NULL) {
-		    Free_Disk(devs[i]->private);
-		    devs[i]->private = d;
-		    diskPartition(devs[i], d);
-		}
+	    if ((cp = variable_get(DISK_LABELLED)) && !strcmp(cp, "written")) {
+		msgConfirm("You've already written out your changes -\n"
+			   "it's too late to undo!");
 	    }
-	    record_label_chunks(devs);
+	    else if (!msgYesNo("Are you SURE you want to Undo everything?")) {
+		variable_unset(DISK_PARTITIONED);
+		variable_unset(DISK_LABELLED);
+		for (i = 0; devs[i]; i++) {
+		    Disk *d;
+
+		    if (!devs[i]->enabled)
+			continue;
+		    else if ((d = Open_Disk(devs[i]->name)) != NULL) {
+			Free_Disk(devs[i]->private);
+			devs[i]->private = d;
+			diskPartition(devs[i], d);
+		    }
+		}
+		record_label_chunks(devs);
+	    }
 	    clear_wins();
 	    break;
 
 	case 'W':
-	    if (!msgYesNo("WARNING:  This should only be used when modifying an EXISTING\n"
+	    if ((cp = variable_get(DISK_LABELLED)) && !strcmp(cp, "written")) {
+		msgConfirm("You've already written out your changes - if you\n"
+			   "wish to overwrite them, you'll have to start this\n"
+			   "procedure again from the beginning.");
+	    }
+	    else if (!msgYesNo("WARNING:  This should only be used when modifying an EXISTING\n"
 			  "installation.  If you are installing FreeBSD for the first time\n"
 			  "then you should simply type Q when you're finished here and your\n"
 			  "changes will be committed in one batch automatically at the end of\n"
@@ -886,7 +907,8 @@ diskLabel(char *str)
 		    if (devs[i]->enabled)
 		    	slice_wizard(((Disk *)devs[i]->private));
 		}
-		variable_set2(DISK_LABELLED, "yes");
+		if (((cp = variable_get(DISK_LABELLED)) == NULL) || (strcmp(cp, "written")))
+		    variable_set2(DISK_LABELLED, "yes");
 		DialogActive = TRUE;
 		record_label_chunks(devs);
 		clear_wins();
