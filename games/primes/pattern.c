@@ -54,6 +54,8 @@ static const char rcsid[] =
  * with 1.  All non-zero elements are factors of 3, 5, 7, 11 and 13.
  */
 
+#include <stddef.h>
+
 char pattern[] = {
 1,0,0,0,0,0,0,0,1,1,0,1,0,0,1,1,0,0,1,0,1,1,0,1,0,0,1,0,0,1,1,0,0,1,0,1,1,0,0,
 1,0,1,0,0,1,0,0,0,1,0,1,1,0,1,1,0,1,0,0,0,0,0,0,1,0,1,0,0,1,1,0,0,0,0,1,1,0,0,
@@ -441,4 +443,4 @@ char pattern[] = {
 0,0,1,1,0,0,0,0,1,1,0,0,1,0,1,0,0,0,0,0,0,1,0,1,1,0,1,1,0,1,0,0,0,1,0,0,1,0,1,
 0,0,1,1,0,1,0,0,1,1,0,0,1,0,0,1,0,1,1,0,1,0,0,1,1,0,0,1,0,1,1,0,0,0,0,0,0,0,1
 };
-int pattern_size = (sizeof(pattern)/sizeof(pattern[0]));
+size_t pattern_size = (sizeof(pattern)/sizeof(pattern[0]));
