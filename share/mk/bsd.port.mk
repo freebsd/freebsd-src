@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.61 1994/11/01 18:09:22 jkh Exp $
+# $Id: bsd.port.mk,v 1.62 1994/11/01 21:04:27 jkh Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -75,6 +75,8 @@
 #				  what's available.
 # build			- Actually compile the sources.
 # install		- Install the results of a build.
+# reinstall		- Install the results of a build, ignoring "already installed"
+#				  flag.
 # package		- Create a package from a build.
 #
 # Default sequence for "all" is:  fetch extract configure build
@@ -224,6 +226,13 @@ install:
 .endif
 
 # More standard targets start here.
+
+.if !target(reinstall)
+reinstall: pre-reinstall install
+
+pre-reinstall:
+	@rm -f ${INSTALL_COOKIE}
+.endif
 
 .if !target(pre-install)
 pre-install:
@@ -412,7 +421,8 @@ pre-clean:
 .if !target(clean)
 clean: pre-clean
 	@echo "===>  Cleaning for ${DISTNAME}"
-	@rm -f ${EXTRACT_COOKIE} ${CONFIGURE_COOKIE} ${INSTALL_COOKIE}
+	@rm -f ${EXTRACT_COOKIE} ${CONFIGURE_COOKIE} ${INSTALL_COOKIE} \
+		${BUILD_COOKIE}
 	@rm -rf ${WRKDIR}
 .endif
 
