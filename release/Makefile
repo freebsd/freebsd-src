@@ -60,12 +60,45 @@ OBJFORMAT?=		elf
 # Comment this out to enable port readmes to be built.
 NOPORTREADMES?=	YES
 
-# Uncomment this to disable the doc.1 target.  It is also an ERROR
-# to set NOPORTS and not set NODOC since docs depend on ports.
+# Uncomment this to disable the doc.1 target.  Docs normally require
+# the ports tree, so NOPORTS can be set together with NODOC in order
+# to have neither ports or docs.  If only NOPORTS is set to YES, but
+# docs are still desired, the DOMINIMALDOCPORTS logic below will only
+# install the ports that are minimally required for the docs.  This is
+# intended as a compromise, less disk space is required than for using
+# the entire ports collection (und much less time due to the huge number
+# of directories it would create), but still quite a bit as well as some
+# CPU cycles (some of the programs are C++, and things like ghostscript
+# belong to the required ports nevertheless).
+#
+# Setting this also disables building of release note documentation
+# (RELNOTESng).
 #NODOC=  YES
 #NOPORTS=  YES
-# Set ALLLANG=no if you want the release documentation to be
-# in English only.
+
+# Uncomment and modify this definition if you want the release notes 
+# and other release documentation in a language other than English.
+#RELNOTES_LANG=	en_US.ISO_8859-1
+
+# As an alternative to installing the entire ports collection (which
+# can take a huge amount of time, in particular on slower disks),
+# setting ${MINIMALDOCPORTS} allows to install and build just those
+# ports that are really required for getting the docs up & running.
+.if defined(NOPORTS) && !defined(NODOC)
+DOMINIMALDOCPORTS=	YES
+.include "Makefile.inc.docports"
+.endif
+
+# Helper variable
+.if defined(NOPORTS)
+.if !defined(DOMINIMALDOCPORTS) || ${DOMINIMALDOCPORTS} != "YES"
+NOPORTSATALL=	YES
+.endif
+.endif
+
+# Set ALLLANG=no if you want the documentation (e.g. Handbook, FAQ) to be
+# in English only.  The language for the release notes is controlled
+# by the RELNOTES_LANG variable above.
 ALLLANG?=	yes
 DOCPORTS=	textproc/docproj
 # Set this to wherever the distfiles required by ${DOCPORTS} live.
@@ -74,9 +107,10 @@ DOCDISTFILES?=	${.CURDIR}/../../ports/distfiles
 # on the boot floppy.  WARNING: Breaks on some Athlon (K7) motherboards.
 AUTO_KEYBOARD_DETECT?= 0
 
-
-DIST_DOCS= ABOUT.TXT ERRATA.TXT LAYOUT.TXT README.TXT HARDWARE.TXT \
-           RELNOTES.TXT TROUBLE.TXT UPGRADE.TXT INSTALL.TXT
+.if !defined(NODOC)
+DIST_DOCS_ARCH_INDEP=	readme errata
+DIST_DOCS_ARCH_DEP=	installation relnotes hardware
+.endif
 
 # Things which without too much trouble can be considered variables
 # BIN_DISTS are special in that they get full /etc installation sets.
@@ -174,7 +208,7 @@ EXTRAS= cdrom.1 ftp.1
 .endif
 
 .if !defined(NODOC)
-DOCREL= doc.1
+DOCREL= doc.1 doc.2
 .endif
 
 .if !defined(NOPORTREADMES)
@@ -187,9 +221,9 @@ rerelease release:
 .if !defined(CHROOTDIR) || !defined(BUILDNAME) || !defined(CVSROOT)
 	@echo "To make a release you must set CHROOTDIR, BUILDNAME and CVSROOT" && false
 .endif
-.if defined(NOPORTS) && !defined(NODOC)
+.if defined(NOPORTSATALL) && !defined(NODOC)
 	@echo "Ports are required for building the docs.  Either set NODOC or"
-	@echo "unset NOPORTS!"
+	@echo "unset NOPORTS, or set at least DOMINIMALDOCPORTS to YES!"
 	@exit 1
 .endif
 	-vnconfig 2>/dev/null
@@ -232,6 +266,12 @@ rerelease release:
 .else
 	cd ${CHROOTDIR}/usr && rm -rf ports && cvs -R -d ${CVSROOT} co -P ${RELEASEPORTSMODULE} && cd ports && ${MAKEREADMES}
 .endif
+.elif defined(DOMINIMALDOCPORTS) && ${DOMINIMALDOCPORTS} == "YES"
+.if defined(PORTSRELEASETAG)
+	cd ${CHROOTDIR}/usr && rm -rf ports && cvs -R -d ${CVSROOT} co -P -r ${PORTSRELEASETAG} ${MINIMALDOCPORTS}
+.else
+	cd ${CHROOTDIR}/usr && rm -rf ports && cvs -R -d ${CVSROOT} co -P ${MINIMALDOCPORTS}
+.endif
 .endif
 .if !defined(NODOC)
 .if defined(DOCRELEASETAG)
@@ -253,6 +293,11 @@ rerelease release:
 .endif
 .if !defined(NOPORTS)
 	cd ${CHROOTDIR}/usr/ports && cvs -R -q update -P -d
+.endif
+.if defined(DOMINIMALDOCPORTS) && ${DOMINIMALDOCPORTS} == "YES"
+	for i in ${MINIMALDOCPORTS}; do \
+		( cd ${CHROOTDIR}/usr/$$i && cvs -R -q update -P -d ) ; \
+	done
 .endif
 .if !defined(NODOC)
 	cd ${CHROOTDIR}/usr/doc && cvs -R -q update -P -d
@@ -281,6 +326,9 @@ rerelease release:
 .if defined(NOPORTS)
 	echo "export NOPORTS=${NOPORTS}"	>> ${CHROOTDIR}/mk
 .endif
+.if defined(DOMINIMALDOCPORTS)
+	echo "export DOMINIMALDOCPORTS=${DOMINIMALDOCPORTS}" >> ${CHROOTDIR}/mk
+.endif
 .if defined(NODOC)
 	echo "export NODOC=${NODOC}"		>> ${CHROOTDIR}/mk
 .endif
@@ -291,6 +339,11 @@ rerelease release:
 .endif
 .if defined(NOSRC)
 	echo "export NOSRC=${NOSRC}"		>> ${CHROOTDIR}/mk
+.endif
+.if defined(RELNOTES_LANG)
+	echo "export RELNOTES_LANG=${RELNOTES_LANG}"	>> ${CHROOTDIR}/mk
+.else
+	echo "export RELNOTES_LANG=en_US.ISO_8859-1"	>> ${CHROOTDIR}/mk
 .endif
 .if defined(NOSHARED)
 	echo "export NOSHARED=${NOSHARED}"	>> ${CHROOTDIR}/mk
@@ -552,13 +605,15 @@ release.8: write_mfs_in_kernel
 	echo "domain          53/udp          nameserver" >> ${RD}/mfsfd/stand/etc/services
 	echo "cmd             514/tcp    shell" >> ${RD}/mfsfd/stand/etc/services
 	gzip -9c ${.CURDIR}/../COPYRIGHT > ${RD}/mfsfd/stand/help/COPYRIGHT.hlp.gz
-	@for i in README.TXT RELNOTES.TXT INSTALL.TXT UPGRADE.TXT HARDWARE.TXT; do \
-	  if [ -f ${.CURDIR}/texts/${MACHINE_ARCH}/$${i} ]; then \
-	     gzip -9c ${.CURDIR}/texts/${MACHINE_ARCH}/$${i} > ${RD}/mfsfd/stand/help/$${i}.gz; \
-	  else \
-	     gzip -9c ${.CURDIR}/texts/$${i} > ${RD}/mfsfd/stand/help/$${i}.gz; \
-	  fi; \
+.if !defined(NODOC)
+	@for i in ${DIST_DOCS_ARCH_INDEP}; do \
+	  gzip -9c ${.CURDIR}/doc/${RELNOTES_LANG}/$$i/article.txt > ${RD}/mfsfd/stand/help/`echo $${i} | tr 'a-z' 'A-Z'`.TXT.gz; \
 	done
+	@for i in ${DIST_DOCS_ARCH_DEP}; do \
+	  gzip -9c ${.CURDIR}/doc/${RELNOTES_LANG}/$$i/${MACHINE_ARCH}/article.txt > ${RD}/mfsfd/stand/help/`echo $${i} | tr 'a-z' 'A-Z'`.TXT.gz; \
+	done
+	@mv ${RD}/mfsfd/stand/help/INSTALLATION.TXT.gz ${RD}/mfsfd/stand/help/INSTALL.TXT.gz
+.endif
 	-test -f ${.CURDIR}/install.cfg && cp ${.CURDIR}/install.cfg ${RD}/mfsfd
 	@mkdir -p ${RD}/mfsfd/boot
 	@cp /boot/boot* ${RD}/mfsfd/boot
@@ -614,8 +669,13 @@ release.9:
 	@sh -e ${.CURDIR}/scripts/doFS.sh ${RD}/floppies/fixit.flp ${RD} \
 		${MNT} ${FIXITSIZE} ${RD}/fixitfd ${FIXITINODE} ${FIXITLABEL}
 # Do our last minute floppies directory setup in a convenient place.
-	@cp ${.CURDIR}/texts/FLOPPIES.TXT ${RD}/floppies/README.TXT
+.if !defined(NODOC)
+	@cp ${.CURDIR}/doc/${RELNOTES_LANG}/readme/article.txt \
+		${RD}/floppies/README.TXT
 	@(cd ${RD}/floppies; md5 README.TXT *.flp > CHECKSUM.MD5)
+.else
+	@(cd ${RD}/floppies; md5 *.flp > CHECKSUM.MD5)
+.endif
 	touch release.9
 
 #
@@ -627,15 +687,18 @@ ftp.1:
 	-@ln -s . ${FD}/${BUILDNAME}
 	@cd ${RD} && find floppies -print | cpio -dumpl ${FD}
 	@cd ${RD}/dists && find . -print | cpio -dumpl ${FD}
-	@for i in ${DIST_DOCS}; do \
-	  if [ -f ${.CURDIR}/texts/$${i} ]; then \
-	     cp ${.CURDIR}/texts/$${i} ${FD}; \
-	  fi; \
-	  if [ -f ${.CURDIR}/texts/${MACHINE_ARCH}/$${i} ]; then \
-	     echo "=== Platform specifics for ${MACHINE_ARCH}" >> ${FD}/$${i}; \
-	     cat ${.CURDIR}/texts/${MACHINE_ARCH}/$${i} >> ${FD}/$${i}; \
-	  fi; \
+.if !defined(NODOC)
+	@for i in ${DIST_DOCS_ARCH_INDEP}; do \
+	  cp ${.CURDIR}/doc/${RELNOTES_LANG}/$$i/article.txt ${FD}/`echo $${i} | tr 'a-z' 'A-Z'`.TXT; \
+	  cp ${.CURDIR}/doc/${RELNOTES_LANG}/$$i/article.html ${FD}/`echo $${i} | tr 'a-z' 'A-Z'`.HTM; \
 	done
+	@for i in ${DIST_DOCS_ARCH_DEP}; do \
+	  cp ${.CURDIR}/doc/${RELNOTES_LANG}/$$i/${MACHINE_ARCH}/article.txt ${FD}/`echo $${i} | tr 'a-z' 'A-Z'`.TXT; \
+	  cp ${.CURDIR}/doc/${RELNOTES_LANG}/$$i/${MACHINE_ARCH}/article.html ${FD}/`echo $${i} | tr 'a-z' 'A-Z'`.HTM; \
+	done
+	@mv ${FD}/INSTALLATION.TXT ${FD}/INSTALL.TXT
+	@mv ${FD}/INSTALLATION.HTM ${FD}/INSTALL.HTM
+.endif
 	@echo "CD_VERSION = ${BUILDNAME}" > ${FD}/cdrom.inf
 .if !defined(NOPORTS)
 	@tar --exclude CVS -cBf - -C ${CD_DISC1} ports | tar -xBf - -C ${FD}
@@ -663,15 +726,18 @@ cdrom.1:
 	@cp ${.CURDIR}/fixit.profile ${CD_DISC2}/.profile
 	@echo "CD_VERSION = ${BUILDNAME}" > ${CD_DISC1}/cdrom.inf
 	@echo "CD_VERSION = ${BUILDNAME}" > ${CD_DISC2}/cdrom.inf
-	@for i in ${DIST_DOCS}; do \
-	  if [ -f ${.CURDIR}/texts/$${i} ]; then \
-	     cp ${.CURDIR}/texts/$${i} ${CD_DISC1}; \
-	  fi; \
-	  if [ -f ${.CURDIR}/texts/${MACHINE_ARCH}/$${i} ]; then \
-	     echo "=== Platform specifics for ${MACHINE_ARCH}" >> ${CD_DISC1}/$${i}; \
-	     cat ${.CURDIR}/texts/${MACHINE_ARCH}/$${i} >> ${CD_DISC1}/$${i}; \
-	  fi; \
-        done
+.if !defined(NODOC)
+	@for i in ${DIST_DOCS_ARCH_INDEP}; do \
+	  cp ${.CURDIR}/doc/${RELNOTES_LANG}/$$i/article.txt ${CD_DISC1}/`echo $${i} | tr 'a-z' 'A-Z'`.TXT; \
+	  cp ${.CURDIR}/doc/${RELNOTES_LANG}/$$i/article.html ${CD_DISC1}/`echo $${i} | tr 'a-z' 'A-Z'`.HTM; \
+	done
+	@for i in ${DIST_DOCS_ARCH_DEP}; do \
+	  cp ${.CURDIR}/doc/${RELNOTES_LANG}/$$i/${MACHINE_ARCH}/article.txt ${CD_DISC1}/`echo $${i} | tr 'a-z' 'A-Z'`.TXT; \
+	  cp ${.CURDIR}/doc/${RELNOTES_LANG}/$$i/${MACHINE_ARCH}/article.html ${CD_DISC1}/`echo $${i} | tr 'a-z' 'A-Z'`.HTM; \
+	done
+	@mv ${CD_DISC1}/INSTALLATION.TXT ${CD_DISC1}/INSTALL.TXT
+	@mv ${CD_DISC1}/INSTALLATION.HTM ${CD_DISC1}/INSTALL.HTM
+.endif
 .if ${MACHINE_ARCH} == "alpha"
 	@echo "Setting up Alpha CD disc1 for booting"
 	@cp -Rp ${RD}/image.boot/boot ${CD_DISC1}
@@ -688,6 +754,9 @@ cdrom.1:
 .endif
 	touch cdrom.1
 
+#
+# --==## Documentation Project files such as the Handbook and FAQ ##==--
+#
 doc.1:
 	@echo "Making docs..."
 	@for i in ${DOCPORTS}; do \
@@ -695,6 +764,14 @@ doc.1:
 	done
 	@cd /usr/doc && make all install 'FORMATS=html html-split txt' INSTALL_COMPRESSED='' DOCDIR=${RD}/trees/bin/usr/share/doc
 	touch doc.1
+
+#
+# --==## RELNOTESng:  Next-generation replacements for *.TXT files ##==--
+#
+doc.2:
+	@echo "Making release documentation..."
+	@cd ${.CURDIR}/doc && make all 'FORMATS=html txt'
+	touch doc.2
 
 # Various "subroutine" and other supporting targets.
 
