@@ -25,27 +25,28 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <ctype.h>
 #include <err.h>
+#include <limits.h>
 #include <unistd.h>
 #include <string.h>
 #include <sysexits.h>
-#include "collate.h"
+#include "common.h"
 #include "y.tab.h"
 
 int line_no = 1, save_no, fromsubs;
-u_char buf[STR_LEN], *ptr;
+u_char buf[BUFSIZE], *ptr;
 FILE *map_fp;
-extern char map_name[];
-extern u_char charmap_table[UCHAR_MAX + 1][STR_LEN];
 YY_BUFFER_STATE main_buf, map_buf;
 #ifdef FLEX_DEBUG
 YYSTYPE yylval;
 #endif /* FLEX_DEBUG */
+int yylex(void);
 %}
 %%
 <INITIAL,charmap,nchar,subs,subs2>[ \t]+      ;
@@ -101,7 +102,7 @@ YYSTYPE yylval;
 		yylval.ch = *yytext;
 		return CHAR;
 	}
-	if(yyleng > STR_LEN - 1)
+	if(yyleng > BUFSIZE - 1)
 		errx(EX_UNAVAILABLE, "chain buffer overflow near line %u",
 		     line_no);
 	strcpy(yylval.str, yytext);
@@ -146,12 +147,13 @@ YYSTYPE yylval;
 		errx(EX_UNAVAILABLE, "non-empty name expected near line %u",
 		     line_no);
 	*ptr = '\0';
-	for (i = 0; i <= UCHAR_MAX; i++)
+	for (i = 0; i <= UCHAR_MAX; i++) {
 		if (strcmp(charmap_table[i], buf) == 0)
 			goto findit;
+	}
 	errx(EX_UNAVAILABLE, "name <%s> not 'charmap'-defined near line %u",
 		buf, line_no);
-	findit:
+ findit:
 	yylval.ch = i;
 	if (fromsubs)
 		BEGIN(subs);
@@ -166,7 +168,7 @@ YYSTYPE yylval;
 	return STRING;
 }
 <name,defn>.            {
-	char *s = (map_fp != NULL) ? map_name : "input";
+	const char *s = (map_fp != NULL) ? map_name : "input";
 
 	if (!isascii(*yytext) || !isprint(*yytext))
 		errx(EX_UNAVAILABLE, "non-ASCII or non-printable character 0x%02x not allowed in the map/name near line %u of %s",
@@ -219,12 +221,12 @@ YYSTYPE yylval;
 	*ptr++ = '\a';
 }
 <name,string,defn>\n            {
-	char *s = (map_fp != NULL) ? map_name : "input";
+	const char *s = (map_fp != NULL) ? map_name : "input";
 
 	errx(EX_UNAVAILABLE, "unterminated map/name/string near line %u of %s", line_no, s);
 }
 <name,string,nchar><<EOF>>      {
-	char *s = (map_fp != NULL) ? map_name : "input";
+	const char *s = (map_fp != NULL) ? map_name : "input";
 
 	errx(EX_UNAVAILABLE, "premature EOF in the name/string/char near line %u of %s", line_no, s);
 }

@@ -24,9 +24,10 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <err.h>
 #include <stdarg.h>
@@ -36,32 +37,38 @@
 #include <unistd.h>
 #include <sysexits.h>
 #include "collate.h"
+#include "common.h"
 
-extern int line_no;
 extern FILE *yyin;
-void yyerror(char *fmt, ...) __printflike(1, 2);
+void yyerror(const char *fmt, ...) __printflike(1, 2);
 int yyparse(void);
 int yylex(void);
-static void usage __P((void));
+static void usage(void);
+static void collate_print_tables(void);
 
 char map_name[FILENAME_MAX] = ".";
 
 char __collate_version[STR_LEN];
-u_char charmap_table[UCHAR_MAX + 1][STR_LEN];
+u_char charmap_table[UCHAR_MAX + 1][CHARMAP_SYMBOL_LEN];
+
+#undef __collate_substitute_table
 u_char __collate_substitute_table[UCHAR_MAX + 1][STR_LEN];
+#undef __collate_char_pri_table
 struct __collate_st_char_pri __collate_char_pri_table[UCHAR_MAX + 1];
+#undef __collate_chain_pri_table
 struct __collate_st_chain_pri __collate_chain_pri_table[TABLE_SIZE];
+
 int chain_index;
 int prim_pri = 1, sec_pri = 1;
 #ifdef COLLATE_DEBUG
 int debug;
 #endif
 
-char *out_file = "LC_COLLATE";
+const char *out_file = "LC_COLLATE";
 %}
 %union {
 	u_char ch;
-	u_char str[STR_LEN];
+	u_char str[BUFSIZE];
 }
 %token SUBSTITUTE WITH ORDER RANGE
 %token <str> STRING
@@ -80,6 +87,8 @@ statment :
 	| order
 ;
 charmap : DEFN CHAR {
+	if (strlen($1) + 1 > CHARMAP_SYMBOL_LEN)
+		yyerror("Charmap symbol name '%s' is too long", $1);
 	strcpy(charmap_table[$2], $1);
 }
 ;
@@ -88,6 +97,8 @@ substitute : SUBSTITUTE CHAR WITH STRING {
 		yyerror("NUL character can't be substituted");
 	if (strchr($4, $2) != NULL)
 		yyerror("Char 0x%02x substitution is recursive", $2);
+	if (strlen($4) + 1 > STR_LEN)
+		yyerror("Char 0x%02x substitution is too long", $2);
 	strcpy(__collate_substitute_table[$2], $4);
 }
 ;
@@ -136,6 +147,8 @@ item :  CHAR {
 	| CHAIN {
 	if (chain_index >= TABLE_SIZE - 1)
 		yyerror("__collate_chain_pri_table overflow");
+	if (strlen($1) + 1 > STR_LEN)
+		yyerror("Chain %d is too long", chain_index);
 	strcpy(__collate_chain_pri_table[chain_index].str, $1);
 	__collate_chain_pri_table[chain_index++].prim = prim_pri++;
 }
@@ -186,6 +199,8 @@ prim_sub_item : CHAR {
 	| CHAIN {
 	if (chain_index >= TABLE_SIZE - 1)
 		yyerror("__collate_chain_pri_table overflow");
+	if (strlen($1) + 1 > STR_LEN)
+		yyerror("Chain %d is too long", chain_index);
 	strcpy(__collate_chain_pri_table[chain_index].str, $1);
 	__collate_chain_pri_table[chain_index++].prim = prim_pri;
 }
@@ -213,6 +228,8 @@ sec_sub_item : CHAR {
 	| CHAIN {
 	if (chain_index >= TABLE_SIZE - 1)
 		yyerror("__collate_chain_pri_table overflow");
+	if (strlen($1) + 1 > STR_LEN)
+		yyerror("Chain %d is too long", chain_index);
 	strcpy(__collate_chain_pri_table[chain_index].str, $1);
 	__collate_chain_pri_table[chain_index].prim = prim_pri;
 	__collate_chain_pri_table[chain_index++].sec = sec_pri++;
@@ -220,8 +237,7 @@ sec_sub_item : CHAR {
 ;
 %%
 int
-main(ac, av)
-	char **av;
+main(int ac, char **av)
 {
 	int ch;
 
@@ -262,13 +278,14 @@ main(ac, av)
 }
 
 static void
-usage()
+usage(void)
 {
 	fprintf(stderr, "usage: colldef [-o out_file] [-I map_dir] [filename]\n");
 	exit(EX_USAGE);
 }
 
-void yyerror(char *fmt, ...)
+void
+yyerror(const char *fmt, ...)
 {
 	va_list ap;
 	char msg[128];
@@ -280,8 +297,8 @@ void yyerror(char *fmt, ...)
 }
 
 #ifdef COLLATE_DEBUG
-void
-collate_print_tables()
+static void
+collate_print_tables(void)
 {
 	int i;
 	struct __collate_st_chain_pri *p2;
