@@ -1,5 +1,5 @@
 /*
- * $Id: tcpip.c,v 1.82 1999/07/18 10:18:06 jkh Exp $
+ * $Id: tcpip.c,v 1.83 1999/07/19 10:06:18 jkh Exp $
  *
  * Copyright (c) 1995
  *      Gary J Palmer. All rights reserved.
@@ -203,7 +203,7 @@ tcpOpenDialog(Device *devp)
     ComposeObj          *obj = NULL;
     int                 n = 0, filled = 0, cancel = FALSE;
     int			max, ret = DITEM_SUCCESS;
-    int			use_dhcp = 0;
+    int			use_dhcp = FALSE;
     char                *tmp;
     char		title[80];
 
@@ -226,19 +226,10 @@ tcpOpenDialog(Device *devp)
 	    Mkdir("/tmp");
 	    msgNotify("Scanning for DHCP servers...");
 	    if (!vsystem("dhclient %s", devp->name)) {
-		if (isDebug())
-		    msgDebug("Successful return from dhclient");
 		dhcpGetInfo(devp);
 		use_dhcp = TRUE;
 	    }
-	    else {
-		if (isDebug())
-		    msgDebug("Unsuccessful return from dhclient");
-		use_dhcp = FALSE;
-	    }
 	}
-	else
-	    use_dhcp = FALSE;
 
 	/* Get old IP address from variable space, if available */
 	if (!ipaddr[0]) {
@@ -330,7 +321,7 @@ reenter:
 	     * the most appropriate one (entire class C, or subnetted
 	     * class A/B network).
 	     */
-	    if (netmask[0] == '\0') {
+	    if (!netmask[0]) {
 		strcpy(netmask, "255.255.255.0");
 		RefreshStringObj(layout[LAYOUT_NETMASK].obj);
 		++filled;
@@ -376,6 +367,8 @@ netconfig:
 	    variable_set2(VAR_GATEWAY, gateway, 1);
 	if (nameserver[0])
 	    variable_set2(VAR_NAMESERVER, nameserver, 0);
+	if (ipaddr[0])
+	    variable_set2(VAR_IPADDR, ipaddr, 0);
 
 	if (!devp->private)
 	    devp->private = (DevInfo *)safe_malloc(sizeof(DevInfo));
@@ -399,8 +392,6 @@ netconfig:
 	    sprintf(ifn, "%s %s", devp->name, ifaces);
 	    variable_set2(VAR_INTERFACES, ifn, 1);
 	}
-	if (ipaddr[0])
-	    variable_set2(VAR_IPADDR, ipaddr, 0);
 	if (!use_dhcp)
 	    configResolv(NULL);	/* XXX this will do it on the MFS copy XXX */
 	ret = DITEM_SUCCESS;
