@@ -181,11 +181,12 @@ acpi_pcib_attach(device_t dev)
     }
 
     /*
-     * Note that we defer the actual scan of the child PCI bus; ACPI will call
-     * bus_generic_attach on its children a second time after the first pass
-     * is complete.  This leads to slightly neater output.
+     * Now go scan the bus.
+     *
+     * XXX It would be nice to defer this and count on the nexus getting it
+     * after the first pass, but this does not seem to be reliable.
      */
-    return(0);
+    return(bus_generic_attach(dev));
 }
 
 static int
