@@ -1351,9 +1351,10 @@ _thr_schedule_add(struct pthread *curthread, struct pthread *newthread)
 		KSEG_THRQ_ADD(newthread->kseg, newthread);
 		/* this thread never gives up kse */
 		newthread->active = 1;
-		kse_set_curthread(newthread->kse, newthread);
+		newthread->kse->k_curthread = newthread;
 		newthread->kse->k_kcb->kcb_kmbx.km_flags = KMF_BOUND;
-		newthread->kse->k_kcb->kcb_kmbx.km_func = (kse_func_t *)kse_sched_single;
+		newthread->kse->k_kcb->kcb_kmbx.km_func =
+		    (kse_func_t *)kse_sched_single;
 		newthread->kse->k_kcb->kcb_kmbx.km_quantum = 0;
 		KSE_SET_MBOX(newthread->kse, newthread);
 		/*
