@@ -74,6 +74,21 @@ agp_intel_match(device_t dev)
 
  	case 0x71a18086:
  		return ("Intel 82443GX host to AGP bridge");
+
+	case 0x25008086:
+ 		return ("Intel 82820 host to AGP bridge");
+
+	case 0x1a218086:
+ 		return ("Intel 82840 host to AGP bridge");
+
+	case 0x1a308086:
+ 		return ("Intel 82845 host to AGP bridge");
+
+	case 0x25308086:
+ 		return ("Intel 82850 host to AGP bridge");
+
+	case 0x25318086:
+ 		return ("Intel 82860 host to AGP bridge");
 	};
 
 	if (pci_get_vendor(dev) == 0x8086)
@@ -102,6 +117,7 @@ agp_intel_attach(device_t dev)
 {
 	struct agp_intel_softc *sc = device_get_softc(dev);
 	struct agp_gatt *gatt;
+	u_int32_t type = pci_get_devid(dev);
 	int error;
 
 	error = agp_generic_attach(dev);
@@ -130,11 +146,52 @@ agp_intel_attach(device_t dev)
 	pci_write_config(dev, AGP_INTEL_ATTBASE, gatt->ag_physical, 4);
 	
 	/* Enable things, clear errors etc. */
-	pci_write_config(dev, AGP_INTEL_AGPCTRL, 0x2280, 4);
-	pci_write_config(dev, AGP_INTEL_NBXCFG,
-			 (pci_read_config(dev, AGP_INTEL_NBXCFG, 4)
-			  & ~(1 << 10)) | (1 << 9), 4);
-	pci_write_config(dev, AGP_INTEL_ERRSTS + 1, 7, 1);
+	switch (type) {
+	case 0x1a218086: /* i840 */
+	case 0x25308086: /* i850 */
+	case 0x25318086: /* i860 */
+		pci_write_config(dev, AGP_INTEL_AGPCTRL, 0x0000, 4);
+		pci_write_config(dev, AGP_INTEL_MCHCFG,
+				 (pci_read_config(dev, AGP_INTEL_MCHCFG, 2)
+				  | (1 << 9)), 2);
+		break;
+
+	case 0x25008086: /* i820 */
+		pci_write_config(dev, AGP_INTEL_AGPCTRL, 0x0000, 4);
+		pci_write_config(dev, AGP_INTEL_I820_RDCR,
+				 (pci_read_config(dev, AGP_INTEL_I820_RDCR, 1)
+				  | (1 << 1)), 1);
+		break;
+
+	case 0x1a308086: /* i845 */
+		pci_write_config(dev, AGP_INTEL_AGPCTRL, 0x0000, 4);
+		pci_write_config(dev, AGP_INTEL_I845_MCHCFG,
+				 (pci_read_config(dev, AGP_INTEL_I845_MCHCFG, 1)
+				  | (1 << 1)), 1);
+		break;
+
+	default: /* Intel Generic (maybe) */
+		pci_write_config(dev, AGP_INTEL_AGPCTRL, 0x2280, 4);
+		pci_write_config(dev, AGP_INTEL_NBXCFG,
+				 (pci_read_config(dev, AGP_INTEL_NBXCFG, 4)
+				  & ~(1 << 10)) | (1 << 9), 4);
+	}
+
+	switch (type) {
+	case 0x1a218086: /* i840 */
+		pci_write_config(dev, AGP_INTEL_I8XX_ERRSTS, 0xc000, 2);
+		break;
+
+	case 0x25008086: /* i820 */
+	case 0x1a308086: /* i845 */
+	case 0x25308086: /* i850 */
+	case 0x25318086: /* i860 */
+		pci_write_config(dev, AGP_INTEL_I8XX_ERRSTS, 0x001c, 2);
+		break;
+
+	default: /* Intel Generic (maybe) */
+		pci_write_config(dev, AGP_INTEL_ERRSTS + 1, 7, 1);
+	}
 
 	return 0;
 }
@@ -143,18 +200,48 @@ static int
 agp_intel_detach(device_t dev)
 {
 	struct agp_intel_softc *sc = device_get_softc(dev);
+	u_int32_t type = pci_get_devid(dev);
 	int error;
 
 	error = agp_generic_detach(dev);
 	if (error)
 		return error;
 
-	printf("%s: set NBXCFG to %x\n", __FUNCTION__,
-			 (pci_read_config(dev, AGP_INTEL_NBXCFG, 4)
-			  & ~(1 << 9)));
-	pci_write_config(dev, AGP_INTEL_NBXCFG,
-			 (pci_read_config(dev, AGP_INTEL_NBXCFG, 4)
-			  & ~(1 << 9)), 4);
+	switch (type) {
+	case 0x1a218086: /* i840 */
+	case 0x25308086: /* i850 */
+	case 0x25318086: /* i860 */
+		printf("%s: set MCHCFG to %x\n", __FUNCTION__, (unsigned)
+				(pci_read_config(dev, AGP_INTEL_MCHCFG, 2)
+				& ~(1 << 9)));
+		pci_write_config(dev, AGP_INTEL_MCHCFG,
+				(pci_read_config(dev, AGP_INTEL_MCHCFG, 2)
+				& ~(1 << 9)), 2);
+
+	case 0x25008086: /* i820 */
+		printf("%s: set RDCR to %x\n", __FUNCTION__, (unsigned)
+				(pci_read_config(dev, AGP_INTEL_I820_RDCR, 1)
+				& ~(1 << 1)));
+		pci_write_config(dev, AGP_INTEL_I820_RDCR,
+				(pci_read_config(dev, AGP_INTEL_I820_RDCR, 1)
+				& ~(1 << 1)), 1);
+
+	case 0x1a308086: /* i845 */
+		printf("%s: set MCHCFG to %x\n", __FUNCTION__, (unsigned)
+				(pci_read_config(dev, AGP_INTEL_I845_MCHCFG, 1)
+				& ~(1 << 1)));
+		pci_write_config(dev, AGP_INTEL_MCHCFG,
+				(pci_read_config(dev, AGP_INTEL_I845_MCHCFG, 1)
+				& ~(1 << 1)), 1);
+
+	default: /* Intel Generic (maybe) */
+		printf("%s: set NBXCFG to %x\n", __FUNCTION__,
+				 (pci_read_config(dev, AGP_INTEL_NBXCFG, 4)
+				  & ~(1 << 9)));
+		pci_write_config(dev, AGP_INTEL_NBXCFG,
+				 (pci_read_config(dev, AGP_INTEL_NBXCFG, 4)
+				  & ~(1 << 9)), 4);
+	}
 	pci_write_config(dev, AGP_INTEL_ATTBASE, 0, 4);
 	AGP_SET_APERTURE(dev, sc->initial_aperture);
 	agp_free_gatt(sc->gatt);
