@@ -92,7 +92,7 @@ aout_getnfile(const char *filename, char ***defaultEs)
 		printf("[getnfile] 0X%08lx\t%s\n", nl[j].value, nl[j].name);
 	    }
 	}
-#   endif DEBUG
+#   endif /* DEBUG */
     *defaultEs = excludes;
     return 0;
 }
@@ -160,7 +160,7 @@ getsymtab(FILE *nfile, const char *filename)
 		    printf( "[getsymtab] rejecting: 0x%x %s\n" ,
 			    nbuf.n_type , strtab + nbuf.n_un.n_strx );
 		}
-#	    endif DEBUG
+#	    endif /* DEBUG */
 	    continue;
 	}
 	npe->value = nbuf.n_value;
@@ -170,7 +170,7 @@ getsymtab(FILE *nfile, const char *filename)
 		printf( "[getsymtab] %d %s 0x%08lx\n" ,
 			nname , npe -> name , npe -> value );
 	    }
-#	endif DEBUG
+#	endif /* DEBUG */
 	npe++;
 	nname++;
     }
