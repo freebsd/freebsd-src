@@ -32,7 +32,7 @@
 .\"	@(#)rlogin.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd June 6, 1993
+.Dd September 26, 2003
 .Dt RLOGIN 1
 .Os
 .Sh NAME
@@ -40,10 +40,9 @@
 .Nd remote login
 .Sh SYNOPSIS
 .Ar rlogin
-.Op Fl 468DEKLdx
+.Op Fl 468DELd
 .Op Fl e Ar char
 .Op Fl i Ar localname
-.Op Fl k Ar realm
 .Op Fl l Ar username
 .Ar host
 .Sh DESCRIPTION
@@ -79,8 +78,6 @@ Stop any character from being recognized as an escape character.
 When used with the
 .Fl 8
 option, this provides a completely transparent connection.
-.It Fl K
-Turn off all Kerberos authentication.
 .It Fl L
 Allow the
 .Nm
@@ -102,29 +99,11 @@ value in the form \ennn.
 .It Fl i
 Allow the caller to specify a different local name to be used
 for authentication.  This option is restricted to processes with uid 0.
-.It Fl k
-Request
-.Nm
-to obtain tickets for the remote host
-in realm
-.Ar realm
-instead of the remote host's realm as determined by
-.Xr krb_realmofhost  3  .
 .It Fl l
 Specify a different
 .Ar username
 for the remote login.
 If this option is not specified, your local username will be used.
-.It Fl x
-Turn on
-.Tn DES
-encryption for all data passed via the
-.Nm
-session.
-This may impact response time and
-.Tn CPU
-utilization, but provides
-increased security.
 .El
 .Pp
 A line of the form

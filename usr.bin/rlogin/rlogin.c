@@ -157,7 +157,7 @@ main(int argc, char *argv[])
 		argoff = 1;
 	}
 
-#define	OPTIONS	"468DEKLde:i:l:"
+#define	OPTIONS	"468DELde:i:l:"
 	while ((ch = getopt(argc - argoff, argv + argoff, OPTIONS)) != -1)
 		switch(ch) {
 		case '4':
@@ -731,7 +731,7 @@ usage(void)
 {
 	(void)fprintf(stderr,
 	"usage: rlogin [-46%s]%s[-e char] [-i localname] [-l username] host\n",
-	    "8DEKLd", " ");
+	    "8DELd", " ");
 	exit(1);
 }
 
