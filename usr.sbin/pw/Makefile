@@ -1,4 +1,4 @@
-# $Id$
+# $Id: Makefile,v 1.1.1.2 1996/12/09 23:55:12 joerg Exp $
 
 PROG=	pw
 SRCS=	pw.c pw_conf.c pw_user.c pw_group.c pw_log.c \
