@@ -24,7 +24,7 @@ eelf64alpha.c:	emulparams/elf64alpha.sh emultempl/elf32.em \
 	    elf64alpha ""  elf64alpha alpha-unknown-freebsdelf
 
 ealpha.c:	emulparams/elf64alpha.sh emultempl/elf32.em \
-		scripttempl/elf.sc genscripts.sh emultempl/stringify.sed
+		scripttempl/elf.sc genscripts.sh stringify.sed
 	sh ${.CURDIR}/genscripts.sh ${SRCDIR}/ld ${_alpha_path} \
 	    ${HOST} alpha-unknown-freebsdelf alpha-unknown-freebsdelf \
 	    elf64alpha ""  alpha alpha-unknown-freebsd

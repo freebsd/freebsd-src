@@ -33,7 +33,7 @@ SRCS+=		ei386pe.c
 CLEANFILES+=	ei386pe.c
 
 ei386pe.c:	emulparams/i386pe.sh emultempl/pe.em \
-		scripttempl/pe.sc genscripts.sh emultempl/stringify.sed
+		scripttempl/pe.sc genscripts.sh stringify.sed
 	sh ${.CURDIR}/genscripts.sh ${BINUTILSDISTDIR}/ld \
 	    /usr/cross/winnt/lib ${HOST} i386-unknown-freebsdwinnt \
 	    i386-unknown-freebsdwinnt i386pe "" i386pe \
