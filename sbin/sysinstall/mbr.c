@@ -354,7 +354,7 @@ Press any key to return to FDISK editor...
 	    grumble = 0;
 	    for(i=0;i<NDOSPART;i++) {
 		if(dp[i].dp_start == 0 && dp[i].dp_typ== MBR_PTYPE_FreeBSD) {
-		    grumble = "Boot manager not needed."
+		    grumble = "Boot manager not needed.";
 		    break;
 		}
 	    }
