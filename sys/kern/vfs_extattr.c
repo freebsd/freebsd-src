@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.111 1998/12/12 21:07:09 dillon Exp $
+ * $Id: vfs_syscalls.c,v 1.112 1999/01/05 18:49:55 eivind Exp $
  */
 
 /* For 4.3 integer FS ID compatibility */
@@ -2909,6 +2909,10 @@ revoke(p, uap)
 	if (error = namei(&nd))
 		return (error);
 	vp = nd.ni_vp;
+	if (vp->v_type != VCHR && vp->v_type != VBLK) {
+		error = EINVAL;
+		goto out;
+	}
 	if (error = VOP_GETATTR(vp, &vattr, p->p_ucred, p))
 		goto out;
 	if (p->p_ucred->cr_uid != vattr.va_uid &&
