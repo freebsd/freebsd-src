@@ -377,7 +377,7 @@ pam_sm_chauthtok(pam_handle_t *pamh, int flags, int argc, const char **argv)
 	struct passwd *pwd;
 	int retval, retry, res, got;
 	const char *user, *pass;
-	char *new_pass, *new_pass_, *encrypted;
+	char *new_pass, *new_pass_, *encrypted, *usrdup;
 
 	pam_std_option(&options, other_options, argc, argv);
 
@@ -487,7 +487,10 @@ pam_sm_chauthtok(pam_handle_t *pamh, int flags, int argc, const char **argv)
 
 #ifdef YP
 		/* If NIS is set in the passwd database, use it */
-		res = use_yp(user, 0, 0);
+		if ((usrdup = strdup(user)) == NULL)
+			PAM_RETURN(PAM_BUF_ERR);
+		res = use_yp(usrdup, 0, 0);
+		free(usrdup);
 		if (res == USER_YP_ONLY) {
 			if (!pam_test_option(&options, PAM_OPT_LOCAL_PASS,
 			    NULL))
@@ -516,7 +519,7 @@ pam_sm_chauthtok(pam_handle_t *pamh, int flags, int argc, const char **argv)
 				retval = local_passwd(user, new_pass);
 		}
 		else
-			retval = PAM_ABORT; /* Bad juju */
+			retval = PAM_SERVICE_ERR; /* Bad juju */
 #else
 		retval = local_passwd(user, new_pass);
 #endif
@@ -559,7 +562,7 @@ local_passwd(const char *user, const char *pass)
 
 	pwd = getpwnam(user);
 	if (pwd == NULL)
-		return(PAM_ABORT); /* Really bad things */
+		return(PAM_SERVICE_ERR); /* Really bad things */
 
 #ifdef YP
 	pwd = (struct passwd *)&local_password;
@@ -583,7 +586,7 @@ local_passwd(const char *user, const char *pass)
 	if (!pw_mkdb(user))
 		pw_error((char *)NULL, 0, 1);
 
-	return PAM_SUCCESS;
+	return (PAM_SUCCESS);
 }
 
 #ifdef YP
@@ -614,7 +617,7 @@ yp_passwd(const char *user __unused, const char *pass)
 
 	master = get_yp_master(1);
 	if (master == NULL)
-		return PAM_ABORT; /* Major disaster */
+		return (PAM_SERVICE_ERR); /* Major disaster */
 
 	/*
 	 * It is presumed that by the time we get here, use_yp()
@@ -671,7 +674,7 @@ yp_passwd(const char *user __unused, const char *pass)
 			syslog(LOG_ERR,
 			    "Cannot contact rpc.yppasswdd on host %s: %s",
 			    master, clnt_spcreateerror(""));
-			return PAM_ABORT;
+			return (PAM_SERVICE_ERR);
 		}
 	}
 	else {
@@ -680,7 +683,7 @@ yp_passwd(const char *user __unused, const char *pass)
 			syslog(LOG_ERR,
 			    "Cannot contact rpc.yppasswdd on host %s: %s",
 			    master, clnt_spcreateerror(""));
-			return PAM_ABORT;
+			return (PAM_SERVICE_ERR);
 		}
 	}
 	/*
@@ -702,10 +705,11 @@ yp_passwd(const char *user __unused, const char *pass)
 	clnt_destroy(clnt);
 
 	if (err.re_status != RPC_SUCCESS || status == NULL || *status)
-		return PAM_ABORT;
+		return (PAM_SERVICE_ERR);
 
-	return (err.re_status || status == NULL || *status)
-	    ? PAM_ABORT : PAM_SUCCESS;
+	if (err.re_status || status == NULL || *status)
+		return (PAM_SERVICE_ERR);
+	return (PAM_SUCCESS);
 }
 #endif /* YP */
 
