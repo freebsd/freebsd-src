@@ -148,7 +148,7 @@ acquire(struct lock **lkpp, int extflags, int wanted)
 		return EBUSY;
 	}
 
-	if (((lkp->lk_flags | extflags) & (LK_NOPAUSE|LK_INTERLOCK)) == 0) {
+	if ((extflags & LK_INTERLOCK) == 0) {
 		error = apause(lkp, wanted);
 		if (error == 0)
 			return 0;
