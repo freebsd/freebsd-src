@@ -35,36 +35,37 @@
  * cs_softc: per line info and status
  */
 struct cs_softc {
+	/* Ethernet common code */
+	struct arpcom arpcom;
 
-        /* Ethernet common code */
-        struct arpcom arpcom;
-
-        /* Configuration words from EEPROM */
-        int auto_neg_cnf;               /* AutoNegotitation configuration */
+	/* Configuration words from EEPROM */
+	int auto_neg_cnf;               /* AutoNegotitation configuration */
 	int adapter_cnf;                /* Adapter configuration */
-        int isa_config;                 /* ISA configuration */
-        int chip_type;			/* Type of chip */
+	int isa_config;                 /* ISA configuration */
+	int chip_type;			/* Type of chip */
 
-        struct ifmedia media;		/* Media information */
+	struct ifmedia media;		/* Media information */
 
 	int     port_rid;		/* resource id for port range */
 	int     port_used;		/* nonzero if ports used */
 	struct resource* port_res;	/* resource for port range */
 	int     mem_rid;  		/* resource id for memory range */
-        int     mem_used;  		/* nonzero if memory used */
+	int     mem_used;  		/* nonzero if memory used */
 	struct resource* mem_res;	/* resource for memory range */
-        int     irq_rid;		/* resource id for irq */
-        struct resource* irq_res;	/* resource for irq */
-        void*   irq_handle;		/* handle for irq handler */
+	int     irq_rid;		/* resource id for irq */
+	struct resource* irq_res;	/* resource for irq */
+	void*   irq_handle;		/* handle for irq handler */
 
-        int 	nic_addr; 		/* Base IO address of card */
+	int	flags;
+#define	CS_NO_IRQ	0x1
+	int 	nic_addr; 		/* Base IO address of card */
 	int	send_cmd;
-        int	line_ctl;		/* */
-        int	send_underrun;
-        void	*recv_ring;
+	int	line_ctl;		/* */
+	int	send_underrun;
+	void	*recv_ring;
 
-        unsigned char *buffer;
-        int buf_len;
+	unsigned char *buffer;
+	int buf_len;
 };
 
 int	cs_alloc_port(device_t dev, int rid, int size);
@@ -72,6 +73,7 @@ int	cs_alloc_memory(device_t dev, int rid, int size);
 int	cs_alloc_irq(device_t dev, int rid, int flags);
 int	cs_attach(device_t dev);
 int	cs_cs89x0_probe(device_t dev);
+int	cs_detach(device_t dev);
 void	cs_release_resources(device_t dev);
 driver_intr_t	csintr;
 

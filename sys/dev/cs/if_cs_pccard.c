@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/cs/if_csvar.h>
 #include <dev/cs/if_csreg.h>
 #include <dev/pccard/pccardvar.h>
+#include <dev/pccard/pccard_cis.h>
 
 #include "card_if.h"
 #include "pccarddevs.h"
@@ -57,6 +58,15 @@ static int
 cs_pccard_match(device_t dev)
 {
 	const struct pccard_product *pp;
+	int		error;
+	uint32_t	fcn = PCCARD_FUNCTION_UNSPEC;
+
+	/* Make sure we're a network function */
+	error = pccard_get_function(dev, &fcn);
+	if (error != 0)
+		return (error);
+	if (fcn != PCCARD_FUNCTION_NETWORK)
+		return (ENXIO);
 
 	if ((pp = pccard_product_lookup(dev, cs_pccard_products,
 	    sizeof(cs_pccard_products[0]), NULL)) != NULL) {
@@ -70,31 +80,33 @@ cs_pccard_match(device_t dev)
 static int
 cs_pccard_probe(device_t dev)
 {
+	struct cs_softc *sc = device_get_softc(dev);
 	int error;
 
+	sc->flags |= CS_NO_IRQ;
 	error = cs_cs89x0_probe(dev);
-        cs_release_resources(dev);
-        return (error);
+	cs_release_resources(dev);
+	return (error);
 }
 
 static int
 cs_pccard_attach(device_t dev)
 {
-        struct cs_softc *sc = device_get_softc(dev);
-        int error;
-        
+	struct cs_softc *sc = device_get_softc(dev);
+	int error;
+
 	error = cs_alloc_port(dev, sc->port_rid, CS_89x0_IO_PORTS);
 	if (error != 0)
 		goto bad;
-        error = cs_alloc_irq(dev, sc->irq_rid, 0);
+	error = cs_alloc_irq(dev, sc->irq_rid, 0);
 	if (error != 0)
 		goto bad;
-        error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET,
+	error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET,
 	    csintr, sc, &sc->irq_handle);
-        if (error != 0)
+	if (error != 0)
 		goto bad;
 
-        return (cs_attach(dev));
+	return (cs_attach(dev));
 bad:
 	cs_release_resources(dev);
 	return (error);
@@ -104,9 +116,7 @@ static device_method_t cs_pccard_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		pccard_compat_probe),
 	DEVMETHOD(device_attach,	pccard_compat_attach),
-#ifdef CS_HAS_DETACH
 	DEVMETHOD(device_detach,	cs_detach),
-#endif
 
 	/* Card interface */
 	DEVMETHOD(card_compat_match,	cs_pccard_match),
