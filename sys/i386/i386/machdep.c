@@ -1127,6 +1127,10 @@ SYSCTL_STRUCT(_machdep, CPU_BOOTINFO, bootinfo,
 SYSCTL_INT(_machdep, CPU_WALLCLOCK, wall_cmos_clock,
 	CTLFLAG_RW, &wall_cmos_clock, 0, "");
 
+extern u_long bootdev;		/* not a dev_t - encoding is different */
+SYSCTL_ULONG(_machdep, OID_AUTO, guessed_bootdev,
+	CTLFLAG_RD, &bootdev, 0, "Boot device (not in dev_t format)");
+
 /*
  * Initialize 386 and configure to run kernel
  */
