@@ -18,15 +18,11 @@
      edge. -->
 <!ENTITY release.prev.stable "4.10-RELEASE">
 
-<!-- The previous historical release.  Used only to tell what was
-     the cutoff point for "historic" release notes. -->
-<!ENTITY release.prev.historic "5.2-RELEASE">
-
 <!-- The next version to be released, usually used for snapshots. -->
 <!ENTITY release.next "5.3-RELEASE">
 
 <!-- The name of this branch. -->
-<!ENTITY release.branch "5-CURRENT">
+<!ENTITY release.branch "5-STABLE">
 
 <!-- The URL for obtaining this version of FreeBSD. -->
 <!ENTITY release.url "http://snapshots.jp.FreeBSD.org/">
@@ -39,10 +35,11 @@
 
 <!-- The manpaths for man page references -->
 <!ENTITY release.man.url "http://www.FreeBSD.org/cgi/man.cgi">
-<!ENTITY release.manpath.xfree86       "4.3.0">
+<!ENTITY release.manpath.xfree86       "4.4.0">
+<!ENTITY release.manpath.xorg          "6.7.0">
 <!ENTITY release.manpath.netbsd        "1.6.1">
 <!ENTITY release.manpath.freebsd-ports "Ports">
-<!ENTITY release.manpath.freebsd       "5.2-current">
+<!ENTITY release.manpath.freebsd       "5.3-stable">
 
 <!-- Text constants which probably don't need to be changed.-->
 
