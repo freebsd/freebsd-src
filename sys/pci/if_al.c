@@ -99,6 +99,8 @@ static const char rcsid[] =
 static struct al_type al_devs[] = {
 	{ AL_VENDORID, AL_DEVICEID_AL981,
 		"ADMtek AL981 10/100BaseTX" },
+	{ AL_VENDORID, AL_DEVICEID_AN985,
+		"ADMtek AN985 10/100BaseTX" },
 	{ 0, 0, NULL }
 };
 
@@ -147,6 +149,13 @@ static void al_eeprom_putbyte	__P((struct al_softc *, int));
 static void al_eeprom_getword	__P((struct al_softc *, int, u_int16_t *));
 static void al_read_eeprom	__P((struct al_softc *, caddr_t, int,
 							int, int));
+
+static void al_mii_writebit	__P((struct al_softc *, int));
+static int al_mii_readbit	__P((struct al_softc *));
+static void al_mii_sync		__P((struct al_softc *));
+static void al_mii_send		__P((struct al_softc *, u_int32_t, int));
+static int al_mii_readreg	__P((struct al_softc *, struct al_mii_frame *));
+static int al_mii_writereg	__P((struct al_softc *, struct al_mii_frame *));
 
 static u_int16_t al_phy_readreg	__P((struct al_softc *, int));
 static void al_phy_writereg	__P((struct al_softc *, int, int));
@@ -225,7 +234,10 @@ static void al_eeprom_putbyte(sc, addr)
 {
 	register int		d, i;
 
-	d = addr | AL_EECMD_READ;
+	if (sc->al_info->al_did == AL_DEVICEID_AN985)
+		d = addr | (AL_EECMD_READ << 2);
+	else
+		d = addr | AL_EECMD_READ;
 
 	/*
 	 * Feed in each bit and stobe the clock.
@@ -321,12 +333,198 @@ static void al_read_eeprom(sc, dest, off, cnt, swap)
 	return;
 }
 
+/*
+ * Write a bit to the MII bus.
+ */
+static void al_mii_writebit(sc, bit)
+	struct al_softc		*sc;
+	int			bit;
+{
+	if (bit)
+		CSR_WRITE_4(sc, AL_SIO, AL_SIO_ROMCTL_WRITE|AL_SIO_MII_DATAOUT);
+	else
+		CSR_WRITE_4(sc, AL_SIO, AL_SIO_ROMCTL_WRITE);
+
+	AL_SETBIT(sc, AL_SIO, AL_SIO_MII_CLK);
+	AL_CLRBIT(sc, AL_SIO, AL_SIO_MII_CLK);
+
+	return;
+}
+
+/*
+ * Read a bit from the MII bus.
+ */
+static int al_mii_readbit(sc)
+	struct al_softc		*sc;
+{
+	CSR_WRITE_4(sc, AL_SIO, AL_SIO_ROMCTL_READ|AL_SIO_MII_DIR);
+	CSR_READ_4(sc, AL_SIO);
+	AL_SETBIT(sc, AL_SIO, AL_SIO_MII_CLK);
+	AL_CLRBIT(sc, AL_SIO, AL_SIO_MII_CLK);
+	if (CSR_READ_4(sc, AL_SIO) & AL_SIO_MII_DATAIN)
+		return(1);
+
+	return(0);
+}
+
+/*
+ * Sync the PHYs by setting data bit and strobing the clock 32 times.
+ */
+static void al_mii_sync(sc)
+	struct al_softc		*sc;
+{
+	register int		i;
+
+	CSR_WRITE_4(sc, AL_SIO, AL_SIO_ROMCTL_WRITE);
+
+	for (i = 0; i < 32; i++)
+		al_mii_writebit(sc, 1);
+
+	return;
+}
+
+/*
+ * Clock a series of bits through the MII.
+ */
+static void al_mii_send(sc, bits, cnt)
+	struct al_softc		*sc;
+	u_int32_t		bits;
+	int			cnt;
+{
+	int			i;
+
+	for (i = (0x1 << (cnt - 1)); i; i >>= 1)
+		al_mii_writebit(sc, bits & i);
+}
+
+/*
+ * Read an PHY register through the MII.
+ */
+static int al_mii_readreg(sc, frame)
+	struct al_softc		*sc;
+	struct al_mii_frame	*frame;
+	
+{
+	int			i, ack, s;
+
+	s = splimp();
+
+	/*
+	 * Set up frame for RX.
+	 */
+	frame->mii_stdelim = AL_MII_STARTDELIM;
+	frame->mii_opcode = AL_MII_READOP;
+	frame->mii_turnaround = 0;
+	frame->mii_data = 0;
+	
+	/*
+	 * Sync the PHYs.
+	 */
+	al_mii_sync(sc);
+
+	/*
+	 * Send command/address info.
+	 */
+	al_mii_send(sc, frame->mii_stdelim, 2);
+	al_mii_send(sc, frame->mii_opcode, 2);
+	al_mii_send(sc, frame->mii_phyaddr, 5);
+	al_mii_send(sc, frame->mii_regaddr, 5);
+
+#ifdef notdef
+	/* Idle bit */
+	al_mii_writebit(sc, 1);
+	al_mii_writebit(sc, 0);
+#endif
+
+	/* Check for ack */
+	ack = al_mii_readbit(sc);
+
+	/*
+	 * Now try reading data bits. If the ack failed, we still
+	 * need to clock through 16 cycles to keep the PHY(s) in sync.
+	 */
+	if (ack) {
+		for(i = 0; i < 16; i++) {
+			al_mii_readbit(sc);
+		}
+		goto fail;
+	}
+
+	for (i = 0x8000; i; i >>= 1) {
+		if (!ack) {
+			if (al_mii_readbit(sc))
+				frame->mii_data |= i;
+		}
+	}
+
+fail:
+
+	al_mii_writebit(sc, 0);
+	al_mii_writebit(sc, 0);
+
+	splx(s);
+
+	if (ack)
+		return(1);
+	return(0);
+}
+
+/*
+ * Write to a PHY register through the MII.
+ */
+static int al_mii_writereg(sc, frame)
+	struct al_softc		*sc;
+	struct al_mii_frame	*frame;
+	
+{
+	int			s;
+
+	s = splimp();
+	/*
+	 * Set up frame for TX.
+	 */
+
+	frame->mii_stdelim = AL_MII_STARTDELIM;
+	frame->mii_opcode = AL_MII_WRITEOP;
+	frame->mii_turnaround = AL_MII_TURNAROUND;
+
+	/*
+	 * Sync the PHYs.
+	 */	
+	al_mii_sync(sc);
+
+	al_mii_send(sc, frame->mii_stdelim, 2);
+	al_mii_send(sc, frame->mii_opcode, 2);
+	al_mii_send(sc, frame->mii_phyaddr, 5);
+	al_mii_send(sc, frame->mii_regaddr, 5);
+	al_mii_send(sc, frame->mii_turnaround, 2);
+	al_mii_send(sc, frame->mii_data, 16);
+
+	/* Idle bit. */
+	al_mii_writebit(sc, 0);
+	al_mii_writebit(sc, 0);
+
+	splx(s);
+
+	return(0);
+}
+
 static u_int16_t al_phy_readreg(sc, reg)
 	struct al_softc		*sc;
 	int			reg;
 {
 	u_int16_t		rval = 0;
 	u_int16_t		phy_reg = 0;
+	struct al_mii_frame	frame;
+
+	if (sc->al_info->al_did == AL_DEVICEID_AN985) {
+		if (sc->al_phy_addr != 1)
+			return(0);
+		frame.mii_phyaddr = sc->al_phy_addr;
+		frame.mii_regaddr = reg;
+		al_mii_readreg(sc, &frame);
+		return(frame.mii_data);
+	}
 
 	switch(reg) {
 	case PHY_BMCR:
@@ -367,6 +565,17 @@ static void al_phy_writereg(sc, reg, data)
 	int			data;
 {
 	u_int16_t		phy_reg = 0;
+	struct al_mii_frame	frame;
+
+	if (sc->al_info->al_did == AL_DEVICEID_AN985) {
+		if (sc->al_phy_addr != 1)
+			return;
+		frame.mii_phyaddr = sc->al_phy_addr;
+		frame.mii_regaddr = reg;
+		frame.mii_data = data;
+		al_mii_writereg(sc, &frame);
+		return;
+	}
 
 	switch(reg) {
 	case PHY_BMCR:
@@ -846,6 +1055,7 @@ al_attach(config_id, unit)
 	caddr_t			roundptr;
 	struct al_type		*p;
 	u_int16_t		phy_vid, phy_did, phy_sts;
+	u_int32_t		device_id;
 
 	s = splimp();
 
@@ -855,6 +1065,19 @@ al_attach(config_id, unit)
 		goto fail;
 	}
 	bzero(sc, sizeof(struct al_softc));
+
+	/* Save the device type; we need it later */
+	device_id = pci_conf_read(config_id, AL_PCI_VENDOR_ID);
+	p = al_devs;
+
+	while(p->al_name != NULL) {
+		if ((device_id & 0xFFFF) == p->al_vid &&
+		    ((device_id >> 16) & 0xFFFF) == p->al_did) {
+			break;
+		}
+		p++;
+	}
+	sc->al_info = p;
 
 	/*
 	 * Handle power management nonsense.
