@@ -189,6 +189,16 @@ static Shell    shells[] = {
     "v", "e",
 },
     /*
+     * KSH description. The Korn shell has a superset of
+     * the Bourne shell's functionality.
+     */
+{
+    "ksh",
+    TRUE, "set -", "set -v", "set -", 5,
+    TRUE, "set -e", "set +e",
+    "v", "e",
+},
+    /*
      * UNKNOWN.
      */
 {

@@ -39,8 +39,6 @@
  * $FreeBSD$
  */
 
-#define	DEFSHELL	1			/* Bourne shell */
-
 /*
  * DEFMAXJOBS
  * DEFMAXLOCAL
