@@ -587,7 +587,8 @@ again:
 			PROC_LOCK(p2);
 			psignal(p2, SIGKILL);
 			PROC_UNLOCK(p2);
-		}
+		} else
+			PROC_UNLOCK(p1->p_leader);
 	} else {
 		p2->p_peers = NULL;
 		p2->p_leader = p2;
