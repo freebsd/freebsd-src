@@ -1613,13 +1613,23 @@ getvirginlabel(void)
 	 * Try to use the new get-virgin-label ioctl.  If it fails,
 	 * fallback to the old get-disdk-info ioctl.
 	 */
-	if (ioctl(f, DIOCGDVIRGIN, &lab) < 0) {
-		if (ioctl(f, DIOCGDINFO, &lab) < 0) {
-			warn("ioctl DIOCGDINFO");
-			close(f);
-			return (NULL);
-		}
+	if (ioctl(f, DIOCGDVIRGIN, &lab) == 0)
+		goto out;
+	if (ioctl(f, DIOCGDINFO, &lab) == 0)
+		goto out;
+	close(f);
+	(void)snprintf(namebuf, BBSIZE, "%s%s%c", _PATH_DEV, dkname,
+	    'a' + RAW_PART);
+	if ((f = open(namebuf, O_RDONLY)) == -1) {
+		warn("cannot open %s", namebuf);
+		return (NULL);
 	}
+	if (ioctl(f, DIOCGDINFO, &lab) == 0)
+		goto out;
+	close(f);
+	warn("No virgin disklabel found %s", namebuf);
+	return (NULL);
+    out:
 	close(f);
 	lab.d_boot0 = NULL;
 	lab.d_boot1 = NULL;
