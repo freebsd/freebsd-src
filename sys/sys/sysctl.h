@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sysctl.h	8.1 (Berkeley) 6/2/93
- * $Id: sysctl.h,v 1.22 1995/05/12 19:17:25 wollman Exp $
+ * $Id: sysctl.h,v 1.23 1995/05/30 08:14:36 rgrimes Exp $
  */
 
 #ifndef _SYS_SYSCTL_H_
@@ -136,7 +136,12 @@ struct ctlname {
 #define	KERN_MAXFILESPERPROC	27	/* int: max open files per proc */
 #define	KERN_MAXPROCPERUID 	28	/* int: max processes per uid */
 #define KERN_DUMPDEV		29	/* dev_t: device to dump on */
-#define KERN_MAXID              30      /* number of valid kern ids */
+#define KERN_SOMAXCONN		30	/* int: max connections in listen q */
+#define KERN_MAXSOCKBUF		31	/* int: max size of a socket buffer */
+#define	KERN_PS_STRINGS		32	/* int: address of PS_STRINGS */
+#define	KERN_USRSTACK		33	/* int: address of USRSTACK */
+#define	KERN_SOCKBUF_WASTE	34	/* int: reserved sockbuf space */
+#define KERN_MAXID              35      /* number of valid kern ids */
 
 #define CTL_KERN_NAMES { \
 	{ 0, 0 }, \
@@ -168,7 +173,12 @@ struct ctlname {
 	{ "bootfile", CTLTYPE_STRING }, \
 	{ "maxfilesperproc", CTLTYPE_INT }, \
 	{ "maxprocperuid", CTLTYPE_INT }, \
-	{ "dumpdev", CTLTYPE_STRUCT }, /* we lie; don't print as int */ \
+	{ "dumpdev", CTLTYPE_STRUCT },	/* we lie; don't print as int */ \
+	{ "somaxconn", CTLTYPE_INT }, \
+	{ "maxsockbuf", CTLTYPE_INT }, \
+	{ "ps_strings", CTLTYPE_INT }, \
+	{ "usrstack", CTLTYPE_INT }, \
+	{ "sockbuf_waste_factor", CTLTYPE_INT }, \
 }
 
 /*
