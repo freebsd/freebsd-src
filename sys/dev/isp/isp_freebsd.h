@@ -33,12 +33,7 @@
 /*
  * We're not ready for primetime yet
  */
-#if	0
-#if	((ISP_PLATFORM_VERSION_MAJOR * 10)  + ISP_PLATFORM_VERSION_MINOR) >= 54
 #define	ISP_SMPLOCK	1
-#endif
-#endif
-
 
 #include <sys/param.h>
 #include <sys/param.h>
@@ -48,6 +43,7 @@
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
+#include <sys/condvar.h>
 #include <sys/proc.h>
 #include <sys/bus.h>
 
@@ -69,6 +65,8 @@
 
 #include "opt_ddb.h"
 #include "opt_isp.h"
+
+#define	HANDLE_LOOPSTATE_IN_OUTER_LAYERS	1
 
 typedef void ispfwfunc __P((int, int, int, const u_int16_t **));
 
@@ -104,12 +102,9 @@ struct isposinfo {
 	u_int8_t		simqfrozen;
 	u_int8_t		drain;
 	u_int8_t		intsok;
-#ifdef	ISP_SMPLOCK
 	struct mtx		lock;
-#else
-	volatile u_int32_t	islocked;
-	int			splsaved;
-#endif
+	struct cv		kthread_cv;
+	struct proc		*kproc;
 #ifdef	ISP_TARGET_MODE
 #define	TM_WANTED		0x80
 #define	TM_BUSY			0x40
@@ -122,18 +117,25 @@ struct isposinfo {
 #endif
 };
 
+#define	isp_lock	isp_osinfo.lock
+
 /*
  * Locking macros...
  */
 
 #ifdef	ISP_SMPLOCK
-#define	ISP_LOCK(x)		mtx_lock(&(x)->isp_osinfo.lock)
-#define	ISP_UNLOCK(x)		mtx_unlock(&(x)->isp_osinfo.lock)
+#define	ISP_LOCK(x)		mtx_lock(&(x)->isp_lock)
+#define	ISP_UNLOCK(x)		mtx_unlock(&(x)->isp_lock)
+#define	ISPLOCK_2_CAMLOCK(isp)	\
+	mtx_unlock(&(isp)->isp_lock); mtx_lock(&Giant)
+#define	CAMLOCK_2_ISPLOCK(isp)	\
+	mtx_unlock(&Giant); mtx_lock(&(isp)->isp_lock)
 #else
-#define	ISP_LOCK		isp_lock
-#define	ISP_UNLOCK		isp_unlock
+#define	ISP_LOCK(x)
+#define	ISP_UNLOCK(x)
+#define	ISPLOCK_2_CAMLOCK(x)
+#define	CAMLOCK_2_ISPLOCK(x)
 #endif
-
 
 /*
  * Required Macros/Defines
@@ -319,30 +321,6 @@ extern void isp_uninit(struct ispsoftc *);
 /*
  * Platform specific inline functions
  */
-#ifndef	ISP_SMPLOCK
-static INLINE void isp_lock(struct ispsoftc *);
-static INLINE void
-isp_lock(struct ispsoftc *isp)
-{
-	int s = splcam();
-	if (isp->isp_osinfo.islocked++ == 0) {
-		isp->isp_osinfo.splsaved = s;
-	} else {
-		splx(s);
-	}
-}
-
-static INLINE void isp_unlock(struct ispsoftc *);
-static INLINE void
-isp_unlock(struct ispsoftc *isp)
-{
-	if (isp->isp_osinfo.islocked) {
-		if (--isp->isp_osinfo.islocked == 0) {
-			splx(isp->isp_osinfo.splsaved);
-		}
-	}
-}
-#endif
 
 static INLINE void isp_mbox_wait_complete(struct ispsoftc *);
 static INLINE void
@@ -352,7 +330,7 @@ isp_mbox_wait_complete(struct ispsoftc *isp)
 		isp->isp_osinfo.mboxwaiting = 1;
 #ifdef	ISP_SMPLOCK
 		(void) msleep(&isp->isp_osinfo.mboxwaiting,
-		    &isp->isp_osinfo.lock, PRIBIO, "isp_mboxwaiting", 10 * hz);
+		    &isp->isp_lock, PRIBIO, "isp_mboxwaiting", 10 * hz);
 #else
 		(void) tsleep(&isp->isp_osinfo.mboxwaiting, PRIBIO,
 		    "isp_mboxwaiting", 10 * hz);
