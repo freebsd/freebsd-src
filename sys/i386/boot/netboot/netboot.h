@@ -217,6 +217,15 @@ struct rpc_t {
 
 #define TFTP_MIN_PACKET_SIZE	(sizeof(struct iphdr) + sizeof(struct udphdr) + 4)
 
+/*
+static inline unsigned short inw(a)
+	unsigned short a;
+{
+	unsigned char d;
+	asm volatile( "inw %1, %0" : "=a" (d) : "d" (a));
+	return d;
+}
+
 static inline unsigned char inb(a)
 	unsigned short a;
 {
@@ -225,11 +234,170 @@ static inline unsigned char inb(a)
 	return d;
 }
 
+static inline void outw(a,d)
+	unsigned short a;
+	unsigned short d;
+{
+	asm volatile( "outw %0, %1" : : "a" (d), "d" (a));
+}
+
 static inline void outb(a,d)
 	unsigned short a;
 	unsigned char d;
 {
 	asm volatile( "outb %0, %1" : : "a" (d), "d" (a));
+}
+*/
+
+#if __GNUC__ < 2
+
+#define	inb(port)		inbv(port)
+#define	outb(port, data)	outbv(port, data)
+
+#else /* __GNUC >= 2 */
+
+/*
+ * Use an expression-statement instead of a conditional expression
+ * because gcc-2.6.0 would promote the operands of the conditional
+ * and produce poor code for "if ((inb(var) & const1) == const2)".
+ */
+#define	inb(port)	({						\
+	u_char	_data;							\
+	if (__builtin_constant_p((int) (port)) && (port) < 256ul)	\
+		_data = inbc(port);					\
+	else								\
+		_data = inbv(port);					\
+	_data; })
+
+#define	outb(port, data) \
+	(__builtin_constant_p((int) (port)) && (port) < 256ul \
+	 ? outbc(port, data) : outbv(port, data))
+
+static __inline u_char
+inbc(u_int port)
+{
+	u_char	data;
+
+	__asm __volatile("inb %1,%0" : "=a" (data) : "i" (port));
+	return (data);
+}
+
+static __inline void
+outbc(u_int port, u_char data)
+{
+	__asm __volatile("outb %0,%1" : : "a" (data), "i" (port));
+}
+
+#endif /* __GNUC <= 2 */
+
+static __inline u_char
+inbv(u_int port)
+{
+	u_char	data;
+	/*
+	 * We use %%dx and not %1 here because i/o is done at %dx and not at
+	 * %edx, while gcc generates inferior code (movw instead of movl)
+	 * if we tell it to load (u_short) port.
+	 */
+	__asm __volatile("inb %%dx,%0" : "=a" (data) : "d" (port));
+	return (data);
+}
+
+static __inline u_long
+inl(u_int port)
+{
+	u_long	data;
+
+	__asm __volatile("inl %%dx,%0" : "=a" (data) : "d" (port));
+	return (data);
+}
+
+static __inline void
+insb(u_int port, void *addr, size_t cnt)
+{
+	__asm __volatile("cld; rep; insb"
+			 : : "d" (port), "D" (addr), "c" (cnt)
+			 : "di", "cx", "memory");
+}
+
+static __inline void
+insw(u_int port, void *addr, size_t cnt)
+{
+	__asm __volatile("cld; rep; insw"
+			 : : "d" (port), "D" (addr), "c" (cnt)
+			 : "di", "cx", "memory");
+}
+
+static __inline void
+insl(u_int port, void *addr, size_t cnt)
+{
+	__asm __volatile("cld; rep; insl"
+			 : : "d" (port), "D" (addr), "c" (cnt)
+			 : "di", "cx", "memory");
+}
+
+static __inline u_short
+inw(u_int port)
+{
+	u_short	data;
+
+	__asm __volatile("inw %%dx,%0" : "=a" (data) : "d" (port));
+	return (data);
+}
+
+static __inline void
+outbv(u_int port, u_char data)
+{
+	u_char	al;
+	/*
+	 * Use an unnecessary assignment to help gcc's register allocator.
+	 * This make a large difference for gcc-1.40 and a tiny difference
+	 * for gcc-2.6.0.  For gcc-1.40, al had to be ``asm("ax")'' for
+	 * best results.  gcc-2.6.0 can't handle this.
+	 */
+	al = data;
+	__asm __volatile("outb %0,%%dx" : : "a" (al), "d" (port));
+}
+
+static __inline void
+outl(u_int port, u_long data)
+{
+	/*
+	 * outl() and outw() aren't used much so we haven't looked at
+	 * possible micro-optimizations such as the unnecessary
+	 * assignment for them.
+	 */
+	__asm __volatile("outl %0,%%dx" : : "a" (data), "d" (port));
+}
+
+static __inline void
+outsb(u_int port, void *addr, size_t cnt)
+{
+	__asm __volatile("cld; rep; outsb"
+			 : : "d" (port), "S" (addr), "c" (cnt)
+			 : "si", "cx");
+}
+
+static __inline void
+outsw(u_int port, void *addr, size_t cnt)
+{
+	__asm __volatile("cld; rep; outsw"
+			 : : "d" (port), "S" (addr), "c" (cnt)
+			 : "si", "cx");
+}
+
+static __inline void
+outsl(u_int port, void *addr, size_t cnt)
+{
+	__asm __volatile("cld; rep; outsl"
+			 : : "d" (port), "S" (addr), "c" (cnt)
+			 : "si", "cx");
+}
+
+static __inline void
+outw(u_int port, u_short data)
+{
+	__asm __volatile("outw %0,%%dx" : : "a" (data), "d" (port));
 }
 
 /***************************************************************************
