@@ -330,6 +330,7 @@ MAN=	aac.4 \
 	vga.4 \
 	vge.4 \
 	vinum.4 \
+	vkbd.4 \
 	vlan.4 \
 	vpo.4 \
 	vr.4 \
