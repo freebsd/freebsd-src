@@ -35,9 +35,11 @@
 .Vt vfsconf
 .Sh SYNOPSIS
 .In sys/param.h
+.In sys/kernel.h
+.In sys/module.h
 .In sys/mount.h
 .Ft void
-.Fn VFS_SET "struct vfsops *vfsops" "char *fsname" "int flags"
+.Fn VFS_SET "struct vfsops *vfsops" "fsname" "int flags"
 .Sh DESCRIPTION
 .Fn VFS_SET
 creates a

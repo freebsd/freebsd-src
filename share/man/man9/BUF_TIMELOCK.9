@@ -34,6 +34,9 @@
 .Nd "locks a buffer"
 .Sh SYNOPSIS
 .In sys/param.h
+.In sys/systm.h
+.In sys/uio.h
+.In sys/bio.h
 .In sys/buf.h
 .Ft int
 .Fn BUF_TIMELOCK "struct buf *bp" "int locktype" "char *wmesg" "int catch" "int timo"

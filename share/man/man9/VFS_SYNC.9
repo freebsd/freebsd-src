@@ -39,7 +39,7 @@
 .In sys/mount.h
 .In sys/vnode.h
 .Ft int
-.Fn VFS_SYNC "struct mount *mp" "int waitfor" "struct ucred *cred" "struct proc *p"
+.Fn VFS_SYNC "struct mount *mp" "int waitfor" "struct ucred *cred" "struct thread *td"
 .Sh DESCRIPTION
 This writes out all unwritten data in a filesystem.
 .Pp
@@ -60,8 +60,8 @@ push data not written by filesystem syncer
 .El
 .It Ar cred
 The caller's credentials.
-.It Ar p
-The calling process.
+.It Ar td
+The calling thread.
 .El
 .Pp
 This would normally call

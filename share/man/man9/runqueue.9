@@ -39,14 +39,14 @@
 .Vt "extern	struct rq rtqueues[]" ;
 .Vt "extern	struct rq queues[]" ;
 .Vt "extern	struct rq idqueues[]" ;
-.Ft struct proc *
-.Fn chooseproc "void"
-.Ft u_int32_t
+.Ft struct thread *
+.Fn choosethread "void"
+.Ft int
 .Fn procrunnable "void"
 .Ft void
-.Fn remrunqueue "struct proc *p"
+.Fn remrunqueue "struct thread *td"
 .Ft void
-.Fn setrunqueue "struct proc *p"
+.Fn setrunqueue "struct thread *td"
 .Sh DESCRIPTION
 The run queue consists of four priority queues:
 .Va itqueues
@@ -95,24 +95,24 @@ may have to require that the
 .Va sched_lock
 mutex be acquired.
 .Pp
-.Fn chooseproc
-returns the highest priority runnable process.
-If there are no runnable processes, then the idle process is returned.
+.Fn choosethread
+returns the highest priority runnable thread.
+If there are no runnable threads, then the idle thread is returned.
 This function is called by
 .Fn cpu_switch
 and
 .Fn cpu_throw
-to determine which process to switch to.
-.Fn chooseproc
+to determine which thread to switch to.
+.Fn choosethread
 must be called with the
 .Va sched_lock
 mutex held.
 .Pp
 .Fn setrunqueue
-adds the process
-.Fa p
+adds the thread
+.Fa td
 to the tail of the appropriate queue in the proper priority queue.
-The process must be runnable, i.e.\&
+The thread must be runnable, i.e.\&
 .Va p_stat
 must be set to
 .Dv SRUN .
@@ -121,11 +121,11 @@ This function must be called with the
 mutex held.
 .Pp
 .Fn remrunqueue
-removes process
-.Fa p
+removes thread
+.Fa td
 from its run queue.
 If
-.Fa p
+.Fa td
 is not on a run queue, then the kernel will
 .Xr panic 9 .
 This function must be called with the

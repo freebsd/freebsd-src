@@ -37,14 +37,23 @@
 .Sh SYNOPSIS
 .In sys/param.h
 .In sys/mbuf.h
+.In sys/socket.h
 .In net/if.h
 .In net/pfil.h
 .Ft struct packet_filter_hook *
-.Fn pfil_hook_get "int" "struct pfil_head *"
-.Ft void
-.Fn pfil_add_hook "int (*func)()" "int flags" "struct pfil_head *"
-.Ft void
-.Fn pfil_remove_hook "int (*func)()" "int flags" "struct pfil_head *"
+.Fn pfil_hook_get "int flag" "struct pfil_head *ph"
+.Ft int
+.Fo pfil_add_hook
+.Fa "int (*func)(void *, int, struct ifnet *, int, struct mbuf **)"
+.Fa "int flags"
+.Fa "struct pfil_head *ph"
+.Fc
+.Ft int
+.Fo pfil_remove_hook
+.Fa "int (*func)(void *, int, struct ifnet *, int, struct mbuf **)"
+.Fa "int flags"
+.Fa "struct pfil_head *ph"
+.Fc
 .\"(void *, int, struct ifnet *, int, struct mbuf **)
 .Sh DESCRIPTION
 The
