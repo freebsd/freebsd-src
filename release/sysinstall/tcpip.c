@@ -1,5 +1,5 @@
 /*
- * $Id: tcpip.c,v 1.50 1996/12/09 06:37:46 jkh Exp $
+ * $Id: tcpip.c,v 1.51 1996/12/09 08:22:18 jkh Exp $
  *
  * Copyright (c) 1995
  *      Gary J Palmer. All rights reserved.
@@ -384,7 +384,7 @@ tcpOpenDialog(Device *devp)
 
 	/* BODGE ALERT! */
 	if (((tmp = index(hostname, '.')) != NULL) && (strlen(domainname)==0)) {
-	    sstrncpy(domainname, tmp + 1, strlen(tmp + 1));
+	    SAFE_STRCPY(domainname, tmp + 1);
 	    RefreshStringObj(layout[1].obj);
 	}
     }
