@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.88 1997/02/28 17:27:07 wosch Exp $
+#	$Id: BSD.usr.dist,v 1.89 1997/03/04 17:06:23 wosch Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -236,8 +236,6 @@
             devascii
             ..
             devdvi
-                generate
-                ..
             ..
             devkoi8-r
             ..
@@ -246,8 +244,6 @@
             devlj4
             ..
             devps
-                generate
-                ..
             ..
         ..
         info
