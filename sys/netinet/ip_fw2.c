@@ -851,7 +851,7 @@ realloc_dynamic_table(void)
 		free(ipfw_dyn_v, M_IPFW);
 	for (;;) {
 		ipfw_dyn_v = malloc(curr_dyn_buckets * sizeof(ipfw_dyn_rule *),
-		       M_IPFW, M_DONTWAIT | M_ZERO);
+		       M_IPFW, M_NOWAIT | M_ZERO);
 		if (ipfw_dyn_v != NULL || curr_dyn_buckets <= 2)
 			break;
 		curr_dyn_buckets /= 2;
@@ -882,7 +882,7 @@ add_dyn_rule(struct ipfw_flow_id *id, u_int8_t dyn_type, struct ip_fw *rule)
 	}
 	i = hash_packet(id);
 
-	r = malloc(sizeof *r, M_IPFW, M_DONTWAIT | M_ZERO);
+	r = malloc(sizeof *r, M_IPFW, M_NOWAIT | M_ZERO);
 	if (r == NULL) {
 		printf ("sorry cannot allocate state\n");
 		return NULL;
@@ -1981,7 +1981,7 @@ add_rule(struct ip_fw **head, struct ip_fw *input_rule)
 	if (*head == NULL && input_rule->rulenum != IPFW_DEFAULT_RULE)
 		return (EINVAL);
 
-	rule = malloc(l, M_IPFW, M_DONTWAIT | M_ZERO);
+	rule = malloc(l, M_IPFW, M_NOWAIT | M_ZERO);
 	if (rule == NULL)
 		return (ENOSPC);
 
