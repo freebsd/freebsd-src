@@ -1973,6 +1973,7 @@ in6_ifawithscope(oifp, dst)
 	 * Comparing an interface with the outgoing interface will be done
 	 * only at the final stage of tiebreaking.
 	 */
+	IFNET_RLOCK();
 	for (ifp = TAILQ_FIRST(&ifnet); ifp; ifp = TAILQ_NEXT(ifp, if_list))
 	{
 		/*
@@ -2204,6 +2205,7 @@ in6_ifawithscope(oifp, dst)
 			best_scope = in6_addrscope(&ifa_best->ia_addr.sin6_addr);
 		}
 	}
+	IFNET_RUNLOCK();
 
 	/* count statistics for future improvements */
 	if (ifa_best == NULL)
@@ -2385,12 +2387,14 @@ in6_setmaxmtu()
 	unsigned long maxmtu = 0;
 	struct ifnet *ifp;
 
+	IFNET_RLOCK();
 	for (ifp = TAILQ_FIRST(&ifnet); ifp; ifp = TAILQ_NEXT(ifp, if_list))
 	{
 		if ((ifp->if_flags & IFF_LOOPBACK) == 0 &&
 		    nd_ifinfo[ifp->if_index].linkmtu > maxmtu)
 			maxmtu =  nd_ifinfo[ifp->if_index].linkmtu;
 	}
+	IFNET_RUNLOCK();
 	if (maxmtu)	/* update only when maxmtu is positive */
 		in6_maxmtu = maxmtu;
 }

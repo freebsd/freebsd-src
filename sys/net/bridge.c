@@ -302,6 +302,7 @@ bridge_off(void)
     int i, s;
 
     DEB(printf("bridge_off: n_clusters %d\n", n_clusters);)
+    IFNET_RLOCK();
     TAILQ_FOREACH(ifp, &ifnet, if_link) {
 	struct bdg_softc *b;
 
@@ -322,6 +323,7 @@ bridge_off(void)
 	b->cluster = NULL;
 	bdg_stats.s[ifp->if_index].name[0] = '\0';
     }
+    IFNET_RUNLOCK();
     /* flush_tables */
 
     s = splimp();
@@ -345,6 +347,7 @@ bridge_on(void)
     struct ifnet *ifp ;
     int s ;
 
+    IFNET_RLOCK();
     TAILQ_FOREACH(ifp, &ifnet, if_link) {
 	struct bdg_softc *b = &ifp2sc[ifp->if_index];
 
@@ -370,6 +373,7 @@ bridge_on(void)
 	    b->flags &= ~IFF_MUTE;
 	}
     }
+    IFNET_RUNLOCK();
 }
 
 /**
@@ -435,6 +439,7 @@ parse_bdg_cfg()
 	/*
 	 * now search in interface list for a matching name
 	 */
+	IFNET_RLOCK();		/* could sleep XXX */
 	TAILQ_FOREACH(ifp, &ifnet, if_link) {
 	    char buf[IFNAMSIZ];
 
@@ -460,6 +465,7 @@ parse_bdg_cfg()
 		break ;
 	    }
 	}
+	IFNET_RUNLOCK();
 	if (!found)
 	    printf("interface %s Not found in bridge\n", beg);
 	*p = c;
@@ -847,17 +853,10 @@ bdg_forward(struct mbuf *m0, struct ifnet *dst)
 	printf("xx ouch, bdg_forward for local pkt\n");
 	return m0;
     }
-    if (dst == BDG_BCAST || dst == BDG_MCAST || dst == BDG_UNKNOWN) {
-	ifp = TAILQ_FIRST(&ifnet) ; /* scan all ports */
-	once = 0 ;
-	if (dst != BDG_UNKNOWN) /* need a copy for the local stack */
-	    shared = 1 ;
-    } else {
-	ifp = dst ;
-	once = 1 ;
+    if (dst == BDG_BCAST || dst == BDG_MCAST) {
+	 /* need a copy for the local stack */
+	 shared = 1 ;
     }
-    if ((uintptr_t)(ifp) <= (u_int)BDG_FORWARD)
-	panic("bdg_forward: bad dst");
 
     /*
      * Do filtering in a very similar way to what is done in ip_output.
@@ -1023,6 +1022,17 @@ forward:
 	real_dst = src ;
 
     last = NULL;
+    IFNET_RLOCK();
+    if (dst == BDG_BCAST || dst == BDG_MCAST || dst == BDG_UNKNOWN) {
+	ifp = TAILQ_FIRST(&ifnet) ; /* scan all ports */
+	once = 0 ;
+    } else {
+	ifp = dst ;
+	once = 1 ;
+    }
+    if ((uintptr_t)(ifp) <= (u_int)BDG_FORWARD)
+	panic("bdg_forward: bad dst");
+
     for (;;) {
 	if (last) { /* need to forward packet leftover from previous loop */
 	    struct mbuf *m ;
@@ -1032,6 +1042,7 @@ forward:
 	    } else {
 		m = m_copypacket(m0, M_DONTWAIT);
 		if (m == NULL) {
+		    IFNET_RUNLOCK();
 		    printf("bdg_forward: sorry, m_copypacket failed!\n");
 		    bdg_dropped++ ;
 		    return m0 ; /* the original is still there... */
@@ -1062,6 +1073,7 @@ forward:
 	if (ifp == NULL)
 	    once = 1 ;
     }
+    IFNET_RUNLOCK();
     DEB(bdg_fw_ticks += (u_long)(rdtsc() - ticks) ; bdg_fw_count++ ;
 	if (bdg_fw_count != 0) bdg_fw_avg = bdg_fw_ticks/bdg_fw_count; )
     return m0 ;

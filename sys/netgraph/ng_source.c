@@ -481,10 +481,12 @@ ng_source_store_output_ifp(sc_p sc, struct ng_mesg *msg)
 	 * way of verifying if_index is valid since if_indexlim is
 	 * local to if_attach()
 	 */
+	IFNET_RLOCK();
 	TAILQ_FOREACH(ifp, &ifnet, if_link) {
 		if (ifp->if_index == if_index)
 			break;
 	}
+	IFNET_RUNLOCK();
 
 	if (ifp == NULL) {
 		printf("%s: can't find interface %d\n", __FUNCTION__, if_index);

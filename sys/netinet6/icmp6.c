@@ -1672,6 +1672,7 @@ ni6_addrs(ni6, m, ifpp, subj)
 		}
 	}
 
+	IFNET_RLOCK();
 	for (ifp = TAILQ_FIRST(&ifnet); ifp; ifp = TAILQ_NEXT(ifp, if_list))
 	{
 		addrsofif = 0;
@@ -1729,11 +1730,13 @@ ni6_addrs(ni6, m, ifpp, subj)
 		}
 		if (iffound) {
 			*ifpp = ifp;
+			IFNET_RUNLOCK();
 			return(addrsofif);
 		}
 
 		addrs += addrsofif;
 	}
+	IFNET_RUNLOCK();
 
 	return(addrs);
 }
@@ -1755,9 +1758,9 @@ ni6_store_addrs(ni6, nni6, ifp0, resid)
 
 	if (ifp0 == NULL && !(niflags & NI_NODEADDR_FLAG_ALL))
 		return(0);	/* needless to copy */
-
+		
+	IFNET_RLOCK();
   again:
-
 	for (; ifp; ifp = TAILQ_NEXT(ifp, if_list))
 	{
 		for (ifa = ifp->if_addrlist.tqh_first; ifa;
@@ -1823,6 +1826,7 @@ ni6_store_addrs(ni6, nni6, ifp0, resid)
 				 */
 				nni6->ni_flags |=
 					NI_NODEADDR_FLAG_TRUNCATE;
+				IFNET_RUNLOCK();
 				return(copied);
 			}
 
@@ -1876,6 +1880,8 @@ ni6_store_addrs(ni6, nni6, ifp0, resid)
 
 		goto again;
 	}
+
+	IFNET_RUNLOCK();
 
 	return(copied);
 }
