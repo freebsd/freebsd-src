@@ -167,7 +167,8 @@ __END_DECLS
 #define	EOVERFLOW	84		/* Value too large to be stored in data type */
 #define	ECANCELED	85		/* Operation canceled */
 #define	EILSEQ		86		/* Illegal byte sequence */
-#define	ELAST		86		/* Must be equal largest errno */
+#define	ENOATTR		87		/* Attribute not found */
+#define	ELAST		87		/* Must be equal largest errno */
 
 #endif /* _POSIX_SOURCE */
 

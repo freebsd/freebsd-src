@@ -685,8 +685,7 @@ ufs_extattr_disable(struct ufsmount *ump, int attrnamespace,
 
 	uele = ufs_extattr_find_attr(ump, attrnamespace, attrname);
 	if (!uele)
-		/* XXX: ENOENT here will eventually be ENOATTR. */
-		return (ENOENT);
+		return (ENOATTR);
 
 	LIST_REMOVE(uele, uele_entries);
 
@@ -881,8 +880,7 @@ ufs_extattr_get(struct vnode *vp, int attrnamespace, const char *name,
 
 	attribute = ufs_extattr_find_attr(ump, attrnamespace, name);
 	if (!attribute)
-		/* XXX: ENOENT here will eventually be ENOATTR. */
-		return (ENOENT);
+		return (ENOATTR);
 
 	if ((error = ufs_extattr_credcheck(vp, attribute, cred, td, IREAD)))
 		return (error);
@@ -937,8 +935,7 @@ ufs_extattr_get(struct vnode *vp, int attrnamespace, const char *name,
 
 	/* Defined? */
 	if ((ueh.ueh_flags & UFS_EXTATTR_ATTR_FLAG_INUSE) == 0) {
-		/* XXX: ENOENT here will eventually be ENOATTR. */
-		error = ENOENT;
+		error = ENOATTR;
 		goto vopunlock_exit;
 	}
 
@@ -950,10 +947,9 @@ ufs_extattr_get(struct vnode *vp, int attrnamespace, const char *name,
 		 * is to coerce this to undefined, and let it get cleaned
 		 * up by the next write or extattrctl clean.
 		 */
-		printf("ufs_extattr_get: inode number inconsistency (%d, %d)\n",
-		    ueh.ueh_i_gen, ip->i_gen);
-		/* XXX: ENOENT here will eventually be ENOATTR. */
-		error = ENOENT;
+		printf("ufs_extattr_get (%s): inode number inconsistency (%d, %d)\n",
+		    mp->mnt_stat.f_mntonname, ueh.ueh_i_gen, ip->i_gen);
+		error = ENOATTR;
 		goto vopunlock_exit;
 	}
 
@@ -1062,8 +1058,7 @@ ufs_extattr_set(struct vnode *vp, int attrnamespace, const char *name,
 
 	attribute = ufs_extattr_find_attr(ump, attrnamespace, name);
 	if (!attribute)
-		/* XXX: ENOENT here will eventually be ENOATTR. */
-		return (ENOENT);
+		return (ENOATTR);
 
 	if ((error = ufs_extattr_credcheck(vp, attribute, cred, td, IWRITE)))
 		return (error);
@@ -1174,8 +1169,7 @@ ufs_extattr_rm(struct vnode *vp, int attrnamespace, const char *name,
 
 	attribute = ufs_extattr_find_attr(ump, attrnamespace, name);
 	if (!attribute)
-		/* XXX: ENOENT here will eventually be ENOATTR. */
-		return (ENOENT);
+		return (ENOATTR);
 
 	if ((error = ufs_extattr_credcheck(vp, attribute, cred, td, IWRITE)))
 		return (error);
@@ -1220,8 +1214,7 @@ ufs_extattr_rm(struct vnode *vp, int attrnamespace, const char *name,
 
 	/* Defined? */
 	if ((ueh.ueh_flags & UFS_EXTATTR_ATTR_FLAG_INUSE) == 0) {
-		/* XXX: ENOENT here will eventually be ENOATTR. */
-		error = ENOENT;
+		error = ENOATTR;
 		goto vopunlock_exit;
 	}
 
@@ -1233,10 +1226,9 @@ ufs_extattr_rm(struct vnode *vp, int attrnamespace, const char *name,
 		 * coerce this to undefined, and let it get cleaned up by
 		 * the next write or extattrctl clean.
 		 */
-		printf("ufs_extattr_rm: inode number inconsistency (%d, %d)\n",
-		    ueh.ueh_i_gen, ip->i_gen);
-		/* XXX: ENOENT here will eventually be ENOATTR. */
-		error = ENOENT;
+		printf("ufs_extattr_rm (%s): inode number inconsistency (%d, %d)\n",
+		    mp->mnt_stat.f_mntonname, ueh.ueh_i_gen, ip->i_gen);
+		error = ENOATTR;
 		goto vopunlock_exit;
 	}
 
