@@ -3,12 +3,17 @@
 # PC-card startup script
 # HOSOKAWA, Tatsumi <hosokawa@mt.cs.keio.ac.jp>
 #
-#	$Id$
+#	$Id: rc.pccard,v 1.8 1999/03/17 17:39:50 nate Exp $
 #
 
 if [ "X$pccard_enable" = X"YES" ] ; then
-	if kldload pcic; then
-		echo "Kernel pcic module loaded."
+	builtin=`kldstat -v -n 1 | grep pcic | awk '{print $2}'`
+	if [ $builtin = 'pcic' ] ; then
+		echo "PCIC module compiled in"
+	else
+		if kldload pcic; then
+			echo "Kernel pcic module loaded."
+		fi
 	fi
 	if [ "x$pccard_mem" != "xDEFAULT" ] ; then
 		pccardc pccardmem $pccard_mem
