@@ -273,11 +273,12 @@ vsyslog(pri, fmt, ap)
 		do {
 			usleep(1);
 			if (send(LogFile, tbuf, cnt, 0) >= 0)
-				break;
+				return;
 			if (status == CONNPRIV)
 				break;
 		} while (errno == ENOBUFS);
-	}
+	} else
+		return;
 
 	/*
 	 * Output the message to the console; try not to block
