@@ -16,8 +16,6 @@
 # reinstallkernel.debug
 # kernel              - buildkernel + installkernel.
 # update              - Convenient way to update your source tree (cvs).
-# most                - Build user commands, no libraries or include files.
-# installmost         - Install user commands, no libraries or include files.
 #
 # This makefile is simple by design. The FreeBSD make automatically reads
 # the /usr/share/mk/sys.mk unless the -m argument is specified on the
@@ -63,9 +61,9 @@
 TGTS=	all all-man buildkernel buildworld checkdpadd clean \
 	cleandepend cleandir depend distribute distributeworld everything \
 	hierarchy install installcheck installkernel installkernel.debug\
-	reinstallkernel reinstallkernel.debug installmost installworld \
+	reinstallkernel reinstallkernel.debug installworld \
 	libraries lint maninstall \
-	most obj objlink regress rerelease tags update
+	obj objlink regress rerelease tags update
 
 BITGTS=	files includes
 BITGTS:=${BITGTS} ${BITGTS:S/^/build/} ${BITGTS:S/^/install/}
