@@ -59,9 +59,7 @@ things that you can do with it:
 
 2) Run dump on the snapshot. You will get a dump that is
    consistent with the filesystem as of the timestamp of the
-   snapshot. Note that I have not yet changed dump to set the
-   dumpdates file correctly, so do not use this feature in
-   production until that fix is made.
+   snapshot.
 
 3) Mount the snapshot as a frozen image of the filesystem.
    To mount the snapshot /var/snapshot/snap1:
