@@ -893,9 +893,46 @@ ess_probe(device_t dev)
 	return s? 0 : ENXIO;
 }
 
-#define PCI_LEGACYCONTROL       0x40
-#define PCI_CONFIG              0x50
-#define PCI_DDMACONTROL      	0x60
+#define ESS_PCI_LEGACYCONTROL       0x40
+#define ESS_PCI_CONFIG              0x50
+#define ESS_PCI_DDMACONTROL      	0x60
+
+static int 
+ess_suspend(device_t dev)
+{
+  return 0;
+}
+
+static int 
+ess_resume(device_t dev)
+{
+	uint16_t ddma;
+	uint32_t data;
+	struct ess_info *sc = pcm_getdevinfo(dev);
+	
+	data = pci_read_config(dev, PCIR_COMMAND, 2);
+	data |= PCIM_CMD_PORTEN | PCIM_CMD_BUSMASTEREN;
+	pci_write_config(dev, PCIR_COMMAND, data, 2);
+	data = pci_read_config(dev, PCIR_COMMAND, 2);
+
+	ddma = rman_get_start(sc->vc) | 1;
+	pci_write_config(dev, ESS_PCI_LEGACYCONTROL, 0x805f, 2);
+	pci_write_config(dev, ESS_PCI_DDMACONTROL, ddma, 2);
+	pci_write_config(dev, ESS_PCI_CONFIG, 0, 2);
+
+    	if (ess_reset_dsp(sc))
+		goto no;
+    	if (mixer_reinit(dev))
+		goto no;
+	if (sc->newspeed)
+		ess_setmixer(sc, 0x71, 0x2a);
+
+	port_wr(sc->io, 0x7, 0xb0, 1); /* enable irqs */
+
+	return 0;
+ no:
+	return EIO;
+}
 
 static int
 ess_attach(device_t dev)
@@ -920,9 +957,9 @@ ess_attach(device_t dev)
 	sc->bufsz = pcm_getbuffersize(dev, 4096, SOLO_DEFAULT_BUFSZ, 65536);
 
 	ddma = rman_get_start(sc->vc) | 1;
-	pci_write_config(dev, PCI_LEGACYCONTROL, 0x805f, 2);
-	pci_write_config(dev, PCI_DDMACONTROL, ddma, 2);
-	pci_write_config(dev, PCI_CONFIG, 0, 2);
+	pci_write_config(dev, ESS_PCI_LEGACYCONTROL, 0x805f, 2);
+	pci_write_config(dev, ESS_PCI_DDMACONTROL, ddma, 2);
+	pci_write_config(dev, ESS_PCI_CONFIG, 0, 2);
 
     	if (ess_reset_dsp(sc))
 		goto no;
@@ -996,8 +1033,8 @@ static device_method_t ess_methods[] = {
 	DEVMETHOD(device_probe,		ess_probe),
 	DEVMETHOD(device_attach,	ess_attach),
 	DEVMETHOD(device_detach,	ess_detach),
-	DEVMETHOD(device_resume,	bus_generic_resume),
-	DEVMETHOD(device_suspend,	bus_generic_suspend),
+	DEVMETHOD(device_resume,	ess_resume),
+	DEVMETHOD(device_suspend,	ess_suspend),
 
 	{ 0, 0 }
 };
