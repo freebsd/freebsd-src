@@ -199,11 +199,7 @@ struct region_descriptor {
 #define GBIOSUTIL_SEL	13	/* BIOS interface (Utility) */
 #define GBIOSARGS_SEL	14	/* BIOS interface (Arguments) */
 
-#ifdef BDE_DEBUGGER
-#define	NGDT		18	/* some of 11-17 are reserved for debugger */
-#else
 #define NGDT 		15
-#endif
 
 /*
  * Entries in the Local Descriptor Table (LDT)
