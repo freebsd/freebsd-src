@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_clock.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_clock.c,v 1.95 1999/07/18 01:35:26 jdp Exp $
+ * $Id: kern_clock.c,v 1.96 1999/07/18 15:07:18 bde Exp $
  */
 
 #include "opt_ntp.h"
@@ -843,7 +843,8 @@ sysctl_kern_timecounter_hardware SYSCTL_HANDLER_ARGS
 	error = sysctl_handle_string(oidp, &newname[0], sizeof(newname), req);
 	if (error == 0 && req->newptr != NULL &&
 	    strcmp(newname, tc->tc_name) != 0) {
-		for (newtc = tc->tc_avail; newtc != tc; newtc = tc->tc_avail) {
+		for (newtc = tc->tc_avail; newtc != tc;
+		    newtc = newtc->tc_avail) {
 			if (strcmp(newname, newtc->tc_name) == 0) {
 				/* Warm up new timecounter. */
 				(void)newtc->tc_get_timecount(newtc);
