@@ -1,9 +1,9 @@
 #	From: @(#)Makefile	5.1 (Berkeley) 6/25/90
-#	$Id: Makefile,v 1.3 1994/10/06 00:48:55 wollman Exp $
+#	$Id: Makefile,v 1.4 1994/11/20 23:39:44 wollman Exp $
 
 SUBDIR=	include
 
-SUBDIR+= des compile_et acl ext_srvtab include kdb kdb_destroy kdb_edit \
+SUBDIR+= des acl ext_srvtab include kdb kdb_destroy kdb_edit \
 	 kdb_init kdb_util kdestroy kerberos kinit klist krb ksrvtgt \
 	 kstash man
 #
