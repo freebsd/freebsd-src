@@ -32,7 +32,7 @@
 .\"	@(#)mlock.2	8.2 (Berkeley) 12/11/93
 .\" $FreeBSD$
 .\"
-.Dd June 2, 1993
+.Dd May 18, 2004
 .Dt MLOCK 2
 .Os
 .Sh NAME
@@ -145,15 +145,6 @@ Some portion of the indicated address range is not locked.
 .Xr setrlimit 2 ,
 .Xr getpagesize 3
 .Sh BUGS
-Unlike The Sun implementation, multiple
-.Fn mlock
-calls on the same address range require the corresponding number of
-.Fn munlock
-calls to actually unlock the pages, i.e.\&
-.Fn mlock
-nests.
-This should be considered a consequence of the implementation
-and not a feature.
 .Pp
 The per-process resource limit is a limit on the amount of virtual
 memory locked, while the system-wide limit is for the number of locked
