@@ -29,21 +29,29 @@
 #include <sys/types.h>
 #include <sys/ucontext.h>
 
+#include <pthread.h>
 #include <stdio.h>
 
 #include <machine/sysarch.h>
 #include <machine/segments.h>
 
+#include "thr_private.h"
+
 #define	MAXTHR	128
 
 #define	LDT_INDEX(x)	(((long)(x) - (long)ldt_entries) / sizeof(ldt_entries[0]))
 
-void **ldt_free = NULL;
-static int ldt_inited = 0;
-void *ldt_entries[MAXTHR];
+void		**ldt_free = NULL;
+void		 *ldt_entries[MAXTHR];
+static int	  ldt_inited = 0;
+static spinlock_t ldt_lock = _SPINLOCK_INITIALIZER;
 
 static void ldt_init(void);
 
+/*
+ * Initialize the array of ldt_entries and the next free slot.
+ * This routine must be called with the global ldt lock held.
+ */
 static void
 ldt_init(void)
 {
@@ -62,20 +70,31 @@ ldt_init(void)
 void
 _retire_thread(void *entry)
 {
+	_SPINLOCK(&ldt_lock);
 	if (ldt_free == NULL)
 		*(void **)entry = NULL;
 	else
 		*(void **)entry = *ldt_free;
 	ldt_free = entry;
+	_SPINUNLOCK(&ldt_lock);
 }
 
 void *
-_set_curthread(ucontext_t *uc, void *thr)
+_set_curthread(ucontext_t *uc, struct pthread *thr)
 {
 	union descriptor desc;
 	void **ldt_entry;
 	int ldt_index;
 	int error;
+
+	/*
+	 * If we are setting up the initial thread, the gs register
+	 * won't be setup for the current thread. In any case, we
+	 * don't need protection from re-entrancy at this point in
+	 * the life of the program.
+	 */
+	if (thr != _thread_initial)
+		_SPINLOCK(&ldt_lock);
 
 	if (ldt_inited == NULL)
 		ldt_init();
@@ -89,11 +108,14 @@ _set_curthread(ucontext_t *uc, void *thr)
 	ldt_entry = ldt_free;
 	ldt_free = (void **)*ldt_entry;
 
+	if (thr != _thread_initial)
+		_SPINUNLOCK(&ldt_lock);
+
 	/*
 	 * Cache the address of the thread structure here.  This is
 	 * what the gs register will point to.
 	 */
-	*ldt_entry = thr;
+	*ldt_entry = (void *)thr;
 	ldt_index = LDT_INDEX(ldt_entry);
 
 	bzero(&desc, sizeof(desc));
