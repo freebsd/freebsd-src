@@ -212,6 +212,7 @@ archive_read_support_format_iso9660(struct archive *a)
 	    archive_read_format_iso9660_bid,
 	    archive_read_format_iso9660_read_header,
 	    archive_read_format_iso9660_read_data,
+	    NULL,
 	    archive_read_format_iso9660_cleanup);
 
 	if (r != ARCHIVE_OK) {
