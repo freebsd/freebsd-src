@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.191 1998/04/06 15:43:29 peter Exp $
+ *	$Id: pmap.c,v 1.192 1998/04/15 17:45:02 bde Exp $
  */
 
 /*
@@ -454,7 +454,7 @@ pmap_set_opt(unsigned *pdir) {
 	if (pseflag && (cpu_feature & CPUID_PSE)) {
 		load_cr4(rcr4() | CR4_PSE);
 		if (pdir4mb) {
-			(unsigned) pdir[KPTDI] = pdir4mb;
+			pdir[KPTDI] = pdir4mb;
 		}
 	}
 
