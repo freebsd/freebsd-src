@@ -206,8 +206,8 @@ static int re_tx_list_init	(struct rl_softc *);
 static void re_rxeof		(struct rl_softc *);
 static void re_txeof		(struct rl_softc *);
 #ifdef DEVICE_POLLING
-static void re_poll		(struct ifnet *, enum poll_cmd, int)
-static void re_poll_locked	(struct ifnet *, enum poll_cmd, int)
+static void re_poll		(struct ifnet *, enum poll_cmd, int);
+static void re_poll_locked	(struct ifnet *, enum poll_cmd, int);
 #endif
 static void re_intr		(void *);
 static void re_tick		(void *);
