@@ -120,7 +120,7 @@ crc_start(void)
 
 /* Process nr bytes at a time; ptr points to them */
 u_long
-crc(const char *ptr, int nr)
+crc(const char *ptr, size_t nr)
 {
 	int 	i;
 	const char 	*p;

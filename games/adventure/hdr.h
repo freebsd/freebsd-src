@@ -167,7 +167,7 @@ void caveclose (void);
 void checkhints (void);
 void ciao (void);
 void closing (void);
-u_long crc (const char *ptr, int nr);
+u_long crc (const char *ptr, size_t nr);
 void crc_start (void);
 int dark (void);
 void datime (int *d, int *t);
