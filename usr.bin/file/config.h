@@ -27,6 +27,9 @@
 /* Define if you have the ANSI C header files.  */
 #define STDC_HEADERS 1
 
+/* Define if your <sys/time.h> declares struct tm.  */
+/* #undef TM_IN_SYS_TIME */
+
 /* Define if builtin ELF support is enabled.  */
 #define BUILTIN_ELF 1
 
@@ -35,6 +38,12 @@
 
 /* Define if the `long long' type works.  */
 #define HAVE_LONG_LONG 1
+
+/* Define if we have "tm_isdst" in "struct tm".  */
+#define HAVE_TM_ISDST 1
+
+/* Define if we have a global "int" variable "daylight".  */
+/* #undef HAVE_DAYLIGHT */
 
 /* Define to `unsigned char' if standard headers don't define.  */
 /* #undef uint8_t */
@@ -61,6 +70,9 @@
 /* The number of bytes in a uint64_t.  */
 #define SIZEOF_UINT64_T 8
 
+/* Define if you have the mkstemp function.  */
+#define HAVE_MKSTEMP 1
+
 /* Define if you have the mmap function.  */
 #define HAVE_MMAP 1
 
@@ -70,19 +82,48 @@
 /* Define if you have the strtoul function.  */
 #define HAVE_STRTOUL 1
 
+/* Define if you have the <fcntl.h> header file.  */
+#define HAVE_FCNTL_H 1
+
+/* Define if you have the <getopt.h> header file.  */
+/* #undef HAVE_GETOPT_H */
+
 /* Define if you have the <locale.h> header file.  */
 #define HAVE_LOCALE_H 1
+
+/* Define if you have the <stdint.h> header file.  */
+#define HAVE_STDINT_H 1
 
 /* Define if you have the <sys/mman.h> header file.  */
 #define HAVE_SYS_MMAN_H 1
 
+/* Define if you have the <sys/stat.h> header file.  */
+#define HAVE_SYS_STAT_H 1
+
+/* Define if you have the <sys/types.h> header file.  */
+#define HAVE_SYS_TYPES_H 1
+
 /* Define if you have the <unistd.h> header file.  */
 #define HAVE_UNISTD_H 1
+
+/* Define if you have the z library (-lz).  */
+#define HAVE_LIBZ 1
 
 /* Name of package */
 #define PACKAGE "file"
 
 /* Version number of package */
-#define VERSION "3.36"
+#define VERSION "3.39"
 
-#include <fcntl.h>
+/* HAVE_TM_ZONE */
+#define HAVE_TM_ZONE 1
+
+/* HAVE_TZNAME */
+#define HAVE_TZNAME 1
+
+/* Number of bits in a file offset, on hosts where this is settable. */
+/* #undef _FILE_OFFSET_BITS */
+
+/* Define for large files, on AIX-style hosts. */
+/* #undef _LARGE_FILES */
+
