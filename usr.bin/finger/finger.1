@@ -173,6 +173,12 @@ style.
 The
 .Fl l
 option is the only option that may be passed to a remote machine.
+.Pp
+If the file
+.Dq Pa .nofinger
+exists in the user's home directory,
+.Nm finger
+behaves as if the user in question does not exist.
 .Sh ENVIRONMENT
 .Nm Finger
 utilizes the following environment variable, if it exists:

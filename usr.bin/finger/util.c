@@ -200,11 +200,16 @@ PERSON *
 find_person(name)
 	char *name;
 {
+	struct passwd *pw;
+
 	register int cnt;
 	DBT data, key;
 	char buf[UT_NAMESIZE + 1];
 
 	if (!db)
+		return(NULL);
+
+	if ((pw = getpwnam(name)) && hide(pw))
 		return(NULL);
 
 	/* Name may be only UT_NAMESIZE long and not NUL terminated. */
@@ -395,4 +400,27 @@ err(fmt, va_alist)
 	(void)fprintf(stderr, "\n");
 	exit(1);
 	/* NOTREACHED */
+}
+
+/*
+ * Is this user hiding from finger?
+ * If ~<user>/.nofinger exists, return 1 (hide), else return 0 (nohide).
+ */
+
+int
+hide(pw)
+	struct passwd *pw;
+{
+	int fd;
+	char buf[MAXPATHLEN+1];
+
+	if (!pw->pw_dir)
+		return 0;
+
+	sprintf (buf, "%s/.nofinger", pw->pw_dir);
+
+	if (access (buf, F_OK) == 0)
+		return 1;
+
+	return 0;
 }
