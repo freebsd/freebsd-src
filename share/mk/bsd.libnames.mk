@@ -85,6 +85,7 @@ LIBREADLINE?=	${DESTDIR}${LIBDIR}/libreadline.a
 LIBRESOLV?=	${DESTDIR}${LIBDIR}/libresolv.a	# XXX doesn't exist
 LIBRPCSVC?=	${DESTDIR}${LIBDIR}/librpcsvc.a
 LIBSCRYPT?=	"don't use LIBSCRYPT, use LIBCRYPT"
+LIBSMB?=	${DESTDIR}${LIBDIR}/libsmb.a
 LIBDESCRYPT?=	"don't use LIBDESCRYPT, use LIBCRYPT"
 LIBSCSI?=	${DESTDIR}${LIBDIR}/libscsi.a
 LIBSKEY?=	${DESTDIR}${LIBDIR}/libskey.a
