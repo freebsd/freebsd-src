@@ -38,8 +38,11 @@
 .Op Fl l
 .Op Fl m
 .Op Fl s
+.Op Fl u Ar user
+.Op Fl t Ar tty
+.Op Fl c Ar procname
 .Op Fl SIGNAL
-.Ar procname ...
+.Op Ar procname ...
 .Sh DESCRIPTION
 .Nm Killall
 kills processes selected by name, as opposed to the selection by pid
@@ -61,12 +64,7 @@ Be more verbose about what will be done.  For a single
 .Fl d
 option, a list of the processes that will be sent the signal will be
 printed, or a message indicating that no matching processes have been
-found.  If the option
-.Fl d
-has been specified at least twice, the effective UID, PID, and name
-of all processes found in
-.Xr procfs 5
-will be listed in addition.
+found.
 .It Fl h \&| Ns Fl \&?
 .It Fl help
 Give a help on the command usage and exit.
@@ -77,12 +75,9 @@ List the names of the available signals and exit, like in
 Match the argument
 .Ar procname
 as a (case insensitive) regular expression against the names 
-of processes found in
-.Xr procfs 5 .
+of processes found.
 CAUTION!  This is dangerous, a single dot will match any process
-running under the effective UID of the caller.  The regular expression
-syntax in effect is that used by
-.Xr perl 1 .
+running under the effective UID of the caller.
 .It Fl s
 Show only what would be done, but do not send any signal.
 .It Fl SIGNAL
@@ -91,8 +86,23 @@ Send a different signal instead of the default
 The signal may be specified either as a name
 .Pq with \&or without a leading Dv SIG ,
 or numerically.
+.It Fl u Ar user
+Limit potentially matching processes to those belonging to
+the specified
+.Ar user .
+.It Fl c Ar tty
+Limit potentially matching processes to those running on 
+the specified
+.Ar tty .
+.It Fl c Ar procname
+When used with the
+.Fl u
+or
+.Fl t
+flags, limit potentially matching processes to those matching
+the specified
+.Ar progname .
 .El
-
 .Sh ALL PROCESSES
 Sending a signal to all processes with uid 
 .Nm XYZ
@@ -102,8 +112,6 @@ So use
 .Xr kill 1
 for this job (e.g. $ kill -TERM -1 or
 as root $ echo kill -TERM -1 | su -m <user>)
-
-
 .Sh DIAGNOSTICS
 The
 .Nm
@@ -118,7 +126,7 @@ Diagnostic messages will only be printed if requested by
 options.
 .Sh SEE ALSO
 .Xr kill 1 ,
-.Xr procfs 5
+.Xr sysctl 3
 .Sh HISTORY
 The
 .Nm
@@ -128,8 +136,14 @@ It has been modeled after the
 .Nm
 command as available on other platforms.
 .Sh AUTHORS
-The program has been contributed by
+The
+.Nm
+program was originally written in Perl and was contributed by
 .An Wolfram Schneider ,
 this manual page has been written by
 .if n Joerg Wunsch.
 .if t J\(:org Wunsch.
+The current version of
+.Nm
+was rewritten in C by Peter Wemm using
+.Xr sysctl 3 .
