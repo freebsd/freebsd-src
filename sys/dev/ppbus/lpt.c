@@ -48,7 +48,7 @@
  *	from: unknown origin, 386BSD 0.1
  *	From Id: lpt.c,v 1.55.2.1 1996/11/12 09:08:38 phk Exp
  *	From Id: nlpt.c,v 1.14 1999/02/08 13:55:43 des Exp
- *	$Id: lpt.c,v 1.4 1999/05/30 16:51:34 phk Exp $
+ *	$Id: lpt.c,v 1.5 1999/05/31 11:24:56 phk Exp $
  */
 
 /*
@@ -159,7 +159,6 @@ static int	lpt_detect(struct lpt_data *sc);
 static struct ppb_device	*lptprobe(struct ppb_data *ppb);
 static int			lptattach(struct ppb_device *dev);
 static void			lptintr(int unit);
-static void			lpt_drvinit(void *unused);
 
 static void			lpt_intr(int unit);	/* without spls */
 
