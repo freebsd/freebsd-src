@@ -954,26 +954,19 @@ DMenu MenuSubDistributions = {
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_COMPAT21 },
       { " compat22",	"FreeBSD 2.2.x and 3.0 a.out binary compatibility",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_COMPAT22 },
-#if __FreeBSD__ > 3
       { " compat3x",	"FreeBSD 3.x binary compatibility",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_COMPAT3X },
 #endif
-#if __FreeBSD__ >= 4
+#if __FreeBSD__ >= 4 && (defined(__i386__) || defined(__alpha__))
       { " compat4x",	"FreeBSD 4.x binary compatibility",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_COMPAT4X },
 #endif
-#endif
       { " crypto",	"Basic encryption services",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &CRYPTODists, '[', 'X', ']', DIST_CRYPTO_CRYPTO, },
-#if __FreeBSD__ <= 3
-      { " krb",		"KerberosIV authentication services",
-	dmenuFlagCheck,	dmenuSetFlag, NULL, &CRYPTODists, '[', 'X', ']', DIST_CRYPTO_KERBEROS },
-#else
       { " krb4",	"KerberosIV authentication services",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &CRYPTODists, '[', 'X', ']', DIST_CRYPTO_KERBEROS4 },
       { " krb5",	"Kerberos5 authentication services",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &CRYPTODists, '[', 'X', ']', DIST_CRYPTO_KERBEROS5 },
-#endif
       { " dict",	"Spelling checker dictionary files",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_DICT },
       { " doc",		"Miscellaneous FreeBSD online docs",
