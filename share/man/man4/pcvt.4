@@ -45,57 +45,41 @@
 .Nm vt
 .Nd PC console virtual screen system
 .Sh SYNOPSIS
-options
-.Do
-.Em PCVT_FREEBSD = version
-|
-.Em PCVT_NETBSD = version
-.Dc
-.br
-.Op options Dq Em PCVT_NSCREENS = number
-.br
-.Op options Dq Em PCVT_XXXX
-.Po
-see
-.Sx Configuration
-below
-.Pc
+.Cd "options ""PCVT_FREEBSD=version" | "PCVT_NETBSD=version"""
+.Cd "options ""PCVT_NSCREENS=number"""
+.Cd "options PCVT_XXXX" No ( see Sx Configuration No below )
 .Pp
 .Cd "device vt0 at isa?"
 .Sh DESCRIPTION
 .Ss Overview
 The
-.Nm pcvt
+.Nm
 driver provides a virtual screen system with several additional
 features not available in historic console drivers.
 Besides the ability of handling
 multiple virtual screens,
 the probably most important is an emulation of a wide range
-of DEC VT-220
-.if t \(tm
-.if n (TM)
+of DEC
+.Tn VT-220
 functionality.
 See
 .Sx Features
 for a detailed description.
 .Pp
 The
-.Nm pcvt
+.Nm
 driver requires the keyboard driver
 .Nm atkbd
 to be also configured in the kernel.
-
 .Ss Features
-.Bl -bullet
+.Bl -bullet -compact
 .It
-Almost full DEC VT220
-.if t \(tm
-.if n (TM)
+Almost full DEC
+.Tn VT220
 functionality
 .Po
-moving towards VT320
-.if t \(tm
-.if n (TM)
+moving towards
+.Tn VT320
 .Pc
 .It
 Completely independent virtual terminals for MDA/HGC/CGA/EGA and VGA
@@ -111,9 +95,7 @@ VT220 downloadable character set supported when run on EGA/VGA
 VT220 user defined keys for each virtual terminal
 .It
 Optional function key label support
-.if t \('a
-.if n 'a
-la Hewlett-Packard
+\('a la Hewlett-Packard
 .It
 Display function codes functionality
 .It
@@ -129,9 +111,10 @@ requires
 to be configured
 .Pc
 .El
-
+.Pp
 What it cannot:
-.Bl -bullet
+.Pp
+.Bl -bullet -compact
 .It
 No double wide/high characters
 .It
@@ -152,7 +135,6 @@ support
 .It
 Help you to make money...
 .El
-
 .Ss Scrollback
 Each virtual
 .Nm
@@ -164,16 +146,15 @@ By using
 and
 .Em SHIFT-PageDown
 it is possible to scroll the screen back and forward.
-
 .Ss Configuration
 The
-.Nm pcvt
+.Nm
 console driver is currently available for the Intel-based BSD operating
 systems
 .Tn NetBSD/i386
 (release 0.9 or higher),
 and
-.Tn FreeBSD
+.Fx
 (release 1.0-GAMMA or higher) .
 In order to get the appropriate system support, one of the options
 .Em PCVT_NETBSD ,
@@ -182,26 +163,27 @@ or
 must be defined in the system's config file
 .Pq see Xr config 8 .
 In addition, for the
-.Tn FreeBSD
+.Fx
 and
-.Tn NetBSD
+.Nx
 operating systems, it is necessary to set this option to the operating
 system's version number.
 For
-.Tn FreeBSD
+.Fx
 this version number must be expressed as a 3-digit number.
 E.\& g., if you are running the 1.0 release
 .Pq which is actually version 1.0.2 ,
 you should define
-
+.Pp
 .Em PCVT_FREEBSD = 102
-
+.Pp
 For
-.Em NetBSD
-this version number must be expressed as 9 if you are running NetBSD 0.9
+.Nx
+this version number must be expressed as 9 if you are running
+.Nx 0.9
 and anything greater than 9 for NetBSD-current (pre 1.0). It is recommended
 to use (as with
-.Tn FreeBSD )
+.Fx )
 100 for
 .Nx 1.0
 and 999 for
@@ -209,11 +191,11 @@ and 999 for
 E.g., if you are running the
 .Nx 1.0
 release, you should define
-
+.Pp
 .Em PCVT_NETBSD = 100
-
+.Pp
 The
-.Nm pcvt
+.Nm
 driver has been designed to be highly configurable in order to satisfy
 everyone's needs.
 The preferred way for those configurations is to
@@ -223,13 +205,13 @@ lines within the config file, possibly overriding the built-in default
 values.
 Therefore it is possible to compile several distinct kernels
 with different driver behaviour on a single machine.
-
+.Pp
 The following list gives a short overview of the available configuration
 options.
 Refer to the file
 .Pa i386/isa/pcvt/pcvt_hdr.h
 in the kernel source tree for detailed documentation.
-
+.Pp
 Note: the following conventions apply to all the Boolean options.
 If an option is given with no value, a value of 1
 .Pq activated
@@ -239,14 +221,13 @@ deactivated.
 Any other value is substituted by 1, too.
 If an option
 is omitted, a built-in default is assumed.
-
+.Pp
 .Bl -tag -width indent -compact
-
 .It Em PCVT_NSCREENS
 Defines the number of virtual screens.
-.br
+.It No
 Default: 8
-
+.Pp
 .It Em PCVT_VT220KEYB
 If activated, a keyboard layout resembling a DEC VT200 (TM) is generated.
 If deactivated, a mixture between VT220 and HP is used.
@@ -255,38 +236,38 @@ See the files
 and
 .Pa Keyboard.HP
 in the
-.Nm pcvt
+.Nm
 documentation directory for a full description.
-.br
+.It No
 Default: off
-
+.Pp
 .It Em PCVT_SCREENSAVER
 Enables the builtin screensaver feature.
-.br
+.It No
 Default: on
-
+.Pp
 .It Em PCVT_PRETTYSCRNS
 If enabled, a blinking-star screensaver is used.
 If disabled, the screen
 is simply blanked
 .Pq which might be useful for energy-saving monitors .
-.br
+.It No
 Default: on
-
+.Pp
 .It Em PCVT_CTRL_ALT_DEL
 If enabled, the key combination
 .Aq Em Ctrl
 .Aq Em Alt
 .Aq Em Del
 invokes a CPU reset.
-.br
+.It No
 Default: off
-
+.Pp
 .It Em PCVT_USEKBDSEC
 Do NOT override a security lock for the keyboard.
-.br
+.It No
 Default: on
-
+.Pp
 .It Em PCVT_24LINESDEF
 If enabled, the 25-line modi
 .Po
@@ -299,9 +280,9 @@ Note that this is a startup option; it is possible to toggle between
 the 24- and 25-lines' display by the
 .Xr scon 1
 utility.
-.br
+.It No
 Default: off
-
+.Pp
 .It Em PCVT_EMU_MOUSE
 Emulate a three-button mouse via the keypad.
 Useful for notebooks when
@@ -309,9 +290,9 @@ running XFree86.
 See
 .Sx Mouse emulation
 below.
-.br
+.It No
 Default: off
-
+.Pp
 .It Em PCVT_META_ESC
 If enabled, a sequence composed of
 .Aq Em esc ,
@@ -321,37 +302,33 @@ key modifier.
 If disabled, then normal key code with the value
 .Em 0x80
 added is sent.
-.br
+.It No
 Default: off
-
 .El
-
+.Pp
 Note that there are further options available which are mainly used for
 debugging purposes or as a workaround for hardware problems.
 They are
 found in
 .Pa i386/isa/pcvt/pcvt_hdr.h
 along with their documentation.
-
 .Ss Internal Functions
 The functionality described below may be accessed via
 .Xr ioctl 2
 system calls with a file descriptor opened on a device node
 related to the
-.Nm pcvt
+.Nm
 driver.
 To make use of them, a program should contain the following line:
-
-
+.Pp
 .Dl #include <machine/pcvt_ioctl.h>
-
+.Pp
 Any parameter definitions cited below can be found in that file.
-
-
+.Pp
 .Em Keyboard related functions
-
+.Pp
 Three functions are related to basic keyboard hardware:
-
+.Pp
 .Bl -tag -width 20n -offset indent -compact
 .It KBDRESET
 reset keyboard, set defaults;
@@ -361,7 +338,7 @@ the values is stored to;
 .It KBDSTPMAT
 set current typematic value, similar to above command.
 .El
-
+.Pp
 Symbolic values are available for the appropriate constants.
 To specify the initial typematic delay time, they are
 KBD_TPD250 for 250 ms through
@@ -374,21 +351,19 @@ The intermediate values
 are: 30.0, 26.7, 24.0, 21.8, 20.0, 18.5, 17.1, 16.0, 15.0, 13.3,
 12.0, 10.9, 10.0, 9.2, 8.6, 8.0, 7.5, 6.7, 6.0, 5.5, 5.0, 4.6, 4.3,
 4.0, 3.7, 3.3, 3.0, 2.7, 2.5, 2.3, 2.1, 2.0 characters per second.
-
-
+.Pp
 .Bl -tag -width 20n -offset indent -compact
 .It KBDGREPSW
 get key repetition switch, and
 .It KBDSREPSW
 set key repetition switch
 .El
-
+.Pp
 again take a pointer to int as argument.
 They manipulate the
 drivers internal keyboard repetition flag, possible values are:
 KBD_REPEATOFF or KBD_REPEATON.
-
-
+.Pp
 .Bl -tag -width 20n -offset indent -compact
 .It KBDGLEDS
 get LED state, and
@@ -396,29 +371,28 @@ get LED state, and
 set LED state manipulate the keyboard indicators, but do not influence
 the drivers idea of lock key state.
 .El
-
+.Pp
 The int where the argument points to
 may have the values
 KBD_SCROLLLOCK, KBD_NUMLOCK, KBD_CAPSLOCK, which may be used in any
 conjunction.
-
+.Pp
 .Bl -tag -width 20n -offset indent -compact
 .It KBDGLOCK
 gets state of SCROLL,NUM,CAPS, and
 .It KBDSLOCK
 sets state of SCROLL,NUM,CAPS + LEDs
 .El
-
+.Pp
 should be used in a same manner to get/set the drivers internal
 LED flags.
-
-
+.Pp
 .Em Keyboard remapping
-
+.Pp
 One important feature of the
-.Nm pcvt
+.Nm
 driver is its ability to overload the built in key definition.
-
+.Pp
 .Bl -tag -width 20n -offset indent -compact
 .It KBDGCKEY
 get current key values,
@@ -427,13 +401,13 @@ set new key assignment values, and
 .It KBDGOKEY
 get original key assignment values
 .El
-
+.Pp
 arrange those functions.
 The take a pointer to a
 .Em struct kbd_ovlkey
 as argument as described below.
 In addition,
-
+.Pp
 .Bl -tag -width 20n -offset indent -compact
 .It KBDRMKEY
 removes a key assignment, taking a pointer to an int as argument which
@@ -456,11 +430,11 @@ struct kbd_ovlkey                /* complete definition of a key */
     char    altgr[KBDMAXOVLKEYSIZE+1];   /* emitted string, altgr */
 };
 .Ed
-
+.Pp
 The appropriate values for the
 .Em type
 field are:
-
+.Pp
 .Bl -tag -width 20n -offset indent -compact
 .It KBD_NONE
 no function, key is disabled,
@@ -496,25 +470,25 @@ or
 .Dq Enter
 keys.
 .El
-
+.Pp
 The
 .Em subtype
 field contains one of the values
-
+.Pp
 .Bl -tag -width 20n -offset indent -compact
 .It KBD_SUBT_STR
 key is bound to a string, or
 .It KBD_SUBT_FNC
 key is bound to a function.
 .El
-
+.Pp
 .Em Mouse emulation
-
+.Pp
 The mouse emulator
 .Pq if configured in
 fakes a three-button mouse using the Mouse Systems protocol.
 The first
-.Nm pcvt
+.Nm
 device node not used by a virtual screen is the mouse device.
 I.\& e.,
 for the default value of 8 virtual screens,
@@ -555,16 +529,16 @@ Button presses and releases are notified to the user by a simple
 or
 .Dq plong ,
 respectively, generated from the PC's built-in speaker.
-
+.Pp
 The following commands control the emulation.
-
+.Pp
 .Bl -tag -width 20n -offset indent -compact
 .It KBDMOUSEGET
 get the current definitions, and
 .It KBDMOUSESET
 set new definitions.
 .El
-
+.Pp
 Both accept a
 .Li struct mousedefs *
 as the third argument to the ioctl call:
@@ -579,10 +553,9 @@ struct mousedefs {
     /* defaults to: scan(F1), scan(F2), scan(F3), false, 500000     */
 };
 .Ed
-
-
+.Pp
 .Em Downloadable character set interface
-
+.Pp
 EGA and VGA video adaptors provide the capability of downloadable
 software fonts.
 Since the
@@ -591,14 +564,14 @@ of any IBM-compatible PC video board does not allow the full interpretation
 of DEC multinational character set or ISO Latin-1
 .Pq ISO 8859-1 ,
 this might be very useful for a U**X environment.
-
+.Pp
 .Bl -tag -width 20n -offset indent -compact
 .It VGASETFONTATTR
 set font attr, and
 .It VGAGETFONTATTR
 get font attr
 .El
-
+.Pp
 are used to manipulate the drivers information about a downloaded
 font.
 The take a pointer to a
@@ -613,14 +586,14 @@ struct vgafontattr {
     int screen_scanlines;       /* Scanlines per screen - 1 byte */
 };
 .Ed
-
+.Pp
 Each character of each font is to be downloaded with
-
+.Pp
 .Bl -tag -width 20n -offset indent -compact
 .It VGALOADCHAR
 load vga char,
 .El
-
+.Pp
 taking a pointer to
 .Em struct vgaloadchar
 as its argument:
@@ -632,14 +605,14 @@ struct vgaloadchar {
     u_char char_table[32];   /* VGA character shape table */
 };
 .Ed
-
+.Pp
 The field
 .Em character_set
 takes the values
 CH_SET0, CH_SET1, CH_SET2, CH_SET3 on EGA's or VGA's. Since VGA's
 might have up to eight simultaneously loaded fonts, they can take
 CH_SET4, CH_SET5, CH_SET6, or CH_SET7, too.
-
+.Pp
 Note that there's a dependence between the font size
 and a possible screen height
 .Pq in character rows ,
@@ -654,15 +627,14 @@ Font size
 8 x 16                          not             25
                                 applicable
 .Ed
-
-
+.Pp
 .Em General screen manipulation commands
-
+.Pp
 .Bl -tag -width 20n -offset indent -compact
 .It VGACURSOR
 sets cursor shape,
 .El
-
+.Pp
 taking a pointer to the following structure as argument:
 .Bd -literal
 struct cursorshape {
@@ -672,14 +644,14 @@ struct cursorshape {
     int end;       /* end scanline, range 0... Character Height - 1 */
 };
 .Ed
-
+.Pp
 .Bl -tag -width 20n -offset indent -compact
 .It VGASETSCREEN
 set screen info, and
 .It VGAGETSCREEN
 get screen info,
 .El
-
+.Pp
 provide an interface to some general driver internal variables
 which might modify the behaviour of the screens,
 or which might simply be used to force the driver to switch
@@ -720,18 +692,18 @@ struct screeninfo {
                         /* currently ignored on write          */
 };
 .Ed
-
+.Pp
 Its field
 .Em pure_vt_mode
 may take the values M_HPVT for a mixed VTxxx and HP Mode, with function
 key labels and a status line, or M_PUREVT for only VTxxx sequences
 recognized, with no labels.
-
+.Pp
 .Bl -tag -width 20n -offset indent -compact
 .It VGASETCOLMS
 sets the number of columns for the current screen,
 .El
-
+.Pp
 its parameter is a pointer to an integer containing either a value of 80,
 or a value of 132.
 Note that setting the number of columns to 132 is
@@ -742,9 +714,9 @@ to fail with
 .Pq see Xr intro 2
 being set to
 .Em EINVAL .
-
+.Pp
 .Em VGA color palette interface
-
+.Pp
 Only on VGA adaptors, there's a color palette register at the output.
 It is responsible for the red, green and blue output voltage provided
 for each of the 256 internal color codes, each lying in the range of
@@ -753,14 +725,14 @@ Thus, these adaptors map each color code to a color of a
 .Dq palette
 out of 262144 colors.
 The commands
-
+.Pp
 .Bl -tag -width 20n -offset indent -compact
 .It VGAREADPEL
 read VGA palette entry, and
 .It VGAWRITEPEL
 write VGA palette entry
 .El
-
+.Pp
 establish an interface to these palette registers.
 Their argument is
 a pointer to:
@@ -770,17 +742,15 @@ struct vgapel {
     unsigned r, g, b;  /* RGB values, masked by VGA_PMASK (63) */
 };
 .Ed
-
-
+.Pp
 .Em Driver identification
-
+.Pp
 .Bl -tag -width 20n -offset indent -compact
 .It VGAPCVTID
 returns information if the current compiled in driver is pcvt and it's
 major and minor revision numbers. the call is taking a pointer to the
 following structure as argument:
 .El
-
 .Bd -literal
 struct pcvtid {
 #define PCVTIDNAMELN  16		/* driver id - string length */
@@ -792,15 +762,13 @@ struct pcvtid {
 #define PCVTIDMINOR   00	
 };
 .Ed
-
-
+.Pp
 .Bl -tag -width 20n -offset indent -compact
 .It VGAPCVTINFO
 returns information if the current compiled in driver is pcvt and it's
 compile time options. the call is taking a pointer to the following
 structure as argument:
 .El
-
 .Bd -literal
 struct pcvtinfo {
 	u_int opsys;			/* PCVT_xxx(x)BSD */
@@ -822,21 +790,20 @@ struct pcvtinfo {
 	u_long compile_opts;		/* PCVT_xxxxxxxxxxxxxxx */
 };
 .Ed
-
-
+.Pp
 .Em Screen saver
-
+.Pp
 Depending on the configuration of a
-.Nm pcvt
+.Nm
 driver, their might be a simple screen saver available.
 It is controlled
 by the command
-
+.Pp
 .Bl -tag -width 20n -offset indent -compact
 .It VGASCREENSAVER
 set timeout for screen saver in seconds; 0 turns it off,
 .El
-
+.Pp
 taking a pointer to an integer as argument.
 Despite of its command name,
 this is available on
@@ -845,11 +812,11 @@ kind of adaptor if configured in by the
 .Xr config 8
 option
 .Dq PCVT_SCREENSAVER
-
+.Pp
 .Em Compatibility commands for USL-style VT's
-
+.Pp
 Release 3.00 of this
-.Nm pcvt
+.Nm
 driver supports a subset of the USL-style commands used to control
 the virtual terminal interface.
 This feature is mainly intended to
@@ -863,7 +830,6 @@ and are therefore not recommended for common use.
 See the file
 .Pa i386/include/pcvt_ioctl.h
 for their documentation.
-
 .Sh FILES
 .Bl -tag -width /usr/include/machine/pcvt_ioctl.h
 .It Pa /usr/include/machine/pcvt_ioctl.h
@@ -873,40 +839,38 @@ function calls
 .It Pa /dev/ttyv?
 .It Pa /dev/console
 Device nodes to access the
-.Nm pcvt
+.Nm
 driver
 .It Pa i386/isa/pcvt/pcvt_hdr.h
 .Pq relative to the kernel source tree
 Documents the various compile-time options to tailor
-.Nm pcvt .
+.Nm .
+.El
 .Sh HISTORY
 The
-.Nm pcvt
+.Nm
 driver has been developed for and contributed to 386BSD release 0.1. Since
 release 3.00 explicit support is provided for NetBSD 0.9. It is expected
 that no further development on pcvt is done for 386BSD 0.1 after release 3.00,
 in fact, 386BSD support was dropped with release 3.20.
 .Sh AUTHORS
+.An -nosplit
 Written by
 .An Hellmuth Michaelis Aq hm@hcs.de
 with much help from
 .An Brian Dunford-Shore Aq brian@morpheus.wustl.edu
-.br
-.if n Joerg Wunsch
-.if t J\(:org Wunsch
-.Aq joerg_wunsch@uriah.sax.de
-.br
+and
+.An J\(:org Wunsch Aq joerg_wunsch@uriah.sax.de .
+.Pp
 This driver is based on several people's previous
 work, notably by
-.An William Jolitz'
+.An William Jolitz' Aq ljolitz@cardio.ucsf.edu
 and
 .An Don Ahn's
 historic
 .Xr pccons 4
-implementation
-.br
-.Aq ljolitz@cardio.ucsf.edu
-.br
+implementation.
+.Pp
 .An Holger Veit Aq veit@first.gmd.de
 .Sh SEE ALSO
 .Xr cursor 1 ,
@@ -924,7 +888,6 @@ Certainly existent.
 See the file
 .Pa BugList
 in the Documentation directory for an up-to-date list.
-
 .Ss Tested Video Boards
 .Bd -literal
 Manufacturer                    Chipset                 Monitor
@@ -938,7 +901,6 @@ NoName Hercules                 W86855AF                Mono
 Kyocera (Mainboard)		WD90C11			Sony Color
 unknown				ET3000			NEC 3D
 .Ed
-
 .Ss Tested Keyboards
 .Bd -literal
 Manufacturer                    Type                    Layout
@@ -949,10 +911,10 @@ Hewlett-Packard                 MF II                   US
 Hewlett-Packard                 MF II                   German
 Tatung                          AT                      German
 .Ed
-
+.Pp
 There is absolutely NO support for the ancient PC-keyboards
 .Pq they had 83 keys .
-
+.Pp
 There is only limited support for AT-keyboards
 .Bo
 they have 84 keys, and a separate numeric keypad,
@@ -963,5 +925,5 @@ the current design of the keyboard driver there is no
 .Pq full
 support for national keyboards because
 of the lack of an ALtGr key.
-
+.Pp
 MF-keyboards are fully supported, 101- and 102-key versions.
