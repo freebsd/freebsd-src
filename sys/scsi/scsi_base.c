@@ -8,7 +8,7 @@
  * file.
  *
  * Written by Julian Elischer (julian@dialix.oz.au)
- *      $Id: scsi_base.c,v 1.56 1998/04/17 22:37:08 des Exp $
+ *      $Id: scsi_base.c,v 1.57 1998/07/11 07:45:57 bde Exp $
  */
 
 #include "opt_bounce.h"
@@ -875,7 +875,8 @@ void scsi_sense_print(xs)
 	case 0x70:
 
 		printf("%s", sense_key_text[key]);
-		info = ntohl(*((long *) ext->info));
+		info = (ext->info[0] << 24) | (ext->info[1] << 16)
+		    | (ext->info[2] << 8) | ext->info[3];
 
 		if (sense->error_code & SSD_ERRCODE_VALID) {
 
