@@ -6,13 +6,13 @@
 # this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
 # ----------------------------------------------------------------------------
 #
-# $Id: Makefile,v 1.8 1995/03/25 18:14:22 joerg Exp $
+# $Id: Makefile,v 1.9 1995/07/12 18:35:22 bde Exp $
 #
 
 PROG=		ctm
 NOTYET=		ctm_ed.c
 SRCS=   	ctm.c ctm_input.c ctm_pass1.c ctm_pass2.c ctm_pass3.c \
-		ctm_syntax.c ctm_ed.c
+		ctm_passb.c ctm_syntax.c ctm_ed.c
 LDADD+=		-lmd
 DPADD+=		${LIBMD}
 MAN1=		ctm.1

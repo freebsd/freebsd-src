@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: ctm.h,v 1.8 1996/02/05 16:06:47 phk Exp $
+ * $Id: ctm.h,v 1.9 1996/04/29 21:02:29 phk Exp $
  *
  */
 
@@ -22,12 +22,14 @@
 #include <sys/stat.h>
 #include <sys/file.h>
 #include <sys/time.h>
+#include <regex.h>
 
 #define VERSION "2.0"
 #define MAXSIZE (1024*1024*10)
 
 #define SUBSUFF ".ctm"
 #define TMPSUFF ".ctmtmp"
+#define TARCMD  "tar -rf %s -T -"
 
 /* The fields... */
 #define CTM_F_MASK		0xff
@@ -51,11 +53,20 @@
 #define CTM_Q_MD5_Force		0x0800
 
 struct CTM_Syntax {
-    char	*Key;
-    int		*List;
+    char	*Key;		/* CTM key for operation */
+    int		*List;		/* List of operations */
     };
 
 extern struct CTM_Syntax Syntax[];
+
+struct CTM_Filter {
+    struct CTM_Filter	*Next;	/* next filter in the list */
+    int 		Action;	/* enable or disable */
+    regex_t 		CompiledRegex;	/* compiled regex */
+};
+
+#define	CTM_FILTER_DISABLE	0
+#define	CTM_FILTER_ENABLE	1
 
 #define Malloc malloc
 #define Free free
@@ -74,6 +85,8 @@ EXTERN u_char *FileName;
 EXTERN u_char *TmpDir;
 EXTERN u_char *CatPtr;
 EXTERN u_char *Buffer;
+EXTERN u_char *BackupFile;
+EXTERN u_char *TarCmd;
 
 /*
  * Paranoid -- Just in case they should be after us...
@@ -106,8 +119,12 @@ EXTERN int Verbose;
 EXTERN int Exit;
 EXTERN int Force;
 EXTERN int CheckIt;
+EXTERN int KeepIt;
+EXTERN int ListIt;
 EXTERN int SetTime;
 EXTERN struct timeval Times[2];
+EXTERN struct CTM_Filter	*FilterList;
+EXTERN struct CTM_Filter	*LastFilter;
 
 #define Exit_OK		0
 #define Exit_Garbage	1
@@ -118,6 +135,7 @@ EXTERN struct timeval Times[2];
 #define Exit_Mess	32
 #define Exit_Done	64
 #define Exit_Version	128
+#define Exit_NoMatch	256
 
 void Fatal_(int ln, char *fn, char *kind);
 #define Fatal(foo) Fatal_(__LINE__,__FILE__,foo)
@@ -139,6 +157,7 @@ u_char * Fdata(FILE *fd, int u_chars, MD5_CTX *ctx);
 
 int Pass1(FILE *fd, unsigned applied);
 int Pass2(FILE *fd);
+int PassB(FILE *fd);
 int Pass3(FILE *fd);
 
 int ctm_edit(u_char *script, int length, char *filein, char *fileout);
