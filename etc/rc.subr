@@ -924,10 +924,14 @@ warn()
 #
 info()
 {
-	if [ -x /usr/bin/logger ]; then
-		logger "$0: INFO: $*"
-	fi
-	echo "$0: INFO: $*"
+	case ${rc_info} in
+	[Yy][Ee][Ss]|[Tt][Rr][Uu][Ee]|[Oo][Nn]|1)
+		if [ -x /usr/bin/logger ]; then
+			logger "$0: INFO: $*"
+		fi
+		echo "$0: INFO: $*"
+		;;
+	esac
 }
 
 #
