@@ -42,7 +42,7 @@
  *
  *	from: hp300: @(#)pmap.h	7.2 (Berkeley) 12/16/90
  *	from: @(#)pmap.h	7.4 (Berkeley) 5/12/91
- * 	$Id: pmap.h,v 1.29 1995/12/03 18:37:44 bde Exp $
+ * 	$Id: pmap.h,v 1.30 1995/12/10 13:38:09 phk Exp $
  */
 
 #ifndef _MACHINE_PMAP_H_
@@ -206,14 +206,12 @@ extern vm_offset_t virtual_end;
 struct pcb;
 
 void	pmap_activate __P((pmap_t, struct pcb *));
-pmap_t	pmap_kernel __P((void));
-boolean_t pmap_page_exists __P((pmap_t, vm_offset_t));
-pt_entry_t * __pure pmap_pte __P((pmap_t, vm_offset_t)) __pure2;
-void	*pmap_mapdev __P((vm_offset_t, vm_size_t));
-void	pmap_growkernel __P((vm_offset_t));
 void	pmap_bootstrap __P(( vm_offset_t, vm_offset_t));
-void	pmap_use_pt __P((pmap_t, vm_offset_t));
+pmap_t	pmap_kernel __P((void));
+void	*pmap_mapdev __P((vm_offset_t, vm_size_t));
+pt_entry_t * __pure pmap_pte __P((pmap_t, vm_offset_t)) __pure2;
 void	pmap_unuse_pt __P((pmap_t, vm_offset_t));
+void	pmap_use_pt __P((pmap_t, vm_offset_t));
 
 #endif /* KERNEL */
 
