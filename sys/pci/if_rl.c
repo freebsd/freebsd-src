@@ -877,7 +877,8 @@ rl_probe(dev)
 
 			/* Don't attach to 8139C+ or 8169/8110 chips. */
 			if (hwrev == RL_HWREV_8139CPLUS ||
-			    hwrev == RL_HWREV_8169 ||
+			    (hwrev == RL_HWREV_8169 &&
+			    t->rl_did == RT_DEVICEID_8169) ||
 			    hwrev == RL_HWREV_8169S ||
 			    hwrev == RL_HWREV_8110S) {
 				t++;
