@@ -43,7 +43,9 @@
 
 #include <dev/dpt/dpt.h>
 
+#ifdef notyet
 static void	dpt_isa_identify	(driver_t *, device_t);
+#endif
 static int	dpt_isa_probe		(device_t);
 static int	dpt_isa_attach		(device_t);
 static int	dpt_isa_detach		(device_t);
@@ -81,6 +83,7 @@ dpt_isa_valid_ioport (int ioport)
 	return (1);
 }
 
+#ifdef notyet
 static void
 dpt_isa_identify (driver_t *driver, device_t parent)
 {
@@ -108,6 +111,7 @@ dpt_isa_identify (driver_t *driver, device_t parent)
 	}
 	return;
 }
+#endif
 
 static int
 dpt_isa_probe (device_t dev)
