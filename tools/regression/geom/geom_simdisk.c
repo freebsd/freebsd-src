@@ -92,7 +92,7 @@ g_simdisk_start(struct bio *bp)
 					bp->bio_error = errno;
 					g_io_deliver(bp);
 					return;
-			}
+				}
 				if (i == 0)
 					memset(dsp->data, 0, sc->sectorsize);
 			}
