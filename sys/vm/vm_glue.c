@@ -59,7 +59,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_glue.c,v 1.14 1995/02/02 09:08:26 davidg Exp $
+ * $Id: vm_glue.c,v 1.15 1995/02/14 06:11:21 phk Exp $
  */
 
 #include <sys/param.h>
@@ -213,11 +213,8 @@ vm_fork(p1, p2, isvfork)
 
 	vp = &p2->p_vmspace->vm_map;
 
-	/* ream out old pagetables and kernel stack */
-	(void) vm_deallocate(vp, addr, UPT_MAX_ADDRESS - addr);
-
 	/* get new pagetables and kernel stack */
-	(void) vm_allocate(vp, &addr, UPT_MAX_ADDRESS - addr, FALSE);
+	(void) vm_map_find(vp, NULL, 0, &addr, UPT_MAX_ADDRESS - addr, FALSE);
 
 	/* force in the page table encompassing the UPAGES */
 	ptaddr = trunc_page((u_int) vtopte(addr));
