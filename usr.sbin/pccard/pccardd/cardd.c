@@ -543,16 +543,19 @@ assign_card_index(struct cis * cis)
 			continue;
 		for (cio = cp->io; cio; cio = cio->next) {
 			resource.size = cio->size;
+			resource.min = cio->addr;
+			resource.max = resource.min + cio->size;
+			if (ioctl(fd, PIOCSRESOURCE, &resource) < 0) {
+				perror("ioctl (PIOCSRESOURCE)");
+			       exit(1);
+			}
+			if (resource.resource_addr != cio->addr)
+					goto next;
 			for (i = cio->addr; i < cio->addr + cio->size - 1; i++)
-				resource.min = i;
-				resource.max = resource.min + cio->size - 1;
-				if (ioctl(fd, PIOCSRESOURCE, &resource) < 0) {
-					perror("ioctl (PIOCSRESOURCE)");
-				       exit(1);
-				}
-				if (!bit_test(io_avail, i) || resource.resource_addr != i)
+				if (!bit_test(io_avail, i))
 					goto next;
 		}
+		close(fd);
 		return cp;	/* found */
 	next:
 	}
