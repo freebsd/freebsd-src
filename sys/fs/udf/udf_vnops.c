@@ -65,8 +65,10 @@ static vop_strategy_t	udf_strategy;
 static vop_bmap_t	udf_bmap;
 static vop_cachedlookup_t	udf_lookup;
 static vop_reclaim_t	udf_reclaim;
-static int udf_readatoffset(struct udf_node *, int *, int, struct buf **, uint8_t **);
-static int udf_bmap_internal(struct udf_node *, uint32_t, daddr_t *, uint32_t *);
+static int udf_readatoffset(struct udf_node *node, int *size, off_t offset,
+    struct buf **bp, uint8_t **data);
+static int udf_bmap_internal(struct udf_node *node, off_t offset,
+    daddr_t *sector, uint32_t *max_size);
 
 static struct vop_vector udf_vnodeops = {
 	.vop_default =		&default_vnodeops,
@@ -402,8 +404,9 @@ udf_read(struct vop_read_args *a)
 	struct udf_node *node = VTON(vp);
 	struct buf *bp;
 	uint8_t *data;
+	off_t fsize, offset;
 	int error = 0;
-	int size, fsize, offset;
+	int size;
 
 	if (uio->uio_offset < 0)
 		return (EINVAL);
@@ -412,7 +415,7 @@ udf_read(struct vop_read_args *a)
 
 	while (uio->uio_offset < fsize && uio->uio_resid > 0) {
 		offset = uio->uio_offset;
-		size = min (uio->uio_resid, fsize - uio->uio_offset);
+		size = min(uio->uio_resid, fsize - uio->uio_offset);
 		error = udf_readatoffset(node, &size, offset, &bp, &data);
 		if (error == 0)
 			error = uiomove(data, size, uio);
@@ -1053,7 +1056,8 @@ udf_reclaim(struct vop_reclaim_args *a)
  *
  */
 static int
-udf_readatoffset(struct udf_node *node, int *size, int offset, struct buf **bp, uint8_t **data)
+udf_readatoffset(struct udf_node *node, int *size, off_t offset,
+    struct buf **bp, uint8_t **data)
 {
 	struct udf_mnt *udfmp;
 	struct file_entry *fentry = NULL;
@@ -1100,7 +1104,8 @@ udf_readatoffset(struct udf_node *node, int *size, int offset, struct buf **bp, 
  * block.
  */
 static int
-udf_bmap_internal(struct udf_node *node, uint32_t offset, daddr_t *sector, uint32_t *max_size)
+udf_bmap_internal(struct udf_node *node, off_t offset, daddr_t *sector,
+    uint32_t *max_size)
 {
 	struct udf_mnt *udfmp;
 	struct file_entry *fentry;
