@@ -890,6 +890,7 @@ _pmap_unwire_pte_hold(pmap_t pmap, vm_offset_t va, vm_page_t m)
 
 	if (m->hold_count == 0) {
 		vm_offset_t pteva;
+
 		/*
 		 * unmap the page table page
 		 */
@@ -914,9 +915,11 @@ _pmap_unwire_pte_hold(pmap_t pmap, vm_offset_t va, vm_page_t m)
 		}
 		--pmap->pm_stats.resident_count;
 		if (m->pindex < NUPDE) {
-			/* Unhold the PD page */
+			/* We just released a PT, unhold the matching PD */
 			vm_page_t pdpg;
-			pdpg = vm_page_lookup(pmap->pm_pteobj, NUPDE + pmap_pdpe_index(va));
+
+			pdpg = vm_page_lookup(pmap->pm_pteobj, NUPDE +
+			    ((va >> PDPSHIFT) & (NUPDPE - 1)));
 			while (vm_page_sleep_if_busy(pdpg, FALSE, "pulook"))
 				vm_page_lock_queues();
 			vm_page_unhold(pdpg);
@@ -924,9 +927,11 @@ _pmap_unwire_pte_hold(pmap_t pmap, vm_offset_t va, vm_page_t m)
 				_pmap_unwire_pte_hold(pmap, va, pdpg);
 		}
 		if (m->pindex >= NUPDE && m->pindex < (NUPDE + NUPDPE)) {
-			/* Unhold the PDP page */
+			/* We just released a PD, unhold the matching PDP */
 			vm_page_t pdppg;
-			pdppg = vm_page_lookup(pmap->pm_pteobj, NUPDE + NUPDPE + pmap_pml4e_index(va));
+
+			pdppg = vm_page_lookup(pmap->pm_pteobj, NUPDE + NUPDPE +
+			    ((va >> PML4SHIFT) & (NUPML4E - 1)));
 			while (vm_page_sleep_if_busy(pdppg, FALSE, "pulooK"))
 				vm_page_lock_queues();
 			vm_page_unhold(pdppg);
@@ -1124,7 +1129,8 @@ _pmap_allocpte(pmap, ptepindex)
 			_pmap_allocpte(pmap, NUPDE + NUPDPE + pml4index);
 		} else {
 			/* Add reference to pdp page */
-			pdppg = pmap_page_lookup(pmap->pm_pteobj, NUPDE + NUPDPE + pml4index);
+			pdppg = pmap_page_lookup(pmap->pm_pteobj,
+			    NUPDE + NUPDPE + pml4index);
 			pdppg->hold_count++;
 		}
 		pdp = (pdp_entry_t *)PHYS_TO_DMAP(*pml4 & PG_FRAME);
@@ -1150,16 +1156,17 @@ _pmap_allocpte(pmap, ptepindex)
 			/* Have to allocate a new pd, recurse */
 			_pmap_allocpte(pmap, NUPDE + pdpindex);
 			pdp = (pdp_entry_t *)PHYS_TO_DMAP(*pml4 & PG_FRAME);
-			pdp = &pdp[pdpindex];
+			pdp = &pdp[pdpindex & ((1ul << NPDPEPGSHIFT) - 1)];
 		} else {
 			pdp = (pdp_entry_t *)PHYS_TO_DMAP(*pml4 & PG_FRAME);
-			pdp = &pdp[pdpindex];
+			pdp = &pdp[pdpindex & ((1ul << NPDPEPGSHIFT) - 1)];
 			if ((*pdp & PG_V) == 0) {
 				/* Have to allocate a new pd, recurse */
 				_pmap_allocpte(pmap, NUPDE + pdpindex);
 			} else {
 				/* Add reference to the pd page */
-				pdpg = pmap_page_lookup(pmap->pm_pteobj, NUPDE + pdpindex);
+				pdpg = pmap_page_lookup(pmap->pm_pteobj,
+				    NUPDE + pdpindex);
 				pdpg->hold_count++;
 			}
 		}
@@ -1239,7 +1246,7 @@ pmap_allocpte(pmap_t pmap, vm_offset_t va)
 
 
 /***************************************************
-* Pmap allocation/deallocation routines.
+ * Pmap allocation/deallocation routines.
  ***************************************************/
 
 /*
