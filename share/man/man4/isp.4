@@ -1,8 +1,8 @@
-.\"	$FreeBSD$
-.\"	$NetBSD: isp.4,v 1.5 1999/12/18 18:33:05 mjacob Exp $
+.\"     $FreeBSD$
+.\"     $NetBSD: isp.4,v 1.5 1999/12/18 18:33:05 mjacob Exp $
 .\"
 .\" Copyright (c) 1998, 1999
-.\" 	Matthew Jacob, for NASA/Ames Research Center
+.\"     Matthew Jacob, for NASA/Ames Research Center
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -45,26 +45,33 @@ or
 .Tn FibreChannel
 devices.
 .Pp
-SCSI features include support for Ultra SCSI and wide mode transactions for
+SCSI features include support for Ultra SCSI and wide mode transactions
+for
 .Tn SCSI ,
-Ultra2 LVD (for the ISP1080 and ISP1280), and Ultra3 LVD (for the ISP12160).
+Ultra2 LVD (for the ISP1080 and ISP1280), and Ultra3 LVD (for the
+ISP12160).
 .Pp
 Fibre Channel support uses FCP SCSI profile for
 .Tn FibreChannel .
-and utilizes Class 3 and Class 2 connections (Qlogic 2100 is Class 3
-only, minor patches to the Qlogic 2200 to force Class 2 mode).
-Support is available for Public
-and Private loops, and for point-to-point connections (Qlogic 2200
-only).
-Command tagging is supported for all (in fact,
+and utilizes Class 3 and Class 2 connections (Qlogic 2100 is Class
+3 only, minor patches to the Qlogic 2200 to force Class 2 mode).
+Support is available for Public and Private loops, and for
+point-to-point connections (Qlogic 2200 only).  Command tagging is
+supported for all (in fact,
 .Tn FibreChannel
-requires tagging).
+requires tagging). Fabric support is enabled by default (but may
+be contingent upon the correct firmware being loaded).
+.Sh FIRMWARE
+Firmware is now available if the
+.Xr ispfw 4
+module is loaded during bootstrap (q.v.).
 .Sh HARDWARE
 Supported cards include:
 .Pp
 .Bl -tag -width xxxxxx -offset indent
 .It ISP1000
-SBus Fast Wide, Ultra Fast Wide cards, Single Ended or Differential cards.
+SBus Fast Wide, Ultra Fast Wide cards, Single Ended or Differential
+cards.
 .It PTI SBS440
 Performance Technology ISP1000 variants.
 .It ISP1020
@@ -74,7 +81,8 @@ Qlogic 1040 Ultra Wide and Differential Ultra Wide PCI cards.
 .It PTI SBS450
 Performance Technology ISP1040 variants.
 .It Qlogic 1240
-Qlogic 1240 Dual Bus Ultra Wide and Differential Ultra Wide PCI cards.
+Qlogic 1240 Dual Bus Ultra Wide and Differential Ultra Wide PCI
+cards.
 .It Qlogic 1080
 Qlogic 1280 LVD Ultra2 Wide PCI cards.
 .It Qlogic 1280
@@ -82,13 +90,17 @@ Qlogic 1280 Dual Bus LVD Ultra2 Wide PCI cards.
 .It Qlogic 12160
 Qlogic 12160 Dual Bus LVD Ultra3 Wide PCI cards.
 .It Qlogic 2100
-Qlogic 2100 and 2100A Copper and Optical Fibre Channel Arbitrated Loop
+Qlogic 2100 and 2100A Copper and Optical Fibre Channel Arbitrated
+Loop
 .It Qlogic 2102
-Qlogic Dual Loop 2100A Optical Fibre Channel Arbitrated Loop PCI cards.
+Qlogic Dual Loop 2100A Optical Fibre Channel Arbitrated Loop PCI
+cards.
 .It Qlogic 2200
-Qlogic 2200 Copper and Optical Fibre Channel Arbitrated Loop PCI cards.
+Qlogic 2200 Copper and Optical Fibre Channel Arbitrated Loop PCI
+cards.
 .It Qlogic 2202
-Qlogic 2200 Dual Bus Optical Fibre Channel Arbitrated Loop PCI cards.
+Qlogic 2200 Dual Bus Optical Fibre Channel Arbitrated Loop PCI
+cards.
 .It PTI SBS470
 Performance Technology ISP2100 variants.
 .It Antares P-0033
@@ -96,59 +108,15 @@ Antares Microsystems ISP2100 variants.
 .El
 .Sh CONFIGURATION OPTIONS
 .Pp
-General configuration options for all adapters include:
-.sp
-.Cd options SCSI_ISP_NO_FWLOAD_MASK
-.Cd options SCSI_ISP_NO_NVRAM_MASK
-.Cd options SCSI_ISP_PREFER_MEM_MAP
-.sp
-for which the option value is a bit mask of units for which you want this
-option to apply.
-The options are, respectively, for not loading new firmware
-at startup, ignoring card NVRAM settings, and preferring memory mapped
-versus I/O port PCI access methods.
 .Pp
-Poorly debugged and prototype target mode support may be enabled with the
+Target mode support may be enabled with the
 .sp
 .Cd options ISP_TARGET_MODE
 .sp
 option.
-.Pp
-Configuration options that define whether downloadable firmware should be
-compiled into the driver are:
-.sp
-.Cd options ISP_COMPILE_1020_FW
-.Cd options ISP_COMPILE_1080_FW
-.Cd options ISP_COMPILE_12160_FW
-.Cd options ISP_COMPILE_2100_FW
-.Cd options ISP_COMPILE_FW
-.sp
-The above options either select which board's f/w you wish to compile in,
-or for the last, to select all.
-.Pp
-Configuration options specific to Fibre Channel Cards are:
-.sp
-.Cd options SCSI_ISP_FCDUPLEX
-.Cd options SCSI_ISP_FABRIC
-.Cd options SCSI_ISP_SCCLUN
-.Cd options SCSI_ISP_WWN
-.sp
-The first option is a bit mask of units for which you want to enable full
-duplex mode.
-This typically would only make sense if fabric support is
-enabled and you are directly connected to a switch.
-The second defines whether Fibre Channel Fabric support should be enabled.
-The third defines whether whether the first level SCC lun support should
-be enabled- this converts the normal 16 Logical Unit support to support for
-65536 Logical Units.
-The last option should be a string that defines an
-overriding World Wide Node Name (WWNN) should you wish to override NVRAM
-settings.
-It is recommended that you compile in firmware if you select
-any of these options.
 .Sh BOOT OPTIONS
 .Pp
-Many of the above options are switchable by setting values in the loader
+The following options are switchable by setting values in the loader
 configuration file (see the
 .Xr loader 8
 manual page). They are:
@@ -157,32 +125,31 @@ manual page). They are:
 .It isp_disable
 A bit mask of units to skip configuration for.
 .It isp_mem_map
-A bit mask of units to use PCI Memory space instead of I/O
-space access for.
+A bit mask of units to use PCI Memory space instead of I/O space
+access for.
 .It isp_io_map
-A bit mask of units to use PCI I/O space instead of Memory
-space access for.
-.It isp_no_fwload
-A bit mask of units that you wish to skip firmware download for.
-.It isp_fwload
-A bit mask of units that you wish to *do* firmware download for.
+A bit mask of units to use PCI I/O space instead of Memory space
+access for.
 .It isp_no_nvram
-A bit mask of units that you wish to ignore board NVRAM settings for.
+A bit mask of units that you wish to ignore board NVRAM settings
+for.
 .It isp_nvram
-A bit mask of units that you wish to specifically use board NVRAM settings for.
+A bit mask of units that you wish to specifically use board NVRAM
+settings for.
 .It isp_fcduplex
 A bit mask of units that you wish to specifically to set into full
 duplex mode.
 .It isp_no_fcduplex
-A bit mask of units that you wish to specifically to not set into full
-duplex mode.
+A bit mask of units that you wish to specifically to not set into
+full duplex mode.
 .It isp_wwn
-This should be the full 64 bit World Wide Node Name you would like to
-use, overriding the value in NVRAM for the card.
+This should be the full 64 bit World Wide Node Name you would like
+to use, overriding the value in NVRAM for the card.
 .It isp_debug
 This is a driver debug level- meaningful from 0 through 7.
 .It isp_tdebug
-This is a driver target mode debug level- meaningful from 0 through 5.
+This is a driver target mode debug level- meaningful from 0 through
+5.
 .El
 .Sh BUGS
 The driver currently ignores some NVRAM settings.
@@ -190,19 +157,18 @@ The driver currently ignores some NVRAM settings.
 The driver currently doesn't do error recovery for timed out commands
 very gracefully.
 .Pp
-Fabric support isn't very well debugged yet, and with some switches,
-fails to work as well as it should because the driver uses the GET ALL NEXT
-Simple Name Server subcommand which some switches don't handle as well
-as they should.
+Target mode support isn't completely debugged yet. It works reasonably
+well for Fibre Channel, somewhat well for Qlogic 1040 cards, but
+doesn't yet work for the other cards (due to last minute unnanounced
+changes in firmware interfaces).
 .Pp
-Sometimes, when booting, the driver gets stuck waiting for the Fibre Channel
-f/w to tell it that the loop port database is ready.
-In this case you'll
-see an announcement that the loop state has a value of 0x1.
-To unwedge
-the system, unplug and replug the fibre channel connection, or otherwise
-cause a LIP (Loop Initialization Primitive sequence)- this will kick the f/w
-into getting unstuck.
+Sometimes, when booting, the driver gets stuck waiting for the
+Fibre Channel f/w to tell it that the loop port database is ready,
+or waiting for a good loop to be seen (this does not yet support
+booting without being connected to a fibre channel device).  To
+unwedge the system, unplug and replug the fibre channel connection,
+or otherwise cause a LIP (Loop Initialization Primitive sequence)-
+this will kick the f/w into getting unstuck.
 .Sh SEE ALSO
 .Xr intro 4 ,
 .Xr scsi 4 ,
