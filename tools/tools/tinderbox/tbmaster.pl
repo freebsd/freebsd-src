@@ -44,20 +44,22 @@ my $dump;			# Dump configuration and exit
 my $etcdir;			# Configuration directory
 
 my %CONFIG = (
-    'COMMENT'	=> '',
     'BRANCHES'	=> [ 'CURRENT' ],
-    'PLATFORMS'	=> [ 'i386' ],
+    'COMMENT'	=> '',
+    'CVSUP'	=> '',
     'DATE'	=> '',
-    'SANDBOX'	=> '/tmp/tinderbox',
+    'ENV'	=> [],
     'HOSTNAME'	=> '',
     'LOGDIR'	=> '%%SANDBOX%%/logs',
-    'TARGETS'	=> [ 'update', 'world' ],
     'OPTIONS'	=> [],
     'PATCH'	=> '',
-    'ENV'	=> [],
-    'SENDER'	=> '',
+    'PLATFORMS'	=> [ 'i386' ],
     'RECIPIENT'	=> '',
+    'REPOSITORY'=> '',
+    'SANDBOX'	=> '/tmp/tinderbox',
+    'SENDER'	=> '',
     'SUBJECT'	=> 'Tinderbox failure on %%arch%%/%%machine%%',
+    'TARGETS'	=> [ 'update', 'world' ],
     'TINDERBOX'	=> '%%HOME%%/tinderbox',
 );
 
@@ -224,9 +226,13 @@ sub tinderbox($$$) {
     push(@args, "--hostname=" . expand('HOSTNAME'))
 	if ($CONFIG{'HOSTNAME'});
     push(@args, "--sandbox=" . expand('SANDBOX'));
-    push(@args, "--branch=$branch");
     push(@args, "--arch=$arch");
     push(@args, "--machine=$machine");
+    push(@args, "--cvsup=" . expand('CVSUP'))
+	if ($CONFIG{'CVSUP'});
+    push(@args, "--repository=" . expand('REPOSITORY'))
+	if ($CONFIG{'REPOSITORY'});
+    push(@args, "--branch=$branch");
     push(@args, "--date=" . expand('DATE'))
 	if ($CONFIG{'DATE'});
     push(@args, "--patch=" . expand('PATCH'))
