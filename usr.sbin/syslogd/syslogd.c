@@ -127,11 +127,20 @@ const char	ctty[] = _PATH_CONSOLE;
 
 #define MAXUNAMES	20	/* maximum number of user names */
 
-#define MAXFUNIX       20
+/*
+ * Unix sockets.
+ */
+struct funix {
+	int			s;
+	char			*name;
+	mode_t			mode;
+	STAILQ_ENTRY(funix)	next;
+};
+struct funix funix_default =	{ -1, _PATH_LOG, DEFFILEMODE,
+				{ NULL } };
 
-int nfunix = 1;
-const char *funixn[MAXFUNIX] = { _PATH_LOG };
-int funix[MAXFUNIX];
+STAILQ_HEAD(, funix) funixes =	{ &funix_default,
+				&(funix_default.next.stqe_next) };
 
 /*
  * Flags to logmsg().
@@ -336,6 +345,7 @@ main(int argc, char *argv[])
 	const char *bindhostname, *hname;
 	struct timeval tv, *tvp;
 	struct sigaction sact;
+	struct funix *fx, *fx1;
 	sigset_t mask;
 	pid_t ppid = 1;
 	socklen_t len;
@@ -374,14 +384,42 @@ main(int argc, char *argv[])
 			KeepKernFac = 1;
 			break;
 		case 'l':
-			if (strlen(optarg) >= sizeof(sunx.sun_path))
-				errx(1, "%s path too long, exiting", optarg);
-			if (nfunix < MAXFUNIX)
-				funixn[nfunix++] = optarg;
-			else
-				warnx("out of descriptors, ignoring %s",
-					optarg);
+		    {
+			long	perml;
+			mode_t	mode;
+			char	*name, *ep;
+
+			if (optarg[0] == '/') {
+				mode = DEFFILEMODE;
+				name = optarg;
+			} else if ((name = strchr(optarg, ':')) != NULL) {
+				*name++ = '\0';
+				if (name[0] != '/')
+					errx(1, "socket name must be absolute "
+					    "path");
+				if (isdigit(*optarg)) {
+					perml = strtol(optarg, &ep, 8);
+				    if (*ep || perml < 0 ||
+					perml & ~(S_IRWXU|S_IRWXG|S_IRWXO))
+					    errx(1, "invalid mode %s, exiting",
+						optarg);
+				    mode = (mode_t )perml;
+				} else
+					errx(1, "invalid mode %s, exiting",
+					    optarg);
+			} else	/* doesn't begin with '/', and no ':' */
+				errx(1, "can't parse path %s", optarg);
+
+			if (strlen(name) >= sizeof(sunx.sun_path))
+				errx(1, "%s path too long, exiting", name);
+			if ((fx = malloc(sizeof(struct funix))) == NULL)
+				errx(1, "malloc failed");
+			fx->s = -1;
+			fx->name = name;
+			fx->mode = mode;
+			STAILQ_INSERT_TAIL(&funixes, fx, next);
 			break;
+		   }
 		case 'm':		/* mark interval */
 			MarkInterval = atoi(optarg) * 60;
 			break;
@@ -394,7 +432,7 @@ main(int argc, char *argv[])
 		case 'p':		/* path */
 			if (strlen(optarg) >= sizeof(sunx.sun_path))
 				errx(1, "%s path too long, exiting", optarg);
-			funixn[0] = optarg;
+			funix_default.name = optarg;
 			break;
 		case 'P':		/* path for alt. PID */
 			PidFile = optarg;
@@ -453,22 +491,23 @@ main(int argc, char *argv[])
 #ifndef SUN_LEN
 #define SUN_LEN(unp) (strlen((unp)->sun_path) + 2)
 #endif
-	for (i = 0; i < nfunix; i++) {
-		(void)unlink(funixn[i]);
+	STAILQ_FOREACH_SAFE(fx, &funixes, next, fx1) {
+		(void)unlink(fx->name);
 		memset(&sunx, 0, sizeof(sunx));
 		sunx.sun_family = AF_UNIX;
-		(void)strlcpy(sunx.sun_path, funixn[i], sizeof(sunx.sun_path));
-		funix[i] = socket(AF_UNIX, SOCK_DGRAM, 0);
-		if (funix[i] < 0 ||
-		    bind(funix[i], (struct sockaddr *)&sunx,
-			 SUN_LEN(&sunx)) < 0 ||
-		    chmod(funixn[i], 0666) < 0) {
+		(void)strlcpy(sunx.sun_path, fx->name, sizeof(sunx.sun_path));
+		fx->s = socket(AF_UNIX, SOCK_DGRAM, 0);
+		if (fx->s < 0 ||
+		    bind(fx->s, (struct sockaddr *)&sunx, SUN_LEN(&sunx)) < 0 ||
+		    chmod(fx->name, fx->mode) < 0) {
 			(void)snprintf(line, sizeof line,
-					"cannot create %s", funixn[i]);
+					"cannot create %s", fx->name);
 			logerror(line);
-			dprintf("cannot create %s (%d)\n", funixn[i], errno);
-			if (i == 0)
+			dprintf("cannot create %s (%d)\n", fx->name, errno);
+			if (fx == &funix_default)
 				die(0);
+			else
+				STAILQ_REMOVE(&funixes, fx, funix, next);
 		}
 	}
 	if (SecureMode <= 1)
@@ -524,10 +563,9 @@ main(int argc, char *argv[])
 			fdsrmax = finet[i+1];
 		}
 	}
-	for (i = 0; i < nfunix; i++) {
-		if (funix[i] != -1 && funix[i] > fdsrmax)
-			fdsrmax = funix[i];
-	}
+	STAILQ_FOREACH(fx, &funixes, next)
+		if (fx->s > fdsrmax)
+			fdsrmax = fx->s;
 
 	fdsr = (fd_set *)calloc(howmany(fdsrmax+1, NFDBITS),
 	    sizeof(fd_mask));
@@ -551,10 +589,8 @@ main(int argc, char *argv[])
 					FD_SET(finet[i+1], fdsr);
 			}
 		}
-		for (i = 0; i < nfunix; i++) {
-			if (funix[i] != -1)
-				FD_SET(funix[i], fdsr);
-		}
+		STAILQ_FOREACH(fx, &funixes, next)
+			FD_SET(fx->s, fdsr);
 
 		i = select(fdsrmax+1, fdsr, NULL, NULL,
 		    needdofsync ? &tv : tvp);
@@ -593,10 +629,10 @@ main(int argc, char *argv[])
 				}
 			}
 		}
-		for (i = 0; i < nfunix; i++) {
-			if (funix[i] != -1 && FD_ISSET(funix[i], fdsr)) {
+		STAILQ_FOREACH(fx, &funixes, next) {
+			if (FD_ISSET(fx->s, fdsr)) {
 				len = sizeof(fromunix);
-				l = recvfrom(funix[i], line, MAXLINE, 0,
+				l = recvfrom(fx->s, line, MAXLINE, 0,
 				    (struct sockaddr *)&fromunix, &len);
 				if (l > 0) {
 					line[l] = '\0';
@@ -1402,9 +1438,9 @@ static void
 die(int signo)
 {
 	struct filed *f;
+	struct funix *fx;
 	int was_initialized;
 	char buf[100];
-	int i;
 
 	was_initialized = Initialized;
 	Initialized = 0;	/* Don't log SIGCHLDs. */
@@ -1424,9 +1460,9 @@ die(int signo)
 		errno = 0;
 		logerror(buf);
 	}
-	for (i = 0; i < nfunix; i++)
-		if (funixn[i] && funix[i] != -1)
-			(void)unlink(funixn[i]);
+	STAILQ_FOREACH(fx, &funixes, next)
+		(void)unlink(fx->name);
+
 	exit(1);
 }
 
