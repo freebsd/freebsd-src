@@ -48,10 +48,14 @@ main(int argc, char** argv)
     int c;
     int verbose = 0;
     int fileid = 0;
+    int force = LINKER_UNLOAD_NORMAL;
     char* filename = NULL;
 
-    while ((c = getopt(argc, argv, "i:n:v")) != -1)
+    while ((c = getopt(argc, argv, "fi:n:v")) != -1)
 	switch (c) {
+	case 'f':
+	    force = LINKER_UNLOAD_FORCE;
+	    break;
 	case 'i':
 	    fileid = atoi(optarg);
 	    if (!fileid)
@@ -93,7 +97,7 @@ main(int argc, char** argv)
 	printf("Unloading %s, id=%d\n", stat.name, fileid);
     }
 
-    if (kldunload(fileid) < 0)
+    if (kldunloadf(fileid, force) < 0)
 	err(1, "can't unload file");
 
     return 0;
