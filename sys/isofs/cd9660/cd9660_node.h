@@ -60,7 +60,6 @@ struct iso_node {
 	struct	iso_node *i_next, **i_prev;	/* hash chain */
 	struct	vnode *i_vnode;	/* vnode associated with this inode */
 	u_long	i_flag;		/* see below */
-	struct cdev *i_dev;	/* device where inode resides */
 	ino_t	i_number;	/* the identity of the inode */
 				/* we use the actual starting block of the file */
 	struct	iso_mnt *i_mnt;	/* filesystem associated with this inode */

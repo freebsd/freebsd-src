@@ -677,7 +677,6 @@ cd9660_vget_internal(mp, ino, flags, vpp, relocated, isodir)
 	    M_WAITOK | M_ZERO);
 	vp->v_data = ip;
 	ip->i_vnode = vp;
-	ip->i_dev = dev;
 	ip->i_number = ino;
 
 	error = vfs_hash_insert(vp, ino, flags, curthread, vpp);
