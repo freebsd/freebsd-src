@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pcivar.h,v 1.18 1997/08/21 08:31:41 fsmp Exp $
+ * $Id: pcivar.h,v 1.19 1998/07/22 08:39:08 dfr Exp $
  *
  */
 
@@ -78,7 +78,7 @@ typedef struct pcicfg {
     u_int16_t	cmdreg;		/* disable/enable chip and PCI options */
     u_int16_t	statreg;	/* supported PCI features and error state */
 
-    u_int8_t	class;		/* chip PCI class */
+    u_int8_t	baseclass;	/* chip PCI class */
     u_int8_t	subclass;	/* chip PCI subclass */
     u_int8_t	progif;		/* chip PCI programming interface */
     u_int8_t	revid;		/* chip revision ID */
