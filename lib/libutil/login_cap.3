@@ -66,6 +66,11 @@
 .Ft char *
 .Fn login_getstyle "login_cap_t *lc" "char *style" "const char *auth"
 .Pp
+Link with
+.Va -lutil
+on the
+.Xr cc 1
+command line.
 .Sh DESCRIPTION
 These functions represent a programming interface to the login
 classes database provided in
