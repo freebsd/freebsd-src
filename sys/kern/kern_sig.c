@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sig.c	8.7 (Berkeley) 4/18/94
- * $Id: kern_sig.c,v 1.17 1996/01/03 21:42:09 wollman Exp $
+ * $Id: kern_sig.c,v 1.18 1996/01/31 12:44:13 davidg Exp $
  */
 
 #include "opt_ktrace.h"
@@ -60,6 +60,8 @@
 #include <sys/ktrace.h>
 #include <sys/syslog.h>
 #include <sys/stat.h>
+#include <sys/imgact.h>
+#include <sys/sysent.h>
 
 #include <machine/cpu.h>
 
@@ -244,7 +246,7 @@ execsigs(p)
 	 * Reset stack state to the user stack.
 	 * Clear set of signals caught on the signal stack.
 	 */
-	ps->ps_sigstk.ss_flags = SA_DISABLE;
+	ps->ps_sigstk.ss_flags = SS_DISABLE;
 	ps->ps_sigstk.ss_size = 0;
 	ps->ps_sigstk.ss_sp = 0;
 	ps->ps_flags = 0;
@@ -362,13 +364,6 @@ osigvec(p, uap, retval)
 		    sizeof (vec))))
 			return (error);
 #ifdef COMPAT_SUNOS
-		/*
-		 * SunOS uses this bit (4, aka SA_DISABLE) as SV_RESETHAND,
-		 * `reset to SIG_DFL on delivery'. We have no such option
-		 * now or ever!
-		 */
-		if (sv->sv_flags & SA_DISABLE)
-			return (EINVAL);
 		sv->sv_flags |= SA_USERTRAMP;
 #endif
 		sv->sv_flags ^= SA_RESTART;	/* opposite of SV_INTERRUPT */
@@ -471,7 +466,7 @@ osigstack(p, uap, retval)
 
 	psp = p->p_sigacts;
 	ss.ss_sp = psp->ps_sigstk.ss_sp;
-	ss.ss_onstack = psp->ps_sigstk.ss_flags & SA_ONSTACK;
+	ss.ss_onstack = psp->ps_sigstk.ss_flags & SS_ONSTACK;
 	if (uap->oss && (error = copyout((caddr_t)&ss, (caddr_t)uap->oss,
 	    sizeof (struct sigstack))))
 		return (error);
@@ -479,7 +474,7 @@ osigstack(p, uap, retval)
 	    sizeof (ss))) == 0) {
 		psp->ps_sigstk.ss_sp = ss.ss_sp;
 		psp->ps_sigstk.ss_size = 0;
-		psp->ps_sigstk.ss_flags |= ss.ss_onstack & SA_ONSTACK;
+		psp->ps_sigstk.ss_flags |= ss.ss_onstack & SS_ONSTACK;
 		psp->ps_flags |= SAS_ALTSTACK;
 	}
 	return (error);
@@ -505,7 +500,7 @@ sigaltstack(p, uap, retval)
 
 	psp = p->p_sigacts;
 	if ((psp->ps_flags & SAS_ALTSTACK) == 0)
-		psp->ps_sigstk.ss_flags |= SA_DISABLE;
+		psp->ps_sigstk.ss_flags |= SS_DISABLE;
 	if (uap->oss && (error = copyout((caddr_t)&psp->ps_sigstk,
 	    (caddr_t)uap->oss, sizeof (struct sigaltstack))))
 		return (error);
@@ -513,8 +508,8 @@ sigaltstack(p, uap, retval)
 		return (0);
 	if ((error = copyin((caddr_t)uap->nss, (caddr_t)&ss, sizeof (ss))))
 		return (error);
-	if (ss.ss_flags & SA_DISABLE) {
-		if (psp->ps_sigstk.ss_flags & SA_ONSTACK)
+	if (ss.ss_flags & SS_DISABLE) {
+		if (psp->ps_sigstk.ss_flags & SS_ONSTACK)
 			return (EINVAL);
 		psp->ps_flags &= ~SAS_ALTSTACK;
 		psp->ps_sigstk.ss_flags = ss.ss_flags;
@@ -690,7 +685,8 @@ trapsignal(p, signum, code)
 			ktrpsig(p->p_tracep, signum, ps->ps_sigact[signum],
 				p->p_sigmask, code);
 #endif
-		sendsig(ps->ps_sigact[signum], signum, p->p_sigmask, code);
+		(*p->p_sysent->sv_sendsig)(ps->ps_sigact[signum], signum,
+						p->p_sigmask, code);
 		p->p_sigmask |= ps->ps_catchmask[signum] |
 				(mask & ~ps->ps_nodefer);
 	} else {
@@ -1136,7 +1132,7 @@ postsig(signum)
 			code = ps->ps_code;
 			ps->ps_code = 0;
 		}
-		sendsig(action, signum, returnmask, code);
+		(*p->p_sysent->sv_sendsig)(action, signum, returnmask, code);
 	}
 }
 
@@ -1204,7 +1200,13 @@ coredump(p)
 	int error, error1;
 	char name[MAXCOMLEN+6];		/* progname.core */
 
+	/*
+	 * If we are setuid/setgid, or if we've changed uid's in the past,
+	 * we may be holding privileged information.  We must not core!
+	 */
 	if (pcred->p_svuid != pcred->p_ruid || pcred->p_svgid != pcred->p_rgid)
+		return (EFAULT);
+	if (p->p_flag & P_SUGID)
 		return (EFAULT);
 	if (ctob(UPAGES + vm->vm_dsize + vm->vm_ssize) >=
 	    p->p_rlimit[RLIMIT_CORE].rlim_cur)

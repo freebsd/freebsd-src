@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.61 1996/01/30 07:59:02 davidg Exp $
+ *	$Id: locore.s,v 1.62 1996/02/04 21:20:32 davidg Exp $
  */
 
 /*
@@ -785,16 +785,22 @@ reloc_gdt:
 
 #define LCALL(x,y)	.byte 0x9a ; .long y ; .word x
 
+/*
+ * Signal trampoline, copied to top of user stack
+ */
 NON_GPROF_ENTRY(sigcode)
 	call	SIGF_HANDLER(%esp)
 	lea	SIGF_SC(%esp),%eax		/* scp (the call may have clobbered the */
 						/* copy at 8(%esp)) */
 	pushl	%eax
 	pushl	%eax				/* junk to fake return address */
-	movl	$103,%eax			/* XXX sigreturn() */
+	movl	$SYS_sigreturn,%eax		/* sigreturn() */
 	LCALL(0x7,0)				/* enter kernel with args on stack */
 	hlt					/* never gets here */
-
+	.align	2				/* long word align */
+_esigcode:
+	.data
 	.globl	_szsigcode
 _szsigcode:
-	.long	_szsigcode-_sigcode
+	.long	_esigcode-_sigcode
+	.text

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)exec.h	8.3 (Berkeley) 1/21/94
- * $Id: exec.h,v 1.11 1995/11/13 07:44:03 bde Exp $
+ * $Id: exec.h,v 1.12 1995/12/09 04:29:07 peter Exp $
  */
 
 #ifndef _SYS_EXEC_H_
@@ -60,9 +60,9 @@ struct ps_strings {
 /*
  * Address of ps_strings structure (in user space).
  */
-#define SPARE_USRSPACE	256
 #define	PS_STRINGS ((struct ps_strings *) \
 	(USRSTACK - sizeof(struct ps_strings)))
+#define SPARE_USRSPACE	256
 
 struct image_params;
 

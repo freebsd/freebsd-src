@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_file.c,v 1.4 1995/11/22 07:43:45 bde Exp $
+ *  $Id: linux_file.c,v 1.5 1995/12/15 03:06:50 peter Exp $
  */
 
 #include <sys/param.h>
@@ -41,16 +41,15 @@
 #include <sys/malloc.h>
 #include <sys/exec.h>
 #include <sys/dirent.h>
+#include <sys/sysproto.h>
+#include <sys/conf.h>
+#include <sys/tty.h>
 
 #include <ufs/ufs/dir.h>
 
 #include <i386/linux/linux.h>
-#include <i386/linux/sysproto.h>
-
-struct linux_creat_args {
-    char    *path;
-    int mode;
-};
+#include <i386/linux/linux_proto.h>
+#include <i386/linux/linux_util.h>
 
 int
 linux_creat(struct proc *p, struct linux_creat_args *args, int *retval)
@@ -60,6 +59,10 @@ linux_creat(struct proc *p, struct linux_creat_args *args, int *retval)
 	int flags;
 	int mode;
     } */ bsd_open_args;
+    caddr_t sg;
+
+    sg = stackgap_init();
+    CHECKALTCREAT(p, &sg, args->path);
 
 #ifdef DEBUG
     printf("Linux-emul(%d): creat(%s, %d)\n", 
@@ -71,12 +74,6 @@ linux_creat(struct proc *p, struct linux_creat_args *args, int *retval)
     return open(p, &bsd_open_args, retval);
 }
 
-struct linux_open_args {
-    char *path;
-    int flags;
-    int mode;
-};
-
 int
 linux_open(struct proc *p, struct linux_open_args *args, int *retval)
 {
@@ -86,7 +83,15 @@ linux_open(struct proc *p, struct linux_open_args *args, int *retval)
 	int mode;
     } */ bsd_open_args;
     int error;
+    caddr_t sg;
+
+    sg = stackgap_init();
     
+    if (args->flags & LINUX_O_CREAT)
+	CHECKALTCREAT(p, &sg, args->path);
+    else
+	CHECKALTEXIST(p, &sg, args->path);
+
 #ifdef DEBUG
     printf("Linux-emul(%d): open(%s, 0x%x, 0x%x)\n", 
 	   p->p_pid, args->path, args->flags, args->mode);
@@ -128,6 +133,10 @@ linux_open(struct proc *p, struct linux_open_args *args, int *retval)
 	if (fp->f_type == DTYPE_VNODE)
 	    (fp->f_ops->fo_ioctl)(fp, TIOCSCTTY, (caddr_t) 0, p);
     }
+#ifdef DEBUG
+    printf("Linux-emul(%d): open returns error %d\n", 
+	   p->p_pid, error);
+#endif
     return error;
 }
 
@@ -179,12 +188,6 @@ bsd_to_linux_flock(struct flock *bsd_flock, struct linux_flock *linux_flock)
     linux_flock->l_pid = (linux_pid_t)bsd_flock->l_pid;
 }
 
-struct linux_fcntl_args {
-    int fd;
-    int cmd;
-    int arg;
-};
-
 int
 linux_fcntl(struct proc *p, struct linux_fcntl_args *args, int *retval)
 {
@@ -195,8 +198,19 @@ linux_fcntl(struct proc *p, struct linux_fcntl_args *args, int *retval)
 	int arg;
     } */ fcntl_args; 
     struct linux_flock linux_flock;
-    struct flock *bsd_flock = 
-	(struct flock *)ua_alloc_init(sizeof(struct flock));
+    struct flock *bsd_flock;
+    struct filedesc *fdp;
+    struct file *fp;
+    struct vnode *vp;
+    struct vattr va;
+    long pgid;
+    struct pgrp *pgrp;
+    struct tty *tp, *(*d_tty) __P((dev_t));
+    caddr_t sg;
+
+    sg = stackgap_init();
+    bsd_flock = (struct flock *)stackgap_alloc(&sg, sizeof(struct flock));
+    d_tty = NULL;
 
 #ifdef DEBUG
     printf("Linux-emul(%d): fcntl(%d, %08x, *)\n",
@@ -269,21 +283,50 @@ linux_fcntl(struct proc *p, struct linux_fcntl_args *args, int *retval)
 	return fcntl(p, &fcntl_args, retval);
 
     case LINUX_F_SETOWN:
-	fcntl_args.cmd = F_SETOWN;
-	return fcntl(p, &fcntl_args, retval);
-
     case LINUX_F_GETOWN:
-	fcntl_args.cmd = F_GETOWN;
-	return fcntl(p, &fcntl_args, retval);
+	/*
+	 * We need to route around the normal fcntl() for these calls,
+	 * since it uses TIOC{G,S}PGRP, which is too restrictive for
+	 * Linux F_{G,S}ETOWN semantics. For sockets, this problem
+	 * does not exist.
+	 */
+	fdp = p->p_fd;
+	if ((u_int)args->fd >= fdp->fd_nfiles ||
+		(fp = fdp->fd_ofiles[args->fd]) == NULL)
+	    return EBADF;
+	if (fp->f_type == DTYPE_SOCKET) {
+	    fcntl_args.cmd = args->cmd == LINUX_F_SETOWN ? F_SETOWN : F_GETOWN;
+	    return fcntl(p, &fcntl_args, retval); 
+	}
+	vp = (struct vnode *)fp->f_data;
+	if (vp->v_type != VCHR)
+	    return EINVAL;
+	if ((error = VOP_GETATTR(vp, &va, p->p_ucred, p)))
+	    return error;
+
+	d_tty = cdevsw[major(va.va_rdev)]->d_devtotty;
+	if (!d_tty || (!(tp = (*d_tty)(va.va_rdev))))
+	    return EINVAL;
+	if (args->cmd == LINUX_F_GETOWN) {
+	    retval[0] = tp->t_pgrp ? tp->t_pgrp->pg_id : NO_PID;
+	    return 0;
+	}
+	if ((long)args->arg <= 0) {
+	    pgid = -(long)args->arg;
+	} else {
+	    struct proc *p1 = pfind((long)args->arg);
+	    if (p1 == 0)
+		return (ESRCH);
+	    pgid = (long)p1->p_pgrp->pg_id;
+	}
+	pgrp = pgfind(pgid);
+	if (pgrp == NULL || pgrp->pg_session != p->p_session)
+	    return EPERM;
+	tp->t_pgrp = pgrp;
+	return 0;
     }
     return EINVAL;
 }
-
-struct linux_lseek_args {
-    int fdes;
-    unsigned long off;
-    int whence;
-};
 
 int
 linux_lseek(struct proc *p, struct linux_lseek_args *args, int *retval)
@@ -308,6 +351,34 @@ linux_lseek(struct proc *p, struct linux_lseek_args *args, int *retval)
     return error;
 }
 
+int
+linux_llseek(struct proc *p, struct linux_llseek_args *args, int *retval)
+{
+	struct lseek_args bsd_args;
+	int error;
+	off_t off;
+
+#ifdef DEBUG
+        printf("Linux-emul(%d): llseek(%d, %d:%d, %d)\n",
+	   p->p_pid, args->fd, args->ohigh, args->olow, args->whence);
+#endif
+	off = (args->olow) | (((off_t) args->ohigh) << 32);
+
+	bsd_args.fd = args->fd;
+	bsd_args.offset = off;
+	bsd_args.whence = args->whence;
+
+	if ((error = lseek(p, &bsd_args, retval)))
+		return error;
+
+	if ((error = copyout(retval, (caddr_t)args->res, sizeof (off_t))))
+		return error;
+
+	retval[0] = 0;
+	return 0;
+}
+
+
 struct linux_dirent {
     long dino;
     linux_off_t doff;
@@ -318,14 +389,19 @@ struct linux_dirent {
 #define LINUX_RECLEN(de,namlen) \
     ALIGN((((char *)&(de)->dname - (char *)de) + (namlen) + 1))
 
-struct linux_readdir_args {
-    int fd;
-    struct linux_dirent *dent;
-    unsigned int count;
-};
-
 int
 linux_readdir(struct proc *p, struct linux_readdir_args *args, int *retval)
+{
+	struct linux_getdents_args lda;
+
+	lda.fd = args->fd;
+	lda.dent = args->dent;
+	lda.count = 1;
+	return linux_getdents(p, &lda, retval);
+}
+
+int
+linux_getdents(struct proc *p, struct linux_getdents_args *args, int *retval)
 {
     register struct dirent *bdp;
     struct vnode *vp;
@@ -342,12 +418,12 @@ linux_readdir(struct proc *p, struct linux_readdir_args *args, int *retval)
     int buflen, error, eofflag, nbytes, justone, blockoff;
 
 #ifdef DEBUG
-    printf("Linux-emul(%d): readdir(%d, *, %d)\n",
+    printf("Linux-emul(%d): getdents(%d, *, %d)\n",
 	   p->p_pid, args->fd, args->count);
 #endif
     if ((error = getvnode(p->p_fd, args->fd, &fp)) != 0) {
 	return (error);
-}
+    }
 
     if ((fp->f_flag & FREAD) == 0)
 	return (EBADF);
@@ -390,7 +466,7 @@ again:
 			(u_int **) NULL);
     if (error) {
 	goto out;
-}
+    }
 
     inp = buf;
     inp += blockoff;
@@ -398,7 +474,7 @@ again:
     resid = nbytes;
     if ((len = buflen - auio.uio_resid - blockoff) == 0) {
 	goto eof;
-      }
+    }
 
     while (len > 0) {
 	bdp = (struct dirent *) inp;
@@ -426,7 +502,7 @@ again:
 	strcpy(linux_dirent.dname, bdp->d_name);
 	if ((error = copyout((caddr_t)&linux_dirent, outp, linuxreclen))) {
 	    goto out;
-	  }
+	}
 	inp += reclen;
 	off += reclen;
 	outp += linuxreclen;
@@ -450,3 +526,238 @@ out:
     free(buf, M_TEMP);
     return error;
 }
+
+/*
+ * These exist mainly for hooks for doing /compat/linux translation.
+ */
+
+int
+linux_access(struct proc *p, struct linux_access_args *args, int *retval)
+{
+	struct access_args bsd;
+	caddr_t sg;
+
+	sg = stackgap_init();
+	CHECKALTEXIST(p, &sg, args->path);
+
+#ifdef DEBUG
+        printf("Linux-emul(%d): access(%s, %d)\n", 
+	    p->p_pid, args->path, args->flags);
+#endif
+	bsd.path = args->path;
+	bsd.flags = args->flags;
+
+	return access(p, &bsd, retval);
+}
+
+int
+linux_unlink(struct proc *p, struct linux_unlink_args *args, int *retval)
+{
+	struct unlink_args bsd;
+	caddr_t sg;
+
+	sg = stackgap_init();
+	CHECKALTEXIST(p, &sg, args->path);
+
+#ifdef DEBUG
+	printf("Linux-emul(%d): unlink(%s)\n", 
+	   p->p_pid, args->path);
+#endif
+	bsd.path = args->path;
+
+	return unlink(p, &bsd, retval);
+}
+
+int
+linux_chdir(struct proc *p, struct linux_chdir_args *args, int *retval)
+{
+	struct chdir_args bsd;
+	caddr_t sg;
+
+	sg = stackgap_init();
+	CHECKALTEXIST(p, &sg, args->path);
+
+#ifdef DEBUG
+	printf("Linux-emul(%d): chdir(%s)\n", 
+	   p->p_pid, args->path);
+#endif
+	bsd.path = args->path;
+
+	return chdir(p, &bsd, retval);
+}
+
+int
+linux_chmod(struct proc *p, struct linux_chmod_args *args, int *retval)
+{
+	struct chmod_args bsd;
+	caddr_t sg;
+
+	sg = stackgap_init();
+	CHECKALTEXIST(p, &sg, args->path);
+
+#ifdef DEBUG
+        printf("Linux-emul(%d): chmod(%s, %d)\n", 
+	    p->p_pid, args->path, args->mode);
+#endif
+	bsd.path = args->path;
+	bsd.mode = args->mode;
+
+	return chmod(p, &bsd, retval);
+}
+
+int
+linux_chown(struct proc *p, struct linux_chown_args *args, int *retval)
+{
+	struct chown_args bsd;
+	caddr_t sg;
+
+	sg = stackgap_init();
+	CHECKALTEXIST(p, &sg, args->path);
+
+#ifdef DEBUG
+        printf("Linux-emul(%d): chown(%s, %d, %d)\n", 
+	    p->p_pid, args->path, args->uid, args->gid);
+#endif
+	bsd.path = args->path;
+	/* XXX size casts here */
+	bsd.uid = args->uid;
+	bsd.gid = args->gid;
+
+	return chown(p, &bsd, retval);
+}
+
+int
+linux_mkdir(struct proc *p, struct linux_mkdir_args *args, int *retval)
+{
+	struct mkdir_args bsd;
+	caddr_t sg;
+
+	sg = stackgap_init();
+	CHECKALTCREAT(p, &sg, args->path);
+
+#ifdef DEBUG
+        printf("Linux-emul(%d): mkdir(%s, %d)\n", 
+	    p->p_pid, args->path, args->mode);
+#endif
+	bsd.path = args->path;
+	bsd.mode = args->mode;
+
+	return mkdir(p, &bsd, retval);
+}
+
+int
+linux_rmdir(struct proc *p, struct linux_rmdir_args *args, int *retval)
+{
+	struct rmdir_args bsd;
+	caddr_t sg;
+
+	sg = stackgap_init();
+	CHECKALTEXIST(p, &sg, args->path);
+
+#ifdef DEBUG
+        printf("Linux-emul(%d): rmdir(%s)\n", 
+	    p->p_pid, args->path);
+#endif
+	bsd.path = args->path;
+
+	return rmdir(p, &bsd, retval);
+}
+
+int
+linux_rename(struct proc *p, struct linux_rename_args *args, int *retval)
+{
+	struct rename_args bsd;
+	caddr_t sg;
+
+	sg = stackgap_init();
+	CHECKALTEXIST(p, &sg, args->from);
+	CHECKALTCREAT(p, &sg, args->to);
+
+#ifdef DEBUG
+        printf("Linux-emul(%d): rename(%s, %s)\n", 
+	    p->p_pid, args->from, args->to);
+#endif
+	bsd.from = args->from;
+	bsd.to = args->to;
+
+	return rename(p, &bsd, retval);
+}
+
+int
+linux_symlink(struct proc *p, struct linux_symlink_args *args, int *retval)
+{
+	struct symlink_args bsd;
+	caddr_t sg;
+
+	sg = stackgap_init();
+	CHECKALTEXIST(p, &sg, args->path);
+	CHECKALTCREAT(p, &sg, args->to);
+
+#ifdef DEBUG
+        printf("Linux-emul(%d): symlink(%s, %s)\n", 
+	    p->p_pid, args->path, args->to);
+#endif
+	bsd.path = args->path;
+	bsd.link = args->to;
+
+	return symlink(p, &bsd, retval);
+}
+
+int
+linux_execve(struct proc *p, struct linux_execve_args *args, int *retval)
+{
+	struct execve_args bsd;
+	caddr_t sg;
+
+	sg = stackgap_init();
+	CHECKALTEXIST(p, &sg, args->path);
+
+#ifdef DEBUG
+        printf("Linux-emul(%d): execve(%s)\n", 
+	    p->p_pid, args->path);
+#endif
+	bsd.fname = args->path;
+	bsd.argv = args->argp;
+	bsd.envv = args->envp;
+
+	return execve(p, &bsd, retval);
+}
+
+int
+linux_readlink(struct proc *p, struct linux_readlink_args *args, int *retval)
+{
+	struct readlink_args bsd;
+	caddr_t sg;
+
+	sg = stackgap_init();
+	CHECKALTEXIST(p, &sg, args->name);
+
+#ifdef DEBUG
+        printf("Linux-emul(%d): readlink(%s, 0x%x, %d)\n", 
+	    p->p_pid, args->name, args->buf, args->count);
+#endif
+	bsd.path = args->name;
+	bsd.buf = args->buf;
+	bsd.count = args->count;
+
+	return readlink(p, &bsd, retval);
+}
+
+int
+linux_truncate(struct proc *p, struct linux_truncate_args *args, int *retval)
+{
+	struct otruncate_args bsd;
+	caddr_t sg;
+
+	sg = stackgap_init();
+	CHECKALTEXIST(p, &sg, args->path);
+
+#ifdef DEBUG
+        printf("Linux-emul(%d): truncate(%s)\n", 
+	    p->p_pid, args->path);
+#endif
+	bsd.path = args->path;
+
+	return otruncate(p, &bsd, retval);
+}
+

@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_ioctl.c,v 1.4 1995/12/29 22:12:12 sos Exp $
+ *  $Id: linux_ioctl.c,v 1.5 1995/12/30 00:42:25 sos Exp $
  */
 
 #include <sys/param.h>
@@ -38,12 +38,16 @@
 #include <sys/filedesc.h>
 #include <sys/tty.h>
 #include <sys/termios.h>
+#include <sys/socket.h>
+#include <sys/ioctl.h>
+#include <net/if.h>
+#include <sys/sockio.h>
 
 #include <machine/console.h>
 #include <machine/soundcard.h>
 
 #include <i386/linux/linux.h>
-#include <i386/linux/sysproto.h>
+#include <i386/linux/linux_proto.h>
 
 struct linux_termios {
     unsigned long   c_iflag;
@@ -351,13 +355,6 @@ linux_to_bsd_termios(struct linux_termios *linux_termios,
 #endif
 }
 
-
-struct linux_ioctl_args {
-    int fd;
-    int cmd;
-    int arg;
-};
-
 int
 linux_ioctl(struct proc *p, struct linux_ioctl_args *args, int *retval)
 {
@@ -454,6 +451,38 @@ linux_ioctl(struct proc *p, struct linux_ioctl_args *args, int *retval)
 
     case LINUX_TIOCNOTTY:
 	args->cmd = TIOCNOTTY;
+	return ioctl(p, (struct ioctl_args *)args, retval);
+
+    case LINUX_SIOCGIFCONF:
+	args->cmd = OSIOCGIFCONF;
+	return ioctl(p, (struct ioctl_args *)args, retval);
+
+    case LINUX_SIOCGIFFLAGS:
+	args->cmd = SIOCGIFFLAGS;
+	return ioctl(p, (struct ioctl_args *)args, retval);
+
+    case LINUX_SIOCGIFADDR:
+	args->cmd = OSIOCGIFADDR;
+	return ioctl(p, (struct ioctl_args *)args, retval);
+
+    case LINUX_SIOCGIFDSTADDR:
+	args->cmd = OSIOCGIFDSTADDR;
+	return ioctl(p, (struct ioctl_args *)args, retval);
+
+    case LINUX_SIOCGIFBRDADDR:
+	args->cmd = OSIOCGIFBRDADDR;
+	return ioctl(p, (struct ioctl_args *)args, retval);
+
+    case LINUX_SIOCGIFNETMASK:
+	args->cmd = OSIOCGIFNETMASK;
+	return ioctl(p, (struct ioctl_args *)args, retval);
+
+    case LINUX_SIOCADDMULTI:
+	args->cmd = SIOCADDMULTI;
+	return ioctl(p, (struct ioctl_args *)args, retval);
+
+    case LINUX_SIOCDELMULTI:
+	args->cmd = SIOCDELMULTI;
 	return ioctl(p, (struct ioctl_args *)args, retval);
 
     case LINUX_TIOCSETD:

@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.174 1996/02/13 10:30:36 phk Exp $
+ *	$Id: machdep.c,v 1.175 1996/03/02 18:24:00 peter Exp $
  */
 
 #include "npx.h"
@@ -656,7 +656,7 @@ identifycpu()
  * Send an interrupt to process.
  *
  * Stack is set up to allow sigcode stored
- * in u. to call routine, followed by kcall
+ * at top to call routine, followed by kcall
  * to sigreturn routine below.  After sigreturn
  * resets the signal mask, the stack, and the
  * frame pointer, it returns to the user
@@ -676,23 +676,17 @@ sendsig(catcher, sig, mask, code)
 	int oonstack;
 
 	regs = p->p_md.md_regs;
-        oonstack = psp->ps_sigstk.ss_flags & SA_ONSTACK;
+        oonstack = psp->ps_sigstk.ss_flags & SS_ONSTACK;
 	/*
-	 * Allocate and validate space for the signal handler
-	 * context. Note that if the stack is in P0 space, the
-	 * call to grow() is a nop, and the useracc() check
-	 * will fail if the process has not already allocated
-	 * the space with a `brk'.
+	 * Allocate and validate space for the signal handler context.
 	 */
-        if ((psp->ps_flags & SAS_ALTSTACK) &&
-	    (psp->ps_sigstk.ss_flags & SA_ONSTACK) == 0 &&
+        if ((psp->ps_flags & SAS_ALTSTACK) && !oonstack &&
 	    (psp->ps_sigonstack & sigmask(sig))) {
 		fp = (struct sigframe *)(psp->ps_sigstk.ss_sp +
 		    psp->ps_sigstk.ss_size - sizeof(struct sigframe));
-		psp->ps_sigstk.ss_flags |= SA_ONSTACK;
+		psp->ps_sigstk.ss_flags |= SS_ONSTACK;
 	} else {
-		fp = (struct sigframe *)(regs[tESP]
-			- sizeof(struct sigframe));
+		fp = (struct sigframe *)regs[tESP] - 1;
 	}
 
 	/*
@@ -765,7 +759,7 @@ sendsig(catcher, sig, mask, code)
 	};
 
 	regs[tESP] = (int)fp;
-	regs[tEIP] = (int)((struct pcb *)kstack)->pcb_sigc;
+	regs[tEIP] = (int)(((char *)PS_STRINGS) - *(p->p_sysent->sv_szsigcode));
 	regs[tEFLAGS] &= ~PSL_VM;
 	regs[tCS] = _ucodesel;
 	regs[tDS] = _udatasel;
@@ -861,9 +855,9 @@ sigreturn(p, uap, retval)
 		return(EINVAL);
 
 	if (scp->sc_onstack & 01)
-		p->p_sigacts->ps_sigstk.ss_flags |= SA_ONSTACK;
+		p->p_sigacts->ps_sigstk.ss_flags |= SS_ONSTACK;
 	else
-		p->p_sigacts->ps_sigstk.ss_flags &= ~SA_ONSTACK;
+		p->p_sigacts->ps_sigstk.ss_flags &= ~SS_ONSTACK;
 	p->p_sigmask = scp->sc_mask &~
 	    (sigmask(SIGKILL)|sigmask(SIGCONT)|sigmask(SIGSTOP));
 	regs[tEBP] = scp->sc_fp;
@@ -1277,12 +1271,7 @@ extern inthand_t
 	IDTVEC(bnd), IDTVEC(ill), IDTVEC(dna), IDTVEC(fpusegm),
 	IDTVEC(tss), IDTVEC(missing), IDTVEC(stk), IDTVEC(prot),
 	IDTVEC(page), IDTVEC(rsvd), IDTVEC(fpu), IDTVEC(align),
-	IDTVEC(syscall);
-
-#if defined(COMPAT_LINUX) || defined(LINUX)
-extern inthand_t
-	IDTVEC(linux_syscall);
-#endif
+	IDTVEC(syscall), IDTVEC(int0x80_syscall);
 
 void
 sdtossd(sd, ssd)
@@ -1378,9 +1367,8 @@ init386(first)
 	setidt(15, &IDTVEC(rsvd),  SDT_SYS386TGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
 	setidt(16, &IDTVEC(fpu),  SDT_SYS386TGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
 	setidt(17, &IDTVEC(align), SDT_SYS386TGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
-#if defined(COMPAT_LINUX) || defined(LINUX)
- 	setidt(0x80, &IDTVEC(linux_syscall),  SDT_SYS386TGT, SEL_UPL, GSEL(GCODE_SEL, SEL_KPL));
-#endif
+ 	setidt(0x80, &IDTVEC(int0x80_syscall),
+			SDT_SYS386TGT, SEL_UPL, GSEL(GCODE_SEL, SEL_KPL));
 
 #include	"isa.h"
 #if	NISA >0
@@ -1634,7 +1622,6 @@ init386(first)
 	_udatasel = LSEL(LUDATA_SEL, SEL_UPL);
 
 	/* setup proc 0's pcb */
-	bcopy(&sigcode, proc0.p_addr->u_pcb.pcb_sigc, szsigcode);
 	proc0.p_addr->u_pcb.pcb_flags = 0;
 	proc0.p_addr->u_pcb.pcb_ptd = IdlePTD;
 }

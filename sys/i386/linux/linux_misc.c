@@ -6,7 +6,7 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer 
+ *    notice, this list of conditions and the following disclaimer
  *    in this position and unchanged.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_misc.c,v 1.11 1996/01/19 22:59:24 dyson Exp $
+ *  $Id: linux_misc.c,v 1.12 1996/02/16 18:40:50 peter Exp $
  */
 
 #include <sys/param.h>
@@ -50,6 +50,7 @@
 #include <sys/utsname.h>
 #include <sys/vnode.h>
 #include <sys/wait.h>
+#include <sys/time.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -64,11 +65,8 @@
 #include <machine/psl.h>
 
 #include <i386/linux/linux.h>
-#include <i386/linux/sysproto.h>
-
-struct linux_alarm_args {
-    unsigned int secs;
-};
+#include <i386/linux/linux_proto.h>
+#include <i386/linux/linux_util.h>
 
 int
 linux_alarm(struct proc *p, struct linux_alarm_args *args, int *retval)
@@ -110,10 +108,6 @@ linux_alarm(struct proc *p, struct linux_alarm_args *args, int *retval)
     return 0;
 }
 
-struct linux_brk_args {
-    linux_caddr_t dsend;
-};
-
 int
 linux_brk(struct proc *p, struct linux_brk_args *args, int *retval)
 {
@@ -136,7 +130,7 @@ linux_brk(struct proc *p, struct linux_brk_args *args, int *retval)
 	    return ENOMEM;
 	error = vm_map_find(&vm->vm_map, NULL, 0, &old, (new-old), FALSE,
 			VM_PROT_ALL, VM_PROT_ALL, 0);
-	if (error) 
+	if (error)
 	    return error;
 	vm->vm_dsize += btoc((new-old));
 	*retval = (int)(vm->vm_daddr + ctob(vm->vm_dsize));
@@ -164,10 +158,6 @@ linux_brk(struct proc *p, struct linux_brk_args *args, int *retval)
 #endif
 }
 
-struct linux_uselib_args {
-    char *library;
-};
-
 int
 linux_uselib(struct proc *p, struct linux_uselib_args *args, int *retval)
 {
@@ -178,11 +168,12 @@ linux_uselib(struct proc *p, struct linux_uselib_args *args, int *retval)
     unsigned long vmaddr, file_offset;
     unsigned long buffer, bss_size;
     char *ptr;
-    char path[MAXPATHLEN];
-    const char *prefix = "/compat/linux";
-    size_t sz, len;
     int error;
+    caddr_t sg;
     int locked;
+
+    sg = stackgap_init();
+    CHECKALTEXIST(p, &sg, args->library);
 
 #ifdef DEBUG
     printf("Linux-emul(%d): uselib(%s)\n", p->p_pid, args->library);
@@ -192,20 +183,7 @@ linux_uselib(struct proc *p, struct linux_uselib_args *args, int *retval)
     locked = 0;
     vp = NULL;
 
-    for (ptr = path; (*ptr = *prefix) != '\0'; ptr++, prefix++) ;
-    sz = MAXPATHLEN - (ptr - path);
-    if (error = copyinstr(args->library, ptr, sz, &len))
-	goto cleanup;
-    if (*ptr != '/') {
-	error = EINVAL;
-	goto cleanup;
-    }
-
-#ifdef DEBUG
-    printf("Linux-emul(%d): uselib(%s)\n", p->p_pid, path);
-#endif
-
-    NDINIT(&ni, LOOKUP, FOLLOW | LOCKLEAF, UIO_SYSSPACE, path, p);
+    NDINIT(&ni, LOOKUP, FOLLOW | LOCKLEAF, UIO_SYSSPACE, args->library, p);
     if (error = namei(&ni))
 	goto cleanup;
 
@@ -361,7 +339,7 @@ printf("uselib: Non page aligned binary %d\n", file_offset);
 	    goto cleanup;
 
 	/* copy from kernel VM space to user space */
-	error = copyout((caddr_t)(buffer + file_offset), (caddr_t)vmaddr, 
+	error = copyout((caddr_t)(buffer + file_offset), (caddr_t)vmaddr,
 			a_out->a_text + a_out->a_data);
 
 	/* release temporary kernel space */
@@ -404,7 +382,7 @@ printf("mem=%08x = %08x %08x\n", vmaddr, ((int*)vmaddr)[0], ((int*)vmaddr)[1]);
 	/*
 	 * allocate some 'anon' space
 	 */
-	error = vm_map_find(&p->p_vmspace->vm_map, NULL, 0, &vmaddr, 
+	error = vm_map_find(&p->p_vmspace->vm_map, NULL, 0, &vmaddr,
 			    bss_size, FALSE,
 			    VM_PROT_ALL, VM_PROT_ALL, 0);
 	if (error)
@@ -427,49 +405,138 @@ cleanup:
     return error;
 }
 
-struct linux_select_args {
-    void *ptr;
+/* XXX move */
+struct linux_select_argv {
+	int nfds;
+	fd_set *readfds;
+	fd_set *writefds;
+	fd_set *exceptfds;
+	struct timeval *timeout;
 };
 
 int
 linux_select(struct proc *p, struct linux_select_args *args, int *retval)
 {
-    struct {
-	int nfds;
-	fd_set *readfds;
-	fd_set *writefds;
-	fd_set *exceptfds;
-	struct timeval *timeout; 
-    } linux_args;
-    struct select_args /* {
-	unsigned int nd;
-	fd_set *in;
-	fd_set *ou;
-	fd_set *ex;
-	struct timeval *tv;
-    } */ bsd_args;
+    struct linux_select_argv linux_args;
+    struct linux_newselect_args newsel;
     int error;
 
+#ifdef SELECT_DEBUG
+    printf("Linux-emul(%d): select(%x)\n",
+	   p->p_pid, args->ptr);
+#endif
     if ((error = copyin((caddr_t)args->ptr, (caddr_t)&linux_args,
 			sizeof(linux_args))))
 	return error;
-#ifdef DEBUG
-    printf("Linux-emul(%d): select(%d, %d, %d, %d, %d)\n", 
-	   p->p_pid, linux_args.nfds, linux_args.readfds,
-	   linux_args.writefds, linux_args.exceptfds, 
-	   linux_args.timeout);
-#endif
-    bsd_args.nd = linux_args.nfds;
-    bsd_args.in = linux_args.readfds;
-    bsd_args.ou = linux_args.writefds;
-    bsd_args.ex = linux_args.exceptfds;
-    bsd_args.tv = linux_args.timeout;
-    return select(p, &bsd_args, retval);
+
+    newsel.nfds = linux_args.nfds;
+    newsel.readfds = linux_args.readfds;
+    newsel.writefds = linux_args.writefds;
+    newsel.exceptfds = linux_args.exceptfds;
+    newsel.timeout = linux_args.timeout;
+
+    return linux_newselect(p, &newsel, retval);
 }
 
-struct linux_getpgid_args {
-    int pid;
-};
+int
+linux_newselect(struct proc *p, struct linux_newselect_args *args, int *retval)
+{
+    struct select_args bsa;
+    struct timeval tv0, tv1, utv, *tvp;
+    caddr_t sg;
+    int error;
+
+#ifdef DEBUG
+    printf("Linux-emul(%d): newselect(%d, %x, %x, %x, %x)\n",
+	       p->p_pid, args->nfds, args->readfds, args->writefds,
+	       args->exceptfds, args->timeout);
+#endif
+    error = 0;
+    bsa.nd = args->nfds;
+    bsa.in = args->readfds;
+    bsa.ou = args->writefds;
+    bsa.ex = args->exceptfds;
+    bsa.tv = args->timeout;
+
+    /*
+     * Store current time for computation of the amount of
+     * time left.
+     */
+    if (args->timeout) {
+	if ((error = copyin(args->timeout, &utv, sizeof(utv))))
+	    goto select_out;
+#ifdef DEBUG
+	printf("Linux-emul(%d): incoming timeout (%d/%d)\n",
+	       p->p_pid, utv.tv_sec, utv.tv_usec);
+#endif
+	if (itimerfix(&utv)) {
+	    /*
+	     * The timeval was invalid.  Convert it to something
+	     * valid that will act as it does under Linux.
+	     */
+	    sg = stackgap_init();
+	    tvp = stackgap_alloc(&sg, sizeof(utv));
+	    utv.tv_sec += utv.tv_usec / 1000000;
+	    utv.tv_usec %= 1000000;
+	    if (utv.tv_usec < 0) {
+		utv.tv_sec -= 1;
+		utv.tv_usec += 1000000;
+	    }
+	    if (utv.tv_sec < 0)
+		timerclear(&utv);
+	    if ((error = copyout(&utv, tvp, sizeof(utv))))
+		goto select_out;
+	    bsa.tv = tvp;
+	}
+	microtime(&tv0);
+    }
+
+    error = select(p, &bsa, retval);
+#ifdef DEBUG
+    printf("Linux-emul(%d): real select returns %d\n",
+	       p->p_pid, error);
+#endif
+
+    if (error) {
+	/*
+	 * See fs/select.c in the Linux kernel.  Without this,
+	 * Maelstrom doesn't work.
+	 */
+	if (error == ERESTART)
+	    error = EINTR;
+	goto select_out;
+    }
+
+    if (args->timeout) {
+	if (*retval) {
+	    /*
+	     * Compute how much time was left of the timeout,
+	     * by subtracting the current time and the time
+	     * before we started the call, and subtracting
+	     * that result from the user-supplied value.
+	     */
+	    microtime(&tv1);
+	    timevalsub(&tv1, &tv0);
+	    timevalsub(&utv, &tv1);
+	    if (utv.tv_sec < 0)
+		timerclear(&utv);
+	} else
+	    timerclear(&utv);
+#ifdef DEBUG
+	printf("Linux-emul(%d): outgoing timeout (%d/%d)\n",
+	       p->p_pid, utv.tv_sec, utv.tv_usec);
+#endif
+	if ((error = copyout(&utv, args->timeout, sizeof(utv))))
+	    goto select_out;
+    }
+
+select_out:
+#ifdef DEBUG
+    printf("Linux-emul(%d): newselect_out -> %d\n",
+	       p->p_pid, error);
+#endif
+    return error;
+}
 
 int
 linux_getpgid(struct proc *p, struct linux_getpgid_args *args, int *retval)
@@ -490,35 +557,33 @@ linux_getpgid(struct proc *p, struct linux_getpgid_args *args, int *retval)
 }
 
 int
-linux_fork(struct proc *p, void *args, int *retval)
+linux_fork(struct proc *p, struct linux_fork_args *args, int *retval)
 {
     int error;
 
 #ifdef DEBUG
     printf("Linux-emul(%d): fork()\n", p->p_pid);
 #endif
-    if (error = fork(p, args, retval))
+    if (error = fork(p, (struct fork_args *)args, retval))
 	return error;
     if (retval[1] == 1)
 	retval[0] = 0;
     return 0;
 }
 
-struct linux_mmap_args {
-    void *ptr;
-};
-
-int
-linux_mmap(struct proc *p, struct linux_mmap_args *args, int *retval)
-{
-    struct {
+/* XXX move */
+struct linux_mmap_argv {
 	linux_caddr_t addr;
 	int len;
 	int prot;
 	int flags;
 	int fd;
 	int pos;
-    } linux_args;
+};
+
+int
+linux_mmap(struct proc *p, struct linux_mmap_args *args, int *retval)
+{
     struct mmap_args /* {
 	caddr_t addr;
 	size_t len;
@@ -529,13 +594,14 @@ linux_mmap(struct proc *p, struct linux_mmap_args *args, int *retval)
 	off_t pos;
     } */ bsd_args;
     int error;
+    struct linux_mmap_argv linux_args;
 
     if ((error = copyin((caddr_t)args->ptr, (caddr_t)&linux_args,
 			sizeof(linux_args))))
 	return error;
 #ifdef DEBUG
     printf("Linux-emul(%d): mmap(%08x, %d, %d, %08x, %d, %d)\n",
-	   p->p_pid, linux_args.addr, linux_args.len, linux_args.prot, 
+	   p->p_pid, linux_args.addr, linux_args.len, linux_args.prot,
 	   linux_args.flags, linux_args.fd, linux_args.pos);
 #endif
     bsd_args.flags = 0;
@@ -556,9 +622,17 @@ linux_mmap(struct proc *p, struct linux_mmap_args *args, int *retval)
     return mmap(p, &bsd_args, retval);
 }
 
-struct linux_pipe_args {
-    int *pipefds;
-};
+int
+linux_msync(struct proc *p, struct linux_msync_args *args, int *retval)
+{
+	struct msync_args bsd_args;
+
+	bsd_args.addr = args->addr;
+	bsd_args.len = args->len;
+	bsd_args.flags = 0;	/* XXX ignore */
+
+	return msync(p, &bsd_args, retval);
+}
 
 int
 linux_pipe(struct proc *p, struct linux_pipe_args *args, int *retval)
@@ -576,10 +650,6 @@ linux_pipe(struct proc *p, struct linux_pipe_args *args, int *retval)
     return 0;
 }
 
-struct linux_time_args {
-    linux_time_t *tm;
-};
-
 int
 linux_time(struct proc *p, struct linux_time_args *args, int *retval)
 {
@@ -592,28 +662,24 @@ linux_time(struct proc *p, struct linux_time_args *args, int *retval)
 #endif
     microtime(&tv);
     tm = tv.tv_sec;
-    if (error = copyout(&tm, args->tm, sizeof(linux_time_t)))
+    if (args->tm && (error = copyout(&tm, args->tm, sizeof(linux_time_t))))
 	return error;
-    *retval = tv.tv_sec;
+    *retval = tm;
     return 0;
 }
 
-struct linux_tms {
+struct linux_times_argv {
     long    tms_utime;
     long    tms_stime;
     long    tms_cutime;
     long    tms_cstime;
 };
 
-struct linux_tms_args {
-    char *buf;
-};
-
 int
-linux_times(struct proc *p, struct linux_tms_args *args, int *retval)
+linux_times(struct proc *p, struct linux_times_args *args, int *retval)
 {
     struct timeval tv;
-    struct linux_tms tms;
+    struct linux_times_argv tms;
 
 #ifdef DEBUG
     printf("Linux-emul(%d): times(*)\n", p->p_pid);
@@ -627,9 +693,10 @@ linux_times(struct proc *p, struct linux_tms_args *args, int *retval)
     microtime(&tv);
     *retval = tv.tv_sec * hz + (tv.tv_usec * hz)/1000000;
     return (copyout((caddr_t)&tms, (caddr_t)args->buf,
-	    	    sizeof(struct linux_tms)));
+	    	    sizeof(struct linux_times_argv)));
 }
 
+/* XXX move */
 struct linux_newuname_t {
     char sysname[65];
     char nodename[65];
@@ -637,10 +704,6 @@ struct linux_newuname_t {
     char version[65];
     char machine[65];
     char domainname[65];
-};
-
-struct linux_newuname_args {
-    char *buf;
 };
 
 int
@@ -662,10 +725,6 @@ linux_newuname(struct proc *p, struct linux_newuname_args *args, int *retval)
 	    	    sizeof(struct linux_newuname_t)));
 }
 
-struct linux_utime_args {
-    char	*fname;
-    linux_time_t    *timeptr;
-};
 
 int
 linux_utime(struct proc *p, struct linux_utime_args *args, int *retval)
@@ -675,22 +734,20 @@ linux_utime(struct proc *p, struct linux_utime_args *args, int *retval)
 	struct	timeval *tptr;
     } */ bsdutimes;
     struct timeval tv;
+    caddr_t sg;
+
+    sg = stackgap_init();
+    CHECKALTEXIST(p, &sg, args->fname);
 
 #ifdef DEBUG
     printf("Linux-emul(%d): utime(%s, *)\n", p->p_pid, args->fname);
 #endif
-    tv.tv_sec = (long)args->timeptr;
+    tv.tv_sec = (long)args->timeptr;	/* XXX: wrong?? */
     tv.tv_usec = 0;
     bsdutimes.tptr = &tv;
     bsdutimes.path = args->fname;
     return utimes(p, &bsdutimes, retval);
 }
-
-struct linux_waitpid_args {
-    int pid;
-    int *status;
-    int options;
-};
 
 int
 linux_waitpid(struct proc *p, struct linux_waitpid_args *args, int *retval)
@@ -704,8 +761,8 @@ linux_waitpid(struct proc *p, struct linux_waitpid_args *args, int *retval)
     int error, tmpstat;
 
 #ifdef DEBUG
-    printf("Linux-emul(%d): waitpid(%d, *, %d)\n", 
-	   p->p_pid, args->pid, args->options);
+    printf("Linux-emul(%d): waitpid(%d, 0x%x, %d)\n",
+	   p->p_pid, args->pid, args->status, args->options);
 #endif
     tmp.pid = args->pid;
     tmp.status = args->status;
@@ -714,25 +771,21 @@ linux_waitpid(struct proc *p, struct linux_waitpid_args *args, int *retval)
 
     if (error = wait4(p, &tmp, retval))
 	return error;
-    if (error = copyin(args->status, &tmpstat, sizeof(int)))
-	return error;
-    if (WIFSIGNALED(tmpstat))
-	tmpstat = (tmpstat & 0xffffff80) |
-		  bsd_to_linux_signal[WTERMSIG(tmpstat)];
-    else if (WIFSTOPPED(tmpstat))
-	tmpstat = (tmpstat & 0xffff00ff) |
-	      	  (bsd_to_linux_signal[WSTOPSIG(tmpstat)]<<8);
-    return copyout(&tmpstat, args->status, sizeof(int));
+    if (args->status) {
+	if (error = copyin(args->status, &tmpstat, sizeof(int)))
+	    return error;
+	if (WIFSIGNALED(tmpstat))
+	    tmpstat = (tmpstat & 0xffffff80) |
+		      bsd_to_linux_signal[WTERMSIG(tmpstat)];
+	else if (WIFSTOPPED(tmpstat))
+	    tmpstat = (tmpstat & 0xffff00ff) |
+		      (bsd_to_linux_signal[WSTOPSIG(tmpstat)]<<8);
+	return copyout(&tmpstat, args->status, sizeof(int));
+    } else
+	return 0;
 }
 
-struct linux_wait4_args {
-    int pid;
-    int *status;
-    int options;
-    struct rusage *rusage;
-};
-
-int 
+int
 linux_wait4(struct proc *p, struct linux_wait4_args *args, int *retval)
 {
     struct wait_args /* {
@@ -744,8 +797,8 @@ linux_wait4(struct proc *p, struct linux_wait4_args *args, int *retval)
     int error, tmpstat;
 
 #ifdef DEBUG
-    printf("Linux-emul(%d): wait4(%d, *, %d, *)\n", 
-	   p->p_pid, args->pid, args->options);
+    printf("Linux-emul(%d): wait4(%d, 0x%x, %d, 0x%x)\n",
+	   p->p_pid, args->pid, args->status, args->options, args->rusage);
 #endif
     tmp.pid = args->pid;
     tmp.status = args->status;
@@ -754,28 +807,108 @@ linux_wait4(struct proc *p, struct linux_wait4_args *args, int *retval)
 
     if (error = wait4(p, &tmp, retval))
 	return error;
-    if (error = copyin(args->status, &tmpstat, sizeof(int)))
-	return error;
-    if (WIFSIGNALED(tmpstat))
-	tmpstat = (tmpstat & 0xffffff80) |
-	      bsd_to_linux_signal[WTERMSIG(tmpstat)];
-    else if (WIFSTOPPED(tmpstat))
-	tmpstat = (tmpstat & 0xffff00ff) |
-	      (bsd_to_linux_signal[WSTOPSIG(tmpstat)]<<8);
-    return copyout(&tmpstat, args->status, sizeof(int));
+
+    p->p_siglist &= ~sigmask(SIGCHLD);
+
+    if (args->status) {
+	if (error = copyin(args->status, &tmpstat, sizeof(int)))
+	    return error;
+	if (WIFSIGNALED(tmpstat))
+	    tmpstat = (tmpstat & 0xffffff80) |
+		  bsd_to_linux_signal[WTERMSIG(tmpstat)];
+	else if (WIFSTOPPED(tmpstat))
+	    tmpstat = (tmpstat & 0xffff00ff) |
+		  (bsd_to_linux_signal[WSTOPSIG(tmpstat)]<<8);
+	return copyout(&tmpstat, args->status, sizeof(int));
+    } else
+	return 0;
 }
 
-struct linux_mknod_args {
-	char *path;
-	int mode;
-	int dev;
-};
-
-int 
+int
 linux_mknod(struct proc *p, struct linux_mknod_args *args, int *retval)
 {
-	if (args->mode & S_IFIFO)
-		return mkfifo(p, (struct mkfifo_args *)args, retval);
-	else
-		return mknod(p, (struct mknod_args *)args, retval);
+	caddr_t sg;
+	struct mknod_args bsd_mknod;
+	struct mkfifo_args bsd_mkfifo;
+
+	sg = stackgap_init();
+
+	CHECKALTCREAT(p, &sg, args->path);
+
+#ifdef DEBUG
+	printf("Linux-emul(%d): mknod(%s, %d, %d)\n",
+	   p->p_pid, args->path, args->mode, args->dev);
+#endif
+
+	if (args->mode & S_IFIFO) {
+		bsd_mkfifo.path = args->path;
+		bsd_mkfifo.mode = args->mode;
+		return mkfifo(p, &bsd_mkfifo, retval);
+	} else {
+		bsd_mknod.path = args->path;
+		bsd_mknod.mode = args->mode;
+		bsd_mknod.dev = args->dev;
+		return mknod(p, &bsd_mknod, retval);
+	}
+}
+
+/*
+ * UGH! This is just about the dumbest idea I've ever heard!!
+ */
+int
+linux_personality(struct proc *p, struct linux_personality_args *args,
+		  int *retval)
+{
+#ifdef DEBUG
+	printf("Linux-emul(%d): personality(%d)\n",
+	   p->p_pid, args->per);
+#endif
+	if (args->per != 0)
+		return EINVAL;
+
+	/* Yes Jim, it's still a Linux... */
+	retval[0] = 0;
+	return 0;
+}
+
+/*
+ * Wrappers for get/setitimer for debugging..
+ */
+int
+linux_setitimer(struct proc *p, struct linux_setitimer_args *args, int *retval)
+{
+	struct setitimer_args bsa;
+	struct itimerval foo;
+	int error;
+
+#ifdef DEBUG
+	printf("Linux-emul(%d): setitimer(%08x, %08x)\n",
+	   p->p_pid, args->itv, args->oitv);
+#endif
+	bsa.which = args->which;
+	bsa.itv = args->itv;
+	bsa.oitv = args->oitv;
+	if (args->itv) {
+	    if ((error = copyin((caddr_t)args->itv, (caddr_t)&foo,
+			sizeof(foo))))
+		return error;
+#ifdef DEBUG
+	    printf("setitimer: value: sec: %d, usec: %d\n", foo.it_value.tv_sec, foo.it_value.tv_usec);
+	    printf("setitimer: interval: sec: %d, usec: %d\n", foo.it_interval.tv_sec, foo.it_interval.tv_usec);
+#endif
+	}
+	return setitimer(p, &bsa, retval);
+}
+
+int
+linux_getitimer(struct proc *p, struct linux_getitimer_args *args, int *retval)
+{
+	struct getitimer_args bsa;
+#ifdef DEBUG
+	printf("Linux-emul(%d): getitimer(%08x)\n",
+	   p->p_pid, args->itv);
+#endif
+	bsa.which = args->which;
+	bsa.itv = args->itv;
+	return getitimer(p, &bsa, retval);
 }
