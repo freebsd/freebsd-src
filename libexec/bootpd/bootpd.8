@@ -10,20 +10,20 @@
 .Nd Internet Boot Protocol server/gateway
 .Sh SYNOPSIS
 .Nm
-.Op Fl i
-.Op Fl s
-.Op Fl t Ar timeout
-.Op Fl d Ar level
+.Op Fl i | Fl s
 .Op Fl c Ar chdir-path
+.Op Fl d Ar level
+.Op Fl h Ar hostname
+.Op Fl t Ar timeout
 .Oo
 .Ar bootptab
 .Op Ar dumpfile
 .Oc
 .Nm bootpgw
-.Op Fl i
-.Op Fl s
-.Op Fl t Ar timeout
+.Op Fl i | Fl s
 .Op Fl d Ar level
+.Op Fl h Ar hostname
+.Op Fl t Ar timeout
 .Ar server
 .Sh DESCRIPTION
 .Nm Bootpd
@@ -135,6 +135,13 @@ needs to use the same current directory as the TFTP server
 .Pa /tftpboot ) .
 This option is not recognized by
 .Nm bootpgw .
+.It Fl h Ar hostname
+Specify the hostname corresponding to the IP address to listen on.
+By default,
+.Nm
+listens on the IP address corresponding to the machine's hostname, as
+returned by
+.Xr gethostname 3 .
 .It Fl i
 Force inetd mode.  This option is obsolete, but remains for
 compatibility with older versions of
