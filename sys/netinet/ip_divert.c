@@ -277,7 +277,7 @@ div_output(struct socket *so, struct mbuf *m,
 	if (sin) {
 		int i;
 
-		divert_tag.mh_data = (caddr_t)(int)sin->sin_port;
+		divert_tag.mh_data = (caddr_t)(uintptr_t)sin->sin_port;
 		/*
 		 * Find receive interface with the given name, stuffed
 		 * (if it exists) in the sin_zero[] field.
