@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.c	8.3 (Berkeley) 1/4/94
- *	$Id: if.c,v 1.64 1998/12/16 18:30:42 phk Exp $
+ *	$Id: if.c,v 1.65 1999/02/01 20:03:27 phk Exp $
  */
 
 #include "opt_compat.h"
@@ -604,6 +604,7 @@ ifioctl(so, cmd, data, p)
 		error = suser(p->p_ucred, &p->p_acflag);
 		if (error)
 			return (error);
+		ifr->ifr_prevflags = ifp->if_flags;
 		if (ifp->if_flags & IFF_UP && (ifr->ifr_flags & IFF_UP) == 0) {
 			int s = splimp();
 			if_down(ifp);

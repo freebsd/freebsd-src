@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.h	8.1 (Berkeley) 6/10/93
- *	$Id: if.h,v 1.48 1998/01/13 02:56:21 wollman Exp $
+ *	$Id: if.h,v 1.49 1998/03/21 13:36:20 peter Exp $
  */
 
 #ifndef _NET_IF_H_
@@ -82,7 +82,6 @@ struct if_data {
 #define	IFF_DEBUG	0x4		/* turn on debugging */
 #define	IFF_LOOPBACK	0x8		/* is a loopback net */
 #define	IFF_POINTOPOINT	0x10		/* interface is point-to-point link */
-/*#define IFF_NOTRAILERS 0x20		 * obsolete: avoid use of trailers */
 #define	IFF_RUNNING	0x40		/* resources allocated */
 #define	IFF_NOARP	0x80		/* no address resolution protocol */
 #define	IFF_PROMISC	0x100		/* receive all packets */
@@ -157,7 +156,7 @@ struct	ifreq {
 		struct	sockaddr ifru_addr;
 		struct	sockaddr ifru_dstaddr;
 		struct	sockaddr ifru_broadaddr;
-		short	ifru_flags;
+		short	ifru_flags[2];
 		int	ifru_metric;
 		int	ifru_mtu;
 		int	ifru_phys;
@@ -167,7 +166,8 @@ struct	ifreq {
 #define	ifr_addr	ifr_ifru.ifru_addr	/* address */
 #define	ifr_dstaddr	ifr_ifru.ifru_dstaddr	/* other end of p-to-p link */
 #define	ifr_broadaddr	ifr_ifru.ifru_broadaddr	/* broadcast address */
-#define	ifr_flags	ifr_ifru.ifru_flags	/* flags */
+#define	ifr_flags	ifr_ifru.ifru_flags[0]	/* flags */
+#define	ifr_prevflags	ifr_ifru.ifru_flags[1]	/* flags */
 #define	ifr_metric	ifr_ifru.ifru_metric	/* metric */
 #define	ifr_mtu		ifr_ifru.ifru_mtu	/* mtu */
 #define ifr_phys	ifr_ifru.ifru_phys	/* physical wire */
