@@ -337,6 +337,6 @@ userdump(fd, p, addr, npage)
 void
 usage()
 {
-	(void)fprintf(stderr, "usage: gcore [-s] [-c core] executable pid\n");
+	(void)fprintf(stderr, "usage: gcore [-s] [-c core] [executable] pid\n");
 	exit(1);
 }
