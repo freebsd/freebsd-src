@@ -108,10 +108,6 @@ _thread_kern_sched(ucontext_t *scp)
 	/* Check if this function was called from the signal handler: */
 	if (scp != NULL) {
 		called_from_handler = 1;
-		/*
-		 * We're running on the signal stack; just call the
-		 * kernel scheduler directly.
-		 */
 		DBG_MSG("Entering scheduler due to signal\n");
 	} else {
 		/* Save the state of the current thread: */
