@@ -1,4 +1,4 @@
-/*	$OpenBSD: pfctl_parser.h,v 1.67 2003/08/21 19:12:09 frantzen Exp $ */
+/*	$OpenBSD: pfctl_parser.h,v 1.74 2004/02/10 22:26:56 dhartmei Exp $ */
 
 /*
  * Copyright (c) 2001 Daniel Hartmeier
@@ -46,6 +46,7 @@
 #define PF_OPT_VERBOSE2		0x0080
 #define PF_OPT_DUMMYACTION	0x0100
 #define PF_OPT_DEBUG		0x0200
+#define PF_OPT_SHOWALL		0x0400
 
 #define PF_TH_ALL		0xFF
 
@@ -67,17 +68,11 @@ struct pfctl {
 	int tdirty;			/* kernel dirty */
 	u_int32_t rule_nr;
 	struct pfioc_pooladdr paddr;
-	struct pfioc_rule *prule[PF_RULESET_MAX];
 	struct pfioc_altq *paltq;
 	struct pfioc_queue *pqueue;
+	struct pfr_buffer *trans;
 	const char *anchor;
 	const char *ruleset;
-};
-
-enum pfctl_iflookup_mode {
-	PFCTL_IFLOOKUP_HOST,
-	PFCTL_IFLOOKUP_NET,
-	PFCTL_IFLOOKUP_BCAST
 };
 
 struct node_if {
@@ -91,6 +86,7 @@ struct node_if {
 struct node_host {
 	struct pf_addr_wrap	 addr;
 	struct pf_addr		 bcast;
+	struct pf_addr		 peer;
 	sa_family_t		 af;
 	u_int8_t		 not;
 	u_int32_t		 ifindex;	/* link-local IPv6 addrs */
@@ -99,6 +95,10 @@ struct node_host {
 	struct node_host	*next;
 	struct node_host	*tail;
 };
+/* special flags used by ifa_exists */
+#define PF_IFA_FLAG_GROUP	0x10000
+#define PF_IFA_FLAG_DYNAMIC	0x20000
+#define PF_IFA_FLAG_CLONABLE	0x40000
 
 struct node_os {
 	char			*os;
@@ -168,7 +168,7 @@ struct node_tinit {	/* table initializer */
 
 struct pfr_buffer;	/* forward definition */
 
-int	pfctl_rules(int, char *, int, char *, char *);
+int	pfctl_rules(int, char *, int, char *, char *, struct pfr_buffer *);
 
 int	pfctl_add_rule(struct pfctl *, struct pf_rule *);
 int	pfctl_add_altq(struct pfctl *, struct pf_altq *);
@@ -179,15 +179,18 @@ int	pfctl_set_timeout(struct pfctl *, const char *, int, int);
 int	pfctl_set_optimization(struct pfctl *, const char *);
 int	pfctl_set_limit(struct pfctl *, const char *, unsigned int);
 int	pfctl_set_logif(struct pfctl *, char *);
+int	pfctl_set_hostid(struct pfctl *, u_int32_t);
+int	pfctl_set_debug(struct pfctl *, char *);
 
 int	parse_rules(FILE *, struct pfctl *);
 int	parse_flags(char *);
-int	pfctl_load_anchors(int, int);
+int	pfctl_load_anchors(int, int, struct pfr_buffer *);
 
 void	print_pool(struct pf_pool *, u_int16_t, u_int16_t, sa_family_t, int);
+void	print_src_node(struct pf_src_node *, int);
 void	print_rule(struct pf_rule *, int);
 void	print_tabledef(const char *, int, int, struct node_tinithead *);
-void	print_status(struct pf_status *);
+void	print_status(struct pf_status *, int);
 
 int	eval_pfaltq(struct pfctl *, struct pf_altq *, struct node_queue_bw *,
 	    struct node_queue_opt *);
@@ -195,9 +198,9 @@ int	eval_pfqueue(struct pfctl *, struct pf_altq *, struct node_queue_bw *,
 	    struct node_queue_opt *);
 
 void	 print_altq(const struct pf_altq *, unsigned, struct node_queue_bw *,
-	     struct node_queue_opt *);
+	    struct node_queue_opt *);
 void	 print_queue(const struct pf_altq *, unsigned, struct node_queue_bw *,
-	     int, struct node_queue_opt *);
+	    int, struct node_queue_opt *);
 
 int	pfctl_define_table(char *, int, int, const char *, const char *,
 	    struct pfr_buffer *, u_int32_t);
@@ -242,8 +245,8 @@ extern const struct pf_timeout pf_timeouts[];
 void			 set_ipmask(struct node_host *, u_int8_t);
 int			 check_netmask(struct node_host *, sa_family_t);
 void			 ifa_load(void);
-struct node_host	*ifa_exists(const char *);
-struct node_host	*ifa_lookup(const char *, enum pfctl_iflookup_mode);
+struct node_host	*ifa_exists(const char *, int);
+struct node_host	*ifa_lookup(const char *, int);
 struct node_host	*host(const char *);
 
 int			 append_addr(struct pfr_buffer *, char *, int);

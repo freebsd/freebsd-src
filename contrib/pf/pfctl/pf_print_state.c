@@ -30,8 +30,12 @@
  *
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/endian.h>
 #include <net/if.h>
 #define TCPSTATES
 #include <netinet/tcp_fsm.h>
@@ -284,8 +288,13 @@ print_state(struct pf_state *s, int opts)
 		printf("\n");
 	}
 	if (opts & PF_OPT_VERBOSE2) {
+#ifdef __FreeBSD__
+		printf("   id: %016llx creatorid: %08x\n",
+		    (long long)be64toh(s->id), ntohl(s->creatorid));
+#else
 		printf("   id: %016llx creatorid: %08x\n",
 		    betoh64(s->id), ntohl(s->creatorid));
+#endif
 	}
 }
 
