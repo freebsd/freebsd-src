@@ -61,6 +61,9 @@
 /* The number of bytes in a uint64_t.  */
 #define SIZEOF_UINT64_T 8
 
+/* Define if you have the mmap function.  */
+#define HAVE_MMAP 1
+
 /* Define if you have the strerror function.  */
 #define HAVE_STRERROR 1
 
@@ -70,6 +73,9 @@
 /* Define if you have the <locale.h> header file.  */
 #define HAVE_LOCALE_H 1
 
+/* Define if you have the <sys/mman.h> header file.  */
+#define HAVE_SYS_MMAN_H 1
+
 /* Define if you have the <unistd.h> header file.  */
 #define HAVE_UNISTD_H 1
 
@@ -77,5 +83,5 @@
 #define PACKAGE "file"
 
 /* Version number of package */
-#define VERSION "3.32"
+#define VERSION "3.36"
 
