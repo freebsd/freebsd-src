@@ -741,7 +741,7 @@ struct sockaddr_inarp sin_inarp = {
 };
 struct sockaddr_dl sin_dl = {
 	sizeof(struct sockaddr_dl), AF_LINK, 0, IFT_ETHER, 0, 6,
-	0, "", 0, {0}
+	0, ""
 };
 struct {
 	struct rt_msghdr rthdr;
