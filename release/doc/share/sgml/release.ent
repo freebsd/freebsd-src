@@ -6,7 +6,7 @@
 
 <!-- Version of the OS we're describing.  This needs to be updated
      with each new release. -->
-<!ENTITY release.current "4.5-RC">
+<!ENTITY release.current "4.5-RELEASE">
 
 <!-- The previous version used for comparison in the "What's New"
      section.  For -CURRENT, we might point back to the last
@@ -14,19 +14,19 @@
 <!ENTITY release.prev "4.4-RELEASE">
 
 <!-- The next version to be released, usually used for snapshots. -->
-<!ENTITY release.next "4.5-RELEASE">
+<!ENTITY release.next "4.6-RELEASE">
 
 <!-- The name of this branch. -->
 <!ENTITY release.branch "4-STABLE">
 
 <!-- The URL for obtaining this version of FreeBSD. -->
-<!ENTITY release.url "ftp://stable.FreeBSD.org/pub/FreeBSD/">
+<!ENTITY release.url "ftp://ftp.FreeBSD.org/pub/FreeBSD/releases/">
 
 <!-- The type of release (usually this will be either "snapshot"
      or "release" -->
-<!ENTITY release.type "snapshot">
-<!ENTITY % release.type.snapshot "INCLUDE">
-<!ENTITY % release.type.release "IGNORE">
+<!ENTITY release.type "release">
+<!ENTITY % release.type.snapshot "IGNORE">
+<!ENTITY % release.type.release "INCLUDE">
 
 <!-- Text constants which probably don't need to be changed.-->
 
