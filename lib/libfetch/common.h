@@ -38,8 +38,9 @@
 
 /* Structure used for error message lists */
 struct fetcherr {  
-    const int num, cat;
-    const char *string;
+	const int	 num;
+	const int	 cat;
+	const char	*string;
 };
 
 void		 _fetch_seterr(struct fetcherr *, int);
@@ -51,7 +52,7 @@ int		 _fetch_connect(const char *, int, int, int);
 int		 _fetch_getln(int, char **, size_t *, size_t *);
 int		 _fetch_putln(int, const char *, size_t);
 int		 _fetch_add_entry(struct url_ent **, int *, int *,
-				  const char *, struct url_stat *);
+		     const char *, struct url_stat *);
 
 #define _ftp_seterr(n)	 _fetch_seterr(_ftp_errlist, n)
 #define _http_seterr(n)	 _fetch_seterr(_http_errlist, n)
@@ -74,11 +75,9 @@ int		 _fetch_add_entry(struct url_ent **, int *, int *,
  * whole lot of trouble.
  */
 FILE		*_http_request(struct url *, const char *,
-			       struct url_stat *, struct url *,
-			       const char *);
+		     struct url_stat *, struct url *, const char *);
 FILE		*_ftp_request(struct url *, const char *,
-			      struct url_stat *, struct url *,
-			      const char *);
+		     struct url_stat *, struct url *, const char *);
 
 /*
  * Check whether a particular flag is set
