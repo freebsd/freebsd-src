@@ -15,7 +15,6 @@ WARNS?=		0
 
 .if !defined(RELEASE_CRUNCH)
 .if !defined(NOCRYPT) && !defined(NO_OPENSSL)
-DISTRIBUTION=	crypto
 SRCS+=		encrypt.c auth.c enc_des.c sra.c pk.c
 CFLAGS+=	-DENCRYPTION -DAUTHENTICATION -DSRA
 .if !defined(NO_KERBEROS)

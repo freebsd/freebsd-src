@@ -1,6 +1,5 @@
 # $FreeBSD$
 
-DISTRIBUTION?=	crypto
 NOLINT=
 
 KRB5DIR=	${.CURDIR}/../../../crypto/heimdal

@@ -38,7 +38,6 @@ CFLAGS+= -DHAVE_GSSAPI -DHAVE_GSSAPI_H -DENCRYPTION
 LDADD+= -lgssapi -lkrb5 -lasn1 -lcrypto -lroken -lcrypt -lcom_err
 DPADD+= ${LIBGSSAPI} ${LIBKRB5} ${LIBASN1} ${LIBCRYPTO} ${LIBROKEN}
 DPADD+= ${LIBCRYPT} ${LIBCOM_ERR}
-DISTRIBUTION=	crypto
 .endif
 
 #

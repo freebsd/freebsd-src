@@ -6,7 +6,6 @@ LINKS=	${BINDIR}/ed ${BINDIR}/red
 MLINKS=	ed.1 red.1
 
 .if !defined(NOCRYPT) && !defined(NO_OPENSSL)
-DISTRIBUTION=crypto
 CFLAGS+=-DDES
 WARNS?=	2
 DPADD=	${LIBCRYPTO}

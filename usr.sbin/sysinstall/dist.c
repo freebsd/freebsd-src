@@ -43,7 +43,6 @@
 #include <libutil.h>
 
 unsigned int Dists;
-unsigned int CRYPTODists;
 unsigned int SrcDists;
 unsigned int XF86Dists;
 unsigned int XF86ServerDists;
@@ -63,7 +62,6 @@ typedef struct _dist {
 } Distribution;
 
 extern Distribution DistTable[];
-extern Distribution CRYPTODistTable[];
 extern Distribution SrcDistTable[];
 extern Distribution XF86DistTable[];
 extern Distribution XF86FontDistTable[];
@@ -89,7 +87,6 @@ static Distribution DistTable[] = {
     DTE_TARBALL("dict",	    &Dists, DICT,     "/"),
     DTE_TARBALL("info",	    &Dists, INFO,     "/"),
     DTE_SUBDIST("src",	    &Dists, SRC,      SrcDistTable),
-    DTE_SUBDIST("crypto",   &Dists, CRYPTO,   CRYPTODistTable),
 #ifdef __i386__
     DTE_TARBALL("compat1x", &Dists, COMPAT1X, "/"),
     DTE_TARBALL("compat20", &Dists, COMPAT20, "/"),
@@ -107,27 +104,21 @@ static Distribution DistTable[] = {
     { NULL },
 };
 
-/* The CRYPTO distribution */
-static Distribution CRYPTODistTable[] = {
-    DTE_TARBALL("crypto",  &CRYPTODists, CRYPTO_CRYPTO,	    "/"),
-    DTE_TARBALL("ssecure", &CRYPTODists, CRYPTO_SSECURE,    "/usr/src"),
-    DTE_TARBALL("scrypto", &CRYPTODists, CRYPTO_SCRYPTO,    "/usr/src"),
-    DTE_TARBALL("skrb5",   &CRYPTODists, CRYPTO_SKERBEROS5, "/usr/src"),
-    { NULL },
-};
-
 /* The /usr/src distribution */
 static Distribution SrcDistTable[] = {
     DTE_TARBALL("sbase",    &SrcDists, SRC_BASE,    "/usr/src"),
     DTE_TARBALL("scontrib", &SrcDists, SRC_CONTRIB, "/usr/src"),
+    DTE_TARBALL("scrypto",  &SrcDists, SRC_SCRYPTO, "/usr/src"),
     DTE_TARBALL("sgnu",	    &SrcDists, SRC_GNU,	    "/usr/src"),
     DTE_TARBALL("setc",	    &SrcDists, SRC_ETC,	    "/usr/src"),
     DTE_TARBALL("sgames",   &SrcDists, SRC_GAMES,   "/usr/src"),
     DTE_TARBALL("sinclude", &SrcDists, SRC_INCLUDE, "/usr/src"),
+    DTE_TARBALL("skrb5",    &SrcDists, SRC_SKERBEROS5, "/usr/src"),
     DTE_TARBALL("slib",	    &SrcDists, SRC_LIB,	    "/usr/src"),
     DTE_TARBALL("slibexec", &SrcDists, SRC_LIBEXEC, "/usr/src"),
     DTE_TARBALL("srelease", &SrcDists, SRC_RELEASE, "/usr/src"),
     DTE_TARBALL("sbin",	    &SrcDists, SRC_BIN,	    "/usr/src"),
+    DTE_TARBALL("ssecure",  &SrcDists, SRC_SSECURE, "/usr/src"),
     DTE_TARBALL("ssbin",    &SrcDists, SRC_SBIN,    "/usr/src"),
     DTE_TARBALL("sshare",   &SrcDists, SRC_SHARE,   "/usr/src"),
     DTE_TARBALL("ssys",	    &SrcDists, SRC_SYS,	    "/usr/src"),
@@ -176,10 +167,6 @@ distVerifyFlags(void)
 {
     if (SrcDists)
 	Dists |= DIST_SRC;
-    if (CRYPTODists)
-	Dists |= DIST_CRYPTO;
-    else if ((Dists & DIST_CRYPTO) && !CRYPTODists)
-	CRYPTODists |= DIST_CRYPTO_ALL;
     if (XF86ServerDists)
 	XF86Dists |= DIST_XF86_SERVER;
     if (XF86FontDists)
@@ -187,8 +174,8 @@ distVerifyFlags(void)
     if (XF86Dists || XF86ServerDists || XF86FontDists)
 	Dists |= DIST_XF86;
     if (isDebug()) {
-	msgDebug("Dist Masks: Dists: %0x, CRYPTO: %0x, Srcs: %0x\n", Dists,
-	    CRYPTODists, SrcDists);
+	msgDebug("Dist Masks: Dists: %0x, Srcs: %0x\n", Dists,
+	    SrcDists);
 	msgDebug("XServer: %0x, XFonts: %0x, XDists: %0x\n", XF86ServerDists,
 	    XF86FontDists, XF86Dists);
     }
@@ -198,7 +185,6 @@ int
 distReset(dialogMenuItem *self)
 {
     Dists = 0;
-    CRYPTODists = 0;
     SrcDists = 0;
     XF86Dists = 0;
     XF86ServerDists = 0;
@@ -215,9 +201,6 @@ distConfig(dialogMenuItem *self)
 
     if ((cp = variable_get(VAR_DIST_MAIN)) != NULL)
 	Dists = atoi(cp);
-
-    if ((cp = variable_get(VAR_DIST_CRYPTO)) != NULL)
-	CRYPTODists = atoi(cp);
 
     if ((cp = variable_get(VAR_DIST_SRC)) != NULL)
 	SrcDists = atoi(cp);
@@ -252,7 +235,6 @@ distSetDeveloper(dialogMenuItem *self)
     distReset(NULL);
     Dists = _DIST_DEVELOPER;
     SrcDists = DIST_SRC_ALL;
-    CRYPTODists = DIST_CRYPTO_ALL;
     i = distMaybeSetPorts(self);
     distVerifyFlags();
     return i;
@@ -277,7 +259,6 @@ distSetKernDeveloper(dialogMenuItem *self)
     distReset(NULL);
     Dists = _DIST_DEVELOPER;
     SrcDists = DIST_SRC_SYS;
-    CRYPTODists |= DIST_CRYPTO_CRYPTO;
     i = distMaybeSetPorts(self);
     distVerifyFlags();
     return i;
@@ -301,7 +282,6 @@ distSetUser(dialogMenuItem *self)
 
     distReset(NULL);
     Dists = _DIST_USER;
-    CRYPTODists |= DIST_CRYPTO_CRYPTO;
     i = distMaybeSetPorts(self);
     distVerifyFlags();
     return i;
@@ -322,8 +302,7 @@ int
 distSetMinimum(dialogMenuItem *self)
 {
     distReset(NULL);
-    Dists = DIST_BASE | DIST_CRYPTO;
-    CRYPTODists |= DIST_CRYPTO_CRYPTO;
+    Dists = DIST_BASE;
     distVerifyFlags();
     return DITEM_SUCCESS | DITEM_REDRAW;
 }
@@ -335,7 +314,6 @@ distSetEverything(dialogMenuItem *self)
 
     Dists = DIST_ALL | DIST_XF86;
     SrcDists = DIST_SRC_ALL;
-    CRYPTODists = DIST_CRYPTO_ALL;
     XF86Dists = DIST_XF86_ALL;
     XF86ServerDists = DIST_XF86_SERVER_ALL;
     XF86FontDists = DIST_XF86_FONTS_ALL;

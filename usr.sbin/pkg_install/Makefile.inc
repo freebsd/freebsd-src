@@ -8,7 +8,6 @@ LIBINSTALL=	${.CURDIR}/../lib/libinstall.a
 
 .if !defined(NOCRYPT) && !defined(NO_OPENSSL) && \
     defined(LDADD) && ${LDADD:M-lfetch} != ""
-DISTRIBUTION=	crypto
 DPADD+=		${LIBSSL} ${LIBCRYPTO}
 LDADD+=		-lssl -lcrypto
 .endif
