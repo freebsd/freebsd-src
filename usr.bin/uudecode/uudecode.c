@@ -349,7 +349,7 @@ base64_decode(stream)
 	rv = b64_pton(stream, out, (sizeof(out) / sizeof(out[0])));
 	if (rv == -1)
 		errx(1, "b64_pton: error decoding base64 input stream");
-	printf("%s", out);
+	fwrite(out, 1, rv, stdout);
 }
 
 static void
