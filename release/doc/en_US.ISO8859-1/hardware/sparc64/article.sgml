@@ -14,7 +14,7 @@
 <!-- Architecture-specific customization -->
 
 <!ENTITY arch "sparc64">
-<!ENTITY arch.print "UltraSparc">
+<!ENTITY arch.print "UltraSPARC">
 <!ENTITY unsupported "<emphasis>(unsupported)</emphasis>">
 <!ENTITY perforce "<emphasis>(not yet committed - in Perforce tree)</emphasis>">
 <!ENTITY sect.dev.sparc64 SYSTEM "./dev-sparc64.sgml">
