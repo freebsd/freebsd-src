@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.12 1994/10/08 22:33:43 phk Exp $
+ * $Id: vfs_syscalls.c,v 1.13 1994/10/11 20:40:12 sos Exp $
  */
 
 #include <sys/param.h>
@@ -94,7 +94,7 @@ mount(p, uap, retval)
 	 * Get vnode to be covered
 	 */
 	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF, UIO_USERSPACE, uap->path, p);
-	namei(&nd);
+	error = namei(&nd);
 	if (error)
 		return (error);
 	vp = nd.ni_vp;
