@@ -372,10 +372,10 @@ delete(char *host, char *info)
 	register struct rt_msghdr *rtm = &m_rtmsg.m_rtm;
 	struct sockaddr_dl *sdl;
 
-	if (info && strncmp(info, "pro", 3) )
-		export_only = 1;
 	getsocket();
 	sin_m = blank_sin;
+	if (info && strncmp(info, "pro", 3) == 0)
+		sin_m.sin_other = SIN_PROXY;
 	sin->sin_addr.s_addr = inet_addr(host);
 	if (sin->sin_addr.s_addr == -1) {
 		if (!(hp = gethostbyname(host))) {
