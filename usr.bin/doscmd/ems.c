@@ -73,7 +73,7 @@ u_long ems_frame_addr = EMS_FRAME_ADDR;
  * and map the needed part into the page frame 
  */
 
-#define EMS_MAP_PATH	"/var/tmp/"	/* Use a big file system */
+#define EMS_MAP_PATH	"/var/tmp/"	/* Use a big filesystem */
 #define EMS_MAP_FILE	"doscmd.XXXXXX"
 static int mapfile_fd = -1;
 

@@ -1243,7 +1243,7 @@ and
 .B \-L )
 and various other information on how PMake was configured.
 .Ix 0 ref configuration
-.Ix 0 ref makefile system
+.Ix 0 ref makefilesystem
 .IP \fB\-i\fP
 .Ix 0 def flags -i
 If you give this flag, PMake will ignore non-zero status returned
@@ -2400,7 +2400,7 @@ flag. This variable can then be used as an argument for the compiler
 in the normal fashion. The
 .CW .h
 suffix is already marked in this way in the system makefile.
-.Ix 0 ref makefile system
+.Ix 0 ref makefilesystem
 E.g. if you have
 .DS
 \&.SUFFIXES       : .bitmap

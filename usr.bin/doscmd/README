@@ -9,7 +9,7 @@ Things known not to work:
     *	No raw VGA support (yet)
     *	Printer support (yet)
     *	COM ports (being worked on)
-    *	redirected file system only supported for DOS 4.0 and above
+    *	redirected filesystem only supported for DOS 4.0 and above
 	(3.3 will be supported in a future version)
     *	Graphics in an X window (only 16 colors, very few programs)
 
