@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.246.2.43 1997/06/11 10:02:36 jkh Exp $
+#	$Id: Makefile,v 1.246.2.44 1997/06/21 15:47:30 jkh Exp $
 #
 # How to roll a release:
 #
@@ -189,7 +189,7 @@ rerelease release:
 	echo "make all install"			>> ${CHROOTDIR}/mk
 .endif
 .if !defined(NODOC)
-	echo "cd /usr/doc && make all install" >> ${CHROOTDIR}/mk
+	echo "cd /usr/doc && make all distribute DISTDIR=/R/stage/trees" >> ${CHROOTDIR}/mk
 .endif
 	echo "cd /usr/src/release/sysinstall"	>> ${CHROOTDIR}/mk
 	echo "make obj"				>> ${CHROOTDIR}/mk
