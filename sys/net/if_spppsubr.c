@@ -281,7 +281,7 @@ static struct callout_handle keepalive_ch;
  *
  * XXX is this really still necessary?  - joerg -
  */
-static u_short interactive_ports[8] = {
+static const u_short interactive_ports[8] = {
 	0,	513,	0,	0,
 	0,	21,	0,	23,
 };
