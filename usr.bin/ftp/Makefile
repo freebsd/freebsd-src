@@ -6,13 +6,16 @@
 #
 #CFLAGS+=-DGATE_SERVER=\"ftp-gw.host\" # -DGATE_PORT=21
 
+LUKEMFTP=	${.CURDIR}/../../contrib/lukemftp
+.PATH: ${LUKEMFTP}/src
+
 PROG=	ftp
 SRCS=	cmds.c cmdtab.c complete.c domacro.c fetch.c ftp.c main.c ruserpass.c \
 	util.c
 
-CFLAGS+=-DINET6
-LDADD+=	-ledit -ltermcap
-DPADD+=	${LIBEDIT} ${LIBTERMCAP}
+CFLAGS+=-I${.CURDIR} -I${LUKEMFTP}
+LDADD+=	-ledit -ltermcap -lutil
+DPADD+=	${LIBEDIT} ${LIBTERMCAP} ${LIBUTIL}
 
 LINKS=	${BINDIR}/ftp ${BINDIR}/pftp \
 	${BINDIR}/ftp ${BINDIR}/gate-ftp
