@@ -53,6 +53,8 @@ specifically marked as [MERGED] features.
 1.1. KERNEL CHANGES
 -------------------
 
+Support for more than 32 signals has been added.
+
 The VM system's anonymous storage subsystem (the ``swap pager'') has
 been completely revamped.
 
