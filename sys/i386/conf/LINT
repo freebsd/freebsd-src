@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.628 1999/08/20 03:48:02 ken Exp $
+#	$Id: LINT,v 1.629 1999/08/21 17:40:37 wpaul Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -1578,6 +1578,10 @@ controller	miibus0
 # This includes dual and quad port cards, as well as one 100baseFX card.
 # Most of these are 64-bit PCI devices, except for one single port
 # card which is 32-bit.
+#
+# The 'ste' device provides support for adapters based on the Sundance
+# Technologies ST201 PCI fast ethernet controller. This includes the
+# D-Link DFE-550TX.
 #
 # The 'sk' device provides support for the SysKonnect SK-984x series
 # PCI gigabit ethernet NICs. This includes the SK-9841 and SK-9842
