@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.174 1997/12/14 02:11:04 dyson Exp $
+ *	$Id: pmap.c,v 1.175 1997/12/22 00:36:48 dyson Exp $
  */
 
 /*
@@ -928,16 +928,14 @@ pmap_dispose_proc(p)
 		if ((m = vm_page_lookup(upobj, i)) == NULL)
 			panic("pmap_dispose_proc: upage already missing???");
 		*(ptek + i) = 0;
-		if (cpu_class != CPUCLASS_386)
+		if (cpu_class >= CPUCLASS_586)
 			invlpg((vm_offset_t) p->p_addr + i * PAGE_SIZE);
 		vm_page_unwire(m);
 		vm_page_free(m);
 	}
 
-#if defined(I386_CPU)
-	if (cpu_class == CPUCLASS_386)
+	if (cpu_class < CPUCLASS_586)
 		invltlb();
-#endif
 
 	vm_object_deallocate(upobj);
 	kmem_free(u_map, (vm_offset_t)p->p_addr, ctob(UPAGES));
