@@ -144,7 +144,7 @@
       has been fixed.  This error could allow a process with superuser
       privileges inside a &man.jail.8; environment to change its root
       directory to that of a different jail, and thus gain full read
-      and write acecss to files and directories within the target
+      and write access to files and directories within the target
       jail.  More information can be found in security advisory <ulink
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:03.jail.asc">FreeBSD-SA-04:03</ulink>.</para>
 
