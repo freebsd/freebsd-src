@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: ccdconfig.c,v 1.6 1997/02/22 14:32:10 peter Exp $ */
 
 /*	$NetBSD: ccdconfig.c,v 1.2.2.1 1995/11/11 02:43:35 thorpej Exp $	*/
 
@@ -56,8 +56,6 @@
 #include <sys/ccdvar.h>
 
 #include "pathnames.h"
-
-extern	char *__progname;
 
 static	int lineno = 0;
 static	int verbose = 0;
@@ -697,17 +695,15 @@ flags_to_val(flags)
 static void
 usage()
 {
-
-	fprintf(stderr, "usage: %s [-cv] ccd ileave [flags] %s\n", __progname,
-	    "dev [...]");
-	fprintf(stderr, "       %s -C [-v] [-f config_file]\n", __progname);
-	fprintf(stderr, "       %s -u [-v] ccd [...]\n", __progname);
-	fprintf(stderr, "       %s -U [-v] [-f config_file]\n", __progname);
-	fprintf(stderr, "       %s -g [-M core] [-N system] %s\n", __progname,
-	    "[ccd [...]]");
+	fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n",
+		"usage: ccdconfig [-cv] ccd ileave [flags] dev [...]",
+		"       ccdconfig -C [-v] [-f config_file]",
+		"       ccdconfig -u [-v] ccd [...]",
+		"       ccdconfig -U [-v] [-f config_file]",
+		"       ccdconfig -g [-M core] [-N system] [ccd [...]]");
 	exit(1);
 }
-
+
 /* Local Variables: */
 /* c-argdecl-indent: 8 */
 /* c-indent-level: 8 */
