@@ -70,6 +70,9 @@ opt_ddb.h: Makefile
 
 # Machine-specific code such as sleep/wakeup
 SRCS+=	acpi_machdep.c acpi_wakecode.h acpi_wakeup.c
+.if ${MACHINE} == "i386"
+SRCS+=	madt.c
+.endif
 CLEANFILES+=	acpi_wakecode.h acpi_wakecode.o acpi_wakecode.bin
 
 acpi_wakecode.h: acpi_wakecode.S
