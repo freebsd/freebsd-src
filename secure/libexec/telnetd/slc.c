@@ -32,7 +32,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)slc.c	8.1 (Berkeley) 6/4/93";
+static char sccsid[] = "@(#)slc.c	8.2 (Berkeley) 5/30/95";
 #endif /* not lint */
 
 #include "telnetd.h"
@@ -372,7 +372,6 @@ change_slc(func, flag, val)
 					slctab[func].defset.val;
 				val = slctab[func].current.val;
 			}
-
 		}
 		add_slc(func, flag, val);
 	}
@@ -423,7 +422,6 @@ check_slc()
 						slctab[i].current.val);
 		}
 	}
-
 }  /* check_slc */
 
 /*
@@ -465,7 +463,7 @@ do_opt_slc(ptr, len)
 			def_slcbuf = (unsigned char *)malloc((unsigned)len);
 			if (def_slcbuf == (unsigned char *)0)
 				return;  /* too bad */
-			bcopy(ptr, def_slcbuf, len);
+			memmove(def_slcbuf, ptr, len);
 		}
 	}
 

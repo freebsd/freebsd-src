@@ -32,7 +32,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)termstat.c	8.1 (Berkeley) 6/4/93";
+static char sccsid[] = "@(#)termstat.c	8.2 (Berkeley) 5/30/95";
 #endif /* not lint */
 
 #include "telnetd.h"
@@ -632,7 +632,7 @@ defer_terminit()
 	if (def_col || def_row) {
 		struct winsize ws;
 
-		bzero((char *)&ws, sizeof(ws));
+		memset((char *)&ws, 0, sizeof(ws));
 		ws.ws_col = def_col;
 		ws.ws_row = def_row;
 		(void) ioctl(pty, TIOCSWINSZ, (char *)&ws);

@@ -32,7 +32,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)auth.c	8.1 (Berkeley) 6/4/93";
+static char sccsid[] = "@(#)auth.c	8.3 (Berkeley) 5/30/95";
 #endif /* not lint */
 
 /*
@@ -222,6 +222,9 @@ auth_init(name, server)
 					Name,
 					ap->type, ap->way);
 		}
+		else if (auth_debug_mode)
+			printf(">>>%s: Init failed: auth type %d %d\r\n",
+				Name, ap->type, ap->way);
 		++ap;
 	}
 }
@@ -416,7 +419,7 @@ auth_send(data, cnt)
 		auth_send_cnt = cnt > sizeof(_auth_send_data)
 					? sizeof(_auth_send_data)
 					: cnt;
-		bcopy((void *)data, (void *)_auth_send_data, auth_send_cnt);
+		memmove((void *)_auth_send_data, (void *)data, auth_send_cnt);
 		auth_send_data = _auth_send_data;
 	} else {
 		/*
@@ -542,7 +545,7 @@ auth_name(data, cnt)
 					Name, cnt, sizeof(savename)-1);
 		return;
 	}
-	bcopy((void *)data, (void *)savename, cnt);
+	memmove((void *)savename, (void *)data, cnt);
 	savename[cnt] = '\0';	/* Null terminate */
 	if (auth_debug_mode)
 		printf(">>>%s: Got NAME [%s]\r\n", Name, savename);

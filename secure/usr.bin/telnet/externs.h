@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)externs.h	8.2 (Berkeley) 12/15/93
+ *	@(#)externs.h	8.3 (Berkeley) 5/30/95
  */
 
 #ifndef	BSD
@@ -83,8 +83,9 @@ typedef unsigned char cc_t;
 
 #ifndef	NO_STRING_H
 #include <string.h>
-#endif
+#else
 #include <strings.h>
+#endif
 
 #ifndef	_POSIX_VDISABLE
 # ifdef sun
