@@ -38,7 +38,7 @@
  */
 
 /*
- *  $Id: if_ep.c,v 1.59 1997/07/20 14:09:58 bde Exp $
+ *  $Id: if_ep.c,v 1.60 1997/09/02 01:18:13 bde Exp $
  *
  *  Promiscuous mode added and interrupt logic slightly changed
  *  to reduce the number of adapter failures. Transceiver select
@@ -114,8 +114,6 @@ static	int ep_isa_probe __P((struct isa_device *));
 static struct ep_board * ep_look_for_board_at __P((struct isa_device *is));
 static	int ep_isa_attach __P((struct isa_device *));
 static	int epioctl __P((struct ifnet * ifp, int, caddr_t));
-static	void epmbuffill __P((caddr_t, int));
-static	void epmbufempty __P((struct ep_softc *));
 
 static	void epinit __P((struct ep_softc *));
 static	void epread __P((struct ep_softc *));
@@ -372,7 +370,7 @@ ep_look_for_board_at(is)
 	    ep_board[ep_boards].epb_addr =
 			(get_eeprom_data(id_port, EEPROM_ADDR_CFG) & 0x1f) * 0x10 + 0x200;
 
-	    if(ep_board[ep_boards].epb_addr > 0x3E0)
+	    if (ep_board[ep_boards].epb_addr > 0x3E0)
 		/* Board in EISA configuration mode */
 		continue;
 #endif /* PC98 */
@@ -404,25 +402,30 @@ ep_look_for_board_at(is)
      *
      */
 
-    if(IS_BASE==-1) { /* port? */
-	for (i = 0; ep_board[i].epb_addr && ep_board[i].epb_used; i++);
-	if(ep_board[i].epb_addr==0)
+    if (IS_BASE == -1) { /* port? */
+	for (i = 0; ep_board[i].epb_addr && ep_board[i].epb_used; i++)
+	    ;
+	if (ep_board[i].epb_addr == 0)
 	    return 0;
 
-	IS_BASE=ep_board[i].epb_addr;
-	ep_board[i].epb_used=1;
+	IS_BASE = ep_board[i].epb_addr;
+	ep_board[i].epb_used = 1;
 
 	return &ep_board[i];
     } else {
-	for (i=0; ep_board[i].epb_addr && ep_board[i].epb_addr != IS_BASE; i++);
+	for (i = 0;
+	     ep_board[i].epb_addr && ep_board[i].epb_addr != IS_BASE;
+	     i++)
+	    ;
 
-	if( ep_board[i].epb_used || ep_board[i].epb_addr != IS_BASE) 
+	if (ep_board[i].epb_used || ep_board[i].epb_addr != IS_BASE)
 	    return 0;
 
-	if (inw(IS_BASE + EP_W0_EEPROM_COMMAND) & EEPROM_TST_MODE)
+	if (inw(IS_BASE + EP_W0_EEPROM_COMMAND) & EEPROM_TST_MODE) {
 	    printf("ep%d: 3c5x9 at 0x%x in PnP mode. Disable PnP mode!\n",
 		   is->id_unit, IS_BASE);
-	ep_board[i].epb_used=1;
+	}
+	ep_board[i].epb_used = 1;
 
 	return &ep_board[i];
     }
@@ -467,7 +470,7 @@ ep_alloc(unit, epb)
     }
 
     sc = malloc(sizeof(struct ep_softc), M_DEVBUF, M_NOWAIT);
-    if(!sc) {
+    if (!sc) {
 	printf("ep%d: cannot malloc!\n", unit);
 	return NULL;
     }
@@ -501,14 +504,14 @@ ep_isa_probe(is)
     pccard_add_driver(&ep_info);
 #endif /* NCRD > 0 */
 
-    if(( epb=ep_look_for_board_at(is) )==0)
+    if ((epb = ep_look_for_board_at(is)) == 0)
 	return (0);
 
     /*
      * Allocate a storage area for us
      */
     sc = ep_alloc(ep_unit, epb); 
-    if( !sc )
+    if (!sc)
 	return (0);
 
     is->id_unit = ep_unit++;
@@ -539,8 +542,8 @@ ep_isa_probe(is)
      *
      */
 
-    if(is->id_irq==0) { /* irq? */
-	is->id_irq= 1 << ( (k==2) ? 9 : k );
+    if (is->id_irq == 0) { /* irq? */
+	is->id_irq = 1 << ((k == 2) ? 9 : k);
     }
 
     sc->stat = 0;	/* 16 bit access */
@@ -577,14 +580,12 @@ ep_isa_attach(is)
      */
 
     irq = ffs(is->id_irq) - 1;
-    if(irq == -1) {
+    if (irq == -1) {
 	printf(" invalid irq... cannot attach\n");
 	return 0;
     }
 
     GO_WINDOW(0);
-    if(irq == 9)
-	irq = 2;
     SET_IRQ(BASE, irq);
 
     ep_attach(sc);
@@ -609,17 +610,17 @@ ep_attach(sc)
     /*
      * Current media type
      */
-    if(sc->ep_connectors & AUI) {
+    if (sc->ep_connectors & AUI) {
 	printf("aui");
-	if(sc->ep_connectors & ~AUI)
+	if (sc->ep_connectors & ~AUI)
 		printf("/");
     }
-    if(sc->ep_connectors & UTP) {
+    if (sc->ep_connectors & UTP) {
 	printf("utp");
-	if(sc->ep_connectors & BNC)
+	if (sc->ep_connectors & BNC)
 		printf("/");
     }
-    if(sc->ep_connectors & BNC) {
+    if (sc->ep_connectors & BNC) {
 	printf("bnc");
     }
 
@@ -647,27 +648,10 @@ ep_attach(sc)
     ifp->if_watchdog = epwatchdog;
 
     if (!attached) {
-    if_attach(ifp);
-    ether_ifattach(ifp);
+	if_attach(ifp);
+	ether_ifattach(ifp);
     }
 
-    /* we give some initial parameters */
-    sc->rx_avg_pkt = 128;
-
-    /*
-     * NOTE: In all this I multiply everything by 64.
-     * W_s = the speed the CPU is able to write to the TX FIFO.
-     * T_s = the speed the board sends the info to the Ether.
-     * W_s/T_s = 16   (represents 16/64) =>    W_s = 25 % of T_s.
-     * This will give us for a packet of 1500 bytes
-     * tx_start_thresh=1125 and for a pkt of 64 bytes tx_start_threshold=48.
-     * We prefer to start thinking the CPU is much slower than the Ethernet
-     * transmission.
-     */
-    sc->tx_rate = TX_INIT_RATE;
-    sc->tx_counter = 0;
-    sc->rx_latency = RX_INIT_LATENCY;
-    sc->rx_early_thresh = RX_INIT_EARLY_THRESH;
 #ifdef EP_LOCAL_STATS
     sc->rx_no_first = sc->rx_no_mbuf =
 	sc->rx_bpf_disc = sc->rx_overrunf = sc->rx_overrunl =
@@ -678,7 +662,7 @@ ep_attach(sc)
 
 #if NBPFILTER > 0
     if (!attached) {
-    bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
+	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
     }
 #endif
     return 0;
@@ -727,6 +711,7 @@ epinit(sc)
 
     outw(BASE + EP_COMMAND, RX_RESET);
     outw(BASE + EP_COMMAND, TX_RESET);
+    while (inw(BASE + EP_STATUS) & S_COMMAND_IN_PROGRESS);
 
     /* Window 1 is operating window */
     GO_WINDOW(1);
@@ -740,37 +725,37 @@ epinit(sc)
 
     outw(BASE + EP_COMMAND, SET_INTR_MASK | S_5_INTS);
 
-	if(ifp->if_flags & IFF_PROMISC)
-		outw(BASE + EP_COMMAND, SET_RX_FILTER | FIL_INDIVIDUAL |
-		 FIL_GROUP | FIL_BRDCST | FIL_ALL);
-	else
-		outw(BASE + EP_COMMAND, SET_RX_FILTER | FIL_INDIVIDUAL |
-		 FIL_GROUP | FIL_BRDCST);
+    if (ifp->if_flags & IFF_PROMISC)
+	outw(BASE + EP_COMMAND, SET_RX_FILTER | FIL_INDIVIDUAL |
+	 FIL_GROUP | FIL_BRDCST | FIL_ALL);
+    else
+	outw(BASE + EP_COMMAND, SET_RX_FILTER | FIL_INDIVIDUAL |
+	 FIL_GROUP | FIL_BRDCST);
 
-	 /*
-	  * S.B.
-	  *
-	  * Now behavior was slightly changed:
-	  *
-	  * if any of flags link[0-2] is used and its connector is
-	  * physically present the following connectors are used:
-	  *
-	  *   link0 - AUI * highest precedence
-	  *   link1 - BNC
-	  *   link2 - UTP * lowest precedence
-	  *
-	  * If none of them is specified then
-	  * connector specified in the EEPROM is used
-	  * (if present on card or AUI if not).
-	  *
-	  */
+     /*
+      * S.B.
+      *
+      * Now behavior was slightly changed:
+      *
+      * if any of flags link[0-2] is used and its connector is
+      * physically present the following connectors are used:
+      *
+      *   link0 - AUI * highest precedence
+      *   link1 - BNC
+      *   link2 - UTP * lowest precedence
+      *
+      * If none of them is specified then
+      * connector specified in the EEPROM is used
+      * (if present on card or AUI if not).
+      *
+      */
 
     /* Set the xcvr. */
-    if(ifp->if_flags & IFF_LINK0 && sc->ep_connectors & AUI) {
+    if (ifp->if_flags & IFF_LINK0 && sc->ep_connectors & AUI) {
 	i = ACF_CONNECTOR_AUI;
-    } else if(ifp->if_flags & IFF_LINK1 && sc->ep_connectors & BNC) {
+    } else if (ifp->if_flags & IFF_LINK1 && sc->ep_connectors & BNC) {
 	i = ACF_CONNECTOR_BNC;
-    } else if(ifp->if_flags & IFF_LINK2 && sc->ep_connectors & UTP) {
+    } else if (ifp->if_flags & IFF_LINK2 && sc->ep_connectors & UTP) {
 	i = ACF_CONNECTOR_UTP;
     } else {
 	i = sc->ep_connector;
@@ -781,13 +766,13 @@ epinit(sc)
 
     switch(i) {
       case ACF_CONNECTOR_UTP:
-	if(sc->ep_connectors & UTP) {
+	if (sc->ep_connectors & UTP) {
 	    GO_WINDOW(4);
 	    outw(BASE + EP_W4_MEDIA_TYPE, ENABLE_UTP);
 	}
 	break;
       case ACF_CONNECTOR_BNC:
-	if(sc->ep_connectors & BNC) {
+	if (sc->ep_connectors & BNC) {
 	    outw(BASE + EP_COMMAND, START_TRANSCEIVER);
 	    DELAY(1000);
 	}
@@ -807,31 +792,17 @@ epinit(sc)
     ifp->if_flags |= IFF_RUNNING;
     ifp->if_flags &= ~IFF_OACTIVE;	/* just in case */
 
-    sc->tx_rate = TX_INIT_RATE;
-    sc->tx_counter = 0;
-    sc->rx_latency = RX_INIT_LATENCY;
-    sc->rx_early_thresh = RX_INIT_EARLY_THRESH;
 #ifdef EP_LOCAL_STATS
     sc->rx_no_first = sc->rx_no_mbuf =
 	sc->rx_bpf_disc = sc->rx_overrunf = sc->rx_overrunl =
 	sc->tx_underrun = 0;
 #endif
     ep_fset(F_RX_FIRST);
-    ep_frst(F_RX_TRAILER);
     if (sc->top) {
 	m_freem(sc->top);
 	sc->top = sc->mcur = 0;
     }
-    outw(BASE + EP_COMMAND, SET_RX_EARLY_THRESH | sc->rx_early_thresh);
-
-    /*
-     * These clever computations look very interesting
-     * but the fixed threshold gives near no output errors
-     * and if it as low as 16 bytes it gives the max. throughput.
-     * We think that processor is anyway quicker than Ethernet
-	 * (and this should be true for any 386 and higher)
-     */
-
+    outw(BASE + EP_COMMAND, SET_RX_EARLY_THRESH | RX_INIT_EARLY_THRESH);
     outw(BASE + EP_COMMAND, SET_TX_START_THRESH | 16);
 
     /*
@@ -839,9 +810,6 @@ epinit(sc)
      * any that we had in case we're being called from intr or somewhere
      * else.
      */
-    sc->last_mb = 0;
-    sc->next_mb = 0;
-    epmbuffill((caddr_t) sc, 0);
 
     GO_WINDOW(1);
     epstart(ifp);
@@ -866,6 +834,7 @@ epstart(ifp)
     }
 
     s = splimp();
+    while (inw(BASE + EP_STATUS) & S_COMMAND_IN_PROGRESS);
     if (ifp->if_flags & IFF_OACTIVE) {
 	splx(s);
 	return;
@@ -897,30 +866,20 @@ startagain:
     if (inw(BASE + EP_W1_FREE_TX) < len + pad + 4) {
 	/* no room in FIFO */
 	outw(BASE + EP_COMMAND, SET_TX_AVAIL_THRESH | (len + pad + 4));
-	ifp->if_flags |= IFF_OACTIVE;
-	splx(s);
-	return;
+	/* make sure */
+	if (inw(BASE + EP_W1_FREE_TX) < len + pad + 4) {
+	    ifp->if_flags |= IFF_OACTIVE;
+	    splx(s);
+	    return;
+	}
     }
     IF_DEQUEUE(&ifp->if_snd, m);
 
     outw(BASE + EP_W1_TX_PIO_WR_1, len); 
     outw(BASE + EP_W1_TX_PIO_WR_1, 0x0);	/* Second dword meaningless */
 
-    /* compute the Tx start threshold for this packet */
-    sc->tx_start_thresh = len =
-	(((len * (64 - sc->tx_rate)) >> 6) & ~3) + 16;
-#if 0
-    /*
-     * The following string does something strange with the card and
-     * we get a lot of output errors due to it so it's commented out
-     * and we use fixed threshold (see above)
-     */
-
-    outw(BASE + EP_COMMAND, SET_TX_START_THRESH | len);
-#endif
-
     for (top = m; m != 0; m = m->m_next)
-	if(ep_ftst(F_ACCESS_32_BITS)) {
+	if (ep_ftst(F_ACCESS_32_BITS)) {
 	    outsl(BASE + EP_W1_TX_PIO_WR_1, mtod(m, caddr_t),
 		  m->m_len / 4);
 	    if (m->m_len & 3)
@@ -943,16 +902,9 @@ startagain:
     }
 #endif
 
-    ifp->if_timer=2;
+    ifp->if_timer = 2;
     ifp->if_opackets++;
     m_freem(top);
-    /*
-     * Every 1024*4 packets we increment the tx_rate if we haven't had
-     * errors, that in the case it has abnormaly goten too low
-     */
-    if (!(++sc->tx_counter & (1024 * 4 - 1)) &&
-	sc->tx_rate < TX_INIT_MAX_RATE)
-	sc->tx_rate++;
 
     /*
      * Is another packet coming in? We don't want to overflow the tiny RX
@@ -965,8 +917,7 @@ readcheck:
 	 * back later
 	 */
 	if (ifp->if_snd.ifq_head) {
-	    outw(BASE + EP_COMMAND, SET_TX_AVAIL_THRESH |
-		 sc->tx_start_thresh);
+	    outw(BASE + EP_COMMAND, SET_TX_AVAIL_THRESH | 8);
 	}
 	splx(s);
 	return;
@@ -996,7 +947,7 @@ ep_intr(arg)
     struct ifnet *ifp;
     int x;
 
-    x=splbio();
+    x = splbio();
 
     sc = (struct ep_softc *)arg;
 
@@ -1017,14 +968,14 @@ rescan:
 	}
 	if (status & S_TX_AVAIL) {
 	    /* we need ACK */
-	    ifp->if_timer=0;
+	    ifp->if_timer = 0;
 	    ifp->if_flags &= ~IFF_OACTIVE;
 	    GO_WINDOW(1);
 	    inw(BASE + EP_W1_FREE_TX);
 	    epstart(ifp);
 	}
 	if (status & S_CARD_FAILURE) {
-	    ifp->if_timer=0;
+	    ifp->if_timer = 0;
 #ifdef EP_LOCAL_STATS
 	    printf("\nep%d:\n\tStatus: %x\n", sc->unit, status);
 	    GO_WINDOW(4);
@@ -1049,7 +1000,7 @@ rescan:
 	    return;
 	}
 	if (status & S_TX_COMPLETE) {
-	    ifp->if_timer=0;
+	    ifp->if_timer = 0;
 	    /* we  need ACK. we do it at the end */
 	    /*
 	     * We need to read TX_STATUS until we get a 0 status in order to
@@ -1060,10 +1011,6 @@ rescan:
 		else if (status & (TXS_UNDERRUN | TXS_JABBER | TXS_MAX_COLLISION)) {
 		    outw(BASE + EP_COMMAND, TX_RESET);
 		    if (status & TXS_UNDERRUN) {
-			if (sc->tx_rate > 1) {
-			    sc->tx_rate--;	/* Actually in steps of 1/64 */
-			    sc->tx_counter = 0;	/* We reset it */
-			}
 #ifdef EP_LOCAL_STATS
 			sc->tx_underrun++;
 #endif
@@ -1134,24 +1081,17 @@ read_again:
 	    else
 		sc->rx_overrunl++;
 #endif
-	    if (sc->rx_latency < ETHERMTU)
-		sc->rx_latency += 16;
 	}
 	goto out;
     }
     rx_fifo = rx_fifo2 = status & RX_BYTES_MASK;
 
     if (ep_ftst(F_RX_FIRST)) {
-	if (m = sc->mb[sc->next_mb]) {
-	    sc->mb[sc->next_mb] = 0;
-	    sc->next_mb = (sc->next_mb + 1) % MAX_MBS;
-	    m->m_data = m->m_pktdat;
-	    m->m_flags = M_PKTHDR;
-	} else {
-	    MGETHDR(m, M_DONTWAIT, MT_DATA);
-	    if (!m)
-		goto out;
-	}
+	MGETHDR(m, M_DONTWAIT, MT_DATA);
+	if (!m)
+	    goto out;
+	if (rx_fifo >= MINCLSIZE)
+	    MCLGET(m, M_DONTWAIT);
 	sc->top = sc->mcur = top = m;
 #define EROUND  ((sizeof(struct ether_header) + 3) & ~3)
 #define EOFF    (EROUND - sizeof(struct ether_header))
@@ -1168,9 +1108,6 @@ read_again:
 	top = sc->top;
 	m = sc->mcur;
 	sc->cur_len += rx_fifo2;
-	if (ep_ftst(F_RX_TRAILER))
-	    /* We don't read the trailer */
-	    rx_fifo -= sizeof(struct ether_header);
     }
 
     /* Reads what is left in the RX FIFO */
@@ -1178,15 +1115,9 @@ read_again:
 	lenthisone = min(rx_fifo, M_TRAILINGSPACE(m));
 	if (lenthisone == 0) {	/* no room in this one */
 	    mcur = m;
-	    if (m = sc->mb[sc->next_mb]) {
-		sc->mb[sc->next_mb] = 0;
-		sc->next_mb = (sc->next_mb + 1) % MAX_MBS;
-	    } else {
-		MGET(m, M_DONTWAIT, MT_DATA);
-		if (!m)
-		    goto out;
-	    }
-
+	    MGET(m, M_DONTWAIT, MT_DATA);
+	    if (!m)
+		goto out;
 	    if (rx_fifo >= MINCLSIZE)
 		MCLGET(m, M_DONTWAIT);
 	    m->m_len = 0;
@@ -1212,76 +1143,24 @@ read_again:
 	rx_fifo -= lenthisone;
     }
 
-    if (ep_ftst(F_RX_TRAILER)) {/* reads the trailer */
-	if (m = sc->mb[sc->next_mb]) {
-	    sc->mb[sc->next_mb] = 0;
-	    sc->next_mb = (sc->next_mb + 1) % MAX_MBS;
-	    m->m_data = m->m_pktdat;
-	    m->m_flags = M_PKTHDR;
-	} else {
-	    MGETHDR(m, M_DONTWAIT, MT_DATA);
-	    if (!m)
-		goto out;
-	}
-	insw(BASE + EP_W1_RX_PIO_RD_1, mtod(m, caddr_t),
-	     sizeof(struct ether_header));
-	m->m_len = sizeof(struct ether_header);
-	m->m_next = top;
-	sc->top = top = m;
-	/* XXX Accomodate for type and len from beginning of trailer */
-	sc->cur_len -= (2 * sizeof(u_short));
-	ep_frst(F_RX_TRAILER);
-	goto all_pkt;
-    }
-
     if (status & ERR_RX_INCOMPLETE) {	/* we haven't received the complete
 					 * packet */
 	sc->mcur = m;
 #ifdef EP_LOCAL_STATS
 	sc->rx_no_first++;	/* to know how often we come here */
 #endif
-	/*
-	 * Re-compute rx_latency, the factor used is 1/4 to go up and 1/32 to
-	 * go down
-	 */
-	delta = rx_fifo2 - sc->rx_early_thresh;	/* last latency seen LLS */
-	delta -= sc->rx_latency;/* LLS - estimated_latency */
-	if (delta >= 0)
-	    sc->rx_latency += (delta / 4);
-	else
-	    sc->rx_latency += (delta / 32);
 	ep_frst(F_RX_FIRST);
 	if (!((status = inw(BASE + EP_W1_RX_STATUS)) & ERR_RX_INCOMPLETE)) {
 	    /* we see if by now, the packet has completly arrived */
 	    goto read_again;
 	}
-	/* compute rx_early_threshold */
-	delta = (sc->rx_avg_pkt - sc->cur_len - sc->rx_latency - 16) & ~3;
-	if (delta < MIN_RX_EARLY_THRESHL)
-	    delta = MIN_RX_EARLY_THRESHL;
-
-	outw(BASE + EP_COMMAND, SET_RX_EARLY_THRESH |
-	     (sc->rx_early_thresh = delta));
+	outw(BASE + EP_COMMAND, SET_RX_EARLY_THRESH | RX_NEXT_EARLY_THRESH);
 	return;
     }
 all_pkt:
     outw(BASE + EP_COMMAND, RX_DISCARD_TOP_PACK);
-    /*
-     * recompute average packet's length, the factor used is 1/8 to go down
-     * and 1/32 to go up
-     */
-    delta = sc->cur_len - sc->rx_avg_pkt;
-    if (delta > 0)
-	sc->rx_avg_pkt += (delta / 32);
-    else
-	sc->rx_avg_pkt += (delta / 8);
-    delta = (sc->rx_avg_pkt - sc->rx_latency - 16) & ~3;
-    if (delta < MIN_RX_EARLY_THRESHF)
-	delta = MIN_RX_EARLY_THRESHF;
-    sc->rx_early_thresh = delta;
     ++ifp->if_ipackets;
     ep_fset(F_RX_FIRST);
-    ep_frst(F_RX_TRAILER);
     top->m_pkthdr.rcvif = &sc->arpcom.ac_if;
     top->m_pkthdr.len = sc->cur_len;
 
@@ -1306,12 +1185,11 @@ all_pkt:
 		sc->top = 0;
 	    }
 	    ep_fset(F_RX_FIRST);
-	    ep_frst(F_RX_TRAILER);
 #ifdef EP_LOCAL_STATS
 	    sc->rx_bpf_disc++;
 #endif
 	    while (inw(BASE + EP_STATUS) & S_COMMAND_IN_PROGRESS);
-	    outw(BASE + EP_COMMAND, SET_RX_EARLY_THRESH | delta);
+	    outw(BASE + EP_COMMAND, SET_RX_EARLY_THRESH | RX_INIT_EARLY_THRESH);
 	    return;
 	}
     }
@@ -1320,11 +1198,9 @@ all_pkt:
     eh = mtod(top, struct ether_header *);
     m_adj(top, sizeof(struct ether_header));
     ether_input(ifp, eh, top);
-    if (!sc->mb[sc->next_mb])
-	epmbuffill((caddr_t) sc, 0);
     sc->top = 0;
     while (inw(BASE + EP_STATUS) & S_COMMAND_IN_PROGRESS);
-    outw(BASE + EP_COMMAND, SET_RX_EARLY_THRESH | delta);
+    outw(BASE + EP_COMMAND, SET_RX_EARLY_THRESH | RX_INIT_EARLY_THRESH);
     return;
 
 out:
@@ -1336,14 +1212,9 @@ out:
 	sc->rx_no_mbuf++;
 #endif
     }
-    delta = (sc->rx_avg_pkt - sc->rx_latency - 16) & ~3;
-    if (delta < MIN_RX_EARLY_THRESHF)
-	delta = MIN_RX_EARLY_THRESHF;
     ep_fset(F_RX_FIRST);
-    ep_frst(F_RX_TRAILER);
     while (inw(BASE + EP_STATUS) & S_COMMAND_IN_PROGRESS);
-    outw(BASE + EP_COMMAND, SET_RX_EARLY_THRESH |
-	 (sc->rx_early_thresh = delta));
+    outw(BASE + EP_COMMAND, SET_RX_EARLY_THRESH | RX_INIT_EARLY_THRESH);
 }
 
 /*
@@ -1430,7 +1301,6 @@ epioctl(ifp, cmd, data)
 	if ((ifp->if_flags & IFF_UP) == 0 && ifp->if_flags & IFF_RUNNING) {
 	    ifp->if_flags &= ~IFF_RUNNING;
 	    epstop(sc);
-	    epmbufempty(sc);
 	    break;
 	} else {
 	    /* reinitialize card on any parameter change */
@@ -1463,7 +1333,7 @@ epioctl(ifp, cmd, data)
 	     * multicast filters. If some day it will gain this
 	     * support this part of code must be extended.
 	     */
-	    error=0;
+	    error = 0;
 	    break;
       default:
 		error = EINVAL;
@@ -1511,6 +1381,7 @@ epstop(sc)
     outw(BASE + EP_COMMAND, STOP_TRANSCEIVER);
     outw(BASE + EP_COMMAND, RX_RESET);
     outw(BASE + EP_COMMAND, TX_RESET);
+    while (inw(BASE + EP_STATUS) & S_COMMAND_IN_PROGRESS);
     outw(BASE + EP_COMMAND, C_INTR_LATCH);
     outw(BASE + EP_COMMAND, SET_RD_0_MASK);
     outw(BASE + EP_COMMAND, SET_INTR_MASK);
@@ -1559,45 +1430,6 @@ get_eeprom_data(id_port, offset)
     for (i = 0; i < 16; i++)
 	data = (data << 1) | (inw(id_port) & 1);
     return (data);
-}
-
-/*
- * We suppose this is always called inside a splimp(){...}splx() region
- */
-static void
-epmbuffill(sp, dummy_arg)
-    caddr_t sp;
-    int dummy_arg;
-{
-    struct ep_softc *sc = (struct ep_softc *) sp;
-    int i;
-
-    i = sc->last_mb;
-    do {
-	if (sc->mb[i] == NULL)
-	    MGET(sc->mb[i], M_DONTWAIT, MT_DATA);
-	if (sc->mb[i] == NULL)
-	    break;
-	i = (i + 1) % MAX_MBS;
-    } while (i != sc->next_mb);
-    sc->last_mb = i;
-}
-
-static void
-epmbufempty(sc)
-    struct ep_softc *sc;
-{
-    int s, i;
-
-    s = splimp();
-    for (i = 0; i < MAX_MBS; i++) {
-	if (sc->mb[i]) {
-	    m_freem(sc->mb[i]);
-	    sc->mb[i] = NULL;
-	}
-    }
-    sc->last_mb = sc->next_mb = 0;
-    splx(s);
 }
 
 #endif				/* NEP > 0 */
