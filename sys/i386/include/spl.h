@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: spl.h,v 1.3 1994/08/02 07:39:06 davidg Exp $
+ *	$Id: spl.h,v 1.4 1994/08/15 03:15:11 wollman Exp $
  */
 
 #ifndef _MACHINE_IPL_H_
@@ -117,8 +117,6 @@ GENSPL(splnet, cpl |= SWI_NET_MASK)
 GENSPL(splsoftclock, cpl = SWI_CLOCK_MASK)
 GENSPL(splsofttty, cpl |= SWI_TTY_MASK)
 GENSPL(spltty, cpl |= tty_imask)
-
-#define splnone() spl0()
 
 static __inline void
 spl0(void)
