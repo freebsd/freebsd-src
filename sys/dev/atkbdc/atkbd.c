@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: atkbd.c,v 1.8 1999/05/09 05:00:19 yokota Exp $
+ * $Id: atkbd.c,v 1.9 1999/05/18 11:05:58 yokota Exp $
  */
 
 #include "atkbd.h"
@@ -37,6 +37,7 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/conf.h>
+#include <sys/bus.h>
 #include <sys/proc.h>
 #include <sys/tty.h>
 #include <sys/fcntl.h>
@@ -46,29 +47,12 @@
 #include <dev/kbd/atkbdreg.h>
 #include <dev/kbd/atkbdcreg.h>
 
-#if 1
-
-#include <sys/bus.h>
 #include <isa/isareg.h>
-
-extern devclass_t atkbd_devclass;
 
 #define ATKBD_SOFTC(unit)		\
 	((atkbd_softc_t *)devclass_get_softc(atkbd_devclass, unit))
 
-#else /* __i386__ */
-
-#include <i386/isa/isa.h>
-#include <i386/isa/isa_device.h>
-
-extern struct isa_driver 	atkbddriver;	/* XXX: a kludge; see below */
-
-static atkbd_softc_t		*atkbd_softc[NATKBD];
-
-#define ATKBD_SOFTC(unit)		\
-	(((unit) >= NATKBD) ? NULL : atkbd_softc[(unit)])
-
-#endif /* __i386__ */
+extern devclass_t	atkbd_devclass;
 
 static timeout_t	atkbd_timeout;
 
@@ -88,30 +72,6 @@ static struct  cdevsw atkbd_cdevsw = {
 };
 
 #endif /* KBD_INSTALL_CDEV */
-
-#if 0
-#ifdef __i386__
-
-atkbd_softc_t
-*atkbd_get_softc(int unit)
-{
-	atkbd_softc_t *sc;
-
-	if (unit >= sizeof(atkbd_softc)/sizeof(atkbd_softc[0]))
-		return NULL;
-	sc = atkbd_softc[unit];
-	if (sc == NULL) {
-		sc = atkbd_softc[unit]
-		   = malloc(sizeof(*sc), M_DEVBUF, M_NOWAIT);
-		if (sc == NULL)
-			return NULL;
-		bzero(sc, sizeof(*sc));
-	}
-	return sc;
-}
-
-#endif /* __i386__ */
-#endif
 
 int
 atkbd_probe_unit(int unit, int port, int irq, int flags)
