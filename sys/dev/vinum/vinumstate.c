@@ -68,8 +68,9 @@ set_drive_state(int driveno, enum drivestate newstate, enum setstateflags flags)
 	    && (drive->vp == NULL))			    /* should be open, but we're not */
 	    init_drive(drive, 1);			    /* which changes the state again */
 	if (newstate != oldstate) {			    /* state has changed */
-	    for (sdno = 0; sdno < vinum_conf.subdisks_used; sdno++) { /* find this drive's subdisks */
-		if (SD[sdno].driveno == driveno)	    /* belongs to this drive */
+	    for (sdno = 0; sdno < vinum_conf.subdisks_allocated; sdno++) { /* find this drive's subdisks */
+		if ((SD[sdno].state >= sd_referenced)
+		    && (SD[sdno].driveno == driveno))	    /* belongs to this drive */
 		    update_sd_state(sdno);		    /* update the state */
 	    }
 	}
@@ -891,8 +892,8 @@ setstate(struct vinum_ioctl_msg *msg)
 	switch (msg->type) {
 	case sd_object:
 	    sd = &SD[msg->index];
-	    if ((msg->index >= vinum_conf.subdisks_used)
-		|| (sd->state == sd_unallocated)) {
+	    if ((msg->index >= vinum_conf.subdisks_allocated)
+		|| (sd->state <= sd_referenced)) {
 		sprintf(ioctl_reply->msg, "Invalid subdisk %d", msg->index);
 		ioctl_reply->error = EFAULT;
 		return;
@@ -907,8 +908,8 @@ setstate(struct vinum_ioctl_msg *msg)
 
 	case plex_object:
 	    plex = &PLEX[msg->index];
-	    if ((msg->index >= vinum_conf.plexes_used)
-		|| (plex->state == plex_unallocated)) {
+	    if ((msg->index >= vinum_conf.plexes_allocated)
+		|| (plex->state <= plex_unallocated)) {
 		sprintf(ioctl_reply->msg, "Invalid plex %d", msg->index);
 		ioctl_reply->error = EFAULT;
 		return;
