@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.70 1994/10/04 18:44:21 ache Exp $
+ *	$Id: machdep.c,v 1.71 1994/10/09 07:34:29 davidg Exp $
  */
 
 #include "npx.h"
@@ -162,7 +162,7 @@ cpu_startup()
 	register unsigned i;
 	register caddr_t v;
 	extern void (*netisrs[32])(void);
-	vm_offset_t minaddr, maxaddr;
+	vm_offset_t maxaddr;
 	vm_size_t size = 0;
 	int firstaddr;
 
@@ -942,7 +942,7 @@ extern  struct user *proc0paddr;
 
 /* software prototypes -- in more palatable form */
 struct soft_segment_descriptor gdt_segs[] = {
-	/* Null Descriptor */
+/* GNULL_SEL	0 Null Descriptor */
 {	0x0,			/* segment base address  */
 	0x0,			/* length */
 	0,			/* segment type */
@@ -951,7 +951,7 @@ struct soft_segment_descriptor gdt_segs[] = {
 	0, 0,
 	0,			/* default 32 vs 16 bit size */
 	0  			/* limit granularity (byte/page units)*/ },
-	/* Code Descriptor for kernel */
+/* GCODE_SEL	1 Code Descriptor for kernel */
 {	0x0,			/* segment base address  */
 	0xfffff,		/* length - all address space */
 	SDT_MEMERA,		/* segment type */
@@ -960,7 +960,7 @@ struct soft_segment_descriptor gdt_segs[] = {
 	0, 0,
 	1,			/* default 32 vs 16 bit size */
 	1  			/* limit granularity (byte/page units)*/ },
-	/* Data Descriptor for kernel */
+/* GDATA_SEL	2 Data Descriptor for kernel */
 {	0x0,			/* segment base address  */
 	0xfffff,		/* length - all address space */
 	SDT_MEMRWA,		/* segment type */
@@ -969,8 +969,8 @@ struct soft_segment_descriptor gdt_segs[] = {
 	0, 0,
 	1,			/* default 32 vs 16 bit size */
 	1  			/* limit granularity (byte/page units)*/ },
-	/* LDT Descriptor */
-{	(int) ldt,			/* segment base address  */
+/* GLDT_SEL	3 LDT Descriptor */
+{	(int) ldt,		/* segment base address  */
 	sizeof(ldt)-1,		/* length - all address space */
 	SDT_SYSLDT,		/* segment type */
 	0,			/* segment descriptor priority level */
@@ -978,7 +978,7 @@ struct soft_segment_descriptor gdt_segs[] = {
 	0, 0,
 	0,			/* unused - default 32 vs 16 bit size */
 	0  			/* limit granularity (byte/page units)*/ },
-	/* Null Descriptor - Placeholder */
+/* GTGATE_SEL	4 Null Descriptor - Placeholder */
 {	0x0,			/* segment base address  */
 	0x0,			/* length - all address space */
 	0,			/* segment type */
@@ -987,8 +987,8 @@ struct soft_segment_descriptor gdt_segs[] = {
 	0, 0,
 	0,			/* default 32 vs 16 bit size */
 	0  			/* limit granularity (byte/page units)*/ },
-	/* Panic Tss Descriptor */
-{	(int) &panic_tss,		/* segment base address  */
+/* GPANIC_SEL	5 Panic Tss Descriptor */
+{	(int) &panic_tss,	/* segment base address  */
 	sizeof(tss)-1,		/* length - all address space */
 	SDT_SYS386TSS,		/* segment type */
 	0,			/* segment descriptor priority level */
@@ -996,8 +996,8 @@ struct soft_segment_descriptor gdt_segs[] = {
 	0, 0,
 	0,			/* unused - default 32 vs 16 bit size */
 	0  			/* limit granularity (byte/page units)*/ },
-	/* Proc 0 Tss Descriptor */
-{	(int) kstack,			/* segment base address  */
+/* GPROC0_SEL	6 Proc 0 Tss Descriptor */
+{	(int) kstack,		/* segment base address  */
 	sizeof(tss)-1,		/* length - all address space */
 	SDT_SYS386TSS,		/* segment type */
 	0,			/* segment descriptor priority level */
@@ -1005,7 +1005,7 @@ struct soft_segment_descriptor gdt_segs[] = {
 	0, 0,
 	0,			/* unused - default 32 vs 16 bit size */
 	0  			/* limit granularity (byte/page units)*/ },
-	/* User LDT Descriptor per process */
+/* GUSERLDT_SEL	7 User LDT Descriptor per process */
 {	(int) ldt,		/* segment base address  */
 	(512 * sizeof(union descriptor)-1),		/* length */
 	SDT_SYSLDT,		/* segment type */
@@ -1014,60 +1014,33 @@ struct soft_segment_descriptor gdt_segs[] = {
 	0, 0,
 	0,			/* unused - default 32 vs 16 bit size */
 	0  			/* limit granularity (byte/page units)*/ },
-#ifdef APM
-	/* APM BIOS 32-bit interface (32bit Code) */
+/* GAPMCODE32_SEL 8 APM BIOS 32-bit interface (32bit Code) */
 {	0,			/* segment base address (overwritten by APM)  */
-	0xffff,			/* length */
+	0xfffff,		/* length */
 	SDT_MEMERA,		/* segment type */
 	0,			/* segment descriptor priority level */
 	1,			/* segment descriptor present */
 	0, 0,
 	1,			/* default 32 vs 16 bit size */
-	0  			/* limit granularity (byte/page units)*/ },
-	/* APM BIOS 32-bit interface (16bit Code) */
+	1  			/* limit granularity (byte/page units)*/ },
+/* GAPMCODE16_SEL 9 APM BIOS 32-bit interface (16bit Code) */
 {	0,			/* segment base address (overwritten by APM)  */
-	0xffff,			/* length */
+	0xfffff,		/* length */
 	SDT_MEMERA,		/* segment type */
 	0,			/* segment descriptor priority level */
 	1,			/* segment descriptor present */
 	0, 0,
 	0,			/* default 32 vs 16 bit size */
-	0  			/* limit granularity (byte/page units)*/ },
-	/* APM BIOS 32-bit interface (Data) */
+	1  			/* limit granularity (byte/page units)*/ },
+/* GAPMDATA_SEL	10 APM BIOS 32-bit interface (Data) */
 {	0,			/* segment base address (overwritten by APM) */
-	0xffff,			/* length */
+	0xfffff,		/* length */
 	SDT_MEMRWA,		/* segment type */
 	0,			/* segment descriptor priority level */
 	1,			/* segment descriptor present */
 	0, 0,
 	1,			/* default 32 vs 16 bit size */
-	0  			/* limit granularity (byte/page units)*/ },
-#else /* APM */
-{	0,			/* segment base address  */
-	0,			/* length */
-	0,			/* segment type */
-	0,			/* segment descriptor priority level */
-	0,			/* segment descriptor present */
-	0, 0,
-	0,			/* unused - default 32 vs 16 bit size */
-	0  			/* limit granularity (byte/page units)*/ },
-{	0,			/* segment base address  */
-	0,			/* length */
-	0,			/* segment type */
-	0,			/* segment descriptor priority level */
-	0,			/* segment descriptor present */
-	0, 0,
-	0,			/* unused - default 32 vs 16 bit size */
-	0  			/* limit granularity (byte/page units)*/ },
-{	0,			/* segment base address  */
-	0,			/* length */
-	0,			/* segment type */
-	0,			/* segment descriptor priority level */
-	0,			/* segment descriptor present */
-	0, 0,
-	0,			/* unused - default 32 vs 16 bit size */
-	0  			/* limit granularity (byte/page units)*/ },
-#endif /* APMBIOS */
+	1  			/* limit granularity (byte/page units)*/ },
 };
 
 struct soft_segment_descriptor ldt_segs[] = {
