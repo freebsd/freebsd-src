@@ -2,6 +2,7 @@
 # $FreeBSD$
 
 PROG=	shutdown
+WARNS?=	2
 MAN=	shutdown.8
 BINGRP=	operator
 BINMODE=4550
