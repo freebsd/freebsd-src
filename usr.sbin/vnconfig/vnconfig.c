@@ -43,7 +43,7 @@
 static char sccsid[] = "@(#)vnconfig.c	8.1 (Berkeley) 12/15/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: vnconfig.c,v 1.7 1997/10/27 07:55:31 charnier Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -55,6 +55,7 @@ static const char rcsid[] =
 #include <sys/param.h>
 #include <sys/ioctl.h>
 #include <sys/mount.h>
+#include <sys/module.h>
 #include <sys/stat.h>
 #include <sys/vnioctl.h>
 #include <ufs/ufs/ufsmount.h>
@@ -168,6 +169,10 @@ main(argc, argv)
 		default:
 			usage();
 		}
+
+	if (modfind("vn") < 0)
+		if (kldload("vn") < 0 || modfind("vn") < 0)
+			err(1, "cannot find or load \"vn\" kernel module");
 
 	if (flags == 0)
 		flags = VN_CONFIG;
