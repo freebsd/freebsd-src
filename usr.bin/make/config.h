@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)config.h	8.1 (Berkeley) 6/6/93
- *	$Id$
+ *	$Id: config.h,v 1.6 1997/02/22 19:27:08 peter Exp $
  */
 
 #define	DEFSHELL	1			/* Bourne shell */
@@ -110,7 +110,7 @@
  */
 #define SUNSHCMD
 
-#if !defined(__svr4__) && !defined(__SVR4)
+#if !defined(__svr4__) && !defined(__SVR4) && !defined(__ELF__)
 # ifndef RANLIBMAG
 #  define RANLIBMAG "__.SYMDEF"
 # endif
