@@ -85,6 +85,7 @@ struct bsdtar {
 
 const char	*bsdtar_progname(void);
 void	bsdtar_errc(int _eval, int _code, const char *fmt, ...);
+void	bsdtar_strmode(struct archive_entry *entry, char *bp);
 void	bsdtar_warnc(int _code, const char *fmt, ...);
 void	cleanup_exclusions(struct bsdtar *);
 void	exclude(struct bsdtar *, const char *pattern);
