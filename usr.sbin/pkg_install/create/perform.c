@@ -29,6 +29,7 @@ static const char rcsid[] =
 #include <err.h>
 #include <libgen.h>
 #include <signal.h>
+#include <stdlib.h>
 #include <sys/syslimits.h>
 #include <sys/wait.h>
 #include <unistd.h>
@@ -77,9 +78,10 @@ pkg_perform(char **pkgs)
     }
     if (UseBzip2)
 	suf = "tbz2";
-    else if (compress)
+    else if (compress) {
 	suf = "tgz";
-    else
+	setenv("GZIP", "-9", 0);
+    } else
 	suf = "tar";
 
     if (InstalledPkg != NULL)
