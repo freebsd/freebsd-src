@@ -34,6 +34,7 @@
  */
 #include <ctype.h>
 #include <err.h>
+#include <paths.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -172,7 +173,8 @@ int main(int argc, char **argv)
     if(!*execfname) snprintf(execfname, sizeof(execfname), "%s", confname);
 
     snprintf(cachename, sizeof(cachename), "%s.cache", confname);
-    snprintf(tempfname, sizeof(tempfname), "/tmp/crunchgen_%sXXXXXX", confname);
+    snprintf(tempfname, sizeof(tempfname), "%s/crunchgen_%sXXXXXX",
+	getenv("TMPDIR") ? getenv("TMPDIR") : _PATH_TMP, confname);
 
     parse_conf_file();
     if (list_mode)
