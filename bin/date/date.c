@@ -175,6 +175,8 @@ main(int argc, char *argv[])
 	vary_destroy(v);
 	(void)strftime(buf, sizeof(buf), format, &lt);
 	(void)printf("%s\n", buf);
+	if (fflush(stdout))
+		err(1, "stdout");
 	exit(retval);
 }
 
