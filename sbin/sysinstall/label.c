@@ -67,8 +67,9 @@ display_disklabel(int disk)
 
 	dialog_update();
 
-	while (key != '\n')
+	while (key != '\n' && key != ' ' && key != '\033')
 		key = wgetch(window);
+	delwin(window);
 	dialog_clear();
 	dialog_update();
 }
