@@ -54,7 +54,7 @@ links: ${DEPEND_H}
 	@ln -sf ${PERL5SRC}/writemain.SH writemain.sh
 	@ln -sf ${PERL5SRC}/regcomp.c regcomp.c
 	@ln -sf ${PERL5SRC}/regexec.c regexec.c
-	@ln -sf ${PERL5LIBSRC}/config.SH-${THREAD}${OBJFORMAT}.${MACHINE_ARCH} \
+	@ln -sf ${PERL5LIBSRC}/config.SH-${OBJFORMAT}.${MACHINE_ARCH} \
 		config.sh
 	@touch ${.TARGET}
 
@@ -84,11 +84,6 @@ MAKEMAKER_ARGS=	INSTALLDIRS=perl PERL_SRC=${.OBJDIR} \
 		INSTALLMAN3DIR=${DESTDIR}/usr/share/perl/man3 \
 		PERL=${MINIPERL} FULLPERL=perl DEFINE=-I${DESTDIR}/usr/include \
 		DEFINE=-DPERL_CORE
-
-.if defined(PERL_THREADED) && ${PERL_THREADED} == "true"
-CFLAGS+=        -pthread
-THREAD=		threads-
-.endif
 
 .if defined(PERL_DEBUGGING) && ${PERL_DEBUGGING} == "true"
 CFLAGS+=        -DDEBUGGING
