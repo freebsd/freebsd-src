@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id$
+.\"	$Id: minigzip.1,v 1.1.1.1 1997/12/13 09:57:48 msmith Exp $
 .\"
 .Dd December 13, 1997
 .Dt MINIGZIP 1
@@ -35,8 +35,10 @@
 .Op Fl d
 .Op Ar file ...
 .Sh DESCRIPTION
-.Nm
-is a minimal implementation of the gzip utility.  It supports
+.Nm Minigzip
+is a minimal implementation of the
+.Xr gzip 1
+utility.  It supports
 compression and decompression of individual files, as well as
 streaming compression and decompression via standard input and
 output.
@@ -61,6 +63,9 @@ arguments are supplied,
 .Nm
 reads from standard input and writes the results of the operation 
 to standard output.
+.Sh SEE ALSO
+.Xr gzip 1
 .Sh AUTHORS
-.Nm
-was written by Jean-loup Gailly.
+.Nm Minigzip
+was written by
+.An Jean-loup Gailly .
