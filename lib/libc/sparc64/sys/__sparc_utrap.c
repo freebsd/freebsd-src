@@ -81,6 +81,9 @@ __sparc_utrap(struct utrapframe *uf)
 	switch (uf->uf_type) {
 	case UT_FP_EXCEPTION_IEEE_754:
 	case UT_FP_EXCEPTION_OTHER:
+		__fpu_exception(uf);
+		UF_DONE(uf);
+		return;
 	case UT_ILLEGAL_INSTRUCTION:
 	case UT_MEM_ADDRESS_NOT_ALIGNED:
 		break;

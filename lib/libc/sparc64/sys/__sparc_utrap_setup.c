@@ -38,9 +38,9 @@ __FBSDID("$FreeBSD$");
 
 static const struct sparc_utrap_args ua[] = {
 	{ UT_FP_DISABLED, __sparc_utrap_fp_disabled, NULL, NULL, NULL },
-#if 0
 	{ UT_FP_EXCEPTION_IEEE_754, __sparc_utrap_gen, NULL, NULL, NULL },
 	{ UT_FP_EXCEPTION_OTHER, __sparc_utrap_gen, NULL, NULL, NULL },
+#if 0
 	{ UT_ILLEGAL_INSTRUCTION, __sparc_utrap_gen, NULL, NULL, NULL },
 	{ UT_MEM_ADDRESS_NOT_ALIGNED, __sparc_utrap_gen, NULL, NULL, NULL },
 #endif
