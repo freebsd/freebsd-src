@@ -1795,8 +1795,8 @@ vget(vp, flags, td)
 		VI_LOCK(vp);
 	if (vp->v_iflag & VI_XLOCK && vp->v_vxthread != curthread) {
 		if ((flags & LK_NOWAIT) == 0) {
-			vp->v_iflag |= VI_XWANT;
-			msleep(vp, VI_MTX(vp), PINOD | PDROP, "vget", 0);
+			vx_waitl(vp);
+			VI_UNLOCK(vp);
 			return (ENOENT);
 		}
 		VI_UNLOCK(vp);
@@ -2216,6 +2216,33 @@ vx_unlock(struct vnode *vp)
 		wakeup(vp);
 	}
 }
+
+int
+vx_wait(struct vnode *vp)
+{
+	int locked;
+
+	ASSERT_VI_UNLOCKED(vp, "vx_wait");
+	VI_LOCK(vp);
+	locked = vx_waitl(vp);
+	VI_UNLOCK(vp);
+	return (locked);
+}
+
+int
+vx_waitl(struct vnode *vp)
+{
+	int locked = 0;
+
+	ASSERT_VI_LOCKED(vp, "vx_wait");
+	while (vp->v_iflag & VI_XLOCK) {
+		locked = 1;
+		vp->v_iflag |= VI_XWANT;
+		msleep(vp, VI_MTX(vp), PINOD, "vxwait", 0);
+	}
+	return (locked);
+}
+
 /*
  * Recycle an unused vnode to the front of the free list.
  * Release the passed interlock if the vnode will be recycled.
@@ -2259,11 +2286,9 @@ vgonel(struct vnode *vp, struct thread *td)
 	 * wait until it is done and return.
 	 */
 	ASSERT_VI_LOCKED(vp, "vgonel");
-	if (vp->v_iflag & VI_XLOCK) {
-		vp->v_iflag |= VI_XWANT;
-		msleep(vp, VI_MTX(vp), PINOD | PDROP, "vgone", 0);
+	if (vx_waitl(vp))
 		return;
-	}
+
 	vx_lock(vp);
 
 	/*

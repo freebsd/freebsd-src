@@ -822,8 +822,7 @@ debug_vn_lock(vp, flags, td, filename, line)
 				VI_UNLOCK(vp);
 				return (ENOENT);
 			}
-			vp->v_iflag |= VI_XWANT;
-			msleep(vp, VI_MTX(vp), PINOD, "vn_lock", 0);
+			vx_waitl(vp);
 			if ((flags & LK_RETRY) == 0) {
 				VI_UNLOCK(vp);
 				return (ENOENT);

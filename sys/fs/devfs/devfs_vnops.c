@@ -1109,17 +1109,13 @@ devfs_revoke(ap)
 	de = vp->v_data;
 	de->de_vnode = NULL;
 
-	VI_LOCK(vp);
 	/*
 	 * If a vgone (or vclean) is already in progress,
 	 * wait until it is done and return.
 	 */
-	if (vp->v_iflag & VI_XLOCK) {
-		vp->v_iflag |= VI_XWANT;
-		msleep(vp, VI_MTX(vp), PINOD | PDROP, "vop_revokeall", 0);
+	if (vx_wait(vp))
 		return (0);
-	}
-	VI_UNLOCK(vp);
+	
 	dev = vp->v_rdev;
 	for (;;) {
 		dev_lock();
