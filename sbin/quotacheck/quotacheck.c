@@ -32,41 +32,42 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id: quotacheck.c,v 1.8 1997/06/30 11:08:29 charnier Exp $
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1980, 1990, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)quotacheck.c	8.3 (Berkeley) 1/29/94";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 /*
  * Fix up / report on disk quotas & usage
  */
 #include <sys/param.h>
-#include <sys/queue.h>
 #include <sys/stat.h>
 
 #include <ufs/ufs/dinode.h>
 #include <ufs/ufs/quota.h>
 #include <ufs/ffs/fs.h>
 
+#include <err.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <fstab.h>
-#include <pwd.h>
 #include <grp.h>
-#include <errno.h>
-#include <unistd.h>
+#include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <err.h>
+#include <unistd.h>
 
 char *qfname = QUOTAFILENAME;
 char *qfextension[] = INITQFNAMES;
@@ -110,6 +111,8 @@ struct fileusage *
 	 addid __P((u_long, int, char *));
 char	*blockcheck __P((char *));
 void	 bread __P((daddr_t, char *, long));
+extern int checkfstab __P((int, int, int (*)(struct fstab *),
+				int (*)(char *, char *, long, int)));
 int	 chkquota __P((char *, char *, struct quotaname *));
 void	 freeinodebuf __P((void));
 struct dinode *
@@ -220,7 +223,7 @@ needchk(fs)
 	    strcmp(fs->fs_type, FSTAB_RW))
 		return (NULL);
 	if ((qnp = malloc(sizeof(*qnp))) == NULL)
-		err(1, NULL);
+		errx(1, "malloc failed");
 	qnp->flags = 0;
 	if (gflag && hasquota(fs, GRPQUOTA, &qfnp)) {
 		strcpy(qnp->grpqfname, qfnp);
@@ -250,7 +253,7 @@ chkquota(fsname, mntpt, qnp)
 	ino_t ino;
 
 	if ((fi = open(fsname, O_RDONLY, 0)) < 0) {
-		perror(fsname);
+		warn("%s", fsname);
 		return (1);
 	}
 	if (vflag) {
@@ -510,7 +513,7 @@ addid(id, type, name)
 	else
 		len = 10;
 	if ((fup = calloc(1, sizeof(*fup) + len)) == NULL)
-		err(1, NULL);
+		errx(1, "calloc failed");
 	fhp = &fuhead[type][id & (FUHASH - 1)];
 	fup->fu_next = *fhp;
 	*fhp = fup;
@@ -586,7 +589,7 @@ resetinodebuf()
 	}
 	if (inodebuf == NULL &&
 	   (inodebuf = malloc((u_int)inobufsize)) == NULL)
-		err(1, NULL);
+		errx(1, "malloc failed");
 	while (nextino < ROOTINO)
 		getnextinode(nextino);
 }
