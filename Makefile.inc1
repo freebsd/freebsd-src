@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile.inc1,v 1.2 1998/08/31 20:43:13 jb Exp $
+#	$Id: Makefile.inc1,v 1.3 1998/09/01 00:39:02 jb Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -921,8 +921,8 @@ legacy-install:
 	@echo "--------------------------------------------------------------"
 	@echo " Installing legacy libraries"
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR}/lib; ${MAKE} -B install
-	cd ${.CURDIR}/gnu/lib; ${MAKE} -B install
+	cd ${.CURDIR}/lib; ${MAKE} -B -DNOMAN -DNOINFO install
+	cd ${.CURDIR}/gnu/lib; ${MAKE} -B -DNOMAN -DNOINFO install
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo " Installing legacy rtld"
