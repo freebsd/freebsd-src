@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_mbuf.c	8.2 (Berkeley) 1/4/94
- * $Id: uipc_mbuf.c,v 1.7 1995/02/05 07:08:27 bde Exp $
+ * $Id: uipc_mbuf.c,v 1.8 1995/02/23 19:10:21 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -50,6 +50,7 @@
 extern	vm_map_t mb_map;
 struct	mbuf *mbutl;
 char	*mclrefcnt;
+int	mb_map_full;
 
 void
 mbinit()
@@ -86,16 +87,24 @@ m_clalloc(ncl, nowait)
 	register int i;
 	int npg;
 
+	/*
+	 * Once we run out of map space, it will be impossible
+	 * to get any more (nothing is ever freed back to the
+	 * map).
+	 */
+	if (mb_map_full)
+		return (0);
+
 	npg = ncl * CLSIZE;
 	p = (caddr_t)kmem_malloc(mb_map, ctob(npg),
 				 nowait ? M_NOWAIT : M_WAITOK);
-	if (p == NULL) {
-		if (logged == 0) {
-			logged++;
-			log(LOG_ERR, "mb_map full\n");
-		}
+	/*
+	 * Either the map is now full, or this is nowait and there
+	 * are no pages left.
+	 */
+	if (p == NULL)
 		return (0);
-	}
+
 	ncl = ncl * CLBYTES / MCLBYTES;
 	for (i = 0; i < ncl; i++) {
 		((union mcluster *)p)->mcl_next = mclfree;
