@@ -31,9 +31,11 @@
  *
  * $FreeBSD$
  */
+
+#include <sys/types.h>
 #include <errno.h>
 #include <pthread.h>
-#include <stdlib.h>
+
 #include "thr_private.h"
 
 __weak_reference(_pthread_detach, pthread_detach);
@@ -41,42 +43,31 @@ __weak_reference(_pthread_detach, pthread_detach);
 int
 _pthread_detach(pthread_t pthread)
 {
-	int error;
+	struct pthread *curthread = _get_curthread();
+	int rval;
 
-	if (pthread->magic != PTHREAD_MAGIC)
+	if (pthread == NULL)
 		return (EINVAL);
 
-	PTHREAD_LOCK(pthread);
-
-	if ((pthread->attr.flags & PTHREAD_DETACHED) != 0) {
-		_thread_sigblock();
-		DEAD_LIST_LOCK;
-		error = pthread->isdead ? ESRCH : EINVAL;
-		DEAD_LIST_UNLOCK;
-		_thread_sigunblock();
-		PTHREAD_UNLOCK(pthread);
-		return (error);
+	THREAD_LIST_LOCK(curthread);
+	if ((rval = _thr_find_thread(curthread, pthread,
+			/*include dead*/1)) != 0) {
+		THREAD_LIST_UNLOCK(curthread);
+		return (rval);
 	}
 
-	pthread->attr.flags |= PTHREAD_DETACHED;
-
-	/* Check if there is a joiner: */
-	if (pthread->joiner != NULL) {
-		struct pthread	*joiner = pthread->joiner;
-
-		/* Set the return value for the woken thread: */
-		joiner->join_status.error = ESRCH;
-		joiner->join_status.ret = NULL;
-		joiner->join_status.thread = NULL;
-
-		/*
-		 * Disconnect the joiner from the thread being detached:
-		 */
-		pthread->joiner = NULL;
-		PTHREAD_WAKE(joiner);
+	/* Check if the thread is already detached or has a joiner. */
+	if ((pthread->tlflags & TLFLAGS_DETACHED) != 0 ||
+	    (pthread->joiner != NULL)) {
+		THREAD_LIST_UNLOCK(curthread);
+		return (EINVAL);
 	}
 
-	PTHREAD_UNLOCK(pthread);
+	/* Flag the thread as detached. */
+	pthread->tlflags |= TLFLAGS_DETACHED;
+	if (pthread->state == PS_DEAD)
+		THR_GCLIST_ADD(pthread);
+	THREAD_LIST_UNLOCK(curthread);
 
 	return (0);
 }

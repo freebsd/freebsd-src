@@ -31,23 +31,23 @@
  *
  * $FreeBSD$
  */
+
 #include <pthread.h>
+
 #include "thr_private.h"
 
 /*
  * This function needs to reference the global error variable which is
  * normally hidden from the user. 
  */
-#ifdef errno
 #undef errno
-#endif
 extern int      errno;
 
 void
 _thread_seterrno(pthread_t thread, int error)
 {
 	/* Check for the initial thread: */
-	if (thread == _thread_initial)
+	if (thread == NULL || thread == _thr_initial)
 		/* The initial thread always uses the global error variable: */
 		errno = error;
 	else

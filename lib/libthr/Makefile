@@ -10,20 +10,26 @@
 LIB=thr
 SHLIB_MAJOR= 1
 DEBUG_FLAGS=-g
-CFLAGS+=-DPTHREAD_KERNEL -D_THREAD_SAFE 
+CFLAGS+=-DPTHREAD_KERNEL
 CFLAGS+=-I${.CURDIR}/../libc/include -I${.CURDIR}/thread \
 	-I${.CURDIR}/../../include
+CFLAGS+=-I${.CURDIR}/arch/${MACHINE_ARCH}/include
+CFLAGS+=-I${.CURDIR}/sys
 CFLAGS+=-I${.CURDIR}/../../libexec/rtld-elf
+CFLAGS+=-I${.CURDIR}/../../libexec/rtld-elf/${MACHINE_ARCH}
+CFLAGS+=-Winline
+
+# CFLAGS+=-DSYSTEM_SCOPE_ONLY
+
+LDFLAGS= -Wl,--version-script=${.CURDIR}/pthread.map
 
 # enable extra internal consistancy checks
-CFLAGS+=-D_PTHREADS_INVARIANTS
+CFLAGS+=-D_PTHREADS_INVARIANTS -Wall
 
 PRECIOUSLIB=
 
-WARNS?=	2
-
-.include "${.CURDIR}/thread/Makefile.inc"
-.include "${.CURDIR}/sys/Makefile.inc"
 .include "${.CURDIR}/arch/${MACHINE_ARCH}/Makefile.inc"
+.include "${.CURDIR}/sys/Makefile.inc"
+.include "${.CURDIR}/thread/Makefile.inc"
 
 .include <bsd.lib.mk>

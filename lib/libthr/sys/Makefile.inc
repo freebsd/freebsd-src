@@ -1,5 +1,5 @@
 # $FreeBSD$
 
-.PATH:	 ${.CURDIR}/sys ${.CURDIR}/arch/${MACHINE_ARCH}/${MACHINE_ARCH}
+.PATH:	 ${.CURDIR}/sys
 
-SRCS+=	thr_error.c
+SRCS+= thr_error.c
