@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.109.2.32 1998/06/29 10:15:32 jkh Exp $
+#	$Id: Makefile,v 1.109.2.33 1998/07/03 14:28:32 jkh Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -525,6 +525,7 @@ lib-tools:
 		usr.bin/tsort		\
 		gnu/usr.bin/as		\
 		gnu/usr.bin/bison	\
+		gnu/usr.bin/awk		\
 		usr.bin/ar		\
 		usr.bin/compile_et	\
 		usr.bin/lex/lib		\
@@ -636,7 +637,6 @@ build-tools:
 		bin/mv			\
 		bin/rm			\
 		bin/test		\
-		gnu/usr.bin/awk		\
 		gnu/usr.bin/bc		\
 		gnu/usr.bin/grep	\
 		gnu/usr.bin/groff	\
