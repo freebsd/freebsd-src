@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: create_chunk.c,v 1.21.2.2 1995/10/13 08:19:09 jkh Exp $
+ * $Id: create_chunk.c,v 1.21.2.3 1995/10/14 09:29:58 jkh Exp $
  *
  */
 
@@ -319,8 +319,6 @@ MakeDev(struct chunk *c1, char *path)
     min = unit * 8 + 65536 * slice + part;
     sprintf(buf, "%s/r%s", path, c1->name);
     unlink(buf);
-    if (isDebug())
-	msgDebug("MakeDev: Attempting to mknod: %s\n", buf);
     if (mknod(buf, S_IFCHR|0640, makedev(cmaj,min)) == -1) {
 	msgDebug("mknod of %s returned failure status!\n", buf);
 	return 0;
@@ -328,8 +326,6 @@ MakeDev(struct chunk *c1, char *path)
     if (*buf2) {
 	sprintf(buf, "%s/r%s", path, buf2);
 	unlink(buf);
-	if (isDebug())
-	    msgDebug("MakeDev: Attempting to mknod: %s\n", buf);
 	if (mknod(buf, S_IFCHR|0640, makedev(cmaj,min)) == -1) {
 	    msgDebug("mknod of %s returned failure status!\n", buf);
 	    return 0;
@@ -337,8 +333,6 @@ MakeDev(struct chunk *c1, char *path)
     }
     sprintf(buf, "%s/%s", path, c1->name);
     unlink(buf);
-    if (isDebug())
-	msgDebug("MakeDev: Attempting to mknod: %s\n", buf);
     if (mknod(buf, S_IFBLK|0640, makedev(bmaj,min)) == -1) {
 	msgDebug("mknod of %s returned failure status!\n", buf);
 	return 0;
