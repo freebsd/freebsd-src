@@ -115,8 +115,8 @@ static int	vfs_hang_addrlist __P((struct mount *mp, struct netexport *nep,
 void
 vntblinit()
 {
-	desiredvnodes = maxproc + vm_object_cache_max + extravnodes;
 
+	desiredvnodes = maxproc + vm_object_cache_max;
 	TAILQ_INIT(&vnode_free_list);
 	CIRCLEQ_INIT(&mountlist);
 }

@@ -61,16 +61,6 @@ options		"MAXDSIZ=(256*1024*1024)"
 options		"DFLDSIZ=(256*1024*1024)"
 
 #
-# Under some circumstances it is useful to have an extra number of
-# vnode data structures allocated at boot time.  In particular,
-# usenet news servers can benefit if there are enough vnodes to
-# cache the busiest newsgroup and overview directories.  Beware that
-# this is an expensive option, it consumes physical non-pageable ram.
-# A busy news server may benefit from 10,000 extra vnodes or so.
-#
-options		EXTRAVNODES=1
-
-#
 # A math emulator is mandatory if you wish to run on hardware which
 # does not have a floating-point processor.  Pick either the original,
 # bogus (but freely-distributable) math emulator, or a much more
