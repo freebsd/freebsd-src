@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: ar_subs.c,v 1.7 1997/02/22 14:04:19 peter Exp $
  */
 
 #ifndef lint
@@ -425,7 +425,7 @@ wr_archive(arcn, is_app)
 			 * the link table).
 			 */
 			if ((fd = open(arcn->org_name, O_RDONLY, 0)) < 0) {
-				syswarn(1,errno, "Unable to open %s to read",
+				sys_warn(1,errno, "Unable to open %s to read",
 					arcn->org_name);
 				purg_lnk(arcn);
 				continue;
@@ -572,7 +572,7 @@ append()
 	if (get_arc() < 0)
 		return;
 	if ((orgfrmt != NULL) && (orgfrmt != frmt)) {
-		warn(1, "Cannot mix current archive format %s with %s",
+		pax_warn(1, "Cannot mix current archive format %s with %s",
 		    frmt->name, orgfrmt->name);
 		return;
 	}
@@ -753,12 +753,12 @@ copy()
 	drem = PAXPATHLEN - dlen;
 
 	if (stat(dirptr, &sb) < 0) {
-		syswarn(1, errno, "Cannot access destination directory %s",
+		sys_warn(1, errno, "Cannot access destination directory %s",
 			dirptr);
 		return;
 	}
 	if (!S_ISDIR(sb.st_mode)) {
-		warn(1, "Destination is not a directory %s", dirptr);
+		pax_warn(1, "Destination is not a directory %s", dirptr);
 		return;
 	}
 
@@ -812,7 +812,7 @@ copy()
 			else
 				res = 0;
 			if ((arcn->nlen - res) > drem) {
-				warn(1, "Destination pathname too long %s",
+				pax_warn(1, "Destination pathname too long %s",
 					arcn->name);
 				continue;
 			}
@@ -917,7 +917,7 @@ copy()
 		 * first open source file and then create the destination file
 		 */
 		if ((fdsrc = open(arcn->org_name, O_RDONLY, 0)) < 0) {
-			syswarn(1, errno, "Unable to open %s to read",
+			sys_warn(1, errno, "Unable to open %s to read",
 			    arcn->org_name);
 			purg_lnk(arcn);
 			continue;
@@ -1009,16 +1009,16 @@ next_head(arcn)
 			 * storage device, better give the user the bad news.
 			 */
 			if ((ret == 0) || (rd_sync() < 0)) {
-				warn(1,"Premature end of file on archive read");
+				pax_warn(1,"Premature end of file on archive read");
 				return(-1);
 			}
 			if (!in_resync) {
 				if (act == APPND) {
-					warn(1,
+					pax_warn(1,
 				          "Archive I/O error, cannot continue");
 					return(-1);
 				}
-				warn(1,"Archive I/O error. Trying to recover.");
+				pax_warn(1,"Archive I/O error. Trying to recover.");
 				++in_resync;
 			}
 
@@ -1079,10 +1079,10 @@ next_head(arcn)
 		 */
 		if (!in_resync) {
 			if (act == APPND) {
-				warn(1,"Unable to append, archive header flaw");
+				pax_warn(1,"Unable to append, archive header flaw");
 				return(-1);
 			}
-			warn(1,"Invalid header, starting valid header search.");
+			pax_warn(1,"Invalid header, starting valid header search.");
 			++in_resync;
 		}
 		bcopy(hdbuf+1, hdbuf, shftsz);
@@ -1174,7 +1174,7 @@ get_arc()
 			if (!notice) {
 				if (act == APPND)
 					return(-1);
-				warn(1,"Cannot identify format. Searching...");
+				pax_warn(1,"Cannot identify format. Searching...");
 				++notice;
 			}
 		}
@@ -1209,7 +1209,7 @@ get_arc()
 		if (!notice) {
 			if (act == APPND)
 				return(-1);
-			warn(1, "Cannot identify format. Searching...");
+			pax_warn(1, "Cannot identify format. Searching...");
 			++notice;
 		}
 
@@ -1234,6 +1234,6 @@ get_arc()
 	/*
 	 * we cannot find a header, bow, apologize and quit
 	 */
-	warn(1, "Sorry, unable to determine archive format.");
+	pax_warn(1, "Sorry, unable to determine archive format.");
 	return(-1);
 }

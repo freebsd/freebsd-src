@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)extern.h	8.2 (Berkeley) 4/18/94
- *	$Id$
+ *	$Id: extern.h,v 1.4 1997/02/22 14:04:25 peter Exp $
  */
 
 /*
@@ -282,5 +282,5 @@ int ustar_wr __P((register ARCHD *));
 int tty_init __P((void));
 void tty_prnt __P((char *, ...));
 int tty_read __P((char *, int));
-void warn __P((int, char *, ...));
-void syswarn __P((int, int, char *, ...));
+void pax_warn __P((int, char *, ...));
+void sys_warn __P((int, int, char *, ...));
