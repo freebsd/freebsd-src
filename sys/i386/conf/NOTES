@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.239 1996/02/13 18:16:18 wollman Exp $
+#	$Id: LINT,v 1.240 1996/02/23 15:47:41 phk Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -98,6 +98,13 @@ options		SYSVMSG
 # Enable the kernel debugger.
 #
 options		DDB
+
+#
+# Don't drop into DDB for a panic. Intended for unattended operation
+# where you may want to drop to DDB from the console, but still want
+# the machine to recover from a panic
+#
+options		DDB_UNATTENDED
 
 # 
 # KTRACE enables the system-call tracing facility ktrace(2).
