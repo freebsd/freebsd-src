@@ -43,7 +43,7 @@
 .Nd list directory contents
 .Sh SYNOPSIS
 .Nm ls
-.Op Fl ABCFHLPRTWabcdfgiklnoqrstu1
+.Op Fl ABCFGHLPRTWabcdfgiklnoqrstu1
 .Op Ar file ...
 .Sh DESCRIPTION
 For each operand that names a
@@ -90,6 +90,16 @@ an equals sign (=) after each socket,
 a percent sign (%) after each whiteout,
 and a vertical bar (|) after each that is a
 .Tn FIFO .
+.It Fl G
+Use
+.Tn ANSI
+color sequences to distinguish file types.
+See
+.Ev LSCOLORS
+below.
+In addition to those mentioned above in
+.Fl F ,
+some extra attributes (setuid bit set, etc.) are also displayed.
 .It Fl H
 Symbolic links on the command line are followed.  This option is assumed if
 none of the
@@ -388,6 +398,78 @@ format output.
 See
 .Xr environ 7
 for more information.
+.It LSCOLORS
+The value of this variable describes what color to use for which
+attribute when the color output
+.Pq Fl G
+is specified.
+This string is a concatenation of pairs of the format
+.Sy fb ,
+where
+.Sy f
+is the foreground color and
+.Sy b
+is the background color.
+.Pp
+The color designators are as follows:
+.Pp
+.Bl -tag -width 4n -offset indent -compact
+.It Sy 0
+black
+.It Sy 1
+red
+.It Sy 2
+green
+.It Sy 3
+brown
+.It Sy 4
+blue
+.It Sy 5
+magenta
+.It Sy 6
+cyan
+.It Sy 7
+light grey
+.It Sy x
+default foreground or background
+.El
+.Pp
+Note that the above are standard
+.Tn ANSI
+colors.
+The actual display may differ
+depending on the color capabilities of your terminal.
+.Pp
+The order of the attributes are as follows:
+.Pp
+.Bl -enum -offset indent -compact
+.It
+directory
+.It
+symbolic link
+.It
+socket
+.It
+pipe
+.It
+executable
+.It
+block special
+.It
+character special
+.It
+executable with setuid bit set
+.It
+executable with setgid bit set
+.It
+directory writable to others, with sticky bit
+.It
+directory writable to others, without sticky bit
+.El
+.Pp
+The default is "4x5x2x3x1x464301060203", i.e. blue foreground and
+default background for regular directories, black foreground and red
+background for setuid executables, etc.
 .It Ev LS_COLWIDTHS
 If this variable is set, it is considered to be a
 colon-delimited list of minimum column widths.  Unreasonable

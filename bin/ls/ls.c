@@ -63,6 +63,10 @@ static const char rcsid[] =
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#ifdef COLORLS
+#include <termcap.h>
+#include <signal.h>
+#endif
 
 #include "ls.h"
 #include "extern.h"
@@ -109,6 +113,13 @@ int f_statustime;		/* use time of last mode change */
 int f_timesort;			/* sort by time vice name */
 int f_type;			/* add type character for non-regular files */
 int f_whiteout;			/* show whiteout entries */
+#ifdef COLORLS
+int f_color;			/* add type in color for non-regular files */
+
+char *ansi_bgcol;		/* ANSI sequence to set background colour */
+char *ansi_fgcol;		/* ANSI sequence to set foreground colour */
+char *ansi_coloff;		/* ANSI sequence to reset colours */
+#endif
 
 int rval;
 
@@ -121,6 +132,12 @@ main(argc, argv)
 	struct winsize win;
 	int ch, fts_options, notused;
 	char *p;
+
+#ifdef COLORLS
+	char termcapbuf[1024];		/* termcap definition buffer */
+	char tcapbuf[512];		/* capability buffer */
+	char *bp = tcapbuf;
+#endif
 
 	(void) setlocale(LC_ALL, "");
 
@@ -146,7 +163,7 @@ main(argc, argv)
 		f_listdot = 1;
 
 	fts_options = FTS_PHYSICAL;
-	while ((ch = getopt(argc, argv, "1ABCFHLPRTWabcdfgiklnoqrstu")) != -1) {
+	while ((ch = getopt(argc, argv, "1ABCFGHLPRTWabcdfgiklnoqrstu")) != -1) {
 		switch (ch) {
 		/*
 		 * The -1, -C and -l options all override each other so shell
@@ -183,6 +200,26 @@ main(argc, argv)
 			break;
 		case 'H':
 		        fts_options |= FTS_COMFOLLOW;
+			break;
+		case 'G':
+			if (isatty(STDOUT_FILENO))
+#ifdef COLORLS
+				if (tgetent(termcapbuf, getenv("TERM")) == 1) {
+					ansi_fgcol = tgetstr("AF", &bp);
+					ansi_bgcol = tgetstr("AB", &bp);
+
+					/* To switch colours off use 'op' if
+					 * available, otherwise use 'oc', or
+					 * don't do colours at all. */
+					ansi_coloff = tgetstr("op", &bp);
+					if (!ansi_coloff)
+						ansi_coloff = tgetstr("oc", &bp);
+					if (ansi_fgcol && ansi_bgcol && ansi_coloff)
+						f_color = 1;
+				}
+#else
+				(void)fprintf(stderr, "Color support not compiled in.\n");
+#endif
 			break;
 		case 'L':
 			fts_options &= ~FTS_PHYSICAL;
@@ -257,11 +294,30 @@ main(argc, argv)
 	argc -= optind;
 	argv += optind;
 
+#ifdef COLORLS
+	if (f_color) {
+		/*
+		 * We can't put tabs and color sequences together:
+		 * column number will be incremented incorrectly
+		 * for "stty oxtabs" mode.
+		 */
+		f_notabs = 1;
+		(void) signal(SIGINT, colorquit);
+		(void) signal(SIGQUIT, colorquit);
+		parsecolors(getenv("LSCOLORS"));
+	}
+#endif
+
 	/*
 	 * If not -F, -i, -l, -s or -t options, don't require stat
-	 * information.
+	 * information, unless in color mode in which case we do
+	 * need this to determine which colors to display.
 	 */
-	if (!f_inode && !f_longform && !f_size && !f_timesort && !f_type)
+	if (!f_inode && !f_longform && !f_size && !f_timesort && !f_type
+#ifdef COLORLS
+	    && !f_color
+#endif
+	   )
 		fts_options |= FTS_NOSTAT;
 
 	/*
@@ -469,7 +525,11 @@ display(p, list)
 		 case 4: maxgroup = 0;
 		 case 5: maxflags = 0;
 		 case 6: maxsize  = 0;
-		 case 7: maxlen   = 0, f_notabs = 0;
+		 case 7: maxlen   = 0;
+#ifdef COLORLS
+		 if (!f_color)
+#endif
+			 f_notabs = 0;
 		}
 		maxinode = makenines(maxinode);
 		maxblock = makenines(maxblock);
