@@ -46,6 +46,7 @@ static const char rcsid[] =
 #include <sys/time.h>
 
 #include <net/bpf.h>
+#include <net/ethernet.h>
 #include <net/if.h>
 #include <net/if_types.h>
 #include <net/if_dl.h>
@@ -107,10 +108,6 @@ static const char rcsid[] =
 #define arp_tpa arp_xtpa
 #endif
 
-#ifndef __GNUC__
-#define inline
-#endif
-
 /*
  * The structure for each interface.
  */
@@ -131,39 +128,30 @@ struct if_info *iflist;
 
 int verbose;			/* verbose messages */
 int s;				/* inet datagram socket */
-char *tftp_dir = TFTP_DIR;	/* tftp directory */
+const char *tftp_dir = TFTP_DIR;	/* tftp directory */
 
-#ifndef __P
-#define __P(protos) ()
-#endif
-
-#if BSD < 199200
-extern	char *malloc();
-extern	void exit();
-#endif
-extern	int ether_ntohost();
-
-void	init __P((char *));
-void	init_one __P((struct ifreq *, char *));
-char	*intoa __P((u_long));
-u_long	ipaddrtonetmask __P((u_long));
-char	*eatoa __P((u_char *));
-int	rarp_bootable __P((u_long));
-void	rarp_loop __P((void));
-int	rarp_open __P((char *));
-void	rarp_process __P((struct if_info *, u_char *, u_int));
-void	rarp_reply __P((struct if_info *, struct ether_header *, u_long, u_int));
-void	update_arptab __P((u_char *, u_long));
-static void	usage __P((void));
+int sflag;			/* ignore /tftpboot */
 
 static	u_char zero[6];
 
-int sflag = 0;			/* ignore /tftpboot */
+static int	bpf_open(void);
+static u_long	choose_ipaddr(u_long **, u_long, u_long);
+static char	*eatoa(u_char *);
+static void	init(char *);
+static void	init_one(struct ifreq *, char *);
+static char	*intoa(u_long);
+static u_long	ipaddrtonetmask(u_long);
+static int	rarp_bootable(u_long);
+static int	rarp_check(u_char *, u_int);
+static void	rarp_loop(void);
+static int	rarp_open(char *);
+static void	rarp_process(struct if_info *, u_char *, u_int);
+static void	rarp_reply(struct if_info *, struct ether_header *, u_long, u_int);
+static void	update_arptab(u_char *, u_long);
+static void	usage(void);
 
 int
-main(argc, argv)
-	int argc;
-	char **argv;
+main(int argc, char *argv[])
 {
 	int op;
 	char *ifname, *hostname, *name;
@@ -231,12 +219,10 @@ main(argc, argv)
  * Add to the interface list.
  */
 void
-init_one(ifrp, target)
-	register struct ifreq *ifrp;
-	register char *target;
+init_one(struct ifreq *ifrp, char *target)
 {
-	register struct if_info *ii;
-	register struct sockaddr_dl *ll;
+	struct if_info *ii;
+	struct sockaddr_dl *ll;
 	int family;
 	struct ifreq ifr;
 
@@ -249,10 +235,10 @@ init_one(ifrp, target)
 #endif
 		(void)strncpy(ifr.ifr_name, ifrp->ifr_name,
 		    sizeof(ifrp->ifr_name));
-		if (ioctl(s, SIOCGIFFLAGS, (char *)&ifr) < 0) {
+		if (ioctl(s, SIOCGIFFLAGS, (char *)&ifr) == -1) {
 			syslog(LOG_ERR,
 			    "SIOCGIFFLAGS: %.*s: %m",
-				sizeof(ifrp->ifr_name), ifrp->ifr_name);
+				(int)sizeof(ifrp->ifr_name), ifrp->ifr_name);
 			exit(1);
 		}
 		if ((ifr.ifr_flags & IFF_UP) == 0 ||
@@ -295,13 +281,13 @@ init_one(ifrp, target)
 	switch (family) {
 
 	case AF_INET:
-		if (ioctl(s, SIOCGIFADDR, (char *)&ifr) < 0) {
+		if (ioctl(s, SIOCGIFADDR, (char *)&ifr) == -1) {
 			syslog(LOG_ERR, "ipaddr SIOCGIFADDR: %s: %m",
 			    ii->ii_ifname);
 			exit(1);
 		}
 		ii->ii_ipaddr = SATOSIN(&ifr.ifr_addr)->sin_addr.s_addr;
-		if (ioctl(s, SIOCGIFNETMASK, (char *)&ifr) < 0) {
+		if (ioctl(s, SIOCGIFNETMASK, (char *)&ifr) == -1) {
 			syslog(LOG_ERR, "SIOCGIFNETMASK: %m");
 			exit(1);
 		}
@@ -312,7 +298,7 @@ init_one(ifrp, target)
 			ii->ii_fd = rarp_open(ii->ii_ifname);
 #if BSD < 199100
 			/* Use BPF descriptor to get ethernet address. */
-			if (ioctl(ii->ii_fd, SIOCGIFADDR, (char *)&ifr) < 0) {
+			if (ioctl(ii->ii_fd, SIOCGIFADDR, (char *)&ifr) == -1) {
 				syslog(LOG_ERR, "eaddr SIOCGIFADDR: %s: %m",
 				    ii->ii_ifname);
 				exit(1);
@@ -337,23 +323,22 @@ init_one(ifrp, target)
  * point to point.
  */
 void
-init(target)
-	char *target;
+init(char *target)
 {
-	register int n;
-	register struct ifreq *ifrp, *ifend;
-	register struct if_info *ii, *nii, *lii;
+	u_int n;
+	struct ifreq *ifrp, *ifend;
+	struct if_info *ii, *nii, *lii;
 	struct ifconf ifc;
 	struct ifreq ibuf[16];
 
-	if ((s = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+	if ((s = socket(AF_INET, SOCK_DGRAM, 0)) == -1) {
 		syslog(LOG_ERR, "socket: %m");
 		exit(1);
 	}
 	ifc.ifc_len = sizeof ibuf;
 	ifc.ifc_buf = (caddr_t)ibuf;
-	if (ioctl(s, SIOCGIFCONF, (char *)&ifc) < 0 ||
-	    (u_int)ifc.ifc_len < sizeof(struct ifreq)) {
+	if ((ioctl(s, SIOCGIFCONF, (char *)&ifc) == -1) ||
+	    ((u_int)ifc.ifc_len < sizeof(struct ifreq))) {
 		syslog(LOG_ERR, "SIOCGIFCONF: %m");
 		exit(1);
 	}
@@ -393,20 +378,20 @@ init(target)
 	/* Verbose stuff */
 	if (verbose)
 		for (ii = iflist; ii != NULL; ii = ii->ii_next)
-			syslog(LOG_DEBUG, "%s %s 0x%08x %s",
+			syslog(LOG_DEBUG, "%s %s 0x%08lx %s",
 			    ii->ii_ifname, intoa(ntohl(ii->ii_ipaddr)),
-			    ntohl(ii->ii_netmask), eatoa(ii->ii_eaddr));
+			    (u_long)ntohl(ii->ii_netmask), eatoa(ii->ii_eaddr));
 }
 
-static void
-usage()
+void
+usage(void)
 {
 	(void)fprintf(stderr, "usage: rarpd [-afsv] [interface]\n");
 	exit(1);
 }
 
-static int
-bpf_open()
+int
+bpf_open(void)
 {
 	int fd;
 	int n = 0;
@@ -418,9 +403,9 @@ bpf_open()
 	do {
 		(void)sprintf(device, "/dev/bpf%d", n++);
 		fd = open(device, O_RDWR);
-	} while (fd < 0 && errno == EBUSY);
+	} while ((fd == -1) && (errno == EBUSY));
 
-	if (fd < 0) {
+	if (fd == -1) {
 		syslog(LOG_ERR, "%s: %m", device);
 		exit(1);
 	}
@@ -432,8 +417,7 @@ bpf_open()
  * Set immediate mode, and set a filter that accepts only RARP requests.
  */
 int
-rarp_open(device)
-	char *device;
+rarp_open(char *device)
 {
 	int fd;
 	struct ifreq ifr;
@@ -459,12 +443,12 @@ rarp_open(device)
 	 * Set immediate mode so packets are processed as they arrive.
 	 */
 	immediate = 1;
-	if (ioctl(fd, BIOCIMMEDIATE, &immediate) < 0) {
+	if (ioctl(fd, BIOCIMMEDIATE, &immediate) == -1) {
 		syslog(LOG_ERR, "BIOCIMMEDIATE: %m");
 		exit(1);
 	}
 	(void)strncpy(ifr.ifr_name, device, sizeof ifr.ifr_name);
-	if (ioctl(fd, BIOCSETIF, (caddr_t)&ifr) < 0) {
+	if (ioctl(fd, BIOCSETIF, (caddr_t)&ifr) == -1) {
 		syslog(LOG_ERR, "BIOCSETIF: %m");
 		exit(1);
 	}
@@ -472,7 +456,7 @@ rarp_open(device)
 	 * Check that the data link layer is an Ethernet; this code won't
 	 * work with anything else.
 	 */
-	if (ioctl(fd, BIOCGDLT, (caddr_t)&dlt) < 0) {
+	if (ioctl(fd, BIOCGDLT, (caddr_t)&dlt) == -1) {
 		syslog(LOG_ERR, "BIOCGDLT: %m");
 		exit(1);
 	}
@@ -483,7 +467,7 @@ rarp_open(device)
 	/*
 	 * Set filter program.
 	 */
-	if (ioctl(fd, BIOCSETF, (caddr_t)&filter) < 0) {
+	if (ioctl(fd, BIOCSETF, (caddr_t)&filter) == -1) {
 		syslog(LOG_ERR, "BIOCSETF: %m");
 		exit(1);
 	}
@@ -494,17 +478,15 @@ rarp_open(device)
  * Perform various sanity checks on the RARP request packet.  Return
  * false on failure and log the reason.
  */
-static int
-rarp_check(p, len)
-	u_char *p;
-	u_int len;
+int
+rarp_check(u_char *p, u_int len)
 {
 	struct ether_header *ep = (struct ether_header *)p;
 	struct ether_arp *ap = (struct ether_arp *)(p + sizeof(*ep));
 
 	if (len < sizeof(*ep) + sizeof(*ap)) {
-		syslog(LOG_ERR, "truncated request, got %d, expected %d",
-				len, sizeof(*ep) + sizeof(*ap));
+		syslog(LOG_ERR, "truncated request, got %u, expected %lu",
+				len, (u_long)(sizeof(*ep) + sizeof(*ap)));
 		return 0;
 	}
 	/*
@@ -540,7 +522,7 @@ rarp_check(p, len)
  * interfaces in 'iflist'.
  */
 void
-rarp_loop()
+rarp_loop(void)
 {
 	u_char *buf, *bp, *ep;
 	int cc, fd;
@@ -552,11 +534,11 @@ rarp_loop()
 		syslog(LOG_ERR, "no interfaces");
 		exit(1);
 	}
-	if (ioctl(iflist->ii_fd, BIOCGBLEN, (caddr_t)&bufsize) < 0) {
+	if (ioctl(iflist->ii_fd, BIOCGBLEN, (caddr_t)&bufsize) == -1) {
 		syslog(LOG_ERR, "BIOCGBLEN: %m");
 		exit(1);
 	}
-	buf = (u_char *)malloc((unsigned)bufsize);
+	buf = malloc(bufsize);
 	if (buf == NULL) {
 		syslog(LOG_ERR, "malloc: %m");
 		exit(1);
@@ -574,7 +556,7 @@ rarp_loop()
 				maxfd = ii->ii_fd;
 		}
 		listeners = fds;
-		if (select(maxfd + 1, &listeners, NULL, NULL, NULL) < 0) {
+		if (select(maxfd + 1, &listeners, NULL, NULL, NULL) == -1) {
 			/* Don't choke when we get ptraced */
 			if (errno == EINTR)
 				continue;
@@ -588,7 +570,7 @@ rarp_loop()
 		again:
 			cc = read(fd, (char *)buf, bufsize);
 			/* Don't choke when we get ptraced */
-			if (cc < 0 && errno == EINTR)
+			if ((cc == -1) && (errno == EINTR))
 				goto again;
 #if defined(SUNOS3) || defined(SUNOS4)
 			/*
@@ -596,7 +578,7 @@ rarp_loop()
 			 * file offset overflows and read fails with
 			 * EINVAL.  The lseek() to 0 will fix things.
 			 */
-			if (cc < 0) {
+			if (cc == -1) {
 				if (errno == EINVAL &&
 				    (long)(tell(fd) + bufsize) < 0) {
 					(void)lseek(fd, 0, 0);
@@ -612,7 +594,7 @@ rarp_loop()
 			bp = buf;
 			ep = bp + cc;
 			while (bp < ep) {
-				register u_int caplen, hdrlen;
+				u_int caplen, hdrlen;
 
 				caplen = bhp->bh_caplen;
 				hdrlen = bhp->bh_hdrlen;
@@ -631,19 +613,18 @@ rarp_loop()
  * configuration file.
  */
 int
-rarp_bootable(addr)
-	u_long addr;
+rarp_bootable(u_long addr)
 {
 #ifdef HAVE_DIRENT_H
-	register struct dirent *dent;
+	struct dirent *dent;
 #else
-	register struct direct *dent;
+	struct direct *dent;
 #endif
-	register DIR *d;
+	DIR *d;
 	char ipname[9];
 	static DIR *dd = NULL;
 
-	(void)sprintf(ipname, "%08X", (unsigned int )ntohl(addr));
+	(void)sprintf(ipname, "%08lX", (u_long)ntohl(addr));
 
 	/*
 	 * If directory is already open, rewind it.  Otherwise, open it.
@@ -674,10 +655,7 @@ rarp_bootable(addr)
  * of the address.
  */
 u_long
-choose_ipaddr(alist, net, netmask)
-	u_long **alist;
-	u_long net;
-	u_long netmask;
+choose_ipaddr(u_long **alist, u_long net, u_long netmask)
 {
 	for (; *alist; ++alist)
 		if ((**alist & netmask) == net)
@@ -690,10 +668,7 @@ choose_ipaddr(alist, net, netmask)
  * already been checked for validity.  The reply is overlaid on the request.
  */
 void
-rarp_process(ii, pkt, len)
-	struct if_info *ii;
-	u_char *pkt;
-	u_int len;
+rarp_process(struct if_info *ii, u_char *pkt, u_int len)
 {
 	struct ether_header *ep;
 	struct hostent *hp;
@@ -702,7 +677,7 @@ rarp_process(ii, pkt, len)
 
 	ep = (struct ether_header *)pkt;
 	/* should this be arp_tha? */
-	if (ether_ntohost(ename, &ep->ether_shost) != 0) {
+	if (ether_ntohost(ename, (struct ether_addr *)&ep->ether_shost) != 0) {
 		syslog(LOG_ERR, "cannot map %s to name",
 			eatoa(ep->ether_shost));
 		return;
@@ -745,33 +720,35 @@ rarp_process(ii, pkt, len)
  * address of the guy being booted (he cannot answer the ARP).
  */
 #if BSD >= 199200
-static struct sockaddr_inarp sin_inarp = {
-	sizeof(struct sockaddr_inarp), AF_INET
+struct sockaddr_inarp sin_inarp = {
+	sizeof(struct sockaddr_inarp), AF_INET, 0,
+	{0},
+	{0},
+	0, 0
 };
-static struct sockaddr_dl sin_dl = {
-	sizeof(struct sockaddr_dl), AF_LINK, 0, IFT_ETHER, 0, 6
+struct sockaddr_dl sin_dl = {
+	sizeof(struct sockaddr_dl), AF_LINK, 0, IFT_ETHER, 0, 6,
+	0, "", 0, {0}
 };
-static struct {
+struct {
 	struct rt_msghdr rthdr;
 	char rtspace[512];
 } rtmsg;
 
 void
-update_arptab(ep, ipaddr)
-	u_char *ep;
-	u_long ipaddr;
+update_arptab(u_char *ep, u_long ipaddr)
 {
-	register int cc;
-	register struct sockaddr_inarp *ar, *ar2;
-	register struct sockaddr_dl *ll, *ll2;
-	register struct rt_msghdr *rt;
-	register int xtype, xindex;
+	int cc;
+	struct sockaddr_inarp *ar, *ar2;
+	struct sockaddr_dl *ll, *ll2;
+	struct rt_msghdr *rt;
+	int xtype, xindex;
 	static pid_t pid;
 	int r;
-	static seq;
+	static int seq;
 
 	r = socket(PF_ROUTE, SOCK_RAW, 0);
-	if (r < 0) {
+	if (r == -1) {
 		syslog(LOG_ERR, "raw route socket: %m");
 		exit(1);
 	}
@@ -793,7 +770,7 @@ update_arptab(ep, ipaddr)
 	bcopy(ar, ar2, sizeof(*ar));
 	rt->rtm_msglen = sizeof(*rt) + sizeof(*ar);
 	errno = 0;
-	if (write(r, rt, rt->rtm_msglen) < 0 && errno != ESRCH) {
+	if ((write(r, rt, rt->rtm_msglen) == -1) && (errno != ESRCH)) {
 		syslog(LOG_ERR, "rtmsg get write: %m");
 		close(r);
 		return;
@@ -801,7 +778,7 @@ update_arptab(ep, ipaddr)
 	do {
 		cc = read(r, rt, sizeof(rtmsg));
 	} while (cc > 0 && (rt->rtm_seq != seq || rt->rtm_pid != pid));
-	if (cc < 0) {
+	if (cc == -1) {
 		syslog(LOG_ERR, "rtmsg get read: %m");
 		close(r);
 		return;
@@ -813,7 +790,7 @@ update_arptab(ep, ipaddr)
 		 * directly connected network (the family is AF_INET in
 		 * this case).
 		 */
-		syslog(LOG_ERR, "bogus link family (%d) wrong net for %08X?\n",
+		syslog(LOG_ERR, "bogus link family (%d) wrong net for %08lX?\n",
 		    ll2->sdl_family, ipaddr);
 		close(r);
 		return;
@@ -840,7 +817,7 @@ update_arptab(ep, ipaddr)
 
 	rt->rtm_msglen = sizeof(*rt) + sizeof(*ar2) + sizeof(*ll2);
 	errno = 0;
-	if (write(r, rt, rt->rtm_msglen) < 0 && errno != EEXIST) {
+	if ((write(r, rt, rt->rtm_msglen) == -1) && (errno != EEXIST)) {
 		syslog(LOG_ERR, "rtmsg add write: %m");
 		close(r);
 		return;
@@ -849,16 +826,14 @@ update_arptab(ep, ipaddr)
 		cc = read(r, rt, sizeof(rtmsg));
 	} while (cc > 0 && (rt->rtm_seq != seq || rt->rtm_pid != pid));
 	close(r);
-	if (cc < 0) {
+	if (cc == -1) {
 		syslog(LOG_ERR, "rtmsg add read: %m");
 		return;
 	}
 }
 #else
 void
-update_arptab(ep, ipaddr)
-	u_char *ep;
-	u_long ipaddr;
+update_arptab(u_char *ep, u_long ipaddr)
 {
 	struct arpreq request;
 	struct sockaddr_in *sin;
@@ -870,7 +845,7 @@ update_arptab(ep, ipaddr)
 	request.arp_ha.sa_family = AF_UNSPEC;
 	bcopy((char *)ep, (char *)request.arp_ha.sa_data, 6);
 
-	if (ioctl(s, SIOCSARP, (caddr_t)&request) < 0)
+	if (ioctl(s, SIOCSARP, (caddr_t)&request) == -1)
 		syslog(LOG_ERR, "SIOCSARP: %m");
 }
 #endif
@@ -909,13 +884,10 @@ update_arptab(ep, ipaddr)
  * ARP request.
  */
 void
-rarp_reply(ii, ep, ipaddr, len)
-	struct if_info *ii;
-	struct ether_header *ep;
-	u_long ipaddr;
-	u_int len;
+rarp_reply(struct if_info *ii, struct ether_header *ep, u_long ipaddr,
+		u_int len)
 {
-	int n;
+	u_int n;
 	struct ether_arp *ap = (struct ether_arp *)(ep + 1);
 
 	update_arptab((u_char *)&ap->arp_sha, ipaddr);
@@ -953,8 +925,7 @@ rarp_reply(ii, ep, ipaddr, len)
  * SIOCGIFNETMASK doesn't work.
  */
 u_long
-ipaddrtonetmask(addr)
-	u_long addr;
+ipaddrtonetmask(u_long addr)
 {
 	addr = ntohl(addr);
 	if (IN_CLASSA(addr))
@@ -963,7 +934,7 @@ ipaddrtonetmask(addr)
 		return htonl(IN_CLASSB_NET);
 	if (IN_CLASSC(addr))
 		return htonl(IN_CLASSC_NET);
-	syslog(LOG_DEBUG, "unknown IP address class: %08X", addr);
+	syslog(LOG_DEBUG, "unknown IP address class: %08lX", addr);
 	return htonl(0xffffffff);
 }
 
@@ -971,12 +942,11 @@ ipaddrtonetmask(addr)
  * A faster replacement for inet_ntoa().
  */
 char *
-intoa(addr)
-	u_long addr;
+intoa(u_long addr)
 {
-	register char *cp;
-	register u_int byte;
-	register int n;
+	char *cp;
+	u_int byte;
+	int n;
 	static char buf[sizeof(".xxx.xxx.xxx.xxx")];
 
 	cp = &buf[sizeof buf];
@@ -1001,8 +971,7 @@ intoa(addr)
 }
 
 char *
-eatoa(ea)
-	register u_char *ea;
+eatoa(u_char *ea)
 {
 	static char buf[sizeof("xx:xx:xx:xx:xx:xx")];
 

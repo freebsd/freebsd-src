@@ -30,15 +30,15 @@
 .Op Fl afsv
 .Op Ar interface
 .Sh DESCRIPTION
-.Nm Rarpd
+.Nm
 services Reverse ARP requests on the Ethernet connected to
 .Ar interface .
-Upon receiving a request, 
+Upon receiving a request,
 .Nm
-maps the target hardware address to an IP address via its name, which 
+maps the target hardware address to an IP address via its name, which
 must be present in both the
 .Xr ethers 5
-and 
+and
 .Xr hosts 5
 databases.
 If a host does not exist in both databases, the translation cannot
@@ -63,10 +63,10 @@ This requirement can be overridden with the
 .Fl s
 flag (see below).
 .Pp
-In normal operation, 
+In normal operation,
 .Nm
-forks a copy of itself and runs in
-the background.  Anomalies and errors are reported via 
+forks a copy of itself and runs in the background.
+Anomalies and errors are reported via
 .Xr syslog 3 .
 .Pp
 The following options are available:
@@ -93,9 +93,15 @@ Enable verbose sysloging.
 .El
 .Sh SEE ALSO
 .Xr bpf 4
-.Pp
-RFC 903: Finlayson, R.; Mann, T.; Mogul, J.C.; Theimer, M.  Reverse Address 
-Resolution Protocol.  1984 June; 4 p.
+.Rs
+.%A "Finlayson, R."
+.%A "Mann, T."
+.%A "Mogul, J.C."
+.%A "Theimer, M."
+.%T "RFC 903: Reverse Address Resolution Protocol"
+.%D "June 1984"
+.%O "4 p"
+.Re
 .Sh AUTHORS
 .An -nosplit
 .An Craig Leres Aq leres@ee.lbl.gov
@@ -103,14 +109,13 @@ and
 .An Steven McCanne Aq mccanne@ee.lbl.gov .
 Lawrence Berkeley Laboratory, University of California, Berkeley, CA.
 .Sh BUGS
-.Nm Rarpd
+.Nm
 can depend on the DNS to resolve the name discovered from
 .Pa /etc/ethers .
 If this name is not in the DNS but is in
 .Pa /etc/hosts ,
-the DNS lookup
-can cause a delayed RARP response, so in this situation it is reccommended to
-configure
+the DNS lookup can cause a delayed RARP response, so in this situation
+it is recommended to configure
 .Pa /etc/host.conf
 to read
 .Pa /etc/hosts
