@@ -43,6 +43,7 @@
 .Op Fl b Ar pri_req
 .Op Fl R Ar filename
 .Op Fl S Ar filename
+.Op Fl m Ar EUI64 | hostname
 .Sh DESCRIPTION
 The
 .Nm
@@ -102,6 +103,9 @@ in the
 Ports Collection.
 .It Fl S Ar filename
 Send a DV file as isochronous stream.
+.It Fl m Ar EUI64 | hostname
+Set default fwmem target. Hostname will be converted to EUI64 using
+.Xr eui64 5 .
 .El
 .Sh EXAMPLES
 Each DV frame has a fixed size and it is easy to edit the frame order.
