@@ -1,16 +1,18 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-#	$Id: files.i386,v 1.84 1995/02/17 08:45:59 bde Exp $
+#	$Id: files.i386,v 1.85 1995/02/23 17:19:54 bde Exp $
 #
 aic7xxx				optional	ahc	device-driver	   \
-	dependancy 	"$S/gnu/misc/aic7xxx/aic7xxx.c"			   \
+	dependency 	"$S/gnu/misc/aic7xxx/aic7xxx.c"			   \
 	compile-with	"${CC} -o $@ $>"				   \
-	no-obj no-implicit-rule
+	no-obj no-implicit-rule						   \
+	clean		"aic7xxx"
 aic7xxx_seq.h			optional	ahc	device-driver	   \
-	dependancy	"$S/gnu/misc/aic7xxx/aic7xxx.seq aic7xxx"	   \
+	dependency	"$S/gnu/misc/aic7xxx/aic7xxx.seq aic7xxx"	   \
 	compile-with	"./aic7xxx -o $@ $S/gnu/misc/aic7xxx/aic7xxx.seq"  \
-	no-obj no-implicit-rule before-depend
+	no-obj no-implicit-rule before-depend				   \
+	clean		"aic7xxx_seq.h"
 i386/apm/apm.c			optional	apm	device-driver
 i386/apm/apm_setup.s		optional	apm
 i386/i386/autoconf.c		standard	device-driver
@@ -146,7 +148,7 @@ i386/isa/wd.c			optional	wd	device-driver
 i386/isa/wd7000.c		optional	wds	device-driver
 i386/isa/wt.c			optional	wt	device-driver
 i386/scsi/aic7xxx.c		optional	ahc	device-driver	   \
-	dependancy	"aic7xxx_seq.h"
+	dependency	"aic7xxx_seq.h"
 gnu/i386/fpemul/div_small.s	optional	gpl_math_emulate
 gnu/i386/fpemul/errors.c	optional	gpl_math_emulate
 gnu/i386/fpemul/fpu_arith.c	optional	gpl_math_emulate
