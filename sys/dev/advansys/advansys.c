@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: advansys.c,v 1.4 1997/02/22 09:38:38 peter Exp $
+ *      $Id: advansys.c,v 1.1 1998/09/15 07:03:33 gibbs Exp $
  */
 /*
  * Ported from:
@@ -963,7 +963,7 @@ adv_run_doneq(struct adv_softc *adv)
 
 		/* Mark it as free */
 		adv_write_lram_8(adv, done_qaddr + ADV_SCSIQ_B_STATUS,
-				 scsiq.q_status & ~(QS_READY | QS_ABORTED));
+				 scsiq.q_status & ~(QS_READY|QS_ABORTED));
 
 		/* Process request based on retrieved info */
 		if ((scsiq.cntl & QC_SG_HEAD) != 0) {
@@ -977,13 +977,14 @@ adv_run_doneq(struct adv_softc *adv)
 				done_qno = adv_read_lram_8(adv, done_qaddr
 							   + ADV_SCSIQ_B_FWD);
 
-				done_qaddr = ADV_QNO_TO_QADDR(done_qno);
 #ifdef DIAGNOSTIC				
-				if (sg_list_qp == ASC_QLINK_END) {
+				if (done_qno == ADV_QLINK_END) {
 					panic("adv_qdone: Corrupted SG "
 					      "list encountered");
 				}
 #endif				
+				done_qaddr = ADV_QNO_TO_QADDR(done_qno);
+
 				/* Mark SG queue as free */
 				adv_write_lram_8(adv, done_qaddr
 						 + ADV_SCSIQ_B_STATUS, QS_FREE);
@@ -991,7 +992,7 @@ adv_run_doneq(struct adv_softc *adv)
 		} else 
 			sg_queue_cnt = 0;
 #ifdef DIAGNOSTIC
-		if (adv->cur_total_qng < n_q_used)
+		if (adv->cur_active < (sg_queue_cnt + 1))
 			panic("adv_qdone: Attempting to free more "
 			      "queues than are active");
 #endif		
