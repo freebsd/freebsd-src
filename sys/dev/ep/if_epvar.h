@@ -79,5 +79,5 @@ void		ep_free		(device_t);
 void		ep_get_media	(struct ep_softc *);
 int		ep_attach	(struct ep_softc *);
 void		ep_intr		(void *);
-u_int16_t	get_e		(struct ep_softc *, int);
-void		ep_get_macaddr	(struct ep_softc *, u_char *);
+int		get_e		(struct ep_softc *, u_int16_t, u_int16_t *);
+int		ep_get_macaddr	(struct ep_softc *, u_char *);
