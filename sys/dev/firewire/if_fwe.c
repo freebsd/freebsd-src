@@ -209,6 +209,9 @@ fwe_attach(device_t dev)
 	ifp->if_name = "fwe";
 #endif
 	ifp->if_init = fwe_init;
+#if defined(__DragonFly__) || __FreeBSD_version < 500000
+	ifp->if_output = ether_output;
+#endif
 	ifp->if_start = fwe_start;
 	ifp->if_ioctl = fwe_ioctl;
 	ifp->if_mtu = ETHERMTU;
