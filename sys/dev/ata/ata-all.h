@@ -226,7 +226,7 @@ struct ata_request {
     struct sema			done;		/* request done sema */
     int				retries;	/* retry count */
     int				timeout;	/* timeout for this cmd */
-    struct callout_handle	timeout_handle; /* handle for untimeout */
+    struct callout		callout; 	/* callout management */
     int				result;		/* result error code */
     struct task			task;		/* task management */
     struct bio			*bio;		/* bio for this request */
@@ -239,8 +239,8 @@ struct ata_request {
 #define ATA_DEBUG_RQ(request, string) \
     { \
     if (request->flags & ATA_R_DEBUG) \
-        ata_prtdev(request->device, "req=%08x %s " string "\n", \
-                   (u_int)request, ata_cmd2str(request)); \
+        ata_prtdev(request->device, "req=%p %s " string "\n", \
+                   request, ata_cmd2str(request)); \
     }
 #else
 #define ATA_DEBUG_RQ(request, string)
@@ -318,9 +318,10 @@ struct ata_dma {
 
 /* structure holding lowlevel functions */
 struct ata_lowlevel {
-    void (*reset)(struct ata_channel *ch);
+    int (*begin_transaction)(struct ata_request *request);
+    int (*end_transaction)(struct ata_request *request);
     void (*interrupt)(void *channel);
-    int (*transaction)(struct ata_request *request);
+    void (*reset)(struct ata_channel *ch);
     int (*command)(struct ata_device *atadev, u_int8_t command, u_int64_t lba, u_int16_t count, u_int16_t feature);
 };
 
@@ -358,9 +359,12 @@ struct ata_channel {
 #define		ATA_ATAPI_MASTER	0x04
 #define		ATA_ATAPI_SLAVE		0x08
 
-    int				lock;		/* ATA channel lock */
+    struct mtx			state_mtx;	/* state lock */
+    int				state;		/* ATA channel state */
 #define		ATA_IDLE		0x0000
 #define		ATA_ACTIVE		0x0001
+#define		ATA_INTERRUPT		0x0002
+#define		ATA_TIMEOUT		0x0004
 
     void (*reset)(struct ata_channel *);
     void (*locking)(struct ata_channel *, int);
@@ -432,19 +436,6 @@ void atapi_cam_reinit_bus(struct ata_channel *ch);
 extern uma_zone_t ata_zone;
 #define ata_alloc_request() uma_zalloc(ata_zone, M_NOWAIT | M_ZERO)
 #define ata_free_request(request) uma_zfree(ata_zone, request)
-
-/* macros for locking a channel */
-#define ATA_LOCK_CH(ch) \
-	atomic_cmpset_acq_int(&(ch)->lock, ATA_IDLE, ATA_ACTIVE)
-
-#define ATA_SLEEPLOCK_CH(ch) \
-	while (!ATA_LOCK_CH(ch)) tsleep((caddr_t)&(ch), PRIBIO, "atalck", 1);
-
-#define ATA_FORCELOCK_CH(ch) \
-	atomic_store_rel_int(&(ch)->lock, ATA_ACTIVE)
-
-#define ATA_UNLOCK_CH(ch) \
-	atomic_store_rel_int(&(ch)->lock, ATA_IDLE)
 
 /* macros to hide busspace uglyness */
 #define ATA_INB(res, offset) \

@@ -44,11 +44,10 @@ __FBSDID("$FreeBSD$");
 #include <dev/ata/ata-all.h>
 
 /* prototypes */
-static int ata_generic_transaction(struct ata_request *);
-static void ata_generic_interrupt(void *);
+static int ata_begin_transaction(struct ata_request *);
+static int ata_end_transaction(struct ata_request *);
 static void ata_generic_reset(struct ata_channel *);
 static int ata_wait(struct ata_device *, u_int8_t);
-/*static int ata_command(struct ata_device *, u_int8_t, u_int64_t, u_int16_t, u_int16_t);*/
 static void ata_pio_read(struct ata_request *, int);
 static void ata_pio_write(struct ata_request *, int);
 
@@ -61,15 +60,15 @@ static int atadebug = 0;
 void
 ata_generic_hw(struct ata_channel *ch)
 {
+    ch->hw.begin_transaction = ata_begin_transaction;
+    ch->hw.end_transaction = ata_end_transaction;
     ch->hw.reset = ata_generic_reset;
-    ch->hw.transaction = ata_generic_transaction;
-    ch->hw.interrupt = ata_generic_interrupt;
     ch->hw.command = ata_generic_command;
 }
 
 /* must be called with ATA channel locked */
 static int
-ata_generic_transaction(struct ata_request *request)
+ata_begin_transaction(struct ata_request *request)
 {
     struct ata_channel *ch = request->device->channel;
 
@@ -80,7 +79,7 @@ ata_generic_transaction(struct ata_request *request)
 	return ATA_OP_FINISHED;
     }
 
-    ATA_DEBUG_RQ(request, "transaction");
+    ATA_DEBUG_RQ(request, "begin transaction");
 
     /* disable ATAPI DMA writes if HW doesn't support it */
     if ((ch->flags & ATA_ATAPI_DMA_RO) &&
@@ -113,11 +112,6 @@ ata_generic_transaction(struct ata_request *request)
 		    DELAY(10);
 		    request->status = ATA_IDX_INB(ch, ATA_STATUS);
 		} while (request->status & ATA_S_BUSY && timeout--);
-		if (timeout)
-		    printf("ATAPI_RESET time = %dus\n", (1000000-timeout)*10);
-		else
-		    printf("ATAPI_RESET timeout\n");
-
 		if (request->status & ATA_S_ERROR)
 		    request->error = ATA_IDX_INB(ch, ATA_ERROR);
 		break;
@@ -134,9 +128,6 @@ ata_generic_transaction(struct ata_request *request)
 		ata_pio_write(request, request->transfersize);
 	    }
 	}
-	
-	/* record the request as running and return for interrupt */
-	ch->running = request;
 	return ATA_OP_CONTINUES;
 
     /* ATA DMA data transfer commands */
@@ -165,9 +156,6 @@ ata_generic_transaction(struct ata_request *request)
 	    request->result = EIO;
 	    break;
 	}
-
-	/* record the request as running and return for interrupt */
-	ch->running = request;
 	return ATA_OP_CONTINUES;
 
     /* ATAPI PIO commands */
@@ -191,10 +179,8 @@ ata_generic_transaction(struct ata_request *request)
 	}
 
 	/* command interrupt device ? just return and wait for interrupt */
-	if ((request->device->param->config & ATA_DRQ_MASK) == ATA_DRQ_INTR) {
-	    ch->running = request;
+	if ((request->device->param->config & ATA_DRQ_MASK) == ATA_DRQ_INTR)
 	    return ATA_OP_CONTINUES;
-	}
 
 	/* wait for ready to write ATAPI command block */
 	{
@@ -224,9 +210,6 @@ ata_generic_transaction(struct ata_request *request)
 			   (int16_t *)request->u.atapi.ccb,
 			   (request->device->param->config & ATA_PROTO_MASK) ==
 			   ATA_PROTO_ATAPI_12 ? 6 : 8);
-
-	/* record the request as running and return for interrupt */
-	ch->running = request;
 	return ATA_OP_CONTINUES;
 
     case ATA_R_ATAPI|ATA_R_DMA:
@@ -290,9 +273,6 @@ ata_generic_transaction(struct ata_request *request)
 	    request->result = EIO;
 	    break;
 	}
-
-	/* record the request as running and return for interrupt */
-	ch->running = request;
 	return ATA_OP_CONTINUES;
     }
 
@@ -302,35 +282,16 @@ ata_generic_transaction(struct ata_request *request)
     return ATA_OP_FINISHED;
 }
 
-static void
-ata_generic_interrupt(void *data)
+static int
+ata_end_transaction(struct ata_request *request)
 {
-    struct ata_channel *ch = (struct ata_channel *)data;
-    struct ata_request *request = ch->running;
+    struct ata_channel *ch = request->device->channel;
     int length;
 
-    /* ignore this interrupt if there is no running request */
-    if (!request) 
-	return;
-
-    ATA_DEBUG_RQ(request, "interrupt");
-
-    /* ignore interrupt if device is busy */
-    if (!(request->flags & ATA_R_TIMEOUT) &&
-	ATA_IDX_INB(ch, ATA_ALTSTAT) & ATA_S_BUSY) {
-	DELAY(100);
-	if (!(ATA_IDX_INB(ch, ATA_ALTSTAT) & ATA_S_DRQ))
-	    return;
-    }
-
-    ATA_DEBUG_RQ(request, "interrupt accepted");
+    ATA_DEBUG_RQ(request, "end transaction");
 
     /* clear interrupt and get status */
     request->status = ATA_IDX_INB(ch, ATA_STATUS);
-
-    /* register interrupt */    
-    if (!(request->flags & ATA_R_TIMEOUT))
-	request->flags |= ATA_R_INTR_SEEN;
 
     switch (request->flags & (ATA_R_ATAPI | ATA_R_DMA | ATA_R_CONTROL)) {
 
@@ -348,7 +309,7 @@ ata_generic_interrupt(void *data)
 	/* if we got an error we are done with the HW */
 	if (request->status & ATA_S_ERROR) {
 	    request->error = ATA_IDX_INB(ch, ATA_ERROR);
-	    break;
+	    return ATA_OP_FINISHED;
 	}
 	
 	/* are we moving data ? */
@@ -381,21 +342,21 @@ ata_generic_interrupt(void *data)
 			ata_prtdev(request->device,
 				   "timeout waiting for write DRQ");
 			request->status = ATA_IDX_INB(ch, ATA_STATUS);
-			break;
+			return ATA_OP_FINISHED;
 		    }
 
 		    /* output data and return waiting for new interrupt */
 		    ata_pio_write(request, request->transfersize);
-		    return;
+		    return ATA_OP_CONTINUES;
 		}
 
 		/* if data read command, return & wait for interrupt */
 		if (request->flags & ATA_R_READ)
-		    return;
+		    return ATA_OP_CONTINUES;
 	    }
 	}
 	/* done with HW */
-	break;
+	return ATA_OP_FINISHED;
 
     /* ATA DMA data transfer commands */
     case ATA_R_DMA:
@@ -416,7 +377,7 @@ ata_generic_interrupt(void *data)
 	ch->dma->unload(ch);
 
 	/* done with HW */
-	break;
+	return ATA_OP_FINISHED;
 
     /* ATAPI PIO commands */
     case ATA_R_ATAPI:
@@ -432,13 +393,13 @@ ata_generic_interrupt(void *data)
 	    if (!(request->status & ATA_S_DRQ)) {
 		ata_prtdev(request->device, "command interrupt without DRQ\n");
 		request->status = ATA_S_ERROR;
-		break;
+		return ATA_OP_FINISHED;
 	    }
 	    ATA_IDX_OUTSW_STRM(ch, ATA_DATA, (int16_t *)request->u.atapi.ccb,
 			       (request->device->param->config &
 				ATA_PROTO_MASK)== ATA_PROTO_ATAPI_12 ? 6 : 8);
 	    /* return wait for interrupt */
-	    return;
+	    return ATA_OP_CONTINUES;
 
 	case ATAPI_P_WRITE:
 	    if (request->flags & ATA_R_READ) {
@@ -446,7 +407,7 @@ ata_generic_interrupt(void *data)
 		ata_prtdev(request->device,
 			   "%s trying to write on read buffer\n",
 			   ata_cmd2str(request));
-		break;
+		return ATA_OP_FINISHED;
 	    }
 	    ata_pio_write(request, length);
 	    request->donecount += length;
@@ -455,7 +416,7 @@ ata_generic_interrupt(void *data)
 	    request->transfersize = min((request->bytecount-request->donecount),
 					request->transfersize);
 	    /* return wait for interrupt */
-	    return;
+	    return ATA_OP_CONTINUES;
 
 	case ATAPI_P_READ:
 	    if (request->flags & ATA_R_WRITE) {
@@ -463,7 +424,7 @@ ata_generic_interrupt(void *data)
 		ata_prtdev(request->device,
 			   "%s trying to read on write buffer\n",
 			   ata_cmd2str(request));
-		break;
+		return ATA_OP_FINISHED;
 	    }
 	    ata_pio_read(request, length);
 	    request->donecount += length;
@@ -472,7 +433,7 @@ ata_generic_interrupt(void *data)
 	    request->transfersize = min((request->bytecount-request->donecount),
 					request->transfersize);
 	    /* return wait for interrupt */
-	    return;
+	    return ATA_OP_CONTINUES;
 
 	case ATAPI_P_DONEDRQ:
 	    ata_prtdev(request->device,
@@ -494,7 +455,7 @@ ata_generic_interrupt(void *data)
 	case ATAPI_P_DONE:
 	    if (request->status & (ATA_S_ERROR | ATA_S_DWF))
 		request->error = ATA_IDX_INB(ch, ATA_ERROR);
-	    break;
+	    return ATA_OP_FINISHED;
 
 	default:
 	    ata_prtdev(request->device, "unknown transfer phase\n");
@@ -502,7 +463,7 @@ ata_generic_interrupt(void *data)
 	}
 
 	/* done with HW */
-	break;
+	return ATA_OP_FINISHED;
 
     /* ATAPI DMA commands */
     case ATA_R_ATAPI|ATA_R_DMA:
@@ -523,12 +484,8 @@ ata_generic_interrupt(void *data)
 	ch->dma->unload(ch);
 
 	/* done with HW */
-	break;
+	return ATA_OP_FINISHED;
     }
-
-    /* finished running this request schedule completition */
-    ch->running = NULL;
-    ata_finish(request);
 }
 
 /* must be called with ATA channel locked */

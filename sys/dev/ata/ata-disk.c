@@ -354,7 +354,8 @@ addump(void *arg, void *virtual, vm_offset_t physical,
 	request.flags = ATA_R_CONTROL;
     }
 
-    if (request.device->channel->hw.transaction(&request) == ATA_OP_CONTINUES) {
+    if (request.device->channel->
+	hw.begin_transaction(&request) == ATA_OP_CONTINUES) {
 	while (request.device->channel->running == &request &&
 	       !(request.status & ATA_S_ERROR)) {
 	    DELAY(20);
