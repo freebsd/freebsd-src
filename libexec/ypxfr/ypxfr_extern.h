@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ypxfr_extern.h,v 1.7 1996/06/03 03:10:42 wpaul Exp $
+ *	$Id: ypxfr_extern.h,v 1.7 1996/06/03 03:10:42 wpaul Exp wpaul $
  */
 #include <sys/types.h>
 #include <limits.h>
@@ -56,6 +56,7 @@ extern int	yp_get_record __P(( const char *, const char *, const DBT *, DBT *, i
 extern int	ypxfr_get_map __P(( char *, char *, char *, int (*)() ));
 extern char	*ypxfr_get_master __P(( char *, char *, char *, const int ));
 extern unsigned	long ypxfr_get_order __P(( char *, char *, char *, const int ));
+extern int	ypxfr_match __P(( char *, char *, char *, char *, unsigned long ));
 extern char	*ypxfxerr_string __P(( ypxfrstat ));
 extern int	ypxfrd_get_map __P(( char  *, char *, char *, char *));
 extern int	callrpc __P(( char *, int, int, int, xdrproc_t, char *, xdrproc_t, char *));
