@@ -168,11 +168,10 @@ struct md_page {
 
 struct pmap {
 	TAILQ_HEAD(,pv_entry)	pm_pvlist;	/* list of mappings in pmap */
+	u_int64_t		pm_rid;		/* base RID for pmap */
 	int			pm_count;	/* reference count */
 	int			pm_flags;	/* pmap flags */
 	int			pm_active;	/* active flag */
-	int			pm_asn;		/* address space number */
-	u_int			pm_asngen;	/* generation number of pm_asn */
 	struct pmap_statistics	pm_stats;	/* pmap statistics */
 	struct vm_page		*pm_ptphint;	/* pmap ptp hint */
 };
@@ -209,7 +208,6 @@ extern vm_offset_t avail_start;
 extern vm_offset_t clean_eva;
 extern vm_offset_t clean_sva;
 extern vm_offset_t phys_avail[];
-extern char *ptvmmap;		/* poor name! */
 extern vm_offset_t virtual_avail;
 extern vm_offset_t virtual_end;
 
@@ -223,8 +221,7 @@ unsigned *pmap_pte __P((pmap_t, vm_offset_t)) __pure2;
 vm_page_t pmap_use_pt __P((pmap_t, vm_offset_t));
 void	pmap_set_opt	__P((unsigned *));
 void	pmap_set_opt_bsp	__P((void));
-void	pmap_deactivate __P((struct proc *p));
-void	pmap_emulate_reference __P((struct proc *p, vm_offset_t v, int user, int write));
+struct pmap *pmap_install __P((struct pmap *pmap));
 
 #endif /* _KERNEL */
 

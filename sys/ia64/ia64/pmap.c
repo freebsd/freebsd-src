@@ -196,12 +196,19 @@ static boolean_t pmap_initialized = FALSE;	/* Has pmap_init completed? */
 vm_offset_t kernel_vm_end;
 
 /*
- * Data for the ASN allocator
+ * Values for ptc.e. XXX values for SKI.
  */
-static int pmap_maxasn;
-static int pmap_nextasn = 0;
-static u_int pmap_current_asngen = 1;
-static pmap_t pmap_active = 0;
+static u_int64_t pmap_pte_e_base = 0x100000000;
+static u_int64_t pmap_pte_e_count1 = 3;
+static u_int64_t pmap_pte_e_count2 = 2;
+static u_int64_t pmap_pte_e_stride1 = 0x2000;
+static u_int64_t pmap_pte_e_stride2 = 0x100000000;
+
+/*
+ * Data for the RID allocator
+ */
+static int pmap_nextrid;
+static int pmap_ridbits = 18;
 
 /*
  * Data for the pv entry allocation mechanism
@@ -219,11 +226,9 @@ static struct pv_entry *pvbootinit;
 static PMAP_INLINE void	free_pv_entry __P((pv_entry_t pv));
 static pv_entry_t get_pv_entry __P((void));
 static void	ia64_protection_init __P((void));
-static void	pmap_changebit __P((vm_page_t m, int bit, boolean_t setem));
 
 static void	pmap_remove_all __P((vm_page_t m));
 static void	pmap_enter_quick __P((pmap_t pmap, vm_offset_t va, vm_page_t m));
-static boolean_t pmap_is_referenced __P((vm_page_t m));
 
 vm_offset_t
 pmap_steal_memory(vm_size_t size)
@@ -265,11 +270,11 @@ pmap_bootstrap()
 	int boot_pvs;
 
 	/*
-	 * Setup ASNs
+	 * Setup RIDs. We use the bits above pmap_ridbits for a
+	 * generation counter, saving generation zero for
+	 * 'invalid'. RIDs 0..7 are reserved for the kernel.
 	 */
-	pmap_nextasn = 0;
-	pmap_maxasn = 0;
-	pmap_current_asngen = 1;
+	pmap_nextrid = (1 << pmap_ridbits) + 8;
 
 	avail_start = phys_avail[0];
 	for (i = 0; phys_avail[i+2]; i+= 2) ;
@@ -289,11 +294,9 @@ pmap_bootstrap()
 	 * the boot sequence (XXX and which no longer exists).
 	 */
 	kernel_pmap = &kernel_pmap_store;
+	kernel_pmap->pm_rid = 0;
 	kernel_pmap->pm_count = 1;
 	kernel_pmap->pm_active = 1;
-	kernel_pmap->pm_asn = 0;
-	kernel_pmap->pm_asngen = pmap_current_asngen;
-	pmap_nextasn = 1;
 	TAILQ_INIT(&kernel_pmap->pm_pvlist);
 
 	/*
@@ -308,10 +311,8 @@ pmap_bootstrap()
 	 * handlers. Here we just make sure that they have the largest 
 	 * possible page size to minimise TLB usage.
 	 */
-#if 1
 	ia64_set_rr(IA64_RR_BASE(6), (6 << 8) | (28 << 2));
 	ia64_set_rr(IA64_RR_BASE(7), (7 << 8) | (28 << 2));
-#endif
 
 	/*
 	 * We need some PVs to cope with pmap_kenter() calls prior to
@@ -398,83 +399,70 @@ pmap_init2()
  ***************************************************/
 
 static void
-pmap_invalidate_asn(pmap_t pmap)
+pmap_invalidate_rid(pmap_t pmap)
 {
-	pmap->pm_asngen = 0;
+	KASSERT(pmap != kernel_pmap,
+		("changing kernel_pmap's RID"));
+	KASSERT(pmap == PCPU_GET(current_pmap),
+		("invalidating RID of non-current pmap"));
+	pmap_remove_pages(pmap, IA64_RR_BASE(0), IA64_RR_BASE(5));
+	pmap->pm_rid = 0;
 }
 
 static void
 pmap_invalidate_page(pmap_t pmap, vm_offset_t va)
 {
-#if 0
-	if (pmap_isactive(pmap)) {
-		IA64_TBIS(va);
-		ia64_pal_imb();		/* XXX overkill? */
-	} else
-		pmap_invalidate_asn(pmap);
-#endif
+	KASSERT(pmap == PCPU_GET(current_pmap),
+		("invalidating TLB for non-current pmap"));
+	ia64_ptc_l(va, PAGE_SHIFT << 2);
 }
 
 static void
 pmap_invalidate_all(pmap_t pmap)
 {
-#if 0
-	if (pmap_isactive(pmap)) {
-		IA64_TBIA();
-		ia64_pal_imb();		/* XXX overkill? */
-	} else
-		pmap_invalidate_asn(pmap);
-#endif
+	u_int64_t addr;
+	int i, j;
+	u_int32_t psr;
+
+	KASSERT(pmap == PCPU_GET(current_pmap),
+		("invalidating TLB for non-current pmap"));
+
+	psr = save_intr();
+	disable_intr();
+	addr = pmap_pte_e_base;
+	for (i = 0; i < pmap_pte_e_count1; i++) {
+		for (j = 0; j < pmap_pte_e_count2; j++) {
+			ia64_ptc_e(addr);
+			addr += pmap_pte_e_stride2;
+		}
+		addr += pmap_pte_e_stride1;
+	}
+	restore_intr(psr);
 }
 
 static void
-pmap_get_asn(pmap_t pmap)
+pmap_get_rid(pmap_t pmap)
 {
+	if ((pmap_nextrid & ((1 << pmap_ridbits) - 1)) == 0) {
+		/*
+		 * Start a new ASN generation.
+		 *
+		 * Invalidate all per-process mappings and I-cache
+		 */
+		pmap_nextrid += 8;
+
+		/*
+		 * Since we are about to start re-using ASNs, we must
+		 * clear out the TLB.
+		 * with the ASN.
+		 */
 #if 0
-	if (pmap->pm_asngen != pmap_current_asngen) {
-		if (pmap_nextasn > pmap_maxasn) {
-			/*
-			 * Start a new ASN generation.
-			 *
-			 * Invalidate all per-process mappings and I-cache
-			 */
-			pmap_nextasn = 0;
-			pmap_current_asngen++;
-
-			if (pmap_current_asngen == 0) {
-				/*
-				 * Clear the pm_asngen of all pmaps.
-				 * This is safe since it is only called from
-				 * pmap_activate after it has deactivated
-				 * the old pmap.
-				 */
-				struct proc *p;
-				pmap_t tpmap;
-			       
-#ifdef PMAP_DIAGNOSTIC
-				printf("pmap_get_asn: generation rollover\n");
+		IA64_TBIAP();
+		ia64_pal_imb();	/* XXX overkill? */
 #endif
-				pmap_current_asngen = 1;
-				LIST_FOREACH(p, &allproc, p_list) {
-					if (p->p_vmspace) {
-						tpmap = vmspace_pmap(p->p_vmspace);
-						tpmap->pm_asngen = 0;
-					}
-				}
-			}
-
-			/*
-			 * Since we are about to start re-using ASNs, we must
-			 * clear out the TLB and the I-cache since they are tagged
-			 * with the ASN.
-			 */
-			IA64_TBIAP();
-			ia64_pal_imb();	/* XXX overkill? */
-		}
-		pmap->pm_asn = pmap_nextasn++;
-		pmap->pm_asngen = pmap_current_asngen;
 	}
-#endif
+	pmap->pm_rid = pmap_nextrid;
+	pmap_nextrid += 8;
 }
 
 /***************************************************
@@ -682,11 +670,10 @@ pmap_pinit0(pmap)
 	 */
 	pmap_pinit(pmap);
 	pmap->pm_flags = 0;
+	pmap->pm_rid = 0;
 	pmap->pm_count = 1;
 	pmap->pm_ptphint = NULL;
 	pmap->pm_active = 0;
-	pmap->pm_asn = 0;
-	pmap->pm_asngen = 0;
 	TAILQ_INIT(&pmap->pm_pvlist);
 	bzero(&pmap->pm_stats, sizeof pmap->pm_stats);
 }
@@ -700,11 +687,10 @@ pmap_pinit(pmap)
 	register struct pmap *pmap;
 {
 	pmap->pm_flags = 0;
+	pmap->pm_rid = 0;
 	pmap->pm_count = 1;
 	pmap->pm_ptphint = NULL;
 	pmap->pm_active = 0;
-	pmap->pm_asn = 0;
-	pmap->pm_asngen = 0;
 	TAILQ_INIT(&pmap->pm_pvlist);
 	bzero(&pmap->pm_stats, sizeof pmap->pm_stats);
 }
@@ -1140,6 +1126,7 @@ pmap_kenter(vm_offset_t va, vm_offset_t pa)
 		pv = pmap_make_pv(kernel_pmap, va);
 	pmap_set_pv(kernel_pmap, pv,
 		    pa, (PTE_AR_RWX<<2) | PTE_PL_KERN, 0);
+	pmap_invalidate_page(kernel_pmap, va);
 }
 
 /*
@@ -1151,8 +1138,10 @@ pmap_kremove(vm_offset_t va)
 	pv_entry_t pv;
 
 	pv = pmap_find_pv(kernel_pmap, va);
-	if (pv)
+	if (pv) {
 		pmap_remove_pv(kernel_pmap, pv, 0);
+		pmap_invalidate_page(kernel_pmap, va);
+	}
 }
 
 /*
@@ -1225,6 +1214,7 @@ pmap_remove_page(pmap_t pmap, vm_offset_t va)
 	if (pv) {
 		m = PHYS_TO_VM_PAGE(pmap_pte_pa(&pv->pv_pte));
 		rtval = pmap_remove_pv(pmap, pv, m);
+		pmap_invalidate_page(pmap, va);
 	}
 			
 	splx(s);
@@ -1274,7 +1264,9 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 			pvnext = TAILQ_NEXT(pv, pv_plist);
 			if (pv->pv_va >= sva && pv->pv_va < eva) {
 				vm_page_t m = PHYS_TO_VM_PAGE(pmap_pte_pa(&pv->pv_pte));
+				va = pv->pv_va;
 				pmap_remove_pv(pmap, pv, m);
+				pmap_invalidate_page(pmap, va);
 			}
 		}
 		splx(s);
@@ -1316,8 +1308,9 @@ pmap_remove_all(vm_page_t m)
 
 	while ((pv = TAILQ_FIRST(&m->md.pv_list)) != NULL) {
 		vm_page_t m = PHYS_TO_VM_PAGE(pmap_pte_pa(&pv->pv_pte));
+		vm_offset_t va = pv->pv_va;
 		pmap_remove_pv(pv->pv_pmap, pv, m);
-		pmap_invalidate_page(pv->pv_pmap, pv->pv_va);
+		pmap_invalidate_page(pv->pv_pmap, va);
 	}
 
 	vm_page_flag_clear(m, PG_MAPPED | PG_WRITEABLE);
@@ -1333,19 +1326,25 @@ pmap_remove_all(vm_page_t m)
 void
 pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 {
+	pmap_t oldpmap;
 	pv_entry_t pv;
 	int newprot;
 
 	if (pmap == NULL)
 		return;
 
+	oldpmap = pmap_install(pmap);
+
 	if ((prot & VM_PROT_READ) == VM_PROT_NONE) {
 		pmap_remove(pmap, sva, eva);
+		pmap_install(oldpmap);
 		return;
 	}
 
-	if (prot & VM_PROT_WRITE)
+	if (prot & VM_PROT_WRITE) {
+		pmap_install(oldpmap);
 		return;
+	}
 
 	newprot = pte_prot(pmap, prot);
 
@@ -1370,6 +1369,7 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 
 		sva += PAGE_SIZE;
 	}
+	pmap_install(oldpmap);
 }
 
 /*
@@ -1388,6 +1388,7 @@ void
 pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	   boolean_t wired)
 {
+	pmap_t oldpmap;
 	vm_offset_t pa;
 	pv_entry_t pv;
 	vm_offset_t opa;
@@ -1396,6 +1397,8 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 
 	if (pmap == NULL)
 		return;
+
+	oldpmap = pmap_install(pmap);
 
 	va &= ~PAGE_MASK;
 #ifdef PMAP_DIAGNOSTIC
@@ -1465,6 +1468,8 @@ validate:
 		if (origpte.pte_p)
 			pmap_invalidate_page(pmap, va);
 	}
+
+	pmap_install(oldpmap);
 }
 
 /*
@@ -1523,6 +1528,7 @@ pmap_object_init_pt(pmap_t pmap, vm_offset_t addr,
 		    vm_object_t object, vm_pindex_t pindex,
 		    vm_size_t size, int limit)
 {
+	pmap_t oldpmap;
 	vm_offset_t tmpidx;
 	int psize;
 	vm_page_t p;
@@ -1531,11 +1537,14 @@ pmap_object_init_pt(pmap_t pmap, vm_offset_t addr,
 	if (pmap == NULL || object == NULL)
 		return;
 
+	oldpmap = pmap_install(pmap);
+
 	psize = ia64_btop(size);
 
 	if ((object->type != OBJT_VNODE) ||
 		(limit && (psize > MAX_INIT_PT) &&
 			(object->resident_page_count > MAX_INIT_PT))) {
+		pmap_install(oldpmap);
 		return;
 	}
 
@@ -1592,6 +1601,7 @@ pmap_object_init_pt(pmap_t pmap, vm_offset_t addr,
 			}
 		}
 	}
+	pmap_install(oldpmap);
 	return;
 }
 
@@ -1697,10 +1707,13 @@ pmap_change_wiring(pmap, va, wired)
 	vm_offset_t va;
 	boolean_t wired;
 {
+	pmap_t oldpmap;
 	pv_entry_t pv;
 
 	if (pmap == NULL)
 		return;
+
+	oldpmap = pmap_install(pmap);
 
 	pv = pmap_find_pv(pmap, va);
 
@@ -1714,6 +1727,8 @@ pmap_change_wiring(pmap, va, wired)
 	 * invalidate TLB.
 	 */
 	pmap_pte_set_w(&pv->pv_pte, wired);
+
+	pmap_install(oldpmap);
 }
 
 
@@ -1895,66 +1910,6 @@ pmap_remove_pages(pmap, sva, eva)
 }
 
 /*
- * this routine is used to modify bits in ptes
- */
-static void
-pmap_changebit(vm_page_t m, int bit, boolean_t setem)
-{
-#if 0
-	pv_entry_t pv;
-	int changed;
-	int s;
-
-	if (!pmap_initialized || (m->flags & PG_FICTITIOUS))
-		return;
-
-	s = splvm();
-	changed = 0;
-
-	/*
-	 * Loop over all current mappings setting/clearing as appropos If
-	 * setting RO do we need to clear the VAC?
-	 */
-	for (pv = TAILQ_FIRST(&m->md.pv_list);
-		pv;
-		pv = TAILQ_NEXT(pv, pv_list)) {
-
-		/*
-		 * don't write protect pager mappings
-		 */
-		if (!setem && bit == (PG_UWE|PG_KWE)) {
-			if (!pmap_track_modified(pv->pv_va))
-				continue;
-		}
-
-#if defined(PMAP_DIAGNOSTIC)
-		if (!pv->pv_pmap) {
-			printf("Null pmap (cb) at va: 0x%lx\n", pv->pv_va);
-			continue;
-		}
-#endif
-
-		pte = pmap_lev3pte(pv->pv_pmap, pv->pv_va);
-
-		changed = 0;
-		if (setem) {
-			*pte |= bit;
-			changed = 1;
-		} else {
-			pt_entry_t pbits = *pte;
-			if (pbits & bit) {
-				changed = 1;
-				*pte = pbits & ~bit;
-			}
-		}
-		if (changed)
-			pmap_invalidate_page(pv->pv_pmap, pv->pv_va);
-	}
-	splx(s);
-#endif
-}
-
-/*
  *      pmap_page_protect:
  *
  *      Lower the permission for all mappings to a given page.
@@ -1962,15 +1917,24 @@ pmap_changebit(vm_page_t m, int bit, boolean_t setem)
 void
 pmap_page_protect(vm_page_t m, vm_prot_t prot)
 {
-#if 0
-	if ((prot & VM_PROT_WRITE) == 0) {
-		if (prot & (VM_PROT_READ | VM_PROT_EXECUTE)) {
-			pmap_changebit(m, PG_KWE|PG_UWE, FALSE);
-		} else {
-			pmap_remove_all(m);
+	pv_entry_t pv;
+
+	if ((prot & VM_PROT_WRITE) != 0)
+		return;
+	if (prot & (VM_PROT_READ | VM_PROT_EXECUTE)) {
+		for (pv = TAILQ_FIRST(&m->md.pv_list);
+		     pv;
+		     pv = TAILQ_NEXT(pv, pv_list)) {
+			int newprot = pte_prot(pv->pv_pmap, prot);
+			pmap_t oldpmap = pmap_install(pv->pv_pmap);
+			pmap_pte_set_prot(&pv->pv_pte, newprot);
+			pmap_update_vhpt(pv);
+			pmap_invalidate_page(pv->pv_pmap, pv->pv_va);
+			pmap_install(oldpmap);
 		}
+	} else {
+		pmap_remove_all(m);
 	}
-#endif
 }
 
 vm_offset_t
@@ -1999,15 +1963,19 @@ pmap_ts_referenced(vm_page_t m)
 		pv;
 		pv = TAILQ_NEXT(pv, pv_list)) {
 		if (pv->pv_pte.pte_a) {
+			pmap_t oldpmap = pmap_install(pv->pv_pmap);
 			count++;
 			pv->pv_pte.pte_a = 0;
 			pmap_update_vhpt(pv);
+			pmap_invalidate_page(pv->pv_pmap, pv->pv_va);
+			pmap_install(oldpmap);
 		}
 	}
 
 	return count;
 }
 
+#if 0
 /*
  *	pmap_is_referenced:
  *
@@ -2032,6 +2000,7 @@ pmap_is_referenced(vm_page_t m)
 
 	return 0;
 }
+#endif
 
 /*
  *	pmap_is_modified:
@@ -2073,8 +2042,11 @@ pmap_clear_modify(vm_page_t m)
 		pv;
 		pv = TAILQ_NEXT(pv, pv_list)) {
 		if (pv->pv_pte.pte_d) {
+			pmap_t oldpmap = pmap_install(pv->pv_pmap);
 			pv->pv_pte.pte_d = 0;
 			pmap_update_vhpt(pv);
+			pmap_invalidate_page(pv->pv_pmap, pv->pv_va);
+			pmap_install(oldpmap);
 		}
 	}
 }
@@ -2096,8 +2068,11 @@ pmap_clear_reference(vm_page_t m)
 		pv;
 		pv = TAILQ_NEXT(pv, pv_list)) {
 		if (pv->pv_pte.pte_a) {
+			pmap_t oldpmap = pmap_install(pv->pv_pmap);
 			pv->pv_pte.pte_a = 0;
 			pmap_update_vhpt(pv);
+			pmap_invalidate_page(pv->pv_pmap, pv->pv_va);
+			pmap_install(oldpmap);
 		}
 	}
 }
@@ -2233,39 +2208,59 @@ pmap_mincore(pmap, addr)
 void
 pmap_activate(struct proc *p)
 {
-	pmap_t pmap;
-
-	pmap = vmspace_pmap(p->p_vmspace);
-
-	if (pmap_active && pmap != pmap_active) {
-		pmap_active->pm_active = 0;
-		pmap_active = 0;
-	}
-
-	if (pmap->pm_asngen != pmap_current_asngen)
-		pmap_get_asn(pmap);
-
-	pmap_active = pmap;
-	pmap->pm_active = 1;	/* XXX use bitmap for SMP */
-
-#if 0
-	p->p_addr->u_pcb.pcb_hw.apcb_asn = pmap->pm_asn;
-#endif
-
-	if (p == curproc) {
-#if 0
-		ia64_pal_swpctx((u_long)p->p_md.md_pcbpaddr);
-#endif
-	}
+	pmap_install(vmspace_pmap(p->p_vmspace));
 }
 
-void
-pmap_deactivate(struct proc *p)
+pmap_t
+pmap_install(pmap_t pmap)
 {
-	pmap_t pmap;
-	pmap = vmspace_pmap(p->p_vmspace);
-	pmap->pm_active = 0;
-	pmap_active = 0;
+	pmap_t oldpmap;
+	int rid;
+
+	oldpmap = PCPU_GET(current_pmap);
+
+	if (pmap == oldpmap || pmap == kernel_pmap)
+		return pmap;
+
+	PCPU_SET(current_pmap, pmap);
+	if (!pmap) {
+		/*
+		 * RIDs 0..4 have no mappings to make sure we generate 
+		 * page faults on accesses.
+		 */
+		ia64_set_rr(IA64_RR_BASE(0), (0 << 8)|(PAGE_SHIFT << 2)|1);
+		ia64_set_rr(IA64_RR_BASE(1), (1 << 8)|(PAGE_SHIFT << 2)|1);
+		ia64_set_rr(IA64_RR_BASE(2), (2 << 8)|(PAGE_SHIFT << 2)|1);
+		ia64_set_rr(IA64_RR_BASE(3), (3 << 8)|(PAGE_SHIFT << 2)|1);
+		ia64_set_rr(IA64_RR_BASE(4), (4 << 8)|(PAGE_SHIFT << 2)|1);
+		return oldpmap;
+	}
+
+	pmap->pm_active = 1;	/* XXX use bitmap for SMP */
+
+ reinstall:
+	rid = pmap->pm_rid & ((1 << pmap_ridbits) - 1);
+	ia64_set_rr(IA64_RR_BASE(0), ((rid + 0) << 8)|(PAGE_SHIFT << 2)|1);
+	ia64_set_rr(IA64_RR_BASE(1), ((rid + 1) << 8)|(PAGE_SHIFT << 2)|1);
+	ia64_set_rr(IA64_RR_BASE(2), ((rid + 2) << 8)|(PAGE_SHIFT << 2)|1);
+	ia64_set_rr(IA64_RR_BASE(3), ((rid + 3) << 8)|(PAGE_SHIFT << 2)|1);
+	ia64_set_rr(IA64_RR_BASE(4), ((rid + 4) << 8)|(PAGE_SHIFT << 2)|1);
+
+	/*
+	 * If we need a new RID, get it now. Note that we need to
+	 * remove our old mappings (if any) from the VHTP, so we will
+	 * run on the old RID for a moment while we invalidate the old 
+	 * one. XXX maybe we should just clear out the VHTP when the
+	 * RID generation rolls over.
+	 */
+	if ((pmap->pm_rid>>pmap_ridbits) != (pmap_nextrid>>pmap_ridbits)) {
+		if (pmap->pm_rid)
+			pmap_invalidate_rid(pmap);
+		pmap_get_rid(pmap);
+		goto reinstall;
+	}
+
+	return oldpmap;
 }
 
 vm_offset_t

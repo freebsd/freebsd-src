@@ -43,23 +43,34 @@
 
 typedef	vm_offset_t	db_addr_t;	/* address - unsigned */
 typedef	long		db_expr_t;	/* expression - signed */
-
 typedef struct trapframe db_regs_t;
 db_regs_t		ddb_regs;	/* register state */
 #define	DDB_REGS	(&ddb_regs)
 
-#define	PC_REGS(regs)	((db_addr_t)(regs)->tf_regs[FRAME_PC])
+#define	PC_REGS(regs)	((db_addr_t)(regs)->tf_cr_iip \
+			 + (((regs)->tf_cr_ipsr >> 41) & 3))
 
 #define	BKPT_INST	0x00000080	/* breakpoint instruction */
 #define	BKPT_SIZE	(4)		/* size of breakpoint inst */
 #define	BKPT_SET(inst)	(BKPT_INST)
 
-#define	FIXUP_PC_AFTER_BREAK \
-	(ddb_regs.tf_regs[FRAME_PC] -= BKPT_SIZE);
+#define	FIXUP_PC_AFTER_BREAK
 
-#define	IS_BREAKPOINT_TRAP(type, code)	((type) == ALPHA_KENTRY_IF && \
-					 (code) == ALPHA_IF_CODE_BPT)
+#define db_clear_single_step(regs)	0
+#define db_set_single_step(regs)	0
+
+#define	IS_BREAKPOINT_TRAP(type, code)	0
 #define	IS_WATCHPOINT_TRAP(type, code)	0
+
+#define	inst_trap_return(ins)	0
+#define	inst_return(ins)	0
+#define	inst_call(ins)		0
+#define	inst_branch(ins)	0
+#define	inst_load(ins)		0
+#define	inst_store(ins)		0
+#define	inst_unconditional_flow_transfer(ins) 0
+				
+#define	branch_taken(ins, pc, regs) pc
 
 /*
  * Functions needed for software single-stepping.
@@ -68,9 +79,8 @@ db_regs_t		ddb_regs;	/* register state */
 /* No delay slots on Alpha. */
 #define	next_instr_address(v, b) ((db_addr_t) ((b) ? (v) : ((v) + 4)))
 
-u_long	db_register_value __P((db_regs_t *, int));
-int	kdb_trap __P((unsigned long, unsigned long, unsigned long,
-	    unsigned long, struct trapframe *));
+u_long	db_register_value(db_regs_t *, int);
+int	kdb_trap(int vector, struct trapframe *regs);
 
 /*
  * Pretty arbitrary

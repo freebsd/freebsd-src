@@ -104,6 +104,7 @@ ENTRY(savectx, 1)
  */
 
 ENTRY(restorectx, 1)
+
 	add	r3=U_PCB_UNAT,in0	// point at NaT for r4..r7
 	mov	ar.rsc=0 ;;		// switch off the RSE
 	ld8	r16=[r3]		// load NaT for r4..r7
@@ -155,6 +156,130 @@ ENTRY(restorectx, 1)
 	br.ret.sptk.few rp
 	END(restorectx)	
 
+ENTRY(cpu_switch, 0)
+
+	add	r16=GD_CURPROC,r13 ;;
+	ld8	r17=[r16] ;; 
+	add	r17=P_ADDR,r17 ;;
+
+	flushrs				// push out caller's dirty regs
+	mov	r3=ar.unat		// caller's value for ar.unat
+	;;
+	mov	ar.rsc=0		// stop the RSE after the flush
+	;;
+	mov	r16=ar.rnat		// read RSE's NaT collection
+	mov	r18=ar.bspstore
+	mov	r19=b0
+	mov	r20=b1
+	mov	r21=b2
+	mov	r22=b3
+	mov	r23=b4
+	mov	r24=b5
+	;;	
+	st8.spill [r17]=r4,8 ;;		// save r4..r6 
+	st8.spill [r17]=r5,8 ;;		// and accumulate NaT bits
+	st8.spill [r17]=r6,8 ;;
+	st8.spill [r17]=r7,8 ;;
+	
+	stf.spill [r17]=f2,16 ;;	// save f2..f5 with NaTVals
+	stf.spill [r17]=f3,16 ;;
+	stf.spill [r17]=f4,16 ;;
+	stf.spill [r17]=f5,16 ;;
+
+	st8	[r17]=r19,8 ;;		// save b0..b5
+	st8	[r17]=r20,8 ;;
+	st8	[r17]=r21,8 ;;
+	st8	[r17]=r22,8 ;;
+	st8	[r17]=r23,8 ;;
+	st8	[r17]=r24,8 ;;
+	
+	mov	r19=ar.unat		// NaT bits for r4..r6
+	mov	r20=pr
+	mov	ret0=r0			// return zero
+
+	st8	[r17]=r3,8 ;;		// save caller's ar.unat
+	st8	[r17]=sp,8 ;;		// stack pointer
+	st8	[r17]=r2,8 ;;		// ar.pfs
+	st8	[r17]=r18,8 ;;		// ar.bspstore
+	st8	[r17]=r19,8 ;;		// our NaT bits
+	st8	[r17]=r16,8 ;;		// ar.rnat
+	st8	[r17]=r20,8 ;;		// pr
+
+	addl	r15=@ltoff(sched_lock),gp ;;
+	ld8	r15=[r15] ;;
+	add	r15=MTX_RECURSE,r15 ;;
+	ld4	r15=[r15] ;;
+	st8	[r17]=r15 ;;		// save sched_lock.mtx_recurse
+
+	mov	ar.rsc=3		// turn RSE back on
+
+	br.call.sptk.few rp=chooseproc
+	add	r14=GD_CURPROC,r13 ;;
+	ld8	r14=[r14] ;;
+	cmp.eq	p6,p0=r14,ret0		// chooseproc() == curproc ?
+(p6)	br.dpnt.few 9f			// don't bother to restore
+
+	add	r15=P_ADDR,ret0 ;;
+	ld8	r15=[r15] ;;
+
+	add	r3=U_PCB_UNAT,r15	// point at NaT for r4..r7
+	mov	ar.rsc=0 ;;		// switch off the RSE
+	ld8	r16=[r3]		// load NaT for r4..r7
+	;;
+	mov	ar.unat=r16
+	;;
+	ld8.fill r4=[r15],8 ;;		// restore r4
+	ld8.fill r5=[r15],8 ;;		// restore r5
+	ld8.fill r6=[r15],8 ;;		// restore r6
+	ld8.fill r7=[r15],8 ;;		// restore r7
+
+	ldf.fill f2=[r15],16 ;;		// restore f2
+	ldf.fill f3=[r15],16 ;;		// restore f3
+	ldf.fill f4=[r15],16 ;;		// restore f4
+	ldf.fill f5=[r15],16 ;;		// restore f5
+
+	ld8	r16=[r15],8 ;;		// restore b0
+	ld8	r17=[r15],8 ;;		// restore b1
+	ld8	r18=[r15],8 ;;		// restore b2
+	ld8	r19=[r15],8 ;;		// restore b3
+	ld8	r20=[r15],8 ;;		// restore b4
+	ld8	r21=[r15],8 ;;		// restore b5
+
+	mov	b0=r16
+	mov	b1=r17
+	mov	b2=r18
+	mov	b3=r19
+	mov	b4=r20
+	mov	b5=r21
+
+	ld8	r16=[r15],8 ;;		// caller's ar.unat
+	ld8	sp=[r15],8 ;;		// stack pointer
+	ld8	r17=[r15],8 ;;		// ar.pfs
+	ld8	r18=[r15],16 ;;		// ar.bspstore, skip ar.unat
+	ld8	r19=[r15],8 ;;		// ar.rnat
+	ld8	r20=[r15],8 ;;		// pr
+
+	mov	ar.unat=r16
+	mov	ar.pfs=r17
+	mov	ar.bspstore=r18 ;;
+	mov	ar.rnat=r19
+	mov	pr=r20,0x1ffff
+	;;
+	loadrs
+	mov	ar.rsc=3		// restart RSE
+	invala
+	;;
+	ld8	r14=[r15]		// restore sched_lock.mtx_recurse
+	addl	r16=@ltoff(sched_lock),gp ;;
+	ld8	r15=[r16] ;;
+	add	r15=MTX_RECURSE,r15 ;;
+	st4	[r15]=r14
+
+9:
+	br.ret.sptk.few rp
+
+END(cpu_switch)
+
 /*
  * switch_trampoline()
  *
@@ -166,12 +291,6 @@ ENTRY(restorectx, 1)
  */
 ENTRY(switch_trampoline, 0)
 	MTX_EXIT(sched_lock, r14, r15)
-
-	// Clear sched_lock.mtx_recurse (normally restored in cpu_switch).
-	addl	r15=@ltoff(sched_lock),gp ;;
-	ld8	r15=[r15] ;;
-	add	r15=MTX_RECURSE,r15 ;;
-	st4	[r15]=r0
 
 	alloc	r14=ar.pfs,0,0,1,0
 	mov	b7=r4
