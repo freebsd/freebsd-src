@@ -1845,6 +1845,7 @@ if_setlladdr(struct ifnet *ifp, const u_char *lladdr, int len)
 {
 	struct sockaddr_dl *sdl;
 	struct ifaddr *ifa;
+	struct ifreq ifr;
 
 	ifa = ifaddr_byindex(ifp->if_index);
 	if (ifa == NULL)
