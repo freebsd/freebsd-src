@@ -1,5 +1,5 @@
 #
-# $Id$
+# $Id: Makefile,v 1.1 1998/09/09 07:20:25 markm Exp $
 #
 
 LIB=	perl
@@ -28,11 +28,8 @@ CLEANFILES+=	config.h config.sh config_h.sh
 config.h: config_h.sh config.sh
 	sh config_h.sh
 
-config.sh: ${.CURDIR}/config.SH
+config.sh: config.SH-${OBJFORMAT}
 	ln -sf ${.OODATE} ${.TARGET}
 
 config_h.sh: config_h.SH
 	ln -sf ${.OODATE} ${.TARGET}
-
-test:
-	@echo ${PERL5SRC}
