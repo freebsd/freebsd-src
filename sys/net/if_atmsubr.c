@@ -40,10 +40,12 @@
 
 #include "opt_inet.h"
 #include "opt_inet6.h"
+#include "opt_mac.h"
 #include "opt_natm.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/mac.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
@@ -102,6 +104,12 @@ atm_output(ifp, m0, dst, rt0)
 	struct atmllc *atmllc;
 	struct atmllc *llc_hdr = NULL;
 	u_int32_t atm_flags;
+
+#ifdef MAC
+	error = mac_check_ifnet_transmit(ifp, m);
+	if (error)
+		senderr(error);
+#endif
 
 	if ((ifp->if_flags & (IFF_UP|IFF_RUNNING)) != (IFF_UP|IFF_RUNNING))
 		senderr(ENETDOWN);
@@ -232,6 +240,9 @@ atm_input(ifp, ah, m, rxhand)
 		m_freem(m);
 		return;
 	}
+#ifdef MAC
+	mac_create_mbuf_from_ifnet(ifp, m);
+#endif
 	ifp->if_ibytes += m->m_pkthdr.len;
 
 	if (rxhand) {
