@@ -254,8 +254,10 @@ identifycpu(void)
 	printf("  Origin = \"%s\"  Model = %d  Revision = %d\n",
 	       vendor, model, revision);
 	printf("  Features = 0x%b\n", (u_int32_t) features,
-	       "\020"
-	       "\001LB");
+	    "\020"
+	    "\001LB"	/* long branch (brl) instruction. */
+	    "\002SD"	/* Spontaneous deferral. */
+	    "\003AO"	/* 16-byte atomic operations (ld, st, cmpxchg). */ );
 }
 
 void
