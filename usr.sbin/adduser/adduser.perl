@@ -30,6 +30,8 @@
 # read variables
 sub variables {
     $verbose = 1;		# verbose = [0-2]
+    $usernameregexp = "^[a-z0-9_][a-z0-9_-]*\$"; # configurable
+    $defaultusernameregexp = $usernameregexp; # remains constant
     $defaultpasswd = "yes";	# use password for new users
     $dotdir = "/usr/share/skel"; # copy dotfiles from this dir
     $dotdir_bak = $dotdir;
@@ -42,7 +44,7 @@ sub variables {
     $etc_shells = "/etc/shells";
     $etc_passwd = "/etc/master.passwd";
     $group = "/etc/group";
-    $pwd_mkdb = "pwd_mkdb -p";	# program for building passwd database
+    @pwd_mkdb = qw(pwd_mkdb -p); # program for building passwd database
 
 
     # List of directories where shells located
@@ -221,7 +223,7 @@ sub home_partition_valid {
 
 # check for valid passwddb
 sub passwd_check {
-    system("$pwd_mkdb -C $etc_passwd");
+    system(@pwd_mkdb, '-C', $etc_passwd);
     die "\nInvalid $etc_passwd - cannot add any users!\n" if $?;
 }
 
@@ -309,12 +311,8 @@ sub new_users_name {
     local($name);
 
     while(1) {
-	$name = &confirm_list("Enter username", 1, "a-z0-9_-", "");
-	if (length($name) > 16) {
-	    warn "Username is longer than 16 chars\a\n";
-	    next;
-	}
-	last if (&new_users_name_valid($name) eq $name);
+	$name = &confirm_list("Enter username", 1, $usernameregexp, "");
+	last if (&new_users_name_valid($name));
     }
     return $name;
 }
@@ -322,14 +320,29 @@ sub new_users_name {
 sub new_users_name_valid {
     local($name) = @_;
 
-    if ($name !~ /^[a-z0-9_][a-z0-9_\-]*$/ || $name eq "a-z0-9_-") {
-	warn "Wrong username. " .
-	    "Please use only lowercase characters or digits\a\n";
+    if ($name eq $usernameregexp) { # user/admin just pressed <Return>
+	warn "Please enter a username\a\n";
 	return 0;
-    } elsif ($username{$name}) {
+    } elsif (length($name) > 16) {
+	warn "Username is longer than 16 characters.\a\n";
+	return 0;
+    } elsif ($name =~ /[:\n]/) {
+	warn "Username cannot contain colon or newline characters.\a\n";
+	return 0;
+    } elsif ($name !~ /$usernameregexp/) {
+	if ($usernameregexp eq $defaultusernameregexp) {
+	    warn "Illegal username.\n" .
+		"Please use only lowercase Roman, decimal, underscore, " .
+		"or hyphen characters.\n" .
+		"Additionally, a username should not start with a hyphen.\a\n";
+	} else {
+	    warn "Username doesn't match the regexp /$usernameregexp/\a\n";
+	}
+	return 0;
+    } elsif (defined($username{$name})) {
 	warn "Username ``$name'' already exists!\a\n"; return 0;
     }
-    return $name;
+    return 1;
 }
 
 # return full name
@@ -544,10 +557,10 @@ sub new_users_pwdmkdb {
     local($last) = shift;
     local($name) = shift;
 
-    system("$pwd_mkdb -u $name $etc_passwd");
+    system(@pwd_mkdb, '-u', $name, $etc_passwd);
     if ($?) {
 	warn "$last\n";
-	warn "``$pwd_mkdb'' failed\n";
+	warn "``@pwd_mkdb'' failed\n";
 	exit($? >> 8);
     }
 }
@@ -947,9 +960,9 @@ sub home_create {
     # copy files from  $dotdir to $homedir
     # rename 'dot.foo' files to '.foo'
     print "Copy files from $dotdir to $homedir\n" if $verbose;
-    system("cp -R $dotdir $homedir");
-    system("chmod -R u+wrX,go-w $homedir");
-    system("chown -R $name:$group $homedir");
+    system('cp', '-R', $dotdir, $homedir);
+    system('chmod', '-R', 'u+wrX,go-w', $homedir);
+    system('chown', '-Rh', "$name:$group", $homedir);
 
     # security
     opendir(D, $homedir);
@@ -1099,6 +1112,21 @@ sub confirm_yn {
 	return &confirm_yn($message, $confirm);
     }
     return 0;
+}
+
+# allow configuring usernameregexp
+sub usernameregexp_default {
+    local($r) = $usernameregexp;
+
+    while ($verbose) {
+	$r = &confirm_list("Usernames must match regular expression:", 1,
+	    $r, "");
+	eval "'foo' =~ /$r/";
+	last unless $@;
+	warn "Invalid regular expression\a\n";
+    }
+    $changes++ if $r ne $usernameregexp;
+    return $r;
 }
 
 # test if $dotdir exist
@@ -1314,6 +1342,10 @@ sub config_write {
 # verbose = [0-2]
 verbose = $verbose
 
+# regular expression usernames are checked against (see perlre(1))
+# usernameregexp = 'regexp'
+usernameregexp = '$usernameregexp'
+
 # use password for new users
 # defaultpasswd =  yes | no
 defaultpasswd = $defaultpasswd
@@ -1389,6 +1421,7 @@ exit 0 if $check_only;		# only check consistence and exit
 
 # interactive
 # some questions
+$usernameregexp = &usernameregexp_default; # regexp to check usernames against
 &shells_add;			# maybe add some new shells
 $defaultshell = &shell_default;	# enter default shell
 $home = &home_partition($home);	# find HOME partition
