@@ -173,7 +173,12 @@ casedot:
 					 * to be the successor of tab.
 					 */
 					do {
-						strcat(added, oncol ? (BC ? BC : "\b") : UP);
+						const char *extra;
+
+						extra = oncol ? (BC ? BC : "\b") : UP;
+						if (strlen(added) + strlen(extra) >= 10)
+							return ("OVERFLOW");
+						strcat(added, extra);
 						which++;
 					} while (which == '\n');
 			}
@@ -214,7 +219,7 @@ casedot:
 			goto toohard;
 		}
 	}
-	if (dp+strlen(added)+1 > &result[MAXRETURNSIZE])
+	if (strlen(added) >= &result[MAXRETURNSIZE] - dp)
 		return ("OVERFLOW");
 	strcpy(dp, added);
 	return (result);
