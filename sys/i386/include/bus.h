@@ -41,5 +41,6 @@
 /* IBM-PC */
 #include <machine/bus_at386.h>
 #endif
+#include <machine/bus_dma.h>
 
 #endif /* _I386_BUS_H_ */

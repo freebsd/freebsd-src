@@ -298,37 +298,32 @@ nexus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	rv = rman_reserve_resource(rm, start, end, count, flags, child);
 	if (rv == 0)
 		return 0;
-#ifdef PC98
-	/* Allocate bushandle. */
-	rv->r_bushandle =
-	    malloc(sizeof *rv->r_bushandle, M_DEVBUF, M_NOWAIT | M_ZERO);
-	if (rv->r_bushandle == 0) {
-		rman_release_resource(rv);
-		return 0;
-	}
-#endif
 
 	if (type == SYS_RES_MEMORY) {
 		rman_set_bustag(rv, I386_BUS_SPACE_MEM);
 	} else if (type == SYS_RES_IOPORT) {
 		rman_set_bustag(rv, I386_BUS_SPACE_IO);
-#ifdef PC98
-		/* PC-98: the type of bus_space_handle_t is the structure. */
-		rv->r_bushandle->bsh_base = rv->r_start;
-		rv->r_bushandle->bsh_iat = NULL;
-		rv->r_bushandle->bsh_iatsz = 0;
-		rv->r_bushandle->bsh_res = NULL;
-		rv->r_bushandle->bsh_ressz = 0;
-#else
-		/* IBM-PC: the type of bus_space_handle_t is u_int */
+#ifndef PC98
 		rman_set_bushandle(rv, rv->r_start);
 #endif
 	}
 
+#ifdef PC98
+	if ((type == SYS_RES_MEMORY || type == SYS_RES_IOPORT) &&
+	    i386_bus_space_handle_alloc(rv->r_bustag, rv->r_start, count,
+					&rv->r_bushandle) != 0) {
+		rman_release_resource(rv);
+		return 0;
+	}
+#endif
+
 	if (needactivate) {
 		if (bus_activate_resource(child, type, *rid, rv)) {
 #ifdef PC98
-			free(rv->r_bushandle, M_DEVBUF);
+			if (type == SYS_RES_MEMORY || type == SYS_RES_IOPORT) {
+				i386_bus_space_handle_free(rv->r_bustag,
+				  rv->r_bushandle, rv->r_bushandle->bsh_sz);
+			}
 #endif
 			rman_release_resource(rv);
 			return 0;
@@ -368,10 +363,6 @@ nexus_activate_resource(device_t bus, device_t child, int type, int rid,
 #ifdef PC98
 		/* PC-98: the type of bus_space_handle_t is the structure. */
 		r->r_bushandle->bsh_base = (bus_addr_t) vaddr;
-		r->r_bushandle->bsh_iat = NULL;
-		r->r_bushandle->bsh_iatsz = 0;
-		r->r_bushandle->bsh_res = NULL;
-		r->r_bushandle->bsh_ressz = 0;
 #else
 		/* IBM-PC: the type of bus_space_handle_t is u_int */
 		rman_set_bushandle(r, (bus_space_handle_t) vaddr);
@@ -407,7 +398,10 @@ nexus_release_resource(device_t bus, device_t child, int type, int rid,
 			return error;
 	}
 #ifdef PC98
-	free(r->r_bushandle, M_DEVBUF);
+	if (type == SYS_RES_MEMORY || type == SYS_RES_IOPORT) {
+		i386_bus_space_handle_free(r->r_bustag, r->r_bushandle,
+					   r->r_bushandle->bsh_sz);
+	}
 #endif
 	return (rman_release_resource(r));
 }

@@ -124,16 +124,32 @@ int	bus_space_map(bus_space_tag_t t, bus_addr_t addr, bus_size_t size,
  * Unmap a region of device bus space.
  */
 
-void	bus_space_unmap(bus_space_tag_t t, bus_space_handle_t bsh,
-			bus_size_t size);
+static __inline void bus_space_unmap(bus_space_tag_t t, bus_space_handle_t bsh,
+				     bus_size_t size);
+
+static __inline void
+bus_space_unmap(bus_space_tag_t t, bus_space_handle_t bsh, bus_size_t size)
+{
+}
 
 /*
  * Get a new handle for a subregion of an already-mapped area of bus space.
  */
 
-int	bus_space_subregion(bus_space_tag_t t, bus_space_handle_t bsh,
-			    bus_size_t offset, bus_size_t size,
-			    bus_space_handle_t *nbshp);
+static __inline int bus_space_subregion(bus_space_tag_t t,
+					bus_space_handle_t bsh,
+					bus_size_t offset, bus_size_t size,
+					bus_space_handle_t *nbshp);
+
+static __inline int
+bus_space_subregion(bus_space_tag_t t, bus_space_handle_t bsh,
+		    bus_size_t offset, bus_size_t size,
+		    bus_space_handle_t *nbshp)
+{
+
+	*nbshp = bsh + offset;
+	return (0);
+}
 
 /*
  * Allocate a region of memory that is accessible to devices in bus space.
@@ -148,8 +164,14 @@ int	bus_space_alloc(bus_space_tag_t t, bus_addr_t rstart,
  * Free a region of bus space accessible memory.
  */
 
-void	bus_space_free(bus_space_tag_t t, bus_space_handle_t bsh,
-		       bus_size_t size);
+static __inline void bus_space_free(bus_space_tag_t t, bus_space_handle_t bsh,
+				    bus_size_t size);
+
+static __inline void
+bus_space_free(bus_space_tag_t t, bus_space_handle_t bsh, bus_size_t size)
+{
+}
+
 
 #if defined(_I386_BUS_PIO_H_) || defined(_I386_BUS_MEMIO_H_)
 
@@ -1140,151 +1162,5 @@ bus_space_copy_region_4(bus_space_tag_t tag, bus_space_handle_t bsh1,
 	((void)((void)(t), (void)(h), (void)(o), (void)(l), (void)(f)))
 #define	BUS_SPACE_BARRIER_READ	0x01		/* force read barrier */
 #define	BUS_SPACE_BARRIER_WRITE	0x02		/* force write barrier */
-
-/*
- * Flags used in various bus DMA methods.
- */
-#define	BUS_DMA_WAITOK		0x00	/* safe to sleep (pseudo-flag) */
-#define	BUS_DMA_NOWAIT		0x01	/* not safe to sleep */
-#define	BUS_DMA_ALLOCNOW	0x02	/* perform resource allocation now */
-#define	BUS_DMAMEM_NOSYNC	0x04	/* map memory to not require sync */
-#define	BUS_DMA_BUS1		0x10	/* placeholders for bus functions... */
-#define	BUS_DMA_BUS2		0x20
-#define	BUS_DMA_BUS3		0x40
-#define	BUS_DMA_BUS4		0x80
-
-/* Forwards needed by prototypes below. */
-struct mbuf;
-struct uio;
-
-/*
- *	bus_dmasync_op_t
- *
- *	Operations performed by bus_dmamap_sync().
- */
-typedef enum {
-	BUS_DMASYNC_PREREAD,
-	BUS_DMASYNC_POSTREAD,
-	BUS_DMASYNC_PREWRITE,
-	BUS_DMASYNC_POSTWRITE
-} bus_dmasync_op_t;
-
-/*
- *	bus_dma_tag_t
- *
- *	A machine-dependent opaque type describing the characteristics
- *	of how to perform DMA mappings.  This structure encapsultes
- *	information concerning address and alignment restrictions, number
- *	of S/G	segments, amount of data per S/G segment, etc.
- */
-typedef struct bus_dma_tag	*bus_dma_tag_t;
-
-/*
- *	bus_dmamap_t
- *
- *	DMA mapping instance information.
- */
-typedef struct bus_dmamap	*bus_dmamap_t;
-
-/*
- *	bus_dma_segment_t
- *
- *	Describes a single contiguous DMA transaction.  Values
- *	are suitable for programming into DMA registers.
- */
-typedef struct bus_dma_segment {
-	bus_addr_t	ds_addr;	/* DMA address */
-	bus_size_t	ds_len;		/* length of transfer */
-} bus_dma_segment_t;
-
-/*
- * A function that returns 1 if the address cannot be accessed by
- * a device and 0 if it can be.
- */
-typedef int bus_dma_filter_t(void *, bus_addr_t);
-
-/*
- * Allocate a device specific dma_tag encapsulating the constraints of
- * the parent tag in addition to other restrictions specified:
- *
- *	alignment:	alignment for segments.
- *	boundary:	Boundary that segments cannot cross.
- *	lowaddr:	Low restricted address that cannot appear in a mapping.
- *	highaddr:	High restricted address that cannot appear in a mapping.
- *	filtfunc:	An optional function to further test if an address
- *			within the range of lowaddr and highaddr cannot appear
- *			in a mapping.
- *	filtfuncarg:	An argument that will be passed to filtfunc in addition
- *			to the address to test.
- *	maxsize:	Maximum mapping size supported by this tag.
- *	nsegments:	Number of discontinuities allowed in maps.
- *	maxsegsz:	Maximum size of a segment in the map.
- *	flags:		Bus DMA flags.
- *	dmat:		A pointer to set to a valid dma tag should the return
- *			value of this function indicate success.
- */
-/* XXX Should probably allow specification of alignment */
-int bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignemnt,
-		       bus_size_t boundary, bus_addr_t lowaddr,
-		       bus_addr_t highaddr, bus_dma_filter_t *filtfunc,
-		       void *filtfuncarg, bus_size_t maxsize, int nsegments,
-		       bus_size_t maxsegsz, int flags, bus_dma_tag_t *dmat);
-
-int bus_dma_tag_destroy(bus_dma_tag_t dmat);
-
-/*
- * Allocate a handle for mapping from kva/uva/physical
- * address space into bus device space.
- */
-int bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp);
-
-/*
- * Destroy  a handle for mapping from kva/uva/physical
- * address space into bus device space.
- */
-int bus_dmamap_destroy(bus_dma_tag_t dmat, bus_dmamap_t map);
-
-/*
- * Allocate a piece of memory that can be efficiently mapped into
- * bus device space based on the constraints lited in the dma tag.
- * A dmamap to for use with dmamap_load is also allocated.
- */
-int bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
-		     bus_dmamap_t *mapp);
-
-/*
- * Free a piece of memory and it's allociated dmamap, that was allocated
- * via bus_dmamem_alloc.
- */
-void bus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map);
-
-/*
- * A function that processes a successfully loaded dma map or an error
- * from a delayed load map.
- */
-typedef void bus_dmamap_callback_t(void *, bus_dma_segment_t *, int, int);
-
-/*
- * Map the buffer buf into bus space using the dmamap map.
- */
-int bus_dmamap_load(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
-		    bus_size_t buflen, bus_dmamap_callback_t *callback,
-		    void *callback_arg, int flags);
-
-/*
- * Perform a syncronization operation on the given map.
- */
-void _bus_dmamap_sync(bus_dma_tag_t, bus_dmamap_t, bus_dmasync_op_t);
-#define bus_dmamap_sync(dmat, dmamap, op) 		\
-	if ((dmamap) != NULL)				\
-		_bus_dmamap_sync(dmat, dmamap, op)
-
-/*
- * Release the mapping held by map.
- */
-void _bus_dmamap_unload(bus_dma_tag_t dmat, bus_dmamap_t map);
-#define bus_dmamap_unload(dmat, dmamap) 		\
-	if ((dmamap) != NULL)				\
-		_bus_dmamap_unload(dmat, dmamap)
 
 #endif /* _I386_BUS_AT386_H_ */
