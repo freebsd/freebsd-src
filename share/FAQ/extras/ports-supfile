@@ -1,3 +1,4 @@
+ports-base release=current host=FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old
 ports-archivers release=current host=FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old
 ports-audio release=current host=FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old
 ports-cad release=current host=FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old
@@ -11,8 +12,8 @@ ports-lang release=current host=FreeBSD.ORG hostbase=/home base=/usr prefix=/usr
 ports-mail release=current host=FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old 
 ports-math release=current host=FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old
 ports-net release=current host=FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old 
-ports-news release=current host=FreeBSD.ORG hosbase=/home base=/usr prefix=/usr/ports delete old
-ports-print release=current host=FreeBSD.ORG hosbase=/home base=/usr prefix=/usr/ports delete old
+ports-news release=current host=FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old
+ports-print release=current host=FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old
 ports-shells release=current host=FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old 
 ports-utils release=current host=FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old 
 ports-x11 release=current host=FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old 
