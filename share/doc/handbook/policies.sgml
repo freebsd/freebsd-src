@@ -1,4 +1,4 @@
-<!-- $Id: policies.sgml,v 1.5 1996/11/05 09:41:38 max Exp $ -->
+<!-- $Id: policies.sgml,v 1.6 1996/12/09 11:18:52 obrien Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>Source Tree Guidelines and Policies
@@ -145,22 +145,35 @@ should be added and it should states things like:
 <p><em>Contributed by &a.asami; and &a.obrien;.
   <newline>9 December 1996.</em></p>
 
-  <p>If you are adding shlib support to a port or other piece of software that
-    doesn't have one, the version numbers should follow the following rules,
-    which in general have nothing to do with the release version of the
-    software.
-  <p>The three principles of shared library building (tm) are:
+  <p>If you are adding shared library support to a port or other piece
+    of software that doesn't have one, the version numbers should
+    follow these rules.  Generally, the resulting numbers will have
+    nothing to do with the release version of the software.
+
+  <p>The three principles of shared library building are:
 
   <itemize>
     <item>Start from 1.0
-    <item>If there is a backwards-compatible change, bump minor number
+    <item>If there is a change that is backwards compatible, bump
+          minor number
     <item>If there is an incompatible change, bump major number
   </itemize>
 
-  <p>For instance, added functions and bugfixes are (2).  Deleted functions,
-    changed function call syntax type changes fall in (3).
+  <p>For instance, added functions and bugfixes result in the minor
+    version number being bumped, while deleted functions, changed
+    function call syntax etc. will force the major version number
+    to change.
 
   <p>Stick to version numbers of the form major.minor (x.y).  Our dynamic
     linker does not handle version numbers of the form x.y.z well.  Any
     version number after the ``y'' is ignored, and cannot be used to 
     differentiate between two different shared library versions.
+
+  <p>For non-port libraries, it is also our policy to change the
+    shared library version number only once between releases.  When
+    you make a change to a system library that requires the version
+    number to be bumped, check the Makefile's commit logs.  It is the
+    responsibility of the committer to ensure that the first such
+    change since the release will result in the shared library version
+    number in the Makefile to be updated, and any subsequent changes
+    will not.
