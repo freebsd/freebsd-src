@@ -188,6 +188,7 @@ msginit(dummy)
 	for (i = 0; i < msginfo.msgmni; i++) {
 		msqids[i].msg_qbytes = 0;	/* implies entry is available */
 		msqids[i].msg_perm.seq = 0;	/* reset to a known value */
+		msqids[i].msg_perm.mode = 0;
 	}
 }
 SYSINIT(sysv_msg, SI_SUB_SYSV_MSG, SI_ORDER_FIRST, msginit, NULL)
