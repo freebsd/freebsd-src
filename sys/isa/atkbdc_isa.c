@@ -47,8 +47,8 @@ static MALLOC_DEFINE(M_ATKBDDEV, "atkbddev", "AT Keyboard device");
 
 /* children */
 typedef struct atkbdc_device {
-	int flags;	/* configuration flags */
-	int irq;	/* ISA IRQ mask */
+	struct resource_list resources;
+	int rid;
 	u_int32_t vendorid;
 	u_int32_t serial;
 	u_int32_t logicalid;
@@ -60,11 +60,21 @@ devclass_t atkbdc_devclass;
 
 static int	atkbdc_probe(device_t dev);
 static int	atkbdc_attach(device_t dev);
+static device_t	atkbdc_add_child(device_t bus, int order, char *name,
+				 int unit);
 static int	atkbdc_print_child(device_t bus, device_t dev);
 static int	atkbdc_read_ivar(device_t bus, device_t dev, int index,
 				 uintptr_t *val);
 static int	atkbdc_write_ivar(device_t bus, device_t dev, int index,
 				  uintptr_t val);
+static struct resource_list
+		*atkbdc_get_resource_list (device_t bus, device_t dev);
+static struct resource
+		*atkbdc_alloc_resource(device_t bus, device_t dev, int type,
+				       int *rid, u_long start, u_long end,
+				       u_long count, u_int flags);
+static int	atkbdc_release_resource(device_t bus, device_t dev, int type,
+					int rid, struct resource *res);
 
 static device_method_t atkbdc_methods[] = {
 	DEVMETHOD(device_probe,		atkbdc_probe),
@@ -72,13 +82,18 @@ static device_method_t atkbdc_methods[] = {
 	DEVMETHOD(device_suspend,	bus_generic_suspend),
 	DEVMETHOD(device_resume,	bus_generic_resume),
 
+	DEVMETHOD(bus_add_child,	atkbdc_add_child),
 	DEVMETHOD(bus_print_child,	atkbdc_print_child),
 	DEVMETHOD(bus_read_ivar,	atkbdc_read_ivar),
 	DEVMETHOD(bus_write_ivar,	atkbdc_write_ivar),
-	DEVMETHOD(bus_alloc_resource,	bus_generic_alloc_resource),
-	DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
+	DEVMETHOD(bus_get_resource_list,atkbdc_get_resource_list),
+	DEVMETHOD(bus_alloc_resource,	atkbdc_alloc_resource),
+	DEVMETHOD(bus_release_resource,	atkbdc_release_resource),
 	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
 	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
+	DEVMETHOD(bus_get_resource,	bus_generic_rl_get_resource),
+	DEVMETHOD(bus_set_resource,	bus_generic_rl_set_resource),
+	DEVMETHOD(bus_delete_resource,	bus_generic_rl_delete_resource),
 	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
 
@@ -101,6 +116,8 @@ atkbdc_probe(device_t dev)
 {
 	struct resource	*port0;
 	struct resource	*port1;
+	u_long		start;
+	u_long		count;
 	int		error;
 	int		rid;
 
@@ -110,25 +127,40 @@ atkbdc_probe(device_t dev)
 
 	device_set_desc(dev, "Keyboard controller (i8042)");
 
+	/*
+	 * Adjust I/O port resources.
+	 * The AT keyboard controller uses two ports (a command/data port
+	 * 0x60 and a status port 0x64), which may be given to us in 
+	 * one resource (0x60 through 0x64) or as two separate resources
+	 * (0x60 and 0x64). Furthermore, /boot/device.hints may contain
+	 * just one port, 0x60. We shall adjust resource settings 
+	 * so that these two ports are available as two separate resources.
+	 */
+	device_quiet(dev);
 	rid = 0;
+	if (bus_get_resource(dev, SYS_RES_IOPORT, rid, &start, &count) != 0)
+		return ENXIO;
+	if (count > 1)	/* adjust the count */
+		bus_set_resource(dev, SYS_RES_IOPORT, rid, start, 1);
 	port0 = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0, 1,
 				   RF_ACTIVE);
 	if (port0 == NULL)
 		return ENXIO;
-	/* XXX */
-	if (bus_get_resource_start(dev, SYS_RES_IOPORT, 1) <= 0) {
-		bus_set_resource(dev, SYS_RES_IOPORT, 1,
-				 rman_get_start(port0) + KBD_STATUS_PORT, 1);
-	}
 	rid = 1;
+	if (bus_get_resource(dev, SYS_RES_IOPORT, rid, NULL, NULL) != 0)
+		bus_set_resource(dev, SYS_RES_IOPORT, 1,
+				 start + KBD_STATUS_PORT, 1);
 	port1 = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0, 1,
 				   RF_ACTIVE);
 	if (port1 == NULL) {
 		bus_release_resource(dev, SYS_RES_IOPORT, 0, port0);
 		return ENXIO;
 	}
+	device_verbose(dev);
 
 	error = atkbdc_probe_unit(device_get_unit(dev), port0, port1);
+	if (error == 0)
+		bus_generic_probe(dev);
 
 	bus_release_resource(dev, SYS_RES_IOPORT, 0, port0);
 	bus_release_resource(dev, SYS_RES_IOPORT, 1, port1);
@@ -136,44 +168,13 @@ atkbdc_probe(device_t dev)
 	return error;
 }
 
-static void
-atkbdc_add_device(device_t dev, const char *name, int unit)
-{
-	atkbdc_device_t	*kdev;
-	device_t	child;
-	int		t;
-
-	if (resource_int_value(name, unit, "disabled", &t) == 0 && t != 0)
-		return;
-
-	kdev = malloc(sizeof(struct atkbdc_device), M_ATKBDDEV,
-		M_NOWAIT | M_ZERO);
-	if (!kdev)
-		return;
-
-	if (resource_int_value(name, unit, "irq", &t) == 0)
-		kdev->irq = t;
-	else
-		kdev->irq = -1;
-
-	if (resource_int_value(name, unit, "flags", &t) == 0)
-		kdev->flags = t;
-	else
-		kdev->flags = 0;
-
-	child = device_add_child(dev, name, unit);
-	device_set_ivars(child, kdev);
-}
-
 static int
 atkbdc_attach(device_t dev)
 {
 	atkbdc_softc_t	*sc;
-	int		unit, dunit;
+	int		unit;
 	int		error;
 	int		rid;
-	int		i;
-	const char	*name, *dname;
 
 	unit = device_get_unit(dev);
 	sc = *(atkbdc_softc_t **)device_get_softc(dev);
@@ -211,40 +212,73 @@ atkbdc_attach(device_t dev)
 	}
 	*(atkbdc_softc_t **)device_get_softc(dev) = sc;
 
-	/*
-	 * Add all devices configured to be attached to atkbdc0.
-	 */
-	name = device_get_nameunit(dev);
-	i = 0;
-	while ((resource_find_match(&i, &dname, &dunit, "at", name)) == 0)
-		atkbdc_add_device(dev, dname, dunit);
-
-	/*
-	 * and atkbdc?
-	 */
-	name = device_get_name(dev);
-	i = 0;
-	while ((resource_find_match(&i, &dname, &dunit, "at", name)) == 0)
-		atkbdc_add_device(dev, dname, dunit);
-
 	bus_generic_attach(dev);
 
 	return 0;
+}
+
+static device_t
+atkbdc_add_child(device_t bus, int order, char *name, int unit)
+{
+	atkbdc_device_t	*ivar;
+	device_t	child;
+	int		t;
+
+	ivar = malloc(sizeof(struct atkbdc_device), M_ATKBDDEV,
+		M_NOWAIT | M_ZERO);
+	if (!ivar)
+		return NULL;
+
+	child = device_add_child(bus, NULL, -1);
+	if (child == NULL) {
+		free(ivar, M_ATKBDDEV);
+		return child;
+	}
+
+	resource_list_init(&ivar->resources);
+	ivar->rid = order;
+
+	/*
+	 * If the device is not created by the PnP BIOS or ACPI,
+	 * refer to device hints for IRQ.
+	 */
+	if (ISA_PNP_PROBE(device_get_parent(bus), bus, atkbdc_ids) != 0) {
+		if (resource_int_value(name, unit, "irq", &t) != 0)
+			t = -1;
+	} else {
+		t = bus_get_resource_start(bus, SYS_RES_IRQ, ivar->rid);
+	}
+	if (t > 0)
+		resource_list_add(&ivar->resources, SYS_RES_IRQ, ivar->rid,
+				  t, t, 1);
+
+	if (resource_int_value(name, unit, "flags", &t) == 0)
+		device_set_flags(child, t);
+	if (resource_int_value(name, unit, "disabled", &t) == 0 && t != 0)
+		device_disable(child);
+
+	device_set_ivars(child, ivar);
+
+	return child;
 }
 
 static int
 atkbdc_print_child(device_t bus, device_t dev)
 {
 	atkbdc_device_t *kbdcdev;
+	u_long irq;
+	int flags;
 	int retval = 0;
 
 	kbdcdev = (atkbdc_device_t *)device_get_ivars(dev);
 
 	retval += bus_print_child_header(bus, dev);
-	if (kbdcdev->flags != 0)
-		retval += printf(" flags 0x%x", kbdcdev->flags);
-	if (kbdcdev->irq != -1)
-		retval += printf(" irq %d", kbdcdev->irq);
+	flags = device_get_flags(dev);
+	if (flags != 0)
+		retval += printf(" flags 0x%x", flags);
+	irq = bus_get_resource_start(dev, SYS_RES_IRQ, kbdcdev->rid);
+	if (irq != 0)
+		retval += printf(" irq %ld", irq);
 	retval += bus_print_child_footer(bus, dev);
 
 	return (retval);
@@ -257,12 +291,6 @@ atkbdc_read_ivar(device_t bus, device_t dev, int index, uintptr_t *val)
 
 	ivar = (atkbdc_device_t *)device_get_ivars(dev);
 	switch (index) {
-	case KBDC_IVAR_IRQ:
-		*val = (u_long)ivar->irq;
-		break;
-	case KBDC_IVAR_FLAGS:
-		*val = (u_long)ivar->flags;
-		break;
 	case KBDC_IVAR_VENDORID:
 		*val = (u_long)ivar->vendorid;
 		break;
@@ -288,12 +316,6 @@ atkbdc_write_ivar(device_t bus, device_t dev, int index, uintptr_t val)
 
 	ivar = (atkbdc_device_t *)device_get_ivars(dev);
 	switch (index) {
-	case KBDC_IVAR_IRQ:
-		ivar->irq = (int)val;
-		break;
-	case KBDC_IVAR_FLAGS:
-		ivar->flags = (int)val;
-		break;
 	case KBDC_IVAR_VENDORID:
 		ivar->vendorid = (u_int32_t)val;
 		break;
@@ -310,6 +332,37 @@ atkbdc_write_ivar(device_t bus, device_t dev, int index, uintptr_t val)
 		return ENOENT;
 	}
 	return 0;
+}
+
+static struct resource_list
+*atkbdc_get_resource_list (device_t bus, device_t dev)
+{
+	atkbdc_device_t *ivar;
+
+	ivar = (atkbdc_device_t *)device_get_ivars(dev);
+	return &ivar->resources;
+}
+
+static struct resource
+*atkbdc_alloc_resource(device_t bus, device_t dev, int type, int *rid,
+		       u_long start, u_long end, u_long count, u_int flags)
+{
+	atkbdc_device_t *ivar;
+
+	ivar = (atkbdc_device_t *)device_get_ivars(dev);
+	return resource_list_alloc(&ivar->resources, bus, dev, type, rid,
+				   start, end, count, flags);
+}
+
+static int
+atkbdc_release_resource(device_t bus, device_t dev, int type, int rid,
+			struct resource *res)
+{
+	atkbdc_device_t *ivar;
+
+	ivar = (atkbdc_device_t *)device_get_ivars(dev);
+	return resource_list_release(&ivar->resources, bus, dev, type, rid,
+				     res);
 }
 
 DRIVER_MODULE(atkbdc, isa, atkbdc_driver, atkbdc_devclass, 0, 0);
