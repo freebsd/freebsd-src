@@ -32,7 +32,6 @@ else
 	read junk
 	fname=$1; shift
 	scsi -f /dev/rworm0.ctl -c "0 0 0 0 0 0" >/dev/null 2>&1
-	wormcontrol select HP 4020i
 	wormcontrol prepdisk double $*
 	wormcontrol track data
 	rtprio 5 team -v 1m 5 < $fname | rtprio 5 dd of=/dev/rworm0 obs=20k
