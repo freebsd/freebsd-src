@@ -268,7 +268,9 @@ proc_rwmem(struct proc *p, struct uio *uio)
 		/*
 		 * Wire the page into memory
 		 */
+		vm_page_lock_queues();
 		vm_page_wire(m);
+		vm_page_unlock_queues();
 
 		/*
 		 * We're done with tmap now.
@@ -290,7 +292,9 @@ proc_rwmem(struct proc *p, struct uio *uio)
 		/*
 		 * release the page and the object
 		 */
+		vm_page_lock_queues();
 		vm_page_unwire(m, 1);
+		vm_page_unlock_queues();
 		vm_object_deallocate(object);
 
 		object = NULL;
