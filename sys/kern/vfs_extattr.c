@@ -4424,9 +4424,8 @@ extattr_get_vp(struct vnode *vp, int attrnamespace, const char *attrname,
 		auio.uio_td = td;
 		auiop = &auio;
 		cnt = nbytes;
-	} else {
+	} else
 		sizep = &size;
-	}
 
 #ifdef MAC
 	error = mac_check_vnode_getextattr(td->td_ucred, vp, attrnamespace,
@@ -4441,9 +4440,8 @@ extattr_get_vp(struct vnode *vp, int attrnamespace, const char *attrname,
 	if (auiop != NULL) {
 		cnt -= auio.uio_resid;
 		td->td_retval[0] = cnt;
-	} else {
+	} else
 		td->td_retval[0] = size;
-	}
 
 done:
 	VOP_UNLOCK(vp, 0, td);
@@ -4712,9 +4710,8 @@ extattr_list_vp(struct vnode *vp, int attrnamespace, void *data,
 		auio.uio_td = td;
 		auiop = &auio;
 		cnt = nbytes;
-	} else {
+	} else
 		sizep = &size;
-	}
 
 #ifdef MAC
 	error = mac_check_vnode_listextattr(td->td_ucred, vp, attrnamespace);
@@ -4728,9 +4725,8 @@ extattr_list_vp(struct vnode *vp, int attrnamespace, void *data,
 	if (auiop != NULL) {
 		cnt -= auio.uio_resid;
 		td->td_retval[0] = cnt;
-	} else {
+	} else
 		td->td_retval[0] = size;
-	}
 
 done:
 	VOP_UNLOCK(vp, 0, td);
