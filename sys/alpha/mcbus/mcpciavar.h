@@ -61,3 +61,5 @@
  */
 #define	MCPCIA_I2C_CVEC		0xA90
 #define	MCPCIA_I2C_BVEC		0xAA0
+
+extern void mcpcia_init(int, int);

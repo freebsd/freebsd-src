@@ -71,3 +71,5 @@ struct mcbus_device {
 #define	MCBUS_TYPE_PCI	4
 
 #define DEVTOMCBUS(dev)	((struct mcbus_device *) device_get_ivars(dev))
+
+extern void mcbus_init(void);
