@@ -5,7 +5,6 @@
 
 SUBDIR=	adjkerntz \
 	atacontrol \
-	atm \
 	badsect \
 	bsdlabel \
 	camcontrol \
@@ -29,7 +28,6 @@ SUBDIR=	adjkerntz \
 	growfs \
 	ifconfig \
 	init \
-	ip6fw \
 	ipfw \
 	kldconfig \
 	kldload \
@@ -59,7 +57,6 @@ SUBDIR=	adjkerntz \
 	nologin \
 	nos-tun \
 	ping \
-	ping6 \
 	quotacheck \
 	raidctl \
 	rcorder \
@@ -80,6 +77,10 @@ SUBDIR=	adjkerntz \
 	umount \
 	vinum
 
+.if !defined(NOATM)
+SUBDIR+=atm
+.endif
+
 .if !defined(NO_CXX)
 SUBDIR+=devd
 .endif
@@ -90,6 +91,11 @@ SUBDIR+=ipf \
 	ipfstat \
 	ipmon \
 	ipnat
+.endif
+
+.if !defined(NOINET6)
+SUBDIR+=ip6fw \
+	ping6
 .endif
 
 .if ${MACHINE_ARCH} == "i386"
