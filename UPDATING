@@ -6,9 +6,7 @@ of file for further details.  For commonly done items, please see the
 COMMON ITEMS: section later in the file.
 
 20011030:
-	The asr driver now no longer panics the system on machines that
-	do not have the asr hardware.  It is unknown if asr works still
-	for the hardware it supports.
+	The asr driver problem has been resolved.
 
 20011027:
 	Due to changes in other parts of the system, the asr driver
