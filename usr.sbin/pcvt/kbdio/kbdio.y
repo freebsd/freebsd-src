@@ -34,10 +34,14 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ident "$Header: /home/joerg/src/kbdio/RCS/kbdio.y,v 1.2 1994/09/18 19:49:22 j Exp $"
+#ident "$Header: /home/ncvs/src/usr.sbin/pcvt/kbdio/kbdio.y,v 1.1.1.1 1995/02/05 13:49:24 jkh Exp $"
 
 /*
  * $Log: kbdio.y,v $
+ * Revision 1.1.1.1  1995/02/05  13:49:24  jkh
+ * PCVT userland utilities.
+ * Submitted by:	hm
+ *
  * Revision 1.2  1994/09/18  19:49:22  j
  * Refined expr handling; can now set/clear bits.
  *
@@ -58,12 +62,20 @@
 #include <machine/pio.h>
 #endif
 
+#define	KBD_DELAY \
+	{ u_char x = inb(0x84); } \
+	{ u_char x = inb(0x84); } \
+	{ u_char x = inb(0x84); } \
+	{ u_char x = inb(0x84); } \
+	{ u_char x = inb(0x84); } \
+	{ u_char x = inb(0x84); }
+
 #define YYDEBUG 1
 
 void yyerror(const char *msg);
 
 static	void help(int), status(void), data(int), kbd(int), cmdbyte(int),
-	kbc(int);
+	kbc(int), whatMCA(void);
 static	int kbget(void);
 %}
 
@@ -74,6 +86,7 @@ static	int kbget(void);
 %token		NEWLINE
 %token		ALL CMD DATA DEFAULTS ECHOC ENABLE EXPR HELP ID LED
 %token		MAKE ONLY RELEASE RESEND RESET SCAN STATUS TYPEMATIC
+%token		WHAT
 %token	<num>	NUM
 
 %type	<num>	expr opr
@@ -99,6 +112,7 @@ statement:	'?'			{ help(0); }
 		| HELP			{ help(0); }
 		| HELP EXPR		{ help(1); }
 		| STATUS '?'		{ status(); }
+		| WHAT '?'		{ whatMCA(); }
 		| DATA '?'		{ data(kbget()); }
 		| LED '=' NUM		{ kbd(0xed); kbd($3); }
 		| ECHOC			{ kbd(0xee); kbget(); }
@@ -157,6 +171,7 @@ help(int topic) {
 	"decimal numbers. Valid statements include:\n"
 	"help [expr];		give help [to expression syntax]\n"
 	"status ?		interpret kbd ctrl status byte\n"
+	"what ?			check for MCA type 1 or 2 motherboard controller\n"
 	"data ?			get one byte of data\n"
 	"led = NUM		set kbd LEDs\n"
 	"echo = NUM		echo byte to kbd\n"
@@ -206,6 +221,25 @@ status(void) {
 	else       printf("| ctrl read empty\n");
 }
 
+/* see: Frank van Gilluwe, "The Undocumented PC", Addison Wesley 1994, pp 273 */
+
+static void
+whatMCA(void) {
+	int new, sav;
+	kbc(0x20);		/* get command byte */
+	sav = kbget();		/* sav = command byte */
+	kbc(0x60);		/* set command byte */
+	kbd(sav | 0x40);	/* set keyboard xlate bit */
+	kbc(0x20);		/* get keyboard command */
+	new = kbget();		/* new = command byte */
+	kbc(0x60);		/* set command byte */
+	kbd(sav);		/* restore command byte */
+	if(new & 0xbf)
+		printf("Hmm - looks like MCA type 1 motherboard controller\n");
+	else
+		printf("Hmm - looks like MCA type 2 motherboard controller\n");
+}
+
 static void
 kbd(int d) {
 	int i = 100000;
@@ -229,6 +263,7 @@ kbget(void) {
 		i = 10000;
 		while(i && (inb(0x64) & 1) == 0) i--;
 		if(i == 0) { printf("data read: timed out\n"); return -1; }
+		KBD_DELAY
 		c = (unsigned char)inb(0x60);
 		switch(c) {
 			case 0: case 0xff:

@@ -1,8 +1,61 @@
-ChangeLog                             last edit-date: [Sat Feb 25 18:18:52 1995]
+ChangeLog                             last edit-date: [Thu Mar 30 19:57:09 1995]
 ================================================================================
 
-Changes 3.10 -> 3.20                                               February 1995
+Changes 3.10 -> 3.20                                                  March 1995
 --------------------------------------------------------------------------------
+
+- removed some files for 386BSD as there is virtually noone outside
+	using it anymore
+
+- make pcvt_ioctl.h accept "KERNEL" or "_KERNEL" for NetBSD-current
+
+- configuration fix: patch from Rafal Boni for pcvt_vtf.c, he writes:
+	This patch lets one compile pcvt on a system that is lacking XSERVER
+	and UCONSOLE [or either?] in the config file.  I found this while 
+	trying to build a minimal floppy-based test kernel. The problem is
+	that roll_up and roll_down assume that PCVT_USL_COMPAT is 
+	unconditionally set, and hence muck with parts of the video structure
+	that are only there if PCVT_USL_COMPAT is set.
+	(generalized the patch a bit so that fastscroll functionality is
+	 not lost in case of PCVT_USL_COMPAT not being defined. -hm)
+
+- bugfix: pcvt_ext.c switch_screen() - when switching to a 25 line charset
+	pure VT emulation screen which has force 24 lines set, then we have
+	to clear the last line on screen (bugreport from Joerg).
+
+- added define PCVT_NONRESP_KEYB_TRY for how many times to try to detect
+	a non-connected keyboard. This was previously set to 100 and
+	Joerg reports a 5+ minutes delay for a 386 booting without keyboard.
+	Set to 25 now in the definition. Also made shure the messages in
+	the corresponding loop display only once. [doreset() in pcvt_kbd.c]
+
+- updated kbdio utility to include the 7 us delay and added a 'what' command
+	detect type of MCA motherboard keyboard controller according to
+	Frank van Gilluwe, "The Undocumented PC", Addison Wesley, pp 273
+
+- "Gateway 2000" problem: after some discussion on the NetBSD port-i386
+	mailing list about hanging keyboards, Martin Husemann sent in a
+	patch where each inb(CONTROLLER_DATA) is now preceeded by a
+	delay(6). This fixed his keyboard problem, the same was reported
+	from Roland McGrath for his Gateway 2000 keyboard/machine.
+
+- patch from John Kohl for usl_vt_ioctl() in file pcvt_ext.c, he writes:
+	This is probably a long standing bug.  tsleep() returns ERESTART
+	if it's	interrupted.  ERESTART is -1, which means that the
+	VT_WAITACTIVE call returns from usl_vt_ioctl() with -1, 
+	meaning "not one of my ioctl's".
+
+- patch from Matthieu Herrb for NetBSD-current (post 1.0) support
+
+- patch from Joerg for FreeBSD pre-2.1 support
+
+- added file ToDo in directory Doc
+
+- fix for Util/Makefile.inc.NetBSD-c from Onno
+
+- removing unnecessary Trident support code from pcvt_out.c
+
+- fix from Onno for IST_EDGE in NetBSD-current
 
 - patch from Thomas Eberhardt to fix the bell frequency and duration setting
 	for NetBSD

@@ -44,7 +44,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *
- * @(#)ioctl_pcvt.h, 3.20, Last Edit-Date: [Sun Feb 26 13:15:12 1995]
+ * @(#)ioctl_pcvt.h, 3.20, Last Edit-Date: [Thu Mar 30 10:38:23 1995]
  *
  */
 
@@ -56,6 +56,7 @@
  *	-hm	some new PCVT_xxx (and CONF_xxx) values
  *	-hm	version definitions moved to begin of file
  *	-hm	removed PCVT_FAKE_SYSCONS10
+ *	-hm	accept KERNEL or _KERNEL
  *
  *---------------------------------------------------------------------------*/
 
@@ -64,15 +65,15 @@
 
 /* pcvt version information for VGAPCVTID ioctl */
 
-#define PCVTIDNAME    "pcvt-b22"	/* driver id - string		*/
+#define PCVTIDNAME    "pcvt-b23"	/* driver id - string		*/
 #define PCVTIDMAJOR   3			/* driver id - major release	*/
 #define PCVTIDMINOR   20		/* driver id - minor release	*/
 
-#ifndef KERNEL
+#if defined(KERNEL) || defined(_KERNEL)
+#include "ioctl.h"
+#else
 #include <sys/ioctl.h>
 #include <sys/types.h>
-#else
-#include "ioctl.h"
 #endif
 
 /*---------------------------------------------------------------------------*

@@ -35,7 +35,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *
- * @(#)pcvt_out.c, 3.20, Last Edit-Date: [Sun Feb 26 13:39:16 1995]
+ * @(#)pcvt_out.c, 3.20, Last Edit-Date: [Sun Feb 26 16:43:58 1995]
  *
  */
 
@@ -1059,13 +1059,6 @@ vt_coldinit(void)
 			svsp->cursor_start = vs[0].cursor_start;
 			svsp->cursor_end = vs[0].cursor_end;
 		}
-
-#ifdef DOES_THE_ABOVE_CODE_HANDLE_TRIDENTS_CORRECTLY
-		if(vga_family == VGA_F_TRI)	/* handle brain-dead Trident */
-			svsp->cursor_start = 1; /* cursor upper scanline */
-		else
-			svsp->cursor_start = 0; /* cursor upper scanline */
-#endif
 
 #ifdef FAT_CURSOR
 		svsp->cursor_end = 15;		/* cursor lower scanline */
