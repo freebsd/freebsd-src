@@ -274,7 +274,7 @@ vfs_buildopts(struct uio *auio, struct vfsoptlist **options)
 		optlen = auio->uio_iov[i + 1].iov_len;
 		opt->name = malloc(namelen, M_MOUNT, M_WAITOK);
 		opt->value = NULL;
-		opt->len = optlen;
+		opt->len = 0;
 
 		/*
 		 * Do this early, so jumps to "bad" will free the current
@@ -308,6 +308,7 @@ vfs_buildopts(struct uio *auio, struct vfsoptlist **options)
 			goto bad;
 		}
 		if (optlen != 0) {
+			opt->len = optlen;
 			opt->value = malloc(optlen, M_MOUNT, M_WAITOK);
 			if (auio->uio_segflg == UIO_SYSSPACE) {
 				bcopy(auio->uio_iov[i + 1].iov_base, opt->value,
