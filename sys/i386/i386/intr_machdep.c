@@ -171,7 +171,10 @@ intr_execute_handlers(struct intsrc *isrc, struct intrframe *iframe)
 	atomic_add_int(&cnt.v_intr, 1);
 
 	it = isrc->is_ithread;
-	ih = TAILQ_FIRST(&it->it_handlers);
+	if (it == NULL)
+		ih = NULL;
+	else
+		ih = TAILQ_FIRST(&it->it_handlers);
 
 	/*
 	 * XXX: We assume that IRQ 0 is only used for the ISA timer
