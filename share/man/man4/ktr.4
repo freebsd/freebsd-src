@@ -81,21 +81,8 @@ By default the run time mask is set to log only
 events.
 The definitions of the event mask bits can be found in
 .Aq Pa sys/ktr.h .
-.Ss Extensions
-The kernel can be configured to compile with several extensions to the base
-functionality via the
-.Dv KTR_EXTEND
-option.
-These extensions can be checked for via the
-.Va debug.ktr.extend
-read-only sysctl.
-It will be set to zero if the extensions are not compiled in and non-zero
-if they are compiled in.
-If the extensions are compiled in, then each event entry includes the filename
-and line number that the event was logged from as well as the CPU on which
-the current thread was executing when the event was logged.
 .Pp
-One extension is a CPU event mask whose default value can be changed via
+Furthermore, there is a CPU event mask whose default value can be changed via
 the
 .Dv KTR_CPUMASK
 option.
@@ -110,19 +97,7 @@ It can also be examined and set after booting via the
 .Va debug.ktr.cpumask
 sysctl.
 By default events on all CPUs are enabled.
-.Pp
-The log messages go through more processing at log time when the extensions
-are enabled as well.
-In the basic mode, the format string and arguments are stored directly in
-the event entry.
-In the extended mode,
-.Xr snprintf 9
-is invoked and the resulting string is stored directly in the event entry.
-This extra processing is more expensive in terms of execution but produces
-events that are arguably more readable and easier to parse for some utilities
-such as
-.Xr ddb 4 .
-.Pp
+.Ss Verbose mode
 By default, events are only logged to the internal buffer for examination
 later, but if the verbose flag is set then they are dumped to the kernel
 console as well.
