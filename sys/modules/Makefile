@@ -49,6 +49,7 @@ SUBDIR=	3dfx \
 	lge \
 	libmchain \
 	lnc \
+	lpt \
 	md \
 	mii \
 	mlx \
@@ -60,7 +61,11 @@ SUBDIR=	3dfx \
 	ntfs \
 	nullfs \
 	pcn \
+	plip \
 	portalfs \
+	ppbus \
+	ppi \
+	pps \
 	procfs \
 	${_random} \
 	rl \
