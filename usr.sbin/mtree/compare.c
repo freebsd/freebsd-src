@@ -88,6 +88,7 @@ compare(name, s, p)
 	u_long len, val;
 	int fd, label;
 	char *cp, *tab = "";
+	char *fflags;
 
 	label = 0;
 	switch(s->type) {
@@ -224,10 +225,14 @@ typeerr:		LABEL;
 	 */
 	if ((s->flags & F_FLAGS) && s->st_flags != p->fts_statp->st_flags) {
 		LABEL;
-		(void)printf("%sflags (\"%s\" is not ", tab,
-		    getflags(s->st_flags, "none"));
-		(void)printf("\"%s\"",
-		    getflags(p->fts_statp->st_flags, "none"));
+		fflags = flags_to_string(s->st_flags);
+		(void)printf("%sflags (\"%s\" is not ", tab, fflags);
+		free(fflags);
+
+		fflags = flags_to_string(p->fts_statp->st_flags);
+		(void)printf("\"%s\"", fflags);
+		free(fflags);
+
 		if (uflag)
 			if (chflags(p->fts_accpath, s->st_flags))
 				(void)printf(", not modified: %s)\n",
