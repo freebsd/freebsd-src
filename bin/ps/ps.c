@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ps.c,v 1.6 1995/03/19 13:29:06 joerg Exp $
+ *	$Id: ps.c,v 1.7 1995/05/30 00:07:05 rgrimes Exp $
  */
 
 #ifndef lint
@@ -63,6 +63,7 @@ static char sccsid[] = "@(#)ps.c	8.4 (Berkeley) 4/2/94";
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <locale.h>
 
 #include "ps.h"
 
@@ -116,6 +117,7 @@ main(argc, argv)
 	int prtheader, wflag, what, xflg;
 	char *nlistf, *memf, *swapf, errbuf[256];
 
+	(void) setlocale(LC_CTYPE|LC_TIME, "");
 	if ((ioctl(STDOUT_FILENO, TIOCGWINSZ, (char *)&ws) == -1 &&
 	     ioctl(STDERR_FILENO, TIOCGWINSZ, (char *)&ws) == -1 &&
 	     ioctl(STDIN_FILENO,  TIOCGWINSZ, (char *)&ws) == -1) ||
