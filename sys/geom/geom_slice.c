@@ -191,6 +191,10 @@ g_slice_start(struct bio *bp)
 		}
 #endif
 		bp2 = g_clone_bio(bp);
+		if (bp2 == NULL) {
+			g_io_fail(bp, ENOMEM);
+			return;
+		}
 		bp2->bio_done = g_std_done;
 		g_io_request(bp2, cp);
 		break;
