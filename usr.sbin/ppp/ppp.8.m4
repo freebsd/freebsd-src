@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.120 1998/08/25 17:48:55 brian Exp $
+.\" $Id: ppp.8,v 1.121 1998/08/29 23:02:42 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -2275,12 +2275,8 @@ of the currently existing line modes.
 This command allows the control of the aliasing (or masquerading)
 facilities that are built into
 .Nm ppp .
-Until this code is required, it is not loaded by
-.Nm ppp ,
-and it is quite possible that the alias library is not installed
-on your system (some administrators consider it a security risk).
-If aliasing is enabled on your system, the following commands are
-possible:
+If aliasing is enabled on your system (it may be omitted at compile time),
+the following commands are possible:
 .Bl -tag -width 20
 .It alias enable [yes|no]
 This command either switches aliasing on or turns it off.
