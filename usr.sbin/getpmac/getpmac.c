@@ -57,10 +57,10 @@ usage(void)
 int
 main(int argc, char *argv[])
 {
-	char ch, *labellist, *string;
+	char *labellist, *string;
 	mac_t label;
 	pid_t pid;
-	int error, pid_set;
+	int ch, error, pid_set;
 
 	pid_set = 0;
 	pid = 0;

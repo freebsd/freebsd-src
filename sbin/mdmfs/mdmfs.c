@@ -91,7 +91,8 @@ main(int argc, char **argv)
 	bool have_mdtype;
 	bool detach, softdep, autounit;
 	char *mtpoint, *unitstr;
-	char ch, *p;
+	char *p;
+	int ch;
 	void *set;
 
 	/* Misc. initialization. */

@@ -93,7 +93,7 @@ main(int argc, char *argv[])
 	int l = 0, r = 0, t = 0;
 	char lstr[5], rstr[5];
 	int n = 0, lrel = 0, rrel = 0;
-	char ch;
+	int ch;
 
 	char *name;
 

@@ -107,8 +107,8 @@ main(int argc, char **argv)
 	int i, quotatype, range, tmpfd;
 	uid_t startuid, enduid;
 	u_int32_t *limp;
-	char *protoname, *cp, *oldoptarg, ch;
-	int eflag = 0, tflag = 0, pflag = 0;
+	char *protoname, *cp, *oldoptarg;
+	int eflag = 0, tflag = 0, pflag = 0, ch;
 	char *fspath = NULL;
 	char buf[30];
 
