@@ -5,62 +5,17 @@
      in sync with the list of FreeBSD Developers -->
 
 
-<chapt><heading>FreeBSD contributor list<label id="contrib"></heading>
+<chapt><heading>FreeBSD Project Staff<label id="staff"></heading>
 
-  <sect><heading>Derived software contributors</heading>
-
-    <p>This software was originally derived from William
-      F. Jolitz's 386BSD release 0.1, though almost none of the
-      original 386BSD specific code remains.  This software has
-      been essentially re-implemented from the 4.4BSD-Lite
-      release provided by the Computer Science Research Group
-      (CSRG) at the University of California, Berkeley and
-      associated academic contributors.
-
-      There are also portions of NetBSD that have been integrated
-      into FreeBSD as well, and we would therefore like to thank
-      all the contributors to NetBSD for their work.  Despite
-      some occasionally rocky moments in relations between the
-      two groups, we both want essentially the same thing: More
-      BSD based operating systems on people's computers!  We wish
-      the NetBSD group every success in their endeavors.
-
-  <sect><heading>Hardware contributors</heading>
-
-    <p>A special thank-you to Walnut Creek CDROM for providing
-      the Pentium P5-90 and 486/DX2-66 EISA/VL systems that are
-      being used for our development work, to say nothing of the
-      network access and other donations of hardware resources.
-      It would have been impossible to do this release without
-      their support.
-
-      TRW Financial Systems, Inc. provided 130 PCs, three 68 GB
-      fileservers, twelve Ethernets, two routers and an ATM
-      switch for debugging the diskless code.  They also keep a
-      couple of FreeBSD hackers alive and busy.  Thanks!
-
-      Thanks also to Dermot McDonnell for his donation of a
-      Toshiba XM3401B CDROM drive.  It has been most useful!
-
-      Thanks to &a.chuck; who
-      contributed his floppy tape streamer for experimental
-      work.
-
-      Thanks to Larry Altneu &lt;larry@ALR.COM&gt;, and to &a.wilko;,
-      for providing us with a Wangtek and
-      an Archive QIC-02 tape drive, in order to give us the hardware
-      to improve the <tt>wt</tt> driver.
-
-      Thanks go to Ernst Winter &lt;ewinter@lobo.muc.de&gt;, for
-      contributing a 2.88 MB floppy drive to the project.  Hopefully,
-      this will increase the pressure for rewriting the floppy disk
-      driver. ;-)
-
-      Also see <ref id="donors" name="the donor's gallery"> for
-      a list of people who have donated funding or services to the FreeBSD
-      Project.
+<p>The FreeBSD Project is managed and operated by the following
+groups of people:
 
   <sect><heading>The FreeBSD core team<label id="contrib:core"></heading>
+
+  <p>The FreeBSD core team constitutes the project's ``Board of Directors'',
+  responsible for deciding the project's overall goals and direction
+  as well as managing <ref id="contrib:who" name="specific areas"> of
+  the FreeBSD project landscape.
 
     <p>(in alphabetical order by last name):
 
@@ -85,8 +40,9 @@
 
   <sect><heading>The FreeBSD Developers<label id="contrib:committers"></heading>
 
-    <p>These are the people who have commit privileges and do the work on
-       the FreeBSD source tree.  All core team members are also developers.
+    <p>These are the people who have commit privileges and do the engineering
+       work on the FreeBSD source tree.  All core team members and most
+       FreeBSD Documentation project personnel are also developers.
 
       <itemize>
 	<item>&a.mbarkah;
@@ -149,28 +105,12 @@
         <item>&a.jmz; 
       </itemize>
 
-  <sect><heading>Who is responsible for what<label id="contrib:who"></heading>
- 
-    <p><descrip>
-        <tag/President/ &a.jkh 
-        <tag/Principal Architect/ &a.davidg 
-        <tag/Documentation Project Manager/ &a.jfieber
-        <tag/Internationalization/ &a.ache 
-        <tag/Networking/ &a.wollman 
-        <tag/Postmaster/ &a.jmb; 
-        <tag/Release Coordinator/ &a.jkh 
-	<tag/Security Officers/ &a.pst; and &a.guido
-        <tag/Source Repository Manager/ &a.peter 
-        <tag/Ports Manager/ &a.asami 
-        <tag/XFree86 Project, Inc. Liason/ &a.rich 
-      </descrip>
+  <sect><heading>The FreeBSD Documentation Project<label id="contrib:doc">
+  </heading>
 
-    <sect><heading>The FreeBSD Documentation Project<label
-	id="contrib:doc"></heading>
-
-    <p>The FreeBSD Documentation project is responsible for a number of
-       different services, each of which is run by one or more of
-       the following individuals:
+    <p>The <url url="../docproj.html" name="FreeBSD Documentation
+       Project"> is responsible for a number of different services, each
+       service being run by an individual and his <em>deputies</em> (if any):
 
       <p><descrip>
         <tag/Documentation Project Manager/ &a.jfieber
@@ -186,6 +126,77 @@
         <tag/Bottle Washing/ &a.nsj
       </descrip>
 
+  <sect><heading>Who is responsible for what<label id="contrib:who"></heading>
+ 
+    <p><descrip>
+        <tag/President/ &a.jkh 
+        <tag/Principal Architect/ &a.davidg 
+        <tag/Documentation Project Manager/ &a.jfieber
+        <tag/Internationalization/ &a.ache 
+        <tag/Networking/ &a.wollman 
+        <tag/Postmaster/ &a.jmb; 
+        <tag/Release Coordinator/ &a.jkh 
+	<tag/Security Officers/ &a.pst; and &a.guido
+        <tag/Source Repository Manager/ &a.peter 
+        <tag/Ports Manager/ &a.asami 
+        <tag/XFree86 Project, Inc. Liaison/ &a.rich 
+      </descrip>
+
+
+<chapt><heading>FreeBSD contributor list<label id="contrib"></heading>
+
+  <sect><heading>Derived software contributors</heading>
+
+    <p>This software was originally derived from William
+      F. Jolitz's 386BSD release 0.1, though almost none of the
+      original 386BSD specific code remains.  This software has
+      been essentially re-implemented from the 4.4BSD-Lite
+      release provided by the Computer Science Research Group
+      (CSRG) at the University of California, Berkeley and
+      associated academic contributors.
+
+      There are also portions of NetBSD that have been integrated
+      into FreeBSD as well, and we would therefore like to thank
+      all the contributors to NetBSD for their work.  Despite
+      some occasionally rocky moments in relations between the
+      two groups, we both want essentially the same thing: More
+      BSD based operating systems on people's computers!  We wish
+      the NetBSD group every success in their endeavors.
+
+  <sect><heading>Hardware contributors</heading>
+
+    <p>A special thank-you to Walnut Creek CDROM for providing
+      the Pentium P5-90 and 486/DX2-66 EISA/VL systems that are
+      being used for our development work, to say nothing of the
+      network access and other donations of hardware resources.
+      It would have been impossible to do this release without
+      their support.
+
+      TRW Financial Systems, Inc. provided 130 PCs, three 68 GB
+      fileservers, twelve Ethernets, two routers and an ATM
+      switch for debugging the diskless code.  They also keep a
+      couple of FreeBSD hackers alive and busy.  Thanks!
+
+      Thanks also to Dermot McDonnell for his donation of a
+      Toshiba XM3401B CDROM drive.  It has been most useful!
+
+      Thanks to &a.chuck; who
+      contributed his floppy tape streamer for experimental
+      work.
+
+      Thanks to Larry Altneu &lt;larry@ALR.COM&gt;, and to &a.wilko;,
+      for providing us with a Wangtek and
+      an Archive QIC-02 tape drive, in order to give us the hardware
+      to improve the <tt>wt</tt> driver.
+
+      Thanks go to Ernst Winter &lt;ewinter@lobo.muc.de&gt;, for
+      contributing a 2.88 MB floppy drive to the project.  Hopefully,
+      this will increase the pressure for rewriting the floppy disk
+      driver. ;-)
+
+      Also see <ref id="donors" name="the donor's gallery"> for
+      a list of people who have donated funding or services to the FreeBSD
+      Project.
 
     <sect><heading>Additional FreeBSD contributors<label
 	id="contrib:additional"></heading>
