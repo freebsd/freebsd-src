@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <vis.h>
@@ -49,7 +50,7 @@ __FBSDID("$FreeBSD$");
 #define	CHARSPERLINE	60
 #define	BYTESPERLINE	(CHARSPERLINE / 3)
 
-/* Maximum supported property size. */
+/* Default space reserved for properties. */
 #define	PROPBUFLEN	8192
 
 #define	OFW_IOCTL(fd, cmd, val)	do {					\
@@ -146,6 +147,16 @@ ofw_nextprop(int fd, phandle_t node, char *prev, char *buf, int buflen)
 	return (d.of_buflen);
 }
 
+static void *
+ofw_malloc(int size)
+{
+	void *p;
+
+	if ((p = malloc(size)) == NULL)
+		err(1, "malloc() failed");
+	return (p);
+}
+
 int
 ofw_getprop(int fd, phandle_t node, const char *name, void *buf, int buflen)
 {
@@ -157,6 +168,47 @@ ofw_getprop(int fd, phandle_t node, const char *name, void *buf, int buflen)
 	d.of_buflen = buflen;
 	d.of_buf = buf;
 	OFW_IOCTL(fd, OFIOCGET, &d);
+	return (d.of_buflen);
+}
+
+int
+ofw_getproplen(int fd, phandle_t node, const char *name)
+{
+	struct ofiocdesc d;
+
+	d.of_nodeid = node;
+	d.of_namelen = strlen(name);
+	d.of_name = name;
+	OFW_IOCTL(fd, OFIOCGETPROPLEN, &d);
+	return (d.of_buflen);
+}
+
+int
+ofw_getprop_alloc(int fd, phandle_t node, const char *name, void **buf,
+    int *buflen, int reserve)
+{
+	struct ofiocdesc d;
+	int len, rv;
+
+	do {
+		len = ofw_getproplen(fd, node, name);
+		if (len < 0)
+			return (len);
+		if (*buflen < len + reserve) {
+			if (*buf != NULL)
+				free(*buf);
+			*buflen = len + reserve + PROPBUFLEN;
+			*buf = ofw_malloc(*buflen);
+		}
+		d.of_nodeid = node;
+		d.of_namelen = strlen(name);
+		d.of_name = name;
+		d.of_buflen = *buflen - reserve;
+		d.of_buf = *buf;
+		rv = ioctl(fd, OFIOCGET, &d);
+	} while (rv == -1 && errno == ENOMEM);
+	if (rv == -1)
+		err(1, "ioctl(..., OFIOCGET, ...) failed");
 	return (d.of_buflen);
 }
 
@@ -173,9 +225,10 @@ static void
 ofw_dump_properties(int fd, phandle_t n, int level, char *pmatch, int raw,
     int str)
 {
-	static char pbuf[PROPBUFLEN];
-	static char visbuf[PROPBUFLEN * 4 + 1];
+	static char *pbuf;
+	static char *visbuf;
 	static char printbuf[CHARSPERLINE + 1];
+	static int pblen, vblen;
 	char prop[32];
 	int nlen, len, i, j, max, vlen;
 	unsigned int b;
@@ -184,7 +237,9 @@ ofw_dump_properties(int fd, phandle_t n, int level, char *pmatch, int raw,
 	     nlen = ofw_nextprop(fd, n, prop, prop, sizeof(prop))) {
 		if (pmatch != NULL && strcmp(pmatch, prop) != 0)
 			continue;
-		len = ofw_getprop(fd, n, prop, pbuf, sizeof(pbuf) - 1);
+		len = ofw_getprop_alloc(fd, n, prop, (void **)&pbuf, &pblen, 1);
+		if (len < 0)
+			continue;
 		if (raw)
 			write(STDOUT_FILENO, pbuf, len);
 		else if (str) {
@@ -210,6 +265,12 @@ ofw_dump_properties(int fd, phandle_t n, int level, char *pmatch, int raw,
 			 */
 			if (pbuf[len - 1] == '\0' &&
 			    strlen(pbuf) == (unsigned)len - 1) {
+				if (vblen < (len - 1) * 4 + 1) {
+					if (visbuf != NULL)
+						free(visbuf);
+					vblen = (PROPBUFLEN + len) * 4 + 1;
+					visbuf = ofw_malloc(vblen);
+				}
 				vlen = strvis(visbuf, pbuf, VIS_TAB | VIS_NL);
 				for (i = 0; i < vlen; i += CHARSPERLINE) {
 					ofw_indent(level * LVLINDENT +
@@ -227,15 +288,20 @@ static void
 ofw_dump_node(int fd, phandle_t n, int level, int rec, int prop, char *pmatch,
     int raw, int str)
 {
-	static char nbuf[PROPBUFLEN];
+	static char *nbuf;
+	static int nblen = 0;
+	int plen;
 	phandle_t c;
 
 	if (!(raw || str)) {
 		ofw_indent(level * LVLINDENT);
 		printf("Node %#lx", (unsigned long)n);
-		if (ofw_getprop(fd, n, "name", nbuf, sizeof(nbuf) - 1) > 0)
+		plen = ofw_getprop_alloc(fd, n, "name", (void **)&nbuf,
+		    &nblen, 1);
+		if (plen > 0) {
+			nbuf[plen] = '\0';
 			printf(": %s\n", nbuf);
-		else
+		} else
 			putchar('\n');
 	}
 	if (prop)
