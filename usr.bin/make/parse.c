@@ -34,12 +34,14 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id: parse.c,v 1.14 1996/10/08 04:06:05 steve Exp $
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)parse.c	8.3 (Berkeley) 3/19/94";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 /*-
@@ -89,9 +91,9 @@ static char sccsid[] = "@(#)parse.c	8.3 (Berkeley) 3/19/94";
 #else
 #include <varargs.h>
 #endif
-#include <stdio.h>
 #include <ctype.h>
-#include <errno.h>
+#include <err.h>
+#include <stdio.h>
 #include "make.h"
 #include "hash.h"
 #include "dir.h"
@@ -2522,10 +2524,8 @@ Parse_File(name, stream)
      */
     Cond_End();
 
-    if (fatals) {
-	fprintf (stderr, "Fatal errors encountered -- cannot continue\n");
-	exit (1);
-    }
+    if (fatals)
+	errx(1, "fatal errors encountered -- cannot continue");
 }
 
 /*-
