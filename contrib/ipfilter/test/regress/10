@@ -1,0 +1,18 @@
+block in from any to any and not ipopts
+pass in from any to any and not opt sec-class topsecret
+block in from any to any and not opt ssrr,sec-class topsecret
+pass in from any to any and not opt ssrr,sec-class topsecret
+block in from any to any and not opt ts,sec-class topsecret
+pass in from any to any and not opt ts,sec-class topsecret
+block in from any to any and not opt sec-class secret
+pass in from any to any and not opt sec-class secret
+block in from any to any and not opt lsrr,ssrr
+pass in from any to any and not opt lsrr,ssrr
+pass in from any to any and not ipopts
+block in from any to any and not opt lsrr
+pass in from any to any and not opt lsrr
+block in from any to any and not opt ssrr,ts
+pass in from any to any and not opt ssrr,ts
+block in from any to any and not opt rr
+pass in from any to any and not opt rr
+block in from any to any and not opt sec-class topsecret
