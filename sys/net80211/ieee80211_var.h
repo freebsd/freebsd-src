@@ -171,6 +171,8 @@ struct ieee80211com {
 	void			(*ic_node_copy)(struct ieee80211com *,
 					struct ieee80211_node *,
 					const struct ieee80211_node *);
+	u_int8_t		(*ic_node_getrssi)(struct ieee80211com *,
+					struct ieee80211_node *);
 	TAILQ_HEAD(, ieee80211_node) ic_node;	/* information of all nodes */
 	LIST_HEAD(, ieee80211_node) ic_hash[IEEE80211_NODE_HASHSIZE];
 	u_int16_t		ic_lintval;	/* listen interval */
