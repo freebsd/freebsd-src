@@ -32,6 +32,7 @@
 #include "opt_ata.h"
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/ata.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/bio.h>
@@ -81,6 +82,10 @@ static int ad_version(u_int16_t);
 /* internal vars */
 static u_int32_t adp_lun_map = 0;
 static MALLOC_DEFINE(M_AD, "AD driver", "ATA disk driver");
+static int ata_dma, ata_wc, ata_tags; 
+TUNABLE_INT_DECL("hw.ata.ata_dma", 1, ata_dma);
+TUNABLE_INT_DECL("hw.ata.wc", 0, ata_wc);
+TUNABLE_INT_DECL("hw.ata.tags", 0, ata_tags);
 
 /* defines */
 #define	AD_MAX_RETRIES	3
@@ -95,6 +100,7 @@ ad_attach(struct ata_softc *scp, int device)
     struct ad_softc *adp;
     dev_t dev;
     int secsperint;
+    char name[16];
 
     if (!(adp = malloc(sizeof(struct ad_softc), M_AD, M_NOWAIT | M_ZERO))) {
 	ata_printf(scp, device, "failed to allocate driver storage\n");
@@ -107,6 +113,8 @@ ad_attach(struct ata_softc *scp, int device)
 #else
     adp->lun = ata_get_lun(&adp_lun_map);
 #endif
+    sprintf(name, "ad%d", adp->lun);
+    ata_set_name(scp, device, name);
     adp->heads = AD_PARAM->heads;
     adp->sectors = AD_PARAM->sectors;
     adp->total_secs = AD_PARAM->cylinders * adp->heads * adp->sectors;	
@@ -127,35 +135,41 @@ ad_attach(struct ata_softc *scp, int device)
         adp->transfersize *= secsperint;
     }
 
-    /* enable read/write cacheing if not default on device */
+    /* enable read cacheing if not default on device */
     if (ata_command(adp->controller, adp->unit, ATA_C_SETFEATURES,
 		    0, 0, 0, 0, ATA_C_F_ENAB_RCACHE, ATA_WAIT_INTR))
-	printf("ad%d: enabling readahead cache failed\n", adp->lun);
+	ata_printf(scp, device, "enabling readahead cache failed\n");
 
-#if defined(ATA_ENABLE_WC) || defined(ATA_ENABLE_TAGS)
-    if (ata_command(adp->controller, adp->unit, ATA_C_SETFEATURES,
-		    0, 0, 0, 0, ATA_C_F_ENAB_WCACHE, ATA_WAIT_INTR))
-	printf("ad%d: enabling write cache failed\n", adp->lun);
-#else
-    if (ata_command(adp->controller, adp->unit, ATA_C_SETFEATURES,
-		    0, 0, 0, 0, ATA_C_F_DIS_WCACHE, ATA_WAIT_INTR))
-	printf("ad%d: disabling write cache failed\n", adp->lun);
-#endif
-    /* use DMA if drive & controller supports it */
-    ata_dmainit(adp->controller, adp->unit,
-    		ata_pmode(AD_PARAM), ata_wmode(AD_PARAM), ata_umode(AD_PARAM));
+    /* enable write cacheing if allowed and not default on device */
+    if (ata_wc || ata_tags) {
+	if (ata_command(adp->controller, adp->unit, ATA_C_SETFEATURES,
+			0, 0, 0, 0, ATA_C_F_ENAB_WCACHE, ATA_WAIT_INTR))
+	    ata_printf(scp, device, "enabling write cache failed\n");
+    }
+    else {
+	if (ata_command(adp->controller, adp->unit, ATA_C_SETFEATURES,
+			0, 0, 0, 0, ATA_C_F_DIS_WCACHE, ATA_WAIT_INTR))
+	    ata_printf(scp, device, "disabling write cache failed\n");
+    }
 
-    /* use tagged queueing if supported */
-    if (ad_tagsupported(adp)) {
+    /* use DMA if allowed and if drive/controller supports it */
+    if (ata_dma)
+	ata_dmainit(adp->controller, adp->unit, ata_pmode(AD_PARAM), 
+		    ata_wmode(AD_PARAM), ata_umode(AD_PARAM));
+    else
+	ata_dmainit(adp->controller, adp->unit, ata_pmode(AD_PARAM), -1, -1);
+
+    /* use tagged queueing if allowed and supported */
+    if (ata_tags && ad_tagsupported(adp)) {
 	adp->num_tags = AD_PARAM->queuelen;
 	adp->flags |= AD_F_TAG_ENABLED;
 	adp->controller->flags |= ATA_QUEUED;
 	if (ata_command(adp->controller, adp->unit, ATA_C_SETFEATURES,
 			0, 0, 0, 0, ATA_C_F_DIS_RELIRQ, ATA_WAIT_INTR))
-	    printf("ad%d: disabling release interrupt failed\n", adp->lun);
+	    ata_printf(scp, device, "disabling release interrupt failed\n");
 	if (ata_command(adp->controller, adp->unit, ATA_C_SETFEATURES,
 			0, 0, 0, 0, ATA_C_F_DIS_SRVIRQ, ATA_WAIT_INTR))
-	    printf("ad%d: disabling service interrupt failed\n", adp->lun);
+	    ata_printf(scp, device, "disabling service interrupt failed\n");
     }
 
     devstat_add_entry(&adp->stats, "ad", adp->lun, DEV_BSIZE,
@@ -170,32 +184,31 @@ ad_attach(struct ata_softc *scp, int device)
     bioq_init(&adp->queue);
 
     if (bootverbose) {
-	printf("ad%d: <%.40s/%.8s> ATA-%d disk at ata%d-%s\n", 
-	       adp->lun, AD_PARAM->model, AD_PARAM->revision,
-	       ad_version(AD_PARAM->versmajor), device_get_unit(scp->dev),
-	       (adp->unit == ATA_MASTER) ? "master" : "slave");
+	ata_printf(scp, device, "<%.40s/%.8s> ATA-%d disk at ata%d-%s\n", 
+		   AD_PARAM->model, AD_PARAM->revision,
+		   ad_version(AD_PARAM->versmajor), device_get_unit(scp->dev),
+		   (adp->unit == ATA_MASTER) ? "master" : "slave");
 
-	 printf("ad%d: %luMB (%u sectors), %u cyls, %u heads, %u S/T, %u B/S\n",
-	       adp->lun, adp->total_secs / ((1024L * 1024L)/DEV_BSIZE),
-	       adp->total_secs, 
-	       adp->total_secs / (adp->heads * adp->sectors),
-	       adp->heads, adp->sectors, DEV_BSIZE);
+	ata_printf(scp, device, "%luMB (%u sectors), %u C, %u H, %u S, %u B\n",
+		   adp->total_secs / ((1024L*1024L)/DEV_BSIZE), adp->total_secs,
+		   adp->total_secs / (adp->heads * adp->sectors),
+		   adp->heads, adp->sectors, DEV_BSIZE);
 
-	printf("ad%d: %d secs/int, %d depth queue, %s%s\n", 
-	       adp->lun, adp->transfersize / DEV_BSIZE, adp->num_tags + 1,
-	       (adp->flags & AD_F_TAG_ENABLED) ? "tagged " : "",
-	       ata_mode2str(adp->controller->mode[ATA_DEV(adp->unit)]));
+	ata_printf(scp, device, "%d secs/int, %d depth queue, %s%s\n", 
+		   adp->transfersize / DEV_BSIZE, adp->num_tags + 1,
+		   (adp->flags & AD_F_TAG_ENABLED) ? "tagged " : "",
+		   ata_mode2str(adp->controller->mode[ATA_DEV(adp->unit)]));
 
-	printf("ad%d: piomode=%d dmamode=%d udmamode=%d cblid=%d\n",
-	       adp->lun, ata_pmode(AD_PARAM), ata_wmode(AD_PARAM), 
-	       ata_umode(AD_PARAM), AD_PARAM->cblid);
+	ata_printf(scp, device, "piomode=%d dmamode=%d udmamode=%d cblid=%d\n",
+		   ata_pmode(AD_PARAM), ata_wmode(AD_PARAM), 
+		   ata_umode(AD_PARAM), AD_PARAM->cblid);
 
     }
 
     /* if this disk belongs to an ATA RAID dont print the probe */
     if (ar_probe(adp))
-	printf("ad%d: %luMB <%.40s> [%d/%d/%d] at ata%d-%s %s%s\n",
-	       adp->lun, adp->total_secs / ((1024L * 1024L) / DEV_BSIZE),
+	ata_printf(scp, device, "%luMB <%.40s> [%d/%d/%d] at ata%d-%s %s%s\n",
+	       adp->total_secs / ((1024L * 1024L) / DEV_BSIZE),
 	       AD_PARAM->model, adp->total_secs / (adp->heads * adp->sectors),
 	       adp->heads, adp->sectors, device_get_unit(scp->dev),
 	       (adp->unit == ATA_MASTER) ? "master" : "slave",
@@ -213,7 +226,7 @@ ad_detach(struct ad_softc *adp, int flush)
     struct bio *bp;
 
     adp->flags |= AD_F_DETACHING;
-    printf("\nad%d: being removed from configuration", adp->lun);
+    ata_printf(adp->controller, adp->unit, "removed from configuration\n");
     TAILQ_FOREACH(request, &adp->controller->ata_queue, chain) {
 	if (request->device != adp)
 	    continue;
@@ -234,7 +247,8 @@ ad_detach(struct ad_softc *adp, int flush)
     if (flush) {
 	if (ata_command(adp->controller, adp->unit, ATA_C_FLUSHCACHE,
 			0, 0, 0, 0, 0, ATA_WAIT_INTR))
-	    printf("ad%d: flushing cache on detach failed\n", adp->lun);
+    	    ata_printf(adp->controller, adp->unit,
+		       "flushing cache on detach failed\n");
     }
     ata_free_lun(&adp_lun_map, adp->lun);
     adp->controller->dev_softc[ATA_DEV(adp->unit)] = NULL;
@@ -354,8 +368,8 @@ addump(dev_t dev)
     }
 
     if (ata_wait(adp->controller, adp->unit, ATA_S_READY | ATA_S_DSC) < 0)
-	printf("ad%d: timeout waiting for final ready\n", adp->lun);
-
+	ata_printf(adp->controller, adp->unit,
+		   "timeout waiting for final ready\n");
     return 0;
 }
 
@@ -388,7 +402,7 @@ ad_start(struct ad_softc *adp)
     }
 
     if (!(request = malloc(sizeof(struct ad_request), M_AD, M_NOWAIT|M_ZERO))) {
-	printf("ad%d: out of memory in start\n", adp->lun);
+	ata_printf(adp->controller, adp->unit, "out of memory in start\n");
 	return;
     }
 
@@ -442,8 +456,8 @@ ad_transfer(struct ad_request *request)
 	count = howmany(request->bytecount, DEV_BSIZE);
 	if (count > 256) {
 	    count = 256;
-	    printf("ad%d: count %d size transfers not supported\n",
-		   adp->lun, count);
+	    ata_printf(adp->controller, adp->unit,
+		       "count %d size transfers not supported\n", count);
 	}
 
 	if (adp->flags & AD_F_LBA_ENABLED) {
@@ -479,11 +493,13 @@ ad_transfer(struct ad_request *request)
 		if (ata_command(adp->controller, adp->unit, cmd, 
 		    		cylinder, head, sector, request->tag << 3,
 				count, ATA_IMMEDIATE)) {
-		    printf("ad%d: error executing command", adp->lun);
+		    ata_printf(adp->controller, adp->unit,
+			       "error executing command");
 		    goto transfer_failed;
 		}
 		if (ata_wait(adp->controller, adp->unit, ATA_S_READY)) {
-		    printf("ad%d: timeout waiting for READY\n", adp->lun);
+		    ata_printf(adp->controller, adp->unit,
+			       "timeout waiting for READY\n");
 		    goto transfer_failed;
 		}
 		adp->outstanding++;
@@ -500,7 +516,8 @@ ad_transfer(struct ad_request *request)
 
 		if (ata_command(adp->controller, adp->unit, cmd, cylinder, 
 		    		head, sector, count, 0, ATA_IMMEDIATE)) {
-		    printf("ad%d: error executing command", adp->lun);
+		    ata_printf(adp->controller, adp->unit,
+			       "error executing command");
 		    goto transfer_failed;
 		}
 #if 0
@@ -514,7 +531,8 @@ ad_transfer(struct ad_request *request)
 		 */
 		if (ata_wait(adp->controller, adp->unit, 
 		    	     ATA_S_READY | ATA_S_DRQ)) {
-		    printf("ad%d: timeout waiting for data phase\n", adp->lun);
+		    ata_printf(adp->controller, adp->unit,
+			       "timeout waiting for data phase\n");
 		    goto transfer_failed;
 		}
 #endif
@@ -536,7 +554,7 @@ ad_transfer(struct ad_request *request)
 
 	if (ata_command(adp->controller, adp->unit, cmd, 
 			cylinder, head, sector, count, 0, ATA_IMMEDIATE)) {
-	    printf("ad%d: error executing command", adp->lun);
+	    ata_printf(adp->controller, adp->unit, "error executing command");
 	    goto transfer_failed;
 	}
     }
@@ -551,7 +569,7 @@ ad_transfer(struct ad_request *request)
     /* ready to write PIO data ? */
     if (ata_wait(adp->controller, adp->unit, 
 		 (ATA_S_READY | ATA_S_DSC | ATA_S_DRQ)) < 0) {
-	printf("ad%d: timeout waiting for DRQ", adp->lun);
+	ata_printf(adp->controller, adp->unit, "timeout waiting for DRQ");
 	goto transfer_failed;
     }
 
@@ -650,7 +668,8 @@ ad_interrupt(struct ad_request *request)
 
     /* if we arrived here with forced PIO mode, DMA doesn't work right */
     if (request->flags & ADR_F_FORCE_PIO)
-	printf("ad%d: DMA problem fallback to PIO mode\n", adp->lun);
+	ata_printf(adp->controller, adp->unit,
+		   "DMA problem fallback to PIO mode\n");
 
     /* if this was a PIO read operation, get the data */
     if (!(request->flags & ADR_F_DMA_USED) &&
@@ -659,11 +678,13 @@ ad_interrupt(struct ad_request *request)
 	/* ready to receive data? */
 	if ((adp->controller->status & (ATA_S_READY | ATA_S_DSC | ATA_S_DRQ))
 	    != (ATA_S_READY | ATA_S_DSC | ATA_S_DRQ))
-	    printf("ad%d: read interrupt arrived early", adp->lun);
+	    ata_printf(adp->controller, adp->unit,
+		       "read interrupt arrived early");
 
 	if (ata_wait(adp->controller, adp->unit, 
 		     (ATA_S_READY | ATA_S_DSC | ATA_S_DRQ)) != 0) {
-	    printf("ad%d: read error detected (too) late", adp->lun);
+	    ata_printf(adp->controller, adp->unit,
+		       "read error detected (too) late");
 	    request->flags |= ADR_F_ERROR;
 	}
 	else {
@@ -703,7 +724,7 @@ ad_interrupt(struct ad_request *request)
 	request->flags |= ADR_F_FLUSHCACHE;
 	if (ata_command(adp->controller, adp->unit, ATA_C_FLUSHCACHE,
 			0, 0, 0, 0, 0, ATA_IMMEDIATE))
-	    printf("ad%d: flushing cache failed\n", adp->lun);
+	    ata_printf(adp->controller, adp->unit, "flushing cache failed\n");
 	else
 	    return ATA_OP_CONTINUES;
     }
@@ -758,8 +779,9 @@ ad_service(struct ad_softc *adp, int change)
 
 	/* check for error */
 	if (adp->controller->status & ATA_S_ERROR) {
-	    printf("ad%d: Oops! controller says s=0x%02x e=0x%02x\n",
-	           adp->lun, adp->controller->status,  adp->controller->error);
+	    ata_printf(adp->controller, adp->unit,
+		       "Oops! controller says s=0x%02x e=0x%02x\n",
+		       adp->controller->status,  adp->controller->error);
 	    ad_invalidatequeue(adp, NULL);
 	    return ATA_OP_FINISHED;
 	}
@@ -767,22 +789,25 @@ ad_service(struct ad_softc *adp, int change)
 	/* issue SERVICE cmd */
 	if (ata_command(adp->controller, adp->unit, ATA_C_SERVICE, 
 	    		0, 0, 0, 0, 0, ATA_IMMEDIATE)) {
-	    printf("ad%d: problem executing SERVICE cmd\n", adp->lun);
+	    ata_printf(adp->controller, adp->unit,
+		       "problem executing SERVICE cmd\n");
 	    ad_invalidatequeue(adp, NULL);
 	    return ATA_OP_FINISHED;
 	}
 
 	/* setup the transfer environment when ready */
 	if (ata_wait(adp->controller, adp->unit, ATA_S_READY)) {
-	    printf("ad%d: problem issueing SERVICE tag=%d s=0x%02x e=0x%02x\n",
-	           adp->lun, ATA_INB(adp->controller->r_io, ATA_COUNT) >> 3,
-		   adp->controller->status, adp->controller->error);
+	    ata_printf(adp->controller, adp->unit,
+		       "problem issueing SERVICE tag=%d s=0x%02x e=0x%02x\n",
+		       ATA_INB(adp->controller->r_io, ATA_COUNT) >> 3,
+		       adp->controller->status, adp->controller->error);
 	    ad_invalidatequeue(adp, NULL);
 	    return ATA_OP_FINISHED;
 	}
 	tag = ATA_INB(adp->controller->r_io, ATA_COUNT) >> 3;
 	if (!(request = adp->tags[tag])) {
-	    printf("ad%d: no request for this tag=%d??\n", adp->lun, tag);	
+	    ata_printf(adp->controller, adp->unit,
+		       "no request for tag=%d\n", tag);	
 	    ad_invalidatequeue(adp, NULL);
 	    return ATA_OP_FINISHED;
 	}
@@ -792,8 +817,9 @@ ad_service(struct ad_softc *adp, int change)
 
 	/* start DMA transfer when ready */
 	if (ata_wait(adp->controller, adp->unit, ATA_S_READY | ATA_S_DRQ)) {
-	    printf("ad%d: timeout waiting for data phase s=%02x e=%02x\n",
-		   adp->lun, adp->controller->status, adp->controller->error);
+	    ata_printf(adp->controller, adp->unit,
+		       "timeout waiting for data phase s=%02x e=%02x\n",
+		       adp->controller->status, adp->controller->error);
 	    ad_invalidatequeue(adp, NULL);
 	    return ATA_OP_FINISHED;
 	}
@@ -825,7 +851,7 @@ ad_invalidatequeue(struct ad_softc *adp, struct ad_request *request)
 	struct ad_request *tmpreq;
 	int tag;
 
-        printf("ad%d: invalidating queued requests\n", adp->lun);
+        ata_printf(adp->controller, adp->unit,"invalidating queued requests\n");
 	for (tag = 0; tag <= adp->num_tags; tag++) {
 	    tmpreq = adp->tags[tag];
 	    adp->tags[tag] = NULL;
@@ -836,7 +862,7 @@ ad_invalidatequeue(struct ad_softc *adp, struct ad_request *request)
 	}
 	if (ata_command(adp->controller, adp->unit, ATA_C_NOP,
 			0, 0, 0, 0, ATA_C_F_FLUSHQUEUE, ATA_WAIT_READY))
-	    printf("ad%d: flushing queue failed\n", adp->lun);
+	    ata_printf(adp->controller, adp->unit, "flush queue failed\n");
 	adp->outstanding = 0;
     }
 }
@@ -844,7 +870,6 @@ ad_invalidatequeue(struct ad_softc *adp, struct ad_request *request)
 static int
 ad_tagsupported(struct ad_softc *adp)
 {
-#ifdef ATA_ENABLE_TAGS
     const char *drives[] = {"IBM-DPTA", "IBM-DTLA", NULL};
     int i = 0;
 
@@ -852,15 +877,15 @@ ad_tagsupported(struct ad_softc *adp)
     if ((adp->controller->chiptype & 0x0000ffff) == 0x0000105a)
 	return 0;
 
-    /* check that drive has tags enabled, and is one we know works */
-    if (AD_PARAM->supqueued && AD_PARAM->enabqueued) {
+    /* check that drive does DMA, has tags enabled, and is one we know works */
+    if (adp->controller->mode[ATA_DEV(adp->unit)] >= ATA_DMA &&
+	AD_PARAM->supqueued && AD_PARAM->enabqueued) {
 	while (drives[i] != NULL) {
 	    if (!strncmp(AD_PARAM->model, drives[i], strlen(drives[i])))
 		return 1;
 	    i++;
 	}
     }
-#endif
     return 0;
 }
 
@@ -871,9 +896,10 @@ ad_timeout(struct ad_request *request)
     int s = splbio();
 
     adp->controller->running = NULL;
-    printf("ad%d: %s command timeout tag=%d serv=%d - resetting\n",
-	   adp->lun, (request->flags & ADR_F_READ) ? "READ" : "WRITE",
-	   request->tag, request->serv);
+    ata_printf(adp->controller, adp->unit,
+	       "%s command timeout tag=%d serv=%d - resetting\n",
+	       (request->flags & ADR_F_READ) ? "READ" : "WRITE",
+	       request->tag, request->serv);
 
     if (request->flags & ADR_F_DMA_USED) {
 	ata_dmadone(adp->controller);
@@ -881,7 +907,8 @@ ad_timeout(struct ad_request *request)
         if (request->retries == AD_MAX_RETRIES) {
 	    ata_dmainit(adp->controller, adp->unit,
 	    		ata_pmode(AD_PARAM), -1, -1);
-	    printf("ad%d: trying fallback to PIO mode\n", adp->lun);
+	    ata_printf(adp->controller, adp->unit,
+		       "trying fallback to PIO mode\n");
 	    request->retries = 0;
 	}
     }
