@@ -149,7 +149,7 @@ ng_parse_generic_sockdata_getLength(const struct ng_parse_type *type,
 	const struct sockaddr *sa;
 
 	sa = (const struct sockaddr *)(buf - SADATA_OFFSET);
-	return sa->sa_len - SADATA_OFFSET;
+	return (sa->sa_len < SADATA_OFFSET) ? 0 : sa->sa_len - SADATA_OFFSET;
 }
 
 /* Type for the variable length data portion of a generic struct sockaddr */
