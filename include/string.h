@@ -88,6 +88,7 @@ size_t	 strlcat __P((char *, const char *, size_t));
 size_t   strlcpy __P((char *, const char *, size_t));
 void	 strmode __P((int, char *));
 int	 strncasecmp __P((const char *, const char *, size_t));
+char	*strcasestr __P((const char *, const char *));
 char	*strnstr __P((const char *, const char *, size_t));
 char	*strsep __P((char **, const char *));
 char	*strsignal __P((int));
