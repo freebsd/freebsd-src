@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $Id: adduser.8,v 1.24 1998/02/14 22:55:23 steve Exp $
+.\" $Id: adduser.8,v 1.25 1998/03/18 16:21:55 hoek Exp $
 .\"
 .Dd January 9, 1995
 .Dt ADDUSER 8
@@ -32,14 +32,6 @@
 .Nd command for adding new users
 .Sh SYNOPSIS
 .Nm adduser
-.Oo
-.Fl batch Ar username
-.Op Ar group Ns , Ns Op Ar group,...
-.Op Ar class
-.Op Ar fullname 
-.Op Ar password 
-.Oc
-.br
 .Op Fl check_only
 .br
 .Op Fl class Ar login_class
@@ -137,12 +129,6 @@ Parse command line options.
 .El
 .Sh OPTIONS
 .Bl -tag -width Ds
-.It Sy -batch username [group[,group]...] [class] [fullname] [password]
-Batch mode.
-The listed groups are secondary groups that the new user should be a
-member of in addition to the default login group. Null string arguments
-may be used as place holders and result in the default value for the
-nulled field being used.
 .It Sy -check_only
 Check /etc/passwd, /etc/group, /etc/shells and exit.
 .It Sy -class Ar login_class
@@ -217,34 +203,6 @@ Eval variables in this file. See
 for more
 details.
 .El
-.Sh EXAMPLES
-.Pp
-$ adduser
-.Pp
-Start adduser in interactive mode.
-.Pp
-$ adduser -batch baerenklau guest,staff,baer '' 'Teddy II' qwerty7
-.Pp
-Create user 'baerenklau' and  login group 'baerenklau'. Invite user 
-baerenklau into groups guest, staff and baer. Use default login class.
-Realname (fullname)
-is 'Teddy II'. Password is 'qwerty7' (don't use such passwords!). Create
-.Ev HOME
-directory 
-.Pa /home/baerenklau
-and copy all files and directories 
-from 
-.Pa /usr/share/skel
-to 
-.Pa /home/baerenklau .
-Send user baerenklau 
-a welcome message.
-.Pp
-$ adduser -uid 5000 -group guest -message no -batch vehlefanz
-.Pp
-Create user 'vehlefanz'. Login group is guest. Uid next available uid
-after 5000, for instance 5007. No other groups, no realname, no password.
-Do not send a welcome message.
 .Sh FILES
 .Bl -tag -width /etc/master.passwdxx -compact
 .It Pa /etc/master.passwd
@@ -276,6 +234,7 @@ logfile for adduser
 .Xr passwd 5 ,
 .Xr shells 5 ,
 .Xr addgroup 8 ,
+.Xr pw 8 ,
 .Xr pwd_mkdb 8 ,
 .Xr rmgroup 8 ,
 .Xr rmuser 8 ,
