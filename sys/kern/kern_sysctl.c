@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sysctl.c	8.4 (Berkeley) 4/14/94
- * $Id: kern_sysctl.c,v 1.10 1994/09/14 23:21:00 ache Exp $
+ * $Id: kern_sysctl.c,v 1.11 1994/09/16 00:53:58 ache Exp $
  */
 
 /*
@@ -64,6 +64,7 @@ extern sysctlfn vm_sysctl;
 extern sysctlfn fs_sysctl;
 extern sysctlfn net_sysctl;
 extern sysctlfn cpu_sysctl;
+extern sysctlfn ntp_sysctl;
 
 /*
  * Locking and stats
@@ -201,7 +202,8 @@ kern_sysctl(name, namelen, oldp, oldlenp, newp, newlen, p)
 	extern char ostype[], osrelease[];
 
 	/* all sysctl names at this level are terminal */
-	if (namelen != 1 && !(name[0] == KERN_PROC || name[0] == KERN_PROF))
+	if (namelen != 1 && !(name[0] == KERN_PROC || name[0] == KERN_PROF
+			      || name[0] == KERN_NTP_PLL))
 		return (ENOTDIR);		/* overloaded */
 
 	switch (name[0]) {
@@ -289,6 +291,9 @@ kern_sysctl(name, namelen, oldp, oldlenp, newp, newlen, p)
 #else
 		return (sysctl_rdint(oldp, oldlenp, newp, 0));
 #endif
+	case KERN_NTP_PLL:
+		return (ntp_sysctl(name + 1, namelen - 1, oldp, oldlenp,
+				   newp, newlen, p));
 	default:
 		return (EOPNOTSUPP);
 	}

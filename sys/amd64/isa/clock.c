@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.16 1994/08/18 22:34:50 wollman Exp $
+ *	$Id: clock.c,v 1.17 1994/09/14 23:09:06 ache Exp $
  */
 
 /*
@@ -79,27 +79,6 @@ void
 clkintr(frame)
 	struct clockframe frame;
 {
-#ifdef I586_CPU
-	/*
-	 * This resets the CPU cycle counter to zero, to make our
-	 * job easier in microtime().  Some fancy ifdefs could speed
-	 * this up for Pentium-only kernels.
-	 * We want this to be done as close as possible to the actual
-	 * timer incrementing in hardclock(), because there is a window
-	 * between the two where the value is no longer valid.  Experimentation
-	 * may reveal a good precompensation to apply in microtime().
-	 */
-	if(pentium_mhz) {
-		__asm __volatile("movl $0x10,%%ecx\n"
-				 "xorl %%eax,%%eax\n"
-				 "movl %%eax,%%edx\n"
-				 ".byte 0x0f, 0x30\n"
-				 "#%0%1"
-				 : "=m"(frame)	/* no outputs */
-				 : "b"(&frame) /* fake input */
-				 : "ax", "cx", "dx");
-	}
-#endif
 	hardclock(&frame);
 }
 
