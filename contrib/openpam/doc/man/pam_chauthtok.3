@@ -31,9 +31,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $P4: //depot/projects/openpam/doc/man/pam_chauthtok.3#10 $
+.\" $P4: //depot/projects/openpam/doc/man/pam_chauthtok.3#11 $
 .\"
-.Dd April 8, 2002
+.Dd April 14, 2002
 .Dt PAM_CHAUTHTOK 3
 .Os
 .Sh NAME
@@ -57,12 +57,16 @@ The
 .Va flags
 argument is the binary or of zero or more of the following
 values:
-.Pp
-.Bd -literal
-	=PAM_SILENT
-		Do not emit any messages.
-	=PAM_CHANGE_EXPIRED_AUTHTOK
-		Change only those authentication tokens that have expired.
+.Bl -tag -width 18n
+.It Dv PAM_SILENT
+Do not emit any messages.
+.It Dv PAM_CHANGE_EXPIRED_AUTHTOK
+Change only those authentication tokens that have expired.
+.El
+If any other bits are set,
+.Nm
+will return
+.Dv PAM_SYMBOL_ERR .
 .Sh RETURN VALUES
 The
 .Nm

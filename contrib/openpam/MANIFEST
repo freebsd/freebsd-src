@@ -1,5 +1,5 @@
 #
-# $P4: //depot/projects/openpam/MANIFEST#6 $
+# $P4: //depot/projects/openpam/MANIFEST#7 $
 #
 CREDITS
 HISTORY
@@ -54,12 +54,14 @@ doc/man/pam_verror.3
 doc/man/pam_vinfo.3
 doc/man/pam_vprompt.3
 include/security/openpam.h
+include/security/openpam_version.h
 include/security/pam_appl.h
 include/security/pam_constants.h
 include/security/pam_modules.h
 include/security/pam_types.h
 lib/Makefile
 lib/openpam_borrow_cred.c
+lib/openpam_configure.c
 lib/openpam_dispatch.c
 lib/openpam_dynamic.c
 lib/openpam_findenv.c

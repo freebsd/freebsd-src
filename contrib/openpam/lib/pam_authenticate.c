@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/pam_authenticate.c#9 $
+ * $P4: //depot/projects/openpam/lib/pam_authenticate.c#10 $
  */
 
 #include <sys/param.h>
@@ -66,6 +66,7 @@ pam_authenticate(pam_handle_t *pamh,
  *	=openpam_dispatch
  *	=pam_sm_authenticate
  *	!PAM_IGNORE
+ *	PAM_SYMBOL_ERR
  */
 
 /**
@@ -79,8 +80,11 @@ pam_authenticate(pam_handle_t *pamh,
  * The =flags argument is the binary or of zero or more of the following
  * values:
  *
- *	=PAM_SILENT
+ *	=PAM_SILENT:
  *		Do not emit any messages.
- *	=PAM_DISALLOW_NULL_AUTHTOK
+ *	=PAM_DISALLOW_NULL_AUTHTOK:
  *		Fail if the user's authentication token is null.
+ *
+ * If any other bits are set, =pam_authenticate will return
+ * =PAM_SYMBOL_ERR.
  */

@@ -1,4 +1,18 @@
 ============================================================================
+OpenPAM Cineraria						2002-04-14
+
+ - ENHANCE: Improved documentation.
+
+ - ENHANCE: Adopt the same preprocessor tricks that were used in
+   FreeBSD's version of Linux-PAM to simplify static linking without
+   requiring dummy primitives.
+
+ - ENHANCE: move the policy-loading code out of pam_start.c.
+
+ - BUGFIX: Fix typo in one of the versions of the openpam_log macro.
+
+ - ENHANCE: Add versioning macros.
+============================================================================
 OpenPAM Cinchona						2002-04-08
 
  - ENHANCE: Improved documentation for several API functions.
@@ -114,4 +128,4 @@ OpenPAM	Calamite						2002-02-09
 
 First (beta) release.
 ============================================================================
-$P4: //depot/projects/openpam/HISTORY#8 $
+$P4: //depot/projects/openpam/HISTORY#9 $
