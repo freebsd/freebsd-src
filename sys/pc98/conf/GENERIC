@@ -143,8 +143,10 @@ device		npx
 #device		pmtimer
 
 # Audio support
-#device		pcm		# Windows Sound System
-#device		sbc		# Sound Blaster 16
+#device		sound		# Generic sound driver
+#device		snd_mss		# Microsoft Sound System
+#device		"snd_sb16"	# Sound Blaster 16
+#device		snd_sbc		# Sound Blaster
 
 # PCMCIA support
 device		card		# pccard bus
