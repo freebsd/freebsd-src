@@ -1078,3 +1078,11 @@ lookup_uid(struct archive *a, const char *uname, uid_t uid)
 	}
 	return (uid);
 }
+
+void
+archive_read_extract_set_progress_callback(struct archive *a,
+    void (*progress_func)(void *), void *user_data)
+{
+	a->extract_progress = progress_func;
+	a->extract_progress_user_data = user_data;
+}
