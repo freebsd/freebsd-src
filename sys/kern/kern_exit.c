@@ -191,9 +191,11 @@ exit1(td, rv)
 	 * Reset any sigio structures pointing to us as a result of
 	 * F_SETOWN with our pid.
 	 */
+	SIGIO_LOCK();
 	PROC_LOCK(p);
 	funsetownlst(&p->p_sigiolst);
 	PROC_UNLOCK(p);
+	SIGIO_UNLOCK();
 
 	/*
 	 * Close open files and release open-file table.

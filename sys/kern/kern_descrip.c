@@ -571,6 +571,8 @@ funsetownlst(sigiolst)
 	struct proc *p;
 	struct pgrp *pg;
 
+	SIGIO_ASSERT(MA_OWNED);
+
 	sigio = SLIST_FIRST(sigiolst);
 	if (sigio == NULL)
 		return;
@@ -591,28 +593,30 @@ funsetownlst(sigiolst)
 	}
 
 	while ((sigio = SLIST_FIRST(sigiolst)) != NULL) {
-		SIGIO_LOCK();
 		*(sigio->sio_myref) = NULL;
-		SIGIO_UNLOCK();
 		if (pg != NULL) {
 			KASSERT(sigio->sio_pgid < 0, ("Proc sigio in pgrp sigio list"));
 			KASSERT(sigio->sio_pgrp == pg, ("Bogus pgrp in sigio list"));
 			SLIST_REMOVE(&pg->pg_sigiolst, sigio, sigio, sio_pgsigio);
 			PGRP_UNLOCK(pg);
+			SIGIO_UNLOCK();
 			crfree(sigio->sio_ucred);
 			mtx_lock(&Giant);
 			FREE(sigio, M_SIGIO);
 			mtx_unlock(&Giant);
+			SIGIO_LOCK();
 			PGRP_LOCK(pg);
 		} else /* if (p != NULL) */ {
 			KASSERT(sigio->sio_pgid > 0, ("Pgrp sigio in proc sigio list"));
 			KASSERT(sigio->sio_proc == p, ("Bogus proc in sigio list"));
 			SLIST_REMOVE(&p->p_sigiolst, sigio, sigio, sio_pgsigio);
 			PROC_UNLOCK(p);
+			SIGIO_UNLOCK();
 			crfree(sigio->sio_ucred);
 			mtx_lock(&Giant);
 			FREE(sigio, M_SIGIO);
 			mtx_unlock(&Giant);
+			SIGIO_LOCK();
 			PROC_LOCK(p);
 		}
 	}
