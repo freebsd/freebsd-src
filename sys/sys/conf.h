@@ -62,6 +62,7 @@ struct specinfo {
 #define SI_CHILD	0x0010	/* child of another dev_t */
 #define SI_DEVOPEN	0x0020	/* opened by device */
 #define SI_CONSOPEN	0x0040	/* opened by console */
+#define SI_DUMPDEV	0x0080	/* is kernel dumpdev */
 	struct timespec	si_atime;
 	struct timespec	si_ctime;
 	struct timespec	si_mtime;
