@@ -1,7 +1,8 @@
 /*
  * Aic7xxx SCSI host adapter firmware asssembler
  *
- * Copyright (c) 1997, 1998, 2000 Justin T. Gibbs.
+ * Copyright (c) 1997, 1998, 2000, 2001 Justin T. Gibbs.
+ * Copyright (c) 2001 Adaptec Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -9,26 +10,34 @@
  * are met:
  * 1. Redistributions of source code must retain the above copyright
  *    notice, this list of conditions, and the following disclaimer,
- *    without modification, immediately at the beginning of the file.
- * 2. The name of the author may not be used to endorse or promote products
- *    derived from this software without specific prior written permission.
+ *    without modification.
+ * 2. Redistributions in binary form must reproduce at minimum a disclaimer
+ *    substantially similar to the "NO WARRANTY" disclaimer below
+ *    ("Disclaimer") and any redistribution must be conditioned upon
+ *    including a substantially similar Disclaimer requirement for further
+ *    binary redistribution.
+ * 3. Neither the names of the above-listed copyright holders nor the names
+ *    of any contributors may be used to endorse or promote products derived
+ *    from this software without specific prior written permission.
  *
  * Alternatively, this software may be distributed under the terms of the
- * GNU Public License ("GPL").
+ * GNU General Public License ("GPL") version 2 as published by the Free
+ * Software Foundation.
  *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * NO WARRANTY
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+ * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+ * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGES.
  *
- * $Id: //depot/src/aic7xxx/aicasm/aicasm.c#8 $
+ * $Id: //depot/aic7xxx/aic7xxx/aicasm/aicasm.c#14 $
  *
  * $FreeBSD$
  */
@@ -37,11 +46,18 @@
 
 #include <ctype.h>
 #include <inttypes.h>
+#include <regex.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sysexits.h>
 #include <unistd.h>
+
+#if linux
+#include <endian.h>
+#else
+#include <machine/endian.h>
+#endif
 
 #include "aicasm.h"
 #include "aicasm_symbol.h"
@@ -75,6 +91,8 @@ char *regfilename;
 FILE *regfile;
 char *listfilename;
 FILE *listfile;
+int   src_mode;
+int   dst_mode;
 
 static STAILQ_HEAD(,instruction) seq_program;
 struct cs_tailq cs_tailq;
@@ -83,7 +101,9 @@ symlist_t patch_functions;
 
 #if DEBUG
 extern int yy_flex_debug;
+extern int mm_flex_debug;
 extern int yydebug;
+extern int mmdebug;
 #endif
 extern FILE *yyin;
 extern int yyparse(void);
@@ -116,7 +136,9 @@ main(int argc, char *argv[])
 	listfile = NULL;
 #if DEBUG
 	yy_flex_debug = 0;
+	mm_flex_debug = 0;
 	yydebug = 0;
+	mmdebug = 0;
 #endif
 	while ((ch = getopt(argc, argv, "d:l:n:o:r:I:O:")) != -1) {
 		switch(ch) {
@@ -124,8 +146,10 @@ main(int argc, char *argv[])
 #if DEBUG
 			if (strcmp(optarg, "s") == 0) {
 				yy_flex_debug = 1;
+				mm_flex_debug = 1;
 			} else if (strcmp(optarg, "p") == 0) {
 				yydebug = 1;
+				mmdebug = 1;
 			} else {
 				fprintf(stderr, "%s: -d Requires either an "
 					"'s' or 'p' argument\n", appname);
@@ -228,8 +252,7 @@ main(int argc, char *argv[])
 	if (retval == 0) {
 		if (SLIST_FIRST(&scope_stack) == NULL
 		 || SLIST_FIRST(&scope_stack)->type != SCOPE_ROOT) {
-			stop("Unterminated conditional expression",
-			     EX_DATAERR);
+			stop("Unterminated conditional expression", EX_DATAERR);
 			/* NOTREACHED */
 		}
 
@@ -340,6 +363,10 @@ output_code()
 	}
 	fprintf(ofile, "\n};\n\n");
 
+	if (patch_arg_list == NULL)
+		stop("Patch argument list not defined",
+		     EX_DATAERR);
+
 	/*
 	 *  Output patch information.  Patch functions first.
 	 */
@@ -347,31 +374,33 @@ output_code()
 	     cur_node != NULL;
 	     cur_node = SLIST_NEXT(cur_node,links)) {
 		fprintf(ofile,
-"static int ahc_patch%d_func(struct ahc_softc *ahc);
+"static int aic_patch%d_func(%s);
 
 static int
-ahc_patch%d_func(struct ahc_softc *ahc)
+aic_patch%d_func(%s)
 {
 	return (%s);
 }\n\n",
 			cur_node->symbol->info.condinfo->func_num,
+			patch_arg_list,
 			cur_node->symbol->info.condinfo->func_num,
+			patch_arg_list,
 			cur_node->symbol->name);
 	}
 
 	fprintf(ofile,
-"typedef int patch_func_t (struct ahc_softc *);
-struct patch {
+"typedef int patch_func_t (%s);
+static struct patch {
 	patch_func_t	*patch_func;
 	uint32_t	begin	   :10,
 			skip_instr :10,
 			skip_patch :12;
-} patches[] = {\n");
+} patches[] = {\n", patch_arg_list);
 
 	for(cur_patch = STAILQ_FIRST(&patches);
 	    cur_patch != NULL;
 	    cur_patch = STAILQ_NEXT(cur_patch,links)) {
-		fprintf(ofile, "%s\t{ ahc_patch%d_func, %d, %d, %d }",
+		fprintf(ofile, "%s\t{ aic_patch%d_func, %d, %d, %d }",
 			cur_patch == STAILQ_FIRST(&patches) ? "" : ",\n",
 			cur_patch->patch_func, cur_patch->begin,
 			cur_patch->skip_instr, cur_patch->skip_patch);
@@ -380,7 +409,7 @@ struct patch {
 	fprintf(ofile, "\n};\n");
 
 	fprintf(ofile,
-"struct cs {
+"static struct cs {
 	u_int16_t	begin;
 	u_int16_t	end;
 } critical_sections[] = {\n");
@@ -396,8 +425,8 @@ struct patch {
 	fprintf(ofile, "\n};\n");
 
 	fprintf(ofile,
-"const int num_critical_sections = sizeof(critical_sections)
-				 / sizeof(*critical_sections);\n");
+"static const int num_critical_sections = sizeof(critical_sections)
+				       / sizeof(*critical_sections);\n");
 
 	fprintf(stderr, "%s: %d instructions used\n", appname, instrcount);
 }
