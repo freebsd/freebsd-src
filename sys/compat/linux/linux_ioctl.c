@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_ioctl.c,v 1.31 1999/04/29 04:37:57 luoqi Exp $
+ *  $Id: linux_ioctl.c,v 1.32 1999/05/06 18:44:22 peter Exp $
  */
 
 #include <sys/param.h>
@@ -484,6 +484,7 @@ struct linux_cdrom_tocentry
     u_char	cdte_datamode;  
 };
 
+#if 0
 static void
 linux_to_bsd_msf_lba(u_char address_format,
     union linux_cdrom_addr *lp, union msf_lba *bp)
@@ -496,6 +497,7 @@ linux_to_bsd_msf_lba(u_char address_format,
 	bp->msf.frame = lp->msf.frame;
     }
 }
+#endif
 
 static void
 bsd_to_linux_msf_lba(u_char address_format,

@@ -229,9 +229,7 @@ exec_svr4_imgact(imgp)
 
 /*
  * Tell kern_execve.c about it, with a little help from the linker.
- * Since `const' objects end up in the text segment, TEXT_SET is the
- * correct directive to use.
  */
-const struct execsw svr4_execsw = { exec_svr4_imgact, "svr4 ELF" };
+const execsw svr4_execsw = { exec_svr4_imgact, "svr4 ELF" };
 EXEC_SET(execsw_set, svr4_execsw);
 
