@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- *	$Id: devfs_vnops.c,v 1.76 1999/08/08 18:42:50 phk Exp $
+ *	$Id: devfs_vnops.c,v 1.77 1999/08/17 04:01:55 alc Exp $
  */
 
 
@@ -1327,12 +1327,46 @@ devfs_open( struct vop_open_args *ap)
 	struct vnode *vp = ap->a_vp;
 	int error;
 	dn_p	dnp;
+	struct cdevsw *dsw;
+	dev_t bdev, dev = vp->v_rdev;
+	struct vnode *bvp;
+
 
 	if ((error = devfs_vntodn(vp,&dnp)) != 0)
 		return error;
 
 	switch (vp->v_type) {
 	case VCHR:
+		dsw = devsw(dev);
+		if ( (dsw == NULL) || (dsw->d_open == NULL))
+			return ENXIO;
+		if (ap->a_cred != FSCRED && (ap->a_mode & FWRITE)) {
+			/*
+			 * When running in very secure mode, do not allow
+			 * opens for writing of any disk character devices.
+			 */
+			if (securelevel >= 2
+			    && dsw->d_bmaj != -1
+			    && (dsw->d_flags & D_TYPEMASK) == D_DISK)
+				return (EPERM);
+			/*
+			 * When running in secure mode, do not allow opens
+			 * for writing of /dev/mem, /dev/kmem, or character
+			 * devices whose corresponding block devices are
+			 * currently mounted.
+			 */
+			if (securelevel >= 1) {
+				if ((bdev = chrtoblk(dev)) != NODEV &&
+				    vfinddev(bdev, VBLK, &bvp) &&
+				    bvp->v_usecount > 0 &&
+				    (error = vfs_mountedon(bvp)))
+					return (error);
+				if (iskmemdev(dev))
+					return (EPERM);
+			}
+		}
+		if ((dsw->d_flags & D_TYPEMASK) == D_TTY)
+			vp->v_flag |= VISTTY;
 		VOP_UNLOCK(vp, 0, p);
 		error = (*dnp->by.Cdev.cdevsw->d_open)(
 					dnp->by.Cdev.dev,
@@ -1343,6 +1377,25 @@ devfs_open( struct vop_open_args *ap)
 		return (error);
 		/* NOT REACHED */
 	case VBLK:
+		dsw = devsw(dev);
+		if ( (dsw == NULL) || (dsw->d_open == NULL))
+			return ENXIO;
+		/*
+		 * When running in very secure mode, do not allow
+		 * opens for writing of any disk block devices.
+		 */
+		if (securelevel >= 2 && ap->a_cred != FSCRED &&
+		    (ap->a_mode & FWRITE) &&
+		    (dsw->d_flags & D_TYPEMASK) == D_DISK)
+			return (EPERM);
+
+		/*
+		 * Do not allow opens of block devices that are
+		 * currently mounted.
+		 */
+		error = vfs_mountedon(vp);
+		if (error)
+			return (error);
 		error = (*dnp->by.Bdev.bdevsw->d_open)(
 					dnp->by.Bdev.dev,
 					ap->a_mode,
@@ -1363,7 +1416,6 @@ devfs_open( struct vop_open_args *ap)
 		int  a_ioflag;
 		struct ucred *a_cred;
 	} 
-
  */
 /* ARGSUSED */
 static int
@@ -1407,8 +1459,21 @@ devfs_read( struct vop_read_args *ap)
 	case VBLK:
 		if (uio->uio_offset < 0)
 			return (EINVAL);
-		bsize = BLKDEV_IOSIZE;
+		/*
+		 * Calculate block size for block device.  The block size must
+		 * be larger then the physical minimum.
+		 */
+
+		bsize = vp->v_rdev->si_bsize_best;
+
+	/*	dev = vp->v_rdev;*/ /* your choice..*/
 		dev = dnp->by.Bdev.dev;
+#if 1
+		if (dev != vp->v_rdev) {
+			printf("devfs: bad dev value at read\n");
+			dev = vp->v_rdev;
+		}
+#endif
 		/*
 		 * This is a hack!
 		 */
@@ -1446,7 +1511,6 @@ devfs_read( struct vop_read_args *ap)
 			brelse(bp);
 		} while (error == 0 && uio->uio_resid > 0 && n != 0);
 		break;
-
 	default:
 		panic("devfs_read type");
 	}
@@ -1504,7 +1568,13 @@ devfs_write( struct vop_write_args *ap)
 			return (0);
 		if (uio->uio_offset < 0)
 			return (EINVAL);
-		bsize = BLKDEV_IOSIZE;
+
+		/*
+		 * Calculate block size for block device.  The block size must
+		 * be larger then the physical minimum.
+		 */
+		bsize = vp->v_rdev->si_bsize_best;
+
 		if ((dnp->by.Bdev.bdevsw->d_ioctl != NULL)
 		&& ((*dnp->by.Bdev.bdevsw->d_ioctl)(dnp->by.Bdev.dev, DIOCGPART,
 					(caddr_t)&dpart, FREAD, p) == 0)
@@ -1732,6 +1802,35 @@ devfs_strategy(struct vop_strategy_args *ap)
 }
 
 /*
+ * I can't say I'm completely sure what this one is for.
+ * it's copied from specfs.
+	struct vop_freeblks_args {
+		struct vnode *a_vp;
+		daddr_t a_addr;
+		daddr_t a_length;
+	};
+ */
+static int
+devfs_freeblks(struct vop_freeblks_args *ap)
+{
+	struct cdevsw *bsw;
+	struct buf *bp;
+
+	bsw = devsw(ap->a_vp->v_rdev);
+	if ((bsw->d_flags & D_CANFREE) == 0)
+		return (0);
+	bp = geteblk(ap->a_length);
+	bp->b_flags |= B_FREEBUF;
+	bp->b_dev = ap->a_vp->v_rdev;
+	bp->b_blkno = ap->a_addr;
+	bp->b_offset = dbtob(ap->a_addr);
+	bp->b_bcount = ap->a_length;
+	BUF_STRATEGY(bp, 0);
+	return (0);
+}
+
+
+/*
  * This is a noop, simply returning what one has been given.
 	struct vop_bmap_args  {
 		struct vnode *a_vp;
@@ -1771,8 +1870,10 @@ static int
 devfs_close(struct vop_close_args *ap)
 {
 	register struct vnode *vp = ap->a_vp;
-	int error;
 	dn_p dnp;
+	struct cdevsw *devswp;
+	dev_t dev;
+	int mode, error;
 
 	if ((error = devfs_vntodn(vp,&dnp)) != 0)
 		return error;
@@ -1781,6 +1882,9 @@ devfs_close(struct vop_close_args *ap)
 	switch (vp->v_type) {
 
 	case VCHR:
+		devswp = dnp->by.Cdev.cdevsw;
+		dev = dnp->by.Cdev.dev;
+		mode = S_IFCHR;
 		/*
 		 * Hack: a tty device that is a controlling terminal
 		 * has a reference from the session structure.
@@ -1796,19 +1900,15 @@ devfs_close(struct vop_close_args *ap)
 			vrele(vp);
 			ap->a_p->p_session->s_ttyvp = NULL;
 		}
-		/*
-		 * If the vnode is locked, then we are in the midst
-		 * of forcably closing the device, otherwise we only
-		 * close on last reference.
-		 */
 		if (vcount(vp) > 1 && (vp->v_flag & VXLOCK) == 0)
 			return (0);
-		return ((*dnp->by.Cdev.cdevsw->d_close)(dnp->by.Cdev.dev,
-						ap->a_fflag,
-						S_IFCHR,
-						ap->a_p));
-		/* NOT REACHED */
+
+		break;
+
 	case VBLK:
+		devswp = dnp->by.Bdev.bdevsw;
+		dev = dnp->by.Bdev.dev;
+		mode = S_IFBLK;
 		/*
 		 * On last close of a block device (that isn't mounted)
 		 * we must invalidate any in core blocks, so that
@@ -1820,34 +1920,31 @@ devfs_close(struct vop_close_args *ap)
 		if (error)
 			return (error);
 
-		/*
-		 * We do not want to really close the device if it
-		 * is still in use unless we are trying to close it
-		 * forcibly. Since every use (buffer, vnode, swap, cmap)
-		 * holds a reference to the vnode, and because we mark
-		 * any other vnodes that alias this device, when the
-		 * sum of the reference counts on all the aliased
-		 * vnodes descends to one, we are on last close.
-		 */
-		if ((vcount(vp) > 1) && (vp->v_flag & VXLOCK) == 0)
-			return (0);
-
-		return ((*dnp->by.Bdev.bdevsw->d_close)(dnp->by.Bdev.dev,
-						ap->a_fflag,
-						S_IFBLK,
-						ap->a_p));
-		/* NOT REACHED */
+		break;
 	default:
 		panic("devfs_close: not special");
 	}
-}
-
-/*
- * Print out the contents of a special device vnode.
-	struct vop_print_args {
-		struct vnode *a_vp;
+	/*
+	 * If the vnode is locked, then we are in the midst
+	 * of forcably closing the device, otherwise we would normally
+	 * only close on last reference.
+	 * We do not want to really close the device if it
+	 * is still in use unless we are trying to close it
+	 * forcibly. Since every use (buffer, vnode, swap, cmap)
+	 * holds a reference to the vnode, and because we mark
+	 * any other vnodes that alias this device, when the
+	 * sum of the reference counts on all the aliased
+	 * vnodes descends to one, we are on last close.
+	 * defeat this however if the device wants to be told of every 
+	 * close.
+	 */
+	if ((vp->v_flag & VXLOCK)
+	|| (devswp->d_flags & D_TRACKCLOSE)
+	|| (vcount(vp) <= 1)) {
+		return ((*devswp->d_close)(dev, ap->a_fflag, mode, ap->a_p));
 	}
- */
+	return (0);
+}
 
 /*
  * Special device advisory byte-level locks.
@@ -1905,14 +2002,16 @@ devfs_getpages(struct vop_getpages_args *ap)
 	pcount = round_page(ap->a_count) / PAGE_SIZE;
 
 	/*
-	 * Calculate the offset of the transfer.
+	 * Calculate the offset of the transfer and do sanity check.
+	 * FreeBSD currently only supports an 8 TB range due to b_blkno
+	 * being in DEV_BSIZE ( usually 512 ) byte chunks on call to
+	 * VOP_STRATEGY.  XXX
 	 */
 	offset = IDX_TO_OFF(ap->a_m[0]->pindex) + ap->a_offset;
 
-	/* XXX sanity check before we go into details. */
-	/* XXX limits should be defined elsewhere. */
-#define	DADDR_T_BIT	32
+#define	DADDR_T_BIT	(sizeof(daddr_t)*8)
 #define	OFFSET_MAX	((1LL << (DADDR_T_BIT + DEV_BSHIFT)) - 1)
+
 	if (offset < 0 || offset > OFFSET_MAX) {
 		/* XXX still no %q in kernel. */
 		printf("devfs_getpages: preposterous offset 0x%x%08x\n",
@@ -1924,20 +2023,20 @@ devfs_getpages(struct vop_getpages_args *ap)
 	blkno = btodb(offset);
 
 	/*
-	 * Round up physical size for real devices, use the
-	 * fundamental blocksize of the fs if possible.
+	 * Round up physical size for real devices.  We cannot round using
+	 * v_mount's block size data because v_mount has nothing to do with
+	 * the device.  i.e. it's usually '/dev'.  We need the physical block
+	 * size for the device itself.
+	 *
+	 * We can't use v_specmountpoint because it only exists when the
+	 * block device is mounted.  However, we can use v_rdev.
 	 */
-	if (vp && vp->v_mount) {
-		if (vp->v_type != VBLK) {
-			vprint("Non VBLK", vp);
-		}
-		blksiz = vp->v_mount->mnt_stat.f_bsize;
-		if (blksiz < DEV_BSIZE) {
-			blksiz = DEV_BSIZE;
-		}
-	}
+
+	if (vp->v_type == VBLK)
+		blksiz = vp->v_rdev->si_bsize_phys;
 	else
 		blksiz = DEV_BSIZE;
+
 	size = (ap->a_count + blksiz - 1) & ~(blksiz - 1);
 
 	bp = getpbuf(NULL);
@@ -2006,8 +2105,12 @@ devfs_getpages(struct vop_getpages_args *ap)
 			m->valid = VM_PAGE_BITS_ALL;
 			vm_page_undirty(m);
 		} else if (toff < nread) {
-			int nvalid = ((nread + DEV_BSIZE - 1) - toff) & ~(DEV_BSIZE - 1);
-			vm_page_set_validclean(m, 0, nvalid);
+			/*
+			 * Since this is a VM request, we have to supply the
+			 * unaligned offset to allow vm_page_set_validclean()
+			 * to zero sub-DEV_BSIZE'd portions of the page.
+			 */
+			vm_page_set_validclean(m, 0, nread - toff);
 		} else {
 			m->valid = 0;
 			vm_page_undirty(m);
@@ -2034,15 +2137,24 @@ devfs_getpages(struct vop_getpages_args *ap)
 			}
 		} else if (m->valid) {
 			gotreqpage = 1;
+			/*
+			 * Since this is a VM request, we need to make the
+			 * entire page presentable by zeroing invalid sections.
+			 */
+			if (m->valid != VM_PAGE_BITS_ALL)
+				vm_page_zero_invalid(m, FALSE);
 		}
 	}
 	if (!gotreqpage) {
 		m = ap->a_m[ap->a_reqpage];
 #ifndef MAX_PERF
-		printf("devfs_getpages: I/O read failure: (error code=%d)\n", error);
-		printf("               size: %d, resid: %ld, a_count: %d, valid: 0x%x\n",
+		printf("devfs_getpages: I/O read failure: (error code=%d)\n",
+								error);
+		printf("               size: %d, resid:"
+			" %ld, a_count: %d, valid: 0x%x\n",
 				size, bp->b_resid, ap->a_count, m->valid);
-		printf("               nread: %d, reqpage: %d, pindex: %d, pcount: %d\n",
+		printf("               nread: %d, reqpage:"
+			" %d, pindex: %d, pcount: %d\n",
 				nread, ap->a_reqpage, m->pindex, pcount);
 #endif
 		/*
@@ -2099,6 +2211,7 @@ static struct vnodeopv_entry_desc devfs_spec_vnodeop_entries[] = {
 	{ &vop_bmap_desc,		(vop_t *) devfs_bmap },
 	{ &vop_close_desc,		(vop_t *) devfs_close },
 	{ &vop_create_desc,		(vop_t *) devfs_badop },
+	{ &vop_freeblks_desc,		(vop_t *) devfs_freeblks },
 	{ &vop_fsync_desc,		(vop_t *) devfs_fsync },
 	{ &vop_getattr_desc,		(vop_t *) devfs_getattr },
 	{ &vop_getpages_desc,		(vop_t *) devfs_getpages },
