@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: options.c,v 1.46 1996/11/09 18:12:15 jkh Exp $
+ * $Id: options.c,v 1.44.2.2 1996/11/09 18:13:37 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -247,6 +247,7 @@ optionsEditor(dialogMenuItem *self)
 	    clear();
 	    break;
 
+	case '\020':	/* ^P */
 	case KEY_UP:
 	    if (currOpt)
 		--currOpt;
@@ -254,6 +255,7 @@ optionsEditor(dialogMenuItem *self)
 		for (currOpt = 0; Options[currOpt + 1].name; currOpt++);
 	    continue;
 
+	case '\016':	/* ^N */
 	case KEY_DOWN:
 	    if (Options[currOpt + 1].name)
 		++currOpt;
@@ -275,6 +277,7 @@ optionsEditor(dialogMenuItem *self)
 	    	clear();
 	    continue;
 
+	case '\033':	/* ESC */
 	case 'Q':
 	    clear();
 	    dialog_clear();

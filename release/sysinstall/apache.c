@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: apache.c,v 1.28 1996/11/04 12:56:15 jkh Exp $
+ * $Id: apache.c,v 1.27.2.3 1996/12/09 09:28:50 jkh Exp $
  *
  * Copyright (c) 1995
  *	Coranth Gryphon.  All rights reserved.
@@ -36,17 +36,8 @@
  *
  */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <sys/param.h>
-#include <string.h>
-#include <dialog.h>
-#include "ui_objects.h"
-#include "dir.h"
-#include "dialog.priv.h"
-#include "colors.h"
 #include "sysinstall.h"
+#include <sys/param.h>
 
 
 #define APACHE_HELPFILE "apache"
@@ -104,84 +95,60 @@ static int      okbutton, cancelbutton;
 #define APACHE_DIALOG_WIDTH     COLS
 #define APACHE_DIALOG_HEIGHT    LINES - 2
 
-/* The screen layout structure */
-typedef struct _layout {
-    int         y;              /* x & Y co-ordinates */
-    int         x;
-    int         len;            /* The size of the dialog on the screen */
-    int         maxlen;         /* How much the user can type in ... */
-    char        *prompt;        /* The string for the prompt */
-    char        *help;          /* The display for the help line */
-    void        *var;           /* The var to set when this changes */
-    int         type;           /* The type of the dialog to create */
-    void        *obj;           /* The obj pointer returned by libdialog */
-} Layout;
-
 static Layout layout[] = {
+#define LAYOUT_HOSTNAME 0
     { 1, 2, 30, HOSTNAME_FIELD_LEN - 1,
       "Host Name:",
       "What name to report this host as to client browsers",
       tconf.hostname, STRINGOBJ, NULL },
-#define LAYOUT_HOSTNAME 0
-    
+#define LAYOUT_EMAIL    1
     { 1, 40, 32, APACHE_EMAIL_LEN - 1,
       "Email Address:",
       "The email address of the site maintainer, e.g. webmaster@bar.com",
       tconf.email, STRINGOBJ, NULL },
-#define LAYOUT_EMAIL    1
-    
+#define LAYOUT_WELCOME           2
     { 5, 5, 20, APACHE_WELCOME_LEN - 1,
       "Default Document:",
       "The name of the default document found in each directory",
       tconf.welcome, STRINGOBJ, NULL },
-#define LAYOUT_WELCOME           2
-    
+#define LAYOUT_DEFUSER          3
     { 5, 40, 14, APACHE_DEFUSER_LEN - 1,
       "Default UserID:", "Default UID for access to web pages",
       tconf.defuser, STRINGOBJ, NULL },
-#define LAYOUT_DEFUSER          3
-    
+#define LAYOUT_DEFGROUP          4
     { 5, 60, 14, APACHE_DEFGROUP_LEN - 1,
       "Default Group ID:", "Default GID for access to web pages",
       tconf.defgroup, STRINGOBJ, NULL },
-#define LAYOUT_DEFGROUP          4
-    
+#define LAYOUT_DOCROOT          5
     { 10, 4, 36, APACHE_DOCROOT_LEN - 1,
       "Root Document Path:",
       "The top directory that holds the system web pages",
       tconf.docroot, STRINGOBJ, NULL },
-#define LAYOUT_DOCROOT          5
-    
+#define LAYOUT_USERDIR          6
     { 10, 50, 14, APACHE_USERDIR_LEN - 1,
       "User Directory:",
       "Personal sub-directory that holds users' web pages (eg. ~/Web)",
       tconf.userdir, STRINGOBJ, NULL },
-#define LAYOUT_USERDIR          6
-    
+#define LAYOUT_LOGDIR           7
     { 14, 4, 28, APACHE_LOGDIR_LEN - 1,
       "Log Dir:", "Directory to put httpd log files",
       tconf.logdir, STRINGOBJ, NULL },
-#define LAYOUT_LOGDIR           7
-    
+#define LAYOUT_ACCESSLOG    8
     { 14, 38, 16, APACHE_ACCESSLOG_LEN - 1,
       "Access Log:",  "Name of log file to report access",
       tconf.accesslog, STRINGOBJ, NULL },
-#define LAYOUT_ACCESSLOG    8
-    
+#define LAYOUT_ERRORLOG   9
     { 14, 60, 16, APACHE_ERRORLOG_LEN - 1,
       "Error Log:",  "Name of log file to report errors",
       tconf.errorlog, STRINGOBJ, NULL },
-#define LAYOUT_ERRORLOG   9
-    
+#define LAYOUT_OKBUTTON         10
     { 19, 15, 0, 0,
       "OK", "Select this if you are happy with these settings",
       &okbutton, BUTTONOBJ, NULL },
-#define LAYOUT_OKBUTTON         10
-    
+#define LAYOUT_CANCELBUTTON     11
     { 19, 45, 0, 0,
       "CANCEL", "Select this if you wish to cancel this screen",
       &cancelbutton, BUTTONOBJ, NULL },
-#define LAYOUT_CANCELBUTTON     11
     { NULL },
 };
 
@@ -190,32 +157,21 @@ static int
 apacheOpenDialog(void)
 {
     WINDOW              *ds_win;
-    ComposeObj          *obj = NULL;
-    ComposeObj          *first, *last;
-    int                 n=0, quit=FALSE, cancel=FALSE, ret;
+    ComposeObj		*obj = NULL;
+    int                 n = 0, cancel = FALSE;
     int                 max;
     char                *tmp;
-    char                help[FILENAME_MAX];
     char                title[80];
     
     /* We need a curses window */
-    ds_win = newwin(LINES, COLS, 0, 0);
-    if (ds_win == 0)
-    {
+    if (!(ds_win = openLayoutDialog(APACHE_HELPFILE, " Apache HTTPD Configuration ",
+				    APACHE_DIALOG_X, APACHE_DIALOG_Y, APACHE_DIALOG_WIDTH, APACHE_DIALOG_HEIGHT))) {
         beep();
         msgConfirm("Cannot open apache dialog window!!");
-        return(DITEM_SUCCESS);
+        return DITEM_SUCCESS;
     }
     
-    /* Say where our help comes from */
-    systemHelpFile(APACHE_HELPFILE, help);
-    use_helpfile(help);
-    
-    /* Setup a nice screen for us to splat stuff onto */
-    draw_box(ds_win, APACHE_DIALOG_Y, APACHE_DIALOG_X, APACHE_DIALOG_HEIGHT, APACHE_DIALOG_WIDTH, dialog_attr, border_attr);
-    wattrset(ds_win, dialog_attr);
-    mvwaddstr(ds_win, APACHE_DIALOG_Y, APACHE_DIALOG_X + 20, " Apache HTTPD Configuration ");
-    
+    /* Draw a sub-box for the path configuration */
     draw_box(ds_win, APACHE_DIALOG_Y + 9, APACHE_DIALOG_X + 1, APACHE_DIALOG_HEIGHT - 13, APACHE_DIALOG_WIDTH - 2,
              dialog_attr, border_attr);
     wattrset(ds_win, dialog_attr);
@@ -223,7 +179,6 @@ apacheOpenDialog(void)
     mvwaddstr(ds_win, APACHE_DIALOG_Y + 9, APACHE_DIALOG_X + 22, title);
     
     /** Initialize the config Data Structure **/
-    
     bzero(&tconf, sizeof(tconf));
     
     tmp = variable_get(VAR_DOMAINNAME);
@@ -244,120 +199,19 @@ apacheOpenDialog(void)
     
     sprintf(tconf.docroot, "%s/%s", APACHE_BASE,DATA_SUBDIR);
     
-    /* Loop over the layout list, create the objects, and add them
-       onto the chain of objects that dialog uses for traversal*/
-    
-    n = 0;
-    
-#define lt layout[n]
-    
-    while (lt.help != NULL) {
-        switch (lt.type) {
-        case STRINGOBJ:
-            lt.obj = NewStringObj(ds_win, lt.prompt, lt.var,
-				  lt.y + APACHE_DIALOG_Y, lt.x + APACHE_DIALOG_X,
-				  lt.len, lt.maxlen);
-            break;
-	    
-        case BUTTONOBJ:
-            lt.obj = NewButtonObj(ds_win, lt.prompt, lt.var,
-				  lt.y + APACHE_DIALOG_Y, lt.x + APACHE_DIALOG_X);
-            break;
-	    
-        default:
-            msgFatal("Don't support this object yet!");
-        }
-        AddObj(&obj, lt.type, (void *) lt.obj);
-        n++;
-    }
-    max = n - 1;
-    
-    /* Find the last object we can traverse to */
-    last = obj;
-    while (last->next)
-        last = last->next;
-    
-    /* Find the first object in the list */
-    first = obj;
-    while (first->prev)
-        first = first->prev;
-    
     /* Some more initialisation before we go into the main input loop */
-    n = 0;
-    cancelbutton = 0;
-    cancel = FALSE;
-    okbutton = 0;
-    
-    /* Incoming user data - DUCK! */
-    while (!quit) {
-        char help_line[80];
-        int i, len = strlen(lt.help);
-	
-        /* Display the help line at the bottom of the screen */
-        for (i = 0; i < 79; i++)
-            help_line[i] = (i < len) ? lt.help[i] : ' ';
-	    help_line[i] = '\0';
-	    use_helpline(help_line);
-	    display_helpline(ds_win, LINES - 1, COLS - 1);
-	    
-	    /* Ask for libdialog to do its stuff */
-	    ret = PollObj(&obj);
-	    
-	    /* We are in the Hostname field - calculate the e-mail addr */
-	    if (n == LAYOUT_HOSTNAME) {
-		if ((tmp = index(tconf.hostname, '.')) != NULL) {
-		    sprintf(tconf.email,"webmaster@%s",tmp+1);
-		    RefreshStringObj(layout[LAYOUT_EMAIL].obj);
-		}
+    obj = initLayoutDialog(ds_win, layout, APACHE_DIALOG_X, APACHE_DIALOG_Y, &max);
+
+    cancelbutton = okbutton = 0;
+    while (layoutDialogLoop(ds_win, layout, &obj, &n, max, &cancelbutton, &cancel)) {
+	if (n == LAYOUT_HOSTNAME) {
+	    if ((tmp = index(tconf.hostname, '.')) != NULL) {
+		sprintf(tconf.email, "webmaster@%s", tmp + 1);
+		RefreshStringObj(layout[LAYOUT_EMAIL].obj);
 	    }
-	    
-	    /* Handle special case stuff that libdialog misses. Sigh */
-	    switch (ret) {
-		/* Bail out */
-	    case SEL_ESC:
-		quit = TRUE, cancel=TRUE;
-		break;
-		
-		/* This doesn't work for list dialogs. Oh well. Perhaps
-		   should special case the move from the OK button ``up''
-		   to make it go to the interface list, but then it gets
-		   awkward for the user to go back and correct screw up's
-		   in the per-interface section */
-		
-	    case KEY_DOWN:
-	    case SEL_TAB:
-	    case SEL_CR:
-		if (n < max)
-		    ++n;
-		else
-		    n = 0;
-		break;
-		
-		/* The user has pressed enter over a button object */
-	    case SEL_BUTTON:
-		quit = TRUE;
-		if (cancelbutton)
-		    cancel = TRUE;
-		break;
-		
-	    case KEY_UP:
-	    case SEL_BACKTAB:
-		if (n)
-		    --n;
-		else
-		    n = max;
-		break;
-		
-	    case KEY_F(1):
-		display_helpfile();
-	    
-            /* They tried some key combination we don't support - tell them! */
-	    default:
-		beep();
-	    }
-	    
+	}
     }
-    
+
     /* Clear this crap off the screen */
     dialog_clear_norefresh();
     use_helpfile(NULL);

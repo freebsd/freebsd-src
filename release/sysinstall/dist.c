@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.73.2.10 1996/12/14 22:23:19 jkh Exp $
+ * $Id: dist.c,v 1.73.2.11 1997/01/03 06:38:07 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -34,8 +34,8 @@
  *
  */
 
-#include <sys/time.h>
 #include "sysinstall.h"
+#include <sys/time.h>
 
 unsigned int Dists;
 unsigned int DESDists;

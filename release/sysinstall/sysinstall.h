@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.82.2.9 1996/12/14 22:23:24 jkh Exp $
+ * $Id: sysinstall.h,v 1.82.2.10 1997/01/03 06:38:20 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -37,13 +37,17 @@
 #ifndef _SYSINSTALL_H_INCLUDE
 #define _SYSINSTALL_H_INCLUDE
 
+#include <sys/types.h>
+#include <sys/wait.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <dialog.h>
-#include <sys/types.h>
-#include <sys/wait.h>
+#include <dialog.h>
+#include "ui_objects.h"
+#include "dir.h"
+#include "colors.h"
 #include "libdisk.h"
 #include "dist.h"
 #include "version.h"
@@ -53,7 +57,7 @@
 /* Different packages we depend on - update this when package version change! */
 #define PACKAGE_GATED	"gated-3.5b3"
 #define PACKAGE_APACHE	"apache-1.1.1"
-#define PACKAGE_NETCON	"commerce/netcon/bsd60"
+#define PACKAGE_NETCON	"commerce/netcon/bsd61"
 #define PACKAGE_PCNFSD	"pcnfsd-93.02.16"
 #define PACKAGE_SAMBA	"samba-1.9.15p8"
 #define PACKAGE_LYNX	"lynx-2.6"
@@ -172,6 +176,19 @@ typedef struct _variable {
     char *name;
     char *value;
 } Variable;
+
+/* A screen layout structure */
+typedef struct _layout {
+    int         y;              /* x & Y co-ordinates */
+    int         x;
+    int         len;            /* The size of the dialog on the screen */
+    int         maxlen;         /* How much the user can type in ... */
+    char        *prompt;        /* The string for the prompt */
+    char        *help;          /* The display for the help line */
+    void        *var;           /* The var to set when this changes */
+    int         type;           /* The type of the dialog to create */
+    void        *obj;           /* The obj pointer returned by libdialog */
+} Layout;
 
 /* For attribs */
 #define MAX_ATTRIBS	200
@@ -342,6 +359,9 @@ extern DMenu		MenuHTMLDoc;		/* HTML Documentation menu			*/
 extern DMenu		MenuUsermgmt;		/* User management menu				*/
 extern DMenu		MenuFixit;		/* Fixit floppy/CDROM/shell menu		*/
 
+/* Stuff from libdialog which isn't properly declared outside */
+extern void display_helpfile(void);
+extern void display_helpline(WINDOW *w, int y, int width);
 
 /*** Prototypes ***/
 
@@ -376,6 +396,7 @@ extern int	configPackages(dialogMenuItem *self);
 extern int	configSaver(dialogMenuItem *self);
 extern int	configSaverTimeout(dialogMenuItem *self);
 extern int	configNTP(dialogMenuItem *self);
+extern int	configUsers(dialogMenuItem *self);
 extern int	configXFree86(dialogMenuItem *self);
 extern int	configRouter(dialogMenuItem *self);
 extern int	configSamba(dialogMenuItem *self);
@@ -562,6 +583,11 @@ extern dialogMenuItem *item_add(dialogMenuItem *list, char *prompt, char *title,
 extern void	items_free(dialogMenuItem *list, int *curr, int *max);
 extern int	Mkdir(char *);
 extern int	Mount(char *, void *data);
+extern WINDOW	*openLayoutDialog(char *helpfile, char *title, int x, int y, int width, int height);
+extern ComposeObj *initLayoutDialog(WINDOW *win, Layout *layout, int x, int y, int *max);
+extern int	layoutDialogLoop(WINDOW *win, Layout *layout, ComposeObj **obj,
+				 int *n, int max, int *cbutton, int *cancel);
+
 extern WINDOW	*savescr(void);
 extern void	restorescr(WINDOW *w);
 extern char	*sstrncpy(char *dst, const char *src, int size);

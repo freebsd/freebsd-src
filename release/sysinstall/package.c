@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: package.c,v 1.49 1996/11/04 12:56:28 jkh Exp $
+ * $Id: package.c,v 1.48.2.3 1996/12/12 11:18:25 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -34,15 +34,12 @@
  *
  */
 
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
+#include "sysinstall.h"
 #include <sys/errno.h>
 #include <sys/time.h>
 #include <sys/param.h>
 #include <sys/mount.h>
 #include <sys/stat.h>
-#include "sysinstall.h"
 
 /* Like package_extract, but assumes current media device */
 int

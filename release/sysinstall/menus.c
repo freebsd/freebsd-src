@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.89.2.11 1996/12/12 22:56:59 jkh Exp $
+ * $Id: menus.c,v 1.89.2.12 1997/01/03 06:38:15 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -343,7 +343,7 @@ whichMouse(dialogMenuItem *self)
     if (!strcmp(self->prompt, "COM4"))
 	return !strcmp(buf, "/dev/cuaa3");
     if (!strcmp(self->prompt, "BusMouse"))
-	return !strcmp(buf, "/dev/msg0");
+	return !strcmp(buf, "/dev/mse0");
     if (!strcmp(self->prompt, "PS/2"))
 	return !strcmp(buf, "/dev/psm0");
     return FALSE;

@@ -24,7 +24,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * library functions for userconfig library
  *
- * $Id: uc_main.c,v 1.13 1996/10/12 20:23:17 erich Exp $
+ * $Id: uc_main.c,v 1.13.4.1 1996/12/09 09:29:12 jkh Exp $
  */
 
 #include <sys/types.h>
@@ -209,10 +209,14 @@ uc_open(char *name){
     get_eisa_info(kern);
     if (isDebug())
 	msgDebug("uc_open: got eisa information\n");
-
+#ifdef USE_SCSI
     get_scsi_info(kern);
     if (isDebug())
 	msgDebug("uc_open: got scsi information\n");
+#else
+    kern->scsi_devp=(struct uc_scsi*)NULL;
+    kern->scsibus_devp=(struct uc_scsibus*)NULL;
+#endif
     return kern;
 }
  

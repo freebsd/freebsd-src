@@ -6,18 +6,13 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: wizard.c,v 1.7 1995/12/07 10:34:25 peter Exp $
+ * $Id$
  *
  */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <string.h>
-#include <err.h>
-#include <sys/types.h>
 #include "sysinstall.h"
+#include <fcntl.h>
+#include <err.h>
 
 u_char mbr[] = {
     250,51,192,142,208,188,0,124,139,244,80,7,80,31,251,252,191,0,6,185,0,1,
