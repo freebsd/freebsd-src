@@ -1084,7 +1084,7 @@ p_candebug(const struct proc *p1, const struct proc *p2, int *privused)
 	/* add a CAP_SYS_PTRACE here? */
 	if (p1->p_cred->pc_ucred->cr_uid != p2->p_cred->p_ruid ||
 	    p1->p_cred->p_ruid != p2->p_cred->p_ruid ||
-	    p1->p_cred->p_svuid == p2->p_cred->p_ruid ||
+	    p1->p_cred->p_svuid != p2->p_cred->p_ruid ||
 	    p2->p_flag & P_SUGID) {
 		if ((error = suser_xxx(0, p1, PRISON_ROOT)))
 			return (error);
