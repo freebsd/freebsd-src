@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_exec.c,v 1.18 1995/03/19 23:27:57 davidg Exp $
+ *	$Id: kern_exec.c,v 1.19 1995/03/25 01:20:38 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -115,7 +115,7 @@ execve(p, uap, retval)
 	 */
 	ndp = &nd;
 	NDINIT(ndp, LOOKUP, LOCKLEAF | FOLLOW | SAVENAME,
-	    UIO_USERSPACE, uap->fname, curproc);
+	    UIO_USERSPACE, uap->fname, p);
 
 interpret:
 
@@ -193,7 +193,7 @@ interpret:
 
 			/* set new name to that of the interpreter */
 			NDINIT(ndp, LOOKUP, LOCKLEAF | FOLLOW | SAVENAME,
-			    UIO_SYSSPACE, iparams->interpreter_name, curproc);
+			    UIO_SYSSPACE, iparams->interpreter_name, p);
 			goto interpret;
 		}
 		break;
