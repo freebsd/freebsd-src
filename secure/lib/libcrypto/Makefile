@@ -337,9 +337,8 @@ POD3+=	ssl/SSL_CIPHER_get_name.pod \
 .for section in 1 3
 .for pod in ${POD${section}}
 .for target in ${pod:T:S/.pod/.${section}/g}
-MAN${section}+= ${target}
+MAN+= ${target}
 CLEANFILES+= ${target}
-all-man: ${target}
 ${target}: ${LCRYPTO_SRC}/../doc/${pod}
 	pod2man ${LCRYPTO_SRC}/../doc/${pod} > ${target}
 .endfor
@@ -347,7 +346,7 @@ ${target}: ${LCRYPTO_SRC}/../doc/${pod}
 .endfor
 .endif
 
-MAN3+=	des_crypt.3
+MAN+=	des_crypt.3
 
 MLINKS= des_crypt.3 des_read_password.3 \
 	des_crypt.3 des_read_2password.3 des_crypt.3 des_string_to_key.3 \

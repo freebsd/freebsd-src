@@ -6,11 +6,12 @@ SRCS=		genget.c getent.c misc.c encrypt.c auth.c \
 		enc_des.c pk.c
 
 CFLAGS+=        -DHAS_CGETENT -DENCRYPTION -DDES_ENCRYPTION -DAUTHENTICATION \
-                -I${TELNETDIR} \
+                -I${TELNETDIR}
 
 NOPIC=          yes
 
-INCLUDES=       ${TELNETDIR}/arpa/telnet.h 
+INCS=		${TELNETDIR}/arpa/telnet.h
+INCDIR=		/usr/include/arpa
 
 #
 # Before complaining about this, please *double-check* that you have
@@ -20,7 +21,7 @@ INCLUDES=       ${TELNETDIR}/arpa/telnet.h
 # shared against libtelnet, so that in a future release we can move this
 # off to a compat dist (like compat22).
 #
-beforeinstall:
+afterinstall:
 	rm -f ${DESTDIR}${LIBDIR}/lib${LIB}.so.${SHLIB_MAJOR}.${SHLIB_MINOR}
 
 .include <bsd.lib.mk>
