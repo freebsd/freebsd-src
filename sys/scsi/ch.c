@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: ch.c,v 1.37 1997/03/06 15:36:14 joerg Exp $
+ *      $Id: ch.c,v 1.38 1997/03/23 04:39:12 bde Exp $
  */
 
 #include "opt_scsi.h"
@@ -55,6 +55,7 @@
 #include <scsi/scsi_all.h>
 #include <scsi/scsi_changer.h>
 #include <scsi/scsiconf.h>
+#include <scsi/scsi_driver.h>
 
 #include "ch.h"
 
