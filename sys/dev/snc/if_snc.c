@@ -47,11 +47,6 @@
 #include <net/if_arp.h>
 #include <net/if_media.h>
 
-#include "opt_bdg.h"
-#ifdef BRIDGE
-#include <net/bridge.h>
-#endif
-
 #include <dev/snc/dp83932reg.h>
 #include <dev/snc/dp83932var.h>
 #include <dev/snc/dp83932subr.h>
