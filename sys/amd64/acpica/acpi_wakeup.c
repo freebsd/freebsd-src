@@ -32,7 +32,6 @@
 #include <sys/kernel.h>
 #include <sys/bus.h>
 #include <sys/lock.h>
-#include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/sysctl.h>
 
@@ -189,6 +188,7 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 	int			ret = 0;
 	int			pteobj_allocated = 0;
 	u_long			ef;
+	struct proc		*p;
 
 	if (sc->acpi_wakeaddr == 0) {
 		return (0);
@@ -200,7 +200,9 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 	disable_intr();
 
 	/* Create Identity Mapping */
-	pm = vmspace_pmap(CURPROC->p_vmspace);
+	if ((p = curproc) == NULL)
+		p = &proc0;
+	pm = vmspace_pmap(p->p_vmspace);
 	if (pm->pm_pteobj == NULL) {
 		pm->pm_pteobj = vm_object_allocate(OBJT_DEFAULT, PTDPTDI + 1);
 		pteobj_allocated = 1;
