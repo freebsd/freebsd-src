@@ -1,16 +1,16 @@
 #	from: @(#)Makefile.inc	5.3 (Berkeley) 2/20/91
-#	$Id: Makefile.inc,v 1.5 1997/05/03 03:50:06 jb Exp $
+#	$Id: Makefile.inc,v 1.6 1997/05/23 08:23:59 asami Exp $
 
 # yp sources
 .PATH: ${.CURDIR}/../libc/yp
 
-SRCS+=		xdryp.c yp_xdr.c yplib.c
-CLEANFILES+=	yp_xdr.c yp.h
+SRCS+=	xdryp.c yp.h yp_xdr.c yplib.c
+CLEANFILES+=	yp.h yp_xdr.c
 
-RPCSRC= ${DESTDIR}/usr/include/rpcsvc/yp.x
-RPCGEN= rpcgen
+RPCSRC=	${DESTDIR}/usr/include/rpcsvc/yp.x
+RPCGEN=	rpcgen -C
 
-yp_xdr.c: ${RPCSRC} yp.h
+yp_xdr.c: ${RPCSRC}
 	${RPCGEN} -c -o ${.TARGET} ${RPCSRC}
 
 yp.h: ${RPCSRC}
