@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)raw_ip.c	8.7 (Berkeley) 5/15/95
- *	$Id: raw_ip.c,v 1.44 1997/04/03 05:14:43 davidg Exp $
+ *	$Id: raw_ip.c,v 1.45 1997/04/27 20:01:10 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -203,7 +203,8 @@ rip_output(m, so, dst)
 		   and don't allow packet length sizes that will crash */
 		if (((IP_VHL_HL(ip->ip_vhl) != (sizeof (*ip) >> 2)) 
 		     && inp->inp_options)
-		    || (ip->ip_len > m->m_pkthdr.len)) {
+		    || (ip->ip_len > m->m_pkthdr.len)
+		    || (ip->ip_len < (IP_VHL_HL(ip->ip_vhl) << 2))) {
 			m_freem(m);
 			return EINVAL;
 		}
