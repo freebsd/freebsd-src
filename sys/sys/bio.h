@@ -107,15 +107,8 @@ struct bio {
 
 struct uio;
 
-static __inline__ void
-biodone(struct bio *bp)
-{
-	bp->bio_flags |= BIO_DONE;
-	if (bp->bio_done != NULL)
-		bp->bio_done(bp);
-	else
-		wakeup(bp);
-}
+void biodone(struct bio *bp);
+int biowait(struct bio *bp, const char *wchan);
 
 #ifndef _DEVICESTAT_H
 struct devstat;
