@@ -102,7 +102,7 @@ mbpr(u_long mbaddr, u_long mbtaddr, u_long nmbcaddr, u_long nmbufaddr,
     u_long mblimaddr, u_long cllimaddr, u_long cpusaddr, u_long pgsaddr,
     u_long mbpaddr)
 {
-	int i, nmbufs, nmbclusters, ncpu, page_size, num_objs;
+	int i, nmbufs, nmbclusters, page_size, num_objs;
 	u_int mbuf_limit, clust_limit;
 	u_long totspace, totnum, totfree;
 	size_t mlen;
@@ -180,8 +180,6 @@ mbpr(u_long mbaddr, u_long mbtaddr, u_long nmbcaddr, u_long nmbufaddr,
 			goto err;
 		if (kread(cllimaddr, (char *)&clust_limit, sizeof(u_int)))
 			goto err;
-		if (kread(cpusaddr, (char *)&ncpu, sizeof(int)))
-			goto err;
 		if (kread(pgsaddr, (char *)&page_size, sizeof(int)))
 			goto err;
 	} else {
@@ -228,12 +226,6 @@ mbpr(u_long mbaddr, u_long mbtaddr, u_long nmbcaddr, u_long nmbufaddr,
 			goto err;
 		}
 		mlen = sizeof(int);
-		if (sysctlbyname("kern.smp.cpus", &ncpu, &mlen, NULL, 0) < 0 &&
-		    sysctlbyname("hw.ncpu", &ncpu, &mlen, NULL, 0) < 0) {
-			warn("sysctl: retrieving number of cpus");
-			goto err;
-		}
-		mlen = sizeof(int);
 		if (sysctlbyname("hw.pagesize", &page_size, &mlen, NULL, 0)
 		    < 0) {
 			warn("sysctl: retrieving hw.pagesize");
@@ -259,7 +251,9 @@ mbpr(u_long mbaddr, u_long mbtaddr, u_long nmbcaddr, u_long nmbufaddr,
 	totnum = mbpstat[GENLST]->mb_mbpgs * MBPERPG;
 	totfree = mbpstat[GENLST]->mb_mbfree;
 	totspace = mbpstat[GENLST]->mb_mbpgs * page_size;
-	for (i = 0; i < ncpu; i++) {
+	for (i = 0; i < (num_objs - 1); i++) {
+		if (mbpstat[i]->mb_active == 0)
+			continue;
 		printf("\tCPU #%d list:\t%lu/%lu (in use/in pool)\n", i,
 		    (mbpstat[i]->mb_mbpgs * MBPERPG - mbpstat[i]->mb_mbfree),
 		    (mbpstat[i]->mb_mbpgs * MBPERPG));
@@ -281,7 +275,9 @@ mbpr(u_long mbaddr, u_long mbtaddr, u_long nmbcaddr, u_long nmbufaddr,
 	totnum = mbpstat[GENLST]->mb_clpgs * CLPERPG;
 	totfree = mbpstat[GENLST]->mb_clfree;
 	totspace = mbpstat[GENLST]->mb_clpgs * page_size;
-	for (i = 0; i < ncpu; i++) {
+	for (i = 0; i < (num_objs - 1); i++) {
+		if (mbpstat[i]->mb_active == 0)
+			continue;
 		printf("\tCPU #%d list:\t%lu/%lu (in use/in pool)\n", i,
 		    (mbpstat[i]->mb_clpgs * CLPERPG - mbpstat[i]->mb_clfree),
 		    (mbpstat[i]->mb_clpgs * CLPERPG));

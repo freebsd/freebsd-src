@@ -48,7 +48,12 @@
 /*
  * Maximum number of PCPU containers. If you know what you're doing you could
  * explicitly define MBALLOC_NCPU to be exactly the number of CPUs on your
- * system during compilation, and thus prevent kernel structure bloats.
+ * system during compilation, and thus prevent kernel structure bloat.
+ *
+ * SMP and non-SMP kernels clearly have a different number of possible cpus,
+ * but because we cannot assume a dense array of CPUs, we always allocate
+ * and traverse PCPU containers up to NCPU amount and merely check for
+ * CPU availability.
  */
 #ifdef	MBALLOC_NCPU
 #define	NCPU	MBALLOC_NCPU
@@ -57,12 +62,18 @@
 #endif
 
 /*
- * SMP and non-SMP kernels clearly have a different number of possible cpus.
+ * Macros allowing us to determine whether or not a given CPU's container
+ * should be configured during mb_init().
+ * XXX: Eventually we may want to provide hooks for CPU spinon/spinoff that
+ *      will allow us to configure the containers on spinon/spinoff. As it
+ *      stands, booting with CPU x disactivated and activating CPU x only
+ *      after bootup will lead to disaster and CPU x's container will be
+ *      uninitialized.
  */
 #ifdef	SMP
-#define	NCPU_PRESENT	mp_ncpus
+#define	CPU_ABSENT(x)	((all_cpus & (1 << x)) == 0)
 #else
-#define	NCPU_PRESENT	1
+#define	CPU_ABSENT(x)	0
 #endif
 
 /*
@@ -388,7 +399,10 @@ mb_init(void *dummy)
 	/*
 	 * Allocate and initialize PCPU containers.
 	 */
-	for (i = 0; i < NCPU_PRESENT; i++) {
+	for (i = 0; i < NCPU; i++) {
+		if (CPU_ABSENT(i))
+			continue;
+
 		mb_list_mbuf.ml_cntlst[i] = malloc(sizeof(struct mb_pcpu_list),
 		    M_MBUF, M_NOWAIT);
 		mb_list_clust.ml_cntlst[i] = malloc(sizeof(struct mb_pcpu_list),
@@ -401,6 +415,7 @@ mb_init(void *dummy)
 		mb_list_mbuf.ml_cntlst[i]->mb_cont.mc_lock =
 		    mb_list_clust.ml_cntlst[i]->mb_cont.mc_lock = &mbuf_pcpu[i];
 
+		mb_statpcpu[i].mb_active = 1;
 		mb_list_mbuf.ml_cntlst[i]->mb_cont.mc_numowner =
 		    mb_list_clust.ml_cntlst[i]->mb_cont.mc_numowner = i;
 		mb_list_mbuf.ml_cntlst[i]->mb_cont.mc_starved =
@@ -626,7 +641,9 @@ mb_alloc_wait(struct mb_lstmngr *mb_list)
 	 * Cycle all the PCPU containers. Increment starved counts if found
 	 * empty.
 	 */
-	for (i = 0; i < NCPU_PRESENT; i++) {
+	for (i = 0; i < NCPU; i++) {
+		if (CPU_ABSENT(i))
+			continue;
 		cnt_lst = MB_GET_PCPU_LIST_NUM(mb_list, i);
 		MB_LOCK_CONT(cnt_lst);
 

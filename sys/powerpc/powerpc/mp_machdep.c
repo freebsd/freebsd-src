@@ -51,6 +51,7 @@ int			boot_cpu_id;
 int
 cpu_mp_probe(void)
 {
+	all_cpus = 1;	/* needed for MB init code */
 	return 0;
 }
 
