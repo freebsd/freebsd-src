@@ -35,6 +35,8 @@
 /*
  * Standard type definitions.
  */
+typedef	__uint32_t	__blksize_t;	/* file block size */
+typedef	__int64_t	__blkcnt_t;	/* file block count */
 typedef	__int32_t	__clockid_t;	/* clock_gettime()... */
 typedef	__uint32_t	__fflags_t;	/* file flags */
 typedef	__uint64_t	__fsblkcnt_t;
