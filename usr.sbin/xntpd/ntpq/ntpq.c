@@ -301,7 +301,7 @@ static	int	decodereach	P((char *, U_LONG *));
 static	int	decodearr	P((char *, int *, l_fp *));
 static	char *	getcode		P((int, struct codestring *));
 static	void	help		P((struct parse *, FILE *));
-#if defined(sgi) || defined(SYS_BSDI)
+#if defined(sgi) || defined(SYS_BSDI) || defined(__STDC__)
 static	int	helpsort	P((const void *, const void *));
 #else
 static	int	helpsort	P((char **, char **));
@@ -335,7 +335,7 @@ static	void	output		P((FILE *, char *, char *));
 static	void	endoutput	P((FILE *));
 static	void	outputarr	P((FILE *, char *, int, l_fp *));
 static	void	cookedprint	P((int, int, char *, int, FILE *));
-#if defined(sgi) || defined(SYS_BSDI)
+#if defined(sgi) || defined(SYS_BSDI) || defined(__STDC__)
 static	int	assoccmp	P((const void *, const void *));
 #else
 static	int	assoccmp	P((struct association *, struct association *));
@@ -1888,7 +1888,7 @@ help(pcmd, fp)
 		for (xcp = opcmds; xcp->keyword != 0; xcp++)
 			cmdsort[n++] = xcp->keyword;
 
-#if defined(sgi) || defined(SYS_BSDI)
+#if defined(sgi) || defined(SYS_BSDI) || defined(__STDC__)
 		qsort((void *)cmdsort, n, sizeof(char *), helpsort);
 #else
 		qsort((char *)cmdsort, n, sizeof(char *), helpsort);
@@ -1934,7 +1934,7 @@ help(pcmd, fp)
  * helpsort - do hostname qsort comparisons
  */
 static int
-#if defined(sgi) || defined(SYS_BSDI)
+#if defined(sgi) || defined(SYS_BSDI) || defined(__STDC__)
 helpsort(t1, t2)
 	const void *t1;
 	const void *t2;
@@ -3028,7 +3028,7 @@ void
 sortassoc()
 {
 	if (numassoc > 1)
-#if defined(sgi) || defined(SYS_BSDI)
+#if defined(sgi) || defined(SYS_BSDI) || defined(__STDC__)
 		qsort((void *)assoc_cache, numassoc,
 		    sizeof(struct association), assoccmp);
 #else
@@ -3042,7 +3042,7 @@ sortassoc()
  * assoccmp - compare two associations
  */
 static int
-#if defined(sgi) || defined(SYS_BSDI)
+#if defined(sgi) || defined(SYS_BSDI) || defined(__STDC__)
 assoccmp(t1, t2)
 	const void *t1;
 	const void *t2;
