@@ -5,7 +5,7 @@
 # Compare files created by /usr/src/etc/Makefile (or the directory
 # the user specifies) with the currently installed copies.
 
-# Copyright 1998-2001 Douglas Barton
+# Copyright 1998-2002 Douglas Barton
 # DougB@FreeBSD.org
 
 # $FreeBSD$
@@ -109,6 +109,9 @@ diff_loop () {
     "${HANDLE_COMPFILE}" = "NOT V" ]; do
     if [ -f "${DESTDIR}${COMPFILE#.}" -a -f "${COMPFILE}" ]; then
       if [ "${HANDLE_COMPFILE}" = "v" -o "${HANDLE_COMPFILE}" = "V" ]; then
+	echo ''
+	echo '   ======================================================================   '
+	echo ''
         (
           echo ''
           echo "  *** Displaying differences between ${COMPFILE} and installed version:"
@@ -726,7 +729,7 @@ for COMPFILE in `find . -type f -size +0`; do
     # user will have less to wade through if files are left to merge by hand.
     #
     CVSID1=`grep "[$]${CVS_ID_TAG}:" ${DESTDIR}${COMPFILE#.} 2>/dev/null`
-    CVSID2=`grep "[$]${CVS_ID_TAG}:" ${COMPFILE} 2>/dev/null`
+    CVSID2=`grep "[$]${CVS_ID_TAG}:" ${COMPFILE} 2>/dev/null` || CVSID2=none
 
     case "${CVSID2}" in
     "${CVSID1}")
