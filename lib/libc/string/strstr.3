@@ -41,7 +41,7 @@
 .Dt STRSTR 3
 .Os
 .Sh NAME
-.Nm strstr , strnstr
+.Nm strstr , strcasestr , strnstr
 .Nd locate a substring in a string
 .Sh LIBRARY
 .Lb libc
@@ -49,6 +49,8 @@
 .In string.h
 .Ft char *
 .Fn strstr "const char *big" "const char *little"
+.Ft char *
+.Fn strcasestr "const char *big" "const char *little"
 .Ft char *
 .Fn strnstr "const char *big" "const char *little" "size_t len"
 .Sh DESCRIPTION
@@ -59,6 +61,12 @@ locates the first occurrence of the null-terminated string
 .Fa little
 in the null-terminated string
 .Fa big .
+.Pp
+The
+.Fn strcasestr
+function is similar to
+.Fn strstr ,
+but ignores the case of both strings.
 .Pp
 The
 .Fn strnstr
