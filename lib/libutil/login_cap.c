@@ -149,9 +149,11 @@ login_close(login_cap_t * lc)
     free(lc);
     if (--lc_object_count == 0) {
       free(internal_string);
-      free(internal_array);
+      freearraystr(internal_array);
       internal_array = NULL;
+      internal_arraysz = 0;
       internal_string = NULL;
+      internal_stringsz = 0;
       cgetclose();
     }
   }
@@ -334,7 +336,7 @@ login_getcaptime(login_cap_t *lc, const char *cap, rlim_t def, rlim_t error)
 {
   char *res, *ep;
   int ret;
-  rlim_t tot = 0, tim;
+  rlim_t tot;
 
   errno = 0;
   if (lc == NULL || lc->lc_cap == NULL)
@@ -363,8 +365,9 @@ login_getcaptime(login_cap_t *lc, const char *cap, rlim_t def, rlim_t error)
    */
 
   errno = 0;
+  tot = 0;
   while (*res) {
-    tim = STRTOV(res, &ep, 0);
+    rlim_t tim = STRTOV(res, &ep, 0);
     if ((ep == NULL) || (ep == res) || errno) {
       return error;
     }
@@ -457,8 +460,7 @@ rlim_t
 login_getcapsize(login_cap_t *lc, const char *cap, rlim_t def, rlim_t error) {
   char *ep, *res;
   int ret;
-  rlim_t val;
-  rlim_t mult;
+  rlim_t tot, mult;
 
   if (lc == NULL || lc->lc_cap == NULL)
     return def;
@@ -469,28 +471,34 @@ login_getcapsize(login_cap_t *lc, const char *cap, rlim_t def, rlim_t error) {
     return error;
 
   errno = 0;
-  val = STRTOV(res, &ep, 0);
-  if ((res == NULL) || (res == ep) || errno)
-    return error;
-  switch (*ep) {
-  case 0:	/* end of string */
-    mult = 1; break;
-  case 'b': case 'B':	/* 512-byte blocks */
-    mult = 512; break;
-  case 'k': case 'K':	/* 1024-byte Kilobytes */
-    mult = 1024; break;
-  case 'm': case 'M':	/* 1024-k kbytes */
-    mult = 1024 * 1024; break;
-  case 'g': case 'G':	/* 1Gbyte */
-    mult = 1024 * 1024 * 1024; break;
+  tot = 0;
+  while (*res) {
+    rlim_t val = STRTOV(res, &ep, 0);
+    if ((res == NULL) || (res == ep) || errno)
+      return error;
+    switch (*ep) {
+    case 0:	/* end of string */
+      ep--;
+      mult = 1;
+      break;
+    case 'b': case 'B':	/* 512-byte blocks */
+      mult = 512; break;
+    case 'k': case 'K':	/* 1024-byte Kilobytes */
+      mult = 1024; break;
+    case 'm': case 'M':	/* 1024-k kbytes */
+      mult = 1024 * 1024; break;
+    case 'g': case 'G':	/* 1Gbyte */
+      mult = 1024 * 1024 * 1024; break;
 #ifndef RLIM_LONG
-  case 't': case 'T':	/* 1TBte */
-    mult = 1024LL * 1024LL * 1024LL * 1024LL; break;
+    case 't': case 'T':	/* 1TBte */
+      mult = 1024LL * 1024LL * 1024LL * 1024LL; break;
 #endif
-  default:
-    return error;
+    default:
+      return error;
+    }
+    tot += (val * mult);
   }
-  return val * mult;
+  return tot;
 }
 
 
