@@ -13,9 +13,8 @@ ahc(4)		gibbs	Pre-commit review requested.
 NEWCARD		imp	Pre-commit review requested.
 OLDCARD		imp	Pre-commit review requested.
 wi		imp	Pre-commit review requested.
-telnet		markm	commits _must_ be made to src/crypto/telnet
-			first, only then to "base" telnet via "make
-			unifdef". The "base" commit _must_ be made.
+telnet		markm	please ensure that a security-aware person
+			sanity-checks your work.
 secure/*	markm	please ensure that a security-aware person
 			sanity-checks your work.
 kerberos5/*	markm	please ensure that a security-aware person
