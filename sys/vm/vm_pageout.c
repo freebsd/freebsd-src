@@ -828,7 +828,6 @@ rescan0:
 			/*
 			 * Invalid pages can be easily freed
 			 */
-			vm_page_busy(m);
 			pmap_remove_all(m);
 			vm_page_free(m);
 			cnt.v_dfree++;
@@ -1112,7 +1111,6 @@ unlock_and_continue:
 		cache_rover = (m->pc + PQ_PRIME2) & PQ_L2_MASK;
 		object = m->object;
 		VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
-		vm_page_busy(m);
 		vm_page_free(m);
 		VM_OBJECT_UNLOCK(object);
 		cnt.v_dfree++;
