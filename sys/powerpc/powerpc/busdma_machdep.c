@@ -595,14 +595,14 @@ bus_dmamap_load_uio(bus_dma_tag_t dmat, bus_dmamap_t map, struct uio *uio,
  * Release the mapping held by map. A no-op on PowerPC.
  */
 void
-bus_dmamap_unload(bus_dma_tag_t dmat, bus_dmamap_t map)
+_bus_dmamap_unload(bus_dma_tag_t dmat, bus_dmamap_t map)
 {
 
 	return;
 }
 
 void
-bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
+_bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
 {
 
 	return;
