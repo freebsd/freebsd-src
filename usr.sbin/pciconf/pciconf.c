@@ -46,13 +46,16 @@
 static void list_devs(void);
 static void readit(const char *, const char *, int);
 static void writeit(const char *, const char *, const char *, int);
+static void chkattached(const char *, int);
 
+static exitstatus = 0;
 
 static void
 usage(const char *argv0) {
 	fprintf(stderr, "usage:\n\t%s -l\n"
+		"\t%s -a sel\n"
 		"\t%s [-r|-w] [-bh] sel addr [value]\n",
-		argv0, argv0);
+		argv0, argv0, argv0);
 	exit (1);
 }
 
@@ -60,13 +63,17 @@ int
 main(int argc, char **argv)
 {
 	int c;
-	int listmode, readmode, writemode;
+	int listmode, readmode, writemode, attachedmode;
 	int byte, isshort;
 
-	listmode = readmode = writemode = byte = isshort = 0;
+	listmode = readmode = writemode = attachedmode = byte = isshort = 0;
 
-	while ((c = getopt(argc, argv, "lrwbh")) != EOF) {
+	while ((c = getopt(argc, argv, "alrwbh")) != EOF) {
 		switch(c) {
+		case 'a':
+			attachedmode = 1;
+			break;
+
 		case 'l':
 			listmode = 1;
 			break;
@@ -94,11 +101,15 @@ main(int argc, char **argv)
 
 	if ((listmode && optind != argc)
 	    || (writemode && optind + 3 != argc)
-	    || (readmode && optind + 2 != argc))
+	    || (readmode && optind + 2 != argc)
+	    || (attachedmode && optind + 1 != argc))
 		usage(argv[0]);
 
 	if (listmode) {
 		list_devs();
+	} else if(attachedmode) {
+		chkattached(argv[optind], 
+		       byte ? 1 : isshort ? 2 : 4);
 	} else if(readmode) {
 		readit(argv[optind], argv[optind + 1], 
 		       byte ? 1 : isshort ? 2 : 4);
@@ -109,7 +120,7 @@ main(int argc, char **argv)
  		usage(argv[0]);
 	}
 
-	return 0;
+	return exitstatus;
 }
 
 static void
@@ -202,4 +213,26 @@ writeit(const char *name, const char *reg, const char *data, int width)
 
 	if (ioctl(fd, PCIOCWRITE, &pi) < 0)
 		err(1, "ioctl(PCIOCWRITE)");
+}
+
+static void
+chkattached (const char *name, int width)
+{
+	int fd;
+	struct pci_io pi;
+
+	pi.pi_sel = getsel(name);
+	pi.pi_reg = 0;
+	pi.pi_width = width;
+	pi.pi_data = 0;
+
+	fd = open(_PATH_DEVPCI, O_RDWR, 0);
+	if (fd < 0)
+		err(1, "%s", _PATH_DEVPCI);
+
+	if (ioctl(fd, PCIOCATTACHED, &pi) < 0)
+		err(1, "ioctl(PCIOCATTACHED)");
+
+	exitstatus = pi.pi_data ? 0 : 2; /* exit(2), if NOT attached */
+	printf("%s: %s%s\n", name, pi.pi_data == 0 ? "not " : "", "attached");
 }
