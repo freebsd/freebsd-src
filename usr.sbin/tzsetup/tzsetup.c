@@ -666,7 +666,7 @@ main(int argc, char **argv)
 	make_menus();
 
 	init_dialog();
-	if (!dialog_yesno("Select local or UTC (Greenwich Mean Time) clock",
+	if (!dialog_noyes("Select local or UTC (Greenwich Mean Time) clock",
 			  "Is this machine's CMOS clock set to UTC?  If it is set to local time,\n"
 			  "or you don't know, please choose NO here!", 7, 72)) {
 		if (reallydoit)
