@@ -163,8 +163,10 @@ alltraps_pushregs_no_rdi:
 	movq	%r14,TF_R14(%rsp)
 	movq	%r15,TF_R15(%rsp)
 alltraps_with_regs_pushed:
+	FAKE_MCOUNT(TF_RIP(%rsp))
 calltrap:
 	call	trap
+	MEXITCOUNT
 	jmp	doreti			/* Handle any pending ASTs */
 
 	/*
@@ -239,6 +241,7 @@ IDTVEC(fast_syscall)
 	movq	%r13,TF_R13(%rsp)	/* C preserved */
 	movq	%r14,TF_R14(%rsp)	/* C preserved */
 	movq	%r15,TF_R15(%rsp)	/* C preserved */
+	FAKE_MCOUNT(TF_RIP(%rsp))
 	call	syscall
 	movq	PCPU(CURPCB),%rax
 	testq	$PCB_FULLCTX,PCB_FLAGS(%rax)
@@ -253,6 +256,7 @@ IDTVEC(fast_syscall)
 	call	ast
 	jmp	1b
 2:	/* restore preserved registers */
+	MEXITCOUNT
 	movq	TF_RDI(%rsp),%rdi	/* bonus; preserve arg 1 */
 	movq	TF_RSI(%rsp),%rsi	/* bonus: preserve arg 2 */
 	movq	TF_RDX(%rsp),%rdx	/* return value 2 */
@@ -271,6 +275,7 @@ IDTVEC(fast_syscall)
 	sysretq
 3:	/* Requested full context restore, use doreti for that */
 	andq	$~PCB_FULLCTX,PCB_FLAGS(%rax)
+	MEXITCOUNT
 	jmp	doreti
 
 /*
@@ -286,6 +291,7 @@ ENTRY(fork_trampoline)
 	movq	%rbx, %rsi		/* arg1 */
 	movq	%rsp, %rdx		/* trapframe pointer */
 	call	fork_exit
+	MEXITCOUNT
 	jmp	doreti			/* Handle any ASTs */
 
 	.data
@@ -301,6 +307,7 @@ ENTRY(fork_trampoline)
 	.globl	doreti
 	.type	doreti,@function
 doreti:
+	FAKE_MCOUNT($bintr)		/* init "from" bintr -> doreti */
 	/*
 	 * Check if ASTs can be handled now.
 	 */
@@ -330,6 +337,7 @@ doreti_ast:
 	 *	registers.  The fault is handled in trap.c.
 	 */
 doreti_exit:
+	MEXITCOUNT
 	movq	TF_RDI(%rsp),%rdi
 	movq	TF_RSI(%rsp),%rsi
 	movq	TF_RDX(%rsp),%rdx
