@@ -36,6 +36,11 @@ o Sun's WEBNFS standard is now supported.
 
 o The MSDOS filesystem code now handles VFAT and FAT32 partitions.
 
+o The ed0 (wd8xxxx, 3c503, NE2000, HP Lan+) Ethernet device's default IRQ
+  has changed from IRQ 5 to IRQ 10.
+  The ed1 Ethernet device has been removed.  Use the Userconfig utility
+  to change ed0's values to match your network card's settings.
+
 o Use the new if_multiaddrs list for multicast addresses rather than the
   previous hackery involving struct in_ifaddr and arpcom.  Get rid of the
   abominable multi_kludge.
