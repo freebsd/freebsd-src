@@ -38,9 +38,8 @@
 #define TDX_PCI_ID 	0x20001023
 #define TNX_PCI_ID 	0x20011023
 
-#define TR_BUFFSIZE 	0xf000
+#define TR_BUFFSIZE 	0x1000
 #define TR_TIMEOUT_CDC	0xffff
-#define TR_INTSAMPLES	0x2000
 #define TR_MAXPLAYCH	4
 
 struct tr_info;
@@ -52,7 +51,7 @@ struct tr_chinfo {
 	u_int32_t eso, delta;
 	u_int32_t rvol, cvol;
 	u_int32_t gvsel, pan, vol, ctrl;
-	int index;
+	int index, bufhalf;
 	snd_dbuf *buffer;
 	pcm_channel *channel;
 	struct tr_info *parent;
@@ -111,16 +110,6 @@ static u_int32_t tr_playfmt[] = {
 static pcmchan_caps tr_playcaps = {4000, 48000, tr_playfmt, 0};
 
 /* -------------------------------------------------------------------- */
-
-static u_int32_t
-tr_fmttobits(u_int32_t fmt)
-{
-	u_int32_t bits = 0;
-	bits |= (fmt & AFMT_STEREO)? 0x4 : 0;
-	bits |= (fmt & (AFMT_S8 | AFMT_S16_LE))? 0x2 : 0;
-	bits |= (fmt & (AFMT_S16_LE | AFMT_U16_LE))? 0x8 : 0;
-	return bits;
-}
 
 /* Hardware */
 
@@ -230,6 +219,7 @@ AC97_DECLARE(tr_ac97);
 /* -------------------------------------------------------------------- */
 /* playback channel interrupts */
 
+#if 0
 static u_int32_t
 tr_testint(struct tr_chinfo *ch)
 {
@@ -240,6 +230,7 @@ tr_testint(struct tr_chinfo *ch)
 	chan = ch->index & 0x1f;
 	return tr_rd(tr, bank? TR_REG_ADDRINTB : TR_REG_ADDRINTA, 4) & (1 << chan);
 }
+#endif
 
 static void
 tr_clrint(struct tr_chinfo *ch)
@@ -327,8 +318,8 @@ tr_wrch(struct tr_chinfo *ch)
 	ch->lba		&= 0x3fffffff;
 
 	cr[1]=ch->lba;
-	cr[3]=(ch->rvol<<7) | (ch->cvol);
-	cr[4]=(ch->gvsel<<31)|(ch->pan<<24)|(ch->vol<<16)|(ch->ctrl<<12)|(ch->ec);
+	cr[3]=(ch->fmc<<14) | (ch->rvol<<7) | (ch->cvol);
+	cr[4]=(ch->gvsel<<31) | (ch->pan<<24) | (ch->vol<<16) | (ch->ctrl<<12) | (ch->ec);
 
 	switch (tr->type) {
 	case TDX_PCI_ID:
@@ -336,7 +327,6 @@ tr_wrch(struct tr_chinfo *ch)
 		ch->eso &= 0x0000ffff;
 		cr[0]=(ch->cso<<16) | (ch->alpha<<4) | (ch->fms);
 		cr[2]=(ch->eso<<16) | (ch->delta);
-		cr[3]|=0x0000c000;
 		break;
 	case TNX_PCI_ID:
 		ch->cso &= 0x00ffffff;
@@ -387,6 +377,19 @@ tr_rdch(struct tr_chinfo *ch)
 		ch->fms=	(cr[3] & 0x000f0000) >> 16;
 		break;
 	}
+}
+
+static u_int32_t
+tr_fmttobits(u_int32_t fmt)
+{
+	u_int32_t bits;
+
+	bits = 0;
+	bits |= (fmt & AFMT_SIGNED)? 0x2 : 0;
+	bits |= (fmt & AFMT_STEREO)? 0x4 : 0;
+	bits |= (fmt & AFMT_16BIT)? 0x8 : 0;
+
+	return bits;
 }
 
 /* -------------------------------------------------------------------- */
@@ -447,14 +450,18 @@ trpchan_trigger(kobj_t obj, void *data, int go)
 		return 0;
 
 	if (go == PCMTRIG_START) {
-		ch->fmc = ch->fms = ch->ec = ch->alpha = 0;
+		ch->fmc = 3;
+		ch->fms = 0;
+		ch->ec = 0;
+		ch->alpha = 0;
 		ch->lba = vtophys(sndbuf_getbuf(ch->buffer));
 		ch->cso = 0;
 		ch->eso = (sndbuf_getsize(ch->buffer) / sndbuf_getbps(ch->buffer)) - 1;
-		ch->rvol = ch->cvol = 0;
+		ch->rvol = ch->cvol = 0x7f;
 		ch->gvsel = 0;
 		ch->pan = 0;
 		ch->vol = 0;
+		ch->bufhalf = 0;
    		tr_wrch(ch);
 		tr_enaint(ch, 1);
 		tr_startch(ch);
@@ -520,7 +527,7 @@ trrchan_setformat(kobj_t obj, void *data, u_int32_t format)
 
 	bits = tr_fmttobits(format);
 	/* set # of samples between interrupts */
-	i = (TR_INTSAMPLES >> ((bits & 0x08)? 1 : 0)) - 1;
+	i = (sndbuf_runsz(ch->buffer) >> ((bits & 0x08)? 1 : 0)) - 1;
 	tr_wr(tr, TR_REG_SBBL, i | (i << 16), 4);
 	/* set sample format */
 	i = 0x18 | (bits << 4);
@@ -619,16 +626,38 @@ tr_intr(void *p)
 {
 	struct tr_info *tr = (struct tr_info *)p;
 	struct tr_chinfo *ch;
-	u_int32_t i, intsrc;
+	u_int32_t active, mask, bufhalf, chnum, intsrc;
+	int tmp;
 
 	intsrc = tr_rd(tr, TR_REG_MISCINT, 4);
 	if (intsrc & TR_INT_ADDR) {
-		for (i = 0; i < tr->playchns; i++) {
-			ch = &tr->chinfo[i];
-			if (tr_testint(ch)) {
-				chn_intr(ch->channel);
-				tr_clrint(ch);
-			}
+		chnum = 0;
+		while (chnum < 64) {
+			mask = 0x00000001;
+			active = tr_rd(tr, (chnum < 32)? TR_REG_ADDRINTA : TR_REG_ADDRINTB, 4);
+			bufhalf = tr_rd(tr, (chnum < 32)? TR_REG_CSPF_A : TR_REG_CSPF_B, 4);
+			if (active) {
+				do {
+					if (active & mask) {
+						tmp = (bufhalf & mask)? 1 : 0;
+						if (chnum < tr->playchns) {
+							ch = &tr->chinfo[chnum];
+							/* printf("%d @ %d, ", chnum, trpchan_getptr(NULL, ch)); */
+							if (ch->bufhalf != tmp) {
+								chn_intr(ch->channel);
+								ch->bufhalf = tmp;
+							} else
+								printf("same bufhalf\n");
+
+						}
+					}
+					chnum++;
+					mask <<= 1;
+				} while (chnum & 31);
+			} else
+				chnum += 32;
+
+			tr_wr(tr, (chnum <= 32)? TR_REG_ADDRINTA : TR_REG_ADDRINTB, active, 4);
 		}
 	}
 	if (intsrc & TR_INT_SB) {
