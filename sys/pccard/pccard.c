@@ -265,7 +265,7 @@ slot_resume(void *arg)
 		slt->state = empty;
 		slt->insert_seq = 1;
 		untimeout(inserted, (void *)slt, slt->insert_ch);
-		slt->insert_ch = timeout(inserted, (void *)slt, hz/4);
+		inserted((void *) slt);
 		selwakeup(&slt->selp);
 	}
 	return (0);
@@ -579,6 +579,7 @@ crdioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct proc *p)
 	struct mem_desc *mp;
 	struct io_desc *ip;
 	int s, err;
+	int	pwval;
 
 	/* beep is disabled until the 1st call of crdioctl() */
 	pccard_beep_select(BEEP_ON);
@@ -709,6 +710,20 @@ crdioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct proc *p)
 		else
 			pccard_failure_beep();
 		return err;
+	/*
+	 * Virtual removal/insertion
+	 */
+	case PIOCSVIR:
+		pwval = *(int *)data;
+		if (!pwval) {
+			if (slt->state != filled)
+				return EINVAL;
+		} else {
+			if (slt->state != empty)
+				return EINVAL;
+		}
+		pccard_event(slt, pwval == 0 ? card_removed : card_inserted);
+		break;
 	case PIOCSBEEP:
 		if (pccard_beep_select(*(int *)data)) {
 			return EINVAL;
