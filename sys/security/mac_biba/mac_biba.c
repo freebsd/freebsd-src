@@ -142,6 +142,15 @@ biba_free(struct mac_biba *mac_biba)
 }
 
 static int
+biba_atmostflags(struct mac_biba *mac_biba, int flags)
+{
+
+	if ((mac_biba->mb_flags & flags) != mac_biba->mb_flags)
+		return (EINVAL);
+	return (0);
+}
+
+static int
 mac_biba_dominate_element(struct mac_biba_element *a,
     struct mac_biba_element *b)
 {
@@ -247,6 +256,50 @@ mac_biba_equal_single(struct mac_biba *a, struct mac_biba *b)
 	    ("mac_biba_equal_single: b not single"));
 
 	return (mac_biba_equal_element(&a->mb_single, &b->mb_single));
+}
+
+static int
+mac_biba_contains_equal(struct mac_biba *mac_biba)
+{
+
+	if (mac_biba->mb_flags & MAC_BIBA_FLAG_SINGLE)
+		if (mac_biba->mb_single.mbe_type == MAC_BIBA_TYPE_EQUAL)
+			return (1);
+
+	if (mac_biba->mb_flags & MAC_BIBA_FLAG_RANGE) {
+		if (mac_biba->mb_rangelow.mbe_type == MAC_BIBA_TYPE_EQUAL)
+			return (1);
+		if (mac_biba->mb_rangehigh.mbe_type == MAC_BIBA_TYPE_EQUAL)
+		return (1);
+	}
+
+	return (0);
+}
+
+static int
+mac_biba_subject_equal_ok(struct mac_biba *mac_biba)
+{
+
+	KASSERT((mac_biba->mb_flags & MAC_BIBA_FLAGS_BOTH) ==
+	    MAC_BIBA_FLAGS_BOTH,
+	    ("mac_biba_subject_equal_ok: subject doesn't have both labels"));
+
+	/* If the single is EQUAL, it's ok. */
+	if (mac_biba->mb_single.mbe_type == MAC_BIBA_TYPE_EQUAL)
+		return (0);
+
+	/* If either range endpoint is EQUAL, it's ok. */
+	if (mac_biba->mb_rangelow.mbe_type == MAC_BIBA_TYPE_EQUAL ||
+	    mac_biba->mb_rangehigh.mbe_type == MAC_BIBA_TYPE_EQUAL)
+		return (0);
+
+	/* If the range is low-high, it's ok. */
+	if (mac_biba->mb_rangelow.mbe_type == MAC_BIBA_TYPE_LOW &&
+	    mac_biba->mb_rangehigh.mbe_type == MAC_BIBA_TYPE_HIGH)
+		return (0);
+
+	/* It's not ok. */
+	return (EPERM);
 }
 
 static int
@@ -1029,36 +1082,56 @@ static int
 mac_biba_check_cred_relabel(struct ucred *cred, struct label *newlabel)
 {
 	struct mac_biba *subj, *new;
+	int error;
 
 	subj = SLOT(&cred->cr_label);
 	new = SLOT(newlabel);
 
-	if ((new->mb_flags & MAC_BIBA_FLAGS_BOTH) != MAC_BIBA_FLAGS_BOTH)
-		return (EINVAL);
+	/*
+	 * If there is a Biba label update for the credential, it may
+	 * be an update of the single, range, or both.
+	 */
+	error = biba_atmostflags(new, MAC_BIBA_FLAGS_BOTH);
+	if (error)
+		return (error);
 
 	/*
-	 * XXX: Allow processes with root privilege to set labels outside
-	 * their range, so suid things like "su" work.  This WILL go away
-	 * when we figure out the 'correct' solution...
+	 * If the Biba label is to be changed, authorize as appropriate.
 	 */
-	if (!suser_cred(cred, 0))
-		return (0);
+	if (new->mb_flags & MAC_BIBA_FLAGS_BOTH) {
+		/*
+		 * To change the Biba single label on a credential, the
+		 * new single label must be in the current range.
+		 */
+		if (new->mb_flags & MAC_BIBA_FLAG_SINGLE &&
+		    !mac_biba_single_in_range(new, subj))
+			return (EPERM);
 
-	/*
-	 * The new single must be in the old range.
-	 */
-	if (!mac_biba_single_in_range(new, subj))
-		return (EPERM);
+		/*
+		 * To change the Biba range on a credential, the new
+		 * range label must be in the current range.
+		 */
+		if (new->mb_flags & MAC_BIBA_FLAG_RANGE &&
+		    !mac_biba_range_in_range(new, subj))
+			return (EPERM);
 
-	/*
-	 * The new range must be in the old range.
-	 */
-	if (!mac_biba_range_in_range(new, subj))
-		return (EPERM);
+		/*
+		 * To have EQUAL in any component of the new credential
+		 * Biba label, the subject must already have EQUAL in
+		 * their label.
+		 */
+		if (mac_biba_contains_equal(new)) {
+			error = mac_biba_subject_equal_ok(subj);
+			if (error)
+				return (error);
+		}
 
-	/*
-	 * XXX: Don't permit EQUAL in a label unless the subject has EQUAL.
-	 */
+		/*
+		 * XXXMAC: Additional consistency tests regarding the
+		 * single and range of the new label might be performed
+		 * here.
+		 */
+	}
 
 	return (0);
 }
@@ -1086,14 +1159,39 @@ mac_biba_check_ifnet_relabel(struct ucred *cred, struct ifnet *ifnet,
     struct label *ifnetlabel, struct label *newlabel)
 {
 	struct mac_biba *subj, *new;
+	int error;
 
 	subj = SLOT(&cred->cr_label);
 	new = SLOT(newlabel);
 
-	if ((new->mb_flags & MAC_BIBA_FLAGS_BOTH) != MAC_BIBA_FLAGS_BOTH)
-		return (EINVAL);
+	/*
+	 * If there is a Biba label update for the interface, it may
+	 * be an update of the single, range, or both.
+	 */
+	error = biba_atmostflags(new, MAC_BIBA_FLAGS_BOTH);
+	if (error)
+		return (error);
 
-	return (suser_cred(cred, 0));
+	/*
+	 * If the Biba label is to be changed, authorize as appropriate.
+	 */
+	if (new->mb_flags & MAC_BIBA_FLAGS_BOTH) {
+		/*
+		 * Rely on the traditional superuser status for the Biba
+		 * interface relabel requirements.  XXXMAC: This will go
+		 * away.
+		 */
+		error = suser_cred(cred, 0);
+		if (error)
+			return (EPERM);
+
+		/*
+		 * XXXMAC: Additional consistency tests regarding the single
+		 * and the range of the new label might be performed here.
+		 */
+	}
+
+	return (0);
 }
 
 static int
@@ -1183,31 +1281,48 @@ mac_biba_check_pipe_relabel(struct ucred *cred, struct pipe *pipe,
     struct label *pipelabel, struct label *newlabel)
 {
 	struct mac_biba *subj, *obj, *new;
+	int error;
 
 	new = SLOT(newlabel);
 	subj = SLOT(&cred->cr_label);
 	obj = SLOT(pipelabel);
 
-	if ((new->mb_flags & MAC_BIBA_FLAGS_BOTH) != MAC_BIBA_FLAG_SINGLE)
-		return (EINVAL);
+	/*
+	 * If there is a Biba label update for a pipe, it must be a
+	 * single update.
+	 */
+	error = biba_atmostflags(new, MAC_BIBA_FLAG_SINGLE);
+	if (error)
+		return (error);
 
 	/*
-	 * To relabel a pipe, the old pipe label must be in the subject
-	 * range.
+	 * To perform a relabel of a pipe (Biba label or not), Biba must
+	 * authorize the relabel.
 	 */
 	if (!mac_biba_single_in_range(obj, subj))
 		return (EPERM);
 
 	/*
-	 * To relabel a pipe, the new pipe label must be in the subject
-	 * range.
+	 * If the Biba label is to be changed, authorize as appropriate.
 	 */
-	if (!mac_biba_single_in_range(new, subj))
-		return (EPERM);
+	if (new->mb_flags & MAC_BIBA_FLAG_SINGLE) {
+		/*
+		 * To change the Biba label on a pipe, the new pipe label
+		 * must be in the subject range.
+		 */
+		if (!mac_biba_single_in_range(new, subj))
+			return (EPERM);
 
-	/*
-	 * XXX: Don't permit EQUAL in a label unless the subject has EQUAL.
-	 */
+		/*
+		 * To change the Biba label on a pipe to be EQUAL, the
+		 * subject must have appropriate privilege.
+		 */
+		if (mac_biba_contains_equal(new)) {
+			error = mac_biba_subject_equal_ok(subj);
+			if (error)
+				return (error);
+		}
+	}
 
 	return (0);
 }
@@ -1328,31 +1443,48 @@ mac_biba_check_socket_relabel(struct ucred *cred, struct socket *socket,
     struct label *socketlabel, struct label *newlabel)
 {
 	struct mac_biba *subj, *obj, *new;
+	int error;
 
 	new = SLOT(newlabel);
 	subj = SLOT(&cred->cr_label);
 	obj = SLOT(socketlabel);
 
-	if ((new->mb_flags & MAC_BIBA_FLAGS_BOTH) != MAC_BIBA_FLAG_SINGLE)
-		return (EINVAL);
+	/*
+	 * If there is a Biba label update for the socket, it may be
+	 * an update of single.
+	 */
+	error = biba_atmostflags(new, MAC_BIBA_FLAG_SINGLE);
+	if (error)
+		return (error);
 
 	/*
-	 * To relabel a socket, the old socket label must be in the subject
+	 * To relabel a socket, the old socket single must be in the subject
 	 * range.
 	 */
 	if (!mac_biba_single_in_range(obj, subj))
 		return (EPERM);
 
 	/*
-	 * To relabel a socket, the new socket label must be in the subject
-	 * range.
+	 * If the Biba label is to be changed, authorize as appropriate.
 	 */
-	if (!mac_biba_single_in_range(new, subj))
-		return (EPERM);
+	if (new->mb_flags & MAC_BIBA_FLAG_SINGLE) {
+		/*
+		 * To relabel a socket, the new socket single must be in
+		 * the subject range.
+		 */
+		if (!mac_biba_single_in_range(new, subj))
+			return (EPERM);
 
-	/*
-	 * XXX: Don't permit EQUAL in a label unless the subject has EQUAL.
-	 */
+		/*
+		 * To change the Biba label on the socket to contain EQUAL,
+		 * the subject must have appropriate privilege.
+		 */
+		if (mac_biba_contains_equal(new)) {
+			error = mac_biba_subject_equal_ok(subj);
+			if (error)
+				return (error);
+		}
+	}
 
 	return (0);
 }
@@ -1702,33 +1834,50 @@ mac_biba_check_vnode_relabel(struct ucred *cred, struct vnode *vp,
     struct label *vnodelabel, struct label *newlabel)
 {
 	struct mac_biba *old, *new, *subj;
+	int error;
 
 	old = SLOT(vnodelabel);
 	new = SLOT(newlabel);
 	subj = SLOT(&cred->cr_label);
 
-	if ((new->mb_flags & MAC_BIBA_FLAGS_BOTH) != MAC_BIBA_FLAG_SINGLE)
-		return (EINVAL);
+	/*
+	 * If there is a Biba label update for the vnode, it must be a
+	 * single label.
+	 */
+	error = biba_atmostflags(new, MAC_BIBA_FLAG_SINGLE);
+	if (error)
+		return (error);
 
 	/*
-	 * To relabel a vnode, the old vnode label must be in the subject
-	 * range.
+	 * To perform a relabel of the vnode (Biba label or not), Biba must
+	 * authorize the relabel.
 	 */
 	if (!mac_biba_single_in_range(old, subj))
 		return (EPERM);
 
 	/*
-	 * To relabel a vnode, the new vnode label must be in the subject
-	 * range.
+	 * If the Biba label is to be changed, authorize as appropriate.
 	 */
-	if (!mac_biba_single_in_range(new, subj))
-		return (EPERM);
+	if (new->mb_flags & MAC_BIBA_FLAG_SINGLE) {
+		/*
+		 * To change the Biba label on a vnode, the new vnode label
+		 * must be in the subject range.
+		 */
+		if (!mac_biba_single_in_range(new, subj))
+			return (EPERM);
 
-	/*
-	 * XXX: Don't permit EQUAL in a label unless the subject has EQUAL.
-	 */
+		/*
+		 * To change the Biba label on the vnode to be EQUAL,
+		 * the subject must have appropriate privilege.
+		 */
+		if (mac_biba_contains_equal(new)) {
+			error = mac_biba_subject_equal_ok(subj);
+			if (error)
+				return (error);
+		}
+	}
 
-	return (suser_cred(cred, 0));
+	return (0);
 }
 
 static int
