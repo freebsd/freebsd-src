@@ -517,6 +517,7 @@ pmap_init(vm_offset_t phys_start, vm_offset_t phys_end)
 
 		m = &vm_page_array[i];
 		STAILQ_INIT(&m->md.tte_list);
+		m->md.flags = 0;
 	}
 
 	for (i = 0; i < translations_size; i++) {
@@ -605,6 +606,7 @@ pmap_cache_enter(vm_page_t m, vm_offset_t va)
 		    TTE_GET_VA(tp));
 	}
 	dcache_page_inval(VM_PAGE_TO_PHYS(m));
+	m->md.flags |= PG_UNCACHEABLE;
 	return (0);
 }
 
@@ -624,13 +626,14 @@ pmap_cache_remove(vm_page_t m, vm_offset_t va)
 		if (m->md.colors[i] != 0)
 			c++;
 	}
-	if (c != 1)
+	if (c != 1 || (m->md.flags & PG_UNCACHEABLE) == 0)
 		return;
 	STAILQ_FOREACH(tp, &m->md.tte_list, tte_link) {
 		tp->tte_data |= TD_CV;
 		tlb_page_demap(TLB_DTLB | TLB_ITLB, TTE_GET_PMAP(tp),
 		    TTE_GET_VA(tp));
 	}
+	m->md.flags &= ~PG_UNCACHEABLE;
 }
 
 /*
