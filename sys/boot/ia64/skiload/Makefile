@@ -9,20 +9,18 @@ BINDIR?=	/boot
 
 SRCS+=		main.c conf.c
 
+CFLAGS+=	-ffreestanding
+
+.if !defined(NOFORTH)
 # Enable BootForth
 BOOT_FORTH=	yes
-CFLAGS+=	-ffreestanding
-CFLAGS+=	-g
-CFLAGS+=	-I${.CURDIR}/../../ficl -I${.CURDIR}/../../ficl/ia64
-.if BOOT_FORTH
 CFLAGS+=	-DBOOT_FORTH
+CFLAGS+=	-I${.CURDIR}/../../ficl -I${.CURDIR}/../../ficl/${MACHINE_ARCH}
 .if exists(${.OBJDIR}/../../ficl/libficl.a)
 LIBFICL=	${.OBJDIR}/../../ficl/libficl.a
 .else
 LIBFICL=	${.CURDIR}/../../ficl/libficl.a
 .endif
-.else
-LIBFICL=
 .endif
 
 # where to get libstand from
