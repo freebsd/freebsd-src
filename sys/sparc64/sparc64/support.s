@@ -84,7 +84,7 @@
 
 /*
  * ASI independent implementation of memset(3).
- * Used to implement bzero(), memset() and physzero().
+ * Used to implement bzero(), memset() and aszero().
  *
  * If the pattern is non-zero, duplicate it to fill 64 bits.
  * Store bytes until dst is 8-byte aligned, then store 8 bytes.
@@ -142,14 +142,14 @@
 
 /*
  * ASI independent implementation of memcpy(3).
- * Used to implement bcopy(), copyin(), copyout(), memcpy(), and physcopy().
+ * Used to implement bcopy(), copyin(), copyout(), memcpy(), ascopy(),
+ * ascopyfrom() and ascopyto().
  *
  * Transfer bytes until dst is 8-byte aligned.  If src is then also 8 byte
  * aligned, transfer 8 bytes, otherwise finish with bytes.  The unaligned
  * case could be optimized, but it is expected that this is the uncommon
  * case and of questionable value.  The code to do so is also rather large
- * and ugly.
- * It has yet to be determined how much unrolling is beneficial.
+ * and ugly. It has yet to be determined how much unrolling is beneficial.
  *
  * XXX bcopy() must also check for overlap.  This is stupid.
  * XXX bcopy() should be implemented as
@@ -208,7 +208,7 @@
 6:
 
 #define	CATCH_SETUP(label) \
-	setx	label, %g2, %g1 ; \
+	SET(label, %g2, %g1) ; \
 	ldx	[PCPU(CURTHREAD)], %g6 ; \
 	ldx	[%g6 + TD_PCB], %g6 ; \
 	stx	%g1, [%g6 + PCB_ONFAULT] ;
@@ -262,8 +262,8 @@ END(bcmp)
 /*
  * void bcopy(const void *src, void *dst, size_t len)
  */
-ENTRY(ovbcopy)
 ENTRY(bcopy)
+ENTRY(ovbcopy)
 	/*
 	 * Check for overlap, and copy backwards if so.
 	 */
@@ -306,24 +306,44 @@ ENTRY(bzero)
 END(bzero)
 
 /*
- * void physzero(vm_offset_t pa, size_t len)
+ * void ascopy(u_long asi, vm_offset_t src, vm_offset_t dst, size_t len)
  */
-ENTRY(physzero)
-	wr	%g0, ASI_PHYS_USE_EC, %asi
-	_MEMSET(%o0, %g0, %o1, a, %asi)
+ENTRY(ascopy)
+	wr	%o0, 0, %asi
+	_MEMCPY(%o2, %o1, %o3, a, %asi, a, %asi)
 	retl
 	 nop
-END(physzero)
+END(ascopy)
 
 /*
- * void physcopy(vm_offset_t src, vm_offset_t dst, size_t len)
+ * void ascopyfrom(u_long sasi, vm_offset_t src, caddr_t dst, size_t len)
  */
-ENTRY(physcopy)
-	wr	%g0, ASI_PHYS_USE_EC, %asi
-	_MEMCPY(%o1, %o0, %o2, a, %asi, a, %asi)
+ENTRY(ascopyfrom)
+	wr	%o0, 0, %asi
+	_MEMCPY(%o2, %o1, %o3, E, E, a, %asi)
 	retl
 	 nop
-END(physcopy)
+END(ascopyfrom)
+
+/*
+ * void ascopyto(caddr_t src, u_long dasi, vm_offset_t dst, size_t len)
+ */
+ENTRY(ascopyto)
+	wr	%o1, 0, %asi
+	_MEMCPY(%o2, %o0, %o3, a, %asi, E, E)
+	retl
+	 nop
+END(ascopyto)
+
+/*
+ * void aszero(u_long asi, vm_offset_t pa, size_t len)
+ */
+ENTRY(aszero)
+	wr	%o0, 0, %asi
+	_MEMSET(%o1, %g0, %o2, a, %asi)
+	retl
+	 nop
+END(aszero)
 
 /*
  * void *memcpy(void *dst, const void *src, size_t len)
@@ -566,13 +586,13 @@ ENTRY(longjmp)
 	set	1, %g3
 	movrz	%o1, %o1, %g3
 	mov	%o0, %g1
-	ldx	[%g1 + JB_FP], %g2
+	ldx	[%g1 + 0x10], %g2
 1:	cmp	%fp, %g2
 	bl,a,pt	%xcc, 1b
 	 restore
 	bne,pn	%xcc, 2f
-	 ldx	[%g1 + JB_SP], %o2
-	ldx	[%g1 + JB_PC], %o3
+	 ldx	[%g1 + 0x0], %o2
+	ldx	[%g1 + 0x8], %o3
 	cmp	%o2, %sp
 	blt,pn	%xcc, 2f
 	 movge	%xcc, %o2, %sp
@@ -582,9 +602,9 @@ ENTRY(longjmp)
 END(longjmp)
 
 ENTRY(setjmp)
-	stx	%sp, [%o0 + JB_SP]
-	stx	%o7, [%o0 + JB_PC]
-	stx	%fp, [%o0 + JB_FP]
+	stx	%sp, [%o0 + 0x0]
+	stx	%o7, [%o0 + 0x8]
+	stx	%fp, [%o0 + 0x10]
 	retl
 	 clr	%o0
 END(setjmp)
@@ -594,7 +614,7 @@ END(setjmp)
  */
 ENTRY(openfirmware)
 	save	%sp, -CCFSZ, %sp
-	setx	ofw_vec, %l7, %l6
+	SET(ofw_vec, %l7, %l6)
 	ldx	[%l6], %l6
 	rdpr	%pil, %l7
 	wrpr	%g0, PIL_TICK, %pil
@@ -612,12 +632,12 @@ ENTRY(openfirmware_exit)
 	save	%sp, -CCFSZ, %sp
 	flushw
 	wrpr	%g0, PIL_TICK, %pil
-	setx	ofw_tba, %l7, %l5
+	SET(ofw_tba, %l7, %l5)
 	ldx	[%l5], %l5
 	wrpr	%l5, 0, %tba			! restore the ofw trap table
-	setx	ofw_vec, %l7, %l6
+	SET(ofw_vec, %l7, %l6)
 	ldx	[%l6], %l6
-	setx	kstack0 + KSTACK_PAGES * PAGE_SIZE - PCB_SIZEOF, %l7, %l0
+	SET(kstack0 + KSTACK_PAGES * PAGE_SIZE - PCB_SIZEOF, %l7, %l0)
 	sub	%l0, SPOFF, %fp			! setup a stack in a locked page
 	sub	%l0, SPOFF + CCFSZ, %sp
 	mov     AA_DMMU_PCXR, %l3		! set context 0
