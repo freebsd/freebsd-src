@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-MAINTAINER  = hm@freebsd.org
-
 SUBDIR      = dtmfdecode g711conv isdnd isdndebug isdndecode \
 		isdnmonitor isdnphone isdntel isdntelctl isdntest \
 		isdntrace ispppcontrol man
