@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)msgs.c	8.2 (Berkeley) 4/28/95";
 #endif
 static const char rcsid[] =
-	"$Id: msgs.c,v 1.12 1998/07/09 14:06:54 ghelmer Exp $";
+	"$Id: msgs.c,v 1.13 1998/07/14 19:07:30 ghelmer Exp $";
 #endif /* not lint */
 
 /*
@@ -246,8 +246,23 @@ int argc; char *argv[];
 	 * determine current message bounds
 	 */
 	snprintf(fname, sizeof(fname), "%s/%s", _PATH_MSGS, BOUNDS);
-	if (stat(fname, &buf) < 0)
-		err(errno, "%s", fname);
+
+	/*
+	 * Test access rights to the bounds file
+	 * This can be a little tricky.  if(send_msg), then
+	 * we will create it.  We assume that if(send_msg),	
+	 * then you have write permission there.
+	 * Else, it better be there, or we bail.
+	 */
+	if (send_msg != YES) {
+		if (stat(fname, &buf) < 0) {
+			if (hush != YES) {
+				err(errno, "%s", fname);
+			} else {
+				exit(1);
+			}
+		}
+	}
 	bounds = fopen(fname, "r");
 
 	if (bounds != NULL) {
