@@ -198,6 +198,7 @@ ip6_init()
 	mtx_init(&ip6intrq.ifq_mtx, "ip6_inq", NULL, MTX_DEF);
 	netisr_register(NETISR_IPV6, ip6_input, &ip6intrq);
 	scope6_init();
+	addrsel_policy_init();
 	nd6_init();
 	frag6_init();
 #ifndef RANDOM_IP_ID
