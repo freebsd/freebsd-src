@@ -1916,13 +1916,15 @@ ufs_strategy(ap)
 	register struct buf *bp = ap->a_bp;
 	register struct vnode *vp = ap->a_vp;
 	register struct inode *ip;
+	daddr_t blkno;
 	int error;
 
 	ip = VTOI(vp);
 	if (vp->v_type == VBLK || vp->v_type == VCHR)
 		panic("ufs_strategy: spec");
 	if (bp->b_blkno == bp->b_lblkno) {
-		error = ufs_bmaparray(vp, bp->b_lblkno, &bp->b_blkno, NULL, NULL);
+		error = ufs_bmaparray(vp, bp->b_lblkno, &blkno, NULL, NULL);
+		bp->b_blkno = blkno;
 		if (error) {
 			bp->b_error = error;
 			bp->b_ioflags |= BIO_ERROR;

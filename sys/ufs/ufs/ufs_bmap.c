@@ -64,13 +64,16 @@ int
 ufs_bmap(ap)
 	struct vop_bmap_args /* {
 		struct vnode *a_vp;
-		ufs_daddr_t a_bn;
+		daddr64_t a_bn;
 		struct vnode **a_vpp;
-		ufs_daddr_t *a_bnp;
+		daddr64_t *a_bnp;
 		int *a_runp;
 		int *a_runb;
 	} */ *ap;
 {
+	daddr_t blkno;
+	int error;
+
 	/*
 	 * Check for underlying vnode requests and ensure that logical
 	 * to physical mapping is requested.
@@ -80,8 +83,10 @@ ufs_bmap(ap)
 	if (ap->a_bnp == NULL)
 		return (0);
 
-	return (ufs_bmaparray(ap->a_vp, ap->a_bn, ap->a_bnp, 
-	    ap->a_runp, ap->a_runb));
+	error = ufs_bmaparray(ap->a_vp, ap->a_bn, &blkno,
+	    ap->a_runp, ap->a_runb);
+	*ap->a_bnp = blkno;
+	return (error);
 }
 
 /*

@@ -275,6 +275,7 @@ hpfs_bmap(ap)
 	} */ *ap;
 {
 	register struct hpfsnode *hp = VTOHP(ap->a_vp);
+	daddr_t blkno;
 	int error;
 
 	if (ap->a_vpp != NULL) 
@@ -286,7 +287,8 @@ hpfs_bmap(ap)
 
 	dprintf(("hpfs_bmap(0x%x, 0x%x): ",hp->h_no, ap->a_bn));
 
-	error = hpfs_hpbmap (hp, ap->a_bn, ap->a_bnp, ap->a_runp);
+	error = hpfs_hpbmap (hp, ap->a_bn, &blkno, ap->a_runp);
+	*ap->a_bnp = blkno;
 
 	return (error);
 }
@@ -677,6 +679,7 @@ hpfs_strategy(ap)
 	register struct buf *bp = ap->a_bp;
 	register struct vnode *vp = ap->a_vp;
 	register struct hpfsnode *hp = VTOHP(ap->a_vp);
+	daddr_t blkno;
 	int error;
 
 	dprintf(("hpfs_strategy(): \n"));
@@ -684,7 +687,8 @@ hpfs_strategy(ap)
 	if (vp->v_type == VBLK || vp->v_type == VCHR)
 		panic("hpfs_strategy: spec");
 	if (bp->b_blkno == bp->b_lblkno) {
-		error = hpfs_hpbmap (hp, bp->b_lblkno, &bp->b_blkno, NULL);
+		error = hpfs_hpbmap (hp, bp->b_lblkno, &blkno, NULL);
+		bp->b_blkno = blkno;
 		if (error) {
 			printf("hpfs_strategy: hpfs_bpbmap FAILED %d\n", error);
 			bp->b_error = error;

@@ -109,7 +109,7 @@ vinum_daemon(void)
 		    struct request *rq = request->info.rq;
 
 		    log(LOG_WARNING,
-			"vinum: recovering I/O request: %p\n%s dev %d.%d, offset 0x%x, length %ld\n",
+			"vinum: recovering I/O request: %p\n%s dev %d.%d, offset 0x%llx, length %ld\n",
 			rq,
 			rq->bp->b_iocmd == BIO_READ ? "Read" : "Write",
 			major(rq->bp->b_dev),

@@ -1173,7 +1173,7 @@ ccdiodone(struct bio *ibp)
 			bp->bio_error = cbp->cb_buf.bio_error ? 
 			    cbp->cb_buf.bio_error : EIO;
 		}
-		printf("ccd%d: error %d on component %d block %d (ccd block %d)%s\n",
+		printf("ccd%d: error %d on component %d block %d (ccd block %lld)%s\n",
 		       unit, bp->bio_error, cbp->cb_comp, 
 		       (int)cbp->cb_buf.bio_blkno, bp->bio_blkno, msg);
 	}

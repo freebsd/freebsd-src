@@ -127,7 +127,7 @@ struct buf {
 	long	b_runningbufspace;	/* when I/O is running, pipelining */
 	caddr_t	b_kvabase;		/* base kva for buffer */
 	int	b_kvasize;		/* size of kva for buffer */
-	daddr_t	b_lblkno;		/* Logical block number. */
+	daddr64_t b_lblkno;		/* Logical block number. */
 	struct	vnode *b_vp;		/* Device vnode. */
 	int	b_dirtyoff;		/* Offset in buffer of dirty region. */
 	int	b_dirtyend;		/* Offset of end of dirty region. */
@@ -365,7 +365,7 @@ BUF_REFCNT(struct buf *bp)
 
 struct buf_queue_head {
 	TAILQ_HEAD(buf_queue, buf) queue;
-	daddr_t	last_pblkno;
+	daddr64_t last_pblkno;
 	struct	buf *insert_point;
 	struct	buf *switch_point;
 };
