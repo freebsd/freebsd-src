@@ -26,6 +26,8 @@
  * $FreeBSD$
  */
 
+#include "opt_compat.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
@@ -1079,6 +1081,25 @@ ia32_ftruncate(struct thread *td, struct ia32_ftruncate_args *uap)
 			      | ((off_t)SCARG(uap, lengthhi) << 32));
 	return (ftruncate(td, &ap));
 }
+
+#ifdef COMPAT_FREEBSD4
+int
+freebsd4_ia32_sendfile(struct thread *td,
+    struct freebsd4_ia32_sendfile_args *uap)
+{
+	struct freebsd4_sendfile_args ap;
+
+	SCARG(&ap, fd) = SCARG(uap, fd);
+	SCARG(&ap, s) = SCARG(uap, s);
+	SCARG(&ap, offset) = (SCARG(uap, offsetlo)
+			      | ((off_t)SCARG(uap, offsethi) << 32));
+	SCARG(&ap, nbytes) = SCARG(uap, nbytes);	/* XXX check */
+	SCARG(&ap, hdtr) = SCARG(uap, hdtr);		/* XXX check */
+	SCARG(&ap, sbytes) = SCARG(uap, sbytes);	/* XXX FIXME!! */
+	SCARG(&ap, flags) = SCARG(uap, flags);
+	return (freebsd4_sendfile(td, &ap));
+}
+#endif
 
 int
 ia32_sendfile(struct thread *td, struct ia32_sendfile_args *uap)
