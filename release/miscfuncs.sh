@@ -10,7 +10,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: miscfuncs.sh,v 1.10 1994/11/22 09:02:46 jkh Exp $
+# $Id: miscfuncs.sh,v 1.11 1994/11/28 22:13:06 jkh Exp $
 
 if [ "${_MISCFUNCS_SH_LOADED_}" = "yes" ]; then
 	return 0
@@ -49,17 +49,17 @@ HOME=/; export HOME
 TMP=/tmp
 
 # Commands and flags
-FT_CMD=		"ft"
-TAR_CMD=	"tar"
-TAR_FLAGS=	"--unlink -xvf"
-IFCONFIG_CMD=	"ifconfig"
-ROUTE_CMD=	"route"
-ROUTE_FLAGS=	"add default"
-HOSTNAME_CMD=	"hostname"
-SLATTACH_CMD=	"slattach"
-SLATTACH_FLAGS=	"-l -a -s"
-PPPD_CMD=	"pppd"
-PPPD_FLAGS=	"crtscts defaultroute -ip -mn netmask $netmask"
+FT_CMD="ft"
+TAR_CMD="tar"
+TAR_FLAGS="--unlink -xvf"
+IFCONFIG_CMD="ifconfig"
+ROUTE_CMD="route"
+ROUTE_FLAGS="add default"
+HOSTNAME_CMD="hostname"
+SLATTACH_CMD="slattach"
+SLATTACH_FLAGS="-l -a -s"
+PPPD_CMD="pppd"
+PPPD_FLAGS="crtscts defaultroute -ip -mn netmask $netmask"
 
 interrupt()
 {

@@ -149,7 +149,7 @@ media_extract_dist()
 		if sh ./do_cksum.sh; then
 			if [ -f extract.sh ]; then
 				message "Extracting ${MEDIA_DISTRIBUTION} distribution.  Please wait!"
-				if [ -f ./.is_interactive]; then
+				if [ -f ./is_interactive ]; then
 					sh ./extract.sh
 				else
 					sh ./extract.sh < /dev/ttyv1 > /dev/ttyv1 2>&1
@@ -397,6 +397,7 @@ system?  FreeBSD supports the following types:\n" -1 -1 2 \
 		else
 			MEDIA_DEVICE=${MNT}
 			media_get_possible_subdir
+			return 0
 		fi
 	;;
 
@@ -418,9 +419,11 @@ drive it's /dev/fd1\n"; then
 					MEDIA_TYPE=doshd
 					MEDIA_DEVICE=${MNT}
 					media_get_possible_subdir
+					return 0
 				fi
 			else
 				MEDIA_TYPE=dosfd
+				return 0
 			fi
 		fi
 	;;
@@ -430,6 +433,7 @@ drive it's /dev/fd1\n"; then
 		if media_select_ftp_site; then
 			MEDIA_TYPE=ftp
 			MEDIA_DEVICE=${FTP_PATH}
+			return 0
 		fi
 	;;
 
@@ -465,6 +469,7 @@ Options, if any, should be separated by commas."; then
 			message "${NFS_PATH} mounted successfully"
 			MEDIA_DEVICE=${MNT}
 			media_get_possible_subdir
+			return 0
 		fi
 	;;
 
@@ -480,6 +485,7 @@ of the distribution's parent directory when we come back." -1 -1
 		if input "Ok, now give me the full pathname of the parent directorys for the distribution(s)."; then
 			MEDIA_TYPE=ufs
 			MEDIA_DEVICE=${ANSWER}
+			return 0
 		fi
 	;;
 	esac
