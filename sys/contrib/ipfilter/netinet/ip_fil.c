@@ -7,7 +7,7 @@
  */
 #if !defined(lint)
 static const char sccsid[] = "@(#)ip_fil.c	2.41 6/5/96 (C) 1993-1995 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ip_fil.c,v 1.4 1998/06/08 06:04:12 bde Exp $";
+static const char rcsid[] = "@(#)$Id: ip_fil.c,v 1.5 1998/06/20 18:37:50 peter Exp $";
 #endif
 
 #include "opt_ipfilter.h"
@@ -128,7 +128,7 @@ u_long	ipl_frouteok[2] = {0, 0};
 static	void	fixskip __P((frentry_t **, frentry_t *, int));
 static	void	frzerostats __P((caddr_t));
 static	void	frsync __P((void));
-#if defined(__NetBSD__) || defined(__OpenBSD__)
+#if defined(__NetBSD__) || defined(__OpenBSD__) || (__FreeBSD_version >= 300003)
 static	int	frrequest __P((int, u_long, caddr_t, int));
 #else
 static	int	frrequest __P((int, int, caddr_t, int));
@@ -547,7 +547,7 @@ int addremove;
 
 static int frrequest(unit, req, data, set)
 int unit;
-#if defined(__NetBSD__) || defined(__OpenBSD__)
+#if defined(__NetBSD__) || defined(__OpenBSD__) || (__FreeBSD_version >= 300003)
 u_long req;
 #else
 int req;

@@ -9,7 +9,7 @@
  */
 #if !defined(lint)
 static const char sccsid[] = "@(#)ip_nat.c	1.11 6/5/96 (C) 1995 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ip_nat.c,v 1.2 1998/03/21 11:34:17 peter Exp $";
+static const char rcsid[] = "@(#)$Id: ip_nat.c,v 1.3 1998/06/20 18:37:50 peter Exp $";
 #endif
 
 #include "opt_ipfilter.h"
@@ -199,7 +199,7 @@ u_32_t n;
  * Handle ioctls which manipulate the NAT.
  */
 int nat_ioctl(data, cmd, mode)
-#if defined(__NetBSD__) || defined(__OpenBSD__)
+#if defined(__NetBSD__) || defined(__OpenBSD__) || (__FreeBSD_version >= 300003)
 u_long cmd;
 #else
 int cmd;
