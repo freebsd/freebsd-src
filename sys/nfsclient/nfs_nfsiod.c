@@ -79,25 +79,56 @@ static MALLOC_DEFINE(M_NFSSVC, "NFS srvsock", "Nfs server structure");
 
 static void	nfssvc_iod(void *);
 
-#define	TRUE	1
-#define	FALSE	0
-
 static int nfs_asyncdaemon[NFS_MAXASYNCDAEMON];
 
 SYSCTL_DECL(_vfs_nfs);
+
+/* Minimum number of nfsiod kthreads to keep as spares */
+static unsigned int nfs_iodmin = 4;
+SYSCTL_INT(_vfs_nfs, OID_AUTO, iodmin, CTLFLAG_RW, &nfs_iodmin, 0, "");
+
+/* Maximum number of seconds a nfsiod kthread will sleep before exiting */
+static int nfs_iodmaxidle = 120;
+SYSCTL_INT(_vfs_nfs, OID_AUTO, iodmaxidle, CTLFLAG_RW, &nfs_iodmaxidle, 0, "");
+
+int
+nfs_nfsiodnew(void)
+{
+	int error, i;
+	int newiod;
+
+	newiod = -1;
+	for (i = 0; i < NFS_MAXASYNCDAEMON; i++)
+		if (nfs_asyncdaemon[i] == 0) {
+			nfs_asyncdaemon[i]++;
+			newiod = i;
+			break;
+		}
+	if (newiod == -1)
+		return (-1);
+	error = kthread_create(nfssvc_iod, nfs_asyncdaemon + i, NULL, RFHIGHPID,
+	    "nfsiod %d", newiod);
+	if (error)
+		return (-1);
+	nfs_numasync++;
+	return (newiod);
+}
 
 static void
 nfsiod_setup(void *dummy)
 {
 	int i;
 	int error;
-	struct proc *p;
 
-	for (i = 0; i < 4; i++) {
-		error = kthread_create(nfssvc_iod, NULL, &p, RFHIGHPID,
-		    "nfsiod %d", i);
-		if (error)
-			panic("nfsiod_setup: kthread_create error %d", error);
+	TUNABLE_INT_FETCH("vfs.nfs.iodmin", &nfs_iodmin);
+	/* Silently limit the start number of nfsiod's */
+	if (nfs_iodmin > NFS_MAXASYNCDAEMON)
+		nfs_iodmin = NFS_MAXASYNCDAEMON;
+
+	for (i = 0; i < nfs_iodmin; i++) {
+		error = nfs_nfsiodnew();
+		if (error == -1)
+			panic("nfsiod_setup: nfs_nfsiodnew failed");
 	}
 }
 SYSINIT(nfsiod, SI_SUB_KTHREAD_IDLE, SI_ORDER_ANY, nfsiod_setup, NULL);
@@ -121,59 +152,47 @@ nfsclnt(struct thread *td, struct nfsclnt_args *uap)
 /*
  * Asynchronous I/O daemons for client nfs.
  * They do read-ahead and write-behind operations on the block I/O cache.
- * Never returns unless it fails or gets killed.
+ * Returns if we hit the timeout defined by the iodmaxidle sysctl.
  */
 static void
-nfssvc_iod(void *dummy)
+nfssvc_iod(void *instance)
 {
 	struct buf *bp;
-	int i, myiod;
 	struct nfsmount *nmp;
+	int myiod, timo;
 	int error = 0;
 
 	mtx_lock(&Giant);
 	/*
 	 * Assign my position or return error if too many already running
 	 */
-	myiod = -1;
-	for (i = 0; i < NFS_MAXASYNCDAEMON; i++)
-		if (nfs_asyncdaemon[i] == 0) {
-			nfs_asyncdaemon[i]++;
-			myiod = i;
-			break;
-		}
-	if (myiod == -1)
-		return /* XXX (EBUSY) */;
-	nfs_numasync++;
+	myiod = (int *)instance - nfs_asyncdaemon;
 	/*
-	 * Just loop around doin our stuff until SIGKILL
+	 * Main loop
 	 */
 	for (;;) {
 	    while (((nmp = nfs_iodmount[myiod]) == NULL
-		    || !TAILQ_FIRST(&nmp->nm_bufq))
+		   || !TAILQ_FIRST(&nmp->nm_bufq))
 		   && error == 0) {
 		if (nmp)
-		    nmp->nm_bufqiods--;
+			nmp->nm_bufqiods--;
 		nfs_iodwant[myiod] = curthread->td_proc;
 		nfs_iodmount[myiod] = NULL;
-		error = tsleep((caddr_t)&nfs_iodwant[myiod],
-			PWAIT | PCATCH, "nfsidl", 0);
+		/*
+		 * Always keep at least nfs_iodmin kthreads.
+		 */
+		timo = (myiod < nfs_iodmin) ? 0 : nfs_iodmaxidle * hz;
+		error = tsleep((caddr_t)&nfs_iodwant[myiod], PWAIT | PCATCH,
+		    "nfsidl", timo);
 	    }
-	    if (error) {
-		nfs_asyncdaemon[myiod] = 0;
-		if (nmp)
-		    nmp->nm_bufqiods--;
-		nfs_iodwant[myiod] = NULL;
-		nfs_iodmount[myiod] = NULL;
-		nfs_numasync--;
-		return /* XXX (error) */;
-	    }
+	    if (error)
+		    break;
 	    while ((bp = TAILQ_FIRST(&nmp->nm_bufq)) != NULL) {
 		/* Take one off the front of the list */
 		TAILQ_REMOVE(&nmp->nm_bufq, bp, b_freelist);
 		nmp->nm_bufqlen--;
 		if (nmp->nm_bufqwant && nmp->nm_bufqlen <= nfs_numasync) {
-		    nmp->nm_bufqwant = FALSE;
+		    nmp->nm_bufqwant = 0;
 		    wakeup(&nmp->nm_bufq);
 		}
 		if (bp->b_iocmd == BIO_READ)
@@ -194,4 +213,14 @@ nfssvc_iod(void *dummy)
 		}
 	    }
 	}
+	nfs_asyncdaemon[myiod] = 0;
+	if (nmp)
+	    nmp->nm_bufqiods--;
+	nfs_iodwant[myiod] = NULL;
+	nfs_iodmount[myiod] = NULL;
+	nfs_numasync--;
+	if (error == EWOULDBLOCK)
+		kthread_exit(0);
+	/* Abnormal termination */
+	kthread_exit(1);
 }
