@@ -381,7 +381,7 @@ _fetch_add_entry(struct url_ent **p, int *size, int *len,
     }
 
     tmp = *p + *len;
-    snprintf(tmp->name, MAXPATHLEN, "%s", name);
+    snprintf(tmp->name, PATH_MAX, "%s", name);
     bcopy(stat, &tmp->stat, sizeof *stat);
 
     (*len)++;
