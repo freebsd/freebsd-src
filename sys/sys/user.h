@@ -197,14 +197,12 @@ void fill_kinfo_proc(struct proc *, struct kinfo_proc *);
 #define	KI_LOCKBLOCK	0x00000004	/* proc blocked on lock ki_lockname */
 
 /*
- * Per process structure containing data that isn't needed in core
- * when the process isn't running (esp. when swapped out).
+ * This used to be the per-process structure containing data that
+ * isn't needed in core when the process is swapped out, but now it
+ * remains only for the benefit of a.out core dumps.
  */
 struct user {
 	struct	pstats u_stats;		/* *p_stats */
-	/*
-	 * Remaining field for a.out core dumps - not valid at other times!
-	 */
 	struct	kinfo_proc u_kproc;	/* eproc */
 };
 
