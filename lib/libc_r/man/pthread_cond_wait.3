@@ -51,7 +51,7 @@ The waiting thread unblocks only after another thread calls
 .Xr pthread_cond_signal 3 ,
 or
 .Xr pthread_cond_broadcast 3
-with the same condition variable, and the current thread requires the lock
+with the same condition variable, and the current thread reacquires the lock
 on
 .Fa mutex .
 .Sh RETURN VALUES
