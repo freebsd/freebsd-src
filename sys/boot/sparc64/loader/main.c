@@ -75,7 +75,6 @@ vm_offset_t heapva;
 phandle_t pmemh;	/* OFW memory handle */
 
 struct memory_slice memslices[18];
-struct ofw_devdesc bootdev;
 
 /*
  * Machine dependent structures that the machine independent
@@ -368,9 +367,6 @@ main(int (*openfirm)(void *))
 	archsw.arch_copyout = ofw_copyout;
 	archsw.arch_readin = sparc64_readin;
 	archsw.arch_autoload = sparc64_autoload;
-#ifdef ELF_CRC32
-	archsw.arch_crc32 = sparc64_crc32;
-#endif
 
 	init_heap();
 	setheap((void *)heapva, (void *)(heapva + HEAPSZ));
@@ -398,46 +394,32 @@ main(int (*openfirm)(void *))
 	chosenh = OF_finddevice("/chosen");
 	OF_getprop(chosenh, "bootpath", bootpath, sizeof(bootpath));
 
-	bootdev.d_type = ofw_devicetype(bootpath);
-	switch (bootdev.d_type) {
-	case DEVT_DISK:
-		bootdev.d_dev = &ofwdisk;
-		/*
-		 * Sun compatible bootable CD-ROMs have a disk label placed
-		 * before the cd9660 data, with the actual filesystem being
-		 * in the first partition, while the other partitions contain
-		 * pseudo disk labels with embedded boot blocks for different
-		 * architectures, which may be followed by UFS filesystems.
-		 * The firmware will set the boot path to the partition it
-		 * boots from ('f' in the sun4u case), but we want the kernel
-		 * to be loaded from the cd9660 fs ('a'), so the boot path
-		 * needs to be altered.
-		 */
-		if (strstr(bootpath, "cdrom") != NULL &&
-		    bootpath[strlen(bootpath) - 2] == ':') {
-			bootpath[strlen(bootpath) - 1] = 'a';
-			printf("Boot path set to %s\n", bootpath);
-		}
-		strncpy(bootdev.d_kind.ofwdisk.path, bootpath, 64);
-		ofw_parseofwdev(&bootdev, bootpath);
-		break;
-	case DEVT_NET:
-		bootdev.d_dev = &netdev;
-		strncpy(bootdev.d_kind.netif.path, bootpath, 64);
-		bootdev.d_kind.netif.unit = 0;
-		break;
+	/*
+	 * Sun compatible bootable CD-ROMs have a disk label placed
+	 * before the cd9660 data, with the actual filesystem being
+	 * in the first partition, while the other partitions contain
+	 * pseudo disk labels with embedded boot blocks for different
+	 * architectures, which may be followed by UFS filesystems.
+	 * The firmware will set the boot path to the partition it
+	 * boots from ('f' in the sun4u case), but we want the kernel
+	 * to be loaded from the cd9660 fs ('a'), so the boot path
+	 * needs to be altered.
+	 */
+	if (bootpath[strlen(bootpath) - 2] == ':' &&
+	    bootpath[strlen(bootpath) - 1] == 'f') {
+		bootpath[strlen(bootpath) - 1] = 'a';
+		printf("Boot path set to %s\n", bootpath);
 	}
 
-	env_setenv("currdev", EV_VOLATILE, ofw_fmtdev(&bootdev),
+	env_setenv("currdev", EV_VOLATILE, bootpath,
 	    ofw_setcurrdev, env_nounset);
-	env_setenv("loaddev", EV_VOLATILE, ofw_fmtdev(&bootdev),
+	env_setenv("loaddev", EV_VOLATILE, bootpath,
 	    env_noset, env_nounset);
 
 	printf("\n");
 	printf("%s, Revision %s\n", bootprog_name, bootprog_rev);
 	printf("(%s, %s)\n", bootprog_maker, bootprog_date);
 	printf("bootpath=\"%s\"\n", bootpath);
-	printf("loaddev=%s\n", getenv("loaddev"));
 
 	/* Give control to the machine independent loader code. */
 	interact();
