@@ -56,7 +56,8 @@ argument set to
 .Pp
 On unload it is first called with
 .Fa what
-set to MOD_QUIESCE .
+set to
+.Dv MOD_QUIESCE .
 If the unload was not forced, a non-zero return will prevent the
 unload from happening.
 .Pp
@@ -66,8 +67,14 @@ is set to
 .Dv MOD_UNLOAD .
 If the module returns non-zero to this, the unload will not happen.
 .Pp
-The difference between MOD_QUIESCE and MOD_UNLOAD is that the module
-should fail MOD_QUIESCE if it is currently in use, whereas MOD_UNLOAD
+The difference between
+.Dv MOD_QUIESCE
+and
+.Dv MOD_UNLOAD
+is that the module should fail
+.Dv MOD_QUIESCE
+if it is currently in use, whereas
+.Dv MOD_UNLOAD
 should only fail if it is impossible to unload the module, for instance
 because there are memory references to the module which cannot be revoked.
 .Pp
@@ -76,7 +83,9 @@ When the system is shutting down,
 contains the value of
 .Dv MOD_SHUTDOWN .
 .Pp
-The module should return EOPNOTSUPP for unrecognized values of
+The module should return
+.Er EOPNOTSUPP
+for unrecognized values of
 .Fa what .
 .Sh EXAMPLES
 .Bd -literal

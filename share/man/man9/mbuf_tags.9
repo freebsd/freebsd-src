@@ -20,7 +20,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd Nov 18, 2004
+.Dd November 18, 2004
 .Dt MBUF_TAGS 9
 .Os
 .Sh NAME
@@ -122,7 +122,7 @@ and
 cookie, respectively.
 .Va m_tag_free
 points to
-.Ft _m_tag_free .
+.Fn m_tag_free_default .
 Following this structure are
 .Va m_tag_len
 bytes of space that can be used to store tag-specific information.
@@ -227,7 +227,9 @@ Free
 using its
 .Va m_tag_free
 method.
-.Ft _m_tag_free
+The
+.Fn m_tag_free_default
+function
 is used by default.
 .It Fn m_tag_init mbuf
 Initialize the tag storage for packet

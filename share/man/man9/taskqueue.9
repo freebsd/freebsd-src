@@ -166,7 +166,7 @@ Three macros
 and
 .Fn TASKQUEUE_DEFINE_THREAD "name"
 are used to declare a reference to a global queue, to define the
-implementation of the queue, and declare a queue that uses it's own thread.
+implementation of the queue, and declare a queue that uses its own thread.
 The
 .Fn TASKQUEUE_DEFINE
 macro arranges to call
@@ -187,8 +187,8 @@ allowing any further initialisation to be performed
 .Pp
 The
 .Fn TASKQUEUE_DEFINE_THREAD
-macro defines a new taskqueue with it's own kernel thread to serve tasks.  The
-variable
+macro defines a new taskqueue with its own kernel thread to serve tasks.
+The variable
 .Vt struct proc *taskqueue_name_proc
 is defined which contains the kernel thread serving the tasks.
 The variable
@@ -213,12 +213,11 @@ To use these queues,
 call
 .Fn taskqueue_enqueue
 with the value of the global taskqueue variable for the queue you wish to
-use (
-.Va taskqueue_swi ,
+use
+.Va ( taskqueue_swi ,
 .Va taskqueue_swi_giant ,
 or
-.Va taskqueue_thread
-).
+.Va taskqueue_thread ) .
 .Pp
 The software interrupt queues can be used,
 for instance, for implementing interrupt handlers which must perform a
