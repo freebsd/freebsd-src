@@ -118,4 +118,4 @@ MLINKS+=tzset.3 tzsetwall.3
 MLINKS+=vis.3 strvis.3 vis.3 strvisx.3
 MLINKS+=unvis.3 strunvis.3 
 MLINKS+=fts.3 fts_open.3 fts.3 fts_read.3 fts.3 fts_children.3 \
-	fts.3 fts_close.3
+	fts.3 fts_close.3 fts.3 fts_set.3
