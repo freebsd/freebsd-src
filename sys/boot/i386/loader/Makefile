@@ -1,8 +1,8 @@
-# $Id: Makefile,v 1.32 1999/04/18 09:21:12 dcs Exp $
+# $Id: Makefile,v 1.33 1999/04/24 17:25:35 dcs Exp $
 
 BASE=		loader
 PROG=		${BASE}
-MAN5=		loader.conf.5
+MAN5=		../../forth/loader.conf.5
 MAN8=		loader.8 ../../forth/loader.4th.8
 #NOMAN=
 STRIP=
