@@ -1781,7 +1781,7 @@ ndis_interlock_inc(addend)
 	uint32_t		*addend;
 {
 	mtx_lock(&ndis_interlock);
-	*addend++;
+	(*addend)++;
 	mtx_unlock(&ndis_interlock);
 	return(*addend);
 }
@@ -1791,7 +1791,7 @@ ndis_interlock_dec(addend)
 	uint32_t		*addend;
 {
 	mtx_lock(&ndis_interlock);
-	*addend--;
+	(*addend)--;
 	mtx_unlock(&ndis_interlock);
 	return(*addend);
 }
@@ -2087,13 +2087,13 @@ ndis_insert_head(head, entry, lock)
 {
 	ndis_list_entry		*flink;
 
-	mtx_lock_spin((struct mtx *)lock->nsl_spinlock);
+	mtx_lock((struct mtx *)lock->nsl_spinlock);
 	flink = head->nle_flink;
 	entry->nle_flink = flink;
 	entry->nle_blink = head;
 	flink->nle_blink = entry;
 	head->nle_flink = entry;
-	mtx_unlock_spin((struct mtx *)lock->nsl_spinlock);
+	mtx_unlock((struct mtx *)lock->nsl_spinlock);
 
 	return(flink);
 }
@@ -2106,12 +2106,12 @@ ndis_remove_head(head, lock)
 	ndis_list_entry		*flink;
 	ndis_list_entry		*entry;
 
-	mtx_lock_spin((struct mtx *)lock->nsl_spinlock);
+	mtx_lock((struct mtx *)lock->nsl_spinlock);
 	entry = head->nle_flink;
 	flink = entry->nle_flink;
 	head->nle_flink = flink;
 	flink->nle_blink = head;
-	mtx_unlock_spin((struct mtx *)lock->nsl_spinlock);
+	mtx_unlock((struct mtx *)lock->nsl_spinlock);
 
 	return(entry);
 }
@@ -2124,13 +2124,13 @@ ndis_insert_tail(head, entry, lock)
 {
 	ndis_list_entry		*blink;
 
-	mtx_lock_spin((struct mtx *)lock->nsl_spinlock);
+	mtx_lock((struct mtx *)lock->nsl_spinlock);
 	blink = head->nle_blink;
 	entry->nle_flink = head;
 	entry->nle_blink = blink;
 	blink->nle_flink = entry;
 	head->nle_blink = entry;
-	mtx_unlock_spin((struct mtx *)lock->nsl_spinlock);
+	mtx_unlock((struct mtx *)lock->nsl_spinlock);
 
 	return(blink);
 }
