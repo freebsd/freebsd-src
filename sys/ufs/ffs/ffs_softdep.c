@@ -2563,8 +2563,12 @@ indir_trunc(freeblks, dbn, level, lbn, countp)
 	 * a complete copy of the indirect block in memory for our use.
 	 * Otherwise we have to read the blocks in from the disk.
 	 */
+#ifdef notyet
 	bp = getblk(freeblks->fb_devvp, dbn, (int)fs->fs_bsize, 0, 0,
 	    GB_NOCREAT);
+#else
+	bp = incore(freeblks->fb_devvp, dbn);
+#endif
 	ACQUIRE_LOCK(&lk);
 	if (bp != NULL && (wk = LIST_FIRST(&bp->b_dep)) != NULL) {
 		if (wk->wk_type != D_INDIRDEP ||
@@ -2582,8 +2586,10 @@ indir_trunc(freeblks, dbn, level, lbn, countp)
 		VFSTOUFS(freeblks->fb_mnt)->um_numindirdeps -= 1;
 		FREE_LOCK(&lk);
 	} else {
+#ifdef notyet
 		if (bp)
 			brelse(bp);
+#endif
 		FREE_LOCK(&lk);
 		error = bread(freeblks->fb_devvp, dbn, (int)fs->fs_bsize,
 		    NOCRED, &bp);
