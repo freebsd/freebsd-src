@@ -13399,6 +13399,10 @@ COMPUTER SCIENCE:
 	5) Tautology harnessed in the service of Man at the speed of light.
 	6) The Post-Turing decline in formal systems theory.
 %
+Computer Science is no more about computers than astronomy is about
+telescopes.
+		-- Edsger W. Dijkstra
+%
 Computer Science is the only discipline in which we view
 adding a new wing to a building as being maintenance
 		-- Jim Horning
@@ -17234,12 +17238,6 @@ FORTRAN, "the infantile disorder", by now nearly 20 years old, is hopelessly
 inadequate for whatever computer application you have in mind today: it is
 too clumsy, too risky, and too expensive to use.
 		-- Edsger W. Dijkstra, SIGPLAN Notices, Volume 17, Number 5
-%
-FORTRAN, "the infantile disorder", by now nearly 20 years old, is
-hopelessly inadequate for whatever computer application you have
-in mind today: it is now too clumsy, too risky, and too expensive
-to use.
-		-- E.W. Dijkstra
 %
 [FORTRAN] will persist for some time --
 probably for at least the next decade.
@@ -35883,10 +35881,6 @@ pixel, n:
 %
 P-K4
 %
-PL/1, "the fatal disease", belongs more
-to the problem set than to the solution set.
-		-- E.W. Dijkstra
-%
 Plagiarize, plagiarize,
 Let no man's work evade your eyes,
 Remember why the good Lord made your eyes,
@@ -44790,10 +44784,6 @@ contain herself.  God created men and women different -- then let them
 remain each in their own position.
 		-- Letter to Sir Theodore Martin, 29 May 1870, from
 		   Queen Victoria
-%
-The question of whether computers can think is just like the question of
-whether submarines can swim.
-		-- Edsger W. Dijkstra
 %
 The questions remain the same.
 The answers are eternally variable.
