@@ -818,12 +818,22 @@ DoLoop()
     tp = (dial_up && RedialTimer.state != TIMER_RUNNING) ? &timeout : NULL;
     i = select(tun_in+10, &rfds, &wfds, &efds, tp);
 #endif
+
     if ( i == 0 ) {
         continue;
     }
 
     if ( i < 0 ) {
        if ( errno == EINTR ) {
+          if( TimerServiceRequest > 0 ) {
+#ifdef DEBUG
+             logprintf( "Invoking TimerService\n" );
+#endif
+             /* Maybe a bit cautious.... */
+             TimerServiceRequest = -1;
+             TimerService();
+             TimerServiceRequest = 0;
+          }
           continue;            /* Got SIGALRM, Do check a queue for dialing */
        }
        perror("select");
