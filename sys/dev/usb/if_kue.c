@@ -33,9 +33,31 @@
  */
 
 /*
+ * Kawasaki LSI KL5KUSB101B USB to ethernet adapter driver.
+ *
  * Written by Bill Paul <wpaul@ee.columbia.edu>
  * Electrical Engineering Department
  * Columbia University, New York City
+ */
+
+/*
+ * The KLSI USB to ethernet adapter chip contains an USB serial interface,
+ * ethernet MAC and embedded microcontroller (called the QT Engine).
+ * The chip must have firmware loaded into it before it will operate.
+ * Packets are passed between the chip and host via bulk transfers.
+ * There is an interrupt endpoint mentioned in the software spec, however
+ * it's currently unused. This device is 10Mbps half-duplex only, hence
+ * there is no media selection logic. The MAC supports a 128 entry
+ * multicast filter, though the exact size of the filter can depend
+ * on the firmware. Curiously, while the software spec describes various
+ * ethernet statistics counters, my sample adapter and firmware combination
+ * claims not to support any statistics counters at all.
+ *
+ * Note that once we load the firmware in the device, we have to be
+ * careful not to load it again: if you restart your computer but
+ * leave the adapter attached to the USB controller, it may remain
+ * powered on and retain its firmware. In this case, we don't need
+ * to load the firmware a second time.
  */
 
 #include <sys/param.h>
@@ -69,6 +91,7 @@
 #include <dev/usb/usbdi_util.h>
 #include <dev/usb/usbdivar.h>
 #include <dev/usb/usbdevs.h>
+#include <dev/usb/usb_quirks.h>
 
 #include <dev/usb/if_kuereg.h>
 #include <dev/usb/kue_fw.h>
@@ -234,6 +257,27 @@ static int kue_load_fw(sc)
 	struct kue_softc	*sc;
 {
 	usbd_status		err;
+	u_int8_t		eaddr[] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+
+	/*
+	 * First, check if we even need to load the firmware.
+	 * If the device was still attached when the system was
+	 * rebooted, it may already have firmware loaded in it.
+	 * If this is the case, we don't need to do it again.
+	 * And in fact, if we try to load it again, we'll hang,
+	 * so we have to avoid this condition if we don't want
+	 * to look stupid.
+	 *
+	 * We can test this quickly by trying to read the MAC
+	 * address; if this fails to return any data, the firmware
+	 * needs to be reloaded, otherwise the device is already
+	 * operational and we can just return.
+	 */
+	err = kue_ctl(sc, KUE_CTL_READ, KUE_CMD_GET_MAC,
+	    0, (char *)&eaddr, ETHER_ADDR_LEN);
+
+	if (bcmp(eaddr, etherbroadcastaddr, ETHER_ADDR_LEN))
+		return(USBD_NORMAL_COMPLETION);
 
 	/* Load code segment */
 	err = kue_ctl(sc, KUE_CTL_WRITE, KUE_CMD_SEND_SCAN,
@@ -257,7 +301,7 @@ static int kue_load_fw(sc)
 	err = kue_ctl(sc, KUE_CTL_WRITE, KUE_CMD_SEND_SCAN,
 	    0, kue_trig_seg, sizeof(kue_trig_seg));
 	if (err) {
-		printf("kue%d: failed to load fixup segment: %s\n",
+		printf("kue%d: failed to load trigger segment: %s\n",
 		    sc->kue_unit, usbd_errstr(err));
 			return(ENXIO);
 	}
@@ -333,14 +377,28 @@ USB_MATCH(kue)
 {
 	USB_MATCH_START(kue, uaa);
 	struct kue_type			*t;
+	usb_device_descriptor_t		*dd;
 
 	if (!uaa->iface)
 		return(UMATCH_NONE);
+
+	dd = &uaa->device->ddesc;
 
 	t = kue_devs;
 	while(t->kue_name != NULL) {
 		if (uaa->vendor == t->kue_vid &&
 		    uaa->product == t->kue_did) {
+			/*
+			 * Force the revision code and then rescan the
+			 * quirks so that we get the right quirk bits set.
+			 * Why? The chip without the firmware loaded returns
+			 * one revision code. The chip with the firmware
+			 * loaded and running returns a *different* revision
+			 * code. This confuses the quirk mechanism, which is
+			 * dependent on the revision data.
+			 */
+			USETW(dd->bcdDevice, 0x002);
+			uaa->device->quirks = usbd_find_quirk(dd);
 			device_set_desc(self, t->kue_name);
 			return(UMATCH_VENDOR_PRODUCT);
 		}
