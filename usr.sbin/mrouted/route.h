@@ -7,7 +7,8 @@
  * Leland Stanford Junior University.
  *
  *
- * $Id$
+ * $Id: route.h,v 1.7 1997/02/22 16:07:07 peter Exp $
+ * route.h,v 3.8.4.6 1997/07/01 23:02:35 fenner Exp
  */
 
 /*
@@ -35,17 +36,18 @@ struct rtentry {
     u_int32	     rt_gateway;	/* first-hop gateway back to origin */
     vifi_t	     rt_parent;	    	/* incoming vif (ie towards origin) */
     vifbitmap_t	     rt_children;	/* outgoing children vifs           */
-    vifbitmap_t	     rt_leaves;		/* subset of outgoing children vifs */
     u_int32	    *rt_dominants;      /* per vif dominant gateways        */
-    u_int32	    *rt_subordinates;   /* per vif subordinate gateways     */
-    u_int	    *rt_leaf_timers;	/* per vif leaf confirmation timers */
+    nbrbitmap_t	     rt_subordinates;   /* bitmap of subordinate gateways   */
+    nbrbitmap_t	     rt_subordadv;      /* recently advertised subordinates */
     u_int	     rt_timer;		/* for timing out the route entry   */
     struct rtentry  *rt_prev;		/* link to previous entry           */
     struct gtable   *rt_groups;		/* link to active groups 	    */
 };
 
 #define	RTF_CHANGED		0x01	/* route changed but not reported   */
-#define RTF_LEAF_TIMING		0x02	/* some leaf timers are running     */
+#define	RTF_HOLDDOWN		0x04	/* this route is in holddown	    */
 
 #define ALL_ROUTES	0		/* possible arguments to report()   */
 #define CHANGED_ROUTES	1		/*  and report_to_all_neighbors()   */
+
+#define	RT_FMT(r, s)	inet_fmts((r)->rt_origin, (r)->rt_originmask, s)

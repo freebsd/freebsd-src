@@ -61,7 +61,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "$Id: mrinfo.c,v 1.14 1998/01/16 07:17:43 charnier Exp $";
+    "$Id: mrinfo.c,v 1.15 1998/06/09 05:01:34 imp Exp $";
 /*  original rcsid:
     "@(#) Header: mrinfo.c,v 1.6 93/04/08 15:14:16 van Exp (LBL)";
 */
@@ -238,13 +238,14 @@ accept_neighbors2(src, dst, p, datalen, level)
 	u_char *ep = p + datalen;
 	u_int broken_cisco = ((level & 0xffff) == 0x020a); /* 10.2 */
 	/* well, only possibly_broken_cisco, but that's too long to type. */
+	u_int majvers = level & 0xff;
+	u_int minvers = (level >> 8) & 0xff;
 
-	printf("%s (%s) [version %d.%d", inet_fmt(src, s1), inet_name(src),
-	       level & 0xff, (level >> 8) & 0xff);
-	if ((level >> 16) & NF_LEAF)   { printf (",leaf"); }
-	if ((level >> 16) & NF_PRUNE)  { printf (",prune"); }
-	if ((level >> 16) & NF_GENID)  { printf (",genid"); }
-	if ((level >> 16) & NF_MTRACE) { printf (",mtrace"); }
+	printf("%s (%s) [", inet_fmt(src, s1), inet_name(src));
+	if (majvers == 3 && minvers == 0xff)
+		printf("DVMRPv3 compliant");
+	else
+		printf("version %d.%d", majvers, minvers);
 	printf ("]:\n");
 	
 	while (p < ep) {
@@ -397,7 +398,7 @@ main(argc, argv)
 		int     addrlen = sizeof(addr);
 
 		addr.sin_family = AF_INET;
-#if (defined(BSD) && (BSD >= 199103))
+#ifdef HAVE_SA_LEN
 		addr.sin_len = sizeof addr;
 #endif
 		addr.sin_addr.s_addr = target_addr;
@@ -490,7 +491,11 @@ main(argc, argv)
 		src = ip->ip_src.s_addr;
 		dst = ip->ip_dst.s_addr;
 		iphdrlen = ip->ip_hl << 2;
+#ifdef RAW_INPUT_IS_RAW
+		ipdatalen = ntohs(ip->ip_len) - iphdrlen;
+#else
 		ipdatalen = ip->ip_len;
+#endif
 		if (iphdrlen + ipdatalen != recvlen) {
 		    log(LOG_WARNING, 0,
 		      "packet shorter (%u bytes) than hdr+data length (%u+%u)",
