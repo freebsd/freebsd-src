@@ -79,7 +79,6 @@ KEYMAPS= be.iso br275.iso danish.iso finnish.iso fr.iso \
 	spanish.iso swedish.iso swissfrench.iso swissgerman.iso uk.iso \
 	us.dvorak us.iso
 
-
 keymap.h:
 	rm -f keymap.tmp
 	for map in ${KEYMAPS} ; do \
@@ -93,5 +92,10 @@ keymap.h:
 	done
 	( echo "	{ 0 }"; echo "};" ; echo "" ) >> keymap.tmp
 	mv keymap.tmp keymap.h
+
+beforeinstall:
+	@if [ ! -d ${BINDIR}/ ]; then \
+		mkdir -p ${BINDIR}; \
+	fi
 
 .include <bsd.prog.mk>
