@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)raw_ip.c	8.7 (Berkeley) 5/15/95
- *	$Id: raw_ip.c,v 1.19.4.3 1995/10/21 03:02:54 davidg Exp $
+ *	$Id: raw_ip.c,v 1.19.4.4 1996/02/23 15:26:13 phk Exp $
  */
 
 #include <sys/param.h>
@@ -221,7 +221,6 @@ rip_ctloutput(op, so, level, optname, m)
 	case IP_FW_ADD:
 	case IP_FW_DEL:
 	case IP_FW_FLUSH:
-	case IP_FW_POLICY:
 	case IP_FW_ZERO: 
 		if (ip_fw_ctl_ptr==NULL) {
 			if (*m)
