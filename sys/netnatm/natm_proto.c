@@ -106,24 +106,23 @@ static struct domain natmdomain =
       natmsw, &natmsw[sizeof(natmsw)/sizeof(natmsw[0])], 0,
       0, 0, 0};
 
-static int natmqmaxlen = IFQ_MAXLEN;	/* max # of packets on queue */
+static int natmqmaxlen = 1000 /* IFQ_MAXLEN */;	/* max # of packets on queue */
 static struct ifqueue natmintrq;
 #ifdef NATM_STAT
-u_int natm_sodropcnt = 0;		/* # mbufs dropped due to full sb */
-u_int natm_sodropbytes = 0;		/* # of bytes dropped */
-u_int natm_sookcnt = 0;			/* # mbufs ok */
-u_int natm_sookbytes = 0;		/* # of bytes ok */
+u_int natm_sodropcnt;		/* # mbufs dropped due to full sb */
+u_int natm_sodropbytes;		/* # of bytes dropped */
+u_int natm_sookcnt;		/* # mbufs ok */
+u_int natm_sookbytes;		/* # of bytes ok */
 #endif
 
-
-static void natm_init()
-
+static void
+natm_init(void)
 {
-  LIST_INIT(&natm_pcbs);
-  bzero(&natmintrq, sizeof(natmintrq));
-  natmintrq.ifq_maxlen = natmqmaxlen;
-  mtx_init(&natmintrq.ifq_mtx, "natm_inq", NULL, MTX_DEF);
-  netisr_register(NETISR_NATM, natmintr, &natmintrq);
+	LIST_INIT(&natm_pcbs);
+	bzero(&natmintrq, sizeof(natmintrq));
+	natmintrq.ifq_maxlen = natmqmaxlen;
+	mtx_init(&natmintrq.ifq_mtx, "natm_inq", NULL, MTX_DEF);
+	netisr_register(NETISR_NATM, natmintr, &natmintrq);
 }
 
 #if defined(__FreeBSD__)
