@@ -2,6 +2,7 @@
 #
 
 SSHSRC=	${.CURDIR}/../../../crypto/openssh
+LOGINSRC= ${.CURDIR}/../../../usr.bin/login
 
 PROG=	sshd
 BINOWN=	root
@@ -9,13 +10,14 @@ BINMODE=555
 MAN8=	sshd.8
 
 SRCS=	sshd.c auth-rhosts.c auth-passwd.c auth-rsa.c auth-rh-rsa.c \
-	pty.c log-server.c login.c servconf.c serverloop.c
+	pty.c log-server.c login.c servconf.c serverloop.c \
+	login_access.c
 
-CFLAGS=	-DLIBWRAP
+CFLAGS+= -DLIBWRAP -DLOGIN_ACCESS -I${LOGINSRC}
 
 .include <bsd.own.mk>
 
-.PATH:		${SSHSRC}
+.PATH:		${SSHSRC} ${LOGINSRC}
 
 .if defined(MAKE_KERBEROS4) && \
 	((${MAKE_KERBEROS4} == "yes") || (${MAKE_KERBEROS4} == "YES"))
