@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: log.c,v 1.25.2.9 1998/04/24 19:15:43 brian Exp $
+ *	$Id: log.c,v 1.25.2.10 1998/04/24 19:16:05 brian Exp $
  */
 
 #include <sys/types.h>
@@ -341,22 +341,23 @@ log_SetLevel(struct cmdargs const *arg)
     local = 1;
   }
 
-  if (argc == 0 || (argv[0][0] != '+' && argv[0][0] != '-'))
+  if (argc == 0 || (argv[0][0] != '+' && argv[0][0] != '-')) {
     if (local)
       LogDiscardAllLocal(&arg->prompt->logmask);
     else
       LogDiscardAll();
+  }
 
   while (argc--) {
     argp = **argv == '+' || **argv == '-' ? *argv + 1 : *argv;
     for (i = LogMIN; i <= LogMAX; i++)
       if (strcasecmp(argp, LogName(i)) == 0) {
-	if (**argv == '-')
+	if (**argv == '-') {
           if (local)
             LogDiscardLocal(i, &arg->prompt->logmask);
           else
 	    LogDiscard(i);
-	else if (local)
+	} else if (local)
           LogKeepLocal(i, &arg->prompt->logmask);
         else
           LogKeep(i);

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.1.2.60 1998/04/24 19:15:34 brian Exp $
+ *	$Id: bundle.c,v 1.1.2.61 1998/04/24 19:15:57 brian Exp $
  */
 
 #include <sys/types.h>
@@ -35,6 +35,7 @@
 #include <net/if_dl.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
+#include <net/if_tun.h>
 
 #include <errno.h>
 #include <fcntl.h>
@@ -680,7 +681,7 @@ bundle_SetRoute(struct bundle *bundle, int cmd, struct in_addr dst,
   cp = rtmes.m_space;
   memcpy(cp, &rtdata, rtdata.sin_len);
   cp += rtdata.sin_len;
-  if (cmd == RTM_ADD)
+  if (cmd == RTM_ADD) {
     if (gateway.s_addr == INADDR_ANY) {
       /* Add a route through the interface */
       struct sockaddr_dl dl;
@@ -706,6 +707,7 @@ bundle_SetRoute(struct bundle *bundle, int cmd, struct in_addr dst,
       cp += rtdata.sin_len;
       rtmes.m_rtm.rtm_addrs |= RTA_GATEWAY;
     }
+  }
 
   if (dst.s_addr == INADDR_ANY)
     mask.s_addr = INADDR_ANY;
@@ -728,7 +730,7 @@ bundle_SetRoute(struct bundle *bundle, int cmd, struct in_addr dst,
     LogPrintf(LogTCPIP, "bundle_SetRoute:  Mask = %s\n", inet_ntoa(mask));
 failed:
     if (cmd == RTM_ADD && (rtmes.m_rtm.rtm_errno == EEXIST ||
-                           (rtmes.m_rtm.rtm_errno == 0 && errno == EEXIST)))
+                           (rtmes.m_rtm.rtm_errno == 0 && errno == EEXIST))) {
       if (!bang)
         LogPrintf(LogWARN, "Add route failed: %s already exists\n",
                   inet_ntoa(dst));
@@ -737,7 +739,7 @@ failed:
         if ((wb = ID0write(s, &rtmes, nb)) < 0)
           goto failed;
       }
-    else if (cmd == RTM_DELETE &&
+    } else if (cmd == RTM_DELETE &&
              (rtmes.m_rtm.rtm_errno == ESRCH ||
               (rtmes.m_rtm.rtm_errno == 0 && errno == ESRCH))) {
       if (!bang)

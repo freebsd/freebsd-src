@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: route.c,v 1.42.2.17 1998/04/07 00:54:16 brian Exp $
+ * $Id: route.c,v 1.42.2.18 1998/04/19 03:41:01 brian Exp $
  *
  */
 
@@ -109,8 +109,8 @@ p_sockaddr(struct prompt *prompt, struct sockaddr *phost,
   case AF_LINK:
     if (dl->sdl_nlen)
       snprintf(buf, sizeof buf, "%.*s", dl->sdl_nlen, dl->sdl_data);
-    else if (dl->sdl_alen)
-      if (dl->sdl_type == IFT_ETHER)
+    else if (dl->sdl_alen) {
+      if (dl->sdl_type == IFT_ETHER) {
         if (dl->sdl_alen < sizeof buf / 3) {
           int f;
           u_char *MAC;
@@ -121,9 +121,9 @@ p_sockaddr(struct prompt *prompt, struct sockaddr *phost,
           buf[f*3-1] = '\0';
         } else
 	  strcpy(buf, "??:??:??:??:??:??");
-      else
+      } else
         sprintf(buf, "<IFT type %d>", dl->sdl_type);
-    else if (dl->sdl_slen)
+    }  else if (dl->sdl_slen)
       sprintf(buf, "<slen %d?>", dl->sdl_slen);
     else
       sprintf(buf, "link#%d", dl->sdl_index);

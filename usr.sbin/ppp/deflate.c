@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: deflate.c,v 1.6.4.12 1998/04/24 19:15:24 brian Exp $
+ *	$Id: deflate.c,v 1.6.4.13 1998/04/25 00:09:10 brian Exp $
  */
 
 #include <sys/types.h>
@@ -277,7 +277,7 @@ DeflateInput(void *v, struct ccp *ccp, u_short *proto, struct mbuf *mi)
         flush = Z_SYNC_FLUSH;
     }
 
-    if (state->cx.avail_out == 0)
+    if (state->cx.avail_out == 0) {
       /* overflow */
       if (first) {
         if (!(wp[1] & 1)) {
@@ -295,6 +295,7 @@ DeflateInput(void *v, struct ccp *ccp, u_short *proto, struct mbuf *mi)
         state->cx.next_out = MBUF_CTOP(mo);
         state->cx.avail_out = DEFLATE_CHUNK_LEN;
       }
+    }
   }
 
   if (mi != NULL)

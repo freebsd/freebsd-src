@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp.c,v 1.1.2.14 1998/04/24 19:16:20 brian Exp $
+ *	$Id: mp.c,v 1.1.2.15 1998/04/25 00:09:21 brian Exp $
  */
 
 #include <sys/types.h>
@@ -678,7 +678,7 @@ mp_SetEnddisc(struct cmdargs const *arg)
     mp->cfg.enddisc.class = 0;
     *mp->cfg.enddisc.address = '\0';
     mp->cfg.enddisc.len = 0;
-  } else if (arg->argc > arg->argn)
+  } else if (arg->argc > arg->argn) {
     if (!strcasecmp(arg->argv[arg->argn], "label")) {
       mp->cfg.enddisc.class = ENDDISC_LOCAL;
       strcpy(mp->cfg.enddisc.address, arg->bundle->cfg.label);
@@ -739,6 +739,7 @@ mp_SetEnddisc(struct cmdargs const *arg)
                 arg->argv[arg->argn]);
       return 6;
     }
+  }
 
   return 0;
 }

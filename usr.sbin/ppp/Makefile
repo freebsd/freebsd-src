@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.36.2.9 1998/04/03 19:25:19 brian Exp $
+#	$Id: Makefile,v 1.36.2.10 1998/04/16 00:25:45 brian Exp $
 
 PROG=	ppp
 SRCS=	arp.c async.c auth.c bundle.c ccp.c chap.c chat.c command.c \
@@ -7,12 +7,19 @@ SRCS=	arp.c async.c auth.c bundle.c ccp.c chap.c chat.c command.c \
 	mp.c pap.c physical.c pred.c prompt.c route.c server.c sig.c \
 	slcompress.c systems.c throughput.c timer.c tun.c vjcomp.c
 CFLAGS+=-Wall -Wpointer-arith
-LDADD+= -lmd -lcrypt -lutil -lz
+LDADD+= -lutil -lz
 DPADD+= ${LIBMD} ${LIBCRYPT} ${LIBUTIL} ${LIBZ}
-MAN8=	ppp.8
 BINMODE=4550
 BINOWN=	root
 BINGRP=	network
+
+OPSYS!=	uname -s
+.if (${OPSYS} == "OpenBSD")
+MAN=	ppp.8
+.else
+MAN8=	ppp.8
+LDADD+=	-lmd -lcrypt
+.endif
 
 .if defined(RELEASE_CRUNCH)
 CFLAGS+=-DRELEASE_CRUNCH

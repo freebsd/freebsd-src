@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ccp.c,v 1.30.2.37 1998/04/24 19:15:23 brian Exp $
+ * $Id: ccp.c,v 1.30.2.38 1998/04/24 19:15:36 brian Exp $
  *
  *	TODO:
  *		o Support other compression protocols
@@ -463,7 +463,7 @@ CcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
     cp += cp[1];
   }
 
-  if (mode_type != MODE_NOP)
+  if (mode_type != MODE_NOP) {
     if (dec->rejend != dec->rej) {
       /* rejects are preferred */
       dec->ackend = dec->ack;
@@ -480,6 +480,7 @@ CcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
         ccp->in.algorithm = -1;
       }
     }
+  }
 }
 
 void
@@ -542,7 +543,7 @@ ccp_Decompress(struct ccp *ccp, u_short *proto, struct mbuf *bp)
    * If proto isn't PROTO_[I]COMPD, we still want to pass it to the
    * decompression routines so that the dictionary's updated
    */
-  if (ccp->fsm.state == ST_OPENED)
+  if (ccp->fsm.state == ST_OPENED) {
     if (*proto == PROTO_COMPD || *proto == PROTO_ICOMPD) {
       /* Decompress incoming data */
       if (ccp->reset_sent != -1)
@@ -557,6 +558,7 @@ ccp_Decompress(struct ccp *ccp, u_short *proto, struct mbuf *bp)
       /* Add incoming Network Layer traffic to our dictionary */
       (*algorithm[ccp->in.algorithm]->i.DictSetup)
         (ccp->in.state, ccp, *proto, bp);
+  }
 
   return bp;
 }

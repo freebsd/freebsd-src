@@ -16,7 +16,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- *  $Id: physical.c,v 1.1.2.24 1998/04/10 23:51:32 brian Exp $
+ *  $Id: physical.c,v 1.1.2.25 1998/04/16 00:26:13 brian Exp $
  *
  */
 
@@ -176,7 +176,7 @@ Physical_IsSet(struct descriptor *d, const fd_set *fdset)
 void
 Physical_Login(struct physical *phys, const char *name)
 {
-  if (phys->type == PHYS_STDIN && Physical_IsATTY(phys))
+  if (phys->type == PHYS_STDIN && Physical_IsATTY(phys)) {
     if (phys->Utmp)
       LogPrintf(LogERROR, "Oops, already logged in on %s\n", phys->name.base);
     else {
@@ -189,6 +189,7 @@ Physical_Login(struct physical *phys, const char *name)
       ID0login(&ut);
       phys->Utmp = 1;
     }
+  }
 }
 
 void

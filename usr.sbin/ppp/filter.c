@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: filter.c,v 1.22.2.15 1998/04/14 23:17:05 brian Exp $
+ * $Id: filter.c,v 1.22.2.16 1998/04/16 18:30:51 brian Exp $
  *
  *	TODO: Shoud send ICMP error message when we discard packets.
  */
@@ -228,7 +228,7 @@ ParseUdpOrTcp(int argc, char const *const *argv, int proto,
     argv += 3;
   }
 
-  if (proto == P_TCP)
+  if (proto == P_TCP) {
     for (; argc > 0; argc--, argv++)
       if (!strcmp(*argv, "estab"))
         tgt->opt.estab = 1;
@@ -238,6 +238,7 @@ ParseUdpOrTcp(int argc, char const *const *argv, int proto,
         tgt->opt.finrst = 1;
       else
         break;
+  }
 
   if (argc > 0) {
     LogPrintf(LogWARN, "ParseUdpOrTcp: bad src/dst port syntax: %s\n", *argv);

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.131.2.70 1998/04/24 19:15:37 brian Exp $
+ * $Id: command.c,v 1.131.2.71 1998/04/24 19:15:59 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -291,7 +291,7 @@ ShellCommand(struct cmdargs const *arg, int bg)
   }
 #endif
 
-  if (arg->argc == arg->argn)
+  if (arg->argc == arg->argn) {
     if (!arg->prompt) {
       LogPrintf(LogWARN, "Can't start an interactive shell from"
                 " a config file\n");
@@ -305,6 +305,7 @@ ShellCommand(struct cmdargs const *arg, int bg)
 		" the foreground mode\n");
       return 1;
     }
+  }
 
   if ((shpid = fork()) == 0) {
     int dtablesize, i, fd;
@@ -508,7 +509,7 @@ static int
 ShowVersion(struct cmdargs const *arg)
 {
   static char VarVersion[] = "PPP Version 2.0-beta";
-  static char VarLocalVersion[] = "$Date: 1998/04/24 19:15:37 $";
+  static char VarLocalVersion[] = "$Date: 1998/04/24 19:15:59 $";
 
   prompt_Printf(arg->prompt, "%s - %s \n", VarVersion, VarLocalVersion);
   return 0;
@@ -1411,14 +1412,14 @@ AddCommand(struct cmdargs const *arg)
   if (arg->argc != arg->argn+3 && arg->argc != arg->argn+2)
     return -1;
 
-  if (arg->argc == arg->argn+2)
+  if (arg->argc == arg->argn+2) {
     if (strcasecmp(arg->argv[arg->argn], "default"))
       return -1;
     else {
       dest.s_addr = netmask.s_addr = INADDR_ANY;
       gw = 1;
     }
-  else {
+  } else {
     if (strcasecmp(arg->argv[arg->argn], "MYADDR") == 0)
       dest = arg->bundle->ncp.ipcp.my_ip;
     else if (strcasecmp(arg->argv[arg->argn], "HISADDR") == 0)
@@ -1444,7 +1445,7 @@ DeleteCommand(struct cmdargs const *arg)
 {
   struct in_addr dest, none;
 
-  if (arg->argc == arg->argn+1)
+  if (arg->argc == arg->argn+1) {
     if(strcasecmp(arg->argv[arg->argn], "all") == 0)
       DeleteIfRoutes(arg->bundle, 0);
     else {
@@ -1458,7 +1459,7 @@ DeleteCommand(struct cmdargs const *arg)
       bundle_SetRoute(arg->bundle, RTM_DELETE, dest, none, none,
                       arg->cmd->args ? 1 : 0);
     }
-  else
+  } else
     return -1;
 
   return 0;
@@ -1513,7 +1514,7 @@ AliasCommand(struct cmdargs const *arg)
 static int
 AliasEnable(struct cmdargs const *arg)
 {
-  if (arg->argc == arg->argn+1)
+  if (arg->argc == arg->argn+1) {
     if (strcasecmp(arg->argv[arg->argn], "yes") == 0) {
       if (loadAliasHandlers() == 0)
 	return 0;
@@ -1523,6 +1524,8 @@ AliasEnable(struct cmdargs const *arg)
       unloadAliasHandlers();
       return 0;
     }
+  }
+
   return -1;
 }
 
@@ -1531,7 +1534,7 @@ static int
 AliasOption(struct cmdargs const *arg)
 {
   unsigned param = (unsigned)arg->cmd->args;
-  if (arg->argc == arg->argn+1)
+  if (arg->argc == arg->argn+1) {
     if (strcasecmp(arg->argv[arg->argn], "yes") == 0) {
       if (AliasEnabled()) {
 	(*PacketAlias.SetMode)(param, param);
@@ -1545,6 +1548,7 @@ AliasOption(struct cmdargs const *arg)
       }
       LogPrintf(LogWARN, "alias not enabled\n");
     }
+  }
   return -1;
 }
 #endif /* #ifndef NOALIAS */

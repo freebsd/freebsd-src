@@ -17,16 +17,18 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.121.2.49 1998/04/16 00:26:08 brian Exp $
+ * $Id: main.c,v 1.121.2.50 1998/04/23 03:22:58 brian Exp $
  *
  *	TODO:
  */
 
 #include <sys/param.h>
+#include <sys/socket.h>
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <sys/un.h>
+#include <net/if_tun.h>
 
 #include <errno.h>
 #include <fcntl.h>
@@ -581,7 +583,7 @@ DoLoop(struct bundle *bundle, struct prompt *prompt)
        * Process on-demand dialup. Output packets are queued within tunnel
        * device until IPCP is opened.
        */
-      if (bundle_Phase(bundle) == PHASE_DEAD)
+      if (bundle_Phase(bundle) == PHASE_DEAD) {
         /*
          * Note, we must be in AUTO mode :-/ otherwise our interface should
          * *not* be UP and we can't receive data
@@ -597,6 +599,7 @@ DoLoop(struct bundle *bundle, struct prompt *prompt)
            * device - breaking auto-dial.
            */
           continue;
+      }
 
       pri = PacketCheck(bundle, tun.data, n, &bundle->filter.out);
       if (pri >= 0) {

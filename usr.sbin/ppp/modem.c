@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.77.2.56 1998/04/24 19:16:07 brian Exp $
+ * $Id: modem.c,v 1.77.2.57 1998/04/25 00:09:28 brian Exp $
  *
  *  TODO:
  */
@@ -35,9 +35,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/ioctl.h>
 #include <sys/tty.h>
 #include <unistd.h>
 #ifdef __OpenBSD__
+#include <util.h>
 #else
 #include <libutil.h>
 #endif
@@ -572,8 +574,8 @@ modem_Open(struct physical *modem, struct bundle *bundle)
     tcgetattr(modem->fd, &rstio);
     modem->ios = rstio;
     LogPrintf(LogDEBUG, "modem_Open: modem (get): fd = %d, iflag = %lx, "
-              "oflag = %lx, cflag = %lx\n", modem->fd, rstio.c_iflag,
-              rstio.c_oflag, rstio.c_cflag);
+              "oflag = %lx, cflag = %lx\n", modem->fd, (u_long)rstio.c_iflag,
+              (u_long)rstio.c_oflag, (u_long)rstio.c_cflag);
     cfmakeraw(&rstio);
     if (modem->cfg.rts_cts)
       rstio.c_cflag |= CLOCAL | CCTS_OFLOW | CRTS_IFLOW;
@@ -595,9 +597,10 @@ modem_Open(struct physical *modem, struct bundle *bundle)
     }
     tcsetattr(modem->fd, TCSADRAIN, &rstio);
     LogPrintf(LogDEBUG, "modem (put): iflag = %lx, oflag = %lx, cflag = %lx\n",
-	      rstio.c_iflag, rstio.c_oflag, rstio.c_cflag);
+	      (u_long)rstio.c_iflag, (u_long)rstio.c_oflag,
+              (u_long)rstio.c_cflag);
 
-    if (ioctl(modem->fd, TIOCMGET, &modem->mbits) == -1)
+    if (ioctl(modem->fd, TIOCMGET, &modem->mbits) == -1) {
       if (modem->type != PHYS_STDIN) {
         LogPrintf(LogERROR, "modem_Open: Cannot get modem status: %s\n",
 		  strerror(errno));
@@ -605,6 +608,7 @@ modem_Open(struct physical *modem, struct bundle *bundle)
 	return (-1);
       } else
         modem->mbits = TIOCM_CD;
+    }
     LogPrintf(LogDEBUG, "modem_Open: modem control = %o\n", modem->mbits);
 
     oldflag = fcntl(modem->fd, F_GETFL, 0);
@@ -798,13 +802,13 @@ modem_ShowStatus(struct cmdargs const *arg)
 
   prompt_Printf(arg->prompt, "Name: %s\n", modem->link.name);
   prompt_Printf(arg->prompt, " State:           ");
-  if (modem->fd >= 0)
+  if (modem->fd >= 0) {
     if (isatty(modem->fd))
       prompt_Printf(arg->prompt, "open, %s carrier\n",
                     Online(modem) ? "with" : "no");
     else
       prompt_Printf(arg->prompt, "open\n");
-  else
+  } else
     prompt_Printf(arg->prompt, "closed\n");
   prompt_Printf(arg->prompt, " Device:          %s\n",
                 *modem->name.full ?  modem->name.full :

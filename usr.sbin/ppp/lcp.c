@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.55.2.47 1998/04/24 19:16:05 brian Exp $
+ * $Id: lcp.c,v 1.55.2.48 1998/04/25 00:09:12 brian Exp $
  *
  * TODO:
  *	o Limit data field length by MRU
@@ -637,7 +637,7 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
     case TY_QUALPROTO:
       req = (struct lqrreq *)cp;
       LogPrintf(LogLCP, "%s proto %x, interval %ldms\n",
-                request, ntohs(req->proto), ntohl(req->period) * 10);
+                request, ntohs(req->proto), (long)ntohl(req->period) * 10);
       switch (mode_type) {
       case MODE_REQ:
 	if (ntohs(req->proto) != PROTO_LQR || !IsAccepted(lcp->cfg.lqr))
@@ -854,7 +854,7 @@ reqreject:
     cp += length;
   }
 
-  if (mode_type != MODE_NOP)
+  if (mode_type != MODE_NOP) {
     if (dec->rejend != dec->rej) {
       /* rejects are preferred */
       dec->ackend = dec->ack;
@@ -862,6 +862,7 @@ reqreject:
     } else if (dec->nakend != dec->nak)
       /* then NAKs */
       dec->ackend = dec->ack;
+  }
 }
 
 void

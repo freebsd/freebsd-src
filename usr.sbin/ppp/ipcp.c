@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.50.2.44 1998/04/24 19:15:39 brian Exp $
+ * $Id: ipcp.c,v 1.50.2.45 1998/04/25 00:09:11 brian Exp $
  *
  *	TODO:
  *		o More RFC1772 backwoard compatibility
@@ -562,7 +562,7 @@ IpcpSendConfigReq(struct fsm *fp)
     INC_LCP_OPT(TY_IPADDR, 6, o);
   }
 
-  if (ipcp->my_compproto && !REJECTED(ipcp, TY_COMPPROTO))
+  if (ipcp->my_compproto && !REJECTED(ipcp, TY_COMPPROTO)) {
     if (ipcp->heis1172) {
       *(u_short *)o->data = htons(PROTO_VJCOMP);
       INC_LCP_OPT(TY_COMPPROTO, 4, o);
@@ -570,6 +570,7 @@ IpcpSendConfigReq(struct fsm *fp)
       *(u_long *)o->data = htonl(ipcp->my_compproto);
       INC_LCP_OPT(TY_COMPPROTO, 6, o);
     }
+  }
 
   if (IsEnabled(ipcp->cfg.ns.dns_neg) &&
       !REJECTED(ipcp, TY_PRIMARY_DNS - TY_ADJUST_NS) &&
@@ -669,13 +670,14 @@ IpcpLayerDown(struct fsm *fp)
    * XXX this stuff should really live in the FSM.  Our config should
    * associate executable sections in files with events.
    */
-  if (SelectSystem(fp->bundle, s, LINKDOWNFILE, NULL) < 0)
+  if (SelectSystem(fp->bundle, s, LINKDOWNFILE, NULL) < 0) {
     if (bundle_GetLabel(fp->bundle)) {
        if (SelectSystem(fp->bundle, bundle_GetLabel(fp->bundle),
                         LINKDOWNFILE, NULL) < 0)
        SelectSystem(fp->bundle, "MYADDR", LINKDOWNFILE, NULL);
     } else
       SelectSystem(fp->bundle, "MYADDR", LINKDOWNFILE, NULL);
+  }
 
   if (!(ipcp->fsm.bundle->phys_type & PHYS_DEMAND))
     IpcpCleanInterface(ipcp);
@@ -709,13 +711,15 @@ IpcpLayerUp(struct fsm *fp)
    * XXX this stuff should really live in the FSM.  Our config should
    * associate executable sections in files with events.
    */
-  if (SelectSystem(fp->bundle, inet_ntoa(ipcp->my_ifip), LINKUPFILE, NULL) < 0)
+  if (SelectSystem(fp->bundle, inet_ntoa(ipcp->my_ifip), LINKUPFILE, NULL)
+      < 0) {
     if (bundle_GetLabel(fp->bundle)) {
       if (SelectSystem(fp->bundle, bundle_GetLabel(fp->bundle),
                        LINKUPFILE, NULL) < 0)
         SelectSystem(fp->bundle, "MYADDR", LINKUPFILE, NULL);
     } else
       SelectSystem(fp->bundle, "MYADDR", LINKUPFILE, NULL);
+  }
 
   throughput_start(&ipcp->throughput, "IPCP throughput",
                    Enabled(fp->bundle, OPT_THROUGHPUT));
@@ -1029,7 +1033,7 @@ IpcpDecodeConfig(struct fsm *fp, u_char * cp, int plen, int mode_type,
       ipcp->peer_reject |= (1 << (TY_SECONDARY_DNS - TY_ADJUST_NS));
     }
 
-  if (mode_type != MODE_NOP)
+  if (mode_type != MODE_NOP) {
     if (dec->rejend != dec->rej) {
       /* rejects are preferred */
       dec->ackend = dec->ack;
@@ -1037,6 +1041,7 @@ IpcpDecodeConfig(struct fsm *fp, u_char * cp, int plen, int mode_type,
     } else if (dec->nakend != dec->nak)
       /* then NAKs */
       dec->ackend = dec->ack;
+  }
 }
 
 void

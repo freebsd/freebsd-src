@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: loadalias.c,v 1.14.2.2 1998/04/07 00:53:57 brian Exp $
+ *	$Id: loadalias.c,v 1.14.2.3 1998/04/18 01:01:23 brian Exp $
  */
 
 #include <sys/param.h>
@@ -80,12 +80,13 @@ loadAliasHandlers()
 
   path = _PATH_ALIAS_PREFIX;
   env = getenv("_PATH_ALIAS_PREFIX");
-  if (env)
+  if (env) {
     if (ID0realuid() == 0)
       path = env;
     else
       LogPrintf(LogALERT, "Ignoring environment _PATH_ALIAS_PREFIX"
                 " value (%s)\n", env);
+  }
 
   PacketAlias.dl = dlopen(path, RTLD_NOW);
   if (PacketAlias.dl == (void *) 0) {

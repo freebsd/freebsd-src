@@ -17,13 +17,14 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ip.c,v 1.38.2.21 1998/04/07 23:45:52 brian Exp $
+ * $Id: ip.c,v 1.38.2.22 1998/04/16 18:30:53 brian Exp $
  *
  *	TODO:
  *		o Return ICMP message for filterd packet
  *		  and optionaly record it into log.
  */
 #include <sys/types.h>
+#include <sys/socket.h>
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
@@ -31,6 +32,7 @@
 #include <netinet/udp.h>
 #include <netinet/tcp.h>
 #include <arpa/inet.h>
+#include <net/if_tun.h>
 
 #ifndef NOALIAS
 #include <alias.h>
@@ -336,11 +338,12 @@ PacketCheck(struct bundle *bundle, char *cp, int nb, struct filter *filter)
     return (-1);
   } else {
     /* Check Keep Alive filter */
-    if (logit)
+    if (logit) {
       if (FilterCheck(pip, &bundle->filter.alive) & A_DENY)
         LogPrintf(LogTCPIP, "%s - NO KEEPALIVE\n", logbuf);
       else
         LogPrintf(LogTCPIP, "%s\n", logbuf);
+    }
     return (pri);
   }
 }
@@ -398,12 +401,13 @@ IpInput(struct bundle *bundle, struct mbuf * bp)
       nb = ntohs(((struct ip *) tun.data)->ip_len);
       nb += sizeof tun - sizeof tun.data;
       nw = write(bundle->tun_fd, &tun, nb);
-      if (nw != nb)
+      if (nw != nb) {
         if (nw == -1)
 	  LogPrintf(LogERROR, "IpInput: wrote %d, got %s\n", nb,
                     strerror(errno));
         else
 	  LogPrintf(LogERROR, "IpInput: wrote %d, got %d\n", nb, nw);
+      }
 
       if (iresult == PKT_ALIAS_FOUND_HEADER_FRAGMENT) {
 	while ((fptr = (*PacketAlias.GetFragment)(tun.data)) != NULL) {
@@ -413,12 +417,13 @@ IpInput(struct bundle *bundle, struct mbuf * bp)
 	    ((char *)fptr - sizeof tun + sizeof tun.data);
           nb += sizeof tun - sizeof tun.data;
 	  nw = write(bundle->tun_fd, frag, nb);
-	  if (nw != nb)
+	  if (nw != nb) {
             if (nw == -1)
 	      LogPrintf(LogERROR, "IpInput: wrote %d, got %s\n", nb,
                         strerror(errno));
             else
 	      LogPrintf(LogERROR, "IpInput: wrote %d, got %d\n", nb, nw);
+          }
 	  free(frag);
 	}
       }
@@ -449,11 +454,12 @@ IpInput(struct bundle *bundle, struct mbuf * bp)
 
     nb += sizeof tun - sizeof tun.data;
     nw = write(bundle->tun_fd, &tun, nb);
-    if (nw != nb)
+    if (nw != nb) {
       if (nw == -1)
 	LogPrintf(LogERROR, "IpInput: wrote %d, got %s\n", nb, strerror(errno));
       else
         LogPrintf(LogERROR, "IpInput: wrote %d, got %d\n", nb, nw);
+    }
   }
   pfree(bp);
 }
