@@ -16,7 +16,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$Id: dns_nw.c,v 1.22 2002/02/27 03:50:10 marka Exp $";
+static const char rcsid[] = "$Id: dns_nw.c,v 1.23 2002/06/26 07:42:06 marka Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 /* Imports. */
@@ -299,8 +299,8 @@ get1101answer(struct irs_nw *this,
 	      int af, const char *name, const u_char *addr, int addrlen)
 {
 	struct pvt *pvt = (struct pvt *)this->private;
-	int type, class, buflen, ancount, qdcount, haveanswer;
-	char *bp, **ap;
+	int type, class, ancount, qdcount, haveanswer;
+	char *bp, *ep, **ap;
 	u_char *cp, *eom;
 	HEADER *hp;
 
@@ -332,7 +332,7 @@ get1101answer(struct irs_nw *this,
 
 	/* Prepare a return structure. */
 	bp = pvt->buf;
-	buflen = sizeof pvt->buf;
+	ep = pvt->buf + sizeof(pvt->buf);
 	pvt->net.n_name = NULL;
 	pvt->net.n_aliases = pvt->ali;
 	pvt->net.n_addrtype = af;
@@ -345,20 +345,19 @@ get1101answer(struct irs_nw *this,
 		if (name != NULL) {
 			int n = strlen(name) + 1;
 
-			if (n > buflen) {
+			if (n > (ep - bp)) {
 				RES_SET_H_ERRNO(pvt->res, NO_RECOVERY);
 				return (NULL);
 			}
 			pvt->net.n_name = strcpy(bp, name);
 			bp += n;
-			buflen -= n;
 		}
 		break;
 	case by_addr:
 		if (addr != NULL && addrlen != 0) {
 			int n = addrlen / 8 + ((addrlen % 8) != 0);
 
-			if (INADDRSZ > buflen) {
+			if (INADDRSZ > (ep - bp)) {
 				RES_SET_H_ERRNO(pvt->res, NO_RECOVERY);
 				return (NULL);
 			}
@@ -366,7 +365,6 @@ get1101answer(struct irs_nw *this,
 			memcpy(bp, addr, n);
 			pvt->net.n_addr = bp;
 			bp += INADDRSZ;
-			buflen -= INADDRSZ;
 		}
 		break;
 	default:
@@ -377,7 +375,7 @@ get1101answer(struct irs_nw *this,
 	ap = pvt->ali;
 	haveanswer = 0;
 	while (--ancount >= 0 && cp < eom) {
-		int n = dn_expand(ansbuf, eom, cp, bp, buflen);
+		int n = dn_expand(ansbuf, eom, cp, bp, ep - bp);
 
 		cp += n;		/* Owner */
 		if (n < 0 || !maybe_dnok(pvt->res, bp) ||
@@ -392,7 +390,7 @@ get1101answer(struct irs_nw *this,
 		if (class == C_IN && type == T_PTR) {
 			int nn;
 
-			nn = dn_expand(ansbuf, eom, cp, bp, buflen);
+			nn = dn_expand(ansbuf, eom, cp, bp, ep - bp);
 			if (nn < 0 || !maybe_hnok(pvt->res, bp) || nn != n) {
 				RES_SET_H_ERRNO(pvt->res, NO_RECOVERY);
 				return (NULL);
@@ -408,7 +406,6 @@ get1101answer(struct irs_nw *this,
 					*ap++ = bp;
 				nn = strlen(bp) + 1;
 				bp += nn;
-				buflen -= nn;
 				haveanswer++;
 				break;
 			    }
@@ -419,7 +416,7 @@ get1101answer(struct irs_nw *this,
 				    sscanf(bp, "%u.%u.%u.%u.in-addr.arpa",
 					   &b1, &b2, &b3, &b4) != 4)
 					break;
-				if (buflen < INADDRSZ) {
+				if ((ep - bp) < INADDRSZ) {
 					RES_SET_H_ERRNO(pvt->res, NO_RECOVERY);
 					return (NULL);
 				}
@@ -428,7 +425,6 @@ get1101answer(struct irs_nw *this,
 				*bp++ = b3;
 				*bp++ = b2;
 				*bp++ = b1;
-				buflen -= INADDRSZ;
 				pvt->net.n_length = INADDRSZ * 8;
 				haveanswer++;
 			    }

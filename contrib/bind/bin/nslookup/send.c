@@ -53,7 +53,7 @@
 
 #ifndef lint
 static const char sccsid[] = "@(#)send.c	5.18 (Berkeley) 3/2/91";
-static const char rcsid[] = "$Id: send.c,v 8.13 2002/04/09 05:55:23 marka Exp $";
+static const char rcsid[] = "$Id: send.c,v 8.14 2002/05/10 04:35:09 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -291,7 +291,7 @@ SendRequest(union res_sockaddr_union *nsAddrPtr, const u_char *buf,
 			}
 #else /* BSD */
 			if (sendto(s, (const char *)buf, buflen, 0,
-				   (struct sockaddr *) &nsAddrPtr,
+				   (struct sockaddr *) nsAddrPtr,
 				   clen) != buflen) {
 				if (res.options & RES_DEBUG)
 					perror("sendto");

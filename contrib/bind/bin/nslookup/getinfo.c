@@ -54,7 +54,7 @@
 
 #ifndef lint
 static const char sccsid[] = "@(#)getinfo.c	5.26 (Berkeley) 3/21/91";
-static const char rcsid[] = "$Id: getinfo.c,v 8.23 2002/04/29 01:11:52 marka Exp $";
+static const char rcsid[] = "$Id: getinfo.c,v 8.27 2002/05/22 04:06:57 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -142,16 +142,9 @@ typedef union {
  */
 
 static int
-GetAnswer(nsAddrPtr, queryType, msg, msglen, iquery, hostPtr, isServer,
-	  merge)
-    union res_sockaddr_union  *nsAddrPtr;
-    char		*msg;
-    int			queryType;
-    int			msglen;
-    Boolean		iquery;
-    register HostInfo	*hostPtr;
-    Boolean		isServer;
-    Boolean		merge;
+GetAnswer(union res_sockaddr_union *nsAddrPtr, int queryType,
+	  char *msg, int msglen, Boolean iquery, HostInfo *hostPtr,
+	  Boolean isServer, Boolean merge)
 {
     register HEADER	*headerPtr;
     register const u_char	*cp;
@@ -253,7 +246,8 @@ GetAnswer(nsAddrPtr, queryType, msg, msglen, iquery, hostPtr, isServer,
 	    printf("Non-authoritative answer:\n");
 	}
 
-	if (queryType != T_A && !(iquery && queryType == T_PTR)) {
+	if (queryType != T_A && queryType != T_AAAA &&	/* A6? */
+	    !(iquery && queryType == T_PTR)) {
 	    while (--ancount >= 0 && cp < eom) {
 		if ((cp = Print_rr(cp, (u_char *)&answer,
 				   eom, stdout)) == NULL) {
@@ -334,7 +328,7 @@ GetAnswer(nsAddrPtr, queryType, msg, msglen, iquery, hostPtr, isServer,
 			memcpy(hostPtr->name, bp, s);
 		    }
 		}
-		bp += (((u_int32_t)bp) % sizeof(align));
+		bp += (((u_long)bp) % sizeof(align));
 
 		if (bp + dlen >= &hostbuf[sizeof(hostbuf)]) {
 		    if (res.options & RES_DEBUG) {
@@ -360,7 +354,8 @@ GetAnswer(nsAddrPtr, queryType, msg, msglen, iquery, hostPtr, isServer,
 	}
     }
 
-    if ((queryType == T_A || queryType == T_PTR) && haveAnswer) {
+    if ((queryType == T_A || queryType == T_AAAA || queryType == T_PTR) &&
+	 haveAnswer) {
 
 	/*
 	 *  Go through the alias and address lists and return them
@@ -540,7 +535,7 @@ GetAnswer(nsAddrPtr, queryType, msg, msglen, iquery, hostPtr, isServer,
      */
     cp = res_skip((u_char*)&answer, 3, eom);
 
-    if (queryType != T_A) {
+    if (queryType != T_A && queryType != T_AAAA) {
 	/*
 	 * If we don't need to save the record, just print it.
 	 */

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(SABER)
-static const char rcsid[] = "$Id: ns_config.c,v 8.134 2002/04/25 05:27:04 marka Exp $";
+static const char rcsid[] = "$Id: ns_config.c,v 8.135 2002/05/24 03:04:59 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -2549,6 +2549,7 @@ new_server(struct in_addr address) {
 		si->flags |= SERVER_INFO_SUPPORT_IXFR;
 	else
 		si->flags &= ~SERVER_INFO_SUPPORT_IXFR;	
+	si->flags |= SERVER_INFO_EDNS;
 	return (si);
 }
 
@@ -2649,6 +2650,7 @@ set_server_option(server_config sc, int bool_opt, int value) {
 	switch (bool_opt) {
 	case SERVER_INFO_BOGUS:
 	case SERVER_INFO_SUPPORT_IXFR:
+	case SERVER_INFO_EDNS:
 		if (value)
 			si->flags |= bool_opt;
 		else

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(SABER)
-static const char rcsid[] = "$Id: ns_update.c,v 8.103 2002/01/03 00:25:02 marka Exp $";
+static const char rcsid[] = "$Id: ns_update.c,v 8.104 2002/05/18 01:02:59 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -3010,9 +3010,9 @@ incr_serial(struct zoneinfo *zp) {
 			return (-1);
 		dp = findzonesoa(zp);
 		if (dp) {
-			olddp = memget(DATASIZE(dp->d_size));
+			olddp = memget(BIND_DATASIZE(dp->d_size));
 			if (olddp != NULL) {
-				memcpy(olddp, dp, DATASIZE(dp->d_size));
+				memcpy(olddp, dp, BIND_DATASIZE(dp->d_size));
 				cp = findsoaserial(olddp->d_data);
 				PUTLONG(old_serial, cp);
 				fprintf(ifp, "update: {delete} %s. %u %s %s ",
@@ -3021,7 +3021,7 @@ incr_serial(struct zoneinfo *zp) {
 					p_type(dp->d_type));
 				(void) rdata_dump(olddp, ifp);
 				fprintf(ifp, "\n");
-				memput(olddp, DATASIZE(dp->d_size));
+				memput(olddp, BIND_DATASIZE(dp->d_size));
 			}
 			fprintf(ifp, "update: {add} %s. %u %s %s ",
 				zp->z_origin, dp->d_ttl,

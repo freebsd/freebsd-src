@@ -1,5 +1,5 @@
 #ifndef lint
-static const char rcsid[] = "$Id: host.c,v 8.52 2002/04/28 01:34:52 marka Exp $";
+static const char rcsid[] = "$Id: host.c,v 8.53 2002/06/18 02:34:02 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -675,7 +675,7 @@ gethostinfo(char *name) {
 
 static int
 getdomaininfo(const char *name, const char *domain) {
-	int val1, val2;
+	int val1, val2, val3;
 
 	if (querytype)
 		return (getinfo(name, domain, gettype=querytype));
@@ -683,8 +683,9 @@ getdomaininfo(const char *name, const char *domain) {
 		val1 = getinfo(name, domain, gettype=ns_t_a);
 		if (cname || verbose)
 			return (val1);
-		val2 = getinfo(name, domain, gettype=ns_t_mx);
-		return (val1 || val2);
+		val2 = getinfo(name, domain, gettype=ns_t_aaaa);
+		val3 = getinfo(name, domain, gettype=ns_t_mx);
+		return (val1 || val2 || val3);
 	}
 }
 
@@ -1582,6 +1583,7 @@ static const char *
 pr_type(int type) {
 	if (!verbose) switch (type) {
 	case ns_t_a:
+	case ns_t_aaaa:
 		return ("has address");
 	case ns_t_cname:
 		return ("is a nickname for");

@@ -1,6 +1,6 @@
 
 #if !defined(lint) && !defined(SABER)
-static const char rcsid[] = "$Id: db_tsig.c,v 8.7 2001/06/18 14:42:59 marka Exp $";
+static const char rcsid[] = "$Id: db_tsig.c,v 8.8 2002/05/21 02:34:32 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -129,7 +129,7 @@ tsig_alg_value(char *name) {
 
 DST_KEY *
 tsig_key_from_addr(struct in_addr addr) {
-	server_info si = si = find_server(addr);
+	server_info si = find_server(addr);
 	if (si == NULL || si->key_list == NULL || si->key_list->first == NULL)
 		return(NULL);
 	return(si->key_list->first->key);

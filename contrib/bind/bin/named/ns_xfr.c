@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(SABER)
-static const char rcsid[] = "$Id: ns_xfr.c,v 8.68 2002/04/11 05:19:06 marka Exp $";
+static const char rcsid[] = "$Id: ns_xfr.c,v 8.69 2002/06/05 03:53:49 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -82,15 +82,21 @@ ns_xfr(struct qstream *qsp, struct namebuf *znp,
 	ns_deltalist	*changes;
 
 	switch (type) {
-	case ns_t_axfr: /*FALLTHROUGH*/
 	case ns_t_ixfr:
+		ns_info(ns_log_xfer_out,
+			"zone transfer (%s) of \"%s\" (%s) to %s serial %u -> %u",
+			p_type(type), zones[zone].z_origin, p_class(class),
+			sin_ntoa(qsp->s_from), serial_ixfr,
+			zones[zone].z_serial);
+		break;
+	case ns_t_axfr: /*FALLTHROUGH*/
 #ifdef BIND_ZXFR
 	case ns_t_zxfr:
 #endif
 		ns_info(ns_log_xfer_out,
-			"zone transfer (%s) of \"%s\" (%s) to %s",
+			"zone transfer (%s) of \"%s\" (%s) to %s serial %u",
 			p_type(type), zones[zone].z_origin, p_class(class),
-			sin_ntoa(qsp->s_from));
+			sin_ntoa(qsp->s_from), zones[zone].z_serial);
 		break;
 	default:
 		ns_warning(ns_log_xfer_out,

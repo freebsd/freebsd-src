@@ -1,4 +1,116 @@
 
+	--- 8.3.3-REL released --- (Wed Jun 26 21:15:43 PDT 2002)
+
+1301.	[func]		log attempts to exploit #1300.
+
+1300.	[bug]		Remote buffer overrun.
+
+1299.	[func]		Log to xfer-in when a named-xfer fails and one of
+			the masters returned REFUSED.
+
+1298.	[bug]		named could leak a OPT record when returning a
+			negative response.
+
+1297.	[func]		'ndc restart' will now attempt to preserve the
+			arguments named was started with.
+			Use 'ndc restart --' to clear the arguements.
+			Use 'ndc restart <new arguements>' to restart named
+			with a alternate set of arguements.
+
+1296.	[bug]		delay setting need_restart until the response to
+			ndc exec has been sent.
+			
+1295.	[func]		new ndc command 'args'.  returns the arguements that
+			named was started with %xx escaped.
+
+1294.	[bug]		#1272 broke linkage for those OS's using -lfl (flex).
+			Move -ll/-lfl to LIBL for all platforms.
+
+	--- 8.3.2-REL released --- (Mon Jun 17 20:24:32 PDT 2002)
+
+1293.	[doc]		update man pages for 'dig', 'dnsquery' and 'host'
+			to reflect IPv6 capabilities (nslookup and nsupdate
+			were already IPv4/IPv6 agnostic).
+
+1292.	[func]		host: the default lookups now also include AAAA
+			records.
+
+1291.	[func]		'dig -x <ip6>' now works.
+
+1290.	[bug]		'dig @server' fail to report the IPv6 address of the
+			server in error messages.
+
+1289.	[contrib]	normalize_zone now handles $TTL.
+
+1288.	[bug]		named: -t and -w could not be used together.
+
+1287.	[func]		report serial(s) in out going transfer operation.
+
+	--- 8.3.2-RC1 released --- (Thu May 30 23:06:11 PDT 2002)
+
+1286.	[func]		libbind: no longer attempts bit string labels for
+			IPv6 reverse resolution.  Try IP6.ARPA then IP6.INT
+			for nibble style resolution.
+
+1285.	[port]		linux: ss_family vs __ss_family in sockaddr_storage.
+
+1284.	[port]		freebsd: 5.0 uses gid_t rather that int for 
+			GETGROUPLIST_ARGS
+
+1283.	[port]		bsdi: 4.2 also has struct sockaddr_storage.
+
+1282.	[bug]		nslookup was using inet_ntoa() to print out a IPv6
+			address.
+
+1281.	[bug]		escape '(' and ')' when coverting to presentation
+			form.
+
+1280.	[func]		server { edns yes_or_no; } is now supported.
+
+1279.	[bug]		nslookup: partial coversion to similar style outputs
+			for both -type=aaaa and -type=a.
+
+1278.	[bug]		free() of non-malloced memory in nslookup.
+
+1277.	[port]		cast all instances of yytext in commands.l to (char*)
+			to silence compilers on OS's where lex declares it
+			as (unsigned char *).
+
+1276.	[port]		hpux 11.22: ansify GetAnswer in getinfo.c to
+			silence compiler.
+
+1275.	[bug]		bad declaration of si in tsig_key_from_addr().
+
+1274.	[port]		hpux 11.22: ansify hexstring() and display() in
+			addr.c to silence compiler.
+
+1273.	[bug]		const pointer conficts in res_debug.c.
+
+1272.	[port]		hpux 11.22: don't link against -ll unless required.
+
+1272.	[bug]		main_need_num was not last entry in enum.
+			main_need_tick nolonger required.
+
+1271.	[port]		hpux: treat all hpux systems as BIG_ENDIAN, don't
+			include <sys/mbuf.h>.
+			
+1270.	[port]		hpux 11.22 namespace clash DATASIZE -> BIND_DATASIZE.
+
+1269.	[port]		hpux 11.11 interface scaning.
+
+1268.	[port]		solaris: 64 bit binary compatability.
+
+1267.	[bug]		aix4: missing IN6_IS_ADDR_V4COMPAT macro.
+
+1266.	[bug]		If you are using TSIG #1261 introduced the potential
+			of a infinite loop.
+
+1265.	[bug]		nslookup failed on platforms that don't have BSD 43
+			style sockets.
+
+1264.	[bug]		LINK_INIT and UNLINK were not compatible with
+			C++, use LINK_INIT_TYPE and UNLINK_TYPE instead.
+
 	--- 8.3.2-T1B released --- (Tue May  7 18:49:58 PDT 2002)
 
 1263.	[bug]		gethostans() could get out of sync parsing the

@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static const char sccsid[] = "@(#)ns_maint.c	4.39 (Berkeley) 3/2/91";
-static const char rcsid[] = "$Id: ns_maint.c,v 8.135 2002/04/25 05:27:10 marka Exp $";
+static const char rcsid[] = "$Id: ns_maint.c,v 8.136 2002/06/26 03:27:20 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -1675,6 +1675,17 @@ endxfer() {
 						zp->z_flags |= Z_SYSLOGGED;
 						ns_notice(ns_log_default,
 		      "zoneref: Masters for slave zone \"%s\" unreachable",
+							  zp->z_origin);
+					}
+					ns_retrytime(zp, tt.tv_sec);
+					sched_zone_maint(zp);
+					break;
+
+				case XFER_REFUSED:
+					if (!(zp->z_flags & Z_SYSLOGGED)) {
+						zp->z_flags |= Z_SYSLOGGED;
+						ns_error(ns_log_xfer_in,
+		      "zoneref: Masters for slave zone \"%s\" REFUSED transfer",
 							  zp->z_origin);
 					}
 					ns_retrytime(zp, tt.tv_sec);
