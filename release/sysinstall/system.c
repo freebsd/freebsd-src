@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: system.c,v 1.47 1996/03/02 07:31:56 jkh Exp $
+ * $Id: system.c,v 1.48 1996/03/18 15:28:08 jkh Exp $
  *
  * Jordan Hubbard
  *
@@ -217,7 +217,7 @@ vsystem(char *fmt, ...)
     else if (!pid) {	/* Junior */
 	(void)sigsetmask(omask);
 	if (DebugFD != -1) {
-	    if (OnVTY && isDebug())
+	    if (OnVTY && isDebug() && RunningAsInit)
 		msgInfo("Command output is on VTY2 - type ALT-F2 to see it");
 	    dup2(DebugFD, 0);
 	    dup2(DebugFD, 1);
@@ -244,7 +244,7 @@ vsystem(char *fmt, ...)
 void
 systemCreateHoloshell(void)
 {
-    if (OnVTY) {
+    if (OnVTY && RunningAsInit) {
 	if (!fork()) {
 	    int i, fd;
 	    struct termios foo;
