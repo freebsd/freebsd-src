@@ -14,32 +14,28 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.69 1995/11/06 08:19:24 davidg Exp $
+ *      $Id: sd.c,v 1.70 1995/11/19 22:22:28 dyson Exp $
  */
 
 #define SPLSD splbio
-#include <sys/types.h>
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/dkbad.h>
 #include <sys/systm.h>
-#include <sys/conf.h>
-#include <sys/file.h>
-#include <sys/stat.h>
 #include <sys/ioctl.h>
 #include <sys/buf.h>
-#include <sys/uio.h>
-#include <sys/malloc.h>
-#include <sys/errno.h>
-#include <sys/dkstat.h>
+#include <sys/devconf.h>
 #include <sys/disklabel.h>
 #include <sys/diskslice.h>
+#include <sys/dkstat.h>
+#include <sys/errno.h>
+#include <sys/malloc.h>
+
 #include <scsi/scsi_all.h>
 #include <scsi/scsi_disk.h>
 #include <scsi/scsiconf.h>
+
 #include <vm/vm.h>
-#include <sys/devconf.h>
-#include <sys/dkstat.h>
 #include <machine/md_var.h>
 #include <i386/i386/cons.h>		/* XXX */
 
@@ -457,7 +453,7 @@ sdstart(u_int32 unit, u_int32 flags)
 {
 	register struct	scsi_link *sc_link = SCSI_LINK(&sd_switch, unit);
 	register struct scsi_data *sd = sc_link->sd;
-	struct buf *bp = 0;
+	struct buf *bp = NULL;
 	struct scsi_rw_big cmd;
 	u_int32 blkno, nblk;
 
@@ -482,8 +478,7 @@ sdstart(u_int32 unit, u_int32 flags)
 		if (bp == NULL) {	/* yes, an assign */
 			return;
 		}
-		TAILQ_REMOVE( &sd->buf_queue, bp, b_act);
-
+		TAILQ_REMOVE(&sd->buf_queue, bp, b_act);
 
 		/*
 		 *  If the device has become invalid, abort all the
@@ -577,7 +572,7 @@ sd_ioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p,
 	if (!(sc_link->flags & SDEV_MEDIA_LOADED))
 		return (EIO);
 
-	if (cmd ==  DIOCSBAD)
+	if (cmd == DIOCSBAD)
 		return (EINVAL);	/* XXX */
 	error = dsioctl("sd", dev, cmd, addr, flag, &sd->dk_slices,
 			sdstrategy1, (ds_setgeom_t *)NULL);
