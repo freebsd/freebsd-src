@@ -79,13 +79,13 @@ int	video_open( bktr_ptr_t bktr );
 int	video_close( bktr_ptr_t bktr );
 int	video_read( bktr_ptr_t bktr, int unit, dev_t dev, struct uio *uio );
 int	video_ioctl( bktr_ptr_t bktr, int unit,
-			int cmd, caddr_t arg, struct proc* pr );
+			ioctl_cmd_t cmd, caddr_t arg, struct proc* pr );
 
 
 int	tuner_open( bktr_ptr_t bktr );
 int	tuner_close( bktr_ptr_t bktr );
 int	tuner_ioctl( bktr_ptr_t bktr, int unit,
-			int cmd, caddr_t arg, struct proc* pr );
+			ioctl_cmd_t cmd, caddr_t arg, struct proc* pr );
 
 int	vbi_open( bktr_ptr_t bktr );
 int	vbi_close( bktr_ptr_t bktr );

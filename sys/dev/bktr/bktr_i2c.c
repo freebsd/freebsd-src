@@ -48,6 +48,12 @@
 
 #include <machine/clock.h>
 
+#if (__FreeBSD_version >=300000)
+#include <machine/bus_memio.h>          /* for bus space */
+#include <machine/bus.h>
+#include <sys/bus.h>
+#endif
+
 #include <pci/pcivar.h>
 #include <pci/pcireg.h>
 #include <machine/ioctl_meteor.h>
@@ -73,7 +79,8 @@ static int bti2c_debug = 0;
 
 struct bti2c_softc {
 
-	bt848_ptr_t base;
+	bus_space_tag_t     memt;   /* Bus space register access */
+	bus_space_handle_t  memh;   /* Bus space register access */
 
 	int iic_owned;			/* 1 if we own the iicbus */
 	int smb_owned;			/* 1 if we own the smbbus */
@@ -83,7 +90,8 @@ struct bti2c_softc {
 };
 
 struct bt_data {
-	bt848_ptr_t base;
+	bus_space_tag_t     memt;
+	bus_space_handle_t  memh; 
 };
 struct bt_data btdata[NBKTR];
 
@@ -144,16 +152,17 @@ static driver_t bti2c_driver = {
 #endif
 
 /*
- * Call this to pass the base address of the bktr device to the
+ * Call this to pass the address of the bktr device to the
  * bti2c_i2c layer and initialize all the I2C bus architecture
  */
 int
-bt848_i2c_attach(int unit, bt848_ptr_t base, struct bktr_i2c_softc *i2c_sc)
+bt848_i2c_attach(int unit, struct bktr_softc * bktr, struct bktr_i2c_softc *i2c_sc)
 {
 	device_t interface;
 	device_t bitbang;
 
-	btdata[unit].base = base;
+	btdata[unit].memh = bktr->memh;
+	btdata[unit].memt = bktr->memt;
 
 	/* XXX add the I2C interface to the root_bus until pcibus is ready */
 #if (__FreeBSD_version < 400000)
@@ -205,7 +214,8 @@ bti2c_attach(device_t dev)
 
 	/* XXX should use ivars with pcibus or pcibus methods to access
 	 * onboard memory */
-	sc->base = btdata[device_get_unit(dev)].base;
+	sc->memh = btdata[device_get_unit(dev)].memh;
+	sc->memt = btdata[device_get_unit(dev)].memt;
 
 	return (0);
 }
@@ -297,11 +307,8 @@ static void
 bti2c_iic_setlines(device_t dev, int ctrl, int data)
 {
 	struct bti2c_softc *sc = (struct bti2c_softc *)device_get_softc(dev);
-	bt848_ptr_t bti2c;
 
-	bti2c = sc->base;
-
-	bti2c->i2c_data_ctl = (ctrl << 1) | data;
+	OUTL(sc, BKTR_I2C_DATA_CTL, (ctrl << 1) | data);;
 	DELAY(I2C_DELAY);
 
 	return;
@@ -311,36 +318,33 @@ static int
 bti2c_iic_getdataline(device_t dev)
 {
 	struct bti2c_softc *sc = (struct bti2c_softc *)device_get_softc(dev);
-	bt848_ptr_t bti2c;
 
-	bti2c = sc->base;
-
-	return (bti2c->i2c_data_ctl & 0x1);
+	return ( INL(sc,BKTR_I2C_DATA_CTL) & 0x1);
 }
 
 static int
-bti2c_write(bt848_ptr_t bti2c, u_long data)
+bti2c_write(struct bti2c_softc* bti2c_sc, u_long data)
 {
 	u_long		x;
 
 	/* clear status bits */
-	bti2c->int_stat = (BT848_INT_RACK | BT848_INT_I2CDONE);
+	OUTL(bti2c_sc, BKTR_INT_STAT, (BT848_INT_RACK | BT848_INT_I2CDONE));
 
 	BTI2C_DEBUG(printf("w%lx", data));
 
 	/* write the address and data */
-	bti2c->i2c_data_ctl = data;
+	OUTL(bti2c_sc, BKTR_I2C_DATA_CTL, data);
 
 	/* wait for completion */
 	for ( x = 0x7fffffff; x; --x ) {	/* safety valve */
-		if ( bti2c->int_stat & BT848_INT_I2CDONE )
+		if ( INL(bti2c_sc, BKTR_INT_STAT) & BT848_INT_I2CDONE )
 			break;
 	}
 
 	/* check for ACK */
-	if ( !x || !(bti2c->int_stat & BT848_INT_RACK) ) {
+	if ( !x || !( INL(bti2c_sc, BKTR_INT_STAT) & BT848_INT_RACK) ) {
 		BTI2C_DEBUG(printf("%c%c", (!x)?'+':'-',
-			(!(bti2c->int_stat & BT848_INT_RACK))?'+':'-'));
+			(!( INL(bti2c_sc, BKTR_INT_STAT) & BT848_INT_RACK))?'+':'-'));
 		return (SMB_ENOACK);
 	}
 	BTI2C_DEBUG(printf("+"));
@@ -357,7 +361,7 @@ bti2c_smb_writeb(device_t dev, u_char slave, char cmd, char byte)
 
 	data = ((slave & 0xff) << 24) | ((byte & 0xff) << 16) | (u_char)cmd;
 
-	return (bti2c_write(sc->base, data));
+	return (bti2c_write(sc, data));
 }
 
 /*
@@ -377,7 +381,7 @@ bti2c_smb_writew(device_t dev, u_char slave, char cmd, short word)
 	data = ((slave & 0xff) << 24) | ((low & 0xff) << 16) |
 		((high & 0xff) << 8) | BT848_DATA_CTL_I2CW3B | (u_char)cmd;
 
-	return (bti2c_write(sc->base, data));
+	return (bti2c_write(sc, data));
 }
 
 /*
@@ -387,32 +391,29 @@ static int
 bti2c_smb_readb(device_t dev, u_char slave, char cmd, char *byte)
 {
 	struct bti2c_softc *sc = (struct bti2c_softc *)device_get_softc(dev);
-	bt848_ptr_t	bti2c;
 	u_long		x;
 
-	bti2c = sc->base;
-
 	/* clear status bits */
-	bti2c->int_stat = (BT848_INT_RACK | BT848_INT_I2CDONE);
+	OUTL(sc,BKTR_INT_STAT, (BT848_INT_RACK | BT848_INT_I2CDONE));
 
-	bti2c->i2c_data_ctl = ((slave & 0xff) << 24) | (u_char)cmd;
+	OUTL(sc,BKTR_I2C_DATA_CTL, ((slave & 0xff) << 24) | (u_char)cmd);;
 
 	BTI2C_DEBUG(printf("r%lx/", (u_long)(((slave & 0xff) << 24) | (u_char)cmd)));
 
 	/* wait for completion */
 	for ( x = 0x7fffffff; x; --x ) {	/* safety valve */
-		if ( bti2c->int_stat & BT848_INT_I2CDONE )
+		if ( INL(sc,BKTR_INT_STAT) & BT848_INT_I2CDONE )
 			break;
 	}
 
 	/* check for ACK */
-	if ( !x || !(bti2c->int_stat & BT848_INT_RACK) ) {
+	if ( !x || !(INL(sc,BKTR_INT_STAT) & BT848_INT_RACK) ) {
 		BTI2C_DEBUG(printf("r%c%c", (!x)?'+':'-',
-			(!(bti2c->int_stat & BT848_INT_RACK))?'+':'-'));
+			(!( INL(sc,BKTR_INT_STAT) & BT848_INT_RACK))?'+':'-'));
 		return (SMB_ENOACK);
 	}
 
-	*byte = (char)((bti2c->i2c_data_ctl >> 8) & 0xff);
+	*byte = (char)((INL(sc,BKTR_I2C_DATA_CTL) >> 8) & 0xff);
 	BTI2C_DEBUG(printf("r%x+", *byte));
 
 	return (0);

@@ -29,6 +29,6 @@
 #ifndef _BT848_I2C_H
 #define _BT848_I2C_H
 
-extern int bt848_i2c_attach(int, bt848_ptr_t, struct bktr_i2c_softc *);
+extern int bt848_i2c_attach(int, struct bktr_softc *bktr, struct bktr_i2c_softc *);
 
 #endif
