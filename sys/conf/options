@@ -1,4 +1,4 @@
-#	$Id: options,v 1.107 1998/11/05 14:28:17 dg Exp $
+#	$Id: options,v 1.108 1998/11/23 09:58:59 phk Exp $
 #
 #        On the handling of kernel options   
 # 
@@ -305,3 +305,7 @@ SIMOS			opt_simos.h
 
 # options for bus/device framework
 BUS_DEBUG		opt_bus.h
+
+# options for USB support
+USB_DEBUG		opt_usb.h
+USBVERBOSE		opt_usb.h
