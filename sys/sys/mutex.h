@@ -115,9 +115,6 @@ void	_mtx_unlock_spin_flags(struct mtx *m, int opts, const char *file,
 #ifdef INVARIANT_SUPPORT
 void	_mtx_assert(struct mtx *m, int what, const char *file, int line);
 #endif
-#ifdef WITNESS
-void	_mtx_update_flags(struct mtx *m, int locking);
-#endif
 
 /*
  * We define our machine-independent (unoptimized) mutex micro-operations
@@ -205,15 +202,6 @@ void	_mtx_update_flags(struct mtx *m, int locking);
 #endif
 
 /*
- * Update the lock object flags based on the current mutex state.
- */
-#ifdef WITNESS
-#define mtx_update_flags(m, locking)	_mtx_update_flags((m), (locking))
-#else
-#define	mtx_update_flags(m, locking)
-#endif
-
-/*
  * Exported lock manipulation interface.
  *
  * mtx_lock(m) locks MTX_DEF mutex `m'
@@ -277,8 +265,8 @@ void	_mtx_update_flags(struct mtx *m, int locking);
 	_get_sleep_lock((m), curproc, (opts), (file), (line));		\
 	LOCK_LOG_LOCK("LOCK", &(m)->mtx_object, opts, m->mtx_recurse,	\
 	    (file), (line));						\
-	mtx_update_flags((m), 1);					\
-	WITNESS_LOCK(&(m)->mtx_object, (opts), (file), (line));		\
+	WITNESS_LOCK(&(m)->mtx_object, (opts) | LOP_EXCLUSIVE, (file),	\
+	    (line));							\
 } while (0)
 
 #define __mtx_lock_spin_flags(m, opts, file, line) do {			\
@@ -286,28 +274,28 @@ void	_mtx_update_flags(struct mtx *m, int locking);
 	_get_spin_lock((m), curproc, (opts), (file), (line));		\
 	LOCK_LOG_LOCK("LOCK", &(m)->mtx_object, opts, m->mtx_recurse,	\
 	    (file), (line));						\
-	mtx_update_flags((m), 1);					\
-	WITNESS_LOCK(&(m)->mtx_object, (opts), (file), (line));		\
+	WITNESS_LOCK(&(m)->mtx_object, (opts) | LOP_EXCLUSIVE, (file),	\
+	    (line));							\
 } while (0)
 
 #define __mtx_unlock_flags(m, opts, file, line) do {			\
 	MPASS(curproc != NULL);						\
 	mtx_assert((m), MA_OWNED);					\
-	mtx_update_flags((m), 0);					\
-	WITNESS_UNLOCK(&(m)->mtx_object, (opts), (file), (line));	\
-	_rel_sleep_lock((m), curproc, (opts), (file), (line));		\
+	WITNESS_UNLOCK(&(m)->mtx_object, (opts) | LOP_EXCLUSIVE,	\
+	    (file), (line));						\
 	LOCK_LOG_LOCK("UNLOCK", &(m)->mtx_object, (opts),		\
 	    (m)->mtx_recurse, (file), (line));				\
+	_rel_sleep_lock((m), curproc, (opts), (file), (line));		\
 } while (0)
 
 #define __mtx_unlock_spin_flags(m, opts, file, line) do {		\
 	MPASS(curproc != NULL);						\
 	mtx_assert((m), MA_OWNED);					\
-	mtx_update_flags((m), 0);					\
-	WITNESS_UNLOCK(&(m)->mtx_object, (opts), (file), (line));	\
-	_rel_spin_lock((m));						\
+	WITNESS_UNLOCK(&(m)->mtx_object, (opts) | LOP_EXCLUSIVE,	\
+	    (file), (line));						\
 	LOCK_LOG_LOCK("UNLOCK", &(m)->mtx_object, (opts),		\
 	    (m)->mtx_recurse, (file), (line));				\
+	_rel_spin_lock((m));						\
 } while (0)
 
 #define mtx_trylock_flags(m, opts)					\

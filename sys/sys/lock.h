@@ -67,8 +67,10 @@ struct	lock_class {
 #define	LO_QUIET	0x00040000	/* Don't log locking operations. */
 #define	LO_RECURSABLE	0x00080000	/* Lock may recurse. */
 #define	LO_SLEEPABLE	0x00100000	/* Lock may be held while sleeping. */
-#define	LO_LOCKED	0x01000000	/* Someone holds this lock. */
-#define	LO_RECURSED	0x02000000	/* Someone has recursed on this lock. */
+
+#define	LI_RECURSEMASK	0x0000ffff	/* Recursion depth of lock instance. */
+#define	LI_SLEPT	0x00010000	/* Lock instance has been slept with. */
+#define	LI_EXCLUSIVE	0x00020000	/* Exclusive lock instance. */
 
 /*
  * Option flags passed to lock operations that witness also needs to know
@@ -77,8 +79,22 @@ struct	lock_class {
 #define	LOP_NOSWITCH	0x00000001	/* Lock doesn't switch on release. */
 #define	LOP_QUIET	0x00000002	/* Don't log locking operations. */
 #define	LOP_TRYLOCK	0x00000004	/* Don't check lock order. */
+#define	LOP_EXCLUSIVE	0x00000008	/* Exclusive lock. */
 
 #ifdef _KERNEL
+/*
+ * Lock instances.  A lock instance is the data associated with a lock while
+ * it is held by witness.  For example, a lock instance will hold the
+ * recursion count of a lock.  Lock instances are held in lists.  Spin locks
+ * are held in a per-cpu list while sleep locks are held in per-process list.
+ */
+struct	lock_instance {
+	struct	lock_object *li_lock;
+	const	char *li_file;		/* File and line of last acquire. */
+	int	li_line;
+	u_int	li_flags;		/* Recursion count and LI_* flags. */
+};
+
 /*
  * A simple list type used to build the list of locks held by a process
  * or CPU.  We can't simply embed the list in struct lock_object since a
@@ -89,11 +105,11 @@ struct	lock_class {
  * when we traverse the list we read children[count-1] as the first entry
  * down to children[0] as the final entry.
  */
-#define	LOCK_NCHILDREN	6
+#define	LOCK_NCHILDREN	3
 
 struct	lock_list_entry {
 	struct	lock_list_entry *ll_next;
-	struct	lock_object *ll_children[LOCK_NCHILDREN];
+	struct	lock_instance ll_children[LOCK_NCHILDREN];
 	u_int	ll_count;
 };
 
