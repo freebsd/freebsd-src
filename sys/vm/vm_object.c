@@ -301,24 +301,23 @@ vm_object_deallocate(object)
 			return;
 		}
 
-		if (object->ref_count == 0) {
-			panic("vm_object_deallocate: object deallocated too many times: %d", object->type);
-		} else if (object->ref_count > 2) {
-			object->ref_count--;
-			return;
-		}
+		KASSERT(object->ref_count != 0,
+			("vm_object_deallocate: object deallocated too many times: %d", object->type));
 
 		/*
-		 * Here on ref_count of one or two, which are special cases for
-		 * objects.
+		 * If the reference count goes to 0 we start calling
+		 * vm_object_terminate() on the object chain.
+		 * A ref count of 1 may be a special case depending on the
+		 * shadow count being 0 or 1.
 		 */
-		if ((object->ref_count == 2) && (object->shadow_count == 0)) {
-			vm_object_set_flag(object, OBJ_ONEMAPPING);
-			object->ref_count--;
+		object->ref_count--;
+		if (object->ref_count > 1) {
 			return;
-		} else if ((object->ref_count == 2) && (object->shadow_count == 1)) {
-			object->ref_count--;
-			if ((object->handle == NULL) &&
+		} else if (object->ref_count == 1) {
+			if (object->shadow_count == 0) {
+				vm_object_set_flag(object, OBJ_ONEMAPPING);
+			} else if ((object->shadow_count == 1) &&
+			    (object->handle == NULL) &&
 			    (object->type == OBJT_DEFAULT ||
 			     object->type == OBJT_SWAP)) {
 				vm_object_t robject;
@@ -356,10 +355,6 @@ vm_object_deallocate(object)
 
 			return;
 
-		} else {
-			object->ref_count--;
-			if (object->ref_count != 0)
-				return;
 		}
 
 doterm:
