@@ -96,7 +96,7 @@
 .Sh DESCRIPTION
 The
 .Nm
-command controls the operation of Raylink/Webgear wireless networking
+utility controls the operation of Raylink/Webgear wireless networking
 devices via the
 .Xr ray 4
 driver.
@@ -108,7 +108,7 @@ or infrastructure mode, and the network name of a service
 set to join - the BSS in ad-hoc mode or ESS if infrastructure mode is enabled.
 The
 .Nm
-command can also be used to view the current settings of these parameters
+utility can also be used to view the current settings of these parameters
 and to dump out the values of the card's statistics counters.
 .Pp
 The
@@ -116,7 +116,7 @@ The
 argument given to
 .Nm
 should be the logical interface name associated with the Raylink/Webgear
-device (ray0, ray1, etc...).
+device (ray0, ray1, ...).
 .Sh OPTIONS
 The options are as follows:
 .Bl -tag -width Fl
@@ -169,7 +169,7 @@ are 0 (ad-hoc mode) and 1 (infrastructure mode).
 In ad-hoc mode, the station can
 communicate directly with any other stations within direct radio range
 (provided that they are also operating in ad-hoc mode).
-In inrastructure mode,
+In infrastructure mode,
 hosts must associate with a service set controlled by an access point,
 that relays traffic between end stations.
 The default setting is 0
@@ -254,11 +254,11 @@ is specified in milliseconds.
 The default is 100.
 .It Fl i Ar iface Fl Z
 Clear the signal strength cache maintained internally by the
-.Nm ray
+.Xr ray 4
 driver.
 .It Fl i Ar iface Fl C
 Display the cached signal strength information maintained by the
-.Nm ray
+.Xr ray 4
 driver.
 The driver retains information about signal strength and
 noise level for packets received from different hosts.
@@ -275,17 +275,17 @@ transmitting.
 .Sh HISTORY
 The
 .Nm
-command first appeared in
+utility first appeared in
 .Fx 4.0 .
 .Sh AUTHORS
 .An -nosplit
 The
 .Nm
-command was written by
+utility was written by
 .An Duncan Barclay Aq dmlb@ragnet.demon.co.uk
 and based on the
 .Nm wicontrol
-command by
+utility by
 .An Bill Paul Aq wpaul@ctr.columbia.edu .
 .Sh BUGS
 The

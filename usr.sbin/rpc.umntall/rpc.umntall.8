@@ -39,8 +39,9 @@
 .Op Fl p Ar remotepath
 .Op Fl v
 .Sh DESCRIPTION
+The
 .Nm
-is as command as proposed in the
+utility is proposed in the
 .Tn NFS
 RPC specification; see
 .Rs
@@ -58,7 +59,7 @@ This ensures that
 does not display old and expired entries.
 The
 .Nm
-command
+utility
 is only needed on client side, where
 .Xr mount_nfs 8
 adds a mount entry with the current date to
@@ -68,7 +69,7 @@ and
 removes the entry again.
 The
 .Nm
-command
+utility
 cares about all remaining entries in this table which result from crashes
 or unproper shutdowns.
 .Pp
@@ -115,7 +116,7 @@ mounted nfs-filesystems
 .Sh HISTORY
 The
 .Nm
-command first appeared in
+utility first appeared in
 .Fx 4.0 .
 .Sh SEE ALSO
 .Xr mountd 8 ,

@@ -50,8 +50,9 @@ node
 .Ar path
 .Op Ar hookname
 .Sh DESCRIPTION
+The
 .Nm
-creates a
+utility creates a
 .Xr ng_socket 4
 socket type node and connects it to hook
 .Ar hookname
@@ -66,8 +67,9 @@ is assumed.
 At this point all data written to standard input is sent
 to the node and all data received from the node is relayed
 to standard output.
+The
 .Nm
-exits when
+utility exits when
 .Dv EOF
 is detected on standard input.
 .Pp
@@ -85,8 +87,9 @@ Loops all received data back to the hook in addition to writing it
 to standard output.
 .It Fl n
 Don't attempt to read any data from standard input.
+The
 .Nm
-will continue reading from the node until stopped by a signal.
+utility will continue reading from the node until stopped by a signal.
 .El
 .Sh BUGS
 Although all input is read in unbuffered mode,

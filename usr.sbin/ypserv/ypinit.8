@@ -50,7 +50,8 @@
 .Sh DESCRIPTION
 The
 .Nm
-script sets up databases on a Network Information Service (NIS)
+utility is a script which sets up databases on a Network Information Service
+(NIS)
 master or slave server.
 .Pp
 On a master server,
@@ -65,8 +66,8 @@ to create and populate an initial set of NIS maps.
 The maps are
 created from local source files using the
 .Xr yp_mkdb 8
-command.
-The script will prompt the user for a list of servers
+utility.
+The utility will prompt the user for a list of servers
 that support the specified domain; this list is used to populate
 the ypservers map.
 .Pp
@@ -78,32 +79,37 @@ populates it with copies of the NIS maps from the master.
 The maps
 are obtained from the master using the
 .Xr ypxfr 8
-command.
+utility.
 The
 .Nm
-script obtains the list of maps to transfer in one of two ways: if
+utility obtains the list of maps to transfer in one of two ways: if
 the system is configured as an NIS client and is bound to the master
 server,
 .Nm
 is able to use the
 .Xr ypwhich 1
-command to obtain a list of maps exported by the master server.
+utility to obtain a list of maps exported by the master server.
 If the system is not configured as a client of the NIS master,
 .Nm
 uses a hardcoded list of maps, some of which may or may not actually
 exist on the master.
-The system administrator can edit the script and
+The system administrator can edit the
+.Nm
+script and
 modify the map list if necessary.
-Otherwise, indivudual maps can
+Otherwise, individual maps can
 be transfered manually from the master using
 .Xr ypxfr 8 .
 .Sh OPTIONS
-.Nm Ypinit
-supports the following options:
+The
+.Nm
+utility supports the following options:
 .Bl -tag -width indent
 .It Fl m Op Ar domainname
 Set up a master server.
-By default, the script sets up a server for
+By default,
+.Nm
+sets up a server for
 the system default domain.
 The user can override this default by specifying
 .Ar domainname
@@ -111,7 +117,7 @@ explicitly.
 Maps are constructed from scratch using local files as templates using
 the
 .Xr yp_mkdb 8
-command.
+utility.
 .It Fl s Ar master_server Op Ar domainname
 Set up a slave server using
 .Ar master_name
@@ -120,7 +126,9 @@ Maps are copied from
 .Ar master_server
 to the slave using
 .Xr ypxfr 8 .
-By default, the script sets up a server for
+By default,
+.Nm
+sets up a server for
 the system default domain.
 The user can override this default by specifying
 .Ar domainname

@@ -37,8 +37,9 @@
 .Op Fl y
 .Op Ar username
 .Sh DESCRIPTION
-The utility
+The
 .Nm
+utility
 .Pp
 .Bl -enum
 .It
@@ -76,7 +77,9 @@ the group is removed; this complements
 per-user unique groups).
 .El
 .Pp
-.Nm Rmuser
+The
+.Nm
+utility
 politely refuses to remove users whose uid is 0 (typically root), since
 certain actions (namely, killing all the user's processes, and perhaps
 removing the user's home directory) would cause damage to a running system.
@@ -139,17 +142,19 @@ interactively asks for the user to be removed.
 .Sh HISTORY
 The
 .Nm
-command appeared in
+utility appeared in
 .Fx 2.2 .
 .\" .Sh AUTHOR
 .\" Guy Helmer, Ames, Iowa
 .Sh BUGS
-.Nm Rmuser
-does not comprehensively search the filesystem for all files
+The
+.Nm
+utility does not comprehensively search the filesystem for all files
 owned by the removed user and remove them; to do so on a system
 of any size is prohibitively slow and I/O intensive.
-.Nm Rmuser
-also is unable to remove symbolic links that were created by the
+The
+.Nm
+utility also is unable to remove symbolic links that were created by the
 user in
 .Pa /tmp
 or
@@ -165,6 +170,7 @@ and
 .Pa /var/mail/.pop.username
 that are not owned by the removed user but should be removed.
 .Pp
-.Nm Rmuser
-has no knowledge of NIS (Yellow Pages), and it operates only on the
+The
+.Nm
+utility has no knowledge of NIS (Yellow Pages), and it operates only on the
 local password file.

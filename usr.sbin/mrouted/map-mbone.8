@@ -16,14 +16,18 @@
 .Op Fl t Ar timeout_count
 .Op Ar starting_router
 .Sh DESCRIPTION
-.Nm Map-mbone
+The
+.Nm
+utility
 attempts to display all multicast routers that are reachable from the multicast
 .Ar starting_router .
 If not specified on the command line, the default multicast
 .Ar starting_router
 is the localhost.
 .Pp
-.Nm Map-mbone
+The
+.Nm
+utility
 traverses neighboring multicast routers by sending the ASK_NEIGHBORS IGMP
 message to the multicast starting_router.
 If this multicast router responds,
@@ -81,8 +85,9 @@ reply before retrying.
 Default timeout is 2 seconds.
 .El
 .Sh IMPORTANT NOTE
-.Nm Map-mbone
-must be run as root.
+The
+.Nm
+utility must be run as root.
 .Sh SEE ALSO
 .Xr mrinfo 8 ,
 .Xr mrouted 8 ,

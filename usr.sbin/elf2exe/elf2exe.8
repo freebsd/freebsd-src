@@ -22,7 +22,9 @@
 .Ar infile
 .Ar outfile
 .Sh DESCRIPTION
-.Nm Elf2exe
+The
+.Nm
+utility
 creates an executable that can be loaded by the AlphaBIOS or ARCS consoles
 as found on systems designed for
 .Tn Windows/NT .
@@ -42,11 +44,13 @@ ld -o a.out -M -N -Ttext 0x80900000 src.o
 elf2exe a.out a.exe
 .Ed
 .Sh BUGS
-.Nm Elf2exe
+The
+.Nm
+utility
 does not even attempt to verify that the input file matches the requirements
 for an ARC executable.
 .Sh HISTORY
 The
 .Nm
-command appeared in
+utility appeared in
 .Fx 4.0 .

@@ -18,8 +18,9 @@
 .Op Fl y Ar command
 .Op Ar filename ...
 .Sh DESCRIPTION
-.Nm Zic
-reads text from the file(s) named on the command line
+The
+.Nm
+utility reads text from the file(s) named on the command line
 and creates the time conversion information files specified in this input.
 If a
 .Ar filename
@@ -53,8 +54,9 @@ no leap second information appears in output files.
 Use the given
 .Ar time zone
 as local time.
-.Nm Zic
-will act as if the input contained a link line of the form
+The
+.Nm
+utility will act as if the input contained a link line of the form
 .Bd -literal -offset indent
 .No "Link	timezone		localtime
 .Ed
@@ -75,8 +77,9 @@ Use the given
 .Ar "time zone" Ns 's
 rules when handling POSIX-format
 time zone environment variables.
-.Nm Zic
-will act as if the input contained a link line of the form
+The
+.Nm
+utility will act as if the input contained a link line of the form
 .Bd -literal -offset indent
 .No "Link	timezone		posixrules
 .Ed

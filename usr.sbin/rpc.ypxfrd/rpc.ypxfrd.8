@@ -42,7 +42,7 @@
 .Sh DESCRIPTION
 The
 .Nm
-daemon is used to speed up the distribtion of very large NIS maps
+utility is used to speed up the distribtion of very large NIS maps
 from NIS master to NIS slave servers.
 The normal method for transfering
 maps involves several steps:
@@ -87,7 +87,7 @@ and
 .Pp
 The
 .Nm
-server speeds up the transfer process by allowing NIS slave servers to
+utility speeds up the transfer process by allowing NIS slave servers to
 simply copy the master server's map files rather than building their
 own from scratch.
 Simply put,
@@ -100,7 +100,7 @@ to build a new map from scratch.
 .Pp
 The
 .Nm
-server uses the same access restriction mechanism as
+utility uses the same access restriction mechanism as
 .Xr ypserv 8 .
 This means that slave servers will only be permitted to transfer
 files if the rules in the

@@ -43,8 +43,12 @@
 .Nm
 .Op Fl d
 .Sh DESCRIPTION
-.Nm Rpc.statd
-is a daemon which co-operates with rpc.statd daemons on other hosts to provide
+The
+.Nm
+utility
+is a daemon which co-operates with
+.Nm
+daemons on other hosts to provide
 a status monitoring service.  The daemon accepts requests from
 programs running on the local host (typically,
 .Xr rpc.lockd 8 ,
@@ -68,7 +72,7 @@ of this option, using level LOG_ERR.
 .Pp
 The
 .Nm
-daemon must NOT be invoked by
+utility must NOT be invoked by
 .Xr inetd 8
 because the protocol assumes that the daemon will run from system start time.
 Instead, it should be run from

@@ -63,17 +63,21 @@
 .Op Fl v
 .Fl a
 .Sh DESCRIPTION
-.Nm Quotaon
+The
+.Nm
+utility
 announces to the system that disk quotas should be enabled on one or more
 filesystems.
-.Nm Quotaoff
-announces to the system that the specified
+The
+.Nm quotaoff
+utility announces to the system that the specified
 filesystems should have any disk quotas turned off.
 The filesystems specified must have entries in
 .Pa /etc/fstab
 and be mounted.
-.Nm Quotaon
-expects each filesystem to have quota files named
+The
+.Nm
+utility expects each filesystem to have quota files named
 .Pa quota.user
 and
 .Pa quota.group
@@ -133,5 +137,5 @@ filesystem table
 .Sh HISTORY
 The
 .Nm
-command appeared in
+utility appeared in
 .Bx 4.2 .

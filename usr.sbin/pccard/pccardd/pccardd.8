@@ -40,8 +40,9 @@
 .Op Fl I
 .Op Fl f Ar configfile
 .Sh DESCRIPTION
-.Nm Pccardd
-is normally started at boot time, and manages the insertion
+The
+.Nm
+utility is normally started at boot time, and manages the insertion
 and removal of PC-CARD cards.
 .Pp
 When started,
@@ -52,8 +53,9 @@ which includes
 .Pa /etc/pccard.conf
 as the user configuration file)
 and scans the available PC-CARD slots for cards.
-.Nm Pccardd
-then waits for
+The
+.Nm
+utility then waits for
 .Em "card events" ,
 such as the insertion of a new card or the removal
 of a card.
@@ -65,8 +67,9 @@ actions are taken:
 The kernel driver detects the card insertion and applies
 power to the card.
 .It
-.Nm Pccardd
-reads the
+The
+.Nm
+utility reads the
 .Em CIS
 data from the attribute memory of the card, and uses
 the manufacturer name and card version to match
@@ -171,8 +174,9 @@ process id of the currently running
 Developed by
 .An Andrew McRae Aq andrew@mega.com.au .
 .Sh BUGS
-.Nm Pccardd
-can set up card parameters, but cannot guarantee that
+The
+.Nm
+utility can set up card parameters, but cannot guarantee that
 particular drivers can work with the card.
 .Pp
 Removing cards may cause problems if system resources

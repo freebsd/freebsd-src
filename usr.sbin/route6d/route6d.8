@@ -48,7 +48,7 @@
 .Sh DESCRIPTION
 The
 .Nm
-is a routing daemon which supports RIP over IPv6.
+utility is a routing daemon which supports RIP over IPv6.
 .Pp
 Options are:
 .Bl -tag -width indent
@@ -78,8 +78,9 @@ and advertises the aggregated route
 .Ar prefix/preflen ,
 to the interfaces specified in the comma-separated interface list,
 .Ar if1[,if2...] .
+The
 .Nm
-creates a static route to
+utility creates a static route to
 .Ar prefix/preflen
 with
 .Dv RTF_REJECT
@@ -122,8 +123,9 @@ option assumes that all interfaces are in the same site.
 .It Fl L Ar prefix/preflen,if1[,if2...]
 Filter incoming routes from interfaces
 .Ar if1,[if2...] .
+The
 .Nm
-will accept incoming routes that are in
+utility will accept incoming routes that are in
 .Ar prefix/preflen .
 If multiple
 .Fl L
@@ -224,8 +226,9 @@ or
 .Re
 .\"
 .Sh NOTE
+The
 .Nm
-uses IPv6 advanced API,
+utility uses IPv6 advanced API,
 defined in RFC2292,
 for communicating with peers using link-local addresses.
 .Pp

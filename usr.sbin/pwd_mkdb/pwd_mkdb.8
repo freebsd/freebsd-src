@@ -48,8 +48,9 @@
 .Op Fl u Ar username
 .Ar file
 .Sh DESCRIPTION
-.Nm Pwd_mkdb
-creates
+The
+.Nm
+utility creates
 .Xr db 3
 style secure and insecure databases for the specified file.
 These databases are then installed into
@@ -102,8 +103,9 @@ encrypted password and the insecure version has an asterisk (``*'')
 The databases are used by the C library password routines (see
 .Xr getpwent 3 ) .
 .Pp
-.Nm Pwd_mkdb
-exits zero on success, non-zero on failure.
+The
+.Nm
+utility exits zero on success, non-zero on failure.
 .Sh ENVIRONMENT
 If the
 .Ev PW_SCAN_BIG_IDS
