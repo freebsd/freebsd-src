@@ -147,6 +147,7 @@ struct ch_softc {
 	ch_quirks	quirks;
 	union ccb	saved_ccb;
 	struct devstat	device_stats;
+	dev_t		dev;
 
 	int		sc_picker;	/* current picker */
 
@@ -270,9 +271,6 @@ chinit(void)
 	if (status != CAM_REQ_CMP) {
 		printf("ch: Failed to attach master async callback "
 		       "due to status 0x%x!\n", status);
-	} else {
-		/* If we were successfull, register our devsw */
-		cdevsw_add(&ch_cdevsw);
 	}
 }
 
@@ -310,6 +308,7 @@ chcleanup(struct cam_periph *periph)
 	softc = (struct ch_softc *)periph->softc;
 
 	devstat_remove_entry(&softc->device_stats);
+	destroy_dev(softc->dev);
 	cam_extend_release(chperiphs, periph->unit_number);
 	xpt_print_path(periph->path);
 	printf("removing device entry\n");
@@ -399,6 +398,11 @@ chregister(struct cam_periph *periph, void *arg)
 			  DEVSTAT_NO_BLOCKSIZE | DEVSTAT_NO_ORDERED_TAGS,
 			  cgd->pd_type | DEVSTAT_TYPE_IF_SCSI,
 			  DEVSTAT_PRIORITY_OTHER);
+
+	/* Register the device */
+	softc->dev = make_dev(&ch_cdevsw, periph->unit_number, UID_ROOT,
+			      GID_OPERATOR, 0600, "%s%d", periph->periph_name,
+			      periph->unit_number);
 
 	/*
 	 * Add an async callback so that we get
