@@ -57,8 +57,6 @@
 #include <sys/queue.h>
 #include <sys/types.h>
 #include <sys/malloc.h>
-#include <machine/bus.h>	/* XXX: Shouldn't really be required! */
-#include <sys/rman.h>
 
 #include <net/if.h>
 #include <net/if_types.h>
@@ -85,11 +83,9 @@
 #include <net/net_osdep.h>
 
 #define FAITHNAME	"faith"
-#define FAITH_MAXUNIT	0x7fff	/* ifp->if_unit is only 15 bits */
 
 struct faith_softc {
 	struct ifnet sc_if;	/* must be first */
-	struct resource *r_unit;
 	LIST_ENTRY(faith_softc) sc_list;
 };
 
@@ -104,14 +100,13 @@ static int faithprefix __P((struct in6_addr *));
 static int faithmodevent __P((module_t, int, void *));
 
 static MALLOC_DEFINE(M_FAITH, FAITHNAME, "Firewall Assisted Tunnel Interface");
-static struct rman faithunits[1];
 static LIST_HEAD(, faith_softc) faith_softc_list;
 
-int	faith_clone_create __P((struct if_clone *, int *));
+int	faith_clone_create __P((struct if_clone *, int));
 int	faith_clone_destroy __P((struct ifnet *));
 
-struct if_clone faith_cloner =
-    IF_CLONE_INITIALIZER(FAITHNAME, faith_clone_create, faith_clone_destroy);
+struct if_clone faith_cloner = IF_CLONE_INITIALIZER(FAITHNAME,
+    faith_clone_create, faith_clone_destroy, IF_MAXUNIT);
 
 #define	FAITHMTU	1500
 
@@ -121,22 +116,9 @@ faithmodevent(mod, type, data)
 	int type;
 	void *data;
 {
-	int err;
 
 	switch (type) {
 	case MOD_LOAD:
-		faithunits->rm_type = RMAN_ARRAY;
-		faithunits->rm_descr = "configurable if_faith units";
-		err = rman_init(faithunits);
-		if (err != 0)
-			return (err);
-		err = rman_manage_region(faithunits, 0, FAITH_MAXUNIT);
-		if (err != 0) {
-			printf("%s: faithunits: rman_manage_region: "
-			    "Failed %d\n", FAITHNAME, err);
-			rman_fini(faithunits);
-			return (err);
-		}
 		LIST_INIT(&faith_softc_list);
 		if_clone_attach(&faith_cloner);
 
@@ -156,10 +138,6 @@ faithmodevent(mod, type, data)
 			faith_clone_destroy(
 			    &LIST_FIRST(&faith_softc_list)->sc_if);
 
-		err = rman_fini(faithunits);
-		if (err != 0)
-			return (err);
-
 		break;
 	}
 	return 0;
@@ -177,34 +155,16 @@ MODULE_VERSION(if_faith, 1);
 int
 faith_clone_create(ifc, unit)
 	struct if_clone *ifc;
-	int *unit;
+	int unit;
 {
-	struct resource *r;
 	struct faith_softc *sc;
-
-	if (*unit > FAITH_MAXUNIT)
-		return (ENXIO);
-
-	if (*unit < 0) {
-		r = rman_reserve_resource(faithunits, 0, FAITH_MAXUNIT, 1,
-		    RF_ALLOCATED | RF_ACTIVE, NULL);
-		if (r == NULL)
-			return (ENOSPC);
-		*unit = rman_get_start(r);
-	} else {
-		r = rman_reserve_resource(faithunits, *unit, *unit, 1,
-		    RF_ALLOCATED | RF_ACTIVE, NULL);
-		if (r == NULL)
-			return (ENOSPC);
-	}
 
 	sc = malloc(sizeof(struct faith_softc), M_FAITH, M_WAITOK);
 	bzero(sc, sizeof(struct faith_softc));
 
 	sc->sc_if.if_softc = sc;
 	sc->sc_if.if_name = FAITHNAME;
-	sc->sc_if.if_unit = *unit;
-	sc->r_unit = r;
+	sc->sc_if.if_unit = unit;
 
 	sc->sc_if.if_mtu = FAITHMTU;
 	/* Change to BROADCAST experimentaly to announce its prefix. */
@@ -225,15 +185,11 @@ int
 faith_clone_destroy(ifp)
 	struct ifnet *ifp;
 {
-	int err;
 	struct faith_softc *sc = (void *) ifp;
 
 	LIST_REMOVE(sc, sc_list);
 	bpfdetach(ifp);
 	if_detach(ifp);
-
-	err = rman_release_resource(sc->r_unit);
-	KASSERT(err == 0, ("Unexpected error freeing resource"));
 
 	free(sc, M_FAITH);
 	return (0);
