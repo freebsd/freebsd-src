@@ -457,11 +457,14 @@ fill_kinfo_proc(p, kp)
 		strncpy(kp->ki_comm, p->p_comm, MAXCOMLEN);
 		kp->ki_comm[MAXCOMLEN] = 0;
 	}
-	if (p->p_blocked != 0) {
+	mtx_enter(&sched_lock, MTX_SPIN);
+	if (p->p_stat == SMTX) {
 		kp->ki_kiflag |= KI_MTXBLOCK;
 		strncpy(kp->ki_mtxname, p->p_mtxname, MTXNAMELEN);
-		kp->ki_wmesg[MTXNAMELEN] = 0;
+		kp->ki_mtxname[MTXNAMELEN] = 0;
 	}
+	kp->ki_stat = p->p_stat;
+	mtx_exit(&sched_lock, MTX_SPIN);
 	kp->ki_siglist = p->p_siglist;
 	kp->ki_sigmask = p->p_sigmask;
 	kp->ki_xstat = p->p_xstat;
@@ -476,7 +479,6 @@ fill_kinfo_proc(p, kp)
 	kp->ki_priority = p->p_priority;
 	kp->ki_usrpri = p->p_usrpri;
 	kp->ki_nativepri = p->p_nativepri;
-	kp->ki_stat = p->p_stat;
 	kp->ki_nice = p->p_nice;
 	kp->ki_lock = p->p_lock;
 	kp->ki_rqindex = p->p_rqindex;
