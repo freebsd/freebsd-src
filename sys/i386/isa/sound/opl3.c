@@ -1175,7 +1175,7 @@ opl3_init (long mem_start)
   if (opl3_enabled)
     {
 #ifdef __FreeBSD__
-      printk ("snd1: <Yamaha OPL-3 FM>");
+      printk ("opl0: <Yamaha OPL-3 FM>");
 #else
       printk (" <Yamaha OPL-3 FM>");
 #endif
@@ -1202,7 +1202,7 @@ opl3_init (long mem_start)
   else
     {
 #ifdef __FreeBSD__
-      printk ("snd1: <Yamaha 2-OP FM>");
+      printk ("opl0: <Yamaha 2-OP FM>");
 #else
       printk (" <Yamaha 2-OP FM>");
 #endif

@@ -1050,7 +1050,7 @@ attach_mpu401 (long mem_start, struct address_info *hw_config)
 
       revision_char = (devc->revision == 0x7f) ? 'M' : ' ';
 #ifdef __FreeBSD__
-      printk ("snd5: <MQX-%d%c MIDI Interface>",
+      printk ("mpu0: <MQX-%d%c MIDI Interface>",
 #else
       printk (" <MQX-%d%c MIDI Interface>",
 #endif
@@ -1074,7 +1074,7 @@ attach_mpu401 (long mem_start, struct address_info *hw_config)
       devc->capabilities |= MPU_CAP_SYNC | MPU_CAP_FSK;
 
 #ifdef __FreeBSD__
-      printk ("snd5: <MPU-401 MIDI Interface %d.%d%c>",
+      printk ("mpu0: <MPU-401 MIDI Interface %d.%d%c>",
 #else
       printk (" <MPU-401 MIDI Interface %d.%d%c>",
 #endif

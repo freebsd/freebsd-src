@@ -384,7 +384,7 @@ attach_pas_card (long mem_start, struct address_info *hw_config)
 	if (pas_model = pas_read (CHIP_REV))
 	{
 #ifdef __FreeBSD__
-	  printk ("snd3: <%s rev %d>", pas_model_names[(int) pas_model], board_rev_id);
+	  printk ("pas0: <%s rev %d>", pas_model_names[(int) pas_model], board_rev_id);
 #else /* __FreeBSD__ */
 	  printk (" <%s rev %d>", pas_model_names[(int) pas_model], pas_read (BOARD_REV_ID));
 #endif /* __FreeBSD__ */

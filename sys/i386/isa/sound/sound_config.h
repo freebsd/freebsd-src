@@ -53,9 +53,9 @@
 #endif
 
 #ifdef EXCLUDE_SEQUENCER
-#define EXCLUDE_MIDI
+#ifndef EXCLUDE_YM3812
 #define EXCLUDE_YM3812
-#define EXCLUDE_OPL3
+#endif
 #endif
 
 #ifndef SND_DEFAULT_ENABLE
@@ -164,6 +164,18 @@ If your card has nonstandard I/O address or IRQ number, change defines
 
 #ifndef MSS_DMA
 #define MSS_DMA		1
+#endif
+
+#ifndef U6850_BASE
+#define U6850_BASE	0x330
+#endif
+
+#ifndef U6850_IRQ	
+#define U6850_IRQ	5
+#endif
+
+#ifndef U6850_DMA
+#define U6850_DMA	1
 #endif
 
 /************* PCM DMA buffer sizes *******************/
