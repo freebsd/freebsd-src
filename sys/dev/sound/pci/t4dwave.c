@@ -37,6 +37,7 @@ SND_DECLARE_FILE("$FreeBSD$");
 
 #define TDX_PCI_ID 	0x20001023
 #define TNX_PCI_ID 	0x20011023
+#define ALI_PCI_ID	0x545110b9
 #define SPA_PCI_ID	0x70181039
 
 #define TR_BUFFSIZE 	0x1000
@@ -161,6 +162,7 @@ tr_rdcd(kobj_t obj, void *devinfo, int regno)
 		treg=SPA_REG_CODECRD;
 		trw=SPA_CDC_RWSTAT;
 		break;
+	case ALI_PCI_ID:
 	case TDX_PCI_ID:
 		treg=TDX_REG_CODECRD;
 		trw=TDX_CDC_RWSTAT;
@@ -195,6 +197,7 @@ tr_wrcd(kobj_t obj, void *devinfo, int regno, u_int32_t data)
 		treg=SPA_REG_CODECWR;
 		trw=SPA_CDC_RWSTAT;
 		break;
+	case ALI_PCI_ID:
 	case TDX_PCI_ID:
 		treg=TDX_REG_CODECWR;
 		trw=TDX_CDC_RWSTAT;
@@ -340,6 +343,7 @@ tr_wrch(struct tr_chinfo *ch)
 
 	switch (tr->type) {
 	case SPA_PCI_ID:
+	case ALI_PCI_ID:
 	case TDX_PCI_ID:
 		ch->cso &= 0x0000ffff;
 		ch->eso &= 0x0000ffff;
@@ -385,6 +389,7 @@ tr_rdch(struct tr_chinfo *ch)
 	ch->ec=		(cr[4] & 0x00000fff);
 	switch(tr->type) {
 	case SPA_PCI_ID:
+	case ALI_PCI_ID:
 	case TDX_PCI_ID:
 		ch->cso=	(cr[0] & 0xffff0000) >> 16;
 		ch->alpha=	(cr[0] & 0x0000fff0) >> 4;
@@ -721,6 +726,9 @@ tr_pci_probe(device_t dev)
 	switch (pci_get_devid(dev)) {
 		case SPA_PCI_ID:
 			device_set_desc(dev, "SiS 7018");
+			return 0;
+		case ALI_PCI_ID:
+			device_set_desc(dev, "Acer Labs M5451");
 			return 0;
 		case TDX_PCI_ID:
 			device_set_desc(dev, "Trident 4DWave DX");
