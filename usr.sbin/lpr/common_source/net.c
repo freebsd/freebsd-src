@@ -65,9 +65,9 @@ static const char rcsid[] =
 #include "lp.local.h"
 #include "pathnames.h"
 
-			/* host machine name */
-char	host[MAXHOSTNAMELEN];
-char	*from = host;	/* client's machine name */
+char	 host[MAXHOSTNAMELEN];	/* host machine name */
+char	*from = host;		/* client's machine name */
+char	 from_ip[MAXIPSTRLEN] = ""; /* client machine's IP address */
 
 extern uid_t	uid, euid;
 

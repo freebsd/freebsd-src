@@ -35,6 +35,7 @@
  */
 
 #include <sys/queue.h>
+#include <time.h>
 
 /*
  * All this information used to be in global static variables shared
@@ -80,9 +81,22 @@ struct	printer {
 	char	*spool_dir;	/* SD: spool directory */
 	long	 no_formfeed;	/* SF: suppress FF on each print job */
 	long	 no_header;	/* SH: suppress header page */
+	char	*stat_recv;	/* SR: statistics file, receiving jobs */
+	char	*stat_send;	/* SS: statistics file, sending jobs */
 	char	*status_file;	/* ST: status file name */
 	char	*trailer;	/* TR: trailer string send when Q empties */
 	char	*mode_set;	/* MS: mode set, a la stty */
+
+	/* variables used by trstat*() to keep statistics on file transfers */
+#define JOBNUM_SIZE   8
+	char 	 jobnum[JOBNUM_SIZE];
+	long	 jobdfnum;	/* current datafile number within job */
+	struct timespec tr_start, tr_done;
+#define TIMESTR_SIZE 40		/* holds result from LPD_TIMESTAMP_PATTERN */
+	char	 tr_timestr[TIMESTR_SIZE];
+#define DIFFTIME_TS(endTS,startTS) \
+		((double)(endTS.tv_sec - startTS.tv_sec) \
+		+ (endTS.tv_nsec - startTS.tv_nsec) * 1.0e-9)
 };
 
 /*
@@ -142,6 +156,8 @@ extern char	*name;		/* program name */
 				/* host machine name */
 extern char	host[MAXHOSTNAMELEN];
 extern char	*from;		/* client's machine name */
+#define MAXIPSTRLEN 32		/* maxlen of an IP-address as a string */
+extern char	from_ip[MAXIPSTRLEN];   /* client machine's IP address */
 
 extern int	requ[];		/* job number of spool entries */
 extern int	requests;	/* # of spool requests */
@@ -156,6 +172,18 @@ struct queue {
 	time_t	q_time;			/* modification time */
 	char	q_name[MAXNAMLEN+1];	/* control file name */
 };
+
+/* lpr/lpd generates readable timestamps for logfiles, etc.  Have all those
+ * timestamps be in the same format wrt strftime().  This is ISO 8601 format,
+ * with the addition of an easy-readable day-of-the-week field.  Note that
+ * '%T' = '%H:%M:%S', and that '%z' is not available on all platforms.
+ */
+#define LPD_TIMESTAMP_PATTERN    "%Y-%m-%dT%T%z %a"
+
+/*
+ * Codes to indicate which statistic records trstat_write should write.
+ */
+typedef enum { TR_SENDING, TR_RECVING, TR_PRINTING } tr_sendrecv;
 
 /*
  * Error codes for our mini printcap library.
@@ -218,6 +246,7 @@ void     ldump __P((char *, char *, int));
 void	 lastprinter __P((void));
 int      lockchk __P((struct printer *pp, char *));
 char	*lock_file_name __P((const struct printer *pp, char *buf, size_t len));
+void	 lpd_gettime __P((struct timespec *_tsp, char *_strp, int _strsize));
 int	 nextprinter __P((struct printer *pp, int *status));
 const
 char	*pcaperr __P((int error));
@@ -230,5 +259,9 @@ void     show __P((char *, char *, int));
 int      startdaemon __P((const struct printer *pp));
 char	*status_file_name __P((const struct printer *pp, char *buf,
 			       size_t len));
+void	 trstat_init __P((struct printer *pp, const char *fname, int filenum));
+void	 trstat_write __P((struct printer *pp, tr_sendrecv sendrecv,
+			   size_t bytecnt, const char *userid,
+			   const char *otherhost, const char *orighost));
 ssize_t	 writel __P((int s, ...));
 __END_DECLS

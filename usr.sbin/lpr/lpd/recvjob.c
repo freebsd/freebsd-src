@@ -141,11 +141,14 @@ static int
 readjob(pp)
 	struct printer *pp;
 {
-	register int size, nfiles;
+	register int size;
 	register char *cp;
+	int	 cfcnt, dfcnt;
+	char 	 givenid[32], givenhost[MAXHOSTNAMELEN];
 
 	ack();
-	nfiles = 0;
+	cfcnt = 0;
+	dfcnt = 0;
 	for (;;) {
 		/*
 		 * Read a command to tell us what to do
@@ -156,7 +159,7 @@ readjob(pp)
 				if (size < 0)
 					frecverr("%s: lost connection",
 					    pp->printer);
-				return(nfiles);
+				return (cfcnt);
 			}
 		} while (*cp++ != '\n' && (cp - line + 1) < sizeof(line));
 		if (cp - line + 1 >= sizeof(line))
@@ -170,6 +173,7 @@ readjob(pp)
 
 		case '\2':	/* read cf file */
 			size = 0;
+			dfcnt = 0;
 			while (*cp >= '0' && *cp <= '9')
 				size = size * 10 + (*cp++ - '0');
 			if (*cp++ != ' ')
@@ -200,10 +204,12 @@ readjob(pp)
 				frecverr("%s: %m", tfname);
 			(void) unlink(tfname);
 			tfname[0] = '\0';
-			nfiles++;
+			cfcnt++;
 			continue;
 
 		case '\3':	/* read df file */
+			*givenid = '\0';
+			*givenhost = '\0';
 			size = 0;
 			while (*cp >= '0' && *cp <= '9')
 				size = size * 10 + (*cp++ - '0');
@@ -218,7 +224,11 @@ readjob(pp)
 			if (strchr(dfname, '/'))
 				frecverr("readjob: %s: illegal path name",
 					dfname);
+			dfcnt++;
+			trstat_init(pp, dfname, dfcnt);
 			(void) readfile(dfname, size);
+			trstat_write(pp, TR_RECVING, size, givenid, from,
+				     givenhost);
 			continue;
 		}
 		frecverr("protocol screwup: %s", line);
