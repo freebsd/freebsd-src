@@ -379,6 +379,7 @@ static synthdev_info emusynth_op_desc = {
 
 static int emu_probe(device_t dev);
 static int emu_attach(device_t dev);
+static int emupnp_attach(device_t dev) __unused;
 
 static d_open_t emu_open;
 static d_close_t emu_close;
@@ -418,25 +419,25 @@ static void emu_readstream(sc_p scp, int mode, u_short *data);
 static void emu_writestream(sc_p scp, int mode, u_short data);
 static void emu_releasedmachn(sc_p scp, int chn, int mode);
 static void emu_delay(sc_p scp, short n);
-static void emu_readcpf(sc_p scp, int chn, u_int *cp, u_int *f);
+static void emu_readcpf(sc_p scp, int chn, u_int *cp, u_int *f) __unused;
 static void emu_writecpf(sc_p scp, int chn, u_int cp, u_int f);
-static void emu_readptrx(sc_p scp, int chn, u_int *pt, u_int *rs, u_int *auxd);
+static void emu_readptrx(sc_p scp, int chn, u_int *pt, u_int *rs, u_int *auxd) __unused;
 static void emu_writeptrx(sc_p scp, int chn, u_int pt, u_int rs, u_int auxd);
-static void emu_readcvcf(sc_p scp, int chn, u_int *cv, u_int *cf);
+static void emu_readcvcf(sc_p scp, int chn, u_int *cv, u_int *cf) __unused;
 static void emu_writecvcf(sc_p scp, int chn, u_int cv, u_int cf);
-static void emu_readvtft(sc_p scp, int chn, u_int *vt, u_int *ft);
+static void emu_readvtft(sc_p scp, int chn, u_int *vt, u_int *ft) __unused;
 static void emu_writevtft(sc_p scp, int chn, u_int vt, u_int ft);
-static void emu_readpsst(sc_p scp, int chn, u_int *pan, u_int *st);
+static void emu_readpsst(sc_p scp, int chn, u_int *pan, u_int *st) __unused;
 static void emu_writepsst(sc_p scp, int chn, u_int pan, u_int st);
-static void emu_readcsl(sc_p scp, int chn, u_int *cs, u_int *lp);
+static void emu_readcsl(sc_p scp, int chn, u_int *cs, u_int *lp) __unused;
 static void emu_writecsl(sc_p scp, int chn, u_int cs, u_int lp);
-static void emu_readccca(sc_p scp, int chn, u_int *q, u_int *dma, u_int *wr, u_int *right, u_int *ca);
+static void emu_readccca(sc_p scp, int chn, u_int *q, u_int *dma, u_int *wr, u_int *right, u_int *ca) __unused;
 static void emu_writeccca(sc_p scp, int chn, u_int q, u_int dma, u_int wr, u_int right, u_int ca);
-static void emu_readhwcf4(sc_p scp, u_int *val);
+static void emu_readhwcf4(sc_p scp, u_int *val) __unused;
 static void emu_writehwcf4(sc_p scp, u_int val);
-static void emu_readhwcf5(sc_p scp, u_int *val);
+static void emu_readhwcf5(sc_p scp, u_int *val) __unused;
 static void emu_writehwcf5(sc_p scp, u_int val);
-static void emu_readhwcf6(sc_p scp, u_int *val);
+static void emu_readhwcf6(sc_p scp, u_int *val) __unused;
 static void emu_writehwcf6(sc_p scp, u_int val);
 static void emu_readsmalr(sc_p scp, u_int *mt, u_int *smalr);
 static void emu_writesmalr(sc_p scp, u_int mt, u_int smalr);
@@ -451,51 +452,51 @@ static void emu_writesmld(sc_p scp, u_short smld);
 static void emu_readsmrd(sc_p scp, u_short *smrd);
 static void emu_writesmrd(sc_p scp, u_short smrd);
 static void emu_readwc(sc_p scp, u_int *wc);
-static void emu_writewc(sc_p scp, u_int wc);
+static void emu_writewc(sc_p scp, u_int wc) __unused;
 static void emu_readhwcf1(sc_p scp, u_int *val);
 static void emu_writehwcf1(sc_p scp, u_int val);
 static void emu_readhwcf2(sc_p scp, u_int *val);
 static void emu_writehwcf2(sc_p scp, u_int val);
-static void emu_readhwcf3(sc_p scp, u_int *val);
+static void emu_readhwcf3(sc_p scp, u_int *val) __unused;
 static void emu_writehwcf3(sc_p scp, u_int val);
-static void emu_readinit1(sc_p scp, int chn, u_int *val);
+static void emu_readinit1(sc_p scp, int chn, u_int *val) __unused;
 static void emu_writeinit1(sc_p scp, int chn, u_int val);
-static void emu_readinit2(sc_p scp, int chn, u_int *val);
+static void emu_readinit2(sc_p scp, int chn, u_int *val) __unused;
 static void emu_writeinit2(sc_p scp, int chn, u_int val);
-static void emu_readinit3(sc_p scp, int chn, u_int *val);
+static void emu_readinit3(sc_p scp, int chn, u_int *val) __unused;
 static void emu_writeinit3(sc_p scp, int chn, u_int val);
-static void emu_readinit4(sc_p scp, int chn, u_int *val);
+static void emu_readinit4(sc_p scp, int chn, u_int *val) __unused;
 static void emu_writeinit4(sc_p scp, int chn, u_int val);
-static void emu_readenvvol(sc_p scp, int chn, u_int *envvol);
+static void emu_readenvvol(sc_p scp, int chn, u_int *envvol) __unused;
 static void emu_writeenvvol(sc_p scp, int chn, u_int envvol);
-static void emu_readdcysusv(sc_p scp, int chn, u_int *ph1v, u_int *susv, u_int *off, u_int *dcyv);
+static void emu_readdcysusv(sc_p scp, int chn, u_int *ph1v, u_int *susv, u_int *off, u_int *dcyv) __unused;
 static void emu_writedcysusv(sc_p scp, int chn, u_int ph1v, u_int susv, u_int off, u_int dcyv);
-static void emu_readenvval(sc_p scp, int chn, u_int *envval);
+static void emu_readenvval(sc_p scp, int chn, u_int *envval) __unused;
 static void emu_writeenvval(sc_p scp, int chn, u_int envval);
-static void emu_readdcysus(sc_p scp, int chn, u_int *ph1, u_int *sus, u_int *dcy);
+static void emu_readdcysus(sc_p scp, int chn, u_int *ph1, u_int *sus, u_int *dcy) __unused;
 static void emu_writedcysus(sc_p scp, int chn, u_int ph1, u_int sus, u_int dcy);
-static void emu_readatkhldv(sc_p scp, int chn, u_int *atkhldv);
+static void emu_readatkhldv(sc_p scp, int chn, u_int *atkhldv) __unused;
 static void emu_writeatkhldv(sc_p scp, int chn, u_int atkhldv);
-static void emu_readlfo1val(sc_p scp, int chn, u_int *lfo1val);
+static void emu_readlfo1val(sc_p scp, int chn, u_int *lfo1val) __unused;
 static void emu_writelfo1val(sc_p scp, int chn, u_int lfo1val);
-static void emu_readatkhld(sc_p scp, int chn, u_int *atkhld);
+static void emu_readatkhld(sc_p scp, int chn, u_int *atkhld) __unused;
 static void emu_writeatkhld(sc_p scp, int chn, u_int atkhld);
-static void emu_readlfo2val(sc_p scp, int chn, u_int *lfo2val);
+static void emu_readlfo2val(sc_p scp, int chn, u_int *lfo2val) __unused;
 static void emu_writelfo2val(sc_p scp, int chn, u_int lfo2val);
-static void emu_readip(sc_p scp, int chn, u_int *ip);
+static void emu_readip(sc_p scp, int chn, u_int *ip) __unused;
 static void emu_writeip(sc_p scp, int chn, u_int ip);
-static void emu_readifatn(sc_p scp, int chn, u_int *ifc, u_int *atn);
+static void emu_readifatn(sc_p scp, int chn, u_int *ifc, u_int *atn) __unused;
 static void emu_writeifatn(sc_p scp, int chn, u_int ifc, u_int atn);
-static void emu_readpefe(sc_p scp, int chn, u_int *pe, u_int *fe);
+static void emu_readpefe(sc_p scp, int chn, u_int *pe, u_int *fe) __unused;
 static void emu_writepefe(sc_p scp, int chn, u_int pe, u_int fe);
-static void emu_readfmmod(sc_p scp, int chn, u_int *fm, u_int *mod);
+static void emu_readfmmod(sc_p scp, int chn, u_int *fm, u_int *mod) __unused;
 static void emu_writefmmod(sc_p scp, int chn, u_int fm, u_int mod);
-static void emu_readtremfrq(sc_p scp, int chn, u_int *trem, u_int *frq);
+static void emu_readtremfrq(sc_p scp, int chn, u_int *trem, u_int *frq) __unused;
 static void emu_writetremfrq(sc_p scp, int chn, u_int trem, u_int frq);
-static void emu_readfm2frq2(sc_p scp, int chn, u_int *fm2, u_int *frq2);
+static void emu_readfm2frq2(sc_p scp, int chn, u_int *fm2, u_int *frq2) __unused;
 static void emu_writefm2frq2(sc_p scp, int chn, u_int fm2, u_int frq2);
 static void emu_readprobe(sc_p scp, u_int *val);
-static void emu_writeprobe(sc_p scp, u_int val);
+static void emu_writeprobe(sc_p scp, u_int val) __unused;
 static void emu_command(sc_p scp, int reg, int chn, u_long val);
 static u_long emu_status(sc_p scp, int reg, int chn);
 static int emu_allocres(sc_p scp, device_t dev);
@@ -1151,7 +1152,7 @@ emu_delay(sc_p scp, short n)
 	}
 }
 
-/* The followings provide abstruct access to the registers. */
+/* The followings provide abstract access to the registers. */
 #define DECBIT(sts, shift, len) (((sts) >> (shift))) & (0xffffffff >> (32 - len))
 #define GENBIT(val, shift, len) (((val) & (0xffffffff >> (32 - len))) << (shift))
 
