@@ -89,15 +89,15 @@ interrupt(a0, a1, a2, framep)
 	unsigned long a0, a1, a2;
 	struct trapframe *framep;
 {
+	struct proc *p;
+
 	/*
 	 * Find our per-cpu globals.
 	 */
 	globalp = (struct globaldata *) alpha_pal_rdval();
-
-	atomic_add_int(PCPU_PTR(intr_nesting_level), 1);
+	p = curproc;
+	atomic_add_int(&p->p_intr_nesting_level, 1);
 	{
-		struct proc *p = curproc;
-		if (!p) p = &proc0;
 		if ((caddr_t) framep < (caddr_t) p->p_addr + 1024) {
 			panic("possible stack overflow\n");
 		}
@@ -116,7 +116,7 @@ interrupt(a0, a1, a2, framep)
 		CTR0(KTR_INTR, "clock interrupt");
 		if (PCPU_GET(cpuno) != hwrpb->rpb_primary_cpu_id) {
 			CTR0(KTR_INTR, "ignoring clock on secondary");
-			atomic_subtract_int(PCPU_PTR(intr_nesting_level), 1);
+			atomic_subtract_int(&p->p_intr_nesting_level, 1);
 			return;
 		}
 			
@@ -152,7 +152,7 @@ interrupt(a0, a1, a2, framep)
 		    a0, a1, a2);
 		/* NOTREACHED */
 	}
-	atomic_subtract_int(PCPU_PTR(intr_nesting_level), 1);
+	atomic_subtract_int(&p->p_intr_nesting_level, 1);
 }
 
 void

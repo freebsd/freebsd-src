@@ -159,6 +159,7 @@ struct	proc {
 #define	p_rlimit	p_limit->pl_rlimit
 
 	int	p_flag;			/* (c/j) P_* flags. */
+	int	p_intr_nesting_level;	/* (n) Interrupt recursion. */
 	char	p_stat;			/* (j) S* process status. */
 	char	p_pad1[3];
 

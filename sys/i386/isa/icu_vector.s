@@ -61,7 +61,8 @@ IDTVEC(vec_name) ; \
 	mov	$KPSEL,%ax ; \
 	mov	%ax,%fs ; \
 	FAKE_MCOUNT((12+ACTUALLY_PUSHED)*4(%esp)) ; \
-	incb	PCPU(INTR_NESTING_LEVEL) ; \
+	movl	PCPU(CURPROC),%ebx ; \
+	incl	P_INTR_NESTING_LEVEL(%ebx) ; \
 	pushl	_intr_unit + (irq_num) * 4 ; \
 	call	*_intr_handler + (irq_num) * 4 ; /* do the work ASAP */ \
 	enable_icus ;		/* (re)enable ASAP (helps edge trigger?) */ \
@@ -69,6 +70,7 @@ IDTVEC(vec_name) ; \
 	incl	_cnt+V_INTR ;	/* book-keeping can wait */ \
 	movl	_intr_countp + (irq_num) * 4,%eax ; \
 	incl	(%eax) ; \
+	decl	P_INTR_NESTING_LEVEL(%ebx) ; \
 	MEXITCOUNT ; \
 	jmp	_doreti
 
@@ -102,13 +104,15 @@ IDTVEC(vec_name) ; \
 	movb	%al,_imen + IRQ_BYTE(irq_num) ; \
 	outb	%al,$icu+ICU_IMR_OFFSET ; \
 	enable_icus ; \
-	incb	PCPU(INTR_NESTING_LEVEL) ; \
+	movl	PCPU(CURPROC),%ebx ; \
+	incl	P_INTR_NESTING_LEVEL(%ebx) ; \
 __CONCAT(Xresume,irq_num): ; \
 	FAKE_MCOUNT(13*4(%esp)) ;	/* XXX late to avoid double count */ \
 	pushl	$irq_num; 	/* pass the IRQ */ \
 	sti ; \
 	call	_sched_ithd ; \
 	addl	$4, %esp ;	/* discard the parameter */ \
+	decl	P_INTR_NESTING_LEVEL(%ebx) ; \
 	MEXITCOUNT ; \
 	/* We could usually avoid the following jmp by inlining some of */ \
 	/* _doreti, but it's probably better to use less cache. */ \
