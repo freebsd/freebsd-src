@@ -118,7 +118,6 @@ static void unload_object(Obj_Entry *);
 static void unref_dag(Obj_Entry *);
 
 void r_debug_state(struct r_debug*, struct link_map*);
-void xprintf(const char *, ...) __printflike(1, 2);
 
 /*
  * Data declarations.
@@ -2171,20 +2170,4 @@ unref_dag(Obj_Entry *root)
     	STAILQ_FOREACH(elm, &root->dagmembers , link)
 	    objlist_remove(&elm->obj->dldags, root);
     }
-}
-
-/*
- * Non-mallocing printf, for use by malloc itself.
- * XXX - This doesn't belong in this module.
- */
-void
-xprintf(const char *fmt, ...)
-{
-    char buf[256];
-    va_list ap;
-
-    va_start(ap, fmt);
-    vsprintf(buf, fmt, ap);
-    (void)write(STDOUT_FILENO, buf, strlen(buf));
-    va_end(ap);
 }
