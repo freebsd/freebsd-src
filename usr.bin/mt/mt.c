@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)mt.c	8.2 (Berkeley) 5/4/95";
 #endif
 static const char rcsid[] =
-	"$Id: mt.c,v 1.18 1998/12/18 18:16:35 mjacob Exp $";
+	"$Id: mt.c,v 1.19 1998/12/19 20:23:37 mjacob Exp $";
 #endif /* not lint */
 
 /*
@@ -112,6 +112,10 @@ struct commands {
 	{ "density",	MTSETDNSTY, 0, NEED_2ARGS|ZERO_ALLOWED|IS_DENSITY },
 	{ "eom",	MTEOD, 1 },
 	{ "eod",	MTEOD, 1 },
+	{ "smk",	MTWSS, 0 },
+	{ "wss",	MTWSS, 0 },
+	{ "fss",	MTFSS, 1 },
+	{ "bss",	MTBSS, 1 },
 	{ "comp",	MTCOMP, 0, NEED_2ARGS|ZERO_ALLOWED|IS_COMP },
 	{ "retension",	MTRETENS, 1 },
 	{ "rdhpos",     MTIOCRDHPOS,  0 },
@@ -235,6 +239,10 @@ main(argc, argv)
 			if (ioctl(mtfd, comp->c_code, (caddr_t)&umn) < 0)
 				err(2, "%s", tape);
 			(void)printf("Last I/O Residual: %u\n", s->io_resid);
+			(void)printf(" Last I/O Command:");
+			for (i = 0; i < sizeof (s->io_cdb); i++)
+				(void)printf(" %02X", s->io_cdb[i]);
+			(void)printf("\n");
 			(void)printf("   Last I/O Sense:\n\n\t");
 			for (i = 0; i < sizeof (s->io_sense); i++) {
 				(void)printf(" %02X", s->io_sense[i]);
@@ -245,6 +253,10 @@ main(argc, argv)
 			(void)printf("\n");
 			(void)printf("Last Control Residual: %u\n",
 			    s->ctl_resid);
+			(void)printf(" Last Control Command:");
+			for (i = 0; i < sizeof (s->ctl_cdb); i++)
+				(void)printf(" %02X", s->ctl_cdb[i]);
+			(void)printf("\n");
 			(void)printf("   Last Control Sense:\n\n\t");
 			for (i = 0; i < sizeof (s->ctl_sense); i++) {
 				(void)printf(" %02X", s->ctl_sense[i]);
