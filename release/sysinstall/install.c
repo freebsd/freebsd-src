@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.71.2.80 1995/11/11 12:01:46 jkh Exp $
+ * $Id: install.c,v 1.71.2.81 1995/11/12 07:27:57 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -494,8 +494,8 @@ installCommit(char *str)
 
     /* Final menu of last resort */
     dialog_clear();
-    if (!msgYesNo("Would you like to go to the general configuration menu for any last\n"
-		  "configuration options (some of which you may have already configured)?"))
+    if (!msgYesNo("Would you like to go to the general configuration menu for a chance to set\n"
+		  "any last configuration options?"))
 	dmenuOpenSimple(&MenuConfigure);
 
     /* Write out any changes .. */
