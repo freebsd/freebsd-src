@@ -50,7 +50,7 @@ typedef struct sigaltstack {
 } stack_t;
 .Ed
 .Ft int
-.Fn sigaltstack "const stack_t *ss" "stack_t *oss"
+.Fn sigaltstack "const stack_t * restrict ss" "stack_t * restrict oss"
 .Sh DESCRIPTION
 .Fn Sigaltstack
 allows users to define an alternate stack on which signals
