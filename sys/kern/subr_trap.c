@@ -198,12 +198,10 @@ ast(framep)
 		mtx_unlock_spin(&sched_lock);
 	}
 	if (sflag & PS_NEEDSIGCHK) {
-		mtx_lock(&Giant);
 		PROC_LOCK(p);
 		while ((sig = cursig(p)) != 0)
 			postsig(sig);
 		PROC_UNLOCK(p);
-		mtx_unlock(&Giant);
 	}
 
 	userret(td, framep, sticks);
