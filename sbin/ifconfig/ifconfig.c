@@ -241,6 +241,8 @@ struct	cmd {
 	{ "-link1",	-IFF_LINK1,	setifflags },
 	{ "link2",	IFF_LINK2,	setifflags },
 	{ "-link2",	-IFF_LINK2,	setifflags },
+	{ "monitor",	IFF_MONITOR,	setifflags },
+	{ "-monitor",	-IFF_MONITOR,	setifflags },
 #ifdef USE_IF_MEDIA
 	{ "media",	NEXTARG,	setmedia },
 	{ "mediaopt",	NEXTARG,	setmediaopt },
