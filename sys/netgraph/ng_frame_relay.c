@@ -338,7 +338,8 @@ ngfrm_addrlen(char *hdr)
  * Receive data packet
  */
 static int
-ngfrm_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
+ngfrm_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
+		struct mbuf **ret_m, meta_p *ret_meta)
 {
 	struct	ctxinfo *const ctxp = hook->private;
 	int     error = 0;

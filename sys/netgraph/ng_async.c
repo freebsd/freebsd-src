@@ -234,7 +234,8 @@ nga_newhook(node_p node, hook_p hook, const char *name)
  * Receive incoming data
  */
 static int
-nga_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
+nga_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
+		struct mbuf **ret_m, meta_p *ret_meta)
 {
 	const sc_p sc = hook->node->private;
 
@@ -250,7 +251,7 @@ nga_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
  */
 static int
 nga_rcvmsg(node_p node, struct ng_mesg *msg,
-	const char *rtn, struct ng_mesg **rptr)
+	const char *rtn, struct ng_mesg **rptr, hook_p lasthook)
 {
 	const sc_p sc = (sc_p) node->private;
 	struct ng_mesg *resp = NULL;

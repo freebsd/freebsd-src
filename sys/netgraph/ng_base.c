@@ -79,7 +79,8 @@ static int	ng_add_hook(node_p node, const char *name, hook_p * hookp);
 static int	ng_connect(hook_p hook1, hook_p hook2);
 static void	ng_disconnect_hook(hook_p hook);
 static int	ng_generic_msg(node_p here, struct ng_mesg *msg,
-			const char *retaddr, struct ng_mesg ** resp);
+			const char *retaddr, struct ng_mesg ** resp,
+			hook_p hook);
 static ng_ID_t	ng_decodeidname(const char *name);
 static int	ngb_mod_event(module_t mod, int event, void *data);
 static void	ngintr(void);
@@ -1015,13 +1016,15 @@ ng_path_parse(char *addr, char **nodep, char **pathp, char **hookp)
  * return the destination node. Compute the "return address" if desired.
  */
 int
-ng_path2node(node_p here, const char *address, node_p *destp, char **rtnp)
+ng_path2node(node_p here, const char *address, node_p *destp, char **rtnp,
+	hook_p *lasthook)
 {
 	const	node_p start = here;
 	char    fullpath[NG_PATHLEN + 1];
 	char   *nodename, *path, pbuf[2];
 	node_p  node;
 	char   *cp;
+	hook_p hook = NULL;
 
 	/* Initialize */
 	if (rtnp)
@@ -1057,7 +1060,6 @@ ng_path2node(node_p here, const char *address, node_p *destp, char **rtnp)
 
 	/* Now follow the sequence of hooks */
 	for (cp = path; node != NULL && *cp != '\0'; ) {
-		hook_p hook;
 		char *segment;
 
 		/*
@@ -1112,6 +1114,8 @@ ng_path2node(node_p here, const char *address, node_p *destp, char **rtnp)
 
 	/* Done */
 	*destp = node;
+	if (lasthook && hook)
+		*lasthook = hook->peer;
 	return (0);
 }
 
@@ -1122,15 +1126,15 @@ ng_path2node(node_p here, const char *address, node_p *destp, char **rtnp)
  * call the type's message handler (if it exists)
  */
 
-#define CALL_MSG_HANDLER(error, node, msg, retaddr, resp)		\
+#define CALL_MSG_HANDLER(error, node, msg, retaddr, resp, hook)		\
 do {									\
 	if((msg)->header.typecookie == NGM_GENERIC_COOKIE) {		\
 		(error) = ng_generic_msg((node), (msg),			\
-				(retaddr), (resp));			\
+			(retaddr), (resp), (hook));			\
 	} else {							\
 		if ((node)->type->rcvmsg != NULL) {			\
 			(error) = (*(node)->type->rcvmsg)((node),	\
-					(msg), (retaddr), (resp));	\
+				(msg), (retaddr), (resp), (hook));	\
 		} else {						\
 			TRAP_ERROR;					\
 			FREE((msg), M_NETGRAPH);			\
@@ -1150,9 +1154,10 @@ ng_send_msg(node_p here, struct ng_mesg *msg, const char *address,
 	node_p  dest = NULL;
 	char   *retaddr = NULL;
 	int     error;
+	hook_p	lasthook;
 
 	/* Find the target node */
-	error = ng_path2node(here, address, &dest, &retaddr);
+	error = ng_path2node(here, address, &dest, &retaddr, &lasthook);
 	if (error) {
 		FREE(msg, M_NETGRAPH);
 		return error;
@@ -1162,7 +1167,7 @@ ng_send_msg(node_p here, struct ng_mesg *msg, const char *address,
 	if (rptr != NULL)
 		*rptr = NULL;
 
-	CALL_MSG_HANDLER(error, dest, msg, retaddr, rptr);
+	CALL_MSG_HANDLER(error, dest, msg, retaddr, rptr, lasthook);
 
 	/* Make sure that if there is a response, it has the RESP bit set */
 	if ((error == 0) && rptr && *rptr)
@@ -1182,7 +1187,7 @@ ng_send_msg(node_p here, struct ng_mesg *msg, const char *address,
  */
 static int
 ng_generic_msg(node_p here, struct ng_mesg *msg, const char *retaddr,
-	       struct ng_mesg **resp)
+	       struct ng_mesg **resp, hook_p lasthook)
 {
 	int error = 0;
 
@@ -1222,7 +1227,7 @@ ng_generic_msg(node_p here, struct ng_mesg *msg, const char *retaddr,
 		con->path[sizeof(con->path) - 1] = '\0';
 		con->ourhook[sizeof(con->ourhook) - 1] = '\0';
 		con->peerhook[sizeof(con->peerhook) - 1] = '\0';
-		error = ng_path2node(here, con->path, &node2, NULL);
+		error = ng_path2node(here, con->path, &node2, NULL, NULL);
 		if (error)
 			break;
 		error = ng_con_nodes(here, con->ourhook, node2, con->peerhook);
@@ -1597,7 +1602,8 @@ ng_generic_msg(node_p here, struct ng_mesg *msg, const char *retaddr,
 			break;
 		}
 		if (here->type->rcvmsg != NULL)
-			return((*here->type->rcvmsg)(here, msg, retaddr, resp));
+			return((*here->type->rcvmsg)(here, msg, retaddr,
+			resp, lasthook));
 		/* Fall through if rcvmsg not supported */
 	default:
 		TRAP_ERROR;
@@ -1612,16 +1618,18 @@ ng_generic_msg(node_p here, struct ng_mesg *msg, const char *retaddr,
  * 'receive data' method, then silently discard the packet.
  */
 int 
-ng_send_data(hook_p hook, struct mbuf *m, meta_p meta)
+ng_send_data(hook_p hook, struct mbuf *m, meta_p meta,
+	struct mbuf **ret_m, meta_p *ret_meta)
 {
-	int (*rcvdata)(hook_p, struct mbuf *, meta_p);
+	ng_rcvdata_t *rcvdata;
 	int error;
 
 	CHECK_DATA_MBUF(m);
 	if (hook && (hook->flags & HK_INVALID) == 0) {
 		rcvdata = hook->peer->node->type->rcvdata;
 		if (rcvdata != NULL)
-			error = (*rcvdata)(hook->peer, m, meta);
+			error = (*rcvdata)(hook->peer, m, meta,
+					ret_m, ret_meta);
 		else {
 			error = 0;
 			NG_FREE_DATA(m, meta);
@@ -1639,18 +1647,27 @@ ng_send_data(hook_p hook, struct mbuf *m, meta_p meta)
  * 'receive queued data' method, then try the 'receive data' method above.
  */
 int 
-ng_send_dataq(hook_p hook, struct mbuf *m, meta_p meta)
+ng_send_dataq(hook_p hook, struct mbuf *m, meta_p meta,
+	struct mbuf **ret_m, meta_p *ret_meta)
 {
-	int (*rcvdataq)(hook_p, struct mbuf *, meta_p);
+	ng_rcvdata_t *rcvdata;
 	int error;
 
 	CHECK_DATA_MBUF(m);
 	if (hook && (hook->flags & HK_INVALID) == 0) {
-		rcvdataq = hook->peer->node->type->rcvdataq;
-		if (rcvdataq != NULL)
-			error = (*rcvdataq)(hook->peer, m, meta);
+		rcvdata = hook->peer->node->type->rcvdataq;
+		if (rcvdata != NULL)
+			error = (*rcvdata)(hook->peer, m, meta,
+					ret_m, ret_meta);
 		else {
-			error = ng_send_data(hook, m, meta);
+			rcvdata = hook->peer->node->type->rcvdata;
+			if (rcvdata != NULL) {
+				error = (*rcvdata)(hook->peer, m, meta,
+					ret_m, ret_meta);
+			} else {
+				error = 0;
+				NG_FREE_DATA(m, meta);
+			}
 		}
 	} else {
 		TRAP_ERROR;
@@ -1769,6 +1786,7 @@ struct ng_queue_entry {
 			struct ng_mesg	*msg_msg;
 			node_p		msg_node;
 			void		*msg_retaddr;
+			hook_p		msg_lasthook;
 		} msg;
 	} body;
 };
@@ -1883,9 +1901,10 @@ ng_queue_msg(node_p here, struct ng_mesg *msg, const char *address)
 	node_p  dest = NULL;
 	char   *retaddr = NULL;
 	int     error;
+	hook_p	lasthook = NULL;
 
 	/* Find the target node. */
-	error = ng_path2node(here, address, &dest, &retaddr);
+	error = ng_path2node(here, address, &dest, &retaddr, &lasthook);
 	if (error) {
 		FREE(msg, M_NETGRAPH);
 		return (error);
@@ -1903,7 +1922,10 @@ ng_queue_msg(node_p here, struct ng_mesg *msg, const char *address)
 	q->body.msg.msg_node = dest;
 	q->body.msg.msg_msg = msg;
 	q->body.msg.msg_retaddr = retaddr;
+	q->body.msg.msg_lasthook = lasthook;
 	dest->refs++;		/* don't let it go away while on the queue */
+	if (lasthook)
+		lasthook->refs++; /* same for the hook */
 
 	/* Put it on the queue */
 	s = splhigh();
@@ -1960,12 +1982,25 @@ ngintr(void)
 			node = ngq->body.msg.msg_node;
 			msg = ngq->body.msg.msg_msg;
 			retaddr = ngq->body.msg.msg_retaddr;
+			hook = ngq->body.msg.msg_lasthook;
 			RETURN_QBLK(ngq);
+			if (hook) {
+				if ((hook->refs == 1)
+		    		|| (hook->flags & HK_INVALID) != 0) {
+				/* If the hook only has one ref left
+					then we can't use it */
+					ng_unref_hook(hook);
+					hook = NULL;
+				} else {
+					ng_unref_hook(hook);
+				}
+			}
+			/* similarly, if the node is a zombie.. */
 			if (node->flags & NG_INVALID) {
 				FREE(msg, M_NETGRAPH);
 			} else {
 				CALL_MSG_HANDLER(error, node, msg,
-						 retaddr, NULL);
+						 retaddr, NULL, hook);
 			}
 			ng_unref(node);
 			if (retaddr)

@@ -612,7 +612,7 @@ ng_connect_data(struct sockaddr *nam, struct ngpcb *pcbp)
 	/* Find the target (victim) and check it doesn't already have a data
 	 * socket. Also check it is a 'socket' type node. */
 	sap = (struct sockaddr_ng *) nam;
-	if ((error = ng_path2node(NULL, sap->sg_data, &farnode, NULL)))
+	if ((error = ng_path2node(NULL, sap->sg_data, &farnode, NULL, NULL)))
 		return (error);
 
 	if (strcmp(farnode->type->name, NG_SOCKET_NODE_TYPE) != 0)
@@ -740,7 +740,7 @@ ngs_newhook(node_p node, hook_p hook, const char *name)
  */
 static int
 ngs_rcvmsg(node_p node, struct ng_mesg *msg, const char *retaddr,
-	   struct ng_mesg **resp)
+	   struct ng_mesg **resp, hook_p lasthook)
 {
 	struct ngsock *const sockdata = node->private;
 	struct ngpcb *const pcbp = sockdata->ctlsock;
@@ -795,7 +795,8 @@ ngs_rcvmsg(node_p node, struct ng_mesg *msg, const char *retaddr,
  * Receive data on a hook
  */
 static int
-ngs_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
+ngs_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
+		struct mbuf **ret_m, meta_p *ret_meta)
 {
 	struct ngsock *const sockdata = hook->node->private;
 	struct ngpcb *const pcbp = sockdata->datasock;

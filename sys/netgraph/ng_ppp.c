@@ -394,7 +394,7 @@ ng_ppp_newhook(node_p node, hook_p hook, const char *name)
  */
 static int
 ng_ppp_rcvmsg(node_p node, struct ng_mesg *msg,
-	      const char *raddr, struct ng_mesg **rptr)
+	      const char *raddr, struct ng_mesg **rptr, hook_p lasthook)
 {
 	const priv_p priv = node->private;
 	struct ng_mesg *resp = NULL;
@@ -458,8 +458,10 @@ ng_ppp_rcvmsg(node_p node, struct ng_mesg *msg,
 	   {
 	       char path[NG_PATHLEN + 1];
 	       node_p origNode;
+	       hook_p lasthook;
 
-	       if ((error = ng_path2node(node, raddr, &origNode, NULL)) != 0)
+	       if ((error = ng_path2node(node, raddr, &origNode,
+									NULL, &lasthook)) != 0)
 		       ERROUT(error);
 	       snprintf(path, sizeof(path), "[%lx]:%s",
 		   (long) node, NG_PPP_HOOK_VJC_IP);
@@ -484,7 +486,8 @@ done:
  * Receive data on a hook
  */
 static int
-ng_ppp_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
+ng_ppp_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
+		struct mbuf **ret_m, meta_p *ret_meta)
 {
 	const node_p node = hook->node;
 	const priv_p priv = node->private;
