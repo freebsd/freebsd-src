@@ -1,8 +1,11 @@
 .\" -*- nroff -*-
 .rn '' }`
-'\" $Header: /home/ncvs/src/gnu/usr.bin/patch/patch.1,v 1.8 1998/01/21 15:10:13 ache Exp $
+'\" $Header: /home/ncvs/src/gnu/usr.bin/patch/patch.1,v 1.9 1998/01/22 07:44:03 ache Exp $
 '\" 
 '\" $Log: patch.1,v $
+'\" Revision 1.9  1998/01/22 07:44:03  ache
+'\" Add PATCH_INDEX_FIRST environment variable to do the same as -I option
+'\"
 '\" Revision 1.8  1998/01/21 15:10:13  ache
 '\" Add -I or --index-first option to take Index: precedence over context diff,
 '\" as it was in hacked FreeBSD version
@@ -346,6 +349,9 @@ the number of lines of context in the context diff, ordinarily 3.
 forces
 .I patch
 to take ``Index:'' line precedence over context diff header.
+The same effect have
+.B PATCH_INDEX_FIRST
+environment variable if present.
 .TP 5
 .B "\-l, \-\-ignore\-whitespace"
 causes the pattern matching to be done loosely, in case the tabs and
