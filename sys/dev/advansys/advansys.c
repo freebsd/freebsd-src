@@ -50,12 +50,10 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
-#include <sys/buf.h>
 #include <sys/kernel.h>
 
 #include <machine/bus_pio.h>
 #include <machine/bus.h>
-#include <machine/clock.h>
 #include <machine/resource.h>
 #include <sys/bus.h> 
 #include <sys/rman.h> 
@@ -770,7 +768,8 @@ adv_free(struct adv_softc *adv)
 	case 2:
 		bus_dma_tag_destroy(adv->parent_dmat);
 	case 1:
-		free(adv->ccb_infos, M_DEVBUF);
+		if (adv->ccb_infos != NULL)
+			free(adv->ccb_infos, M_DEVBUF);
 	case 0:
 		break;
 	}
