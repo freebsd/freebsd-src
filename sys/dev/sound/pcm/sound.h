@@ -98,7 +98,6 @@ struct snd_mixer;
 #include <dev/sound/pcm/channel.h>
 #include <dev/sound/pcm/feeder.h>
 #include <dev/sound/pcm/mixer.h>
-#include <dev/sound/pcm/dsp.h>
 
 #define	PCM_SOFTC_SIZE	512
 
@@ -222,8 +221,8 @@ int pcm_inprog(struct snddev_info *d, int delta);
 
 struct pcm_channel *pcm_chn_create(struct snddev_info *d, struct pcm_channel *parent, kobj_class_t cls, int dir, void *devinfo);
 int pcm_chn_destroy(struct pcm_channel *ch);
-int pcm_chn_add(struct snddev_info *d, struct pcm_channel *ch, int mkdev);
-int pcm_chn_remove(struct snddev_info *d, struct pcm_channel *ch, int rmdev);
+int pcm_chn_add(struct snddev_info *d, struct pcm_channel *ch);
+int pcm_chn_remove(struct snddev_info *d, struct pcm_channel *ch);
 
 int pcm_addchan(device_t dev, int dir, kobj_class_t cls, void *devinfo);
 unsigned int pcm_getbuffersize(device_t dev, unsigned int min, unsigned int deflt, unsigned int max);
@@ -234,9 +233,6 @@ u_int32_t pcm_getflags(device_t dev);
 void pcm_setflags(device_t dev, u_int32_t val);
 void *pcm_getdevinfo(device_t dev);
 
-int pcm_regdevt(dev_t dev, unsigned unit, unsigned type, unsigned channel);
-dev_t pcm_getdevt(unsigned unit, unsigned type, unsigned channel);
-int pcm_unregdevt(unsigned unit, unsigned type, unsigned channel);
 
 int snd_setup_intr(device_t dev, struct resource *res, int flags,
 		   driver_intr_t hand, void *param, void **cookiep);
@@ -286,18 +282,15 @@ int sndstat_busy(void);
 struct snddev_channel {
 	SLIST_ENTRY(snddev_channel) link;
 	struct pcm_channel *channel;
-};
-
-struct snddev_devt {
-	SLIST_ENTRY(snddev_devt) link;
-	dev_t dev;
-	unsigned channel;
-	unsigned type;
+	int chan_num;
+	dev_t dsp_devt;
+	dev_t dspW_devt;
+	dev_t audio_devt;
+	dev_t dspr_devt;
 };
 
 struct snddev_info {
 	SLIST_HEAD(, snddev_channel) channels;
-	SLIST_HEAD(, snddev_devt) devs;
 	struct pcm_channel *fakechan;
 	unsigned devcount, playcount, reccount, vchancount;
 	unsigned flags;

@@ -260,7 +260,10 @@ vchan_create(struct pcm_channel *parent)
 	CHN_UNLOCK(parent);
 
 	/* add us to our grandparent's channel list */
-	err = pcm_chn_add(d, child, !first);
+	/*
+	 * XXX maybe we shouldn't always add the dev_t
+ 	 */
+	err = pcm_chn_add(d, child);
 	if (err) {
 		pcm_chn_destroy(child);
 		free(pce, M_DEVBUF);
@@ -313,7 +316,7 @@ gotch:
 		parent->flags &= ~CHN_F_BUSY;
 
 	/* remove us from our grandparent's channel list */
-	err = pcm_chn_remove(d, c, !last);
+	err = pcm_chn_remove(d, c);
 	if (err)
 		return err;
 
