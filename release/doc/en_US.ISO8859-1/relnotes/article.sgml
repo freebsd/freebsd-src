@@ -345,6 +345,13 @@
     sysctl variables have moved from <varname>kern.security.*</varname> to
     <varname>security.*</varname>.</para>
 
+    <para>The <varname>kern.maxvnodes</varname> limit now properly
+    limits the number of vnodes in use.  Previously only vnodes with
+    no cached pages could be freed; this could allow the number of
+    vnodes to grow without limit on large-memory machines accessing
+    many small files.  A <literal>vnlru</literal> kernel thread helps
+    to flush and reuse vnodes. &merged;</para>
+
     <sect3>
       <title>Processor/Motherboard Support</title>
 
@@ -868,6 +875,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <para>The &man.ata.4; driver now has support for 48-bit
       addressing.  Devices larger than 137GB are now
       supported. &merged;</para>
+
+      <para>The &man.ata.4; driver now contains fixes for some data
+      corruption problems on systems using the VIA 82C686B Southbridge
+      chip. &merged;</para>
 
       <para>The CAM error recovery code has been updated.</para>
 
