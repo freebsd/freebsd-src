@@ -4,7 +4,7 @@
 #
 #	  Originally written by Toshiharu OHNO
 #
-# $Id: ppp.conf.sample,v 1.28.2.1 1998/03/17 01:26:52 brian Exp $
+# $Id: ppp.conf.sample,v 1.28.2.2 1998/04/19 15:25:21 brian Exp $
 #
 #################################################################
 
@@ -68,7 +68,7 @@ default:
 #
 pmdemand:
  set phone 1234567
- set login "TIMEOUT 5 ogin:--ogin: ppp word: ppp"
+ set login "ABORT NO\\sCARRIER TIMEOUT 5 ogin:--ogin: ppp word: ppp"
  set timeout 120
  set ifaddr 10.0.0.1/0 10.0.0.2/0 255.255.255.0 0.0.0.0
  delete ALL
@@ -102,7 +102,7 @@ PAPorCHAPpmdemand:
 #
 ondemand:
  set phone 1234567
- set login "TIMEOUT 5 ogin:--ogin: ppp word: ppp"
+ set login "ABORT NO\\sCARRIER TIMEOUT 5 ogin:--ogin: ppp word: ppp"
  set timeout 120
  set ifaddr 192.244.185.226 192.244.176.44 255.255.255.0
  delete ALL
@@ -294,7 +294,7 @@ direct-client:
  set timeout 900
  set lqrperiod 10
  set log Phase Chat LQM
- set login "TIMEOUT 5 ogin:--ogin: ppp word: ppp HELLO"
+ set login "ABORT NO\\sCARRIER TIMEOUT 5 ogin:--ogin: ppp word: ppp HELLO"
  set ifaddr 10.0.4.2 10.0.4.1
  enable lqr
  accept lqr
