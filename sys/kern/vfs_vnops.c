@@ -625,8 +625,7 @@ debug_vn_lock(vp, flags, p, filename, line)
 			mtx_lock(&vp->v_interlock);
 		if ((vp->v_flag & VXLOCK) && vp->v_vxproc != curproc) {
 			vp->v_flag |= VXWANT;
-			mtx_unlock(&vp->v_interlock);
-			tsleep((caddr_t)vp, PINOD, "vn_lock", 0);
+			msleep(vp, &vp->v_interlock, PINOD, "vn_lock", 0);
 			error = ENOENT;
 		} else {
 			if (vp->v_vxproc != NULL)
