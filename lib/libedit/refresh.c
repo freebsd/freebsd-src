@@ -43,6 +43,7 @@ static char sccsid[] = "@(#)refresh.c	8.1 (Berkeley) 6/4/93";
  */
 #include "sys.h"
 #include <stdio.h>
+#include <ctype.h>
 #include <unistd.h>
 #include <string.h>
 
@@ -865,7 +866,7 @@ re_refresh_cursor(el)
     EditLine *el;
 {
     char *cp;
-    int c;
+    int	c;
     int h, v, th;
 
     /* first we must find where the cursor is... */

@@ -294,7 +294,7 @@ term_alloc(el, t, cap)
      * New string is shorter; no need to allocate space
      */
     if (clen <= tlen) {
-	(void) strcpy(*str, cap);
+	(void)strcpy(*str, cap);	/* XXX strcpy is safe */
 	return;
     }
 
@@ -302,7 +302,8 @@ term_alloc(el, t, cap)
      * New string is longer; see if we have enough space to append
      */
     if (el->el_term.t_loc + 3 < TC_BUFSIZE) {
-	(void) strcpy(*str = &el->el_term.t_buf[el->el_term.t_loc], cap);
+	/* XXX strcpy is safe */
+	(void)strcpy(*str = &el->el_term.t_buf[el->el_term.t_loc], cap);
 	el->el_term.t_loc += clen + 1;	/* one for \0 */
 	return;
     }
@@ -326,7 +327,8 @@ term_alloc(el, t, cap)
 	(void) fprintf(el->el_errfile, "Out of termcap string space.\n");
 	return;
     }
-    (void) strcpy(*str = &el->el_term.t_buf[el->el_term.t_loc], cap);
+    /* XXX strcpy is safe */
+    (void)strcpy(*str = &el->el_term.t_buf[el->el_term.t_loc], cap);
     el->el_term.t_loc += clen + 1;		/* one for \0 */
     return;
 } /* end term_alloc */
@@ -766,14 +768,10 @@ term_set(el, term)
 
     if (i <= 0) {
 	if (i == -1)
-#ifdef __FreeBSD__
-	    (void) fprintf(el->el_errfile, "Cannot open /usr/share/misc/termcap.\n");
-#else
-	    (void) fprintf(el->el_errfile, "Cannot open /etc/termcap.\n");
-#endif
+	    (void) fprintf(el->el_errfile, "Cannot read termcap database;\n");
 	else if (i == 0)
 	    (void) fprintf(el->el_errfile,
-			   "No entry for terminal type \"%s\"\n", term);
+			   "No entry for terminal type \"%s\";\n", term);
 	(void) fprintf(el->el_errfile, "using dumb terminal settings.\n");
 	Val(T_co) = 80;		/* do a dumb terminal */
 	Val(T_pt) = Val(T_km) = Val(T_li) = 0;
@@ -809,7 +807,7 @@ term_set(el, term)
     term_change_size(el, lins, cols);
     (void) sigprocmask(SIG_SETMASK, &oset, NULL);
     term_bind_arrow(el);
-    return 0;
+    return i <= 0 ? -1 : 0;
 } /* end term_set */
 
 
