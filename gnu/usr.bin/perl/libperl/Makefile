@@ -24,6 +24,6 @@ config.h:	links
 
 .SUFFIXES:
 
-.SUFFIXES: .o .po .So .s .S .c
+.SUFFIXES: .o .po .So .s .S .c .ln
 
 .PATH:	${PERL5SRC}

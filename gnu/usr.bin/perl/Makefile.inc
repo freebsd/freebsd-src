@@ -11,9 +11,9 @@ MINIPERL?=	${.OBJDIR}/../../miniperl/miniperl
 
 BINDIR?=	/usr/bin
 
-SHLIB_MAJOR?=	4
+SHLIB_MAJOR?=	5
 
-VERSION=	5.6.0
+VERSION=	5.6.1
 
 DYNALOADER= lib/auto/DynaLoader/DynaLoader.a
 
