@@ -82,7 +82,8 @@ struct bufobj {
 	struct bufv	bo_dirty;	/* i Dirty buffers */
 	long		bo_numoutput;	/* i Writes in progress */
 	u_int		bo_flag;	/* i Flags */
-	struct buf_ops	*bo_ops;	/* - buffer operatoins */
+	struct buf_ops	*bo_ops;	/* - Buffer operations */
+	int		bo_bsize;	/* - Block size for i/o */
 	struct vm_object *bo_object;	/* v Place to store VM object */
 };
 

@@ -782,10 +782,10 @@ devfs_open(ap)
 	if (vn_isdisk(vp, NULL)) {
 		if (!dev->si_bsize_phys)
 			dev->si_bsize_phys = DEV_BSIZE;
+		vp->v_bufobj.bo_bsize = dev->si_bsize_phys;
 	}
 	return (error);
 }
-
 
 static int
 devfs_pathconf(ap)

@@ -798,7 +798,7 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 	 * round up physical size for real devices.
 	 */
 	if (dp->v_type == VBLK || dp->v_type == VCHR) {
-		int secmask = dp->v_rdev->si_bsize_phys - 1;
+		int secmask = dp->v_bufobj.bo_bsize - 1;
 		KASSERT(secmask < PAGE_SIZE, ("vnode_pager_generic_getpages: sector size %d too large\n", secmask + 1));
 		size = (size + secmask) & ~secmask;
 	}
