@@ -467,7 +467,7 @@ check_drive(char *devicename)
     driveno = find_drive_by_dev(devicename, 1);		    /* if entry doesn't exist, create it */
     drive = &vinum_conf.drive[driveno];			    /* and get a pointer */
 
-    if (read_drive_label(drive, 0) == DL_OURS) {	    /* not ours */
+    if (read_drive_label(drive, 0) == DL_OURS) {	    /* one of ours */
 	for (i = 0; i < vinum_conf.drives_allocated; i++) { /* see if the name already exists */
 	    if ((i != driveno)				    /* not this drive */
 &&(DRIVE[i].state != drive_unallocated)			    /* and it's allocated */
@@ -477,8 +477,9 @@ check_drive(char *devicename)
 
 		if (mydrive->devicename[0] == '/') {	    /* we know a device name for it */
 		    /*
-		     * set an error, but don't take the drive down:
-		     * that would cause unneeded error messages.
+		     * set an error, but don't take the
+		     * drive down: that would cause unneeded
+		     * error messages.
 		     */
 		    drive->lasterror = EEXIST;
 		    break;
@@ -528,19 +529,15 @@ format_config(char *config, int len)
 	vol = &vinum_conf.volume[i];
 	if ((vol->state > volume_uninit)
 	    && (vol->name[0] != '\0')) {		    /* paranoia */
+	    snprintf(s,
+		configend - s,
+		"volume %s state %s",
+		vol->name,
+		volume_state(vol->state));
 	    if (vol->preferred_plex >= 0)		    /* preferences, */
 		snprintf(s,
-		    configend - s,
-		    "volume %s state %s readpol prefer %s",
-		    vol->name,
-		    volume_state(vol->state),
+		    " readpol prefer %s",
 		    vinum_conf.plex[vol->preferred_plex].name);
-	    else					    /* default round-robin */
-		snprintf(s,
-		    configend - s,
-		    "volume %s state %s",
-		    vol->name,
-		    volume_state(vol->state));
 	    while (*s)
 		s++;					    /* find the end */
 	    s = sappend("\n", s);
@@ -918,6 +915,7 @@ vinum_scandisk(char *devicename[], int drives)
 			drivelist[gooddrives] = drive->driveno;	/* keep the drive index */
 			drive->flags &= ~VF_NEWBORN;	    /* which is no longer newly born */
 			gooddrives++;
+			founddrive++;
 		    }
 		}
 	    }
