@@ -63,6 +63,7 @@ typedef struct prog {
     char *name, *ident;
     char *srcdir, *objdir;
     strlst_t *objs, *objpaths;
+    strlst_t *keeplist;
     strlst_t *links;
     int goterror;
 } prog_t;
@@ -321,7 +322,7 @@ void add_prog(char *progname)
     else p1->next = p2;
 
     p2->ident = p2->srcdir = p2->objdir = NULL;
-    p2->links = p2->objs = NULL;
+    p2->links = p2->objs = p2->keeplist = NULL;
     p2->goterror = 0;
     if (list_mode)
         printf("%s\n",progname);
@@ -393,6 +394,11 @@ void add_special(int argc, char **argv)
 	p->objpaths = NULL;
 	for(i=3;i<argc;i++)
 	    add_string(&p->objpaths, argv[i]);
+    }
+    else if(!strcmp(argv[2], "keep")) {
+	p->keeplist = NULL;
+	for(i=3;i<argc;i++)
+	    add_string(&p->keeplist, argv[i]);
     }
     else {
 	warnx("%s:%d: bad parameter name `%s', skipping line",
@@ -758,6 +764,8 @@ void top_makefile_rules(FILE *outmk)
 
 void prog_makefile_rules(FILE *outmk, prog_t *p)
 {
+    strlst_t *lst;
+
     fprintf(outmk, "\n# -------- %s\n\n", p->name);
 
     if(p->srcdir && p->objs) {
@@ -784,8 +792,10 @@ void prog_makefile_rules(FILE *outmk, prog_t *p)
 	    p->name, p->name, p->ident);
     fprintf(outmk, "\tld -dc -r -o %s.lo %s_stub.o $(%s_OBJPATHS)\n",
 	    p->name, p->name, p->ident);
-    fprintf(outmk, "\tcrunchide -k __crunched_%s_stub %s.lo\n",
-	    p->ident, p->name);
+    fprintf(outmk, "\tcrunchide -k __crunched_%s_stub ", p->ident);
+    for(lst = p->keeplist; lst != NULL; lst = lst->next)
+      fprintf(outmk, "-k _%s ", lst->str);
+    fprintf(outmk, "%s.lo\n", p->name);
 }
 
 void output_strlst(FILE *outf, strlst_t *lst)
