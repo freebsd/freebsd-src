@@ -29,6 +29,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$ 
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
@@ -408,7 +410,7 @@ __ivaliduser(hostf, raddr, luser, ruser)
 			continue;
 		}
 		while (*p != '\n' && *p != ' ' && *p != '\t' && *p != '\0') {
-			*p = isupper(*p) ? tolower(*p) : *p;
+			*p = isupper((unsigned char)*p) ? tolower((unsigned char)*p) : *p;
 			p++;
 		}
 		if (*p == ' ' || *p == '\t') {
