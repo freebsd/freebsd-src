@@ -2354,11 +2354,11 @@ SBP_DEBUG(1)
 	printf("sbp_execute_ocb: seg %d", seg);
 	for (i = 0; i < seg; i++)
 #if __FreeBSD_version >= 500000
-		printf(", %tx:%zd", segments[i].ds_addr,
+		printf(", %jx:%jd", (uintmax_t)segments[i].ds_addr,
+					(uintmax_t)segments[i].ds_len);
 #else
-		printf(", %x:%d", segments[i].ds_addr,
+		printf(", %x:%d", segments[i].ds_addr, segments[i].ds_len);
 #endif
-					segments[i].ds_len);
 	printf("\n");
 END_DEBUG
 
@@ -2422,11 +2422,13 @@ sbp_dequeue_ocb(struct sbp_dev *sdev, struct sbp_status *sbp_status)
 SBP_DEBUG(1)
 		sbp_show_sdev_info(sdev, 2);
 #if __FreeBSD_version >= 500000
-		printf("orb: 0x%tx next: 0x%x, flags %x\n",
+		printf("orb: 0x%jx next: 0x%x, flags %x\n",
+			(uintmax_t)ocb->bus_addr,
 #else
 		printf("orb: 0x%x next: 0x%lx, flags %x\n",
+			ocb->bus_addr,
 #endif
-			ocb->bus_addr, ntohl(ocb->orb[1]), flags);
+			ntohl(ocb->orb[1]), flags);
 END_DEBUG
 		if (OCB_MATCH(ocb, sbp_status)) {
 			/* found */
@@ -2468,7 +2470,8 @@ sbp_enqueue_ocb(struct sbp_dev *sdev, struct sbp_ocb *ocb)
 SBP_DEBUG(2)
 	sbp_show_sdev_info(sdev, 2);
 #if __FreeBSD_version >= 500000
-	printf("sbp_enqueue_ocb orb=0x%tx in physical memory\n", ocb->bus_addr);
+	printf("sbp_enqueue_ocb orb=0x%jx in physical memory\n", 
+		(uintmax_t)ocb->bus_addr);
 #else
 	printf("sbp_enqueue_ocb orb=0x%x in physical memory\n", ocb->bus_addr);
 #endif
@@ -2483,11 +2486,11 @@ END_DEBUG
 	if (prev != NULL ) {
 SBP_DEBUG(1)
 #if __FreeBSD_version >= 500000
-	printf("linking chain 0x%tx -> 0x%tx\n", prev->bus_addr,
+	printf("linking chain 0x%jx -> 0x%jx\n",
+		(uintmax_t)prev->bus_addr, (uintmax_t)ocb->bus_addr);
 #else
-	printf("linking chain 0x%x -> 0x%x\n", prev->bus_addr,
+	printf("linking chain 0x%x -> 0x%x\n", prev->bus_addr, ocb->bus_addr);
 #endif
-			ocb->bus_addr);
 END_DEBUG
 		prev->orb[1] = htonl(ocb->bus_addr);
 		prev->orb[0] = 0;
@@ -2530,11 +2533,10 @@ sbp_abort_ocb(struct sbp_ocb *ocb, int status)
 SBP_DEBUG(0)
 	sbp_show_sdev_info(sdev, 2);
 #if __FreeBSD_version >= 500000
-	printf("sbp_abort_ocb 0x%tx\n",
+	printf("sbp_abort_ocb 0x%jx\n", (uintmax_t)ocb->bus_addr);
 #else
-	printf("sbp_abort_ocb 0x%x\n",
+	printf("sbp_abort_ocb 0x%x\n", ocb->bus_addr);
 #endif
-			ocb->bus_addr);
 END_DEBUG
 SBP_DEBUG(1)
 	if (ocb->ccb != NULL)
