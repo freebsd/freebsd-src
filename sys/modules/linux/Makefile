@@ -13,8 +13,7 @@ SRCS=	linux_dummy.c linux_file.c linux_getcwd.c linux_ioctl.c linux_ipc.c \
 OBJS=	linux_locore.o
 
 .if ${MACHINE_ARCH} == "i386"
-SRCS+=	linux_ptrace.c linux_uid16.c imgact_linux.c opt_cpu.h \
-	opt_kstack_pages.h
+SRCS+=	linux_ptrace.c linux_uid16.c imgact_linux.c opt_cpu.h
 .endif
 
 EXPORT_SYMS=
