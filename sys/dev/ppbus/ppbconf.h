@@ -23,11 +23,16 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: ppbconf.h,v 1.1 1997/08/14 13:57:42 msmith Exp $
  *
  */
 #ifndef __PPBCONF_H
 #define __PPBCONF_H
+
+/*
+ * Parallel Port Bus sleep/wakeup queue.
+ */
+#define PPBPRI	PZERO+8
 
 /*
  * Parallel Port Chipset modes.
@@ -140,6 +145,7 @@ struct ppb_link {
 
 	int adapter_unit;			/* unit of the adapter */
 
+	int base;				/* base address of the port */
 	int id_irq;				/* != 0 if irq enabled */
 	int mode;				/* NIBBLE, PS2, EPP, ECP */
 
@@ -153,9 +159,27 @@ struct ppb_link {
 };
 
 /*
+ * Maximum size of the PnP info string
+ */
+#define PPB_PnP_STRING_SIZE	160			/* XXX */
+
+/*
  * Parallel Port Bus structure.
  */
 struct ppb_data {
+
+#define PPB_PnP_PRINTER	0
+#define PPB_PnP_MODEM	1
+#define PPB_PnP_NET	2
+#define PPB_PnP_HDC	3
+#define PPB_PnP_PCMCIA	4
+#define PPB_PnP_MEDIA	5
+#define PPB_PnP_FDC	6
+#define PPB_PnP_PORTS	7
+#define PPB_PnP_SCANNER	8
+#define PPB_PnP_DIGICAM	9
+#define PPB_PnP_UNKNOWN	10
+	int	class_id;	/* not a PnP device if class_id < 0 */
 
 	struct ppb_link *ppb_link;		/* link to the adapter */
 	struct ppb_device *ppb_owner;		/* device which owns the bus */
@@ -176,10 +200,19 @@ struct ppb_driver
 extern struct linker_set ppbdriver_set;
 
 extern struct ppb_data *ppb_alloc_bus(void);
+extern struct ppb_data *ppb_next_bus(struct ppb_data *);
+extern struct ppb_data *ppb_lookup_bus(int);
+
+extern int ppb_attach_device(struct ppb_device *);
+extern void ppb_remove_device(struct ppb_device *);
 extern int ppb_attachdevs(struct ppb_data *);
+
 extern int ppb_request_bus(struct ppb_device *, int);
 extern int ppb_release_bus(struct ppb_device *);
+
 extern void ppb_intr(struct ppb_link *);
+
+extern int ppb_poll_device(struct ppb_device *, int, char, char, int);
 
 extern int ppb_reset_epp_timeout(struct ppb_device *);
 extern int ppb_ecp_sync(struct ppb_device *);
