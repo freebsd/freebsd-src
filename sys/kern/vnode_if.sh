@@ -32,7 +32,7 @@
 # SUCH DAMAGE.
 #
 #	@(#)vnode_if.sh	8.1 (Berkeley) 6/10/93
-# $Id: vnode_if.sh,v 1.15 1998/07/04 20:45:32 julian Exp $
+# $Id: vnode_if.sh,v 1.16 1998/11/10 09:04:09 peter Exp $
 #
 
 # Script to produce VFS front-end sugar.
@@ -114,7 +114,7 @@ $AWK '
 		printf("extern struct vnodeop_desc %s_desc;\n", name);
 
 		# Print out prototype.
-		printf("static int %s __P((\n", uname);
+		printf("static __inline int %s __P((\n", uname);
 		sep = ",\n";
 		for (c2 = 0; c2 < c1; ++c2) {
 			if (c2 == c1 - 1)
@@ -134,7 +134,7 @@ $AWK '
 			    substr(t[c4], beg, end - beg), sep);
 		}
 
-		# Print out inline struct.
+		# Print out function.
 		printf("static __inline int %s(", uname);
 		sep = ", ";
 		for (c2 = 0; c2 < c1; ++c2) {
@@ -350,16 +350,13 @@ $AWK 'function kill_surrounding_ws (s) {
 		printf "\n";
 
 	}' < $SRC >> $CFILE
+
 # THINGS THAT DON'T WORK RIGHT YET.
 # 
-# Two existing BSD vnodeops (bwrite and strategy) don't take any vnodes as
-# arguments.  This means that these operations can't function successfully
-# through a bypass routine.
+# vop_bwrite doesn't take any vnodes as arguments.  This means that it
+# can't function successfully through a bypass routine.
 #
-# Bwrite and strategy will be replaced when the VM page/buffer cache
-# integration happens.
-#
-# To get around this problem for now we handle these ops as special cases.
+# To get around this problem for now we handle it as a special case.
 
 cat << END_OF_SPECIAL_CASES >> $HEADER
 #include <sys/buf.h>
@@ -369,7 +366,7 @@ struct vop_bwrite_args {
 	struct buf *a_bp;
 };
 extern struct vnodeop_desc vop_bwrite_desc;
-static int VOP_BWRITE __P((
+static __inline int VOP_BWRITE __P((
 	struct buf *bp));
 static __inline int VOP_BWRITE(bp)
 	struct buf *bp;
@@ -380,8 +377,6 @@ static __inline int VOP_BWRITE(bp)
 	a.a_bp = bp;
 	return (VCALL((bp)->b_vp, VOFFSET(vop_bwrite), &a));
 }
-
-extern int vfs_opv_numops;
 END_OF_SPECIAL_CASES
 
 cat << END_OF_SPECIAL_CASES >> $CFILE
