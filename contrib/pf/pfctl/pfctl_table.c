@@ -1,4 +1,4 @@
-/*	$OpenBSD: pfctl_table.c,v 1.50 2003/08/29 21:47:36 cedric Exp $ */
+/*	$OpenBSD: pfctl_table.c,v 1.59 2004/03/15 15:25:44 dhartmei Exp $ */
 
 /*
  * Copyright (c) 2002 Cedric Berger
@@ -64,10 +64,17 @@ static void	print_addrx(struct pfr_addr *, struct pfr_addr *, int);
 static void	print_astats(struct pfr_astats *, int);
 static void	radix_perror(void);
 static void	xprintf(int, const char *, ...);
+static void	print_iface(struct pfi_if *, int);
+static void	oprintf(int, int, const char *, int *, int);
 
 static const char	*stats_text[PFR_DIR_MAX][PFR_OP_TABLE_MAX] = {
 	{ "In/Block:",	"In/Pass:",	"In/XPass:" },
 	{ "Out/Block:",	"Out/Pass:",	"Out/XPass:" }
+};
+
+static const char	*istats_text[2][2][2] = {
+	{ { "In4/Pass:", "In4/Block:" }, { "Out4/Pass:", "Out4/Block:" } },
+	{ { "In6/Pass:", "In6/Block:" }, { "Out6/Pass:", "Out6/Block:" } }
 };
 
 #define RVTEST(fct) do {				\
@@ -118,12 +125,12 @@ int
 pfctl_table(int argc, char *argv[], char *tname, const char *command,
     char *file, const char *anchor, const char *ruleset, int opts)
 {
-	struct pfr_table  table;
-	struct pfr_buffer b, b2;
-	struct pfr_addr	 *a, *a2;
-	int		  nadd = 0, ndel = 0, nchange = 0, nzero = 0;
-	int		  rv = 0, flags = 0, nmatch = 0;
-	void		 *p;
+	struct pfr_table	 table;
+	struct pfr_buffer	 b, b2;
+	struct pfr_addr		*a, *a2;
+	int			 nadd = 0, ndel = 0, nchange = 0, nzero = 0;
+	int			 rv = 0, flags = 0, nmatch = 0;
+	void			*p;
 
 	if (command == NULL)
 		usage();
@@ -168,6 +175,10 @@ pfctl_table(int argc, char *argv[], char *tname, const char *command,
 			if (b.pfrb_size <= b.pfrb_msize)
 				break;
 		}
+
+		if (opts & PF_OPT_SHOWALL && b.pfrb_size > 0)
+			pfctl_print_title("TABLES:");
+
 		PFRB_FOREACH(p, &b)
 			if (opts & PF_OPT_VERBOSE2)
 				print_tstats(p, opts & PF_OPT_DEBUG);
@@ -246,7 +257,7 @@ pfctl_table(int argc, char *argv[], char *tname, const char *command,
 					    opts & PF_OPT_USEDNS);
 	} else if (!strcmp(command, "show")) {
 		b.pfrb_type = (opts & PF_OPT_VERBOSE) ?
-		    PFRB_ASTATS : PFRB_ADDRS;
+			PFRB_ASTATS : PFRB_ADDRS;
 		if (argc || file != NULL)
 			usage();
 		for (;;) {
@@ -328,9 +339,9 @@ print_table(struct pfr_table *ta, int verbose, int debug)
 		    (ta->pfrt_flags & PFR_TFLAG_REFDANCHOR) ? 'h' : '-',
 		    ta->pfrt_name);
 		if (ta->pfrt_anchor[0])
-		    printf("\t%s", ta->pfrt_anchor);
+			printf("\t%s", ta->pfrt_anchor);
 		if (ta->pfrt_ruleset[0])
-		    printf(":%s", ta->pfrt_ruleset);
+			printf(":%s", ta->pfrt_ruleset);
 		puts("");
 	} else
 		puts(ta->pfrt_name);
@@ -453,12 +464,11 @@ pfctl_define_table(char *name, int flags, int addrs, const char *anchor,
 	struct pfr_table tbl;
 
 	bzero(&tbl, sizeof(tbl));
-	if (strlcpy(tbl.pfrt_name, name,
-	    sizeof(tbl.pfrt_name)) >= sizeof(tbl.pfrt_name) ||
-	    strlcpy(tbl.pfrt_anchor, anchor,
+	if (strlcpy(tbl.pfrt_name, name, sizeof(tbl.pfrt_name)) >=
+	    sizeof(tbl.pfrt_name) || strlcpy(tbl.pfrt_anchor, anchor,
 	    sizeof(tbl.pfrt_anchor)) >= sizeof(tbl.pfrt_anchor) ||
-	    strlcpy(tbl.pfrt_ruleset, ruleset,
-	    sizeof(tbl.pfrt_ruleset)) >= sizeof(tbl.pfrt_ruleset))
+	    strlcpy(tbl.pfrt_ruleset, ruleset, sizeof(tbl.pfrt_ruleset)) >=
+	    sizeof(tbl.pfrt_ruleset))
 		errx(1, "pfctl_define_table: strlcpy");
 	tbl.pfrt_flags = flags;
 
@@ -481,7 +491,7 @@ warn_namespace_collision(const char *filter)
 		b.pfrb_size = b.pfrb_msize;
 		if (pfr_get_tables(NULL, b.pfrb_caddr,
 		    &b.pfrb_size, PFR_FLAG_ALLRSETS))
-				err(1, "pfr_get_tables");
+			err(1, "pfr_get_tables");
 		if (b.pfrb_size <= b.pfrb_msize)
 			break;
 	}
@@ -526,3 +536,83 @@ xprintf(int opts, const char *fmt, ...)
 	else
 		fprintf(stderr, ".\n");
 }
+
+
+/* interface stuff */
+
+int
+pfctl_show_ifaces(const char *filter, int opts)
+{
+	struct pfr_buffer	 b;
+	struct pfi_if		*p;
+	int			 i = 0, f = PFI_FLAG_GROUP|PFI_FLAG_INSTANCE;
+
+	if (filter != NULL && *filter && !isdigit(filter[strlen(filter)-1]))
+		f &= ~PFI_FLAG_INSTANCE;
+	bzero(&b, sizeof(b));
+	b.pfrb_type = PFRB_IFACES;
+	for (;;) {
+		pfr_buf_grow(&b, b.pfrb_size);
+		b.pfrb_size = b.pfrb_msize;
+		if (pfi_get_ifaces(filter, b.pfrb_caddr, &b.pfrb_size, f)) {
+			radix_perror();
+			return (1);
+		}
+		if (b.pfrb_size <= b.pfrb_msize)
+			break;
+		i++;
+	}
+	if (opts & PF_OPT_SHOWALL)
+		pfctl_print_title("INTERFACES:");
+	PFRB_FOREACH(p, &b)
+		print_iface(p, opts);
+	return (0);
+}
+
+void
+print_iface(struct pfi_if *p, int opts)
+{
+	time_t	tzero = p->pfif_tzero;
+	int	flags = (opts & PF_OPT_VERBOSE) ? p->pfif_flags : 0;
+	int	first = 1;
+	int	i, af, dir, act;
+
+	printf("%s", p->pfif_name);
+	oprintf(flags, PFI_IFLAG_INSTANCE, "instance", &first, 0);
+	oprintf(flags, PFI_IFLAG_GROUP, "group", &first, 0);
+	oprintf(flags, PFI_IFLAG_CLONABLE, "clonable", &first, 0);
+	oprintf(flags, PFI_IFLAG_DYNAMIC, "dynamic", &first, 0);
+	oprintf(flags, PFI_IFLAG_ATTACHED, "attached", &first, 1);
+#ifdef __FreeBSD__
+	first = 1;
+	oprintf(flags, PFI_IFLAG_PLACEHOLDER, "placeholder", &first, 1);
+#endif
+	printf("\n");
+
+	if (!(opts & PF_OPT_VERBOSE2))
+		return;
+	printf("\tCleared:     %s", ctime(&tzero));
+	printf("\tReferences:  [ States:  %-18d Rules: %-18d ]\n",
+	    p->pfif_states, p->pfif_rules);
+	for (i = 0; i < 8; i++) {
+		af = (i>>2) & 1;
+		dir = (i>>1) &1;
+		act = i & 1;
+		printf("\t%-12s [ Packets: %-18llu Bytes: %-18llu ]\n",
+		    istats_text[af][dir][act],
+		    (unsigned long long)p->pfif_packets[af][dir][act],
+		    (unsigned long long)p->pfif_bytes[af][dir][act]);
+	}
+}
+
+void
+oprintf(int flags, int flag, const char *s, int *first, int last)
+{
+	if (flags & flag) {
+		printf(*first ? "\t(%s" : ", %s", s);
+		*first = 0;
+	}
+	if (last && !*first)
+		printf(")");
+}
+

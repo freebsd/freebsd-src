@@ -1,7 +1,8 @@
-/*	$OpenBSD: pfctl.c,v 1.188 2003/08/29 21:47:36 cedric Exp $ */
+/*	$OpenBSD: pfctl.c,v 1.213 2004/03/20 09:31:42 david Exp $ */
 
 /*
  * Copyright (c) 2001 Daniel Hartmeier
+ * Copyright (c) 2002,2003 Henning Brauer
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -56,6 +57,10 @@ __FBSDID("$FreeBSD$");
 #include "pfctl_parser.h"
 #include "pfctl.h"
 
+#ifdef __FreeBSD__
+#define HTONL(x)	(x) = htonl((__uint32_t)(x))
+#endif
+
 void	 usage(void);
 int	 pfctl_enable(int, int);
 int	 pfctl_disable(int, int);
@@ -63,17 +68,19 @@ int	 pfctl_clear_stats(int, int);
 int	 pfctl_clear_rules(int, int, char *, char *);
 int	 pfctl_clear_nat(int, int, char *, char *);
 int	 pfctl_clear_altq(int, int);
-int	 pfctl_clear_states(int, int);
-int	 pfctl_kill_states(int, int);
+int	 pfctl_clear_src_nodes(int, int);
+int	 pfctl_clear_states(int, const char *, int);
+int	 pfctl_kill_states(int, const char *, int);
 int	 pfctl_get_pool(int, struct pf_pool *, u_int32_t, u_int32_t, int,
-	     char *, char *);
+	    char *, char *);
 void	 pfctl_print_rule_counters(struct pf_rule *, int);
 int	 pfctl_show_rules(int, int, int, char *, char *);
 int	 pfctl_show_nat(int, int, char *, char *);
-int	 pfctl_show_states(int, u_int8_t, int);
-int	 pfctl_show_status(int);
-int	 pfctl_show_timeouts(int);
-int	 pfctl_show_limits(int);
+int	 pfctl_show_src_nodes(int, int);
+int	 pfctl_show_states(int, const char *, int);
+int	 pfctl_show_status(int, int);
+int	 pfctl_show_timeouts(int, int);
+int	 pfctl_show_limits(int, int);
 int	 pfctl_debug(int, u_int32_t, int);
 int	 pfctl_clear_rule_counters(int, int);
 int	 pfctl_test_altqsupport(int, int);
@@ -85,6 +92,8 @@ char		*rulesopt;
 const char	*showopt;
 const char	*debugopt;
 char		*anchoropt;
+char		*pf_device = "/dev/pf";
+char		*ifaceopt;
 char		*tableopt;
 const char	*tblcmdopt;
 int		 state_killers;
@@ -93,6 +102,8 @@ int		 loadopt;
 int		 altqsupport;
 
 int		 dev = -1;
+int		 first_title = 1;
+int		 labels = 0;
 
 const char	*infile;
 
@@ -101,6 +112,7 @@ static const struct {
 	int		index;
 } pf_limits[] = {
 	{ "states",	PF_LIMIT_STATES },
+	{ "src-nodes",	PF_LIMIT_SRC_NODES },
 	{ "frags",	PF_LIMIT_FRAGS },
 	{ NULL,		0 }
 };
@@ -159,12 +171,14 @@ static const struct {
 };
 
 static const char *clearopt_list[] = {
-	"nat", "queue", "rules", "state", "info", "Tables", "osfp", "all", NULL
+	"nat", "queue", "rules", "Sources",
+	"state", "info", "Tables", "osfp", "all", NULL
 };
 
 static const char *showopt_list[] = {
-	"nat", "queue", "rules", "Anchors", "state", "info", "labels",
-	"timeouts", "memory", "Tables", "osfp", "all", NULL
+	"nat", "queue", "rules", "Anchors", "Sources", "state", "info",
+	"Interfaces", "labels", "timeouts", "memory", "Tables", "osfp",
+	"all", NULL
 };
 
 static const char *tblcmdopt_list[] = {
@@ -182,12 +196,14 @@ usage(void)
 {
 	extern char *__progname;
 
-	fprintf(stderr, "usage: %s [-AdeghnNqrROvz] ", __progname);
+	fprintf(stderr, "usage: %s [-AdeghNnOqRrvz] ", __progname);
 	fprintf(stderr, "[-a anchor[:ruleset]] [-D macro=value]\n");
 	fprintf(stderr, "             ");
-	fprintf(stderr, "[-f file] [-F modifier] [-k host] [-s modifier]\n");
+	fprintf(stderr, "[-F modifier] [-f file] [-i interface] ");
+	fprintf(stderr, "[-k host] [-p device]\n");
 	fprintf(stderr, "             ");
-	fprintf(stderr, "[-t table] [-T command [address ...]] [-x level]\n");
+	fprintf(stderr, "[-s modifier] [-T command [address ...]] ");
+	fprintf(stderr, "[-t table] [-x level]\n");
 	exit(1);
 }
 
@@ -246,7 +262,7 @@ pfctl_clear_stats(int dev, int opts)
 int
 pfctl_clear_rules(int dev, int opts, char *anchorname, char *rulesetname)
 {
-	struct pfioc_rule pr;
+	struct pfr_buffer t;
 
 	if (*anchorname && !*rulesetname) {
 		struct pfioc_ruleset pr;
@@ -276,19 +292,13 @@ pfctl_clear_rules(int dev, int opts, char *anchorname, char *rulesetname)
 			fprintf(stderr, "rules cleared\n");
 		return (0);
 	}
-	memset(&pr, 0, sizeof(pr));
-	memcpy(pr.anchor, anchorname, sizeof(pr.anchor));
-	memcpy(pr.ruleset, rulesetname, sizeof(pr.ruleset));
-	pr.rule.action = PF_SCRUB;
-	if (ioctl(dev, DIOCBEGINRULES, &pr))
-		err(1, "DIOCBEGINRULES");
-	else if (ioctl(dev, DIOCCOMMITRULES, &pr))
-		err(1, "DIOCCOMMITRULES");
-	pr.rule.action = PF_PASS;
-	if (ioctl(dev, DIOCBEGINRULES, &pr))
-		err(1, "DIOCBEGINRULES");
-	else if (ioctl(dev, DIOCCOMMITRULES, &pr))
-		err(1, "DIOCCOMMITRULES");
+	memset(&t, 0, sizeof(t));
+	t.pfrb_type = PFRB_TRANS;
+	if (pfctl_add_trans(&t, PF_RULESET_SCRUB, anchorname, rulesetname) ||
+	    pfctl_add_trans(&t, PF_RULESET_FILTER, anchorname, rulesetname) ||
+	    pfctl_trans(dev, &t, DIOCXBEGIN, 0) ||
+	    pfctl_trans(dev, &t, DIOCXCOMMIT, 0))
+		err(1, "pfctl_clear_rules");
 	if ((opts & PF_OPT_QUIET) == 0)
 		fprintf(stderr, "rules cleared\n");
 	return (0);
@@ -297,7 +307,7 @@ pfctl_clear_rules(int dev, int opts, char *anchorname, char *rulesetname)
 int
 pfctl_clear_nat(int dev, int opts, char *anchorname, char *rulesetname)
 {
-	struct pfioc_rule pr;
+	struct pfr_buffer t;
 
 	if (*anchorname && !*rulesetname) {
 		struct pfioc_ruleset pr;
@@ -327,24 +337,14 @@ pfctl_clear_nat(int dev, int opts, char *anchorname, char *rulesetname)
 			fprintf(stderr, "nat cleared\n");
 		return (0);
 	}
-	memset(&pr, 0, sizeof(pr));
-	memcpy(pr.anchor, anchorname, sizeof(pr.anchor));
-	memcpy(pr.ruleset, rulesetname, sizeof(pr.ruleset));
-	pr.rule.action = PF_NAT;
-	if (ioctl(dev, DIOCBEGINRULES, &pr))
-		err(1, "DIOCBEGINRULES");
-	else if (ioctl(dev, DIOCCOMMITRULES, &pr))
-		err(1, "DIOCCOMMITRULES");
-	pr.rule.action = PF_BINAT;
-	if (ioctl(dev, DIOCBEGINRULES, &pr))
-		err(1, "DIOCBEGINRULES");
-	else if (ioctl(dev, DIOCCOMMITRULES, &pr))
-		err(1, "DIOCCOMMITRULES");
-	pr.rule.action = PF_RDR;
-	if (ioctl(dev, DIOCBEGINRULES, &pr))
-		err(1, "DIOCBEGINRULES");
-	else if (ioctl(dev, DIOCCOMMITRULES, &pr))
-		err(1, "DIOCCOMMITRULES");
+	memset(&t, 0, sizeof(t));
+	t.pfrb_type = PFRB_TRANS;
+	if (pfctl_add_trans(&t, PF_RULESET_NAT, anchorname, rulesetname) ||
+	    pfctl_add_trans(&t, PF_RULESET_BINAT, anchorname, rulesetname) ||
+	    pfctl_add_trans(&t, PF_RULESET_RDR, anchorname, rulesetname) ||
+	    pfctl_trans(dev, &t, DIOCXBEGIN, 0) ||
+	    pfctl_trans(dev, &t, DIOCXCOMMIT, 0))
+		err(1, "pfctl_clear_nat");
 	if ((opts & PF_OPT_QUIET) == 0)
 		fprintf(stderr, "nat cleared\n");
 	return (0);
@@ -353,32 +353,50 @@ pfctl_clear_nat(int dev, int opts, char *anchorname, char *rulesetname)
 int
 pfctl_clear_altq(int dev, int opts)
 {
-	struct pfioc_altq pa;
+	struct pfr_buffer t;
 
 	if (!altqsupport)
 		return (-1);
-	memset(&pa, 0, sizeof(pa));
-	if (ioctl(dev, DIOCBEGINALTQS, &pa.ticket))
-		err(1, "DIOCBEGINALTQS");
-	else if (ioctl(dev, DIOCCOMMITALTQS, &pa.ticket))
-		err(1, "DIOCCOMMITALTQS");
+	memset(&t, 0, sizeof(t));
+	t.pfrb_type = PFRB_TRANS;
+	if (pfctl_add_trans(&t, PF_RULESET_ALTQ, "", "") ||
+	    pfctl_trans(dev, &t, DIOCXBEGIN, 0) ||
+	    pfctl_trans(dev, &t, DIOCXCOMMIT, 0))
+		err(1, "pfctl_clear_altq");
 	if ((opts & PF_OPT_QUIET) == 0)
 		fprintf(stderr, "altq cleared\n");
 	return (0);
 }
 
 int
-pfctl_clear_states(int dev, int opts)
+pfctl_clear_src_nodes(int dev, int opts)
 {
-	if (ioctl(dev, DIOCCLRSTATES))
-		err(1, "DIOCCLRSTATES");
+	if (ioctl(dev, DIOCCLRSRCNODES))
+		err(1, "DIOCCLRSRCNODES");
 	if ((opts & PF_OPT_QUIET) == 0)
-		fprintf(stderr, "states cleared\n");
+		fprintf(stderr, "source tracking entries cleared\n");
 	return (0);
 }
 
 int
-pfctl_kill_states(int dev, int opts)
+pfctl_clear_states(int dev, const char *iface, int opts)
+{
+	struct pfioc_state_kill psk;
+
+	memset(&psk, 0, sizeof(psk));
+	if (iface != NULL && strlcpy(psk.psk_ifname, iface,
+	    sizeof(psk.psk_ifname)) >= sizeof(psk.psk_ifname))
+		errx(1, "invalid interface: %s", iface);
+
+	if (ioctl(dev, DIOCCLRSTATES, &psk))
+		err(1, "DIOCCLRSTATES");
+	if ((opts & PF_OPT_QUIET) == 0)
+		fprintf(stderr, "%d states cleared\n", psk.psk_af);
+	return (0);
+}
+
+int
+pfctl_kill_states(int dev, const char *iface, int opts)
 {
 	struct pfioc_state_kill psk;
 	struct addrinfo *res[2], *resp[2];
@@ -393,6 +411,9 @@ pfctl_kill_states(int dev, int opts)
 	    sizeof(psk.psk_src.addr.v.a.mask));
 	memset(&last_src, 0xff, sizeof(last_src));
 	memset(&last_dst, 0xff, sizeof(last_dst));
+	if (iface != NULL && strlcpy(psk.psk_ifname, iface,
+	    sizeof(psk.psk_ifname)) >= sizeof(psk.psk_ifname))
+		errx(1, "invalid interface: %s", iface);
 
 	if ((ret_ga = getaddrinfo(state_kill[0], NULL, NULL, &res[0]))) {
 		errx(1, "getaddrinfo: %s", gai_strerror(ret_ga));
@@ -426,7 +447,8 @@ pfctl_kill_states(int dev, int opts)
 			memset(&last_dst, 0xff, sizeof(last_dst));
 			if ((ret_ga = getaddrinfo(state_kill[1], NULL, NULL,
 			    &res[1]))) {
-				errx(1, "getaddrinfo: %s", gai_strerror(ret_ga));
+				errx(1, "getaddrinfo: %s",
+				    gai_strerror(ret_ga));
 				/* NOTREACHED */
 			}
 			for (resp[1] = res[1]; resp[1];
@@ -557,12 +579,21 @@ pfctl_print_rule_counters(struct pf_rule *rule, int opts)
 			    (unsigned long long)rule->bytes, rule->states);
 }
 
+void
+pfctl_print_title(char *title)
+{
+	if (!first_title)
+		printf("\n");
+	first_title = 0;
+	printf("%s\n", title);
+}
+
 int
 pfctl_show_rules(int dev, int opts, int format, char *anchorname,
     char *rulesetname)
 {
 	struct pfioc_rule pr;
-	u_int32_t nr, mnr;
+	u_int32_t nr, mnr, header = 0;
 	int rule_numbers = opts & (PF_OPT_VERBOSE2 | PF_OPT_DEBUG);
 
 	if (*anchorname && !*rulesetname) {
@@ -579,6 +610,8 @@ pfctl_show_rules(int dev, int opts, int format, char *anchorname,
 				err(1, "DIOCGETRULESETS");
 			return (-1);
 		}
+		if (opts & PF_OPT_SHOWALL && pr.nr)
+			pfctl_print_title("FILTER RULES:");
 		mnr = pr.nr;
 		for (nr = 0; nr < mnr; ++nr) {
 			pr.nr = nr;
@@ -595,10 +628,24 @@ pfctl_show_rules(int dev, int opts, int format, char *anchorname,
 	memset(&pr, 0, sizeof(pr));
 	memcpy(pr.anchor, anchorname, sizeof(pr.anchor));
 	memcpy(pr.ruleset, rulesetname, sizeof(pr.ruleset));
+	if (opts & PF_OPT_SHOWALL) {
+		pr.rule.action = PF_PASS;
+		if (ioctl(dev, DIOCGETRULES, &pr)) {
+			warn("DIOCGETRULES");
+			return (-1);
+		}
+		header++;
+	}
 	pr.rule.action = PF_SCRUB;
 	if (ioctl(dev, DIOCGETRULES, &pr)) {
 		warn("DIOCGETRULES");
 		return (-1);
+	}
+	if (opts & PF_OPT_SHOWALL) {
+		if (format == 0 && (pr.nr > 0 || header))
+			pfctl_print_title("FILTER RULES:");
+		else if (format == 1 && labels)
+			pfctl_print_title("LABEL COUNTERS:");
 	}
 	mnr = pr.nr;
 	for (nr = 0; nr < mnr; ++nr) {
@@ -623,6 +670,8 @@ pfctl_show_rules(int dev, int opts, int format, char *anchorname,
 			}
 			break;
 		default:
+			if (pr.rule.label[0] && (opts & PF_OPT_SHOWALL))
+				labels = 1;
 			print_rule(&pr.rule, rule_numbers);
 			pfctl_print_rule_counters(&pr.rule, opts);
 		}
@@ -656,6 +705,8 @@ pfctl_show_rules(int dev, int opts, int format, char *anchorname,
 			}
 			break;
 		default:
+			if (pr.rule.label[0] && (opts & PF_OPT_SHOWALL))
+				labels = 1;
 			print_rule(&pr.rule, rule_numbers);
 			pfctl_print_rule_counters(&pr.rule, opts);
 		}
@@ -670,7 +721,7 @@ pfctl_show_nat(int dev, int opts, char *anchorname, char *rulesetname)
 	struct pfioc_rule pr;
 	u_int32_t mnr, nr;
 	static int nattype[3] = { PF_NAT, PF_RDR, PF_BINAT };
-	int i;
+	int i, dotitle = opts & PF_OPT_SHOWALL;
 
 	if (*anchorname && !*rulesetname) {
 		struct pfioc_ruleset pr;
@@ -718,6 +769,10 @@ pfctl_show_nat(int dev, int opts, char *anchorname, char *rulesetname)
 			    pr.ticket, nattype[i], anchorname,
 			    rulesetname) != 0)
 				return (-1);
+			if (dotitle) {
+				pfctl_print_title("TRANSLATION RULES:");
+				dotitle = 0;
+			}
 			print_rule(&pr.rule, opts & PF_OPT_VERBOSE2);
 			pfctl_print_rule_counters(&pr.rule, opts);
 			pfctl_clear_pool(&pr.rule.rpool);
@@ -727,21 +782,64 @@ pfctl_show_nat(int dev, int opts, char *anchorname, char *rulesetname)
 }
 
 int
-pfctl_show_states(int dev, u_int8_t proto, int opts)
+pfctl_show_src_nodes(int dev, int opts)
+{
+	struct pfioc_src_nodes psn;
+	struct pf_src_node *p;
+	char *inbuf = NULL, *newinbuf = NULL;
+	unsigned len = 0;
+	int i;
+
+	memset(&psn, 0, sizeof(psn));
+	for (;;) {
+		psn.psn_len = len;
+		if (len) {
+			newinbuf = realloc(inbuf, len);
+			if (newinbuf == NULL)
+				err(1, "realloc");
+			psn.psn_buf = inbuf = newinbuf;
+		}
+		if (ioctl(dev, DIOCGETSRCNODES, &psn) < 0) {
+			warn("DIOCGETSRCNODES");
+			return (-1);
+		}
+		if (psn.psn_len + sizeof(struct pfioc_src_nodes) < len)
+			break;
+		if (len == 0 && psn.psn_len == 0)
+			return (0);
+		if (len == 0 && psn.psn_len != 0)
+			len = psn.psn_len;
+		if (psn.psn_len == 0)
+			return (0);	/* no src_nodes */
+		len *= 2;
+	}
+	p = psn.psn_src_nodes;
+	if (psn.psn_len > 0 && (opts & PF_OPT_SHOWALL))
+		pfctl_print_title("SOURCE TRACKING NODES:");
+	for (i = 0; i < psn.psn_len; i += sizeof(*p)) {
+		print_src_node(p, opts);
+		p++;
+	}
+	return (0);
+}
+
+int
+pfctl_show_states(int dev, const char *iface, int opts)
 {
 	struct pfioc_states ps;
 	struct pf_state *p;
-	char *inbuf = NULL;
+	char *inbuf = NULL, *newinbuf = NULL;
 	unsigned len = 0;
-	int i;
+	int i, dotitle = (opts & PF_OPT_SHOWALL);
 
 	memset(&ps, 0, sizeof(ps));
 	for (;;) {
 		ps.ps_len = len;
 		if (len) {
-			ps.ps_buf = inbuf = realloc(inbuf, len);
-			if (inbuf == NULL)
+			newinbuf = realloc(inbuf, len);
+			if (newinbuf == NULL)
 				err(1, "realloc");
+			ps.ps_buf = inbuf = newinbuf;
 		}
 		if (ioctl(dev, DIOCGETSTATES, &ps) < 0) {
 			warn("DIOCGETSTATES");
@@ -758,16 +856,20 @@ pfctl_show_states(int dev, u_int8_t proto, int opts)
 		len *= 2;
 	}
 	p = ps.ps_states;
-	for (i = 0; i < ps.ps_len; i += sizeof(*p)) {
-		if (!proto || (p->proto == proto))
-			print_state(p, opts);
-		p++;
+	for (i = 0; i < ps.ps_len; i += sizeof(*p), p++) {
+		if (iface != NULL && strcmp(p->u.ifname, iface))
+			continue;
+		if (dotitle) {
+			pfctl_print_title("STATES:");
+			dotitle = 0;
+		}
+		print_state(p, opts);
 	}
 	return (0);
 }
 
 int
-pfctl_show_status(int dev)
+pfctl_show_status(int dev, int opts)
 {
 	struct pf_status status;
 
@@ -775,16 +877,20 @@ pfctl_show_status(int dev)
 		warn("DIOCGETSTATUS");
 		return (-1);
 	}
-	print_status(&status);
+	if (opts & PF_OPT_SHOWALL)
+		pfctl_print_title("INFO:");
+	print_status(&status, opts);
 	return (0);
 }
 
 int
-pfctl_show_timeouts(int dev)
+pfctl_show_timeouts(int dev, int opts)
 {
 	struct pfioc_tm pt;
 	int i;
 
+	if (opts & PF_OPT_SHOWALL)
+		pfctl_print_title("TIMEOUTS:");
 	memset(&pt, 0, sizeof(pt));
 	for (i = 0; pf_timeouts[i].name; i++) {
 		pt.timeout = pf_timeouts[i].timeout;
@@ -802,14 +908,16 @@ pfctl_show_timeouts(int dev)
 }
 
 int
-pfctl_show_limits(int dev)
+pfctl_show_limits(int dev, int opts)
 {
 	struct pfioc_limit pl;
 	int i;
 
+	if (opts & PF_OPT_SHOWALL)
+		pfctl_print_title("LIMITS:");
 	memset(&pl, 0, sizeof(pl));
 	for (i = 0; pf_limits[i].name; i++) {
-		pl.index = i;
+		pl.index = pf_limits[i].index;
 		if (ioctl(dev, DIOCGETLIMIT, &pl))
 			err(1, "DIOCGETLIMIT");
 		printf("%-10s ", pf_limits[i].name);
@@ -846,7 +954,8 @@ pfctl_add_pool(struct pfctl *pf, struct pf_pool *p, sa_family_t af)
 int
 pfctl_add_rule(struct pfctl *pf, struct pf_rule *r)
 {
-	u_int8_t rs_num;
+	u_int8_t		rs_num;
+	struct pfioc_rule	pr;
 
 	switch (r->action) {
 	case PF_SCRUB:
@@ -884,12 +993,19 @@ pfctl_add_rule(struct pfctl *pf, struct pf_rule *r)
 	}
 
 	if ((pf->opts & PF_OPT_NOACTION) == 0) {
+		bzero(&pr, sizeof(pr));
+		if (strlcpy(pr.anchor, pf->anchor, sizeof(pr.anchor)) >=
+		    sizeof(pr.anchor) ||
+		    strlcpy(pr.ruleset, pf->ruleset, sizeof(pr.ruleset)) >=
+		    sizeof(pr.ruleset))
+			errx(1, "pfctl_add_rule: strlcpy");
 		if (pfctl_add_pool(pf, &r->rpool, r->af))
 			return (1);
-		memcpy(&pf->prule[rs_num]->rule, r,
-		    sizeof(pf->prule[rs_num]->rule));
-		pf->prule[rs_num]->pool_ticket = pf->paddr.ticket;
-		if (ioctl(pf->dev, DIOCADDRULE, pf->prule[rs_num]))
+		pr.ticket = pfctl_get_ticket(pf->trans, rs_num, pf->anchor,
+		    pf->ruleset);
+		pr.pool_ticket = pf->paddr.ticket;
+		memcpy(&pr.rule, r, sizeof(pr.rule));
+		if (ioctl(pf->dev, DIOCADDRULE, &pr))
 			err(1, "DIOCADDRULE");
 	}
 	if (pf->opts & PF_OPT_VERBOSE)
@@ -922,26 +1038,31 @@ pfctl_add_altq(struct pfctl *pf, struct pf_altq *a)
 
 int
 pfctl_rules(int dev, char *filename, int opts, char *anchorname,
-    char *rulesetname)
+    char *rulesetname, struct pfr_buffer *trans)
 {
 #define ERR(x) do { warn(x); goto _error; } while(0)
 #define ERRX(x) do { warnx(x); goto _error; } while(0)
 
-	FILE *fin;
-	struct pfioc_rule	pr[PF_RULESET_MAX];
-	struct pfioc_altq	pa;
-	struct pfctl		pf;
-	struct pfr_table	trs;
-	int			i;
+	FILE			*fin;
+	struct pfr_buffer	*t, buf;
+	struct pfioc_altq	 pa;
+	struct pfctl		 pf;
+	struct pfr_table	 trs;
+	int			 osize;
+
+	if (trans == NULL) {
+	    bzero(&buf, sizeof(buf));
+	    buf.pfrb_type = PFRB_TRANS;
+	    t = &buf;
+	    osize = 0;
+	} else {
+	    t = trans;
+	    osize = t->pfrb_size;
+	}
 
 	memset(&pa, 0, sizeof(pa));
 	memset(&pf, 0, sizeof(pf));
 	memset(&trs, 0, sizeof(trs));
-	for (i = 0; i < PF_RULESET_MAX; i++) {
-		memset(&pr[i], 0, sizeof(pr[i]));
-		memcpy(pr[i].anchor, anchorname, sizeof(pr[i].anchor));
-		memcpy(pr[i].ruleset, rulesetname, sizeof(pr[i].ruleset));
-	}
 	if (strlcpy(trs.pfrt_anchor, anchorname,
 	    sizeof(trs.pfrt_anchor)) >= sizeof(trs.pfrt_anchor) ||
 	    strlcpy(trs.pfrt_ruleset, rulesetname,
@@ -957,46 +1078,53 @@ pfctl_rules(int dev, char *filename, int opts, char *anchorname,
 		}
 		infile = filename;
 	}
-	if ((opts & PF_OPT_NOACTION) == 0) {
-		if ((loadopt & PFCTL_FLAG_NAT) != 0) {
-			pr[PF_RULESET_NAT].rule.action = PF_NAT;
-			if (ioctl(dev, DIOCBEGINRULES, &pr[PF_RULESET_NAT]))
-				ERR("DIOCBEGINRULES");
-			pr[PF_RULESET_RDR].rule.action = PF_RDR;
-			if (ioctl(dev, DIOCBEGINRULES, &pr[PF_RULESET_RDR]))
-				ERR("DIOCBEGINRULES");
-			pr[PF_RULESET_BINAT].rule.action = PF_BINAT;
-			if (ioctl(dev, DIOCBEGINRULES, &pr[PF_RULESET_BINAT]))
-				ERR("DIOCBEGINRULES");
-		}
-		if (((altqsupport && (loadopt & PFCTL_FLAG_ALTQ) != 0)) &&
-		    ioctl(dev, DIOCBEGINALTQS, &pa.ticket)) {
-			ERR("DIOCBEGINALTQS");
-		}
-		if ((loadopt & PFCTL_FLAG_FILTER) != 0) {
-			pr[PF_RULESET_SCRUB].rule.action = PF_SCRUB;
-			if (ioctl(dev, DIOCBEGINRULES, &pr[PF_RULESET_SCRUB]))
-				ERR("DIOCBEGINRULES");
-			pr[PF_RULESET_FILTER].rule.action = PF_PASS;
-			if (ioctl(dev, DIOCBEGINRULES, &pr[PF_RULESET_FILTER]))
-				ERR("DIOCBEGINRULES");
-		}
-		if (loadopt & PFCTL_FLAG_TABLE) {
-			if (pfr_ina_begin(&trs, &pf.tticket, NULL, 0) != 0)
-				ERR("begin table");
-		}
-	}
-	/* fill in callback data */
 	pf.dev = dev;
 	pf.opts = opts;
 	pf.loadopt = loadopt;
+	if (anchorname[0])
+		pf.loadopt &= ~PFCTL_FLAG_ALTQ;
 	pf.paltq = &pa;
-	for (i = 0; i < PF_RULESET_MAX; i++) {
-		pf.prule[i] = &pr[i];
-	}
+	pf.trans = t;
 	pf.rule_nr = 0;
 	pf.anchor = anchorname;
 	pf.ruleset = rulesetname;
+
+	if ((opts & PF_OPT_NOACTION) == 0) {
+		if ((pf.loadopt & PFCTL_FLAG_NAT) != 0) {
+			if (pfctl_add_trans(t, PF_RULESET_NAT, anchorname,
+			    rulesetname) ||
+			    pfctl_add_trans(t, PF_RULESET_BINAT, anchorname,
+			    rulesetname) ||
+			    pfctl_add_trans(t, PF_RULESET_RDR, anchorname,
+			    rulesetname))
+				ERR("pfctl_rules");
+		}
+		if (((altqsupport && (pf.loadopt & PFCTL_FLAG_ALTQ) != 0))) {
+			if (pfctl_add_trans(t, PF_RULESET_ALTQ, anchorname,
+			    rulesetname))
+				ERR("pfctl_rules");
+		}
+		if ((pf.loadopt & PFCTL_FLAG_FILTER) != 0) {
+			if (pfctl_add_trans(t, PF_RULESET_SCRUB, anchorname,
+			    rulesetname) ||
+			    pfctl_add_trans(t, PF_RULESET_FILTER, anchorname,
+			    rulesetname))
+				ERR("pfctl_rules");
+		}
+		if (pf.loadopt & PFCTL_FLAG_TABLE) {
+			if (pfctl_add_trans(t, PF_RULESET_TABLE, anchorname,
+			    rulesetname))
+				ERR("pfctl_rules");
+		}
+		if (pfctl_trans(dev, t, DIOCXBEGIN, osize))
+			ERR("DIOCXBEGIN");
+		if (altqsupport && (pf.loadopt & PFCTL_FLAG_ALTQ))
+			pa.ticket = pfctl_get_ticket(t, PF_RULESET_ALTQ,
+			    anchorname, rulesetname);
+		if (pf.loadopt & PFCTL_FLAG_TABLE)
+			pf.tticket = pfctl_get_ticket(t, PF_RULESET_TABLE,
+			    anchorname, rulesetname);
+	}
 	if (parse_rules(fin, &pf) < 0) {
 		if ((opts & PF_OPT_NOACTION) == 0)
 			ERRX("Syntax error in config file: "
@@ -1004,57 +1132,30 @@ pfctl_rules(int dev, char *filename, int opts, char *anchorname,
 		else
 			goto _error;
 	}
-	if ((altqsupport && (loadopt & PFCTL_FLAG_ALTQ) != 0))
+	if ((altqsupport && (pf.loadopt & PFCTL_FLAG_ALTQ) != 0))
 		if (check_commit_altq(dev, opts) != 0)
 			ERRX("errors in altq config");
-	if ((opts & PF_OPT_NOACTION) == 0) {
-		if ((loadopt & PFCTL_FLAG_NAT) != 0) {
-			pr[PF_RULESET_NAT].rule.action = PF_NAT;
-			if (ioctl(dev, DIOCCOMMITRULES, &pr[PF_RULESET_NAT]) &&
-			    (errno != EINVAL || pf.rule_nr))
-				ERR("DIOCCOMMITRULES NAT");
-			pr[PF_RULESET_RDR].rule.action = PF_RDR;
-			if (ioctl(dev, DIOCCOMMITRULES, &pr[PF_RULESET_RDR]) &&
-			    (errno != EINVAL || pf.rule_nr))
-				ERR("DIOCCOMMITRULES RDR");
-			pr[PF_RULESET_BINAT].rule.action = PF_BINAT;
-			if (ioctl(dev, DIOCCOMMITRULES, &pr[PF_RULESET_BINAT]) &&
-			    (errno != EINVAL || pf.rule_nr))
-				ERR("DIOCCOMMITRULES BINAT");
-		}
-		if (((altqsupport && (loadopt & PFCTL_FLAG_ALTQ) != 0)) &&
-		    ioctl(dev, DIOCCOMMITALTQS, &pa.ticket))
-			ERR("DIOCCOMMITALTQS");
-		if ((loadopt & PFCTL_FLAG_FILTER) != 0) {
-			pr[PF_RULESET_SCRUB].rule.action = PF_SCRUB;
-			if (ioctl(dev, DIOCCOMMITRULES, &pr[PF_RULESET_SCRUB]) &&
-			    (errno != EINVAL || pf.rule_nr))
-				ERR("DIOCCOMMITRULES SCRUB");
-			pr[PF_RULESET_FILTER].rule.action = PF_PASS;
-			if (ioctl(dev, DIOCCOMMITRULES, &pr[PF_RULESET_FILTER]) &&
-			    (errno != EINVAL || pf.rule_nr))
-				ERR("DIOCCOMMITRULES FILTER");
-		}
-		if (loadopt & PFCTL_FLAG_TABLE) {
-			if (pfr_ina_commit(&trs, pf.tticket, NULL, NULL, 0))
-				ERR("commit table");
-			pf.tdirty = 0;
-		}
-	}
 	if (fin != stdin)
 		fclose(fin);
 
 	/* process "load anchor" directives */
 	if (!anchorname[0] && !rulesetname[0])
-		if (pfctl_load_anchors(dev, opts) == -1)
+		if (pfctl_load_anchors(dev, opts, t) == -1)
 			ERRX("load anchors");
 
+	if (trans == NULL && (opts & PF_OPT_NOACTION) == 0)
+		if (pfctl_trans(dev, t, DIOCXCOMMIT, 0))
+			ERR("DIOCXCOMMIT");
 	return (0);
 
 _error:
-	if (pf.tdirty) /* cleanup kernel leftover */
-		pfr_ina_begin(&trs, NULL, NULL, 0);
-	exit(1);
+	if (trans == NULL) {	/* main ruleset */
+		if ((opts & PF_OPT_NOACTION) == 0)
+			if (pfctl_trans(dev, t, DIOCXROLLBACK, 0))
+				err(1, "DIOCXROLLBACK");
+		exit(1);
+	} else			/* sub ruleset */
+		return (-1);
 
 #undef ERR
 #undef ERRX
@@ -1072,7 +1173,7 @@ pfctl_set_limit(struct pfctl *pf, const char *opt, unsigned int limit)
 	memset(&pl, 0, sizeof(pl));
 	for (i = 0; pf_limits[i].name; i++) {
 		if (strcasecmp(opt, pf_limits[i].name) == 0) {
-			pl.index = i;
+			pl.index = pf_limits[i].index;
 			pl.limit = limit;
 			if ((pf->opts & PF_OPT_NOACTION) == 0) {
 				if (ioctl(pf->dev, DIOCSETLIMIT, &pl)) {
@@ -1191,6 +1292,55 @@ pfctl_set_logif(struct pfctl *pf, char *ifname)
 }
 
 int
+pfctl_set_hostid(struct pfctl *pf, u_int32_t hostid)
+{
+	if ((loadopt & PFCTL_FLAG_OPTION) == 0)
+		return (0);
+
+	HTONL(hostid);
+
+	if ((pf->opts & PF_OPT_NOACTION) == 0)
+		if (ioctl(dev, DIOCSETHOSTID, &hostid))
+			err(1, "DIOCSETHOSTID");
+
+	if (pf->opts & PF_OPT_VERBOSE)
+		printf("set hostid 0x%08x\n", ntohl(hostid));
+
+	return (0);
+}
+
+int
+pfctl_set_debug(struct pfctl *pf, char *d)
+{
+	u_int32_t	level;
+
+	if ((loadopt & PFCTL_FLAG_OPTION) == 0)
+		return (0);
+
+	if (!strcmp(d, "none"))
+		level = PF_DEBUG_NONE;
+	else if (!strcmp(d, "urgent"))
+		level = PF_DEBUG_URGENT;
+	else if (!strcmp(d, "misc"))
+		level = PF_DEBUG_MISC;
+	else if (!strcmp(d, "loud"))
+		level = PF_DEBUG_NOISY;
+	else {
+		warnx("unknown debug level \"%s\"", d);
+		return (-1);
+	}
+
+	if ((pf->opts & PF_OPT_NOACTION) == 0)
+		if (ioctl(dev, DIOCSETDEBUG, &level))
+			err(1, "DIOCSETDEBUG");
+
+	if (pf->opts & PF_OPT_VERBOSE)
+		printf("set debug %s\n", d);
+
+	return (0);
+}
+
+int
 pfctl_debug(int dev, u_int32_t level, int opts)
 {
 	if (ioctl(dev, DIOCSETDEBUG, &level))
@@ -1264,14 +1414,15 @@ pfctl_show_anchors(int dev, int opts, char *anchorname)
 			return (-1);
 		}
 		mnr = pa.nr;
-		if (!(opts & PF_OPT_QUIET))
-			printf("%u anchors:\n", mnr);
 		for (nr = 0; nr < mnr; ++nr) {
 			pa.nr = nr;
 			if (ioctl(dev, DIOCGETANCHOR, &pa)) {
 				warn("DIOCGETANCHOR");
 				return (-1);
 			}
+			if (!(opts & PF_OPT_VERBOSE) &&
+			    !strcmp(pa.name, PF_RESERVED_ANCHOR))
+				continue;
 			printf("  %s\n", pa.name);
 		}
 	} else {
@@ -1288,8 +1439,6 @@ pfctl_show_anchors(int dev, int opts, char *anchorname)
 			return (-1);
 		}
 		mnr = pr.nr;
-		if (!(opts & PF_OPT_QUIET))
-			printf("%u rulesets in anchor %s:\n", mnr, anchorname);
 		for (nr = 0; nr < mnr; ++nr) {
 			pr.nr = nr;
 			if (ioctl(dev, DIOCGETRULESET, &pr))
@@ -1323,8 +1472,8 @@ main(int argc, char *argv[])
 	if (argc < 2)
 		usage();
 
-	while ((ch = getopt(argc, argv, "a:AdD:eqf:F:ghk:nNOrRs:t:T:vx:z")) !=
-		-1) {
+	while ((ch = getopt(argc, argv,
+	    "a:AdD:eqf:F:ghi:k:nNOp:rRs:t:T:vx:z")) != -1) {
 		switch (ch) {
 		case 'a':
 			anchoropt = optarg;
@@ -1352,6 +1501,9 @@ main(int argc, char *argv[])
 				usage();
 			}
 			mode = O_RDWR;
+			break;
+		case 'i':
+			ifaceopt = optarg;
 			break;
 		case 'k':
 			if (state_killers >= 2) {
@@ -1386,6 +1538,9 @@ main(int argc, char *argv[])
 			break;
 		case 'O':
 			loadopt |= PFCTL_FLAG_OPTION;
+			break;
+		case 'p':
+			pf_device = optarg;
 			break;
 		case 's':
 			showopt = pfctl_lookup_option(optarg, showopt_list);
@@ -1436,14 +1591,8 @@ main(int argc, char *argv[])
 		if (ch == 'l') {
 			loadopt |= PFCTL_FLAG_TABLE;
 			tblcmdopt = NULL;
-		} else {
+		} else
 			mode = strchr("acdfkrz", ch) ? O_RDWR : O_RDONLY;
-			if (opts & PF_OPT_NOACTION) {
-				dev = open("/dev/pf", mode);
-				if (dev >= 0)
-					opts |= PF_OPT_DUMMYACTION;
-			}
-		}
 	} else if (argc != optind) {
 		warnx("unknown command line argument: %s ...", argv[optind]);
 		usage();
@@ -1482,11 +1631,14 @@ main(int argc, char *argv[])
 	}
 
 	if ((opts & PF_OPT_NOACTION) == 0) {
-		dev = open("/dev/pf", mode);
+		dev = open(pf_device, mode);
 		if (dev == -1)
-			err(1, "/dev/pf");
+			err(1, "%s", pf_device);
 		altqsupport = pfctl_test_altqsupport(dev, opts);
 	} else {
+		dev = open(pf_device, O_RDONLY);
+		if (dev >= 0)
+			opts |= PF_OPT_DUMMYACTION;
 		/* turn off options */
 		opts &= ~ (PF_OPT_DISABLE | PF_OPT_ENABLE);
 		clearopt = showopt = debugopt = NULL;
@@ -1521,32 +1673,38 @@ main(int argc, char *argv[])
 			pfctl_show_nat(dev, opts, anchorname, rulesetname);
 			break;
 		case 'q':
-			pfctl_show_altq(dev, opts, opts & PF_OPT_VERBOSE2);
+			pfctl_show_altq(dev, ifaceopt, opts,
+			    opts & PF_OPT_VERBOSE2);
 			break;
 		case 's':
-			pfctl_show_states(dev, 0, opts);
+			pfctl_show_states(dev, ifaceopt, opts);
+			break;
+		case 'S':
+			pfctl_show_src_nodes(dev, opts);
 			break;
 		case 'i':
-			pfctl_show_status(dev);
+			pfctl_show_status(dev, opts);
 			break;
 		case 't':
-			pfctl_show_timeouts(dev);
+			pfctl_show_timeouts(dev, opts);
 			break;
 		case 'm':
-			pfctl_show_limits(dev);
+			pfctl_show_limits(dev, opts);
 			break;
 		case 'a':
+			opts |= PF_OPT_SHOWALL;
 			pfctl_load_fingerprints(dev, opts);
 
+			pfctl_show_nat(dev, opts, anchorname, rulesetname);
 			pfctl_show_rules(dev, opts, 0, anchorname,
 			    rulesetname);
-			pfctl_show_nat(dev, opts, anchorname, rulesetname);
-			pfctl_show_altq(dev, opts, 0);
-			pfctl_show_states(dev, 0, opts);
-			pfctl_show_status(dev);
+			pfctl_show_altq(dev, ifaceopt, opts, 0);
+			pfctl_show_states(dev, ifaceopt, opts);
+			pfctl_show_src_nodes(dev, opts);
+			pfctl_show_status(dev, opts);
 			pfctl_show_rules(dev, opts, 1, anchorname, rulesetname);
-			pfctl_show_timeouts(dev);
-			pfctl_show_limits(dev);
+			pfctl_show_timeouts(dev, opts);
+			pfctl_show_limits(dev, opts);
 			pfctl_show_tables(anchorname, rulesetname, opts);
 			pfctl_show_fingerprints(opts);
 			break;
@@ -1556,6 +1714,9 @@ main(int argc, char *argv[])
 		case 'o':
 			pfctl_load_fingerprints(dev, opts);
 			pfctl_show_fingerprints(opts);
+			break;
+		case 'I':
+			pfctl_show_ifaces(ifaceopt, opts);
 			break;
 		}
 	}
@@ -1572,7 +1733,10 @@ main(int argc, char *argv[])
 			pfctl_clear_altq(dev, opts);
 			break;
 		case 's':
-			pfctl_clear_states(dev, opts);
+			pfctl_clear_states(dev, ifaceopt, opts);
+			break;
+		case 'S':
+			pfctl_clear_src_nodes(dev, opts);
 			break;
 		case 'i':
 			pfctl_clear_stats(dev, opts);
@@ -1580,11 +1744,14 @@ main(int argc, char *argv[])
 		case 'a':
 			pfctl_clear_rules(dev, opts, anchorname, rulesetname);
 			pfctl_clear_nat(dev, opts, anchorname, rulesetname);
-			pfctl_clear_altq(dev, opts);
-			pfctl_clear_states(dev, opts);
-			pfctl_clear_stats(dev, opts);
 			pfctl_clear_tables(anchorname, rulesetname, opts);
-			pfctl_clear_fingerprints(dev, opts);
+			if (!*anchorname && !*rulesetname) {
+				pfctl_clear_altq(dev, opts);
+				pfctl_clear_states(dev, ifaceopt, opts);
+				pfctl_clear_src_nodes(dev, opts);
+				pfctl_clear_stats(dev, opts);
+				pfctl_clear_fingerprints(dev, opts);
+			}
 			break;
 		case 'o':
 			pfctl_clear_fingerprints(dev, opts);
@@ -1595,7 +1762,7 @@ main(int argc, char *argv[])
 		}
 	}
 	if (state_killers)
-		pfctl_kill_states(dev, opts);
+		pfctl_kill_states(dev, ifaceopt, opts);
 
 	if (tblcmdopt != NULL) {
 		error = pfctl_command_tables(argc, argv, tableopt,
@@ -1608,7 +1775,8 @@ main(int argc, char *argv[])
 			error = 1;
 
 	if (rulesopt != NULL) {
-		if (pfctl_rules(dev, rulesopt, opts, anchorname, rulesetname))
+		if (pfctl_rules(dev, rulesopt, opts, anchorname, rulesetname,
+		    NULL))
 			error = 1;
 		else if (!(opts & PF_OPT_NOACTION) &&
 		    (loadopt & PFCTL_FLAG_TABLE))
