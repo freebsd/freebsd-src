@@ -1,5 +1,7 @@
-# Really quick and evil Makefile for building all the tests.  I wish that bmake was friendlier to
-# the concept of multiple progs/libs in the same directory.
+# Really quick and evil Makefile for building all the tests.  I wish that
+# bmake was friendlier to the concept of multiple progs/libs in the same
+# directory.
+#
 # $FreeBSD$
 
 PROGS=	msg yesno prgbox gauge dselect fselect text menu1 menu2 menu3 \
@@ -7,7 +9,7 @@ PROGS=	msg yesno prgbox gauge dselect fselect text menu1 menu2 menu3 \
 	ftree1 ftree2 tree
 
 CFLAGS+= -Wall -Wstrict-prototypes
-LDFLAGS += -ldialog -lncurses -lmytinfo
+LDFLAGS+= -ldialog
 
 all: ${PROGS}
 
