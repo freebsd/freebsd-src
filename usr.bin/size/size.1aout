@@ -57,4 +57,5 @@ attempts to report on the file
 .Sh HISTORY
 A
 .Nm size
-command appeared in Version 6 AT&T Unix.
+command appeared in
+.At v6 .
