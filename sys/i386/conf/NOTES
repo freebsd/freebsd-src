@@ -429,6 +429,7 @@ hint.mse.0.irq="5"
 #       OC-3141, OC-3540, OC-3250
 # rdp:  RealTek RTL 8002-based pocket ethernet adapters
 # sbni:	Granch SBNI12-xx ISA and PCI adapters
+# wl:	Lucent Wavelan (ISA card only).
 
 # Order for ISA/EISA devices is important here
 
@@ -465,9 +466,13 @@ hint.sbni.0.at="isa"
 hint.sbni.0.port="0x210"
 hint.sbni.0.irq="0xefdead"
 hint.sbni.0.flags="0"
-
 device		oltr
 hint.oltr.0.at="isa"
+device		wl
+hint.wl.0.at="isa"
+hint.wl.0.port="0x300"
+options 	WLCACHE		# enables the signal-strength cache
+options 	WLDEBUG		# enables verbose debugging output
 
 #
 # Audio drivers: `pca'
