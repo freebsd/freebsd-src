@@ -32,7 +32,7 @@
 .\"     @(#)resolver.5	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd December 7, 2003
+.Dd September 9, 2004
 .Dt RESOLVER 5
 .Os
 .Sh NAME
@@ -149,17 +149,26 @@ will be tried first as an absolute name before any
 .Em search list
 elements are appended to it.
 .It Sy timeout: Ns Ar n
-sets the amount of time the resolver will wait for a response from a remote
+sets the initial amount of time the resolver will wait
+for a response from a remote
 name server before retrying the query via a different name server.
+The resolver may wait longer during subsequent retries
+of the current query since an exponential back-off is applied to
+the timeout value.
 Measured in seconds, the default is
-.Dv RES_TIMEOUT
+.Dv RES_TIMEOUT ,
+the allowed maximum is
+.Dv RES_MAXRETRANS
 (see
 .In resolv.h ) .
 .It Sy attempts: Ns Ar n
-sets the number of times the resolver will send a query to its name servers
+sets the number of times the resolver will send a query to each of
+its name servers
 before giving up and returning an error to the calling application.
 The default is
-.Dv RES_DFLRETRY
+.Dv RES_DFLRETRY ,
+the allowed maximum is
+.Dv RES_MAXRETRY
 (see
 .In resolv.h ) .
 .It Sy no_tld_query
