@@ -134,6 +134,11 @@ char *client_version_string = NULL;
 char *server_version_string = NULL;
 
 /*
+ * Indicates that a key-regeneration alarm occured.
+ */
+volatile int received_regeneration;
+
+/*
  * Any really sensitive data in the application is contained in this
  * structure. The idea is that this structure could be locked into memory so
  * that the pages do not get written into swap.  However, there are some
@@ -260,19 +265,26 @@ grace_alarm_handler(int sig)
 	fatal("Timeout before authentication for %s.", get_remote_ipaddr());
 }
 
-/*
- * Signal handler for the key regeneration alarm.  Note that this
- * alarm only occurs in the daemon waiting for connections, and it does not
- * do anything with the private key or random state before forking.
- * Thus there should be no concurrency control/asynchronous execution
- * problems.
- */
-/* XXX do we really want this work to be done in a signal handler ? -m */
 void
 key_regeneration_alarm(int sig)
 {
-	int save_errno = errno;
+	received_regeneration = 1;
+	/* Reschedule the alarm. */
+	signal(SIGALRM, key_regeneration_alarm);
+	alarm(options.key_regeneration_time);
+}
 
+/*
+ * Regenerate the keys.  Note that this alarm only occurs in the daemon
+ * waiting for connections, and it does not do anything with the
+ * private key or random state before forking.  However, it calls routines
+ * which may malloc() so we do not call this routine directly from the 
+ * signal handler.
+ */
+void
+key_regeneration(void)
+{
+	received_regeneration = 0;
 	/* Check if we should generate a new key. */
 	if (key_used) {
 		/* This should really be done in the background. */
@@ -292,10 +304,6 @@ key_regeneration_alarm(int sig)
 		key_used = 0;
 		log("RSA key generation complete.");
 	}
-	/* Reschedule the alarm. */
-	signal(SIGALRM, key_regeneration_alarm);
-	alarm(options.key_regeneration_time);
-	errno = save_errno;
 }
 
 void
@@ -854,6 +862,8 @@ main(int ac, char **av)
 		for (;;) {
 			if (received_sighup)
 				sighup_restart();
+			if (received_regeneration)
+				key_regeneration();
 			if (fdset != NULL)
 				xfree(fdset);
 			fdsetsz = howmany(maxfd, NFDBITS) * sizeof(fd_mask);
@@ -994,6 +1004,8 @@ main(int ac, char **av)
 	 */
 	alarm(0);
 	signal(SIGALRM, SIG_DFL);
+	received_regeneration = 0;
+
 	signal(SIGHUP, SIG_DFL);
 	signal(SIGTERM, SIG_DFL);
 	signal(SIGQUIT, SIG_DFL);
