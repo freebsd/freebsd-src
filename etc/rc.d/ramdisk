@@ -40,11 +40,9 @@ start_cmd="ramdisk_start"
 
 ramdisk_start()
 {
-	for unit in $ramdisk_units
-	do
+	for unit in $ramdisk_units; do
 		eval mdoptions=\$ramdisk_${unit}_config
-		if [ "$mdoptions" = "${mdoptions##-t}" ]
-		then
+		if [ "$mdoptions" = "${mdoptions##-t}" ]; then
 			echo "Type not specified for md$unit"
 			continue
 		fi
@@ -59,7 +57,7 @@ ramdisk_stop()
 {
 	for unit in $ramdisk_units
 	do
-		if [ -c /dev/md$unit ] ; then
+		if [ -c /dev/md$unit ]; then
 			umount -f /dev/md$unit > /dev/null 2>&1
 			mdconfig -d -u $unit
 		fi

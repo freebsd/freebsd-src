@@ -41,16 +41,15 @@ start_cmd="ramdisk_own_start"
 ramdisk_own_start()
 {
 set -x
-	for unit in $ramdisk_units
-	do
+	for unit in $ramdisk_units; do
 		device="/dev/md$unit"
 		dir=`mount | grep $device | cut -d' ' -f3`
 
 		eval owner=\$ramdisk_${unit}_owner
 		eval perms=\$ramdisk_${unit}_perms
 
-		[ "X$owner" != "X" ] && chown -f $owner $device $dir
-		[ "X$perms" != "X" ] && chmod -f $perms /dev/md$unit $dir
+		[ "X$owner" != "X" ] && chown -f "$owner" $device $dir
+		[ "X$perms" != "X" ] && chmod -f "$perms" /dev/md$unit $dir
 	done
 }
 
