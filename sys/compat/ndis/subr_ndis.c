@@ -171,7 +171,8 @@ __stdcall static void ndis_free_mapreg(ndis_handle);
 static void ndis_mapshared_cb(void *, bus_dma_segment_t *, int, int);
 __stdcall static void ndis_alloc_sharedmem(ndis_handle, uint32_t,
 	uint8_t, void **, ndis_physaddr *);
-__stdcall static void ndis_alloc_sharedmem_async(ndis_handle,
+static void ndis_asyncmem_complete(void *);
+__stdcall static ndis_status ndis_alloc_sharedmem_async(ndis_handle,
 	uint32_t, uint8_t, void *);
 __stdcall static void ndis_free_sharedmem(ndis_handle, uint32_t,
 	uint8_t, void *, ndis_physaddr);
@@ -1319,30 +1320,66 @@ ndis_alloc_sharedmem(adapter, len, cached, vaddr, paddr)
 	return;
 }
 
-__stdcall static void
+struct ndis_allocwork {
+	ndis_handle		na_adapter;
+	uint32_t		na_len;
+	uint8_t			na_cached;
+	void			*na_ctx;
+};
+
+static void
+ndis_asyncmem_complete(arg)
+	void			*arg;
+{
+	ndis_miniport_block	*block;
+	struct ndis_softc	*sc;
+	struct ndis_allocwork	*w;
+	void			*vaddr;
+	ndis_physaddr		paddr;
+	__stdcall ndis_allocdone_handler	donefunc;
+
+	w = arg;
+	block = (ndis_miniport_block *)w->na_adapter;
+	sc = (struct ndis_softc *)(block->nmb_ifp);
+
+	vaddr = NULL;
+	paddr.np_quad = 0;
+
+	donefunc = sc->ndis_chars.nmc_allocate_complete_func;
+	ndis_alloc_sharedmem(w->na_adapter, w->na_len,
+	    w->na_cached, &vaddr, &paddr);
+	donefunc(w->na_adapter, vaddr, &paddr, w->na_len, w->na_ctx);
+
+	free(arg, M_TEMP);
+
+	return;
+}
+
+__stdcall static ndis_status
 ndis_alloc_sharedmem_async(adapter, len, cached, ctx)
 	ndis_handle		adapter;
 	uint32_t		len;
 	uint8_t			cached;
 	void			*ctx;
 {
-	ndis_miniport_block	*block;
-	struct ndis_softc	*sc;
-	void			*vaddr;
-	ndis_physaddr		paddr;
-	__stdcall ndis_allocdone_handler	donefunc;
+	struct ndis_allocwork	*w;
 
 	if (adapter == NULL)
-		return;
+		return(NDIS_STATUS_FAILURE);
 
-	block = (ndis_miniport_block *)adapter;
-	sc = (struct ndis_softc *)(block->nmb_ifp);
-	donefunc = sc->ndis_chars.nmc_allocate_complete_func;
+	w = malloc(sizeof(struct ndis_allocwork), M_TEMP, M_NOWAIT);
 
-	ndis_alloc_sharedmem(adapter, len, cached, &vaddr, &paddr);
-	donefunc(adapter, vaddr, &paddr, len, ctx);
+	if (w == NULL)
+		return(NDIS_STATUS_FAILURE);
 
-	return;
+	w->na_adapter = adapter;
+	w->na_cached = cached;
+	w->na_len = len;
+	w->na_ctx = ctx;
+
+	ndis_sched(ndis_asyncmem_complete, w, NDIS_TASKQUEUE);
+
+	return(NDIS_STATUS_PENDING);
 }
 
 __stdcall static void
