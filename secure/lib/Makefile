@@ -9,7 +9,8 @@ SUBDIR+=libcrypto librsaglue libssl
 .if exists(${.CURDIR}/../../crypto/openssl/rsaref)
 SUBDIR+=librsausa
 .endif
-.if exists(${.CURDIR}/../../crypto/openssl/crypto/rsa/rsa_eay.c)
+.if exists(${.CURDIR}/../../crypto/openssl/crypto/rsa/rsa_eay.c) && \
+    (${USA_RESIDENT} != YES || defined(MAKE_RSAINTL))
 SUBDIR+=librsaintl
 .endif
 .endif
