@@ -1038,6 +1038,7 @@ options 	SES_ENABLE_PASSTHROUGH
 # `xterm', among others.
 
 device		pty		#Pseudo ttys
+device		nmdm		#back-to-back tty devices
 device		speaker		#Play IBM BASIC-style noises out your speaker
 device		gzip		#Exec gzipped a.out's
 device		md		#Memory/malloc disk
