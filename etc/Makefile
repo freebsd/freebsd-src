@@ -11,7 +11,7 @@ BIN1=   aliases amd.map auth.conf crontab csh.cshrc csh.login csh.logout \
 	phones printcap profile protocols rc rc.atm rc.devfs rc.diskless1 \
 	rc.diskless2 rc.firewall rc.isdn rc.network rc.pccard rc.serial \
 	rc.shutdown etc.${MACHINE_ARCH}/rc.${MACHINE_ARCH} remote security \
-	services shells syslog.conf etc.${MACHINE_ARCH}/ttys \
+	rc.sysctl services shells syslog.conf etc.${MACHINE_ARCH}/ttys \
 	etc.${MACHINE_ARCH}/disktab rpc make.conf \
 	${.CURDIR}/../gnu/usr.bin/man/manpath/manpath.config \
 	${.CURDIR}/../usr.bin/mail/misc/mail.rc \
