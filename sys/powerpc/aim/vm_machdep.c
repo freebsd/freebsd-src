@@ -38,7 +38,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.15 1999/06/08 16:42:19 dt Exp $
+ *	$Id: vm_machdep.c,v 1.16 1999/06/10 20:40:59 dt Exp $
  */
 /*
  * Copyright (c) 1994, 1995, 1996 Carnegie-Mellon University.
@@ -218,8 +218,8 @@ cpu_fork(p1, p2)
 void
 cpu_set_fork_handler(p, func, arg)
 	struct proc *p;
-	void (*func) __P((const void *));
-	const void *arg;
+	void (*func) __P((void *));
+	void *arg;
 {
 	/*
 	 * Note that the trap frame follows the args, so the function

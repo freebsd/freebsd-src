@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.141 1999/04/23 20:29:57 dt Exp $
+ * $Id: vm_pageout.c,v 1.142 1999/06/26 14:56:58 peter Exp $
  */
 
 /*
@@ -77,6 +77,7 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/proc.h>
+#include <sys/kthread.h>
 #include <sys/resourcevar.h>
 #include <sys/signalvar.h>
 #include <sys/vnode.h>
@@ -111,7 +112,7 @@ static struct kproc_desc page_kp = {
 	vm_pageout,
 	&pageproc
 };
-SYSINIT_KT(pagedaemon, SI_SUB_KTHREAD_PAGE, SI_ORDER_FIRST, kproc_start, &page_kp)
+SYSINIT(pagedaemon, SI_SUB_KTHREAD_PAGE, SI_ORDER_FIRST, kproc_start, &page_kp)
 
 #if !defined(NO_SWAPPING)
 /* the kernel process "vm_daemon"*/
@@ -123,7 +124,7 @@ static struct kproc_desc vm_kp = {
 	vm_daemon,
 	&vmproc
 };
-SYSINIT_KT(vmdaemon, SI_SUB_KTHREAD_VM, SI_ORDER_FIRST, kproc_start, &vm_kp)
+SYSINIT(vmdaemon, SI_SUB_KTHREAD_VM, SI_ORDER_FIRST, kproc_start, &vm_kp)
 #endif
 
 
