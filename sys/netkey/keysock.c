@@ -579,7 +579,7 @@ extern struct domain keydomain;
 
 struct protosw keysw[] = {
 { SOCK_RAW,	&keydomain,	PF_KEY_V2,	PR_ATOMIC|PR_ADDR,
-  0,		key_output,	raw_ctlinput,	0,
+  0,		(pr_output_t *)key_output, raw_ctlinput, 0,
   0,
   raw_init,	0,		0,		0,
   &key_usrreqs
