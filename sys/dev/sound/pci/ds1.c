@@ -114,6 +114,7 @@ struct sc_info {
 	int		regid, irqid;
 	void		*ih;
 
+	void *regbase;
 	u_int32_t *pbase, pbankbase, pbanksize;
 	volatile struct pbank *pbank[2 * 64];
 	volatile struct rbank *rbank;
@@ -215,6 +216,14 @@ static pcm_channel ds_pchantemplate = {
 	ds1pchan_trigger,
 	ds1pchan_getptr,
 	ds1pchan_getcaps,
+	NULL, 			/* free */
+	NULL, 			/* nop1 */
+	NULL, 			/* nop2 */
+	NULL, 			/* nop3 */
+	NULL, 			/* nop4 */
+	NULL, 			/* nop5 */
+	NULL, 			/* nop6 */
+	NULL, 			/* nop7 */
 };
 
 static pcm_channel ds_rchantemplate = {
@@ -226,6 +235,14 @@ static pcm_channel ds_rchantemplate = {
 	ds1rchan_trigger,
 	ds1rchan_getptr,
 	ds1rchan_getcaps,
+	NULL, 			/* free */
+	NULL, 			/* nop1 */
+	NULL, 			/* nop2 */
+	NULL, 			/* nop3 */
+	NULL, 			/* nop4 */
+	NULL, 			/* nop5 */
+	NULL, 			/* nop6 */
+	NULL, 			/* nop7 */
 };
 
 /* -------------------------------------------------------------------- */
@@ -819,14 +836,18 @@ ds_init(struct sc_info *sc)
 	memsz = 64 * 2 * pcs + 2 * 2 * rcs + 5 * 2 * ecs + ws;
 	memsz += (64 + 1) * 4;
 
-	if (bus_dmamem_alloc(sc->parent_dmat, &buf, BUS_DMA_NOWAIT, &map))
-		return -1;
-	if (bus_dmamap_load(sc->parent_dmat, map, buf, memsz, ds_setmap, sc, 0)
-	    || !sc->ctrlbase) {
-		device_printf(sc->dev, "pcs=%d, rcs=%d, ecs=%d, ws=%d, memsz=%d\n",
-			      pcs, rcs, ecs, ws, memsz);
-		return -1;
-	}
+	if (sc->regbase == NULL) {
+		if (bus_dmamem_alloc(sc->parent_dmat, &buf, BUS_DMA_NOWAIT, &map))
+			return -1;
+		if (bus_dmamap_load(sc->parent_dmat, map, buf, memsz, ds_setmap, sc, 0)
+	    	|| !sc->ctrlbase) {
+			device_printf(sc->dev, "pcs=%d, rcs=%d, ecs=%d, ws=%d, memsz=%d\n",
+			      	pcs, rcs, ecs, ws, memsz);
+			return -1;
+		}
+		sc->regbase = buf;
+	} else
+		buf = sc->regbase;
 
 	cb = 0;
 	t = buf;
@@ -938,6 +959,7 @@ ds_pci_attach(device_t dev)
 		goto bad;
 	}
 
+	sc->regbase = NULL;
 	if (ds_init(sc) == -1) {
 		device_printf(dev, "unable to initialize the card\n");
 		goto bad;
@@ -981,11 +1003,31 @@ bad:
 	return ENXIO;
 }
 
+static int
+ds_pci_resume(device_t dev)
+{
+       snddev_info *d;
+       struct sc_info *sc;
+
+       d = device_get_softc(dev);
+       sc = pcm_getdevinfo(dev);
+
+       if (ds_init(sc) == -1) {
+           device_printf(dev, "unable to reinitialize the card\n");
+           return ENXIO;
+       }
+       if (mixer_reinit(d) == -1) {
+               device_printf(dev, "unable to reinitialize the mixer\n");
+               return ENXIO;
+       }
+       return 0;
+}
+
 static device_method_t ds1_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		ds_pci_probe),
 	DEVMETHOD(device_attach,	ds_pci_attach),
-
+        DEVMETHOD(device_resume,        ds_pci_resume),
 	{ 0, 0 }
 };
 
