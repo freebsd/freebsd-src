@@ -148,6 +148,7 @@ static struct ida_board board_id[] = {
 	{ 0x40340E11, "Compaq Smart Array 221 controller",    &ida_v3_access },
 
 	{ 0x40400E11, "Compaq Integrated Array controller",   &ida_v4_access },
+	{ 0x40480E11, "Compaq RAID LC2 controller",           &ida_v4_access },
 	{ 0x40500E11, "Compaq Smart Array 4200 controller",   &ida_v4_access },
 	{ 0x40510E11, "Compaq Smart Array 4250ES controller", &ida_v4_access },
 	{ 0x40580E11, "Compaq Smart Array 431 controller",    &ida_v4_access },
@@ -211,6 +212,7 @@ static int
 ida_pci_attach(device_t dev)
 {
 	struct ida_board *board = ida_pci_match(dev);
+	u_int32_t id = pci_get_devid(dev);
 	struct ida_softc *ida;
 	u_int command;
 	int error, rid;
@@ -231,7 +233,7 @@ ida_pci_attach(device_t dev)
 
 	ida->regs_res_type = SYS_RES_MEMORY;
 	ida->regs_res_id = IDA_PCI_MEMADDR;
-	if (board->board == IDA_DEVICEID_DEC_SMART)
+	if (id == IDA_DEVICEID_DEC_SMART)
 		ida->regs_res_id = PCIR_MAPS;
 
 	ida->regs = bus_alloc_resource(dev, ida->regs_res_type,
