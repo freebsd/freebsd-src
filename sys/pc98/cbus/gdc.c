@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: pc98gdc.c,v 1.3 1999/01/18 14:55:38 kato Exp $
+ *	$Id: pc98gdc.c,v 1.4 1999/01/28 11:24:36 kato Exp $
  */
 
 #include "gdc.h"
@@ -215,8 +215,8 @@ static video_adapter_t adapter_init_value[] = {
       VIDEO_BUF_BASE, VIDEO_BUF_SIZE,	/* va_mem* */
       TEXT_BUF_BASE, TEXT_BUF_SIZE, TEXT_BUF_SIZE, /* va_window* */
       0, 0, 				/* va_buffer, va_buffer_size */
-      0, M_PC98_80x25, 0, 0,		/* va_*mode* */
-      NULL },
+      0, M_PC98_80x25, 0, 		/* va_*mode* */
+    },
 };
 
 static video_adapter_t	biosadapter[1];
@@ -351,12 +351,31 @@ probe_adapters(void)
     gdc_cmd(_GDC_STOP);		/* graphics OFF */
 
     gdc_get_info(&biosadapter[0], biosadapter[0].va_initial_mode, &info);
-    biosadapter[0].va_mode_flags = info.vi_flags;
     biosadapter[0].va_window = BIOS_PADDRTOVADDR(info.vi_window);
     biosadapter[0].va_window_size = info.vi_window_size;
     biosadapter[0].va_window_gran = info.vi_window_gran;
     biosadapter[0].va_buffer = 0;
     biosadapter[0].va_buffer_size = 0;
+    if (info.vi_flags & V_INFO_GRAPHICS) {
+	switch (info.vi_depth/info.vi_planes) {
+	case 1:
+	    biosadapter[0].va_line_width = info.vi_width/8;
+	    break;
+	case 2:
+	    biosadapter[0].va_line_width = info.vi_width/4;
+	    break;
+	case 4:
+	    biosadapter[0].va_line_width = info.vi_width/2;
+	    break;
+	case 8:
+	default: /* shouldn't happen */
+	    biosadapter[0].va_line_width = info.vi_width;
+	    break;
+	}
+    } else {
+	biosadapter[0].va_line_width = info.vi_width;
+    }
+    bcopy(&info, &biosadapter[0].va_info, sizeof(info));
 
     return 1;
 }
@@ -663,7 +682,6 @@ gdc_set_mode(video_adapter_t *adp, int mode)
 #endif
 
     adp->va_mode = mode;
-    adp->va_mode_flags = info.vi_flags;
     adp->va_flags &= ~V_ADP_COLOR;
     adp->va_flags |= 
 	(info.vi_flags & V_INFO_COLOR) ? V_ADP_COLOR : 0;
@@ -681,6 +699,26 @@ gdc_set_mode(video_adapter_t *adp, int mode)
     	adp->va_buffer = BIOS_PADDRTOVADDR(info.vi_buffer);
     	adp->va_buffer_size = info.vi_buffer_size;
     }
+    if (info.vi_flags & V_INFO_GRAPHICS) {
+	switch (info.vi_depth/info.vi_planes) {
+	case 1:
+	    adp->va_line_width = info.vi_width/8;
+	    break;
+	case 2:
+	    adp->va_line_width = info.vi_width/4;
+	    break;
+	case 4:
+	    adp->va_line_width = info.vi_width/2;
+	    break;
+	case 8:
+	default: /* shouldn't happen */
+	    adp->va_line_width = info.vi_width;
+	    break;
+	}
+    } else {
+	adp->va_line_width = info.vi_width;
+    }
+    bcopy(&info, &adp->va_info, sizeof(info));
 
     /* move hardware cursor out of the way */
     (*vidsw[adp->va_index]->set_hw_cursor)(adp, -1, -1);
@@ -726,15 +764,13 @@ gdc_load_state(video_adapter_t *adp, void *p)
 static int
 gdc_read_hw_cursor(video_adapter_t *adp, int *col, int *row)
 {
-    video_info_t info;
     u_int16_t off;
     int s;
 
     if (!init_done)
 	return 1;
 
-    (*vidsw[adp->va_index]->get_info)(adp, adp->va_mode, &info);
-    if (info.vi_flags & V_INFO_GRAPHICS)
+    if (adp->va_info.vi_flags & V_INFO_GRAPHICS)
 	return 1;
 
     s = spltty();
@@ -749,8 +785,8 @@ gdc_read_hw_cursor(video_adapter_t *adp, int *col, int *row)
 
     if (off >= ROW*COL)
 	off = 0;
-    *row = off / info.vi_width;
-    *col = off % info.vi_width;
+    *row = off / adp->va_info.vi_width;
+    *col = off % adp->va_info.vi_width;
 
     return 0;
 }
@@ -763,7 +799,6 @@ gdc_read_hw_cursor(video_adapter_t *adp, int *col, int *row)
 static int
 gdc_set_hw_cursor(video_adapter_t *adp, int col, int row)
 {
-    video_info_t info;
     u_int16_t off;
     int s;
 
@@ -773,10 +808,9 @@ gdc_set_hw_cursor(video_adapter_t *adp, int col, int row)
     if ((col == -1) && (row == -1)) {
 	off = -1;
     } else {
-	(*vidsw[adp->va_index]->get_info)(adp, adp->va_mode, &info);
-	if (info.vi_flags & V_INFO_GRAPHICS)
+	if (adp->va_info.vi_flags & V_INFO_GRAPHICS)
 	    return 1;
-	off = row*info.vi_width + col;
+	off = row*adp->va_info.vi_width + col;
     }
 
     s = spltty();
