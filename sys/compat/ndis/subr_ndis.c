@@ -1045,10 +1045,6 @@ ndis_tick(arg)
 
 	timer = arg;
 
-	timerfunc = (ndis_timer_function)timer->nmt_dpc.nk_deferedfunc;
-	timerfunc(NULL, timer->nmt_dpc.nk_deferredctx, NULL, NULL);
-	ntoskrnl_wakeup(&timer->nmt_ktimer.nk_header);
-
 	/* Automatically reload timer. */
 
 	tv.tv_sec = 0;
@@ -1057,6 +1053,10 @@ ndis_tick(arg)
 	timer->nmt_ktimer.nk_header.dh_sigstate = FALSE;
 	timer->nmt_dpc.nk_sysarg2 = ndis_tick;
 	callout_reset(ch, tvtohz(&tv), timer->nmt_dpc.nk_sysarg2, timer);
+
+	timerfunc = (ndis_timer_function)timer->nmt_dpc.nk_deferedfunc;
+	timerfunc(NULL, timer->nmt_dpc.nk_deferredctx, NULL, NULL);
+	ntoskrnl_wakeup(&timer->nmt_ktimer.nk_header);
 
 	return;
 }
