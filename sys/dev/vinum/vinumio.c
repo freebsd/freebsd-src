@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumio.c,v 1.24 1999/03/23 02:00:52 grog Exp grog $
+ * $Id: vinumio.c,v 1.31 1999/06/29 04:08:51 grog Exp $
  */
 
 #include <dev/vinum/vinumhdr.h>
@@ -272,7 +272,7 @@ driveio(struct drive *drive, char *buf, size_t length, off_t offset, int flag)
 
 	bp = geteblk(len);				    /* get a buffer header */
 	bp->b_flags = flag;
-	bp->b_dev = drive->vp->v_un.vu_specinfo->si_rdev;   /* device */
+	bp->b_dev = drive->vp->v_rdev;			    /* device */
 	bp->b_blkno = offset / drive->partinfo.disklab->d_secsize; /* block number */
 	bp->b_data = buf;
 	bp->b_bcount = len;
