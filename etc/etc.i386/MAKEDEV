@@ -94,6 +94,7 @@
 #	ugen*	generic USB device
 #
 # SCSI devices (other than CD-ROM, tape and disk):
+#	ch*	SCSI Media-Changer (juke box) driver
 #	ssc	The ``super scsi'' device
 #	worm*	WORM driver
 #	pt*	Processor Type (HP scanner, as one example)
