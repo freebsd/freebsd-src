@@ -52,4 +52,22 @@ struct uninorth_softc {
 	bus_dma_tag_t		sc_dmat;
 };
 
-#endif	/* _POWERPC_POWERMAC_UNINORTHVAR_H_ */
+struct unin_chip_softc {
+	vm_offset_t		sc_physaddr;
+	vm_offset_t		sc_addr;
+	u_int			sc_size;
+	int			sc_version;
+};
+
+/*
+ * Version register
+ */
+#define UNIN_VERS       0x0
+
+/*
+ * Clock-control register
+ */
+#define UNIN_CLOCKCNTL  0x20
+#define UNIN_CLOCKCNTL_GMAC   0x2
+
+#endif  /* _POWERPC_POWERMAC_UNINORTHVAR_H_ */
