@@ -777,7 +777,7 @@ ieee80211_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			}
 			len = (u_int) ic->ic_nw_keys[kid].wk_len;
 			/* NB: only root can read WEP keys */
-			if (suser(curthread)) {
+			if (suser(curthread) == 0) {
 				bcopy(ic->ic_nw_keys[kid].wk_key, tmpkey, len);
 			} else {
 				bzero(tmpkey, len);
