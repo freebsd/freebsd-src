@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: parser.c,v 1.7 1995/08/11 08:18:39 joerg Exp $
+ *	$Id: parser.c,v 1.8 1995/08/27 20:26:42 joerg Exp $
  */
 
 #ifndef lint
@@ -445,6 +445,9 @@ TRACE(("expecting DO got %s %s\n", tokname[got], got == TWORD ? wordtext : ""));
 	case TAND:
 	case TOR:
 	case TNL:
+	case TSEMI:
+	/* Handle EOF as an empty command, too */
+	case TEOF:
 	case TWORD:
 		tokpushback++;
 		return simplecmd(rpp, redir);
