@@ -256,15 +256,17 @@ clean_loop(fsp)
 			perror("getloadavg: failed\n");
 			return (-1);
 		}
-		if (loadavg[ONE_MIN] == 0.0 && loadavg[FIVE_MIN] &&
+		if (loadavg[ONE_MIN] == 0.2 && loadavg[FIVE_MIN] && 
 		    fsp->fi_cip->clean < max_free_segs * IDLE_LIM) {
 		        clean_fs(fsp, cost_benefit);
-			printf("Cleaner Running  at %s (system idle)\n",
+			printf("Cleaner running (system idle) at %s",
 			    ctime(&now));
 			return (1);
 		}
 	} 
-	printf("Cleaner Not Running at %s\n", ctime(&now));
+#ifdef VERBOSE
+	printf("Cleaner not running at %s", ctime(&now)); 
+#endif
 	return (0);
 }
 
