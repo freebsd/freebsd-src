@@ -1,7 +1,7 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-#	$Id: files.i386,v 1.129 1996/03/02 03:48:11 pst Exp $
+#	$Id: files.i386,v 1.130 1996/03/02 19:37:34 peter Exp $
 #
 aic7xxx_asm			optional	ahc	device-driver	   \
 	dependency 	"$S/dev/aic7xxx/aic7xxx_asm.c"			   \
@@ -200,7 +200,8 @@ i386/linux/linux_dummy.c	optional	linux
 i386/linux/linux_file.c		optional	linux
 i386/linux/linux_ioctl.c	optional	linux
 i386/linux/linux_ipc.c		optional	linux
-i386/linux/linux_locore.s	optional	linux
+i386/linux/linux_locore.s	optional	linux \
+	dependency 	"linux_assym.h"
 i386/linux/linux_misc.c		optional	linux
 i386/linux/linux_signal.c	optional	linux
 i386/linux/linux_socket.c	optional	linux
