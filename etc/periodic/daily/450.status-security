@@ -23,11 +23,6 @@ case "$daily_status_security_enable" in
 		args=;;
 	esac
 
-	case "$daily_status_security_nomfs" in
-	    [Yy][Ee][Ss])
-		args="$args -m";;
-	esac
-
 	case "$daily_status_security_inline" in
 	    [Yy][Ee][Ss])
 		sh /etc/security -s $args

@@ -39,7 +39,7 @@ DGEN=	conf \
 	hp hp/dev hp/hpux \
 	kern libkern \
 	net netccitt netinet netiso netns nfs scripts sys \
-	ufs ufs/ffs ufs/lfs ufs/mfs ufs/ufs \
+	ufs ufs/ffs ufs/lfs ufs/ufs \
 	vm
 
 tags::
