@@ -435,6 +435,36 @@ nat_SetTarget(struct cmdargs const *arg)
   return 0;
 }
 
+#ifndef NO_FW_PUNCH
+int
+nat_PunchFW(struct cmdargs const *arg)
+{
+  char *end;
+  long base, count;
+
+  if (arg->argc == arg->argn) {
+    PacketAliasSetMode(0, PKT_ALIAS_PUNCH_FW);
+    return 0;
+  }
+
+  if (arg->argc != arg->argn + 2)
+    return -1;
+
+  base = strtol(arg->argv[arg->argn], &end, 10);
+  if (*end != '\0' || base < 0)
+    return -1;
+
+  count = strtol(arg->argv[arg->argn + 1], &end, 10);
+  if (*end != '\0' || count < 0)
+    return -1;
+
+  PacketAliasSetFWBase(base, count);
+  PacketAliasSetMode(PKT_ALIAS_PUNCH_FW, PKT_ALIAS_PUNCH_FW);
+
+  return 0;
+}
+#endif
+
 static struct mbuf *
 nat_LayerPush(struct bundle *bundle, struct link *l, struct mbuf *bp,
                 int pri, u_short *proto)
