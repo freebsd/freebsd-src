@@ -12,6 +12,13 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
+ *
+ * PATCHES MAGIC                LEVEL   PATCH THAT GOT US HERE
+ * --------------------         -----   ----------------------
+ * CURRENT PATCH LEVEL:         1       00098
+ * --------------------         -----   ----------------------
+ *
+ * 16 Feb 93	Julian Elischer		ADDED for SCSI system
  */
 
 /*
@@ -20,34 +27,17 @@
 
 /*
  * HISTORY
- * $Log: aha1542.c,v $
- * Revision 1.4  1993/08/06  11:58:59  rgrimes
- * Fixed **probing for scsi devices** message to have a controller and unit
- * message on the begining of it:
- * aha0: **probing for scsi devices**
- *
- * Revision 1.3  1993/07/29  11:55:31  nate
- * Syncing our sources back with Julian's, and removing PATCHKIT headers.
- *
- * Large Bustek changes, most everything else is minimal.
- *
- * Revision 1.2  1993/07/15  17:52:58  davidg
- * Modified attach printf's so that the output is compatible with the "new"
- * way of doing things. There still remain several drivers that need to
- * be updated.  Also added a compile-time option to pccons to switch the
- * control and caps-lock keys (REVERSE_CAPS_CTRL) - added for my personal
- * sanity.
- *
- * Revision 1.1.1.1  1993/06/12  14:57:59  rgrimes
- * Initial import, 0.1 + pk 0.2.4-B1
- *
- * Revision 1.3  93/05/22  16:51:18  julian
+ * $Log:	aha1542.c,v $
+ * Revision 1.4  93/08/07  13:17:25  julian
+ * replaced private timeout stuff with system timeout calls
+ * 
+ * Revision 1.3  93/05/22  16:51:18  root
  * set up  dev->dev_pic before it's needed for OSF
  * 
- * Revision 1.2  93/05/07  11:40:27  julian
+ * Revision 1.2  93/05/07  11:40:27  root
  * fixed SLEEPTIME calculation
  * 
- * Revision 1.1  93/05/07  11:14:03  julian
+ * Revision 1.1  93/05/07  11:14:03  root
  * Initial revision
  * 
  * Revision 1.6  1992/08/24  21:01:58  jason
@@ -148,6 +138,7 @@ int	Debugger();
 #define Debugger() panic("should call debugger here (adaptec.c)")
 #endif	NDDB
 #endif	__386BSD__
+extern int 	hz;
 extern int delaycount;  /* from clock setup code */
 
 /************************** board definitions *******************************/
@@ -280,8 +271,6 @@ struct aha_ccb {
 	struct	aha_ccb	*next;
 	struct	scsi_xfer	*xfer;		/* the scsi_xfer for this cmd */
 	struct	aha_mbx_out	*mbx;		/* pointer to mail box */
-	long int	delta;	/* difference from previous*/
-	struct	aha_ccb	*later,*sooner;
 	int	flags;
 #define CCB_FREE        0
 #define CCB_ACTIVE      1
@@ -289,9 +278,6 @@ struct aha_ccb {
 
 };
 
-struct	aha_ccb *aha_soonest = (struct  aha_ccb *)0;
-struct	aha_ccb	*aha_latest = (struct  aha_ccb *)0;
-long int	aha_furtherest = 0;	/* longest time in the timeout queue */
 
 /*
  * opcode fields
@@ -403,7 +389,9 @@ int			aha_initialized[NAHA];
 #ifdef	OSF
 int			aha_attached[NAHA];
 #endif	OSF
-int			aha_debug = 0;
+#ifdef	AHADEBUG
+int			aha_debug = 1;
+#endif	/*AHADEBUG*/
 
 int ahaprobe(), ahaattach(), ahaintr();
 #ifdef	MACH
@@ -643,6 +631,7 @@ struct isa_dev *dev;
  		panic("Unable to add aha interrupt handler");
 #endif /* !defined(OSF) */
 #ifdef	__386BSD__
+	printf("\n  **");
 #else	__386BSD__
 	printf("port=%x spl=%d\n",
 	   dev->dev_addr, dev->dev_spl);
@@ -660,7 +649,7 @@ struct	isa_dev	*dev;
 	int	unit = dev->dev_unit;
 
 #ifdef	__386BSD__
-	printf("aha%d: **probing for scsi devices**\n", unit);
+	printf(" probing for scsi devices**\n");
 #endif	__386BSD__
 	/***********************************************\
 	* ask the adapter what subunits are present	*
@@ -669,10 +658,9 @@ struct	isa_dev	*dev;
 #if defined(OSF)
 	aha_attached[unit]=1;
 #endif /* defined(OSF) */
-	if(!unit) /* only one for all boards */
-	{
-		aha_timeout(0);
-	}
+#ifdef	__386BSD__
+	printf("aha%d",unit);
+#endif	__386BSD__
 	return;
 
 }
@@ -697,8 +685,10 @@ ahaintr(unit)
 	unsigned char stat;
 	register i;
 
+#ifdef	AHADEBUG
 	if(scsi_debug & PRINTROUTINES)
 		printf("ahaintr ");
+#endif	/*AHADEBUG*/
 	/***********************************************\
 	* First acknowlege the interrupt, Then if it's	*
 	* not telling about a completed operation	*
@@ -706,12 +696,16 @@ ahaintr(unit)
 	\***********************************************/
 	stat = inb(AHA_INTR_PORT);
 	outb(AHA_CTRL_STAT_PORT, AHA_IRST);
+#ifdef	AHADEBUG
 	if(scsi_debug & TRACEINTERRUPTS)
 		printf("int ");
+#endif	/*AHADEBUG*/
 	if (! (stat & AHA_MBIF))
 		return(1);
+#ifdef	AHADEBUG
 	if(scsi_debug & TRACEINTERRUPTS)
 		printf("b ");
+#endif	/*AHADEBUG*/
 #if defined(OSF)
 	if (!aha_attached[unit])
 	{
@@ -733,15 +727,19 @@ ahaintr(unit)
 				switch(stat)
 				{
 				case	AHA_MBI_ABORT:
+#ifdef	AHADEBUG
 					if(aha_debug)
 					    printf("abort");
+#endif	/*AHADEBUG*/
 					ccb->host_stat = AHA_ABORTED;
 					break;
 
 				case	AHA_MBI_UNKNOWN:
 					ccb = (struct aha_ccb *)0;
+#ifdef	AHADEBUG
 					if(aha_debug)
 					     printf("unknown ccb for abort ");
+#endif	/*AHADEBUG*/
 					/* may have missed it */
 					/* no such ccb known for abort */
 
@@ -752,6 +750,7 @@ ahaintr(unit)
 					panic("Impossible mbxi status");
 
 				}
+#ifdef	AHADEBUG
 				if( aha_debug && ccb )
 				{
 					u_char	*cp;
@@ -763,10 +762,11 @@ ahaintr(unit)
 						, aha_mbx[unit].mbi[i].stat, i);
 					printf("addr = 0x%x\n", ccb);
 				}
+#endif	/*AHADEBUG*/
 			}
 			if(ccb)
 			{
-				aha_remove_timeout(ccb);
+				untimeout(aha_timeout,ccb);
 				aha_done(unit,ccb);
 			}
 			aha_mbx[unit].mbi[i].stat = AHA_MBI_FREE;
@@ -784,19 +784,16 @@ struct aha_ccb *ccb;
 {
 	unsigned int opri;
 	
+#ifdef	AHADEBUG
 	if(scsi_debug & PRINTROUTINES)
 		printf("ccb%d(0x%x)> ",unit,flags);
+#endif	/*AHADEBUG*/
 	if (!(flags & SCSI_NOMASK)) 
 	  	opri = splbio();
 
 	ccb->next = aha_ccb_free[unit];
 	aha_ccb_free[unit] = ccb;
 	ccb->flags = CCB_FREE;
-	if(ccb->sooner || ccb->later)
-	{
-		printf("yikes, still in timeout queue\n");
-		aha_remove_timeout(ccb);
-	}
 	/***********************************************\
 	* If there were none, wake abybody waiting for	*
 	* one to come free, starting with queued entries*
@@ -817,8 +814,10 @@ aha_get_ccb(unit,flags)
 	unsigned opri;
 	struct aha_ccb *rc;
 
+#ifdef	AHADEBUG
 	if(scsi_debug & PRINTROUTINES)
 		printf("<ccb%d(0x%x) ",unit,flags);
+#endif	/*AHADEBUG*/
 	if (!(flags & SCSI_NOMASK)) 
 	  	opri = splbio();
 	/***********************************************\
@@ -851,8 +850,10 @@ struct aha_ccb *ccb;
 	struct	scsi_sense_data *s1,*s2;
 	struct	scsi_xfer *xs = ccb->xfer;
 
+#ifdef	AHADEBUG
 	if(scsi_debug & PRINTROUTINES )
 		printf("aha_done ");
+#endif	/*AHADEBUG*/
 	/***********************************************\
 	* Otherwise, put the results of the operation	*
 	* into the xfer and call whoever started it	*
@@ -880,11 +881,13 @@ struct aha_ccb *ccb;
 				break;
 			default:	/* Other scsi protocol messes */
 				xs->error = XS_DRIVER_STUFFUP;
+#ifdef	AHADEBUG
 				if (aha_debug > 1)
 				{
 					printf("host_stat%x\n",
 						ccb->host_stat);
 				}
+#endif	/*AHADEBUG*/
 			}
 
 		}
@@ -901,11 +904,13 @@ struct aha_ccb *ccb;
 				xs->error = XS_BUSY;
 				break;
 			default:
+#ifdef	AHADEBUG
 				if (aha_debug > 1)
 				{
 					printf("target_stat%x\n",
 						ccb->target_stat);
 				}
+#endif	/*AHADEBUG*/
 				xs->error = XS_DRIVER_STUFFUP;
 			}
 		}
@@ -946,8 +951,10 @@ int	unit;
 	}
 	if (i >= AHA_RESET_TIMEOUT)
 	{
+#ifdef	AHADEBUG
 		if (aha_debug)
 			printf("aha_init: No answer from adaptec board\n");
+#endif	/*AHADEBUG*/
 		return(ENXIO);
 	}
 
@@ -957,12 +964,12 @@ int	unit;
 	* level						*
 	\***********************************************/
 #ifdef	__386BSD__
+	printf("aha%d reading board settings, ",unit);
 #define	PRNT(x)
 #else	__386BSD__
 	printf("aha%d:",unit);
 #define	PRNT(x) printf(x)
 #endif	__386BSD__
-	DELAY(1000);	/* for Bustek 545 */
 	aha_cmd(unit,0, sizeof(conf), 0 ,&conf, AHA_CONF_GET);
 	switch(conf.chan)
 	{
@@ -1110,8 +1117,10 @@ struct scsi_xfer *xs;
 	struct	iovec	*iovp;
 	int	s;
 
+#ifdef	AHADEBUG
 	if(scsi_debug & PRINTROUTINES)
 		printf("aha_scsi_cmd ");
+#endif	/*AHADEBUG*/
 	/***********************************************\
 	* get a ccb (mbox-out) to use. If the transfer	*
 	* is from a buf (possibly from interrupt time)	*
@@ -1175,10 +1184,12 @@ struct scsi_xfer *xs;
 			{
 				lto3b(iovp->iov_base,&(sg->seg_addr));
 				lto3b(iovp->iov_len,&(sg->seg_len));
+#ifdef	AHADEBUG
 				if(scsi_debug & SHOWSCATGATH)
 					printf("(0x%x@0x%x)"
 							,iovp->iov_len
 							,iovp->iov_base);
+#endif	/*AHADEBUG*/
 				sg++;
 				iovp++;
 				seg++;
@@ -1191,8 +1202,10 @@ struct scsi_xfer *xs;
 			* Set up the scatter gather block		*
 			\***********************************************/
 		
+#ifdef	AHADEBUG
 			if(scsi_debug & SHOWSCATGATH)
 				printf("%d @0x%x:- ",xs->datalen,xs->data);
+#endif	/*AHADEBUG*/
 			datalen		=	xs->datalen;
 			thiskv		=	(int)xs->data;
 			thisphys	=	KVTOPHYS(thiskv);
@@ -1204,8 +1217,10 @@ struct scsi_xfer *xs;
 				/* put in the base address */
 				lto3b(thisphys,&(sg->seg_addr));
 		
+#ifdef	AHADEBUG
 				if(scsi_debug & SHOWSCATGATH)
 					printf("0x%x",thisphys);
+#endif	/*AHADEBUG*/
 	
 				/* do it at least once */
 				nextphys = thisphys;	
@@ -1235,16 +1250,20 @@ struct scsi_xfer *xs;
 				/***************************************\
 				* next page isn't contiguous, finish the seg*
 				\***************************************/
+#ifdef	AHADEBUG
 				if(scsi_debug & SHOWSCATGATH)
 					printf("(0x%x)",bytes_this_seg);
+#endif	/*AHADEBUG*/
 				lto3b(bytes_this_seg,&(sg->seg_len));	
 				sg++;
 				seg++;
 			}
 		}
 		lto3b(seg * sizeof(struct aha_scat_gath),ccb->data_length);
+#ifdef	AHADEBUG
 		if(scsi_debug & SHOWSCATGATH)
 			printf("\n");
+#endif	/*AHADEBUG*/
 		if (datalen)
 		{ /* there's still data, must have run out of segs! */
 			printf("aha_scsi_cmd%d: more than %d DMA segs\n",
@@ -1266,6 +1285,7 @@ struct scsi_xfer *xs;
 	\***********************************************/
 	if(!(flags & SCSI_RESET))
 		bcopy(xs->cmd, &ccb->scsi_cmd, ccb->scsi_cmd_length);
+#ifdef	AHADEBUG
 	if(scsi_debug & SHOWCOMMANDS)
 	{
 		u_char	*b = (u_char *)&ccb->scsi_cmd;
@@ -1291,22 +1311,27 @@ struct scsi_xfer *xs;
 			);
 		}
 	}
+#endif	/*AHADEBUG*/
 	if (!(flags & SCSI_NOMASK))
 	{
 		s= splbio(); /* stop instant timeouts */
-		aha_add_timeout(ccb,xs->timeout);
+		timeout(aha_timeout,ccb,(xs->timeout * hz) / 1000);
 		aha_startmbx(ccb->mbx);
 		/***********************************************\
 		* Usually return SUCCESSFULLY QUEUED		*
 		\***********************************************/
 		splx(s);
+#ifdef	AHADEBUG
 		if(scsi_debug & TRACEINTERRUPTS)
 			printf("sent ");
+#endif	/*AHADEBUG*/
 		return(SUCCESSFULLY_QUEUED);
 	}
 	aha_startmbx(ccb->mbx);
+#ifdef	AHADEBUG
 	if(scsi_debug & TRACEINTERRUPTS)
 		printf("cmd_sent, waiting ");
+#endif	/*AHADEBUG*/
 	/***********************************************\
 	* If we can't use interrupts, poll on completion*
 	\***********************************************/
@@ -1406,21 +1431,21 @@ int	unit;
 			{
 				speed++;
 			}
-/* XXX			printf("%d nSEC ok, use ",retval); */
+			printf("%d nSEC ok, use ",retval);
 			retval2 = aha_bus_speed_check(unit,speed);
 			if(retval2 == HAD_ERROR) /* retval is slowest already */
 			{
-/* XXX				printf("marginal "); */
+				printf("marginal ");
 				retval2 = retval;
 			}
 			if(retval2)
 			{
-/* XXX				printf("%d nSEC ",retval2); */
+				printf("%d nSEC ",retval2);
 				return(retval2);
 			}
 			else
 			{
-/* XXX				printf(".. slower failed, abort.\n",retval); */
+				printf(".. slower failed, abort.\n",retval);
 				return(0);
 			}
 
@@ -1498,166 +1523,45 @@ int	unit,speed;
 }
 
 
-/*
- *                +----------+    +----------+    +----------+
- * aha_soonest--->|    later |--->|     later|--->|     later|-->0
- *                | [Delta]  |    | [Delta]  |    | [Delta]  |
- *           0<---|sooner    |<---|sooner    |<---|sooner    |<---aha_latest
- *                +----------+    +----------+    +----------+
- *
- *     aha_furtherest = sum(Delta[1..n])
- */
-aha_add_timeout(ccb,time)
-struct	aha_ccb	*ccb;
-int	time;
+
+aha_timeout(struct aha_ccb *ccb)
 {
-	int	timeprev;
-	struct aha_ccb *prev;
-	int	s = splbio();
-
-	if(prev = aha_latest) /* yes, an assign */
-	{
-		timeprev = aha_furtherest;
-	}
-	else
-	{
-		timeprev = 0;
-	}
-	while(prev && (timeprev > time)) 
-	{
-		timeprev -= prev->delta;
-		prev = prev->sooner;
-	}
-	if(prev)
-	{
-		ccb->delta = time - timeprev;
-		if( ccb->later = prev->later) /* yes an assign */
-		{
-			ccb->later->sooner = ccb;
-			ccb->later->delta -= ccb->delta;
-		}
-		else
-		{
-			aha_furtherest = time;
-			aha_latest = ccb;
-		}
-		ccb->sooner = prev;
-		prev->later = ccb;
-	}
-	else
-	{
-		if( ccb->later = aha_soonest) /* yes, an assign*/
-		{
-			ccb->later->sooner = ccb;
-			ccb->later->delta -= time;
-		}
-		else
-		{
-			aha_furtherest = time;
-			aha_latest = ccb;
-		}
-		ccb->delta = time;
-		ccb->sooner = (struct aha_ccb *)0;
-		aha_soonest = ccb;
-	}
-	splx(s);
-}
-
-aha_remove_timeout(ccb)
-struct	aha_ccb	*ccb;
-{
-	int	s = splbio();
-
-	if(ccb->sooner)
-	{
-		ccb->sooner->later = ccb->later;
-	}
-	else
-	{
-		aha_soonest = ccb->later;
-	}
-	if(ccb->later)
-	{
-		ccb->later->sooner = ccb->sooner;
-		ccb->later->delta += ccb->delta;
-	}
-	else
-	{
-		aha_latest = ccb->sooner;
-		aha_furtherest -= ccb->delta;
-	}
-	ccb->sooner = ccb->later = (struct aha_ccb *)0;
-	splx(s);
-}
-
-
-extern int 	hz;
-#define ONETICK 500 /* milliseconds */
-#define SLEEPTIME ((hz * ONETICK) / 1000)
-aha_timeout(arg)
-int	arg;
-{
-	struct  aha_ccb  *ccb;
 	int	unit;
 	int	s	= splbio();
 
-	while( ccb = aha_soonest )
+	unit = ccb->xfer->adapter;
+	printf("aha%d: device %d timed out ",unit
+		,ccb->xfer->targ);
+
+	/***************************************\
+	* If The ccb's mbx is not free, then	*
+	* the board has gone south		*
+	\***************************************/
+	if(ccb->mbx->cmd != AHA_MBO_FREE)
 	{
-		if(ccb->delta <= ONETICK)
-		/***********************************************\
-		* It has timed out, we need to do some work	*
-		\***********************************************/
-		{
-			unit = ccb->xfer->adapter;
-			printf("aha%d: device %d timed out ",unit
-				,ccb->xfer->targ);
-
-			/***************************************\
-			* Unlink it from the queue		*
-			\***************************************/
-			aha_remove_timeout(ccb);
-
-			/***************************************\
-			* If The ccb's mbx is not free, then	*
-			* the board has gone south		*
-			\***************************************/
-			if(ccb->mbx->cmd != AHA_MBO_FREE)
-			{
-				printf("aha%d not taking commands!\n"
-							,unit);
-				Debugger();
-			}
-			/***************************************\
-			* If it has been through before, then	*
-			* a previous abort has failed, don't	*
-			* try abort again			*
-			\***************************************/
-			if(ccb->flags == CCB_ABORTED) /* abort timed out */
-			{
-				printf(" AGAIN\n");
-				ccb->xfer->retries = 0;	/* I MEAN IT ! */
-				ccb->host_stat = AHA_ABORTED;
-				aha_done(unit,ccb);
-			}
-			else	/* abort the operation that has timed out */
-			{
-				printf("\n");
-				aha_abortmbx(ccb->mbx);
-						/* 2 secs for the abort */
-				aha_add_timeout(ccb,2000 + ONETICK);
-				ccb->flags = CCB_ABORTED;
-			}
-		}
-		else
-		/***********************************************\
-		* It has not timed out, adjust and leave	*
-		\***********************************************/
-		{
-			ccb->delta -= ONETICK;
-			aha_furtherest -= ONETICK;
-			break;
-		}
+		printf("aha%d not taking commands!\n"
+					,unit);
+		Debugger();
+	}
+	/***************************************\
+	* If it has been through before, then	*
+	* a previous abort has failed, don't	*
+	* try abort again			*
+	\***************************************/
+	if(ccb->flags == CCB_ABORTED) /* abort timed out */
+	{
+		printf(" AGAIN\n");
+		ccb->xfer->retries = 0;	/* I MEAN IT ! */
+		ccb->host_stat = AHA_ABORTED;
+		aha_done(unit,ccb);
+	}
+	else	/* abort the operation that has timed out */
+	{
+		printf("\n");
+		aha_abortmbx(ccb->mbx);
+				/* 2 secs for the abort */
+		timeout(aha_timeout,ccb,2 * hz);
+		ccb->flags = CCB_ABORTED;
 	}
 	splx(s);
-	timeout(aha_timeout,arg,SLEEPTIME);
 }
