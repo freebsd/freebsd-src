@@ -39,7 +39,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  *
- * $Id: //depot/aic7xxx/aic7xxx/aic7xxx_pci.c#57 $
+ * $Id$
  *
  * $FreeBSD$
  */
@@ -696,8 +696,12 @@ static void aic787X_cable_detect(struct ahc_softc *ahc, int *internal50_present,
 static void aic785X_cable_detect(struct ahc_softc *ahc, int *internal50_present,
 				 int *externalcable_present,
 				 int *eeprom_present);
-static void write_brdctl(struct ahc_softc *ahc, uint8_t value);
+static void    write_brdctl(struct ahc_softc *ahc, uint8_t value);
 static uint8_t read_brdctl(struct ahc_softc *ahc);
+static void ahc_pci_intr(struct ahc_softc *ahc);
+static int  ahc_pci_chip_init(struct ahc_softc *ahc);
+static int  ahc_pci_suspend(struct ahc_softc *ahc);
+static int  ahc_pci_resume(struct ahc_softc *ahc);
 
 static int
 ahc_9005_subdevinfo_valid(uint16_t device, uint16_t vendor,
@@ -748,10 +752,7 @@ ahc_find_pci_device(ahc_dev_softc_t pci)
 	device = ahc_pci_read_config(pci, PCIR_DEVICE, /*bytes*/2);
 	subvendor = ahc_pci_read_config(pci, PCIR_SUBVEND_0, /*bytes*/2);
 	subdevice = ahc_pci_read_config(pci, PCIR_SUBDEV_0, /*bytes*/2);
-	full_id = ahc_compose_id(device,
-				 vendor,
-				 subdevice,
-				 subvendor);
+	full_id = ahc_compose_id(device, vendor, subdevice, subvendor);
 
 	/*
 	 * If the second function is not hooked up, ignore it.
@@ -833,18 +834,10 @@ ahc_pci_config(struct ahc_softc *ahc, struct ahc_pci_identity *entry)
 	ahc_pci_write_config(ahc->dev_softc, DEVCONFIG, devconfig, /*bytes*/4);
 
 	/* Ensure busmastering is enabled */
-	command = ahc_pci_read_config(ahc->dev_softc, PCIR_COMMAND, /*bytes*/1);
+	command = ahc_pci_read_config(ahc->dev_softc, PCIR_COMMAND, /*bytes*/2);
 	command |= PCIM_CMD_BUSMASTEREN;
 
-	/*
-	 * Disable PCI parity error reporting.  Users typically
-	 * do this to work around broken PCI chipsets that get
-	 * the parity timing wrong and thus generate lots of spurious
-	 * errors.
-	 */
-	if ((ahc->flags & AHC_DISABLE_PCI_PERR) != 0)
-		command &= ~PCIM_CMD_PERRESPEN;
-	ahc_pci_write_config(ahc->dev_softc, PCIR_COMMAND, command, /*bytes*/1);
+	ahc_pci_write_config(ahc->dev_softc, PCIR_COMMAND, command, /*bytes*/2);
 
 	/* On all PCI adapters, we allow SCB paging */
 	ahc->flags |= AHC_PAGESCBS;
@@ -853,7 +846,23 @@ ahc_pci_config(struct ahc_softc *ahc, struct ahc_pci_identity *entry)
 	if (error != 0)
 		return (error);
 
+	/*
+	 * Disable PCI parity error checking.  Users typically
+	 * do this to work around broken PCI chipsets that get
+	 * the parity timing wrong and thus generate lots of spurious
+	 * errors.  The chip only allows us to disable *all* parity
+	 * error reporting when doing this, so CIO bus, scb ram, and
+	 * scratch ram parity errors will be ignored too.
+	 */
+	if ((ahc->flags & AHC_DISABLE_PCI_PERR) != 0) {
+		ahc->pause |= FAILDIS;
+		ahc->unpause |= FAILDIS;
+	}
+
 	ahc->bus_intr = ahc_pci_intr;
+	ahc->bus_chip_init = ahc_pci_chip_init;
+	ahc->bus_suspend = ahc_pci_suspend;
+	ahc->bus_resume = ahc_pci_resume;
 
 	/* Remeber how the card was setup in case there is no SEEPROM */
 	if ((ahc_inb(ahc, HCNTRL) & POWRDN) == 0) {
@@ -992,6 +1001,35 @@ ahc_pci_config(struct ahc_softc *ahc, struct ahc_pci_identity *entry)
 	 */
 	if ((sxfrctl1 & STPWEN) != 0)
 		ahc->flags |= AHC_TERM_ENB_A;
+
+	/*
+	 * Save chip register configuration data for chip resets
+	 * that occur during runtime and resume events.
+	 */
+	ahc->bus_softc.pci_softc.devconfig =
+	    ahc_pci_read_config(ahc->dev_softc, DEVCONFIG, /*bytes*/4);
+	ahc->bus_softc.pci_softc.command =
+	    ahc_pci_read_config(ahc->dev_softc, PCIR_COMMAND, /*bytes*/1);
+	ahc->bus_softc.pci_softc.csize_lattime =
+	    ahc_pci_read_config(ahc->dev_softc, CSIZE_LATTIME, /*bytes*/1);
+	ahc->bus_softc.pci_softc.dscommand0 = ahc_inb(ahc, DSCOMMAND0);
+	ahc->bus_softc.pci_softc.dspcistatus = ahc_inb(ahc, DSPCISTATUS);
+	if ((ahc->features & AHC_DT) != 0) {
+		u_int sfunct;
+
+		sfunct = ahc_inb(ahc, SFUNCT) & ~ALT_MODE;
+		ahc_outb(ahc, SFUNCT, sfunct | ALT_MODE);
+		ahc->bus_softc.pci_softc.optionmode = ahc_inb(ahc, OPTIONMODE);
+		ahc->bus_softc.pci_softc.targcrccnt = ahc_inw(ahc, TARGCRCCNT);
+		ahc_outb(ahc, SFUNCT, sfunct);
+		ahc->bus_softc.pci_softc.crccontrol1 =
+		    ahc_inb(ahc, CRCCONTROL1);
+	}
+	if ((ahc->features & AHC_MULTI_FUNC) != 0)
+		ahc->bus_softc.pci_softc.scbbaddr = ahc_inb(ahc, SCBBADDR);
+
+	if ((ahc->features & AHC_ULTRA2) != 0)
+		ahc->bus_softc.pci_softc.dff_thrsh = ahc_inb(ahc, DFF_THRSH);
 
 	/* Core initialization */
 	error = ahc_init(ahc);
@@ -1412,6 +1450,7 @@ check_extport(struct ahc_softc *ahc, u_int *sxfrctl1)
 	}
 
 	if (have_autoterm) {
+		ahc->flags |= AHC_HAS_TERM_LOGIC;
 		ahc_acquire_seeprom(ahc, &sd);
 		configure_termination(ahc, &sd, sc->adapter_control, sxfrctl1);
 		ahc_release_seeprom(&sd);
@@ -1845,11 +1884,14 @@ aic785X_cable_detect(struct ahc_softc *ahc, int *internal50_present,
 	spiocap |= EXT_BRDCTL;
 	ahc_outb(ahc, SPIOCAP, spiocap);
 	ahc_outb(ahc, BRDCTL, BRDRW|BRDCS);
+	ahc_flush_device_writes(ahc);
+	ahc_delay(500);
 	ahc_outb(ahc, BRDCTL, 0);
+	ahc_flush_device_writes(ahc);
+	ahc_delay(500);
 	brdctl = ahc_inb(ahc, BRDCTL);
 	*internal50_present = (brdctl & BRDDAT5) ? 0 : 1;
 	*externalcable_present = (brdctl & BRDDAT6) ? 0 : 1;
-
 	*eeprom_present = (ahc_inb(ahc, SPIOCAP) & EEPROM) ? 1 : 0;
 }
 	
@@ -1943,7 +1985,7 @@ read_brdctl(ahc)
 	return (value);
 }
 
-void
+static void
 ahc_pci_intr(struct ahc_softc *ahc)
 {
 	u_int error;
@@ -1961,6 +2003,7 @@ ahc_pci_intr(struct ahc_softc *ahc)
 	      ahc_inb(ahc, SEQADDR0) | (ahc_inb(ahc, SEQADDR1) << 8));
 
 	if (status1 & DPE) {
+		ahc->pci_target_perr_count++;
 		printf("%s: Data Parity Error Detected during address "
 		       "or write data phase\n", ahc_name(ahc));
 	}
@@ -1992,7 +2035,87 @@ ahc_pci_intr(struct ahc_softc *ahc)
 		ahc_outb(ahc, CLRINT, CLRPARERR);
 	}
 
+	if (ahc->pci_target_perr_count > AHC_PCI_TARGET_PERR_THRESH) {
+		printf(
+"%s: WARNING WARNING WARNING WARNING\n"
+"%s: Too many PCI parity errors observed as a target.\n"
+"%s: Some device on this bus is generating bad parity.\n"
+"%s: This is an error *observed by*, not *generated by*, this controller.\n"
+"%s: PCI parity error checking has been disabled.\n"
+"%s: WARNING WARNING WARNING WARNING\n",
+		       ahc_name(ahc), ahc_name(ahc), ahc_name(ahc),
+		       ahc_name(ahc), ahc_name(ahc), ahc_name(ahc));
+		ahc->pause |= FAILDIS;
+		ahc->unpause |= FAILDIS;
+	}
 	ahc_unpause(ahc);
+}
+
+static int
+ahc_pci_chip_init(struct ahc_softc *ahc)
+{
+	ahc_outb(ahc, DSCOMMAND0, ahc->bus_softc.pci_softc.dscommand0);
+	ahc_outb(ahc, DSPCISTATUS, ahc->bus_softc.pci_softc.dspcistatus);
+	if ((ahc->features & AHC_DT) != 0) {
+		u_int sfunct;
+
+		sfunct = ahc_inb(ahc, SFUNCT) & ~ALT_MODE;
+		ahc_outb(ahc, SFUNCT, sfunct | ALT_MODE);
+		ahc_outb(ahc, OPTIONMODE, ahc->bus_softc.pci_softc.optionmode);
+		ahc_outw(ahc, TARGCRCCNT, ahc->bus_softc.pci_softc.targcrccnt);
+		ahc_outb(ahc, SFUNCT, sfunct);
+		ahc_outb(ahc, CRCCONTROL1,
+			 ahc->bus_softc.pci_softc.crccontrol1);
+	}
+	if ((ahc->features & AHC_MULTI_FUNC) != 0)
+		ahc_outb(ahc, SCBBADDR, ahc->bus_softc.pci_softc.scbbaddr);
+
+	if ((ahc->features & AHC_ULTRA2) != 0)
+		ahc_outb(ahc, DFF_THRSH, ahc->bus_softc.pci_softc.dff_thrsh);
+
+	return (ahc_chip_init(ahc));
+}
+
+static int
+ahc_pci_suspend(struct ahc_softc *ahc)
+{
+	return (ahc_suspend(ahc));
+}
+
+static int
+ahc_pci_resume(struct ahc_softc *ahc)
+{
+
+	ahc_power_state_change(ahc, AHC_POWER_STATE_D0);
+
+	/*
+	 * We assume that the OS has restored our register
+	 * mappings, etc.  Just update the config space registers
+	 * that the OS doesn't know about and rely on our chip
+	 * reset handler to handle the rest.
+	 */
+	ahc_pci_write_config(ahc->dev_softc, DEVCONFIG, /*bytes*/4,
+			     ahc->bus_softc.pci_softc.devconfig);
+	ahc_pci_write_config(ahc->dev_softc, PCIR_COMMAND, /*bytes*/1,
+			     ahc->bus_softc.pci_softc.command);
+	ahc_pci_write_config(ahc->dev_softc, CSIZE_LATTIME, /*bytes*/1,
+			     ahc->bus_softc.pci_softc.csize_lattime);
+	if ((ahc->flags & AHC_HAS_TERM_LOGIC) != 0) {
+		struct	seeprom_descriptor sd;
+		u_int	sxfrctl1;
+
+		sd.sd_ahc = ahc;
+		sd.sd_control_offset = SEECTL;		
+		sd.sd_status_offset = SEECTL;		
+		sd.sd_dataout_offset = SEECTL;		
+
+		ahc_acquire_seeprom(ahc, &sd);
+		configure_termination(ahc, &sd,
+				      ahc->seep_config->adapter_control,
+				      &sxfrctl1);
+		ahc_release_seeprom(&sd);
+	}
+	return (ahc_resume(ahc));
 }
 
 static int
@@ -2009,6 +2132,7 @@ ahc_aic785X_setup(struct ahc_softc *ahc)
 	rev = ahc_pci_read_config(pci, PCIR_REVID, /*bytes*/1);
 	if (rev >= 1)
 		ahc->bugs |= AHC_PCI_2_1_RETRY_BUG;
+	ahc->instruction_ram_size = 512;
 	return (0);
 }
 
@@ -2026,6 +2150,7 @@ ahc_aic7860_setup(struct ahc_softc *ahc)
 	rev = ahc_pci_read_config(pci, PCIR_REVID, /*bytes*/1);
 	if (rev >= 1)
 		ahc->bugs |= AHC_PCI_2_1_RETRY_BUG;
+	ahc->instruction_ram_size = 512;
 	return (0);
 }
 
@@ -2049,6 +2174,7 @@ ahc_aic7870_setup(struct ahc_softc *ahc)
 	ahc->chip = AHC_AIC7870;
 	ahc->features = AHC_AIC7870_FE;
 	ahc->bugs |= AHC_TMODE_WIDEODD_BUG|AHC_CACHETHEN_BUG|AHC_PCI_MWI_BUG;
+	ahc->instruction_ram_size = 512;
 	return (0);
 }
 
@@ -2102,6 +2228,7 @@ ahc_aic7880_setup(struct ahc_softc *ahc)
 	} else {
 		ahc->bugs |= AHC_CACHETHEN_BUG|AHC_PCI_MWI_BUG;
 	}
+	ahc->instruction_ram_size = 512;
 	return (0);
 }
 
@@ -2149,6 +2276,7 @@ ahc_aic7890_setup(struct ahc_softc *ahc)
 	rev = ahc_pci_read_config(pci, PCIR_REVID, /*bytes*/1);
 	if (rev == 0)
 		ahc->bugs |= AHC_AUTOFLUSH_BUG|AHC_CACHETHEN_BUG;
+	ahc->instruction_ram_size = 768;
 	return (0);
 }
 
@@ -2161,6 +2289,7 @@ ahc_aic7892_setup(struct ahc_softc *ahc)
 	ahc->features = AHC_AIC7892_FE;
 	ahc->flags |= AHC_NEWEEPROM_FMT;
 	ahc->bugs |= AHC_SCBCHAN_UPLOAD_BUG;
+	ahc->instruction_ram_size = 1024;
 	return (0);
 }
 
@@ -2216,6 +2345,7 @@ ahc_aic7895_setup(struct ahc_softc *ahc)
 	ahc_pci_write_config(pci, DEVCONFIG, devconfig, /*bytes*/1);
 #endif
 	ahc->flags |= AHC_NEWEEPROM_FMT;
+	ahc->instruction_ram_size = 512;
 	return (0);
 }
 
@@ -2230,6 +2360,7 @@ ahc_aic7896_setup(struct ahc_softc *ahc)
 	ahc->features = AHC_AIC7896_FE;
 	ahc->flags |= AHC_NEWEEPROM_FMT;
 	ahc->bugs |= AHC_CACHETHEN_DIS_BUG;
+	ahc->instruction_ram_size = 768;
 	return (0);
 }
 
@@ -2244,6 +2375,7 @@ ahc_aic7899_setup(struct ahc_softc *ahc)
 	ahc->features = AHC_AIC7899_FE;
 	ahc->flags |= AHC_NEWEEPROM_FMT;
 	ahc->bugs |= AHC_SCBCHAN_UPLOAD_BUG;
+	ahc->instruction_ram_size = 1024;
 	return (0);
 }
 
