@@ -219,6 +219,8 @@ static int
 aac_disk_attach(device_t dev)
 {
     struct aac_disk	*sc = (struct aac_disk *)device_get_softc(dev);
+    int			sgspace;
+    int			maxsg;
     
     debug_called(4);
 
@@ -256,11 +258,16 @@ aac_disk_attach(device_t dev)
     disks_registered++;
 #endif
 
-    /* 
-     * The adapters seem to have a 64K size limit on the max I/O size.  Set
-     * our size on accordance.
+    /*
+     * We can calculate the maximum number of s/g entries based on the size of the
+     * FIB and the command structures packed within it.
      */
-    sc->ad_dev_t->si_iosize_max = 65536;
+    sgspace = (sizeof(struct aac_fib) - sizeof(struct aac_fib_header) - 
+	       imax(sizeof(struct aac_blockwrite), sizeof(struct aac_blockread)));
+    maxsg = (sgspace - sizeof(struct aac_sg_table)) / sizeof(struct aac_sg_entry);
+	      
+    /* set the maximum I/O size to the theoretical worst maximum allowed by the S/G list size */
+    sc->ad_dev_t->si_iosize_max = (maxsg - 1) * PAGE_SIZE;
 
     return (0);
 }
