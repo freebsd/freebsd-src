@@ -293,7 +293,6 @@ iso88025_output(ifp, m, dst, rt0)
 		snap_type = ETHERTYPE_IP;
 		break;
 #endif	/* INET */
-#ifdef NOT_YET
 #ifdef INET6
 	case AF_INET6:
 		if (!nd6_storelladdr(&ac->ac_if, rt, m, dst, (u_char *)edst)) {
@@ -303,7 +302,6 @@ iso88025_output(ifp, m, dst, rt0)
 		snap_type = ETHERTYPE_IPV6;
 		break;
 #endif	/* INET6 */
-#endif	/* NOT_YET */
 #ifdef IPX
 	case AF_IPX:
 	{
@@ -575,14 +573,12 @@ iso88025_input(ifp, m)
 			isr = NETISR_IPX;
 			break;
 #endif	/* IPX_SNAP */
-#ifdef NOT_YET
 #ifdef INET6
 		case ETHERTYPE_IPV6:
 			th->iso88025_shost[0] &= ~(TR_RII); 
 			isr = NETISR_IPV6;
 			break;
 #endif	/* INET6 */
-#endif	/* NOT_YET */
 		default:
 			printf("iso88025_input: unexpected llc_snap ether_type  0x%02x\n", type);
 			ifp->if_noproto++;
