@@ -34,16 +34,6 @@
 void i386_unpend(void);		/* NOTE: not static, called from assembly */
 
 /*
- * Instrument our ability to run critical sections with interrupts
- * enabled.  Default is 1 (enabled).  The value can be changed on the
- * fly, at any time.  If set to 0 the original interrupt disablement
- * will be used for critical sections.
- */
-int critical_mode = 1;
-SYSCTL_INT(_debug, OID_AUTO, critical_mode,
-	CTLFLAG_RW, &critical_mode, 0, "");
-
-/*
  * cpu_unpend() -	called from critical_exit() inline after quick
  *			interrupt-pending check.
  */
@@ -66,8 +56,8 @@ cpu_unpend(void)
 /*
  * cpu_critical_fork_exit() - cleanup after fork
  *
- *	For i386 we do not have to do anything, td_critnest and
- *	td_savecrit are handled by the fork trampoline code.
+ *	For i386 we do not have to do anything, td_critnest is
+ *	handled by the fork trampoline code.
  */
 void
 cpu_critical_fork_exit(void)
@@ -77,16 +67,12 @@ cpu_critical_fork_exit(void)
 /*
  * cpu_thread_link() - thread linkup, initialize machine-dependant fields
  *
- *	(copy code originally in kern/kern_proc.c).  XXX we actually
- *	don't have to initialize this field but it's probably a good
- *	idea for the moment for debugging's sake.  The field is only
- *	valid when td_critnest is non-zero.
+ *	There are currently no machine-dependant fields that require 
+ *	initialization.
  */
 void
 cpu_thread_link(struct thread *td)
 {
-
-	td->td_md.md_savecrit = 0;
 }
 
 /*
