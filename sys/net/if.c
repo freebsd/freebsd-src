@@ -1626,7 +1626,7 @@ if_setlladdr(struct ifnet *ifp, const u_char *lladdr, int len)
 		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			if (ifa->ifa_addr != NULL &&
 			    ifa->ifa_addr->sa_family == AF_INET)
-				arp_ifinit((struct arpcom *)ifp, ifa);
+				arp_ifinit(ifp, ifa);
 		}
 #endif
 	}
