@@ -1,4 +1,4 @@
-#	$Id: options.pc98,v 1.8.2.18 1998/03/05 02:57:03 kato Exp $
+#	$Id: options.pc98,v 1.8.2.19 1998/08/10 16:58:18 kato Exp $
 BOUNCEPAGES		opt_bounce.h
 USER_LDT
 MATH_EMULATE		opt_math_emulate.h
@@ -59,7 +59,7 @@ MAXCONS			opt_syscons.h
 SLOW_VGA		opt_syscons.h
 SC_HISTORY_SIZE		opt_syscons.h
 SC_DISABLE_REBOOT	opt_syscons.h
-SC_BAD_FLICKER          opt_syscons.h
+SC_ALT_SEQACCESS        opt_syscons.h
 
 PSM_HOOKAPM		opt_psm.h
 PSM_RESETAFTERSUSPEND	opt_psm.h
