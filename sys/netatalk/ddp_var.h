@@ -32,7 +32,6 @@ struct ddpstat {
 
 #ifdef _KERNEL
 extern int	ddp_cksum;
-extern struct ddpcb		*ddp_ports[ ];
 extern struct ddpcb		*ddpcb;
 extern struct pr_usrreqs	ddp_usrreqs;
 #endif
