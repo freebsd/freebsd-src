@@ -212,8 +212,7 @@ intr_execute_handlers(struct intsrc *isrc, struct intrframe *iframe)
 		 * For stray and threaded interrupts, we mask and EOI the
 		 * source.
 		 */
-		isrc->is_pic->pic_disable_source(isrc);
-		isrc->is_pic->pic_eoi_source(isrc);
+		isrc->is_pic->pic_disable_source(isrc, PIC_EOI);
 		if (ih == NULL)
 			error = EINVAL;
 		else
