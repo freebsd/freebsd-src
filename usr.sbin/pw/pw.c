@@ -153,14 +153,16 @@ main(int argc, char *argv[])
 			} else
 				break;
 		}
-		else if ((tmp = getindex(Modes, argv[1])) != -1)
+		else if (mode == -1 && (tmp = getindex(Modes, argv[1])) != -1)
 			mode = tmp;
-		else if ((tmp = getindex(Which, argv[1])) != -1)
+		else if (which == -1 && (tmp = getindex(Which, argv[1])) != -1)
 			which = tmp;
-		else if ((tmp = getindex(Combo1, argv[1])) != -1 || (tmp = getindex(Combo2, argv[1])) != -1) {
+		else if ((mode == -1 && which == -1) &&
+			 ((tmp = getindex(Combo1, argv[1])) != -1 ||
+			  (tmp = getindex(Combo2, argv[1])) != -1)) {
 			which = tmp / M_NUM;
 			mode = tmp % M_NUM;
-		} else if (strcmp(argv[1], "help") == 0)
+		} else if (strcmp(argv[1], "help") == 0 && argv[2] == NULL)
 			cmdhelp(mode, which);
 		else if (which != -1 && mode != -1)
 			addarg(&arglist, 'n', argv[1]);
