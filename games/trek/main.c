@@ -129,7 +129,7 @@ int	Mother	= 51 + (51 << 8);
 **
 **	Many things in trek are not as clear as they might be, but are
 **	done to reduce space.  I compile with the -f and -O flags.  I
-**	am constrained to running with non-seperated I/D space, since
+**	am constrained to running with non-separated I/D space, since
 **	we don't have doubleing point hardware here; even if we did, I
 **	would like trek to be available to the large number of people
 **	who either have an 11/40 or do not have FP hardware.  I also
